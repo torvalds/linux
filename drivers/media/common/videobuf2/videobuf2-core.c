@@ -932,9 +932,9 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	dprintk(4, "done processing on buffer %d, state: %d\n",
 			vb->index, state);
 
-	if (state != VB2_BUF_STATE_QUEUED &&
-	    state != VB2_BUF_STATE_REQUEUEING) {
-		/* sync buffers */
+	if ((state != VB2_BUF_STATE_QUEUED &&
+	     state != VB2_BUF_STATE_REQUEUEING) &&
+	    vb->need_cache_sync_on_finish) {
 		for (plane = 0; plane < vb->num_planes; ++plane)
 			call_void_memop(vb, finish, vb->planes[plane].mem_priv);
 	}
@@ -1291,9 +1291,11 @@ static int __buf_prepare(struct vb2_buffer *vb, const void *pb)
 		return ret;
 	}
 
-	/* sync buffers */
-	for (plane = 0; plane < vb->num_planes; ++plane)
-		call_void_memop(vb, prepare, vb->planes[plane].mem_priv);
+	if (vb->need_cache_sync_on_prepare) {
+		for (plane = 0; plane < vb->num_planes; ++plane)
+			call_void_memop(vb, prepare,
+					vb->planes[plane].mem_priv);
+	}
 
 	vb->state = VB2_BUF_STATE_PREPARED;
 
@@ -1727,8 +1729,9 @@ static void __vb2_queue_cancel(struct vb2_queue *q)
 	for (i = 0; i < q->num_buffers; ++i) {
 		struct vb2_buffer *vb = q->bufs[i];
 
-		if (vb->state == VB2_BUF_STATE_PREPARED ||
-		    vb->state == VB2_BUF_STATE_QUEUED) {
+		if ((vb->state == VB2_BUF_STATE_PREPARED ||
+		     vb->state == VB2_BUF_STATE_QUEUED) &&
+		    vb->need_cache_sync_on_finish) {
 			unsigned int plane;
 
 			for (plane = 0; plane < vb->num_planes; ++plane)
