@@ -667,9 +667,11 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 	if (!mpext->dsn64) {
 		map_seq = expand_seq(subflow->map_seq, subflow->map_data_len,
 				     mpext->data_seq);
+		subflow->use_64bit_ack = 0;
 		pr_debug("expanded seq=%llu", subflow->map_seq);
 	} else {
 		map_seq = mpext->data_seq;
+		subflow->use_64bit_ack = 1;
 	}
 
 	if (subflow->map_valid) {
