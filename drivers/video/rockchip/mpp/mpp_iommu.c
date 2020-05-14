@@ -477,11 +477,10 @@ int mpp_iommu_enable(struct mpp_rk_iommu *iommu)
 {
 	int i;
 
-	/* iommu should be paging disable */
-	if (mpp_iommu_is_paged(iommu)) {
-		mpp_err("iommu disable failed\n");
-		return -ENOMEM;
-	}
+	/* check iommu whether is paged */
+	iommu->is_paged = mpp_iommu_is_paged(iommu);
+	if (iommu->is_paged)
+		return 0;
 
 	/* enable stall */
 	for (i = 0; i < iommu->mmu_num; i++)
@@ -520,7 +519,8 @@ int mpp_iommu_enable(struct mpp_rk_iommu *iommu)
 	/* iommu should be paging enable */
 	iommu->is_paged = mpp_iommu_is_paged(iommu);
 	if (!iommu->is_paged) {
-		mpp_err("iommu enable failed\n");
+		mpp_err("iommu->base_addr=%08x enable failed\n",
+			iommu->base_addr[0]);
 		return -EINVAL;
 	}
 
