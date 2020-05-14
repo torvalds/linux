@@ -837,6 +837,38 @@ int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 	return rc;
 }
 
+void qed_hw_err_notify(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       enum qed_hw_err_type err_type, char *fmt, ...)
+{
+	char buf[QED_HW_ERR_MAX_STR_SIZE];
+	va_list vl;
+	int len;
+
+	if (fmt) {
+		va_start(vl, fmt);
+		len = vsnprintf(buf, QED_HW_ERR_MAX_STR_SIZE, fmt, vl);
+		va_end(vl);
+
+		if (len > QED_HW_ERR_MAX_STR_SIZE - 1)
+			len = QED_HW_ERR_MAX_STR_SIZE - 1;
+
+		DP_NOTICE(p_hwfn, "%s", buf);
+	}
+
+	/* Fan failure cannot be masked by handling of another HW error */
+	if (p_hwfn->cdev->recov_in_prog &&
+	    err_type != QED_HW_ERR_FAN_FAIL) {
+		DP_VERBOSE(p_hwfn,
+			   NETIF_MSG_DRV,
+			   "Recovery is in progress. Avoid notifying about HW error %d.\n",
+			   err_type);
+		return;
+	}
+
+	qed_hw_error_occurred(p_hwfn, err_type);
+}
+
 int qed_dmae_sanity(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt, const char *phase)
 {
