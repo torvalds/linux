@@ -278,6 +278,14 @@ struct qede_dev {
 	struct qede_rdma_dev		rdma_info;
 
 	struct bpf_prog *xdp_prog;
+
+	unsigned long err_flags;
+#define QEDE_ERR_IS_HANDLED	31
+#define QEDE_ERR_ATTN_CLR_EN	0
+#define QEDE_ERR_GET_DBG_INFO	1
+#define QEDE_ERR_IS_RECOVERABLE	2
+#define QEDE_ERR_WARN		3
+
 	struct qede_dump_info		dump_info;
 };
 
@@ -485,12 +493,15 @@ struct qede_fastpath {
 
 #define QEDE_SP_RECOVERY		0
 #define QEDE_SP_RX_MODE			1
+#define QEDE_SP_RSVD1                   2
+#define QEDE_SP_RSVD2                   3
+#define QEDE_SP_HW_ERR                  4
+#define QEDE_SP_ARFS_CONFIG             5
 #define QEDE_SP_AER			7
 
 #ifdef CONFIG_RFS_ACCEL
 int qede_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		       u16 rxq_index, u32 flow_id);
-#define QEDE_SP_ARFS_CONFIG	4
 #define QEDE_SP_TASK_POLL_DELAY	(5 * HZ)
 #endif
 
