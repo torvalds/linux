@@ -1789,7 +1789,7 @@
 		nvmem-cells = <&performance>, <&performance_w>;
 		nvmem-cell-names = "performance", "performance-w";
 		rockchip,bin-scaling-sel = <
-			0               59
+			0               55
 			1               59
 			2               61
 			3               61
