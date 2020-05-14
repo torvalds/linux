@@ -273,8 +273,8 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		NEW_AUX_ENT(AT_BASE_PLATFORM,
 			    (elf_addr_t)(unsigned long)u_base_platform);
 	}
-	if (bprm->interp_flags & BINPRM_FLAGS_EXECFD) {
-		NEW_AUX_ENT(AT_EXECFD, bprm->interp_data);
+	if (bprm->have_execfd) {
+		NEW_AUX_ENT(AT_EXECFD, bprm->execfd);
 	}
 #undef NEW_AUX_ENT
 	/* AT_NULL is zero; clear the rest too */

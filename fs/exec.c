@@ -1323,7 +1323,10 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 */
 	set_mm_exe_file(bprm->mm, bprm->file);
 
+	/* If the binary is not readable then enforce mm->dumpable=0 */
 	would_dump(bprm, bprm->file);
+	if (bprm->have_execfd)
+		would_dump(bprm, bprm->executable);
 
 	/*
 	 * Release all of the old mmap stuff
@@ -1427,6 +1430,16 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * credentials; any time after this it may be unlocked.
 	 */
 	security_bprm_committed_creds(bprm);
+
+	/* Pass the opened binary to the interpreter. */
+	if (bprm->have_execfd) {
+		retval = get_unused_fd_flags(0);
+		if (retval < 0)
+			goto out_unlock;
+		fd_install(retval, bprm->executable);
+		bprm->executable = NULL;
+		bprm->execfd = retval;
+	}
 	return 0;
 
 out_unlock:
@@ -1516,6 +1529,8 @@ static void free_bprm(struct linux_binprm *bprm)
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+	if (bprm->executable)
+		fput(bprm->executable);
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);

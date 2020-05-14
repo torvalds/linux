@@ -628,10 +628,10 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 			    (elf_addr_t) (unsigned long) u_base_platform);
 	}
 
-	if (bprm->interp_flags & BINPRM_FLAGS_EXECFD) {
+	if (bprm->have_execfd) {
 		nr = 0;
 		csp -= 2 * sizeof(unsigned long);
-		NEW_AUX_ENT(AT_EXECFD, bprm->interp_data);
+		NEW_AUX_ENT(AT_EXECFD, bprm->execfd);
 	}
 
 	nr = 0;

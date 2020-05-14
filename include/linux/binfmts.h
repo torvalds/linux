@@ -26,6 +26,9 @@ struct linux_binprm {
 	unsigned long p; /* current top of mem */
 	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
+		/* Should an execfd be passed to userspace? */
+		have_execfd:1,
+
 		/* It is safe to use the creds of a script (see binfmt_misc) */
 		preserve_creds:1,
 		/*
@@ -48,6 +51,7 @@ struct linux_binprm {
 	unsigned int taso:1;
 #endif
 	unsigned int recursion_depth; /* only for search_binary_handler() */
+	struct file * executable; /* Executable to pass to the interpreter */
 	struct file * file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -58,7 +62,7 @@ struct linux_binprm {
 				   of the time same as filename, but could be
 				   different for binfmt_{misc,script} */
 	unsigned interp_flags;
-	unsigned interp_data;
+	int execfd;		/* File descriptor of the executable */
 	unsigned long loader, exec;
 
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
@@ -68,10 +72,6 @@ struct linux_binprm {
 
 #define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0
 #define BINPRM_FLAGS_ENFORCE_NONDUMP (1 << BINPRM_FLAGS_ENFORCE_NONDUMP_BIT)
-
-/* fd of the binary should be passed to the interpreter */
-#define BINPRM_FLAGS_EXECFD_BIT 1
-#define BINPRM_FLAGS_EXECFD (1 << BINPRM_FLAGS_EXECFD_BIT)
 
 /* filename of the binary will be inaccessible after exec */
 #define BINPRM_FLAGS_PATH_INACCESSIBLE_BIT 2
