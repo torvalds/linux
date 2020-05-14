@@ -73,7 +73,8 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	query_flags &= KSTAT_QUERY_FLAGS;
 
 	/* allow the fs to override these if it really wants to */
-	if (IS_NOATIME(inode))
+	/* SB_NOATIME means filesystem supplies dummy atime value */
+	if (inode->i_sb->s_flags & SB_NOATIME)
 		stat->result_mask &= ~STATX_ATIME;
 	if (IS_AUTOMOUNT(inode))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
