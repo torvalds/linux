@@ -139,10 +139,12 @@ static void qede_shutdown(struct pci_dev *pdev);
 static void qede_link_update(void *dev, struct qed_link_output *link);
 static void qede_schedule_recovery_handler(void *dev);
 static void qede_recovery_handler(struct qede_dev *edev);
+static void qede_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type);
 static void qede_get_eth_tlv_data(void *edev, void *data);
 static void qede_get_generic_tlv_data(void *edev,
 				      struct qed_generic_tlvs *data);
-
+static void qede_generic_hw_err_handler(struct qede_dev *edev);
 #ifdef CONFIG_QED_SRIOV
 static int qede_set_vf_vlan(struct net_device *ndev, int vf, u16 vlan, u8 qos,
 			    __be16 vlan_proto)
@@ -230,6 +232,7 @@ static struct qed_eth_cb_ops qede_ll_ops = {
 #endif
 		.link_update = qede_link_update,
 		.schedule_recovery_handler = qede_schedule_recovery_handler,
+		.schedule_hw_err_handler = qede_schedule_hw_err_handler,
 		.get_generic_tlv_data = qede_get_generic_tlv_data,
 		.get_protocol_tlv_data = qede_get_eth_tlv_data,
 	},
@@ -536,6 +539,51 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
+static void qede_tx_log_print(struct qede_dev *edev, struct qede_tx_queue *txq)
+{
+	DP_NOTICE(edev,
+		  "Txq[%d]: FW cons [host] %04x, SW cons %04x, SW prod %04x [Jiffies %lu]\n",
+		  txq->index, le16_to_cpu(*txq->hw_cons_ptr),
+		  qed_chain_get_cons_idx(&txq->tx_pbl),
+		  qed_chain_get_prod_idx(&txq->tx_pbl),
+		  jiffies);
+}
+
+static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
+{
+	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_tx_queue *txq;
+	int cos;
+
+	netif_carrier_off(dev);
+	DP_NOTICE(edev, "TX timeout on queue %u!\n", txqueue);
+
+	if (!(edev->fp_array[txqueue].type & QEDE_FASTPATH_TX))
+		return;
+
+	for_each_cos_in_txq(edev, cos) {
+		txq = &edev->fp_array[txqueue].txq[cos];
+
+		if (qed_chain_get_cons_idx(&txq->tx_pbl) !=
+		    qed_chain_get_prod_idx(&txq->tx_pbl))
+			qede_tx_log_print(edev, txq);
+	}
+
+	if (IS_VF(edev))
+		return;
+
+	if (test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
+	    edev->state == QEDE_STATE_RECOVERY) {
+		DP_INFO(edev,
+			"Avoid handling a Tx timeout while another HW error is being handled\n");
+		return;
+	}
+
+	set_bit(QEDE_ERR_GET_DBG_INFO, &edev->err_flags);
+	set_bit(QEDE_SP_HW_ERR, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+}
+
 static int qede_setup_tc(struct net_device *ndev, u8 num_tc)
 {
 	struct qede_dev *edev = netdev_priv(ndev);
@@ -623,6 +671,7 @@ static const struct net_device_ops qede_netdev_ops = {
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_change_mtu = qede_change_mtu,
 	.ndo_do_ioctl = qede_ioctl,
+	.ndo_tx_timeout = qede_tx_timeout,
 #ifdef CONFIG_QED_SRIOV
 	.ndo_set_vf_mac = qede_set_vf_mac,
 	.ndo_set_vf_vlan = qede_set_vf_vlan,
@@ -1009,6 +1058,8 @@ static void qede_sp_task(struct work_struct *work)
 			qede_process_arfs_filters(edev, false);
 	}
 #endif
+	if (test_and_clear_bit(QEDE_SP_HW_ERR, &edev->sp_flags))
+		qede_generic_hw_err_handler(edev);
 	__qede_unlock(edev);
 
 	if (test_and_clear_bit(QEDE_SP_AER, &edev->sp_flags)) {
@@ -2507,6 +2558,100 @@ static void qede_recovery_handler(struct qede_dev *edev)
 
 err:
 	qede_recovery_failed(edev);
+}
+
+static void qede_atomic_hw_err_handler(struct qede_dev *edev)
+{
+	struct qed_dev *cdev = edev->cdev;
+
+	DP_NOTICE(edev,
+		  "Generic non-sleepable HW error handling started - err_flags 0x%lx\n",
+		  edev->err_flags);
+
+	/* Get a call trace of the flow that led to the error */
+	WARN_ON(test_bit(QEDE_ERR_WARN, &edev->err_flags));
+
+	/* Prevent HW attentions from being reasserted */
+	if (test_bit(QEDE_ERR_ATTN_CLR_EN, &edev->err_flags))
+		edev->ops->common->attn_clr_enable(cdev, true);
+
+	DP_NOTICE(edev, "Generic non-sleepable HW error handling is done\n");
+}
+
+static void qede_generic_hw_err_handler(struct qede_dev *edev)
+{
+	struct qed_dev *cdev = edev->cdev;
+
+	DP_NOTICE(edev,
+		  "Generic sleepable HW error handling started - err_flags 0x%lx\n",
+		  edev->err_flags);
+
+	/* Trigger a recovery process.
+	 * This is placed in the sleep requiring section just to make
+	 * sure it is the last one, and that all the other operations
+	 * were completed.
+	 */
+	if (test_bit(QEDE_ERR_IS_RECOVERABLE, &edev->err_flags))
+		edev->ops->common->recovery_process(cdev);
+
+	clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
+
+	DP_NOTICE(edev, "Generic sleepable HW error handling is done\n");
+}
+
+static void qede_set_hw_err_flags(struct qede_dev *edev,
+				  enum qed_hw_err_type err_type)
+{
+	unsigned long err_flags = 0;
+
+	switch (err_type) {
+	case QED_HW_ERR_DMAE_FAIL:
+		set_bit(QEDE_ERR_WARN, &err_flags);
+		fallthrough;
+	case QED_HW_ERR_MFW_RESP_FAIL:
+	case QED_HW_ERR_HW_ATTN:
+	case QED_HW_ERR_RAMROD_FAIL:
+	case QED_HW_ERR_FW_ASSERT:
+		set_bit(QEDE_ERR_ATTN_CLR_EN, &err_flags);
+		set_bit(QEDE_ERR_GET_DBG_INFO, &err_flags);
+		break;
+
+	default:
+		DP_NOTICE(edev, "Unexpected HW error [%d]\n", err_type);
+		break;
+	}
+
+	edev->err_flags |= err_flags;
+}
+
+static void qede_schedule_hw_err_handler(void *dev,
+					 enum qed_hw_err_type err_type)
+{
+	struct qede_dev *edev = dev;
+
+	/* Fan failure cannot be masked by handling of another HW error or by a
+	 * concurrent recovery process.
+	 */
+	if ((test_and_set_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags) ||
+	     edev->state == QEDE_STATE_RECOVERY) &&
+	     err_type != QED_HW_ERR_FAN_FAIL) {
+		DP_INFO(edev,
+			"Avoid scheduling an error handling while another HW error is being handled\n");
+		return;
+	}
+
+	if (err_type >= QED_HW_ERR_LAST) {
+		DP_NOTICE(edev, "Unknown HW error [%d]\n", err_type);
+		clear_bit(QEDE_ERR_IS_HANDLED, &edev->err_flags);
+		return;
+	}
+
+	qede_set_hw_err_flags(edev, err_type);
+	qede_atomic_hw_err_handler(edev);
+	set_bit(QEDE_SP_HW_ERR, &edev->sp_flags);
+	schedule_delayed_work(&edev->sp_task, 0);
+
+	DP_INFO(edev, "Scheduled a error handler [err_type %d]\n", err_type);
 }
 
 static bool qede_is_txq_full(struct qede_dev *edev, struct qede_tx_queue *txq)
