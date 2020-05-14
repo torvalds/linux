@@ -1360,7 +1360,7 @@ static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
 	/* Burst unit is 4kB */
 	burst = DIV_ROUND_UP(cbs_qopt->hicredit, 4096);
 	/* Avoid using zero burst size */
-	burst = clamp_t(u32, rate, 1, GENMASK(5, 0));
+	burst = clamp_t(u32, burst, 1, GENMASK(5, 0));
 	ocelot_write_gix(ocelot,
 			 QSYS_CIR_CFG_CIR_RATE(rate) |
 			 QSYS_CIR_CFG_CIR_BURST(burst),
