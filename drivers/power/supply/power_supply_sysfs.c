@@ -477,6 +477,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(operating_freq),
 	POWER_SUPPLY_ATTR(aicl_delay),
 	POWER_SUPPLY_ATTR(aicl_icl),
+	POWER_SUPPLY_ATTR(rtx),
 	POWER_SUPPLY_ATTR(cutoff_soc),
 	POWER_SUPPLY_ATTR(sys_soc),
 	POWER_SUPPLY_ATTR(batt_soc),
