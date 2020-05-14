@@ -2487,8 +2487,8 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 {
 	struct drm_dp_vsc_sdp *vsc = &crtc_state->infoframes.vsc;
 
-	/* When PSR is enabled, VSC SDP is handled by PSR routine */
-	if (intel_psr_enabled(intel_dp))
+	/* When a crtc state has PSR, VSC SDP will be handled by PSR routine */
+	if (crtc_state->has_psr)
 		return;
 
 	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
@@ -2498,6 +2498,42 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	vsc->sdp_type = DP_SDP_VSC;
 	intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
 					 &crtc_state->infoframes.vsc);
+}
+
+void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state,
+				  struct drm_dp_vsc_sdp *vsc)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	vsc->sdp_type = DP_SDP_VSC;
+
+	if (dev_priv->psr.psr2_enabled) {
+		if (dev_priv->psr.colorimetry_support &&
+		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
+			/* [PSR2, +Colorimetry] */
+			intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
+							 vsc);
+		} else {
+			/*
+			 * [PSR2, -Colorimetry]
+			 * Prepare VSC Header for SU as per eDP 1.4 spec, Table 6-11
+			 * 3D stereo + PSR/PSR2 + Y-coordinate.
+			 */
+			vsc->revision = 0x4;
+			vsc->length = 0xe;
+		}
+	} else {
+		/*
+		 * [PSR1]
+		 * Prepare VSC Header for SU as per DP 1.4 spec, Table 2-118
+		 * VSC SDP supporting 3D stereo + PSR (applies to eDP v1.3 or
+		 * higher).
+		 */
+		vsc->revision = 0x2;
+		vsc->length = 0x8;
+	}
 }
 
 static void
@@ -4791,6 +4827,13 @@ static ssize_t intel_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	sdp->sdp_header.HB2 = vsc->revision; /* Revision Number */
 	sdp->sdp_header.HB3 = vsc->length; /* Number of Valid Data Bytes */
 
+	/*
+	 * Only revision 0x5 supports Pixel Encoding/Colorimetry Format as
+	 * per DP 1.4a spec.
+	 */
+	if (vsc->revision != 0x5)
+		goto out;
+
 	/* VSC SDP Payload for DB16 through DB18 */
 	/* Pixel Encoding and Colorimetry Formats  */
 	sdp->db[16] = (vsc->pixelformat & 0xf) << 4; /* DB16[7:4] */
@@ -4823,6 +4866,7 @@ static ssize_t intel_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	/* Content Type */
 	sdp->db[18] = vsc->content_type & 0x7;
 
+out:
 	return length;
 }
 
@@ -4933,6 +4977,24 @@ static void intel_write_dp_sdp(struct intel_encoder *encoder,
 		return;
 
 	intel_dig_port->write_infoframe(encoder, crtc_state, type, &sdp, len);
+}
+
+void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    struct drm_dp_vsc_sdp *vsc)
+{
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct dp_sdp sdp = {};
+	ssize_t len;
+
+	len = intel_dp_vsc_sdp_pack(vsc, &sdp, sizeof(sdp));
+
+	if (drm_WARN_ON(&dev_priv->drm, len < 0))
+		return;
+
+	intel_dig_port->write_infoframe(encoder, crtc_state, DP_SDP_VSC,
+					&sdp, len);
 }
 
 void intel_dp_set_infoframes(struct intel_encoder *encoder,
