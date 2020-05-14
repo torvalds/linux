@@ -663,8 +663,6 @@ xfs_iread(
 	if (error)
 		goto out_brelse;
 
-	ip->i_delayed_blks = 0;
-
 	/*
 	 * Mark the buffer containing the inode as something to keep
 	 * around for a while.  This helps to keep recently accessed
