@@ -361,6 +361,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct clk *reg_clk = xhci->reg_clk;
 	struct usb_hcd *shared_hcd = xhci->shared_hcd;
 
+	pm_runtime_get_sync(&dev->dev);
 	xhci->xhc_state |= XHCI_STATE_REMOVING;
 
 	usb_remove_hcd(shared_hcd);
@@ -374,8 +375,9 @@ static int xhci_plat_remove(struct platform_device *dev)
 	clk_disable_unprepare(reg_clk);
 	usb_put_hcd(hcd);
 
-	pm_runtime_set_suspended(&dev->dev);
 	pm_runtime_disable(&dev->dev);
+	pm_runtime_put_noidle(&dev->dev);
+	pm_runtime_set_suspended(&dev->dev);
 
 	return 0;
 }
