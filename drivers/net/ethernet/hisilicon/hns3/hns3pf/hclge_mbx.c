@@ -742,7 +742,7 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			ret = hclge_get_link_info(vport, req);
 			if (ret)
 				dev_err(&hdev->pdev->dev,
-					"PF fail(%d) to get link stat for VF\n",
+					"failed to inform link stat to VF, ret = %d\n",
 					ret);
 			break;
 		case HCLGE_MBX_QUEUE_RESET:

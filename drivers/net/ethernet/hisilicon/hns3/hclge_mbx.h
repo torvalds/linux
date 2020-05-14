@@ -24,7 +24,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_GET_RETA,		/* (VF -> PF) get RETA */
 	HCLGE_MBX_GET_RSS_KEY,		/* (VF -> PF) get RSS key */
 	HCLGE_MBX_GET_MAC_ADDR,		/* (VF -> PF) get MAC addr */
-	HCLGE_MBX_PF_VF_RESP,		/* (PF -> VF) generate respone to VF */
+	HCLGE_MBX_PF_VF_RESP,		/* (PF -> VF) generate response to VF */
 	HCLGE_MBX_GET_BDNUM,		/* (VF -> PF) get BD num */
 	HCLGE_MBX_GET_BUFSIZE,		/* (VF -> PF) get buffer size */
 	HCLGE_MBX_GET_STREAMID,		/* (VF -> PF) get stream id */
