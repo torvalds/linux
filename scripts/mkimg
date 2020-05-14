@@ -51,28 +51,35 @@ LOGO_PATH=${srctree}/logo.bmp
 LOGO_KERNEL_PATH=${srctree}/logo_kernel.bmp
 [ -f ${LOGO_KERNEL_PATH} ] && LOGO_KERNEL=logo_kernel.bmp
 
-RAMDISK_IMG_PATH=${objtree}/ramdisk.img
-[ -f ${RAMDISK_IMG_PATH} ] && RAMDISK_IMG=ramdisk.img && RAMDISK_ARG="--ramdisk ${RAMDISK_IMG_PATH}"
-
+KERNEL_IMAGE_PATH=${objtree}/arch/${ARCH}/boot/Image
+KERNEL_IMAGE_ARG="--kernel ${KERNEL_IMAGE_PATH}"
 if [ "${ARCH}" == "arm" ]; then
 	DTB_PATH=${objtree}/arch/arm/boot/dts/${DTB}
-	KERNEL_IMAGE_ARG="--kernel ${objtree}/arch/arm/boot/Image"
-	KERNEL_ZIMAGE_ARG="--kernel ${objtree}/arch/arm/boot/zImage"
+	KERNEL_ZIMAGE_PATH=${objtree}/arch/arm/boot/zImage
+	KERNEL_ZIMAGE_ARG="--kernel ${KERNEL_ZIMAGE_PATH}"
 	ZIMAGE=zImage
 else
 	DTB_PATH=${objtree}/arch/arm64/boot/dts/rockchip/${DTB}
-	KERNEL_IMAGE_ARG="--kernel ${objtree}/arch/arm64/boot/Image"
 	KERNEL_ZIMAGE_ARG="--kernel ${objtree}/arch/arm64/boot/Image.lz4"
 	ZIMAGE=Image.lz4
 fi
 if [ ! -f ${DTB_PATH} ]; then
-	echo "No dtb"
+	echo "No dtb" >&2
 	usage
 	exit 1
 fi
 
+OUT=out
+ITB=${BOOT_IMG}
+ITS=${OUT}/boot.its
+MKIMAGE=${MKIMAGE-"mkimage"}
+MKIMAGE_ARG="-E -p 0x800"
+
 make_boot_img()
 {
+	RAMDISK_IMG_PATH=${objtree}/ramdisk.img
+	[ -f ${RAMDISK_IMG_PATH} ] && RAMDISK_IMG=ramdisk.img && RAMDISK_ARG="--ramdisk ${RAMDISK_IMG_PATH}"
+
 	${srctree}/scripts/mkbootimg \
 		${KERNEL_IMAGE_ARG} \
 		${RAMDISK_ARG} \
@@ -90,19 +97,111 @@ make_boot_img()
 repack_boot_img()
 {
 	${srctree}/scripts/repack-bootimg \
-		--boot_img ${BOOT_IMG} --out out \
+		--boot_img ${BOOT_IMG} --out ${OUT} \
 		${KERNEL_IMAGE_ARG} \
 		--second resource.img \
 		--dtb ${DTB_PATH} \
 		-o boot.img &&
 	echo "  Image:  boot.img (${BOOT_IMG} + Image + resource.img) is ready";
 	${srctree}/scripts/repack-bootimg \
-		--boot_img ${BOOT_IMG} --out out \
+		--boot_img ${BOOT_IMG} --out ${OUT} \
 		${KERNEL_ZIMAGE_ARG} \
 		--second resource.img \
 		--dtb ${DTB_PATH} \
 		-o zboot.img && \
 	echo "  Image:  zboot.img (${BOOT_IMG} + ${ZIMAGE} + resource.img) is ready"
+}
+
+check_mkimage()
+{
+	MKIMAGE=$(type -path ${MKIMAGE})
+	if [ -z "${MKIMAGE}" ]; then
+		# Doesn't exist
+		echo '"mkimage" command not found - U-Boot images will not be built' >&2
+		exit 1;
+	fi
+}
+
+unpack_itb()
+{
+	mkdir -p ${OUT}
+	rm -f ${OUT}/fdt ${OUT}/kernel ${OUT}/resource
+
+	for NAME in $(fdtget -l ${ITB} /images)
+	do
+		# generate image
+		NODE="/images/${NAME}"
+		OFFS=$(fdtget -ti ${ITB} ${NODE} data-position)
+		SIZE=$(fdtget -ti ${ITB} ${NODE} data-size)
+		if [ -z ${OFFS} ]; then
+			continue;
+		fi
+
+		if [ ${SIZE} -ne 0 ]; then
+			dd if=${ITB} of=${OUT}/${NAME} bs=${SIZE} count=1 skip=${OFFS} iflag=skip_bytes >/dev/null 2>&1
+		else
+			touch ${OUT}/${NAME}
+		fi
+	done
+
+	[ ! -f ${OUT}/kernel ] && echo "FIT ${ITB} no kernel" >&2 && exit 1 || true
+}
+
+gen_its()
+{
+	TMP_ITB=${OUT}/boot.tmp
+
+	# add placeholder
+	cp -a ${ITB} ${TMP_ITB}
+	for NAME in $(fdtget -l ${ITB} /images); do
+		fdtput -t s ${TMP_ITB} /images/${NAME} data "/INCBIN/(${NAME})"
+	done
+	dtc -I dtb -O dts ${TMP_ITB} -o ${ITS} >/dev/null 2>&1
+	rm -f ${TMP_ITB}
+
+	# fixup placeholder: data = "/INCBIN/(...)"; -> data = /incbin/("...");
+	sed -i "s/\"\/INCBIN\/(\(.*\))\"/\/incbin\/(\"\1\")/" ${ITS}
+
+	# remove
+	sed -i "/memreserve/d"		${ITS}
+	sed -i "/timestamp/d"		${ITS}
+	sed -i "/data-size/d"		${ITS}
+	sed -i "/data-position/d"	${ITS}
+	sed -i "/value/d"		${ITS}
+	sed -i "/hashed-strings/d"	${ITS}
+	sed -i "/hashed-nodes/d"	${ITS}
+	sed -i "/signer-version/d"	${ITS}
+	sed -i "/signer-name/d"		${ITS}
+}
+
+gen_itb()
+{
+	[ -f ${OUT}/fdt ] && cp -a ${DTB_PATH} ${OUT}/fdt && FDT=" + ${DTB}"
+	[ -f ${OUT}/resource ] && cp -a resource.img ${OUT}/resource && RESOURCE=" + resource.img"
+	COMP=$(fdtget ${ITB} /images/kernel compression)
+	case "${COMP}" in
+		gzip)	EXT=".gz";;
+		lz4)	EXT=".lz4";;
+		bzip2)	EXT=".bz2";;
+		lzma)	EXT=".lzma";;
+		lzo)	EXT=".lzo";;
+	esac
+	cp -a ${KERNEL_IMAGE_PATH}${EXT} ${OUT}/kernel && \
+	${MKIMAGE} ${MKIMAGE_ARG} -f ${ITS} boot.img >/dev/null && \
+	echo "  Image:  boot.img (FIT ${BOOT_IMG} + Image${EXT}${FDT}${RESOURCE}) is ready";
+	if [ "${EXT}" == "" ] && [ -f ${KERNEL_ZIMAGE_PATH} ]; then
+		cp -a ${KERNEL_ZIMAGE_PATH} ${OUT}/kernel && \
+		${MKIMAGE} ${MKIMAGE_ARG} -f ${ITS} zboot.img >/dev/null && \
+		echo "  Image:  zboot.img (FIT ${BOOT_IMG} + zImage${FDT}${RESOURCE}) is ready";
+	fi
+}
+
+repack_itb()
+{
+	check_mkimage
+	unpack_itb
+	gen_its
+	gen_itb
 }
 
 if [ -x ${srctree}/scripts/bmpconvert ]; then
@@ -125,8 +224,12 @@ fi
 scripts/resource_tool ${DTB_PATH} ${LOGO} ${LOGO_KERNEL} >/dev/null
 echo "  Image:  resource.img (with ${DTB} ${LOGO} ${LOGO_KERNEL}) is ready"
 
-if [ -f "${BOOT_IMG}" -a -x ${srctree}/scripts/repack-bootimg ]; then
-	repack_boot_img;
+if [ -f "${BOOT_IMG}" ]; then
+	if file -p -b ${BOOT_IMG} | grep -q 'Device Tree Blob' ; then
+		repack_itb;
+	elif [ -x ${srctree}/scripts/repack-bootimg ]; then
+		repack_boot_img;
+	fi
 elif [ -x ${srctree}/scripts/mkbootimg ]; then
 	make_boot_img;
 fi
