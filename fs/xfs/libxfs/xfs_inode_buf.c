@@ -180,7 +180,7 @@ xfs_imap_to_bp(
 	return 0;
 }
 
-void
+int
 xfs_inode_from_disk(
 	struct xfs_inode	*ip,
 	struct xfs_dinode	*from)
@@ -241,6 +241,8 @@ xfs_inode_from_disk(
 		to->di_flags2 = be64_to_cpu(from->di_flags2);
 		to->di_cowextsize = be32_to_cpu(from->di_cowextsize);
 	}
+
+	return xfs_iformat_fork(ip, from);
 }
 
 void
@@ -641,8 +643,7 @@ xfs_iread(
 	 * Otherwise, just get the truly permanent information.
 	 */
 	if (dip->di_mode) {
-		xfs_inode_from_disk(ip, dip);
-		error = xfs_iformat_fork(ip, dip);
+		error = xfs_inode_from_disk(ip, dip);
 		if (error)  {
 #ifdef DEBUG
 			xfs_alert(mp, "%s: xfs_iformat() returned error %d",

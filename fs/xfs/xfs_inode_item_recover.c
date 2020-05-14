@@ -89,9 +89,8 @@ xfs_recover_inode_owner_change(
 
 	/* instantiate the inode */
 	ASSERT(dip->di_version >= 3);
-	xfs_inode_from_disk(ip, dip);
 
-	error = xfs_iformat_fork(ip, dip);
+	error = xfs_inode_from_disk(ip, dip);
 	if (error)
 		goto out_free_ip;
 
