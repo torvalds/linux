@@ -821,12 +821,11 @@ enum qed_nvm_flash_cmd {
 
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
-	void	(*link_update)(void			*dev,
-			       struct qed_link_output	*link);
+	void (*link_update)(void *dev, struct qed_link_output *link);
 	void (*schedule_recovery_handler)(void *dev);
 	void (*schedule_hw_err_handler)(void *dev,
 					enum qed_hw_err_type err_type);
-	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
+	void (*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
 	void (*get_protocol_tlv_data)(void *dev, void *data);
 };
