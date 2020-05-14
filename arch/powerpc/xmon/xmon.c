@@ -1399,6 +1399,10 @@ bpt_cmds(void)
 			printf("Hardware data breakpoint not supported on this cpu\n");
 			break;
 		}
+		if (dabr.enabled) {
+			printf("Couldn't find free breakpoint register\n");
+			break;
+		}
 		mode = 7;
 		cmd = inchar();
 		if (cmd == 'r')
