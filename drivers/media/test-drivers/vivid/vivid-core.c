@@ -169,6 +169,14 @@ MODULE_PARM_DESC(allocators, " memory allocator selection, default is 0.\n"
 			     "\t\t    0 == vmalloc\n"
 			     "\t\t    1 == dma-contig");
 
+static unsigned int cache_hints[VIVID_MAX_DEVS] = {
+	[0 ... (VIVID_MAX_DEVS - 1)] = 0
+};
+module_param_array(cache_hints, uint, NULL, 0444);
+MODULE_PARM_DESC(cache_hints, " user-space cache hints, default is 0.\n"
+			     "\t\t    0 == forbid\n"
+			     "\t\t    1 == allow");
+
 static struct vivid_dev *vivid_devs[VIVID_MAX_DEVS];
 
 const struct v4l2_rect vivid_min_rect = {
@@ -819,6 +827,7 @@ static int vivid_create_queue(struct vivid_dev *dev,
 	q->lock = &dev->mutex;
 	q->dev = dev->v4l2_dev.dev;
 	q->supports_requests = true;
+	q->allow_cache_hints = (cache_hints[dev->inst] == 1);
 
 	return vb2_queue_init(q);
 }
