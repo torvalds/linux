@@ -252,14 +252,14 @@ static void *drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem)
 	if (shmem->vmap_use_count++ > 0)
 		return shmem->vaddr;
 
-	ret = drm_gem_shmem_get_pages(shmem);
-	if (ret)
-		goto err_zero_use;
-
 	if (obj->import_attach) {
 		shmem->vaddr = dma_buf_vmap(obj->import_attach->dmabuf);
 	} else {
 		pgprot_t prot = PAGE_KERNEL;
+
+		ret = drm_gem_shmem_get_pages(shmem);
+		if (ret)
+			goto err_zero_use;
 
 		if (!shmem->map_cached)
 			prot = pgprot_writecombine(prot);
@@ -276,7 +276,8 @@ static void *drm_gem_shmem_vmap_locked(struct drm_gem_shmem_object *shmem)
 	return shmem->vaddr;
 
 err_put_pages:
-	drm_gem_shmem_put_pages(shmem);
+	if (!obj->import_attach)
+		drm_gem_shmem_put_pages(shmem);
 err_zero_use:
 	shmem->vmap_use_count = 0;
 
