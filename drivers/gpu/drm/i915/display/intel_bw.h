@@ -24,6 +24,13 @@ struct intel_bw_state {
 	 */
 	u8 pipe_sagv_reject;
 
+	/*
+	 * Current QGV points mask, which restricts
+	 * some particular SAGV states, not to confuse
+	 * with pipe_sagv_mask.
+	 */
+	u8 qgv_points_mask;
+
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
 
@@ -47,5 +54,7 @@ int intel_bw_init(struct drm_i915_private *dev_priv);
 int intel_bw_atomic_check(struct intel_atomic_state *state);
 void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state);
+int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
+				  u32 points_mask);
 
 #endif /* __INTEL_BW_H__ */
