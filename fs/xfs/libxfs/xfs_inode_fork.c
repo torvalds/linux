@@ -227,6 +227,7 @@ xfs_iformat_data_fork(
 	struct xfs_dinode	*dip)
 {
 	struct inode		*inode = VFS_I(ip);
+	int			error;
 
 	switch (inode->i_mode & S_IFMT) {
 	case S_IFIFO:
@@ -241,8 +242,11 @@ xfs_iformat_data_fork(
 	case S_IFDIR:
 		switch (dip->di_format) {
 		case XFS_DINODE_FMT_LOCAL:
-			return xfs_iformat_local(ip, dip, XFS_DATA_FORK,
+			error = xfs_iformat_local(ip, dip, XFS_DATA_FORK,
 					be64_to_cpu(dip->di_size));
+			if (!error)
+				error = xfs_ifork_verify_local_data(ip);
+			return error;
 		case XFS_DINODE_FMT_EXTENTS:
 			return xfs_iformat_extents(ip, dip, XFS_DATA_FORK);
 		case XFS_DINODE_FMT_BTREE:
@@ -282,6 +286,8 @@ xfs_iformat_attr_fork(
 	case XFS_DINODE_FMT_LOCAL:
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK,
 				xfs_dfork_attr_shortform_size(dip));
+		if (!error)
+			error = xfs_ifork_verify_local_attr(ip);
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
 		error = xfs_iformat_extents(ip, dip, XFS_ATTR_FORK);

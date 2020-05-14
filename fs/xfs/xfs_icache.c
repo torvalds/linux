@@ -543,13 +543,7 @@ xfs_iget_cache_miss(
 			goto out_destroy;
 	}
 
-	if (!xfs_inode_verify_forks(ip)) {
-		error = -EFSCORRUPTED;
-		goto out_destroy;
-	}
-
 	trace_xfs_iget_miss(ip);
-
 
 	/*
 	 * Check the inode free state is valid. This also detects lookup
