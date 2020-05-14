@@ -439,7 +439,7 @@ failed:
 }
 
 /*
- * dm_report_EIO() is a macro instead of a function to make pr_debug()
+ * dm_report_EIO() is a macro instead of a function to make pr_debug_ratelimited()
  * report the function name and line number of the function from which
  * it has been invoked.
  */
@@ -447,11 +447,11 @@ failed:
 do {									\
 	struct mapped_device *md = dm_table_get_md((m)->ti->table);	\
 									\
-	pr_debug("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d\n", \
-		 dm_device_name(md),					\
-		 test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
-		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags),	\
-		 dm_noflush_suspending((m)->ti));			\
+	DMDEBUG_LIMIT("%s: returning EIO; QIFNP = %d; SQIFNP = %d; DNFS = %d", \
+		      dm_device_name(md),				\
+		      test_bit(MPATHF_QUEUE_IF_NO_PATH, &(m)->flags),	\
+		      test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &(m)->flags), \
+		      dm_noflush_suspending((m)->ti));			\
 } while (0)
 
 /*
