@@ -21,10 +21,6 @@
 	aliases {
 		serial0 = &uart1;
 		serial1 = &uart3;
-		tcb0 = &tcb0;
-		tcb1 = &tcb1;
-		i2s0 = &i2s0;
-		i2s1 = &i2s1;
 	};
 
 	cpus {
