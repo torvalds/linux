@@ -16,6 +16,10 @@
 	model = "Atmel SAMA5D2 Xplained";
 	compatible = "atmel,sama5d2-xplained", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		serial0 = &uart1;	/* DBGU */
+	};
+
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
