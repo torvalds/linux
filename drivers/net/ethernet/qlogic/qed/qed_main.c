@@ -2491,10 +2491,14 @@ void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
 
 	DP_NOTICE(p_hwfn, "HW error occurred [%s]\n", err_str);
 
-	/* Call the HW error handler of the protocol driver
+	/* Call the HW error handler of the protocol driver.
+	 * If it is not available - perform a minimal handling of preventing
+	 * HW attentions from being reasserted.
 	 */
 	if (ops && ops->schedule_hw_err_handler)
 		ops->schedule_hw_err_handler(cookie, err_type);
+	else
+		qed_int_attn_clr_enable(p_hwfn->cdev, true);
 }
 
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
@@ -2718,6 +2722,7 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.set_led = &qed_set_led,
 	.recovery_process = &qed_recovery_process,
 	.recovery_prolog = &qed_recovery_prolog,
+	.attn_clr_enable = &qed_int_attn_clr_enable,
 	.update_drv_state = &qed_update_drv_state,
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,

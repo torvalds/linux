@@ -2516,12 +2516,18 @@ err:
 
 static void qede_atomic_hw_err_handler(struct qede_dev *edev)
 {
+	struct qed_dev *cdev = edev->cdev;
+
 	DP_NOTICE(edev,
 		  "Generic non-sleepable HW error handling started - err_flags 0x%lx\n",
 		  edev->err_flags);
 
 	/* Get a call trace of the flow that led to the error */
 	WARN_ON(test_bit(QEDE_ERR_WARN, &edev->err_flags));
+
+	/* Prevent HW attentions from being reasserted */
+	if (test_bit(QEDE_ERR_ATTN_CLR_EN, &edev->err_flags))
+		edev->ops->common->attn_clr_enable(cdev, true);
 
 	DP_NOTICE(edev, "Generic non-sleepable HW error handling is done\n");
 }

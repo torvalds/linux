@@ -838,6 +838,9 @@ struct qed_dev {
 	/* Recovery */
 	bool recov_in_prog;
 
+	/* Indicates whether should prevent attentions from being reasserted */
+	bool attn_clr_en;
+
 	/* LLH info */
 	u8 ppfid_bitmap;
 	struct qed_llh_info *p_llh_info;
