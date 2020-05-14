@@ -1660,8 +1660,10 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 {
 	struct vop_win *win = to_vop_win(plane);
 	struct vop *vop = to_vop(old_state->crtc);
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	struct vop_plane_state *vop_plane_state =
 					to_vop_plane_state(plane->state);
+#endif
 
 	if (!old_state->crtc)
 		return;
@@ -1679,8 +1681,10 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	    win->win_id == 2)
 		VOP_WIN_SET(vop, win, yrgb_mst, 0);
 
+#if defined(CONFIG_ROCKCHIP_DRM_DEBUG)
 	kfree(vop_plane_state->planlist);
 	vop_plane_state->planlist = NULL;
+#endif
 
 	spin_unlock(&vop->reg_lock);
 }
