@@ -14,12 +14,10 @@
   __kmalloc
   kmalloc_caches
   kmem_cache_alloc_trace
-  kstrdup
   ktime_get
   __list_add_valid
   __ll_sc_atomic64_andnot
   __ll_sc_atomic_add_return
-  memzero_explicit
   module_layout
   __mutex_init
   mutex_lock
@@ -37,7 +35,6 @@
   __stack_chk_fail
   __stack_chk_guard
   strcmp
-  strlen
   __udelay
 
 # required by arm-smmu.ko
@@ -82,23 +79,6 @@
   __platform_driver_register
   platform_driver_unregister
   put_device
-
-# required by dm-default-key.ko
-  bio_crypt_alloc_ctx
-  blk_crypto_evict_key
-  blk_crypto_init_key
-  blk_crypto_start_using_mode
-  dm_get_device
-  dm_put_device
-  dm_read_arg_group
-  dm_register_target
-  dm_shift_arg
-  dm_table_get_mode
-  dm_unregister_target
-  hex2bin
-  kzfree
-  scnprintf
-  sscanf
 
 # required by ufshcd-core.ko
   __alloc_workqueue_key
@@ -154,6 +134,7 @@
   keyslot_manager_destroy
   keyslot_manager_private
   keyslot_manager_reprogram_all_keys
+  keyslot_manager_set_max_dun_bytes
   kstrtouint
   kstrtoull
   __ll_sc_atomic64_fetch_andnot_release
@@ -161,6 +142,7 @@
   __ll_sc_atomic_sub_return
   memcpy
   memset
+  memzero_explicit
   __msecs_to_jiffies
   msleep
   perf_trace_buf_alloc
@@ -205,6 +187,7 @@
   sprintf
   strcpy
   strlcpy
+  strlen
   strncmp
   sysfs_create_groups
   sysfs_remove_groups
@@ -230,6 +213,7 @@
 
 # required by ufshcd-pltfrm.ko
   _dev_info
+  kstrdup
   of_get_property
   of_parse_phandle
   of_property_read_string_helper
