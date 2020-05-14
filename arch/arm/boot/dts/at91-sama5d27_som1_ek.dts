@@ -127,7 +127,6 @@
 
 				i2c3: i2c@600 {
 					dmas = <0>, <0>;
-					dma-names = "tx", "rx";
 					i2c-analog-filter;
 					i2c-digital-filter;
 					i2c-digital-filter-width-ns = <35>;
