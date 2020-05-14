@@ -3121,6 +3121,38 @@ union bpf_attr {
  * 		0 on success, or a negative error in case of failure:
  *
  *		**-EOVERFLOW** if an overflow happened: The same object will be tried again.
+ *
+ * u64 bpf_sk_cgroup_id(struct bpf_sock *sk)
+ *	Description
+ *		Return the cgroup v2 id of the socket *sk*.
+ *
+ *		*sk* must be a non-**NULL** pointer to a full socket, e.g. one
+ *		returned from **bpf_sk_lookup_xxx**\ (),
+ *		**bpf_sk_fullsock**\ (), etc. The format of returned id is
+ *		same as in **bpf_skb_cgroup_id**\ ().
+ *
+ *		This helper is available only if the kernel was compiled with
+ *		the **CONFIG_SOCK_CGROUP_DATA** configuration option.
+ *	Return
+ *		The id is returned or 0 in case the id could not be retrieved.
+ *
+ * u64 bpf_sk_ancestor_cgroup_id(struct bpf_sock *sk, int ancestor_level)
+ *	Description
+ *		Return id of cgroup v2 that is ancestor of cgroup associated
+ *		with the *sk* at the *ancestor_level*.  The root cgroup is at
+ *		*ancestor_level* zero and each step down the hierarchy
+ *		increments the level. If *ancestor_level* == level of cgroup
+ *		associated with *sk*, then return value will be same as that
+ *		of **bpf_sk_cgroup_id**\ ().
+ *
+ *		The helper is useful to implement policies based on cgroups
+ *		that are upper in hierarchy than immediate cgroup associated
+ *		with *sk*.
+ *
+ *		The format of returned id and helper limitations are same as in
+ *		**bpf_sk_cgroup_id**\ ().
+ *	Return
+ *		The id is returned or 0 in case the id could not be retrieved.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -3250,7 +3282,9 @@ union bpf_attr {
 	FN(sk_assign),			\
 	FN(ktime_get_boot_ns),		\
 	FN(seq_printf),			\
-	FN(seq_write),
+	FN(seq_write),			\
+	FN(sk_cgroup_id),		\
+	FN(sk_ancestor_cgroup_id),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
