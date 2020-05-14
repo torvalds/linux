@@ -7029,6 +7029,7 @@ static bool sock_addr_is_valid_access(int off, int size,
 	case bpf_ctx_range(struct bpf_sock_addr, msg_src_ip4):
 	case bpf_ctx_range_till(struct bpf_sock_addr, msg_src_ip6[0],
 				msg_src_ip6[3]):
+	case bpf_ctx_range(struct bpf_sock_addr, user_port):
 		if (type == BPF_READ) {
 			bpf_ctx_record_field_size(info, size_default);
 
@@ -7058,10 +7059,6 @@ static bool sock_addr_is_valid_access(int off, int size,
 			if (size != size_default)
 				return false;
 		}
-		break;
-	case bpf_ctx_range(struct bpf_sock_addr, user_port):
-		if (size != size_default)
-			return false;
 		break;
 	case offsetof(struct bpf_sock_addr, sk):
 		if (type != BPF_READ)
@@ -7958,8 +7955,8 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 					struct bpf_insn *insn_buf,
 					struct bpf_prog *prog, u32 *target_size)
 {
+	int off, port_size = sizeof_field(struct sockaddr_in6, sin6_port);
 	struct bpf_insn *insn = insn_buf;
-	int off;
 
 	switch (si->off) {
 	case offsetof(struct bpf_sock_addr, user_family):
@@ -7994,9 +7991,11 @@ static u32 sock_addr_convert_ctx_access(enum bpf_access_type type,
 			     offsetof(struct sockaddr_in6, sin6_port));
 		BUILD_BUG_ON(sizeof_field(struct sockaddr_in, sin_port) !=
 			     sizeof_field(struct sockaddr_in6, sin6_port));
-		SOCK_ADDR_LOAD_OR_STORE_NESTED_FIELD(struct bpf_sock_addr_kern,
-						     struct sockaddr_in6, uaddr,
-						     sin6_port, tmp_reg);
+		/* Account for sin6_port being smaller than user_port. */
+		port_size = min(port_size, BPF_LDST_BYTES(si));
+		SOCK_ADDR_LOAD_OR_STORE_NESTED_FIELD_SIZE_OFF(
+			struct bpf_sock_addr_kern, struct sockaddr_in6, uaddr,
+			sin6_port, bytes_to_bpf_size(port_size), 0, tmp_reg);
 		break;
 
 	case offsetof(struct bpf_sock_addr, family):
