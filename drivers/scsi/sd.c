@@ -2955,6 +2955,9 @@ static void sd_read_block_characteristics(struct scsi_disk *sdkp)
 			 * with partitions as regular block devices.
 			 */
 			q->limits.zoned = BLK_ZONED_NONE;
+			if (sdkp->zoned == 2 && sdkp->first_scan)
+				sd_printk(KERN_NOTICE, sdkp,
+					  "Drive-managed SMR disk\n");
 		}
 	}
 	if (blk_queue_is_zoned(q) && sdkp->first_scan)
