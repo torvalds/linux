@@ -22,7 +22,7 @@
 		serial0 = &uart0;	/* debug uart0 + mikro BUS 1 */
 		serial1 = &uart1;	/* mikro BUS 3 */
 		serial3 = &uart3;	/* mikro BUS 2 */
-		serial5 = &uart5;	/* flx2 */
+		serial5 = &uart7;	/* flx2 */
 		i2c0	= &i2c0;
 		i2c1	= &i2c1;
 	};
@@ -159,7 +159,7 @@
 	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
 	status = "okay";
 
-	uart5: serial@200 {
+	uart7: serial@200 {
 		compatible = "atmel,at91sam9260-usart";
 		reg = <0x200 0x200>;
 		interrupts = <21 IRQ_TYPE_LEVEL_HIGH 7>;
@@ -184,7 +184,7 @@
 	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
 	status = "okay";
 
-	spi3: spi@400 {
+	spi5: spi@400 {
 		compatible = "atmel,at91rm9200-spi";
 		reg = <0x400 0x200>;
 		interrupts = <22 IRQ_TYPE_LEVEL_HIGH 7>;
@@ -201,7 +201,7 @@
 	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
 	status = "okay";
 
-	i2c2: i2c@600 {
+	i2c6: i2c@600 {
 		compatible = "atmel,sama5d2-i2c";
 		reg = <0x600 0x200>;
 		interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;

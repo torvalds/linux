@@ -377,7 +377,7 @@
 				atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_TWI>;
 				status = "okay";
 
-				i2c2: i2c@600 {
+				i2c6: i2c@600 {
 					compatible = "atmel,sama5d2-i2c";
 					reg = <0x600 0x200>;
 					interrupts = <23 IRQ_TYPE_LEVEL_HIGH 7>;
