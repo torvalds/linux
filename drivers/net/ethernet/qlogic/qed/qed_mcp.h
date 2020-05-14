@@ -1016,6 +1016,19 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt, u32 mask_parities);
 
+/* @brief - Gets the mdump retained data from the MFW.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_mdump_retain
+ *
+ * @param return 0 upon success.
+ */
+int
+qed_mcp_mdump_get_retain(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct mdump_retain_data_stc *p_mdump_retain);
+
 /**
  * @brief - Sets the MFW's max value for the given resource
  *

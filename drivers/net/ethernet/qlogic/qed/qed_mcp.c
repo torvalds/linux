@@ -1717,6 +1717,116 @@ static void qed_mcp_handle_fan_failure(struct qed_hwfn *p_hwfn,
 			  "Fan failure was detected on the network interface card and it's going to be shut down.\n");
 }
 
+struct qed_mdump_cmd_params {
+	u32 cmd;
+	void *p_data_src;
+	u8 data_src_size;
+	void *p_data_dst;
+	u8 data_dst_size;
+	u32 mcp_resp;
+};
+
+static int
+qed_mcp_mdump_cmd(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt,
+		  struct qed_mdump_cmd_params *p_mdump_cmd_params)
+{
+	struct qed_mcp_mb_params mb_params;
+	int rc;
+
+	memset(&mb_params, 0, sizeof(mb_params));
+	mb_params.cmd = DRV_MSG_CODE_MDUMP_CMD;
+	mb_params.param = p_mdump_cmd_params->cmd;
+	mb_params.p_data_src = p_mdump_cmd_params->p_data_src;
+	mb_params.data_src_size = p_mdump_cmd_params->data_src_size;
+	mb_params.p_data_dst = p_mdump_cmd_params->p_data_dst;
+	mb_params.data_dst_size = p_mdump_cmd_params->data_dst_size;
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	if (rc)
+		return rc;
+
+	p_mdump_cmd_params->mcp_resp = mb_params.mcp_resp;
+
+	if (p_mdump_cmd_params->mcp_resp == FW_MSG_CODE_MDUMP_INVALID_CMD) {
+		DP_INFO(p_hwfn,
+			"The mdump sub command is unsupported by the MFW [mdump_cmd 0x%x]\n",
+			p_mdump_cmd_params->cmd);
+		rc = -EOPNOTSUPP;
+	} else if (p_mdump_cmd_params->mcp_resp == FW_MSG_CODE_UNSUPPORTED) {
+		DP_INFO(p_hwfn,
+			"The mdump command is not supported by the MFW\n");
+		rc = -EOPNOTSUPP;
+	}
+
+	return rc;
+}
+
+static int qed_mcp_mdump_ack(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
+{
+	struct qed_mdump_cmd_params mdump_cmd_params;
+
+	memset(&mdump_cmd_params, 0, sizeof(mdump_cmd_params));
+	mdump_cmd_params.cmd = DRV_MSG_CODE_MDUMP_ACK;
+
+	return qed_mcp_mdump_cmd(p_hwfn, p_ptt, &mdump_cmd_params);
+}
+
+int
+qed_mcp_mdump_get_retain(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct mdump_retain_data_stc *p_mdump_retain)
+{
+	struct qed_mdump_cmd_params mdump_cmd_params;
+	int rc;
+
+	memset(&mdump_cmd_params, 0, sizeof(mdump_cmd_params));
+	mdump_cmd_params.cmd = DRV_MSG_CODE_MDUMP_GET_RETAIN;
+	mdump_cmd_params.p_data_dst = p_mdump_retain;
+	mdump_cmd_params.data_dst_size = sizeof(*p_mdump_retain);
+
+	rc = qed_mcp_mdump_cmd(p_hwfn, p_ptt, &mdump_cmd_params);
+	if (rc)
+		return rc;
+
+	if (mdump_cmd_params.mcp_resp != FW_MSG_CODE_OK) {
+		DP_INFO(p_hwfn,
+			"Failed to get the mdump retained data [mcp_resp 0x%x]\n",
+			mdump_cmd_params.mcp_resp);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void qed_mcp_handle_critical_error(struct qed_hwfn *p_hwfn,
+					  struct qed_ptt *p_ptt)
+{
+	struct mdump_retain_data_stc mdump_retain;
+	int rc;
+
+	/* In CMT mode - no need for more than a single acknowledgment to the
+	 * MFW, and no more than a single notification to the upper driver.
+	 */
+	if (p_hwfn != QED_LEADING_HWFN(p_hwfn->cdev))
+		return;
+
+	rc = qed_mcp_mdump_get_retain(p_hwfn, p_ptt, &mdump_retain);
+	if (rc == 0 && mdump_retain.valid)
+		DP_NOTICE(p_hwfn,
+			  "The MFW notified that a critical error occurred in the device [epoch 0x%08x, pf 0x%x, status 0x%08x]\n",
+			  mdump_retain.epoch,
+			  mdump_retain.pf, mdump_retain.status);
+	else
+		DP_NOTICE(p_hwfn,
+			  "The MFW notified that a critical error occurred in the device\n");
+
+	DP_NOTICE(p_hwfn,
+		  "Acknowledging the notification to not allow the MFW crash dump [driver debug data collection is preferable]\n");
+	qed_mcp_mdump_ack(p_hwfn, p_ptt);
+
+	qed_hw_err_notify(p_hwfn, p_ptt, QED_HW_ERR_HW_ATTN, NULL);
+}
+
 void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct public_func shmem_info;
@@ -1865,6 +1975,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			break;
 		case MFW_DRV_MSG_FAILURE_DETECTED:
 			qed_mcp_handle_fan_failure(p_hwfn, p_ptt);
+			break;
+		case MFW_DRV_MSG_CRITICAL_ERROR_OCCURRED:
+			qed_mcp_handle_critical_error(p_hwfn, p_ptt);
 			break;
 		case MFW_DRV_MSG_GET_TLV_REQ:
 			qed_mfw_tlv_req(p_hwfn);

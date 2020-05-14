@@ -12400,6 +12400,13 @@ struct load_rsp_stc {
 #define LOAD_RSP_FLAGS0_DRV_EXISTS      (0x1 << 0)
 };
 
+struct mdump_retain_data_stc {
+	u32 valid;
+	u32 epoch;
+	u32 pf;
+	u32 status;
+};
+
 union drv_union_data {
 	u32 ver_str[MCP_DRV_VER_STR_SIZE_DWORD];
 	struct mcp_mac wol_mac;
@@ -12488,6 +12495,8 @@ struct public_drv_mb {
 #define DRV_MSG_CODE_BIST_TEST			0x001e0000
 #define DRV_MSG_CODE_SET_LED_MODE		0x00200000
 #define DRV_MSG_CODE_RESOURCE_CMD		0x00230000
+/* Send crash dump commands with param[3:0] - opcode */
+#define DRV_MSG_CODE_MDUMP_CMD			0x00250000
 #define DRV_MSG_CODE_GET_TLV_DONE		0x002f0000
 #define DRV_MSG_CODE_GET_ENGINE_CONFIG		0x00370000
 #define DRV_MSG_CODE_GET_PPFID_BITMAP		0x43000000
@@ -12518,6 +12527,21 @@ struct public_drv_mb {
 #define RESOURCE_OPCODE_UNKNOWN_CMD		255
 
 #define RESOURCE_DUMP				0
+
+/* DRV_MSG_CODE_MDUMP_CMD parameters */
+#define MDUMP_DRV_PARAM_OPCODE_MASK             0x0000000f
+#define DRV_MSG_CODE_MDUMP_ACK                  0x01
+#define DRV_MSG_CODE_MDUMP_SET_VALUES           0x02
+#define DRV_MSG_CODE_MDUMP_TRIGGER              0x03
+#define DRV_MSG_CODE_MDUMP_GET_CONFIG           0x04
+#define DRV_MSG_CODE_MDUMP_SET_ENABLE           0x05
+#define DRV_MSG_CODE_MDUMP_CLEAR_LOGS           0x06
+#define DRV_MSG_CODE_MDUMP_GET_RETAIN           0x07
+#define DRV_MSG_CODE_MDUMP_CLR_RETAIN           0x08
+
+#define DRV_MSG_CODE_HW_DUMP_TRIGGER            0x0a
+#define DRV_MSG_CODE_MDUMP_GEN_MDUMP2           0x0b
+#define DRV_MSG_CODE_MDUMP_FREE_MDUMP2          0x0c
 
 #define DRV_MSG_CODE_GET_PF_RDMA_PROTOCOL	0x002b0000
 #define DRV_MSG_CODE_OS_WOL			0x002e0000
@@ -12697,6 +12721,8 @@ struct public_drv_mb {
 #define FW_MSG_CODE_DEBUG_NOT_ENABLED		0xb00a0000
 #define FW_MSG_CODE_DEBUG_DATA_SEND_OK		0xb00b0000
 
+#define FW_MSG_CODE_MDUMP_INVALID_CMD		0x00030000
+
 	u32 fw_mb_param;
 #define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_MASK	0xFFFF0000
 #define FW_MB_PARAM_RESOURCE_ALLOC_VERSION_MAJOR_SHIFT	16
@@ -12763,7 +12789,7 @@ enum MFW_DRV_MSG_TYPE {
 	MFW_DRV_MSG_GET_RDMA_STATS,
 	MFW_DRV_MSG_FAILURE_DETECTED,
 	MFW_DRV_MSG_TRANSCEIVER_STATE_CHANGE,
-	MFW_DRV_MSG_BW_UPDATE11,
+	MFW_DRV_MSG_CRITICAL_ERROR_OCCURRED,
 	MFW_DRV_MSG_RESERVED,
 	MFW_DRV_MSG_GET_TLV_REQ,
 	MFW_DRV_MSG_OEM_CFG_UPDATE,
