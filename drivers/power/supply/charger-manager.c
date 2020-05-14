@@ -791,7 +791,6 @@ static int charger_get_property(struct power_supply *psy,
 				POWER_SUPPLY_PROP_CURRENT_NOW, val);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-	case POWER_SUPPLY_PROP_TEMP_AMBIENT:
 		return cm_get_battery_temperature(cm, &val->intval);
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (!is_batt_present(cm)) {
@@ -899,8 +898,7 @@ static enum power_supply_property default_charger_props[] = {
 	 * Optional properties are:
 	 * POWER_SUPPLY_PROP_CHARGE_NOW,
 	 * POWER_SUPPLY_PROP_CURRENT_NOW,
-	 * POWER_SUPPLY_PROP_TEMP, and
-	 * POWER_SUPPLY_PROP_TEMP_AMBIENT,
+	 * POWER_SUPPLY_PROP_TEMP,
 	 */
 };
 
@@ -1298,7 +1296,7 @@ static int cm_init_thermal_data(struct charger_manager *cm,
 			return PTR_ERR(cm->tzd_batt);
 
 		/* Use external thermometer */
-		properties[*num_properties] = POWER_SUPPLY_PROP_TEMP_AMBIENT;
+		properties[*num_properties] = POWER_SUPPLY_PROP_TEMP;
 		(*num_properties)++;
 		cm->desc->measure_battery_temp = true;
 		ret = 0;
