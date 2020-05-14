@@ -72,6 +72,24 @@
 			};
 		};
 
+		mdss@1a00000 {
+			dsi@1a98000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vdda-supply = <&pm8916_l2>;
+				vddio-supply = <&pm8916_l6>;
+
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&mdss_default>;
+				pinctrl-1 = <&mdss_sleep>;
+			};
+
+			dsi-phy@1a98300 {
+				vddio-supply = <&pm8916_l6>;
+			};
+		};
+
 		wcnss@a21b000 {
 			status = "okay";
 		};
@@ -195,6 +213,32 @@
 			pins = "gpio73";
 			drive-strength = <2>;
 			bias-disable;
+		};
+	};
+
+	pmx-mdss {
+		mdss_default: mdss-default {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		mdss_sleep: mdss-sleep {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
 	};
 };
