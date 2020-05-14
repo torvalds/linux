@@ -168,7 +168,7 @@
 };
 
 &msmgpio {
-	gpio_keys_default: gpio_keys_default {
+	gpio_keys_default: gpio-keys-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio107", "gpio109";
@@ -180,7 +180,7 @@
 		};
 	};
 
-	gpio_hall_sensor_default: gpio_hall_sensor_default {
+	gpio_hall_sensor_default: gpio-hall-sensor-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio52";
@@ -192,7 +192,7 @@
 		};
 	};
 
-	muic_int_default: muic_int_default {
+	muic_int_default: muic-int-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio12";

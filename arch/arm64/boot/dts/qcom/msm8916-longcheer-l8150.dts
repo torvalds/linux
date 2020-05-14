@@ -109,7 +109,7 @@
 };
 
 &msmgpio {
-	gpio_keys_default: gpio_keys_default {
+	gpio_keys_default: gpio-keys-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio107";
