@@ -1445,9 +1445,6 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	bd_num += ret;
 
-	if (!skb_has_frag_list(skb))
-		goto out;
-
 	skb_walk_frags(skb, frag_skb) {
 		ret = hns3_fill_skb_to_desc(ring, frag_skb,
 					    DESC_TYPE_FRAGLIST_SKB);
@@ -1456,7 +1453,7 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 		bd_num += ret;
 	}
-out:
+
 	pre_ntu = ring->next_to_use ? (ring->next_to_use - 1) :
 					(ring->desc_num - 1);
 	ring->desc[pre_ntu].tx.bdtp_fe_sc_vld_ra_ri |=
