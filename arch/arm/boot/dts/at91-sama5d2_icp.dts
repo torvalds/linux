@@ -167,6 +167,7 @@
 	status = "okay";
 
 	spi5: spi@400 {
+		dmas = <0>, <0>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_mikrobus1_spi &pinctrl_mikrobus1_spi_cs>;
 		status = "okay";
