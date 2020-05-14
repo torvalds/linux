@@ -2,9 +2,9 @@
 #include <test_progs.h>
 #include <network_helpers.h>
 
-void test_xdp_adjust_tail(void)
+void test_xdp_adjust_tail_shrink(void)
 {
-	const char *file = "./test_adjust_tail.o";
+	const char *file = "./test_xdp_adjust_tail_shrink.o";
 	struct bpf_object *obj;
 	char buf[128];
 	__u32 duration, retval, size;
@@ -27,4 +27,9 @@ void test_xdp_adjust_tail(void)
 	      "ipv6", "err %d errno %d retval %d size %d\n",
 	      err, errno, retval, size);
 	bpf_object__close(obj);
+}
+
+void test_xdp_adjust_tail(void)
+{
+	test_xdp_adjust_tail_shrink();
 }
