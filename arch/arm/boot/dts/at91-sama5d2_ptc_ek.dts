@@ -18,9 +18,9 @@
 	compatible = "atmel,sama5d2-ptc_ek", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
-		serial0 = &uart0;
-		i2c0	= &i2c0;
-		i2c1	= &i2c1;
+		serial0 = &uart0;	/* DBGU */
+		i2c0	= &i2c0;	/* mikroBUS 1 */
+		i2c1	= &i2c1;	/* XPRO EXT1 */
 		i2c2	= &i2c2;
 	};
 
