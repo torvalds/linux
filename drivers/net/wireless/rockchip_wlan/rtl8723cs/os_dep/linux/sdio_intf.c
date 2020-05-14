@@ -1121,7 +1121,7 @@ static int rtw_sdio_resume(struct device *dev)
 
 	pdbgpriv->dbg_resume_cnt++;
 
-#ifdef CONFIG_PLATFORM_INTEL_BYT
+#ifdef CONFIG_PLATFORM_ROCKCHIPS
 	if (0)
 #else
 	if (pwrpriv->wowlan_mode || pwrpriv->wowlan_ap_mode)
