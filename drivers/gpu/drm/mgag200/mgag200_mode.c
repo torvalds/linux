@@ -704,6 +704,8 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 
 static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
 {
+	u8 misc;
+
 	switch(mdev->type) {
 	case G200_SE_A:
 	case G200_SE_B:
@@ -724,6 +726,12 @@ static int mga_crtc_set_plls(struct mga_device *mdev, long clock)
 		return mga_g200er_set_plls(mdev, clock);
 		break;
 	}
+
+	misc = RREG8(MGA_MISC_IN);
+	misc &= ~MGAREG_MISC_CLK_SEL_MASK;
+	misc |= MGAREG_MISC_CLK_SEL_MGA_MSK;
+	WREG8(MGA_MISC_OUT, misc);
+
 	return 0;
 }
 
@@ -916,8 +924,7 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 {
 	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
 	unsigned int vdisplay, vsyncstart, vsyncend, vtotal;
-	u8 misc = 0;
-	u8 crtcext1, crtcext2, crtcext5;
+	u8 misc, crtcext1, crtcext2, crtcext5;
 
 	hdisplay = mode->hdisplay / 8 - 1;
 	hsyncstart = mode->hsync_start / 8 - 1;
@@ -933,10 +940,17 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	vsyncend = mode->vsync_end - 1;
 	vtotal = mode->vtotal - 2;
 
+	misc = RREG8(MGA_MISC_IN);
+
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		misc |= 0x40;
+		misc |= MGAREG_MISC_HSYNCPOL;
+	else
+		misc &= ~MGAREG_MISC_HSYNCPOL;
+
 	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		misc |= 0x80;
+		misc |= MGAREG_MISC_VSYNCPOL;
+	else
+		misc &= ~MGAREG_MISC_VSYNCPOL;
 
 	crtcext1 = (((htotal - 4) & 0x100) >> 8) |
 		   ((hdisplay & 0x100) >> 7) |
@@ -982,6 +996,10 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	WREG_ECRT(0x01, crtcext1);
 	WREG_ECRT(0x02, crtcext2);
 	WREG_ECRT(0x05, crtcext5);
+
+	WREG8(MGA_MISC_OUT, misc);
+
+	mga_crtc_set_plls(mdev, mode->clock);
 }
 
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
@@ -1140,12 +1158,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
 	ext_vga[4] = 0;
 
-	/* Set pixel clocks */
-	misc = 0x2d;
-	WREG8(MGA_MISC_OUT, misc);
-
-	mga_crtc_set_plls(mdev, mode->clock);
-
 	WREG_ECRT(0, ext_vga[0]);
 	WREG_ECRT(3, ext_vga[3]);
 	WREG_ECRT(4, ext_vga[4]);
@@ -1161,9 +1173,11 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	WREG_ECRT(0, ext_vga[0]);
-	/* Enable mga pixel clock */
-	misc = 0x2d;
 
+	misc = RREG8(MGA_MISC_IN);
+	misc |= MGAREG_MISC_IOADSEL |
+		MGAREG_MISC_RAMMAPEN |
+		MGAREG_MISC_HIGH_PG_SEL;
 	WREG8(MGA_MISC_OUT, misc);
 
 	mga_crtc_do_set_base(mdev, fb, old_fb);
