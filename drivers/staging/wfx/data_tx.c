@@ -494,8 +494,8 @@ static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 			      req->data_flags.fc_offset;
 
 	WARN_ON(!wvif);
-	skb_pull(skb, offset);
 	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
+	skb_pull(skb, offset);
 	ieee80211_tx_status_irqsafe(wvif->wdev->hw, skb);
 }
 
