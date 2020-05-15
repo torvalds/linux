@@ -1002,6 +1002,48 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 	mga_crtc_set_plls(mdev, mode->clock);
 }
 
+static u8 mgag200_get_bpp_shift(struct mga_device *mdev,
+				const struct drm_format_info *format)
+{
+	return mdev->bpp_shifts[format->cpp[0] - 1];
+}
+
+/*
+ * Calculates the HW offset value from the framebuffer's pitch. The
+ * offset is a multiple of the pixel size and depends on the display
+ * format.
+ */
+static u32 mgag200_calculate_offset(struct mga_device *mdev,
+				    const struct drm_framebuffer *fb)
+{
+	u32 offset = fb->pitches[0] / fb->format->cpp[0];
+	u8 bppshift = mgag200_get_bpp_shift(mdev, fb->format);
+
+	if (fb->format->cpp[0] * 8 == 24)
+		offset = (offset * 3) >> (4 - bppshift);
+	else
+		offset = offset >> (4 - bppshift);
+
+	return offset;
+}
+
+static void mgag200_set_offset(struct mga_device *mdev,
+			       const struct drm_framebuffer *fb)
+{
+	u8 crtc13, crtcext0;
+	u32 offset = mgag200_calculate_offset(mdev, fb);
+
+	RREG_ECRT(0, crtcext0);
+
+	crtc13 = offset & 0xff;
+
+	crtcext0 &= ~MGAREG_CRTCEXT0_OFFSET_MASK;
+	crtcext0 |= (offset >> 4) & MGAREG_CRTCEXT0_OFFSET_MASK;
+
+	WREG_CRT(0x13, crtc13);
+	WREG_ECRT(0x00, crtcext0);
+}
+
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode,
@@ -1010,7 +1052,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
 	const struct drm_framebuffer *fb = crtc->primary->fb;
-	int pitch;
 	int option = 0, option2 = 0;
 	int i;
 	unsigned char misc = 0;
@@ -1121,12 +1162,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(3, 0);
 	WREG_SEQ(4, 0xe);
 
-	pitch = fb->pitches[0] / fb->format->cpp[0];
-	if (fb->format->cpp[0] * 8 == 24)
-		pitch = (pitch * 3) >> (4 - bppshift);
-	else
-		pitch = pitch >> (4 - bppshift);
-
 	WREG_GFX(0, 0);
 	WREG_GFX(1, 0);
 	WREG_GFX(2, 0);
@@ -1143,20 +1178,15 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_CRT(13, 0);
 	WREG_CRT(14, 0);
 	WREG_CRT(15, 0);
-	WREG_CRT(19, pitch & 0xFF);
-
-	ext_vga[0] = 0;
 
 	/* TODO interlace */
 
-	ext_vga[0] |= (pitch & 0x300) >> 4;
 	if (fb->format->cpp[0] * 8 == 24)
 		ext_vga[3] = (((1 << bppshift) * 3) - 1) | 0x80;
 	else
 		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
 	ext_vga[4] = 0;
 
-	WREG_ECRT(0, ext_vga[0]);
 	WREG_ECRT(3, ext_vga[3]);
 	WREG_ECRT(4, ext_vga[4]);
 
@@ -1170,8 +1200,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		WREG_ECRT(6, 0);
 	}
 
-	WREG_ECRT(0, ext_vga[0]);
-
 	misc = RREG8(MGA_MISC_IN);
 	misc |= MGAREG_MISC_IOADSEL |
 		MGAREG_MISC_RAMMAPEN |
@@ -1179,6 +1207,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG8(MGA_MISC_OUT, misc);
 
 	mga_crtc_do_set_base(mdev, fb, old_fb);
+	mgag200_set_offset(mdev, fb);
 
 	mgag200_set_mode_regs(mdev, mode);
 

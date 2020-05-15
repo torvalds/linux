@@ -240,6 +240,8 @@
 #define MGAREG_CRTCEXT_INDEX	0x1fde
 #define MGAREG_CRTCEXT_DATA	0x1fdf
 
+#define MGAREG_CRTCEXT0_OFFSET_MASK	GENMASK(5, 4)
+
 /* Cursor X and Y position */
 #define MGA_CURPOSXL 0x3c0c
 #define MGA_CURPOSXH 0x3c0d
