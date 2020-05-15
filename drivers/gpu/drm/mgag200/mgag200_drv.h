@@ -19,6 +19,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "mgag200_reg.h"
 
@@ -31,8 +32,6 @@
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
 #define DRIVER_PATCHLEVEL	0
-
-#define MGAG200FB_CONN_LIMIT 1
 
 #define RREG8(reg) ioread8(((void __iomem *)mdev->rmmio) + (reg))
 #define WREG8(reg, v) iowrite8(v, ((void __iomem *)mdev->rmmio) + (reg))
@@ -103,17 +102,7 @@
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
-#define MATROX_DPMS_CLEARED (-1)
-
-#define to_mga_crtc(x) container_of(x, struct mga_crtc, base)
 #define to_mga_connector(x) container_of(x, struct mga_connector, base)
-
-struct mga_crtc {
-	struct drm_crtc base;
-	u8 lut_r[256], lut_g[256], lut_b[256];
-	int last_dpms;
-	bool enabled;
-};
 
 struct mga_i2c_chan {
 	struct i2c_adapter adapter;
@@ -175,7 +164,7 @@ struct mga_device {
 	u32 unique_rev_id;
 
 	struct mga_connector connector;
-	struct drm_encoder encoder;
+	struct drm_simple_display_pipe display_pipe;
 };
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)

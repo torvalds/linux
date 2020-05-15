@@ -1475,15 +1475,6 @@ static int mga_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
 	return 0;
 }
 
-/* Simple cleanup function */
-static void mga_crtc_destroy(struct drm_crtc *crtc)
-{
-	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
-
-	drm_crtc_cleanup(crtc);
-	kfree(mga_crtc);
-}
-
 static void mga_crtc_disable(struct drm_crtc *crtc)
 {
 	DRM_DEBUG_KMS("\n");
@@ -1501,7 +1492,7 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 static const struct drm_crtc_funcs mga_crtc_funcs = {
 	.gamma_set = mga_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
-	.destroy = mga_crtc_destroy,
+	.destroy = drm_crtc_cleanup,
 };
 
 static const struct drm_crtc_helper_funcs mga_helper_funcs = {
@@ -1517,20 +1508,13 @@ static const struct drm_crtc_helper_funcs mga_helper_funcs = {
 static void mga_crtc_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
-	struct mga_crtc *mga_crtc;
+	struct drm_crtc *crtc = &mdev->display_pipe.crtc;
 
-	mga_crtc = kzalloc(sizeof(struct mga_crtc) +
-			      (MGAG200FB_CONN_LIMIT * sizeof(struct drm_connector *)),
-			      GFP_KERNEL);
+	drm_crtc_init(dev, crtc, &mga_crtc_funcs);
 
-	if (mga_crtc == NULL)
-		return;
+	drm_mode_crtc_set_gamma_size(crtc, MGAG200_LUT_SIZE);
 
-	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
-
-	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
-
-	drm_crtc_helper_add(&mga_crtc->base, &mga_helper_funcs);
+	drm_crtc_helper_add(crtc, &mga_helper_funcs);
 }
 
 /*
@@ -1718,7 +1702,7 @@ static unsigned int mgag200_preferred_depth(struct mga_device *mdev)
 int mgag200_modeset_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
-	struct drm_encoder *encoder = &mdev->encoder;
+	struct drm_encoder *encoder = &mdev->display_pipe.encoder;
 	struct drm_connector *connector = &mdev->connector.base;
 	int ret;
 
