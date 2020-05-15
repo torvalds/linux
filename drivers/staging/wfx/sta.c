@@ -84,7 +84,6 @@ static void wfx_filter_beacon(struct wfx_vif *wvif, bool filter_beacon)
 	};
 
 	if (!filter_beacon) {
-		hif_set_beacon_filter_table(wvif, 0, NULL);
 		hif_beacon_filter_control(wvif, 0, 1);
 	} else {
 		hif_set_beacon_filter_table(wvif, 3, filter_ies);
