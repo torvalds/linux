@@ -470,13 +470,15 @@ create_child:
 	if (child && *own_req) {
 		struct mptcp_subflow_context *ctx = mptcp_subflow_ctx(child);
 
+		tcp_rsk(req)->drop_req = false;
+
 		/* we need to fallback on ctx allocation failure and on pre-reqs
 		 * checking above. In the latter scenario we additionally need
 		 * to reset the context to non MPTCP status.
 		 */
 		if (!ctx || fallback) {
 			if (fallback_is_fatal)
-				goto close_child;
+				goto dispose_child;
 
 			if (ctx) {
 				subflow_ulp_fallback(child, ctx);
@@ -505,13 +507,14 @@ create_child:
 
 			owner = mptcp_token_get_sock(ctx->token);
 			if (!owner)
-				goto close_child;
+				goto dispose_child;
 
 			ctx->conn = (struct sock *)owner;
 			if (!mptcp_finish_join(child))
-				goto close_child;
+				goto dispose_child;
 
 			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKRX);
+			tcp_rsk(req)->drop_req = true;
 		}
 	}
 
@@ -528,11 +531,14 @@ out:
 		      !mptcp_subflow_ctx(child)->conn));
 	return child;
 
-close_child:
+dispose_child:
+	tcp_rsk(req)->drop_req = true;
 	tcp_send_active_reset(child, GFP_ATOMIC);
-	inet_csk_prepare_forced_close(child);
+	inet_csk_prepare_for_destroy_sock(child);
 	tcp_done(child);
-	return NULL;
+
+	/* The last child reference will be released by the caller */
+	return child;
 }
 
 static struct inet_connection_sock_af_ops subflow_specific;
