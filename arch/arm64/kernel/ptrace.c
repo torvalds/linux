@@ -1237,6 +1237,22 @@ enum compat_regset {
 	REGSET_COMPAT_VFP,
 };
 
+static inline compat_ulong_t compat_get_user_reg(struct task_struct *task, int idx)
+{
+	struct pt_regs *regs = task_pt_regs(task);
+
+	switch (idx) {
+	case 15:
+		return regs->pc;
+	case 16:
+		return pstate_to_compat_psr(regs->pstate);
+	case 17:
+		return regs->orig_x0;
+	default:
+		return regs->regs[idx];
+	}
+}
+
 static int compat_gpr_get(struct task_struct *target,
 			  const struct user_regset *regset,
 			  unsigned int pos, unsigned int count,
@@ -1255,23 +1271,7 @@ static int compat_gpr_get(struct task_struct *target,
 		return -EIO;
 
 	for (i = 0; i < num_regs; ++i) {
-		unsigned int idx = start + i;
-		compat_ulong_t reg;
-
-		switch (idx) {
-		case 15:
-			reg = task_pt_regs(target)->pc;
-			break;
-		case 16:
-			reg = task_pt_regs(target)->pstate;
-			reg = pstate_to_compat_psr(reg);
-			break;
-		case 17:
-			reg = task_pt_regs(target)->orig_x0;
-			break;
-		default:
-			reg = task_pt_regs(target)->regs[idx];
-		}
+		compat_ulong_t reg = compat_get_user_reg(target, start + i);
 
 		if (kbuf) {
 			memcpy(kbuf, &reg, sizeof(reg));
