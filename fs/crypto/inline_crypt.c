@@ -53,6 +53,9 @@ static unsigned int fscrypt_get_dun_bytes(const struct fscrypt_info *ci)
 	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64)
 		return sizeof(__le64);
 
+	if (flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)
+		return sizeof(__le32);
+
 	/* Default case: IVs are just the file logical block number */
 	if (sb->s_cop->get_ino_and_lblk_bits)
 		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);

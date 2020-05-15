@@ -49,6 +49,8 @@ struct fscrypt_mode fscrypt_modes[] = {
 	},
 };
 
+static DEFINE_MUTEX(fscrypt_mode_key_setup_mutex);
+
 static struct fscrypt_mode *
 select_encryption_mode(const union fscrypt_policy *policy,
 		       const struct inode *inode)
@@ -179,7 +181,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 		return 0;
 	}
 
-	mutex_lock(&mode_key_setup_mutex);
+	mutex_lock(&fscrypt_mode_key_setup_mutex);
 
 	if (fscrypt_is_key_prepared(prep_key, ci))
 		goto done_unlock;
@@ -230,7 +232,7 @@ done_unlock:
 	ci->ci_key = *prep_key;
 	err = 0;
 out_unlock:
-	mutex_unlock(&mode_key_setup_mutex);
+	mutex_unlock(&fscrypt_mode_key_setup_mutex);
 	return err;
 }
 
@@ -249,15 +251,53 @@ int fscrypt_derive_dirhash_key(struct fscrypt_info *ci,
 	return 0;
 }
 
+static int fscrypt_setup_iv_ino_lblk_32_key(struct fscrypt_info *ci,
+					    struct fscrypt_master_key *mk)
+{
+	int err;
+
+	err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_32_keys,
+				     HKDF_CONTEXT_IV_INO_LBLK_32_KEY, true);
+	if (err)
+		return err;
+
+	/* pairs with smp_store_release() below */
+	if (!smp_load_acquire(&mk->mk_ino_hash_key_initialized)) {
+
+		mutex_lock(&fscrypt_mode_key_setup_mutex);
+
+		if (mk->mk_ino_hash_key_initialized)
+			goto unlock;
+
+		err = fscrypt_hkdf_expand(&mk->mk_secret.hkdf,
+					  HKDF_CONTEXT_INODE_HASH_KEY, NULL, 0,
+					  (u8 *)&mk->mk_ino_hash_key,
+					  sizeof(mk->mk_ino_hash_key));
+		if (err)
+			goto unlock;
+		/* pairs with smp_load_acquire() above */
+		smp_store_release(&mk->mk_ino_hash_key_initialized, true);
+unlock:
+		mutex_unlock(&fscrypt_mode_key_setup_mutex);
+		if (err)
+			return err;
+	}
+
+	ci->ci_hashed_ino = (u32)siphash_1u64(ci->ci_inode->i_ino,
+					      &mk->mk_ino_hash_key);
+	return 0;
+}
+
 static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 				     struct fscrypt_master_key *mk)
 {
 	int err;
 
 	if (mk->mk_secret.is_hw_wrapped &&
-	    !(ci->ci_policy.v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64)) {
+	    !(ci->ci_policy.v2.flags & (FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64 |
+					FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32))) {
 		fscrypt_warn(ci->ci_inode,
-			     "Hardware-wrapped keys are only supported with IV_INO_LBLK_64 policies");
+			     "Hardware-wrapped keys are only supported with IV_INO_LBLK policies");
 		return -EINVAL;
 	}
 
@@ -278,11 +318,14 @@ static int fscrypt_setup_v2_file_key(struct fscrypt_info *ci,
 		 * IV_INO_LBLK_64: encryption keys are derived from (master_key,
 		 * mode_num, filesystem_uuid), and inode number is included in
 		 * the IVs.  This format is optimized for use with inline
-		 * encryption hardware compliant with the UFS or eMMC standards.
+		 * encryption hardware compliant with the UFS standard.
 		 */
 		err = setup_per_mode_enc_key(ci, mk, mk->mk_iv_ino_lblk_64_keys,
 					     HKDF_CONTEXT_IV_INO_LBLK_64_KEY,
 					     true);
+	} else if (ci->ci_policy.v2.flags &
+		   FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+		err = fscrypt_setup_iv_ino_lblk_32_key(ci, mk);
 	} else {
 		u8 derived_key[FSCRYPT_MAX_KEY_SIZE];
 
