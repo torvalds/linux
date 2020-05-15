@@ -587,7 +587,7 @@ struct drm_gem_object *amdgpu_gem_prime_import(struct drm_device *dev,
 	attach = dma_buf_dynamic_attach(dma_buf, dev->dev,
 					&amdgpu_dma_buf_attach_ops, obj);
 	if (IS_ERR(attach)) {
-		drm_gem_object_put(obj);
+		drm_gem_object_put_unlocked(obj);
 		return ERR_CAST(attach);
 	}
 
