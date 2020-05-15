@@ -60,8 +60,7 @@ int scs_prepare(struct task_struct *tsk, int node)
 	if (!s)
 		return -ENOMEM;
 
-	task_scs(tsk) = s;
-	task_scs_offset(tsk) = 0;
+	task_scs(tsk) = task_scs_sp(tsk) = s;
 	scs_account(tsk, 1);
 	return 0;
 }

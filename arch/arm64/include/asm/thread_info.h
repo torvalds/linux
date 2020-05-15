@@ -43,7 +43,7 @@ struct thread_info {
 	};
 #ifdef CONFIG_SHADOW_CALL_STACK
 	void			*scs_base;
-	unsigned long		scs_offset;
+	void			*scs_sp;
 #endif
 };
 
@@ -107,7 +107,7 @@ void arch_release_task_struct(struct task_struct *tsk);
 #ifdef CONFIG_SHADOW_CALL_STACK
 #define INIT_SCS							\
 	.scs_base	= init_shadow_call_stack,			\
-	.scs_offset	= 0,
+	.scs_sp		= init_shadow_call_stack,
 #else
 #define INIT_SCS
 #endif
