@@ -2066,17 +2066,14 @@ static int rk3308_codec_dac_enable(struct rk3308_codec_priv *rk3308)
 	/* Waiting the stable reference voltage */
 	mdelay(1);
 
-	if (rk3308->dac_output == DAC_HPOUT ||
-	    rk3308->dac_output == DAC_LINEOUT_HPOUT) {
-		/* Step 03 */
-		regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
-				   RK3308_DAC_HPOUT_POP_SOUND_L_MSK |
-				   RK3308_DAC_HPOUT_POP_SOUND_R_MSK,
-				   RK3308_DAC_HPOUT_POP_SOUND_L_WORK |
-				   RK3308_DAC_HPOUT_POP_SOUND_R_WORK);
+	/* Step 03 */
+	regmap_update_bits(rk3308->regmap, RK3308_DAC_ANA_CON01,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_MSK |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_MSK,
+			   RK3308_DAC_HPOUT_POP_SOUND_L_WORK |
+			   RK3308_DAC_HPOUT_POP_SOUND_R_WORK);
 
-		udelay(20);
-	}
+	udelay(20);
 
 	if (rk3308->codec_ver == ACODEC_VERSION_B &&
 	    (rk3308->dac_output == DAC_LINEOUT ||
