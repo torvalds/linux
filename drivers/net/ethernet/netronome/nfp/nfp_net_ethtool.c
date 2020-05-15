@@ -1438,8 +1438,7 @@ static int nfp_net_set_channels(struct net_device *netdev,
 	unsigned int total_rx, total_tx;
 
 	/* Reject unsupported */
-	if (!channel->combined_count ||
-	    channel->other_count != NFP_NET_NON_Q_VECTORS ||
+	if (channel->other_count != NFP_NET_NON_Q_VECTORS ||
 	    (channel->rx_count && channel->tx_count))
 		return -EINVAL;
 
