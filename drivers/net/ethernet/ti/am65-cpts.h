@@ -55,18 +55,18 @@ static inline void am65_cpts_rx_enable(struct am65_cpts *cpts, bool en)
 {
 }
 
-static s64 am65_cpts_ns_gettime(struct am65_cpts *cpts)
+static inline s64 am65_cpts_ns_gettime(struct am65_cpts *cpts)
 {
 	return 0;
 }
 
-static int am65_cpts_estf_enable(struct am65_cpts *cpts,
-				 int idx, struct am65_cpts_estf_cfg *cfg)
+static inline int am65_cpts_estf_enable(struct am65_cpts *cpts, int idx,
+					struct am65_cpts_estf_cfg *cfg)
 {
 	return 0;
 }
 
-static void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx)
+static inline void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx)
 {
 }
 #endif
