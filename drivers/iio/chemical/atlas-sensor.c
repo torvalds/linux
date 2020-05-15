@@ -194,7 +194,19 @@ static const struct iio_chan_spec atlas_orp_channels[] = {
 };
 
 static const struct iio_chan_spec atlas_do_channels[] = {
-	ATLAS_CONCENTRATION_CHANNEL(0, ATLAS_REG_DO_DATA),
+	{
+		.type = IIO_CONCENTRATION,
+		.address = ATLAS_REG_DO_DATA,
+		.info_mask_separate =
+			BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 32,
+			.storagebits = 32,
+			.endianness = IIO_BE,
+		},
+	},
 	IIO_CHAN_SOFT_TIMESTAMP(1),
 	{
 		.type = IIO_TEMP,
