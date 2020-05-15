@@ -6264,16 +6264,15 @@ static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 	struct fixed_file_data *data = ctx->file_data;
 	struct fixed_file_ref_node *ref_node = NULL;
 	unsigned nr_tables, i;
-	unsigned long flags;
 
 	if (!data)
 		return -ENXIO;
 
-	spin_lock_irqsave(&data->lock, flags);
+	spin_lock(&data->lock);
 	if (!list_empty(&data->ref_list))
 		ref_node = list_first_entry(&data->ref_list,
 				struct fixed_file_ref_node, node);
-	spin_unlock_irqrestore(&data->lock, flags);
+	spin_unlock(&data->lock);
 	if (ref_node)
 		percpu_ref_kill(&ref_node->refs);
 
@@ -6516,17 +6515,16 @@ static void __io_file_put_work(struct fixed_file_ref_node *ref_node)
 	struct fixed_file_data *file_data = ref_node->file_data;
 	struct io_ring_ctx *ctx = file_data->ctx;
 	struct io_file_put *pfile, *tmp;
-	unsigned long flags;
 
 	list_for_each_entry_safe(pfile, tmp, &ref_node->file_list, list) {
-		list_del_init(&pfile->list);
+		list_del(&pfile->list);
 		io_ring_file_put(ctx, pfile->file);
 		kfree(pfile);
 	}
 
-	spin_lock_irqsave(&file_data->lock, flags);
-	list_del_init(&ref_node->node);
-	spin_unlock_irqrestore(&file_data->lock, flags);
+	spin_lock(&file_data->lock);
+	list_del(&ref_node->node);
+	spin_unlock(&file_data->lock);
 
 	percpu_ref_exit(&ref_node->refs);
 	kfree(ref_node);
@@ -6606,7 +6604,6 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	int fd, ret = 0;
 	unsigned i;
 	struct fixed_file_ref_node *ref_node;
-	unsigned long flags;
 
 	if (ctx->file_data)
 		return -EBUSY;
@@ -6714,9 +6711,9 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 	}
 
 	ctx->file_data->cur_refs = &ref_node->refs;
-	spin_lock_irqsave(&ctx->file_data->lock, flags);
+	spin_lock(&ctx->file_data->lock);
 	list_add(&ref_node->node, &ctx->file_data->ref_list);
-	spin_unlock_irqrestore(&ctx->file_data->lock, flags);
+	spin_unlock(&ctx->file_data->lock);
 	percpu_ref_get(&ctx->file_data->refs);
 	return ret;
 }
@@ -6792,7 +6789,6 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 	__s32 __user *fds;
 	int fd, i, err;
 	__u32 done;
-	unsigned long flags;
 	bool needs_switch = false;
 
 	if (check_add_overflow(up->offset, nr_args, &done))
@@ -6857,10 +6853,10 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 
 	if (needs_switch) {
 		percpu_ref_kill(data->cur_refs);
-		spin_lock_irqsave(&data->lock, flags);
+		spin_lock(&data->lock);
 		list_add(&ref_node->node, &data->ref_list);
 		data->cur_refs = &ref_node->refs;
-		spin_unlock_irqrestore(&data->lock, flags);
+		spin_unlock(&data->lock);
 		percpu_ref_get(&ctx->file_data->refs);
 	} else
 		destroy_fixed_file_ref_node(ref_node);
