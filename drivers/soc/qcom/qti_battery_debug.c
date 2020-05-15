@@ -278,6 +278,7 @@ static int get_qbg_context_write(void *data, u64 val)
 DEFINE_DEBUGFS_ATTRIBUTE(get_qbg_context_debugfs_ops, NULL,
 			get_qbg_context_write, "%llu\n");
 
+#ifdef CONFIG_DEBUG_FS
 static int battery_dbg_request_read_votable(struct battery_dbg_dev *bd,
 					    u32 id)
 {
@@ -669,6 +670,12 @@ error:
 	debugfs_remove_recursive(bd_dir);
 	return rc;
 }
+#else
+static int battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
+{
+	return 0;
+}
+#endif
 
 static int battery_dbg_probe(struct platform_device *pdev)
 {
