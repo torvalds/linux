@@ -15,7 +15,7 @@
 
 typedef ppc_opcode_t uprobe_opcode_t;
 
-#define MAX_UINSN_BYTES		4
+#define MAX_UINSN_BYTES		8
 #define UPROBE_XOL_SLOT_BYTES	(MAX_UINSN_BYTES)
 
 /* The following alias is needed for reference from arch-agnostic code */

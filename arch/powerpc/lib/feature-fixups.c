@@ -84,12 +84,13 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 	src = alt_start;
 	dest = start;
 
-	for (; src < alt_end; src++, dest++) {
+	for (; src < alt_end; src = (void *)src + ppc_inst_len(ppc_inst_read(src)),
+	     (dest = (void *)dest + ppc_inst_len(ppc_inst_read(dest)))) {
 		if (patch_alt_instruction(src, dest, alt_start, alt_end))
 			return 1;
 	}
 
-	for (; dest < end; dest++)
+	for (; dest < end; dest = (void *)dest + ppc_inst_len(ppc_inst(PPC_INST_NOP)))
 		raw_patch_instruction(dest, ppc_inst(PPC_INST_NOP));
 
 	return 0;

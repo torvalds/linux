@@ -198,7 +198,7 @@ void patch_imm64_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 {
-	struct ppc_inst branch_op_callback, branch_emulate_step;
+	struct ppc_inst branch_op_callback, branch_emulate_step, temp;
 	kprobe_opcode_t *op_callback_addr, *emulate_step_addr, *buff;
 	long b_offset;
 	unsigned long nip, size;
@@ -282,7 +282,9 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	/*
 	 * 3. load instruction to be emulated into relevant register, and
 	 */
-	patch_imm32_load_insns(*p->ainsn.insn, buff + TMPL_INSN_IDX);
+	temp = ppc_inst_read((struct ppc_inst *)p->ainsn.insn);
+	patch_imm64_load_insns(ppc_inst_val(temp) | ((u64)ppc_inst_suffix(temp) << 32),
+			       4, buff + TMPL_INSN_IDX);
 
 	/*
 	 * 4. branch back from trampoline

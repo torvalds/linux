@@ -24,7 +24,18 @@ static int __patch_instruction(struct ppc_inst *exec_addr, struct ppc_inst instr
 {
 	int err = 0;
 
-	__put_user_asm(ppc_inst_val(instr), patch_addr, err, "stw");
+	if (!ppc_inst_prefixed(instr)) {
+		__put_user_asm(ppc_inst_val(instr), patch_addr, err, "stw");
+	} else {
+#ifdef CONFIG_CPU_LITTLE_ENDIAN
+		__put_user_asm((u64)ppc_inst_suffix(instr) << 32 |
+			       ppc_inst_val(instr), patch_addr, err, "std");
+#else
+		__put_user_asm((u64)ppc_inst_val(instr) << 32 |
+			       ppc_inst_suffix(instr), patch_addr, err, "std");
+#endif
+	}
+
 	if (err)
 		return err;
 

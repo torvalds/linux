@@ -1169,10 +1169,12 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	unsigned long int imm;
 	unsigned long int val, val2;
 	unsigned int mb, me, sh;
-	unsigned int word;
+	unsigned int word, suffix;
 	long ival;
 
 	word = ppc_inst_val(instr);
+	suffix = ppc_inst_suffix(instr);
+
 	op->type = COMPUTE;
 
 	opcode = ppc_inst_primary_opcode(instr);
