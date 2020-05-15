@@ -137,6 +137,8 @@ struct debugfs_file {
 
 struct qm_debug {
 	u32 curr_qm_qp_num;
+	u32 sqe_mask_offset;
+	u32 sqe_mask_len;
 	struct qm_dfx dfx;
 	struct dentry *debug_root;
 	struct dentry *qm_d;

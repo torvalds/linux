@@ -84,6 +84,8 @@
 #define HPRE_OOO_ECC_2BIT_ERR		BIT(5)
 
 #define HPRE_VIA_MSI_DSM		1
+#define HPRE_SQE_MASK_OFFSET		8
+#define HPRE_SQE_MASK_LEN		24
 
 static struct hisi_qm_list hpre_devices;
 static const char hpre_name[] = "hisi_hpre";
@@ -683,6 +685,8 @@ static int hpre_debugfs_init(struct hpre *hpre)
 
 	dir = debugfs_create_dir(dev_name(dev), hpre_debugfs_root);
 	qm->debug.debug_root = dir;
+	qm->debug.sqe_mask_offset = HPRE_SQE_MASK_OFFSET;
+	qm->debug.sqe_mask_len = HPRE_SQE_MASK_LEN;
 
 	ret = hisi_qm_debug_init(qm);
 	if (ret)

@@ -89,6 +89,8 @@
 #define HZIP_WR_PORT			BIT(11)
 
 #define HZIP_BUF_SIZE			22
+#define HZIP_SQE_MASK_OFFSET		64
+#define HZIP_SQE_MASK_LEN		48
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
@@ -578,6 +580,8 @@ static int hisi_zip_debugfs_init(struct hisi_zip *hisi_zip)
 
 	dev_d = debugfs_create_dir(dev_name(dev), hzip_debugfs_root);
 
+	qm->debug.sqe_mask_offset = HZIP_SQE_MASK_OFFSET;
+	qm->debug.sqe_mask_len = HZIP_SQE_MASK_LEN;
 	qm->debug.debug_root = dev_d;
 	ret = hisi_qm_debug_init(qm);
 	if (ret)
