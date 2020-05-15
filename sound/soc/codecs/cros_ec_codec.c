@@ -115,7 +115,14 @@ static int calculate_sha256(struct cros_ec_codec_priv *priv,
 		return PTR_ERR(tfm);
 	}
 
-	crypto_shash_tfm_digest(tfm, buf, size, digest);
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
+
+		desc->tfm = tfm;
+
+		crypto_shash_digest(desc, buf, size, digest);
+		shash_desc_zero(desc);
+	}
 
 	crypto_free_shash(tfm);
 
