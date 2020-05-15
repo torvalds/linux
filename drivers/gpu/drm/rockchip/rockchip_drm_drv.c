@@ -315,10 +315,10 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 
 	switch (bpp) {
 	case 16:
-		mode_cmd.pixel_format = DRM_FORMAT_BGR565;
+		mode_cmd.pixel_format = DRM_FORMAT_RGB565;
 		break;
 	case 24:
-		mode_cmd.pixel_format = DRM_FORMAT_BGR888;
+		mode_cmd.pixel_format = DRM_FORMAT_RGB888;
 		break;
 	case 32:
 		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
