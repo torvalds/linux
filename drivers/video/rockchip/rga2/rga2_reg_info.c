@@ -480,7 +480,12 @@ static void RGA2_set_reg_dst_info(u8 *base, struct rga2_req *msg)
     d_uv_stride = (d_stride << 2) / x_div;
 
     *bRGA_DST_VIR_INFO = d_stride | (s_stride << 16);
-    *bRGA_DST_ACT_INFO = (msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16);
+	if ((msg->dst.vir_w % 2 != 0) &&
+		(msg->dst.act_w == msg->src.act_w) && (msg->dst.act_h == msg->src.act_h) &&
+		(msg->dst.format == RGA2_FORMAT_BGR_888 || msg->dst.format == RGA2_FORMAT_RGB_888))
+		*bRGA_DST_ACT_INFO = (msg->dst.act_w) | ((msg->dst.act_h - 1) << 16);
+	else
+		*bRGA_DST_ACT_INFO = (msg->dst.act_w - 1) | ((msg->dst.act_h - 1) << 16);
     s_stride <<= 2;
 	d_stride <<= 2;
 
