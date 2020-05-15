@@ -819,49 +819,53 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
 }
 
 /*
-   This is how the framebuffer base address is stored in g200 cards:
-   * Assume @offset is the gpu_addr variable of the framebuffer object
-   * Then addr is the number of _pixels_ (not bytes) from the start of
-     VRAM to the first pixel we want to display. (divided by 2 for 32bit
-     framebuffers)
-   * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
-   addr<20> -> CRTCEXT0<6>
-   addr<19-16> -> CRTCEXT0<3-0>
-   addr<15-8> -> CRTCC<7-0>
-   addr<7-0> -> CRTCD<7-0>
-   CRTCEXT0 has to be programmed last to trigger an update and make the
-   new addr variable take effect.
+ * This is how the framebuffer base address is stored in g200 cards:
+ *   * Assume @offset is the gpu_addr variable of the framebuffer object
+ *   * Then addr is the number of _pixels_ (not bytes) from the start of
+ *     VRAM to the first pixel we want to display. (divided by 2 for 32bit
+ *     framebuffers)
+ *   * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
+ *      addr<20> -> CRTCEXT0<6>
+ *      addr<19-16> -> CRTCEXT0<3-0>
+ *      addr<15-8> -> CRTCC<7-0>
+ *      addr<7-0> -> CRTCD<7-0>
+ *
+ *  CRTCEXT0 has to be programmed last to trigger an update and make the
+ *  new addr variable take effect.
  */
-static void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
+static void mgag200_set_startadd(struct mga_device *mdev,
+				 unsigned long offset)
 {
-	struct mga_device *mdev = to_mga_device(crtc->dev);
-	u32 addr;
-	int count;
-	u8 crtcext0;
+	struct drm_device *dev = mdev->dev;
+	u32 startadd;
+	u8 crtcc, crtcd, crtcext0;
 
-	while (RREG8(0x1fda) & 0x08);
-	while (!(RREG8(0x1fda) & 0x08));
+	startadd = offset / 8;
 
-	count = RREG8(MGAREG_VCOUNT) + 2;
-	while (RREG8(MGAREG_VCOUNT) < count);
+	/*
+	 * Can't store addresses any higher than that, but we also
+	 * don't have more than 16 MiB of memory, so it should be fine.
+	 */
+	drm_WARN_ON(dev, startadd > 0x1fffff);
 
-	WREG8(MGAREG_CRTCEXT_INDEX, 0);
-	crtcext0 = RREG8(MGAREG_CRTCEXT_DATA);
-	crtcext0 &= 0xB0;
-	addr = offset / 8;
-	/* Can't store addresses any higher than that...
-	   but we also don't have more than 16MB of memory, so it should be fine. */
-	WARN_ON(addr > 0x1fffff);
-	crtcext0 |= (!!(addr & (1<<20)))<<6;
-	WREG_CRT(0x0d, (u8)(addr & 0xff));
-	WREG_CRT(0x0c, (u8)(addr >> 8) & 0xff);
-	WREG_ECRT(0x0, ((u8)(addr >> 16) & 0xf) | crtcext0);
+	RREG_ECRT(0x00, crtcext0);
+
+	crtcc = (startadd >> 8) & 0xff;
+	crtcd = startadd & 0xff;
+	crtcext0 &= 0xb0;
+	crtcext0 |= ((startadd >> 14) & BIT(6)) |
+		    ((startadd >> 16) & 0x0f);
+
+	WREG_CRT(0x0c, crtcc);
+	WREG_CRT(0x0d, crtcd);
+	WREG_ECRT(0x00, crtcext0);
 }
 
 static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 				struct drm_framebuffer *fb,
 				int x, int y, int atomic)
 {
+	struct mga_device *mdev = to_mga_device(crtc->dev);
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
@@ -882,7 +886,7 @@ static int mga_crtc_do_set_base(struct drm_crtc *crtc,
 		goto err_drm_gem_vram_unpin;
 	}
 
-	mga_set_start_address(crtc, (u32)gpu_addr);
+	mgag200_set_startadd(mdev, (unsigned long)gpu_addr);
 
 	return 0;
 
@@ -894,6 +898,16 @@ err_drm_gem_vram_unpin:
 static int mga_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 				  struct drm_framebuffer *old_fb)
 {
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = dev->dev_private;
+	unsigned int count;
+
+	do { } while (RREG8(0x1fda) & 0x08);
+	do { } while (!(RREG8(0x1fda) & 0x08));
+
+	count = RREG8(MGAREG_VCOUNT) + 2;
+	do { } while (RREG8(MGAREG_VCOUNT) < count);
+
 	return mga_crtc_do_set_base(crtc, old_fb, x, y, 0);
 }
 
