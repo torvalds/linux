@@ -222,6 +222,8 @@ int hif_set_tx_rate_retry_policy(struct wfx_vif *wvif,
 	int ret;
 
 	arg = kzalloc(size, GFP_KERNEL);
+	if (!arg)
+		return -ENOMEM;
 	arg->num_tx_rate_policies = 1;
 	arg->tx_rate_retry_policy[0].policy_index = policy_index;
 	arg->tx_rate_retry_policy[0].short_retry_count = 255;
