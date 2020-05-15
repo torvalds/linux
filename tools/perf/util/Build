@@ -136,6 +136,10 @@ perf-$(CONFIG_LIBELF) += symbol-elf.o
 perf-$(CONFIG_LIBELF) += probe-file.o
 perf-$(CONFIG_LIBELF) += probe-event.o
 
+ifndef CONFIG_LIBBPF
+perf-y += hashmap.o
+endif
+
 ifndef CONFIG_LIBELF
 perf-y += symbol-minimal.o
 endif
