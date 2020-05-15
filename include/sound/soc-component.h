@@ -395,6 +395,12 @@ static inline bool snd_soc_component_is_active(
 	return component->active != 0;
 }
 
+static inline unsigned int
+snd_soc_component_active(struct snd_soc_component *component)
+{
+	return component->active;
+}
+
 /* component pin */
 int snd_soc_component_enable_pin(struct snd_soc_component *component,
 				 const char *pin);
