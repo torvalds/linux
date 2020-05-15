@@ -1433,6 +1433,12 @@
 		status = "disabled";
 	};
 
+	dcf: dcf@ff600000 {
+		compatible = "syscon";
+		reg = <0xff600000 0x1000>;
+		status = "disabled";
+	};
+
 	can: can@ff610000 {
 		compatible = "rockchip,can-1.0";
 		reg = <0xff610000 0x100>;
@@ -1581,6 +1587,9 @@
 
 	dmc: dmc {
 		compatible = "rockchip,rv1126-dmc";
+		dcf = <&dcf>;
+		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "complete";
 		devfreq-events = <&dfi>;
 		clocks = <&cru SCLK_DDRCLK>;
 		clock-names = "dmc_clk";
@@ -1591,7 +1600,7 @@
 		system-status-freq = <
 			/*system status         freq(KHz)*/
 			SYS_STATUS_NORMAL       924000
-			SYS_STATUS_REBOOT       450000
+			SYS_STATUS_REBOOT       328000
 			SYS_STATUS_SUSPEND      328000
 			SYS_STATUS_VIDEO_1080P  924000
 			SYS_STATUS_BOOST        924000
@@ -1599,7 +1608,7 @@
 			SYS_STATUS_PERFORMANCE  924000
 		>;
 		auto-min-freq = <328000>;
-		auto-freq-en = <0>;
+		auto-freq-en = <1>;
 		#cooling-cells = <2>;
 		status = "disabled";
 	};
@@ -1611,12 +1620,12 @@
 			opp-hz = /bits/ 64 <328000000>;
 			opp-microvolt = <800000>;
 		};
-		opp-450000000 {
-			opp-hz = /bits/ 64 <450000000>;
+		opp-528000000 {
+			opp-hz = /bits/ 64 <528000000>;
 			opp-microvolt = <800000>;
 		};
-		opp-664000000 {
-			opp-hz = /bits/ 64 <664000000>;
+		opp-784000000 {
+			opp-hz = /bits/ 64 <784000000>;
 			opp-microvolt = <800000>;
 		};
 		opp-924000000 {
