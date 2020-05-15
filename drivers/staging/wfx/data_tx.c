@@ -613,6 +613,7 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		wfx_pending_drop(wdev, &dropped);
 	while ((skb = skb_dequeue(&dropped)) != NULL) {
 		tx_priv = wfx_skb_tx_priv(skb);
+		ieee80211_tx_info_clear_status(IEEE80211_SKB_CB(skb));
 		wfx_skb_dtor(wdev, skb, tx_priv->has_sta);
 	}
 }
