@@ -103,16 +103,19 @@
 struct virtio_mem_req_plug {
 	__virtio64 addr;
 	__virtio16 nb_blocks;
+	__virtio16 padding[3];
 };
 
 struct virtio_mem_req_unplug {
 	__virtio64 addr;
 	__virtio16 nb_blocks;
+	__virtio16 padding[3];
 };
 
 struct virtio_mem_req_state {
 	__virtio64 addr;
 	__virtio16 nb_blocks;
+	__virtio16 padding[3];
 };
 
 struct virtio_mem_req {

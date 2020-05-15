@@ -1770,6 +1770,9 @@ static int virtio_mem_probe(struct virtio_device *vdev)
 	struct virtio_mem *vm;
 	int rc = -EINVAL;
 
+	BUILD_BUG_ON(sizeof(struct virtio_mem_req) != 24);
+	BUILD_BUG_ON(sizeof(struct virtio_mem_resp) != 10);
+
 	vdev->priv = vm = kzalloc(sizeof(*vm), GFP_KERNEL);
 	if (!vm)
 		return -ENOMEM;
