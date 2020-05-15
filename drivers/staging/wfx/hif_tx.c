@@ -131,6 +131,8 @@ int hif_shutdown(struct wfx_dev *wdev)
 	int ret;
 	struct hif_msg *hif;
 
+	if (wdev->chip_frozen)
+		return 0;
 	wfx_alloc_hif(0, &hif);
 	wfx_fill_header(hif, -1, HIF_REQ_ID_SHUT_DOWN, 0);
 	ret = wfx_cmd_send(wdev, hif, NULL, 0, true);
