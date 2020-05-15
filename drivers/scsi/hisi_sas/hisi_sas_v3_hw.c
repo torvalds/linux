@@ -912,11 +912,15 @@ static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 		return -EINVAL;
 	}
 
-	/* Switch over to MSI handling , from PCI AER default */
+	/*
+	 * This DSM handles some hardware-related configurations:
+	 * 1. Switch over to MSI error handling in kernel
+	 * 2. BIOS *may* reset some register values through this method
+	 */
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &guid, 0,
 				DSM_FUNC_ERR_HANDLE_MSI, NULL);
 	if (!obj)
-		dev_warn(dev, "Switch over to MSI handling failed\n");
+		dev_warn(dev, "can not find DSM method, ignore\n");
 	else
 		ACPI_FREE(obj);
 
