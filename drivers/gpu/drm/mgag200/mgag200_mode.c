@@ -1133,6 +1133,56 @@ static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
 	WREG_SEQ(0x01, seq1);
 }
 
+static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
+					const struct drm_display_mode *mode,
+					const struct drm_framebuffer *fb)
+{
+	unsigned int hiprilvl;
+	u8 crtcext6;
+
+	if  (mdev->unique_rev_id >= 0x04) {
+		hiprilvl = 0;
+	} else if (mdev->unique_rev_id >= 0x02) {
+		unsigned int bpp;
+		unsigned long mb;
+
+		if (fb->format->cpp[0] * 8 > 16)
+			bpp = 32;
+		else if (fb->format->cpp[0] * 8 > 8)
+			bpp = 16;
+		else
+			bpp = 8;
+
+		mb = (mode->clock * bpp) / 1000;
+		if (mb > 3100)
+			hiprilvl = 0;
+		else if (mb > 2600)
+			hiprilvl = 1;
+		else if (mb > 1900)
+			hiprilvl = 2;
+		else if (mb > 1160)
+			hiprilvl = 3;
+		else if (mb > 440)
+			hiprilvl = 4;
+		else
+			hiprilvl = 5;
+
+	} else if (mdev->unique_rev_id >= 0x01) {
+		hiprilvl = 3;
+	} else {
+		hiprilvl = 4;
+	}
+
+	crtcext6 = hiprilvl; /* implicitly sets maxhipri to 0 */
+
+	WREG_ECRT(0x06, crtcext6);
+}
+
+static void mgag200_g200ev_set_hiprilvl(struct mga_device *mdev)
+{
+	WREG_ECRT(0x06, 0x00);
+}
+
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode,
@@ -1251,10 +1301,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	if (mdev->type == G200_EW3)
 		WREG_ECRT(0x34, 0x5);
 
-	if (mdev->type == G200_EV) {
-		WREG_ECRT(6, 0);
-	}
-
 	misc = RREG8(MGA_MISC_IN);
 	misc |= MGAREG_MISC_IOADSEL |
 		MGAREG_MISC_RAMMAPEN |
@@ -1270,47 +1316,11 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	if (mdev->type == G200_ER)
 		mgag200_g200er_reset_tagfifo(mdev);
 
+	if (IS_G200_SE(mdev))
+		mgag200_g200se_set_hiprilvl(mdev, mode, fb);
+	else if (mdev->type == G200_EV)
+		mgag200_g200ev_set_hiprilvl(mdev);
 
-	if (IS_G200_SE(mdev)) {
-		if  (mdev->unique_rev_id >= 0x04) {
-			WREG8(MGAREG_CRTCEXT_INDEX, 0x06);
-			WREG8(MGAREG_CRTCEXT_DATA, 0);
-		} else if (mdev->unique_rev_id >= 0x02) {
-			u8 hi_pri_lvl;
-			u32 bpp;
-			u32 mb;
-
-			if (fb->format->cpp[0] * 8 > 16)
-				bpp = 32;
-			else if (fb->format->cpp[0] * 8 > 8)
-				bpp = 16;
-			else
-				bpp = 8;
-
-			mb = (mode->clock * bpp) / 1000;
-			if (mb > 3100)
-				hi_pri_lvl = 0;
-			else if (mb > 2600)
-				hi_pri_lvl = 1;
-			else if (mb > 1900)
-				hi_pri_lvl = 2;
-			else if (mb > 1160)
-				hi_pri_lvl = 3;
-			else if (mb > 440)
-				hi_pri_lvl = 4;
-			else
-				hi_pri_lvl = 5;
-
-			WREG8(MGAREG_CRTCEXT_INDEX, 0x06);
-			WREG8(MGAREG_CRTCEXT_DATA, hi_pri_lvl);
-		} else {
-			WREG8(MGAREG_CRTCEXT_INDEX, 0x06);
-			if (mdev->unique_rev_id >= 0x01)
-				WREG8(MGAREG_CRTCEXT_DATA, 0x03);
-			else
-				WREG8(MGAREG_CRTCEXT_DATA, 0x04);
-		}
-	}
 	return 0;
 }
 
