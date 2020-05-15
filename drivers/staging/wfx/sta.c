@@ -441,8 +441,10 @@ int wfx_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	for (i = 0; i < ARRAY_SIZE(sta_priv->buffered); i++)
 		if (sta_priv->buffered[i])
-			dev_warn(wvif->wdev->dev, "release station while %d pending frame on queue %d",
-				 sta_priv->buffered[i], i);
+			// Not an error if paired with trace in
+			// wfx_tx_update_sta()
+			dev_dbg(wvif->wdev->dev, "release station while %d pending frame on queue %d",
+				sta_priv->buffered[i], i);
 	// See note in wfx_sta_add()
 	if (!sta_priv->link_id)
 		return 0;
