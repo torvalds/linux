@@ -47,7 +47,7 @@ static inline unsigned long *__scs_magic(void *s)
 	return (unsigned long *)(s + SCS_SIZE) - 1;
 }
 
-static inline bool scs_corrupted(struct task_struct *tsk)
+static inline bool task_scs_end_corrupted(struct task_struct *tsk)
 {
 	unsigned long *magic = __scs_magic(task_scs(tsk));
 	unsigned long sz = task_scs_sp(tsk) - task_scs(tsk);
@@ -60,8 +60,8 @@ static inline bool scs_corrupted(struct task_struct *tsk)
 static inline void scs_init(void) {}
 static inline void scs_task_reset(struct task_struct *tsk) {}
 static inline int scs_prepare(struct task_struct *tsk, int node) { return 0; }
-static inline bool scs_corrupted(struct task_struct *tsk) { return false; }
 static inline void scs_release(struct task_struct *tsk) {}
+static inline bool task_scs_end_corrupted(struct task_struct *tsk) { return false; }
 
 #endif /* CONFIG_SHADOW_CALL_STACK */
 

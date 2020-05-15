@@ -3878,6 +3878,9 @@ static inline void schedule_debug(struct task_struct *prev, bool preempt)
 #ifdef CONFIG_SCHED_STACK_END_CHECK
 	if (task_stack_end_corrupted(prev))
 		panic("corrupted stack end detected inside scheduler\n");
+
+	if (task_scs_end_corrupted(prev))
+		panic("corrupted shadow stack detected inside scheduler\n");
 #endif
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP

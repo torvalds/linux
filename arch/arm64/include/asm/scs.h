@@ -24,24 +24,6 @@
 	.endm
 #endif /* CONFIG_SHADOW_CALL_STACK */
 
-#else /* __ASSEMBLY__ */
-
-#include <linux/scs.h>
-
-#ifdef CONFIG_SHADOW_CALL_STACK
-
-static inline void scs_overflow_check(struct task_struct *tsk)
-{
-	if (unlikely(scs_corrupted(tsk)))
-		panic("corrupted shadow stack detected inside scheduler\n");
-}
-
-#else /* CONFIG_SHADOW_CALL_STACK */
-
-static inline void scs_overflow_check(struct task_struct *tsk) {}
-
-#endif /* CONFIG_SHADOW_CALL_STACK */
-
 #endif /* __ASSEMBLY __ */
 
 #endif /* _ASM_SCS_H */

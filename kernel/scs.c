@@ -98,7 +98,8 @@ void scs_release(struct task_struct *tsk)
 	if (!s)
 		return;
 
-	WARN(scs_corrupted(tsk), "corrupted shadow stack detected when freeing task\n");
+	WARN(task_scs_end_corrupted(tsk),
+	     "corrupted shadow stack detected when freeing task\n");
 	scs_check_usage(tsk);
 	scs_free(s);
 }

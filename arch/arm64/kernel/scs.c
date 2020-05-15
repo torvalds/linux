@@ -6,7 +6,7 @@
  */
 
 #include <linux/percpu.h>
-#include <asm/scs.h>
+#include <linux/scs.h>
 
 /* Allocate a static per-CPU shadow stack */
 #define DEFINE_SCS(name)						\
