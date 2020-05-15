@@ -983,25 +983,6 @@ drm_gem_object_free(struct kref *kref)
 EXPORT_SYMBOL(drm_gem_object_free);
 
 /**
- * drm_gem_object_put_unlocked - drop a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This releases a reference to @obj. Callers must not hold the
- * &drm_device.struct_mutex lock when calling this function.
- *
- * See also __drm_gem_object_put().
- */
-void
-drm_gem_object_put_unlocked(struct drm_gem_object *obj)
-{
-	if (!obj)
-		return;
-
-	kref_put(&obj->refcount, drm_gem_object_free);
-}
-EXPORT_SYMBOL(drm_gem_object_put_unlocked);
-
-/**
  * drm_gem_object_put - release a GEM buffer object reference
  * @obj: GEM buffer object
  *

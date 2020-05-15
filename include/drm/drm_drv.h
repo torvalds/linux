@@ -332,8 +332,6 @@ struct drm_driver {
 	 *
 	 * This is deprecated and should not be used by new drivers. Use
 	 * &drm_gem_object_funcs.free instead.
-	 * Compared to @gem_free_object this is not encumbered with
-	 * &drm_device.struct_mutex legacy locking schemes.
 	 */
 	void (*gem_free_object_unlocked) (struct drm_gem_object *obj);
 
