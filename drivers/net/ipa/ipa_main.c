@@ -933,8 +933,8 @@ static int ipa_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops ipa_pm_ops = {
-	.suspend_noirq	= ipa_suspend,
-	.resume_noirq	= ipa_resume,
+	.suspend	= ipa_suspend,
+	.resume		= ipa_resume,
 };
 
 static struct platform_driver ipa_driver = {
