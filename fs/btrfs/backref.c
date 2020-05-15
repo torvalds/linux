@@ -2702,7 +2702,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 	root = btrfs_get_fs_root(fs_info, &root_key, false);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		cur->cowonly = 1;
 
 	if (btrfs_root_level(&root->root_item) == cur->level) {
@@ -2789,7 +2789,7 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 				goto out;
 			}
 			upper->owner = btrfs_header_owner(eb);
-			if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+			if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 				upper->cowonly = 1;
 
 			/*

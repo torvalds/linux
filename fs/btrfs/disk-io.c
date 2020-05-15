@@ -1273,12 +1273,13 @@ static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 	root->root_key.offset = BTRFS_TREE_LOG_OBJECTID;
 
 	/*
-	 * DON'T set REF_COWS for log trees
+	 * DON'T set SHAREABLE bit for log trees.
 	 *
-	 * log trees do not get reference counted because they go away
-	 * before a real commit is actually done.  They do store pointers
-	 * to file data extents, and those reference counts still get
-	 * updated (along with back refs to the log tree).
+	 * Log trees are not exposed to user space thus can't be snapshotted,
+	 * and they go away before a real commit is actually done.
+	 *
+	 * They do store pointers to file data extents, and those reference
+	 * counts still get updated (along with back refs to the log tree).
 	 */
 
 	leaf = btrfs_alloc_tree_block(trans, root, 0, BTRFS_TREE_LOG_OBJECTID,
@@ -1417,7 +1418,7 @@ static int btrfs_init_fs_root(struct btrfs_root *root)
 		goto fail;
 
 	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
-		set_bit(BTRFS_ROOT_REF_COWS, &root->state);
+		set_bit(BTRFS_ROOT_SHAREABLE, &root->state);
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
 

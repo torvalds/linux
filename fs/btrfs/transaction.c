@@ -349,10 +349,10 @@ loop:
 }
 
 /*
- * this does all the record keeping required to make sure that a reference
- * counted root is properly recorded in a given transaction.  This is required
- * to make sure the old root from before we joined the transaction is deleted
- * when the transaction commits
+ * This does all the record keeping required to make sure that a shareable root
+ * is properly recorded in a given transaction.  This is required to make sure
+ * the old root from before we joined the transaction is deleted when the
+ * transaction commits.
  */
 static int record_root_in_trans(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
@@ -360,7 +360,7 @@ static int record_root_in_trans(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	if ((test_bit(BTRFS_ROOT_REF_COWS, &root->state) &&
+	if ((test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
 	    root->last_trans < trans->transid) || force) {
 		WARN_ON(root == fs_info->extent_root);
 		WARN_ON(!force && root->commit_root != root->node);
@@ -439,7 +439,7 @@ int btrfs_record_root_in_trans(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		return 0;
 
 	/*
@@ -504,7 +504,7 @@ static inline bool need_reserve_reloc_root(struct btrfs_root *root)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	if (!fs_info->reloc_ctl ||
-	    !test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
+	    !test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
 	    root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
 	    root->reloc_root)
 		return false;

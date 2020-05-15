@@ -321,7 +321,7 @@ int btrfs_should_ignore_reloc_root(struct btrfs_root *root)
 {
 	struct btrfs_root *reloc_root;
 
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		return 0;
 
 	/* This root has been merged with its reloc tree, we can ignore it */
@@ -808,7 +808,7 @@ static struct btrfs_root *create_reloc_root(struct btrfs_trans_handle *trans,
 
 	reloc_root = btrfs_read_tree_root(fs_info->tree_root, &root_key);
 	BUG_ON(IS_ERR(reloc_root));
-	set_bit(BTRFS_ROOT_REF_COWS, &reloc_root->state);
+	set_bit(BTRFS_ROOT_SHAREABLE, &reloc_root->state);
 	reloc_root->last_trans = trans->transid;
 	return reloc_root;
 }
@@ -2018,7 +2018,7 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 		next = walk_up_backref(next, edges, &index);
 		root = next->root;
 		BUG_ON(!root);
-		BUG_ON(!test_bit(BTRFS_ROOT_REF_COWS, &root->state));
+		BUG_ON(!test_bit(BTRFS_ROOT_SHAREABLE, &root->state));
 
 		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID) {
 			record_reloc_root_in_trans(trans, root);
@@ -2062,10 +2062,13 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 }
 
 /*
- * select a tree root for relocation. return NULL if the block
- * is reference counted. we should use do_relocation() in this
- * case. return a tree root pointer if the block isn't reference
- * counted. return -ENOENT if the block is root of reloc tree.
+ * Select a tree root for relocation.
+ *
+ * Return NULL if the block is not shareable. We should use do_relocation() in
+ * this case.
+ *
+ * Return a tree root pointer if the block is shareable.
+ * Return -ENOENT if the block is root of reloc tree.
  */
 static noinline_for_stack
 struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
@@ -2083,8 +2086,8 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 		root = next->root;
 		BUG_ON(!root);
 
-		/* no other choice for non-references counted tree */
-		if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+		/* No other choice for non-shareable tree */
+		if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 			return root;
 
 		if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID)
@@ -2480,7 +2483,7 @@ static int relocate_tree_block(struct btrfs_trans_handle *trans,
 	}
 
 	if (root) {
-		if (test_bit(BTRFS_ROOT_REF_COWS, &root->state)) {
+		if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state)) {
 			BUG_ON(node->new_bytenr);
 			BUG_ON(!list_empty(&node->list));
 			btrfs_record_root_in_trans(trans, root);
@@ -3765,7 +3768,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 			goto out;
 		}
 
-		set_bit(BTRFS_ROOT_REF_COWS, &reloc_root->state);
+		set_bit(BTRFS_ROOT_SHAREABLE, &reloc_root->state);
 		list_add(&reloc_root->root_list, &reloc_roots);
 
 		if (btrfs_root_refs(&reloc_root->root_item) > 0) {

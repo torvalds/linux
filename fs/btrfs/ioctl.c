@@ -750,7 +750,7 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	int ret;
 	bool snapshot_force_cow = false;
 
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		return -EINVAL;
 
 	if (atomic_read(&root->nr_swapfiles)) {

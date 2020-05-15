@@ -4100,11 +4100,12 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	BUG_ON(new_size > 0 && min_type != BTRFS_EXTENT_DATA_KEY);
 
 	/*
-	 * for non-free space inodes and ref cows, we want to back off from
-	 * time to time
+	 * For non-free space inodes and non-shareable roots, we want to back
+	 * off from time to time.  This means all inodes in subvolume roots,
+	 * reloc roots, and data reloc roots.
 	 */
 	if (!btrfs_is_free_space_inode(BTRFS_I(inode)) &&
-	    test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+	    test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 		be_nice = true;
 
 	path = btrfs_alloc_path();
@@ -4121,7 +4122,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	 * not block aligned since we will be keeping the last block of the
 	 * extent just the way it is.
 	 */
-	if (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
+	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
 	    root == fs_info->tree_root)
 		btrfs_drop_extent_cache(BTRFS_I(inode), ALIGN(new_size,
 					fs_info->sectorsize),
@@ -4233,7 +4234,7 @@ search_again:
 							 extent_num_bytes);
 				num_dec = (orig_num_bytes -
 					   extent_num_bytes);
-				if (test_bit(BTRFS_ROOT_REF_COWS,
+				if (test_bit(BTRFS_ROOT_SHAREABLE,
 					     &root->state) &&
 				    extent_start != 0)
 					inode_sub_bytes(inode, num_dec);
@@ -4249,7 +4250,7 @@ search_again:
 				num_dec = btrfs_file_extent_num_bytes(leaf, fi);
 				if (extent_start != 0) {
 					found_extent = 1;
-					if (test_bit(BTRFS_ROOT_REF_COWS,
+					if (test_bit(BTRFS_ROOT_SHAREABLE,
 						     &root->state))
 						inode_sub_bytes(inode, num_dec);
 				}
@@ -4285,7 +4286,7 @@ search_again:
 				clear_len = fs_info->sectorsize;
 			}
 
-			if (test_bit(BTRFS_ROOT_REF_COWS, &root->state))
+			if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
 				inode_sub_bytes(inode, item_end + 1 - new_size);
 		}
 delete:
@@ -4326,7 +4327,7 @@ delete:
 		should_throttle = false;
 
 		if (found_extent &&
-		    (test_bit(BTRFS_ROOT_REF_COWS, &root->state) ||
+		    (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
 		     root == fs_info->tree_root)) {
 			struct btrfs_ref ref = { 0 };
 
