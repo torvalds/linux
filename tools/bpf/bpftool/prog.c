@@ -238,7 +238,7 @@ exit_free:
 	return fd;
 }
 
-static void show_prog_maps(int fd, u32 num_maps)
+static void show_prog_maps(int fd, __u32 num_maps)
 {
 	struct bpf_prog_info info = {};
 	__u32 len = sizeof(info);

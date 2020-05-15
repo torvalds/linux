@@ -1,12 +1,12 @@
 #include <uapi/linux/bpf.h>
-#include <bpf/bpf_helpers.h>
-#include "bpf_legacy.h"
 #include <uapi/linux/in.h>
 #include <uapi/linux/if.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/ip.h>
 #include <uapi/linux/ipv6.h>
 #include <uapi/linux/if_tunnel.h>
+#include <bpf/bpf_helpers.h>
+#include "bpf_legacy.h"
 #define IP_MF		0x2000
 #define IP_OFFSET	0x1FFF
 

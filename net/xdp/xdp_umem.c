@@ -30,9 +30,9 @@ void xdp_add_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&umem->xsk_list_lock, flags);
-	list_add_rcu(&xs->list, &umem->xsk_list);
-	spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+	spin_lock_irqsave(&umem->xsk_tx_list_lock, flags);
+	list_add_rcu(&xs->list, &umem->xsk_tx_list);
+	spin_unlock_irqrestore(&umem->xsk_tx_list_lock, flags);
 }
 
 void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
@@ -42,9 +42,9 @@ void xdp_del_sk_umem(struct xdp_umem *umem, struct xdp_sock *xs)
 	if (!xs->tx)
 		return;
 
-	spin_lock_irqsave(&umem->xsk_list_lock, flags);
+	spin_lock_irqsave(&umem->xsk_tx_list_lock, flags);
 	list_del_rcu(&xs->list);
-	spin_unlock_irqrestore(&umem->xsk_list_lock, flags);
+	spin_unlock_irqrestore(&umem->xsk_tx_list_lock, flags);
 }
 
 /* The umem is stored both in the _rx struct and the _tx struct as we do
@@ -279,7 +279,7 @@ void xdp_put_umem(struct xdp_umem *umem)
 	}
 }
 
-static int xdp_umem_pin_pages(struct xdp_umem *umem)
+static int xdp_umem_pin_pages(struct xdp_umem *umem, unsigned long address)
 {
 	unsigned int gup_flags = FOLL_WRITE;
 	long npgs;
@@ -291,7 +291,7 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
 		return -ENOMEM;
 
 	down_read(&current->mm->mmap_sem);
-	npgs = pin_user_pages(umem->address, umem->npgs,
+	npgs = pin_user_pages(address, umem->npgs,
 			      gup_flags | FOLL_LONGTERM, &umem->pgs[0], NULL);
 	up_read(&current->mm->mmap_sem);
 
@@ -385,7 +385,6 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (headroom >= chunk_size - XDP_PACKET_HEADROOM)
 		return -EINVAL;
 
-	umem->address = (unsigned long)addr;
 	umem->chunk_mask = unaligned_chunks ? XSK_UNALIGNED_BUF_ADDR_MASK
 					    : ~((u64)chunk_size - 1);
 	umem->size = size;
@@ -395,8 +394,8 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	umem->pgs = NULL;
 	umem->user = NULL;
 	umem->flags = mr->flags;
-	INIT_LIST_HEAD(&umem->xsk_list);
-	spin_lock_init(&umem->xsk_list_lock);
+	INIT_LIST_HEAD(&umem->xsk_tx_list);
+	spin_lock_init(&umem->xsk_tx_list_lock);
 
 	refcount_set(&umem->users, 1);
 
@@ -404,7 +403,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (err)
 		return err;
 
-	err = xdp_umem_pin_pages(umem);
+	err = xdp_umem_pin_pages(umem, (unsigned long)addr);
 	if (err)
 		goto out_account;
 

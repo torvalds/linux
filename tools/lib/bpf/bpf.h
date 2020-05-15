@@ -187,6 +187,8 @@ struct bpf_link_update_opts {
 LIBBPF_API int bpf_link_update(int link_fd, int new_prog_fd,
 			       const struct bpf_link_update_opts *opts);
 
+LIBBPF_API int bpf_iter_create(int link_fd);
+
 struct bpf_prog_test_run_attr {
 	int prog_fd;
 	int repeat;

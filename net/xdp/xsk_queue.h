@@ -30,7 +30,7 @@ struct xdp_umem_ring {
 
 struct xsk_queue {
 	u64 chunk_mask;
-	u64 size;
+	u64 umem_size;
 	u32 ring_mask;
 	u32 nentries;
 	u32 cached_prod;
@@ -123,7 +123,7 @@ static inline bool xskq_cons_is_valid_unaligned(struct xsk_queue *q,
 	u64 base_addr = xsk_umem_extract_addr(addr);
 
 	addr = xsk_umem_add_offset_to_addr(addr);
-	if (base_addr >= q->size || addr >= q->size ||
+	if (base_addr >= q->umem_size || addr >= q->umem_size ||
 	    xskq_cons_crosses_non_contig_pg(umem, addr, length)) {
 		q->invalid_descs++;
 		return false;
@@ -134,7 +134,7 @@ static inline bool xskq_cons_is_valid_unaligned(struct xsk_queue *q,
 
 static inline bool xskq_cons_is_valid_addr(struct xsk_queue *q, u64 addr)
 {
-	if (addr >= q->size) {
+	if (addr >= q->umem_size) {
 		q->invalid_descs++;
 		return false;
 	}
@@ -379,7 +379,7 @@ static inline u64 xskq_nb_invalid_descs(struct xsk_queue *q)
 	return q ? q->invalid_descs : 0;
 }
 
-void xskq_set_umem(struct xsk_queue *q, u64 size, u64 chunk_mask);
+void xskq_set_umem(struct xsk_queue *q, u64 umem_size, u64 chunk_mask);
 struct xsk_queue *xskq_create(u32 nentries, bool umem_queue);
 void xskq_destroy(struct xsk_queue *q_ops);
 

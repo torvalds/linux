@@ -50,7 +50,6 @@ struct xdp_umem {
 	u32 headroom;
 	u32 chunk_size_nohr;
 	struct user_struct *user;
-	unsigned long address;
 	refcount_t users;
 	struct work_struct work;
 	struct page **pgs;
@@ -62,8 +61,8 @@ struct xdp_umem {
 	struct net_device *dev;
 	struct xdp_umem_fq_reuse *fq_reuse;
 	bool zc;
-	spinlock_t xsk_list_lock;
-	struct list_head xsk_list;
+	spinlock_t xsk_tx_list_lock;
+	struct list_head xsk_tx_list;
 };
 
 /* Nodes are linked in the struct xdp_sock map_list field, and used to

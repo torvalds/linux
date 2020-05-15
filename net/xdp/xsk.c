@@ -75,7 +75,7 @@ void xsk_set_tx_need_wakeup(struct xdp_umem *umem)
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
 		xs->tx->ring->flags |= XDP_RING_NEED_WAKEUP;
 	}
 	rcu_read_unlock();
@@ -102,7 +102,7 @@ void xsk_clear_tx_need_wakeup(struct xdp_umem *umem)
 		return;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
 		xs->tx->ring->flags &= ~XDP_RING_NEED_WAKEUP;
 	}
 	rcu_read_unlock();
@@ -305,7 +305,7 @@ void xsk_umem_consume_tx_done(struct xdp_umem *umem)
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
 		__xskq_cons_release(xs->tx);
 		xs->sk.sk_write_space(&xs->sk);
 	}
@@ -318,7 +318,7 @@ bool xsk_umem_consume_tx(struct xdp_umem *umem, struct xdp_desc *desc)
 	struct xdp_sock *xs;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(xs, &umem->xsk_list, list) {
+	list_for_each_entry_rcu(xs, &umem->xsk_tx_list, list) {
 		if (!xskq_cons_peek_desc(xs->tx, desc, umem))
 			continue;
 

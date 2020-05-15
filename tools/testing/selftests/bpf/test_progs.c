@@ -222,23 +222,6 @@ int test__join_cgroup(const char *path)
 	return fd;
 }
 
-struct ipv4_packet pkt_v4 = {
-	.eth.h_proto = __bpf_constant_htons(ETH_P_IP),
-	.iph.ihl = 5,
-	.iph.protocol = IPPROTO_TCP,
-	.iph.tot_len = __bpf_constant_htons(MAGIC_BYTES),
-	.tcp.urg_ptr = 123,
-	.tcp.doff = 5,
-};
-
-struct ipv6_packet pkt_v6 = {
-	.eth.h_proto = __bpf_constant_htons(ETH_P_IPV6),
-	.iph.nexthdr = IPPROTO_TCP,
-	.iph.payload_len = __bpf_constant_htons(MAGIC_BYTES),
-	.tcp.urg_ptr = 123,
-	.tcp.doff = 5,
-};
-
 int bpf_find_map(const char *test, struct bpf_object *obj, const char *name)
 {
 	struct bpf_map *map;
@@ -358,19 +341,6 @@ err:
 	return -1;
 }
 
-void *spin_lock_thread(void *arg)
-{
-	__u32 duration, retval;
-	int err, prog_fd = *(u32 *) arg;
-
-	err = bpf_prog_test_run(prog_fd, 10000, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
-	pthread_exit(arg);
-}
-
 /* extern declarations for test funcs */
 #define DEFINE_TEST(name) extern void test_##name(void);
 #include <prog_tests/tests.h>
@@ -468,67 +438,6 @@ err:
 	return -ENOMEM;
 }
 
-int parse_num_list(const char *s, struct test_selector *sel)
-{
-	int i, set_len = 0, new_len, num, start = 0, end = -1;
-	bool *set = NULL, *tmp, parsing_end = false;
-	char *next;
-
-	while (s[0]) {
-		errno = 0;
-		num = strtol(s, &next, 10);
-		if (errno)
-			return -errno;
-
-		if (parsing_end)
-			end = num;
-		else
-			start = num;
-
-		if (!parsing_end && *next == '-') {
-			s = next + 1;
-			parsing_end = true;
-			continue;
-		} else if (*next == ',') {
-			parsing_end = false;
-			s = next + 1;
-			end = num;
-		} else if (*next == '\0') {
-			parsing_end = false;
-			s = next;
-			end = num;
-		} else {
-			return -EINVAL;
-		}
-
-		if (start > end)
-			return -EINVAL;
-
-		if (end + 1 > set_len) {
-			new_len = end + 1;
-			tmp = realloc(set, new_len);
-			if (!tmp) {
-				free(set);
-				return -ENOMEM;
-			}
-			for (i = set_len; i < start; i++)
-				tmp[i] = false;
-			set = tmp;
-			set_len = new_len;
-		}
-		for (i = start; i <= end; i++)
-			set[i] = true;
-	}
-
-	if (!set)
-		return -EINVAL;
-
-	sel->num_set = set;
-	sel->num_set_len = set_len;
-
-	return 0;
-}
-
 extern int extra_prog_load_log_flags;
 
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
@@ -542,13 +451,15 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		if (subtest_str) {
 			*subtest_str = '\0';
 			if (parse_num_list(subtest_str + 1,
-					   &env->subtest_selector)) {
+					   &env->subtest_selector.num_set,
+					   &env->subtest_selector.num_set_len)) {
 				fprintf(stderr,
 					"Failed to parse subtest numbers.\n");
 				return -EINVAL;
 			}
 		}
-		if (parse_num_list(arg, &env->test_selector)) {
+		if (parse_num_list(arg, &env->test_selector.num_set,
+				   &env->test_selector.num_set_len)) {
 			fprintf(stderr, "Failed to parse test numbers.\n");
 			return -EINVAL;
 		}

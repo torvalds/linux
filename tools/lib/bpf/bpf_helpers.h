@@ -37,6 +37,20 @@
 #endif
 
 /*
+ * Helper macro to manipulate data structures
+ */
+#ifndef offsetof
+#define offsetof(TYPE, MEMBER)  ((size_t)&((TYPE *)0)->MEMBER)
+#endif
+#ifndef container_of
+#define container_of(ptr, type, member)				\
+	({							\
+		void *__mptr = (void *)(ptr);			\
+		((type *)(__mptr - offsetof(type, member)));	\
+	})
+#endif
+
+/*
  * Helper structure used by eBPF C program
  * to describe BPF map attributes to libbpf loader
  */

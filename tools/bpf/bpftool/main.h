@@ -18,6 +18,9 @@
 
 #include "json_writer.h"
 
+/* Make sure we do not use kernel-only integer typedefs */
+#pragma GCC poison u8 u16 u32 u64 s8 s16 s32 s64
+
 #define ptr_to_u64(ptr)	((__u64)(unsigned long)(ptr))
 
 #define NEXT_ARG()	({ argc--; argv++; if (argc < 0) usage(); })
@@ -199,6 +202,7 @@ int do_feature(int argc, char **argv);
 int do_btf(int argc, char **argv);
 int do_gen(int argc, char **argv);
 int do_struct_ops(int argc, char **argv);
+int do_iter(int argc, char **argv);
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);
