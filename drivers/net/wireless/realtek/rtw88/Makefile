@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
-obj-$(CONFIG_RTW88_CORE)	+= rtw88.o
-rtw88-y += main.o \
+obj-$(CONFIG_RTW88_CORE)	+= rtw88_core.o
+rtw88_core-y += main.o \
 	   mac80211.o \
 	   util.o \
 	   debug.o \
@@ -37,5 +37,5 @@ rtw88_8723d-objs		:= rtw8723d.o rtw8723d_table.o
 obj-$(CONFIG_RTW88_8723DE)	+= rtw88_8723de.o
 rtw88_8723de-objs		:= rtw8723de.o
 
-obj-$(CONFIG_RTW88_PCI)		+= rtwpci.o
-rtwpci-objs			:= pci.o
+obj-$(CONFIG_RTW88_PCI)		+= rtw88_pci.o
+rtw88_pci-objs			:= pci.o
