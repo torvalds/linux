@@ -76,7 +76,8 @@ static int count_iters_for_insert(struct btree_trans *trans,
 
 			if (*nr_iters >= max_iters) {
 				struct bpos pos = bkey_start_pos(k.k);
-				pos.offset += r_k.k->p.offset - idx;
+				pos.offset += min_t(u64, k.k->size,
+						    r_k.k->p.offset - idx);
 
 				*end = bpos_min(*end, pos);
 				ret = 1;
