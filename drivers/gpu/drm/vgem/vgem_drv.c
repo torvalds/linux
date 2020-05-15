@@ -198,7 +198,7 @@ static struct drm_gem_object *vgem_gem_create(struct drm_device *dev,
 
 	ret = drm_gem_handle_create(file, &obj->base, handle);
 	if (ret) {
-		drm_gem_object_put_unlocked(&obj->base);
+		drm_gem_object_put(&obj->base);
 		return ERR_PTR(ret);
 	}
 
@@ -223,7 +223,7 @@ static int vgem_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 	args->size = gem_object->size;
 	args->pitch = pitch;
 
-	drm_gem_object_put_unlocked(gem_object);
+	drm_gem_object_put(gem_object);
 
 	DRM_DEBUG("Created object of size %llu\n", args->size);
 
@@ -251,7 +251,7 @@ static int vgem_gem_dumb_map(struct drm_file *file, struct drm_device *dev,
 
 	*offset = drm_vma_node_offset_addr(&obj->vma_node);
 unref:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return ret;
 }
