@@ -690,7 +690,7 @@ static int objects_lookup(struct drm_file *filp, u32 *handle, int count,
  * Returns:
  *
  * @objs filled in with GEM object pointers. Returned GEM objects need to be
- * released with drm_gem_object_put(). -ENOENT is returned on a lookup
+ * released with drm_gem_object_put_unlocked(). -ENOENT is returned on a lookup
  * failure. 0 is returned on success.
  *
  */
