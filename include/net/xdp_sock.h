@@ -236,6 +236,12 @@ static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 address,
 	else
 		return address + offset;
 }
+
+static inline u32 xsk_umem_xdp_frame_sz(struct xdp_umem *umem)
+{
+	return umem->chunk_size_nohr + umem->headroom;
+}
+
 #else
 static inline int xsk_generic_rcv(struct xdp_sock *xs, struct xdp_buff *xdp)
 {
@@ -362,6 +368,11 @@ static inline bool xsk_umem_uses_need_wakeup(struct xdp_umem *umem)
 
 static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 handle,
 					 u64 offset)
+{
+	return 0;
+}
+
+static inline u32 xsk_umem_xdp_frame_sz(struct xdp_umem *umem)
 {
 	return 0;
 }

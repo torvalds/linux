@@ -625,6 +625,7 @@ struct mlx5e_rq {
 	struct {
 		u16            umem_headroom;
 		u16            headroom;
+		u32            frame0_sz;
 		u8             map_dir;   /* dma map direction */
 	} buff;
 
