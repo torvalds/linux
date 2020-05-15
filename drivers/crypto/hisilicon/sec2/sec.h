@@ -160,6 +160,10 @@ struct sec_debug_file {
 struct sec_dfx {
 	atomic64_t send_cnt;
 	atomic64_t recv_cnt;
+	atomic64_t send_busy_cnt;
+	atomic64_t err_bd_cnt;
+	atomic64_t invalid_req_cnt;
+	atomic64_t done_flag_cnt;
 };
 
 struct sec_debug {

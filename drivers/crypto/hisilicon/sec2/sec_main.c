@@ -88,6 +88,11 @@ struct sec_hw_error {
 	const char *msg;
 };
 
+struct sec_dfx_item {
+	const char *name;
+	u32 offset;
+};
+
 static const char sec_name[] = "hisi_sec2";
 static struct dentry *sec_debugfs_root;
 static struct hisi_qm_list sec_devices;
@@ -108,6 +113,15 @@ static const struct sec_hw_error sec_hw_errors[] = {
 static const char * const sec_dbg_file_name[] = {
 	[SEC_CURRENT_QM] = "current_qm",
 	[SEC_CLEAR_ENABLE] = "clear_enable",
+};
+
+static struct sec_dfx_item sec_dfx_labels[] = {
+	{"send_cnt", offsetof(struct sec_dfx, send_cnt)},
+	{"recv_cnt", offsetof(struct sec_dfx, recv_cnt)},
+	{"send_busy_cnt", offsetof(struct sec_dfx, send_busy_cnt)},
+	{"err_bd_cnt", offsetof(struct sec_dfx, err_bd_cnt)},
+	{"invalid_req_cnt", offsetof(struct sec_dfx, invalid_req_cnt)},
+	{"done_flag_cnt", offsetof(struct sec_dfx, done_flag_cnt)},
 };
 
 static const struct debugfs_reg32 sec_dfx_regs[] = {
@@ -543,10 +557,22 @@ static const struct file_operations sec_dbg_fops = {
 static int sec_debugfs_atomic64_get(void *data, u64 *val)
 {
 	*val = atomic64_read((atomic64_t *)data);
+
 	return 0;
 }
+
+static int sec_debugfs_atomic64_set(void *data, u64 val)
+{
+	if (val)
+		return -EINVAL;
+
+	atomic64_set((atomic64_t *)data, 0);
+
+	return 0;
+}
+
 DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
-			 NULL, "%lld\n");
+			 sec_debugfs_atomic64_set, "%lld\n");
 
 static int sec_core_debug_init(struct sec_dev *sec)
 {
@@ -555,6 +581,7 @@ static int sec_core_debug_init(struct sec_dev *sec)
 	struct sec_dfx *dfx = &sec->debug.dfx;
 	struct debugfs_regset32 *regset;
 	struct dentry *tmp_d;
+	int i;
 
 	tmp_d = debugfs_create_dir("sec_dfx", sec->qm.debug.debug_root);
 
@@ -566,13 +593,15 @@ static int sec_core_debug_init(struct sec_dev *sec)
 	regset->nregs = ARRAY_SIZE(sec_dfx_regs);
 	regset->base = qm->io_base;
 
-	debugfs_create_regset32("regs", 0444, tmp_d, regset);
+	if (qm->pdev->device == SEC_PF_PCI_DEVICE_ID)
+		debugfs_create_regset32("regs", 0444, tmp_d, regset);
 
-	debugfs_create_file("send_cnt", 0444, tmp_d,
-			    &dfx->send_cnt, &sec_atomic64_ops);
-
-	debugfs_create_file("recv_cnt", 0444, tmp_d,
-			    &dfx->recv_cnt, &sec_atomic64_ops);
+	for (i = 0; i < ARRAY_SIZE(sec_dfx_labels); i++) {
+		atomic64_t *data = (atomic64_t *)((uintptr_t)dfx +
+					sec_dfx_labels[i].offset);
+		debugfs_create_file(sec_dfx_labels[i].name, 0644,
+				   tmp_d, data, &sec_atomic64_ops);
+	}
 
 	return 0;
 }
