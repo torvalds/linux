@@ -217,6 +217,14 @@ void test_mmap(void)
 
 	munmap(tmp2, 4 * page_size);
 
+	/* map all 4 pages, but with pg_off=1 page, should fail */
+	tmp1 = mmap(NULL, 4 * page_size, PROT_READ, MAP_SHARED | MAP_FIXED,
+		    data_map_fd, page_size /* initial page shift */);
+	if (CHECK(tmp1 != MAP_FAILED, "adv_mmap7", "unexpected success")) {
+		munmap(tmp1, 4 * page_size);
+		goto cleanup;
+	}
+
 	tmp1 = mmap(NULL, map_sz, PROT_READ, MAP_SHARED, data_map_fd, 0);
 	if (CHECK(tmp1 == MAP_FAILED, "last_mmap", "failed %d\n", errno))
 		goto cleanup;
