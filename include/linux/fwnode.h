@@ -168,4 +168,6 @@ struct fwnode_operations {
 	} while (false)
 #define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
 
+void fw_devlink_pause(void);
+void fw_devlink_resume(void);
 #endif
