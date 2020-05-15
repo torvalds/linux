@@ -14,25 +14,35 @@
 
 static struct kmem_cache *scs_cache;
 
+static void __scs_account(void *s, int account)
+{
+	struct page *scs_page = virt_to_page(s);
+
+	mod_zone_page_state(page_zone(scs_page), NR_KERNEL_SCS_KB,
+			    account * (SCS_SIZE / SZ_1K));
+}
+
 static void *scs_alloc(int node)
 {
-	void *s;
+	void *s = kmem_cache_alloc_node(scs_cache, GFP_SCS, node);
 
-	s = kmem_cache_alloc_node(scs_cache, GFP_SCS, node);
-	if (s) {
-		*__scs_magic(s) = SCS_END_MAGIC;
-		/*
-		 * Poison the allocation to catch unintentional accesses to
-		 * the shadow stack when KASAN is enabled.
-		 */
-		kasan_poison_object_data(scs_cache, s);
-	}
+	if (!s)
+		return NULL;
 
+	*__scs_magic(s) = SCS_END_MAGIC;
+
+	/*
+	 * Poison the allocation to catch unintentional accesses to
+	 * the shadow stack when KASAN is enabled.
+	 */
+	kasan_poison_object_data(scs_cache, s);
+	__scs_account(s, 1);
 	return s;
 }
 
 static void scs_free(void *s)
 {
+	__scs_account(s, -1);
 	kasan_unpoison_object_data(scs_cache, s);
 	kmem_cache_free(scs_cache, s);
 }
@@ -40,17 +50,6 @@ static void scs_free(void *s)
 void __init scs_init(void)
 {
 	scs_cache = kmem_cache_create("scs_cache", SCS_SIZE, 0, 0, NULL);
-}
-
-static struct page *__scs_page(struct task_struct *tsk)
-{
-	return virt_to_page(task_scs(tsk));
-}
-
-static void scs_account(struct task_struct *tsk, int account)
-{
-	mod_zone_page_state(page_zone(__scs_page(tsk)), NR_KERNEL_SCS_KB,
-		account * (SCS_SIZE / 1024));
 }
 
 int scs_prepare(struct task_struct *tsk, int node)
@@ -61,7 +60,6 @@ int scs_prepare(struct task_struct *tsk, int node)
 		return -ENOMEM;
 
 	task_scs(tsk) = task_scs_sp(tsk) = s;
-	scs_account(tsk, 1);
 	return 0;
 }
 
@@ -102,6 +100,5 @@ void scs_release(struct task_struct *tsk)
 
 	WARN(scs_corrupted(tsk), "corrupted shadow stack detected when freeing task\n");
 	scs_check_usage(tsk);
-	scs_account(tsk, -1);
 	scs_free(s);
 }
