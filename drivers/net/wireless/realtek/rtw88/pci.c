@@ -1593,21 +1593,6 @@ void rtw_pci_shutdown(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL(rtw_pci_shutdown);
 
-static const struct pci_device_id rtw_pci_id_table[] = {
-	{},
-};
-MODULE_DEVICE_TABLE(pci, rtw_pci_id_table);
-
-static struct pci_driver rtw_pci_driver = {
-	.name = "rtw_pci",
-	.id_table = rtw_pci_id_table,
-	.probe = rtw_pci_probe,
-	.remove = rtw_pci_remove,
-	.driver.pm = &rtw_pm_ops,
-	.shutdown = rtw_pci_shutdown,
-};
-module_pci_driver(rtw_pci_driver);
-
 MODULE_AUTHOR("Realtek Corporation");
 MODULE_DESCRIPTION("Realtek 802.11ac wireless PCI driver");
 MODULE_LICENSE("Dual BSD/GPL");
