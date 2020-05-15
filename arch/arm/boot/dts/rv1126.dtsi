@@ -1367,9 +1367,11 @@
 		interrupts = <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "cif-intr";
 		clocks = <&cru ACLK_CIF>, <&cru ACLK_CIFLITE>,
-			 <&cru HCLK_CIF>, <&cru HCLK_CIFLITE>;
+			 <&cru HCLK_CIF>, <&cru HCLK_CIFLITE>,
+			 <&cru DCLK_CIF>, <&cru DCLK_CIFLITE>;
 		clock-names = "aclk_cif", "aclk_cif_lite",
-			      "hclk_cif", "hclk_cif_lite";
+			      "hclk_cif", "hclk_cif_lite",
+			      "dclk_cif", "dclk_cif_lite";
 		resets = <&cru SRST_CIF_A>, <&cru SRST_CIF_H>,
 			 <&cru SRST_CIF_D>, <&cru SRST_CIF_P>,
 			 <&cru SRST_CIF_I>, <&cru SRST_CIF_RX_P>,
@@ -1380,6 +1382,8 @@
 			      "rst_cif_i", "rst_cif_rx_p",
 			      "rst_cif_lite_a", "rst_cif_lite_h",
 			      "rst_cif_lite_d", "rst_cif_lite_rx_p";
+		assigned-clocks = <&cru DCLK_CIF>, <&cru DCLK_CIFLITE>;
+		assigned-clock-rates = <300000000>, <300000000>;
 		power-domains = <&power RV1126_PD_VI>;
 		iommus = <&rkcif_mmu>;
 		status = "disabled";
