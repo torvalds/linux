@@ -35,5 +35,7 @@ extern struct ipv6_packet pkt_v6;
 
 int start_server(int family, int type);
 int connect_to_fd(int family, int type, int server_fd);
+int connect_fd_to_fd(int client_fd, int server_fd);
+int connect_wait(int client_fd);
 
 #endif
