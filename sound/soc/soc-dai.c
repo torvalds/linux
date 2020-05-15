@@ -393,7 +393,7 @@ void snd_soc_dai_action(struct snd_soc_dai *dai,
 {
 	/* see snd_soc_dai_stream_active() */
 	dai->stream_active[stream]	+= action;
-	dai->active			+= action;
+
 	/* see snd_soc_component_active() */
 	dai->component->active		+= action;
 }

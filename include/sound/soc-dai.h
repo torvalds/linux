@@ -364,8 +364,6 @@ struct snd_soc_dai {
 	/* DAI runtime info */
 	unsigned int stream_active[SNDRV_PCM_STREAM_LAST + 1]; /* usage count */
 
-	unsigned int active;
-
 	struct snd_soc_dapm_widget *playback_widget;
 	struct snd_soc_dapm_widget *capture_widget;
 

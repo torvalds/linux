@@ -389,12 +389,6 @@ static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
 	return dev_get_drvdata(c->dev);
 }
 
-static inline bool snd_soc_component_is_active(
-	struct snd_soc_component *component)
-{
-	return component->active != 0;
-}
-
 static inline unsigned int
 snd_soc_component_active(struct snd_soc_component *component)
 {
