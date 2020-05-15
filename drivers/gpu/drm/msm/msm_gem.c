@@ -543,7 +543,7 @@ int msm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
 
 	*offset = msm_gem_mmap_offset(obj);
 
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 fail:
 	return ret;
@@ -970,7 +970,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 	ret = drm_gem_handle_create(file, obj, handle);
 
 	/* drop reference from allocate - handle holds it now */
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return ret;
 }
@@ -1089,7 +1089,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	return obj;
 
 fail:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return ERR_PTR(ret);
 }
 
@@ -1149,7 +1149,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	return obj;
 
 fail:
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 	return ERR_PTR(ret);
 }
 
@@ -1185,7 +1185,7 @@ err:
 	if (locked)
 		drm_gem_object_put_locked(obj);
 	else
-		drm_gem_object_put_unlocked(obj);
+		drm_gem_object_put(obj);
 
 	return ERR_PTR(ret);
 
@@ -1217,7 +1217,7 @@ void msm_gem_kernel_put(struct drm_gem_object *bo,
 	if (locked)
 		drm_gem_object_put_locked(bo);
 	else
-		drm_gem_object_put_unlocked(bo);
+		drm_gem_object_put(bo);
 }
 
 void msm_gem_object_set_name(struct drm_gem_object *bo, const char *fmt, ...)
