@@ -41,6 +41,7 @@ static const u8 support_model[] = {
 	INTEL_FAM6_SKYLAKE_X,
 	INTEL_FAM6_SKYLAKE_XD,
 	INTEL_FAM6_ICELAKE_X,
+	INTEL_FAM6_ICELAKE_XD,
 };
 
 static inline int read_ddr_dimm_temp_config(struct peci_dimmtemp *priv,
@@ -73,6 +74,7 @@ static int get_dimm_temp(struct peci_dimmtemp *priv, int dimm_no)
 
 	switch (priv->gen_info->model) {
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_ICELAKE_XD:
 		re_msg.addr = priv->mgr->client->addr;
 		re_msg.rx_len = 4;
 		re_msg.msg_type = PECI_ENDPTCFG_TYPE_LOCAL_PCI;

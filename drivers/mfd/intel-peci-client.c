@@ -56,6 +56,12 @@ static const struct cpu_gen_info cpu_gen_info_table[] = {
 		.core_mask_bits = CORE_MASK_BITS_ON_ICX,
 		.chan_rank_max  = CHAN_RANK_MAX_ON_ICX,
 		.dimm_idx_max   = DIMM_IDX_MAX_ON_ICX },
+	{ /* Icelake Xeon D */
+		.family         = INTEL_FAM6,
+		.model          = INTEL_FAM6_ICELAKE_XD,
+		.core_mask_bits = CORE_MASK_BITS_ON_ICXD,
+		.chan_rank_max  = CHAN_RANK_MAX_ON_ICXD,
+		.dimm_idx_max   = DIMM_IDX_MAX_ON_ICXD },
 };
 
 static int peci_client_get_cpu_gen_info(struct peci_client_manager *priv)

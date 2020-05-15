@@ -333,6 +333,7 @@ static int check_resolved_cores(struct peci_cputemp *priv)
 	/* Get the RESOLVED_CORES register value */
 	switch (priv->gen_info->model) {
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_ICELAKE_XD:
 		msg.addr = priv->mgr->client->addr;
 		msg.device = 30;
 		msg.function = 3;
