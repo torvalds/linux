@@ -157,8 +157,8 @@ private lock. The tricky part is the BO free functions, since those can't
 reliably take that lock any more. Instead state needs to be protected with
 suitable subordinate locks or some cleanup work pushed to a worker thread. For
 performance-critical drivers it might also be better to go with a more
-fine-grained per-buffer object and per-context lockings scheme. Currently only the
-``msm`` driver still use ``struct_mutex``.
+fine-grained per-buffer object and per-context lockings scheme. Currently only
+the ``msm`` and `i915` drivers use ``struct_mutex``.
 
 Contact: Daniel Vetter, respective driver maintainers
 
