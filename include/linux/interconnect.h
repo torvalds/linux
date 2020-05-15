@@ -29,6 +29,7 @@ struct icc_path *icc_get(struct device *dev, const int src_id,
 			 const int dst_id);
 struct icc_path *of_icc_get(struct device *dev, const char *name);
 struct icc_path *devm_of_icc_get(struct device *dev, const char *name);
+struct icc_path *of_icc_get_by_index(struct device *dev, int idx);
 void icc_put(struct icc_path *path);
 int icc_enable(struct icc_path *path);
 int icc_disable(struct icc_path *path);
@@ -51,6 +52,11 @@ static inline struct icc_path *of_icc_get(struct device *dev,
 
 static inline struct icc_path *devm_of_icc_get(struct device *dev,
 						const char *name)
+{
+	return NULL;
+}
+
+static inline struct icc_path *of_icc_get_by_index(struct device *dev, int idx)
 {
 	return NULL;
 }
