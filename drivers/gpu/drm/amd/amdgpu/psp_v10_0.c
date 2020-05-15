@@ -55,9 +55,9 @@ static int psp_v10_0_init_microcode(struct psp_context *psp)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		if (adev->rev_id >= 0x8)
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			chip_name = "raven2";
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			chip_name = "picasso";
 		else
 			chip_name = "raven";

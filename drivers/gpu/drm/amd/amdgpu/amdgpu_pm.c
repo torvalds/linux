@@ -372,7 +372,7 @@ static ssize_t amdgpu_set_power_dpm_force_performance_level(struct device *dev,
 	}
 
 	if (adev->asic_type == CHIP_RAVEN) {
-		if (adev->rev_id < 8) {
+		if (!(adev->apu_flags & AMD_APU_IS_RAVEN2)) {
 			if (current_level != AMD_DPM_FORCED_LEVEL_MANUAL && level == AMD_DPM_FORCED_LEVEL_MANUAL)
 				amdgpu_gfx_off_ctrl(adev, false);
 			else if (current_level == AMD_DPM_FORCED_LEVEL_MANUAL && level != AMD_DPM_FORCED_LEVEL_MANUAL)

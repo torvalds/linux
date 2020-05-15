@@ -1302,8 +1302,7 @@ static int smu10_get_power_profile_mode(struct pp_hwmgr *hwmgr, char *buf)
 static bool smu10_is_raven1_refresh(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
-	if ((adev->asic_type == CHIP_RAVEN) &&
-	    (adev->rev_id != 0x15d8) &&
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
 	    (hwmgr->smu_version >= 0x41e2b))
 		return true;
 	else

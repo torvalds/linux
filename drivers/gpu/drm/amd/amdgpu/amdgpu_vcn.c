@@ -70,9 +70,9 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
-		if (adev->rev_id >= 8)
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			fw_name = FIRMWARE_RAVEN2;
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			fw_name = FIRMWARE_PICASSO;
 		else
 			fw_name = FIRMWARE_RAVEN;

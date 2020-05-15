@@ -1567,9 +1567,9 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 		chip_name = "vega12";
 		break;
 	case CHIP_RAVEN:
-		if (adev->rev_id >= 8)
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			chip_name = "raven2";
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			chip_name = "picasso";
 		else
 			chip_name = "raven";

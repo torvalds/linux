@@ -739,6 +739,7 @@ struct amdgpu_device {
 	uint32_t			rev_id;
 	uint32_t			external_rev_id;
 	unsigned long			flags;
+	unsigned long			apu_flags;
 	int				usec_timeout;
 	const struct amdgpu_asic_funcs	*asic_funcs;
 	bool				shutdown;

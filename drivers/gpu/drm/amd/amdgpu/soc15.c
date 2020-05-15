@@ -564,7 +564,8 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
 	/* original raven doesn't have full asic reset */
-	if (adev->pdev->device == 0x15dd && adev->rev_id < 0x8)
+	if ((adev->apu_flags & AMD_APU_IS_RAVEN) &&
+	    !(adev->apu_flags & AMD_APU_IS_RAVEN2))
 		return 0;
 
 	switch (soc15_asic_reset_method(adev)) {
@@ -1129,16 +1130,23 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RAVEN:
 		adev->asic_funcs = &soc15_asic_funcs;
+		if (adev->pdev->device == 0x15dd)
+			adev->apu_flags |= AMD_APU_IS_RAVEN;
+		if (adev->pdev->device == 0x15d8)
+			adev->apu_flags |= AMD_APU_IS_PICASSO;
 		if (adev->rev_id >= 0x8)
+			adev->apu_flags |= AMD_APU_IS_RAVEN2;
+
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 			adev->external_rev_id = adev->rev_id + 0x79;
-		else if (adev->pdev->device == 0x15d8)
+		else if (adev->apu_flags & AMD_APU_IS_PICASSO)
 			adev->external_rev_id = adev->rev_id + 0x41;
 		else if (adev->rev_id == 1)
 			adev->external_rev_id = adev->rev_id + 0x20;
 		else
 			adev->external_rev_id = adev->rev_id + 0x01;
 
-		if (adev->rev_id >= 0x8) {
+		if (adev->apu_flags & AMD_APU_IS_RAVEN2) {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
@@ -1156,7 +1164,7 @@ static int soc15_common_early_init(void *handle)
 				AMD_CG_SUPPORT_VCN_MGCG;
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
-		} else if (adev->pdev->device == 0x15d8) {
+		} else if (adev->apu_flags & AMD_APU_IS_PICASSO) {
 			adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				AMD_CG_SUPPORT_GFX_MGLS |
 				AMD_CG_SUPPORT_GFX_CP_LS |
@@ -1222,6 +1230,7 @@ static int soc15_common_early_init(void *handle)
 		break;
 	case CHIP_RENOIR:
 		adev->asic_funcs = &soc15_asic_funcs;
+		adev->apu_flags |= AMD_APU_IS_RENOIR;
 		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
 				 AMD_CG_SUPPORT_GFX_MGLS |
 				 AMD_CG_SUPPORT_GFX_3D_CGCG |
