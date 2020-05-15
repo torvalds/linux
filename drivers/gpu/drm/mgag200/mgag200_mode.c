@@ -861,21 +861,20 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
-static int mga_crtc_do_set_base(struct drm_crtc *crtc,
-				struct drm_framebuffer *fb,
-				int x, int y, int atomic)
+static int mga_crtc_do_set_base(struct mga_device *mdev,
+				const struct drm_framebuffer *fb,
+				const struct drm_framebuffer *old_fb)
 {
-	struct mga_device *mdev = to_mga_device(crtc->dev);
 	struct drm_gem_vram_object *gbo;
 	int ret;
 	s64 gpu_addr;
 
-	if (!atomic && fb) {
-		gbo = drm_gem_vram_of_gem(fb->obj[0]);
+	if (old_fb) {
+		gbo = drm_gem_vram_of_gem(old_fb->obj[0]);
 		drm_gem_vram_unpin(gbo);
 	}
 
-	gbo = drm_gem_vram_of_gem(crtc->primary->fb->obj[0]);
+	gbo = drm_gem_vram_of_gem(fb->obj[0]);
 
 	ret = drm_gem_vram_pin(gbo, DRM_GEM_VRAM_PL_FLAG_VRAM);
 	if (ret)
@@ -900,6 +899,7 @@ static int mga_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->primary->fb;
 	unsigned int count;
 
 	do { } while (RREG8(0x1fda) & 0x08);
@@ -908,7 +908,7 @@ static int mga_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	count = RREG8(MGAREG_VCOUNT) + 2;
 	do { } while (RREG8(MGAREG_VCOUNT) < count);
 
-	return mga_crtc_do_set_base(crtc, old_fb, x, y, 0);
+	return mga_crtc_do_set_base(mdev, fb, old_fb);
 }
 
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
@@ -1150,7 +1150,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 	WREG8(MGA_MISC_OUT, misc);
 
-	mga_crtc_do_set_base(crtc, old_fb, x, y, 0);
+	mga_crtc_do_set_base(mdev, fb, old_fb);
 
 	/* reset tagfifo */
 	if (mdev->type == G200_ER) {
