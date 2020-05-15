@@ -817,15 +817,21 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	}
 
 	if (unlikely(!target_freq)) {
-		if (opp_table->required_opp_tables) {
-			ret = _set_required_opps(dev, opp_table, NULL);
-		} else if (!_get_opp_count(opp_table)) {
+		/*
+		 * Some drivers need to support cases where some platforms may
+		 * have OPP table for the device, while others don't and
+		 * opp_set_rate() just needs to behave like clk_set_rate().
+		 */
+		if (!_get_opp_count(opp_table))
 			return 0;
-		} else {
+
+		if (!opp_table->required_opp_tables) {
 			dev_err(dev, "target frequency can't be 0\n");
 			ret = -EINVAL;
+			goto put_opp_table;
 		}
 
+		ret = _set_required_opps(dev, opp_table, NULL);
 		goto put_opp_table;
 	}
 
