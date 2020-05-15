@@ -256,6 +256,15 @@ suspend:
 	return ret;
 }
 
+int snd_sof_dsp_power_down_notify(struct snd_sof_dev *sdev)
+{
+	/* Notify DSP of upcoming power down */
+	if (sof_ops(sdev)->remove)
+		return sof_send_pm_ctx_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
+
+	return 0;
+}
+
 int snd_sof_runtime_suspend(struct device *dev)
 {
 	return sof_suspend(dev, true);
