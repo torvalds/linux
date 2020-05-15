@@ -342,6 +342,13 @@ static int cxgb4_mqprio_alloc_tc(struct net_device *dev,
 		p.u.params.minrate = div_u64(mqprio->min_rate[i] * 8, 1000);
 		p.u.params.maxrate = div_u64(mqprio->max_rate[i] * 8, 1000);
 
+		/* Request larger burst buffer for smaller MTU, so
+		 * that hardware can work on more data per burst
+		 * cycle.
+		 */
+		if (dev->mtu <= ETH_DATA_LEN)
+			p.u.params.burstsize = 8 * dev->mtu;
+
 		e = cxgb4_sched_class_alloc(dev, &p);
 		if (!e) {
 			ret = -ENOMEM;

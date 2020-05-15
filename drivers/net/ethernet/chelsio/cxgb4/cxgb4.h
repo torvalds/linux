@@ -1125,19 +1125,20 @@ struct adapter {
  * programmed with various parameters.
  */
 struct ch_sched_params {
-	s8   type;                     /* packet or flow */
+	u8   type;                     /* packet or flow */
 	union {
 		struct {
-			s8   level;    /* scheduler hierarchy level */
-			s8   mode;     /* per-class or per-flow */
-			s8   rateunit; /* bit or packet rate */
-			s8   ratemode; /* %port relative or kbps absolute */
-			s8   channel;  /* scheduler channel [0..N] */
-			s8   class;    /* scheduler class [0..N] */
-			s32  minrate;  /* minimum rate */
-			s32  maxrate;  /* maximum rate */
-			s16  weight;   /* percent weight */
-			s16  pktsize;  /* average packet size */
+			u8   level;    /* scheduler hierarchy level */
+			u8   mode;     /* per-class or per-flow */
+			u8   rateunit; /* bit or packet rate */
+			u8   ratemode; /* %port relative or kbps absolute */
+			u8   channel;  /* scheduler channel [0..N] */
+			u8   class;    /* scheduler class [0..N] */
+			u32  minrate;  /* minimum rate */
+			u32  maxrate;  /* maximum rate */
+			u16  weight;   /* percent weight */
+			u16  pktsize;  /* average packet size */
+			u16  burstsize;  /* burst buffer size */
 		} params;
 	} u;
 };
@@ -1952,9 +1953,10 @@ int t4_sge_ctxt_rd(struct adapter *adap, unsigned int mbox, unsigned int cid,
 		   enum ctxt_type ctype, u32 *data);
 int t4_sge_ctxt_rd_bd(struct adapter *adap, unsigned int cid,
 		      enum ctxt_type ctype, u32 *data);
-int t4_sched_params(struct adapter *adapter, int type, int level, int mode,
-		    int rateunit, int ratemode, int channel, int class,
-		    int minrate, int maxrate, int weight, int pktsize);
+int t4_sched_params(struct adapter *adapter, u8 type, u8 level, u8 mode,
+		    u8 rateunit, u8 ratemode, u8 channel, u8 class,
+		    u32 minrate, u32 maxrate, u16 weight, u16 pktsize,
+		    u16 burstsize);
 void t4_sge_decode_idma_state(struct adapter *adapter, int state);
 void t4_idma_monitor_init(struct adapter *adapter,
 			  struct sge_idma_monitor_state *idma);
