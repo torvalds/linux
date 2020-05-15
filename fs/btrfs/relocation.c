@@ -3476,10 +3476,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	u64 objectid;
 	int err = 0;
 
-	root = read_fs_root(fs_info, BTRFS_DATA_RELOC_TREE_OBJECTID);
-	if (IS_ERR(root))
-		return ERR_CAST(root);
-
+	root = btrfs_grab_root(fs_info->data_reloc_root);
 	trans = btrfs_start_transaction(root, 6);
 	if (IS_ERR(trans)) {
 		btrfs_put_root(root);
@@ -3871,13 +3868,10 @@ out:
 
 	if (err == 0) {
 		/* cleanup orphan inode in data relocation tree */
-		fs_root = read_fs_root(fs_info, BTRFS_DATA_RELOC_TREE_OBJECTID);
-		if (IS_ERR(fs_root)) {
-			err = PTR_ERR(fs_root);
-		} else {
-			err = btrfs_orphan_cleanup(fs_root);
-			btrfs_put_root(fs_root);
-		}
+		fs_root = btrfs_grab_root(fs_info->data_reloc_root);
+		ASSERT(fs_root);
+		err = btrfs_orphan_cleanup(fs_root);
+		btrfs_put_root(fs_root);
 	}
 	return err;
 }
