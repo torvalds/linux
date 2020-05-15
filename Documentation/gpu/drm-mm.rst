@@ -178,11 +178,8 @@ GEM Objects Lifetime
 --------------------
 
 All GEM objects are reference-counted by the GEM core. References can be
-acquired and release by calling drm_gem_object_get() and drm_gem_object_put()
-respectively. The caller must hold the :c:type:`struct drm_device <drm_device>`
-struct_mutex lock when calling drm_gem_object_get(). As a convenience, GEM
-provides drm_gem_object_put_unlocked() functions that can be called without
-holding the lock.
+acquired and release by calling drm_gem_object_get() and drm_gem_object_put_unlocked()
+respectively.
 
 When the last reference to a GEM object is released the GEM core calls
 the :c:type:`struct drm_driver <drm_driver>` gem_free_object_unlocked
