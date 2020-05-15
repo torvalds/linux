@@ -437,8 +437,10 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 		mt7915_mcu_add_sta(dev, vif, NULL, join);
 	}
 
-	if (changed & BSS_CHANGED_ASSOC)
+	if (changed & BSS_CHANGED_ASSOC) {
 		mt7915_mcu_add_bss_info(phy, vif, info->assoc);
+		mt7915_mcu_add_obss_spr(dev, vif, info->he_obss_pd.enable);
+	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT) {
 		int slottime = info->use_short_slot ? 9 : 20;
@@ -457,6 +459,9 @@ static void mt7915_bss_info_changed(struct ieee80211_hw *hw,
 	/* ensure that enable txcmd_mode after bss_info */
 	if (changed & (BSS_CHANGED_QOS | BSS_CHANGED_BEACON_ENABLED))
 		mt7915_mcu_set_tx(dev, vif);
+
+	if (changed & BSS_CHANGED_HE_OBSS_PD)
+		mt7915_mcu_add_obss_spr(dev, vif, info->he_obss_pd.enable);
 
 	if (changed & (BSS_CHANGED_BEACON |
 		       BSS_CHANGED_BEACON_ENABLED))

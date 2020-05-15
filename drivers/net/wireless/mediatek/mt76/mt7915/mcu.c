@@ -3159,3 +3159,28 @@ int mt7915_mcu_set_txbf_sounding(struct mt7915_dev *dev)
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_TXBF_ACTION,
 				   &req, sizeof(req), true);
 }
+
+int mt7915_mcu_add_obss_spr(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+			    bool enable)
+{
+#define MT_SPR_ENABLE		1
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct {
+		u8 action;
+		u8 arg_num;
+		u8 band_idx;
+		u8 status;
+		u8 drop_tx_idx;
+		u8 sta_idx;	/* 256 sta */
+		u8 rsv[2];
+		u32 val;
+	} __packed req = {
+		.action = MT_SPR_ENABLE,
+		.arg_num = 1,
+		.band_idx = mvif->band_idx,
+		.val = enable,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_SPR,
+				   &req, sizeof(req), true);
+}
