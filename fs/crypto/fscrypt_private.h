@@ -222,6 +222,9 @@ struct fscrypt_info {
 
 	/* This inode's nonce, copied from the fscrypt_context */
 	u8 ci_nonce[FS_KEY_DERIVATION_NONCE_SIZE];
+
+	/* Hashed inode number.  Only set for IV_INO_LBLK_32 */
+	u32 ci_hashed_ino;
 };
 
 typedef enum {
@@ -290,6 +293,8 @@ int fscrypt_init_hkdf(struct fscrypt_hkdf *hkdf, const u8 *master_key,
 #define HKDF_CONTEXT_DIRECT_KEY		3
 #define HKDF_CONTEXT_IV_INO_LBLK_64_KEY	4
 #define HKDF_CONTEXT_DIRHASH_KEY	5
+#define HKDF_CONTEXT_IV_INO_LBLK_32_KEY	6
+#define HKDF_CONTEXT_INODE_HASH_KEY	7
 
 int fscrypt_hkdf_expand(const struct fscrypt_hkdf *hkdf, u8 context,
 			const u8 *info, unsigned int infolen,
@@ -386,14 +391,17 @@ struct fscrypt_master_key {
 	struct list_head	mk_decrypted_inodes;
 	spinlock_t		mk_decrypted_inodes_lock;
 
-	/* Crypto API transforms for DIRECT_KEY policies, allocated on-demand */
-	struct crypto_skcipher	*mk_direct_tfms[__FSCRYPT_MODE_MAX + 1];
-
 	/*
-	 * Crypto API transforms for filesystem-layer implementation of
-	 * IV_INO_LBLK_64 policies, allocated on-demand.
+	 * Per-mode encryption keys for the various types of encryption policies
+	 * that use them.  Allocated and derived on-demand.
 	 */
-	struct crypto_skcipher	*mk_iv_ino_lblk_64_tfms[__FSCRYPT_MODE_MAX + 1];
+	struct crypto_skcipher *mk_direct_keys[__FSCRYPT_MODE_MAX + 1];
+	struct crypto_skcipher *mk_iv_ino_lblk_64_keys[__FSCRYPT_MODE_MAX + 1];
+	struct crypto_skcipher *mk_iv_ino_lblk_32_keys[__FSCRYPT_MODE_MAX + 1];
+
+	/* Hash key for inode numbers.  Initialized only when needed. */
+	siphash_key_t		mk_ino_hash_key;
+	bool			mk_ino_hash_key_initialized;
 
 } __randomize_layout;
 
