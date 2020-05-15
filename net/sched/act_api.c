@@ -766,12 +766,10 @@ tcf_action_dump_old(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 	return a->ops->dump(skb, a, bind, ref);
 }
 
-int
-tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+static int
+tcf_action_dump_terse(struct sk_buff *skb, struct tc_action *a)
 {
-	int err = -EINVAL;
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nest;
 	struct tc_cookie *cookie;
 
 	if (nla_put_string(skb, TCA_KIND, a->ops->kind))
@@ -788,6 +786,23 @@ tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
 		}
 	}
 	rcu_read_unlock();
+
+	return 0;
+
+nla_put_failure:
+	nlmsg_trim(skb, b);
+	return -1;
+}
+
+int
+tcf_action_dump_1(struct sk_buff *skb, struct tc_action *a, int bind, int ref)
+{
+	int err = -EINVAL;
+	unsigned char *b = skb_tail_pointer(skb);
+	struct nlattr *nest;
+
+	if (tcf_action_dump_terse(skb, a))
+		goto nla_put_failure;
 
 	if (a->hw_stats != TCA_ACT_HW_STATS_ANY &&
 	    nla_put_bitfield32(skb, TCA_ACT_HW_STATS,
@@ -820,7 +835,7 @@ nla_put_failure:
 EXPORT_SYMBOL(tcf_action_dump_1);
 
 int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
-		    int bind, int ref)
+		    int bind, int ref, bool terse)
 {
 	struct tc_action *a;
 	int err = -EINVAL, i;
@@ -831,7 +846,8 @@ int tcf_action_dump(struct sk_buff *skb, struct tc_action *actions[],
 		nest = nla_nest_start_noflag(skb, i + 1);
 		if (nest == NULL)
 			goto nla_put_failure;
-		err = tcf_action_dump_1(skb, a, bind, ref);
+		err = terse ? tcf_action_dump_terse(skb, a) :
+			tcf_action_dump_1(skb, a, bind, ref);
 		if (err < 0)
 			goto errout;
 		nla_nest_end(skb, nest);
@@ -1133,7 +1149,7 @@ static int tca_get_fill(struct sk_buff *skb, struct tc_action *actions[],
 	if (!nest)
 		goto out_nlmsg_trim;
 
-	if (tcf_action_dump(skb, actions, bind, ref) < 0)
+	if (tcf_action_dump(skb, actions, bind, ref, false) < 0)
 		goto out_nlmsg_trim;
 
 	nla_nest_end(skb, nest);
