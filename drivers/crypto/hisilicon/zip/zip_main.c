@@ -99,6 +99,18 @@ struct hisi_zip_hw_error {
 	const char *msg;
 };
 
+struct zip_dfx_item {
+	const char *name;
+	u32 offset;
+};
+
+static struct zip_dfx_item zip_dfx_files[] = {
+	{"send_cnt", offsetof(struct hisi_zip_dfx, send_cnt)},
+	{"recv_cnt", offsetof(struct hisi_zip_dfx, recv_cnt)},
+	{"send_busy_cnt", offsetof(struct hisi_zip_dfx, send_busy_cnt)},
+	{"err_bd_cnt", offsetof(struct hisi_zip_dfx, err_bd_cnt)},
+};
+
 static const struct hisi_zip_hw_error zip_hw_error[] = {
 	{ .int_msk = BIT(0), .msg = "zip_ecc_1bitt_err" },
 	{ .int_msk = BIT(1), .msg = "zip_ecc_2bit_err" },
@@ -469,6 +481,27 @@ static const struct file_operations ctrl_debug_fops = {
 	.write = ctrl_debug_write,
 };
 
+
+static int zip_debugfs_atomic64_set(void *data, u64 val)
+{
+	if (val)
+		return -EINVAL;
+
+	atomic64_set((atomic64_t *)data, 0);
+
+	return 0;
+}
+
+static int zip_debugfs_atomic64_get(void *data, u64 *val)
+{
+	*val = atomic64_read((atomic64_t *)data);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(zip_atomic64_ops, zip_debugfs_atomic64_get,
+			 zip_debugfs_atomic64_set, "%llu\n");
+
 static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 {
 	struct hisi_zip *hisi_zip = ctrl->hisi_zip;
@@ -498,6 +531,25 @@ static int hisi_zip_core_debug_init(struct hisi_zip_ctrl *ctrl)
 	}
 
 	return 0;
+}
+
+static void hisi_zip_dfx_debug_init(struct hisi_qm *qm)
+{
+	struct hisi_zip *zip = container_of(qm, struct hisi_zip, qm);
+	struct hisi_zip_dfx *dfx = &zip->dfx;
+	struct dentry *tmp_dir;
+	void *data;
+	int i;
+
+	tmp_dir = debugfs_create_dir("zip_dfx", qm->debug.debug_root);
+	for (i = 0; i < ARRAY_SIZE(zip_dfx_files); i++) {
+		data = (atomic64_t *)((uintptr_t)dfx + zip_dfx_files[i].offset);
+		debugfs_create_file(zip_dfx_files[i].name,
+			0644,
+			tmp_dir,
+			data,
+			&zip_atomic64_ops);
+	}
 }
 
 static int hisi_zip_ctrl_debug_init(struct hisi_zip_ctrl *ctrl)
@@ -537,6 +589,8 @@ static int hisi_zip_debugfs_init(struct hisi_zip *hisi_zip)
 		if (ret)
 			goto failed_to_create;
 	}
+
+	hisi_zip_dfx_debug_init(qm);
 
 	return 0;
 

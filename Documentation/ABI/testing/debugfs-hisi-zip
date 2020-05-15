@@ -86,3 +86,29 @@ Contact:        linux-crypto@vger.kernel.org
 Description:    Dump the status of the QM.
 		Four states: initiated, started, stopped and closed.
 		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/send_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of sent requests.
+		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/recv_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of received requests.
+		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/send_busy_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of requests received
+		with returning busy.
+		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/zip_dfx/err_bd_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of BD type error requests
+		to be received.
+		Available for both PF and VF, and take no other effect on ZIP.
