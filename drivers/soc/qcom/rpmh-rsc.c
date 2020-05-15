@@ -14,10 +14,13 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -1054,6 +1057,32 @@ static int rpmh_probe_tcs_config(struct platform_device *pdev,
 	return 0;
 }
 
+static int rpmh_rsc_pd_cb(struct notifier_block *nb,
+			  unsigned long action, void *data)
+{
+	struct rsc_drv *drv = container_of(nb, struct rsc_drv, genpd_nb);
+
+	/* We don't need to lock as domin on/off are serialized */
+	if ((action == GENPD_NOTIFY_PRE_OFF) &&
+	    (rpmh_rsc_ctrlr_is_busy(drv) || rpmh_flush(&drv->client)))
+		return NOTIFY_BAD;
+
+	return NOTIFY_OK;
+}
+
+static int rpmh_rsc_pd_attach(struct rsc_drv *drv)
+{
+	int ret;
+
+	pm_runtime_enable(drv->dev);
+	ret = dev_pm_domain_attach(drv->dev, false);
+	if (ret)
+		return ret;
+
+	drv->genpd_nb.notifier_call = rpmh_rsc_pd_cb;
+	return dev_pm_genpd_add_notifier(drv->dev, &drv->genpd_nb);
+}
+
 static int rpmh_rsc_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
@@ -1117,6 +1146,7 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	drv->dev = &pdev->dev;
 	/*
 	 * CPU PM notification are not required for controllers that support
 	 * 'HW solver' mode where they can be in autonomous mode executing low
@@ -1125,7 +1155,13 @@ static int rpmh_rsc_probe(struct platform_device *pdev)
 	solver_config = readl_relaxed(base + DRV_SOLVER_CONFIG);
 	solver_config &= DRV_HW_SOLVER_MASK << DRV_HW_SOLVER_SHIFT;
 	solver_config = solver_config >> DRV_HW_SOLVER_SHIFT;
-	if (!solver_config) {
+	if (of_find_property(dn, "power-domains", NULL)) {
+		ret = rpmh_rsc_pd_attach(drv);
+		if (ret == -EPROBE_DEFER) {
+			pr_err("Failed to attach RSC %s to domain ret=%d\n", drv->name, ret);
+			return ret;
+		}
+	} else if (!solver_config) {
 		drv->rsc_pm.notifier_call = rpmh_rsc_cpu_pm_callback;
 		cpu_pm_register_notifier(&drv->rsc_pm);
 		drv->client.flags &= ~SOLVER_PRESENT;

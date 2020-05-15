@@ -119,6 +119,8 @@ struct rpmh_ctrlr {
  * @tcs_wait:           Wait queue used to wait for @tcs_in_use to free up a
  *                      slot
  * @client:             Handle to the DRV's client.
+ * @genpd_nb:           PM Domain notifier
+ * @dev:                RSC device
  */
 struct rsc_drv {
 	const char *name;
@@ -134,6 +136,8 @@ struct rsc_drv {
 	spinlock_t lock;
 	wait_queue_head_t tcs_wait;
 	struct rpmh_ctrlr client;
+	struct notifier_block genpd_nb;
+	struct device *dev;
 };
 
 extern bool rpmh_standalone;
