@@ -1145,8 +1145,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_CRT(15, 0);
 	WREG_CRT(19, pitch & 0xFF);
 
-	mgag200_set_mode_regs(mdev, mode);
-
 	ext_vga[0] = 0;
 
 	/* TODO interlace */
@@ -1181,6 +1179,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG8(MGA_MISC_OUT, misc);
 
 	mga_crtc_do_set_base(mdev, fb, old_fb);
+
+	mgag200_set_mode_regs(mdev, mode);
 
 	/* reset tagfifo */
 	if (mdev->type == G200_ER) {
