@@ -72,6 +72,8 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&phy->mac_work);
 	cancel_work_sync(&phy->ps_work);
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -791,6 +793,37 @@ mt7615_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 	return 0;
 }
 
+static void mt7615_roc_iter(void *priv, u8 *mac,
+			    struct ieee80211_vif *vif)
+{
+	struct mt7615_phy *phy = priv;
+
+	mt7615_mcu_set_roc(phy, vif, NULL, 0);
+}
+
+void mt7615_roc_work(struct work_struct *work)
+{
+	struct mt7615_phy *phy;
+
+	phy = (struct mt7615_phy *)container_of(work, struct mt7615_phy,
+						roc_work);
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return;
+
+	ieee80211_iterate_active_interfaces(phy->mt76->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
+					    mt7615_roc_iter, phy);
+	ieee80211_remain_on_channel_expired(phy->mt76->hw);
+}
+
+void mt7615_roc_timer(struct timer_list *timer)
+{
+	struct mt7615_phy *phy = from_timer(phy, timer, roc_timer);
+
+	ieee80211_queue_work(phy->mt76->hw, &phy->roc_work);
+}
+
 void mt7615_scan_work(struct work_struct *work)
 {
 	struct mt7615_phy *phy;
@@ -862,6 +895,50 @@ mt7615_stop_sched_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct mt76_phy *mphy = hw->priv;
 
 	return mt7615_mcu_sched_scan_enable(mphy->priv, vif, false);
+}
+
+static int mt7615_remain_on_channel(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_channel *chan,
+				    int duration,
+				    enum ieee80211_roc_type type)
+{
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+	int err;
+
+	if (test_and_set_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return 0;
+
+	err = mt7615_mcu_set_roc(phy, vif, chan, duration);
+	if (err < 0) {
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+		return err;
+	}
+
+	if (!wait_event_timeout(phy->roc_wait, phy->roc_grant, HZ)) {
+		mt7615_mcu_set_roc(phy, vif, NULL, 0);
+		clear_bit(MT76_STATE_ROC, &phy->mt76->state);
+
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int mt7615_cancel_remain_on_channel(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct mt7615_phy *phy = mt7615_hw_phy(hw);
+
+	if (!test_and_clear_bit(MT76_STATE_ROC, &phy->mt76->state))
+		return 0;
+
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
+
+	mt7615_mcu_set_roc(phy, vif, NULL, 0);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -978,6 +1055,8 @@ const struct ieee80211_ops mt7615_ops = {
 	.cancel_hw_scan = mt7615_cancel_hw_scan,
 	.sched_scan_start = mt7615_start_sched_scan,
 	.sched_scan_stop = mt7615_stop_sched_scan,
+	.remain_on_channel = mt7615_remain_on_channel,
+	.cancel_remain_on_channel = mt7615_cancel_remain_on_channel,
 #ifdef CONFIG_PM
 	.suspend = mt7615_suspend,
 	.resume = mt7615_resume,

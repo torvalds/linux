@@ -201,6 +201,11 @@ struct mt7615_phy {
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
 
+	struct work_struct roc_work;
+	struct timer_list roc_timer;
+	wait_queue_head_t roc_wait;
+	bool roc_grant;
+
 	struct work_struct ps_work;
 };
 
@@ -441,6 +446,8 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 
 void mt7615_dma_reset(struct mt7615_dev *dev);
 void mt7615_scan_work(struct work_struct *work);
+void mt7615_roc_work(struct work_struct *work);
+void mt7615_roc_timer(struct timer_list *timer);
 void mt7615_ps_work(struct work_struct *work);
 void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
@@ -532,6 +539,8 @@ int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
+int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration);
 int mt7615_firmware_own(struct mt7615_dev *dev);
 int mt7615_driver_own(struct mt7615_dev *dev);
 

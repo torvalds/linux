@@ -52,6 +52,8 @@ static void mt7663u_stop(struct ieee80211_hw *hw)
 
 	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	cancel_work_sync(&phy->ps_work);
+	del_timer_sync(&phy->roc_timer);
+	cancel_work_sync(&phy->roc_work);
 	cancel_delayed_work_sync(&phy->scan_work);
 	cancel_delayed_work_sync(&phy->mac_work);
 	mt76u_stop_tx(&dev->mt76);

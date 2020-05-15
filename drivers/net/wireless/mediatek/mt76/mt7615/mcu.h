@@ -82,6 +82,7 @@ enum {
 	MCU_EVENT_ACCESS_REG = 0x02,
 	MCU_EVENT_MT_PATCH_SEM = 0x04,
 	MCU_EVENT_SCAN_DONE = 0x0d,
+	MCU_EVENT_ROC = 0x10,
 	MCU_EVENT_BSS_ABSENCE  = 0x11,
 	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
@@ -525,6 +526,23 @@ struct mt7615_gtk_rekey_tlv {
 	u8 reserverd[3];
 } __packed;
 
+struct mt7615_roc_tlv {
+	u8 bss_idx;
+	u8 token;
+	u8 active;
+	u8 primary_chan;
+	u8 sco;
+	u8 band;
+	u8 width;	/* To support 80/160MHz bandwidth */
+	u8 freq_seg1;	/* To support 80/160MHz bandwidth */
+	u8 freq_seg2;	/* To support 80/160MHz bandwidth */
+	u8 req_type;
+	u8 dbdc_band;
+	u8 rsv0;
+	__le32 max_interval;	/* ms */
+	u8 rsv1[8];
+} __packed;
+
 /* offload mcu commands */
 enum {
 	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
@@ -533,6 +551,7 @@ enum {
 	MCU_CMD_SET_BSS_CONNECTED = MCU_CE_PREFIX | 0x16,
 	MCU_CMD_SET_BSS_ABORT = MCU_CE_PREFIX | 0x17,
 	MCU_CMD_CANCEL_HW_SCAN = MCU_CE_PREFIX | 0x1b,
+	MCU_CMD_SET_ROC = MCU_CE_PREFIX | 0x1c,
 	MCU_CMD_SET_P2P_OPPPS = MCU_CE_PREFIX | 0x33,
 	MCU_CMD_SCHED_SCAN_ENABLE = MCU_CE_PREFIX | 0x61,
 	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,

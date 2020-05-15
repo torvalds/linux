@@ -290,6 +290,7 @@ enum {
 	MT76_STATE_POWER_OFF,
 	MT76_STATE_PS,
 	MT76_STATE_SUSPEND,
+	MT76_STATE_ROC,
 };
 
 struct mt76_hw_cap {
