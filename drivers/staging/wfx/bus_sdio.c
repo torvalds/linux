@@ -180,7 +180,8 @@ static int wfx_sdio_probe(struct sdio_func *func,
 	int ret;
 
 	if (func->num != 1) {
-		dev_err(&func->dev, "SDIO function number is %d while it should always be 1 (unsupported chip?)\n", func->num);
+		dev_err(&func->dev, "SDIO function number is %d while it should always be 1 (unsupported chip?)\n",
+			func->num);
 		return -ENODEV;
 	}
 

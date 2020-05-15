@@ -192,8 +192,8 @@ int hif_read_mib(struct wfx_dev *wdev, int vif_id, u16 mib_id,
 	ret = wfx_cmd_send(wdev, hif, reply, buf_len, false);
 
 	if (!ret && mib_id != le16_to_cpu(reply->mib_id)) {
-		dev_warn(wdev->dev,
-			 "%s: confirmation mismatch request\n", __func__);
+		dev_warn(wdev->dev, "%s: confirmation mismatch request\n",
+			 __func__);
 		ret = -EIO;
 	}
 	if (ret == -ENOMEM)

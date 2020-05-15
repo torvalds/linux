@@ -107,8 +107,8 @@ static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
 	const char *data;
 	int ret;
 
-	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw,
-		 keyset_chip);
+	snprintf(filename, sizeof(filename), "%s_%02X.sec",
+		 wdev->pdata.file_fw, keyset_chip);
 	ret = firmware_request_nowarn(fw, filename, wdev->dev);
 	if (ret) {
 		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
@@ -325,8 +325,8 @@ static int init_gpr(struct wfx_dev *wdev)
 				     gpr_init[i].value);
 		if (ret < 0)
 			return ret;
-		dev_dbg(wdev->dev, "  index %02x: %08x\n", gpr_init[i].index,
-			gpr_init[i].value);
+		dev_dbg(wdev->dev, "  index %02x: %08x\n",
+			gpr_init[i].index, gpr_init[i].value);
 	}
 	return 0;
 }

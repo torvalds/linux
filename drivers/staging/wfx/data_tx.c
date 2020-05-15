@@ -550,8 +550,8 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		}
 	}
 	if (tx_count)
-		dev_dbg(wvif->wdev->dev,
-			"%d more retries than expected\n", tx_count);
+		dev_dbg(wvif->wdev->dev, "%d more retries than expected\n",
+			tx_count);
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
 
 	// From now, you can touch to tx_info->status, but do not touch to

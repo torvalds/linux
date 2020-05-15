@@ -192,12 +192,12 @@ struct gpio_desc *wfx_get_gpio(struct device *dev,
 		if (!ret || PTR_ERR(ret) == -ENOENT)
 			dev_warn(dev, "gpio %s is not defined\n", label);
 		else
-			dev_warn(dev,
-				 "error while requesting gpio %s\n", label);
+			dev_warn(dev, "error while requesting gpio %s\n",
+				 label);
 		ret = NULL;
 	} else {
-		dev_dbg(dev,
-			"using gpio %d for %s\n", desc_to_gpio(ret), label);
+		dev_dbg(dev, "using gpio %d for %s\n",
+			desc_to_gpio(ret), label);
 	}
 	return ret;
 }
@@ -230,15 +230,18 @@ int wfx_send_pds(struct wfx_dev *wdev, u8 *buf, size_t len)
 			ret = hif_configuration(wdev, buf + start,
 						i - start + 1);
 			if (ret > 0) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: invalid data (unsupported options?)\n", start, i);
+				dev_err(wdev->dev, "PDS bytes %d to %d: invalid data (unsupported options?)\n",
+					start, i);
 				return -EINVAL;
 			}
 			if (ret == -ETIMEDOUT) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: chip didn't reply (corrupted file?)\n", start, i);
+				dev_err(wdev->dev, "PDS bytes %d to %d: chip didn't reply (corrupted file?)\n",
+					start, i);
 				return ret;
 			}
 			if (ret) {
-				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unknown error\n", start, i);
+				dev_err(wdev->dev, "PDS bytes %d to %d: chip returned an unknown error\n",
+					start, i);
 				return -EIO;
 			}
 			buf[i] = ',';
