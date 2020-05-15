@@ -388,6 +388,15 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 	return stream->channels_min;
 }
 
+void snd_soc_dai_action(struct snd_soc_dai *dai,
+			int stream, int action)
+{
+	dai->stream_active[stream]	+= action;
+	dai->active			+= action;
+	dai->component->active		+= action;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dai_action);
+
 int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order)
 {
 	struct snd_soc_dai *dai;
