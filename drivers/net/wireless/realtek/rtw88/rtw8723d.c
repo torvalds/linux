@@ -2,6 +2,7 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/module.h>
 #include "main.h"
 #include "coex.h"
 #include "fw.h"
@@ -2740,3 +2741,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 EXPORT_SYMBOL(rtw8723d_hw_spec);
 
 MODULE_FIRMWARE("rtw88/rtw8723d_fw.bin");
+
+MODULE_AUTHOR("Realtek Corporation");
+MODULE_DESCRIPTION("Realtek 802.11n wireless 8723d driver");
+MODULE_LICENSE("Dual BSD/GPL");
