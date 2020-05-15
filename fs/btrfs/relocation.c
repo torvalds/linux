@@ -365,12 +365,6 @@ struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 	return btrfs_grab_root(root);
 }
 
-static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
-					u64 root_objectid)
-{
-	return btrfs_get_fs_root(fs_info, root_objectid, false);
-}
-
 /*
  * For useless nodes, do two major clean ups:
  *
@@ -1850,7 +1844,8 @@ again:
 					struct btrfs_root, root_list);
 		list_del_init(&reloc_root->root_list);
 
-		root = read_fs_root(fs_info, reloc_root->root_key.offset);
+		root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset,
+				false);
 		BUG_ON(IS_ERR(root));
 		BUG_ON(root->reloc_root != reloc_root);
 
@@ -1911,7 +1906,8 @@ again:
 		reloc_root = list_entry(reloc_roots.next,
 					struct btrfs_root, root_list);
 
-		root = read_fs_root(fs_info, reloc_root->root_key.offset);
+		root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset,
+					 false);
 		if (btrfs_root_refs(&reloc_root->root_item) > 0) {
 			BUG_ON(IS_ERR(root));
 			BUG_ON(root->reloc_root != reloc_root);
@@ -1995,7 +1991,7 @@ static int record_reloc_root_in_trans(struct btrfs_trans_handle *trans,
 	if (reloc_root->last_trans == trans->transid)
 		return 0;
 
-	root = read_fs_root(fs_info, reloc_root->root_key.offset);
+	root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset, false);
 	BUG_ON(IS_ERR(root));
 	BUG_ON(root->reloc_root != reloc_root);
 	ret = btrfs_record_root_in_trans(trans, root);
@@ -3771,8 +3767,8 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 		list_add(&reloc_root->root_list, &reloc_roots);
 
 		if (btrfs_root_refs(&reloc_root->root_item) > 0) {
-			fs_root = read_fs_root(fs_info,
-					       reloc_root->root_key.offset);
+			fs_root = btrfs_get_fs_root(fs_info,
+					reloc_root->root_key.offset, false);
 			if (IS_ERR(fs_root)) {
 				ret = PTR_ERR(fs_root);
 				if (ret != -ENOENT) {
@@ -3828,7 +3824,8 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 			continue;
 		}
 
-		fs_root = read_fs_root(fs_info, reloc_root->root_key.offset);
+		fs_root = btrfs_get_fs_root(fs_info, reloc_root->root_key.offset,
+					    false);
 		if (IS_ERR(fs_root)) {
 			err = PTR_ERR(fs_root);
 			list_add_tail(&reloc_root->root_list, &reloc_roots);
