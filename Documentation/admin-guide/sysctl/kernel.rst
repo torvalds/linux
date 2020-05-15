@@ -402,6 +402,25 @@ Controls whether the panic kmsg data should be reported to Hyper-V.
 = =========================================================
 
 
+ignore-unaligned-usertrap
+=========================
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
+currently, ``arc`` and ``ia64``), controls whether all unaligned traps
+are logged.
+
+= =============================================================
+0 Log all unaligned accesses.
+1 Only warn the first time a process traps. This is the default
+  setting.
+= =============================================================
+
+See also `unaligned-trap`_ and `unaligned-dump-stack`_. On ``ia64``,
+this allows system administrators to override the
+``IA64_THREAD_UAC_NOPRINT`` ``prctl`` and avoid logs being flooded.
+
+
 kexec_load_disabled
 ===================
 
@@ -1259,6 +1278,38 @@ This only works if the kernel was booted with ``tp_printk`` enabled.
 
 See :doc:`/admin-guide/kernel-parameters` and
 :doc:`/trace/boottime-trace`.
+
+
+.. _unaligned-dump-stack:
+
+unaligned-dump-stack (ia64)
+===========================
+
+When logging unaligned accesses, controls whether the stack is
+dumped.
+
+= ===================================================
+0 Do not dump the stack. This is the default setting.
+1 Dump the stack.
+= ===================================================
+
+See also `ignore-unaligned-usertrap`_.
+
+
+unaligned-trap
+==============
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
+``arc`` and ``parisc``), controls whether unaligned traps are caught
+and emulated (instead of failing).
+
+= ========================================================
+0 Do not emulate unaligned accesses.
+1 Emulate unaligned accesses. This is the default setting.
+= ========================================================
+
+See also `ignore-unaligned-usertrap`_.
 
 
 unknown_nmi_panic
