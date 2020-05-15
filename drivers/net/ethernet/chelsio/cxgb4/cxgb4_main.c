@@ -1579,6 +1579,7 @@ static int tid_init(struct tid_info *t)
 	atomic_set(&t->tids_in_use, 0);
 	atomic_set(&t->conns_in_use, 0);
 	atomic_set(&t->hash_tids_in_use, 0);
+	atomic_set(&t->eotids_in_use, 0);
 
 	/* Setup the free list for atid_tab and clear the stid bitmap. */
 	if (natids) {
