@@ -66,18 +66,14 @@ static bool supported_direct_key_modes(const struct inode *inode,
 	return true;
 }
 
-static bool supported_iv_ino_lblk_64_policy(
-					const struct fscrypt_policy_v2 *policy,
-					const struct inode *inode)
+static bool supported_iv_ino_lblk_policy(const struct fscrypt_policy_v2 *policy,
+					 const struct inode *inode,
+					 const char *type,
+					 int max_ino_bits, int max_lblk_bits)
 {
 	struct super_block *sb = inode->i_sb;
 	int ino_bits = 64, lblk_bits = 64;
 
-	if (policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) {
-		fscrypt_warn(inode,
-			     "The DIRECT_KEY and IV_INO_LBLK_64 flags are mutually exclusive");
-		return false;
-	}
 	/*
 	 * It's unsafe to include inode numbers in the IVs if the filesystem can
 	 * potentially renumber inodes, e.g. via filesystem shrinking.
@@ -85,16 +81,22 @@ static bool supported_iv_ino_lblk_64_policy(
 	if (!sb->s_cop->has_stable_inodes ||
 	    !sb->s_cop->has_stable_inodes(sb)) {
 		fscrypt_warn(inode,
-			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't have stable inode numbers",
-			     sb->s_id);
+			     "Can't use %s policy on filesystem '%s' because it doesn't have stable inode numbers",
+			     type, sb->s_id);
 		return false;
 	}
 	if (sb->s_cop->get_ino_and_lblk_bits)
 		sb->s_cop->get_ino_and_lblk_bits(sb, &ino_bits, &lblk_bits);
-	if (ino_bits > 32 || lblk_bits > 32) {
+	if (ino_bits > max_ino_bits) {
 		fscrypt_warn(inode,
-			     "Can't use IV_INO_LBLK_64 policy on filesystem '%s' because it doesn't use 32-bit inode and block numbers",
-			     sb->s_id);
+			     "Can't use %s policy on filesystem '%s' because its inode numbers are too long",
+			     type, sb->s_id);
+		return false;
+	}
+	if (lblk_bits > max_lblk_bits) {
+		fscrypt_warn(inode,
+			     "Can't use %s policy on filesystem '%s' because its block numbers are too long",
+			     type, sb->s_id);
 		return false;
 	}
 	return true;
@@ -137,6 +139,8 @@ static bool fscrypt_supported_v1_policy(const struct fscrypt_policy_v1 *policy,
 static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 					const struct inode *inode)
 {
+	int count = 0;
+
 	if (!fscrypt_valid_enc_modes(policy->contents_encryption_mode,
 				     policy->filenames_encryption_mode)) {
 		fscrypt_warn(inode,
@@ -152,13 +156,29 @@ static bool fscrypt_supported_v2_policy(const struct fscrypt_policy_v2 *policy,
 		return false;
 	}
 
+	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY);
+	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64);
+	count += !!(policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32);
+	if (count > 1) {
+		fscrypt_warn(inode, "Mutually exclusive encryption flags (0x%02x)",
+			     policy->flags);
+		return false;
+	}
+
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_DIRECT_KEY) &&
 	    !supported_direct_key_modes(inode, policy->contents_encryption_mode,
 					policy->filenames_encryption_mode))
 		return false;
 
 	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64) &&
-	    !supported_iv_ino_lblk_64_policy(policy, inode))
+	    !supported_iv_ino_lblk_policy(policy, inode, "IV_INO_LBLK_64",
+					  32, 32))
+		return false;
+
+	if ((policy->flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) &&
+	    /* This uses hashed inode numbers, so ino_bits doesn't matter. */
+	    !supported_iv_ino_lblk_policy(policy, inode, "IV_INO_LBLK_32",
+					  INT_MAX, 32))
 		return false;
 
 	if (memchr_inv(policy->__reserved, 0, sizeof(policy->__reserved))) {
@@ -354,6 +374,9 @@ static int set_encryption_policy(struct inode *inode,
 					       policy->v2.master_key_identifier);
 		if (err)
 			return err;
+		if (policy->v2.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32)
+			pr_warn_once("%s (pid %d) is setting an IV_INO_LBLK_32 encryption policy.  This should only be used if there are certain hardware limitations.\n",
+				     current->comm, current->pid);
 		break;
 	default:
 		WARN_ON(1);
