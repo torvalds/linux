@@ -315,20 +315,6 @@ void wfx_set_default_unicast_key(struct ieee80211_hw *hw,
 	hif_wep_default_key_id(wvif, idx);
 }
 
-// Call it with wdev->conf_mutex locked
-static void wfx_do_unjoin(struct wfx_vif *wvif)
-{
-	/* Unjoin is a reset. */
-	wfx_tx_lock_flush(wvif->wdev);
-	hif_reset(wvif, false);
-	wfx_tx_policy_init(wvif);
-	if (wvif_count(wvif->wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wfx_tx_unlock(wvif->wdev);
-	wvif->bss_not_support_ps_poll = false;
-	cancel_delayed_work_sync(&wvif->beacon_loss_work);
-}
-
 static void wfx_set_mfp(struct wfx_vif *wvif,
 			struct cfg80211_bss *bss)
 {
@@ -357,6 +343,18 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 	rcu_read_unlock();
 
 	hif_set_mfp(wvif, mfpc, mfpr);
+}
+
+void wfx_reset(struct wfx_vif *wvif)
+{
+	wfx_tx_lock_flush(wvif->wdev);
+	hif_reset(wvif, false);
+	wfx_tx_policy_init(wvif);
+	if (wvif_count(wvif->wdev) <= 1)
+		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
+	wfx_tx_unlock(wvif->wdev);
+	wvif->bss_not_support_ps_poll = false;
+	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
 
 static void wfx_do_join(struct wfx_vif *wvif)
@@ -395,7 +393,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
-		wfx_do_unjoin(wvif);
+		wfx_reset(wvif);
 	} else {
 		/* Due to beacon filtering it is possible that the
 		 * AP's beacon is not known for the mac80211 stack.
@@ -513,7 +511,7 @@ void wfx_leave_ibss(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
-	wfx_do_unjoin(wvif);
+	wfx_reset(wvif);
 }
 
 static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
@@ -580,7 +578,7 @@ void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (info->assoc || info->ibss_joined)
 			wfx_join_finalize(wvif, info);
 		else if (!info->assoc && vif->type == NL80211_IFTYPE_STATION)
-			wfx_do_unjoin(wvif);
+			wfx_reset(wvif);
 		else
 			dev_warn(wdev->dev, "%s: misunderstood change: ASSOC\n",
 				 __func__);

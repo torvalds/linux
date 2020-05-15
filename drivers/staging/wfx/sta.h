@@ -71,6 +71,7 @@ void wfx_suspend_resume_mc(struct wfx_vif *wvif, enum sta_notify_cmd cmd);
 void wfx_event_report_rssi(struct wfx_vif *wvif, u8 raw_rcpi_rssi);
 
 // Other Helpers
+void wfx_reset(struct wfx_vif *wvif);
 u32 wfx_rate_mask_to_hw(struct wfx_dev *wdev, u32 rates);
 
 #endif /* WFX_STA_H */
