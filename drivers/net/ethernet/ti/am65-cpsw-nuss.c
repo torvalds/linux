@@ -37,12 +37,14 @@
 #define AM65_CPSW_XGMII_BASE	0x2100
 #define AM65_CPSW_CPSW_NU_BASE	0x20000
 #define AM65_CPSW_NU_PORTS_BASE	0x1000
+#define AM65_CPSW_NU_FRAM_BASE	0x12000
 #define AM65_CPSW_NU_STATS_BASE	0x1a000
 #define AM65_CPSW_NU_ALE_BASE	0x1e000
 #define AM65_CPSW_NU_CPTS_BASE	0x1d000
 
 #define AM65_CPSW_NU_PORTS_OFFSET	0x1000
 #define AM65_CPSW_NU_STATS_PORT_OFFSET	0x200
+#define AM65_CPSW_NU_FRAM_PORT_OFFSET	0x200
 
 #define AM65_CPSW_MAX_PORTS	8
 
@@ -188,9 +190,11 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
 		cpsw_ale_control_set(common->ale, port->port_id,
 				     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
+		am65_cpsw_qos_link_up(ndev, phy->speed);
 		netif_tx_wake_all_queues(ndev);
 	} else {
 		int tmo;
+
 		/* disable forwarding */
 		cpsw_ale_control_set(common->ale, port->port_id,
 				     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
@@ -204,6 +208,7 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
 
 		cpsw_sl_ctl_reset(port->slave.mac_sl);
 
+		am65_cpsw_qos_link_down(ndev);
 		netif_tx_stop_all_queues(ndev);
 	}
 
@@ -1378,6 +1383,7 @@ static const struct net_device_ops am65_cpsw_nuss_netdev_ops_2g = {
 	.ndo_vlan_rx_kill_vid	= am65_cpsw_nuss_ndo_slave_kill_vid,
 	.ndo_do_ioctl		= am65_cpsw_nuss_ndo_slave_ioctl,
 	.ndo_set_features	= am65_cpsw_nuss_ndo_slave_set_features,
+	.ndo_setup_tc           = am65_cpsw_qos_ndo_setup_tc,
 };
 
 static void am65_cpsw_nuss_slave_disable_unused(struct am65_cpsw_port *port)
@@ -1739,6 +1745,9 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 		port->stat_base = common->cpsw_base + AM65_CPSW_NU_STATS_BASE +
 				  (AM65_CPSW_NU_STATS_PORT_OFFSET * port_id);
 		port->name = of_get_property(port_np, "label", NULL);
+		port->fetch_ram_base =
+				common->cpsw_base + AM65_CPSW_NU_FRAM_BASE +
+				(AM65_CPSW_NU_FRAM_PORT_OFFSET * (port_id - 1));
 
 		port->disabled = !of_device_is_available(port_np);
 		if (port->disabled)

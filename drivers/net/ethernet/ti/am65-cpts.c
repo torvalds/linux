@@ -450,6 +450,19 @@ static int am65_cpts_ptp_gettimex(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+u64 am65_cpts_ns_gettime(struct am65_cpts *cpts)
+{
+	u64 ns;
+
+	/* reuse ptp_clk_lock as it serialize ts push */
+	mutex_lock(&cpts->ptp_clk_lock);
+	ns = am65_cpts_gettime(cpts, NULL);
+	mutex_unlock(&cpts->ptp_clk_lock);
+
+	return ns;
+}
+EXPORT_SYMBOL_GPL(am65_cpts_ns_gettime);
+
 static int am65_cpts_ptp_settime(struct ptp_clock_info *ptp,
 				 const struct timespec64 *ts)
 {
@@ -493,6 +506,41 @@ static int am65_cpts_extts_enable(struct am65_cpts *cpts, u32 index, int on)
 
 	return 0;
 }
+
+int am65_cpts_estf_enable(struct am65_cpts *cpts, int idx,
+			  struct am65_cpts_estf_cfg *cfg)
+{
+	u64 cycles;
+	u32 val;
+
+	cycles = cfg->ns_period * cpts->refclk_freq;
+	cycles = DIV_ROUND_UP(cycles, NSEC_PER_SEC);
+	if (cycles > U32_MAX)
+		return -EINVAL;
+
+	/* according to TRM should be zeroed */
+	am65_cpts_write32(cpts, 0, estf[idx].length);
+
+	val = upper_32_bits(cfg->ns_start);
+	am65_cpts_write32(cpts, val, estf[idx].comp_hi);
+	val = lower_32_bits(cfg->ns_start);
+	am65_cpts_write32(cpts, val, estf[idx].comp_lo);
+	val = lower_32_bits(cycles);
+	am65_cpts_write32(cpts, val, estf[idx].length);
+
+	dev_dbg(cpts->dev, "%s: ESTF:%u enabled\n", __func__, idx);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(am65_cpts_estf_enable);
+
+void am65_cpts_estf_disable(struct am65_cpts *cpts, int idx)
+{
+	am65_cpts_write32(cpts, 0, estf[idx].length);
+
+	dev_dbg(cpts->dev, "%s: ESTF:%u disabled\n", __func__, idx);
+}
+EXPORT_SYMBOL_GPL(am65_cpts_estf_disable);
 
 static void am65_cpts_perout_enable_hw(struct am65_cpts *cpts,
 				       struct ptp_perout_request *req, int on)
