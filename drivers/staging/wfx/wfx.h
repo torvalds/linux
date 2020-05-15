@@ -69,6 +69,8 @@ struct wfx_vif {
 	u32			link_id_map;
 
 	bool			after_dtim_tx_allowed;
+	bool			join_in_progress;
+
 	struct delayed_work	beacon_loss_work;
 
 	struct tx_policy_cache	tx_policy_cache;

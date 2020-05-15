@@ -88,6 +88,11 @@ void wfx_hw_scan_work(struct work_struct *work)
 
 	mutex_lock(&wvif->wdev->conf_mutex);
 	mutex_lock(&wvif->scan_lock);
+	if (wvif->join_in_progress) {
+		dev_info(wvif->wdev->dev, "%s: abort in-progress REQ_JOIN",
+			 __func__);
+		wfx_reset(wvif);
+	}
 	update_probe_tmpl(wvif, &hw_req->req);
 	chan_cur = 0;
 	do {

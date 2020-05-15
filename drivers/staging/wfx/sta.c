@@ -353,6 +353,7 @@ void wfx_reset(struct wfx_vif *wvif)
 	if (wvif_count(wvif->wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 	wfx_tx_unlock(wvif->wdev);
+	wvif->join_in_progress = false;
 	wvif->bss_not_support_ps_poll = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
 }
@@ -390,6 +391,7 @@ static void wfx_do_join(struct wfx_vif *wvif)
 	wfx_set_mfp(wvif, bss);
 	cfg80211_put_bss(wvif->wdev->hw->wiphy, bss);
 
+	wvif->join_in_progress = true;
 	ret = hif_join(wvif, conf, wvif->channel, ssid, ssidlen);
 	if (ret) {
 		ieee80211_connection_loss(wvif->vif);
@@ -485,6 +487,7 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 static void wfx_join_finalize(struct wfx_vif *wvif,
 			      struct ieee80211_bss_conf *info)
 {
+	wvif->join_in_progress = false;
 	hif_set_association_mode(wvif, info);
 	hif_keep_alive_period(wvif, 0);
 	// beacon_loss_count is defined to 7 in net/mac80211/mlme.c. Let's use
