@@ -30,7 +30,6 @@ void wfx_tx_unlock(struct wfx_dev *wdev)
 void wfx_tx_flush(struct wfx_dev *wdev)
 {
 	int ret;
-	int i;
 
 	// Do not wait for any reply if chip is frozen
 	if (wdev->chip_frozen)
@@ -41,12 +40,6 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 	ret = wait_event_timeout(wdev->hif.tx_buffers_empty,
 				 !wdev->hif.tx_buffers_used,
 				 msecs_to_jiffies(3000));
-	if (ret) {
-		for (i = 0; i < IEEE80211_NUM_ACS; i++)
-			WARN(atomic_read(&wdev->tx_queue[i].pending_frames),
-			     "there are still %d pending frames on queue %d",
-			     atomic_read(&wdev->tx_queue[i].pending_frames), i);
-	}
 	if (!ret) {
 		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
 			 wdev->hif.tx_buffers_used);
