@@ -391,6 +391,7 @@ bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int dir)
 void snd_soc_dai_action(struct snd_soc_dai *dai,
 			int stream, int action)
 {
+	/* see snd_soc_dai_stream_active() */
 	dai->stream_active[stream]	+= action;
 	dai->active			+= action;
 	/* see snd_soc_component_active() */
