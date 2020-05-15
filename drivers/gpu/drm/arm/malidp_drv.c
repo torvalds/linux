@@ -349,11 +349,11 @@ malidp_verify_afbc_framebuffer_size(struct drm_device *dev,
 	if (objs->size < afbc_size) {
 		DRM_DEBUG_KMS("buffer size (%zu) too small for AFBC buffer size = %u\n",
 			      objs->size, afbc_size);
-		drm_gem_object_put_unlocked(objs);
+		drm_gem_object_put(objs);
 		return false;
 	}
 
-	drm_gem_object_put_unlocked(objs);
+	drm_gem_object_put(objs);
 
 	return true;
 }
