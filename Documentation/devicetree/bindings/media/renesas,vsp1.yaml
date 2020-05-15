@@ -29,6 +29,12 @@ properties:
   clocks:
     maxItems: 1
 
+  power-domains:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
   renesas,fcp:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:
@@ -39,6 +45,8 @@ required:
   - reg
   - interrupts
   - clocks
+  - power-domains
+  - resets
 
 additionalProperties: false
 
@@ -59,24 +67,30 @@ examples:
   - |
     #include <dt-bindings/clock/renesas-cpg-mssr.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7790-sysc.h>
 
     vsp@fe928000 {
         compatible = "renesas,vsp1";
         reg = <0xfe928000 0x8000>;
         interrupts = <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&cpg CPG_MOD 131>;
+        power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;
+        resets = <&cpg 131>;
     };
 
   # R8A77951 (R-Car H3) VSP2-BC
   - |
     #include <dt-bindings/clock/renesas-cpg-mssr.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7795-sysc.h>
 
     vsp@fe920000 {
         compatible = "renesas,vsp2";
         reg = <0xfe920000 0x8000>;
         interrupts = <GIC_SPI 465 IRQ_TYPE_LEVEL_HIGH>;
         clocks = <&cpg CPG_MOD 624>;
+        power-domains = <&sysc R8A7795_PD_A3VP>;
+        resets = <&cpg 624>;
 
         renesas,fcp = <&fcpvb1>;
     };
