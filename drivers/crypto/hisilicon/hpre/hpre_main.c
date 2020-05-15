@@ -159,6 +159,16 @@ static const struct debugfs_reg32 hpre_com_dfx_regs[] = {
 	{"INT_STATUS               ",  HPRE_INT_STATUS},
 };
 
+static const char *hpre_dfx_files[HPRE_DFX_FILE_NUM] = {
+	"send_cnt",
+	"recv_cnt",
+	"send_fail_cnt",
+	"send_busy_cnt",
+	"over_thrhld_cnt",
+	"overtime_thrhld",
+	"invalid_req_cnt"
+};
+
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
 	return q_num_set(val, kp, HPRE_PCI_DEVICE_ID);
@@ -524,6 +534,33 @@ static const struct file_operations hpre_ctrl_debug_fops = {
 	.write = hpre_ctrl_debug_write,
 };
 
+static int hpre_debugfs_atomic64_get(void *data, u64 *val)
+{
+	struct hpre_dfx *dfx_item = data;
+
+	*val = atomic64_read(&dfx_item->value);
+
+	return 0;
+}
+
+static int hpre_debugfs_atomic64_set(void *data, u64 val)
+{
+	struct hpre_dfx *dfx_item = data;
+	struct hpre_dfx *hpre_dfx = dfx_item - HPRE_OVERTIME_THRHLD;
+
+	if (val)
+		return -EINVAL;
+
+	if (dfx_item->type == HPRE_OVERTIME_THRHLD)
+		atomic64_set(&hpre_dfx[HPRE_OVER_THRHLD_CNT].value, 0);
+	atomic64_set(&dfx_item->value, val);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(hpre_atomic64_ops, hpre_debugfs_atomic64_get,
+			 hpre_debugfs_atomic64_set, "%llu\n");
+
 static int hpre_create_debugfs_file(struct hpre_debug *dbg, struct dentry *dir,
 				    enum hpre_ctrl_dbgfs_file type, int indx)
 {
@@ -621,6 +658,22 @@ static int hpre_ctrl_debug_init(struct hpre_debug *debug)
 	return hpre_cluster_debugfs_init(debug);
 }
 
+static void hpre_dfx_debug_init(struct hpre_debug *debug)
+{
+	struct hpre *hpre = container_of(debug, struct hpre, debug);
+	struct hpre_dfx *dfx = hpre->debug.dfx;
+	struct hisi_qm *qm = &hpre->qm;
+	struct dentry *parent;
+	int i;
+
+	parent = debugfs_create_dir("hpre_dfx", qm->debug.debug_root);
+	for (i = 0; i < HPRE_DFX_FILE_NUM; i++) {
+		dfx[i].type = i;
+		debugfs_create_file(hpre_dfx_files[i], 0644, parent, &dfx[i],
+				    &hpre_atomic64_ops);
+	}
+}
+
 static int hpre_debugfs_init(struct hpre *hpre)
 {
 	struct hisi_qm *qm = &hpre->qm;
@@ -641,6 +694,9 @@ static int hpre_debugfs_init(struct hpre *hpre)
 		if (ret)
 			goto failed_to_create;
 	}
+
+	hpre_dfx_debug_init(&hpre->debug);
+
 	return 0;
 
 failed_to_create:

@@ -93,3 +93,48 @@ Contact:        linux-crypto@vger.kernel.org
 Description:    Dump the status of the QM.
 		Four states: initiated, started, stopped and closed.
 		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of sent requests.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/recv_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of received requests.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_busy_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of requests sent
+		with returning busy.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/send_fail_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of completed but error requests.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/invalid_req_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of invalid requests being received.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/overtime_thrhld
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Set the threshold time for counting the request which is
+		processed longer than the threshold.
+		0: disable(default), 1: 1 microsecond.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/hpre_dfx/over_thrhld_cnt
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the total number of time out requests.
+		Available for both PF and VF, and take no other effect on HPRE.
