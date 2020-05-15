@@ -4113,20 +4113,19 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 		return -ENOMEM;
 	path->reada = READA_BACK;
 
-	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID)
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, lock_start, (u64)-1,
 				 &cached_state);
 
-	/*
-	 * We want to drop from the next block forward in case this new size is
-	 * not block aligned since we will be keeping the last block of the
-	 * extent just the way it is.
-	 */
-	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
-	    root == fs_info->tree_root)
+		/*
+		 * We want to drop from the next block forward in case this
+		 * new size is not block aligned since we will be keeping the
+		 * last block of the extent just the way it is.
+		 */
 		btrfs_drop_extent_cache(BTRFS_I(inode), ALIGN(new_size,
 					fs_info->sectorsize),
 					(u64)-1, 0);
+	}
 
 	/*
 	 * This function is also used to drop the items in the log tree before
@@ -4327,8 +4326,7 @@ delete:
 		should_throttle = false;
 
 		if (found_extent &&
-		    (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
-		     root == fs_info->tree_root)) {
+		    root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 			struct btrfs_ref ref = { 0 };
 
 			bytes_deleted += extent_num_bytes;
