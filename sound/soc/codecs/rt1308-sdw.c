@@ -178,10 +178,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt1308->hw_init)
 		return 0;
 
-	ret = rt1308_read_prop(slave);
-	if (ret < 0)
-		goto _io_init_err_;
-
 	if (rt1308->first_hw_init) {
 		regcache_cache_only(rt1308->regmap, false);
 		regcache_cache_bypass(rt1308->regmap, true);
@@ -282,7 +278,6 @@ static int rt1308_io_init(struct device *dev, struct sdw_slave *slave)
 
 	dev_dbg(&slave->dev, "%s hw_init complete\n", __func__);
 
-_io_init_err_:
 	return ret;
 }
 
