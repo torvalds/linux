@@ -360,7 +360,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	 */
 	ret = drm_gem_handle_create(file_priv, &shmem->base, handle);
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_put_unlocked(&shmem->base);
+	drm_gem_object_put(&shmem->base);
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -684,7 +684,7 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 err_free_array:
 	kvfree(shmem->pages);
 err_free_gem:
-	drm_gem_object_put_unlocked(&shmem->base);
+	drm_gem_object_put(&shmem->base);
 
 	return ERR_PTR(ret);
 }

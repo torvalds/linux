@@ -188,7 +188,7 @@ struct drm_gem_object {
 	 * Reference count of this object
 	 *
 	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put_locked()
-	 * or drm_gem_object_put_unlocked() to release a reference to a GEM
+	 * or drm_gem_object_put() to release a reference to a GEM
 	 * buffer object.
 	 */
 	struct kref refcount;

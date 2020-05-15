@@ -178,7 +178,7 @@ GEM Objects Lifetime
 --------------------
 
 All GEM objects are reference-counted by the GEM core. References can be
-acquired and release by calling drm_gem_object_get() and drm_gem_object_put_unlocked()
+acquired and release by calling drm_gem_object_get() and drm_gem_object_put()
 respectively.
 
 When the last reference to a GEM object is released the GEM core calls
