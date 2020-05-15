@@ -27,7 +27,7 @@
 #include "dc/inc/hw/abm.h"
 #include "dc.h"
 #include "core_types.h"
-#include "dmub_cmd_dal.h"
+#include "dmub_cmd.h"
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \

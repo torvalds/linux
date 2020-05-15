@@ -26,7 +26,7 @@
 #include "../dmub_srv.h"
 #include "dmub_dcn20.h"
 #include "dmub_dcn21.h"
-#include "dmub_fw_meta.h"
+#include "dmub_cmd.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be

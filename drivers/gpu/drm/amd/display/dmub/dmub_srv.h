@@ -64,11 +64,7 @@
  * other component within DAL.
  */
 
-#include "inc/dmub_types.h"
 #include "inc/dmub_cmd.h"
-#include "inc/dmub_gpint_cmd.h"
-#include "inc/dmub_cmd_dal.h"
-#include "inc/dmub_rb.h"
 
 #if defined(__cplusplus)
 extern "C" {
