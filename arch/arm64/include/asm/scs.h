@@ -7,12 +7,14 @@
 #include <asm/asm-offsets.h>
 
 #ifdef CONFIG_SHADOW_CALL_STACK
+	scs_sp	.req	x18
+
 	.macro scs_load tsk, tmp
-	ldr	x18, [\tsk, #TSK_TI_SCS_SP]
+	ldr	scs_sp, [\tsk, #TSK_TI_SCS_SP]
 	.endm
 
 	.macro scs_save tsk, tmp
-	str	x18, [\tsk, #TSK_TI_SCS_SP]
+	str	scs_sp, [\tsk, #TSK_TI_SCS_SP]
 	.endm
 #else
 	.macro scs_load tsk, tmp

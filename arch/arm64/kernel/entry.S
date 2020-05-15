@@ -394,7 +394,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	.macro	irq_stack_entry
 	mov	x19, sp			// preserve the original sp
 #ifdef CONFIG_SHADOW_CALL_STACK
-	mov	x24, x18		// preserve the original shadow stack
+	mov	x24, scs_sp		// preserve the original shadow stack
 #endif
 
 	/*
@@ -416,7 +416,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 
 #ifdef CONFIG_SHADOW_CALL_STACK
 	/* also switch to the irq shadow stack */
-	adr_this_cpu x18, irq_shadow_call_stack, x26
+	adr_this_cpu scs_sp, irq_shadow_call_stack, x26
 #endif
 
 9998:
@@ -430,7 +430,7 @@ alternative_insn eret, nop, ARM64_UNMAP_KERNEL_AT_EL0
 	.macro	irq_stack_exit
 	mov	sp, x19
 #ifdef CONFIG_SHADOW_CALL_STACK
-	mov	x18, x24
+	mov	scs_sp, x24
 #endif
 	.endm
 
@@ -1071,9 +1071,9 @@ SYM_CODE_START(__sdei_asm_handler)
 #ifdef CONFIG_SHADOW_CALL_STACK
 	/* Use a separate shadow call stack for normal and critical events */
 	cbnz	w4, 3f
-	adr_this_cpu dst=x18, sym=sdei_shadow_call_stack_normal, tmp=x6
+	adr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_normal, tmp=x6
 	b	4f
-3:	adr_this_cpu dst=x18, sym=sdei_shadow_call_stack_critical, tmp=x6
+3:	adr_this_cpu dst=scs_sp, sym=sdei_shadow_call_stack_critical, tmp=x6
 4:
 #endif
 

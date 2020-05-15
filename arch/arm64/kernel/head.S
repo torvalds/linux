@@ -426,7 +426,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	mov	x29, sp
 
 #ifdef CONFIG_SHADOW_CALL_STACK
-	adr_l	x18, init_shadow_call_stack	// Set shadow call stack
+	adr_l	scs_sp, init_shadow_call_stack	// Set shadow call stack
 #endif
 
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
