@@ -12,8 +12,9 @@ maintainers:
 
 properties:
   compatible:
-    const:
-      qcom,sdm845-qmp-usb3-phy
+    enum:
+      - qcom,sc7180-qmp-usb3-phy
+      - qcom,sdm845-qmp-usb3-phy
   reg:
     items:
       - description: Address and length of PHY's common serdes block.
