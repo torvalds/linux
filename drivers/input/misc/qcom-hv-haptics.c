@@ -1629,6 +1629,33 @@ static void haptics_fifo_empty_irq_config(struct haptics_chip *chip,
 	mutex_unlock(&chip->irq_lock);
 }
 
+static int haptics_stop_fifo_play(struct haptics_chip *chip)
+{
+	int rc;
+
+	if (atomic_read(&chip->play.fifo_status.is_busy) == 0) {
+		dev_dbg(chip->dev, "FIFO playing is not in progress\n");
+		return 0;
+	}
+
+	rc = haptics_enable_play(chip, false);
+	if (rc < 0)
+		return rc;
+
+	/* restore FIFO play rate back to T_LRA */
+	rc = haptics_set_fifo_playrate(chip, T_LRA);
+	if (rc < 0)
+		return rc;
+
+	haptics_fifo_empty_irq_config(chip, false);
+	kfree(chip->custom_effect->fifo->samples);
+	chip->custom_effect->fifo->samples = NULL;
+
+	atomic_set(&chip->play.fifo_status.is_busy, 0);
+	dev_dbg(chip->dev, "stopped FIFO playing successfully\n");
+	return 0;
+}
+
 static int haptics_playback(struct input_dev *dev, int effect_id, int val)
 {
 	struct haptics_chip *chip = input_get_drvdata(dev);
@@ -1644,7 +1671,8 @@ static int haptics_playback(struct input_dev *dev, int effect_id, int val)
 		if (play->pattern_src == FIFO)
 			haptics_fifo_empty_irq_config(chip, true);
 	} else {
-		if (atomic_read(&play->fifo_status.is_busy)) {
+		if (play->pattern_src == FIFO &&
+				atomic_read(&play->fifo_status.is_busy)) {
 			dev_dbg(chip->dev, "FIFO playing is not done yet, defer stopping in erase\n");
 			return 0;
 		}
@@ -1663,25 +1691,16 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 
 	if ((play->pattern_src == FIFO) &&
 			atomic_read(&play->fifo_status.is_busy)) {
-		dev_dbg(chip->dev, "cancelling FIFO playing\n");
-		atomic_set(&play->fifo_status.cancelled, 1);
+		if (atomic_read(&play->fifo_status.written_done) == 0) {
+			dev_dbg(chip->dev, "cancelling FIFO playing\n");
+			atomic_set(&play->fifo_status.cancelled, 1);
+		}
 
-		rc = haptics_enable_play(chip, false);
-		if (rc < 0)
+		rc = haptics_stop_fifo_play(chip);
+		if (rc < 0) {
+			dev_err(chip->dev, "stop FIFO playing failed, rc=%d\n");
 			return rc;
-
-		atomic_set(&play->fifo_status.is_busy, 0);
-
-		/* free custom_effect FIFO samples buffer after stopping play */
-		kfree(chip->custom_effect->fifo->samples);
-		chip->custom_effect->fifo->samples = NULL;
-
-		/* restore FIFO play rate back to T_LRA */
-		rc = haptics_set_fifo_playrate(chip, T_LRA);
-		if (rc < 0)
-			return rc;
-
-		haptics_fifo_empty_irq_config(chip, false);
+		}
 	}
 
 	return 0;
@@ -1825,24 +1844,24 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 	int rc, num;
 
 	if (atomic_read(&chip->play.fifo_status.written_done) == 1) {
-		dev_dbg(chip->dev, "FIFO data is done playing\n");
-		rc = haptics_enable_play(chip, false);
+		/*
+		 * Check the FIFO real time fill status before stopping
+		 * play to make sure that all FIFO samples can be played
+		 * successfully. If there are still samples left in FIFO
+		 * memory, defer the stop into erase() function.
+		 */
+		num = haptics_get_available_fifo_memory(chip);
+		if (num != MAX_FIFO_SAMPLES(chip)) {
+			dev_dbg(chip->dev, "%d FIFO samples still in playing\n",
+					MAX_FIFO_SAMPLES(chip) - num);
+			return IRQ_HANDLED;
+		}
+
+		rc = haptics_stop_fifo_play(chip);
 		if (rc < 0)
 			return IRQ_HANDLED;
 
-		/* restore FIFO play rate back to T_LRA */
-		rc = haptics_set_fifo_playrate(chip, T_LRA);
-		if (rc < 0)
-			return IRQ_HANDLED;
-
-		haptics_fifo_empty_irq_config(chip, false);
-
-		/* free custom_effect FIFO samples after playing is done */
-		kfree(chip->custom_effect->fifo->samples);
-		chip->custom_effect->fifo->samples = NULL;
-
-		atomic_set(&chip->play.fifo_status.written_done, 0);
-		atomic_set(&chip->play.fifo_status.is_busy, 0);
+		dev_dbg(chip->dev, "FIFO playing is done\n");
 	} else {
 		if (atomic_read(&status->cancelled) == 1) {
 			dev_dbg(chip->dev, "FIFO programming got cancelled\n");
