@@ -69,11 +69,7 @@ struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	if (objectid < BTRFS_FIRST_FREE_OBJECTID)
 		return ERR_PTR(-ESTALE);
 
-	key.objectid = root_objectid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
-	root = btrfs_get_fs_root(fs_info, &key, true);
+	root = btrfs_get_fs_root(fs_info, root_objectid, true);
 	if (IS_ERR(root))
 		return ERR_CAST(root);
 

@@ -1534,35 +1534,34 @@ void btrfs_free_fs_info(struct btrfs_fs_info *fs_info)
 
 
 struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
-				     struct btrfs_key *location,
-				     bool check_ref)
+				     u64 objectid, bool check_ref)
 {
 	struct btrfs_root *root;
 	struct btrfs_path *path;
 	struct btrfs_key key;
 	int ret;
 
-	if (location->objectid == BTRFS_ROOT_TREE_OBJECTID)
+	if (objectid == BTRFS_ROOT_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->tree_root);
-	if (location->objectid == BTRFS_EXTENT_TREE_OBJECTID)
+	if (objectid == BTRFS_EXTENT_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->extent_root);
-	if (location->objectid == BTRFS_CHUNK_TREE_OBJECTID)
+	if (objectid == BTRFS_CHUNK_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->chunk_root);
-	if (location->objectid == BTRFS_DEV_TREE_OBJECTID)
+	if (objectid == BTRFS_DEV_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->dev_root);
-	if (location->objectid == BTRFS_CSUM_TREE_OBJECTID)
+	if (objectid == BTRFS_CSUM_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->csum_root);
-	if (location->objectid == BTRFS_QUOTA_TREE_OBJECTID)
+	if (objectid == BTRFS_QUOTA_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->quota_root) ?
 			fs_info->quota_root : ERR_PTR(-ENOENT);
-	if (location->objectid == BTRFS_UUID_TREE_OBJECTID)
+	if (objectid == BTRFS_UUID_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->uuid_root) ?
 			fs_info->uuid_root : ERR_PTR(-ENOENT);
-	if (location->objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
+	if (objectid == BTRFS_FREE_SPACE_TREE_OBJECTID)
 		return btrfs_grab_root(fs_info->free_space_root) ?
 			fs_info->free_space_root : ERR_PTR(-ENOENT);
 again:
-	root = btrfs_lookup_fs_root(fs_info, location->objectid);
+	root = btrfs_lookup_fs_root(fs_info, objectid);
 	if (root) {
 		if (check_ref && btrfs_root_refs(&root->root_item) == 0) {
 			btrfs_put_root(root);
@@ -1571,7 +1570,10 @@ again:
 		return root;
 	}
 
-	root = btrfs_read_tree_root(fs_info->tree_root, location);
+	key.objectid = objectid;
+	key.type = BTRFS_ROOT_ITEM_KEY;
+	key.offset = (u64)-1;
+	root = btrfs_read_tree_root(fs_info->tree_root, &key);
 	if (IS_ERR(root))
 		return root;
 
@@ -1591,7 +1593,7 @@ again:
 	}
 	key.objectid = BTRFS_ORPHAN_OBJECTID;
 	key.type = BTRFS_ORPHAN_ITEM_KEY;
-	key.offset = location->objectid;
+	key.offset = objectid;
 
 	ret = btrfs_search_slot(NULL, fs_info->tree_root, &key, path, 0, 0);
 	btrfs_free_path(path);
@@ -2293,8 +2295,8 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	 * This tree can share blocks with some other fs tree during relocation
 	 * and we need a proper setup by btrfs_get_fs_root
 	 */
-	location.objectid = BTRFS_DATA_RELOC_TREE_OBJECTID;
-	root = btrfs_get_fs_root(tree_root->fs_info, &location, true);
+	root = btrfs_get_fs_root(tree_root->fs_info,
+				 BTRFS_DATA_RELOC_TREE_OBJECTID, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out;
@@ -2839,7 +2841,6 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	u64 generation;
 	u64 features;
 	u16 csum_type;
-	struct btrfs_key location;
 	struct btrfs_super_block *disk_super;
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *tree_root;
@@ -3253,11 +3254,7 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 		}
 	}
 
-	location.objectid = BTRFS_FS_TREE_OBJECTID;
-	location.type = BTRFS_ROOT_ITEM_KEY;
-	location.offset = 0;
-
-	fs_info->fs_root = btrfs_get_fs_root(fs_info, &location, true);
+	fs_info->fs_root = btrfs_get_fs_root(fs_info, BTRFS_FS_TREE_OBJECTID, true);
 	if (IS_ERR(fs_info->fs_root)) {
 		err = PTR_ERR(fs_info->fs_root);
 		btrfs_warn(fs_info, "failed to read fs tree: %d", err);

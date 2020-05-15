@@ -660,7 +660,7 @@ static noinline int create_subvol(struct inode *dir,
 		goto fail;
 
 	key.offset = (u64)-1;
-	new_root = btrfs_get_fs_root(fs_info, &key, true);
+	new_root = btrfs_get_fs_root(fs_info, objectid, true);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
 		btrfs_abort_transaction(trans, ret);
@@ -2139,10 +2139,7 @@ static noinline int search_ioctl(struct inode *inode,
 		/* search the root of the inode that was passed */
 		root = btrfs_grab_root(BTRFS_I(inode)->root);
 	} else {
-		key.objectid = sk->tree_id;
-		key.type = BTRFS_ROOT_ITEM_KEY;
-		key.offset = (u64)-1;
-		root = btrfs_get_fs_root(info, &key, true);
+		root = btrfs_get_fs_root(info, sk->tree_id, true);
 		if (IS_ERR(root)) {
 			btrfs_free_path(path);
 			return PTR_ERR(root);
@@ -2275,10 +2272,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 
 	ptr = &name[BTRFS_INO_LOOKUP_PATH_MAX - 1];
 
-	key.objectid = tree_id;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-	root = btrfs_get_fs_root(info, &key, true);
+	root = btrfs_get_fs_root(info, tree_id, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		root = NULL;
@@ -2371,10 +2365,7 @@ static int btrfs_search_path_in_tree_user(struct inode *inode,
 	if (dirid != upper_limit.objectid) {
 		ptr = &args->path[BTRFS_INO_LOOKUP_USER_PATH_MAX - 1];
 
-		key.objectid = treeid;
-		key.type = BTRFS_ROOT_ITEM_KEY;
-		key.offset = (u64)-1;
-		root = btrfs_get_fs_root(fs_info, &key, true);
+		root = btrfs_get_fs_root(fs_info, treeid, true);
 		if (IS_ERR(root)) {
 			ret = PTR_ERR(root);
 			goto out;
@@ -2620,9 +2611,7 @@ static int btrfs_ioctl_get_subvol_info(struct file *file, void __user *argp)
 
 	/* Get root_item of inode's subvolume */
 	key.objectid = BTRFS_I(inode)->root->root_key.objectid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-	root = btrfs_get_fs_root(fs_info, &key, true);
+	root = btrfs_get_fs_root(fs_info, key.objectid, true);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out_free;
@@ -3290,7 +3279,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	struct btrfs_dir_item *di;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_path *path = NULL;
-	struct btrfs_key location;
 	struct btrfs_disk_key disk_key;
 	u64 objectid = 0;
 	u64 dir_id;
@@ -3311,11 +3299,7 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 	if (!objectid)
 		objectid = BTRFS_FS_TREE_OBJECTID;
 
-	location.objectid = objectid;
-	location.type = BTRFS_ROOT_ITEM_KEY;
-	location.offset = (u64)-1;
-
-	new_root = btrfs_get_fs_root(fs_info, &location, true);
+	new_root = btrfs_get_fs_root(fs_info, objectid, true);
 	if (IS_ERR(new_root)) {
 		ret = PTR_ERR(new_root);
 		goto out;

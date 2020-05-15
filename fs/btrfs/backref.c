@@ -538,18 +538,13 @@ static int resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 				const u64 *extent_item_pos, bool ignore_offset)
 {
 	struct btrfs_root *root;
-	struct btrfs_key root_key;
 	struct extent_buffer *eb;
 	int ret = 0;
 	int root_level;
 	int level = ref->level;
 	struct btrfs_key search_key = ref->key_for_search;
 
-	root_key.objectid = ref->root_id;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-
-	root = btrfs_get_fs_root(fs_info, &root_key, false);
+	root = btrfs_get_fs_root(fs_info, ref->root_id, false);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
 		goto out_free;
@@ -2690,16 +2685,12 @@ static int handle_indirect_tree_backref(struct btrfs_backref_cache *cache,
 	struct btrfs_backref_edge *edge;
 	struct extent_buffer *eb;
 	struct btrfs_root *root;
-	struct btrfs_key root_key;
 	struct rb_node *rb_node;
 	int level;
 	bool need_check = true;
 	int ret;
 
-	root_key.objectid = ref_key->offset;
-	root_key.type = BTRFS_ROOT_ITEM_KEY;
-	root_key.offset = (u64)-1;
-	root = btrfs_get_fs_root(fs_info, &root_key, false);
+	root = btrfs_get_fs_root(fs_info, ref_key->offset, false);
 	if (IS_ERR(root))
 		return PTR_ERR(root);
 	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))

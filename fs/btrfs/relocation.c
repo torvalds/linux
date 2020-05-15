@@ -368,13 +368,7 @@ struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 static struct btrfs_root *read_fs_root(struct btrfs_fs_info *fs_info,
 					u64 root_objectid)
 {
-	struct btrfs_key key;
-
-	key.objectid = root_objectid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
-	return btrfs_get_fs_root(fs_info, &key, false);
+	return btrfs_get_fs_root(fs_info, root_objectid, false);
 }
 
 /*

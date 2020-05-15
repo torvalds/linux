@@ -7088,7 +7088,6 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	struct btrfs_root *send_root = BTRFS_I(file_inode(mnt_file))->root;
 	struct btrfs_fs_info *fs_info = send_root->fs_info;
 	struct btrfs_root *clone_root;
-	struct btrfs_key key;
 	struct send_ctx *sctx = NULL;
 	u32 i;
 	u64 *clone_sources_tmp = NULL;
@@ -7217,11 +7216,8 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 		}
 
 		for (i = 0; i < arg->clone_sources_count; i++) {
-			key.objectid = clone_sources_tmp[i];
-			key.type = BTRFS_ROOT_ITEM_KEY;
-			key.offset = (u64)-1;
-
-			clone_root = btrfs_get_fs_root(fs_info, &key, true);
+			clone_root = btrfs_get_fs_root(fs_info,
+						clone_sources_tmp[i], true);
 			if (IS_ERR(clone_root)) {
 				ret = PTR_ERR(clone_root);
 				goto out;
@@ -7252,11 +7248,8 @@ long btrfs_ioctl_send(struct file *mnt_file, struct btrfs_ioctl_send_args *arg)
 	}
 
 	if (arg->parent_root) {
-		key.objectid = arg->parent_root;
-		key.type = BTRFS_ROOT_ITEM_KEY;
-		key.offset = (u64)-1;
-
-		sctx->parent_root = btrfs_get_fs_root(fs_info, &key, true);
+		sctx->parent_root = btrfs_get_fs_root(fs_info, arg->parent_root,
+						      true);
 		if (IS_ERR(sctx->parent_root)) {
 			ret = PTR_ERR(sctx->parent_root);
 			goto out;

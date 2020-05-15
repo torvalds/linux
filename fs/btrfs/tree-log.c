@@ -6112,7 +6112,6 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_trans_handle *trans;
 	struct btrfs_key key;
 	struct btrfs_key found_key;
-	struct btrfs_key tmp_key;
 	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
 	struct walk_control wc = {
@@ -6174,11 +6173,8 @@ again:
 			goto error;
 		}
 
-		tmp_key.objectid = found_key.offset;
-		tmp_key.type = BTRFS_ROOT_ITEM_KEY;
-		tmp_key.offset = (u64)-1;
-
-		wc.replay_dest = btrfs_get_fs_root(fs_info, &tmp_key, true);
+		wc.replay_dest = btrfs_get_fs_root(fs_info, found_key.offset,
+						   true);
 		if (IS_ERR(wc.replay_dest)) {
 			ret = PTR_ERR(wc.replay_dest);
 

@@ -281,11 +281,7 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	int ret;
 
 	/* get the inode */
-	key.objectid = defrag->root;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-
-	inode_root = btrfs_get_fs_root(fs_info, &key, true);
+	inode_root = btrfs_get_fs_root(fs_info, defrag->root, true);
 	if (IS_ERR(inode_root)) {
 		ret = PTR_ERR(inode_root);
 		goto cleanup;

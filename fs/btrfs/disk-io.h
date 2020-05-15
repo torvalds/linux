@@ -66,8 +66,7 @@ int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
 void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info);
 
 struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
-				     struct btrfs_key *key,
-				     bool check_ref);
+				     u64 objectid, bool check_ref);
 
 void btrfs_free_fs_info(struct btrfs_fs_info *fs_info);
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info);
