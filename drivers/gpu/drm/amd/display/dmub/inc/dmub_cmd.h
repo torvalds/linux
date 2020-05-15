@@ -34,6 +34,14 @@
 
 #include "atomfirmware.h"
 
+/* Firmware versioning. */
+#ifdef DMUB_EXPOSE_VERSION
+#define DMUB_FW_VERSION_GIT_HASH 0x718f63a96
+#define DMUB_FW_VERSION_MAJOR 1
+#define DMUB_FW_VERSION_MINOR 0
+#define DMUB_FW_VERSION_REVISION 12
+#define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
+#endif
 
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
