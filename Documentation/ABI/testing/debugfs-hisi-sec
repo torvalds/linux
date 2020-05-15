@@ -41,3 +41,34 @@ Description:    Enabling/disabling of clear action after reading
 		the SEC's QM debug registers.
 		0: disable, 1: enable.
 		Only available for PF, and take no other effect on SEC.
+
+What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/err_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of invalid interrupts for
+		QM task completion.
+		Available for both PF and VF, and take no other effect on SEC.
+
+What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/aeq_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of QM async event queue interrupts.
+		Available for both PF and VF, and take no other effect on SEC.
+
+What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/abnormal_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of interrupts for QM abnormal event.
+		Available for both PF and VF, and take no other effect on SEC.
+
+What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/create_qp_err
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of queue allocation errors.
+		Available for both PF and VF, and take no other effect on SEC.
+
+What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/mb_err
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of failed QM mailbox commands.
+		Available for both PF and VF, and take no other effect on SEC.

@@ -55,3 +55,34 @@ Description:    QM debug registers(qm_regs) read clear control. 1 means enable
 		Writing to this file has no functional effect, only enable or
 		disable counters clear after reading of these registers.
 		Only available for PF.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/err_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of invalid interrupts for
+		QM task completion.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/aeq_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of QM async event queue interrupts.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/abnormal_irq
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of interrupts for QM abnormal event.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/create_qp_err
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of queue allocation errors.
+		Available for both PF and VF, and take no other effect on HPRE.
+
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/mb_err
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the number of failed QM mailbox commands.
+		Available for both PF and VF, and take no other effect on HPRE.

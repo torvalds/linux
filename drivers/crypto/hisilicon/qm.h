@@ -121,6 +121,14 @@ enum qm_debug_file {
 	DEBUG_FILE_NUM,
 };
 
+struct qm_dfx {
+	atomic64_t err_irq_cnt;
+	atomic64_t aeq_irq_cnt;
+	atomic64_t abnormal_irq_cnt;
+	atomic64_t create_qp_err_cnt;
+	atomic64_t mb_err_cnt;
+};
+
 struct debugfs_file {
 	enum qm_debug_file index;
 	struct mutex lock;
@@ -129,6 +137,7 @@ struct debugfs_file {
 
 struct qm_debug {
 	u32 curr_qm_qp_num;
+	struct qm_dfx dfx;
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
