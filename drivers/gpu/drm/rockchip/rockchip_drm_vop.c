@@ -2657,36 +2657,12 @@ static void vop_crtc_close(struct drm_crtc *crtc)
 
 static void vop_crtc_send_mcu_cmd(struct drm_crtc *crtc,  u32 type, u32 value)
 {
-	struct rockchip_crtc_state *s;
 	struct vop *vop = NULL;
 
 	if (!crtc)
 		return;
 
 	vop = to_vop(crtc);
-	s = to_rockchip_crtc_state(crtc->state);
-
-	/*
-	 * VOP wrongly treated MCU cmd as normal rgb data and pass it
-	 * to dither module when output mode is rgb565/rgb666, then
-	 * the cmd output from vop io is changed.
-	 *
-	 * Here we convert the MCU cmd data(8bit) from rgb565/rgb666 to rgb88,
-	 * so that we can get the original cmd data after dither module.
-	 * RGB565->RGB888:
-	 * B = cmd & 0x1f; G = (cmd & 0xe0) >> 5; R = 0
-	 * B + (G << (8 + (8 - 6))) + R
-	 * RGB666->RGB888:
-	 * B = cmd & 0x3f; G = (cmd & 0xc0) >> 6; R = 0
-	 * B + (G << (8 + (8 - 6))) + R
-	 *
-	 * Note: cmd is 8 bit, so R is always zero;
-	 */
-	if (s->output_mode == ROCKCHIP_OUT_MODE_P565)
-		value = ((value & 0x1f) << 3) + ((value & 0xe0) << 5);
-	else if (s->output_mode == ROCKCHIP_OUT_MODE_P666)
-		value = ((value & 0x3f) << 2) + ((value & 0xc0) << 4);
-
 	mutex_lock(&vop->vop_lock);
 	if (vop && vop->is_enabled) {
 		switch (type) {
