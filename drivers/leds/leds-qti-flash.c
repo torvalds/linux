@@ -1032,6 +1032,8 @@ static ssize_t qti_flash_off_time_store(struct device *dev,
 	if (rc < 0)
 		return rc;
 
+	val = min_t(u64, val, SAFETY_TIMER_MAX_TIMEOUT_MS);
+
 	snode = container_of(led_cdev, struct flash_switch_data, cdev);
 	snode->off_time_ms = val;
 
