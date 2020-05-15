@@ -140,7 +140,7 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 }
 
 static struct drm_driver driver = {
-	.driver_features = DRIVER_GEM | DRIVER_MODESET,
+	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops = &mgag200_driver_fops,
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
