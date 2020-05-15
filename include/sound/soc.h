@@ -468,8 +468,19 @@ struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
 				struct snd_soc_dai_link *dai_link);
 
 bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
-void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
-void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
+
+void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
+			    int stream, int action);
+static inline void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd,
+				     int stream)
+{
+	snd_soc_runtime_action(rtd, stream, 1);
+}
+static inline void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd,
+				       int stream)
+{
+	snd_soc_runtime_action(rtd, stream, -1);
+}
 
 int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_pcm_hardware *hw, int stream);

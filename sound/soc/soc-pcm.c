@@ -256,8 +256,20 @@ static int soc_rtd_trigger(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
-				   int stream, int action)
+/**
+ * snd_soc_runtime_action() - Increment/Decrement active count for
+ * PCM runtime components
+ * @rtd: ASoC PCM runtime that is activated
+ * @stream: Direction of the PCM stream
+ *
+ * Increments/Decrements the active count for all the DAIs and components
+ * attached to a PCM runtime.
+ * Should typically be called when a stream is opened.
+ *
+ * Must be called with the rtd->card->pcm_mutex being held
+ */
+void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
+			    int stream, int action)
 {
 	struct snd_soc_dai *dai;
 	int i;
@@ -270,38 +282,7 @@ static void snd_soc_runtime_action(struct snd_soc_pcm_runtime *rtd,
 		dai->component->active += action;
 	}
 }
-
-/**
- * snd_soc_runtime_activate() - Increment active count for PCM runtime components
- * @rtd: ASoC PCM runtime that is activated
- * @stream: Direction of the PCM stream
- *
- * Increments the active count for all the DAIs and components attached to a PCM
- * runtime. Should typically be called when a stream is opened.
- *
- * Must be called with the rtd->card->pcm_mutex being held
- */
-void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream)
-{
-	snd_soc_runtime_action(rtd, stream, 1);
-}
-EXPORT_SYMBOL_GPL(snd_soc_runtime_activate);
-
-/**
- * snd_soc_runtime_deactivate() - Decrement active count for PCM runtime components
- * @rtd: ASoC PCM runtime that is deactivated
- * @stream: Direction of the PCM stream
- *
- * Decrements the active count for all the DAIs and components attached to a PCM
- * runtime. Should typically be called when a stream is closed.
- *
- * Must be called with the rtd->card->pcm_mutex being held
- */
-void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream)
-{
-	snd_soc_runtime_action(rtd, stream, -1);
-}
-EXPORT_SYMBOL_GPL(snd_soc_runtime_deactivate);
+EXPORT_SYMBOL_GPL(snd_soc_runtime_action);
 
 /**
  * snd_soc_runtime_ignore_pmdown_time() - Check whether to ignore the power down delay
