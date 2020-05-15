@@ -29,6 +29,7 @@
 #include <linux/devcoredump.h>
 #include <linux/rculist.h>
 #include <linux/remoteproc.h>
+#include <linux/pm_runtime.h>
 #include <linux/iommu.h>
 #include <linux/idr.h>
 #include <linux/elf.h>
@@ -1382,6 +1383,12 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	if (ret)
 		return ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm_runtime_get_sync failed: %d\n", ret);
+		return ret;
+	}
+
 	dev_info(dev, "Booting fw image %s, size %zd\n", name, fw->size);
 
 	/*
@@ -1391,7 +1398,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	ret = rproc_enable_iommu(rproc);
 	if (ret) {
 		dev_err(dev, "can't enable iommu: %d\n", ret);
-		return ret;
+		goto put_pm_runtime;
 	}
 
 	/* Prepare rproc for firmware loading if needed */
@@ -1445,6 +1452,8 @@ unprepare_rproc:
 	rproc_unprepare_device(rproc);
 disable_iommu:
 	rproc_disable_iommu(rproc);
+put_pm_runtime:
+	pm_runtime_put(dev);
 	return ret;
 }
 
@@ -1882,6 +1891,8 @@ void rproc_shutdown(struct rproc *rproc)
 
 	rproc_disable_iommu(rproc);
 
+	pm_runtime_put(dev);
+
 	/* Free the copy of the resource table */
 	kfree(rproc->cached_table);
 	rproc->cached_table = NULL;
@@ -2172,6 +2183,9 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	rproc->state = RPROC_OFFLINE;
 
+	pm_runtime_no_callbacks(&rproc->dev);
+	pm_runtime_enable(&rproc->dev);
+
 	return rproc;
 
 put_device:
@@ -2191,6 +2205,7 @@ EXPORT_SYMBOL(rproc_alloc);
  */
 void rproc_free(struct rproc *rproc)
 {
+	pm_runtime_disable(&rproc->dev);
 	put_device(&rproc->dev);
 }
 EXPORT_SYMBOL(rproc_free);
