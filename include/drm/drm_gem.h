@@ -187,7 +187,7 @@ struct drm_gem_object {
 	 *
 	 * Reference count of this object
 	 *
-	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put()
+	 * Please use drm_gem_object_get() to acquire and drm_gem_object_put_locked()
 	 * or drm_gem_object_put_unlocked() to release a reference to a GEM
 	 * buffer object.
 	 */
@@ -375,7 +375,7 @@ drm_gem_object_put_unlocked(struct drm_gem_object *obj)
 	kref_put(&obj->refcount, drm_gem_object_free);
 }
 
-void drm_gem_object_put(struct drm_gem_object *obj);
+void drm_gem_object_put_locked(struct drm_gem_object *obj);
 
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
