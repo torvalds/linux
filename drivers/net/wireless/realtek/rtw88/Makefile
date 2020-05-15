@@ -19,8 +19,13 @@ rtw88-y += main.o \
 	   regd.o
 
 rtw88-$(CONFIG_RTW88_8822BE)	+= rtw8822b.o rtw8822b_table.o
-rtw88-$(CONFIG_RTW88_8822CE)	+= rtw8822c.o rtw8822c_table.o
 rtw88-$(CONFIG_RTW88_8723DE)	+= rtw8723d.o rtw8723d_table.o
+
+obj-$(CONFIG_RTW88_8822C)	+= rtw88_8822c.o
+rtw88_8822c-objs		:= rtw8822c.o rtw8822c_table.o
+
+obj-$(CONFIG_RTW88_8822CE)	+= rtw88_8822ce.o
+rtw88_8822ce-objs		:= rtw8822ce.o
 
 obj-$(CONFIG_RTW88_PCI)		+= rtwpci.o
 rtwpci-objs			:= pci.o
