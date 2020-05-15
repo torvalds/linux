@@ -2930,6 +2930,10 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	 */
 	if (vop->lut_active)
 		vop_crtc_load_lut(crtc);
+
+	if (vop->mcu_timing.mcu_pix_total)
+		vop_mcu_mode(crtc);
+
 	dclk_inv = (adjusted_mode->flags & DRM_MODE_FLAG_PPIXDATA) ? 0 : 1;
 
 	VOP_CTRL_SET(vop, dclk_pol, dclk_inv);
@@ -3051,8 +3055,6 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	clk_set_rate(vop->dclk, adjusted_mode->crtc_clock * 1000);
 
-	if (vop->mcu_timing.mcu_pix_total)
-		vop_mcu_mode(crtc);
 
 	vop_cfg_done(vop);
 
