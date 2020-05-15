@@ -18,7 +18,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
-#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "mgag200_reg.h"
@@ -151,7 +151,8 @@ struct mga_device {
 
 	struct mga_mc			mc;
 
-	size_t vram_fb_available;
+	void __iomem			*vram;
+	size_t				vram_fb_available;
 
 	enum mga_type			type;
 	int				has_sdram;

@@ -14,6 +14,8 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_format_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
@@ -1574,6 +1576,26 @@ mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 }
 
 static void
+mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
+		      struct drm_rect *clip)
+{
+	struct drm_device *dev = mdev->dev;
+	void *vmap;
+
+	vmap = drm_gem_shmem_vmap(fb->obj[0]);
+	if (drm_WARN_ON(dev, !vmap))
+		return; /* BUG: SHMEM BO should always be vmapped */
+
+	drm_fb_memcpy_dstclip(mdev->vram, vmap, fb, clip);
+
+	drm_gem_shmem_vunmap(fb->obj[0], vmap);
+
+	/* Always scanout image at VRAM offset 0 */
+	mgag200_set_startadd(mdev, (u32)0);
+	mgag200_set_offset(mdev, fb);
+}
+
+static void
 mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 				   struct drm_crtc_state *crtc_state,
 				   struct drm_plane_state *plane_state)
@@ -1583,14 +1605,12 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	struct drm_framebuffer *fb = plane_state->fb;
-	struct drm_gem_vram_object *gbo;
-	s64 gpu_addr;
-
-	gbo = drm_gem_vram_of_gem(fb->obj[0]);
-
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (drm_WARN_ON_ONCE(dev, gpu_addr < 0))
-		return; /* BUG: BO should have been pinned to VRAM. */
+	struct drm_rect fullscreen = {
+		.x1 = 0,
+		.x2 = fb->width,
+		.y1 = 0,
+		.y2 = fb->height,
+	};
 
 	mga_crtc_prepare(crtc);
 
@@ -1606,6 +1626,8 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 		mgag200_g200ev_set_hiprilvl(mdev);
 
 	mga_crtc_commit(crtc);
+
+	mgag200_handle_damage(mdev, fb, &fullscreen);
 }
 
 static void
@@ -1646,20 +1668,13 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct mga_device *mdev = to_mga_device(dev);
 	struct drm_plane_state *state = plane->state;
 	struct drm_framebuffer *fb = state->fb;
-	struct drm_gem_vram_object *gbo;
-	s64 gpu_addr;
+	struct drm_rect damage;
 
 	if (!fb)
 		return;
 
-	gbo = drm_gem_vram_of_gem(fb->obj[0]);
-
-	gpu_addr = drm_gem_vram_offset(gbo);
-	if (drm_WARN_ON_ONCE(dev, gpu_addr < 0))
-		return; /* BUG: BO should have been pinned to VRAM. */
-
-	mgag200_set_startadd(mdev, (unsigned long)gpu_addr);
-	mgag200_set_offset(mdev, fb);
+	if (drm_atomic_helper_damage_merged(old_state, state, &damage))
+		mgag200_handle_damage(mdev, fb, &damage);
 }
 
 static const struct drm_simple_display_pipe_funcs
@@ -1669,8 +1684,7 @@ mgag200_simple_display_pipe_funcs = {
 	.disable    = mgag200_simple_display_pipe_disable,
 	.check	    = mgag200_simple_display_pipe_check,
 	.update	    = mgag200_simple_display_pipe_update,
-	.prepare_fb = drm_gem_vram_simple_display_pipe_prepare_fb,
-	.cleanup_fb = drm_gem_vram_simple_display_pipe_cleanup_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
 };
 
 static const uint32_t mgag200_simple_display_pipe_formats[] = {
@@ -1689,8 +1703,7 @@ static const uint64_t mgag200_simple_display_pipe_fmtmods[] = {
  */
 
 static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
-	.fb_create     = drm_gem_fb_create,
-	.mode_valid    = drm_vram_helper_mode_valid,
+	.fb_create     = drm_gem_fb_create_with_dirty,
 	.atomic_check  = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -1729,7 +1742,6 @@ int mgag200_modeset_init(struct mga_device *mdev)
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
 
 	dev->mode_config.preferred_depth = mgag200_preferred_depth(mdev);
-	dev->mode_config.prefer_shadow = 1;
 
 	dev->mode_config.fb_base = mdev->mc.vram_base;
 
