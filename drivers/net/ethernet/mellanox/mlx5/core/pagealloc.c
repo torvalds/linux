@@ -156,15 +156,21 @@ static int mlx5_cmd_query_pages(struct mlx5_core_dev *dev, u16 *func_id,
 	return err;
 }
 
-static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr)
+static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr, u16 func_id)
 {
-	struct fw_page *fp;
+	struct fw_page *fp = NULL;
+	struct fw_page *iter;
 	unsigned n;
 
-	if (list_empty(&dev->priv.free_list))
+	list_for_each_entry(iter, &dev->priv.free_list, list) {
+		if (iter->func_id != func_id)
+			continue;
+		fp = iter;
+	}
+
+	if (list_empty(&dev->priv.free_list) || !fp)
 		return -ENOMEM;
 
-	fp = list_entry(dev->priv.free_list.next, struct fw_page, list);
 	n = find_first_bit(&fp->bitmask, 8 * sizeof(fp->bitmask));
 	if (n >= MLX5_NUM_4K_IN_PAGE) {
 		mlx5_core_warn(dev, "alloc 4k bug\n");
@@ -182,35 +188,35 @@ static int alloc_4k(struct mlx5_core_dev *dev, u64 *addr)
 
 #define MLX5_U64_4K_PAGE_MASK ((~(u64)0U) << PAGE_SHIFT)
 
-static void free_fwp(struct mlx5_core_dev *dev, struct fw_page *fwp)
+static void free_fwp(struct mlx5_core_dev *dev, struct fw_page *fwp,
+		     bool in_free_list)
 {
-	int n = (fwp->addr & ~MLX5_U64_4K_PAGE_MASK) >> MLX5_ADAPTER_PAGE_SHIFT;
-
-	fwp->free_count++;
-	set_bit(n, &fwp->bitmask);
-	if (fwp->free_count == MLX5_NUM_4K_IN_PAGE) {
-		rb_erase(&fwp->rb_node, &dev->priv.page_root);
-		if (fwp->free_count != 1)
-			list_del(&fwp->list);
-		dma_unmap_page(dev->device, fwp->addr & MLX5_U64_4K_PAGE_MASK,
-			       PAGE_SIZE, DMA_BIDIRECTIONAL);
-		__free_page(fwp->page);
-		kfree(fwp);
-	} else if (fwp->free_count == 1) {
-		list_add(&fwp->list, &dev->priv.free_list);
-	}
+	rb_erase(&fwp->rb_node, &dev->priv.page_root);
+	if (in_free_list)
+		list_del(&fwp->list);
+	dma_unmap_page(dev->device, fwp->addr & MLX5_U64_4K_PAGE_MASK,
+		       PAGE_SIZE, DMA_BIDIRECTIONAL);
+	__free_page(fwp->page);
+	kfree(fwp);
 }
 
-static void free_addr(struct mlx5_core_dev *dev, u64 addr)
+static void free_4k(struct mlx5_core_dev *dev, u64 addr)
 {
 	struct fw_page *fwp;
+	int n;
 
 	fwp = find_fw_page(dev, addr & MLX5_U64_4K_PAGE_MASK);
 	if (!fwp) {
 		mlx5_core_warn_rl(dev, "page not found\n");
 		return;
 	}
-	free_fwp(dev, fwp);
+	n = (addr & ~MLX5_U64_4K_PAGE_MASK) >> MLX5_ADAPTER_PAGE_SHIFT;
+	fwp->free_count++;
+	set_bit(n, &fwp->bitmask);
+	if (fwp->free_count == MLX5_NUM_4K_IN_PAGE)
+		free_fwp(dev, fwp, fwp->free_count != 1);
+	else if (fwp->free_count == 1)
+		list_add(&fwp->list, &dev->priv.free_list);
 }
 
 static int alloc_system_page(struct mlx5_core_dev *dev, u16 func_id)
@@ -295,7 +301,7 @@ static int give_pages(struct mlx5_core_dev *dev, u16 func_id, int npages,
 
 	for (i = 0; i < npages; i++) {
 retry:
-		err = alloc_4k(dev, &addr);
+		err = alloc_4k(dev, &addr, func_id);
 		if (err) {
 			if (err == -ENOMEM)
 				err = alloc_system_page(dev, func_id);
@@ -334,7 +340,7 @@ retry:
 
 out_4k:
 	for (i--; i >= 0; i--)
-		free_addr(dev, MLX5_GET64(manage_pages_in, in, pas[i]));
+		free_4k(dev, MLX5_GET64(manage_pages_in, in, pas[i]));
 out_free:
 	kvfree(in);
 	if (notify_fail)
@@ -355,8 +361,8 @@ static void release_all_pages(struct mlx5_core_dev *dev, u32 func_id,
 		p = rb_next(p);
 		if (fwp->func_id != func_id)
 			continue;
-		free_fwp(dev, fwp);
-		npages++;
+		npages += (MLX5_NUM_4K_IN_PAGE - fwp->free_count);
+		free_fwp(dev, fwp, fwp->free_count);
 	}
 
 	dev->priv.fw_pages -= npages;
@@ -440,7 +446,7 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	}
 
 	for (i = 0; i < num_claimed; i++)
-		free_addr(dev, MLX5_GET64(manage_pages_out, out, pas[i]));
+		free_4k(dev, MLX5_GET64(manage_pages_out, out, pas[i]));
 
 	if (nclaimed)
 		*nclaimed = num_claimed;

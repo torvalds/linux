@@ -66,7 +66,6 @@
 #include "en/devlink.h"
 #include "lib/mlx5.h"
 
-
 bool mlx5e_check_fragmented_striding_rq_cap(struct mlx5_core_dev *mdev)
 {
 	bool striding_rq_umr = MLX5_CAP_GEN(mdev, striding_rq) &&
@@ -1122,6 +1121,22 @@ static int mlx5e_alloc_txqsq_db(struct mlx5e_txqsq *sq, int numa)
 	return 0;
 }
 
+static int mlx5e_calc_sq_stop_room(struct mlx5e_txqsq *sq, u8 log_sq_size)
+{
+	int sq_size = 1 << log_sq_size;
+
+	sq->stop_room  = mlx5e_tls_get_stop_room(sq);
+	sq->stop_room += mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+
+	if (WARN_ON(sq->stop_room >= sq_size)) {
+		netdev_err(sq->channel->netdev, "Stop room %hu is bigger than the SQ size %d\n",
+			   sq->stop_room, sq_size);
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
 static void mlx5e_tx_err_cqe_work(struct work_struct *recover_work);
 static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 			     int txq_ix,
@@ -1146,20 +1161,16 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->min_inline_mode = params->tx_min_inline_mode;
 	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	sq->stats     = &c->priv->channel_stats[c->ix].sq[tc];
-	sq->stop_room = MLX5E_SQ_STOP_ROOM;
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
 	if (!MLX5_CAP_ETH(mdev, wqe_vlan_insert))
 		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	if (MLX5_IPSEC_DEV(c->priv->mdev))
 		set_bit(MLX5E_SQ_STATE_IPSEC, &sq->state);
-#ifdef CONFIG_MLX5_EN_TLS
-	if (mlx5_accel_is_tls_device(c->priv->mdev)) {
+	if (mlx5_accel_is_tls_device(c->priv->mdev))
 		set_bit(MLX5E_SQ_STATE_TLS, &sq->state);
-		sq->stop_room += MLX5E_SQ_TLS_ROOM +
-			mlx5e_ktls_dumps_num_wqebbs(sq, MAX_SKB_FRAGS,
-						    TLS_MAX_PAYLOAD_SIZE);
-	}
-#endif
+	err = mlx5e_calc_sq_stop_room(sq, params->log_sq_size);
+	if (err)
+		return err;
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -4915,10 +4926,7 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 
 	netdev->netdev_ops = &mlx5e_netdev_ops;
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-	if (MLX5_CAP_GEN(mdev, vport_group_manager) && MLX5_CAP_GEN(mdev, qos))
-		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
-#endif
+	mlx5e_dcbnl_build_netdev(netdev);
 
 	netdev->watchdog_timeo    = 15 * HZ;
 
@@ -5206,9 +5214,7 @@ static int mlx5e_init_nic_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_initialize(priv);
-#endif
 	return 0;
 }
 
@@ -5235,9 +5241,7 @@ static void mlx5e_nic_enable(struct mlx5e_priv *priv)
 	mlx5e_hv_vhca_stats_create(priv);
 	if (netdev->reg_state != NETREG_REGISTERED)
 		return;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_init_app(priv);
-#endif
 
 	queue_work(priv->wq, &priv->set_rx_mode_work);
 
@@ -5252,10 +5256,8 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	if (priv->netdev->reg_state == NETREG_REGISTERED)
 		mlx5e_dcbnl_delete_app(priv);
-#endif
 
 	rtnl_lock();
 	if (netif_running(priv->netdev))
@@ -5275,7 +5277,7 @@ static void mlx5e_nic_disable(struct mlx5e_priv *priv)
 
 int mlx5e_update_nic_rx(struct mlx5e_priv *priv)
 {
-	return mlx5e_refresh_tirs(priv, false);
+	return mlx5e_refresh_tirs(priv, false, false);
 }
 
 static const struct mlx5e_profile mlx5e_nic_profile = {
@@ -5552,9 +5554,7 @@ static void *mlx5e_add(struct mlx5_core_dev *mdev)
 
 	mlx5e_devlink_port_type_eth_set(priv);
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_init_app(priv);
-#endif
 	return priv;
 
 err_devlink_port_unregister:
@@ -5577,9 +5577,7 @@ static void mlx5e_remove(struct mlx5_core_dev *mdev, void *vpriv)
 	}
 #endif
 	priv = vpriv;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
-#endif
 	unregister_netdev(priv->netdev);
 	mlx5e_devlink_port_unregister(priv);
 	mlx5e_detach(mdev, vpriv);

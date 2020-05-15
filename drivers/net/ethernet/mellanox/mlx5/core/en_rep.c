@@ -1544,10 +1544,7 @@ static void mlx5e_build_rep_netdev(struct net_device *netdev)
 		/* we want a persistent mac for the uplink rep */
 		mlx5_query_mac_address(mdev, netdev->dev_addr);
 		netdev->ethtool_ops = &mlx5e_uplink_rep_ethtool_ops;
-#ifdef CONFIG_MLX5_CORE_EN_DCB
-		if (MLX5_CAP_GEN(mdev, qos))
-			netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
-#endif
+		mlx5e_dcbnl_build_rep_netdev(netdev);
 	} else {
 		netdev->netdev_ops = &mlx5e_netdev_ops_rep;
 		eth_hw_addr_random(netdev);
@@ -1929,10 +1926,8 @@ static void mlx5e_uplink_rep_enable(struct mlx5e_priv *priv)
 	mlx5_lag_add(mdev, netdev);
 	priv->events_nb.notifier_call = uplink_rep_async_event;
 	mlx5_notifier_register(mdev, &priv->events_nb);
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_initialize(priv);
 	mlx5e_dcbnl_init_app(priv);
-#endif
 }
 
 static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
@@ -1940,9 +1935,7 @@ static void mlx5e_uplink_rep_disable(struct mlx5e_priv *priv)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
-#ifdef CONFIG_MLX5_CORE_EN_DCB
 	mlx5e_dcbnl_delete_app(priv);
-#endif
 	mlx5_notifier_unregister(mdev, &priv->events_nb);
 	cancel_work_sync(&rpriv->uplink_priv.reoffload_flows_work);
 	mlx5_lag_remove(mdev);

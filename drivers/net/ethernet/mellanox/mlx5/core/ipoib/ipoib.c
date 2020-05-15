@@ -262,6 +262,11 @@ void mlx5i_destroy_underlay_qp(struct mlx5_core_dev *mdev, u32 qpn)
 	mlx5_cmd_exec_in(mdev, destroy_qp, in);
 }
 
+int mlx5i_update_nic_rx(struct mlx5e_priv *priv)
+{
+	return mlx5e_refresh_tirs(priv, true, true);
+}
+
 int mlx5i_create_tis(struct mlx5_core_dev *mdev, u32 underlay_qpn, u32 *tisn)
 {
 	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
@@ -456,7 +461,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.cleanup_rx	   = mlx5i_cleanup_rx,
 	.enable		   = NULL, /* mlx5i_enable */
 	.disable	   = NULL, /* mlx5i_disable */
-	.update_rx	   = mlx5e_update_nic_rx,
+	.update_rx	   = mlx5i_update_nic_rx,
 	.update_stats	   = NULL, /* mlx5i_update_stats */
 	.update_carrier    = NULL, /* no HW update in IB link */
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,

@@ -6,25 +6,6 @@
 
 #include "en.h"
 
-#define MLX5E_SQ_NOPS_ROOM (MLX5_SEND_WQE_MAX_WQEBBS - 1)
-#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
-			    MLX5E_SQ_NOPS_ROOM)
-
-#ifndef CONFIG_MLX5_EN_TLS
-#define MLX5E_SQ_TLS_ROOM (0)
-#else
-/* TLS offload requires additional stop_room for:
- *  - a resync SKB.
- * kTLS offload requires fixed additional stop_room for:
- * - a static params WQE, and a progress params WQE.
- * The additional MTU-depending room for the resync DUMP WQEs
- * will be calculated and added in runtime.
- */
-#define MLX5E_SQ_TLS_ROOM  \
-	(MLX5_SEND_WQE_MAX_WQEBBS + \
-	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS)
-#endif
-
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
 
 enum mlx5e_icosq_wqe_type {
@@ -329,6 +310,27 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
 		break;
 	}
+}
+
+static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
+{
+	BUILD_BUG_ON(PAGE_SIZE / MLX5_SEND_WQE_BB < MLX5_SEND_WQE_MAX_WQEBBS);
+
+	/* A WQE must not cross the page boundary, hence two conditions:
+	 * 1. Its size must not exceed the page size.
+	 * 2. If the WQE size is X, and the space remaining in a page is less
+	 *    than X, this space needs to be padded with NOPs. So, one WQE of
+	 *    size X may require up to X-1 WQEBBs of padding, which makes the
+	 *    stop room of X-1 + X.
+	 * WQE size is also limited by the hardware limit.
+	 */
+
+	if (__builtin_constant_p(wqe_size))
+		BUILD_BUG_ON(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
+	else
+		WARN_ON_ONCE(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
+
+	return wqe_size * 2 - 1;
 }
 
 #endif

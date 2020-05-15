@@ -92,6 +92,8 @@ int mlx5i_init(struct mlx5_core_dev *mdev,
 	       void *ppriv);
 void mlx5i_cleanup(struct mlx5e_priv *priv);
 
+int mlx5i_update_nic_rx(struct mlx5e_priv *priv);
+
 /* Get child interface nic profile */
 const struct mlx5e_profile *mlx5i_pkey_get_profile(void);
 
