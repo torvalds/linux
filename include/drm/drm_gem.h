@@ -364,16 +364,18 @@ static inline void drm_gem_object_get(struct drm_gem_object *obj)
 }
 
 /**
- * drm_gem_object_put_unlocked - drop a GEM buffer object reference
+ * drm_gem_object_put - drop a GEM buffer object reference
  * @obj: GEM buffer object
  *
  * This releases a reference to @obj.
  */
 static inline void
-drm_gem_object_put_unlocked(struct drm_gem_object *obj)
+drm_gem_object_put(struct drm_gem_object *obj)
 {
 	kref_put(&obj->refcount, drm_gem_object_free);
 }
+
+#define drm_gem_object_put_unlocked drm_gem_object_put
 
 void drm_gem_object_put_locked(struct drm_gem_object *obj);
 
