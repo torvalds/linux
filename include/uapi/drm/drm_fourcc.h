@@ -354,9 +354,12 @@ extern "C" {
  * a platform-dependent stride. On top of that the memory can apply
  * platform-depending swizzling of some higher address bits into bit6.
  *
- * This format is highly platforms specific and not useful for cross-driver
- * sharing. It exists since on a given platform it does uniquely identify the
- * layout in a simple way for i915-specific userspace.
+ * Note that this layout is only accurate on intel gen 8+ or valleyview chipsets.
+ * On earlier platforms the is highly platforms specific and not useful for
+ * cross-driver sharing. It exists since on a given platform it does uniquely
+ * identify the layout in a simple way for i915-specific userspace, which
+ * facilitated conversion of userspace to modifiers. Additionally the exact
+ * format on some really old platforms is not known.
  */
 #define I915_FORMAT_MOD_X_TILED	fourcc_mod_code(INTEL, 1)
 
@@ -369,9 +372,12 @@ extern "C" {
  * memory can apply platform-depending swizzling of some higher address bits
  * into bit6.
  *
- * This format is highly platforms specific and not useful for cross-driver
- * sharing. It exists since on a given platform it does uniquely identify the
- * layout in a simple way for i915-specific userspace.
+ * Note that this layout is only accurate on intel gen 8+ or valleyview chipsets.
+ * On earlier platforms the is highly platforms specific and not useful for
+ * cross-driver sharing. It exists since on a given platform it does uniquely
+ * identify the layout in a simple way for i915-specific userspace, which
+ * facilitated conversion of userspace to modifiers. Additionally the exact
+ * format on some really old platforms is not known.
  */
 #define I915_FORMAT_MOD_Y_TILED	fourcc_mod_code(INTEL, 2)
 

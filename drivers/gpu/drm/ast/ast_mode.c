@@ -561,8 +561,9 @@ static int ast_primary_plane_helper_atomic_check(struct drm_plane *plane,
 	return 0;
 }
 
-void ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
-					    struct drm_plane_state *old_state)
+static void
+ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
+				       struct drm_plane_state *old_state)
 {
 	struct ast_private *ast = plane->dev->dev_private;
 	struct drm_plane_state *state = plane->state;
@@ -800,6 +801,9 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		DRM_ERROR("AST 1180 modesetting not supported\n");
 		return -EINVAL;
 	}
+
+	if (!state->enable)
+		return 0; /* no mode checks if CRTC is being disabled */
 
 	ast_state = to_ast_crtc_state(state);
 

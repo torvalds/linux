@@ -300,3 +300,4 @@ static struct mipi_dsi_driver visionox_rm69299_driver = {
 module_mipi_dsi_driver(visionox_rm69299_driver);
 
 MODULE_DESCRIPTION("Visionox RM69299 DSI Panel Driver");
+MODULE_LICENSE("GPL v2");
