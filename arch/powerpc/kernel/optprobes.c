@@ -162,38 +162,38 @@ void patch_imm32_load_insns(unsigned int val, kprobe_opcode_t *addr)
 
 /*
  * Generate instructions to load provided immediate 64-bit value
- * to register 'r3' and patch these instructions at 'addr'.
+ * to register 'reg' and patch these instructions at 'addr'.
  */
-void patch_imm64_load_insns(unsigned long val, kprobe_opcode_t *addr)
+void patch_imm64_load_insns(unsigned long val, int reg, kprobe_opcode_t *addr)
 {
-	/* lis r3,(op)@highest */
+	/* lis reg,(op)@highest */
 	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ADDIS | ___PPC_RT(3) |
+			  ppc_inst(PPC_INST_ADDIS | ___PPC_RT(reg) |
 				   ((val >> 48) & 0xffff)));
 	addr++;
 
-	/* ori r3,r3,(op)@higher */
+	/* ori reg,reg,(op)@higher */
 	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ORI | ___PPC_RA(3) |
-				   ___PPC_RS(3) | ((val >> 32) & 0xffff)));
+			  ppc_inst(PPC_INST_ORI | ___PPC_RA(reg) |
+				   ___PPC_RS(reg) | ((val >> 32) & 0xffff)));
 	addr++;
 
-	/* rldicr r3,r3,32,31 */
+	/* rldicr reg,reg,32,31 */
 	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_RLDICR | ___PPC_RA(3) |
-				   ___PPC_RS(3) | __PPC_SH64(32) | __PPC_ME64(31)));
+			  ppc_inst(PPC_INST_RLDICR | ___PPC_RA(reg) |
+				   ___PPC_RS(reg) | __PPC_SH64(32) | __PPC_ME64(31)));
 	addr++;
 
-	/* oris r3,r3,(op)@h */
+	/* oris reg,reg,(op)@h */
 	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ORIS | ___PPC_RA(3) |
-				   ___PPC_RS(3) | ((val >> 16) & 0xffff)));
+			  ppc_inst(PPC_INST_ORIS | ___PPC_RA(reg) |
+				   ___PPC_RS(reg) | ((val >> 16) & 0xffff)));
 	addr++;
 
-	/* ori r3,r3,(op)@l */
+	/* ori reg,reg,(op)@l */
 	patch_instruction((struct ppc_inst *)addr,
-			  ppc_inst(PPC_INST_ORI | ___PPC_RA(3) |
-				   ___PPC_RS(3) | (val & 0xffff)));
+			  ppc_inst(PPC_INST_ORI | ___PPC_RA(reg) |
+				   ___PPC_RS(reg) | (val & 0xffff)));
 }
 
 int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
@@ -249,7 +249,7 @@ int arch_prepare_optimized_kprobe(struct optimized_kprobe *op, struct kprobe *p)
 	 * Fixup the template with instructions to:
 	 * 1. load the address of the actual probepoint
 	 */
-	patch_imm64_load_insns((unsigned long)op, buff + TMPL_OP_IDX);
+	patch_imm64_load_insns((unsigned long)op, 3, buff + TMPL_OP_IDX);
 
 	/*
 	 * 2. branch to optimized_callback() and emulate_step()
