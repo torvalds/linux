@@ -106,6 +106,8 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		dma_release_channel(dws->rxchan);
 	}
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static irqreturn_t dma_transfer(struct dw_spi *dws)
@@ -152,6 +154,8 @@ static void dw_spi_dma_tx_done(void *arg)
 	clear_bit(TX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(RX_BUSY, &dws->dma_chan_busy))
 		return;
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 	spi_finalize_current_transfer(dws->master);
 }
 
@@ -199,6 +203,8 @@ static void dw_spi_dma_rx_done(void *arg)
 	clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy))
 		return;
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 	spi_finalize_current_transfer(dws->master);
 }
 
@@ -292,6 +298,8 @@ static void mid_spi_dma_stop(struct dw_spi *dws)
 		dmaengine_terminate_sync(dws->rxchan);
 		clear_bit(RX_BUSY, &dws->dma_chan_busy);
 	}
+
+	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
 static const struct dw_spi_dma_ops mfld_dma_ops = {
