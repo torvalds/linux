@@ -1357,65 +1357,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	return 0;
 }
 
-#if 0 /* code from mjg to attempt D3 on crtc dpms off - revisit later */
-static int mga_suspend(struct drm_crtc *crtc)
-{
-	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
-	int option;
-
-	if (mdev->suspended)
-		return 0;
-
-	WREG_SEQ(1, 0x20);
-	WREG_ECRT(1, 0x30);
-	/* Disable the pixel clock */
-	WREG_DAC(0x1a, 0x05);
-	/* Power down the DAC */
-	WREG_DAC(0x1e, 0x18);
-	/* Power down the pixel PLL */
-	WREG_DAC(0x1a, 0x0d);
-
-	/* Disable PLLs and clocks */
-	pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
-	option &= ~(0x1F8024);
-	pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
-	pci_set_power_state(pdev, PCI_D3hot);
-	pci_disable_device(pdev);
-
-	mdev->suspended = true;
-
-	return 0;
-}
-
-static int mga_resume(struct drm_crtc *crtc)
-{
-	struct mga_crtc *mga_crtc = to_mga_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct mga_device *mdev = dev->dev_private;
-	struct pci_dev *pdev = dev->pdev;
-	int option;
-
-	if (!mdev->suspended)
-		return 0;
-
-	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_device(pdev);
-
-	/* Disable sysclk */
-	pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
-	option &= ~(0x4);
-	pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
-
-	mdev->suspended = false;
-
-	return 0;
-}
-
-#endif
-
 static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -1442,11 +1383,6 @@ static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 
-#if 0
-	if (mode == DRM_MODE_DPMS_OFF) {
-		mga_suspend(crtc);
-	}
-#endif
 	WREG8(MGAREG_SEQ_INDEX, 0x01);
 	seq1 |= RREG8(MGAREG_SEQ_DATA) & ~0x20;
 	mga_wait_vsync(mdev);
@@ -1456,13 +1392,6 @@ static void mga_crtc_dpms(struct drm_crtc *crtc, int mode)
 	WREG8(MGAREG_CRTCEXT_INDEX, 0x01);
 	crtcext1 |= RREG8(MGAREG_CRTCEXT_DATA) & ~0x30;
 	WREG8(MGAREG_CRTCEXT_DATA, crtcext1);
-
-#if 0
-	if (mode == DRM_MODE_DPMS_ON && mdev->suspended == true) {
-		mga_resume(crtc);
-		drm_helper_resume_force_mode(dev);
-	}
-#endif
 }
 
 /*

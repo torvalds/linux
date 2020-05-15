@@ -164,7 +164,6 @@ struct mga_device {
 
 	size_t vram_fb_available;
 
-	bool				suspended;
 	enum mga_type			type;
 	int				has_sdram;
 
