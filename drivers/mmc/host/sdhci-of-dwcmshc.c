@@ -163,6 +163,48 @@ static int dwcmshc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int dwcmshc_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = sdhci_suspend_host(host);
+	if (ret)
+		return ret;
+
+	clk_disable_unprepare(pltfm_host->clk);
+	if (!IS_ERR(priv->bus_clk))
+		clk_disable_unprepare(priv->bus_clk);
+
+	return ret;
+}
+
+static int dwcmshc_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	int ret;
+
+	ret = clk_prepare_enable(pltfm_host->clk);
+	if (ret)
+		return ret;
+
+	if (!IS_ERR(priv->bus_clk)) {
+		ret = clk_prepare_enable(priv->bus_clk);
+		if (ret)
+			return ret;
+	}
+
+	return sdhci_resume_host(host);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(dwcmshc_pmops, dwcmshc_suspend, dwcmshc_resume);
+
 static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{ .compatible = "snps,dwcmshc-sdhci" },
 	{}
@@ -173,6 +215,7 @@ static struct platform_driver sdhci_dwcmshc_driver = {
 	.driver	= {
 		.name	= "sdhci-dwcmshc",
 		.of_match_table = sdhci_dwcmshc_dt_ids,
+		.pm = &dwcmshc_pmops,
 	},
 	.probe	= dwcmshc_probe,
 	.remove	= dwcmshc_remove,
