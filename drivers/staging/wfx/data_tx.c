@@ -481,6 +481,9 @@ static void wfx_tx_update_sta(struct wfx_vif *wvif, struct ieee80211_hdr *hdr)
 		if (!sta_priv->buffered[tid])
 			ieee80211_sta_set_buffered(sta, tid, false);
 		spin_unlock_bh(&sta_priv->lock);
+	} else {
+		dev_dbg(wvif->wdev->dev, "%s: sta does not exist anymore\n",
+			__func__);
 	}
 	rcu_read_unlock();
 }
