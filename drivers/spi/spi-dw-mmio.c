@@ -184,6 +184,7 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	int (*init_func)(struct platform_device *pdev,
 			 struct dw_spi_mmio *dwsmmio);
 	struct dw_spi_mmio *dwsmmio;
+	struct resource *mem;
 	struct dw_spi *dws;
 	int ret;
 	int num_cs;
@@ -196,9 +197,11 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dws = &dwsmmio->dws;
 
 	/* Get basic io resource and map it */
-	dws->regs = devm_platform_ioremap_resource(pdev, 0);
+	dws->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(dws->regs))
 		return PTR_ERR(dws->regs);
+
+	dws->paddr = mem->start;
 
 	dws->irq = platform_get_irq(pdev, 0);
 	if (dws->irq < 0)
