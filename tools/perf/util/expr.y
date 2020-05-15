@@ -47,19 +47,6 @@ static void expr_error(double *final_val __maybe_unused,
 	pr_debug("%s\n", s);
 }
 
-static int lookup_id(struct expr_parse_ctx *ctx, char *id, double *val)
-{
-	int i;
-
-	for (i = 0; i < ctx->num_ids; i++) {
-		if (!strcasecmp(ctx->ids[i].name, id)) {
-			*val = ctx->ids[i].val;
-			return 0;
-		}
-	}
-	return -1;
-}
-
 %}
 %%
 
@@ -73,12 +60,7 @@ all_other: all_other other
 
 other: ID
 {
-	if (ctx->num_ids + 1 >= EXPR_MAX_OTHER) {
-		pr_err("failed: way too many variables");
-		YYABORT;
-	}
-
-	ctx->ids[ctx->num_ids++].name = $1;
+	expr__add_id(ctx, $1, 0.0);
 }
 |
 MIN | MAX | IF | ELSE | SMT_ON | NUMBER | '|' | '^' | '&' | '-' | '+' | '*' | '/' | '%' | '(' | ')' | ','
@@ -93,7 +75,7 @@ if_expr:
 	;
 
 expr:	  NUMBER
-	| ID			{ if (lookup_id(ctx, $1, &$$) < 0) {
+	| ID			{ if (expr__get_id(ctx, $1, &$$)) {
 					pr_debug("%s not found\n", $1);
 					free($1);
 					YYABORT;

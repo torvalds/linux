@@ -85,8 +85,7 @@ static void metricgroup__rblist_init(struct rblist *metric_events)
 
 struct egroup {
 	struct list_head nd;
-	int idnum;
-	const char **ids;
+	struct expr_parse_ctx pctx;
 	const char *metric_name;
 	const char *metric_expr;
 	const char *metric_unit;
@@ -94,19 +93,21 @@ struct egroup {
 };
 
 static struct evsel *find_evsel_group(struct evlist *perf_evlist,
-				      const char **ids,
-				      int idnum,
+				      struct expr_parse_ctx *pctx,
 				      struct evsel **metric_events,
 				      bool *evlist_used)
 {
 	struct evsel *ev;
-	int i = 0, j = 0;
 	bool leader_found;
+	const size_t idnum = hashmap__size(&pctx->ids);
+	size_t i = 0;
+	int j = 0;
+	double *val_ptr;
 
 	evlist__for_each_entry (perf_evlist, ev) {
 		if (evlist_used[j++])
 			continue;
-		if (!strcmp(ev->name, ids[i])) {
+		if (hashmap__find(&pctx->ids, ev->name, (void **)&val_ptr)) {
 			if (!metric_events[i])
 				metric_events[i] = ev;
 			i++;
@@ -117,14 +118,6 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 			i = 0;
 			memset(metric_events, 0,
 				sizeof(struct evsel *) * idnum);
-
-			if (!strcmp(ev->name, ids[i])) {
-				if (!metric_events[i])
-					metric_events[i] = ev;
-				i++;
-				if (i == idnum)
-					break;
-			}
 		}
 	}
 
@@ -175,19 +168,20 @@ static int metricgroup__setup_events(struct list_head *groups,
 	list_for_each_entry (eg, groups, nd) {
 		struct evsel **metric_events;
 
-		metric_events = calloc(sizeof(void *), eg->idnum + 1);
+		metric_events = calloc(sizeof(void *),
+				hashmap__size(&eg->pctx.ids) + 1);
 		if (!metric_events) {
 			ret = -ENOMEM;
 			break;
 		}
-		evsel = find_evsel_group(perf_evlist, eg->ids, eg->idnum,
-					 metric_events, evlist_used);
+		evsel = find_evsel_group(perf_evlist, &eg->pctx, metric_events,
+					evlist_used);
 		if (!evsel) {
 			pr_debug("Cannot resolve %s: %s\n",
 					eg->metric_name, eg->metric_expr);
 			continue;
 		}
-		for (i = 0; i < eg->idnum; i++)
+		for (i = 0; metric_events[i]; i++)
 			metric_events[i]->collect_stat = true;
 		me = metricgroup__lookup(metric_events_list, evsel, true);
 		if (!me) {
@@ -415,20 +409,20 @@ void metricgroup__print(bool metrics, bool metricgroups, char *filter,
 }
 
 static void metricgroup__add_metric_weak_group(struct strbuf *events,
-					       const char **ids,
-					       int idnum)
+					       struct expr_parse_ctx *ctx)
 {
+	struct hashmap_entry *cur;
+	size_t bkt, i = 0;
 	bool no_group = false;
-	int i;
 
-	for (i = 0; i < idnum; i++) {
-		pr_debug("found event %s\n", ids[i]);
+	hashmap__for_each_entry((&ctx->ids), cur, bkt) {
+		pr_debug("found event %s\n", (const char *)cur->key);
 		/*
 		 * Duration time maps to a software event and can make
 		 * groups not count. Always use it outside a
 		 * group.
 		 */
-		if (!strcmp(ids[i], "duration_time")) {
+		if (!strcmp(cur->key, "duration_time")) {
 			if (i > 0)
 				strbuf_addf(events, "}:W,");
 			strbuf_addf(events, "duration_time");
@@ -437,21 +431,22 @@ static void metricgroup__add_metric_weak_group(struct strbuf *events,
 		}
 		strbuf_addf(events, "%s%s",
 			i == 0 || no_group ? "{" : ",",
-			ids[i]);
+			(const char *)cur->key);
 		no_group = false;
+		i++;
 	}
 	if (!no_group)
 		strbuf_addf(events, "}:W");
 }
 
 static void metricgroup__add_metric_non_group(struct strbuf *events,
-					      const char **ids,
-					      int idnum)
+					      struct expr_parse_ctx *ctx)
 {
-	int i;
+	struct hashmap_entry *cur;
+	size_t bkt;
 
-	for (i = 0; i < idnum; i++)
-		strbuf_addf(events, ",%s", ids[i]);
+	hashmap__for_each_entry((&ctx->ids), cur, bkt)
+		strbuf_addf(events, ",%s", (const char *)cur->key);
 }
 
 static void metricgroup___watchdog_constraint_hint(const char *name, bool foot)
@@ -495,32 +490,32 @@ int __weak arch_get_runtimeparam(void)
 static int __metricgroup__add_metric(struct strbuf *events,
 		struct list_head *group_list, struct pmu_event *pe, int runtime)
 {
-
-	const char **ids;
-	int idnum;
 	struct egroup *eg;
-
-	if (expr__find_other(pe->metric_expr, NULL, &ids, &idnum, runtime) < 0)
-		return -EINVAL;
-
-	if (events->len > 0)
-		strbuf_addf(events, ",");
-
-	if (metricgroup__has_constraint(pe))
-		metricgroup__add_metric_non_group(events, ids, idnum);
-	else
-		metricgroup__add_metric_weak_group(events, ids, idnum);
 
 	eg = malloc(sizeof(*eg));
 	if (!eg)
 		return -ENOMEM;
 
-	eg->ids = ids;
-	eg->idnum = idnum;
+	expr__ctx_init(&eg->pctx);
 	eg->metric_name = pe->metric_name;
 	eg->metric_expr = pe->metric_expr;
 	eg->metric_unit = pe->unit;
 	eg->runtime = runtime;
+
+	if (expr__find_other(pe->metric_expr, NULL, &eg->pctx, runtime) < 0) {
+		expr__ctx_clear(&eg->pctx);
+		free(eg);
+		return -EINVAL;
+	}
+
+	if (events->len > 0)
+		strbuf_addf(events, ",");
+
+	if (metricgroup__has_constraint(pe))
+		metricgroup__add_metric_non_group(events, &eg->pctx);
+	else
+		metricgroup__add_metric_weak_group(events, &eg->pctx);
+
 	list_add_tail(&eg->nd, group_list);
 
 	return 0;
@@ -603,12 +598,9 @@ static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
 static void metricgroup__free_egroups(struct list_head *group_list)
 {
 	struct egroup *eg, *egtmp;
-	int i;
 
 	list_for_each_entry_safe (eg, egtmp, group_list, nd) {
-		for (i = 0; i < eg->idnum; i++)
-			zfree(&eg->ids[i]);
-		zfree(&eg->ids);
+		expr__ctx_clear(&eg->pctx);
 		list_del_init(&eg->nd);
 		free(eg);
 	}

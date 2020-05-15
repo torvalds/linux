@@ -437,8 +437,6 @@ static int test_parsing(void)
 	struct pmu_events_map *map;
 	struct pmu_event *pe;
 	int i, j, k;
-	const char **ids;
-	int idnum;
 	int ret = 0;
 	struct expr_parse_ctx ctx;
 	double result;
@@ -450,29 +448,34 @@ static int test_parsing(void)
 			break;
 		j = 0;
 		for (;;) {
+			struct hashmap_entry *cur;
+			size_t bkt;
+
 			pe = &map->table[j++];
 			if (!pe->name && !pe->metric_group && !pe->metric_name)
 				break;
 			if (!pe->metric_expr)
 				continue;
-			if (expr__find_other(pe->metric_expr, NULL,
-						&ids, &idnum, 0) < 0) {
+			expr__ctx_init(&ctx);
+			if (expr__find_other(pe->metric_expr, NULL, &ctx, 0)
+				  < 0) {
 				expr_failure("Parse other failed", map, pe);
 				ret++;
 				continue;
 			}
-			expr__ctx_init(&ctx);
 
 			/*
 			 * Add all ids with a made up value. The value may
 			 * trigger divide by zero when subtracted and so try to
 			 * make them unique.
 			 */
-			for (k = 0; k < idnum; k++)
-				expr__add_id(&ctx, ids[k], k + 1);
+			k = 1;
+			hashmap__for_each_entry((&ctx.ids), cur, bkt)
+				expr__add_id(&ctx, strdup(cur->key), k++);
 
-			for (k = 0; k < idnum; k++) {
-				if (check_parse_id(ids[k], map == cpus_map, pe))
+			hashmap__for_each_entry((&ctx.ids), cur, bkt) {
+				if (check_parse_id(cur->key, map == cpus_map,
+						   pe))
 					ret++;
 			}
 
@@ -480,9 +483,7 @@ static int test_parsing(void)
 				expr_failure("Parse failed", map, pe);
 				ret++;
 			}
-			for (k = 0; k < idnum; k++)
-				zfree(&ids[k]);
-			free(ids);
+			expr__ctx_clear(&ctx);
 		}
 	}
 	/* TODO: fail when not ok */
