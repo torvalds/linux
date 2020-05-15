@@ -2901,6 +2901,7 @@ static const struct hisi_sas_debugfs_reg debugfs_axi_reg = {
 };
 
 static const struct hisi_sas_debugfs_reg_lu debugfs_ras_reg_lu[] = {
+	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR0),
 	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR1),
 	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR0_MASK),
 	HISI_SAS_DEBUGFS_REG(SAS_RAS_INTR1_MASK),
