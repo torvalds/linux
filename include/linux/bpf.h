@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/capability.h>
 
 struct bpf_verifier_env;
 struct bpf_verifier_log;
@@ -119,7 +120,7 @@ struct bpf_map {
 	struct bpf_map_memory memory;
 	char name[BPF_OBJ_NAME_LEN];
 	u32 btf_vmlinux_value_type_id;
-	bool unpriv_array;
+	bool bypass_spec_v1;
 	bool frozen; /* write-once; write-protected by freeze_mutex */
 	/* 22 bytes hole */
 
@@ -1094,6 +1095,21 @@ int  generic_map_delete_batch(struct bpf_map *map,
 struct bpf_map *bpf_map_get_curr_or_next(u32 *id);
 
 extern int sysctl_unprivileged_bpf_disabled;
+
+static inline bool bpf_allow_ptr_leaks(void)
+{
+	return perfmon_capable();
+}
+
+static inline bool bpf_bypass_spec_v1(void)
+{
+	return perfmon_capable();
+}
+
+static inline bool bpf_bypass_spec_v4(void)
+{
+	return perfmon_capable();
+}
 
 int bpf_map_new_fd(struct bpf_map *map, int flags);
 int bpf_prog_new_fd(struct bpf_prog *prog);
