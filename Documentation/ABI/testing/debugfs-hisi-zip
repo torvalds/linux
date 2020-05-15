@@ -26,7 +26,7 @@ Description:    One ZIP controller has one PF and multiple VFs, each function
 		has a QM. Select the QM which below qm refers to.
 		Only available for PF.
 
-What:           /sys/kernel/debug/hisi_zip/<bdf>/qm/qm_regs
+What:           /sys/kernel/debug/hisi_zip/<bdf>/qm/regs
 Date:           Nov 2018
 Contact:        linux-crypto@vger.kernel.org
 Description:    Dump of QM related debug registers.
@@ -37,13 +37,13 @@ What:           /sys/kernel/debug/hisi_zip/<bdf>/qm/current_q
 Date:           Nov 2018
 Contact:        linux-crypto@vger.kernel.org
 Description:    One QM may contain multiple queues. Select specific queue to
-		show its debug registers in above qm_regs.
+		show its debug registers in above regs.
 		Only available for PF.
 
 What:           /sys/kernel/debug/hisi_zip/<bdf>/qm/clear_enable
 Date:           Nov 2018
 Contact:        linux-crypto@vger.kernel.org
-Description:    QM debug registers(qm_regs) read clear control. 1 means enable
+Description:    QM debug registers(regs) read clear control. 1 means enable
 		register read clear, otherwise 0.
 		Writing to this file has no functional effect, only enable or
 		disable counters clear after reading of these registers.

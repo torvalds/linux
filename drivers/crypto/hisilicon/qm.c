@@ -2775,7 +2775,7 @@ int hisi_qm_debug_init(struct hisi_qm *qm)
 				goto failed_to_create;
 			}
 
-	debugfs_create_file("qm_regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
+	debugfs_create_file("regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
 	debugfs_create_file("cmd", 0444, qm->debug.qm_d, qm, &qm_cmd_fops);
 

@@ -33,7 +33,7 @@ Contact:        linux-crypto@vger.kernel.org
 Description:    Dump debug registers from the HPRE.
 		Only available for PF.
 
-What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/qm_regs
+What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/regs
 Date:           Sep 2019
 Contact:        linux-crypto@vger.kernel.org
 Description:    Dump debug registers from the QM.
@@ -44,13 +44,13 @@ What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/current_q
 Date:           Sep 2019
 Contact:        linux-crypto@vger.kernel.org
 Description:    One QM may contain multiple queues. Select specific queue to
-		show its debug registers in above qm_regs.
+		show its debug registers in above regs.
 		Only available for PF.
 
 What:           /sys/kernel/debug/hisi_hpre/<bdf>/qm/clear_enable
 Date:           Sep 2019
 Contact:        linux-crypto@vger.kernel.org
-Description:    QM debug registers(qm_regs) read clear control. 1 means enable
+Description:    QM debug registers(regs) read clear control. 1 means enable
 		register read clear, otherwise 0.
 		Writing to this file has no functional effect, only enable or
 		disable counters clear after reading of these registers.

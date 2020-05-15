@@ -25,7 +25,7 @@ What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/current_q
 Date:           Oct 2019
 Contact:        linux-crypto@vger.kernel.org
 Description:    One QM of SEC may contain multiple queues. Select specific
-		queue to show its debug registers in above 'qm_regs'.
+		queue to show its debug registers in above 'regs'.
 		Only available for PF.
 
 What:           /sys/kernel/debug/hisi_sec2/<bdf>/qm/clear_enable
