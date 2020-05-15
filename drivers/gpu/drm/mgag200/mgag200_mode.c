@@ -1106,6 +1106,33 @@ static void mgag200_set_format_regs(struct mga_device *mdev,
 	WREG_ECRT(3, crtcext3);
 }
 
+static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
+{
+	static uint32_t RESET_FLAG = 0x00200000; /* undocumented magic value */
+	u8 seq1;
+	u32 memctl;
+
+	/* screen off */
+	RREG_SEQ(0x01, seq1);
+	seq1 |= MGAREG_SEQ1_SCROFF;
+	WREG_SEQ(0x01, seq1);
+
+	memctl = RREG32(MGAREG_MEMCTL);
+
+	memctl |= RESET_FLAG;
+	WREG32(MGAREG_MEMCTL, memctl);
+
+	udelay(1000);
+
+	memctl &= ~RESET_FLAG;
+	WREG32(MGAREG_MEMCTL, memctl);
+
+	/* screen on */
+	RREG_SEQ(0x01, seq1);
+	seq1 &= ~MGAREG_SEQ1_SCROFF;
+	WREG_SEQ(0x01, seq1);
+}
+
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode,
@@ -1240,22 +1267,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 	mgag200_set_mode_regs(mdev, mode);
 
-	/* reset tagfifo */
-	if (mdev->type == G200_ER) {
-		u32 mem_ctl = RREG32(MGAREG_MEMCTL);
-		u8 seq1;
-
-		/* screen off */
-		WREG8(MGAREG_SEQ_INDEX, 0x01);
-		seq1 = RREG8(MGAREG_SEQ_DATA) | 0x20;
-		WREG8(MGAREG_SEQ_DATA, seq1);
-
-		WREG32(MGAREG_MEMCTL, mem_ctl | 0x00200000);
-		udelay(1000);
-		WREG32(MGAREG_MEMCTL, mem_ctl & ~0x00200000);
-
-		WREG8(MGAREG_SEQ_DATA, seq1 & ~0x20);
-	}
+	if (mdev->type == G200_ER)
+		mgag200_g200er_reset_tagfifo(mdev);
 
 
 	if (IS_G200_SE(mdev)) {

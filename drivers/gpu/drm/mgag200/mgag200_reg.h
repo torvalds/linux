@@ -235,6 +235,9 @@
 /* MMIO VGA registers */
 #define MGAREG_SEQ_INDEX	0x1fc4
 #define MGAREG_SEQ_DATA		0x1fc5
+
+#define MGAREG_SEQ1_SCROFF	BIT(5)
+
 #define MGAREG_CRTC_INDEX	0x1fd4
 #define MGAREG_CRTC_DATA	0x1fd5
 #define MGAREG_CRTCEXT_INDEX	0x1fde

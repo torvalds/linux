@@ -49,6 +49,12 @@
 		WREG8(ATTR_DATA, v);				\
 	} while (0)						\
 
+#define RREG_SEQ(reg, v)					\
+	do {							\
+		WREG8(MGAREG_SEQ_INDEX, reg);			\
+		v = RREG8(MGAREG_SEQ_DATA);			\
+	} while (0)						\
+
 #define WREG_SEQ(reg, v)					\
 	do {							\
 		WREG8(MGAREG_SEQ_INDEX, reg);			\
