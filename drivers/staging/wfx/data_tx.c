@@ -457,12 +457,19 @@ drop:
 	ieee80211_tx_status_irqsafe(wdev->hw, skb);
 }
 
-static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
+static struct ieee80211_hdr *wfx_skb_hdr80211(struct sk_buff *skb)
 {
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	struct ieee80211_sta *sta;
-	struct wfx_sta_priv *sta_priv;
+	struct hif_msg *hif = (struct hif_msg *)skb->data;
+	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
+
+	return (struct ieee80211_hdr *)(req->frame + req->data_flags.fc_offset);
+}
+
+static void wfx_tx_update_sta(struct wfx_vif *wvif, struct ieee80211_hdr *hdr)
+{
 	int tid = ieee80211_get_tid(hdr);
+	struct wfx_sta_priv *sta_priv;
+	struct ieee80211_sta *sta;
 
 	rcu_read_lock(); // protect sta
 	sta = ieee80211_find_sta(wvif->vif, hdr->addr1);
@@ -478,22 +485,18 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb)
 	rcu_read_unlock();
 }
 
-static void wfx_skb_dtor(struct wfx_dev *wdev,
-			 struct sk_buff *skb, bool has_sta)
+static void wfx_skb_dtor(struct wfx_vif *wvif, struct sk_buff *skb)
 {
 	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
-	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	unsigned int offset = sizeof(struct hif_msg) +
 			      sizeof(struct hif_req_tx) +
 			      req->data_flags.fc_offset;
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
-	if (has_sta)
-		wfx_notify_buffered_tx(wvif, skb);
 	wfx_tx_policy_put(wvif, req->tx_flags.retry_policy_index);
-	ieee80211_tx_status_irqsafe(wdev->hw, skb);
+	ieee80211_tx_status_irqsafe(wvif->wdev->hw, skb);
 }
 
 static void wfx_tx_fill_rates(struct wfx_dev *wdev,
@@ -539,7 +542,6 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	struct ieee80211_tx_info *tx_info;
 	const struct wfx_tx_priv *tx_priv;
 	struct sk_buff *skb;
-	bool has_sta;
 
 	skb = wfx_pending_get(wvif->wdev, arg->packet_id);
 	if (!skb) {
@@ -549,12 +551,13 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 	}
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
-	has_sta = tx_priv->has_sta;
 	_trace_tx_stats(arg, skb,
 			wfx_pending_get_pkt_us_delay(wvif->wdev, skb));
 
 	// You can touch to tx_priv, but don't touch to tx_info->status.
 	wfx_tx_fill_rates(wvif->wdev, tx_info, arg);
+	if (tx_priv->has_sta)
+		wfx_tx_update_sta(wvif, wfx_skb_hdr80211(skb));
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
 
 	// From now, you can touch to tx_info->status, but do not touch to
@@ -580,16 +583,17 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, const struct hif_cnf_tx *arg)
 		}
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 	}
-	wfx_skb_dtor(wvif->wdev, skb, has_sta);
+	wfx_skb_dtor(wvif, skb);
 }
 
 void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	       u32 queues, bool drop)
 {
-	const struct wfx_tx_priv *tx_priv;
 	struct wfx_dev *wdev = hw->priv;
 	struct sk_buff_head dropped;
 	struct wfx_queue *queue;
+	struct wfx_vif *wvif;
+	struct hif_msg *hif;
 	struct sk_buff *skb;
 	int vif_id = -1;
 	int i;
@@ -615,9 +619,12 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (wdev->chip_frozen)
 		wfx_pending_drop(wdev, &dropped);
 	while ((skb = skb_dequeue(&dropped)) != NULL) {
-		tx_priv = wfx_skb_tx_priv(skb);
+		hif = (struct hif_msg *)skb->data;
+		wvif = wdev_to_wvif(wdev, hif->interface);
+		if (wfx_skb_tx_priv(skb)->has_sta)
+			wfx_tx_update_sta(wvif, wfx_skb_hdr80211(skb));
 		ieee80211_tx_info_clear_status(IEEE80211_SKB_CB(skb));
-		wfx_skb_dtor(wdev, skb, tx_priv->has_sta);
+		wfx_skb_dtor(wvif, skb);
 	}
 }
 
