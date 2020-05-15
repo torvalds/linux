@@ -330,6 +330,7 @@ void rtw_fw_do_iqk(struct rtw_dev *rtwdev, struct rtw_iqk_para *para)
 
 	rtw_fw_send_h2c_packet(rtwdev, h2c_pkt);
 }
+EXPORT_SYMBOL(rtw_fw_do_iqk);
 
 void rtw_fw_query_bt_info(struct rtw_dev *rtwdev)
 {

@@ -56,6 +56,7 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		value8 |= BIT_CHECK_CCK_EN;
 	rtw_write8(rtwdev, REG_CCK_CHECK, value8);
 }
+EXPORT_SYMBOL(rtw_set_channel_mac);
 
 static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 {

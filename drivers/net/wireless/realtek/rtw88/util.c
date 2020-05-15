@@ -19,6 +19,7 @@ bool check_hw_ready(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 target)
 
 	return false;
 }
+EXPORT_SYMBOL(check_hw_ready);
 
 bool ltecoex_read_reg(struct rtw_dev *rtwdev, u16 offset, u32 *val)
 {
@@ -76,6 +77,7 @@ void rtw_restore_reg(struct rtw_dev *rtwdev,
 		}
 	}
 }
+EXPORT_SYMBOL(rtw_restore_reg);
 
 void rtw_desc_to_mcsrate(u16 rate, u8 *mcs, u8 *nss)
 {

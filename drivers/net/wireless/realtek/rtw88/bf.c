@@ -220,6 +220,7 @@ void rtw_bf_enable_bfee_su(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 	/* ndp rx standby timer */
 	rtw_write8(rtwdev, REG_SND_PTCL_CTRL + 3, RTW_NDP_RX_STANDBY_TIME);
 }
+EXPORT_SYMBOL(rtw_bf_enable_bfee_su);
 
 /* nc index: 1 2T2R 0 1T1R
  * nr index: 1 use Nsts 0 use reg setting
@@ -263,6 +264,7 @@ void rtw_bf_enable_bfee_mu(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 	/* accept NDPA and BF report poll */
 	rtw_write16_set(rtwdev, REG_RXFLTMAP1, BIT_RXFLTMAP1_BF);
 }
+EXPORT_SYMBOL(rtw_bf_enable_bfee_mu);
 
 void rtw_bf_remove_bfee_su(struct rtw_dev *rtwdev,
 			   struct rtw_bfee *bfee)
@@ -288,6 +290,7 @@ void rtw_bf_remove_bfee_su(struct rtw_dev *rtwdev,
 	clear_bit(bfee->su_reg_index, bfinfo->bfer_su_reg_maping);
 	bfee->su_reg_index = 0xFF;
 }
+EXPORT_SYMBOL(rtw_bf_remove_bfee_su);
 
 void rtw_bf_remove_bfee_mu(struct rtw_dev *rtwdev,
 			   struct rtw_bfee *bfee)
@@ -301,6 +304,7 @@ void rtw_bf_remove_bfee_mu(struct rtw_dev *rtwdev,
 	if (bfinfo->bfer_su_cnt == 0 && bfinfo->bfer_mu_cnt == 0)
 		rtw_bf_del_sounding(rtwdev);
 }
+EXPORT_SYMBOL(rtw_bf_remove_bfee_mu);
 
 void rtw_bf_set_gid_table(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *conf)
@@ -329,6 +333,7 @@ void rtw_bf_set_gid_table(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
 
 	rtw_bf_cfg_mu_bfee(rtwdev, &param);
 }
+EXPORT_SYMBOL(rtw_bf_set_gid_table);
 
 void rtw_bf_phy_init(struct rtw_dev *rtwdev)
 {
@@ -365,6 +370,7 @@ void rtw_bf_phy_init(struct rtw_dev *rtwdev)
 	rtw_write32_mask(rtwdev, REG_BBPSF_CTRL, BIT_MASK_CSI_RATE,
 			 DESC_RATE6M);
 }
+EXPORT_SYMBOL(rtw_bf_phy_init);
 
 void rtw_bf_cfg_csi_rate(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
 			 u8 fixrate_en, u8 *new_rate)
@@ -395,3 +401,4 @@ void rtw_bf_cfg_csi_rate(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
 		*new_rate = DESC_RATE24M;
 	}
 }
+EXPORT_SYMBOL(rtw_bf_cfg_csi_rate);
