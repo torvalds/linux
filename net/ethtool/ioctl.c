@@ -1669,6 +1669,12 @@ static noinline_for_stack int ethtool_set_channels(struct net_device *dev,
 
 	dev->ethtool_ops->get_channels(dev, &curr);
 
+	if (channels.rx_count == curr.rx_count &&
+	    channels.tx_count == curr.tx_count &&
+	    channels.combined_count == curr.combined_count &&
+	    channels.other_count == curr.other_count)
+		return 0;
+
 	/* ensure new counts are within the maximums */
 	if (channels.rx_count > curr.max_rx ||
 	    channels.tx_count > curr.max_tx ||
