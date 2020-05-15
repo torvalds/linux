@@ -484,9 +484,9 @@ static void wfx_skb_dtor(struct wfx_dev *wdev,
 	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	unsigned int offset = sizeof(struct hif_req_tx) +
-				sizeof(struct hif_msg) +
-				req->data_flags.fc_offset;
+	unsigned int offset = sizeof(struct hif_msg) +
+			      sizeof(struct hif_req_tx) +
+			      req->data_flags.fc_offset;
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);
