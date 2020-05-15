@@ -171,7 +171,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 
 unreference:
 	while (i--)
-		drm_gem_object_put_unlocked(&planes[i]->gem);
+		drm_gem_object_put(&planes[i]->gem);
 
 	return ERR_PTR(err);
 }
@@ -235,7 +235,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	info = drm_fb_helper_alloc_fbi(helper);
 	if (IS_ERR(info)) {
 		dev_err(drm->dev, "failed to allocate framebuffer info\n");
-		drm_gem_object_put_unlocked(&bo->gem);
+		drm_gem_object_put(&bo->gem);
 		return PTR_ERR(info);
 	}
 
@@ -244,7 +244,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		err = PTR_ERR(fbdev->fb);
 		dev_err(drm->dev, "failed to allocate DRM framebuffer: %d\n",
 			err);
-		drm_gem_object_put_unlocked(&bo->gem);
+		drm_gem_object_put(&bo->gem);
 		return PTR_ERR(fbdev->fb);
 	}
 
