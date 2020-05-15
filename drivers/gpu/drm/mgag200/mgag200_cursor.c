@@ -286,7 +286,7 @@ int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 		ret = PTR_ERR(src);
 		dev_err(&dev->pdev->dev,
 			"failed to map user buffer updates\n");
-		goto err_drm_gem_object_put_unlocked;
+		goto err_drm_gem_object_put;
 	}
 
 	ret = mgag200_show_cursor(mdev, src, width, height);
@@ -295,13 +295,13 @@ int mgag200_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 
 	/* Now update internal buffer pointers */
 	drm_gem_vram_vunmap(gbo, src);
-	drm_gem_object_put_unlocked(obj);
+	drm_gem_object_put(obj);
 
 	return 0;
 err_drm_gem_vram_vunmap:
 	drm_gem_vram_vunmap(gbo, src);
-err_drm_gem_object_put_unlocked:
-	drm_gem_object_put_unlocked(obj);
+err_drm_gem_object_put:
+	drm_gem_object_put(obj);
 	return ret;
 }
 
