@@ -38,6 +38,7 @@ required:
   - compatible
   - reg
   - clocks
+  - power-domains
 
 additionalProperties: false
 
