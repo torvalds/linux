@@ -1629,6 +1629,8 @@ bool mptcp_finish_join(struct sock *sk)
 
 	ret = mptcp_pm_allow_new_subflow(msk);
 	if (ret) {
+		subflow->map_seq = msk->ack_seq;
+
 		/* active connections are already on conn_list */
 		spin_lock_bh(&msk->join_list_lock);
 		if (!WARN_ON_ONCE(!list_empty(&subflow->node)))

@@ -12,7 +12,7 @@ vdso-syms += getcpu
 vdso-syms += flush_icache
 
 # Files to link into the vdso
-obj-vdso = $(patsubst %, %.o, $(vdso-syms))
+obj-vdso = $(patsubst %, %.o, $(vdso-syms)) note.o
 
 # Build rules
 targets := $(obj-vdso) vdso.so vdso.so.dbg vdso.lds vdso-dummy.o

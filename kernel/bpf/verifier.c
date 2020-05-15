@@ -4389,7 +4389,9 @@ static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
 
 	if (ret_type != RET_INTEGER ||
 	    (func_id != BPF_FUNC_get_stack &&
-	     func_id != BPF_FUNC_probe_read_str))
+	     func_id != BPF_FUNC_probe_read_str &&
+	     func_id != BPF_FUNC_probe_read_kernel_str &&
+	     func_id != BPF_FUNC_probe_read_user_str))
 		return;
 
 	ret_reg->smax_value = meta->msize_max_value;
@@ -7113,9 +7115,23 @@ static int check_return_code(struct bpf_verifier_env *env)
 		range = tnum_const(0);
 		break;
 	case BPF_PROG_TYPE_TRACING:
-		if (env->prog->expected_attach_type != BPF_TRACE_ITER)
+		switch (env->prog->expected_attach_type) {
+		case BPF_TRACE_FENTRY:
+		case BPF_TRACE_FEXIT:
+			range = tnum_const(0);
+			break;
+		case BPF_TRACE_ITER:
+		case BPF_TRACE_RAW_TP:
+		case BPF_MODIFY_RETURN:
 			return 0;
+		default:
+			return -ENOTSUPP;
+		}
 		break;
+	case BPF_PROG_TYPE_EXT:
+		/* freplace program can return anything as its return value
+		 * depends on the to-be-replaced kernel func or bpf program.
+		 */
 	default:
 		return 0;
 	}
