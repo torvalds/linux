@@ -1,24 +1,5 @@
-#include <asm/types.h>
-#include <linux/types.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <errno.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdbool.h>
-
-#include <linux/unistd.h>
-#include <linux/filter.h>
-#include <linux/bpf_perf_event.h>
-#include <linux/bpf.h>
-
-#include <bpf/bpf.h>
-
-#include "../../../include/linux/filter.h"
-#include "bpf_rlimit.h"
-#include "bpf_util.h"
+// SPDX-License-Identifier: GPL-2.0
+#include <test_progs.h>
 
 #define MAX_INSNS	512
 #define MAX_MATCHES	16
@@ -670,51 +651,16 @@ static int do_test_single(struct bpf_align_test *test)
 	return ret;
 }
 
-static int do_test(unsigned int from, unsigned int to)
+void test_align(void)
 {
-	int all_pass = 0;
-	int all_fail = 0;
 	unsigned int i;
 
-	for (i = from; i < to; i++) {
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_align_test *test = &tests[i];
-		int fail;
 
-		printf("Test %3d: %s ... ",
-		       i, test->descr);
-		fail = do_test_single(test);
-		if (fail) {
-			all_fail++;
-			printf("FAIL\n");
-		} else {
-			all_pass++;
-			printf("PASS\n");
-		}
+		if (!test__start_subtest(test->descr))
+			continue;
+
+		CHECK_FAIL(do_test_single(test));
 	}
-	printf("Results: %d pass %d fail\n",
-	       all_pass, all_fail);
-	return all_fail ? EXIT_FAILURE : EXIT_SUCCESS;
-}
-
-int main(int argc, char **argv)
-{
-	unsigned int from = 0, to = ARRAY_SIZE(tests);
-
-	if (argc == 3) {
-		unsigned int l = atoi(argv[argc - 2]);
-		unsigned int u = atoi(argv[argc - 1]);
-
-		if (l < to && u < to) {
-			from = l;
-			to   = u + 1;
-		}
-	} else if (argc == 2) {
-		unsigned int t = atoi(argv[argc - 1]);
-
-		if (t < to) {
-			from = t;
-			to   = t + 1;
-		}
-	}
-	return do_test(from, to);
 }
