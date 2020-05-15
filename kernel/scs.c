@@ -10,7 +10,6 @@
 #include <linux/scs.h>
 #include <linux/slab.h>
 #include <linux/vmstat.h>
-#include <asm/scs.h>
 
 static struct kmem_cache *scs_cache;
 
