@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -55,7 +56,7 @@ static struct spi_driver st_uvis25_driver = {
 	.driver = {
 		.name = "st_uvis25_spi",
 		.pm = &st_uvis25_pm_ops,
-		.of_match_table = of_match_ptr(st_uvis25_spi_of_match),
+		.of_match_table = st_uvis25_spi_of_match,
 	},
 	.probe = st_uvis25_spi_probe,
 	.id_table = st_uvis25_spi_id_table,

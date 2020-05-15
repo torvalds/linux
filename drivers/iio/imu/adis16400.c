@@ -281,18 +281,16 @@ DEFINE_DEBUGFS_ATTRIBUTE(adis16400_flash_count_fops,
 static int adis16400_debugfs_init(struct iio_dev *indio_dev)
 {
 	struct adis16400_state *st = iio_priv(indio_dev);
+	struct dentry *d = iio_get_debugfs_dentry(indio_dev);
 
 	if (st->variant->flags & ADIS16400_HAS_SERIAL_NUMBER)
 		debugfs_create_file_unsafe("serial_number", 0400,
-				indio_dev->debugfs_dentry, st,
-				&adis16400_serial_number_fops);
+				d, st, &adis16400_serial_number_fops);
 	if (st->variant->flags & ADIS16400_HAS_PROD_ID)
 		debugfs_create_file_unsafe("product_id", 0400,
-				indio_dev->debugfs_dentry, st,
-				&adis16400_product_id_fops);
+				d, st, &adis16400_product_id_fops);
 	debugfs_create_file_unsafe("flash_count", 0400,
-			indio_dev->debugfs_dentry, st,
-			&adis16400_flash_count_fops);
+			d, st, &adis16400_flash_count_fops);
 
 	return 0;
 }
@@ -1195,7 +1193,7 @@ static int adis16400_probe(struct spi_device *spi)
 		indio_dev->available_scan_masks = st->avail_scan_mask;
 		st->adis.burst = &adis16400_burst;
 		if (st->variant->flags & ADIS16400_BURST_DIAG_STAT)
-			st->adis.burst->extra_len = sizeof(u16);
+			st->adis.burst_extra_len = sizeof(u16);
 	}
 
 	adis16400_data = &st->variant->adis_data;

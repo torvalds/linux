@@ -309,7 +309,7 @@ static int ad7476_probe(struct spi_device *spi)
 	indio_dev->num_channels = 2;
 	indio_dev->info = &ad7476_info;
 
-	if (st->convst_gpio && st->chip_info->convst_channel)
+	if (st->convst_gpio)
 		indio_dev->channels = st->chip_info->convst_channel;
 	/* Setup default message */
 
