@@ -8,10 +8,6 @@
 #include <linux/percpu.h>
 #include <linux/scs.h>
 
-/* Allocate a static per-CPU shadow stack */
-#define DEFINE_SCS(name)						\
-	DEFINE_PER_CPU(unsigned long [SCS_SIZE/sizeof(long)], name)	\
-
 DEFINE_SCS(irq_shadow_call_stack);
 
 #ifdef CONFIG_ARM_SDE_INTERFACE
