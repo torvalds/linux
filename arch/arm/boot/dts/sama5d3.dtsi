@@ -163,7 +163,7 @@
 				pinctrl-0 = <&pinctrl_i2c0>;
 				pinctrl-1 = <&pinctrl_i2c0_gpio>;
 				sda-gpios = <&pioA 30 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA 31 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA 31 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 18>;
@@ -181,7 +181,7 @@
 				pinctrl-0 = <&pinctrl_i2c1>;
 				pinctrl-1 = <&pinctrl_i2c1_gpio>;
 				sda-gpios = <&pioC 26 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioC 27 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioC 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 19>;
@@ -367,7 +367,7 @@
 				pinctrl-0 = <&pinctrl_i2c2>;
 				pinctrl-1 = <&pinctrl_i2c2_gpio>;
 				sda-gpios = <&pioA 18 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA 19 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA 19 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;

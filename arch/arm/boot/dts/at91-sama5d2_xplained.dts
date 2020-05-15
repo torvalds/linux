@@ -190,7 +190,7 @@
 				pinctrl-0 = <&pinctrl_i2c0_default>;
 				pinctrl-1 = <&pinctrl_i2c0_gpio>;
 				sda-gpios = <&pioA PIN_PD21 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PD22 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PD22 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				i2c-sda-hold-time-ns = <350>;
 				status = "okay";
 
@@ -344,7 +344,7 @@
 					pinctrl-0 = <&pinctrl_flx0_default>;
 					pinctrl-1 = <&pinctrl_i2c2_gpio>;
 					sda-gpios = <&pioA PIN_PB28 GPIO_ACTIVE_HIGH>;
-					scl-gpios = <&pioA PIN_PB29 GPIO_ACTIVE_HIGH>;
+					scl-gpios = <&pioA PIN_PB29 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 					i2c-sda-hold-time-ns = <350>;
 					i2c-analog-filter;
 					i2c-digital-filter;
@@ -397,7 +397,7 @@
 					pinctrl-0 = <&pinctrl_flx4_default>;
 					pinctrl-1 = <&pinctrl_flx4_gpio>;
 					sda-gpios = <&pioA PIN_PD12 GPIO_ACTIVE_HIGH>;
-					scl-gpios = <&pioA PIN_PD13 GPIO_ACTIVE_HIGH>;
+					scl-gpios = <&pioA PIN_PD13 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 					i2c-analog-filter;
 					i2c-digital-filter;
 					i2c-digital-filter-width-ns = <35>;
@@ -414,7 +414,7 @@
 				i2c-digital-filter-width-ns = <35>;
 				pinctrl-1 = <&pinctrl_i2c1_gpio>;
 				sda-gpios = <&pioA PIN_PD4 GPIO_ACTIVE_HIGH>;
-				scl-gpios = <&pioA PIN_PD5 GPIO_ACTIVE_HIGH>;
+				scl-gpios = <&pioA PIN_PD5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 				status = "okay";
 
 				at24@54 {
