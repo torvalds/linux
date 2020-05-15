@@ -2768,6 +2768,48 @@ nla_put_failure:
 	return -1;
 }
 
+static int fl_terse_dump(struct net *net, struct tcf_proto *tp, void *fh,
+			 struct sk_buff *skb, struct tcmsg *t, bool rtnl_held)
+{
+	struct cls_fl_filter *f = fh;
+	struct nlattr *nest;
+	bool skip_hw;
+
+	if (!f)
+		return skb->len;
+
+	t->tcm_handle = f->handle;
+
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
+	if (!nest)
+		goto nla_put_failure;
+
+	spin_lock(&tp->lock);
+
+	skip_hw = tc_skip_hw(f->flags);
+
+	if (f->flags && nla_put_u32(skb, TCA_FLOWER_FLAGS, f->flags))
+		goto nla_put_failure_locked;
+
+	spin_unlock(&tp->lock);
+
+	if (!skip_hw)
+		fl_hw_update_stats(tp, f, rtnl_held);
+
+	if (tcf_exts_terse_dump(skb, &f->exts))
+		goto nla_put_failure;
+
+	nla_nest_end(skb, nest);
+
+	return skb->len;
+
+nla_put_failure_locked:
+	spin_unlock(&tp->lock);
+nla_put_failure:
+	nla_nest_cancel(skb, nest);
+	return -1;
+}
+
 static int fl_tmplt_dump(struct sk_buff *skb, struct net *net, void *tmplt_priv)
 {
 	struct fl_flow_tmplt *tmplt = tmplt_priv;
@@ -2832,6 +2874,7 @@ static struct tcf_proto_ops cls_fl_ops __read_mostly = {
 	.hw_add		= fl_hw_add,
 	.hw_del		= fl_hw_del,
 	.dump		= fl_dump,
+	.terse_dump	= fl_terse_dump,
 	.bind_class	= fl_bind_class,
 	.tmplt_create	= fl_tmplt_create,
 	.tmplt_destroy	= fl_tmplt_destroy,
