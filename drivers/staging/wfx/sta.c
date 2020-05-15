@@ -347,15 +347,20 @@ static void wfx_set_mfp(struct wfx_vif *wvif,
 
 void wfx_reset(struct wfx_vif *wvif)
 {
-	wfx_tx_lock_flush(wvif->wdev);
+	struct wfx_dev *wdev = wvif->wdev;
+
+	wfx_tx_lock_flush(wdev);
 	hif_reset(wvif, false);
 	wfx_tx_policy_init(wvif);
-	if (wvif_count(wvif->wdev) <= 1)
+	if (wvif_count(wdev) <= 1)
 		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wfx_tx_unlock(wvif->wdev);
+	wfx_tx_unlock(wdev);
 	wvif->join_in_progress = false;
 	wvif->bss_not_support_ps_poll = false;
 	cancel_delayed_work_sync(&wvif->beacon_loss_work);
+	wvif =  NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+		wfx_update_pm(wvif);
 }
 
 static void wfx_do_join(struct wfx_vif *wvif)
@@ -471,7 +476,12 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+	struct wfx_dev *wdev = wvif->wdev;
 
+	wvif =  NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL)
+		wfx_update_pm(wvif);
+	wvif = (struct wfx_vif *)vif->drv_priv;
 	wfx_upload_ap_templates(wvif);
 	hif_start(wvif, &vif->bss_conf, wvif->channel);
 	return 0;
@@ -786,8 +796,6 @@ int wfx_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
 			hif_set_block_ack_policy(wvif, 0x00, 0x00);
-		// Combo force powersave mode. We can re-enable it now
-		ret = wfx_update_pm(wvif);
 	}
 	return ret;
 }
@@ -818,8 +826,6 @@ void wfx_remove_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 			hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
 		else
 			hif_set_block_ack_policy(wvif, 0x00, 0x00);
-		// Combo force powersave mode. We can re-enable it now
-		wfx_update_pm(wvif);
 	}
 }
 
