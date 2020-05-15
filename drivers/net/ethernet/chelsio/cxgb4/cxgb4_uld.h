@@ -147,6 +147,9 @@ struct tid_info {
 	/* TIDs in the HASH */
 	atomic_t hash_tids_in_use;
 	atomic_t conns_in_use;
+	/* ETHOFLD TIDs used for rate limiting */
+	atomic_t eotids_in_use;
+
 	/* lock for setting/clearing filter bitmap */
 	spinlock_t ftid_lock;
 
@@ -221,12 +224,14 @@ static inline void cxgb4_alloc_eotid(struct tid_info *t, u32 eotid, void *data)
 {
 	set_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = data;
+	atomic_inc(&t->eotids_in_use);
 }
 
 static inline void cxgb4_free_eotid(struct tid_info *t, u32 eotid)
 {
 	clear_bit(eotid, t->eotid_bmap);
 	t->eotid_tab[eotid].data = NULL;
+	atomic_dec(&t->eotids_in_use);
 }
 
 int cxgb4_alloc_atid(struct tid_info *t, void *data);

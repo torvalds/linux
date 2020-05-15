@@ -1579,6 +1579,7 @@ static int tid_init(struct tid_info *t)
 	atomic_set(&t->tids_in_use, 0);
 	atomic_set(&t->conns_in_use, 0);
 	atomic_set(&t->hash_tids_in_use, 0);
+	atomic_set(&t->eotids_in_use, 0);
 
 	/* Setup the free list for atid_tab and clear the stid bitmap. */
 	if (natids) {
@@ -3021,7 +3022,7 @@ static int cxgb4_mgmt_set_vf_rate(struct net_device *dev, int vf,
 			      SCHED_CLASS_RATEUNIT_BITS,
 			      SCHED_CLASS_RATEMODE_ABS,
 			      pi->tx_chan, class_id, 0,
-			      max_tx_rate * 1000, 0, pktsize);
+			      max_tx_rate * 1000, 0, pktsize, 0);
 	if (ret) {
 		dev_err(adap->pdev_dev, "Err %d for Traffic Class config\n",
 			ret);
