@@ -135,10 +135,6 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		goto err_mgag200_mm_fini;
 	}
 
-	ret = mgag200_cursor_init(mdev);
-	if (ret)
-		drm_err(dev, "Could not initialize cursors. Not doing hardware cursors.\n");
-
 	return 0;
 
 err_mgag200_mm_fini:
@@ -154,7 +150,6 @@ void mgag200_driver_unload(struct drm_device *dev)
 
 	if (mdev == NULL)
 		return;
-	mgag200_cursor_fini(mdev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
 }

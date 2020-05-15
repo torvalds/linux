@@ -1412,8 +1412,6 @@ static void mga_crtc_disable(struct drm_crtc *crtc)
 
 /* These provide the minimum set of functions required to handle a CRTC */
 static const struct drm_crtc_funcs mga_crtc_funcs = {
-	.cursor_set = mgag200_crtc_cursor_set,
-	.cursor_move = mgag200_crtc_cursor_move,
 	.gamma_set = mga_crtc_gamma_set,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = mga_crtc_destroy,
