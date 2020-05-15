@@ -1044,6 +1044,68 @@ static void mgag200_set_offset(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
+static void mgag200_set_format_regs(struct mga_device *mdev,
+				    const struct drm_framebuffer *fb)
+{
+	struct drm_device *dev = mdev->dev;
+	const struct drm_format_info *format = fb->format;
+	unsigned int bpp, bppshift, scale;
+	u8 crtcext3, xmulctrl;
+
+	bpp = format->cpp[0] * 8;
+
+	bppshift = mgag200_get_bpp_shift(mdev, format);
+	switch (bpp) {
+	case 24:
+		scale = ((1 << bppshift) * 3) - 1;
+		break;
+	default:
+		scale = (1 << bppshift) - 1;
+		break;
+	}
+
+	RREG_ECRT(3, crtcext3);
+
+	switch (bpp) {
+	case 8:
+		xmulctrl = MGA1064_MUL_CTL_8bits;
+		break;
+	case 16:
+		if (format->depth == 15)
+			xmulctrl = MGA1064_MUL_CTL_15bits;
+		else
+			xmulctrl = MGA1064_MUL_CTL_16bits;
+		break;
+	case 24:
+		xmulctrl = MGA1064_MUL_CTL_24bits;
+		break;
+	case 32:
+		xmulctrl = MGA1064_MUL_CTL_32_24bits;
+		break;
+	default:
+		/* BUG: We should have caught this problem already. */
+		drm_WARN_ON(dev, "invalid format depth\n");
+		return;
+	}
+
+	crtcext3 &= ~GENMASK(2, 0);
+	crtcext3 |= scale;
+
+	WREG_DAC(MGA1064_MUL_CTL, xmulctrl);
+
+	WREG_GFX(0, 0x00);
+	WREG_GFX(1, 0x00);
+	WREG_GFX(2, 0x00);
+	WREG_GFX(3, 0x00);
+	WREG_GFX(4, 0x00);
+	WREG_GFX(5, 0x40);
+	WREG_GFX(6, 0x05);
+	WREG_GFX(7, 0x0f);
+	WREG_GFX(8, 0x0f);
+
+	WREG_ECRT(3, crtcext3);
+}
+
 static int mga_crtc_mode_set(struct drm_crtc *crtc,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode,
@@ -1055,8 +1117,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	int option = 0, option2 = 0;
 	int i;
 	unsigned char misc = 0;
-	unsigned char ext_vga[6];
-	u8 bppshift;
+	u8 crtcext3, crtcext4;
 
 	static unsigned char dacvalue[] = {
 		/* 0x00: */        0,    0,    0,    0,    0,    0, 0x00,    0,
@@ -1070,8 +1131,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		/* 0x40: */        0,    0,    0,    0,    0,    0,    0,    0,
 		/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0
 	};
-
-	bppshift = mdev->bpp_shifts[fb->format->cpp[0] - 1];
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -1111,24 +1170,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		break;
 	}
 
-	switch (fb->format->cpp[0] * 8) {
-	case 8:
-		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_8bits;
-		break;
-	case 16:
-		if (fb->format->depth == 15)
-			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_15bits;
-		else
-			dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_16bits;
-		break;
-	case 24:
-		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_24bits;
-		break;
-	case 32:
-		dacvalue[MGA1064_MUL_CTL] = MGA1064_MUL_CTL_32_24bits;
-		break;
-	}
-
 	for (i = 0; i < sizeof(dacvalue); i++) {
 		if ((i <= 0x17) ||
 		    (i == 0x1b) ||
@@ -1162,16 +1203,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_SEQ(3, 0);
 	WREG_SEQ(4, 0xe);
 
-	WREG_GFX(0, 0);
-	WREG_GFX(1, 0);
-	WREG_GFX(2, 0);
-	WREG_GFX(3, 0);
-	WREG_GFX(4, 0);
-	WREG_GFX(5, 0x40);
-	WREG_GFX(6, 0x5);
-	WREG_GFX(7, 0xf);
-	WREG_GFX(8, 0xf);
-
 	WREG_CRT(10, 0);
 	WREG_CRT(11, 0);
 	WREG_CRT(12, 0);
@@ -1179,16 +1210,13 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	WREG_CRT(14, 0);
 	WREG_CRT(15, 0);
 
-	/* TODO interlace */
+	RREG_ECRT(0x03, crtcext3);
 
-	if (fb->format->cpp[0] * 8 == 24)
-		ext_vga[3] = (((1 << bppshift) * 3) - 1) | 0x80;
-	else
-		ext_vga[3] = ((1 << bppshift) - 1) | 0x80;
-	ext_vga[4] = 0;
+	crtcext3 |= BIT(7); /* enable MGA mode */
+	crtcext4 = 0x00;
 
-	WREG_ECRT(3, ext_vga[3]);
-	WREG_ECRT(4, ext_vga[4]);
+	WREG_ECRT(0x03, crtcext3);
+	WREG_ECRT(0x04, crtcext4);
 
 	if (mdev->type == G200_ER)
 		WREG_ECRT(0x24, 0x5);
@@ -1206,6 +1234,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		MGAREG_MISC_HIGH_PG_SEL;
 	WREG8(MGA_MISC_OUT, misc);
 
+	mgag200_set_format_regs(mdev, fb);
 	mga_crtc_do_set_base(mdev, fb, old_fb);
 	mgag200_set_offset(mdev, fb);
 
