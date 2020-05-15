@@ -175,6 +175,7 @@
 #define QM_SQE_DATA_ALIGN_MASK		GENMASK(6, 0)
 #define QMC_ALIGN(sz)			ALIGN(sz, 32)
 
+#define QM_DBG_READ_LEN		256
 #define QM_DBG_TMP_BUF_LEN		22
 #define QM_PCI_COMMAND_INVALID		~0
 
@@ -2268,6 +2269,37 @@ err_unlock:
 }
 EXPORT_SYMBOL_GPL(hisi_qm_stop);
 
+static ssize_t qm_status_read(struct file *filp, char __user *buffer,
+			      size_t count, loff_t *pos)
+{
+	struct hisi_qm *qm = filp->private_data;
+	char buf[QM_DBG_READ_LEN];
+	int val, cp_len, len;
+
+	if (*pos)
+		return 0;
+
+	if (count < QM_DBG_READ_LEN)
+		return -ENOSPC;
+
+	val = atomic_read(&qm->status.flags);
+	len = snprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
+	if (!len)
+		return -EFAULT;
+
+	cp_len = copy_to_user(buffer, buf, len);
+	if (cp_len)
+		return -EFAULT;
+
+	return (*pos = len);
+}
+
+static const struct file_operations qm_status_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = qm_status_read,
+};
+
 static int qm_debugfs_atomic64_set(void *data, u64 val)
 {
 	if (val)
@@ -2314,6 +2346,8 @@ int hisi_qm_debug_init(struct hisi_qm *qm)
 
 	debugfs_create_file("qm_regs", 0444, qm->debug.qm_d, qm, &qm_regs_fops);
 
+	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
+			&qm_status_fops);
 	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
 		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
 		debugfs_create_file(qm_dfx_files[i].name,

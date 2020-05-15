@@ -79,3 +79,10 @@ Date:           Apr 2020
 Contact:        linux-crypto@vger.kernel.org
 Description:    Dump the number of failed QM mailbox commands.
 		Available for both PF and VF, and take no other effect on ZIP.
+
+What:           /sys/kernel/debug/hisi_zip/<bdf>/qm/status
+Date:           Apr 2020
+Contact:        linux-crypto@vger.kernel.org
+Description:    Dump the status of the QM.
+		Four states: initiated, started, stopped and closed.
+		Available for both PF and VF, and take no other effect on ZIP.
