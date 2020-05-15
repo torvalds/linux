@@ -479,11 +479,7 @@ void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
-	hif_reset(wvif, false);
-	wfx_tx_policy_init(wvif);
-	if (wvif_count(wvif->wdev) <= 1)
-		hif_set_block_ack_policy(wvif, 0xFF, 0xFF);
-	wvif->bss_not_support_ps_poll = false;
+	wfx_reset(wvif);
 }
 
 static void wfx_join_finalize(struct wfx_vif *wvif,
