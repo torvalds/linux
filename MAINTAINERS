@@ -10726,7 +10726,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/devicetree/bindings/media/renesas,fcp.txt
+F:	Documentation/devicetree/bindings/media/renesas,fcp.yaml
 F:	drivers/media/platform/rcar-fcp.c
 F:	include/media/rcar-fcp.h
 
