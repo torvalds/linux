@@ -1541,9 +1541,7 @@ static int compat_ptrace_read_user(struct task_struct *tsk, compat_ulong_t off,
 	else if (off == COMPAT_PT_TEXT_END_ADDR)
 		tmp = tsk->mm->end_code;
 	else if (off < sizeof(compat_elf_gregset_t))
-		return copy_regset_to_user(tsk, &user_aarch32_view,
-					   REGSET_COMPAT_GPR, off,
-					   sizeof(compat_ulong_t), ret);
+		tmp = compat_get_user_reg(tsk, off >> 2);
 	else if (off >= COMPAT_USER_SZ)
 		return -EIO;
 	else
