@@ -14,6 +14,9 @@ struct mlxsw_sp_trap {
 	struct mlxsw_sp_trap_group_item *group_items_arr;
 	u64 groups_count; /* Number of registered groups */
 
+	struct mlxsw_sp_trap_item *trap_items_arr;
+	u64 traps_count; /* Number of registered traps */
+
 	u64 max_policers;
 	unsigned long policers_usage[]; /* Usage bitmap */
 };
