@@ -4220,6 +4220,33 @@ ice_fetch_u64_stats_per_ring(struct ice_ring *ring, u64 *pkts, u64 *bytes)
 }
 
 /**
+ * ice_update_vsi_tx_ring_stats - Update VSI Tx ring stats counters
+ * @vsi: the VSI to be updated
+ * @rings: rings to work on
+ * @count: number of rings
+ */
+static void
+ice_update_vsi_tx_ring_stats(struct ice_vsi *vsi, struct ice_ring **rings,
+			     u16 count)
+{
+	struct rtnl_link_stats64 *vsi_stats = &vsi->net_stats;
+	u16 i;
+
+	for (i = 0; i < count; i++) {
+		struct ice_ring *ring;
+		u64 pkts, bytes;
+
+		ring = READ_ONCE(rings[i]);
+		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
+		vsi_stats->tx_packets += pkts;
+		vsi_stats->tx_bytes += bytes;
+		vsi->tx_restart += ring->tx_stats.restart_q;
+		vsi->tx_busy += ring->tx_stats.tx_busy;
+		vsi->tx_linearize += ring->tx_stats.tx_linearize;
+	}
+}
+
+/**
  * ice_update_vsi_ring_stats - Update VSI stats counters
  * @vsi: the VSI to be updated
  */
@@ -4246,15 +4273,7 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 	rcu_read_lock();
 
 	/* update Tx rings counters */
-	ice_for_each_txq(vsi, i) {
-		ring = READ_ONCE(vsi->tx_rings[i]);
-		ice_fetch_u64_stats_per_ring(ring, &pkts, &bytes);
-		vsi_stats->tx_packets += pkts;
-		vsi_stats->tx_bytes += bytes;
-		vsi->tx_restart += ring->tx_stats.restart_q;
-		vsi->tx_busy += ring->tx_stats.tx_busy;
-		vsi->tx_linearize += ring->tx_stats.tx_linearize;
-	}
+	ice_update_vsi_tx_ring_stats(vsi, vsi->tx_rings, vsi->num_txq);
 
 	/* update Rx rings counters */
 	ice_for_each_rxq(vsi, i) {
@@ -4265,6 +4284,11 @@ static void ice_update_vsi_ring_stats(struct ice_vsi *vsi)
 		vsi->rx_buf_failed += ring->rx_stats.alloc_buf_failed;
 		vsi->rx_page_failed += ring->rx_stats.alloc_page_failed;
 	}
+
+	/* update XDP Tx rings counters */
+	if (ice_is_xdp_ena_vsi(vsi))
+		ice_update_vsi_tx_ring_stats(vsi, vsi->xdp_rings,
+					     vsi->num_xdp_txq);
 
 	rcu_read_unlock();
 }
