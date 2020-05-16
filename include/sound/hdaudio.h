@@ -372,11 +372,8 @@ struct hdac_bus {
 int snd_hdac_bus_init(struct hdac_bus *bus, struct device *dev,
 		      const struct hdac_bus_ops *ops);
 void snd_hdac_bus_exit(struct hdac_bus *bus);
-int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
-			   unsigned int cmd, unsigned int *res);
 int snd_hdac_bus_exec_verb_unlocked(struct hdac_bus *bus, unsigned int addr,
 				    unsigned int cmd, unsigned int *res);
-void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex);
 
 static inline void snd_hdac_codec_link_up(struct hdac_device *codec)
 {

@@ -366,13 +366,6 @@ struct hda_verb {
 void snd_hda_sequence_write(struct hda_codec *codec,
 			    const struct hda_verb *seq);
 
-/* unsolicited event */
-static inline void
-snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
-{
-	snd_hdac_bus_queue_event(&bus->core, res, res_ex);
-}
-
 /* cached write */
 static inline int
 snd_hda_codec_write_cache(struct hda_codec *codec, hda_nid_t nid,
