@@ -739,9 +739,23 @@ fallback:
 
 	mptcp_clean_una(sk);
 
+wait_for_sndbuf:
 	__mptcp_flush_join_list(msk);
 	ssk = mptcp_subflow_get_send(msk);
 	while (!sk_stream_memory_free(sk) || !ssk) {
+		if (ssk) {
+			/* make sure retransmit timer is
+			 * running before we wait for memory.
+			 *
+			 * The retransmit timer might be needed
+			 * to make the peer send an up-to-date
+			 * MPTCP Ack.
+			 */
+			mptcp_set_timeout(sk, ssk);
+			if (!mptcp_timer_pending(sk))
+				mptcp_reset_timer(sk);
+		}
+
 		ret = sk_stream_wait_memory(sk, &timeo);
 		if (ret)
 			goto out;
@@ -776,6 +790,28 @@ fallback:
 		}
 
 		copied += ret;
+
+		/* memory is charged to mptcp level socket as well, i.e.
+		 * if msg is very large, mptcp socket may run out of buffer
+		 * space.  mptcp_clean_una() will release data that has
+		 * been acked at mptcp level in the mean time, so there is
+		 * a good chance we can continue sending data right away.
+		 */
+		if (unlikely(!sk_stream_memory_free(sk))) {
+			tcp_push(ssk, msg->msg_flags, mss_now,
+				 tcp_sk(ssk)->nonagle, size_goal);
+			mptcp_clean_una(sk);
+			if (!sk_stream_memory_free(sk)) {
+				/* can't send more for now, need to wait for
+				 * MPTCP-level ACKs from peer.
+				 *
+				 * Wakeup will happen via mptcp_clean_una().
+				 */
+				mptcp_set_timeout(sk, ssk);
+				release_sock(ssk);
+				goto wait_for_sndbuf;
+			}
+		}
 	}
 
 	mptcp_set_timeout(sk, ssk);
