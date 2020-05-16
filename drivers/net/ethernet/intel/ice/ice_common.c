@@ -1994,10 +1994,7 @@ ice_aq_manage_mac_write(struct ice_hw *hw, const u8 *mac_addr, u8 flags,
 	ice_fill_dflt_direct_cmd_desc(&desc, ice_aqc_opc_manage_mac_write);
 
 	cmd->flags = flags;
-
-	/* Prep values for flags, sah, sal */
-	cmd->sah = htons(*((const u16 *)mac_addr));
-	cmd->sal = htonl(*((const u32 *)(mac_addr + 2)));
+	ether_addr_copy(cmd->mac_addr, mac_addr);
 
 	return ice_aq_send_cmd(hw, &desc, NULL, 0, cd);
 }
