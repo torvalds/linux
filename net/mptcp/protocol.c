@@ -669,6 +669,9 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 
 	sock_owned_by_me((const struct sock *)msk);
 
+	if (!mptcp_ext_cache_refill(msk))
+		return NULL;
+
 	mptcp_for_each_subflow(msk, subflow) {
 		struct sock *ssk = mptcp_subflow_tcp_sock(subflow);
 
@@ -804,7 +807,8 @@ wait_for_sndbuf:
 		if (!tx_ok)
 			break;
 
-		if (!sk_stream_memory_free(ssk)) {
+		if (!sk_stream_memory_free(ssk) ||
+		    !mptcp_ext_cache_refill(msk)) {
 			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 			tcp_push(ssk, msg->msg_flags, mss_now,
 				 tcp_sk(ssk)->nonagle, size_goal);
@@ -1158,7 +1162,7 @@ static void mptcp_worker(struct work_struct *work)
 {
 	struct mptcp_sock *msk = container_of(work, struct mptcp_sock, work);
 	struct sock *ssk, *sk = &msk->sk.icsk_inet.sk;
-	int orig_len, orig_offset, ret, mss_now = 0, size_goal = 0;
+	int orig_len, orig_offset, mss_now = 0, size_goal = 0;
 	struct mptcp_data_frag *dfrag;
 	u64 orig_write_seq;
 	size_t copied = 0;
@@ -1180,6 +1184,9 @@ static void mptcp_worker(struct work_struct *work)
 	if (!dfrag)
 		goto unlock;
 
+	if (!mptcp_ext_cache_refill(msk))
+		goto reset_unlock;
+
 	ssk = mptcp_subflow_get_retrans(msk);
 	if (!ssk)
 		goto reset_unlock;
@@ -1191,8 +1198,8 @@ static void mptcp_worker(struct work_struct *work)
 	orig_offset = dfrag->offset;
 	orig_write_seq = dfrag->data_seq;
 	while (dfrag->data_len > 0) {
-		ret = mptcp_sendmsg_frag(sk, ssk, &msg, dfrag, &timeo, &mss_now,
-					 &size_goal);
+		int ret = mptcp_sendmsg_frag(sk, ssk, &msg, dfrag, &timeo,
+					     &mss_now, &size_goal);
 		if (ret < 0)
 			break;
 
@@ -1200,6 +1207,9 @@ static void mptcp_worker(struct work_struct *work)
 		copied += ret;
 		dfrag->data_len -= ret;
 		dfrag->offset += ret;
+
+		if (!mptcp_ext_cache_refill(msk))
+			break;
 	}
 	if (copied)
 		tcp_push(ssk, msg.msg_flags, mss_now, tcp_sk(ssk)->nonagle,
