@@ -390,7 +390,6 @@ devlink_trap_drop_test()
 	devlink_trap_group_stats_idle_test $group_name
 	check_err $? "Trap group stats not idle with initial drop action"
 
-
 	devlink_trap_action_set $trap_name "trap"
 	devlink_trap_stats_idle_test $trap_name
 	check_fail $? "Trap stats idle after setting action to trap"
