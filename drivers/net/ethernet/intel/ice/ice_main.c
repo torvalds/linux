@@ -4901,6 +4901,12 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 		goto err_init_ctrlq;
 	}
 
+	ret = ice_aq_set_mac_cfg(hw, ICE_AQ_SET_MAC_FRAME_SIZE_MAX, NULL);
+	if (ret) {
+		dev_err(dev, "set_mac_cfg failed %s\n", ice_stat_str(ret));
+		goto err_init_ctrlq;
+	}
+
 	err = ice_sched_init_port(hw->port_info);
 	if (err)
 		goto err_sched_init_port;
