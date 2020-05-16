@@ -356,7 +356,7 @@ static int bcm54811_config_init(struct phy_device *phydev)
 					BCM54612E_LED4_CLK125OUT_EN | reg);
 		if (err < 0)
 			return err;
-        }
+	}
 
 	return err;
 }
