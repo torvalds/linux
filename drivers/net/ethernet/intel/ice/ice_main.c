@@ -3052,6 +3052,9 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 			*status = ICE_ERR_NOT_SUPPORTED;
 		}
 		break;
+	case ICE_ERR_FW_DDP_MISMATCH:
+		dev_err(dev, "The firmware loaded on the device is not compatible with the DDP package.  Please update the device's NVM.  Entering safe mode.\n");
+		break;
 	case ICE_ERR_BUF_TOO_SHORT:
 	case ICE_ERR_CFG:
 		dev_err(dev, "The DDP package file is invalid. Entering Safe Mode.\n");
@@ -5186,6 +5189,8 @@ const char *ice_stat_str(enum ice_status stat_err)
 		return "ICE_ERR_HW_TABLE";
 	case ICE_ERR_DOES_NOT_EXIST:
 		return "ICE_ERR_DOES_NOT_EXIST";
+	case ICE_ERR_FW_DDP_MISMATCH:
+		return "ICE_ERR_FW_DDP_MISMATCH";
 	case ICE_ERR_AQ_ERROR:
 		return "ICE_ERR_AQ_ERROR";
 	case ICE_ERR_AQ_TIMEOUT:

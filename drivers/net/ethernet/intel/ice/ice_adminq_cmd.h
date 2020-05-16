@@ -1703,10 +1703,12 @@ struct ice_pkg_ver {
 };
 
 #define ICE_PKG_NAME_SIZE	32
+#define ICE_SEG_NAME_SIZE	28
 
 struct ice_aqc_get_pkg_info {
 	struct ice_pkg_ver ver;
-	char name[ICE_PKG_NAME_SIZE];
+	char name[ICE_SEG_NAME_SIZE];
+	__le32 track_id;
 	u8 is_in_nvm;
 	u8 is_active;
 	u8 is_active_at_boot;
