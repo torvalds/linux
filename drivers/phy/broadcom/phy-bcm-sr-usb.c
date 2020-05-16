@@ -256,7 +256,7 @@ static int bcm_usb_phy_init(struct phy *phy)
 	return ret;
 }
 
-static struct phy_ops sr_phy_ops = {
+static const struct phy_ops sr_phy_ops = {
 	.init		= bcm_usb_phy_init,
 	.reset		= bcm_usb_phy_reset,
 	.owner		= THIS_MODULE,
