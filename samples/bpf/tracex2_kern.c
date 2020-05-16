@@ -10,6 +10,7 @@
 #include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "trace_common.h"
 
 struct bpf_map_def SEC("maps") my_map = {
 	.type = BPF_MAP_TYPE_HASH,
@@ -77,7 +78,7 @@ struct bpf_map_def SEC("maps") my_hist_map = {
 	.max_entries = 1024,
 };
 
-SEC("kprobe/sys_write")
+SEC("kprobe/" SYSCALL(sys_write))
 int bpf_prog3(struct pt_regs *ctx)
 {
 	long write_size = PT_REGS_PARM3(ctx);
