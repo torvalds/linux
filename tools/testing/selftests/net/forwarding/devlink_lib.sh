@@ -365,7 +365,9 @@ devlink_trap_group_stats_idle_test()
 devlink_trap_exception_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	devlink_trap_stats_idle_test $trap_name
 	check_fail $? "Trap stats idle when packets should have been trapped"
@@ -377,9 +379,11 @@ devlink_trap_exception_test()
 devlink_trap_drop_test()
 {
 	local trap_name=$1; shift
-	local group_name=$1; shift
 	local dev=$1; shift
 	local handle=$1; shift
+	local group_name
+
+	group_name=$(devlink_trap_group_get $trap_name)
 
 	# This is the common part of all the tests. It checks that stats are
 	# initially idle, then non-idle after changing the trap action and
