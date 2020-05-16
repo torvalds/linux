@@ -1826,6 +1826,7 @@ enum ice_aq_err {
 	ICE_AQ_RC_EINVAL	= 14, /* Invalid argument */
 	ICE_AQ_RC_ENOSPC	= 16, /* No space left or allocation failure */
 	ICE_AQ_RC_ENOSYS	= 17, /* Function not implemented */
+	ICE_AQ_RC_EMODE		= 21, /* Op not allowed in current dev mode */
 	ICE_AQ_RC_ENOSEC	= 24, /* Missing security manifest */
 	ICE_AQ_RC_EBADSIG	= 25, /* Bad RSA signature */
 	ICE_AQ_RC_ESVN		= 26, /* SVN number prohibits this package */

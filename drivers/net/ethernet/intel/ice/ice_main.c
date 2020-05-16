@@ -5159,6 +5159,8 @@ const char *ice_aq_str(enum ice_aq_err aq_err)
 		return "ICE_AQ_RC_ENOSPC";
 	case ICE_AQ_RC_ENOSYS:
 		return "ICE_AQ_RC_ENOSYS";
+	case ICE_AQ_RC_EMODE:
+		return "ICE_AQ_RC_EMODE";
 	case ICE_AQ_RC_ENOSEC:
 		return "ICE_AQ_RC_ENOSEC";
 	case ICE_AQ_RC_EBADSIG:

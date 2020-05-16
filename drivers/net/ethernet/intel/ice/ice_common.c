@@ -2232,6 +2232,7 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 		   struct ice_aqc_set_phy_cfg_data *cfg, struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc;
+	enum ice_status status;
 
 	if (!cfg)
 		return ICE_ERR_PARAM;
@@ -2260,7 +2261,11 @@ ice_aq_set_phy_cfg(struct ice_hw *hw, u8 lport,
 	ice_debug(hw, ICE_DBG_LINK, "eeer_value = 0x%x\n", cfg->eeer_value);
 	ice_debug(hw, ICE_DBG_LINK, "link_fec_opt = 0x%x\n", cfg->link_fec_opt);
 
-	return ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
+	status = ice_aq_send_cmd(hw, &desc, cfg, sizeof(*cfg), cd);
+	if (hw->adminq.sq_last_status == ICE_AQ_RC_EMODE)
+		status = 0;
+
+	return status;
 }
 
 /**
