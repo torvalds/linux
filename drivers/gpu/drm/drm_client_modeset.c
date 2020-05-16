@@ -563,7 +563,7 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 				       struct drm_client_offset *offsets,
 				       bool *enabled, int width, int height)
 {
-	unsigned int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
+	const int count = min_t(unsigned int, connector_count, BITS_PER_LONG);
 	unsigned long conn_configured, conn_seq, mask;
 	struct drm_device *dev = client->dev;
 	int i, j;
@@ -575,6 +575,9 @@ static bool drm_client_firmware_config(struct drm_client_dev *client,
 	struct drm_modeset_acquire_ctx ctx;
 
 	if (!drm_drv_uses_atomic_modeset(dev))
+		return false;
+
+	if (WARN_ON(count <= 0))
 		return false;
 
 	save_enabled = kcalloc(count, sizeof(bool), GFP_KERNEL);
