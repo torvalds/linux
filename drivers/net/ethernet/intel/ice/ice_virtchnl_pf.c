@@ -2014,7 +2014,7 @@ err:
  */
 static void ice_vc_reset_vf_msg(struct ice_vf *vf)
 {
-	if (test_bit(ICE_VF_STATE_ACTIVE, vf->vf_states))
+	if (test_bit(ICE_VF_STATE_INIT, vf->vf_states))
 		ice_reset_vf(vf, false);
 }
 
