@@ -2428,7 +2428,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	err = register_netdev(vsi->netdev);
 	if (err)
-		goto err_destroy_devlink_port;
+		goto err_free_netdev;
 
 	devlink_port_type_eth_set(&pf->devlink_port, vsi->netdev);
 
@@ -2439,9 +2439,11 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	return 0;
 
+err_free_netdev:
+	free_netdev(vsi->netdev);
+	vsi->netdev = NULL;
 err_destroy_devlink_port:
 	ice_devlink_destroy_port(pf);
-
 	return err;
 }
 
