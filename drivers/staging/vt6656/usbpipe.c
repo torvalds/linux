@@ -456,7 +456,7 @@ int vnt_tx_context(struct vnt_private *priv,
 		   struct vnt_usb_send_context *context)
 {
 	int status;
-	struct urb *urb = context->urb;
+	struct urb *urb;
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
@@ -468,6 +468,12 @@ int vnt_tx_context(struct vnt_private *priv,
 		return -E2BIG;
 	}
 
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb) {
+		context->in_use = false;
+		return -ENOMEM;
+	}
+
 	usb_fill_bulk_urb(urb,
 			  priv->usb,
 			  usb_sndbulkpipe(priv->usb, 3),
@@ -476,12 +482,16 @@ int vnt_tx_context(struct vnt_private *priv,
 			  vnt_tx_context_complete,
 			  context);
 
+	usb_anchor_urb(urb, &priv->tx_submitted);
+
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		dev_dbg(&priv->usb->dev, "Submit Tx URB failed %d\n", status);
-
+		usb_unanchor_urb(urb);
 		context->in_use = false;
 	}
+
+	usb_free_urb(urb);
 
 	return status;
 }

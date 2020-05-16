@@ -238,7 +238,6 @@ struct vnt_rcb {
 struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
-	struct urb *urb;
 	struct ieee80211_hdr *hdr;
 	void *tx_buffer;
 	unsigned int buf_len;
@@ -292,6 +291,7 @@ struct vnt_private {
 
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
+	struct usb_anchor tx_submitted;
 	u32 num_tx_context;
 
 	/* Variables to track resources for the Interrupt In Pipe */

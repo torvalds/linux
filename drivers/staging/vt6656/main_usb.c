@@ -445,16 +445,12 @@ static void vnt_free_tx_bufs(struct vnt_private *priv)
 	struct vnt_usb_send_context *tx_context;
 	int ii;
 
+	usb_kill_anchored_urbs(&priv->tx_submitted);
+
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = priv->tx_context[ii];
 		if (!tx_context)
 			continue;
-
-		/* deallocate URBs */
-		if (tx_context->urb) {
-			usb_kill_urb(tx_context->urb);
-			usb_free_urb(tx_context->urb);
-		}
 
 		kfree(tx_context);
 	}
@@ -496,6 +492,8 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 	struct vnt_rcb *rcb;
 	int ii;
 
+	init_usb_anchor(&priv->tx_submitted);
+
 	for (ii = 0; ii < priv->num_tx_context; ii++) {
 		tx_context = kmalloc(sizeof(*tx_context), GFP_KERNEL);
 		if (!tx_context) {
@@ -506,14 +504,6 @@ static int vnt_alloc_bufs(struct vnt_private *priv)
 		priv->tx_context[ii] = tx_context;
 		tx_context->priv = priv;
 		tx_context->pkt_no = ii;
-
-		/* allocate URBs */
-		tx_context->urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!tx_context->urb) {
-			ret = -ENOMEM;
-			goto free_tx;
-		}
-
 		tx_context->in_use = false;
 	}
 
