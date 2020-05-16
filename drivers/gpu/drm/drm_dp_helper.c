@@ -1588,6 +1588,7 @@ EXPORT_SYMBOL(drm_dp_get_phy_test_pattern);
  * drm_dp_set_phy_test_pattern() - set the pattern to the sink.
  * @aux: DisplayPort AUX channel
  * @data: DP phy compliance test parameters.
+ * @dp_rev: DP revision to use for compliance testing
  *
  * Returns 0 on success or a negative error code on failure.
  */
