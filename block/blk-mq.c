@@ -2028,26 +2028,24 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	__blk_queue_split(q, &bio, &nr_segs);
 
 	if (!bio_integrity_prep(bio))
-		return BLK_QC_T_NONE;
+		goto queue_exit;
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
 	    blk_attempt_plug_merge(q, bio, nr_segs, &same_queue_rq))
-		return BLK_QC_T_NONE;
+		goto queue_exit;
 
 	if (blk_mq_sched_bio_merge(q, bio, nr_segs))
-		return BLK_QC_T_NONE;
+		goto queue_exit;
 
 	rq_qos_throttle(q, bio);
 
 	data.cmd_flags = bio->bi_opf;
-	blk_queue_enter_live(q);
 	rq = blk_mq_get_request(q, bio, &data);
 	if (unlikely(!rq)) {
-		blk_queue_exit(q);
 		rq_qos_cleanup(q, bio);
 		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
-		return BLK_QC_T_NONE;
+		goto queue_exit;
 	}
 
 	trace_block_getrq(q, bio, bio->bi_opf);
@@ -2134,6 +2132,9 @@ blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	}
 
 	return cookie;
+queue_exit:
+	blk_queue_exit(q);
+	return BLK_QC_T_NONE;
 }
 EXPORT_SYMBOL_GPL(blk_mq_make_request); /* only for request based dm */
 

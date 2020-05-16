@@ -1791,8 +1791,17 @@ static blk_qc_t dm_make_request(struct request_queue *q, struct bio *bio)
 	int srcu_idx;
 	struct dm_table *map;
 
-	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED)
+	if (dm_get_md_type(md) == DM_TYPE_REQUEST_BASED) {
+		/*
+		 * We are called with a live reference on q_usage_counter, but
+		 * that one will be released as soon as we return.  Grab an
+		 * extra one as blk_mq_make_request expects to be able to
+		 * consume a reference (which lives until the request is freed
+		 * in case a request is allocated).
+		 */
+		percpu_ref_get(&q->q_usage_counter);
 		return blk_mq_make_request(q, bio);
+	}
 
 	map = dm_get_live_table(md, &srcu_idx);
 
