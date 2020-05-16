@@ -1322,8 +1322,13 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 			 * PF can be configured to reset the VF through ethtool
 			 * private flag mdd-auto-reset-vf.
 			 */
-			if (test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags))
+			if (test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags)) {
+				/* VF MDD event counters will be cleared by
+				 * reset, so print the event prior to reset.
+				 */
+				ice_print_vf_rx_mdd_event(vf);
 				ice_reset_vf(&pf->vf[i], false);
+			}
 		}
 	}
 

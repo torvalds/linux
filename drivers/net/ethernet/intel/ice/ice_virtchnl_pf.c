@@ -3757,6 +3757,24 @@ int ice_get_vf_stats(struct net_device *netdev, int vf_id,
 }
 
 /**
+ * ice_print_vf_rx_mdd_event - print VF Rx malicious driver detect event
+ * @vf: pointer to the VF structure
+ */
+void ice_print_vf_rx_mdd_event(struct ice_vf *vf)
+{
+	struct ice_pf *pf = vf->pf;
+	struct device *dev;
+
+	dev = ice_pf_to_dev(pf);
+
+	dev_info(dev, "%d Rx Malicious Driver Detection events detected on PF %d VF %d MAC %pM. mdd-auto-reset-vfs=%s\n",
+		 vf->mdd_rx_events.count, pf->hw.pf_id, vf->vf_id,
+		 vf->dflt_lan_addr.addr,
+		 test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags)
+			  ? "on" : "off");
+}
+
+/**
  * ice_print_vfs_mdd_event - print VFs malicious driver detect event
  * @pf: pointer to the PF structure
  *
@@ -3785,12 +3803,7 @@ void ice_print_vfs_mdd_events(struct ice_pf *pf)
 		if (vf->mdd_rx_events.count != vf->mdd_rx_events.last_printed) {
 			vf->mdd_rx_events.last_printed =
 							vf->mdd_rx_events.count;
-
-			dev_info(dev, "%d Rx Malicious Driver Detection events detected on PF %d VF %d MAC %pM. mdd-auto-reset-vfs=%s\n",
-				 vf->mdd_rx_events.count, hw->pf_id, i,
-				 vf->dflt_lan_addr.addr,
-				 test_bit(ICE_FLAG_MDD_AUTO_RESET_VF, pf->flags)
-					  ? "on" : "off");
+			ice_print_vf_rx_mdd_event(vf);
 		}
 
 		/* only print Tx MDD event message if there are new events */
