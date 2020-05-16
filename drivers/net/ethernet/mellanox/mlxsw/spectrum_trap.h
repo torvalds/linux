@@ -8,9 +8,8 @@
 #include <net/devlink.h>
 
 struct mlxsw_sp_trap {
-	struct devlink_trap_policer *policers_arr; /* Registered policers */
+	struct mlxsw_sp_trap_policer_item *policer_items_arr;
 	u64 policers_count; /* Number of registered policers */
-	struct list_head policer_item_list;
 	u64 max_policers;
 	unsigned long policers_usage[]; /* Usage bitmap */
 };

@@ -13,9 +13,8 @@
 #include "spectrum_trap.h"
 
 struct mlxsw_sp_trap_policer_item {
+	struct devlink_trap_policer policer;
 	u16 hw_id;
-	u32 id;
-	struct list_head list; /* Member of policer_item_list */
 };
 
 /* All driver-specific traps must be documented in
@@ -182,8 +181,11 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 			     1 << MLXSW_REG_QPCR_LOWEST_CBS)
 
 /* Ordered by policer identifier */
-static const struct devlink_trap_policer mlxsw_sp_trap_policers_arr[] = {
-	MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+static const struct mlxsw_sp_trap_policer_item
+mlxsw_sp_trap_policer_items_arr[] = {
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+	},
 };
 
 static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
@@ -319,12 +321,12 @@ static const u16 mlxsw_sp_listener_devlink_map[] = {
 static struct mlxsw_sp_trap_policer_item *
 mlxsw_sp_trap_policer_item_lookup(struct mlxsw_sp *mlxsw_sp, u32 id)
 {
-	struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
 
-	list_for_each_entry(policer_item, &trap->policer_item_list, list) {
-		if (policer_item->id == id)
-			return policer_item;
+	for (i = 0; i < trap->policers_count; i++) {
+		if (trap->policer_items_arr[i].policer.id == id)
+			return &trap->policer_items_arr[i];
 	}
 
 	return NULL;
@@ -352,72 +354,102 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
 }
 
-static int mlxsw_sp_trap_policers_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_trap_policer_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 {
-	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	size_t elem_size = sizeof(struct mlxsw_sp_trap_policer_item);
+	u64 arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	u64 free_policers = 0;
-	u32 last_id = 0;
-	int err, i;
+	u32 last_id;
+	int i;
 
 	for_each_clear_bit(i, trap->policers_usage, trap->max_policers)
 		free_policers++;
 
-	if (ARRAY_SIZE(mlxsw_sp_trap_policers_arr) > free_policers) {
+	if (arr_size > free_policers) {
 		dev_err(mlxsw_sp->bus_info->dev, "Exceeded number of supported packet trap policers\n");
 		return -ENOBUFS;
 	}
 
-	trap->policers_arr = kcalloc(free_policers,
-				     sizeof(struct devlink_trap_policer),
-				     GFP_KERNEL);
-	if (!trap->policers_arr)
+	trap->policer_items_arr = kcalloc(free_policers, elem_size, GFP_KERNEL);
+	if (!trap->policer_items_arr)
 		return -ENOMEM;
 
 	trap->policers_count = free_policers;
 
-	for (i = 0; i < free_policers; i++) {
-		const struct devlink_trap_policer *policer;
+	/* Initialize policer items array with pre-defined policers. */
+	memcpy(trap->policer_items_arr, mlxsw_sp_trap_policer_items_arr,
+	       elem_size * arr_size);
 
-		if (i < ARRAY_SIZE(mlxsw_sp_trap_policers_arr)) {
-			policer = &mlxsw_sp_trap_policers_arr[i];
-			trap->policers_arr[i] = *policer;
-			last_id = policer->id;
-		} else {
-			/* Use parameters set for first policer and override
-			 * relevant ones.
-			 */
-			policer = &mlxsw_sp_trap_policers_arr[0];
-			trap->policers_arr[i] = *policer;
-			trap->policers_arr[i].id = ++last_id;
-			trap->policers_arr[i].init_rate = 1;
-			trap->policers_arr[i].init_burst = 16;
-		}
+	/* Initialize policer items array with the rest of the available
+	 * policers.
+	 */
+	last_id = mlxsw_sp_trap_policer_items_arr[arr_size - 1].policer.id;
+	for (i = arr_size; i < trap->policers_count; i++) {
+		const struct mlxsw_sp_trap_policer_item *policer_item;
+
+		/* Use parameters set for first policer and override
+		 * relevant ones.
+		 */
+		policer_item = &mlxsw_sp_trap_policer_items_arr[0];
+		trap->policer_items_arr[i] = *policer_item;
+		trap->policer_items_arr[i].policer.id = ++last_id;
+		trap->policer_items_arr[i].policer.init_rate = 1;
+		trap->policer_items_arr[i].policer.init_burst = 16;
 	}
 
-	INIT_LIST_HEAD(&trap->policer_item_list);
+	return 0;
+}
 
-	err = devlink_trap_policers_register(devlink, trap->policers_arr,
-					     trap->policers_count);
+static void mlxsw_sp_trap_policer_items_arr_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->trap->policer_items_arr);
+}
+
+static int mlxsw_sp_trap_policers_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_policer_item *policer_item;
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int err, i;
+
+	err = mlxsw_sp_trap_policer_items_arr_init(mlxsw_sp);
 	if (err)
-		goto err_trap_policers_register;
+		return err;
+
+	for (i = 0; i < trap->policers_count; i++) {
+		policer_item = &trap->policer_items_arr[i];
+		err = devlink_trap_policers_register(devlink,
+						     &policer_item->policer, 1);
+		if (err)
+			goto err_trap_policer_register;
+	}
 
 	return 0;
 
-err_trap_policers_register:
-	kfree(trap->policers_arr);
+err_trap_policer_register:
+	for (i--; i >= 0; i--) {
+		policer_item = &trap->policer_items_arr[i];
+		devlink_trap_policers_unregister(devlink,
+						 &policer_item->policer, 1);
+	}
+	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
 	return err;
 }
 
 static void mlxsw_sp_trap_policers_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
 
-	devlink_trap_policers_unregister(devlink, trap->policers_arr,
-					 trap->policers_count);
-	WARN_ON(!list_empty(&trap->policer_item_list));
-	kfree(trap->policers_arr);
+	for (i = trap->policers_count - 1; i >= 0; i--) {
+		policer_item = &trap->policer_items_arr[i];
+		devlink_trap_policers_unregister(devlink,
+						 &policer_item->policer, 1);
+	}
+	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
@@ -608,10 +640,10 @@ int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 	return __mlxsw_sp_trap_group_init(mlxsw_core, group, policer_id);
 }
 
-static struct mlxsw_sp_trap_policer_item *
-mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp, u32 id)
+static int
+mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_trap_policer_item *policer_item)
 {
-	struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	u16 hw_id;
 
@@ -621,27 +653,19 @@ mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp, u32 id)
 	 */
 	hw_id = find_first_zero_bit(trap->policers_usage, trap->max_policers);
 	if (WARN_ON(hw_id == trap->max_policers))
-		return ERR_PTR(-ENOBUFS);
-
-	policer_item = kzalloc(sizeof(*policer_item), GFP_KERNEL);
-	if (!policer_item)
-		return ERR_PTR(-ENOMEM);
+		return -ENOBUFS;
 
 	__set_bit(hw_id, trap->policers_usage);
 	policer_item->hw_id = hw_id;
-	policer_item->id = id;
-	list_add_tail(&policer_item->list, &trap->policer_item_list);
 
-	return policer_item;
+	return 0;
 }
 
 static void
 mlxsw_sp_trap_policer_item_fini(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_trap_policer_item *policer_item)
 {
-	list_del(&policer_item->list);
 	__clear_bit(policer_item->hw_id, mlxsw_sp->trap->policers_usage);
-	kfree(policer_item);
 }
 
 static int mlxsw_sp_trap_policer_bs(u64 burst, u8 *p_burst_size,
@@ -684,9 +708,13 @@ int mlxsw_sp_trap_policer_init(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp_trap_policer_item *policer_item;
 	int err;
 
-	policer_item = mlxsw_sp_trap_policer_item_init(mlxsw_sp, policer->id);
-	if (IS_ERR(policer_item))
-		return PTR_ERR(policer_item);
+	policer_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, policer->id);
+	if (WARN_ON(!policer_item))
+		return -EINVAL;
+
+	err = mlxsw_sp_trap_policer_item_init(mlxsw_sp, policer_item);
+	if (err)
+		return err;
 
 	err = __mlxsw_sp_trap_policer_set(mlxsw_sp, policer_item->hw_id,
 					  policer->init_rate,
