@@ -2707,15 +2707,13 @@ ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 		ice_vsi_rebuild_update_coalesce(vsi->q_vectors[i],
 						&coalesce[i]);
 
-	for (; i < vsi->num_q_vectors; i++) {
-		struct ice_coalesce_stored coalesce_dflt = {
-			.itr_tx = ICE_DFLT_TX_ITR,
-			.itr_rx = ICE_DFLT_RX_ITR,
-			.intrl = 0
-		};
+	/* number of q_vectors increased, so assume coalesce settings were
+	 * changed globally (i.e. ethtool -C eth0 instead of per-queue) and use
+	 * the previous settings from q_vector 0 for all of the new q_vectors
+	 */
+	for (; i < vsi->num_q_vectors; i++)
 		ice_vsi_rebuild_update_coalesce(vsi->q_vectors[i],
-						&coalesce_dflt);
-	}
+						&coalesce[0]);
 }
 
 /**
