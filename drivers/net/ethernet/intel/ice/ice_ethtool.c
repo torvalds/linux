@@ -3251,7 +3251,7 @@ static int ice_vsi_set_dflt_rss_lut(struct ice_vsi *vsi, int req_rss_size)
 	if (status) {
 		dev_err(dev, "Cannot set RSS lut, err %s aq_err %s\n",
 			ice_stat_str(status),
-			ice_aq_str(hw->adminq.rq_last_status));
+			ice_aq_str(hw->adminq.sq_last_status));
 		err = -EIO;
 	}
 
