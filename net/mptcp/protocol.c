@@ -713,6 +713,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 {
 	int mss_now = 0, size_goal = 0, ret = 0;
 	struct mptcp_sock *msk = mptcp_sk(sk);
+	struct page_frag *pfrag;
 	struct socket *ssock;
 	size_t copied = 0;
 	struct sock *ssk;
@@ -741,13 +742,16 @@ fallback:
 		return ret >= 0 ? ret + copied : (copied ? copied : ret);
 	}
 
+	pfrag = sk_page_frag(sk);
 restart:
 	mptcp_clean_una(sk);
 
 wait_for_sndbuf:
 	__mptcp_flush_join_list(msk);
 	ssk = mptcp_subflow_get_send(msk);
-	while (!sk_stream_memory_free(sk) || !ssk) {
+	while (!sk_stream_memory_free(sk) ||
+	       !ssk ||
+	       !mptcp_page_frag_refill(ssk, pfrag)) {
 		if (ssk) {
 			/* make sure retransmit timer is
 			 * running before we wait for memory.
@@ -808,6 +812,7 @@ wait_for_sndbuf:
 			break;
 
 		if (!sk_stream_memory_free(ssk) ||
+		    !mptcp_page_frag_refill(ssk, pfrag) ||
 		    !mptcp_ext_cache_refill(msk)) {
 			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 			tcp_push(ssk, msg->msg_flags, mss_now,
