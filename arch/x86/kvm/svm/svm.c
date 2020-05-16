@@ -331,16 +331,7 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu)
 	struct vcpu_svm *svm = to_svm(vcpu);
 	unsigned nr = vcpu->arch.exception.nr;
 	bool has_error_code = vcpu->arch.exception.has_error_code;
-	bool reinject = vcpu->arch.exception.injected;
 	u32 error_code = vcpu->arch.exception.error_code;
-
-	/*
-	 * If we are within a nested VM we'd better #VMEXIT and let the guest
-	 * handle the exception
-	 */
-	if (!reinject &&
-	    nested_svm_check_exception(svm, nr, has_error_code, error_code))
-		return;
 
 	kvm_deliver_exception_payload(&svm->vcpu);
 

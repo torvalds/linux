@@ -111,6 +111,8 @@ void recalc_intercepts(struct vcpu_svm *svm)
 	h = &svm->nested.hsave->control;
 	g = &svm->nested;
 
+	svm->nested.host_intercept_exceptions = h->intercept_exceptions;
+
 	c->intercept_cr = h->intercept_cr;
 	c->intercept_dr = h->intercept_dr;
 	c->intercept_exceptions = h->intercept_exceptions;
@@ -616,50 +618,6 @@ static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 	return (value & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
 }
 
-/* DB exceptions for our internal use must not cause vmexit */
-static int nested_svm_intercept_db(struct vcpu_svm *svm)
-{
-	unsigned long dr6 = svm->vmcb->save.dr6;
-
-	/* Always catch it and pass it to userspace if debugging.  */
-	if (svm->vcpu.guest_debug &
-	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP))
-		return NESTED_EXIT_HOST;
-
-	/* if we're not singlestepping, it's not ours */
-	if (!svm->nmi_singlestep)
-		goto reflected_db;
-
-	/* if it's not a singlestep exception, it's not ours */
-	if (!(dr6 & DR6_BS))
-		goto reflected_db;
-
-	/* if the guest is singlestepping, it should get the vmexit */
-	if (svm->nmi_singlestep_guest_rflags & X86_EFLAGS_TF) {
-		disable_nmi_singlestep(svm);
-		goto reflected_db;
-	}
-
-	/* it's ours, the nested hypervisor must not see this one */
-	return NESTED_EXIT_HOST;
-
-reflected_db:
-	/*
-	 * Synchronize guest DR6 here just like in kvm_deliver_exception_payload;
-	 * it will be moved into the nested VMCB by nested_svm_vmexit.  Once
-	 * exceptions will be moved to svm_check_nested_events, all this stuff
-	 * will just go away and we could just return NESTED_EXIT_HOST
-	 * unconditionally.  db_interception will queue the exception, which
-	 * will be processed by svm_check_nested_events if a nested vmexit is
-	 * required, and we will just use kvm_deliver_exception_payload to copy
-	 * the payload to DR6 before vmexit.
-	 */
-	WARN_ON(svm->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT);
-	svm->vcpu.arch.dr6 &= ~(DR_TRAP_BITS | DR6_RTM);
-	svm->vcpu.arch.dr6 |= dr6 & ~DR6_FIXED_1;
-	return NESTED_EXIT_DONE;
-}
-
 static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
 {
 	unsigned port, size, iopm_len;
@@ -710,20 +668,12 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 		break;
 	}
 	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
-		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
-		if (svm->nested.intercept_exceptions & excp_bits) {
-			if (exit_code == SVM_EXIT_EXCP_BASE + DB_VECTOR)
-				vmexit = nested_svm_intercept_db(svm);
-			else if (exit_code == SVM_EXIT_EXCP_BASE + BP_VECTOR &&
-				 svm->vcpu.guest_debug & KVM_GUESTDBG_USE_SW_BP)
-				vmexit = NESTED_EXIT_HOST;
-			else
-				vmexit = NESTED_EXIT_DONE;
-		}
-		/* async page fault always cause vmexit */
-		else if ((exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR) &&
-			 svm->vcpu.arch.exception.nested_apf != 0)
-			vmexit = NESTED_EXIT_DONE;
+		/*
+		 * Host-intercepted exceptions have been checked already in
+		 * nested_svm_exit_special.  There is nothing to do here,
+		 * the vmexit is injected by svm_check_nested_events.
+		 */
+		vmexit = NESTED_EXIT_DONE;
 		break;
 	}
 	case SVM_EXIT_ERR: {
@@ -768,35 +718,45 @@ int nested_svm_check_permissions(struct vcpu_svm *svm)
 	return 0;
 }
 
-int nested_svm_check_exception(struct vcpu_svm *svm, unsigned nr,
-			       bool has_error_code, u32 error_code)
+static bool nested_exit_on_exception(struct vcpu_svm *svm)
 {
-	int vmexit;
+	unsigned int nr = svm->vcpu.arch.exception.nr;
 
-	if (!is_guest_mode(&svm->vcpu))
-		return 0;
+	return (svm->nested.intercept_exceptions & (1 << nr));
+}
 
-	vmexit = nested_svm_intercept(svm);
-	if (vmexit != NESTED_EXIT_DONE)
-		return 0;
+static void nested_svm_inject_exception_vmexit(struct vcpu_svm *svm)
+{
+	unsigned int nr = svm->vcpu.arch.exception.nr;
 
 	svm->vmcb->control.exit_code = SVM_EXIT_EXCP_BASE + nr;
 	svm->vmcb->control.exit_code_hi = 0;
-	svm->vmcb->control.exit_info_1 = error_code;
+
+	if (svm->vcpu.arch.exception.has_error_code)
+		svm->vmcb->control.exit_info_1 = svm->vcpu.arch.exception.error_code;
 
 	/*
 	 * EXITINFO2 is undefined for all exception intercepts other
 	 * than #PF.
 	 */
-	if (svm->vcpu.arch.exception.nested_apf)
-		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
-	else if (svm->vcpu.arch.exception.has_payload)
-		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.exception.payload;
-	else
-		svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
+	if (nr == PF_VECTOR) {
+		if (svm->vcpu.arch.exception.nested_apf)
+			svm->vmcb->control.exit_info_2 = svm->vcpu.arch.apf.nested_apf_token;
+		else if (svm->vcpu.arch.exception.has_payload)
+			svm->vmcb->control.exit_info_2 = svm->vcpu.arch.exception.payload;
+		else
+			svm->vmcb->control.exit_info_2 = svm->vcpu.arch.cr2;
+	} else if (nr == DB_VECTOR) {
+		/* See inject_pending_event.  */
+		kvm_deliver_exception_payload(&svm->vcpu);
+		if (svm->vcpu.arch.dr7 & DR7_GD) {
+			svm->vcpu.arch.dr7 &= ~DR7_GD;
+			kvm_update_dr7(&svm->vcpu);
+		}
+	} else
+		WARN_ON(svm->vcpu.arch.exception.has_payload);
 
-	svm->nested.exit_required = true;
-	return vmexit;
+	nested_svm_vmexit(svm);
 }
 
 static void nested_svm_smi(struct vcpu_svm *svm)
@@ -835,6 +795,15 @@ static int svm_check_nested_events(struct kvm_vcpu *vcpu)
 		kvm_event_needs_reinjection(vcpu) || svm->nested.exit_required ||
 		svm->nested.nested_run_pending;
 
+	if (vcpu->arch.exception.pending) {
+		if (block_nested_events)
+                        return -EBUSY;
+		if (!nested_exit_on_exception(svm))
+			return 0;
+		nested_svm_inject_exception_vmexit(svm);
+		return 0;
+	}
+
 	if (vcpu->arch.smi_pending && !svm_smi_blocked(vcpu)) {
 		if (block_nested_events)
 			return -EBUSY;
@@ -872,18 +841,19 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 	switch (exit_code) {
 	case SVM_EXIT_INTR:
 	case SVM_EXIT_NMI:
-	case SVM_EXIT_EXCP_BASE + MC_VECTOR:
-		return NESTED_EXIT_HOST;
 	case SVM_EXIT_NPF:
-		/* For now we are always handling NPFs when using them */
-		if (npt_enabled)
+		return NESTED_EXIT_HOST;
+	case SVM_EXIT_EXCP_BASE ... SVM_EXIT_EXCP_BASE + 0x1f: {
+		u32 excp_bits = 1 << (exit_code - SVM_EXIT_EXCP_BASE);
+
+		if (get_host_vmcb(svm)->control.intercept_exceptions & excp_bits)
+			return NESTED_EXIT_HOST;
+		else if (exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR &&
+			 svm->vcpu.arch.apf.host_apf_reason)
+			/* Trap async PF even if not shadowing */
 			return NESTED_EXIT_HOST;
 		break;
-	case SVM_EXIT_EXCP_BASE + PF_VECTOR:
-		/* Trap async PF even if not shadowing */
-		if (!npt_enabled || svm->vcpu.arch.apf.host_apf_reason)
-			return NESTED_EXIT_HOST;
-		break;
+	}
 	default:
 		break;
 	}

@@ -1072,7 +1072,7 @@ static void kvm_update_dr0123(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_update_dr7(struct kvm_vcpu *vcpu)
+void kvm_update_dr7(struct kvm_vcpu *vcpu)
 {
 	unsigned long dr7;
 
@@ -1085,6 +1085,7 @@ static void kvm_update_dr7(struct kvm_vcpu *vcpu)
 	if (dr7 & DR7_BP_EN_MASK)
 		vcpu->arch.switch_db_regs |= KVM_DEBUGREG_BP_ENABLED;
 }
+EXPORT_SYMBOL_GPL(kvm_update_dr7);
 
 static u64 kvm_dr6_fixed(struct kvm_vcpu *vcpu)
 {
@@ -7778,16 +7779,6 @@ static void inject_pending_event(struct kvm_vcpu *vcpu, bool *req_immediate_exit
 					     X86_EFLAGS_RF);
 
 		if (vcpu->arch.exception.nr == DB_VECTOR) {
-			/*
-			 * This code assumes that nSVM doesn't use
-			 * check_nested_events(). If it does, the
-			 * DR6/DR7 changes should happen before L1
-			 * gets a #VMEXIT for an intercepted #DB in
-			 * L2.  (Under VMX, on the other hand, the
-			 * DR6/DR7 changes should not happen in the
-			 * event of a VM-exit to L1 for an intercepted
-			 * #DB in L2.)
-			 */
 			kvm_deliver_exception_payload(vcpu);
 			if (vcpu->arch.dr7 & DR7_GD) {
 				vcpu->arch.dr7 &= ~DR7_GD;
