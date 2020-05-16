@@ -876,7 +876,7 @@ static void update_guest_pdps(struct intel_vgpu *vgpu,
 				gpa + i * 8, &pdp[7 - i], 4);
 }
 
-static bool
+static __maybe_unused bool
 check_shadow_context_ppgtt(struct execlist_ring_context *c, struct intel_vgpu_mm *m)
 {
 	if (m->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
