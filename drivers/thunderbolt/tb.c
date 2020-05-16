@@ -910,6 +910,29 @@ static void tb_dp_resource_available(struct tb *tb, struct tb_port *port)
 	tb_tunnel_dp(tb);
 }
 
+static void tb_disconnect_and_release_dp(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel, *n;
+
+	/*
+	 * Tear down all DP tunnels and release their resources. They
+	 * will be re-established after resume based on plug events.
+	 */
+	list_for_each_entry_safe_reverse(tunnel, n, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_dp(tunnel))
+			tb_deactivate_and_free_tunnel(tunnel);
+	}
+
+	while (!list_empty(&tcm->dp_resources)) {
+		struct tb_port *port;
+
+		port = list_first_entry(&tcm->dp_resources,
+					struct tb_port, list);
+		list_del_init(&port->list);
+	}
+}
+
 static int tb_tunnel_pci(struct tb *tb, struct tb_switch *sw)
 {
 	struct tb_port *up, *down, *port;
@@ -1226,6 +1249,7 @@ static int tb_suspend_noirq(struct tb *tb)
 	struct tb_cm *tcm = tb_priv(tb);
 
 	tb_dbg(tb, "suspending...\n");
+	tb_disconnect_and_release_dp(tb);
 	tb_switch_suspend(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 	tb_dbg(tb, "suspend finished\n");
