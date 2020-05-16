@@ -84,17 +84,12 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 	    union ice_32b_rx_flex_desc *rx_desc, u8 ptype)
 {
 	struct ice_rx_ptype_decoded decoded;
-	u16 rx_error, rx_status;
-	u16 rx_stat_err1;
+	u16 rx_status0, rx_status1;
 	bool ipv4, ipv6;
 
-	rx_status = le16_to_cpu(rx_desc->wb.status_error0);
-	rx_error = rx_status & (BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S) |
-				BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S) |
-				BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S) |
-				BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EUDPE_S));
+	rx_status0 = le16_to_cpu(rx_desc->wb.status_error0);
+	rx_status1 = le16_to_cpu(rx_desc->wb.status_error1);
 
-	rx_stat_err1 = le16_to_cpu(rx_desc->wb.status_error1);
 	decoded = ice_decode_rx_desc_ptype(ptype);
 
 	/* Start with CHECKSUM_NONE and by default csum_level = 0 */
@@ -106,7 +101,7 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 		return;
 
 	/* check if HW has decoded the packet and checksum */
-	if (!(rx_status & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
+	if (!(rx_status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_L3L4P_S)))
 		return;
 
 	if (!(decoded.known && decoded.outer_ip))
@@ -117,22 +112,22 @@ ice_rx_csum(struct ice_ring *ring, struct sk_buff *skb,
 	ipv6 = (decoded.outer_ip == ICE_RX_PTYPE_OUTER_IP) &&
 	       (decoded.outer_ip_ver == ICE_RX_PTYPE_OUTER_IPV6);
 
-	if (ipv4 && (rx_error & (BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S) |
-				 BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S))))
+	if (ipv4 && (rx_status0 & (BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_IPE_S) |
+				   BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EIPE_S))))
 		goto checksum_fail;
-	else if (ipv6 && (rx_status &
-		 (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
+
+	if (ipv6 && (rx_status0 & (BIT(ICE_RX_FLEX_DESC_STATUS0_IPV6EXADD_S))))
 		goto checksum_fail;
 
 	/* check for L4 errors and handle packets that were not able to be
 	 * checksummed due to arrival speed
 	 */
-	if (rx_error & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))
+	if (rx_status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_L4E_S))
 		goto checksum_fail;
 
 	/* check for outer UDP checksum error in tunneled packets */
-	if ((rx_stat_err1 & BIT(ICE_RX_FLEX_DESC_STATUS1_NAT_S)) &&
-	    (rx_error & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EUDPE_S)))
+	if ((rx_status1 & BIT(ICE_RX_FLEX_DESC_STATUS1_NAT_S)) &&
+	    (rx_status0 & BIT(ICE_RX_FLEX_DESC_STATUS0_XSUM_EUDPE_S)))
 		goto checksum_fail;
 
 	/* If there is an outer header present that might contain a checksum
