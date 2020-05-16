@@ -44,6 +44,18 @@ struct svm_dev_ops {
  * do such IOTLB flushes automatically.
  */
 #define SVM_FLAG_SUPERVISOR_MODE	(1<<1)
+/*
+ * The SVM_FLAG_GUEST_MODE flag is used when a PASID bind is for guest
+ * processes. Compared to the host bind, the primary differences are:
+ * 1. mm life cycle management
+ * 2. fault reporting
+ */
+#define SVM_FLAG_GUEST_MODE		(1<<2)
+/*
+ * The SVM_FLAG_GUEST_PASID flag is used when a guest has its own PASID space,
+ * which requires guest and host PASID translation at both directions.
+ */
+#define SVM_FLAG_GUEST_PASID		(1<<3)
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 
