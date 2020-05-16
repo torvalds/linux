@@ -920,10 +920,14 @@ The keyctl syscall functions are:
 
 	long keyctl(KEYCTL_PKEY_QUERY,
 		    key_serial_t key_id, unsigned long reserved,
+		    const char *params,
 		    struct keyctl_pkey_query *info);
 
-     Get information about an asymmetric key.  The information is returned in
-     the keyctl_pkey_query struct::
+     Get information about an asymmetric key.  Specific algorithms and
+     encodings may be queried by using the ``params`` argument.  This is a
+     string containing a space- or tab-separated string of key-value pairs.
+     Currently supported keys include ``enc`` and ``hash``.  The information
+     is returned in the keyctl_pkey_query struct::
 
 	__u32	supported_ops;
 	__u32	key_size;
