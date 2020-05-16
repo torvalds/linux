@@ -12,6 +12,25 @@
 #include "spectrum.h"
 #include "spectrum_trap.h"
 
+struct mlxsw_sp_trap_policer_item {
+	struct devlink_trap_policer policer;
+	u16 hw_id;
+};
+
+struct mlxsw_sp_trap_group_item {
+	struct devlink_trap_group group;
+	u16 hw_group_id;
+	u8 priority;
+	u8 tc;
+};
+
+#define MLXSW_SP_TRAP_LISTENERS_MAX 3
+
+struct mlxsw_sp_trap_item {
+	struct devlink_trap trap;
+	struct mlxsw_listener listeners_arr[MLXSW_SP_TRAP_LISTENERS_MAX];
+};
+
 /* All driver-specific traps must be documented in
  * Documentation/networking/devlink/mlxsw.rst
  */
@@ -176,136 +195,255 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 			     1 << MLXSW_REG_QPCR_LOWEST_CBS)
 
 /* Ordered by policer identifier */
-static const struct devlink_trap_policer mlxsw_sp_trap_policers_arr[] = {
-	MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+static const struct mlxsw_sp_trap_policer_item
+mlxsw_sp_trap_policer_items_arr[] = {
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+	},
 };
 
-static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
-	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
+static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
 };
 
-static const struct devlink_trap mlxsw_sp_traps_arr[] = {
-	MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(VLAN_TAG_MISMATCH, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(INGRESS_VLAN_FILTER, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(INGRESS_STP_FILTER, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(EMPTY_TX_LIST, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(PORT_LOOPBACK_FILTER, L2_DROPS),
-	MLXSW_SP_TRAP_DROP(BLACKHOLE_ROUTE, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(NON_IP_PACKET, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(UC_DIP_MC_DMAC, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(DIP_LB, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(SIP_MC, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(SIP_LB, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(CORRUPTED_IP_HDR, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(IPV4_SIP_BC, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_RESERVED_SCOPE, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(MTU_ERROR, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(RPF, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(REJECT_ROUTE, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(IPV4_LPM_UNICAST_MISS, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(IPV6_LPM_UNICAST_MISS, L3_DROPS),
-	MLXSW_SP_TRAP_DRIVER_DROP(IRIF_DISABLED, L3_DROPS),
-	MLXSW_SP_TRAP_DRIVER_DROP(ERIF_DISABLED, L3_DROPS),
-	MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
-	MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
-	MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
-	MLXSW_SP_TRAP_DROP_EXT(INGRESS_FLOW_ACTION_DROP, ACL_DROPS,
-			       DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
-	MLXSW_SP_TRAP_DROP_EXT(EGRESS_FLOW_ACTION_DROP, ACL_DROPS,
-			       DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
-};
-
-static const struct mlxsw_listener mlxsw_sp_listeners_arr[] = {
-	MLXSW_SP_RXL_DISCARD(ING_PACKET_SMAC_MC, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_SWITCH_VTAG_ALLOW, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_SWITCH_VLAN, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_SWITCH_STP, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_UC, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_MC_NULL, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_LB, L2_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ROUTER2, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_NON_IP_PACKET, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_UC_DIP_MC_DMAC, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_DIP_LB, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_MC, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_LB, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_CORRUPTED_IP_HDR, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ING_ROUTER_IPV4_SIP_BC, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_RESERVED_SCOPE, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE, L3_DISCARDS),
-	MLXSW_SP_RXL_EXCEPTION(MTUERROR, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(TTLERROR, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(RPF, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(RTR_INGRESS1, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV4, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, L3_DISCARDS, TRAP_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, L3_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM4, L3_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6, L3_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_DISCARD(ROUTER_IRIF_EN, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(ROUTER_ERIF_EN, L3_DISCARDS),
-	MLXSW_SP_RXL_DISCARD(NON_ROUTABLE, L3_DISCARDS),
-	MLXSW_SP_RXL_EXCEPTION(DECAP_ECN0, TUNNEL_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(IPIP_DECAP_ERROR, TUNNEL_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
-			       TRAP_EXCEPTION_TO_CPU),
-	MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
-	MLXSW_SP_RXL_ACL_DISCARD(INGRESS_ACL, ACL_DISCARDS, DUMMY),
-	MLXSW_SP_RXL_ACL_DISCARD(EGRESS_ACL, ACL_DISCARDS, DUMMY),
-};
-
-/* Mapping between hardware trap and devlink trap. Multiple hardware traps can
- * be mapped to the same devlink trap. Order is according to
- * 'mlxsw_sp_listeners_arr'.
- */
-static const u16 mlxsw_sp_listener_devlink_map[] = {
-	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
-	DEVLINK_TRAP_GENERIC_ID_VLAN_TAG_MISMATCH,
-	DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER,
-	DEVLINK_TRAP_GENERIC_ID_INGRESS_STP_FILTER,
-	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
-	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
-	DEVLINK_TRAP_GENERIC_ID_PORT_LOOPBACK_FILTER,
-	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
-	DEVLINK_TRAP_GENERIC_ID_NON_IP_PACKET,
-	DEVLINK_TRAP_GENERIC_ID_UC_DIP_MC_DMAC,
-	DEVLINK_TRAP_GENERIC_ID_DIP_LB,
-	DEVLINK_TRAP_GENERIC_ID_SIP_MC,
-	DEVLINK_TRAP_GENERIC_ID_SIP_LB,
-	DEVLINK_TRAP_GENERIC_ID_CORRUPTED_IP_HDR,
-	DEVLINK_TRAP_GENERIC_ID_IPV4_SIP_BC,
-	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_RESERVED_SCOPE,
-	DEVLINK_TRAP_GENERIC_ID_IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE,
-	DEVLINK_TRAP_GENERIC_ID_MTU_ERROR,
-	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
-	DEVLINK_TRAP_GENERIC_ID_RPF,
-	DEVLINK_TRAP_GENERIC_ID_REJECT_ROUTE,
-	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
-	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
-	DEVLINK_TRAP_GENERIC_ID_UNRESOLVED_NEIGH,
-	DEVLINK_TRAP_GENERIC_ID_IPV4_LPM_UNICAST_MISS,
-	DEVLINK_TRAP_GENERIC_ID_IPV6_LPM_UNICAST_MISS,
-	DEVLINK_MLXSW_TRAP_ID_IRIF_DISABLED,
-	DEVLINK_MLXSW_TRAP_ID_ERIF_DISABLED,
-	DEVLINK_TRAP_GENERIC_ID_NON_ROUTABLE,
-	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
-	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
-	DEVLINK_TRAP_GENERIC_ID_DECAP_ERROR,
-	DEVLINK_TRAP_GENERIC_ID_OVERLAY_SMAC_MC,
-	DEVLINK_TRAP_GENERIC_ID_INGRESS_FLOW_ACTION_DROP,
-	DEVLINK_TRAP_GENERIC_ID_EGRESS_FLOW_ACTION_DROP,
+static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
+	{
+		.trap = MLXSW_SP_TRAP_DROP(SMAC_MC, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_PACKET_SMAC_MC, L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(VLAN_TAG_MISMATCH, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_SWITCH_VTAG_ALLOW,
+					     L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(INGRESS_VLAN_FILTER, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_SWITCH_VLAN, L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(INGRESS_STP_FILTER, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_SWITCH_STP, L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(EMPTY_TX_LIST, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_UC, L2_DISCARDS),
+			MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_MC_NULL, L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(PORT_LOOPBACK_FILTER, L2_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(LOOKUP_SWITCH_LB, L2_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(BLACKHOLE_ROUTE, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ROUTER2, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(NON_IP_PACKET, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_NON_IP_PACKET,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(UC_DIP_MC_DMAC, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_UC_DIP_MC_DMAC,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(DIP_LB, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_DIP_LB, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(SIP_MC, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_MC, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(SIP_LB, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_SIP_LB, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(CORRUPTED_IP_HDR, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_CORRUPTED_IP_HDR,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(IPV4_SIP_BC, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ING_ROUTER_IPV4_SIP_BC,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_RESERVED_SCOPE,
+					   L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_RESERVED_SCOPE,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE,
+					   L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(IPV6_MC_DIP_INTERFACE_LOCAL_SCOPE,
+					     L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(MTU_ERROR, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(MTUERROR, L3_DISCARDS,
+					       TRAP_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(TTLERROR, L3_DISCARDS,
+					       TRAP_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(RPF, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(RPF, L3_DISCARDS, TRAP_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(REJECT_ROUTE, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(RTR_INGRESS1, L3_DISCARDS,
+					       TRAP_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV4, L3_DISCARDS,
+					       TRAP_TO_CPU),
+			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, L3_DISCARDS,
+					       TRAP_TO_CPU),
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, L3_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(IPV4_LPM_UNICAST_MISS,
+						L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM4, L3_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(IPV6_LPM_UNICAST_MISS,
+						L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6, L3_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DRIVER_DROP(IRIF_DISABLED, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ROUTER_IRIF_EN, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DRIVER_DROP(ERIF_DISABLED, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(ROUTER_ERIF_EN, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(NON_ROUTABLE, L3_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(NON_ROUTABLE, L3_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_EXCEPTION(DECAP_ERROR, TUNNEL_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_EXCEPTION(DECAP_ECN0, TUNNEL_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+			MLXSW_SP_RXL_EXCEPTION(IPIP_DECAP_ERROR,
+					       TUNNEL_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_DEC_PKT, TUNNEL_DISCARDS,
+					       TRAP_EXCEPTION_TO_CPU),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP(OVERLAY_SMAC_MC, TUNNEL_DROPS),
+		.listeners_arr = {
+			MLXSW_SP_RXL_DISCARD(OVERLAY_SMAC_MC, TUNNEL_DISCARDS),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP_EXT(INGRESS_FLOW_ACTION_DROP,
+					       ACL_DROPS,
+					       DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
+		.listeners_arr = {
+			MLXSW_SP_RXL_ACL_DISCARD(INGRESS_ACL, ACL_DISCARDS,
+						 DUMMY),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_DROP_EXT(EGRESS_FLOW_ACTION_DROP,
+					       ACL_DROPS,
+					       DEVLINK_TRAP_METADATA_TYPE_F_FA_COOKIE),
+		.listeners_arr = {
+			MLXSW_SP_RXL_ACL_DISCARD(EGRESS_ACL, ACL_DISCARDS,
+						 DUMMY),
+		},
+	},
 };
 
 #define MLXSW_SP_THIN_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
@@ -313,12 +451,40 @@ static const u16 mlxsw_sp_listener_devlink_map[] = {
 static struct mlxsw_sp_trap_policer_item *
 mlxsw_sp_trap_policer_item_lookup(struct mlxsw_sp *mlxsw_sp, u32 id)
 {
-	struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
 
-	list_for_each_entry(policer_item, &trap->policer_item_list, list) {
-		if (policer_item->id == id)
-			return policer_item;
+	for (i = 0; i < trap->policers_count; i++) {
+		if (trap->policer_items_arr[i].policer.id == id)
+			return &trap->policer_items_arr[i];
+	}
+
+	return NULL;
+}
+
+static struct mlxsw_sp_trap_group_item *
+mlxsw_sp_trap_group_item_lookup(struct mlxsw_sp *mlxsw_sp, u16 id)
+{
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = 0; i < trap->groups_count; i++) {
+		if (trap->group_items_arr[i].group.id == id)
+			return &trap->group_items_arr[i];
+	}
+
+	return NULL;
+}
+
+static struct mlxsw_sp_trap_item *
+mlxsw_sp_trap_item_lookup(struct mlxsw_sp *mlxsw_sp, u16 id)
+{
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = 0; i < trap->traps_count; i++) {
+		if (trap->trap_items_arr[i].trap.id == id)
+			return &trap->trap_items_arr[i];
 	}
 
 	return NULL;
@@ -346,78 +512,210 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
 }
 
-static int mlxsw_sp_trap_policers_init(struct mlxsw_sp *mlxsw_sp)
+static int mlxsw_sp_trap_policer_items_arr_init(struct mlxsw_sp *mlxsw_sp)
 {
-	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	size_t elem_size = sizeof(struct mlxsw_sp_trap_policer_item);
+	u64 arr_size = ARRAY_SIZE(mlxsw_sp_trap_policer_items_arr);
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	u64 free_policers = 0;
-	u32 last_id = 0;
-	int err, i;
+	u32 last_id;
+	int i;
 
 	for_each_clear_bit(i, trap->policers_usage, trap->max_policers)
 		free_policers++;
 
-	if (ARRAY_SIZE(mlxsw_sp_trap_policers_arr) > free_policers) {
+	if (arr_size > free_policers) {
 		dev_err(mlxsw_sp->bus_info->dev, "Exceeded number of supported packet trap policers\n");
 		return -ENOBUFS;
 	}
 
-	trap->policers_arr = kcalloc(free_policers,
-				     sizeof(struct devlink_trap_policer),
-				     GFP_KERNEL);
-	if (!trap->policers_arr)
+	trap->policer_items_arr = kcalloc(free_policers, elem_size, GFP_KERNEL);
+	if (!trap->policer_items_arr)
 		return -ENOMEM;
 
 	trap->policers_count = free_policers;
 
-	for (i = 0; i < free_policers; i++) {
-		const struct devlink_trap_policer *policer;
+	/* Initialize policer items array with pre-defined policers. */
+	memcpy(trap->policer_items_arr, mlxsw_sp_trap_policer_items_arr,
+	       elem_size * arr_size);
 
-		if (i < ARRAY_SIZE(mlxsw_sp_trap_policers_arr)) {
-			policer = &mlxsw_sp_trap_policers_arr[i];
-			trap->policers_arr[i] = *policer;
-			last_id = policer->id;
-		} else {
-			/* Use parameters set for first policer and override
-			 * relevant ones.
-			 */
-			policer = &mlxsw_sp_trap_policers_arr[0];
-			trap->policers_arr[i] = *policer;
-			trap->policers_arr[i].id = ++last_id;
-			trap->policers_arr[i].init_rate = 1;
-			trap->policers_arr[i].init_burst = 16;
-		}
+	/* Initialize policer items array with the rest of the available
+	 * policers.
+	 */
+	last_id = mlxsw_sp_trap_policer_items_arr[arr_size - 1].policer.id;
+	for (i = arr_size; i < trap->policers_count; i++) {
+		const struct mlxsw_sp_trap_policer_item *policer_item;
+
+		/* Use parameters set for first policer and override
+		 * relevant ones.
+		 */
+		policer_item = &mlxsw_sp_trap_policer_items_arr[0];
+		trap->policer_items_arr[i] = *policer_item;
+		trap->policer_items_arr[i].policer.id = ++last_id;
+		trap->policer_items_arr[i].policer.init_rate = 1;
+		trap->policer_items_arr[i].policer.init_burst = 16;
 	}
 
-	INIT_LIST_HEAD(&trap->policer_item_list);
+	return 0;
+}
 
-	err = devlink_trap_policers_register(devlink, trap->policers_arr,
-					     trap->policers_count);
+static void mlxsw_sp_trap_policer_items_arr_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	kfree(mlxsw_sp->trap->policer_items_arr);
+}
+
+static int mlxsw_sp_trap_policers_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_policer_item *policer_item;
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int err, i;
+
+	err = mlxsw_sp_trap_policer_items_arr_init(mlxsw_sp);
 	if (err)
-		goto err_trap_policers_register;
+		return err;
+
+	for (i = 0; i < trap->policers_count; i++) {
+		policer_item = &trap->policer_items_arr[i];
+		err = devlink_trap_policers_register(devlink,
+						     &policer_item->policer, 1);
+		if (err)
+			goto err_trap_policer_register;
+	}
 
 	return 0;
 
-err_trap_policers_register:
-	kfree(trap->policers_arr);
+err_trap_policer_register:
+	for (i--; i >= 0; i--) {
+		policer_item = &trap->policer_items_arr[i];
+		devlink_trap_policers_unregister(devlink,
+						 &policer_item->policer, 1);
+	}
+	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
 	return err;
 }
 
 static void mlxsw_sp_trap_policers_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
 
-	devlink_trap_policers_unregister(devlink, trap->policers_arr,
-					 trap->policers_count);
-	WARN_ON(!list_empty(&trap->policer_item_list));
-	kfree(trap->policers_arr);
+	for (i = trap->policers_count - 1; i >= 0; i--) {
+		policer_item = &trap->policer_items_arr[i];
+		devlink_trap_policers_unregister(devlink,
+						 &policer_item->policer, 1);
+	}
+	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
+}
+
+static int mlxsw_sp_trap_groups_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_group_item *group_item;
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int err, i;
+
+	trap->group_items_arr = kmemdup(mlxsw_sp_trap_group_items_arr,
+					sizeof(mlxsw_sp_trap_group_items_arr),
+					GFP_KERNEL);
+	if (!trap->group_items_arr)
+		return -ENOMEM;
+
+	trap->groups_count = ARRAY_SIZE(mlxsw_sp_trap_group_items_arr);
+
+	for (i = 0; i < trap->groups_count; i++) {
+		group_item = &trap->group_items_arr[i];
+		err = devlink_trap_groups_register(devlink, &group_item->group,
+						   1);
+		if (err)
+			goto err_trap_group_register;
+	}
+
+	return 0;
+
+err_trap_group_register:
+	for (i--; i >= 0; i--) {
+		group_item = &trap->group_items_arr[i];
+		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
+	}
+	kfree(trap->group_items_arr);
+	return err;
+}
+
+static void mlxsw_sp_trap_groups_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = trap->groups_count - 1; i >= 0; i--) {
+		const struct mlxsw_sp_trap_group_item *group_item;
+
+		group_item = &trap->group_items_arr[i];
+		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
+	}
+	kfree(trap->group_items_arr);
+}
+
+static bool
+mlxsw_sp_trap_listener_is_valid(const struct mlxsw_listener *listener)
+{
+	return listener->trap_id != 0;
+}
+
+static int mlxsw_sp_traps_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	const struct mlxsw_sp_trap_item *trap_item;
+	int err, i;
+
+	trap->trap_items_arr = kmemdup(mlxsw_sp_trap_items_arr,
+				       sizeof(mlxsw_sp_trap_items_arr),
+				       GFP_KERNEL);
+	if (!trap->trap_items_arr)
+		return -ENOMEM;
+
+	trap->traps_count = ARRAY_SIZE(mlxsw_sp_trap_items_arr);
+
+	for (i = 0; i < trap->traps_count; i++) {
+		trap_item = &trap->trap_items_arr[i];
+		err = devlink_traps_register(devlink, &trap_item->trap, 1,
+					     mlxsw_sp);
+		if (err)
+			goto err_trap_register;
+	}
+
+	return 0;
+
+err_trap_register:
+	for (i--; i >= 0; i--) {
+		trap_item = &trap->trap_items_arr[i];
+		devlink_traps_unregister(devlink, &trap_item->trap, 1);
+	}
+	kfree(trap->trap_items_arr);
+	return err;
+}
+
+static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = trap->traps_count - 1; i >= 0; i--) {
+		const struct mlxsw_sp_trap_item *trap_item;
+
+		trap_item = &trap->trap_items_arr[i];
+		devlink_traps_unregister(devlink, &trap_item->trap, 1);
+	}
+	kfree(trap->trap_items_arr);
 }
 
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
-	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
-	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
 	err = mlxsw_sp_trap_cpu_policers_set(mlxsw_sp);
@@ -428,59 +726,52 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	if (WARN_ON(ARRAY_SIZE(mlxsw_sp_listener_devlink_map) !=
-		    ARRAY_SIZE(mlxsw_sp_listeners_arr)))
-		return -EINVAL;
-
 	err = mlxsw_sp_trap_policers_init(mlxsw_sp);
 	if (err)
 		return err;
 
-	err = devlink_trap_groups_register(devlink, mlxsw_sp_trap_groups_arr,
-					   groups_count);
+	err = mlxsw_sp_trap_groups_init(mlxsw_sp);
 	if (err)
-		goto err_trap_groups_register;
+		goto err_trap_groups_init;
 
-	err = devlink_traps_register(devlink, mlxsw_sp_traps_arr,
-				     ARRAY_SIZE(mlxsw_sp_traps_arr), mlxsw_sp);
+	err = mlxsw_sp_traps_init(mlxsw_sp);
 	if (err)
-		goto err_traps_register;
+		goto err_traps_init;
 
 	return 0;
 
-err_traps_register:
-	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
-				       groups_count);
-err_trap_groups_register:
+err_traps_init:
+	mlxsw_sp_trap_groups_fini(mlxsw_sp);
+err_trap_groups_init:
 	mlxsw_sp_trap_policers_fini(mlxsw_sp);
 	return err;
 }
 
 void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
-	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
-
-	devlink_traps_unregister(devlink, mlxsw_sp_traps_arr,
-				 ARRAY_SIZE(mlxsw_sp_traps_arr));
-	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
-				       groups_count);
+	mlxsw_sp_traps_fini(mlxsw_sp);
+	mlxsw_sp_trap_groups_fini(mlxsw_sp);
 	mlxsw_sp_trap_policers_fini(mlxsw_sp);
 }
 
 int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
 		       const struct devlink_trap *trap, void *trap_ctx)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	const struct mlxsw_sp_trap_item *trap_item;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
+	trap_item = mlxsw_sp_trap_item_lookup(mlxsw_sp, trap->id);
+	if (WARN_ON(!trap_item))
+		return -EINVAL;
+
+	for (i = 0; i < MLXSW_SP_TRAP_LISTENERS_MAX; i++) {
 		const struct mlxsw_listener *listener;
 		int err;
 
-		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
+		listener = &trap_item->listeners_arr[i];
+		if (!mlxsw_sp_trap_listener_is_valid(listener))
 			continue;
-		listener = &mlxsw_sp_listeners_arr[i];
-
 		err = mlxsw_core_trap_register(mlxsw_core, listener, trap_ctx);
 		if (err)
 			return err;
@@ -492,15 +783,20 @@ int mlxsw_sp_trap_init(struct mlxsw_core *mlxsw_core,
 void mlxsw_sp_trap_fini(struct mlxsw_core *mlxsw_core,
 			const struct devlink_trap *trap, void *trap_ctx)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	const struct mlxsw_sp_trap_item *trap_item;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
+	trap_item = mlxsw_sp_trap_item_lookup(mlxsw_sp, trap->id);
+	if (WARN_ON(!trap_item))
+		return;
+
+	for (i = MLXSW_SP_TRAP_LISTENERS_MAX - 1; i >= 0; i--) {
 		const struct mlxsw_listener *listener;
 
-		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
+		listener = &trap_item->listeners_arr[i];
+		if (!mlxsw_sp_trap_listener_is_valid(listener))
 			continue;
-		listener = &mlxsw_sp_listeners_arr[i];
-
 		mlxsw_core_trap_unregister(mlxsw_core, listener, trap_ctx);
 	}
 }
@@ -509,16 +805,23 @@ int mlxsw_sp_trap_action_set(struct mlxsw_core *mlxsw_core,
 			     const struct devlink_trap *trap,
 			     enum devlink_trap_action action)
 {
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+	const struct mlxsw_sp_trap_item *trap_item;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(mlxsw_sp_listener_devlink_map); i++) {
+	trap_item = mlxsw_sp_trap_item_lookup(mlxsw_sp, trap->id);
+	if (WARN_ON(!trap_item))
+		return -EINVAL;
+
+	for (i = 0; i < MLXSW_SP_TRAP_LISTENERS_MAX; i++) {
 		const struct mlxsw_listener *listener;
 		bool enabled;
 		int err;
 
-		if (mlxsw_sp_listener_devlink_map[i] != trap->id)
+		listener = &trap_item->listeners_arr[i];
+		if (!mlxsw_sp_trap_listener_is_valid(listener))
 			continue;
-		listener = &mlxsw_sp_listeners_arr[i];
+
 		switch (action) {
 		case DEVLINK_TRAP_ACTION_DROP:
 			enabled = false;
@@ -544,33 +847,12 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u16 hw_policer_id = MLXSW_REG_HTGT_INVALID_POLICER;
+	const struct mlxsw_sp_trap_group_item *group_item;
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	u8 priority, tc, group_id;
 
-	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	default:
+	group_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, group->id);
+	if (WARN_ON(!group_item))
 		return -EINVAL;
-	}
 
 	if (policer_id) {
 		struct mlxsw_sp_trap_policer_item *policer_item;
@@ -582,7 +864,8 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		hw_policer_id = policer_item->hw_id;
 	}
 
-	mlxsw_reg_htgt_pack(htgt_pl, group_id, hw_policer_id, priority, tc);
+	mlxsw_reg_htgt_pack(htgt_pl, group_item->hw_group_id, hw_policer_id,
+			    group_item->priority, group_item->tc);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
@@ -602,10 +885,10 @@ int mlxsw_sp_trap_group_set(struct mlxsw_core *mlxsw_core,
 	return __mlxsw_sp_trap_group_init(mlxsw_core, group, policer_id);
 }
 
-static struct mlxsw_sp_trap_policer_item *
-mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp, u32 id)
+static int
+mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_trap_policer_item *policer_item)
 {
-	struct mlxsw_sp_trap_policer_item *policer_item;
 	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	u16 hw_id;
 
@@ -615,27 +898,19 @@ mlxsw_sp_trap_policer_item_init(struct mlxsw_sp *mlxsw_sp, u32 id)
 	 */
 	hw_id = find_first_zero_bit(trap->policers_usage, trap->max_policers);
 	if (WARN_ON(hw_id == trap->max_policers))
-		return ERR_PTR(-ENOBUFS);
-
-	policer_item = kzalloc(sizeof(*policer_item), GFP_KERNEL);
-	if (!policer_item)
-		return ERR_PTR(-ENOMEM);
+		return -ENOBUFS;
 
 	__set_bit(hw_id, trap->policers_usage);
 	policer_item->hw_id = hw_id;
-	policer_item->id = id;
-	list_add_tail(&policer_item->list, &trap->policer_item_list);
 
-	return policer_item;
+	return 0;
 }
 
 static void
 mlxsw_sp_trap_policer_item_fini(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_trap_policer_item *policer_item)
 {
-	list_del(&policer_item->list);
 	__clear_bit(policer_item->hw_id, mlxsw_sp->trap->policers_usage);
-	kfree(policer_item);
 }
 
 static int mlxsw_sp_trap_policer_bs(u64 burst, u8 *p_burst_size,
@@ -678,9 +953,13 @@ int mlxsw_sp_trap_policer_init(struct mlxsw_core *mlxsw_core,
 	struct mlxsw_sp_trap_policer_item *policer_item;
 	int err;
 
-	policer_item = mlxsw_sp_trap_policer_item_init(mlxsw_sp, policer->id);
-	if (IS_ERR(policer_item))
-		return PTR_ERR(policer_item);
+	policer_item = mlxsw_sp_trap_policer_item_lookup(mlxsw_sp, policer->id);
+	if (WARN_ON(!policer_item))
+		return -EINVAL;
+
+	err = mlxsw_sp_trap_policer_item_init(mlxsw_sp, policer_item);
+	if (err)
+		return err;
 
 	err = __mlxsw_sp_trap_policer_set(mlxsw_sp, policer_item->hw_id,
 					  policer->init_rate,
