@@ -77,14 +77,12 @@ struct vnt_tx_datahead_g {
 	__le16 duration_a;
 	__le16 time_stamp_off_b;
 	__le16 time_stamp_off_a;
-	struct ieee80211_hdr hdr;
 } __packed;
 
 struct vnt_tx_datahead_ab {
 	struct vnt_phy_field ab;
 	__le16 duration;
 	__le16 time_stamp_off;
-	struct ieee80211_hdr hdr;
 } __packed;
 
 /* RTS buffer header */
@@ -161,10 +159,14 @@ struct vnt_tx_fifo_head {
 	__le16 current_rate;
 } __packed;
 
-struct vnt_tx_buffer {
+struct vnt_tx_usb_header {
 	u8 type;
 	u8 pkt_no;
 	__le16 tx_byte_count;
+} __packed;
+
+struct vnt_tx_buffer {
+	struct vnt_tx_usb_header usb;
 	struct vnt_tx_fifo_head fifo_head;
 	union vnt_tx_head tx_head;
 } __packed;

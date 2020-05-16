@@ -188,19 +188,6 @@ static __le16 vnt_get_cts_duration(struct vnt_usb_send_context *context)
 					    context->frame_len, info);
 }
 
-static u16 vnt_mac_hdr_pos(struct vnt_usb_send_context *tx_context,
-			   struct ieee80211_hdr *hdr)
-{
-	u8 *head = tx_context->data + offsetof(struct vnt_tx_buffer, fifo_head);
-	u8 *hdr_pos = (u8 *)hdr;
-
-	tx_context->hdr = hdr;
-	if (!tx_context->hdr)
-		return 0;
-
-	return (u16)(hdr_pos - head);
-}
-
 static void vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 				struct vnt_tx_datahead_g *buf)
 {
@@ -221,8 +208,6 @@ static void vnt_rxtx_datahead_g(struct vnt_usb_send_context *tx_context,
 	buf->time_stamp_off_a = vnt_time_stamp_off(priv, rate);
 	buf->time_stamp_off_b = vnt_time_stamp_off(priv,
 						   priv->top_cck_basic_rate);
-
-	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
 }
 
 static void vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
@@ -241,8 +226,6 @@ static void vnt_rxtx_datahead_ab(struct vnt_usb_send_context *tx_context,
 	/* Get Duration and TimeStampOff */
 	buf->duration = hdr->duration_id;
 	buf->time_stamp_off = vnt_time_stamp_off(priv, rate);
-
-	tx_context->tx_hdr_size = vnt_mac_hdr_pos(tx_context, &buf->hdr);
 }
 
 static void vnt_fill_ieee80211_rts(struct vnt_usb_send_context *tx_context,
@@ -479,6 +462,39 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 	}
 }
 
+static u16 vnt_get_hdr_size(struct ieee80211_tx_info *info)
+{
+	u16 size = sizeof(struct vnt_tx_datahead_ab);
+
+	if (info->control.use_cts_prot) {
+		if (info->control.use_rts)
+			size = sizeof(struct vnt_rts_g);
+		else
+			size = sizeof(struct vnt_cts);
+	} else if (info->control.use_rts) {
+		size = sizeof(struct vnt_rts_ab);
+	}
+
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
+			size += sizeof(struct vnt_mic_hdr);
+	}
+
+	/* Get rrv_time header */
+	if (info->control.use_cts_prot) {
+		if (info->control.use_rts)
+			size += sizeof(struct vnt_rrv_time_rts);
+		else
+			size += sizeof(struct vnt_rrv_time_cts);
+	} else {
+		size += sizeof(struct vnt_rrv_time_ab);
+	}
+
+	size += sizeof(struct vnt_tx_fifo_head);
+
+	return size;
+}
+
 int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -531,12 +547,29 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	tx_context->need_ack = false;
 	tx_context->frame_len = skb->len + 4;
 	tx_context->tx_rate =  rate->hw_value;
+	tx_context->hdr = hdr;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	tx_buffer = (struct vnt_tx_buffer *)tx_context->data;
-	tx_buffer_head = &tx_buffer->fifo_head;
+	tx_header_size = vnt_get_hdr_size(info);
 	tx_body_size = skb->len;
+	tx_bytes = tx_header_size + tx_body_size;
+	tx_header_size += sizeof(struct vnt_tx_usb_header);
+
+	tx_buffer = skb_push(skb, tx_header_size);
+	tx_buffer_head = &tx_buffer->fifo_head;
+
+	/* Fill USB header */
+	tx_buffer->usb.tx_byte_count = cpu_to_le16(tx_bytes);
+	tx_buffer->usb.pkt_no = tx_context->pkt_no;
+	tx_buffer->usb.type = 0x00;
+
+	tx_context->type = CONTEXT_DATA_PACKET;
+	tx_context->tx_buffer = tx_buffer;
+	tx_context->buf_len = skb->len;
+
+	/* Return skb->data to mac80211 header */
+	skb_pull(skb, tx_header_size);
 
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
@@ -603,17 +636,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
 				  need_mic, need_rts);
 
-	tx_header_size = tx_context->tx_hdr_size;
-	if (!tx_header_size) {
-		tx_context->in_use = false;
-		return -ENOMEM;
-	}
-
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
-
-	tx_bytes = tx_header_size + tx_body_size;
-
-	memcpy(tx_context->hdr, skb->data, tx_body_size);
 
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
@@ -624,15 +647,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
 						IEEE80211_SCTL_SEQ) >> 4;
-
-	tx_buffer->tx_byte_count = cpu_to_le16(tx_bytes);
-	tx_buffer->pkt_no = tx_context->pkt_no;
-	tx_buffer->type = 0x00;
-
-	tx_bytes += 4;
-
-	tx_context->type = CONTEXT_DATA_PACKET;
-	tx_context->buf_len = tx_bytes;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -725,6 +739,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	beacon_buffer->type = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;
+	context->tx_buffer = &context->data;
 	context->buf_len = count + 4; /* USB header */
 
 	spin_lock_irqsave(&priv->lock, flags);

@@ -466,7 +466,7 @@ int vnt_tx_context(struct vnt_private *priv,
 	usb_fill_bulk_urb(urb,
 			  priv->usb,
 			  usb_sndbulkpipe(priv->usb, 3),
-			  context->data,
+			  context->tx_buffer,
 			  context->buf_len,
 			  vnt_tx_context_complete,
 			  context);
