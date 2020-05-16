@@ -15,10 +15,4 @@ struct mlxsw_sp_trap {
 	unsigned long policers_usage[]; /* Usage bitmap */
 };
 
-struct mlxsw_sp_trap_policer_item {
-	u16 hw_id;
-	u32 id;
-	struct list_head list; /* Member of policer_item_list */
-};
-
 #endif

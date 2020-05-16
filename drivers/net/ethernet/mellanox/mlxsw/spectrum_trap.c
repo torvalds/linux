@@ -12,6 +12,12 @@
 #include "spectrum.h"
 #include "spectrum_trap.h"
 
+struct mlxsw_sp_trap_policer_item {
+	u16 hw_id;
+	u32 id;
+	struct list_head list; /* Member of policer_item_list */
+};
+
 /* All driver-specific traps must be documented in
  * Documentation/networking/devlink/mlxsw.rst
  */
