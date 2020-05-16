@@ -545,7 +545,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 	int ret;
 
 	if (tb_dp_is_usb4(sw)) {
-		int timeout = 10;
+		int timeout = 20;
 
 		/*
 		 * Wait for DPRX done. Normally it should be already set
