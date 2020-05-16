@@ -5941,7 +5941,7 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 
 		new_dbuf_state = intel_atomic_get_dbuf_state(state);
 		if (IS_ERR(new_dbuf_state))
-			return ret;
+			return PTR_ERR(new_dbuf_state);
 
 		old_dbuf_state = intel_atomic_get_old_dbuf_state(state);
 
