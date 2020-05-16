@@ -13,7 +13,7 @@
  */
 static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 {
-	int offset, i;
+	unsigned int offset, i;
 
 	mutex_lock(qs_cfg->qs_mutex);
 	offset = bitmap_find_next_zero_area(qs_cfg->pf_map, qs_cfg->pf_map_size,
@@ -39,7 +39,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
  */
 static int __ice_vsi_get_qs_sc(struct ice_qs_cfg *qs_cfg)
 {
-	int i, index = 0;
+	unsigned int i, index = 0;
 
 	mutex_lock(qs_cfg->qs_mutex);
 	for (i = 0; i < qs_cfg->q_count; i++) {
