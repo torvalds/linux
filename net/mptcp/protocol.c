@@ -590,7 +590,7 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	 * access the skb after the sendpages call
 	 */
 	ret = do_tcp_sendpages(ssk, page, offset, psize,
-			       msg->msg_flags | MSG_SENDPAGE_NOTLAST);
+			       msg->msg_flags | MSG_SENDPAGE_NOTLAST | MSG_DONTWAIT);
 	if (ret <= 0)
 		return ret;
 
@@ -713,6 +713,7 @@ static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	struct socket *ssock;
 	size_t copied = 0;
 	struct sock *ssk;
+	bool tx_ok;
 	long timeo;
 
 	if (msg->msg_flags & ~(MSG_MORE | MSG_DONTWAIT | MSG_NOSIGNAL))
@@ -737,6 +738,7 @@ fallback:
 		return ret >= 0 ? ret + copied : (copied ? copied : ret);
 	}
 
+restart:
 	mptcp_clean_una(sk);
 
 wait_for_sndbuf:
@@ -772,11 +774,18 @@ wait_for_sndbuf:
 	pr_debug("conn_list->subflow=%p", ssk);
 
 	lock_sock(ssk);
-	while (msg_data_left(msg)) {
+	tx_ok = msg_data_left(msg);
+	while (tx_ok) {
 		ret = mptcp_sendmsg_frag(sk, ssk, msg, NULL, &timeo, &mss_now,
 					 &size_goal);
-		if (ret < 0)
+		if (ret < 0) {
+			if (ret == -EAGAIN && timeo > 0) {
+				mptcp_set_timeout(sk, ssk);
+				release_sock(ssk);
+				goto restart;
+			}
 			break;
+		}
 		if (ret == 0 && unlikely(__mptcp_needs_tcp_fallback(msk))) {
 			/* Can happen for passive sockets:
 			 * 3WHS negotiated MPTCP, but first packet after is
@@ -791,11 +800,31 @@ wait_for_sndbuf:
 
 		copied += ret;
 
+		tx_ok = msg_data_left(msg);
+		if (!tx_ok)
+			break;
+
+		if (!sk_stream_memory_free(ssk)) {
+			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
+			tcp_push(ssk, msg->msg_flags, mss_now,
+				 tcp_sk(ssk)->nonagle, size_goal);
+			mptcp_set_timeout(sk, ssk);
+			release_sock(ssk);
+			goto restart;
+		}
+
 		/* memory is charged to mptcp level socket as well, i.e.
 		 * if msg is very large, mptcp socket may run out of buffer
 		 * space.  mptcp_clean_una() will release data that has
 		 * been acked at mptcp level in the mean time, so there is
 		 * a good chance we can continue sending data right away.
+		 *
+		 * Normally, when the tcp subflow can accept more data, then
+		 * so can the MPTCP socket.  However, we need to cope with
+		 * peers that might lag behind in their MPTCP-level
+		 * acknowledgements, i.e.  data might have been acked at
+		 * tcp level only.  So, we must also check the MPTCP socket
+		 * limits before we send more data.
 		 */
 		if (unlikely(!sk_stream_memory_free(sk))) {
 			tcp_push(ssk, msg->msg_flags, mss_now,
