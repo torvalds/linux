@@ -26,6 +26,8 @@ struct linux_binprm {
 	unsigned long p; /* current top of mem */
 	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
+		/* It is safe to use the creds of a script (see binfmt_misc) */
+		preserve_creds:1,
 		/*
 		 * True if most recent call to security_bprm_set_creds
 		 * resulted in elevated privileges.

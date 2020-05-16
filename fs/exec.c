@@ -1631,15 +1631,20 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
  */
 int prepare_binprm(struct linux_binprm *bprm)
 {
-	int retval;
 	loff_t pos = 0;
 
-	/* Recompute parts of bprm->cred based on bprm->file */
-	bprm->active_secureexec = 0;
-	bprm_fill_uid(bprm);
-	retval = security_bprm_repopulate_creds(bprm);
-	if (retval)
-		return retval;
+	/* Can the interpreter get to the executable without races? */
+	if (!bprm->preserve_creds) {
+		int retval;
+
+		/* Recompute parts of bprm->cred based on bprm->file */
+		bprm->active_secureexec = 0;
+		bprm_fill_uid(bprm);
+		retval = security_bprm_repopulate_creds(bprm);
+		if (retval)
+			return retval;
+	}
+	bprm->preserve_creds = 0;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
 	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
