@@ -455,10 +455,7 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 	alloc_data.ctx = __blk_mq_get_ctx(q, cpu);
 
 	ret = -EWOULDBLOCK;
-	blk_queue_enter_live(q);
 	rq = blk_mq_get_request(q, NULL, &alloc_data);
-	blk_queue_exit(q);
-
 	if (!rq)
 		goto out_queue_exit;
 	return rq;
