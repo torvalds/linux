@@ -8,6 +8,12 @@ the host SoC. It is defined by the `MIPI alliance`_.
 
 .. _`MIPI alliance`: http://www.mipi.org/
 
+Media bus formats
+-----------------
+
+See :ref:`v4l2-mbus-pixelcode` for details on which media bus formats should
+be used for CSI-2 interfaces.
+
 Transmitter drivers
 -------------------
 
