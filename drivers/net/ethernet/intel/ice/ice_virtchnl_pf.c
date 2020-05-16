@@ -962,6 +962,21 @@ static int ice_set_per_vf_res(struct ice_pf *pf)
 }
 
 /**
+ * ice_clear_vf_reset_trigger - enable VF to access hardware
+ * @vf: VF to enabled hardware access for
+ */
+static void ice_clear_vf_reset_trigger(struct ice_vf *vf)
+{
+	struct ice_hw *hw = &vf->pf->hw;
+	u32 reg;
+
+	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_id));
+	reg &= ~VPGEN_VFRTRIG_VFSWR_M;
+	wr32(hw, VPGEN_VFRTRIG(vf->vf_id), reg);
+	ice_flush(hw);
+}
+
+/**
  * ice_cleanup_and_realloc_vf - Clean up VF and reallocate resources after reset
  * @vf: pointer to the VF structure
  *
@@ -974,26 +989,20 @@ static void ice_cleanup_and_realloc_vf(struct ice_vf *vf)
 {
 	struct ice_pf *pf = vf->pf;
 	struct ice_hw *hw;
-	u32 reg;
 
 	hw = &pf->hw;
 
-	/* PF software completes the flow by notifying VF that reset flow is
-	 * completed. This is done by enabling hardware by clearing the reset
-	 * bit in the VPGEN_VFRTRIG reg and setting VFR_STATE in the VFGEN_RSTAT
-	 * register to VFR completed (done at the end of this function)
-	 * By doing this we allow HW to access VF memory at any point. If we
-	 * did it any sooner, HW could access memory while it was being freed
-	 * in ice_free_vf_res(), causing an IOMMU fault.
+	/* Allow HW to access VF memory after calling
+	 * ice_clear_vf_reset_trigger(). If we did it any sooner, HW could
+	 * access memory while it was being freed in ice_free_vf_res(), causing
+	 * an IOMMU fault.
 	 *
 	 * On the other hand, this needs to be done ASAP, because the VF driver
 	 * is waiting for this to happen and may report a timeout. It's
 	 * harmless, but it gets logged into Guest OS kernel log, so best avoid
 	 * it.
 	 */
-	reg = rd32(hw, VPGEN_VFRTRIG(vf->vf_id));
-	reg &= ~VPGEN_VFRTRIG_VFSWR_M;
-	wr32(hw, VPGEN_VFRTRIG(vf->vf_id), reg);
+	ice_clear_vf_reset_trigger(vf);
 
 	/* reallocate VF resources to finish resetting the VSI state */
 	if (!ice_alloc_vf_res(vf)) {
