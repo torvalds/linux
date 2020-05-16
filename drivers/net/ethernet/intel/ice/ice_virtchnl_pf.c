@@ -1460,6 +1460,8 @@ static bool ice_pf_state_is_nominal(struct ice_pf *pf)
  * ice_pci_sriov_ena - Enable or change number of VFs
  * @pf: pointer to the PF structure
  * @num_vfs: number of VFs to allocate
+ *
+ * Returns 0 on success and negative on failure
  */
 static int ice_pci_sriov_ena(struct ice_pf *pf, int num_vfs)
 {
@@ -1467,20 +1469,10 @@ static int ice_pci_sriov_ena(struct ice_pf *pf, int num_vfs)
 	struct device *dev = ice_pf_to_dev(pf);
 	int err;
 
-	if (!ice_pf_state_is_nominal(pf)) {
-		dev_err(dev, "Cannot enable SR-IOV, device not ready\n");
-		return -EBUSY;
-	}
-
-	if (!test_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags)) {
-		dev_err(dev, "This device is not capable of SR-IOV\n");
-		return -EOPNOTSUPP;
-	}
-
 	if (pre_existing_vfs && pre_existing_vfs != num_vfs)
 		ice_free_vfs(pf);
 	else if (pre_existing_vfs && pre_existing_vfs == num_vfs)
-		return num_vfs;
+		return 0;
 
 	if (num_vfs > pf->num_vfs_supported) {
 		dev_err(dev, "Can't enable %d VFs, max VFs supported is %d\n",
@@ -1496,37 +1488,69 @@ static int ice_pci_sriov_ena(struct ice_pf *pf, int num_vfs)
 	}
 
 	set_bit(ICE_FLAG_SRIOV_ENA, pf->flags);
-	return num_vfs;
+	return 0;
 }
 
 /**
- * ice_sriov_configure - Enable or change number of VFs via sysfs
- * @pdev: pointer to a pci_dev structure
- * @num_vfs: number of VFs to allocate
- *
- * This function is called when the user updates the number of VFs in sysfs.
+ * ice_check_sriov_allowed - check if SR-IOV is allowed based on various checks
+ * @pf: PF to enabled SR-IOV on
  */
-int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
+static int ice_check_sriov_allowed(struct ice_pf *pf)
 {
-	struct ice_pf *pf = pci_get_drvdata(pdev);
 	struct device *dev = ice_pf_to_dev(pf);
+
+	if (!test_bit(ICE_FLAG_SRIOV_CAPABLE, pf->flags)) {
+		dev_err(dev, "This device is not capable of SR-IOV\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (ice_is_safe_mode(pf)) {
 		dev_err(dev, "SR-IOV cannot be configured - Device is in Safe Mode\n");
 		return -EOPNOTSUPP;
 	}
 
-	if (num_vfs)
-		return ice_pci_sriov_ena(pf, num_vfs);
-
-	if (!pci_vfs_assigned(pdev)) {
-		ice_free_vfs(pf);
-	} else {
-		dev_err(dev, "can't free VFs because some are assigned to VMs.\n");
+	if (!ice_pf_state_is_nominal(pf)) {
+		dev_err(dev, "Cannot enable SR-IOV, device not ready\n");
 		return -EBUSY;
 	}
 
 	return 0;
+}
+
+/**
+ * ice_sriov_configure - Enable or change number of VFs via sysfs
+ * @pdev: pointer to a pci_dev structure
+ * @num_vfs: number of VFs to allocate or 0 to free VFs
+ *
+ * This function is called when the user updates the number of VFs in sysfs. On
+ * success return whatever num_vfs was set to by the caller. Return negative on
+ * failure.
+ */
+int ice_sriov_configure(struct pci_dev *pdev, int num_vfs)
+{
+	struct ice_pf *pf = pci_get_drvdata(pdev);
+	struct device *dev = ice_pf_to_dev(pf);
+	int err;
+
+	err = ice_check_sriov_allowed(pf);
+	if (err)
+		return err;
+
+	if (!num_vfs) {
+		if (!pci_vfs_assigned(pdev)) {
+			ice_free_vfs(pf);
+			return 0;
+		}
+
+		dev_err(dev, "can't free VFs because some are assigned to VMs.\n");
+		return -EBUSY;
+	}
+
+	err = ice_pci_sriov_ena(pf, num_vfs);
+	if (err)
+		return err;
+
+	return num_vfs;
 }
 
 /**
