@@ -1812,6 +1812,12 @@ int ice_vsi_manage_vlan_stripping(struct ice_vsi *vsi, bool ena)
 	enum ice_status status;
 	int ret = 0;
 
+	/* do not allow modifying VLAN stripping when a port VLAN is configured
+	 * on this VSI
+	 */
+	if (vsi->info.pvid)
+		return 0;
+
 	ctxt = kzalloc(sizeof(*ctxt), GFP_KERNEL);
 	if (!ctxt)
 		return -ENOMEM;
