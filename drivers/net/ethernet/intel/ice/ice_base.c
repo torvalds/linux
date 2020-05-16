@@ -638,6 +638,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	struct ice_aqc_add_txqs_perq *txq;
 	struct ice_pf *pf = vsi->back;
 	u8 buf_len = sizeof(*qg_buf);
+	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	u16 pf_q;
 	u8 tc;
@@ -646,13 +647,13 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	ice_setup_tx_ctx(ring, &tlan_ctx, pf_q);
 	/* copy context contents into the qg_buf */
 	qg_buf->txqs[0].txq_id = cpu_to_le16(pf_q);
-	ice_set_ctx((u8 *)&tlan_ctx, qg_buf->txqs[0].txq_ctx,
+	ice_set_ctx(hw, (u8 *)&tlan_ctx, qg_buf->txqs[0].txq_ctx,
 		    ice_tlan_ctx_info);
 
 	/* init queue specific tail reg. It is referred as
 	 * transmit comm scheduler queue doorbell.
 	 */
-	ring->tail = pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
+	ring->tail = hw->hw_addr + QTX_COMM_DBELL(pf_q);
 
 	if (IS_ENABLED(CONFIG_DCB))
 		tc = ring->dcb_tc;

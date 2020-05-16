@@ -1098,7 +1098,7 @@ ice_write_rxq_ctx(struct ice_hw *hw, struct ice_rlan_ctx *rlan_ctx,
 
 	rlan_ctx->prefena = 1;
 
-	ice_set_ctx((u8 *)rlan_ctx, ctx_buf, ice_rlan_ctx_info);
+	ice_set_ctx(hw, (u8 *)rlan_ctx, ctx_buf, ice_rlan_ctx_info);
 	return ice_copy_rxq_ctx_to_hw(hw, ctx_buf, rxq_index);
 }
 
@@ -3199,12 +3199,14 @@ ice_write_qword(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 
 /**
  * ice_set_ctx - set context bits in packed structure
+ * @hw: pointer to the hardware structure
  * @src_ctx:  pointer to a generic non-packed context structure
  * @dest_ctx: pointer to memory for the packed structure
  * @ce_info:  a description of the structure to be transformed
  */
 enum ice_status
-ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
+ice_set_ctx(struct ice_hw *hw, u8 *src_ctx, u8 *dest_ctx,
+	    const struct ice_ctx_ele *ce_info)
 {
 	int f;
 
@@ -3213,6 +3215,12 @@ ice_set_ctx(u8 *src_ctx, u8 *dest_ctx, const struct ice_ctx_ele *ce_info)
 		 * using the correct size so that we are correct regardless
 		 * of the endianness of the machine.
 		 */
+		if (ce_info[f].width > (ce_info[f].size_of * BITS_PER_BYTE)) {
+			ice_debug(hw, ICE_DBG_QCTX,
+				  "Field %d width of %d bits larger than size of %d byte(s) ... skipping write\n",
+				  f, ce_info[f].width, ce_info[f].size_of);
+			continue;
+		}
 		switch (ce_info[f].size_of) {
 		case sizeof(u8):
 			ice_write_byte(src_ctx, dest_ctx, &ce_info[f]);
