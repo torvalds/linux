@@ -80,7 +80,7 @@ ice_vc_vf_broadcast(struct ice_pf *pf, enum virtchnl_ops v_opcode,
 		    enum virtchnl_status_code v_retval, u8 *msg, u16 msglen)
 {
 	struct ice_hw *hw = &pf->hw;
-	int i;
+	unsigned int i;
 
 	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
@@ -325,7 +325,7 @@ void ice_free_vfs(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
-	int tmp, i;
+	unsigned int tmp, i;
 
 	if (!pf->vf)
 		return;

@@ -452,7 +452,7 @@ static void
 ice_prepare_for_reset(struct ice_pf *pf)
 {
 	struct ice_hw *hw = &pf->hw;
-	int i;
+	unsigned int i;
 
 	/* already prepared for reset */
 	if (test_bit(__ICE_PREPARED_FOR_RESET, pf->state))
@@ -1188,8 +1188,8 @@ static void ice_handle_mdd_event(struct ice_pf *pf)
 {
 	struct device *dev = ice_pf_to_dev(pf);
 	struct ice_hw *hw = &pf->hw;
+	unsigned int i;
 	u32 reg;
-	int i;
 
 	if (!test_and_clear_bit(__ICE_MDD_EVENT_PENDING, pf->state)) {
 		/* Since the VF MDD event logging is rate limited, check if

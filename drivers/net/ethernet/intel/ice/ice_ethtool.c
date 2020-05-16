@@ -205,7 +205,7 @@ ice_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	struct ice_pf *pf = np->vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	u32 *regs_buf = (u32 *)p;
-	int i;
+	unsigned int i;
 
 	regs->version = 1;
 
@@ -308,7 +308,7 @@ out:
  */
 static bool ice_active_vfs(struct ice_pf *pf)
 {
-	int i;
+	unsigned int i;
 
 	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
@@ -378,7 +378,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 		0x00000000, 0xFFFFFFFF
 	};
 	u32 val, orig_val;
-	int i;
+	unsigned int i;
 
 	orig_val = rd32(hw, reg);
 	for (i = 0; i < ARRAY_SIZE(patterns); ++i) {
@@ -431,7 +431,7 @@ static u64 ice_reg_test(struct net_device *netdev)
 			GLINT_ITR(2, 1) - GLINT_ITR(2, 0)},
 		{GLINT_CTL, 0xffff0001, 1, 0}
 	};
-	int i;
+	unsigned int i;
 
 	netdev_dbg(netdev, "Register test\n");
 	for (i = 0; i < ARRAY_SIZE(ice_reg_list); ++i) {
@@ -3759,10 +3759,10 @@ ice_get_module_eeprom(struct net_device *netdev,
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	bool is_sfp = false;
+	unsigned int i;
 	u16 offset = 0;
 	u8 value = 0;
 	u8 page = 0;
-	int i;
 
 	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0,
 				   &value, 1, 0, NULL);
