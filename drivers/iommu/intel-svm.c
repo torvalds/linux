@@ -501,11 +501,6 @@ intel_svm_bind_mm(struct device *dev, int flags, struct svm_dev_ops *ops,
 	}
 
 	info = get_domain_info(dev);
-	if (!info || !info->pasid_supported) {
-		kfree(sdev);
-		goto out;
-	}
-
 	sdev->did = FLPT_DEFAULT_DID;
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
 	if (info->ats_enabled) {
