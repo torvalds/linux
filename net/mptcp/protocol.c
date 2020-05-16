@@ -510,20 +510,6 @@ static int mptcp_sendmsg_frag(struct sock *sk, struct sock *ssk,
 	 * fooled into a warning if we don't init here
 	 */
 	pfrag = sk_page_frag(sk);
-	while ((!retransmission && !mptcp_page_frag_refill(ssk, pfrag)) ||
-	       !mptcp_ext_cache_refill(msk)) {
-		ret = sk_stream_wait_memory(ssk, timeo);
-		if (ret)
-			return ret;
-
-		/* if sk_stream_wait_memory() sleeps snd_una can change
-		 * significantly, refresh the rtx queue
-		 */
-		mptcp_clean_una(sk);
-
-		if (unlikely(__mptcp_needs_tcp_fallback(msk)))
-			return 0;
-	}
 	if (!retransmission) {
 		write_seq = &msk->write_seq;
 		page = pfrag->page;
