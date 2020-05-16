@@ -723,6 +723,10 @@ extern int intel_svm_finish_prq(struct intel_iommu *iommu);
 int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 			  struct iommu_gpasid_bind_data *data);
 int intel_svm_unbind_gpasid(struct device *dev, int pasid);
+struct iommu_sva *intel_svm_bind(struct device *dev, struct mm_struct *mm,
+				 void *drvdata);
+void intel_svm_unbind(struct iommu_sva *handle);
+int intel_svm_get_pasid(struct iommu_sva *handle);
 struct svm_dev_ops;
 
 struct intel_svm_dev {
@@ -730,6 +734,8 @@ struct intel_svm_dev {
 	struct rcu_head rcu;
 	struct device *dev;
 	struct svm_dev_ops *ops;
+	struct iommu_sva sva;
+	int pasid;
 	int users;
 	u16 did;
 	u16 dev_iotlb:1;

@@ -426,13 +426,15 @@ out:
 	return ret;
 }
 
-int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_ops *ops)
+/* Caller must hold pasid_mutex, mm reference */
+static int
+intel_svm_bind_mm(struct device *dev, int flags, struct svm_dev_ops *ops,
+		  struct mm_struct *mm, struct intel_svm_dev **sd)
 {
 	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
 	struct device_domain_info *info;
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm = NULL;
-	struct mm_struct *mm = NULL;
 	int pasid_max;
 	int ret;
 
@@ -449,16 +451,15 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	} else
 		pasid_max = 1 << 20;
 
+	/* Bind supervisor PASID shuld have mm = NULL */
 	if (flags & SVM_FLAG_SUPERVISOR_MODE) {
-		if (!ecap_srs(iommu->ecap))
+		if (!ecap_srs(iommu->ecap) || mm) {
+			pr_err("Supervisor PASID with user provided mm.\n");
 			return -EINVAL;
-	} else if (pasid) {
-		mm = get_task_mm(current);
-		BUG_ON(!mm);
+		}
 	}
 
-	mutex_lock(&pasid_mutex);
-	if (pasid && !(flags & SVM_FLAG_PRIVATE_PASID)) {
+	if (!(flags & SVM_FLAG_PRIVATE_PASID)) {
 		struct intel_svm *t;
 
 		list_for_each_entry(t, &global_svm_list, list) {
@@ -496,9 +497,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	sdev->dev = dev;
 
 	ret = intel_iommu_enable_pasid(iommu, dev);
-	if (ret || !pasid) {
-		/* If they don't actually want to assign a PASID, this is
-		 * just an enabling check/preparation. */
+	if (ret) {
 		kfree(sdev);
 		goto out;
 	}
@@ -597,18 +596,17 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		}
 	}
 	list_add_rcu(&sdev->list, &svm->devs);
-
- success:
-	*pasid = svm->pasid;
+success:
+	sdev->pasid = svm->pasid;
+	sdev->sva.dev = dev;
+	if (sd)
+		*sd = sdev;
 	ret = 0;
  out:
-	mutex_unlock(&pasid_mutex);
-	if (mm)
-		mmput(mm);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_svm_bind_mm);
 
+/* Caller must hold pasid_mutex */
 int intel_svm_unbind_mm(struct device *dev, int pasid)
 {
 	struct intel_svm_dev *sdev;
@@ -616,7 +614,6 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 	struct intel_svm *svm;
 	int ret = -EINVAL;
 
-	mutex_lock(&pasid_mutex);
 	iommu = intel_svm_device_to_iommu(dev);
 	if (!iommu)
 		goto out;
@@ -662,45 +659,9 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 		break;
 	}
  out:
-	mutex_unlock(&pasid_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_svm_unbind_mm);
-
-int intel_svm_is_pasid_valid(struct device *dev, int pasid)
-{
-	struct intel_iommu *iommu;
-	struct intel_svm *svm;
-	int ret = -EINVAL;
-
-	mutex_lock(&pasid_mutex);
-	iommu = intel_svm_device_to_iommu(dev);
-	if (!iommu)
-		goto out;
-
-	svm = ioasid_find(NULL, pasid, NULL);
-	if (!svm)
-		goto out;
-
-	if (IS_ERR(svm)) {
-		ret = PTR_ERR(svm);
-		goto out;
-	}
-	/* init_mm is used in this case */
-	if (!svm->mm)
-		ret = 1;
-	else if (atomic_read(&svm->mm->mm_users) > 0)
-		ret = 1;
-	else
-		ret = 0;
-
- out:
-	mutex_unlock(&pasid_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(intel_svm_is_pasid_valid);
 
 /* Page request queue descriptor */
 struct page_req_dsc {
@@ -893,4 +854,57 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	dmar_writeq(iommu->reg + DMAR_PQH_REG, tail);
 
 	return IRQ_RETVAL(handled);
+}
+
+#define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
+struct iommu_sva *
+intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
+{
+	struct iommu_sva *sva = ERR_PTR(-EINVAL);
+	struct intel_svm_dev *sdev = NULL;
+	int flags = 0;
+	int ret;
+
+	/*
+	 * TODO: Consolidate with generic iommu-sva bind after it is merged.
+	 * It will require shared SVM data structures, i.e. combine io_mm
+	 * and intel_svm etc.
+	 */
+	if (drvdata)
+		flags = *(int *)drvdata;
+	mutex_lock(&pasid_mutex);
+	ret = intel_svm_bind_mm(dev, flags, NULL, mm, &sdev);
+	if (ret)
+		sva = ERR_PTR(ret);
+	else if (sdev)
+		sva = &sdev->sva;
+	else
+		WARN(!sdev, "SVM bind succeeded with no sdev!\n");
+
+	mutex_unlock(&pasid_mutex);
+
+	return sva;
+}
+
+void intel_svm_unbind(struct iommu_sva *sva)
+{
+	struct intel_svm_dev *sdev;
+
+	mutex_lock(&pasid_mutex);
+	sdev = to_intel_svm_dev(sva);
+	intel_svm_unbind_mm(sdev->dev, sdev->pasid);
+	mutex_unlock(&pasid_mutex);
+}
+
+int intel_svm_get_pasid(struct iommu_sva *sva)
+{
+	struct intel_svm_dev *sdev;
+	int pasid;
+
+	mutex_lock(&pasid_mutex);
+	sdev = to_intel_svm_dev(sva);
+	pasid = sdev->pasid;
+	mutex_unlock(&pasid_mutex);
+
+	return pasid;
 }
