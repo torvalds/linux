@@ -1358,9 +1358,6 @@ config MIPS_L1_CACHE_SHIFT
 	default "4" if MIPS_L1_CACHE_SHIFT_4
 	default "5"
 
-config HAVE_STD_PC_SERIAL_PORT
-	bool
-
 config ARC_CMDLINE_ONLY
 	bool
 
