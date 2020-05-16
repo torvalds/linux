@@ -2895,8 +2895,9 @@ out:
 	return ret < 0 ? ret : changed;
 }
 
-void drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
-					struct drm_dp_mst_branch *mstb)
+static void
+drm_dp_send_clear_payload_id_table(struct drm_dp_mst_topology_mgr *mgr,
+				   struct drm_dp_mst_branch *mstb)
 {
 	struct drm_dp_sideband_msg_tx *txmsg;
 	int ret;
@@ -5443,7 +5444,7 @@ struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port)
 {
 	struct drm_dp_mst_port *immediate_upstream_port;
 	struct drm_dp_mst_port *fec_port;
-	struct drm_dp_desc desc = { 0 };
+	struct drm_dp_desc desc = {};
 	u8 endpoint_fec;
 	u8 endpoint_dsc;
 
