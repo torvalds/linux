@@ -463,6 +463,11 @@ int vnt_tx_context(struct vnt_private *priv,
 		return -ENODEV;
 	}
 
+	if (context->buf_len > MAX_TOTAL_SIZE_WITH_ALL_HEADERS) {
+		context->in_use = false;
+		return -E2BIG;
+	}
+
 	usb_fill_bulk_urb(urb,
 			  priv->usb,
 			  usb_sndbulkpipe(priv->usb, 3),
