@@ -17,6 +17,13 @@ struct mlxsw_sp_trap_policer_item {
 	u16 hw_id;
 };
 
+struct mlxsw_sp_trap_group_item {
+	struct devlink_trap_group group;
+	u16 hw_group_id;
+	u8 priority;
+	u8 tc;
+};
+
 /* All driver-specific traps must be documented in
  * Documentation/networking/devlink/mlxsw.rst
  */
@@ -188,11 +195,31 @@ mlxsw_sp_trap_policer_items_arr[] = {
 	},
 };
 
-static const struct devlink_trap_group mlxsw_sp_trap_groups_arr[] = {
-	DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
-	DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
+static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
+		.priority = 0,
+		.tc = 1,
+	},
 };
 
 static const struct devlink_trap mlxsw_sp_traps_arr[] = {
@@ -332,6 +359,20 @@ mlxsw_sp_trap_policer_item_lookup(struct mlxsw_sp *mlxsw_sp, u32 id)
 	return NULL;
 }
 
+static struct mlxsw_sp_trap_group_item *
+mlxsw_sp_trap_group_item_lookup(struct mlxsw_sp *mlxsw_sp, u16 id)
+{
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = 0; i < trap->groups_count; i++) {
+		if (trap->group_items_arr[i].group.id == id)
+			return &trap->group_items_arr[i];
+	}
+
+	return NULL;
+}
+
 static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 {
 	char qpcr_pl[MLXSW_REG_QPCR_LEN];
@@ -452,9 +493,57 @@ static void mlxsw_sp_trap_policers_fini(struct mlxsw_sp *mlxsw_sp)
 	mlxsw_sp_trap_policer_items_arr_fini(mlxsw_sp);
 }
 
+static int mlxsw_sp_trap_groups_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	const struct mlxsw_sp_trap_group_item *group_item;
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int err, i;
+
+	trap->group_items_arr = kmemdup(mlxsw_sp_trap_group_items_arr,
+					sizeof(mlxsw_sp_trap_group_items_arr),
+					GFP_KERNEL);
+	if (!trap->group_items_arr)
+		return -ENOMEM;
+
+	trap->groups_count = ARRAY_SIZE(mlxsw_sp_trap_group_items_arr);
+
+	for (i = 0; i < trap->groups_count; i++) {
+		group_item = &trap->group_items_arr[i];
+		err = devlink_trap_groups_register(devlink, &group_item->group,
+						   1);
+		if (err)
+			goto err_trap_group_register;
+	}
+
+	return 0;
+
+err_trap_group_register:
+	for (i--; i >= 0; i--) {
+		group_item = &trap->group_items_arr[i];
+		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
+	}
+	kfree(trap->group_items_arr);
+	return err;
+}
+
+static void mlxsw_sp_trap_groups_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
+	int i;
+
+	for (i = trap->groups_count - 1; i >= 0; i--) {
+		const struct mlxsw_sp_trap_group_item *group_item;
+
+		group_item = &trap->group_items_arr[i];
+		devlink_trap_groups_unregister(devlink, &group_item->group, 1);
+	}
+	kfree(trap->group_items_arr);
+}
+
 int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 {
-	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
@@ -474,10 +563,9 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	err = devlink_trap_groups_register(devlink, mlxsw_sp_trap_groups_arr,
-					   groups_count);
+	err = mlxsw_sp_trap_groups_init(mlxsw_sp);
 	if (err)
-		goto err_trap_groups_register;
+		goto err_trap_groups_init;
 
 	err = devlink_traps_register(devlink, mlxsw_sp_traps_arr,
 				     ARRAY_SIZE(mlxsw_sp_traps_arr), mlxsw_sp);
@@ -487,22 +575,19 @@ int mlxsw_sp_devlink_traps_init(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 
 err_traps_register:
-	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
-				       groups_count);
-err_trap_groups_register:
+	mlxsw_sp_trap_groups_fini(mlxsw_sp);
+err_trap_groups_init:
 	mlxsw_sp_trap_policers_fini(mlxsw_sp);
 	return err;
 }
 
 void mlxsw_sp_devlink_traps_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	size_t groups_count = ARRAY_SIZE(mlxsw_sp_trap_groups_arr);
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	devlink_traps_unregister(devlink, mlxsw_sp_traps_arr,
 				 ARRAY_SIZE(mlxsw_sp_traps_arr));
-	devlink_trap_groups_unregister(devlink, mlxsw_sp_trap_groups_arr,
-				       groups_count);
+	mlxsw_sp_trap_groups_fini(mlxsw_sp);
 	mlxsw_sp_trap_policers_fini(mlxsw_sp);
 }
 
@@ -582,33 +667,12 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
 	u16 hw_policer_id = MLXSW_REG_HTGT_INVALID_POLICER;
+	const struct mlxsw_sp_trap_group_item *group_item;
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
-	u8 priority, tc, group_id;
 
-	switch (group->id) {
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_TUNNEL_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	case DEVLINK_TRAP_GROUP_GENERIC_ID_ACL_DROPS:
-		group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS;
-		priority = 0;
-		tc = 1;
-		break;
-	default:
+	group_item = mlxsw_sp_trap_group_item_lookup(mlxsw_sp, group->id);
+	if (WARN_ON(!group_item))
 		return -EINVAL;
-	}
 
 	if (policer_id) {
 		struct mlxsw_sp_trap_policer_item *policer_item;
@@ -620,7 +684,8 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 		hw_policer_id = policer_item->hw_id;
 	}
 
-	mlxsw_reg_htgt_pack(htgt_pl, group_id, hw_policer_id, priority, tc);
+	mlxsw_reg_htgt_pack(htgt_pl, group_item->hw_group_id, hw_policer_id,
+			    group_item->priority, group_item->tc);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 

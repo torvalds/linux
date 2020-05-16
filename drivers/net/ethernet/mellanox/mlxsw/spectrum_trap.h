@@ -10,6 +10,10 @@
 struct mlxsw_sp_trap {
 	struct mlxsw_sp_trap_policer_item *policer_items_arr;
 	u64 policers_count; /* Number of registered policers */
+
+	struct mlxsw_sp_trap_group_item *group_items_arr;
+	u64 groups_count; /* Number of registered groups */
+
 	u64 max_policers;
 	unsigned long policers_usage[]; /* Usage bitmap */
 };
