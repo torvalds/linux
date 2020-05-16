@@ -3295,7 +3295,6 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		     __be16 vlan_proto)
 {
 	struct ice_pf *pf = ice_netdev_to_pf(netdev);
-	struct ice_vsi *vsi;
 	struct device *dev;
 	struct ice_vf *vf;
 	u16 vlanprio;
@@ -3317,8 +3316,6 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 	}
 
 	vf = &pf->vf[vf_id];
-	vsi = pf->vsi[vf->lan_vsi_idx];
-
 	ret = ice_check_vf_ready_for_cfg(vf);
 	if (ret)
 		return ret;
@@ -3331,44 +3328,15 @@ ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
 		return 0;
 	}
 
-	if (vlan_id || qos) {
-		/* remove VLAN 0 filter set by default when transitioning from
-		 * no port VLAN to a port VLAN. No change to old port VLAN on
-		 * failure.
-		 */
-		ret = ice_vsi_kill_vlan(vsi, 0);
-		if (ret)
-			return ret;
-		ret = ice_vsi_manage_pvid(vsi, vlanprio, true);
-		if (ret)
-			return ret;
-	} else {
-		/* add VLAN 0 filter back when transitioning from port VLAN to
-		 * no port VLAN. No change to old port VLAN on failure.
-		 */
-		ret = ice_vsi_add_vlan(vsi, 0, ICE_FWD_TO_VSI);
-		if (ret)
-			return ret;
-		ret = ice_vsi_manage_pvid(vsi, 0, false);
-		if (ret)
-			return ret;
-	}
+	vf->port_vlan_info = vlanprio;
 
-	if (vlan_id) {
+	if (vf->port_vlan_info)
 		dev_info(dev, "Setting VLAN %d, QoS 0x%x on VF %d\n",
 			 vlan_id, qos, vf_id);
+	else
+		dev_info(dev, "Clearing port VLAN on VF %d\n", vf_id);
 
-		/* add VLAN filter for the port VLAN */
-		ret = ice_vsi_add_vlan(vsi, vlan_id, ICE_FWD_TO_VSI);
-		if (ret)
-			return ret;
-	}
-	/* remove old port VLAN filter with valid VLAN ID or QoS fields */
-	if (vf->port_vlan_info)
-		ice_vsi_kill_vlan(vsi, vf->port_vlan_info & VLAN_VID_MASK);
-
-	/* keep port VLAN information persistent on resets */
-	vf->port_vlan_info = le16_to_cpu(vsi->info.pvid);
+	ice_vc_reset_vf(vf);
 
 	return 0;
 }
