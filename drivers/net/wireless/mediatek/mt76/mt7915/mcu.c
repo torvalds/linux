@@ -2671,7 +2671,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level)
 		u16 len;
 		u8 level;
 		u8 rsv[3];
-		u32 module_idx;
+		__le32 module_idx;
 	} data = {
 		.module_idx = cpu_to_le32(module),
 		.level = level,
