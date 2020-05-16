@@ -12,6 +12,7 @@ do {								\
 	(qinfo)->sq.bal = prefix##_ATQBAL;			\
 	(qinfo)->sq.len_mask = prefix##_ATQLEN_ATQLEN_M;	\
 	(qinfo)->sq.len_ena_mask = prefix##_ATQLEN_ATQENABLE_M;	\
+	(qinfo)->sq.len_crit_mask = prefix##_ATQLEN_ATQCRIT_M;	\
 	(qinfo)->sq.head_mask = prefix##_ATQH_ATQH_M;		\
 	(qinfo)->rq.head = prefix##_ARQH;			\
 	(qinfo)->rq.tail = prefix##_ARQT;			\
@@ -20,6 +21,7 @@ do {								\
 	(qinfo)->rq.bal = prefix##_ARQBAL;			\
 	(qinfo)->rq.len_mask = prefix##_ARQLEN_ARQLEN_M;	\
 	(qinfo)->rq.len_ena_mask = prefix##_ARQLEN_ARQENABLE_M;	\
+	(qinfo)->rq.len_crit_mask = prefix##_ARQLEN_ARQCRIT_M;	\
 	(qinfo)->rq.head_mask = prefix##_ARQH_ARQH_M;		\
 } while (0)
 
@@ -642,72 +644,6 @@ init_ctrlq_free_sq:
 }
 
 /**
- * ice_init_all_ctrlq - main initialization routine for all control queues
- * @hw: pointer to the hardware structure
- *
- * Prior to calling this function, the driver MUST* set the following fields
- * in the cq->structure for all control queues:
- *     - cq->num_sq_entries
- *     - cq->num_rq_entries
- *     - cq->rq_buf_size
- *     - cq->sq_buf_size
- *
- * NOTE: this function does not initialize the controlq locks.
- */
-enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
-{
-	enum ice_status ret_code;
-
-	/* Init FW admin queue */
-	ret_code = ice_init_ctrlq(hw, ICE_CTL_Q_ADMIN);
-	if (ret_code)
-		return ret_code;
-
-	ret_code = ice_init_check_adminq(hw);
-	if (ret_code)
-		return ret_code;
-
-	/* Init Mailbox queue */
-	return ice_init_ctrlq(hw, ICE_CTL_Q_MAILBOX);
-}
-
-/**
- * ice_init_ctrlq_locks - Initialize locks for a control queue
- * @cq: pointer to the control queue
- *
- * Initializes the send and receive queue locks for a given control queue.
- */
-static void ice_init_ctrlq_locks(struct ice_ctl_q_info *cq)
-{
-	mutex_init(&cq->sq_lock);
-	mutex_init(&cq->rq_lock);
-}
-
-/**
- * ice_create_all_ctrlq - main initialization routine for all control queues
- * @hw: pointer to the hardware structure
- *
- * Prior to calling this function, the driver *MUST* set the following fields
- * in the cq->structure for all control queues:
- *     - cq->num_sq_entries
- *     - cq->num_rq_entries
- *     - cq->rq_buf_size
- *     - cq->sq_buf_size
- *
- * This function creates all the control queue locks and then calls
- * ice_init_all_ctrlq. It should be called once during driver load. If the
- * driver needs to re-initialize control queues at run time it should call
- * ice_init_all_ctrlq instead.
- */
-enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
-{
-	ice_init_ctrlq_locks(&hw->adminq);
-	ice_init_ctrlq_locks(&hw->mailboxq);
-
-	return ice_init_all_ctrlq(hw);
-}
-
-/**
  * ice_shutdown_ctrlq - shutdown routine for any control queue
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
@@ -749,6 +685,82 @@ void ice_shutdown_all_ctrlq(struct ice_hw *hw)
 	ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
 	/* Shutdown PF-VF Mailbox */
 	ice_shutdown_ctrlq(hw, ICE_CTL_Q_MAILBOX);
+}
+
+/**
+ * ice_init_all_ctrlq - main initialization routine for all control queues
+ * @hw: pointer to the hardware structure
+ *
+ * Prior to calling this function, the driver MUST* set the following fields
+ * in the cq->structure for all control queues:
+ *     - cq->num_sq_entries
+ *     - cq->num_rq_entries
+ *     - cq->rq_buf_size
+ *     - cq->sq_buf_size
+ *
+ * NOTE: this function does not initialize the controlq locks.
+ */
+enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
+{
+	enum ice_status status;
+	u32 retry = 0;
+
+	/* Init FW admin queue */
+	do {
+		status = ice_init_ctrlq(hw, ICE_CTL_Q_ADMIN);
+		if (status)
+			return status;
+
+		status = ice_init_check_adminq(hw);
+		if (status != ICE_ERR_AQ_FW_CRITICAL)
+			break;
+
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "Retry Admin Queue init due to FW critical error\n");
+		ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
+		msleep(ICE_CTL_Q_ADMIN_INIT_MSEC);
+	} while (retry++ < ICE_CTL_Q_ADMIN_INIT_TIMEOUT);
+
+	if (status)
+		return status;
+	/* Init Mailbox queue */
+	return ice_init_ctrlq(hw, ICE_CTL_Q_MAILBOX);
+}
+
+/**
+ * ice_init_ctrlq_locks - Initialize locks for a control queue
+ * @cq: pointer to the control queue
+ *
+ * Initializes the send and receive queue locks for a given control queue.
+ */
+static void ice_init_ctrlq_locks(struct ice_ctl_q_info *cq)
+{
+	mutex_init(&cq->sq_lock);
+	mutex_init(&cq->rq_lock);
+}
+
+/**
+ * ice_create_all_ctrlq - main initialization routine for all control queues
+ * @hw: pointer to the hardware structure
+ *
+ * Prior to calling this function, the driver *MUST* set the following fields
+ * in the cq->structure for all control queues:
+ *     - cq->num_sq_entries
+ *     - cq->num_rq_entries
+ *     - cq->rq_buf_size
+ *     - cq->sq_buf_size
+ *
+ * This function creates all the control queue locks and then calls
+ * ice_init_all_ctrlq. It should be called once during driver load. If the
+ * driver needs to re-initialize control queues at run time it should call
+ * ice_init_all_ctrlq instead.
+ */
+enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
+{
+	ice_init_ctrlq_locks(&hw->adminq);
+	ice_init_ctrlq_locks(&hw->mailboxq);
+
+	return ice_init_all_ctrlq(hw);
 }
 
 /**
@@ -1049,9 +1061,15 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	/* update the error if time out occurred */
 	if (!cmd_completed) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Send Queue Writeback timeout.\n");
-		status = ICE_ERR_AQ_TIMEOUT;
+		if (rd32(hw, cq->rq.len) & cq->rq.len_crit_mask ||
+		    rd32(hw, cq->sq.len) & cq->sq.len_crit_mask) {
+			ice_debug(hw, ICE_DBG_AQ_MSG, "Critical FW error.\n");
+			status = ICE_ERR_AQ_FW_CRITICAL;
+		} else {
+			ice_debug(hw, ICE_DBG_AQ_MSG,
+				  "Control Send Queue Writeback timeout.\n");
+			status = ICE_ERR_AQ_TIMEOUT;
+		}
 	}
 
 sq_send_command_error:

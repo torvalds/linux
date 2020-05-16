@@ -5207,6 +5207,8 @@ const char *ice_stat_str(enum ice_status stat_err)
 		return "ICE_ERR_AQ_NO_WORK";
 	case ICE_ERR_AQ_EMPTY:
 		return "ICE_ERR_AQ_EMPTY";
+	case ICE_ERR_AQ_FW_CRITICAL:
+		return "ICE_ERR_AQ_FW_CRITICAL";
 	}
 
 	return "ICE_ERR_UNKNOWN";

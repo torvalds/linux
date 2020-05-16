@@ -37,6 +37,7 @@ enum ice_status {
 	ICE_ERR_AQ_FULL				= -102,
 	ICE_ERR_AQ_NO_WORK			= -103,
 	ICE_ERR_AQ_EMPTY			= -104,
+	ICE_ERR_AQ_FW_CRITICAL			= -105,
 };
 
 #endif /* _ICE_STATUS_H_ */
