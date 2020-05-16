@@ -684,8 +684,9 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	beacon_buffer = (struct vnt_beacon_buffer *)&context->data[0];
-	short_head = &beacon_buffer->short_head;
+	mgmt_hdr = (struct ieee80211_mgmt *)skb->data;
+	short_head = skb_push(skb, sizeof(*short_head));
+	count = skb->len;
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		current_rate = RATE_6M;
@@ -710,10 +711,6 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 			vnt_time_stamp_off(priv, current_rate);
 	}
 
-	/* Generate Beacon Header */
-	mgmt_hdr = &beacon_buffer->mgmt_hdr;
-	memcpy(mgmt_hdr, skb->data, skb->len);
-
 	/* Get Duration */
 	short_head->duration = mgmt_hdr->duration;
 
@@ -732,15 +729,14 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	if (priv->seq_counter > 0x0fff)
 		priv->seq_counter = 0;
 
-	count = sizeof(struct vnt_tx_short_buf_head) + skb->len;
-
-	beacon_buffer->tx_byte_count = cpu_to_le16(count);
-	beacon_buffer->pkt_no = context->pkt_no;
-	beacon_buffer->type = 0x01;
+	beacon_buffer = skb_push(skb, sizeof(struct vnt_tx_usb_header));
+	beacon_buffer->usb.tx_byte_count = cpu_to_le16(count);
+	beacon_buffer->usb.pkt_no = context->pkt_no;
+	beacon_buffer->usb.type = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;
-	context->tx_buffer = &context->data;
-	context->buf_len = count + 4; /* USB header */
+	context->tx_buffer = beacon_buffer;
+	context->buf_len = skb->len;
 
 	spin_lock_irqsave(&priv->lock, flags);
 

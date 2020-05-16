@@ -180,11 +180,8 @@ struct vnt_tx_short_buf_head {
 } __packed;
 
 struct vnt_beacon_buffer {
-	u8 type;
-	u8 pkt_no;
-	__le16 tx_byte_count;
+	struct vnt_tx_usb_header usb;
 	struct vnt_tx_short_buf_head short_head;
-	struct ieee80211_mgmt mgmt_hdr;
 } __packed;
 
 int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb);
