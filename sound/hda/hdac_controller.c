@@ -9,6 +9,7 @@
 #include <sound/core.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_register.h>
+#include "local.h"
 
 /* clear CORB read pointer properly */
 static void azx_clear_corbrp(struct hdac_bus *bus)

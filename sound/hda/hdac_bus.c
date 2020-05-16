@@ -81,7 +81,6 @@ int snd_hdac_bus_exec_verb(struct hdac_bus *bus, unsigned int addr,
 	mutex_unlock(&bus->cmd_mutex);
 	return err;
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_exec_verb);
 
 /**
  * snd_hdac_bus_exec_verb_unlocked - unlocked version
@@ -150,7 +149,6 @@ void snd_hdac_bus_queue_event(struct hdac_bus *bus, u32 res, u32 res_ex)
 
 	schedule_work(&bus->unsol_work);
 }
-EXPORT_SYMBOL_GPL(snd_hdac_bus_queue_event);
 
 /*
  * process queued unsolicited events
