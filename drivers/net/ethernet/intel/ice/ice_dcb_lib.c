@@ -791,39 +791,31 @@ void ice_update_dcb_stats(struct ice_pf *pf)
  * ice_tx_prepare_vlan_flags_dcb - prepare VLAN tagging for DCB
  * @tx_ring: ring to send buffer on
  * @first: pointer to struct ice_tx_buf
+ *
+ * This should not be called if the outer VLAN is software offloaded as the VLAN
+ * tag will already be configured with the correct ID and priority bits
  */
-int
+void
 ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 			      struct ice_tx_buf *first)
 {
 	struct sk_buff *skb = first->skb;
 
 	if (!test_bit(ICE_FLAG_DCB_ENA, tx_ring->vsi->back->flags))
-		return 0;
+		return;
 
 	/* Insert 802.1p priority into VLAN header */
-	if ((first->tx_flags & (ICE_TX_FLAGS_HW_VLAN | ICE_TX_FLAGS_SW_VLAN)) ||
+	if ((first->tx_flags & ICE_TX_FLAGS_HW_VLAN) ||
 	    skb->priority != TC_PRIO_CONTROL) {
 		first->tx_flags &= ~ICE_TX_FLAGS_VLAN_PR_M;
 		/* Mask the lower 3 bits to set the 802.1p priority */
 		first->tx_flags |= (skb->priority & 0x7) <<
 				   ICE_TX_FLAGS_VLAN_PR_S;
-		if (first->tx_flags & ICE_TX_FLAGS_SW_VLAN) {
-			struct vlan_ethhdr *vhdr;
-			int rc;
-
-			rc = skb_cow_head(skb, 0);
-			if (rc < 0)
-				return rc;
-			vhdr = (struct vlan_ethhdr *)skb->data;
-			vhdr->h_vlan_TCI = htons(first->tx_flags >>
-						 ICE_TX_FLAGS_VLAN_S);
-		} else {
-			first->tx_flags |= ICE_TX_FLAGS_HW_VLAN;
-		}
+		/* if this is not already set it means a VLAN 0 + priority needs
+		 * to be offloaded
+		 */
+		first->tx_flags |= ICE_TX_FLAGS_HW_VLAN;
 	}
-
-	return 0;
 }
 
 /**
