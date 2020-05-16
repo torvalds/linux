@@ -372,15 +372,6 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	if (phy)
 		return 0;
 
-	INIT_DELAYED_WORK(&phy->mac_work, mt7615_mac_work);
-	INIT_DELAYED_WORK(&phy->scan_work, mt7615_scan_work);
-	skb_queue_head_init(&phy->scan_event_list);
-
-	INIT_WORK(&phy->ps_work, mt7615_ps_work);
-	INIT_WORK(&phy->roc_work, mt7615_roc_work);
-	timer_setup(&phy->roc_timer, mt7615_roc_timer, 0);
-	init_waitqueue_head(&phy->roc_wait);
-
 	mt7615_cap_dbdc_enable(dev);
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops);
 	if (!mphy)
@@ -392,6 +383,15 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
 	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
 	mt7615_init_wiphy(mphy->hw);
+
+	INIT_DELAYED_WORK(&phy->mac_work, mt7615_mac_work);
+	INIT_DELAYED_WORK(&phy->scan_work, mt7615_scan_work);
+	skb_queue_head_init(&phy->scan_event_list);
+
+	INIT_WORK(&phy->ps_work, mt7615_ps_work);
+	INIT_WORK(&phy->roc_work, mt7615_roc_work);
+	timer_setup(&phy->roc_timer, mt7615_roc_timer, 0);
+	init_waitqueue_head(&phy->roc_wait);
 
 	mt7615_mac_set_scs(phy, true);
 
