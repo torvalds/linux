@@ -367,8 +367,10 @@ static void mptcp_stop_timer(struct sock *sk)
 
 static bool mptcp_ext_cache_refill(struct mptcp_sock *msk)
 {
+	const struct sock *sk = (const struct sock *)msk;
+
 	if (!msk->cached_ext)
-		msk->cached_ext = __skb_ext_alloc();
+		msk->cached_ext = __skb_ext_alloc(sk->sk_allocation);
 
 	return !!msk->cached_ext;
 }

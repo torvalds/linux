@@ -6087,13 +6087,15 @@ static void *skb_ext_get_ptr(struct skb_ext *ext, enum skb_ext_id id)
 /**
  * __skb_ext_alloc - allocate a new skb extensions storage
  *
+ * @flags: See kmalloc().
+ *
  * Returns the newly allocated pointer. The pointer can later attached to a
  * skb via __skb_ext_set().
  * Note: caller must handle the skb_ext as an opaque data.
  */
-struct skb_ext *__skb_ext_alloc(void)
+struct skb_ext *__skb_ext_alloc(gfp_t flags)
 {
-	struct skb_ext *new = kmem_cache_alloc(skbuff_ext_cache, GFP_ATOMIC);
+	struct skb_ext *new = kmem_cache_alloc(skbuff_ext_cache, flags);
 
 	if (new) {
 		memset(new->offset, 0, sizeof(new->offset));
@@ -6188,7 +6190,7 @@ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
 	} else {
 		newoff = SKB_EXT_CHUNKSIZEOF(*new);
 
-		new = __skb_ext_alloc();
+		new = __skb_ext_alloc(GFP_ATOMIC);
 		if (!new)
 			return NULL;
 	}
