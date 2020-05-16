@@ -653,6 +653,15 @@ out:
 	return ret;
 }
 
+static void mptcp_nospace(struct mptcp_sock *msk, struct socket *sock)
+{
+	clear_bit(MPTCP_SEND_SPACE, &msk->flags);
+	smp_mb__after_atomic(); /* msk->flags is changed by write_space cb */
+
+	/* enables sk->write_space() callbacks */
+	set_bit(SOCK_NOSPACE, &sock->flags);
+}
+
 static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 {
 	struct mptcp_subflow_context *subflow;
@@ -666,13 +675,8 @@ static struct sock *mptcp_subflow_get_send(struct mptcp_sock *msk)
 		if (!sk_stream_memory_free(ssk)) {
 			struct socket *sock = ssk->sk_socket;
 
-			if (sock) {
-				clear_bit(MPTCP_SEND_SPACE, &msk->flags);
-				smp_mb__after_atomic();
-
-				/* enables sk->write_space() callbacks */
-				set_bit(SOCK_NOSPACE, &sock->flags);
-			}
+			if (sock)
+				mptcp_nospace(msk, sock);
 
 			return NULL;
 		}
@@ -698,13 +702,8 @@ static void ssk_check_wmem(struct mptcp_sock *msk, struct sock *ssk)
 		return;
 
 	sock = READ_ONCE(ssk->sk_socket);
-
-	if (sock) {
-		clear_bit(MPTCP_SEND_SPACE, &msk->flags);
-		smp_mb__after_atomic();
-		/* set NOSPACE only after clearing SEND_SPACE flag */
-		set_bit(SOCK_NOSPACE, &sock->flags);
-	}
+	if (sock)
+		mptcp_nospace(msk, sock);
 }
 
 static int mptcp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
