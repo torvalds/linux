@@ -2772,11 +2772,8 @@ static int io_splice(struct io_kiocb *req, bool force_nonblock)
 	poff_in = (sp->off_in == -1) ? NULL : &sp->off_in;
 	poff_out = (sp->off_out == -1) ? NULL : &sp->off_out;
 
-	if (sp->len) {
+	if (sp->len)
 		ret = do_splice(in, poff_in, out, poff_out, sp->len, flags);
-		if (force_nonblock && ret == -EAGAIN)
-			return -EAGAIN;
-	}
 
 	io_put_file(req, in, (sp->flags & SPLICE_F_FD_IN_FIXED));
 	req->flags &= ~REQ_F_NEED_CLEANUP;
