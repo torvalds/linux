@@ -626,7 +626,6 @@ struct io_kiocb {
 
 	struct io_async_ctx		*io;
 	int				cflags;
-	bool				needs_fixed_file;
 	u8				opcode;
 
 	struct io_ring_ctx	*ctx;
@@ -890,6 +889,11 @@ struct sock *io_uring_get_socket(struct file *file)
 EXPORT_SYMBOL(io_uring_get_socket);
 
 static void io_file_put_work(struct work_struct *work);
+
+static inline bool io_async_submit(struct io_ring_ctx *ctx)
+{
+	return ctx->flags & IORING_SETUP_SQPOLL;
+}
 
 static void io_ring_ctx_ref_free(struct percpu_ref *ref)
 {
@@ -5484,7 +5488,7 @@ static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
 	bool fixed;
 
 	fixed = (req->flags & REQ_F_FIXED_FILE) != 0;
-	if (unlikely(!fixed && req->needs_fixed_file))
+	if (unlikely(!fixed && io_async_submit(req->ctx)))
 		return -EBADF;
 
 	return io_file_get(state, req, fd, &req->file, fixed);
@@ -5857,7 +5861,7 @@ static inline void io_consume_sqe(struct io_ring_ctx *ctx)
 
 static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		       const struct io_uring_sqe *sqe,
-		       struct io_submit_state *state, bool async)
+		       struct io_submit_state *state)
 {
 	unsigned int sqe_flags;
 	int id;
@@ -5878,7 +5882,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	refcount_set(&req->refs, 2);
 	req->task = NULL;
 	req->result = 0;
-	req->needs_fixed_file = async;
 	INIT_IO_WORK(&req->work, io_wq_submit_work);
 
 	if (unlikely(req->opcode >= IORING_OP_LAST))
@@ -5919,7 +5922,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 }
 
 static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
-			  struct file *ring_file, int ring_fd, bool async)
+			  struct file *ring_file, int ring_fd)
 {
 	struct io_submit_state state, *statep = NULL;
 	struct io_kiocb *link = NULL;
@@ -5963,7 +5966,7 @@ static int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr,
 			break;
 		}
 
-		err = io_init_req(ctx, req, sqe, statep, async);
+		err = io_init_req(ctx, req, sqe, statep);
 		io_consume_sqe(ctx);
 		/* will complete beyond this point, count as submitted */
 		submitted++;
@@ -5976,7 +5979,7 @@ fail_req:
 		}
 
 		trace_io_uring_submit_sqe(ctx, req->opcode, req->user_data,
-						true, async);
+						true, io_async_submit(ctx));
 		err = io_submit_sqe(req, sqe, &link);
 		if (err)
 			goto fail_req;
@@ -6115,7 +6118,7 @@ static int io_sq_thread(void *data)
 		}
 
 		mutex_lock(&ctx->uring_lock);
-		ret = io_submit_sqes(ctx, to_submit, NULL, -1, true);
+		ret = io_submit_sqes(ctx, to_submit, NULL, -1);
 		mutex_unlock(&ctx->uring_lock);
 		timeout = jiffies + ctx->sq_thread_idle;
 	}
@@ -7623,7 +7626,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		submitted = to_submit;
 	} else if (to_submit) {
 		mutex_lock(&ctx->uring_lock);
-		submitted = io_submit_sqes(ctx, to_submit, f.file, fd, false);
+		submitted = io_submit_sqes(ctx, to_submit, f.file, fd);
 		mutex_unlock(&ctx->uring_lock);
 
 		if (submitted != to_submit)
