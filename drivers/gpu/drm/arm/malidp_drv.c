@@ -657,20 +657,11 @@ static ssize_t core_id_show(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR_RO(core_id);
 
-static int malidp_init_sysfs(struct device *dev)
-{
-	int ret = device_create_file(dev, &dev_attr_core_id);
-
-	if (ret)
-		DRM_ERROR("failed to create device file for core_id\n");
-
-	return ret;
-}
-
-static void malidp_fini_sysfs(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_core_id);
-}
+static struct attribute *mali_dp_attrs[] = {
+	&dev_attr_core_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mali_dp);
 
 #define MAX_OUTPUT_CHANNELS	3
 
@@ -832,10 +823,6 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto query_hw_fail;
 
-	ret = malidp_init_sysfs(dev);
-	if (ret)
-		goto init_fail;
-
 	/* Set the CRTC's port so that the encoder component can find it */
 	malidp->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
 
@@ -893,8 +880,6 @@ irq_init_fail:
 bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-init_fail:
-	malidp_fini_sysfs(dev);
 	malidp_fini(drm);
 query_hw_fail:
 	pm_runtime_put(dev);
@@ -927,7 +912,6 @@ static void malidp_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	malidp_fini_sysfs(dev);
 	malidp_fini(drm);
 	pm_runtime_put(dev);
 	if (pm_runtime_enabled(dev))
@@ -1023,6 +1007,7 @@ static struct platform_driver malidp_platform_driver = {
 		.name = "mali-dp",
 		.pm = &malidp_pm_ops,
 		.of_match_table	= malidp_drm_of_match,
+		.dev_groups = mali_dp_groups,
 	},
 };
 
