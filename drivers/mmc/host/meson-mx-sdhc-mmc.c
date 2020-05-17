@@ -586,10 +586,17 @@ static irqreturn_t meson_mx_sdhc_irq_thread(int irq, void *irq_data)
 		    cmd->data->flags & MMC_DATA_READ) {
 			meson_mx_sdhc_wait_cmd_ready(host->mmc);
 
+			/*
+			 * If MESON_SDHC_PDMA_RXFIFO_MANUAL_FLUSH was
+			 * previously 0x1 then it has to be set to 0x3. If it
+			 * was 0x0 before then it has to be set to 0x2. Without
+			 * this reading SD cards sometimes transfers garbage,
+			 * which results in cards not being detected due to:
+			 *   unrecognised SCR structure version <random number>
+			 */
 			val = FIELD_PREP(MESON_SDHC_PDMA_RXFIFO_MANUAL_FLUSH,
 					 2);
-			regmap_update_bits(host->regmap, MESON_SDHC_PDMA,
-					   MESON_SDHC_PDMA_RXFIFO_MANUAL_FLUSH,
+			regmap_update_bits(host->regmap, MESON_SDHC_PDMA, val,
 					   val);
 		}
 
