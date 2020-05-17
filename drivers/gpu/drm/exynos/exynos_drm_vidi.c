@@ -214,6 +214,12 @@ static ssize_t vidi_store_connection(struct device *dev,
 static DEVICE_ATTR(connection, 0644, vidi_show_connection,
 			vidi_store_connection);
 
+static struct attribute *vidi_attrs[] = {
+	&dev_attr_connection.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(vidi);
+
 int vidi_connection_ioctl(struct drm_device *drm_dev, void *data,
 				struct drm_file *file_priv)
 {
@@ -439,7 +445,6 @@ static int vidi_probe(struct platform_device *pdev)
 {
 	struct vidi_context *ctx;
 	struct device *dev = &pdev->dev;
-	int ret;
 
 	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
@@ -453,23 +458,7 @@ static int vidi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = device_create_file(dev, &dev_attr_connection);
-	if (ret < 0) {
-		DRM_DEV_ERROR(dev,
-			      "failed to create connection sysfs.\n");
-		return ret;
-	}
-
-	ret = component_add(dev, &vidi_component_ops);
-	if (ret)
-		goto err_remove_file;
-
-	return ret;
-
-err_remove_file:
-	device_remove_file(dev, &dev_attr_connection);
-
-	return ret;
+	return component_add(dev, &vidi_component_ops);
 }
 
 static int vidi_remove(struct platform_device *pdev)
@@ -494,5 +483,6 @@ struct platform_driver vidi_driver = {
 	.driver		= {
 		.name	= "exynos-drm-vidi",
 		.owner	= THIS_MODULE,
+		.dev_groups = vidi_groups,
 	},
 };
