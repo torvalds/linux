@@ -5843,8 +5843,12 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		soft_reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_dec_event_to_tpc_id(event_type),
 					"AXI_SLV_DEC_Error");
-		if (soft_reset_required)
+		if (soft_reset_required) {
+			dev_err_ratelimited(hdev->dev,
+					"soft reset required due to %s\n",
+					gaudi_irq_map_table[event_type].name);
 			hl_device_reset(hdev, false, false);
+		}
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
@@ -5860,8 +5864,12 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 		soft_reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_krn_event_to_tpc_id(event_type),
 					"KRN_ERR");
-		if (soft_reset_required)
+		if (soft_reset_required) {
+			dev_err_ratelimited(hdev->dev,
+					"soft reset required due to %s\n",
+					gaudi_irq_map_table[event_type].name);
 			hl_device_reset(hdev, false, false);
+		}
 		hl_fw_unmask_irq(hdev, event_type);
 		break;
 
