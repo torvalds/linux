@@ -227,7 +227,7 @@ int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 
 	status = ql_sem_spinlock(qdev, SEM_ICB_MASK);
 	if (status)
-		return status;
+		goto lock_failed;
 
 	status = ql_wait_cfg(qdev, bit);
 	if (status) {
@@ -249,6 +249,7 @@ int ql_write_cfg(struct ql_adapter *qdev, void *ptr, int size, u32 bit,
 	status = ql_wait_cfg(qdev, bit);
 exit:
 	ql_sem_unlock(qdev, SEM_ICB_MASK);	/* does flush too */
+lock_failed:
 	dma_unmap_single(&qdev->pdev->dev, map, size, direction);
 	return status;
 }
