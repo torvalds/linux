@@ -5915,9 +5915,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	}
 
 	/* same numerical values with corresponding REQ_F_*, safe to copy */
-	req->flags |= sqe_flags & (IOSQE_IO_DRAIN | IOSQE_IO_HARDLINK |
-					IOSQE_ASYNC | IOSQE_FIXED_FILE |
-					IOSQE_BUFFER_SELECT | IOSQE_IO_LINK);
+	req->flags |= sqe_flags;
 
 	if (!io_op_defs[req->opcode].needs_file)
 		return 0;
