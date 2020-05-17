@@ -965,7 +965,7 @@ ipv6_compat_mode()
 	log_test $? 0 "IPv6 compat mode on - route add notification"
 
 	# route dump should contain expanded nexthops
-	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024 pref medium nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop via 2001:db8:91::3 dev veth1 weight 1"
+	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024 nexthop via 2001:db8:91::2 dev veth1 weight 1 nexthop via 2001:db8:91::3 dev veth1 weight 1"
 	log_test $? 0 "IPv6 compat mode on - route dump"
 
 	# change in nexthop group should generate route notification
@@ -992,7 +992,7 @@ ipv6_compat_mode()
 	log_test $? 0 "IPv6 compat mode off - route add notification"
 
 	# route dump should not contain expanded nexthops
-	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024 pref medium"
+	check_route6 "2001:db8:101::1" "2001:db8:101::1 nhid 122 metric 1024"
 	log_test $? 0 "IPv6 compat mode off - route dump"
 
 	# change in nexthop group should not generate route notification
