@@ -53,7 +53,7 @@ static int meson_mx_sdhc_clk_hw_register(struct device *dev,
 					 const struct clk_ops *ops,
 					 struct clk_hw *hw)
 {
-	struct clk_init_data init = { 0 };
+	struct clk_init_data init = { };
 	char clk_name[32];
 
 	snprintf(clk_name, sizeof(clk_name), "%s#%s", dev_name(dev),
@@ -84,7 +84,7 @@ static int meson_mx_sdhc_gate_clk_hw_register(struct device *dev,
 int meson_mx_sdhc_register_clkc(struct device *dev, void __iomem *base,
 				struct clk_bulk_data *clk_bulk_data)
 {
-	struct clk_parent_data div_parent = { 0 };
+	struct clk_parent_data div_parent = { };
 	struct meson_mx_sdhc_clkc *clkc_data;
 	int ret;
 
