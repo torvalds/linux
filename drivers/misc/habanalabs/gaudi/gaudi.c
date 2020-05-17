@@ -5982,15 +5982,17 @@ static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
 	/* L0 & L1 invalidation */
-	WREG32(mmSTLB_INV_ALL_START, 1);
+	WREG32(mmSTLB_INV_PS, 2);
 
 	rc = hl_poll_timeout(
 		hdev,
-		mmSTLB_INV_ALL_START,
+		mmSTLB_INV_PS,
 		status,
 		!status,
 		1000,
 		timeout_usec);
+
+	WREG32(mmSTLB_INV_SET, 0);
 
 	if (rc)
 		dev_notice_ratelimited(hdev->dev,
