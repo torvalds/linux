@@ -206,6 +206,7 @@ static int integrator_impd1_clk_spawn(struct device *dev,
 		return -ENODEV;
 	}
 
+	of_property_read_string(np, "clock-output-names", &name);
 	parent_name = of_clk_get_parent_name(np, 0);
 	clk = icst_clk_setup(NULL, desc, name, parent_name, map,
 			     ICST_INTEGRATOR_IM_PD1);
