@@ -1999,15 +1999,19 @@ static void io_iopoll_req_issued(struct io_kiocb *req)
 		wake_up(&ctx->sqo_wait);
 }
 
-static void io_file_put(struct io_submit_state *state)
+static void __io_state_file_put(struct io_submit_state *state)
 {
-	if (state->file) {
-		int diff = state->has_refs - state->used_refs;
+	int diff = state->has_refs - state->used_refs;
 
-		if (diff)
-			fput_many(state->file, diff);
-		state->file = NULL;
-	}
+	if (diff)
+		fput_many(state->file, diff);
+	state->file = NULL;
+}
+
+static inline void io_state_file_put(struct io_submit_state *state)
+{
+	if (state->file)
+		__io_state_file_put(state);
 }
 
 /*
@@ -2026,7 +2030,7 @@ static struct file *__io_file_get(struct io_submit_state *state, int fd)
 			state->ios_left--;
 			return state->file;
 		}
-		io_file_put(state);
+		__io_state_file_put(state);
 	}
 	state->file = fget_many(fd, state->ios_left);
 	if (!state->file)
@@ -5790,7 +5794,7 @@ static int io_submit_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 static void io_submit_state_end(struct io_submit_state *state)
 {
 	blk_finish_plug(&state->plug);
-	io_file_put(state);
+	io_state_file_put(state);
 	if (state->free_reqs)
 		kmem_cache_free_bulk(req_cachep, state->free_reqs, state->reqs);
 }
