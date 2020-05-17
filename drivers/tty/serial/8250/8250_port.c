@@ -1432,7 +1432,7 @@ static void serial8250_stop_rx(struct uart_port *port)
 
 /**
  * serial8250_em485_stop_tx() - generic ->rs485_stop_tx() callback
- * @up: uart 8250 port
+ * @p: uart 8250 port
  *
  * Generic callback usable by 8250 uart drivers to stop rs485 transmission.
  */
