@@ -258,7 +258,6 @@ static void flush_end_io(struct request *flush_rq, blk_status_t error)
 		blk_flush_complete_seq(rq, fq, seq, error);
 	}
 
-	fq->flush_queue_delayed = 0;
 	spin_unlock_irqrestore(&fq->mq_flush_lock, flags);
 }
 
