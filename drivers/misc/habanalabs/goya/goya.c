@@ -3394,6 +3394,7 @@ static int goya_validate_cb(struct hl_device *hdev,
 			 */
 			rc = goya_validate_wreg32(hdev,
 				parser, (struct packet_wreg32 *) user_pkt);
+			parser->patched_cb_size += pkt_size;
 			break;
 
 		case PACKET_WREG_BULK:
