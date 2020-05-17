@@ -229,7 +229,7 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 			      struct tb_port *dst, int dst_hopid, int link_nr,
 			      const char *name)
 {
-	struct tb_port *in_port, *out_port;
+	struct tb_port *in_port, *out_port, *first_port, *last_port;
 	int in_hopid, out_hopid;
 	struct tb_path *path;
 	size_t num_hops;
@@ -239,9 +239,20 @@ struct tb_path *tb_path_alloc(struct tb *tb, struct tb_port *src, int src_hopid,
 	if (!path)
 		return NULL;
 
+	first_port = last_port = NULL;
 	i = 0;
-	tb_for_each_port_on_path(src, dst, in_port)
+	tb_for_each_port_on_path(src, dst, in_port) {
+		if (!first_port)
+			first_port = in_port;
+		last_port = in_port;
 		i++;
+	}
+
+	/* Check that src and dst are reachable */
+	if (first_port != src || last_port != dst) {
+		kfree(path);
+		return NULL;
+	}
 
 	/* Each hop takes two ports */
 	num_hops = i / 2;
