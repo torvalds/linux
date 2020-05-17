@@ -853,6 +853,11 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {},
 	[IORING_OP_REMOVE_BUFFERS] = {},
+	[IORING_OP_TEE] = {
+		.needs_file		= 1,
+		.hash_reg_file		= 1,
+		.unbound_nonreg_file	= 1,
+	},
 };
 
 static void io_wq_submit_work(struct io_wq_work **workptr);
@@ -2748,7 +2753,8 @@ out_free:
 	return ret;
 }
 
-static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+static int __io_splice_prep(struct io_kiocb *req,
+			    const struct io_uring_sqe *sqe)
 {
 	struct io_splice* sp = &req->splice;
 	unsigned int valid_flags = SPLICE_F_FD_IN_FIXED | SPLICE_F_ALL;
@@ -2758,8 +2764,6 @@ static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return 0;
 
 	sp->file_in = NULL;
-	sp->off_in = READ_ONCE(sqe->splice_off_in);
-	sp->off_out = READ_ONCE(sqe->off);
 	sp->len = READ_ONCE(sqe->len);
 	sp->flags = READ_ONCE(sqe->splice_flags);
 
@@ -2776,6 +2780,46 @@ static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		req->work.flags |= IO_WQ_WORK_UNBOUND;
 
 	return 0;
+}
+
+static int io_tee_prep(struct io_kiocb *req,
+		       const struct io_uring_sqe *sqe)
+{
+	if (READ_ONCE(sqe->splice_off_in) || READ_ONCE(sqe->off))
+		return -EINVAL;
+	return __io_splice_prep(req, sqe);
+}
+
+static int io_tee(struct io_kiocb *req, bool force_nonblock)
+{
+	struct io_splice *sp = &req->splice;
+	struct file *in = sp->file_in;
+	struct file *out = sp->file_out;
+	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
+	long ret = 0;
+
+	if (force_nonblock)
+		return -EAGAIN;
+	if (sp->len)
+		ret = do_tee(in, out, sp->len, flags);
+
+	io_put_file(req, in, (sp->flags & SPLICE_F_FD_IN_FIXED));
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+
+	io_cqring_add_event(req, ret);
+	if (ret != sp->len)
+		req_set_fail_links(req);
+	io_put_req(req);
+	return 0;
+}
+
+static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_splice* sp = &req->splice;
+
+	sp->off_in = READ_ONCE(sqe->splice_off_in);
+	sp->off_out = READ_ONCE(sqe->off);
+	return __io_splice_prep(req, sqe);
 }
 
 static int io_splice(struct io_kiocb *req, bool force_nonblock)
@@ -5085,6 +5129,9 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	case IORING_OP_REMOVE_BUFFERS:
 		ret = io_remove_buffers_prep(req, sqe);
 		break;
+	case IORING_OP_TEE:
+		ret = io_tee_prep(req, sqe);
+		break;
 	default:
 		printk_once(KERN_WARNING "io_uring: unhandled opcode %d\n",
 				req->opcode);
@@ -5158,6 +5205,7 @@ static void io_cleanup_req(struct io_kiocb *req)
 		putname(req->open.filename);
 		break;
 	case IORING_OP_SPLICE:
+	case IORING_OP_TEE:
 		io_put_file(req, req->splice.file_in,
 			    (req->splice.flags & SPLICE_F_FD_IN_FIXED));
 		break;
@@ -5387,6 +5435,14 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 				break;
 		}
 		ret = io_remove_buffers(req, force_nonblock);
+		break;
+	case IORING_OP_TEE:
+		if (sqe) {
+			ret = io_tee_prep(req, sqe);
+			if (ret < 0)
+				break;
+		}
+		ret = io_tee(req, force_nonblock);
 		break;
 	default:
 		ret = -EINVAL;
