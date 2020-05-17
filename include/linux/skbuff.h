@@ -4165,7 +4165,7 @@ struct skb_ext {
 	char data[] __aligned(8);
 };
 
-struct skb_ext *__skb_ext_alloc(void);
+struct skb_ext *__skb_ext_alloc(gfp_t flags);
 void *__skb_ext_set(struct sk_buff *skb, enum skb_ext_id id,
 		    struct skb_ext *ext);
 void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id);
