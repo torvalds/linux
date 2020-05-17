@@ -19,9 +19,19 @@ struct hl_eq_header {
 	__le32 ctl;
 };
 
+struct hl_eq_ecc_data {
+	__le64 ecc_address;
+	__le64 ecc_syndrom;
+	__u8 memory_wrapper_idx;
+	__u8 pad[7];
+};
+
 struct hl_eq_entry {
 	struct hl_eq_header hdr;
-	__le64 data[7];
+	union {
+		struct hl_eq_ecc_data ecc_data;
+		__le64 data[7];
+	};
 };
 
 #define HL_EQ_ENTRY_SIZE		sizeof(struct hl_eq_entry)

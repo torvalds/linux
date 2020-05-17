@@ -316,6 +316,13 @@ static enum hl_queue_type gaudi_queue_type[GAUDI_QUEUE_ID_SIZE] = {
 	QUEUE_TYPE_NA,  /* GAUDI_QUEUE_ID_NIC_9_3 */
 };
 
+struct ecc_info_extract_params {
+	u64 block_address;
+	u32 num_memories;
+	bool derr;
+	bool disable_clock_gating;
+};
+
 static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid,
 								u64 phys_addr);
 static int gaudi_send_job_on_qman0(struct hl_device *hdev,
@@ -5117,62 +5124,75 @@ static void gaudi_print_mmu_error_info(struct hl_device *hdev)
  *  |                   |0xF4C memory wrappers 127:96                          |
  *  +-------------------+------------------------------------------------------+
  */
-static void gaudi_print_ecc_info_generic(struct hl_device *hdev,
-					const char *block_name,
-					u64 block_address, int num_memories,
-					bool derr, bool disable_clock_gating)
+static int gaudi_extract_ecc_info(struct hl_device *hdev,
+		struct ecc_info_extract_params *params, u64 *ecc_address,
+		u64 *ecc_syndrom, u8 *memory_wrapper_idx)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	int num_mem_regs = num_memories / 32 + ((num_memories % 32) ? 1 : 0);
+	u32 i, num_mem_regs, reg, err_bit;
+	u64 err_addr, err_word = 0;
+	int rc = 0;
 
-	if (block_address >= CFG_BASE)
-		block_address -= CFG_BASE;
+	num_mem_regs = params->num_memories / 32 +
+			((params->num_memories % 32) ? 1 : 0);
 
-	if (derr)
-		block_address += GAUDI_ECC_DERR0_OFFSET;
+	if (params->block_address >= CFG_BASE)
+		params->block_address -= CFG_BASE;
+
+	if (params->derr)
+		err_addr = params->block_address + GAUDI_ECC_DERR0_OFFSET;
 	else
-		block_address += GAUDI_ECC_SERR0_OFFSET;
+		err_addr = params->block_address + GAUDI_ECC_SERR0_OFFSET;
 
-	if (disable_clock_gating) {
+	if (params->disable_clock_gating) {
 		mutex_lock(&gaudi->clk_gate_mutex);
 		hdev->asic_funcs->disable_clock_gating(hdev);
 	}
 
-	switch (num_mem_regs) {
-	case 1:
-		dev_err(hdev->dev,
-			"%s ECC indication: 0x%08x\n",
-			block_name, RREG32(block_address));
-		break;
-	case 2:
-		dev_err(hdev->dev,
-			"%s ECC indication: 0x%08x 0x%08x\n",
-			block_name,
-			RREG32(block_address), RREG32(block_address + 4));
-		break;
-	case 3:
-		dev_err(hdev->dev,
-			"%s ECC indication: 0x%08x 0x%08x 0x%08x\n",
-			block_name,
-			RREG32(block_address), RREG32(block_address + 4),
-			RREG32(block_address + 8));
-		break;
-	case 4:
-		dev_err(hdev->dev,
-			"%s ECC indication: 0x%08x 0x%08x 0x%08x 0x%08x\n",
-			block_name,
-			RREG32(block_address), RREG32(block_address + 4),
-			RREG32(block_address + 8), RREG32(block_address + 0xc));
-		break;
-	default:
-		break;
+	/* Set invalid wrapper index */
+	*memory_wrapper_idx = 0xFF;
 
+	/* Iterate through memory wrappers, a single bit must be set */
+	for (i = 0 ; i > num_mem_regs ; i++) {
+		err_addr += i * 4;
+		err_word = RREG32(err_addr);
+		if (err_word) {
+			err_bit = __ffs(err_word);
+			*memory_wrapper_idx = err_bit + (32 * i);
+			break;
+		}
 	}
 
-	if (disable_clock_gating) {
+	if (*memory_wrapper_idx == 0xFF) {
+		dev_err(hdev->dev, "ECC error information cannot be found\n");
+		rc = -EINVAL;
+		goto enable_clk_gate;
+	}
+
+	WREG32(params->block_address + GAUDI_ECC_MEM_SEL_OFFSET,
+			*memory_wrapper_idx);
+
+	*ecc_address =
+		RREG32(params->block_address + GAUDI_ECC_ADDRESS_OFFSET);
+	*ecc_syndrom =
+		RREG32(params->block_address + GAUDI_ECC_SYNDROME_OFFSET);
+
+	/* Clear error indication */
+	reg = RREG32(params->block_address + GAUDI_ECC_MEM_INFO_CLR_OFFSET);
+	if (params->derr)
+		reg |= FIELD_PREP(GAUDI_ECC_MEM_INFO_CLR_DERR_MASK, 1);
+	else
+		reg |= FIELD_PREP(GAUDI_ECC_MEM_INFO_CLR_SERR_MASK, 1);
+
+	WREG32(params->block_address + GAUDI_ECC_MEM_INFO_CLR_OFFSET, reg);
+
+enable_clk_gate:
+	if (params->disable_clock_gating) {
 		hdev->asic_funcs->enable_clock_gating(hdev);
 		mutex_unlock(&gaudi->clk_gate_mutex);
 	}
+
+	return rc;
 }
 
 static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
@@ -5225,239 +5245,99 @@ static void gaudi_handle_qman_err_generic(struct hl_device *hdev,
 	}
 }
 
-static void gaudi_print_ecc_info(struct hl_device *hdev, u16 event_type)
+static void gaudi_handle_ecc_event(struct hl_device *hdev, u16 event_type,
+		struct hl_eq_ecc_data *ecc_data)
 {
-	u64 block_address;
-	u8 index;
-	int num_memories;
-	char desc[32];
-	bool derr;
-	bool disable_clock_gating;
+	struct ecc_info_extract_params params;
+	u64 ecc_address = 0, ecc_syndrom = 0;
+	u8 index, memory_wrapper_idx = 0;
+	bool extract_info_from_fw;
+	int rc;
 
 	switch (event_type) {
-	case GAUDI_EVENT_PCIE_CORE_SERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_CORE");
-		block_address = mmPCIE_CORE_BASE;
-		num_memories = 51;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PCIE_CORE_DERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_CORE");
-		block_address = mmPCIE_CORE_BASE;
-		num_memories = 51;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PCIE_IF_SERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_WRAP");
-		block_address = mmPCIE_WRAP_BASE;
-		num_memories = 11;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PCIE_IF_DERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_WRAP");
-		block_address = mmPCIE_WRAP_BASE;
-		num_memories = 11;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PCIE_PHY_SERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_PHY");
-		block_address = mmPCIE_PHY_BASE;
-		num_memories = 4;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PCIE_PHY_DERR:
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "PCIE_PHY");
-		block_address = mmPCIE_PHY_BASE;
-		num_memories = 4;
-		derr = true;
-		disable_clock_gating = false;
+	case GAUDI_EVENT_PCIE_CORE_SERR ... GAUDI_EVENT_PCIE_PHY_DERR:
+	case GAUDI_EVENT_DMA0_SERR_ECC ... GAUDI_EVENT_MMU_DERR:
+		extract_info_from_fw = true;
 		break;
 	case GAUDI_EVENT_TPC0_SERR ... GAUDI_EVENT_TPC7_SERR:
 		index = event_type - GAUDI_EVENT_TPC0_SERR;
-		block_address = mmTPC0_CFG_BASE + index * TPC_CFG_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "%s%d", "TPC", index);
-		num_memories = 90;
-		derr = false;
-		disable_clock_gating = true;
+		params.block_address = mmTPC0_CFG_BASE + index * TPC_CFG_OFFSET;
+		params.num_memories = 90;
+		params.derr = false;
+		params.disable_clock_gating = true;
+		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_TPC0_DERR ... GAUDI_EVENT_TPC7_DERR:
 		index = event_type - GAUDI_EVENT_TPC0_DERR;
-		block_address =
+		params.block_address =
 			mmTPC0_CFG_BASE + index * TPC_CFG_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "%s%d", "TPC", index);
-		num_memories = 90;
-		derr = true;
-		disable_clock_gating = true;
+		params.num_memories = 90;
+		params.derr = true;
+		params.disable_clock_gating = true;
+		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_ACC_SERR:
 	case GAUDI_EVENT_MME1_ACC_SERR:
 	case GAUDI_EVENT_MME2_ACC_SERR:
 	case GAUDI_EVENT_MME3_ACC_SERR:
 		index = (event_type - GAUDI_EVENT_MME0_ACC_SERR) / 4;
-		block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "MME%d_ACC", index);
-		num_memories = 128;
-		derr = false;
-		disable_clock_gating = true;
+		params.block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
+		params.num_memories = 128;
+		params.derr = false;
+		params.disable_clock_gating = true;
+		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_ACC_DERR:
 	case GAUDI_EVENT_MME1_ACC_DERR:
 	case GAUDI_EVENT_MME2_ACC_DERR:
 	case GAUDI_EVENT_MME3_ACC_DERR:
 		index = (event_type - GAUDI_EVENT_MME0_ACC_DERR) / 4;
-		block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "MME%d_ACC", index);
-		num_memories = 128;
-		derr = true;
-		disable_clock_gating = true;
+		params.block_address = mmMME0_ACC_BASE + index * MME_ACC_OFFSET;
+		params.num_memories = 128;
+		params.derr = true;
+		params.disable_clock_gating = true;
+		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_SBAB_SERR:
 	case GAUDI_EVENT_MME1_SBAB_SERR:
 	case GAUDI_EVENT_MME2_SBAB_SERR:
 	case GAUDI_EVENT_MME3_SBAB_SERR:
 		index = (event_type - GAUDI_EVENT_MME0_SBAB_SERR) / 4;
-		block_address = mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "MME%d_SBAB", index);
-		num_memories = 33;
-		derr = false;
-		disable_clock_gating = true;
+		params.block_address =
+			mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
+		params.num_memories = 33;
+		params.derr = false;
+		params.disable_clock_gating = true;
+		extract_info_from_fw = false;
 		break;
 	case GAUDI_EVENT_MME0_SBAB_DERR:
 	case GAUDI_EVENT_MME1_SBAB_DERR:
 	case GAUDI_EVENT_MME2_SBAB_DERR:
 	case GAUDI_EVENT_MME3_SBAB_DERR:
 		index = (event_type - GAUDI_EVENT_MME0_SBAB_DERR) / 4;
-		block_address = mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "MME%d_SBAB", index);
-		num_memories = 33;
-		derr = true;
-		disable_clock_gating = true;
-		break;
-	case GAUDI_EVENT_DMA0_SERR_ECC ... GAUDI_EVENT_DMA7_SERR_ECC:
-		index = event_type - GAUDI_EVENT_DMA0_SERR_ECC;
-		block_address = mmDMA0_CORE_BASE + index * DMA_CORE_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "DMA%d_CORE", index);
-		num_memories = 16;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_DMA0_DERR_ECC ... GAUDI_EVENT_DMA7_DERR_ECC:
-		index = event_type - GAUDI_EVENT_DMA0_DERR_ECC;
-		block_address = mmDMA0_CORE_BASE + index * DMA_CORE_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "DMA%d_CORE", index);
-		num_memories = 16;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_CPU_IF_ECC_SERR:
-		block_address = mmCPU_IF_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 4;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_CPU_IF_ECC_DERR:
-		block_address = mmCPU_IF_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 4;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PSOC_MEM_SERR:
-		block_address = mmPSOC_GLOBAL_CONF_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 4;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PSOC_MEM_DERR:
-		block_address = mmPSOC_GLOBAL_CONF_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 4;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PSOC_CORESIGHT_SERR:
-		block_address = mmPSOC_CS_TRACE_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 2;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_PSOC_CORESIGHT_DERR:
-		block_address = mmPSOC_CS_TRACE_BASE;
-		snprintf(desc, ARRAY_SIZE(desc), "%s", "CPU");
-		num_memories = 2;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_SRAM0_SERR ... GAUDI_EVENT_SRAM28_SERR:
-		index = event_type - GAUDI_EVENT_SRAM0_SERR;
-		block_address =
-			mmSRAM_Y0_X0_BANK_BASE + index * SRAM_BANK_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "SRAM%d", index);
-		num_memories = 2;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_SRAM0_DERR ... GAUDI_EVENT_SRAM28_DERR:
-		index = event_type - GAUDI_EVENT_SRAM0_DERR;
-		block_address =
-			mmSRAM_Y0_X0_BANK_BASE + index * SRAM_BANK_OFFSET;
-		snprintf(desc, ARRAY_SIZE(desc), "SRAM%d", index);
-		num_memories = 2;
-		derr = true;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_DMA_IF0_SERR ... GAUDI_EVENT_DMA_IF3_SERR:
-		index = event_type - GAUDI_EVENT_DMA_IF0_SERR;
-		block_address = mmDMA_IF_W_S_BASE +
-				index * (mmDMA_IF_E_S_BASE - mmDMA_IF_W_S_BASE);
-		snprintf(desc, ARRAY_SIZE(desc), "DMA_IF%d", index);
-		num_memories = 60;
-		derr = false;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_DMA_IF0_DERR ... GAUDI_EVENT_DMA_IF3_DERR:
-		index = event_type - GAUDI_EVENT_DMA_IF0_DERR;
-		block_address = mmDMA_IF_W_S_BASE +
-				index * (mmDMA_IF_E_S_BASE - mmDMA_IF_W_S_BASE);
-		snprintf(desc, ARRAY_SIZE(desc), "DMA_IF%d", index);
-		derr = true;
-		num_memories = 60;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_HBM_0_SERR ... GAUDI_EVENT_HBM_3_SERR:
-		index = event_type - GAUDI_EVENT_HBM_0_SERR;
-		/* HBM Registers are at different offsets */
-		block_address = mmHBM0_BASE + 0x8000 +
-				index * (mmHBM1_BASE - mmHBM0_BASE);
-		snprintf(desc, ARRAY_SIZE(desc), "HBM%d", index);
-		derr = false;
-		num_memories = 64;
-		disable_clock_gating = false;
-		break;
-	case GAUDI_EVENT_HBM_0_DERR ... GAUDI_EVENT_HBM_3_DERR:
-		index = event_type - GAUDI_EVENT_HBM_0_SERR;
-		/* HBM Registers are at different offsets */
-		block_address = mmHBM0_BASE + 0x8000 +
-				index * (mmHBM1_BASE - mmHBM0_BASE);
-		snprintf(desc, ARRAY_SIZE(desc), "HBM%d", index);
-		derr = true;
-		num_memories = 64;
-		disable_clock_gating = false;
-		break;
+		params.block_address =
+			mmMME0_SBAB_BASE + index * MME_ACC_OFFSET;
+		params.num_memories = 33;
+		params.derr = true;
+		params.disable_clock_gating = true;
 	default:
 		return;
 	}
 
-	gaudi_print_ecc_info_generic(hdev, desc, block_address, num_memories,
-					derr, disable_clock_gating);
+	if (extract_info_from_fw) {
+		ecc_address = le64_to_cpu(ecc_data->ecc_address);
+		ecc_syndrom = le64_to_cpu(ecc_data->ecc_syndrom);
+		memory_wrapper_idx = ecc_data->memory_wrapper_idx;
+	} else {
+		rc = gaudi_extract_ecc_info(hdev, &params, &ecc_address,
+				&ecc_syndrom, &memory_wrapper_idx);
+		if (rc)
+			return;
+	}
+
+	dev_err(hdev->dev,
+		"ECC error detected. address: %#llx. Syndrom: %#llx. block id %u\n",
+		ecc_address, ecc_syndrom, memory_wrapper_idx);
 }
 
 static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
@@ -5506,8 +5386,6 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 	gaudi_get_event_desc(event_type, desc, sizeof(desc));
 	dev_err_ratelimited(hdev->dev, "Received H/W interrupt %d [\"%s\"]\n",
 		event_type, desc);
-
-	gaudi_print_ecc_info(hdev, event_type);
 
 	if (razwi) {
 		gaudi_print_razwi_info(hdev);
@@ -5738,10 +5616,15 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_PSOC_CORESIGHT_DERR:
 	case GAUDI_EVENT_SRAM0_DERR ... GAUDI_EVENT_SRAM28_DERR:
 	case GAUDI_EVENT_DMA_IF0_DERR ... GAUDI_EVENT_DMA_IF3_DERR:
-		fallthrough;
-	case GAUDI_EVENT_GIC500:
 	case GAUDI_EVENT_HBM_0_DERR ... GAUDI_EVENT_HBM_3_DERR:
 	case GAUDI_EVENT_MMU_DERR:
+		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		if (hdev->hard_reset_on_fw_events)
+			hl_device_reset(hdev, true, false);
+		break;
+
+	case GAUDI_EVENT_GIC500:
 	case GAUDI_EVENT_AXI_ECC:
 	case GAUDI_EVENT_L2_RAM_ECC:
 	case GAUDI_EVENT_PLL0 ... GAUDI_EVENT_PLL17:
@@ -5837,6 +5720,11 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_HBM_0_SERR ... GAUDI_EVENT_HBM_3_SERR:
 		fallthrough;
 	case GAUDI_EVENT_MMU_SERR:
+		gaudi_print_irq_info(hdev, event_type, true);
+		gaudi_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		hl_fw_unmask_irq(hdev, event_type);
+		break;
+
 	case GAUDI_EVENT_PCIE_DEC:
 	case GAUDI_EVENT_MME0_WBC_RSP:
 	case GAUDI_EVENT_MME0_SBAB0_RSP:
