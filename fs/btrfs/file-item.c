@@ -907,9 +907,22 @@ again:
 	}
 
 	/*
-	 * at this point, we know the tree has an item, but it isn't big
-	 * enough yet to put our csum in.  Grow it
+	 * At this point, we know the tree has a checksum item that ends at an
+	 * offset matching the start of the checksum range we want to insert.
+	 * We try to extend that item as much as possible and then add as many
+	 * checksums to it as they fit.
+	 *
+	 * First check if the leaf has enough free space for at least one
+	 * checksum. If it has go directly to the item extension code, otherwise
+	 * release the path and do a search for insertion before the extension.
 	 */
+	if (btrfs_leaf_free_space(leaf) >= csum_size) {
+		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
+		csum_offset = (bytenr - found_key.offset) >>
+			fs_info->sb->s_blocksize_bits;
+		goto extend_csum;
+	}
+
 	btrfs_release_path(path);
 	ret = btrfs_search_slot(trans, root, &file_key, path,
 				csum_size, 1);
@@ -933,19 +946,13 @@ again:
 		goto insert;
 	}
 
+extend_csum:
 	if (csum_offset == btrfs_item_size_nr(leaf, path->slots[0]) /
 	    csum_size) {
 		int extend_nr;
 		u64 tmp;
 		u32 diff;
-		u32 free_space;
 
-		if (btrfs_leaf_free_space(leaf) <
-				 sizeof(struct btrfs_item) + csum_size * 2)
-			goto insert;
-
-		free_space = btrfs_leaf_free_space(leaf) -
-					 sizeof(struct btrfs_item) - csum_size;
 		tmp = sums->len - total_bytes;
 		tmp >>= fs_info->sb->s_blocksize_bits;
 		WARN_ON(tmp < 1);
@@ -956,7 +963,7 @@ again:
 			   MAX_CSUM_ITEMS(fs_info, csum_size) * csum_size);
 
 		diff = diff - btrfs_item_size_nr(leaf, path->slots[0]);
-		diff = min(free_space, diff);
+		diff = min_t(u32, btrfs_leaf_free_space(leaf), diff);
 		diff /= csum_size;
 		diff *= csum_size;
 
