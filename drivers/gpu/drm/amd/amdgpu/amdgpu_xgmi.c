@@ -325,9 +325,18 @@ success:
 static void amdgpu_xgmi_sysfs_rem_dev_info(struct amdgpu_device *adev,
 					  struct amdgpu_hive_info *hive)
 {
+	char node[10];
+	memset(node, 0, sizeof(node));
+
 	device_remove_file(adev->dev, &dev_attr_xgmi_device_id);
-	sysfs_remove_link(&adev->dev->kobj, adev->ddev->unique);
-	sysfs_remove_link(hive->kobj, adev->ddev->unique);
+	device_remove_file(adev->dev, &dev_attr_xgmi_error);
+
+	if (adev != hive->adev)
+		sysfs_remove_link(&adev->dev->kobj,"xgmi_hive_info");
+
+	sprintf(node, "node%d", hive->number_devices);
+	sysfs_remove_link(hive->kobj, node);
+
 }
 
 
@@ -583,14 +592,14 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	if (!hive)
 		return -EINVAL;
 
-	if (!(hive->number_devices--)) {
+	task_barrier_rem_task(&hive->tb);
+	amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
+	mutex_unlock(&hive->hive_lock);
+
+	if(!(--hive->number_devices)){
 		amdgpu_xgmi_sysfs_destroy(adev, hive);
 		mutex_destroy(&hive->hive_lock);
 		mutex_destroy(&hive->reset_lock);
-	} else {
-		task_barrier_rem_task(&hive->tb);
-		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
-		mutex_unlock(&hive->hive_lock);
 	}
 
 	return psp_xgmi_terminate(&adev->psp);
