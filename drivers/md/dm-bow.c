@@ -657,6 +657,7 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		bc->dev->bdev->bd_queue->limits.max_discard_sectors = 1 << 15;
 		bc->forward_trims = false;
 	} else {
+		bc->dev->bdev->bd_queue->limits.discard_granularity = 1 << 12;
 		bc->forward_trims = true;
 	}
 

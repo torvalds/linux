@@ -71,7 +71,7 @@ int ufshcd_crypto_cap_find(struct ufs_hba *hba,
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(ufshcd_crypto_cap_find);
+EXPORT_SYMBOL_GPL(ufshcd_crypto_cap_find);
 
 /**
  * ufshcd_crypto_cfg_entry_write_key - Write a key into a crypto_cfg_entry
@@ -344,6 +344,7 @@ int ufshcd_hba_init_crypto_spec(struct ufs_hba *hba,
 		err = -ENOMEM;
 		goto out_free_caps;
 	}
+	keyslot_manager_set_max_dun_bytes(hba->ksm, sizeof(u64));
 
 	return 0;
 

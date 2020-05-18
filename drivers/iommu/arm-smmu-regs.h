@@ -37,6 +37,9 @@
 #define sCR0_VMID16EN			(1 << 31)
 #define sCR0_BSU_SHIFT			14
 #define sCR0_BSU_MASK			0x3
+#define sCR0_SHCFG_SHIFT		22
+#define sCR0_SHCFG_MASK			0x3
+#define sCR0_SHCFG_NSH			3
 
 /* Auxiliary Configuration register */
 #define ARM_SMMU_GR0_sACR		0x10
@@ -105,6 +108,8 @@
 #define ARM_SMMU_GR0_SMR(n)		(0x800 + ((n) << 2))
 #define SMR_VALID			(1 << 31)
 #define SMR_MASK_SHIFT			16
+#define SMR_MASK_MASK			0x7FFF
+#define SID_MASK			0x7FFF
 #define SMR_ID_SHIFT			0
 
 #define ARM_SMMU_GR0_S2CR(n)		(0xc00 + ((n) << 2))
@@ -113,6 +118,9 @@
 #define S2CR_EXIDVALID			(1 << 10)
 #define S2CR_TYPE_SHIFT			16
 #define S2CR_TYPE_MASK			0x3
+#define S2CR_SHCFG_SHIFT		8
+#define S2CR_SHCFG_MASK			0x3
+#define S2CR_SHCFG_NSH			0x3
 enum arm_smmu_s2cr_type {
 	S2CR_TYPE_TRANS,
 	S2CR_TYPE_BYPASS,
@@ -147,6 +155,9 @@ enum arm_smmu_s2cr_privcfg {
 #define CBAR_IRPTNDX_SHIFT		24
 #define CBAR_IRPTNDX_MASK		0xff
 
+#define ARM_SMMU_GR1_CBFRSYNRA(n)	(0x400 + ((n) << 2))
+#define CBFRSYNRA_SID_MASK		(0xffff)
+
 #define ARM_SMMU_GR1_CBA2R(n)		(0x800 + ((n) << 2))
 #define CBA2R_RW64_32BIT		(0 << 0)
 #define CBA2R_RW64_64BIT		(1 << 0)
@@ -165,20 +176,51 @@ enum arm_smmu_s2cr_privcfg {
 #define ARM_SMMU_CB_S1_MAIR1		0x3c
 #define ARM_SMMU_CB_PAR			0x50
 #define ARM_SMMU_CB_FSR			0x58
+#define ARM_SMMU_CB_FSRRESTORE		0x5c
 #define ARM_SMMU_CB_FAR			0x60
 #define ARM_SMMU_CB_FSYNR0		0x68
+#define ARM_SMMU_CB_FSYNR1		0x6c
 #define ARM_SMMU_CB_S1_TLBIVA		0x600
 #define ARM_SMMU_CB_S1_TLBIASID		0x610
+#define ARM_SMMU_CB_S1_TLBIALL		0x618
 #define ARM_SMMU_CB_S1_TLBIVAL		0x620
 #define ARM_SMMU_CB_S2_TLBIIPAS2	0x630
 #define ARM_SMMU_CB_S2_TLBIIPAS2L	0x638
 #define ARM_SMMU_CB_TLBSYNC		0x7f0
 #define ARM_SMMU_CB_TLBSTATUS		0x7f4
+#define TLBSTATUS_SACTIVE		(1 << 0)
 #define ARM_SMMU_CB_ATS1PR		0x800
 #define ARM_SMMU_CB_ATSR		0x8f0
+#define ARM_SMMU_STATS_SYNC_INV_TBU_ACK 0x25dc
+#define TBU_SYNC_ACK_MASK		0x1ff
+#define TBU_SYNC_ACK_SHIFT		17
+#define TBU_SYNC_REQ_MASK		0x1
+#define TBU_SYNC_REQ_SHIFT		16
+#define TBU_INV_ACK_MASK		0x1ff
+#define TBU_INV_ACK_SHIFT		1
+#define TBU_INV_REQ_MASK		0x1
+#define TBU_INV_REQ_SHIFT		0
+#define ARM_SMMU_TBU_PWR_STATUS         0x2204
+#define ARM_SMMU_MMU2QSS_AND_SAFE_WAIT_CNTR 0x2670
+#define TCU_SYNC_IN_PRGSS_MASK		0x1
+#define TCU_SYNC_IN_PRGSS_SHIFT		20
+#define TCU_INV_IN_PRGSS_MASK		0x1
+#define TCU_INV_IN_PRGSS_SHIFT		16
+#define TBUID_SHIFT			10
 
+#define SCTLR_MEM_ATTR_SHIFT		16
+#define SCTLR_SHCFG_SHIFT		22
+#define SCTLR_RACFG_SHIFT		24
+#define SCTLR_WACFG_SHIFT		26
+#define SCTLR_SHCFG_MASK		0x3
+#define SCTLR_SHCFG_NSH			0x3
+#define SCTLR_RACFG_RA			0x2
+#define SCTLR_WACFG_WA			0x2
+#define SCTLR_MEM_ATTR_OISH_WB_CACHE	0xf
+#define SCTLR_MTCFG			(1 << 20)
 #define SCTLR_S1_ASIDPNE		(1 << 12)
 #define SCTLR_CFCFG			(1 << 7)
+#define SCTLR_HUPCF			(1 << 8)
 #define SCTLR_CFIE			(1 << 6)
 #define SCTLR_CFRE			(1 << 5)
 #define SCTLR_E				(1 << 4)
@@ -216,5 +258,19 @@ enum arm_smmu_s2cr_privcfg {
 					 FSR_EF | FSR_PF | FSR_TF | FSR_IGN)
 
 #define FSYNR0_WNR			(1 << 4)
+
+#define IMPL_DEF1_MICRO_MMU_CTRL	0
+#define MICRO_MMU_CTRL_LOCAL_HALT_REQ	(1 << 2)
+#define MICRO_MMU_CTRL_IDLE		(1 << 3)
+
+/* Definitions for implementation-defined registers */
+#define ACTLR_QCOM_OSH_SHIFT		28
+#define ACTLR_QCOM_OSH			1
+
+#define ACTLR_QCOM_ISH_SHIFT		29
+#define ACTLR_QCOM_ISH			1
+
+#define ACTLR_QCOM_NSH_SHIFT		30
+#define ACTLR_QCOM_NSH			1
 
 #endif /* _ARM_SMMU_REGS_H */

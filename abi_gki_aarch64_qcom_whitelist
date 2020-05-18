@@ -16,7 +16,6 @@
   __arch_copy_from_user
   __arch_copy_to_user
   arch_setup_dma_ops
-  arch_timer_read_ool_enabled
   arm64_const_caps_ready
   atomic_notifier_call_chain
   atomic_notifier_chain_register
@@ -48,6 +47,7 @@
   cdev_add
   cdev_del
   cdev_init
+  __cfi_slowpath
   __check_object_size
   __class_create
   class_destroy
@@ -108,22 +108,6 @@
   crypto_destroy_tfm
   crypto_shash_setkey
   _ctype
-  debugfs_attr_read
-  debugfs_attr_write
-  debugfs_create_atomic_t
-  debugfs_create_bool
-  debugfs_create_dir
-  debugfs_create_file
-  debugfs_create_file_unsafe
-  debugfs_create_u16
-  debugfs_create_u32
-  debugfs_create_u64
-  debugfs_create_u8
-  debugfs_create_x32
-  debugfs_create_x8
-  debugfs_print_regs32
-  debugfs_remove
-  debugfs_remove_recursive
   delayed_work_timer_fn
   del_timer
   del_timer_sync
@@ -246,6 +230,7 @@
   dma_fence_signal_locked
   __dma_flush_area
   __dma_inv_area
+  dmam_alloc_coherent
   dma_release_from_dev_coherent
   dma_request_slave_channel
   do_exit
@@ -258,8 +243,6 @@
   drm_panel_notifier_unregister
   dst_release
   dummy_dma_ops
-  __dynamic_dev_dbg
-  __dynamic_pr_debug
   enable_irq
   ether_setup
   eth_type_trans
@@ -291,23 +274,9 @@
   freezing_slow_path
   fwnode_property_read_u32_array
   gcd
-  generic_file_llseek
   generic_handle_irq
-  geni_abort_m_cmd
-  geni_cancel_m_cmd
-  geni_se_dump_dbg_regs
-  geni_se_init
-  geni_se_iommu_map_buf
-  geni_se_iommu_unmap_buf
-  geni_se_resources_init
-  geni_se_rx_dma_prep
-  geni_se_rx_dma_unprep
-  geni_se_select_mode
-  geni_setup_m_cmd
-  geni_se_tx_dma_prep
-  geni_se_tx_dma_unprep
-  geni_write_reg
-  genlmsg_put
+  genl_register_family
+  genl_unregister_family
   gen_pool_add_virt
   gen_pool_alloc
   gen_pool_create
@@ -318,9 +287,7 @@
   __get_free_pages
   get_pid_task
   get_random_bytes
-  get_se_proto
   __get_task_comm
-  get_tx_fifo_depth
   get_unused_fd_flags
   gpiochip_add_data_with_key
   gpiochip_add_pin_range
@@ -345,7 +312,6 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
-  hex2bin
   hex_dump_to_buffer
   hrtimer_active
   hrtimer_cancel
@@ -470,12 +436,9 @@
   kstrtoint
   kstrtoll
   kstrtos8
-  kstrtos8_from_user
   kstrtou16
   kstrtou8
-  kstrtou8_from_user
   kstrtouint
-  kstrtouint_from_user
   kstrtoull
   kthread_cancel_work_sync
   kthread_create_on_node
@@ -486,7 +449,6 @@
   kthread_stop
   kthread_worker_fn
   ktime_get
-  ktime_get_coarse_real_ts64
   ktime_get_real_ts64
   ktime_get_with_offset
   kvfree
@@ -542,7 +504,6 @@
   module_put
   __msecs_to_jiffies
   msleep
-  msleep_interruptible
   __mutex_init
   mutex_lock
   mutex_lock_interruptible
@@ -572,9 +533,9 @@
   nla_put
   __nlmsg_put
   no_llseek
-  nonseekable_open
   nr_cpu_ids
   ns_capable
+  ns_to_timespec64
   ns_to_timespec
   nvmem_cell_get
   nvmem_cell_put
@@ -749,6 +710,7 @@
   _raw_spin_lock_bh
   _raw_spin_lock_irq
   _raw_spin_lock_irqsave
+  _raw_spin_trylock
   _raw_spin_trylock_bh
   _raw_spin_unlock
   _raw_spin_unlock_bh
@@ -790,6 +752,7 @@
   __regmap_init
   regmap_multi_reg_write
   regmap_raw_read
+  regmap_raw_write
   regmap_read
   regmap_update_bits_base
   regmap_write
@@ -798,6 +761,7 @@
   regulator_disable
   regulator_enable
   regulator_get
+  regulator_get_voltage
   regulator_is_enabled
   regulator_put
   regulator_set_load
@@ -817,8 +781,6 @@
   rtc_time64_to_tm
   rtc_tm_to_time64
   rtc_valid_tm
-  rt_mutex_lock
-  rt_mutex_unlock
   rtnl_is_locked
   rtnl_unlock
   saved_command_line
@@ -827,18 +789,12 @@
   schedule
   schedule_timeout
   scnprintf
-  se_config_packing
-  se_geni_clks_off
-  se_geni_resources_off
-  se_geni_resources_on
   seq_lseek
   seq_open
   seq_printf
-  seq_putc
   seq_puts
   seq_read
   seq_release
-  seq_write
   set_normalized_timespec
   set_user_nice
   sg_alloc_table
@@ -848,15 +804,7 @@
   sg_next
   __sg_page_iter_next
   __sg_page_iter_start
-  simple_attr_open
-  simple_attr_read
-  simple_attr_release
-  simple_attr_write
-  simple_open
   simple_read_from_buffer
-  simple_write_to_buffer
-  single_open
-  single_release
   sk_alloc
   skb_add_rx_frag
   skb_clone
@@ -969,6 +917,7 @@
   sysfs_remove_group
   sysfs_remove_groups
   sysfs_streq
+  system_freezable_wq
   system_freezing_cnt
   system_highpri_wq
   system_long_wq
@@ -998,16 +947,22 @@
   trace_event_reg
   trace_handle_return
   trace_print_flags_seq
+  trace_print_hex_seq
+  trace_print_symbols_seq
   trace_raw_output_prep
   trace_seq_printf
   try_module_get
+  tty_flip_buffer_push
   typec_register_partner
   typec_register_port
   typec_set_data_role
   typec_set_pwr_role
   typec_unregister_partner
+  uart_add_one_port
+  uart_register_driver
+  uart_remove_one_port
+  uart_unregister_driver
   __udelay
-  uncached_logk
   __unregister_chrdev
   unregister_chrdev_region
   unregister_inet6addr_notifier
@@ -1035,7 +990,6 @@
   usb_free_all_descriptors
   usb_function_register
   usb_function_unregister
-  usb_func_wakeup
   usb_gadget_wakeup
   usb_get_dr_mode
   usb_interface_id
@@ -1125,7 +1079,6 @@
   iommu_group_remove_device
   iommu_group_set_iommudata
   iommu_put_dma_cookie
-  kstrtoull_from_user
   of_dma_is_coherent
   of_n_addr_cells
   of_n_size_cells
@@ -1180,9 +1133,6 @@
 # required by cam_flash.ko
   thermal_zone_get_cdev_by_name
 
-# required by cam_ife_csid.ko
-  ns_to_timespec64
-
 # required by cam_ife_hw_mgr.ko
   __ll_sc_atomic_fetch_add
 
@@ -1199,6 +1149,10 @@
   led_trigger_register_simple
   led_trigger_unregister_simple
 
+# required by cam_smmu_api.ko
+  iommu_dma_enable_best_fit_algo
+  iommu_dma_reserve_iova
+
 # required by cam_utils.ko
   gpio_free_array
   of_clk_get_from_provider
@@ -1206,13 +1160,13 @@
   __request_region
 
 # required by citadel-spi.ko
+  nonseekable_open
   spi_bus_lock
   spi_bus_unlock
   spi_sync_locked
 
 # required by clk-qcom.ko
   clk_aggregate_rate
-  clk_debug_print_hw
   __clk_determine_rate
   clk_fixed_rate_ops
   clk_hw_get_flags
@@ -1276,18 +1230,6 @@
   send_sig_info
   time64_to_tm
 
-# required by dm-default-key.ko
-  bio_crypt_alloc_ctx
-  blk_crypto_evict_key
-  blk_crypto_init_key
-  dm_get_device
-  dm_put_device
-  dm_read_arg_group
-  dm_register_target
-  dm_shift_arg
-  dm_table_get_mode
-  dm_unregister_target
-
 # required by dwc3-haps.ko
   pcim_enable_device
   __pci_register_driver
@@ -1323,7 +1265,6 @@
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
   strcat
-  system_freezable_wq
   usb_add_gadget_udc
   usb_del_gadget_udc
   usb_ep_set_maxpacket_limit
@@ -1368,12 +1309,7 @@
   xt_unregister_target
 
 # required by eud.ko
-  tty_flip_buffer_push
-  uart_add_one_port
   uart_insert_char
-  uart_register_driver
-  uart_remove_one_port
-  uart_unregister_driver
 
 # required by event_timer.ko
   cpumask_next_and
@@ -1385,7 +1321,9 @@
   of_find_i2c_device_by_node
 
 # required by ftm5.ko
+  ktime_get_coarse_real_ts64
   proc_create
+  seq_write
 
 # required by google-battery.ko
   simple_strtoull
@@ -1396,12 +1334,6 @@
 # required by governor_bw_hwmon.ko
   argv_free
   argv_split
-  __tracepoint_bw_hwmon_meas
-  __tracepoint_bw_hwmon_update
-
-# required by governor_memlat.ko
-  __tracepoint_memlat_dev_meas
-  __tracepoint_memlat_dev_update
 
 # required by gpi.ko
   dma_async_device_register
@@ -1437,11 +1369,13 @@
   i2c_put_dma_safe_msg_buf
 
 # required by ion-alloc.ko
-  dentry_path
   dma_buf_export
   dma_get_device_base
   dma_get_size
+  __ll_sc_atomic64_sub_return
+  mm_event_count
   __next_zones_zonelist
+  ptr_to_hashval
   sched_setattr
   split_page
   vm_map_ram
@@ -1452,6 +1386,7 @@
   add_wait_queue
   alloc_etherdev_mqs
   eth_mac_addr
+  kstrtos8_from_user
   pci_clear_master
   pci_disable_device
   pci_enable_device
@@ -1471,7 +1406,7 @@
 # required by lpm-stats.ko
   kobject_get
   module_ktype
-  on_each_cpu
+  simple_write_to_buffer
 
 # required by machine_dlkm.ko
   devm_snd_soc_register_card
@@ -1483,6 +1418,7 @@
   snd_soc_dai_set_pll
   snd_soc_dai_set_sysclk
   snd_soc_dai_set_tdm_slot
+  snd_soc_get_pcm_runtime
   snd_soc_of_get_dai_link_codecs
   snd_soc_of_parse_audio_routing
   snd_soc_of_parse_card_name
@@ -1538,7 +1474,6 @@
   bpf_trace_run10
   _cleanup_srcu_struct
   __clk_get_name
-  debugfs_lookup
   devfreq_cooling_unregister
   device_show_int
   device_store_int
@@ -1566,7 +1501,7 @@
   __ll_sc_atomic_or
   mmap_min_addr
   mmput
-  noop_llseek
+  mm_trace_rss_stat
   of_devfreq_cooling_register
   plist_del
   rb_last
@@ -1577,21 +1512,18 @@
   sysfs_create_bin_file
   sysfs_remove_bin_file
   sysfs_remove_files
-  trace_print_symbols_seq
   unmapped_area_topdown
   unregister_shrinker
   vm_insert_page
   vm_insert_pfn
 
 # required by msm_bus_rpmh.ko
-  __msm_bus_scale_client_update_request_cb
-  __msm_bus_scale_register_cb
-  __msm_bus_scale_register_client_cb
-  __msm_bus_scale_update_bw_cb
   of_clk_get_by_name
   raw_notifier_call_chain
   raw_notifier_chain_register
   raw_notifier_chain_unregister
+  rt_mutex_lock
+  rt_mutex_unlock
 
 # required by msm_drm.ko
   adjust_managed_page_count
@@ -1599,7 +1531,6 @@
   bpf_trace_run12
   __clk_get_hw
   clk_get_parent
-  debugfs_create_size_t
   device_create_with_groups
   devm_clk_bulk_get
   devm_of_pwm_get
@@ -1863,7 +1794,6 @@
   shmem_truncate_range
   strreplace
   timespec64_to_jiffies
-  tracing_off
   unmap_kernel_range
   unmap_mapping_range
   vm_get_page_prot
@@ -1873,15 +1803,25 @@
 # required by msm_ext_display.ko
   devm_extcon_dev_unregister
 
-# required by msm_gsi.ko
-  kstrtoint_from_user
-
-# required by msm_icnss.ko
-  dmam_alloc_coherent
+# required by msm_geni_serial.ko
+  console_stop
+  console_suspend_enabled
+  do_SAK
+  handle_sysrq
+  oops_in_progress
+  __tty_insert_flip_char
+  tty_insert_flip_string_fixed_flag
+  uart_console_device
+  uart_console_write
+  uart_get_baud_rate
+  uart_parse_options
+  uart_resume_port
+  uart_set_options
+  uart_suspend_port
+  uart_update_timeout
+  uart_write_wakeup
 
 # required by msm_ipc_logging.ko
-  debugfs_file_get
-  debugfs_file_put
   _raw_read_lock_irq
   _raw_read_unlock_irq
   _raw_write_lock_irqsave
@@ -1893,14 +1833,13 @@
   __tracepoint_clock_set_rate
 
 # required by msm_minidump.ko
-  linux_banner
+  linux_banner_ptr
 
 # required by msm_npu.ko
   kmem_cache_create_usercopy
 
 # required by msm_pm.ko
   arm_cpuidle_suspend
-  clock_debug_print_enabled
   cpu_do_idle
   cpuidle_dev
   cpuidle_register_device
@@ -1913,10 +1852,8 @@
   param_get_bool
   param_get_uint
   pending_ipi
-  pm_gpio_debug_mask
   pm_qos_request_for_cpu
   pm_qos_request_for_cpumask
-  regulator_debug_print_enabled
   s2idle_set_ops
   set_update_ipi_history_callback
   suspend_set_ops
@@ -1933,10 +1870,6 @@
   crypto_unregister_rngs
   hwrng_register
   hwrng_unregister
-
-# required by msm_rtb.ko
-  arch_timer_read_counter
-  set_uncached_logk_func
 
 # required by msm_scm.ko
   __arm_smccc_smc
@@ -1969,13 +1902,9 @@
   irq_chip_set_wake_parent
   irq_create_fwspec_mapping
   irq_domain_free_irqs_top
-  msm_gpio_dump_builtin_cb
   of_irq_domain_map
   register_restart_handler
   unregister_restart_handler
-
-# required by pinctrl-spmi-gpio.ko
-  pmic_gpio_dump_builtin_cb
 
 # required by platform_dlkm.ko
   __ll_sc___cmpxchg_case_mb_8
@@ -2115,7 +2044,6 @@
 
 # required by qpnp-smb5-charger.ko
   iio_channel_release
-  regulator_get_voltage
 
 # required by qpnp_pdphy.ko
   device_get_named_child_node
@@ -2179,9 +2107,7 @@
   csum_tcpudp_nofold
   __dev_get_by_index
   dev_queue_xmit
-  __dynamic_netdev_dbg
-  genl_register_family
-  genl_unregister_family
+  genlmsg_put
   get_current_napi_context
   gro_cells_destroy
   gro_cells_init
@@ -2201,11 +2127,11 @@
   skb_append_pagefrags
   skb_checksum
   synchronize_rcu
-  trace_print_hex_seq
   unregister_netdevice_many
 
 # required by rndis.ko
   dev_get_stats
+  print_hex_dump_bytes
 
 # required by roles.ko
   class_find_device
@@ -2424,7 +2350,6 @@
 
 # required by snd-soc-wm-adsp.ko
   regmap_async_complete
-  regmap_raw_write
   regmap_raw_write_async
   snd_compr_stop_error
   snd_soc_component_disable_pin
@@ -2432,13 +2357,6 @@
 
 # required by spi-geni-qcom.ko
   dma_release_channel
-  geni_read_reg
-  geni_se_clk_freq_match
-  geni_se_qupv3_hw_version
-  get_rx_fifo_depth
-  get_tx_fifo_width
-  se_geni_clks_on
-  se_get_packing_config
   __spi_alloc_controller
   spi_register_controller
   spi_unregister_controller
@@ -2450,7 +2368,6 @@
   spmi_controller_remove
 
 # required by st21nfc.ko
-  desc_to_gpio
   device_set_wakeup_capable
 
 # required by subsystem-restart.ko
@@ -2480,7 +2397,6 @@
   typec_set_vconn_role
   typec_unregister_altmode
   typec_unregister_port
-  usb_debug_root
 
 # required by tps-regulator.ko
   gpiod_export
@@ -2488,21 +2404,44 @@
   regulator_list_voltage_table
   regulator_map_voltage_ascend
 
-# required by ufs_qcom.ko
-  ufsdbg_pr_buf_to_std
-  ufshcd_dme_get_attr
-  ufshcd_dme_set_attr
-  ufshcd_get_local_unipro_ver
-  ufshcd_hold
-  ufshcd_pltfrm_init
-  ufshcd_pltfrm_resume
-  ufshcd_pltfrm_runtime_idle
-  ufshcd_pltfrm_runtime_resume
-  ufshcd_pltfrm_runtime_suspend
-  ufshcd_pltfrm_shutdown
-  ufshcd_pltfrm_suspend
-  ufshcd_release
-  ufshcd_remove
+# required by ufshcd-core.ko
+  async_schedule
+  bio_crypt_should_process
+  blk_queue_max_segment_size
+  blk_queue_rq_timeout
+  blk_queue_update_dma_pad
+  dev_pm_opp_remove
+  down_read_trylock
+  down_write_trylock
+  keyslot_manager_create
+  keyslot_manager_destroy
+  keyslot_manager_private
+  keyslot_manager_reprogram_all_keys
+  keyslot_manager_set_max_dun_bytes
+  __ll_sc_atomic64_fetch_andnot_release
+  __ll_sc_atomic64_fetch_or_acquire
+  __scsi_add_device
+  scsi_add_host_with_dma
+  scsi_block_requests
+  scsi_change_queue_depth
+  scsi_device_get
+  scsi_device_put
+  scsi_dma_map
+  scsi_dma_unmap
+  __scsi_execute
+  scsi_host_alloc
+  scsi_host_put
+  scsi_print_command
+  scsi_print_sense_hdr
+  scsi_remove_device
+  scsi_remove_host
+  scsi_report_bus_reset
+  scsi_scan_host
+  scsi_set_cmd_timeout_override
+  scsi_unblock_requests
+  sdev_prefix_printk
+  trace_output_call
+  utf16s_to_utf8s
 
 # required by wlan.ko
   bitmap_print_to_pagebuf
@@ -2538,7 +2477,6 @@
   cfg80211_unlink_bss
   cfg80211_update_owe_info_event
   cfg80211_vendor_cmd_reply
-  cld80211_get_genl_family
   complete_and_exit
   cpufreq_quick_get_max
   __cpuhp_remove_state
@@ -2550,10 +2488,9 @@
   crypto_alloc_skcipher
   crypto_shash_final
   crypto_shash_update
-  default_llseek
-  deregister_cld_cmd_cb
   dev_alloc_name
   dump_stack
+  hex2bin
   hex_to_bin
   ieee80211_channel_to_frequency
   ieee80211_frequency_to_channel
@@ -2561,6 +2498,7 @@
   ieee80211_hdrlen
   irq_set_affinity_hint
   mac_pton
+  msleep_interruptible
   netif_tx_stop_all_queues
   netlink_broadcast
   __netlink_kernel_create
@@ -2579,17 +2517,16 @@
   pm_system_wakeup
   proc_create_data
   proc_mkdir
-  _raw_spin_trylock
-  register_cld_cmd_cb
   register_netevent_notifier
   register_sysctl_table
   regulatory_set_wiphy_regd
   rtnl_lock
   save_stack_trace_tsk
   schedule_timeout_interruptible
-  seq_hex_dump
   seq_vprintf
   set_cpus_allowed_ptr
+  single_open
+  single_release
   skip_spaces
   strchrnul
   unregister_netevent_notifier
@@ -2635,10 +2572,10 @@
 
 # required by usb_f_gsi.ko
   dev_get_by_name
-  kstrtou16_from_user
   usb_composite_setup_continue
   usb_ep_autoconfig_by_name
   usb_func_ep_queue
+  usb_func_wakeup
   usb_gsi_ep_op
 
 # required by usb_f_mtp.ko

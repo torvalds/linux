@@ -45,7 +45,9 @@ EXPORT_SYMBOL_GPL(init_uts_ns);
 const char linux_banner[] =
 	"Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
 	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";
-EXPORT_SYMBOL_GPL(linux_banner);
+
+const char *linux_banner_ptr = linux_banner;
+EXPORT_SYMBOL_GPL(linux_banner_ptr);
 
 const char linux_proc_banner[] =
 	"%s version %s"

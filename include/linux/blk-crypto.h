@@ -18,9 +18,11 @@ int blk_crypto_init_key(struct blk_crypto_key *blk_key,
 			const u8 *raw_key, unsigned int raw_key_size,
 			bool is_hw_wrapped,
 			enum blk_crypto_mode_num crypto_mode,
+			unsigned int dun_bytes,
 			unsigned int data_unit_size);
 
 int blk_crypto_start_using_mode(enum blk_crypto_mode_num crypto_mode,
+				unsigned int dun_bytes,
 				unsigned int data_unit_size,
 				bool is_hw_wrapped_key,
 				struct request_queue *q);

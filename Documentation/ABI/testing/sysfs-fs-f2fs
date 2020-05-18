@@ -323,3 +323,18 @@ What:		/sys/fs/f2fs/<disk>/mounted_time_sec
 Date:		February 2020
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Show the mounted time in secs of this partition.
+
+What:		/sys/fs/f2fs/<disk>/data_io_flag
+Date:		April 2020
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Give a way to attach REQ_META|FUA to data writes
+		given temperature-based bits. Now the bits indicate:
+		*      REQ_META     |      REQ_FUA      |
+		*    5 |    4 |   3 |    2 |    1 |   0 |
+		* Cold | Warm | Hot | Cold | Warm | Hot |
+
+What:		/sys/fs/f2fs/<disk>/iostat_period_ms
+Date:		April 2020
+Contact:	"Daeho Jeong" <daehojeong@google.com>
+Description:	Give a way to change iostat_period time. 3secs by default.
+		The new iostat trace gives stats gap given the period.

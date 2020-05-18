@@ -22,7 +22,6 @@
   __cpu_online_mask
   cpus_read_lock
   cpus_read_unlock
-  debug_smp_processor_id
   delayed_work_timer_fn
   destroy_workqueue
   _dev_err
@@ -124,8 +123,6 @@
   platform_device_unregister
   __platform_driver_register
   platform_driver_unregister
-  preempt_count_add
-  preempt_count_sub
   preempt_schedule
   preempt_schedule_notrace
   prepare_to_wait_event
@@ -437,7 +434,6 @@
   copy_page
   dev_driver_string
   devres_add
-  __devres_alloc_node
   devres_destroy
   devres_free
   dma_buf_get
@@ -610,7 +606,6 @@
   kmem_cache_free
   memdup_user
   put_unused_fd
-  remove_conflicting_framebuffers
   sg_alloc_table_from_pages
   sync_file_create
   sync_file_get_fence

@@ -109,4 +109,7 @@ static inline bool itimerspec64_valid(const struct itimerspec64 *its)
  * Equivalent to !(time_before32(@t, @l) || time_after32(@t, @h)).
  */
 #define time_between32(t, l, h) ((u32)(h) - (u32)(l) >= (u32)(t) - (u32)(l))
+
+# include <vdso/time.h>
+
 #endif

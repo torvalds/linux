@@ -50,9 +50,6 @@
 #define DRIVER_MINOR 1
 #define DRIVER_PATCHLEVEL 0
 
-/* virtgpu_drm_bus.c */
-int drm_virtio_init(struct drm_driver *driver, struct virtio_device *vdev);
-
 struct virtio_gpu_object_params {
 	uint32_t format;
 	uint32_t width;
@@ -231,8 +228,8 @@ int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 void virtio_gpu_unref_list(struct list_head *head);
 
 /* virtio_kms.c */
-int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags);
-void virtio_gpu_driver_unload(struct drm_device *dev);
+int virtio_gpu_init(struct drm_device *dev);
+void virtio_gpu_deinit(struct drm_device *dev);
 int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file);
 void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file);
 
@@ -343,7 +340,7 @@ int virtio_gpu_framebuffer_init(struct drm_device *dev,
 				struct virtio_gpu_framebuffer *vgfb,
 				const struct drm_mode_fb_cmd2 *mode_cmd,
 				struct drm_gem_object *obj);
-int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
+void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev);
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev);
 
 /* virtio_gpu_plane.c */

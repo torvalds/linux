@@ -11,6 +11,7 @@
 #include <linux/scatterlist.h>
 #include <linux/bug.h>
 #include <linux/mem_encrypt.h>
+#include <linux/android_kabi.h>
 
 /**
  * List of possible attributes associated with a DMA mapping. The semantics
@@ -71,9 +72,56 @@
 #define DMA_ATTR_PRIVILEGED		(1UL << 9)
 
 /*
+ * DMA_ATTR_STRONGLY_ORDERED: Specifies that accesses to the mapping must
+ * not be buffered, reordered, merged with other accesses, or unaligned.
+ * No speculative access may occur in this mapping.
+ */
+#define DMA_ATTR_STRONGLY_ORDERED	(1UL << 10)
+/*
  * DMA_ATTR_SKIP_ZEROING: Do not zero mapping.
  */
 #define DMA_ATTR_SKIP_ZEROING		(1UL << 11)
+/*
+ * DMA_ATTR_NO_DELAYED_UNMAP: Used by msm specific lazy mapping to indicate
+ * that the mapping can be freed on unmap, rather than when the ion_buffer
+ * is freed.
+ */
+#define DMA_ATTR_NO_DELAYED_UNMAP	(1UL << 12)
+/*
+ * DMA_ATTR_EXEC_MAPPING: The mapping has executable permissions.
+ */
+#define DMA_ATTR_EXEC_MAPPING		(1UL << 13)
+/*
+ * DMA_ATTR_IOMMU_USE_UPSTREAM_HINT: Normally an smmu will override any bus
+ * attributes (i.e cacheablilty) provided by the client device. Some hardware
+ * may be designed to use the original attributes instead.
+ */
+#define DMA_ATTR_IOMMU_USE_UPSTREAM_HINT	(1UL << 14)
+/*
+ * When passed to a DMA map call the DMA_ATTR_FORCE_COHERENT DMA
+ * attribute can be used to force a buffer to be mapped as IO coherent.
+ */
+#define DMA_ATTR_FORCE_COHERENT			(1UL << 15)
+/*
+ * When passed to a DMA map call the DMA_ATTR_FORCE_NON_COHERENT DMA
+ * attribute can be used to force a buffer to not be mapped as IO
+ * coherent.
+ */
+#define DMA_ATTR_FORCE_NON_COHERENT		(1UL << 16)
+/*
+ * DMA_ATTR_DELAYED_UNMAP: Used by ION, it will ensure that mappings are not
+ * removed on unmap but instead are removed when the ion_buffer is freed.
+ */
+#define DMA_ATTR_DELAYED_UNMAP		(1UL << 17)
+
+/*
+ * DMA_ATTR_IOMMU_USE_LLC_NWA: Overrides the bus attributes to use the System
+ * Cache(LLC) with allocation policy as Inner Non-Cacheable, Outer Cacheable:
+ * Write-Back, Read-Allocate, No Write-Allocate policy.
+ */
+#define DMA_ATTR_IOMMU_USE_LLC_NWA	(1UL << 18)
+
+#define DMA_ERROR_CODE       (~(dma_addr_t)0)
 
 /*
  * A dma_addr_t can hold any valid DMA or bus address for the platform.
@@ -135,6 +183,7 @@ struct dma_map_ops {
 			enum dma_data_direction direction);
 	int (*mapping_error)(struct device *dev, dma_addr_t dma_addr);
 	int (*dma_supported)(struct device *dev, u64 mask);
+	int (*set_dma_mask)(struct device *dev, u64 mask);
 	void *(*remap)(struct device *dev, void *cpu_addr, dma_addr_t handle,
 			size_t size, unsigned long attrs);
 	void (*unremap)(struct device *dev, void *remapped_address,
@@ -142,6 +191,11 @@ struct dma_map_ops {
 #ifdef ARCH_HAS_DMA_GET_REQUIRED_MASK
 	u64 (*get_required_mask)(struct device *dev);
 #endif
+
+	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_RESERVE(2);
+	ANDROID_KABI_RESERVE(3);
+	ANDROID_KABI_RESERVE(4);
 };
 
 extern const struct dma_map_ops dma_direct_ops;
@@ -463,7 +517,8 @@ void *dma_common_contiguous_remap(struct page *page, size_t size,
 void *dma_common_pages_remap(struct page **pages, size_t size,
 			unsigned long vm_flags, pgprot_t prot,
 			const void *caller);
-void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags);
+void dma_common_free_remap(void *cpu_addr, size_t size, unsigned long vm_flags,
+			   bool nowarn);
 
 /**
  * dma_mmap_attrs - map a coherent DMA allocation into user space
@@ -608,6 +663,11 @@ static inline int dma_supported(struct device *dev, u64 mask)
 #ifndef HAVE_ARCH_DMA_SET_MASK
 static inline int dma_set_mask(struct device *dev, u64 mask)
 {
+	const struct dma_map_ops *ops = get_dma_ops(dev);
+
+	if (ops->set_dma_mask)
+		return ops->set_dma_mask(dev, mask);
+
 	if (!dev->dma_mask || !dma_supported(dev, mask))
 		return -EIO;
 
@@ -769,6 +829,10 @@ int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 void dma_release_declared_memory(struct device *dev);
 void *dma_mark_declared_memory_occupied(struct device *dev,
 					dma_addr_t device_addr, size_t size);
+dma_addr_t dma_get_device_base(struct device *dev,
+			       struct dma_coherent_mem *mem);
+unsigned long dma_get_size(struct dma_coherent_mem *mem);
+
 #else
 static inline int
 dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
@@ -788,6 +852,17 @@ dma_mark_declared_memory_occupied(struct device *dev,
 {
 	return ERR_PTR(-EBUSY);
 }
+static inline dma_addr_t
+dma_get_device_base(struct device *dev, struct dma_coherent_mem *mem)
+{
+	return 0;
+}
+
+static inline unsigned long dma_get_size(struct dma_coherent_mem *mem)
+{
+	return 0;
+}
+
 #endif /* CONFIG_HAVE_GENERIC_DMA_COHERENT */
 
 #ifdef CONFIG_HAS_DMA

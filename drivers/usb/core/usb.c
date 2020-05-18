@@ -842,6 +842,27 @@ int usb_sec_event_ring_cleanup(struct usb_device *dev,
 }
 EXPORT_SYMBOL(usb_sec_event_ring_cleanup);
 
+phys_addr_t
+usb_get_sec_event_ring_phys_addr(struct usb_device *dev,
+	unsigned int intr_num, dma_addr_t *dma)
+{
+	if (dev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
+	return usb_hcd_get_sec_event_ring_phys_addr(dev, intr_num, dma);
+}
+EXPORT_SYMBOL_GPL(usb_get_sec_event_ring_phys_addr);
+
+phys_addr_t usb_get_xfer_ring_phys_addr(struct usb_device *dev,
+	struct usb_host_endpoint *ep, dma_addr_t *dma)
+{
+	if (dev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
+	return usb_hcd_get_xfer_ring_phys_addr(dev, ep, dma);
+}
+EXPORT_SYMBOL_GPL(usb_get_xfer_ring_phys_addr);
+
 /**
  * usb_get_controller_id - returns the host controller id.
  * @dev: the device whose host controller id is being queried.

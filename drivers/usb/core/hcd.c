@@ -2257,6 +2257,30 @@ int usb_hcd_sec_event_ring_cleanup(struct usb_device *udev,
 
 /*-------------------------------------------------------------------------*/
 
+phys_addr_t
+usb_hcd_get_sec_event_ring_phys_addr(struct usb_device *udev,
+	unsigned int intr_num, dma_addr_t *dma)
+{
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
+	if (!HCD_RH_RUNNING(hcd))
+		return 0;
+
+	return hcd->driver->get_sec_event_ring_phys_addr(hcd, intr_num, dma);
+}
+
+phys_addr_t
+usb_hcd_get_xfer_ring_phys_addr(struct usb_device *udev,
+		struct usb_host_endpoint *ep, dma_addr_t *dma)
+{
+	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
+
+	if (!HCD_RH_RUNNING(hcd))
+		return 0;
+
+	return hcd->driver->get_xfer_ring_phys_addr(hcd, udev, ep, dma);
+}
+
 int usb_hcd_get_controller_id(struct usb_device *udev)
 {
 	struct usb_hcd	*hcd = bus_to_hcd(udev->bus);
@@ -2543,6 +2567,7 @@ void usb_hc_died (struct usb_hcd *hcd)
 	}
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 	/* Make sure that the other roothub is also deallocated. */
+	usb_atomic_notify_dead_bus(&hcd->self);
 }
 EXPORT_SYMBOL_GPL (usb_hc_died);
 

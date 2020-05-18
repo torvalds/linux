@@ -38,6 +38,7 @@ static const struct dm_default_key_cipher {
  * @sector_size: crypto sector size in bytes (usually 4096)
  * @sector_bits: log2(sector_size)
  * @key: the encryption key to use
+ * @max_dun: the maximum DUN that may be used (computed from other params)
  */
 struct default_key_c {
 	struct dm_dev *dev;
@@ -48,6 +49,7 @@ struct default_key_c {
 	unsigned int sector_bits;
 	struct blk_crypto_key key;
 	bool is_hw_wrapped;
+	u64 max_dun;
 };
 
 static const struct dm_default_key_cipher *
@@ -147,6 +149,7 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	const struct dm_default_key_cipher *cipher;
 	u8 raw_key[DM_DEFAULT_KEY_MAX_WRAPPED_KEY_SIZE];
 	unsigned int raw_key_size;
+	unsigned int dun_bytes;
 	unsigned long long tmpll;
 	char dummy;
 	int err;
@@ -230,16 +233,20 @@ static int default_key_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	err = blk_crypto_init_key(&dkc->key, raw_key, cipher->key_size,
+	dkc->max_dun = (dkc->iv_offset + ti->len - 1) >>
+		       (dkc->sector_bits - SECTOR_SHIFT);
+	dun_bytes = DIV_ROUND_UP(fls64(dkc->max_dun), 8);
+
+	err = blk_crypto_init_key(&dkc->key, raw_key, raw_key_size,
 				  dkc->is_hw_wrapped, cipher->mode_num,
-				  dkc->sector_size);
+				  dun_bytes, dkc->sector_size);
 	if (err) {
 		ti->error = "Error initializing blk-crypto key";
 		goto bad;
 	}
 
-	err = blk_crypto_start_using_mode(cipher->mode_num, dkc->sector_size,
-					  dkc->is_hw_wrapped,
+	err = blk_crypto_start_using_mode(cipher->mode_num, dun_bytes,
+					  dkc->sector_size, dkc->is_hw_wrapped,
 					  dkc->dev->bdev->bd_queue);
 	if (err) {
 		ti->error = "Error starting to use blk-crypto";
@@ -299,6 +306,13 @@ static int default_key_map(struct dm_target *ti, struct bio *bio)
 	if (dun[0] & ((dkc->sector_size >> SECTOR_SHIFT) - 1))
 		return DM_MAPIO_KILL;
 	dun[0] >>= dkc->sector_bits - SECTOR_SHIFT; /* crypto sectors */
+
+	/*
+	 * This check isn't necessary as we should have calculated max_dun
+	 * correctly, but be safe.
+	 */
+	if (WARN_ON_ONCE(dun[0] > dkc->max_dun))
+		return DM_MAPIO_KILL;
 
 	bio_crypt_set_ctx(bio, &dkc->key, dun, GFP_NOIO);
 

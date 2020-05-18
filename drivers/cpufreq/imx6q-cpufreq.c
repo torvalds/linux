@@ -311,6 +311,9 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 
 		np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-ocotp");
 		if (!np)
+			np = of_find_compatible_node(NULL, NULL,
+						     "fsl,imx6ull-ocotp");
+		if (!np)
 			return -ENOENT;
 
 		base = of_iomap(np, 0);

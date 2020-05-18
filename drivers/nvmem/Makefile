@@ -6,6 +6,9 @@
 obj-$(CONFIG_NVMEM)		+= nvmem_core.o
 nvmem_core-y			:= core.o
 
+obj-$(CONFIG_NVMEM_SYSFS)	+= nvmem_sysfs.o
+nvmem_sysfs-y			:= nvmem-sysfs.o
+
 # Devices
 obj-$(CONFIG_NVMEM_BCM_OCOTP)	+= nvmem-bcm-ocotp.o
 nvmem-bcm-ocotp-y		:= bcm-ocotp.o

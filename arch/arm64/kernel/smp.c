@@ -597,6 +597,9 @@ static void __init acpi_parse_and_init_cpus(void)
 #else
 #define acpi_parse_and_init_cpus(...)	do { } while (0)
 #endif
+/* Dummy vendor field */
+DEFINE_PER_CPU(bool, pending_ipi);
+EXPORT_SYMBOL_GPL(pending_ipi);
 
 static void (*__smp_update_ipi_history_cb)(int cpu);
 /*
