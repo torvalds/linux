@@ -919,9 +919,9 @@ static void
 qla27xx_firmware_info(struct scsi_qla_host *vha,
     struct qla27xx_fwdt_template *tmp)
 {
-	tmp->firmware_version[0] = vha->hw->fw_major_version;
-	tmp->firmware_version[1] = vha->hw->fw_minor_version;
-	tmp->firmware_version[2] = vha->hw->fw_subminor_version;
+	tmp->firmware_version[0] = cpu_to_le32(vha->hw->fw_major_version);
+	tmp->firmware_version[1] = cpu_to_le32(vha->hw->fw_minor_version);
+	tmp->firmware_version[2] = cpu_to_le32(vha->hw->fw_subminor_version);
 	tmp->firmware_version[3] = cpu_to_le32(
 		vha->hw->fw_attributes_h << 16 | vha->hw->fw_attributes);
 	tmp->firmware_version[4] = cpu_to_le32(

@@ -227,10 +227,9 @@ qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 
 	/* Checksum NVRAM. */
 	if (IS_FWI2_CAPABLE(ha)) {
-		uint32_t *iter;
+		__le32 *iter = (__force __le32 *)buf;
 		uint32_t chksum;
 
-		iter = (uint32_t *)buf;
 		chksum = 0;
 		for (cnt = 0; cnt < ((count >> 2) - 1); cnt++, iter++)
 			chksum += le32_to_cpu(*iter);

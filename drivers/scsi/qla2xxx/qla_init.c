@@ -120,7 +120,7 @@ static void qla24xx_abort_iocb_timeout(void *data)
 	if (sp->cmd_sp)
 		sp->cmd_sp->done(sp->cmd_sp, QLA_OS_TIMER_EXPIRED);
 
-	abt->u.abt.comp_status = CS_TIMEOUT;
+	abt->u.abt.comp_status = cpu_to_le16(CS_TIMEOUT);
 	sp->done(sp, QLA_OS_TIMER_EXPIRED);
 }
 
@@ -1791,7 +1791,7 @@ qla2x00_tmf_iocb_timeout(void *data)
 			}
 		}
 		spin_unlock_irqrestore(sp->qpair->qp_lock_ptr, flags);
-		tmf->u.tmf.comp_status = CS_TIMEOUT;
+		tmf->u.tmf.comp_status = cpu_to_le16(CS_TIMEOUT);
 		tmf->u.tmf.data = QLA_FUNCTION_FAILED;
 		complete(&tmf->u.tmf.comp);
 	}
@@ -4093,7 +4093,7 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		ql_dbg(ql_dbg_init, vha, 0x00fd,
 		    "Speed set by user : %s Gbps \n",
 		    qla2x00_get_link_speed_str(ha, ha->set_data_rate));
-		icb->firmware_options_3 = (ha->set_data_rate << 13);
+		icb->firmware_options_3 = cpu_to_le32(ha->set_data_rate << 13);
 	}
 
 	/* PCI posting */
@@ -4184,12 +4184,14 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->init_cb.execution_throttle =
 		    cpu_to_le16(ha->cur_fw_xcb_count);
 		ha->flags.dport_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_7) != 0;
+			(le32_to_cpu(mid_init_cb->init_cb.firmware_options_1) &
+			 BIT_7) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x0191, "DPORT Support: %s.\n",
 		    (ha->flags.dport_enabled) ? "enabled" : "disabled");
 		/* FA-WWPN Status */
 		ha->flags.fawwpn_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) != 0;
+			(le32_to_cpu(mid_init_cb->init_cb.firmware_options_1) &
+			 BIT_6) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x00bc, "FA-WWPN Support: %s.\n",
 		    (ha->flags.fawwpn_enabled) ? "enabled" : "disabled");
 	}
@@ -7154,7 +7156,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	int   rval;
 	struct init_cb_24xx *icb;
 	struct nvram_24xx *nv;
-	uint32_t *dptr;
+	__le32 *dptr;
 	uint8_t  *dptr1, *dptr2;
 	uint32_t chksum;
 	uint16_t cnt;
@@ -7182,7 +7184,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
 
 	/* Get NVRAM data into cache and calculate checksum. */
-	dptr = (uint32_t *)nv;
+	dptr = (__force __le32 *)nv;
 	ha->isp_ops->read_nvram(vha, dptr, ha->nvram_base, ha->nvram_size);
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
@@ -7210,7 +7212,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		memset(nv, 0, ha->nvram_size);
 		nv->nvram_version = cpu_to_le16(ICB_VERSION);
 		nv->version = cpu_to_le16(ICB_VERSION);
-		nv->frame_payload_size = 2048;
+		nv->frame_payload_size = cpu_to_le16(2048);
 		nv->execution_throttle = cpu_to_le16(0xFFFF);
 		nv->exchange_count = cpu_to_le16(0);
 		nv->hard_address = cpu_to_le16(124);
@@ -7378,7 +7380,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		ha->login_retry_count = ql2xloginretrycount;
 
 	/* N2N: driver will initiate Login instead of FW */
-	icb->firmware_options_3 |= BIT_8;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_8);
 
 	/* Enable ZIO. */
 	if (!vha->flags.init_done) {
@@ -7446,7 +7448,7 @@ qla27xx_check_image_status_signature(struct qla27xx_image_status *image_status)
 static ulong
 qla27xx_image_status_checksum(struct qla27xx_image_status *image_status)
 {
-	uint32_t *p = (uint32_t *)image_status;
+	__le32 *p = (__force __le32 *)image_status;
 	uint n = sizeof(*image_status) / sizeof(*p);
 	uint32_t sum = 0;
 
@@ -7734,11 +7736,11 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		ql_dbg(ql_dbg_init, vha, 0x008d,
 		    "-> Loading segment %u...\n", j);
 		qla24xx_read_flash_data(vha, dcode, faddr, 10);
-		risc_addr = be32_to_cpu(dcode[2]);
-		risc_size = be32_to_cpu(dcode[3]);
+		risc_addr = be32_to_cpu((__force __be32)dcode[2]);
+		risc_size = be32_to_cpu((__force __be32)dcode[3]);
 		if (!*srisc_addr) {
 			*srisc_addr = risc_addr;
-			risc_attr = be32_to_cpu(dcode[9]);
+			risc_attr = be32_to_cpu((__force __be32)dcode[9]);
 		}
 
 		dlen = ha->fw_transfer_size >> 2;
@@ -7780,7 +7782,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 
 		dcode = (uint32_t *)req->ring;
 		qla24xx_read_flash_data(vha, dcode, faddr, 7);
-		risc_size = be32_to_cpu(dcode[2]);
+		risc_size = be32_to_cpu((__force __be32)dcode[2]);
 		ql_dbg(ql_dbg_init, vha, 0x0161,
 		    "-> fwdt%u template array at %#x (%#x dwords)\n",
 		    j, faddr, risc_size);
@@ -7849,7 +7851,8 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int	rval;
 	int	i, fragment;
-	uint16_t *wcode, *fwcode;
+	uint16_t *wcode;
+	__be16	 *fwcode;
 	uint32_t risc_addr, risc_size, fwclen, wlen, *seg;
 	struct fw_blob *blob;
 	struct qla_hw_data *ha = vha->hw;
@@ -7869,7 +7872,7 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 	wcode = (uint16_t *)req->ring;
 	*srisc_addr = 0;
-	fwcode = (uint16_t *)blob->fw->data;
+	fwcode = (__force __be16 *)blob->fw->data;
 	fwclen = 0;
 
 	/* Validate firmware image by checking version. */
@@ -7917,7 +7920,7 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 			    "words 0x%x.\n", risc_addr, wlen);
 
 			for (i = 0; i < wlen; i++)
-				wcode[i] = swab16(fwcode[i]);
+				wcode[i] = swab16((__force u32)fwcode[i]);
 
 			rval = qla2x00_load_ram(vha, req->dma, risc_addr,
 			    wlen);
@@ -7954,7 +7957,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	ulong i;
 	uint j;
 	struct fw_blob *blob;
-	uint32_t *fwcode;
+	__be32 *fwcode;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct fwdt *fwdt = ha->fwdt;
@@ -7970,8 +7973,8 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	fwcode = (uint32_t *)blob->fw->data;
-	dcode = fwcode;
+	fwcode = (__force __be32 *)blob->fw->data;
+	dcode = (__force uint32_t *)fwcode;
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x0093,
 		    "Unable to verify integrity of firmware image (%zd).\n",
@@ -8008,7 +8011,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 			    dlen);
 
 			for (i = 0; i < dlen; i++)
-				dcode[i] = swab32(fwcode[i]);
+				dcode[i] = swab32((__force u32)fwcode[i]);
 
 			rval = qla2x00_load_ram(vha, req->dma, risc_addr, dlen);
 			if (rval) {
@@ -8062,7 +8065,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 		dcode = fwdt->template;
 		for (i = 0; i < risc_size; i++)
-			dcode[i] = fwcode[i];
+			dcode[i] = (__force u32)fwcode[i];
 
 		if (!qla27xx_fwdt_template_valid(dcode)) {
 			ql_log(ql_log_warn, vha, 0x0175,
@@ -8333,7 +8336,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	int   rval;
 	struct init_cb_81xx *icb;
 	struct nvram_81xx *nv;
-	uint32_t *dptr;
+	__le32 *dptr;
 	uint8_t  *dptr1, *dptr2;
 	uint32_t chksum;
 	uint16_t cnt;
@@ -8380,7 +8383,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	    "primary" : "secondary");
 	ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2, ha->nvram_size);
 
-	dptr = (uint32_t *)nv;
+	dptr = (__force __le32 *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
 
@@ -8407,7 +8410,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		memset(nv, 0, ha->nvram_size);
 		nv->nvram_version = cpu_to_le16(ICB_VERSION);
 		nv->version = cpu_to_le16(ICB_VERSION);
-		nv->frame_payload_size = 2048;
+		nv->frame_payload_size = cpu_to_le16(2048);
 		nv->execution_throttle = cpu_to_le16(0xFFFF);
 		nv->exchange_count = cpu_to_le16(0);
 		nv->port_name[0] = 0x21;
@@ -8451,7 +8454,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	}
 
 	if (IS_T10_PI_CAPABLE(ha))
-		nv->frame_payload_size &= ~7;
+		nv->frame_payload_size &= cpu_to_le16(~7);
 
 	qlt_81xx_config_nvram_stage1(vha, nv);
 
@@ -8614,10 +8617,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	}
 
 	 /* enable RIDA Format2 */
-	icb->firmware_options_3 |= BIT_0;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_0);
 
 	/* N2N: driver will initiate Login instead of FW */
-	icb->firmware_options_3 |= BIT_8;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_8);
 
 	/* Determine NVMe/FCP priority for target ports */
 	ha->fc4_type_priority = qla2xxx_get_fc4_priority(vha);

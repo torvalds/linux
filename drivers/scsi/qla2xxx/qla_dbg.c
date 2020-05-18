@@ -189,8 +189,8 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 }
 
 int
-qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
-    uint32_t ram_dwords, void **nxt)
+qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, __be32 *ram,
+		 uint32_t ram_dwords, void **nxt)
 {
 	int rval = QLA_FUNCTION_FAILED;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
@@ -254,9 +254,9 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 			return rval;
 		}
 		for (j = 0; j < dwords; j++) {
-			ram[i + j] =
-			    (IS_QLA27XX(ha) || IS_QLA28XX(ha)) ?
-			    chunk[j] : swab32(chunk[j]);
+			ram[i + j] = (__force __be32)
+				((IS_QLA27XX(ha) || IS_QLA28XX(ha)) ?
+				 chunk[j] : swab32(chunk[j]));
 		}
 	}
 
@@ -265,8 +265,8 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 }
 
 static int
-qla24xx_dump_memory(struct qla_hw_data *ha, uint32_t *code_ram,
-    uint32_t cram_size, void **nxt)
+qla24xx_dump_memory(struct qla_hw_data *ha, __be32 *code_ram,
+		    uint32_t cram_size, void **nxt)
 {
 	int rval;
 
@@ -286,11 +286,11 @@ qla24xx_dump_memory(struct qla_hw_data *ha, uint32_t *code_ram,
 	return rval;
 }
 
-static uint32_t *
+static __be32 *
 qla24xx_read_window(struct device_reg_24xx __iomem *reg, uint32_t iobase,
-    uint32_t count, uint32_t *buf)
+		    uint32_t count, __be32 *buf)
 {
-	uint32_t __iomem *dmp_reg;
+	__le32 __iomem *dmp_reg;
 
 	wrt_reg_dword(&reg->iobase_addr, iobase);
 	dmp_reg = &reg->iobase_window;
@@ -368,7 +368,7 @@ qla24xx_soft_reset(struct qla_hw_data *ha)
 }
 
 static int
-qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
+qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, __be16 *ram,
     uint32_t ram_words, void **nxt)
 {
 	int rval;
@@ -376,7 +376,7 @@ qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
 	uint16_t mb0;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	dma_addr_t dump_dma = ha->gid_list_dma;
-	uint16_t *dump = (uint16_t *)ha->gid_list;
+	__le16 *dump = (__force __le16 *)ha->gid_list;
 
 	rval = QLA_SUCCESS;
 	mb0 = 0;
@@ -441,7 +441,8 @@ qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
 		if (test_and_clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags)) {
 			rval = mb0 & MBS_MASK;
 			for (idx = 0; idx < words; idx++)
-				ram[cnt + idx] = swab16(dump[idx]);
+				ram[cnt + idx] =
+					cpu_to_be16(le16_to_cpu(dump[idx]));
 		} else {
 			rval = QLA_FUNCTION_FAILED;
 		}
@@ -453,9 +454,9 @@ qla2xxx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint16_t *ram,
 
 static inline void
 qla2xxx_read_window(struct device_reg_2xxx __iomem *reg, uint32_t count,
-    uint16_t *buf)
+		    __be16 *buf)
 {
-	uint16_t __iomem *dmp_reg = &reg->u.isp2300.fb_cmd;
+	__le16 __iomem *dmp_reg = &reg->u.isp2300.fb_cmd;
 
 	for ( ; count--; dmp_reg++)
 		*buf++ = htons(rd_reg_word(dmp_reg));
@@ -472,10 +473,10 @@ qla24xx_copy_eft(struct qla_hw_data *ha, void *ptr)
 }
 
 static inline void *
-qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, __be32 **last_chain)
 {
 	uint32_t cnt;
-	uint32_t *iter_reg;
+	__be32 *iter_reg;
 	struct qla2xxx_fce_chain *fcec = ptr;
 
 	if (!ha->fce)
@@ -499,7 +500,7 @@ qla25xx_copy_fce(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 }
 
 static inline void *
-qla25xx_copy_exlogin(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+qla25xx_copy_exlogin(struct qla_hw_data *ha, void *ptr, __be32 **last_chain)
 {
 	struct qla2xxx_offld_chain *c = ptr;
 
@@ -517,11 +518,11 @@ qla25xx_copy_exlogin(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	ptr += sizeof(struct qla2xxx_offld_chain);
 	memcpy(ptr, ha->exlogin_buf, ha->exlogin_size);
 
-	return (char *)ptr + cpu_to_be32(c->size);
+	return (char *)ptr + be32_to_cpu(c->size);
 }
 
 static inline void *
-qla81xx_copy_exchoffld(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+qla81xx_copy_exchoffld(struct qla_hw_data *ha, void *ptr, __be32 **last_chain)
 {
 	struct qla2xxx_offld_chain *c = ptr;
 
@@ -539,12 +540,12 @@ qla81xx_copy_exchoffld(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 	ptr += sizeof(struct qla2xxx_offld_chain);
 	memcpy(ptr, ha->exchoffld_buf, ha->exchoffld_size);
 
-	return (char *)ptr + cpu_to_be32(c->size);
+	return (char *)ptr + be32_to_cpu(c->size);
 }
 
 static inline void *
 qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
-	uint32_t **last_chain)
+			__be32 **last_chain)
 {
 	struct qla2xxx_mqueue_chain *q;
 	struct qla2xxx_mqueue_header *qh;
@@ -591,7 +592,7 @@ qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
 }
 
 static inline void *
-qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, __be32 **last_chain)
 {
 	struct qla2xxx_mqueue_chain *q;
 	struct qla2xxx_mqueue_header *qh;
@@ -662,7 +663,7 @@ qla25xx_copy_mqueues(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 }
 
 static inline void *
-qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
+qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, __be32 **last_chain)
 {
 	uint32_t cnt, que_idx;
 	uint8_t que_cnt;
@@ -736,7 +737,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-	uint16_t __iomem *dmp_reg;
+	__le16 __iomem *dmp_reg;
 	struct qla2300_fw_dump	*fw;
 	void		*nxt;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
@@ -893,7 +894,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha)
 	uint16_t	mb0 = 0, mb2 = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
-	uint16_t __iomem *dmp_reg;
+	__le16 __iomem *dmp_reg;
 	struct qla2100_fw_dump	*fw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
@@ -1074,13 +1075,13 @@ qla24xx_fw_dump(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t __iomem *dmp_reg;
-	uint32_t	*iter_reg;
-	uint16_t __iomem *mbx_reg;
+	__le32 __iomem *dmp_reg;
+	__be32		*iter_reg;
+	__le16 __iomem *mbx_reg;
 	struct qla24xx_fw_dump *fw;
 	void		*nxt;
 	void		*nxt_chain;
-	uint32_t	*last_chain = NULL;
+	__be32		*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	lockdep_assert_held(&ha->hardware_lock);
@@ -1320,12 +1321,12 @@ qla25xx_fw_dump(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t __iomem *dmp_reg;
-	uint32_t	*iter_reg;
-	uint16_t __iomem *mbx_reg;
+	__le32 __iomem *dmp_reg;
+	__be32		*iter_reg;
+	__le16 __iomem *mbx_reg;
 	struct qla25xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
-	uint32_t	*last_chain = NULL;
+	__be32		*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	lockdep_assert_held(&ha->hardware_lock);
@@ -1633,12 +1634,12 @@ qla81xx_fw_dump(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t __iomem *dmp_reg;
-	uint32_t	*iter_reg;
-	uint16_t __iomem *mbx_reg;
+	__le32 __iomem *dmp_reg;
+	__be32		*iter_reg;
+	__le16 __iomem *mbx_reg;
 	struct qla81xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
-	uint32_t	*last_chain = NULL;
+	__be32		*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	lockdep_assert_held(&ha->hardware_lock);
@@ -1948,12 +1949,12 @@ qla83xx_fw_dump(scsi_qla_host_t *vha)
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t __iomem *dmp_reg;
-	uint32_t	*iter_reg;
-	uint16_t __iomem *mbx_reg;
+	__le32 __iomem *dmp_reg;
+	__be32		*iter_reg;
+	__le16 __iomem *mbx_reg;
 	struct qla83xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
-	uint32_t	*last_chain = NULL;
+	__be32		*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
 	lockdep_assert_held(&ha->hardware_lock);
@@ -2659,7 +2660,7 @@ ql_dump_regs(uint level, scsi_qla_host_t *vha, uint id)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	struct device_reg_24xx __iomem *reg24 = &ha->iobase->isp24;
 	struct device_reg_82xx __iomem *reg82 = &ha->iobase->isp82;
-	uint16_t __iomem *mbx_reg;
+	__le16 __iomem *mbx_reg;
 
 	if (!ql_mask_match(level))
 		return;

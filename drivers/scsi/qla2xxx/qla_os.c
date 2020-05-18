@@ -5763,7 +5763,8 @@ qla25xx_rdp_rsp_reduce_size(struct scsi_qla_host *vha,
 	if (!pdb) {
 		ql_dbg(ql_dbg_init, vha, 0x0181,
 		    "%s: Failed allocate pdb\n", __func__);
-	} else if (qla24xx_get_port_database(vha, purex->nport_handle, pdb)) {
+	} else if (qla24xx_get_port_database(vha,
+				le16_to_cpu(purex->nport_handle), pdb)) {
 		ql_dbg(ql_dbg_init, vha, 0x0181,
 		    "%s: Failed get pdb sid=%x\n", __func__, sid);
 	} else if (pdb->current_login_state != PDS_PLOGI_COMPLETE &&
@@ -5957,7 +5958,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	rsp_els->entry_status = 0;
 	rsp_els->handle = 0;
 	rsp_els->nport_handle = purex->nport_handle;
-	rsp_els->tx_dsd_count = 1;
+	rsp_els->tx_dsd_count = cpu_to_le16(1);
 	rsp_els->vp_index = purex->vp_idx;
 	rsp_els->sof_type = EST_SOFI3;
 	rsp_els->rx_xchg_address = purex->rx_xchg_addr;
@@ -5968,7 +5969,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	rsp_els->d_id[1] = purex->s_id[1];
 	rsp_els->d_id[2] = purex->s_id[2];
 
-	rsp_els->control_flags = EPD_ELS_ACC;
+	rsp_els->control_flags = cpu_to_le16(EPD_ELS_ACC);
 	rsp_els->rx_byte_count = 0;
 	rsp_els->tx_byte_count = cpu_to_le32(rsp_payload_length);
 
@@ -5980,8 +5981,8 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 
 	/* Prepare Response Payload */
 	rsp_payload->hdr.cmd = cpu_to_be32(0x2 << 24); /* LS_ACC */
-	rsp_payload->hdr.len = cpu_to_be32(
-	    rsp_els->tx_byte_count - sizeof(rsp_payload->hdr));
+	rsp_payload->hdr.len = cpu_to_be32(le32_to_cpu(rsp_els->tx_byte_count) -
+					   sizeof(rsp_payload->hdr));
 
 	/* Link service Request Info Descriptor */
 	rsp_payload->ls_req_info_desc.desc_tag = cpu_to_be32(0x1);
@@ -6031,7 +6032,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 		memset(sfp, 0, SFP_RTDI_LEN);
 		rval = qla2x00_read_sfp(vha, sfp_dma, sfp, 0xa2, 0x60, 10, 0);
 		if (!rval) {
-			uint16_t *trx = (uint16_t *)sfp; /* already be16 */
+			__be16 *trx = (__force __be16 *)sfp; /* already be16 */
 			rsp_payload->sfp_diag_desc.temperature = trx[0];
 			rsp_payload->sfp_diag_desc.vcc = trx[1];
 			rsp_payload->sfp_diag_desc.tx_bias = trx[2];
@@ -6058,17 +6059,17 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 		rval = qla24xx_get_isp_stats(vha, stat, stat_dma, 0);
 		if (!rval) {
 			rsp_payload->ls_err_desc.link_fail_cnt =
-			    cpu_to_be32(stat->link_fail_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->link_fail_cnt));
 			rsp_payload->ls_err_desc.loss_sync_cnt =
-			    cpu_to_be32(stat->loss_sync_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->loss_sync_cnt));
 			rsp_payload->ls_err_desc.loss_sig_cnt =
-			    cpu_to_be32(stat->loss_sig_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->loss_sig_cnt));
 			rsp_payload->ls_err_desc.prim_seq_err_cnt =
-			    cpu_to_be32(stat->prim_seq_err_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->prim_seq_err_cnt));
 			rsp_payload->ls_err_desc.inval_xmit_word_cnt =
-			    cpu_to_be32(stat->inval_xmit_word_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->inval_xmit_word_cnt));
 			rsp_payload->ls_err_desc.inval_crc_cnt =
-			    cpu_to_be32(stat->inval_crc_cnt);
+			    cpu_to_be32(le32_to_cpu(stat->inval_crc_cnt));
 			rsp_payload->ls_err_desc.pn_port_phy_type |= BIT_6;
 		}
 	}
@@ -6140,7 +6141,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 		memset(sfp, 0, SFP_RTDI_LEN);
 		rval = qla2x00_read_sfp(vha, sfp_dma, sfp, 0xa2, 0, 64, 0);
 		if (!rval) {
-			uint16_t *trx = (uint16_t *)sfp; /* already be16 */
+			__be16 *trx = (__force __be16 *)sfp; /* already be16 */
 
 			/* Optical Element Descriptor, Temperature */
 			rsp_payload->optical_elmt_desc[0].high_alarm = trx[0];

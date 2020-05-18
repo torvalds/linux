@@ -1561,14 +1561,14 @@ qla82xx_get_table_desc(const u8 *unirom, int section)
 	uint32_t i;
 	struct qla82xx_uri_table_desc *directory =
 		(struct qla82xx_uri_table_desc *)&unirom[0];
-	__le32 offset;
-	__le32 tab_type;
-	__le32 entries = cpu_to_le32(directory->num_entries);
+	uint32_t offset;
+	uint32_t tab_type;
+	uint32_t entries = le32_to_cpu(directory->num_entries);
 
 	for (i = 0; i < entries; i++) {
-		offset = cpu_to_le32(directory->findex) +
-		    (i * cpu_to_le32(directory->entry_size));
-		tab_type = cpu_to_le32(*((u32 *)&unirom[offset] + 8));
+		offset = le32_to_cpu(directory->findex) +
+		    (i * le32_to_cpu(directory->entry_size));
+		tab_type = get_unaligned_le32((u32 *)&unirom[offset] + 8);
 
 		if (tab_type == section)
 			return (struct qla82xx_uri_table_desc *)&unirom[offset];
@@ -1582,16 +1582,17 @@ qla82xx_get_data_desc(struct qla_hw_data *ha,
 	u32 section, u32 idx_offset)
 {
 	const u8 *unirom = ha->hablob->fw->data;
-	int idx = cpu_to_le32(*((int *)&unirom[ha->file_prd_off] + idx_offset));
+	int idx = get_unaligned_le32((u32 *)&unirom[ha->file_prd_off] +
+				     idx_offset);
 	struct qla82xx_uri_table_desc *tab_desc = NULL;
-	__le32 offset;
+	uint32_t offset;
 
 	tab_desc = qla82xx_get_table_desc(unirom, section);
 	if (!tab_desc)
 		return NULL;
 
-	offset = cpu_to_le32(tab_desc->findex) +
-	    (cpu_to_le32(tab_desc->entry_size) * idx);
+	offset = le32_to_cpu(tab_desc->findex) +
+	    (le32_to_cpu(tab_desc->entry_size) * idx);
 
 	return (struct qla82xx_uri_data_desc *)&unirom[offset];
 }
@@ -1606,7 +1607,7 @@ qla82xx_get_bootld_offset(struct qla_hw_data *ha)
 		uri_desc = qla82xx_get_data_desc(ha,
 		    QLA82XX_URI_DIR_SECT_BOOTLD, QLA82XX_URI_BOOTLD_IDX_OFF);
 		if (uri_desc)
-			offset = cpu_to_le32(uri_desc->findex);
+			offset = le32_to_cpu(uri_desc->findex);
 	}
 
 	return (u8 *)&ha->hablob->fw->data[offset];
@@ -1620,7 +1621,7 @@ static u32 qla82xx_get_fw_size(struct qla_hw_data *ha)
 		uri_desc =  qla82xx_get_data_desc(ha, QLA82XX_URI_DIR_SECT_FW,
 		    QLA82XX_URI_FIRMWARE_IDX_OFF);
 		if (uri_desc)
-			return cpu_to_le32(uri_desc->size);
+			return le32_to_cpu(uri_desc->size);
 	}
 
 	return get_unaligned_le32(&ha->hablob->fw->data[FW_SIZE_OFFSET]);
@@ -1636,7 +1637,7 @@ qla82xx_get_fw_offs(struct qla_hw_data *ha)
 		uri_desc = qla82xx_get_data_desc(ha, QLA82XX_URI_DIR_SECT_FW,
 			QLA82XX_URI_FIRMWARE_IDX_OFF);
 		if (uri_desc)
-			offset = cpu_to_le32(uri_desc->findex);
+			offset = le32_to_cpu(uri_desc->findex);
 	}
 
 	return (u8 *)&ha->hablob->fw->data[offset];
@@ -1847,8 +1848,8 @@ qla82xx_set_product_offset(struct qla_hw_data *ha)
 	struct qla82xx_uri_table_desc *ptab_desc = NULL;
 	const uint8_t *unirom = ha->hablob->fw->data;
 	uint32_t i;
-	__le32 entries;
-	__le32 flags, file_chiprev, offset;
+	uint32_t entries;
+	uint32_t flags, file_chiprev, offset;
 	uint8_t chiprev = ha->chip_revision;
 	/* Hardcoding mn_present flag for P3P */
 	int mn_present = 0;
@@ -1859,14 +1860,14 @@ qla82xx_set_product_offset(struct qla_hw_data *ha)
 	if (!ptab_desc)
 		return -1;
 
-	entries = cpu_to_le32(ptab_desc->num_entries);
+	entries = le32_to_cpu(ptab_desc->num_entries);
 
 	for (i = 0; i < entries; i++) {
-		offset = cpu_to_le32(ptab_desc->findex) +
-			(i * cpu_to_le32(ptab_desc->entry_size));
-		flags = cpu_to_le32(*((int *)&unirom[offset] +
+		offset = le32_to_cpu(ptab_desc->findex) +
+			(i * le32_to_cpu(ptab_desc->entry_size));
+		flags = le32_to_cpu(*((__le32 *)&unirom[offset] +
 			QLA82XX_URI_FLAGS_OFF));
-		file_chiprev = cpu_to_le32(*((int *)&unirom[offset] +
+		file_chiprev = le32_to_cpu(*((__le32 *)&unirom[offset] +
 			QLA82XX_URI_CHIP_REV_OFF));
 
 		flagbit = mn_present ? 1 : 2;
@@ -2549,8 +2550,8 @@ qla82xx_start_firmware(scsi_qla_host_t *vha)
 	return qla82xx_check_rcvpeg_state(ha);
 }
 
-static uint32_t *
-qla82xx_read_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
+static __le32 *
+qla82xx_read_flash_data(scsi_qla_host_t *vha, __le32 *dwptr, uint32_t faddr,
 	uint32_t length)
 {
 	uint32_t i;
@@ -2675,13 +2676,13 @@ qla82xx_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	uint32_t offset, uint32_t length)
 {
 	scsi_block_requests(vha->host);
-	qla82xx_read_flash_data(vha, (uint32_t *)buf, offset, length);
+	qla82xx_read_flash_data(vha, buf, offset, length);
 	scsi_unblock_requests(vha->host);
 	return buf;
 }
 
 static int
-qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
+qla82xx_write_flash_data(struct scsi_qla_host *vha, __le32 *dwptr,
 	uint32_t faddr, uint32_t dwords)
 {
 	int ret;
@@ -2758,7 +2759,7 @@ qla82xx_write_flash_data(struct scsi_qla_host *vha, uint32_t *dwptr,
 		}
 
 		ret = qla82xx_write_flash_dword(ha, faddr,
-		    cpu_to_le32(*dwptr));
+						le32_to_cpu(*dwptr));
 		if (ret) {
 			ql_dbg(ql_dbg_p3p, vha, 0xb020,
 			    "Unable to program flash address=%x data=%x.\n",
@@ -3724,7 +3725,7 @@ qla82xx_chip_reset_cleanup(scsi_qla_host_t *vha)
 /* Minidump related functions */
 static int
 qla82xx_minidump_process_control(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct qla82xx_md_entry_crb *crb_entry;
@@ -3841,12 +3842,12 @@ qla82xx_minidump_process_control(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_rdocm(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t r_addr, r_stride, loop_cnt, i, r_value;
 	struct qla82xx_md_entry_rdocm *ocm_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	ocm_hdr = (struct qla82xx_md_entry_rdocm *)entry_hdr;
 	r_addr = ocm_hdr->read_addr;
@@ -3863,12 +3864,12 @@ qla82xx_minidump_process_rdocm(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_rdmux(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t r_addr, s_stride, s_addr, s_value, loop_cnt, i, r_value;
 	struct qla82xx_md_entry_mux *mux_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	mux_hdr = (struct qla82xx_md_entry_mux *)entry_hdr;
 	r_addr = mux_hdr->read_addr;
@@ -3889,12 +3890,12 @@ qla82xx_minidump_process_rdmux(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_rdcrb(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t r_addr, r_stride, loop_cnt, i, r_value;
 	struct qla82xx_md_entry_crb *crb_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	crb_hdr = (struct qla82xx_md_entry_crb *)entry_hdr;
 	r_addr = crb_hdr->addr;
@@ -3912,7 +3913,7 @@ qla82xx_minidump_process_rdcrb(scsi_qla_host_t *vha,
 
 static int
 qla82xx_minidump_process_l2tag(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t addr, r_addr, c_addr, t_r_addr;
@@ -3921,7 +3922,7 @@ qla82xx_minidump_process_l2tag(scsi_qla_host_t *vha,
 	uint32_t c_value_w, c_value_r;
 	struct qla82xx_md_entry_cache *cache_hdr;
 	int rval = QLA_FUNCTION_FAILED;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	cache_hdr = (struct qla82xx_md_entry_cache *)entry_hdr;
 	loop_count = cache_hdr->op_count;
@@ -3971,14 +3972,14 @@ qla82xx_minidump_process_l2tag(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_l1cache(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t addr, r_addr, c_addr, t_r_addr;
 	uint32_t i, k, loop_count, t_value, r_cnt, r_value;
 	uint32_t c_value_w;
 	struct qla82xx_md_entry_cache *cache_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	cache_hdr = (struct qla82xx_md_entry_cache *)entry_hdr;
 	loop_count = cache_hdr->op_count;
@@ -4006,14 +4007,14 @@ qla82xx_minidump_process_l1cache(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_queue(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t s_addr, r_addr;
 	uint32_t r_stride, r_value, r_cnt, qid = 0;
 	uint32_t i, k, loop_cnt;
 	struct qla82xx_md_entry_queue *q_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	q_hdr = (struct qla82xx_md_entry_queue *)entry_hdr;
 	s_addr = q_hdr->select_addr;
@@ -4036,13 +4037,13 @@ qla82xx_minidump_process_queue(scsi_qla_host_t *vha,
 
 static void
 qla82xx_minidump_process_rdrom(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t r_addr, r_value;
 	uint32_t i, loop_cnt;
 	struct qla82xx_md_entry_rdrom *rom_hdr;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	rom_hdr = (struct qla82xx_md_entry_rdrom *)entry_hdr;
 	r_addr = rom_hdr->read_addr;
@@ -4062,7 +4063,7 @@ qla82xx_minidump_process_rdrom(scsi_qla_host_t *vha,
 
 static int
 qla82xx_minidump_process_rdmem(scsi_qla_host_t *vha,
-	qla82xx_md_entry_hdr_t *entry_hdr, uint32_t **d_ptr)
+	qla82xx_md_entry_hdr_t *entry_hdr, __le32 **d_ptr)
 {
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t r_addr, r_value, r_data;
@@ -4070,7 +4071,7 @@ qla82xx_minidump_process_rdmem(scsi_qla_host_t *vha,
 	struct qla82xx_md_entry_rdmem *m_hdr;
 	unsigned long flags;
 	int rval = QLA_FUNCTION_FAILED;
-	uint32_t *data_ptr = *d_ptr;
+	__le32 *data_ptr = *d_ptr;
 
 	m_hdr = (struct qla82xx_md_entry_rdmem *)entry_hdr;
 	r_addr = m_hdr->read_addr;
@@ -4163,12 +4164,12 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 	int no_entry_hdr = 0;
 	qla82xx_md_entry_hdr_t *entry_hdr;
 	struct qla82xx_md_template_hdr *tmplt_hdr;
-	uint32_t *data_ptr;
+	__le32 *data_ptr;
 	uint32_t total_data_size = 0, f_capture_mask, data_collected = 0;
 	int i = 0, rval = QLA_FUNCTION_FAILED;
 
 	tmplt_hdr = (struct qla82xx_md_template_hdr *)ha->md_tmplt_hdr;
-	data_ptr = (uint32_t *)ha->md_dump;
+	data_ptr = ha->md_dump;
 
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xb037,

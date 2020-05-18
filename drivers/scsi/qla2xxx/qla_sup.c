@@ -183,7 +183,7 @@ qla2x00_nv_deselect(struct qla_hw_data *ha)
  * @data: word to program
  */
 static void
-qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
+qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, __le16 data)
 {
 	int count;
 	uint16_t word;
@@ -202,7 +202,7 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 
 	/* Write data */
 	nv_cmd = (addr << 16) | NV_WRITE_OP;
-	nv_cmd |= data;
+	nv_cmd |= (__force u16)data;
 	nv_cmd <<= 5;
 	for (count = 0; count < 27; count++) {
 		if (nv_cmd & BIT_31)
@@ -241,7 +241,7 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 
 static int
 qla2x00_write_nvram_word_tmo(struct qla_hw_data *ha, uint32_t addr,
-	uint16_t data, uint32_t tmo)
+			     __le16 data, uint32_t tmo)
 {
 	int ret, count;
 	uint16_t word;
@@ -261,7 +261,7 @@ qla2x00_write_nvram_word_tmo(struct qla_hw_data *ha, uint32_t addr,
 
 	/* Write data */
 	nv_cmd = (addr << 16) | NV_WRITE_OP;
-	nv_cmd |= data;
+	nv_cmd |= (__force u16)data;
 	nv_cmd <<= 5;
 	for (count = 0; count < 27; count++) {
 		if (nv_cmd & BIT_31)
@@ -308,7 +308,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 	int ret, stat;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint32_t word, wait_cnt;
-	uint16_t wprot, wprot_old;
+	__le16 wprot, wprot_old;
 	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
 
 	/* Clear NVRAM write protection. */
@@ -318,7 +318,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 	stat = qla2x00_write_nvram_word_tmo(ha, ha->nvram_base,
 					    cpu_to_le16(0x1234), 100000);
 	wprot = cpu_to_le16(qla2x00_get_nvram_word(ha, ha->nvram_base));
-	if (stat != QLA_SUCCESS || wprot != 0x1234) {
+	if (stat != QLA_SUCCESS || wprot != cpu_to_le16(0x1234)) {
 		/* Write enable. */
 		qla2x00_nv_write(ha, NVR_DATA_OUT);
 		qla2x00_nv_write(ha, 0);
@@ -549,7 +549,8 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 {
 	const char *loc, *locations[] = { "DEF", "PCI" };
 	uint32_t pcihdr, pcids;
-	uint16_t cnt, chksum, *wptr;
+	uint16_t cnt, chksum;
+	__le16 *wptr;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct qla_flt_location *fltl = (void *)req->ring;
@@ -610,7 +611,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	if (memcmp(fltl->sig, "QFLT", 4))
 		goto end;
 
-	wptr = (uint16_t *)req->ring;
+	wptr = (__force __le16 *)req->ring;
 	cnt = sizeof(*fltl) / sizeof(*wptr);
 	for (chksum = 0; cnt--; wptr++)
 		chksum += le16_to_cpu(*wptr);
@@ -671,7 +672,8 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	uint32_t def = IS_QLA81XX(ha) ? 2 : IS_QLA25XX(ha) ? 1 : 0;
 	struct qla_flt_header *flt = ha->flt;
 	struct qla_flt_region *region = &flt->region[0];
-	uint16_t *wptr, cnt, chksum;
+	__le16 *wptr;
+	uint16_t cnt, chksum;
 	uint32_t start;
 
 	/* Assign FCP prio region since older adapters may not have FLT, or
@@ -681,7 +683,7 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 
 	ha->flt_region_flt = flt_addr;
-	wptr = (uint16_t *)ha->flt;
+	wptr = (__force __le16 *)ha->flt;
 	ha->isp_ops->read_optrom(vha, flt, flt_addr << 2,
 	    (sizeof(struct qla_flt_header) + FLT_REGIONS_SIZE));
 
@@ -949,7 +951,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	uint16_t cnt, chksum;
-	uint16_t *wptr = (uint16_t *)req->ring;
+	__le16 *wptr = (__force __le16 *)req->ring;
 	struct qla_fdt_layout *fdt = (struct qla_fdt_layout *)req->ring;
 	uint8_t	man_id, flash_id;
 	uint16_t mid = 0, fid = 0;
@@ -1042,14 +1044,14 @@ static void
 qla2xxx_get_idc_param(scsi_qla_host_t *vha)
 {
 #define QLA82XX_IDC_PARAM_ADDR       0x003e885c
-	uint32_t *wptr;
+	__le32 *wptr;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 
 	if (!(IS_P3P_TYPE(ha)))
 		return;
 
-	wptr = (uint32_t *)req->ring;
+	wptr = (__force __le32 *)req->ring;
 	ha->isp_ops->read_optrom(vha, req->ring, QLA82XX_IDC_PARAM_ADDR, 8);
 
 	if (*wptr == cpu_to_le32(0xffffffff)) {
@@ -1095,7 +1097,7 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *vha)
 {
 #define NPIV_CONFIG_SIZE	(16*1024)
 	void *data;
-	uint16_t *wptr;
+	__le16 *wptr;
 	uint16_t cnt, chksum;
 	int i;
 	struct qla_npiv_header hdr;
@@ -1265,7 +1267,7 @@ qla24xx_erase_sector(scsi_qla_host_t *vha, uint32_t fdata)
 }
 
 static int
-qla24xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
+qla24xx_write_flash_data(scsi_qla_host_t *vha, __le32 *dwptr, uint32_t faddr,
     uint32_t dwords)
 {
 	int ret;
@@ -1352,7 +1354,7 @@ next:
 
 		/* Slow write */
 		ret = qla24xx_write_flash_dword(ha,
-		    flash_data_addr(ha, faddr), cpu_to_le32(*dwptr));
+		    flash_data_addr(ha, faddr), le32_to_cpu(*dwptr));
 		if (ret) {
 			ql_dbg(ql_dbg_user, vha, 0x7006,
 			    "Failed slopw write %x (%x)\n", faddr, *dwptr);
@@ -1379,11 +1381,11 @@ qla2x00_read_nvram_data(scsi_qla_host_t *vha, void *buf, uint32_t naddr,
     uint32_t bytes)
 {
 	uint32_t i;
-	uint16_t *wptr;
+	__le16 *wptr;
 	struct qla_hw_data *ha = vha->hw;
 
 	/* Word reads to NVRAM via registers. */
-	wptr = (uint16_t *)buf;
+	wptr = buf;
 	qla2x00_lock_nvram_access(ha);
 	for (i = 0; i < bytes >> 1; i++, naddr++)
 		wptr[i] = cpu_to_le16(qla2x00_get_nvram_word(ha,
@@ -1456,7 +1458,7 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, void *buf, uint32_t naddr,
 {
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-	uint32_t *dwptr = buf;
+	__le32 *dwptr = buf;
 	uint32_t i;
 	int ret;
 
@@ -1478,7 +1480,7 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, void *buf, uint32_t naddr,
 	naddr = nvram_data_addr(ha, naddr);
 	bytes >>= 2;
 	for (i = 0; i < bytes; i++, naddr++, dwptr++) {
-		if (qla24xx_write_flash_dword(ha, naddr, cpu_to_le32(*dwptr))) {
+		if (qla24xx_write_flash_dword(ha, naddr, le32_to_cpu(*dwptr))) {
 			ql_dbg(ql_dbg_user, vha, 0x709a,
 			    "Unable to program nvram address=%x data=%x.\n",
 			    naddr, *dwptr);
@@ -2662,7 +2664,7 @@ qla28xx_get_flash_region(struct scsi_qla_host *vha, uint32_t start,
 
 	cnt = le16_to_cpu(flt->length) / sizeof(struct qla_flt_region);
 	for (; cnt; cnt--, flt_reg++) {
-		if (flt_reg->start == start) {
+		if (le32_to_cpu(flt_reg->start) == start) {
 			memcpy((uint8_t *)region, flt_reg,
 			    sizeof(struct qla_flt_region));
 			rval = QLA_SUCCESS;
@@ -2691,7 +2693,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 	struct qla_flt_region region;
 	bool reset_to_rom = false;
 	uint32_t risc_size, risc_attr = 0;
-	uint32_t *fw_array = NULL;
+	__be32 *fw_array = NULL;
 
 	/* Retrieve region info - must be a start address passed in */
 	rval = qla28xx_get_flash_region(vha, offset, &region);
@@ -2722,12 +2724,12 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
 		    "Region %x is secure\n", region.code);
 
-		switch (region.code) {
+		switch (le16_to_cpu(region.code)) {
 		case FLT_REG_FW:
 		case FLT_REG_FW_SEC_27XX:
 		case FLT_REG_MPI_PRI_28XX:
 		case FLT_REG_MPI_SEC_28XX:
-			fw_array = dwptr;
+			fw_array = (__force __be32 *)dwptr;
 
 			/* 1st fw array */
 			risc_size = be32_to_cpu(fw_array[3]);
@@ -2761,7 +2763,7 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 
 		case FLT_REG_PEP_PRI_28XX:
 		case FLT_REG_PEP_SEC_28XX:
-			fw_array = dwptr;
+			fw_array = (__force __be32 *)dwptr;
 
 			/* 1st fw array */
 			risc_size = be32_to_cpu(fw_array[3]);
@@ -2892,7 +2894,8 @@ qla28xx_write_flash_data(scsi_qla_host_t *vha, uint32_t *dwptr, uint32_t faddr,
 		if (region.attribute && buf_size_without_sfub) {
 			ql_log(ql_log_warn + ql_dbg_verbose, vha, 0xffff,
 			    "Sending Secure Flash MB Cmd\n");
-			rval = qla28xx_secure_flash_update(vha, 0, region.code,
+			rval = qla28xx_secure_flash_update(vha, 0,
+				le16_to_cpu(region.code),
 				buf_size_without_sfub, sfub_dma,
 				sizeof(struct secure_flash_update_block) >> 2);
 			if (rval != QLA_SUCCESS) {
@@ -2981,11 +2984,11 @@ qla24xx_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 
 	/* Go with write. */
 	if (IS_QLA28XX(ha))
-		rval = qla28xx_write_flash_data(vha, (uint32_t *)buf,
-		    offset >> 2, length >> 2);
+		rval = qla28xx_write_flash_data(vha, buf, offset >> 2,
+						length >> 2);
 	else
-		rval = qla24xx_write_flash_data(vha, (uint32_t *)buf,
-		    offset >> 2, length >> 2);
+		rval = qla24xx_write_flash_data(vha, buf, offset >> 2,
+						length >> 2);
 
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 	scsi_unblock_requests(vha->host);
@@ -3513,7 +3516,8 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		ql_dump_buffer(ql_dbg_init, vha, 0x005f, dcode, 32);
 	} else {
 		for (i = 0; i < 4; i++)
-			ha->fw_revision[i] = be32_to_cpu(dcode[4+i]);
+			ha->fw_revision[i] =
+				be32_to_cpu((__force __be32)dcode[4+i]);
 		ql_dbg(ql_dbg_init, vha, 0x0060,
 		    "Firmware revision (flash) %u.%u.%u (%x).\n",
 		    ha->fw_revision[0], ha->fw_revision[1],
@@ -3537,7 +3541,8 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 	}
 
 	for (i = 0; i < 4; i++)
-		ha->gold_fw_version[i] = be32_to_cpu(dcode[4+i]);
+		ha->gold_fw_version[i] =
+			be32_to_cpu((__force __be32)dcode[4+i]);
 
 	return ret;
 }

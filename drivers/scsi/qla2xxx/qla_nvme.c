@@ -138,7 +138,7 @@ static void qla_nvme_release_fcp_cmd_kref(struct kref *kref)
 	priv->sp = NULL;
 	sp->priv = NULL;
 	if (priv->comp_status == QLA_SUCCESS) {
-		fd->rcv_rsplen = nvme->u.nvme.rsp_pyld_len;
+		fd->rcv_rsplen = le16_to_cpu(nvme->u.nvme.rsp_pyld_len);
 	} else {
 		fd->rcv_rsplen = 0;
 		fd->transferred_length = 0;
@@ -426,11 +426,11 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* No data transfer how do we check buffer len == 0?? */
 	if (fd->io_dir == NVMEFC_FCP_READ) {
-		cmd_pkt->control_flags = CF_READ_DATA;
+		cmd_pkt->control_flags = cpu_to_le16(CF_READ_DATA);
 		vha->qla_stats.input_bytes += fd->payload_length;
 		vha->qla_stats.input_requests++;
 	} else if (fd->io_dir == NVMEFC_FCP_WRITE) {
-		cmd_pkt->control_flags = CF_WRITE_DATA;
+		cmd_pkt->control_flags = cpu_to_le16(CF_WRITE_DATA);
 		if ((vha->flags.nvme_first_burst) &&
 		    (sp->fcport->nvme_prli_service_param &
 			NVME_PRLI_SP_FIRST_BURST)) {
@@ -438,7 +438,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 			    sp->fcport->nvme_first_burst_size) ||
 				(sp->fcport->nvme_first_burst_size == 0))
 				cmd_pkt->control_flags |=
-				    CF_NVME_FIRST_BURST_ENABLE;
+					cpu_to_le16(CF_NVME_FIRST_BURST_ENABLE);
 		}
 		vha->qla_stats.output_bytes += fd->payload_length;
 		vha->qla_stats.output_requests++;
