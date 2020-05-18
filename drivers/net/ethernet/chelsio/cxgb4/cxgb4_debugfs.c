@@ -1813,12 +1813,8 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 			/* Inner header lookup */
 			if (lookup_type && (lookup_type != DATALKPTYPE_M)) {
 				seq_printf(seq,
-					   "%3u %02x:%02x:%02x:%02x:%02x:%02x "
-					   "%012llx %06x %06x    -    -   %3c"
-					   "      'I'  %4x   "
-					   "%3c   %#x%4u%4d", idx, addr[0],
-					   addr[1], addr[2], addr[3],
-					   addr[4], addr[5],
+					   "%3u %pM %012llx %06x %06x    -    -   %3c      'I'  %4x   %3c   %#x%4u%4d",
+					   idx, addr,
 					   (unsigned long long)mask,
 					   vniy, (vnix | vniy),
 					   dip_hit ? 'Y' : 'N',
@@ -1830,10 +1826,8 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 					   T6_VF_G(cls_lo) : -1);
 			} else {
 				seq_printf(seq,
-					   "%3u %02x:%02x:%02x:%02x:%02x:%02x "
-					   "%012llx    -       -   ",
-					   idx, addr[0], addr[1], addr[2],
-					   addr[3], addr[4], addr[5],
+					   "%3u %pM %012llx    -       -   ",
+					   idx, addr,
 					   (unsigned long long)mask);
 
 				if (vlan_vld)
@@ -1851,10 +1845,8 @@ static int mps_tcam_show(struct seq_file *seq, void *v)
 					   T6_VF_G(cls_lo) : -1);
 			}
 		} else
-			seq_printf(seq, "%3u %02x:%02x:%02x:%02x:%02x:%02x "
-				   "%012llx%3c   %#x%4u%4d",
-				   idx, addr[0], addr[1], addr[2], addr[3],
-				   addr[4], addr[5], (unsigned long long)mask,
+			seq_printf(seq, "%3u %pM %012llx%3c   %#x%4u%4d",
+				   idx, addr, (unsigned long long)mask,
 				   (cls_lo & SRAM_VLD_F) ? 'Y' : 'N',
 				   PORTMAP_G(cls_hi),
 				   PF_G(cls_lo),
