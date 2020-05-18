@@ -893,41 +893,24 @@ static inline size_t tcmu_cmd_get_cmd_size(struct tcmu_cmd *tcmu_cmd,
 	return command_size;
 }
 
-static int tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
-				struct timer_list *timer)
+static void tcmu_setup_cmd_timer(struct tcmu_cmd *tcmu_cmd, unsigned int tmo,
+				 struct timer_list *timer)
 {
-	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
-	int cmd_id;
-
-	if (tcmu_cmd->cmd_id)
-		goto setup_timer;
-
-	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
-	if (cmd_id < 0) {
-		pr_err("tcmu: Could not allocate cmd id.\n");
-		return cmd_id;
-	}
-	tcmu_cmd->cmd_id = cmd_id;
-
-	pr_debug("allocated cmd %u for dev %s tmo %lu\n", tcmu_cmd->cmd_id,
-		 udev->name, tmo / MSEC_PER_SEC);
-
-setup_timer:
 	if (!tmo)
-		return 0;
+		return;
 
 	tcmu_cmd->deadline = round_jiffies_up(jiffies + msecs_to_jiffies(tmo));
 	if (!timer_pending(timer))
 		mod_timer(timer, tcmu_cmd->deadline);
 
-	return 0;
+	pr_debug("Timeout set up for cmd %p, dev = %s, tmo = %lu\n", tcmu_cmd,
+		 tcmu_cmd->tcmu_dev->name, tmo / MSEC_PER_SEC);
 }
 
 static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 {
 	struct tcmu_dev *udev = tcmu_cmd->tcmu_dev;
 	unsigned int tmo;
-	int ret;
 
 	/*
 	 * For backwards compat if qfull_time_out is not set use
@@ -942,13 +925,11 @@ static int add_to_qfull_queue(struct tcmu_cmd *tcmu_cmd)
 	else
 		tmo = TCMU_TIME_OUT;
 
-	ret = tcmu_setup_cmd_timer(tcmu_cmd, tmo, &udev->qfull_timer);
-	if (ret)
-		return ret;
+	tcmu_setup_cmd_timer(tcmu_cmd, tmo, &udev->qfull_timer);
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->qfull_queue);
-	pr_debug("adding cmd %u on dev %s to ring space wait queue\n",
-		 tcmu_cmd->cmd_id, udev->name);
+	pr_debug("adding cmd %p on dev %s to ring space wait queue\n",
+		 tcmu_cmd, udev->name);
 	return 0;
 }
 
@@ -970,7 +951,7 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	struct tcmu_mailbox *mb;
 	struct tcmu_cmd_entry *entry;
 	struct iovec *iov;
-	int iov_cnt, ret;
+	int iov_cnt, cmd_id;
 	uint32_t cmd_head;
 	uint64_t cdb_off;
 	bool copy_to_data_area;
@@ -1071,14 +1052,21 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	}
 	entry->req.iov_bidi_cnt = iov_cnt;
 
-	ret = tcmu_setup_cmd_timer(tcmu_cmd, udev->cmd_time_out,
-				   &udev->cmd_timer);
-	if (ret) {
-		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
+	cmd_id = idr_alloc(&udev->commands, tcmu_cmd, 1, USHRT_MAX, GFP_NOWAIT);
+	if (cmd_id < 0) {
+		pr_err("tcmu: Could not allocate cmd id.\n");
 
+		tcmu_cmd_free_data(tcmu_cmd, tcmu_cmd->dbi_cnt);
 		*scsi_err = TCM_OUT_OF_RESOURCES;
 		return -1;
 	}
+	tcmu_cmd->cmd_id = cmd_id;
+
+	pr_debug("allocated cmd id %u for cmd %p dev %s\n", tcmu_cmd->cmd_id,
+		 tcmu_cmd, udev->name);
+
+	tcmu_setup_cmd_timer(tcmu_cmd, udev->cmd_time_out, &udev->cmd_timer);
+
 	entry->hdr.cmd_id = tcmu_cmd->cmd_id;
 
 	/*
@@ -1290,50 +1278,39 @@ static unsigned int tcmu_handle_completions(struct tcmu_dev *udev)
 	return handled;
 }
 
-static int tcmu_check_expired_cmd(int id, void *p, void *data)
+static void tcmu_check_expired_ring_cmd(struct tcmu_cmd *cmd)
 {
-	struct tcmu_cmd *cmd = p;
-	struct tcmu_dev *udev = cmd->tcmu_dev;
-	u8 scsi_status;
 	struct se_cmd *se_cmd;
-	bool is_running;
-
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags))
-		return 0;
 
 	if (!time_after(jiffies, cmd->deadline))
-		return 0;
+		return;
 
-	is_running = test_bit(TCMU_CMD_BIT_INFLIGHT, &cmd->flags);
+	set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
+	list_del_init(&cmd->queue_entry);
 	se_cmd = cmd->se_cmd;
+	cmd->se_cmd = NULL;
 
-	if (is_running) {
-		/*
-		 * If cmd_time_out is disabled but qfull is set deadline
-		 * will only reflect the qfull timeout. Ignore it.
-		 */
-		if (!udev->cmd_time_out)
-			return 0;
+	pr_debug("Timing out inflight cmd %u on dev %s.\n",
+		 cmd->cmd_id, cmd->tcmu_dev->name);
 
-		set_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags);
-		/*
-		 * target_complete_cmd will translate this to LUN COMM FAILURE
-		 */
-		scsi_status = SAM_STAT_CHECK_CONDITION;
-		list_del_init(&cmd->queue_entry);
-		cmd->se_cmd = NULL;
-	} else {
-		list_del_init(&cmd->queue_entry);
-		idr_remove(&udev->commands, id);
-		tcmu_free_cmd(cmd);
-		scsi_status = SAM_STAT_TASK_SET_FULL;
-	}
+	target_complete_cmd(se_cmd, SAM_STAT_CHECK_CONDITION);
+}
 
-	pr_debug("Timing out cmd %u on dev %s that is %s.\n",
-		 id, udev->name, is_running ? "inflight" : "queued");
+static void tcmu_check_expired_queue_cmd(struct tcmu_cmd *cmd)
+{
+	struct se_cmd *se_cmd;
 
-	target_complete_cmd(se_cmd, scsi_status);
-	return 0;
+	if (!time_after(jiffies, cmd->deadline))
+		return;
+
+	list_del_init(&cmd->queue_entry);
+	se_cmd = cmd->se_cmd;
+	tcmu_free_cmd(cmd);
+
+	pr_debug("Timing out queued cmd %p on dev %s.\n",
+		  cmd, cmd->tcmu_dev->name);
+
+	target_complete_cmd(se_cmd, SAM_STAT_TASK_SET_FULL);
 }
 
 static void tcmu_device_timedout(struct tcmu_dev *udev)
@@ -1418,16 +1395,15 @@ static struct se_device *tcmu_alloc_device(struct se_hba *hba, const char *name)
 	return &udev->se_dev;
 }
 
-static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
+static void run_qfull_queue(struct tcmu_dev *udev, bool fail)
 {
 	struct tcmu_cmd *tcmu_cmd, *tmp_cmd;
 	LIST_HEAD(cmds);
-	bool drained = true;
 	sense_reason_t scsi_ret;
 	int ret;
 
 	if (list_empty(&udev->qfull_queue))
-		return true;
+		return;
 
 	pr_debug("running %s's cmdr queue forcefail %d\n", udev->name, fail);
 
@@ -1436,11 +1412,10 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 	list_for_each_entry_safe(tcmu_cmd, tmp_cmd, &cmds, queue_entry) {
 		list_del_init(&tcmu_cmd->queue_entry);
 
-	        pr_debug("removing cmd %u on dev %s from queue\n",
-		         tcmu_cmd->cmd_id, udev->name);
+		pr_debug("removing cmd %p on dev %s from queue\n",
+			 tcmu_cmd, udev->name);
 
 		if (fail) {
-			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
 			/*
 			 * We were not able to even start the command, so
 			 * fail with busy to allow a retry in case runner
@@ -1455,10 +1430,8 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 
 		ret = queue_cmd_ring(tcmu_cmd, &scsi_ret);
 		if (ret < 0) {
-		        pr_debug("cmd %u on dev %s failed with %u\n",
-			         tcmu_cmd->cmd_id, udev->name, scsi_ret);
-
-			idr_remove(&udev->commands, tcmu_cmd->cmd_id);
+			pr_debug("cmd %p on dev %s failed with %u\n",
+				 tcmu_cmd, udev->name, scsi_ret);
 			/*
 			 * Ignore scsi_ret for now. target_complete_cmd
 			 * drops it.
@@ -1473,13 +1446,11 @@ static bool run_qfull_queue(struct tcmu_dev *udev, bool fail)
 			 * the queue
 			 */
 			list_splice_tail(&cmds, &udev->qfull_queue);
-			drained = false;
 			break;
 		}
 	}
 
 	tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
-	return drained;
 }
 
 static int tcmu_irqcontrol(struct uio_info *info, s32 irq_on)
@@ -1663,6 +1634,8 @@ static void tcmu_dev_kref_release(struct kref *kref)
 		if (tcmu_check_and_free_pending_cmd(cmd) != 0)
 			all_expired = false;
 	}
+	if (!list_empty(&udev->qfull_queue))
+		all_expired = false;
 	idr_destroy(&udev->commands);
 	WARN_ON(!all_expired);
 
@@ -2031,9 +2004,6 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 	mutex_lock(&udev->cmdr_lock);
 
 	idr_for_each_entry(&udev->commands, cmd, i) {
-		if (!test_bit(TCMU_CMD_BIT_INFLIGHT, &cmd->flags))
-			continue;
-
 		pr_debug("removing cmd %u on dev %s from ring (is expired %d)\n",
 			  cmd->cmd_id, udev->name,
 			  test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags));
@@ -2070,6 +2040,8 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 	clear_bit(TCMU_DEV_BIT_BROKEN, &udev->flags);
 
 	del_timer(&udev->cmd_timer);
+
+	run_qfull_queue(udev, false);
 
 	mutex_unlock(&udev->cmdr_lock);
 }
@@ -2692,6 +2664,7 @@ static void find_free_blocks(void)
 static void check_timedout_devices(void)
 {
 	struct tcmu_dev *udev, *tmp_dev;
+	struct tcmu_cmd *cmd, *tmp_cmd;
 	LIST_HEAD(devs);
 
 	spin_lock_bh(&timed_out_udevs_lock);
@@ -2702,9 +2675,24 @@ static void check_timedout_devices(void)
 		spin_unlock_bh(&timed_out_udevs_lock);
 
 		mutex_lock(&udev->cmdr_lock);
-		idr_for_each(&udev->commands, tcmu_check_expired_cmd, NULL);
 
-		tcmu_set_next_deadline(&udev->inflight_queue, &udev->cmd_timer);
+		/*
+		 * If cmd_time_out is disabled but qfull is set deadline
+		 * will only reflect the qfull timeout. Ignore it.
+		 */
+		if (udev->cmd_time_out) {
+			list_for_each_entry_safe(cmd, tmp_cmd,
+						 &udev->inflight_queue,
+						 queue_entry) {
+				tcmu_check_expired_ring_cmd(cmd);
+			}
+			tcmu_set_next_deadline(&udev->inflight_queue,
+					       &udev->cmd_timer);
+		}
+		list_for_each_entry_safe(cmd, tmp_cmd, &udev->qfull_queue,
+					 queue_entry) {
+			tcmu_check_expired_queue_cmd(cmd);
+		}
 		tcmu_set_next_deadline(&udev->qfull_queue, &udev->qfull_timer);
 
 		mutex_unlock(&udev->cmdr_lock);
