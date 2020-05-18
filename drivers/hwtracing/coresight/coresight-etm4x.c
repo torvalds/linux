@@ -1494,6 +1494,7 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 
 err_arch_supported:
+	etmdrvdata[drvdata->cpu] = NULL;
 	if (--etm4_count == 0) {
 		etm4_cpu_pm_unregister();
 
