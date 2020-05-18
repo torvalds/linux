@@ -54,12 +54,12 @@ bool psci_tos_resident_on(int cpu)
 
 struct psci_operations psci_ops = {
 	.conduit = SMCCC_CONDUIT_NONE,
-	.smccc_version = SMCCC_VERSION_1_0,
+	.smccc_version = ARM_SMCCC_VERSION_1_0,
 };
 
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
 {
-	if (psci_ops.smccc_version < SMCCC_VERSION_1_1)
+	if (psci_ops.smccc_version < ARM_SMCCC_VERSION_1_1)
 		return SMCCC_CONDUIT_NONE;
 
 	return psci_ops.conduit;
@@ -411,8 +411,8 @@ static void __init psci_init_smccc(void)
 	if (feature != PSCI_RET_NOT_SUPPORTED) {
 		u32 ret;
 		ret = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
-		if (ret == ARM_SMCCC_VERSION_1_1) {
-			psci_ops.smccc_version = SMCCC_VERSION_1_1;
+		if (ret >= ARM_SMCCC_VERSION_1_1) {
+			psci_ops.smccc_version = ret;
 			ver = ret;
 		}
 	}
