@@ -1864,18 +1864,6 @@ esw_check_vport_match_metadata_supported(const struct mlx5_eswitch *esw)
 	return true;
 }
 
-static bool
-esw_check_vport_match_metadata_mandatory(const struct mlx5_eswitch *esw)
-{
-	return mlx5_core_mp_enabled(esw->dev);
-}
-
-static bool esw_use_vport_metadata(const struct mlx5_eswitch *esw)
-{
-	return esw_check_vport_match_metadata_mandatory(esw) &&
-	       esw_check_vport_match_metadata_supported(esw);
-}
-
 u32 mlx5_esw_match_metadata_alloc(struct mlx5_eswitch *esw)
 {
 	u32 num_vports = GENMASK(ESW_VPORT_BITS - 1, 0) - 1;
@@ -2159,9 +2147,9 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 
 	err = mlx5_esw_host_number_init(esw);
 	if (err)
-		goto err_vport_metadata;
+		goto err_metadata;
 
-	if (esw_use_vport_metadata(esw))
+	if (esw_check_vport_match_metadata_supported(esw))
 		esw->flags |= MLX5_ESWITCH_VPORT_MATCH_METADATA;
 
 	err = esw_offloads_metadata_init(esw);
