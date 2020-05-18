@@ -1104,26 +1104,17 @@ xfs_fill_fsxattr(
 	bool			attr,
 	struct fsxattr		*fa)
 {
+	struct xfs_ifork	*ifp = attr ? ip->i_afp : &ip->i_df;
+
 	simple_fill_fsxattr(fa, xfs_ip2xflags(ip));
 	fa->fsx_extsize = ip->i_d.di_extsize << ip->i_mount->m_sb.sb_blocklog;
 	fa->fsx_cowextsize = ip->i_d.di_cowextsize <<
 			ip->i_mount->m_sb.sb_blocklog;
 	fa->fsx_projid = ip->i_d.di_projid;
-
-	if (attr) {
-		if (ip->i_afp) {
-			if (ip->i_afp->if_flags & XFS_IFEXTENTS)
-				fa->fsx_nextents = xfs_iext_count(ip->i_afp);
-			else
-				fa->fsx_nextents = ip->i_d.di_anextents;
-		} else
-			fa->fsx_nextents = 0;
-	} else {
-		if (ip->i_df.if_flags & XFS_IFEXTENTS)
-			fa->fsx_nextents = xfs_iext_count(&ip->i_df);
-		else
-			fa->fsx_nextents = ip->i_d.di_nextents;
-	}
+	if (ifp && (ifp->if_flags & XFS_IFEXTENTS))
+		fa->fsx_nextents = xfs_iext_count(ifp);
+	else
+		fa->fsx_nextents = xfs_ifork_nextents(ifp);
 }
 
 STATIC int
@@ -1211,7 +1202,7 @@ xfs_ioctl_setattr_xflags(
 	uint64_t		di_flags2;
 
 	/* Can't change realtime flag if any extents are allocated. */
-	if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
+	if ((ip->i_df.if_nextents || ip->i_delayed_blks) &&
 	    XFS_IS_REALTIME_INODE(ip) != (fa->fsx_xflags & FS_XFLAG_REALTIME))
 		return -EINVAL;
 
@@ -1389,7 +1380,7 @@ xfs_ioctl_setattr_check_extsize(
 	xfs_extlen_t		size;
 	xfs_fsblock_t		extsize_fsb;
 
-	if (S_ISREG(VFS_I(ip)->i_mode) && ip->i_d.di_nextents &&
+	if (S_ISREG(VFS_I(ip)->i_mode) && ip->i_df.if_nextents &&
 	    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) != fa->fsx_extsize))
 		return -EINVAL;
 

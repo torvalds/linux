@@ -384,7 +384,7 @@ xfs_inactive_symlink_rmt(
 	 * either 1 or 2 extents and that we can
 	 * free them all in one bunmapi call.
 	 */
-	ASSERT(ip->i_d.di_nextents > 0 && ip->i_d.di_nextents <= 2);
+	ASSERT(ip->i_df.if_nextents > 0 && ip->i_df.if_nextents <= 2);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
 	if (error)

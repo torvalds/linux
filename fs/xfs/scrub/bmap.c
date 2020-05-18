@@ -566,6 +566,7 @@ xchk_bmap_check_rmaps(
 	struct xfs_scrub	*sc,
 	int			whichfork)
 {
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
 	xfs_agnumber_t		agno;
 	bool			zero_size;
 	int			error;
@@ -594,7 +595,7 @@ xchk_bmap_check_rmaps(
 		zero_size = false;
 
 	if (XFS_IFORK_FORMAT(sc->ip, whichfork) != XFS_DINODE_FMT_BTREE &&
-	    (zero_size || XFS_IFORK_NEXTENTS(sc->ip, whichfork) > 0))
+	    (zero_size || ifp->if_nextents > 0))
 		return 0;
 
 	for (agno = 0; agno < sc->mp->m_sb.sb_agcount; agno++) {

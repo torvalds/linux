@@ -1227,7 +1227,7 @@ xfs_swap_extents_check_format(
 	 * if the target inode has less extents that then temporary inode then
 	 * why did userspace call us?
 	 */
-	if (ip->i_d.di_nextents < tip->i_d.di_nextents)
+	if (ip->i_df.if_nextents < tip->i_df.if_nextents)
 		return -EINVAL;
 
 	/*
@@ -1248,14 +1248,12 @@ xfs_swap_extents_check_format(
 
 	/* Check temp in extent form to max in target */
 	if (tip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) >
-			XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
+	    tip->i_df.if_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 		return -EINVAL;
 
 	/* Check target in extent form to max in temp */
 	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
-	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) >
-			XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
+	    ip->i_df.if_nextents > XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 		return -EINVAL;
 
 	/*
@@ -1271,7 +1269,7 @@ xfs_swap_extents_check_format(
 		if (XFS_IFORK_Q(ip) &&
 		    XFS_BMAP_BMDR_SPACE(tip->i_df.if_broot) > XFS_IFORK_BOFF(ip))
 			return -EINVAL;
-		if (XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) <=
+		if (tip->i_df.if_nextents <=
 		    XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK))
 			return -EINVAL;
 	}
@@ -1281,7 +1279,7 @@ xfs_swap_extents_check_format(
 		if (XFS_IFORK_Q(tip) &&
 		    XFS_BMAP_BMDR_SPACE(ip->i_df.if_broot) > XFS_IFORK_BOFF(tip))
 			return -EINVAL;
-		if (XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) <=
+		if (ip->i_df.if_nextents <=
 		    XFS_IFORK_MAXEXT(tip, XFS_DATA_FORK))
 			return -EINVAL;
 	}
@@ -1434,15 +1432,15 @@ xfs_swap_extent_forks(
 	/*
 	 * Count the number of extended attribute blocks
 	 */
-	if ( ((XFS_IFORK_Q(ip) != 0) && (ip->i_d.di_anextents > 0)) &&
-	     (ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)) {
+	if (XFS_IFORK_Q(ip) && ip->i_afp->if_nextents > 0 &&
+	    ip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, ip, XFS_ATTR_FORK, &junk,
 				&aforkblks);
 		if (error)
 			return error;
 	}
-	if ( ((XFS_IFORK_Q(tip) != 0) && (tip->i_d.di_anextents > 0)) &&
-	     (tip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL)) {
+	if (XFS_IFORK_Q(tip) && tip->i_afp->if_nextents > 0 &&
+	    tip->i_d.di_aformat != XFS_DINODE_FMT_LOCAL) {
 		error = xfs_bmap_count_blocks(tp, tip, XFS_ATTR_FORK, &junk,
 				&taforkblks);
 		if (error)
@@ -1475,7 +1473,6 @@ xfs_swap_extent_forks(
 	ip->i_d.di_nblocks = tip->i_d.di_nblocks - taforkblks + aforkblks;
 	tip->i_d.di_nblocks = tmp + taforkblks - aforkblks;
 
-	swap(ip->i_d.di_nextents, tip->i_d.di_nextents);
 	swap(ip->i_d.di_format, tip->i_d.di_format);
 
 	/*
@@ -1622,9 +1619,9 @@ xfs_swap_extents(
 	 * performed with log redo items!
 	 */
 	if (xfs_sb_version_hasrmapbt(&mp->m_sb)) {
-		int		w	= XFS_DATA_FORK;
-		uint32_t	ipnext	= XFS_IFORK_NEXTENTS(ip, w);
-		uint32_t	tipnext	= XFS_IFORK_NEXTENTS(tip, w);
+		int		w = XFS_DATA_FORK;
+		uint32_t	ipnext = ip->i_df.if_nextents;
+		uint32_t	tipnext	= tip->i_df.if_nextents;
 
 		/*
 		 * Conceptually this shouldn't affect the shape of either bmbt,
@@ -1727,7 +1724,6 @@ xfs_swap_extents(
 		ASSERT(ip->i_cformat == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(tip->i_cformat == XFS_DINODE_FMT_EXTENTS);
 
-		swap(ip->i_cnextents, tip->i_cnextents);
 		swap(ip->i_cowfp, tip->i_cowfp);
 
 		if (ip->i_cowfp && ip->i_cowfp->if_bytes)

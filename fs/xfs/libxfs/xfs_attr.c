@@ -62,7 +62,7 @@ xfs_inode_hasattr(
 {
 	if (!XFS_IFORK_Q(ip) ||
 	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     ip->i_d.di_anextents == 0))
+	     ip->i_afp->if_nextents == 0))
 		return 0;
 	return 1;
 }
@@ -214,7 +214,7 @@ xfs_attr_set_args(
 	 */
 	if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL ||
 	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	     dp->i_afp->if_nextents == 0)) {
 
 		/*
 		 * Build initial attribute list (if required).

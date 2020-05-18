@@ -872,7 +872,7 @@ xfs_setattr_size(
 	/*
 	 * Short circuit the truncate case for zero length files.
 	 */
-	if (newsize == 0 && oldsize == 0 && ip->i_d.di_nextents == 0) {
+	if (newsize == 0 && oldsize == 0 && ip->i_df.if_nextents == 0) {
 		if (!(iattr->ia_valid & (ATTR_CTIME|ATTR_MTIME)))
 			return 0;
 
