@@ -204,10 +204,6 @@ extern int svc_rdma_read_payload(struct svc_rqst *rqstp, unsigned int offset,
 				 unsigned int length);
 
 /* svc_rdma_transport.c */
-extern int svc_rdma_create_listen(struct svc_serv *, int, struct sockaddr *);
-extern void svc_sq_reap(struct svcxprt_rdma *);
-extern void svc_rq_reap(struct svcxprt_rdma *);
-
 extern struct svc_xprt_class svc_rdma_class;
 #ifdef CONFIG_SUNRPC_BACKCHANNEL
 extern struct svc_xprt_class svc_rdma_bc_class;
