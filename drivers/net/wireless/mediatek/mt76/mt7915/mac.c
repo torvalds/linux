@@ -425,20 +425,26 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	/* RXD Group 3 - P-RXV */
 	if (rxd1 & MT_RXD1_NORMAL_GROUP_3) {
+		u32 v0, v1, v2;
+
 		memcpy(rxv.v, rxd, sizeof(rxv.v));
 
 		rxd += 2;
 		if ((u8 *)rxd - skb->data >= skb->len)
 			return -EINVAL;
 
-		if (rxv.v[0] & MT_PRXV_HT_AD_CODE)
+		v0 = le32_to_cpu(rxv.v[0]);
+		v1 = le32_to_cpu(rxv.v[1]);
+		v2 = le32_to_cpu(rxv.v[2]);
+
+		if (v0 & MT_PRXV_HT_AD_CODE)
 			status->enc_flags |= RX_ENC_FLAG_LDPC;
 
 		status->chains = mphy->antenna_mask;
-		status->chain_signal[0] = to_rssi(MT_PRXV_RCPI0, rxv.v[1]);
-		status->chain_signal[1] = to_rssi(MT_PRXV_RCPI1, rxv.v[1]);
-		status->chain_signal[2] = to_rssi(MT_PRXV_RCPI2, rxv.v[1]);
-		status->chain_signal[3] = to_rssi(MT_PRXV_RCPI3, rxv.v[1]);
+		status->chain_signal[0] = to_rssi(MT_PRXV_RCPI0, v1);
+		status->chain_signal[1] = to_rssi(MT_PRXV_RCPI1, v1);
+		status->chain_signal[2] = to_rssi(MT_PRXV_RCPI2, v1);
+		status->chain_signal[3] = to_rssi(MT_PRXV_RCPI3, v1);
 		status->signal = status->chain_signal[0];
 
 		for (i = 1; i < hweight8(mphy->antenna_mask); i++) {
@@ -451,16 +457,16 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 
 		/* RXD Group 5 - C-RXV */
 		if (rxd1 & MT_RXD1_NORMAL_GROUP_5) {
-			u8 stbc = FIELD_GET(MT_CRXV_HT_STBC, rxv.v[2]);
-			u8 gi = FIELD_GET(MT_CRXV_HT_SHORT_GI, rxv.v[2]);
+			u8 stbc = FIELD_GET(MT_CRXV_HT_STBC, v2);
+			u8 gi = FIELD_GET(MT_CRXV_HT_SHORT_GI, v2);
 			bool cck = false;
 
 			rxd += 18;
 			if ((u8 *)rxd - skb->data >= skb->len)
 				return -EINVAL;
 
-			idx = i = FIELD_GET(MT_PRXV_TX_RATE, rxv.v[0]);
-			rxv.phy = FIELD_GET(MT_CRXV_TX_MODE, rxv.v[2]);
+			idx = i = FIELD_GET(MT_PRXV_TX_RATE, v0);
+			rxv.phy = FIELD_GET(MT_CRXV_TX_MODE, v2);
 
 			switch (rxv.phy) {
 			case MT_PHY_TYPE_CCK:
@@ -477,7 +483,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 				break;
 			case MT_PHY_TYPE_VHT:
 				status->nss =
-					FIELD_GET(MT_PRXV_NSTS, rxv.v[0]) + 1;
+					FIELD_GET(MT_PRXV_NSTS, v0) + 1;
 				status->encoding = RX_ENC_VHT;
 				if (i > 9)
 					return -EINVAL;
@@ -489,7 +495,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 			case MT_PHY_TYPE_HE_EXT_SU:
 			case MT_PHY_TYPE_HE_TB:
 				status->nss =
-					FIELD_GET(MT_PRXV_NSTS, rxv.v[0]) + 1;
+					FIELD_GET(MT_PRXV_NSTS, v0) + 1;
 				status->encoding = RX_ENC_HE;
 				status->flag |= RX_FLAG_RADIOTAP_HE;
 				i &= GENMASK(3, 0);
@@ -505,7 +511,7 @@ int mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 			}
 			status->rate_idx = i;
 
-			switch (FIELD_GET(MT_CRXV_FRAME_MODE, rxv.v[2])) {
+			switch (FIELD_GET(MT_CRXV_FRAME_MODE, v2)) {
 			case IEEE80211_STA_RX_BW_20:
 				break;
 			case IEEE80211_STA_RX_BW_40:
@@ -611,7 +617,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 			 skb->priority & IEEE80211_QOS_CTL_TID_MASK) |
 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
 	if (ext_phy && q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
-		val |= cpu_to_le32(MT_TXD1_TGID);
+		val |= MT_TXD1_TGID;
 
 	txwi[1] = cpu_to_le32(val);
 
