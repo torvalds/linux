@@ -187,6 +187,8 @@ void mt76x02_sta_ps(struct mt76_dev *dev, struct ieee80211_sta *sta, bool ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info, u32 changed);
+void mt76x02_reconfig_complete(struct ieee80211_hw *hw,
+			       enum ieee80211_reconfig_type reconfig_type);
 
 struct beacon_bc_data {
 	struct mt76x02_dev *dev;
@@ -216,6 +218,7 @@ static inline bool is_mt76x0(struct mt76x02_dev *dev)
 static inline bool is_mt76x2(struct mt76x02_dev *dev)
 {
 	return mt76_chip(&dev->mt76) == 0x7612 ||
+	       mt76_chip(&dev->mt76) == 0x7632 ||
 	       mt76_chip(&dev->mt76) == 0x7662 ||
 	       mt76_chip(&dev->mt76) == 0x7602;
 }
