@@ -244,6 +244,38 @@ int get_int(const char **fmt, va_list *ap)
 	return 0;
 }
 
+static
+unsigned long long get_number(int sign, int qualifier, va_list *ap)
+{
+	if (sign) {
+		switch (qualifier) {
+		case 'L':
+			return va_arg(*ap, long long);
+		case 'l':
+			return va_arg(*ap, long);
+		case 'h':
+			return (short)va_arg(*ap, int);
+		case 'H':
+			return (signed char)va_arg(*ap, int);
+		default:
+			return va_arg(*ap, int);
+		};
+	} else {
+		switch (qualifier) {
+		case 'L':
+			return va_arg(*ap, unsigned long long);
+		case 'l':
+			return va_arg(*ap, unsigned long);
+		case 'h':
+			return (unsigned short)va_arg(*ap, int);
+		case 'H':
+			return (unsigned char)va_arg(*ap, int);
+		default:
+			return va_arg(*ap, unsigned int);
+		}
+	}
+}
+
 int vsprintf(char *buf, const char *fmt, va_list ap)
 {
 	int len;
@@ -370,40 +402,8 @@ int vsprintf(char *buf, const char *fmt, va_list ap)
 		}
 		if (*fmt == 'p') {
 			num = (unsigned long)va_arg(args, void *);
-		} else if (flags & SIGN) {
-			switch (qualifier) {
-			case 'L':
-				num = va_arg(args, long long);
-				break;
-			case 'l':
-				num = va_arg(args, long);
-				break;
-			case 'h':
-				num = (short)va_arg(args, int);
-				break;
-			case 'H':
-				num = (signed char)va_arg(args, int);
-				break;
-			default:
-				num = va_arg(args, int);
-			}
 		} else {
-			switch (qualifier) {
-			case 'L':
-				num = va_arg(args, unsigned long long);
-				break;
-			case 'l':
-				num = va_arg(args, unsigned long);
-				break;
-			case 'h':
-				num = (unsigned short)va_arg(args, int);
-				break;
-			case 'H':
-				num = (unsigned char)va_arg(args, int);
-				break;
-			default:
-				num = va_arg(args, unsigned int);
-			}
+			num = get_number(flags & SIGN, qualifier, &args);
 		}
 		str = number(str, num, base, field_width, precision, flags);
 	}
