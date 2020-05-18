@@ -3,6 +3,7 @@
 
 #include <linux/device.h>
 #include <linux/acpi.h>
+#include <linux/pm_runtime.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_type.h>
 #include "bus.h"
@@ -14,9 +15,15 @@ static void sdw_master_device_release(struct device *dev)
 	kfree(md);
 }
 
+static const struct dev_pm_ops master_dev_pm = {
+	SET_RUNTIME_PM_OPS(pm_generic_runtime_suspend,
+			   pm_generic_runtime_resume, NULL)
+};
+
 struct device_type sdw_master_type = {
 	.name =		"soundwire_master",
 	.release =	sdw_master_device_release,
+	.pm = &master_dev_pm,
 };
 
 /**
