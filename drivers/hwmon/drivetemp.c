@@ -346,7 +346,7 @@ static int drivetemp_identify_sata(struct drivetemp_data *st)
 	st->have_temp_highest = temp_is_valid(buf[SCT_STATUS_TEMP_HIGHEST]);
 
 	if (!have_sct_data_table)
-		goto skip_sct;
+		goto skip_sct_data;
 
 	/* Request and read temperature history table */
 	memset(buf, '\0', sizeof(st->smartdata));
