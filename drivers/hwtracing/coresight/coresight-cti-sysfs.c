@@ -1139,7 +1139,7 @@ static int cti_create_con_attr_set(struct device *dev, int con_idx,
 }
 
 /* create the array of group pointers for the CTI sysfs groups */
-int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
+static int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
 {
 	int nr_groups;
 

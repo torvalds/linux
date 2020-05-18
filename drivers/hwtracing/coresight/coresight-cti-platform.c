@@ -429,8 +429,7 @@ static int cti_plat_create_impdef_connections(struct device *dev,
 }
 
 /* get the hardware configuration & connection data. */
-int cti_plat_get_hw_data(struct device *dev,
-			 struct cti_drvdata *drvdata)
+static int cti_plat_get_hw_data(struct device *dev, struct cti_drvdata *drvdata)
 {
 	int rc = 0;
 	struct cti_device *cti_dev = &drvdata->ctidev;
