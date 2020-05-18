@@ -8,6 +8,7 @@
 #include <linux/atomic.h>
 #include <linux/bits.h>
 #include <linux/coresight.h>
+#include <linux/cpuhotplug.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -39,6 +40,12 @@ static DEFINE_MUTEX(ect_mutex);
 
 #define csdev_to_cti_drvdata(csdev)	\
 	dev_get_drvdata(csdev->dev.parent)
+
+/* power management handling */
+static int nr_cti_cpu;
+
+/* quick lookup list for CPU bound CTIs when power handling */
+static struct cti_drvdata *cti_cpu_drvdata[NR_CPUS];
 
 /*
  * CTI naming. CTI bound to cores will have the name cti_cpu<N> where
@@ -127,6 +134,35 @@ cti_err_not_enabled:
 	spin_unlock(&drvdata->spinlock);
 	pm_runtime_put(dev->parent);
 	return rc;
+}
+
+/* re-enable CTI on CPU when using CPU hotplug */
+static void cti_cpuhp_enable_hw(struct cti_drvdata *drvdata)
+{
+	struct cti_config *config = &drvdata->config;
+	struct device *dev = &drvdata->csdev->dev;
+
+	pm_runtime_get_sync(dev->parent);
+	spin_lock(&drvdata->spinlock);
+	config->hw_powered = true;
+
+	/* no need to do anything if no enable request */
+	if (!atomic_read(&drvdata->config.enable_req_count))
+		goto cti_hp_not_enabled;
+
+	/* try to claim the device */
+	if (coresight_claim_device(drvdata->base))
+		goto cti_hp_not_enabled;
+
+	cti_write_all_hw_regs(drvdata);
+	config->hw_enabled = true;
+	spin_unlock(&drvdata->spinlock);
+	return;
+
+	/* did not re-enable due to no claim / no request */
+cti_hp_not_enabled:
+	spin_unlock(&drvdata->spinlock);
+	pm_runtime_put(dev->parent);
 }
 
 /* disable hardware */
@@ -620,6 +656,44 @@ static void cti_remove_conn_xrefs(struct cti_drvdata *drvdata)
 	}
 }
 
+/* CPU HP handlers */
+static int cti_starting_cpu(unsigned int cpu)
+{
+	struct cti_drvdata *drvdata = cti_cpu_drvdata[cpu];
+
+	if (!drvdata)
+		return 0;
+
+	cti_cpuhp_enable_hw(drvdata);
+	return 0;
+}
+
+static int cti_dying_cpu(unsigned int cpu)
+{
+	struct cti_drvdata *drvdata = cti_cpu_drvdata[cpu];
+
+	if (!drvdata)
+		return 0;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->config.hw_powered = false;
+	coresight_disclaim_device(drvdata->base);
+	spin_unlock(&drvdata->spinlock);
+	return 0;
+}
+
+/* release PM registrations */
+static void cti_pm_release(struct cti_drvdata *drvdata)
+{
+	if (drvdata->ctidev.cpu >= 0) {
+		if (--nr_cti_cpu == 0) {
+			cpuhp_remove_state_nocalls(
+				CPUHP_AP_ARM_CORESIGHT_CTI_STARTING);
+		}
+		cti_cpu_drvdata[drvdata->ctidev.cpu] = NULL;
+	}
+}
+
 /** cti ect operations **/
 int cti_enable(struct coresight_device *csdev)
 {
@@ -655,6 +729,7 @@ static void cti_device_release(struct device *dev)
 
 	mutex_lock(&ect_mutex);
 	cti_remove_conn_xrefs(drvdata);
+	cti_pm_release(drvdata);
 
 	/* remove from the list */
 	list_for_each_entry_safe(ect_item, ect_tmp, &ect_net, node) {
@@ -730,6 +805,22 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_out;
 	}
 
+	/* setup CPU power management handling for CPU bound CTI devices. */
+	if (drvdata->ctidev.cpu >= 0) {
+		cti_cpu_drvdata[drvdata->ctidev.cpu] = drvdata;
+		if (!nr_cti_cpu++) {
+			cpus_read_lock();
+			ret = cpuhp_setup_state_nocalls_cpuslocked(
+				CPUHP_AP_ARM_CORESIGHT_CTI_STARTING,
+				"arm/coresight_cti:starting",
+				cti_starting_cpu, cti_dying_cpu);
+
+			cpus_read_unlock();
+			if (ret)
+				goto err_out;
+		}
+	}
+
 	/* create dynamic attributes for connections */
 	ret = cti_create_cons_sysfs(dev, drvdata);
 	if (ret) {
@@ -768,6 +859,7 @@ static int cti_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 
 err_out:
+	cti_pm_release(drvdata);
 	return ret;
 }
 
