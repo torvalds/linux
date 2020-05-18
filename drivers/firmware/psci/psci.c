@@ -46,23 +46,12 @@
  * require cooperation with a Trusted OS driver.
  */
 static int resident_cpu = -1;
+struct psci_operations psci_ops;
+static enum arm_smccc_conduit psci_conduit = SMCCC_CONDUIT_NONE;
 
 bool psci_tos_resident_on(int cpu)
 {
 	return cpu == resident_cpu;
-}
-
-struct psci_operations psci_ops = {
-	.conduit = SMCCC_CONDUIT_NONE,
-	.smccc_version = ARM_SMCCC_VERSION_1_0,
-};
-
-enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
-{
-	if (psci_ops.smccc_version < ARM_SMCCC_VERSION_1_1)
-		return SMCCC_CONDUIT_NONE;
-
-	return psci_ops.conduit;
 }
 
 typedef unsigned long (psci_fn)(unsigned long, unsigned long,
@@ -90,6 +79,7 @@ static u32 psci_function_id[PSCI_FN_MAX];
 
 static u32 psci_cpu_suspend_feature;
 static bool psci_system_reset2_supported;
+void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit);
 
 static inline bool psci_has_ext_power_state(void)
 {
@@ -242,7 +232,7 @@ static void set_conduit(enum arm_smccc_conduit conduit)
 		WARN(1, "Unexpected PSCI conduit %d\n", conduit);
 	}
 
-	psci_ops.conduit = conduit;
+	psci_conduit = conduit;
 }
 
 static int get_set_conduit_method(struct device_node *np)
@@ -412,7 +402,7 @@ static void __init psci_init_smccc(void)
 		u32 ret;
 		ret = invoke_psci_fn(ARM_SMCCC_VERSION_FUNC_ID, 0, 0, 0);
 		if (ret >= ARM_SMCCC_VERSION_1_1) {
-			psci_ops.smccc_version = ret;
+			arm_smccc_version_init(ret, psci_conduit);
 			ver = ret;
 		}
 	}
