@@ -945,7 +945,7 @@ static int mc_probe(struct platform_device *pdev)
 		amp_num += codec_info_list[i].amp_num;
 
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "cfg-spk:%d, cfg-amp:%d",
+					  "cfg-spk:%d cfg-amp:%d",
 					  (sof_sdw_quirk & SOF_SDW_FOUR_SPK)
 					  ? 4 : 2, amp_num);
 	if (!card->components)
