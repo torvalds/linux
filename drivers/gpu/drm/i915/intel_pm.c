@@ -4764,6 +4764,30 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *crtc_state)
 	memset(crtc_state->wm.skl.plane_ddb_uv, 0, sizeof(crtc_state->wm.skl.plane_ddb_uv));
 
 	if (!crtc_state->hw.active) {
+		struct intel_atomic_state *state =
+			to_intel_atomic_state(crtc_state->uapi.state);
+		struct intel_dbuf_state *new_dbuf_state =
+			intel_atomic_get_new_dbuf_state(state);
+		const struct intel_dbuf_state *old_dbuf_state =
+			intel_atomic_get_old_dbuf_state(state);
+
+		/*
+		 * FIXME hack to make sure we compute this sensibly when
+		 * turning off all the pipes. Otherwise we leave it at
+		 * whatever we had previously, and then runtime PM will
+		 * mess it up by turning off all but S1. Remove this
+		 * once the dbuf state computation flow becomes sane.
+		 */
+		if (new_dbuf_state->active_pipes == 0) {
+			new_dbuf_state->enabled_slices = BIT(DBUF_S1);
+
+			if (old_dbuf_state->enabled_slices != new_dbuf_state->enabled_slices) {
+				ret = intel_atomic_serialize_global_state(&new_dbuf_state->base);
+				if (ret)
+					return ret;
+			}
+		}
+
 		alloc->start = alloc->end = 0;
 		return 0;
 	}
