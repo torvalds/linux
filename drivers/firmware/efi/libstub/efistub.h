@@ -3,6 +3,7 @@
 #ifndef _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 #define _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 
+#include <linux/compiler.h>
 #include <linux/efi.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -631,6 +632,8 @@ void *get_efi_config_table(efi_guid_t guid);
 /* NOTE: These functions do not print a trailing newline after the string */
 void efi_char16_puts(efi_char16_t *);
 void efi_puts(const char *str);
+
+__printf(1, 2) int efi_printk(char const *fmt, ...);
 
 void efi_free(unsigned long size, unsigned long addr);
 

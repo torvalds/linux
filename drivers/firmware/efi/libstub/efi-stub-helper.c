@@ -7,6 +7,8 @@
  * Copyright 2011 Intel Corporation; author Matt Fleming
  */
 
+#include <stdarg.h>
+
 #include <linux/efi.h>
 #include <linux/kernel.h>
 #include <asm/efi.h>
@@ -49,6 +51,21 @@ void efi_puts(const char *str)
 			pos = 0;
 		}
 	}
+}
+
+int efi_printk(const char *fmt, ...)
+{
+	char printf_buf[256];
+	va_list args;
+	int printed;
+
+	va_start(args, fmt);
+	printed = vsprintf(printf_buf, fmt, args);
+	va_end(args);
+
+	efi_puts(printf_buf);
+
+	return printed;
 }
 
 /*
