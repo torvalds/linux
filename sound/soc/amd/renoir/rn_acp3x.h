@@ -29,6 +29,11 @@
 #define ACP_ERROR_MASK 0x20000000
 #define ACP_EXT_INTR_STAT_CLEAR_MASK 0xFFFFFFFF
 
+struct pdm_dev_data {
+	void __iomem *acp_base;
+	struct snd_pcm_substream *capture_stream;
+};
+
 static inline u32 rn_readl(void __iomem *base_addr)
 {
 	return readl(base_addr - ACP_PHY_BASE_ADDRESS);
