@@ -93,11 +93,6 @@ static int load_script(struct linux_binprm *bprm)
 	if (bprm->interp_flags & BINPRM_FLAGS_PATH_INACCESSIBLE)
 		return -ENOENT;
 
-	/* Release since we are not mapping a binary into memory. */
-	allow_write_access(bprm->file);
-	fput(bprm->file);
-	bprm->file = NULL;
-
 	/*
 	 * OK, we've parsed out the interpreter name and
 	 * (optional) argument.
@@ -138,8 +133,8 @@ static int load_script(struct linux_binprm *bprm)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	bprm->file = file;
-	return search_binary_handler(bprm);
+	bprm->interpreter = file;
+	return 0;
 }
 
 static struct linux_binfmt script_format = {

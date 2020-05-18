@@ -159,18 +159,9 @@ static int load_misc_binary(struct linux_binprm *bprm)
 			goto ret;
 	}
 
-	if (fmt->flags & MISC_FMT_OPEN_BINARY) {
-		/* Pass the open binary to the interpreter */
+	if (fmt->flags & MISC_FMT_OPEN_BINARY)
 		bprm->have_execfd = 1;
-		bprm->executable = bprm->file;
 
-		allow_write_access(bprm->file);
-		bprm->file = NULL;
-	} else {
-		allow_write_access(bprm->file);
-		fput(bprm->file);
-		bprm->file = NULL;
-	}
 	/* make argv[1] be the path to the binary */
 	retval = copy_strings_kernel(1, &bprm->interp, bprm);
 	if (retval < 0)
@@ -199,14 +190,11 @@ static int load_misc_binary(struct linux_binprm *bprm)
 	if (IS_ERR(interp_file))
 		goto ret;
 
-	bprm->file = interp_file;
+	bprm->interpreter = interp_file;
 	if (fmt->flags & MISC_FMT_CREDENTIALS)
 		bprm->preserve_creds = 1;
 
-	retval = search_binary_handler(bprm);
-	if (retval < 0)
-		goto ret;
-
+	retval = 0;
 ret:
 	dput(fmt->dentry);
 	return retval;

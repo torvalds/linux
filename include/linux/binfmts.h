@@ -50,8 +50,8 @@ struct linux_binprm {
 #ifdef __alpha__
 	unsigned int taso:1;
 #endif
-	unsigned int recursion_depth; /* only for search_binary_handler() */
 	struct file * executable; /* Executable to pass to the interpreter */
+	struct file * interpreter;
 	struct file * file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -117,7 +117,6 @@ static inline void insert_binfmt(struct linux_binfmt *fmt)
 extern void unregister_binfmt(struct linux_binfmt *);
 
 extern int __must_check remove_arg_zero(struct linux_binprm *);
-extern int search_binary_handler(struct linux_binprm *);
 extern int begin_new_exec(struct linux_binprm * bprm);
 extern void setup_new_exec(struct linux_binprm * bprm);
 extern void finalize_exec(struct linux_binprm *bprm);
