@@ -231,7 +231,20 @@ int get_flags(const char **fmt)
 	} while (1);
 }
 
-int vsprintf(char *buf, const char *fmt, va_list args)
+static
+int get_int(const char **fmt, va_list *ap)
+{
+	if (isdigit(**fmt))
+		return skip_atoi(fmt);
+	if (**fmt == '*') {
+		++(*fmt);
+		/* it's the next argument */
+		return va_arg(*ap, int);
+	}
+	return 0;
+}
+
+int vsprintf(char *buf, const char *fmt, va_list ap)
 {
 	int len;
 	unsigned long long num;
@@ -246,6 +259,24 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 				   number of chars for from string */
 	int qualifier;		/* 'h', 'hh', 'l' or 'll' for integer fields */
 
+	va_list args;
+
+	/*
+	 * We want to pass our input va_list to helper functions by reference,
+	 * but there's an annoying edge case. If va_list was originally passed
+	 * to us by value, we could just pass &ap down to the helpers. This is
+	 * the case on, for example, X86_32.
+	 * However, on X86_64 (and possibly others), va_list is actually a
+	 * size-1 array containing a structure. Our function parameter ap has
+	 * decayed from T[1] to T*, and &ap has type T** rather than T(*)[1],
+	 * which is what will be expected by a function taking a va_list *
+	 * parameter.
+	 * One standard way to solve this mess is by creating a copy in a local
+	 * variable of type va_list and then passing a pointer to that local
+	 * copy instead, which is what we do here.
+	 */
+	va_copy(args, ap);
+
 	for (str = buf; *fmt; ++fmt) {
 		if (*fmt != '%' || *++fmt == '%') {
 			*str++ = *fmt;
@@ -256,32 +287,17 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		flags = get_flags(&fmt);
 
 		/* get field width */
-		field_width = -1;
-		if (isdigit(*fmt)) {
-			field_width = skip_atoi(&fmt);
-		} else if (*fmt == '*') {
-			++fmt;
-			/* it's the next argument */
-			field_width = va_arg(args, int);
-			if (field_width < 0) {
-				field_width = -field_width;
-				flags |= LEFT;
-			}
+		field_width = get_int(&fmt, &args);
+		if (field_width < 0) {
+			field_width = -field_width;
+			flags |= LEFT;
 		}
 
 		/* get the precision */
 		precision = -1;
 		if (*fmt == '.') {
 			++fmt;
-			if (isdigit(*fmt)) {
-				precision = skip_atoi(&fmt);
-			} else if (*fmt == '*') {
-				++fmt;
-				/* it's the next argument */
-				precision = va_arg(args, int);
-			} else {
-				precision = 0;
-			}
+			precision = get_int(&fmt, &args);
 			if (precision >= 0)
 				flags &= ~ZEROPAD;
 		}
@@ -392,6 +408,9 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		str = number(str, num, base, field_width, precision, flags);
 	}
 	*str = '\0';
+
+	va_end(args);
+
 	return str - buf;
 }
 
