@@ -517,15 +517,6 @@ Notes:
      successful IPC object allocation. If an IPC object allocation syscall
      fails, it is undefined if the value remains unmodified or is reset to -1.
 
-
-ngroups_max
-===========
-
-Maximum number of supplementary groups, _i.e._ the maximum size which
-``setgroups`` will accept. Exports ``NGROUPS_MAX`` from the kernel.
-
-
-
 nmi_watchdog
 ============
 
