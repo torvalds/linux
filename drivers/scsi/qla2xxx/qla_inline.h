@@ -40,7 +40,7 @@ qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
  *      register value.
  */
 static __inline__ uint16_t
-qla2x00_debounce_register(volatile uint16_t __iomem *addr)
+qla2x00_debounce_register(volatile __le16 __iomem *addr)
 {
 	volatile uint16_t first;
 	volatile uint16_t second;

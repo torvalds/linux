@@ -96,7 +96,7 @@ struct tsk_mgmt_entry_fx00 {
 	uint8_t sys_define;
 	uint8_t entry_status;		/* Entry Status. */
 
-	__le32 handle;		/* System handle. */
+	uint32_t handle;		/* System handle. */
 
 	uint32_t reserved_0;
 
@@ -121,13 +121,13 @@ struct abort_iocb_entry_fx00 {
 	uint8_t sys_define;		/* System defined. */
 	uint8_t entry_status;		/* Entry Status. */
 
-	__le32 handle;		/* System handle. */
+	uint32_t handle;		/* System handle. */
 	__le32 reserved_0;
 
 	__le16 tgt_id_sts;		/* Completion status. */
 	__le16 options;
 
-	__le32 abort_handle;		/* System handle. */
+	uint32_t abort_handle;		/* System handle. */
 	__le32 reserved_2;
 
 	__le16 req_que_no;
@@ -166,7 +166,7 @@ struct fxdisc_entry_fx00 {
 	uint8_t sys_define;		/* System Defined. */
 	uint8_t entry_status;		/* Entry Status. */
 
-	__le32 handle;		/* System handle. */
+	uint32_t handle;		/* System handle. */
 	__le32 reserved_0;		/* System handle. */
 
 	__le16 func_num;
