@@ -618,6 +618,22 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	return 0;
 }
 
+/*
+ * Forcibly leave nested mode in order to be able to reset the VCPU later on.
+ */
+void svm_leave_nested(struct vcpu_svm *svm)
+{
+	if (is_guest_mode(&svm->vcpu)) {
+		struct vmcb *hsave = svm->nested.hsave;
+		struct vmcb *vmcb = svm->vmcb;
+
+		svm->nested.nested_run_pending = 0;
+		leave_guest_mode(&svm->vcpu);
+		copy_vmcb_control_area(&vmcb->control, &hsave->control);
+		nested_svm_uninit_mmu_context(&svm->vcpu);
+	}
+}
+
 static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
 	u32 offset, msr, value;
