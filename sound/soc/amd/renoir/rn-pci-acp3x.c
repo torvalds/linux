@@ -7,12 +7,145 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include "rn_acp3x.h"
+
+static int acp_power_gating;
+module_param(acp_power_gating, int, 0644);
+MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
 };
+
+static int rn_acp_power_on(void __iomem *acp_base)
+{
+	u32 val;
+	int timeout;
+
+	val = rn_readl(acp_base + ACP_PGFSM_STATUS);
+
+	if (val == 0)
+		return val;
+
+	if ((val & ACP_PGFSM_STATUS_MASK) !=
+				ACP_POWER_ON_IN_PROGRESS)
+		rn_writel(ACP_PGFSM_CNTL_POWER_ON_MASK,
+			  acp_base + ACP_PGFSM_CONTROL);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = rn_readl(acp_base + ACP_PGFSM_STATUS);
+		if (!val)
+			return 0;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
+static int rn_acp_power_off(void __iomem *acp_base)
+{
+	u32 val;
+	int timeout;
+
+	rn_writel(ACP_PGFSM_CNTL_POWER_OFF_MASK,
+		  acp_base + ACP_PGFSM_CONTROL);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = rn_readl(acp_base + ACP_PGFSM_STATUS);
+		if ((val & ACP_PGFSM_STATUS_MASK) == ACP_POWERED_OFF)
+			return 0;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
+}
+
+static int rn_acp_reset(void __iomem *acp_base)
+{
+	u32 val;
+	int timeout;
+
+	rn_writel(1, acp_base + ACP_SOFT_RESET);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = rn_readl(acp_base + ACP_SOFT_RESET);
+		if (val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK)
+			break;
+		cpu_relax();
+	}
+	rn_writel(0, acp_base + ACP_SOFT_RESET);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = rn_readl(acp_base + ACP_SOFT_RESET);
+		if (!val)
+			return 0;
+		cpu_relax();
+	}
+	return -ETIMEDOUT;
+}
+
+static void rn_acp_enable_interrupts(void __iomem *acp_base)
+{
+	u32 ext_intr_ctrl;
+
+	rn_writel(0x01, acp_base + ACP_EXTERNAL_INTR_ENB);
+	ext_intr_ctrl = rn_readl(acp_base + ACP_EXTERNAL_INTR_CNTL);
+	ext_intr_ctrl |= ACP_ERROR_MASK;
+	rn_writel(ext_intr_ctrl, acp_base + ACP_EXTERNAL_INTR_CNTL);
+}
+
+static void rn_acp_disable_interrupts(void __iomem *acp_base)
+{
+	rn_writel(ACP_EXT_INTR_STAT_CLEAR_MASK, acp_base +
+		  ACP_EXTERNAL_INTR_STAT);
+	rn_writel(0x00, acp_base + ACP_EXTERNAL_INTR_ENB);
+}
+
+static int rn_acp_init(void __iomem *acp_base)
+{
+	int ret;
+
+	/* power on */
+	ret = rn_acp_power_on(acp_base);
+	if (ret) {
+		pr_err("ACP power on failed\n");
+		return ret;
+	}
+	rn_writel(0x01, acp_base + ACP_CONTROL);
+	/* Reset */
+	ret = rn_acp_reset(acp_base);
+	if (ret) {
+		pr_err("ACP reset failed\n");
+		return ret;
+	}
+	rn_writel(0x03, acp_base + ACP_CLKMUX_SEL);
+	rn_acp_enable_interrupts(acp_base);
+	return 0;
+}
+
+static int rn_acp_deinit(void __iomem *acp_base)
+{
+	int ret;
+
+	rn_acp_disable_interrupts(acp_base);
+	/* Reset */
+	ret = rn_acp_reset(acp_base);
+	if (ret) {
+		pr_err("ACP reset failed\n");
+		return ret;
+	}
+	rn_writel(0x00, acp_base + ACP_CLKMUX_SEL);
+	rn_writel(0x00, acp_base + ACP_CONTROL);
+	/* power off */
+	if (acp_power_gating) {
+		ret = rn_acp_power_off(acp_base);
+		if (ret) {
+			pr_err("ACP power off failed\n");
+			return ret;
+		}
+	}
+	return 0;
+}
 
 static int snd_rn_acp_probe(struct pci_dev *pci,
 			    const struct pci_device_id *pci_id)
@@ -48,6 +181,9 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 	}
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
+	ret = rn_acp_init(adata->acp_base);
+	if (ret)
+		goto release_regions;
 	return 0;
 
 release_regions:
@@ -60,6 +196,13 @@ disable_pci:
 
 static void snd_rn_acp_remove(struct pci_dev *pci)
 {
+	struct acp_dev_data *adata;
+	int ret;
+
+	adata = pci_get_drvdata(pci);
+	ret = rn_acp_deinit(adata->acp_base);
+	if (ret)
+		dev_err(&pci->dev, "ACP de-init failed\n");
 	pci_disable_msi(pci);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
