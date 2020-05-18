@@ -342,7 +342,8 @@ static int drm_open_helper(struct file *filp, struct drm_minor *minor)
 		return -EBUSY;	/* No exclusive opens */
 	if (!drm_cpu_valid())
 		return -EINVAL;
-	if (dev->switch_power_state != DRM_SWITCH_POWER_ON && dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
+	if (dev->switch_power_state != DRM_SWITCH_POWER_ON &&
+	    dev->switch_power_state != DRM_SWITCH_POWER_DYNAMIC_OFF)
 		return -EINVAL;
 
 	DRM_DEBUG("comm=\"%s\", pid=%d, minor=%d\n", current->comm,
