@@ -1193,8 +1193,8 @@ out:
 		if (block_group) {
 #ifdef CONFIG_BTRFS_DEBUG
 			btrfs_err(root->fs_info,
-				  "failed to write free space cache for block group %llu",
-				  block_group->start);
+	  "failed to write free space cache for block group %llu error %d",
+				  block_group->start, ret);
 #endif
 		}
 	}
@@ -1417,8 +1417,8 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 	if (ret) {
 #ifdef CONFIG_BTRFS_DEBUG
 		btrfs_err(fs_info,
-			  "failed to write free space cache for block group %llu",
-			  block_group->start);
+	  "failed to write free space cache for block group %llu error %d",
+			  block_group->start, ret);
 #endif
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_ERROR;
@@ -3997,8 +3997,8 @@ int btrfs_write_out_ino_cache(struct btrfs_root *root,
 					inode->i_size, true);
 #ifdef CONFIG_BTRFS_DEBUG
 		btrfs_err(fs_info,
-			  "failed to write free ino cache for root %llu",
-			  root->root_key.objectid);
+			  "failed to write free ino cache for root %llu error %d",
+			  root->root_key.objectid, ret);
 #endif
 	}
 
