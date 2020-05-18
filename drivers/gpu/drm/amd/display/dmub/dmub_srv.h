@@ -256,6 +256,10 @@ struct dmub_srv_hw_funcs {
 
 	void (*set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
 
+	uint32_t (*emul_get_inbox1_rptr)(struct dmub_srv *dmub);
+
+	void (*emul_set_inbox1_wptr)(struct dmub_srv *dmub, uint32_t wptr_offset);
+
 	bool (*is_supported)(struct dmub_srv *dmub);
 
 	bool (*is_hw_init)(struct dmub_srv *dmub);
