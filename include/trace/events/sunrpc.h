@@ -835,6 +835,30 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
+TRACE_DEFINE_ENUM(XPRT_LOCKED);
+TRACE_DEFINE_ENUM(XPRT_CONNECTED);
+TRACE_DEFINE_ENUM(XPRT_CONNECTING);
+TRACE_DEFINE_ENUM(XPRT_CLOSE_WAIT);
+TRACE_DEFINE_ENUM(XPRT_BOUND);
+TRACE_DEFINE_ENUM(XPRT_BINDING);
+TRACE_DEFINE_ENUM(XPRT_CLOSING);
+TRACE_DEFINE_ENUM(XPRT_CONGESTED);
+TRACE_DEFINE_ENUM(XPRT_CWND_WAIT);
+TRACE_DEFINE_ENUM(XPRT_WRITE_SPACE);
+
+#define rpc_show_xprt_state(x)						\
+	__print_flags(x, "|",						\
+		{ (1UL << XPRT_LOCKED),		"LOCKED"},		\
+		{ (1UL << XPRT_CONNECTED),	"CONNECTED"},		\
+		{ (1UL << XPRT_CONNECTING),	"CONNECTING"},		\
+		{ (1UL << XPRT_CLOSE_WAIT),	"CLOSE_WAIT"},		\
+		{ (1UL << XPRT_BOUND),		"BOUND"},		\
+		{ (1UL << XPRT_BINDING),	"BINDING"},		\
+		{ (1UL << XPRT_CLOSING),	"CLOSING"},		\
+		{ (1UL << XPRT_CONGESTED),	"CONGESTED"},		\
+		{ (1UL << XPRT_CWND_WAIT),	"CWND_WAIT"},		\
+		{ (1UL << XPRT_WRITE_SPACE),	"WRITE_SPACE"})
+
 DECLARE_EVENT_CLASS(rpc_xprt_lifetime_class,
 	TP_PROTO(
 		const struct rpc_xprt *xprt
@@ -843,16 +867,20 @@ DECLARE_EVENT_CLASS(rpc_xprt_lifetime_class,
 	TP_ARGS(xprt),
 
 	TP_STRUCT__entry(
+		__field(unsigned long, state)
 		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
 		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
 	),
 
 	TP_fast_assign(
+		__entry->state = xprt->state;
 		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
 	),
 
-	TP_printk("peer=[%s]:%s", __get_str(addr), __get_str(port))
+	TP_printk("peer=[%s]:%s state=%s",
+		__get_str(addr), __get_str(port),
+		rpc_show_xprt_state(__entry->state))
 );
 
 #define DEFINE_RPC_XPRT_LIFETIME_EVENT(name) \
