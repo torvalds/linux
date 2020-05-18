@@ -206,15 +206,6 @@ efi_status_t efi_parse_options(char const *cmdline)
 }
 
 /*
- * Get the number of UTF-8 bytes corresponding to an UTF-16 character.
- * This overestimates for surrogates, but that is okay.
- */
-static int efi_utf8_bytes(u16 c)
-{
-	return 1 + (c >= 0x80) + (c >= 0x800);
-}
-
-/*
  * Convert an UTF-16 string, not necessarily null terminated, to UTF-8.
  */
 static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
@@ -274,10 +265,39 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 
 	if (options) {
 		s2 = options;
-		while (*s2 && *s2 != '\n'
-		       && options_chars < load_options_chars) {
-			options_bytes += efi_utf8_bytes(*s2++);
+		while (options_chars < load_options_chars) {
+			u16 c = *s2++;
+
+			if (c == L'\0' || c == L'\n')
+				break;
+			/*
+			 * Get the number of UTF-8 bytes corresponding to a
+			 * UTF-16 character.
+			 * The first part handles everything in the BMP.
+			 */
+			options_bytes += 1 + (c >= 0x80) + (c >= 0x800);
 			options_chars++;
+			/*
+			 * Add one more byte for valid surrogate pairs. Invalid
+			 * surrogates will be replaced with 0xfffd and take up
+			 * only 3 bytes.
+			 */
+			if ((c & 0xfc00) == 0xd800) {
+				/*
+				 * If the very last word is a high surrogate,
+				 * we must ignore it since we can't access the
+				 * low surrogate.
+				 */
+				if (options_chars == load_options_chars) {
+					options_bytes -= 3;
+					options_chars--;
+					break;
+				} else if ((*s2 & 0xfc00) == 0xdc00) {
+					options_bytes++;
+					options_chars++;
+					s2++;
+				}
+			}
 		}
 	}
 
