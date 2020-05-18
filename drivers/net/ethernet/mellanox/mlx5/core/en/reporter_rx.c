@@ -238,7 +238,7 @@ static int mlx5e_rx_reporter_build_diagnose_output(struct mlx5e_rq *rq,
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_cq_diagnose(&rq->cq, fmsg);
+	err = mlx5e_health_cq_diag_fmsg(&rq->cq, fmsg);
 	if (err)
 		return err;
 
@@ -268,11 +268,11 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	rq_sz = mlx5e_rqwq_get_size(generic_rq);
 	rq_stride = BIT(mlx5e_mpwqe_get_log_stride_size(priv->mdev, params, NULL));
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "Common config");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "Common config");
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "RQ");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
 	if (err)
 		goto unlock;
 
@@ -288,15 +288,15 @@ static int mlx5e_rx_reporter_diagnose(struct devlink_health_reporter *reporter,
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_cq_common_diagnose(&generic_rq->cq, fmsg);
+	err = mlx5e_health_cq_common_diag_fmsg(&generic_rq->cq, fmsg);
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		goto unlock;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		goto unlock;
 
@@ -329,7 +329,7 @@ static int mlx5e_rx_reporter_dump_icosq(struct mlx5e_priv *priv, struct devlink_
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return 0;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "SX Slice");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "SX Slice");
 	if (err)
 		return err;
 
@@ -339,15 +339,15 @@ static int mlx5e_rx_reporter_dump_icosq(struct mlx5e_priv *priv, struct devlink_
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "ICOSQ");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "ICOSQ");
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "QPC");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "QPC");
 	if (err)
 		return err;
 
@@ -359,11 +359,11 @@ static int mlx5e_rx_reporter_dump_icosq(struct mlx5e_priv *priv, struct devlink_
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "send_buff");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "send_buff");
 	if (err)
 		return err;
 
@@ -374,11 +374,11 @@ static int mlx5e_rx_reporter_dump_icosq(struct mlx5e_priv *priv, struct devlink_
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	return mlx5e_reporter_named_obj_nest_end(fmsg);
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
 static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fmsg *fmsg,
@@ -391,7 +391,7 @@ static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fms
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return 0;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "RX Slice");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RX Slice");
 	if (err)
 		return err;
 
@@ -401,15 +401,15 @@ static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fms
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "RQ");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "QPC");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "QPC");
 	if (err)
 		return err;
 
@@ -421,11 +421,11 @@ static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fms
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "receive_buff");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "receive_buff");
 	if (err)
 		return err;
 
@@ -435,11 +435,11 @@ static int mlx5e_rx_reporter_dump_rq(struct mlx5e_priv *priv, struct devlink_fms
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
-	return mlx5e_reporter_named_obj_nest_end(fmsg);
+	return mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 }
 
 static int mlx5e_rx_reporter_dump_all_rqs(struct mlx5e_priv *priv,
@@ -451,7 +451,7 @@ static int mlx5e_rx_reporter_dump_all_rqs(struct mlx5e_priv *priv,
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
 		return 0;
 
-	err = mlx5e_reporter_named_obj_nest_start(fmsg, "RX Slice");
+	err = mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RX Slice");
 	if (err)
 		return err;
 
@@ -461,7 +461,7 @@ static int mlx5e_rx_reporter_dump_all_rqs(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	err = mlx5e_reporter_named_obj_nest_end(fmsg);
+	err = mlx5e_health_fmsg_named_obj_nest_end(fmsg);
 	if (err)
 		return err;
 
