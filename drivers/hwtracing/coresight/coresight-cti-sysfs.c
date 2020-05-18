@@ -1036,8 +1036,8 @@ static int cti_create_con_sysfs_attr(struct device *dev,
 				     enum cti_conn_attr_type attr_type,
 				     int attr_idx)
 {
-	struct dev_ext_attribute *eattr = 0;
-	char *name = 0;
+	struct dev_ext_attribute *eattr;
+	char *name;
 
 	eattr = devm_kzalloc(dev, sizeof(struct dev_ext_attribute),
 				    GFP_KERNEL);
@@ -1156,8 +1156,8 @@ static int cti_create_cons_groups(struct device *dev, struct cti_device *ctidev)
 int cti_create_cons_sysfs(struct device *dev, struct cti_drvdata *drvdata)
 {
 	struct cti_device *ctidev = &drvdata->ctidev;
-	int err = 0, con_idx = 0, i;
-	struct cti_trig_con *tc = NULL;
+	int err, con_idx = 0, i;
+	struct cti_trig_con *tc;
 
 	err = cti_create_cons_groups(dev, ctidev);
 	if (err)
