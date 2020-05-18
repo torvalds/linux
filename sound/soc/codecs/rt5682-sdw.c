@@ -241,9 +241,6 @@ static int rt5682_sdw_probe(struct sdw_slave *slave,
 {
 	struct regmap *regmap;
 
-	/* Assign ops */
-	slave->ops = &rt5682_slave_ops;
-
 	/* Regmap Initialization */
 	regmap = devm_regmap_init_sdw(slave, &rt5682_sdw_regmap);
 	if (IS_ERR(regmap))
