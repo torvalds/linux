@@ -871,7 +871,7 @@ again:
 	}
 	ret = PTR_ERR(item);
 	if (ret != -EFBIG && ret != -ENOENT)
-		goto fail_unlock;
+		goto out;
 
 	if (ret == -EFBIG) {
 		u32 item_size;
@@ -929,7 +929,7 @@ again:
 	ret = btrfs_search_slot(trans, root, &file_key, path,
 				csum_size, 1);
 	if (ret < 0)
-		goto fail_unlock;
+		goto out;
 
 	if (ret > 0) {
 		if (path->slots[0] == 0)
@@ -996,9 +996,9 @@ insert:
 				      ins_size);
 	path->leave_spinning = 0;
 	if (ret < 0)
-		goto fail_unlock;
+		goto out;
 	if (WARN_ON(ret != 0))
-		goto fail_unlock;
+		goto out;
 	leaf = path->nodes[0];
 csum:
 	item = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_csum_item);
@@ -1028,9 +1028,6 @@ found:
 out:
 	btrfs_free_path(path);
 	return ret;
-
-fail_unlock:
-	goto out;
 }
 
 void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
