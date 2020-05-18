@@ -564,12 +564,6 @@ static int dmarx_start_streaming(struct vb2_queue *queue,
 		goto free_buf_queue;
 	}
 
-	if (atomic_read(&dev->cap_dev.refcnt) < 1) {
-		v4l2_err(v4l2_dev,
-			 "capture stream should start first\n");
-		goto free_buf_queue;
-	}
-
 	ret = dmarx_start(stream);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev,

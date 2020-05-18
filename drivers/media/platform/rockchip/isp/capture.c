@@ -1291,8 +1291,7 @@ static void update_dmatx_v2(struct rkisp_stream *stream)
 		}
 		if (!buf)
 			buf = &stream->dummy_buf;
-		if (buf->vaddr)
-			mi_set_y_addr(stream, buf->dma_addr);
+		mi_set_y_addr(stream, buf->dma_addr);
 	}
 	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
 		 "%s stream:%d Y:0x%x SHD:0x%x\n",
@@ -1639,7 +1638,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 {
-	int i, j, max_dma, max_buf = 1;
+	int i, j, max_dma, max_buf = 0;
 	struct rkisp_dummy_buffer *buf;
 	struct rkisp_stream *stream;
 	u32 size;
@@ -1702,7 +1701,7 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 
 void hdr_destroy_buf(struct rkisp_device *dev)
 {
-	int i, j, max_dma, max_buf = 1;
+	int i, j, max_dma, max_buf = 0;
 	struct rkisp_dummy_buffer *buf;
 
 	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||

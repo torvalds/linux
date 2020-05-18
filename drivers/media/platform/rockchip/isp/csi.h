@@ -8,8 +8,6 @@
 
 #define CSI_DEV_NAME DRIVER_NAME "-csi-subdev"
 
-#define RKISP_HDR_RDBK_MODE 0
-
 #define HDR_MAX_DUMMY_BUF 3
 /* define max dmatx to use for hdr */
 #define HDR_DMA_MAX 3

@@ -284,24 +284,12 @@ static int csi_config(struct rkisp_csi_device *csi)
 				dev->hdr.esp_mode = hdr_cfg.esp.mode;
 			}
 		}
-#if RKISP_HDR_RDBK_MODE
-		switch (dev->hdr.op_mode) {
-		case HDR_FRAMEX2_DDR:
-		case HDR_LINEX2_DDR:
-		case HDR_LINEX2_NO_DDR:
-			dev->hdr.op_mode = HDR_RDBK_FRAME2;
-			break;
-		case HDR_FRAMEX3_DDR:
-		case HDR_LINEX3_DDR:
-			dev->hdr.op_mode = HDR_RDBK_FRAME3;
-			break;
-		case HDR_NORMAL:
+
+		/* normal read back mode */
+		if (dev->hdr.op_mode == HDR_NORMAL &&
+		    (dev->isp_inp & 0x7) == INP_RAWRD2)
 			dev->hdr.op_mode = HDR_RDBK_FRAME1;
-			break;
-		default:
-			break;
-		}
-#endif
+
 		writel(SW_IBUF_OP_MODE(dev->hdr.op_mode) |
 		       SW_HDR_ESP_MODE(dev->hdr.esp_mode),
 		       base + CSI2RX_CTRL0);
