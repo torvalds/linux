@@ -726,7 +726,7 @@ disable_device:
 	return rc;
 }
 
-static void device_kill_open_processes(struct hl_device *hdev)
+static int device_kill_open_processes(struct hl_device *hdev)
 {
 	u16 pending_total, pending_cnt;
 	struct hl_fpriv	*hpriv;
@@ -779,9 +779,7 @@ static void device_kill_open_processes(struct hl_device *hdev)
 		ssleep(1);
 	}
 
-	if (!list_empty(&hdev->fpriv_list))
-		dev_crit(hdev->dev,
-			"Going to hard reset with open user contexts\n");
+	return list_empty(&hdev->fpriv_list) ? 0 : -EBUSY;
 }
 
 static void device_hard_reset_pending(struct work_struct *work)
@@ -908,7 +906,12 @@ again:
 		 * process can't really exit until all its CSs are done, which
 		 * is what we do in cs rollback
 		 */
-		device_kill_open_processes(hdev);
+		rc = device_kill_open_processes(hdev);
+		if (rc) {
+			dev_crit(hdev->dev,
+				"Failed to kill all open processes, stopping hard reset\n");
+			goto out_err;
+		}
 
 		/* Flush the Event queue workers to make sure no other thread is
 		 * reading or writing to registers during the reset
@@ -1391,7 +1394,9 @@ void hl_device_fini(struct hl_device *hdev)
 	 * can't really exit until all its CSs are done, which is what we
 	 * do in cs rollback
 	 */
-	device_kill_open_processes(hdev);
+	rc = device_kill_open_processes(hdev);
+	if (rc)
+		dev_crit(hdev->dev, "Failed to kill all open processes\n");
 
 	hl_cb_pool_fini(hdev);
 
