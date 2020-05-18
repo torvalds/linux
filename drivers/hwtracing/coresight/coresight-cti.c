@@ -4,7 +4,20 @@
  * Author: Mike Leach <mike.leach@linaro.org>
  */
 
+#include <linux/amba/bus.h>
+#include <linux/atomic.h>
+#include <linux/bits.h>
+#include <linux/coresight.h>
+#include <linux/device.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 #include <linux/property.h>
+#include <linux/spinlock.h>
+
+#include "coresight-priv.h"
 #include "coresight-cti.h"
 
 /**
