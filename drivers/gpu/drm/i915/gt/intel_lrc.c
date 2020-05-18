@@ -1403,7 +1403,7 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 	struct i915_request *next = READ_ONCE(ve->request);
 
 	if (next && next->execution_mask & ~rq->execution_mask)
-		tasklet_schedule(&ve->base.execlists.tasklet);
+		tasklet_hi_schedule(&ve->base.execlists.tasklet);
 }
 
 static inline void
@@ -5560,7 +5560,7 @@ static void virtual_submit_request(struct i915_request *rq)
 		GEM_BUG_ON(!list_empty(virtual_queue(ve)));
 		list_move_tail(&rq->sched.link, virtual_queue(ve));
 
-		tasklet_schedule(&ve->base.execlists.tasklet);
+		tasklet_hi_schedule(&ve->base.execlists.tasklet);
 	}
 
 	spin_unlock_irqrestore(&ve->base.active.lock, flags);
