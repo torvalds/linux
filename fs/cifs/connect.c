@@ -3580,6 +3580,16 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 			cifs_dbg(VFS, "cache=singleclient requested on mount but NO_CACHING flag set on share\n");
 	}
 
+	if (volume_info->no_lease) {
+		if (ses->server->vals->protocol_id == 0) {
+			cifs_dbg(VFS,
+				"SMB2 or later required for nolease option\n");
+			rc = -EOPNOTSUPP;
+			goto out_fail;
+		} else
+			tcon->no_lease = volume_info->no_lease;
+	}
+
 	/*
 	 * We can have only one retry value for a connection to a share so for
 	 * resources mounted more than once to the same server share the last
@@ -3589,7 +3599,6 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	tcon->nocase = volume_info->nocase;
 	tcon->nohandlecache = volume_info->nohandlecache;
 	tcon->local_lease = volume_info->local_lease;
-	tcon->no_lease = volume_info->no_lease;
 	INIT_LIST_HEAD(&tcon->pending_opens);
 
 	spin_lock(&cifs_tcp_ses_lock);
