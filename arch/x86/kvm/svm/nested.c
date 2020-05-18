@@ -203,6 +203,21 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 	return true;
 }
 
+static bool nested_vmcb_check_controls(struct vmcb_control_area *control)
+{
+	if ((control->intercept & (1ULL << INTERCEPT_VMRUN)) == 0)
+		return false;
+
+	if (control->asid == 0)
+		return false;
+
+	if ((control->nested_ctl & SVM_NESTED_CTL_NP_ENABLE) &&
+	    !npt_enabled)
+		return false;
+
+	return true;
+}
+
 static bool nested_vmcb_checks(struct vmcb *vmcb)
 {
 	if ((vmcb->save.efer & EFER_SVME) == 0)
@@ -212,17 +227,7 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 	    (vmcb->save.cr0 & X86_CR0_NW))
 		return false;
 
-	if ((vmcb->control.intercept & (1ULL << INTERCEPT_VMRUN)) == 0)
-		return false;
-
-	if (vmcb->control.asid == 0)
-		return false;
-
-	if ((vmcb->control.nested_ctl & SVM_NESTED_CTL_NP_ENABLE) &&
-	    !npt_enabled)
-		return false;
-
-	return true;
+	return nested_vmcb_check_controls(&vmcb->control);
 }
 
 static void load_nested_vmcb_control(struct vcpu_svm *svm,
