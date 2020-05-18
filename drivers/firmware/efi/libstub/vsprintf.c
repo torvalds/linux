@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/string.h>
+#include <linux/types.h>
 
 static
 int skip_atoi(const char **s)
@@ -237,16 +238,22 @@ char get_sign(long long *num, int flags)
 	return 0;
 }
 
-int vsprintf(char *buf, const char *fmt, va_list ap)
+#define PUTC(c) \
+do {				\
+	if (pos < size)		\
+		buf[pos] = (c);	\
+	++pos;			\
+} while (0);
+
+int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 {
 	/* The maximum space required is to print a 64-bit number in octal */
 	char tmp[(sizeof(unsigned long long) * 8 + 2) / 3];
 	char *tmp_end = &tmp[ARRAY_SIZE(tmp)];
 	long long num;
 	int base;
-	char *str;
 	const char *s;
-	int len;
+	size_t len, pos;
 	char sign;
 
 	int flags;		/* flags to number() */
@@ -274,9 +281,9 @@ int vsprintf(char *buf, const char *fmt, va_list ap)
 	 */
 	va_copy(args, ap);
 
-	for (str = buf; *fmt; ++fmt) {
+	for (pos = 0; *fmt; ++fmt) {
 		if (*fmt != '%' || *++fmt == '%') {
-			*str++ = *fmt;
+			PUTC(*fmt);
 			continue;
 		}
 
@@ -416,40 +423,41 @@ output:
 		/* Leading padding with ' ' */
 		if (!(flags & LEFT))
 			while (field_width-- > 0)
-				*str++ = ' ';
+				PUTC(' ');
 		/* sign */
 		if (sign)
-			*str++ = sign;
+			PUTC(sign);
 		/* 0x/0X for hexadecimal */
 		if (flags & SPECIAL) {
-			*str++ = '0';
-			*str++ = 'X' | (flags & SMALL);
+			PUTC('0');
+			PUTC( 'X' | (flags & SMALL));
 		}
 		/* Zero padding and excess precision */
 		while (precision-- > len)
-			*str++ = '0';
+			PUTC('0');
 		/* Actual output */
 		while (len-- > 0)
-			*str++ = *s++;
+			PUTC(*s++);
 		/* Trailing padding with ' ' */
 		while (field_width-- > 0)
-			*str++ = ' ';
+			PUTC(' ');
 	}
 fail:
-	*str = '\0';
-
 	va_end(args);
 
-	return str - buf;
+	if (size)
+		buf[min(pos, size-1)] = '\0';
+
+	return pos;
 }
 
-int sprintf(char *buf, const char *fmt, ...)
+int snprintf(char *buf, size_t size, const char *fmt, ...)
 {
 	va_list args;
 	int i;
 
 	va_start(args, fmt);
-	i = vsprintf(buf, fmt, args);
+	i = vsnprintf(buf, size, fmt, args);
 	va_end(args);
 	return i;
 }

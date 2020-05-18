@@ -60,10 +60,14 @@ int efi_printk(const char *fmt, ...)
 	int printed;
 
 	va_start(args, fmt);
-	printed = vsprintf(printf_buf, fmt, args);
+	printed = vsnprintf(printf_buf, sizeof(printf_buf), fmt, args);
 	va_end(args);
 
 	efi_puts(printf_buf);
+	if (printed >= sizeof(printf_buf)) {
+		efi_puts("[Message truncated]\n");
+		return -1;
+	}
 
 	return printed;
 }
