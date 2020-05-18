@@ -1436,6 +1436,7 @@ struct hl_device_idle_busy_ts {
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
  * @supports_coresight: is CoreSight supported.
+ * @supports_soft_reset: is soft reset supported.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1522,6 +1523,7 @@ struct hl_device {
 	u8				stop_on_err;
 	u8				supports_sync_stream;
 	u8				supports_coresight;
+	u8				supports_soft_reset;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;

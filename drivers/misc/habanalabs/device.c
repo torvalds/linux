@@ -801,6 +801,7 @@ static void device_hard_reset_pending(struct work_struct *work)
  * @hdev: pointer to habanalabs device structure
  * @hard_reset: should we do hard reset to all engines or just reset the
  *              compute/dma engines
+ * @from_hard_reset_thread: is the caller the hard-reset thread
  *
  * Block future CS and wait for pending CS to be enqueued
  * Call ASIC H/W fini
@@ -821,6 +822,11 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		dev_err(hdev->dev,
 			"Can't reset before initialization is done\n");
 		return 0;
+	}
+
+	if ((!hard_reset) && (!hdev->supports_soft_reset)) {
+		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+		hard_reset = true;
 	}
 
 	/*
