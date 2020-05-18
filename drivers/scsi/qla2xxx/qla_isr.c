@@ -220,7 +220,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
 			RD_REG_WORD(&reg->hccr);
 
-			ha->isp_ops->fw_dump(vha, 1);
+			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			break;
 		} else if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
@@ -351,7 +351,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
 			RD_REG_WORD(&reg->hccr);
 
-			ha->isp_ops->fw_dump(vha, 1);
+			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			break;
 		} else if ((stat & HSR_RISC_INT) == 0)
@@ -777,7 +777,7 @@ qla27xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 	       "MPI Heartbeat stop. FW dump needed\n");
 
 	if (ql2xfulldump_on_mpifail) {
-		ha->isp_ops->fw_dump(vha, 1);
+		ha->isp_ops->fw_dump(vha);
 		reset_isp_needed = 1;
 	}
 
@@ -908,7 +908,7 @@ skip_rio:
 		if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
 		    RD_REG_WORD(&reg24->mailbox7) & BIT_8)
 			ha->isp_ops->mpi_fw_dump(vha, 1);
-		ha->isp_ops->fw_dump(vha, 1);
+		ha->isp_ops->fw_dump(vha);
 		ha->flags.fw_init_done = 0;
 		QLA_FW_STOPPED(ha);
 
@@ -3473,7 +3473,7 @@ qla24xx_intr_handler(int irq, void *dev_id)
 
 			qla2xxx_check_risc_status(vha);
 
-			ha->isp_ops->fw_dump(vha, 1);
+			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			break;
 		} else if ((stat & HSRX_RISC_INT) == 0)
@@ -3602,7 +3602,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 
 			qla2xxx_check_risc_status(vha);
 
-			ha->isp_ops->fw_dump(vha, 1);
+			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			break;
 		} else if ((stat & HSRX_RISC_INT) == 0)

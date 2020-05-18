@@ -4070,7 +4070,7 @@ exit_isp_reset:
 }
 
 void
-qla8044_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla8044_fw_dump(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 

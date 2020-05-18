@@ -4514,7 +4514,7 @@ exit:
 }
 
 void
-qla82xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla82xx_fw_dump(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
 

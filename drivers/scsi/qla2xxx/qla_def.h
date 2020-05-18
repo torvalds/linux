@@ -3222,7 +3222,7 @@ struct isp_operations {
 	int (*write_nvram)(struct scsi_qla_host *, void *, uint32_t,
 		uint32_t);
 
-	void (*fw_dump) (struct scsi_qla_host *, int);
+	void (*fw_dump)(struct scsi_qla_host *vha);
 	void (*mpi_fw_dump)(struct scsi_qla_host *, int);
 
 	int (*beacon_on) (struct scsi_qla_host *);

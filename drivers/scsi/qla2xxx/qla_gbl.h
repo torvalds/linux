@@ -637,15 +637,16 @@ extern int qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_dbg.c source file.
  */
-extern void qla2100_fw_dump(scsi_qla_host_t *, int);
-extern void qla2300_fw_dump(scsi_qla_host_t *, int);
-extern void qla24xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla25xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla81xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla82xx_fw_dump(scsi_qla_host_t *, int);
-extern void qla8044_fw_dump(scsi_qla_host_t *, int);
+void qla2xxx_dump_fw(scsi_qla_host_t *vha);
+void qla2100_fw_dump(scsi_qla_host_t *vha);
+void qla2300_fw_dump(scsi_qla_host_t *vha);
+void qla24xx_fw_dump(scsi_qla_host_t *vha);
+void qla25xx_fw_dump(scsi_qla_host_t *vha);
+void qla81xx_fw_dump(scsi_qla_host_t *vha);
+void qla82xx_fw_dump(scsi_qla_host_t *vha);
+void qla8044_fw_dump(scsi_qla_host_t *vha);
 
-extern void qla27xx_fwdump(scsi_qla_host_t *, int);
+void qla27xx_fwdump(scsi_qla_host_t *vha);
 extern void qla27xx_mpi_fwdump(scsi_qla_host_t *, int);
 extern ulong qla27xx_fwdt_calculate_dump_size(struct scsi_qla_host *, void *);
 extern int qla27xx_fwdt_template_valid(void *);
@@ -873,7 +874,7 @@ extern int qla2x00_get_idma_speed(scsi_qla_host_t *, uint16_t,
 	uint16_t *, uint16_t *);
 
 /* 83xx related functions */
-extern void qla83xx_fw_dump(scsi_qla_host_t *, int);
+void qla83xx_fw_dump(scsi_qla_host_t *vha);
 
 /* Minidump related functions */
 extern int qla82xx_md_get_template_size(scsi_qla_host_t *);

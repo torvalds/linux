@@ -1081,14 +1081,9 @@ bailout:
 }
 
 void
-qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
+qla27xx_fwdump(scsi_qla_host_t *vha)
 {
-	ulong flags = 0;
-
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&vha->hw->hardware_lock, flags);
-#endif
+	lockdep_assert_held(&vha->hw->hardware_lock);
 
 	if (!vha->hw->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd01e, "-> fwdump no buffer\n");
@@ -1105,11 +1100,11 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		if (!fwdt->template) {
 			ql_log(ql_log_warn, vha, 0xd012,
 			       "-> fwdt0 no template\n");
-			goto bailout;
+			return;
 		}
 		len = qla27xx_execute_fwdt_template(vha, fwdt->template, buf);
 		if (len == 0) {
-			goto bailout;
+			return;
 		} else if (len != fwdt->dump_size) {
 			ql_log(ql_log_warn, vha, 0xd013,
 			       "-> fwdt0 fwdump residual=%+ld\n",
@@ -1124,10 +1119,4 @@ qla27xx_fwdump(scsi_qla_host_t *vha, int hardware_locked)
 		    vha->host_no, vha->hw->fw_dump, vha->hw->fw_dump_cap_flags);
 		qla2x00_post_uevent_work(vha, QLA_UEVENT_CODE_FW_DUMP);
 	}
-
-bailout:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
-#endif
 }

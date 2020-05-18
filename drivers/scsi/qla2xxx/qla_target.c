@@ -5670,9 +5670,9 @@ static int qlt_chk_unresolv_exchg(struct scsi_qla_host *vha,
 			    vha, 0xffff, (uint8_t *)entry, sizeof(*entry));
 
 			if (qpair == ha->base_qpair)
-				ha->isp_ops->fw_dump(vha, 1);
+				ha->isp_ops->fw_dump(vha);
 			else
-				ha->isp_ops->fw_dump(vha, 0);
+				qla2xxx_dump_fw(vha);
 
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			qla2xxx_wake_dpc(vha);

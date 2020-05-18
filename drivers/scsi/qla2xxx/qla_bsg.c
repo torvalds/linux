@@ -691,7 +691,7 @@ qla81xx_set_loopback_mode(scsi_qla_host_t *vha, uint16_t *config,
 		 * dump and reset the chip.
 		 */
 		if (ret) {
-			ha->isp_ops->fw_dump(vha, 0);
+			qla2xxx_dump_fw(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 		}
 		rval = -EINVAL;
@@ -896,7 +896,7 @@ qla2x00_process_loopback(struct bsg_job *bsg_job)
 					 * doesn't work take FCoE dump and then
 					 * reset the chip.
 					 */
-					ha->isp_ops->fw_dump(vha, 0);
+					qla2xxx_dump_fw(vha);
 					set_bit(ISP_ABORT_NEEDED,
 					    &vha->dpc_flags);
 				}

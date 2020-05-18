@@ -7575,7 +7575,7 @@ qla2xxx_pci_mmio_enabled(struct pci_dev *pdev)
 	if (risc_paused) {
 		ql_log(ql_log_info, base_vha, 0x9003,
 		    "RISC paused -- mmio_enabled, Dumping firmware.\n");
-		ha->isp_ops->fw_dump(base_vha, 0);
+		qla2xxx_dump_fw(base_vha);
 
 		return PCI_ERS_RESULT_NEED_RESET;
 	} else

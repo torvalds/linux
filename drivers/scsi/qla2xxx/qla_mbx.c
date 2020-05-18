@@ -462,7 +462,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 			 * a dump
 			 */
 			if (mcp->mb[0] != MBC_GEN_SYSTEM_ERROR)
-				ha->isp_ops->fw_dump(vha, 0);
+				qla2xxx_dump_fw(vha);
 			rval = QLA_FUNCTION_TIMEOUT;
 		 }
 	}
@@ -6213,7 +6213,7 @@ qla83xx_restart_nic_firmware(scsi_qla_host_t *vha)
 		ql_dbg(ql_dbg_mbx, vha, 0x1144,
 		    "Failed=%x mb[0]=%x mb[1]=%x.\n",
 		    rval, mcp->mb[0], mcp->mb[1]);
-		ha->isp_ops->fw_dump(vha, 0);
+		qla2xxx_dump_fw(vha);
 	} else {
 		ql_dbg(ql_dbg_mbx, vha, 0x1145, "Done %s.\n", __func__);
 	}
@@ -6258,7 +6258,7 @@ qla83xx_access_control(scsi_qla_host_t *vha, uint16_t options,
 		    "Failed=%x mb[0]=%x mb[1]=%x mb[2]=%x mb[3]=%x mb[4]=%x.\n",
 		    rval, mcp->mb[0], mcp->mb[1], mcp->mb[2], mcp->mb[3],
 		    mcp->mb[4]);
-		ha->isp_ops->fw_dump(vha, 0);
+		qla2xxx_dump_fw(vha);
 	} else {
 		if (subcode & BIT_5)
 			*sector_size = mcp->mb[1];

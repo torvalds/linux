@@ -716,35 +716,37 @@ qla2xxx_dump_post_process(scsi_qla_host_t *vha, int rval)
 	}
 }
 
+void qla2xxx_dump_fw(scsi_qla_host_t *vha)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&vha->hw->hardware_lock, flags);
+	vha->hw->isp_ops->fw_dump(vha);
+	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
+}
+
 /**
  * qla2300_fw_dump() - Dumps binary data from the 2300 firmware.
  * @vha: HA context
- * @hardware_locked: Called with the hardware_lock
  */
 void
-qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla2300_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
-	unsigned long	flags;
 	struct qla2300_fw_dump	*fw;
 	void		*nxt;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	flags = 0;
-
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
+	lockdep_assert_held(&ha->hardware_lock);
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd002,
 		    "No buffer available for dump.\n");
-		goto qla2300_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
@@ -752,7 +754,7 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "Firmware has been previously dumped (%p) "
 		    "-- ignoring request.\n",
 		    ha->fw_dump);
-		goto qla2300_fw_dump_failed;
+		return;
 	}
 	fw = &ha->fw_dump->isp.isp23;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
@@ -876,48 +878,31 @@ qla2300_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		qla2xxx_copy_queues(ha, nxt);
 
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla2300_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 /**
  * qla2100_fw_dump() - Dumps binary data from the 2100/2200 firmware.
  * @vha: HA context
- * @hardware_locked: Called with the hardware_lock
  */
 void
-qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla2100_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt, timer;
-	uint16_t	risc_address;
-	uint16_t	mb0, mb2;
+	uint16_t	risc_address = 0;
+	uint16_t	mb0 = 0, mb2 = 0;
 	struct qla_hw_data *ha = vha->hw;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 	uint16_t __iomem *dmp_reg;
-	unsigned long	flags;
 	struct qla2100_fw_dump	*fw;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	risc_address = 0;
-	mb0 = mb2 = 0;
-	flags = 0;
-
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
+	lockdep_assert_held(&ha->hardware_lock);
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd004,
 		    "No buffer available for dump.\n");
-		goto qla2100_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
@@ -925,7 +910,7 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "Firmware has been previously dumped (%p) "
 		    "-- ignoring request.\n",
 		    ha->fw_dump);
-		goto qla2100_fw_dump_failed;
+		return;
 	}
 	fw = &ha->fw_dump->isp.isp21;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
@@ -1080,18 +1065,10 @@ qla2100_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		qla2xxx_copy_queues(ha, &fw->risc_ram[cnt]);
 
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla2100_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 void
-qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla24xx_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt;
@@ -1100,28 +1077,23 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
-	unsigned long	flags;
 	struct qla24xx_fw_dump *fw;
 	void		*nxt;
 	void		*nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
+	lockdep_assert_held(&ha->hardware_lock);
+
 	if (IS_P3P_TYPE(ha))
 		return;
 
-	flags = 0;
 	ha->fw_dump_cap_flags = 0;
-
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd006,
 		    "No buffer available for dump.\n");
-		goto qla24xx_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
@@ -1129,7 +1101,7 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "Firmware has been previously dumped (%p) "
 		    "-- ignoring request.\n",
 		    ha->fw_dump);
-		goto qla24xx_fw_dump_failed;
+		return;
 	}
 	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp24;
@@ -1339,18 +1311,10 @@ qla24xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 qla24xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla24xx_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 void
-qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla25xx_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt;
@@ -1359,24 +1323,19 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
-	unsigned long	flags;
 	struct qla25xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	flags = 0;
-	ha->fw_dump_cap_flags = 0;
+	lockdep_assert_held(&ha->hardware_lock);
 
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
+	ha->fw_dump_cap_flags = 0;
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd008,
 		    "No buffer available for dump.\n");
-		goto qla25xx_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
@@ -1384,7 +1343,7 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "Firmware has been previously dumped (%p) "
 		    "-- ignoring request.\n",
 		    ha->fw_dump);
-		goto qla25xx_fw_dump_failed;
+		return;
 	}
 	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp25;
@@ -1665,18 +1624,10 @@ qla25xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 qla25xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla25xx_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 void
-qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla81xx_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt;
@@ -1685,24 +1636,19 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
-	unsigned long	flags;
 	struct qla81xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	flags = 0;
-	ha->fw_dump_cap_flags = 0;
+	lockdep_assert_held(&ha->hardware_lock);
 
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
+	ha->fw_dump_cap_flags = 0;
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd00a,
 		    "No buffer available for dump.\n");
-		goto qla81xx_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
@@ -1710,7 +1656,7 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 		    "Firmware has been previously dumped (%p) "
 		    "-- ignoring request.\n",
 		    ha->fw_dump);
-		goto qla81xx_fw_dump_failed;
+		return;
 	}
 	fw = &ha->fw_dump->isp.isp81;
 	qla2xxx_prep_dump(ha, ha->fw_dump);
@@ -1993,18 +1939,10 @@ qla81xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 qla81xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla81xx_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 void
-qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
+qla83xx_fw_dump(scsi_qla_host_t *vha)
 {
 	int		rval;
 	uint32_t	cnt;
@@ -2013,31 +1951,26 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 	uint32_t __iomem *dmp_reg;
 	uint32_t	*iter_reg;
 	uint16_t __iomem *mbx_reg;
-	unsigned long	flags;
 	struct qla83xx_fw_dump *fw;
 	void		*nxt, *nxt_chain;
 	uint32_t	*last_chain = NULL;
 	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 
-	flags = 0;
-	ha->fw_dump_cap_flags = 0;
+	lockdep_assert_held(&ha->hardware_lock);
 
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-#endif
+	ha->fw_dump_cap_flags = 0;
 
 	if (!ha->fw_dump) {
 		ql_log(ql_log_warn, vha, 0xd00c,
 		    "No buffer available for dump!!!\n");
-		goto qla83xx_fw_dump_failed;
+		return;
 	}
 
 	if (ha->fw_dumped) {
 		ql_log(ql_log_warn, vha, 0xd00d,
 		    "Firmware has been previously dumped (%p) -- ignoring "
 		    "request...\n", ha->fw_dump);
-		goto qla83xx_fw_dump_failed;
+		return;
 	}
 	QLA_FW_STOPPED(ha);
 	fw = &ha->fw_dump->isp.isp83;
@@ -2507,14 +2440,6 @@ copy_queue:
 
 qla83xx_fw_dump_failed_0:
 	qla2xxx_dump_post_process(base_vha, rval);
-
-qla83xx_fw_dump_failed:
-#ifndef __CHECKER__
-	if (!hardware_locked)
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-#else
-	;
-#endif
 }
 
 /****************************************************************************/
