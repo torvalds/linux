@@ -115,7 +115,7 @@ xfs_bulkstat_one_int(
 			buf->bs_cowextsize_blks = dic->di_cowextsize;
 	}
 
-	switch (dic->di_format) {
+	switch (ip->i_df.if_format) {
 	case XFS_DINODE_FMT_DEV:
 		buf->bs_rdev = sysv_encode_dev(inode->i_rdev);
 		buf->bs_blksize = BLKDEV_IOSIZE;

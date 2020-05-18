@@ -57,8 +57,6 @@ typedef struct xfs_inode {
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
-	unsigned int		i_cformat;	/* format of cow fork */
-
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 

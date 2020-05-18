@@ -589,12 +589,13 @@ xchk_bmap_check_rmaps(
 	 * to flag this bmap as corrupt if there are rmaps that need to be
 	 * reattached.
 	 */
+
 	if (whichfork == XFS_DATA_FORK)
 		zero_size = i_size_read(VFS_I(sc->ip)) == 0;
 	else
 		zero_size = false;
 
-	if (XFS_IFORK_FORMAT(sc->ip, whichfork) != XFS_DINODE_FMT_BTREE &&
+	if (ifp->if_format != XFS_DINODE_FMT_BTREE &&
 	    (zero_size || ifp->if_nextents > 0))
 		return 0;
 
@@ -657,7 +658,7 @@ xchk_bmap(
 	}
 
 	/* Check the fork values */
-	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
+	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_UUID:
 	case XFS_DINODE_FMT_DEV:
 	case XFS_DINODE_FMT_LOCAL:

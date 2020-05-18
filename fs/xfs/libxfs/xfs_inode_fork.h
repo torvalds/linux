@@ -23,6 +23,7 @@ struct xfs_ifork {
 	} if_u1;
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
+	int8_t			if_format;	/* format of this fork */
 	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 };
 
@@ -56,30 +57,27 @@ struct xfs_ifork {
 		((w) == XFS_ATTR_FORK ? \
 			XFS_IFORK_ASIZE(ip) : \
 			0))
-#define XFS_IFORK_FORMAT(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		(ip)->i_d.di_format : \
-		((w) == XFS_ATTR_FORK ? \
-			(ip)->i_d.di_aformat : \
-			(ip)->i_cformat))
-#define XFS_IFORK_FMT_SET(ip,w,n) \
-	((w) == XFS_DATA_FORK ? \
-		((ip)->i_d.di_format = (n)) : \
-		((w) == XFS_ATTR_FORK ? \
-			((ip)->i_d.di_aformat = (n)) : \
-			((ip)->i_cformat = (n))))
 #define XFS_IFORK_MAXEXT(ip, w) \
 	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
 
-#define xfs_ifork_has_extents(ip, w) \
-	(XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_EXTENTS || \
-	 XFS_IFORK_FORMAT((ip), (w)) == XFS_DINODE_FMT_BTREE)
+static inline bool xfs_ifork_has_extents(struct xfs_ifork *ifp)
+{
+	return ifp->if_format == XFS_DINODE_FMT_EXTENTS ||
+		ifp->if_format == XFS_DINODE_FMT_BTREE;
+}
 
 static inline xfs_extnum_t xfs_ifork_nextents(struct xfs_ifork *ifp)
 {
 	if (!ifp)
 		return 0;
 	return ifp->if_nextents;
+}
+
+static inline int8_t xfs_ifork_format(struct xfs_ifork *ifp)
+{
+	if (!ifp)
+		return XFS_DINODE_FMT_EXTENTS;
+	return ifp->if_format;
 }
 
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
