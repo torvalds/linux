@@ -2965,7 +2965,7 @@ qla8044_minidump_pex_dma_read(struct scsi_qla_host *vha,
 
 		/* Prepare: Write pex-dma descriptor to MS memory. */
 		rval = qla8044_ms_mem_write_128b(vha,
-		    m_hdr->desc_card_addr, (void *)&dma_desc,
+		    m_hdr->desc_card_addr, (uint32_t *)&dma_desc,
 		    (sizeof(struct qla8044_pex_dma_descriptor)/16));
 		if (rval) {
 			ql_log(ql_log_warn, vha, 0xb14a,
@@ -2987,7 +2987,7 @@ qla8044_minidump_pex_dma_read(struct scsi_qla_host *vha,
 		read_size += chunk_size;
 	}
 
-	*d_ptr = (void *)data_ptr;
+	*d_ptr = (uint32_t *)data_ptr;
 
 error_exit:
 	if (rdmem_buffer)

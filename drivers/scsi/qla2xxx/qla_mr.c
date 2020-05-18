@@ -3212,7 +3212,7 @@ qlafx00_tm_iocb(srb_t *sp, struct tsk_mgmt_entry_fx00 *ptm_iocb)
 		    sizeof(struct scsi_lun));
 	}
 
-	memcpy((void *)ptm_iocb, &tm_iocb,
+	memcpy(ptm_iocb, &tm_iocb,
 	    sizeof(struct tsk_mgmt_entry_fx00));
 	wmb();
 }
@@ -3234,7 +3234,7 @@ qlafx00_abort_iocb(srb_t *sp, struct abort_iocb_entry_fx00 *pabt_iocb)
 	abt_iocb.tgt_id_sts = cpu_to_le16(sp->fcport->tgt_id);
 	abt_iocb.req_que_no = cpu_to_le16(req->id);
 
-	memcpy((void *)pabt_iocb, &abt_iocb,
+	memcpy(pabt_iocb, &abt_iocb,
 	    sizeof(struct abort_iocb_entry_fx00));
 	wmb();
 }

@@ -992,7 +992,7 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 
 		ql_dbg(ql_dbg_disc, vha, 0x20e8,
 		    "%s %8phC %02x:%02x:%02x CLS %x/%x lid %x \n",
-		    __func__, (void *)&wwn, e->port_id[2], e->port_id[1],
+		    __func__, &wwn, e->port_id[2], e->port_id[1],
 		    e->port_id[0], e->current_login_state, e->last_login_state,
 		    (loop_id & 0x7fff));
 	}
@@ -1343,7 +1343,7 @@ int qla24xx_async_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	mb[9] = vha->vp_idx;
 	mb[10] = opt;
 
-	mbx->u.mbx.in = (void *)pd;
+	mbx->u.mbx.in = pd;
 	mbx->u.mbx.in_dma = pd_dma;
 
 	sp->done = qla24xx_async_gpdb_sp_done;
@@ -4128,7 +4128,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
-		req->out_ptr = (void *)(req->ring + req->length);
+		req->out_ptr = (uint16_t *)(req->ring + req->length);
 		*req->out_ptr = 0;
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
@@ -4145,7 +4145,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		rsp = ha->rsp_q_map[que];
 		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
-		rsp->in_ptr = (void *)(rsp->ring + rsp->length);
+		rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
 		/* Initialize response queue entries */
 		if (IS_QLAFX00(ha))
@@ -7446,7 +7446,7 @@ qla27xx_check_image_status_signature(struct qla27xx_image_status *image_status)
 static ulong
 qla27xx_image_status_checksum(struct qla27xx_image_status *image_status)
 {
-	uint32_t *p = (void *)image_status;
+	uint32_t *p = (uint32_t *)image_status;
 	uint n = sizeof(*image_status) / sizeof(*p);
 	uint32_t sum = 0;
 
@@ -7509,7 +7509,7 @@ qla28xx_get_aux_images(
 		goto check_sec_image;
 	}
 
-	qla24xx_read_flash_data(vha, (void *)&pri_aux_image_status,
+	qla24xx_read_flash_data(vha, (uint32_t *)&pri_aux_image_status,
 	    ha->flt_region_aux_img_status_pri,
 	    sizeof(pri_aux_image_status) >> 2);
 	qla27xx_print_image(vha, "Primary aux image", &pri_aux_image_status);
@@ -7542,7 +7542,7 @@ check_sec_image:
 		goto check_valid_image;
 	}
 
-	qla24xx_read_flash_data(vha, (void *)&sec_aux_image_status,
+	qla24xx_read_flash_data(vha, (uint32_t *)&sec_aux_image_status,
 	    ha->flt_region_aux_img_status_sec,
 	    sizeof(sec_aux_image_status) >> 2);
 	qla27xx_print_image(vha, "Secondary aux image", &sec_aux_image_status);
@@ -7607,7 +7607,7 @@ qla27xx_get_active_image(struct scsi_qla_host *vha,
 		goto check_sec_image;
 	}
 
-	if (qla24xx_read_flash_data(vha, (void *)(&pri_image_status),
+	if (qla24xx_read_flash_data(vha, (uint32_t *)&pri_image_status,
 	    ha->flt_region_img_status_pri, sizeof(pri_image_status) >> 2) !=
 	    QLA_SUCCESS) {
 		WARN_ON_ONCE(true);
@@ -7714,7 +7714,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	ql_dbg(ql_dbg_init, vha, 0x008b,
 	    "FW: Loading firmware from flash (%x).\n", faddr);
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	qla24xx_read_flash_data(vha, dcode, faddr, 8);
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x008c,
@@ -7727,7 +7727,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		return QLA_FUNCTION_FAILED;
 	}
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 	segments = FA_RISC_CODE_SEGMENTS;
 	for (j = 0; j < segments; j++) {
@@ -7778,7 +7778,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		fwdt->template = NULL;
 		fwdt->length = 0;
 
-		dcode = (void *)req->ring;
+		dcode = (uint32_t *)req->ring;
 		qla24xx_read_flash_data(vha, dcode, faddr, 7);
 		risc_size = be32_to_cpu(dcode[2]);
 		ql_dbg(ql_dbg_init, vha, 0x0161,
@@ -7970,7 +7970,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	fwcode = (void *)blob->fw->data;
+	fwcode = (uint32_t *)blob->fw->data;
 	dcode = fwcode;
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x0093,
@@ -7982,7 +7982,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 	segments = FA_RISC_CODE_SEGMENTS;
 	for (j = 0; j < segments; j++) {

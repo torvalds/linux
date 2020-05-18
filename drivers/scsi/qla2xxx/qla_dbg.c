@@ -115,7 +115,7 @@ qla27xx_dump_mpi_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 {
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t dump_dma = ha->gid_list_dma;
-	uint32_t *chunk = (void *)ha->gid_list;
+	uint32_t *chunk = (uint32_t *)ha->gid_list;
 	uint32_t dwords = qla2x00_gid_list_size(ha) / 4;
 	uint32_t stat;
 	ulong i, j, timer = 6000000;
@@ -195,7 +195,7 @@ qla24xx_dump_ram(struct qla_hw_data *ha, uint32_t addr, uint32_t *ram,
 	int rval = QLA_FUNCTION_FAILED;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	dma_addr_t dump_dma = ha->gid_list_dma;
-	uint32_t *chunk = (void *)ha->gid_list;
+	uint32_t *chunk = (uint32_t *)ha->gid_list;
 	uint32_t dwords = qla2x00_gid_list_size(ha) / 4;
 	uint32_t stat;
 	ulong i, j, timer = 6000000;

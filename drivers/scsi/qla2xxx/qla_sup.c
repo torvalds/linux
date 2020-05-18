@@ -553,7 +553,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct qla_flt_location *fltl = (void *)req->ring;
-	uint32_t *dcode = (void *)req->ring;
+	uint32_t *dcode = (uint32_t *)req->ring;
 	uint8_t *buf = (void *)req->ring, *bcode,  last_image;
 
 	/*
@@ -610,7 +610,7 @@ qla2xxx_find_flt_start(scsi_qla_host_t *vha, uint32_t *start)
 	if (memcmp(fltl->sig, "QFLT", 4))
 		goto end;
 
-	wptr = (void *)req->ring;
+	wptr = (uint16_t *)req->ring;
 	cnt = sizeof(*fltl) / sizeof(*wptr);
 	for (chksum = 0; cnt--; wptr++)
 		chksum += le16_to_cpu(*wptr);
@@ -682,7 +682,7 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 
 	ha->flt_region_flt = flt_addr;
 	wptr = (uint16_t *)ha->flt;
-	ha->isp_ops->read_optrom(vha, (void *)flt, flt_addr << 2,
+	ha->isp_ops->read_optrom(vha, flt, flt_addr << 2,
 	    (sizeof(struct qla_flt_header) + FLT_REGIONS_SIZE));
 
 	if (le16_to_cpu(*wptr) == 0xffff)
@@ -949,7 +949,7 @@ qla2xxx_get_fdt_info(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	uint16_t cnt, chksum;
-	uint16_t *wptr = (void *)req->ring;
+	uint16_t *wptr = (uint16_t *)req->ring;
 	struct qla_fdt_layout *fdt = (struct qla_fdt_layout *)req->ring;
 	uint8_t	man_id, flash_id;
 	uint16_t mid = 0, fid = 0;
@@ -2610,7 +2610,7 @@ qla24xx_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	set_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
 
 	/* Go with read. */
-	qla24xx_read_flash_data(vha, (void *)buf, offset >> 2, length >> 2);
+	qla24xx_read_flash_data(vha, buf, offset >> 2, length >> 2);
 
 	/* Resume HBA. */
 	clear_bit(MBX_UPDATE_FLASH_ACTIVE, &ha->mbx_cmd_flags);
@@ -3528,7 +3528,7 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 
 	memset(ha->gold_fw_version, 0, sizeof(ha->gold_fw_version));
 	faddr = ha->flt_region_gold_fw;
-	qla24xx_read_flash_data(vha, (void *)dcode, ha->flt_region_gold_fw, 8);
+	qla24xx_read_flash_data(vha, dcode, ha->flt_region_gold_fw, 8);
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_warn, vha, 0x0056,
 		    "Unrecognized golden fw at %#x.\n", faddr);

@@ -3885,7 +3885,7 @@ static void *qlt_ctio_to_cmd(struct scsi_qla_host *vha,
 			return NULL;
 		}
 
-		cmd = (void *) req->outstanding_cmds[h];
+		cmd = req->outstanding_cmds[h];
 		if (unlikely(cmd == NULL)) {
 			ql_dbg(ql_dbg_async, vha, 0xe053,
 			    "qla_target(%d): Suspicious: unable to find the command with handle %x req->id %d rsp->id %d\n",
@@ -5932,7 +5932,7 @@ void qlt_async_event(uint16_t code, struct scsi_qla_host *vha,
 		    le16_to_cpu(mailbox[2]), le16_to_cpu(mailbox[3]));
 		if (tgt->link_reinit_iocb_pending) {
 			qlt_send_notify_ack(ha->base_qpair,
-			    (void *)&tgt->link_reinit_iocb,
+			    &tgt->link_reinit_iocb,
 			    0, 0, 0, 0, 0, 0);
 			tgt->link_reinit_iocb_pending = 0;
 		}

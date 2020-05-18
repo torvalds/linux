@@ -3038,7 +3038,7 @@ qla2x00_get_link_status(scsi_qla_host_t *vha, uint16_t loop_id,
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	uint32_t *iter = (void *)stats;
+	uint32_t *iter = (uint32_t *)stats;
 	ushort dwords = offsetof(typeof(*stats), link_up_cnt)/sizeof(*iter);
 	struct qla_hw_data *ha = vha->hw;
 
@@ -3097,7 +3097,7 @@ qla24xx_get_isp_stats(scsi_qla_host_t *vha, struct link_statistics *stats,
 	int rval;
 	mbx_cmd_t mc;
 	mbx_cmd_t *mcp = &mc;
-	uint32_t *iter = (void *)stats;
+	uint32_t *iter = (uint32_t *)stats;
 	ushort dwords = sizeof(*stats)/sizeof(*iter);
 
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1088,
@@ -4736,7 +4736,7 @@ qla82xx_set_driver_version(scsi_qla_host_t *vha, char *version)
 	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x117b,
 	    "Entered %s.\n", __func__);
 
-	str = (void *)version;
+	str = (uint16_t *)version;
 	len = strlen(version);
 
 	mcp->mb[0] = MBC_SET_RNID_PARAMS;

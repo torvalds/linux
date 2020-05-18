@@ -5915,7 +5915,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0181,
 	    "-------- ELS REQ -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0182,
-	    (void *)purex, sizeof(*purex));
+	    purex, sizeof(*purex));
 
 	if (qla25xx_rdp_rsp_reduce_size(vha, purex)) {
 		rsp_payload_length =
@@ -6031,7 +6031,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 		memset(sfp, 0, SFP_RTDI_LEN);
 		rval = qla2x00_read_sfp(vha, sfp_dma, sfp, 0xa2, 0x60, 10, 0);
 		if (!rval) {
-			uint16_t *trx = (void *)sfp; /* already be16 */
+			uint16_t *trx = (uint16_t *)sfp; /* already be16 */
 			rsp_payload->sfp_diag_desc.temperature = trx[0];
 			rsp_payload->sfp_diag_desc.vcc = trx[1];
 			rsp_payload->sfp_diag_desc.tx_bias = trx[2];
@@ -6140,7 +6140,7 @@ void qla24xx_process_purex_rdp(struct scsi_qla_host *vha, void *pkt)
 		memset(sfp, 0, SFP_RTDI_LEN);
 		rval = qla2x00_read_sfp(vha, sfp_dma, sfp, 0xa2, 0, 64, 0);
 		if (!rval) {
-			uint16_t *trx = (void *)sfp; /* already be16 */
+			uint16_t *trx = (uint16_t *)sfp; /* already be16 */
 
 			/* Optical Element Descriptor, Temperature */
 			rsp_payload->optical_elmt_desc[0].high_alarm = trx[0];
@@ -6266,11 +6266,11 @@ send:
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0184,
 	    "-------- ELS RSP -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0185,
-	    (void *)rsp_els, sizeof(*rsp_els));
+	    rsp_els, sizeof(*rsp_els));
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x0186,
 	    "-------- ELS RSP PAYLOAD -------\n");
 	ql_dump_buffer(ql_dbg_init + ql_dbg_verbose, vha, 0x0187,
-	    (void *)rsp_payload, rsp_payload_length);
+	    rsp_payload, rsp_payload_length);
 
 	rval = qla2x00_issue_iocb(vha, rsp_els, rsp_els_dma, 0);
 

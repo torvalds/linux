@@ -295,7 +295,7 @@ static int qla_nvme_ls_req(struct nvme_fc_local_port *lport,
 	sp->name = "nvme_ls";
 	sp->done = qla_nvme_sp_ls_done;
 	sp->put_fn = qla_nvme_release_ls_cmd_kref;
-	sp->priv = (void *)priv;
+	sp->priv = priv;
 	priv->sp = sp;
 	kref_init(&sp->cmd_kref);
 	spin_lock_init(&priv->cmd_lock);
@@ -560,7 +560,7 @@ static int qla_nvme_post_cmd(struct nvme_fc_local_port *lport,
 	init_waitqueue_head(&sp->nvme_ls_waitq);
 	kref_init(&sp->cmd_kref);
 	spin_lock_init(&priv->cmd_lock);
-	sp->priv = (void *)priv;
+	sp->priv = priv;
 	priv->sp = sp;
 	sp->type = SRB_NVME_CMD;
 	sp->name = "nvme_cmd";
