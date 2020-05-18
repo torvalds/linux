@@ -3317,6 +3317,7 @@ int uart_get_rs485_mode(struct uart_port *port)
 	 * to get to a defined state with the following properties:
 	 */
 	rs485conf->flags &= ~(SER_RS485_RX_DURING_TX | SER_RS485_ENABLED |
+			      SER_RS485_TERMINATE_BUS |
 			      SER_RS485_RTS_AFTER_SEND);
 	rs485conf->flags |= SER_RS485_RTS_ON_SEND;
 
@@ -3329,6 +3330,21 @@ int uart_get_rs485_mode(struct uart_port *port)
 	if (device_property_read_bool(dev, "rs485-rts-active-low")) {
 		rs485conf->flags &= ~SER_RS485_RTS_ON_SEND;
 		rs485conf->flags |= SER_RS485_RTS_AFTER_SEND;
+	}
+
+	/*
+	 * Disabling termination by default is the safe choice:  Else if many
+	 * bus participants enable it, no communication is possible at all.
+	 * Works fine for short cables and users may enable for longer cables.
+	 */
+	port->rs485_term_gpio = devm_gpiod_get_optional(dev, "rs485-term",
+							GPIOD_OUT_LOW);
+	if (IS_ERR(port->rs485_term_gpio)) {
+		ret = PTR_ERR(port->rs485_term_gpio);
+		port->rs485_term_gpio = NULL;
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Cannot get rs485-term-gpios\n");
+		return ret;
 	}
 
 	return 0;
