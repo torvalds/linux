@@ -789,6 +789,7 @@ struct sdw_master_ops {
  * struct sdw_bus - SoundWire bus
  * @dev: Master linux device
  * @link_id: Link id number, can be 0 to N, unique for each Master
+ * @id: bus system-wide unique id
  * @slaves: list of Slaves on this bus
  * @assigned: Bitmap for Slave device numbers.
  * Bit set implies used number, bit clear implies unused number.
@@ -813,6 +814,7 @@ struct sdw_master_ops {
 struct sdw_bus {
 	struct device *dev;
 	unsigned int link_id;
+	int id;
 	struct list_head slaves;
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;

@@ -9,6 +9,19 @@
 #include <linux/soundwire/sdw.h>
 #include "bus.h"
 
+static DEFINE_IDA(sdw_ida);
+
+static int sdw_get_id(struct sdw_bus *bus)
+{
+	int rc = ida_alloc(&sdw_ida, GFP_KERNEL);
+
+	if (rc < 0)
+		return rc;
+
+	bus->id = rc;
+	return 0;
+}
+
 /**
  * sdw_bus_master_add() - add a bus Master instance
  * @bus: bus instance
@@ -27,6 +40,12 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 	if (!bus->dev) {
 		pr_err("SoundWire bus has no device\n");
 		return -ENODEV;
+	}
+
+	ret = sdw_get_id(bus);
+	if (ret) {
+		dev_err(bus->dev, "Failed to get bus id\n");
+		return ret;
 	}
 
 	if (!bus->ops) {
@@ -144,6 +163,7 @@ void sdw_bus_master_delete(struct sdw_bus *bus)
 	device_for_each_child(bus->dev, NULL, sdw_delete_slave);
 
 	sdw_bus_debugfs_exit(bus);
+	ida_free(&sdw_ida, bus->id);
 }
 EXPORT_SYMBOL(sdw_bus_master_delete);
 
