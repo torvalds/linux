@@ -359,12 +359,13 @@ int vsprintf(char *buf, const char *fmt, va_list ap)
 			break;
 
 		default:
-			*str++ = '%';
-			if (*fmt)
-				*str++ = *fmt;
-			else
-				--fmt;
-			continue;
+			/*
+			 * Bail out if the conversion specifier is invalid.
+			 * There's probably a typo in the format string and the
+			 * remaining specifiers are unlikely to match up with
+			 * the arguments.
+			 */
+			goto fail;
 		}
 		if (*fmt == 'p') {
 			num = (unsigned long)va_arg(args, void *);
@@ -434,6 +435,7 @@ output:
 		while (field_width-- > 0)
 			*str++ = ' ';
 	}
+fail:
 	*str = '\0';
 
 	va_end(args);
