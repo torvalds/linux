@@ -463,3 +463,38 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 
 	return status;
 }
+
+efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key)
+{
+	efi_event_t events[2], timer;
+	unsigned long index;
+	efi_simple_text_input_protocol_t *con_in;
+	efi_status_t status;
+
+	con_in = efi_table_attr(efi_system_table, con_in);
+	if (!con_in)
+		return EFI_UNSUPPORTED;
+	efi_set_event_at(events, 0, efi_table_attr(con_in, wait_for_key));
+
+	status = efi_bs_call(create_event, EFI_EVT_TIMER, 0, NULL, NULL, &timer);
+	if (status != EFI_SUCCESS)
+		return status;
+
+	status = efi_bs_call(set_timer, timer, EfiTimerRelative,
+			     EFI_100NSEC_PER_USEC * usec);
+	if (status != EFI_SUCCESS)
+		return status;
+	efi_set_event_at(events, 1, timer);
+
+	status = efi_bs_call(wait_for_event, 2, events, &index);
+	if (status == EFI_SUCCESS) {
+		if (index == 0)
+			status = efi_call_proto(con_in, read_keystroke, key);
+		else
+			status = EFI_TIMEOUT;
+	}
+
+	efi_bs_call(close_event, timer);
+
+	return status;
+}

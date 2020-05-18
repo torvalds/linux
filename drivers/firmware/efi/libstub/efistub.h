@@ -323,6 +323,8 @@ union efi_simple_text_input_protocol {
 	} mixed_mode;
 };
 
+efi_status_t efi_wait_for_key(unsigned long usec, efi_input_key_t *key);
+
 union efi_simple_text_output_protocol {
 	struct {
 		void *reset;
