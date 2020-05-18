@@ -241,8 +241,6 @@ static void load_nested_vmcb_control(struct vcpu_svm *svm,
 	svm->nested.intercept_dr         = control->intercept_dr;
 	svm->nested.intercept_exceptions = control->intercept_exceptions;
 	svm->nested.intercept            = control->intercept;
-
-	svm->vcpu.arch.tsc_offset += control->tsc_offset;
 }
 
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
@@ -288,7 +286,8 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm, struct vmcb *neste
 	else
 		svm->vcpu.arch.hflags &= ~HF_VINTR_MASK;
 
-	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset;
+	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
+		svm->vcpu.arch.l1_tsc_offset + nested_vmcb->control.tsc_offset;
 
 	svm->vmcb->control.int_ctl = nested_vmcb->control.int_ctl | V_INTR_MASKING_MASK;
 	svm->vmcb->control.virt_ext = nested_vmcb->control.virt_ext;
@@ -553,7 +552,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	/* Restore the original control entries */
 	copy_vmcb_control_area(vmcb, hsave);
 
-	svm->vcpu.arch.tsc_offset = svm->vmcb->control.tsc_offset;
+	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
+		svm->vcpu.arch.l1_tsc_offset;
+
 	kvm_clear_exception_queue(&svm->vcpu);
 	kvm_clear_interrupt_queue(&svm->vcpu);
 
