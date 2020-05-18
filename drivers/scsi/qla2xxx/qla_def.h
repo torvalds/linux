@@ -128,47 +128,47 @@ static inline uint32_t make_handle(uint16_t x, uint16_t y)
  * I/O register
 */
 
-static inline u8 RD_REG_BYTE(const volatile u8 __iomem *addr)
+static inline u8 rd_reg_byte(const volatile u8 __iomem *addr)
 {
 	return readb(addr);
 }
 
-static inline u16 RD_REG_WORD(const volatile __le16 __iomem *addr)
+static inline u16 rd_reg_word(const volatile __le16 __iomem *addr)
 {
 	return readw(addr);
 }
 
-static inline u32 RD_REG_DWORD(const volatile __le32 __iomem *addr)
+static inline u32 rd_reg_dword(const volatile __le32 __iomem *addr)
 {
 	return readl(addr);
 }
 
-static inline u8 RD_REG_BYTE_RELAXED(const volatile u8 __iomem *addr)
+static inline u8 rd_reg_byte_relaxed(const volatile u8 __iomem *addr)
 {
 	return readb_relaxed(addr);
 }
 
-static inline u16 RD_REG_WORD_RELAXED(const volatile __le16 __iomem *addr)
+static inline u16 rd_reg_word_relaxed(const volatile __le16 __iomem *addr)
 {
 	return readw_relaxed(addr);
 }
 
-static inline u32 RD_REG_DWORD_RELAXED(const volatile __le32 __iomem *addr)
+static inline u32 rd_reg_dword_relaxed(const volatile __le32 __iomem *addr)
 {
 	return readl_relaxed(addr);
 }
 
-static inline void WRT_REG_BYTE(volatile u8 __iomem *addr, u8 data)
+static inline void wrt_reg_byte(volatile u8 __iomem *addr, u8 data)
 {
 	return writeb(data, addr);
 }
 
-static inline void WRT_REG_WORD(volatile __le16 __iomem *addr, u16 data)
+static inline void wrt_reg_word(volatile __le16 __iomem *addr, u16 data)
 {
 	return writew(data, addr);
 }
 
-static inline void WRT_REG_DWORD(volatile __le32 __iomem *addr, u32 data)
+static inline void wrt_reg_dword(volatile __le32 __iomem *addr, u32 data)
 {
 	return writel(data, addr);
 }
@@ -956,18 +956,18 @@ typedef union {
 	  &(reg)->u_end.isp2200.mailbox8 + (num) - 8) : \
 	 &(reg)->u.isp2300.mailbox0 + (num))
 #define RD_MAILBOX_REG(ha, reg, num) \
-	RD_REG_WORD(MAILBOX_REG(ha, reg, num))
+	rd_reg_word(MAILBOX_REG(ha, reg, num))
 #define WRT_MAILBOX_REG(ha, reg, num, data) \
-	WRT_REG_WORD(MAILBOX_REG(ha, reg, num), data)
+	wrt_reg_word(MAILBOX_REG(ha, reg, num), data)
 
 #define FB_CMD_REG(ha, reg) \
 	(IS_QLA2100(ha) || IS_QLA2200(ha) ? \
 	 &(reg)->fb_cmd_2100 : \
 	 &(reg)->u.isp2300.fb_cmd)
 #define RD_FB_CMD_REG(ha, reg) \
-	RD_REG_WORD(FB_CMD_REG(ha, reg))
+	rd_reg_word(FB_CMD_REG(ha, reg))
 #define WRT_FB_CMD_REG(ha, reg, data) \
-	WRT_REG_WORD(FB_CMD_REG(ha, reg), data)
+	wrt_reg_word(FB_CMD_REG(ha, reg), data)
 
 typedef struct {
 	uint32_t	out_mb;		/* outbound from driver */

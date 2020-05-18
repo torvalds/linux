@@ -205,7 +205,7 @@ qla2100_intr_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
-		hccr = RD_REG_WORD(&reg->hccr);
+		hccr = rd_reg_word(&reg->hccr);
 		if (qla2x00_check_reg16_for_disconnect(vha, hccr))
 			break;
 		if (hccr & HCCR_RISC_PAUSE) {
@@ -217,18 +217,18 @@ qla2100_intr_handler(int irq, void *dev_id)
 			 * bit to be cleared.  Schedule a big hammer to get
 			 * out of the RISC PAUSED state.
 			 */
-			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-			RD_REG_WORD(&reg->hccr);
+			wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
+			rd_reg_word(&reg->hccr);
 
 			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
 			break;
-		} else if ((RD_REG_WORD(&reg->istatus) & ISR_RISC_INT) == 0)
+		} else if ((rd_reg_word(&reg->istatus) & ISR_RISC_INT) == 0)
 			break;
 
-		if (RD_REG_WORD(&reg->semaphore) & BIT_0) {
-			WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT);
-			RD_REG_WORD(&reg->hccr);
+		if (rd_reg_word(&reg->semaphore) & BIT_0) {
+			wrt_reg_word(&reg->hccr, HCCR_CLR_RISC_INT);
+			rd_reg_word(&reg->hccr);
 
 			/* Get mailbox data. */
 			mb[0] = RD_MAILBOX_REG(ha, reg, 0);
@@ -247,13 +247,13 @@ qla2100_intr_handler(int irq, void *dev_id)
 				    mb[0]);
 			}
 			/* Release mailbox registers. */
-			WRT_REG_WORD(&reg->semaphore, 0);
-			RD_REG_WORD(&reg->semaphore);
+			wrt_reg_word(&reg->semaphore, 0);
+			rd_reg_word(&reg->semaphore);
 		} else {
 			qla2x00_process_response_queue(rsp);
 
-			WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT);
-			RD_REG_WORD(&reg->hccr);
+			wrt_reg_word(&reg->hccr, HCCR_CLR_RISC_INT);
+			rd_reg_word(&reg->hccr);
 		}
 	}
 	qla2x00_handle_mbx_completion(ha, status);
@@ -325,14 +325,14 @@ qla2300_intr_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
-		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
+		stat = rd_reg_dword(&reg->u.isp2300.host_status);
 		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSR_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
-			hccr = RD_REG_WORD(&reg->hccr);
+			hccr = rd_reg_word(&reg->hccr);
 
 			if (hccr & (BIT_15 | BIT_13 | BIT_11 | BIT_8))
 				ql_log(ql_log_warn, vha, 0x5026,
@@ -348,8 +348,8 @@ qla2300_intr_handler(int irq, void *dev_id)
 			 * interrupt bit to be cleared.  Schedule a big
 			 * hammer to get out of the RISC PAUSED state.
 			 */
-			WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-			RD_REG_WORD(&reg->hccr);
+			wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
+			rd_reg_word(&reg->hccr);
 
 			ha->isp_ops->fw_dump(vha);
 			set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
@@ -366,7 +366,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 			status |= MBX_INTERRUPT;
 
 			/* Release mailbox registers. */
-			WRT_REG_WORD(&reg->semaphore, 0);
+			wrt_reg_word(&reg->semaphore, 0);
 			break;
 		case 0x12:
 			mb[0] = MSW(stat);
@@ -394,8 +394,8 @@ qla2300_intr_handler(int irq, void *dev_id)
 			    "Unrecognized interrupt type (%d).\n", stat & 0xff);
 			break;
 		}
-		WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT);
-		RD_REG_WORD_RELAXED(&reg->hccr);
+		wrt_reg_word(&reg->hccr, HCCR_CLR_RISC_INT);
+		rd_reg_word_relaxed(&reg->hccr);
 	}
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -437,7 +437,7 @@ qla2x00_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 		if ((cnt == 4 || cnt == 5) && (mboxes & BIT_0))
 			ha->mailbox_out[cnt] = qla2x00_debounce_register(wptr);
 		else if (mboxes & BIT_0)
-			ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
+			ha->mailbox_out[cnt] = rd_reg_word(wptr);
 
 		wptr++;
 		mboxes >>= 1;
@@ -464,7 +464,7 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 		return;
 
 	for (cnt = 0; cnt < QLA_IDC_ACK_REGS; cnt++, wptr++)
-		mb[cnt] = RD_REG_WORD(wptr);
+		mb[cnt] = rd_reg_word(wptr);
 
 	ql_dbg(ql_dbg_async, vha, 0x5021,
 	    "Inter-Driver Communication %s -- "
@@ -892,10 +892,10 @@ skip_rio:
 		    IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			u16 m[4];
 
-			m[0] = RD_REG_WORD(&reg24->mailbox4);
-			m[1] = RD_REG_WORD(&reg24->mailbox5);
-			m[2] = RD_REG_WORD(&reg24->mailbox6);
-			mbx = m[3] = RD_REG_WORD(&reg24->mailbox7);
+			m[0] = rd_reg_word(&reg24->mailbox4);
+			m[1] = rd_reg_word(&reg24->mailbox5);
+			m[2] = rd_reg_word(&reg24->mailbox6);
+			mbx = m[3] = rd_reg_word(&reg24->mailbox7);
 
 			ql_log(ql_log_warn, vha, 0x5003,
 			    "ISP System Error - mbx1=%xh mbx2=%xh mbx3=%xh mbx4=%xh mbx5=%xh mbx6=%xh mbx7=%xh.\n",
@@ -906,7 +906,7 @@ skip_rio:
 			    mb[1], mb[2], mb[3]);
 
 		if ((IS_QLA27XX(ha) || IS_QLA28XX(ha)) &&
-		    RD_REG_WORD(&reg24->mailbox7) & BIT_8)
+		    rd_reg_word(&reg24->mailbox7) & BIT_8)
 			ha->isp_ops->mpi_fw_dump(vha, 1);
 		ha->isp_ops->fw_dump(vha);
 		ha->flags.fw_init_done = 0;
@@ -1013,8 +1013,8 @@ skip_rio:
 		ha->current_topology = 0;
 
 		mbx = (IS_QLA81XX(ha) || IS_QLA8031(ha))
-			? RD_REG_WORD(&reg24->mailbox4) : 0;
-		mbx = (IS_P3P_TYPE(ha)) ? RD_REG_WORD(&reg82->mailbox_out[4])
+			? rd_reg_word(&reg24->mailbox4) : 0;
+		mbx = (IS_P3P_TYPE(ha)) ? rd_reg_word(&reg82->mailbox_out[4])
 			: mbx;
 		ql_log(ql_log_info, vha, 0x500b,
 		    "LOOP DOWN detected (%x %x %x %x).\n",
@@ -1381,7 +1381,7 @@ global_port_update:
 		break;
 	case MBA_IDC_NOTIFY:
 		if (IS_QLA8031(vha->hw) || IS_QLA8044(ha)) {
-			mb[4] = RD_REG_WORD(&reg24->mailbox4);
+			mb[4] = rd_reg_word(&reg24->mailbox4);
 			if (((mb[2] & 0x7fff) == MBC_PORT_RESET ||
 			    (mb[2] & 0x7fff) == MBC_SET_PORT_CONFIG) &&
 			    (mb[4] & INTERNAL_LOOPBACK_MASK) != 0) {
@@ -1410,10 +1410,10 @@ global_port_update:
 		if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
 			qla27xx_handle_8200_aen(vha, mb);
 		} else if (IS_QLA83XX(ha)) {
-			mb[4] = RD_REG_WORD(&reg24->mailbox4);
-			mb[5] = RD_REG_WORD(&reg24->mailbox5);
-			mb[6] = RD_REG_WORD(&reg24->mailbox6);
-			mb[7] = RD_REG_WORD(&reg24->mailbox7);
+			mb[4] = rd_reg_word(&reg24->mailbox4);
+			mb[5] = rd_reg_word(&reg24->mailbox5);
+			mb[6] = rd_reg_word(&reg24->mailbox6);
+			mb[7] = rd_reg_word(&reg24->mailbox7);
 			qla83xx_handle_8200_aen(vha, mb);
 		} else {
 			ql_dbg(ql_dbg_async, vha, 0x5052,
@@ -2321,7 +2321,7 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 	}
 
 	/* Adjust ring index */
-	WRT_REG_WORD(ISP_RSP_Q_OUT(ha, reg), rsp->ring_index);
+	wrt_reg_word(ISP_RSP_Q_OUT(ha, reg), rsp->ring_index);
 }
 
 static inline void
@@ -3184,7 +3184,7 @@ qla24xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 
 	for (cnt = 1; cnt < ha->mbx_count; cnt++) {
 		if (mboxes & BIT_0)
-			ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
+			ha->mailbox_out[cnt] = rd_reg_word(wptr);
 
 		mboxes >>= 1;
 		wptr++;
@@ -3361,9 +3361,9 @@ process_err:
 	if (IS_P3P_TYPE(ha)) {
 		struct device_reg_82xx __iomem *reg = &ha->iobase->isp82;
 
-		WRT_REG_DWORD(&reg->rsp_q_out[0], rsp->ring_index);
+		wrt_reg_dword(&reg->rsp_q_out[0], rsp->ring_index);
 	} else {
-		WRT_REG_DWORD(rsp->rsp_q_out, rsp->ring_index);
+		wrt_reg_dword(rsp->rsp_q_out, rsp->ring_index);
 	}
 }
 
@@ -3380,13 +3380,13 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 		return;
 
 	rval = QLA_SUCCESS;
-	WRT_REG_DWORD(&reg->iobase_addr, 0x7C00);
-	RD_REG_DWORD(&reg->iobase_addr);
-	WRT_REG_DWORD(&reg->iobase_window, 0x0001);
-	for (cnt = 10000; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	wrt_reg_dword(&reg->iobase_addr, 0x7C00);
+	rd_reg_dword(&reg->iobase_addr);
+	wrt_reg_dword(&reg->iobase_window, 0x0001);
+	for (cnt = 10000; (rd_reg_dword(&reg->iobase_window) & BIT_0) == 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		if (cnt) {
-			WRT_REG_DWORD(&reg->iobase_window, 0x0001);
+			wrt_reg_dword(&reg->iobase_window, 0x0001);
 			udelay(10);
 		} else
 			rval = QLA_FUNCTION_TIMEOUT;
@@ -3395,11 +3395,11 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 		goto next_test;
 
 	rval = QLA_SUCCESS;
-	WRT_REG_DWORD(&reg->iobase_window, 0x0003);
-	for (cnt = 100; (RD_REG_DWORD(&reg->iobase_window) & BIT_0) == 0 &&
+	wrt_reg_dword(&reg->iobase_window, 0x0003);
+	for (cnt = 100; (rd_reg_dword(&reg->iobase_window) & BIT_0) == 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		if (cnt) {
-			WRT_REG_DWORD(&reg->iobase_window, 0x0003);
+			wrt_reg_dword(&reg->iobase_window, 0x0003);
 			udelay(10);
 		} else
 			rval = QLA_FUNCTION_TIMEOUT;
@@ -3408,13 +3408,13 @@ qla2xxx_check_risc_status(scsi_qla_host_t *vha)
 		goto done;
 
 next_test:
-	if (RD_REG_DWORD(&reg->iobase_c8) & BIT_3)
+	if (rd_reg_dword(&reg->iobase_c8) & BIT_3)
 		ql_log(ql_log_info, vha, 0x504c,
 		    "Additional code -- 0x55AA.\n");
 
 done:
-	WRT_REG_DWORD(&reg->iobase_window, 0x0000);
-	RD_REG_DWORD(&reg->iobase_window);
+	wrt_reg_dword(&reg->iobase_window, 0x0000);
+	rd_reg_dword(&reg->iobase_window);
 }
 
 /**
@@ -3458,14 +3458,14 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
-		stat = RD_REG_DWORD(&reg->host_status);
+		stat = rd_reg_dword(&reg->host_status);
 		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
-			hccr = RD_REG_DWORD(&reg->hccr);
+			hccr = rd_reg_dword(&reg->hccr);
 
 			ql_log(ql_log_warn, vha, 0x504b,
 			    "RISC paused -- HCCR=%x, Dumping firmware.\n",
@@ -3490,9 +3490,9 @@ qla24xx_intr_handler(int irq, void *dev_id)
 			break;
 		case INTR_ASYNC_EVENT:
 			mb[0] = MSW(stat);
-			mb[1] = RD_REG_WORD(&reg->mailbox1);
-			mb[2] = RD_REG_WORD(&reg->mailbox2);
-			mb[3] = RD_REG_WORD(&reg->mailbox3);
+			mb[1] = rd_reg_word(&reg->mailbox1);
+			mb[2] = rd_reg_word(&reg->mailbox2);
+			mb[3] = rd_reg_word(&reg->mailbox3);
 			qla2x00_async_event(vha, rsp, mb);
 			break;
 		case INTR_RSP_QUE_UPDATE:
@@ -3512,8 +3512,8 @@ qla24xx_intr_handler(int irq, void *dev_id)
 			    "Unrecognized interrupt type (%d).\n", stat * 0xff);
 			break;
 		}
-		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		RD_REG_DWORD_RELAXED(&reg->hccr);
+		wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
+		rd_reg_dword_relaxed(&reg->hccr);
 		if (unlikely(IS_QLA83XX(ha) && (ha->pdev->revision == 1)))
 			ndelay(3500);
 	}
@@ -3552,8 +3552,8 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, rsp);
 	if (!ha->flags.disable_msix_handshake) {
-		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
-		RD_REG_DWORD_RELAXED(&reg->hccr);
+		wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
+		rd_reg_dword_relaxed(&reg->hccr);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -3587,14 +3587,14 @@ qla24xx_msix_default(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	do {
-		stat = RD_REG_DWORD(&reg->host_status);
+		stat = rd_reg_dword(&reg->host_status);
 		if (qla2x00_check_reg32_for_disconnect(vha, stat))
 			break;
 		if (stat & HSRX_RISC_PAUSED) {
 			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
-			hccr = RD_REG_DWORD(&reg->hccr);
+			hccr = rd_reg_dword(&reg->hccr);
 
 			ql_log(ql_log_info, vha, 0x5050,
 			    "RISC paused -- HCCR=%x, Dumping firmware.\n",
@@ -3619,9 +3619,9 @@ qla24xx_msix_default(int irq, void *dev_id)
 			break;
 		case INTR_ASYNC_EVENT:
 			mb[0] = MSW(stat);
-			mb[1] = RD_REG_WORD(&reg->mailbox1);
-			mb[2] = RD_REG_WORD(&reg->mailbox2);
-			mb[3] = RD_REG_WORD(&reg->mailbox3);
+			mb[1] = rd_reg_word(&reg->mailbox1);
+			mb[2] = rd_reg_word(&reg->mailbox2);
+			mb[3] = rd_reg_word(&reg->mailbox3);
 			qla2x00_async_event(vha, rsp, mb);
 			break;
 		case INTR_RSP_QUE_UPDATE:
@@ -3641,7 +3641,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 			    "Unrecognized interrupt type (%d).\n", stat & 0xff);
 			break;
 		}
-		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+		wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
 	} while (0);
 	qla2x00_handle_mbx_completion(ha, status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -3692,7 +3692,7 @@ qla2xxx_msix_rsp_q_hs(int irq, void *dev_id)
 
 	reg = &ha->iobase->isp24;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+	wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_INT);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	queue_work(ha->wq, &qpair->q_work);
@@ -3953,7 +3953,7 @@ clear_risc_ints:
 		goto fail;
 
 	spin_lock_irq(&ha->hardware_lock);
-	WRT_REG_WORD(&reg->isp.semaphore, 0);
+	wrt_reg_word(&reg->isp.semaphore, 0);
 	spin_unlock_irq(&ha->hardware_lock);
 
 fail:

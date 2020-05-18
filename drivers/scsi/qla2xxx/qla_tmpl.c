@@ -22,9 +22,9 @@ qla27xx_write_remote_reg(struct scsi_qla_host *vha,
 	ql_dbg(ql_dbg_misc, vha, 0xd300,
 	       "%s: addr/data = %xh/%xh\n", __func__, addr, data);
 
-	WRT_REG_DWORD(&reg->iobase_addr, 0x40);
-	WRT_REG_DWORD(&reg->iobase_c4, data);
-	WRT_REG_DWORD(&reg->iobase_window, addr);
+	wrt_reg_dword(&reg->iobase_addr, 0x40);
+	wrt_reg_dword(&reg->iobase_c4, data);
+	wrt_reg_dword(&reg->iobase_window, addr);
 }
 
 void
@@ -75,7 +75,7 @@ qla27xx_read8(void __iomem *window, void *buf, ulong *len)
 	uint8_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_BYTE(window);
+		value = rd_reg_byte(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -86,7 +86,7 @@ qla27xx_read16(void __iomem *window, void *buf, ulong *len)
 	uint16_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_WORD(window);
+		value = rd_reg_word(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -97,7 +97,7 @@ qla27xx_read32(void __iomem *window, void *buf, ulong *len)
 	uint32_t value = ~0;
 
 	if (buf) {
-		value = RD_REG_DWORD(window);
+		value = rd_reg_dword(window);
 	}
 	qla27xx_insert32(value, buf, len);
 }
@@ -126,7 +126,7 @@ qla27xx_write_reg(__iomem struct device_reg_24xx *reg,
 	if (buf) {
 		void __iomem *window = (void __iomem *)reg + offset;
 
-		WRT_REG_DWORD(window, data);
+		wrt_reg_dword(window, data);
 	}
 }
 

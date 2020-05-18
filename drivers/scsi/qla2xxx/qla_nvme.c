@@ -384,7 +384,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	req_cnt = qla24xx_calc_iocbs(vha, tot_dsds);
 	if (req->cnt < (req_cnt + 2)) {
 		cnt = IS_SHADOW_REG_CAPABLE(ha) ? *req->out_ptr :
-		    RD_REG_DWORD_RELAXED(req->req_q_out);
+		    rd_reg_dword_relaxed(req->req_q_out);
 
 		if (req->ring_index < cnt)
 			req->cnt = cnt - req->ring_index;
@@ -514,7 +514,7 @@ static inline int qla2x00_start_nvme_mq(srb_t *sp)
 	}
 
 	/* Set chip new ring index. */
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 
 queuing_error:
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);

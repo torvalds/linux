@@ -26,24 +26,24 @@ qla2x00_lock_nvram_access(struct qla_hw_data *ha)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
-		data = RD_REG_WORD(&reg->nvram);
+		data = rd_reg_word(&reg->nvram);
 		while (data & NVR_BUSY) {
 			udelay(100);
-			data = RD_REG_WORD(&reg->nvram);
+			data = rd_reg_word(&reg->nvram);
 		}
 
 		/* Lock resource */
-		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0x1);
-		RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+		wrt_reg_word(&reg->u.isp2300.host_semaphore, 0x1);
+		rd_reg_word(&reg->u.isp2300.host_semaphore);
 		udelay(5);
-		data = RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+		data = rd_reg_word(&reg->u.isp2300.host_semaphore);
 		while ((data & BIT_0) == 0) {
 			/* Lock failed */
 			udelay(100);
-			WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0x1);
-			RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+			wrt_reg_word(&reg->u.isp2300.host_semaphore, 0x1);
+			rd_reg_word(&reg->u.isp2300.host_semaphore);
 			udelay(5);
-			data = RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+			data = rd_reg_word(&reg->u.isp2300.host_semaphore);
 		}
 	}
 }
@@ -58,8 +58,8 @@ qla2x00_unlock_nvram_access(struct qla_hw_data *ha)
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha)) {
-		WRT_REG_WORD(&reg->u.isp2300.host_semaphore, 0);
-		RD_REG_WORD(&reg->u.isp2300.host_semaphore);
+		wrt_reg_word(&reg->u.isp2300.host_semaphore, 0);
+		rd_reg_word(&reg->u.isp2300.host_semaphore);
 	}
 }
 
@@ -73,15 +73,15 @@ qla2x00_nv_write(struct qla_hw_data *ha, uint16_t data)
 {
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	NVRAM_DELAY();
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_CLOCK |
+	wrt_reg_word(&reg->nvram, data | NVR_SELECT | NVR_CLOCK |
 	    NVR_WRT_ENABLE);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	NVRAM_DELAY();
-	WRT_REG_WORD(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, data | NVR_SELECT | NVR_WRT_ENABLE);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	NVRAM_DELAY();
 }
 
@@ -120,21 +120,21 @@ qla2x00_nvram_request(struct qla_hw_data *ha, uint32_t nv_cmd)
 
 	/* Read data from NVRAM. */
 	for (cnt = 0; cnt < 16; cnt++) {
-		WRT_REG_WORD(&reg->nvram, NVR_SELECT | NVR_CLOCK);
-		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
+		wrt_reg_word(&reg->nvram, NVR_SELECT | NVR_CLOCK);
+		rd_reg_word(&reg->nvram);	/* PCI Posting. */
 		NVRAM_DELAY();
 		data <<= 1;
-		reg_data = RD_REG_WORD(&reg->nvram);
+		reg_data = rd_reg_word(&reg->nvram);
 		if (reg_data & NVR_DATA_IN)
 			data |= BIT_0;
-		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
+		wrt_reg_word(&reg->nvram, NVR_SELECT);
+		rd_reg_word(&reg->nvram);	/* PCI Posting. */
 		NVRAM_DELAY();
 	}
 
 	/* Deselect chip. */
-	WRT_REG_WORD(&reg->nvram, NVR_DESELECT);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, NVR_DESELECT);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	NVRAM_DELAY();
 
 	return data;
@@ -171,8 +171,8 @@ qla2x00_nv_deselect(struct qla_hw_data *ha)
 {
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	WRT_REG_WORD(&reg->nvram, NVR_DESELECT);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, NVR_DESELECT);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	NVRAM_DELAY();
 }
 
@@ -216,8 +216,8 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 	qla2x00_nv_deselect(ha);
 
 	/* Wait for NVRAM to become ready */
-	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, NVR_SELECT);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
@@ -226,7 +226,7 @@ qla2x00_write_nvram_word(struct qla_hw_data *ha, uint32_t addr, uint16_t data)
 			break;
 		}
 		NVRAM_DELAY();
-		word = RD_REG_WORD(&reg->nvram);
+		word = rd_reg_word(&reg->nvram);
 	} while ((word & NVR_DATA_IN) == 0);
 
 	qla2x00_nv_deselect(ha);
@@ -275,11 +275,11 @@ qla2x00_write_nvram_word_tmo(struct qla_hw_data *ha, uint32_t addr,
 	qla2x00_nv_deselect(ha);
 
 	/* Wait for NVRAM to become ready */
-	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, NVR_SELECT);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
-		word = RD_REG_WORD(&reg->nvram);
+		word = rd_reg_word(&reg->nvram);
 		if (!--tmo) {
 			ret = QLA_FUNCTION_FAILED;
 			break;
@@ -347,8 +347,8 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 		qla2x00_nv_deselect(ha);
 
 		/* Wait for NVRAM to become ready. */
-		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
+		wrt_reg_word(&reg->nvram, NVR_SELECT);
+		rd_reg_word(&reg->nvram);	/* PCI Posting. */
 		wait_cnt = NVR_WAIT_CNT;
 		do {
 			if (!--wait_cnt) {
@@ -357,7 +357,7 @@ qla2x00_clear_nvram_protection(struct qla_hw_data *ha)
 				break;
 			}
 			NVRAM_DELAY();
-			word = RD_REG_WORD(&reg->nvram);
+			word = rd_reg_word(&reg->nvram);
 		} while ((word & NVR_DATA_IN) == 0);
 
 		if (wait_cnt)
@@ -407,8 +407,8 @@ qla2x00_set_nvram_protection(struct qla_hw_data *ha, int stat)
 	qla2x00_nv_deselect(ha);
 
 	/* Wait for NVRAM to become ready. */
-	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, NVR_SELECT);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	wait_cnt = NVR_WAIT_CNT;
 	do {
 		if (!--wait_cnt) {
@@ -417,7 +417,7 @@ qla2x00_set_nvram_protection(struct qla_hw_data *ha, int stat)
 			break;
 		}
 		NVRAM_DELAY();
-		word = RD_REG_WORD(&reg->nvram);
+		word = rd_reg_word(&reg->nvram);
 	} while ((word & NVR_DATA_IN) == 0);
 }
 
@@ -456,11 +456,11 @@ qla24xx_read_flash_dword(struct qla_hw_data *ha, uint32_t addr, uint32_t *data)
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	ulong cnt = 30000;
 
-	WRT_REG_DWORD(&reg->flash_addr, addr & ~FARX_DATA_FLAG);
+	wrt_reg_dword(&reg->flash_addr, addr & ~FARX_DATA_FLAG);
 
 	while (cnt--) {
-		if (RD_REG_DWORD(&reg->flash_addr) & FARX_DATA_FLAG) {
-			*data = RD_REG_DWORD(&reg->flash_data);
+		if (rd_reg_dword(&reg->flash_addr) & FARX_DATA_FLAG) {
+			*data = rd_reg_dword(&reg->flash_data);
 			return QLA_SUCCESS;
 		}
 		udelay(10);
@@ -499,11 +499,11 @@ qla24xx_write_flash_dword(struct qla_hw_data *ha, uint32_t addr, uint32_t data)
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	ulong cnt = 500000;
 
-	WRT_REG_DWORD(&reg->flash_data, data);
-	WRT_REG_DWORD(&reg->flash_addr, addr | FARX_DATA_FLAG);
+	wrt_reg_dword(&reg->flash_data, data);
+	wrt_reg_dword(&reg->flash_addr, addr | FARX_DATA_FLAG);
 
 	while (cnt--) {
-		if (!(RD_REG_DWORD(&reg->flash_addr) & FARX_DATA_FLAG))
+		if (!(rd_reg_dword(&reg->flash_addr) & FARX_DATA_FLAG))
 			return QLA_SUCCESS;
 		udelay(10);
 		cond_resched();
@@ -1197,9 +1197,9 @@ qla24xx_unprotect_flash(scsi_qla_host_t *vha)
 		return qla81xx_fac_do_write_enable(vha, 1);
 
 	/* Enable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
-	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+	wrt_reg_dword(&reg->ctrl_status,
+	    rd_reg_dword(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
+	rd_reg_dword(&reg->ctrl_status);	/* PCI Posting. */
 
 	if (!ha->fdt_wrt_disable)
 		goto done;
@@ -1240,8 +1240,8 @@ qla24xx_protect_flash(scsi_qla_host_t *vha)
 
 skip_wrt_protect:
 	/* Disable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
+	wrt_reg_dword(&reg->ctrl_status,
+	    rd_reg_dword(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 
 	return QLA_SUCCESS;
 }
@@ -1466,9 +1466,9 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, void *buf, uint32_t naddr,
 		return ret;
 
 	/* Enable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
-	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+	wrt_reg_dword(&reg->ctrl_status,
+	    rd_reg_dword(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
+	rd_reg_dword(&reg->ctrl_status);	/* PCI Posting. */
 
 	/* Disable NVRAM write-protection. */
 	qla24xx_write_flash_dword(ha, nvram_conf_addr(ha, 0x101), 0);
@@ -1490,9 +1490,9 @@ qla24xx_write_nvram_data(scsi_qla_host_t *vha, void *buf, uint32_t naddr,
 	qla24xx_write_flash_dword(ha, nvram_conf_addr(ha, 0x101), 0x8c);
 
 	/* Disable flash write. */
-	WRT_REG_DWORD(&reg->ctrl_status,
-	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
-	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
+	wrt_reg_dword(&reg->ctrl_status,
+	    rd_reg_dword(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
+	rd_reg_dword(&reg->ctrl_status);	/* PCI Posting. */
 
 	return ret;
 }
@@ -1588,8 +1588,8 @@ qla2x00_beacon_blink(struct scsi_qla_host *vha)
 		gpio_enable = RD_REG_WORD_PIO(PIO_REG(ha, gpioe));
 		gpio_data = RD_REG_WORD_PIO(PIO_REG(ha, gpiod));
 	} else {
-		gpio_enable = RD_REG_WORD(&reg->gpioe);
-		gpio_data = RD_REG_WORD(&reg->gpiod);
+		gpio_enable = rd_reg_word(&reg->gpioe);
+		gpio_data = rd_reg_word(&reg->gpiod);
 	}
 
 	/* Set the modified gpio_enable values */
@@ -1598,8 +1598,8 @@ qla2x00_beacon_blink(struct scsi_qla_host *vha)
 	if (ha->pio_address) {
 		WRT_REG_WORD_PIO(PIO_REG(ha, gpioe), gpio_enable);
 	} else {
-		WRT_REG_WORD(&reg->gpioe, gpio_enable);
-		RD_REG_WORD(&reg->gpioe);
+		wrt_reg_word(&reg->gpioe, gpio_enable);
+		rd_reg_word(&reg->gpioe);
 	}
 
 	qla2x00_flip_colors(ha, &led_color);
@@ -1614,8 +1614,8 @@ qla2x00_beacon_blink(struct scsi_qla_host *vha)
 	if (ha->pio_address) {
 		WRT_REG_WORD_PIO(PIO_REG(ha, gpiod), gpio_data);
 	} else {
-		WRT_REG_WORD(&reg->gpiod, gpio_data);
-		RD_REG_WORD(&reg->gpiod);
+		wrt_reg_word(&reg->gpiod, gpio_data);
+		rd_reg_word(&reg->gpiod);
 	}
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -1645,8 +1645,8 @@ qla2x00_beacon_on(struct scsi_qla_host *vha)
 		gpio_enable = RD_REG_WORD_PIO(PIO_REG(ha, gpioe));
 		gpio_data = RD_REG_WORD_PIO(PIO_REG(ha, gpiod));
 	} else {
-		gpio_enable = RD_REG_WORD(&reg->gpioe);
-		gpio_data = RD_REG_WORD(&reg->gpiod);
+		gpio_enable = rd_reg_word(&reg->gpioe);
+		gpio_data = rd_reg_word(&reg->gpiod);
 	}
 	gpio_enable |= GPIO_LED_MASK;
 
@@ -1654,8 +1654,8 @@ qla2x00_beacon_on(struct scsi_qla_host *vha)
 	if (ha->pio_address) {
 		WRT_REG_WORD_PIO(PIO_REG(ha, gpioe), gpio_enable);
 	} else {
-		WRT_REG_WORD(&reg->gpioe, gpio_enable);
-		RD_REG_WORD(&reg->gpioe);
+		wrt_reg_word(&reg->gpioe, gpio_enable);
+		rd_reg_word(&reg->gpioe);
 	}
 
 	/* Clear out previously set LED colour. */
@@ -1663,8 +1663,8 @@ qla2x00_beacon_on(struct scsi_qla_host *vha)
 	if (ha->pio_address) {
 		WRT_REG_WORD_PIO(PIO_REG(ha, gpiod), gpio_data);
 	} else {
-		WRT_REG_WORD(&reg->gpiod, gpio_data);
-		RD_REG_WORD(&reg->gpiod);
+		wrt_reg_word(&reg->gpiod, gpio_data);
+		rd_reg_word(&reg->gpiod);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -1731,13 +1731,13 @@ qla24xx_beacon_blink(struct scsi_qla_host *vha)
 
 	/* Save the Original GPIOD. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	gpio_data = RD_REG_DWORD(&reg->gpiod);
+	gpio_data = rd_reg_dword(&reg->gpiod);
 
 	/* Enable the gpio_data reg for update. */
 	gpio_data |= GPDX_LED_UPDATE_MASK;
 
-	WRT_REG_DWORD(&reg->gpiod, gpio_data);
-	gpio_data = RD_REG_DWORD(&reg->gpiod);
+	wrt_reg_dword(&reg->gpiod, gpio_data);
+	gpio_data = rd_reg_dword(&reg->gpiod);
 
 	/* Set the color bits. */
 	qla24xx_flip_colors(ha, &led_color);
@@ -1749,8 +1749,8 @@ qla24xx_beacon_blink(struct scsi_qla_host *vha)
 	gpio_data |= led_color;
 
 	/* Set the modified gpio_data values. */
-	WRT_REG_DWORD(&reg->gpiod, gpio_data);
-	gpio_data = RD_REG_DWORD(&reg->gpiod);
+	wrt_reg_dword(&reg->gpiod, gpio_data);
+	gpio_data = rd_reg_dword(&reg->gpiod);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
@@ -1881,12 +1881,12 @@ qla24xx_beacon_on(struct scsi_qla_host *vha)
 			goto skip_gpio;
 
 		spin_lock_irqsave(&ha->hardware_lock, flags);
-		gpio_data = RD_REG_DWORD(&reg->gpiod);
+		gpio_data = rd_reg_dword(&reg->gpiod);
 
 		/* Enable the gpio_data reg for update. */
 		gpio_data |= GPDX_LED_UPDATE_MASK;
-		WRT_REG_DWORD(&reg->gpiod, gpio_data);
-		RD_REG_DWORD(&reg->gpiod);
+		wrt_reg_dword(&reg->gpiod, gpio_data);
+		rd_reg_dword(&reg->gpiod);
 
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
@@ -1929,12 +1929,12 @@ qla24xx_beacon_off(struct scsi_qla_host *vha)
 
 	/* Give control back to firmware. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	gpio_data = RD_REG_DWORD(&reg->gpiod);
+	gpio_data = rd_reg_dword(&reg->gpiod);
 
 	/* Disable the gpio_data reg for update. */
 	gpio_data &= ~GPDX_LED_UPDATE_MASK;
-	WRT_REG_DWORD(&reg->gpiod, gpio_data);
-	RD_REG_DWORD(&reg->gpiod);
+	wrt_reg_dword(&reg->gpiod, gpio_data);
+	rd_reg_dword(&reg->gpiod);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 set_fw_options:
@@ -1970,10 +1970,10 @@ qla2x00_flash_enable(struct qla_hw_data *ha)
 	uint16_t data;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	data = RD_REG_WORD(&reg->ctrl_status);
+	data = rd_reg_word(&reg->ctrl_status);
 	data |= CSR_FLASH_ENABLE;
-	WRT_REG_WORD(&reg->ctrl_status, data);
-	RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+	wrt_reg_word(&reg->ctrl_status, data);
+	rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 }
 
 /**
@@ -1986,10 +1986,10 @@ qla2x00_flash_disable(struct qla_hw_data *ha)
 	uint16_t data;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	data = RD_REG_WORD(&reg->ctrl_status);
+	data = rd_reg_word(&reg->ctrl_status);
 	data &= ~(CSR_FLASH_ENABLE);
-	WRT_REG_WORD(&reg->ctrl_status, data);
-	RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+	wrt_reg_word(&reg->ctrl_status, data);
+	rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 }
 
 /**
@@ -2008,7 +2008,7 @@ qla2x00_read_flash_byte(struct qla_hw_data *ha, uint32_t addr)
 	uint16_t bank_select;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	bank_select = RD_REG_WORD(&reg->ctrl_status);
+	bank_select = rd_reg_word(&reg->ctrl_status);
 
 	if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
 		/* Specify 64K address range: */
@@ -2016,11 +2016,11 @@ qla2x00_read_flash_byte(struct qla_hw_data *ha, uint32_t addr)
 		bank_select &= ~0xf8;
 		bank_select |= addr >> 12 & 0xf0;
 		bank_select |= CSR_FLASH_64K_BANK;
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 
-		WRT_REG_WORD(&reg->flash_address, (uint16_t)addr);
-		data = RD_REG_WORD(&reg->flash_data);
+		wrt_reg_word(&reg->flash_address, (uint16_t)addr);
+		data = rd_reg_word(&reg->flash_data);
 
 		return (uint8_t)data;
 	}
@@ -2028,13 +2028,13 @@ qla2x00_read_flash_byte(struct qla_hw_data *ha, uint32_t addr)
 	/* Setup bit 16 of flash address. */
 	if ((addr & BIT_16) && ((bank_select & CSR_FLASH_64K_BANK) == 0)) {
 		bank_select |= CSR_FLASH_64K_BANK;
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 	} else if (((addr & BIT_16) == 0) &&
 	    (bank_select & CSR_FLASH_64K_BANK)) {
 		bank_select &= ~(CSR_FLASH_64K_BANK);
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 	}
 
 	/* Always perform IO mapped accesses to the FLASH registers. */
@@ -2049,7 +2049,7 @@ qla2x00_read_flash_byte(struct qla_hw_data *ha, uint32_t addr)
 			data2 = RD_REG_WORD_PIO(PIO_REG(ha, flash_data));
 		} while (data != data2);
 	} else {
-		WRT_REG_WORD(&reg->flash_address, (uint16_t)addr);
+		wrt_reg_word(&reg->flash_address, (uint16_t)addr);
 		data = qla2x00_debounce_register(&reg->flash_data);
 	}
 
@@ -2068,20 +2068,20 @@ qla2x00_write_flash_byte(struct qla_hw_data *ha, uint32_t addr, uint8_t data)
 	uint16_t bank_select;
 	struct device_reg_2xxx __iomem *reg = &ha->iobase->isp;
 
-	bank_select = RD_REG_WORD(&reg->ctrl_status);
+	bank_select = rd_reg_word(&reg->ctrl_status);
 	if (IS_QLA2322(ha) || IS_QLA6322(ha)) {
 		/* Specify 64K address range: */
 		/*  clear out Module Select and Flash Address bits [19:16]. */
 		bank_select &= ~0xf8;
 		bank_select |= addr >> 12 & 0xf0;
 		bank_select |= CSR_FLASH_64K_BANK;
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 
-		WRT_REG_WORD(&reg->flash_address, (uint16_t)addr);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
-		WRT_REG_WORD(&reg->flash_data, (uint16_t)data);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->flash_address, (uint16_t)addr);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->flash_data, (uint16_t)data);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 
 		return;
 	}
@@ -2089,13 +2089,13 @@ qla2x00_write_flash_byte(struct qla_hw_data *ha, uint32_t addr, uint8_t data)
 	/* Setup bit 16 of flash address. */
 	if ((addr & BIT_16) && ((bank_select & CSR_FLASH_64K_BANK) == 0)) {
 		bank_select |= CSR_FLASH_64K_BANK;
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 	} else if (((addr & BIT_16) == 0) &&
 	    (bank_select & CSR_FLASH_64K_BANK)) {
 		bank_select &= ~(CSR_FLASH_64K_BANK);
-		WRT_REG_WORD(&reg->ctrl_status, bank_select);
-		RD_REG_WORD(&reg->ctrl_status);	/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, bank_select);
+		rd_reg_word(&reg->ctrl_status);	/* PCI Posting. */
 	}
 
 	/* Always perform IO mapped accesses to the FLASH registers. */
@@ -2103,10 +2103,10 @@ qla2x00_write_flash_byte(struct qla_hw_data *ha, uint32_t addr, uint8_t data)
 		WRT_REG_WORD_PIO(PIO_REG(ha, flash_address), (uint16_t)addr);
 		WRT_REG_WORD_PIO(PIO_REG(ha, flash_data), (uint16_t)data);
 	} else {
-		WRT_REG_WORD(&reg->flash_address, (uint16_t)addr);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
-		WRT_REG_WORD(&reg->flash_data, (uint16_t)data);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->flash_address, (uint16_t)addr);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->flash_data, (uint16_t)data);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 	}
 }
 
@@ -2289,12 +2289,12 @@ qla2x00_read_flash_data(struct qla_hw_data *ha, uint8_t *tmp_buf,
 
 	midpoint = length / 2;
 
-	WRT_REG_WORD(&reg->nvram, 0);
-	RD_REG_WORD(&reg->nvram);
+	wrt_reg_word(&reg->nvram, 0);
+	rd_reg_word(&reg->nvram);
 	for (ilength = 0; ilength < length; saddr++, ilength++, tmp_buf++) {
 		if (ilength == midpoint) {
-			WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-			RD_REG_WORD(&reg->nvram);
+			wrt_reg_word(&reg->nvram, NVR_SELECT);
+			rd_reg_word(&reg->nvram);
 		}
 		data = qla2x00_read_flash_byte(ha, saddr);
 		if (saddr % 100)
@@ -2319,11 +2319,11 @@ qla2x00_suspend_hba(struct scsi_qla_host *vha)
 
 	/* Pause RISC. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
-	RD_REG_WORD(&reg->hccr);
+	wrt_reg_word(&reg->hccr, HCCR_PAUSE_RISC);
+	rd_reg_word(&reg->hccr);
 	if (IS_QLA2100(ha) || IS_QLA2200(ha) || IS_QLA2300(ha)) {
 		for (cnt = 0; cnt < 30000; cnt++) {
-			if ((RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) != 0)
+			if ((rd_reg_word(&reg->hccr) & HCCR_RISC_PAUSE) != 0)
 				break;
 			udelay(100);
 		}
@@ -2362,12 +2362,12 @@ qla2x00_read_optrom_data(struct scsi_qla_host *vha, void *buf,
 	midpoint = ha->optrom_size / 2;
 
 	qla2x00_flash_enable(ha);
-	WRT_REG_WORD(&reg->nvram, 0);
-	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
+	wrt_reg_word(&reg->nvram, 0);
+	rd_reg_word(&reg->nvram);		/* PCI Posting. */
 	for (addr = offset, data = buf; addr < length; addr++, data++) {
 		if (addr == midpoint) {
-			WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-			RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
+			wrt_reg_word(&reg->nvram, NVR_SELECT);
+			rd_reg_word(&reg->nvram);	/* PCI Posting. */
 		}
 
 		*data = qla2x00_read_flash_byte(ha, addr);
@@ -2399,7 +2399,7 @@ qla2x00_write_optrom_data(struct scsi_qla_host *vha, void *buf,
 	sec_number = 0;
 
 	/* Reset ISP chip. */
-	WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
+	wrt_reg_word(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
 	/* Go with write. */
@@ -2548,8 +2548,8 @@ update_flash:
 						}
 					}
 				} else if (addr == ha->optrom_size / 2) {
-					WRT_REG_WORD(&reg->nvram, NVR_SELECT);
-					RD_REG_WORD(&reg->nvram);
+					wrt_reg_word(&reg->nvram, NVR_SELECT);
+					rd_reg_word(&reg->nvram);
 				}
 
 				if (flash_id == 0xda && man_id == 0xc1) {

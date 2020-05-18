@@ -3946,8 +3946,8 @@ qla8044_intr_handler(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (iter = 1; iter--; ) {
 
-		if (RD_REG_DWORD(&reg->host_int)) {
-			stat = RD_REG_DWORD(&reg->host_status);
+		if (rd_reg_dword(&reg->host_int)) {
+			stat = rd_reg_dword(&reg->host_status);
 			if ((stat & HSRX_RISC_INT) == 0)
 				break;
 
@@ -3961,9 +3961,9 @@ qla8044_intr_handler(int irq, void *dev_id)
 				break;
 			case 0x12:
 				mb[0] = MSW(stat);
-				mb[1] = RD_REG_WORD(&reg->mailbox_out[1]);
-				mb[2] = RD_REG_WORD(&reg->mailbox_out[2]);
-				mb[3] = RD_REG_WORD(&reg->mailbox_out[3]);
+				mb[1] = rd_reg_word(&reg->mailbox_out[1]);
+				mb[2] = rd_reg_word(&reg->mailbox_out[2]);
+				mb[3] = rd_reg_word(&reg->mailbox_out[3]);
 				qla2x00_async_event(vha, rsp, mb);
 				break;
 			case 0x13:
@@ -3976,7 +3976,7 @@ qla8044_intr_handler(int irq, void *dev_id)
 				break;
 			}
 		}
-		WRT_REG_DWORD(&reg->host_int, 0);
+		wrt_reg_dword(&reg->host_int, 0);
 	}
 
 	qla2x00_handle_mbx_completion(ha, status);

@@ -227,7 +227,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		if (mboxes & BIT_0) {
 			ql_dbg(ql_dbg_mbx, vha, 0x1112,
 			    "mbox[%d]<-0x%04x\n", cnt, *iptr);
-			WRT_REG_WORD(optr, *iptr);
+			wrt_reg_word(optr, *iptr);
 		}
 
 		mboxes >>= 1;
@@ -253,11 +253,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		set_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags);
 
 		if (IS_P3P_TYPE(ha))
-			WRT_REG_DWORD(&reg->isp82.hint, HINT_MBX_INT_PENDING);
+			wrt_reg_dword(&reg->isp82.hint, HINT_MBX_INT_PENDING);
 		else if (IS_FWI2_CAPABLE(ha))
-			WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_SET_HOST_INT);
+			wrt_reg_dword(&reg->isp24.hccr, HCCRX_SET_HOST_INT);
 		else
-			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
+			wrt_reg_word(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		wait_time = jiffies;
@@ -300,7 +300,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		    "Cmd=%x Polling Mode.\n", command);
 
 		if (IS_P3P_TYPE(ha)) {
-			if (RD_REG_DWORD(&reg->isp82.hint) &
+			if (rd_reg_dword(&reg->isp82.hint) &
 				HINT_MBX_INT_PENDING) {
 				ha->flags.mbox_busy = 0;
 				spin_unlock_irqrestore(&ha->hardware_lock,
@@ -311,11 +311,11 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 				rval = QLA_FUNCTION_TIMEOUT;
 				goto premature_exit;
 			}
-			WRT_REG_DWORD(&reg->isp82.hint, HINT_MBX_INT_PENDING);
+			wrt_reg_dword(&reg->isp82.hint, HINT_MBX_INT_PENDING);
 		} else if (IS_FWI2_CAPABLE(ha))
-			WRT_REG_DWORD(&reg->isp24.hccr, HCCRX_SET_HOST_INT);
+			wrt_reg_dword(&reg->isp24.hccr, HCCRX_SET_HOST_INT);
 		else
-			WRT_REG_WORD(&reg->isp.hccr, HCCR_SET_HOST_INT);
+			wrt_reg_word(&reg->isp.hccr, HCCR_SET_HOST_INT);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 		wait_time = jiffies + mcp->tov * HZ; /* wait at most tov secs */
@@ -413,14 +413,14 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 		uint16_t        w;
 
 		if (IS_FWI2_CAPABLE(ha)) {
-			mb[0] = RD_REG_WORD(&reg->isp24.mailbox0);
-			mb[1] = RD_REG_WORD(&reg->isp24.mailbox1);
-			mb[2] = RD_REG_WORD(&reg->isp24.mailbox2);
-			mb[3] = RD_REG_WORD(&reg->isp24.mailbox3);
-			mb[7] = RD_REG_WORD(&reg->isp24.mailbox7);
-			ictrl = RD_REG_DWORD(&reg->isp24.ictrl);
-			host_status = RD_REG_DWORD(&reg->isp24.host_status);
-			hccr = RD_REG_DWORD(&reg->isp24.hccr);
+			mb[0] = rd_reg_word(&reg->isp24.mailbox0);
+			mb[1] = rd_reg_word(&reg->isp24.mailbox1);
+			mb[2] = rd_reg_word(&reg->isp24.mailbox2);
+			mb[3] = rd_reg_word(&reg->isp24.mailbox3);
+			mb[7] = rd_reg_word(&reg->isp24.mailbox7);
+			ictrl = rd_reg_dword(&reg->isp24.ictrl);
+			host_status = rd_reg_dword(&reg->isp24.host_status);
+			hccr = rd_reg_dword(&reg->isp24.hccr);
 
 			ql_log(ql_log_warn, vha, 0xd04c,
 			    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
@@ -430,7 +430,7 @@ qla2x00_mailbox_command(scsi_qla_host_t *vha, mbx_cmd_t *mcp)
 
 		} else {
 			mb[0] = RD_MAILBOX_REG(ha, &reg->isp, 0);
-			ictrl = RD_REG_WORD(&reg->isp.ictrl);
+			ictrl = rd_reg_word(&reg->isp.ictrl);
 			ql_dbg(ql_dbg_mbx + ql_dbg_buffer, vha, 0x1119,
 			    "MBX Command timeout for cmd %x, iocontrol=%x jiffies=%lx "
 			    "mb[0]=0x%x\n", command, ictrl, jiffies, mb[0]);
@@ -573,15 +573,15 @@ mbx_done:
 		if (IS_FWI2_CAPABLE(ha) && !(IS_P3P_TYPE(ha))) {
 			ql_dbg(ql_dbg_mbx, vha, 0x1198,
 			    "host_status=%#x intr_ctrl=%#x intr_status=%#x\n",
-			    RD_REG_DWORD(&reg->isp24.host_status),
-			    RD_REG_DWORD(&reg->isp24.ictrl),
-			    RD_REG_DWORD(&reg->isp24.istatus));
+			    rd_reg_dword(&reg->isp24.host_status),
+			    rd_reg_dword(&reg->isp24.ictrl),
+			    rd_reg_dword(&reg->isp24.istatus));
 		} else {
 			ql_dbg(ql_dbg_mbx, vha, 0x1206,
 			    "ctrl_status=%#x ictrl=%#x istatus=%#x\n",
-			    RD_REG_WORD(&reg->isp.ctrl_status),
-			    RD_REG_WORD(&reg->isp.ictrl),
-			    RD_REG_WORD(&reg->isp.istatus));
+			    rd_reg_word(&reg->isp.ctrl_status),
+			    rd_reg_word(&reg->isp.ictrl),
+			    rd_reg_word(&reg->isp.istatus));
 		}
 	} else {
 		ql_dbg(ql_dbg_mbx, base_vha, 0x1021, "Done %s.\n", __func__);
@@ -4427,9 +4427,9 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(req->options & BIT_0)) {
-		WRT_REG_DWORD(req->req_q_in, 0);
+		wrt_reg_dword(req->req_q_in, 0);
 		if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-			WRT_REG_DWORD(req->req_q_out, 0);
+			wrt_reg_dword(req->req_q_out, 0);
 	}
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -4498,9 +4498,9 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	if (!(rsp->options & BIT_0)) {
-		WRT_REG_DWORD(rsp->rsp_q_out, 0);
+		wrt_reg_dword(rsp->rsp_q_out, 0);
 		if (!IS_QLA83XX(ha) && !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
-			WRT_REG_DWORD(rsp->rsp_q_in, 0);
+			wrt_reg_dword(rsp->rsp_q_in, 0);
 	}
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -5413,18 +5413,18 @@ qla81xx_write_mpi_register(scsi_qla_host_t *vha, uint16_t *mb)
 	clear_bit(MBX_INTERRUPT, &ha->mbx_cmd_flags);
 
 	/* Write the MBC data to the registers */
-	WRT_REG_WORD(&reg->mailbox0, MBC_WRITE_MPI_REGISTER);
-	WRT_REG_WORD(&reg->mailbox1, mb[0]);
-	WRT_REG_WORD(&reg->mailbox2, mb[1]);
-	WRT_REG_WORD(&reg->mailbox3, mb[2]);
-	WRT_REG_WORD(&reg->mailbox4, mb[3]);
+	wrt_reg_word(&reg->mailbox0, MBC_WRITE_MPI_REGISTER);
+	wrt_reg_word(&reg->mailbox1, mb[0]);
+	wrt_reg_word(&reg->mailbox2, mb[1]);
+	wrt_reg_word(&reg->mailbox3, mb[2]);
+	wrt_reg_word(&reg->mailbox4, mb[3]);
 
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_HOST_INT);
+	wrt_reg_dword(&reg->hccr, HCCRX_SET_HOST_INT);
 
 	/* Poll for MBC interrupt */
 	for (timer = 6000000; timer; timer--) {
 		/* Check for pending interrupts. */
-		stat = RD_REG_DWORD(&reg->host_status);
+		stat = rd_reg_dword(&reg->host_status);
 		if (stat & HSRX_RISC_INT) {
 			stat &= 0xff;
 
@@ -5432,10 +5432,10 @@ qla81xx_write_mpi_register(scsi_qla_host_t *vha, uint16_t *mb)
 			    stat == 0x10 || stat == 0x11) {
 				set_bit(MBX_INTERRUPT,
 				    &ha->mbx_cmd_flags);
-				mb0 = RD_REG_WORD(&reg->mailbox0);
-				WRT_REG_DWORD(&reg->hccr,
+				mb0 = rd_reg_word(&reg->mailbox0);
+				wrt_reg_dword(&reg->hccr,
 				    HCCRX_CLR_RISC_INT);
-				RD_REG_DWORD(&reg->hccr);
+				rd_reg_dword(&reg->hccr);
 				break;
 			}
 		}

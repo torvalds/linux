@@ -46,10 +46,10 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 	volatile uint16_t second;
 
 	do {
-		first = RD_REG_WORD(addr);
+		first = rd_reg_word(addr);
 		barrier();
 		cpu_relax();
-		second = RD_REG_WORD(addr);
+		second = rd_reg_word(addr);
 	} while (first != second);
 
 	return (first);
@@ -329,7 +329,7 @@ qla_83xx_start_iocbs(struct qla_qpair *qpair)
 	} else
 		req->ring_ptr++;
 
-	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+	wrt_reg_dword(req->req_q_in, req->ring_index);
 }
 
 static inline int

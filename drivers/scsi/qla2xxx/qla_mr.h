@@ -359,47 +359,47 @@ struct config_info_data {
 #define CONTINUE_A64_TYPE_FX00	0x03	/* Continuation entry. */
 
 #define QLAFX00_SET_HST_INTR(ha, value) \
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HST_TO_HBA_REG, \
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HST_TO_HBA_REG, \
 	value)
 
 #define QLAFX00_CLR_HST_INTR(ha, value) \
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG, \
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG, \
 	~value)
 
 #define QLAFX00_RD_INTR_REG(ha) \
-	RD_REG_DWORD((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG)
+	rd_reg_dword((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG)
 
 #define QLAFX00_CLR_INTR_REG(ha, value) \
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG, \
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HBA_TO_HOST_REG, \
 	~value)
 
 #define QLAFX00_SET_HBA_SOC_REG(ha, off, val)\
-	WRT_REG_DWORD((ha)->cregbase + off, val)
+	wrt_reg_dword((ha)->cregbase + off, val)
 
 #define QLAFX00_GET_HBA_SOC_REG(ha, off)\
-	RD_REG_DWORD((ha)->cregbase + off)
+	rd_reg_dword((ha)->cregbase + off)
 
 #define QLAFX00_HBA_RST_REG(ha, val)\
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HST_RST_REG, val)
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HST_RST_REG, val)
 
 #define QLAFX00_RD_ICNTRL_REG(ha) \
-	RD_REG_DWORD((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG)
+	rd_reg_dword((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG)
 
 #define QLAFX00_ENABLE_ICNTRL_REG(ha) \
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG, \
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG, \
 	(QLAFX00_GET_HBA_SOC_REG(ha, QLAFX00_HBA_ICNTRL_REG) | \
 	 QLAFX00_ICR_ENB_MASK))
 
 #define QLAFX00_DISABLE_ICNTRL_REG(ha) \
-	WRT_REG_DWORD((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG, \
+	wrt_reg_dword((ha)->cregbase + QLAFX00_HBA_ICNTRL_REG, \
 	(QLAFX00_GET_HBA_SOC_REG(ha, QLAFX00_HBA_ICNTRL_REG) & \
 	 QLAFX00_ICR_DIS_MASK))
 
 #define QLAFX00_RD_REG(ha, off) \
-	RD_REG_DWORD((ha)->cregbase + off)
+	rd_reg_dword((ha)->cregbase + off)
 
 #define QLAFX00_WR_REG(ha, off, val) \
-	WRT_REG_DWORD((ha)->cregbase + off, val)
+	wrt_reg_dword((ha)->cregbase + off, val)
 
 struct qla_mt_iocb_rqst_fx00 {
 	__le32 reserved_0;

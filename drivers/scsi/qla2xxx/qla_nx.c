@@ -370,7 +370,7 @@ qla82xx_pci_set_crbwindow_2M(struct qla_hw_data *ha, ulong off_in,
 	/* Read back value to make sure write has gone through before trying
 	 * to use it.
 	 */
-	win_read = RD_REG_DWORD(CRB_WINDOW_2M + ha->nx_pcibase);
+	win_read = rd_reg_dword(CRB_WINDOW_2M + ha->nx_pcibase);
 	if (win_read != ha->crb_win) {
 		ql_dbg(ql_dbg_p3p, vha, 0xb000,
 		    "%s: Written crbwin (0x%x) "
@@ -520,7 +520,7 @@ qla82xx_rd_32(struct qla_hw_data *ha, ulong off_in)
 		qla82xx_crb_win_lock(ha);
 		qla82xx_pci_set_crbwindow_2M(ha, off_in, &off);
 	}
-	data = RD_REG_DWORD(off);
+	data = rd_reg_dword(off);
 
 	if (rv == 1) {
 		qla82xx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM7_UNLOCK));
@@ -937,17 +937,17 @@ qla82xx_md_rw_32(struct qla_hw_data *ha, uint32_t off, u32 data, uint8_t flag)
 {
 	uint32_t  off_value, rval = 0;
 
-	WRT_REG_DWORD(CRB_WINDOW_2M + ha->nx_pcibase, off & 0xFFFF0000);
+	wrt_reg_dword(CRB_WINDOW_2M + ha->nx_pcibase, off & 0xFFFF0000);
 
 	/* Read back value to make sure write has gone through */
-	RD_REG_DWORD(CRB_WINDOW_2M + ha->nx_pcibase);
+	rd_reg_dword(CRB_WINDOW_2M + ha->nx_pcibase);
 	off_value  = (off & 0x0000FFFF);
 
 	if (flag)
-		WRT_REG_DWORD(off_value + CRB_INDIRECT_2M + ha->nx_pcibase,
+		wrt_reg_dword(off_value + CRB_INDIRECT_2M + ha->nx_pcibase,
 			      data);
 	else
-		rval = RD_REG_DWORD(off_value + CRB_INDIRECT_2M +
+		rval = rd_reg_dword(off_value + CRB_INDIRECT_2M +
 				    ha->nx_pcibase);
 
 	return rval;
@@ -1790,9 +1790,9 @@ void qla82xx_config_rings(struct scsi_qla_host *vha)
 	put_unaligned_le64(req->dma, &icb->request_q_address);
 	put_unaligned_le64(rsp->dma, &icb->response_q_address);
 
-	WRT_REG_DWORD(&reg->req_q_out[0], 0);
-	WRT_REG_DWORD(&reg->rsp_q_in[0], 0);
-	WRT_REG_DWORD(&reg->rsp_q_out[0], 0);
+	wrt_reg_dword(&reg->req_q_out[0], 0);
+	wrt_reg_dword(&reg->rsp_q_in[0], 0);
+	wrt_reg_dword(&reg->rsp_q_out[0], 0);
 }
 
 static int
@@ -2007,7 +2007,7 @@ qla82xx_mbx_completion(scsi_qla_host_t *vha, uint16_t mb0)
 	ha->mailbox_out[0] = mb0;
 
 	for (cnt = 1; cnt < ha->mbx_count; cnt++) {
-		ha->mailbox_out[cnt] = RD_REG_WORD(wptr);
+		ha->mailbox_out[cnt] = rd_reg_word(wptr);
 		wptr++;
 	}
 
@@ -2069,8 +2069,8 @@ qla82xx_intr_handler(int irq, void *dev_id)
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 1; iter--; ) {
 
-		if (RD_REG_DWORD(&reg->host_int)) {
-			stat = RD_REG_DWORD(&reg->host_status);
+		if (rd_reg_dword(&reg->host_int)) {
+			stat = rd_reg_dword(&reg->host_status);
 
 			switch (stat & 0xff) {
 			case 0x1:
@@ -2082,9 +2082,9 @@ qla82xx_intr_handler(int irq, void *dev_id)
 				break;
 			case 0x12:
 				mb[0] = MSW(stat);
-				mb[1] = RD_REG_WORD(&reg->mailbox_out[1]);
-				mb[2] = RD_REG_WORD(&reg->mailbox_out[2]);
-				mb[3] = RD_REG_WORD(&reg->mailbox_out[3]);
+				mb[1] = rd_reg_word(&reg->mailbox_out[1]);
+				mb[2] = rd_reg_word(&reg->mailbox_out[2]);
+				mb[3] = rd_reg_word(&reg->mailbox_out[3]);
 				qla2x00_async_event(vha, rsp, mb);
 				break;
 			case 0x13:
@@ -2097,7 +2097,7 @@ qla82xx_intr_handler(int irq, void *dev_id)
 				break;
 			}
 		}
-		WRT_REG_DWORD(&reg->host_int, 0);
+		wrt_reg_dword(&reg->host_int, 0);
 	}
 
 	qla2x00_handle_mbx_completion(ha, status);
@@ -2135,11 +2135,11 @@ qla82xx_msix_default(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	do {
-		host_int = RD_REG_DWORD(&reg->host_int);
+		host_int = rd_reg_dword(&reg->host_int);
 		if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 			break;
 		if (host_int) {
-			stat = RD_REG_DWORD(&reg->host_status);
+			stat = rd_reg_dword(&reg->host_status);
 
 			switch (stat & 0xff) {
 			case 0x1:
@@ -2151,9 +2151,9 @@ qla82xx_msix_default(int irq, void *dev_id)
 				break;
 			case 0x12:
 				mb[0] = MSW(stat);
-				mb[1] = RD_REG_WORD(&reg->mailbox_out[1]);
-				mb[2] = RD_REG_WORD(&reg->mailbox_out[2]);
-				mb[3] = RD_REG_WORD(&reg->mailbox_out[3]);
+				mb[1] = rd_reg_word(&reg->mailbox_out[1]);
+				mb[2] = rd_reg_word(&reg->mailbox_out[2]);
+				mb[3] = rd_reg_word(&reg->mailbox_out[3]);
 				qla2x00_async_event(vha, rsp, mb);
 				break;
 			case 0x13:
@@ -2166,7 +2166,7 @@ qla82xx_msix_default(int irq, void *dev_id)
 				break;
 			}
 		}
-		WRT_REG_DWORD(&reg->host_int, 0);
+		wrt_reg_dword(&reg->host_int, 0);
 	} while (0);
 
 	qla2x00_handle_mbx_completion(ha, status);
@@ -2196,11 +2196,11 @@ qla82xx_msix_rsp_q(int irq, void *dev_id)
 	reg = &ha->iobase->isp82;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
-	host_int = RD_REG_DWORD(&reg->host_int);
+	host_int = rd_reg_dword(&reg->host_int);
 	if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 		goto out;
 	qla24xx_process_response_queue(vha, rsp);
-	WRT_REG_DWORD(&reg->host_int, 0);
+	wrt_reg_dword(&reg->host_int, 0);
 out:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return IRQ_HANDLED;
@@ -2231,11 +2231,11 @@ qla82xx_poll(int irq, void *dev_id)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 
-	host_int = RD_REG_DWORD(&reg->host_int);
+	host_int = rd_reg_dword(&reg->host_int);
 	if (qla2x00_check_reg32_for_disconnect(vha, host_int))
 		goto out;
 	if (host_int) {
-		stat = RD_REG_DWORD(&reg->host_status);
+		stat = rd_reg_dword(&reg->host_status);
 		switch (stat & 0xff) {
 		case 0x1:
 		case 0x2:
@@ -2246,9 +2246,9 @@ qla82xx_poll(int irq, void *dev_id)
 			break;
 		case 0x12:
 			mb[0] = MSW(stat);
-			mb[1] = RD_REG_WORD(&reg->mailbox_out[1]);
-			mb[2] = RD_REG_WORD(&reg->mailbox_out[2]);
-			mb[3] = RD_REG_WORD(&reg->mailbox_out[3]);
+			mb[1] = rd_reg_word(&reg->mailbox_out[1]);
+			mb[2] = rd_reg_word(&reg->mailbox_out[2]);
+			mb[3] = rd_reg_word(&reg->mailbox_out[3]);
 			qla2x00_async_event(vha, rsp, mb);
 			break;
 		case 0x13:
@@ -2260,7 +2260,7 @@ qla82xx_poll(int irq, void *dev_id)
 			    stat * 0xff);
 			break;
 		}
-		WRT_REG_DWORD(&reg->host_int, 0);
+		wrt_reg_dword(&reg->host_int, 0);
 	}
 out:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -2818,10 +2818,10 @@ qla82xx_start_iocbs(scsi_qla_host_t *vha)
 	if (ql2xdbwr)
 		qla82xx_wr_32(ha, (unsigned long)ha->nxdb_wr_ptr, dbval);
 	else {
-		WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
+		wrt_reg_dword(ha->nxdb_wr_ptr, dbval);
 		wmb();
-		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
-			WRT_REG_DWORD(ha->nxdb_wr_ptr, dbval);
+		while (rd_reg_dword(ha->nxdb_rd_ptr) != dbval) {
+			wrt_reg_dword(ha->nxdb_wr_ptr, dbval);
 			wmb();
 		}
 	}
@@ -3854,7 +3854,7 @@ qla82xx_minidump_process_rdocm(scsi_qla_host_t *vha,
 	loop_cnt = ocm_hdr->op_count;
 
 	for (i = 0; i < loop_cnt; i++) {
-		r_value = RD_REG_DWORD(r_addr + ha->nx_pcibase);
+		r_value = rd_reg_dword(r_addr + ha->nx_pcibase);
 		*data_ptr++ = cpu_to_le32(r_value);
 		r_addr += r_stride;
 	}
