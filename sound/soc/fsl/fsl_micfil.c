@@ -708,7 +708,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 	if (of_property_read_bool(np, "fsl,shared-interrupt"))
 		irqflag = IRQF_SHARED;
 
-	/* Digital Microphone interface interrupt - IRQ 109 */
+	/* Digital Microphone interface interrupt */
 	ret = devm_request_irq(&pdev->dev, micfil->irq[0],
 			       micfil_isr, irqflag,
 			       micfil->name, micfil);
@@ -718,7 +718,7 @@ static int fsl_micfil_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Digital Microphone interface error interrupt - IRQ 110 */
+	/* Digital Microphone interface error interrupt */
 	ret = devm_request_irq(&pdev->dev, micfil->irq[1],
 			       micfil_err_isr, irqflag,
 			       micfil->name, micfil);
