@@ -161,6 +161,19 @@ void snd_soc_dai_resume(struct snd_soc_dai *dai);
 int snd_soc_dai_compress_new(struct snd_soc_dai *dai,
 			     struct snd_soc_pcm_runtime *rtd, int num);
 bool snd_soc_dai_stream_valid(struct snd_soc_dai *dai, int stream);
+void snd_soc_dai_action(struct snd_soc_dai *dai,
+			int stream, int action);
+static inline void snd_soc_dai_activate(struct snd_soc_dai *dai,
+					int stream)
+{
+	snd_soc_dai_action(dai, stream,  1);
+}
+static inline void snd_soc_dai_deactivate(struct snd_soc_dai *dai,
+					  int stream)
+{
+	snd_soc_dai_action(dai, stream, -1);
+}
+int snd_soc_dai_active(struct snd_soc_dai *dai);
 
 int snd_soc_pcm_dai_probe(struct snd_soc_pcm_runtime *rtd, int order);
 int snd_soc_pcm_dai_remove(struct snd_soc_pcm_runtime *rtd, int order);
@@ -351,8 +364,6 @@ struct snd_soc_dai {
 	/* DAI runtime info */
 	unsigned int stream_active[SNDRV_PCM_STREAM_LAST + 1]; /* usage count */
 
-	unsigned int active;
-
 	struct snd_soc_dapm_widget *playback_widget;
 	struct snd_soc_dapm_widget *capture_widget;
 
@@ -466,6 +477,12 @@ static inline void *snd_soc_dai_get_sdw_stream(struct snd_soc_dai *dai,
 		return dai->driver->ops->get_sdw_stream(dai, direction);
 	else
 		return ERR_PTR(-ENOTSUPP);
+}
+
+static inline unsigned int
+snd_soc_dai_stream_active(struct snd_soc_dai *dai, int stream)
+{
+	return dai->stream_active[stream];
 }
 
 #endif
