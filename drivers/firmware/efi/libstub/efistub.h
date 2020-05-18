@@ -111,6 +111,16 @@ void efi_set_u64_split(u64 data, u32 *lo, u32 *hi)
 #define EFI_LOCATE_BY_REGISTER_NOTIFY		1
 #define EFI_LOCATE_BY_PROTOCOL			2
 
+/*
+ * boottime->stall takes the time period in microseconds
+ */
+#define EFI_USEC_PER_SEC		1000000
+
+/*
+ * boottime->set_timer takes the time in 100ns units
+ */
+#define EFI_100NSEC_PER_USEC	((u64)10)
+
 struct efi_boot_memmap {
 	efi_memory_desc_t	**map;
 	unsigned long		*map_size;
@@ -121,6 +131,39 @@ struct efi_boot_memmap {
 };
 
 typedef struct efi_generic_dev_path efi_device_path_protocol_t;
+
+typedef void *efi_event_t;
+/* Note that notifications won't work in mixed mode */
+typedef void (__efiapi *efi_event_notify_t)(efi_event_t, void *);
+
+#define EFI_EVT_TIMER		0x80000000U
+#define EFI_EVT_RUNTIME		0x40000000U
+#define EFI_EVT_NOTIFY_WAIT	0x00000100U
+#define EFI_EVT_NOTIFY_SIGNAL	0x00000200U
+
+/*
+ * boottime->wait_for_event takes an array of events as input.
+ * Provide a helper to set it up correctly for mixed mode.
+ */
+static inline
+void efi_set_event_at(efi_event_t *events, size_t idx, efi_event_t event)
+{
+	if (efi_is_native())
+		events[idx] = event;
+	else
+		((u32 *)events)[idx] = (u32)(unsigned long)event;
+}
+
+#define EFI_TPL_APPLICATION	4
+#define EFI_TPL_CALLBACK	8
+#define EFI_TPL_NOTIFY		16
+#define EFI_TPL_HIGH_LEVEL	31
+
+typedef enum {
+	EfiTimerCancel,
+	EfiTimerPeriodic,
+	EfiTimerRelative
+} EFI_TIMER_DELAY;
 
 /*
  * EFI Boot Services table
@@ -140,11 +183,16 @@ union efi_boot_services {
 		efi_status_t (__efiapi *allocate_pool)(int, unsigned long,
 						       void **);
 		efi_status_t (__efiapi *free_pool)(void *);
-		void *create_event;
-		void *set_timer;
-		void *wait_for_event;
+		efi_status_t (__efiapi *create_event)(u32, unsigned long,
+						      efi_event_notify_t, void *,
+						      efi_event_t *);
+		efi_status_t (__efiapi *set_timer)(efi_event_t,
+						  EFI_TIMER_DELAY, u64);
+		efi_status_t (__efiapi *wait_for_event)(unsigned long,
+							efi_event_t *,
+							unsigned long *);
 		void *signal_event;
-		void *close_event;
+		efi_status_t (__efiapi *close_event)(efi_event_t);
 		void *check_event;
 		void *install_protocol_interface;
 		void *reinstall_protocol_interface;
@@ -171,7 +219,7 @@ union efi_boot_services {
 		efi_status_t (__efiapi *exit_boot_services)(efi_handle_t,
 							    unsigned long);
 		void *get_next_monotonic_count;
-		void *stall;
+		efi_status_t (__efiapi *stall)(unsigned long);
 		void *set_watchdog_timer;
 		void *connect_controller;
 		efi_status_t (__efiapi *disconnect_controller)(efi_handle_t,
@@ -253,6 +301,25 @@ union efi_uga_draw_protocol {
 		u32 get_mode;
 		u32 set_mode;
 		u32 blt;
+	} mixed_mode;
+};
+
+typedef struct {
+	u16 scan_code;
+	efi_char16_t unicode_char;
+} efi_input_key_t;
+
+union efi_simple_text_input_protocol {
+	struct {
+		void *reset;
+		efi_status_t (__efiapi *read_keystroke)(efi_simple_text_input_protocol_t *,
+							efi_input_key_t *);
+		efi_event_t wait_for_key;
+	};
+	struct {
+		u32 reset;
+		u32 read_keystroke;
+		u32 wait_for_key;
 	} mixed_mode;
 };
 

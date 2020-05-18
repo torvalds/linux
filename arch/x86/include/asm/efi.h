@@ -9,6 +9,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/mmu_context.h>
 #include <linux/build_bug.h>
+#include <linux/kernel.h>
 
 extern unsigned long efi_fw_vendor, efi_config_table;
 
@@ -292,6 +293,15 @@ static inline u32 efi64_convert_status(efi_status_t status)
 
 #define __efi64_argmap_allocate_pool(type, size, buffer)		\
 	((type), (size), efi64_zero_upper(buffer))
+
+#define __efi64_argmap_create_event(type, tpl, f, c, event)		\
+	((type), (tpl), (f), (c), efi64_zero_upper(event))
+
+#define __efi64_argmap_set_timer(event, type, time)			\
+	((event), (type), lower_32_bits(time), upper_32_bits(time))
+
+#define __efi64_argmap_wait_for_event(num, event, index)		\
+	((num), (event), efi64_zero_upper(index))
 
 #define __efi64_argmap_handle_protocol(handle, protocol, interface)	\
 	((handle), (protocol), efi64_zero_upper(interface))

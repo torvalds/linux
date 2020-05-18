@@ -426,6 +426,7 @@ typedef struct {
 	u32 tables;
 } efi_system_table_32_t;
 
+typedef union efi_simple_text_input_protocol efi_simple_text_input_protocol_t;
 typedef union efi_simple_text_output_protocol efi_simple_text_output_protocol_t;
 
 typedef union {
@@ -434,7 +435,7 @@ typedef union {
 		unsigned long fw_vendor;	/* physical addr of CHAR16 vendor string */
 		u32 fw_revision;
 		unsigned long con_in_handle;
-		unsigned long con_in;
+		efi_simple_text_input_protocol_t *con_in;
 		unsigned long con_out_handle;
 		efi_simple_text_output_protocol_t *con_out;
 		unsigned long stderr_handle;
