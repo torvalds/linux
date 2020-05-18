@@ -3366,65 +3366,6 @@ static int compat_sioc_ifmap(struct net *net, unsigned int cmd,
 	return err;
 }
 
-struct rtentry32 {
-	u32		rt_pad1;
-	struct sockaddr rt_dst;         /* target address               */
-	struct sockaddr rt_gateway;     /* gateway addr (RTF_GATEWAY)   */
-	struct sockaddr rt_genmask;     /* target network mask (IP)     */
-	unsigned short	rt_flags;
-	short		rt_pad2;
-	u32		rt_pad3;
-	unsigned char	rt_tos;
-	unsigned char	rt_class;
-	short		rt_pad4;
-	short		rt_metric;      /* +1 for binary compatibility! */
-	/* char * */ u32 rt_dev;        /* forcing the device at add    */
-	u32		rt_mtu;         /* per route MTU/Window         */
-	u32		rt_window;      /* Window clamping              */
-	unsigned short  rt_irtt;        /* Initial RTT                  */
-};
-
-static int routing_ioctl(struct net *net, struct socket *sock,
-			 unsigned int cmd, void __user *argp)
-{
-	struct rtentry32 __user *ur4 = argp;
-	int ret;
-	void *r = NULL;
-	struct rtentry r4;
-	char devname[16];
-	u32 rtdev;
-	mm_segment_t old_fs = get_fs();
-
-	ret = copy_from_user(&r4.rt_dst, &(ur4->rt_dst),
-				3 * sizeof(struct sockaddr));
-	ret |= get_user(r4.rt_flags, &(ur4->rt_flags));
-	ret |= get_user(r4.rt_metric, &(ur4->rt_metric));
-	ret |= get_user(r4.rt_mtu, &(ur4->rt_mtu));
-	ret |= get_user(r4.rt_window, &(ur4->rt_window));
-	ret |= get_user(r4.rt_irtt, &(ur4->rt_irtt));
-	ret |= get_user(rtdev, &(ur4->rt_dev));
-	if (rtdev) {
-		ret |= copy_from_user(devname, compat_ptr(rtdev), 15);
-		r4.rt_dev = (char __user __force *)devname;
-		devname[15] = 0;
-	} else
-		r4.rt_dev = NULL;
-
-	r = (void *) &r4;
-
-	if (ret) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	set_fs(KERNEL_DS);
-	ret = sock_do_ioctl(net, sock, cmd, (unsigned long) r);
-	set_fs(old_fs);
-
-out:
-	return ret;
-}
-
 /* Since old style bridge ioctl's endup using SIOCDEVPRIVATE
  * for some operations; this forces use of the newer bridge-utils that
  * use compatible ioctls
@@ -3463,9 +3404,6 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCGIFMAP:
 	case SIOCSIFMAP:
 		return compat_sioc_ifmap(net, cmd, argp);
-	case SIOCADDRT:
-	case SIOCDELRT:
-		return routing_ioctl(net, sock, cmd, argp);
 	case SIOCGSTAMP_OLD:
 	case SIOCGSTAMPNS_OLD:
 		if (!sock->ops->gettstamp)
