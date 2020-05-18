@@ -14,6 +14,7 @@
 
 #include <linux/compiler.h>
 #include <linux/ctype.h>
+#include <linux/limits.h>
 #include <linux/string.h>
 
 static int skip_atoi(const char **s)
@@ -356,7 +357,11 @@ int vsprintf(char *buf, const char *fmt, va_list ap)
 			continue;
 
 		case 's':
+			if (precision < 0)
+				precision = INT_MAX;
 			s = va_arg(args, char *);
+			if (!s)
+				s = precision < 6 ? "" : "(null)";
 			len = strnlen(s, precision);
 
 			if (!(flags & LEFT))
