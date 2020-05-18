@@ -18,6 +18,8 @@
 
 	aliases {
 		serial0 = &uart1;	/* DBGU */
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;		/* XPRO EXT2 */
 	};
 
