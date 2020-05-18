@@ -1849,6 +1849,7 @@ struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev)
 int scsi_mq_setup_tags(struct Scsi_Host *shost)
 {
 	unsigned int cmd_size, sgl_size;
+	struct blk_mq_tag_set *tag_set = &shost->tag_set;
 
 	sgl_size = max_t(unsigned int, sizeof(struct scatterlist),
 				scsi_mq_inline_sgl_size(shost));
@@ -1857,21 +1858,21 @@ int scsi_mq_setup_tags(struct Scsi_Host *shost)
 		cmd_size += sizeof(struct scsi_data_buffer) +
 			sizeof(struct scatterlist) * SCSI_INLINE_PROT_SG_CNT;
 
-	memset(&shost->tag_set, 0, sizeof(shost->tag_set));
+	memset(tag_set, 0, sizeof(*tag_set));
 	if (shost->hostt->commit_rqs)
-		shost->tag_set.ops = &scsi_mq_ops;
+		tag_set->ops = &scsi_mq_ops;
 	else
-		shost->tag_set.ops = &scsi_mq_ops_no_commit;
-	shost->tag_set.nr_hw_queues = shost->nr_hw_queues ? : 1;
-	shost->tag_set.queue_depth = shost->can_queue;
-	shost->tag_set.cmd_size = cmd_size;
-	shost->tag_set.numa_node = NUMA_NO_NODE;
-	shost->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
-	shost->tag_set.flags |=
+		tag_set->ops = &scsi_mq_ops_no_commit;
+	tag_set->nr_hw_queues = shost->nr_hw_queues ? : 1;
+	tag_set->queue_depth = shost->can_queue;
+	tag_set->cmd_size = cmd_size;
+	tag_set->numa_node = NUMA_NO_NODE;
+	tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
+	tag_set->flags |=
 		BLK_ALLOC_POLICY_TO_MQ_FLAG(shost->hostt->tag_alloc_policy);
-	shost->tag_set.driver_data = shost;
+	tag_set->driver_data = shost;
 
-	return blk_mq_alloc_tag_set(&shost->tag_set);
+	return blk_mq_alloc_tag_set(tag_set);
 }
 
 void scsi_mq_destroy_tags(struct Scsi_Host *shost)
