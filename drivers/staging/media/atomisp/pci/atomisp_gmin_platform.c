@@ -332,7 +332,7 @@ static struct gmin_cfg_var asus_vars[] = {
 	{"OVTI2680:00_CsiLanes", "1"},
 	{"OVTI2680:00_CsiFmt", "15"},
 	{"OVTI2680:00_CsiBayer", "0"},
-	{"OVTI2680:00_CamClk", "0"},
+	{"OVTI2680:00_CamClk", "1"},
 	{},
 };
 
