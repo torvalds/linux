@@ -8,6 +8,7 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include "bus.h"
+#include "sysfs_local.h"
 
 static DEFINE_IDA(sdw_ida);
 
