@@ -572,11 +572,12 @@ void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr)
 }
 EXPORT_SYMBOL_GPL(kvm_requeue_exception);
 
-static void kvm_queue_exception_p(struct kvm_vcpu *vcpu, unsigned nr,
-				  unsigned long payload)
+void kvm_queue_exception_p(struct kvm_vcpu *vcpu, unsigned nr,
+			   unsigned long payload)
 {
 	kvm_multiple_exception(vcpu, nr, false, 0, true, payload, false);
 }
+EXPORT_SYMBOL_GPL(kvm_queue_exception_p);
 
 static void kvm_queue_exception_e_p(struct kvm_vcpu *vcpu, unsigned nr,
 				    u32 error_code, unsigned long payload)
@@ -836,11 +837,25 @@ void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu)
 		    vcpu->arch.ia32_xss != host_xss)
 			wrmsrl(MSR_IA32_XSS, vcpu->arch.ia32_xss);
 	}
+
+	if (static_cpu_has(X86_FEATURE_PKU) &&
+	    (kvm_read_cr4_bits(vcpu, X86_CR4_PKE) ||
+	     (vcpu->arch.xcr0 & XFEATURE_MASK_PKRU)) &&
+	    vcpu->arch.pkru != vcpu->arch.host_pkru)
+		__write_pkru(vcpu->arch.pkru);
 }
 EXPORT_SYMBOL_GPL(kvm_load_guest_xsave_state);
 
 void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu)
 {
+	if (static_cpu_has(X86_FEATURE_PKU) &&
+	    (kvm_read_cr4_bits(vcpu, X86_CR4_PKE) ||
+	     (vcpu->arch.xcr0 & XFEATURE_MASK_PKRU))) {
+		vcpu->arch.pkru = rdpkru();
+		if (vcpu->arch.pkru != vcpu->arch.host_pkru)
+			__write_pkru(vcpu->arch.host_pkru);
+	}
+
 	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
 
 		if (vcpu->arch.xcr0 != host_xcr0)
@@ -1045,12 +1060,6 @@ static void kvm_update_dr0123(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_update_dr6(struct kvm_vcpu *vcpu)
-{
-	if (!(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP))
-		kvm_x86_ops.set_dr6(vcpu, vcpu->arch.dr6);
-}
-
 static void kvm_update_dr7(struct kvm_vcpu *vcpu)
 {
 	unsigned long dr7;
@@ -1090,7 +1099,6 @@ static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 		if (val & 0xffffffff00000000ULL)
 			return -1; /* #GP */
 		vcpu->arch.dr6 = (val & DR6_VOLATILE) | kvm_dr6_fixed(vcpu);
-		kvm_update_dr6(vcpu);
 		break;
 	case 5:
 		/* fall through */
@@ -1126,10 +1134,7 @@ int kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
 	case 4:
 		/* fall through */
 	case 6:
-		if (vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP)
-			*val = vcpu->arch.dr6;
-		else
-			*val = kvm_x86_ops.get_dr6(vcpu);
+		*val = vcpu->arch.dr6;
 		break;
 	case 5:
 		/* fall through */
@@ -3558,6 +3563,9 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 
 	kvm_x86_ops.vcpu_load(vcpu, cpu);
 
+	/* Save host pkru register if supported */
+	vcpu->arch.host_pkru = read_pkru();
+
 	/* Apply any externally detected TSC adjustments (due to suspend) */
 	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
 		adjust_tsc_offset_host(vcpu, vcpu->arch.tsc_offset_adjustment);
@@ -3751,7 +3759,7 @@ static int kvm_vcpu_ioctl_x86_setup_mce(struct kvm_vcpu *vcpu,
 	unsigned bank_num = mcg_cap & 0xff, bank;
 
 	r = -EINVAL;
-	if (!bank_num || bank_num >= KVM_MAX_MCE_BANKS)
+	if (!bank_num || bank_num > KVM_MAX_MCE_BANKS)
 		goto out;
 	if (mcg_cap & ~(kvm_mce_cap_supported | 0xff | 0xff0000))
 		goto out;
@@ -4009,7 +4017,6 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 	memcpy(vcpu->arch.db, dbgregs->db, sizeof(vcpu->arch.db));
 	kvm_update_dr0123(vcpu);
 	vcpu->arch.dr6 = dbgregs->dr6;
-	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = dbgregs->dr7;
 	kvm_update_dr7(vcpu);
 
@@ -6659,7 +6666,7 @@ static int kvm_vcpu_do_singlestep(struct kvm_vcpu *vcpu)
 
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
 		kvm_run->debug.arch.dr6 = DR6_BS | DR6_FIXED_1 | DR6_RTM;
-		kvm_run->debug.arch.pc = vcpu->arch.singlestep_rip;
+		kvm_run->debug.arch.pc = kvm_get_linear_rip(vcpu);
 		kvm_run->debug.arch.exception = DB_VECTOR;
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		return 0;
@@ -6719,9 +6726,7 @@ static bool kvm_vcpu_check_breakpoint(struct kvm_vcpu *vcpu, int *r)
 					   vcpu->arch.db);
 
 		if (dr6 != 0) {
-			vcpu->arch.dr6 &= ~DR_TRAP_BITS;
-			vcpu->arch.dr6 |= dr6 | DR6_RTM;
-			kvm_queue_exception(vcpu, DB_VECTOR);
+			kvm_queue_exception_p(vcpu, DB_VECTOR, dr6);
 			*r = 1;
 			return true;
 		}
@@ -8042,7 +8047,7 @@ void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
 
 	kvm_make_vcpus_request_mask(kvm, KVM_REQ_SCAN_IOAPIC,
-				    vcpu_bitmap, cpus);
+				    NULL, vcpu_bitmap, cpus);
 
 	free_cpumask_var(cpus);
 }
@@ -8072,6 +8077,7 @@ EXPORT_SYMBOL_GPL(kvm_vcpu_update_apicv);
  */
 void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 {
+	struct kvm_vcpu *except;
 	unsigned long old, new, expected;
 
 	if (!kvm_x86_ops.check_apicv_inhibit_reasons ||
@@ -8096,7 +8102,17 @@ void kvm_request_apicv_update(struct kvm *kvm, bool activate, ulong bit)
 	trace_kvm_apicv_update_request(activate, bit);
 	if (kvm_x86_ops.pre_update_apicv_exec_ctrl)
 		kvm_x86_ops.pre_update_apicv_exec_ctrl(kvm, activate);
-	kvm_make_all_cpus_request(kvm, KVM_REQ_APICV_UPDATE);
+
+	/*
+	 * Sending request to update APICV for all other vcpus,
+	 * while update the calling vcpu immediately instead of
+	 * waiting for another #VMEXIT to handle the request.
+	 */
+	except = kvm_get_running_vcpu();
+	kvm_make_all_cpus_request_except(kvm, KVM_REQ_APICV_UPDATE,
+					 except);
+	if (except)
+		kvm_vcpu_update_apicv(except);
 }
 EXPORT_SYMBOL_GPL(kvm_request_apicv_update);
 
@@ -8420,7 +8436,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		WARN_ON(vcpu->guest_debug & KVM_GUESTDBG_USE_HW_BP);
 		kvm_x86_ops.sync_dirty_debug_regs(vcpu);
 		kvm_update_dr0123(vcpu);
-		kvm_update_dr6(vcpu);
 		kvm_update_dr7(vcpu);
 		vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_RELOAD;
 	}
@@ -9481,7 +9496,6 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	kvm_update_dr0123(vcpu);
 	vcpu->arch.dr6 = DR6_INIT;
-	kvm_update_dr6(vcpu);
 	vcpu->arch.dr7 = DR7_FIXED_1;
 	kvm_update_dr7(vcpu);
 

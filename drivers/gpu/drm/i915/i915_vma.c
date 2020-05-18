@@ -1228,18 +1228,6 @@ int __i915_vma_unbind(struct i915_vma *vma)
 
 	lockdep_assert_held(&vma->vm->mutex);
 
-	/*
-	 * First wait upon any activity as retiring the request may
-	 * have side-effects such as unpinning or even unbinding this vma.
-	 *
-	 * XXX Actually waiting under the vm->mutex is a hinderance and
-	 * should be pipelined wherever possible. In cases where that is
-	 * unavoidable, we should lift the wait to before the mutex.
-	 */
-	ret = i915_vma_sync(vma);
-	if (ret)
-		return ret;
-
 	if (i915_vma_is_pinned(vma)) {
 		vma_print_allocator(vma, "is pinned");
 		return -EAGAIN;
@@ -1313,14 +1301,19 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
 
-	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
-		/* XXX not always required: nop_clear_range */
-		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
-
 	/* Optimistic wait before taking the mutex */
 	err = i915_vma_sync(vma);
 	if (err)
 		goto out_rpm;
+
+	if (i915_vma_is_pinned(vma)) {
+		vma_print_allocator(vma, "is pinned");
+		return -EAGAIN;
+	}
+
+	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+		/* XXX not always required: nop_clear_range */
+		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
 
 	err = mutex_lock_interruptible(&vm->mutex);
 	if (err)
