@@ -312,7 +312,6 @@
   handle_edge_irq
   handle_level_irq
   handle_nested_irq
-  hex2bin
   hex_dump_to_buffer
   hrtimer_active
   hrtimer_cancel
@@ -2491,6 +2490,7 @@
   crypto_shash_update
   dev_alloc_name
   dump_stack
+  hex2bin
   hex_to_bin
   ieee80211_channel_to_frequency
   ieee80211_frequency_to_channel
