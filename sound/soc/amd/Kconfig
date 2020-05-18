@@ -42,3 +42,10 @@ config SND_SOC_AMD_RENOIR
 	depends on X86 && PCI
 	help
 	 This option enables ACP support for Renoir platform
+
+config SND_SOC_AMD_RENOIR_MACH
+	tristate "AMD Renoir support for DMIC"
+	select SND_SOC_DMIC
+	depends on SND_SOC_AMD_RENOIR
+	help
+	 This option enables machine driver for DMIC
