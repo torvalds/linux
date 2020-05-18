@@ -948,8 +948,7 @@ static const struct drm_prop_enum_list dp_colorspaces[] = {
  * 	connector is linked to. Drivers should never set this property directly,
  * 	it is handled by the DRM core by calling the &drm_connector_funcs.dpms
  * 	callback. For atomic drivers the remapping to the "ACTIVE" property is
- * 	implemented in the DRM core.  This is the only standard connector
- * 	property that userspace can change.
+ * 	implemented in the DRM core.
  *
  * 	Note that this property cannot be set through the MODE_ATOMIC ioctl,
  * 	userspace must use "ACTIVE" on the CRTC instead.
