@@ -206,46 +206,6 @@ efi_status_t efi_parse_options(char const *cmdline)
 }
 
 /*
- * Convert an UTF-16 string, not necessarily null terminated, to UTF-8.
- */
-static u8 *efi_utf16_to_utf8(u8 *dst, const u16 *src, int n)
-{
-	unsigned int c;
-
-	while (n--) {
-		c = *src++;
-		if (n && c >= 0xd800 && c <= 0xdbff &&
-		    *src >= 0xdc00 && *src <= 0xdfff) {
-			c = 0x10000 + ((c & 0x3ff) << 10) + (*src & 0x3ff);
-			src++;
-			n--;
-		}
-		if (c >= 0xd800 && c <= 0xdfff)
-			c = 0xfffd; /* Unmatched surrogate */
-		if (c < 0x80) {
-			*dst++ = c;
-			continue;
-		}
-		if (c < 0x800) {
-			*dst++ = 0xc0 + (c >> 6);
-			goto t1;
-		}
-		if (c < 0x10000) {
-			*dst++ = 0xe0 + (c >> 12);
-			goto t2;
-		}
-		*dst++ = 0xf0 + (c >> 18);
-		*dst++ = 0x80 + ((c >> 12) & 0x3f);
-	t2:
-		*dst++ = 0x80 + ((c >> 6) & 0x3f);
-	t1:
-		*dst++ = 0x80 + (c & 0x3f);
-	}
-
-	return dst;
-}
-
-/*
  * Convert the unicode UEFI command line to ASCII to pass to kernel.
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
@@ -254,18 +214,15 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 			  int *cmd_line_len, unsigned long max_addr)
 {
 	const u16 *s2;
-	u8 *s1 = NULL;
 	unsigned long cmdline_addr = 0;
-	int load_options_chars = efi_table_attr(image, load_options_size) / 2;
+	int options_chars = efi_table_attr(image, load_options_size) / 2;
 	const u16 *options = efi_table_attr(image, load_options);
 	int options_bytes = 0;  /* UTF-8 bytes */
-	int options_chars = 0;  /* UTF-16 chars */
 	efi_status_t status;
-	u16 zero = 0;
 
 	if (options) {
 		s2 = options;
-		while (options_chars < load_options_chars) {
+		while (options_chars--) {
 			u16 c = *s2++;
 
 			if (c == L'\0' || c == L'\n')
@@ -276,7 +233,6 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 			 * The first part handles everything in the BMP.
 			 */
 			options_bytes += 1 + (c >= 0x80) + (c >= 0x800);
-			options_chars++;
 			/*
 			 * Add one more byte for valid surrogate pairs. Invalid
 			 * surrogates will be replaced with 0xfffd and take up
@@ -288,22 +244,15 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 				 * we must ignore it since we can't access the
 				 * low surrogate.
 				 */
-				if (options_chars == load_options_chars) {
+				if (!options_chars) {
 					options_bytes -= 3;
-					options_chars--;
-					break;
 				} else if ((*s2 & 0xfc00) == 0xdc00) {
 					options_bytes++;
-					options_chars++;
+					options_chars--;
 					s2++;
 				}
 			}
 		}
-	}
-
-	if (!options_chars) {
-		/* No command line options, so return empty string*/
-		options = &zero;
 	}
 
 	options_bytes++;	/* NUL termination */
@@ -312,11 +261,8 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 	if (status != EFI_SUCCESS)
 		return NULL;
 
-	s1 = (u8 *)cmdline_addr;
-	s2 = (const u16 *)options;
-
-	s1 = efi_utf16_to_utf8(s1, s2, options_chars);
-	*s1 = '\0';
+	snprintf((char *)cmdline_addr, options_bytes, "%.*ls",
+		 options_bytes - 1, options);
 
 	*cmd_line_len = options_bytes;
 	return (char *)cmdline_addr;
