@@ -2,7 +2,7 @@
 /*
  * android_vendor.h - Android vendor data
  *
- * Copyright (C) 2020 Google, Inc.
+ * Copyright 2020 Google LLC
  *
  * These macros are to be used to reserve space in kernel data structures
  * for use by vendor modules.

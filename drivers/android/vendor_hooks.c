@@ -3,7 +3,7 @@
  *
  * Android Vendor Hook Support
  *
- * Copyright (C) 2020 Google, Inc.
+ * Copyright 2020 Google LLC
  */
 
 #define CREATE_TRACE_POINTS
