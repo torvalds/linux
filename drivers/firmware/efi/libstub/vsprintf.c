@@ -202,6 +202,35 @@ static char *number(char *str, long long num, int base, int size, int precision,
 	return str;
 }
 
+static
+int get_flags(const char **fmt)
+{
+	int flags = 0;
+
+	do {
+		switch (**fmt) {
+		case '-':
+			flags |= LEFT;
+			break;
+		case '+':
+			flags |= PLUS;
+			break;
+		case ' ':
+			flags |= SPACE;
+			break;
+		case '#':
+			flags |= SPECIAL;
+			break;
+		case '0':
+			flags |= ZEROPAD;
+			break;
+		default:
+			return flags;
+		}
+		++(*fmt);
+	} while (1);
+}
+
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
 	int len;
@@ -218,32 +247,13 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 	int qualifier;		/* 'h', 'hh', 'l' or 'll' for integer fields */
 
 	for (str = buf; *fmt; ++fmt) {
-		if (*fmt != '%') {
+		if (*fmt != '%' || *++fmt == '%') {
 			*str++ = *fmt;
 			continue;
 		}
 
 		/* process flags */
-		flags = 0;
-	      repeat:
-		++fmt;		/* this also skips first '%' */
-		switch (*fmt) {
-		case '-':
-			flags |= LEFT;
-			goto repeat;
-		case '+':
-			flags |= PLUS;
-			goto repeat;
-		case ' ':
-			flags |= SPACE;
-			goto repeat;
-		case '#':
-			flags |= SPECIAL;
-			goto repeat;
-		case '0':
-			flags |= ZEROPAD;
-			goto repeat;
-		}
+		flags = get_flags(&fmt);
 
 		/* get field width */
 		field_width = -1;
@@ -319,10 +329,6 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			str = number(str,
 				     (unsigned long)va_arg(args, void *), 16,
 				     field_width, precision, flags);
-			continue;
-
-		case '%':
-			*str++ = '%';
 			continue;
 
 			/* integer number formats - set up the flags and "break" */
