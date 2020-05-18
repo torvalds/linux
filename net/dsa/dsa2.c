@@ -459,7 +459,7 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 	list_for_each_entry(dp, &dst->ports, list) {
 		err = dsa_port_setup(dp);
 		if (err)
-			goto teardown;
+			continue;
 	}
 
 	return 0;

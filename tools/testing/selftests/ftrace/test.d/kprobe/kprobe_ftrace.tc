@@ -5,6 +5,8 @@
 [ -f kprobe_events ] || exit_unsupported # this is configurable
 grep "function" available_tracers || exit_unsupported # this is configurable
 
+check_filter_file set_ftrace_filter
+
 # prepare
 echo nop > current_tracer
 echo _do_fork > set_ftrace_filter

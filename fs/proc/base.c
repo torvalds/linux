@@ -3286,7 +3286,6 @@ static const struct inode_operations proc_tgid_base_inode_operations = {
 void proc_flush_pid(struct pid *pid)
 {
 	proc_invalidate_siblings_dcache(&pid->inodes, &pid->lock);
-	put_pid(pid);
 }
 
 static struct dentry *proc_pid_instantiate(struct dentry * dentry,

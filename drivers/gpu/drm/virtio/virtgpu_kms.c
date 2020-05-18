@@ -53,14 +53,6 @@ static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 		      events_clear, &events_clear);
 }
 
-static void virtio_gpu_context_destroy(struct virtio_gpu_device *vgdev,
-				      uint32_t ctx_id)
-{
-	virtio_gpu_cmd_context_destroy(vgdev, ctx_id);
-	virtio_gpu_notify(vgdev);
-	ida_free(&vgdev->ctx_id_ida, ctx_id - 1);
-}
-
 static void virtio_gpu_init_vq(struct virtio_gpu_queue *vgvq,
 			       void (*work_func)(struct work_struct *work))
 {
@@ -275,14 +267,17 @@ int virtio_gpu_driver_open(struct drm_device *dev, struct drm_file *file)
 void virtio_gpu_driver_postclose(struct drm_device *dev, struct drm_file *file)
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
-	struct virtio_gpu_fpriv *vfpriv;
+	struct virtio_gpu_fpriv *vfpriv = file->driver_priv;
 
 	if (!vgdev->has_virgl_3d)
 		return;
 
-	vfpriv = file->driver_priv;
+	if (vfpriv->context_created) {
+		virtio_gpu_cmd_context_destroy(vgdev, vfpriv->ctx_id);
+		virtio_gpu_notify(vgdev);
+	}
 
-	virtio_gpu_context_destroy(vgdev, vfpriv->ctx_id);
+	ida_free(&vgdev->ctx_id_ida, vfpriv->ctx_id - 1);
 	mutex_destroy(&vfpriv->context_lock);
 	kfree(vfpriv);
 	file->driver_priv = NULL;

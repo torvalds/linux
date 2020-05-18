@@ -612,6 +612,7 @@ int br_process_vlan_info(struct net_bridge *br,
 					       v - 1, rtm_cmd);
 				v_change_start = 0;
 			}
+			cond_resched();
 		}
 		/* v_change_start is set only if the last/whole range changed */
 		if (v_change_start)
