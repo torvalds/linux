@@ -2202,6 +2202,7 @@ static int sdma_v4_0_set_powergating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		sdma_v4_1_update_power_gating(adev,
 				state == AMD_PG_STATE_GATE ? true : false);
 		break;
