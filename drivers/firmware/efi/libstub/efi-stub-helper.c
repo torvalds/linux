@@ -8,6 +8,7 @@
  */
 
 #include <linux/efi.h>
+#include <linux/kernel.h>
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -34,13 +35,19 @@ void efi_char16_puts(efi_char16_t *str)
 
 void efi_puts(const char *str)
 {
-	while (*str) {
-		efi_char16_t ch[] = { *str++, L'\0' };
+	efi_char16_t buf[128];
+	size_t pos = 0, lim = ARRAY_SIZE(buf);
 
-		if (ch[0] == L'\n')
-			efi_char16_puts(L"\r\n");
-		else
-			efi_char16_puts(ch);
+	while (*str) {
+		if (*str == '\n')
+			buf[pos++] = L'\r';
+		/* Cast to unsigned char to avoid sign-extension */
+		buf[pos++] = (unsigned char)(*str++);
+		if (*str == '\0' || pos >= lim - 2) {
+			buf[pos] = L'\0';
+			efi_char16_puts(buf);
+			pos = 0;
+		}
 	}
 }
 
