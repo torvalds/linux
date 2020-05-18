@@ -718,6 +718,16 @@ config INPUT_IMS_PCU
 	  To compile this driver as a module, choose M here: the module will be
 	  called ims_pcu.
 
+config INPUT_IQS269A
+	tristate "Azoteq IQS269A capacitive touch controller"
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the Azoteq IQS269A capacitive
+	  touch controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs269a.
+
 config INPUT_CMA3000
 	tristate "VTI CMA3000 Tri-axis accelerometer"
 	help
