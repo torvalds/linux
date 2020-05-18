@@ -8,6 +8,9 @@
 #include "rn_chip_offset_byte.h"
 
 #define ACP_PHY_BASE_ADDRESS 0x1240000
+#define	ACP_REG_START	0x1240000
+#define	ACP_REG_END	0x1250200
+
 #define ACP_DEVICE_ID 0x15E2
 #define ACP_POWER_ON 0x00
 #define ACP_POWER_ON_IN_PROGRESS 0x01

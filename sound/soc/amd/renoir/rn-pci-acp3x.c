@@ -8,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
+#include <linux/interrupt.h>
 
 #include "rn_acp3x.h"
 
@@ -17,6 +19,8 @@ MODULE_PARM_DESC(acp_power_gating, "Enable acp power gating");
 
 struct acp_dev_data {
 	void __iomem *acp_base;
+	struct resource *res;
+	struct platform_device *pdev;
 };
 
 static int rn_acp_power_on(void __iomem *acp_base)
@@ -151,6 +155,8 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 			    const struct pci_device_id *pci_id)
 {
 	struct acp_dev_data *adata;
+	struct platform_device_info pdevinfo;
+	unsigned int irqflags;
 	int ret;
 	u32 addr;
 
@@ -172,20 +178,70 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		goto release_regions;
 	}
 
+	/* check for msi interrupt support */
+	ret = pci_enable_msi(pci);
+	if (ret)
+		/* msi is not enabled */
+		irqflags = IRQF_SHARED;
+	else
+		/* msi is enabled */
+		irqflags = 0;
+
 	addr = pci_resource_start(pci, 0);
 	adata->acp_base = devm_ioremap(&pci->dev, addr,
 				       pci_resource_len(pci, 0));
 	if (!adata->acp_base) {
 		ret = -ENOMEM;
-		goto release_regions;
+		goto disable_msi;
 	}
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	ret = rn_acp_init(adata->acp_base);
 	if (ret)
-		goto release_regions;
+		goto disable_msi;
+
+	adata->res = devm_kzalloc(&pci->dev,
+				  sizeof(struct resource) * 2,
+				  GFP_KERNEL);
+	if (!adata->res) {
+		ret = -ENOMEM;
+		goto de_init;
+	}
+
+	adata->res[0].name = "acp_pdm_iomem";
+	adata->res[0].flags = IORESOURCE_MEM;
+	adata->res[0].start = addr;
+	adata->res[0].end = addr + (ACP_REG_END - ACP_REG_START);
+	adata->res[1].name = "acp_pdm_irq";
+	adata->res[1].flags = IORESOURCE_IRQ;
+	adata->res[1].start = pci->irq;
+	adata->res[1].end = pci->irq;
+
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
+	pdevinfo.name = "acp_rn_pdm_dma";
+	pdevinfo.id = 0;
+	pdevinfo.parent = &pci->dev;
+	pdevinfo.num_res = 2;
+	pdevinfo.res = adata->res;
+	pdevinfo.data = &irqflags;
+	pdevinfo.size_data = sizeof(irqflags);
+
+	adata->pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(adata->pdev)) {
+		dev_err(&pci->dev, "cannot register %s device\n",
+			pdevinfo.name);
+		ret = PTR_ERR(adata->pdev);
+		goto unregister_devs;
+	}
 	return 0;
 
+unregister_devs:
+	platform_device_unregister(adata->pdev);
+de_init:
+	if (rn_acp_deinit(adata->acp_base))
+		dev_err(&pci->dev, "ACP de-init failed\n");
+disable_msi:
+	pci_disable_msi(pci);
 release_regions:
 	pci_release_regions(pci);
 disable_pci:
@@ -200,6 +256,7 @@ static void snd_rn_acp_remove(struct pci_dev *pci)
 	int ret;
 
 	adata = pci_get_drvdata(pci);
+	platform_device_unregister(adata->pdev);
 	ret = rn_acp_deinit(adata->acp_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
