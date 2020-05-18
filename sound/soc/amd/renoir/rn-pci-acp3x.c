@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/pm_runtime.h>
 
 #include "rn_acp3x.h"
 
@@ -233,6 +234,10 @@ static int snd_rn_acp_probe(struct pci_dev *pci,
 		ret = PTR_ERR(adata->pdev);
 		goto unregister_devs;
 	}
+	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pci->dev);
+	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_allow(&pci->dev);
 	return 0;
 
 unregister_devs:
@@ -250,6 +255,42 @@ disable_pci:
 	return ret;
 }
 
+static int snd_rn_acp_suspend(struct device *dev)
+{
+	int ret;
+	struct acp_dev_data *adata;
+
+	adata = dev_get_drvdata(dev);
+	ret = rn_acp_deinit(adata->acp_base);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+	else
+		dev_dbg(dev, "ACP de-initialized\n");
+
+	return 0;
+}
+
+static int snd_rn_acp_resume(struct device *dev)
+{
+	int ret;
+	struct acp_dev_data *adata;
+
+	adata = dev_get_drvdata(dev);
+	ret = rn_acp_init(adata->acp_base);
+	if (ret) {
+		dev_err(dev, "ACP init failed\n");
+		return ret;
+	}
+	return 0;
+}
+
+static const struct dev_pm_ops rn_acp_pm = {
+	.runtime_suspend = snd_rn_acp_suspend,
+	.runtime_resume =  snd_rn_acp_resume,
+	.suspend = snd_rn_acp_suspend,
+	.resume =	snd_rn_acp_resume,
+};
+
 static void snd_rn_acp_remove(struct pci_dev *pci)
 {
 	struct acp_dev_data *adata;
@@ -260,6 +301,8 @@ static void snd_rn_acp_remove(struct pci_dev *pci)
 	ret = rn_acp_deinit(adata->acp_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
+	pm_runtime_forbid(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 	pci_disable_msi(pci);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
@@ -278,6 +321,9 @@ static struct pci_driver rn_acp_driver  = {
 	.id_table = snd_rn_acp_ids,
 	.probe = snd_rn_acp_probe,
 	.remove = snd_rn_acp_remove,
+	.driver = {
+		.pm = &rn_acp_pm,
+	}
 };
 
 module_pci_driver(rn_acp_driver);

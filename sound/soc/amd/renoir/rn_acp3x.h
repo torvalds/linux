@@ -40,6 +40,8 @@
 #define TWO_CH 0x02
 #define DELAY_US 5
 #define ACP_COUNTER 20000
+/* time in ms for runtime suspend delay */
+#define ACP_SUSPEND_DELAY_MS	2000
 
 #define ACP_SRAM_PTE_OFFSET	0x02050000
 #define PAGE_SIZE_4K_ENABLE     0x2
