@@ -101,6 +101,17 @@ enum arm_smccc_conduit {
 enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
 
 /**
+ * arm_smccc_get_version()
+ *
+ * Returns the version to be used for SMCCCv1.1 or later.
+ *
+ * When SMCCCv1.1 or above is not present, returns SMCCCv1.0, but this
+ * does not imply the presence of firmware or a valid conduit. Caller
+ * handling SMCCCv1.0 must determine the conduit by other means.
+ */
+u32 arm_smccc_get_version(void);
+
+/**
  * struct arm_smccc_res - Result from SMC/HVC call
  * @a0-a3 result values from registers 0 to 3
  */
