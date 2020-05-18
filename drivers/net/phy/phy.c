@@ -58,13 +58,13 @@ static const char *phy_state_to_str(enum phy_state st)
 
 static void phy_link_up(struct phy_device *phydev)
 {
-	phydev->phy_link_change(phydev, true, true);
+	phydev->phy_link_change(phydev, true);
 	phy_led_trigger_change_speed(phydev);
 }
 
-static void phy_link_down(struct phy_device *phydev, bool do_carrier)
+static void phy_link_down(struct phy_device *phydev)
 {
-	phydev->phy_link_change(phydev, false, do_carrier);
+	phydev->phy_link_change(phydev, false);
 	phy_led_trigger_change_speed(phydev);
 }
 
@@ -524,7 +524,7 @@ int phy_start_cable_test(struct phy_device *phydev,
 		goto out;
 
 	/* Mark the carrier down until the test is complete */
-	phy_link_down(phydev, true);
+	phy_link_down(phydev);
 
 	netif_testing_on(dev);
 	err = phydev->drv->cable_test_start(phydev);
@@ -595,7 +595,7 @@ static int phy_check_link_status(struct phy_device *phydev)
 		phy_link_up(phydev);
 	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
 		phydev->state = PHY_NOLINK;
-		phy_link_down(phydev, true);
+		phy_link_down(phydev);
 	}
 
 	return 0;
@@ -999,7 +999,7 @@ void phy_state_machine(struct work_struct *work)
 	case PHY_HALTED:
 		if (phydev->link) {
 			phydev->link = 0;
-			phy_link_down(phydev, true);
+			phy_link_down(phydev);
 		}
 		do_suspend = true;
 		break;
