@@ -49,10 +49,10 @@ extern const efi_system_table_t *efi_system_table;
 #endif
 
 #define efi_info(msg)		do {			\
-	if (!efi_quiet) efi_printk("EFI stub: "msg);	\
+	if (!efi_quiet) efi_puts("EFI stub: "msg);	\
 } while (0)
 
-#define efi_err(msg) efi_printk("EFI stub: ERROR: "msg)
+#define efi_err(msg) efi_puts("EFI stub: ERROR: "msg)
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var
@@ -605,8 +605,6 @@ efi_status_t efi_exit_boot_services(void *handle,
 				    void *priv,
 				    efi_exit_boot_map_processing priv_func);
 
-void efi_char16_printk(efi_char16_t *);
-
 efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 					    unsigned long *new_fdt_addr,
 					    unsigned long max_addr,
@@ -630,7 +628,9 @@ efi_status_t check_platform_features(void);
 
 void *get_efi_config_table(efi_guid_t guid);
 
-void efi_printk(const char *str);
+/* NOTE: These functions do not print a trailing newline after the string */
+void efi_char16_puts(efi_char16_t *);
+void efi_puts(const char *str);
 
 void efi_free(unsigned long size, unsigned long addr);
 

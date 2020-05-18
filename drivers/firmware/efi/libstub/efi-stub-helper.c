@@ -26,15 +26,21 @@ bool __pure __efi_soft_reserve_enabled(void)
 	return !efi_nosoftreserve;
 }
 
-void efi_printk(const char *str)
+void efi_char16_puts(efi_char16_t *str)
+{
+	efi_call_proto(efi_table_attr(efi_system_table, con_out),
+		       output_string, str);
+}
+
+void efi_puts(const char *str)
 {
 	while (*str) {
 		efi_char16_t ch[] = { *str++, L'\0' };
 
 		if (ch[0] == L'\n')
-			efi_char16_printk(L"\r\n");
+			efi_char16_puts(L"\r\n");
 		else
-			efi_char16_printk(ch);
+			efi_char16_puts(ch);
 	}
 }
 
@@ -277,12 +283,6 @@ void *get_efi_config_table(efi_guid_t guid)
 					  : sizeof(efi_config_table_32_t);
 	}
 	return NULL;
-}
-
-void efi_char16_printk(efi_char16_t *str)
-{
-	efi_call_proto(efi_table_attr(efi_system_table, con_out),
-		       output_string, str);
 }
 
 /*

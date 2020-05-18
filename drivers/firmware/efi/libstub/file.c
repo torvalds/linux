@@ -47,8 +47,8 @@ static efi_status_t efi_open_file(efi_file_protocol_t *volume,
 	status = volume->open(volume, &fh, fi->filename, EFI_FILE_MODE_READ, 0);
 	if (status != EFI_SUCCESS) {
 		efi_err("Failed to open file: ");
-		efi_char16_printk(fi->filename);
-		efi_printk("\n");
+		efi_char16_puts(fi->filename);
+		efi_puts("\n");
 		return status;
 	}
 
