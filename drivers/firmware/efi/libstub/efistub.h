@@ -3,6 +3,11 @@
 #ifndef _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 #define _DRIVERS_FIRMWARE_EFI_EFISTUB_H
 
+#include <linux/efi.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
+#include <asm/efi.h>
+
 /* error code which can't be mistaken for valid address */
 #define EFI_ERROR	(~0UL)
 
