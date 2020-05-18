@@ -83,17 +83,40 @@ out:
 	return err;
 }
 
+struct mlx5e_tx_timeout_ctx {
+	struct mlx5e_txqsq *sq;
+	signed int status;
+};
+
 static int mlx5e_tx_reporter_timeout_recover(void *ctx)
 {
+	struct mlx5e_tx_timeout_ctx *to_ctx;
+	struct mlx5e_priv *priv;
 	struct mlx5_eq_comp *eq;
 	struct mlx5e_txqsq *sq;
 	int err;
 
-	sq = ctx;
+	to_ctx = ctx;
+	sq = to_ctx->sq;
 	eq = sq->cq.mcq.eq;
+	priv = sq->channel->priv;
 	err = mlx5e_health_channel_eq_recover(eq, sq->channel);
-	if (err)
-		clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
+	if (!err) {
+		to_ctx->status = 0; /* this sq recovered */
+		return err;
+	}
+
+	err = mlx5e_safe_reopen_channels(priv);
+	if (!err) {
+		to_ctx->status = 1; /* all channels recovered */
+		return err;
+	}
+
+	to_ctx->status = err;
+	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
+	netdev_err(priv->netdev,
+		   "mlx5e_safe_reopen_channels failed recovering from a tx_timeout, err(%d).\n",
+		   err);
 
 	return err;
 }
@@ -389,9 +412,11 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 {
 	struct mlx5e_priv *priv = sq->channel->priv;
 	char err_str[MLX5E_REPORTER_PER_Q_MAX_LEN];
+	struct mlx5e_tx_timeout_ctx to_ctx = {};
 	struct mlx5e_err_ctx err_ctx = {};
 
-	err_ctx.ctx = sq;
+	to_ctx.sq = sq;
+	err_ctx.ctx = &to_ctx;
 	err_ctx.recover = mlx5e_tx_reporter_timeout_recover;
 	err_ctx.dump = mlx5e_tx_reporter_dump_sq;
 	snprintf(err_str, sizeof(err_str),
@@ -399,7 +424,8 @@ int mlx5e_reporter_tx_timeout(struct mlx5e_txqsq *sq)
 		 sq->channel->ix, sq->sqn, sq->cq.mcq.cqn, sq->cc, sq->pc,
 		 jiffies_to_usecs(jiffies - sq->txq->trans_start));
 
-	return mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
+	mlx5e_health_report(priv, priv->tx_reporter, err_str, &err_ctx);
+	return to_ctx.status;
 }
 
 static const struct devlink_health_reporter_ops mlx5_tx_reporter_ops = {
