@@ -504,8 +504,7 @@ static void gsm_print_packet(const char *hdr, int addr, int cr,
 	else
 		pr_cont("(F)");
 
-	if (dlen)
-		print_hex_dump_bytes("", DUMP_PREFIX_NONE, data, dlen);
+	print_hex_dump_bytes("", DUMP_PREFIX_NONE, data, dlen);
 }
 
 
