@@ -431,6 +431,7 @@ static const struct sof_process_types sof_process[] = {
 	{"MUX", SOF_PROCESS_MUX, SOF_COMP_MUX},
 	{"DEMUX", SOF_PROCESS_DEMUX, SOF_COMP_DEMUX},
 	{"DCBLOCK", SOF_PROCESS_DCBLOCK, SOF_COMP_DCBLOCK},
+	{"SMART_AMP", SOF_PROCESS_SMART_AMP, SOF_COMP_SMART_AMP},
 };
 
 static enum sof_ipc_process_type find_process(const char *name)

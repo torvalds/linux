@@ -1107,7 +1107,15 @@ static int hda_sdw_machine_select(struct snd_sof_dev *sdev)
 	if (link_mask && !pdata->machine) {
 		for (mach = pdata->desc->alt_machines;
 		     mach && mach->link_mask; mach++) {
-			if (mach->link_mask != link_mask)
+			/*
+			 * On some platforms such as Up Extreme all links
+			 * are enabled but only one link can be used by
+			 * external codec. Instead of exact match of two masks,
+			 * first check whether link_mask of mach is subset of
+			 * link_mask supported by hw and then go on searching
+			 * link_adr
+			 */
+			if (~link_mask & mach->link_mask)
 				continue;
 
 			/* No need to match adr if there is no links defined */
