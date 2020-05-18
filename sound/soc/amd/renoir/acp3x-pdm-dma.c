@@ -16,6 +16,31 @@
 
 #define DRV_NAME "acp_rn_pdm_dma"
 
+static irqreturn_t pdm_irq_handler(int irq, void *dev_id)
+{
+	struct pdm_dev_data *rn_pdm_data;
+	u16 cap_flag;
+	u32 val;
+
+	rn_pdm_data = dev_id;
+	if (!rn_pdm_data)
+		return IRQ_NONE;
+
+	cap_flag = 0;
+	val = rn_readl(rn_pdm_data->acp_base + ACP_EXTERNAL_INTR_STAT);
+	if ((val & BIT(PDM_DMA_STAT)) && rn_pdm_data->capture_stream) {
+		rn_writel(BIT(PDM_DMA_STAT), rn_pdm_data->acp_base +
+			  ACP_EXTERNAL_INTR_STAT);
+		snd_pcm_period_elapsed(rn_pdm_data->capture_stream);
+		cap_flag = 1;
+	}
+
+	if (cap_flag)
+		return IRQ_HANDLED;
+	else
+		return IRQ_NONE;
+}
+
 static struct snd_soc_dai_driver acp_pdm_dai_driver = {
 	.capture = {
 		.rates = SNDRV_PCM_RATE_48000,
@@ -60,6 +85,13 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 	if (!adata->acp_base)
 		return -ENOMEM;
 
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res) {
+		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
+		return -ENODEV;
+	}
+
+	adata->pdm_irq = res->start;
 	adata->capture_stream = NULL;
 
 	dev_set_drvdata(&pdev->dev, adata);
@@ -69,6 +101,12 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 	if (status) {
 		dev_err(&pdev->dev, "Fail to register acp pdm dai\n");
 
+		return -ENODEV;
+	}
+	status = devm_request_irq(&pdev->dev, adata->pdm_irq, pdm_irq_handler,
+				  irqflags, "ACP_PDM_IRQ", adata);
+	if (status) {
+		dev_err(&pdev->dev, "ACP PDM IRQ request failed\n");
 		return -ENODEV;
 	}
 	return 0;
