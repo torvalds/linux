@@ -17,14 +17,14 @@ static void
 qla27xx_write_remote_reg(struct scsi_qla_host *vha,
 			 u32 addr, u32 data)
 {
-	char *reg = (char *)ISPREG(vha);
+	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
 
 	ql_dbg(ql_dbg_misc, vha, 0xd300,
 	       "%s: addr/data = %xh/%xh\n", __func__, addr, data);
 
-	WRT_REG_DWORD(reg + IOBASE(vha), 0x40);
-	WRT_REG_DWORD(reg + 0xc4, data);
-	WRT_REG_DWORD(reg + 0xc0, addr);
+	WRT_REG_DWORD(&reg->iobase_addr, 0x40);
+	WRT_REG_DWORD(&reg->iobase_c4, data);
+	WRT_REG_DWORD(&reg->iobase_window, addr);
 }
 
 void
