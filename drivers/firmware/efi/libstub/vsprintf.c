@@ -147,6 +147,7 @@ char *number(char *end, unsigned long long num, int base, char locase)
 #define LEFT	16		/* left justified */
 #define SMALL	32		/* Must be 32 == 0x20 */
 #define SPECIAL	64		/* 0x */
+#define WIDE	128		/* UTF-16 string */
 
 static
 int get_flags(const char **fmt)
@@ -238,6 +239,58 @@ char get_sign(long long *num, int flags)
 	return 0;
 }
 
+static
+size_t utf16s_utf8nlen(const u16 *s16, size_t maxlen)
+{
+	size_t len, clen;
+
+	for (len = 0; len < maxlen && *s16; len += clen) {
+		u16 c0 = *s16++;
+
+		/* First, get the length for a BMP character */
+		clen = 1 + (c0 >= 0x80) + (c0 >= 0x800);
+		if (len + clen > maxlen)
+			break;
+		/*
+		 * If this is a high surrogate, and we're already at maxlen, we
+		 * can't include the character if it's a valid surrogate pair.
+		 * Avoid accessing one extra word just to check if it's valid
+		 * or not.
+		 */
+		if ((c0 & 0xfc00) == 0xd800) {
+			if (len + clen == maxlen)
+				break;
+			if ((*s16 & 0xfc00) == 0xdc00) {
+				++s16;
+				++clen;
+			}
+		}
+	}
+
+	return len;
+}
+
+static
+u32 utf16_to_utf32(const u16 **s16)
+{
+	u16 c0, c1;
+
+	c0 = *(*s16)++;
+	/* not a surrogate */
+	if ((c0 & 0xf800) != 0xd800)
+		return c0;
+	/* invalid: low surrogate instead of high */
+	if (c0 & 0x0400)
+		return 0xfffd;
+	c1 = **s16;
+	/* invalid: missing low surrogate */
+	if ((c1 & 0xfc00) != 0xdc00)
+		return 0xfffd;
+	/* valid surrogate pair */
+	++(*s16);
+	return (0x10000 - (0xd800 << 10) - 0xdc00) + (c0 << 10) + c1;
+}
+
 #define PUTC(c) \
 do {				\
 	if (pos < size)		\
@@ -325,18 +378,31 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list ap)
 		switch (*fmt) {
 		case 'c':
 			flags &= LEFT;
-			tmp[0] = (unsigned char)va_arg(args, int);
 			s = tmp;
-			precision = len = 1;
+			if (qualifier == 'l') {
+				((u16 *)tmp)[0] = (u16)va_arg(args, unsigned int);
+				((u16 *)tmp)[1] = L'\0';
+				precision = INT_MAX;
+				goto wstring;
+			} else {
+				tmp[0] = (unsigned char)va_arg(args, int);
+				precision = len = 1;
+			}
 			goto output;
 
 		case 's':
 			flags &= LEFT;
 			if (precision < 0)
 				precision = INT_MAX;
-			s = va_arg(args, char *);
+			s = va_arg(args, void *);
 			if (!s)
 				s = precision < 6 ? "" : "(null)";
+			else if (qualifier == 'l') {
+		wstring:
+				flags |= WIDE;
+				precision = len = utf16s_utf8nlen((const u16 *)s, precision);
+				goto output;
+			}
 			precision = len = strnlen(s, precision);
 			goto output;
 
@@ -436,8 +502,43 @@ output:
 		while (precision-- > len)
 			PUTC('0');
 		/* Actual output */
-		while (len-- > 0)
-			PUTC(*s++);
+		if (flags & WIDE) {
+			const u16 *ws = (const u16 *)s;
+
+			while (len-- > 0) {
+				u32 c32 = utf16_to_utf32(&ws);
+				u8 *s8;
+				size_t clen;
+
+				if (c32 < 0x80) {
+					PUTC(c32);
+					continue;
+				}
+
+				/* Number of trailing octets */
+				clen = 1 + (c32 >= 0x800) + (c32 >= 0x10000);
+
+				len -= clen;
+				s8 = (u8 *)&buf[pos];
+
+				/* Avoid writing partial character */
+				PUTC('\0');
+				pos += clen;
+				if (pos >= size)
+					continue;
+
+				/* Set high bits of leading octet */
+				*s8 = (0xf00 >> 1) >> clen;
+				/* Write trailing octets in reverse order */
+				for (s8 += clen; clen; --clen, c32 >>= 6)
+					*s8-- = 0x80 | (c32 & 0x3f);
+				/* Set low bits of leading octet */
+				*s8 |= c32;
+			}
+		} else {
+			while (len-- > 0)
+				PUTC(*s++);
+		}
 		/* Trailing padding with ' ' */
 		while (field_width-- > 0)
 			PUTC(' ');
