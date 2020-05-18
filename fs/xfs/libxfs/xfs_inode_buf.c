@@ -271,7 +271,7 @@ xfs_inode_from_disk(
 	return 0;
 
 out_destroy_data_fork:
-	xfs_idestroy_fork(ip, XFS_DATA_FORK);
+	xfs_idestroy_fork(&ip->i_df);
 	return error;
 }
 
