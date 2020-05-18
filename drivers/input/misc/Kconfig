@@ -720,6 +720,7 @@ config INPUT_IMS_PCU
 
 config INPUT_IQS269A
 	tristate "Azoteq IQS269A capacitive touch controller"
+	depends on I2C
 	select REGMAP_I2C
 	help
 	  Say Y to enable support for the Azoteq IQS269A capacitive
