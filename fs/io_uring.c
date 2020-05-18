@@ -4135,12 +4135,14 @@ static int __io_async_wake(struct io_kiocb *req, struct io_poll_iocb *poll,
 	req->result = mask;
 	init_task_work(&req->task_work, func);
 	/*
-	 * If this fails, then the task is exiting. Punt to one of the io-wq
-	 * threads to ensure the work gets run, we can't always rely on exit
-	 * cancelation taking care of this.
+	 * If this fails, then the task is exiting. When a task exits, the
+	 * work gets canceled, so just cancel this request as well instead
+	 * of executing it. We can't safely execute it anyway, as we may not
+	 * have the needed state needed for it anyway.
 	 */
 	ret = task_work_add(tsk, &req->task_work, true);
 	if (unlikely(ret)) {
+		WRITE_ONCE(poll->canceled, true);
 		tsk = io_wq_get_task(req->ctx->io_wq);
 		task_work_add(tsk, &req->task_work, true);
 	}
