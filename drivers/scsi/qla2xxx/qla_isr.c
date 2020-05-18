@@ -819,7 +819,7 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		goto skip_rio;
 	switch (mb[0]) {
 	case MBA_SCSI_COMPLETION:
-		handles[0] = le32_to_cpu((uint32_t)((mb[2] << 16) | mb[1]));
+		handles[0] = le32_to_cpu(make_handle(mb[2], mb[1]));
 		handle_cnt = 1;
 		break;
 	case MBA_CMPLT_1_16BIT:
@@ -858,10 +858,10 @@ qla2x00_async_event(scsi_qla_host_t *vha, struct rsp_que *rsp, uint16_t *mb)
 		mb[0] = MBA_SCSI_COMPLETION;
 		break;
 	case MBA_CMPLT_2_32BIT:
-		handles[0] = le32_to_cpu((uint32_t)((mb[2] << 16) | mb[1]));
-		handles[1] = le32_to_cpu(
-		    ((uint32_t)(RD_MAILBOX_REG(ha, reg, 7) << 16)) |
-		    RD_MAILBOX_REG(ha, reg, 6));
+		handles[0] = le32_to_cpu(make_handle(mb[2], mb[1]));
+		handles[1] =
+			le32_to_cpu(make_handle(RD_MAILBOX_REG(ha, reg, 7),
+						RD_MAILBOX_REG(ha, reg, 6)));
 		handle_cnt = 2;
 		mb[0] = MBA_SCSI_COMPLETION;
 		break;
