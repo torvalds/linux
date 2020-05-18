@@ -7,10 +7,7 @@
  * ----------------------------------------------------------------------- */
 
 /*
- * Oh, it's a waste of space, but oh-so-yummy for debugging.  This
- * version of printf() does not include 64-bit support.  "Live with
- * it."
- *
+ * Oh, it's a waste of space, but oh-so-yummy for debugging.
  */
 
 #include <stdarg.h>
@@ -28,6 +25,86 @@ static int skip_atoi(const char **s)
 	return i;
 }
 
+/*
+ * put_dec_full4 handles numbers in the range 0 <= r < 10000.
+ * The multiplier 0xccd is round(2^15/10), and the approximation
+ * r/10 == (r * 0xccd) >> 15 is exact for all r < 16389.
+ */
+static
+void put_dec_full4(char *buf, unsigned int r)
+{
+	int i;
+
+	for (i = 0; i < 3; i++) {
+		unsigned int q = (r * 0xccd) >> 15;
+		*buf++ = '0' + (r - q * 10);
+		r = q;
+	}
+	*buf++ = '0' + r;
+}
+
+/* put_dec is copied from lib/vsprintf.c with small modifications */
+
+/*
+ * Call put_dec_full4 on x % 10000, return x / 10000.
+ * The approximation x/10000 == (x * 0x346DC5D7) >> 43
+ * holds for all x < 1,128,869,999.  The largest value this
+ * helper will ever be asked to convert is 1,125,520,955.
+ * (second call in the put_dec code, assuming n is all-ones).
+ */
+static
+unsigned int put_dec_helper4(char *buf, unsigned int x)
+{
+	unsigned int q = (x * 0x346DC5D7ULL) >> 43;
+
+	put_dec_full4(buf, x - q * 10000);
+	return q;
+}
+
+/* Based on code by Douglas W. Jones found at
+ * <http://www.cs.uiowa.edu/~jones/bcd/decimal.html#sixtyfour>
+ * (with permission from the author).
+ * Performs no 64-bit division and hence should be fast on 32-bit machines.
+ */
+static
+int put_dec(char *buf, unsigned long long n)
+{
+	unsigned int d3, d2, d1, q, h;
+	char *p = buf;
+
+	d1  = ((unsigned int)n >> 16); /* implicit "& 0xffff" */
+	h   = (n >> 32);
+	d2  = (h      ) & 0xffff;
+	d3  = (h >> 16); /* implicit "& 0xffff" */
+
+	/* n = 2^48 d3 + 2^32 d2 + 2^16 d1 + d0
+	     = 281_4749_7671_0656 d3 + 42_9496_7296 d2 + 6_5536 d1 + d0 */
+	q = 656 * d3 + 7296 * d2 + 5536 * d1 + ((unsigned int)n & 0xffff);
+	q = put_dec_helper4(p, q);
+	p += 4;
+
+	q += 7671 * d3 + 9496 * d2 + 6 * d1;
+	q = put_dec_helper4(p, q);
+	p += 4;
+
+	q += 4749 * d3 + 42 * d2;
+	q = put_dec_helper4(p, q);
+	p += 4;
+
+	q += 281 * d3;
+	q = put_dec_helper4(p, q);
+	p += 4;
+
+	put_dec_full4(p, q);
+	p += 4;
+
+	/* strip off the extra 0's we printed */
+	while (p > buf && p[-1] == '0')
+		--p;
+
+	return p - buf;
+}
+
 #define ZEROPAD	1		/* pad with zero */
 #define SIGN	2		/* unsigned/signed long */
 #define PLUS	4		/* show plus */
@@ -36,13 +113,7 @@ static int skip_atoi(const char **s)
 #define SMALL	32		/* Must be 32 == 0x20 */
 #define SPECIAL	64		/* 0x */
 
-#define __do_div(n, base) ({ \
-int __res; \
-__res = ((unsigned long) n) % (unsigned) base; \
-n = ((unsigned long) n) / (unsigned) base; \
-__res; })
-
-static char *number(char *str, long num, int base, int size, int precision,
+static char *number(char *str, long long num, int base, int size, int precision,
 		    int type)
 {
 	/* we are called with base 8, 10 or 16, only, thus don't need "G..."  */
@@ -57,8 +128,6 @@ static char *number(char *str, long num, int base, int size, int precision,
 	locase = (type & SMALL);
 	if (type & LEFT)
 		type &= ~ZEROPAD;
-	if (base < 2 || base > 16)
-		return NULL;
 	c = (type & ZEROPAD) ? '0' : ' ';
 	sign = 0;
 	if (type & SIGN) {
@@ -83,9 +152,28 @@ static char *number(char *str, long num, int base, int size, int precision,
 	i = 0;
 	if (num == 0)
 		tmp[i++] = '0';
-	else
-		while (num != 0)
-			tmp[i++] = (digits[__do_div(num, base)] | locase);
+	else {
+		switch (base) {
+		case 10:
+			i += put_dec(&tmp[i], num);
+			break;
+		case 8:
+			while (num != 0) {
+				tmp[i++] = '0' + (num & 07);
+				num = (unsigned long long)num >> 3;
+			}
+			break;
+		case 16:
+			while (num != 0) {
+				tmp[i++] = digits[num & 0xf] | locase;
+				num = (unsigned long long)num >> 4;
+			}
+			break;
+		default:
+			unreachable();
+		}
+	}
+
 	if (i > precision)
 		precision = i;
 	size -= precision;
@@ -117,7 +205,7 @@ static char *number(char *str, long num, int base, int size, int precision,
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
 	int len;
-	unsigned long num;
+	unsigned long long num;
 	int i, base;
 	char *str;
 	const char *s;
@@ -127,7 +215,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 	int field_width;	/* width of output field */
 	int precision;		/* min. # of digits for integers; max
 				   number of chars for from string */
-	int qualifier;		/* 'h' or 'l' for integer fields */
+	int qualifier;		/* 'h', 'hh', 'l' or 'll' for integer fields */
 
 	for (str = buf; *fmt; ++fmt) {
 		if (*fmt != '%') {
@@ -191,6 +279,10 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		if (*fmt == 'h' || *fmt == 'l') {
 			qualifier = *fmt;
 			++fmt;
+			if (qualifier == *fmt) {
+				qualifier -= 'a'-'A';
+				++fmt;
+			}
 		}
 
 		/* default base */
@@ -260,16 +352,40 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 				--fmt;
 			continue;
 		}
-		if (qualifier == 'l') {
-			num = va_arg(args, unsigned long);
-		} else if (qualifier == 'h') {
-			num = (unsigned short)va_arg(args, int);
-			if (flags & SIGN)
-				num = (short)num;
-		} else if (flags & SIGN) {
-			num = va_arg(args, int);
+		if (flags & SIGN) {
+			switch (qualifier) {
+			case 'L':
+				num = va_arg(args, long long);
+				break;
+			case 'l':
+				num = va_arg(args, long);
+				break;
+			case 'h':
+				num = (short)va_arg(args, int);
+				break;
+			case 'H':
+				num = (signed char)va_arg(args, int);
+				break;
+			default:
+				num = va_arg(args, int);
+			}
 		} else {
-			num = va_arg(args, unsigned int);
+			switch (qualifier) {
+			case 'L':
+				num = va_arg(args, unsigned long long);
+				break;
+			case 'l':
+				num = va_arg(args, unsigned long);
+				break;
+			case 'h':
+				num = (unsigned short)va_arg(args, int);
+				break;
+			case 'H':
+				num = (unsigned char)va_arg(args, int);
+				break;
+			default:
+				num = va_arg(args, unsigned int);
+			}
 		}
 		str = number(str, num, base, field_width, precision, flags);
 	}
