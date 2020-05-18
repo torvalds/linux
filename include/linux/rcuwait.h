@@ -31,7 +31,7 @@ static inline void rcuwait_init(struct rcuwait *w)
  */
 static inline int rcuwait_active(struct rcuwait *w)
 {
-	return !!rcu_dereference(w->task);
+	return !!rcu_access_pointer(w->task);
 }
 
 extern int rcuwait_wake_up(struct rcuwait *w);
