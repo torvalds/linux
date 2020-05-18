@@ -297,9 +297,6 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			}
 		}
 
-		/* default base */
-		base = 10;
-
 		switch (*fmt) {
 		case 'c':
 			if (!(flags & LEFT))
@@ -323,21 +320,15 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 				*str++ = ' ';
 			continue;
 
-		case 'p':
-			if (field_width == -1) {
-				field_width = 2 * sizeof(void *);
-				flags |= ZEROPAD;
-			}
-			str = number(str,
-				     (unsigned long)va_arg(args, void *), 16,
-				     field_width, precision, flags);
-			continue;
-
 			/* integer number formats - set up the flags and "break" */
 		case 'o':
 			base = 8;
 			break;
 
+		case 'p':
+			if (precision < 0)
+				precision = 2 * sizeof(void *);
+			fallthrough;
 		case 'x':
 			flags |= SMALL;
 			fallthrough;
@@ -350,6 +341,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 			flags |= SIGN;
 			fallthrough;
 		case 'u':
+			base = 10;
 			break;
 
 		default:
@@ -360,7 +352,9 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 				--fmt;
 			continue;
 		}
-		if (flags & SIGN) {
+		if (*fmt == 'p') {
+			num = (unsigned long)va_arg(args, void *);
+		} else if (flags & SIGN) {
 			switch (qualifier) {
 			case 'L':
 				num = va_arg(args, long long);
