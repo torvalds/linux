@@ -71,6 +71,27 @@ static void init_pdm_ring_buffer(u32 physical_addr,
 	rn_writel(0x01, acp_base + ACPAXI2AXI_ATU_CTRL);
 }
 
+static void config_pdm_stream_params(unsigned int ch_mask,
+				     void __iomem *acp_base)
+{
+	rn_writel(ch_mask, acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+	rn_writel(PDM_DECIMATION_FACTOR, acp_base +
+		  ACP_WOV_PDM_DECIMATION_FACTOR);
+}
+
+static void enable_pdm_clock(void __iomem *acp_base)
+{
+	u32 pdm_clk_enable, pdm_ctrl;
+
+	pdm_clk_enable = ACP_PDM_CLK_FREQ_MASK;
+	pdm_ctrl = 0x00;
+
+	rn_writel(pdm_clk_enable, acp_base + ACP_WOV_CLK_CTRL);
+	pdm_ctrl = rn_readl(acp_base + ACP_WOV_MISC_CTRL);
+	pdm_ctrl |= ACP_WOV_MISC_CTRL_MASK;
+	rn_writel(pdm_ctrl, acp_base + ACP_WOV_MISC_CTRL);
+}
+
 static void enable_pdm_interrupts(void __iomem *acp_base)
 {
 	u32 ext_int_ctrl;
@@ -87,6 +108,77 @@ static void disable_pdm_interrupts(void __iomem *acp_base)
 	ext_int_ctrl = rn_readl(acp_base + ACP_EXTERNAL_INTR_CNTL);
 	ext_int_ctrl |= ~PDM_DMA_INTR_MASK;
 	rn_writel(ext_int_ctrl, acp_base + ACP_EXTERNAL_INTR_CNTL);
+}
+
+static bool check_pdm_dma_status(void __iomem *acp_base)
+{
+	bool pdm_dma_status;
+	u32 pdm_enable, pdm_dma_enable;
+
+	pdm_dma_status = false;
+	pdm_enable = rn_readl(acp_base + ACP_WOV_PDM_ENABLE);
+	pdm_dma_enable = rn_readl(acp_base + ACP_WOV_PDM_DMA_ENABLE);
+	if ((pdm_enable & ACP_PDM_ENABLE) && (pdm_dma_enable &
+	     ACP_PDM_DMA_EN_STATUS))
+		pdm_dma_status = true;
+	return pdm_dma_status;
+}
+
+static int start_pdm_dma(void __iomem *acp_base)
+{
+	u32 pdm_enable;
+	u32 pdm_dma_enable;
+	int timeout;
+
+	pdm_enable = 0x01;
+	pdm_dma_enable  = 0x01;
+
+	enable_pdm_clock(acp_base);
+	rn_writel(pdm_enable, acp_base + ACP_WOV_PDM_ENABLE);
+	rn_writel(pdm_dma_enable, acp_base + ACP_WOV_PDM_DMA_ENABLE);
+	pdm_dma_enable = 0x00;
+	timeout = 0;
+	while (++timeout < ACP_COUNTER) {
+		pdm_dma_enable = rn_readl(acp_base + ACP_WOV_PDM_DMA_ENABLE);
+		if ((pdm_dma_enable & 0x02) == ACP_PDM_DMA_EN_STATUS)
+			return 0;
+		udelay(DELAY_US);
+	}
+	return -ETIMEDOUT;
+}
+
+static int stop_pdm_dma(void __iomem *acp_base)
+{
+	u32 pdm_enable, pdm_dma_enable, pdm_fifo_flush;
+	int timeout;
+
+	pdm_enable = 0x00;
+	pdm_dma_enable  = 0x00;
+	pdm_fifo_flush = 0x00;
+
+	pdm_enable = rn_readl(acp_base + ACP_WOV_PDM_ENABLE);
+	pdm_dma_enable = rn_readl(acp_base + ACP_WOV_PDM_DMA_ENABLE);
+	if (pdm_dma_enable & 0x01) {
+		pdm_dma_enable = 0x02;
+		rn_writel(pdm_dma_enable, acp_base + ACP_WOV_PDM_DMA_ENABLE);
+		pdm_dma_enable = 0x00;
+		timeout = 0;
+		while (++timeout < ACP_COUNTER) {
+			pdm_dma_enable = rn_readl(acp_base +
+						  ACP_WOV_PDM_DMA_ENABLE);
+			if ((pdm_dma_enable & 0x02) == 0x00)
+				break;
+			udelay(DELAY_US);
+		}
+		if (timeout == ACP_COUNTER)
+			return -ETIMEDOUT;
+	}
+	if (pdm_enable == ACP_PDM_ENABLE) {
+		pdm_enable = ACP_PDM_DISABLE;
+		rn_writel(pdm_enable, acp_base + ACP_WOV_PDM_ENABLE);
+	}
+	rn_writel(0x01, acp_base + ACP_WOV_PDM_FIFO_FLUSH);
+	return 0;
 }
 
 static void config_acp_dma(struct pdm_stream_instance *rtd, int direction)
@@ -230,6 +322,62 @@ static int acp_pdm_dma_close(struct snd_soc_component *component,
 	return 0;
 }
 
+static int acp_pdm_dai_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
+{
+	struct pdm_stream_instance *rtd;
+	unsigned int ch_mask;
+
+	rtd = substream->runtime->private_data;
+	switch (params_channels(params)) {
+	case TWO_CH:
+	default:
+		ch_mask = 0x00;
+		break;
+	}
+	config_pdm_stream_params(ch_mask, rtd->acp_base);
+	return 0;
+}
+
+static int acp_pdm_dai_trigger(struct snd_pcm_substream *substream,
+			       int cmd, struct snd_soc_dai *dai)
+{
+	struct pdm_stream_instance *rtd;
+	int ret;
+	bool pdm_status;
+
+	rtd = substream->runtime->private_data;
+	ret = 0;
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		rtd->bytescount = acp_pdm_get_byte_count(rtd,
+							 substream->stream);
+		pdm_status = check_pdm_dma_status(rtd->acp_base);
+		if (!pdm_status)
+			ret = start_pdm_dma(rtd->acp_base);
+		break;
+	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
+	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+		pdm_status = check_pdm_dma_status(rtd->acp_base);
+		if (pdm_status)
+			ret = stop_pdm_dma(rtd->acp_base);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static struct snd_soc_dai_ops acp_pdm_dai_ops = {
+	.hw_params = acp_pdm_dai_hw_params,
+	.trigger   = acp_pdm_dai_trigger,
+};
+
 static struct snd_soc_dai_driver acp_pdm_dai_driver = {
 	.capture = {
 		.rates = SNDRV_PCM_RATE_48000,
@@ -240,6 +388,7 @@ static struct snd_soc_dai_driver acp_pdm_dai_driver = {
 		.rate_min = 48000,
 		.rate_max = 48000,
 	},
+	.ops = &acp_pdm_dai_ops,
 };
 
 static const struct snd_soc_component_driver acp_pdm_component = {
