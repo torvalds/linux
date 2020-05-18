@@ -867,6 +867,24 @@ static int atif_ioctl(int cmd, void __user *arg)
 	return copy_to_user(arg, &atreq, sizeof(atreq)) ? -EFAULT : 0;
 }
 
+static int atrtr_ioctl_addrt(struct rtentry *rt)
+{
+	struct net_device *dev = NULL;
+
+	if (rt->rt_dev) {
+		char name[IFNAMSIZ];
+
+		if (copy_from_user(name, rt->rt_dev, IFNAMSIZ-1))
+			return -EFAULT;
+		name[IFNAMSIZ-1] = '\0';
+
+		dev = __dev_get_by_name(&init_net, name);
+		if (!dev)
+			return -ENODEV;
+	}
+	return atrtr_create(rt, dev);
+}
+
 /* Routing ioctl() calls */
 static int atrtr_ioctl(unsigned int cmd, void __user *arg)
 {
@@ -882,19 +900,8 @@ static int atrtr_ioctl(unsigned int cmd, void __user *arg)
 		return atrtr_delete(&((struct sockaddr_at *)
 				      &rt.rt_dst)->sat_addr);
 
-	case SIOCADDRT: {
-		struct net_device *dev = NULL;
-		if (rt.rt_dev) {
-			char name[IFNAMSIZ];
-			if (copy_from_user(name, rt.rt_dev, IFNAMSIZ-1))
-				return -EFAULT;
-			name[IFNAMSIZ-1] = '\0';
-			dev = __dev_get_by_name(&init_net, name);
-			if (!dev)
-				return -ENODEV;
-		}
-		return atrtr_create(&rt, dev);
-	}
+	case SIOCADDRT:
+		return atrtr_ioctl_addrt(&rt);
 	}
 	return -EINVAL;
 }
