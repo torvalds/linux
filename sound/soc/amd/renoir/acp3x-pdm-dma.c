@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/pm_runtime.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
@@ -453,19 +454,71 @@ static int acp_pdm_audio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "ACP PDM IRQ request failed\n");
 		return -ENODEV;
 	}
+	pm_runtime_set_autosuspend_delay(&pdev->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_allow(&pdev->dev);
 	return 0;
 }
 
 static int acp_pdm_audio_remove(struct platform_device *pdev)
 {
+	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
+
+static int acp_pdm_resume(struct device *dev)
+{
+	struct pdm_dev_data *adata;
+	struct snd_pcm_runtime *runtime;
+	struct pdm_stream_instance *rtd;
+	u32 period_bytes, buffer_len;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->capture_stream && adata->capture_stream->runtime) {
+		runtime = adata->capture_stream->runtime;
+		rtd = runtime->private_data;
+		period_bytes = frames_to_bytes(runtime, runtime->period_size);
+		buffer_len = frames_to_bytes(runtime, runtime->buffer_size);
+		config_acp_dma(rtd, SNDRV_PCM_STREAM_CAPTURE);
+		init_pdm_ring_buffer(MEM_WINDOW_START, buffer_len, period_bytes,
+				     adata->acp_base);
+	}
+	enable_pdm_interrupts(adata->acp_base);
+	return 0;
+}
+
+static int acp_pdm_runtime_suspend(struct device *dev)
+{
+	struct pdm_dev_data *adata;
+
+	adata = dev_get_drvdata(dev);
+	disable_pdm_interrupts(adata->acp_base);
+
+	return 0;
+}
+
+static int acp_pdm_runtime_resume(struct device *dev)
+{
+	struct pdm_dev_data *adata;
+
+	adata = dev_get_drvdata(dev);
+	enable_pdm_interrupts(adata->acp_base);
+	return 0;
+}
+
+static const struct dev_pm_ops acp_pdm_pm_ops = {
+	.runtime_suspend = acp_pdm_runtime_suspend,
+	.runtime_resume = acp_pdm_runtime_resume,
+	.resume = acp_pdm_resume,
+};
 
 static struct platform_driver acp_pdm_dma_driver = {
 	.probe = acp_pdm_audio_probe,
 	.remove = acp_pdm_audio_remove,
 	.driver = {
 		.name = "acp_rn_pdm_dma",
+		.pm = &acp_pdm_pm_ops,
 	},
 };
 
