@@ -1631,7 +1631,7 @@ fastpath_t handle_fastpath_set_msr_irqoff(struct kvm_vcpu *vcpu)
 		if (!handle_fastpath_set_x2apic_icr_irqoff(vcpu, data)) {
 			kvm_skip_emulated_instruction(vcpu);
 			ret = EXIT_FASTPATH_EXIT_HANDLED;
-               }
+		}
 		break;
 	case MSR_IA32_TSCDEADLINE:
 		data = kvm_read_edx_eax(vcpu);
