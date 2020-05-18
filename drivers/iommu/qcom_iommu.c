@@ -37,14 +37,20 @@
 
 #define SMMU_INTR_SEL_NS     0x2000
 
+enum qcom_iommu_clk {
+	CLK_IFACE,
+	CLK_BUS,
+	CLK_TBU,
+	CLK_NUM,
+};
+
 struct qcom_iommu_ctx;
 
 struct qcom_iommu_dev {
 	/* IOMMU core code handle */
 	struct iommu_device	 iommu;
 	struct device		*dev;
-	struct clk		*iface_clk;
-	struct clk		*bus_clk;
+	struct clk_bulk_data clks[CLK_NUM];
 	void __iomem		*local_base;
 	u32			 sec_id;
 	u8			 num_ctxs;
@@ -626,32 +632,6 @@ static const struct iommu_ops qcom_iommu_ops = {
 	.pgsize_bitmap	= SZ_4K | SZ_64K | SZ_1M | SZ_16M,
 };
 
-static int qcom_iommu_enable_clocks(struct qcom_iommu_dev *qcom_iommu)
-{
-	int ret;
-
-	ret = clk_prepare_enable(qcom_iommu->iface_clk);
-	if (ret) {
-		dev_err(qcom_iommu->dev, "Couldn't enable iface_clk\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(qcom_iommu->bus_clk);
-	if (ret) {
-		dev_err(qcom_iommu->dev, "Couldn't enable bus_clk\n");
-		clk_disable_unprepare(qcom_iommu->iface_clk);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void qcom_iommu_disable_clocks(struct qcom_iommu_dev *qcom_iommu)
-{
-	clk_disable_unprepare(qcom_iommu->bus_clk);
-	clk_disable_unprepare(qcom_iommu->iface_clk);
-}
-
 static int qcom_iommu_sec_ptbl_init(struct device *dev)
 {
 	size_t psize = 0;
@@ -808,6 +788,7 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	struct qcom_iommu_dev *qcom_iommu;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	struct clk *clk;
 	int ret, max_asid = 0;
 
 	/* find the max asid (which is 1:1 to ctx bank idx), so we know how
@@ -827,17 +808,26 @@ static int qcom_iommu_device_probe(struct platform_device *pdev)
 	if (res)
 		qcom_iommu->local_base = devm_ioremap_resource(dev, res);
 
-	qcom_iommu->iface_clk = devm_clk_get(dev, "iface");
-	if (IS_ERR(qcom_iommu->iface_clk)) {
+	clk = devm_clk_get(dev, "iface");
+	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get iface clock\n");
-		return PTR_ERR(qcom_iommu->iface_clk);
+		return PTR_ERR(clk);
 	}
+	qcom_iommu->clks[CLK_IFACE].clk = clk;
 
-	qcom_iommu->bus_clk = devm_clk_get(dev, "bus");
-	if (IS_ERR(qcom_iommu->bus_clk)) {
+	clk = devm_clk_get(dev, "bus");
+	if (IS_ERR(clk)) {
 		dev_err(dev, "failed to get bus clock\n");
-		return PTR_ERR(qcom_iommu->bus_clk);
+		return PTR_ERR(clk);
 	}
+	qcom_iommu->clks[CLK_BUS].clk = clk;
+
+	clk = devm_clk_get_optional(dev, "tbu");
+	if (IS_ERR(clk)) {
+		dev_err(dev, "failed to get tbu clock\n");
+		return PTR_ERR(clk);
+	}
+	qcom_iommu->clks[CLK_TBU].clk = clk;
 
 	if (of_property_read_u32(dev->of_node, "qcom,iommu-secure-id",
 				 &qcom_iommu->sec_id)) {
@@ -909,14 +899,14 @@ static int __maybe_unused qcom_iommu_resume(struct device *dev)
 {
 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
 
-	return qcom_iommu_enable_clocks(qcom_iommu);
+	return clk_bulk_prepare_enable(CLK_NUM, qcom_iommu->clks);
 }
 
 static int __maybe_unused qcom_iommu_suspend(struct device *dev)
 {
 	struct qcom_iommu_dev *qcom_iommu = dev_get_drvdata(dev);
 
-	qcom_iommu_disable_clocks(qcom_iommu);
+	clk_bulk_disable_unprepare(CLK_NUM, qcom_iommu->clks);
 
 	return 0;
 }
