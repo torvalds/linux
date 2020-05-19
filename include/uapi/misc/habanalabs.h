@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2020 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -15,10 +15,13 @@
  * Defines that are asic-specific but constitutes as ABI between kernel driver
  * and userspace
  */
-#define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START	0x8000	/* 32KB */
+#define GOYA_KMD_SRAM_RESERVED_SIZE_FROM_START		0x8000	/* 32KB */
+#define GAUDI_DRIVER_SRAM_RESERVED_SIZE_FROM_START	0x80	/* 128 bytes */
 
+#define GAUDI_FIRST_AVAILABLE_W_S_SYNC_OBJECT		48
+#define GAUDI_FIRST_AVAILABLE_W_S_MONITOR		24
 /*
- * Queue Numbering
+ * Goya queue Numbering
  *
  * The external queues (PCI DMA channels) MUST be before the internal queues
  * and each group (PCI DMA channels and internal) must be contiguous inside
@@ -46,6 +49,129 @@ enum goya_queue_id {
 };
 
 /*
+ * Gaudi queue Numbering
+ * External queues (PCI DMA channels) are DMA_0_*, DMA_1_* and DMA_5_*.
+ * Except one CPU queue, all the rest are internal queues.
+ */
+
+enum gaudi_queue_id {
+	GAUDI_QUEUE_ID_DMA_0_0 = 0,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_1 = 1,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_2 = 2,	/* external */
+	GAUDI_QUEUE_ID_DMA_0_3 = 3,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_0 = 4,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_1 = 5,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_2 = 6,	/* external */
+	GAUDI_QUEUE_ID_DMA_1_3 = 7,	/* external */
+	GAUDI_QUEUE_ID_CPU_PQ = 8,	/* CPU */
+	GAUDI_QUEUE_ID_DMA_2_0 = 9,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_1 = 10,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_2 = 11,	/* internal */
+	GAUDI_QUEUE_ID_DMA_2_3 = 12,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_0 = 13,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_1 = 14,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_2 = 15,	/* internal */
+	GAUDI_QUEUE_ID_DMA_3_3 = 16,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_0 = 17,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_1 = 18,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_2 = 19,	/* internal */
+	GAUDI_QUEUE_ID_DMA_4_3 = 20,	/* internal */
+	GAUDI_QUEUE_ID_DMA_5_0 = 21,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_1 = 22,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_2 = 23,	/* external */
+	GAUDI_QUEUE_ID_DMA_5_3 = 24,	/* external */
+	GAUDI_QUEUE_ID_DMA_6_0 = 25,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_1 = 26,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_2 = 27,	/* internal */
+	GAUDI_QUEUE_ID_DMA_6_3 = 28,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_0 = 29,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_1 = 30,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_2 = 31,	/* internal */
+	GAUDI_QUEUE_ID_DMA_7_3 = 32,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_0 = 33,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_1 = 34,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_2 = 35,	/* internal */
+	GAUDI_QUEUE_ID_MME_0_3 = 36,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_0 = 37,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_1 = 38,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_2 = 39,	/* internal */
+	GAUDI_QUEUE_ID_MME_1_3 = 40,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_0 = 41,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_1 = 42,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_2 = 43,	/* internal */
+	GAUDI_QUEUE_ID_TPC_0_3 = 44,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_0 = 45,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_1 = 46,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_2 = 47,	/* internal */
+	GAUDI_QUEUE_ID_TPC_1_3 = 48,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_0 = 49,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_1 = 50,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_2 = 51,	/* internal */
+	GAUDI_QUEUE_ID_TPC_2_3 = 52,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_0 = 53,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_1 = 54,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_2 = 55,	/* internal */
+	GAUDI_QUEUE_ID_TPC_3_3 = 56,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_0 = 57,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_1 = 58,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_2 = 59,	/* internal */
+	GAUDI_QUEUE_ID_TPC_4_3 = 60,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_0 = 61,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_1 = 62,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_2 = 63,	/* internal */
+	GAUDI_QUEUE_ID_TPC_5_3 = 64,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_0 = 65,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_1 = 66,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_2 = 67,	/* internal */
+	GAUDI_QUEUE_ID_TPC_6_3 = 68,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_0 = 69,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_1 = 70,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_2 = 71,	/* internal */
+	GAUDI_QUEUE_ID_TPC_7_3 = 72,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_0 = 73,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_1 = 74,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_2 = 75,	/* internal */
+	GAUDI_QUEUE_ID_NIC_0_3 = 76,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_0 = 77,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_1 = 78,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_2 = 79,	/* internal */
+	GAUDI_QUEUE_ID_NIC_1_3 = 80,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_0 = 81,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_1 = 82,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_2 = 83,	/* internal */
+	GAUDI_QUEUE_ID_NIC_2_3 = 84,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_0 = 85,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_1 = 86,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_2 = 87,	/* internal */
+	GAUDI_QUEUE_ID_NIC_3_3 = 88,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_0 = 89,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_1 = 90,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_2 = 91,	/* internal */
+	GAUDI_QUEUE_ID_NIC_4_3 = 92,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_0 = 93,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_1 = 94,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_2 = 95,	/* internal */
+	GAUDI_QUEUE_ID_NIC_5_3 = 96,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_0 = 97,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_1 = 98,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_2 = 99,	/* internal */
+	GAUDI_QUEUE_ID_NIC_6_3 = 100,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_0 = 101,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_1 = 102,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_2 = 103,	/* internal */
+	GAUDI_QUEUE_ID_NIC_7_3 = 104,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_0 = 105,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_1 = 106,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_2 = 107,	/* internal */
+	GAUDI_QUEUE_ID_NIC_8_3 = 108,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_0 = 109,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_1 = 110,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_2 = 111,	/* internal */
+	GAUDI_QUEUE_ID_NIC_9_3 = 112,	/* internal */
+	GAUDI_QUEUE_ID_SIZE
+};
+
+/*
  * Engine Numbering
  *
  * Used in the "busy_engines_mask" field in `struct hl_info_hw_idle'
@@ -67,6 +193,40 @@ enum goya_engine_id {
 	GOYA_ENGINE_ID_TPC_6,
 	GOYA_ENGINE_ID_TPC_7,
 	GOYA_ENGINE_ID_SIZE
+};
+
+enum gaudi_engine_id {
+	GAUDI_ENGINE_ID_DMA_0 = 0,
+	GAUDI_ENGINE_ID_DMA_1,
+	GAUDI_ENGINE_ID_DMA_2,
+	GAUDI_ENGINE_ID_DMA_3,
+	GAUDI_ENGINE_ID_DMA_4,
+	GAUDI_ENGINE_ID_DMA_5,
+	GAUDI_ENGINE_ID_DMA_6,
+	GAUDI_ENGINE_ID_DMA_7,
+	GAUDI_ENGINE_ID_MME_0,
+	GAUDI_ENGINE_ID_MME_1,
+	GAUDI_ENGINE_ID_MME_2,
+	GAUDI_ENGINE_ID_MME_3,
+	GAUDI_ENGINE_ID_TPC_0,
+	GAUDI_ENGINE_ID_TPC_1,
+	GAUDI_ENGINE_ID_TPC_2,
+	GAUDI_ENGINE_ID_TPC_3,
+	GAUDI_ENGINE_ID_TPC_4,
+	GAUDI_ENGINE_ID_TPC_5,
+	GAUDI_ENGINE_ID_TPC_6,
+	GAUDI_ENGINE_ID_TPC_7,
+	GAUDI_ENGINE_ID_NIC_0,
+	GAUDI_ENGINE_ID_NIC_1,
+	GAUDI_ENGINE_ID_NIC_2,
+	GAUDI_ENGINE_ID_NIC_3,
+	GAUDI_ENGINE_ID_NIC_4,
+	GAUDI_ENGINE_ID_NIC_5,
+	GAUDI_ENGINE_ID_NIC_6,
+	GAUDI_ENGINE_ID_NIC_7,
+	GAUDI_ENGINE_ID_NIC_8,
+	GAUDI_ENGINE_ID_NIC_9,
+	GAUDI_ENGINE_ID_SIZE
 };
 
 enum hl_device_status {
@@ -101,6 +261,8 @@ enum hl_device_status {
  * HL_INFO_RESET_COUNT   - Retrieve the counts of the soft and hard reset
  *                         operations performed on the device since the last
  *                         time the driver was loaded.
+ * HL_INFO_TIME_SYNC     - Retrieve the device's time alongside the host's time
+ *                         for synchronization.
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -111,6 +273,7 @@ enum hl_device_status {
 #define HL_INFO_HW_EVENTS_AGGREGATE	7
 #define HL_INFO_CLK_RATE		8
 #define HL_INFO_RESET_COUNT		9
+#define HL_INFO_TIME_SYNC		10
 
 #define HL_INFO_VERSION_MAX_LEN	128
 #define HL_INFO_CARD_NAME_MAX_LEN	16
@@ -122,7 +285,8 @@ struct hl_info_hw_ip_info {
 	__u32 sram_size;
 	__u32 num_of_events;
 	__u32 device_id; /* PCI Device ID */
-	__u32 reserved[3];
+	__u32 module_id; /* For mezzanine cards in servers (From OCP spec.) */
+	__u32 reserved[2];
 	__u32 armcp_cpld_version;
 	__u32 psoc_pci_pll_nr;
 	__u32 psoc_pci_pll_nf;
@@ -169,6 +333,11 @@ struct hl_info_reset_count {
 	__u32 soft_reset_cnt;
 };
 
+struct hl_info_time_sync {
+	__u64 device_time;
+	__u64 host_time;
+};
+
 struct hl_info_args {
 	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
@@ -201,7 +370,8 @@ struct hl_info_args {
 /* Opcode to destroy previously created command buffer */
 #define HL_CB_OP_DESTROY	1
 
-#define HL_MAX_CB_SIZE		0x200000	/* 2MB */
+/* 2MB minus 32 bytes for 2xMSG_PROT */
+#define HL_MAX_CB_SIZE		(0x200000 - 32)
 
 struct hl_cb_in {
 	/* Handle of CB or 0 if we want to create one */
@@ -232,52 +402,87 @@ union hl_cb_args {
  * compatibility
  */
 struct hl_cs_chunk {
-	/*
-	 * For external queue, this represents a Handle of CB on the Host
-	 * For internal queue, this represents an SRAM or DRAM address of the
-	 * internal CB
-	 */
-	__u64 cb_handle;
+	union {
+		/* For external queue, this represents a Handle of CB on the
+		 * Host.
+		 * For internal queue in Goya, this represents an SRAM or
+		 * a DRAM address of the internal CB. In Gaudi, this might also
+		 * represent a mapped host address of the CB.
+		 *
+		 * A mapped host address is in the device address space, after
+		 * a host address was mapped by the device MMU.
+		 */
+		__u64 cb_handle;
+
+		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		 * This holds address of array of u64 values that contain
+		 * signal CS sequence numbers. The wait described by this job
+		 * will listen on all those signals (wait event per signal)
+		 */
+		__u64 signal_seq_arr;
+	};
+
 	/* Index of queue to put the CB on */
 	__u32 queue_index;
-	/*
-	 * Size of command buffer with valid packets
-	 * Can be smaller then actual CB size
-	 */
-	__u32 cb_size;
+
+	union {
+		/*
+		 * Size of command buffer with valid packets
+		 * Can be smaller then actual CB size
+		 */
+		__u32 cb_size;
+
+		/* Relevant only when HL_CS_FLAGS_WAIT is set.
+		 * Number of entries in signal_seq_arr
+		 */
+		__u32 num_signal_seq_arr;
+	};
+
 	/* HL_CS_CHUNK_FLAGS_* */
 	__u32 cs_chunk_flags;
+
 	/* Align structure to 64 bytes */
 	__u32 pad[11];
 };
 
+/* SIGNAL and WAIT flags are mutually exclusive */
 #define HL_CS_FLAGS_FORCE_RESTORE	0x1
+#define HL_CS_FLAGS_SIGNAL		0x2
+#define HL_CS_FLAGS_WAIT		0x4
 
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
 
 struct hl_cs_in {
+
 	/* this holds address of array of hl_cs_chunk for restore phase */
 	__u64 chunks_restore;
-	/* this holds address of array of hl_cs_chunk for execution phase */
+
+	/* holds address of array of hl_cs_chunk for execution phase */
 	__u64 chunks_execute;
+
 	/* this holds address of array of hl_cs_chunk for store phase -
 	 * Currently not in use
 	 */
 	__u64 chunks_store;
+
 	/* Number of chunks in restore phase array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
 	 */
 	__u32 num_chunks_restore;
+
 	/* Number of chunks in execution array. Maximum number is
 	 * HL_MAX_JOBS_PER_CS
 	 */
 	__u32 num_chunks_execute;
+
 	/* Number of chunks in restore phase array - Currently not in use */
 	__u32 num_chunks_store;
+
 	/* HL_CS_FLAGS_* */
 	__u32 cs_flags;
+
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 };
@@ -588,8 +793,8 @@ struct hl_debug_args {
  * For jobs on external queues, the user needs to create command buffers
  * through the CB ioctl and give the CB's handle to the CS ioctl. For jobs on
  * internal queues, the user needs to prepare a "command buffer" with packets
- * on either the SRAM or DRAM, and give the device address of that buffer to
- * the CS ioctl.
+ * on either the device SRAM/DRAM or the host, and give the device address of
+ * that buffer to the CS ioctl.
  *
  * This IOCTL is asynchronous in regard to the actual execution of the CS. This
  * means it returns immediately after ALL the JOBS were enqueued on their
@@ -601,7 +806,7 @@ struct hl_debug_args {
  * external JOBS have been completed. Note that if the CS has internal JOBS
  * which can execute AFTER the external JOBS have finished, the driver might
  * report that the CS has finished executing BEFORE the internal JOBS have
- * actually finish executing.
+ * actually finished executing.
  *
  * Even though the sequence number increments per CS, the user can NOT
  * automatically assume that if CS with sequence number N finished, then CS
