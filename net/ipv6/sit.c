@@ -1267,60 +1267,45 @@ __ipip6_tunnel_ioctl_validate(struct net *net, struct ip_tunnel_parm *p)
 }
 
 static int
-ipip6_tunnel_get(struct net_device *dev, struct ifreq *ifr)
+ipip6_tunnel_get(struct net_device *dev, struct ip_tunnel_parm *p)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
-	struct ip_tunnel_parm p;
 
-	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev) {
-		if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-			return -EFAULT;
-		t = ipip6_tunnel_locate(t->net, &p, 0);
-	}
+	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev)
+		t = ipip6_tunnel_locate(t->net, p, 0);
 	if (!t)
 		t = netdev_priv(dev);
-
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
-		return -EFAULT;
+	memcpy(p, &t->parms, sizeof(*p));
 	return 0;
 }
 
 static int
-ipip6_tunnel_add(struct net_device *dev, struct ifreq *ifr)
+ipip6_tunnel_add(struct net_device *dev, struct ip_tunnel_parm *p)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
-	struct ip_tunnel_parm p;
 	int err;
 
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-		return -EFAULT;
-	err = __ipip6_tunnel_ioctl_validate(t->net, &p);
+	err = __ipip6_tunnel_ioctl_validate(t->net, p);
 	if (err)
 		return err;
 
-	t = ipip6_tunnel_locate(t->net, &p, 1);
+	t = ipip6_tunnel_locate(t->net, p, 1);
 	if (!t)
 		return -ENOBUFS;
-
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
-		return -EFAULT;
 	return 0;
 }
 
 static int
-ipip6_tunnel_change(struct net_device *dev, struct ifreq *ifr)
+ipip6_tunnel_change(struct net_device *dev, struct ip_tunnel_parm *p)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
-	struct ip_tunnel_parm p;
 	int err;
 
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-		return -EFAULT;
-	err = __ipip6_tunnel_ioctl_validate(t->net, &p);
+	err = __ipip6_tunnel_ioctl_validate(t->net, p);
 	if (err)
 		return err;
 
-	t = ipip6_tunnel_locate(t->net, &p, 0);
+	t = ipip6_tunnel_locate(t->net, p, 0);
 	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev) {
 		if (!t)
 			return -ENOENT;
@@ -1329,33 +1314,28 @@ ipip6_tunnel_change(struct net_device *dev, struct ifreq *ifr)
 			if (t->dev != dev)
 				return -EEXIST;
 		} else {
-			if (((dev->flags & IFF_POINTOPOINT) && !p.iph.daddr) ||
-			    (!(dev->flags & IFF_POINTOPOINT) && p.iph.daddr))
+			if (((dev->flags & IFF_POINTOPOINT) && !p->iph.daddr) ||
+			    (!(dev->flags & IFF_POINTOPOINT) && p->iph.daddr))
 				return -EINVAL;
 			t = netdev_priv(dev);
 		}
 
-		ipip6_tunnel_update(t, &p, t->fwmark);
+		ipip6_tunnel_update(t, p, t->fwmark);
 	}
 
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
-		return -EFAULT;
 	return 0;
 }
 
 static int
-ipip6_tunnel_del(struct net_device *dev, struct ifreq *ifr)
+ipip6_tunnel_del(struct net_device *dev, struct ip_tunnel_parm *p)
 {
 	struct ip_tunnel *t = netdev_priv(dev);
-	struct ip_tunnel_parm p;
 
 	if (!ns_capable(t->net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (dev == dev_to_sit_net(dev)->fb_tunnel_dev) {
-		if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-			return -EFAULT;
-		t = ipip6_tunnel_locate(t->net, &p, 0);
+		t = ipip6_tunnel_locate(t->net, p, 0);
 		if (!t)
 			return -ENOENT;
 		if (t == netdev_priv(dev_to_sit_net(dev)->fb_tunnel_dev))
@@ -1367,17 +1347,31 @@ ipip6_tunnel_del(struct net_device *dev, struct ifreq *ifr)
 }
 
 static int
+ipip6_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
+{
+	switch (cmd) {
+	case SIOCGETTUNNEL:
+		return ipip6_tunnel_get(dev, p);
+	case SIOCADDTUNNEL:
+		return ipip6_tunnel_add(dev, p);
+	case SIOCCHGTUNNEL:
+		return ipip6_tunnel_change(dev, p);
+	case SIOCDELTUNNEL:
+		return ipip6_tunnel_del(dev, p);
+	default:
+		return -EINVAL;
+	}
+}
+
+static int
 ipip6_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
 	case SIOCGETTUNNEL:
-		return ipip6_tunnel_get(dev, ifr);
 	case SIOCADDTUNNEL:
-		return ipip6_tunnel_add(dev, ifr);
 	case SIOCCHGTUNNEL:
-		return ipip6_tunnel_change(dev, ifr);
 	case SIOCDELTUNNEL:
-		return ipip6_tunnel_del(dev, ifr);
+		return ip_tunnel_ioctl(dev, ifr, cmd);
 	case SIOCGETPRL:
 		return ipip6_tunnel_get_prl(dev, ifr);
 	case SIOCADDPRL:
@@ -1404,6 +1398,7 @@ static const struct net_device_ops ipip6_netdev_ops = {
 	.ndo_do_ioctl	= ipip6_tunnel_ioctl,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_iflink = ip_tunnel_get_iflink,
+	.ndo_tunnel_ctl = ipip6_tunnel_ctl,
 };
 
 static void ipip6_dev_free(struct net_device *dev)
