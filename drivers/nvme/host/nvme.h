@@ -366,6 +366,7 @@ struct nvme_ns_head {
 
 enum nvme_ns_features {
 	NVME_NS_EXT_LBAS = 1 << 0, /* support extended LBA format */
+	NVME_NS_METADATA_SUPPORTED = 1 << 1, /* support getting generated md */
 };
 
 struct nvme_ns {
