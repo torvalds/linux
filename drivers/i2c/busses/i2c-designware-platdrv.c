@@ -12,7 +12,6 @@
 #include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -39,84 +38,6 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 }
 
 #ifdef CONFIG_ACPI
-/*
- * The HCNT/LCNT information coming from ACPI should be the most accurate
- * for given platform. However, some systems get it wrong. On such systems
- * we get better results by calculating those based on the input clock.
- */
-static const struct dmi_system_id dw_i2c_no_acpi_params[] = {
-	{
-		.ident = "Dell Inspiron 7348",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Inspiron 7348"),
-		},
-	},
-	{ }
-};
-
-static void dw_i2c_acpi_params(struct platform_device *pdev, char method[],
-			       u16 *hcnt, u16 *lcnt, u32 *sda_hold)
-{
-	struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
-	acpi_handle handle = ACPI_HANDLE(&pdev->dev);
-	union acpi_object *obj;
-
-	if (dmi_check_system(dw_i2c_no_acpi_params))
-		return;
-
-	if (ACPI_FAILURE(acpi_evaluate_object(handle, method, NULL, &buf)))
-		return;
-
-	obj = (union acpi_object *)buf.pointer;
-	if (obj->type == ACPI_TYPE_PACKAGE && obj->package.count == 3) {
-		const union acpi_object *objs = obj->package.elements;
-
-		*hcnt = (u16)objs[0].integer.value;
-		*lcnt = (u16)objs[1].integer.value;
-		*sda_hold = (u32)objs[2].integer.value;
-	}
-
-	kfree(buf.pointer);
-}
-
-static int dw_i2c_acpi_configure(struct platform_device *pdev)
-{
-	struct dw_i2c_dev *dev = platform_get_drvdata(pdev);
-	struct i2c_timings *t = &dev->timings;
-	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
-
-	dev->tx_fifo_depth = 32;
-	dev->rx_fifo_depth = 32;
-
-	/*
-	 * Try to get SDA hold time and *CNT values from an ACPI method for
-	 * selected speed modes.
-	 */
-	dw_i2c_acpi_params(pdev, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, &ss_ht);
-	dw_i2c_acpi_params(pdev, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, &fp_ht);
-	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, &hs_ht);
-	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
-
-	switch (t->bus_freq_hz) {
-	case I2C_MAX_STANDARD_MODE_FREQ:
-		dev->sda_hold_time = ss_ht;
-		break;
-	case I2C_MAX_FAST_MODE_PLUS_FREQ:
-		dev->sda_hold_time = fp_ht;
-		break;
-	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
-		dev->sda_hold_time = hs_ht;
-		break;
-	case I2C_MAX_FAST_MODE_FREQ:
-	default:
-		dev->sda_hold_time = fs_ht;
-		break;
-	}
-
-	return 0;
-}
-
 static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT33C2", 0 },
 	{ "INT33C3", 0 },
@@ -134,11 +55,6 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, dw_i2c_acpi_match);
-#else
-static inline int dw_i2c_acpi_configure(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
 #endif
 
 #ifdef CONFIG_OF
@@ -198,8 +114,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	struct i2c_adapter *adap;
 	struct dw_i2c_dev *dev;
 	struct i2c_timings *t;
-	u32 acpi_speed;
-	int i, irq, ret;
+	int irq, ret;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -229,27 +144,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	else
 		i2c_parse_fw_timings(&pdev->dev, t, false);
 
-	acpi_speed = i2c_acpi_find_bus_speed(&pdev->dev);
-	/*
-	 * Some DSTDs use a non standard speed, round down to the lowest
-	 * standard speed.
-	 */
-	for (i = 0; i < ARRAY_SIZE(i2c_dw_supported_speeds); i++) {
-		if (acpi_speed >= i2c_dw_supported_speeds[i])
-			break;
-	}
-	acpi_speed = i < ARRAY_SIZE(i2c_dw_supported_speeds) ? i2c_dw_supported_speeds[i] : 0;
-
-	/*
-	 * Find bus speed from the "clock-frequency" device property, ACPI
-	 * or by using fast mode if neither is set.
-	 */
-	if (acpi_speed && t->bus_freq_hz)
-		t->bus_freq_hz = min(t->bus_freq_hz, acpi_speed);
-	else if (acpi_speed || t->bus_freq_hz)
-		t->bus_freq_hz = max(t->bus_freq_hz, acpi_speed);
-	else
-		t->bus_freq_hz = I2C_MAX_FAST_MODE_FREQ;
+	i2c_dw_acpi_adjust_bus_speed(&pdev->dev);
 
 	dev->flags |= (uintptr_t)device_get_match_data(&pdev->dev);
 
@@ -257,7 +152,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		dw_i2c_of_configure(pdev);
 
 	if (has_acpi_companion(&pdev->dev))
-		dw_i2c_acpi_configure(pdev);
+		i2c_dw_acpi_configure(&pdev->dev);
 
 	ret = i2c_dw_validate_speed(dev);
 	if (ret)
