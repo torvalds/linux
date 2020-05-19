@@ -40,12 +40,8 @@ static bool ext4_dio_supported(struct kiocb *iocb, struct iov_iter *iter)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 
-	if (IS_ENABLED(CONFIG_FS_ENCRYPTION) && IS_ENCRYPTED(inode)) {
-		if (!fscrypt_inode_uses_inline_crypto(inode) ||
-		    !IS_ALIGNED(iocb->ki_pos | iov_iter_alignment(iter),
-				i_blocksize(inode)))
-			return false;
-	}
+	if (!fscrypt_dio_supported(iocb, iter))
+		return false;
 	if (fsverity_active(inode))
 		return false;
 	if (ext4_should_journal_data(inode))
