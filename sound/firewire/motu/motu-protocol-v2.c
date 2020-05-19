@@ -164,7 +164,7 @@ int snd_motu_protocol_v2_switch_fetching_mode(struct snd_motu *motu,
 	if (enable)
 		data |= V2_CLOCK_FETCH_ENABLE;
 
-	if (motu->spec->flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4) {
+	if (motu->spec == &snd_motu_spec_traveler) {
 		// Expected for Traveler and 896HD, which implements Altera
 		// Cyclone EP1C3.
 		data |= V2_CLOCK_MODEL_SPECIFIC;
@@ -192,8 +192,6 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 				 unsigned char analog_ports)
 {
 	unsigned char pcm_chunks[3] = {0, 0, 0};
-
-	formats->msg_chunks = 2;
 
 	pcm_chunks[0] = analog_ports;
 	pcm_chunks[1] = analog_ports;
@@ -268,11 +266,68 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 	formats->differed_part_pcm_chunks[1] = pcm_chunks[1];
 }
 
+static int detect_packet_formats_828mk2(struct snd_motu *motu, u32 data)
+{
+	if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->tx_packet_formats.pcm_chunks[0] += 8;
+		motu->tx_packet_formats.pcm_chunks[1] += 4;
+	}
+
+	if (((data & V2_OPT_OUT_IFACE_MASK) >> V2_OPT_OUT_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->rx_packet_formats.pcm_chunks[0] += 8;
+		motu->rx_packet_formats.pcm_chunks[1] += 4;
+	}
+
+	return 0;
+}
+
+static int detect_packet_formats_traveler(struct snd_motu *motu, u32 data)
+{
+	if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->tx_packet_formats.pcm_chunks[0] += 8;
+		motu->tx_packet_formats.pcm_chunks[1] += 4;
+	}
+
+	if (((data & V2_OPT_OUT_IFACE_MASK) >> V2_OPT_OUT_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->rx_packet_formats.pcm_chunks[0] += 8;
+		motu->rx_packet_formats.pcm_chunks[1] += 4;
+	}
+
+	return 0;
+}
+
+static int detect_packet_formats_8pre(struct snd_motu *motu, u32 data)
+{
+	if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->tx_packet_formats.pcm_chunks[0] += 8;
+		motu->tx_packet_formats.pcm_chunks[1] += 8;
+	}
+
+	if (((data & V2_OPT_OUT_IFACE_MASK) >> V2_OPT_OUT_IFACE_SHIFT) ==
+	    V2_OPT_IFACE_MODE_ADAT) {
+		motu->rx_packet_formats.pcm_chunks[0] += 8;
+		motu->rx_packet_formats.pcm_chunks[1] += 8;
+	}
+
+	return 0;
+}
+
 int snd_motu_protocol_v2_cache_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
 	u32 data;
 	int err;
+
+	motu->tx_packet_formats.pcm_byte_offset = 10;
+	motu->rx_packet_formats.pcm_byte_offset = 10;
+
+	motu->tx_packet_formats.msg_chunks = 2;
+	motu->rx_packet_formats.msg_chunks = 2;
 
 	err = snd_motu_transaction_read(motu, V2_IN_OUT_CONF_OFFSET, &reg,
 					sizeof(reg));
@@ -290,10 +345,15 @@ int snd_motu_protocol_v2_cache_packet_formats(struct snd_motu *motu)
 	calculate_differed_part(&motu->rx_packet_formats, motu->spec->flags,
 			data, V2_OPT_OUT_IFACE_MASK, V2_OPT_OUT_IFACE_SHIFT);
 
-	motu->tx_packet_formats.pcm_byte_offset = 10;
-	motu->rx_packet_formats.pcm_byte_offset = 10;
 
-	return 0;
+	if (motu->spec == &snd_motu_spec_828mk2)
+		return detect_packet_formats_828mk2(motu, data);
+	else if (motu->spec == &snd_motu_spec_traveler)
+		return detect_packet_formats_traveler(motu, data);
+	else if (motu->spec == &snd_motu_spec_8pre)
+		return detect_packet_formats_8pre(motu, data);
+	else
+		return 0;
 }
 
 const struct snd_motu_spec snd_motu_spec_828mk2 = {

@@ -36,6 +36,7 @@ struct snd_motu_packet_format {
 	unsigned char pcm_byte_offset;
 
 	unsigned char msg_chunks;
+	unsigned char pcm_chunks[3];
 	unsigned char fixed_part_pcm_chunks[3];
 	unsigned char differed_part_pcm_chunks[3];
 };
