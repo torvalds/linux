@@ -170,52 +170,69 @@ int snd_motu_protocol_v2_get_clock_source(struct snd_motu *motu,
 	return get_clock_source(motu, be32_to_cpu(reg), src);
 }
 
+// Expected for Traveler and 896HD, which implements Altera Cyclone EP1C3.
+static int switch_fetching_mode_cyclone(struct snd_motu *motu, u32 *data,
+					bool enable)
+{
+	*data |= V2_CLOCK_MODEL_SPECIFIC;
+
+	return 0;
+}
+
+// For UltraLite and 8pre, which implements Xilinx Spartan XC3S200.
+static int switch_fetching_mode_spartan(struct snd_motu *motu, u32 *data,
+					bool enable)
+{
+	unsigned int rate;
+	enum snd_motu_clock_source src;
+	int err;
+
+	err = get_clock_source(motu, *data, &src);
+	if (err < 0)
+		return err;
+
+	err = get_clock_rate(*data, &rate);
+	if (err < 0)
+		return err;
+
+	if (src == SND_MOTU_CLOCK_SOURCE_SPH && rate > 48000)
+		*data |= V2_CLOCK_MODEL_SPECIFIC;
+
+	return 0;
+}
+
 int snd_motu_protocol_v2_switch_fetching_mode(struct snd_motu *motu,
 					      bool enable)
 {
-	enum snd_motu_clock_source src;
-	__be32 reg;
-	u32 data;
-	int err = 0;
-
-	// 828mkII implements Altera ACEX 1K EP1K30. Nothing to do.
-	if (motu->spec == &snd_motu_spec_828mk2)
+	if (motu->spec == &snd_motu_spec_828mk2) {
+		// 828mkII implements Altera ACEX 1K EP1K30. Nothing to do.
 		return 0;
-
-	err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET, &reg,
-					sizeof(reg));
-	if (err < 0)
-		return err;
-	data = be32_to_cpu(reg);
-
-	err = get_clock_source(motu, data, &src);
-	if (err < 0)
-		return err;
-
-	data &= ~(V2_CLOCK_FETCH_ENABLE | V2_CLOCK_MODEL_SPECIFIC);
-	if (enable)
-		data |= V2_CLOCK_FETCH_ENABLE;
-
-	if (motu->spec == &snd_motu_spec_traveler) {
-		// Expected for Traveler and 896HD, which implements Altera
-		// Cyclone EP1C3.
-		data |= V2_CLOCK_MODEL_SPECIFIC;
 	} else {
-		// For UltraLite and 8pre, which implements Xilinx Spartan
-		// XC3S200.
-		unsigned int rate;
+		__be32 reg;
+		u32 data;
+		int err;
 
-		err = get_clock_rate(data, &rate);
+		err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET,
+						&reg, sizeof(reg));
+		if (err < 0)
+			return err;
+		data = be32_to_cpu(reg);
+
+		data &= ~(V2_CLOCK_FETCH_ENABLE | V2_CLOCK_MODEL_SPECIFIC);
+		if (enable)
+			data |= V2_CLOCK_FETCH_ENABLE;
+
+		if (motu->spec == &snd_motu_spec_traveler)
+			err = switch_fetching_mode_cyclone(motu, &data, enable);
+		else
+			err = switch_fetching_mode_spartan(motu, &data, enable);
 		if (err < 0)
 			return err;
 
-		if (src == SND_MOTU_CLOCK_SOURCE_SPH && rate > 48000)
-			data |= V2_CLOCK_MODEL_SPECIFIC;
+		reg = cpu_to_be32(data);
+		return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET,
+						  &reg, sizeof(reg));
 	}
-
-	reg = cpu_to_be32(data);
-	return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET, &reg,
-					  sizeof(reg));
 }
 
 static int detect_packet_formats_828mk2(struct snd_motu *motu, u32 data)
