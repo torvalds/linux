@@ -192,13 +192,6 @@ static void dw_i2c_plat_pm_cleanup(struct dw_i2c_dev *dev)
 		pm_runtime_put_noidle(dev->dev);
 }
 
-static const u32 supported_speeds[] = {
-	I2C_MAX_HIGH_SPEED_MODE_FREQ,
-	I2C_MAX_FAST_MODE_PLUS_FREQ,
-	I2C_MAX_FAST_MODE_FREQ,
-	I2C_MAX_STANDARD_MODE_FREQ,
-};
-
 static int dw_i2c_plat_probe(struct platform_device *pdev)
 {
 	struct dw_i2c_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -241,11 +234,11 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	 * Some DSTDs use a non standard speed, round down to the lowest
 	 * standard speed.
 	 */
-	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
-		if (acpi_speed >= supported_speeds[i])
+	for (i = 0; i < ARRAY_SIZE(i2c_dw_supported_speeds); i++) {
+		if (acpi_speed >= i2c_dw_supported_speeds[i])
 			break;
 	}
-	acpi_speed = i < ARRAY_SIZE(supported_speeds) ? supported_speeds[i] : 0;
+	acpi_speed = i < ARRAY_SIZE(i2c_dw_supported_speeds) ? i2c_dw_supported_speeds[i] : 0;
 
 	/*
 	 * Find bus speed from the "clock-frequency" device property, ACPI
@@ -266,21 +259,9 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (has_acpi_companion(&pdev->dev))
 		dw_i2c_acpi_configure(pdev);
 
-	/*
-	 * Only standard mode at 100kHz, fast mode at 400kHz,
-	 * fast mode plus at 1MHz and high speed mode at 3.4MHz are supported.
-	 */
-	for (i = 0; i < ARRAY_SIZE(supported_speeds); i++) {
-		if (t->bus_freq_hz == supported_speeds[i])
-			break;
-	}
-	if (i == ARRAY_SIZE(supported_speeds)) {
-		dev_err(&pdev->dev,
-			"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
-			t->bus_freq_hz);
-		ret = -EINVAL;
+	ret = i2c_dw_validate_speed(dev);
+	if (ret)
 		goto exit_reset;
-	}
 
 	ret = i2c_dw_probe_lock_support(dev);
 	if (ret)

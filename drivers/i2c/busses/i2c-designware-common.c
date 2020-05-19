@@ -116,6 +116,30 @@ int i2c_dw_set_reg_access(struct dw_i2c_dev *dev)
 	return 0;
 }
 
+int i2c_dw_validate_speed(struct dw_i2c_dev *dev)
+{
+	struct i2c_timings *t = &dev->timings;
+	unsigned int i;
+
+	/*
+	 * Only standard mode at 100kHz, fast mode at 400kHz,
+	 * fast mode plus at 1MHz and high speed mode at 3.4MHz are supported.
+	 */
+	for (i = 0; i < ARRAY_SIZE(i2c_dw_supported_speeds); i++) {
+		if (t->bus_freq_hz == i2c_dw_supported_speeds[i])
+			break;
+	}
+	if (i == ARRAY_SIZE(i2c_dw_supported_speeds)) {
+		dev_err(dev->dev,
+			"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
+			t->bus_freq_hz);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(i2c_dw_validate_speed);
+
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset)
 {
 	/*
