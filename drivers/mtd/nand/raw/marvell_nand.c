@@ -2676,9 +2676,14 @@ static int marvell_nand_chip_init(struct device *dev, struct marvell_nfc *nfc,
 static void marvell_nand_chips_cleanup(struct marvell_nfc *nfc)
 {
 	struct marvell_nand_chip *entry, *temp;
+	struct nand_chip *chip;
+	int ret;
 
 	list_for_each_entry_safe(entry, temp, &nfc->chips, node) {
-		nand_release(&entry->chip);
+		chip = &entry->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
 		list_del(&entry->node);
 	}
 }
