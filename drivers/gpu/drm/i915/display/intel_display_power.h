@@ -314,6 +314,7 @@ intel_display_power_put_async(struct drm_i915_private *i915,
 enum dbuf_slice {
 	DBUF_S1,
 	DBUF_S2,
+	I915_MAX_DBUF_SLICES
 };
 
 void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
