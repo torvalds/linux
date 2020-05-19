@@ -14646,8 +14646,7 @@ static bool active_planes_affects_min_cdclk(struct drm_i915_private *dev_priv)
 		IS_IVYBRIDGE(dev_priv);
 }
 
-static int intel_atomic_check_planes(struct intel_atomic_state *state,
-				     bool *need_cdclk_calc)
+static int intel_atomic_check_planes(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
@@ -14696,6 +14695,22 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
+				    bool *need_cdclk_calc)
+{
+	struct intel_cdclk_state *new_cdclk_state;
+	int i;
+	struct intel_plane_state *plane_state;
+	struct intel_plane *plane;
+	int ret;
+
+	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
+	if (new_cdclk_state && new_cdclk_state->force_min_cdclk_changed)
+		*need_cdclk_calc = true;
 
 	/*
 	 * active_planes bitmask has been updated, and potentially
@@ -14759,7 +14774,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_atomic_state *state = to_intel_atomic_state(_state);
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
-	struct intel_cdclk_state *new_cdclk_state;
 	struct intel_crtc *crtc;
 	int ret, i;
 	bool any_ms = false;
@@ -14870,13 +14884,9 @@ static int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	ret = intel_atomic_check_planes(state, &any_ms);
+	ret = intel_atomic_check_planes(state);
 	if (ret)
 		goto fail;
-
-	new_cdclk_state = intel_atomic_get_new_cdclk_state(state);
-	if (new_cdclk_state && new_cdclk_state->force_min_cdclk_changed)
-		any_ms = true;
 
 	/*
 	 * distrust_bios_wm will force a full dbuf recomputation
@@ -14904,6 +14914,10 @@ static int intel_atomic_check(struct drm_device *dev,
 		goto fail;
 
 	ret = intel_bw_atomic_check(state);
+	if (ret)
+		goto fail;
+
+	ret = intel_atomic_check_cdclk(state, &any_ms);
 	if (ret)
 		goto fail;
 
