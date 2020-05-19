@@ -581,8 +581,8 @@ static int mlx5_pps_event(struct notifier_block *nb,
 		cycles_delta = div64_u64(nsec_delta << clock->cycles.shift,
 					 clock->cycles.mult);
 		clock->pps_info.start[pin] = cycles_now + cycles_delta;
-		schedule_work(&clock->pps_info.out_work);
 		write_sequnlock_irqrestore(&clock->lock, flags);
+		schedule_work(&clock->pps_info.out_work);
 		break;
 	default:
 		mlx5_core_err(mdev, " Unhandled clock PPS event, func %d\n",
