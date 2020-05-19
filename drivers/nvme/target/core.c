@@ -323,11 +323,20 @@ int nvmet_enable_port(struct nvmet_port *port)
 	if (!try_module_get(ops->owner))
 		return -EINVAL;
 
-	ret = ops->add_port(port);
-	if (ret) {
-		module_put(ops->owner);
-		return ret;
+	/*
+	 * If the user requested PI support and the transport isn't pi capable,
+	 * don't enable the port.
+	 */
+	if (port->pi_enable && !ops->metadata_support) {
+		pr_err("T10-PI is not supported by transport type %d\n",
+		       port->disc_addr.trtype);
+		ret = -EINVAL;
+		goto out_put;
 	}
+
+	ret = ops->add_port(port);
+	if (ret)
+		goto out_put;
 
 	/* If the transport didn't set inline_data_size, then disable it. */
 	if (port->inline_data_size < 0)
@@ -336,6 +345,10 @@ int nvmet_enable_port(struct nvmet_port *port)
 	port->enabled = true;
 	port->tr_ops = ops;
 	return 0;
+
+out_put:
+	module_put(ops->owner);
+	return ret;
 }
 
 void nvmet_disable_port(struct nvmet_port *port)
