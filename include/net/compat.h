@@ -30,6 +30,24 @@ struct compat_cmsghdr {
 	compat_int_t	cmsg_type;
 };
 
+struct compat_rtentry {
+	u32		rt_pad1;
+	struct sockaddr rt_dst;         /* target address               */
+	struct sockaddr rt_gateway;     /* gateway addr (RTF_GATEWAY)   */
+	struct sockaddr rt_genmask;     /* target network mask (IP)     */
+	unsigned short	rt_flags;
+	short		rt_pad2;
+	u32		rt_pad3;
+	unsigned char	rt_tos;
+	unsigned char	rt_class;
+	short		rt_pad4;
+	short		rt_metric;      /* +1 for binary compatibility! */
+	compat_uptr_t	rt_dev;         /* forcing the device at add    */
+	u32		rt_mtu;         /* per route MTU/Window         */
+	u32		rt_window;      /* Window clamping              */
+	unsigned short  rt_irtt;        /* Initial RTT                  */
+};
+
 #else /* defined(CONFIG_COMPAT) */
 /*
  * To avoid compiler warnings:

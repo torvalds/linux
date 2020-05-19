@@ -60,6 +60,7 @@
 #include <net/calipso.h>
 #include <net/seg6.h>
 #include <net/rpl.h>
+#include <net/compat.h>
 
 #include <linux/uaccess.h>
 #include <linux/mroute6.h>
@@ -542,21 +543,25 @@ EXPORT_SYMBOL(inet6_getname);
 
 int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = (void __user *)arg;
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
 
 	switch (cmd) {
 	case SIOCADDRT:
-	case SIOCDELRT:
+	case SIOCDELRT: {
+		struct in6_rtmsg rtmsg;
 
-		return ipv6_route_ioctl(net, cmd, (void __user *)arg);
-
+		if (copy_from_user(&rtmsg, argp, sizeof(rtmsg)))
+			return -EFAULT;
+		return ipv6_route_ioctl(net, cmd, &rtmsg);
+	}
 	case SIOCSIFADDR:
-		return addrconf_add_ifaddr(net, (void __user *) arg);
+		return addrconf_add_ifaddr(net, argp);
 	case SIOCDIFADDR:
-		return addrconf_del_ifaddr(net, (void __user *) arg);
+		return addrconf_del_ifaddr(net, argp);
 	case SIOCSIFDSTADDR:
-		return addrconf_set_dstaddr(net, (void __user *) arg);
+		return addrconf_set_dstaddr(net, argp);
 	default:
 		if (!sk->sk_prot->ioctl)
 			return -ENOIOCTLCMD;
@@ -566,6 +571,56 @@ int inet6_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 EXPORT_SYMBOL(inet6_ioctl);
+
+#ifdef CONFIG_COMPAT
+struct compat_in6_rtmsg {
+	struct in6_addr		rtmsg_dst;
+	struct in6_addr		rtmsg_src;
+	struct in6_addr		rtmsg_gateway;
+	u32			rtmsg_type;
+	u16			rtmsg_dst_len;
+	u16			rtmsg_src_len;
+	u32			rtmsg_metric;
+	u32			rtmsg_info;
+	u32			rtmsg_flags;
+	s32			rtmsg_ifindex;
+};
+
+static int inet6_compat_routing_ioctl(struct sock *sk, unsigned int cmd,
+		struct compat_in6_rtmsg __user *ur)
+{
+	struct in6_rtmsg rt;
+
+	if (copy_from_user(&rt.rtmsg_dst, &ur->rtmsg_dst,
+			3 * sizeof(struct in6_addr)) ||
+	    get_user(rt.rtmsg_type, &ur->rtmsg_type) ||
+	    get_user(rt.rtmsg_dst_len, &ur->rtmsg_dst_len) ||
+	    get_user(rt.rtmsg_src_len, &ur->rtmsg_src_len) ||
+	    get_user(rt.rtmsg_metric, &ur->rtmsg_metric) ||
+	    get_user(rt.rtmsg_info, &ur->rtmsg_info) ||
+	    get_user(rt.rtmsg_flags, &ur->rtmsg_flags) ||
+	    get_user(rt.rtmsg_ifindex, &ur->rtmsg_ifindex))
+		return -EFAULT;
+
+
+	return ipv6_route_ioctl(sock_net(sk), cmd, &rt);
+}
+
+int inet6_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
+{
+	void __user *argp = compat_ptr(arg);
+	struct sock *sk = sock->sk;
+
+	switch (cmd) {
+	case SIOCADDRT:
+	case SIOCDELRT:
+		return inet6_compat_routing_ioctl(sk, cmd, argp);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+EXPORT_SYMBOL_GPL(inet6_compat_ioctl);
+#endif /* CONFIG_COMPAT */
 
 INDIRECT_CALLABLE_DECLARE(int udpv6_sendmsg(struct sock *, struct msghdr *,
 					    size_t));
@@ -628,6 +683,7 @@ const struct proto_ops inet6_stream_ops = {
 	.read_sock	   = tcp_read_sock,
 	.peek_len	   = tcp_peek_len,
 #ifdef CONFIG_COMPAT
+	.compat_ioctl	   = inet6_compat_ioctl,
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
@@ -656,6 +712,7 @@ const struct proto_ops inet6_dgram_ops = {
 	.sendpage	   = sock_no_sendpage,
 	.set_peek_off	   = sk_set_peek_off,
 #ifdef CONFIG_COMPAT
+	.compat_ioctl	   = inet6_compat_ioctl,
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif

@@ -116,6 +116,7 @@
 #include <linux/mroute.h>
 #endif
 #include <net/l3mdev.h>
+#include <net/compat.h>
 
 #include <trace/events/sock.h>
 
@@ -970,17 +971,42 @@ int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 EXPORT_SYMBOL(inet_ioctl);
 
 #ifdef CONFIG_COMPAT
+static int inet_compat_routing_ioctl(struct sock *sk, unsigned int cmd,
+		struct compat_rtentry __user *ur)
+{
+	compat_uptr_t rtdev;
+	struct rtentry rt;
+
+	if (copy_from_user(&rt.rt_dst, &ur->rt_dst,
+			3 * sizeof(struct sockaddr)) ||
+	    get_user(rt.rt_flags, &ur->rt_flags) ||
+	    get_user(rt.rt_metric, &ur->rt_metric) ||
+	    get_user(rt.rt_mtu, &ur->rt_mtu) ||
+	    get_user(rt.rt_window, &ur->rt_window) ||
+	    get_user(rt.rt_irtt, &ur->rt_irtt) ||
+	    get_user(rtdev, &ur->rt_dev))
+		return -EFAULT;
+
+	rt.rt_dev = compat_ptr(rtdev);
+	return ip_rt_ioctl(sock_net(sk), cmd, &rt);
+}
+
 static int inet_compat_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 {
+	void __user *argp = compat_ptr(arg);
 	struct sock *sk = sock->sk;
-	int err = -ENOIOCTLCMD;
 
-	if (sk->sk_prot->compat_ioctl)
-		err = sk->sk_prot->compat_ioctl(sk, cmd, arg);
-
-	return err;
+	switch (cmd) {
+	case SIOCADDRT:
+	case SIOCDELRT:
+		return inet_compat_routing_ioctl(sk, cmd, argp);
+	default:
+		if (!sk->sk_prot->compat_ioctl)
+			return -ENOIOCTLCMD;
+		return sk->sk_prot->compat_ioctl(sk, cmd, arg);
+	}
 }
-#endif
+#endif /* CONFIG_COMPAT */
 
 const struct proto_ops inet_stream_ops = {
 	.family		   = PF_INET,
