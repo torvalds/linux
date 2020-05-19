@@ -653,7 +653,7 @@ void set_cpu_mask_from_punit_coremask(int cpu, unsigned long long core_mask,
 	pkg_id = get_physical_package_id(cpu);
 
 	for (i = 0; i < 64; ++i) {
-		if (core_mask & BIT(i)) {
+		if (core_mask & BIT_ULL(i)) {
 			int j;
 
 			for (j = 0; j < topo_max_cpus; ++j) {
