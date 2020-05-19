@@ -2186,7 +2186,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	const unsigned short *address_list;
 	struct i2c_client *temp_client;
 	int i, err = 0;
-	int adap_id = i2c_adapter_id(adapter);
 
 	address_list = driver->address_list;
 	if (!driver->detect || !address_list)
@@ -2214,7 +2213,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev,
 			"found normal entry for adapter %d, addr 0x%02x\n",
-			adap_id, address_list[i]);
+			i2c_adapter_id(adapter), address_list[i]);
 		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
 		if (unlikely(err))
