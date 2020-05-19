@@ -635,6 +635,7 @@ static const struct uapi_definition uverbs_core_api[] = {
 	UAPI_DEF_CHAIN(uverbs_def_obj_intf),
 	UAPI_DEF_CHAIN(uverbs_def_obj_mr),
 	UAPI_DEF_CHAIN(uverbs_def_obj_srq),
+	UAPI_DEF_CHAIN(uverbs_def_obj_wq),
 	UAPI_DEF_CHAIN(uverbs_def_write_intf),
 	{},
 };

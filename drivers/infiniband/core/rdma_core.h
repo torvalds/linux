@@ -160,6 +160,7 @@ extern const struct uapi_definition uverbs_def_obj_flow_action[];
 extern const struct uapi_definition uverbs_def_obj_intf[];
 extern const struct uapi_definition uverbs_def_obj_mr[];
 extern const struct uapi_definition uverbs_def_obj_srq[];
+extern const struct uapi_definition uverbs_def_obj_wq[];
 extern const struct uapi_definition uverbs_def_write_intf[];
 
 static inline const struct uverbs_api_write_method *
