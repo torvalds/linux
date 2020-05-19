@@ -14,6 +14,8 @@
 #include <net/genetlink.h>
 #include <net/psample.h>
 #include <linux/spinlock.h>
+#include <net/ip_tunnels.h>
+#include <net/dst_metadata.h>
 
 #define PSAMPLE_MAX_PACKET_SIZE 0xffff
 
@@ -207,10 +209,155 @@ void psample_group_put(struct psample_group *group)
 }
 EXPORT_SYMBOL_GPL(psample_group_put);
 
+static int __psample_ip_tun_to_nlattr(struct sk_buff *skb,
+			      struct ip_tunnel_info *tun_info)
+{
+	unsigned short tun_proto = ip_tunnel_info_af(tun_info);
+	const void *tun_opts = ip_tunnel_info_opts(tun_info);
+	const struct ip_tunnel_key *tun_key = &tun_info->key;
+	int tun_opts_len = tun_info->options_len;
+
+	if (tun_key->tun_flags & TUNNEL_KEY &&
+	    nla_put_be64(skb, PSAMPLE_TUNNEL_KEY_ATTR_ID, tun_key->tun_id,
+			 PSAMPLE_TUNNEL_KEY_ATTR_PAD))
+		return -EMSGSIZE;
+
+	if (tun_info->mode & IP_TUNNEL_INFO_BRIDGE &&
+	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE))
+		return -EMSGSIZE;
+
+	switch (tun_proto) {
+	case AF_INET:
+		if (tun_key->u.ipv4.src &&
+		    nla_put_in_addr(skb, PSAMPLE_TUNNEL_KEY_ATTR_IPV4_SRC,
+				    tun_key->u.ipv4.src))
+			return -EMSGSIZE;
+		if (tun_key->u.ipv4.dst &&
+		    nla_put_in_addr(skb, PSAMPLE_TUNNEL_KEY_ATTR_IPV4_DST,
+				    tun_key->u.ipv4.dst))
+			return -EMSGSIZE;
+		break;
+	case AF_INET6:
+		if (!ipv6_addr_any(&tun_key->u.ipv6.src) &&
+		    nla_put_in6_addr(skb, PSAMPLE_TUNNEL_KEY_ATTR_IPV6_SRC,
+				     &tun_key->u.ipv6.src))
+			return -EMSGSIZE;
+		if (!ipv6_addr_any(&tun_key->u.ipv6.dst) &&
+		    nla_put_in6_addr(skb, PSAMPLE_TUNNEL_KEY_ATTR_IPV6_DST,
+				     &tun_key->u.ipv6.dst))
+			return -EMSGSIZE;
+		break;
+	}
+	if (tun_key->tos &&
+	    nla_put_u8(skb, PSAMPLE_TUNNEL_KEY_ATTR_TOS, tun_key->tos))
+		return -EMSGSIZE;
+	if (nla_put_u8(skb, PSAMPLE_TUNNEL_KEY_ATTR_TTL, tun_key->ttl))
+		return -EMSGSIZE;
+	if ((tun_key->tun_flags & TUNNEL_DONT_FRAGMENT) &&
+	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_DONT_FRAGMENT))
+		return -EMSGSIZE;
+	if ((tun_key->tun_flags & TUNNEL_CSUM) &&
+	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_CSUM))
+		return -EMSGSIZE;
+	if (tun_key->tp_src &&
+	    nla_put_be16(skb, PSAMPLE_TUNNEL_KEY_ATTR_TP_SRC, tun_key->tp_src))
+		return -EMSGSIZE;
+	if (tun_key->tp_dst &&
+	    nla_put_be16(skb, PSAMPLE_TUNNEL_KEY_ATTR_TP_DST, tun_key->tp_dst))
+		return -EMSGSIZE;
+	if ((tun_key->tun_flags & TUNNEL_OAM) &&
+	    nla_put_flag(skb, PSAMPLE_TUNNEL_KEY_ATTR_OAM))
+		return -EMSGSIZE;
+	if (tun_opts_len) {
+		if (tun_key->tun_flags & TUNNEL_GENEVE_OPT &&
+		    nla_put(skb, PSAMPLE_TUNNEL_KEY_ATTR_GENEVE_OPTS,
+			    tun_opts_len, tun_opts))
+			return -EMSGSIZE;
+		else if (tun_key->tun_flags & TUNNEL_ERSPAN_OPT &&
+			 nla_put(skb, PSAMPLE_TUNNEL_KEY_ATTR_ERSPAN_OPTS,
+				 tun_opts_len, tun_opts))
+			return -EMSGSIZE;
+	}
+
+	return 0;
+}
+
+static int psample_ip_tun_to_nlattr(struct sk_buff *skb,
+			    struct ip_tunnel_info *tun_info)
+{
+	struct nlattr *nla;
+	int err;
+
+	nla = nla_nest_start_noflag(skb, PSAMPLE_ATTR_TUNNEL);
+	if (!nla)
+		return -EMSGSIZE;
+
+	err = __psample_ip_tun_to_nlattr(skb, tun_info);
+	if (err) {
+		nla_nest_cancel(skb, nla);
+		return err;
+	}
+
+	nla_nest_end(skb, nla);
+
+	return 0;
+}
+
+static int psample_tunnel_meta_len(struct ip_tunnel_info *tun_info)
+{
+	unsigned short tun_proto = ip_tunnel_info_af(tun_info);
+	const struct ip_tunnel_key *tun_key = &tun_info->key;
+	int tun_opts_len = tun_info->options_len;
+	int sum = 0;
+
+	if (tun_key->tun_flags & TUNNEL_KEY)
+		sum += nla_total_size(sizeof(u64));
+
+	if (tun_info->mode & IP_TUNNEL_INFO_BRIDGE)
+		sum += nla_total_size(0);
+
+	switch (tun_proto) {
+	case AF_INET:
+		if (tun_key->u.ipv4.src)
+			sum += nla_total_size(sizeof(u32));
+		if (tun_key->u.ipv4.dst)
+			sum += nla_total_size(sizeof(u32));
+		break;
+	case AF_INET6:
+		if (!ipv6_addr_any(&tun_key->u.ipv6.src))
+			sum += nla_total_size(sizeof(struct in6_addr));
+		if (!ipv6_addr_any(&tun_key->u.ipv6.dst))
+			sum += nla_total_size(sizeof(struct in6_addr));
+		break;
+	}
+	if (tun_key->tos)
+		sum += nla_total_size(sizeof(u8));
+	sum += nla_total_size(sizeof(u8));	/* TTL */
+	if (tun_key->tun_flags & TUNNEL_DONT_FRAGMENT)
+		sum += nla_total_size(0);
+	if (tun_key->tun_flags & TUNNEL_CSUM)
+		sum += nla_total_size(0);
+	if (tun_key->tp_src)
+		sum += nla_total_size(sizeof(u16));
+	if (tun_key->tp_dst)
+		sum += nla_total_size(sizeof(u16));
+	if (tun_key->tun_flags & TUNNEL_OAM)
+		sum += nla_total_size(0);
+	if (tun_opts_len) {
+		if (tun_key->tun_flags & TUNNEL_GENEVE_OPT)
+			sum += nla_total_size(tun_opts_len);
+		else if (tun_key->tun_flags & TUNNEL_ERSPAN_OPT)
+			sum += nla_total_size(tun_opts_len);
+	}
+
+	return sum;
+}
+
 void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 			   u32 trunc_size, int in_ifindex, int out_ifindex,
 			   u32 sample_rate)
 {
+	struct ip_tunnel_info *tun_info;
 	struct sk_buff *nl_skb;
 	int data_len;
 	int meta_len;
@@ -223,6 +370,10 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		   nla_total_size(sizeof(u32)) +	/* orig_size */
 		   nla_total_size(sizeof(u32)) +	/* group_num */
 		   nla_total_size(sizeof(u32));		/* seq */
+
+	tun_info = skb_tunnel_info(skb);
+	if (tun_info)
+		meta_len += psample_tunnel_meta_len(tun_info);
 
 	data_len = min(skb->len, trunc_size);
 	if (meta_len + nla_total_size(data_len) > PSAMPLE_MAX_PACKET_SIZE)
@@ -275,6 +426,12 @@ void psample_sample_packet(struct psample_group *group, struct sk_buff *skb,
 		nla->nla_len = nla_attr_size(data_len);
 
 		if (skb_copy_bits(skb, 0, nla_data(nla), data_len))
+			goto error;
+	}
+
+	if (tun_info) {
+		ret = psample_ip_tun_to_nlattr(nl_skb, tun_info);
+		if (unlikely(ret < 0))
 			goto error;
 	}
 
