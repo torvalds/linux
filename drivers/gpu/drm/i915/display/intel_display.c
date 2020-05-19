@@ -14567,12 +14567,6 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 			return ret;
 	}
 
-	ret = intel_modeset_calc_cdclk(state);
-	if (ret)
-		return ret;
-
-	intel_modeset_clear_plls(state);
-
 	if (IS_HASWELL(dev_priv))
 		return hsw_mode_set_planes_workaround(state);
 
@@ -14904,16 +14898,24 @@ static int intel_atomic_check(struct drm_device *dev,
 			goto fail;
 	}
 
-	ret = intel_atomic_check_crtcs(state);
-	if (ret)
-		goto fail;
-
 	intel_fbc_choose_crtc(dev_priv, state);
 	ret = calc_watermark_data(state);
 	if (ret)
 		goto fail;
 
 	ret = intel_bw_atomic_check(state);
+	if (ret)
+		goto fail;
+
+	if (any_ms) {
+		ret = intel_modeset_calc_cdclk(state);
+		if (ret)
+			return ret;
+
+		intel_modeset_clear_plls(state);
+	}
+
+	ret = intel_atomic_check_crtcs(state);
 	if (ret)
 		goto fail;
 
