@@ -660,8 +660,8 @@ static int map_cont_bufs(struct rtrs_srv_sess *sess)
 					GFP_KERNEL, sess->s.dev->ib_dev,
 					DMA_TO_DEVICE, rtrs_srv_rdma_done);
 			if (!srv_mr->iu) {
-				rtrs_err(ss, "rtrs_iu_alloc(), err: %d\n",
-					  -ENOMEM);
+				err = -ENOMEM;
+				rtrs_err(ss, "rtrs_iu_alloc(), err: %d\n", err);
 				goto free_iu;
 			}
 		}
@@ -2150,8 +2150,10 @@ static int __init rtrs_server_init(void)
 		goto out_chunk_pool;
 	}
 	rtrs_wq = alloc_workqueue("rtrs_server_wq", WQ_MEM_RECLAIM, 0);
-	if (!rtrs_wq)
+	if (!rtrs_wq) {
+		err = -ENOMEM;
 		goto out_dev_class;
+	}
 
 	return 0;
 

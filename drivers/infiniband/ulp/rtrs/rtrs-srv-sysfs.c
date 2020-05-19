@@ -189,6 +189,7 @@ static int rtrs_srv_create_once_sysfs_root_folders(struct rtrs_srv_sess *sess)
 	}
 	srv->kobj_paths = kobject_create_and_add("paths", &srv->dev.kobj);
 	if (!srv->kobj_paths) {
+		err = -ENOMEM;
 		pr_err("kobject_create_and_add(): %d\n", err);
 		device_unregister(&srv->dev);
 		goto unlock;
