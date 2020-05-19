@@ -15,9 +15,7 @@
 #include "edac_module.h"
 #include <ras/ras_event.h>
 
-struct ghes_edac_pvt {
-	struct list_head list;
-	struct ghes *ghes;
+struct ghes_pvt {
 	struct mem_ctl_info *mci;
 
 	/* Buffers for the error handling routine */
@@ -32,7 +30,7 @@ static refcount_t ghes_refcount = REFCOUNT_INIT(0);
  * also provides the necessary (implicit) memory barrier for the SMP
  * case to make the pointer visible on another CPU.
  */
-static struct ghes_edac_pvt *ghes_pvt;
+static struct ghes_pvt *ghes_pvt;
 
 /* GHES registration mutex */
 static DEFINE_MUTEX(ghes_reg_mutex);
@@ -212,7 +210,7 @@ void ghes_edac_report_mem_error(int sev, struct cper_sec_mem_err *mem_err)
 {
 	struct edac_raw_error_desc *e;
 	struct mem_ctl_info *mci;
-	struct ghes_edac_pvt *pvt;
+	struct ghes_pvt *pvt;
 	unsigned long flags;
 	char *p;
 
@@ -470,7 +468,7 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	bool fake = false;
 	int rc = 0, num_dimm = 0;
 	struct mem_ctl_info *mci;
-	struct ghes_edac_pvt *pvt;
+	struct ghes_pvt *pvt;
 	struct edac_mc_layer layers[1];
 	struct ghes_edac_dimm_fill dimm_fill;
 	unsigned long flags;
@@ -507,7 +505,7 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	layers[0].size = num_dimm;
 	layers[0].is_virt_csrow = true;
 
-	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(struct ghes_edac_pvt));
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(struct ghes_pvt));
 	if (!mci) {
 		pr_info("Can't allocate memory for EDAC data\n");
 		rc = -ENOMEM;
@@ -515,7 +513,6 @@ int ghes_edac_register(struct ghes *ghes, struct device *dev)
 	}
 
 	pvt		= mci->pvt_info;
-	pvt->ghes	= ghes;
 	pvt->mci	= mci;
 
 	mci->pdev = dev;
