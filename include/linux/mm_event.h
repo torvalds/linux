@@ -10,7 +10,12 @@ enum mm_event_type {
 	MM_RECLAIM = 4,
 	MM_SWP_FAULT = 5,
 	MM_KERN_ALLOC = 6,
-	MM_TYPE_NUM = 7,
+	BLK_READ_SUBMIT_BIO = 7,
+	UFS_READ_QUEUE_CMD = 8,
+	UFS_READ_SEND_CMD = 9,
+	UFS_READ_COMPL_CMD = 10,
+	F2FS_READ_DATA = 11,
+	MM_TYPE_NUM = 12,
 };
 
 struct mm_event_task {

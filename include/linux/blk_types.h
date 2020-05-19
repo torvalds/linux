@@ -212,6 +212,8 @@ struct bio {
 
 	struct bio_set		*bi_pool;
 
+	ktime_t bi_alloc_ts;			/* for mm_event */
+
 	ANDROID_KABI_RESERVE(1);
 	ANDROID_KABI_RESERVE(2);
 
