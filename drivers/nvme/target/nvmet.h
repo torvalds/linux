@@ -309,6 +309,7 @@ struct nvmet_req {
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
 	struct scatterlist	*sg;
+	struct scatterlist	*metadata_sg;
 	struct bio_vec		inline_bvec[NVMET_MAX_INLINE_BIOVEC];
 	union {
 		struct {
@@ -322,8 +323,10 @@ struct nvmet_req {
 		} f;
 	};
 	int			sg_cnt;
+	int			metadata_sg_cnt;
 	/* data length as parsed from the SGL descriptor: */
 	size_t			transfer_len;
+	size_t			metadata_len;
 
 	struct nvmet_port	*port;
 
@@ -394,8 +397,8 @@ void nvmet_req_uninit(struct nvmet_req *req);
 bool nvmet_check_transfer_len(struct nvmet_req *req, size_t len);
 bool nvmet_check_data_len_lte(struct nvmet_req *req, size_t data_len);
 void nvmet_req_complete(struct nvmet_req *req, u16 status);
-int nvmet_req_alloc_sgl(struct nvmet_req *req);
-void nvmet_req_free_sgl(struct nvmet_req *req);
+int nvmet_req_alloc_sgls(struct nvmet_req *req);
+void nvmet_req_free_sgls(struct nvmet_req *req);
 
 void nvmet_execute_keep_alive(struct nvmet_req *req);
 
