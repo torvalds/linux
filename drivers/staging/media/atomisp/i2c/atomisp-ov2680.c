@@ -78,146 +78,44 @@ static int ov2680_read_reg(struct i2c_client *client,
 	return 0;
 }
 
-static int ov2680_i2c_write(struct i2c_client *client, u16 len, u8 *data)
-{
-	struct i2c_msg msg;
-	const int num_msg = 1;
-	int ret;
-
-	msg.addr = client->addr;
-	msg.flags = 0;
-	msg.len = len;
-	msg.buf = data;
-	ret = i2c_transfer(client->adapter, &msg, 1);
-
-	if (ret < 0)
-		dev_dbg(&client->dev,
-			"%s: i2c write reg=0x%02x, value 0x%02x, error %d\n",
-			__func__, data[0]*256 +data[1], data[2], ret);
-	return ret == num_msg ? 0 : ret;
-}
-
 static int ov2680_write_reg(struct i2c_client *client, unsigned int len,
 			    u16 reg, u16 val)
 {
 	u8 buf[6];
 	int ret;
 
-	if (len > 4)
+	if (len == 2)
+		put_unaligned_be16(val << (8 * (4 - len)), buf + 2);
+	else if (len == 1)
+		buf[2] = val;
+	else
 		return -EINVAL;
 
 	put_unaligned_be16(reg, buf);
-	put_unaligned_be32(val << (8 * (4 - len)), buf + 2);
+
 	ret = i2c_master_send(client, buf, len + 2);
 	if (ret != len + 2) {
-		dev_err(&client->dev, "write error: reg=0x%4x: %d\n", reg, ret);
+		dev_err(&client->dev, "write error %d reg 0x%04x, val 0x%02x: buf sent: %*ph\n",
+			ret, reg, val, len + 2, &buf);
 		return -EIO;
 	}
 
 	return 0;
 }
 
-/*
- * ov2680_write_reg_array - Initializes a list of OV2680 registers
- * @client: i2c driver client structure
- * @reglist: list of registers to be written
- *
- * This function initializes a list of registers. When consecutive addresses
- * are found in a row on the list, this function creates a buffer and sends
- * consecutive data in a single i2c_transfer().
- *
- * __ov2680_flush_reg_array, __ov2680_buf_reg_array() and
- * __ov2680_write_reg_is_consecutive() are internal functions to
- * ov2680_write_reg_array_fast() and should be not used anywhere else.
- *
- */
-
-static int __ov2680_flush_reg_array(struct i2c_client *client,
-				    struct ov2680_write_ctrl *ctrl)
-{
-	u16 size;
-	__be16 *data16 = (void *)&ctrl->buffer.addr;
-
-	if (ctrl->index == 0) {
-		dev_dbg(&client->dev,  "%s: *not* flushing reg_array\n",
-		        __func__);
-		return 0;
-	}
-
-	dev_dbg(&client->dev,  "%s: flushing reg_array\n", __func__);
-
-	size = sizeof(u16) + ctrl->index; /* 16-bit address + data */
-	*data16 = cpu_to_be16(ctrl->buffer.addr);
-	ctrl->index = 0;
-
-	return ov2680_i2c_write(client, size, (u8 *)&ctrl->buffer);
-}
-
-static int __ov2680_buf_reg_array(struct i2c_client *client,
-				  struct ov2680_write_ctrl *ctrl,
-				  const struct ov2680_reg *next)
-{
-	int size;
-
-	size = 1;
-	ctrl->buffer.data[ctrl->index] = (u8)next->val;
-
-	/* When first item is added, we need to store its starting address */
-	if (ctrl->index == 0)
-		ctrl->buffer.addr = next->reg;
-
-	ctrl->index += size;
-
-	/*
-	 * Buffer cannot guarantee free space for u32? Better flush it to avoid
-	 * possible lack of memory for next item.
-	 */
-	if (ctrl->index + sizeof(u16) >= OV2680_MAX_WRITE_BUF_SIZE)
-		return __ov2680_flush_reg_array(client, ctrl);
-
-	return 0;
-}
-
-static int __ov2680_write_reg_is_consecutive(struct i2c_client *client,
-	struct ov2680_write_ctrl *ctrl,
-	const struct ov2680_reg *next)
-{
-	if (ctrl->index == 0)
-		return 1;
-
-	return ctrl->buffer.addr + ctrl->index == next->reg;
-}
-
 static int ov2680_write_reg_array(struct i2c_client *client,
 				  const struct ov2680_reg *reglist)
 {
 	const struct ov2680_reg *next = reglist;
-	struct ov2680_write_ctrl ctrl;
-	int err;
+	int ret;
 
-	ctrl.index = 0;
 	for (; next->reg != 0; next++) {
-		/*
-		    * If next address is not consecutive, data needs to be
-		    * flushed before proceed.
-		    */
-		dev_dbg(&client->dev,  "%s: reg=0x%02x set to 0x%02x\n",
-			__func__, next->reg, next->val);
-		if (!__ov2680_write_reg_is_consecutive(client, &ctrl,
-							next)) {
-			err = __ov2680_flush_reg_array(client, &ctrl);
-			if (err)
-				return err;
-		}
-		err = __ov2680_buf_reg_array(client, &ctrl, next);
-		if (err) {
-			dev_err(&client->dev,
-				"%s: write error, aborted\n", __func__);
-			return err;
-		}
+		ret = ov2680_write_reg(client, 1, next->reg, next->val);
+		if (ret)
+			return ret;
 	}
 
-	return __ov2680_flush_reg_array(client, &ctrl);
+	return 0;
 }
 
 static int ov2680_g_focal(struct v4l2_subdev *sd, s32 *val)
