@@ -1359,10 +1359,12 @@ EXPORT_SYMBOL(denali_init);
 
 void denali_remove(struct denali_controller *denali)
 {
-	struct denali_chip *dchip;
+	struct denali_chip *dchip, *tmp;
 
-	list_for_each_entry(dchip, &denali->chips, node)
+	list_for_each_entry_safe(dchip, tmp, &denali->chips, node) {
 		nand_release(&dchip->chip);
+		list_del(&dchip->node);
+	}
 
 	denali_disable_irq(denali);
 }
