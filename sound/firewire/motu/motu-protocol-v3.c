@@ -165,8 +165,6 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 {
 	unsigned char pcm_chunks[3] = {0, 0, 0};
 
-	formats->msg_chunks = 2;
-
 	pcm_chunks[0] = analog_ports;
 	pcm_chunks[1] = analog_ports;
 	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
@@ -278,11 +276,62 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 	}
 }
 
+static int detect_packet_formats_828mk3(struct snd_motu *motu, u32 data)
+{
+	if (data & V3_ENABLE_OPT_IN_IFACE_A) {
+		if (data & V3_NO_ADAT_OPT_IN_IFACE_A) {
+			motu->tx_packet_formats.pcm_chunks[0] += 4;
+			motu->tx_packet_formats.pcm_chunks[1] += 4;
+		} else {
+			motu->tx_packet_formats.pcm_chunks[0] += 8;
+			motu->tx_packet_formats.pcm_chunks[1] += 4;
+		}
+	}
+
+	if (data & V3_ENABLE_OPT_IN_IFACE_B) {
+		if (data & V3_NO_ADAT_OPT_IN_IFACE_B) {
+			motu->tx_packet_formats.pcm_chunks[0] += 4;
+			motu->tx_packet_formats.pcm_chunks[1] += 4;
+		} else {
+			motu->tx_packet_formats.pcm_chunks[0] += 8;
+			motu->tx_packet_formats.pcm_chunks[1] += 4;
+		}
+	}
+
+	if (data & V3_ENABLE_OPT_OUT_IFACE_A) {
+		if (data & V3_NO_ADAT_OPT_OUT_IFACE_A) {
+			motu->rx_packet_formats.pcm_chunks[0] += 4;
+			motu->rx_packet_formats.pcm_chunks[1] += 4;
+		} else {
+			motu->rx_packet_formats.pcm_chunks[0] += 8;
+			motu->rx_packet_formats.pcm_chunks[1] += 4;
+		}
+	}
+
+	if (data & V3_ENABLE_OPT_OUT_IFACE_B) {
+		if (data & V3_NO_ADAT_OPT_OUT_IFACE_B) {
+			motu->rx_packet_formats.pcm_chunks[0] += 4;
+			motu->rx_packet_formats.pcm_chunks[1] += 4;
+		} else {
+			motu->rx_packet_formats.pcm_chunks[0] += 8;
+			motu->rx_packet_formats.pcm_chunks[1] += 4;
+		}
+	}
+
+	return 0;
+}
+
 int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
 	u32 data;
 	int err;
+
+	motu->tx_packet_formats.pcm_byte_offset = 10;
+	motu->rx_packet_formats.pcm_byte_offset = 10;
+
+	motu->tx_packet_formats.msg_chunks = 2;
+	motu->rx_packet_formats.msg_chunks = 2;
 
 	err = snd_motu_transaction_read(motu, V3_OPT_IFACE_MODE_OFFSET, &reg,
 					sizeof(reg));
@@ -304,10 +353,17 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 			V3_ENABLE_OPT_OUT_IFACE_A, V3_NO_ADAT_OPT_OUT_IFACE_A,
 			V3_ENABLE_OPT_OUT_IFACE_B, V3_NO_ADAT_OPT_OUT_IFACE_B);
 
-	motu->tx_packet_formats.pcm_byte_offset = 10;
-	motu->rx_packet_formats.pcm_byte_offset = 10;
+	memcpy(motu->tx_packet_formats.pcm_chunks,
+	       motu->spec->tx_fixed_pcm_chunks,
+	       sizeof(motu->tx_packet_formats.pcm_chunks));
+	memcpy(motu->rx_packet_formats.pcm_chunks,
+	       motu->spec->rx_fixed_pcm_chunks,
+	       sizeof(motu->rx_packet_formats.pcm_chunks));
 
-	return 0;
+	if (motu->spec == &snd_motu_spec_828mk3)
+		return detect_packet_formats_828mk3(motu, data);
+	else
+		return 0;
 }
 
 

@@ -345,6 +345,12 @@ int snd_motu_protocol_v2_cache_packet_formats(struct snd_motu *motu)
 	calculate_differed_part(&motu->rx_packet_formats, motu->spec->flags,
 			data, V2_OPT_OUT_IFACE_MASK, V2_OPT_OUT_IFACE_SHIFT);
 
+	memcpy(motu->tx_packet_formats.pcm_chunks,
+	       motu->spec->tx_fixed_pcm_chunks,
+	       sizeof(motu->tx_packet_formats.pcm_chunks));
+	memcpy(motu->rx_packet_formats.pcm_chunks,
+	       motu->spec->rx_fixed_pcm_chunks,
+	       sizeof(motu->rx_packet_formats.pcm_chunks));
 
 	if (motu->spec == &snd_motu_spec_828mk2)
 		return detect_packet_formats_828mk2(motu, data);
