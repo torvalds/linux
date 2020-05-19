@@ -3048,9 +3048,15 @@ int brcmnand_remove(struct platform_device *pdev)
 {
 	struct brcmnand_controller *ctrl = dev_get_drvdata(&pdev->dev);
 	struct brcmnand_host *host;
+	struct nand_chip *chip;
+	int ret;
 
-	list_for_each_entry(host, &ctrl->host_list, node)
-		nand_release(&host->chip);
+	list_for_each_entry(host, &ctrl->host_list, node) {
+		chip = &host->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
+	}
 
 	clk_disable_unprepare(ctrl->clk);
 
