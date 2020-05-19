@@ -1216,6 +1216,7 @@ find_and_get_or_create_sess(const char *sessname,
 				   paths, path_cnt, port_nr,
 				   sizeof(struct rnbd_iu),
 				   RECONNECT_DELAY, BMAX_SEGMENTS,
+				   BLK_MAX_SEGMENT_SIZE,
 				   MAX_RECONNECTS);
 	if (IS_ERR(sess->rtrs)) {
 		err = PTR_ERR(sess->rtrs);
