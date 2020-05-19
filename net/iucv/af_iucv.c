@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
+#include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -1559,7 +1560,7 @@ static int iucv_sock_setsockopt(struct socket *sock, int level, int optname,
 		switch (sk->sk_state) {
 		case IUCV_OPEN:
 		case IUCV_BOUND:
-			if (val < 1 || val > (u16)(~0))
+			if (val < 1 || val > U16_MAX)
 				rc = -EINVAL;
 			else
 				iucv->msglimit = val;
