@@ -75,7 +75,7 @@ static bool is_active(struct i915_request *rq)
 	if (i915_request_on_hold(rq))
 		return true;
 
-	if (i915_request_started(rq))
+	if (i915_request_has_initial_breadcrumb(rq) && i915_request_started(rq))
 		return true;
 
 	return false;
