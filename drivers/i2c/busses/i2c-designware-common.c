@@ -127,16 +127,14 @@ int i2c_dw_validate_speed(struct dw_i2c_dev *dev)
 	 */
 	for (i = 0; i < ARRAY_SIZE(i2c_dw_supported_speeds); i++) {
 		if (t->bus_freq_hz == i2c_dw_supported_speeds[i])
-			break;
-	}
-	if (i == ARRAY_SIZE(i2c_dw_supported_speeds)) {
-		dev_err(dev->dev,
-			"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
-			t->bus_freq_hz);
-		return -EINVAL;
+			return 0;
 	}
 
-	return 0;
+	dev_err(dev->dev,
+		"%d Hz is unsupported, only 100kHz, 400kHz, 1MHz and 3.4MHz are supported\n",
+		t->bus_freq_hz);
+
+	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(i2c_dw_validate_speed);
 
