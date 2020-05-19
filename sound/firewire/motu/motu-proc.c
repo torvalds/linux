@@ -28,13 +28,12 @@ static void proc_read_clock(struct snd_info_entry *entry,
 {
 
 	struct snd_motu *motu = entry->private_data;
-	const struct snd_motu_protocol *const protocol = motu->spec->protocol;
 	unsigned int rate;
 	enum snd_motu_clock_source source;
 
-	if (protocol->get_clock_rate(motu, &rate) < 0)
+	if (snd_motu_protocol_get_clock_rate(motu, &rate) < 0)
 		return;
-	if (protocol->get_clock_source(motu, &source) < 0)
+	if (snd_motu_protocol_get_clock_source(motu, &source) < 0)
 		return;
 
 	snd_iprintf(buffer, "Rate:\t%d\n", rate);
@@ -45,12 +44,11 @@ static void proc_read_format(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
 	struct snd_motu *motu = entry->private_data;
-	const struct snd_motu_protocol *const protocol = motu->spec->protocol;
 	unsigned int mode;
 	struct snd_motu_packet_format *formats;
 	int i;
 
-	if (protocol->cache_packet_formats(motu) < 0)
+	if (snd_motu_protocol_cache_packet_formats(motu) < 0)
 		return;
 
 	snd_iprintf(buffer, "tx:\tmsg\tfixed\tdiffered\n");

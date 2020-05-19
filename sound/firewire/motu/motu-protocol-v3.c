@@ -24,7 +24,8 @@
 #define  V3_NO_ADAT_OPT_OUT_IFACE_A	0x00040000
 #define  V3_NO_ADAT_OPT_OUT_IFACE_B	0x00400000
 
-static int v3_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
+int snd_motu_protocol_v3_get_clock_rate(struct snd_motu *motu,
+					unsigned int *rate)
 {
 	__be32 reg;
 	u32 data;
@@ -45,7 +46,8 @@ static int v3_get_clock_rate(struct snd_motu *motu, unsigned int *rate)
 	return 0;
 }
 
-static int v3_set_clock_rate(struct snd_motu *motu, unsigned int rate)
+int snd_motu_protocol_v3_set_clock_rate(struct snd_motu *motu,
+					unsigned int rate)
 {
 	__be32 reg;
 	u32 data;
@@ -85,8 +87,8 @@ static int v3_set_clock_rate(struct snd_motu *motu, unsigned int rate)
 	return 0;
 }
 
-static int v3_get_clock_source(struct snd_motu *motu,
-			       enum snd_motu_clock_source *src)
+int snd_motu_protocol_v3_get_clock_source(struct snd_motu *motu,
+					  enum snd_motu_clock_source *src)
 {
 	__be32 reg;
 	u32 data;
@@ -133,7 +135,8 @@ static int v3_get_clock_source(struct snd_motu *motu,
 	return 0;
 }
 
-static int v3_switch_fetching_mode(struct snd_motu *motu, bool enable)
+int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
+					      bool enable)
 {
 	__be32 reg;
 	u32 data;
@@ -275,7 +278,7 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 	}
 }
 
-static int v3_cache_packet_formats(struct snd_motu *motu)
+int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 {
 	__be32 reg;
 	u32 data;
@@ -308,11 +311,6 @@ static int v3_cache_packet_formats(struct snd_motu *motu)
 }
 
 static const struct snd_motu_protocol snd_motu_protocol_v3 = {
-	.get_clock_rate		= v3_get_clock_rate,
-	.set_clock_rate		= v3_set_clock_rate,
-	.get_clock_source	= v3_get_clock_source,
-	.switch_fetching_mode	= v3_switch_fetching_mode,
-	.cache_packet_formats	= v3_cache_packet_formats,
 };
 
 const struct snd_motu_spec snd_motu_spec_828mk3 = {

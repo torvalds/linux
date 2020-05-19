@@ -133,7 +133,6 @@ static int init_hw_info(struct snd_motu *motu,
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
-	const struct snd_motu_protocol *const protocol = motu->spec->protocol;
 	struct amdtp_domain *d = &motu->domain;
 	enum snd_motu_clock_source src;
 	int err;
@@ -152,7 +151,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	err = protocol->get_clock_source(motu, &src);
+	err = snd_motu_protocol_get_clock_source(motu, &src);
 	if (err < 0)
 		goto err_locked;
 
@@ -166,7 +165,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		unsigned int frames_per_buffer = d->events_per_buffer;
 		unsigned int rate;
 
-		err = protocol->get_clock_rate(motu, &rate);
+		err = snd_motu_protocol_get_clock_rate(motu, &rate);
 		if (err < 0)
 			goto err_locked;
 

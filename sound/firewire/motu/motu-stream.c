@@ -88,7 +88,7 @@ static void finish_session(struct snd_motu *motu)
 	u32 data;
 	int err;
 
-	err = motu->spec->protocol->switch_fetching_mode(motu, false);
+	err = snd_motu_protocol_switch_fetching_mode(motu, false);
 	if (err < 0)
 		return;
 
@@ -110,7 +110,7 @@ int snd_motu_stream_cache_packet_formats(struct snd_motu *motu)
 {
 	int err;
 
-	err = motu->spec->protocol->cache_packet_formats(motu);
+	err = snd_motu_protocol_cache_packet_formats(motu);
 	if (err < 0)
 		return err;
 
@@ -140,7 +140,7 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 	unsigned int curr_rate;
 	int err;
 
-	err = motu->spec->protocol->get_clock_rate(motu, &curr_rate);
+	err = snd_motu_protocol_get_clock_rate(motu, &curr_rate);
 	if (err < 0)
 		return err;
 	if (rate == 0)
@@ -153,7 +153,7 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 		fw_iso_resources_free(&motu->tx_resources);
 		fw_iso_resources_free(&motu->rx_resources);
 
-		err = motu->spec->protocol->set_clock_rate(motu, rate);
+		err = snd_motu_protocol_set_clock_rate(motu, rate);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to set sampling rate: %d\n", err);
@@ -272,7 +272,7 @@ int snd_motu_stream_start_duplex(struct snd_motu *motu)
 			goto stop_streams;
 		}
 
-		err = motu->spec->protocol->switch_fetching_mode(motu, true);
+		err = snd_motu_protocol_switch_fetching_mode(motu, true);
 		if (err < 0) {
 			dev_err(&motu->unit->device,
 				"fail to enable frame fetching: %d\n", err);
