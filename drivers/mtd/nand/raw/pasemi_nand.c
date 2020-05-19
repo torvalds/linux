@@ -169,6 +169,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 static int pasemi_nand_remove(struct platform_device *ofdev)
 {
 	struct nand_chip *chip;
+	int ret;
 
 	if (!pasemi_nand_mtd)
 		return 0;
@@ -176,7 +177,9 @@ static int pasemi_nand_remove(struct platform_device *ofdev)
 	chip = mtd_to_nand(pasemi_nand_mtd);
 
 	/* Release resources, unregister device */
-	nand_release(chip);
+	ret = mtd_device_unregister(pasemi_nand_mtd);
+	WARN_ON(ret);
+	nand_cleanup(chip);
 
 	release_region(lpcctl, 4);
 
