@@ -897,7 +897,7 @@ static int gc0312_g_mbus_config(struct v4l2_subdev *sd,
 {
 	config->type = V4L2_MBUS_PARALLEL;
 	config->flags = V4L2_MBUS_HSYNC_ACTIVE_HIGH |
-			V4L2_MBUS_VSYNC_ACTIVE_HIGH |
+			V4L2_MBUS_VSYNC_ACTIVE_LOW |
 			V4L2_MBUS_PCLK_SAMPLE_RISING;
 
 	return 0;
