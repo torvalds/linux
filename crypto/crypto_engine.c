@@ -169,13 +169,10 @@ start_request:
 		/*
 		 * If hardware queue is full (-ENOSPC), requeue request
 		 * regardless of backlog flag.
-		 * If hardware throws any other error code,
-		 * requeue only backlog requests.
 		 * Otherwise, unprepare and complete the request.
 		 */
 		if (!engine->retry_support ||
-		    ((ret != -ENOSPC) &&
-		    !(async_req->flags & CRYPTO_TFM_REQ_MAY_BACKLOG))) {
+		    (ret != -ENOSPC)) {
 			dev_err(engine->dev,
 				"Failed to do one request from queue: %d\n",
 				ret);
