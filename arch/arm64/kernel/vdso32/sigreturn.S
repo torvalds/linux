@@ -3,6 +3,9 @@
  * This file provides both A32 and T32 versions, in accordance with the
  * arm sigreturn code.
  *
+ * Please read the comments in arch/arm64/kernel/vdso/sigreturn.S to
+ * understand some of the craziness in here.
+ *
  * Copyright (C) 2018 ARM Limited
  */
 
