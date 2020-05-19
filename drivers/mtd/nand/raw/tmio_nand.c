@@ -458,8 +458,12 @@ err_irq:
 static int tmio_remove(struct platform_device *dev)
 {
 	struct tmio_nand *tmio = platform_get_drvdata(dev);
+	struct nand_chip *chip = &tmio->chip;
+	int ret;
 
-	nand_release(&tmio->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	tmio_hw_stop(dev, tmio);
 	return 0;
 }
