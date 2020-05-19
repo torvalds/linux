@@ -1809,21 +1809,61 @@ again:
 	return num_written ? num_written : ret;
 }
 
-static ssize_t __btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
+static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
+                               const struct iov_iter *iter, loff_t offset)
+{
+        const unsigned int blocksize_mask = fs_info->sectorsize - 1;
+
+        if (offset & blocksize_mask)
+                return -EINVAL;
+
+        if (iov_iter_alignment(iter) & blocksize_mask)
+                return -EINVAL;
+
+	return 0;
+}
+
+static ssize_t btrfs_direct_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file_inode(file);
-	loff_t pos;
-	ssize_t written;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	loff_t pos = iocb->ki_pos;
+	ssize_t written = 0;
 	ssize_t written_buffered;
 	loff_t endbyte;
 	int err;
+	size_t count = 0;
+	bool relock = false;
 
-	written = btrfs_direct_IO(iocb, from);
+	if (check_direct_IO(fs_info, from, pos))
+		goto buffered;
+
+	count = iov_iter_count(from);
+	/*
+	 * If the write DIO is beyond the EOF, we need update the isize, but it
+	 * is protected by i_mutex. So we can not unlock the i_mutex at this
+	 * case.
+	 */
+	if (pos + count <= inode->i_size) {
+		inode_unlock(inode);
+		relock = true;
+	} else if (iocb->ki_flags & IOCB_NOWAIT) {
+		return -EAGAIN;
+	}
+
+	down_read(&BTRFS_I(inode)->dio_sem);
+	written = iomap_dio_rw(iocb, from, &btrfs_dio_iomap_ops, &btrfs_dops,
+			       is_sync_kiocb(iocb));
+	up_read(&BTRFS_I(inode)->dio_sem);
+
+	if (relock)
+		inode_lock(inode);
 
 	if (written < 0 || !iov_iter_count(from))
 		return written;
 
+buffered:
 	pos = iocb->ki_pos;
 	written_buffered = btrfs_buffered_write(iocb, from);
 	if (written_buffered < 0) {
@@ -1962,7 +2002,7 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 		atomic_inc(&BTRFS_I(inode)->sync_writers);
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
-		num_written = __btrfs_direct_write(iocb, from);
+		num_written = btrfs_direct_write(iocb, from);
 	} else {
 		num_written = btrfs_buffered_write(iocb, from);
 		if (num_written > 0)
@@ -3476,16 +3516,44 @@ static int btrfs_file_open(struct inode *inode, struct file *filp)
 	return generic_file_open(inode, filp);
 }
 
+static int check_direct_read(struct btrfs_fs_info *fs_info,
+                               const struct iov_iter *iter, loff_t offset)
+{
+	int ret;
+	int i, seg;
+
+	ret = check_direct_IO(fs_info, iter, offset);
+	if (ret < 0)
+		return ret;
+
+	for (seg = 0; seg < iter->nr_segs; seg++)
+		for (i = seg + 1; i < iter->nr_segs; i++)
+			if (iter->iov[seg].iov_base == iter->iov[i].iov_base)
+				return -EINVAL;
+	return 0;
+}
+
+static ssize_t btrfs_direct_read(struct kiocb *iocb, struct iov_iter *to)
+{
+	struct inode *inode = file_inode(iocb->ki_filp);
+	ssize_t ret;
+
+	if (check_direct_read(btrfs_sb(inode->i_sb), to, iocb->ki_pos))
+		return 0;
+
+	inode_lock_shared(inode);
+        ret = iomap_dio_rw(iocb, to, &btrfs_dio_iomap_ops, &btrfs_dops,
+			   is_sync_kiocb(iocb));
+	inode_unlock_shared(inode);
+	return ret;
+}
+
 static ssize_t btrfs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	ssize_t ret = 0;
 
 	if (iocb->ki_flags & IOCB_DIRECT) {
-		struct inode *inode = file_inode(iocb->ki_filp);
-
-		inode_lock_shared(inode);
-		ret = btrfs_direct_IO(iocb, to);
-		inode_unlock_shared(inode);
+		ret = btrfs_direct_read(iocb, to);
 		if (ret < 0)
 			return ret;
 	}
