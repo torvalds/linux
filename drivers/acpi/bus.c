@@ -551,6 +551,7 @@ struct device *acpi_get_first_physical_node(struct acpi_device *adev)
 	mutex_unlock(physical_node_lock);
 	return phys_dev;
 }
+EXPORT_SYMBOL_GPL(acpi_get_first_physical_node);
 
 static struct acpi_device *acpi_primary_dev_companion(struct acpi_device *adev,
 						      const struct device *dev)
