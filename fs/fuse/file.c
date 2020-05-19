@@ -445,10 +445,6 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	err = 0;
-	if (fc->no_flush)
-		goto inval_attr_out;
-
 	err = write_inode_now(inode, 1);
 	if (err)
 		return err;
@@ -460,6 +456,10 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 	err = filemap_check_errors(file->f_mapping);
 	if (err)
 		return err;
+
+	err = 0;
+	if (fc->no_flush)
+		goto inval_attr_out;
 
 	memset(&inarg, 0, sizeof(inarg));
 	inarg.fh = ff->fh;
