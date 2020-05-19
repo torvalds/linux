@@ -76,7 +76,7 @@ static void igc_power_down_link(struct igc_adapter *adapter)
 
 void igc_reset(struct igc_adapter *adapter)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *dev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
 	struct igc_fc_info *fc = &hw->fc;
 	u32 pba, hwm;
@@ -103,7 +103,7 @@ void igc_reset(struct igc_adapter *adapter)
 	hw->mac.ops.reset_hw(hw);
 
 	if (hw->mac.ops.init_hw(hw))
-		dev_err(&pdev->dev, "Hardware Error\n");
+		netdev_err(dev, "Error on hardware initialization\n");
 
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
@@ -288,6 +288,7 @@ static void igc_clean_all_tx_rings(struct igc_adapter *adapter)
  */
 int igc_setup_tx_resources(struct igc_ring *tx_ring)
 {
+	struct net_device *ndev = tx_ring->netdev;
 	struct device *dev = tx_ring->dev;
 	int size = 0;
 
@@ -313,8 +314,7 @@ int igc_setup_tx_resources(struct igc_ring *tx_ring)
 
 err:
 	vfree(tx_ring->tx_buffer_info);
-	dev_err(dev,
-		"Unable to allocate memory for the transmit descriptor ring\n");
+	netdev_err(ndev, "Unable to allocate memory for Tx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -326,14 +326,13 @@ err:
  */
 static int igc_setup_all_tx_resources(struct igc_adapter *adapter)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *dev = adapter->netdev;
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		err = igc_setup_tx_resources(adapter->tx_ring[i]);
 		if (err) {
-			dev_err(&pdev->dev,
-				"Allocation for Tx Queue %u failed\n", i);
+			netdev_err(dev, "Error on Tx queue %u setup\n", i);
 			for (i--; i >= 0; i--)
 				igc_free_tx_resources(adapter->tx_ring[i]);
 			break;
@@ -444,6 +443,7 @@ static void igc_free_all_rx_resources(struct igc_adapter *adapter)
  */
 int igc_setup_rx_resources(struct igc_ring *rx_ring)
 {
+	struct net_device *ndev = rx_ring->netdev;
 	struct device *dev = rx_ring->dev;
 	int size, desc_len;
 
@@ -473,8 +473,7 @@ int igc_setup_rx_resources(struct igc_ring *rx_ring)
 err:
 	vfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
-	dev_err(dev,
-		"Unable to allocate memory for the receive descriptor ring\n");
+	netdev_err(ndev, "Unable to allocate memory for Rx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -487,14 +486,13 @@ err:
  */
 static int igc_setup_all_rx_resources(struct igc_adapter *adapter)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *dev = adapter->netdev;
 	int i, err = 0;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		err = igc_setup_rx_resources(adapter->rx_ring[i]);
 		if (err) {
-			dev_err(&pdev->dev,
-				"Allocation for Rx Queue %u failed\n", i);
+			netdev_err(dev, "Error on Rx queue %u setup\n", i);
 			for (i--; i >= 0; i--)
 				igc_free_rx_resources(adapter->rx_ring[i]);
 			break;
@@ -1196,7 +1194,7 @@ static int igc_tx_map(struct igc_ring *tx_ring,
 
 	return 0;
 dma_error:
-	dev_err(tx_ring->dev, "TX DMA map failed\n");
+	netdev_err(tx_ring->netdev, "TX DMA map failed\n");
 	tx_buffer = &tx_ring->tx_buffer_info[i];
 
 	/* clear dma mappings for failed tx_buffer_info map */
@@ -1459,8 +1457,8 @@ static void igc_rx_checksum(struct igc_ring *ring,
 				      IGC_RXD_STAT_UDPCS))
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-	dev_dbg(ring->dev, "cksum success: bits %08X\n",
-		le32_to_cpu(rx_desc->wb.upper.status_error));
+	netdev_dbg(ring->netdev, "cksum success: bits %08X\n",
+		   le32_to_cpu(rx_desc->wb.upper.status_error));
 }
 
 static inline void igc_rx_hash(struct igc_ring *ring,
@@ -2122,27 +2120,27 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 		    (adapter->tx_timeout_factor * HZ)) &&
 		    !(rd32(IGC_STATUS) & IGC_STATUS_TXOFF)) {
 			/* detected Tx unit hang */
-			dev_err(tx_ring->dev,
-				"Detected Tx Unit Hang\n"
-				"  Tx Queue             <%d>\n"
-				"  TDH                  <%x>\n"
-				"  TDT                  <%x>\n"
-				"  next_to_use          <%x>\n"
-				"  next_to_clean        <%x>\n"
-				"buffer_info[next_to_clean]\n"
-				"  time_stamp           <%lx>\n"
-				"  next_to_watch        <%p>\n"
-				"  jiffies              <%lx>\n"
-				"  desc.status          <%x>\n",
-				tx_ring->queue_index,
-				rd32(IGC_TDH(tx_ring->reg_idx)),
-				readl(tx_ring->tail),
-				tx_ring->next_to_use,
-				tx_ring->next_to_clean,
-				tx_buffer->time_stamp,
-				tx_buffer->next_to_watch,
-				jiffies,
-				tx_buffer->next_to_watch->wb.status);
+			netdev_err(tx_ring->netdev,
+				   "Detected Tx Unit Hang\n"
+				   "  Tx Queue             <%d>\n"
+				   "  TDH                  <%x>\n"
+				   "  TDT                  <%x>\n"
+				   "  next_to_use          <%x>\n"
+				   "  next_to_clean        <%x>\n"
+				   "buffer_info[next_to_clean]\n"
+				   "  time_stamp           <%lx>\n"
+				   "  next_to_watch        <%p>\n"
+				   "  jiffies              <%lx>\n"
+				   "  desc.status          <%x>\n",
+				   tx_ring->queue_index,
+				   rd32(IGC_TDH(tx_ring->reg_idx)),
+				   readl(tx_ring->tail),
+				   tx_ring->next_to_use,
+				   tx_ring->next_to_clean,
+				   tx_buffer->time_stamp,
+				   tx_buffer->next_to_watch,
+				   jiffies,
+				   tx_buffer->next_to_watch->wb.status);
 			netif_stop_subqueue(tx_ring->netdev,
 					    tx_ring->queue_index);
 
@@ -3238,14 +3236,14 @@ err_out:
  */
 static int igc_init_interrupt_scheme(struct igc_adapter *adapter, bool msix)
 {
-	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *dev = adapter->netdev;
 	int err = 0;
 
 	igc_set_interrupt_capability(adapter, msix);
 
 	err = igc_alloc_q_vectors(adapter);
 	if (err) {
-		dev_err(&pdev->dev, "Unable to allocate memory for vectors\n");
+		netdev_err(dev, "Unable to allocate memory for vectors\n");
 		goto err_alloc_q_vectors;
 	}
 
@@ -3305,7 +3303,7 @@ static int igc_sw_init(struct igc_adapter *adapter)
 
 	/* This call may decrease the number of queues */
 	if (igc_init_interrupt_scheme(adapter, true)) {
-		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 
@@ -3648,8 +3646,7 @@ static int igc_change_mtu(struct net_device *netdev, int new_mtu)
 	if (netif_running(netdev))
 		igc_down(adapter);
 
-	netdev_dbg(netdev, "changing MTU from %d to %d\n",
-		   netdev->mtu, new_mtu);
+	netdev_dbg(netdev, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	netdev->mtu = new_mtu;
 
 	if (netif_running(netdev))
@@ -4006,8 +4003,7 @@ static void igc_watchdog_task(struct work_struct *work)
 			ctrl = rd32(IGC_CTRL);
 			/* Link status message must follow this format */
 			netdev_info(netdev,
-				    "igc: %s NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
-				    netdev->name,
+				    "NIC Link is Up %d Mbps %s Duplex, Flow Control: %s\n",
 				    adapter->link_speed,
 				    adapter->link_duplex == FULL_DUPLEX ?
 				    "Full" : "Half",
@@ -4045,10 +4041,10 @@ retry_read_status:
 					retry_count--;
 					goto retry_read_status;
 				} else if (!retry_count) {
-					dev_err(&adapter->pdev->dev, "exceed max 2 second\n");
+					netdev_err(netdev, "exceed max 2 second\n");
 				}
 			} else {
-				dev_err(&adapter->pdev->dev, "read 1000Base-T Status Reg\n");
+				netdev_err(netdev, "read 1000Base-T Status Reg\n");
 			}
 no_wait:
 			netif_carrier_on(netdev);
@@ -4064,8 +4060,7 @@ no_wait:
 			adapter->link_duplex = 0;
 
 			/* Links status message must follow this format */
-			netdev_info(netdev, "igc: %s NIC Link is Down\n",
-				    netdev->name);
+			netdev_info(netdev, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 
 			/* link state has changed, schedule phy info update */
@@ -4283,8 +4278,7 @@ static int igc_request_irq(struct igc_adapter *adapter)
 			  netdev->name, adapter);
 
 	if (err)
-		dev_err(&pdev->dev, "Error %d getting interrupt\n",
-			err);
+		netdev_err(netdev, "Error %d getting interrupt\n", err);
 
 request_done:
 	return err;
@@ -4386,7 +4380,7 @@ err_setup_tx:
 	return err;
 }
 
-static int igc_open(struct net_device *netdev)
+int igc_open(struct net_device *netdev)
 {
 	return __igc_open(netdev, false);
 }
@@ -4428,7 +4422,7 @@ static int __igc_close(struct net_device *netdev, bool suspending)
 	return 0;
 }
 
-static int igc_close(struct net_device *netdev)
+int igc_close(struct net_device *netdev)
 {
 	if (netif_device_present(netdev) || netdev->dismantle)
 		return __igc_close(netdev, false);
@@ -4686,7 +4680,6 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 
 int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
 {
-	struct pci_dev *pdev = adapter->pdev;
 	struct igc_mac_info *mac = &adapter->hw.mac;
 
 	mac->autoneg = 0;
@@ -4731,7 +4724,7 @@ int igc_set_spd_dplx(struct igc_adapter *adapter, u32 spd, u8 dplx)
 	return 0;
 
 err_inval:
-	dev_err(&pdev->dev, "Unsupported Speed/Duplex configuration\n");
+	netdev_err(adapter->netdev, "Unsupported Speed/Duplex configuration\n");
 	return -EINVAL;
 }
 
@@ -4838,6 +4831,7 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev->features |= NETIF_F_SG;
 	netdev->features |= NETIF_F_TSO;
 	netdev->features |= NETIF_F_TSO6;
+	netdev->features |= NETIF_F_TSO_ECN;
 	netdev->features |= NETIF_F_RXCSUM;
 	netdev->features |= NETIF_F_HW_CSUM;
 	netdev->features |= NETIF_F_SCTP_CRC;
@@ -4876,8 +4870,7 @@ static int igc_probe(struct pci_dev *pdev,
 
 	if (igc_get_flash_presence_i225(hw)) {
 		if (hw->nvm.ops.validate(hw) < 0) {
-			dev_err(&pdev->dev,
-				"The NVM Checksum Is Not Valid\n");
+			dev_err(&pdev->dev, "The NVM Checksum Is Not Valid\n");
 			err = -EIO;
 			goto err_eeprom;
 		}
@@ -5140,8 +5133,7 @@ static int __maybe_unused igc_resume(struct device *dev)
 		return -ENODEV;
 	err = pci_enable_device_mem(pdev);
 	if (err) {
-		dev_err(&pdev->dev,
-			"igc: Cannot enable PCI device from suspend\n");
+		netdev_err(netdev, "Cannot enable PCI device from suspend\n");
 		return err;
 	}
 	pci_set_master(pdev);
@@ -5150,7 +5142,7 @@ static int __maybe_unused igc_resume(struct device *dev)
 	pci_enable_wake(pdev, PCI_D3cold, 0);
 
 	if (igc_init_interrupt_scheme(adapter, true)) {
-		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 
@@ -5254,8 +5246,7 @@ static pci_ers_result_t igc_io_slot_reset(struct pci_dev *pdev)
 	pci_ers_result_t result;
 
 	if (pci_enable_device_mem(pdev)) {
-		dev_err(&pdev->dev,
-			"Could not re-enable PCI device after reset.\n");
+		netdev_err(netdev, "Could not re-enable PCI device after reset\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_set_master(pdev);
@@ -5294,7 +5285,7 @@ static void igc_io_resume(struct pci_dev *pdev)
 	rtnl_lock();
 	if (netif_running(netdev)) {
 		if (igc_open(netdev)) {
-			dev_err(&pdev->dev, "igc_open failed after reset\n");
+			netdev_err(netdev, "igc_open failed after reset\n");
 			return;
 		}
 	}
@@ -5341,7 +5332,6 @@ static struct pci_driver igc_driver = {
 int igc_reinit_queues(struct igc_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct pci_dev *pdev = adapter->pdev;
 	int err = 0;
 
 	if (netif_running(netdev))
@@ -5350,7 +5340,7 @@ int igc_reinit_queues(struct igc_adapter *adapter)
 	igc_reset_interrupt_capability(adapter);
 
 	if (igc_init_interrupt_scheme(adapter, true)) {
-		dev_err(&pdev->dev, "Unable to allocate memory for queues\n");
+		netdev_err(netdev, "Unable to allocate memory for queues\n");
 		return -ENOMEM;
 	}
 
