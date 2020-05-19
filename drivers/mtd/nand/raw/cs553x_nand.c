@@ -392,12 +392,15 @@ static void __exit cs553x_cleanup(void)
 		struct cs553x_nand_controller *controller = controllers[i];
 		struct nand_chip *this = &controller->chip;
 		struct mtd_info *mtd = nand_to_mtd(this);
+		int ret;
 
 		if (!mtd)
 			continue;
 
 		/* Release resources, unregister device */
-		nand_release(this);
+		ret = mtd_device_unregister(mtd);
+		WARN_ON(ret);
+		nand_cleanup(this);
 		kfree(mtd->name);
 		controllers[i] = NULL;
 
