@@ -562,6 +562,7 @@ struct smb_vol {
 	bool override_gid:1;
 	bool dynperm:1;
 	bool noperm:1;
+	bool nodelete:1;
 	bool mode_ace:1;
 	bool no_psx_acl:1; /* set if posix acl support should be disabled */
 	bool cifs_acl:1;
@@ -1136,6 +1137,7 @@ struct cifs_tcon {
 	bool retry:1;
 	bool nocase:1;
 	bool nohandlecache:1; /* if strange server resource prob can turn off */
+	bool nodelete:1;
 	bool seal:1;      /* transport encryption for this mounted share */
 	bool unix_ext:1;  /* if false disable Linux extensions to CIFS protocol
 				for this mount even if server would support */

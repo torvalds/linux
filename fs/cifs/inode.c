@@ -1418,6 +1418,11 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 
 	xid = get_xid();
 
+	if (tcon->nodelete) {
+		rc = -EACCES;
+		goto unlink_out;
+	}
+
 	/* Unlink can be called from rename so we can not take the
 	 * sb->s_vfs_rename_mutex here */
 	full_path = build_path_from_dentry(dentry);
@@ -1742,6 +1747,12 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 
 	if (!server->ops->rmdir) {
 		rc = -ENOSYS;
+		cifs_put_tlink(tlink);
+		goto rmdir_exit;
+	}
+
+	if (tcon->nodelete) {
+		rc = -EACCES;
 		cifs_put_tlink(tlink);
 		goto rmdir_exit;
 	}

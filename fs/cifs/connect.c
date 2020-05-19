@@ -75,7 +75,7 @@ enum {
 	Opt_forceuid, Opt_noforceuid,
 	Opt_forcegid, Opt_noforcegid,
 	Opt_noblocksend, Opt_noautotune, Opt_nolease,
-	Opt_hard, Opt_soft, Opt_perm, Opt_noperm,
+	Opt_hard, Opt_soft, Opt_perm, Opt_noperm, Opt_nodelete,
 	Opt_mapposix, Opt_nomapposix,
 	Opt_mapchars, Opt_nomapchars, Opt_sfu,
 	Opt_nosfu, Opt_nodfs, Opt_posixpaths,
@@ -141,6 +141,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_soft, "soft" },
 	{ Opt_perm, "perm" },
 	{ Opt_noperm, "noperm" },
+	{ Opt_nodelete, "nodelete" },
 	{ Opt_mapchars, "mapchars" }, /* SFU style */
 	{ Opt_nomapchars, "nomapchars" },
 	{ Opt_mapposix, "mapposix" }, /* SFM style */
@@ -1760,6 +1761,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		case Opt_noperm:
 			vol->noperm = 1;
 			break;
+		case Opt_nodelete:
+			vol->nodelete = 1;
+			break;
 		case Opt_mapchars:
 			vol->sfu_remap = true;
 			vol->remap = false; /* disable SFM mapping */
@@ -3362,6 +3366,8 @@ static int match_tcon(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 		return 0;
 	if (tcon->no_lease != volume_info->no_lease)
 		return 0;
+	if (tcon->nodelete != volume_info->nodelete)
+		return 0;
 	return 1;
 }
 
@@ -3597,6 +3603,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb_vol *volume_info)
 	tcon->retry = volume_info->retry;
 	tcon->nocase = volume_info->nocase;
 	tcon->nohandlecache = volume_info->nohandlecache;
+	tcon->nodelete = volume_info->nodelete;
 	tcon->local_lease = volume_info->local_lease;
 	INIT_LIST_HEAD(&tcon->pending_opens);
 
