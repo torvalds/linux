@@ -35,7 +35,13 @@ static struct snapshot_data {
 	bool ready;
 	bool platform_support;
 	bool free_bitmaps;
+	struct inode *bd_inode;
 } snapshot_state;
+
+int is_hibernate_resume_dev(const struct inode *bd_inode)
+{
+	return hibernation_available() && snapshot_state.bd_inode == bd_inode;
+}
 
 static int snapshot_open(struct inode *inode, struct file *filp)
 {
@@ -95,6 +101,7 @@ static int snapshot_open(struct inode *inode, struct file *filp)
 	data->frozen = false;
 	data->ready = false;
 	data->platform_support = false;
+	data->bd_inode = NULL;
 
  Unlock:
 	unlock_system_sleep();
@@ -110,6 +117,7 @@ static int snapshot_release(struct inode *inode, struct file *filp)
 
 	swsusp_free();
 	data = filp->private_data;
+	data->bd_inode = NULL;
 	free_all_swap_pages(data->swap);
 	if (data->frozen) {
 		pm_restore_gfp_mask();
@@ -202,6 +210,7 @@ struct compat_resume_swap_area {
 static int snapshot_set_swap_area(struct snapshot_data *data,
 		void __user *argp)
 {
+	struct block_device *bdev;
 	sector_t offset;
 	dev_t swdev;
 
@@ -232,9 +241,12 @@ static int snapshot_set_swap_area(struct snapshot_data *data,
 		data->swap = -1;
 		return -EINVAL;
 	}
-	data->swap = swap_type_of(swdev, offset, NULL);
+	data->swap = swap_type_of(swdev, offset, &bdev);
 	if (data->swap < 0)
 		return -ENODEV;
+
+	data->bd_inode = bdev->bd_inode;
+	bdput(bdev);
 	return 0;
 }
 
