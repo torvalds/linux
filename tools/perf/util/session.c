@@ -1104,7 +1104,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	for_each_set_bit(rid, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs[i++];
 
-		printf(".... %-5s 0x%" PRIx64 "\n",
+		printf(".... %-5s 0x%016" PRIx64 "\n",
 		       perf_reg_name(rid), val);
 	}
 }
