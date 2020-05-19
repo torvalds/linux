@@ -421,37 +421,6 @@ static void ipmr_free_table(struct mr_table *mrt)
 
 /* Service routines creating virtual interfaces: DVMRP tunnels and PIMREG */
 
-static void ipmr_del_tunnel(struct net_device *dev, struct vifctl *v)
-{
-	struct net *net = dev_net(dev);
-
-	dev_close(dev);
-
-	dev = __dev_get_by_name(net, "tunl0");
-	if (dev) {
-		const struct net_device_ops *ops = dev->netdev_ops;
-		struct ifreq ifr;
-		struct ip_tunnel_parm p;
-
-		memset(&p, 0, sizeof(p));
-		p.iph.daddr = v->vifc_rmt_addr.s_addr;
-		p.iph.saddr = v->vifc_lcl_addr.s_addr;
-		p.iph.version = 4;
-		p.iph.ihl = 5;
-		p.iph.protocol = IPPROTO_IPIP;
-		sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-		ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
-
-		if (ops->ndo_do_ioctl) {
-			mm_segment_t oldfs = get_fs();
-
-			set_fs(KERNEL_DS);
-			ops->ndo_do_ioctl(dev, &ifr, SIOCDELTUNNEL);
-			set_fs(oldfs);
-		}
-	}
-}
-
 /* Initialize ipmr pimreg/tunnel in_device */
 static bool ipmr_init_vif_indev(const struct net_device *dev)
 {
@@ -509,12 +478,22 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 	if (dev_open(new_dev, NULL))
 		goto out_unregister;
 	dev_hold(new_dev);
+	err = dev_set_allmulti(new_dev, 1);
+	if (err) {
+		dev_close(new_dev);
+		set_fs(KERNEL_DS);
+		tunnel_dev->netdev_ops->ndo_do_ioctl(tunnel_dev, &ifr,
+				SIOCDELTUNNEL);
+		set_fs(oldfs);
+		dev_put(new_dev);
+		new_dev = ERR_PTR(err);
+	}
 	return new_dev;
 
 out_unregister:
 	unregister_netdevice(new_dev);
 out:
-	return NULL;
+	return ERR_PTR(-ENOBUFS);
 }
 
 #if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
@@ -866,14 +845,8 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		break;
 	case VIFF_TUNNEL:
 		dev = ipmr_new_tunnel(net, vifc);
-		if (!dev)
-			return -ENOBUFS;
-		err = dev_set_allmulti(dev, 1);
-		if (err) {
-			ipmr_del_tunnel(dev, vifc);
-			dev_put(dev);
-			return err;
-		}
+		if (IS_ERR(dev))
+			return PTR_ERR(dev);
 		break;
 	case VIFF_USE_IFINDEX:
 	case 0:
