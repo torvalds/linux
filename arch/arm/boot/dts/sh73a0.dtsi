@@ -584,6 +584,7 @@
 		compatible = "renesas,fsi2-sh73a0", "renesas,sh_fsi2";
 		reg = <0xec230000 0x400>;
 		interrupts = <GIC_SPI 146 0x4>;
+		clocks = <&mstp3_clks SH73A0_CLK_FSI>;
 		power-domains = <&pd_a4mp>;
 		status = "disabled";
 	};
