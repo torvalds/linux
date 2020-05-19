@@ -142,31 +142,6 @@ static int uverbs_free_wq(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int uverbs_free_srq(struct ib_uobject *uobject,
-			   enum rdma_remove_reason why,
-			   struct uverbs_attr_bundle *attrs)
-{
-	struct ib_srq *srq = uobject->object;
-	struct ib_uevent_object *uevent =
-		container_of(uobject, struct ib_uevent_object, uobject);
-	enum ib_srq_type  srq_type = srq->srq_type;
-	int ret;
-
-	ret = ib_destroy_srq_user(srq, &attrs->driver_udata);
-	if (ib_is_destroy_retryable(ret, why, uobject))
-		return ret;
-
-	if (srq_type == IB_SRQT_XRC) {
-		struct ib_usrq_object *us =
-			container_of(uevent, struct ib_usrq_object, uevent);
-
-		atomic_dec(&us->uxrcd->refcnt);
-	}
-
-	ib_uverbs_release_uevent(uevent);
-	return ret;
-}
-
 static int uverbs_free_xrcd(struct ib_uobject *uobject,
 			    enum rdma_remove_reason why,
 			    struct uverbs_attr_bundle *attrs)
@@ -267,11 +242,6 @@ DECLARE_UVERBS_NAMED_OBJECT(UVERBS_OBJECT_MW,
 			    UVERBS_TYPE_ALLOC_IDR(uverbs_free_mw),
 			    &UVERBS_METHOD(UVERBS_METHOD_MW_DESTROY));
 
-DECLARE_UVERBS_NAMED_OBJECT(
-	UVERBS_OBJECT_SRQ,
-	UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object),
-				 uverbs_free_srq));
-
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	UVERBS_METHOD_AH_DESTROY,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_AH_HANDLE,
@@ -346,8 +316,6 @@ const struct uapi_definition uverbs_def_obj_intf[] = {
 				      UAPI_DEF_OBJ_NEEDS_FN(destroy_ah)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_MW,
 				      UAPI_DEF_OBJ_NEEDS_FN(dealloc_mw)),
-	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_SRQ,
-				      UAPI_DEF_OBJ_NEEDS_FN(destroy_srq)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_FLOW,
 				      UAPI_DEF_OBJ_NEEDS_FN(destroy_flow)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_WQ,
