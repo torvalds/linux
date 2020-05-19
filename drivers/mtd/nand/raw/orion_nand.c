@@ -195,8 +195,12 @@ static int orion_nand_remove(struct platform_device *pdev)
 {
 	struct orion_nand_info *info = platform_get_drvdata(pdev);
 	struct nand_chip *chip = &info->chip;
+	int ret;
 
-	nand_release(chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+
+	nand_cleanup(chip);
 
 	clk_disable_unprepare(info->clk);
 
