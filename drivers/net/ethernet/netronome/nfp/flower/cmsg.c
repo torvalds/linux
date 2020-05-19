@@ -264,7 +264,7 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		nfp_flower_cmsg_portmod_rx(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_MERGE_HINT:
-		if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE) {
+		if (app_priv->flower_en_feats & NFP_FL_ENABLE_FLOW_MERGE) {
 			nfp_flower_cmsg_merge_hint_rx(app, skb);
 			break;
 		}
@@ -285,7 +285,7 @@ nfp_flower_cmsg_process_one_rx(struct nfp_app *app, struct sk_buff *skb)
 		nfp_flower_stats_rlim_reply(app, skb);
 		break;
 	case NFP_FLOWER_CMSG_TYPE_LAG_CONFIG:
-		if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+		if (app_priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 			skb_stored = nfp_flower_lag_unprocessed_msg(app, skb);
 			break;
 		}
