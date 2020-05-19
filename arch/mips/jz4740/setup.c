@@ -20,6 +20,7 @@
 #include <asm/fw/fw.h>
 #include <asm/prom.h>
 #include <asm/reboot.h>
+#include <asm/time.h>
 
 #define JZ4740_EMC_BASE_ADDR 0x13010000
 
