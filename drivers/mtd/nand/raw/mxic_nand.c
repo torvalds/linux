@@ -556,8 +556,13 @@ fail:
 static int mxic_nfc_remove(struct platform_device *pdev)
 {
 	struct mxic_nand_ctlr *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
+	int ret;
 
-	nand_release(&nfc->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
+
 	mxic_nfc_clk_disable(nfc);
 	return 0;
 }
