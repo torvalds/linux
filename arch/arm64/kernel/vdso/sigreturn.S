@@ -15,7 +15,14 @@
 	.text
 
 	nop
-SYM_FUNC_START(__kernel_rt_sigreturn)
+/*
+ * GDB relies on being able to identify the sigreturn instruction sequence to
+ * unwind from signal handlers. We cannot, therefore, use SYM_FUNC_START()
+ * here, as it will emit a BTI C instruction and break the unwinder. Thankfully,
+ * this function is only ever called from a RET and so omitting the landing pad
+ * is perfectly fine.
+ */
+SYM_CODE_START(__kernel_rt_sigreturn)
 	.cfi_startproc
 	.cfi_signal_frame
 	.cfi_def_cfa	x29, 0
@@ -24,6 +31,6 @@ SYM_FUNC_START(__kernel_rt_sigreturn)
 	mov	x8, #__NR_rt_sigreturn
 	svc	#0
 	.cfi_endproc
-SYM_FUNC_END(__kernel_rt_sigreturn)
+SYM_CODE_END(__kernel_rt_sigreturn)
 
 emit_aarch64_feature_1_and

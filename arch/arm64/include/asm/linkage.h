@@ -15,9 +15,9 @@
 #define BTI_J hint 36 ;
 
 /*
- * When using in-kernel BTI we need to ensure that assembly functions
- * have suitable annotations.  Override SYM_FUNC_START to insert a BTI
- * landing pad at the start of everything.
+ * When using in-kernel BTI we need to ensure that PCS-conformant assembly
+ * functions have suitable annotations.  Override SYM_FUNC_START to insert
+ * a BTI landing pad at the start of everything.
  */
 #define SYM_FUNC_START(name)				\
 	SYM_START(name, SYM_L_GLOBAL, SYM_A_ALIGN)	\
