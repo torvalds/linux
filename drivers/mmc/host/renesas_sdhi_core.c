@@ -83,16 +83,11 @@ static int renesas_sdhi_clk_enable(struct tmio_mmc_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 	struct renesas_sdhi *priv = host_to_priv(host);
-	int ret = clk_prepare_enable(priv->clk);
-
-	if (ret < 0)
-		return ret;
+	int ret;
 
 	ret = clk_prepare_enable(priv->clk_cd);
-	if (ret < 0) {
-		clk_disable_unprepare(priv->clk);
+	if (ret < 0)
 		return ret;
-	}
 
 	/*
 	 * The clock driver may not know what maximum frequency
@@ -198,7 +193,6 @@ static void renesas_sdhi_clk_disable(struct tmio_mmc_host *host)
 {
 	struct renesas_sdhi *priv = host_to_priv(host);
 
-	clk_disable_unprepare(priv->clk);
 	clk_disable_unprepare(priv->clk_cd);
 }
 
