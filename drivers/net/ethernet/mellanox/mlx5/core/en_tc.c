@@ -2020,13 +2020,30 @@ u32 mlx5e_tc_get_flow_tun_id(struct mlx5e_tc_flow *flow)
 	return flow->tunnel_id;
 }
 
-void mlx5e_tc_set_ethertype(void *headers_c, void *headers_v,
-			    struct flow_match_basic *match)
+void mlx5e_tc_set_ethertype(struct mlx5_core_dev *mdev,
+			    struct flow_match_basic *match, bool outer,
+			    void *headers_c, void *headers_v)
 {
-	MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
-		 ntohs(match->mask->n_proto));
-	MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
-		 ntohs(match->key->n_proto));
+	bool ip_version_cap;
+
+	ip_version_cap = outer ?
+		MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					  ft_field_support.outer_ip_version) :
+		MLX5_CAP_FLOWTABLE_NIC_RX(mdev,
+					  ft_field_support.inner_ip_version);
+
+	if (ip_version_cap && match->mask->n_proto == htons(0xFFFF) &&
+	    (match->key->n_proto == htons(ETH_P_IP) ||
+	     match->key->n_proto == htons(ETH_P_IPV6))) {
+		MLX5_SET_TO_ONES(fte_match_set_lyr_2_4, headers_c, ip_version);
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ip_version,
+			 match->key->n_proto == htons(ETH_P_IP) ? 4 : 6);
+	} else {
+		MLX5_SET(fte_match_set_lyr_2_4, headers_c, ethertype,
+			 ntohs(match->mask->n_proto));
+		MLX5_SET(fte_match_set_lyr_2_4, headers_v, ethertype,
+			 ntohs(match->key->n_proto));
+	}
 }
 
 static int parse_tunnel_attr(struct mlx5e_priv *priv,
@@ -2250,7 +2267,9 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		struct flow_match_basic match;
 
 		flow_rule_match_basic(rule, &match);
-		mlx5e_tc_set_ethertype(headers_c, headers_v, &match);
+		mlx5e_tc_set_ethertype(priv->mdev, &match,
+				       match_level == outer_match_level,
+				       headers_c, headers_v);
 
 		if (match.mask->n_proto)
 			*match_level = MLX5_MATCH_L2;
@@ -3126,16 +3145,19 @@ static bool modify_header_match_supported(struct mlx5_flow_spec *spec,
 {
 	const struct flow_action_entry *act;
 	bool modify_ip_header;
+	void *headers_c;
 	void *headers_v;
 	u16 ethertype;
 	u8 ip_proto;
 	int i, err;
 
+	headers_c = get_match_headers_criteria(actions, spec);
 	headers_v = get_match_headers_value(actions, spec);
 	ethertype = MLX5_GET(fte_match_set_lyr_2_4, headers_v, ethertype);
 
 	/* for non-IP we only re-write MACs, so we're okay */
-	if (ethertype != ETH_P_IP && ethertype != ETH_P_IPV6)
+	if (MLX5_GET(fte_match_set_lyr_2_4, headers_c, ip_version) == 0 &&
+	    ethertype != ETH_P_IP && ethertype != ETH_P_IPV6)
 		goto out_ok;
 
 	modify_ip_header = false;

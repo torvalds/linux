@@ -545,8 +545,8 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 				 ntohl(match.key->dst));
 
 			key_basic.n_proto = htons(ETH_P_IP);
-			mlx5e_tc_set_ethertype(headers_c, headers_v,
-					       &match_basic);
+			mlx5e_tc_set_ethertype(priv->mdev, &match_basic, true,
+					       headers_c, headers_v);
 		} else if (addr_type == FLOW_DISSECTOR_KEY_IPV6_ADDRS) {
 			struct flow_match_ipv6_addrs match;
 
@@ -570,8 +570,8 @@ int mlx5e_tc_tun_parse(struct net_device *filter_dev,
 								  ipv6));
 
 			key_basic.n_proto = htons(ETH_P_IPV6);
-			mlx5e_tc_set_ethertype(headers_c, headers_v,
-					       &match_basic);
+			mlx5e_tc_set_ethertype(priv->mdev, &match_basic, true,
+					       headers_c, headers_v);
 		}
 	}
 
