@@ -188,7 +188,7 @@ static inline int calc_pages_for(u64 off, u64 len)
 #define RB_CMP3WAY(a, b) ((a) < (b) ? -1 : (a) > (b))
 
 #define DEFINE_RB_INSDEL_FUNCS2(name, type, keyfld, cmpexp, keyexp, nodefld) \
-static void insert_##name(struct rb_root *root, type *t)		\
+static bool __insert_##name(struct rb_root *root, type *t)		\
 {									\
 	struct rb_node **n = &root->rb_node;				\
 	struct rb_node *parent = NULL;					\
@@ -206,11 +206,17 @@ static void insert_##name(struct rb_root *root, type *t)		\
 		else if (cmp > 0)					\
 			n = &(*n)->rb_right;				\
 		else							\
-			BUG();						\
+			return false;					\
 	}								\
 									\
 	rb_link_node(&t->nodefld, parent, n);				\
 	rb_insert_color(&t->nodefld, root);				\
+	return true;							\
+}									\
+static void __maybe_unused insert_##name(struct rb_root *root, type *t)	\
+{									\
+	if (!__insert_##name(root, t))					\
+		BUG();							\
 }									\
 static void erase_##name(struct rb_root *root, type *t)			\
 {									\
