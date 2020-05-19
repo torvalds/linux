@@ -43,9 +43,11 @@ static int			kgdb_tty_line;
 
 static struct platform_device *kgdboc_pdev;
 
+#if IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE)
 static struct kgdb_io		kgdboc_earlycon_io_ops;
 static struct console		*earlycon;
 static int                      (*earlycon_orig_exit)(struct console *con);
+#endif /* IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
 
 #ifdef CONFIG_KDB_KEYBOARD
 static int kgdboc_reset_connect(struct input_handler *handler,
@@ -140,10 +142,19 @@ static void kgdboc_unregister_kbd(void)
 #define kgdboc_restore_input()
 #endif /* ! CONFIG_KDB_KEYBOARD */
 
-static void cleanup_kgdboc(void)
+#if IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE)
+static void cleanup_earlycon(void)
 {
 	if (earlycon)
 		kgdb_unregister_io_module(&kgdboc_earlycon_io_ops);
+}
+#else /* !IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
+static inline void cleanup_earlycon(void) { }
+#endif /* !IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
+
+static void cleanup_kgdboc(void)
+{
+	cleanup_earlycon();
 
 	if (configured != 1)
 		return;
@@ -388,6 +399,7 @@ static struct kgdb_io kgdboc_io_ops = {
 	.post_exception		= kgdboc_post_exp_handler,
 };
 
+#if IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE)
 static int kgdboc_option_setup(char *opt)
 {
 	if (!opt) {
@@ -544,6 +556,7 @@ unlock:
 }
 
 early_param("kgdboc_earlycon", kgdboc_earlycon_init);
+#endif /* IS_BUILTIN(CONFIG_KGDB_SERIAL_CONSOLE) */
 
 module_init(init_kgdboc);
 module_exit(exit_kgdboc);
