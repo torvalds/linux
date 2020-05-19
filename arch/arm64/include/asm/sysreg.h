@@ -796,6 +796,9 @@
 
 #define ID_MMFR5_ETS_SHIFT		0
 
+#define ID_PFR0_DIT_SHIFT		24
+#define ID_PFR0_CSV2_SHIFT		16
+
 #define ID_PFR2_SSBS_SHIFT		4
 #define ID_PFR2_CSV3_SHIFT		0
 
