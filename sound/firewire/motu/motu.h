@@ -118,6 +118,9 @@ struct snd_motu_spec {
 	enum snd_motu_protocol_version protocol_version;
 	enum snd_motu_spec_flags flags;
 
+	unsigned char tx_fixed_pcm_chunks[3];
+	unsigned char rx_fixed_pcm_chunks[3];
+
 	unsigned char analog_in_ports;
 	unsigned char analog_out_ports;
 };

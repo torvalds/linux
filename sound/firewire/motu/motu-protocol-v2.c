@@ -306,7 +306,8 @@ const struct snd_motu_spec snd_motu_spec_828mk2 = {
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
-
+	.tx_fixed_pcm_chunks = {14, 14, 0},
+	.rx_fixed_pcm_chunks = {14, 14, 0},
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
 };
@@ -321,7 +322,8 @@ const struct snd_motu_spec snd_motu_spec_traveler = {
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
-
+	.tx_fixed_pcm_chunks = {14, 14, 8},
+	.rx_fixed_pcm_chunks = {14, 14, 8},
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
 };
@@ -335,6 +337,8 @@ const struct snd_motu_spec snd_motu_spec_ultralite = {
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.tx_fixed_pcm_chunks = {14, 14, 0},
+	.rx_fixed_pcm_chunks = {14, 14, 0},
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
 };
@@ -349,6 +353,8 @@ const struct snd_motu_spec snd_motu_spec_8pre = {
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
+	.tx_fixed_pcm_chunks = {10, 6, 0},
+	.rx_fixed_pcm_chunks = {10, 6, 0},
 	.analog_in_ports = 8,
 	.analog_out_ports = 2,
 };

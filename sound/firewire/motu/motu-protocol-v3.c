@@ -324,7 +324,8 @@ const struct snd_motu_spec snd_motu_spec_828mk3 = {
 		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
 		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
-
+	.tx_fixed_pcm_chunks = {18, 18, 14},
+	.rx_fixed_pcm_chunks = {14, 14, 10},
 	.analog_in_ports = 8,
 	.analog_out_ports = 8,
 };
@@ -338,6 +339,8 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
 		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.tx_fixed_pcm_chunks = {10, 10, 0},
+	.rx_fixed_pcm_chunks = {10, 10, 0},
 	.analog_in_ports = 2,
 	.analog_out_ports = 4,
 };
@@ -349,6 +352,8 @@ const struct snd_motu_spec snd_motu_spec_4pre = {
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
 		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.tx_fixed_pcm_chunks = {10, 10, 0},
+	.rx_fixed_pcm_chunks = {10, 10, 0},
 	.analog_in_ports = 2,
 	.analog_out_ports = 2,
 };
