@@ -772,8 +772,7 @@ static int fuse_check_page(struct page *page)
 	       1 << PG_lru |
 	       1 << PG_active |
 	       1 << PG_reclaim))) {
-		pr_warn("trying to steal weird page\n");
-		pr_warn("  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
+		dump_page(page, "fuse: trying to steal weird page");
 		return 1;
 	}
 	return 0;
