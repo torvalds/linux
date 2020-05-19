@@ -366,6 +366,11 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	irq_hw_number_t hwirq;
 	int err, i;
 
+	if (memchr_inv(pp->irq, 0, sizeof(pp->irq)) == NULL) {
+		dev_warn(gpio->dev, "no IRQ for port%d\n", pp->idx);
+		return;
+	}
+
 	gpio->domain = irq_domain_create_linear(fwnode, ngpio,
 						 &irq_generic_chip_ops, gpio);
 	if (!gpio->domain)
@@ -501,7 +506,8 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	if (pp->idx == 0)
 		port->gc.set_config = dwapb_gpio_set_config;
 
-	if (pp->has_irq)
+	/* Only port A can provide interrupts in all configurations of the IP */
+	if (pp->idx == 0)
 		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add_data(&port->gc, port);
@@ -550,13 +556,7 @@ static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 			irq = platform_get_irq_optional(to_platform_device(dev), j);
 		if (irq > 0)
 			pp->irq[j] = irq;
-
-		if (pp->irq[j])
-			pp->has_irq = true;
 	}
-
-	if (!pp->has_irq)
-		dev_warn(dev, "no irq for port%d\n", pp->idx);
 }
 
 static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
