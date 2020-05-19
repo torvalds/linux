@@ -66,7 +66,7 @@ void __init MMU_init_hw(void)
 	if (IS_ENABLED(CONFIG_PIN_TLB_DATA)) {
 		unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
 		unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
-		int i = IS_ENABLED(CONFIG_PIN_TLB_IMMR) ? 29 : 28;
+		int i = 28;
 		unsigned long addr = 0;
 		unsigned long mem = total_lowmem;
 
@@ -81,11 +81,18 @@ void __init MMU_init_hw(void)
 	}
 }
 
-static void __init mmu_mapin_immr(void)
+static bool immr_is_mapped __initdata;
+
+void __init mmu_mapin_immr(void)
 {
 	unsigned long p = PHYS_IMMR_BASE;
 	unsigned long v = VIRT_IMMR_BASE;
 	int offset;
+
+	if (immr_is_mapped)
+		return;
+
+	immr_is_mapped = true;
 
 	for (offset = 0; offset < IMMR_SIZE; offset += PAGE_SIZE)
 		map_kernel_page(v + offset, p + offset, PAGE_KERNEL_NCG);
@@ -122,9 +129,10 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long mapped;
 
+	mmu_mapin_immr();
+
 	if (__map_without_ltlbs) {
 		mapped = 0;
-		mmu_mapin_immr();
 		if (!IS_ENABLED(CONFIG_PIN_TLB_IMMR))
 			patch_instruction_site(&patch__dtlbmiss_immr_jmp, ppc_inst(PPC_INST_NOP));
 		if (!IS_ENABLED(CONFIG_PIN_TLB_TEXT))
@@ -143,7 +151,6 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		 */
 		mmu_mapin_ram_chunk(0, einittext8, PAGE_KERNEL_X);
 		mmu_mapin_ram_chunk(einittext8, mapped, PAGE_KERNEL);
-		mmu_mapin_immr();
 	}
 
 	mmu_patch_cmp_limit(&patch__dtlbmiss_linmem_top, mapped);

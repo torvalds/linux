@@ -749,6 +749,23 @@ start_here:
 	rfi
 /* Load up the kernel context */
 2:
+#ifdef CONFIG_PIN_TLB_IMMR
+	lis	r0, MD_TWAM@h
+	oris	r0, r0, 0x1f00
+	mtspr	SPRN_MD_CTR, r0
+	LOAD_REG_IMMEDIATE(r0, VIRT_IMMR_BASE | MD_EVALID)
+	tlbie	r0
+	mtspr	SPRN_MD_EPN, r0
+	LOAD_REG_IMMEDIATE(r0, MD_SVALID | MD_PS512K | MD_GUARDED)
+	mtspr	SPRN_MD_TWC, r0
+	mfspr   r0, SPRN_IMMR
+	rlwinm	r0, r0, 0, 0xfff80000
+	ori	r0, r0, 0xf0 | _PAGE_DIRTY | _PAGE_SPS | _PAGE_SH | \
+			_PAGE_NO_CACHE | _PAGE_PRESENT
+	mtspr	SPRN_MD_RPN, r0
+	lis	r0, (MD_TWAM | MD_RSV4I)@h
+	mtspr	SPRN_MD_CTR, r0
+#endif
 	tlbia			/* Clear all TLB entries */
 	sync			/* wait for tlbia/tlbie to finish */
 
@@ -796,28 +813,6 @@ initial_mmu:
 	lis	r8, MD_APG_INIT@h
 	ori	r8, r8, MD_APG_INIT@l
 	mtspr	SPRN_MD_AP, r8
-
-	/* Map a 512k page for the IMMR to get the processor
-	 * internal registers (among other things).
-	 */
-#ifdef CONFIG_PIN_TLB_IMMR
-	oris	r10, r10, MD_RSV4I@h
-	ori	r10, r10, 0x1c00
-	mtspr	SPRN_MD_CTR, r10
-
-	mfspr	r9, 638			/* Get current IMMR */
-	andis.	r9, r9, 0xfff8		/* Get 512 kbytes boundary */
-
-	lis	r8, VIRT_IMMR_BASE@h	/* Create vaddr for TLB */
-	ori	r8, r8, MD_EVALID	/* Mark it valid */
-	mtspr	SPRN_MD_EPN, r8
-	li	r8, MD_PS512K | MD_GUARDED	/* Set 512k byte page */
-	ori	r8, r8, MD_SVALID	/* Make it valid */
-	mtspr	SPRN_MD_TWC, r8
-	mr	r8, r9			/* Create paddr for TLB */
-	ori	r8, r8, MI_BOOTINIT|0x2 /* Inhibit cache -- Cort */
-	mtspr	SPRN_MD_RPN, r8
-#endif
 
 	/* Now map the lower RAM (up to 32 Mbytes) into the ITLB. */
 #ifdef CONFIG_PIN_TLB_TEXT

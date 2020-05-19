@@ -187,7 +187,7 @@ config PIN_TLB_DATA
 
 config PIN_TLB_IMMR
 	bool "Pinned TLB for IMMR"
-	depends on PIN_TLB || PPC_EARLY_DEBUG_CPM
+	depends on PIN_TLB
 	default y
 	help
 	  This pins the IMMR area with a 512kbytes page. In case
