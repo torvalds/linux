@@ -281,15 +281,16 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dm_zone *szone = NULL;
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret;
-	int alloc_flags = dmz_nr_cache_zones(zmd) ?
-		DMZ_ALLOC_RND : DMZ_ALLOC_SEQ;
+	int alloc_flags = DMZ_ALLOC_SEQ;
 
-	/* Always use sequential zones to reclaim random zones */
-	if (dmz_is_rnd(dzone))
-		alloc_flags = DMZ_ALLOC_SEQ;
 	/* Get a free random or sequential zone */
 	dmz_lock_map(zmd);
+again:
 	szone = dmz_alloc_zone(zmd, alloc_flags | DMZ_ALLOC_RECLAIM);
+	if (!szone && alloc_flags == DMZ_ALLOC_SEQ && dmz_nr_cache_zones(zmd)) {
+		alloc_flags = DMZ_ALLOC_RND;
+		goto again;
+	}
 	dmz_unlock_map(zmd);
 	if (!szone)
 		return -ENOSPC;
