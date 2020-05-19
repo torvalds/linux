@@ -22,6 +22,7 @@
 #include <asm/schid.h>
 #include <asm/cmb.h>
 #include <linux/uaccess.h>
+#include <linux/dasd_mod.h>
 
 /* This is ugly... */
 #define PRINTK_HEADER "dasd_ioctl:"
@@ -664,3 +665,36 @@ int dasd_ioctl(struct block_device *bdev, fmode_t mode,
 	dasd_put_device(base);
 	return rc;
 }
+
+
+/**
+ * dasd_biodasdinfo() - fill out the dasd information structure
+ * @disk [in]: pointer to gendisk structure that references a DASD
+ * @info [out]: pointer to the dasd_information2_t structure
+ *
+ * Provide access to DASD specific information.
+ * The gendisk structure is checked if it belongs to the DASD driver by
+ * comparing the gendisk->fops pointer.
+ * If it does not belong to the DASD driver -EINVAL is returned.
+ * Otherwise the provided dasd_information2_t structure is filled out.
+ *
+ * Returns:
+ *   %0 on success and a negative error value on failure.
+ */
+int dasd_biodasdinfo(struct gendisk *disk, struct dasd_information2_t *info)
+{
+	struct dasd_device *base;
+	int error;
+
+	if (disk->fops != &dasd_device_operations)
+		return -EINVAL;
+
+	base = dasd_device_from_gendisk(disk);
+	if (!base)
+		return -ENODEV;
+	error = __dasd_ioctl_information(base->block, info);
+	dasd_put_device(base);
+	return error;
+}
+/* export that symbol_get in partition detection is possible */
+EXPORT_SYMBOL_GPL(dasd_biodasdinfo);
