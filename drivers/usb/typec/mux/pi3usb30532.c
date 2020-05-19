@@ -114,8 +114,8 @@ pi3usb30532_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
 static int pi3usb30532_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
-	struct typec_switch_desc sw_desc;
-	struct typec_mux_desc mux_desc;
+	struct typec_switch_desc sw_desc = { };
+	struct typec_mux_desc mux_desc = { };
 	struct pi3usb30532 *pi;
 	int ret;
 

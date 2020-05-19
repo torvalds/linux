@@ -1752,6 +1752,8 @@ static int db_interception(struct vcpu_svm *svm)
 	if (svm->vcpu.guest_debug &
 	    (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) {
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
+		kvm_run->debug.arch.dr6 = svm->vmcb->save.dr6;
+		kvm_run->debug.arch.dr7 = svm->vmcb->save.dr7;
 		kvm_run->debug.arch.pc =
 			svm->vmcb->save.cs.base + svm->vmcb->save.rip;
 		kvm_run->debug.arch.exception = DB_VECTOR;
@@ -3276,7 +3278,7 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 	svm_complete_interrupts(svm);
 }
 
-bool __svm_vcpu_run(unsigned long vmcb_pa, unsigned long *regs);
+void __svm_vcpu_run(unsigned long vmcb_pa, unsigned long *regs);
 
 static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
@@ -3330,12 +3332,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	x86_spec_ctrl_set_guest(svm->spec_ctrl, svm->virt_spec_ctrl);
 
-	local_irq_enable();
-
 	__svm_vcpu_run(svm->vmcb_pa, (unsigned long *)&svm->vcpu.arch.regs);
-
-	/* Eliminate branch target predictions from guest mode */
-	vmexit_fill_RSB();
 
 #ifdef CONFIG_X86_64
 	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
@@ -3365,8 +3362,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		svm->spec_ctrl = native_read_msr(MSR_IA32_SPEC_CTRL);
 
 	reload_tss(vcpu);
-
-	local_irq_disable();
 
 	x86_spec_ctrl_restore_host(svm->spec_ctrl, svm->virt_spec_ctrl);
 
@@ -3411,7 +3406,6 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	mark_all_clean(svm->vmcb);
 }
-STACK_FRAME_NON_STANDARD(svm_vcpu_run);
 
 static void svm_load_mmu_pgd(struct kvm_vcpu *vcpu, unsigned long root)
 {

@@ -3442,8 +3442,12 @@ static int drm_dp_send_dpcd_write(struct drm_dp_mst_topology_mgr *mgr,
 	drm_dp_queue_down_tx(mgr, txmsg);
 
 	ret = drm_dp_mst_wait_tx_reply(mstb, txmsg);
-	if (ret > 0 && txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
-		ret = -EIO;
+	if (ret > 0) {
+		if (txmsg->reply.reply_type == DP_SIDEBAND_REPLY_NAK)
+			ret = -EIO;
+		else
+			ret = size;
+	}
 
 	kfree(txmsg);
 fail_put:
@@ -4295,6 +4299,7 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 	if (pos->vcpi) {
 		drm_dp_mst_put_port_malloc(port);
 		pos->vcpi = 0;
+		pos->pbn = 0;
 	}
 
 	return 0;
