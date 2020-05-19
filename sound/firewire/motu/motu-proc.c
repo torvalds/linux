@@ -51,7 +51,7 @@ static void proc_read_format(struct snd_info_entry *entry,
 	if (snd_motu_protocol_cache_packet_formats(motu) < 0)
 		return;
 
-	snd_iprintf(buffer, "tx:\tmsg\tfixed\tdiffered\n");
+	snd_iprintf(buffer, "tx:\tmsg\tfixed\ttotal\n");
 	for (i = 0; i < SND_MOTU_CLOCK_RATE_COUNT; ++i) {
 		mode = i >> 1;
 
@@ -60,11 +60,11 @@ static void proc_read_format(struct snd_info_entry *entry,
 			    "%u:\t%u\t%u\t%u\n",
 			    snd_motu_clock_rates[i],
 			    formats->msg_chunks,
-			    formats->fixed_part_pcm_chunks[mode],
-			    formats->differed_part_pcm_chunks[mode]);
+			    motu->spec->tx_fixed_pcm_chunks[mode],
+			    formats->pcm_chunks[mode]);
 	}
 
-	snd_iprintf(buffer, "rx:\tmsg\tfixed\tdiffered\n");
+	snd_iprintf(buffer, "rx:\tmsg\tfixed\ttotal\n");
 	for (i = 0; i < SND_MOTU_CLOCK_RATE_COUNT; ++i) {
 		mode = i >> 1;
 
@@ -73,8 +73,8 @@ static void proc_read_format(struct snd_info_entry *entry,
 			    "%u:\t%u\t%u\t%u\n",
 			    snd_motu_clock_rates[i],
 			    formats->msg_chunks,
-			    formats->fixed_part_pcm_chunks[mode],
-			    formats->differed_part_pcm_chunks[mode]);
+			    motu->spec->rx_fixed_pcm_chunks[mode],
+			    formats->pcm_chunks[mode]);
 	}
 }
 

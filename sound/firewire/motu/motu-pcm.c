@@ -26,8 +26,7 @@ static int motu_rate_constraint(struct snd_pcm_hw_params *params,
 		rate = snd_motu_clock_rates[i];
 		mode = i / 2;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		if (!snd_interval_test(c, pcm_channels))
 			continue;
 
@@ -59,8 +58,7 @@ static int motu_channels_constraint(struct snd_pcm_hw_params *params,
 		if (!snd_interval_test(r, rate))
 			continue;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		channels.min = min(channels.min, pcm_channels);
 		channels.max = max(channels.max, pcm_channels);
 	}
@@ -82,8 +80,7 @@ static void limit_channels_and_rates(struct snd_motu *motu,
 		rate = snd_motu_clock_rates[i];
 		mode = i / 2;
 
-		pcm_channels = formats->fixed_part_pcm_chunks[mode] +
-			       formats->differed_part_pcm_chunks[mode];
+		pcm_channels = formats->pcm_chunks[mode];
 		if (pcm_channels == 0)
 			continue;
 
