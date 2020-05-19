@@ -453,6 +453,13 @@ config MTD_NAND_CADENCE
 	  Enable the driver for NAND flash on platforms using a Cadence NAND
 	  controller.
 
+config MTD_NAND_ARASAN
+	tristate "Support for Arasan NAND flash controller"
+	depends on HAS_IOMEM && HAS_DMA
+	help
+	  Enables the driver for the Arasan NAND flash controller on
+	  Zynq Ultrascale+ MPSoC.
+
 comment "Misc"
 
 config MTD_SM_COMMON
