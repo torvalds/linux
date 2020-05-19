@@ -72,14 +72,6 @@ static void init_pdm_ring_buffer(u32 physical_addr,
 	rn_writel(0x01, acp_base + ACPAXI2AXI_ATU_CTRL);
 }
 
-static void config_pdm_stream_params(unsigned int ch_mask,
-				     void __iomem *acp_base)
-{
-	rn_writel(ch_mask, acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
-	rn_writel(PDM_DECIMATION_FACTOR, acp_base +
-		  ACP_WOV_PDM_DECIMATION_FACTOR);
-}
-
 static void enable_pdm_clock(void __iomem *acp_base)
 {
 	u32 pdm_clk_enable, pdm_ctrl;
@@ -332,11 +324,14 @@ static int acp_pdm_dai_hw_params(struct snd_pcm_substream *substream,
 	rtd = substream->runtime->private_data;
 	switch (params_channels(params)) {
 	case TWO_CH:
-	default:
 		ch_mask = 0x00;
 		break;
+	default:
+		return -EINVAL;
 	}
-	config_pdm_stream_params(ch_mask, rtd->acp_base);
+	rn_writel(ch_mask, rtd->acp_base + ACP_WOV_PDM_NO_OF_CHANNELS);
+	rn_writel(PDM_DECIMATION_FACTOR, rtd->acp_base +
+		  ACP_WOV_PDM_DECIMATION_FACTOR);
 	return 0;
 }
 
