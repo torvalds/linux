@@ -1051,6 +1051,10 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 		goto err_free;
 
 	obj->uevent.uobject.object = cq;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
+
 	memset(&resp, 0, sizeof resp);
 	resp.base.cq_handle = obj->uevent.uobject.id;
 	resp.base.cqe       = cq->cqe;
@@ -1067,6 +1071,8 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	return obj;
 
 err_cb:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
 	cq = NULL;
 err_free:
@@ -1460,6 +1466,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	}
 
 	obj->uevent.uobject.object = qp;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof resp);
 	resp.base.qpn             = qp->qp_num;
@@ -1473,7 +1482,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
-		goto err_cb;
+		goto err_uevent;
 
 	if (xrcd) {
 		obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object,
@@ -1498,6 +1507,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 	rdma_alloc_commit_uobject(&obj->uevent.uobject, attrs);
 	return 0;
+err_uevent:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 err_cb:
 	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
@@ -2975,6 +2987,9 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	atomic_set(&wq->usecnt, 0);
 	atomic_inc(&pd->usecnt);
 	atomic_inc(&cq->usecnt);
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof(resp));
 	resp.wq_handle = obj->uevent.uobject.id;
@@ -2993,6 +3008,8 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 	return 0;
 
 err_copy:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
 err_put_cq:
 	rdma_lookup_put_uobject(&cq->uobject->uevent.uobject,
@@ -3453,6 +3470,10 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	}
 
 	obj->uevent.uobject.object = srq;
+	obj->uevent.uobject.user_handle = cmd->user_handle;
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
 
 	memset(&resp, 0, sizeof resp);
 	resp.srq_handle = obj->uevent.uobject.id;
@@ -3477,6 +3498,8 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	return 0;
 
 err_copy:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));
 err_put_pd:
 	uobj_put_obj_read(pd);

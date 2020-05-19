@@ -146,8 +146,7 @@ void ib_uverbs_release_ucq(struct ib_uverbs_completion_event_file *ev_file,
 
 void ib_uverbs_release_uevent(struct ib_uevent_object *uobj)
 {
-	struct ib_uverbs_async_event_file *async_file =
-		READ_ONCE(uobj->uobject.ufile->async_file);
+	struct ib_uverbs_async_event_file *async_file = uobj->event_file;
 	struct ib_uverbs_event *evt, *tmp;
 
 	if (!async_file)
@@ -159,6 +158,7 @@ void ib_uverbs_release_uevent(struct ib_uevent_object *uobj)
 		kfree(evt);
 	}
 	spin_unlock_irq(&async_file->ev_queue.lock);
+	uverbs_uobject_put(&async_file->uobj);
 }
 
 void ib_uverbs_detach_umcast(struct ib_qp *qp,
@@ -197,8 +197,8 @@ void ib_uverbs_release_file(struct kref *ref)
 	if (atomic_dec_and_test(&file->device->refcount))
 		ib_uverbs_comp_dev(file->device);
 
-	if (file->async_file)
-		uverbs_uobject_put(&file->async_file->uobj);
+	if (file->default_async_file)
+		uverbs_uobject_put(&file->default_async_file->uobj);
 	put_device(&file->device->dev);
 
 	if (file->disassociate_page)
@@ -427,7 +427,7 @@ void ib_uverbs_async_handler(struct ib_uverbs_async_event_file *async_file,
 static void uverbs_uobj_event(struct ib_uevent_object *eobj,
 			      struct ib_event *event)
 {
-	ib_uverbs_async_handler(READ_ONCE(eobj->uobject.ufile->async_file),
+	ib_uverbs_async_handler(eobj->event_file,
 				eobj->uobject.user_handle, event->event,
 				&eobj->event_list, &eobj->events_reported);
 }
@@ -484,10 +484,10 @@ void ib_uverbs_init_async_event_file(
 
 	/* The first async_event_file becomes the default one for the file. */
 	mutex_lock(&uverbs_file->ucontext_lock);
-	if (!uverbs_file->async_file) {
+	if (!uverbs_file->default_async_file) {
 		/* Pairs with the put in ib_uverbs_release_file */
 		uverbs_uobject_get(&async_file->uobj);
-		smp_store_release(&uverbs_file->async_file, async_file);
+		smp_store_release(&uverbs_file->default_async_file, async_file);
 	}
 	mutex_unlock(&uverbs_file->ucontext_lock);
 

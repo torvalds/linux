@@ -142,7 +142,7 @@ struct ib_uverbs_file {
 	 * ucontext_lock held
 	 */
 	struct ib_ucontext		       *ucontext;
-	struct ib_uverbs_async_event_file      *async_file;
+	struct ib_uverbs_async_event_file      *default_async_file;
 	struct list_head			list;
 
 	/*
@@ -180,6 +180,7 @@ struct ib_uverbs_mcast_entry {
 
 struct ib_uevent_object {
 	struct ib_uobject	uobject;
+	struct ib_uverbs_async_event_file *event_file;
 	/* List member for ib_uverbs_async_event_file list */
 	struct list_head	event_list;
 	u32			events_reported;

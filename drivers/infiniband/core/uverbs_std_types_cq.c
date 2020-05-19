@@ -100,6 +100,10 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 		uverbs_uobject_get(ev_file_uobj);
 	}
 
+	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
+	if (obj->uevent.event_file)
+		uverbs_uobject_get(&obj->uevent.event_file->uobj);
+
 	if (attr.comp_vector >= attrs->ufile->device->num_comp_vectors) {
 		ret = -EINVAL;
 		goto err_event_file;
@@ -138,6 +142,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 err_free:
 	kfree(cq);
 err_event_file:
+	if (obj->uevent.event_file)
+		uverbs_uobject_put(&obj->uevent.event_file->uobj);
 	if (ev_file)
 		uverbs_uobject_put(ev_file_uobj);
 	return ret;
