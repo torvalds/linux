@@ -737,6 +737,9 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 	return attr->ptr_attr.len;
 }
 
+void uverbs_finalize_uobj_create(const struct uverbs_attr_bundle *attrs_bundle,
+				 u16 idx);
+
 /*
  * uverbs_attr_ptr_get_array_size() - Get array size pointer by a ptr
  * attribute.

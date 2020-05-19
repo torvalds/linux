@@ -129,16 +129,12 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	obj->uevent.uobject.object = cq;
 	obj->uevent.uobject.user_handle = user_handle;
 	rdma_restrack_uadd(&cq->res);
+	uverbs_finalize_uobj_create(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE);
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_CREATE_CQ_RESP_CQE, &cq->cqe,
 			     sizeof(cq->cqe));
-	if (ret)
-		goto err_cq;
+	return ret;
 
-	return 0;
-err_cq:
-	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
-	cq = NULL;
 err_free:
 	kfree(cq);
 err_event_file:

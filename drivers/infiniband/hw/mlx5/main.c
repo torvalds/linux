@@ -6187,26 +6187,20 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_VAR_OBJ_ALLOC)(
 	mmap_offset = mlx5_entry_to_mmap_offset(entry);
 	length = entry->rdma_entry.npages * PAGE_SIZE;
 	uobj->object = entry;
+	uverbs_finalize_uobj_create(attrs, MLX5_IB_ATTR_VAR_OBJ_ALLOC_HANDLE);
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_VAR_OBJ_ALLOC_MMAP_OFFSET,
 			     &mmap_offset, sizeof(mmap_offset));
 	if (err)
-		goto err;
+		return err;
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_VAR_OBJ_ALLOC_PAGE_ID,
 			     &entry->page_idx, sizeof(entry->page_idx));
 	if (err)
-		goto err;
+		return err;
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_VAR_OBJ_ALLOC_MMAP_LENGTH,
 			     &length, sizeof(length));
-	if (err)
-		goto err;
-
-	return 0;
-
-err:
-	rdma_user_mmap_entry_remove(&entry->rdma_entry);
 	return err;
 }
 
@@ -6320,26 +6314,20 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_UAR_OBJ_ALLOC)(
 	mmap_offset = mlx5_entry_to_mmap_offset(entry);
 	length = entry->rdma_entry.npages * PAGE_SIZE;
 	uobj->object = entry;
+	uverbs_finalize_uobj_create(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_HANDLE);
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_OFFSET,
 			     &mmap_offset, sizeof(mmap_offset));
 	if (err)
-		goto err;
+		return err;
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_PAGE_ID,
 			     &entry->page_idx, sizeof(entry->page_idx));
 	if (err)
-		goto err;
+		return err;
 
 	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_UAR_OBJ_ALLOC_MMAP_LENGTH,
 			     &length, sizeof(length));
-	if (err)
-		goto err;
-
-	return 0;
-
-err:
-	rdma_user_mmap_entry_remove(&entry->rdma_entry);
 	return err;
 }
 

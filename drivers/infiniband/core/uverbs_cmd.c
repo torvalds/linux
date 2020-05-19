@@ -311,7 +311,7 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	return 0;
 
 err_uobj:
-	rdma_alloc_abort_uobject(uobj, attrs);
+	rdma_alloc_abort_uobject(uobj, attrs, false);
 err_ucontext:
 	kfree(attrs->context);
 	attrs->context = NULL;

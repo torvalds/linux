@@ -1491,6 +1491,11 @@ enum rdma_remove_reason {
 	RDMA_REMOVE_DRIVER_REMOVE,
 	/* uobj is being cleaned-up before being committed */
 	RDMA_REMOVE_ABORT,
+	/*
+	 * uobj has been fully created, with the uobj->object set, but is being
+	 * cleaned up before being comitted
+	 */
+	RDMA_REMOVE_ABORT_HWOBJ,
 };
 
 struct ib_rdmacg_object {
