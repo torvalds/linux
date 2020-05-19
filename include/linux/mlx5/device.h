@@ -800,10 +800,23 @@ struct mlx5_cqe64 {
 	u8		tls_outer_l3_tunneled;
 	u8		rsvd0;
 	__be16		wqe_id;
-	u8		lro_tcppsh_abort_dupack;
-	u8		lro_min_ttl;
-	__be16		lro_tcp_win;
-	__be32		lro_ack_seq_num;
+	union {
+		struct {
+			u8	tcppsh_abort_dupack;
+			u8	min_ttl;
+			__be16	tcp_win;
+			__be32	ack_seq_num;
+		} lro;
+		struct {
+			u8	reserved0:1;
+			u8	match:1;
+			u8	flush:1;
+			u8	reserved3:5;
+			u8	header_size;
+			__be16	header_entry_index;
+			__be32	data_offset;
+		} shampo;
+	};
 	__be32		rss_hash_result;
 	u8		rss_hash_type;
 	u8		ml_path;
@@ -873,7 +886,7 @@ static inline u8 get_cqe_opcode(struct mlx5_cqe64 *cqe)
 
 static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)
 {
-	return (cqe->lro_tcppsh_abort_dupack >> 6) & 1;
+	return (cqe->lro.tcppsh_abort_dupack >> 6) & 1;
 }
 
 static inline u8 get_cqe_l4_hdr_type(struct mlx5_cqe64 *cqe)
