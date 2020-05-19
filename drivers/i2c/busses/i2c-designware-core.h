@@ -9,7 +9,13 @@
  * Copyright (C) 2009 Provigent Ltd.
  */
 
+#include <linux/bits.h>
+#include <linux/compiler_types.h>
+#include <linux/completion.h>
+#include <linux/dev_printk.h>
+#include <linux/errno.h>
 #include <linux/i2c.h>
+#include <linux/types.h>
 
 #define DW_IC_DEFAULT_FUNCTIONALITY (I2C_FUNC_I2C |			\
 					I2C_FUNC_SMBUS_BYTE |		\
@@ -170,6 +176,9 @@
 					 DW_IC_TX_ABRT_TXDATA_NOACK | \
 					 DW_IC_TX_ABRT_GCALL_NOACK)
 
+struct clk;
+struct device;
+struct reset_control;
 
 /**
  * struct dw_i2c_dev - private i2c-designware data
