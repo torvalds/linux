@@ -514,7 +514,6 @@ static int __init dmtimer_clockevent_init(struct device_node *np)
 	struct clock_event_device *dev;
 	struct dmtimer_systimer *t;
 	int error;
-	u32 pa;
 
 	clkevt = kzalloc(sizeof(*clkevt), GFP_KERNEL);
 	if (!clkevt)
@@ -563,7 +562,6 @@ static int __init dmtimer_clockevent_init(struct device_node *np)
 	writel_relaxed(OMAP_TIMER_INT_OVERFLOW, t->base + t->irq_ena);
 	writel_relaxed(OMAP_TIMER_INT_OVERFLOW, t->base + t->wakeup);
 
-	pa = of_translate_address(np, of_get_address(np, 0, NULL, NULL));
 	pr_info("TI gptimer clockevent: %s%lu Hz at %pOF\n",
 		of_find_property(np, "ti,timer-alwon", NULL) ?
 		"always-on " : "", t->rate, np->parent);
@@ -637,7 +635,6 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 	struct dmtimer_systimer *t;
 	struct clocksource *dev;
 	int error;
-	u32 pa;
 
 	clksrc = kzalloc(sizeof(*clksrc), GFP_KERNEL);
 	if (!clksrc)
@@ -666,7 +663,6 @@ static int __init dmtimer_clocksource_init(struct device_node *np)
 	writel_relaxed(OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR,
 		       t->base + t->ctrl);
 
-	pa = of_translate_address(np, of_get_address(np, 0, NULL, NULL));
 	pr_info("TI gptimer clocksource: %s%pOF\n",
 		of_find_property(np, "ti,timer-alwon", NULL) ?
 		"always-on " : "", np->parent);
