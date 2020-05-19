@@ -62,23 +62,6 @@ unsigned long p_block_mapped(phys_addr_t pa)
  */
 void __init MMU_init_hw(void)
 {
-	/* PIN up to the 3 first 8Mb after IMMR in DTLB table */
-	if (IS_ENABLED(CONFIG_PIN_TLB_DATA)) {
-		unsigned long ctr = mfspr(SPRN_MD_CTR) & 0xfe000000;
-		unsigned long flags = 0xf0 | MD_SPS16K | _PAGE_SH | _PAGE_DIRTY;
-		int i = 28;
-		unsigned long addr = 0;
-		unsigned long mem = total_lowmem;
-
-		for (; i < 32 && mem >= LARGE_PAGE_SIZE_8M; i++) {
-			mtspr(SPRN_MD_CTR, ctr | (i << 8));
-			mtspr(SPRN_MD_EPN, (unsigned long)__va(addr) | MD_EVALID);
-			mtspr(SPRN_MD_TWC, MD_PS8MEG | MD_SVALID);
-			mtspr(SPRN_MD_RPN, addr | flags | _PAGE_PRESENT);
-			addr += LARGE_PAGE_SIZE_8M;
-			mem -= LARGE_PAGE_SIZE_8M;
-		}
-	}
 }
 
 static bool immr_is_mapped __initdata;
@@ -223,7 +206,7 @@ void __init setup_initial_memory_limit(phys_addr_t first_memblock_base,
 	BUG_ON(first_memblock_base != 0);
 
 	/* 8xx can only access 32MB at the moment */
-	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x02000000));
+	memblock_set_current_limit(min_t(u64, first_memblock_size, SZ_32M));
 }
 
 /*
