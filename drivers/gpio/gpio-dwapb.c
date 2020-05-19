@@ -549,7 +549,7 @@ static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 		if (np)
 			pp->irq[j] = of_irq_get(np, j);
 		else if (has_acpi_companion(dev))
-			pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
+			pp->irq[j] = platform_get_irq_optional(to_platform_device(dev), j);
 
 		if (pp->irq[j] >= 0)
 			pp->has_irq = true;
