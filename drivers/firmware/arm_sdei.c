@@ -1096,6 +1096,8 @@ static bool __init sdei_present_acpi(void)
 	if (ACPI_FAILURE(status))
 		return false;
 
+	acpi_put_table(sdei_table_header);
+
 	return true;
 }
 
