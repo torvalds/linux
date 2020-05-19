@@ -27,6 +27,12 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
   port:
     type: object
     additionalProperties: false
@@ -57,6 +63,8 @@ required:
   - compatible
   - reg
   - interrupts
+  - clocks
+  - power-domains
   - port
 
 additionalProperties: false
@@ -64,11 +72,14 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/r7s72100-clock.h>
 
     ceu: ceu@e8210000 {
         reg = <0xe8210000 0x209c>;
         compatible = "renesas,r7s72100-ceu";
         interrupts = <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&mstp6_clks R7S72100_CLK_CEU>;
+        power-domains = <&cpg_clocks>;
 
         port {
             ceu_in: endpoint {
