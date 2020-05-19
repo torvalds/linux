@@ -2772,11 +2772,9 @@ int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable)
 				   sizeof(req), true);
 }
 
-void m7615_mcu_set_ps_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+int mt7615_mcu_set_vif_ps(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_phy *phy = priv;
-	struct mt76_phy *mphy = phy->mt76;
 	struct {
 		u8 bss_idx;
 		u8 ps_state; /* 0: device awake
@@ -2785,12 +2783,14 @@ void m7615_mcu_set_ps_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 			      */
 	} req = {
 		.bss_idx = mvif->idx,
-		.ps_state = test_bit(MT76_STATE_PS, &mphy->state) ? 2 : 0,
+		.ps_state = vif->bss_conf.ps ? 2 : 0,
 	};
 
-	if (vif->type == NL80211_IFTYPE_STATION)
-		__mt76_mcu_send_msg(&phy->dev->mt76,  MCU_CMD_SET_PS_PROFILE,
-				    &req, sizeof(req), false);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return -ENOTSUPP;
+
+	return __mt76_mcu_send_msg(&dev->mt76,  MCU_CMD_SET_PS_PROFILE,
+				   &req, sizeof(req), false);
 }
 
 int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy)
