@@ -649,7 +649,7 @@ static int map_cont_bufs(struct rtrs_srv_sess *sess)
 		}
 		nr = ib_map_mr_sg(mr, sgt->sgl, sgt->nents,
 				  NULL, max_chunk_size);
-		if (nr < sgt->nents) {
+		if (nr < 0 || nr < sgt->nents) {
 			err = nr < 0 ? nr : -EINVAL;
 			goto dereg_mr;
 		}
