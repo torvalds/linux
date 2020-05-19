@@ -106,18 +106,19 @@ static ssize_t store_current_governor(struct device *dev,
 	return ret ? ret : count;
 }
 
+static DEVICE_ATTR(available_governors, 0444, show_available_governors, NULL);
 static DEVICE_ATTR(current_driver, 0444, show_current_driver, NULL);
+static DEVICE_ATTR(current_governor, 0644, show_current_governor,
+				   store_current_governor);
 static DEVICE_ATTR(current_governor_ro, 0444, show_current_governor, NULL);
 
 static struct attribute *cpuidle_default_attrs[] = {
+	&dev_attr_available_governors.attr,
 	&dev_attr_current_driver.attr,
+	&dev_attr_current_governor.attr,
 	&dev_attr_current_governor_ro.attr,
 	NULL
 };
-
-static DEVICE_ATTR(available_governors, 0444, show_available_governors, NULL);
-static DEVICE_ATTR(current_governor, 0644, show_current_governor,
-		   store_current_governor);
 
 static struct attribute *cpuidle_switch_attrs[] = {
 	&dev_attr_available_governors.attr,
