@@ -67,6 +67,9 @@
 #define MPMU_POSR		0x10
 #define MPMU_UART_PLL		0x14
 #define MPMU_PLL2_CR		0x34
+#define MPMU_I2S0_PLL		0x40
+#define MPMU_I2S1_PLL		0x44
+#define MPMU_ACGR		0x1024
 /* MMP3 specific below */
 #define MPMU_PLL3_CR		0x50
 #define MPMU_PLL3_CTRL1		0x58
@@ -91,6 +94,7 @@ static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{MMP2_CLK_CLK32, "clk32", NULL, 0, 32768},
 	{MMP2_CLK_VCTCXO, "vctcxo", NULL, 0, 26000000},
 	{MMP2_CLK_USB_PLL, "usb_pll", NULL, 0, 480000000},
+	{0, "i2s_pll", NULL, 0, 99666667},
 };
 
 static struct mmp_param_pll_clk pll_clks[] = {
@@ -139,6 +143,34 @@ static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
 	{.num = 3521, .den = 689},	/*19.23MHZ */
 };
 
+static struct mmp_clk_factor_masks i2s_factor_masks = {
+	.factor = 2,
+	.num_mask = 0x7fff,
+	.den_mask = 0x1fff,
+	.num_shift = 0,
+	.den_shift = 15,
+	.enable_mask = 0xd0000000,
+};
+
+static struct mmp_clk_factor_tbl i2s_factor_tbl[] = {
+	{.num = 24868, .den =  511},	/*  2.0480 MHz */
+	{.num = 28003, .den =  793},	/*  2.8224 MHz */
+	{.num = 24941, .den = 1025},	/*  4.0960 MHz */
+	{.num = 28003, .den = 1586},	/*  5.6448 MHz */
+	{.num = 31158, .den = 2561},	/*  8.1920 MHz */
+	{.num = 16288, .den = 1845},	/* 11.2896 MHz */
+	{.num = 20772, .den = 2561},	/* 12.2880 MHz */
+	{.num =  8144, .den = 1845},	/* 22.5792 MHz */
+	{.num = 10386, .den = 2561},	/* 24.5760 MHz */
+};
+
+static DEFINE_SPINLOCK(acgr_lock);
+
+static struct mmp_param_gate_clk mpmu_gate_clks[] = {
+	{MMP2_CLK_I2S0, "i2s0_clk", "i2s0_pll", CLK_SET_RATE_PARENT, MPMU_ACGR, 0x200000, 0x200000, 0x0, 0, &acgr_lock},
+	{MMP2_CLK_I2S1, "i2s1_clk", "i2s1_pll", CLK_SET_RATE_PARENT, MPMU_ACGR, 0x100000, 0x100000, 0x0, 0, &acgr_lock},
+};
+
 static void mmp2_main_clk_init(struct mmp2_clk_unit *pxa_unit)
 {
 	struct clk *clk;
@@ -166,6 +198,20 @@ static void mmp2_main_clk_init(struct mmp2_clk_unit *pxa_unit)
 				&uart_factor_masks, uart_factor_tbl,
 				ARRAY_SIZE(uart_factor_tbl), NULL);
 	mmp_clk_add(unit, MMP2_CLK_UART_PLL, clk);
+
+	mmp_clk_register_factor("i2s0_pll", "pll1_4",
+				CLK_SET_RATE_PARENT,
+				pxa_unit->mpmu_base + MPMU_I2S0_PLL,
+				&i2s_factor_masks, i2s_factor_tbl,
+				ARRAY_SIZE(i2s_factor_tbl), NULL);
+	mmp_clk_register_factor("i2s1_pll", "pll1_4",
+				CLK_SET_RATE_PARENT,
+				pxa_unit->mpmu_base + MPMU_I2S1_PLL,
+				&i2s_factor_masks, i2s_factor_tbl,
+				ARRAY_SIZE(i2s_factor_tbl), NULL);
+
+	mmp_register_gate_clks(unit, mpmu_gate_clks, pxa_unit->mpmu_base,
+				ARRAY_SIZE(mpmu_gate_clks));
 }
 
 static DEFINE_SPINLOCK(uart0_lock);
