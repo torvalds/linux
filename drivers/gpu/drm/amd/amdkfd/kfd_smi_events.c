@@ -78,9 +78,11 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 	int ret;
 	size_t to_copy;
 	struct kfd_smi_client *client = filep->private_data;
-	unsigned char buf[MAX_KFIFO_SIZE];
+	unsigned char *buf;
 
-	BUILD_BUG_ON(MAX_KFIFO_SIZE > 1024);
+	buf = kmalloc(MAX_KFIFO_SIZE * sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	/* kfifo_to_user can sleep so we can't use spinlock protection around
 	 * it. Instead, we kfifo out as spinlocked then copy them to the user.
@@ -89,19 +91,29 @@ static ssize_t kfd_smi_ev_read(struct file *filep, char __user *user,
 	to_copy = kfifo_len(&client->fifo);
 	if (!to_copy) {
 		spin_unlock(&client->lock);
-		return -EAGAIN;
+		ret = -EAGAIN;
+		goto ret_err;
 	}
 	to_copy = min3(size, sizeof(buf), to_copy);
 	ret = kfifo_out(&client->fifo, buf, to_copy);
 	spin_unlock(&client->lock);
-	if (ret <= 0)
-		return -EAGAIN;
+	if (ret <= 0) {
+		ret = -EAGAIN;
+		goto ret_err;
+	}
 
 	ret = copy_to_user(user, buf, to_copy);
-	if (ret)
-		return -EFAULT;
+	if (ret) {
+		ret = -EFAULT;
+		goto ret_err;
+	}
 
+	kfree(buf);
 	return to_copy;
+
+ret_err:
+	kfree(buf);
+	return ret;
 }
 
 static ssize_t kfd_smi_ev_write(struct file *filep, const char __user *user,
