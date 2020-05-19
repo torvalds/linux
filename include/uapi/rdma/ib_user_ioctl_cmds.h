@@ -95,6 +95,7 @@ enum uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_COMP_VECTOR,
 	UVERBS_ATTR_CREATE_CQ_FLAGS,
 	UVERBS_ATTR_CREATE_CQ_RESP_CQE,
+	UVERBS_ATTR_CREATE_CQ_EVENT_FD,
 };
 
 enum uverbs_attrs_destroy_cq_cmd_attr_ids {

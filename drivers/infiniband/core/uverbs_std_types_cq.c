@@ -100,9 +100,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 		uverbs_uobject_get(ev_file_uobj);
 	}
 
-	obj->uevent.event_file = READ_ONCE(attrs->ufile->default_async_file);
-	if (obj->uevent.event_file)
-		uverbs_uobject_get(&obj->uevent.event_file->uobj);
+	obj->uevent.event_file = ib_uverbs_get_async_event(
+		attrs, UVERBS_ATTR_CREATE_CQ_EVENT_FD);
 
 	if (attr.comp_vector >= attrs->ufile->device->num_comp_vectors) {
 		ret = -EINVAL;
@@ -173,6 +172,10 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_OUT(UVERBS_ATTR_CREATE_CQ_RESP_CQE,
 			    UVERBS_ATTR_TYPE(u32),
 			    UA_MANDATORY),
+	UVERBS_ATTR_FD(UVERBS_ATTR_CREATE_CQ_EVENT_FD,
+		       UVERBS_OBJECT_ASYNC_EVENT,
+		       UVERBS_ACCESS_READ,
+		       UA_OPTIONAL),
 	UVERBS_ATTR_UHW());
 
 static int UVERBS_HANDLER(UVERBS_METHOD_CQ_DESTROY)(
