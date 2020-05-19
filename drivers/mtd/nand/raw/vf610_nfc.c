@@ -917,8 +917,12 @@ err_disable_clk:
 static int vf610_nfc_remove(struct platform_device *pdev)
 {
 	struct vf610_nfc *nfc = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &nfc->chip;
+	int ret;
 
-	nand_release(&nfc->chip);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	clk_disable_unprepare(nfc->clk);
 	return 0;
 }
