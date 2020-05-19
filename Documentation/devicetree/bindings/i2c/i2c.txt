@@ -23,6 +23,9 @@ Optional properties (per bus)
 These properties may not be supported by all drivers. However, if a driver
 wants to support one of the below features, it should adapt these bindings.
 
+- bus-supply
+	phandle to the regulator that provides power to SCL/SDA.
+
 - clock-frequency
 	frequency of bus clock in Hz.
 
