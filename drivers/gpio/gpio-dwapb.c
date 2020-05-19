@@ -417,7 +417,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		int i;
 
 		for (i = 0; i < pp->ngpio; i++) {
-			if (pp->irq[i] >= 0)
+			if (pp->irq[i])
 				irq_set_chained_handler_and_data(pp->irq[i],
 						dwapb_irq_handler, gpio);
 		}
@@ -538,20 +538,20 @@ static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
 			  struct dwapb_port_property *pp)
 {
 	struct device_node *np = NULL;
-	int j;
+	int irq = -ENXIO, j;
 
 	if (fwnode_property_read_bool(fwnode, "interrupt-controller"))
 		np = to_of_node(fwnode);
 
 	for (j = 0; j < pp->ngpio; j++) {
-		pp->irq[j] = -ENXIO;
-
 		if (np)
-			pp->irq[j] = of_irq_get(np, j);
+			irq = of_irq_get(np, j);
 		else if (has_acpi_companion(dev))
-			pp->irq[j] = platform_get_irq_optional(to_platform_device(dev), j);
+			irq = platform_get_irq_optional(to_platform_device(dev), j);
+		if (irq > 0)
+			pp->irq[j] = irq;
 
-		if (pp->irq[j] >= 0)
+		if (pp->irq[j])
 			pp->has_irq = true;
 	}
 
