@@ -264,6 +264,12 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 #if defined(CONFIG_PPC_8xx)
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
+	pmd_t *pmd = pmd_ptr(mm, addr);
+	pte_basic_t val;
+	pte_basic_t *entry = &ptep->pte;
+	int num = is_hugepd(*((hugepd_t *)pmd)) ? 1 : SZ_512K / SZ_4K;
+	int i;
+
 	/*
 	 * Make sure hardware valid bit is not set. We don't do
 	 * tlb flush for this update.
@@ -274,7 +280,9 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_
 
 	pte = set_pte_filter(pte);
 
-	ptep->pte = pte_val(pte);
+	val = pte_val(pte);
+	for (i = 0; i < num; i++, entry++, val += SZ_4K)
+		*entry = val;
 }
 #endif
 #endif /* CONFIG_HUGETLB_PAGE */

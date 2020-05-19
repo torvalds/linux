@@ -239,7 +239,6 @@ InstructionTLBMiss:
 #endif
 #ifdef CONFIG_HUGETLBFS
 	lwz	r11, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
-	mtspr	SPRN_MI_TWC, r11	/* Set segment attributes */
 	mtspr	SPRN_MD_TWC, r11
 #else
 	lwz	r10, (swapper_pg_dir-PAGE_OFFSET)@l(r10)	/* Get level 1 entry */
@@ -248,6 +247,10 @@ InstructionTLBMiss:
 #endif
 	mfspr	r10, SPRN_MD_TWC
 	lwz	r10, 0(r10)	/* Get the pte */
+#ifdef CONFIG_HUGETLBFS
+	rlwimi	r11, r10, 32 - 9, _PMD_PAGE_512K
+	mtspr	SPRN_MI_TWC, r11
+#endif
 #ifdef CONFIG_SWAP
 	rlwinm	r11, r10, 32-5, _PAGE_PRESENT
 	and	r11, r11, r10
@@ -353,6 +356,7 @@ DataStoreTLBMiss:
 	 * above.
 	 */
 	rlwimi	r11, r10, 0, _PAGE_GUARDED
+	rlwimi	r11, r10, 32 - 9, _PMD_PAGE_512K
 	mtspr	SPRN_MD_TWC, r11
 
 	/* Both _PAGE_ACCESSED and _PAGE_PRESENT has to be set.
@@ -584,7 +588,6 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	mfspr	r11, SPRN_MD_TWC
 	lwz	r11, 0(r11)	/* Get the pte */
 	bt	28,200f		/* bit 28 = Large page (8M) */
-	bt	29,202f		/* bit 29 = Large page (8M or 512K) */
 	/* concat physical page address(r11) and page offset(r10) */
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT, 31
 201:	lwz	r11,0(r11)
@@ -609,11 +612,6 @@ FixupDAR:/* Entry point for dcbx workaround. */
 200:
 	/* concat physical page address(r11) and page offset(r10) */
 	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT_8M, 31
-	b	201b
-
-202:
-	/* concat physical page address(r11) and page offset(r10) */
-	rlwimi	r11, r10, 0, 32 - PAGE_SHIFT_512K, 31
 	b	201b
 
 144:	mfspr	r10, SPRN_DSISR

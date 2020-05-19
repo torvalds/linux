@@ -229,8 +229,9 @@ static inline void pmd_clear(pmd_t *pmdp)
  * those implementations.
  *
  * On the 8xx, the page tables are a bit special. For 16k pages, we have
- * 4 identical entries. For other page sizes, we have a single entry in the
- * table.
+ * 4 identical entries. For 512k pages, we have 128 entries as if it was
+ * 4k pages, but they are flagged as 512k pages for the hardware.
+ * For other page sizes, we have a single entry in the table.
  */
 #ifdef CONFIG_PPC_8xx
 static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, pte_t *p,
@@ -240,13 +241,16 @@ static inline pte_basic_t pte_update(struct mm_struct *mm, unsigned long addr, p
 	pte_basic_t old = pte_val(*p);
 	pte_basic_t new = (old & ~(pte_basic_t)clr) | set;
 	int num, i;
+	pmd_t *pmd = pmd_offset(pud_offset(pgd_offset(mm, addr), addr), addr);
 
 	if (!huge)
 		num = PAGE_SIZE / SZ_4K;
+	else if ((pmd_val(*pmd) & _PMD_PAGE_MASK) != _PMD_PAGE_8M)
+		num = SZ_512K / SZ_4K;
 	else
 		num = 1;
 
-	for (i = 0; i < num; i++, entry++)
+	for (i = 0; i < num; i++, entry++, new += SZ_4K)
 		*entry = new;
 
 	return old;
