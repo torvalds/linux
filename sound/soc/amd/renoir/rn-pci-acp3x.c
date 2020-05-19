@@ -277,7 +277,7 @@ static int snd_rn_acp_suspend(struct device *dev)
 	else
 		dev_dbg(dev, "ACP de-initialized\n");
 
-	return 0;
+	return ret;
 }
 
 static int snd_rn_acp_resume(struct device *dev)
