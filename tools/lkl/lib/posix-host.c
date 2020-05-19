@@ -344,6 +344,7 @@ struct lkl_host_operations lkl_host_ops = {
 	.gettid = _gettid,
 	.jmp_buf_set = jmp_buf_set,
 	.jmp_buf_longjmp = jmp_buf_longjmp,
+	.memcpy = memcpy,
 };
 
 static int fd_get_capacity(struct lkl_disk disk, unsigned long long *res)
