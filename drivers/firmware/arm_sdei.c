@@ -1128,6 +1128,14 @@ int sdei_event_handler(struct pt_regs *regs,
 	mm_segment_t orig_addr_limit;
 	u32 event_num = arg->event_num;
 
+	/*
+	 * Save restore 'fs'.
+	 * The architecture's entry code save/restores 'fs' when taking an
+	 * exception from the kernel. This ensures addr_limit isn't inherited
+	 * if you interrupted something that allowed the uaccess routines to
+	 * access kernel memory.
+	 * Do the same here because this doesn't come via the same entry code.
+	*/
 	orig_addr_limit = get_fs();
 	set_fs(USER_DS);
 
