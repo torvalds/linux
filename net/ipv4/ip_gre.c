@@ -768,45 +768,37 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 	}
 }
 
-static int ipgre_tunnel_ioctl(struct net_device *dev,
-			      struct ifreq *ifr, int cmd)
+static int ipgre_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p,
+			    int cmd)
 {
-	struct ip_tunnel_parm p;
 	int err;
 
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-		return -EFAULT;
-
 	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
-		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_GRE ||
-		    p.iph.ihl != 5 || (p.iph.frag_off & htons(~IP_DF)) ||
-		    ((p.i_flags | p.o_flags) & (GRE_VERSION | GRE_ROUTING)))
+		if (p->iph.version != 4 || p->iph.protocol != IPPROTO_GRE ||
+		    p->iph.ihl != 5 || (p->iph.frag_off & htons(~IP_DF)) ||
+		    ((p->i_flags | p->o_flags) & (GRE_VERSION | GRE_ROUTING)))
 			return -EINVAL;
 	}
 
-	p.i_flags = gre_flags_to_tnl_flags(p.i_flags);
-	p.o_flags = gre_flags_to_tnl_flags(p.o_flags);
+	p->i_flags = gre_flags_to_tnl_flags(p->i_flags);
+	p->o_flags = gre_flags_to_tnl_flags(p->o_flags);
 
-	err = ip_tunnel_ioctl(dev, &p, cmd);
+	err = ip_tunnel_ctl(dev, p, cmd);
 	if (err)
 		return err;
 
 	if (cmd == SIOCCHGTUNNEL) {
 		struct ip_tunnel *t = netdev_priv(dev);
 
-		t->parms.i_flags = p.i_flags;
-		t->parms.o_flags = p.o_flags;
+		t->parms.i_flags = p->i_flags;
+		t->parms.o_flags = p->o_flags;
 
 		if (strcmp(dev->rtnl_link_ops->kind, "erspan"))
 			ipgre_link_update(dev, true);
 	}
 
-	p.i_flags = gre_tnl_flags_to_gre_flags(p.i_flags);
-	p.o_flags = gre_tnl_flags_to_gre_flags(p.o_flags);
-
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
-		return -EFAULT;
-
+	p->i_flags = gre_tnl_flags_to_gre_flags(p->i_flags);
+	p->o_flags = gre_tnl_flags_to_gre_flags(p->o_flags);
 	return 0;
 }
 
@@ -924,10 +916,11 @@ static const struct net_device_ops ipgre_netdev_ops = {
 	.ndo_stop		= ipgre_close,
 #endif
 	.ndo_start_xmit		= ipgre_xmit,
-	.ndo_do_ioctl		= ipgre_tunnel_ioctl,
+	.ndo_do_ioctl		= ip_tunnel_ioctl,
 	.ndo_change_mtu		= ip_tunnel_change_mtu,
 	.ndo_get_stats64	= ip_tunnel_get_stats64,
 	.ndo_get_iflink		= ip_tunnel_get_iflink,
+	.ndo_tunnel_ctl		= ipgre_tunnel_ctl,
 };
 
 #define GRE_FEATURES (NETIF_F_SG |		\
