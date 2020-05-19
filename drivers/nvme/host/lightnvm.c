@@ -961,7 +961,10 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 	geo = &dev->geo;
 	geo->csecs = 1 << ns->lba_shift;
 	geo->sos = ns->ms;
-	geo->ext = ns->ext;
+	if (ns->features & NVME_NS_EXT_LBAS)
+		geo->ext = true;
+	else
+		geo->ext = false;
 	geo->mdts = ns->ctrl->max_hw_sectors;
 
 	dev->q = q;
