@@ -1851,7 +1851,9 @@ static void dmz_wait_for_reclaim(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
 	dmz_unlock_map(zmd);
 	dmz_unlock_metadata(zmd);
+	set_bit(DMZ_RECLAIM_TERMINATE, &zone->flags);
 	wait_on_bit_timeout(&zone->flags, DMZ_RECLAIM, TASK_UNINTERRUPTIBLE, HZ);
+	clear_bit(DMZ_RECLAIM_TERMINATE, &zone->flags);
 	dmz_lock_metadata(zmd);
 	dmz_lock_map(zmd);
 }

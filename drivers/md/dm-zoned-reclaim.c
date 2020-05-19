@@ -143,6 +143,9 @@ static int dmz_reclaim_copy(struct dmz_reclaim *zrc,
 		if (dst_dev->flags & DMZ_BDEV_DYING)
 			return -EIO;
 
+		if (dmz_reclaim_should_terminate(src_zone))
+			return -EINTR;
+
 		/* Get a valid region from the source zone */
 		ret = dmz_first_valid_block(zmd, src_zone, &block);
 		if (ret <= 0)
@@ -515,7 +518,7 @@ static void dmz_reclaim_work(struct work_struct *work)
 		dmz_nr_rnd_zones(zmd));
 
 	ret = dmz_do_reclaim(zrc);
-	if (ret) {
+	if (ret && ret != -EINTR) {
 		DMDEBUG("(%s): Reclaim error %d",
 			dmz_metadata_label(zmd), ret);
 		if (!dmz_check_dev(zmd))
@@ -615,4 +618,3 @@ void dmz_schedule_reclaim(struct dmz_reclaim *zrc)
 	if (dmz_should_reclaim(zrc, p_unmap))
 		mod_delayed_work(zrc->wq, &zrc->work, 0);
 }
-
