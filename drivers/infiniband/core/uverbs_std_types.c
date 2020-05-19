@@ -75,40 +75,6 @@ static int uverbs_free_mw(struct ib_uobject *uobject,
 	return uverbs_dealloc_mw((struct ib_mw *)uobject->object);
 }
 
-static int uverbs_free_qp(struct ib_uobject *uobject,
-			  enum rdma_remove_reason why,
-			  struct uverbs_attr_bundle *attrs)
-{
-	struct ib_qp *qp = uobject->object;
-	struct ib_uqp_object *uqp =
-		container_of(uobject, struct ib_uqp_object, uevent.uobject);
-	int ret;
-
-	/*
-	 * If this is a user triggered destroy then do not allow destruction
-	 * until the user cleans up all the mcast bindings. Unlike in other
-	 * places we forcibly clean up the mcast attachments for !DESTROY
-	 * because the mcast attaches are not ubojects and will not be
-	 * destroyed by anything else during cleanup processing.
-	 */
-	if (why == RDMA_REMOVE_DESTROY) {
-		if (!list_empty(&uqp->mcast_list))
-			return -EBUSY;
-	} else if (qp == qp->real_qp) {
-		ib_uverbs_detach_umcast(qp, uqp);
-	}
-
-	ret = ib_destroy_qp_user(qp, &attrs->driver_udata);
-	if (ib_is_destroy_retryable(ret, why, uobject))
-		return ret;
-
-	if (uqp->uxrcd)
-		atomic_dec(&uqp->uxrcd->refcnt);
-
-	ib_uverbs_release_uevent(&uqp->uevent);
-	return ret;
-}
-
 static int uverbs_free_rwq_ind_tbl(struct ib_uobject *uobject,
 				   enum rdma_remove_reason why,
 				   struct uverbs_attr_bundle *attrs)
@@ -210,10 +176,6 @@ DECLARE_UVERBS_NAMED_OBJECT(
 			     "[infinibandevent]",
 			     O_RDONLY));
 
-DECLARE_UVERBS_NAMED_OBJECT(
-	UVERBS_OBJECT_QP,
-	UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), uverbs_free_qp));
-
 DECLARE_UVERBS_NAMED_METHOD_DESTROY(
 	UVERBS_METHOD_MW_DESTROY,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_DESTROY_MW_HANDLE,
@@ -289,8 +251,6 @@ const struct uapi_definition uverbs_def_obj_intf[] = {
 				      UAPI_DEF_OBJ_NEEDS_FN(dealloc_pd)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_COMP_CHANNEL,
 				      UAPI_DEF_OBJ_NEEDS_FN(dealloc_pd)),
-	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_QP,
-				      UAPI_DEF_OBJ_NEEDS_FN(destroy_qp)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_AH,
 				      UAPI_DEF_OBJ_NEEDS_FN(destroy_ah)),
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_MW,

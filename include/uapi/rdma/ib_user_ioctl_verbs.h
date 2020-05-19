@@ -96,6 +96,7 @@ enum ib_uverbs_qp_create_flags {
 	IB_UVERBS_QP_CREATE_SCATTER_FCS = 1 << 8,
 	IB_UVERBS_QP_CREATE_CVLAN_STRIPPING = 1 << 9,
 	IB_UVERBS_QP_CREATE_PCI_WRITE_END_PADDING = 1 << 11,
+	IB_UVERBS_QP_CREATE_SQ_SIG_ALL = 1 << 12,
 };
 
 enum ib_uverbs_query_port_cap_flags {
@@ -217,6 +218,14 @@ struct ib_uverbs_query_port_resp_ex {
 	struct ib_uverbs_query_port_resp legacy_resp;
 	__u16 port_cap_flags2;
 	__u8  reserved[6];
+};
+
+struct ib_uverbs_qp_cap {
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
 };
 
 enum rdma_driver_id {
