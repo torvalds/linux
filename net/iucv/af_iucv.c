@@ -996,7 +996,6 @@ static int iucv_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	/* initialize defaults */
 	cmsg_done   = 0;	/* check for duplicate headers */
-	txmsg.class = 0;
 
 	/* iterate over control messages */
 	for_each_cmsghdr(cmsg, msg) {
