@@ -151,6 +151,7 @@ static void nvmet_async_events_process(struct nvmet_ctrl *ctrl, u16 status)
 		kfree(aen);
 
 		mutex_unlock(&ctrl->lock);
+		trace_nvmet_async_event(ctrl, req->cqe->result.u32);
 		nvmet_req_complete(req, status);
 	}
 }
