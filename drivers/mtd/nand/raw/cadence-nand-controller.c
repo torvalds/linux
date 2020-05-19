@@ -2780,9 +2780,14 @@ static int cadence_nand_chip_init(struct cdns_nand_ctrl *cdns_ctrl,
 static void cadence_nand_chips_cleanup(struct cdns_nand_ctrl *cdns_ctrl)
 {
 	struct cdns_nand_chip *entry, *temp;
+	struct nand_chip *chip;
+	int ret;
 
 	list_for_each_entry_safe(entry, temp, &cdns_ctrl->chips, node) {
-		nand_release(&entry->chip);
+		chip = &entry->chip;
+		ret = mtd_device_unregister(nand_to_mtd(chip));
+		WARN_ON(ret);
+		nand_cleanup(chip);
 		list_del(&entry->node);
 	}
 }
