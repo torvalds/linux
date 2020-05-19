@@ -193,6 +193,8 @@
 
 #include <linux/mmdebug.h>
 
+void mmu_pin_tlb(unsigned long top, bool readonly);
+
 typedef struct {
 	unsigned int id;
 	unsigned int active;

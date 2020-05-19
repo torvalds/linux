@@ -16,6 +16,7 @@
 
 #include <linux/init.h>
 #include <linux/magic.h>
+#include <linux/sizes.h>
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -866,6 +867,108 @@ initial_mmu:
 	mtspr	SPRN_DER, r8
 	blr
 
+#ifdef CONFIG_PIN_TLB
+_GLOBAL(mmu_pin_tlb)
+	lis	r9, (1f - PAGE_OFFSET)@h
+	ori	r9, r9, (1f - PAGE_OFFSET)@l
+	mfmsr	r10
+	mflr	r11
+	li	r12, MSR_KERNEL & ~(MSR_IR | MSR_DR | MSR_RI)
+	rlwinm	r0, r10, 0, ~MSR_RI
+	rlwinm	r0, r0, 0, ~MSR_EE
+	mtmsr	r0
+	isync
+	.align	4
+	mtspr	SPRN_SRR0, r9
+	mtspr	SPRN_SRR1, r12
+	rfi
+1:
+	li	r5, 0
+	lis	r6, MD_TWAM@h
+	mtspr	SPRN_MI_CTR, r5
+	mtspr	SPRN_MD_CTR, r6
+	tlbia
+
+#ifdef CONFIG_PIN_TLB_TEXT
+	LOAD_REG_IMMEDIATE(r5, 28 << 8)
+	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET)
+	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG)
+	LOAD_REG_IMMEDIATE(r8, 0xf0 | _PAGE_RO | _PAGE_SPS | _PAGE_SH | _PAGE_PRESENT)
+	LOAD_REG_ADDR(r9, _sinittext)
+	li	r0, 4
+	mtctr	r0
+
+2:	ori	r0, r6, MI_EVALID
+	mtspr	SPRN_MI_CTR, r5
+	mtspr	SPRN_MI_EPN, r0
+	mtspr	SPRN_MI_TWC, r7
+	mtspr	SPRN_MI_RPN, r8
+	addi	r5, r5, 0x100
+	addis	r6, r6, SZ_8M@h
+	addis	r8, r8, SZ_8M@h
+	cmplw	r6, r9
+	bdnzt	lt, 2b
+	lis	r0, MI_RSV4I@h
+	mtspr	SPRN_MI_CTR, r0
+#endif
+	LOAD_REG_IMMEDIATE(r5, 28 << 8 | MD_TWAM)
+#ifdef CONFIG_PIN_TLB_DATA
+	LOAD_REG_IMMEDIATE(r6, PAGE_OFFSET)
+	LOAD_REG_IMMEDIATE(r7, MI_SVALID | MI_PS8MEG)
+#ifdef CONFIG_PIN_TLB_IMMR
+	li	r0, 3
+#else
+	li	r0, 4
+#endif
+	mtctr	r0
+	cmpwi	r4, 0
+	beq	4f
+	LOAD_REG_IMMEDIATE(r8, 0xf0 | _PAGE_RO | _PAGE_SPS | _PAGE_SH | _PAGE_PRESENT)
+	LOAD_REG_ADDR(r9, _sinittext)
+
+2:	ori	r0, r6, MD_EVALID
+	mtspr	SPRN_MD_CTR, r5
+	mtspr	SPRN_MD_EPN, r0
+	mtspr	SPRN_MD_TWC, r7
+	mtspr	SPRN_MD_RPN, r8
+	addi	r5, r5, 0x100
+	addis	r6, r6, SZ_8M@h
+	addis	r8, r8, SZ_8M@h
+	cmplw	r6, r9
+	bdnzt	lt, 2b
+
+4:	LOAD_REG_IMMEDIATE(r8, 0xf0 | _PAGE_SPS | _PAGE_SH | _PAGE_PRESENT)
+2:	ori	r0, r6, MD_EVALID
+	mtspr	SPRN_MD_CTR, r5
+	mtspr	SPRN_MD_EPN, r0
+	mtspr	SPRN_MD_TWC, r7
+	mtspr	SPRN_MD_RPN, r8
+	addi	r5, r5, 0x100
+	addis	r6, r6, SZ_8M@h
+	addis	r8, r8, SZ_8M@h
+	cmplw	r6, r3
+	bdnzt	lt, 2b
+#endif
+#ifdef CONFIG_PIN_TLB_IMMR
+	LOAD_REG_IMMEDIATE(r0, VIRT_IMMR_BASE | MD_EVALID)
+	LOAD_REG_IMMEDIATE(r7, MD_SVALID | MD_PS512K | MD_GUARDED)
+	mfspr   r8, SPRN_IMMR
+	rlwinm	r8, r8, 0, 0xfff80000
+	ori	r8, r8, 0xf0 | _PAGE_DIRTY | _PAGE_SPS | _PAGE_SH | \
+			_PAGE_NO_CACHE | _PAGE_PRESENT
+	mtspr	SPRN_MD_CTR, r5
+	mtspr	SPRN_MD_EPN, r0
+	mtspr	SPRN_MD_TWC, r7
+	mtspr	SPRN_MD_RPN, r8
+#endif
+#if defined(CONFIG_PIN_TLB_IMMR) || defined(CONFIG_PIN_TLB_DATA)
+	lis	r0, (MD_RSV4I | MD_TWAM)@h
+	mtspr	SPRN_MI_CTR, r0
+#endif
+	mtspr	SPRN_SRR1, r10
+	mtspr	SPRN_SRR0, r11
+	rfi
+#endif /* CONFIG_PIN_TLB */
 
 /*
  * We put a few things here that have to be page-aligned.
