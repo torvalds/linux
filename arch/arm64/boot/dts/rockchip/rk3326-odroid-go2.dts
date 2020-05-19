@@ -127,7 +127,7 @@
 
 	leds: gpio-leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "led_pins";
+		pinctrl-names = "default";
 		pinctrl-0 = <&blue_led_pin>;
 
 		blue_led: led-0 {
