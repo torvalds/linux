@@ -759,7 +759,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	err = nfp_rtsym_write_le(app->pf->rtbl,
 				 "_abi_flower_balance_sync_enable", 1);
 	if (!err) {
-		app_priv->flower_ext_feats |= NFP_FL_FEATS_LAG;
+		app_priv->flower_ext_feats |= NFP_FL_ENABLE_LAG;
 		nfp_flower_lag_init(&app_priv->nfp_lag);
 	} else if (err == -ENOENT) {
 		nfp_warn(app->cpp, "LAG not supported by FW.\n");
@@ -772,7 +772,7 @@ static int nfp_flower_init(struct nfp_app *app)
 		err = nfp_rtsym_write_le(app->pf->rtbl,
 					 "_abi_flower_merge_hint_enable", 1);
 		if (!err) {
-			app_priv->flower_ext_feats |= NFP_FL_FEATS_FLOW_MERGE;
+			app_priv->flower_ext_feats |= NFP_FL_ENABLE_FLOW_MERGE;
 			nfp_flower_internal_port_init(app_priv);
 		} else if (err == -ENOENT) {
 			nfp_warn(app->cpp, "Flow merge not supported by FW.\n");
@@ -793,7 +793,7 @@ static int nfp_flower_init(struct nfp_app *app)
 	return 0;
 
 err_lag_clean:
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+	if (app_priv->flower_ext_feats & NFP_FL_ENABLE_LAG)
 		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
 err_cleanup_metadata:
 	nfp_flower_metadata_cleanup(app);
@@ -813,10 +813,10 @@ static void nfp_flower_clean(struct nfp_app *app)
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
 		nfp_flower_qos_cleanup(app);
 
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG)
+	if (app_priv->flower_en_feats & NFP_FL_ENABLE_LAG)
 		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
 
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE)
+	if (app_priv->flower_en_feats & NFP_FL_ENABLE_FLOW_MERGE)
 		nfp_flower_internal_port_cleanup(app_priv);
 
 	nfp_flower_metadata_cleanup(app);
@@ -886,7 +886,7 @@ static int nfp_flower_start(struct nfp_app *app)
 	struct nfp_flower_priv *app_priv = app->priv;
 	int err;
 
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+	if (app_priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		err = nfp_flower_lag_reset(&app_priv->nfp_lag);
 		if (err)
 			return err;
@@ -907,7 +907,7 @@ nfp_flower_netdev_event(struct nfp_app *app, struct net_device *netdev,
 	struct nfp_flower_priv *app_priv = app->priv;
 	int ret;
 
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_LAG) {
+	if (app_priv->flower_en_feats & NFP_FL_ENABLE_LAG) {
 		ret = nfp_flower_lag_netdev_event(app_priv, netdev, event, ptr);
 		if (ret & NOTIFY_STOP_MASK)
 			return ret;
