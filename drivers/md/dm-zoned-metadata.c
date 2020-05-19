@@ -1859,15 +1859,20 @@ static void dmz_wait_for_reclaim(struct dmz_metadata *zmd, struct dm_zone *zone)
 /*
  * Select a cache or random write zone for reclaim.
  */
-static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd)
+static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
+						    bool idle)
 {
 	struct dm_zone *dzone = NULL;
 	struct dm_zone *zone;
 	struct list_head *zone_list = &zmd->map_rnd_list;
 
 	/* If we have cache zones select from the cache zone list */
-	if (zmd->nr_cache)
+	if (zmd->nr_cache) {
 		zone_list = &zmd->map_cache_list;
+		/* Try to relaim random zones, too, when idle */
+		if (idle && list_empty(zone_list))
+			zone_list = &zmd->map_rnd_list;
+	}
 
 	list_for_each_entry(zone, zone_list, link) {
 		if (dmz_is_buf(zone))
@@ -1901,7 +1906,7 @@ static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
 /*
  * Select a zone for reclaim.
  */
-struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
+struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd, bool idle)
 {
 	struct dm_zone *zone;
 
@@ -1917,7 +1922,7 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd)
 	if (list_empty(&zmd->reserved_seq_zones_list))
 		zone = dmz_get_seq_zone_for_reclaim(zmd);
 	else
-		zone = dmz_get_rnd_zone_for_reclaim(zmd);
+		zone = dmz_get_rnd_zone_for_reclaim(zmd, idle);
 	dmz_unlock_map(zmd);
 
 	return zone;

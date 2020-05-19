@@ -284,7 +284,10 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	int alloc_flags = dmz_nr_cache_zones(zmd) ?
 		DMZ_ALLOC_RND : DMZ_ALLOC_SEQ;
 
-	/* Get a free sequential zone */
+	/* Always use sequential zones to reclaim random zones */
+	if (dmz_is_rnd(dzone))
+		alloc_flags = DMZ_ALLOC_SEQ;
+	/* Get a free random or sequential zone */
 	dmz_lock_map(zmd);
 	szone = dmz_alloc_zone(zmd, alloc_flags | DMZ_ALLOC_RECLAIM);
 	dmz_unlock_map(zmd);
@@ -344,6 +347,14 @@ static void dmz_reclaim_empty(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 }
 
 /*
+ * Test if the target device is idle.
+ */
+static inline int dmz_target_idle(struct dmz_reclaim *zrc)
+{
+	return time_is_before_jiffies(zrc->atime + DMZ_IDLE_PERIOD);
+}
+
+/*
  * Find a candidate zone for reclaim and process it.
  */
 static int dmz_do_reclaim(struct dmz_reclaim *zrc)
@@ -355,7 +366,7 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 	int ret;
 
 	/* Get a data zone */
-	dzone = dmz_get_zone_for_reclaim(zmd);
+	dzone = dmz_get_zone_for_reclaim(zmd, dmz_target_idle(zrc));
 	if (!dzone)
 		return -EBUSY;
 
@@ -418,14 +429,6 @@ out:
 	return 0;
 }
 
-/*
- * Test if the target device is idle.
- */
-static inline int dmz_target_idle(struct dmz_reclaim *zrc)
-{
-	return time_is_before_jiffies(zrc->atime + DMZ_IDLE_PERIOD);
-}
-
 static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
 {
 	struct dmz_metadata *zmd = zrc->metadata;
@@ -448,8 +451,13 @@ static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
  */
 static bool dmz_should_reclaim(struct dmz_reclaim *zrc, unsigned int p_unmap)
 {
+	unsigned int nr_reclaim = dmz_nr_rnd_zones(zrc->metadata);
+
+	if (dmz_nr_cache_zones(zrc->metadata))
+		nr_reclaim += dmz_nr_cache_zones(zrc->metadata);
+
 	/* Reclaim when idle */
-	if (dmz_target_idle(zrc) && p_unmap < 100)
+	if (dmz_target_idle(zrc) && nr_reclaim)
 		return true;
 
 	/* If there are still plenty of cache zones, do not reclaim */
