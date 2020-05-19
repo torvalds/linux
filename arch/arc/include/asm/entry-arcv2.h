@@ -48,14 +48,18 @@
 /*------------------------------------------------------------------------*/
 .macro INTERRUPT_PROLOGUE
 
-	; (A) Before jumping to Interrupt Vector, hardware micro-ops did following:
+	; Before jumping to Interrupt Vector, hardware micro-ops did following:
 	;   1. SP auto-switched to kernel mode stack
 	;   2. STATUS32.Z flag set if in U mode at time of interrupt (U:1,K:0)
 	;   3. Auto save: (mandatory) Push PC and STAT32 on stack
 	;                 hardware does even if CONFIG_ARC_IRQ_NO_AUTOSAVE
-	;   4. Auto save: (optional) r0-r11, blink, LPE,LPS,LPC, JLI,LDI,EI
+	;  4a. Auto save: (optional) r0-r11, blink, LPE,LPS,LPC, JLI,LDI,EI
 	;
-	; (B) Manually saved some regs: r12,r30, sp,fp,gp, ACCL pair
+	; Now
+	;  4b. If Auto-save (optional) not enabled in hw, manually save them
+	;   5. Manually save: r12,r30, sp,fp,gp, ACCL pair
+	;
+	; At the end, SP points to pt_regs
 
 #ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
 	; carve pt_regs on stack (case #3), PC/STAT32 already on stack
@@ -73,13 +77,14 @@
 /*------------------------------------------------------------------------*/
 .macro EXCEPTION_PROLOGUE
 
-	; (A) Before jumping to Exception Vector, hardware micro-ops did following:
+	; Before jumping to Exception Vector, hardware micro-ops did following:
 	;   1. SP auto-switched to kernel mode stack
 	;   2. STATUS32.Z flag set if in U mode at time of exception (U:1,K:0)
 	;
-	; (B) Manually save the complete reg file below
+	; Now manually save rest of reg file
+	; At the end, SP points to pt_regs
 
-	sub	sp, sp, SZ_PT_REGS	; carve pt_regs
+	sub	sp, sp, SZ_PT_REGS	; carve space for pt_regs
 
 	; _HARD saves r10 clobbered by _SOFT as scratch hence comes first
 
@@ -136,8 +141,8 @@
 
 	ST2	gp, fp, PT_r26		; gp (r26), fp (r27)
 
-	st	r12, [sp, PT_sp + 4]
-	st	r30, [sp, PT_sp + 8]
+	st	r12, [sp, PT_r12]
+	st	r30, [sp, PT_r30]
 
 	; Saving pt_regs->sp correctly requires some extra work due to the way
 	; Auto stack switch works
@@ -244,7 +249,7 @@
 
 	btst	r0, STATUS_U_BIT	; Z flag set if K, used in restoring SP
 
-	ld	r10, [sp, PT_event + 4]
+	ld	r10, [sp, PT_bta]
 	sr	r10, [erbta]
 
 	LD2	r10, r11, PT_ret

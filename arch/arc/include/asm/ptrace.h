@@ -75,7 +75,7 @@ struct pt_regs {
 		unsigned long event;
 	};
 
-	unsigned long bta;	/* bta_l1, bta_l2, erbta */
+	unsigned long bta;	/* erbta */
 
 	unsigned long r26;	/* gp */
 	unsigned long fp;

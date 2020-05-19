@@ -170,12 +170,13 @@
 	PUSHAX	erbta
 
 	lr	r10, [ecr]
-	st      r10, [sp, PT_event]    /* EV_Trap expects r10 to have ECR */
+	st      r10, [sp, PT_event]
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	/* gp already saved on stack: now load with "current" */
 	GET_CURR_TASK_ON_CPU   gp
 #endif
+	; OUTPUT: r10 has ECR expected by EV_Trap
 .endm
 
 /*--------------------------------------------------------------
