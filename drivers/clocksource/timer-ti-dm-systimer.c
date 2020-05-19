@@ -697,7 +697,7 @@ static int __init dmtimer_systimer_init(struct device_node *np)
 		dmtimer_systimer_select_best();
 
 	if (!clocksource && !clockevent) {
-		pr_err("%s: unable to detectt system timers, update dtb?\n",
+		pr_err("%s: unable to detect system timers, update dtb?\n",
 		       __func__);
 
 		return -EINVAL;
