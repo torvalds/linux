@@ -150,7 +150,8 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
 	unsigned long etext8 = ALIGN(__pa(_etext), SZ_8M);
 	unsigned long sinittext = __pa(_sinittext);
-	unsigned long boundary = strict_kernel_rwx_enabled() ? sinittext : etext8;
+	bool strict_boundary = strict_kernel_rwx_enabled() || debug_pagealloc_enabled();
+	unsigned long boundary = strict_boundary ? sinittext : etext8;
 	unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
 
 	WARN_ON(top < einittext8);
@@ -161,8 +162,12 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		return 0;
 
 	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, true);
-	mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL_TEXT, true);
-	mmu_mapin_ram_chunk(einittext8, top, PAGE_KERNEL, true);
+	if (debug_pagealloc_enabled()) {
+		top = boundary;
+	} else {
+		mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL_TEXT, true);
+		mmu_mapin_ram_chunk(einittext8, top, PAGE_KERNEL, true);
+	}
 
 	if (top > SZ_32M)
 		memblock_set_current_limit(top);
