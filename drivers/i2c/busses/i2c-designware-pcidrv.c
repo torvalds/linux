@@ -46,8 +46,6 @@ struct dw_scl_sda_cfg {
 
 struct dw_pci_controller {
 	u32 bus_num;
-	u32 tx_fifo_depth;
-	u32 rx_fifo_depth;
 	u32 flags;
 	struct dw_scl_sda_cfg *scl_sda_cfg;
 	int (*setup)(struct pci_dev *pdev, struct dw_pci_controller *c);
@@ -133,41 +131,29 @@ static u32 ehl_get_clk_rate_khz(struct dw_i2c_dev *dev)
 static struct dw_pci_controller dw_pci_controllers[] = {
 	[medfield] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 32,
-		.rx_fifo_depth = 32,
 		.setup = mfld_setup,
 		.get_clk_rate_khz = mfld_get_clk_rate_khz,
 	},
 	[merrifield] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 64,
-		.rx_fifo_depth = 64,
 		.scl_sda_cfg = &mrfld_config,
 		.setup = mrfld_setup,
 	},
 	[baytrail] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 32,
-		.rx_fifo_depth = 32,
 		.scl_sda_cfg = &byt_config,
 	},
 	[haswell] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 32,
-		.rx_fifo_depth = 32,
 		.scl_sda_cfg = &hsw_config,
 	},
 	[cherrytrail] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 32,
-		.rx_fifo_depth = 32,
 		.flags = MODEL_CHERRYTRAIL,
 		.scl_sda_cfg = &byt_config,
 	},
 	[elkhartlake] = {
 		.bus_num = -1,
-		.tx_fifo_depth = 32,
-		.rx_fifo_depth = 32,
 		.get_clk_rate_khz = ehl_get_clk_rate_khz,
 	},
 };
@@ -276,9 +262,6 @@ static int i2c_dw_pci_probe(struct pci_dev *pdev,
 		dev->fs_lcnt = cfg->fs_lcnt;
 		dev->sda_hold_time = cfg->sda_hold;
 	}
-
-	dev->tx_fifo_depth = controller->tx_fifo_depth;
-	dev->rx_fifo_depth = controller->rx_fifo_depth;
 
 	adap = &dev->adapter;
 	adap->owner = THIS_MODULE;

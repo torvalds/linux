@@ -200,9 +200,6 @@ int i2c_dw_acpi_configure(struct device *device)
 	struct i2c_timings *t = &dev->timings;
 	u32 ss_ht = 0, fp_ht = 0, hs_ht = 0, fs_ht = 0;
 
-	dev->tx_fifo_depth = 32;
-	dev->rx_fifo_depth = 32;
-
 	/*
 	 * Try to get SDA hold time and *CNT values from an ACPI method for
 	 * selected speed modes.
