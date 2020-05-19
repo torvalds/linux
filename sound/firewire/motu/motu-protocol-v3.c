@@ -314,3 +314,45 @@ const struct snd_motu_protocol snd_motu_protocol_v3 = {
 	.switch_fetching_mode	= v3_switch_fetching_mode,
 	.cache_packet_formats	= v3_cache_packet_formats,
 };
+
+const struct snd_motu_spec snd_motu_spec_828mk3 = {
+	.name = "828mk3",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
+		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
+		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
+		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+
+	.analog_in_ports = 8,
+	.analog_out_ports = 8,
+};
+
+const struct snd_motu_spec snd_motu_spec_audio_express = {
+	.name = "AudioExpress",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
+		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.analog_in_ports = 2,
+	.analog_out_ports = 4,
+};
+
+const struct snd_motu_spec snd_motu_spec_4pre = {
+	.name = "4pre",
+	.protocol = &snd_motu_protocol_v3,
+	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
+		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
+		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
+		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.analog_in_ports = 2,
+	.analog_out_ports = 2,
+};
