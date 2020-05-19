@@ -111,6 +111,7 @@ struct dm_zone {
  */
 enum {
 	/* Zone write type */
+	DMZ_CACHE,
 	DMZ_RND,
 	DMZ_SEQ,
 
@@ -131,6 +132,7 @@ enum {
 /*
  * Zone data accessors.
  */
+#define dmz_is_cache(z)		test_bit(DMZ_CACHE, &(z)->flags)
 #define dmz_is_rnd(z)		test_bit(DMZ_RND, &(z)->flags)
 #define dmz_is_seq(z)		test_bit(DMZ_SEQ, &(z)->flags)
 #define dmz_is_empty(z)		((z)->wp_block == 0)
@@ -189,7 +191,9 @@ bool dmz_check_dev(struct dmz_metadata *zmd);
 bool dmz_dev_is_dying(struct dmz_metadata *zmd);
 
 #define DMZ_ALLOC_RND		0x01
-#define DMZ_ALLOC_RECLAIM	0x02
+#define DMZ_ALLOC_CACHE		0x02
+#define DMZ_ALLOC_SEQ		0x04
+#define DMZ_ALLOC_RECLAIM	0x10
 
 struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned long flags);
 void dmz_free_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
@@ -198,6 +202,8 @@ void dmz_map_zone(struct dmz_metadata *zmd, struct dm_zone *zone,
 		  unsigned int chunk);
 void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
 unsigned int dmz_nr_zones(struct dmz_metadata *zmd);
+unsigned int dmz_nr_cache_zones(struct dmz_metadata *zmd);
+unsigned int dmz_nr_unmap_cache_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd);

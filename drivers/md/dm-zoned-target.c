@@ -190,7 +190,8 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 	DMDEBUG("(%s): READ chunk %llu -> %s zone %u, block %llu, %u blocks",
 		dmz_metadata_label(zmd),
 		(unsigned long long)dmz_bio_chunk(zmd, bio),
-		(dmz_is_rnd(zone) ? "RND" : "SEQ"),
+		(dmz_is_rnd(zone) ? "RND" :
+		 (dmz_is_cache(zone) ? "CACHE" : "SEQ")),
 		zone->id,
 		(unsigned long long)chunk_block, nr_blocks);
 
@@ -198,7 +199,8 @@ static int dmz_handle_read(struct dmz_target *dmz, struct dm_zone *zone,
 	bzone = zone->bzone;
 	while (chunk_block < end_block) {
 		nr_blocks = 0;
-		if (dmz_is_rnd(zone) || chunk_block < zone->wp_block) {
+		if (dmz_is_rnd(zone) || dmz_is_cache(zone) ||
+		    chunk_block < zone->wp_block) {
 			/* Test block validity in the data zone */
 			ret = dmz_block_valid(zmd, zone, chunk_block);
 			if (ret < 0)
@@ -331,11 +333,13 @@ static int dmz_handle_write(struct dmz_target *dmz, struct dm_zone *zone,
 	DMDEBUG("(%s): WRITE chunk %llu -> %s zone %u, block %llu, %u blocks",
 		dmz_metadata_label(zmd),
 		(unsigned long long)dmz_bio_chunk(zmd, bio),
-		(dmz_is_rnd(zone) ? "RND" : "SEQ"),
+		(dmz_is_rnd(zone) ? "RND" :
+		 (dmz_is_cache(zone) ? "CACHE" : "SEQ")),
 		zone->id,
 		(unsigned long long)chunk_block, nr_blocks);
 
-	if (dmz_is_rnd(zone) || chunk_block == zone->wp_block) {
+	if (dmz_is_rnd(zone) || dmz_is_cache(zone) ||
+	    chunk_block == zone->wp_block) {
 		/*
 		 * zone is a random zone or it is a sequential zone
 		 * and the BIO is aligned to the zone write pointer:
@@ -381,7 +385,8 @@ static int dmz_handle_discard(struct dmz_target *dmz, struct dm_zone *zone,
 	 * Invalidate blocks in the data zone and its
 	 * buffer zone if one is mapped.
 	 */
-	if (dmz_is_rnd(zone) || chunk_block < zone->wp_block)
+	if (dmz_is_rnd(zone) || dmz_is_cache(zone) ||
+	    chunk_block < zone->wp_block)
 		ret = dmz_invalidate_blocks(zmd, zone, chunk_block, nr_blocks);
 	if (ret == 0 && zone->bzone)
 		ret = dmz_invalidate_blocks(zmd, zone->bzone,
@@ -1065,8 +1070,10 @@ static void dmz_status(struct dm_target *ti, status_type_t type,
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%u zones %u/%u random %u/%u sequential",
+		DMEMIT("%u zones %u/%u cache %u/%u random %u/%u sequential",
 		       dmz_nr_zones(dmz->metadata),
+		       dmz_nr_unmap_cache_zones(dmz->metadata),
+		       dmz_nr_cache_zones(dmz->metadata),
 		       dmz_nr_unmap_rnd_zones(dmz->metadata),
 		       dmz_nr_rnd_zones(dmz->metadata),
 		       dmz_nr_unmap_seq_zones(dmz->metadata),

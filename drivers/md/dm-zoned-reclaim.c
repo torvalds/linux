@@ -43,13 +43,13 @@ enum {
  * Percentage of unmapped (free) random zones below which reclaim starts
  * even if the target is busy.
  */
-#define DMZ_RECLAIM_LOW_UNMAP_RND	30
+#define DMZ_RECLAIM_LOW_UNMAP_ZONES	30
 
 /*
  * Percentage of unmapped (free) random zones above which reclaim will
  * stop if the target is busy.
  */
-#define DMZ_RECLAIM_HIGH_UNMAP_RND	50
+#define DMZ_RECLAIM_HIGH_UNMAP_ZONES	50
 
 /*
  * Align a sequential zone write pointer to chunk_block.
@@ -281,17 +281,21 @@ static int dmz_reclaim_rnd_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dm_zone *szone = NULL;
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret;
+	int alloc_flags = dmz_nr_cache_zones(zmd) ?
+		DMZ_ALLOC_RND : DMZ_ALLOC_SEQ;
 
 	/* Get a free sequential zone */
 	dmz_lock_map(zmd);
-	szone = dmz_alloc_zone(zmd, DMZ_ALLOC_RECLAIM);
+	szone = dmz_alloc_zone(zmd, alloc_flags | DMZ_ALLOC_RECLAIM);
 	dmz_unlock_map(zmd);
 	if (!szone)
 		return -ENOSPC;
 
-	DMDEBUG("(%s): Chunk %u, move rnd zone %u (weight %u) to seq zone %u",
-		dmz_metadata_label(zmd),
-		chunk, dzone->id, dmz_weight(dzone), szone->id);
+	DMDEBUG("(%s): Chunk %u, move %s zone %u (weight %u) to %s zone %u",
+		dmz_metadata_label(zmd), chunk,
+		dmz_is_cache(dzone) ? "cache" : "rnd",
+		dzone->id, dmz_weight(dzone),
+		dmz_is_rnd(szone) ? "rnd" : "seq", szone->id);
 
 	/* Flush the random data zone into the sequential zone */
 	ret = dmz_reclaim_copy(zrc, dzone, szone);
@@ -356,7 +360,7 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 		return -EBUSY;
 
 	start = jiffies;
-	if (dmz_is_rnd(dzone)) {
+	if (dmz_is_cache(dzone) || dmz_is_rnd(dzone)) {
 		if (!dmz_weight(dzone)) {
 			/* Empty zone */
 			dmz_reclaim_empty(zrc, dzone);
@@ -422,29 +426,41 @@ static inline int dmz_target_idle(struct dmz_reclaim *zrc)
 	return time_is_before_jiffies(zrc->atime + DMZ_IDLE_PERIOD);
 }
 
+static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
+{
+	struct dmz_metadata *zmd = zrc->metadata;
+	unsigned int nr_cache = dmz_nr_cache_zones(zmd);
+	unsigned int nr_rnd = dmz_nr_rnd_zones(zmd);
+	unsigned int nr_unmap, nr_zones;
+
+	if (nr_cache) {
+		nr_zones = nr_cache;
+		nr_unmap = dmz_nr_unmap_cache_zones(zmd);
+	} else {
+		nr_zones = nr_rnd;
+		nr_unmap = dmz_nr_unmap_rnd_zones(zmd);
+	}
+	return nr_unmap * 100 / nr_zones;
+}
+
 /*
  * Test if reclaim is necessary.
  */
-static bool dmz_should_reclaim(struct dmz_reclaim *zrc)
+static bool dmz_should_reclaim(struct dmz_reclaim *zrc, unsigned int p_unmap)
 {
-	struct dmz_metadata *zmd = zrc->metadata;
-	unsigned int nr_rnd = dmz_nr_rnd_zones(zmd);
-	unsigned int nr_unmap_rnd = dmz_nr_unmap_rnd_zones(zmd);
-	unsigned int p_unmap_rnd = nr_unmap_rnd * 100 / nr_rnd;
-
 	/* Reclaim when idle */
-	if (dmz_target_idle(zrc) && nr_unmap_rnd < nr_rnd)
+	if (dmz_target_idle(zrc) && p_unmap < 100)
 		return true;
 
-	/* If there are still plenty of random zones, do not reclaim */
-	if (p_unmap_rnd >= DMZ_RECLAIM_HIGH_UNMAP_RND)
+	/* If there are still plenty of cache zones, do not reclaim */
+	if (p_unmap >= DMZ_RECLAIM_HIGH_UNMAP_ZONES)
 		return false;
 
 	/*
-	 * If the percentage of unmapped random zones is low,
+	 * If the percentage of unmapped cache zones is low,
 	 * reclaim even if the target is busy.
 	 */
-	return p_unmap_rnd <= DMZ_RECLAIM_LOW_UNMAP_RND;
+	return p_unmap <= DMZ_RECLAIM_LOW_UNMAP_ZONES;
 }
 
 /*
@@ -454,14 +470,14 @@ static void dmz_reclaim_work(struct work_struct *work)
 {
 	struct dmz_reclaim *zrc = container_of(work, struct dmz_reclaim, work.work);
 	struct dmz_metadata *zmd = zrc->metadata;
-	unsigned int nr_rnd, nr_unmap_rnd;
-	unsigned int p_unmap_rnd;
+	unsigned int p_unmap;
 	int ret;
 
 	if (dmz_dev_is_dying(zmd))
 		return;
 
-	if (!dmz_should_reclaim(zrc)) {
+	p_unmap = dmz_reclaim_percentage(zrc);
+	if (!dmz_should_reclaim(zrc, p_unmap)) {
 		mod_delayed_work(zrc->wq, &zrc->work, DMZ_IDLE_PERIOD);
 		return;
 	}
@@ -472,22 +488,22 @@ static void dmz_reclaim_work(struct work_struct *work)
 	 * and slower if there are still some free random zones to avoid
 	 * as much as possible to negatively impact the user workload.
 	 */
-	nr_rnd = dmz_nr_rnd_zones(zmd);
-	nr_unmap_rnd = dmz_nr_unmap_rnd_zones(zmd);
-	p_unmap_rnd = nr_unmap_rnd * 100 / nr_rnd;
-	if (dmz_target_idle(zrc) || p_unmap_rnd < DMZ_RECLAIM_LOW_UNMAP_RND / 2) {
+	if (dmz_target_idle(zrc) || p_unmap < DMZ_RECLAIM_LOW_UNMAP_ZONES / 2) {
 		/* Idle or very low percentage: go fast */
 		zrc->kc_throttle.throttle = 100;
 	} else {
 		/* Busy but we still have some random zone: throttle */
-		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap_rnd / 2);
+		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap / 2);
 	}
 
-	DMDEBUG("(%s): Reclaim (%u): %s, %u%% free rnd zones (%u/%u)",
+	DMDEBUG("(%s): Reclaim (%u): %s, %u%% free zones (%u/%u cache %u/%u random)",
 		dmz_metadata_label(zmd),
 		zrc->kc_throttle.throttle,
 		(dmz_target_idle(zrc) ? "Idle" : "Busy"),
-		p_unmap_rnd, nr_unmap_rnd, nr_rnd);
+		p_unmap, dmz_nr_unmap_cache_zones(zmd),
+		dmz_nr_cache_zones(zmd),
+		dmz_nr_unmap_rnd_zones(zmd),
+		dmz_nr_rnd_zones(zmd));
 
 	ret = dmz_do_reclaim(zrc);
 	if (ret) {
@@ -585,7 +601,9 @@ void dmz_reclaim_bio_acc(struct dmz_reclaim *zrc)
  */
 void dmz_schedule_reclaim(struct dmz_reclaim *zrc)
 {
-	if (dmz_should_reclaim(zrc))
+	unsigned int p_unmap = dmz_reclaim_percentage(zrc);
+
+	if (dmz_should_reclaim(zrc, p_unmap))
 		mod_delayed_work(zrc->wq, &zrc->work, 0);
 }
 
