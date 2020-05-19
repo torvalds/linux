@@ -98,15 +98,6 @@ menu "MPC8xx CPM Options"
 # 8xx specific questions.
 comment "Generic MPC8xx Options"
 
-config 8xx_COPYBACK
-	bool "Copy-Back Data Cache (else Writethrough)"
-	help
-	  Saying Y here will cause the cache on an MPC8xx processor to be used
-	  in Copy-Back mode.  If you say N here, it is used in Writethrough
-	  mode.
-
-	  If in doubt, say Y here.
-
 config 8xx_GPIO
 	bool "GPIO API Support"
 	select GPIOLIB

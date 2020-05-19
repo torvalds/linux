@@ -19,7 +19,6 @@
 #define MI_RSV4I	0x08000000	/* Reserve 4 TLB entries */
 #define MI_PPCS		0x02000000	/* Use MI_RPN prob/priv state */
 #define MI_IDXMASK	0x00001f00	/* TLB index to be loaded */
-#define MI_RESETVAL	0x00000000	/* Value of register at reset */
 
 /* These are the Ks and Kp from the PowerPC books.  For proper operation,
  * Ks = 0, Kp = 1.
@@ -95,7 +94,6 @@
 #define MD_TWAM		0x04000000	/* Use 4K page hardware assist */
 #define MD_PPCS		0x02000000	/* Use MI_RPN prob/priv state */
 #define MD_IDXMASK	0x00001f00	/* TLB index to be loaded */
-#define MD_RESETVAL	0x04000000	/* Value of register at reset */
 
 #define SPRN_M_CASID	793	/* Address space ID (context) to match */
 #define MC_ASIDMASK	0x0000000f	/* Bits used for ASID value */
