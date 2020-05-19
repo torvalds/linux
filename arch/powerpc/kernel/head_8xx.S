@@ -207,31 +207,21 @@ InstructionTLBMiss:
 	mfspr	r10, SPRN_SRR0	/* Get effective address of fault */
 	INVALIDATE_ADJACENT_PAGES_CPU15(r10)
 	mtspr	SPRN_MD_EPN, r10
-	/* Only modules will cause ITLB Misses as we always
-	 * pin the first 8MB of kernel memory */
 #ifdef ITLB_MISS_KERNEL
 	mfcr	r11
-#if defined(SIMPLE_KERNEL_ADDRESS) && defined(CONFIG_PIN_TLB_TEXT)
+#if defined(SIMPLE_KERNEL_ADDRESS)
 	cmpi	cr0, r10, 0	/* Address >= 0x80000000 */
 #else
 	rlwinm	r10, r10, 16, 0xfff8
 	cmpli	cr0, r10, PAGE_OFFSET@h
-#ifndef CONFIG_PIN_TLB_TEXT
-	/* It is assumed that kernel code fits into the first 32M */
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
-	patch_site	0b, patch__itlbmiss_linmem_top
-#endif
 #endif
 #endif
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
 #ifdef ITLB_MISS_KERNEL
-#if defined(SIMPLE_KERNEL_ADDRESS) && defined(CONFIG_PIN_TLB_TEXT)
+#if defined(SIMPLE_KERNEL_ADDRESS)
 	bge+	3f
 #else
 	blt+	3f
-#endif
-#ifndef CONFIG_PIN_TLB_TEXT
-	blt	cr7, ITLBMissLinear
 #endif
 	rlwinm	r10, r10, 0, 20, 31
 	oris	r10, r10, (swapper_pg_dir - PAGE_OFFSET)@ha
@@ -327,19 +317,9 @@ DataStoreTLBMiss:
 	mfspr	r10, SPRN_MD_EPN
 	rlwinm	r10, r10, 16, 0xfff8
 	cmpli	cr0, r10, PAGE_OFFSET@h
-#ifndef CONFIG_PIN_TLB_IMMR
-	cmpli	cr6, r10, VIRT_IMMR_BASE@h
-#endif
-0:	cmpli	cr7, r10, (PAGE_OFFSET + 0x2000000)@h
-	patch_site	0b, patch__dtlbmiss_linmem_top
 
 	mfspr	r10, SPRN_M_TWB	/* Get level 1 table */
 	blt+	3f
-#ifndef CONFIG_PIN_TLB_IMMR
-0:	beq-	cr6, DTLBMissIMMR
-	patch_site	0b, patch__dtlbmiss_immr_jmp
-#endif
-	blt	cr7, DTLBMissLinear
 	rlwinm	r10, r10, 0, 20, 31
 	oris	r10, r10, (swapper_pg_dir - PAGE_OFFSET)@ha
 3:
@@ -571,14 +551,9 @@ FixupDAR:/* Entry point for dcbx workaround. */
 	cmpli	cr1, r11, PAGE_OFFSET@h
 	mfspr	r11, SPRN_M_TWB	/* Get level 1 table */
 	blt+	cr1, 3f
-	rlwinm	r11, r10, 16, 0xfff8
-
-0:	cmpli	cr7, r11, (PAGE_OFFSET + 0x1800000)@h
-	patch_site	0b, patch__fixupdar_linmem_top
 
 	/* create physical page address from effective address */
 	tophys(r11, r10)
-	blt-	cr7, 201f
 	mfspr	r11, SPRN_M_TWB	/* Get level 1 table */
 	rlwinm	r11, r11, 0, 20, 31
 	oris	r11, r11, (swapper_pg_dir - PAGE_OFFSET)@ha
