@@ -184,7 +184,7 @@ static int ingenic_nand_dev_ready(struct nand_chip *chip)
 {
 	struct ingenic_nand *nand = to_ingenic_nand(nand_to_mtd(chip));
 
-	return !gpiod_get_value_cansleep(nand->busy_gpio);
+	return gpiod_get_value_cansleep(nand->busy_gpio);
 }
 
 static void ingenic_nand_ecc_hwctl(struct nand_chip *chip, int mode)
@@ -342,6 +342,18 @@ static int ingenic_nand_init_chip(struct platform_device *pdev,
 	} else if (nand->busy_gpio) {
 		nand->chip.legacy.dev_ready = ingenic_nand_dev_ready;
 	}
+
+	/*
+	 * The rb-gpios semantics was undocumented and qi,lb60 (along with
+	 * the ingenic driver) got it wrong. The active state encodes the
+	 * NAND ready state, which is high level. Since there's no signal
+	 * inverter on this board, it should be active-high. Let's fix that
+	 * here for older DTs so we can re-use the generic nand_gpio_waitrdy()
+	 * helper, and be consistent with what other drivers do.
+	 */
+	if (of_machine_is_compatible("qi,lb60") &&
+	    gpiod_is_active_low(nand->busy_gpio))
+		gpiod_toggle_active_low(nand->busy_gpio);
 
 	nand->wp_gpio = devm_gpiod_get_optional(dev, "wp", GPIOD_OUT_LOW);
 
