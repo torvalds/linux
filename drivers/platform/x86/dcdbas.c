@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/acpi.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/cpu.h>
 #include <linux/gfp.h>
@@ -34,7 +35,7 @@
 #include "dcdbas.h"
 
 #define DRIVER_NAME		"dcdbas"
-#define DRIVER_VERSION		"5.6.0-3.3"
+#define DRIVER_VERSION		"5.6.0-3.4"
 #define DRIVER_DESCRIPTION	"Dell Systems Management Base Driver"
 
 static struct platform_device *dcdbas_pdev;
@@ -45,7 +46,7 @@ static unsigned long smi_data_buf_size;
 static unsigned long max_smi_data_buf_size = MAX_SMI_DATA_BUF_SIZE;
 static u32 smi_data_buf_phys_addr;
 static DEFINE_MUTEX(smi_data_lock);
-static u8 *eps_buffer;
+static u8 *bios_buffer;
 
 static unsigned int host_control_action;
 static unsigned int host_control_smi_type;
@@ -518,8 +519,10 @@ static inline struct smm_eps_table *check_eps_table(u8 *addr)
 
 static int dcdbas_check_wsmt(void)
 {
+	const struct dmi_device *dev = NULL;
 	struct acpi_table_wsmt *wsmt = NULL;
 	struct smm_eps_table *eps = NULL;
+	u64 bios_buf_paddr;
 	u64 remap_size;
 	u8 *addr;
 
@@ -532,6 +535,17 @@ static int dcdbas_check_wsmt(void)
 	    !(wsmt->protection_flags & ACPI_WSMT_COMM_BUFFER_NESTED_PTR_PROTECTION))
 		return 0;
 
+	/*
+	 * BIOS could provide the address/size of the protected buffer
+	 * in an SMBIOS string or in an EPS structure in 0xFxxxx.
+	 */
+
+	/* Check SMBIOS for buffer address */
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev)))
+		if (sscanf(dev->name, "30[%16llx;%8llx]", &bios_buf_paddr,
+		    &remap_size) == 2)
+			goto remap;
+
 	/* Scan for EPS (entry point structure) */
 	for (addr = (u8 *)__va(0xf0000);
 	     addr < (u8 *)__va(0x100000 - sizeof(struct smm_eps_table));
@@ -542,34 +556,37 @@ static int dcdbas_check_wsmt(void)
 	}
 
 	if (!eps) {
-		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but no EPS found\n");
+		dev_dbg(&dcdbas_pdev->dev, "found WSMT, but no firmware buffer found\n");
 		return -ENODEV;
 	}
+	bios_buf_paddr = eps->smm_comm_buff_addr;
+	remap_size = eps->num_of_4k_pages * PAGE_SIZE;
 
+remap:
 	/*
 	 * Get physical address of buffer and map to virtual address.
 	 * Table gives size in 4K pages, regardless of actual system page size.
 	 */
-	if (upper_32_bits(eps->smm_comm_buff_addr + 8)) {
-		dev_warn(&dcdbas_pdev->dev, "found WSMT, but EPS buffer address is above 4GB\n");
+	if (upper_32_bits(bios_buf_paddr + 8)) {
+		dev_warn(&dcdbas_pdev->dev, "found WSMT, but buffer address is above 4GB\n");
 		return -EINVAL;
 	}
 	/*
 	 * Limit remap size to MAX_SMI_DATA_BUF_SIZE + 8 (since the first 8
 	 * bytes are used for a semaphore, not the data buffer itself).
 	 */
-	remap_size = eps->num_of_4k_pages * PAGE_SIZE;
 	if (remap_size > MAX_SMI_DATA_BUF_SIZE + 8)
 		remap_size = MAX_SMI_DATA_BUF_SIZE + 8;
-	eps_buffer = memremap(eps->smm_comm_buff_addr, remap_size, MEMREMAP_WB);
-	if (!eps_buffer) {
-		dev_warn(&dcdbas_pdev->dev, "found WSMT, but failed to map EPS buffer\n");
+
+	bios_buffer = memremap(bios_buf_paddr, remap_size, MEMREMAP_WB);
+	if (!bios_buffer) {
+		dev_warn(&dcdbas_pdev->dev, "found WSMT, but failed to map buffer\n");
 		return -ENOMEM;
 	}
 
 	/* First 8 bytes is for a semaphore, not part of the smi_data_buf */
-	smi_data_buf_phys_addr = eps->smm_comm_buff_addr + 8;
-	smi_data_buf = eps_buffer + 8;
+	smi_data_buf_phys_addr = bios_buf_paddr + 8;
+	smi_data_buf = bios_buffer + 8;
 	smi_data_buf_size = remap_size - 8;
 	max_smi_data_buf_size = smi_data_buf_size;
 	wsmt_enabled = true;
@@ -736,8 +753,8 @@ static void __exit dcdbas_exit(void)
 	 */
 	if (dcdbas_pdev)
 		smi_data_buf_free();
-	if (eps_buffer)
-		memunmap(eps_buffer);
+	if (bios_buffer)
+		memunmap(bios_buffer);
 	platform_device_unregister(dcdbas_pdev_reg);
 	platform_driver_unregister(&dcdbas_driver);
 }
