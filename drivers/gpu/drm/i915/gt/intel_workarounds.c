@@ -1484,6 +1484,12 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    GEN7_FF_THREAD_MODE,
 			    GEN12_FF_TESSELATION_DOP_GATE_DISABLE);
+
+		/* Wa_22010271021:ehl */
+		if (IS_ELKHARTLAKE(i915))
+			wa_masked_en(wal,
+				     GEN9_CS_DEBUG_MODE1,
+				     FF_DOP_CLOCK_GATE_DISABLE);
 	}
 
 	if (IS_GEN_RANGE(i915, 9, 12)) {
