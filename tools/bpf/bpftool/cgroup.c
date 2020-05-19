@@ -25,9 +25,10 @@
 	"       ATTACH_TYPE := { ingress | egress | sock_create |\n"	       \
 	"                        sock_ops | device | bind4 | bind6 |\n"	       \
 	"                        post_bind4 | post_bind6 | connect4 |\n"       \
-	"                        connect6 | sendmsg4 | sendmsg6 |\n"           \
-	"                        recvmsg4 | recvmsg6 | sysctl |\n"	       \
-	"                        getsockopt | setsockopt }"
+	"                        connect6 | getpeername4 | getpeername6 |\n"   \
+	"                        getsockname4 | getsockname6 | sendmsg4 |\n"   \
+	"                        sendmsg6 | recvmsg4 | recvmsg6 |\n"           \
+	"                        sysctl | getsockopt | setsockopt }"
 
 static unsigned int query_flags;
 
