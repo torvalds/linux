@@ -158,21 +158,9 @@ static int __ov2680_buf_reg_array(struct i2c_client *client,
 				  const struct ov2680_reg *next)
 {
 	int size;
-	__be16 *data16;
 
-	switch (next->type) {
-	case OV2680_8BIT:
-		size = 1;
-		ctrl->buffer.data[ctrl->index] = (u8)next->val;
-		break;
-	case OV2680_16BIT:
-		size = 2;
-		data16 = (void *)&ctrl->buffer.data[ctrl->index];
-		*data16 = cpu_to_be16((u16)next->val);
-		break;
-	default:
-		return -EINVAL;
-	}
+	size = 1;
+	ctrl->buffer.data[ctrl->index] = (u8)next->val;
 
 	/* When first item is added, we need to store its starting address */
 	if (ctrl->index == 0)
@@ -208,34 +196,24 @@ static int ov2680_write_reg_array(struct i2c_client *client,
 	int err;
 
 	ctrl.index = 0;
-	for (; next->type != OV2680_TOK_TERM; next++) {
-		switch (next->type & OV2680_TOK_MASK) {
-		case OV2680_TOK_DELAY:
+	for (; next->reg != 0; next++) {
+		/*
+		    * If next address is not consecutive, data needs to be
+		    * flushed before proceed.
+		    */
+		dev_dbg(&client->dev,  "%s: reg=0x%02x set to 0x%02x\n",
+			__func__, next->reg, next->val);
+		if (!__ov2680_write_reg_is_consecutive(client, &ctrl,
+							next)) {
 			err = __ov2680_flush_reg_array(client, &ctrl);
 			if (err)
 				return err;
-			msleep(next->val);
-			break;
-		default:
-			/*
-			 * If next address is not consecutive, data needs to be
-			 * flushed before proceed.
-			 */
-			dev_dbg(&client->dev,  "%s: reg=0x%02x set to 0x%02x\n",
-				__func__, next->reg, next->val);
-			if (!__ov2680_write_reg_is_consecutive(client, &ctrl,
-							       next)) {
-				err = __ov2680_flush_reg_array(client, &ctrl);
-				if (err)
-					return err;
-			}
-			err = __ov2680_buf_reg_array(client, &ctrl, next);
-			if (err) {
-				dev_err(&client->dev,
-					"%s: write error, aborted\n", __func__);
-				return err;
-			}
-			break;
+		}
+		err = __ov2680_buf_reg_array(client, &ctrl, next);
+		if (err) {
+			dev_err(&client->dev,
+				"%s: write error, aborted\n", __func__);
+			return err;
 		}
 	}
 
