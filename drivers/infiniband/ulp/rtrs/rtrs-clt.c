@@ -1590,9 +1590,6 @@ static int create_con_cq_qp(struct rtrs_clt_con *con)
 	 * In case of error we do not bother to clean previous allocations,
 	 * since destroy_con_cq_qp() must be called.
 	 */
-
-	if (err)
-		return err;
 	return err;
 }
 
