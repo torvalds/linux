@@ -139,7 +139,7 @@ struct siw_pble {
 struct siw_pbl {
 	unsigned int num_buf;
 	unsigned int max_buf;
-	struct siw_pble pbe[1];
+	struct siw_pble pbe[];
 };
 
 /*
