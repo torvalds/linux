@@ -113,15 +113,6 @@ enum snd_motu_protocol_version {
 	SND_MOTU_PROTOCOL_V3,
 };
 
-struct snd_motu_protocol {
-	int (*get_clock_rate)(struct snd_motu *motu, unsigned int *rate);
-	int (*set_clock_rate)(struct snd_motu *motu, unsigned int rate);
-	int (*get_clock_source)(struct snd_motu *motu,
-				enum snd_motu_clock_source *source);
-	int (*switch_fetching_mode)(struct snd_motu *motu, bool enable);
-	int (*cache_packet_formats)(struct snd_motu *motu);
-};
-
 struct snd_motu_spec {
 	const char *const name;
 	enum snd_motu_protocol_version protocol_version;
@@ -129,8 +120,6 @@ struct snd_motu_spec {
 
 	unsigned char analog_in_ports;
 	unsigned char analog_out_ports;
-
-	const struct snd_motu_protocol *const protocol;
 };
 
 extern const struct snd_motu_spec snd_motu_spec_828mk2;
