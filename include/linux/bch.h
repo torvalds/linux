@@ -33,6 +33,7 @@
  * @cache:      log-based polynomial representation buffer
  * @elp:        error locator polynomial
  * @poly_2t:    temporary polynomials of degree 2t
+ * @swap_bits:  swap bits within data and syndrome bytes
  */
 struct bch_control {
 	unsigned int    m;
@@ -51,9 +52,11 @@ struct bch_control {
 	int            *cache;
 	struct gf_poly *elp;
 	struct gf_poly *poly_2t[4];
+	bool		swap_bits;
 };
 
-struct bch_control *bch_init(int m, int t, unsigned int prim_poly);
+struct bch_control *bch_init(int m, int t, unsigned int prim_poly,
+			     bool swap_bits);
 
 void bch_free(struct bch_control *bch);
 

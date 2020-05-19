@@ -1985,7 +1985,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	cascade->base = base;
 	mutex_init(&cascade->lock);
 	cascade->bch = bch_init(DOC_ECC_BCH_M, DOC_ECC_BCH_T,
-				DOC_ECC_BCH_PRIMPOLY);
+				DOC_ECC_BCH_PRIMPOLY, false);
 	if (!cascade->bch)
 		return ret;
 

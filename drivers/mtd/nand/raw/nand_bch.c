@@ -130,7 +130,7 @@ struct nand_bch_control *nand_bch_init(struct mtd_info *mtd)
 	if (!nbc)
 		goto fail;
 
-	nbc->bch = bch_init(m, t, 0);
+	nbc->bch = bch_init(m, t, 0, false);
 	if (!nbc->bch)
 		goto fail;
 
