@@ -1646,8 +1646,14 @@ static ssize_t amdgpu_get_pcie_bw(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = ddev->dev_private;
-	uint64_t count0, count1;
+	uint64_t count0 = 0, count1 = 0;
 	int ret;
+
+	if (adev->flags & AMD_IS_APU)
+		return -ENODATA;
+
+	if (!adev->asic_funcs->get_pcie_usage)
+		return -ENODATA;
 
 	ret = pm_runtime_get_sync(ddev->dev);
 	if (ret < 0)
