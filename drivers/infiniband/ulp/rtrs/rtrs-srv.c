@@ -1213,8 +1213,8 @@ static void rtrs_srv_rdma_done(struct ib_cq *cq, struct ib_wc *wc)
 
 			msg_id = imm_payload >> sess->mem_bits;
 			off = imm_payload & ((1 << sess->mem_bits) - 1);
-			if (unlikely(msg_id > srv->queue_depth ||
-				     off > max_chunk_size)) {
+			if (unlikely(msg_id >= srv->queue_depth ||
+				     off >= max_chunk_size)) {
 				rtrs_err(s, "Wrong msg_id %u, off %u\n",
 					  msg_id, off);
 				close_sess(sess);
