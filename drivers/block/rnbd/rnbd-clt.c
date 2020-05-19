@@ -923,13 +923,12 @@ rnbd_clt_session *find_or_create_sess(const char *sessname, bool *first)
 	sess = __find_and_get_sess(sessname);
 	if (!sess) {
 		sess = alloc_sess(sessname);
-		if (sess) {
-			list_add(&sess->list, &sess_list);
-			*first = true;
-		} else {
+		if (IS_ERR(sess)) {
 			mutex_unlock(&sess_lock);
-			return ERR_PTR(-ENOMEM);
+			return sess;
 		}
+		list_add(&sess->list, &sess_list);
+		*first = true;
 	} else
 		*first = false;
 	mutex_unlock(&sess_lock);
