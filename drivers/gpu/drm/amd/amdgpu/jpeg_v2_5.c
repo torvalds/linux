@@ -268,7 +268,6 @@ static void jpeg_v2_5_disable_clock_gating(struct amdgpu_device* adev, int inst)
 	data = RREG32_SOC15(JPEG, inst, mmJPEG_CGC_GATE);
 	data &= ~(JPEG_CGC_GATE__JPEG_DEC_MASK
 		| JPEG_CGC_GATE__JPEG2_DEC_MASK
-		| JPEG_CGC_GATE__JPEG_ENC_MASK
 		| JPEG_CGC_GATE__JMCIF_MASK
 		| JPEG_CGC_GATE__JRBBM_MASK);
 	WREG32_SOC15(JPEG, inst, mmJPEG_CGC_GATE, data);
