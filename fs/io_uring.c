@@ -619,6 +619,8 @@ struct io_kiocb {
 	bool				needs_fixed_file;
 	u8				opcode;
 
+	u16				buf_index;
+
 	struct io_ring_ctx	*ctx;
 	struct list_head	list;
 	unsigned int		flags;
@@ -2101,9 +2103,7 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 
 	req->rw.addr = READ_ONCE(sqe->addr);
 	req->rw.len = READ_ONCE(sqe->len);
-	/* we own ->private, reuse it for the buffer index  / buffer ID */
-	req->rw.kiocb.private = (void *) (unsigned long)
-					READ_ONCE(sqe->buf_index);
+	req->buf_index = READ_ONCE(sqe->buf_index);
 	return 0;
 }
 
@@ -2146,7 +2146,7 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 	struct io_ring_ctx *ctx = req->ctx;
 	size_t len = req->rw.len;
 	struct io_mapped_ubuf *imu;
-	unsigned index, buf_index;
+	u16 index, buf_index;
 	size_t offset;
 	u64 buf_addr;
 
@@ -2154,7 +2154,7 @@ static ssize_t io_import_fixed(struct io_kiocb *req, int rw,
 	if (unlikely(!ctx->user_bufs))
 		return -EFAULT;
 
-	buf_index = (unsigned long) req->rw.kiocb.private;
+	buf_index = req->buf_index;
 	if (unlikely(buf_index >= ctx->nr_user_bufs))
 		return -EFAULT;
 
@@ -2270,10 +2270,10 @@ static void __user *io_rw_buffer_select(struct io_kiocb *req, size_t *len,
 					bool needs_lock)
 {
 	struct io_buffer *kbuf;
-	int bgid;
+	u16 bgid;
 
 	kbuf = (struct io_buffer *) (unsigned long) req->rw.addr;
-	bgid = (int) (unsigned long) req->rw.kiocb.private;
+	bgid = req->buf_index;
 	kbuf = io_buffer_select(req, len, bgid, kbuf, needs_lock);
 	if (IS_ERR(kbuf))
 		return kbuf;
@@ -2364,7 +2364,7 @@ static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
 	}
 
 	/* buffer index only valid with fixed read/write, or buffer select  */
-	if (req->rw.kiocb.private && !(req->flags & REQ_F_BUFFER_SELECT))
+	if (req->buf_index && !(req->flags & REQ_F_BUFFER_SELECT))
 		return -EINVAL;
 
 	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE) {
