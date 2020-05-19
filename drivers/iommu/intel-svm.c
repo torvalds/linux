@@ -340,7 +340,8 @@ int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
 	 * call the nested mode setup function here.
 	 */
 	spin_lock(&iommu->lock);
-	ret = intel_pasid_setup_nested(iommu, dev, (pgd_t *)data->gpgd,
+	ret = intel_pasid_setup_nested(iommu, dev,
+				       (pgd_t *)(uintptr_t)data->gpgd,
 				       data->hpasid, &data->vtd, dmar_domain,
 				       data->addr_width);
 	spin_unlock(&iommu->lock);

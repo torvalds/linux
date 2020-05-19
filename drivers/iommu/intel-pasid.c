@@ -815,13 +815,13 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	}
 
 	/* First level PGD is in GPA, must be supported by the second level */
-	if ((unsigned long long)gpgd > domain->max_addr) {
+	if ((uintptr_t)gpgd > domain->max_addr) {
 		dev_err_ratelimited(dev,
-				    "Guest PGD %llx not supported, max %llx\n",
-				    (unsigned long long)gpgd, domain->max_addr);
+				    "Guest PGD %lx not supported, max %llx\n",
+				    (uintptr_t)gpgd, domain->max_addr);
 		return -EINVAL;
 	}
-	pasid_set_flptr(pte, (u64)gpgd);
+	pasid_set_flptr(pte, (uintptr_t)gpgd);
 
 	ret = intel_pasid_setup_bind_data(iommu, pte, pasid_data);
 	if (ret)
