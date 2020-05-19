@@ -35,6 +35,9 @@
 #define RKMODULE_SET_HDR_CFG	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 5, struct rkmodule_hdr_cfg)
 
+#define RKMODULE_SET_CONVERSION_GAIN	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 6, __u32)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
