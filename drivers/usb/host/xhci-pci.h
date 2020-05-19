@@ -10,13 +10,13 @@ int renesas_xhci_check_request_fw(struct pci_dev *dev,
 void renesas_xhci_pci_exit(struct pci_dev *dev);
 
 #else
-int renesas_xhci_check_request_fw(struct pci_dev *dev,
-				  const struct pci_device_id *id)
+static int renesas_xhci_check_request_fw(struct pci_dev *dev,
+					 const struct pci_device_id *id)
 {
 	return 0;
 }
 
-void renesas_xhci_pci_exit(struct pci_dev *dev) { };
+static void renesas_xhci_pci_exit(struct pci_dev *dev) { };
 
 #endif
 
