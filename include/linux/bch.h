@@ -53,14 +53,14 @@ struct bch_control {
 	struct gf_poly *poly_2t[4];
 };
 
-struct bch_control *init_bch(int m, int t, unsigned int prim_poly);
+struct bch_control *bch_init(int m, int t, unsigned int prim_poly);
 
-void free_bch(struct bch_control *bch);
+void bch_free(struct bch_control *bch);
 
-void encode_bch(struct bch_control *bch, const uint8_t *data,
+void bch_encode(struct bch_control *bch, const uint8_t *data,
 		unsigned int len, uint8_t *ecc);
 
-int decode_bch(struct bch_control *bch, const uint8_t *data, unsigned int len,
+int bch_decode(struct bch_control *bch, const uint8_t *data, unsigned int len,
 	       const uint8_t *recv_ecc, const uint8_t *calc_ecc,
 	       const unsigned int *syn, unsigned int *errloc);
 
