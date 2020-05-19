@@ -85,34 +85,25 @@ static ssize_t store_current_governor(struct device *dev,
 				      struct device_attribute *attr,
 				      const char *buf, size_t count)
 {
-	char gov_name[CPUIDLE_NAME_LEN];
-	int ret = -EINVAL;
-	size_t len = count;
+	char gov_name[CPUIDLE_NAME_LEN + 1];
+	int ret;
 	struct cpuidle_governor *gov;
 
-	if (!len || len >= sizeof(gov_name))
+	ret = sscanf(buf, "%" __stringify(CPUIDLE_NAME_LEN) "s", gov_name);
+	if (ret != 1)
 		return -EINVAL;
 
-	memcpy(gov_name, buf, len);
-	gov_name[len] = '\0';
-	if (gov_name[len - 1] == '\n')
-		gov_name[--len] = '\0';
-
 	mutex_lock(&cpuidle_lock);
-
+	ret = -EINVAL;
 	list_for_each_entry(gov, &cpuidle_governors, governor_list) {
-		if (strlen(gov->name) == len && !strcmp(gov->name, gov_name)) {
+		if (!strncmp(gov->name, gov_name, CPUIDLE_NAME_LEN)) {
 			ret = cpuidle_switch_governor(gov);
 			break;
 		}
 	}
-
 	mutex_unlock(&cpuidle_lock);
 
-	if (ret)
-		return ret;
-	else
-		return count;
+	return ret ? ret : count;
 }
 
 static DEVICE_ATTR(current_driver, 0444, show_current_driver, NULL);
