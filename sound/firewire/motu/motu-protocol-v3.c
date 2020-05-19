@@ -307,7 +307,7 @@ static int v3_cache_packet_formats(struct snd_motu *motu)
 	return 0;
 }
 
-const struct snd_motu_protocol snd_motu_protocol_v3 = {
+static const struct snd_motu_protocol snd_motu_protocol_v3 = {
 	.get_clock_rate		= v3_get_clock_rate,
 	.set_clock_rate		= v3_set_clock_rate,
 	.get_clock_source	= v3_get_clock_source,
@@ -317,6 +317,7 @@ const struct snd_motu_protocol snd_motu_protocol_v3 = {
 
 const struct snd_motu_spec snd_motu_spec_828mk3 = {
 	.name = "828mk3",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
@@ -335,6 +336,7 @@ const struct snd_motu_spec snd_motu_spec_828mk3 = {
 
 const struct snd_motu_spec snd_motu_spec_audio_express = {
 	.name = "AudioExpress",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
@@ -348,6 +350,7 @@ const struct snd_motu_spec snd_motu_spec_audio_express = {
 
 const struct snd_motu_spec snd_motu_spec_4pre = {
 	.name = "4pre",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
 	.protocol = &snd_motu_protocol_v3,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |

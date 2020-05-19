@@ -108,6 +108,11 @@ enum snd_motu_clock_source {
 	SND_MOTU_CLOCK_SOURCE_UNKNOWN,
 };
 
+enum snd_motu_protocol_version {
+	SND_MOTU_PROTOCOL_V2,
+	SND_MOTU_PROTOCOL_V3,
+};
+
 struct snd_motu_protocol {
 	int (*get_clock_rate)(struct snd_motu *motu, unsigned int *rate);
 	int (*set_clock_rate)(struct snd_motu *motu, unsigned int rate);
@@ -119,6 +124,7 @@ struct snd_motu_protocol {
 
 struct snd_motu_spec {
 	const char *const name;
+	enum snd_motu_protocol_version protocol_version;
 	enum snd_motu_spec_flags flags;
 
 	unsigned char analog_in_ports;
@@ -126,9 +132,6 @@ struct snd_motu_spec {
 
 	const struct snd_motu_protocol *const protocol;
 };
-
-extern const struct snd_motu_protocol snd_motu_protocol_v2;
-extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
 extern const struct snd_motu_spec snd_motu_spec_828mk2;
 extern const struct snd_motu_spec snd_motu_spec_traveler;
@@ -141,7 +144,7 @@ extern const struct snd_motu_spec snd_motu_spec_4pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_protocol *const protocol);
+		    const struct snd_motu_spec *spec);
 int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 			      unsigned int midi_ports,
 			      struct snd_motu_packet_format *formats);

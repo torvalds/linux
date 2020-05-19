@@ -440,7 +440,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_protocol *const protocol)
+		    const struct snd_motu_spec *spec)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
@@ -454,14 +454,15 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		 * Units of version 3 transmits packets with invalid CIP header
 		 * against IEC 61883-1.
 		 */
-		if (protocol == &snd_motu_protocol_v3) {
+		if (spec->protocol_version == SND_MOTU_PROTOCOL_V3) {
 			flags |= CIP_WRONG_DBS |
 				 CIP_SKIP_DBC_ZERO_CHECK |
 				 CIP_HEADER_WITHOUT_EOH;
 			fmt = CIP_FMT_MOTU_TX_V3;
 		}
 
-		if (protocol == &snd_motu_protocol_v2) {
+		if (spec == &snd_motu_spec_8pre ||
+		    spec == &snd_motu_spec_ultralite) {
 			// 8pre has some quirks.
 			flags |= CIP_WRONG_DBS |
 				 CIP_SKIP_DBC_ZERO_CHECK;

@@ -317,7 +317,7 @@ static int init_stream(struct snd_motu *motu, struct amdtp_stream *s)
 	if (err < 0)
 		return err;
 
-	err = amdtp_motu_init(s, motu->unit, dir, motu->spec->protocol);
+	err = amdtp_motu_init(s, motu->unit, dir, motu->spec);
 	if (err < 0)
 		fw_iso_resources_destroy(resources);
 

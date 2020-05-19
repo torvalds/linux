@@ -293,7 +293,7 @@ static int v2_cache_packet_formats(struct snd_motu *motu)
 	return 0;
 }
 
-const struct snd_motu_protocol snd_motu_protocol_v2 = {
+static const struct snd_motu_protocol snd_motu_protocol_v2 = {
 	.get_clock_rate		= v2_get_clock_rate,
 	.set_clock_rate		= v2_set_clock_rate,
 	.get_clock_source	= v2_get_clock_source,
@@ -303,6 +303,7 @@ const struct snd_motu_protocol snd_motu_protocol_v2 = {
 
 const struct snd_motu_spec snd_motu_spec_828mk2 = {
 	.name = "828mk2",
+	.protocol_version = SND_MOTU_PROTOCOL_V2,
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
@@ -319,6 +320,7 @@ const struct snd_motu_spec snd_motu_spec_828mk2 = {
 const struct snd_motu_spec snd_motu_spec_traveler = {
 	.name = "Traveler",
 	.protocol = &snd_motu_protocol_v2,
+	.protocol_version = SND_MOTU_PROTOCOL_V2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
 		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
@@ -333,6 +335,7 @@ const struct snd_motu_spec snd_motu_spec_traveler = {
 
 const struct snd_motu_spec snd_motu_spec_ultralite = {
 	.name = "UltraLite",
+	.protocol_version = SND_MOTU_PROTOCOL_V2,
 	.protocol = &snd_motu_protocol_v2,
 	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
 		 SND_MOTU_SPEC_TX_MICINST_CHUNK | // padding.
@@ -346,6 +349,7 @@ const struct snd_motu_spec snd_motu_spec_ultralite = {
 
 const struct snd_motu_spec snd_motu_spec_8pre = {
 	.name = "8pre",
+	.protocol_version = SND_MOTU_PROTOCOL_V2,
 	.protocol = &snd_motu_protocol_v2,
 	// In tx, use coax chunks for mix-return 1/2. In rx, use coax chunks for
 	// dummy 1/2.
