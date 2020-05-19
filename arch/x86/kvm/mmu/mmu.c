@@ -4952,7 +4952,7 @@ kvm_calc_shadow_mmu_root_page_role(struct kvm_vcpu *vcpu, bool base_only)
 	return role;
 }
 
-void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
+void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu, u32 cr0, u32 cr4, u32 efer)
 {
 	struct kvm_mmu *context = vcpu->arch.mmu;
 	union kvm_mmu_role new_role =
@@ -4961,11 +4961,11 @@ void kvm_init_shadow_mmu(struct kvm_vcpu *vcpu)
 	if (new_role.as_u64 == context->mmu_role.as_u64)
 		return;
 
-	if (!is_paging(vcpu))
+	if (!(cr0 & X86_CR0_PG))
 		nonpaging_init_context(vcpu, context);
-	else if (is_long_mode(vcpu))
+	else if (efer & EFER_LMA)
 		paging64_init_context(vcpu, context);
-	else if (is_pae(vcpu))
+	else if (cr4 & X86_CR4_PAE)
 		paging32E_init_context(vcpu, context);
 	else
 		paging32_init_context(vcpu, context);
@@ -5043,7 +5043,11 @@ static void init_kvm_softmmu(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *context = vcpu->arch.mmu;
 
-	kvm_init_shadow_mmu(vcpu);
+	kvm_init_shadow_mmu(vcpu,
+			    kvm_read_cr0_bits(vcpu, X86_CR0_PG),
+			    kvm_read_cr4_bits(vcpu, X86_CR4_PAE),
+			    vcpu->arch.efer);
+
 	context->get_guest_pgd     = get_cr3;
 	context->get_pdptr         = kvm_pdptr_read;
 	context->inject_page_fault = kvm_inject_page_fault;
