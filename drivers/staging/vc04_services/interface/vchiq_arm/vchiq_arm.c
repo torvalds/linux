@@ -1209,7 +1209,9 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 					/* The completion must point to the
 					** msgbuf. */
-					completion->header = msgbuf;
+					completion->header =
+						(struct vchiq_header __force *)
+						msgbuf;
 				}
 
 				if ((completion->reason ==
