@@ -272,7 +272,7 @@ static int qed_rdma_alloc(struct qed_hwfn *p_hwfn)
 	}
 
 	/* Allocate bitmap for srqs */
-	p_rdma_info->num_srqs = qed_cxt_get_srq_count(p_hwfn);
+	p_rdma_info->num_srqs = p_hwfn->p_cxt_mngr->srq_count;
 	rc = qed_rdma_bmap_alloc(p_hwfn, &p_rdma_info->srq_map,
 				 p_rdma_info->num_srqs, "SRQ");
 	if (rc) {
