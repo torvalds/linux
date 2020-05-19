@@ -37,8 +37,6 @@ struct snd_motu_packet_format {
 
 	unsigned char msg_chunks;
 	unsigned char pcm_chunks[3];
-	unsigned char fixed_part_pcm_chunks[3];
-	unsigned char differed_part_pcm_chunks[3];
 };
 
 struct snd_motu {
@@ -75,19 +73,10 @@ struct snd_motu {
 };
 
 enum snd_motu_spec_flags {
-	SND_MOTU_SPEC_SUPPORT_CLOCK_X2	= 0x0001,
-	SND_MOTU_SPEC_SUPPORT_CLOCK_X4	= 0x0002,
-	SND_MOTU_SPEC_TX_MICINST_CHUNK	= 0x0004,
-	SND_MOTU_SPEC_TX_RETURN_CHUNK	= 0x0008,
-	SND_MOTU_SPEC_TX_REVERB_CHUNK	= 0x0010,
-	SND_MOTU_SPEC_HAS_AESEBU_IFACE	= 0x0020,
-	SND_MOTU_SPEC_HAS_OPT_IFACE_A	= 0x0040,
-	SND_MOTU_SPEC_HAS_OPT_IFACE_B	= 0x0080,
-	SND_MOTU_SPEC_RX_MIDI_2ND_Q	= 0x0100,
-	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0200,
-	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0400,
-	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0800,
-	SND_MOTU_SPEC_RX_SEPARATED_MAIN	= 0x1000,
+	SND_MOTU_SPEC_RX_MIDI_2ND_Q	= 0x0001,
+	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0002,
+	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0004,
+	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0008,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -121,9 +110,6 @@ struct snd_motu_spec {
 
 	unsigned char tx_fixed_pcm_chunks[3];
 	unsigned char rx_fixed_pcm_chunks[3];
-
-	unsigned char analog_in_ports;
-	unsigned char analog_out_ports;
 };
 
 extern const struct snd_motu_spec snd_motu_spec_828mk2;

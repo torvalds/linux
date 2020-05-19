@@ -158,124 +158,6 @@ int snd_motu_protocol_v3_switch_fetching_mode(struct snd_motu *motu,
 					  sizeof(reg));
 }
 
-static void calculate_fixed_part(struct snd_motu_packet_format *formats,
-				 enum amdtp_stream_direction dir,
-				 enum snd_motu_spec_flags flags,
-				 unsigned char analog_ports)
-{
-	unsigned char pcm_chunks[3] = {0, 0, 0};
-
-	pcm_chunks[0] = analog_ports;
-	pcm_chunks[1] = analog_ports;
-	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-		pcm_chunks[2] = analog_ports;
-
-	if (dir == AMDTP_IN_STREAM) {
-		if (flags & SND_MOTU_SPEC_TX_MICINST_CHUNK) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-			if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-				pcm_chunks[2] += 2;
-		}
-
-		if (flags & SND_MOTU_SPEC_TX_RETURN_CHUNK) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-			if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-				pcm_chunks[2] += 2;
-		}
-
-		if (flags & SND_MOTU_SPEC_TX_REVERB_CHUNK) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-		}
-	} else {
-		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-		}
-
-		// Packets to v3 units include 2 chunks for phone 1/2, except
-		// for 176.4/192.0 kHz.
-		pcm_chunks[0] += 2;
-		pcm_chunks[1] += 2;
-	}
-
-	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
-		pcm_chunks[0] += 2;
-		pcm_chunks[1] += 2;
-	}
-
-	/*
-	 * At least, packets have two data chunks for S/PDIF on coaxial
-	 * interface.
-	 */
-	pcm_chunks[0] += 2;
-	pcm_chunks[1] += 2;
-
-	/*
-	 * Fixed part consists of PCM chunks multiple of 4, with msg chunks. As
-	 * a result, this part can includes empty data chunks.
-	 */
-	formats->fixed_part_pcm_chunks[0] = round_up(2 + pcm_chunks[0], 4) - 2;
-	formats->fixed_part_pcm_chunks[1] = round_up(2 + pcm_chunks[1], 4) - 2;
-	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-		formats->fixed_part_pcm_chunks[2] =
-					round_up(2 + pcm_chunks[2], 4) - 2;
-}
-
-static void calculate_differed_part(struct snd_motu_packet_format *formats,
-				    enum snd_motu_spec_flags flags, u32 data,
-				    u32 a_enable_mask, u32 a_no_adat_mask,
-				    u32 b_enable_mask, u32 b_no_adat_mask)
-{
-	unsigned char pcm_chunks[3] = {0, 0, 0};
-	int i;
-
-	if ((flags & SND_MOTU_SPEC_HAS_OPT_IFACE_A) && (data & a_enable_mask)) {
-		if (data & a_no_adat_mask) {
-			/*
-			 * Additional two data chunks for S/PDIF on optical
-			 * interface A. This includes empty data chunks.
-			 */
-			pcm_chunks[0] += 4;
-			pcm_chunks[1] += 4;
-		} else {
-			/*
-			 * Additional data chunks for ADAT on optical interface
-			 * A.
-			 */
-			pcm_chunks[0] += 8;
-			pcm_chunks[1] += 4;
-		}
-	}
-
-	if ((flags & SND_MOTU_SPEC_HAS_OPT_IFACE_B) && (data & b_enable_mask)) {
-		if (data & b_no_adat_mask) {
-			/*
-			 * Additional two data chunks for S/PDIF on optical
-			 * interface B. This includes empty data chunks.
-			 */
-			pcm_chunks[0] += 4;
-			pcm_chunks[1] += 4;
-		} else {
-			/*
-			 * Additional data chunks for ADAT on optical interface
-			 * B.
-			 */
-			pcm_chunks[0] += 8;
-			pcm_chunks[1] += 4;
-		}
-	}
-
-	for (i = 0; i < 3; ++i) {
-		if (pcm_chunks[i] > 0)
-			pcm_chunks[i] = round_up(pcm_chunks[i], 4);
-
-		formats->differed_part_pcm_chunks[i] = pcm_chunks[i];
-	}
-}
-
 static int detect_packet_formats_828mk3(struct snd_motu *motu, u32 data)
 {
 	if (data & V3_ENABLE_OPT_IN_IFACE_A) {
@@ -339,20 +221,6 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 		return err;
 	data = be32_to_cpu(reg);
 
-	calculate_fixed_part(&motu->tx_packet_formats, AMDTP_IN_STREAM,
-			     motu->spec->flags, motu->spec->analog_in_ports);
-	calculate_differed_part(&motu->tx_packet_formats,
-			motu->spec->flags, data,
-			V3_ENABLE_OPT_IN_IFACE_A, V3_NO_ADAT_OPT_IN_IFACE_A,
-			V3_ENABLE_OPT_IN_IFACE_B, V3_NO_ADAT_OPT_IN_IFACE_B);
-
-	calculate_fixed_part(&motu->rx_packet_formats, AMDTP_OUT_STREAM,
-			     motu->spec->flags, motu->spec->analog_out_ports);
-	calculate_differed_part(&motu->rx_packet_formats,
-			motu->spec->flags, data,
-			V3_ENABLE_OPT_OUT_IFACE_A, V3_NO_ADAT_OPT_OUT_IFACE_A,
-			V3_ENABLE_OPT_OUT_IFACE_B, V3_NO_ADAT_OPT_OUT_IFACE_B);
-
 	memcpy(motu->tx_packet_formats.pcm_chunks,
 	       motu->spec->tx_fixed_pcm_chunks,
 	       sizeof(motu->tx_packet_formats.pcm_chunks));
@@ -370,46 +238,24 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 const struct snd_motu_spec snd_motu_spec_828mk3 = {
 	.name = "828mk3",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_TX_REVERB_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
-		 SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 	.tx_fixed_pcm_chunks = {18, 18, 14},
 	.rx_fixed_pcm_chunks = {14, 14, 10},
-	.analog_in_ports = 8,
-	.analog_out_ports = 8,
 };
 
 const struct snd_motu_spec snd_motu_spec_audio_express = {
 	.name = "AudioExpress",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
-		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
-	.analog_in_ports = 2,
-	.analog_out_ports = 4,
 };
 
 const struct snd_motu_spec snd_motu_spec_4pre = {
 	.name = "4pre",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
 	.tx_fixed_pcm_chunks = {10, 10, 0},
 	.rx_fixed_pcm_chunks = {10, 10, 0},
-	.analog_in_ports = 2,
-	.analog_out_ports = 2,
 };

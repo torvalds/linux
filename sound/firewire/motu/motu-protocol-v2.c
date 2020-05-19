@@ -186,86 +186,6 @@ int snd_motu_protocol_v2_switch_fetching_mode(struct snd_motu *motu,
 					  sizeof(reg));
 }
 
-static void calculate_fixed_part(struct snd_motu_packet_format *formats,
-				 enum amdtp_stream_direction dir,
-				 enum snd_motu_spec_flags flags,
-				 unsigned char analog_ports)
-{
-	unsigned char pcm_chunks[3] = {0, 0, 0};
-
-	pcm_chunks[0] = analog_ports;
-	pcm_chunks[1] = analog_ports;
-	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-		pcm_chunks[2] = analog_ports;
-
-	if (dir == AMDTP_IN_STREAM) {
-		if (flags & SND_MOTU_SPEC_TX_MICINST_CHUNK) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-		}
-		if (flags & SND_MOTU_SPEC_TX_RETURN_CHUNK) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-		}
-	} else {
-		if (flags & SND_MOTU_SPEC_RX_SEPARATED_MAIN) {
-			pcm_chunks[0] += 2;
-			pcm_chunks[1] += 2;
-		}
-
-		// Packets to v2 units include 2 chunks for phone 1/2, except
-		// for 176.4/192.0 kHz.
-		pcm_chunks[0] += 2;
-		pcm_chunks[1] += 2;
-	}
-
-	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
-		pcm_chunks[0] += 2;
-		pcm_chunks[1] += 2;
-	}
-
-	/*
-	 * All of v2 models have a pair of coaxial interfaces for digital in/out
-	 * port. At 44.1/48.0/88.2/96.0 kHz, packets includes PCM from these
-	 * ports.
-	 */
-	pcm_chunks[0] += 2;
-	pcm_chunks[1] += 2;
-
-	formats->fixed_part_pcm_chunks[0] = pcm_chunks[0];
-	formats->fixed_part_pcm_chunks[1] = pcm_chunks[1];
-	formats->fixed_part_pcm_chunks[2] = pcm_chunks[2];
-}
-
-static void calculate_differed_part(struct snd_motu_packet_format *formats,
-				    enum snd_motu_spec_flags flags,
-				    u32 data, u32 mask, u32 shift)
-{
-	unsigned char pcm_chunks[2] = {0, 0};
-
-	/*
-	 * When optical interfaces are configured for S/PDIF (TOSLINK),
-	 * the above PCM frames come from them, instead of coaxial
-	 * interfaces.
-	 */
-	data = (data & mask) >> shift;
-	if (data == V2_OPT_IFACE_MODE_ADAT) {
-		if (flags & SND_MOTU_SPEC_HAS_OPT_IFACE_A) {
-			pcm_chunks[0] += 8;
-			pcm_chunks[1] += 4;
-		}
-		// 8pre has two sets of optical interface and doesn't reduce
-		// chunks for ADAT signals.
-		if (flags & SND_MOTU_SPEC_HAS_OPT_IFACE_B) {
-			pcm_chunks[1] += 4;
-		}
-	}
-
-	/* At mode x4, no data chunks are supported in this part. */
-	formats->differed_part_pcm_chunks[0] = pcm_chunks[0];
-	formats->differed_part_pcm_chunks[1] = pcm_chunks[1];
-}
-
 static int detect_packet_formats_828mk2(struct snd_motu *motu, u32 data)
 {
 	if (((data & V2_OPT_IN_IFACE_MASK) >> V2_OPT_IN_IFACE_SHIFT) ==
@@ -335,16 +255,6 @@ int snd_motu_protocol_v2_cache_packet_formats(struct snd_motu *motu)
 		return err;
 	data = be32_to_cpu(reg);
 
-	calculate_fixed_part(&motu->tx_packet_formats, AMDTP_IN_STREAM,
-			     motu->spec->flags, motu->spec->analog_in_ports);
-	calculate_differed_part(&motu->tx_packet_formats, motu->spec->flags,
-			data, V2_OPT_IN_IFACE_MASK, V2_OPT_IN_IFACE_SHIFT);
-
-	calculate_fixed_part(&motu->rx_packet_formats, AMDTP_OUT_STREAM,
-			     motu->spec->flags, motu->spec->analog_out_ports);
-	calculate_differed_part(&motu->rx_packet_formats, motu->spec->flags,
-			data, V2_OPT_OUT_IFACE_MASK, V2_OPT_OUT_IFACE_SHIFT);
-
 	memcpy(motu->tx_packet_formats.pcm_chunks,
 	       motu->spec->tx_fixed_pcm_chunks,
 	       sizeof(motu->tx_packet_formats.pcm_chunks));
@@ -365,62 +275,35 @@ int snd_motu_protocol_v2_cache_packet_formats(struct snd_motu *motu)
 const struct snd_motu_spec snd_motu_spec_828mk2 = {
 	.name = "828mk2",
 	.protocol_version = SND_MOTU_PROTOCOL_V2,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_SEPARATED_MAIN |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 	.tx_fixed_pcm_chunks = {14, 14, 0},
 	.rx_fixed_pcm_chunks = {14, 14, 0},
-	.analog_in_ports = 8,
-	.analog_out_ports = 8,
 };
 
 const struct snd_motu_spec snd_motu_spec_traveler = {
 	.name = "Traveler",
 	.protocol_version = SND_MOTU_PROTOCOL_V2,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_SUPPORT_CLOCK_X4 |
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_HAS_AESEBU_IFACE |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 	.tx_fixed_pcm_chunks = {14, 14, 8},
 	.rx_fixed_pcm_chunks = {14, 14, 8},
-	.analog_in_ports = 8,
-	.analog_out_ports = 8,
 };
 
 const struct snd_motu_spec snd_motu_spec_ultralite = {
 	.name = "UltraLite",
 	.protocol_version = SND_MOTU_PROTOCOL_V2,
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_TX_MICINST_CHUNK | // padding.
-		 SND_MOTU_SPEC_TX_RETURN_CHUNK |
-		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
-		 SND_MOTU_SPEC_TX_MIDI_2ND_Q |
-		 SND_MOTU_SPEC_RX_SEPARATED_MAIN,
+	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 	.tx_fixed_pcm_chunks = {14, 14, 0},
 	.rx_fixed_pcm_chunks = {14, 14, 0},
-	.analog_in_ports = 8,
-	.analog_out_ports = 8,
 };
 
 const struct snd_motu_spec snd_motu_spec_8pre = {
 	.name = "8pre",
 	.protocol_version = SND_MOTU_PROTOCOL_V2,
-	// In tx, use coax chunks for mix-return 1/2. In rx, use coax chunks for
-	// dummy 1/2.
-	.flags = SND_MOTU_SPEC_SUPPORT_CLOCK_X2 |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_A |
-		 SND_MOTU_SPEC_HAS_OPT_IFACE_B |
-		 SND_MOTU_SPEC_RX_MIDI_2ND_Q |
+	.flags = SND_MOTU_SPEC_RX_MIDI_2ND_Q |
 		 SND_MOTU_SPEC_TX_MIDI_2ND_Q,
 	.tx_fixed_pcm_chunks = {10, 6, 0},
 	.rx_fixed_pcm_chunks = {10, 6, 0},
-	.analog_in_ports = 8,
-	.analog_out_ports = 2,
 };
