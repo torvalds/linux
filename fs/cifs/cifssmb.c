@@ -129,6 +129,7 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 				 struct cifs_tcon *tcon)
 {
 	int rc;
+	struct TCP_Server_Info *server = tcon->ses->server;
 	struct dfs_cache_tgt_list tl;
 	struct dfs_cache_tgt_iterator *it = NULL;
 	char *tree;
@@ -141,15 +142,14 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 	if (!tree)
 		return -ENOMEM;
 
-	if (tcon->ipc) {
-		scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
-			  tcon->ses->server->hostname);
-		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
-		goto out;
-	}
-
 	if (!tcon->dfs_path) {
-		rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon, nlsc);
+		if (tcon->ipc) {
+			scnprintf(tree, MAX_TREE_SIZE, "\\\\%s\\IPC$",
+				  server->hostname);
+			rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
+		} else {
+			rc = CIFSTCon(0, tcon->ses, tcon->treeName, tcon, nlsc);
+		}
 		goto out;
 	}
 
@@ -157,13 +157,13 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 	if (rc)
 		goto out;
 
-	extract_unc_hostname(tcon->ses->server->hostname, &tcp_host,
-			     &tcp_host_len);
+	extract_unc_hostname(server->hostname, &tcp_host, &tcp_host_len);
 
 	for (it = dfs_cache_get_tgt_iterator(&tl); it;
 	     it = dfs_cache_get_next_tgt(&tl, it)) {
 		const char *share, *prefix;
 		size_t share_len, prefix_len;
+		bool target_match;
 
 		rc = dfs_cache_get_tgt_share(it, &share, &share_len, &prefix,
 					     &prefix_len);
@@ -177,19 +177,38 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 
 		if (dfs_host_len != tcp_host_len
 		    || strncasecmp(dfs_host, tcp_host, dfs_host_len) != 0) {
-			cifs_dbg(FYI, "%s: skipping %.*s, doesn't match %.*s",
+			cifs_dbg(FYI, "%s: %.*s doesn't match %.*s",
 				 __func__,
 				 (int)dfs_host_len, dfs_host,
 				 (int)tcp_host_len, tcp_host);
-			continue;
+
+			rc = match_target_ip(server, dfs_host, dfs_host_len,
+					     &target_match);
+			if (rc) {
+				cifs_dbg(VFS, "%s: failed to match target ip: %d\n",
+					 __func__, rc);
+				break;
+			}
+
+			if (!target_match) {
+				cifs_dbg(FYI, "%s: skipping target\n", __func__);
+				continue;
+			}
 		}
 
-		scnprintf(tree, MAX_TREE_SIZE, "\\%.*s", (int)share_len, share);
-
-		rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
-		if (!rc) {
-			rc = update_super_prepath(tcon, prefix, prefix_len);
-			break;
+		if (tcon->ipc) {
+			scnprintf(tree, MAX_TREE_SIZE, "\\\\%.*s\\IPC$",
+				  (int)share_len, share);
+			rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
+		} else {
+			scnprintf(tree, MAX_TREE_SIZE, "\\%.*s", (int)share_len,
+				  share);
+			rc = CIFSTCon(0, tcon->ses, tree, tcon, nlsc);
+			if (!rc) {
+				rc = update_super_prepath(tcon, prefix,
+							  prefix_len);
+				break;
+			}
 		}
 		if (rc == -EREMOTE)
 			break;

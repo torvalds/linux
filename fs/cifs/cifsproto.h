@@ -89,6 +89,7 @@ extern void cifs_mid_q_entry_release(struct mid_q_entry *midEntry);
 extern void cifs_wake_up_task(struct mid_q_entry *mid);
 extern int cifs_handle_standard(struct TCP_Server_Info *server,
 				struct mid_q_entry *mid);
+extern bool cifs_match_ipaddr(struct sockaddr *srcaddr, struct sockaddr *rhs);
 extern int cifs_discard_remaining_data(struct TCP_Server_Info *server);
 extern int cifs_call_async(struct TCP_Server_Info *server,
 			struct smb_rqst *rqst,
@@ -616,6 +617,10 @@ static inline int get_dfs_path(const unsigned int xid, struct cifs_ses *ses,
 	return dfs_cache_find(xid, ses, nls_codepage, remap, old_path,
 			      referral, NULL);
 }
+
+int match_target_ip(struct TCP_Server_Info *server,
+		    const char *share, size_t share_len,
+		    bool *result);
 #endif
 
 static inline int cifs_create_options(struct cifs_sb_info *cifs_sb, int options)

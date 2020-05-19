@@ -32,6 +32,9 @@
 #include "cifs_unicode.h"
 #include "smb2pdu.h"
 #include "cifsfs.h"
+#ifdef CONFIG_CIFS_DFS_UPCALL
+#include "dns_resolve.h"
+#endif
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -1083,6 +1086,51 @@ void cifs_put_tcp_super(struct super_block *sb)
 }
 
 #ifdef CONFIG_CIFS_DFS_UPCALL
+int match_target_ip(struct TCP_Server_Info *server,
+		    const char *share, size_t share_len,
+		    bool *result)
+{
+	int rc;
+	char *target, *tip = NULL;
+	struct sockaddr tipaddr;
+
+	*result = false;
+
+	target = kzalloc(share_len + 3, GFP_KERNEL);
+	if (!target) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	scnprintf(target, share_len + 3, "\\\\%.*s", (int)share_len, share);
+
+	cifs_dbg(FYI, "%s: target name: %s\n", __func__, target + 2);
+
+	rc = dns_resolve_server_name_to_ip(target, &tip);
+	if (rc < 0)
+		goto out;
+
+	cifs_dbg(FYI, "%s: target ip: %s\n", __func__, tip);
+
+	if (!cifs_convert_address(&tipaddr, tip, strlen(tip))) {
+		cifs_dbg(VFS, "%s: failed to convert target ip address\n",
+			 __func__);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	*result = cifs_match_ipaddr((struct sockaddr *)&server->dstaddr,
+				    &tipaddr);
+	cifs_dbg(FYI, "%s: ip addresses match: %u\n", __func__, *result);
+	rc = 0;
+
+out:
+	kfree(target);
+	kfree(tip);
+
+	return rc;
+}
+
 static void tcon_super_cb(struct super_block *sb, void *arg)
 {
 	struct super_cb_data *sd = arg;
