@@ -2735,11 +2735,11 @@ static int live_preempt_gang(void *arg)
 			/* Submit each spinner at increasing priority */
 			engine->schedule(rq, &attr);
 
+			if (prio < attr.priority)
+				break;
+
 			if (prio <= I915_PRIORITY_MAX)
 				continue;
-
-			if (prio > (INT_MAX >> I915_USER_PRIORITY_SHIFT))
-				break;
 
 			if (__igt_timeout(end_time, NULL))
 				break;
