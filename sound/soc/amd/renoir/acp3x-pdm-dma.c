@@ -150,12 +150,11 @@ static int start_pdm_dma(void __iomem *acp_base)
 
 static int stop_pdm_dma(void __iomem *acp_base)
 {
-	u32 pdm_enable, pdm_dma_enable, pdm_fifo_flush;
+	u32 pdm_enable, pdm_dma_enable;
 	int timeout;
 
 	pdm_enable = 0x00;
 	pdm_dma_enable  = 0x00;
-	pdm_fifo_flush = 0x00;
 
 	pdm_enable = rn_readl(acp_base + ACP_WOV_PDM_ENABLE);
 	pdm_dma_enable = rn_readl(acp_base + ACP_WOV_PDM_DMA_ENABLE);
