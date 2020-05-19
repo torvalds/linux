@@ -17,8 +17,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/of_address.h>
+#include <linux/clk.h>
 
 #include <dt-bindings/clock/marvell,mmp2.h>
+#include <dt-bindings/power/marvell,mmp2.h>
 
 #include "clk.h"
 #include "reset.h"
@@ -63,6 +65,7 @@
 #define APMU_USBHSIC1	0xfc
 #define APMU_GPU	0xcc
 #define APMU_AUDIO	0x10c
+#define APMU_CAMERA	0x1fc
 
 #define MPMU_FCCR		0x8
 #define MPMU_POSR		0x10
@@ -86,6 +89,8 @@ enum mmp2_clk_model {
 struct mmp2_clk_unit {
 	struct mmp_clk_unit unit;
 	enum mmp2_clk_model model;
+	struct genpd_onecell_data pd_data;
+	struct generic_pm_domain *pm_domains[MMP2_NR_POWER_DOMAINS];
 	void __iomem *mpmu_base;
 	void __iomem *apmu_base;
 	void __iomem *apbc_base;
@@ -473,6 +478,41 @@ static void mmp2_clk_reset_init(struct device_node *np,
 	mmp_clk_reset_register(np, cells, nr_resets);
 }
 
+static void mmp2_pm_domain_init(struct device_node *np,
+				struct mmp2_clk_unit *pxa_unit)
+{
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		pxa_unit->pm_domains[MMP2_POWER_DOMAIN_GPU]
+			= mmp_pm_domain_register("gpu",
+				pxa_unit->apmu_base + APMU_GPU,
+				0x0600, 0x40003, 0x18000c, 0, &gpu_lock);
+	} else {
+		pxa_unit->pm_domains[MMP2_POWER_DOMAIN_GPU]
+			= mmp_pm_domain_register("gpu",
+				pxa_unit->apmu_base + APMU_GPU,
+				0x8600, 0x00003, 0x00000c,
+				MMP_PM_DOMAIN_NO_DISABLE, &gpu_lock);
+	}
+	pxa_unit->pd_data.num_domains++;
+
+	pxa_unit->pm_domains[MMP2_POWER_DOMAIN_AUDIO]
+		= mmp_pm_domain_register("audio",
+			pxa_unit->apmu_base + APMU_AUDIO,
+			0x600, 0x2, 0, 0, &audio_lock);
+	pxa_unit->pd_data.num_domains++;
+
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		pxa_unit->pm_domains[MMP3_POWER_DOMAIN_CAMERA]
+			= mmp_pm_domain_register("camera",
+				pxa_unit->apmu_base + APMU_CAMERA,
+				0x600, 0, 0, 0, NULL);
+		pxa_unit->pd_data.num_domains++;
+	}
+
+	pxa_unit->pd_data.domains = pxa_unit->pm_domains;
+	of_genpd_add_provider_onecell(np, &pxa_unit->pd_data);
+}
+
 static void __init mmp2_clk_init(struct device_node *np)
 {
 	struct mmp2_clk_unit *pxa_unit;
@@ -503,6 +543,8 @@ static void __init mmp2_clk_init(struct device_node *np)
 		pr_err("failed to map apbc registers\n");
 		goto unmap_apmu_region;
 	}
+
+	mmp2_pm_domain_init(np, pxa_unit);
 
 	mmp_clk_init(np, &pxa_unit->unit, MMP2_NR_CLKS);
 
