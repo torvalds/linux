@@ -76,15 +76,11 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	if (i == ARRAY_SIZE(snd_motu_clock_rates))
 		return -EINVAL;
 
-	pcm_chunks = formats->fixed_part_pcm_chunks[mode] +
-		     formats->differed_part_pcm_chunks[mode];
+	// Each data block includes SPH in its head. Data chunks follow with
+	// 3 byte alignment. Padding follows with zero to conform to quadlet
+	// alignment.
+	pcm_chunks = formats->pcm_chunks[mode];
 	data_chunks = formats->msg_chunks + pcm_chunks;
-
-	/*
-	 * Each data block includes SPH in its head. Data chunks follow with
-	 * 3 byte alignment. Padding follows with zero to conform to quadlet
-	 * alignment.
-	 */
 	data_block_quadlets = 1 + DIV_ROUND_UP(data_chunks * 3, 4);
 
 	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets);

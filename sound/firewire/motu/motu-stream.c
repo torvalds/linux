@@ -201,9 +201,9 @@ static int ensure_packet_formats(struct snd_motu *motu)
 	data &= ~(TX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS |
 		  RX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS|
 		  TX_PACKET_TRANSMISSION_SPEED_MASK);
-	if (motu->tx_packet_formats.differed_part_pcm_chunks[0] == 0)
+	if (motu->spec->tx_fixed_pcm_chunks[0] == motu->tx_packet_formats.pcm_chunks[0])
 		data |= TX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS;
-	if (motu->rx_packet_formats.differed_part_pcm_chunks[0] == 0)
+	if (motu->spec->rx_fixed_pcm_chunks[0] == motu->rx_packet_formats.pcm_chunks[0])
 		data |= RX_PACKET_EXCLUDE_DIFFERED_DATA_CHUNKS;
 	data |= fw_parent_device(motu->unit)->max_speed;
 
