@@ -1076,3 +1076,6 @@ static void isp_pm_cap_fixup(struct pci_dev *dev)
 	dev->pm_cap = 0;
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_INTEL, 0x0f38, isp_pm_cap_fixup);
+
+MODULE_DESCRIPTION("Ancillary routines for binding ACPI devices");
+MODULE_LICENSE("GPL");

@@ -1083,6 +1083,22 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 		return 0;
 	}
 
+	/* FIXME: should return -EPROBE_DEFER if not all subdevs were probed */
+	for (count = 0; count < SUBDEV_WAIT_TIMEOUT_MAX_COUNT; count++) {
+		int camera_count = 0;
+		for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
+			if (subdevs->type == RAW_CAMERA ||
+			    subdevs->type == SOC_CAMERA)
+				camera_count ++;
+		}
+		if (camera_count)
+			break;
+		msleep(SUBDEV_WAIT_TIMEOUT);
+		count++;
+	}
+	/* Wait more time to give more time for subdev init code to finish */
+	msleep(5 * SUBDEV_WAIT_TIMEOUT);
+
 	/* FIXME: should, instead, use I2C probe */
 
 	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
@@ -1191,16 +1207,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			break;
 		}
 	}
-
-	/* FIXME: should return -EPROBE_DEFER if not all subdevs were probed */
-	for (count = 0; count < SUBDEV_WAIT_TIMEOUT_MAX_COUNT; count++) {
-		if (isp->input_cnt)
-			break;
-		msleep(SUBDEV_WAIT_TIMEOUT);
-		count++;
-	}
-	/* Wait more time to give more time for subdev init code */
-	msleep(5 * SUBDEV_WAIT_TIMEOUT);
 
 	/*
 	 * HACK: Currently VCM belongs to primary sensor only, but correct

@@ -3,6 +3,7 @@
 #
 obj-$(CONFIG_INTEL_ATOMISP) += i2c/
 obj-$(CONFIG_VIDEO_ATOMISP) += atomisp.o
+obj-$(CONFIG_VIDEO_ATOMISP) += pci/atomisp_gmin_platform.o
 
 # While on staging, keep debug enabled
 DEFINES += -DDEBUG
@@ -23,7 +24,6 @@ atomisp-objs += \
 	pci/atomisp_subdev.o \
 	pci/atomisp_tpg.o \
 	pci/atomisp_v4l2.o \
-	pci/atomisp_gmin_platform.o \
 	pci/sh_css_firmware.o \
 	pci/sh_css_host_data.o \
 	pci/sh_css_hrt.o \
