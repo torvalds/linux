@@ -127,20 +127,68 @@ void __init mmu_mapin_immr(void)
 				    PAGE_KERNEL_NCG, MMU_PAGE_512K, true);
 }
 
+static void __init mmu_mapin_ram_chunk(unsigned long offset, unsigned long top,
+				       pgprot_t prot, bool new)
+{
+	unsigned long v = PAGE_OFFSET + offset;
+	unsigned long p = offset;
+
+	WARN_ON(!IS_ALIGNED(offset, SZ_512K) || !IS_ALIGNED(top, SZ_512K));
+
+	for (; p < ALIGN(p, SZ_8M) && p < top; p += SZ_512K, v += SZ_512K)
+		__early_map_kernel_hugepage(v, p, prot, MMU_PAGE_512K, new);
+	for (; p < ALIGN_DOWN(top, SZ_8M) && p < top; p += SZ_8M, v += SZ_8M)
+		__early_map_kernel_hugepage(v, p, prot, MMU_PAGE_8M, new);
+	for (; p < ALIGN_DOWN(top, SZ_512K) && p < top; p += SZ_512K, v += SZ_512K)
+		__early_map_kernel_hugepage(v, p, prot, MMU_PAGE_512K, new);
+
+	if (!new)
+		flush_tlb_kernel_range(PAGE_OFFSET + v, PAGE_OFFSET + top);
+}
+
 unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 {
+	unsigned long etext8 = ALIGN(__pa(_etext), SZ_8M);
+	unsigned long sinittext = __pa(_sinittext);
+	unsigned long boundary = strict_kernel_rwx_enabled() ? sinittext : etext8;
+	unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
+
+	WARN_ON(top < einittext8);
+
 	mmu_mapin_immr();
 
-	return 0;
+	if (__map_without_ltlbs)
+		return 0;
+
+	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, true);
+	mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL_TEXT, true);
+	mmu_mapin_ram_chunk(einittext8, top, PAGE_KERNEL, true);
+
+	if (top > SZ_32M)
+		memblock_set_current_limit(top);
+
+	block_mapped_ram = top;
+
+	return top;
 }
 
 void mmu_mark_initmem_nx(void)
 {
+	unsigned long etext8 = ALIGN(__pa(_etext), SZ_8M);
+	unsigned long sinittext = __pa(_sinittext);
+	unsigned long boundary = strict_kernel_rwx_enabled() ? sinittext : etext8;
+	unsigned long einittext8 = ALIGN(__pa(_einittext), SZ_8M);
+
+	mmu_mapin_ram_chunk(0, boundary, PAGE_KERNEL_TEXT, false);
+	mmu_mapin_ram_chunk(boundary, einittext8, PAGE_KERNEL, false);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
 void mmu_mark_rodata_ro(void)
 {
+	unsigned long sinittext = __pa(_sinittext);
+
+	mmu_mapin_ram_chunk(0, sinittext, PAGE_KERNEL_ROX, false);
 }
 #endif
 
