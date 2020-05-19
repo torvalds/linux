@@ -708,8 +708,7 @@ __printf(1, 2) int efi_printk(char const *fmt, ...);
 
 void efi_free(unsigned long size, unsigned long addr);
 
-char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len,
-			  unsigned long max_addr);
+char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len);
 
 efi_status_t efi_get_memory_map(struct efi_boot_memmap *map);
 

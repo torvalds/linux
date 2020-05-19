@@ -212,8 +212,7 @@ efi_status_t efi_parse_options(char const *cmdline)
  * Size of memory allocated return in *cmd_line_len.
  * Returns NULL on error.
  */
-char *efi_convert_cmdline(efi_loaded_image_t *image,
-			  int *cmd_line_len, unsigned long max_addr)
+char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 {
 	const u16 *s2;
 	unsigned long cmdline_addr = 0;
@@ -275,7 +274,8 @@ char *efi_convert_cmdline(efi_loaded_image_t *image,
 
 	options_bytes++;	/* NUL termination */
 
-	status = efi_allocate_pages(options_bytes, &cmdline_addr, max_addr);
+	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, options_bytes,
+			     (void **)&cmdline_addr);
 	if (status != EFI_SUCCESS)
 		return NULL;
 

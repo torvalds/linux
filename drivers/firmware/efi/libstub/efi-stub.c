@@ -198,7 +198,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size, ULONG_MAX);
+	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
 	if (!cmdline_ptr) {
 		efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
 		status = EFI_OUT_OF_RESOURCES;
@@ -339,7 +339,7 @@ fail_free_image:
 fail_free_screeninfo:
 	free_screen_info(si);
 fail_free_cmdline:
-	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
+	efi_bs_call(free_pool, cmdline_ptr);
 fail:
 	return status;
 }
