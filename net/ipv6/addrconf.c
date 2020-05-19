@@ -2794,6 +2794,9 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 	struct net_device *dev;
 	int err = -EINVAL;
 
+	if (!IS_ENABLED(CONFIG_IPV6_SIT))
+		return -ENODEV;
+
 	rtnl_lock();
 
 	err = -EFAULT;
@@ -2806,7 +2809,6 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 	if (!dev)
 		goto err_exit;
 
-#if IS_ENABLED(CONFIG_IPV6_SIT)
 	if (dev->type == ARPHRD_SIT) {
 		const struct net_device_ops *ops = dev->netdev_ops;
 		struct ifreq ifr;
@@ -2842,7 +2844,6 @@ int addrconf_set_dstaddr(struct net *net, void __user *arg)
 			err = dev_open(dev, NULL);
 		}
 	}
-#endif
 
 err_exit:
 	rtnl_unlock();
