@@ -79,45 +79,42 @@ static int __init kasan_init_region(void *start, size_t size)
 	return 0;
 }
 
-static void __init kasan_remap_early_shadow_ro(void)
+static void __init
+kasan_update_early_region(unsigned long k_start, unsigned long k_end, pte_t pte)
 {
-	pgprot_t prot = kasan_prot_ro();
-	unsigned long k_start = KASAN_SHADOW_START;
-	unsigned long k_end = KASAN_SHADOW_END;
 	unsigned long k_cur;
 	phys_addr_t pa = __pa(kasan_early_shadow_page);
 
-	kasan_populate_pte(kasan_early_shadow_pte, prot);
-
-	for (k_cur = k_start & PAGE_MASK; k_cur != k_end; k_cur += PAGE_SIZE) {
+	for (k_cur = k_start; k_cur != k_end; k_cur += PAGE_SIZE) {
 		pmd_t *pmd = pmd_ptr_k(k_cur);
 		pte_t *ptep = pte_offset_kernel(pmd, k_cur);
 
 		if ((pte_val(*ptep) & PTE_RPN_MASK) != pa)
 			continue;
 
-		__set_pte_at(&init_mm, k_cur, ptep, pfn_pte(PHYS_PFN(pa), prot), 0);
+		__set_pte_at(&init_mm, k_cur, ptep, pte, 0);
 	}
-	flush_tlb_kernel_range(KASAN_SHADOW_START, KASAN_SHADOW_END);
+
+	flush_tlb_kernel_range(k_start, k_end);
+}
+
+static void __init kasan_remap_early_shadow_ro(void)
+{
+	pgprot_t prot = kasan_prot_ro();
+	phys_addr_t pa = __pa(kasan_early_shadow_page);
+
+	kasan_populate_pte(kasan_early_shadow_pte, prot);
+
+	kasan_update_early_region(KASAN_SHADOW_START, KASAN_SHADOW_END,
+				  pfn_pte(PHYS_PFN(pa), prot));
 }
 
 static void __init kasan_unmap_early_shadow_vmalloc(void)
 {
 	unsigned long k_start = (unsigned long)kasan_mem_to_shadow((void *)VMALLOC_START);
 	unsigned long k_end = (unsigned long)kasan_mem_to_shadow((void *)VMALLOC_END);
-	unsigned long k_cur;
-	phys_addr_t pa = __pa(kasan_early_shadow_page);
 
-	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
-		pmd_t *pmd = pmd_offset(pud_offset(pgd_offset_k(k_cur), k_cur), k_cur);
-		pte_t *ptep = pte_offset_kernel(pmd, k_cur);
-
-		if ((pte_val(*ptep) & PTE_RPN_MASK) != pa)
-			continue;
-
-		__set_pte_at(&init_mm, k_cur, ptep, __pte(0), 0);
-	}
-	flush_tlb_kernel_range(k_start, k_end);
+	kasan_update_early_region(k_start, k_end, __pte(0));
 }
 
 static void __init kasan_mmu_init(void)
