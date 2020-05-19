@@ -19,4 +19,9 @@ struct objtool_file {
 	bool ignore_unreachables, c_file, hints, rodata;
 };
 
+int check(const char *objname, bool orc);
+int orc_dump(const char *objname);
+int create_orc(struct objtool_file *file);
+int create_orc_sections(struct objtool_file *file);
+
 #endif /* _OBJTOOL_H */

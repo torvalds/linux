@@ -7,10 +7,8 @@
 #define _CHECK_H
 
 #include <stdbool.h>
-#include "objtool.h"
 #include "cfi.h"
 #include "arch.h"
-#include "orc.h"
 
 struct insn_state {
 	struct cfi_state cfi;
@@ -46,8 +44,6 @@ struct instruction {
 	struct cfi_state cfi;
 	struct orc_entry orc;
 };
-
-int check(const char *objname, bool orc);
 
 struct instruction *find_insn(struct objtool_file *file,
 			      struct section *sec, unsigned long offset);

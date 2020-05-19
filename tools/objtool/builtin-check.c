@@ -16,7 +16,7 @@
 #include <subcmd/parse-options.h>
 #include <string.h>
 #include "builtin.h"
-#include "check.h"
+#include "objtool.h"
 
 bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats, validate_dup, vmlinux;
 

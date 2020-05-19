@@ -6,7 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "orc.h"
 #include "check.h"
 #include "warn.h"
 

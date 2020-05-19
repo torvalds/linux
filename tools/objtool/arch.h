@@ -8,8 +8,10 @@
 
 #include <stdbool.h>
 #include <linux/list.h>
-#include "elf.h"
+#include "objtool.h"
 #include "cfi.h"
+
+#include <asm/orc_types.h>
 
 enum insn_type {
 	INSN_JUMP_CONDITIONAL,

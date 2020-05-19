@@ -7,10 +7,10 @@
 #include <stdlib.h>
 
 #include "builtin.h"
-#include "check.h"
-#include "elf.h"
-#include "special.h"
+#include "cfi.h"
 #include "arch.h"
+#include "check.h"
+#include "special.h"
 #include "warn.h"
 
 #include <linux/hashtable.h>
