@@ -665,6 +665,77 @@ err_clear_nn:
 	return err;
 }
 
+static void nfp_flower_wait_host_bit(struct nfp_app *app)
+{
+	unsigned long err_at;
+	u64 feat;
+	int err;
+
+	/* Wait for HOST_ACK flag bit to propagate */
+	err_at = jiffies + msecs_to_jiffies(100);
+	do {
+		feat = nfp_rtsym_read_le(app->pf->rtbl,
+					 "_abi_flower_combined_features_global",
+					 &err);
+		if (time_is_before_eq_jiffies(err_at)) {
+			nfp_warn(app->cpp,
+				 "HOST_ACK bit not propagated in FW.\n");
+			break;
+		}
+		usleep_range(1000, 2000);
+	} while (!err && !(feat & NFP_FL_FEATS_HOST_ACK));
+
+	if (err)
+		nfp_warn(app->cpp,
+			 "Could not read global features entry from FW\n");
+}
+
+static int nfp_flower_sync_feature_bits(struct nfp_app *app)
+{
+	struct nfp_flower_priv *app_priv = app->priv;
+	int err;
+
+	/* Tell the firmware of the host supported features. */
+	err = nfp_rtsym_write_le(app->pf->rtbl, "_abi_flower_host_mask",
+				 app_priv->flower_ext_feats |
+				 NFP_FL_FEATS_HOST_ACK);
+	if (!err)
+		nfp_flower_wait_host_bit(app);
+	else if (err != -ENOENT)
+		return err;
+
+	/* Tell the firmware that the driver supports lag. */
+	err = nfp_rtsym_write_le(app->pf->rtbl,
+				 "_abi_flower_balance_sync_enable", 1);
+	if (!err) {
+		app_priv->flower_ext_feats |= NFP_FL_ENABLE_LAG;
+		nfp_flower_lag_init(&app_priv->nfp_lag);
+	} else if (err == -ENOENT) {
+		nfp_warn(app->cpp, "LAG not supported by FW.\n");
+	} else {
+		return err;
+	}
+
+	if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MOD) {
+		/* Tell the firmware that the driver supports flow merging. */
+		err = nfp_rtsym_write_le(app->pf->rtbl,
+					 "_abi_flower_merge_hint_enable", 1);
+		if (!err) {
+			app_priv->flower_ext_feats |= NFP_FL_ENABLE_FLOW_MERGE;
+			nfp_flower_internal_port_init(app_priv);
+		} else if (err == -ENOENT) {
+			nfp_warn(app->cpp,
+				 "Flow merge not supported by FW.\n");
+		} else {
+			return err;
+		}
+	} else {
+		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
+	}
+
+	return 0;
+}
+
 static int nfp_flower_init(struct nfp_app *app)
 {
 	u64 version, features, ctx_count, num_mems;
@@ -753,35 +824,11 @@ static int nfp_flower_init(struct nfp_app *app)
 	if (err)
 		app_priv->flower_ext_feats = 0;
 	else
-		app_priv->flower_ext_feats = features;
+		app_priv->flower_ext_feats = features & NFP_FL_FEATS_HOST;
 
-	/* Tell the firmware that the driver supports lag. */
-	err = nfp_rtsym_write_le(app->pf->rtbl,
-				 "_abi_flower_balance_sync_enable", 1);
-	if (!err) {
-		app_priv->flower_ext_feats |= NFP_FL_ENABLE_LAG;
-		nfp_flower_lag_init(&app_priv->nfp_lag);
-	} else if (err == -ENOENT) {
-		nfp_warn(app->cpp, "LAG not supported by FW.\n");
-	} else {
-		goto err_cleanup_metadata;
-	}
-
-	if (app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MOD) {
-		/* Tell the firmware that the driver supports flow merging. */
-		err = nfp_rtsym_write_le(app->pf->rtbl,
-					 "_abi_flower_merge_hint_enable", 1);
-		if (!err) {
-			app_priv->flower_ext_feats |= NFP_FL_ENABLE_FLOW_MERGE;
-			nfp_flower_internal_port_init(app_priv);
-		} else if (err == -ENOENT) {
-			nfp_warn(app->cpp, "Flow merge not supported by FW.\n");
-		} else {
-			goto err_lag_clean;
-		}
-	} else {
-		nfp_warn(app->cpp, "Flow mod/merge not supported by FW.\n");
-	}
+	err = nfp_flower_sync_feature_bits(app);
+	if (err)
+		goto err_cleanup;
 
 	if (app_priv->flower_ext_feats & NFP_FL_FEATS_VF_RLIM)
 		nfp_flower_qos_init(app);
@@ -792,10 +839,9 @@ static int nfp_flower_init(struct nfp_app *app)
 
 	return 0;
 
-err_lag_clean:
+err_cleanup:
 	if (app_priv->flower_ext_feats & NFP_FL_ENABLE_LAG)
 		nfp_flower_lag_cleanup(&app_priv->nfp_lag);
-err_cleanup_metadata:
 	nfp_flower_metadata_cleanup(app);
 err_free_app_priv:
 	vfree(app->priv);
