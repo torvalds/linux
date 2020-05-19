@@ -11,12 +11,55 @@
 #define _TRACE_RPCRDMA_H
 
 #include <linux/scatterlist.h>
+#include <linux/sunrpc/rpc_rdma_cid.h>
 #include <linux/tracepoint.h>
 #include <trace/events/rdma.h>
 
 /**
  ** Event classes
  **/
+
+DECLARE_EVENT_CLASS(rpcrdma_completion_class,
+	TP_PROTO(
+		const struct ib_wc *wc,
+		const struct rpc_rdma_cid *cid
+	),
+
+	TP_ARGS(wc, cid),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(unsigned long, status)
+		__field(unsigned int, vendor_err)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = cid->ci_queue_id;
+		__entry->completion_id = cid->ci_completion_id;
+		__entry->status = wc->status;
+		if (wc->status)
+			__entry->vendor_err = wc->vendor_err;
+		else
+			__entry->vendor_err = 0;
+	),
+
+	TP_printk("cq.id=%u cid=%d status=%s (%lu/0x%x)",
+		__entry->cq_id, __entry->completion_id,
+		rdma_show_wc_status(__entry->status),
+		__entry->status, __entry->vendor_err
+	)
+);
+
+#define DEFINE_COMPLETION_EVENT(name)					\
+		DEFINE_EVENT(rpcrdma_completion_class, name,		\
+				TP_PROTO(				\
+					const struct ib_wc *wc,		\
+					const struct rpc_rdma_cid *cid	\
+				),					\
+				TP_ARGS(wc, cid))
+
+DEFINE_COMPLETION_EVENT(dummy);
 
 DECLARE_EVENT_CLASS(xprtrdma_reply_event,
 	TP_PROTO(
