@@ -442,8 +442,6 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 {
 	struct net_device *tunnel_dev, *new_dev;
 	struct ip_tunnel_parm p = { };
-	mm_segment_t oldfs = get_fs();
-	struct ifreq ifr;
 	int err;
 
 	tunnel_dev = __dev_get_by_name(net, "tunl0");
@@ -456,15 +454,11 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 	p.iph.ihl = 5;
 	p.iph.protocol = IPPROTO_IPIP;
 	sprintf(p.name, "dvmrp%d", v->vifc_vifi);
-	ifr.ifr_ifru.ifru_data = (__force void __user *)&p;
 
-	if (!tunnel_dev->netdev_ops->ndo_do_ioctl)
+	if (!tunnel_dev->netdev_ops->ndo_tunnel_ctl)
 		goto out;
-
-	set_fs(KERNEL_DS);
-	err = tunnel_dev->netdev_ops->ndo_do_ioctl(tunnel_dev, &ifr,
+	err = tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
 			SIOCADDTUNNEL);
-	set_fs(oldfs);
 	if (err)
 		goto out;
 
@@ -481,10 +475,8 @@ static struct net_device *ipmr_new_tunnel(struct net *net, struct vifctl *v)
 	err = dev_set_allmulti(new_dev, 1);
 	if (err) {
 		dev_close(new_dev);
-		set_fs(KERNEL_DS);
-		tunnel_dev->netdev_ops->ndo_do_ioctl(tunnel_dev, &ifr,
+		tunnel_dev->netdev_ops->ndo_tunnel_ctl(tunnel_dev, &p,
 				SIOCDELTUNNEL);
-		set_fs(oldfs);
 		dev_put(new_dev);
 		new_dev = ERR_PTR(err);
 	}
