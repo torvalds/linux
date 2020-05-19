@@ -182,6 +182,9 @@ static int usb4_switch_op(struct tb_switch *sw, u16 opcode, u8 *status)
 		return ret;
 
 	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_26, 1);
+	if (ret)
+		return ret;
+
 	if (val & ROUTER_CS_26_ONS)
 		return -EOPNOTSUPP;
 

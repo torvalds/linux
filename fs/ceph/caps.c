@@ -2749,7 +2749,7 @@ int ceph_try_get_caps(struct inode *inode, int need, int want,
 
 	ret = try_get_cap_refs(inode, need, want, 0, flags, got);
 	/* three special error codes */
-	if (ret == -EAGAIN || ret == -EFBIG || ret == -EAGAIN)
+	if (ret == -EAGAIN || ret == -EFBIG || ret == -ESTALE)
 		ret = 0;
 	return ret;
 }
@@ -3746,6 +3746,7 @@ retry:
 		WARN_ON(1);
 		tsession = NULL;
 		target = -1;
+		mutex_lock(&session->s_mutex);
 	}
 	goto retry;
 

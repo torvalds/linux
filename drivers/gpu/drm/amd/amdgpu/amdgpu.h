@@ -945,6 +945,7 @@ struct amdgpu_device {
 
 	/* s3/s4 mask */
 	bool                            in_suspend;
+	bool				in_hibernate;
 
 	/* record last mm index being written through WREG32*/
 	unsigned long last_mm_index;

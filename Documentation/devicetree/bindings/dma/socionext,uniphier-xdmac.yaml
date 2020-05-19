@@ -22,9 +22,7 @@ properties:
     const: socionext,uniphier-xdmac
 
   reg:
-    items:
-      - description: XDMAC base register region (offset and length)
-      - description: XDMAC extension register region (offset and length)
+    maxItems: 1
 
   interrupts:
     maxItems: 1
@@ -49,12 +47,13 @@ required:
   - reg
   - interrupts
   - "#dma-cells"
+  - dma-channels
 
 examples:
   - |
     xdmac: dma-controller@5fc10000 {
         compatible = "socionext,uniphier-xdmac";
-        reg = <0x5fc10000 0x1000>, <0x5fc20000 0x800>;
+        reg = <0x5fc10000 0x5300>;
         interrupts = <0 188 4>;
         #dma-cells = <2>;
         dma-channels = <16>;
