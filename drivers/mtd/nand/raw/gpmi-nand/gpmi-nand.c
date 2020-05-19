@@ -2696,11 +2696,15 @@ exit_acquire_resources:
 static int gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
+	struct nand_chip *chip = &this->nand;
+	int ret;
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
-	nand_release(&this->nand);
+	ret = mtd_device_unregister(nand_to_mtd(chip));
+	WARN_ON(ret);
+	nand_cleanup(chip);
 	gpmi_free_dma_buffer(this);
 	release_resources(this);
 	return 0;
