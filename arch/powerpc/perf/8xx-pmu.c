@@ -100,9 +100,6 @@ static int mpc8xx_pmu_add(struct perf_event *event, int flags)
 			unsigned long target = patch_site_addr(&patch__itlbmiss_perf);
 
 			patch_branch_site(&patch__itlbmiss_exit_1, target, 0);
-#ifndef CONFIG_PIN_TLB_TEXT
-			patch_branch_site(&patch__itlbmiss_exit_2, target, 0);
-#endif
 		}
 		val = itlb_miss_counter;
 		break;
@@ -111,8 +108,6 @@ static int mpc8xx_pmu_add(struct perf_event *event, int flags)
 			unsigned long target = patch_site_addr(&patch__dtlbmiss_perf);
 
 			patch_branch_site(&patch__dtlbmiss_exit_1, target, 0);
-			patch_branch_site(&patch__dtlbmiss_exit_2, target, 0);
-			patch_branch_site(&patch__dtlbmiss_exit_3, target, 0);
 		}
 		val = dtlb_miss_counter;
 		break;
@@ -175,9 +170,6 @@ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
 					    __PPC_SPR(SPRN_SPRG_SCRATCH0));
 
 			patch_instruction_site(&patch__itlbmiss_exit_1, insn);
-#ifndef CONFIG_PIN_TLB_TEXT
-			patch_instruction_site(&patch__itlbmiss_exit_2, insn);
-#endif
 		}
 		break;
 	case PERF_8xx_ID_DTLB_LOAD_MISS:
@@ -187,8 +179,6 @@ static void mpc8xx_pmu_del(struct perf_event *event, int flags)
 					    __PPC_SPR(SPRN_DAR));
 
 			patch_instruction_site(&patch__dtlbmiss_exit_1, insn);
-			patch_instruction_site(&patch__dtlbmiss_exit_2, insn);
-			patch_instruction_site(&patch__dtlbmiss_exit_3, insn);
 		}
 		break;
 	}
