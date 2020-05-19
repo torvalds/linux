@@ -275,6 +275,7 @@
   fwnode_property_read_u32_array
   gcd
   generic_handle_irq
+  genlmsg_put
   genl_register_family
   genl_unregister_family
   gen_pool_add_virt
@@ -2107,7 +2108,6 @@
   csum_tcpudp_nofold
   __dev_get_by_index
   dev_queue_xmit
-  genlmsg_put
   get_current_napi_context
   gro_cells_destroy
   gro_cells_init
