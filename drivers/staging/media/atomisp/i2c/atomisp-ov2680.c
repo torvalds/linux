@@ -698,9 +698,12 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 {
 	int ret = 0;
 	struct ov2680_device *dev = to_ov2680_sensor(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
+
+	dev_dbg(&client->dev, "%s: %s", __func__, flag? "on" : "off");
 
 	if (flag) {
 		ret |= dev->platform_data->v1p8_ctrl(sd, 1);
@@ -959,6 +962,8 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	dev_dbg(&client->dev, "%s: i=%d, w=%d, h=%d\n",
 		__func__, dev->fmt_idx, fmt->width, fmt->height);
 
+	// IS IT NEEDED?
+	power_up(sd);
 	ret = ov2680_write_reg_array(client, ov2680_res[dev->fmt_idx].regs);
 	if (ret)
 		dev_err(&client->dev,
