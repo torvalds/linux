@@ -1,9 +1,9 @@
-1. A single AtomISP driver needs to be implemented to support both BYT and
-   CHT platforms. The current driver is a mechanical and hand combined merge
-   of the two using an ifdef ISP2401 to select the CHT version, which at the
-   moment is not enabled. Eventually this should become a runtime if check,
-   but there are some quite tricky things that need sorting out before that
-   will be possible.
+1. A single AtomISP driver needs to be implemented to support both
+   Baytrail (BYT and Cherrytail (CHT) platforms at the same time.
+   The current driver is a mechanical and hand combined merge of the
+   two using several runtime macros, plus some ifdef ISP2401 to select the
+   CHT version. Yet, there are some ISP-specific headers that change the
+   driver's behavior during compile time.
 
 2. The file structure needs to get tidied up to resemble a normal Linux
    driver.
@@ -12,25 +12,29 @@
 
 3. The sensor drivers read MIPI settings from EFI variables or default to the
    settings hard-coded in the platform data file for different platforms.
-   This isn't ideal but may be hard to improve as this is how existing
-   platforms work.
+   It should be possible to improve it, by adding support for _DSM tables.
 
-4. The sensor drivers use the regulator framework API. In the ideal world it
-   would be using ACPI but that's not how the existing devices work.
+4. The sensor drivers use PMIC and the regulator framework API. In the ideal
+   world it would be using ACPI but that's not how the existing devices work.
 
 5. The AtomISP driver includes some special IOCTLS (ATOMISP_IOC_XXXX_XXXX)
-   that may need some cleaning up.
+   and controls that require some cleanup.
 
 6. Correct Coding Style. Please don't send coding style patches for this
    driver until the other work is done.
 
-7. The ISP code depends on the exact FW version. The version defined in
-   BYT: 
-   drivers/staging/media/atomisp/pci/atomisp2/pci/sh_css_firmware.c
-   static const char *release_version = STR(irci_stable_candrpv_0415_20150521_0458);
+7. The ISP code has some dependencies of the exact FW version.
+   The version defined in pci/sh_css_firmware.c:
+   BYT:
+	static const char *isp2400_release_version = STR(irci_stable_candrpv_0415_20150521_0458);
+
    CHT:
-   drivers/staging/media/atomisp/pci/atomisp2/css/sh_css_firmware.c
-   static const char *release_version = STR(irci_ecr-master_20150911_0724);
+	static const char *isp2401_release_version = STR(irci_ecr - master_20150911_0724);
+
+   Those versions don't seem to be available anymore. On the tests we've
+   done so far, this version also seems to work for isp2401:
+
+		irci_stable_candrpv_0415_20150521_0458
 
    At some point we may need to round up a few driver versions and see if
    there are any specific things that can be done to fold in support for
@@ -50,12 +54,23 @@
 
 11. Switch from videobuf1 to videobuf2. Videobuf1 is being removed!
 
+12. There are some memory management code that seems to be
+    forked from Kernel 3.10 inside hmm/ directory. Get rid of it,
+    making the driver to use a more standard memory management module.
+
+13. While the driver probes the hardware and reports itself as a
+    V4L2 driver, there are still some issues preventing it to
+    stream (at least it doesn't with the standard V4L2 applications.
+    Didn't test yet with some custom-made app for this driver).
+    Solving the related bugs and issues preventing it to work is
+    needed.
+
 Limitations:
 
 1. To test the patches, you also need the ISP firmware
 
-   for BYT:/lib/firmware/shisp_2400b0_v21.bin
-   for CHT:/lib/firmware/shisp_2401a0_v21.bin
+   for BYT: /lib/firmware/shisp_2400b0_v21.bin
+   for CHT: /lib/firmware/shisp_2401a0_v21.bin
 
    The firmware files will usually be found in /etc/firmware on an Android
    device but can also be extracted from the upgrade kit if you've managed
