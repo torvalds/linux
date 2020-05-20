@@ -159,8 +159,8 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 			if (!WARN_ON(ret < 0 && ret != -EACCES)) {
 				nouveau_gem_object_unmap(nvbo, vma);
 				pm_runtime_mark_last_busy(dev);
-				pm_runtime_put_autosuspend(dev);
 			}
+			pm_runtime_put_autosuspend(dev);
 		}
 	}
 	ttm_bo_unreserve(&nvbo->bo);
