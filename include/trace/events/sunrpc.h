@@ -1503,8 +1503,39 @@ DECLARE_EVENT_CLASS(svcsock_class,
 DEFINE_SVCSOCK_EVENT(udp_send);
 DEFINE_SVCSOCK_EVENT(tcp_send);
 DEFINE_SVCSOCK_EVENT(tcp_recv);
+DEFINE_SVCSOCK_EVENT(tcp_recv_eagain);
+DEFINE_SVCSOCK_EVENT(tcp_recv_err);
 DEFINE_SVCSOCK_EVENT(data_ready);
 DEFINE_SVCSOCK_EVENT(write_space);
+
+TRACE_EVENT(svcsock_tcp_recv_short,
+	TP_PROTO(
+		const struct svc_xprt *xprt,
+		u32 expected,
+		u32 received
+	),
+
+	TP_ARGS(xprt, expected, received),
+
+	TP_STRUCT__entry(
+		__field(u32, expected)
+		__field(u32, received)
+		__field(unsigned long, flags)
+		__string(addr, xprt->xpt_remotebuf)
+	),
+
+	TP_fast_assign(
+		__entry->expected = expected;
+		__entry->received = received;
+		__entry->flags = xprt->xpt_flags;
+		__assign_str(addr, xprt->xpt_remotebuf);
+	),
+
+	TP_printk("addr=%s flags=%s expected=%u received=%u",
+		__get_str(addr), show_svc_xprt_flags(__entry->flags),
+		__entry->expected, __entry->received
+	)
+);
 
 TRACE_EVENT(svcsock_tcp_state,
 	TP_PROTO(

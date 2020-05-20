@@ -968,23 +968,10 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 		svsk->sk_tcplen += len;
 		svsk->sk_datalen += len;
 	}
-	if (len != want || !svc_sock_final_rec(svsk)) {
-		svc_tcp_save_pages(svsk, rqstp);
-		if (len < 0 && len != -EAGAIN)
-			goto err_delete;
-		if (len == want)
-			svc_tcp_fragment_received(svsk);
-		else
-			dprintk("svc: incomplete TCP record (%d of %d)\n",
-				(int)(svsk->sk_tcplen - sizeof(rpc_fraghdr)),
-				svc_sock_reclen(svsk));
-		goto err_noclose;
-	}
-
-	if (svsk->sk_datalen < 8) {
-		svsk->sk_datalen = 0;
-		goto err_delete; /* client is nuts. */
-	}
+	if (len != want || !svc_sock_final_rec(svsk))
+		goto err_incomplete;
+	if (svsk->sk_datalen < 8)
+		goto err_nuts;
 
 	rqstp->rq_arg.len = svsk->sk_datalen;
 	rqstp->rq_arg.page_base = 0;
@@ -1019,14 +1006,26 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 
 	return rqstp->rq_arg.len;
 
+err_incomplete:
+	svc_tcp_save_pages(svsk, rqstp);
+	if (len < 0 && len != -EAGAIN)
+		goto err_delete;
+	if (len == want)
+		svc_tcp_fragment_received(svsk);
+	else
+		trace_svcsock_tcp_recv_short(&svsk->sk_xprt,
+				svc_sock_reclen(svsk),
+				svsk->sk_tcplen - sizeof(rpc_fraghdr));
+	goto err_noclose;
 error:
 	if (len != -EAGAIN)
 		goto err_delete;
-	dprintk("RPC: TCP recvfrom got EAGAIN\n");
+	trace_svcsock_tcp_recv_eagain(&svsk->sk_xprt, 0);
 	return 0;
+err_nuts:
+	svsk->sk_datalen = 0;
 err_delete:
-	printk(KERN_NOTICE "%s: recvfrom returned errno %d\n",
-	       svsk->sk_xprt.xpt_server->sv_name, -len);
+	trace_svcsock_tcp_recv_err(&svsk->sk_xprt, len);
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
 err_noclose:
 	return 0;	/* record not complete */
