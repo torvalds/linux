@@ -337,17 +337,10 @@ const struct pipe_buf_operations default_pipe_buf_ops = {
 	.get = generic_pipe_buf_get,
 };
 
-int generic_pipe_buf_nosteal(struct pipe_inode_info *pipe,
-			     struct pipe_buffer *buf)
-{
-	return 1;
-}
-
 /* Pipe buffer operations for a socket and similar. */
 const struct pipe_buf_operations nosteal_pipe_buf_ops = {
 	.confirm = generic_pipe_buf_confirm,
 	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_nosteal,
 	.get = generic_pipe_buf_get,
 };
 EXPORT_SYMBOL(nosteal_pipe_buf_ops);

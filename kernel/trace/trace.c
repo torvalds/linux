@@ -7576,7 +7576,6 @@ static bool buffer_pipe_buf_get(struct pipe_inode_info *pipe,
 static const struct pipe_buf_operations buffer_pipe_buf_ops = {
 	.confirm		= generic_pipe_buf_confirm,
 	.release		= buffer_pipe_buf_release,
-	.steal			= generic_pipe_buf_nosteal,
 	.get			= buffer_pipe_buf_get,
 };
 
