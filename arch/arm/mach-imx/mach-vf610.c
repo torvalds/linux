@@ -49,15 +49,9 @@ static void __init vf610_detect_cpu(void)
 
 static void __init vf610_init_machine(void)
 {
-	struct device *parent;
-
 	vf610_detect_cpu();
 
-	parent = imx_soc_device_init();
-	if (parent == NULL)
-		pr_warn("failed to initialize soc device\n");
-
-	of_platform_default_populate(NULL, NULL, parent);
+	of_platform_default_populate(NULL, NULL, NULL);
 }
 
 static const char * const vf610_dt_compat[] __initconst = {
