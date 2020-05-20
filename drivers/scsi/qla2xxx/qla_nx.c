@@ -380,47 +380,6 @@ qla82xx_pci_set_crbwindow_2M(struct qla_hw_data *ha, ulong off_in,
 	*off_out = (off_in & MASK(16)) + CRB_INDIRECT_2M + ha->nx_pcibase;
 }
 
-static inline unsigned long
-qla82xx_pci_set_crbwindow(struct qla_hw_data *ha, u64 off)
-{
-	scsi_qla_host_t *vha = pci_get_drvdata(ha->pdev);
-	/* See if we are currently pointing to the region we want to use next */
-	if ((off >= QLA82XX_CRB_PCIX_HOST) && (off < QLA82XX_CRB_DDR_NET)) {
-		/* No need to change window. PCIX and PCIEregs are in both
-		 * regs are in both windows.
-		 */
-		return off;
-	}
-
-	if ((off >= QLA82XX_CRB_PCIX_HOST) && (off < QLA82XX_CRB_PCIX_HOST2)) {
-		/* We are in first CRB window */
-		if (ha->curr_window != 0)
-			WARN_ON(1);
-		return off;
-	}
-
-	if ((off > QLA82XX_CRB_PCIX_HOST2) && (off < QLA82XX_CRB_MAX)) {
-		/* We are in second CRB window */
-		off = off - QLA82XX_CRB_PCIX_HOST2 + QLA82XX_CRB_PCIX_HOST;
-
-		if (ha->curr_window != 1)
-			return off;
-
-		/* We are in the QM or direct access
-		 * register region - do nothing
-		 */
-		if ((off >= QLA82XX_PCI_DIRECT_CRB) &&
-			(off < QLA82XX_PCI_CAMQM_MAX))
-			return off;
-	}
-	/* strange address given */
-	ql_dbg(ql_dbg_p3p, vha, 0xb001,
-	    "%s: Warning: unm_nic_pci_set_crbwindow "
-	    "called with an unknown address(%llx).\n",
-	    QLA2XXX_DRIVER_NAME, off);
-	return off;
-}
-
 static int
 qla82xx_pci_get_crb_addr_2M(struct qla_hw_data *ha, ulong off_in,
 			    void __iomem **off_out)
