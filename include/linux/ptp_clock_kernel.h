@@ -105,10 +105,10 @@ struct ptp_system_timestamp {
  *            parameter func: the desired function to use.
  *            parameter chan: the function channel index to use.
  *
- * @do_work:  Request driver to perform auxiliary (periodic) operations
- *	      Driver should return delay of the next auxiliary work scheduling
- *	      time (>=0) or negative value in case further scheduling
- *	      is not required.
+ * @do_aux_work:  Request driver to perform auxiliary (periodic) operations
+ *                Driver should return delay of the next auxiliary work
+ *                scheduling time (>=0) or negative value in case further
+ *                scheduling is not required.
  *
  * Drivers should embed their ptp_clock_info within a private
  * structure, obtaining a reference to it using container_of().

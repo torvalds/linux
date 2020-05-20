@@ -628,23 +628,15 @@ static void ipa_cmd_transfer_add(struct gsi_trans *trans, u16 size)
 
 void ipa_cmd_tag_process_add(struct gsi_trans *trans)
 {
-	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
-#if 1
-	/* Reference these functions to avoid a compile error */
-	(void)ipa_cmd_ip_packet_init_add;
-	(void)ipa_cmd_ip_tag_status_add;
-	(void) ipa_cmd_transfer_add;
-#else
 	struct ipa *ipa = container_of(trans->gsi, struct ipa, gsi);
-	struct gsi_endpoint *endpoint;
+	struct ipa_endpoint *endpoint;
 
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_LAN_RX];
+
+	ipa_cmd_register_write_add(trans, 0, 0, 0, true);
 	ipa_cmd_ip_packet_init_add(trans, endpoint->endpoint_id);
-
 	ipa_cmd_ip_tag_status_add(trans, 0xcba987654321);
-
 	ipa_cmd_transfer_add(trans, 4);
-#endif
 }
 
 /* Returns the number of commands required for the tag process */

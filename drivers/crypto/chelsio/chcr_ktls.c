@@ -673,41 +673,14 @@ int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input)
 	return 0;
 }
 
-/*
- * chcr_write_cpl_set_tcb_ulp: update tcb values.
- * TCB is responsible to create tcp headers, so all the related values
- * should be correctly updated.
- * @tx_info - driver specific tls info.
- * @q - tx queue on which packet is going out.
- * @tid - TCB identifier.
- * @pos - current index where should we start writing.
- * @word - TCB word.
- * @mask - TCB word related mask.
- * @val - TCB word related value.
- * @reply - set 1 if looking for TP response.
- * return - next position to write.
- */
-static void *chcr_write_cpl_set_tcb_ulp(struct chcr_ktls_info *tx_info,
-					struct sge_eth_txq *q, u32 tid,
-					void *pos, u16 word, u64 mask,
+static void *__chcr_write_cpl_set_tcb_ulp(struct chcr_ktls_info *tx_info,
+					u32 tid, void *pos, u16 word, u64 mask,
 					u64 val, u32 reply)
 {
 	struct cpl_set_tcb_field_core *cpl;
 	struct ulptx_idata *idata;
 	struct ulp_txpkt *txpkt;
-	void *save_pos = NULL;
-	u8 buf[48] = {0};
-	int left;
 
-	left = (void *)q->q.stat - pos;
-	if (unlikely(left < CHCR_SET_TCB_FIELD_LEN)) {
-		if (!left) {
-			pos = q->q.desc;
-		} else {
-			save_pos = pos;
-			pos = buf;
-		}
-	}
 	/* ULP_TXPKT */
 	txpkt = pos;
 	txpkt->cmd_dest = htonl(ULPTX_CMD_V(ULP_TX_PKT) | ULP_TXPKT_DEST_V(0));
@@ -732,17 +705,53 @@ static void *chcr_write_cpl_set_tcb_ulp(struct chcr_ktls_info *tx_info,
 	idata = (struct ulptx_idata *)(cpl + 1);
 	idata->cmd_more = htonl(ULPTX_CMD_V(ULP_TX_SC_NOOP));
 	idata->len = htonl(0);
+	pos = idata + 1;
 
-	if (save_pos) {
-		pos = chcr_copy_to_txd(buf, &q->q, save_pos,
-				       CHCR_SET_TCB_FIELD_LEN);
-	} else {
-		/* check again if we are at the end of the queue */
-		if (left == CHCR_SET_TCB_FIELD_LEN)
+	return pos;
+}
+
+
+/*
+ * chcr_write_cpl_set_tcb_ulp: update tcb values.
+ * TCB is responsible to create tcp headers, so all the related values
+ * should be correctly updated.
+ * @tx_info - driver specific tls info.
+ * @q - tx queue on which packet is going out.
+ * @tid - TCB identifier.
+ * @pos - current index where should we start writing.
+ * @word - TCB word.
+ * @mask - TCB word related mask.
+ * @val - TCB word related value.
+ * @reply - set 1 if looking for TP response.
+ * return - next position to write.
+ */
+static void *chcr_write_cpl_set_tcb_ulp(struct chcr_ktls_info *tx_info,
+					struct sge_eth_txq *q, u32 tid,
+					void *pos, u16 word, u64 mask,
+					u64 val, u32 reply)
+{
+	int left = (void *)q->q.stat - pos;
+
+	if (unlikely(left < CHCR_SET_TCB_FIELD_LEN)) {
+		if (!left) {
 			pos = q->q.desc;
-		else
-			pos = idata + 1;
+		} else {
+			u8 buf[48] = {0};
+
+			__chcr_write_cpl_set_tcb_ulp(tx_info, tid, buf, word,
+						     mask, val, reply);
+
+			return chcr_copy_to_txd(buf, &q->q, pos,
+						CHCR_SET_TCB_FIELD_LEN);
+		}
 	}
+
+	pos = __chcr_write_cpl_set_tcb_ulp(tx_info, tid, pos, word,
+					   mask, val, reply);
+
+	/* check again if we are at the end of the queue */
+	if (left == CHCR_SET_TCB_FIELD_LEN)
+		pos = q->q.desc;
 
 	return pos;
 }
