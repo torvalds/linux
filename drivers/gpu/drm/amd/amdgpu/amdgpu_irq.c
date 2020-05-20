@@ -92,6 +92,7 @@ const char *soc15_ih_clientid_name[] = {
 	"DF",
 	"SDMA7 or VCE1",
 	"PWR",
+	"reserved",
 	"UTCL2",
 	"EA",
 	"UTCL2LOG",
