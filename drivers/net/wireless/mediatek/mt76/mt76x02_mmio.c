@@ -415,7 +415,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 	ieee80211_iter_keys_rcu(dev->mt76.hw, NULL, mt76x02_key_sync, NULL);
 	rcu_read_unlock();
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.wcid); i++) {
+	for (i = 0; i < MT76x02_N_WCIDS; i++) {
 		struct ieee80211_sta *sta;
 		struct ieee80211_vif *vif;
 		struct mt76x02_sta *msta;
