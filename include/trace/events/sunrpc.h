@@ -1501,6 +1501,8 @@ DECLARE_EVENT_CLASS(svcsock_class,
 			TP_ARGS(xprt, result))
 
 DEFINE_SVCSOCK_EVENT(udp_send);
+DEFINE_SVCSOCK_EVENT(udp_recv);
+DEFINE_SVCSOCK_EVENT(udp_recv_err);
 DEFINE_SVCSOCK_EVENT(tcp_send);
 DEFINE_SVCSOCK_EVENT(tcp_recv);
 DEFINE_SVCSOCK_EVENT(tcp_recv_eagain);
