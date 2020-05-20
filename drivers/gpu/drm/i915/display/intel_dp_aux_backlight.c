@@ -342,6 +342,7 @@ int intel_dp_aux_init_backlight_funcs(struct intel_connector *intel_connector)
 	 */
 	if (dev_priv->vbt.backlight.type !=
 	    INTEL_BACKLIGHT_VESA_EDP_AUX_INTERFACE &&
+	    i915_modparams.enable_dpcd_backlight != 1 &&
 	    !drm_dp_has_quirk(&intel_dp->desc, intel_dp->edid_quirks,
 			      DP_QUIRK_FORCE_DPCD_BACKLIGHT)) {
 		DRM_DEV_INFO(dev->dev,
