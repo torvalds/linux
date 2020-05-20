@@ -706,7 +706,8 @@ static inline size_t mtr_bufs_size(struct hns_roce_buf_attr *attr)
 	return size;
 }
 
-static inline int mtr_umem_page_count(struct ib_umem *umem, int page_shift)
+static inline int mtr_umem_page_count(struct ib_umem *umem,
+				      unsigned int page_shift)
 {
 	int count = ib_umem_page_count(umem);
 
@@ -719,7 +720,7 @@ static inline int mtr_umem_page_count(struct ib_umem *umem, int page_shift)
 }
 
 static inline size_t mtr_kmem_direct_size(bool is_direct, size_t alloc_size,
-					  int page_shift)
+					  unsigned int page_shift)
 {
 	if (is_direct)
 		return ALIGN(alloc_size, 1 << page_shift);
@@ -732,7 +733,7 @@ static inline size_t mtr_kmem_direct_size(bool is_direct, size_t alloc_size,
  * Returns 0 on success, or the error page num.
  */
 static inline int mtr_check_direct_pages(dma_addr_t *pages, int page_count,
-					 int page_shift)
+					 unsigned int page_shift)
 {
 	size_t page_size = 1 << page_shift;
 	int i;
@@ -765,8 +766,8 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			  struct ib_udata *udata, unsigned long user_addr)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	int max_pg_shift = buf_attr->page_shift;
-	int best_pg_shift = 0;
+	unsigned int max_pg_shift = buf_attr->page_shift;
+	unsigned int best_pg_shift = 0;
 	int all_pg_count = 0;
 	size_t direct_size;
 	size_t total_size;
@@ -836,7 +837,7 @@ err_alloc_mem:
 }
 
 static int mtr_get_pages(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			 dma_addr_t *pages, int count, int page_shift)
+			 dma_addr_t *pages, int count, unsigned int page_shift)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int npage;
@@ -946,7 +947,7 @@ done:
 /* convert buffer size to page index and page count */
 static int mtr_init_region(struct hns_roce_buf_attr *attr, int page_cnt,
 			   struct hns_roce_buf_region *regions, int region_cnt,
-			   int page_shift)
+			   unsigned int page_shift)
 {
 	unsigned int page_size = 1 << page_shift;
 	int max_region = attr->region_count;
@@ -977,8 +978,9 @@ static int mtr_init_region(struct hns_roce_buf_attr *attr, int page_cnt,
  * @buf_alloced: mtr has private buffer, true means need to alloc
  */
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			struct hns_roce_buf_attr *buf_attr, int page_shift,
-			struct ib_udata *udata, unsigned long user_addr)
+			struct hns_roce_buf_attr *buf_attr,
+			unsigned int page_shift, struct ib_udata *udata,
+			unsigned long user_addr)
 {
 	struct hns_roce_buf_region regions[HNS_ROCE_MAX_BT_REGION] = {};
 	struct ib_device *ibdev = &hr_dev->ib_dev;

@@ -342,7 +342,7 @@ struct hns_roce_buf_attr {
 		int	hopnum; /* multi-hop addressing hop num */
 	} region[HNS_ROCE_MAX_BT_REGION];
 	int region_count; /* valid region count */
-	int page_shift;  /* buffer page shift */
+	unsigned int page_shift;  /* buffer page shift */
 	bool fixed_page; /* decide page shift is fixed-size or maximum size */
 	int user_access; /* umem access flag */
 	bool mtt_only; /* only alloc buffer-required MTT memory */
@@ -351,14 +351,14 @@ struct hns_roce_buf_attr {
 /* memory translate region */
 struct hns_roce_mtr {
 	struct hns_roce_hem_list hem_list; /* multi-hop addressing resource */
-	struct ib_umem		 *umem; /* user space buffer */
-	struct hns_roce_buf	 *kmem; /* kernel space buffer */
+	struct ib_umem		*umem; /* user space buffer */
+	struct hns_roce_buf	*kmem; /* kernel space buffer */
 	struct {
-		dma_addr_t	 root_ba; /* root BA table's address */
-		bool		 is_direct; /* addressing without BA table */
-		int		 ba_pg_shift; /* BA table page shift */
-		int		 buf_pg_shift; /* buffer page shift */
-		int		 buf_pg_count;  /* buffer page count */
+		dma_addr_t	root_ba; /* root BA table's address */
+		bool		is_direct; /* addressing without BA table */
+		unsigned int	ba_pg_shift; /* BA table page shift */
+		unsigned int	buf_pg_shift; /* buffer page shift */
+		int		buf_pg_count;  /* buffer page count */
 	} hem_cfg; /* config for hardware addressing */
 };
 
@@ -423,7 +423,7 @@ struct hns_roce_buf {
 	struct hns_roce_buf_list	*page_list;
 	u32				npages;
 	u32				size;
-	int				page_shift;
+	unsigned int			page_shift;
 };
 
 struct hns_roce_db_pgdir {
@@ -1139,8 +1139,9 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			struct hns_roce_buf_attr *buf_attr, int page_shift,
-			struct ib_udata *udata, unsigned long user_addr);
+			struct hns_roce_buf_attr *buf_attr,
+			unsigned int page_shift, struct ib_udata *udata,
+			unsigned long user_addr);
 void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_mtr *mtr);
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
@@ -1210,7 +1211,7 @@ int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct hns_roce_buf *buf);
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct ib_umem *umem,
-			   int page_shift);
+			   unsigned int page_shift);
 
 int hns_roce_create_srq(struct ib_srq *srq,
 			struct ib_srq_init_attr *srq_init_attr,
