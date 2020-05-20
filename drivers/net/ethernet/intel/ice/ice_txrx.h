@@ -155,17 +155,16 @@ struct ice_tx_offload_params {
 };
 
 struct ice_rx_buf {
-	struct sk_buff *skb;
-	dma_addr_t dma;
 	union {
 		struct {
+			struct sk_buff *skb;
+			dma_addr_t dma;
 			struct page *page;
 			unsigned int page_offset;
 			u16 pagecnt_bias;
 		};
 		struct {
-			void *addr;
-			u64 handle;
+			struct xdp_buff *xdp;
 		};
 	};
 };
@@ -289,7 +288,6 @@ struct ice_ring {
 	struct rcu_head rcu;		/* to avoid race on free */
 	struct bpf_prog *xdp_prog;
 	struct xdp_umem *xsk_umem;
-	struct zero_copy_allocator zca;
 	/* CL3 - 3rd cacheline starts here */
 	struct xdp_rxq_info xdp_rxq;
 	/* CLX - the below items are only accessed infrequently and should be
