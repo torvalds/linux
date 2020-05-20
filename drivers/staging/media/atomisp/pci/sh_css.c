@@ -3716,11 +3716,7 @@ static enum ia_css_err create_host_video_pipeline(struct ia_css_pipe *pipe)
 	}
 	if (video_stage) {
 		int frm;
-#ifndef ISP2401
 		for (frm = 0; frm < NUM_TNR_FRAMES; frm++) {
-#else
-		for (frm = 0; frm < NUM_TNR_FRAMES; frm++) {
-#endif
 			video_stage->args.tnr_frames[frm] =
 			    pipe->pipe_settings.video.tnr_frames[frm];
 		}
@@ -6117,6 +6113,7 @@ static enum ia_css_err load_primary_binaries(
 	struct ia_css_capture_settings *mycs;
 	unsigned int i;
 	bool need_extra_yuv_scaler = false;
+	struct ia_css_binary_descr prim_descr[MAX_NUM_PRIMARY_STAGES];
 
 	IA_CSS_ENTER_PRIVATE("");
 	assert(pipe);
@@ -6187,18 +6184,8 @@ static enum ia_css_err load_primary_binaries(
 	capt_pp_out_info.res.height /= MAX_PREFERRED_YUV_DS_PER_STEP;
 	ia_css_frame_info_set_width(&capt_pp_out_info, capt_pp_out_info.res.width, 0);
 
-	/*
-	 * WARNING: The #if def flag has been added below as a
-	 * temporary solution to solve the problem of enabling the
-	 * view finder in a single binary in a capture flow. The
-	 * vf-pp stage has been removed for Skycam in the solution
-	 * provided. The vf-pp stage should be re-introduced when
-	 * required. This should not be considered as a clean solution.
-	 * Proper investigation should be done to come up with the clean
-	 * solution.
-	 * */
 	need_extra_yuv_scaler = need_downscaling(capt_pp_out_info.res,
-				pipe_out_info->res);
+						 pipe_out_info->res);
 
 	if (need_extra_yuv_scaler) {
 		struct ia_css_cas_binary_descr cas_scaler_descr = { };
@@ -6251,17 +6238,16 @@ static enum ia_css_err load_primary_binaries(
 
 	/* TODO Do we disable ldc for skycam */
 	need_ldc = need_capt_ldc(pipe);
-
 	if (atomisp_hw_is_isp2401 && need_ldc) {
 		/* ldc and capt_pp are not supported in the same pipeline */
 		struct ia_css_binary_descr capt_ldc_descr;
 
 		ia_css_pipe_get_ldc_binarydesc(pipe,
-					    &capt_ldc_descr, &prim_out_info,
-					    &capt_pp_out_info);
+					       &capt_ldc_descr, &prim_out_info,
+					       &capt_pp_out_info);
 
 		err = ia_css_binary_find(&capt_ldc_descr,
-					&mycs->capture_ldc_binary);
+					 &mycs->capture_ldc_binary);
 		if (err != IA_CSS_SUCCESS) {
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
@@ -6269,9 +6255,11 @@ static enum ia_css_err load_primary_binaries(
 		need_pp = 0;
 		need_ldc = 0;
 	}
+
+	/* we build up the pipeline starting at the end */
+	/* Capture post-processing */
 	if (need_pp) {
 		struct ia_css_binary_descr capture_pp_descr;
-		struct ia_css_binary_descr prim_descr[MAX_NUM_PRIMARY_STAGES];
 
 		if (!atomisp_hw_is_isp2401)
 			capt_pp_in_info = need_ldc ? &capt_ldc_out_info : &prim_out_info;
@@ -6301,76 +6289,76 @@ static enum ia_css_err load_primary_binaries(
 				IA_CSS_LEAVE_ERR_PRIVATE(err);
 				return err;
 			}
-		} else {
-			prim_out_info = *pipe_out_info;
 		}
+	} else {
+		prim_out_info = *pipe_out_info;
+	}
 
-		/* Primary */
-		for (i = 0; i < mycs->num_primary_stage; i++) {
-			struct ia_css_frame_info *local_vf_info = NULL;
+	/* Primary */
+	for (i = 0; i < mycs->num_primary_stage; i++) {
+		struct ia_css_frame_info *local_vf_info = NULL;
 
-			if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0] &&
-			    (i == mycs->num_primary_stage - 1))
-				local_vf_info = &vf_info;
-			ia_css_pipe_get_primary_binarydesc(pipe, &prim_descr[i], &prim_in_info,
-							    &prim_out_info, local_vf_info, i);
-			err = ia_css_binary_find(&prim_descr[i], &mycs->primary_binary[i]);
-			if (err != IA_CSS_SUCCESS) {
-				IA_CSS_LEAVE_ERR_PRIVATE(err);
-				return err;
-			}
-		}
-
-		/* Viewfinder post-processing */
-		if (need_pp)
-			vf_pp_in_info = &mycs->capture_pp_binary.vf_frame_info;
-		else
-			vf_pp_in_info = &mycs->primary_binary[mycs->num_primary_stage - 1].vf_frame_info;
-
-		/*
-		 * WARNING: The #if def flag has been added below as a
-		 * temporary solution to solve the problem of enabling the
-		 * view finder in a single binary in a capture flow. The
-		 * vf-pp stage has been removed for Skycam in the solution
-		 * provided. The vf-pp stage should be re-introduced when
-		 * required. Thisshould not be considered as a clean solution.
-		 * Proper  * investigation should be done to come up with the clean
-		 * solution.
-		 * */
-		if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0]) {
-			struct ia_css_binary_descr vf_pp_descr;
-
-			ia_css_pipe_get_vfpp_binarydesc(pipe,
-							&vf_pp_descr, vf_pp_in_info, pipe_vf_out_info);
-			err = ia_css_binary_find(&vf_pp_descr, &mycs->vf_pp_binary);
-			if (err != IA_CSS_SUCCESS) {
-				IA_CSS_LEAVE_ERR_PRIVATE(err);
-				return err;
-			}
-		}
-		err = allocate_delay_frames(pipe);
-
-		if (err != IA_CSS_SUCCESS)
+		if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0] &&
+		    (i == mycs->num_primary_stage - 1))
+			local_vf_info = &vf_info;
+		ia_css_pipe_get_primary_binarydesc(pipe, &prim_descr[i], &prim_in_info,
+						    &prim_out_info, local_vf_info, i);
+		err = ia_css_binary_find(&prim_descr[i], &mycs->primary_binary[i]);
+		if (err != IA_CSS_SUCCESS) {
+			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
+		}
+	}
+
+	/* Viewfinder post-processing */
+	if (need_pp)
+		vf_pp_in_info = &mycs->capture_pp_binary.vf_frame_info;
+	else
+		vf_pp_in_info = &mycs->primary_binary[mycs->num_primary_stage - 1].vf_frame_info;
+
+	/*
+	    * WARNING: The #if def flag has been added below as a
+	    * temporary solution to solve the problem of enabling the
+	    * view finder in a single binary in a capture flow. The
+	    * vf-pp stage has been removed for Skycam in the solution
+	    * provided. The vf-pp stage should be re-introduced when
+	    * required. Thisshould not be considered as a clean solution.
+	    * Proper  * investigation should be done to come up with the clean
+	    * solution.
+	    * */
+	if (pipe->enable_viewfinder[IA_CSS_PIPE_OUTPUT_STAGE_0]) {
+		struct ia_css_binary_descr vf_pp_descr;
+
+		ia_css_pipe_get_vfpp_binarydesc(pipe,
+						&vf_pp_descr, vf_pp_in_info, pipe_vf_out_info);
+		err = ia_css_binary_find(&vf_pp_descr, &mycs->vf_pp_binary);
+		if (err != IA_CSS_SUCCESS) {
+			IA_CSS_LEAVE_ERR_PRIVATE(err);
+			return err;
+		}
+	}
+	err = allocate_delay_frames(pipe);
+
+	if (err != IA_CSS_SUCCESS)
+		return err;
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
-		/* When the input system is 2401, only the Direct Sensor Mode
-		 * Offline Capture uses the ISP copy binary.
-		 */
-		need_isp_copy_binary = !online && sensor;
+	/* When the input system is 2401, only the Direct Sensor Mode
+	    * Offline Capture uses the ISP copy binary.
+	    */
+	need_isp_copy_binary = !online && sensor;
 #else
-		need_isp_copy_binary = !online && !continuous && !memory;
+	need_isp_copy_binary = !online && !continuous && !memory;
 #endif
 
-		/* ISP Copy */
-		if (need_isp_copy_binary) {
-			err = load_copy_binary(pipe,
-					       &mycs->copy_binary,
-					       &mycs->primary_binary[0]);
-			if (err != IA_CSS_SUCCESS) {
-				IA_CSS_LEAVE_ERR_PRIVATE(err);
-				return err;
-			}
+	/* ISP Copy */
+	if (need_isp_copy_binary) {
+		err = load_copy_binary(pipe,
+					&mycs->copy_binary,
+					&mycs->primary_binary[0]);
+		if (err != IA_CSS_SUCCESS) {
+			IA_CSS_LEAVE_ERR_PRIVATE(err);
+			return err;
 		}
 	}
 
