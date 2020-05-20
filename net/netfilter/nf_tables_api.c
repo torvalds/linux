@@ -6349,6 +6349,62 @@ static void nft_flowtable_hooks_destroy(struct list_head *hook_list)
 	}
 }
 
+static int nft_flowtable_update(struct nft_ctx *ctx, const struct nlmsghdr *nlh,
+				struct nft_flowtable *flowtable)
+{
+	const struct nlattr * const *nla = ctx->nla;
+	struct nft_flowtable_hook flowtable_hook;
+	struct nft_hook *hook, *next;
+	struct nft_trans *trans;
+	bool unregister = false;
+	int err;
+
+	err = nft_flowtable_parse_hook(ctx, nla[NFTA_FLOWTABLE_HOOK],
+				       &flowtable_hook, &flowtable->data);
+	if (err < 0)
+		return err;
+
+	list_for_each_entry_safe(hook, next, &flowtable_hook.list, list) {
+		if (nft_hook_list_find(&flowtable->hook_list, hook)) {
+			list_del(&hook->list);
+			kfree(hook);
+		}
+	}
+
+	err = nft_register_flowtable_net_hooks(ctx->net, ctx->table,
+					       &flowtable_hook.list, flowtable);
+	if (err < 0)
+		goto err_flowtable_update_hook;
+
+	trans = nft_trans_alloc(ctx, NFT_MSG_NEWFLOWTABLE,
+				sizeof(struct nft_trans_flowtable));
+	if (!trans) {
+		unregister = true;
+		err = -ENOMEM;
+		goto err_flowtable_update_hook;
+	}
+
+	nft_trans_flowtable(trans) = flowtable;
+	nft_trans_flowtable_update(trans) = true;
+	INIT_LIST_HEAD(&nft_trans_flowtable_hooks(trans));
+	list_splice(&flowtable_hook.list, &nft_trans_flowtable_hooks(trans));
+
+	list_add_tail(&trans->list, &ctx->net->nft.commit_list);
+
+	return 0;
+
+err_flowtable_update_hook:
+	list_for_each_entry_safe(hook, next, &flowtable_hook.list, list) {
+		if (unregister)
+			nft_unregister_flowtable_hook(ctx->net, flowtable, hook);
+		list_del_rcu(&hook->list);
+		kfree_rcu(hook, rcu);
+	}
+
+	return err;
+
+}
+
 static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
@@ -6392,7 +6448,9 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 			return -EEXIST;
 		}
 
-		return 0;
+		nft_ctx_init(&ctx, net, skb, nlh, family, table, NULL, nla);
+
+		return nft_flowtable_update(&ctx, nlh, flowtable);
 	}
 
 	nft_ctx_init(&ctx, net, skb, nlh, family, table, NULL, nla);
@@ -7495,11 +7553,20 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 					     NFT_MSG_DELOBJ);
 			break;
 		case NFT_MSG_NEWFLOWTABLE:
-			nft_clear(net, nft_trans_flowtable(trans));
-			nf_tables_flowtable_notify(&trans->ctx,
-						   nft_trans_flowtable(trans),
-						   &nft_trans_flowtable(trans)->hook_list,
-						   NFT_MSG_NEWFLOWTABLE);
+			if (nft_trans_flowtable_update(trans)) {
+				nf_tables_flowtable_notify(&trans->ctx,
+							   nft_trans_flowtable(trans),
+							   &nft_trans_flowtable_hooks(trans),
+							   NFT_MSG_NEWFLOWTABLE);
+				list_splice(&nft_trans_flowtable_hooks(trans),
+					    &nft_trans_flowtable(trans)->hook_list);
+			} else {
+				nft_clear(net, nft_trans_flowtable(trans));
+				nf_tables_flowtable_notify(&trans->ctx,
+							   nft_trans_flowtable(trans),
+							   &nft_trans_flowtable(trans)->hook_list,
+							   NFT_MSG_NEWFLOWTABLE);
+			}
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_DELFLOWTABLE:
@@ -7558,7 +7625,10 @@ static void nf_tables_abort_release(struct nft_trans *trans)
 		nft_obj_destroy(&trans->ctx, nft_trans_obj(trans));
 		break;
 	case NFT_MSG_NEWFLOWTABLE:
-		nf_tables_flowtable_destroy(nft_trans_flowtable(trans));
+		if (nft_trans_flowtable_update(trans))
+			nft_flowtable_hooks_destroy(&nft_trans_flowtable_hooks(trans));
+		else
+			nf_tables_flowtable_destroy(nft_trans_flowtable(trans));
 		break;
 	}
 	kfree(trans);
@@ -7665,10 +7735,15 @@ static int __nf_tables_abort(struct net *net, bool autoload)
 			nft_trans_destroy(trans);
 			break;
 		case NFT_MSG_NEWFLOWTABLE:
-			trans->ctx.table->use--;
-			list_del_rcu(&nft_trans_flowtable(trans)->list);
-			nft_unregister_flowtable_net_hooks(net,
-					&nft_trans_flowtable(trans)->hook_list);
+			if (nft_trans_flowtable_update(trans)) {
+				nft_unregister_flowtable_net_hooks(net,
+						&nft_trans_flowtable_hooks(trans));
+			} else {
+				trans->ctx.table->use--;
+				list_del_rcu(&nft_trans_flowtable(trans)->list);
+				nft_unregister_flowtable_net_hooks(net,
+						&nft_trans_flowtable(trans)->hook_list);
+			}
 			break;
 		case NFT_MSG_DELFLOWTABLE:
 			trans->ctx.table->use++;
