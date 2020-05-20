@@ -351,6 +351,35 @@ static void ext4_mb_generate_from_freelist(struct super_block *sb, void *bitmap,
 						ext4_group_t group);
 static void ext4_mb_new_preallocation(struct ext4_allocation_context *ac);
 
+/*
+ * The algorithm using this percpu seq counter goes below:
+ * 1. We sample the percpu discard_pa_seq counter before trying for block
+ *    allocation in ext4_mb_new_blocks().
+ * 2. We increment this percpu discard_pa_seq counter when we either allocate
+ *    or free these blocks i.e. while marking those blocks as used/free in
+ *    mb_mark_used()/mb_free_blocks().
+ * 3. We also increment this percpu seq counter when we successfully identify
+ *    that the bb_prealloc_list is not empty and hence proceed for discarding
+ *    of those PAs inside ext4_mb_discard_group_preallocations().
+ *
+ * Now to make sure that the regular fast path of block allocation is not
+ * affected, as a small optimization we only sample the percpu seq counter
+ * on that cpu. Only when the block allocation fails and when freed blocks
+ * found were 0, that is when we sample percpu seq counter for all cpus using
+ * below function ext4_get_discard_pa_seq_sum(). This happens after making
+ * sure that all the PAs on grp->bb_prealloc_list got freed or if it's empty.
+ */
+static DEFINE_PER_CPU(u64, discard_pa_seq);
+static inline u64 ext4_get_discard_pa_seq_sum(void)
+{
+	int __cpu;
+	u64 __seq = 0;
+
+	for_each_possible_cpu(__cpu)
+		__seq += per_cpu(discard_pa_seq, __cpu);
+	return __seq;
+}
+
 static inline void *mb_correct_addr_and_bit(int *bit, void *addr)
 {
 #if BITS_PER_LONG == 64
@@ -1462,6 +1491,7 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 	mb_check_buddy(e4b);
 	mb_free_blocks_double(inode, e4b, first, count);
 
+	this_cpu_inc(discard_pa_seq);
 	e4b->bd_info->bb_free += count;
 	if (first < e4b->bd_info->bb_first_free)
 		e4b->bd_info->bb_first_free = first;
@@ -1603,6 +1633,7 @@ static int mb_mark_used(struct ext4_buddy *e4b, struct ext4_free_extent *ex)
 	mb_check_buddy(e4b);
 	mb_mark_used_double(e4b, start, len);
 
+	this_cpu_inc(discard_pa_seq);
 	e4b->bd_info->bb_free -= len;
 	if (e4b->bd_info->bb_first_free == start)
 		e4b->bd_info->bb_first_free += len;
@@ -3962,6 +3993,7 @@ ext4_mb_discard_group_preallocations(struct super_block *sb,
 	INIT_LIST_HEAD(&list);
 repeat:
 	ext4_lock_group(sb, group);
+	this_cpu_inc(discard_pa_seq);
 	list_for_each_entry_safe(pa, tmp,
 				&grp->bb_prealloc_list, pa_group_list) {
 		spin_lock(&pa->pa_lock);
@@ -4544,14 +4576,26 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 }
 
 static bool ext4_mb_discard_preallocations_should_retry(struct super_block *sb,
-			struct ext4_allocation_context *ac)
+			struct ext4_allocation_context *ac, u64 *seq)
 {
 	int freed;
+	u64 seq_retry = 0;
+	bool ret = false;
 
 	freed = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
-	if (freed)
-		return true;
-	return false;
+	if (freed) {
+		ret = true;
+		goto out_dbg;
+	}
+	seq_retry = ext4_get_discard_pa_seq_sum();
+	if (seq_retry != *seq) {
+		*seq = seq_retry;
+		ret = true;
+	}
+
+out_dbg:
+	mb_debug(sb, "freed %d, retry ? %s\n", freed, ret ? "yes" : "no");
+	return ret;
 }
 
 /*
@@ -4568,6 +4612,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	ext4_fsblk_t block = 0;
 	unsigned int inquota = 0;
 	unsigned int reserv_clstrs = 0;
+	u64 seq;
 
 	might_sleep();
 	sb = ar->inode->i_sb;
@@ -4630,6 +4675,7 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 	}
 
 	ac->ac_op = EXT4_MB_HISTORY_PREALLOC;
+	seq = *this_cpu_ptr(&discard_pa_seq);
 	if (!ext4_mb_use_preallocated(ac)) {
 		ac->ac_op = EXT4_MB_HISTORY_ALLOC;
 		ext4_mb_normalize_request(ac, ar);
@@ -4666,7 +4712,7 @@ repeat:
 			ar->len = ac->ac_b_ex.fe_len;
 		}
 	} else {
-		if (ext4_mb_discard_preallocations_should_retry(sb, ac))
+		if (ext4_mb_discard_preallocations_should_retry(sb, ac, &seq))
 			goto repeat;
 		/*
 		 * If block allocation fails then the pa allocated above
