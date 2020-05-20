@@ -502,9 +502,9 @@ static int set_user_sq_size(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static int split_wqe_buf_region(struct hns_roce_dev *hr_dev,
-				struct hns_roce_qp *hr_qp,
-				struct hns_roce_buf_attr *buf_attr)
+static int set_wqe_buf_attr(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_qp *hr_qp,
+			    struct hns_roce_buf_attr *buf_attr)
 {
 	int buf_size;
 	int idx = 0;
@@ -676,7 +676,7 @@ static int alloc_qp_buf(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 		hr_qp->rq_inl_buf.wqe_list = NULL;
 	}
 
-	ret = split_wqe_buf_region(hr_dev, hr_qp, &buf_attr);
+	ret = set_wqe_buf_attr(hr_dev, hr_qp, &buf_attr);
 	if (ret) {
 		ibdev_err(ibdev, "failed to split WQE buf, ret = %d.\n", ret);
 		goto err_inline;
