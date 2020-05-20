@@ -1190,39 +1190,6 @@ xfs_log_sbcount(xfs_mount_t *mp)
 }
 
 /*
- * Deltas for the inode count are +/-64, hence we use a large batch size
- * of 128 so we don't need to take the counter lock on every update.
- */
-#define XFS_ICOUNT_BATCH	128
-int
-xfs_mod_icount(
-	struct xfs_mount	*mp,
-	int64_t			delta)
-{
-	percpu_counter_add_batch(&mp->m_icount, delta, XFS_ICOUNT_BATCH);
-	if (__percpu_counter_compare(&mp->m_icount, 0, XFS_ICOUNT_BATCH) < 0) {
-		ASSERT(0);
-		percpu_counter_add(&mp->m_icount, -delta);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-int
-xfs_mod_ifree(
-	struct xfs_mount	*mp,
-	int64_t			delta)
-{
-	percpu_counter_add(&mp->m_ifree, delta);
-	if (percpu_counter_compare(&mp->m_ifree, 0) < 0) {
-		ASSERT(0);
-		percpu_counter_add(&mp->m_ifree, -delta);
-		return -EINVAL;
-	}
-	return 0;
-}
-
-/*
  * Deltas for the block count can vary from 1 to very large, but lock contention
  * only occurs on frequent small block count updates such as in the delayed
  * allocation path for buffered writes (page a time updates). Hence we set

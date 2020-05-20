@@ -545,7 +545,12 @@ xfs_trans_apply_sb_deltas(
  * used block counts are not updated in the on disk superblock. In this case,
  * XFS_TRANS_SB_DIRTY will not be set when the transaction is updated but we
  * still need to update the incore superblock with the changes.
+ *
+ * Deltas for the inode count are +/-64, hence we use a large batch size of 128
+ * so we don't need to take the counter lock on every update.
  */
+#define XFS_ICOUNT_BATCH	128
+
 void
 xfs_trans_unreserve_and_mod_sb(
 	struct xfs_trans	*tp)
@@ -585,13 +590,17 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 
 	if (idelta) {
-		error = xfs_mod_icount(mp, idelta);
-		ASSERT(!error);
+		percpu_counter_add_batch(&mp->m_icount, idelta,
+					 XFS_ICOUNT_BATCH);
+		if (idelta < 0)
+			ASSERT(__percpu_counter_compare(&mp->m_icount, 0,
+							XFS_ICOUNT_BATCH) >= 0);
 	}
 
 	if (ifreedelta) {
-		error = xfs_mod_ifree(mp, ifreedelta);
-		ASSERT(!error);
+		percpu_counter_add(&mp->m_ifree, ifreedelta);
+		if (ifreedelta < 0)
+			ASSERT(percpu_counter_compare(&mp->m_ifree, 0) >= 0);
 	}
 
 	if (rtxdelta == 0 && !(tp->t_flags & XFS_TRANS_SB_DIRTY))

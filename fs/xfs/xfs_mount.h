@@ -392,8 +392,6 @@ extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
 				     xfs_agnumber_t *maxagi);
 extern void	xfs_unmountfs(xfs_mount_t *);
 
-extern int	xfs_mod_icount(struct xfs_mount *mp, int64_t delta);
-extern int	xfs_mod_ifree(struct xfs_mount *mp, int64_t delta);
 extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,
 				 bool reserved);
 extern int	xfs_mod_frextents(struct xfs_mount *mp, int64_t delta);
