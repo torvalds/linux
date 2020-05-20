@@ -19,6 +19,7 @@
 #include <linux/bits.h>
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <sound/sof/info.h>
 
 /* In ASCII `XMan` */
 #define SOF_EXT_MAN_MAGIC_NUMBER	0x6e614d58
@@ -54,12 +55,25 @@ struct sof_ext_man_header {
 
 /* Now define extended manifest elements */
 
+/* Extended manifest elements types */
+enum sof_ext_man_elem_type {
+	SOF_EXT_MAN_ELEM_FW_VERSION		= 0,
+};
+
 /* extended manifest element header */
 struct sof_ext_man_elem_header {
 	uint32_t type;		/*< SOF_EXT_MAN_ELEM_ */
 	uint32_t size;		/*< in bytes, including header size */
 
 	/* just after this header should be type dependent content */
+} __packed;
+
+/* FW version */
+struct sof_ext_man_fw_version {
+	struct sof_ext_man_elem_header hdr;
+	/* use sof_ipc struct because of code re-use */
+	struct sof_ipc_fw_version version;
+	uint32_t flags;
 } __packed;
 
 #endif /* __SOF_FIRMWARE_EXT_MANIFEST_H__ */
