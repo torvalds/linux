@@ -500,8 +500,7 @@ static inline void update_sq_db(struct hns_roce_dev *hr_dev,
 		roce_set_field(sq_db.byte_4, V2_DB_BYTE_4_CMD_M,
 			       V2_DB_BYTE_4_CMD_S, HNS_ROCE_V2_SQ_DB);
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_IDX_M,
-			       V2_DB_PARAMETER_IDX_S,
-			       qp->sq.head & ((qp->sq.wqe_cnt << 1) - 1));
+			       V2_DB_PARAMETER_IDX_S, qp->sq.head);
 		roce_set_field(sq_db.parameter, V2_DB_PARAMETER_SL_M,
 			       V2_DB_PARAMETER_SL_S, qp->sl);
 
@@ -807,7 +806,8 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		srq_db.byte_4 =
 			cpu_to_le32(HNS_ROCE_V2_SRQ_DB << V2_DB_BYTE_4_CMD_S |
 				    (srq->srqn & V2_DB_BYTE_4_TAG_M));
-		srq_db.parameter = cpu_to_le32(srq->head);
+		srq_db.parameter =
+			cpu_to_le32(srq->head & V2_DB_PARAMETER_IDX_M);
 
 		hns_roce_write64(hr_dev, (__le32 *)&srq_db, srq->db_reg_l);
 	}
@@ -2940,8 +2940,7 @@ static int hns_roce_v2_req_notify_cq(struct ib_cq *ibcq,
 	roce_set_field(doorbell[0], V2_CQ_DB_BYTE_4_CMD_M, V2_DB_BYTE_4_CMD_S,
 		       HNS_ROCE_V2_CQ_DB_NTR);
 	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CONS_IDX_M,
-		       V2_CQ_DB_PARAMETER_CONS_IDX_S,
-		       hr_cq->cons_index & ((hr_cq->cq_depth << 1) - 1));
+		       V2_CQ_DB_PARAMETER_CONS_IDX_S, hr_cq->cons_index);
 	roce_set_field(doorbell[1], V2_CQ_DB_PARAMETER_CMD_SN_M,
 		       V2_CQ_DB_PARAMETER_CMD_SN_S, hr_cq->arm_sn & 0x3);
 	roce_set_bit(doorbell[1], V2_CQ_DB_PARAMETER_NOTIFY_S,
