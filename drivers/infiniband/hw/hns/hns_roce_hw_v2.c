@@ -187,15 +187,15 @@ static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 	int i;
 
 	if (wr->send_flags & IB_SEND_INLINE && valid_num_sge) {
-		if (le32_to_cpu(rc_sq_wqe->msg_len) >
-		    hr_dev->caps.max_sq_inline) {
+		if (unlikely(le32_to_cpu(rc_sq_wqe->msg_len) >
+			     hr_dev->caps.max_sq_inline)) {
 			ibdev_err(ibdev, "inline len(1-%d)=%d, illegal",
 				  rc_sq_wqe->msg_len,
 				  hr_dev->caps.max_sq_inline);
 			return -EINVAL;
 		}
 
-		if (wr->opcode == IB_WR_RDMA_READ) {
+		if (unlikely(wr->opcode == IB_WR_RDMA_READ)) {
 			ibdev_err(ibdev, "Not support inline data!\n");
 			return -EINVAL;
 		}
@@ -526,7 +526,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 	spin_lock_irqsave(&qp->sq.lock, flags);
 
 	ret = check_send_valid(hr_dev, qp);
-	if (ret) {
+	if (unlikely(ret)) {
 		*bad_wr = wr;
 		nreq = 0;
 		goto out;
@@ -562,7 +562,7 @@ static int hns_roce_v2_post_send(struct ib_qp *ibqp,
 		else if (ibqp->qp_type == IB_QPT_RC)
 			ret = set_rc_wqe(qp, wr, wqe, &sge_idx, owner_bit);
 
-		if (ret) {
+		if (unlikely(ret)) {
 			*bad_wr = wr;
 			goto out;
 		}
@@ -612,15 +612,15 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 	spin_lock_irqsave(&hr_qp->rq.lock, flags);
 
 	ret = check_recv_valid(hr_dev, hr_qp);
-	if (ret) {
+	if (unlikely(ret)) {
 		*bad_wr = wr;
 		nreq = 0;
 		goto out;
 	}
 
 	for (nreq = 0; wr; ++nreq, wr = wr->next) {
-		if (hns_roce_wq_overflow(&hr_qp->rq, nreq,
-			hr_qp->ibqp.recv_cq)) {
+		if (unlikely(hns_roce_wq_overflow(&hr_qp->rq, nreq,
+						  hr_qp->ibqp.recv_cq))) {
 			ret = -ENOMEM;
 			*bad_wr = wr;
 			goto out;
@@ -766,7 +766,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 		}
 
 		wqe_idx = find_empty_entry(&srq->idx_que, srq->wqe_cnt);
-		if (wqe_idx < 0) {
+		if (unlikely(wqe_idx < 0)) {
 			ret = -ENOMEM;
 			*bad_wr = wr;
 			break;
@@ -2977,7 +2977,7 @@ static int hns_roce_handle_recv_inl_wqe(struct hns_roce_v2_cqe *cqe,
 		wqe_buf += size;
 	}
 
-	if (data_len) {
+	if (unlikely(data_len)) {
 		wc->status = IB_WC_LOC_LEN_ERR;
 		return -EAGAIN;
 	}
@@ -3069,7 +3069,8 @@ static void get_cqe_status(struct hns_roce_dev *hr_dev, struct hns_roce_qp *qp,
 			break;
 		}
 
-	if (wc->status == IB_WC_SUCCESS || wc->status == IB_WC_WR_FLUSH_ERR)
+	if (likely(wc->status == IB_WC_SUCCESS ||
+		   wc->status == IB_WC_WR_FLUSH_ERR))
 		return;
 
 	ibdev_err(&hr_dev->ib_dev, "error cqe status 0x%x:\n", cqe_status);
@@ -3164,7 +3165,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 	}
 
 	get_cqe_status(hr_dev, *cur_qp, cqe, wc);
-	if (wc->status != IB_WC_SUCCESS)
+	if (unlikely(wc->status != IB_WC_SUCCESS))
 		return 0;
 
 	if (is_send) {
@@ -3263,7 +3264,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 		    opcode == HNS_ROCE_V2_OPCODE_SEND_WITH_INV) &&
 		    (roce_get_bit(cqe->byte_4, V2_CQE_BYTE_4_RQ_INLINE_S))) {
 			ret = hns_roce_handle_recv_inl_wqe(cqe, cur_qp, wc);
-			if (ret)
+			if (unlikely(ret))
 				return -EAGAIN;
 		}
 
