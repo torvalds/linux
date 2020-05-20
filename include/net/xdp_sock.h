@@ -239,7 +239,7 @@ static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 address,
 
 static inline u32 xsk_umem_xdp_frame_sz(struct xdp_umem *umem)
 {
-	return umem->chunk_size_nohr + umem->headroom;
+	return umem->chunk_size_nohr;
 }
 
 #else
