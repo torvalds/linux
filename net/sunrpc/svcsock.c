@@ -119,9 +119,8 @@ static void svc_release_skb(struct svc_rqst *rqstp)
 	if (skb) {
 		struct svc_sock *svsk =
 			container_of(rqstp->rq_xprt, struct svc_sock, sk_xprt);
-		rqstp->rq_xprt_ctxt = NULL;
 
-		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
+		rqstp->rq_xprt_ctxt = NULL;
 		skb_free_datagram_locked(svsk->sk_sk, skb);
 	}
 }
@@ -132,8 +131,6 @@ static void svc_release_udp_skb(struct svc_rqst *rqstp)
 
 	if (skb) {
 		rqstp->rq_xprt_ctxt = NULL;
-
-		dprintk("svc: service %p, releasing skb %p\n", rqstp, skb);
 		consume_skb(skb);
 	}
 }
@@ -245,8 +242,6 @@ static ssize_t svc_recvfrom(struct svc_rqst *rqstp, struct kvec *iov,
 	if (len == buflen)
 		set_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
-	dprintk("svc: socket %p recvfrom(%p, %zu) = %zd\n",
-		svsk, iov[0].iov_base, iov[0].iov_len, len);
 	return len;
 }
 
@@ -932,9 +927,6 @@ static int copy_pages_to_kvecs(struct kvec *vec, struct page **pages, int len)
 static void svc_tcp_fragment_received(struct svc_sock *svsk)
 {
 	/* If we have more data, signal svc_xprt_enqueue() to try again */
-	dprintk("svc: TCP %s record (%d bytes)\n",
-		svc_sock_final_rec(svsk) ? "final" : "nonfinal",
-		svc_sock_reclen(svsk));
 	svsk->sk_tcplen = 0;
 	svsk->sk_marker = xdr_zero;
 }
@@ -954,11 +946,6 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	__be32 calldir;
 	int pnum;
 
-	dprintk("svc: tcp_recv %p data %d conn %d close %d\n",
-		svsk, test_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags),
-		test_bit(XPT_CONN, &svsk->sk_xprt.xpt_flags),
-		test_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags));
-
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 	len = svc_tcp_read_marker(svsk, rqstp);
 	if (len < 0)
@@ -977,6 +964,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	/* Now receive data */
 	len = svc_recvfrom(rqstp, vec, pnum, base + want, base);
 	if (len >= 0) {
+		trace_svcsock_tcp_recv(&svsk->sk_xprt, len);
 		svsk->sk_tcplen += len;
 		svsk->sk_datalen += len;
 	}
