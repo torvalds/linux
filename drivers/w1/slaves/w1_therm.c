@@ -1526,8 +1526,9 @@ static ssize_t alarms_store(struct device *device,
 	int temp, ret = -EINVAL;
 	char *token = NULL;
 	s8 tl, th, tt;	/* 1 byte per value + temp ring order */
-	char *p_args = kmalloc(size, GFP_KERNEL);
+	char *p_args, *orig;
 
+	p_args = orig = kmalloc(size, GFP_KERNEL);
 	/* Safe string copys as buf is const */
 	if (!p_args) {
 		dev_warn(device,
@@ -1611,7 +1612,7 @@ static ssize_t alarms_store(struct device *device,
 
 free_m:
 	/* free allocated memory */
-	kfree(p_args);
+	kfree(orig);
 
 	return size;
 }
