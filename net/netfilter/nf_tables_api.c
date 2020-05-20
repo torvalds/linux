@@ -6523,7 +6523,8 @@ static int nf_tables_delflowtable(struct net *net, struct sock *nlsk,
 static int nf_tables_fill_flowtable_info(struct sk_buff *skb, struct net *net,
 					 u32 portid, u32 seq, int event,
 					 u32 flags, int family,
-					 struct nft_flowtable *flowtable)
+					 struct nft_flowtable *flowtable,
+					 struct list_head *hook_list)
 {
 	struct nlattr *nest, *nest_devs;
 	struct nfgenmsg *nfmsg;
@@ -6559,7 +6560,7 @@ static int nf_tables_fill_flowtable_info(struct sk_buff *skb, struct net *net,
 	if (!nest_devs)
 		goto nla_put_failure;
 
-	list_for_each_entry_rcu(hook, &flowtable->hook_list, list) {
+	list_for_each_entry_rcu(hook, hook_list, list) {
 		if (nla_put_string(skb, NFTA_DEVICE_NAME, hook->ops.dev->name))
 			goto nla_put_failure;
 	}
@@ -6612,7 +6613,9 @@ static int nf_tables_dump_flowtable(struct sk_buff *skb,
 							  cb->nlh->nlmsg_seq,
 							  NFT_MSG_NEWFLOWTABLE,
 							  NLM_F_MULTI | NLM_F_APPEND,
-							  table->family, flowtable) < 0)
+							  table->family,
+							  flowtable,
+							  &flowtable->hook_list) < 0)
 				goto done;
 
 			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
@@ -6709,7 +6712,7 @@ static int nf_tables_getflowtable(struct net *net, struct sock *nlsk,
 	err = nf_tables_fill_flowtable_info(skb2, net, NETLINK_CB(skb).portid,
 					    nlh->nlmsg_seq,
 					    NFT_MSG_NEWFLOWTABLE, 0, family,
-					    flowtable);
+					    flowtable, &flowtable->hook_list);
 	if (err < 0)
 		goto err;
 
@@ -6721,6 +6724,7 @@ err:
 
 static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 				       struct nft_flowtable *flowtable,
+				       struct list_head *hook_list,
 				       int event)
 {
 	struct sk_buff *skb;
@@ -6736,7 +6740,7 @@ static void nf_tables_flowtable_notify(struct nft_ctx *ctx,
 
 	err = nf_tables_fill_flowtable_info(skb, ctx->net, ctx->portid,
 					    ctx->seq, event, 0,
-					    ctx->family, flowtable);
+					    ctx->family, flowtable, hook_list);
 	if (err < 0) {
 		kfree_skb(skb);
 		goto err;
@@ -7494,6 +7498,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			nft_clear(net, nft_trans_flowtable(trans));
 			nf_tables_flowtable_notify(&trans->ctx,
 						   nft_trans_flowtable(trans),
+						   &nft_trans_flowtable(trans)->hook_list,
 						   NFT_MSG_NEWFLOWTABLE);
 			nft_trans_destroy(trans);
 			break;
@@ -7501,6 +7506,7 @@ static int nf_tables_commit(struct net *net, struct sk_buff *skb)
 			list_del_rcu(&nft_trans_flowtable(trans)->list);
 			nf_tables_flowtable_notify(&trans->ctx,
 						   nft_trans_flowtable(trans),
+						   &nft_trans_flowtable(trans)->hook_list,
 						   NFT_MSG_DELFLOWTABLE);
 			nft_unregister_flowtable_net_hooks(net,
 					&nft_trans_flowtable(trans)->hook_list);
