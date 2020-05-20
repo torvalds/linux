@@ -2106,15 +2106,14 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 }
 
 /*
- * This is now called BEFORE we load the buddy bitmap.
+ * This is also called BEFORE we load the buddy bitmap.
  * Returns either 1 or 0 indicating that the group is either suitable
- * for the allocation or not. In addition it can also return negative
- * error code when something goes wrong.
+ * for the allocation or not.
  */
-static int ext4_mb_good_group(struct ext4_allocation_context *ac,
+static bool ext4_mb_good_group(struct ext4_allocation_context *ac,
 				ext4_group_t group, int cr)
 {
-	unsigned free, fragments;
+	ext4_grpblk_t free, fragments;
 	int flex_size = ext4_flex_bg_size(EXT4_SB(ac->ac_sb));
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
 
@@ -2122,23 +2121,16 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 
 	free = grp->bb_free;
 	if (free == 0)
-		return 0;
+		return false;
 	if (cr <= 2 && free < ac->ac_g_ex.fe_len)
-		return 0;
+		return false;
 
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
-		return 0;
-
-	/* We only do this if the grp has never been initialized */
-	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
-		int ret = ext4_mb_init_group(ac->ac_sb, group, GFP_NOFS);
-		if (ret)
-			return ret;
-	}
+		return false;
 
 	fragments = grp->bb_fragments;
 	if (fragments == 0)
-		return 0;
+		return false;
 
 	switch (cr) {
 	case 0:
@@ -2148,31 +2140,63 @@ static int ext4_mb_good_group(struct ext4_allocation_context *ac,
 		if ((ac->ac_flags & EXT4_MB_HINT_DATA) &&
 		    (flex_size >= EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME) &&
 		    ((group % flex_size) == 0))
-			return 0;
+			return false;
 
 		if ((ac->ac_2order > ac->ac_sb->s_blocksize_bits+1) ||
 		    (free / fragments) >= ac->ac_g_ex.fe_len)
-			return 1;
+			return true;
 
 		if (grp->bb_largest_free_order < ac->ac_2order)
-			return 0;
+			return false;
 
-		return 1;
+		return true;
 	case 1:
 		if ((free / fragments) >= ac->ac_g_ex.fe_len)
-			return 1;
+			return true;
 		break;
 	case 2:
 		if (free >= ac->ac_g_ex.fe_len)
-			return 1;
+			return true;
 		break;
 	case 3:
-		return 1;
+		return true;
 	default:
 		BUG();
 	}
 
-	return 0;
+	return false;
+}
+
+/*
+ * This could return negative error code if something goes wrong
+ * during ext4_mb_init_group(). This should not be called with
+ * ext4_lock_group() held.
+ */
+static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
+				     ext4_group_t group, int cr)
+{
+	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
+	ext4_grpblk_t free;
+	int ret = 0;
+
+	free = grp->bb_free;
+	if (free == 0)
+		goto out;
+	if (cr <= 2 && free < ac->ac_g_ex.fe_len)
+		goto out;
+	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
+		goto out;
+
+	/* We only do this if the grp has never been initialized */
+	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
+		ret = ext4_mb_init_group(ac->ac_sb, group, GFP_NOFS);
+		if (ret)
+			return ret;
+	}
+
+	ret = ext4_mb_good_group(ac, group, cr);
+out:
+	return ret;
 }
 
 static noinline_for_stack int
@@ -2260,7 +2284,7 @@ repeat:
 				group = 0;
 
 			/* This now checks without needing the buddy page */
-			ret = ext4_mb_good_group(ac, group, cr);
+			ret = ext4_mb_good_group_nolock(ac, group, cr);
 			if (ret <= 0) {
 				if (!first_err)
 					first_err = ret;
@@ -2278,11 +2302,9 @@ repeat:
 			 * block group
 			 */
 			ret = ext4_mb_good_group(ac, group, cr);
-			if (ret <= 0) {
+			if (ret == 0) {
 				ext4_unlock_group(sb, group);
 				ext4_mb_unload_buddy(&e4b);
-				if (!first_err)
-					first_err = ret;
 				continue;
 			}
 
