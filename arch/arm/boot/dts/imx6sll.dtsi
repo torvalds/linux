@@ -105,16 +105,6 @@
 		clock-output-names = "ipp_di1";
 	};
 
-	tempmon: temperature-sensor {
-		compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
-		interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-parent = <&gpc>;
-		fsl,tempmon = <&anatop>;
-		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-		nvmem-cell-names = "calib", "temp_grade";
-		clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
-	};
-
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -530,6 +520,16 @@
 					anatop-min-voltage = <2625000>;
 					anatop-max-voltage = <3400000>;
 					anatop-enable-bit = <0>;
+				};
+
+				tempmon: temperature-sensor {
+					compatible = "fsl,imx6sll-tempmon", "fsl,imx6sx-tempmon";
+					interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-parent = <&gpc>;
+					fsl,tempmon = <&anatop>;
+					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+					nvmem-cell-names = "calib", "temp_grade";
+					clocks = <&clks IMX6SLL_CLK_PLL3_USB_OTG>;
 				};
 			};
 

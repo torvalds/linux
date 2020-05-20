@@ -93,16 +93,6 @@
 		};
 	};
 
-	tempmon: tempmon {
-		compatible = "fsl,imx6q-tempmon";
-		interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-parent = <&gpc>;
-		fsl,tempmon = <&anatop>;
-		nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
-		nvmem-cell-names = "calib", "temp_grade";
-		clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
-	};
-
 	pmu {
 		compatible = "arm,cortex-a9-pmu";
 		interrupt-parent = <&gpc>;
@@ -627,6 +617,16 @@
 					anatop-min-bit-val = <1>;
 					anatop-min-voltage = <725000>;
 					anatop-max-voltage = <1450000>;
+				};
+
+				tempmon: tempmon {
+					compatible = "fsl,imx6q-tempmon";
+					interrupts = <0 49 IRQ_TYPE_LEVEL_HIGH>;
+					interrupt-parent = <&gpc>;
+					fsl,tempmon = <&anatop>;
+					nvmem-cells = <&tempmon_calib>, <&tempmon_temp_grade>;
+					nvmem-cell-names = "calib", "temp_grade";
+					clocks = <&clks IMX6SL_CLK_PLL3_USB_OTG>;
 				};
 			};
 
