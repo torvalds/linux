@@ -212,4 +212,3 @@ int sdw_slave_sysfs_init(struct sdw_slave *slave)
 
 	return 0;
 }
-
