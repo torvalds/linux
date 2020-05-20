@@ -9,6 +9,7 @@
 #include <linux/types.h>
 #include <linux/if_xdp.h>
 #include <net/xdp_sock.h>
+#include <net/xsk_buff_pool.h>
 
 #include "xsk.h"
 
@@ -172,31 +173,45 @@ out:
 	return false;
 }
 
+static inline bool xskq_cons_read_addr_aligned(struct xsk_queue *q, u64 *addr)
+{
+	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+
+	while (q->cached_cons != q->cached_prod) {
+		u32 idx = q->cached_cons & q->ring_mask;
+
+		*addr = ring->desc[idx];
+		if (xskq_cons_is_valid_addr(q, *addr))
+			return true;
+
+		q->cached_cons++;
+	}
+
+	return false;
+}
+
+static inline bool xskq_cons_read_addr_unchecked(struct xsk_queue *q, u64 *addr)
+{
+	struct xdp_umem_ring *ring = (struct xdp_umem_ring *)q->ring;
+
+	if (q->cached_cons != q->cached_prod) {
+		u32 idx = q->cached_cons & q->ring_mask;
+
+		*addr = ring->desc[idx];
+		return true;
+	}
+
+	return false;
+}
+
 static inline bool xskq_cons_is_valid_desc(struct xsk_queue *q,
 					   struct xdp_desc *d,
 					   struct xdp_umem *umem)
 {
-	if (umem->flags & XDP_UMEM_UNALIGNED_CHUNK_FLAG) {
-		if (!xskq_cons_is_valid_unaligned(q, d->addr, d->len, umem))
-			return false;
-
-		if (d->len > umem->chunk_size_nohr || d->options) {
-			q->invalid_descs++;
-			return false;
-		}
-
-		return true;
-	}
-
-	if (!xskq_cons_is_valid_addr(q, d->addr))
-		return false;
-
-	if (((d->addr + d->len) & q->chunk_mask) != (d->addr & q->chunk_mask) ||
-	    d->options) {
+	if (!xp_validate_desc(umem->pool, d)) {
 		q->invalid_descs++;
 		return false;
 	}
-
 	return true;
 }
 
@@ -258,6 +273,20 @@ static inline bool xskq_cons_peek_addr(struct xsk_queue *q, u64 *addr,
 	if (q->cached_prod == q->cached_cons)
 		xskq_cons_get_entries(q);
 	return xskq_cons_read_addr(q, addr, umem);
+}
+
+static inline bool xskq_cons_peek_addr_aligned(struct xsk_queue *q, u64 *addr)
+{
+	if (q->cached_prod == q->cached_cons)
+		xskq_cons_get_entries(q);
+	return xskq_cons_read_addr_aligned(q, addr);
+}
+
+static inline bool xskq_cons_peek_addr_unchecked(struct xsk_queue *q, u64 *addr)
+{
+	if (q->cached_prod == q->cached_cons)
+		xskq_cons_get_entries(q);
+	return xskq_cons_read_addr_unchecked(q, addr);
 }
 
 static inline bool xskq_cons_peek_desc(struct xsk_queue *q,

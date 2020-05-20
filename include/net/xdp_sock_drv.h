@@ -7,6 +7,7 @@
 #define _LINUX_XDP_SOCK_DRV_H
 
 #include <net/xdp_sock.h>
+#include <net/xsk_buff_pool.h>
 
 #ifdef CONFIG_XDP_SOCKETS
 
@@ -99,6 +100,94 @@ static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 address,
 static inline u32 xsk_umem_xdp_frame_sz(struct xdp_umem *umem)
 {
 	return umem->chunk_size_nohr;
+}
+
+static inline u32 xsk_umem_get_headroom(struct xdp_umem *umem)
+{
+	return XDP_PACKET_HEADROOM + umem->headroom;
+}
+
+static inline u32 xsk_umem_get_chunk_size(struct xdp_umem *umem)
+{
+	return umem->chunk_size;
+}
+
+static inline u32 xsk_umem_get_rx_frame_size(struct xdp_umem *umem)
+{
+	return xsk_umem_get_chunk_size(umem) - xsk_umem_get_headroom(umem);
+}
+
+static inline void xsk_buff_set_rxq_info(struct xdp_umem *umem,
+					 struct xdp_rxq_info *rxq)
+{
+	xp_set_rxq_info(umem->pool, rxq);
+}
+
+static inline void xsk_buff_dma_unmap(struct xdp_umem *umem,
+				      unsigned long attrs)
+{
+	xp_dma_unmap(umem->pool, attrs);
+}
+
+static inline int xsk_buff_dma_map(struct xdp_umem *umem, struct device *dev,
+				   unsigned long attrs)
+{
+	return xp_dma_map(umem->pool, dev, attrs, umem->pgs, umem->npgs);
+}
+
+static inline dma_addr_t xsk_buff_xdp_get_dma(struct xdp_buff *xdp)
+{
+	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
+
+	return xp_get_dma(xskb);
+}
+
+static inline dma_addr_t xsk_buff_xdp_get_frame_dma(struct xdp_buff *xdp)
+{
+	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
+
+	return xp_get_frame_dma(xskb);
+}
+
+static inline struct xdp_buff *xsk_buff_alloc(struct xdp_umem *umem)
+{
+	return xp_alloc(umem->pool);
+}
+
+static inline bool xsk_buff_can_alloc(struct xdp_umem *umem, u32 count)
+{
+	return xp_can_alloc(umem->pool, count);
+}
+
+static inline void xsk_buff_free(struct xdp_buff *xdp)
+{
+	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
+
+	xp_free(xskb);
+}
+
+static inline dma_addr_t xsk_buff_raw_get_dma(struct xdp_umem *umem, u64 addr)
+{
+	return xp_raw_get_dma(umem->pool, addr);
+}
+
+static inline void *xsk_buff_raw_get_data(struct xdp_umem *umem, u64 addr)
+{
+	return xp_raw_get_data(umem->pool, addr);
+}
+
+static inline void xsk_buff_dma_sync_for_cpu(struct xdp_buff *xdp)
+{
+	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
+
+	xp_dma_sync_for_cpu(xskb);
+}
+
+static inline void xsk_buff_raw_dma_sync_for_device(struct xdp_umem *umem,
+						    dma_addr_t dma,
+						    size_t size)
+{
+	xp_dma_sync_for_device(umem->pool, dma, size);
 }
 
 #else
@@ -210,6 +299,81 @@ static inline u64 xsk_umem_adjust_offset(struct xdp_umem *umem, u64 handle,
 static inline u32 xsk_umem_xdp_frame_sz(struct xdp_umem *umem)
 {
 	return 0;
+}
+
+static inline u32 xsk_umem_get_headroom(struct xdp_umem *umem)
+{
+	return 0;
+}
+
+static inline u32 xsk_umem_get_chunk_size(struct xdp_umem *umem)
+{
+	return 0;
+}
+
+static inline u32 xsk_umem_get_rx_frame_size(struct xdp_umem *umem)
+{
+	return 0;
+}
+
+static inline void xsk_buff_set_rxq_info(struct xdp_umem *umem,
+					 struct xdp_rxq_info *rxq)
+{
+}
+
+static inline void xsk_buff_dma_unmap(struct xdp_umem *umem,
+				      unsigned long attrs)
+{
+}
+
+static inline int xsk_buff_dma_map(struct xdp_umem *umem, struct device *dev,
+				   unsigned long attrs)
+{
+	return 0;
+}
+
+static inline dma_addr_t xsk_buff_xdp_get_dma(struct xdp_buff *xdp)
+{
+	return 0;
+}
+
+static inline dma_addr_t xsk_buff_xdp_get_frame_dma(struct xdp_buff *xdp)
+{
+	return 0;
+}
+
+static inline struct xdp_buff *xsk_buff_alloc(struct xdp_umem *umem)
+{
+	return NULL;
+}
+
+static inline bool xsk_buff_can_alloc(struct xdp_umem *umem, u32 count)
+{
+	return false;
+}
+
+static inline void xsk_buff_free(struct xdp_buff *xdp)
+{
+}
+
+static inline dma_addr_t xsk_buff_raw_get_dma(struct xdp_umem *umem, u64 addr)
+{
+	return 0;
+}
+
+static inline void *xsk_buff_raw_get_data(struct xdp_umem *umem, u64 addr)
+{
+	return NULL;
+}
+
+static inline void xsk_buff_dma_sync_for_cpu(struct xdp_buff *xdp)
+{
+}
+
+static inline void xsk_buff_raw_dma_sync_for_device(struct xdp_umem *umem,
+						    dma_addr_t dma,
+						    size_t size)
+{
 }
 
 #endif /* CONFIG_XDP_SOCKETS */

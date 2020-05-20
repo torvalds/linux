@@ -40,6 +40,7 @@ enum xdp_mem_type {
 	MEM_TYPE_PAGE_ORDER0,     /* Orig XDP full page model */
 	MEM_TYPE_PAGE_POOL,
 	MEM_TYPE_ZERO_COPY,
+	MEM_TYPE_XSK_BUFF_POOL,
 	MEM_TYPE_MAX,
 };
 
@@ -119,7 +120,8 @@ struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
 	int metasize;
 	int headroom;
 
-	if (xdp->rxq->mem.type == MEM_TYPE_ZERO_COPY)
+	if (xdp->rxq->mem.type == MEM_TYPE_ZERO_COPY ||
+	    xdp->rxq->mem.type == MEM_TYPE_XSK_BUFF_POOL)
 		return xdp_convert_zc_to_xdp_frame(xdp);
 
 	/* Assure headroom is available for storing info */

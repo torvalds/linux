@@ -31,11 +31,13 @@ struct xdp_umem_fq_reuse {
 struct xdp_umem {
 	struct xsk_queue *fq;
 	struct xsk_queue *cq;
+	struct xsk_buff_pool *pool;
 	struct xdp_umem_page *pages;
 	u64 chunk_mask;
 	u64 size;
 	u32 headroom;
 	u32 chunk_size_nohr;
+	u32 chunk_size;
 	struct user_struct *user;
 	refcount_t users;
 	struct work_struct work;
