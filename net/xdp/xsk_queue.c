@@ -6,6 +6,7 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/overflow.h>
+#include <net/xdp_sock_drv.h>
 
 #include "xsk_queue.h"
 
