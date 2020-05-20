@@ -53,7 +53,6 @@ atomisp-objs += \
 	pci/hmm/hmm_dynamic_pool.o \
 	pci/hmm/hmm.o \
 	pci/hmm/hmm_reserved_pool.o \
-	pci/hmm/hmm_vm.o \
 	pci/hrt/hive_isp_css_mm_hrt.o \
 	pci/ia_css_device_access.o \
 	pci/ia_css_memory_access.o \
