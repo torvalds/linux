@@ -81,7 +81,7 @@ static int str(yyscan_t scanner, int token, int runtime)
 }
 %}
 
-number		[0-9]*\.?[0-9]+
+number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)
 
 sch		[-,=]
 spec		\\{sch}
