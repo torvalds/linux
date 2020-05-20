@@ -276,6 +276,7 @@ out:
 	return 0;
 
 nla_put_failure:
+	nlmsg_cancel(skb, nlh);
 	return -EMSGSIZE;
 }
 
