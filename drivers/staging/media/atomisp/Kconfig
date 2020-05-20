@@ -1,6 +1,7 @@
 menuconfig INTEL_ATOMISP
 	bool "Enable support to Intel MIPI camera drivers"
 	depends on X86 && EFI && PCI && ACPI
+	select IOSF_MBI
 	select MEDIA_CONTROLLER
 	select COMMON_CLK
 	help
