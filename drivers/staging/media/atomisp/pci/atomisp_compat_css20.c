@@ -1040,6 +1040,9 @@ void atomisp_css_rx_clear_irq_info(enum mipi_port_id port,
 int atomisp_css_irq_enable(struct atomisp_device *isp,
 			   enum atomisp_css_irq_info info, bool enable)
 {
+	dev_dbg(isp->dev, "%s: css irq info 0x%08x: %s.\n",
+		__func__, info,
+		enable ? "enable" : "disable");
 	if (ia_css_irq_enable(info, enable) != IA_CSS_SUCCESS) {
 		dev_warn(isp->dev, "%s:Invalid irq info.\n", __func__);
 		return -EINVAL;
