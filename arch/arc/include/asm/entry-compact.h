@@ -140,7 +140,7 @@
  *
  * After this it is safe to call the "C" handlers
  *-------------------------------------------------------------*/
-.macro EXCEPTION_PROLOGUE
+.macro EXCEPTION_PROLOGUE_KEEP_AE
 
 	/* Need at least 1 reg to code the early exception prologue */
 	PROLOG_FREEUP_REG r9, @ex_saved_reg1
@@ -177,6 +177,16 @@
 	GET_CURR_TASK_ON_CPU   gp
 #endif
 	; OUTPUT: r10 has ECR expected by EV_Trap
+.endm
+
+.macro EXCEPTION_PROLOGUE
+
+	EXCEPTION_PROLOGUE_KEEP_AE	; return ECR in r10
+
+	lr  r0, [efa]
+	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN		; clobbers r9
 .endm
 
 /*--------------------------------------------------------------

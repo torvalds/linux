@@ -75,7 +75,7 @@
 .endm
 
 /*------------------------------------------------------------------------*/
-.macro EXCEPTION_PROLOGUE
+.macro EXCEPTION_PROLOGUE_KEEP_AE
 
 	; Before jumping to Exception Vector, hardware micro-ops did following:
 	;   1. SP auto-switched to kernel mode stack
@@ -102,6 +102,16 @@
 	ST2	r10, r11, PT_event
 
 	; OUTPUT: r10 has ECR expected by EV_Trap
+.endm
+
+.macro EXCEPTION_PROLOGUE
+
+	EXCEPTION_PROLOGUE_KEEP_AE	; return ECR in r10
+
+	lr  r0, [efa]
+	mov r1, sp
+
+	FAKE_RET_FROM_EXCPN		; clobbers r9
 .endm
 
 /*------------------------------------------------------------------------

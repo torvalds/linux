@@ -256,16 +256,6 @@ ENTRY(EV_TLBProtV)
 
 	EXCEPTION_PROLOGUE	; ECR returned in r10
 
-	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
-
-	; Exception auto-disables further Intr/exceptions.
-	; Re-enable them by pretending to return from exception
-	; (so rest of handler executes in pure K mode)
-
-	FAKE_RET_FROM_EXCPN
-
-	mov   r1, sp	; Handle to pt_regs
-
 	;------ (5) Type of Protection Violation? ----------
 	;
 	; ProtV Hardware Exception is triggered for Access Faults of 2 types
@@ -301,9 +291,6 @@ END(EV_TLBProtV)
 ENTRY(call_do_page_fault)
 
 	EXCEPTION_PROLOGUE
-	lr  r0, [efa]	; Faulting Data address
-	mov   r1, sp
-	FAKE_RET_FROM_EXCPN
 
 	mov blink, ret_from_exception
 	b  do_page_fault
