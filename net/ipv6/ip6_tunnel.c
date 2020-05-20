@@ -1232,6 +1232,8 @@ route_lookup:
 		ipv6_push_frag_opts(skb, &opt.ops, &proto);
 	}
 
+	skb_set_inner_ipproto(skb, proto);
+
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	ipv6h = ipv6_hdr(skb);
@@ -1348,6 +1350,7 @@ ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
 				fl6.flowlabel |= ip6_flowlabel(ipv6h);
 			break;
 		default:
+			orig_dsfield = dsfield = ip6_tclass(t->parms.flowinfo);
 			break;
 		}
 	}
@@ -1357,8 +1360,6 @@ ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
-
-	skb_set_inner_ipproto(skb, protocol);
 
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
 			   protocol);
@@ -1401,6 +1402,9 @@ ip6_tnl_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		if (ip6_tnl_addr_conflict(t, ipv6_hdr(skb)))
 			goto tx_err;
 		ipproto = IPPROTO_IPV6;
+		break;
+	case htons(ETH_P_MPLS_UC):
+		ipproto = IPPROTO_MPLS;
 		break;
 	default:
 		goto tx_err;
