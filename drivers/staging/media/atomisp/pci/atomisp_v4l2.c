@@ -1449,14 +1449,8 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	if (skip_fwload)
 		return NULL;
 
-	if (isp->media_dev.hw_revision ==
-	    ((ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT)
-	     | ATOMISP_HW_STEPPING_B0))
-		fw_path = "shisp_2401b0_v21.bin";
-
-	if (isp->media_dev.hw_revision ==
-	    ((ATOMISP_HW_REVISION_ISP2401 << ATOMISP_HW_REVISION_SHIFT)
-	     | ATOMISP_HW_STEPPING_A0))
+	if ((isp->media_dev.hw_revision  >> ATOMISP_HW_REVISION_SHIFT)
+	     == ATOMISP_HW_REVISION_ISP2401)
 		fw_path = "shisp_2401a0_v21.bin";
 
 	if (isp->media_dev.hw_revision ==
