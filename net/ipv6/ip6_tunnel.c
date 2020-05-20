@@ -89,6 +89,11 @@ struct ip6_tnl_net {
 	struct ip6_tnl __rcu *collect_md_tun;
 };
 
+static inline int ip6_tnl_mpls_supported(void)
+{
+	return IS_ENABLED(CONFIG_MPLS);
+}
+
 static struct net_device_stats *ip6_get_stats(struct net_device *dev)
 {
 	struct pcpu_sw_netstats tmp, sum = { 0 };
@@ -718,6 +723,20 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
+static int
+mplsip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
+	    u8 type, u8 code, int offset, __be32 info)
+{
+	__u32 rel_info = ntohl(info);
+	int err, rel_msg = 0;
+	u8 rel_type = type;
+	u8 rel_code = code;
+
+	err = ip6_tnl_err(skb, IPPROTO_MPLS, opt, &rel_type, &rel_code,
+			  &rel_msg, &rel_info, offset);
+	return err;
+}
+
 static int ip4ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
 				       const struct ipv6hdr *ipv6h,
 				       struct sk_buff *skb)
@@ -738,6 +757,14 @@ static int ip6ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
 		ipv6_copy_dscp(ipv6_get_dsfield(ipv6h), ipv6_hdr(skb));
 
 	return IP6_ECN_decapsulate(ipv6h, skb);
+}
+
+static inline int mplsip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
+					       const struct ipv6hdr *ipv6h,
+					       struct sk_buff *skb)
+{
+	/* ECN is not supported in AF_MPLS */
+	return 0;
 }
 
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t,
@@ -901,6 +928,11 @@ static const struct tnl_ptk_info tpi_v4 = {
 	.proto = htons(ETH_P_IP),
 };
 
+static const struct tnl_ptk_info tpi_mpls = {
+	/* no tunnel info required for mplsip6. */
+	.proto = htons(ETH_P_MPLS_UC),
+};
+
 static int ipxip6_rcv(struct sk_buff *skb, u8 ipproto,
 		      const struct tnl_ptk_info *tpi,
 		      int (*dscp_ecn_decapsulate)(const struct ip6_tnl *t,
@@ -956,6 +988,12 @@ static int ip6ip6_rcv(struct sk_buff *skb)
 {
 	return ipxip6_rcv(skb, IPPROTO_IPV6, &tpi_v6,
 			  ip6ip6_dscp_ecn_decapsulate);
+}
+
+static int mplsip6_rcv(struct sk_buff *skb)
+{
+	return ipxip6_rcv(skb, IPPROTO_MPLS, &tpi_mpls,
+			  mplsip6_dscp_ecn_decapsulate);
 }
 
 struct ipv6_tel_txoption {
@@ -2198,6 +2236,12 @@ static struct xfrm6_tunnel ip6ip6_handler __read_mostly = {
 	.priority	=	1,
 };
 
+static struct xfrm6_tunnel mplsip6_handler __read_mostly = {
+	.handler	= mplsip6_rcv,
+	.err_handler	= mplsip6_err,
+	.priority	=	1,
+};
+
 static void __net_exit ip6_tnl_destroy_tunnels(struct net *net, struct list_head *list)
 {
 	struct ip6_tnl_net *ip6n = net_generic(net, ip6_tnl_net_id);
@@ -2312,6 +2356,15 @@ static int __init ip6_tunnel_init(void)
 		pr_err("%s: can't register ip6ip6\n", __func__);
 		goto out_ip6ip6;
 	}
+
+	if (ip6_tnl_mpls_supported()) {
+		err = xfrm6_tunnel_register(&mplsip6_handler, AF_MPLS);
+		if (err < 0) {
+			pr_err("%s: can't register mplsip6\n", __func__);
+			goto out_mplsip6;
+		}
+	}
+
 	err = rtnl_link_register(&ip6_link_ops);
 	if (err < 0)
 		goto rtnl_link_failed;
@@ -2319,6 +2372,9 @@ static int __init ip6_tunnel_init(void)
 	return 0;
 
 rtnl_link_failed:
+	if (ip6_tnl_mpls_supported())
+		xfrm6_tunnel_deregister(&mplsip6_handler, AF_MPLS);
+out_mplsip6:
 	xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6);
 out_ip6ip6:
 	xfrm6_tunnel_deregister(&ip4ip6_handler, AF_INET);
@@ -2341,6 +2397,9 @@ static void __exit ip6_tunnel_cleanup(void)
 	if (xfrm6_tunnel_deregister(&ip6ip6_handler, AF_INET6))
 		pr_info("%s: can't deregister ip6ip6\n", __func__);
 
+	if (ip6_tnl_mpls_supported() &&
+	    xfrm6_tunnel_deregister(&mplsip6_handler, AF_MPLS))
+		pr_info("%s: can't deregister mplsip6\n", __func__);
 	unregister_pernet_device(&ip6_tnl_net_ops);
 }
 
