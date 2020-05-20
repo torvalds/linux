@@ -2907,6 +2907,11 @@ kvm_cede_exit:
 	beq	4f
 	li	r0, 0
 	stb	r0, VCPU_CEDED(r9)
+	/*
+	 * The escalation interrupts are special as we don't EOI them.
+	 * There is no need to use the load-after-store ordering offset
+	 * to set PQ to 10 as we won't use StoreEOI.
+	 */
 	li	r6, XIVE_ESB_SET_PQ_10
 	b	5f
 4:	li	r0, 1

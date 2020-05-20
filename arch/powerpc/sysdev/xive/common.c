@@ -196,6 +196,9 @@ static notrace u8 xive_esb_read(struct xive_irq_data *xd, u32 offset)
 {
 	u64 val;
 
+	if (offset == XIVE_ESB_SET_PQ_10 && xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
+		offset |= XIVE_ESB_LD_ST_MO;
+
 	/* Handle HW errata */
 	if (xd->flags & XIVE_IRQ_FLAG_SHIFT_BUG)
 		offset |= offset << 4;
