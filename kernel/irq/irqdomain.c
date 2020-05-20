@@ -132,14 +132,13 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 				    const struct irq_domain_ops *ops,
 				    void *host_data)
 {
-	struct device_node *of_node = to_of_node(fwnode);
 	struct irqchip_fwid *fwid;
 	struct irq_domain *domain;
 
 	static atomic_t unknown_domains;
 
 	domain = kzalloc_node(sizeof(*domain) + (sizeof(unsigned int) * size),
-			      GFP_KERNEL, of_node_to_nid(of_node));
+			      GFP_KERNEL, of_node_to_nid(to_of_node(fwnode)));
 	if (!domain)
 		return NULL;
 
@@ -177,15 +176,15 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 
 		domain->fwnode = fwnode;
 #endif
-	} else if (of_node) {
+	} else if (is_of_node(fwnode)) {
 		char *name;
 
 		/*
-		 * DT paths contain '/', which debugfs is legitimately
+		 * fwnode paths contain '/', which debugfs is legitimately
 		 * unhappy about. Replace them with ':', which does
 		 * the trick and is not as offensive as '\'...
 		 */
-		name = kasprintf(GFP_KERNEL, "%pOF", of_node);
+		name = kasprintf(GFP_KERNEL, "%pfw", fwnode);
 		if (!name) {
 			kfree(domain);
 			return NULL;
@@ -210,7 +209,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
 		domain->flags |= IRQ_DOMAIN_NAME_ALLOCATED;
 	}
 
-	of_node_get(of_node);
+	fwnode_handle_get(fwnode);
 
 	/* Fill structure */
 	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
@@ -259,7 +258,7 @@ void irq_domain_remove(struct irq_domain *domain)
 
 	pr_debug("Removed domain %s\n", domain->name);
 
-	of_node_put(irq_domain_get_of_node(domain));
+	fwnode_handle_put(domain->fwnode);
 	if (domain->flags & IRQ_DOMAIN_NAME_ALLOCATED)
 		kfree(domain->name);
 	kfree(domain);
