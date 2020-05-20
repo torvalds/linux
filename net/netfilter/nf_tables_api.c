@@ -6339,6 +6339,16 @@ err_unregister_net_hooks:
 	return err;
 }
 
+static void nft_flowtable_hooks_destroy(struct list_head *hook_list)
+{
+	struct nft_hook *hook, *next;
+
+	list_for_each_entry_safe(hook, next, hook_list, list) {
+		list_del_rcu(&hook->list);
+		kfree_rcu(hook, rcu);
+	}
+}
+
 static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 				  struct sk_buff *skb,
 				  const struct nlmsghdr *nlh,
@@ -6433,10 +6443,7 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 					       &flowtable->hook_list,
 					       flowtable);
 	if (err < 0) {
-		list_for_each_entry_safe(hook, next, &flowtable->hook_list, list) {
-			list_del_rcu(&hook->list);
-			kfree_rcu(hook, rcu);
-		}
+		nft_flowtable_hooks_destroy(&flowtable->hook_list);
 		goto err4;
 	}
 
