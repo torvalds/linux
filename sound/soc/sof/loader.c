@@ -385,7 +385,7 @@ static int check_header(struct snd_sof_dev *sdev, const struct firmware *fw,
 	struct snd_sof_fw_header *header;
 	size_t fw_size = fw->size - fw_offset;
 
-	if (fw->size < fw_offset) {
+	if (fw->size <= fw_offset) {
 		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
 		return -EINVAL;
 	}

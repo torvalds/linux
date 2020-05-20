@@ -293,7 +293,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	chip_info = desc->chip_info;
 
-	if (plat_data->fw->size < plat_data->fw_offset) {
+	if (plat_data->fw->size <= plat_data->fw_offset) {
 		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
 		return -EINVAL;
 	}
