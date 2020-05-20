@@ -363,6 +363,13 @@ static inline void drm_gem_object_get(struct drm_gem_object *obj)
 	kref_get(&obj->refcount);
 }
 
+__attribute__((nonnull))
+static inline void
+__drm_gem_object_put(struct drm_gem_object *obj)
+{
+	kref_put(&obj->refcount, drm_gem_object_free);
+}
+
 /**
  * drm_gem_object_put - drop a GEM buffer object reference
  * @obj: GEM buffer object
@@ -372,7 +379,8 @@ static inline void drm_gem_object_get(struct drm_gem_object *obj)
 static inline void
 drm_gem_object_put(struct drm_gem_object *obj)
 {
-	kref_put(&obj->refcount, drm_gem_object_free);
+	if (obj)
+		__drm_gem_object_put(obj);
 }
 
 void drm_gem_object_put_locked(struct drm_gem_object *obj);

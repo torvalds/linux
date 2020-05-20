@@ -105,7 +105,7 @@ __attribute__((nonnull))
 static inline void
 i915_gem_object_put(struct drm_i915_gem_object *obj)
 {
-	drm_gem_object_put(&obj->base);
+	__drm_gem_object_put(&obj->base);
 }
 
 #define assert_object_held(obj) dma_resv_assert_held((obj)->base.resv)
