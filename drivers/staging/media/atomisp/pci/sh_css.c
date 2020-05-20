@@ -2660,11 +2660,16 @@ enum ia_css_err ia_css_irq_enable(
 	case IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR:
 		irq = virq_isys_csi;
 		break;
-#endif
-#if !defined(HAS_NO_INPUT_FORMATTER)
 	case IA_CSS_IRQ_INFO_IF_ERROR:
 		irq = virq_ifmt0_id;
 		break;
+#else
+	case IA_CSS_IRQ_INFO_CSS_RECEIVER_SOF:
+	case IA_CSS_IRQ_INFO_CSS_RECEIVER_EOF:
+	case IA_CSS_IRQ_INFO_INPUT_SYSTEM_ERROR:
+	case IA_CSS_IRQ_INFO_IF_ERROR:
+		/* Just ignore those unused IRQs without printing errors */
+		return IA_CSS_SUCCESS;
 #endif
 	case IA_CSS_IRQ_INFO_DMA_ERROR:
 		irq = virq_dma;
