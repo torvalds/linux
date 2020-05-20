@@ -249,6 +249,26 @@ void perf_evlist__copy_prev_raw_counts(struct evlist *evlist)
 		perf_evsel__copy_prev_raw_counts(evsel);
 }
 
+void perf_evlist__save_aggr_prev_raw_counts(struct evlist *evlist)
+{
+	struct evsel *evsel;
+
+	/*
+	 * To collect the overall statistics for interval mode,
+	 * we copy the counts from evsel->prev_raw_counts to
+	 * evsel->counts. The perf_stat_process_counter creates
+	 * aggr values from per cpu values, but the per cpu values
+	 * are 0 for AGGR_GLOBAL. So we use a trick that saves the
+	 * previous aggr value to the first member of perf_counts,
+	 * then aggr calculation in process_counter_values can work
+	 * correctly.
+	 */
+	evlist__for_each_entry(evlist, evsel) {
+		*perf_counts(evsel->prev_raw_counts, 0, 0) =
+			evsel->prev_raw_counts->aggr;
+	}
+}
+
 static void zero_per_pkg(struct evsel *counter)
 {
 	if (counter->per_pkg_mask)
