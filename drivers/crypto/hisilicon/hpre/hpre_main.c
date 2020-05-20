@@ -717,19 +717,13 @@ static void hpre_debugfs_exit(struct hpre *hpre)
 
 static int hpre_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	enum qm_hw_ver rev_id;
-
-	rev_id = hisi_qm_get_hw_version(pdev);
-	if (rev_id < 0)
-		return -ENODEV;
-
-	if (rev_id == QM_HW_V1) {
+	if (pdev->revision == QM_HW_V1) {
 		pci_warn(pdev, "HPRE version 1 is not supported!\n");
 		return -EINVAL;
 	}
 
 	qm->pdev = pdev;
-	qm->ver = rev_id;
+	qm->ver = pdev->revision;
 	qm->sqe_size = HPRE_SQE_SIZE;
 	qm->dev_name = hpre_name;
 

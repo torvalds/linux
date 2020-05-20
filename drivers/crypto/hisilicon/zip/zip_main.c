@@ -719,18 +719,10 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 	hisi_zip->ctrl = ctrl;
 	ctrl->hisi_zip = hisi_zip;
 
-	switch (qm->ver) {
-	case QM_HW_V1:
+	if (qm->ver == QM_HW_V1)
 		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V1;
-		break;
-
-	case QM_HW_V2:
+	else
 		qm->ctrl_qp_num = HZIP_QUEUE_NUM_V2;
-		break;
-
-	default:
-		return -EINVAL;
-	}
 
 	qm->err_ini = &hisi_zip_err_ini;
 
@@ -743,14 +735,8 @@ static int hisi_zip_pf_probe_init(struct hisi_zip *hisi_zip)
 
 static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	enum qm_hw_ver rev_id;
-
-	rev_id = hisi_qm_get_hw_version(pdev);
-	if (rev_id == QM_HW_UNKNOWN)
-		return -EINVAL;
-
 	qm->pdev = pdev;
-	qm->ver = rev_id;
+	qm->ver = pdev->revision;
 	qm->algs = "zlib\ngzip";
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;

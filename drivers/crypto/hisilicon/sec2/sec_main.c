@@ -728,18 +728,10 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 	struct hisi_qm *qm = &sec->qm;
 	int ret;
 
-	switch (qm->ver) {
-	case QM_HW_V1:
+	if (qm->ver == QM_HW_V1)
 		qm->ctrl_qp_num = SEC_QUEUE_NUM_V1;
-		break;
-
-	case QM_HW_V2:
+	else
 		qm->ctrl_qp_num = SEC_QUEUE_NUM_V2;
-		break;
-
-	default:
-		return -EINVAL;
-	}
 
 	qm->err_ini = &sec_err_ini;
 
@@ -755,15 +747,10 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	enum qm_hw_ver rev_id;
 	int ret;
 
-	rev_id = hisi_qm_get_hw_version(pdev);
-	if (rev_id == QM_HW_UNKNOWN)
-		return -ENODEV;
-
 	qm->pdev = pdev;
-	qm->ver = rev_id;
+	qm->ver = pdev->revision;
 	qm->sqe_size = SEC_SQE_SIZE;
 	qm->dev_name = sec_name;
 
