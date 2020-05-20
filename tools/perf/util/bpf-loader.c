@@ -1225,7 +1225,7 @@ bpf__obj_config_map(struct bpf_object *obj,
 out:
 	free(map_name);
 	if (!err)
-		key_scan_pos += strlen(map_opt);
+		*key_scan_pos += strlen(map_opt);
 	return err;
 }
 
