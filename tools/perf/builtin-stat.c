@@ -910,7 +910,10 @@ static int parse_metric_groups(const struct option *opt,
 			       const char *str,
 			       int unset __maybe_unused)
 {
-	return metricgroup__parse_groups(opt, str, &stat_config.metric_events);
+	return metricgroup__parse_groups(opt, str,
+					 stat_config.metric_no_group,
+					 stat_config.metric_no_merge,
+					 &stat_config.metric_events);
 }
 
 static struct option stat_options[] = {
@@ -988,6 +991,10 @@ static struct option stat_options[] = {
 		     "ms to wait before starting measurement after program start"),
 	OPT_CALLBACK_NOOPT(0, "metric-only", &stat_config.metric_only, NULL,
 			"Only print computed metrics. No raw values", enable_metric_only),
+	OPT_BOOLEAN(0, "metric-no-group", &stat_config.metric_no_group,
+		       "don't group metric events, impacts multiplexing"),
+	OPT_BOOLEAN(0, "metric-no-merge", &stat_config.metric_no_merge,
+		       "don't try to share events between metrics in a group"),
 	OPT_BOOLEAN(0, "topdown", &topdown_run,
 			"measure topdown level 1 statistics"),
 	OPT_BOOLEAN(0, "smi-cost", &smi_cost,
@@ -1512,6 +1519,8 @@ static int add_default_attributes(void)
 			struct option opt = { .value = &evsel_list };
 
 			return metricgroup__parse_groups(&opt, "transaction",
+							 stat_config.metric_no_group,
+							stat_config.metric_no_merge,
 							 &stat_config.metric_events);
 		}
 

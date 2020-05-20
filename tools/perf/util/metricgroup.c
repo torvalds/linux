@@ -95,11 +95,15 @@ struct egroup {
 
 /**
  * Find a group of events in perf_evlist that correpond to those from a parsed
- * metric expression.
+ * metric expression. Note, as find_evsel_group is called in the same order as
+ * perf_evlist was constructed, metric_no_merge doesn't need to test for
+ * underfilling a group.
  * @perf_evlist: a list of events something like: {metric1 leader, metric1
  * sibling, metric1 sibling}:W,duration_time,{metric2 leader, metric2 sibling,
  * metric2 sibling}:W,duration_time
  * @pctx: the parse context for the metric expression.
+ * @metric_no_merge: don't attempt to share events for the metric with other
+ * metrics.
  * @has_constraint: is there a contraint on the group of events? In which case
  * the events won't be grouped.
  * @metric_events: out argument, null terminated array of evsel's associated
@@ -109,6 +113,7 @@ struct egroup {
  */
 static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 				      struct expr_parse_ctx *pctx,
+				      bool metric_no_merge,
 				      bool has_constraint,
 				      struct evsel **metric_events,
 				      unsigned long *evlist_used)
@@ -132,6 +137,9 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 		 */
 		if (has_constraint && ev->weak_group)
 			continue;
+		/* Ignore event if already used and merging is disabled. */
+		if (metric_no_merge && test_bit(ev->idx, evlist_used))
+			continue;
 		if (!has_constraint && ev->leader != current_leader) {
 			/*
 			 * Start of a new group, discard the whole match and
@@ -142,8 +150,23 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 				sizeof(struct evsel *) * idnum);
 			current_leader = ev->leader;
 		}
-		if (hashmap__find(&pctx->ids, ev->name, (void **)&val_ptr))
+		if (hashmap__find(&pctx->ids, ev->name, (void **)&val_ptr)) {
+			if (has_constraint) {
+				/*
+				 * Events aren't grouped, ensure the same event
+				 * isn't matched from two groups.
+				 */
+				for (i = 0; i < matched_events; i++) {
+					if (!strcmp(ev->name,
+						    metric_events[i]->name)) {
+						break;
+					}
+				}
+				if (i != matched_events)
+					continue;
+			}
 			metric_events[matched_events++] = ev;
+		}
 		if (matched_events == events_to_match)
 			break;
 	}
@@ -175,6 +198,7 @@ static struct evsel *find_evsel_group(struct evlist *perf_evlist,
 }
 
 static int metricgroup__setup_events(struct list_head *groups,
+				     bool metric_no_merge,
 				     struct evlist *perf_evlist,
 				     struct rblist *metric_events_list)
 {
@@ -200,8 +224,9 @@ static int metricgroup__setup_events(struct list_head *groups,
 			break;
 		}
 		evsel = find_evsel_group(perf_evlist, &eg->pctx,
-					eg->has_constraint, metric_events,
-					evlist_used);
+					 metric_no_merge,
+					 eg->has_constraint, metric_events,
+					 evlist_used);
 		if (!evsel) {
 			pr_debug("Cannot resolve %s: %s\n",
 					eg->metric_name, eg->metric_expr);
@@ -523,7 +548,9 @@ int __weak arch_get_runtimeparam(void)
 }
 
 static int __metricgroup__add_metric(struct list_head *group_list,
-				     struct pmu_event *pe, int runtime)
+				     struct pmu_event *pe,
+				     bool metric_no_group,
+				     int runtime)
 {
 	struct egroup *eg;
 
@@ -536,7 +563,7 @@ static int __metricgroup__add_metric(struct list_head *group_list,
 	eg->metric_expr = pe->metric_expr;
 	eg->metric_unit = pe->unit;
 	eg->runtime = runtime;
-	eg->has_constraint = metricgroup__has_constraint(pe);
+	eg->has_constraint = metric_no_group || metricgroup__has_constraint(pe);
 
 	if (expr__find_other(pe->metric_expr, NULL, &eg->pctx, runtime) < 0) {
 		expr__ctx_clear(&eg->pctx);
@@ -563,7 +590,8 @@ static int __metricgroup__add_metric(struct list_head *group_list,
 	return 0;
 }
 
-static int metricgroup__add_metric(const char *metric, struct strbuf *events,
+static int metricgroup__add_metric(const char *metric, bool metric_no_group,
+				   struct strbuf *events,
 				   struct list_head *group_list)
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
@@ -593,7 +621,9 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 
 			if (!strstr(pe->metric_expr, "?")) {
 				ret = __metricgroup__add_metric(group_list,
-								pe, 1);
+								pe,
+								metric_no_group,
+								1);
 				if (ret)
 					return ret;
 			} else {
@@ -608,7 +638,8 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 
 				for (j = 0; j < count; j++) {
 					ret = __metricgroup__add_metric(
-						group_list, pe, j);
+						group_list, pe,
+						metric_no_group, j);
 					if (ret)
 						return ret;
 				}
@@ -630,7 +661,8 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 	return 0;
 }
 
-static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
+static int metricgroup__add_metric_list(const char *list, bool metric_no_group,
+					struct strbuf *events,
 				        struct list_head *group_list)
 {
 	char *llist, *nlist, *p;
@@ -645,7 +677,8 @@ static int metricgroup__add_metric_list(const char *list, struct strbuf *events,
 	strbuf_addf(events, "%s", "");
 
 	while ((p = strsep(&llist, ",")) != NULL) {
-		ret = metricgroup__add_metric(p, events, group_list);
+		ret = metricgroup__add_metric(p, metric_no_group, events,
+					      group_list);
 		if (ret == -EINVAL) {
 			fprintf(stderr, "Cannot find metric or group `%s'\n",
 					p);
@@ -672,8 +705,10 @@ static void metricgroup__free_egroups(struct list_head *group_list)
 }
 
 int metricgroup__parse_groups(const struct option *opt,
-			   const char *str,
-			   struct rblist *metric_events)
+			      const char *str,
+			      bool metric_no_group,
+			      bool metric_no_merge,
+			      struct rblist *metric_events)
 {
 	struct parse_events_error parse_error;
 	struct evlist *perf_evlist = *(struct evlist **)opt->value;
@@ -683,7 +718,8 @@ int metricgroup__parse_groups(const struct option *opt,
 
 	if (metric_events->nr_entries == 0)
 		metricgroup__rblist_init(metric_events);
-	ret = metricgroup__add_metric_list(str, &extra_events, &group_list);
+	ret = metricgroup__add_metric_list(str, metric_no_group,
+					   &extra_events, &group_list);
 	if (ret)
 		return ret;
 	pr_debug("adding %s\n", extra_events.buf);
@@ -694,8 +730,8 @@ int metricgroup__parse_groups(const struct option *opt,
 		goto out;
 	}
 	strbuf_release(&extra_events);
-	ret = metricgroup__setup_events(&group_list, perf_evlist,
-					metric_events);
+	ret = metricgroup__setup_events(&group_list, metric_no_merge,
+					perf_evlist, metric_events);
 out:
 	metricgroup__free_egroups(&group_list);
 	return ret;

@@ -236,6 +236,25 @@ filter out the startup phase of the program, which is often very different.
 
 Print statistics of transactional execution if supported.
 
+--metric-no-group::
+By default, events to compute a metric are placed in weak groups. The
+group tries to enforce scheduling all or none of the events. The
+--metric-no-group option places events outside of groups and may
+increase the chance of the event being scheduled - leading to more
+accuracy. However, as events may not be scheduled together accuracy
+for metrics like instructions per cycle can be lower - as both metrics
+may no longer be being measured at the same time.
+
+--metric-no-merge::
+By default metric events in different weak groups can be shared if one
+group contains all the events needed by another. In such cases one
+group will be eliminated reducing event multiplexing and making it so
+that certain groups of metrics sum to 100%. A downside to sharing a
+group is that the group may require multiplexing and so accuracy for a
+small group that need not have multiplexing is lowered. This option
+forbids the event merging logic from sharing events between groups and
+may be used to increase accuracy in this case.
+
 STAT RECORD
 -----------
 Stores stat data into perf data file.

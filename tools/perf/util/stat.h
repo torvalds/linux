@@ -111,6 +111,8 @@ struct perf_stat_config {
 	bool			 all_user;
 	bool			 percore_show_thread;
 	bool			 summary;
+	bool			 metric_no_group;
+	bool			 metric_no_merge;
 	FILE			*output;
 	unsigned int		 interval;
 	unsigned int		 timeout;
