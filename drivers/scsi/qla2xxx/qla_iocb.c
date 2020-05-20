@@ -3607,11 +3607,10 @@ static void qla2x00_send_notify_ack_iocb(srb_t *sp,
 /*
  * Build NVME LS request
  */
-static int
+static void
 qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
 {
 	struct srb_iocb *nvme;
-	int     rval = QLA_SUCCESS;
 
 	nvme = &sp->u.iocb_cmd;
 	cmd_pkt->entry_type = PT_LS4_REQUEST;
@@ -3631,8 +3630,6 @@ qla_nvme_ls(srb_t *sp, struct pt_ls4_request *cmd_pkt)
 	cmd_pkt->rx_byte_count = cpu_to_le32(nvme->u.nvme.rsp_len);
 	cmd_pkt->dsd[1].length = cpu_to_le32(nvme->u.nvme.rsp_len);
 	put_unaligned_le64(nvme->u.nvme.rsp_dma, &cmd_pkt->dsd[1].address);
-
-	return rval;
 }
 
 static void
