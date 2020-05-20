@@ -1253,22 +1253,22 @@ tx_err_dst_release:
 EXPORT_SYMBOL(ip6_tnl_xmit);
 
 static inline int
-ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
+ipxip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev,
+		u8 protocol)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
+	struct ipv6hdr *ipv6h;
 	const struct iphdr  *iph;
 	int encap_limit = -1;
+	__u16 offset;
 	struct flowi6 fl6;
-	__u8 dsfield;
+	__u8 dsfield, orig_dsfield;
 	__u32 mtu;
 	u8 tproto;
 	int err;
 
-	iph = ip_hdr(skb);
-	memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
-
 	tproto = READ_ONCE(t->parms.proto);
-	if (tproto != IPPROTO_IPIP && tproto != 0)
+	if (tproto != protocol && tproto != 0)
 		return -1;
 
 	if (t->parms.collect_md) {
@@ -1281,129 +1281,101 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 			return -1;
 		key = &tun_info->key;
 		memset(&fl6, 0, sizeof(fl6));
-		fl6.flowi6_proto = IPPROTO_IPIP;
+		fl6.flowi6_proto = protocol;
 		fl6.saddr = key->u.ipv6.src;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
 		dsfield =  key->tos;
+		switch (protocol) {
+		case IPPROTO_IPIP:
+			iph = ip_hdr(skb);
+			orig_dsfield = ipv4_get_dsfield(iph);
+			break;
+		case IPPROTO_IPV6:
+			ipv6h = ipv6_hdr(skb);
+			orig_dsfield = ipv6_get_dsfield(ipv6h);
+			break;
+		default:
+			orig_dsfield = dsfield;
+			break;
+		}
 	} else {
 		if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 			encap_limit = t->parms.encap_limit;
+		if (protocol == IPPROTO_IPV6) {
+			offset = ip6_tnl_parse_tlv_enc_lim(skb,
+						skb_network_header(skb));
+			/* ip6_tnl_parse_tlv_enc_lim() might have
+			 * reallocated skb->head
+			 */
+			if (offset > 0) {
+				struct ipv6_tlv_tnl_enc_lim *tel;
 
-		memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-		fl6.flowi6_proto = IPPROTO_IPIP;
-
-		if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-			dsfield = ipv4_get_dsfield(iph);
-		else
-			dsfield = ip6_tclass(t->parms.flowinfo);
-		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
-			fl6.flowi6_mark = skb->mark;
-		else
-			fl6.flowi6_mark = t->parms.fwmark;
-	}
-
-	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
-	dsfield = INET_ECN_encapsulate(dsfield, ipv4_get_dsfield(iph));
-
-	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
-		return -1;
-
-	skb_set_inner_ipproto(skb, IPPROTO_IPIP);
-
-	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
-			   IPPROTO_IPIP);
-	if (err != 0) {
-		/* XXX: send ICMP error even if DF is not set. */
-		if (err == -EMSGSIZE)
-			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
-				  htonl(mtu));
-		return -1;
-	}
-
-	return 0;
-}
-
-static inline int
-ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
-{
-	struct ip6_tnl *t = netdev_priv(dev);
-	struct ipv6hdr *ipv6h;
-	int encap_limit = -1;
-	__u16 offset;
-	struct flowi6 fl6;
-	__u8 dsfield;
-	__u32 mtu;
-	u8 tproto;
-	int err;
-
-	ipv6h = ipv6_hdr(skb);
-	tproto = READ_ONCE(t->parms.proto);
-	if ((tproto != IPPROTO_IPV6 && tproto != 0) ||
-	    ip6_tnl_addr_conflict(t, ipv6h))
-		return -1;
-
-	if (t->parms.collect_md) {
-		struct ip_tunnel_info *tun_info;
-		const struct ip_tunnel_key *key;
-
-		tun_info = skb_tunnel_info(skb);
-		if (unlikely(!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX) ||
-			     ip_tunnel_info_af(tun_info) != AF_INET6))
-			return -1;
-		key = &tun_info->key;
-		memset(&fl6, 0, sizeof(fl6));
-		fl6.flowi6_proto = IPPROTO_IPV6;
-		fl6.saddr = key->u.ipv6.src;
-		fl6.daddr = key->u.ipv6.dst;
-		fl6.flowlabel = key->label;
-		dsfield = key->tos;
-	} else {
-		offset = ip6_tnl_parse_tlv_enc_lim(skb, skb_network_header(skb));
-		/* ip6_tnl_parse_tlv_enc_lim() might have reallocated skb->head */
-		ipv6h = ipv6_hdr(skb);
-		if (offset > 0) {
-			struct ipv6_tlv_tnl_enc_lim *tel;
-
-			tel = (void *)&skb_network_header(skb)[offset];
-			if (tel->encap_limit == 0) {
-				icmpv6_send(skb, ICMPV6_PARAMPROB,
-					    ICMPV6_HDR_FIELD, offset + 2);
-				return -1;
+				tel = (void *)&skb_network_header(skb)[offset];
+				if (tel->encap_limit == 0) {
+					icmpv6_send(skb, ICMPV6_PARAMPROB,
+						ICMPV6_HDR_FIELD, offset + 2);
+					return -1;
+				}
+				encap_limit = tel->encap_limit - 1;
 			}
-			encap_limit = tel->encap_limit - 1;
-		} else if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT)) {
-			encap_limit = t->parms.encap_limit;
 		}
 
 		memcpy(&fl6, &t->fl.u.ip6, sizeof(fl6));
-		fl6.flowi6_proto = IPPROTO_IPV6;
+		fl6.flowi6_proto = protocol;
 
-		if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
-			dsfield = ipv6_get_dsfield(ipv6h);
-		else
-			dsfield = ip6_tclass(t->parms.flowinfo);
-		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
-			fl6.flowlabel |= ip6_flowlabel(ipv6h);
 		if (t->parms.flags & IP6_TNL_F_USE_ORIG_FWMARK)
 			fl6.flowi6_mark = skb->mark;
 		else
 			fl6.flowi6_mark = t->parms.fwmark;
+		switch (protocol) {
+		case IPPROTO_IPIP:
+			iph = ip_hdr(skb);
+			orig_dsfield = ipv4_get_dsfield(iph);
+			if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
+				dsfield = orig_dsfield;
+			else
+				dsfield = ip6_tclass(t->parms.flowinfo);
+			break;
+		case IPPROTO_IPV6:
+			ipv6h = ipv6_hdr(skb);
+			orig_dsfield = ipv6_get_dsfield(ipv6h);
+			if (t->parms.flags & IP6_TNL_F_USE_ORIG_TCLASS)
+				dsfield = orig_dsfield;
+			else
+				dsfield = ip6_tclass(t->parms.flowinfo);
+			if (t->parms.flags & IP6_TNL_F_USE_ORIG_FLOWLABEL)
+				fl6.flowlabel |= ip6_flowlabel(ipv6h);
+			break;
+		default:
+			break;
+		}
 	}
 
 	fl6.flowi6_uid = sock_net_uid(dev_net(dev), NULL);
-	dsfield = INET_ECN_encapsulate(dsfield, ipv6_get_dsfield(ipv6h));
+	dsfield = INET_ECN_encapsulate(dsfield, orig_dsfield);
 
 	if (iptunnel_handle_offloads(skb, SKB_GSO_IPXIP6))
 		return -1;
 
-	skb_set_inner_ipproto(skb, IPPROTO_IPV6);
+	skb_set_inner_ipproto(skb, protocol);
 
 	err = ip6_tnl_xmit(skb, dev, dsfield, &fl6, encap_limit, &mtu,
-			   IPPROTO_IPV6);
+			   protocol);
 	if (err != 0) {
+		/* XXX: send ICMP error even if DF is not set. */
 		if (err == -EMSGSIZE)
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+			switch (protocol) {
+			case IPPROTO_IPIP:
+				icmp_send(skb, ICMP_DEST_UNREACH,
+					  ICMP_FRAG_NEEDED, htonl(mtu));
+				break;
+			case IPPROTO_IPV6:
+				icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+				break;
+			default:
+				break;
+			}
 		return -1;
 	}
 
@@ -1415,6 +1387,7 @@ ip6_tnl_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->dev->stats;
+	u8 ipproto;
 	int ret;
 
 	if (!pskb_inet_may_pull(skb))
@@ -1422,15 +1395,18 @@ ip6_tnl_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
-		ret = ip4ip6_tnl_xmit(skb, dev);
+		ipproto = IPPROTO_IPIP;
 		break;
 	case htons(ETH_P_IPV6):
-		ret = ip6ip6_tnl_xmit(skb, dev);
+		if (ip6_tnl_addr_conflict(t, ipv6_hdr(skb)))
+			goto tx_err;
+		ipproto = IPPROTO_IPV6;
 		break;
 	default:
 		goto tx_err;
 	}
 
+	ret = ipxip6_tnl_xmit(skb, dev, ipproto);
 	if (ret < 0)
 		goto tx_err;
 
