@@ -140,6 +140,7 @@
 #define HAP_CFG_CAL_EN_REG			0x72
 #define CAL_RC_CLK_MASK				GENMASK(3, 2)
 #define CAL_RC_CLK_SHIFT			2
+#define CAL_RC_CLK_AUTO_VAL			1
 #define CAL_RC_CLK_MANUAL_VAL			2
 
 /* version register definitions for HAPTICS_PATTERN module */
@@ -676,6 +677,26 @@ static int get_brake_play_length_us(struct brake_cfg *brake, u32 t_lra_us)
 
 #define V1_CL_TLRA_STEP_AUTO_RES_CAL_NOT_DONE_NS	5000
 #define V1_CL_TLRA_STEP_AUTO_RES_CAL_DONE_NS		3333
+#define AUTO_CAL_CLK_SCALE_DEN				1000
+#define AUTO_CAL_CLK_SCALE_NUM				1024
+static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
+{
+	int rc;
+	u8 val;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_CAL_EN_REG, &val, 1);
+	if (rc < 0)
+		return rc;
+
+	if ((val & CAL_RC_CLK_MASK) ==
+			(CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT))
+		*t_lra_us = div_u64((u64)(*t_lra_us) * AUTO_CAL_CLK_SCALE_NUM,
+				AUTO_CAL_CLK_SCALE_DEN);
+
+	return 0;
+}
+
 static int haptics_get_closeloop_lra_period_v1(
 		struct haptics_chip *chip)
 {
@@ -715,7 +736,6 @@ static int haptics_get_closeloop_lra_period_v1(
 	config->cl_t_lra_us = (tmp * step_ns) / 1000;
 
 	return 0;
-
 }
 
 #define CL_TLRA_STEP_NS				1666
@@ -764,6 +784,10 @@ static int haptics_get_closeloop_lra_period(struct haptics_chip *chip)
 		dev_err(chip->dev, "get close loop T LRA failed, rc=%d\n", rc);
 		return rc;
 	}
+
+	rc = haptics_adjust_lra_period(chip, &chip->config.cl_t_lra_us);
+	if (rc < 0)
+		return rc;
 
 	dev_dbg(chip->dev, "OL_TLRA %u us, CL_TLRA %u us\n",
 		chip->config.t_lra_us, chip->config.cl_t_lra_us);
@@ -895,6 +919,7 @@ static int haptics_set_pattern(struct haptics_chip *chip,
 	u8 values[SAMPLES_PER_PATTERN * 3] = { 0 };
 	u8 ptn_tlra_addr, ptn_cfg_addr;
 	int i, rc, tmp;
+	u32 play_rate_us;
 
 	if (src != PATTERN1 && src != PATTERN2) {
 		dev_err(chip->dev, "no pattern src specified!\n");
@@ -908,8 +933,14 @@ static int haptics_set_pattern(struct haptics_chip *chip,
 		ptn_cfg_addr = HAP_PTN_PTRN2_CFG_REG;
 	}
 
+	/* Adjust T_LRA before programming it into HW */
+	play_rate_us = pattern->play_rate_us;
+	rc = haptics_adjust_lra_period(chip, &play_rate_us);
+	if (rc < 0)
+		return rc;
+
 	/* Configure T_LRA for this pattern */
-	tmp = pattern->play_rate_us / TLRA_STEP_US;
+	tmp = play_rate_us / TLRA_STEP_US;
 	values[0] = (tmp >> 8) & TLRA_OL_MSB_MASK;
 	values[1] = tmp & TLRA_OL_LSB_MASK;
 	rc = haptics_write(chip, chip->ptn_addr_base, ptn_tlra_addr,
@@ -1753,6 +1784,11 @@ static int haptics_config_openloop_lra_period(struct haptics_chip *chip,
 {
 	u32 tmp;
 	u8 val[2];
+	int rc;
+
+	rc = haptics_adjust_lra_period(chip, &t_lra_us);
+	if (rc < 0)
+		return rc;
 
 	tmp = t_lra_us / TLRA_STEP_US;
 	val[0] = (tmp >> 8) & TLRA_OL_MSB_MASK;
