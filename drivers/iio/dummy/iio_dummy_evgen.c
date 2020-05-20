@@ -45,6 +45,8 @@ static struct iio_dummy_eventgen *iio_evgen;
 
 static int iio_dummy_evgen_create(void)
 {
+	int ret;
+
 	iio_evgen = kzalloc(sizeof(*iio_evgen), GFP_KERNEL);
 	if (!iio_evgen)
 		return -ENOMEM;
@@ -52,8 +54,9 @@ static int iio_dummy_evgen_create(void)
 	iio_evgen->irq_sim_domain = irq_domain_create_sim(NULL,
 							  IIO_EVENTGEN_NO);
 	if (IS_ERR(iio_evgen->irq_sim_domain)) {
+		ret = PTR_ERR(iio_evgen->irq_sim_domain);
 		kfree(iio_evgen);
-		return PTR_ERR(iio_evgen->irq_sim_domain);
+		return ret;
 	}
 
 	mutex_init(&iio_evgen->lock);
