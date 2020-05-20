@@ -234,7 +234,8 @@ call_func:
 		ret = -EFAULT;
 
 out:
-	unpin_user_pages(pages, nr_pages);
+	if (pages)
+		unpin_user_pages(pages, nr_pages);
 	kfree(pages);
 
 	return ret;
