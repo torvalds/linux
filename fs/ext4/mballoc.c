@@ -2176,9 +2176,13 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 				     ext4_group_t group, int cr)
 {
 	struct ext4_group_info *grp = ext4_get_group_info(ac->ac_sb, group);
+	struct super_block *sb = ac->ac_sb;
+	bool should_lock = ac->ac_flags & EXT4_MB_STRICT_CHECK;
 	ext4_grpblk_t free;
 	int ret = 0;
 
+	if (should_lock)
+		ext4_lock_group(sb, group);
 	free = grp->bb_free;
 	if (free == 0)
 		goto out;
@@ -2186,6 +2190,8 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 		goto out;
 	if (unlikely(EXT4_MB_GRP_BBITMAP_CORRUPT(grp)))
 		goto out;
+	if (should_lock)
+		ext4_unlock_group(sb, group);
 
 	/* We only do this if the grp has never been initialized */
 	if (unlikely(EXT4_MB_GRP_NEED_INIT(grp))) {
@@ -2194,8 +2200,12 @@ static int ext4_mb_good_group_nolock(struct ext4_allocation_context *ac,
 			return ret;
 	}
 
+	if (should_lock)
+		ext4_lock_group(sb, group);
 	ret = ext4_mb_good_group(ac, group, cr);
 out:
+	if (should_lock)
+		ext4_unlock_group(sb, group);
 	return ret;
 }
 
@@ -4610,7 +4620,8 @@ static bool ext4_mb_discard_preallocations_should_retry(struct super_block *sb,
 		goto out_dbg;
 	}
 	seq_retry = ext4_get_discard_pa_seq_sum();
-	if (seq_retry != *seq) {
+	if (!(ac->ac_flags & EXT4_MB_STRICT_CHECK) || seq_retry != *seq) {
+		ac->ac_flags |= EXT4_MB_STRICT_CHECK;
 		*seq = seq_retry;
 		ret = true;
 	}
