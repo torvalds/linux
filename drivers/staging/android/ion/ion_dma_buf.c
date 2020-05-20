@@ -134,11 +134,11 @@ static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 	struct ion_dma_buf_attachment *a = attachment->priv;
 	unsigned long attrs = attachment->dma_map_attrs;
 
-	a->mapped = false;
-
 	if (heap->buf_ops.unmap_dma_buf)
 		return heap->buf_ops.unmap_dma_buf(attachment, table,
 						   direction);
+
+	a->mapped = false;
 
 	if (!(buffer->flags & ION_FLAG_CACHED))
 		attrs |= DMA_ATTR_SKIP_CPU_SYNC;
