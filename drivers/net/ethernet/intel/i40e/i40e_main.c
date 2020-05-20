@@ -3260,8 +3260,12 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 	if (ring->vsi->type == I40E_VSI_MAIN)
 		xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
+	kfree(ring->rx_bi);
 	ring->xsk_umem = i40e_xsk_umem(ring);
 	if (ring->xsk_umem) {
+		ret = i40e_alloc_rx_bi_zc(ring);
+		if (ret)
+			return ret;
 		ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
 				   XDP_PACKET_HEADROOM;
 		/* For AF_XDP ZC, we disallow packets to span on
@@ -3280,6 +3284,9 @@ static int i40e_configure_rx_ring(struct i40e_ring *ring)
 			 ring->queue_index);
 
 	} else {
+		ret = i40e_alloc_rx_bi(ring);
+		if (ret)
+			return ret;
 		ring->rx_buf_len = vsi->rx_buf_len;
 		if (ring->vsi->type == I40E_VSI_MAIN) {
 			ret = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,

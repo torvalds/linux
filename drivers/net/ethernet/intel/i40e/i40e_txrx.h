@@ -296,17 +296,15 @@ struct i40e_tx_buffer {
 
 struct i40e_rx_buffer {
 	dma_addr_t dma;
-	union {
-		struct {
-			struct page *page;
-			__u32 page_offset;
-			__u16 pagecnt_bias;
-		};
-		struct {
-			void *addr;
-			u64 handle;
-		};
-	};
+	struct page *page;
+	__u32 page_offset;
+	__u16 pagecnt_bias;
+};
+
+struct i40e_rx_buffer_zc {
+	dma_addr_t dma;
+	void *addr;
+	u64 handle;
 };
 
 struct i40e_queue_stats {
@@ -358,6 +356,7 @@ struct i40e_ring {
 	union {
 		struct i40e_tx_buffer *tx_bi;
 		struct i40e_rx_buffer *rx_bi;
+		struct i40e_rx_buffer_zc *rx_bi_zc;
 	};
 	DECLARE_BITMAP(state, __I40E_RING_STATE_NBITS);
 	u16 queue_index;		/* Queue number of ring */
@@ -495,6 +494,7 @@ int __i40e_maybe_stop_tx(struct i40e_ring *tx_ring, int size);
 bool __i40e_chk_linearize(struct sk_buff *skb);
 int i40e_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **frames,
 		  u32 flags);
+int i40e_alloc_rx_bi(struct i40e_ring *rx_ring);
 
 /**
  * i40e_get_head - Retrieve head from head writeback
