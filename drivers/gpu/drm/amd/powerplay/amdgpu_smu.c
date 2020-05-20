@@ -576,17 +576,6 @@ bool is_support_sw_smu(struct amdgpu_device *adev)
 	return false;
 }
 
-bool is_support_sw_smu_xgmi(struct amdgpu_device *adev)
-{
-	if (!is_support_sw_smu(adev))
-		return false;
-
-	if (adev->asic_type == CHIP_VEGA20)
-		return true;
-
-	return false;
-}
-
 int smu_sys_get_pp_table(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
