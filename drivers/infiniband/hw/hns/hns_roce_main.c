@@ -233,7 +233,6 @@ static int hns_roce_query_port(struct ib_device *ib_dev, u8 port_num,
 	enum ib_mtu mtu;
 	u8 port;
 
-	assert(port_num > 0);
 	port = port_num - 1;
 
 	/* props being zeroed by the caller, avoid zeroing it here */
