@@ -23,8 +23,21 @@ static const char *const max9867_spmode[] = {
 };
 static const char *const max9867_filter_text[] = {"IIR", "FIR"};
 
+static const char *const max9867_adc_dac_filter_text[] = {
+	"Disabled",
+	"Elliptical/16/256",
+	"Butterworth/16/500",
+	"Elliptical/8/256",
+	"Butterworth/8/500",
+	"Butterworth/8-24"
+};
+
 static SOC_ENUM_SINGLE_DECL(max9867_filter, MAX9867_CODECFLTR, 7,
 	max9867_filter_text);
+static SOC_ENUM_SINGLE_DECL(max9867_dac_filter, MAX9867_CODECFLTR, 0,
+	max9867_adc_dac_filter_text);
+static SOC_ENUM_SINGLE_DECL(max9867_adc_filter, MAX9867_CODECFLTR, 4,
+	max9867_adc_dac_filter_text);
 static SOC_ENUM_SINGLE_DECL(max9867_spkmode, MAX9867_MODECONFIG, 0,
 	max9867_spmode);
 static const SNDRV_CTL_TLVD_DECLARE_DB_RANGE(max9867_master_tlv,
@@ -64,6 +77,8 @@ static const struct snd_kcontrol_new max9867_snd_controls[] = {
 	SOC_SINGLE("Volume Smoothing Switch", MAX9867_MODECONFIG, 6, 1, 0),
 	SOC_SINGLE("Line ZC Switch", MAX9867_MODECONFIG, 5, 1, 0),
 	SOC_ENUM("DSP Filter", max9867_filter),
+	SOC_ENUM("ADC Filter", max9867_adc_filter),
+	SOC_ENUM("DAC Filter", max9867_dac_filter),
 };
 
 /* Input mixer */
