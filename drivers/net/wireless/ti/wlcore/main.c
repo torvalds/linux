@@ -2696,12 +2696,16 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 
 		if (!wlcore_is_p2p_mgmt(wlvif)) {
 			ret = wl12xx_cmd_role_disable(wl, &wlvif->role_id);
-			if (ret < 0)
+			if (ret < 0) {
+				pm_runtime_put_noidle(wl->dev);
 				goto deinit;
+			}
 		} else {
 			ret = wl12xx_cmd_role_disable(wl, &wlvif->dev_role_id);
-			if (ret < 0)
+			if (ret < 0) {
+				pm_runtime_put_noidle(wl->dev);
 				goto deinit;
+			}
 		}
 
 		pm_runtime_mark_last_busy(wl->dev);
