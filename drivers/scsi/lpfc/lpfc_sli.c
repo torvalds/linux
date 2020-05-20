@@ -2813,7 +2813,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	struct lpfc_async_xchg_ctx *axchg = NULL;
 	char *failwhy = NULL;
 	uint32_t oxid, sid, did, fctl, size;
-	int ret;
+	int ret = 1;
 
 	d_buf = piocb->context2;
 
@@ -2897,14 +2897,16 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 			(phba->nvmet_support) ? "T" : "I", ret);
 
 out_fail:
-	kfree(axchg);
 
 	/* recycle receive buffer */
 	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 
 	/* If start of new exchange, abort it */
-	if (fctl & FC_FC_FIRST_SEQ && !(fctl & FC_FC_EX_CTX))
-		lpfc_nvme_unsol_ls_issue_abort(phba, axchg, sid, oxid);
+	if (axchg && (fctl & FC_FC_FIRST_SEQ && !(fctl & FC_FC_EX_CTX)))
+		ret = lpfc_nvme_unsol_ls_issue_abort(phba, axchg, sid, oxid);
+
+	if (ret)
+		kfree(axchg);
 }
 
 /**
