@@ -201,22 +201,6 @@ bool generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 EXPORT_SYMBOL(generic_pipe_buf_get);
 
 /**
- * generic_pipe_buf_confirm - verify contents of the pipe buffer
- * @info:	the pipe that the buffer belongs to
- * @buf:	the buffer to confirm
- *
- * Description:
- *	This function does nothing, because the generic pipe code uses
- *	pages that are always good when inserted into the pipe.
- */
-int generic_pipe_buf_confirm(struct pipe_inode_info *info,
-			     struct pipe_buffer *buf)
-{
-	return 0;
-}
-EXPORT_SYMBOL(generic_pipe_buf_confirm);
-
-/**
  * generic_pipe_buf_release - put a reference to a &struct pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to put a reference to
@@ -232,7 +216,6 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
 	.get = generic_pipe_buf_get,

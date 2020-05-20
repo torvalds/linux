@@ -130,7 +130,6 @@ out:
 }
 
 static const struct pipe_buf_operations smc_pipe_ops = {
-	.confirm = generic_pipe_buf_confirm,
 	.release = smc_rx_pipe_buf_release,
 	.get = generic_pipe_buf_get
 };

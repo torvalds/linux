@@ -82,7 +82,7 @@ struct pipe_buf_operations {
 	 * and that the contents are good. If the pages in the pipe belong
 	 * to a file system, we may need to wait for IO completion in this
 	 * hook. Returns 0 for good, or a negative error value in case of
-	 * error.
+	 * error.  If not present all pages are considered good.
 	 */
 	int (*confirm)(struct pipe_inode_info *, struct pipe_buffer *);
 
@@ -195,6 +195,8 @@ static inline void pipe_buf_release(struct pipe_inode_info *pipe,
 static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
 				   struct pipe_buffer *buf)
 {
+	if (!buf->ops->confirm)
+		return 0;
 	return buf->ops->confirm(pipe, buf);
 }
 
@@ -232,7 +234,6 @@ void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
 bool generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_confirm(struct pipe_inode_info *, struct pipe_buffer *);
 int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
