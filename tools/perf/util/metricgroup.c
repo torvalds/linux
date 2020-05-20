@@ -90,6 +90,7 @@ struct egroup {
 	const char *metric_expr;
 	const char *metric_unit;
 	int runtime;
+	bool has_constraint;
 };
 
 static struct evsel *find_evsel_group(struct evlist *perf_evlist,
@@ -488,8 +489,8 @@ int __weak arch_get_runtimeparam(void)
 	return 1;
 }
 
-static int __metricgroup__add_metric(struct strbuf *events,
-		struct list_head *group_list, struct pmu_event *pe, int runtime)
+static int __metricgroup__add_metric(struct list_head *group_list,
+				     struct pmu_event *pe, int runtime)
 {
 	struct egroup *eg;
 
@@ -502,20 +503,13 @@ static int __metricgroup__add_metric(struct strbuf *events,
 	eg->metric_expr = pe->metric_expr;
 	eg->metric_unit = pe->unit;
 	eg->runtime = runtime;
+	eg->has_constraint = metricgroup__has_constraint(pe);
 
 	if (expr__find_other(pe->metric_expr, NULL, &eg->pctx, runtime) < 0) {
 		expr__ctx_clear(&eg->pctx);
 		free(eg);
 		return -EINVAL;
 	}
-
-	if (events->len > 0)
-		strbuf_addf(events, ",");
-
-	if (metricgroup__has_constraint(pe))
-		metricgroup__add_metric_non_group(events, &eg->pctx);
-	else
-		metricgroup__add_metric_weak_group(events, &eg->pctx);
 
 	list_add_tail(&eg->nd, group_list);
 
@@ -527,6 +521,7 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 {
 	struct pmu_events_map *map = perf_pmu__find_map(NULL);
 	struct pmu_event *pe;
+	struct egroup *eg;
 	int i, ret;
 	bool has_match = false;
 
@@ -550,7 +545,8 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
 			if (!strstr(pe->metric_expr, "?")) {
-				ret = __metricgroup__add_metric(events, group_list, pe, 1);
+				ret = __metricgroup__add_metric(group_list,
+								pe, 1);
 				if (ret)
 					return ret;
 			} else {
@@ -564,11 +560,24 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				 */
 
 				for (j = 0; j < count; j++) {
-					ret = __metricgroup__add_metric(events, group_list, pe, j);
+					ret = __metricgroup__add_metric(
+						group_list, pe, j);
 					if (ret)
 						return ret;
 				}
 			}
+		}
+	}
+	list_for_each_entry(eg, group_list, nd) {
+		if (events->len > 0)
+			strbuf_addf(events, ",");
+
+		if (eg->has_constraint) {
+			metricgroup__add_metric_non_group(events,
+							  &eg->pctx);
+		} else {
+			metricgroup__add_metric_weak_group(events,
+							   &eg->pctx);
 		}
 	}
 	return 0;
