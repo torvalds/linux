@@ -8,6 +8,7 @@
 struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 {
 	struct flow_rule *rule;
+	int i;
 
 	rule = kzalloc(struct_size(rule, action.entries, num_actions),
 		       GFP_KERNEL);
@@ -15,6 +16,11 @@ struct flow_rule *flow_rule_alloc(unsigned int num_actions)
 		return NULL;
 
 	rule->action.num_entries = num_actions;
+	/* Pre-fill each action hw_stats with DONT_CARE.
+	 * Caller can override this if it wants stats for a given action.
+	 */
+	for (i = 0; i < num_actions; i++)
+		rule->action.entries[i].hw_stats = FLOW_ACTION_HW_STATS_DONT_CARE;
 
 	return rule;
 }
