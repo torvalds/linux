@@ -56,6 +56,8 @@ enum nouveau_aper {
 typedef int (*nouveau_migrate_copy_t)(struct nouveau_drm *drm, u64 npages,
 				      enum nouveau_aper, u64 dst_addr,
 				      enum nouveau_aper, u64 src_addr);
+typedef int (*nouveau_clear_page_t)(struct nouveau_drm *drm, u32 length,
+				      enum nouveau_aper, u64 dst_addr);
 
 struct nouveau_dmem_chunk {
 	struct list_head list;
@@ -67,6 +69,7 @@ struct nouveau_dmem_chunk {
 
 struct nouveau_dmem_migrate {
 	nouveau_migrate_copy_t copy_func;
+	nouveau_clear_page_t clear_func;
 	struct nouveau_channel *chan;
 };
 
@@ -437,6 +440,52 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 }
 
 static int
+nvc0b5_migrate_clear(struct nouveau_drm *drm, u32 length,
+		     enum nouveau_aper dst_aper, u64 dst_addr)
+{
+	struct nouveau_channel *chan = drm->dmem->migrate.chan;
+	u32 launch_dma = (1 << 10) /* REMAP_ENABLE_TRUE */ |
+			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
+			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
+			 (1 << 2) /* FLUSH_ENABLE_TRUE. */ |
+			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
+	u32 remap = (4 <<  0) /* DST_X_CONST_A */ |
+		    (5 <<  4) /* DST_Y_CONST_B */ |
+		    (3 << 16) /* COMPONENT_SIZE_FOUR */ |
+		    (1 << 24) /* NUM_DST_COMPONENTS_TWO */;
+	int ret;
+
+	ret = RING_SPACE(chan, 12);
+	if (ret)
+		return ret;
+
+	switch (dst_aper) {
+	case NOUVEAU_APER_VRAM:
+		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 0);
+			break;
+	case NOUVEAU_APER_HOST:
+		BEGIN_IMC0(chan, NvSubCopy, 0x0264, 1);
+		break;
+	default:
+		return -EINVAL;
+	}
+	launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
+
+	BEGIN_NVC0(chan, NvSubCopy, 0x0700, 3);
+	OUT_RING(chan, 0);
+	OUT_RING(chan, 0);
+	OUT_RING(chan, remap);
+	BEGIN_NVC0(chan, NvSubCopy, 0x0408, 2);
+	OUT_RING(chan, upper_32_bits(dst_addr));
+	OUT_RING(chan, lower_32_bits(dst_addr));
+	BEGIN_NVC0(chan, NvSubCopy, 0x0418, 1);
+	OUT_RING(chan, length >> 3);
+	BEGIN_NVC0(chan, NvSubCopy, 0x0300, 1);
+	OUT_RING(chan, launch_dma);
+	return 0;
+}
+
+static int
 nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 {
 	switch (drm->ttm.copy.oclass) {
@@ -445,6 +494,7 @@ nouveau_dmem_migrate_init(struct nouveau_drm *drm)
 	case  VOLTA_DMA_COPY_A:
 	case TURING_DMA_COPY_A:
 		drm->dmem->migrate.copy_func = nvc0b5_migrate_copy;
+		drm->dmem->migrate.clear_func = nvc0b5_migrate_clear;
 		drm->dmem->migrate.chan = drm->ttm.chan;
 		return 0;
 	default:
@@ -487,21 +537,28 @@ static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
 	unsigned long paddr;
 
 	spage = migrate_pfn_to_page(src);
-	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
+	if (!(src & MIGRATE_PFN_MIGRATE))
 		goto out;
 
 	dpage = nouveau_dmem_page_alloc_locked(drm);
 	if (!dpage)
 		goto out;
 
-	*dma_addr = dma_map_page(dev, spage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(dev, *dma_addr))
-		goto out_free_page;
-
 	paddr = nouveau_dmem_page_addr(dpage);
-	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
-			paddr, NOUVEAU_APER_HOST, *dma_addr))
-		goto out_dma_unmap;
+	if (spage) {
+		*dma_addr = dma_map_page(dev, spage, 0, page_size(spage),
+					 DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(dev, *dma_addr))
+			goto out_free_page;
+		if (drm->dmem->migrate.copy_func(drm, page_size(spage),
+			NOUVEAU_APER_VRAM, paddr, NOUVEAU_APER_HOST, *dma_addr))
+			goto out_dma_unmap;
+	} else {
+		*dma_addr = DMA_MAPPING_ERROR;
+		if (drm->dmem->migrate.clear_func(drm, page_size(dpage),
+			NOUVEAU_APER_VRAM, paddr))
+			goto out_free_page;
+	}
 
 	*pfn = NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
 		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
@@ -528,7 +585,7 @@ static void nouveau_dmem_migrate_chunk(struct nouveau_drm *drm,
 	for (i = 0; addr < args->end; i++) {
 		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->src[i],
 				dma_addrs + nr_dma, pfns + i);
-		if (args->dst[i])
+		if (!dma_mapping_error(drm->dev->dev, dma_addrs[nr_dma]))
 			nr_dma++;
 		addr += PAGE_SIZE;
 	}
