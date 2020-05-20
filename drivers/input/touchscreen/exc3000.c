@@ -145,8 +145,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int exc3000_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static int exc3000_probe(struct i2c_client *client)
 {
 	struct exc3000_data *data;
 	struct input_dev *input;
@@ -210,7 +209,7 @@ static struct i2c_driver exc3000_driver = {
 		.of_match_table = of_match_ptr(exc3000_of_match),
 	},
 	.id_table	= exc3000_id,
-	.probe		= exc3000_probe,
+	.probe_new	= exc3000_probe,
 };
 
 module_i2c_driver(exc3000_driver);
