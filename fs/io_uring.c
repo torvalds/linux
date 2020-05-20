@@ -6175,7 +6175,8 @@ static int io_sq_thread(void *data)
 		}
 
 		mutex_lock(&ctx->uring_lock);
-		ret = io_submit_sqes(ctx, to_submit, NULL, -1);
+		if (likely(!percpu_ref_is_dying(&ctx->refs)))
+			ret = io_submit_sqes(ctx, to_submit, NULL, -1);
 		mutex_unlock(&ctx->uring_lock);
 		timeout = jiffies + ctx->sq_thread_idle;
 	}
@@ -7464,16 +7465,6 @@ static void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 	mutex_lock(&ctx->uring_lock);
 	percpu_ref_kill(&ctx->refs);
 	mutex_unlock(&ctx->uring_lock);
-
-	/*
-	 * Wait for sq thread to idle, if we have one. It won't spin on new
-	 * work after we've killed the ctx ref above. This is important to do
-	 * before we cancel existing commands, as the thread could otherwise
-	 * be queueing new work post that. If that's work we need to cancel,
-	 * it could cause shutdown to hang.
-	 */
-	while (ctx->sqo_thread && !wq_has_sleeper(&ctx->sqo_wait))
-		cond_resched();
 
 	io_kill_timeouts(ctx);
 	io_poll_remove_all(ctx);
