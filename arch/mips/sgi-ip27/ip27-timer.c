@@ -28,8 +28,6 @@
 
 #include "ip27-common.h"
 
-#define TICK_SIZE (tick_nsec / 1000)
-
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();
