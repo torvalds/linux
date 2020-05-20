@@ -1624,12 +1624,11 @@ retry:
 			*obuf = *ibuf;
 
 			/*
-			 * Don't inherit the gift flag, we need to
+			 * Don't inherit the gift and merge flags, we need to
 			 * prevent multiple steals of this page.
 			 */
 			obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-
-			pipe_buf_mark_unmergeable(obuf);
+			obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 			obuf->len = len;
 			ibuf->offset += len;
@@ -1717,12 +1716,11 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		*obuf = *ibuf;
 
 		/*
-		 * Don't inherit the gift flag, we need to
-		 * prevent multiple steals of this page.
+		 * Don't inherit the gift and merge flag, we need to prevent
+		 * multiple steals of this page.
 		 */
 		obuf->flags &= ~PIPE_BUF_FLAG_GIFT;
-
-		pipe_buf_mark_unmergeable(obuf);
+		obuf->flags &= ~PIPE_BUF_FLAG_CAN_MERGE;
 
 		if (obuf->len > len)
 			obuf->len = len;

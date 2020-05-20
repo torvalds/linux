@@ -231,47 +231,12 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 }
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
-/* New data written to a pipe may be appended to a buffer with this type. */
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
-
-static const struct pipe_buf_operations anon_pipe_buf_nomerge_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-static const struct pipe_buf_operations packet_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-/**
- * pipe_buf_mark_unmergeable - mark a &struct pipe_buffer as unmergeable
- * @buf:	the buffer to mark
- *
- * Description:
- *	This function ensures that no future writes will be merged into the
- *	given &struct pipe_buffer. This is necessary when multiple pipe buffers
- *	share the same backing page.
- */
-void pipe_buf_mark_unmergeable(struct pipe_buffer *buf)
-{
-	if (buf->ops == &anon_pipe_buf_ops)
-		buf->ops = &anon_pipe_buf_nomerge_ops;
-}
-
-static bool pipe_buf_can_merge(struct pipe_buffer *buf)
-{
-	return buf->ops == &anon_pipe_buf_ops;
-}
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
 static inline bool pipe_readable(const struct pipe_inode_info *pipe)
@@ -478,7 +443,8 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
-		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
+		if ((buf->flags & PIPE_BUF_FLAG_CAN_MERGE) &&
+		    offset + chars <= PAGE_SIZE) {
 			ret = pipe_buf_confirm(pipe, buf);
 			if (ret)
 				goto out;
@@ -541,11 +507,10 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = 0;
-			buf->flags = 0;
-			if (is_packetized(filp)) {
-				buf->ops = &packet_pipe_buf_ops;
+			if (is_packetized(filp))
 				buf->flags = PIPE_BUF_FLAG_PACKET;
-			}
+			else
+				buf->flags = PIPE_BUF_FLAG_CAN_MERGE;
 			pipe->tmp_page = NULL;
 
 			copied = copy_page_from_iter(page, 0, PAGE_SIZE, from);
