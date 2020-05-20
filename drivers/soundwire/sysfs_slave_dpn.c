@@ -252,7 +252,7 @@ static int add_all_attributes(struct device *dev, int N, int dir)
 	if (ret < 0)
 		return ret;
 
-	/* paranioa check for editing mistakes */
+	/* paranoia check for editing mistakes */
 	if (i != SDW_DPN_ATTRIBUTES) {
 		dev_err(dev, "mismatch in attributes, allocated %d got %d\n",
 			SDW_DPN_ATTRIBUTES, i);
