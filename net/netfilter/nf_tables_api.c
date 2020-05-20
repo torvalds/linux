@@ -6178,20 +6178,29 @@ nft_flowtable_lookup_byhandle(const struct nft_table *table,
        return ERR_PTR(-ENOENT);
 }
 
+struct nft_flowtable_hook {
+	u32			num;
+	int			priority;
+	struct list_head	list;
+};
+
 static const struct nla_policy nft_flowtable_hook_policy[NFTA_FLOWTABLE_HOOK_MAX + 1] = {
 	[NFTA_FLOWTABLE_HOOK_NUM]	= { .type = NLA_U32 },
 	[NFTA_FLOWTABLE_HOOK_PRIORITY]	= { .type = NLA_U32 },
 	[NFTA_FLOWTABLE_HOOK_DEVS]	= { .type = NLA_NESTED },
 };
 
-static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
-					  const struct nlattr *attr,
-					  struct nft_flowtable *flowtable)
+static int nft_flowtable_parse_hook(const struct nft_ctx *ctx,
+				    const struct nlattr *attr,
+				    struct nft_flowtable_hook *flowtable_hook,
+				    struct nf_flowtable *ft)
 {
 	struct nlattr *tb[NFTA_FLOWTABLE_HOOK_MAX + 1];
 	struct nft_hook *hook;
 	int hooknum, priority;
 	int err;
+
+	INIT_LIST_HEAD(&flowtable_hook->list);
 
 	err = nla_parse_nested_deprecated(tb, NFTA_FLOWTABLE_HOOK_MAX, attr,
 					  nft_flowtable_hook_policy, NULL);
@@ -6211,19 +6220,19 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 
 	err = nf_tables_parse_netdev_hooks(ctx->net,
 					   tb[NFTA_FLOWTABLE_HOOK_DEVS],
-					   &flowtable->hook_list);
+					   &flowtable_hook->list);
 	if (err < 0)
 		return err;
 
-	flowtable->hooknum		= hooknum;
-	flowtable->data.priority	= priority;
+	flowtable_hook->priority	= priority;
+	flowtable_hook->num		= hooknum;
 
-	list_for_each_entry(hook, &flowtable->hook_list, list) {
+	list_for_each_entry(hook, &flowtable_hook->list, list) {
 		hook->ops.pf		= NFPROTO_NETDEV;
 		hook->ops.hooknum	= hooknum;
 		hook->ops.priority	= priority;
-		hook->ops.priv		= &flowtable->data;
-		hook->ops.hook		= flowtable->data.type->hook;
+		hook->ops.priv		= ft;
+		hook->ops.hook		= ft->type->hook;
 	}
 
 	return err;
@@ -6336,6 +6345,7 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 				  struct netlink_ext_ack *extack)
 {
 	const struct nfgenmsg *nfmsg = nlmsg_data(nlh);
+	struct nft_flowtable_hook flowtable_hook;
 	const struct nf_flowtable_type *type;
 	u8 genmask = nft_genmask_next(net);
 	int family = nfmsg->nfgen_family;
@@ -6409,10 +6419,14 @@ static int nf_tables_newflowtable(struct net *net, struct sock *nlsk,
 	if (err < 0)
 		goto err3;
 
-	err = nf_tables_flowtable_parse_hook(&ctx, nla[NFTA_FLOWTABLE_HOOK],
-					     flowtable);
+	err = nft_flowtable_parse_hook(&ctx, nla[NFTA_FLOWTABLE_HOOK],
+				       &flowtable_hook, &flowtable->data);
 	if (err < 0)
 		goto err4;
+
+	list_splice(&flowtable_hook.list, &flowtable->hook_list);
+	flowtable->data.priority = flowtable_hook.priority;
+	flowtable->hooknum = flowtable_hook.num;
 
 	err = nft_register_flowtable_net_hooks(ctx.net, table, flowtable);
 	if (err < 0) {
