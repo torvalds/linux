@@ -287,7 +287,6 @@ TRACE_EVENT(xdp_devmap_xmit,
 	FN(PAGE_SHARED)		\
 	FN(PAGE_ORDER0)		\
 	FN(PAGE_POOL)		\
-	FN(ZERO_COPY)		\
 	FN(XSK_BUFF_POOL)
 
 #define __MEM_TYPE_TP_FN(x)	\
