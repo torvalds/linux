@@ -876,12 +876,11 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			mpext->data_seq = mp_opt->data_seq;
 			mpext->subflow_seq = mp_opt->subflow_seq;
 			mpext->dsn64 = mp_opt->dsn64;
+			mpext->data_fin = mp_opt->data_fin;
 		}
 		mpext->data_len = mp_opt->data_len;
 		mpext->use_map = 1;
 	}
-
-	mpext->data_fin = mp_opt->data_fin;
 }
 
 void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)

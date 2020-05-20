@@ -329,13 +329,12 @@ struct dma_buf {
 
 /**
  * struct dma_buf_attach_ops - importer operations for an attachment
- * @move_notify: [optional] notification that the DMA-buf is moving
  *
  * Attachment operations implemented by the importer.
  */
 struct dma_buf_attach_ops {
 	/**
-	 * @move_notify
+	 * @move_notify: [optional] notification that the DMA-buf is moving
 	 *
 	 * If this callback is provided the framework can avoid pinning the
 	 * backing store while mappings exists.

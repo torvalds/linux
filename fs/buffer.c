@@ -967,7 +967,7 @@ grow_dev_page(struct block_device *bdev, sector_t block,
 	struct page *page;
 	struct buffer_head *bh;
 	sector_t end_block;
-	int ret = 0;		/* Will call free_more_memory() */
+	int ret = 0;
 	gfp_t gfp_mask;
 
 	gfp_mask = mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS) | gfp;
@@ -1370,6 +1370,17 @@ void __breadahead(struct block_device *bdev, sector_t block, unsigned size)
 	}
 }
 EXPORT_SYMBOL(__breadahead);
+
+void __breadahead_gfp(struct block_device *bdev, sector_t block, unsigned size,
+		      gfp_t gfp)
+{
+	struct buffer_head *bh = __getblk_gfp(bdev, block, size, gfp);
+	if (likely(bh)) {
+		ll_rw_block(REQ_OP_READ, REQ_RAHEAD, 1, &bh);
+		brelse(bh);
+	}
+}
+EXPORT_SYMBOL(__breadahead_gfp);
 
 /**
  *  __bread_gfp() - reads a specified block and returns the bh

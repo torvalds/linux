@@ -206,12 +206,10 @@ struct mptcp_subflow_request_sock {
 	struct	tcp_request_sock sk;
 	u16	mp_capable : 1,
 		mp_join : 1,
-		backup : 1,
-		remote_key_valid : 1;
+		backup : 1;
 	u8	local_id;
 	u8	remote_id;
 	u64	local_key;
-	u64	remote_key;
 	u64	idsn;
 	u32	token;
 	u32	ssn_offset;
@@ -332,7 +330,9 @@ void mptcp_proto_init(void);
 int mptcp_proto_v6_init(void);
 #endif
 
-struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req);
+struct sock *mptcp_sk_clone(const struct sock *sk,
+			    const struct tcp_options_received *opt_rx,
+			    struct request_sock *req);
 void mptcp_get_options(const struct sk_buff *skb,
 		       struct tcp_options_received *opt_rx);
 

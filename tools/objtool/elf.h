@@ -99,7 +99,7 @@ static inline u32 sec_offset_hash(struct section *sec, unsigned long offset)
 	offset &= OFFSET_STRIDE_MASK;
 
 	ol = offset;
-	oh = offset >> 32;
+	oh = (offset >> 16) >> 16;
 
 	__jhash_mix(ol, oh, idx);
 

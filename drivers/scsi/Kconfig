@@ -127,7 +127,7 @@ config CHR_DEV_SG
 
 	  For scanners, look at SANE (<http://www.sane-project.org/>). For CD
 	  writer software look at Cdrtools
-	  (<http://cdrecord.berlios.de/private/cdrecord.html>)
+	  (<http://cdrtools.sourceforge.net/>)
 	  and for burning a "disk at once": CDRDAO
 	  (<http://cdrdao.sourceforge.net/>). Cdparanoia is a high
 	  quality digital reader of audio CDs (<http://www.xiph.org/paranoia/>).

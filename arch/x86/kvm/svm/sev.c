@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/highmem.h>
 #include <linux/psp-sev.h>
+#include <linux/pagemap.h>
 #include <linux/swap.h>
 
 #include "x86.h"
@@ -1117,7 +1118,7 @@ int __init sev_hardware_setup(void)
 	/* Maximum number of encrypted guests supported simultaneously */
 	max_sev_asid = cpuid_ecx(0x8000001F);
 
-	if (!max_sev_asid)
+	if (!svm_sev_enabled())
 		return 1;
 
 	/* Minimum ASID value that should be used for SEV guest */
@@ -1156,6 +1157,9 @@ err:
 
 void sev_hardware_teardown(void)
 {
+	if (!svm_sev_enabled())
+		return;
+
 	bitmap_free(sev_asid_bitmap);
 	bitmap_free(sev_reclaim_asid_bitmap);
 

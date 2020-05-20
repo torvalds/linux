@@ -1,5 +1,5 @@
-Analog Device ADV7511(W)/13/33/35 HDMI Encoders
------------------------------------------
+Analog Devices ADV7511(W)/13/33/35 HDMI Encoders
+------------------------------------------------
 
 The ADV7511, ADV7511W, ADV7513, ADV7533 and ADV7535 are HDMI audio and video
 transmitters compatible with HDMI 1.4 and DVI 1.0. They support color space

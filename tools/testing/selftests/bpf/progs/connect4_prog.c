@@ -18,11 +18,25 @@
 
 int _version SEC("version") = 1;
 
+__attribute__ ((noinline))
+int do_bind(struct bpf_sock_addr *ctx)
+{
+	struct sockaddr_in sa = {};
+
+	sa.sin_family = AF_INET;
+	sa.sin_port = bpf_htons(0);
+	sa.sin_addr.s_addr = bpf_htonl(SRC_REWRITE_IP4);
+
+	if (bpf_bind(ctx, (struct sockaddr *)&sa, sizeof(sa)) != 0)
+		return 0;
+
+	return 1;
+}
+
 SEC("cgroup/connect4")
 int connect_v4_prog(struct bpf_sock_addr *ctx)
 {
 	struct bpf_sock_tuple tuple = {};
-	struct sockaddr_in sa;
 	struct bpf_sock *sk;
 
 	/* Verify that new destination is available. */
@@ -56,17 +70,7 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 	ctx->user_ip4 = bpf_htonl(DST_REWRITE_IP4);
 	ctx->user_port = bpf_htons(DST_REWRITE_PORT4);
 
-	/* Rewrite source. */
-	memset(&sa, 0, sizeof(sa));
-
-	sa.sin_family = AF_INET;
-	sa.sin_port = bpf_htons(0);
-	sa.sin_addr.s_addr = bpf_htonl(SRC_REWRITE_IP4);
-
-	if (bpf_bind(ctx, (struct sockaddr *)&sa, sizeof(sa)) != 0)
-		return 0;
-
-	return 1;
+	return do_bind(ctx) ? 1 : 0;
 }
 
 char _license[] SEC("license") = "GPL";

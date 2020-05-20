@@ -38,7 +38,7 @@ struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
 	struct rcu_head		rcu;
-	__be32			sl_addr[0];
+	__be32			sl_addr[];
 };
 
 #define IP_SFLSIZE(count)	(sizeof(struct ip_sf_socklist) + \
