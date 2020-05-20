@@ -11,6 +11,7 @@
 
 #include <linux/efi.h>
 #include <linux/kernel.h>
+#include <linux/printk.h> /* For CONSOLE_LOGLEVEL_* */
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -18,7 +19,7 @@
 bool efi_nochunk;
 bool efi_nokaslr;
 bool efi_noinitrd;
-bool efi_quiet;
+int efi_loglevel = CONSOLE_LOGLEVEL_DEFAULT;
 bool efi_novamap;
 
 static bool efi_nosoftreserve;
@@ -58,6 +59,28 @@ int efi_printk(const char *fmt, ...)
 	char printf_buf[256];
 	va_list args;
 	int printed;
+	int loglevel = printk_get_level(fmt);
+
+	switch (loglevel) {
+	case '0' ... '9':
+		loglevel -= '0';
+		break;
+	default:
+		/*
+		 * Use loglevel -1 for cases where we just want to print to
+		 * the screen.
+		 */
+		loglevel = -1;
+		break;
+	}
+
+	if (loglevel >= efi_loglevel)
+		return 0;
+
+	if (loglevel >= 0)
+		efi_puts("EFI stub: ");
+
+	fmt = printk_skip_level(fmt);
 
 	va_start(args, fmt);
 	printed = vsnprintf(printf_buf, sizeof(printf_buf), fmt, args);
@@ -100,7 +123,7 @@ efi_status_t efi_parse_options(char const *cmdline)
 		if (!strcmp(param, "nokaslr")) {
 			efi_nokaslr = true;
 		} else if (!strcmp(param, "quiet")) {
-			efi_quiet = true;
+			efi_loglevel = CONSOLE_LOGLEVEL_QUIET;
 		} else if (!strcmp(param, "noinitrd")) {
 			efi_noinitrd = true;
 		} else if (!strcmp(param, "efi") && val) {
@@ -114,6 +137,8 @@ efi_status_t efi_parse_options(char const *cmdline)
 				efi_disable_pci_dma = true;
 			if (parse_option_str(val, "no_disable_early_pci_dma"))
 				efi_disable_pci_dma = false;
+			if (parse_option_str(val, "debug"))
+				efi_loglevel = CONSOLE_LOGLEVEL_DEBUG;
 		} else if (!strcmp(param, "video") &&
 			   val && strstarts(val, "efifb:")) {
 			efi_parse_option_graphics(val + strlen("efifb:"));

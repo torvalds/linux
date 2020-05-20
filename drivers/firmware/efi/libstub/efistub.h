@@ -6,6 +6,7 @@
 #include <linux/compiler.h>
 #include <linux/efi.h>
 #include <linux/kernel.h>
+#include <linux/kern_levels.h>
 #include <linux/types.h>
 #include <asm/efi.h>
 
@@ -34,7 +35,7 @@
 extern bool efi_nochunk;
 extern bool efi_nokaslr;
 extern bool efi_noinitrd;
-extern bool efi_quiet;
+extern int efi_loglevel;
 extern bool efi_novamap;
 
 extern const efi_system_table_t *efi_system_table;
@@ -49,11 +50,12 @@ extern const efi_system_table_t *efi_system_table;
 
 #endif
 
-#define efi_info(msg)		do {			\
-	if (!efi_quiet) efi_puts("EFI stub: "msg);	\
-} while (0)
-
-#define efi_err(msg) efi_puts("EFI stub: ERROR: "msg)
+#define efi_info(fmt, ...) \
+	efi_printk(KERN_INFO fmt, ##__VA_ARGS__)
+#define efi_err(fmt, ...) \
+	efi_printk(KERN_ERR "ERROR: " fmt, ##__VA_ARGS__)
+#define efi_debug(fmt, ...) \
+	efi_printk(KERN_DEBUG "DEBUG: " fmt, ##__VA_ARGS__)
 
 /* Helper macros for the usual case of using simple C variables: */
 #ifndef fdt_setprop_inplace_var
