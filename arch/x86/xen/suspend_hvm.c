@@ -2,6 +2,7 @@
 #include <linux/types.h>
 
 #include <xen/xen.h>
+#include <xen/hvm.h>
 #include <xen/features.h>
 #include <xen/interface/features.h>
 
