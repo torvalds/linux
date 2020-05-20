@@ -359,6 +359,8 @@ struct hns_roce_mtr {
 		unsigned int	ba_pg_shift; /* BA table page shift */
 		unsigned int	buf_pg_shift; /* buffer page shift */
 		int		buf_pg_count;  /* buffer page count */
+		struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
+		unsigned int	region_count;
 	} hem_cfg; /* config for hardware addressing */
 };
 
@@ -1145,7 +1147,6 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev,
 			  struct hns_roce_mtr *mtr);
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		     struct hns_roce_buf_region *regions, int region_cnt,
 		     dma_addr_t *pages, int page_cnt);
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);

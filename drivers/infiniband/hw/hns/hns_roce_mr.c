@@ -483,7 +483,7 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibmr->device);
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	struct hns_roce_mr *mr = to_hr_mr(ibmr);
-	struct hns_roce_buf_region region = {};
+	struct hns_roce_mtr *mtr = &mr->pbl_mtr;
 	int ret = 0;
 
 	mr->npages = 0;
@@ -499,11 +499,11 @@ int hns_roce_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
 		goto err_page_list;
 	}
 
-	region.offset = 0;
-	region.count = mr->npages;
-	region.hopnum = mr->pbl_hop_num;
-	ret = hns_roce_mtr_map(hr_dev, &mr->pbl_mtr, &region, 1, mr->page_list,
-			       mr->npages);
+	mtr->hem_cfg.region[0].offset = 0;
+	mtr->hem_cfg.region[0].count = mr->npages;
+	mtr->hem_cfg.region[0].hopnum = mr->pbl_hop_num;
+	mtr->hem_cfg.region_count = 1;
+	ret = hns_roce_mtr_map(hr_dev, mtr, mr->page_list, mr->npages);
 	if (ret) {
 		ibdev_err(ibdev, "failed to map sg mtr, ret = %d.\n", ret);
 		ret = 0;
@@ -863,7 +863,6 @@ static int mtr_get_pages(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 }
 
 int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		     struct hns_roce_buf_region *regions, int region_cnt,
 		     dma_addr_t *pages, int page_cnt)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
@@ -871,8 +870,8 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	int err;
 	int i;
 
-	for (i = 0; i < region_cnt; i++) {
-		r = &regions[i];
+	for (i = 0; i < mtr->hem_cfg.region_count; i++) {
+		r = &mtr->hem_cfg.region[i];
 		if (r->offset + r->count > page_cnt) {
 			err = -EINVAL;
 			ibdev_err(ibdev,
@@ -945,15 +944,16 @@ done:
 }
 
 /* convert buffer size to page index and page count */
-static int mtr_init_region(struct hns_roce_buf_attr *attr, int page_cnt,
-			   struct hns_roce_buf_region *regions, int region_cnt,
-			   unsigned int page_shift)
+static unsigned int mtr_init_region(struct hns_roce_buf_attr *attr,
+				    int page_cnt,
+				    struct hns_roce_buf_region *regions,
+				    int region_cnt, unsigned int page_shift)
 {
 	unsigned int page_size = 1 << page_shift;
 	int max_region = attr->region_count;
 	struct hns_roce_buf_region *r;
+	unsigned int i = 0;
 	int page_idx = 0;
-	int i = 0;
 
 	for (; i < region_cnt && i < max_region && page_idx < page_cnt; i++) {
 		r = &regions[i];
@@ -982,7 +982,6 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			unsigned int page_shift, struct ib_udata *udata,
 			unsigned long user_addr)
 {
-	struct hns_roce_buf_region regions[HNS_ROCE_MAX_BT_REGION] = {};
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	dma_addr_t *pages = NULL;
 	int region_cnt = 0;
@@ -1014,18 +1013,22 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	hns_roce_hem_list_init(&mtr->hem_list);
 	mtr->hem_cfg.is_direct = !has_mtt;
 	mtr->hem_cfg.ba_pg_shift = page_shift;
+	mtr->hem_cfg.region_count = 0;
+	region_cnt = mtr_init_region(buf_attr, all_pg_cnt,
+				     mtr->hem_cfg.region,
+				     ARRAY_SIZE(mtr->hem_cfg.region),
+				     mtr->hem_cfg.buf_pg_shift);
+	if (region_cnt < 1) {
+		err = -ENOBUFS;
+		ibdev_err(ibdev, "failed to init mtr region %d\n", region_cnt);
+		goto err_alloc_bufs;
+	}
+
+	mtr->hem_cfg.region_count = region_cnt;
+
 	if (has_mtt) {
-		region_cnt = mtr_init_region(buf_attr, all_pg_cnt,
-					     regions, ARRAY_SIZE(regions),
-					     mtr->hem_cfg.buf_pg_shift);
-		if (region_cnt < 1) {
-			err = -ENOBUFS;
-			ibdev_err(ibdev, "Failed to init mtr region %d\n",
-				  region_cnt);
-			goto err_alloc_bufs;
-		}
 		err = hns_roce_hem_list_request(hr_dev, &mtr->hem_list,
-						regions, region_cnt,
+						mtr->hem_cfg.region, region_cnt,
 						page_shift);
 		if (err) {
 			ibdev_err(ibdev, "Failed to request mtr hem, err %d\n",
@@ -1061,8 +1064,7 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtr->hem_cfg.root_ba = pages[0];
 	} else {
 		/* write buffer's dma address to BA table */
-		err = hns_roce_mtr_map(hr_dev, mtr, regions, region_cnt, pages,
-				       all_pg_cnt);
+		err = hns_roce_mtr_map(hr_dev, mtr, pages, all_pg_cnt);
 		if (err) {
 			ibdev_err(ibdev, "Failed to map mtr pages, err %d\n",
 				  err);
