@@ -636,6 +636,7 @@ struct mlx5dr_domain_rx_tx {
 	u64 drop_icm_addr;
 	u64 default_icm_addr;
 	enum mlx5dr_ste_entry_type ste_type;
+	struct mutex mutex; /* protect rx/tx domain */
 };
 
 struct mlx5dr_domain_info {
@@ -660,7 +661,6 @@ struct mlx5dr_domain {
 	struct mlx5_uars_page *uar;
 	enum mlx5dr_domain_type type;
 	refcount_t refcount;
-	struct mutex mutex; /* protect domain */
 	struct mlx5dr_icm_pool *ste_icm_pool;
 	struct mlx5dr_icm_pool *action_icm_pool;
 	struct mlx5dr_send_ring *send_ring;
@@ -813,6 +813,28 @@ struct mlx5dr_icm_chunk {
 	u8 *hw_ste_arr;
 	struct list_head *miss_list;
 };
+
+static inline void mlx5dr_domain_nic_lock(struct mlx5dr_domain_rx_tx *nic_dmn)
+{
+	mutex_lock(&nic_dmn->mutex);
+}
+
+static inline void mlx5dr_domain_nic_unlock(struct mlx5dr_domain_rx_tx *nic_dmn)
+{
+	mutex_unlock(&nic_dmn->mutex);
+}
+
+static inline void mlx5dr_domain_lock(struct mlx5dr_domain *dmn)
+{
+	mlx5dr_domain_nic_lock(&dmn->info.rx);
+	mlx5dr_domain_nic_lock(&dmn->info.tx);
+}
+
+static inline void mlx5dr_domain_unlock(struct mlx5dr_domain *dmn)
+{
+	mlx5dr_domain_nic_unlock(&dmn->info.tx);
+	mlx5dr_domain_nic_unlock(&dmn->info.rx);
+}
 
 static inline int
 mlx5dr_matcher_supp_flex_parser_icmp_v4(struct mlx5dr_cmd_caps *caps)
