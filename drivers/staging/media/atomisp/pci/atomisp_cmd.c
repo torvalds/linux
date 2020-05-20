@@ -5615,11 +5615,6 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_subdev_fh fh;
 	int ret;
 
-	dev_dbg(isp->dev,
-		"setting resolution %ux%u on pad %u for asd%d, bytesperline %u\n",
-		f->fmt.pix.width, f->fmt.pix.height, source_pad,
-		asd->index, f->fmt.pix.bytesperline);
-
 	if (source_pad >= ATOMISP_SUBDEV_PADS_NUM)
 		return -EINVAL;
 
@@ -5627,6 +5622,11 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		dev_warn(isp->dev, "ISP does not support set format while at streaming!\n");
 		return -EBUSY;
 	}
+
+	dev_dbg(isp->dev,
+		"setting resolution %ux%u on pad %u for asd%d, bytesperline %u\n",
+		f->fmt.pix.width, f->fmt.pix.height, source_pad,
+		asd->index, f->fmt.pix.bytesperline);
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -5774,15 +5774,19 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 
 	/* get sensor resolution and format */
 	ret = atomisp_try_fmt(vdev, &snr_fmt, &res_overflow);
-	if (ret)
+	if (ret) {
+		dev_warn(isp->dev, "Try format failed with error %d\n", ret);
 		return ret;
+	}
 	f->fmt.pix.width = snr_fmt.fmt.pix.width;
 	f->fmt.pix.height = snr_fmt.fmt.pix.height;
 
 	snr_format_bridge =
 	    atomisp_get_format_bridge(snr_fmt.fmt.pix.pixelformat);
-	if (!snr_format_bridge)
+	if (!snr_format_bridge) {
+		dev_warn(isp->dev, "Can't find bridge format\n");
 		return -EINVAL;
+	}
 
 	atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 				V4L2_SUBDEV_FORMAT_ACTIVE,
@@ -5868,8 +5872,11 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		ret = atomisp_set_fmt_to_snr(vdev, &s_fmt,
 					     f->fmt.pix.pixelformat, padding_w,
 					     padding_h, dvs_env_w, dvs_env_h);
-		if (ret)
+		if (ret) {
+			dev_warn(isp->dev,
+				 "Set format to sensor failed with %d\n", ret);
 			return -EINVAL;
+		}
 
 		atomisp_csi_lane_config(isp);
 		crop_needs_override = true;
@@ -5986,8 +5993,10 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 set_fmt_to_isp:
 	ret = atomisp_set_fmt_to_isp(vdev, &output_info, &raw_output_info,
 				     &f->fmt.pix, source_pad);
-	if (ret)
+	if (ret) {
+		dev_warn(isp->dev, "Can't set format on ISP. Error %d\n", ret);
 		return -EINVAL;
+	}
 done:
 	pipe->pix.width = f->fmt.pix.width;
 	pipe->pix.height = f->fmt.pix.height;
@@ -6003,7 +6012,11 @@ done:
 				 output_info.padded_width, 8);
 		pipe->pix.sizeimage =
 		    PAGE_ALIGN(f->fmt.pix.height * pipe->pix.bytesperline);
+
 	}
+	dev_dbg(isp->dev, "%s: image size: %d, %d bytes per line\n",
+		__func__, pipe->pix.sizeimage,pipe-> pix.bytesperline);
+
 	if (f->fmt.pix.field == V4L2_FIELD_ANY)
 		f->fmt.pix.field = V4L2_FIELD_NONE;
 	pipe->pix.field = f->fmt.pix.field;
