@@ -97,6 +97,11 @@ i915_param_named_unsafe(enable_psr, int, 0400,
 	"(0=disabled, 1=enabled) "
 	"Default: -1 (use per-chip default)");
 
+i915_param_named(psr_safest_params, bool, 0400,
+	"Replace PSR VBT parameters by the safest and not optimal ones. This "
+	"is helpfull to detect if PSR issues are related to bad values set in "
+	" VBT. (0=use VBT paramters, 1=use safest parameters)");
+
 i915_param_named_unsafe(force_probe, charp, 0400,
 	"Force probe the driver for specified devices. "
 	"See CONFIG_DRM_I915_FORCE_PROBE for details.");
