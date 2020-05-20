@@ -1724,8 +1724,6 @@ static int nf_tables_parse_netdev_hooks(struct net *net,
 			goto err_hook;
 		}
 	}
-	if (!n)
-		return -EINVAL;
 
 	return 0;
 
@@ -1762,6 +1760,9 @@ static int nft_chain_parse_netdev(struct net *net,
 						   hook_list);
 		if (err < 0)
 			return err;
+
+		if (list_empty(hook_list))
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
@@ -6209,8 +6210,7 @@ static int nft_flowtable_parse_hook(const struct nft_ctx *ctx,
 		return err;
 
 	if (!tb[NFTA_FLOWTABLE_HOOK_NUM] ||
-	    !tb[NFTA_FLOWTABLE_HOOK_PRIORITY] ||
-	    !tb[NFTA_FLOWTABLE_HOOK_DEVS])
+	    !tb[NFTA_FLOWTABLE_HOOK_PRIORITY])
 		return -EINVAL;
 
 	hooknum = ntohl(nla_get_be32(tb[NFTA_FLOWTABLE_HOOK_NUM]));
@@ -6219,11 +6219,13 @@ static int nft_flowtable_parse_hook(const struct nft_ctx *ctx,
 
 	priority = ntohl(nla_get_be32(tb[NFTA_FLOWTABLE_HOOK_PRIORITY]));
 
-	err = nf_tables_parse_netdev_hooks(ctx->net,
-					   tb[NFTA_FLOWTABLE_HOOK_DEVS],
-					   &flowtable_hook->list);
-	if (err < 0)
-		return err;
+	if (tb[NFTA_FLOWTABLE_HOOK_DEVS]) {
+		err = nf_tables_parse_netdev_hooks(ctx->net,
+						   tb[NFTA_FLOWTABLE_HOOK_DEVS],
+						   &flowtable_hook->list);
+		if (err < 0)
+			return err;
+	}
 
 	flowtable_hook->priority	= priority;
 	flowtable_hook->num		= hooknum;
