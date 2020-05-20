@@ -195,9 +195,12 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 			   bool has_rom)
 {
 	struct dc_gamma *gamma = NULL;
+	struct calculate_buffer cal_buffer = {0};
 	bool res;
 
 	ASSERT(lut && lut_size == MAX_COLOR_LEGACY_LUT_ENTRIES);
+
+	cal_buffer.buffer_index = -1;
 
 	gamma = dc_create_gamma();
 	if (!gamma)
@@ -208,7 +211,7 @@ static int __set_legacy_tf(struct dc_transfer_func *func,
 	__drm_lut_to_dc_gamma(lut, gamma, true);
 
 	res = mod_color_calculate_regamma_params(func, gamma, true, has_rom,
-						 NULL);
+						 NULL, &cal_buffer);
 
 	dc_gamma_release(&gamma);
 
@@ -221,9 +224,12 @@ static int __set_output_tf(struct dc_transfer_func *func,
 			   bool has_rom)
 {
 	struct dc_gamma *gamma = NULL;
+	struct calculate_buffer cal_buffer = {0};
 	bool res;
 
 	ASSERT(lut && lut_size == MAX_COLOR_LUT_ENTRIES);
+
+	cal_buffer.buffer_index = -1;
 
 	gamma = dc_create_gamma();
 	if (!gamma)
@@ -248,7 +254,7 @@ static int __set_output_tf(struct dc_transfer_func *func,
 		 */
 		gamma->type = GAMMA_CS_TFM_1D;
 		res = mod_color_calculate_regamma_params(func, gamma, false,
-							 has_rom, NULL);
+							 has_rom, NULL, &cal_buffer);
 	}
 
 	dc_gamma_release(&gamma);
