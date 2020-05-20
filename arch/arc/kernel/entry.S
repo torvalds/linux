@@ -95,16 +95,15 @@ END(instr_service)
 
 ENTRY(EV_MachineCheck)
 
-	EXCEPTION_PROLOGUE
+	EXCEPTION_PROLOGUE	; ECR returned in r10
 
-	lr  r2, [ecr]
 	lr  r0, [efa]
 	mov r1, sp
 
 	; MC excpetions disable MMU
 	ARC_MMU_REENABLE r3
 
-	lsr  	r3, r2, 8
+	lsr  	r3, r10, 8
 	bmsk 	r3, r3, 7
 	brne    r3, ECR_C_MCHK_DUP_TLB, 1f
 
