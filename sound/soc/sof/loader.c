@@ -49,6 +49,14 @@ static int get_cc_info(struct snd_sof_dev *sdev,
 	const struct sof_ipc_cc_version *cc =
 		container_of(ext_hdr, struct sof_ipc_cc_version, ext_hdr);
 
+	if (sdev->cc_version) {
+		if (memcmp(sdev->cc_version, cc, cc->ext_hdr.hdr.size)) {
+			dev_err(sdev->dev, "error: receive diverged cc_version descriptions");
+			return -EINVAL;
+		}
+		return 0;
+	}
+
 	dev_dbg(sdev->dev, "Firmware info: used compiler %s %d:%d:%d%s used optimization flags %s\n",
 		cc->name, cc->major, cc->minor, cc->micro, cc->desc,
 		cc->optim);
@@ -158,6 +166,16 @@ static int ext_man_get_windows(struct snd_sof_dev *sdev,
 	return get_ext_windows(sdev, &w->ipc_window.ext_hdr);
 }
 
+static int ext_man_get_cc_info(struct snd_sof_dev *sdev,
+			       const struct sof_ext_man_elem_header *hdr)
+{
+	const struct sof_ext_man_cc_version *cc;
+
+	cc = container_of(hdr, struct sof_ext_man_cc_version, hdr);
+
+	return get_cc_info(sdev, &cc->cc_version.ext_hdr);
+}
+
 static ssize_t snd_sof_ext_man_size(const struct firmware *fw)
 {
 	const struct sof_ext_man_header *head;
@@ -233,6 +251,9 @@ static int snd_sof_fw_ext_man_parse(struct snd_sof_dev *sdev,
 			break;
 		case SOF_EXT_MAN_ELEM_WINDOW:
 			ret = ext_man_get_windows(sdev, elem_hdr);
+			break;
+		case SOF_EXT_MAN_ELEM_CC_VERSION:
+			ret = ext_man_get_cc_info(sdev, elem_hdr);
 			break;
 		default:
 			dev_warn(sdev->dev, "warning: unknown sof_ext_man header type %d size 0x%X\n",
