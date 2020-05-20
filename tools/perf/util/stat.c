@@ -163,11 +163,8 @@ static void evsel__free_prev_raw_counts(struct evsel *evsel)
 
 static void evsel__reset_prev_raw_counts(struct evsel *evsel)
 {
-	if (evsel->prev_raw_counts) {
-		evsel->prev_raw_counts->aggr.val = 0;
-		evsel->prev_raw_counts->aggr.ena = 0;
-		evsel->prev_raw_counts->aggr.run = 0;
-       }
+	if (evsel->prev_raw_counts)
+		perf_counts__reset(evsel->prev_raw_counts);
 }
 
 static int evsel__alloc_stats(struct evsel *evsel, bool alloc_raw)

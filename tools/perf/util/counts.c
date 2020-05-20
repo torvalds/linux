@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include "evsel.h"
 #include "counts.h"
 #include <linux/zalloc.h>
@@ -42,10 +43,11 @@ void perf_counts__delete(struct perf_counts *counts)
 	}
 }
 
-static void perf_counts__reset(struct perf_counts *counts)
+void perf_counts__reset(struct perf_counts *counts)
 {
 	xyarray__reset(counts->loaded);
 	xyarray__reset(counts->values);
+	memset(&counts->aggr, 0, sizeof(struct perf_counts_values));
 }
 
 void evsel__reset_counts(struct evsel *evsel)
