@@ -9,7 +9,17 @@
  * This selftest exercises the powerpc alignment fault handler.
  *
  * We create two sets of source and destination buffers, one in regular memory,
- * the other cache-inhibited (we use /dev/fb0 for this).
+ * the other cache-inhibited (by default we use /dev/fb0 for this, but an
+ * alterative path for cache-inhibited memory may be provided).
+ *
+ * One way to get cache-inhibited memory is to use the "mem" kernel parameter
+ * to limit the kernel to less memory than actually exists.  Addresses above
+ * the limit may still be accessed but will be treated as cache-inhibited. For
+ * example, if there is actually 4GB of memory and the parameter "mem=3GB" is
+ * used, memory from address 0xC0000000 onwards is treated as cache-inhibited.
+ * To access this region /dev/mem is used. The kernel should be configured
+ * without CONFIG_STRICT_DEVMEM. In this case use:
+ *         ./alignment_handler /dev/mem 0xc0000000
  *
  * We initialise the source buffers, then use whichever set of load/store
  * instructions is under test to copy bytes from the source buffers to the
@@ -53,6 +63,8 @@ int bufsize;
 int debug;
 int testing;
 volatile int gotsig;
+char *cipath = "/dev/fb0";
+long cioffset;
 
 void sighandler(int sig, siginfo_t *info, void *ctx)
 {
@@ -195,17 +207,18 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 
 	printf("\tDoing %s:\t", test_name);
 
-	fd = open("/dev/fb0", O_RDWR);
+	fd = open(cipath, O_RDWR);
 	if (fd < 0) {
 		printf("\n");
-		perror("Can't open /dev/fb0 now?");
+		perror("Can't open ci file now?");
 		return 1;
 	}
 
-	ci0 = mmap(NULL, bufsize, PROT_WRITE, MAP_SHARED,
-		   fd, 0x0);
-	ci1 = mmap(NULL, bufsize, PROT_WRITE, MAP_SHARED,
-		   fd, bufsize);
+	ci0 = mmap(NULL, bufsize, PROT_WRITE | PROT_READ, MAP_SHARED,
+		   fd, cioffset);
+	ci1 = mmap(NULL, bufsize, PROT_WRITE | PROT_READ, MAP_SHARED,
+		   fd, cioffset + bufsize);
+
 	if ((ci0 == MAP_FAILED) || (ci1 == MAP_FAILED)) {
 		printf("\n");
 		perror("mmap failed");
@@ -270,11 +283,11 @@ int do_test(char *test_name, void (*test_func)(char *, char *))
 	return rc;
 }
 
-static bool can_open_fb0(void)
+static bool can_open_cifile(void)
 {
 	int fd;
 
-	fd = open("/dev/fb0", O_RDWR);
+	fd = open(cipath, O_RDWR);
 	if (fd < 0)
 		return false;
 
@@ -286,7 +299,7 @@ int test_alignment_handler_vsx_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("VSX: 2.06B\n");
@@ -304,7 +317,7 @@ int test_alignment_handler_vsx_207(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_2_07));
 
 	printf("VSX: 2.07B\n");
@@ -320,7 +333,7 @@ int test_alignment_handler_vsx_300(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	SKIP_IF(!have_hwcap2(PPC_FEATURE2_ARCH_3_00));
 	printf("VSX: 3.00B\n");
@@ -352,7 +365,7 @@ int test_alignment_handler_integer(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	printf("Integer\n");
 	LOAD_DFORM_TEST(lbz);
@@ -408,7 +421,7 @@ int test_alignment_handler_integer_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("Integer: 2.06\n");
@@ -423,7 +436,7 @@ int test_alignment_handler_vmx(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_HAS_ALTIVEC));
 
 	printf("VMX\n");
@@ -451,7 +464,7 @@ int test_alignment_handler_fp(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 
 	printf("Floating point\n");
 	LOAD_FLOAT_DFORM_TEST(lfd);
@@ -479,7 +492,7 @@ int test_alignment_handler_fp_205(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_05));
 
 	printf("Floating point: 2.05\n");
@@ -497,7 +510,7 @@ int test_alignment_handler_fp_206(void)
 {
 	int rc = 0;
 
-	SKIP_IF(!can_open_fb0());
+	SKIP_IF(!can_open_cifile());
 	SKIP_IF(!have_hwcap(PPC_FEATURE_ARCH_2_06));
 
 	printf("Floating point: 2.06\n");
@@ -509,11 +522,12 @@ int test_alignment_handler_fp_206(void)
 
 void usage(char *prog)
 {
-	printf("Usage: %s [options]\n", prog);
+	printf("Usage: %s [options] [path [offset]]\n", prog);
 	printf("  -d	Enable debug error output\n");
 	printf("\n");
-	printf("This test requires a POWER8 or POWER9 CPU and a usable ");
-	printf("framebuffer at /dev/fb0.\n");
+	printf("This test requires a POWER8 or POWER9 CPU and either a ");
+	printf("usable framebuffer at /dev/fb0 or the path to usable ");
+	printf("cache-inhibited memory and optional offset to be provided\n");
 }
 
 int main(int argc, char *argv[])
@@ -533,6 +547,13 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 0)
+		cipath = argv[0];
+	if (argc > 1)
+		cioffset = strtol(argv[1], 0, 0x10);
 
 	bufsize = getpagesize();
 
