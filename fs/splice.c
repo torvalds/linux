@@ -44,8 +44,8 @@
  * addition of remove_mapping(). If success is returned, the caller may
  * attempt to reuse this page for another destination.
  */
-static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
-				     struct pipe_buffer *buf)
+static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 	struct address_space *mapping;
@@ -76,7 +76,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 		 */
 		if (remove_mapping(mapping, page)) {
 			buf->flags |= PIPE_BUF_FLAG_LRU;
-			return 0;
+			return true;
 		}
 	}
 
@@ -86,7 +86,7 @@ static int page_cache_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 */
 out_unlock:
 	unlock_page(page);
-	return 1;
+	return false;
 }
 
 static void page_cache_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -139,26 +139,26 @@ error:
 }
 
 const struct pipe_buf_operations page_cache_pipe_buf_ops = {
-	.confirm = page_cache_pipe_buf_confirm,
-	.release = page_cache_pipe_buf_release,
-	.steal = page_cache_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.confirm	= page_cache_pipe_buf_confirm,
+	.release	= page_cache_pipe_buf_release,
+	.try_steal	= page_cache_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
-static int user_page_pipe_buf_steal(struct pipe_inode_info *pipe,
-				    struct pipe_buffer *buf)
+static bool user_page_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	if (!(buf->flags & PIPE_BUF_FLAG_GIFT))
-		return 1;
+		return false;
 
 	buf->flags |= PIPE_BUF_FLAG_LRU;
-	return generic_pipe_buf_steal(pipe, buf);
+	return generic_pipe_buf_try_steal(pipe, buf);
 }
 
 static const struct pipe_buf_operations user_page_pipe_buf_ops = {
-	.release = page_cache_pipe_buf_release,
-	.steal = user_page_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= page_cache_pipe_buf_release,
+	.try_steal	= user_page_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
 static void wakeup_pipe_readers(struct pipe_inode_info *pipe)
@@ -330,15 +330,15 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 EXPORT_SYMBOL(generic_file_splice_read);
 
 const struct pipe_buf_operations default_pipe_buf_ops = {
-	.release = generic_pipe_buf_release,
-	.steal = generic_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= generic_pipe_buf_release,
+	.try_steal	= generic_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
 /* Pipe buffer operations for a socket and similar. */
 const struct pipe_buf_operations nosteal_pipe_buf_ops = {
-	.release = generic_pipe_buf_release,
-	.get = generic_pipe_buf_get,
+	.release	= generic_pipe_buf_release,
+	.get		= generic_pipe_buf_get,
 };
 EXPORT_SYMBOL(nosteal_pipe_buf_ops);
 

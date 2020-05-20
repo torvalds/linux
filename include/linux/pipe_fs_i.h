@@ -70,11 +70,11 @@ struct pipe_inode_info {
  * Note on the nesting of these functions:
  *
  * ->confirm()
- *	->steal()
+ *	->try_steal()
  *
- * That is, ->steal() must be called on a confirmed buffer.
- * See below for the meaning of each operation. Also see kerneldoc
- * in fs/pipe.c for the pipe and generic variants of these hooks.
+ * That is, ->try_steal() must be called on a confirmed buffer.  See below for
+ * the meaning of each operation.  Also see the kerneldoc in fs/pipe.c for the
+ * pipe and generic variants of these hooks.
  */
 struct pipe_buf_operations {
 	/*
@@ -94,13 +94,13 @@ struct pipe_buf_operations {
 
 	/*
 	 * Attempt to take ownership of the pipe buffer and its contents.
-	 * ->steal() returns 0 for success, in which case the contents
-	 * of the pipe (the buf->page) is locked and now completely owned
-	 * by the caller. The page may then be transferred to a different
-	 * mapping, the most often used case is insertion into different
-	 * file address space cache.
+	 * ->try_steal() returns %true for success, in which case the contents
+	 * of the pipe (the buf->page) is locked and now completely owned by the
+	 * caller. The page may then be transferred to a different mapping, the
+	 * most often used case is insertion into different file address space
+	 * cache.
 	 */
-	int (*steal)(struct pipe_inode_info *, struct pipe_buffer *);
+	bool (*try_steal)(struct pipe_inode_info *, struct pipe_buffer *);
 
 	/*
 	 * Get a reference to the pipe buffer.
@@ -201,16 +201,16 @@ static inline int pipe_buf_confirm(struct pipe_inode_info *pipe,
 }
 
 /**
- * pipe_buf_steal - attempt to take ownership of a pipe_buffer
+ * pipe_buf_try_steal - attempt to take ownership of a pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to attempt to steal
  */
-static inline int pipe_buf_steal(struct pipe_inode_info *pipe,
-				 struct pipe_buffer *buf)
+static inline bool pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
-	if (!buf->ops->steal)
-		return 1;
-	return buf->ops->steal(pipe, buf);
+	if (!buf->ops->try_steal)
+		return false;
+	return buf->ops->try_steal(pipe, buf);
 }
 
 /* Differs from PIPE_BUF in that PIPE_SIZE is the length of the actual
@@ -234,7 +234,7 @@ void free_pipe_info(struct pipe_inode_info *);
 
 /* Generic pipe buffer ops functions */
 bool generic_pipe_buf_get(struct pipe_inode_info *, struct pipe_buffer *);
-int generic_pipe_buf_steal(struct pipe_inode_info *, struct pipe_buffer *);
+bool generic_pipe_buf_try_steal(struct pipe_inode_info *, struct pipe_buffer *);
 void generic_pipe_buf_release(struct pipe_inode_info *, struct pipe_buffer *);
 
 extern const struct pipe_buf_operations nosteal_pipe_buf_ops;

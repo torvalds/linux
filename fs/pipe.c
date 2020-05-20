@@ -140,21 +140,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		put_page(page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
-			       struct pipe_buffer *buf)
+static bool anon_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
-	if (page_count(page) == 1) {
-		memcg_kmem_uncharge_page(page, 0);
-		__SetPageLocked(page);
-		return 0;
-	}
-	return 1;
+	if (page_count(page) != 1)
+		return false;
+	memcg_kmem_uncharge_page(page, 0);
+	__SetPageLocked(page);
+	return true;
 }
 
 /**
- * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
+ * generic_pipe_buf_try_steal - attempt to take ownership of a &pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to attempt to steal
  *
@@ -165,8 +164,8 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
  *	he wishes; the typical use is insertion into a different file
  *	page cache.
  */
-int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
-			   struct pipe_buffer *buf)
+bool generic_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -177,12 +176,11 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 */
 	if (page_count(page) == 1) {
 		lock_page(page);
-		return 0;
+		return true;
 	}
-
-	return 1;
+	return false;
 }
-EXPORT_SYMBOL(generic_pipe_buf_steal);
+EXPORT_SYMBOL(generic_pipe_buf_try_steal);
 
 /**
  * generic_pipe_buf_get - get a reference to a &struct pipe_buffer
@@ -216,9 +214,9 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= anon_pipe_buf_release,
+	.try_steal	= anon_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
