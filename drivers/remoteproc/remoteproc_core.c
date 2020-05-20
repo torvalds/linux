@@ -2297,7 +2297,7 @@ struct rproc *devm_rproc_alloc(struct device *dev, const char *name,
 
 	ptr = devres_alloc(devm_rproc_free, sizeof(*ptr), GFP_KERNEL);
 	if (!ptr)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	rproc = rproc_alloc(dev, name, ops, firmware, len);
 	if (rproc) {
