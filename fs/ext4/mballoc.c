@@ -4543,6 +4543,17 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 	return freed;
 }
 
+static bool ext4_mb_discard_preallocations_should_retry(struct super_block *sb,
+			struct ext4_allocation_context *ac)
+{
+	int freed;
+
+	freed = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
+	if (freed)
+		return true;
+	return false;
+}
+
 /*
  * Main entry point into mballoc to allocate blocks
  * it tries to use preallocation first, then falls back
@@ -4551,7 +4562,6 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 				struct ext4_allocation_request *ar, int *errp)
 {
-	int freed;
 	struct ext4_allocation_context *ac = NULL;
 	struct ext4_sb_info *sbi;
 	struct super_block *sb;
@@ -4656,8 +4666,7 @@ repeat:
 			ar->len = ac->ac_b_ex.fe_len;
 		}
 	} else {
-		freed  = ext4_mb_discard_preallocations(sb, ac->ac_o_ex.fe_len);
-		if (freed)
+		if (ext4_mb_discard_preallocations_should_retry(sb, ac))
 			goto repeat;
 		/*
 		 * If block allocation fails then the pa allocated above
