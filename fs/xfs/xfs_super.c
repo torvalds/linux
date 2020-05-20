@@ -874,8 +874,10 @@ xfs_restore_resvblks(struct xfs_mount *mp)
  * there is no log replay required to write the inodes to disk - this is the
  * primary difference between a sync and a quiesce.
  *
- * Note: xfs_log_quiesce() stops background log work - the callers must ensure
- * it is started again when appropriate.
+ * We cancel log work early here to ensure all transactions the log worker may
+ * run have finished before we clean up and log the superblock and write an
+ * unmount record. The unfreeze process is responsible for restarting the log
+ * worker correctly.
  */
 void
 xfs_quiesce_attr(
@@ -883,9 +885,7 @@ xfs_quiesce_attr(
 {
 	int	error = 0;
 
-	/* wait for all modifications to complete */
-	while (atomic_read(&mp->m_active_trans) > 0)
-		delay(100);
+	cancel_delayed_work_sync(&mp->m_log->l_work);
 
 	/* force the log to unpin objects from the now complete transactions */
 	xfs_log_force(mp, XFS_LOG_SYNC);
@@ -899,12 +899,6 @@ xfs_quiesce_attr(
 	if (error)
 		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
-	/*
-	 * Just warn here till VFS can correctly support
-	 * read-only remount without racing.
-	 */
-	WARN_ON(atomic_read(&mp->m_active_trans) != 0);
-
 	xfs_log_quiesce(mp);
 }
 
@@ -1793,7 +1787,6 @@ static int xfs_init_fs_context(
 	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_ATOMIC);
 	spin_lock_init(&mp->m_perag_lock);
 	mutex_init(&mp->m_growlock);
-	atomic_set(&mp->m_active_trans, 0);
 	INIT_WORK(&mp->m_flush_inodes_work, xfs_flush_inodes_worker);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
 	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
