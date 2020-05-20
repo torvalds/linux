@@ -252,7 +252,9 @@ modifier_bp	[rwx]{1,3}
 			BEGIN(INITIAL);
 			REWIND(0);
 		}
-
+,		{
+			return ',';
+		}
 }
 
 <array>{

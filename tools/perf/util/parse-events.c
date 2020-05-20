@@ -2041,6 +2041,7 @@ static int parse_events__scanner(const char *str, void *parse_state, int start_t
 
 #ifdef PARSER_DEBUG
 	parse_events_debug = 1;
+	parse_events_set_debug(1, scanner);
 #endif
 	ret = parse_events_parse(parse_state, scanner);
 
