@@ -252,6 +252,7 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	crtc_state->wm.need_postvbl_update = false;
 	crtc_state->fb_bits = 0;
 	crtc_state->update_planes = 0;
+	crtc_state->dsb = NULL;
 
 	return &crtc_state->uapi;
 }
@@ -291,6 +292,8 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 			 struct drm_crtc_state *state)
 {
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(state);
+
+	drm_WARN_ON(crtc->dev, crtc_state->dsb);
 
 	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 	intel_crtc_free_hw_state(crtc_state);
