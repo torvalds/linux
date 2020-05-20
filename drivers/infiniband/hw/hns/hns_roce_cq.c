@@ -186,8 +186,8 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 						   &hr_cq->db);
 			if (err)
 				return err;
-			hr_cq->db_en = 1;
-			resp->cap_flags |= HNS_ROCE_SUPPORT_CQ_RECORD_DB;
+			hr_cq->flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;
+			resp->cap_flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;
 		}
 	} else {
 		if (has_db) {
@@ -196,7 +196,7 @@ static int alloc_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 				return err;
 			hr_cq->set_ci_db = hr_cq->db.db_record;
 			*hr_cq->set_ci_db = 0;
-			hr_cq->db_en = 1;
+			hr_cq->flags |= HNS_ROCE_CQ_FLAG_RECORD_DB;
 		}
 		hr_cq->cq_db_l = hr_dev->reg_base + hr_dev->odb_offset +
 				 DB_REG_OFFSET * hr_dev->priv_uar.index;
@@ -210,10 +210,10 @@ static void free_cq_db(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq,
 {
 	struct hns_roce_ucontext *uctx;
 
-	if (!hr_cq->db_en)
+	if (!(hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB))
 		return;
 
-	hr_cq->db_en = 0;
+	hr_cq->flags &= ~HNS_ROCE_CQ_FLAG_RECORD_DB;
 	if (udata) {
 		uctx = rdma_udata_to_drv_context(udata,
 						 struct hns_roce_ucontext,

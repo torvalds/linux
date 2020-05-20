@@ -137,8 +137,8 @@ enum {
 	HNS_ROCE_QP_CAP_SQ_RECORD_DB = BIT(1),
 };
 
-enum {
-	HNS_ROCE_SUPPORT_CQ_RECORD_DB = 1 << 0,
+enum hns_roce_cq_flags {
+	HNS_ROCE_CQ_FLAG_RECORD_DB = BIT(0),
 };
 
 enum hns_roce_qp_state {
@@ -458,7 +458,7 @@ struct hns_roce_cq {
 	struct ib_cq			ib_cq;
 	struct hns_roce_mtr		mtr;
 	struct hns_roce_db		db;
-	u8				db_en;
+	u32				flags;
 	spinlock_t			lock;
 	u32				cq_depth;
 	u32				cons_index;

@@ -2898,9 +2898,9 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 	roce_set_field(cq_context->byte_40_cqe_ba, V2_CQC_BYTE_40_CQE_BA_M,
 		       V2_CQC_BYTE_40_CQE_BA_S, (dma_handle >> (32 + 3)));
 
-	if (hr_cq->db_en)
-		roce_set_bit(cq_context->byte_44_db_record,
-			     V2_CQC_BYTE_44_DB_RECORD_EN_S, 1);
+	roce_set_bit(cq_context->byte_44_db_record,
+		     V2_CQC_BYTE_44_DB_RECORD_EN_S,
+		     (hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB) ? 1 : 0);
 
 	roce_set_field(cq_context->byte_44_db_record,
 		       V2_CQC_BYTE_44_DB_RECORD_ADDR_M,
