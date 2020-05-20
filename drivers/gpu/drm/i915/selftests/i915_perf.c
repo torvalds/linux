@@ -221,8 +221,7 @@ static int live_noa_delay(void *arg)
 		goto out;
 	}
 
-	if (rq->engine->emit_init_breadcrumb &&
-	    i915_request_timeline(rq)->has_initial_breadcrumb) {
+	if (rq->engine->emit_init_breadcrumb) {
 		err = rq->engine->emit_init_breadcrumb(rq);
 		if (err) {
 			i915_request_add(rq);
@@ -263,8 +262,7 @@ static int live_noa_delay(void *arg)
 
 	delay = intel_read_status_page(stream->engine, 0x102);
 	delay -= intel_read_status_page(stream->engine, 0x100);
-	delay = div_u64(mul_u32_u32(delay, 1000 * 1000),
-			RUNTIME_INFO(i915)->cs_timestamp_frequency_khz);
+	delay = i915_cs_timestamp_ticks_to_ns(i915, delay);
 	pr_info("GPU delay: %uns, expected %lluns\n",
 		delay, expected);
 

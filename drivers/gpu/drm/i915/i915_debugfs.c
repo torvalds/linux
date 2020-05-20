@@ -32,6 +32,7 @@
 #include <drm/drm_debugfs.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_gt_clock_utils.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_gt_requests.h"
@@ -1303,8 +1304,8 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	seq_printf(m, "GT awake? %s [%d]\n",
 		   yesno(dev_priv->gt.awake),
 		   atomic_read(&dev_priv->gt.wakeref.count));
-	seq_printf(m, "CS timestamp frequency: %u kHz\n",
-		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_khz);
+	seq_printf(m, "CS timestamp frequency: %u Hz\n",
+		   RUNTIME_INFO(dev_priv)->cs_timestamp_frequency_hz);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, dev_priv)
@@ -1403,13 +1404,12 @@ static int
 i915_perf_noa_delay_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
-	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
 
 	/*
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (val > mul_u32_u32(U32_MAX, clk))
+	if (i915_cs_timestamp_ns_to_ticks(i915, val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);
@@ -1483,6 +1483,9 @@ gt_drop_caches(struct intel_gt *gt, u64 val)
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(gt))
 		intel_gt_handle_error(gt, ALL_ENGINES, 0, NULL);
+
+	if (val & DROP_FREED)
+		intel_gt_flush_buffer_pool(gt);
 
 	return 0;
 }

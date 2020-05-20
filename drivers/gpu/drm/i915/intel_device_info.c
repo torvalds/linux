@@ -136,8 +136,8 @@ void intel_device_info_print_runtime(const struct intel_runtime_info *info,
 	sseu_dump(&info->sseu, p);
 
 	drm_printf(p, "rawclk rate: %u kHz\n", info->rawclk_freq);
-	drm_printf(p, "CS timestamp frequency: %u kHz\n",
-		   info->cs_timestamp_frequency_khz);
+	drm_printf(p, "CS timestamp frequency: %u Hz\n",
+		   info->cs_timestamp_frequency_hz);
 }
 
 static int sseu_eu_idx(const struct sseu_dev_info *sseu, int slice,
@@ -678,12 +678,12 @@ static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 
 	base_freq = ((ts_override & GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_MASK) >>
 		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DIVIDER_SHIFT) + 1;
-	base_freq *= 1000;
+	base_freq *= 1000000;
 
 	frac_freq = ((ts_override &
 		      GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_MASK) >>
 		     GEN9_TIMESTAMP_OVERRIDE_US_COUNTER_DENOMINATOR_SHIFT);
-	frac_freq = 1000 / (frac_freq + 1);
+	frac_freq = 1000000 / (frac_freq + 1);
 
 	return base_freq + frac_freq;
 }
@@ -691,8 +691,8 @@ static u32 read_reference_ts_freq(struct drm_i915_private *dev_priv)
 static u32 gen10_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
 					u32 rpm_config_reg)
 {
-	u32 f19_2_mhz = 19200;
-	u32 f24_mhz = 24000;
+	u32 f19_2_mhz = 19200000;
+	u32 f24_mhz = 24000000;
 	u32 crystal_clock = (rpm_config_reg &
 			     GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
 			    GEN9_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
@@ -711,10 +711,10 @@ static u32 gen10_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
 static u32 gen11_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
 					u32 rpm_config_reg)
 {
-	u32 f19_2_mhz = 19200;
-	u32 f24_mhz = 24000;
-	u32 f25_mhz = 25000;
-	u32 f38_4_mhz = 38400;
+	u32 f19_2_mhz = 19200000;
+	u32 f24_mhz = 24000000;
+	u32 f25_mhz = 25000000;
+	u32 f38_4_mhz = 38400000;
 	u32 crystal_clock = (rpm_config_reg &
 			     GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_MASK) >>
 			    GEN11_RPM_CONFIG0_CRYSTAL_CLOCK_FREQ_SHIFT;
@@ -736,9 +736,9 @@ static u32 gen11_get_crystal_clock_freq(struct drm_i915_private *dev_priv,
 
 static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 {
-	u32 f12_5_mhz = 12500;
-	u32 f19_2_mhz = 19200;
-	u32 f24_mhz = 24000;
+	u32 f12_5_mhz = 12500000;
+	u32 f19_2_mhz = 19200000;
+	u32 f24_mhz = 24000000;
 
 	if (INTEL_GEN(dev_priv) <= 4) {
 		/* PRMs say:
@@ -747,7 +747,7 @@ static u32 read_timestamp_frequency(struct drm_i915_private *dev_priv)
 		 *      hclks." (through the “Clocking Configuration”
 		 *      (“CLKCFG”) MCHBAR register)
 		 */
-		return RUNTIME_INFO(dev_priv)->rawclk_freq / 16;
+		return RUNTIME_INFO(dev_priv)->rawclk_freq * 1000 / 16;
 	} else if (INTEL_GEN(dev_priv) <= 8) {
 		/* PRMs say:
 		 *
@@ -1048,11 +1048,11 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	drm_dbg(&dev_priv->drm, "rawclk rate: %d kHz\n", runtime->rawclk_freq);
 
 	/* Initialize command stream timestamp frequency */
-	runtime->cs_timestamp_frequency_khz =
+	runtime->cs_timestamp_frequency_hz =
 		read_timestamp_frequency(dev_priv);
-	if (runtime->cs_timestamp_frequency_khz) {
+	if (runtime->cs_timestamp_frequency_hz) {
 		runtime->cs_timestamp_period_ns =
-			div_u64(1e6, runtime->cs_timestamp_frequency_khz);
+			i915_cs_timestamp_ticks_to_ns(dev_priv, 1);
 		drm_dbg(&dev_priv->drm,
 			"CS timestamp wraparound in %lldms\n",
 			div_u64(mul_u32_u32(runtime->cs_timestamp_period_ns,

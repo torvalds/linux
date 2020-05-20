@@ -219,6 +219,14 @@ int intel_renderstate_emit(struct intel_renderstate *so,
 	if (!so->vma)
 		return 0;
 
+	i915_vma_lock(so->vma);
+	err = i915_request_await_object(rq, so->vma->obj, false);
+	if (err == 0)
+		err = i915_vma_move_to_active(so->vma, rq, 0);
+	i915_vma_unlock(so->vma);
+	if (err)
+		return err;
+
 	err = engine->emit_bb_start(rq,
 				    so->batch_offset, so->batch_size,
 				    I915_DISPATCH_SECURE);
@@ -233,13 +241,7 @@ int intel_renderstate_emit(struct intel_renderstate *so,
 			return err;
 	}
 
-	i915_vma_lock(so->vma);
-	err = i915_request_await_object(rq, so->vma->obj, false);
-	if (err == 0)
-		err = i915_vma_move_to_active(so->vma, rq, 0);
-	i915_vma_unlock(so->vma);
-
-	return err;
+	return 0;
 }
 
 void intel_renderstate_fini(struct intel_renderstate *so)

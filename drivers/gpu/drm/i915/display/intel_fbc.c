@@ -540,6 +540,9 @@ static void __intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbc *fbc = &dev_priv->fbc;
 
+	if (WARN_ON(intel_fbc_hw_is_active(dev_priv)))
+		return;
+
 	if (!drm_mm_node_allocated(&fbc->compressed_fb))
 		return;
 
@@ -564,7 +567,7 @@ void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv)
 }
 
 static bool stride_is_valid(struct drm_i915_private *dev_priv,
-			    unsigned int stride)
+			    u64 modifier, unsigned int stride)
 {
 	/* This should have been caught earlier. */
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, (stride & (64 - 1)) != 0))
@@ -578,6 +581,11 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 		return stride == 4096 || stride == 8192;
 
 	if (IS_GEN(dev_priv, 4) && !IS_G4X(dev_priv) && stride < 2048)
+		return false;
+
+	/* Display WA #1105: skl,bxt,kbl,cfl,glk */
+	if (IS_GEN(dev_priv, 9) &&
+	    modifier == DRM_FORMAT_MOD_LINEAR && stride & 511)
 		return false;
 
 	if (stride > 16384)
@@ -810,7 +818,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (!stride_is_valid(dev_priv, cache->fb.stride)) {
+	if (!stride_is_valid(dev_priv, cache->fb.modifier, cache->fb.stride)) {
 		fbc->no_fbc_reason = "framebuffer stride not supported";
 		return false;
 	}

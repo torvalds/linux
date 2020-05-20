@@ -221,7 +221,7 @@ struct intel_runtime_info {
 
 	u32 rawclk_freq;
 
-	u32 cs_timestamp_frequency_khz;
+	u32 cs_timestamp_frequency_hz;
 	u32 cs_timestamp_period_ns;
 
 	/* Media engine access to SFC per instance */

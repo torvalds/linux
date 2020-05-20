@@ -113,7 +113,6 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	struct intel_uncore *uncore = rc6_to_uncore(rc6);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
-	u32 rc6_mode;
 
 	/* 2b: Program RC6 thresholds.*/
 	if (INTEL_GEN(rc6_to_i915(rc6)) >= 10) {
@@ -165,16 +164,11 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 	/* 3a: Enable RC6 */
 	set(uncore, GEN6_RC6_THRESHOLD, 37500); /* 37.5/125ms per EI */
 
-	/* WaRsUseTimeoutMode:cnl (pre-prod) */
-	if (IS_CNL_REVID(rc6_to_i915(rc6), CNL_REVID_A0, CNL_REVID_C0))
-		rc6_mode = GEN7_RC_CTL_TO_MODE;
-	else
-		rc6_mode = GEN6_RC_CTL_EI_MODE(1);
 
 	rc6->ctl_enable =
 		GEN6_RC_CTL_HW_ENABLE |
 		GEN6_RC_CTL_RC6_ENABLE |
-		rc6_mode;
+		GEN6_RC_CTL_EI_MODE(1);
 
 	/*
 	 * WaRsDisableCoarsePowerGating:skl,cnl

@@ -31,7 +31,6 @@
 #include "intel_context.h"
 #include "intel_engine.h"
 #include "intel_engine_pm.h"
-#include "intel_engine_pool.h"
 #include "intel_engine_user.h"
 #include "intel_gt.h"
 #include "intel_gt_requests.h"
@@ -326,6 +325,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	/* Override to uninterruptible for OpenCL workloads. */
 	if (INTEL_GEN(i915) == 12 && engine->class == RENDER_CLASS)
 		engine->props.preempt_timeout_ms = 0;
+
+	engine->defaults = engine->props; /* never to change again */
 
 	engine->context_size = intel_engine_context_size(gt, engine->class);
 	if (WARN_ON(engine->context_size > BIT(20)))
@@ -631,8 +632,6 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 	intel_engine_init__pm(engine);
 	intel_engine_init_retire(engine);
 
-	intel_engine_pool_init(&engine->pool);
-
 	/* Use the whole device by default */
 	engine->sseu =
 		intel_sseu_from_device_info(&RUNTIME_INFO(engine->i915)->sseu);
@@ -829,7 +828,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	cleanup_status_page(engine);
 
 	intel_engine_fini_retire(engine);
-	intel_engine_pool_fini(&engine->pool);
 	intel_engine_fini_breadcrumbs(engine);
 	intel_engine_cleanup_cmd_parser(engine);
 

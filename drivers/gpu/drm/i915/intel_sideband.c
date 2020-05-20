@@ -371,6 +371,8 @@ static int gen7_check_mailbox_status(u32 mbox)
 		return -ENXIO;
 	case GEN11_PCODE_LOCKED:
 		return -EBUSY;
+	case GEN11_PCODE_REJECTED:
+		return -EACCES;
 	case GEN7_PCODE_MIN_FREQ_TABLE_GT_RATIO_OUT_OF_RANGE:
 		return -EOVERFLOW;
 	default:
@@ -429,7 +431,7 @@ int sandybridge_pcode_read(struct drm_i915_private *i915, u32 mbox,
 
 	mutex_lock(&i915->sb_lock);
 	err = __sandybridge_pcode_rw(i915, mbox, val, val1,
-				     500, 0,
+				     500, 20,
 				     true);
 	mutex_unlock(&i915->sb_lock);
 

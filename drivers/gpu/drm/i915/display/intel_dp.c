@@ -2487,8 +2487,8 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 {
 	struct drm_dp_vsc_sdp *vsc = &crtc_state->infoframes.vsc;
 
-	/* When PSR is enabled, VSC SDP is handled by PSR routine */
-	if (intel_psr_enabled(intel_dp))
+	/* When a crtc state has PSR, VSC SDP will be handled by PSR routine */
+	if (crtc_state->has_psr)
 		return;
 
 	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
@@ -2498,6 +2498,42 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	vsc->sdp_type = DP_SDP_VSC;
 	intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
 					 &crtc_state->infoframes.vsc);
+}
+
+void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state,
+				  struct drm_dp_vsc_sdp *vsc)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+
+	vsc->sdp_type = DP_SDP_VSC;
+
+	if (dev_priv->psr.psr2_enabled) {
+		if (dev_priv->psr.colorimetry_support &&
+		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
+			/* [PSR2, +Colorimetry] */
+			intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
+							 vsc);
+		} else {
+			/*
+			 * [PSR2, -Colorimetry]
+			 * Prepare VSC Header for SU as per eDP 1.4 spec, Table 6-11
+			 * 3D stereo + PSR/PSR2 + Y-coordinate.
+			 */
+			vsc->revision = 0x4;
+			vsc->length = 0xe;
+		}
+	} else {
+		/*
+		 * [PSR1]
+		 * Prepare VSC Header for SU as per DP 1.4 spec, Table 2-118
+		 * VSC SDP supporting 3D stereo + PSR (applies to eDP v1.3 or
+		 * higher).
+		 */
+		vsc->revision = 0x2;
+		vsc->length = 0x8;
+	}
 }
 
 static void
@@ -4791,6 +4827,13 @@ static ssize_t intel_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	sdp->sdp_header.HB2 = vsc->revision; /* Revision Number */
 	sdp->sdp_header.HB3 = vsc->length; /* Number of Valid Data Bytes */
 
+	/*
+	 * Only revision 0x5 supports Pixel Encoding/Colorimetry Format as
+	 * per DP 1.4a spec.
+	 */
+	if (vsc->revision != 0x5)
+		goto out;
+
 	/* VSC SDP Payload for DB16 through DB18 */
 	/* Pixel Encoding and Colorimetry Formats  */
 	sdp->db[16] = (vsc->pixelformat & 0xf) << 4; /* DB16[7:4] */
@@ -4823,6 +4866,7 @@ static ssize_t intel_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
 	/* Content Type */
 	sdp->db[18] = vsc->content_type & 0x7;
 
+out:
 	return length;
 }
 
@@ -4935,6 +4979,24 @@ static void intel_write_dp_sdp(struct intel_encoder *encoder,
 	intel_dig_port->write_infoframe(encoder, crtc_state, type, &sdp, len);
 }
 
+void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
+			    const struct intel_crtc_state *crtc_state,
+			    struct drm_dp_vsc_sdp *vsc)
+{
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct dp_sdp sdp = {};
+	ssize_t len;
+
+	len = intel_dp_vsc_sdp_pack(vsc, &sdp, sizeof(sdp));
+
+	if (drm_WARN_ON(&dev_priv->drm, len < 0))
+		return;
+
+	intel_dig_port->write_infoframe(encoder, crtc_state, DP_SDP_VSC,
+					&sdp, len);
+}
+
 void intel_dp_set_infoframes(struct intel_encoder *encoder,
 			     bool enable,
 			     const struct intel_crtc_state *crtc_state,
@@ -4971,233 +5033,191 @@ void intel_dp_set_infoframes(struct intel_encoder *encoder,
 	intel_write_dp_sdp(encoder, crtc_state, HDMI_PACKET_TYPE_GAMUT_METADATA);
 }
 
-static void
-intel_dp_setup_vsc_sdp(struct intel_dp *intel_dp,
-		       const struct intel_crtc_state *crtc_state,
-		       const struct drm_connector_state *conn_state)
+static int intel_dp_vsc_sdp_unpack(struct drm_dp_vsc_sdp *vsc,
+				   const void *buffer, size_t size)
 {
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct dp_sdp vsc_sdp = {};
+	const struct dp_sdp *sdp = buffer;
 
-	/* Prepare VSC Header for SU as per DP 1.4a spec, Table 2-119 */
-	vsc_sdp.sdp_header.HB0 = 0;
-	vsc_sdp.sdp_header.HB1 = 0x7;
+	if (size < sizeof(struct dp_sdp))
+		return -EINVAL;
 
-	/*
-	 * VSC SDP supporting 3D stereo, PSR2, and Pixel Encoding/
-	 * Colorimetry Format indication.
-	 */
-	vsc_sdp.sdp_header.HB2 = 0x5;
+	memset(vsc, 0, size);
 
-	/*
-	 * VSC SDP supporting 3D stereo, + PSR2, + Pixel Encoding/
-	 * Colorimetry Format indication (HB2 = 05h).
-	 */
-	vsc_sdp.sdp_header.HB3 = 0x13;
+	if (sdp->sdp_header.HB0 != 0)
+		return -EINVAL;
 
-	/* DP 1.4a spec, Table 2-120 */
-	switch (crtc_state->output_format) {
-	case INTEL_OUTPUT_FORMAT_YCBCR444:
-		vsc_sdp.db[16] = 0x1 << 4; /* YCbCr 444 : DB16[7:4] = 1h */
-		break;
-	case INTEL_OUTPUT_FORMAT_YCBCR420:
-		vsc_sdp.db[16] = 0x3 << 4; /* YCbCr 420 : DB16[7:4] = 3h */
-		break;
-	case INTEL_OUTPUT_FORMAT_RGB:
-	default:
-		/* RGB: DB16[7:4] = 0h */
-		break;
+	if (sdp->sdp_header.HB1 != DP_SDP_VSC)
+		return -EINVAL;
+
+	vsc->sdp_type = sdp->sdp_header.HB1;
+	vsc->revision = sdp->sdp_header.HB2;
+	vsc->length = sdp->sdp_header.HB3;
+
+	if ((sdp->sdp_header.HB2 == 0x2 && sdp->sdp_header.HB3 == 0x8) ||
+	    (sdp->sdp_header.HB2 == 0x4 && sdp->sdp_header.HB3 == 0xe)) {
+		/*
+		 * - HB2 = 0x2, HB3 = 0x8
+		 *   VSC SDP supporting 3D stereo + PSR
+		 * - HB2 = 0x4, HB3 = 0xe
+		 *   VSC SDP supporting 3D stereo + PSR2 with Y-coordinate of
+		 *   first scan line of the SU region (applies to eDP v1.4b
+		 *   and higher).
+		 */
+		return 0;
+	} else if (sdp->sdp_header.HB2 == 0x5 && sdp->sdp_header.HB3 == 0x13) {
+		/*
+		 * - HB2 = 0x5, HB3 = 0x13
+		 *   VSC SDP supporting 3D stereo + PSR2 + Pixel Encoding/Colorimetry
+		 *   Format.
+		 */
+		vsc->pixelformat = (sdp->db[16] >> 4) & 0xf;
+		vsc->colorimetry = sdp->db[16] & 0xf;
+		vsc->dynamic_range = (sdp->db[17] >> 7) & 0x1;
+
+		switch (sdp->db[17] & 0x7) {
+		case 0x0:
+			vsc->bpc = 6;
+			break;
+		case 0x1:
+			vsc->bpc = 8;
+			break;
+		case 0x2:
+			vsc->bpc = 10;
+			break;
+		case 0x3:
+			vsc->bpc = 12;
+			break;
+		case 0x4:
+			vsc->bpc = 16;
+			break;
+		default:
+			MISSING_CASE(sdp->db[17] & 0x7);
+			return -EINVAL;
+		}
+
+		vsc->content_type = sdp->db[18] & 0x7;
+	} else {
+		return -EINVAL;
 	}
 
-	switch (conn_state->colorspace) {
-	case DRM_MODE_COLORIMETRY_BT709_YCC:
-		vsc_sdp.db[16] |= 0x1;
-		break;
-	case DRM_MODE_COLORIMETRY_XVYCC_601:
-		vsc_sdp.db[16] |= 0x2;
-		break;
-	case DRM_MODE_COLORIMETRY_XVYCC_709:
-		vsc_sdp.db[16] |= 0x3;
-		break;
-	case DRM_MODE_COLORIMETRY_SYCC_601:
-		vsc_sdp.db[16] |= 0x4;
-		break;
-	case DRM_MODE_COLORIMETRY_OPYCC_601:
-		vsc_sdp.db[16] |= 0x5;
-		break;
-	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
-	case DRM_MODE_COLORIMETRY_BT2020_RGB:
-		vsc_sdp.db[16] |= 0x6;
-		break;
-	case DRM_MODE_COLORIMETRY_BT2020_YCC:
-		vsc_sdp.db[16] |= 0x7;
-		break;
-	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
-	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER:
-		vsc_sdp.db[16] |= 0x4; /* DCI-P3 (SMPTE RP 431-2) */
-		break;
-	default:
-		/* sRGB (IEC 61966-2-1) / ITU-R BT.601: DB16[0:3] = 0h */
-
-		/* RGB->YCBCR color conversion uses the BT.709 color space. */
-		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-			vsc_sdp.db[16] |= 0x1; /* 0x1, ITU-R BT.709 */
-		break;
-	}
-
-	/*
-	 * For pixel encoding formats YCbCr444, YCbCr422, YCbCr420, and Y Only,
-	 * the following Component Bit Depth values are defined:
-	 * 001b = 8bpc.
-	 * 010b = 10bpc.
-	 * 011b = 12bpc.
-	 * 100b = 16bpc.
-	 */
-	switch (crtc_state->pipe_bpp) {
-	case 24: /* 8bpc */
-		vsc_sdp.db[17] = 0x1;
-		break;
-	case 30: /* 10bpc */
-		vsc_sdp.db[17] = 0x2;
-		break;
-	case 36: /* 12bpc */
-		vsc_sdp.db[17] = 0x3;
-		break;
-	case 48: /* 16bpc */
-		vsc_sdp.db[17] = 0x4;
-		break;
-	default:
-		MISSING_CASE(crtc_state->pipe_bpp);
-		break;
-	}
-
-	/*
-	 * Dynamic Range (Bit 7)
-	 * 0 = VESA range, 1 = CTA range.
-	 * all YCbCr are always limited range
-	 */
-	vsc_sdp.db[17] |= 0x80;
-
-	/*
-	 * Content Type (Bits 2:0)
-	 * 000b = Not defined.
-	 * 001b = Graphics.
-	 * 010b = Photo.
-	 * 011b = Video.
-	 * 100b = Game
-	 * All other values are RESERVED.
-	 * Note: See CTA-861-G for the definition and expected
-	 * processing by a stream sink for the above contect types.
-	 */
-	vsc_sdp.db[18] = 0;
-
-	intel_dig_port->write_infoframe(&intel_dig_port->base,
-			crtc_state, DP_SDP_VSC, &vsc_sdp, sizeof(vsc_sdp));
+	return 0;
 }
 
-static void
-intel_dp_setup_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
-					  const struct intel_crtc_state *crtc_state,
-					  const struct drm_connector_state *conn_state)
+static int
+intel_dp_hdr_metadata_infoframe_sdp_unpack(struct hdmi_drm_infoframe *drm_infoframe,
+					   const void *buffer, size_t size)
 {
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	struct dp_sdp infoframe_sdp = {};
-	struct hdmi_drm_infoframe drm_infoframe = {};
-	const int infoframe_size = HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE;
-	unsigned char buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE];
-	ssize_t len;
 	int ret;
 
-	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
-	if (ret) {
-		drm_dbg_kms(&i915->drm,
-			    "couldn't set HDR metadata in infoframe\n");
-		return;
-	}
+	const struct dp_sdp *sdp = buffer;
 
-	len = hdmi_drm_infoframe_pack_only(&drm_infoframe, buf, sizeof(buf));
-	if (len < 0) {
-		drm_dbg_kms(&i915->drm,
-			    "buffer size is smaller than hdr metadata infoframe\n");
-		return;
-	}
+	if (size < sizeof(struct dp_sdp))
+		return -EINVAL;
 
-	if (len != infoframe_size) {
-		drm_dbg_kms(&i915->drm, "wrong static hdr metadata size\n");
-		return;
-	}
+	if (sdp->sdp_header.HB0 != 0)
+		return -EINVAL;
 
-	/*
-	 * Set up the infoframe sdp packet for HDR static metadata.
-	 * Prepare VSC Header for SU as per DP 1.4a spec,
-	 * Table 2-100 and Table 2-101
-	 */
+	if (sdp->sdp_header.HB1 != HDMI_INFOFRAME_TYPE_DRM)
+		return -EINVAL;
 
-	/* Packet ID, 00h for non-Audio INFOFRAME */
-	infoframe_sdp.sdp_header.HB0 = 0;
-	/*
-	 * Packet Type 80h + Non-audio INFOFRAME Type value
-	 * HDMI_INFOFRAME_TYPE_DRM: 0x87,
-	 */
-	infoframe_sdp.sdp_header.HB1 = drm_infoframe.type;
 	/*
 	 * Least Significant Eight Bits of (Data Byte Count – 1)
-	 * infoframe_size - 1,
+	 * 1Dh (i.e., Data Byte Count = 30 bytes).
 	 */
-	infoframe_sdp.sdp_header.HB2 = 0x1D;
+	if (sdp->sdp_header.HB2 != 0x1D)
+		return -EINVAL;
+
+	/* Most Significant Two Bits of (Data Byte Count – 1), Clear to 00b. */
+	if ((sdp->sdp_header.HB3 & 0x3) != 0)
+		return -EINVAL;
+
 	/* INFOFRAME SDP Version Number */
-	infoframe_sdp.sdp_header.HB3 = (0x13 << 2);
+	if (((sdp->sdp_header.HB3 >> 2) & 0x3f) != 0x13)
+		return -EINVAL;
+
 	/* CTA Header Byte 2 (INFOFRAME Version Number) */
-	infoframe_sdp.db[0] = drm_infoframe.version;
+	if (sdp->db[0] != 1)
+		return -EINVAL;
+
 	/* CTA Header Byte 3 (Length of INFOFRAME): HDMI_DRM_INFOFRAME_SIZE */
-	infoframe_sdp.db[1] = drm_infoframe.length;
-	/*
-	 * Copy HDMI_DRM_INFOFRAME_SIZE size from a buffer after
-	 * HDMI_INFOFRAME_HEADER_SIZE
-	 */
-	BUILD_BUG_ON(sizeof(infoframe_sdp.db) < HDMI_DRM_INFOFRAME_SIZE + 2);
-	memcpy(&infoframe_sdp.db[2], &buf[HDMI_INFOFRAME_HEADER_SIZE],
-	       HDMI_DRM_INFOFRAME_SIZE);
+	if (sdp->db[1] != HDMI_DRM_INFOFRAME_SIZE)
+		return -EINVAL;
 
-	/*
-	 * Size of DP infoframe sdp packet for HDR static metadata is consist of
-	 * - DP SDP Header(struct dp_sdp_header): 4 bytes
-	 * - Two Data Blocks: 2 bytes
-	 *    CTA Header Byte2 (INFOFRAME Version Number)
-	 *    CTA Header Byte3 (Length of INFOFRAME)
-	 * - HDMI_DRM_INFOFRAME_SIZE: 26 bytes
-	 *
-	 * Prior to GEN11's GMP register size is identical to DP HDR static metadata
-	 * infoframe size. But GEN11+ has larger than that size, write_infoframe
-	 * will pad rest of the size.
-	 */
-	intel_dig_port->write_infoframe(&intel_dig_port->base, crtc_state,
-					HDMI_PACKET_TYPE_GAMUT_METADATA,
-					&infoframe_sdp,
-					sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE);
+	ret = hdmi_drm_infoframe_unpack_only(drm_infoframe, &sdp->db[2],
+					     HDMI_DRM_INFOFRAME_SIZE);
+
+	return ret;
 }
 
-void intel_dp_vsc_enable(struct intel_dp *intel_dp,
-			 const struct intel_crtc_state *crtc_state,
-			 const struct drm_connector_state *conn_state)
+static void intel_read_dp_vsc_sdp(struct intel_encoder *encoder,
+				  struct intel_crtc_state *crtc_state,
+				  struct drm_dp_vsc_sdp *vsc)
 {
-	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	unsigned int type = DP_SDP_VSC;
+	struct dp_sdp sdp = {};
+	int ret;
+
+	/* When PSR is enabled, VSC SDP is handled by PSR routine */
+	if (intel_psr_enabled(intel_dp))
 		return;
 
-	intel_dp_setup_vsc_sdp(intel_dp, crtc_state, conn_state);
+	if ((crtc_state->infoframes.enable &
+	     intel_hdmi_infoframe_enable(type)) == 0)
+		return;
+
+	intel_dig_port->read_infoframe(encoder, crtc_state, type, &sdp, sizeof(sdp));
+
+	ret = intel_dp_vsc_sdp_unpack(vsc, &sdp, sizeof(sdp));
+
+	if (ret)
+		drm_dbg_kms(&dev_priv->drm, "Failed to unpack DP VSC SDP\n");
 }
 
-void intel_dp_hdr_metadata_enable(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state)
+static void intel_read_dp_hdr_metadata_infoframe_sdp(struct intel_encoder *encoder,
+						     struct intel_crtc_state *crtc_state,
+						     struct hdmi_drm_infoframe *drm_infoframe)
 {
-	if (!conn_state->hdr_output_metadata)
+	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	unsigned int type = HDMI_PACKET_TYPE_GAMUT_METADATA;
+	struct dp_sdp sdp = {};
+	int ret;
+
+	if ((crtc_state->infoframes.enable &
+	    intel_hdmi_infoframe_enable(type)) == 0)
 		return;
 
-	intel_dp_setup_hdr_metadata_infoframe_sdp(intel_dp,
-						  crtc_state,
-						  conn_state);
+	intel_dig_port->read_infoframe(encoder, crtc_state, type, &sdp,
+				       sizeof(sdp));
+
+	ret = intel_dp_hdr_metadata_infoframe_sdp_unpack(drm_infoframe, &sdp,
+							 sizeof(sdp));
+
+	if (ret)
+		drm_dbg_kms(&dev_priv->drm,
+			    "Failed to unpack DP HDR Metadata Infoframe SDP\n");
+}
+
+void intel_read_dp_sdp(struct intel_encoder *encoder,
+		       struct intel_crtc_state *crtc_state,
+		       unsigned int type)
+{
+	switch (type) {
+	case DP_SDP_VSC:
+		intel_read_dp_vsc_sdp(encoder, crtc_state,
+				      &crtc_state->infoframes.vsc);
+		break;
+	case HDMI_PACKET_TYPE_GAMUT_METADATA:
+		intel_read_dp_hdr_metadata_infoframe_sdp(encoder, crtc_state,
+							 &crtc_state->infoframes.drm.drm);
+		break;
+	default:
+		MISSING_CASE(type);
+		break;
+	}
 }
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
@@ -5998,64 +6018,7 @@ edp_detect(struct intel_dp *intel_dp)
 static bool ibx_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_B:
-		bit = SDE_PORTB_HOTPLUG;
-		break;
-	case HPD_PORT_C:
-		bit = SDE_PORTC_HOTPLUG;
-		break;
-	case HPD_PORT_D:
-		bit = SDE_PORTD_HOTPLUG;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
-
-	return intel_de_read(dev_priv, SDEISR) & bit;
-}
-
-static bool cpt_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_B:
-		bit = SDE_PORTB_HOTPLUG_CPT;
-		break;
-	case HPD_PORT_C:
-		bit = SDE_PORTC_HOTPLUG_CPT;
-		break;
-	case HPD_PORT_D:
-		bit = SDE_PORTD_HOTPLUG_CPT;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
-
-	return intel_de_read(dev_priv, SDEISR) & bit;
-}
-
-static bool spt_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_A:
-		bit = SDE_PORTA_HOTPLUG_SPT;
-		break;
-	case HPD_PORT_E:
-		bit = SDE_PORTE_HOTPLUG_SPT;
-		break;
-	default:
-		return cpt_digital_port_connected(encoder);
-	}
+	u32 bit = dev_priv->hotplug.pch_hpd[encoder->hpd_pin];
 
 	return intel_de_read(dev_priv, SDEISR) & bit;
 }
@@ -6109,89 +6072,9 @@ static bool gm45_digital_port_connected(struct intel_encoder *encoder)
 static bool ilk_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 bit = dev_priv->hotplug.hpd[encoder->hpd_pin];
 
-	if (encoder->hpd_pin == HPD_PORT_A)
-		return intel_de_read(dev_priv, DEISR) & DE_DP_A_HOTPLUG;
-	else
-		return ibx_digital_port_connected(encoder);
-}
-
-static bool snb_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (encoder->hpd_pin == HPD_PORT_A)
-		return intel_de_read(dev_priv, DEISR) & DE_DP_A_HOTPLUG;
-	else
-		return cpt_digital_port_connected(encoder);
-}
-
-static bool ivb_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (encoder->hpd_pin == HPD_PORT_A)
-		return intel_de_read(dev_priv, DEISR) & DE_DP_A_HOTPLUG_IVB;
-	else
-		return cpt_digital_port_connected(encoder);
-}
-
-static bool bdw_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (encoder->hpd_pin == HPD_PORT_A)
-		return intel_de_read(dev_priv, GEN8_DE_PORT_ISR) & GEN8_PORT_DP_A_HOTPLUG;
-	else
-		return cpt_digital_port_connected(encoder);
-}
-
-static bool bxt_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	u32 bit;
-
-	switch (encoder->hpd_pin) {
-	case HPD_PORT_A:
-		bit = BXT_DE_PORT_HP_DDIA;
-		break;
-	case HPD_PORT_B:
-		bit = BXT_DE_PORT_HP_DDIB;
-		break;
-	case HPD_PORT_C:
-		bit = BXT_DE_PORT_HP_DDIC;
-		break;
-	default:
-		MISSING_CASE(encoder->hpd_pin);
-		return false;
-	}
-
-	return intel_de_read(dev_priv, GEN8_DE_PORT_ISR) & bit;
-}
-
-static bool intel_combo_phy_connected(struct drm_i915_private *dev_priv,
-				      enum phy phy)
-{
-	if (HAS_PCH_MCC(dev_priv) && phy == PHY_C)
-		return intel_de_read(dev_priv, SDEISR) & SDE_TC_HOTPLUG_ICP(PORT_TC1);
-
-	return intel_de_read(dev_priv, SDEISR) & SDE_DDI_HOTPLUG_ICP(phy);
-}
-
-static bool icp_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
-
-	if (intel_phy_is_combo(dev_priv, phy))
-		return intel_combo_phy_connected(dev_priv, phy);
-	else if (intel_phy_is_tc(dev_priv, phy))
-		return intel_tc_port_connected(dig_port);
-	else
-		MISSING_CASE(encoder->hpd_pin);
-
-	return false;
+	return intel_de_read(dev_priv, DEISR) & bit;
 }
 
 /*
@@ -6205,44 +6088,15 @@ static bool icp_digital_port_connected(struct intel_encoder *encoder)
  *
  * Return %true if port is connected, %false otherwise.
  */
-static bool __intel_digital_port_connected(struct intel_encoder *encoder)
-{
-	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-
-	if (HAS_GMCH(dev_priv)) {
-		if (IS_GM45(dev_priv))
-			return gm45_digital_port_connected(encoder);
-		else
-			return g4x_digital_port_connected(encoder);
-	}
-
-	if (INTEL_PCH_TYPE(dev_priv) >= PCH_ICP)
-		return icp_digital_port_connected(encoder);
-	else if (INTEL_PCH_TYPE(dev_priv) >= PCH_SPT)
-		return spt_digital_port_connected(encoder);
-	else if (IS_GEN9_LP(dev_priv))
-		return bxt_digital_port_connected(encoder);
-	else if (IS_GEN(dev_priv, 8))
-		return bdw_digital_port_connected(encoder);
-	else if (IS_GEN(dev_priv, 7))
-		return ivb_digital_port_connected(encoder);
-	else if (IS_GEN(dev_priv, 6))
-		return snb_digital_port_connected(encoder);
-	else if (IS_GEN(dev_priv, 5))
-		return ilk_digital_port_connected(encoder);
-
-	MISSING_CASE(INTEL_GEN(dev_priv));
-	return false;
-}
-
 bool intel_digital_port_connected(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	bool is_connected = false;
 	intel_wakeref_t wakeref;
 
 	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		is_connected = __intel_digital_port_connected(encoder);
+		is_connected = dig_port->connected(encoder);
 
 	return is_connected;
 }
@@ -8521,6 +8375,18 @@ bool intel_dp_init(struct drm_i915_private *dev_priv,
 	intel_encoder->port = port;
 
 	intel_dig_port->hpd_pulse = intel_dp_hpd_pulse;
+
+	if (HAS_GMCH(dev_priv)) {
+		if (IS_GM45(dev_priv))
+			intel_dig_port->connected = gm45_digital_port_connected;
+		else
+			intel_dig_port->connected = g4x_digital_port_connected;
+	} else {
+		if (port == PORT_A)
+			intel_dig_port->connected = ilk_digital_port_connected;
+		else
+			intel_dig_port->connected = ibx_digital_port_connected;
+	}
 
 	if (port != PORT_A)
 		intel_infoframe_init(intel_dig_port);

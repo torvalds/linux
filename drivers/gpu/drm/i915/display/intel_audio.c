@@ -514,85 +514,67 @@ static void hsw_audio_codec_disable(struct intel_encoder *encoder,
 	mutex_unlock(&dev_priv->av_mutex);
 }
 
-/* Add a factor to take care of rounding and truncations */
-#define ROUNDING_FACTOR 10000
-
-static unsigned int get_hblank_early_enable_config(struct intel_encoder *encoder,
-						   const struct intel_crtc_state *crtc_state)
+static unsigned int calc_hblank_early_prog(struct intel_encoder *encoder,
+					   const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	unsigned int link_clks_available, link_clks_required;
 	unsigned int tu_data, tu_line, link_clks_active;
-	unsigned int hblank_rise, hblank_early_prog;
-	unsigned int h_active, h_total, hblank_delta, pixel_clk, v_total;
-	unsigned int fec_coeff, refresh_rate, cdclk, vdsc_bpp;
+	unsigned int h_active, h_total, hblank_delta, pixel_clk;
+	unsigned int fec_coeff, cdclk, vdsc_bpp;
+	unsigned int link_clk, lanes;
+	unsigned int hblank_rise;
 
 	h_active = crtc_state->hw.adjusted_mode.crtc_hdisplay;
 	h_total = crtc_state->hw.adjusted_mode.crtc_htotal;
-	v_total = crtc_state->hw.adjusted_mode.crtc_vtotal;
 	pixel_clk = crtc_state->hw.adjusted_mode.crtc_clock;
-	refresh_rate = crtc_state->hw.adjusted_mode.vrefresh;
 	vdsc_bpp = crtc_state->dsc.compressed_bpp;
 	cdclk = i915->cdclk.hw.cdclk;
 	/* fec= 0.972261, using rounding multiplier of 1000000 */
 	fec_coeff = 972261;
+	link_clk = crtc_state->port_clock;
+	lanes = crtc_state->lane_count;
 
 	drm_dbg_kms(&i915->drm, "h_active = %u link_clk = %u :"
 		    "lanes = %u vdsc_bpp = %u cdclk = %u\n",
-		    h_active, crtc_state->port_clock, crtc_state->lane_count,
-		    vdsc_bpp, cdclk);
+		    h_active, link_clk, lanes, vdsc_bpp, cdclk);
 
-	if (WARN_ON(!crtc_state->port_clock || !crtc_state->lane_count ||
-		    !crtc_state->dsc.compressed_bpp || !i915->cdclk.hw.cdclk))
+	if (WARN_ON(!link_clk || !pixel_clk || !lanes || !vdsc_bpp || !cdclk))
 		return 0;
 
-	link_clks_available = ((((h_total - h_active) *
-			       ((crtc_state->port_clock * ROUNDING_FACTOR) /
-				pixel_clk)) / ROUNDING_FACTOR) - 28);
-
-	link_clks_required = DIV_ROUND_UP(192000, (refresh_rate *
-					  v_total)) * ((48 /
-					  crtc_state->lane_count) + 2);
+	link_clks_available = (h_total - h_active) * link_clk / pixel_clk - 28;
+	link_clks_required = DIV_ROUND_UP(192000 * h_total, 1000 * pixel_clk) * (48 / lanes + 2);
 
 	if (link_clks_available > link_clks_required)
 		hblank_delta = 32;
 	else
-		hblank_delta = DIV_ROUND_UP(((((5 * ROUNDING_FACTOR) /
-					    crtc_state->port_clock) + ((5 *
-					    ROUNDING_FACTOR) /
-					    cdclk)) * pixel_clk),
-					    ROUNDING_FACTOR);
+		hblank_delta = DIV64_U64_ROUND_UP(mul_u32_u32(5 * (link_clk + cdclk), pixel_clk),
+						  mul_u32_u32(link_clk, cdclk));
 
-	tu_data = (pixel_clk * vdsc_bpp * 8) / ((crtc_state->port_clock *
-		   crtc_state->lane_count * fec_coeff) / 1000000);
-	tu_line = (((h_active * crtc_state->port_clock * fec_coeff) /
-		   1000000) / (64 * pixel_clk));
+	tu_data = div64_u64(mul_u32_u32(pixel_clk * vdsc_bpp * 8, 1000000),
+			    mul_u32_u32(link_clk * lanes, fec_coeff));
+	tu_line = div64_u64(h_active * mul_u32_u32(link_clk, fec_coeff),
+			    mul_u32_u32(64 * pixel_clk, 1000000));
 	link_clks_active  = (tu_line - 1) * 64 + tu_data;
 
-	hblank_rise = ((link_clks_active + 6 * DIV_ROUND_UP(link_clks_active,
-			250) + 4) * ((pixel_clk * ROUNDING_FACTOR) /
-			crtc_state->port_clock)) / ROUNDING_FACTOR;
+	hblank_rise = (link_clks_active + 6 * DIV_ROUND_UP(link_clks_active, 250) + 4) * pixel_clk / link_clk;
 
-	hblank_early_prog = h_active - hblank_rise + hblank_delta;
-
-	return hblank_early_prog;
+	return h_active - hblank_rise + hblank_delta;
 }
 
-static unsigned int get_sample_room_req_config(const struct intel_crtc_state *crtc_state)
+static unsigned int calc_samples_room(const struct intel_crtc_state *crtc_state)
 {
 	unsigned int h_active, h_total, pixel_clk;
-	unsigned int samples_room;
+	unsigned int link_clk, lanes;
 
 	h_active = crtc_state->hw.adjusted_mode.hdisplay;
 	h_total = crtc_state->hw.adjusted_mode.htotal;
 	pixel_clk = crtc_state->hw.adjusted_mode.clock;
+	link_clk = crtc_state->port_clock;
+	lanes = crtc_state->lane_count;
 
-	samples_room = ((((h_total - h_active) * ((crtc_state->port_clock *
-			ROUNDING_FACTOR) / pixel_clk)) /
-			ROUNDING_FACTOR) - 12) / ((48 /
-			crtc_state->lane_count) + 2);
-
-	return samples_room;
+	return ((h_total - h_active) * link_clk - 12 * pixel_clk) /
+		(pixel_clk * (48 / lanes + 2));
 }
 
 static void enable_audio_dsc_wa(struct intel_encoder *encoder,
@@ -618,8 +600,7 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 	    (crtc_state->hw.adjusted_mode.hdisplay >= 3840 &&
 	    crtc_state->hw.adjusted_mode.vdisplay >= 2160)) {
 		/* Get hblank early enable value required */
-		hblank_early_prog = get_hblank_early_enable_config(encoder,
-								   crtc_state);
+		hblank_early_prog = calc_hblank_early_prog(encoder, crtc_state);
 		if (hblank_early_prog < 32) {
 			val &= ~HBLANK_START_COUNT_MASK(pipe);
 			val |= HBLANK_START_COUNT(pipe, HBLANK_START_COUNT_32);
@@ -635,7 +616,7 @@ static void enable_audio_dsc_wa(struct intel_encoder *encoder,
 		}
 
 		/* Get samples room value required */
-		samples_room = get_sample_room_req_config(crtc_state);
+		samples_room = calc_samples_room(crtc_state);
 		if (samples_room < 3) {
 			val &= ~NUMBER_SAMPLES_PER_LINE_MASK(pipe);
 			val |= NUMBER_SAMPLES_PER_LINE(pipe, samples_room);

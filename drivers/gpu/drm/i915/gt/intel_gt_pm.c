@@ -150,10 +150,6 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	if (intel_gt_is_wedged(gt))
 		intel_gt_unset_wedged(gt);
 
-	for_each_engine(engine, gt, id)
-		if (engine->sanitize)
-			engine->sanitize(engine);
-
 	intel_uc_sanitize(&gt->uc);
 
 	for_each_engine(engine, gt, id)
@@ -161,6 +157,10 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 			engine->reset.prepare(engine);
 
 	intel_uc_reset_prepare(&gt->uc);
+
+	for_each_engine(engine, gt, id)
+		if (engine->sanitize)
+			engine->sanitize(engine);
 
 	if (reset_engines(gt) || force) {
 		for_each_engine(engine, gt, id)
@@ -170,6 +170,8 @@ static void gt_sanitize(struct intel_gt *gt, bool force)
 	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
 			engine->reset.finish(engine);
+
+	intel_rps_sanitize(&gt->rps);
 
 	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
 	intel_runtime_pm_put(gt->uncore->rpm, wakeref);

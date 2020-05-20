@@ -149,8 +149,7 @@ static bool check_hw_restrictions(struct drm_i915_private *i915,
 						     guc_wopcm_size))
 		return false;
 
-	if ((IS_GEN(i915, 9) ||
-	     IS_CNL_REVID(i915, CNL_REVID_A0, CNL_REVID_A0)) &&
+	if (IS_GEN(i915, 9) &&
 	    !gen9_check_huc_fw_fits(i915, guc_wopcm_size, huc_fw_size))
 		return false;
 

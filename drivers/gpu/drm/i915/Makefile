@@ -35,6 +35,7 @@ subdir-ccflags-y += -I$(srctree)/$(src)
 
 # core driver code
 i915-y += i915_drv.o \
+	  i915_config.o \
 	  i915_irq.o \
 	  i915_getparam.o \
 	  i915_params.o \
@@ -87,11 +88,11 @@ gt-y += \
 	gt/intel_engine_cs.o \
 	gt/intel_engine_heartbeat.o \
 	gt/intel_engine_pm.o \
-	gt/intel_engine_pool.o \
 	gt/intel_engine_user.o \
 	gt/intel_ggtt.o \
 	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
+	gt/intel_gt_buffer_pool.o \
 	gt/intel_gt_clock_utils.o \
 	gt/intel_gt_irq.o \
 	gt/intel_gt_pm.o \

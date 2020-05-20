@@ -816,9 +816,11 @@ static int recursive_batch_resolve(struct i915_vma *batch)
 		return PTR_ERR(cmd);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(batch->vm->gt);
 
+	__i915_gem_object_flush_map(batch->obj, 0, sizeof(*cmd));
 	i915_gem_object_unpin_map(batch->obj);
+
+	intel_gt_chipset_flush(batch->vm->gt);
 
 	return 0;
 }
@@ -865,19 +867,19 @@ static int live_all_engines(void *arg)
 			goto out_request;
 		}
 
-		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
-					    0);
-		GEM_BUG_ON(err);
-		request[idx]->batch = batch;
-
 		i915_vma_lock(batch);
 		err = i915_request_await_object(request[idx], batch->obj, 0);
 		if (err == 0)
 			err = i915_vma_move_to_active(batch, request[idx], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
+
+		err = engine->emit_bb_start(request[idx],
+					    batch->node.start,
+					    batch->node.size,
+					    0);
+		GEM_BUG_ON(err);
+		request[idx]->batch = batch;
 
 		i915_request_get(request[idx]);
 		i915_request_add(request[idx]);
@@ -993,13 +995,6 @@ static int live_sequential_engines(void *arg)
 			}
 		}
 
-		err = engine->emit_bb_start(request[idx],
-					    batch->node.start,
-					    batch->node.size,
-					    0);
-		GEM_BUG_ON(err);
-		request[idx]->batch = batch;
-
 		i915_vma_lock(batch);
 		err = i915_request_await_object(request[idx],
 						batch->obj, false);
@@ -1007,6 +1002,13 @@ static int live_sequential_engines(void *arg)
 			err = i915_vma_move_to_active(batch, request[idx], 0);
 		i915_vma_unlock(batch);
 		GEM_BUG_ON(err);
+
+		err = engine->emit_bb_start(request[idx],
+					    batch->node.start,
+					    batch->node.size,
+					    0);
+		GEM_BUG_ON(err);
+		request[idx]->batch = batch;
 
 		i915_request_get(request[idx]);
 		i915_request_add(request[idx]);
@@ -1060,9 +1062,12 @@ out_request:
 					      I915_MAP_WC);
 		if (!IS_ERR(cmd)) {
 			*cmd = MI_BATCH_BUFFER_END;
-			intel_gt_chipset_flush(engine->gt);
 
+			__i915_gem_object_flush_map(request[idx]->batch->obj,
+						    0, sizeof(*cmd));
 			i915_gem_object_unpin_map(request[idx]->batch->obj);
+
+			intel_gt_chipset_flush(engine->gt);
 		}
 
 		i915_vma_put(request[idx]->batch);

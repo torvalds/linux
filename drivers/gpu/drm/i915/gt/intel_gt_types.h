@@ -17,6 +17,7 @@
 
 #include "i915_vma.h"
 #include "intel_engine_types.h"
+#include "intel_gt_buffer_pool_types.h"
 #include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
@@ -96,6 +97,16 @@ struct intel_gt {
 	 * Reserved for exclusive use by the kernel.
 	 */
 	struct i915_address_space *vm;
+
+	/*
+	 * A pool of objects to use as shadow copies of client batch buffers
+	 * when the command parser is enabled. Prevents the client from
+	 * modifying the batch contents after software parsing.
+	 *
+	 * Buffers older than 1s are periodically reaped from the pool,
+	 * or may be reclaimed by the shrinker before then.
+	 */
+	struct intel_gt_buffer_pool buffer_pool;
 
 	struct i915_vma *scratch;
 };
