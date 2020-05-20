@@ -93,7 +93,9 @@ report::
 
 -B::
 --big-num::
-        print large numbers with thousands' separators according to locale
+        print large numbers with thousands' separators according to locale.
+	Enabled by default. Use "--no-big-num" to disable.
+	Default setting can be changed with "perf config stat.big-num=false".
 
 -C::
 --cpu=::

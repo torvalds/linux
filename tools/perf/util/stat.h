@@ -133,6 +133,8 @@ struct perf_stat_config {
 	struct rblist		 metric_events;
 };
 
+void perf_stat__set_big_num(int set);
+
 void update_stats(struct stats *stats, u64 val);
 double avg_stats(struct stats *stats);
 double stddev_stats(struct stats *stats);
