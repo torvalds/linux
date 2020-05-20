@@ -408,7 +408,7 @@ int perf_stat_process_counter(struct perf_stat_config *config,
 	 * interval mode, otherwise overall avg running
 	 * averages will be shown for each interval.
 	 */
-	if (config->interval) {
+	if (config->interval || config->summary) {
 		for (i = 0; i < 3; i++)
 			init_stats(&ps->res_stats[i]);
 	}

@@ -314,14 +314,14 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu)
 	return 0;
 }
 
-static void read_counters(struct timespec *rs)
+static int read_affinity_counters(struct timespec *rs)
 {
 	struct evsel *counter;
 	struct affinity affinity;
 	int i, ncpus, cpu;
 
 	if (affinity__setup(&affinity) < 0)
-		return;
+		return -1;
 
 	ncpus = perf_cpu_map__nr(evsel_list->core.all_cpus);
 	if (!target__has_cpu(&target) || target__has_per_thread(&target))
@@ -341,6 +341,15 @@ static void read_counters(struct timespec *rs)
 		}
 	}
 	affinity__cleanup(&affinity);
+	return 0;
+}
+
+static void read_counters(struct timespec *rs)
+{
+	struct evsel *counter;
+
+	if (!stat_config.summary && (read_affinity_counters(rs) < 0))
+		return;
 
 	evlist__for_each_entry(evsel_list, counter) {
 		if (counter->err)
@@ -763,7 +772,21 @@ try_again_reset:
 	if (stat_config.walltime_run_table)
 		stat_config.walltime_run[run_idx] = t1 - t0;
 
-	update_stats(&walltime_nsecs_stats, t1 - t0);
+	if (interval) {
+		stat_config.interval = 0;
+		stat_config.summary = true;
+		init_stats(&walltime_nsecs_stats);
+		update_stats(&walltime_nsecs_stats, t1 - t0);
+
+		if (stat_config.aggr_mode == AGGR_GLOBAL)
+			perf_evlist__save_aggr_prev_raw_counts(evsel_list);
+
+		perf_evlist__copy_prev_raw_counts(evsel_list);
+		perf_evlist__reset_prev_raw_counts(evsel_list);
+		runtime_stat_reset(&stat_config);
+		perf_stat__reset_shadow_per_stat(&rt_stat);
+	} else
+		update_stats(&walltime_nsecs_stats, t1 - t0);
 
 	/*
 	 * Closing a group leader splits the group, and as we only disable
@@ -2159,7 +2182,7 @@ int cmd_stat(int argc, const char **argv)
 		}
 	}
 
-	if (!forever && status != -1 && !interval)
+	if (!forever && status != -1 && (!interval || stat_config.summary))
 		print_counters(NULL, argc, argv);
 
 	if (STAT_RECORD) {
