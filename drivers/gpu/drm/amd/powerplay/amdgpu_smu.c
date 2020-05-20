@@ -29,7 +29,6 @@
 #include "smu_v11_0.h"
 #include "smu_v12_0.h"
 #include "atom.h"
-#include "vega20_ppt.h"
 #include "arcturus_ppt.h"
 #include "navi10_ppt.h"
 #include "renoir_ppt.h"
@@ -567,12 +566,11 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
-	if (adev->asic_type == CHIP_VEGA20)
-		return (amdgpu_dpm == 2) ? true : false;
-	else if (adev->asic_type >= CHIP_ARCTURUS) {
+	if (adev->asic_type >= CHIP_ARCTURUS) {
 	      if (amdgpu_sriov_is_pp_one_vf(adev) || !amdgpu_sriov_vf(adev))
 			return true;
 	}
+
 	return false;
 }
 
@@ -760,10 +758,6 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		smu->od_enabled = true;
 
 	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
-		vega20_set_ppt_funcs(smu);
-		break;
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:

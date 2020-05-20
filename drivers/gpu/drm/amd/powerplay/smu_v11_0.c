@@ -46,7 +46,6 @@
 #include "asic_reg/smuio/smuio_11_0_0_offset.h"
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
-MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi10_smc.bin");
 MODULE_FIRMWARE("amdgpu/navi14_smc.bin");
@@ -148,9 +147,6 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	struct amdgpu_firmware_info *ucode = NULL;
 
 	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-		chip_name = "vega20";
-		break;
 	case CHIP_ARCTURUS:
 		chip_name = "arcturus";
 		break;
@@ -270,9 +266,6 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_debug = (smu_version >> 0) & 0xff;
 
 	switch (smu->adev->asic_type) {
-	case CHIP_VEGA20:
-		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VG20;
-		break;
 	case CHIP_ARCTURUS:
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
 		break;
@@ -1385,8 +1378,6 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	struct amdgpu_device *adev = smu->adev;
 
 	switch (adev->asic_type) {
-	case CHIP_VEGA20:
-		break;
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
