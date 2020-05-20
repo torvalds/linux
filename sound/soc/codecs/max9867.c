@@ -79,6 +79,7 @@ static const struct snd_kcontrol_new max9867_snd_controls[] = {
 	SOC_ENUM("DSP Filter", max9867_filter),
 	SOC_ENUM("ADC Filter", max9867_adc_filter),
 	SOC_ENUM("DAC Filter", max9867_dac_filter),
+	SOC_SINGLE("Mono Playback Switch", MAX9867_IFC1B, 3, 1, 0),
 };
 
 /* Input mixer */
@@ -361,7 +362,8 @@ static int max9867_dai_set_fmt(struct snd_soc_dai *codec_dai,
 	}
 
 	regmap_write(max9867->regmap, MAX9867_IFC1A, iface1A);
-	regmap_write(max9867->regmap, MAX9867_IFC1B, iface1B);
+	regmap_update_bits(max9867->regmap, MAX9867_IFC1B,
+			   MAX9867_IFC1B_BCLK_MASK, iface1B);
 
 	return 0;
 }
