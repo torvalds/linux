@@ -408,7 +408,7 @@ struct hns_roce_wq {
 };
 
 struct hns_roce_sge {
-	int		sge_cnt;	/* SGE num */
+	unsigned int	sge_cnt;	/* SGE num */
 	int		offset;
 	int		sge_shift;	/* SGE size */
 };
@@ -734,7 +734,7 @@ struct hns_roce_eq {
 	int				arm_st;
 	int				hop_num;
 	struct hns_roce_mtr		mtr;
-	int				eq_max_cnt;
+	u16				eq_max_cnt;
 	int				eq_period;
 	int				shift;
 	int				event_type;

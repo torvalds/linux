@@ -130,7 +130,7 @@ static void set_frmr_seg(struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 
 static void set_atomic_seg(const struct ib_send_wr *wr, void *wqe,
 			   struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
-			   int valid_num_sge)
+			   unsigned int valid_num_sge)
 {
 	struct hns_roce_wqe_atomic_seg *aseg;
 
@@ -151,12 +151,12 @@ static void set_atomic_seg(const struct ib_send_wr *wr, void *wqe,
 }
 
 static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
-			   unsigned int *sge_ind, int valid_num_sge)
+			   unsigned int *sge_ind, unsigned int valid_num_sge)
 {
 	struct hns_roce_v2_wqe_data_seg *dseg;
+	unsigned int cnt = valid_num_sge;
 	struct ib_sge *sge = wr->sg_list;
 	unsigned int idx = *sge_ind;
-	int cnt = valid_num_sge;
 
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
 		cnt -= HNS_ROCE_SGE_IN_WQE;
@@ -177,7 +177,7 @@ static void set_extend_sge(struct hns_roce_qp *qp, const struct ib_send_wr *wr,
 static int set_rwqe_data_seg(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			     struct hns_roce_v2_rc_send_wqe *rc_sq_wqe,
 			     void *wqe, unsigned int *sge_ind,
-			     int valid_num_sge)
+			     unsigned int valid_num_sge)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibqp->device);
 	struct hns_roce_v2_wqe_data_seg *dseg = wqe;
@@ -269,10 +269,11 @@ static int check_send_valid(struct hns_roce_dev *hr_dev,
 	return 0;
 }
 
-static inline int calc_wr_sge_num(const struct ib_send_wr *wr, u32 *sge_len)
+static unsigned int calc_wr_sge_num(const struct ib_send_wr *wr,
+				    unsigned int *sge_len)
 {
-	int valid_num = 0;
-	u32 len = 0;
+	unsigned int valid_num = 0;
+	unsigned int len = 0;
 	int i;
 
 	for (i = 0; i < wr->num_sge; i++) {
@@ -403,7 +404,7 @@ static inline int set_rc_wqe(struct hns_roce_qp *qp,
 {
 	struct hns_roce_v2_rc_send_wqe *rc_sq_wqe = wqe;
 	unsigned int curr_idx = *sge_idx;
-	int valid_num_sge;
+	unsigned int valid_num_sge;
 	u32 msg_len = 0;
 	int ret = 0;
 
