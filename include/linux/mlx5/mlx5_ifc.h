@@ -1392,7 +1392,10 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         bf[0x1];
 	u8         driver_version[0x1];
 	u8         pad_tx_eth_packet[0x1];
-	u8         reserved_at_263[0x8];
+	u8         reserved_at_263[0x3];
+	u8         mkey_by_name[0x1];
+	u8         reserved_at_267[0x4];
+
 	u8         log_bf_reg_size[0x5];
 
 	u8         reserved_at_270[0x8];
@@ -7712,8 +7715,10 @@ struct mlx5_ifc_create_qp_in_bits {
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x8];
+	u8         input_qpn[0x18];
 
+	u8         reserved_at_60[0x20];
 	u8         opt_param_mask[0x20];
 
 	u8         ece[0x20];
