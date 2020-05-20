@@ -254,9 +254,8 @@ END(handle_interrupt_level1)
 
 ENTRY(EV_TLBProtV)
 
-	EXCEPTION_PROLOGUE
+	EXCEPTION_PROLOGUE	; ECR returned in r10
 
-	mov r2, r10	; ECR set into r10 already
 	lr  r0, [efa]	; Faulting Data address (not part of pt_regs saved above)
 
 	; Exception auto-disables further Intr/exceptions.
@@ -273,8 +272,7 @@ ENTRY(EV_TLBProtV)
 	;   -Access Violation	: 00_23_(00|01|02|03)_00
 	;			         x  r  w  r+w
 	;   -Unaligned Access	: 00_23_04_00
-	;
-	bbit1 r2, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
+	bbit1 r10, ECR_C_BIT_PROTV_MISALIG_DATA, 4f
 
 	;========= (6a) Access Violation Processing ========
 	bl  do_page_fault
