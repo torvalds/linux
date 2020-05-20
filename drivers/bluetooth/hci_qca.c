@@ -1947,8 +1947,9 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 		}
 	}
 
+	hdev = qcadev->serdev_hu.hdev;
+
 	if (power_ctrl_enabled) {
-		hdev = qcadev->serdev_hu.hdev;
 		set_bit(HCI_QUIRK_NON_PERSISTENT_SETUP, &hdev->quirks);
 		hdev->shutdown = qca_power_off;
 	}
