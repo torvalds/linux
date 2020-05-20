@@ -412,7 +412,7 @@ static int dsa_tree_setup_switches(struct dsa_switch_tree *dst)
 
 		err = dsa_switch_setup(ds);
 		if (err)
-			return err;
+			continue;
 
 		for (port = 0; port < ds->num_ports; port++) {
 			dp = &ds->ports[port];
