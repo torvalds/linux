@@ -977,7 +977,7 @@ EXPORT_SYMBOL_GPL(__platform_register_drivers);
  * @drivers: an array of drivers to unregister
  * @count: the number of drivers to unregister
  *
- * Unegisters platform drivers specified by an array. This is typically used
+ * Unregisters platform drivers specified by an array. This is typically used
  * to complement an earlier call to platform_register_drivers(). Drivers are
  * unregistered in the reverse order in which they were registered.
  */
