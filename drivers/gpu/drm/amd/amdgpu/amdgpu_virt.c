@@ -370,3 +370,19 @@ void amdgpu_virt_disable_access_debugfs(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		adev->virt.caps |= AMDGPU_SRIOV_CAPS_RUNTIME;
 }
+
+enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *adev)
+{
+	enum amdgpu_sriov_vf_mode mode;
+
+	if (amdgpu_sriov_vf(adev)) {
+		if (amdgpu_sriov_is_pp_one_vf(adev))
+			mode = SRIOV_VF_MODE_ONE_VF;
+		else
+			mode = SRIOV_VF_MODE_MULTI_VF;
+	} else {
+		mode = SRIOV_VF_MODE_BARE_METAL;
+	}
+
+	return mode;
+}

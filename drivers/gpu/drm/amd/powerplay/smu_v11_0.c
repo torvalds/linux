@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/reboot.h>
 
 #define SMU_11_0_PARTIAL_PPTABLE
 
@@ -1547,12 +1548,19 @@ static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
 #define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
 
+#define SMUIO_11_0__SRCID__SMUIO_GPIO19			83
+
 static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
+	/*
+	 * ctxid is used to distinguish different
+	 * events for SMCToHost interrupt.
+	 */
+	uint32_t ctxid = entry->src_data[0];
 
 	if (client_id == SOC15_IH_CLIENTID_THM) {
 		switch (src_id) {
@@ -1561,6 +1569,12 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				PCI_BUS_NUM(adev->pdev->devfn),
 				PCI_SLOT(adev->pdev->devfn),
 				PCI_FUNC(adev->pdev->devfn));
+			/*
+			 * SW CTF just occurred.
+			 * Try to do a graceful shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "System is going to shutdown due to SW CTF!\n");
+			orderly_poweroff(true);
 		break;
 		case THM_11_0__SRCID__THM_DIG_THERM_H2L:
 			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
@@ -1575,11 +1589,30 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				PCI_SLOT(adev->pdev->devfn),
 				PCI_FUNC(adev->pdev->devfn));
 		break;
-
 		}
+	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO) {
+		pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
+				PCI_BUS_NUM(adev->pdev->devfn),
+				PCI_SLOT(adev->pdev->devfn),
+				PCI_FUNC(adev->pdev->devfn));
+		/*
+		 * HW CTF just occurred. Shutdown to prevent further damage.
+		 */
+		dev_emerg(adev->dev, "System is going to shutdown due to HW CTF!\n");
+		orderly_poweroff(true);
 	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
-		if (src_id == 0xfe)
-			smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+		if (src_id == 0xfe) {
+			switch (ctxid) {
+			case 0x3:
+				dev_dbg(adev->dev, "Switched to AC mode!\n");
+				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				break;
+			case 0x4:
+				dev_dbg(adev->dev, "Switched to DC mode!\n");
+				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				break;
+			}
+		}
 	}
 
 	return 0;
@@ -1615,6 +1648,13 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
 				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	/* Register CTF(GPIO_19) interrupt */
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_ROM_SMUIO,
+				SMUIO_11_0__SRCID__SMUIO_GPIO19,
 				irq_src);
 	if (ret)
 		return ret;

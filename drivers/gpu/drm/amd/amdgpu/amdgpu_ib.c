@@ -189,6 +189,9 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 		dma_fence_put(tmp);
 	}
 
+	if ((ib->flags & AMDGPU_IB_FLAG_EMIT_MEM_SYNC) && ring->funcs->emit_mem_sync)
+		ring->funcs->emit_mem_sync(ring);
+
 	if (ring->funcs->insert_start)
 		ring->funcs->insert_start(ring);
 

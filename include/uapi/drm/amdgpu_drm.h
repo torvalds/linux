@@ -602,6 +602,10 @@ union drm_amdgpu_cs {
  */
 #define AMDGPU_IB_FLAGS_SECURE  (1 << 5)
 
+/* Tell KMD to flush and invalidate caches
+ */
+#define AMDGPU_IB_FLAG_EMIT_MEM_SYNC  (1 << 6)
+
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;
 	/** AMDGPU_IB_FLAG_* */
