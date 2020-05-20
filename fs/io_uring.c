@@ -5306,7 +5306,8 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	if (ret)
 		return ret;
 
-	if (ctx->flags & IORING_SETUP_IOPOLL) {
+	/* If the op doesn't have a file, we're not polling for it */
+	if ((ctx->flags & IORING_SETUP_IOPOLL) && req->file) {
 		const bool in_async = io_wq_current_is_worker();
 
 		if (req->result == -EAGAIN)
