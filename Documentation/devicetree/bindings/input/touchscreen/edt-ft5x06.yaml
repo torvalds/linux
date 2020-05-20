@@ -42,7 +42,7 @@ properties:
       - focaltech,ft6236
 
   reg:
-    const: 0x38
+    maxItems: 1
 
   interrupts:
     maxItems: 1
