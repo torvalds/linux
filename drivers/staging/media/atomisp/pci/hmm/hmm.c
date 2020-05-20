@@ -641,6 +641,7 @@ void hmm_vunmap(ia_css_ptr virt)
 
 int hmm_pool_register(unsigned int pool_size, enum hmm_pool_type pool_type)
 {
+#if 0	// Just use the "normal" pool
 	switch (pool_type) {
 	case HMM_POOL_TYPE_RESERVED:
 		reserved_pool.pops = &reserved_pops;
@@ -654,10 +655,14 @@ int hmm_pool_register(unsigned int pool_size, enum hmm_pool_type pool_type)
 		dev_err(atomisp_dev, "invalid pool type.\n");
 		return -EINVAL;
 	}
+#else
+	return 0;
+#endif
 }
 
 void hmm_pool_unregister(enum hmm_pool_type pool_type)
 {
+#if 0	// Just use the "normal" pool
 	switch (pool_type) {
 	case HMM_POOL_TYPE_RESERVED:
 		if (reserved_pool.pops && reserved_pool.pops->pool_exit)
@@ -671,6 +676,7 @@ void hmm_pool_unregister(enum hmm_pool_type pool_type)
 		dev_err(atomisp_dev, "invalid pool type.\n");
 		break;
 	}
+#endif
 
 	return;
 }
