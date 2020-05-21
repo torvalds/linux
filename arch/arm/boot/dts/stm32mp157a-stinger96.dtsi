@@ -1,79 +1,65 @@
-// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
- * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
- * Author: Ludovic Barre <ludovic.barre@st.com> for STMicroelectronics.
+ * Copyright (C) 2020 Manivannan Sadhasivam
  */
+
 /dts-v1/;
 
 #include "stm32mp157.dtsi"
-#include "stm32mp15xc.dtsi"
 #include "stm32mp15-pinctrl.dtsi"
-#include "stm32mp15xxaa-pinctrl.dtsi"
+#include "stm32mp15xxac-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
 
 / {
-	model = "STMicroelectronics STM32MP157C eval daughter";
-	compatible = "st,stm32mp157c-ed1", "st,stm32mp157";
+	aliases {
+		mmc0 = &sdmmc1;
+		serial0 = &uart4;
+		serial1 = &uart7;
+		serial2 = &usart2;
+		spi0 = &spi4;
+	};
 
 	chosen {
-		stdout-path = "serial0:115200n8";
+		stdout-path = "serial1:115200n8";
 	};
 
 	memory@c0000000 {
 		device_type = "memory";
-		reg = <0xC0000000 0x40000000>;
+		reg = <0xc0000000 0x10000000>;
 	};
 
-	reserved-memory {
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges;
+	led {
+		compatible = "gpio-leds";
 
-		mcuram2: mcuram2@10000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x10000000 0x40000>;
-			no-map;
+		led1 {
+			label = "green:user1";
+			gpios = <&gpioa 13 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
 		};
 
-		vdev0vring0: vdev0vring0@10040000 {
-			compatible = "shared-dma-pool";
-			reg = <0x10040000 0x1000>;
-			no-map;
+		led2 {
+			label = "green:user2";
+			gpios = <&gpioh 3 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
 		};
 
-		vdev0vring1: vdev0vring1@10041000 {
-			compatible = "shared-dma-pool";
-			reg = <0x10041000 0x1000>;
-			no-map;
+		led3 {
+			label = "green:user3";
+			gpios = <&gpioh 2 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "mmc1";
+			default-state = "off";
 		};
 
-		vdev0buffer: vdev0buffer@10042000 {
-			compatible = "shared-dma-pool";
-			reg = <0x10042000 0x4000>;
-			no-map;
+		led4 {
+			label = "green:user4";
+			gpios = <&gpiof 12 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			default-state = "off";
+			panic-indicator;
 		};
-
-		mcuram: mcuram@30000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x30000000 0x40000>;
-			no-map;
-		};
-
-		retram: retram@38000000 {
-			compatible = "shared-dma-pool";
-			reg = <0x38000000 0x10000>;
-			no-map;
-		};
-
-		gpu_reserved: gpu@e8000000 {
-			reg = <0xe8000000 0x8000000>;
-			no-map;
-		};
-	};
-
-	aliases {
-		serial0 = &uart4;
 	};
 
 	sd_switch: regulator-sd_switch {
@@ -84,59 +70,35 @@
 		regulator-type = "voltage";
 		regulator-always-on;
 
-		gpios = <&gpiof 14 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpioa 8 GPIO_ACTIVE_HIGH>;
 		gpios-states = <0>;
 		states = <1800000 0x1>,
 			 <2900000 0x0>;
 	};
 };
 
-&adc {
-	/* ANA0, ANA1 are dedicated pins and don't need pinctrl: only in6. */
-	pinctrl-0 = <&adc1_in6_pins_a>;
-	pinctrl-names = "default";
-	vdd-supply = <&vdd>;
-	vdda-supply = <&vdda>;
-	vref-supply = <&vdda>;
-	status = "disabled";
-	adc1: adc@0 {
-		st,adc-channels = <0 1 6>;
-		/* 16.5 ck_cycles sampling time */
-		st,min-sample-time-nsecs = <400>;
-		status = "okay";
-	};
-};
-
-&dac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dac_ch1_pins_a &dac_ch2_pins_a>;
-	vref-supply = <&vdda>;
-	status = "disabled";
-	dac1: dac@1 {
-		status = "okay";
-	};
-	dac2: dac@2 {
-		status = "okay";
-	};
-};
-
-&dts {
-	status = "okay";
-};
-
+/* Only headless mode is supported */
 &gpu {
-	contiguous-area = <&gpu_reserved>;
+	status = "disabled";
+};
+
+/* LS-I2C0 */
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	i2c-scl-rising-time-ns = <1000>;
+	i2c-scl-falling-time-ns = <300>;
+	status = "okay";
+	/delete-property/dmas;
+	/delete-property/dma-names;
 };
 
 &i2c4 {
-	pinctrl-names = "default", "sleep";
+	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins_a>;
-	pinctrl-1 = <&i2c4_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
-	clock-frequency = <400000>;
 	status = "okay";
-	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
 
@@ -150,6 +112,7 @@
 
 		regulators {
 			compatible = "st,stpmic1-regulators";
+
 			ldo1-supply = <&v3v3>;
 			ldo2-supply = <&v3v3>;
 			ldo3-supply = <&vdd_ddr>;
@@ -169,8 +132,8 @@
 
 			vdd_ddr: buck2 {
 				regulator-name = "vdd_ddr";
-				regulator-min-microvolt = <1350000>;
-				regulator-max-microvolt = <1350000>;
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
 				regulator-always-on;
 				regulator-initial-mode = <0>;
 				regulator-over-current-protection;
@@ -178,8 +141,8 @@
 
 			vdd: buck3 {
 				regulator-name = "vdd";
-				regulator-min-microvolt = <3300000>;
-				regulator-max-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
 				regulator-always-on;
 				st,mask-reset;
 				regulator-initial-mode = <0>;
@@ -197,15 +160,17 @@
 
 			vdda: ldo1 {
 				regulator-name = "vdda";
-				regulator-min-microvolt = <2900000>;
-				regulator-max-microvolt = <2900000>;
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 				interrupts = <IT_CURLIM_LDO1 0>;
 			};
 
-			v2v8: ldo2 {
-				regulator-name = "v2v8";
-				regulator-min-microvolt = <2800000>;
-				regulator-max-microvolt = <2800000>;
+			v2v9: ldo2 {
+				regulator-name = "v2v9";
+				regulator-min-microvolt = <2900000>;
+				regulator-max-microvolt = <2900000>;
+				regulator-always-on;
 				interrupts = <IT_CURLIM_LDO2 0>;
 			};
 
@@ -219,6 +184,8 @@
 
 			vdd_usb: ldo4 {
 				regulator-name = "vdd_usb";
+				regulator-min-microvolt = <3300000>;
+				regulator-max-microvolt = <3300000>;
 				interrupts = <IT_CURLIM_LDO4 0>;
 			};
 
@@ -234,12 +201,14 @@
 				regulator-name = "v1v8";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
 				interrupts = <IT_CURLIM_LDO6 0>;
 			};
 
 			vref_ddr: vref_ddr {
 				regulator-name = "vref_ddr";
 				regulator-always-on;
+				regulator-over-current-protection;
 			};
 
 			bst_out: boost {
@@ -250,20 +219,20 @@
 			vbus_otg: pwr_sw1 {
 				regulator-name = "vbus_otg";
 				interrupts = <IT_OCP_OTG 0>;
-			 };
+				regulator-active-discharge;
+			};
 
-			 vbus_sw: pwr_sw2 {
+			vbus_sw: pwr_sw2 {
 				regulator-name = "vbus_sw";
 				interrupts = <IT_OCP_SWOUT 0>;
-				regulator-active-discharge = <1>;
-			 };
+				regulator-active-discharge;
+			};
 		};
 
 		onkey {
 			compatible = "st,stpmic1-onkey";
-			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 0>;
+			interrupts = <IT_PONKEY_F 0>, <IT_PONKEY_R 1>;
 			interrupt-names = "onkey-falling", "onkey-rising";
-			power-off-time-sec = <10>;
 			status = "okay";
 		};
 
@@ -274,22 +243,8 @@
 	};
 };
 
-&ipcc {
-	status = "okay";
-};
-
 &iwdg2 {
 	timeout-sec = <32>;
-	status = "okay";
-};
-
-&m4_rproc {
-	memory-region = <&retram>, <&mcuram>, <&mcuram2>, <&vdev0vring0>,
-			<&vdev0vring1>, <&vdev0buffer>;
-	mboxes = <&ipcc 0>, <&ipcc 1>, <&ipcc 2>;
-	mbox-names = "vq0", "vq1", "shutdown";
-	interrupt-parent = <&exti>;
-	interrupts = <68 1>;
 	status = "okay";
 };
 
@@ -308,10 +263,10 @@
 
 &sdmmc1 {
 	pinctrl-names = "default", "opendrain", "sleep";
-	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_a>;
-	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_a>;
-	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_a>;
-	cd-gpios = <&gpiog 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+	pinctrl-0 = <&sdmmc1_b4_pins_a &sdmmc1_dir_pins_b>;
+	pinctrl-1 = <&sdmmc1_b4_od_pins_a &sdmmc1_dir_pins_b>;
+	pinctrl-2 = <&sdmmc1_b4_sleep_pins_a &sdmmc1_dir_sleep_pins_b>;
+	broken-cd;
 	disable-wp;
 	st,sig-dir;
 	st,neg-edge;
@@ -319,47 +274,59 @@
 	bus-width = <4>;
 	vmmc-supply = <&vdd_sd>;
 	vqmmc-supply = <&sd_switch>;
-	sd-uhs-sdr12;
-	sd-uhs-sdr25;
-	sd-uhs-sdr50;
-	sd-uhs-ddr50;
 	status = "okay";
 };
 
-&sdmmc2 {
-	pinctrl-names = "default", "opendrain", "sleep";
-	pinctrl-0 = <&sdmmc2_b4_pins_a &sdmmc2_d47_pins_a>;
-	pinctrl-1 = <&sdmmc2_b4_od_pins_a &sdmmc2_d47_pins_a>;
-	pinctrl-2 = <&sdmmc2_b4_sleep_pins_a &sdmmc2_d47_sleep_pins_a>;
-	non-removable;
-	no-sd;
-	no-sdio;
-	st,neg-edge;
-	bus-width = <8>;
-	vmmc-supply = <&v3v3>;
-	vqmmc-supply = <&vdd>;
-	mmc-ddr-3_3v;
+/* LS-SPI0 */
+&spi4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi4_pins_a>;
+	cs-gpios = <&gpioe 11 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
-&timers6 {
+/* BG96 */
+&usart2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&usart2_pins_b>;
+	pinctrl-1 = <&usart2_sleep_pins_b>;
+	st,hw-flow-ctrl;
 	status = "okay";
-	/* spare dmas for other usage */
-	/delete-property/dmas;
-	/delete-property/dma-names;
-	timer@5 {
-		status = "okay";
-	};
 };
 
+/* LS-UART0 */
 &uart4 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart4_pins_a>;
+	pinctrl-0 = <&uart4_pins_c>;
+	st,hw-flow-ctrl;
+	status = "okay";
+};
+
+/* Debug console */
+&uart7 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart7_pins_b>;
+	status = "okay";
+};
+
+&usbh_ehci {
+	phys = <&usbphyc_port0>;
+	phy-names = "usb";
 	status = "okay";
 };
 
 &usbotg_hs {
+	dr_mode = "peripheral";
+	pinctrl-0 = <&usbotg_hs_pins_a>;
+	pinctrl-names = "default";
+	phy-names = "usb2-phy";
+	phys = <&usbphyc_port1 0>;
 	vbus-supply = <&vbus_otg>;
+	status = "okay";
+};
+
+&usbphyc {
+	status = "okay";
 };
 
 &usbphyc_port0 {
