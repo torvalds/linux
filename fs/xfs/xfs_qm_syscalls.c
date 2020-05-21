@@ -555,32 +555,40 @@ xfs_qm_scall_setqlim(
 		ddq->d_rtbwarns = cpu_to_be16(newlim->d_rt_spc_warns);
 
 	if (id == 0) {
-		/*
-		 * Timelimits for the super user set the relative time
-		 * the other users can be over quota for this file system.
-		 * If it is zero a default is used.  Ditto for the default
-		 * soft and hard limit values (already done, above), and
-		 * for warnings.
-		 */
-		if (newlim->d_fieldmask & QC_SPC_TIMER) {
-			defq->btimelimit = newlim->d_spc_timer;
-			ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
-		}
-		if (newlim->d_fieldmask & QC_INO_TIMER) {
-			defq->itimelimit = newlim->d_ino_timer;
-			ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
-		}
-		if (newlim->d_fieldmask & QC_RT_SPC_TIMER) {
-			defq->rtbtimelimit = newlim->d_rt_spc_timer;
-			ddq->d_rtbtimer = cpu_to_be32(newlim->d_rt_spc_timer);
-		}
 		if (newlim->d_fieldmask & QC_SPC_WARNS)
 			defq->bwarnlimit = newlim->d_spc_warns;
 		if (newlim->d_fieldmask & QC_INO_WARNS)
 			defq->iwarnlimit = newlim->d_ino_warns;
 		if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
 			defq->rtbwarnlimit = newlim->d_rt_spc_warns;
-	} else {
+	}
+
+	/*
+	 * Timelimits for the super user set the relative time the other users
+	 * can be over quota for this file system. If it is zero a default is
+	 * used.  Ditto for the default soft and hard limit values (already
+	 * done, above), and for warnings.
+	 *
+	 * For other IDs, userspace can bump out the grace period if over
+	 * the soft limit.
+	 */
+	if (newlim->d_fieldmask & QC_SPC_TIMER)
+		ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
+	if (newlim->d_fieldmask & QC_INO_TIMER)
+		ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
+	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
+		ddq->d_rtbtimer = cpu_to_be32(newlim->d_rt_spc_timer);
+
+	if (id == 0) {
+		if (newlim->d_fieldmask & QC_SPC_TIMER)
+			defq->btimelimit = newlim->d_spc_timer;
+		if (newlim->d_fieldmask & QC_INO_TIMER)
+			defq->itimelimit = newlim->d_ino_timer;
+		if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
+			defq->rtbtimelimit = newlim->d_rt_spc_timer;
+	}
+
+	if (id != 0) {
 		/*
 		 * If the user is now over quota, start the timelimit.
 		 * The user will not be 'warned'.
