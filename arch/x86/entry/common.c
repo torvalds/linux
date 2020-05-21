@@ -583,6 +583,20 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 	return false;
 }
 
+static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
+{
+	if (may_sched && !preempt_count()) {
+		/* Sanity check RCU and thread stack */
+		rcu_irq_exit_check_preempt();
+		if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
+			WARN_ON_ONCE(!on_thread_stack());
+		if (need_resched())
+			preempt_schedule_irq();
+	}
+	/* Covers both tracing and lockdep */
+	trace_hardirqs_on();
+}
+
 /**
  * idtentry_exit_cond_rcu - Handle return from exception with conditional RCU
  *			    handling
@@ -624,21 +638,7 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 		}
 
 		instrumentation_begin();
-
-		/* Check kernel preemption, if enabled */
-		if (IS_ENABLED(CONFIG_PREEMPTION)) {
-			if (!preempt_count()) {
-				/* Sanity check RCU and thread stack */
-				rcu_irq_exit_check_preempt();
-				if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
-					WARN_ON_ONCE(!on_thread_stack());
-				if (need_resched())
-					preempt_schedule_irq();
-			}
-		}
-		/* Covers both tracing and lockdep */
-		trace_hardirqs_on();
-
+		idtentry_exit_cond_resched(regs, IS_ENABLED(CONFIG_PREEMPTION));
 		instrumentation_end();
 	} else {
 		/*
