@@ -1052,6 +1052,8 @@ struct host_cmd_ds_802_11_ps_mode_enh {
 enum API_VER_ID {
 	KEY_API_VER_ID = 1,
 	FW_API_VER_ID = 2,
+	UAP_FW_API_VER_ID = 3,
+	CHANRPT_API_VER_ID = 4,
 };
 
 struct hw_spec_api_rev {
