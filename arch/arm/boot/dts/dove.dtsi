@@ -175,7 +175,6 @@
 				#size-cells = <0>;
 				interrupts = <11>;
 				clock-frequency = <400000>;
-				timeout-ms = <1000>;
 				clocks = <&core_clk 0>;
 				status = "okay";
 			};
