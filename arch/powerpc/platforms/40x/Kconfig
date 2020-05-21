@@ -55,23 +55,6 @@ config WALNUT
 	help
 	  This option enables support for the IBM PPC405GP evaluation board.
 
-config XILINX_VIRTEX_GENERIC_BOARD
-	bool "Generic Xilinx Virtex board"
-	depends on 40x
-	select XILINX_VIRTEX_II_PRO
-	select XILINX_VIRTEX_4_FX
-	select XILINX_INTC
-	help
-	  This option enables generic support for Xilinx Virtex based boards.
-
-	  The generic virtex board support matches any device tree which
-	  specifies 'xilinx,virtex' in its compatible field.  This includes
-	  the Xilinx ML3xx and ML4xx reference designs using the powerpc
-	  core.
-
-	  Most Virtex designs should use this unless it needs to do some
-	  special configuration at board probe time.
-
 config OBS600
 	bool "OpenBlockS 600"
 	depends on 40x
@@ -108,20 +91,6 @@ config 405EZ
 	select IBM_EMAC_NO_FLOW_CTRL if IBM_EMAC
 	select IBM_EMAC_MAL_CLR_ICINTSTAT if IBM_EMAC
 	select IBM_EMAC_MAL_COMMON_ERR if IBM_EMAC
-
-config XILINX_VIRTEX
-	bool
-	select DEFAULT_UIMAGE
-
-config XILINX_VIRTEX_II_PRO
-	bool
-	select XILINX_VIRTEX
-	select IBM405_ERR77
-	select IBM405_ERR51
-
-config XILINX_VIRTEX_4_FX
-	bool
-	select XILINX_VIRTEX
 
 config STB03xxx
 	bool
