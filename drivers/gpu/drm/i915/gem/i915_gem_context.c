@@ -230,7 +230,7 @@ static void intel_context_set_gem(struct intel_context *ce,
 		ce->timeline = intel_timeline_get(ctx->timeline);
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL &&
-	    intel_engine_has_semaphores(ce->engine))
+	    intel_engine_has_timeslices(ce->engine))
 		__set_bit(CONTEXT_USE_SEMAPHORES, &ce->flags);
 }
 
@@ -1969,7 +1969,7 @@ static int __apply_priority(struct intel_context *ce, void *arg)
 {
 	struct i915_gem_context *ctx = arg;
 
-	if (!intel_engine_has_semaphores(ce->engine))
+	if (!intel_engine_has_timeslices(ce->engine))
 		return 0;
 
 	if (ctx->sched.priority >= I915_PRIORITY_NORMAL)
