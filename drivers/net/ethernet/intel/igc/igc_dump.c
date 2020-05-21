@@ -35,10 +35,6 @@ static const struct igc_reg_info igc_reg_info_tbl[] = {
 	{IGC_TDH(0), "TDH"},
 	{IGC_TDT(0), "TDT"},
 	{IGC_TXDCTL(0), "TXDCTL"},
-	{IGC_TDFH, "TDFH"},
-	{IGC_TDFT, "TDFT"},
-	{IGC_TDFHS, "TDFHS"},
-	{IGC_TDFPC, "TDFPC"},
 
 	/* List Terminator */
 	{}

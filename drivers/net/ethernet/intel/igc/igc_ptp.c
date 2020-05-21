@@ -305,7 +305,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	struct igc_hw *hw = &adapter->hw;
 	u32 tsync_rx_cfg = 0;
 	bool is_l4 = false;
-	bool is_l2 = false;
 	u32 regval;
 
 	/* reserved for future extensions */
@@ -346,7 +345,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_EVENT_V2;
 		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		is_l2 = true;
 		is_l4 = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -370,7 +368,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_RXSYNSIG;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		is_l2 = true;
 		is_l4 = true;
 
 		if (hw->mac.type == igc_i225) {
@@ -404,15 +401,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 
 	/* define which PTP packets are time stamped */
 	wr32(IGC_TSYNCRXCFG, tsync_rx_cfg);
-
-	/* define ethertype filter for timestamped packets */
-	if (is_l2)
-		wr32(IGC_ETQF(3),
-		     (IGC_ETQF_FILTER_ENABLE | /* enable filter */
-		     IGC_ETQF_1588 | /* enable timestamping */
-		     ETH_P_1588)); /* 1588 eth protocol type */
-	else
-		wr32(IGC_ETQF(3), 0);
 
 	/* L4 Queue Filter[3]: filter by destination port and protocol */
 	if (is_l4) {

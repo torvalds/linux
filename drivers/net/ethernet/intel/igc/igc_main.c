@@ -2314,6 +2314,151 @@ int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 	return 0;
 }
 
+/**
+ * igc_add_vlan_prio_filter() - Add VLAN priority filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @prio: VLAN priority value
+ * @queue: Queue number which matching frames are assigned to
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio, int queue)
+{
+	struct net_device *dev = adapter->netdev;
+	struct igc_hw *hw = &adapter->hw;
+	u32 vlanpqf;
+
+	vlanpqf = rd32(IGC_VLANPQF);
+
+	if (vlanpqf & IGC_VLANPQF_VALID(prio)) {
+		netdev_dbg(dev, "VLAN priority filter already in use\n");
+		return -EEXIST;
+	}
+
+	vlanpqf |= IGC_VLANPQF_QSEL(prio, queue);
+	vlanpqf |= IGC_VLANPQF_VALID(prio);
+
+	wr32(IGC_VLANPQF, vlanpqf);
+
+	netdev_dbg(dev, "Add VLAN priority filter: prio %d queue %d\n",
+		   prio, queue);
+	return 0;
+}
+
+/**
+ * igc_del_vlan_prio_filter() - Delete VLAN priority filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @prio: VLAN priority value
+ */
+void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 vlanpqf;
+
+	vlanpqf = rd32(IGC_VLANPQF);
+
+	vlanpqf &= ~IGC_VLANPQF_VALID(prio);
+	vlanpqf &= ~IGC_VLANPQF_QSEL(prio, IGC_VLANPQF_QUEUE_MASK);
+
+	wr32(IGC_VLANPQF, vlanpqf);
+
+	netdev_dbg(adapter->netdev, "Delete VLAN priority filter: prio %d\n",
+		   prio);
+}
+
+static int igc_get_avail_etype_filter_slot(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < MAX_ETYPE_FILTER; i++) {
+		u32 etqf = rd32(IGC_ETQF(i));
+
+		if (!(etqf & IGC_ETQF_FILTER_ENABLE))
+			return i;
+	}
+
+	return -1;
+}
+
+/**
+ * igc_add_etype_filter() - Add ethertype filter
+ * @adapter: Pointer to adapter where the filter should be added
+ * @etype: Ethertype value
+ * @queue: If non-negative, queue assignment feature is enabled and frames
+ *         matching the filter are enqueued onto 'queue'. Otherwise, queue
+ *         assignment is disabled.
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype, int queue)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int index;
+	u32 etqf;
+
+	index = igc_get_avail_etype_filter_slot(adapter);
+	if (index < 0)
+		return -ENOSPC;
+
+	etqf = rd32(IGC_ETQF(index));
+
+	etqf &= ~IGC_ETQF_ETYPE_MASK;
+	etqf |= etype;
+
+	if (queue >= 0) {
+		etqf &= ~IGC_ETQF_QUEUE_MASK;
+		etqf |= (queue << IGC_ETQF_QUEUE_SHIFT);
+		etqf |= IGC_ETQF_QUEUE_ENABLE;
+	}
+
+	etqf |= IGC_ETQF_FILTER_ENABLE;
+
+	wr32(IGC_ETQF(index), etqf);
+
+	netdev_dbg(adapter->netdev, "Add ethertype filter: etype %04x queue %d\n",
+		   etype, queue);
+	return 0;
+}
+
+static int igc_find_etype_filter(struct igc_adapter *adapter, u16 etype)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int i;
+
+	for (i = 0; i < MAX_ETYPE_FILTER; i++) {
+		u32 etqf = rd32(IGC_ETQF(i));
+
+		if ((etqf & IGC_ETQF_ETYPE_MASK) == etype)
+			return i;
+	}
+
+	return -1;
+}
+
+/**
+ * igc_del_etype_filter() - Delete ethertype filter
+ * @adapter: Pointer to adapter where the filter should be deleted from
+ * @etype: Ethertype value
+ *
+ * Return: 0 in case of success, negative errno code otherwise.
+ */
+int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
+{
+	struct igc_hw *hw = &adapter->hw;
+	int index;
+
+	index = igc_find_etype_filter(adapter, etype);
+	if (index < 0)
+		return -ENOENT;
+
+	wr32(IGC_ETQF(index), 0);
+
+	netdev_dbg(adapter->netdev, "Delete ethertype filter: etype %04x\n",
+		   etype);
+	return 0;
+}
+
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
@@ -4658,9 +4803,6 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg)
 	struct igc_adapter *igc = container_of(hw, struct igc_adapter, hw);
 	u8 __iomem *hw_addr = READ_ONCE(hw->hw_addr);
 	u32 value = 0;
-
-	if (IGC_REMOVED(hw_addr))
-		return ~value;
 
 	value = readl(&hw_addr[reg]);
 

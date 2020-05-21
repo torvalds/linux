@@ -163,11 +163,6 @@
 
 /* For checksumming, the sum of all words in the NVM should equal 0xBABA. */
 #define NVM_SUM				0xBABA
-
-#define NVM_PBA_OFFSET_0		8
-#define NVM_PBA_OFFSET_1		9
-#define NVM_RESERVED_WORD		0xFFFF
-#define NVM_PBA_PTR_GUARD		0xFAFA
 #define NVM_WORD_SIZE_BASE_SHIFT	6
 
 /* Collision related configuration parameters */
@@ -249,7 +244,6 @@
 /* Interrupt Cause Set */
 #define IGC_ICS_LSC		IGC_ICR_LSC       /* Link Status Change */
 #define IGC_ICS_RXDMT0		IGC_ICR_RXDMT0    /* rx desc min. threshold */
-#define IGC_ICS_DRSTA		IGC_ICR_DRSTA     /* Device Reset Aserted */
 
 #define IGC_ICR_DOUTSYNC	0x10000000 /* NIC DMA out of sync */
 #define IGC_EITR_CNT_IGNR	0x80000000 /* Don't reset counters on write */
@@ -389,9 +383,6 @@
 
 #define IGC_TSICR_INTERRUPTS	IGC_TSICR_TXTS
 
-/* PTP Queue Filter */
-#define IGC_ETQF_1588		BIT(30)
-
 #define IGC_FTQF_VF_BP		0x00008000
 #define IGC_FTQF_1588_TIME_STAMP	0x08000000
 #define IGC_FTQF_MASK			0xF0000000
@@ -513,9 +504,9 @@
 #define IGC_MAX_MAC_HDR_LEN	127
 #define IGC_MAX_NETWORK_HDR_LEN	511
 
-#define IGC_VLAPQF_QUEUE_SEL(_n, q_idx) ((q_idx) << ((_n) * 4))
-#define IGC_VLAPQF_P_VALID(_n)	(0x1 << (3 + (_n) * 4))
-#define IGC_VLAPQF_QUEUE_MASK	0x03
+#define IGC_VLANPQF_QSEL(_n, q_idx) ((q_idx) << ((_n) * 4))
+#define IGC_VLANPQF_VALID(_n)	(0x1 << (3 + (_n) * 4))
+#define IGC_VLANPQF_QUEUE_MASK	0x03
 
 #define IGC_ADVTXD_MACLEN_SHIFT		9  /* Adv ctxt desc mac len shift */
 #define IGC_ADVTXD_TUCMD_IPV4		0x00000400  /* IP Packet Type:1=IPv4 */

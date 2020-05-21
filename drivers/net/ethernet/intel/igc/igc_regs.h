@@ -17,11 +17,6 @@
 /* Internal Packet Buffer Size Registers */
 #define IGC_RXPBS		0x02404  /* Rx Packet Buffer Size - RW */
 #define IGC_TXPBS		0x03404  /* Tx Packet Buffer Size - RW */
-#define IGC_TDFH		0x03410  /* Tx Data FIFO Head - RW */
-#define IGC_TDFT		0x03418  /* Tx Data FIFO Tail - RW */
-#define IGC_TDFHS		0x03420  /* Tx Data FIFO Head Saved - RW */
-#define IGC_TDFTS		0x03428  /* Tx Data FIFO Tail Saved - RW */
-#define IGC_TDFPC		0x03430  /* Tx Data FIFO Packet Count - RW */
 
 /* NVM  Register Descriptions */
 #define IGC_EERD		0x12014  /* EEprom mode read - RW */
@@ -35,9 +30,6 @@
 #define IGC_FCRTL		0x02160  /* FC Receive Threshold Low - RW */
 #define IGC_FCRTH		0x02168  /* FC Receive Threshold High - RW */
 #define IGC_FCRTV		0x02460  /* FC Refresh Timer Value - RW */
-
-/* PCIe Register Description */
-#define IGC_GCR			0x05B00  /* PCIe control- RW */
 
 /* Semaphore registers */
 #define IGC_SW_FW_SYNC		0x05B5C  /* SW-FW Synchronization - RW */
@@ -123,7 +115,7 @@
 #define IGC_UTA			0x0A000  /* Unicast Table Array - RW */
 #define IGC_RAL(_n)		(0x05400 + ((_n) * 0x08))
 #define IGC_RAH(_n)		(0x05404 + ((_n) * 0x08))
-#define IGC_VLAPQF		0x055B0  /* VLAN Priority Queue Filter VLAPQF */
+#define IGC_VLANPQF		0x055B0  /* VLAN Priority Queue Filter - RW */
 
 /* Transmit Register Descriptions */
 #define IGC_TCTL		0x00400  /* Tx Control - RW */
@@ -230,8 +222,6 @@
 
 #define IGC_FTQF(_n)	(0x059E0 + (4 * (_n)))  /* 5-tuple Queue Fltr */
 
-#define IGC_RXPBS	0x02404  /* Rx Packet Buffer Size - RW */
-
 /* Transmit Scheduling Registers */
 #define IGC_TQAVCTRL		0x3570
 #define IGC_TXQCTL(_n)		(0x3344 + 0x4 * (_n))
@@ -278,8 +268,7 @@ u32 igc_rd32(struct igc_hw *hw, u32 reg);
 #define wr32(reg, val) \
 do { \
 	u8 __iomem *hw_addr = READ_ONCE((hw)->hw_addr); \
-	if (!IGC_REMOVED(hw_addr)) \
-		writel((val), &hw_addr[(reg)]); \
+	writel((val), &hw_addr[(reg)]); \
 } while (0)
 
 #define rd32(reg) (igc_rd32(hw, reg))
