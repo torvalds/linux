@@ -76,7 +76,6 @@ static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
 }
 
 static const struct vm_operations_struct exynos_drm_gem_vm_ops = {
-	.fault = exynos_drm_gem_fault,
 	.open = drm_gem_vm_open,
 	.close = drm_gem_vm_close,
 };
