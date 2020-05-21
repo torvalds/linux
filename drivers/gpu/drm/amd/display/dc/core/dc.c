@@ -729,6 +729,9 @@ static bool dc_construct(struct dc *dc,
 	dc->clk_mgr = dc_clk_mgr_create(dc->ctx, dc->res_pool->pp_smu, dc->res_pool->dccg);
 	if (!dc->clk_mgr)
 		goto fail;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	dc->clk_mgr->force_smu_not_present = init_params->force_smu_not_present;
+#endif
 
 	if (dc->res_pool->funcs->update_bw_bounding_box)
 		dc->res_pool->funcs->update_bw_bounding_box(dc, dc->clk_mgr->bw_params);
@@ -2819,3 +2822,51 @@ void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_
 	if (dc->hwss.get_clock)
 		dc->hwss.get_clock(dc, clock_type, clock_cfg);
 }
+
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+void dc_allow_idle_optimizations(struct dc *dc, bool allow)
+{
+	if (dc->debug.disable_idle_power_optimizations)
+		return;
+
+	if (allow == dc->idle_optimizations_allowed)
+		return;
+
+	if (dc->hwss.apply_idle_power_optimizations && dc->hwss.apply_idle_power_optimizations(dc, allow))
+		dc->idle_optimizations_allowed = allow;
+}
+
+/*
+ * blank all streams, and set min and max memory clock to
+ * lowest and highest DPM level, respectively
+ */
+void dc_unlock_memory_clock_frequency(struct dc *dc)
+{
+	unsigned int i;
+
+	for (i = 0; i < MAX_PIPES; i++)
+		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
+			core_link_disable_stream(&dc->current_state->res_ctx.pipe_ctx[i]);
+
+	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, false);
+	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+}
+
+/*
+ * set min memory clock to the min required for current mode,
+ * max to maxDPM, and unblank streams
+ */
+void dc_lock_memory_clock_frequency(struct dc *dc)
+{
+	unsigned int i;
+
+	dc->clk_mgr->funcs->get_memclk_states_from_smu(dc->clk_mgr);
+	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, true);
+	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+
+	for (i = 0; i < MAX_PIPES; i++)
+		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
+			core_link_enable_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
+}
+#endif

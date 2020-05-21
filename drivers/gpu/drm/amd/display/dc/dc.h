@@ -459,6 +459,9 @@ struct dc_debug_options {
 	bool disable_tri_buf;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool disable_idle_power_optimizations;
+#endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
@@ -572,6 +575,9 @@ struct dc {
 	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
 	bool wm_optimized_required;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool idle_optimizations_allowed;
+#endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 	int optimize_seamless_boot_streams;
@@ -628,6 +634,9 @@ struct dc_init_data {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 	struct dpcd_vendor_signature vendor_signature;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool force_smu_not_present;
+#endif
 };
 
 struct dc_callback_init {
@@ -1198,6 +1207,23 @@ bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+
+void dc_allow_idle_optimizations(struct dc *dc, bool allow);
+
+/*
+ * blank all streams, and set min and max memory clock to
+ * lowest and highest DPM level, respectively
+ */
+void dc_unlock_memory_clock_frequency(struct dc *dc);
+
+/*
+ * set min memory clock to the min required for current mode,
+ * max to maxDPM, and unblank streams
+ */
+void dc_lock_memory_clock_frequency(struct dc *dc);
+
+#endif
 /*******************************************************************************
  * DSC Interfaces
  ******************************************************************************/

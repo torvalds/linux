@@ -38,6 +38,9 @@
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dcn21/rn_clk_mgr.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#include "dcn30/dcn30_clk_mgr.h"
+#endif
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -169,6 +172,15 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 		break;
 
 	case FAMILY_NV:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (ASICREV_IS_SIENNA_CICHLID_P(asic_id.hw_internal_rev)) {
+			/* TODO: to add SIENNA_CICHLID clk_mgr support, once CLK IP header files are available,
+			 * for now use DCN3AG clk mgr.
+			 */
+			dcn3_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
+			break;
+		}
+#endif
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;
 #endif	/* Family RV and NV*/
@@ -184,6 +196,16 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 void dc_destroy_clk_mgr(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+	switch (clk_mgr_base->ctx->asic_id.chip_family) {
+	case FAMILY_NV:
+		if (ASICREV_IS_SIENNA_CICHLID_P(clk_mgr_base->ctx->asic_id.hw_internal_rev)) {
+			dcn3_clk_mgr_destroy(clk_mgr);
+			break;
+		}
+	}
+#endif
 
 	kfree(clk_mgr);
 }
