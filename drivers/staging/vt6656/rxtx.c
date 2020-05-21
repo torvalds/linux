@@ -382,12 +382,11 @@ static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head);
 }
 
-static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
-			   struct ieee80211_key_conf *tx_key,
-			   struct sk_buff *skb)
+static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
 {
 	struct vnt_tx_fifo_head *fifo = &tx_buffer->fifo_head;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_key_conf *tx_key = info->control.hw_key;
 	struct vnt_mic_hdr *mic_hdr;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u64 pn64;
@@ -629,7 +628,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
-			vnt_fill_txkey(tx_buffer, tx_key, skb);
+			vnt_fill_txkey(tx_buffer, skb);
 	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
