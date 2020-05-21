@@ -26,9 +26,6 @@
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 
-/* Local defines */
-#define MSR_PLATFORM_POWER_LIMIT	0x0000065C
-
 /* bitmasks for RAPL MSRs, used by primitive access functions */
 #define ENERGY_STATUS_MASK      0xffffffff
 
