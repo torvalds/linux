@@ -61,11 +61,12 @@ static __always_inline void __##func(struct pt_regs *regs);		\
 									\
 __visible noinstr void func(struct pt_regs *regs)			\
 {									\
-	idtentry_enter(regs);						\
+	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+									\
 	instrumentation_begin();					\
 	__##func (regs);						\
 	instrumentation_end();						\
-	idtentry_exit(regs);						\
+	idtentry_exit_cond_rcu(regs, rcu_exit);				\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs)
@@ -107,11 +108,12 @@ static __always_inline void __##func(struct pt_regs *regs,		\
 __visible noinstr void func(struct pt_regs *regs,			\
 			    unsigned long error_code)			\
 {									\
-	idtentry_enter(regs);						\
+	bool rcu_exit = idtentry_enter_cond_rcu(regs);			\
+									\
 	instrumentation_begin();					\
 	__##func (regs, error_code);					\
 	instrumentation_end();						\
-	idtentry_exit(regs);						\
+	idtentry_exit_cond_rcu(regs, rcu_exit);				\
 }									\
 									\
 static __always_inline void __##func(struct pt_regs *regs,		\

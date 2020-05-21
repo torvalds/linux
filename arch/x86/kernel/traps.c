@@ -619,18 +619,18 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 		return;
 
 	/*
-	 * idtentry_enter() uses static_branch_{,un}likely() and therefore
+	 * idtentry_enter_user() uses static_branch_{,un}likely() and therefore
 	 * can trigger INT3, hence poke_int3_handler() must be done
 	 * before. If the entry came from kernel mode, then use nmi_enter()
 	 * because the INT3 could have been hit in any context including
 	 * NMI.
 	 */
 	if (user_mode(regs)) {
-		idtentry_enter(regs);
+		idtentry_enter_user(regs);
 		instrumentation_begin();
 		do_int3_user(regs);
 		instrumentation_end();
-		idtentry_exit(regs);
+		idtentry_exit_user(regs);
 	} else {
 		nmi_enter();
 		instrumentation_begin();
@@ -877,7 +877,7 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 static __always_inline void exc_debug_user(struct pt_regs *regs,
 					   unsigned long dr6)
 {
-	idtentry_enter(regs);
+	idtentry_enter_user(regs);
 	clear_thread_flag(TIF_BLOCKSTEP);
 
 	/*
@@ -886,7 +886,7 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 	 * User wants a sigtrap for that.
 	 */
 	handle_debug(regs, dr6, !dr6);
-	idtentry_exit(regs);
+	idtentry_exit_user(regs);
 }
 
 #ifdef CONFIG_X86_64

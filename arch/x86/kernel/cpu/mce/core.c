@@ -1929,11 +1929,11 @@ static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 
 static __always_inline void exc_machine_check_user(struct pt_regs *regs)
 {
-	idtentry_enter(regs);
+	idtentry_enter_user(regs);
 	instrumentation_begin();
 	machine_check_vector(regs);
 	instrumentation_end();
-	idtentry_exit(regs);
+	idtentry_exit_user(regs);
 }
 
 #ifdef CONFIG_X86_64
