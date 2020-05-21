@@ -54,6 +54,7 @@
 #define HAP_CFG_VMAX_REG			0x48
 #define VMAX_STEP_MV				50
 #define MAX_VMAX_MV				11000
+#define CLAMPED_VMAX_MV				5000
 #define DEFAULT_VMAX_MV				5000
 
 #define HAP_CFG_DRV_WF_SEL_REG			0x49
@@ -202,6 +203,16 @@
 
 #define HAP_PTN_BRAKE_AMP_REG			0x70
 
+/* register in HBOOST module */
+#define HAP_BOOST_REVISION1			0x00
+#define HAP_BOOST_REVISION2			0x01
+#define HAP_BOOST_V0P0				0x0000
+#define HAP_BOOST_V0P1				0x0001
+
+#define HAP_BOOST_V0P0_CLAMP_REG		0xF1
+#define HAP_BOOST_V0P1_CLAMP_REG		0x70
+#define CLAMP_5V_BIT				BIT(0)
+
 /* constant parameters */
 #define SAMPLES_PER_PATTERN			8
 #define BRAKE_SAMPLE_COUNT			8
@@ -221,6 +232,9 @@
 	((chip)->ptn_revision == HAP_PTN_V1 ? 48 : 280)
 #define is_between(val, min, max)	\
 	(((min) <= (max)) && ((min) <= (val)) && ((val) <= (max)))
+#define HAP_BOOST_CLAMP_5V_REG_OFFSET(chip)	\
+	((chip)->hbst_revision == HAP_BOOST_V0P0 ? \
+	 HAP_BOOST_V0P0_CLAMP_REG : HAP_BOOST_V0P1_CLAMP_REG)
 
 enum drv_sig_shape {
 	WF_SQUARE,
@@ -417,9 +431,12 @@ struct haptics_chip {
 	u32				effects_count;
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
+	u32				hbst_addr_base;
 	u8				ptn_revision;
+	u16				hbst_revision;
 	bool				fifo_empty_irq_en;
 	bool				swr_slave_enabled;
+	bool				clamp_at_5v;
 };
 
 static int haptics_read(struct haptics_chip *chip,
@@ -805,6 +822,9 @@ static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 					vmax_mv, MAX_VMAX_MV);
 		return -EINVAL;
 	}
+
+	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
+		vmax_mv = CLAMPED_VMAX_MV;
 
 	val = vmax_mv / VMAX_STEP_MV;
 	rc = haptics_write(chip, chip->cfg_addr_base,
@@ -1740,8 +1760,8 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 static void haptics_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct haptics_chip *chip = input_get_drvdata(dev);
-	struct haptics_hw_config *config = &chip->config;
 	struct haptics_play_info *play = &chip->play;
+	u32 vmax_mv;
 
 	if (gain == 0)
 		return;
@@ -1749,7 +1769,11 @@ static void haptics_set_gain(struct input_dev *dev, u16 gain)
 	if (gain > 0x7fff)
 		gain = 0x7fff;
 
-	play->vmax_mv = ((u32)(gain * config->vmax_mv)) / 0x7fff;
+	vmax_mv = play->effect->vmax_mv;
+	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
+		vmax_mv = CLAMPED_VMAX_MV;
+
+	play->vmax_mv = ((u32)(gain * vmax_mv)) / 0x7fff;
 	haptics_set_vmax_mv(chip, play->vmax_mv);
 }
 
@@ -1803,13 +1827,25 @@ static int haptics_hw_init(struct haptics_chip *chip)
 	struct haptics_hw_config *config = &chip->config;
 	struct haptics_effect *effect;
 	int rc = 0, i;
-	u8 val;
+	u8 val[2];
 
 	/* Store CL brake settings */
 	rc = haptics_store_cl_brake_settings(chip);
 	if (rc < 0)
 		return rc;
 
+	rc = haptics_read(chip, chip->hbst_addr_base,
+			HAP_BOOST_REVISION1, val, 2);
+	if (rc < 0)
+		return rc;
+
+	chip->hbst_revision = (val[1] << 8) | val[0];
+	rc = haptics_read(chip, chip->hbst_addr_base,
+			HAP_BOOST_CLAMP_5V_REG_OFFSET(chip), val, 1);
+	if (rc < 0)
+		return rc;
+
+	chip->clamp_at_5v = val[0] & CLAMP_5V_BIT;
 	/* Config VMAX */
 	rc = haptics_set_vmax_mv(chip, config->vmax_mv);
 	if (rc < 0)
@@ -1823,13 +1859,13 @@ static int haptics_hw_init(struct haptics_chip *chip)
 		return rc;
 
 	/* Config brake mode and waveform shape */
-	val = (config->brake.mode << BRAKE_MODE_SHIFT)
+	val[0] = (config->brake.mode << BRAKE_MODE_SHIFT)
 		| config->brake.sine_gain << BRAKE_SINE_GAIN_SHIFT
 		| config->brake.brake_wf;
 	rc = haptics_masked_write(chip, chip->cfg_addr_base,
 			HAP_CFG_BRAKE_MODE_CFG_REG,
 			BRAKE_MODE_MASK | BRAKE_SINE_GAIN_MASK
-			| BRAKE_WF_SEL_MASK, val);
+			| BRAKE_WF_SEL_MASK, val[0]);
 	if (rc < 0)
 		return rc;
 
@@ -2972,20 +3008,25 @@ static int haptics_parse_dt(struct haptics_chip *chip)
 
 	addr = of_get_address(node, 0, NULL, NULL);
 	if (!addr) {
-		dev_err(chip->dev, "Read HAPTICS_CFG address failed, rc = %d\n",
-				rc);
-		return rc;
+		dev_err(chip->dev, "Read HAPTICS_CFG address failed\n");
+		return -EINVAL;
 	}
 
 	chip->cfg_addr_base = be32_to_cpu(*addr);
 	addr = of_get_address(node, 1, NULL, NULL);
 	if (!addr) {
-		dev_err(chip->dev, "Read HAPTICS_PATTERN address failed, rc = %d\n",
-				rc);
-		return rc;
+		dev_err(chip->dev, "Read HAPTICS_PATTERN address failed\n");
+		return -EINVAL;
 	}
 
 	chip->ptn_addr_base = be32_to_cpu(*addr);
+	addr = of_get_address(node, 2, NULL, NULL);
+	if (!addr) {
+		dev_err(chip->dev, "Read HAPTICS_HBOOST address failed\n");
+		return -EINVAL;
+	}
+
+	chip->hbst_addr_base = be32_to_cpu(*addr);
 	rc = haptics_get_revision(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Get revision failed, rc=%d\n", rc);
