@@ -848,6 +848,67 @@ void noinstr rcu_user_exit(void)
 {
 	rcu_eqs_exit(1);
 }
+
+/**
+ * __rcu_irq_enter_check_tick - Enable scheduler tick on CPU if RCU needs it.
+ *
+ * The scheduler tick is not normally enabled when CPUs enter the kernel
+ * from nohz_full userspace execution.  After all, nohz_full userspace
+ * execution is an RCU quiescent state and the time executing in the kernel
+ * is quite short.  Except of course when it isn't.  And it is not hard to
+ * cause a large system to spend tens of seconds or even minutes looping
+ * in the kernel, which can cause a number of problems, include RCU CPU
+ * stall warnings.
+ *
+ * Therefore, if a nohz_full CPU fails to report a quiescent state
+ * in a timely manner, the RCU grace-period kthread sets that CPU's
+ * ->rcu_urgent_qs flag with the expectation that the next interrupt or
+ * exception will invoke this function, which will turn on the scheduler
+ * tick, which will enable RCU to detect that CPU's quiescent states,
+ * for example, due to cond_resched() calls in CONFIG_PREEMPT=n kernels.
+ * The tick will be disabled once a quiescent state is reported for
+ * this CPU.
+ *
+ * Of course, in carefully tuned systems, there might never be an
+ * interrupt or exception.  In that case, the RCU grace-period kthread
+ * will eventually cause one to happen.  However, in less carefully
+ * controlled environments, this function allows RCU to get what it
+ * needs without creating otherwise useless interruptions.
+ */
+void __rcu_irq_enter_check_tick(void)
+{
+	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
+
+	 // Enabling the tick is unsafe in NMI handlers.
+	if (WARN_ON_ONCE(in_nmi()))
+		return;
+
+	RCU_LOCKDEP_WARN(rcu_dynticks_curr_cpu_in_eqs(),
+			 "Illegal rcu_irq_enter_check_tick() from extended quiescent state");
+
+	if (!tick_nohz_full_cpu(rdp->cpu) ||
+	    !READ_ONCE(rdp->rcu_urgent_qs) ||
+	    READ_ONCE(rdp->rcu_forced_tick)) {
+		// RCU doesn't need nohz_full help from this CPU, or it is
+		// already getting that help.
+		return;
+	}
+
+	// We get here only when not in an extended quiescent state and
+	// from interrupts (as opposed to NMIs).  Therefore, (1) RCU is
+	// already watching and (2) The fact that we are in an interrupt
+	// handler and that the rcu_node lock is an irq-disabled lock
+	// prevents self-deadlock.  So we can safely recheck under the lock.
+	// Note that the nohz_full state currently cannot change.
+	raw_spin_lock_rcu_node(rdp->mynode);
+	if (rdp->rcu_urgent_qs && !rdp->rcu_forced_tick) {
+		// A nohz_full CPU is in the kernel and RCU needs a
+		// quiescent state.  Turn on the tick!
+		WRITE_ONCE(rdp->rcu_forced_tick, true);
+		tick_dep_set_cpu(rdp->cpu, TICK_DEP_BIT_RCU);
+	}
+	raw_spin_unlock_rcu_node(rdp->mynode);
+}
 #endif /* CONFIG_NO_HZ_FULL */
 
 /**
@@ -894,26 +955,7 @@ noinstr void rcu_nmi_enter(void)
 		incby = 1;
 	} else if (!in_nmi()) {
 		instrumentation_begin();
-		if (tick_nohz_full_cpu(rdp->cpu) &&
-		    rdp->dynticks_nmi_nesting == DYNTICK_IRQ_NONIDLE &&
-		    READ_ONCE(rdp->rcu_urgent_qs) &&
-		    !READ_ONCE(rdp->rcu_forced_tick)) {
-			// We get here only if we had already exited the
-			// extended quiescent state and this was an
-			// interrupt (not an NMI).  Therefore, (1) RCU is
-			// already watching and (2) The fact that we are in
-			// an interrupt handler and that the rcu_node lock
-			// is an irq-disabled lock prevents self-deadlock.
-			// So we can safely recheck under the lock.
-			raw_spin_lock_rcu_node(rdp->mynode);
-			if (rdp->rcu_urgent_qs && !rdp->rcu_forced_tick) {
-				// A nohz_full CPU is in the kernel and RCU
-				// needs a quiescent state.  Turn on the tick!
-				WRITE_ONCE(rdp->rcu_forced_tick, true);
-				tick_dep_set_cpu(rdp->cpu, TICK_DEP_BIT_RCU);
-			}
-			raw_spin_unlock_rcu_node(rdp->mynode);
-		}
+		rcu_irq_enter_check_tick();
 		instrumentation_end();
 	}
 	instrumentation_begin();
