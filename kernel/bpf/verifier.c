@@ -393,6 +393,15 @@ static bool type_is_sk_pointer(enum bpf_reg_type type)
 		type == PTR_TO_XDP_SOCK;
 }
 
+static bool reg_type_not_null(enum bpf_reg_type type)
+{
+	return type == PTR_TO_SOCKET ||
+		type == PTR_TO_TCP_SOCK ||
+		type == PTR_TO_MAP_VALUE ||
+		type == PTR_TO_SOCK_COMMON ||
+	        type == PTR_TO_BTF_ID;
+}
+
 static bool reg_type_may_be_null(enum bpf_reg_type type)
 {
 	return type == PTR_TO_MAP_VALUE_OR_NULL ||
@@ -6308,8 +6317,25 @@ static int is_branch64_taken(struct bpf_reg_state *reg, u64 val, u8 opcode)
 static int is_branch_taken(struct bpf_reg_state *reg, u64 val, u8 opcode,
 			   bool is_jmp32)
 {
-	if (__is_pointer_value(false, reg))
-		return -1;
+	if (__is_pointer_value(false, reg)) {
+		if (!reg_type_not_null(reg->type))
+			return -1;
+
+		/* If pointer is valid tests against zero will fail so we can
+		 * use this to direct branch taken.
+		 */
+		if (val != 0)
+			return -1;
+
+		switch (opcode) {
+		case BPF_JEQ:
+			return 0;
+		case BPF_JNE:
+			return 1;
+		default:
+			return -1;
+		}
+	}
 
 	if (is_jmp32)
 		return is_branch32_taken(reg, val, opcode);
@@ -6808,7 +6834,11 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	}
 
 	if (pred >= 0) {
-		err = mark_chain_precision(env, insn->dst_reg);
+		/* If we get here with a dst_reg pointer type it is because
+		 * above is_branch_taken() special cased the 0 comparison.
+		 */
+		if (!__is_pointer_value(false, dst_reg))
+			err = mark_chain_precision(env, insn->dst_reg);
 		if (BPF_SRC(insn->code) == BPF_X && !err)
 			err = mark_chain_precision(env, insn->src_reg);
 		if (err)
