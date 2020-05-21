@@ -327,7 +327,6 @@ struct sc16is7xx_port {
 	unsigned char			buf[SC16IS7XX_FIFO_SIZE];
 	struct kthread_worker		kworker;
 	struct task_struct		*kworker_task;
-	struct kthread_work		irq_work;
 	struct mutex			efr_lock;
 	struct sc16is7xx_one		p[];
 };
@@ -710,9 +709,9 @@ static bool sc16is7xx_port_irq(struct sc16is7xx_port *s, int portno)
 	return true;
 }
 
-static void sc16is7xx_ist(struct kthread_work *ws)
+static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
 {
-	struct sc16is7xx_port *s = to_sc16is7xx_port(ws, irq_work);
+	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
 
 	mutex_lock(&s->efr_lock);
 
@@ -727,13 +726,6 @@ static void sc16is7xx_ist(struct kthread_work *ws)
 	}
 
 	mutex_unlock(&s->efr_lock);
-}
-
-static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
-{
-	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
-
-	kthread_queue_work(&s->kworker, &s->irq_work);
 
 	return IRQ_HANDLED;
 }
@@ -1221,7 +1213,6 @@ static int sc16is7xx_probe(struct device *dev,
 	mutex_init(&s->efr_lock);
 
 	kthread_init_worker(&s->kworker);
-	kthread_init_work(&s->irq_work, sc16is7xx_ist);
 	s->kworker_task = kthread_run(kthread_worker_fn, &s->kworker,
 				      "sc16is7xx");
 	if (IS_ERR(s->kworker_task)) {
@@ -1303,8 +1294,9 @@ static int sc16is7xx_probe(struct device *dev,
 	}
 
 	/* Setup interrupt */
-	ret = devm_request_irq(dev, irq, sc16is7xx_irq,
-			       IRQF_TRIGGER_FALLING, dev_name(dev), s);
+	ret = devm_request_threaded_irq(dev, irq, NULL, sc16is7xx_irq,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					dev_name(dev), s);
 	if (!ret)
 		return 0;
 
