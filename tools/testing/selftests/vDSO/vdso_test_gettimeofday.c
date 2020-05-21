@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * vdso_test.c: Sample code to test parse_vdso.c
+ * vdso_test_gettimeofday.c: Sample code to test parse_vdso.c and
+ *                           vDSO gettimeofday()
  * Copyright (c) 2014 Andy Lutomirski
  *
  * Compile with:
- * gcc -std=gnu99 vdso_test.c parse_vdso.c
+ * gcc -std=gnu99 vdso_test_gettimeofday.c parse_vdso_gettimeofday.c
  *
  * Tested on x86, 32-bit and 64-bit.  It may work on other architectures, too.
  */
