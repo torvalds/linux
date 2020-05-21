@@ -24,6 +24,9 @@
 static DEFINE_PER_CPU(struct clock_event_device, gic_clockevent_device);
 static int gic_timer_irq;
 static unsigned int gic_frequency;
+static bool __read_mostly gic_clock_unstable;
+
+static void gic_clocksource_unstable(char *reason);
 
 static u64 notrace gic_read_count_2x32(void)
 {
@@ -125,8 +128,10 @@ static int gic_clk_notifier(struct notifier_block *nb, unsigned long action,
 {
 	struct clk_notifier_data *cnd = data;
 
-	if (action == POST_RATE_CHANGE)
+	if (action == POST_RATE_CHANGE) {
+		gic_clocksource_unstable("ref clock rate change");
 		on_each_cpu(gic_update_frequency, (void *)cnd->new_rate, 1);
+	}
 
 	return NOTIFY_OK;
 }
@@ -171,6 +176,18 @@ static struct clocksource gic_clocksource = {
 	.flags			= CLOCK_SOURCE_IS_CONTINUOUS,
 	.vdso_clock_mode	= VDSO_CLOCKMODE_GIC,
 };
+
+static void gic_clocksource_unstable(char *reason)
+{
+	if (gic_clock_unstable)
+		return;
+
+	gic_clock_unstable = true;
+
+	pr_info("GIC timer is unstable due to %s\n", reason);
+
+	clocksource_mark_unstable(&gic_clocksource);
+}
 
 static int __init __gic_clocksource_init(void)
 {

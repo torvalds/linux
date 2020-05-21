@@ -570,6 +570,7 @@ config CLKSRC_VERSATILE
 config CLKSRC_MIPS_GIC
 	bool
 	depends on MIPS_GIC
+	select CLOCKSOURCE_WATCHDOG
 	select TIMER_OF
 
 config CLKSRC_TANGO_XTAL
