@@ -172,14 +172,4 @@ static inline int arch_irqs_disabled(void)
 }
 #endif /* !__ASSEMBLY__ */
 
-#ifdef __ASSEMBLY__
-#ifdef CONFIG_TRACE_IRQFLAGS
-#  define TRACE_IRQS_ON		call trace_hardirqs_on_thunk;
-#  define TRACE_IRQS_OFF	call trace_hardirqs_off_thunk;
-#else
-#  define TRACE_IRQS_ON
-#  define TRACE_IRQS_OFF
-#endif
-#endif /* __ASSEMBLY__ */
-
 #endif
