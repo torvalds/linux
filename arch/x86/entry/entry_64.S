@@ -658,108 +658,7 @@ SYM_CODE_END(\asmsym)
  */
 #include <asm/idtentry.h>
 
-/*
- * Interrupt entry helper function.
- *
- * Entry runs with interrupts off. Stack layout at entry:
- * +----------------------------------------------------+
- * | regs->ss						|
- * | regs->rsp						|
- * | regs->eflags					|
- * | regs->cs						|
- * | regs->ip						|
- * +----------------------------------------------------+
- * | regs->orig_ax = ~(interrupt number)		|
- * +----------------------------------------------------+
- * | return address					|
- * +----------------------------------------------------+
- */
-SYM_CODE_START(interrupt_entry)
-	UNWIND_HINT_IRET_REGS offset=16
-	ASM_CLAC
-	cld
-
-	testb	$3, CS-ORIG_RAX+8(%rsp)
-	jz	1f
-	SWAPGS
-	FENCE_SWAPGS_USER_ENTRY
-	/*
-	 * Switch to the thread stack. The IRET frame and orig_ax are
-	 * on the stack, as well as the return address. RDI..R12 are
-	 * not (yet) on the stack and space has not (yet) been
-	 * allocated for them.
-	 */
-	pushq	%rdi
-
-	/* Need to switch before accessing the thread stack. */
-	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
-	movq	%rsp, %rdi
-	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-
-	 /*
-	  * We have RDI, return address, and orig_ax on the stack on
-	  * top of the IRET frame. That means offset=24
-	  */
-	UNWIND_HINT_IRET_REGS base=%rdi offset=24
-
-	pushq	7*8(%rdi)		/* regs->ss */
-	pushq	6*8(%rdi)		/* regs->rsp */
-	pushq	5*8(%rdi)		/* regs->eflags */
-	pushq	4*8(%rdi)		/* regs->cs */
-	pushq	3*8(%rdi)		/* regs->ip */
-	UNWIND_HINT_IRET_REGS
-	pushq	2*8(%rdi)		/* regs->orig_ax */
-	pushq	8(%rdi)			/* return address */
-
-	movq	(%rdi), %rdi
-	jmp	2f
-1:
-	FENCE_SWAPGS_KERNEL_ENTRY
-2:
-	PUSH_AND_CLEAR_REGS save_ret=1
-	ENCODE_FRAME_POINTER 8
-
-	testb	$3, CS+8(%rsp)
-	jz	1f
-
-	/*
-	 * IRQ from user mode.
-	 *
-	 * We need to tell lockdep that IRQs are off.  We can't do this until
-	 * we fix gsbase, and we should do it before enter_from_user_mode
-	 * (which can take locks).  Since TRACE_IRQS_OFF is idempotent,
-	 * the simplest way to handle it is to just call it twice if
-	 * we enter from user mode.  There's no reason to optimize this since
-	 * TRACE_IRQS_OFF is a no-op if lockdep is off.
-	 */
-	TRACE_IRQS_OFF
-
-	CALL_enter_from_user_mode
-
-1:
-	ENTER_IRQ_STACK old_rsp=%rdi save_ret=1
-	/* We entered an interrupt context - irqs are off: */
-	TRACE_IRQS_OFF
-
-	ret
-SYM_CODE_END(interrupt_entry)
-_ASM_NOKPROBE(interrupt_entry)
-
 SYM_CODE_START_LOCAL(common_interrupt_return)
-ret_from_intr:
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF
-
-	LEAVE_IRQ_STACK
-
-	testb	$3, CS(%rsp)
-	jz	retint_kernel
-
-	/* Interrupt came from user space */
-.Lretint_user:
-	mov	%rsp,%rdi
-	call	prepare_exit_to_usermode
-
 SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 #ifdef CONFIG_DEBUG_ENTRY
 	/* Assert that pt_regs indicates user mode. */
@@ -801,23 +700,6 @@ SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
 	SWAPGS
 	INTERRUPT_RETURN
 
-
-/* Returning to kernel space */
-retint_kernel:
-#ifdef CONFIG_PREEMPTION
-	/* Interrupts are off */
-	/* Check if we need preemption */
-	btl	$9, EFLAGS(%rsp)		/* were interrupts off? */
-	jnc	1f
-	cmpl	$0, PER_CPU_VAR(__preempt_count)
-	jnz	1f
-	call	preempt_schedule_irq
-1:
-#endif
-	/*
-	 * The iretq could re-enable interrupts:
-	 */
-	TRACE_IRQS_IRETQ
 
 SYM_INNER_LABEL(restore_regs_and_return_to_kernel, SYM_L_GLOBAL)
 #ifdef CONFIG_DEBUG_ENTRY
@@ -930,31 +812,6 @@ native_irq_return_ldt:
 #endif
 SYM_CODE_END(common_interrupt_return)
 _ASM_NOKPROBE(common_interrupt_return)
-
-/*
- * APIC interrupts.
- */
-.macro apicinterrupt3 num sym do_sym
-SYM_CODE_START(\sym)
-	UNWIND_HINT_IRET_REGS
-	pushq	$~(\num)
-	call	interrupt_entry
-	UNWIND_HINT_REGS indirect=1
-	call	\do_sym	/* rdi points to pt_regs */
-	jmp	ret_from_intr
-SYM_CODE_END(\sym)
-_ASM_NOKPROBE(\sym)
-.endm
-
-/* Make sure APIC interrupt handlers end up in the irqentry section: */
-#define PUSH_SECTION_IRQENTRY	.pushsection .irqentry.text, "ax"
-#define POP_SECTION_IRQENTRY	.popsection
-
-.macro apicinterrupt num sym do_sym
-PUSH_SECTION_IRQENTRY
-apicinterrupt3 \num \sym \do_sym
-POP_SECTION_IRQENTRY
-.endm
 
 /*
  * Reload gs selector with exception handling

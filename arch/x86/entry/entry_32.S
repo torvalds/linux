@@ -1233,24 +1233,6 @@ SYM_FUNC_END(entry_INT80_32)
 #endif
 .endm
 
-#define BUILD_INTERRUPT3(name, nr, fn)			\
-SYM_FUNC_START(name)					\
-	ASM_CLAC;					\
-	pushl	$~(nr);					\
-	SAVE_ALL switch_stacks=1;			\
-	ENCODE_FRAME_POINTER;				\
-	TRACE_IRQS_OFF					\
-	movl	%esp, %eax;				\
-	call	fn;					\
-	jmp	ret_from_intr;				\
-SYM_FUNC_END(name)
-
-#define BUILD_INTERRUPT(name, nr)		\
-	BUILD_INTERRUPT3(name, nr, smp_##name);	\
-
-/* The include is where all of the SMP etc. interrupts come from */
-#include <asm/entry_arch.h>
-
 #ifdef CONFIG_PARAVIRT
 SYM_CODE_START(native_iret)
 	iret
