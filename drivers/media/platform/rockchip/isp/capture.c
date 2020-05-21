@@ -1520,7 +1520,6 @@ RDBK_FRM_UNMATCH:
 static int mi_frame_end(struct rkisp_stream *stream)
 {
 	struct rkisp_device *isp_dev = stream->ispdev;
-	struct rkisp_isp_subdev *isp_sd = &isp_dev->isp_sdev;
 	struct rkisp_capture_device *cap = &isp_dev->cap_dev;
 	struct capture_fmt *isp_fmt = &stream->out_isp_fmt;
 	bool interlaced = stream->interlaced;
@@ -1552,7 +1551,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		if (stream->id == RKISP_STREAM_MP ||
 		    stream->id == RKISP_STREAM_SP)
 			stream->curr_buf->vb.sequence =
-				atomic_read(&isp_sd->frm_sync_seq) - 1;
+				rkisp_dmarx_get_frame_id(isp_dev, false);
 		else
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;

@@ -1148,14 +1148,7 @@ rkisp_stats_send_meas_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_stats_v2x_ops *ops =
 		(struct rkisp_stats_v2x_ops *)stats_vdev->priv_ops;
 
-	cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev);
-	if (cur_frame_id != meas_work->frame_id) {
-		v4l2_warn(stats_vdev->vnode.vdev.v4l2_dev,
-			  "Measurement late(%d, %d)\n",
-			  cur_frame_id, meas_work->frame_id);
-		cur_frame_id = meas_work->frame_id;
-	}
-
+	cur_frame_id = meas_work->frame_id;
 	spin_lock(&stats_vdev->rd_lock);
 	/* get one empty buffer */
 	if (!list_empty(&stats_vdev->stat)) {
@@ -1344,7 +1337,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_device *dev = stats_vdev->dev;
 	u32 isp_mis_tmp = 0;
 	struct rkisp_isp_readout_work work;
-	u32 cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev);
+	u32 cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev, true);
 	u32 iq_isr_mask = ISP2X_SIAWB_DONE | ISP2X_SIAF_FIN |
 		ISP2X_YUVAE_END | ISP2X_SIHST_RDY | ISP2X_AFM_SUM_OF | ISP2X_AFM_LUM_OF;
 	u32 iq_3a_mask = 0;
@@ -1355,10 +1348,8 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif
-
 	if (IS_HDR_RDBK(dev->hdr.op_mode))
 		iq_3a_mask = ISP2X_3A_RAWAE_BIG;
-
 	spin_lock(&stats_vdev->irq_lock);
 
 	temp_isp_ris = readl(stats_vdev->dev->base_addr + ISP_ISP_RIS);

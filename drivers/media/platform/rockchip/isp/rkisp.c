@@ -1731,6 +1731,9 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkisp_device *isp_dev = sd_to_isp_dev(sd);
 	long ret = 0;
 
+	if (!arg)
+		return -EINVAL;
+
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
 		rkisp_csi_trigger_event(&isp_dev->csi_dev, arg);
@@ -1759,6 +1762,9 @@ static long rkisp_compat_ioctl32(struct v4l2_subdev *sd,
 	struct isp2x_csi_trigger trigger;
 	long ret = 0;
 	int mode;
+
+	if (!up)
+		return -EINVAL;
 
 	switch (cmd) {
 	case RKISP_CMD_TRIGGER_READ_BACK:
@@ -2134,10 +2140,8 @@ vs_skip:
 	 */
 	rkisp_params_isr(&dev->params_vdev, isp_mis);
 
-	if (isp_mis & CIF_ISP_FRAME) {
-		dev->csi_dev.is_isp_end = true;
+	if (isp_mis & CIF_ISP_FRAME)
 		rkisp_csi_trigger_event(&dev->csi_dev, NULL);
-	}
 }
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx)

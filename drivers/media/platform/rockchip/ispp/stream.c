@@ -1800,11 +1800,14 @@ static void fec_work_event(struct rkispp_device *dev,
 	void __iomem *base = dev->base_addr;
 	struct rkispp_dummy_buffer *dummy;
 	unsigned long lock_flags = 0;
-	bool is_start = false;
+	bool is_start = false, is_quick = false;
 	u32 val;
 
 	if (!(vdev->module_ens & ISPP_MODULE_FEC))
 		return;
+
+	if (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK)
+		is_quick = true;
 
 	spin_lock_irqsave(&vdev->fec.buf_lock, lock_flags);
 
@@ -1855,8 +1858,10 @@ static void fec_work_event(struct rkispp_device *dev,
 	if (is_start) {
 		u32 seq = 0;
 
-		if (vdev->fec.cur_rd)
+		if (vdev->fec.cur_rd && !is_quick) {
 			seq = vdev->fec.cur_rd->id;
+			atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
+		}
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 		v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
 			 "FEC start seq:%d | Y_SHD rd:0x%x\n",
@@ -1883,6 +1888,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	unsigned long lock_flags = 0;
 	bool is_start = false, is_quick = false;
 	bool is_tnr_en = (vdev->module_ens & ISPP_MODULE_TNR);
+	bool is_fec_en = (vdev->module_ens & ISPP_MODULE_FEC);
 	u32 val;
 
 	if (!(vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)))
@@ -2005,11 +2011,10 @@ static void nr_work_event(struct rkispp_device *dev,
 
 		if (vdev->nr.cur_rd) {
 			seq = vdev->nr.cur_rd->frame_id;
-			if (sd)
-				atomic_set(&dev->ispp_sdev.frm_sync_seq,
-					   vdev->nr.cur_rd->frame_id);
 			if (vdev->nr.cur_wr)
 				vdev->nr.cur_wr->id = seq;
+			if (!is_fec_en && !is_quick)
+				atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
 		}
 
 		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -2177,8 +2182,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 		u32 seq = 0;
 
 		if (vdev->tnr.cur_rd) {
-			seq = vdev->tnr.cur_rd->frame_id - is_3to1;
-			atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
+			seq = vdev->tnr.cur_rd->frame_id;
 			if (vdev->tnr.cur_wr)
 				vdev->tnr.cur_wr->frame_id = seq;
 		}

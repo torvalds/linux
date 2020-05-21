@@ -429,7 +429,7 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 	struct rkisp_device *dev = csi->ispdev;
 	void __iomem *addr = dev->base_addr + CSI2RX_CTRL0;
 	struct rkisp_isp_params_vdev *params_vdev = &dev->params_vdev;
-	u32 cur_frame_id = rkisp_dmarx_get_frame_id(dev);
+	u32 cur_frame_id = rkisp_dmarx_get_frame_id(dev, true);
 
 	if (dma2frm > 2)
 		dma2frm = 2;
@@ -469,6 +469,8 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		return 0;
 
 	spin_lock_irqsave(&csi->rdbk_lock, lock_flags);
+	if (!trigger)
+		csi->is_isp_end = true;
 	if (trigger &&
 	    (csi->is_first ||
 	     (csi->is_isp_end && kfifo_is_empty(fifo)))) {
@@ -476,7 +478,9 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		 * start read back direct
 		 */
 		csi->is_first = false;
-		dev->dmarx_dev.frame_id = trigger->frame_id;
+		dev->dmarx_dev.pre_frame_id =
+			dev->dmarx_dev.cur_frame_id;
+		dev->dmarx_dev.cur_frame_id = trigger->frame_id;
 		times = trigger->times;
 	} else if (csi->is_isp_end && !kfifo_is_empty(fifo)) {
 		/* isp idle and events in queue
@@ -484,7 +488,9 @@ int rkisp_csi_trigger_event(struct rkisp_csi_device *csi, void *arg)
 		 * new event in fifo
 		 */
 		if (kfifo_out(fifo, &t, sizeof(t))) {
-			dev->dmarx_dev.frame_id = t.frame_id;
+			dev->dmarx_dev.pre_frame_id =
+				dev->dmarx_dev.cur_frame_id;
+			dev->dmarx_dev.cur_frame_id = t.frame_id;
 			times = t.times;
 		}
 		if (trigger)

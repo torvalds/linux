@@ -934,12 +934,21 @@ static int dmarx_init(struct rkisp_device *dev, u32 id)
 		RKISP_ISP_PAD_SINK, stream->linked);
 }
 
-u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev)
+u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev, bool sync)
 {
-	if (dev->dmarx_dev.trigger == T_MANUAL)
-		return dev->dmarx_dev.frame_id;
-	else
+	unsigned long flag = 0;
+	u32 id;
+
+	if (!dev->dmarx_dev.trigger)
 		return atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
+
+	spin_lock_irqsave(&dev->csi_dev.rdbk_lock, flag);
+	if (sync || dev->csi_dev.is_isp_end)
+		id = dev->dmarx_dev.cur_frame_id;
+	else
+		id = dev->dmarx_dev.pre_frame_id;
+	spin_unlock_irqrestore(&dev->csi_dev.rdbk_lock, flag);
+	return id;
 }
 
 int rkisp_register_dmarx_vdev(struct rkisp_device *dev)

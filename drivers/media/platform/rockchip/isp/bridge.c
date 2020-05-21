@@ -51,7 +51,8 @@ static int frame_end(struct rkisp_bridge_device *dev)
 	unsigned long lock_flags = 0;
 
 	if (dev->cur_buf && dev->nxt_buf) {
-		dev->cur_buf->frame_id = rkisp_dmarx_get_frame_id(dev->ispdev) + 1;
+		dev->cur_buf->frame_id =
+			rkisp_dmarx_get_frame_id(dev->ispdev, false) + 1;
 		v4l2_subdev_call(sd, video, s_rx_buffer, dev->cur_buf, NULL);
 		dev->cur_buf = NULL;
 	}
