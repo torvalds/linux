@@ -86,11 +86,6 @@ config 405EZ
 	select IBM_EMAC_MAL_CLR_ICINTSTAT if IBM_EMAC
 	select IBM_EMAC_MAL_COMMON_ERR if IBM_EMAC
 
-config STB03xxx
-	bool
-	select IBM405_ERR77
-	select IBM405_ERR51
-
 config PPC4xx_GPIO
 	bool "PPC4xx GPIO support"
 	depends on 40x
