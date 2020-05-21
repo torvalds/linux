@@ -406,7 +406,7 @@ irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *dev)
 		if (MHI_IN_PBL(ee))
 			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_FATAL_ERROR);
 		else
-			schedule_work(&mhi_cntrl->syserr_worker);
+			mhi_pm_sys_err_handler(mhi_cntrl);
 	}
 
 exit_intvec:
@@ -734,7 +734,7 @@ int mhi_process_ctrl_ev_ring(struct mhi_controller *mhi_cntrl,
 							MHI_PM_SYS_ERR_DETECT);
 				write_unlock_irq(&mhi_cntrl->pm_lock);
 				if (new_state == MHI_PM_SYS_ERR_DETECT)
-					schedule_work(&mhi_cntrl->syserr_worker);
+					mhi_pm_sys_err_handler(mhi_cntrl);
 				break;
 			}
 			default:
@@ -920,7 +920,7 @@ void mhi_ctrl_ev_task(unsigned long data)
 		}
 		write_unlock_irq(&mhi_cntrl->pm_lock);
 		if (pm_state == MHI_PM_SYS_ERR_DETECT)
-			schedule_work(&mhi_cntrl->syserr_worker);
+			mhi_pm_sys_err_handler(mhi_cntrl);
 	}
 }
 
