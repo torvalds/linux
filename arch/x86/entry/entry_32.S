@@ -51,34 +51,6 @@
 
 	.section .entry.text, "ax"
 
-/*
- * We use macros for low-level operations which need to be overridden
- * for paravirtualization.  The following will never clobber any registers:
- *   INTERRUPT_RETURN (aka. "iret")
- *   GET_CR0_INTO_EAX (aka. "movl %cr0, %eax")
- *   ENABLE_INTERRUPTS_SYSEXIT (aka "sti; sysexit").
- *
- * For DISABLE_INTERRUPTS/ENABLE_INTERRUPTS (aka "cli"/"sti"), you must
- * specify what registers can be overwritten (CLBR_NONE, CLBR_EAX/EDX/ECX/ANY).
- * Allowing a register to be clobbered can shrink the paravirt replacement
- * enough to patch inline, increasing performance.
- */
-
-#ifdef CONFIG_PREEMPTION
-# define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
-#else
-# define preempt_stop(clobbers)
-#endif
-
-.macro TRACE_IRQS_IRET
-#ifdef CONFIG_TRACE_IRQFLAGS
-	testl	$X86_EFLAGS_IF, PT_EFLAGS(%esp)     # interrupts off?
-	jz	1f
-	TRACE_IRQS_ON
-1:
-#endif
-.endm
-
 #define PTI_SWITCH_MASK         (1 << PAGE_SHIFT)
 
 /*
@@ -881,38 +853,6 @@ SYM_CODE_START(ret_from_fork)
 SYM_CODE_END(ret_from_fork)
 .popsection
 
-/*
- * Return to user mode is not as complex as all this looks,
- * but we want the default path for a system call return to
- * go as quickly as possible which is why some of this is
- * less clear than it otherwise should be.
- */
-
-	# userspace resumption stub bypassing syscall exit tracing
-SYM_CODE_START_LOCAL(ret_from_exception)
-	preempt_stop(CLBR_ANY)
-ret_from_intr:
-#ifdef CONFIG_VM86
-	movl	PT_EFLAGS(%esp), %eax		# mix EFLAGS and CS
-	movb	PT_CS(%esp), %al
-	andl	$(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %eax
-#else
-	/*
-	 * We can be coming here from child spawned by kernel_thread().
-	 */
-	movl	PT_CS(%esp), %eax
-	andl	$SEGMENT_RPL_MASK, %eax
-#endif
-	cmpl	$USER_RPL, %eax
-	jb	restore_all_kernel		# not returning to v8086 or userspace
-
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	TRACE_IRQS_OFF
-	movl	%esp, %eax
-	call	prepare_exit_to_usermode
-	jmp	restore_all_switch_stack
-SYM_CODE_END(ret_from_exception)
-
 SYM_ENTRY(__begin_SYSENTER_singlestep_region, SYM_L_GLOBAL, SYM_A_NONE)
 /*
  * All code from here through __end_SYSENTER_singlestep_region is subject
@@ -1146,22 +1086,6 @@ restore_all_switch_stack:
 	 * scheduler to user-space.
 	 */
 	INTERRUPT_RETURN
-
-restore_all_kernel:
-#ifdef CONFIG_PREEMPTION
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	cmpl	$0, PER_CPU_VAR(__preempt_count)
-	jnz	.Lno_preempt
-	testl	$X86_EFLAGS_IF, PT_EFLAGS(%esp)	# interrupts off (exception path) ?
-	jz	.Lno_preempt
-	call	preempt_schedule_irq
-.Lno_preempt:
-#endif
-	TRACE_IRQS_IRET
-	PARANOID_EXIT_TO_KERNEL_MODE
-	BUG_IF_WRONG_CR3
-	RESTORE_REGS 4
-	jmp	.Lirq_return
 
 .section .fixup, "ax"
 SYM_CODE_START(asm_iret_error)
