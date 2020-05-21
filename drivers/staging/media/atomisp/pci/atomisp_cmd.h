@@ -32,7 +32,7 @@
 #include "ia_css.h"
 
 struct atomisp_device;
-struct atomisp_css_frame;
+struct ia_css_frame;
 
 #define MSI_ENABLE_BIT		16
 #define INTR_DISABLE_BIT	10
@@ -88,7 +88,7 @@ const struct atomisp_format_bridge *get_atomisp_format_bridge_from_mbus(
     u32 mbus_code);
 bool atomisp_is_mbuscode_raw(uint32_t code);
 int atomisp_get_frame_pgnr(struct atomisp_device *isp,
-			   const struct atomisp_css_frame *frame, u32 *p_pgnr);
+			   const struct ia_css_frame *frame, u32 *p_pgnr);
 void atomisp_delayed_init_work(struct work_struct *work);
 
 /*
@@ -301,8 +301,8 @@ int atomisp_set_array_res(struct atomisp_sub_device *asd,
  * Function to calculate real zoom region for every pipe
  */
 int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
-				       struct atomisp_css_dz_config   *dz_config,
-				       enum atomisp_css_pipe_id css_pipe_id);
+				       struct ia_css_dz_config   *dz_config,
+				       enum ia_css_pipe_id css_pipe_id);
 
 int atomisp_cp_general_isp_parameters(struct atomisp_sub_device *asd,
 				      struct atomisp_parameters *arg,
@@ -372,8 +372,8 @@ int atomisp_freq_scaling(struct atomisp_device *vdev,
 			 bool force);
 
 void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
-		      enum atomisp_css_buffer_type buf_type,
-		      enum atomisp_css_pipe_id css_pipe_id,
+		      enum ia_css_buffer_type buf_type,
+		      enum ia_css_pipe_id css_pipe_id,
 		      bool q_buffers, enum atomisp_input_stream_id stream_id);
 
 void atomisp_css_flush(struct atomisp_device *isp);
