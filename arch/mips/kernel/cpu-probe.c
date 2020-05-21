@@ -672,6 +672,52 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 	return 0;
 }
 
+static int mm_config(struct cpuinfo_mips *c)
+{
+	unsigned int config0, update, mm;
+
+	config0 = read_c0_config();
+	mm = config0 & MIPS_CONF_MM;
+
+	/*
+	 * It's implementation dependent what type of write-merge is supported
+	 * and whether it can be enabled/disabled. If it is settable lets make
+	 * the merging allowed by default. Some platforms might have
+	 * write-through caching unsupported. In this case just ignore the
+	 * CP0.Config.MM bit field value.
+	 */
+	switch (c->cputype) {
+	case CPU_24K:
+	case CPU_34K:
+	case CPU_74K:
+	case CPU_P5600:
+	case CPU_P6600:
+		c->options |= MIPS_CPU_MM_FULL;
+		update = MIPS_CONF_MM_FULL;
+		break;
+	case CPU_1004K:
+	case CPU_1074K:
+	case CPU_INTERAPTIV:
+	case CPU_PROAPTIV:
+		mm = 0;
+		fallthrough;
+	default:
+		update = 0;
+		break;
+	}
+
+	if (update) {
+		config0 = (config0 & ~MIPS_CONF_MM) | update;
+		write_c0_config(config0);
+	} else if (mm == MIPS_CONF_MM_SYSAD) {
+		c->options |= MIPS_CPU_MM_SYSAD;
+	} else if (mm == MIPS_CONF_MM_FULL) {
+		c->options |= MIPS_CPU_MM_FULL;
+	}
+
+	return 0;
+}
+
 static inline unsigned int decode_config0(struct cpuinfo_mips *c)
 {
 	unsigned int config0;
@@ -1762,6 +1808,8 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	decode_configs(c);
 
 	spram_config();
+
+	mm_config(c);
 
 	switch (__get_cpu_type(c->cputype)) {
 	case CPU_M5150:

@@ -629,6 +629,14 @@
 # endif
 #endif
 
+#ifndef cpu_has_mm_sysad
+# define cpu_has_mm_sysad	__opt(MIPS_CPU_MM_SYSAD)
+#endif
+
+#ifndef cpu_has_mm_full
+# define cpu_has_mm_full	__opt(MIPS_CPU_MM_FULL)
+#endif
+
 /*
  * Guest capabilities
  */
