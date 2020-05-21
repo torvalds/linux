@@ -526,8 +526,6 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 		return IRQ_NONE;
 	}
 
-	dev_dbg(isp->dev, "irq:0x%x\n", irq_infos);
-
 	clear_irq_reg(isp);
 
 	if (!atomisp_streaming_count(isp) && !atomisp_is_acc_enabled(isp))
@@ -564,8 +562,12 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 				   atomic_read(&asd->sequence_temp));
 	}
 
-	if (irq_infos & CSS_IRQ_INFO_CSS_RECEIVER_SOF)
+	if (irq_infos & CSS_IRQ_INFO_CSS_RECEIVER_SOF) {
+		dev_dbg_ratelimited(isp->dev,
+				    "irq:0x%x (CSS_IRQ_INFO_CSS_RECEIVER_SOF)\n",
+				    irq_infos);
 		irq_infos &= ~CSS_IRQ_INFO_CSS_RECEIVER_SOF;
+	}
 
 	if ((irq_infos & CSS_IRQ_INFO_INPUT_SYSTEM_ERROR) ||
 	    (irq_infos & CSS_IRQ_INFO_IF_ERROR)) {
@@ -587,14 +589,16 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 			/* EOF Event does not have the css_pipe returned */
 			asd = __get_asd_from_port(isp, eof_event.event.port);
 			if (!asd) {
-				dev_err(isp->dev, "%s:no subdev.event:%d",  __func__,
-					eof_event.event.type);
+				dev_err(isp->dev, "%s:no subdev.event:%d",
+					__func__, eof_event.event.type);
 				continue;
 			}
 
 			atomisp_eof_event(asd, eof_event.event.exp_id);
-			dev_dbg(isp->dev, "%s EOF exp_id %d, asd %d\n",
-				__func__, eof_event.event.exp_id, asd->index);
+			dev_dbg_ratelimited(isp->dev,
+					    "%s EOF exp_id %d, asd %d\n",
+					    __func__, eof_event.event.exp_id,
+					    asd->index);
 		}
 
 		irq_infos &= ~IA_CSS_IRQ_INFO_ISYS_EVENTS_READY;
@@ -604,10 +608,15 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	spin_unlock_irqrestore(&isp->lock, flags);
 
+	dev_dbg_ratelimited(isp->dev, "irq:0x%x\n", irq_infos);
+
 	return IRQ_WAKE_THREAD;
 
 out_nowake:
 	spin_unlock_irqrestore(&isp->lock, flags);
+
+	if (irq_infos)
+		dev_dbg_ratelimited(isp->dev, "irq:0x%x\n", irq_infos);
 
 	return IRQ_HANDLED;
 }
