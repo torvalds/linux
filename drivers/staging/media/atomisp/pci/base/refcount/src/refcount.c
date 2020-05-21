@@ -46,7 +46,7 @@ static struct ia_css_refcount_entry *refcount_find_entry(hrt_vaddress ptr,
 		return NULL;
 	if (!myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "refcount_find_entry(): Ref count not initiliazed!\n");
+				    "refcount_find_entry(): Ref count not initialized!\n");
 		return NULL;
 	}
 

@@ -1324,7 +1324,7 @@ static void print_pc_histogram(void)
 		sh_css_print(" pc_histogram for binary %d\n", metrics->id);
 		print_pc_histo("  ISP", &metrics->isp_histogram);
 		print_pc_histo("  SP",   &metrics->sp_histogram);
-		sh_css_print("print_pc_histogram() done for binay->id = %d, done.\n",
+		sh_css_print("print_pc_histogram() done for binary->id = %d, done.\n",
 			     metrics->id);
 	}
 
@@ -5331,7 +5331,7 @@ static enum ia_css_err sh_css_pipe_configure_output(
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
-	IA_CSS_ENTER_PRIVATE("pipe = %p, width = %d, height = %d, paddaed width = %d, format = %d, idx = %d",
+	IA_CSS_ENTER_PRIVATE("pipe = %p, width = %d, height = %d, padded width = %d, format = %d, idx = %d",
 			     pipe, width, height, padded_width, format, idx);
 	if (!pipe) {
 		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
@@ -10693,7 +10693,7 @@ ia_css_unlock_raw_frame(struct ia_css_stream *stream, uint32_t exp_id) {
 	if (exp_id > IA_CSS_ISYS_MAX_EXPOSURE_ID ||
 	    exp_id < IA_CSS_ISYS_MIN_EXPOSURE_ID)
 	{
-		IA_CSS_ERROR("invalid expsure ID: %d\n", exp_id);
+		IA_CSS_ERROR("invalid exposure ID: %d\n", exp_id);
 		return IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
