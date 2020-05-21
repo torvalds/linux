@@ -27,6 +27,11 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_XEN_PV
+#include <xen/xen-ops.h>
+#include <xen/events.h>
+#endif
+
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
@@ -35,6 +40,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/io_bitmap.h>
 #include <asm/syscall.h>
+#include <asm/irq_stack.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -680,3 +686,75 @@ void noinstr idtentry_exit_user(struct pt_regs *regs)
 
 	prepare_exit_to_usermode(regs);
 }
+
+#ifdef CONFIG_XEN_PV
+#ifndef CONFIG_PREEMPTION
+/*
+ * Some hypercalls issued by the toolstack can take many 10s of
+ * seconds. Allow tasks running hypercalls via the privcmd driver to
+ * be voluntarily preempted even if full kernel preemption is
+ * disabled.
+ *
+ * Such preemptible hypercalls are bracketed by
+ * xen_preemptible_hcall_begin() and xen_preemptible_hcall_end()
+ * calls.
+ */
+DEFINE_PER_CPU(bool, xen_in_preemptible_hcall);
+EXPORT_SYMBOL_GPL(xen_in_preemptible_hcall);
+
+/*
+ * In case of scheduling the flag must be cleared and restored after
+ * returning from schedule as the task might move to a different CPU.
+ */
+static __always_inline bool get_and_clear_inhcall(void)
+{
+	bool inhcall = __this_cpu_read(xen_in_preemptible_hcall);
+
+	__this_cpu_write(xen_in_preemptible_hcall, false);
+	return inhcall;
+}
+
+static __always_inline void restore_inhcall(bool inhcall)
+{
+	__this_cpu_write(xen_in_preemptible_hcall, inhcall);
+}
+#else
+static __always_inline bool get_and_clear_inhcall(void) { return false; }
+static __always_inline void restore_inhcall(bool inhcall) { }
+#endif
+
+static void __xen_pv_evtchn_do_upcall(void)
+{
+	irq_enter_rcu();
+	inc_irq_stat(irq_hv_callback_count);
+
+	xen_hvm_evtchn_do_upcall();
+
+	irq_exit_rcu();
+}
+
+__visible noinstr void xen_pv_evtchn_do_upcall(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs;
+	bool inhcall, rcu_exit;
+
+	rcu_exit = idtentry_enter_cond_rcu(regs);
+	old_regs = set_irq_regs(regs);
+
+	instrumentation_begin();
+	run_on_irqstack_cond(__xen_pv_evtchn_do_upcall, NULL, regs);
+	instrumentation_begin();
+
+	set_irq_regs(old_regs);
+
+	inhcall = get_and_clear_inhcall();
+	if (inhcall && !WARN_ON_ONCE(rcu_exit)) {
+		instrumentation_begin();
+		idtentry_exit_cond_resched(regs, true);
+		instrumentation_end();
+		restore_inhcall(inhcall);
+	} else {
+		idtentry_exit_cond_rcu(regs, rcu_exit);
+	}
+}
+#endif /* CONFIG_XEN_PV */
