@@ -130,7 +130,7 @@ src-wlib-$(CONFIG_EMBEDDED6xx) += ugecon.c fsl-soc.c
 src-wlib-$(CONFIG_CPM) += cpm-serial.c
 
 src-plat-y := of.c epapr.c
-src-plat-$(CONFIG_40x) += fixed-head.S ep405.c cuboot-hotfoot.c \
+src-plat-$(CONFIG_40x) += fixed-head.S cuboot-hotfoot.c \
 				cuboot-acadia.c \
 				cuboot-kilauea.c simpleboot.c
 src-plat-$(CONFIG_44x) += treeboot-ebony.c cuboot-ebony.c treeboot-bamboo.c \
@@ -275,7 +275,6 @@ image-$(CONFIG_EPAPR_BOOT)		+= zImage.epapr
 #
 
 # Board ports in arch/powerpc/platform/40x/Kconfig
-image-$(CONFIG_EP405)			+= dtbImage.ep405
 image-$(CONFIG_HOTFOOT)			+= cuImage.hotfoot
 image-$(CONFIG_ACADIA)			+= cuImage.acadia
 image-$(CONFIG_OBS600)			+= uImage.obs600
