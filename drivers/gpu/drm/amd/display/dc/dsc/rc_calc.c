@@ -175,7 +175,7 @@ static int median3(int a, int b, int c)
 }
 
 static void _do_calc_rc_params(struct rc_params *rc, enum colour_mode cm,
-			       enum bits_per_comp bpc, u8 drm_bpp,
+			       enum bits_per_comp bpc, u16 drm_bpp,
 			       bool is_navite_422_or_420,
 			       int slice_width, int slice_height,
 			       int minor_version)
@@ -265,7 +265,7 @@ static void _do_calc_rc_params(struct rc_params *rc, enum colour_mode cm,
 	rc->rc_buf_thresh[13] = 8064;
 }
 
-static u32 _do_bytes_per_pixel_calc(int slice_width, u8 drm_bpp,
+static u32 _do_bytes_per_pixel_calc(int slice_width, u16 drm_bpp,
 				    bool is_navite_422_or_420)
 {
 	float bpp;
@@ -321,7 +321,7 @@ void calc_rc_params(struct rc_params *rc, const struct drm_dsc_config *pps)
 	enum colour_mode mode;
 	enum bits_per_comp bpc;
 	bool is_navite_422_or_420;
-	u8 drm_bpp = pps->bits_per_pixel;
+	u16 drm_bpp = pps->bits_per_pixel;
 	int slice_width  = pps->slice_width;
 	int slice_height = pps->slice_height;
 
@@ -357,7 +357,7 @@ u32 calc_dsc_bytes_per_pixel(const struct drm_dsc_config *pps)
 
 {
 	u32 ret;
-	u8 drm_bpp = pps->bits_per_pixel;
+	u16 drm_bpp = pps->bits_per_pixel;
 	int slice_width  = pps->slice_width;
 	bool is_navite_422_or_420 = pps->native_422 || pps->native_420;
 
