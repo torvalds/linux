@@ -238,7 +238,6 @@ struct vnt_rcb {
 struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
-	struct ieee80211_hdr *hdr;
 	void *tx_buffer;
 	unsigned int buf_len;
 	u32 frame_len;
