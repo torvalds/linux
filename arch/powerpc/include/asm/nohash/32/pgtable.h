@@ -9,7 +9,6 @@
 #include <linux/sched.h>
 #include <linux/threads.h>
 #include <asm/mmu.h>			/* For sub-arch specific PPC_PIN_SIZE */
-#include <asm/asm-405.h>
 
 #ifdef CONFIG_44x
 extern int icache_44x_need_flush;

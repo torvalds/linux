@@ -69,12 +69,6 @@ config PPC4xx_GPIO
 	help
 	  Enable gpiolib support for ppc40x based boards
 
-# 40x errata/workaround config symbols, selected by the CPU models above
-
-# All 405-based cores up until the 405GPR and 405EP have this errata.
-config IBM405_ERR77
-	bool
-
 config APM8018X
 	bool "APM8018X"
 	depends on 40x

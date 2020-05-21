@@ -28,7 +28,6 @@
 #include <asm/unistd.h>
 #include <asm/ptrace.h>
 #include <asm/export.h>
-#include <asm/asm-405.h>
 #include <asm/feature-fixups.h>
 #include <asm/barrier.h>
 #include <asm/kup.h>
@@ -541,9 +540,6 @@ syscall_exit_work:
 	addi	r12,r2,TI_FLAGS
 3:	lwarx	r8,0,r12
 	andc	r8,r8,r11
-#ifdef CONFIG_IBM405_ERR77
-	dcbt	0,r12
-#endif
 	stwcx.	r8,0,r12
 	bne-	3b
 	
@@ -918,9 +914,6 @@ resume_kernel:
 	addi	r5,r2,TI_FLAGS
 0:	lwarx	r8,0,r5
 	andc	r8,r8,r11
-#ifdef CONFIG_IBM405_ERR77
-	dcbt	0,r5
-#endif
 	stwcx.	r8,0,r5
 	bne-	0b
 1:
@@ -997,7 +990,6 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_47x)
 	mtspr	SPRN_XER,r10
 	mtctr	r11
 
-	PPC405_ERR77(0,r1)
 BEGIN_FTR_SECTION
 	lwarx	r11,0,r1
 END_FTR_SECTION_IFSET(CPU_FTR_NEED_PAIRED_STWCX)
@@ -1066,7 +1058,6 @@ exc_exit_start:
 	lwz	r1,GPR1(r1)
 	.globl exc_exit_restart_end
 exc_exit_restart_end:
-	PPC405_ERR77_SYNC
 	rfi
 	b	.			/* prevent prefetch past rfi */
 
@@ -1109,7 +1100,6 @@ exc_exit_restart_end:
 	lwz	r11,_CTR(r1);						\
 	mtspr	SPRN_XER,r10;						\
 	mtctr	r11;							\
-	PPC405_ERR77(0,r1);						\
 	stwcx.	r0,0,r1;		/* to clear the reservation */	\
 	lwz	r11,_LINK(r1);						\
 	mtlr	r11;							\
@@ -1129,7 +1119,6 @@ exc_exit_restart_end:
 	lwz	r10,GPR10(r1);						\
 	lwz	r11,GPR11(r1);						\
 	lwz	r1,GPR1(r1);						\
-	PPC405_ERR77_SYNC;						\
 	exc_lvl_rfi;							\
 	b	.;		/* prevent prefetch past exc_lvl_rfi */
 
