@@ -87,48 +87,12 @@
 
 .endm
 
-/*--------------------------------------------------------------
- * Helpers to save/restore callee-saved regs:
- * used by several macros below
- *-------------------------------------------------------------*/
-.macro SAVE_R13_TO_R25
-	PUSH	r13
-	PUSH	r14
-	PUSH	r15
-	PUSH	r16
-	PUSH	r17
-	PUSH	r18
-	PUSH	r19
-	PUSH	r20
-	PUSH	r21
-	PUSH	r22
-	PUSH	r23
-	PUSH	r24
-	PUSH	r25
-.endm
-
-.macro RESTORE_R25_TO_R13
-	POP	r25
-	POP	r24
-	POP	r23
-	POP	r22
-	POP	r21
-	POP	r20
-	POP	r19
-	POP	r18
-	POP	r17
-	POP	r16
-	POP	r15
-	POP	r14
-	POP	r13
-.endm
-
 /*
  * save user mode callee regs as struct callee_regs
  *  - needed by fork/do_signal/unaligned-access-emulation.
  */
 .macro SAVE_CALLEE_SAVED_USER
-	SAVE_R13_TO_R25
+	SAVE_ABI_CALLEE_REGS
 .endm
 
 /*
@@ -136,18 +100,18 @@
  *  - could have been changed by ptrace tracer or unaligned-access fixup
  */
 .macro RESTORE_CALLEE_SAVED_USER
-	RESTORE_R25_TO_R13
+	RESTORE_ABI_CALLEE_REGS
 .endm
 
 /*
  * save/restore kernel mode callee regs at the time of context switch
  */
 .macro SAVE_CALLEE_SAVED_KERNEL
-	SAVE_R13_TO_R25
+	SAVE_ABI_CALLEE_REGS
 .endm
 
 .macro RESTORE_CALLEE_SAVED_KERNEL
-	RESTORE_R25_TO_R13
+	RESTORE_ABI_CALLEE_REGS
 .endm
 
 /*--------------------------------------------------------------
