@@ -767,12 +767,12 @@ xfs_icache_inode_is_allocated(
  * ignore it.
  */
 STATIC bool
-xfs_inode_ag_walk_grab(
+xfs_inode_walk_ag_grab(
 	struct xfs_inode	*ip,
 	int			flags)
 {
 	struct inode		*inode = VFS_I(ip);
-	bool			newinos = !!(flags & XFS_AGITER_INEW_WAIT);
+	bool			newinos = !!(flags & XFS_INODE_WALK_INEW_WAIT);
 
 	ASSERT(rcu_read_lock_held());
 
@@ -816,7 +816,7 @@ out_unlock_noent:
  * inodes with the given radix tree @tag.
  */
 STATIC int
-xfs_inode_ag_walk(
+xfs_inode_walk_ag(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
 	int			(*execute)(struct xfs_inode *ip, void *args),
@@ -864,7 +864,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			struct xfs_inode *ip = batch[i];
 
-			if (done || !xfs_inode_ag_walk_grab(ip, iter_flags))
+			if (done || !xfs_inode_walk_ag_grab(ip, iter_flags))
 				batch[i] = NULL;
 
 			/*
@@ -892,7 +892,7 @@ restart:
 		for (i = 0; i < nr_found; i++) {
 			if (!batch[i])
 				continue;
-			if ((iter_flags & XFS_AGITER_INEW_WAIT) &&
+			if ((iter_flags & XFS_INODE_WALK_INEW_WAIT) &&
 			    xfs_iflags_test(batch[i], XFS_INEW))
 				xfs_inew_wait(batch[i]);
 			error = execute(batch[i], args);
@@ -937,7 +937,7 @@ xfs_inode_walk_get_perag(
  * @tag.
  */
 int
-xfs_inode_ag_iterator(
+xfs_inode_walk(
 	struct xfs_mount	*mp,
 	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
@@ -952,7 +952,7 @@ xfs_inode_ag_iterator(
 	ag = 0;
 	while ((pag = xfs_inode_walk_get_perag(mp, ag, tag))) {
 		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, args, tag,
+		error = xfs_inode_walk_ag(mp, pag, execute, args, tag,
 				iter_flags);
 		xfs_perag_put(pag);
 		if (error) {
@@ -1548,7 +1548,7 @@ xfs_icache_free_eofblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
 {
-	return xfs_inode_ag_iterator(mp, 0, xfs_inode_free_eofblocks, eofb,
+	return xfs_inode_walk(mp, 0, xfs_inode_free_eofblocks, eofb,
 			XFS_ICI_EOFBLOCKS_TAG);
 }
 
@@ -1798,7 +1798,7 @@ xfs_icache_free_cowblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb)
 {
-	return xfs_inode_ag_iterator(mp, 0, xfs_inode_free_cowblocks, eofb,
+	return xfs_inode_walk(mp, 0, xfs_inode_free_cowblocks, eofb,
 			XFS_ICI_COWBLOCKS_TAG);
 }
 

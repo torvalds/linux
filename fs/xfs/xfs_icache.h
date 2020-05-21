@@ -24,7 +24,7 @@ struct xfs_eofblocks {
  * tags for inode radix tree
  */
 #define XFS_ICI_NO_TAG		(-1)	/* special flag for an untagged lookup
-					   in xfs_inode_ag_iterator */
+					   in xfs_inode_walk */
 #define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
 #define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
 #define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
@@ -40,7 +40,7 @@ struct xfs_eofblocks {
 /*
  * flags for AG inode iterator
  */
-#define XFS_AGITER_INEW_WAIT	0x1	/* wait on new inodes */
+#define XFS_INODE_WALK_INEW_WAIT	0x1	/* wait on new inodes */
 
 int xfs_iget(struct xfs_mount *mp, struct xfs_trans *tp, xfs_ino_t ino,
 	     uint flags, uint lock_flags, xfs_inode_t **ipp);
@@ -71,7 +71,7 @@ int xfs_inode_free_quota_cowblocks(struct xfs_inode *ip);
 void xfs_cowblocks_worker(struct work_struct *);
 void xfs_queue_cowblocks(struct xfs_mount *);
 
-int xfs_inode_ag_iterator(struct xfs_mount *mp, int iter_flags,
+int xfs_inode_walk(struct xfs_mount *mp, int iter_flags,
 	int (*execute)(struct xfs_inode *ip, void *args),
 	void *args, int tag);
 

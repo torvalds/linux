@@ -781,6 +781,6 @@ xfs_qm_dqrele_all_inodes(
 	uint			flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator(mp, XFS_AGITER_INEW_WAIT, xfs_dqrele_inode,
+	xfs_inode_walk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
 			&flags, XFS_ICI_NO_TAG);
 }
