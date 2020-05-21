@@ -16,6 +16,7 @@
  * ARTG : Adapter rating
  * CTYP : Charger type
  * PBSS : Battery steady power
+ * PROP : Rest of worst case platform Power
  */
 #define DPTF_POWER_SHOW(name, object) \
 static ssize_t name##_show(struct device *dev,\
@@ -39,12 +40,34 @@ DPTF_POWER_SHOW(platform_power_source, PSRC)
 DPTF_POWER_SHOW(adapter_rating_mw, ARTG)
 DPTF_POWER_SHOW(battery_steady_power_mw, PBSS)
 DPTF_POWER_SHOW(charger_type, CTYP)
+DPTF_POWER_SHOW(rest_of_platform_power_mw, PROP)
 
 static DEVICE_ATTR_RO(max_platform_power_mw);
 static DEVICE_ATTR_RO(platform_power_source);
 static DEVICE_ATTR_RO(adapter_rating_mw);
 static DEVICE_ATTR_RO(battery_steady_power_mw);
 static DEVICE_ATTR_RO(charger_type);
+static DEVICE_ATTR_RO(rest_of_platform_power_mw);
+
+static ssize_t prochot_confirm_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	struct acpi_device *acpi_dev = dev_get_drvdata(dev);
+	acpi_status status;
+	int seq_no;
+
+	if (kstrtouint(buf, 0, &seq_no) < 0)
+		return -EINVAL;
+
+	status = acpi_execute_simple_method(acpi_dev->handle, "PBOK", seq_no);
+	if (ACPI_SUCCESS(status))
+		return count;
+
+	return -EINVAL;
+}
+
+static DEVICE_ATTR_WO(prochot_confirm);
 
 static struct attribute *dptf_power_attrs[] = {
 	&dev_attr_max_platform_power_mw.attr,
@@ -52,6 +75,8 @@ static struct attribute *dptf_power_attrs[] = {
 	&dev_attr_adapter_rating_mw.attr,
 	&dev_attr_battery_steady_power_mw.attr,
 	&dev_attr_charger_type.attr,
+	&dev_attr_rest_of_platform_power_mw.attr,
+	&dev_attr_prochot_confirm.attr,
 	NULL
 };
 
@@ -59,6 +84,33 @@ static const struct attribute_group dptf_power_attribute_group = {
 	.attrs = dptf_power_attrs,
 	.name = "dptf_power"
 };
+
+#define POWER_STATE_CHANGED		0x81
+#define POWER_PROP_CHANGE_EVENT	0x84
+
+static void dptf_power_notify(acpi_handle handle, u32 event, void *data)
+{
+	struct platform_device *pdev = data;
+	char *attr;
+
+	switch (event) {
+	case POWER_STATE_CHANGED:
+		attr = "platform_power_source";
+		break;
+	case POWER_PROP_CHANGE_EVENT:
+		attr = "rest_of_platform_power_mw";
+		break;
+	default:
+		dev_err(&pdev->dev, "Unsupported event [0x%x]\n", event);
+		return;
+	}
+
+	/*
+	 * Notify that an attribute is changed, so that user space can read
+	 * again.
+	 */
+	sysfs_notify(&pdev->dev.kobj, "dptf_power", attr);
+}
 
 static int dptf_power_add(struct platform_device *pdev)
 {
@@ -78,10 +130,21 @@ static int dptf_power_add(struct platform_device *pdev)
 	if (ptype != 0x11)
 		return -ENODEV;
 
-	result = sysfs_create_group(&pdev->dev.kobj,
-				    &dptf_power_attribute_group);
+	result = acpi_install_notify_handler(acpi_dev->handle,
+					     ACPI_DEVICE_NOTIFY,
+					     dptf_power_notify,
+					     (void *)pdev);
 	if (result)
 		return result;
+
+	result = sysfs_create_group(&pdev->dev.kobj,
+				    &dptf_power_attribute_group);
+	if (result) {
+		acpi_remove_notify_handler(acpi_dev->handle,
+					   ACPI_DEVICE_NOTIFY,
+					   dptf_power_notify);
+		return result;
+	}
 
 	platform_set_drvdata(pdev, acpi_dev);
 
@@ -90,7 +153,11 @@ static int dptf_power_add(struct platform_device *pdev)
 
 static int dptf_power_remove(struct platform_device *pdev)
 {
+	struct acpi_device *acpi_dev = platform_get_drvdata(pdev);
 
+	acpi_remove_notify_handler(acpi_dev->handle,
+				   ACPI_DEVICE_NOTIFY,
+				   dptf_power_notify);
 	sysfs_remove_group(&pdev->dev.kobj, &dptf_power_attribute_group);
 
 	return 0;
