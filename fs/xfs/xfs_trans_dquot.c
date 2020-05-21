@@ -388,7 +388,7 @@ xfs_trans_apply_dquot_deltas(
 			 */
 			if (d->d_id) {
 				xfs_qm_adjust_dqlimits(tp->t_mountp, dqp);
-				xfs_qm_adjust_dqtimers(tp->t_mountp, d);
+				xfs_qm_adjust_dqtimers(tp->t_mountp, dqp);
 			}
 
 			dqp->dq_flags |= XFS_DQ_DIRTY;

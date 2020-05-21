@@ -114,8 +114,9 @@ xfs_qm_adjust_dqlimits(
 void
 xfs_qm_adjust_dqtimers(
 	struct xfs_mount	*mp,
-	struct xfs_disk_dquot	*d)
+	struct xfs_dquot	*dq)
 {
+	struct xfs_disk_dquot	*d = &dq->q_core;
 	ASSERT(d->d_id);
 
 #ifdef DEBUG

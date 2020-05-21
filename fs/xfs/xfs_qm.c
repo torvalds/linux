@@ -1117,7 +1117,7 @@ xfs_qm_quotacheck_dqadjust(
 	 */
 	if (dqp->q_core.d_id) {
 		xfs_qm_adjust_dqlimits(mp, dqp);
-		xfs_qm_adjust_dqtimers(mp, &dqp->q_core);
+		xfs_qm_adjust_dqtimers(mp, dqp);
 	}
 
 	dqp->dq_flags |= XFS_DQ_DIRTY;
