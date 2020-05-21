@@ -263,23 +263,22 @@ static int aggregate_requests(struct icc_node *node)
 static int apply_constraints(struct icc_path *path)
 {
 	struct icc_node *next, *prev = NULL;
+	struct icc_provider *p;
 	int ret = -EINVAL;
 	int i;
 
 	for (i = 0; i < path->num_nodes; i++) {
 		next = path->reqs[i].node;
+		p = next->provider;
 
-		/*
-		 * Both endpoints should be valid master-slave pairs of the
-		 * same interconnect provider that will be configured.
-		 */
-		if (!prev || next->provider != prev->provider) {
+		/* both endpoints should be valid master-slave pairs */
+		if (!prev || (p != prev->provider && !p->inter_set)) {
 			prev = next;
 			continue;
 		}
 
 		/* set the constraints */
-		ret = next->provider->set(prev, next);
+		ret = p->set(prev, next);
 		if (ret)
 			goto out;
 

@@ -41,6 +41,7 @@ struct icc_node *of_icc_xlate_onecell(struct of_phandle_args *spec,
  * @xlate: provider-specific callback for mapping nodes from phandle arguments
  * @dev: the device this interconnect provider belongs to
  * @users: count of active users
+ * @inter_set: whether inter-provider pairs will be configured with @set
  * @data: pointer to private data
  */
 struct icc_provider {
@@ -53,6 +54,7 @@ struct icc_provider {
 	struct icc_node* (*xlate)(struct of_phandle_args *spec, void *data);
 	struct device		*dev;
 	int			users;
+	bool			inter_set;
 	void			*data;
 };
 
