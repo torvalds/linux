@@ -1323,7 +1323,10 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 */
 	set_mm_exe_file(bprm->mm, bprm->file);
 
+	/* If the binary is not readable then enforce mm->dumpable=0 */
 	would_dump(bprm, bprm->file);
+	if (bprm->have_execfd)
+		would_dump(bprm, bprm->executable);
 
 	/*
 	 * Release all of the old mmap stuff
@@ -1366,7 +1369,7 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * the final state of setuid/setgid/fscaps can be merged into the
 	 * secureexec flag.
 	 */
-	bprm->secureexec |= bprm->cap_elevated;
+	bprm->secureexec |= bprm->active_secureexec;
 
 	if (bprm->secureexec) {
 		/* Make sure parent cannot signal privileged process. */
@@ -1427,6 +1430,16 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * credentials; any time after this it may be unlocked.
 	 */
 	security_bprm_committed_creds(bprm);
+
+	/* Pass the opened binary to the interpreter. */
+	if (bprm->have_execfd) {
+		retval = get_unused_fd_flags(0);
+		if (retval < 0)
+			goto out_unlock;
+		fd_install(retval, bprm->executable);
+		bprm->executable = NULL;
+		bprm->execfd = retval;
+	}
 	return 0;
 
 out_unlock:
@@ -1516,6 +1529,8 @@ static void free_bprm(struct linux_binprm *bprm)
 		allow_write_access(bprm->file);
 		fput(bprm->file);
 	}
+	if (bprm->executable)
+		fput(bprm->executable);
 	/* If a binfmt changed the interp, free it. */
 	if (bprm->interp != bprm->filename)
 		kfree(bprm->interp);
@@ -1629,24 +1644,26 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
  *
  * This may be called multiple times for binary chains (scripts for example).
  */
-int prepare_binprm(struct linux_binprm *bprm)
+static int prepare_binprm(struct linux_binprm *bprm)
 {
-	int retval;
 	loff_t pos = 0;
 
-	bprm_fill_uid(bprm);
+	/* Can the interpreter get to the executable without races? */
+	if (!bprm->preserve_creds) {
+		int retval;
 
-	/* fill in binprm security blob */
-	retval = security_bprm_set_creds(bprm);
-	if (retval)
-		return retval;
-	bprm->called_set_creds = 1;
+		/* Recompute parts of bprm->cred based on bprm->file */
+		bprm->active_secureexec = 0;
+		bprm_fill_uid(bprm);
+		retval = security_bprm_repopulate_creds(bprm);
+		if (retval)
+			return retval;
+	}
+	bprm->preserve_creds = 0;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
 	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);
 }
-
-EXPORT_SYMBOL(prepare_binprm);
 
 /*
  * Arguments are '\0' separated strings found at the location bprm->p
@@ -1693,15 +1710,15 @@ EXPORT_SYMBOL(remove_arg_zero);
 /*
  * cycle the list of binary formats handler, until one recognizes the image
  */
-int search_binary_handler(struct linux_binprm *bprm)
+static int search_binary_handler(struct linux_binprm *bprm)
 {
 	bool need_retry = IS_ENABLED(CONFIG_MODULES);
 	struct linux_binfmt *fmt;
 	int retval;
 
-	/* This allows 4 levels of binfmt rewrites before failing hard. */
-	if (bprm->recursion_depth > 5)
-		return -ELOOP;
+	retval = prepare_binprm(bprm);
+	if (retval < 0)
+		return retval;
 
 	retval = security_bprm_check(bprm);
 	if (retval)
@@ -1715,14 +1732,11 @@ int search_binary_handler(struct linux_binprm *bprm)
 			continue;
 		read_unlock(&binfmt_lock);
 
-		bprm->recursion_depth++;
 		retval = fmt->load_binary(bprm);
-		bprm->recursion_depth--;
 
 		read_lock(&binfmt_lock);
 		put_binfmt(fmt);
-		if (bprm->point_of_no_return || !bprm->file ||
-		    (retval != -ENOEXEC)) {
+		if (bprm->point_of_no_return || (retval != -ENOEXEC)) {
 			read_unlock(&binfmt_lock);
 			return retval;
 		}
@@ -1741,12 +1755,11 @@ int search_binary_handler(struct linux_binprm *bprm)
 
 	return retval;
 }
-EXPORT_SYMBOL(search_binary_handler);
 
 static int exec_binprm(struct linux_binprm *bprm)
 {
 	pid_t old_pid, old_vpid;
-	int ret;
+	int ret, depth;
 
 	/* Need to fetch pid before load_binary changes it */
 	old_pid = current->pid;
@@ -1754,15 +1767,38 @@ static int exec_binprm(struct linux_binprm *bprm)
 	old_vpid = task_pid_nr_ns(current, task_active_pid_ns(current->parent));
 	rcu_read_unlock();
 
-	ret = search_binary_handler(bprm);
-	if (ret >= 0) {
-		audit_bprm(bprm);
-		trace_sched_process_exec(current, old_pid, bprm);
-		ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
-		proc_exec_connector(current);
+	/* This allows 4 levels of binfmt rewrites before failing hard. */
+	for (depth = 0;; depth++) {
+		struct file *exec;
+		if (depth > 5)
+			return -ELOOP;
+
+		ret = search_binary_handler(bprm);
+		if (ret < 0)
+			return ret;
+		if (!bprm->interpreter)
+			break;
+
+		exec = bprm->file;
+		bprm->file = bprm->interpreter;
+		bprm->interpreter = NULL;
+
+		allow_write_access(exec);
+		if (unlikely(bprm->have_execfd)) {
+			if (bprm->executable) {
+				fput(exec);
+				return -ENOEXEC;
+			}
+			bprm->executable = exec;
+		} else
+			fput(exec);
 	}
 
-	return ret;
+	audit_bprm(bprm);
+	trace_sched_process_exec(current, old_pid, bprm);
+	ptrace_event(PTRACE_EVENT_EXEC, old_vpid);
+	proc_exec_connector(current);
+	return 0;
 }
 
 /*
@@ -1855,8 +1891,9 @@ static int __do_execve_file(int fd, struct filename *filename,
 	if (retval < 0)
 		goto out;
 
-	retval = prepare_binprm(bprm);
-	if (retval < 0)
+	/* Set the unchanging part of bprm->cred */
+	retval = security_bprm_creds_for_exec(bprm);
+	if (retval)
 		goto out;
 
 	retval = copy_strings_kernel(1, &bprm->filename, bprm);
