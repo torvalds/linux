@@ -87,6 +87,13 @@ struct dc_writeback_info {
 	int dwb_pipe_inst;
 	struct dc_dwb_params dwb_params;
 	struct mcif_buf_params mcif_buf_params;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct mcif_warmup_params mcif_warmup_params;
+	/* the plane that is the input to TOP_MUX for MPCC that is the DWB source */
+	struct dc_plane_state *writeback_source_plane;
+	/* source MPCC instance.  for use by internally by dc */
+	int mpcc_inst;
+#endif
 };
 
 struct dc_writeback_update {
@@ -200,6 +207,10 @@ struct dc_stream_state {
 	/* writeback */
 	unsigned int num_wb_info;
 	struct dc_writeback_info writeback_info[MAX_DWB_PIPES];
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	const struct dc_transfer_func *func_shaper;
+	const struct dc_3dlut *lut3d_func;
+#endif
 	/* Computed state bits */
 	bool mode_changed : 1;
 
@@ -251,6 +262,10 @@ struct dc_stream_update {
 
 	struct dc_writeback_update *wb_update;
 	struct dc_dsc_config *dsc_config;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct dc_transfer_func *func_shaper;
+	struct dc_3dlut *lut3d_func;
+#endif
 };
 
 bool dc_is_stream_unchanged(

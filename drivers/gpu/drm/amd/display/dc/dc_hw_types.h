@@ -893,6 +893,9 @@ struct mcif_buf_params {
 	unsigned int		chroma_pitch;
 	unsigned int		warmup_pitch;
 	unsigned int		swlock;
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	unsigned int		p_vmid;
+#endif
 };
 
 

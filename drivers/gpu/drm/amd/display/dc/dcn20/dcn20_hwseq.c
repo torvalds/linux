@@ -609,6 +609,31 @@ void dcn20_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
 					pipe_ctx->pipe_idx);
 }
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
+		int opp_cnt)
+{
+	bool hblank_halved = optc2_is_two_pixels_per_containter(&stream->timing);
+	int flow_ctrl_cnt;
+
+	if (opp_cnt == 2)
+		hblank_halved = true;
+
+	flow_ctrl_cnt = stream->timing.h_total - stream->timing.h_addressable -
+			stream->timing.h_border_left -
+			stream->timing.h_border_right;
+
+	if (hblank_halved)
+		flow_ctrl_cnt /= 2;
+
+	/* ODM combine 4:1 case */
+	if (opp_cnt == 4)
+		flow_ctrl_cnt /= 2;
+
+	return flow_ctrl_cnt;
+}
+#endif
+
 enum dc_status dcn20_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
@@ -622,6 +647,15 @@ enum dc_status dcn20_enable_stream_timing(
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool interlace = stream->timing.flags.INTERLACE;
+	int i;
+
+	struct mpc_dwb_flow_control flow_control;
+	struct mpc *mpc = dc->res_pool->mpc;
+	bool rate_control_2x_pclk = (interlace || optc2_is_two_pixels_per_containter(&stream->timing));
+
+#endif
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
 	 * with pipe 0. No program is needed.
@@ -668,6 +702,21 @@ enum dc_status dcn20_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	rate_control_2x_pclk = rate_control_2x_pclk || opp_cnt > 1;
+	flow_control.flow_ctrl_mode = 0;
+	flow_control.flow_ctrl_cnt0 = 0x80;
+	flow_control.flow_ctrl_cnt1 = calc_mpc_flow_ctrl_cnt(stream, opp_cnt);
+	if (mpc->funcs->set_out_rate_control) {
+		for (i = 0; i < opp_cnt; ++i) {
+			mpc->funcs->set_out_rate_control(
+					mpc, opp_inst[i],
+					true,
+					rate_control_2x_pclk,
+					&flow_control);
+		}
+	}
+#endif
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
 				odm_pipe->stream_res.opp,
@@ -1414,6 +1463,37 @@ static void dcn20_update_dchubp_dpp(
 	if (pipe_ctx->update_flags.bits.enable || pipe_ctx->update_flags.bits.opp_changed
 			|| pipe_ctx->stream->update_flags.bits.gamut_remap
 			|| pipe_ctx->stream->update_flags.bits.out_csc) {
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+
+		if (mpc->funcs->set_gamut_remap) {
+			int i;
+			int mpcc_id = hubp->inst;
+			struct mpc_grph_gamut_adjustment adjust;
+			bool enable_remap_dpp = false;
+
+			memset(&adjust, 0, sizeof(adjust));
+			adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+			/* save the enablement of gamut remap for dpp*/
+			enable_remap_dpp = pipe_ctx->stream->gamut_remap_matrix.enable_remap;
+			/*force bypass gamut remap for dpp/cm*/
+			pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
+			dc->hwss.program_gamut_remap(pipe_ctx);
+			/*restore gamut remap flag for the top plane and use this remap into mpc*/
+			if (pipe_ctx->top_pipe == NULL)
+				pipe_ctx->stream->gamut_remap_matrix.enable_remap = enable_remap_dpp;
+			else
+				pipe_ctx->stream->gamut_remap_matrix.enable_remap = false;
+
+			if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
+				adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+				for (i = 0; i < CSC_TEMPERATURE_MATRIX_SIZE; i++)
+					adjust.temperature_matrix[i] =
+						pipe_ctx->stream->gamut_remap_matrix.matrix[i];
+			}
+			mpc->funcs->set_gamut_remap(mpc, mpcc_id, &adjust);
+		} else
+#endif
 			/* dpp/cm gamut remap*/
 			dc->hwss.program_gamut_remap(pipe_ctx);
 
@@ -2173,6 +2253,11 @@ void dcn20_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	blnd_cfg.bottom_inside_gain = 0x1f000;
 	blnd_cfg.bottom_outside_gain = 0x1f000;
 	blnd_cfg.pre_multiplied_alpha = per_pixel_alpha;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	if (pipe_ctx->plane_state->format
+			== SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA)
+		blnd_cfg.pre_multiplied_alpha = false;
+#endif
 
 	/*
 	 * TODO: remove hack

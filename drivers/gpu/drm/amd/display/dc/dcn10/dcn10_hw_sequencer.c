@@ -1453,6 +1453,11 @@ void dcn10_init_hw(struct dc *dc)
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+#endif
+
 }
 
 void dcn10_reset_hw_ctx_wrap(

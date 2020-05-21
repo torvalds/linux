@@ -217,6 +217,10 @@ struct resource_pool {
 	struct dmcu *dmcu;
 	struct dmub_psr *psr;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct abm *multiple_abms[MAX_PIPES];
+#endif
+
 	const struct resource_funcs *funcs;
 	const struct resource_caps *res_cap;
 

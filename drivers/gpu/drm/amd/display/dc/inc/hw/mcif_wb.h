@@ -75,6 +75,11 @@ struct mcif_wb {
 
 struct mcif_wb_funcs {
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	void (*warmup_mcif)(
+		struct mcif_wb *mcif_wb,
+		struct mcif_warmup_params *params);
+#endif
 	void (*enable_mcif)(struct mcif_wb *mcif_wb);
 
 	void (*disable_mcif)(struct mcif_wb *mcif_wb);
