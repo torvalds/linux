@@ -103,6 +103,7 @@ void icc_node_del(struct icc_node *node);
 int icc_nodes_remove(struct icc_provider *provider);
 int icc_provider_add(struct icc_provider *provider);
 int icc_provider_del(struct icc_provider *provider);
+struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec);
 
 #else
 
@@ -152,6 +153,11 @@ static inline int icc_provider_add(struct icc_provider *provider)
 static inline int icc_provider_del(struct icc_provider *provider)
 {
 	return -ENOTSUPP;
+}
+
+static inline struct icc_node *of_icc_get_from_provider(struct of_phandle_args *spec)
+{
+	return ERR_PTR(-ENOTSUPP);
 }
 
 #endif /* CONFIG_INTERCONNECT */
