@@ -246,7 +246,6 @@ struct vnt_usb_send_context {
 	u8 type;
 	u8 pkt_no;
 	u8 pkt_type;
-	u8 need_ack;
 	bool in_use;
 };
 

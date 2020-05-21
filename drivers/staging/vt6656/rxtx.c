@@ -539,7 +539,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_context->skb = skb;
 	tx_context->pkt_type = pkt_type;
-	tx_context->need_ack = false;
 	tx_context->frame_len = skb->len + 4;
 	tx_context->tx_rate =  rate->hw_value;
 
@@ -587,10 +586,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 			cpu_to_le16(DEFAULT_MSDU_LIFETIME_RES_64us);
 	}
 
-	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+	if (!(info->flags & IEEE80211_TX_CTL_NO_ACK))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_NEEDACK);
-		tx_context->need_ack = true;
-	}
 
 	if (ieee80211_has_retry(hdr->frame_control))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LRETRY);
