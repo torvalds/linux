@@ -327,6 +327,7 @@ enum cxgb4_control {
 	CXGB4_CONTROL_DB_DROP,
 };
 
+struct adapter;
 struct pci_dev;
 struct l2t_data;
 struct net_device;
@@ -465,6 +466,7 @@ struct cxgb4_uld_info {
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
 };
 
+void cxgb4_uld_enable(struct adapter *adap);
 void cxgb4_register_uld(enum cxgb4_uld type, const struct cxgb4_uld_info *p);
 int cxgb4_unregister_uld(enum cxgb4_uld type);
 int cxgb4_ofld_send(struct net_device *dev, struct sk_buff *skb);
