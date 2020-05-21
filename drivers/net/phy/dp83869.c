@@ -65,6 +65,7 @@
 #define DP83869_RGMII_RX_CLK_DELAY_EN		BIT(0)
 
 /* STRAP_STS1 bits */
+#define DP83869_STRAP_OP_MODE_MASK		GENMASK(2, 0)
 #define DP83869_STRAP_STS1_RESERVED		BIT(11)
 #define DP83869_STRAP_MIRROR_ENABLED           BIT(12)
 
@@ -161,6 +162,20 @@ static int dp83869_config_port_mirroring(struct phy_device *phydev)
 					  DP83869_CFG3_PORT_MIRROR_EN);
 }
 
+static int dp83869_set_strapped_mode(struct phy_device *phydev)
+{
+	struct dp83869_private *dp83869 = phydev->priv;
+	int val;
+
+	val = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_STRAP_STS1);
+	if (val < 0)
+		return val;
+
+	dp83869->mode = val & DP83869_STRAP_OP_MODE_MASK;
+
+	return 0;
+}
+
 #ifdef CONFIG_OF_MDIO
 static int dp83869_of_init(struct phy_device *phydev)
 {
@@ -185,6 +200,10 @@ static int dp83869_of_init(struct phy_device *phydev)
 		if (dp83869->mode < DP83869_RGMII_COPPER_ETHERNET ||
 		    dp83869->mode > DP83869_SGMII_COPPER_ETHERNET)
 			return -EINVAL;
+	} else {
+		ret = dp83869_set_strapped_mode(phydev);
+		if (ret)
+			return ret;
 	}
 
 	if (of_property_read_bool(of_node, "ti,max-output-impedance"))
@@ -218,7 +237,7 @@ static int dp83869_of_init(struct phy_device *phydev)
 #else
 static int dp83869_of_init(struct phy_device *phydev)
 {
-	return 0;
+	return dp83869_set_strapped_mode(phydev);
 }
 #endif /* CONFIG_OF_MDIO */
 
