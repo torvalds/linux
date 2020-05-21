@@ -1215,40 +1215,15 @@ SYM_FUNC_END(entry_INT80_32)
 #endif
 .endm
 
-/*
- * Build the entry stubs with some assembler magic.
- * We pack 1 stub into every 8-byte block.
- */
-	.align 8
-SYM_CODE_START(irq_entries_start)
-    vector=FIRST_EXTERNAL_VECTOR
-    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
-	pushl	$(~vector+0x80)			/* Note: always in signed byte range */
-    vector=vector+1
-	jmp	common_interrupt
-	.align	8
-    .endr
-SYM_CODE_END(irq_entries_start)
-
 #ifdef CONFIG_X86_LOCAL_APIC
-	.align 8
-SYM_CODE_START(spurious_entries_start)
-    vector=FIRST_SYSTEM_VECTOR
-    .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
-	pushl	$(~vector+0x80)			/* Note: always in signed byte range */
-    vector=vector+1
-	jmp	common_spurious
-	.align	8
-    .endr
-SYM_CODE_END(spurious_entries_start)
-
 SYM_CODE_START_LOCAL(common_spurious)
 	ASM_CLAC
-	addl	$-0x80, (%esp)			/* Adjust vector into the [-256, -1] range */
 	SAVE_ALL switch_stacks=1
 	ENCODE_FRAME_POINTER
 	TRACE_IRQS_OFF
 	movl	%esp, %eax
+	movl	PT_ORIG_EAX(%esp), %edx		/* get the vector from stack */
+	movl	$-1, PT_ORIG_EAX(%esp)		/* no syscall to restart */
 	call	smp_spurious_interrupt
 	jmp	ret_from_intr
 SYM_CODE_END(common_spurious)
@@ -1261,12 +1236,12 @@ SYM_CODE_END(common_spurious)
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 SYM_CODE_START_LOCAL(common_interrupt)
 	ASM_CLAC
-	addl	$-0x80, (%esp)			/* Adjust vector into the [-256, -1] range */
-
 	SAVE_ALL switch_stacks=1
 	ENCODE_FRAME_POINTER
 	TRACE_IRQS_OFF
 	movl	%esp, %eax
+	movl	PT_ORIG_EAX(%esp), %edx		/* get the vector from stack */
+	movl	$-1, PT_ORIG_EAX(%esp)		/* no syscall to restart */
 	call	do_IRQ
 	jmp	ret_from_intr
 SYM_CODE_END(common_interrupt)

@@ -347,6 +347,54 @@ __visible noinstr void func(struct pt_regs *regs,			\
 #define DECLARE_IDTENTRY_XEN(vector, func)				\
 	idtentry vector asm_exc_xen##func exc_##func has_error_code=0
 
+/*
+ * ASM code to emit the common vector entry stubs where each stub is
+ * packed into 8 bytes.
+ *
+ * Note, that the 'pushq imm8' is emitted via '.byte 0x6a, vector' because
+ * GCC treats the local vector variable as unsigned int and would expand
+ * all vectors above 0x7F to a 5 byte push. The original code did an
+ * adjustment of the vector number to be in the signed byte range to avoid
+ * this. While clever it's mindboggling counterintuitive and requires the
+ * odd conversion back to a real vector number in the C entry points. Using
+ * .byte achieves the same thing and the only fixup needed in the C entry
+ * point is to mask off the bits above bit 7 because the push is sign
+ * extending.
+ */
+	.align 8
+SYM_CODE_START(irq_entries_start)
+    vector=FIRST_EXTERNAL_VECTOR
+    pos = .
+    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
+	UNWIND_HINT_IRET_REGS
+	.byte	0x6a, vector
+	jmp	common_interrupt
+	nop
+	/* Ensure that the above is 8 bytes max */
+	. = pos + 8
+    pos=pos+8
+    vector=vector+1
+    .endr
+SYM_CODE_END(irq_entries_start)
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	.align 8
+SYM_CODE_START(spurious_entries_start)
+    vector=FIRST_SYSTEM_VECTOR
+    pos = .
+    .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
+	UNWIND_HINT_IRET_REGS
+	.byte	0x6a, vector
+	jmp	common_spurious
+	nop
+	/* Ensure that the above is 8 bytes max */
+	. = pos + 8
+    pos=pos+8
+    vector=vector+1
+    .endr
+SYM_CODE_END(spurious_entries_start)
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 /*

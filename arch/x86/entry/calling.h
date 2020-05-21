@@ -341,7 +341,10 @@ For 32-bit we have the following conventions - kernel is built with
 #endif
 .endm
 
-#endif /* CONFIG_X86_64 */
+#else /* CONFIG_X86_64 */
+# undef		UNWIND_HINT_IRET_REGS
+# define	UNWIND_HINT_IRET_REGS
+#endif /* !CONFIG_X86_64 */
 
 .macro STACKLEAK_ERASE
 #ifdef CONFIG_GCC_PLUGIN_STACKLEAK

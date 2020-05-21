@@ -358,34 +358,6 @@ SYM_CODE_START(ret_from_fork)
 SYM_CODE_END(ret_from_fork)
 .popsection
 
-/*
- * Build the entry stubs with some assembler magic.
- * We pack 1 stub into every 8-byte block.
- */
-	.align 8
-SYM_CODE_START(irq_entries_start)
-    vector=FIRST_EXTERNAL_VECTOR
-    .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
-	UNWIND_HINT_IRET_REGS
-	pushq	$(~vector+0x80)			/* Note: always in signed byte range */
-	jmp	common_interrupt
-	.align	8
-	vector=vector+1
-    .endr
-SYM_CODE_END(irq_entries_start)
-
-	.align 8
-SYM_CODE_START(spurious_entries_start)
-    vector=FIRST_SYSTEM_VECTOR
-    .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
-	UNWIND_HINT_IRET_REGS
-	pushq	$(~vector+0x80)			/* Note: always in signed byte range */
-	jmp	common_spurious
-	.align	8
-	vector=vector+1
-    .endr
-SYM_CODE_END(spurious_entries_start)
-
 .macro DEBUG_ENTRY_ASSERT_IRQS_OFF
 #ifdef CONFIG_DEBUG_ENTRY
 	pushq %rax
@@ -755,13 +727,14 @@ _ASM_NOKPROBE(interrupt_entry)
 /* Interrupt entry/exit. */
 
 /*
- * The interrupt stubs push (~vector+0x80) onto the stack and
+ * The interrupt stubs push vector onto the stack and
  * then jump to common_spurious/interrupt.
  */
 SYM_CODE_START_LOCAL(common_spurious)
-	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
 	call	interrupt_entry
 	UNWIND_HINT_REGS indirect=1
+	movq	ORIG_RAX(%rdi), %rsi		/* get vector from stack */
+	movq	$-1, ORIG_RAX(%rdi)		/* no syscall to restart */
 	call	smp_spurious_interrupt		/* rdi points to pt_regs */
 	jmp	ret_from_intr
 SYM_CODE_END(common_spurious)
@@ -770,10 +743,11 @@ _ASM_NOKPROBE(common_spurious)
 /* common_interrupt is a hotpath. Align it */
 	.p2align CONFIG_X86_L1_CACHE_SHIFT
 SYM_CODE_START_LOCAL(common_interrupt)
-	addq	$-0x80, (%rsp)			/* Adjust vector to [-256, -1] range */
 	call	interrupt_entry
 	UNWIND_HINT_REGS indirect=1
-	call	do_IRQ	/* rdi points to pt_regs */
+	movq	ORIG_RAX(%rdi), %rsi		/* get vector from stack */
+	movq	$-1, ORIG_RAX(%rdi)		/* no syscall to restart */
+	call	do_IRQ				/* rdi points to pt_regs */
 	/* 0(%rsp): old RSP */
 ret_from_intr:
 	DISABLE_INTERRUPTS(CLBR_ANY)
@@ -1022,7 +996,7 @@ apicinterrupt RESCHEDULE_VECTOR			reschedule_interrupt		smp_reschedule_interrupt
 #endif
 
 apicinterrupt ERROR_APIC_VECTOR			error_interrupt			smp_error_interrupt
-apicinterrupt SPURIOUS_APIC_VECTOR		spurious_interrupt		smp_spurious_interrupt
+apicinterrupt SPURIOUS_APIC_VECTOR		spurious_apic_interrupt		smp_spurious_apic_interrupt
 
 #ifdef CONFIG_IRQ_WORK
 apicinterrupt IRQ_WORK_VECTOR			irq_work_interrupt		smp_irq_work_interrupt

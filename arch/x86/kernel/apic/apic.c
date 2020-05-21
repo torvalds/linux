@@ -2120,15 +2120,29 @@ void __init register_lapic_address(unsigned long address)
  * Local APIC interrupts
  */
 
-/*
- * This interrupt should _never_ happen with our APIC/SMP architecture
+/**
+ * smp_spurious_interrupt - Catch all for interrupts raised on unused vectors
+ * @regs:	Pointer to pt_regs on stack
+ * @error_code:	The vector number is in the lower 8 bits
+ *
+ * This is invoked from ASM entry code to catch all interrupts which
+ * trigger on an entry which is routed to the common_spurious idtentry
+ * point.
+ *
+ * Also called from smp_spurious_apic_interrupt().
  */
-__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
+__visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs,
+						  unsigned long vector)
 {
-	u8 vector = ~regs->orig_ax;
 	u32 v;
 
 	entering_irq();
+	/*
+	 * The push in the entry ASM code which stores the vector number on
+	 * the stack in the error code slot is sign expanding. Just use the
+	 * lower 8 bits.
+	 */
+	vector &= 0xFF;
 	trace_spurious_apic_entry(vector);
 
 	inc_irq_stat(irq_spurious_count);
@@ -2149,16 +2163,21 @@ __visible void __irq_entry smp_spurious_interrupt(struct pt_regs *regs)
 	 */
 	v = apic_read(APIC_ISR + ((vector & ~0x1f) >> 1));
 	if (v & (1 << (vector & 0x1f))) {
-		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Acked\n",
+		pr_info("Spurious interrupt (vector 0x%02lx) on CPU#%d. Acked\n",
 			vector, smp_processor_id());
 		ack_APIC_irq();
 	} else {
-		pr_info("Spurious interrupt (vector 0x%02x) on CPU#%d. Not pending!\n",
+		pr_info("Spurious interrupt (vector 0x%02lx) on CPU#%d. Not pending!\n",
 			vector, smp_processor_id());
 	}
 out:
 	trace_spurious_apic_exit(vector);
 	exiting_irq();
+}
+
+__visible void smp_spurious_apic_interrupt(struct pt_regs *regs)
+{
+	smp_spurious_interrupt(regs, SPURIOUS_APIC_VECTOR);
 }
 
 /*
