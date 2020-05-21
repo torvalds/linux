@@ -606,6 +606,28 @@ DECLARE_IDTENTRY_SYSVEC(CALL_FUNCTION_SINGLE_VECTOR,	sysvec_call_function_single
 DECLARE_IDTENTRY_SYSVEC(CALL_FUNCTION_VECTOR,		sysvec_call_function);
 #endif
 
+#ifdef CONFIG_X86_LOCAL_APIC
+# ifdef CONFIG_X86_UV
+DECLARE_IDTENTRY_SYSVEC(UV_BAU_MESSAGE,			sysvec_uv_bau_message);
+# endif
+
+# ifdef CONFIG_X86_MCE_THRESHOLD
+DECLARE_IDTENTRY_SYSVEC(THRESHOLD_APIC_VECTOR,		sysvec_threshold);
+# endif
+
+# ifdef CONFIG_X86_MCE_AMD
+DECLARE_IDTENTRY_SYSVEC(DEFERRED_ERROR_VECTOR,		sysvec_deferred_error);
+# endif
+
+# ifdef CONFIG_X86_THERMAL_VECTOR
+DECLARE_IDTENTRY_SYSVEC(THERMAL_APIC_VECTOR,		sysvec_thermal);
+# endif
+
+# ifdef CONFIG_IRQ_WORK
+DECLARE_IDTENTRY_SYSVEC(IRQ_WORK_VECTOR,		sysvec_irq_work);
+# endif
+#endif
+
 #undef X86_TRAP_OTHER
 
 #endif

@@ -34,11 +34,6 @@ static inline int get_si_code(unsigned long condition)
 extern int panic_on_unrecovered_nmi;
 
 void math_emulate(struct math_emu_info *);
-#ifndef CONFIG_X86_32
-asmlinkage void smp_thermal_interrupt(struct pt_regs *regs);
-asmlinkage void smp_threshold_interrupt(struct pt_regs *regs);
-asmlinkage void smp_deferred_error_interrupt(struct pt_regs *regs);
-#endif
 
 #ifdef CONFIG_VMAP_STACK
 void __noreturn handle_stack_overflow(const char *message,
