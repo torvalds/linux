@@ -634,8 +634,11 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 	} else {
 		nmi_enter();
 		instrumentation_begin();
+		trace_hardirqs_off_prepare();
 		if (!do_int3(regs))
 			die("int3", regs, 0);
+		if (regs->flags & X86_EFLAGS_IF)
+			trace_hardirqs_on_prepare();
 		instrumentation_end();
 		nmi_exit();
 	}
@@ -850,6 +853,10 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 					     unsigned long dr6)
 {
 	nmi_enter();
+	instrumentation_begin();
+	trace_hardirqs_off_prepare();
+	instrumentation_end();
+
 	/*
 	 * The SDM says "The processor clears the BTF flag when it
 	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
@@ -871,6 +878,10 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	if (dr6)
 		handle_debug(regs, dr6, false);
 
+	instrumentation_begin();
+	if (regs->flags & X86_EFLAGS_IF)
+		trace_hardirqs_on_prepare();
+	instrumentation_end();
 	nmi_exit();
 }
 
