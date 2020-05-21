@@ -1154,6 +1154,9 @@ static enum bp_result bios_parser_get_firmware_info(
 				result = get_firmware_info_v3_2(bp, info);
 				break;
 			case 3:
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+			case 4:
+#endif
 				result = get_firmware_info_v3_2(bp, info);
 				break;
 			default:
