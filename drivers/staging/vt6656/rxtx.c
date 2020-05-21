@@ -356,40 +356,30 @@ static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 
 static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 				      struct vnt_tx_buffer *tx_buffer,
-				      struct vnt_mic_hdr **mic_hdr,
 				      u32 need_mic, bool need_rts)
 {
 	if (tx_context->pkt_type == PK_TYPE_11GB ||
 	    tx_context->pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
-			if (need_mic)
-				*mic_hdr =
-					&tx_buffer->tx_head.tx_rts.tx.mic.hdr;
-
 			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head, need_mic);
 
 			return;
 		}
-
-		if (need_mic)
-			*mic_hdr = &tx_buffer->tx_head.tx_cts.tx.mic.hdr;
 
 		vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, need_mic);
 
 		return;
 	}
 
-	if (need_mic)
-		*mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
-
 	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts, need_mic);
 }
 
-static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
+static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
 			   u8 *key_buffer, struct ieee80211_key_conf *tx_key,
-			   struct sk_buff *skb, u16 payload_len,
-			   struct vnt_mic_hdr *mic_hdr)
+			   struct sk_buff *skb, u16 payload_len)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct vnt_mic_hdr *mic_hdr;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u64 pn64;
 	u8 *iv = ((u8 *)hdr + ieee80211_get_hdrlen_from_skb(skb));
@@ -416,9 +406,14 @@ static void vnt_fill_txkey(struct vnt_usb_send_context *tx_context,
 
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-
-		if (!mic_hdr)
-			return;
+		if (info->control.use_cts_prot) {
+			if (info->control.use_rts)
+				mic_hdr = &tx_buffer->tx_head.tx_rts.tx.mic.hdr;
+			else
+				mic_hdr = &tx_buffer->tx_head.tx_cts.tx.mic.hdr;
+		} else {
+			mic_hdr = &tx_buffer->tx_head.tx_ab.tx.mic.hdr;
+		}
 
 		mic_hdr->id = 0x59;
 		mic_hdr->payload_len = cpu_to_be16(payload_len);
@@ -497,7 +492,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct ieee80211_rate *rate;
 	struct ieee80211_key_conf *tx_key;
 	struct ieee80211_hdr *hdr;
-	struct vnt_mic_hdr *mic_hdr = NULL;
 	struct vnt_tx_buffer *tx_buffer;
 	struct vnt_tx_fifo_head *tx_buffer_head;
 	struct vnt_usb_send_context *tx_context;
@@ -624,16 +618,15 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
-	vnt_generate_tx_parameter(tx_context, tx_buffer, &mic_hdr,
-				  need_mic, need_rts);
+	vnt_generate_tx_parameter(tx_context, tx_buffer, need_mic, need_rts);
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
-			vnt_fill_txkey(tx_context, tx_buffer_head->tx_key,
-				       tx_key, skb, tx_body_size, mic_hdr);
+			vnt_fill_txkey(tx_buffer, tx_buffer_head->tx_key,
+				       tx_key, skb, tx_body_size);
 	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
