@@ -1307,18 +1307,6 @@ static inline u8 *rtsx_pci_get_cmd_data(struct rtsx_pcr *pcr)
 	return (u8 *)(pcr->host_cmds_ptr);
 }
 
-static inline int rtsx_pci_update_cfg_byte(struct rtsx_pcr *pcr, int addr,
-		u8 mask, u8 append)
-{
-	int err;
-	u8 val;
-
-	err = pci_read_config_byte(pcr->pci, addr, &val);
-	if (err < 0)
-		return err;
-	return pci_write_config_byte(pcr->pci, addr, (val & mask) | append);
-}
-
 static inline void rtsx_pci_write_be32(struct rtsx_pcr *pcr, u16 reg, u32 val)
 {
 	rtsx_pci_add_cmd(pcr, WRITE_REG_CMD, reg,     0xFF, val >> 24);

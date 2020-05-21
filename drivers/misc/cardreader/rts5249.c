@@ -349,15 +349,12 @@ static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 
 static void rts5249_set_aspm(struct rtsx_pcr *pcr, bool enable)
 {
-	u8 val = 0;
-
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (enable)
-		val = pcr->aspm_en;
-	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-				 ASPM_MASK_NEG, val);
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC,
+					   enable ? pcr->aspm_en : 0);
 
 	pcr->aspm_enabled = enable;
 }
