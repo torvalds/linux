@@ -50,6 +50,9 @@
 #include "dcn20/hw_factory_dcn20.h"
 #include "dcn21/hw_factory_dcn21.h"
 #endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#include "dcn30/hw_factory_dcn30.h"
+#endif
 
 #include "diagnostics/hw_factory_diag.h"
 
@@ -99,7 +102,11 @@ bool dal_hw_factory_init(
 		dal_hw_factory_dcn21_init(factory);
 		return true;
 #endif
-
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case DCN_VERSION_3_0:
+		dal_hw_factory_dcn30_init(factory);
+		return true;
+#endif
 	default:
 		ASSERT_CRITICAL(false);
 		return false;
