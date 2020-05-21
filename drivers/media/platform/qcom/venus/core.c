@@ -295,6 +295,8 @@ static int venus_probe(struct platform_device *pdev)
 		goto err_dev_unregister;
 	}
 
+	venus_dbgfs_init(core);
+
 	return 0;
 
 err_dev_unregister:
@@ -346,6 +348,7 @@ static int venus_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&core->v4l2_dev);
 	mutex_destroy(&core->pm_lock);
 	mutex_destroy(&core->lock);
+	venus_dbgfs_deinit(core);
 
 	return ret;
 }

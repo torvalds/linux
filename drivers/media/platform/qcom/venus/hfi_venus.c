@@ -130,7 +130,7 @@ struct venus_hfi_device {
 };
 
 static bool venus_pkt_debug;
-static int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
+int venus_fw_debug = HFI_DEBUG_MSG_ERROR | HFI_DEBUG_MSG_FATAL;
 static bool venus_sys_idle_indicator;
 static bool venus_fw_low_power_mode = true;
 static int venus_hw_rsp_timeout = 1000;
@@ -1121,6 +1121,10 @@ static int venus_session_init(struct venus_inst *inst, u32 session_type,
 	struct venus_hfi_device *hdev = to_hfi_priv(inst->core);
 	struct hfi_session_init_pkt pkt;
 	int ret;
+
+	ret = venus_sys_set_debug(hdev, venus_fw_debug);
+	if (ret)
+		goto err;
 
 	ret = pkt_session_init(&pkt, inst, session_type, codec);
 	if (ret)
