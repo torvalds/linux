@@ -29,10 +29,6 @@
 #include <asm/sections.h>
 
 /* Interrupt handlers registered during init_IRQ */
-extern asmlinkage void kvm_posted_intr_ipi(void);
-extern asmlinkage void kvm_posted_intr_wakeup_ipi(void);
-extern asmlinkage void kvm_posted_intr_nested_ipi(void);
-
 extern asmlinkage void reschedule_interrupt(void);
 
 #ifdef	CONFIG_X86_LOCAL_APIC
