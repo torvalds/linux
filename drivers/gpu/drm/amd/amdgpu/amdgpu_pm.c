@@ -1731,10 +1731,10 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 #define DEVICE_ATTR_IS(_name)	(!strcmp(attr_name, #_name))
 
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
-		if (asic_type <= CHIP_VEGA10)
+		if (asic_type < CHIP_VEGA10)
 			attr->states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		if (asic_type <= CHIP_VEGA10 || asic_type == CHIP_ARCTURUS)
+		if (asic_type < CHIP_VEGA10 || asic_type == CHIP_ARCTURUS)
 			attr->states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (asic_type < CHIP_VEGA20)
@@ -1746,7 +1746,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		attr->states = ATTR_STATE_UNSUPPORTED;
 		if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
 		    (!is_support_sw_smu(adev) && hwmgr->od_enabled))
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			attr->states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
 		if (adev->flags & AMD_IS_APU || asic_type == CHIP_VEGA10)
 			attr->states = ATTR_STATE_UNSUPPORTED;
@@ -1758,7 +1758,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		if (!adev->unique_id)
 			attr->states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_features)) {
-		if (adev->flags & AMD_IS_APU || asic_type <= CHIP_VEGA10)
+		if (adev->flags & AMD_IS_APU || asic_type < CHIP_VEGA10)
 			attr->states = ATTR_STATE_UNSUPPORTED;
 	}
 
