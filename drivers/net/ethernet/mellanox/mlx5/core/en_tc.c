@@ -1343,7 +1343,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
+	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
 		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
 		dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
 		if (err)
@@ -3558,12 +3559,13 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 			       struct mlx5_esw_flow_attr *attr,
 			       u32 *action)
 {
-	int nest_level = attr->parse_attr->filter_dev->lower_level;
 	struct flow_action_entry vlan_act = {
 		.id = FLOW_ACTION_VLAN_POP,
 	};
-	int err = 0;
+	int nest_level, err = 0;
 
+	nest_level = attr->parse_attr->filter_dev->lower_level -
+						priv->netdev->lower_level;
 	while (nest_level--) {
 		err = parse_tc_vlan_action(priv, &vlan_act, attr, action);
 		if (err)

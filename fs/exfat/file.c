@@ -273,6 +273,7 @@ int exfat_getattr(const struct path *path, struct kstat *stat,
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 
 	generic_fillattr(inode, stat);
+	exfat_truncate_atime(&stat->atime);
 	stat->result_mask |= STATX_BTIME;
 	stat->btime.tv_sec = ei->i_crtime.tv_sec;
 	stat->btime.tv_nsec = ei->i_crtime.tv_nsec;
@@ -339,6 +340,7 @@ int exfat_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	setattr_copy(inode, attr);
+	exfat_truncate_atime(&inode->i_atime);
 	mark_inode_dirty(inode);
 
 out:

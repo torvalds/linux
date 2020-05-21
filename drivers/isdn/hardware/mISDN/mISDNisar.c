@@ -743,10 +743,10 @@ check_send(struct isar_hw *isar, u8 rdm)
 	}
 }
 
-const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
+static const char *dmril[] = {"NO SPEED", "1200/75", "NODEF2", "75/1200", "NODEF4",
 		       "300", "600", "1200", "2400", "4800", "7200",
 		       "9600nt", "9600t", "12000", "14400", "WRONG"};
-const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
+static const char *dmrim[] = {"NO MOD", "NO DEF", "V32/V32b", "V22", "V21",
 		       "Bell103", "V23", "Bell202", "V17", "V29", "V27ter"};
 
 static void

@@ -261,7 +261,9 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 }
 
 static u32
-gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
+gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, int len,
+		       struct xdr_buf *buf, unsigned int *slack,
+		       unsigned int *align)
 {
 	int			signalg;
 	int			sealalg;
@@ -279,12 +281,13 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	u32			conflen = kctx->gk5e->conflen;
 	int			crypt_offset;
 	u8			*cksumkey;
+	unsigned int		saved_len = buf->len;
 
 	dprintk("RPC:       gss_unwrap_kerberos\n");
 
 	ptr = (u8 *)buf->head[0].iov_base + offset;
 	if (g_verify_token_header(&kctx->mech_used, &bodysize, &ptr,
-					buf->len - offset))
+					len - offset))
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((ptr[0] != ((KG_TOK_WRAP_MSG >> 8) & 0xff)) ||
@@ -324,6 +327,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	    (!kctx->initiate && direction != 0))
 		return GSS_S_BAD_SIG;
 
+	buf->len = len;
 	if (kctx->enctype == ENCTYPE_ARCFOUR_HMAC) {
 		struct crypto_sync_skcipher *cipher;
 		int err;
@@ -376,11 +380,15 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	data_len = (buf->head[0].iov_base + buf->head[0].iov_len) - data_start;
 	memmove(orig_start, data_start, data_len);
 	buf->head[0].iov_len -= (data_start - orig_start);
-	buf->len -= (data_start - orig_start);
+	buf->len = len - (data_start - orig_start);
 
 	if (gss_krb5_remove_padding(buf, blocksize))
 		return GSS_S_DEFECTIVE_TOKEN;
 
+	/* slack must include room for krb5 padding */
+	*slack = XDR_QUADLEN(saved_len - buf->len);
+	/* The GSS blob always precedes the RPC message payload */
+	*align = *slack;
 	return GSS_S_COMPLETE;
 }
 
@@ -486,7 +494,9 @@ gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
 }
 
 static u32
-gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
+gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, int len,
+		       struct xdr_buf *buf, unsigned int *slack,
+		       unsigned int *align)
 {
 	time64_t	now;
 	u8		*ptr;
@@ -532,7 +542,7 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	if (rrc != 0)
 		rotate_left(offset + 16, buf, rrc);
 
-	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, buf,
+	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, len, buf,
 					&headskip, &tailskip);
 	if (err)
 		return GSS_S_FAILURE;
@@ -542,7 +552,7 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	 * it against the original
 	 */
 	err = read_bytes_from_xdr_buf(buf,
-				buf->len - GSS_KRB5_TOK_HDR_LEN - tailskip,
+				len - GSS_KRB5_TOK_HDR_LEN - tailskip,
 				decrypted_hdr, GSS_KRB5_TOK_HDR_LEN);
 	if (err) {
 		dprintk("%s: error %u getting decrypted_hdr\n", __func__, err);
@@ -568,18 +578,19 @@ gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	 * Note that buf->head[0].iov_len may indicate the available
 	 * head buffer space rather than that actually occupied.
 	 */
-	movelen = min_t(unsigned int, buf->head[0].iov_len, buf->len);
+	movelen = min_t(unsigned int, buf->head[0].iov_len, len);
 	movelen -= offset + GSS_KRB5_TOK_HDR_LEN + headskip;
-	if (offset + GSS_KRB5_TOK_HDR_LEN + headskip + movelen >
-	    buf->head[0].iov_len)
-		return GSS_S_FAILURE;
+	BUG_ON(offset + GSS_KRB5_TOK_HDR_LEN + headskip + movelen >
+							buf->head[0].iov_len);
 	memmove(ptr, ptr + GSS_KRB5_TOK_HDR_LEN + headskip, movelen);
 	buf->head[0].iov_len -= GSS_KRB5_TOK_HDR_LEN + headskip;
-	buf->len -= GSS_KRB5_TOK_HDR_LEN + headskip;
+	buf->len = len - GSS_KRB5_TOK_HDR_LEN + headskip;
 
 	/* Trim off the trailing "extra count" and checksum blob */
-	buf->len -= ec + GSS_KRB5_TOK_HDR_LEN + tailskip;
+	xdr_buf_trim(buf, ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 
+	*align = XDR_QUADLEN(GSS_KRB5_TOK_HDR_LEN + headskip);
+	*slack = *align + XDR_QUADLEN(ec + GSS_KRB5_TOK_HDR_LEN + tailskip);
 	return GSS_S_COMPLETE;
 }
 
@@ -603,7 +614,8 @@ gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 }
 
 u32
-gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
+gss_unwrap_kerberos(struct gss_ctx *gctx, int offset,
+		    int len, struct xdr_buf *buf)
 {
 	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
 
@@ -613,9 +625,11 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 	case ENCTYPE_ARCFOUR_HMAC:
-		return gss_unwrap_kerberos_v1(kctx, offset, buf);
+		return gss_unwrap_kerberos_v1(kctx, offset, len, buf,
+					      &gctx->slack, &gctx->align);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return gss_unwrap_kerberos_v2(kctx, offset, buf);
+		return gss_unwrap_kerberos_v2(kctx, offset, len, buf,
+					      &gctx->slack, &gctx->align);
 	}
 }

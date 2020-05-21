@@ -1263,6 +1263,30 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 	int lpa;
 	int err;
 
+	if (!(status & MII_M1011_PHY_STATUS_RESOLVED)) {
+		phydev->link = 0;
+		return 0;
+	}
+
+	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
+		phydev->duplex = DUPLEX_FULL;
+	else
+		phydev->duplex = DUPLEX_HALF;
+
+	switch (status & MII_M1011_PHY_STATUS_SPD_MASK) {
+	case MII_M1011_PHY_STATUS_1000:
+		phydev->speed = SPEED_1000;
+		break;
+
+	case MII_M1011_PHY_STATUS_100:
+		phydev->speed = SPEED_100;
+		break;
+
+	default:
+		phydev->speed = SPEED_10;
+		break;
+	}
+
 	if (!fiber) {
 		err = genphy_read_lpa(phydev);
 		if (err < 0)
@@ -1289,28 +1313,6 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 				phydev->asym_pause = 0;
 			}
 		}
-	}
-
-	if (!(status & MII_M1011_PHY_STATUS_RESOLVED))
-		return 0;
-
-	if (status & MII_M1011_PHY_STATUS_FULLDUPLEX)
-		phydev->duplex = DUPLEX_FULL;
-	else
-		phydev->duplex = DUPLEX_HALF;
-
-	switch (status & MII_M1011_PHY_STATUS_SPD_MASK) {
-	case MII_M1011_PHY_STATUS_1000:
-		phydev->speed = SPEED_1000;
-		break;
-
-	case MII_M1011_PHY_STATUS_100:
-		phydev->speed = SPEED_100;
-		break;
-
-	default:
-		phydev->speed = SPEED_10;
-		break;
 	}
 
 	return 0;

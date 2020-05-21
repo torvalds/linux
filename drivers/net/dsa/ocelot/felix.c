@@ -46,11 +46,8 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 			 const unsigned char *addr, u16 vid)
 {
 	struct ocelot *ocelot = ds->priv;
-	bool vlan_aware;
 
-	vlan_aware = dsa_port_is_vlan_filtering(dsa_to_port(ds, port));
-
-	return ocelot_fdb_add(ocelot, port, addr, vid, vlan_aware);
+	return ocelot_fdb_add(ocelot, port, addr, vid);
 }
 
 static int felix_fdb_del(struct dsa_switch *ds, int port,
@@ -403,6 +400,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->stats_layout	= felix->info->stats_layout;
 	ocelot->num_stats	= felix->info->num_stats;
 	ocelot->shared_queue_sz	= felix->info->shared_queue_sz;
+	ocelot->num_mact_rows	= felix->info->num_mact_rows;
 	ocelot->vcap_is2_keys	= felix->info->vcap_is2_keys;
 	ocelot->vcap_is2_actions= felix->info->vcap_is2_actions;
 	ocelot->vcap		= felix->info->vcap;
