@@ -1116,23 +1116,6 @@ apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
 	xen_hvm_callback_vector xen_evtchn_do_upcall
 #endif
 
-
-#if IS_ENABLED(CONFIG_HYPERV)
-apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
-	hyperv_callback_vector hyperv_vector_handler
-
-apicinterrupt3 HYPERV_REENLIGHTENMENT_VECTOR \
-	hyperv_reenlightenment_vector hyperv_reenlightenment_intr
-
-apicinterrupt3 HYPERV_STIMER0_VECTOR \
-	hv_stimer0_callback_vector hv_stimer0_vector_handler
-#endif /* CONFIG_HYPERV */
-
-#if IS_ENABLED(CONFIG_ACRN_GUEST)
-apicinterrupt3 HYPERVISOR_CALLBACK_VECTOR \
-	acrn_hv_callback_vector acrn_hv_vector_handler
-#endif
-
 /*
  * Save all registers in pt_regs, and switch gs if needed.
  * Use slow, but surefire "are we in kernel?" check.

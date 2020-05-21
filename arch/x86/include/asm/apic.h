@@ -519,26 +519,6 @@ static inline bool apic_id_is_primary_thread(unsigned int id) { return false; }
 static inline void apic_smt_update(void) { }
 #endif
 
-extern void irq_enter(void);
-extern void irq_exit(void);
-
-static inline void entering_irq(void)
-{
-	irq_enter();
-	kvm_set_cpu_l1tf_flush_l1d();
-}
-
-static inline void entering_ack_irq(void)
-{
-	entering_irq();
-	ack_APIC_irq();
-}
-
-static inline void exiting_irq(void)
-{
-	irq_exit();
-}
-
 extern void ioapic_zap_locks(void);
 
 #endif /* _ASM_X86_APIC_H */
