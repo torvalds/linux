@@ -20,6 +20,7 @@
 #include <asm/mce.h>
 #include <asm/hw_irq.h>
 #include <asm/desc.h>
+#include <asm/traps.h>
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/irq_vectors.h>
@@ -232,45 +233,31 @@ static __always_inline void handle_irq(struct irq_desc *desc,
 }
 
 /*
- * do_IRQ handles all normal device IRQ's (the special
- * SMP cross-CPU interrupts have their own specific
- * handlers).
+ * common_interrupt() handles all normal device IRQ's (the special SMP
+ * cross-CPU interrupts have their own entry points).
  */
-__visible void __irq_entry do_IRQ(struct pt_regs *regs, unsigned long vector)
+DEFINE_IDTENTRY_IRQ(common_interrupt)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;
 
-	entering_irq();
-	/*
-	 * The push in the entry ASM code which stores the vector number on
-	 * the stack in the error code slot is sign expanding. Just use the
-	 * lower 8 bits.
-	 */
-	vector &= 0xFF;
-
-	/* entering_irq() tells RCU that we're not quiescent.  Check it. */
+	/* entry code tells RCU that we're not quiescent.  Check it. */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "IRQ failed to wake up RCU");
 
 	desc = __this_cpu_read(vector_irq[vector]);
 	if (likely(!IS_ERR_OR_NULL(desc))) {
-		if (IS_ENABLED(CONFIG_X86_32))
-			__handle_irq(desc, regs);
-		else
-			generic_handle_irq_desc(desc);
+		handle_irq(desc, regs);
 	} else {
 		ack_APIC_irq();
 
 		if (desc == VECTOR_UNUSED) {
-			pr_emerg_ratelimited("%s: %d.%lu No irq handler for vector\n",
+			pr_emerg_ratelimited("%s: %d.%u No irq handler for vector\n",
 					     __func__, smp_processor_id(),
 					     vector);
 		} else {
 			__this_cpu_write(vector_irq[vector], VECTOR_UNUSED);
 		}
 	}
-
-	exiting_irq();
 
 	set_irq_regs(old_regs);
 }

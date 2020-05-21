@@ -417,7 +417,7 @@ SYM_CODE_START(irq_entries_start)
     .rept (FIRST_SYSTEM_VECTOR - FIRST_EXTERNAL_VECTOR)
 	UNWIND_HINT_IRET_REGS
 	.byte	0x6a, vector
-	jmp	common_interrupt
+	jmp	asm_common_interrupt
 	nop
 	/* Ensure that the above is 8 bytes max */
 	. = pos + 8
@@ -434,7 +434,7 @@ SYM_CODE_START(spurious_entries_start)
     .rept (NR_VECTORS - FIRST_SYSTEM_VECTOR)
 	UNWIND_HINT_IRET_REGS
 	.byte	0x6a, vector
-	jmp	common_spurious
+	jmp	asm_spurious_interrupt
 	nop
 	/* Ensure that the above is 8 bytes max */
 	. = pos + 8
@@ -504,6 +504,12 @@ DECLARE_IDTENTRY_DF(X86_TRAP_DF,	exc_double_fault);
 
 #ifdef CONFIG_XEN_PV
 DECLARE_IDTENTRY_XENCB(X86_TRAP_OTHER,	exc_xen_hypervisor_callback);
+#endif
+
+/* Device interrupts common/spurious */
+DECLARE_IDTENTRY_IRQ(X86_TRAP_OTHER,	common_interrupt);
+#ifdef CONFIG_X86_LOCAL_APIC
+DECLARE_IDTENTRY_IRQ(X86_TRAP_OTHER,	spurious_interrupt);
 #endif
 
 #undef X86_TRAP_OTHER
