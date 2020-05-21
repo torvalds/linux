@@ -268,17 +268,16 @@ void (*x86_platform_ipi_callback)(void) = NULL;
 /*
  * Handler for X86_PLATFORM_IPI_VECTOR.
  */
-__visible void __irq_entry smp_x86_platform_ipi(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_x86_platform_ipi)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	entering_ack_irq();
+	ack_APIC_irq();
 	trace_x86_platform_ipi_entry(X86_PLATFORM_IPI_VECTOR);
 	inc_irq_stat(x86_platform_ipis);
 	if (x86_platform_ipi_callback)
 		x86_platform_ipi_callback();
 	trace_x86_platform_ipi_exit(X86_PLATFORM_IPI_VECTOR);
-	exiting_irq();
 	set_irq_regs(old_regs);
 }
 #endif
