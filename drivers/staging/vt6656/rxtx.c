@@ -296,8 +296,9 @@ static void vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 }
 
 static void vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
-			 union vnt_tx_head *tx_head, bool need_mic)
+			 union vnt_tx_head *tx_head)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
 	struct vnt_rrv_time_rts *buf = &tx_head->tx_rts.rts;
 	union vnt_tx_data_head *head = &tx_head->tx_rts.tx.head;
 
@@ -308,15 +309,18 @@ static void vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
 	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(tx_context);
 	buf->rrv_time_b = buf->rrv_time_a;
 
-	if (need_mic)
-		head = &tx_head->tx_rts.tx.mic.head;
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
+			head = &tx_head->tx_rts.tx.mic.head;
+	}
 
 	vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
 }
 
 static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
-			 union vnt_tx_head *tx_head, bool need_mic)
+			 union vnt_tx_head *tx_head)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
 	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
 	union vnt_tx_data_head *head = &tx_head->tx_cts.tx.head;
 
@@ -325,23 +329,28 @@ static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 
 	buf->cts_rrv_time_ba = vnt_get_cts_duration(tx_context);
 
-	if (need_mic)
-		head = &tx_head->tx_cts.tx.mic.head;
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
+			head = &tx_head->tx_cts.tx.mic.head;
+	}
 
 	vnt_fill_cts_head(tx_context, head);
 }
 
 static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 			union vnt_tx_head *tx_head,
-			bool need_rts, bool need_mic)
+			bool need_rts)
 {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
 	struct vnt_rrv_time_ab *buf = &tx_head->tx_ab.ab;
 	union vnt_tx_data_head *head = &tx_head->tx_ab.tx.head;
 
 	buf->rrv_time = vnt_rxtx_rsvtime_le16(tx_context);
 
-	if (need_mic)
-		head = &tx_head->tx_ab.tx.mic.head;
+	if (info->control.hw_key) {
+		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
+			head = &tx_head->tx_ab.tx.mic.head;
+	}
 
 	if (need_rts) {
 		buf->rts_rrv_time = vnt_get_rts_duration(tx_context);
@@ -356,22 +365,22 @@ static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 
 static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 				      struct vnt_tx_buffer *tx_buffer,
-				      u32 need_mic, bool need_rts)
+				      bool need_rts)
 {
 	if (tx_context->pkt_type == PK_TYPE_11GB ||
 	    tx_context->pkt_type == PK_TYPE_11GA) {
 		if (need_rts) {
-			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head, need_mic);
+			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head);
 
 			return;
 		}
 
-		vnt_rxtx_cts(tx_context, &tx_buffer->tx_head, need_mic);
+		vnt_rxtx_cts(tx_context, &tx_buffer->tx_head);
 
 		return;
 	}
 
-	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts, need_mic);
+	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts);
 }
 
 static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
@@ -499,7 +508,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	u16 tx_bytes, tx_header_size, tx_body_size;
 	u8 pkt_type;
 	bool need_rts = false;
-	bool need_mic = false;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
 
@@ -609,7 +617,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 			break;
 		case WLAN_CIPHER_SUITE_CCMP:
 			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_AES);
-			need_mic = true;
 		default:
 			break;
 		}
@@ -618,7 +625,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
-	vnt_generate_tx_parameter(tx_context, tx_buffer, need_mic, need_rts);
+	vnt_generate_tx_parameter(tx_context, tx_buffer, need_rts);
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
