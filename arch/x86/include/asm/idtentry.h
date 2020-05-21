@@ -387,7 +387,8 @@ DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_GP,	exc_general_protection);
 DECLARE_IDTENTRY_ERRORCODE(X86_TRAP_AC,	exc_alignment_check);
 
 /* Raw exception entries which need extra work */
-DECLARE_IDTENTRY_RAW(X86_TRAP_BP,	exc_int3);
+DECLARE_IDTENTRY_RAW(X86_TRAP_BP,		exc_int3);
+DECLARE_IDTENTRY_RAW_ERRORCODE(X86_TRAP_PF,	exc_page_fault);
 
 #ifdef CONFIG_X86_MCE
 DECLARE_IDTENTRY_MCE(X86_TRAP_MC,	exc_machine_check);
