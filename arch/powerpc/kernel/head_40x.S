@@ -255,9 +255,9 @@ _ENTRY(saved_ksp_limit)
 	mtspr	SPRN_SPRG_SCRATCH3, r12
 	mtspr	SPRN_SPRG_SCRATCH4, r9
 	mfcr	r11
-	mfspr	r12, SPRN_PID
+	mfspr	r9, SPRN_PID
 	mtspr	SPRN_SPRG_SCRATCH6, r11
-	mtspr	SPRN_SPRG_SCRATCH5, r12
+	mtspr	SPRN_SPRG_SCRATCH5, r9
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -280,12 +280,12 @@ _ENTRY(saved_ksp_limit)
 4:
 	tophys(r11, r11)
 	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r12, 0(r11)		/* Get L1 entry */
-	andi.	r9, r12, _PMD_PRESENT	/* Check if it points to a PTE page */
+	lwz	r11, 0(r11)		/* Get L1 entry */
+	andi.	r9, r11, _PMD_PRESENT	/* Check if it points to a PTE page */
 	beq	2f			/* Bail if no table */
 
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
+	rlwimi	r11, r10, 22, 20, 29	/* Compute PTE address */
+	lwz	r11, 0(r11)		/* Get Linux PTE */
 #ifdef CONFIG_SWAP
 	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED
 #else
@@ -301,13 +301,13 @@ _ENTRY(saved_ksp_limit)
 	/* Create TLB tag.  This is the faulting address plus a static
 	 * set of bits.  These are size, valid, E, U0.
 	*/
-	li	r12, 0x00c0
-	rlwimi	r10, r12, 0, 20, 31
+	li	r9, 0x00c0
+	rlwimi	r10, r9, 0, 20, 31
 
 	b	finish_tlb_load
 
 2:	/* Check for possible large-page pmd entry */
-	rlwinm.	r9, r12, 2, 22, 24
+	rlwinm.	r9, r11, 2, 22, 24
 	beq	5f
 
 	/* Create TLB tag.  This is the faulting address, plus a static
@@ -315,7 +315,6 @@ _ENTRY(saved_ksp_limit)
 	 */
 	ori	r9, r9, 0x40
 	rlwimi	r10, r9, 0, 20, 31
-	mr	r11, r12
 
 	b	finish_tlb_load
 
@@ -323,9 +322,9 @@ _ENTRY(saved_ksp_limit)
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r12, SPRN_SPRG_SCRATCH5
+	mfspr	r9, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
-	mtspr	SPRN_PID, r12
+	mtspr	SPRN_PID, r9
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
@@ -343,9 +342,9 @@ _ENTRY(saved_ksp_limit)
 	mtspr	SPRN_SPRG_SCRATCH3, r12
 	mtspr	SPRN_SPRG_SCRATCH4, r9
 	mfcr	r11
-	mfspr	r12, SPRN_PID
+	mfspr	r9, SPRN_PID
 	mtspr	SPRN_SPRG_SCRATCH6, r11
-	mtspr	SPRN_SPRG_SCRATCH5, r12
+	mtspr	SPRN_SPRG_SCRATCH5, r9
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -368,12 +367,12 @@ _ENTRY(saved_ksp_limit)
 4:
 	tophys(r11, r11)
 	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r12, 0(r11)		/* Get L1 entry */
-	andi.	r9, r12, _PMD_PRESENT	/* Check if it points to a PTE page */
+	lwz	r11, 0(r11)		/* Get L1 entry */
+	andi.	r9, r11, _PMD_PRESENT	/* Check if it points to a PTE page */
 	beq	2f			/* Bail if no table */
 
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
+	rlwimi	r11, r10, 22, 20, 29	/* Compute PTE address */
+	lwz	r11, 0(r11)		/* Get Linux PTE */
 #ifdef CONFIG_SWAP
 	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
 #else
@@ -389,13 +388,13 @@ _ENTRY(saved_ksp_limit)
 	/* Create TLB tag.  This is the faulting address plus a static
 	 * set of bits.  These are size, valid, E, U0.
 	*/
-	li	r12, 0x00c0
-	rlwimi	r10, r12, 0, 20, 31
+	li	r9, 0x00c0
+	rlwimi	r10, r9, 0, 20, 31
 
 	b	finish_tlb_load
 
 2:	/* Check for possible large-page pmd entry */
-	rlwinm.	r9, r12, 2, 22, 24
+	rlwinm.	r9, r11, 2, 22, 24
 	beq	5f
 
 	/* Create TLB tag.  This is the faulting address, plus a static
@@ -403,7 +402,6 @@ _ENTRY(saved_ksp_limit)
 	 */
 	ori	r9, r9, 0x40
 	rlwimi	r10, r9, 0, 20, 31
-	mr	r11, r12
 
 	b	finish_tlb_load
 
@@ -411,9 +409,9 @@ _ENTRY(saved_ksp_limit)
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-	mfspr	r12, SPRN_SPRG_SCRATCH5
+	mfspr	r9, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
-	mtspr	SPRN_PID, r12
+	mtspr	SPRN_PID, r9
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
@@ -529,7 +527,7 @@ WDTException:
 	 * miss get to this point to load the TLB.
 	 * 	r10 - TLB_TAG value
 	 * 	r11 - Linux PTE
-	 *	r12, r9 - available to use
+	 *	r9 - available to use
 	 *	PID - loaded with proper value when we get here
 	 *	Upon exit, we reload everything and RFI.
 	 * Actually, it will fit now, but oh well.....a common place
@@ -538,30 +536,28 @@ WDTException:
 tlb_4xx_index:
 	.long	0
 finish_tlb_load:
-	/* load the next available TLB index.
-	*/
-	lwz	r9, tlb_4xx_index@l(0)
-	addi	r9, r9, 1
-	andi.	r9, r9, (PPC40X_TLB_SIZE-1)
-	stw	r9, tlb_4xx_index@l(0)
-
-6:
 	/*
 	 * Clear out the software-only bits in the PTE to generate the
 	 * TLB_DATA value.  These are the bottom 2 bits of the RPM, the
 	 * top 3 bits of the zone field, and M.
 	 */
-	li	r12, 0x0ce2
-	andc	r11, r11, r12
+	li	r9, 0x0ce2
+	andc	r11, r11, r9
+
+	/* load the next available TLB index. */
+	lwz	r9, tlb_4xx_index@l(0)
+	addi	r9, r9, 1
+	andi.	r9, r9, PPC40X_TLB_SIZE - 1
+	stw	r9, tlb_4xx_index@l(0)
 
 	tlbwe	r11, r9, TLB_DATA		/* Load TLB LO */
 	tlbwe	r10, r9, TLB_TAG		/* Load TLB HI */
 
 	/* Done...restore registers and get out of here.
 	*/
-	mfspr	r12, SPRN_SPRG_SCRATCH5
+	mfspr	r9, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
-	mtspr	SPRN_PID, r12
+	mtspr	SPRN_PID, r9
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
