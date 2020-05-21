@@ -130,12 +130,10 @@ static inline pte_t pte_exprotect(pte_t pte)
 	return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
 
-#ifndef pte_mkclean
 static inline pte_t pte_mkclean(pte_t pte)
 {
 	return __pte(pte_val(pte) & ~_PAGE_DIRTY);
 }
-#endif
 
 static inline pte_t pte_mkold(pte_t pte)
 {

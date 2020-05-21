@@ -176,135 +176,16 @@ _ENTRY(saved_ksp_limit)
  * 0x0300 - Data Storage Exception
  * This happens for just a few reasons.  U0 set (but we don't do that),
  * or zone protection fault (user violation, write to protected page).
- * If this is just an update of modified status, we do that quickly
- * and exit.  Otherwise, we call heavywight functions to do the work.
+ * The other Data TLB exceptions bail out to this point
+ * if they can't resolve the lightweight TLB fault.
  */
 	START_EXCEPTION(0x0300,	DataStorage)
-	mtspr	SPRN_SPRG_SCRATCH0, r10 /* Save some working registers */
-	mtspr	SPRN_SPRG_SCRATCH1, r11
-#ifdef CONFIG_403GCX
-	stw     r12, 0(r0)
-	stw     r9, 4(r0)
-	mfcr    r11
-	mfspr   r12, SPRN_PID
-	stw     r11, 8(r0)
-	stw     r12, 12(r0)
-#else
-	mtspr	SPRN_SPRG_SCRATCH3, r12
-	mtspr	SPRN_SPRG_SCRATCH4, r9
-	mfcr	r11
-	mfspr	r12, SPRN_PID
-	mtspr	SPRN_SPRG_SCRATCH6, r11
-	mtspr	SPRN_SPRG_SCRATCH5, r12
-#endif
-
-	/* First, check if it was a zone fault (which means a user
-	* tried to access a kernel or read-protected page - always
-	* a SEGV).  All other faults here must be stores, so no
-	* need to check ESR_DST as well. */
-	mfspr	r10, SPRN_ESR
-	andis.	r10, r10, ESR_DIZ@h
-	bne	2f
-
-	mfspr	r10, SPRN_DEAR		/* Get faulting address */
-
-	/* If we are faulting a kernel address, we have to use the
-	 * kernel page tables.
-	 */
-	lis	r11, PAGE_OFFSET@h
-	cmplw	r10, r11
-	blt+	3f
-	lis	r11, swapper_pg_dir@h
-	ori	r11, r11, swapper_pg_dir@l
-	li	r9, 0
-	mtspr	SPRN_PID, r9		/* TLB will have 0 TID */
-	b	4f
-
-	/* Get the PGD for the current thread.
-	 */
-3:
-	mfspr	r11,SPRN_SPRG_THREAD
-	lwz	r11,PGDIR(r11)
-4:
-	tophys(r11, r11)
-	rlwimi	r11, r10, 12, 20, 29	/* Create L1 (pgdir/pmd) address */
-	lwz	r11, 0(r11)		/* Get L1 entry */
-	rlwinm.	r12, r11, 0, 0, 19	/* Extract L2 (pte) base address */
-	beq	2f			/* Bail if no table */
-
-	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
-	lwz	r11, 0(r12)		/* Get Linux PTE */
-
-	andi.	r9, r11, _PAGE_RW	/* Is it writeable? */
-	beq	2f			/* Bail if not */
-
-	/* Update 'changed'.
-	*/
-	ori	r11, r11, _PAGE_DIRTY|_PAGE_ACCESSED|_PAGE_HWWRITE
-	stw	r11, 0(r12)		/* Update Linux page table */
-
-	/* Most of the Linux PTE is ready to load into the TLB LO.
-	 * We set ZSEL, where only the LS-bit determines user access.
-	 * We set execute, because we don't have the granularity to
-	 * properly set this at the page level (Linux problem).
-	 * If shared is set, we cause a zero PID->TID load.
-	 * Many of these bits are software only.  Bits we don't set
-	 * here we (properly should) assume have the appropriate value.
-	 */
-	li	r12, 0x0ce2
-	andc	r11, r11, r12		/* Make sure 20, 21 are zero */
-
-	/* find the TLB index that caused the fault.  It has to be here.
-	*/
-	tlbsx	r9, 0, r10
-
-	tlbwe	r11, r9, TLB_DATA		/* Load TLB LO */
-
-	/* Done...restore registers and get out of here.
-	*/
-#ifdef CONFIG_403GCX
-	lwz     r12, 12(r0)
-	lwz     r11, 8(r0)
-	mtspr   SPRN_PID, r12
-	mtcr    r11
-	lwz     r9, 4(r0)
-	lwz     r12, 0(r0)
-#else
-	mfspr	r12, SPRN_SPRG_SCRATCH5
-	mfspr	r11, SPRN_SPRG_SCRATCH6
-	mtspr	SPRN_PID, r12
-	mtcr	r11
-	mfspr	r9, SPRN_SPRG_SCRATCH4
-	mfspr	r12, SPRN_SPRG_SCRATCH3
-#endif
-	mfspr	r11, SPRN_SPRG_SCRATCH1
-	mfspr	r10, SPRN_SPRG_SCRATCH0
-	PPC405_ERR77_SYNC
-	rfi			/* Should sync shadow TLBs */
-	b	.		/* prevent prefetch past rfi */
-
-2:
-	/* The bailout.  Restore registers to pre-exception conditions
-	 * and call the heavyweights to help us out.
-	 */
-#ifdef CONFIG_403GCX
-	lwz     r12, 12(r0)
-	lwz     r11, 8(r0)
-	mtspr   SPRN_PID, r12
-	mtcr    r11
-	lwz     r9, 4(r0)
-	lwz     r12, 0(r0)
-#else
-	mfspr	r12, SPRN_SPRG_SCRATCH5
-	mfspr	r11, SPRN_SPRG_SCRATCH6
-	mtspr	SPRN_PID, r12
-	mtcr	r11
-	mfspr	r9, SPRN_SPRG_SCRATCH4
-	mfspr	r12, SPRN_SPRG_SCRATCH3
-#endif
-	mfspr	r11, SPRN_SPRG_SCRATCH1
-	mfspr	r10, SPRN_SPRG_SCRATCH0
-	b	DataAccess
+	EXCEPTION_PROLOG
+	mfspr	r5, SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
+	stw	r5, _ESR(r11)
+	mfspr	r4, SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
+	stw	r4, _DEAR(r11)
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /*
  * 0x0400 - Instruction Storage Exception
@@ -415,11 +296,17 @@ _ENTRY(saved_ksp_limit)
 
 	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r12)		/* Get Linux PTE */
-	andi.	r9, r11, _PAGE_PRESENT
-	beq	5f
+#ifdef CONFIG_SWAP
+	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED
+#else
+	li	r9, _PAGE_PRESENT
+#endif
+	andc.	r9, r9, r11		/* Check permission */
+	bne	5f
 
-	ori	r11, r11, _PAGE_ACCESSED
-	stw	r11, 0(r12)
+	rlwinm	r9, r11, 1, _PAGE_RW	/* dirty => rw */
+	and	r9, r9, r11		/* hwwrite = dirty & rw */
+	rlwimi	r11, r9, 0, _PAGE_RW	/* replace rw by hwwrite */
 
 	/* Create TLB tag.  This is the faulting address plus a static
 	 * set of bits.  These are size, valid, E, U0.
@@ -463,7 +350,7 @@ _ENTRY(saved_ksp_limit)
 #endif
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
-	b	DataAccess
+	b	DataStorage
 
 /* 0x1200 - Instruction TLB Miss Exception
  * Nearly the same as above, except we get our information from different
@@ -515,11 +402,17 @@ _ENTRY(saved_ksp_limit)
 
 	rlwimi	r12, r10, 22, 20, 29	/* Compute PTE address */
 	lwz	r11, 0(r12)		/* Get Linux PTE */
-	andi.	r9, r11, _PAGE_PRESENT
-	beq	5f
+#ifdef CONFIG_SWAP
+	li	r9, _PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_EXEC
+#else
+	li	r9, _PAGE_PRESENT | _PAGE_EXEC
+#endif
+	andc.	r9, r9, r11		/* Check permission */
+	bne	5f
 
-	ori	r11, r11, _PAGE_ACCESSED
-	stw	r11, 0(r12)
+	rlwinm	r9, r11, 1, _PAGE_RW	/* dirty => rw */
+	and	r9, r9, r11		/* hwwrite = dirty & rw */
+	rlwimi	r11, r9, 0, _PAGE_RW	/* replace rw by hwwrite */
 
 	/* Create TLB tag.  This is the faulting address plus a static
 	 * set of bits.  These are size, valid, E, U0.
@@ -668,18 +561,6 @@ WDTException:
 	EXC_XFER_TEMPLATE(WatchdogException, 0x1020+2,
 	                  (MSR_KERNEL & ~(MSR_ME|MSR_DE|MSR_CE)),
 			  crit_transfer_to_handler, ret_from_crit_exc)
-
-/*
- * The other Data TLB exceptions bail out to this point
- * if they can't resolve the lightweight TLB fault.
- */
-DataAccess:
-	EXCEPTION_PROLOG
-	mfspr	r5,SPRN_ESR		/* Grab the ESR, save it, pass arg3 */
-	stw	r5,_ESR(r11)
-	mfspr	r4,SPRN_DEAR		/* Grab the DEAR, save it, pass arg2 */
-	stw	r4, _DEAR(r11)
-	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /* Other PowerPC processors, namely those derived from the 6xx-series
  * have vectors from 0x2100 through 0x2F00 defined, but marked as reserved.
