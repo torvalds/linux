@@ -58,13 +58,13 @@ MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 static inline void rtsx_pci_enable_aspm(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-		0xFC, pcr->aspm_en);
+		ASPM_MASK_NEG, pcr->aspm_en);
 }
 
 static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
 {
 	rtsx_pci_update_cfg_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL,
-		0xFC, 0);
+		ASPM_MASK_NEG, 0);
 }
 
 static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
