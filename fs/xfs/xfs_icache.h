@@ -72,8 +72,8 @@ void xfs_cowblocks_worker(struct work_struct *);
 void xfs_queue_cowblocks(struct xfs_mount *);
 
 int xfs_inode_ag_iterator(struct xfs_mount *mp, int iter_flags,
-	int (*execute)(struct xfs_inode *ip, int flags, void *args),
-	int flags, void *args, int tag);
+	int (*execute)(struct xfs_inode *ip, void *args),
+	void *args, int tag);
 
 int xfs_icache_inode_is_allocated(struct xfs_mount *mp, struct xfs_trans *tp,
 				  xfs_ino_t ino, bool *inuse);

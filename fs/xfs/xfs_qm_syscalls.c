@@ -737,9 +737,10 @@ xfs_qm_scall_getquota_next(
 STATIC int
 xfs_dqrele_inode(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
+	uint			*flags = args;
+
 	/* skip quota inodes */
 	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_gquotaip ||
@@ -751,15 +752,15 @@ xfs_dqrele_inode(
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
+	if ((*flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
 		xfs_qm_dqrele(ip->i_udquot);
 		ip->i_udquot = NULL;
 	}
-	if ((flags & XFS_GQUOTA_ACCT) && ip->i_gdquot) {
+	if ((*flags & XFS_GQUOTA_ACCT) && ip->i_gdquot) {
 		xfs_qm_dqrele(ip->i_gdquot);
 		ip->i_gdquot = NULL;
 	}
-	if ((flags & XFS_PQUOTA_ACCT) && ip->i_pdquot) {
+	if ((*flags & XFS_PQUOTA_ACCT) && ip->i_pdquot) {
 		xfs_qm_dqrele(ip->i_pdquot);
 		ip->i_pdquot = NULL;
 	}
@@ -776,10 +777,10 @@ xfs_dqrele_inode(
  */
 void
 xfs_qm_dqrele_all_inodes(
-	struct xfs_mount *mp,
-	uint		 flags)
+	struct xfs_mount	*mp,
+	uint			flags)
 {
 	ASSERT(mp->m_quotainfo);
 	xfs_inode_ag_iterator(mp, XFS_AGITER_INEW_WAIT, xfs_dqrele_inode,
-			flags, NULL, XFS_ICI_NO_TAG);
+			&flags, XFS_ICI_NO_TAG);
 }

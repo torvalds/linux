@@ -810,9 +810,7 @@ STATIC int
 xfs_inode_ag_walk(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
+	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
 	int			tag,
 	int			iter_flags)
@@ -888,7 +886,7 @@ restart:
 			if ((iter_flags & XFS_AGITER_INEW_WAIT) &&
 			    xfs_iflags_test(batch[i], XFS_INEW))
 				xfs_inew_wait(batch[i]);
-			error = execute(batch[i], flags, args);
+			error = execute(batch[i], args);
 			xfs_irele(batch[i]);
 			if (error == -EAGAIN) {
 				skipped++;
@@ -992,9 +990,7 @@ int
 xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
 	int			iter_flags,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
+	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
 	int			tag)
 {
@@ -1006,7 +1002,7 @@ xfs_inode_ag_iterator(
 	ag = 0;
 	while ((pag = xfs_inode_walk_get_perag(mp, ag, tag))) {
 		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, tag,
+		error = xfs_inode_ag_walk(mp, pag, execute, args, tag,
 				iter_flags);
 		xfs_perag_put(pag);
 		if (error) {
@@ -1463,12 +1459,14 @@ xfs_inode_match_id_union(
 STATIC int
 xfs_inode_free_eofblocks(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
-	int ret = 0;
-	struct xfs_eofblocks *eofb = args;
-	int match;
+	struct xfs_eofblocks	*eofb = args;
+	bool			wait;
+	int			match;
+	int			ret;
+
+	wait = eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC);
 
 	if (!xfs_can_free_eofblocks(ip, false)) {
 		/* inode could be preallocated or append-only */
@@ -1481,8 +1479,7 @@ xfs_inode_free_eofblocks(
 	 * If the mapping is dirty the operation can block and wait for some
 	 * time. Unless we are waiting, skip it.
 	 */
-	if (!(flags & SYNC_WAIT) &&
-	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
+	if (!wait && mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
 	if (eofb) {
@@ -1504,10 +1501,11 @@ xfs_inode_free_eofblocks(
 	 * scanner moving and revisit the inode in a subsequent pass.
 	 */
 	if (!xfs_ilock_nowait(ip, XFS_IOLOCK_EXCL)) {
-		if (flags & SYNC_WAIT)
-			ret = -EAGAIN;
-		return ret;
+		if (wait)
+			return -EAGAIN;
+		return 0;
 	}
+
 	ret = xfs_free_eofblocks(ip);
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
@@ -1518,16 +1516,10 @@ static int
 __xfs_icache_free_eofblocks(
 	struct xfs_mount	*mp,
 	struct xfs_eofblocks	*eofb,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
+	int			(*execute)(struct xfs_inode *ip, void *args),
 	int			tag)
 {
-	int flags = SYNC_TRYLOCK;
-
-	if (eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC))
-		flags = SYNC_WAIT;
-
-	return xfs_inode_ag_iterator(mp, 0, execute, flags, eofb, tag);
+	return xfs_inode_ag_iterator(mp, 0, execute, eofb, tag);
 }
 
 int
@@ -1752,7 +1744,6 @@ xfs_prep_free_cowblocks(
 STATIC int
 xfs_inode_free_cowblocks(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
 	struct xfs_eofblocks	*eofb = args;
