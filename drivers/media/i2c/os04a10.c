@@ -28,6 +28,7 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
@@ -40,6 +41,7 @@
 
 #define PIXEL_RATE_WITH_360M		(MIPI_FREQ_360M * 2 / 10 * 4)
 #define PIXEL_RATE_WITH_648M		(MIPI_FREQ_648M * 2 / 12 * 4)
+
 #define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 
 #define OS04A10_XVCLK_FREQ		24000000
@@ -177,6 +179,9 @@ struct os04a10 {
 	bool			long_hcg;
 	bool			middle_hcg;
 	bool			short_hcg;
+	bool			is_thunderboot;
+	bool			is_thunderboot_ng;
+	bool			is_first_streamoff;
 };
 
 #define to_os04a10(sd) container_of(sd, struct os04a10, subdev)
@@ -892,6 +897,8 @@ static const char * const os04a10_test_pattern_menu[] = {
 	"Vertical Color Bar Type 4"
 };
 
+static int __os04a10_power_on(struct os04a10 *os04a10);
+
 /* Write registers up to 4 at a time */
 static int os04a10_write_reg(struct i2c_client *client, u16 reg,
 			    u32 len, u32 val)
@@ -1346,6 +1353,12 @@ static int os04a10_set_conversion_gain(struct os04a10 *os04a10, u32 *cg)
 	s32 is_need_change = 0;
 
 	dev_dbg(&os04a10->client->dev, "set conversion gain %d\n", cur_cg);
+	if (os04a10->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+		os04a10->is_thunderboot = false;
+		os04a10->is_thunderboot_ng = true;
+		__os04a10_power_on(os04a10);
+	}
+
 	ret = os04a10_read_reg(client,
 		OS04A10_REG_HCG_SWITCH,
 		OS04A10_REG_VALUE_08BIT,
@@ -1590,19 +1603,23 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 {
 	int ret;
 
-	ret = os04a10_write_array(os04a10->client, os04a10_global_regs);
-	if (ret) {
-		dev_err(&os04a10->client->dev,
-			 "could not set init registers\n");
-		return ret;
+	if (!os04a10->is_thunderboot) {
+		ret = os04a10_write_array(os04a10->client, os04a10_global_regs);
+		if (ret) {
+			dev_err(&os04a10->client->dev,
+				"could not set init registers\n");
+			return ret;
+		}
+
+		ret = os04a10_write_array(os04a10->client, os04a10->cur_mode->reg_list);
+		if (ret)
+			return ret;
 	}
 
-	ret = os04a10_write_array(os04a10->client, os04a10->cur_mode->reg_list);
-	if (ret)
-		return ret;
 	ret = os04a10_init_conversion_gain(os04a10);
 	if (ret)
 		return ret;
+
 	/* In case these controls are set before streaming */
 	if (os04a10->has_init_exp && os04a10->cur_mode->hdr_mode != NO_HDR) {
 		ret = os04a10_ioctl(&os04a10->subdev, PREISP_CMD_SET_HDRAE_EXP, &os04a10->init_hdrae_exp);
@@ -1618,6 +1635,7 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 		if (ret)
 			return ret;
 	}
+
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_STREAMING);
 }
@@ -1625,6 +1643,8 @@ static int __os04a10_start_stream(struct os04a10 *os04a10)
 static int __os04a10_stop_stream(struct os04a10 *os04a10)
 {
 	os04a10->has_init_exp = false;
+	if (os04a10->is_thunderboot)
+		os04a10->is_first_streamoff = true;
 	return os04a10_write_reg(os04a10->client, OS04A10_REG_CTRL_MODE,
 		OS04A10_REG_VALUE_08BIT, OS04A10_MODE_SW_STANDBY);
 }
@@ -1641,6 +1661,10 @@ static int os04a10_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (os04a10->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			os04a10->is_thunderboot = false;
+			__os04a10_power_on(os04a10);
+		}
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -1685,11 +1709,13 @@ static int os04a10_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret |= os04a10_write_reg(os04a10->client,
-			OS04A10_SOFTWARE_RESET_REG,
-			OS04A10_REG_VALUE_08BIT,
-			0x01);
-		usleep_range(100, 200);
+		if (!os04a10->is_thunderboot) {
+			ret |= os04a10_write_reg(os04a10->client,
+						 OS04A10_SOFTWARE_RESET_REG,
+						 OS04A10_REG_VALUE_08BIT,
+						 0x01);
+			usleep_range(100, 200);
+		}
 
 		os04a10->power_on = true;
 	} else {
@@ -1714,6 +1740,9 @@ static int __os04a10_power_on(struct os04a10 *os04a10)
 	int ret;
 	u32 delay_us;
 	struct device *dev = &os04a10->client->dev;
+
+	if (os04a10->is_thunderboot)
+		return 0;
 
 	if (!IS_ERR_OR_NULL(os04a10->pins_default)) {
 		ret = pinctrl_select_state(os04a10->pinctrl,
@@ -1771,10 +1800,23 @@ static void __os04a10_power_off(struct os04a10 *os04a10)
 {
 	int ret;
 	struct device *dev = &os04a10->client->dev;
+	bool is_first_streamoff = false;
+
+	if (os04a10->is_thunderboot) {
+		if (os04a10->is_first_streamoff) {
+			os04a10->is_thunderboot = false;
+			os04a10->is_first_streamoff = false;
+			is_first_streamoff = true;
+		} else {
+			return;
+		}
+	}
 
 	if (!IS_ERR(os04a10->pwdn_gpio))
 		gpiod_set_value_cansleep(os04a10->pwdn_gpio, 0);
+
 	clk_disable_unprepare(os04a10->xvclk);
+
 	if (!IS_ERR(os04a10->reset_gpio))
 		gpiod_set_value_cansleep(os04a10->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(os04a10->pins_sleep)) {
@@ -1783,7 +1825,11 @@ static void __os04a10_power_off(struct os04a10 *os04a10)
 		if (ret < 0)
 			dev_dbg(dev, "could not set pins\n");
 	}
-	regulator_bulk_disable(OS04A10_NUM_SUPPLIES, os04a10->supplies);
+
+	if (os04a10->is_thunderboot_ng) {
+		os04a10->is_thunderboot_ng = false;
+		regulator_bulk_disable(OS04A10_NUM_SUPPLIES, os04a10->supplies);
+	}
 }
 
 static int os04a10_runtime_resume(struct device *dev)
@@ -2054,6 +2100,11 @@ static int os04a10_check_sensor_id(struct os04a10 *os04a10,
 	u32 id = 0;
 	int ret;
 
+	if (os04a10->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
+
 	ret = os04a10_read_reg(client, OS04A10_REG_CHIP_ID,
 			       OS04A10_REG_VALUE_24BIT, &id);
 	if (id != CHIP_ID) {
@@ -2111,6 +2162,7 @@ static int os04a10_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	os04a10->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE,
 			&hdr_mode);
 	if (ret) {
