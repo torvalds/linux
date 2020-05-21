@@ -85,10 +85,7 @@ static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 
 int rtsx_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
-	if (pcr->ops->set_ltr_latency)
-		return pcr->ops->set_ltr_latency(pcr, latency);
-	else
-		return rtsx_comm_set_ltr_latency(pcr, latency);
+	return rtsx_comm_set_ltr_latency(pcr, latency);
 }
 
 static void rtsx_comm_set_aspm(struct rtsx_pcr *pcr, bool enable)
@@ -151,10 +148,7 @@ static void rtsx_comm_pm_full_on(struct rtsx_pcr *pcr)
 
 static void rtsx_pm_full_on(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->full_on)
-		pcr->ops->full_on(pcr);
-	else
-		rtsx_comm_pm_full_on(pcr);
+	rtsx_comm_pm_full_on(pcr);
 }
 
 void rtsx_pci_start_run(struct rtsx_pcr *pcr)
@@ -1108,10 +1102,7 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 
 static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->power_saving)
-		pcr->ops->power_saving(pcr);
-	else
-		rtsx_comm_pm_power_saving(pcr);
+	rtsx_comm_pm_power_saving(pcr);
 }
 
 static void rtsx_pci_idle_work(struct work_struct *work)
