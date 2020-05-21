@@ -686,17 +686,23 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
  */
 static int gmc_v10_0_mc_init(struct amdgpu_device *adev)
 {
-	/* Could aper size report 0 ? */
-	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
+	int r;
 
 	/* size in MB on si */
 	adev->gmc.mc_vram_size =
 		adev->nbio.funcs->get_memsize(adev) * 1024ULL * 1024ULL;
 	adev->gmc.real_vram_size = adev->gmc.mc_vram_size;
-	adev->gmc.visible_vram_size = adev->gmc.aper_size;
+
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_device_resize_fb_bar(adev);
+		if (r)
+			return r;
+	}
+	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
+	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 	/* In case the PCI BAR is larger than the actual amount of vram */
+	adev->gmc.visible_vram_size = adev->gmc.aper_size;
 	if (adev->gmc.visible_vram_size > adev->gmc.real_vram_size)
 		adev->gmc.visible_vram_size = adev->gmc.real_vram_size;
 
