@@ -295,94 +295,8 @@ static void vnt_fill_cts_head(struct vnt_usb_send_context *tx_context,
 	vnt_rxtx_datahead_g(tx_context, &buf->data_head);
 }
 
-static void vnt_rxtx_rts(struct vnt_usb_send_context *tx_context,
-			 union vnt_tx_head *tx_head)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
-	struct vnt_rrv_time_rts *buf = &tx_head->tx_rts.rts;
-	union vnt_tx_data_head *head = &tx_head->tx_rts.tx.head;
-
-	buf->rts_rrv_time_aa = vnt_get_rts_duration(tx_context);
-	buf->rts_rrv_time_ba = buf->rts_rrv_time_aa;
-	buf->rts_rrv_time_bb = buf->rts_rrv_time_aa;
-
-	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(tx_context);
-	buf->rrv_time_b = buf->rrv_time_a;
-
-	if (info->control.hw_key) {
-		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
-			head = &tx_head->tx_rts.tx.mic.head;
-	}
-
-	vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
-}
-
-static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
-			 union vnt_tx_head *tx_head)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
-	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
-	union vnt_tx_data_head *head = &tx_head->tx_cts.tx.head;
-
-	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(tx_context);
-	buf->rrv_time_b = buf->rrv_time_a;
-
-	buf->cts_rrv_time_ba = vnt_get_cts_duration(tx_context);
-
-	if (info->control.hw_key) {
-		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
-			head = &tx_head->tx_cts.tx.mic.head;
-	}
-
-	vnt_fill_cts_head(tx_context, head);
-}
-
-static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
-			union vnt_tx_head *tx_head)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
-	struct vnt_rrv_time_ab *buf = &tx_head->tx_ab.ab;
-	union vnt_tx_data_head *head = &tx_head->tx_ab.tx.head;
-
-	buf->rrv_time = vnt_rxtx_rsvtime_le16(tx_context);
-
-	if (info->control.hw_key) {
-		if (info->control.hw_key->cipher == WLAN_CIPHER_SUITE_CCMP)
-			head = &tx_head->tx_ab.tx.mic.head;
-	}
-
-	if (info->control.use_rts) {
-		buf->rts_rrv_time = vnt_get_rts_duration(tx_context);
-
-		vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
-
-		return;
-	}
-
-	vnt_rxtx_datahead_ab(tx_context, &head->data_head_ab);
-}
-
-static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
-				      struct vnt_tx_buffer *tx_buffer)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
-
-	if (info->control.use_cts_prot) {
-		if (info->control.use_rts) {
-			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head);
-
-			return;
-		}
-
-		vnt_rxtx_cts(tx_context, &tx_buffer->tx_head);
-
-		return;
-	}
-
-	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head);
-}
-
-static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
+/* returns true if mic_hdr is needed */
+static bool vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
 {
 	struct vnt_tx_fifo_head *fifo = &tx_buffer->fifo_head;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -455,10 +369,101 @@ static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
 
 		memcpy(fifo->tx_key, tx_key->key, WLAN_KEY_LEN_CCMP);
 
-		break;
+		return true;
 	default:
 		break;
 	}
+
+	return false;
+}
+
+static void vnt_rxtx_rts(struct vnt_usb_send_context *tx_context)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
+	struct vnt_tx_buffer *tx_buffer = tx_context->tx_buffer;
+	union vnt_tx_head *tx_head = &tx_buffer->tx_head;
+	struct vnt_rrv_time_rts *buf = &tx_head->tx_rts.rts;
+	union vnt_tx_data_head *head = &tx_head->tx_rts.tx.head;
+
+	buf->rts_rrv_time_aa = vnt_get_rts_duration(tx_context);
+	buf->rts_rrv_time_ba = buf->rts_rrv_time_aa;
+	buf->rts_rrv_time_bb = buf->rts_rrv_time_aa;
+
+	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(tx_context);
+	buf->rrv_time_b = buf->rrv_time_a;
+
+	if (info->control.hw_key) {
+		if (vnt_fill_txkey(tx_buffer, tx_context->skb))
+			head = &tx_head->tx_rts.tx.mic.head;
+	}
+
+	vnt_rxtx_rts_g_head(tx_context, &head->rts_g);
+}
+
+static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
+	struct vnt_tx_buffer *tx_buffer = tx_context->tx_buffer;
+	union vnt_tx_head *tx_head = &tx_buffer->tx_head;
+	struct vnt_rrv_time_cts *buf = &tx_head->tx_cts.cts;
+	union vnt_tx_data_head *head = &tx_head->tx_cts.tx.head;
+
+	buf->rrv_time_a = vnt_rxtx_rsvtime_le16(tx_context);
+	buf->rrv_time_b = buf->rrv_time_a;
+
+	buf->cts_rrv_time_ba = vnt_get_cts_duration(tx_context);
+
+	if (info->control.hw_key) {
+		if (vnt_fill_txkey(tx_buffer, tx_context->skb))
+			head = &tx_head->tx_cts.tx.mic.head;
+	}
+
+	vnt_fill_cts_head(tx_context, head);
+}
+
+static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
+	struct vnt_tx_buffer *tx_buffer = tx_context->tx_buffer;
+	union vnt_tx_head *tx_head = &tx_buffer->tx_head;
+	struct vnt_rrv_time_ab *buf = &tx_head->tx_ab.ab;
+	union vnt_tx_data_head *head = &tx_head->tx_ab.tx.head;
+
+	buf->rrv_time = vnt_rxtx_rsvtime_le16(tx_context);
+
+	if (info->control.hw_key) {
+		if (vnt_fill_txkey(tx_buffer, tx_context->skb))
+			head = &tx_head->tx_ab.tx.mic.head;
+	}
+
+	if (info->control.use_rts) {
+		buf->rts_rrv_time = vnt_get_rts_duration(tx_context);
+
+		vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
+
+		return;
+	}
+
+	vnt_rxtx_datahead_ab(tx_context, &head->data_head_ab);
+}
+
+static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
+
+	if (info->control.use_cts_prot) {
+		if (info->control.use_rts) {
+			vnt_rxtx_rts(tx_context);
+
+			return;
+		}
+
+		vnt_rxtx_cts(tx_context);
+
+		return;
+	}
+
+	vnt_rxtx_ab(tx_context);
 }
 
 static u16 vnt_get_hdr_size(struct ieee80211_tx_info *info)
@@ -621,15 +626,9 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
-	vnt_generate_tx_parameter(tx_context, tx_buffer);
+	vnt_generate_tx_parameter(tx_context);
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
-
-	if (info->control.hw_key) {
-		tx_key = info->control.hw_key;
-		if (tx_key->keylen > 0)
-			vnt_fill_txkey(tx_buffer, skb);
-	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
 						IEEE80211_SCTL_SEQ) >> 4;
