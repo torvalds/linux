@@ -41,7 +41,14 @@ extern struct kmem_zone	*xfs_qm_dqtrxzone;
  */
 #define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
 
+/* Defaults for each quota type: time limits, warn limits, usage limits */
 struct xfs_def_quota {
+	time64_t	btimelimit;	/* limit for blks timer */
+	time64_t	itimelimit;	/* limit for inodes timer */
+	time64_t	rtbtimelimit;	/* limit for rt blks timer */
+	xfs_qwarncnt_t	bwarnlimit;	/* limit for blks warnings */
+	xfs_qwarncnt_t	iwarnlimit;	/* limit for inodes warnings */
+	xfs_qwarncnt_t	rtbwarnlimit;	/* limit for rt blks warnings */
 	xfs_qcnt_t	bhardlimit;	/* default data blk hard limit */
 	xfs_qcnt_t	bsoftlimit;	/* default data blk soft limit */
 	xfs_qcnt_t	ihardlimit;	/* default inode count hard limit */
@@ -64,12 +71,6 @@ struct xfs_quotainfo {
 	struct xfs_inode	*qi_pquotaip;	/* project quota inode */
 	struct list_lru		qi_lru;
 	int			qi_dquots;
-	time64_t		qi_btimelimit;	/* limit for blks timer */
-	time64_t		qi_itimelimit;	/* limit for inodes timer */
-	time64_t		qi_rtbtimelimit;/* limit for rt blks timer */
-	xfs_qwarncnt_t		qi_bwarnlimit;	/* limit for blks warnings */
-	xfs_qwarncnt_t		qi_iwarnlimit;	/* limit for inodes warnings */
-	xfs_qwarncnt_t		qi_rtbwarnlimit;/* limit for rt blks warnings */
 	struct mutex		qi_quotaofflock;/* to serialize quotaoff */
 	xfs_filblks_t		qi_dqchunklen;	/* # BBs in a chunk of dqs */
 	uint			qi_dqperchunk;	/* # ondisk dq in above chunk */

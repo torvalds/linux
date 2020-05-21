@@ -563,23 +563,23 @@ xfs_qm_scall_setqlim(
 		 * for warnings.
 		 */
 		if (newlim->d_fieldmask & QC_SPC_TIMER) {
-			q->qi_btimelimit = newlim->d_spc_timer;
+			defq->btimelimit = newlim->d_spc_timer;
 			ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
 		}
 		if (newlim->d_fieldmask & QC_INO_TIMER) {
-			q->qi_itimelimit = newlim->d_ino_timer;
+			defq->itimelimit = newlim->d_ino_timer;
 			ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
 		}
 		if (newlim->d_fieldmask & QC_RT_SPC_TIMER) {
-			q->qi_rtbtimelimit = newlim->d_rt_spc_timer;
+			defq->rtbtimelimit = newlim->d_rt_spc_timer;
 			ddq->d_rtbtimer = cpu_to_be32(newlim->d_rt_spc_timer);
 		}
 		if (newlim->d_fieldmask & QC_SPC_WARNS)
-			q->qi_bwarnlimit = newlim->d_spc_warns;
+			defq->bwarnlimit = newlim->d_spc_warns;
 		if (newlim->d_fieldmask & QC_INO_WARNS)
-			q->qi_iwarnlimit = newlim->d_ino_warns;
+			defq->iwarnlimit = newlim->d_ino_warns;
 		if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-			q->qi_rtbwarnlimit = newlim->d_rt_spc_warns;
+			defq->rtbwarnlimit = newlim->d_rt_spc_warns;
 	} else {
 		/*
 		 * If the user is now over quota, start the timelimit.
