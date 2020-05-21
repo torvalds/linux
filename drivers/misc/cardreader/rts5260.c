@@ -570,18 +570,6 @@ static int rts5260_extra_init_hw(struct rtsx_pcr *pcr)
 	return 0;
 }
 
-static void rts5260_set_aspm(struct rtsx_pcr *pcr, bool enable)
-{
-	if (pcr->aspm_enabled == enable)
-		return;
-
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC,
-					   enable ?  pcr->aspm : 0);
-
-	pcr->aspm_enabled = enable;
-}
-
 static void rts5260_set_l1off_cfg_sub_d0(struct rtsx_pcr *pcr, int active)
 {
 	struct rtsx_cr_option *option = &pcr->option;
@@ -627,7 +615,6 @@ static const struct pcr_ops rts5260_pcr_ops = {
 	.switch_output_voltage = rts5260_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.stop_cmd = rts5260_stop_cmd,
-	.set_aspm = rts5260_set_aspm,
 	.set_l1off_cfg_sub_d0 = rts5260_set_l1off_cfg_sub_d0,
 	.enable_ocp = rts5260_enable_ocp,
 	.disable_ocp = rts5260_disable_ocp,

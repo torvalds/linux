@@ -347,18 +347,6 @@ static int rtsx_base_switch_output_voltage(struct rtsx_pcr *pcr, u8 voltage)
 	return rtsx_pci_send_cmd(pcr, 100);
 }
 
-static void rts5249_set_aspm(struct rtsx_pcr *pcr, bool enable)
-{
-	if (pcr->aspm_enabled == enable)
-		return;
-
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC,
-					   enable ? pcr->aspm_en : 0);
-
-	pcr->aspm_enabled = enable;
-}
-
 static const struct pcr_ops rts5249_pcr_ops = {
 	.fetch_vendor_settings = rtsx_base_fetch_vendor_settings,
 	.extra_init_hw = rts5249_extra_init_hw,
@@ -371,7 +359,6 @@ static const struct pcr_ops rts5249_pcr_ops = {
 	.card_power_off = rtsx_base_card_power_off,
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
-	.set_aspm = rts5249_set_aspm,
 };
 
 /* SD Pull Control Enable:
@@ -598,7 +585,6 @@ static const struct pcr_ops rts524a_pcr_ops = {
 	.switch_output_voltage = rtsx_base_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
-	.set_aspm = rts5249_set_aspm,
 };
 
 void rts524a_init_params(struct rtsx_pcr *pcr)
@@ -714,7 +700,6 @@ static const struct pcr_ops rts525a_pcr_ops = {
 	.switch_output_voltage = rts525a_switch_output_voltage,
 	.force_power_down = rtsx_base_force_power_down,
 	.set_l1off_cfg_sub_d0 = rts5250_set_l1off_cfg_sub_d0,
-	.set_aspm = rts5249_set_aspm,
 };
 
 void rts525a_init_params(struct rtsx_pcr *pcr)
