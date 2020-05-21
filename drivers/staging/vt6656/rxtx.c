@@ -384,13 +384,14 @@ static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 
 static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
 			   struct ieee80211_key_conf *tx_key,
-			   struct sk_buff *skb, u16 payload_len)
+			   struct sk_buff *skb)
 {
 	struct vnt_tx_fifo_head *fifo = &tx_buffer->fifo_head;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct vnt_mic_hdr *mic_hdr;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u64 pn64;
+	u16 payload_len = skb->len;
 	u8 *iv = ((u8 *)hdr + ieee80211_get_hdrlen_from_skb(skb));
 
 	/* strip header and icv len from payload */
@@ -505,7 +506,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct vnt_tx_fifo_head *tx_buffer_head;
 	struct vnt_usb_send_context *tx_context;
 	unsigned long flags;
-	u16 tx_bytes, tx_header_size, tx_body_size;
+	u16 tx_bytes, tx_header_size;
 	u8 pkt_type;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
@@ -546,8 +547,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	tx_header_size = vnt_get_hdr_size(info);
-	tx_body_size = skb->len;
-	tx_bytes = tx_header_size + tx_body_size;
+	tx_bytes = tx_header_size + skb->len;
 	tx_header_size += sizeof(struct vnt_tx_usb_header);
 
 	tx_buffer = skb_push(skb, tx_header_size);
@@ -629,7 +629,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
-			vnt_fill_txkey(tx_buffer, tx_key, skb, tx_body_size);
+			vnt_fill_txkey(tx_buffer, tx_key, skb);
 	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
