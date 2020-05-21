@@ -512,8 +512,10 @@ SYSCALL_DEFINE0(ni_syscall)
 }
 
 /**
- * idtentry_enter - Handle state tracking on idtentry
+ * idtentry_enter_cond_rcu - Handle state tracking on idtentry with conditional
+ *			     RCU handling
  * @regs:	Pointer to pt_regs of interrupted context
+ * @cond_rcu:	Invoke rcu_irq_enter() only if RCU is not watching
  *
  * Invokes:
  *  - lockdep irqflag state tracking as low level ASM entry disabled
@@ -521,40 +523,84 @@ SYSCALL_DEFINE0(ni_syscall)
  *
  *  - Context tracking if the exception hit user mode.
  *
- *  - RCU notification if the exception hit kernel mode.
- *
  *  - The hardirq tracer to keep the state consistent as low level ASM
  *    entry disabled interrupts.
+ *
+ * For kernel mode entries RCU handling is done conditional. If RCU is
+ * watching then the only RCU requirement is to check whether the tick has
+ * to be restarted. If RCU is not watching then rcu_irq_enter() has to be
+ * invoked on entry and rcu_irq_exit() on exit.
+ *
+ * Avoiding the rcu_irq_enter/exit() calls is an optimization but also
+ * solves the problem of kernel mode pagefaults which can schedule, which
+ * is not possible after invoking rcu_irq_enter() without undoing it.
+ *
+ * For user mode entries enter_from_user_mode() must be invoked to
+ * establish the proper context for NOHZ_FULL. Otherwise scheduling on exit
+ * would not be possible.
+ *
+ * Returns: True if RCU has been adjusted on a kernel entry
+ *	    False otherwise
+ *
+ * The return value must be fed into the rcu_exit argument of
+ * idtentry_exit_cond_rcu().
  */
-void noinstr idtentry_enter(struct pt_regs *regs)
+bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs, bool cond_rcu)
 {
 	if (user_mode(regs)) {
 		enter_from_user_mode();
-	} else {
+		return false;
+	}
+
+	if (!cond_rcu || !__rcu_is_watching()) {
+		/*
+		 * If RCU is not watching then the same careful
+		 * sequence vs. lockdep and tracing is required
+		 * as in enter_from_user_mode().
+		 *
+		 * This only happens for IRQs that hit the idle
+		 * loop, i.e. if idle is not using MWAIT.
+		 */
 		lockdep_hardirqs_off(CALLER_ADDR0);
 		rcu_irq_enter();
 		instrumentation_begin();
 		trace_hardirqs_off_prepare();
 		instrumentation_end();
+
+		return true;
 	}
+
+	/*
+	 * If RCU is watching then RCU only wants to check
+	 * whether it needs to restart the tick in NOHZ
+	 * mode.
+	 */
+	instrumentation_begin();
+	rcu_irq_enter_check_tick();
+	/* Use the combo lockdep/tracing function */
+	trace_hardirqs_off();
+	instrumentation_end();
+
+	return false;
 }
 
 /**
- * idtentry_exit - Common code to handle return from exceptions
+ * idtentry_exit_cond_rcu - Handle return from exception with conditional RCU
+ *			    handling
  * @regs:	Pointer to pt_regs (exception entry regs)
+ * @rcu_exit:	Invoke rcu_irq_exit() if true
  *
  * Depending on the return target (kernel/user) this runs the necessary
- * preemption and work checks if possible and required and returns to
+ * preemption and work checks if possible and reguired and returns to
  * the caller with interrupts disabled and no further work pending.
  *
  * This is the last action before returning to the low level ASM code which
  * just needs to return to the appropriate context.
  *
- * Invoked by all exception/interrupt IDTENTRY handlers which are not
- * returning through the paranoid exit path (all except NMI, #DF and the IST
- * variants of #MC and #DB) and are therefore on the thread stack.
+ * Counterpart to idtentry_enter_cond_rcu(). The return value of the entry
+ * function must be fed into the @rcu_exit argument.
  */
-void noinstr idtentry_exit(struct pt_regs *regs)
+void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -580,7 +626,8 @@ void noinstr idtentry_exit(struct pt_regs *regs)
 				if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 					WARN_ON_ONCE(!on_thread_stack());
 				instrumentation_begin();
-				rcu_irq_exit_preempt();
+				if (rcu_exit)
+					rcu_irq_exit_preempt();
 				if (need_resched())
 					preempt_schedule_irq();
 				/* Covers both tracing and lockdep */
@@ -602,10 +649,12 @@ void noinstr idtentry_exit(struct pt_regs *regs)
 		trace_hardirqs_on_prepare();
 		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
 		instrumentation_end();
-		rcu_irq_exit();
+		if (rcu_exit)
+			rcu_irq_exit();
 		lockdep_hardirqs_on(CALLER_ADDR0);
 	} else {
-		/* IRQ flags state is correct already. Just tell RCU */
-		rcu_irq_exit();
+		/* IRQ flags state is correct already. Just tell RCU. */
+		if (rcu_exit)
+			rcu_irq_exit();
 	}
 }
