@@ -1172,12 +1172,23 @@ static int sc16is7xx_probe(struct device *dev,
 {
 	struct sched_param sched_param = { .sched_priority = MAX_RT_PRIO / 2 };
 	unsigned long freq = 0, *pfreq = dev_get_platdata(dev);
+	unsigned int val;
 	u32 uartclk = 0;
 	int i, ret;
 	struct sc16is7xx_port *s;
 
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	/*
+	 * This device does not have an identification register that would
+	 * tell us if we are really connected to the correct device.
+	 * The best we can do is to check if communication is at all possible.
+	 */
+	ret = regmap_read(regmap,
+			  SC16IS7XX_LSR_REG << SC16IS7XX_REG_SHIFT, &val);
+	if (ret < 0)
+		return ret;
 
 	/* Alloc port structure */
 	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr_uart), GFP_KERNEL);
