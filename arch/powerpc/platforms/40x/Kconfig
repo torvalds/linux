@@ -69,12 +69,6 @@ config PPC40x_SIMPLE
 	help
 	  This option enables the simple PowerPC 40x platform support.
 
-# OAK doesn't exist but wanted to keep this around for any future 403GCX boards
-config 403GCX
-	bool
-	#depends on OAK
-	select IBM405_ERR51
-
 config 405GP
 	bool
 	select IBM405_ERR77

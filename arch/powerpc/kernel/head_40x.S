@@ -253,21 +253,12 @@ _ENTRY(saved_ksp_limit)
 	START_EXCEPTION(0x1100,	DTLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH0, r10 /* Save some working registers */
 	mtspr	SPRN_SPRG_SCRATCH1, r11
-#ifdef CONFIG_403GCX
-	stw     r12, 0(r0)
-	stw     r9, 4(r0)
-	mfcr    r11
-	mfspr   r12, SPRN_PID
-	stw     r11, 8(r0)
-	stw     r12, 12(r0)
-#else
 	mtspr	SPRN_SPRG_SCRATCH3, r12
 	mtspr	SPRN_SPRG_SCRATCH4, r9
 	mfcr	r11
 	mfspr	r12, SPRN_PID
 	mtspr	SPRN_SPRG_SCRATCH6, r11
 	mtspr	SPRN_SPRG_SCRATCH5, r12
-#endif
 	mfspr	r10, SPRN_DEAR		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -333,21 +324,12 @@ _ENTRY(saved_ksp_limit)
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-#ifdef CONFIG_403GCX
-	lwz     r12, 12(r0)
-	lwz     r11, 8(r0)
-	mtspr   SPRN_PID, r12
-	mtcr    r11
-	lwz     r9, 4(r0)
-	lwz     r12, 0(r0)
-#else
 	mfspr	r12, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
 	mtspr	SPRN_PID, r12
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
-#endif
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	b	DataStorage
@@ -359,21 +341,12 @@ _ENTRY(saved_ksp_limit)
 	START_EXCEPTION(0x1200,	ITLBMiss)
 	mtspr	SPRN_SPRG_SCRATCH0, r10	 /* Save some working registers */
 	mtspr	SPRN_SPRG_SCRATCH1, r11
-#ifdef CONFIG_403GCX
-	stw     r12, 0(r0)
-	stw     r9, 4(r0)
-	mfcr    r11
-	mfspr   r12, SPRN_PID
-	stw     r11, 8(r0)
-	stw     r12, 12(r0)
-#else
 	mtspr	SPRN_SPRG_SCRATCH3, r12
 	mtspr	SPRN_SPRG_SCRATCH4, r9
 	mfcr	r11
 	mfspr	r12, SPRN_PID
 	mtspr	SPRN_SPRG_SCRATCH6, r11
 	mtspr	SPRN_SPRG_SCRATCH5, r12
-#endif
 	mfspr	r10, SPRN_SRR0		/* Get faulting address */
 
 	/* If we are faulting a kernel address, we have to use the
@@ -439,21 +412,12 @@ _ENTRY(saved_ksp_limit)
 	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
 	 */
-#ifdef CONFIG_403GCX
-	lwz     r12, 12(r0)
-	lwz     r11, 8(r0)
-	mtspr   SPRN_PID, r12
-	mtcr    r11
-	lwz     r9, 4(r0)
-	lwz     r12, 0(r0)
-#else
 	mfspr	r12, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
 	mtspr	SPRN_PID, r12
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
-#endif
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	b	InstructionAccess
@@ -603,21 +567,12 @@ finish_tlb_load:
 
 	/* Done...restore registers and get out of here.
 	*/
-#ifdef CONFIG_403GCX
-	lwz     r12, 12(r0)
-	lwz     r11, 8(r0)
-	mtspr   SPRN_PID, r12
-	mtcr    r11
-	lwz     r9, 4(r0)
-	lwz     r12, 0(r0)
-#else
 	mfspr	r12, SPRN_SPRG_SCRATCH5
 	mfspr	r11, SPRN_SPRG_SCRATCH6
 	mtspr	SPRN_PID, r12
 	mtcr	r11
 	mfspr	r9, SPRN_SPRG_SCRATCH4
 	mfspr	r12, SPRN_SPRG_SCRATCH3
-#endif
 	mfspr	r11, SPRN_SPRG_SCRATCH1
 	mfspr	r10, SPRN_SPRG_SCRATCH0
 	PPC405_ERR77_SYNC

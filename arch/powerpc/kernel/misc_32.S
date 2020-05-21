@@ -274,17 +274,8 @@ _GLOBAL(real_writeb)
 #ifndef CONFIG_PPC_8xx
 _GLOBAL(flush_instruction_cache)
 #if defined(CONFIG_4xx)
-#ifdef CONFIG_403GCX
-	li      r3, 512
-	mtctr   r3
-	lis     r4, KERNELBASE@h
-1:	iccci   0, r4
-	addi    r4, r4, 16
-	bdnz    1b
-#else
 	lis	r3, KERNELBASE@h
 	iccci	0,r3
-#endif
 #elif defined(CONFIG_FSL_BOOKE)
 #ifdef CONFIG_E200
 	mfspr   r3,SPRN_L1CSR0

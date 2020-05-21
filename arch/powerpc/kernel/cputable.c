@@ -1232,43 +1232,6 @@ static struct cpu_spec __initdata cpu_specs[] = {
 	},
 #endif /* CONFIG_PPC_8xx */
 #ifdef CONFIG_40x
-	{	/* 403GC */
-		.pvr_mask		= 0xffffff00,
-		.pvr_value		= 0x00200200,
-		.cpu_name		= "403GC",
-		.cpu_features		= CPU_FTRS_40X,
-		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
-		.mmu_features		= MMU_FTR_TYPE_40x,
-		.icache_bsize		= 16,
-		.dcache_bsize		= 16,
-		.machine_check		= machine_check_4xx,
-		.platform		= "ppc403",
-	},
-	{	/* 403GCX */
-		.pvr_mask		= 0xffffff00,
-		.pvr_value		= 0x00201400,
-		.cpu_name		= "403GCX",
-		.cpu_features		= CPU_FTRS_40X,
-		.cpu_user_features	= PPC_FEATURE_32 |
-		 	PPC_FEATURE_HAS_MMU | PPC_FEATURE_NO_TB,
-		.mmu_features		= MMU_FTR_TYPE_40x,
-		.icache_bsize		= 16,
-		.dcache_bsize		= 16,
-		.machine_check		= machine_check_4xx,
-		.platform		= "ppc403",
-	},
-	{	/* 403G ?? */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00200000,
-		.cpu_name		= "403G ??",
-		.cpu_features		= CPU_FTRS_40X,
-		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
-		.mmu_features		= MMU_FTR_TYPE_40x,
-		.icache_bsize		= 16,
-		.dcache_bsize		= 16,
-		.machine_check		= machine_check_4xx,
-		.platform		= "ppc403",
-	},
 	{	/* 405GP */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x40110000,
