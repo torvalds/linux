@@ -113,6 +113,17 @@ xfs_quota_inode(xfs_mount_t *mp, uint dq_flags)
 	return NULL;
 }
 
+static inline int
+xfs_dquot_type(struct xfs_dquot *dqp)
+{
+	if (XFS_QM_ISUDQ(dqp))
+		return XFS_DQ_USER;
+	if (XFS_QM_ISGDQ(dqp))
+		return XFS_DQ_GROUP;
+	ASSERT(XFS_QM_ISPDQ(dqp));
+	return XFS_DQ_PROJ;
+}
+
 extern void	xfs_trans_mod_dquot(struct xfs_trans *tp, struct xfs_dquot *dqp,
 				    uint field, int64_t delta);
 extern void	xfs_trans_dqjoin(struct xfs_trans *, struct xfs_dquot *);
@@ -164,19 +175,19 @@ extern int		xfs_qm_scall_quotaon(struct xfs_mount *, uint);
 extern int		xfs_qm_scall_quotaoff(struct xfs_mount *, uint);
 
 static inline struct xfs_def_quota *
-xfs_get_defquota(struct xfs_dquot *dqp, struct xfs_quotainfo *qi)
+xfs_get_defquota(struct xfs_quotainfo *qi, int type)
 {
-	struct xfs_def_quota *defq;
-
-	if (XFS_QM_ISUDQ(dqp))
-		defq = &qi->qi_usr_default;
-	else if (XFS_QM_ISGDQ(dqp))
-		defq = &qi->qi_grp_default;
-	else {
-		ASSERT(XFS_QM_ISPDQ(dqp));
-		defq = &qi->qi_prj_default;
+	switch (type) {
+	case XFS_DQ_USER:
+		return &qi->qi_usr_default;
+	case XFS_DQ_GROUP:
+		return &qi->qi_grp_default;
+	case XFS_DQ_PROJ:
+		return &qi->qi_prj_default;
+	default:
+		ASSERT(0);
+		return NULL;
 	}
-	return defq;
 }
 
 #endif /* __XFS_QM_H__ */
