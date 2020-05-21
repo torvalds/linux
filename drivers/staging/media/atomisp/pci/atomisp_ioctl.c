@@ -1443,7 +1443,8 @@ static int atomisp_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	ret = videobuf_dqbuf(&pipe->capq, buf, file->f_flags & O_NONBLOCK);
 	if (ret) {
-		dev_dbg(isp->dev, "<%s: %d\n", __func__, ret);
+		if (ret != -EAGAIN)
+			dev_dbg(isp->dev, "<%s: %d\n", __func__, ret);
 		return ret;
 	}
 	rt_mutex_lock(&isp->mutex);
