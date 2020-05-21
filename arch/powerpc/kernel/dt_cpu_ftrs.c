@@ -75,6 +75,7 @@ static struct {
 	u64	lpcr_clear;
 	u64	hfscr;
 	u64	fscr;
+	u64	pcr;
 } system_registers;
 
 static void (*init_pmu_registers)(void);
@@ -102,7 +103,7 @@ static void __restore_cpu_cpufeatures(void)
 	if (hv_mode) {
 		mtspr(SPRN_LPID, 0);
 		mtspr(SPRN_HFSCR, system_registers.hfscr);
-		mtspr(SPRN_PCR, PCR_MASK);
+		mtspr(SPRN_PCR, system_registers.pcr);
 	}
 	mtspr(SPRN_FSCR, system_registers.fscr);
 
@@ -561,6 +562,18 @@ static int __init feat_enable_large_ci(struct dt_cpu_feature *f)
 	return 1;
 }
 
+static int __init feat_enable_mma(struct dt_cpu_feature *f)
+{
+	u64 pcr;
+
+	feat_enable(f);
+	pcr = mfspr(SPRN_PCR);
+	pcr &= ~PCR_MMA_DIS;
+	mtspr(SPRN_PCR, pcr);
+
+	return 1;
+}
+
 struct dt_cpu_feature_match {
 	const char *name;
 	int (*enable)(struct dt_cpu_feature *f);
@@ -635,6 +648,7 @@ static struct dt_cpu_feature_match __initdata
 	{"vector-binary16", feat_enable, 0},
 	{"wait-v3", feat_enable, 0},
 	{"prefix-instructions", feat_enable, 0},
+	{"matrix-multiply-assist", feat_enable_mma, 0},
 };
 
 static bool __initdata using_dt_cpu_ftrs;
@@ -785,6 +799,7 @@ static void __init cpufeatures_setup_finished(void)
 	system_registers.lpcr = mfspr(SPRN_LPCR);
 	system_registers.hfscr = mfspr(SPRN_HFSCR);
 	system_registers.fscr = mfspr(SPRN_FSCR);
+	system_registers.pcr = mfspr(SPRN_PCR);
 
 	pr_info("final cpu/mmu features = 0x%016lx 0x%08x\n",
 		cur_cpu_spec->cpu_features, cur_cpu_spec->mmu_features);
