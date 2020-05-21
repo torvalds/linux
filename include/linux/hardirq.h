@@ -87,20 +87,24 @@ extern void rcu_nmi_exit(void);
 		arch_nmi_enter();				\
 		printk_nmi_enter();				\
 		lockdep_off();					\
-		ftrace_nmi_enter();				\
 		BUG_ON(in_nmi() == NMI_MASK);			\
 		__preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
 		rcu_nmi_enter();				\
 		lockdep_hardirq_enter();			\
+		instrumentation_begin();			\
+		ftrace_nmi_enter();				\
+		instrumentation_end();				\
 	} while (0)
 
 #define nmi_exit()						\
 	do {							\
+		instrumentation_begin();			\
+		ftrace_nmi_exit();				\
+		instrumentation_end();				\
 		lockdep_hardirq_exit();				\
 		rcu_nmi_exit();					\
 		BUG_ON(!in_nmi());				\
 		__preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\
-		ftrace_nmi_exit();				\
 		lockdep_on();					\
 		printk_nmi_exit();				\
 		arch_nmi_exit();				\
