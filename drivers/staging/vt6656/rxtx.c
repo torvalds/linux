@@ -323,10 +323,12 @@ static bool vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
 			       tx_key->key, WLAN_KEY_LEN_WEP40);
 		}
 
+		fifo->frag_ctl |= cpu_to_le16(FRAGCTL_LEGACY);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
 		ieee80211_get_tkip_p2k(tx_key, skb, fifo->tx_key);
 
+		fifo->frag_ctl |= cpu_to_le16(FRAGCTL_TKIP);
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		if (info->control.use_cts_prot) {
@@ -369,6 +371,7 @@ static bool vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer, struct sk_buff *skb)
 
 		memcpy(fifo->tx_key, tx_key->key, WLAN_KEY_LEN_CCMP);
 
+		fifo->frag_ctl |= cpu_to_le16(FRAGCTL_AES);
 		return true;
 	default:
 		break;
@@ -504,7 +507,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_tx_rate *tx_rate = &info->control.rates[0];
 	struct ieee80211_rate *rate;
-	struct ieee80211_key_conf *tx_key;
 	struct ieee80211_hdr *hdr;
 	struct vnt_tx_buffer *tx_buffer;
 	struct vnt_tx_fifo_head *tx_buffer_head;
@@ -606,23 +608,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	tx_buffer_head->frag_ctl =
 			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb) << 10);
 
-	if (info->control.hw_key) {
-		tx_key = info->control.hw_key;
-		switch (info->control.hw_key->cipher) {
-		case WLAN_CIPHER_SUITE_WEP40:
-		case WLAN_CIPHER_SUITE_WEP104:
-			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_LEGACY);
-			break;
-		case WLAN_CIPHER_SUITE_TKIP:
-			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_TKIP);
-			break;
-		case WLAN_CIPHER_SUITE_CCMP:
-			tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_AES);
-		default:
-			break;
-		}
-		tx_context->frame_len += tx_key->icv_len;
-	}
+	if (info->control.hw_key)
+		tx_context->frame_len += info->control.hw_key->icv_len;
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
