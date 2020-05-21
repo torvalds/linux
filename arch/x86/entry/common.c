@@ -658,3 +658,34 @@ void noinstr idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit)
 			rcu_irq_exit();
 	}
 }
+
+/**
+ * idtentry_enter_user - Handle state tracking on idtentry from user mode
+ * @regs:	Pointer to pt_regs of interrupted context
+ *
+ * Invokes enter_from_user_mode() to establish the proper context for
+ * NOHZ_FULL. Otherwise scheduling on exit would not be possible.
+ */
+void noinstr idtentry_enter_user(struct pt_regs *regs)
+{
+	enter_from_user_mode();
+}
+
+/**
+ * idtentry_exit_user - Handle return from exception to user mode
+ * @regs:	Pointer to pt_regs (exception entry regs)
+ *
+ * Runs the necessary preemption and work checks and returns to the caller
+ * with interrupts disabled and no further work pending.
+ *
+ * This is the last action before returning to the low level ASM code which
+ * just needs to return to the appropriate context.
+ *
+ * Counterpart to idtentry_enter_user().
+ */
+void noinstr idtentry_exit_user(struct pt_regs *regs)
+{
+	lockdep_assert_irqs_disabled();
+
+	prepare_exit_to_usermode(regs);
+}
