@@ -56,7 +56,7 @@
  * 2) Invoke context tracking if enabled to reactivate RCU
  * 3) Trace interrupts off state
  */
-__visible noinstr void enter_from_user_mode(void)
+static noinstr void enter_from_user_mode(void)
 {
 	enum ctx_state state = ct_state();
 
