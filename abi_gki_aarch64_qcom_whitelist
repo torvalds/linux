@@ -1879,6 +1879,10 @@
   __uio_register_device
   uio_unregister_device
 
+# required by p9221_charger.ko
+  crc8
+  crc8_populate_msb
+
 # required by pac193x.ko
   try_to_del_timer_sync
 
