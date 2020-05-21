@@ -976,38 +976,22 @@ xfs_cowblocks_worker(
 	xfs_queue_cowblocks(mp);
 }
 
-int
-xfs_inode_ag_iterator_flags(
+/* Fetch the next (possibly tagged) per-AG structure. */
+static inline struct xfs_perag *
+xfs_inode_walk_get_perag(
 	struct xfs_mount	*mp,
-	int			(*execute)(struct xfs_inode *ip, int flags,
-					   void *args),
-	int			flags,
-	void			*args,
-	int			iter_flags)
+	xfs_agnumber_t		agno,
+	int			tag)
 {
-	struct xfs_perag	*pag;
-	int			error = 0;
-	int			last_error = 0;
-	xfs_agnumber_t		ag;
-
-	ag = 0;
-	while ((pag = xfs_perag_get(mp, ag))) {
-		ag = pag->pag_agno + 1;
-		error = xfs_inode_ag_walk(mp, pag, execute, flags, args,
-				XFS_ICI_NO_TAG, iter_flags);
-		xfs_perag_put(pag);
-		if (error) {
-			last_error = error;
-			if (error == -EFSCORRUPTED)
-				break;
-		}
-	}
-	return last_error;
+	if (tag == XFS_ICI_NO_TAG)
+		return xfs_perag_get(mp, agno);
+	return xfs_perag_get_tag(mp, agno, tag);
 }
 
 int
-xfs_inode_ag_iterator_tag(
+xfs_inode_ag_iterator(
 	struct xfs_mount	*mp,
+	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, int flags,
 					   void *args),
 	int			flags,
@@ -1020,10 +1004,10 @@ xfs_inode_ag_iterator_tag(
 	xfs_agnumber_t		ag;
 
 	ag = 0;
-	while ((pag = xfs_perag_get_tag(mp, ag, tag))) {
+	while ((pag = xfs_inode_walk_get_perag(mp, ag, tag))) {
 		ag = pag->pag_agno + 1;
 		error = xfs_inode_ag_walk(mp, pag, execute, flags, args, tag,
-					  0);
+				iter_flags);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
@@ -1543,8 +1527,7 @@ __xfs_icache_free_eofblocks(
 	if (eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC))
 		flags = SYNC_WAIT;
 
-	return xfs_inode_ag_iterator_tag(mp, execute, flags,
-					 eofb, tag);
+	return xfs_inode_ag_iterator(mp, 0, execute, flags, eofb, tag);
 }
 
 int
