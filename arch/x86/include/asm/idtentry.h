@@ -10,18 +10,8 @@
 void idtentry_enter_user(struct pt_regs *regs);
 void idtentry_exit_user(struct pt_regs *regs);
 
-bool idtentry_enter_cond_rcu(struct pt_regs *regs, bool cond_rcu);
+bool idtentry_enter_cond_rcu(struct pt_regs *regs);
 void idtentry_exit_cond_rcu(struct pt_regs *regs, bool rcu_exit);
-
-static __always_inline void idtentry_enter(struct pt_regs *regs)
-{
-	idtentry_enter_cond_rcu(regs, false);
-}
-
-static __always_inline void idtentry_exit(struct pt_regs *regs)
-{
-	idtentry_exit_cond_rcu(regs, true);
-}
 
 /**
  * DECLARE_IDTENTRY - Declare functions for simple IDT entry points
