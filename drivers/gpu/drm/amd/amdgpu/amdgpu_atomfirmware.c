@@ -532,6 +532,7 @@ static int gddr6_mem_train_support(struct amdgpu_device *adev)
 		switch (hw_v) {
 		case HW_REV(11, 0, 0):
 		case HW_REV(11, 0, 5):
+		case HW_REV(11, 0, 7):
 			ret = 1;
 			break;
 		default:
@@ -561,7 +562,8 @@ int amdgpu_atomfirmware_get_mem_train_info(struct amdgpu_device *adev)
 	adev->fw_vram_usage.mem_train_support = false;
 
 	if (adev->asic_type != CHIP_NAVI10 &&
-	    adev->asic_type != CHIP_NAVI14)
+	    adev->asic_type != CHIP_NAVI14 &&
+	    adev->asic_type != CHIP_SIENNA_CICHLID)
 		return 0;
 
 	if (amdgpu_sriov_vf(adev))
