@@ -1830,46 +1830,85 @@ static u64 amdgpu_ttm_training_get_c2p_offset(u64 vram_size)
        return ALIGN(vram_size, SZ_1M);
 }
 
-/**
- * amdgpu_ttm_training_reserve_vram_init - create bo vram reservation from memory training
- *
- * @adev: amdgpu_device pointer
- *
- * create bo vram reservation from memory training.
- */
-static int amdgpu_ttm_training_reserve_vram_init(struct amdgpu_device *adev)
+static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 {
-	int ret;
 	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
 
 	memset(ctx, 0, sizeof(*ctx));
-	if (!adev->fw_vram_usage.mem_train_support) {
-		DRM_DEBUG("memory training does not support!\n");
-		return 0;
+
+	ctx->c2p_train_data_offset =
+		amdgpu_ttm_training_get_c2p_offset(adev->gmc.mc_vram_size);
+	ctx->p2c_train_data_offset =
+		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
+	ctx->train_data_size =
+		GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES;
+	
+	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
+			ctx->train_data_size,
+			ctx->p2c_train_data_offset,
+			ctx->c2p_train_data_offset);
+}
+
+/*
+ * reserve TMR memory at the top of VRAM which holds
+ * IP Discovery data and is protected by PSP.
+ */
+static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
+{
+	int ret;
+	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
+	bool mem_train_support = false;
+
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->fw_vram_usage.mem_train_support) {
+			mem_train_support = true;
+			amdgpu_ttm_training_data_block_init(adev);
+		} else
+			DRM_DEBUG("memory training does not support!\n");
 	}
 
-	ctx->c2p_train_data_offset = amdgpu_ttm_training_get_c2p_offset(adev->gmc.mc_vram_size);
-	ctx->p2c_train_data_offset = (adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
-	ctx->train_data_size = GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES;
-
-	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
-		  ctx->train_data_size,
-		  ctx->p2c_train_data_offset,
-		  ctx->c2p_train_data_offset);
+	/*
+	 * Query reserved tmr size through atom firmwareinfo for Sienna_Cichlid and onwards for all
+	 * the use cases (IP discovery/G6 memory training/profiling/diagnostic data.etc)
+	 *
+	 * Otherwise, fallback to legacy approach to check and reserve tmr block for ip
+	 * discovery data and G6 memory training data respectively
+	 */
+	adev->discovery_tmr_size =
+		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
+	if (!adev->discovery_tmr_size) {
+		adev->discovery_tmr_size = DISCOVERY_TMR_SIZE;
+		if (mem_train_support) {
+			/* reserve vram for mem train indepently */
+			ret = amdgpu_bo_create_kernel_at(adev,
+						 ctx->c2p_train_data_offset,
+						 ctx->train_data_size,
+						 AMDGPU_GEM_DOMAIN_VRAM,
+						 &ctx->c2p_bo,
+						 NULL);
+			if (ret) {
+				DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
+				amdgpu_ttm_training_reserve_vram_fini(adev);
+				return ret;
+			}
+		}
+	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
-					 ctx->c2p_train_data_offset,
-					 ctx->train_data_size,
-					 AMDGPU_GEM_DOMAIN_VRAM,
-					 &ctx->c2p_bo,
-					 NULL);
+				adev->gmc.real_vram_size - adev->discovery_tmr_size,
+				adev->discovery_tmr_size,
+				AMDGPU_GEM_DOMAIN_VRAM,
+				&adev->discovery_memory,
+				NULL);
 	if (ret) {
-		DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
-		amdgpu_ttm_training_reserve_vram_fini(adev);
+		DRM_ERROR("alloc tmr failed(%d)!\n", ret);
+		amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
 		return ret;
 	}
 
-	ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
+	if (mem_train_support)
+		ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
+
 	return 0;
 }
 
@@ -1937,11 +1976,12 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	}
 
 	/*
-	 *The reserved vram for memory training must be pinned to the specified
-	 *place on the VRAM, so reserve it early.
+	 * only NAVI10 and onwards ASIC support for IP discovery.
+	 * If IP discovery enabled, a block of memory should be
+	 * reserved for IP discovey.
 	 */
-	if (!amdgpu_sriov_vf(adev)) {
-		r = amdgpu_ttm_training_reserve_vram_init(adev);
+	if (adev->asic_type >= CHIP_NAVI10 && amdgpu_discovery) {
+		r = amdgpu_ttm_reserve_tmr(adev);
 		if (r)
 			return r;
 	}
@@ -1956,31 +1996,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 				    NULL, &stolen_vga_buf);
 	if (r)
 		return r;
-
-	/*
-	 * reserve TMR memory at the top of VRAM which holds
-	 * IP Discovery data and is protected by PSP.
-	 */
-	adev->discovery_tmr_size =
-		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!adev->discovery_tmr_size &&
-	    adev->asic_type >= CHIP_NAVI10 &&
-	    amdgpu_discovery) {
-		/* if fw_reserved_fb_size is 0 from vbios,
-		 * then fallback to the default tmr_size */
-		adev->discovery_tmr_size = DISCOVERY_TMR_SIZE;
-	}
-
-	if (adev->discovery_tmr_size > 0) {
-		r = amdgpu_bo_create_kernel_at(adev,
-					adev->gmc.real_vram_size - adev->discovery_tmr_size,
-					adev->discovery_tmr_size,
-					AMDGPU_GEM_DOMAIN_VRAM,
-					&adev->discovery_memory,
-					NULL);
-		if (r)
-			return r;
-	}
 
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->gmc.real_vram_size / (1024 * 1024)));
