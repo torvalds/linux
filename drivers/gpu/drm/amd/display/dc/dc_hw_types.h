@@ -390,6 +390,7 @@ union dc_tiling_info {
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;
+		unsigned int num_pkrs;
 	} gfx9;
 };
 

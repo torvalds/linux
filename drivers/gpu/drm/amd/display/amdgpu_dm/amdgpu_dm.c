@@ -94,6 +94,10 @@
 
 #define FIRMWARE_RENOIR_DMUB "amdgpu/renoir_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_RENOIR_DMUB);
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+#define FIRMWARE_SIENNA_CICHLID_DMUB "amdgpu/sienna_cichlid_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_SIENNA_CICHLID_DMUB);
+#endif
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -1070,6 +1074,9 @@ static int load_dmcu_fw(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_RENOIR:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		return 0;
 	case CHIP_NAVI12:
 		fw_name_dmcu = FIRMWARE_NAVI12_DMCU;
@@ -1166,6 +1173,12 @@ static int dm_dmub_sw_init(struct amdgpu_device *adev)
 		dmub_asic = DMUB_ASIC_DCN21;
 		fw_name_dmub = FIRMWARE_RENOIR_DMUB;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+		dmub_asic = DMUB_ASIC_DCN30;
+		fw_name_dmub = FIRMWARE_SIENNA_CICHLID_DMUB;
+		break;
+#endif
 
 	default:
 		/* ASIC doesn't support DMUB. */
@@ -3205,6 +3218,9 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_RENOIR:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		if (dcn10_register_irq_handlers(dm->adev)) {
 			DRM_ERROR("DM: Failed to initialize IRQ\n");
 			goto fail;
@@ -3359,6 +3375,9 @@ static int dm_early_init(void *handle)
 #endif
 	case CHIP_NAVI10:
 	case CHIP_NAVI12:
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case CHIP_SIENNA_CICHLID:
+#endif
 		adev->mode_info.num_crtc = 6;
 		adev->mode_info.num_hpd = 6;
 		adev->mode_info.num_dig = 6;
@@ -3679,6 +3698,9 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 	    adev->asic_type == CHIP_NAVI10 ||
 	    adev->asic_type == CHIP_NAVI14 ||
 	    adev->asic_type == CHIP_NAVI12 ||
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		adev->asic_type == CHIP_SIENNA_CICHLID ||
+#endif
 	    adev->asic_type == CHIP_RENOIR ||
 	    adev->asic_type == CHIP_RAVEN) {
 		/* Fill GFX9 params */
@@ -3698,6 +3720,11 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 			AMDGPU_TILING_GET(tiling_flags, SWIZZLE_MODE);
 		tiling_info->gfx9.shaderEnable = 1;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+		if (adev->asic_type == CHIP_SIENNA_CICHLID)
+			tiling_info->gfx9.num_pkrs = adev->gfx.config.gb_addr_config_fields.num_pkrs;
+
+#endif
 		ret = fill_plane_dcc_attributes(adev, afb, format, rotation,
 						plane_size, tiling_info,
 						tiling_flags, dcc, address,

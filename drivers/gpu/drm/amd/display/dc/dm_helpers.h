@@ -35,6 +35,29 @@
 
 struct dp_mst_stream_allocation_table;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+/*
+ * Allocate memory accessible by the GPU
+ *
+ * frame buffer allocations must be aligned to a 4096-byte boundary
+ *
+ * Returns virtual address, sets addr to physical address
+ */
+void *dm_helpers_allocate_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		size_t size,
+		long long *addr);
+
+/*
+ * Free the GPU-accessible memory at the virtual address pvMem
+ */
+void dm_helpers_free_gpu_mem(
+		struct dc_context *ctx,
+		enum dc_gpu_mem_alloc_type type,
+		void *pvMem);
+
+#endif
 enum dc_edid_status dm_helpers_parse_edid_caps(
 	struct dc_context *ctx,
 	const struct dc_edid *edid,

@@ -887,6 +887,15 @@ struct dsc_dec_dpcd_caps {
 	uint32_t branch_max_line_width;
 };
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+enum dc_gpu_mem_alloc_type {
+	DC_MEM_ALLOC_TYPE_GART,
+	DC_MEM_ALLOC_TYPE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_INVISIBLE_FRAME_BUFFER,
+	DC_MEM_ALLOC_TYPE_AGP
+};
+
+#endif
 enum dc_psr_version {
 	DC_PSR_VERSION_1			= 0,
 	DC_PSR_VERSION_UNSUPPORTED		= 0xFFFFFFFF,
