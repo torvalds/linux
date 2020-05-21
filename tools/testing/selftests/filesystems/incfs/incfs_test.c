@@ -247,7 +247,7 @@ out:
 	return fd;
 }
 
-int get_file_attr(char *mnt_dir, incfs_uuid_t id, char *value, int size)
+int get_file_attr(const char *mnt_dir, incfs_uuid_t id, char *value, int size)
 {
 	char *path = get_index_filename(mnt_dir, id);
 	int res;
@@ -265,7 +265,7 @@ static bool same_id(incfs_uuid_t *id1, incfs_uuid_t *id2)
 	return !memcmp(id1->bytes, id2->bytes, sizeof(id1->bytes));
 }
 
-static int emit_test_blocks(char *mnt_dir, struct test_file *file,
+static int emit_test_blocks(const char *mnt_dir, struct test_file *file,
 			int blocks[], int count)
 {
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
@@ -375,7 +375,7 @@ out:
 	return (error < 0) ? error : blocks_written;
 }
 
-static int emit_test_block(char *mnt_dir, struct test_file *file,
+static int emit_test_block(const char *mnt_dir, struct test_file *file,
 				int block_index)
 {
 	int res = emit_test_blocks(mnt_dir, file, &block_index, 1);
@@ -405,7 +405,7 @@ static void shuffle(int array[], int count, unsigned int seed)
 	}
 }
 
-static int emit_test_file_data(char *mount_dir, struct test_file *file)
+static int emit_test_file_data(const char *mount_dir, struct test_file *file)
 {
 	int i;
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
@@ -438,7 +438,7 @@ out:
 	return result;
 }
 
-static loff_t read_whole_file(char *filename)
+static loff_t read_whole_file(const char *filename)
 {
 	int fd = -1;
 	loff_t result;
@@ -504,7 +504,7 @@ cleanup:
 	return result;
 }
 
-static char *create_backing_dir(char *mount_dir)
+static char *create_backing_dir(const char *mount_dir)
 {
 	struct stat st;
 	char backing_dir_name[255];
@@ -540,7 +540,7 @@ static char *create_backing_dir(char *mount_dir)
 	return strdup(backing_dir_name);
 }
 
-static int validate_test_file_content_with_seed(char *mount_dir,
+static int validate_test_file_content_with_seed(const char *mount_dir,
 						struct test_file *file,
 						unsigned int shuffle_seed)
 {
@@ -602,12 +602,13 @@ failure:
 	return error;
 }
 
-static int validate_test_file_content(char *mount_dir, struct test_file *file)
+static int validate_test_file_content(const char *mount_dir,
+				      struct test_file *file)
 {
 	return validate_test_file_content_with_seed(mount_dir, file, 0);
 }
 
-static int data_producer(char *mount_dir, struct test_files_set *test_set)
+static int data_producer(const char *mount_dir, struct test_files_set *test_set)
 {
 	int ret = 0;
 	int timeout_ms = 1000;
@@ -802,7 +803,7 @@ failure:
 	return err;
 }
 
-static int cant_touch_index_test(char *mount_dir)
+static int cant_touch_index_test(const char *mount_dir)
 {
 	char *file_name = "test_file";
 	int file_size = 123;
@@ -892,7 +893,8 @@ failure:
 	return TEST_FAILURE;
 }
 
-static bool iterate_directory(char *dir_to_iterate, bool root, int file_count)
+static bool iterate_directory(const char *dir_to_iterate, bool root,
+			      int file_count)
 {
 	struct expected_name {
 		const char *name;
@@ -997,7 +999,7 @@ failure:
 	return pass;
 }
 
-static int basic_file_ops_test(char *mount_dir)
+static int basic_file_ops_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1163,7 +1165,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int dynamic_files_and_data_test(char *mount_dir)
+static int dynamic_files_and_data_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1269,7 +1271,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int concurrent_reads_and_writes_test(char *mount_dir)
+static int concurrent_reads_and_writes_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1391,7 +1393,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int work_after_remount_test(char *mount_dir)
+static int work_after_remount_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1541,7 +1543,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int attribute_test(char *mount_dir)
+static int attribute_test(const char *mount_dir)
 {
 	char file_attr[] = "metadata123123";
 	char attr_buf[INCFS_MAX_FILE_ATTR_SIZE] = {};
@@ -1624,7 +1626,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int child_procs_waiting_for_data_test(char *mount_dir)
+static int child_procs_waiting_for_data_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1716,7 +1718,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int multiple_providers_test(char *mount_dir)
+static int multiple_providers_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -1811,7 +1813,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int hash_tree_test(char *mount_dir)
+static int hash_tree_test(const char *mount_dir)
 {
 	char *backing_dir;
 	struct test_files_set test = get_test_files_set();
@@ -1933,7 +1935,8 @@ failure:
 
 enum expected_log { FULL_LOG, NO_LOG, PARTIAL_LOG };
 
-static int validate_logs(char *mount_dir, int log_fd, struct test_file *file,
+static int validate_logs(const char *mount_dir, int log_fd,
+			 struct test_file *file,
 			 enum expected_log expected_log)
 {
 	uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
@@ -2055,7 +2058,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int read_log_test(char *mount_dir)
+static int read_log_test(const char *mount_dir)
 {
 	struct test_files_set test = get_test_files_set();
 	const int file_num = test.files_count;
@@ -2217,7 +2220,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_data(char *mount_dir, struct test_file *file)
+static int emit_partial_test_file_data(const char *mount_dir, struct test_file *file)
 {
 	int i, j;
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
@@ -2383,7 +2386,7 @@ out:
 	return error;
 }
 
-static int get_blocks_test(char *mount_dir)
+static int get_blocks_test(const char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2440,7 +2443,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_hash(char *mount_dir, struct test_file *file)
+static int emit_partial_test_file_hash(const char *mount_dir, struct test_file *file)
 {
 	int err;
 	int fd;
@@ -2558,7 +2561,7 @@ out:
 	return error;
 }
 
-static int get_hash_blocks_test(char *mount_dir)
+static int get_hash_blocks_test(const char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2608,7 +2611,7 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int large_file(char *mount_dir)
+static int large_file_test(const char *mount_dir)
 {
 	char *backing_dir;
 	int cmd_fd = -1;
@@ -2690,12 +2693,54 @@ static char *setup_mount_dir()
 	return mount_dir;
 }
 
+struct options {
+	int test;
+};
+
+int parse_options(int argc, char *const *argv, struct options *options)
+{
+	signed char c;
+
+	while ((c = getopt(argc, argv, "t:")) != -1)
+		switch (c) {
+		case 't':
+			options->test = strtol(optarg, NULL, 10);
+			break;
+
+		default:
+			return -EINVAL;
+		}
+
+	return 0;
+}
+
+struct test_case {
+	int (*pfunc)(const char *dir);
+	const char *name;
+};
+
+void run_one_test(const char *mount_dir, struct test_case *test_case,
+		  int *fails)
+{
+	ksft_print_msg("Running %s\n", test_case->name);
+	if (test_case->pfunc(mount_dir) == TEST_SUCCESS)
+		ksft_test_result_pass("%s\n", test_case->name);
+	else {
+		ksft_test_result_fail("%s\n", test_case->name);
+		fails++;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	char *mount_dir = NULL;
 	int fails = 0;
 	int i;
 	int fd, count;
+	struct options options = {};
+
+	if (parse_options(argc, argv, &options))
+		ksft_exit_fail_msg("Bad options\n");
 
 	// Seed randomness pool for testing on QEMU
 	// NOTE - this abuses the concept of randomness - do *not* ever do this
@@ -2720,10 +2765,7 @@ int main(int argc, char *argv[])
 	{                                                                      \
 		test, #test                                                    \
 	}
-	struct {
-		int (*pfunc)(char *dir);
-		const char *name;
-	} cases[] = {
+	struct test_case cases[] = {
 		MAKE_TEST(basic_file_ops_test),
 		MAKE_TEST(cant_touch_index_test),
 		MAKE_TEST(dynamic_files_and_data_test),
@@ -2736,20 +2778,20 @@ int main(int argc, char *argv[])
 		MAKE_TEST(read_log_test),
 		MAKE_TEST(get_blocks_test),
 		MAKE_TEST(get_hash_blocks_test),
-		MAKE_TEST(large_file),
+		MAKE_TEST(large_file_test),
 	};
 #undef MAKE_TEST
 
-	ksft_set_plan(ARRAY_SIZE(cases));
+	if (options.test) {
+		if (options.test <= 0 || options.test > ARRAY_SIZE(cases))
+			ksft_exit_fail_msg("Invalid test\n");
 
-	for (i = 0; i < ARRAY_SIZE(cases); ++i) {
-		ksft_print_msg("Running %s\n", cases[i].name);
-		if (cases[i].pfunc(mount_dir) == TEST_SUCCESS)
-			ksft_test_result_pass("%s\n", cases[i].name);
-		else {
-			ksft_test_result_fail("%s\n", cases[i].name);
-			fails++;
-		}
+		ksft_set_plan(1);
+		run_one_test(mount_dir, &cases[options.test - 1], &fails);
+	} else {
+		ksft_set_plan(ARRAY_SIZE(cases));
+		for (i = 0; i < ARRAY_SIZE(cases); ++i)
+			run_one_test(mount_dir, &cases[i], &fails);
 	}
 
 	umount2(mount_dir, MNT_FORCE);
