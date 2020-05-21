@@ -342,7 +342,7 @@ static int a6xx_hfi_send_test(struct a6xx_gmu *gmu)
 		NULL, 0);
 }
 
-int a6xx_hfi_send_start(struct a6xx_gmu *gmu)
+static int a6xx_hfi_send_start(struct a6xx_gmu *gmu)
 {
 	struct a6xx_hfi_msg_start msg = { 0 };
 
@@ -350,7 +350,7 @@ int a6xx_hfi_send_start(struct a6xx_gmu *gmu)
 		NULL, 0);
 }
 
-int a6xx_hfi_send_core_fw_start(struct a6xx_gmu *gmu)
+static int a6xx_hfi_send_core_fw_start(struct a6xx_gmu *gmu)
 {
 	struct a6xx_hfi_msg_core_fw_start msg = { 0 };
 
