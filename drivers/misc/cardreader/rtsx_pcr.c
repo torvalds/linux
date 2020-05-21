@@ -55,12 +55,6 @@ static const struct pci_device_id rtsx_pci_ids[] = {
 
 MODULE_DEVICE_TABLE(pci, rtsx_pci_ids);
 
-static inline void rtsx_pci_enable_aspm(struct rtsx_pcr *pcr)
-{
-	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
-					   PCI_EXP_LNKCTL_ASPMC, pcr->aspm_en);
-}
-
 static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
 {
 	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
@@ -93,10 +87,9 @@ static void rtsx_comm_set_aspm(struct rtsx_pcr *pcr, bool enable)
 	if (pcr->aspm_enabled == enable)
 		return;
 
-	if (enable)
-		rtsx_pci_enable_aspm(pcr);
-	else
-		rtsx_pci_disable_aspm(pcr);
+	pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL,
+					   PCI_EXP_LNKCTL_ASPMC,
+					   enable ? pcr->aspm_en : 0);
 
 	pcr->aspm_enabled = enable;
 }
