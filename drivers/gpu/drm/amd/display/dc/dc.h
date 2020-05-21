@@ -287,6 +287,9 @@ struct dc_config {
 	bool multi_mon_pp_mclk_switch;
 	bool disable_dmcu;
 	bool enable_4to1MPC;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	bool clamp_min_dcfclk;
+#endif
 };
 
 enum visual_confirm {
@@ -464,6 +467,9 @@ struct dc_debug_options {
 	bool skip_detection_link_training;
 	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
+#endif
 	unsigned int force_fclk_khz;
 	bool disable_tri_buf;
 	bool dmub_offload_enabled;
@@ -479,6 +485,9 @@ struct dc_debug_options {
 	 * watermarks are not affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	int dwb_fi_phase;
+#endif
 	bool disable_timing_sync;
 	bool cm_in_bypass;
 	int force_clock_mode;/*every mode change.*/
@@ -839,6 +848,9 @@ struct dc_plane_state {
 	struct dc_transfer_func *in_shaper_func;
 	struct dc_transfer_func *blend_tf;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	struct dc_transfer_func *gamcor_tf;
+#endif
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
@@ -984,6 +996,14 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx);
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+bool dc_acquire_release_mpc_3dlut(
+		struct dc *dc, bool acquire,
+		struct dc_stream_state *stream,
+		struct dc_3dlut **lut,
+		struct dc_transfer_func **shaper);
+#endif
+
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
 		struct dc_state *dst_ctx);
@@ -1103,6 +1123,10 @@ struct hdcp_caps {
 
 #include "dc_link.h"
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
+
+#endif
 /*******************************************************************************
  * Sink Interfaces - A sink corresponds to a display output device
  ******************************************************************************/
