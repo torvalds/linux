@@ -13,6 +13,7 @@
 #include <linux/export.h>
 #include <linux/irq.h>
 
+#include <asm/irq_stack.h>
 #include <asm/apic.h>
 #include <asm/io_apic.h>
 #include <asm/irq.h>
@@ -221,6 +222,14 @@ u64 arch_irq_stat(void)
 	return sum;
 }
 
+static __always_inline void handle_irq(struct irq_desc *desc,
+				       struct pt_regs *regs)
+{
+	if (IS_ENABLED(CONFIG_X86_64))
+		run_on_irqstack_cond(desc->handle_irq, desc, regs);
+	else
+		__handle_irq(desc, regs);
+}
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
@@ -246,7 +255,7 @@ __visible void __irq_entry do_IRQ(struct pt_regs *regs, unsigned long vector)
 	desc = __this_cpu_read(vector_irq[vector]);
 	if (likely(!IS_ERR_OR_NULL(desc))) {
 		if (IS_ENABLED(CONFIG_X86_32))
-			handle_irq(desc, regs);
+			__handle_irq(desc, regs);
 		else
 			generic_handle_irq_desc(desc);
 	} else {
