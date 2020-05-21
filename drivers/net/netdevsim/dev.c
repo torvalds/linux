@@ -858,8 +858,7 @@ nsim_dev_devlink_trap_policer_counter_get(struct devlink *devlink,
 		return -EINVAL;
 
 	cnt = &nsim_dev->trap_data->trap_policers_cnt_arr[policer->id - 1];
-	*p_drops = *cnt;
-	*cnt += jiffies % 64;
+	*p_drops = (*cnt)++;
 
 	return 0;
 }
