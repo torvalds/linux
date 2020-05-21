@@ -29,6 +29,7 @@ struct f_uvc_opts {
 
 	unsigned int					control_interface;
 	unsigned int					streaming_interface;
+	unsigned int					uvc_num_request;
 
 	/*
 	 * Control descriptors array pointers for full-/high-speed and
