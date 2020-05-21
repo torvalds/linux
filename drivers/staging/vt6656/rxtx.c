@@ -383,9 +383,10 @@ static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 }
 
 static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
-			   u8 *key_buffer, struct ieee80211_key_conf *tx_key,
+			   struct ieee80211_key_conf *tx_key,
 			   struct sk_buff *skb, u16 payload_len)
 {
+	struct vnt_tx_fifo_head *fifo = &tx_buffer->fifo_head;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct vnt_mic_hdr *mic_hdr;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -399,18 +400,18 @@ static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
 	switch (tx_key->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		memcpy(key_buffer, iv, 3);
-		memcpy(key_buffer + 3, tx_key->key, tx_key->keylen);
+		memcpy(fifo->tx_key, iv, 3);
+		memcpy(fifo->tx_key + 3, tx_key->key, tx_key->keylen);
 
 		if (tx_key->keylen == WLAN_KEY_LEN_WEP40) {
-			memcpy(key_buffer + 8, iv, 3);
-			memcpy(key_buffer + 11,
+			memcpy(fifo->tx_key + 8, iv, 3);
+			memcpy(fifo->tx_key + 11,
 			       tx_key->key, WLAN_KEY_LEN_WEP40);
 		}
 
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		ieee80211_get_tkip_p2k(tx_key, skb, key_buffer);
+		ieee80211_get_tkip_p2k(tx_key, skb, fifo->tx_key);
 
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
@@ -452,7 +453,7 @@ static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
 		if (ieee80211_has_a4(hdr->frame_control))
 			ether_addr_copy(mic_hdr->addr4, hdr->addr4);
 
-		memcpy(key_buffer, tx_key->key, WLAN_KEY_LEN_CCMP);
+		memcpy(fifo->tx_key, tx_key->key, WLAN_KEY_LEN_CCMP);
 
 		break;
 	default:
@@ -628,8 +629,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (info->control.hw_key) {
 		tx_key = info->control.hw_key;
 		if (tx_key->keylen > 0)
-			vnt_fill_txkey(tx_buffer, tx_buffer_head->tx_key,
-				       tx_key, skb, tx_body_size);
+			vnt_fill_txkey(tx_buffer, tx_key, skb, tx_body_size);
 	}
 
 	priv->seq_counter = (le16_to_cpu(hdr->seq_ctrl) &
