@@ -1248,8 +1248,6 @@ static int rk817_charge_usb_init(struct rk817_charger *charge)
 
 		charge->cable_edev = edev;
 
-		schedule_delayed_work(&charge->host_work, 0);
-		schedule_delayed_work(&charge->usb_work, 0);
 		DBG("register typec extcon evt notifier\n");
 	} else {
 		INIT_DELAYED_WORK(&charge->usb_work,
@@ -1636,6 +1634,11 @@ static int rk817_charge_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(charge->dev, "init irqs failed!\n");
 		goto irq_fail;
+	}
+
+	if (charge->pdata->extcon) {
+		schedule_delayed_work(&charge->host_work, 0);
+		schedule_delayed_work(&charge->usb_work, 0);
 	}
 
 	rk817_chage_debug(charge);
