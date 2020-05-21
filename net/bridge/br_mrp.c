@@ -37,6 +37,26 @@ static struct br_mrp *br_mrp_find_id(struct net_bridge *br, u32 ring_id)
 	return res;
 }
 
+static bool br_mrp_unique_ifindex(struct net_bridge *br, u32 ifindex)
+{
+	struct br_mrp *mrp;
+
+	list_for_each_entry_rcu(mrp, &br->mrp_list, list,
+				lockdep_rtnl_is_held()) {
+		struct net_bridge_port *p;
+
+		p = rtnl_dereference(mrp->p_port);
+		if (p && p->dev->ifindex == ifindex)
+			return false;
+
+		p = rtnl_dereference(mrp->s_port);
+		if (p && p->dev->ifindex == ifindex)
+			return false;
+	}
+
+	return true;
+}
+
 static struct br_mrp *br_mrp_find_port(struct net_bridge *br,
 				       struct net_bridge_port *p)
 {
@@ -253,6 +273,11 @@ int br_mrp_add(struct net_bridge *br, struct br_mrp_instance *instance)
 
 	if (!br_mrp_get_port(br, instance->p_ifindex) ||
 	    !br_mrp_get_port(br, instance->s_ifindex))
+		return -EINVAL;
+
+	/* It is not possible to have the same port part of multiple rings */
+	if (!br_mrp_unique_ifindex(br, instance->p_ifindex) ||
+	    !br_mrp_unique_ifindex(br, instance->s_ifindex))
 		return -EINVAL;
 
 	mrp = kzalloc(sizeof(*mrp), GFP_KERNEL);
