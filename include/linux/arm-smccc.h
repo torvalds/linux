@@ -5,6 +5,7 @@
 #ifndef __LINUX_ARM_SMCCC_H
 #define __LINUX_ARM_SMCCC_H
 
+#include <linux/init.h>
 #include <uapi/linux/const.h>
 
 /*
@@ -110,6 +111,8 @@ enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void);
  * handling SMCCCv1.0 must determine the conduit by other means.
  */
 u32 arm_smccc_get_version(void);
+
+void __init arm_smccc_version_init(u32 version, enum arm_smccc_conduit conduit);
 
 /**
  * struct arm_smccc_res - Result from SMC/HVC call
