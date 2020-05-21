@@ -45,16 +45,6 @@ config MAKALU
 	help
 	  This option enables support for the AMCC PPC405EX board.
 
-config WALNUT
-	bool "Walnut"
-	depends on 40x
-	default y
-	select 405GP
-	select FORCE_PCI
-	select OF_RTC
-	help
-	  This option enables support for the IBM PPC405GP evaluation board.
-
 config OBS600
 	bool "OpenBlockS 600"
 	depends on 40x
