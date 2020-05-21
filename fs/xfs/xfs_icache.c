@@ -817,13 +817,13 @@ out_unlock_noent:
  */
 STATIC int
 xfs_inode_walk_ag(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
+	int			iter_flags,
 	int			(*execute)(struct xfs_inode *ip, void *args),
 	void			*args,
-	int			tag,
-	int			iter_flags)
+	int			tag)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	uint32_t		first_index;
 	int			last_error = 0;
 	int			skipped;
@@ -952,8 +952,7 @@ xfs_inode_walk(
 	ag = 0;
 	while ((pag = xfs_inode_walk_get_perag(mp, ag, tag))) {
 		ag = pag->pag_agno + 1;
-		error = xfs_inode_walk_ag(mp, pag, execute, args, tag,
-				iter_flags);
+		error = xfs_inode_walk_ag(pag, iter_flags, execute, args, tag);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
