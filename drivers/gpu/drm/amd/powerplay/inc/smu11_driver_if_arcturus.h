@@ -200,6 +200,8 @@
 #define THROTTLER_PPM_BIT          13
 #define THROTTLER_FIT_BIT          14
 #define THROTTLER_APCC_BIT         15
+#define THROTTLER_VRHOT0_BIT       16
+#define THROTTLER_VRHOT1_BIT       17
 
 // Table transfer status
 #define TABLE_TRANSFER_OK         0x0
@@ -742,6 +744,9 @@ typedef struct {
 
   uint16_t     SocketPowerLpfTau;
 
+  uint16_t     VcnClkAverageLpfTau;
+  uint16_t     padding16;
+
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfig_t;
@@ -767,9 +772,12 @@ typedef struct {
   uint32_t ThrottlerStatus       ;
 
   uint16_t CurrFanSpeed          ;
-  uint16_t Padding16;
+  uint16_t AverageVclkFrequency  ;
+  uint16_t AverageDclkFrequency  ;
+  uint16_t VcnActivityPercentage ;
+  uint32_t EnergyAccumulator     ;
 
-  uint32_t Padding[4];
+  uint32_t Padding[2];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
