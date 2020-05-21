@@ -468,6 +468,7 @@
 #define EXCCODE_THREAD		25	/* Thread exceptions (MT) */
 #define EXCCODE_DSPDIS		26	/* DSP disabled exception */
 #define EXCCODE_GE		27	/* Virtualized guest exception (VZ) */
+#define EXCCODE_CACHEERR	30	/* Parity/ECC occured on a core */
 
 /* Implementation specific trap codes used by MIPS cores */
 #define MIPS_EXCCODE_TLBPAR	16	/* TLB parity error exception */
@@ -563,9 +564,17 @@
 #define MIPS_CONF_MT_FTLB	(_ULCAST_(4) <<  7)
 #define MIPS_CONF_AR		(_ULCAST_(7) << 10)
 #define MIPS_CONF_AT		(_ULCAST_(3) << 13)
+#define MIPS_CONF_BE		(_ULCAST_(1) << 15)
+#define MIPS_CONF_BM		(_ULCAST_(1) << 16)
 #define MIPS_CONF_MM		(_ULCAST_(3) << 17)
 #define MIPS_CONF_MM_SYSAD	(_ULCAST_(1) << 17)
 #define MIPS_CONF_MM_FULL	(_ULCAST_(2) << 17)
+#define MIPS_CONF_SB		(_ULCAST_(1) << 21)
+#define MIPS_CONF_UDI		(_ULCAST_(1) << 22)
+#define MIPS_CONF_DSP		(_ULCAST_(1) << 23)
+#define MIPS_CONF_ISP		(_ULCAST_(1) << 24)
+#define MIPS_CONF_KU		(_ULCAST_(3) << 25)
+#define MIPS_CONF_K23		(_ULCAST_(3) << 28)
 #define MIPS_CONF_M		(_ULCAST_(1) << 31)
 
 /*
@@ -677,9 +686,19 @@
 #define MIPS_CONF5_CV		(_ULCAST_(1) << 29)
 #define MIPS_CONF5_K		(_ULCAST_(1) << 30)
 
+/* Jump register cache prediction disable */
+#define MIPS_CONF6_JRCD		(_ULCAST_(1) << 0)
+/* MIPSr6 extensions enable */
+#define MIPS_CONF6_R6		(_ULCAST_(1) << 2)
+/* IFU Performance Control */
+#define MIPS_CONF6_IFUPERFCTL	(_ULCAST_(3) << 10)
 #define MIPS_CONF6_SYND		(_ULCAST_(1) << 13)
+/* Sleep state performance counter disable */
+#define MIPS_CONF6_SPCD		(_ULCAST_(1) << 14)
 /* proAptiv FTLB on/off bit */
 #define MIPS_CONF6_FTLBEN	(_ULCAST_(1) << 15)
+/* Disable load/store bonding */
+#define MIPS_CONF6_DLSB		(_ULCAST_(1) << 21)
 /* Loongson-3 FTLB on/off bit */
 #define MIPS_CONF6_FTLBDIS	(_ULCAST_(1) << 22)
 /* FTLB probability bits */
