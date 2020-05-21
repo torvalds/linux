@@ -1266,7 +1266,7 @@
 			status = "disabled";
 		};
 
-		ipmmu_ds1: mmu@e7740000 {
+		ipmmu_ds1: iommu@e7740000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xe7740000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 0>;
@@ -1274,7 +1274,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_ir: mmu@ff8b0000 {
+		ipmmu_ir: iommu@ff8b0000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xff8b0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 3>;
@@ -1282,7 +1282,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_mm: mmu@e67b0000 {
+		ipmmu_mm: iommu@e67b0000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xe67b0000 0 0x1000>;
 			interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>,
@@ -1291,7 +1291,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_rt: mmu@ffc80000 {
+		ipmmu_rt: iommu@ffc80000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xffc80000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 10>;
@@ -1299,7 +1299,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vc0: mmu@fe990000 {
+		ipmmu_vc0: iommu@fe990000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xfe990000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 12>;
@@ -1307,7 +1307,7 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vi0: mmu@febd0000 {
+		ipmmu_vi0: iommu@febd0000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xfebd0000 0 0x1000>;
 			renesas,ipmmu-main = <&ipmmu_mm 14>;
@@ -1315,14 +1315,14 @@
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vip0: mmu@e7b00000 {
+		ipmmu_vip0: iommu@e7b00000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xe7b00000 0 0x1000>;
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
 		};
 
-		ipmmu_vip1: mmu@e7960000 {
+		ipmmu_vip1: iommu@e7960000 {
 			compatible = "renesas,ipmmu-r8a77980";
 			reg = <0 0xe7960000 0 0x1000>;
 			power-domains = <&sysc R8A77980_PD_ALWAYS_ON>;
