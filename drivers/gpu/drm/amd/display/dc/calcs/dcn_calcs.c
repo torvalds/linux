@@ -374,6 +374,13 @@ static void pipe_ctx_to_e2e_pipe_params (
 		input->src.viewport_width_c    = input->src.viewport_width;
 		input->src.viewport_height_c   = input->src.viewport_height;
 		break;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+	case SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA:
+		input->src.source_format = dm_rgbe_alpha;
+		input->src.viewport_width_c    = input->src.viewport_width;
+		input->src.viewport_height_c   = input->src.viewport_height;
+		break;
+#endif
 	default:
 		input->src.source_format = dm_444_32;
 		input->src.viewport_width_c    = input->src.viewport_width;
