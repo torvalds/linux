@@ -338,8 +338,7 @@ static void vnt_rxtx_cts(struct vnt_usb_send_context *tx_context,
 }
 
 static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
-			union vnt_tx_head *tx_head,
-			bool need_rts)
+			union vnt_tx_head *tx_head)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
 	struct vnt_rrv_time_ab *buf = &tx_head->tx_ab.ab;
@@ -352,7 +351,7 @@ static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 			head = &tx_head->tx_ab.tx.mic.head;
 	}
 
-	if (need_rts) {
+	if (info->control.use_rts) {
 		buf->rts_rrv_time = vnt_get_rts_duration(tx_context);
 
 		vnt_rxtx_rts_ab_head(tx_context, &head->rts_ab);
@@ -364,12 +363,12 @@ static void vnt_rxtx_ab(struct vnt_usb_send_context *tx_context,
 }
 
 static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
-				      struct vnt_tx_buffer *tx_buffer,
-				      bool need_rts)
+				      struct vnt_tx_buffer *tx_buffer)
 {
-	if (tx_context->pkt_type == PK_TYPE_11GB ||
-	    tx_context->pkt_type == PK_TYPE_11GA) {
-		if (need_rts) {
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_context->skb);
+
+	if (info->control.use_cts_prot) {
+		if (info->control.use_rts) {
 			vnt_rxtx_rts(tx_context, &tx_buffer->tx_head);
 
 			return;
@@ -380,7 +379,7 @@ static void vnt_generate_tx_parameter(struct vnt_usb_send_context *tx_context,
 		return;
 	}
 
-	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head, need_rts);
+	vnt_rxtx_ab(tx_context, &tx_buffer->tx_head);
 }
 
 static void vnt_fill_txkey(struct vnt_tx_buffer *tx_buffer,
@@ -507,7 +506,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	unsigned long flags;
 	u16 tx_bytes, tx_header_size, tx_body_size;
 	u8 pkt_type;
-	bool need_rts = false;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
 
@@ -594,10 +592,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	if (ieee80211_has_retry(hdr->frame_control))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LRETRY);
 
-	if (tx_rate->flags & IEEE80211_TX_RC_USE_RTS_CTS) {
-		need_rts = true;
+	if (info->control.use_rts)
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_RTS);
-	}
 
 	if (ieee80211_has_a4(hdr->frame_control))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LHEAD);
@@ -625,7 +621,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	tx_buffer_head->current_rate = cpu_to_le16(rate->hw_value);
 
-	vnt_generate_tx_parameter(tx_context, tx_buffer, need_rts);
+	vnt_generate_tx_parameter(tx_context, tx_buffer);
 
 	tx_buffer_head->frag_ctl |= cpu_to_le16(FRAGCTL_NONFRAG);
 
