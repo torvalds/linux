@@ -5608,7 +5608,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	unsigned int dvs_env_w = 0, dvs_env_h = 0;
 	unsigned int padding_w = pad_w, padding_h = pad_h;
 	bool res_overflow = false, crop_needs_override = false;
-	struct v4l2_mbus_framefmt isp_sink_fmt;
+	struct v4l2_mbus_framefmt *isp_sink_fmt;
 	struct v4l2_mbus_framefmt isp_source_fmt = {0};
 	struct v4l2_rect isp_sink_crop;
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
@@ -5789,7 +5789,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 				ATOMISP_SUBDEV_PAD_SINK)->code =
 				    snr_format_bridge->mbus_code;
 
-	isp_sink_fmt = *atomisp_subdev_get_ffmt(&asd->subdev, NULL,
+	isp_sink_fmt = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
 						V4L2_SUBDEV_FORMAT_ACTIVE,
 						ATOMISP_SUBDEV_PAD_SINK);
 
@@ -5847,9 +5847,9 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	 * capture pipe and usually has lower resolution than capture pipe.
 	 */
 	if (!asd->continuous_mode->val ||
-	    isp_sink_fmt.width < (f->fmt.pix.width + padding_w + dvs_env_w) ||
-	    isp_sink_fmt.height < (f->fmt.pix.height + padding_h +
-				   dvs_env_h)) {
+	    isp_sink_fmt->width < (f->fmt.pix.width + padding_w + dvs_env_w) ||
+	    isp_sink_fmt->height < (f->fmt.pix.height + padding_h +
+				    dvs_env_h)) {
 		/*
 		 * For jpeg or custom raw format the sensor will return constant
 		 * width and height. Because we already had quried try_mbus_fmt,
