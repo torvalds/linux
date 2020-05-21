@@ -777,7 +777,7 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
-		goto unlock;
+		goto put_runtime_pm;
 
 	/*
 	 * We rely on the VDE registers reset value, otherwise VDE
@@ -843,8 +843,6 @@ static int tegra_vde_ioctl_decode_h264(struct tegra_vde *vde,
 put_runtime_pm:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
-
-unlock:
 	mutex_unlock(&vde->lock);
 
 release_dpb_frames:
