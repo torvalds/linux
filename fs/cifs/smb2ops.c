@@ -1452,6 +1452,16 @@ req_res_key_exit:
 	return rc;
 }
 
+struct iqi_vars {
+	struct smb_rqst rqst[3];
+	struct kvec rsp_iov[3];
+	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
+	struct kvec qi_iov[1];
+	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
+	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
+	struct kvec close_iov[1];
+};
+
 static int
 smb2_ioctl_query_info(const unsigned int xid,
 		      struct cifs_tcon *tcon,
@@ -1459,6 +1469,9 @@ smb2_ioctl_query_info(const unsigned int xid,
 		      __le16 *path, int is_dir,
 		      unsigned long p)
 {
+	struct iqi_vars *vars;
+	struct smb_rqst *rqst;
+	struct kvec *rsp_iov;
 	struct cifs_ses *ses = tcon->ses;
 	char __user *arg = (char __user *)p;
 	struct smb_query_info qi;
@@ -1468,45 +1481,47 @@ smb2_ioctl_query_info(const unsigned int xid,
 	struct smb2_query_info_rsp *qi_rsp = NULL;
 	struct smb2_ioctl_rsp *io_rsp = NULL;
 	void *buffer = NULL;
-	struct smb_rqst rqst[3];
 	int resp_buftype[3];
-	struct kvec rsp_iov[3];
-	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct cifs_open_parms oparms;
 	u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_fid fid;
-	struct kvec qi_iov[1];
-	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];
-	struct kvec si_iov[SMB2_SET_INFO_IOV_SIZE];
-	struct kvec close_iov[1];
 	unsigned int size[2];
 	void *data[2];
 	int create_options = is_dir ? CREATE_NOT_FILE : CREATE_NOT_DIR;
 
-	memset(rqst, 0, sizeof(rqst));
+	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
+	if (vars == NULL)
+		return -ENOMEM;
+	rqst = &vars->rqst[0];
+	rsp_iov = &vars->rsp_iov[0];
+
 	resp_buftype[0] = resp_buftype[1] = resp_buftype[2] = CIFS_NO_BUFFER;
-	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	if (copy_from_user(&qi, arg, sizeof(struct smb_query_info)))
-		return -EFAULT;
+		goto e_fault;
 
-	if (qi.output_buffer_length > 1024)
+	if (qi.output_buffer_length > 1024) {
+		kfree(vars);
 		return -EINVAL;
+	}
 
-	if (!ses || !(ses->server))
+	if (!ses || !(ses->server)) {
+		kfree(vars);
 		return -EIO;
+	}
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
 	buffer = memdup_user(arg + sizeof(struct smb_query_info),
 			     qi.output_buffer_length);
-	if (IS_ERR(buffer))
+	if (IS_ERR(buffer)) {
+		kfree(vars);
 		return PTR_ERR(buffer);
+	}
 
 	/* Open */
-	memset(&open_iov, 0, sizeof(open_iov));
-	rqst[0].rq_iov = open_iov;
+	rqst[0].rq_iov = &vars->open_iov[0];
 	rqst[0].rq_nvec = SMB2_CREATE_IOV_SIZE;
 
 	memset(&oparms, 0, sizeof(oparms));
@@ -1548,8 +1563,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 		if (!capable(CAP_SYS_ADMIN))
 			rc = -EPERM;
 		else  {
-			memset(&io_iov, 0, sizeof(io_iov));
-			rqst[1].rq_iov = io_iov;
+			rqst[1].rq_iov = &vars->io_iov[0];
 			rqst[1].rq_nvec = SMB2_IOCTL_IOV_SIZE;
 
 			rc = SMB2_ioctl_init(tcon, &rqst[1],
@@ -1565,8 +1579,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 		if (!capable(CAP_SYS_ADMIN))
 			rc = -EPERM;
 		else  {
-			memset(&si_iov, 0, sizeof(si_iov));
-			rqst[1].rq_iov = si_iov;
+			rqst[1].rq_iov = &vars->si_iov[0];
 			rqst[1].rq_nvec = 1;
 
 			size[0] = 8;
@@ -1579,8 +1592,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 					SMB2_O_INFO_FILE, 0, data, size);
 		}
 	} else if (qi.flags == PASSTHRU_QUERY_INFO) {
-		memset(&qi_iov, 0, sizeof(qi_iov));
-		rqst[1].rq_iov = qi_iov;
+		rqst[1].rq_iov = &vars->qi_iov[0];
 		rqst[1].rq_nvec = 1;
 
 		rc = SMB2_query_info_init(tcon, &rqst[1], COMPOUND_FID,
@@ -1599,8 +1611,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	smb2_set_related(&rqst[1]);
 
 	/* Close */
-	memset(&close_iov, 0, sizeof(close_iov));
-	rqst[2].rq_iov = close_iov;
+	rqst[2].rq_iov = &vars->close_iov[0];
 	rqst[2].rq_nvec = 1;
 
 	rc = SMB2_close_init(tcon, &rqst[2], COMPOUND_FID, COMPOUND_FID, false);
@@ -1649,6 +1660,7 @@ smb2_ioctl_query_info(const unsigned int xid,
 	}
 
  iqinf_exit:
+	kfree(vars);
 	kfree(buffer);
 	SMB2_open_free(&rqst[0]);
 	if (qi.flags & PASSTHRU_FSCTL)
