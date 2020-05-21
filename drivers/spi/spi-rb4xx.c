@@ -158,6 +158,11 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	master->transfer_one = rb4xx_transfer_one;
 	master->set_cs = rb4xx_set_cs;
 
+	rbspi = spi_master_get_devdata(master);
+	rbspi->base = spi_base;
+	rbspi->clk = ahb_clk;
+	platform_set_drvdata(pdev, rbspi);
+
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
 		dev_err(&pdev->dev, "failed to register SPI master\n");
@@ -167,11 +172,6 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(ahb_clk);
 	if (err)
 		return err;
-
-	rbspi = spi_master_get_devdata(master);
-	rbspi->base = spi_base;
-	rbspi->clk = ahb_clk;
-	platform_set_drvdata(pdev, rbspi);
 
 	/* Enable SPI */
 	rb4xx_write(rbspi, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
