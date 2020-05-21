@@ -62,7 +62,7 @@ int kdb_grep_trailing;
 /*
  * Kernel debugger state flags
  */
-int kdb_flags;
+unsigned int kdb_flags;
 
 /*
  * kdb_lock protects updates to kdb_initial_cpu.  Used to
@@ -418,8 +418,7 @@ int kdb_set(int argc, const char **argv)
 				    argv[2]);
 			return 0;
 		}
-		kdb_flags = (kdb_flags &
-			     ~(KDB_DEBUG_FLAG_MASK << KDB_DEBUG_FLAG_SHIFT))
+		kdb_flags = (kdb_flags & ~KDB_DEBUG(MASK))
 			| (debugflags << KDB_DEBUG_FLAG_SHIFT);
 
 		return 0;
@@ -2082,7 +2081,8 @@ static int kdb_env(int argc, const char **argv)
 	}
 
 	if (KDB_DEBUG(MASK))
-		kdb_printf("KDBFLAGS=0x%x\n", kdb_flags);
+		kdb_printf("KDBDEBUG=0x%x\n",
+			(kdb_flags & KDB_DEBUG(MASK)) >> KDB_DEBUG_FLAG_SHIFT);
 
 	return 0;
 }
