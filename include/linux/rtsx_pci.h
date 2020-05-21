@@ -1104,13 +1104,6 @@ enum PDEV_STAT  {PDEV_STAT_IDLE, PDEV_STAT_RUN};
 #define L1_SNOOZE_TEST_EN		BIT(5)
 #define LTR_L1SS_PWR_GATE_CHECK_CARD_EN	BIT(6)
 
-enum dev_aspm_mode {
-	DEV_ASPM_DYNAMIC,
-	DEV_ASPM_BACKDOOR,
-	DEV_ASPM_STATIC,
-	DEV_ASPM_DISABLE,
-};
-
 /*
  * struct rtsx_cr_option  - card reader option
  * @dev_flags: device flags
@@ -1121,7 +1114,6 @@ enum dev_aspm_mode {
  * @ltr_active_latency: ltr mode active latency
  * @ltr_idle_latency: ltr mode idle latency
  * @ltr_l1off_latency: ltr mode l1off latency
- * @dev_aspm_mode: device aspm mode
  * @l1_snooze_delay: l1 snooze delay
  * @ltr_l1off_sspwrgate: ltr l1off sspwrgate
  * @ltr_l1off_snooze_sspwrgate: ltr l1off snooze sspwrgate
@@ -1138,7 +1130,6 @@ struct rtsx_cr_option {
 	u32 ltr_active_latency;
 	u32 ltr_idle_latency;
 	u32 ltr_l1off_latency;
-	enum dev_aspm_mode dev_aspm_mode;
 	u32 l1_snooze_delay;
 	u8 ltr_l1off_sspwrgate;
 	u8 ltr_l1off_snooze_sspwrgate;
