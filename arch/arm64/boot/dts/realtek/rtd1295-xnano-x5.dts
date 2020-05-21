@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
  * Copyright (c) 2017-2019 Andreas Färber
- *
- * SPDX-License-Identifier: (GPL-2.0+ OR MIT)
  */
 
 /dts-v1/;
@@ -9,12 +8,12 @@
 #include "rtd1295.dtsi"
 
 / {
-	compatible = "probox2,ava", "realtek,rtd1295";
-	model = "PROBOX2 AVA";
+	compatible = "xnano,x5", "realtek,rtd1295";
+	model = "Xnano X5";
 
 	memory@1f000 {
 		device_type = "memory";
-		reg = <0x1f000 0x7ffe1000>; /* boot ROM to 2 GiB */
+		reg = <0x1f000 0x3ffe1000>; /* boot ROM to 1 GiB or 2 GiB */
 	};
 
 	aliases {

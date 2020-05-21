@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
- * Realtek RTD1293/RTD1295/RTD1296 SoC
+ * Realtek RTD1395 SoC family
  *
- * Copyright (c) 2016-2019 Andreas Färber
+ * Copyright (c) 2019 Andreas Färber
  */
 
-/memreserve/	0x0000000000000000 0x000000000001f000;
-/memreserve/	0x000000000001f000 0x00000000000e1000;
-/memreserve/	0x0000000001b00000 0x00000000004be000;
+/memreserve/	0x0000000000000000 0x000000000002f000;
+/memreserve/	0x000000000002f000 0x00000000000d1000;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/reset/realtek,rtd1295.h>
@@ -22,8 +21,8 @@
 		#size-cells = <1>;
 		ranges;
 
-		rpc_comm: rpc@1f000 {
-			reg = <0x1f000 0x1000>;
+		rpc_comm: rpc@2f000 {
+			reg = <0x2f000 0x1000>;
 		};
 
 		rpc_ringbuf: rpc@1ffe000 {
@@ -53,8 +52,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges = <0x00000000 0x00000000 0x0001f000>, /* boot ROM */
-			 /* Exclude up to 2 GiB of RAM */
-			 <0x80000000 0x80000000 0x80000000>;
+			 <0x98000000 0x98000000 0x68000000>;
 
 		rbus: bus@98000000 {
 			compatible = "simple-bus";
@@ -65,11 +63,11 @@
 
 			crt: syscon@0 {
 				compatible = "syscon", "simple-mfd";
-				reg = <0x0 0x1800>;
+				reg = <0x0 0x1000>;
 				reg-io-width = <4>;
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0x0 0x0 0x1800>;
+				ranges = <0x0 0x0 0x1000>;
 			};
 
 			iso: syscon@7000 {

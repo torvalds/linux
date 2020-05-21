@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
 /*
- * Realtek RTD1295 SoC
+ * Realtek RTD1395 SoC
  *
- * Copyright (c) 2016-2019 Andreas Färber
+ * Copyright (c) 2019 Andreas Färber
  */
 
-#include "rtd129x.dtsi"
+#include "rtd139x.dtsi"
 
 / {
-	compatible = "realtek,rtd1295";
+	compatible = "realtek,rtd1395";
 
 	cpus {
 		#address-cells = <2>;
