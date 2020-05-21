@@ -92,6 +92,7 @@ static void cpu_set_fpu_2008(struct cpuinfo_mips *c)
 {
 	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 		unsigned long sr, fir, fcsr, fcsr0, fcsr1;
 
@@ -172,6 +173,7 @@ static void cpu_set_nofpu_2008(struct cpuinfo_mips *c)
 	case STRICT:
 		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 				    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+				    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
 				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 			c->options |= MIPS_CPU_NAN_2008 | MIPS_CPU_NAN_LEGACY;
 		} else {
@@ -263,9 +265,11 @@ static void cpu_set_nofpu_id(struct cpuinfo_mips *c)
 	value = 0;
 	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
 		value |= MIPS_FPIR_D | MIPS_FPIR_S;
 	if (c->isa_level & (MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6))
 		value |= MIPS_FPIR_F64 | MIPS_FPIR_L | MIPS_FPIR_W;
 	if (c->options & MIPS_CPU_NAN_2008)
@@ -286,6 +290,7 @@ static void cpu_set_fpu_opts(struct cpuinfo_mips *c)
 
 	if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
 			    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+			    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
 			    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 		if (c->fpu_id & MIPS_FPIR_3D)
 			c->ases |= MIPS_ASE_MIPS3D;
@@ -532,6 +537,10 @@ static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
 static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 {
 	switch (isa) {
+	case MIPS_CPU_ISA_M64R5:
+		c->isa_level |= MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5;
+		set_elf_base_platform("mips64r5");
+		fallthrough;
 	case MIPS_CPU_ISA_M64R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2;
 		set_elf_base_platform("mips64r2");
@@ -563,6 +572,10 @@ static void set_isa(struct cpuinfo_mips *c, unsigned int isa)
 		set_elf_base_platform("mips32r6");
 		/* Break here so we don't add incompatible ISAs */
 		break;
+	case MIPS_CPU_ISA_M32R5:
+		c->isa_level |= MIPS_CPU_ISA_M32R5;
+		set_elf_base_platform("mips32r5");
+		fallthrough;
 	case MIPS_CPU_ISA_M32R2:
 		c->isa_level |= MIPS_CPU_ISA_M32R2;
 		set_elf_base_platform("mips32r2");
@@ -1751,6 +1764,10 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 	spram_config();
 
 	switch (__get_cpu_type(c->cputype)) {
+	case CPU_M5150:
+	case CPU_P5600:
+		set_isa(c, MIPS_CPU_ISA_M32R5);
+		break;
 	case CPU_I6500:
 		c->options |= MIPS_CPU_SHARED_FTLB_ENTRIES;
 		fallthrough;

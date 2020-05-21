@@ -1516,6 +1516,21 @@ config CPU_MIPS32_R2
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
+config CPU_MIPS32_R5
+	bool "MIPS32 Release 5"
+	depends on SYS_HAS_CPU_MIPS32_R5
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
+	select HAVE_KVM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for release 5 or later of the
+	  MIPS32 architecture.  New MIPS processors, starting with the Warrior
+	  family, are based on a MIPS32r5 processor. If you own an older
+	  processor, you probably need to select MIPS32r1 or MIPS32r2 instead.
+
 config CPU_MIPS32_R6
 	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
@@ -1567,6 +1582,23 @@ config CPU_MIPS64_R2
 	  MIPS processor are based on a MIPS64 processor.  If you know the
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
+
+config CPU_MIPS64_R5
+	bool "MIPS64 Release 5"
+	depends on SYS_HAS_CPU_MIPS64_R5
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_SUPPORTS_MSA
+	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
+	select HAVE_KVM
+	help
+	  Choose this option to build a kernel for release 5 or later of the
+	  MIPS64 architecture.  This is a intermediate MIPS architecture
+	  release partly implementing release 6 features. Though there is no
+	  any hardware known to be based on this release.
 
 config CPU_MIPS64_R6
 	bool "MIPS64 Release 6"
@@ -1762,7 +1794,7 @@ endchoice
 config CPU_MIPS32_3_5_FEATURES
 	bool "MIPS32 Release 3.5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R3_5
-	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R5 || CPU_MIPS32_R6
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from the 3.5 release such as
@@ -1782,7 +1814,7 @@ config CPU_MIPS32_3_5_EVA
 config CPU_MIPS32_R5_FEATURES
 	bool "MIPS32 Release 5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R5
-	depends on CPU_MIPS32_R2
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R5
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from release 5 such as
@@ -2020,11 +2052,13 @@ endmenu
 #
 config CPU_MIPS32
 	bool
-	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R5 || \
+		     CPU_MIPS32_R6
 
 config CPU_MIPS64
 	bool
-	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R6
+	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R5 || \
+		     CPU_MIPS64_R6
 
 #
 # These indicate the revision of the architecture
@@ -2036,6 +2070,13 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+	select CPU_HAS_RIXI
+	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
+	select MIPS_SPRAM
+
+config CPU_MIPSR5
+	bool
+	default y if CPU_MIPS32_R5 || CPU_MIPS64_R5
 	select CPU_HAS_RIXI
 	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
 	select MIPS_SPRAM
@@ -2054,6 +2095,7 @@ config TARGET_ISA_REV
 	int
 	default 1 if CPU_MIPSR1
 	default 2 if CPU_MIPSR2
+	default 5 if CPU_MIPSR5
 	default 6 if CPU_MIPSR6
 	default 0
 	help
@@ -2643,7 +2685,11 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 
 config RELOCATABLE
 	bool "Relocatable kernel"
-	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6 || CAVIUM_OCTEON_SOC)
+	depends on SYS_SUPPORTS_RELOCATABLE
+	depends on CPU_MIPS32_R2 || CPU_MIPS64_R2 || \
+		   CPU_MIPS32_R5 || CPU_MIPS64_R5 || \
+		   CPU_MIPS32_R6 || CPU_MIPS64_R6 || \
+		   CAVIUM_OCTEON_SOC
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.

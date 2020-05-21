@@ -142,7 +142,7 @@ struct proc_cpuinfo_notifier_args {
 static inline unsigned int cpu_cluster(struct cpuinfo_mips *cpuinfo)
 {
 	/* Optimisation for systems where multiple clusters aren't used */
-	if (!IS_ENABLED(CONFIG_CPU_MIPSR6))
+	if (!IS_ENABLED(CONFIG_CPU_MIPSR5) && !IS_ENABLED(CONFIG_CPU_MIPSR6))
 		return 0;
 
 	return (cpuinfo->globalnumber & MIPS_GLOBALNUMBER_CLUSTER) >>

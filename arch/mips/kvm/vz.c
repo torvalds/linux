@@ -2980,7 +2980,7 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	 */
 
 	/* PageGrain */
-	if (cpu_has_mips_r6)
+	if (cpu_has_mips_r5 || cpu_has_mips_r6)
 		kvm_write_sw_gc0_pagegrain(cop0, PG_RIE | PG_XIE | PG_IEC);
 	/* Wired */
 	if (cpu_has_mips_r6)
@@ -2988,7 +2988,7 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 				       read_gc0_wired() & MIPSR6_WIRED_LIMIT);
 	/* Status */
 	kvm_write_sw_gc0_status(cop0, ST0_BEV | ST0_ERL);
-	if (cpu_has_mips_r6)
+	if (cpu_has_mips_r5 || cpu_has_mips_r6)
 		kvm_change_sw_gc0_status(cop0, ST0_FR, read_gc0_status());
 	/* IntCtl */
 	kvm_write_sw_gc0_intctl(cop0, read_gc0_intctl() &
@@ -3086,7 +3086,7 @@ static int kvm_vz_vcpu_setup(struct kvm_vcpu *vcpu)
 	}
 
 	/* reset HTW registers */
-	if (cpu_guest_has_htw && cpu_has_mips_r6) {
+	if (cpu_guest_has_htw && (cpu_has_mips_r5 || cpu_has_mips_r6)) {
 		/* PWField */
 		kvm_write_sw_gc0_pwfield(cop0, 0x0c30c302);
 		/* PWSize */

@@ -284,6 +284,9 @@
 #ifndef cpu_has_mips32r2
 # define cpu_has_mips32r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M32R2)
 #endif
+#ifndef cpu_has_mips32r5
+# define cpu_has_mips32r5	__isa_range_or_flag(5, 6, MIPS_CPU_ISA_M32R5)
+#endif
 #ifndef cpu_has_mips32r6
 # define cpu_has_mips32r6	__isa_ge_or_flag(6, MIPS_CPU_ISA_M32R6)
 #endif
@@ -292,6 +295,10 @@
 #endif
 #ifndef cpu_has_mips64r2
 # define cpu_has_mips64r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2)
+#endif
+#ifndef cpu_has_mips64r5
+# define cpu_has_mips64r5	(cpu_has_64bits && \
+				 __isa_range_or_flag(5, 6, MIPS_CPU_ISA_M64R5))
 #endif
 #ifndef cpu_has_mips64r6
 # define cpu_has_mips64r6	__isa_ge_and_flag(6, MIPS_CPU_ISA_M64R6)
@@ -313,19 +320,25 @@
 				(cpu_has_mips_3 | cpu_has_mips_4_5_64_r2_r6)
 #define cpu_has_mips_4_5_64_r2_r6					\
 				(cpu_has_mips_4_5 | cpu_has_mips64r1 |	\
-				 cpu_has_mips_r2 | cpu_has_mips_r6)
+				 cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
-#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | cpu_has_mips32r6)
-#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | cpu_has_mips64r6)
+#define cpu_has_mips32	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
+			 cpu_has_mips32r5 | cpu_has_mips32r6)
+#define cpu_has_mips64	(cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 #define cpu_has_mips_r1 (cpu_has_mips32r1 | cpu_has_mips64r1)
 #define cpu_has_mips_r2 (cpu_has_mips32r2 | cpu_has_mips64r2)
+#define cpu_has_mips_r5	(cpu_has_mips32r5 | cpu_has_mips64r5)
 #define cpu_has_mips_r6	(cpu_has_mips32r6 | cpu_has_mips64r6)
 #define cpu_has_mips_r	(cpu_has_mips32r1 | cpu_has_mips32r2 | \
-			 cpu_has_mips32r6 | cpu_has_mips64r1 | \
-			 cpu_has_mips64r2 | cpu_has_mips64r6)
+			 cpu_has_mips32r5 | cpu_has_mips32r6 | \
+			 cpu_has_mips64r1 | cpu_has_mips64r2 | \
+			 cpu_has_mips64r5 | cpu_has_mips64r6)
 
-/* MIPSR2 and MIPSR6 have a lot of similarities */
-#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r6)
+/* MIPSR2 - MIPSR6 have a lot of similarities */
+#define cpu_has_mips_r2_r6	(cpu_has_mips_r2 | cpu_has_mips_r5 | \
+				 cpu_has_mips_r6)
 
 /*
  * cpu_has_mips_r2_exec_hazard - return if IHB is required on current processor
