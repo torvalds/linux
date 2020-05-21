@@ -848,6 +848,42 @@ enum dwb_stereo_type {
 	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN3_0
+
+enum dwb_out_format {
+	DWB_OUT_FORMAT_32BPP_ARGB = 0,
+	DWB_OUT_FORMAT_32BPP_RGBA = 1,
+	DWB_OUT_FORMAT_64BPP_ARGB = 2,
+	DWB_OUT_FORMAT_64BPP_RGBA = 3
+};
+
+enum dwb_out_denorm {
+	DWB_OUT_DENORM_10BPC = 0,
+	DWB_OUT_DENORM_8BPC = 1,
+	DWB_OUT_DENORM_BYPASS = 2
+};
+
+enum cm_gamut_remap_select {
+	CM_GAMUT_REMAP_MODE_BYPASS = 0,
+	CM_GAMUT_REMAP_MODE_RAMA_COEFF,
+	CM_GAMUT_REMAP_MODE_RAMB_COEFF,
+	CM_GAMUT_REMAP_MODE_RESERVED
+};
+
+enum cm_gamut_coef_format {
+	CM_GAMUT_REMAP_COEF_FORMAT_S2_13 = 0,
+	CM_GAMUT_REMAP_COEF_FORMAT_S3_12 = 1
+};
+
+struct mcif_warmup_params {
+	union large_integer	start_address;
+	unsigned int		address_increment;
+	unsigned int		region_size;
+	unsigned int		p_vmid;
+};
+
+#endif
+
 #define MCIF_BUF_COUNT	4
 
 struct mcif_buf_params {
