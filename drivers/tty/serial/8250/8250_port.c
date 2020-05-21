@@ -1879,7 +1879,6 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	unsigned char status;
 	unsigned long flags;
 	struct uart_8250_port *up = up_to_u8250p(port);
-	int dma_err = -1;
 
 	if (iir & UART_IIR_NO_INT)
 		return 0;
@@ -1890,6 +1889,8 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+		int dma_err = -1;
+
 		if (up->dma && up->dma->rxchan)
 			dma_err = handle_rx_dma(up, iir);
 
