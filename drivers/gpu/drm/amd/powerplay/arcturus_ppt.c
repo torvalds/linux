@@ -2329,6 +2329,49 @@ static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
 					   NULL);
 }
 
+static const struct throttling_logging_label {
+	uint32_t feature_mask;
+	const char *label;
+} logging_label[] = {
+	{(1U << THROTTLER_TEMP_HOTSPOT_BIT), "GPU"},
+	{(1U << THROTTLER_TEMP_MEM_BIT), "HBM"},
+	{(1U << THROTTLER_TEMP_VR_GFX_BIT), "VR of GFX rail"},
+	{(1U << THROTTLER_TEMP_VR_MEM_BIT), "VR of HBM rail"},
+	{(1U << THROTTLER_TEMP_VR_SOC_BIT), "VR of SOC rail"},
+	{(1U << THROTTLER_VRHOT0_BIT), "VR0 HOT"},
+	{(1U << THROTTLER_VRHOT1_BIT), "VR1 HOT"},
+};
+static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
+{
+	int throttler_idx, throtting_events = 0, buf_idx = 0;
+	struct amdgpu_device *adev = smu->adev;
+	SmuMetrics_t metrics;
+	char log_buf[256];
+
+	arcturus_get_metrics_table(smu, &metrics);
+
+	memset(log_buf, 0, sizeof(log_buf));
+	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);
+	     throttler_idx++) {
+		if (metrics.ThrottlerStatus & logging_label[throttler_idx].feature_mask) {
+			throtting_events++;
+			buf_idx += snprintf(log_buf + buf_idx,
+					    sizeof(log_buf) - buf_idx,
+					    "%s%s",
+					    throtting_events > 1 ? " and " : "",
+					    logging_label[throttler_idx].label);
+			if (buf_idx >= sizeof(log_buf)) {
+				pr_err("buffer overflow!\n");
+				log_buf[sizeof(log_buf) - 1] = '\0';
+				break;
+			}
+		}
+	}
+
+	dev_warn(adev->dev, "WARN: GPU thermal throttling temperature reached, expect performance decrease. %s.\n",
+			log_buf);
+}
+
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* translate smu index into arcturus specific index */
 	.get_smu_msg_index = arcturus_get_smu_msg_index,
@@ -2423,6 +2466,7 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_pptable_power_limit = arcturus_get_pptable_power_limit,
 	.set_df_cstate = arcturus_set_df_cstate,
 	.allow_xgmi_power_down = arcturus_allow_xgmi_power_down,
+	.log_thermal_throttling_event = arcturus_log_thermal_throttling_event,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)
