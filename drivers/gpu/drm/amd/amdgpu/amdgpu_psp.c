@@ -115,6 +115,44 @@ static int psp_early_init(void *handle)
 	return 0;
 }
 
+static void psp_memory_training_fini(struct psp_context *psp)
+{
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+
+	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
+	kfree(ctx->sys_cache);
+	ctx->sys_cache = NULL;
+}
+
+static int psp_memory_training_init(struct psp_context *psp)
+{
+	int ret;
+	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
+
+	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
+		DRM_DEBUG("memory training is not supported!\n");
+		return 0;
+	}
+
+	ctx->sys_cache = kzalloc(ctx->train_data_size, GFP_KERNEL);
+	if (ctx->sys_cache == NULL) {
+		DRM_ERROR("alloc mem_train_ctx.sys_cache failed!\n");
+		ret = -ENOMEM;
+		goto Err_out;
+	}
+
+	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
+		  ctx->train_data_size,
+		  ctx->p2c_train_data_offset,
+		  ctx->c2p_train_data_offset);
+	ctx->init = PSP_MEM_TRAIN_INIT_SUCCESS;
+	return 0;
+
+Err_out:
+	psp_memory_training_fini(psp);
+	return ret;
+}
+
 static int psp_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -127,7 +165,7 @@ static int psp_sw_init(void *handle)
 		return ret;
 	}
 
-	ret = psp_mem_training_init(psp);
+	ret = psp_memory_training_init(psp);
 	if (ret) {
 		DRM_ERROR("Failed to initialize memory training!\n");
 		return ret;
@@ -152,7 +190,7 @@ static int psp_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	psp_mem_training_fini(&adev->psp);
+	psp_memory_training_fini(&adev->psp);
 	release_firmware(adev->psp.sos_fw);
 	adev->psp.sos_fw = NULL;
 	release_firmware(adev->psp.asd_fw);

@@ -555,44 +555,6 @@ static int psp_v11_0_memory_training_send_msg(struct psp_context *psp, int msg)
 	return ret;
 }
 
-static void psp_v11_0_memory_training_fini(struct psp_context *psp)
-{
-	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-
-	ctx->init = PSP_MEM_TRAIN_NOT_SUPPORT;
-	kfree(ctx->sys_cache);
-	ctx->sys_cache = NULL;
-}
-
-static int psp_v11_0_memory_training_init(struct psp_context *psp)
-{
-	int ret;
-	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
-
-	if (ctx->init != PSP_MEM_TRAIN_RESERVE_SUCCESS) {
-		DRM_DEBUG("memory training is not supported!\n");
-		return 0;
-	}
-
-	ctx->sys_cache = kzalloc(ctx->train_data_size, GFP_KERNEL);
-	if (ctx->sys_cache == NULL) {
-		DRM_ERROR("alloc mem_train_ctx.sys_cache failed!\n");
-		ret = -ENOMEM;
-		goto Err_out;
-	}
-
-	DRM_DEBUG("train_data_size:%llx,p2c_train_data_offset:%llx,c2p_train_data_offset:%llx.\n",
-		  ctx->train_data_size,
-		  ctx->p2c_train_data_offset,
-		  ctx->c2p_train_data_offset);
-	ctx->init = PSP_MEM_TRAIN_INIT_SUCCESS;
-	return 0;
-
-Err_out:
-	psp_v11_0_memory_training_fini(psp);
-	return ret;
-}
-
 /*
  * save and restore proces
  */
@@ -820,8 +782,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,
 	.mode1_reset = psp_v11_0_mode1_reset,
-	.mem_training_init = psp_v11_0_memory_training_init,
-	.mem_training_fini = psp_v11_0_memory_training_fini,
 	.mem_training = psp_v11_0_memory_training,
 	.ring_get_wptr = psp_v11_0_ring_get_wptr,
 	.ring_set_wptr = psp_v11_0_ring_set_wptr,
