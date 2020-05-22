@@ -129,7 +129,7 @@ static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 		ret = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
 						  MEDIA_PAD_FL_SOURCE);
 		if (ret < 0) {
-			dev_err(sd->dev, "failed to find src pad for %s\n",
+			dev_err(rkisp1->dev, "failed to find src pad for %s\n",
 				sd->name);
 			return ret;
 		}
