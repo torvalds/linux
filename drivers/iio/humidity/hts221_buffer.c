@@ -72,10 +72,10 @@ static irqreturn_t hts221_trigger_handler_thread(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
-int hts221_allocate_trigger(struct hts221_hw *hw)
+int hts221_allocate_trigger(struct iio_dev *iio_dev)
 {
+	struct hts221_hw *hw = iio_priv(iio_dev);
 	struct st_sensors_platform_data *pdata = dev_get_platdata(hw->dev);
-	struct iio_dev *iio_dev = iio_priv_to_dev(hw);
 	bool irq_active_low = false, open_drain = false;
 	unsigned long irq_type;
 	int err;
@@ -190,9 +190,10 @@ out:
 	return IRQ_HANDLED;
 }
 
-int hts221_allocate_buffers(struct hts221_hw *hw)
+int hts221_allocate_buffers(struct iio_dev *iio_dev)
 {
-	return devm_iio_triggered_buffer_setup(hw->dev, iio_priv_to_dev(hw),
+	struct hts221_hw *hw = iio_priv(iio_dev);
+	return devm_iio_triggered_buffer_setup(hw->dev, iio_dev,
 					NULL, hts221_buffer_handler_thread,
 					&hts221_buffer_ops);
 }

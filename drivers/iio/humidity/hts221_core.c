@@ -621,11 +621,11 @@ int hts221_probe(struct device *dev, int irq, const char *name,
 	}
 
 	if (hw->irq > 0) {
-		err = hts221_allocate_buffers(hw);
+		err = hts221_allocate_buffers(iio_dev);
 		if (err < 0)
 			return err;
 
-		err = hts221_allocate_trigger(hw);
+		err = hts221_allocate_trigger(iio_dev);
 		if (err)
 			return err;
 	}
