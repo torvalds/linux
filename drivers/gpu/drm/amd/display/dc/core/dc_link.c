@@ -3133,6 +3133,11 @@ void core_link_enable_stream(
 
 	pipe_ctx->stream->link->link_state_valid = true;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
+		if (pipe_ctx->stream_res.tg->funcs->set_out_mux)
+					pipe_ctx->stream_res.tg->funcs->set_out_mux(pipe_ctx->stream_res.tg, OUT_MUX_DIO);
+#endif
+
 	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
 			pipe_ctx->stream_res.stream_enc,
@@ -3214,6 +3219,15 @@ void core_link_enable_stream(
 			pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					COLOR_DEPTH_UNDEFINED);
+
+		/* This second call is needed to reconfigure the DIG
+		 * as a workaround for the incorrect value being applied
+		 * from transmitter control.
+		 */
+		if (!dc_is_virtual_signal(pipe_ctx->stream->signal))
+			stream->link->link_enc->funcs->setup(
+				stream->link->link_enc,
+				pipe_ctx->stream->signal);
 
 		dc->hwss.enable_stream(pipe_ctx);
 
