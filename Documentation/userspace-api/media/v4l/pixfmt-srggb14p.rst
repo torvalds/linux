@@ -69,37 +69,37 @@ Each cell is one byte.
 
 	  B\ :sub:`00low bits 5--0`\ (bits 5--0)
 
-       -  R\ :sub:`02low bits 3--0`\ (bits 7--4)
+       -  B\ :sub:`02low bits 3--0`\ (bits 7--4)
 
 	  G\ :sub:`01low bits 5--2`\ (bits 3--0)
 
        -  G\ :sub:`03low bits 5--0`\ (bits 7--2)
 
-	  R\ :sub:`02low bits 5--4`\ (bits 1--0)
+	  B\ :sub:`02low bits 5--4`\ (bits 1--0)
 
     -  .. row 2
 
        -  start + 7
 
-       -  G\ :sub:`00high`
+       -  G\ :sub:`10high`
 
-       -  R\ :sub:`01high`
+       -  R\ :sub:`11high`
 
-       -  G\ :sub:`02high`
+       -  G\ :sub:`12high`
 
-       -  R\ :sub:`03high`
+       -  R\ :sub:`13high`
 
-       -  R\ :sub:`01low bits 1--0`\ (bits 7--6)
+       -  R\ :sub:`11low bits 1--0`\ (bits 7--6)
 
-	  G\ :sub:`00low bits 5--0`\ (bits 5--0)
+	  G\ :sub:`10low bits 5--0`\ (bits 5--0)
 
-       -  G\ :sub:`02low bits 3--0`\ (bits 7--4)
+       -  G\ :sub:`12low bits 3--0`\ (bits 7--4)
 
-	  R\ :sub:`01low bits 5--2`\ (bits 3--0)
+	  R\ :sub:`11low bits 5--2`\ (bits 3--0)
 
-       -  R\ :sub:`03low bits 5--0`\ (bits 7--2)
+       -  R\ :sub:`13low bits 5--0`\ (bits 7--2)
 
-	  G\ :sub:`02low bits 5--4`\ (bits 1--0)
+	  G\ :sub:`12low bits 5--4`\ (bits 1--0)
 
     -  .. row 3
 
@@ -117,13 +117,13 @@ Each cell is one byte.
 
 	  B\ :sub:`20low bits 5--0`\ (bits 5--0)
 
-       -  R\ :sub:`22low bits 3--0`\ (bits 7--4)
+       -  B\ :sub:`22low bits 3--0`\ (bits 7--4)
 
 	  G\ :sub:`21low bits 5--2`\ (bits 3--0)
 
        -  G\ :sub:`23low bits 5--0`\ (bits 7--2)
 
-	  R\ :sub:`22low bits 5--4`\ (bits 1--0)
+	  B\ :sub:`22low bits 5--4`\ (bits 1--0)
 
     -  .. row 4
 
