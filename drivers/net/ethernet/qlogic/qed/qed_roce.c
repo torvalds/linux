@@ -254,6 +254,9 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	int rc;
 	u8 tc;
 
+	if (!qp->has_resp)
+		return 0;
+
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
 	/* Allocate DMA-able memory for IRQ */
@@ -315,6 +318,10 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 		  ROCE_CREATE_QP_RESP_RAMROD_DATA_MIN_RNR_NAK_TIMER,
 		  qp->min_rnr_nak_timer);
 
+	SET_FIELD(p_ramrod->flags,
+		  ROCE_CREATE_QP_RESP_RAMROD_DATA_XRC_FLAG,
+		  qed_rdma_is_xrc_qp(qp));
+
 	p_ramrod->max_ird = qp->max_rd_atomic_resp;
 	p_ramrod->traffic_class = qp->traffic_class_tos;
 	p_ramrod->hop_limit = qp->hop_limit_ttl;
@@ -335,6 +342,7 @@ static int qed_roce_sp_create_responder(struct qed_hwfn *p_hwfn,
 	p_ramrod->qp_handle_for_cqe.lo = cpu_to_le32(qp->qp_handle.lo);
 	p_ramrod->cq_cid = cpu_to_le32((p_hwfn->hw_info.opaque_fid << 16) |
 				       qp->rq_cq_id);
+	p_ramrod->xrc_domain = cpu_to_le16(qp->xrcd_id);
 
 	tc = qed_roce_get_qp_tc(p_hwfn, qp);
 	regular_latency_queue = qed_get_cm_pq_idx_ofld_mtc(p_hwfn, tc);
@@ -395,6 +403,9 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	int rc;
 	u8 tc;
 
+	if (!qp->has_req)
+		return 0;
+
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
 	/* Allocate DMA-able memory for ORQ */
@@ -443,6 +454,10 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 	SET_FIELD(p_ramrod->flags,
 		  ROCE_CREATE_QP_REQ_RAMROD_DATA_RNR_NAK_CNT,
 		  qp->rnr_retry_cnt);
+
+	SET_FIELD(p_ramrod->flags,
+		  ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG,
+		  qed_rdma_is_xrc_qp(qp));
 
 	p_ramrod->max_ord = qp->max_rd_atomic_req;
 	p_ramrod->traffic_class = qp->traffic_class_tos;
@@ -516,6 +531,9 @@ static int qed_roce_sp_modify_responder(struct qed_hwfn *p_hwfn,
 	struct qed_sp_init_data init_data;
 	struct qed_spq_entry *p_ent;
 	int rc;
+
+	if (!qp->has_resp)
+		return 0;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
@@ -611,6 +629,9 @@ static int qed_roce_sp_modify_requester(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent;
 	int rc;
 
+	if (!qp->has_req)
+		return 0;
+
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
 	if (move_to_err && !(qp->req_offloaded))
@@ -705,6 +726,11 @@ static int qed_roce_sp_destroy_qp_responder(struct qed_hwfn *p_hwfn,
 	dma_addr_t ramrod_res_phys;
 	int rc;
 
+	if (!qp->has_resp) {
+		*cq_prod = 0;
+		return 0;
+	}
+
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 	*cq_prod = qp->cq_prod;
 
@@ -784,6 +810,9 @@ static int qed_roce_sp_destroy_qp_requester(struct qed_hwfn *p_hwfn,
 	struct qed_spq_entry *p_ent;
 	dma_addr_t ramrod_res_phys;
 	int rc = -ENOMEM;
+
+	if (!qp->has_req)
+		return 0;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "icid = %08x\n", qp->icid);
 
