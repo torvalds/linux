@@ -993,6 +993,9 @@ struct amdgpu_device {
 	char				serial[16];
 
 	struct amdgpu_autodump		autodump;
+
+	atomic_t			throttling_logging_enabled;
+	struct ratelimit_state		throttling_logging_rs;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

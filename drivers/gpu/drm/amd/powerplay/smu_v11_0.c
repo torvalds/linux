@@ -1533,11 +1533,6 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 	 */
 	uint32_t ctxid = entry->src_data[0];
 	uint32_t data;
-	/*
-	 * if the throttling continues, the logging will be performed every
-	 * minute to avoid log flooding.
-	 */
-	static DEFINE_RATELIMIT_STATE(ratelimit_state, 60 * HZ, 1);
 
 	if (client_id == SOC15_IH_CLIENTID_THM) {
 		switch (src_id) {
@@ -1582,7 +1577,10 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
 				break;
 			case 0x7:
-				if (__ratelimit(&ratelimit_state))
+				if (!atomic_read(&adev->throttling_logging_enabled))
+					return 0;
+
+				if (__ratelimit(&adev->throttling_logging_rs))
 					smu_log_thermal_throttling(smu);
 
 				break;

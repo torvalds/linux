@@ -3035,6 +3035,17 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	adev->gfx.gfx_off_req_count = 1;
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0;
 
+	atomic_set(&adev->throttling_logging_enabled, 1);
+	/*
+	 * If throttling continues, logging will be performed every minute
+	 * to avoid log flooding. "-1" is subtracted since the thermal
+	 * throttling interrupt comes every second. Thus, the total logging
+	 * interval is 59 seconds(retelimited printk interval) + 1(waiting
+	 * for throttling interrupt) = 60 seconds.
+	 */
+	ratelimit_state_init(&adev->throttling_logging_rs, (60 - 1) * HZ, 1);
+	ratelimit_set_flags(&adev->throttling_logging_rs, RATELIMIT_MSG_ON_RELEASE);
+
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
 	if (adev->asic_type >= CHIP_BONAIRE) {
