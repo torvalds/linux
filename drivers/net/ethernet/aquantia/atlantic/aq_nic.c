@@ -701,15 +701,16 @@ exit:
 
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 {
-	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
-	unsigned int tc = skb->queue_mapping / self->aq_nic_cfg.vecs;
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(self);
+	unsigned int vec = skb->queue_mapping % cfg->vecs;
+	unsigned int tc = skb->queue_mapping / cfg->vecs;
 	struct aq_ring_s *ring = NULL;
 	unsigned int frags = 0U;
 	int err = NETDEV_TX_OK;
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
-	ring = self->aq_ring_tx[AQ_NIC_TCVEC2RING(self, tc, vec)];
+	ring = self->aq_ring_tx[AQ_NIC_CFG_TCVEC2RING(cfg, tc, vec)];
 
 	if (frags > AQ_CFG_SKB_FRAGS_MAX) {
 		dev_kfree_skb_any(skb);
@@ -718,7 +719,7 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 
 	aq_ring_update_queue_state(ring);
 
-	if (self->aq_nic_cfg.priv_flags & BIT(AQ_HW_LOOPBACK_DMA_NET)) {
+	if (cfg->priv_flags & BIT(AQ_HW_LOOPBACK_DMA_NET)) {
 		err = NETDEV_TX_BUSY;
 		goto err_exit;
 	}

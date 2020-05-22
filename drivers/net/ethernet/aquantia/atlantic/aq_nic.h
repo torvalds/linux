@@ -81,15 +81,16 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_WOL_MODES        (WAKE_MAGIC |\
 				 WAKE_PHY)
 
-#define AQ_NIC_RING_PER_TC(_NIC_) \
-	(((_NIC_)->aq_nic_cfg.tc_mode == AQ_TC_MODE_4TCS) ? 8 : 4)
+#define AQ_NIC_CFG_RING_PER_TC(_NIC_CFG_) \
+	(((_NIC_CFG_)->tc_mode == AQ_TC_MODE_4TCS) ? 8 : 4)
 
-#define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
-	((_TC_) * AQ_NIC_RING_PER_TC(_NIC_) + (_VEC_))
+#define AQ_NIC_CFG_TCVEC2RING(_NIC_CFG_, _TC_, _VEC_) \
+	((_TC_) * AQ_NIC_CFG_RING_PER_TC(_NIC_CFG_) + (_VEC_))
 
 #define AQ_NIC_RING2QMAP(_NIC_, _ID_) \
-	((_ID_) / AQ_NIC_RING_PER_TC(_NIC_) * (_NIC_)->aq_vecs + \
-	((_ID_) % AQ_NIC_RING_PER_TC(_NIC_)))
+	((_ID_) / AQ_NIC_CFG_RING_PER_TC(&(_NIC_)->aq_nic_cfg) * \
+		(_NIC_)->aq_vecs + \
+	((_ID_) % AQ_NIC_CFG_RING_PER_TC(&(_NIC_)->aq_nic_cfg)))
 
 struct aq_hw_rx_fl2 {
 	struct aq_rx_filter_vlan aq_vlans[AQ_VLAN_MAX_FILTERS];

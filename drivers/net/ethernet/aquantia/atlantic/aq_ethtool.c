@@ -254,7 +254,7 @@ static void aq_ethtool_get_strings(struct net_device *ndev,
 					snprintf(p, ETH_GSTRING_LEN,
 					     aq_ethtool_queue_stat_names[si],
 					     tc_string,
-					     AQ_NIC_TCVEC2RING(nic, tc, i));
+					     AQ_NIC_CFG_TCVEC2RING(cfg, tc, i));
 					p += ETH_GSTRING_LEN;
 				}
 			}
