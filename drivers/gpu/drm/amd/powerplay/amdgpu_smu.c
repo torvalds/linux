@@ -563,10 +563,8 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 
 bool is_support_sw_smu(struct amdgpu_device *adev)
 {
-	if (adev->asic_type >= CHIP_ARCTURUS) {
-	      if (amdgpu_sriov_is_pp_one_vf(adev) || !amdgpu_sriov_vf(adev))
-			return true;
-	}
+	if (adev->asic_type >= CHIP_ARCTURUS)
+		return true;
 
 	return false;
 }
@@ -1109,59 +1107,54 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 
 	/* smu_dump_pptable(smu); */
-	if (!amdgpu_sriov_vf(adev)) {
-		/*
-		 * Copy pptable bo in the vram to smc with SMU MSGs such as
-		 * SetDriverDramAddr and TransferTableDram2Smu.
-		 */
-		ret = smu_write_pptable(smu);
-		if (ret)
-			return ret;
+	/*
+	 * Copy pptable bo in the vram to smc with SMU MSGs such as
+	 * SetDriverDramAddr and TransferTableDram2Smu.
+	 */
+	ret = smu_write_pptable(smu);
+	if (ret)
+		return ret;
 
-		/* issue Run*Btc msg */
-		ret = smu_run_btc(smu);
-		if (ret)
-			return ret;
-		ret = smu_feature_set_allowed_mask(smu);
-		if (ret)
-			return ret;
+	/* issue Run*Btc msg */
+	ret = smu_run_btc(smu);
+	if (ret)
+		return ret;
+	ret = smu_feature_set_allowed_mask(smu);
+	if (ret)
+		return ret;
 
-		ret = smu_system_features_control(smu, true);
-		if (ret)
-			return ret;
+	ret = smu_system_features_control(smu, true);
+	if (ret)
+		return ret;
 
-		if (adev->asic_type == CHIP_NAVI10) {
-			if ((adev->pdev->device == 0x731f && (adev->pdev->revision == 0xc2 ||
-							      adev->pdev->revision == 0xc3 ||
-							      adev->pdev->revision == 0xca ||
-							      adev->pdev->revision == 0xcb)) ||
-			    (adev->pdev->device == 0x66af && (adev->pdev->revision == 0xf3 ||
-							      adev->pdev->revision == 0xf4 ||
-							      adev->pdev->revision == 0xf5 ||
-							      adev->pdev->revision == 0xf6))) {
-				ret = smu_disable_umc_cdr_12gbps_workaround(smu);
-				if (ret) {
-					pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
-					return ret;
-				}
-			}
-		}
-
-		if (smu->ppt_funcs->set_power_source) {
-			/*
-			 * For Navi1X, manually switch it to AC mode as PMFW
-			 * may boot it with DC mode.
-			 */
-			if (adev->pm.ac_power)
-				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
-			else
-				ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
+	if (adev->asic_type == CHIP_NAVI10) {
+		if (adev->pdev->device == 0x731f && (adev->pdev->revision == 0xc2 ||
+						     adev->pdev->revision == 0xc3 ||
+						     adev->pdev->revision == 0xca ||
+						     adev->pdev->revision == 0xcb)) {
+			ret = smu_disable_umc_cdr_12gbps_workaround(smu);
 			if (ret) {
-				pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
+				pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
 				return ret;
 			}
 		}
 	}
+
+	if (smu->ppt_funcs->set_power_source) {
+		/*
+		 * For Navi1X, manually switch it to AC mode as PMFW
+		 * may boot it with DC mode.
+		 */
+		if (adev->pm.ac_power)
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
+		else
+			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
+		if (ret) {
+			pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
+			return ret;
+		}
+	}
+
 	if (adev->asic_type != CHIP_ARCTURUS) {
 		ret = smu_notify_display_change(smu);
 		if (ret)
@@ -1214,9 +1207,8 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	/*
 	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
 	 */
-	if (!amdgpu_sriov_vf(adev)) {
-		ret = smu_set_tool_table_location(smu);
-	}
+	ret = smu_set_tool_table_location(smu);
+
 	if (!smu_is_dpm_running(smu))
 		pr_info("dpm has been disabled\n");
 
@@ -1376,9 +1368,6 @@ failed:
 
 static int smu_stop_dpms(struct smu_context *smu)
 {
-	if (amdgpu_sriov_vf(smu->adev))
-		return 0;
-
 	return smu_system_features_control(smu, false);
 }
 
@@ -1403,34 +1392,34 @@ static int smu_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	if (!amdgpu_sriov_vf(adev)){
+	if (!amdgpu_sriov_vf(adev)) {
 		smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
+	}
 
-		ret = smu_stop_thermal_control(smu);
+	ret = smu_stop_thermal_control(smu);
+	if (ret) {
+		pr_warn("Fail to stop thermal control!\n");
+		return ret;
+	}
+
+	/*
+	 * For custom pptable uploading, skip the DPM features
+	 * disable process on Navi1x ASICs.
+	 *   - As the gfx related features are under control of
+	 *     RLC on those ASICs. RLC reinitialization will be
+	 *     needed to reenable them. That will cost much more
+	 *     efforts.
+	 *
+	 *   - SMU firmware can handle the DPM reenablement
+	 *     properly.
+	 */
+	if (!smu->uploading_custom_pp_table ||
+			!((adev->asic_type >= CHIP_NAVI10) &&
+				(adev->asic_type <= CHIP_NAVI12))) {
+		ret = smu_stop_dpms(smu);
 		if (ret) {
-			pr_warn("Fail to stop thermal control!\n");
+			pr_warn("Fail to stop Dpms!\n");
 			return ret;
-		}
-
-		/*
-		 * For custom pptable uploading, skip the DPM features
-		 * disable process on Navi1x ASICs.
-		 *   - As the gfx related features are under control of
-		 *     RLC on those ASICs. RLC reinitialization will be
-		 *     needed to reenable them. That will cost much more
-		 *     efforts.
-		 *
-		 *   - SMU firmware can handle the DPM reenablement
-		 *     properly.
-		 */
-		if (!smu->uploading_custom_pp_table ||
-				!((adev->asic_type >= CHIP_NAVI10) &&
-					(adev->asic_type <= CHIP_NAVI12))) {
-			ret = smu_stop_dpms(smu);
-			if (ret) {
-				pr_warn("Fail to stop Dpms!\n");
-				return ret;
-			}
 		}
 	}
 
@@ -1548,11 +1537,11 @@ static int smu_suspend(void *handle)
 
 	if (!amdgpu_sriov_vf(adev)) {
 		smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
-
-		ret = smu_disable_dpm(smu);
-		if (ret)
-			return ret;
 	}
+
+	ret = smu_disable_dpm(smu);
+	if (ret)
+		return ret;
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
