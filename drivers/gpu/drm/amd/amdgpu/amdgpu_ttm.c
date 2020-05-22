@@ -1860,10 +1860,13 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	bool mem_train_support = false;
 
 	if (!amdgpu_sriov_vf(adev)) {
-		if (adev->fw_vram_usage.mem_train_support) {
+		ret = amdgpu_mem_train_support(adev);
+		if (ret == 1) {
 			mem_train_support = true;
 			amdgpu_ttm_training_data_block_init(adev);
-		} else
+		} else if (ret == -1)
+			return -EINVAL;
+		else
 			DRM_DEBUG("memory training does not support!\n");
 	}
 

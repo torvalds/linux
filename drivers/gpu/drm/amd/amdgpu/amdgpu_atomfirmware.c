@@ -516,7 +516,7 @@ static bool gddr6_mem_train_vbios_support(struct amdgpu_device *adev)
 	return false;
 }
 
-static int gddr6_mem_train_support(struct amdgpu_device *adev)
+int amdgpu_mem_train_support(struct amdgpu_device *adev)
 {
 	int ret;
 	uint32_t major, minor, revision, hw_v;
@@ -549,51 +549,6 @@ static int gddr6_mem_train_support(struct amdgpu_device *adev)
 
 	DRM_DEBUG("mp0 hw_v %08x, ret:%d.\n", hw_v, ret);
 	return ret;
-}
-
-int amdgpu_atomfirmware_get_mem_train_info(struct amdgpu_device *adev)
-{
-	struct atom_context *ctx = adev->mode_info.atom_context;
-	int index;
-	uint8_t frev, crev;
-	uint16_t data_offset, size;
-	int ret;
-
-	adev->fw_vram_usage.mem_train_support = false;
-
-	if (adev->asic_type != CHIP_NAVI10 &&
-	    adev->asic_type != CHIP_NAVI14 &&
-	    adev->asic_type != CHIP_SIENNA_CICHLID)
-		return 0;
-
-	if (amdgpu_sriov_vf(adev))
-		return 0;
-
-	ret = gddr6_mem_train_support(adev);
-	if (ret == -1)
-		return -EINVAL;
-	else if (ret == 0)
-		return 0;
-
-	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-					    vram_usagebyfirmware);
-	ret = amdgpu_atom_parse_data_header(ctx, index, &size, &frev, &crev,
-					    &data_offset);
-	if (ret == 0) {
-		DRM_ERROR("parse data header failed.\n");
-		return -EINVAL;
-	}
-
-	DRM_DEBUG("atom firmware common table header size:0x%04x, frev:0x%02x,"
-		  " crev:0x%02x, data_offset:0x%04x.\n", size, frev, crev, data_offset);
-	/* only support 2.1+ */
-	if (((uint16_t)frev << 8 | crev) < 0x0201) {
-		DRM_ERROR("frev:0x%02x, crev:0x%02x < 2.1 !\n", frev, crev);
-		return -EINVAL;
-	}
-
-	adev->fw_vram_usage.mem_train_support = true;
-	return 0;
 }
 
 int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)

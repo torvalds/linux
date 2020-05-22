@@ -652,10 +652,6 @@ struct amdgpu_fw_vram_usage {
 	u64 size;
 	struct amdgpu_bo *reserved_bo;
 	void *va;
-
-	/* GDDR6 training support flag.
-	*/
-	bool mem_train_support;
 };
 
 /*
