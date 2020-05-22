@@ -337,9 +337,12 @@ static int aq_validate_mqprio_opt(struct aq_nic_s *self,
 				  const unsigned int num_tc)
 {
 	const bool has_min_rate = !!(mqprio->flags & TC_MQPRIO_F_MIN_RATE);
+	struct aq_nic_cfg_s *aq_nic_cfg = aq_nic_get_cfg(self);
+	const unsigned int tcs_max = min_t(u8, aq_nic_cfg->aq_hw_caps->tcs_max,
+					   AQ_CFG_TCS_MAX);
 	int i;
 
-	if (num_tc > aq_hw_num_tcs(self->aq_hw)) {
+	if (num_tc > tcs_max) {
 		netdev_err(self->ndev, "Too many TCs requested\n");
 		return -EOPNOTSUPP;
 	}

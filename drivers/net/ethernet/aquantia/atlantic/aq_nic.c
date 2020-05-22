@@ -65,6 +65,33 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 		rss_params->indirection_table[i] = i & (num_rss_queues - 1);
 }
 
+/* Recalculate the number of vectors */
+static void aq_nic_cfg_update_num_vecs(struct aq_nic_s *self)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
+	cfg->vecs = min(cfg->vecs, num_online_cpus());
+	if (self->irqvecs > AQ_HW_SERVICE_IRQS)
+		cfg->vecs = min(cfg->vecs, self->irqvecs - AQ_HW_SERVICE_IRQS);
+	/* cfg->vecs should be power of 2 for RSS */
+	cfg->vecs = rounddown_pow_of_two(cfg->vecs);
+
+	if (ATL_HW_IS_CHIP_FEATURE(self->aq_hw, ANTIGUA)) {
+		if (cfg->tcs > 2)
+			cfg->vecs = min(cfg->vecs, 4U);
+	}
+
+	if (cfg->vecs <= 4)
+		cfg->tc_mode = AQ_TC_MODE_8TCS;
+	else
+		cfg->tc_mode = AQ_TC_MODE_4TCS;
+
+	/*rss rings */
+	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
+	aq_nic_rss_init(self, cfg->num_rss_queues);
+}
+
 /* Checks hw_caps and 'corrects' aq_nic_cfg in runtime */
 void aq_nic_cfg_start(struct aq_nic_s *self)
 {
@@ -81,7 +108,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->rxpageorder = AQ_CFG_RX_PAGEORDER;
 	cfg->is_rss = AQ_CFG_IS_RSS_DEF;
-	cfg->num_rss_queues = AQ_CFG_NUM_RSS_QUEUES_DEF;
 	cfg->aq_rss.base_cpu_number = AQ_CFG_RSS_BASE_CPU_NUM_DEF;
 	cfg->fc.req = AQ_CFG_FC_MODE;
 	cfg->wol = AQ_CFG_WOL_MODES;
@@ -97,24 +123,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
 	cfg->txds = min(cfg->aq_hw_caps->txds_max, AQ_CFG_TXDS_DEF);
 
-	/*rss rings */
-	cfg->vecs = min(cfg->aq_hw_caps->vecs, AQ_CFG_VECS_DEF);
-	cfg->vecs = min(cfg->vecs, num_online_cpus());
-	if (self->irqvecs > AQ_HW_SERVICE_IRQS)
-		cfg->vecs = min(cfg->vecs, self->irqvecs - AQ_HW_SERVICE_IRQS);
-	/* cfg->vecs should be power of 2 for RSS */
-	if (cfg->vecs >= 8U)
-		cfg->vecs = 8U;
-	else if (cfg->vecs >= 4U)
-		cfg->vecs = 4U;
-	else if (cfg->vecs >= 2U)
-		cfg->vecs = 2U;
-	else
-		cfg->vecs = 1U;
-
-	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
-
-	aq_nic_rss_init(self, cfg->num_rss_queues);
+	aq_nic_cfg_update_num_vecs(self);
 
 	cfg->irq_type = aq_pci_func_get_irq_type(self);
 
@@ -124,11 +133,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->is_rss = 0U;
 		cfg->vecs = 1U;
 	}
-
-	if (cfg->vecs <= 4)
-		cfg->tc_mode = AQ_TC_MODE_8TCS;
-	else
-		cfg->tc_mode = AQ_TC_MODE_4TCS;
 
 	/* Check if we have enough vectors allocated for
 	 * link status IRQ. If no - we'll know link state from
@@ -1219,6 +1223,22 @@ void aq_nic_free_vectors(struct aq_nic_s *self)
 err_exit:;
 }
 
+int aq_nic_realloc_vectors(struct aq_nic_s *self)
+{
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(self);
+
+	aq_nic_free_vectors(self);
+
+	for (self->aq_vecs = 0; self->aq_vecs < cfg->vecs; self->aq_vecs++) {
+		self->aq_vec[self->aq_vecs] = aq_vec_alloc(self, self->aq_vecs,
+							   cfg);
+		if (unlikely(!self->aq_vec[self->aq_vecs]))
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 void aq_nic_shutdown(struct aq_nic_s *self)
 {
 	int err = 0;
@@ -1288,6 +1308,7 @@ void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
 {
 	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	const unsigned int prev_vecs = cfg->vecs;
 	bool ndev_running;
 	int err = 0;
 	int i;
@@ -1319,9 +1340,18 @@ int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
 
 	netdev_set_num_tc(self->ndev, cfg->tcs);
 
+	/* Changing the number of TCs might change the number of vectors */
+	aq_nic_cfg_update_num_vecs(self);
+	if (prev_vecs != cfg->vecs) {
+		err = aq_nic_realloc_vectors(self);
+		if (err)
+			goto err_exit;
+	}
+
 	if (ndev_running)
 		err = dev_open(self->ndev, NULL);
 
+err_exit:
 	return err;
 }
 

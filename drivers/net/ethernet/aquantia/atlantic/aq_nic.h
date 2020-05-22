@@ -177,6 +177,7 @@ void aq_nic_deinit(struct aq_nic_s *self, bool link_down);
 void aq_nic_set_power(struct aq_nic_s *self);
 void aq_nic_free_hot_resources(struct aq_nic_s *self);
 void aq_nic_free_vectors(struct aq_nic_s *self);
+int aq_nic_realloc_vectors(struct aq_nic_s *self);
 int aq_nic_set_mtu(struct aq_nic_s *self, int new_mtu);
 int aq_nic_set_mac(struct aq_nic_s *self, struct net_device *ndev);
 int aq_nic_set_packet_filter(struct aq_nic_s *self, unsigned int flags);
