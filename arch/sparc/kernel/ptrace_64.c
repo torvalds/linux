@@ -518,10 +518,10 @@ static int genregs32_get(struct task_struct *target,
 			 void *kbuf, void __user *ubuf)
 {
 	const struct pt_regs *regs = task_pt_regs(target);
-	compat_ulong_t __user *reg_window;
 	compat_ulong_t *k = kbuf;
 	compat_ulong_t __user *u = ubuf;
-	compat_ulong_t reg;
+	u32 uregs[16];
+	u32 reg;
 
 	if (target == current)
 		flushw_user();
@@ -533,52 +533,25 @@ static int genregs32_get(struct task_struct *target,
 		for (; count > 0 && pos < 16; count--)
 			*k++ = regs->u_regs[pos++];
 
-		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		reg_window -= 16;
-		if (target == current) {
-			for (; count > 0 && pos < 32; count--) {
-				if (get_user(*k++, &reg_window[pos++]))
-					return -EFAULT;
-			}
-		} else {
-			for (; count > 0 && pos < 32; count--) {
-				if (access_process_vm(target,
-						      (unsigned long)
-						      &reg_window[pos],
-						      k, sizeof(*k),
-						      FOLL_FORCE)
-				    != sizeof(*k))
-					return -EFAULT;
-				k++;
-				pos++;
-			}
+		if (count && pos < 32) {
+			if (get_from_target(target, regs->u_regs[UREG_I6],
+					uregs, sizeof(uregs)))
+				return -EFAULT;
+			for (; count > 0 && pos < 32; count--)
+				*k++ = uregs[pos++ - 16];
+
 		}
 	} else {
-		for (; count > 0 && pos < 16; count--) {
+		for (; count > 0 && pos < 16; count--)
 			if (put_user((compat_ulong_t) regs->u_regs[pos++], u++))
 				return -EFAULT;
-		}
-
-		reg_window = (compat_ulong_t __user *) regs->u_regs[UREG_I6];
-		reg_window -= 16;
-		if (target == current) {
-			for (; count > 0 && pos < 32; count--) {
-				if (get_user(reg, &reg_window[pos++]) ||
-				    put_user(reg, u++))
+		if (count && pos < 32) {
+			if (get_from_target(target, regs->u_regs[UREG_I6],
+					uregs, sizeof(uregs)))
+				return -EFAULT;
+			for (; count > 0 && pos < 32; count--)
+				if (put_user(uregs[pos++ - 16], u++))
 					return -EFAULT;
-			}
-		} else {
-			for (; count > 0 && pos < 32; count--) {
-				if (access_process_vm(target,
-						      (unsigned long)
-						      &reg_window[pos++],
-						      &reg, sizeof(reg),
-						      FOLL_FORCE)
-				    != sizeof(reg))
-					return -EFAULT;
-				if (put_user(reg, u++))
-					return -EFAULT;
-			}
 		}
 	}
 	while (count > 0) {
