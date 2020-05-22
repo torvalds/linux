@@ -69,6 +69,8 @@ endif
 
 # ===========================================================================
 
+subdir-obj-y := $(filter %/built-in.a, $(real-obj-y))
+
 ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
 lib-target := $(obj)/lib.a
 endif
