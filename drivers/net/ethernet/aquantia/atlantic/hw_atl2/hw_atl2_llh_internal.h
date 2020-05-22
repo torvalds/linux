@@ -6,6 +6,16 @@
 #ifndef HW_ATL2_LLH_INTERNAL_H
 #define HW_ATL2_LLH_INTERNAL_H
 
+/* RX pif_rpf_redir_2_en_i Bitfield Definitions
+ * PORT="pif_rpf_redir_2_en_i"
+ */
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_ADR 0x000054C8
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_MSK 0x00001000
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_MSKN 0xFFFFEFFF
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_SHIFT 12
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_WIDTH 1
+#define HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_DEFAULT 0x0
+
 /* RX pif_rpf_rss_hash_type_i Bitfield Definitions
  */
 #define HW_ATL2_RPF_PIF_RPF_RSS_HASH_TYPEI_ADR 0x000054C8

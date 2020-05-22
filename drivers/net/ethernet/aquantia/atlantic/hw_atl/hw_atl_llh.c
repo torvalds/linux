@@ -754,7 +754,7 @@ void hw_atl_rpfl2_accept_all_mc_packets_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
-					     u32 user_priority_tc_map, u32 tc)
+					     u32 user_priority, u32 tc)
 {
 /* register address for bitfield rx_tc_up{t}[2:0] */
 	static u32 rpf_rpb_rx_tc_upt_adr[8] = {
@@ -773,10 +773,9 @@ void hw_atl_rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
 			0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U
 		};
 
-	aq_hw_write_reg_bit(aq_hw, rpf_rpb_rx_tc_upt_adr[tc],
-			    rpf_rpb_rx_tc_upt_msk[tc],
-			    rpf_rpb_rx_tc_upt_shft[tc],
-			    user_priority_tc_map);
+	aq_hw_write_reg_bit(aq_hw, rpf_rpb_rx_tc_upt_adr[user_priority],
+			    rpf_rpb_rx_tc_upt_msk[user_priority],
+			    rpf_rpb_rx_tc_upt_shft[user_priority], tc);
 }
 
 void hw_atl_rpf_rss_key_addr_set(struct aq_hw_s *aq_hw, u32 rss_key_addr)

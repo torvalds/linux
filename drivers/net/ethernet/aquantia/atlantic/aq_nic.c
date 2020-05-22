@@ -26,6 +26,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <net/ip.h>
+#include <net/pkt_cls.h>
 
 static unsigned int aq_itr = AQ_CFG_INTERRUPT_MODERATION_AUTO;
 module_param_named(aq_itr, aq_itr, uint, 0644);
@@ -68,6 +69,7 @@ static void aq_nic_rss_init(struct aq_nic_s *self, unsigned int num_rss_queues)
 void aq_nic_cfg_start(struct aq_nic_s *self)
 {
 	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	int i;
 
 	cfg->tcs = AQ_CFG_TCS_DEF;
 
@@ -142,6 +144,9 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->is_vlan_rx_strip = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_RX);
 	cfg->is_vlan_tx_insert = !!(cfg->features & NETIF_F_HW_VLAN_CTAG_TX);
 	cfg->is_vlan_force_promisc = true;
+
+	for (i = 0; i < sizeof(cfg->prio_tc_map); i++)
+		cfg->prio_tc_map[i] = cfg->tcs * i / 8;
 }
 
 static int aq_nic_update_link_status(struct aq_nic_s *self)
@@ -517,14 +522,21 @@ int aq_nic_start(struct aq_nic_s *self)
 			goto err_exit;
 	}
 
-	err = netif_set_real_num_tx_queues(self->ndev, self->aq_vecs);
+	err = netif_set_real_num_tx_queues(self->ndev,
+					   self->aq_vecs * cfg->tcs);
 	if (err < 0)
 		goto err_exit;
 
-	err = netif_set_real_num_rx_queues(self->ndev, self->aq_vecs);
+	err = netif_set_real_num_rx_queues(self->ndev,
+					   self->aq_vecs * cfg->tcs);
 	if (err < 0)
 		goto err_exit;
 
+	for (i = 0; i < cfg->tcs; i++) {
+		u16 offset = self->aq_vecs * i;
+
+		netdev_set_tc_queue(self->ndev, i, self->aq_vecs, offset);
+	}
 	netif_tx_start_all_queues(self->ndev);
 
 err_exit:
@@ -690,10 +702,10 @@ exit:
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 {
 	unsigned int vec = skb->queue_mapping % self->aq_nic_cfg.vecs;
+	unsigned int tc = skb->queue_mapping / self->aq_nic_cfg.vecs;
 	struct aq_ring_s *ring = NULL;
 	unsigned int frags = 0U;
 	int err = NETDEV_TX_OK;
-	unsigned int tc = 0U;
 
 	frags = skb_shinfo(skb)->nr_frags + 1;
 
@@ -712,7 +724,8 @@ int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)
 	}
 
 	/* Above status update may stop the queue. Check this. */
-	if (__netif_subqueue_stopped(self->ndev, ring->idx)) {
+	if (__netif_subqueue_stopped(self->ndev,
+				     AQ_NIC_RING2QMAP(self, ring->idx))) {
 		err = NETDEV_TX_BUSY;
 		goto err_exit;
 	}
@@ -1265,4 +1278,44 @@ void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 	default:
 		break;
 	}
+}
+
+int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+	bool ndev_running;
+	int err = 0;
+	int i;
+
+	/* if already the same configuration or
+	 * disable request (tcs is 0) and we already is disabled
+	 */
+	if (tcs == cfg->tcs || (tcs == 0 && !cfg->is_qos))
+		return 0;
+
+	ndev_running = netif_running(self->ndev);
+	if (ndev_running)
+		dev_close(self->ndev);
+
+	cfg->tcs = tcs;
+	if (cfg->tcs == 0)
+		cfg->tcs = 1;
+	if (prio_tc_map)
+		memcpy(cfg->prio_tc_map, prio_tc_map, sizeof(cfg->prio_tc_map));
+	else
+		for (i = 0; i < sizeof(cfg->prio_tc_map); i++)
+			cfg->prio_tc_map[i] = cfg->tcs * i / 8;
+
+	cfg->is_qos = (tcs != 0 ? true : false);
+	cfg->is_ptp = (cfg->tcs <= AQ_HW_PTP_TC);
+	if (!cfg->is_ptp)
+		netdev_warn(self->ndev, "%s\n",
+			    "PTP is auto disabled due to requested TC count.");
+
+	netdev_set_num_tc(self->ndev, cfg->tcs);
+
+	if (ndev_running)
+		err = dev_open(self->ndev, NULL);
+
+	return err;
 }

@@ -15,6 +15,10 @@ void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 					u32 tx_intr_moderation_ctl,
 					u32 queue);
 
+/* Set Redirection Table 2 Select */
+void hw_atl2_rpf_redirection_table2_select_set(struct aq_hw_s *aq_hw,
+					       u32 select);
+
 /** Set RSS HASH type */
 void hw_atl2_rpf_rss_hash_type_set(struct aq_hw_s *aq_hw, u32 rss_hash_type);
 

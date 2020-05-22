@@ -124,6 +124,7 @@ struct aq_stats_s {
 #define AQ_HW_TXD_MULTIPLE 8U
 #define AQ_HW_RXD_MULTIPLE 8U
 
+#define AQ_HW_QUEUES_MAX                32U
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
 
 #define AQ_HW_PTP_TC                    2U

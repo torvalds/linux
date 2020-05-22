@@ -7,6 +7,14 @@
 #include "hw_atl2_llh_internal.h"
 #include "aq_hw_utils.h"
 
+void hw_atl2_rpf_redirection_table2_select_set(struct aq_hw_s *aq_hw,
+					       u32 select)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_ADR,
+			    HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_MSK,
+			    HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_SHIFT, select);
+}
+
 void hw_atl2_rpf_rss_hash_type_set(struct aq_hw_s *aq_hw, u32 rss_hash_type)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_RPF_PIF_RPF_RSS_HASH_TYPEI_ADR,

@@ -59,10 +59,12 @@ struct aq_nic_cfg_s {
 	bool is_polling;
 	bool is_rss;
 	bool is_lro;
+	bool is_qos;
 	bool is_ptp;
 	enum aq_tc_mode tc_mode;
 	u32 priv_flags;
 	u8  tcs;
+	u8 prio_tc_map[8];
 	struct aq_rss_parameters aq_rss;
 	u32 eee_speeds;
 };
@@ -79,8 +81,15 @@ struct aq_nic_cfg_s {
 #define AQ_NIC_WOL_MODES        (WAKE_MAGIC |\
 				 WAKE_PHY)
 
+#define AQ_NIC_RING_PER_TC(_NIC_) \
+	(((_NIC_)->aq_nic_cfg.tc_mode == AQ_TC_MODE_4TCS) ? 8 : 4)
+
 #define AQ_NIC_TCVEC2RING(_NIC_, _TC_, _VEC_) \
-	((_TC_) * AQ_CFG_TCS_MAX + (_VEC_))
+	((_TC_) * AQ_NIC_RING_PER_TC(_NIC_) + (_VEC_))
+
+#define AQ_NIC_RING2QMAP(_NIC_, _ID_) \
+	((_ID_) / AQ_NIC_RING_PER_TC(_NIC_) * (_NIC_)->aq_vecs + \
+	((_ID_) % AQ_NIC_RING_PER_TC(_NIC_)))
 
 struct aq_hw_rx_fl2 {
 	struct aq_rx_filter_vlan aq_vlans[AQ_VLAN_MAX_FILTERS];
@@ -106,7 +115,7 @@ struct aq_nic_s {
 	atomic_t flags;
 	u32 msg_enable;
 	struct aq_vec_s *aq_vec[AQ_CFG_VECS_MAX];
-	struct aq_ring_s *aq_ring_tx[AQ_CFG_VECS_MAX * AQ_CFG_TCS_MAX];
+	struct aq_ring_s *aq_ring_tx[AQ_HW_QUEUES_MAX];
 	struct aq_hw_s *aq_hw;
 	struct net_device *ndev;
 	unsigned int aq_vecs;
@@ -183,4 +192,5 @@ void aq_nic_shutdown(struct aq_nic_s *self);
 u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type);
 void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 			   u32 location);
+int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map);
 #endif /* AQ_NIC_H */
