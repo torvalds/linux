@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat Inc.
+ * Copyright 2020 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,36 +19,42 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "ior.h"
+#define gv100_disp_caps(p) container_of((p), struct gv100_disp_caps, object)
+#include "rootnv50.h"
 
-static const struct nvkm_ior_func
-gk104_sor = {
-	.state = gf119_sor_state,
-	.power = nv50_sor_power,
-	.clock = gf119_sor_clock,
-	.hdmi = {
-		.ctrl = gk104_hdmi_ctrl,
-	},
-	.dp = {
-		.lanes = { 2, 1, 0, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gf119_sor_dp_pattern,
-		.drive = gf119_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
-	.hda = {
-		.hpd = gf119_hda_hpd,
-		.eld = gf119_hda_eld,
-		.device_entry = gf119_hda_device_entry,
-	},
+struct gv100_disp_caps {
+	struct nvkm_object object;
+	struct nv50_disp *disp;
+};
+
+static int
+gv100_disp_caps_map(struct nvkm_object *object, void *argv, u32 argc,
+		    enum nvkm_object_map *type, u64 *addr, u64 *size)
+{
+	struct gv100_disp_caps *caps = gv100_disp_caps(object);
+	struct nvkm_device *device = caps->disp->base.engine.subdev.device;
+	*type = NVKM_OBJECT_MAP_IO;
+	*addr = 0x640000 + device->func->resource_addr(device, 0);
+	*size = 0x1000;
+	return 0;
+}
+
+static const struct nvkm_object_func
+gv100_disp_caps = {
+	.map = gv100_disp_caps_map,
 };
 
 int
-gk104_sor_new(struct nvkm_disp *disp, int id)
+gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
+		    struct nv50_disp *disp, struct nvkm_object **pobject)
 {
-	return nvkm_ior_new_(&gk104_sor, disp, SOR, id);
+	struct gv100_disp_caps *caps;
+
+	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))
+		return -ENOMEM;
+	*pobject = &caps->object;
+
+	nvkm_object_ctor(&gv100_disp_caps, oclass, &caps->object);
+	caps->disp = disp;
+	return 0;
 }

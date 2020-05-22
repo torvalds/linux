@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Red Hat Inc.
+ * Copyright 2020 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,34 +21,10 @@
  */
 #include "ior.h"
 
-static const struct nvkm_ior_func
-gk104_sor = {
-	.state = gf119_sor_state,
-	.power = nv50_sor_power,
-	.clock = gf119_sor_clock,
-	.hdmi = {
-		.ctrl = gk104_hdmi_ctrl,
-	},
-	.dp = {
-		.lanes = { 2, 1, 0, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gf119_sor_dp_pattern,
-		.drive = gf119_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
-	.hda = {
-		.hpd = gf119_hda_hpd,
-		.eld = gf119_hda_eld,
-		.device_entry = gf119_hda_device_entry,
-	},
-};
-
-int
-gk104_sor_new(struct nvkm_disp *disp, int id)
+void
+gv100_hda_device_entry(struct nvkm_ior *ior, int head)
 {
-	return nvkm_ior_new_(&gk104_sor, disp, SOR, id);
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 hoff = 0x800 * head;
+	nvkm_mask(device, 0x616528 + hoff, 0x00000070, head << 4);
 }
