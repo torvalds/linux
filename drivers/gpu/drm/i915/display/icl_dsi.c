@@ -1949,6 +1949,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	return;
 
 err:
+	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(&encoder->base);
 	kfree(intel_dsi);
 	kfree(intel_connector);
