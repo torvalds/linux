@@ -1978,7 +1978,13 @@ void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl, bool fsid)
 	char gflags_buf[32];
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 	char fs_id_buf[sizeof(sdp->sd_fsname) + 7];
+	unsigned long nrpages = 0;
 
+	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
+		struct address_space *mapping = gfs2_glock2aspace(gl);
+
+		nrpages = mapping->nrpages;
+	}
 	memset(fs_id_buf, 0, sizeof(fs_id_buf));
 	if (fsid && sdp) /* safety precaution */
 		sprintf(fs_id_buf, "fsid=%s: ", sdp->sd_fsname);
@@ -1987,15 +1993,16 @@ void gfs2_dump_glock(struct seq_file *seq, struct gfs2_glock *gl, bool fsid)
 	if (!test_bit(GLF_DEMOTE, &gl->gl_flags))
 		dtime = 0;
 	gfs2_print_dbg(seq, "%sG:  s:%s n:%u/%llx f:%s t:%s d:%s/%llu a:%d "
-		       "v:%d r:%d m:%ld\n", fs_id_buf, state2str(gl->gl_state),
-		  gl->gl_name.ln_type,
-		  (unsigned long long)gl->gl_name.ln_number,
-		  gflags2str(gflags_buf, gl),
-		  state2str(gl->gl_target),
-		  state2str(gl->gl_demote_state), dtime,
-		  atomic_read(&gl->gl_ail_count),
-		  atomic_read(&gl->gl_revokes),
-		  (int)gl->gl_lockref.count, gl->gl_hold_time);
+		       "v:%d r:%d m:%ld p:%lu\n",
+		       fs_id_buf, state2str(gl->gl_state),
+		       gl->gl_name.ln_type,
+		       (unsigned long long)gl->gl_name.ln_number,
+		       gflags2str(gflags_buf, gl),
+		       state2str(gl->gl_target),
+		       state2str(gl->gl_demote_state), dtime,
+		       atomic_read(&gl->gl_ail_count),
+		       atomic_read(&gl->gl_revokes),
+		       (int)gl->gl_lockref.count, gl->gl_hold_time, nrpages);
 
 	list_for_each_entry(gh, &gl->gl_holders, gh_list)
 		dump_holder(seq, gh, fs_id_buf);
