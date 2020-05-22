@@ -699,7 +699,7 @@ static int mpp_wait_result(struct mpp_session *session,
 				session, task);
 			ret = -ETIMEDOUT;
 		} else {
-			ret = mpp_wait_result(session, msgs);
+			return mpp_wait_result(session, msgs);
 		}
 	}
 
