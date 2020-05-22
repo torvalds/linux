@@ -3053,15 +3053,15 @@ bool svm_nmi_blocked(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static bool svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
+static int svm_nmi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
-		return false;
+		return -EBUSY;
 
 	/* An NMI must not be injected into L2 if it's supposed to VM-Exit.  */
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_nmi(svm))
-		return false;
+		return -EBUSY;
 
 	return !svm_nmi_blocked(vcpu);
 }
@@ -3112,18 +3112,18 @@ bool svm_interrupt_blocked(struct kvm_vcpu *vcpu)
 	return (vmcb->control.int_state & SVM_INTERRUPT_SHADOW_MASK);
 }
 
-static bool svm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
+static int svm_interrupt_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
-		return false;
+		return -EBUSY;
 
 	/*
 	 * An IRQ must not be injected into L2 if it's supposed to VM-Exit,
 	 * e.g. if the IRQ arrived asynchronously after checking nested events.
 	 */
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_intr(svm))
-		return false;
+		return -EBUSY;
 
 	return !svm_interrupt_blocked(vcpu);
 }
@@ -3793,15 +3793,15 @@ bool svm_smi_blocked(struct kvm_vcpu *vcpu)
 	return is_smm(vcpu);
 }
 
-static bool svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
+static int svm_smi_allowed(struct kvm_vcpu *vcpu, bool for_injection)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 	if (svm->nested.nested_run_pending)
-		return false;
+		return -EBUSY;
 
 	/* An SMI must not be injected into L2 if it's supposed to VM-Exit.  */
 	if (for_injection && is_guest_mode(vcpu) && nested_exit_on_smi(svm))
-		return false;
+		return -EBUSY;
 
 	return !svm_smi_blocked(vcpu);
 }
@@ -3848,7 +3848,7 @@ static int svm_pre_leave_smm(struct kvm_vcpu *vcpu, const char *smstate)
 	return 0;
 }
 
-static int enable_smi_window(struct kvm_vcpu *vcpu)
+static void enable_smi_window(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
@@ -3856,9 +3856,9 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
 		if (vgif_enabled(svm))
 			set_intercept(svm, INTERCEPT_STGI);
 		/* STGI will cause a vm exit */
-		return 1;
+	} else {
+		/* We must be in SMM; RSM will cause a vmexit anyway.  */
 	}
-	return 0;
 }
 
 static bool svm_need_emulation_on_page_fault(struct kvm_vcpu *vcpu)
