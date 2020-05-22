@@ -20,9 +20,6 @@
 #define RX_BUSY		0
 #define TX_BUSY		1
 
-static struct dw_dma_slave mid_dma_tx = { .dst_id = 1 };
-static struct dw_dma_slave mid_dma_rx = { .src_id = 0 };
-
 static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_dma_slave *s = param;
@@ -36,9 +33,11 @@ static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 
 static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 {
+	struct dw_dma_slave slave = {
+		.src_id = 0,
+		.dst_id = 0
+	};
 	struct pci_dev *dma_dev;
-	struct dw_dma_slave *tx = dws->dma_tx;
-	struct dw_dma_slave *rx = dws->dma_rx;
 	dma_cap_mask_t mask;
 
 	/*
@@ -53,14 +52,14 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* 1. Init rx channel */
-	rx->dma_dev = &dma_dev->dev;
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, rx);
+	slave.dma_dev = &dma_dev->dev;
+	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
 	if (!dws->rxchan)
 		goto err_exit;
 
 	/* 2. Init tx channel */
-	tx->dma_dev = &dma_dev->dev;
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, tx);
+	slave.dst_id = 1;
+	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
 	if (!dws->txchan)
 		goto free_rxchan;
 
@@ -134,10 +133,10 @@ static bool mid_spi_can_dma(struct spi_controller *master,
 	return xfer->len > dws->fifo_len;
 }
 
-static enum dma_slave_buswidth convert_dma_width(u32 dma_width) {
-	if (dma_width == 1)
+static enum dma_slave_buswidth convert_dma_width(u8 n_bytes) {
+	if (n_bytes == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
-	else if (dma_width == 2)
+	else if (n_bytes == 2)
 		return DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
@@ -173,7 +172,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
 	txconf.dst_addr = dws->dma_addr;
 	txconf.dst_maxburst = 16;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = convert_dma_width(dws->dma_width);
+	txconf.dst_addr_width = convert_dma_width(dws->n_bytes);
 	txconf.device_fc = false;
 
 	dmaengine_slave_config(dws->txchan, &txconf);
@@ -222,7 +221,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	rxconf.src_addr = dws->dma_addr;
 	rxconf.src_maxburst = 16;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_addr_width = convert_dma_width(dws->dma_width);
+	rxconf.src_addr_width = convert_dma_width(dws->n_bytes);
 	rxconf.device_fc = false;
 
 	dmaengine_slave_config(dws->rxchan, &rxconf);
@@ -243,19 +242,23 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 
 static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
-	u16 dma_ctrl = 0;
+	u16 imr = 0, dma_ctrl = 0;
 
 	dw_writel(dws, DW_SPI_DMARDLR, 0xf);
 	dw_writel(dws, DW_SPI_DMATDLR, 0x10);
 
-	if (xfer->tx_buf)
+	if (xfer->tx_buf) {
 		dma_ctrl |= SPI_DMA_TDMAE;
-	if (xfer->rx_buf)
+		imr |= SPI_INT_TXOI;
+	}
+	if (xfer->rx_buf) {
 		dma_ctrl |= SPI_DMA_RDMAE;
+		imr |= SPI_INT_RXUI | SPI_INT_RXOI;
+	}
 	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
 	/* Set the interrupt mask */
-	spi_umask_intr(dws, SPI_INT_TXOI | SPI_INT_RXUI | SPI_INT_RXOI);
+	spi_umask_intr(dws, imr);
 
 	dws->transfer_handler = dma_transfer;
 
@@ -313,8 +316,6 @@ static const struct dw_spi_dma_ops mfld_dma_ops = {
 
 static void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws)
 {
-	dws->dma_tx = &mid_dma_tx;
-	dws->dma_rx = &mid_dma_rx;
 	dws->dma_ops = &mfld_dma_ops;
 }
 
