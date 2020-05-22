@@ -1725,7 +1725,7 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 };
 
 static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
-			       uint32_t mask)
+			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
 	const char *attr_name = dev_attr->attr.name;
@@ -1733,7 +1733,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	enum amd_asic_type asic_type = adev->asic_type;
 
 	if (!(attr->flags & mask)) {
-		attr->states = ATTR_STATE_UNSUPPORTED;
+		*states = ATTR_STATE_UNSUPPORTED;
 		return 0;
 	}
 
@@ -1741,34 +1741,34 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
 		if (asic_type < CHIP_VEGA10)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
 		if (asic_type < CHIP_VEGA10 || asic_type == CHIP_ARCTURUS)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (asic_type < CHIP_VEGA20)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_pcie)) {
 		if (asic_type == CHIP_ARCTURUS)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_od_clk_voltage)) {
-		attr->states = ATTR_STATE_UNSUPPORTED;
+		*states = ATTR_STATE_UNSUPPORTED;
 		if ((is_support_sw_smu(adev) && adev->smu.od_enabled) ||
 		    (!is_support_sw_smu(adev) && hwmgr->od_enabled))
-			attr->states = ATTR_STATE_SUPPORTED;
+			*states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
 		if (adev->flags & AMD_IS_APU || asic_type == CHIP_VEGA10)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
 		if (adev->flags & AMD_IS_APU)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(unique_id)) {
 		if (!adev->unique_id)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_features)) {
 		if (adev->flags & AMD_IS_APU || asic_type < CHIP_VEGA10)
-			attr->states = ATTR_STATE_UNSUPPORTED;
+			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
 	if (asic_type == CHIP_ARCTURUS) {
@@ -1789,27 +1789,29 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 				     struct amdgpu_device_attr *attr,
-				     uint32_t mask)
+				     uint32_t mask, struct list_head *attr_list)
 {
 	int ret = 0;
 	struct device_attribute *dev_attr = &attr->dev_attr;
 	const char *name = dev_attr->attr.name;
+	enum amdgpu_device_attr_states attr_states = ATTR_STATE_SUPPORTED;
+	struct amdgpu_device_attr_entry *attr_entry;
+
 	int (*attr_update)(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
-			   uint32_t mask) = default_attr_update;
+			   uint32_t mask, enum amdgpu_device_attr_states *states) = default_attr_update;
 
 	BUG_ON(!attr);
 
 	attr_update = attr->attr_update ? attr_update : default_attr_update;
 
-	ret = attr_update(adev, attr, mask);
+	ret = attr_update(adev, attr, mask, &attr_states);
 	if (ret) {
 		dev_err(adev->dev, "failed to update device file %s, ret = %d\n",
 			name, ret);
 		return ret;
 	}
 
-	/* the attr->states maybe changed after call attr->attr_update function */
-	if (attr->states == ATTR_STATE_UNSUPPORTED)
+	if (attr_states == ATTR_STATE_UNSUPPORTED)
 		return 0;
 
 	ret = device_create_file(adev->dev, dev_attr);
@@ -1818,7 +1820,14 @@ static int amdgpu_device_attr_create(struct amdgpu_device *adev,
 			name, ret);
 	}
 
-	attr->states = ATTR_STATE_SUPPORTED;
+	attr_entry = kmalloc(sizeof(*attr_entry), GFP_KERNEL);
+	if (!attr_entry)
+		return -ENOMEM;
+
+	attr_entry->attr = attr;
+	INIT_LIST_HEAD(&attr_entry->entry);
+
+	list_add_tail(&attr_entry->entry, attr_list);
 
 	return ret;
 }
@@ -1827,24 +1836,23 @@ static void amdgpu_device_attr_remove(struct amdgpu_device *adev, struct amdgpu_
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
 
-	if (attr->states == ATTR_STATE_UNSUPPORTED)
-		return;
-
 	device_remove_file(adev->dev, dev_attr);
-
-	attr->states = ATTR_STATE_UNSUPPORTED;
 }
+
+static void amdgpu_device_attr_remove_groups(struct amdgpu_device *adev,
+					     struct list_head *attr_list);
 
 static int amdgpu_device_attr_create_groups(struct amdgpu_device *adev,
 					    struct amdgpu_device_attr *attrs,
 					    uint32_t counts,
-					    uint32_t mask)
+					    uint32_t mask,
+					    struct list_head *attr_list)
 {
 	int ret = 0;
 	uint32_t i = 0;
 
 	for (i = 0; i < counts; i++) {
-		ret = amdgpu_device_attr_create(adev, &attrs[i], mask);
+		ret = amdgpu_device_attr_create(adev, &attrs[i], mask, attr_list);
 		if (ret)
 			goto failed;
 	}
@@ -1852,20 +1860,24 @@ static int amdgpu_device_attr_create_groups(struct amdgpu_device *adev,
 	return 0;
 
 failed:
-	while (i--)
-		amdgpu_device_attr_remove(adev, &attrs[i]);
+	amdgpu_device_attr_remove_groups(adev, attr_list);
 
 	return ret;
 }
 
 static void amdgpu_device_attr_remove_groups(struct amdgpu_device *adev,
-					     struct amdgpu_device_attr *attrs,
-					     uint32_t counts)
+					     struct list_head *attr_list)
 {
-	uint32_t i = 0;
+	struct amdgpu_device_attr_entry *entry, *entry_tmp;
 
-	for (i = 0; i < counts; i++)
-		amdgpu_device_attr_remove(adev, &attrs[i]);
+	if (list_empty(attr_list))
+		return ;
+
+	list_for_each_entry_safe(entry, entry_tmp, attr_list, entry) {
+		amdgpu_device_attr_remove(adev, entry->attr);
+		list_del(&entry->entry);
+		kfree(entry);
+	}
 }
 
 static ssize_t amdgpu_hwmon_show_temp(struct device *dev,
@@ -3276,6 +3288,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	if (adev->pm.dpm_enabled == 0)
 		return 0;
 
+	INIT_LIST_HEAD(&adev->pm.pm_attr_list);
+
 	adev->pm.int_hwmon_dev = hwmon_device_register_with_groups(adev->dev,
 								   DRIVER_NAME, adev,
 								   hwmon_groups);
@@ -3302,7 +3316,8 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 	ret = amdgpu_device_attr_create_groups(adev,
 					       amdgpu_device_attrs,
 					       ARRAY_SIZE(amdgpu_device_attrs),
-					       mask);
+					       mask,
+					       &adev->pm.pm_attr_list);
 	if (ret)
 		return ret;
 
@@ -3319,9 +3334,7 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	if (adev->pm.int_hwmon_dev)
 		hwmon_device_unregister(adev->pm.int_hwmon_dev);
 
-	amdgpu_device_attr_remove_groups(adev,
-					 amdgpu_device_attrs,
-					 ARRAY_SIZE(amdgpu_device_attrs));
+	amdgpu_device_attr_remove_groups(adev, &adev->pm.pm_attr_list);
 }
 
 void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)

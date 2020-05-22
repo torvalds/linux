@@ -47,10 +47,14 @@ enum amdgpu_device_attr_states {
 struct amdgpu_device_attr {
 	struct device_attribute dev_attr;
 	enum amdgpu_device_attr_flags flags;
-	enum amdgpu_device_attr_states states;
-	int (*attr_update)(struct amdgpu_device *adev,
-			   struct amdgpu_device_attr* attr,
-			   uint32_t mask);
+	int (*attr_update)(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+			   uint32_t mask, enum amdgpu_device_attr_states *states);
+
+};
+
+struct amdgpu_device_attr_entry {
+	struct list_head entry;
+	struct amdgpu_device_attr *attr;
 };
 
 #define to_amdgpu_device_attr(_dev_attr) \
@@ -59,7 +63,6 @@ struct amdgpu_device_attr {
 #define __AMDGPU_DEVICE_ATTR(_name, _mode, _show, _store, _flags, ...)	\
 	{ .dev_attr = __ATTR(_name, _mode, _show, _store),		\
 	  .flags = _flags,						\
-	  .states = ATTR_STATE_SUPPORTED,					\
 	  ##__VA_ARGS__, }
 
 #define AMDGPU_DEVICE_ATTR(_name, _mode, _flags, ...)			\
