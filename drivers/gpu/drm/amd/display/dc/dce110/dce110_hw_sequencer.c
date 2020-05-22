@@ -1148,7 +1148,7 @@ static void build_audio_output(
 			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
-	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock_100Hz ==
 				(stream->timing.pix_clk_100hz)) {
 		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
@@ -1963,10 +1963,8 @@ static void dce110_setup_audio_dto(
 
 		if (pipe_ctx->top_pipe)
 			continue;
-
 		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 			continue;
-
 		if (pipe_ctx->stream_res.audio != NULL) {
 			struct audio_output audio_output;
 
