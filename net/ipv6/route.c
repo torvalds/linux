@@ -3421,6 +3421,11 @@ int fib6_nh_init(struct net *net, struct fib6_nh *fib6_nh,
 #ifdef CONFIG_IPV6_ROUTER_PREF
 	fib6_nh->last_probe = jiffies;
 #endif
+	if (cfg->fc_is_fdb) {
+		fib6_nh->fib_nh_gw6 = cfg->fc_gateway;
+		fib6_nh->fib_nh_gw_family = AF_INET6;
+		return 0;
+	}
 
 	err = -ENODEV;
 	if (cfg->fc_ifindex) {
