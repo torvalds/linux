@@ -644,7 +644,6 @@ static int atlas_probe(struct i2c_client *client,
 	indio_dev->channels = chip->channels;
 	indio_dev->num_channels = chip->num_channels;
 	indio_dev->modes = INDIO_BUFFER_SOFTWARE | INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &client->dev;
 
 	trig = devm_iio_trigger_alloc(&client->dev, "%s-dev%d",
 				      indio_dev->name, indio_dev->id);

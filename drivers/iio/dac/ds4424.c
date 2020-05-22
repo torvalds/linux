@@ -231,7 +231,6 @@ static int ds4424_probe(struct i2c_client *client,
 	data->client = client;
 	indio_dev->name = id->name;
 	indio_dev->dev.of_node = client->dev.of_node;
-	indio_dev->dev.parent = &client->dev;
 
 	data->vcc_reg = devm_regulator_get(&client->dev, "vcc");
 	if (IS_ERR(data->vcc_reg)) {

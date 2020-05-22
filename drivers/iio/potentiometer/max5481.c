@@ -149,7 +149,6 @@ static int max5481_probe(struct spi_device *spi)
 		data->cfg = &max5481_cfg[id->driver_data];
 
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* variant specific configuration */

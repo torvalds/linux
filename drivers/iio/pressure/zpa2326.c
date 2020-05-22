@@ -1601,7 +1601,6 @@ static struct iio_dev *zpa2326_create_managed_iiodev(struct device *device,
 
 	/* Setup for userspace synchronous on demand sampling. */
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = device;
 	indio_dev->channels = zpa2326_channels;
 	indio_dev->num_channels = ARRAY_SIZE(zpa2326_channels);
 	indio_dev->name = name;

@@ -1015,7 +1015,6 @@ static int ina2xx_probe(struct i2c_client *client,
 	}
 
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->dev.of_node = client->dev.of_node;
 	if (id->driver_data == ina226) {
 		indio_dev->channels = ina226_channels;

@@ -268,7 +268,6 @@ static int ti_dac_probe(struct spi_device *spi)
 	if (!indio_dev)
 		return -ENOMEM;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &ti_dac_info;
 	indio_dev->name = spi->modalias;
 	indio_dev->modes = INDIO_DIRECT_MODE;

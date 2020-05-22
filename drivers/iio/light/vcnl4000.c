@@ -1058,7 +1058,6 @@ static int vcnl4000_probe(struct i2c_client *client,
 				     &data->near_level))
 		data->near_level = 0;
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = data->chip_spec->info;
 	indio_dev->channels = data->chip_spec->channels;
 	indio_dev->num_channels = data->chip_spec->num_channels;

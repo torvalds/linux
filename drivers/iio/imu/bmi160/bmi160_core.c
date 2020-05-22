@@ -870,7 +870,6 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	if (!name && ACPI_HANDLE(dev))
 		name = bmi160_match_acpi_device(dev);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->channels = bmi160_channels;
 	indio_dev->num_channels = ARRAY_SIZE(bmi160_channels);
 	indio_dev->name = name;

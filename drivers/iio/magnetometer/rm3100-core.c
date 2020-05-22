@@ -549,7 +549,6 @@ int rm3100_common_probe(struct device *dev, struct regmap *regmap, int irq)
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = "rm3100";
 	indio_dev->info = &rm3100_info;
 	indio_dev->channels = rm3100_channels;

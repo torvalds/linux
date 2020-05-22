@@ -1571,7 +1571,6 @@ static int stm32_dfsdm_adc_probe(struct platform_device *pdev)
 	adc = iio_priv(iio);
 	adc->dfsdm = dev_get_drvdata(dev->parent);
 
-	iio->dev.parent = dev;
 	iio->dev.of_node = np;
 	iio->modes = INDIO_DIRECT_MODE;
 

@@ -695,7 +695,6 @@ static int ad7746_probe(struct i2c_client *client,
 
 	/* Establish that the iio_dev is a child of the i2c device */
 	indio_dev->name = id->name;
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->info = &ad7746_info;
 	indio_dev->channels = ad7746_channels;
 	if (id->driver_data == 7746)

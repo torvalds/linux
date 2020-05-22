@@ -205,7 +205,6 @@ static int lp8788_adc_probe(struct platform_device *pdev)
 
 	mutex_init(&adc->lock);
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &lp8788_adc_info;

@@ -618,7 +618,6 @@ int ad5592r_probe(struct device *dev, const char *name,
 			return ret;
 	}
 
-	iio_dev->dev.parent = dev;
 	iio_dev->name = name;
 	iio_dev->info = &ad5592r_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;

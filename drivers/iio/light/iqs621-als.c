@@ -582,7 +582,6 @@ static int iqs621_als_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = iqs62x->dev_desc->dev_name;
 	indio_dev->info = &iqs621_als_info;
 

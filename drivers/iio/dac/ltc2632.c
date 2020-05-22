@@ -362,7 +362,6 @@ static int ltc2632_probe(struct spi_device *spi)
 		}
 	}
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = dev_of_node(&spi->dev) ? dev_of_node(&spi->dev)->name
 						 : spi_get_device_id(spi)->name;
 	indio_dev->info = &ltc2632_info;

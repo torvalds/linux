@@ -481,7 +481,6 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	iio_dev->dev.parent = dev;
 	iio_dev->name = "jz-adc";
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = ingenic_channels;

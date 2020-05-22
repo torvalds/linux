@@ -237,7 +237,6 @@ static int bma220_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->info = &bma220_info;
 	indio_dev->name = BMA220_DEVICE_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;

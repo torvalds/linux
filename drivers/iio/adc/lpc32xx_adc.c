@@ -196,7 +196,6 @@ static int lpc32xx_adc_probe(struct platform_device *pdev)
 	init_completion(&st->completion);
 
 	iodev->name = LPC32XXAD_NAME;
-	iodev->dev.parent = &pdev->dev;
 	iodev->info = &lpc32xx_adc_iio_info;
 	iodev->modes = INDIO_DIRECT_MODE;
 	iodev->num_channels = ARRAY_SIZE(lpc32xx_adc_iio_channels);

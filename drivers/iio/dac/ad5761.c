@@ -376,7 +376,6 @@ static int ad5761_probe(struct spi_device *spi)
 	if (ret)
 		goto disable_regulator_err;
 
-	iio_dev->dev.parent = &spi->dev;
 	iio_dev->info = &ad5761_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
 	iio_dev->channels = &chip_info->channel;

@@ -184,7 +184,6 @@ static int ad5272_probe(struct i2c_client *client,
 	if (ret < 0)
 		return -ENODEV;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &ad5272_info;
 	indio_dev->channels = &ad5272_channel;
 	indio_dev->num_channels = 1;

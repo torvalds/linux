@@ -926,7 +926,6 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	}
 
 	indio_dev->name = DRIVER_NAME;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &twl6030_gpadc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = pdata->iio_channels;

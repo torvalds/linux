@@ -247,7 +247,6 @@ static int iqs624_pos_probe(struct platform_device *pdev)
 	iqs624_pos->indio_dev = indio_dev;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->channels = iqs624_pos_channels;
 	indio_dev->num_channels = ARRAY_SIZE(iqs624_pos_channels);
 	indio_dev->name = iqs62x->dev_desc->dev_name;

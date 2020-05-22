@@ -645,7 +645,6 @@ static int mlx90632_probe(struct i2c_client *client,
 	mlx90632->regmap = regmap;
 
 	mutex_init(&mlx90632->lock);
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &mlx90632_info;

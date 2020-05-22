@@ -874,7 +874,6 @@ static int ad5064_probe(struct device *dev, enum ad5064_type type,
 			return ret;
 	}
 
-	indio_dev->dev.parent = dev;
 	indio_dev->name = name;
 	indio_dev->info = &ad5064_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

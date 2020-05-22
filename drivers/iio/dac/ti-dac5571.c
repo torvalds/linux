@@ -321,7 +321,6 @@ static int dac5571_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 
-	indio_dev->dev.parent = dev;
 	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->info = &dac5571_info;
 	indio_dev->name = id->name;

@@ -243,7 +243,6 @@ static int ad7949_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	indio_dev->dev.parent = dev;
 	indio_dev->dev.of_node = dev->of_node;
 	indio_dev->info = &ad7949_spi_info;
 	indio_dev->name = spi_get_device_id(spi)->name;

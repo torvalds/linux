@@ -152,7 +152,6 @@ static int mcp41010_probe(struct spi_device *spi)
 
 	mutex_init(&data->lock);
 
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &mcp41010_info;
 	indio_dev->channels = mcp41010_channels;
 	indio_dev->num_channels = data->cfg->wipers;

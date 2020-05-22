@@ -487,7 +487,6 @@ static int ad5421_probe(struct spi_device *spi)
 
 	st->spi = spi;
 
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = "ad5421";
 	indio_dev->info = &ad5421_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

@@ -652,7 +652,6 @@ static int dln2_adc_probe(struct platform_device *pdev)
 	IIO_CHAN_SOFT_TIMESTAMP_ASSIGN(dln2->iio_channels[i], i);
 
 	indio_dev->name = DLN2_ADC_MOD_NAME;
-	indio_dev->dev.parent = dev;
 	indio_dev->info = &dln2_adc_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = dln2->iio_channels;
