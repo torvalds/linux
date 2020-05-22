@@ -1822,13 +1822,13 @@ static int rtrs_rdma_connect(struct rdma_cm_id *cm_id,
 		/*
 		 * Sanity checks
 		 */
-		if (con_num != sess->s.con_num || cid >= sess->s.con_num) {
+		if (con_num != s->con_num || cid >= s->con_num) {
 			rtrs_err(s, "Incorrect request: %d, %d\n",
 				  cid, con_num);
 			mutex_unlock(&srv->paths_mutex);
 			goto reject_w_econnreset;
 		}
-		if (sess->s.con[cid]) {
+		if (s->con[cid]) {
 			rtrs_err(s, "Connection already exists: %d\n",
 				  cid);
 			mutex_unlock(&srv->paths_mutex);
