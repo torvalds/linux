@@ -384,16 +384,14 @@ $(obj)/%/built-in.a: $(obj)/% ;
 #
 # Rule to compile a set of .o files into one .a file (without symbol table)
 #
-ifdef builtin-target
 
 quiet_cmd_ar_builtin = AR      $@
       cmd_ar_builtin = rm -f $@; $(AR) cDPrST $@ $(real-prereqs)
 
-$(builtin-target): $(real-obj-y) FORCE
+$(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)
 
 targets += $(builtin-target)
-endif # builtin-target
 
 #
 # Rule to create modules.order file
@@ -408,14 +406,10 @@ $(modorder-target): $(subdir-ym) FORCE
 #
 # Rule to compile a set of .o files into one .a file (with symbol table)
 #
-ifdef lib-target
-
-$(lib-target): $(lib-y) FORCE
+$(obj)/lib.a: $(lib-y) FORCE
 	$(call if_changed,ar)
 
 targets += $(lib-target)
-
-endif
 
 # NOTE:
 # Do not replace $(filter %.o,^) with $(real-prereqs). When a single object
