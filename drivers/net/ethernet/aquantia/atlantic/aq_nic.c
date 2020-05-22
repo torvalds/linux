@@ -855,6 +855,7 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 	struct aq_stats_s *stats;
 	unsigned int count = 0U;
 	unsigned int i = 0U;
+	unsigned int tc;
 
 	if (self->aq_fw_ops->update_stats) {
 		mutex_lock(&self->fwreq_mutex);
@@ -893,10 +894,13 @@ u64 *aq_nic_get_stats(struct aq_nic_s *self, u64 *data)
 
 	data += i;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		aq_vec && self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
-		data += count;
-		aq_vec_get_sw_stats(aq_vec, data, &count);
+	for (tc = 0U; tc < self->aq_nic_cfg.tcs; tc++) {
+		for (i = 0U, aq_vec = self->aq_vec[0];
+		     aq_vec && self->aq_vecs > i;
+		     ++i, aq_vec = self->aq_vec[i]) {
+			data += count;
+			aq_vec_get_sw_stats(aq_vec, tc, data, &count);
+		}
 	}
 
 	data += count;

@@ -35,10 +35,7 @@ void aq_vec_ring_free(struct aq_vec_s *self);
 int aq_vec_start(struct aq_vec_s *self);
 void aq_vec_stop(struct aq_vec_s *self);
 cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self);
-int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data,
+int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data,
 			unsigned int *p_count);
-void aq_vec_add_stats(struct aq_vec_s *self,
-		      struct aq_ring_stats_rx_s *stats_rx,
-		      struct aq_ring_stats_tx_s *stats_tx);
 
 #endif /* AQ_VEC_H */

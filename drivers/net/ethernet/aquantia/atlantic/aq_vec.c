@@ -348,16 +348,14 @@ cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self)
 	return &self->aq_ring_param.affinity_mask;
 }
 
-void aq_vec_add_stats(struct aq_vec_s *self,
-		      struct aq_ring_stats_rx_s *stats_rx,
-		      struct aq_ring_stats_tx_s *stats_tx)
+static void aq_vec_add_stats(struct aq_vec_s *self,
+			     const unsigned int tc,
+			     struct aq_ring_stats_rx_s *stats_rx,
+			     struct aq_ring_stats_tx_s *stats_tx)
 {
-	struct aq_ring_s *ring = NULL;
-	unsigned int r = 0U;
+	struct aq_ring_s *ring = self->ring[tc];
 
-	for (r = 0U, ring = self->ring[0];
-		self->tx_rings > r; ++r, ring = self->ring[r]) {
-		struct aq_ring_stats_tx_s *tx = &ring[AQ_VEC_TX_ID].stats.tx;
+	if (tc < self->rx_rings) {
 		struct aq_ring_stats_rx_s *rx = &ring[AQ_VEC_RX_ID].stats.rx;
 
 		stats_rx->packets += rx->packets;
@@ -368,6 +366,10 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 		stats_rx->pg_losts += rx->pg_losts;
 		stats_rx->pg_flips += rx->pg_flips;
 		stats_rx->pg_reuses += rx->pg_reuses;
+	}
+
+	if (tc < self->tx_rings) {
+		struct aq_ring_stats_tx_s *tx = &ring[AQ_VEC_TX_ID].stats.tx;
 
 		stats_tx->packets += tx->packets;
 		stats_tx->bytes += tx->bytes;
@@ -376,7 +378,8 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 	}
 }
 
-int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data, unsigned int *p_count)
+int aq_vec_get_sw_stats(struct aq_vec_s *self, const unsigned int tc, u64 *data,
+			unsigned int *p_count)
 {
 	struct aq_ring_stats_rx_s stats_rx;
 	struct aq_ring_stats_tx_s stats_tx;
@@ -384,7 +387,8 @@ int aq_vec_get_sw_stats(struct aq_vec_s *self, u64 *data, unsigned int *p_count)
 
 	memset(&stats_rx, 0U, sizeof(struct aq_ring_stats_rx_s));
 	memset(&stats_tx, 0U, sizeof(struct aq_ring_stats_tx_s));
-	aq_vec_add_stats(self, &stats_rx, &stats_tx);
+
+	aq_vec_add_stats(self, tc, &stats_rx, &stats_tx);
 
 	/* This data should mimic aq_ethtool_queue_stat_names structure
 	 */
