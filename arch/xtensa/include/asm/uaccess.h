@@ -184,7 +184,7 @@ __asm__ __volatile__(					\
 	if (access_ok(__gu_addr, size))					\
 		__get_user_size((x), __gu_addr, (size), __gu_err);	\
 	else								\
-		(x) = 0;						\
+		(x) = (__typeof__(*(ptr)))0;				\
 	__gu_err;							\
 })
 
@@ -202,13 +202,15 @@ do {									\
 		u64 __x;						\
 		if (unlikely(__copy_from_user(&__x, ptr, 8))) {		\
 			retval = -EFAULT;				\
-			(x) = 0;					\
+			(x) = (__typeof__(*(ptr)))0;			\
 		} else {						\
 			(x) = *(__force __typeof__(*(ptr)) *)&__x;	\
 		}							\
 		break;							\
 	}								\
-	default: (x) = 0; __get_user_bad();				\
+	default:							\
+		(x) = (__typeof__(*(ptr)))0;				\
+		__get_user_bad();					\
 	}								\
 } while (0)
 
