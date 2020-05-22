@@ -36,6 +36,17 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 	[NHA_FDB]		= { .type = NLA_FLAG },
 };
 
+static int call_nexthop_notifiers(struct net *net,
+				  enum fib_event_type event_type,
+				  struct nexthop *nh)
+{
+	int err;
+
+	err = atomic_notifier_call_chain(&net->nexthop.notifier_chain,
+					 event_type, nh);
+	return notifier_to_errno(err);
+}
+
 static unsigned int nh_dev_hashfn(unsigned int val)
 {
 	unsigned int mask = NH_DEV_HASHSIZE - 1;
@@ -825,6 +836,8 @@ static void __remove_nexthop_fib(struct net *net, struct nexthop *nh)
 	struct fib6_info *f6i, *tmp;
 	bool do_flush = false;
 	struct fib_info *fi;
+
+	call_nexthop_notifiers(net, NEXTHOP_EVENT_DEL, nh);
 
 	list_for_each_entry(fi, &nh->fi_list, nh_list) {
 		fi->fib_flags |= RTNH_F_DEAD;
@@ -1865,6 +1878,19 @@ static struct notifier_block nh_netdev_notifier = {
 	.notifier_call = nh_netdev_event,
 };
 
+int register_nexthop_notifier(struct net *net, struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&net->nexthop.notifier_chain, nb);
+}
+EXPORT_SYMBOL(register_nexthop_notifier);
+
+int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						nb);
+}
+EXPORT_SYMBOL(unregister_nexthop_notifier);
+
 static void __net_exit nexthop_net_exit(struct net *net)
 {
 	rtnl_lock();
@@ -1881,6 +1907,7 @@ static int __net_init nexthop_net_init(struct net *net)
 	net->nexthop.devhash = kzalloc(sz, GFP_KERNEL);
 	if (!net->nexthop.devhash)
 		return -ENOMEM;
+	ATOMIC_INIT_NOTIFIER_HEAD(&net->nexthop.notifier_chain);
 
 	return 0;
 }
