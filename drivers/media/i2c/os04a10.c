@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 support conversion gain switch.
+ * V0.0X01.0X02 add debug interface for conversion gain switch.
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -100,6 +101,8 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define OS04A10_NAME			"os04a10"
+
+#define USED_SYS_DEBUG
 
 struct preisp_hdrae_exp_s init_hdrae_exp;
 
@@ -1338,6 +1341,7 @@ static int os04a10_set_conversion_gain(struct os04a10 *os04a10, u32 *cg)
 	u32 val = 0;
 	s32 is_need_change = 0;
 
+	dev_dbg(&os04a10->client->dev, "set conversion gain %d\n", cur_cg);
 	ret = os04a10_read_reg(client,
 		OS04A10_REG_HCG_SWITCH,
 		OS04A10_REG_VALUE_08BIT,
@@ -1370,6 +1374,47 @@ static int os04a10_set_conversion_gain(struct os04a10 *os04a10, u32 *cg)
 		OS04A10_GROUP_UPDATE_END_LAUNCH);
 	return ret;
 }
+
+#ifdef USED_SYS_DEBUG
+//ag: echo 0 >  /sys/devices/platform/ff510000.i2c/i2c-1/1-0036-1/cam_s_cg
+static ssize_t set_conversion_gain_status(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct os04a10 *os04a10 = to_os04a10(sd);
+	int status = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &status);
+	if (!ret && status >= 0 && status < 2)
+		os04a10_set_conversion_gain(os04a10, &status);
+	else
+		dev_err(dev, "input 0 for LCG, 1 for HCG, cur %d\n", status);
+	return count;
+}
+
+static struct device_attribute attributes[] = {
+	__ATTR(cam_s_cg, S_IWUSR, NULL, set_conversion_gain_status),
+};
+
+static int add_sysfs_interfaces(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(attributes); i++)
+		if (device_create_file(dev, attributes + i))
+			goto undo;
+	return 0;
+undo:
+	for (i--; i >= 0 ; i--)
+		device_remove_file(dev, attributes + i);
+	dev_err(dev, "%s: failed to create sysfs interface\n", __func__);
+	return -ENODEV;
+}
+#endif
 
 static long os04a10_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
@@ -2153,7 +2198,9 @@ static int os04a10_probe(struct i2c_client *client,
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
-
+#ifdef USED_SYS_DEBUG
+	add_sysfs_interfaces(dev);
+#endif
 	return 0;
 
 err_clean_entity:
