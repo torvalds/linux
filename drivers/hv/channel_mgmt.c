@@ -554,25 +554,33 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	bool fnew = true;
 
 	/*
-	 * Initialize the target_CPU before inserting the channel in
-	 * the chn_list and sc_list lists, within the channel_mutex
-	 * critical section:
+	 * Synchronize vmbus_process_offer() and CPU hotplugging:
 	 *
 	 * CPU1				CPU2
 	 *
-	 * [vmbus_process_offer()]	[hv_syninc_cleanup()]
+	 * [vmbus_process_offer()]	[Hot removal of the CPU]
 	 *
-	 * STORE target_cpu		LOCK channel_mutex
-	 * LOCK channel_mutex		SEARCH chn_list
-	 * INSERT chn_list		LOAD target_cpu
-	 * UNLOCK channel_mutex		UNLOCK channel_mutex
+	 * CPU_READ_LOCK		CPUS_WRITE_LOCK
+	 * LOAD cpu_online_mask		SEARCH chn_list
+	 * STORE target_cpu		LOAD target_cpu
+	 * INSERT chn_list		STORE cpu_online_mask
+	 * CPUS_READ_UNLOCK		CPUS_WRITE_UNLOCK
+	 *
+	 * Forbids: CPU1's LOAD from *not* seing CPU2's STORE &&
+	 * 		CPU2's SEARCH from *not* seeing CPU1's INSERT
 	 *
 	 * Forbids: CPU2's SEARCH from seeing CPU1's INSERT &&
 	 * 		CPU2's LOAD from *not* seing CPU1's STORE
 	 */
-	init_vp_index(newchannel, hv_get_dev_type(newchannel));
+	cpus_read_lock();
 
+	/*
+	 * Serializes the modifications of the chn_list list as well as
+	 * the accesses to next_numa_node_id in init_vp_index().
+	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
+
+	init_vp_index(newchannel, hv_get_dev_type(newchannel));
 
 	/* Remember the channels that should be cleaned up upon suspend. */
 	if (is_hvsock_channel(newchannel) || is_sub_channel(newchannel))
@@ -623,6 +631,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	vmbus_channel_map_relid(newchannel);
 
 	mutex_unlock(&vmbus_connection.channel_mutex);
+	cpus_read_unlock();
 
 	/*
 	 * vmbus_process_offer() mustn't call channel->sc_creation_callback()
@@ -655,13 +664,6 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
  * We use this state to statically distribute the channel interrupt load.
  */
 static int next_numa_node_id;
-/*
- * init_vp_index() accesses global variables like next_numa_node_id, and
- * it can run concurrently for primary channels and sub-channels: see
- * vmbus_process_offer(), so we need the lock to protect the global
- * variables.
- */
-static DEFINE_SPINLOCK(bind_channel_to_cpu_lock);
 
 /*
  * Starting with Win8, we can statically distribute the incoming
@@ -700,15 +702,6 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		return;
 	}
 
-	/* No CPUs can come up or down during this. */
-	cpus_read_lock();
-
-	/*
-	 * Serializes the accesses to the global variable next_numa_node_id.
-	 * See also the header comment of the spin lock declaration.
-	 */
-	spin_lock(&bind_channel_to_cpu_lock);
-
 	while (true) {
 		numa_node = next_numa_node_id++;
 		if (numa_node == nr_node_ids) {
@@ -738,9 +731,6 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 
 	channel->target_cpu = target_cpu;
 	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
-
-	spin_unlock(&bind_channel_to_cpu_lock);
-	cpus_read_unlock();
 
 	free_cpumask_var(available_mask);
 }
