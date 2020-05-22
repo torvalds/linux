@@ -270,7 +270,7 @@ static int alloc_srq_wrid(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
 	return 0;
 }
 
-static void free_srq_wrid(struct hns_roce_dev *hr_dev, struct hns_roce_srq *srq)
+static void free_srq_wrid(struct hns_roce_srq *srq)
 {
 	kfree(srq->wrid);
 	srq->wrid = NULL;
@@ -355,7 +355,7 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 err_srqc_alloc:
 	free_srqc(hr_dev, srq);
 err_wrid_alloc:
-	free_srq_wrid(hr_dev, srq);
+	free_srq_wrid(srq);
 err_idx_alloc:
 	free_srq_idx(hr_dev, srq);
 err_buf_alloc:
@@ -370,7 +370,7 @@ void hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 
 	free_srqc(hr_dev, srq);
 	free_srq_idx(hr_dev, srq);
-	free_srq_wrid(hr_dev, srq);
+	free_srq_wrid(srq);
 	free_srq_buf(hr_dev, srq);
 }
 

@@ -842,8 +842,7 @@ err_sq:
 	return ret;
 }
 
-static void free_kernel_wrid(struct hns_roce_dev *hr_dev,
-			     struct hns_roce_qp *hr_qp)
+static void free_kernel_wrid(struct hns_roce_qp *hr_qp)
 {
 	kfree(hr_qp->rq.wrid);
 	kfree(hr_qp->sq.wrid);
@@ -996,7 +995,7 @@ err_buf:
 err_db:
 	free_qp_db(hr_dev, hr_qp, udata);
 err_wrid:
-	free_kernel_wrid(hr_dev, hr_qp);
+	free_kernel_wrid(hr_qp);
 	return ret;
 }
 
@@ -1010,7 +1009,7 @@ void hns_roce_qp_destroy(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 	free_qpc(hr_dev, hr_qp);
 	free_qpn(hr_dev, hr_qp);
 	free_qp_buf(hr_dev, hr_qp);
-	free_kernel_wrid(hr_dev, hr_qp);
+	free_kernel_wrid(hr_qp);
 	free_qp_db(hr_dev, hr_qp, udata);
 
 	kfree(hr_qp);
