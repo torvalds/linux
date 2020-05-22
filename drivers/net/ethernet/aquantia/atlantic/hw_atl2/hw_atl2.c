@@ -10,6 +10,7 @@
 #include "hw_atl/hw_atl_b0.h"
 #include "hw_atl/hw_atl_utils.h"
 #include "hw_atl/hw_atl_llh.h"
+#include "hw_atl/hw_atl_llh_internal.h"
 #include "hw_atl2_utils.h"
 #include "hw_atl2_llh.h"
 #include "hw_atl2_internal.h"
@@ -148,8 +149,6 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	unsigned int prio = 0U;
 	u32 tc = 0U;
 
-	hw_atl_b0_hw_init_tx_tc_rate_limit(self);
-
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
 	hw_atl_tps_tx_pkt_shed_desc_rate_lim_set(self, 0xA);
@@ -157,18 +156,10 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	/* TPS VM init */
 	hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(self, 0U);
 
-	/* TPS TC credits init */
-	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
-
 	tx_buff_size /= cfg->tcs;
 	rx_buff_size /= cfg->tcs;
 	for (tc = 0; tc < cfg->tcs; tc++) {
 		u32 threshold = 0U;
-
-		/* TX Packet Scheduler Data TC0 */
-		hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF0,
-							       tc);
-		hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(self, 0x640, tc);
 
 		/* Tx buf size TC0 */
 		hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
@@ -220,6 +211,121 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 						      aq_hw_q_per_tc(self) +
 						      indirection_table[i]);
 		}
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl2_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
+{
+	static const u32 max_weight = BIT(HW_ATL2_TPS_DATA_TCTWEIGHT_WIDTH) - 1;
+	/* Scale factor is based on the number of bits in fractional portion */
+	static const u32 scale = BIT(HW_ATL_TPS_DESC_RATE_Y_WIDTH);
+	static const u32 frac_msk = HW_ATL_TPS_DESC_RATE_Y_MSK >>
+				    HW_ATL_TPS_DESC_RATE_Y_SHIFT;
+	const u32 link_speed = self->aq_link_status.mbps;
+	struct aq_nic_cfg_s *nic_cfg = self->aq_nic_cfg;
+	unsigned long num_min_rated_tcs = 0;
+	u32 tc_weight[AQ_CFG_TCS_MAX];
+	u32 fixed_max_credit_4b;
+	u32 fixed_max_credit;
+	u8 min_rate_msk = 0;
+	u32 sum_weight = 0;
+	int tc;
+
+	/* By default max_credit is based upon MTU (in unit of 64b) */
+	fixed_max_credit = nic_cfg->aq_hw_caps->mtu / 64;
+	/* in unit of 4b */
+	fixed_max_credit_4b = nic_cfg->aq_hw_caps->mtu / 4;
+
+	if (link_speed) {
+		min_rate_msk = nic_cfg->tc_min_rate_msk &
+			       (BIT(nic_cfg->tcs) - 1);
+		num_min_rated_tcs = hweight8(min_rate_msk);
+	}
+
+	/* First, calculate weights where min_rate is specified */
+	if (num_min_rated_tcs) {
+		for (tc = 0; tc != nic_cfg->tcs; tc++) {
+			if (!nic_cfg->tc_min_rate[tc]) {
+				tc_weight[tc] = 0;
+				continue;
+			}
+
+			tc_weight[tc] = (-1L + link_speed +
+					 nic_cfg->tc_min_rate[tc] *
+					 max_weight) /
+					link_speed;
+			tc_weight[tc] = min(tc_weight[tc], max_weight);
+			sum_weight += tc_weight[tc];
+		}
+	}
+
+	/* WSP, if min_rate is set for at least one TC.
+	 * RR otherwise.
+	 */
+	hw_atl2_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+	/* Data TC Arbiter takes precedence over Descriptor TC Arbiter,
+	 * leave Descriptor TC Arbiter as RR.
+	 */
+	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
+
+	hw_atl_tps_tx_desc_rate_mode_set(self, nic_cfg->is_qos ? 1U : 0U);
+
+	for (tc = 0; tc != nic_cfg->tcs; tc++) {
+		const u32 en = (nic_cfg->tc_max_rate[tc] != 0) ? 1U : 0U;
+		const u32 desc = AQ_NIC_CFG_TCVEC2RING(nic_cfg, tc, 0);
+		u32 weight, max_credit;
+
+		hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, tc,
+							      fixed_max_credit);
+		hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, tc, 0x1E);
+
+		if (num_min_rated_tcs) {
+			weight = tc_weight[tc];
+
+			if (!weight && sum_weight < max_weight)
+				weight = (max_weight - sum_weight) /
+					 (nic_cfg->tcs - num_min_rated_tcs);
+			else if (!weight)
+				weight = 0x640;
+
+			max_credit = max(2 * weight, fixed_max_credit_4b);
+		} else {
+			weight = 0x640;
+			max_credit = 0xFFF0;
+		}
+
+		hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(self, tc, weight);
+		hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, tc,
+							       max_credit);
+
+		hw_atl_tps_tx_desc_rate_en_set(self, desc, en);
+
+		if (en) {
+			/* Nominal rate is always 10G */
+			const u32 rate = 10000U * scale /
+					 nic_cfg->tc_max_rate[tc];
+			const u32 rate_int = rate >>
+					     HW_ATL_TPS_DESC_RATE_Y_WIDTH;
+			const u32 rate_frac = rate & frac_msk;
+
+			hw_atl_tps_tx_desc_rate_x_set(self, desc, rate_int);
+			hw_atl_tps_tx_desc_rate_y_set(self, desc, rate_frac);
+		} else {
+			/* A value of 1 indicates the queue is not
+			 * rate controlled.
+			 */
+			hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);
+			hw_atl_tps_tx_desc_rate_y_set(self, desc, 0U);
+		}
+	}
+	for (tc = nic_cfg->tcs; tc != AQ_CFG_TCS_MAX; tc++) {
+		const u32 desc = AQ_NIC_CFG_TCVEC2RING(nic_cfg, tc, 0);
+
+		hw_atl_tps_tx_desc_rate_en_set(self, desc, 0U);
+		hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);
+		hw_atl_tps_tx_desc_rate_y_set(self, desc, 0U);
 	}
 
 	return aq_hw_err_from_flags(self);
@@ -730,6 +836,7 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_interrupt_moderation_set = hw_atl2_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl2_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_b0_hw_rss_hash_set,
+	.hw_tc_rate_limit_set        = hw_atl2_hw_init_tx_tc_rate_limit,
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
 	.hw_set_offload              = hw_atl_b0_hw_offload_set,

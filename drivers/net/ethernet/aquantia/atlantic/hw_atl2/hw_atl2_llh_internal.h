@@ -185,42 +185,60 @@
 /* default value of bitfield tx_q_tc_map{q} */
 #define HW_ATL2_TX_Q_TC_MAP_DEFAULT 0x0
 
+/* tx data_tc_arb_mode bitfield definitions
+ * preprocessor definitions for the bitfield "data_tc_arb_mode".
+ * port="pif_tps_data_tc_arb_mode_i"
+ */
+
+/* register address for bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_ADR 0x00007100
+/* bitmask for bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_MSK 0x00000003
+/* inverted bitmask for bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_MSKN 0xfffffffc
+/* lower bit position of bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_SHIFT 0
+/* width of bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_WIDTH 2
+/* default value of bitfield data_tc_arb_mode */
+#define HW_ATL2_TPS_DATA_TC_ARB_MODE_DEFAULT 0x0
+
 /* tx data_tc{t}_credit_max[f:0] bitfield definitions
  * preprocessor definitions for the bitfield "data_tc{t}_credit_max[f:0]".
  * parameter: tc {t} | stride size 0x4 | range [0, 7]
- * port="pif_tps_data_tc0_credit_max_i[11:0]"
+ * port="pif_tps_data_tc0_credit_max_i[15:0]"
  */
 
-/* register address for bitfield data_tc{t}_credit_max[b:0] */
+/* register address for bitfield data_tc{t}_credit_max[f:0] */
 #define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_ADR(tc) (0x00007110 + (tc) * 0x4)
-/* bitmask for bitfield data_tc{t}_credit_max[b:0] */
-#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSK 0x0fff0000
-/* inverted bitmask for bitfield data_tc{t}_credit_max[b:0] */
-#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSKN 0xf000ffff
-/* lower bit position of bitfield data_tc{t}_credit_max[b:0] */
+/* bitmask for bitfield data_tc{t}_credit_max[f:0] */
+#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSK 0xffff0000
+/* inverted bitmask for bitfield data_tc{t}_credit_max[f:0] */
+#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSKN 0x0000ffff
+/* lower bit position of bitfield data_tc{t}_credit_max[f:0] */
 #define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_SHIFT 16
-/* width of bitfield data_tc{t}_credit_max[b:0] */
-#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_WIDTH 12
-/* default value of bitfield data_tc{t}_credit_max[b:0] */
+/* width of bitfield data_tc{t}_credit_max[f:0] */
+#define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_WIDTH 16
+/* default value of bitfield data_tc{t}_credit_max[f:0] */
 #define HW_ATL2_TPS_DATA_TCTCREDIT_MAX_DEFAULT 0x0
 
-/* tx data_tc{t}_weight[8:0] bitfield definitions
- * preprocessor definitions for the bitfield "data_tc{t}_weight[8:0]".
+/* tx data_tc{t}_weight[e:0] bitfield definitions
+ * preprocessor definitions for the bitfield "data_tc{t}_weight[e:0]".
  * parameter: tc {t} | stride size 0x4 | range [0, 7]
- * port="pif_tps_data_tc0_weight_i[8:0]"
+ * port="pif_tps_data_tc0_weight_i[14:0]"
  */
 
-/* register address for bitfield data_tc{t}_weight[8:0] */
+/* register address for bitfield data_tc{t}_weight[e:0] */
 #define HW_ATL2_TPS_DATA_TCTWEIGHT_ADR(tc) (0x00007110 + (tc) * 0x4)
-/* bitmask for bitfield data_tc{t}_weight[8:0] */
-#define HW_ATL2_TPS_DATA_TCTWEIGHT_MSK 0x000001ff
-/* inverted bitmask for bitfield data_tc{t}_weight[8:0] */
-#define HW_ATL2_TPS_DATA_TCTWEIGHT_MSKN 0xfffffe00
-/* lower bit position of bitfield data_tc{t}_weight[8:0] */
+/* bitmask for bitfield data_tc{t}_weight[e:0] */
+#define HW_ATL2_TPS_DATA_TCTWEIGHT_MSK 0x00007fff
+/* inverted bitmask for bitfield data_tc{t}_weight[e:0] */
+#define HW_ATL2_TPS_DATA_TCTWEIGHT_MSKN 0xffff8000
+/* lower bit position of bitfield data_tc{t}_weight[e:0] */
 #define HW_ATL2_TPS_DATA_TCTWEIGHT_SHIFT 0
-/* width of bitfield data_tc{t}_weight[8:0] */
-#define HW_ATL2_TPS_DATA_TCTWEIGHT_WIDTH 9
-/* default value of bitfield data_tc{t}_weight[8:0] */
+/* width of bitfield data_tc{t}_weight[e:0] */
+#define HW_ATL2_TPS_DATA_TCTWEIGHT_WIDTH 15
+/* default value of bitfield data_tc{t}_weight[e:0] */
 #define HW_ATL2_TPS_DATA_TCTWEIGHT_DEFAULT 0x0
 
 /* tx interrupt moderation control register definitions

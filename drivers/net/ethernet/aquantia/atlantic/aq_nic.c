@@ -196,6 +196,9 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 #if IS_ENABLED(CONFIG_MACSEC)
 		aq_macsec_enable(self);
 #endif
+		if (self->aq_hw_ops->hw_tc_rate_limit_set)
+			self->aq_hw_ops->hw_tc_rate_limit_set(self->aq_hw);
+
 		netif_tx_wake_all_queues(self->ndev);
 	}
 	if (netif_carrier_ok(self->ndev) && !self->link_status.mbps) {
@@ -1370,6 +1373,31 @@ int aq_nic_setup_tc_max_rate(struct aq_nic_s *self, const unsigned int tc,
 		cfg->tc_max_rate[tc] = 10;
 	} else {
 		cfg->tc_max_rate[tc] = max_rate;
+	}
+
+	return 0;
+}
+
+int aq_nic_setup_tc_min_rate(struct aq_nic_s *self, const unsigned int tc,
+			     const u32 min_rate)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	if (tc >= AQ_CFG_TCS_MAX)
+		return -EINVAL;
+
+	if (min_rate)
+		set_bit(tc, &cfg->tc_min_rate_msk);
+	else
+		clear_bit(tc, &cfg->tc_min_rate_msk);
+
+	if (min_rate && min_rate < 20) {
+		netdev_warn(self->ndev,
+			"Setting %s to the minimum usable value of %dMbps.\n",
+			"min rate", 20);
+		cfg->tc_min_rate[tc] = 20;
+	} else {
+		cfg->tc_min_rate[tc] = min_rate;
 	}
 
 	return 0;

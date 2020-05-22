@@ -93,6 +93,15 @@ void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 			tx_intr_moderation_ctl);
 }
 
+void hw_atl2_tps_tx_pkt_shed_data_arb_mode_set(struct aq_hw_s *aq_hw,
+					       const u32 data_arb_mode)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TC_ARB_MODE_ADR,
+			    HW_ATL2_TPS_DATA_TC_ARB_MODE_MSK,
+			    HW_ATL2_TPS_DATA_TC_ARB_MODE_SHIFT,
+			    data_arb_mode);
+}
+
 void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 						    const u32 tc,
 						    const u32 max_credit)

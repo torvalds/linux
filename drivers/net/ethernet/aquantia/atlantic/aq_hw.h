@@ -280,6 +280,8 @@ struct aq_hw_ops {
 	int (*hw_rss_hash_set)(struct aq_hw_s *self,
 			       struct aq_rss_parameters *rss_params);
 
+	int (*hw_tc_rate_limit_set)(struct aq_hw_s *self);
+
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   const struct aq_hw_caps_s *aq_hw_caps,
 			   u32 *regs_buff);

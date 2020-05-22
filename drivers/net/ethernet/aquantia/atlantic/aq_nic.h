@@ -66,6 +66,8 @@ struct aq_nic_cfg_s {
 	u8  tcs;
 	u8 prio_tc_map[8];
 	u32 tc_max_rate[AQ_CFG_TCS_MAX];
+	unsigned long tc_min_rate_msk;
+	u32 tc_min_rate[AQ_CFG_TCS_MAX];
 	struct aq_rss_parameters aq_rss;
 	u32 eee_speeds;
 };
@@ -198,4 +200,6 @@ void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
 int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map);
 int aq_nic_setup_tc_max_rate(struct aq_nic_s *self, const unsigned int tc,
 			     const u32 max_rate);
+int aq_nic_setup_tc_min_rate(struct aq_nic_s *self, const unsigned int tc,
+			     const u32 min_rate);
 #endif /* AQ_NIC_H */
