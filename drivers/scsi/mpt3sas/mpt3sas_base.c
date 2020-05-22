@@ -4809,6 +4809,7 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	int j = 0;
 	int dma_alloc_count = 0;
 	struct chain_tracker *ct;
+	int count = ioc->rdpq_array_enable ? ioc->reply_queue_count : 1;
 
 	dexitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
 
@@ -4850,9 +4851,9 @@ _base_release_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 	}
 
 	if (ioc->reply_post) {
-		dma_alloc_count = DIV_ROUND_UP(ioc->reply_queue_count,
+		dma_alloc_count = DIV_ROUND_UP(count,
 				RDPQ_MAX_INDEX_IN_ONE_CHUNK);
-		for (i = 0; i < ioc->reply_queue_count; i++) {
+		for (i = 0; i < count; i++) {
 			if (i % RDPQ_MAX_INDEX_IN_ONE_CHUNK == 0
 			    && dma_alloc_count) {
 				if (ioc->reply_post[i].reply_post_free) {
@@ -4973,14 +4974,14 @@ base_alloc_rdpq_dma_pool(struct MPT3SAS_ADAPTER *ioc, int sz)
 	 *  Driver uses limitation of
 	 *  VENTURA_SERIES to manage INVADER_SERIES as well.
 	 */
-	dma_alloc_count = DIV_ROUND_UP(ioc->reply_queue_count,
+	dma_alloc_count = DIV_ROUND_UP(count,
 				RDPQ_MAX_INDEX_IN_ONE_CHUNK);
 	ioc->reply_post_free_dma_pool =
 		dma_pool_create("reply_post_free pool",
 		    &ioc->pdev->dev, sz, 16, 0);
 	if (!ioc->reply_post_free_dma_pool)
 		return -ENOMEM;
-	for (i = 0; i < ioc->reply_queue_count; i++) {
+	for (i = 0; i < count; i++) {
 		if ((i % RDPQ_MAX_INDEX_IN_ONE_CHUNK == 0) && dma_alloc_count) {
 			ioc->reply_post[i].reply_post_free =
 			    dma_pool_alloc(ioc->reply_post_free_dma_pool,
