@@ -208,6 +208,9 @@ static int arcturus_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 	if (!(mapping.valid_mapping))
 		return -EINVAL;
 
+	if (amdgpu_sriov_vf(smc->adev) && !mapping.valid_in_vf)
+		return -EACCES;
+
 	return mapping.map_to;
 }
 
@@ -382,11 +385,6 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 		return ret;
 	}
 
-	if (!num_of_levels) {
-		pr_err("[%s] number of clk levels is invalid!\n", __func__);
-		return -EINVAL;
-	}
-
 	single_dpm_table->count = num_of_levels;
 	for (i = 0; i < num_of_levels; i++) {
 		ret = smu_send_smc_msg_with_param(smu,
@@ -396,10 +394,6 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 		if (ret) {
 			pr_err("[%s] failed to get dpm freq by index!\n", __func__);
 			return ret;
-		}
-		if (!clk) {
-			pr_err("[%s] clk value is invalid!\n", __func__);
-			return -EINVAL;
 		}
 		single_dpm_table->dpm_levels[i].value = clk;
 		single_dpm_table->dpm_levels[i].enabled = true;

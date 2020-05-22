@@ -100,7 +100,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 
 	index = smu_msg_get_index(smu, msg);
 	if (index < 0)
-		return index;
+		return index == -EACCES ? 0 : index;
 
 	mutex_lock(&smu->message_lock);
 	ret = smu_v11_0_wait_for_response(smu);

@@ -228,6 +228,9 @@ static int navi10_get_smu_msg_index(struct smu_context *smc, uint32_t index)
 		return -EINVAL;
 	}
 
+	if (amdgpu_sriov_vf(smc->adev) && !mapping.valid_in_vf)
+		return -EACCES;
+
 	return mapping.map_to;
 }
 
