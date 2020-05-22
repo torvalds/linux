@@ -646,7 +646,7 @@ static int hns_roce_v2_post_recv(struct ib_qp *ibqp,
 			dseg++;
 		}
 
-		if (i < hr_qp->rq.max_gs) {
+		if (wr->num_sge < hr_qp->rq.max_gs) {
 			dseg->lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
 			dseg->addr = 0;
 			dseg->len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
@@ -782,7 +782,7 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 			dseg[i].addr = cpu_to_le64(wr->sg_list[i].addr);
 		}
 
-		if (i < srq->max_gs) {
+		if (wr->num_sge < srq->max_gs) {
 			dseg[i].len = cpu_to_le32(HNS_ROCE_INVALID_SGE_LENGTH);
 			dseg[i].lkey = cpu_to_le32(HNS_ROCE_INVALID_LKEY);
 			dseg[i].addr = 0;
