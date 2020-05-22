@@ -5,8 +5,6 @@
 
 #include "efistub.h"
 
-#define EFI_MMAP_NR_SLACK_SLOTS	8
-
 static inline bool mmap_has_headroom(unsigned long buff_size,
 				     unsigned long map_size,
 				     unsigned long desc_size)
