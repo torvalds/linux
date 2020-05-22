@@ -152,7 +152,6 @@ static void panfrost_job_hw_submit(struct panfrost_job *job, int js)
 		return;
 
 	if (WARN_ON(job_read(pfdev, JS_COMMAND_NEXT(js)))) {
-		pm_runtime_put_sync_autosuspend(pfdev->dev);
 		return;
 	}
 
