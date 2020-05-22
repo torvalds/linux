@@ -62,6 +62,9 @@
  * (RAR[15]) for our directed address used by controllers with
  * manageability enabled, allowing us room for 15 multicast addresses.
  */
+#define IGC_RAH_RAH_MASK	0x0000FFFF
+#define IGC_RAH_ASEL_MASK	0x00030000
+#define IGC_RAH_ASEL_SRC_ADDR	BIT(16)
 #define IGC_RAH_QSEL_MASK	0x000C0000
 #define IGC_RAH_QSEL_SHIFT	18
 #define IGC_RAH_QSEL_ENABLE	BIT(28)

@@ -766,12 +766,14 @@ static void igc_setup_tctl(struct igc_adapter *adapter)
  * igc_set_mac_filter_hw() - Set MAC address filter in hardware
  * @adapter: Pointer to adapter where the filter should be set
  * @index: Filter index
- * @addr: Destination MAC address
+ * @type: MAC address filter type (source or destination)
+ * @addr: MAC address
  * @queue: If non-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
  */
 static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
+				  enum igc_mac_filter_type type,
 				  const u8 *addr, int queue)
 {
 	struct net_device *dev = adapter->netdev;
@@ -783,6 +785,11 @@ static void igc_set_mac_filter_hw(struct igc_adapter *adapter, int index,
 
 	ral = le32_to_cpup((__le32 *)(addr));
 	rah = le16_to_cpup((__le16 *)(addr + 4));
+
+	if (type == IGC_MAC_FILTER_TYPE_SRC) {
+		rah &= ~IGC_RAH_ASEL_MASK;
+		rah |= IGC_RAH_ASEL_SRC_ADDR;
+	}
 
 	if (queue >= 0) {
 		rah &= ~IGC_RAH_QSEL_MASK;
@@ -820,17 +827,12 @@ static void igc_clear_mac_filter_hw(struct igc_adapter *adapter, int index)
 /* Set default MAC address for the PF in the first RAR entry */
 static void igc_set_default_mac_filter(struct igc_adapter *adapter)
 {
-	struct igc_mac_addr *mac_table = &adapter->mac_table[0];
 	struct net_device *dev = adapter->netdev;
 	u8 *addr = adapter->hw.mac.addr;
 
 	netdev_dbg(dev, "Set default MAC address filter: address %pM", addr);
 
-	ether_addr_copy(mac_table->addr, addr);
-	mac_table->state = IGC_MAC_STATE_DEFAULT | IGC_MAC_STATE_IN_USE;
-	mac_table->queue = -1;
-
-	igc_set_mac_filter_hw(adapter, 0, addr, mac_table->queue);
+	igc_set_mac_filter_hw(adapter, 0, IGC_MAC_FILTER_TYPE_DST, addr, -1);
 }
 
 /**
@@ -2172,34 +2174,38 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	return !!budget;
 }
 
-static void igc_nfc_filter_restore(struct igc_adapter *adapter)
+static void igc_restore_nfc_rules(struct igc_adapter *adapter)
 {
-	struct igc_nfc_filter *rule;
+	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_add_filter(adapter, rule);
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+		igc_enable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 }
 
-static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-			       u8 flags)
+static int igc_find_mac_filter(struct igc_adapter *adapter,
+			       enum igc_mac_filter_type type, const u8 *addr)
 {
-	int max_entries = adapter->hw.mac.rar_entry_count;
-	struct igc_mac_addr *entry;
+	struct igc_hw *hw = &adapter->hw;
+	int max_entries = hw->mac.rar_entry_count;
+	u32 ral, rah;
 	int i;
 
 	for (i = 0; i < max_entries; i++) {
-		entry = &adapter->mac_table[i];
+		ral = rd32(IGC_RAL(i));
+		rah = rd32(IGC_RAH(i));
 
-		if (!(entry->state & IGC_MAC_STATE_IN_USE))
+		if (!(rah & IGC_RAH_AV))
 			continue;
-		if (!ether_addr_equal(addr, entry->addr))
+		if (!!(rah & IGC_RAH_ASEL_SRC_ADDR) != type)
 			continue;
-		if ((entry->state & IGC_MAC_STATE_SRC_ADDR) !=
-		    (flags & IGC_MAC_STATE_SRC_ADDR))
+		if ((rah & IGC_RAH_RAH_MASK) !=
+		    le16_to_cpup((__le16 *)(addr + 4)))
+			continue;
+		if (ral != le32_to_cpup((__le32 *)(addr)))
 			continue;
 
 		return i;
@@ -2210,14 +2216,15 @@ static int igc_find_mac_filter(struct igc_adapter *adapter, const u8 *addr,
 
 static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
 {
-	int max_entries = adapter->hw.mac.rar_entry_count;
-	struct igc_mac_addr *entry;
+	struct igc_hw *hw = &adapter->hw;
+	int max_entries = hw->mac.rar_entry_count;
+	u32 rah;
 	int i;
 
 	for (i = 0; i < max_entries; i++) {
-		entry = &adapter->mac_table[i];
+		rah = rd32(IGC_RAH(i));
 
-		if (!(entry->state & IGC_MAC_STATE_IN_USE))
+		if (!(rah & IGC_RAH_AV))
 			return i;
 	}
 
@@ -2227,87 +2234,76 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
 /**
  * igc_add_mac_filter() - Add MAC address filter
  * @adapter: Pointer to adapter where the filter should be added
+ * @type: MAC address filter type (source or destination)
  * @addr: MAC address
  * @queue: If non-negative, queue assignment feature is enabled and frames
  *         matching the filter are enqueued onto 'queue'. Otherwise, queue
  *         assignment is disabled.
- * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
- *         address
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_add_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const s8 queue, const u8 flags)
+int igc_add_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr,
+		       int queue)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
 
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
-	if (flags & IGC_MAC_STATE_SRC_ADDR)
-		return -ENOTSUPP;
 
-	index = igc_find_mac_filter(adapter, addr, flags);
+	index = igc_find_mac_filter(adapter, type, addr);
 	if (index >= 0)
-		goto update_queue_assignment;
+		goto update_filter;
 
 	index = igc_get_avail_mac_filter_slot(adapter);
 	if (index < 0)
 		return -ENOSPC;
 
-	netdev_dbg(dev, "Add MAC address filter: index %d address %pM queue %d",
-		   index, addr, queue);
+	netdev_dbg(dev, "Add MAC address filter: index %d type %s address %pM queue %d\n",
+		   index, type == IGC_MAC_FILTER_TYPE_DST ? "dst" : "src",
+		   addr, queue);
 
-	ether_addr_copy(adapter->mac_table[index].addr, addr);
-	adapter->mac_table[index].state |= IGC_MAC_STATE_IN_USE | flags;
-update_queue_assignment:
-	adapter->mac_table[index].queue = queue;
-
-	igc_set_mac_filter_hw(adapter, index, addr, queue);
+update_filter:
+	igc_set_mac_filter_hw(adapter, index, type, addr, queue);
 	return 0;
 }
 
 /**
  * igc_del_mac_filter() - Delete MAC address filter
  * @adapter: Pointer to adapter where the filter should be deleted from
+ * @type: MAC address filter type (source or destination)
  * @addr: MAC address
- * @flags: Set IGC_MAC_STATE_SRC_ADDR bit to indicate @address is a source
- *         address
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_del_mac_filter(struct igc_adapter *adapter, const u8 *addr,
-		       const u8 flags)
+int igc_del_mac_filter(struct igc_adapter *adapter,
+		       enum igc_mac_filter_type type, const u8 *addr)
 {
 	struct net_device *dev = adapter->netdev;
-	struct igc_mac_addr *entry;
 	int index;
 
 	if (!is_valid_ether_addr(addr))
 		return -EINVAL;
 
-	index = igc_find_mac_filter(adapter, addr, flags);
+	index = igc_find_mac_filter(adapter, type, addr);
 	if (index < 0)
 		return -ENOENT;
 
-	entry = &adapter->mac_table[index];
-
-	if (entry->state & IGC_MAC_STATE_DEFAULT) {
+	if (index == 0) {
 		/* If this is the default filter, we don't actually delete it.
 		 * We just reset to its default value i.e. disable queue
 		 * assignment.
 		 */
 		netdev_dbg(dev, "Disable default MAC filter queue assignment");
 
-		entry->queue = -1;
-		igc_set_mac_filter_hw(adapter, 0, addr, entry->queue);
+		igc_set_mac_filter_hw(adapter, 0, type, addr, -1);
 	} else {
-		netdev_dbg(dev, "Delete MAC address filter: index %d address %pM",
-			   index, addr);
+		netdev_dbg(dev, "Delete MAC address filter: index %d type %s address %pM\n",
+			   index,
+			   type == IGC_MAC_FILTER_TYPE_DST ? "dst" : "src",
+			   addr);
 
-		entry->state = 0;
-		entry->queue = -1;
-		memset(entry->addr, 0, ETH_ALEN);
 		igc_clear_mac_filter_hw(adapter, index);
 	}
 
@@ -2463,14 +2459,14 @@ static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_add_mac_filter(adapter, addr, -1, 0);
+	return igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr, -1);
 }
 
 static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, addr, 0);
+	return igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
 }
 
 /**
@@ -2541,7 +2537,7 @@ static void igc_configure(struct igc_adapter *adapter)
 	igc_setup_rctl(adapter);
 
 	igc_set_default_mac_filter(adapter);
-	igc_nfc_filter_restore(adapter);
+	igc_restore_nfc_rules(adapter);
 
 	igc_configure_tx(adapter);
 	igc_configure_rx(adapter);
@@ -2735,12 +2731,7 @@ void igc_set_flag_queue_pairs(struct igc_adapter *adapter,
 
 unsigned int igc_get_max_rss_queues(struct igc_adapter *adapter)
 {
-	unsigned int max_rss_queues;
-
-	/* Determine the maximum number of RSS queues supported. */
-	max_rss_queues = IGC_MAX_RX_QUEUES;
-
-	return max_rss_queues;
+	return IGC_MAX_RX_QUEUES;
 }
 
 static void igc_init_queue_configuration(struct igc_adapter *adapter)
@@ -3415,8 +3406,6 @@ static int igc_sw_init(struct igc_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	struct igc_hw *hw = &adapter->hw;
 
-	int size = sizeof(struct igc_mac_addr) * hw->mac.rar_entry_count;
-
 	pci_read_config_word(pdev, PCI_COMMAND, &hw->bus.pci_cmd_word);
 
 	/* set default ring sizes */
@@ -3435,14 +3424,10 @@ static int igc_sw_init(struct igc_adapter *adapter)
 				VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	spin_lock_init(&adapter->nfc_lock);
+	spin_lock_init(&adapter->nfc_rule_lock);
 	spin_lock_init(&adapter->stats64_lock);
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGC_FLAG_HAS_MSIX;
-
-	adapter->mac_table = kzalloc(size, GFP_ATOMIC);
-	if (!adapter->mac_table)
-		return -ENOMEM;
 
 	igc_init_queue_configuration(adapter);
 
@@ -3666,16 +3651,16 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.mgpdc += rd32(IGC_MGTPDC);
 }
 
-static void igc_nfc_filter_exit(struct igc_adapter *adapter)
+static void igc_nfc_rule_exit(struct igc_adapter *adapter)
 {
-	struct igc_nfc_filter *rule;
+	struct igc_nfc_rule *rule;
 
-	spin_lock(&adapter->nfc_lock);
+	spin_lock(&adapter->nfc_rule_lock);
 
-	hlist_for_each_entry(rule, &adapter->nfc_filter_list, nfc_node)
-		igc_erase_filter(adapter, rule);
+	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
+		igc_disable_nfc_rule(adapter, rule);
 
-	spin_unlock(&adapter->nfc_lock);
+	spin_unlock(&adapter->nfc_rule_lock);
 }
 
 /**
@@ -3696,7 +3681,7 @@ void igc_down(struct igc_adapter *adapter)
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
 	/* flush and sleep below */
 
-	igc_nfc_filter_exit(adapter);
+	igc_nfc_rule_exit(adapter);
 
 	/* set trans_start so we don't get spurious watchdogs during reset */
 	netif_trans_update(netdev);
@@ -3848,17 +3833,17 @@ static int igc_set_features(struct net_device *netdev,
 
 	if (!(features & NETIF_F_NTUPLE)) {
 		struct hlist_node *node2;
-		struct igc_nfc_filter *rule;
+		struct igc_nfc_rule *rule;
 
-		spin_lock(&adapter->nfc_lock);
+		spin_lock(&adapter->nfc_rule_lock);
 		hlist_for_each_entry_safe(rule, node2,
-					  &adapter->nfc_filter_list, nfc_node) {
-			igc_erase_filter(adapter, rule);
+					  &adapter->nfc_rule_list, nfc_node) {
+			igc_disable_nfc_rule(adapter, rule);
 			hlist_del(&rule->nfc_node);
 			kfree(rule);
 		}
-		spin_unlock(&adapter->nfc_lock);
-		adapter->nfc_filter_count = 0;
+		spin_unlock(&adapter->nfc_rule_lock);
+		adapter->nfc_rule_count = 0;
 	}
 
 	netdev->features = features;
@@ -4947,7 +4932,7 @@ static int igc_probe(struct pci_dev *pdev,
 	hw->hw_addr = adapter->io_addr;
 
 	netdev->netdev_ops = &igc_netdev_ops;
-	igc_set_ethtool_ops(netdev);
+	igc_ethtool_set_ops(netdev);
 	netdev->watchdog_timeo = 5 * HZ;
 
 	netdev->mem_start = pci_resource_start(pdev, 0);
@@ -5146,7 +5131,6 @@ static void igc_remove(struct pci_dev *pdev)
 	pci_iounmap(pdev, adapter->io_addr);
 	pci_release_mem_regions(pdev);
 
-	kfree(adapter->mac_table);
 	free_netdev(netdev);
 
 	pci_disable_pcie_error_reporting(pdev);
