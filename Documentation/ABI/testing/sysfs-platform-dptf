@@ -54,3 +54,41 @@ KernelVersion:	v5.8
 Contact:	linux-acpi@vger.kernel.org
 Description:
 		(WO) Confirm embedded controller about a prochot notification.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/max_platform_power_mw
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum platform power that can be supported by the battery in milli watts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/max_steady_state_power_mw
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum sustained power for battery in milli watts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/high_freq_impedance_mohm
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The high frequency impedance value that can be obtained from battery
+		fuel gauge in milli Ohms.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/no_load_voltage_mv
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The no-load voltage that can be obtained from battery fuel gauge in
+		milli volts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/current_discharge_capbility_ma
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The battery discharge current capability obtained from battery fuel gauge in
+		milli Amps.
