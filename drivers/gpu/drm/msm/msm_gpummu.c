@@ -26,7 +26,7 @@ static void msm_gpummu_detach(struct msm_mmu *mmu)
 }
 
 static int msm_gpummu_map(struct msm_mmu *mmu, uint64_t iova,
-		struct sg_table *sgt, unsigned len, int prot)
+		struct sg_table *sgt, size_t len, int prot)
 {
 	struct msm_gpummu *gpummu = to_msm_gpummu(mmu);
 	unsigned idx = (iova - GPUMMU_VA_START) / GPUMMU_PAGE_SIZE;
@@ -54,7 +54,7 @@ static int msm_gpummu_map(struct msm_mmu *mmu, uint64_t iova,
 	return 0;
 }
 
-static int msm_gpummu_unmap(struct msm_mmu *mmu, uint64_t iova, unsigned len)
+static int msm_gpummu_unmap(struct msm_mmu *mmu, uint64_t iova, size_t len)
 {
 	struct msm_gpummu *gpummu = to_msm_gpummu(mmu);
 	unsigned idx = (iova - GPUMMU_VA_START) / GPUMMU_PAGE_SIZE;
