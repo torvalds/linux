@@ -1524,6 +1524,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
+	struct smu_context *smu = &adev->smu;
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
 	/*
@@ -1532,6 +1533,11 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 	 */
 	uint32_t ctxid = entry->src_data[0];
 	uint32_t data;
+	/*
+	 * if the throttling continues, the logging will be performed every
+	 * minute to avoid log flooding.
+	 */
+	static DEFINE_RATELIMIT_STATE(ratelimit_state, 60 * HZ, 1);
 
 	if (client_id == SOC15_IH_CLIENTID_THM) {
 		switch (src_id) {
@@ -1574,6 +1580,11 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 			case 0x4:
 				dev_dbg(adev->dev, "Switched to DC mode!\n");
 				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				break;
+			case 0x7:
+				if (__ratelimit(&ratelimit_state))
+					smu_log_thermal_throttling(smu);
+
 				break;
 			}
 		}
