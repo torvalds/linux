@@ -498,6 +498,7 @@ struct dc_debug_options {
 	bool usbc_combo_phy_reset_wa;
 	bool disable_dsc;
 	bool enable_dram_clock_change_one_display_vactive;
+	unsigned int dppowerup_delay;
 };
 
 struct dc_debug_data {

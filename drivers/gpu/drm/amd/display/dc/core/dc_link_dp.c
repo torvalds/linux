@@ -1559,9 +1559,10 @@ bool perform_link_training_with_retries(
 			pipe_ctx->clock_source->id,
 			link_setting);
 
-		if (stream->sink_patches.dppowerup_delay > 0) {
-			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
-
+		if ((link && link->dc->debug.dppowerup_delay > 0) || stream->sink_patches.dppowerup_delay > 0) {
+			int delay_dp_power_up_in_ms =
+				(link->dc->debug.dppowerup_delay >= stream->sink_patches.dppowerup_delay) ?
+				link->dc->debug.dppowerup_delay : stream->sink_patches.dppowerup_delay;
 			msleep(delay_dp_power_up_in_ms);
 		}
 
