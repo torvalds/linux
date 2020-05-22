@@ -1691,7 +1691,7 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 
 	rx_ring->next_to_clean = next_to_clean;
 
-	refill_required = ena_com_free_desc(rx_ring->ena_com_io_sq);
+	refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 	refill_threshold =
 		min_t(int, rx_ring->ring_size / ENA_RX_REFILL_THRESH_DIVIDER,
 		      ENA_RX_REFILL_THRESH_PACKET);
@@ -3694,8 +3694,7 @@ static void check_for_empty_rx_ring(struct ena_adapter *adapter)
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		rx_ring = &adapter->rx_ring[i];
 
-		refill_required =
-			ena_com_free_desc(rx_ring->ena_com_io_sq);
+		refill_required = ena_com_free_q_entries(rx_ring->ena_com_io_sq);
 		if (unlikely(refill_required == (rx_ring->ring_size - 1))) {
 			rx_ring->empty_rx_queue++;
 
