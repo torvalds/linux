@@ -1133,7 +1133,7 @@ static int __kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 	case 4:
 		/* fall through */
 	case 6:
-		if (val & 0xffffffff00000000ULL)
+		if (!kvm_dr6_valid(val))
 			return -1; /* #GP */
 		vcpu->arch.dr6 = (val & DR6_VOLATILE) | kvm_dr6_fixed(vcpu);
 		break;

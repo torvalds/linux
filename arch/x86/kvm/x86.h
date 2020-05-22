@@ -360,6 +360,11 @@ static inline bool kvm_dr7_valid(u64 data)
 	/* Bits [63:32] are reserved */
 	return !(data >> 32);
 }
+static inline bool kvm_dr6_valid(u64 data)
+{
+	/* Bits [63:32] are reserved */
+	return !(data >> 32);
+}
 
 void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu);
 void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
