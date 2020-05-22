@@ -616,7 +616,6 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct xilinx_pcie_port *port;
-	struct pci_bus *bus, *child;
 	struct pci_host_bridge *bridge;
 	int err;
 
@@ -663,17 +662,7 @@ static int xilinx_pcie_probe(struct platform_device *pdev)
 	xilinx_pcie_msi_chip.dev = dev;
 	bridge->msi = &xilinx_pcie_msi_chip;
 #endif
-	err = pci_scan_root_bus_bridge(bridge);
-	if (err < 0)
-		return err;
-
-	bus = bridge->bus;
-
-	pci_assign_unassigned_bus_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
-		pcie_bus_configure_settings(child);
-	pci_bus_add_devices(bus);
-	return 0;
+	return pci_host_probe(bridge);
 }
 
 static const struct of_device_id xilinx_pcie_of_match[] = {
