@@ -145,9 +145,6 @@ static void dump_ail_list(struct gfs2_sbd *sdp)
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
 
-	fs_err(sdp, "Error: In gfs2_ail1_flush for ten minutes! t=%d\n",
-	       current->journal_info ? 1 : 0);
-
 	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry_reverse(bd, &tr->tr_ail1_list,
 					    bd_ail_st_list) {
@@ -197,6 +194,8 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 restart:
 	ret = 0;
 	if (time_after(jiffies, flush_start + (HZ * 600))) {
+		fs_err(sdp, "Error: In %s for ten minutes! t=%d\n",
+		       __func__, current->journal_info ? 1 : 0);
 		dump_ail_list(sdp);
 		goto out;
 	}
@@ -877,6 +876,28 @@ static void ail_drain(struct gfs2_sbd *sdp)
 }
 
 /**
+ * empty_ail1_list - try to start IO and empty the ail1 list
+ * @sdp: Pointer to GFS2 superblock
+ */
+static void empty_ail1_list(struct gfs2_sbd *sdp)
+{
+	unsigned long start = jiffies;
+
+	for (;;) {
+		if (time_after(jiffies, start + (HZ * 600))) {
+			fs_err(sdp, "Error: In %s for 10 minutes! t=%d\n",
+			       __func__, current->journal_info ? 1 : 0);
+			dump_ail_list(sdp);
+			return;
+		}
+		gfs2_ail1_start(sdp);
+		gfs2_ail1_wait(sdp);
+		if (gfs2_ail1_empty(sdp, 0))
+			return;
+	}
+}
+
+/**
  * gfs2_log_flush - flush incore transaction(s)
  * @sdp: the filesystem
  * @gl: The glock structure to flush.  If NULL, flush the whole incore log
@@ -965,12 +986,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 
 	if (!(flags & GFS2_LOG_HEAD_FLUSH_NORMAL)) {
 		if (!sdp->sd_log_idle) {
-			for (;;) {
-				gfs2_ail1_start(sdp);
-				gfs2_ail1_wait(sdp);
-				if (gfs2_ail1_empty(sdp, 0))
-					break;
-			}
+			empty_ail1_list(sdp);
 			if (gfs2_withdrawn(sdp))
 				goto out;
 			atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
