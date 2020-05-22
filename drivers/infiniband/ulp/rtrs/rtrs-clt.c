@@ -726,18 +726,6 @@ struct path_it {
 	struct rtrs_clt_sess *(*next_path)(struct path_it *it);
 };
 
-#define do_each_path(path, clt, it) {					\
-	path_it_init(it, clt);						\
-	rcu_read_lock();						\
-	for ((it)->i = 0; ((path) = ((it)->next_path)(it)) &&		\
-			  (it)->i < (it)->clt->paths_num;		\
-	     (it)->i++)
-
-#define while_each_path(it)						\
-	path_it_deinit(it);						\
-	rcu_read_unlock();						\
-	}
-
 /**
  * list_next_or_null_rr_rcu - get next list element in round-robin fashion.
  * @head:	the head for the list.
@@ -1175,7 +1163,10 @@ static int rtrs_clt_failover_req(struct rtrs_clt *clt,
 	int err = -ECONNABORTED;
 	struct path_it it;
 
-	do_each_path(alive_sess, clt, &it) {
+	rcu_read_lock();
+	for (path_it_init(&it, clt);
+	     (alive_sess = it.next_path(&it)) && it.i < it.clt->paths_num;
+	     it.i++) {
 		if (unlikely(READ_ONCE(alive_sess->state) !=
 			     RTRS_CLT_CONNECTED))
 			continue;
@@ -1191,7 +1182,9 @@ static int rtrs_clt_failover_req(struct rtrs_clt *clt,
 		/* Success path */
 		rtrs_clt_inc_failover_cnt(alive_sess->stats);
 		break;
-	} while_each_path(&it);
+	}
+	path_it_deinit(&it);
+	rcu_read_unlock();
 
 	return err;
 }
@@ -2862,7 +2855,9 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 		dma_dir = DMA_TO_DEVICE;
 	}
 
-	do_each_path(sess, clt, &it) {
+	rcu_read_lock();
+	for (path_it_init(&it, clt);
+	     (sess = it.next_path(&it)) && it.i < it.clt->paths_num; it.i++) {
 		if (unlikely(READ_ONCE(sess->state) != RTRS_CLT_CONNECTED))
 			continue;
 
@@ -2887,7 +2882,9 @@ int rtrs_clt_request(int dir, struct rtrs_clt_req_ops *ops,
 		}
 		/* Success path */
 		break;
-	} while_each_path(&it);
+	}
+	path_it_deinit(&it);
+	rcu_read_unlock();
 
 	return err;
 }
