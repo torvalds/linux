@@ -845,7 +845,7 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 					unsigned long instance_stage,
 					unsigned long reset_stage)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 
@@ -871,7 +871,7 @@ static int hns_roce_v2_cmd_hw_resetting(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 
@@ -888,7 +888,7 @@ static int hns_roce_v2_cmd_sw_resetting(struct hns_roce_dev *hr_dev)
 
 static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	unsigned long instance_stage;	/* the current instance stage */
@@ -968,7 +968,7 @@ static void hns_roce_free_cmq_desc(struct hns_roce_dev *hr_dev,
 
 static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
 					    &priv->cmq.csq : &priv->cmq.crq;
 
@@ -981,7 +981,7 @@ static int hns_roce_init_cmq_ring(struct hns_roce_dev *hr_dev, bool ring_type)
 
 static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *ring = (ring_type == TYPE_CSQ) ?
 					    &priv->cmq.csq : &priv->cmq.crq;
 	dma_addr_t dma = ring->desc_dma_addr;
@@ -1007,7 +1007,7 @@ static void hns_roce_cmq_init_regs(struct hns_roce_dev *hr_dev, bool ring_type)
 
 static int hns_roce_v2_cmq_init(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	int ret;
 
 	/* Setup the queue entries for command queue */
@@ -1051,7 +1051,7 @@ err_crq:
 
 static void hns_roce_v2_cmq_exit(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.csq);
 	hns_roce_free_cmq_desc(hr_dev, &priv->cmq.crq);
@@ -1073,15 +1073,15 @@ static void hns_roce_cmq_setup_basic_desc(struct hns_roce_cmq_desc *desc,
 
 static int hns_roce_cmq_csq_done(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
 	u32 head = roce_read(hr_dev, ROCEE_TX_CMQ_HEAD_REG);
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 
 	return head == priv->cmq.csq.next_to_use;
 }
 
 static int hns_roce_cmq_csq_clean(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
 	struct hns_roce_cmq_desc *desc;
 	u16 ntc = csq->next_to_clean;
@@ -1106,7 +1106,7 @@ static int hns_roce_cmq_csq_clean(struct hns_roce_dev *hr_dev)
 static int __hns_roce_cmq_send(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_cmq_desc *desc, int num)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hns_roce_v2_cmq_ring *csq = &priv->cmq.csq;
 	struct hns_roce_cmq_desc *desc_to_use;
 	bool complete = false;
@@ -1234,7 +1234,7 @@ static int hns_roce_cmq_query_hw_info(struct hns_roce_dev *hr_dev)
 
 static bool hns_roce_func_clr_chk_rst(struct hns_roce_dev *hr_dev)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	unsigned long reset_cnt;
@@ -1254,7 +1254,7 @@ static bool hns_roce_func_clr_chk_rst(struct hns_roce_dev *hr_dev)
 static void hns_roce_func_clr_rst_prc(struct hns_roce_dev *hr_dev, int retval,
 				      int flag)
 {
-	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hns_roce_v2_priv *priv = hr_dev->priv;
 	struct hnae3_handle *handle = priv->handle;
 	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	unsigned long instance_stage;
@@ -6041,7 +6041,7 @@ error_failed_kzalloc:
 static void __hns_roce_hw_v2_uninit_instance(struct hnae3_handle *handle,
 					   bool reset)
 {
-	struct hns_roce_dev *hr_dev = (struct hns_roce_dev *)handle->priv;
+	struct hns_roce_dev *hr_dev = handle->priv;
 
 	if (!hr_dev)
 		return;
@@ -6121,7 +6121,7 @@ static int hns_roce_hw_v2_reset_notify_down(struct hnae3_handle *handle)
 	handle->rinfo.reset_state = HNS_ROCE_STATE_RST_DOWN;
 	clear_bit(HNS_ROCE_RST_DIRECT_RETURN, &handle->rinfo.state);
 
-	hr_dev = (struct hns_roce_dev *)handle->priv;
+	hr_dev = handle->priv;
 	if (!hr_dev)
 		return 0;
 
