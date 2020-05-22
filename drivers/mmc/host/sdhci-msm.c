@@ -57,6 +57,11 @@
 #define CORE_FLL_CYCLE_CNT	BIT(18)
 #define CORE_DLL_CLOCK_DISABLE	BIT(21)
 
+#define DLL_USR_CTL_POR_VAL	0x10800
+#define ENABLE_DLL_LOCK_STATUS	BIT(26)
+#define FINE_TUNE_MODE_EN	BIT(27)
+#define BIAS_OK_SIGNAL		BIT(29)
+
 #define CORE_VENDOR_SPEC_POR_VAL 0xa9c
 #define CORE_CLK_PWRSAVE	BIT(1)
 #define CORE_HC_MCLK_SEL_DFLT	(2 << 8)
@@ -157,6 +162,7 @@ struct sdhci_msm_offset {
 	u32 core_dll_config_3;
 	u32 core_ddr_config_old; /* Applicable to sdcc minor ver < 0x49 */
 	u32 core_ddr_config;
+	u32 core_dll_usr_ctl; /* Present on SDCC5.1 onwards */
 };
 
 static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
@@ -186,6 +192,7 @@ static const struct sdhci_msm_offset sdhci_msm_v5_offset = {
 	.core_dll_config_2 = 0x254,
 	.core_dll_config_3 = 0x258,
 	.core_ddr_config = 0x25c,
+	.core_dll_usr_ctl = 0x388,
 };
 
 static const struct sdhci_msm_offset sdhci_msm_mci_offset = {
@@ -231,6 +238,7 @@ struct sdhci_msm_variant_ops {
 struct sdhci_msm_variant_info {
 	bool mci_removed;
 	bool restore_dll_config;
+	bool uses_tassadar_dll;
 	const struct sdhci_msm_variant_ops *var_ops;
 	const struct sdhci_msm_offset *offset;
 };
@@ -263,6 +271,7 @@ struct sdhci_msm_host {
 	bool use_cdr;
 	u32 transfer_mode;
 	bool updated_ddr_cfg;
+	bool uses_tassadar_dll;
 };
 
 static const struct sdhci_msm_offset *sdhci_priv_msm_offset(struct sdhci_host *host)
@@ -675,6 +684,17 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 		config &= ~CORE_DLL_CLOCK_DISABLE;
 		writel_relaxed(config, host->ioaddr +
 				msm_offset->core_dll_config_2);
+	}
+
+	/*
+	 * Configure DLL user control register to enable DLL status.
+	 * This setting is applicable to SDCC v5.1 onwards only.
+	 */
+	if (msm_host->uses_tassadar_dll) {
+		config = DLL_USR_CTL_POR_VAL | FINE_TUNE_MODE_EN |
+			ENABLE_DLL_LOCK_STATUS | BIAS_OK_SIGNAL;
+		writel_relaxed(config, host->ioaddr +
+				msm_offset->core_dll_usr_ctl);
 	}
 
 	config = readl_relaxed(host->ioaddr +
@@ -1861,10 +1881,18 @@ static const struct sdhci_msm_variant_info sdm845_sdhci_var = {
 	.offset = &sdhci_msm_v5_offset,
 };
 
+static const struct sdhci_msm_variant_info sm8250_sdhci_var = {
+	.mci_removed = true,
+	.uses_tassadar_dll = true,
+	.var_ops = &v5_var_ops,
+	.offset = &sdhci_msm_v5_offset,
+};
+
 static const struct of_device_id sdhci_msm_dt_match[] = {
 	{.compatible = "qcom,sdhci-msm-v4", .data = &sdhci_msm_mci_var},
 	{.compatible = "qcom,sdhci-msm-v5", .data = &sdhci_msm_v5_var},
 	{.compatible = "qcom,sdm845-sdhci", .data = &sdm845_sdhci_var},
+	{.compatible = "qcom,sm8250-sdhci", .data = &sm8250_sdhci_var},
 	{},
 };
 
@@ -1930,6 +1958,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->restore_dll_config = var_info->restore_dll_config;
 	msm_host->var_ops = var_info->var_ops;
 	msm_host->offset = var_info->offset;
+	msm_host->uses_tassadar_dll = var_info->uses_tassadar_dll;
 
 	msm_offset = msm_host->offset;
 
