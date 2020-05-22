@@ -113,6 +113,9 @@ static inline int ice_skb_pad(void)
 #define ICE_TX_FLAGS_TSO	BIT(0)
 #define ICE_TX_FLAGS_HW_VLAN	BIT(1)
 #define ICE_TX_FLAGS_SW_VLAN	BIT(2)
+#define ICE_TX_FLAGS_IPV4	BIT(5)
+#define ICE_TX_FLAGS_IPV6	BIT(6)
+#define ICE_TX_FLAGS_TUNNEL	BIT(7)
 #define ICE_TX_FLAGS_VLAN_M	0xffff0000
 #define ICE_TX_FLAGS_VLAN_PR_M	0xe0000000
 #define ICE_TX_FLAGS_VLAN_PR_S	29

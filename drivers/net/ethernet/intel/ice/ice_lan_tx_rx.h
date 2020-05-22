@@ -262,6 +262,12 @@ enum ice_rx_flex_desc_status_error_0_bits {
 	ICE_RX_FLEX_DESC_STATUS0_LAST /* this entry must be last!!! */
 };
 
+enum ice_rx_flex_desc_status_error_1_bits {
+	/* Note: These are predefined bit offsets */
+	ICE_RX_FLEX_DESC_STATUS1_NAT_S = 4,
+	ICE_RX_FLEX_DESC_STATUS1_LAST /* this entry must be last!!! */
+};
+
 #define ICE_RXQ_CTX_SIZE_DWORDS		8
 #define ICE_RXQ_CTX_SZ			(ICE_RXQ_CTX_SIZE_DWORDS * sizeof(u32))
 #define ICE_TX_CMPLTNQ_CTX_SIZE_DWORDS	22
@@ -412,6 +418,25 @@ enum ice_tx_ctx_desc_cmd_bits {
 	ICE_TX_CTX_DESC_SWTCH_VSI	= 0x30,
 	ICE_TX_CTX_DESC_RESERVED	= 0x40
 };
+
+enum ice_tx_ctx_desc_eipt_offload {
+	ICE_TX_CTX_EIPT_NONE		= 0x0,
+	ICE_TX_CTX_EIPT_IPV6		= 0x1,
+	ICE_TX_CTX_EIPT_IPV4_NO_CSUM	= 0x2,
+	ICE_TX_CTX_EIPT_IPV4		= 0x3
+};
+
+#define ICE_TXD_CTX_QW0_EIPLEN_S	2
+
+#define ICE_TXD_CTX_QW0_L4TUNT_S	9
+
+#define ICE_TXD_CTX_UDP_TUNNELING	BIT_ULL(ICE_TXD_CTX_QW0_L4TUNT_S)
+#define ICE_TXD_CTX_GRE_TUNNELING	(0x2ULL << ICE_TXD_CTX_QW0_L4TUNT_S)
+
+#define ICE_TXD_CTX_QW0_NATLEN_S	12
+
+#define ICE_TXD_CTX_QW0_L4T_CS_S	23
+#define ICE_TXD_CTX_QW0_L4T_CS_M	BIT_ULL(ICE_TXD_CTX_QW0_L4T_CS_S)
 
 #define ICE_LAN_TXQ_MAX_QGRPS	127
 #define ICE_LAN_TXQ_MAX_QDIS	1023

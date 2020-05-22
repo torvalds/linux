@@ -43,6 +43,7 @@ enum ice_flow_seg_hdr {
 	ICE_FLOW_SEG_HDR_TCP		= 0x00000040,
 	ICE_FLOW_SEG_HDR_UDP		= 0x00000080,
 	ICE_FLOW_SEG_HDR_SCTP		= 0x00000100,
+	ICE_FLOW_SEG_HDR_GRE		= 0x00000200,
 };
 
 enum ice_flow_field {
@@ -58,6 +59,8 @@ enum ice_flow_field {
 	ICE_FLOW_FIELD_IDX_UDP_DST_PORT,
 	ICE_FLOW_FIELD_IDX_SCTP_SRC_PORT,
 	ICE_FLOW_FIELD_IDX_SCTP_DST_PORT,
+	/* GRE */
+	ICE_FLOW_FIELD_IDX_GRE_KEYID,
 	/* The total number of enums must not exceed 64 */
 	ICE_FLOW_FIELD_IDX_MAX
 };

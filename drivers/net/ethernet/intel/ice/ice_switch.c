@@ -593,8 +593,8 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 			    ICE_AQC_GET_SW_CONF_RESP_IS_VF)
 				is_vf = true;
 
-			res_type = le16_to_cpu(ele->vsi_port_num) >>
-				ICE_AQC_GET_SW_CONF_RESP_TYPE_S;
+			res_type = (u8)(le16_to_cpu(ele->vsi_port_num) >>
+					ICE_AQC_GET_SW_CONF_RESP_TYPE_S);
 
 			if (res_type == ICE_AQC_GET_SW_CONF_RESP_VSI) {
 				/* FW VSI is not needed. Just continue. */
@@ -1618,12 +1618,12 @@ ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
 	struct ice_aqc_sw_rules_elem *s_rule, *r_iter;
 	struct ice_fltr_list_entry *m_list_itr;
 	struct list_head *rule_head;
-	u16 elem_sent, total_elem_left;
+	u16 total_elem_left, s_rule_size;
 	struct ice_switch_info *sw;
 	struct mutex *rule_lock; /* Lock to protect filter rule list */
 	enum ice_status status = 0;
 	u16 num_unicast = 0;
-	u16 s_rule_size;
+	u8 elem_sent;
 
 	if (!m_list || !hw)
 		return ICE_ERR_PARAM;
@@ -1707,8 +1707,8 @@ ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
 	     total_elem_left -= elem_sent) {
 		struct ice_aqc_sw_rules_elem *entry = r_iter;
 
-		elem_sent = min(total_elem_left,
-				(u16)(ICE_AQ_MAX_BUF_LEN / s_rule_size));
+		elem_sent = min_t(u8, total_elem_left,
+				  (ICE_AQ_MAX_BUF_LEN / s_rule_size));
 		status = ice_aq_sw_rules(hw, entry, elem_sent * s_rule_size,
 					 elem_sent, ice_aqc_opc_add_sw_rules,
 					 NULL);

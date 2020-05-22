@@ -819,7 +819,7 @@ static struct sk_buff *
 ice_build_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
 	      struct xdp_buff *xdp)
 {
-	unsigned int metasize = xdp->data - xdp->data_meta;
+	u8 metasize = xdp->data - xdp->data_meta;
 #if (PAGE_SIZE < 8192)
 	unsigned int truesize = ice_rx_pg_size(rx_ring) / 2;
 #else
@@ -934,7 +934,7 @@ ice_construct_skb(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf,
  */
 static void ice_put_rx_buf(struct ice_ring *rx_ring, struct ice_rx_buf *rx_buf)
 {
-	u32 ntc = rx_ring->next_to_clean + 1;
+	u16 ntc = rx_ring->next_to_clean + 1;
 
 	/* fetch, update, and store next to clean */
 	ntc = (ntc < rx_ring->count) ? ntc : 0;
@@ -1544,7 +1544,7 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 		 * don't allow the budget to go below 1 because that would exit
 		 * polling early.
 		 */
-		budget_per_ring = max(budget / q_vector->num_ring_rx, 1);
+		budget_per_ring = max_t(int, budget / q_vector->num_ring_rx, 1);
 	else
 		/* Max of 1 Rx ring in this q_vector so give it the budget */
 		budget_per_ring = budget;
@@ -1680,7 +1680,8 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 		 */
 		while (unlikely(size > ICE_MAX_DATA_PER_TXD)) {
 			tx_desc->cmd_type_offset_bsz =
-				build_ctob(td_cmd, td_offset, max_data, td_tag);
+				ice_build_ctob(td_cmd, td_offset, max_data,
+					       td_tag);
 
 			tx_desc++;
 			i++;
@@ -1700,8 +1701,8 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 		if (likely(!data_len))
 			break;
 
-		tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset,
-							  size, td_tag);
+		tx_desc->cmd_type_offset_bsz = ice_build_ctob(td_cmd, td_offset,
+							      size, td_tag);
 
 		tx_desc++;
 		i++;
@@ -1732,8 +1733,8 @@ ice_tx_map(struct ice_ring *tx_ring, struct ice_tx_buf *first,
 
 	/* write last descriptor with RS and EOP bits */
 	td_cmd |= (u64)ICE_TXD_LAST_DESC_CMD;
-	tx_desc->cmd_type_offset_bsz = build_ctob(td_cmd, td_offset, size,
-						  td_tag);
+	tx_desc->cmd_type_offset_bsz =
+			ice_build_ctob(td_cmd, td_offset, size, td_tag);
 
 	/* Force memory writes to complete before letting h/w know there
 	 * are new descriptors to fetch.
@@ -1807,12 +1808,94 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 	l2_len = ip.hdr - skb->data;
 	offset = (l2_len / 2) << ICE_TX_DESC_LEN_MACLEN_S;
 
-	if (skb->encapsulation)
-		return -1;
+	protocol = vlan_get_protocol(skb);
+
+	if (protocol == htons(ETH_P_IP))
+		first->tx_flags |= ICE_TX_FLAGS_IPV4;
+	else if (protocol == htons(ETH_P_IPV6))
+		first->tx_flags |= ICE_TX_FLAGS_IPV6;
+
+	if (skb->encapsulation) {
+		bool gso_ena = false;
+		u32 tunnel = 0;
+
+		/* define outer network header type */
+		if (first->tx_flags & ICE_TX_FLAGS_IPV4) {
+			tunnel |= (first->tx_flags & ICE_TX_FLAGS_TSO) ?
+				  ICE_TX_CTX_EIPT_IPV4 :
+				  ICE_TX_CTX_EIPT_IPV4_NO_CSUM;
+			l4_proto = ip.v4->protocol;
+		} else if (first->tx_flags & ICE_TX_FLAGS_IPV6) {
+			tunnel |= ICE_TX_CTX_EIPT_IPV6;
+			exthdr = ip.hdr + sizeof(*ip.v6);
+			l4_proto = ip.v6->nexthdr;
+			if (l4.hdr != exthdr)
+				ipv6_skip_exthdr(skb, exthdr - skb->data,
+						 &l4_proto, &frag_off);
+		}
+
+		/* define outer transport */
+		switch (l4_proto) {
+		case IPPROTO_UDP:
+			tunnel |= ICE_TXD_CTX_UDP_TUNNELING;
+			first->tx_flags |= ICE_TX_FLAGS_TUNNEL;
+			break;
+		case IPPROTO_GRE:
+			tunnel |= ICE_TXD_CTX_GRE_TUNNELING;
+			first->tx_flags |= ICE_TX_FLAGS_TUNNEL;
+			break;
+		case IPPROTO_IPIP:
+		case IPPROTO_IPV6:
+			first->tx_flags |= ICE_TX_FLAGS_TUNNEL;
+			l4.hdr = skb_inner_network_header(skb);
+			break;
+		default:
+			if (first->tx_flags & ICE_TX_FLAGS_TSO)
+				return -1;
+
+			skb_checksum_help(skb);
+			return 0;
+		}
+
+		/* compute outer L3 header size */
+		tunnel |= ((l4.hdr - ip.hdr) / 4) <<
+			  ICE_TXD_CTX_QW0_EIPLEN_S;
+
+		/* switch IP header pointer from outer to inner header */
+		ip.hdr = skb_inner_network_header(skb);
+
+		/* compute tunnel header size */
+		tunnel |= ((ip.hdr - l4.hdr) / 2) <<
+			   ICE_TXD_CTX_QW0_NATLEN_S;
+
+		gso_ena = skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL;
+		/* indicate if we need to offload outer UDP header */
+		if ((first->tx_flags & ICE_TX_FLAGS_TSO) && !gso_ena &&
+		    (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM))
+			tunnel |= ICE_TXD_CTX_QW0_L4T_CS_M;
+
+		/* record tunnel offload values */
+		off->cd_tunnel_params |= tunnel;
+
+		/* set DTYP=1 to indicate that it's an Tx context descriptor
+		 * in IPsec tunnel mode with Tx offloads in Quad word 1
+		 */
+		off->cd_qw1 |= (u64)ICE_TX_DESC_DTYPE_CTX;
+
+		/* switch L4 header pointer from outer to inner */
+		l4.hdr = skb_inner_transport_header(skb);
+		l4_proto = 0;
+
+		/* reset type as we transition from outer to inner headers */
+		first->tx_flags &= ~(ICE_TX_FLAGS_IPV4 | ICE_TX_FLAGS_IPV6);
+		if (ip.v4->version == 4)
+			first->tx_flags |= ICE_TX_FLAGS_IPV4;
+		if (ip.v6->version == 6)
+			first->tx_flags |= ICE_TX_FLAGS_IPV6;
+	}
 
 	/* Enable IP checksum offloads */
-	protocol = vlan_get_protocol(skb);
-	if (protocol == htons(ETH_P_IP)) {
+	if (first->tx_flags & ICE_TX_FLAGS_IPV4) {
 		l4_proto = ip.v4->protocol;
 		/* the stack computes the IP header already, the only time we
 		 * need the hardware to recompute it is in the case of TSO.
@@ -1822,7 +1905,7 @@ int ice_tx_csum(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		else
 			cmd |= ICE_TX_DESC_CMD_IIPT_IPV4;
 
-	} else if (protocol == htons(ETH_P_IPV6)) {
+	} else if (first->tx_flags & ICE_TX_FLAGS_IPV6) {
 		cmd |= ICE_TX_DESC_CMD_IIPT_IPV6;
 		exthdr = ip.hdr + sizeof(*ip.v6);
 		l4_proto = ip.v6->nexthdr;
@@ -1944,7 +2027,8 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		unsigned char *hdr;
 	} l4;
 	u64 cd_mss, cd_tso_len;
-	u32 paylen, l4_start;
+	u32 paylen;
+	u8 l4_start;
 	int err;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL)
@@ -1969,8 +2053,42 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		ip.v6->payload_len = 0;
 	}
 
+	if (skb_shinfo(skb)->gso_type & (SKB_GSO_GRE |
+					 SKB_GSO_GRE_CSUM |
+					 SKB_GSO_IPXIP4 |
+					 SKB_GSO_IPXIP6 |
+					 SKB_GSO_UDP_TUNNEL |
+					 SKB_GSO_UDP_TUNNEL_CSUM)) {
+		if (!(skb_shinfo(skb)->gso_type & SKB_GSO_PARTIAL) &&
+		    (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_TUNNEL_CSUM)) {
+			l4.udp->len = 0;
+
+			/* determine offset of outer transport header */
+			l4_start = (u8)(l4.hdr - skb->data);
+
+			/* remove payload length from outer checksum */
+			paylen = skb->len - l4_start;
+			csum_replace_by_diff(&l4.udp->check,
+					     (__force __wsum)htonl(paylen));
+		}
+
+		/* reset pointers to inner headers */
+
+		/* cppcheck-suppress unreadVariable */
+		ip.hdr = skb_inner_network_header(skb);
+		l4.hdr = skb_inner_transport_header(skb);
+
+		/* initialize inner IP header fields */
+		if (ip.v4->version == 4) {
+			ip.v4->tot_len = 0;
+			ip.v4->check = 0;
+		} else {
+			ip.v6->payload_len = 0;
+		}
+	}
+
 	/* determine offset of transport header */
-	l4_start = l4.hdr - skb->data;
+	l4_start = (u8)(l4.hdr - skb->data);
 
 	/* remove payload length from checksum */
 	paylen = skb->len - l4_start;
@@ -1979,12 +2097,12 @@ int ice_tso(struct ice_tx_buf *first, struct ice_tx_offload_params *off)
 		csum_replace_by_diff(&l4.udp->check,
 				     (__force __wsum)htonl(paylen));
 		/* compute length of UDP segmentation header */
-		off->header_len = sizeof(l4.udp) + l4_start;
+		off->header_len = (u8)sizeof(l4.udp) + l4_start;
 	} else {
 		csum_replace_by_diff(&l4.tcp->check,
 				     (__force __wsum)htonl(paylen));
 		/* compute length of TCP segmentation header */
-		off->header_len = (l4.tcp->doff * 4) + l4_start;
+		off->header_len = (u8)((l4.tcp->doff * 4) + l4_start);
 	}
 
 	/* update gso_segs and bytecount */
@@ -2215,7 +2333,7 @@ ice_xmit_frame_ring(struct sk_buff *skb, struct ice_ring *tx_ring)
 
 	if (offload.cd_qw1 & ICE_TX_DESC_DTYPE_CTX) {
 		struct ice_tx_ctx_desc *cdesc;
-		int i = tx_ring->next_to_use;
+		u16 i = tx_ring->next_to_use;
 
 		/* grab the next descriptor */
 		cdesc = ICE_TX_CTX_DESC(tx_ring, i);

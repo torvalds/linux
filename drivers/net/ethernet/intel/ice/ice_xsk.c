@@ -988,8 +988,8 @@ static bool ice_xmit_zc(struct ice_ring *xdp_ring, int budget)
 
 		tx_desc = ICE_TX_DESC(xdp_ring, xdp_ring->next_to_use);
 		tx_desc->buf_addr = cpu_to_le64(dma);
-		tx_desc->cmd_type_offset_bsz = build_ctob(ICE_TXD_LAST_DESC_CMD,
-							  0, desc.len, 0);
+		tx_desc->cmd_type_offset_bsz =
+			ice_build_ctob(ICE_TXD_LAST_DESC_CMD, 0, desc.len, 0);
 
 		xdp_ring->next_to_use++;
 		if (xdp_ring->next_to_use == xdp_ring->count)

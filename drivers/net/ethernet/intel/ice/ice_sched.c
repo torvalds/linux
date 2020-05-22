@@ -1917,7 +1917,7 @@ ice_sched_update_elem(struct ice_hw *hw, struct ice_sched_node *node,
  */
 static enum ice_status
 ice_sched_cfg_node_bw_alloc(struct ice_hw *hw, struct ice_sched_node *node,
-			    enum ice_rl_type rl_type, u8 bw_alloc)
+			    enum ice_rl_type rl_type, u16 bw_alloc)
 {
 	struct ice_aqc_txsched_elem_data buf;
 	struct ice_aqc_txsched_elem *data;
