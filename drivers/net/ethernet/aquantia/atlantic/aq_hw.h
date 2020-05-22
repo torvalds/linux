@@ -35,6 +35,9 @@ enum aq_tc_mode {
 			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
 #define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
 
+/* Used for rate to Mbps conversion */
+#define AQ_MBPS_DIVISOR         125000 /* 1000000 / 8 */
+
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
 	u64 hw_features;

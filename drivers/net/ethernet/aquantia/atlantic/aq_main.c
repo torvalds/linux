@@ -333,8 +333,12 @@ static int aq_ndo_vlan_rx_kill_vid(struct net_device *ndev, __be16 proto,
 }
 
 static int aq_validate_mqprio_opt(struct aq_nic_s *self,
+				  struct tc_mqprio_qopt_offload *mqprio,
 				  const unsigned int num_tc)
 {
+	const bool has_min_rate = !!(mqprio->flags & TC_MQPRIO_F_MIN_RATE);
+	int i;
+
 	if (num_tc > aq_hw_num_tcs(self->aq_hw)) {
 		netdev_err(self->ndev, "Too many TCs requested\n");
 		return -EOPNOTSUPP;
@@ -345,25 +349,43 @@ static int aq_validate_mqprio_opt(struct aq_nic_s *self,
 		return -EOPNOTSUPP;
 	}
 
+	for (i = 0; i < num_tc; i++) {
+		if (has_min_rate && mqprio->min_rate[i]) {
+			netdev_err(self->ndev,
+				   "Min tx rate is not supported\n");
+			return -EOPNOTSUPP;
+		}
+	}
+
 	return 0;
 }
 
 static int aq_ndo_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			   void *type_data)
 {
+	struct tc_mqprio_qopt_offload *mqprio = type_data;
 	struct aq_nic_s *aq_nic = netdev_priv(dev);
-	struct tc_mqprio_qopt *mqprio = type_data;
 	int err;
+	int i;
 
 	if (type != TC_SETUP_QDISC_MQPRIO)
 		return -EOPNOTSUPP;
 
-	err = aq_validate_mqprio_opt(aq_nic, mqprio->num_tc);
+	err = aq_validate_mqprio_opt(aq_nic, mqprio, mqprio->qopt.num_tc);
 	if (err)
 		return err;
 
-	return aq_nic_setup_tc_mqprio(aq_nic, mqprio->num_tc,
-				      mqprio->prio_tc_map);
+	if (mqprio->flags & TC_MQPRIO_F_MAX_RATE) {
+		for (i = 0; i < mqprio->qopt.num_tc; i++) {
+			u64 max_rate = mqprio->max_rate[i];
+
+			do_div(max_rate, AQ_MBPS_DIVISOR);
+			aq_nic_setup_tc_max_rate(aq_nic, i, (u32)max_rate);
+		}
+	}
+
+	return aq_nic_setup_tc_mqprio(aq_nic, mqprio->qopt.num_tc,
+				      mqprio->qopt.prio_tc_map);
 }
 
 static const struct net_device_ops aq_ndev_ops = {

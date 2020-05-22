@@ -710,6 +710,22 @@ void hw_atl_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
 					       u32 tx_pkt_shed_tc_data_weight,
 					u32 tc);
 
+/* set tx descriptor rate mode */
+void hw_atl_tps_tx_desc_rate_mode_set(struct aq_hw_s *aq_hw,
+				      const u32 rate_mode);
+
+/* set tx packet scheduler descriptor rate enable */
+void hw_atl_tps_tx_desc_rate_en_set(struct aq_hw_s *aq_hw, const u32 desc,
+				    const u32 enable);
+
+/* set tx packet scheduler descriptor rate integral value */
+void hw_atl_tps_tx_desc_rate_x_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_int);
+
+/* set tx packet scheduler descriptor rate fractional value */
+void hw_atl_tps_tx_desc_rate_y_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_frac);
+
 /* tx */
 
 /* set tx register reset disable */

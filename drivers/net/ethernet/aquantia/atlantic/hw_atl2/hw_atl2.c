@@ -135,6 +135,8 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	unsigned int prio = 0U;
 	u32 tc = 0U;
 
+	hw_atl_b0_hw_init_tx_tc_rate_limit(self);
+
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
 	hw_atl_tps_tx_pkt_shed_desc_rate_lim_set(self, 0xA);
@@ -143,7 +145,6 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(self, 0U);
 
 	/* TPS TC credits init */
-	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
 
 	tx_buff_size /= cfg->tcs;
@@ -155,8 +156,6 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 		hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF0,
 							       tc);
 		hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(self, 0x640, tc);
-		hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, tc);
-		hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
 
 		/* Tx buf size TC0 */
 		hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
@@ -215,8 +214,10 @@ static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 
 static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
 {
+	struct aq_nic_cfg_s *nic_cfg = self->aq_nic_cfg;
+
 	/* Tx TC/RSS number config */
-	hw_atl_tpb_tps_tx_tc_mode_set(self, self->aq_nic_cfg->tc_mode);
+	hw_atl_tpb_tps_tx_tc_mode_set(self, nic_cfg->tc_mode);
 
 	hw_atl_thm_lso_tcp_flag_of_first_pkt_set(self, 0x0FF6U);
 	hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(self, 0x0FF6U);

@@ -1511,6 +1511,42 @@ void hw_atl_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
 			    tx_pkt_shed_tc_data_weight);
 }
 
+void hw_atl_tps_tx_desc_rate_mode_set(struct aq_hw_s *aq_hw,
+				      const u32 rate_mode)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_TX_DESC_RATE_MODE_ADR,
+			    HW_ATL_TPS_TX_DESC_RATE_MODE_MSK,
+			    HW_ATL_TPS_TX_DESC_RATE_MODE_SHIFT,
+			    rate_mode);
+}
+
+void hw_atl_tps_tx_desc_rate_en_set(struct aq_hw_s *aq_hw, const u32 desc,
+				    const u32 enable)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_EN_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_EN_MSK,
+			    HW_ATL_TPS_DESC_RATE_EN_SHIFT,
+			    enable);
+}
+
+void hw_atl_tps_tx_desc_rate_x_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_int)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_X_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_X_MSK,
+			    HW_ATL_TPS_DESC_RATE_X_SHIFT,
+			    rate_int);
+}
+
+void hw_atl_tps_tx_desc_rate_y_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_frac)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_Y_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_Y_MSK,
+			    HW_ATL_TPS_DESC_RATE_Y_SHIFT,
+			    rate_frac);
+}
+
 /* tx */
 void hw_atl_tx_tx_reg_res_dis_set(struct aq_hw_s *aq_hw, u32 tx_reg_res_dis)
 {

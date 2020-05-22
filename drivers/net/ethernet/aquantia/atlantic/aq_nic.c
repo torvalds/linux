@@ -1324,3 +1324,23 @@ int aq_nic_setup_tc_mqprio(struct aq_nic_s *self, u32 tcs, u8 *prio_tc_map)
 
 	return err;
 }
+
+int aq_nic_setup_tc_max_rate(struct aq_nic_s *self, const unsigned int tc,
+			     const u32 max_rate)
+{
+	struct aq_nic_cfg_s *cfg = &self->aq_nic_cfg;
+
+	if (tc >= AQ_CFG_TCS_MAX)
+		return -EINVAL;
+
+	if (max_rate && max_rate < 10) {
+		netdev_warn(self->ndev,
+			"Setting %s to the minimum usable value of %dMbps.\n",
+			"max rate", 10);
+		cfg->tc_max_rate[tc] = 10;
+	} else {
+		cfg->tc_max_rate[tc] = max_rate;
+	}
+
+	return 0;
+}
