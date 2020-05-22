@@ -569,8 +569,6 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 	struct mobiveil_root_port *rp = &pcie->rp;
 	struct pci_host_bridge *bridge = rp->bridge;
 	struct device *dev = &pcie->pdev->dev;
-	struct pci_bus *bus;
-	struct pci_bus *child;
 	int ret;
 
 	ret = mobiveil_pcie_parse_dt(pcie);
@@ -620,17 +618,5 @@ int mobiveil_pcie_host_probe(struct mobiveil_pcie *pcie)
 		return ret;
 	}
 
-	/* setup the kernel resources for the newly added PCIe root bus */
-	ret = pci_scan_root_bus_bridge(bridge);
-	if (ret)
-		return ret;
-
-	bus = bridge->bus;
-
-	pci_assign_unassigned_bus_resources(bus);
-	list_for_each_entry(child, &bus->children, node)
-		pcie_bus_configure_settings(child);
-	pci_bus_add_devices(bus);
-
-	return 0;
+	return pci_host_probe(bridge);
 }
