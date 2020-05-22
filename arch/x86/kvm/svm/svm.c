@@ -1981,6 +1981,38 @@ static int vmrun_interception(struct vcpu_svm *svm)
 	return nested_svm_vmrun(svm);
 }
 
+void svm_set_gif(struct vcpu_svm *svm, bool value)
+{
+	if (value) {
+		/*
+		 * If VGIF is enabled, the STGI intercept is only added to
+		 * detect the opening of the SMI/NMI window; remove it now.
+		 * Likewise, clear the VINTR intercept, we will set it
+		 * again while processing KVM_REQ_EVENT if needed.
+		 */
+		if (vgif_enabled(svm))
+			clr_intercept(svm, INTERCEPT_STGI);
+		if (is_intercept(svm, SVM_EXIT_VINTR))
+			svm_clear_vintr(svm);
+
+		enable_gif(svm);
+		if (svm->vcpu.arch.smi_pending ||
+		    svm->vcpu.arch.nmi_pending ||
+		    kvm_cpu_has_injectable_intr(&svm->vcpu))
+			kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+	} else {
+		disable_gif(svm);
+
+		/*
+		 * After a CLGI no interrupts should come.  But if vGIF is
+		 * in use, we still rely on the VINTR intercept (rather than
+		 * STGI) to detect an open interrupt window.
+		*/
+		if (!vgif_enabled(svm))
+			svm_clear_vintr(svm);
+	}
+}
+
 static int stgi_interception(struct vcpu_svm *svm)
 {
 	int ret;
@@ -1988,18 +2020,8 @@ static int stgi_interception(struct vcpu_svm *svm)
 	if (nested_svm_check_permissions(svm))
 		return 1;
 
-	/*
-	 * If VGIF is enabled, the STGI intercept is only added to
-	 * detect the opening of the SMI/NMI window; remove it now.
-	 */
-	if (vgif_enabled(svm))
-		clr_intercept(svm, INTERCEPT_STGI);
-
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
-	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
-
-	enable_gif(svm);
-
+	svm_set_gif(svm, true);
 	return ret;
 }
 
@@ -2011,12 +2033,7 @@ static int clgi_interception(struct vcpu_svm *svm)
 		return 1;
 
 	ret = kvm_skip_emulated_instruction(&svm->vcpu);
-
-	disable_gif(svm);
-
-	/* After a CLGI no interrupts should come */
-	svm_clear_vintr(svm);
-
+	svm_set_gif(svm, false);
 	return ret;
 }
 

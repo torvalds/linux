@@ -333,10 +333,6 @@ static void nested_prepare_vmcb_control(struct vcpu_svm *svm)
 void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 			  struct vmcb *nested_vmcb)
 {
-	bool evaluate_pending_interrupts =
-		is_intercept(svm, INTERCEPT_VINTR) ||
-		is_intercept(svm, INTERCEPT_IRET);
-
 	svm->nested.vmcb = vmcb_gpa;
 	if (kvm_get_rflags(&svm->vcpu) & X86_EFLAGS_IF)
 		svm->vcpu.arch.hflags |= HF_HIF_MASK;
@@ -347,21 +343,7 @@ void enter_svm_guest_mode(struct vcpu_svm *svm, u64 vmcb_gpa,
 	nested_prepare_vmcb_save(svm, nested_vmcb);
 	nested_prepare_vmcb_control(svm);
 
-	/*
-	 * If L1 had a pending IRQ/NMI before executing VMRUN,
-	 * which wasn't delivered because it was disallowed (e.g.
-	 * interrupts disabled), L0 needs to evaluate if this pending
-	 * event should cause an exit from L2 to L1 or be delivered
-	 * directly to L2.
-	 *
-	 * Usually this would be handled by the processor noticing an
-	 * IRQ/NMI window request.  However, VMRUN can unblock interrupts
-	 * by implicitly setting GIF, so force L0 to perform pending event
-	 * evaluation by requesting a KVM_REQ_EVENT.
-	 */
-	enable_gif(svm);
-	if (unlikely(evaluate_pending_interrupts))
-		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+	svm_set_gif(svm, true);
 }
 
 int nested_svm_vmrun(struct vcpu_svm *svm)
@@ -505,7 +487,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
 	/* Give the current vmcb to the guest */
-	disable_gif(svm);
+	svm_set_gif(svm, false);
 
 	nested_vmcb->save.es     = vmcb->save.es;
 	nested_vmcb->save.cs     = vmcb->save.cs;
