@@ -277,8 +277,8 @@ static int __mt7915_mcu_msg_send(struct mt7915_dev *dev, struct sk_buff *skb,
 	}
 
 	mcu_txd->s2d_index = MCU_S2D_H2N;
-	BUILD_BUG_ON(cmd == MCU_EXT_CMD_EFUSE_ACCESS &&
-		     mcu_txd->set_query != MCU_Q_QUERY);
+	WARN_ON(cmd == MCU_EXT_CMD_EFUSE_ACCESS &&
+		mcu_txd->set_query != MCU_Q_QUERY);
 
 exit:
 	if (wait_seq)
