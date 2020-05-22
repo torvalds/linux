@@ -53,6 +53,8 @@
 
 #define MII_COMMSTAT			23
 #define MII_COMMSTAT_LINK_UP		BIT(15)
+#define MII_COMMSTAT_SQI_STATE		GENMASK(7, 5)
+#define MII_COMMSTAT_SQI_MAX		7
 
 #define MII_GENSTAT			24
 #define MII_GENSTAT_PLL_LOCKED		BIT(14)
@@ -327,6 +329,22 @@ static int tja11xx_read_status(struct phy_device *phydev)
 	}
 
 	return 0;
+}
+
+static int tja11xx_get_sqi(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read(phydev, MII_COMMSTAT);
+	if (ret < 0)
+		return ret;
+
+	return FIELD_GET(MII_COMMSTAT_SQI_STATE, ret);
+}
+
+static int tja11xx_get_sqi_max(struct phy_device *phydev)
+{
+	return MII_COMMSTAT_SQI_MAX;
 }
 
 static int tja11xx_get_sset_count(struct phy_device *phydev)
@@ -683,6 +701,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.config_aneg	= tja11xx_config_aneg,
 		.config_init	= tja11xx_config_init,
 		.read_status	= tja11xx_read_status,
+		.get_sqi	= tja11xx_get_sqi,
+		.get_sqi_max	= tja11xx_get_sqi_max,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.set_loopback   = genphy_loopback,
@@ -699,6 +719,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.config_aneg	= tja11xx_config_aneg,
 		.config_init	= tja11xx_config_init,
 		.read_status	= tja11xx_read_status,
+		.get_sqi	= tja11xx_get_sqi,
+		.get_sqi_max	= tja11xx_get_sqi_max,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
 		.set_loopback   = genphy_loopback,
@@ -715,6 +737,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.config_aneg	= tja11xx_config_aneg,
 		.config_init	= tja11xx_config_init,
 		.read_status	= tja11xx_read_status,
+		.get_sqi	= tja11xx_get_sqi,
+		.get_sqi_max	= tja11xx_get_sqi_max,
 		.match_phy_device = tja1102_p0_match_phy_device,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,
@@ -736,6 +760,8 @@ static struct phy_driver tja11xx_driver[] = {
 		.config_aneg	= tja11xx_config_aneg,
 		.config_init	= tja11xx_config_init,
 		.read_status	= tja11xx_read_status,
+		.get_sqi	= tja11xx_get_sqi,
+		.get_sqi_max	= tja11xx_get_sqi_max,
 		.match_phy_device = tja1102_p1_match_phy_device,
 		.suspend	= genphy_suspend,
 		.resume		= genphy_resume,

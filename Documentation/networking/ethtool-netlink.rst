@@ -454,10 +454,12 @@ Request contents:
 
 Kernel response contents:
 
-  ====================================  ======  ==========================
+  ====================================  ======  ============================
   ``ETHTOOL_A_LINKSTATE_HEADER``        nested  reply header
   ``ETHTOOL_A_LINKSTATE_LINK``          bool    link state (up/down)
-  ====================================  ======  ==========================
+  ``ETHTOOL_A_LINKSTATE_SQI``           u32     Current Signal Quality Index
+  ``ETHTOOL_A_LINKSTATE_SQI_MAX``       u32     Max support SQI value
+  ====================================  ======  ============================
 
 For most NIC drivers, the value of ``ETHTOOL_A_LINKSTATE_LINK`` returns
 carrier flag provided by ``netif_carrier_ok()`` but there are drivers which
