@@ -318,6 +318,9 @@ static ssize_t amdgpu_ras_debugfs_ctrl_write(struct file *f, const char __user *
 	case 2:
 		if ((data.inject.address >= adev->gmc.mc_vram_size) ||
 		    (data.inject.address >= RAS_UMC_INJECT_ADDR_LIMIT)) {
+			dev_warn(adev->dev, "RAS WARN: input address "
+					"0x%llx is invalid.",
+					data.inject.address);
 			ret = -EINVAL;
 			break;
 		}
