@@ -2112,14 +2112,6 @@ again:
 		if (!(flags & DMZ_ALLOC_RECLAIM))
 			return NULL;
 		/*
-		 * Use sequential write zones if we started off with random
-		 * zones and the list is empty
-		 */
-		if (list == &zmd->unmap_rnd_list) {
-			list = &zmd->unmap_seq_list;
-			goto again;
-		}
-		/*
 		 * Fallback to the reserved sequential zones
 		 */
 		zone = list_first_entry_or_null(&zmd->reserved_seq_zones_list,
