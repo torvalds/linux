@@ -411,9 +411,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 	.rmdir		= ext2_rmdir,
 	.mknod		= ext2_mknod,
 	.rename		= ext2_rename,
-#ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
-#endif
 	.getattr	= ext2_getattr,
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
@@ -422,9 +420,7 @@ const struct inode_operations ext2_dir_inode_operations = {
 };
 
 const struct inode_operations ext2_special_inode_operations = {
-#ifdef CONFIG_EXT2_FS_XATTR
 	.listxattr	= ext2_listxattr,
-#endif
 	.getattr	= ext2_getattr,
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
