@@ -8,10 +8,10 @@
 
 #include <linux/types.h>
 
+#include "display/intel_bw.h"
 #include "display/intel_global_state.h"
 
 #include "i915_reg.h"
-#include "display/intel_bw.h"
 
 struct drm_device;
 struct drm_i915_private;

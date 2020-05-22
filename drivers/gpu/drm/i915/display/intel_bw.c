@@ -5,13 +5,12 @@
 
 #include <drm/drm_atomic_state_helper.h>
 
-#include "intel_bw.h"
-#include "intel_pm.h"
-#include "intel_display_types.h"
-#include "intel_sideband.h"
 #include "intel_atomic.h"
-#include "intel_pm.h"
+#include "intel_bw.h"
 #include "intel_cdclk.h"
+#include "intel_display_types.h"
+#include "intel_pm.h"
+#include "intel_sideband.h"
 
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {
@@ -352,6 +351,7 @@ static unsigned int intel_bw_crtc_data_rate(const struct intel_crtc_state *crtc_
 
 	return data_rate;
 }
+
 void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state)
 {
@@ -431,13 +431,13 @@ intel_atomic_get_bw_state(struct intel_atomic_state *state)
 int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int i;
+	struct intel_bw_state *new_bw_state = NULL;
+	struct intel_bw_state *old_bw_state = NULL;
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int max_bw = 0;
 	int slice_id;
-	struct intel_bw_state *new_bw_state = NULL;
-	struct intel_bw_state *old_bw_state = NULL;
+	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		enum plane_id plane_id;
@@ -463,14 +463,17 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			dbuf_mask |= skl_ddb_dbuf_slice_mask(dev_priv, uv_plane_alloc);
 
 			/*
-			 * FIXME: To calculate that more properly we probably need to
-			 * to split per plane data_rate into data_rate_y and data_rate_uv
-			 * for multiplanar formats in order not to get accounted those twice
-			 * if they happen to reside on different slices.
-			 * However for pre-icl this would work anyway because we have only single
-			 * slice and for icl+ uv plane has non-zero data rate.
-			 * So in worst case those calculation are a bit pessimistic, which
-			 * shouldn't pose any significant problem anyway.
+			 * FIXME: To calculate that more properly we probably
+			 * need to to split per plane data_rate into data_rate_y
+			 * and data_rate_uv for multiplanar formats in order not
+			 * to get accounted those twice if they happen to reside
+			 * on different slices.
+			 * However for pre-icl this would work anyway because
+			 * we have only single slice and for icl+ uv plane has
+			 * non-zero data rate.
+			 * So in worst case those calculation are a bit
+			 * pessimistic, which shouldn't pose any significant
+			 * problem anyway.
 			 */
 			for_each_dbuf_slice_in_mask(slice_id, dbuf_mask)
 				crtc_bw->used_bw[slice_id] += data_rate;
@@ -478,11 +481,12 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 
 		for_each_dbuf_slice(slice_id) {
 			/*
-			 * Current experimental observations show that contrary to BSpec
-			 * we get underruns once we exceed 64 * CDCLK for slices in total.
-			 * As a temporary measure in order not to keep CDCLK bumped up all the
-			 * time we calculate CDCLK according to this formula for  overall bw
-			 * consumed by slices.
+			 * Current experimental observations show that contrary
+			 * to BSpec we get underruns once we exceed 64 * CDCLK
+			 * for slices in total.
+			 * As a temporary measure in order not to keep CDCLK
+			 * bumped up all the time we calculate CDCLK according
+			 * to this formula for  overall bw consumed by slices.
 			 */
 			max_bw += crtc_bw->used_bw[slice_id];
 		}
