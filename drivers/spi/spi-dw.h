@@ -147,8 +147,6 @@ struct dw_spi {
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	const struct dw_spi_dma_ops *dma_ops;
 
-	/* Bus interface info */
-	void			*priv;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
