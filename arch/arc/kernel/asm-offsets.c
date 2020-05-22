@@ -62,11 +62,9 @@ int main(void)
 	DEFINE(PT_r26, offsetof(struct pt_regs, r26));
 	DEFINE(PT_ret, offsetof(struct pt_regs, ret));
 	DEFINE(PT_blink, offsetof(struct pt_regs, blink));
+	OFFSET(PT_fp, pt_regs, fp);
 	DEFINE(PT_lpe, offsetof(struct pt_regs, lp_end));
 	DEFINE(PT_lpc, offsetof(struct pt_regs, lp_count));
-	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
-	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
-
 #ifdef CONFIG_ISA_ARCV2
 	OFFSET(PT_r12, pt_regs, r12);
 	OFFSET(PT_r30, pt_regs, r30);
@@ -78,6 +76,9 @@ int main(void)
 #ifdef CONFIG_ARC_DSP_SAVE_RESTORE_REGS
 	OFFSET(PT_DSP_CTRL, pt_regs, DSP_CTRL);
 #endif
+
+	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
+	DEFINE(SZ_PT_REGS, sizeof(struct pt_regs));
 
 	return 0;
 }

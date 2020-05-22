@@ -149,10 +149,10 @@
  */
 .macro __SAVE_REGFILE_SOFT
 
-	ST2	gp, fp, PT_r26		; gp (r26), fp (r27)
-
-	st	r12, [sp, PT_r12]
+	st	fp,  [sp, PT_fp]	; r27
 	st	r30, [sp, PT_r30]
+	st	r12, [sp, PT_r12]
+	st	r26, [sp, PT_r26]	; gp
 
 	; Saving pt_regs->sp correctly requires some extra work due to the way
 	; Auto stack switch works
@@ -187,10 +187,10 @@
 /*------------------------------------------------------------------------*/
 .macro __RESTORE_REGFILE_SOFT
 
-	LD2	gp, fp, PT_r26		; gp (r26), fp (r27)
-
-	ld	r12, [sp, PT_r12]
+	ld	fp,  [sp, PT_fp]
 	ld	r30, [sp, PT_r30]
+	ld	r12, [sp, PT_r12]
+	ld	r26, [sp, PT_r26]
 
 	; Restore SP (into AUX_USER_SP) only if returning to U mode
 	;  - for K mode, it will be implicitly restored as stack is unwound
