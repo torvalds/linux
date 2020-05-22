@@ -6,6 +6,7 @@
  *
  * V0.0X01.0X00 first version
  * V0.0X01.0X01 add conversion gain control
+ * V0.0X01.0X02 add debug interface for conversion gain control
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -72,7 +73,7 @@
 #define IMX347_RHS1_REG_M		0x3069
 #define IMX347_RHS1_REG_L		0x3068
 
-#define	IMX347_EXPOSURE_MIN		4
+#define	IMX347_EXPOSURE_MIN		2
 #define	IMX347_EXPOSURE_STEP		1
 #define IMX347_VTS_MAX			0x7fff
 
@@ -117,6 +118,8 @@
 #define RHS1_MAX			3113 // <2*BRL=2*1556 && 4n+1
 #define SHR1_MIN			9
 #define BRL				1556
+
+#define USED_SYS_DEBUG
 
 static bool g_isHCG;
 
@@ -1252,6 +1255,47 @@ static int imx347_set_conversion_gain(struct imx347 *imx347, u32 *cg)
 	return ret;
 }
 
+#ifdef USED_SYS_DEBUG
+//ag: echo 0 >  /sys/devices/platform/ff510000.i2c/i2c-1/1-0037/cam_s_cg
+static ssize_t set_conversion_gain_status(struct device *dev,
+	struct device_attribute *attr,
+	const char *buf,
+	size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct imx347 *imx347 = to_imx347(sd);
+	int status = 0;
+	int ret = 0;
+
+	ret = kstrtoint(buf, 0, &status);
+	if (!ret && status >= 0 && status < 2)
+		imx347_set_conversion_gain(imx347, &status);
+	else
+		dev_err(dev, "input 0 for LCG, 1 for HCG, cur %d\n", status);
+	return count;
+}
+
+static struct device_attribute attributes[] = {
+	__ATTR(cam_s_cg, S_IWUSR, NULL, set_conversion_gain_status),
+};
+
+static int add_sysfs_interfaces(struct device *dev)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(attributes); i++)
+		if (device_create_file(dev, attributes + i))
+			goto undo;
+	return 0;
+undo:
+	for (i--; i >= 0 ; i--)
+		device_remove_file(dev, attributes + i);
+	dev_err(dev, "%s: failed to create sysfs interface\n", __func__);
+	return -ENODEV;
+}
+#endif
+
 static long imx347_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx347 *imx347 = to_imx347(sd);
@@ -2053,7 +2097,9 @@ static int imx347_probe(struct i2c_client *client,
 	pm_runtime_idle(dev);
 
 	g_isHCG = false;
-
+#ifdef USED_SYS_DEBUG
+	add_sysfs_interfaces(dev);
+#endif
 	return 0;
 
 err_clean_entity:
