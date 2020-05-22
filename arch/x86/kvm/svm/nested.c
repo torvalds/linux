@@ -231,6 +231,9 @@ static bool nested_vmcb_checks(struct vmcb *vmcb)
 	    (vmcb->save.cr0 & X86_CR0_NW))
 		return false;
 
+	if (!kvm_dr6_valid(vmcb->save.dr6) || !kvm_dr7_valid(vmcb->save.dr7))
+		return false;
+
 	return nested_vmcb_check_controls(&vmcb->control);
 }
 
