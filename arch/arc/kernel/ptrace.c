@@ -46,7 +46,7 @@ static const struct pt_regs_offset regoffset_table[] = {
 	REG_OFFSET_NAME(r0),
 	REG_OFFSET_NAME(sp),
 	REG_OFFSET_NAME(orig_r0),
-	REG_OFFSET_NAME(event),
+	REG_OFFSET_NAME(ecr),
 	REG_OFFSET_END,
 };
 
@@ -54,7 +54,7 @@ static const struct pt_regs_offset regoffset_table[] = {
 
 static const struct pt_regs_offset regoffset_table[] = {
 	REG_OFFSET_NAME(orig_r0),
-	REG_OFFSET_NAME(event),
+	REG_OFFSET_NAME(ecr),
 	REG_OFFSET_NAME(bta),
 	REG_OFFSET_NAME(r26),
 	REG_OFFSET_NAME(fp),

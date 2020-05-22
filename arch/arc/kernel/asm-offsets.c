@@ -46,7 +46,7 @@ int main(void)
 	BLANK();
 
 	DEFINE(PT_status32, offsetof(struct pt_regs, status32));
-	DEFINE(PT_event, offsetof(struct pt_regs, event));
+	DEFINE(PT_event, offsetof(struct pt_regs, ecr));
 	DEFINE(PT_bta, offsetof(struct pt_regs, bta));
 	DEFINE(PT_sp, offsetof(struct pt_regs, sp));
 	DEFINE(PT_r0, offsetof(struct pt_regs, r0));
