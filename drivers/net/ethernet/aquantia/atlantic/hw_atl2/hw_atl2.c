@@ -10,6 +10,7 @@
 #include "hw_atl/hw_atl_b0.h"
 #include "hw_atl/hw_atl_utils.h"
 #include "hw_atl/hw_atl_llh.h"
+#include "hw_atl/hw_atl_llh_internal.h"
 #include "hw_atl2_utils.h"
 #include "hw_atl2_llh.h"
 #include "hw_atl2_internal.h"
@@ -23,7 +24,7 @@ static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
 	.msix_irqs = 8U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL2_RSS_MAX,	  \
-	.tcs = HW_ATL2_TC_MAX,	  \
+	.tcs_max = HW_ATL2_TC_MAX,	  \
 	.rxd_alignment = 1U,		  \
 	.rxd_size = HW_ATL2_RXD_SIZE,   \
 	.rxds_max = HW_ATL2_MAX_RXD,    \
@@ -47,7 +48,8 @@ static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
 			NETIF_F_HW_VLAN_CTAG_RX |     \
 			NETIF_F_HW_VLAN_CTAG_TX |     \
 			NETIF_F_GSO_UDP_L4      |     \
-			NETIF_F_GSO_PARTIAL,          \
+			NETIF_F_GSO_PARTIAL     |     \
+			NETIF_F_HW_TC,                \
 	.hw_priv_flags = IFF_UNICAST_FLT, \
 	.flow_control = true,		  \
 	.mtu = HW_ATL2_MTU_JUMBO,	  \
@@ -91,16 +93,49 @@ static int hw_atl2_hw_reset(struct aq_hw_s *self)
 
 static int hw_atl2_hw_queue_to_tc_map_set(struct aq_hw_s *self)
 {
-	if (!hw_atl_rpb_rpf_rx_traf_class_mode_get(self)) {
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(0), 0x11110000);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(8), 0x33332222);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(16), 0x55554444);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(24), 0x77776666);
-	} else {
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(0), 0x00000000);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(8), 0x11111111);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(16), 0x22222222);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(24), 0x33333333);
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
+	unsigned int tcs, q_per_tc;
+	unsigned int tc, q;
+	u32 rx_map = 0;
+	u32 tx_map = 0;
+
+	hw_atl2_tpb_tx_tc_q_rand_map_en_set(self, 1U);
+
+	switch (cfg->tc_mode) {
+	case AQ_TC_MODE_8TCS:
+		tcs = 8;
+		q_per_tc = 4;
+		break;
+	case AQ_TC_MODE_4TCS:
+		tcs = 4;
+		q_per_tc = 8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (tc = 0; tc != tcs; tc++) {
+		unsigned int tc_q_offset = tc * q_per_tc;
+
+		for (q = tc_q_offset; q != tc_q_offset + q_per_tc; q++) {
+			rx_map |= tc << HW_ATL2_RX_Q_TC_MAP_SHIFT(q);
+			if (HW_ATL2_RX_Q_TC_MAP_ADR(q) !=
+			    HW_ATL2_RX_Q_TC_MAP_ADR(q + 1)) {
+				aq_hw_write_reg(self,
+						HW_ATL2_RX_Q_TC_MAP_ADR(q),
+						rx_map);
+				rx_map = 0;
+			}
+
+			tx_map |= tc << HW_ATL2_TX_Q_TC_MAP_SHIFT(q);
+			if (HW_ATL2_TX_Q_TC_MAP_ADR(q) !=
+			    HW_ATL2_TX_Q_TC_MAP_ADR(q + 1)) {
+				aq_hw_write_reg(self,
+						HW_ATL2_TX_Q_TC_MAP_ADR(q),
+						tx_map);
+				tx_map = 0;
+			}
+		}
 	}
 
 	return aq_hw_err_from_flags(self);
@@ -112,7 +147,6 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	u32 tx_buff_size = HW_ATL2_TXBUF_MAX;
 	u32 rx_buff_size = HW_ATL2_RXBUF_MAX;
 	unsigned int prio = 0U;
-	u32 threshold = 0U;
 	u32 tc = 0U;
 
 	/* TPS Descriptor rate init */
@@ -122,42 +156,36 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	/* TPS VM init */
 	hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(self, 0U);
 
-	/* TPS TC credits init */
-	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
-	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
+	tx_buff_size /= cfg->tcs;
+	rx_buff_size /= cfg->tcs;
+	for (tc = 0; tc < cfg->tcs; tc++) {
+		u32 threshold = 0U;
 
-	tc = 0;
+		/* Tx buf size TC0 */
+		hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
 
-	/* TX Packet Scheduler Data TC0 */
-	hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF0, tc);
-	hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(self, 0x640, tc);
-	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, tc);
-	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
+		threshold = (tx_buff_size * (1024 / 32U) * 66U) / 100U;
+		hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self, threshold, tc);
 
-	/* Tx buf size TC0 */
-	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
+		threshold = (tx_buff_size * (1024 / 32U) * 50U) / 100U;
+		hw_atl_tpb_tx_buff_lo_threshold_per_tc_set(self, threshold, tc);
 
-	threshold = (tx_buff_size * (1024 / 32U) * 66U) / 100U;
-	hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self, threshold, tc);
+		/* QoS Rx buf size per TC */
+		hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, rx_buff_size, tc);
 
-	threshold = (tx_buff_size * (1024 / 32U) * 50U) / 100U;
-	hw_atl_tpb_tx_buff_lo_threshold_per_tc_set(self, threshold, tc);
+		threshold = (rx_buff_size * (1024U / 32U) * 66U) / 100U;
+		hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self, threshold, tc);
 
-	/* QoS Rx buf size per TC */
-	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, rx_buff_size, tc);
-
-	threshold = (rx_buff_size * (1024U / 32U) * 66U) / 100U;
-	hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self, threshold, tc);
-
-	threshold = (rx_buff_size * (1024U / 32U) * 50U) / 100U;
-	hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(self, threshold, tc);
+		threshold = (rx_buff_size * (1024U / 32U) * 50U) / 100U;
+		hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(self, threshold, tc);
+	}
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (prio = 0; prio < 8; ++prio)
 		hw_atl_rpf_rpb_user_priority_tc_map_set(self, prio,
-							cfg->tcs * prio / 8);
+							cfg->prio_tc_map[prio]);
 
-	/* ATL2 Apply legacy ring to TC mapping */
+	/* ATL2 Apply ring to TC mapping */
 	hw_atl2_hw_queue_to_tc_map_set(self);
 
 	return aq_hw_err_from_flags(self);
@@ -166,19 +194,149 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 static int hw_atl2_hw_rss_set(struct aq_hw_s *self,
 			      struct aq_rss_parameters *rss_params)
 {
-	u8 *indirection_table =	rss_params->indirection_table;
+	u8 *indirection_table = rss_params->indirection_table;
+	const u32 num_tcs = aq_hw_num_tcs(self);
+	u32 rpf_redir2_enable;
+	int tc;
 	int i;
 
-	for (i = HW_ATL2_RSS_REDIRECTION_MAX; i--;)
-		hw_atl2_new_rpf_rss_redir_set(self, 0, i, indirection_table[i]);
+	rpf_redir2_enable = num_tcs > 4 ? 1 : 0;
+
+	hw_atl2_rpf_redirection_table2_select_set(self, rpf_redir2_enable);
+
+	for (i = HW_ATL2_RSS_REDIRECTION_MAX; i--;) {
+		for (tc = 0; tc != num_tcs; tc++) {
+			hw_atl2_new_rpf_rss_redir_set(self, tc, i,
+						      tc *
+						      aq_hw_q_per_tc(self) +
+						      indirection_table[i]);
+		}
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl2_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
+{
+	static const u32 max_weight = BIT(HW_ATL2_TPS_DATA_TCTWEIGHT_WIDTH) - 1;
+	/* Scale factor is based on the number of bits in fractional portion */
+	static const u32 scale = BIT(HW_ATL_TPS_DESC_RATE_Y_WIDTH);
+	static const u32 frac_msk = HW_ATL_TPS_DESC_RATE_Y_MSK >>
+				    HW_ATL_TPS_DESC_RATE_Y_SHIFT;
+	const u32 link_speed = self->aq_link_status.mbps;
+	struct aq_nic_cfg_s *nic_cfg = self->aq_nic_cfg;
+	unsigned long num_min_rated_tcs = 0;
+	u32 tc_weight[AQ_CFG_TCS_MAX];
+	u32 fixed_max_credit_4b;
+	u32 fixed_max_credit;
+	u8 min_rate_msk = 0;
+	u32 sum_weight = 0;
+	int tc;
+
+	/* By default max_credit is based upon MTU (in unit of 64b) */
+	fixed_max_credit = nic_cfg->aq_hw_caps->mtu / 64;
+	/* in unit of 4b */
+	fixed_max_credit_4b = nic_cfg->aq_hw_caps->mtu / 4;
+
+	if (link_speed) {
+		min_rate_msk = nic_cfg->tc_min_rate_msk &
+			       (BIT(nic_cfg->tcs) - 1);
+		num_min_rated_tcs = hweight8(min_rate_msk);
+	}
+
+	/* First, calculate weights where min_rate is specified */
+	if (num_min_rated_tcs) {
+		for (tc = 0; tc != nic_cfg->tcs; tc++) {
+			if (!nic_cfg->tc_min_rate[tc]) {
+				tc_weight[tc] = 0;
+				continue;
+			}
+
+			tc_weight[tc] = (-1L + link_speed +
+					 nic_cfg->tc_min_rate[tc] *
+					 max_weight) /
+					link_speed;
+			tc_weight[tc] = min(tc_weight[tc], max_weight);
+			sum_weight += tc_weight[tc];
+		}
+	}
+
+	/* WSP, if min_rate is set for at least one TC.
+	 * RR otherwise.
+	 */
+	hw_atl2_tps_tx_pkt_shed_data_arb_mode_set(self, min_rate_msk ? 1U : 0U);
+	/* Data TC Arbiter takes precedence over Descriptor TC Arbiter,
+	 * leave Descriptor TC Arbiter as RR.
+	 */
+	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
+
+	hw_atl_tps_tx_desc_rate_mode_set(self, nic_cfg->is_qos ? 1U : 0U);
+
+	for (tc = 0; tc != nic_cfg->tcs; tc++) {
+		const u32 en = (nic_cfg->tc_max_rate[tc] != 0) ? 1U : 0U;
+		const u32 desc = AQ_NIC_CFG_TCVEC2RING(nic_cfg, tc, 0);
+		u32 weight, max_credit;
+
+		hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, tc,
+							      fixed_max_credit);
+		hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, tc, 0x1E);
+
+		if (num_min_rated_tcs) {
+			weight = tc_weight[tc];
+
+			if (!weight && sum_weight < max_weight)
+				weight = (max_weight - sum_weight) /
+					 (nic_cfg->tcs - num_min_rated_tcs);
+			else if (!weight)
+				weight = 0x640;
+
+			max_credit = max(2 * weight, fixed_max_credit_4b);
+		} else {
+			weight = 0x640;
+			max_credit = 0xFFF0;
+		}
+
+		hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(self, tc, weight);
+		hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, tc,
+							       max_credit);
+
+		hw_atl_tps_tx_desc_rate_en_set(self, desc, en);
+
+		if (en) {
+			/* Nominal rate is always 10G */
+			const u32 rate = 10000U * scale /
+					 nic_cfg->tc_max_rate[tc];
+			const u32 rate_int = rate >>
+					     HW_ATL_TPS_DESC_RATE_Y_WIDTH;
+			const u32 rate_frac = rate & frac_msk;
+
+			hw_atl_tps_tx_desc_rate_x_set(self, desc, rate_int);
+			hw_atl_tps_tx_desc_rate_y_set(self, desc, rate_frac);
+		} else {
+			/* A value of 1 indicates the queue is not
+			 * rate controlled.
+			 */
+			hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);
+			hw_atl_tps_tx_desc_rate_y_set(self, desc, 0U);
+		}
+	}
+	for (tc = nic_cfg->tcs; tc != AQ_CFG_TCS_MAX; tc++) {
+		const u32 desc = AQ_NIC_CFG_TCVEC2RING(nic_cfg, tc, 0);
+
+		hw_atl_tps_tx_desc_rate_en_set(self, desc, 0U);
+		hw_atl_tps_tx_desc_rate_x_set(self, desc, 1U);
+		hw_atl_tps_tx_desc_rate_y_set(self, desc, 0U);
+	}
 
 	return aq_hw_err_from_flags(self);
 }
 
 static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
 {
+	struct aq_nic_cfg_s *nic_cfg = self->aq_nic_cfg;
+
 	/* Tx TC/RSS number config */
-	hw_atl_tpb_tps_tx_tc_mode_set(self, 1U);
+	hw_atl_tpb_tps_tx_tc_mode_set(self, nic_cfg->tc_mode);
 
 	hw_atl_thm_lso_tcp_flag_of_first_pkt_set(self, 0x0FF6U);
 	hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(self, 0x0FF6U);
@@ -201,13 +359,29 @@ static int hw_atl2_hw_init_tx_path(struct aq_hw_s *self)
 static void hw_atl2_hw_init_new_rx_filters(struct aq_hw_s *self)
 {
 	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	u8 *prio_tc_map = self->aq_nic_cfg->prio_tc_map;
+	u16 action;
 	u8 index;
+	int i;
 
+	/* Action Resolver Table (ART) is used by RPF to decide which action
+	 * to take with a packet based upon input tag and tag mask, where:
+	 *  - input tag is a combination of 3-bit VLan Prio (PTP) and
+	 *    29-bit concatenation of all tags from filter block;
+	 *  - tag mask is a mask used for matching against input tag.
+	 * The input_tag is compared with the all the Requested_tags in the
+	 * Record table to find a match. Action field of the selected matched
+	 * REC entry is used for further processing. If multiple entries match,
+	 * the lowest REC entry, Action field will be selected.
+	 */
 	hw_atl2_rpf_act_rslvr_section_en_set(self, 0xFFFF);
 	hw_atl2_rpfl2_uc_flr_tag_set(self, HW_ATL2_RPF_TAG_BASE_UC,
 				     HW_ATL2_MAC_UC);
 	hw_atl2_rpfl2_bc_flr_tag_set(self, HW_ATL2_RPF_TAG_BASE_UC);
 
+	/* FW reserves the beginning of ART, thus all driver entries must
+	 * start from the offset specified in FW caps.
+	 */
 	index = priv->art_base_index + HW_ATL2_RPF_L2_PROMISC_OFF_INDEX;
 	hw_atl2_act_rslvr_table_set(self, index, 0,
 				    HW_ATL2_RPF_TAG_UC_MASK |
@@ -220,33 +394,17 @@ static void hw_atl2_hw_init_new_rx_filters(struct aq_hw_s *self)
 					HW_ATL2_RPF_TAG_UNTAG_MASK,
 				    HW_ATL2_ACTION_DROP);
 
-	index = priv->art_base_index + HW_ATL2_RPF_VLAN_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, HW_ATL2_RPF_TAG_BASE_VLAN,
-				    HW_ATL2_RPF_TAG_VLAN_MASK,
-				    HW_ATL2_ACTION_ASSIGN_TC(0));
+	/* Configure ART to map given VLan Prio (PCP) to the TC index for
+	 * RSS redirection table.
+	 */
+	for (i = 0; i < 8; i++) {
+		action = HW_ATL2_ACTION_ASSIGN_TC(prio_tc_map[i]);
 
-	index = priv->art_base_index + HW_ATL2_RPF_MAC_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, HW_ATL2_RPF_TAG_BASE_UC,
-				    HW_ATL2_RPF_TAG_UC_MASK,
-				    HW_ATL2_ACTION_ASSIGN_TC(0));
-
-	index = priv->art_base_index + HW_ATL2_RPF_ALLMC_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, HW_ATL2_RPF_TAG_BASE_ALLMC,
-				    HW_ATL2_RPF_TAG_ALLMC_MASK,
-				    HW_ATL2_ACTION_ASSIGN_TC(0));
-
-	index = priv->art_base_index + HW_ATL2_RPF_UNTAG_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, HW_ATL2_RPF_TAG_UNTAG_MASK,
-				    HW_ATL2_RPF_TAG_UNTAG_MASK,
-				    HW_ATL2_ACTION_ASSIGN_TC(0));
-
-	index = priv->art_base_index + HW_ATL2_RPF_VLAN_PROMISC_ON_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, 0, HW_ATL2_RPF_TAG_VLAN_MASK,
-				    HW_ATL2_ACTION_DISABLE);
-
-	index = priv->art_base_index + HW_ATL2_RPF_L2_PROMISC_ON_INDEX;
-	hw_atl2_act_rslvr_table_set(self, index, 0, HW_ATL2_RPF_TAG_UC_MASK,
-				    HW_ATL2_ACTION_DISABLE);
+		index = priv->art_base_index + HW_ATL2_RPF_PCP_TO_TC_INDEX + i;
+		hw_atl2_act_rslvr_table_set(self, index,
+					    i << HW_ATL2_RPF_TAG_PCP_OFFSET,
+					    HW_ATL2_RPF_TAG_PCP_MASK, action);
+	}
 }
 
 static void hw_atl2_hw_new_rx_filter_vlan_promisc(struct aq_hw_s *self,
@@ -309,7 +467,7 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 	int i;
 
 	/* Rx TC/RSS number config */
-	hw_atl_rpb_rpf_rx_traf_class_mode_set(self, 1U);
+	hw_atl_rpb_rpf_rx_traf_class_mode_set(self, cfg->tc_mode);
 
 	/* Rx flow control */
 	hw_atl_rpb_rx_flow_ctl_mode_set(self, 1U);
@@ -317,9 +475,7 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 	hw_atl2_rpf_rss_hash_type_set(self, HW_ATL2_RPF_RSS_HASH_TYPE_ALL);
 
 	/* RSS Ring selection */
-	hw_atl_reg_rx_flr_rss_control1set(self, cfg->is_rss ?
-						HW_ATL_RSS_ENABLED_3INDEX_BITS :
-						HW_ATL_RSS_DISABLED);
+	hw_atl_b0_hw_init_rx_rss_ctrl1(self);
 
 	/* Multicast filters */
 	for (i = HW_ATL2_MAC_MAX; i--;) {
@@ -678,6 +834,7 @@ const struct aq_hw_ops hw_atl2_ops = {
 	.hw_interrupt_moderation_set = hw_atl2_hw_interrupt_moderation_set,
 	.hw_rss_set                  = hw_atl2_hw_rss_set,
 	.hw_rss_hash_set             = hw_atl_b0_hw_rss_hash_set,
+	.hw_tc_rate_limit_set        = hw_atl2_hw_init_tx_tc_rate_limit,
 	.hw_get_hw_stats             = hw_atl2_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl2_utils_get_fw_version,
 	.hw_set_offload              = hw_atl_b0_hw_offload_set,

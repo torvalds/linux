@@ -431,6 +431,9 @@ static int atl_resume_common(struct device *dev, bool deep)
 	netif_tx_start_all_queues(nic->ndev);
 
 err_exit:
+	if (ret < 0)
+		aq_nic_deinit(nic, true);
+
 	rtnl_unlock();
 
 	return ret;

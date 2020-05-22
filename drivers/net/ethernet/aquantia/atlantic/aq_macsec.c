@@ -478,7 +478,7 @@ static int aq_mdo_add_secy(struct macsec_context *ctx)
 
 	set_bit(txsc_idx, &cfg->txsc_idx_busy);
 
-	return 0;
+	return ret;
 }
 
 static int aq_mdo_upd_secy(struct macsec_context *ctx)

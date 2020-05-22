@@ -688,13 +688,13 @@ void hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(struct aq_hw_s *aq_hw,
 
 /* set tx packet scheduler descriptor tc max credit */
 void hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(struct aq_hw_s *aq_hw,
-						   u32 max_credit,
-					    u32 tc);
+						   const u32 tc,
+						   const u32 max_credit);
 
 /* set tx packet scheduler descriptor tc weight */
 void hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(struct aq_hw_s *aq_hw,
-					       u32 tx_pkt_shed_desc_tc_weight,
-					u32 tc);
+					       const u32 tc,
+					       const u32 weight);
 
 /* set tx packet scheduler descriptor vm arbitration mode */
 void hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(struct aq_hw_s *aq_hw,
@@ -702,13 +702,29 @@ void hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(struct aq_hw_s *aq_hw,
 
 /* set tx packet scheduler tc data max credit */
 void hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
-						   u32 max_credit,
-					    u32 tc);
+						   const u32 tc,
+						   const u32 max_credit);
 
 /* set tx packet scheduler tc data weight */
 void hw_atl_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
-					       u32 tx_pkt_shed_tc_data_weight,
-					u32 tc);
+					       const u32 tc,
+					       const u32 weight);
+
+/* set tx descriptor rate mode */
+void hw_atl_tps_tx_desc_rate_mode_set(struct aq_hw_s *aq_hw,
+				      const u32 rate_mode);
+
+/* set tx packet scheduler descriptor rate enable */
+void hw_atl_tps_tx_desc_rate_en_set(struct aq_hw_s *aq_hw, const u32 desc,
+				    const u32 enable);
+
+/* set tx packet scheduler descriptor rate integral value */
+void hw_atl_tps_tx_desc_rate_x_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_int);
+
+/* set tx packet scheduler descriptor rate fractional value */
+void hw_atl_tps_tx_desc_rate_y_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_frac);
 
 /* tx */
 

@@ -7,6 +7,14 @@
 #include "hw_atl2_llh_internal.h"
 #include "aq_hw_utils.h"
 
+void hw_atl2_rpf_redirection_table2_select_set(struct aq_hw_s *aq_hw,
+					       u32 select)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_ADR,
+			    HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_MSK,
+			    HW_ATL2_RPF_PIF_RPF_REDIR2_ENI_SHIFT, select);
+}
+
 void hw_atl2_rpf_rss_hash_type_set(struct aq_hw_s *aq_hw, u32 rss_hash_type)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_RPF_PIF_RPF_RSS_HASH_TYPEI_ADR,
@@ -60,6 +68,15 @@ void hw_atl2_rpf_vlan_flr_tag_set(struct aq_hw_s *aq_hw, u32 tag, u32 filter)
 
 /* TX */
 
+void hw_atl2_tpb_tx_tc_q_rand_map_en_set(struct aq_hw_s *aq_hw,
+					 const u32 tc_q_rand_map_en)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_ADR,
+			    HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_MSK,
+			    HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_SHIFT,
+			    tc_q_rand_map_en);
+}
+
 void hw_atl2_tpb_tx_buf_clk_gate_en_set(struct aq_hw_s *aq_hw, u32 clk_gate_en)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_ADR,
@@ -76,9 +93,18 @@ void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 			tx_intr_moderation_ctl);
 }
 
+void hw_atl2_tps_tx_pkt_shed_data_arb_mode_set(struct aq_hw_s *aq_hw,
+					       const u32 data_arb_mode)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TC_ARB_MODE_ADR,
+			    HW_ATL2_TPS_DATA_TC_ARB_MODE_MSK,
+			    HW_ATL2_TPS_DATA_TC_ARB_MODE_SHIFT,
+			    data_arb_mode);
+}
+
 void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
-						    u32 max_credit,
-						    u32 tc)
+						    const u32 tc,
+						    const u32 max_credit)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTCREDIT_MAX_ADR(tc),
 			    HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSK,
@@ -87,13 +113,13 @@ void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
-						u32 tx_pkt_shed_tc_data_weight,
-						u32 tc)
+						const u32 tc,
+						const u32 weight)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTWEIGHT_ADR(tc),
 			    HW_ATL2_TPS_DATA_TCTWEIGHT_MSK,
 			    HW_ATL2_TPS_DATA_TCTWEIGHT_SHIFT,
-			    tx_pkt_shed_tc_data_weight);
+			    weight);
 }
 
 u32 hw_atl2_get_hw_version(struct aq_hw_s *aq_hw)

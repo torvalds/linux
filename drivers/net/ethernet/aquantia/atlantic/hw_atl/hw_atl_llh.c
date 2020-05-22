@@ -754,7 +754,7 @@ void hw_atl_rpfl2_accept_all_mc_packets_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
-					     u32 user_priority_tc_map, u32 tc)
+					     u32 user_priority, u32 tc)
 {
 /* register address for bitfield rx_tc_up{t}[2:0] */
 	static u32 rpf_rpb_rx_tc_upt_adr[8] = {
@@ -773,10 +773,9 @@ void hw_atl_rpf_rpb_user_priority_tc_map_set(struct aq_hw_s *aq_hw,
 			0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U
 		};
 
-	aq_hw_write_reg_bit(aq_hw, rpf_rpb_rx_tc_upt_adr[tc],
-			    rpf_rpb_rx_tc_upt_msk[tc],
-			    rpf_rpb_rx_tc_upt_shft[tc],
-			    user_priority_tc_map);
+	aq_hw_write_reg_bit(aq_hw, rpf_rpb_rx_tc_upt_adr[user_priority],
+			    rpf_rpb_rx_tc_upt_msk[user_priority],
+			    rpf_rpb_rx_tc_upt_shft[user_priority], tc);
 }
 
 void hw_atl_rpf_rss_key_addr_set(struct aq_hw_s *aq_hw, u32 rss_key_addr)
@@ -1464,8 +1463,8 @@ void hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(struct aq_hw_s *aq_hw,
-						   u32 max_credit,
-						   u32 tc)
+						   const u32 tc,
+						   const u32 max_credit)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_TCTCREDIT_MAX_ADR(tc),
 			    HW_ATL_TPS_DESC_TCTCREDIT_MAX_MSK,
@@ -1474,13 +1473,13 @@ void hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(struct aq_hw_s *aq_hw,
-					       u32 tx_pkt_shed_desc_tc_weight,
-					       u32 tc)
+					       const u32 tc,
+					       const u32 weight)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_TCTWEIGHT_ADR(tc),
 			    HW_ATL_TPS_DESC_TCTWEIGHT_MSK,
 			    HW_ATL_TPS_DESC_TCTWEIGHT_SHIFT,
-			    tx_pkt_shed_desc_tc_weight);
+			    weight);
 }
 
 void hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(struct aq_hw_s *aq_hw,
@@ -1493,8 +1492,8 @@ void hw_atl_tps_tx_pkt_shed_desc_vm_arb_mode_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
-						   u32 max_credit,
-						   u32 tc)
+						   const u32 tc,
+						   const u32 max_credit)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DATA_TCTCREDIT_MAX_ADR(tc),
 			    HW_ATL_TPS_DATA_TCTCREDIT_MAX_MSK,
@@ -1503,13 +1502,49 @@ void hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
-					       u32 tx_pkt_shed_tc_data_weight,
-					       u32 tc)
+					       const u32 tc,
+					       const u32 weight)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DATA_TCTWEIGHT_ADR(tc),
 			    HW_ATL_TPS_DATA_TCTWEIGHT_MSK,
 			    HW_ATL_TPS_DATA_TCTWEIGHT_SHIFT,
-			    tx_pkt_shed_tc_data_weight);
+			    weight);
+}
+
+void hw_atl_tps_tx_desc_rate_mode_set(struct aq_hw_s *aq_hw,
+				      const u32 rate_mode)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_TX_DESC_RATE_MODE_ADR,
+			    HW_ATL_TPS_TX_DESC_RATE_MODE_MSK,
+			    HW_ATL_TPS_TX_DESC_RATE_MODE_SHIFT,
+			    rate_mode);
+}
+
+void hw_atl_tps_tx_desc_rate_en_set(struct aq_hw_s *aq_hw, const u32 desc,
+				    const u32 enable)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_EN_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_EN_MSK,
+			    HW_ATL_TPS_DESC_RATE_EN_SHIFT,
+			    enable);
+}
+
+void hw_atl_tps_tx_desc_rate_x_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_int)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_X_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_X_MSK,
+			    HW_ATL_TPS_DESC_RATE_X_SHIFT,
+			    rate_int);
+}
+
+void hw_atl_tps_tx_desc_rate_y_set(struct aq_hw_s *aq_hw, const u32 desc,
+				   const u32 rate_frac)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPS_DESC_RATE_Y_ADR(desc),
+			    HW_ATL_TPS_DESC_RATE_Y_MSK,
+			    HW_ATL_TPS_DESC_RATE_Y_SHIFT,
+			    rate_frac);
 }
 
 /* tx */

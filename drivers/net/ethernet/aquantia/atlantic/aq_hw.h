@@ -18,6 +18,12 @@
 #define AQ_HW_MAC_COUNTER_HZ   312500000ll
 #define AQ_HW_PHY_COUNTER_HZ   160000000ll
 
+enum aq_tc_mode {
+	AQ_TC_MODE_INVALID = -1,
+	AQ_TC_MODE_8TCS,
+	AQ_TC_MODE_4TCS,
+};
+
 #define AQ_RX_FIRST_LOC_FVLANID     0U
 #define AQ_RX_LAST_LOC_FVLANID	   15U
 #define AQ_RX_FIRST_LOC_FETHERT    16U
@@ -28,6 +34,9 @@
 #define AQ_VLAN_MAX_FILTERS   \
 			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
 #define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
+
+/* Used for rate to Mbps conversion */
+#define AQ_MBPS_DIVISOR         125000 /* 1000000 / 8 */
 
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
@@ -46,7 +55,7 @@ struct aq_hw_caps_s {
 	u32 mac_regs_count;
 	u32 hw_alive_check_addr;
 	u8 msix_irqs;
-	u8 tcs;
+	u8 tcs_max;
 	u8 rxd_alignment;
 	u8 rxd_size;
 	u8 txd_alignment;
@@ -118,7 +127,10 @@ struct aq_stats_s {
 #define AQ_HW_TXD_MULTIPLE 8U
 #define AQ_HW_RXD_MULTIPLE 8U
 
+#define AQ_HW_QUEUES_MAX                32U
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
+#define AQ_HW_PTP_TC                    2U
 
 #define AQ_HW_LED_BLINK    0x2U
 #define AQ_HW_LED_DEFAULT  0x0U
@@ -268,6 +280,8 @@ struct aq_hw_ops {
 	int (*hw_rss_hash_set)(struct aq_hw_s *self,
 			       struct aq_rss_parameters *rss_params);
 
+	int (*hw_tc_rate_limit_set)(struct aq_hw_s *self);
+
 	int (*hw_get_regs)(struct aq_hw_s *self,
 			   const struct aq_hw_caps_s *aq_hw_caps,
 			   u32 *regs_buff);
@@ -278,10 +292,6 @@ struct aq_hw_ops {
 
 	int (*hw_set_offload)(struct aq_hw_s *self,
 			      struct aq_nic_cfg_s *aq_nic_cfg);
-
-	int (*hw_tx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
-
-	int (*hw_rx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
 
 	int (*hw_ring_hwts_rx_fill)(struct aq_hw_s *self,
 				    struct aq_ring_s *aq_ring);
