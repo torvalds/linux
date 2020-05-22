@@ -19,6 +19,9 @@ static inline int sdw_acpi_find_slaves(struct sdw_bus *bus)
 int sdw_of_find_slaves(struct sdw_bus *bus);
 void sdw_extract_slave_id(struct sdw_bus *bus,
 			  u64 addr, struct sdw_slave_id *id);
+int sdw_master_device_add(struct sdw_bus *bus, struct device *parent,
+			  struct fwnode_handle *fwnode);
+int sdw_master_device_del(struct sdw_bus *bus);
 
 #ifdef CONFIG_DEBUG_FS
 void sdw_bus_debugfs_init(struct sdw_bus *bus);
@@ -172,5 +175,6 @@ sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 #define SDW_UNATTACH_REQUEST_MASTER_RESET	BIT(0)
 
 void sdw_clear_slave_status(struct sdw_bus *bus, u32 request);
+int sdw_slave_modalias(const struct sdw_slave *slave, char *buf, size_t size);
 
 #endif /* __SDW_BUS_H */

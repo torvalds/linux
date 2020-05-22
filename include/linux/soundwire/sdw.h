@@ -291,8 +291,8 @@ struct sdw_dpn_audio_mode {
  * implementation-defined interrupts
  * @max_ch: Maximum channels supported
  * @min_ch: Minimum channels supported
- * @num_ch: Number of discrete channels supported
- * @ch: Discrete channels supported
+ * @num_channels: Number of discrete channels supported
+ * @channels: Discrete channels supported
  * @num_ch_combinations: Number of channel combinations supported
  * @ch_combinations: Channel combinations supported
  * @modes: SDW mode supported
@@ -316,8 +316,8 @@ struct sdw_dpn_prop {
 	u32 imp_def_interrupts;
 	u32 max_ch;
 	u32 min_ch;
-	u32 num_ch;
-	u32 *ch;
+	u32 num_channels;
+	u32 *channels;
 	u32 num_ch_combinations;
 	u32 *ch_combinations;
 	u32 modes;
@@ -632,6 +632,19 @@ struct sdw_slave {
 
 #define dev_to_sdw_dev(_dev) container_of(_dev, struct sdw_slave, dev)
 
+/**
+ * struct sdw_master_device - SoundWire 'Master Device' representation
+ * @dev: Linux device for this Master
+ * @bus: Bus handle shortcut
+ */
+struct sdw_master_device {
+	struct device dev;
+	struct sdw_bus *bus;
+};
+
+#define dev_to_sdw_master_device(d)	\
+	container_of(d, struct sdw_master_device, dev)
+
 struct sdw_driver {
 	const char *name;
 
@@ -787,8 +800,10 @@ struct sdw_master_ops {
 
 /**
  * struct sdw_bus - SoundWire bus
- * @dev: Master linux device
+ * @dev: Shortcut to &bus->md->dev to avoid changing the entire code.
+ * @md: Master device
  * @link_id: Link id number, can be 0 to N, unique for each Master
+ * @id: bus system-wide unique id
  * @slaves: list of Slaves on this bus
  * @assigned: Bitmap for Slave device numbers.
  * Bit set implies used number, bit clear implies unused number.
@@ -812,7 +827,9 @@ struct sdw_master_ops {
  */
 struct sdw_bus {
 	struct device *dev;
+	struct sdw_master_device *md;
 	unsigned int link_id;
+	int id;
 	struct list_head slaves;
 	DECLARE_BITMAP(assigned, SDW_MAX_DEVICES);
 	struct mutex bus_lock;
@@ -832,8 +849,9 @@ struct sdw_bus {
 	bool multi_link;
 };
 
-int sdw_add_bus_master(struct sdw_bus *bus);
-void sdw_delete_bus_master(struct sdw_bus *bus);
+int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
+		       struct fwnode_handle *fwnode);
+void sdw_bus_master_delete(struct sdw_bus *bus);
 
 /**
  * sdw_port_config: Master or Slave Port configuration
