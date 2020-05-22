@@ -2532,6 +2532,7 @@ static int ufshcd_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *cmd)
 	err = ufshcd_prepare_lrbp_crypto(hba, cmd, lrbp);
 	if (err) {
 		lrbp->cmd = NULL;
+		ufshcd_release(hba);
 		goto out;
 	}
 	lrbp->req_abort_skip = false;
