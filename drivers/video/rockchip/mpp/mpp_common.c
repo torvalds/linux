@@ -302,6 +302,8 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 					     timeout_work);
 
 	mpp_err("task %p processing timed out!\n", task);
+	/* if hardware timeout, task must abort */
+	atomic_inc(&task->abort_request);
 
 	if (!task->session) {
 		mpp_err("task %p, task->session is null.\n", task);
@@ -1671,15 +1673,23 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct mpp_dev *mpp = param;
+	struct mpp_task *task = mpp->cur_task;
+
+	if (task) {
+		/* if wait or delayed work timeout, abort request will turn on,
+		 * isr should not to response, and handle it in delayed work
+		 */
+		if (atomic_read(&task->abort_request) > 0)
+			return IRQ_HANDLED;
+
+		task->state = TASK_STATE_IRQ;
+		cancel_delayed_work(&task->timeout_work);
+	}
 
 	if (mpp->hw_ops->reduce_freq &&
 	    list_empty(&mpp->queue->pending_list))
 		mpp->hw_ops->reduce_freq(mpp);
 
-	if (mpp->cur_task) {
-		mpp->cur_task->state = TASK_STATE_IRQ;
-		cancel_delayed_work(&mpp->cur_task->timeout_work);
-	}
 	if (mpp->dev_ops->isr)
 		ret = mpp->dev_ops->isr(mpp);
 
