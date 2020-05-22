@@ -713,7 +713,7 @@ static int tsl2563_probe(struct i2c_client *client,
 
 	chip = iio_priv(indio_dev);
 
-	i2c_set_clientdata(client, chip);
+	i2c_set_clientdata(client, indio_dev);
 	chip->client = client;
 
 	err = tsl2563_detect(chip);
@@ -797,8 +797,8 @@ fail:
 
 static int tsl2563_remove(struct i2c_client *client)
 {
-	struct tsl2563_chip *chip = i2c_get_clientdata(client);
-	struct iio_dev *indio_dev = iio_priv_to_dev(chip);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	if (!chip->int_enabled)
@@ -816,7 +816,8 @@ static int tsl2563_remove(struct i2c_client *client)
 #ifdef CONFIG_PM_SLEEP
 static int tsl2563_suspend(struct device *dev)
 {
-	struct tsl2563_chip *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 
 	mutex_lock(&chip->lock);
@@ -834,7 +835,8 @@ out:
 
 static int tsl2563_resume(struct device *dev)
 {
-	struct tsl2563_chip *chip = i2c_get_clientdata(to_i2c_client(dev));
+	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
+	struct tsl2563_chip *chip = iio_priv(indio_dev);
 	int ret;
 
 	mutex_lock(&chip->lock);
