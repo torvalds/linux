@@ -939,7 +939,7 @@ static void insert_bpts(void)
 		}
 
 		patch_instruction(bp->instr, instr);
-		patch_instruction((void *)bp->instr + ppc_inst_len(instr),
+		patch_instruction(ppc_inst_next(bp->instr, &instr),
 				  ppc_inst(bpinstr));
 		if (bp->enabled & BP_CIABR)
 			continue;

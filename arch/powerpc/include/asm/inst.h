@@ -100,6 +100,19 @@ static inline int ppc_inst_len(struct ppc_inst x)
 	return ppc_inst_prefixed(x) ? 8 : 4;
 }
 
+/*
+ * Return the address of the next instruction, if the instruction @value was
+ * located at @location.
+ */
+static inline struct ppc_inst *ppc_inst_next(void *location, struct ppc_inst *value)
+{
+	struct ppc_inst tmp;
+
+	tmp = ppc_inst_read(value);
+
+	return location + ppc_inst_len(tmp);
+}
+
 int probe_user_read_inst(struct ppc_inst *inst,
 			 struct ppc_inst __user *nip);
 
