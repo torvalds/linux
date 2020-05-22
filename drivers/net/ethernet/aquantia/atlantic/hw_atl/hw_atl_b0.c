@@ -114,12 +114,30 @@ static int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc)
 	return 0;
 }
 
+static int hw_atl_b0_tc_ptp_set(struct aq_hw_s *self)
+{
+	/* Init TC2 for PTP_TX */
+	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_TXBUF_SIZE,
+					       AQ_HW_PTP_TC);
+
+	/* Init TC2 for PTP_RX */
+	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
+					       AQ_HW_PTP_TC);
+	/* No flow control for PTP */
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, AQ_HW_PTP_TC);
+
+	return aq_hw_err_from_flags(self);
+}
+
 static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 {
 	u32 tx_buff_size = HW_ATL_B0_TXBUF_MAX;
 	u32 rx_buff_size = HW_ATL_B0_RXBUF_MAX;
 	unsigned int i_priority = 0U;
 	u32 tc = 0U;
+
+	tx_buff_size -= HW_ATL_B0_PTP_TXBUF_SIZE;
+	rx_buff_size -= HW_ATL_B0_PTP_RXBUF_SIZE;
 
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
@@ -139,8 +157,6 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
 
 	/* Tx buf size TC0 */
-	tx_buff_size -= HW_ATL_B0_PTP_TXBUF_SIZE;
-
 	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
 	hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self,
 						   (tx_buff_size *
@@ -150,13 +166,8 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   (tx_buff_size *
 						   (1024 / 32U) * 50U) /
 						   100U, tc);
-	/* Init TC2 for PTP_TX */
-	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_TXBUF_SIZE,
-					       AQ_HW_PTP_TC);
 
 	/* QoS Rx buf size per TC */
-	rx_buff_size -= HW_ATL_B0_PTP_RXBUF_SIZE;
-
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, rx_buff_size, tc);
 	hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self,
 						   (rx_buff_size *
@@ -169,11 +180,7 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 
 	hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 
-	/* Init TC2 for PTP_RX */
-	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
-					       AQ_HW_PTP_TC);
-	/* No flow control for PTP */
-	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, AQ_HW_PTP_TC);
+	hw_atl_b0_tc_ptp_set(self);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
