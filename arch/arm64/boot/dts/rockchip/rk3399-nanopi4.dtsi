@@ -117,9 +117,9 @@
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
-		pinctrl-0 = <&leds_gpio>;
+		pinctrl-0 = <&status_led_pin>;
 
-		status {
+		status_led: led-0 {
 			gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_HIGH>;
 			label = "status_led";
 			linux,default-trigger = "heartbeat";
@@ -520,7 +520,7 @@
 	};
 
 	gpio-leds {
-		leds_gpio: leds-gpio {
+		status_led_pin: status-led-pin {
 			rockchip,pins = <0 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
