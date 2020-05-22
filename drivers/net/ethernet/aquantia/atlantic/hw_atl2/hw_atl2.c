@@ -475,9 +475,7 @@ static int hw_atl2_hw_init_rx_path(struct aq_hw_s *self)
 	hw_atl2_rpf_rss_hash_type_set(self, HW_ATL2_RPF_RSS_HASH_TYPE_ALL);
 
 	/* RSS Ring selection */
-	hw_atl_reg_rx_flr_rss_control1set(self, cfg->is_rss ?
-						HW_ATL_RSS_ENABLED_3INDEX_BITS :
-						HW_ATL_RSS_DISABLED);
+	hw_atl_b0_hw_init_rx_rss_ctrl1(self);
 
 	/* Multicast filters */
 	for (i = HW_ATL2_MAC_MAX; i--;) {

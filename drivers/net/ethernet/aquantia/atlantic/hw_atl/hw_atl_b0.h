@@ -58,6 +58,8 @@ int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
 int hw_atl_b0_hw_ring_tx_stop(struct aq_hw_s *self, struct aq_ring_s *ring);
 int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self, struct aq_ring_s *ring);
 
+void hw_atl_b0_hw_init_rx_rss_ctrl1(struct aq_hw_s *self);
+
 int hw_atl_b0_hw_mac_addr_set(struct aq_hw_s *self, u8 *mac_addr);
 
 int hw_atl_b0_hw_start(struct aq_hw_s *self);
