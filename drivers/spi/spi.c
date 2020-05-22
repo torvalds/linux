@@ -1160,6 +1160,8 @@ int spi_delay_exec(struct spi_delay *_delay, struct spi_transfer *xfer)
 {
 	int delay;
 
+	might_sleep();
+
 	if (!_delay)
 		return -EINVAL;
 
