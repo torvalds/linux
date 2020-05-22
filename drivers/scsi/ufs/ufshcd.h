@@ -745,6 +745,7 @@ struct ufs_hba {
 	struct request_queue	*bsg_queue;
 	bool wb_buf_flush_enabled;
 	bool wb_enabled;
+	struct delayed_work rpm_dev_flush_recheck_work;
 };
 
 /* Returns true if clocks can be gated. Otherwise false */

@@ -574,7 +574,7 @@ struct ufs_dev_info {
 	u32 d_ext_ufs_feature_sup;
 	u8 b_wb_buffer_type;
 	u32 d_wb_alloc_units;
-	bool keep_vcc_on;
+	bool b_rpm_dev_flush_capable;
 	u8 b_presrv_uspc_en;
 };
 
