@@ -272,15 +272,15 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
  */
 
 static inline unsigned long
-__xtensa_clear_user(void *addr, unsigned long size)
+__xtensa_clear_user(void __user *addr, unsigned long size)
 {
-	if (!__memset(addr, 0, size))
+	if (!__memset((void __force *)addr, 0, size))
 		return size;
 	return 0;
 }
 
 static inline unsigned long
-clear_user(void *addr, unsigned long size)
+clear_user(void __user *addr, unsigned long size)
 {
 	if (access_ok(addr, size))
 		return __xtensa_clear_user(addr, size);
@@ -292,10 +292,10 @@ clear_user(void *addr, unsigned long size)
 
 #ifndef CONFIG_GENERIC_STRNCPY_FROM_USER
 
-extern long __strncpy_user(char *, const char *, long);
+extern long __strncpy_user(char *dst, const char __user *src, long count);
 
 static inline long
-strncpy_from_user(char *dst, const char *src, long count)
+strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	if (access_ok(src, 1))
 		return __strncpy_user(dst, src, count);
@@ -308,13 +308,11 @@ long strncpy_from_user(char *dst, const char *src, long count);
 /*
  * Return the size of a string (including the ending 0!)
  */
-extern long __strnlen_user(const char *, long);
+extern long __strnlen_user(const char __user *str, long len);
 
-static inline long strnlen_user(const char *str, long len)
+static inline long strnlen_user(const char __user *str, long len)
 {
-	unsigned long top = __kernel_ok ? ~0UL : TASK_SIZE - 1;
-
-	if ((unsigned long)str > top)
+	if (!access_ok(str, 1))
 		return 0;
 	return __strnlen_user(str, len);
 }
