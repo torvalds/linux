@@ -2038,6 +2038,24 @@
 /* default value of bitfield lso_tcp_flag_mid[b:0] */
 #define HW_ATL_THM_LSO_TCP_FLAG_MID_DEFAULT 0x0
 
+/* tx tx_tc_mode bitfield definitions
+ * preprocessor definitions for the bitfield "tx_tc_mode".
+ * port="pif_tpb_tx_tc_mode_i,pif_tps_tx_tc_mode_i"
+ */
+
+/* register address for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_ADDR 0x00007900
+/* bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSK 0x00000100
+/* inverted bitmask for bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_MSKN 0xFFFFFEFF
+/* lower bit position of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_SHIFT 8
+/* width of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_WIDTH 1
+/* default value of bitfield tx_tc_mode */
+#define HW_ATL_TPB_TX_TC_MODE_DEFAULT 0x0
+
 /* tx tx_buf_en bitfield definitions
  * preprocessor definitions for the bitfield "tx_buf_en".
  * port="pif_tpb_tx_buf_en_i"
@@ -2055,19 +2073,6 @@
 #define HW_ATL_TPB_TX_BUF_EN_WIDTH 1
 /* default value of bitfield tx_buf_en */
 #define HW_ATL_TPB_TX_BUF_EN_DEFAULT 0x0
-
-/* register address for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_ADDR 0x00007900
-/* bitmask for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_MSK 0x00000100
-/* inverted bitmask for bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_MSKN 0xFFFFFEFF
-/* lower bit position of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_SHIFT 8
-/* width of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_WIDTH 1
-/* default value of bitfield tx_tc_mode */
-#define HW_ATL_TPB_TX_TC_MODE_DEFAULT 0x0
 
 /* tx tx{b}_hi_thresh[c:0] bitfield definitions
  * preprocessor definitions for the bitfield "tx{b}_hi_thresh[c:0]".

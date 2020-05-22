@@ -23,7 +23,7 @@
 	.msix_irqs = 8U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL_B0_RSS_MAX,	  \
-	.tcs = HW_ATL_B0_TC_MAX,	  \
+	.tcs_max = HW_ATL_B0_TC_MAX,	  \
 	.rxd_alignment = 1U,		  \
 	.rxd_size = HW_ATL_B0_RXD_SIZE,   \
 	.rxds_max = HW_ATL_B0_MAX_RXD,    \
@@ -116,8 +116,9 @@ static int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc)
 
 static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 {
+	u32 tx_buff_size = HW_ATL_B0_TXBUF_MAX;
+	u32 rx_buff_size = HW_ATL_B0_RXBUF_MAX;
 	unsigned int i_priority = 0U;
-	u32 buff_size = 0U;
 	u32 tc = 0U;
 
 	/* TPS Descriptor rate init */
@@ -131,8 +132,6 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
 
-	tc = 0;
-
 	/* TX Packet Scheduler Data TC0 */
 	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, tc);
 	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, tc);
@@ -140,46 +139,41 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
 
 	/* Tx buf size TC0 */
-	buff_size = HW_ATL_B0_TXBUF_MAX - HW_ATL_B0_PTP_TXBUF_SIZE;
+	tx_buff_size -= HW_ATL_B0_PTP_TXBUF_SIZE;
 
-	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, buff_size, tc);
+	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
 	hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self,
-						   (buff_size *
+						   (tx_buff_size *
 						   (1024 / 32U) * 66U) /
 						   100U, tc);
 	hw_atl_tpb_tx_buff_lo_threshold_per_tc_set(self,
-						   (buff_size *
+						   (tx_buff_size *
 						   (1024 / 32U) * 50U) /
 						   100U, tc);
 	/* Init TC2 for PTP_TX */
-	tc = 2;
-
 	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_TXBUF_SIZE,
-					       tc);
+					       AQ_HW_PTP_TC);
 
 	/* QoS Rx buf size per TC */
-	tc = 0;
-	buff_size = HW_ATL_B0_RXBUF_MAX - HW_ATL_B0_PTP_RXBUF_SIZE;
+	rx_buff_size -= HW_ATL_B0_PTP_RXBUF_SIZE;
 
-	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, buff_size, tc);
+	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, rx_buff_size, tc);
 	hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self,
-						   (buff_size *
+						   (rx_buff_size *
 						   (1024U / 32U) * 66U) /
 						   100U, tc);
 	hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(self,
-						   (buff_size *
+						   (rx_buff_size *
 						   (1024U / 32U) * 50U) /
 						   100U, tc);
 
 	hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 
 	/* Init TC2 for PTP_RX */
-	tc = 2;
-
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
-					       tc);
+					       AQ_HW_PTP_TC);
 	/* No flow control for PTP */
-	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, tc);
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, AQ_HW_PTP_TC);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)

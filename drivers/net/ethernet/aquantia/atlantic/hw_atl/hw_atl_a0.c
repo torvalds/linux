@@ -21,7 +21,7 @@
 	.msix_irqs = 4U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL_A0_RSS_MAX,	  \
-	.tcs = HW_ATL_A0_TC_MAX,	  \
+	.tcs_max = HW_ATL_A0_TC_MAX,	  \
 	.rxd_alignment = 1U,		  \
 	.rxd_size = HW_ATL_A0_RXD_SIZE,   \
 	.rxds_max = HW_ATL_A0_MAX_RXD,    \

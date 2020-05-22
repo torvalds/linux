@@ -103,16 +103,11 @@ err_exit:
 struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 			      struct aq_nic_cfg_s *aq_nic_cfg)
 {
-	struct aq_ring_s *ring = NULL;
 	struct aq_vec_s *self = NULL;
-	unsigned int i = 0U;
-	int err = 0;
 
 	self = kzalloc(sizeof(*self), GFP_KERNEL);
-	if (!self) {
-		err = -ENOMEM;
+	if (!self)
 		goto err_exit;
-	}
 
 	self->aq_nic = aq_nic;
 	self->aq_ring_param.vec_idx = idx;
@@ -128,10 +123,19 @@ struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 	netif_napi_add(aq_nic_get_ndev(aq_nic), &self->napi,
 		       aq_vec_poll, AQ_CFG_NAPI_WEIGHT);
 
+err_exit:
+	return self;
+}
+
+int aq_vec_ring_alloc(struct aq_vec_s *self, struct aq_nic_s *aq_nic,
+		      unsigned int idx, struct aq_nic_cfg_s *aq_nic_cfg)
+{
+	struct aq_ring_s *ring = NULL;
+	unsigned int i = 0U;
+	int err = 0;
+
 	for (i = 0; i < aq_nic_cfg->tcs; ++i) {
-		unsigned int idx_ring = AQ_NIC_TCVEC2RING(self->nic,
-						self->tx_rings,
-						self->aq_ring_param.vec_idx);
+		unsigned int idx_ring = AQ_NIC_TCVEC2RING(aq_nic, i, idx);
 
 		ring = aq_ring_tx_alloc(&self->ring[i][AQ_VEC_TX_ID], aq_nic,
 					idx_ring, aq_nic_cfg);
@@ -156,11 +160,11 @@ struct aq_vec_s *aq_vec_alloc(struct aq_nic_s *aq_nic, unsigned int idx,
 
 err_exit:
 	if (err < 0) {
-		aq_vec_free(self);
+		aq_vec_ring_free(self);
 		self = NULL;
 	}
 
-	return self;
+	return err;
 }
 
 int aq_vec_init(struct aq_vec_s *self, const struct aq_hw_ops *aq_hw_ops,
@@ -270,6 +274,18 @@ err_exit:;
 
 void aq_vec_free(struct aq_vec_s *self)
 {
+	if (!self)
+		goto err_exit;
+
+	netif_napi_del(&self->napi);
+
+	kfree(self);
+
+err_exit:;
+}
+
+void aq_vec_ring_free(struct aq_vec_s *self)
+{
 	struct aq_ring_s *ring = NULL;
 	unsigned int i = 0U;
 
@@ -279,13 +295,12 @@ void aq_vec_free(struct aq_vec_s *self)
 	for (i = 0U, ring = self->ring[0];
 		self->tx_rings > i; ++i, ring = self->ring[i]) {
 		aq_ring_free(&ring[AQ_VEC_TX_ID]);
-		aq_ring_free(&ring[AQ_VEC_RX_ID]);
+		if (i < self->rx_rings)
+			aq_ring_free(&ring[AQ_VEC_RX_ID]);
 	}
 
-	netif_napi_del(&self->napi);
-
-	kfree(self);
-
+	self->tx_rings = 0;
+	self->rx_rings = 0;
 err_exit:;
 }
 

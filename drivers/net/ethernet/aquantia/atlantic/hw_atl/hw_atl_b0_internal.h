@@ -75,7 +75,7 @@
 #define HW_ATL_B0_RSS_HASHKEY_BITS 320U
 
 #define HW_ATL_B0_TCRSS_4_8  1
-#define HW_ATL_B0_TC_MAX 1U
+#define HW_ATL_B0_TC_MAX 8U
 #define HW_ATL_B0_RSS_MAX 8U
 
 #define HW_ATL_B0_LRO_RXD_MAX 16U

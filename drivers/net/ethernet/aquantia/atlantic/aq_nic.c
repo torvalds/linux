@@ -399,9 +399,15 @@ int aq_nic_init(struct aq_nic_s *self)
 		err = aq_phy_init(self->aq_hw);
 	}
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
+	for (i = 0U; i < self->aq_vecs; i++) {
+		aq_vec = self->aq_vec[i];
+		err = aq_vec_ring_alloc(aq_vec, self, i,
+					aq_nic_get_cfg(self));
+		if (err)
+			goto err_exit;
+
 		aq_vec_init(aq_vec, self->aq_hw_ops, self->aq_hw);
+	}
 
 	err = aq_ptp_init(self, self->irqvecs - 1);
 	if (err < 0)
@@ -424,8 +430,11 @@ err_exit:
 int aq_nic_start(struct aq_nic_s *self)
 {
 	struct aq_vec_s *aq_vec = NULL;
+	struct aq_nic_cfg_s *cfg;
 	unsigned int i = 0U;
 	int err = 0;
+
+	cfg = aq_nic_get_cfg(self);
 
 	err = self->aq_hw_ops->hw_multicast_list_set(self->aq_hw,
 						     self->mc_list.ar,
@@ -464,7 +473,7 @@ int aq_nic_start(struct aq_nic_s *self)
 	timer_setup(&self->service_timer, aq_nic_service_timer_cb, 0);
 	aq_nic_service_timer_cb(&self->service_timer);
 
-	if (self->aq_nic_cfg.is_polling) {
+	if (cfg->is_polling) {
 		timer_setup(&self->polling_timer, aq_nic_polling_timer_cb, 0);
 		mod_timer(&self->polling_timer, jiffies +
 			  AQ_CFG_POLLING_TIMER_INTERVAL);
@@ -482,16 +491,16 @@ int aq_nic_start(struct aq_nic_s *self)
 		if (err < 0)
 			goto err_exit;
 
-		if (self->aq_nic_cfg.link_irq_vec) {
+		if (cfg->link_irq_vec) {
 			int irqvec = pci_irq_vector(self->pdev,
-						   self->aq_nic_cfg.link_irq_vec);
+						    cfg->link_irq_vec);
 			err = request_threaded_irq(irqvec, NULL,
 						   aq_linkstate_threaded_isr,
 						   IRQF_SHARED | IRQF_ONESHOT,
 						   self->ndev->name, self);
 			if (err < 0)
 				goto err_exit;
-			self->msix_entry_mask |= (1 << self->aq_nic_cfg.link_irq_vec);
+			self->msix_entry_mask |= (1 << cfg->link_irq_vec);
 		}
 
 		err = self->aq_hw_ops->hw_irq_enable(self->aq_hw,
@@ -518,6 +527,8 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 			    struct aq_ring_s *ring)
 {
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
+	struct aq_nic_cfg_s *cfg = aq_nic_get_cfg(self);
+	struct device *dev = aq_nic_get_dev(self);
 	struct aq_ring_buff_s *first = NULL;
 	u8 ipver = ip_hdr(skb)->version;
 	struct aq_ring_buff_s *dx_buff;
@@ -559,7 +570,7 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 		need_context_tag = true;
 	}
 
-	if (self->aq_nic_cfg.is_vlan_tx_insert && skb_vlan_tag_present(skb)) {
+	if (cfg->is_vlan_tx_insert && skb_vlan_tag_present(skb)) {
 		dx_buff->vlan_tx_tag = skb_vlan_tag_get(skb);
 		dx_buff->len_pkt = skb->len;
 		dx_buff->is_vlan = 1U;
@@ -574,12 +585,12 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 	}
 
 	dx_buff->len = skb_headlen(skb);
-	dx_buff->pa = dma_map_single(aq_nic_get_dev(self),
+	dx_buff->pa = dma_map_single(dev,
 				     skb->data,
 				     dx_buff->len,
 				     DMA_TO_DEVICE);
 
-	if (unlikely(dma_mapping_error(aq_nic_get_dev(self), dx_buff->pa))) {
+	if (unlikely(dma_mapping_error(dev, dx_buff->pa))) {
 		ret = 0;
 		goto exit;
 	}
@@ -611,13 +622,13 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 			else
 				buff_size = frag_len;
 
-			frag_pa = skb_frag_dma_map(aq_nic_get_dev(self),
+			frag_pa = skb_frag_dma_map(dev,
 						   frag,
 						   buff_offset,
 						   buff_size,
 						   DMA_TO_DEVICE);
 
-			if (unlikely(dma_mapping_error(aq_nic_get_dev(self),
+			if (unlikely(dma_mapping_error(dev,
 						       frag_pa)))
 				goto mapping_error;
 
@@ -651,12 +662,12 @@ mapping_error:
 		if (!(dx_buff->is_gso_tcp || dx_buff->is_gso_udp) &&
 		    !dx_buff->is_vlan && dx_buff->pa) {
 			if (unlikely(dx_buff->is_sop)) {
-				dma_unmap_single(aq_nic_get_dev(self),
+				dma_unmap_single(dev,
 						 dx_buff->pa,
 						 dx_buff->len,
 						 DMA_TO_DEVICE);
 			} else {
-				dma_unmap_page(aq_nic_get_dev(self),
+				dma_unmap_page(dev,
 					       dx_buff->pa,
 					       dx_buff->len,
 					       DMA_TO_DEVICE);
@@ -1145,9 +1156,11 @@ void aq_nic_deinit(struct aq_nic_s *self, bool link_down)
 	if (!self)
 		goto err_exit;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
+	for (i = 0U; i < self->aq_vecs; i++) {
+		aq_vec = self->aq_vec[i];
 		aq_vec_deinit(aq_vec);
+		aq_vec_ring_free(aq_vec);
+	}
 
 	aq_ptp_unregister(self);
 	aq_ptp_ring_deinit(self);

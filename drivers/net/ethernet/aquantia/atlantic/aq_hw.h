@@ -46,7 +46,7 @@ struct aq_hw_caps_s {
 	u32 mac_regs_count;
 	u32 hw_alive_check_addr;
 	u8 msix_irqs;
-	u8 tcs;
+	u8 tcs_max;
 	u8 rxd_alignment;
 	u8 rxd_size;
 	u8 txd_alignment;
@@ -119,6 +119,8 @@ struct aq_stats_s {
 #define AQ_HW_RXD_MULTIPLE 8U
 
 #define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
+#define AQ_HW_PTP_TC                    2U
 
 #define AQ_HW_LED_BLINK    0x2U
 #define AQ_HW_LED_DEFAULT  0x0U

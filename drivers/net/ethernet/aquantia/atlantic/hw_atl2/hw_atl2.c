@@ -23,7 +23,7 @@ static int hw_atl2_act_rslvr_table_set(struct aq_hw_s *self, u8 location,
 	.msix_irqs = 8U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL2_RSS_MAX,	  \
-	.tcs = HW_ATL2_TC_MAX,	  \
+	.tcs_max = HW_ATL2_TC_MAX,	  \
 	.rxd_alignment = 1U,		  \
 	.rxd_size = HW_ATL2_RXD_SIZE,   \
 	.rxds_max = HW_ATL2_MAX_RXD,    \
@@ -125,8 +125,6 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 	/* TPS TC credits init */
 	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
-
-	tc = 0;
 
 	/* TX Packet Scheduler Data TC0 */
 	hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF0, tc);
