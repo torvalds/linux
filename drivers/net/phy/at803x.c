@@ -126,7 +126,7 @@
 #define ATH8031_PHY_ID 0x004dd074
 #define ATH8032_PHY_ID 0x004dd023
 #define ATH8035_PHY_ID 0x004dd072
-#define AT803X_PHY_ID_MASK			0xffffffef
+#define AT8030_PHY_ID_MASK			0xffffffef
 
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
@@ -967,9 +967,8 @@ static int at803x_cable_test_start(struct phy_device *phydev)
 static struct phy_driver at803x_driver[] = {
 {
 	/* Qualcomm Atheros AR8035 */
-	.phy_id			= ATH8035_PHY_ID,
+	PHY_ID_MATCH_EXACT(ATH8035_PHY_ID),
 	.name			= "Qualcomm Atheros AR8035",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.flags			= PHY_POLL_CABLE_TEST,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
@@ -991,7 +990,7 @@ static struct phy_driver at803x_driver[] = {
 	/* Qualcomm Atheros AR8030 */
 	.phy_id			= ATH8030_PHY_ID,
 	.name			= "Qualcomm Atheros AR8030",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
+	.phy_id_mask		= AT8030_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
 	.config_init		= at803x_config_init,
@@ -1005,9 +1004,8 @@ static struct phy_driver at803x_driver[] = {
 	.config_intr		= at803x_config_intr,
 }, {
 	/* Qualcomm Atheros AR8031/AR8033 */
-	.phy_id			= ATH8031_PHY_ID,
+	PHY_ID_MATCH_EXACT(ATH8031_PHY_ID),
 	.name			= "Qualcomm Atheros AR8031/AR8033",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
 	.flags			= PHY_POLL_CABLE_TEST,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
@@ -1055,10 +1053,10 @@ static struct phy_driver at803x_driver[] = {
 module_phy_driver(at803x_driver);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
-	{ ATH8030_PHY_ID, AT803X_PHY_ID_MASK },
-	{ ATH8031_PHY_ID, AT803X_PHY_ID_MASK },
+	{ ATH8030_PHY_ID, AT8030_PHY_ID_MASK },
+	{ PHY_ID_MATCH_EXACT(ATH8031_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(ATH8032_PHY_ID) },
-	{ ATH8035_PHY_ID, AT803X_PHY_ID_MASK },
+	{ PHY_ID_MATCH_EXACT(ATH8035_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(ATH9331_PHY_ID) },
 	{ }
 };
