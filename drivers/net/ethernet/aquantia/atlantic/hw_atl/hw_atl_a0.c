@@ -136,10 +136,10 @@ static int hw_atl_a0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
 
-	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, 0U);
-	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, 0U);
+	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0U, 0xFFF);
+	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0U, 0x64);
+	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0U, 0x50);
+	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0U, 0x1E);
 
 	/* Tx buf size */
 	buff_size = HW_ATL_A0_TXBUF_MAX;

@@ -161,8 +161,8 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 		u32 threshold = 0U;
 
 		/* TX Packet Scheduler Data TC0 */
-		hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, tc);
-		hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, tc);
+		hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, tc, 0xFFF);
+		hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, tc, 0x64);
 
 		/* Tx buf size TC0 */
 		hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, tx_buff_size, tc);
@@ -334,8 +334,8 @@ int hw_atl_b0_hw_init_tx_tc_rate_limit(struct aq_hw_s *self)
 		const u32 en = (nic_cfg->tc_max_rate[tc] != 0) ? 1U : 0U;
 		const u32 desc = AQ_NIC_CFG_TCVEC2RING(nic_cfg, tc, 0);
 
-		hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, tc);
-		hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
+		hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, tc, 0x50);
+		hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, tc, 0x1E);
 
 		hw_atl_tps_tx_desc_rate_en_set(self, desc, en);
 

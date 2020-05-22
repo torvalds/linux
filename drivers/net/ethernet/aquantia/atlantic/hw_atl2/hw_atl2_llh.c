@@ -94,8 +94,8 @@ void hw_atl2_reg_tx_intr_moder_ctrl_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
-						    u32 max_credit,
-						    u32 tc)
+						    const u32 tc,
+						    const u32 max_credit)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTCREDIT_MAX_ADR(tc),
 			    HW_ATL2_TPS_DATA_TCTCREDIT_MAX_MSK,
@@ -104,13 +104,13 @@ void hw_atl2_tps_tx_pkt_shed_tc_data_max_credit_set(struct aq_hw_s *aq_hw,
 }
 
 void hw_atl2_tps_tx_pkt_shed_tc_data_weight_set(struct aq_hw_s *aq_hw,
-						u32 tx_pkt_shed_tc_data_weight,
-						u32 tc)
+						const u32 tc,
+						const u32 weight)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPS_DATA_TCTWEIGHT_ADR(tc),
 			    HW_ATL2_TPS_DATA_TCTWEIGHT_MSK,
 			    HW_ATL2_TPS_DATA_TCTWEIGHT_SHIFT,
-			    tx_pkt_shed_tc_data_weight);
+			    weight);
 }
 
 u32 hw_atl2_get_hw_version(struct aq_hw_s *aq_hw)
