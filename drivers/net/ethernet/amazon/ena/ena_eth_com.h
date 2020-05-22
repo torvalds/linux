@@ -73,6 +73,7 @@ struct ena_com_rx_ctx {
 	u32 hash;
 	u16 descs;
 	int max_bufs;
+	u8 pkt_offset;
 };
 
 int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,

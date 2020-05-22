@@ -264,7 +264,9 @@ struct ena_eth_io_rx_cdesc_base {
 
 	u16 sub_qid;
 
-	u16 reserved;
+	u8 offset;
+
+	u8 reserved;
 };
 
 /* 8-word format */
