@@ -2242,7 +2242,7 @@ static int ena_rss_configure(struct ena_adapter *adapter)
 		rc = ena_rss_init_default(adapter);
 		if (rc && (rc != -EOPNOTSUPP)) {
 			netif_err(adapter, ifup, adapter->netdev,
-					"Failed to init RSS rc: %d\n", rc);
+				  "Failed to init RSS rc: %d\n", rc);
 			return rc;
 		}
 	}
@@ -2315,7 +2315,7 @@ static int ena_create_io_tx_queue(struct ena_adapter *adapter, int qid)
 	if (rc) {
 		netif_err(adapter, ifup, adapter->netdev,
 			  "Failed to create I/O TX queue num %d rc: %d\n",
-			   qid, rc);
+			  qid, rc);
 		return rc;
 	}
 
@@ -2464,7 +2464,7 @@ static int create_queues_with_size_backoff(struct ena_adapter *adapter)
 	 * ones due to past queue allocation failures.
 	 */
 	set_io_rings_size(adapter, adapter->requested_tx_ring_size,
-			adapter->requested_rx_ring_size);
+			  adapter->requested_rx_ring_size);
 
 	while (1) {
 		if (ena_xdp_present(adapter)) {
@@ -2505,7 +2505,7 @@ err_setup_tx:
 		if (rc != -ENOMEM) {
 			netif_err(adapter, ifup, adapter->netdev,
 				  "Queue creation failed with error code %d\n",
-				   rc);
+				  rc);
 			return rc;
 		}
 
@@ -2528,7 +2528,7 @@ err_setup_tx:
 			new_rx_ring_size = cur_rx_ring_size / 2;
 
 		if (new_tx_ring_size < ENA_MIN_RING_SIZE ||
-				new_rx_ring_size < ENA_MIN_RING_SIZE) {
+		    new_rx_ring_size < ENA_MIN_RING_SIZE) {
 			netif_err(adapter, ifup, adapter->netdev,
 				  "Queue creation failed with the smallest possible queue size of %d for both queues. Not retrying with smaller queues\n",
 				  ENA_MIN_RING_SIZE);
@@ -3087,8 +3087,7 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return qid;
 }
 
-static void ena_config_host_info(struct ena_com_dev *ena_dev,
-				 struct pci_dev *pdev)
+static void ena_config_host_info(struct ena_com_dev *ena_dev, struct pci_dev *pdev)
 {
 	struct ena_admin_host_info *host_info;
 	int rc;
