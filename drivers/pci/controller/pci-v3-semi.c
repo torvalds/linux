@@ -239,7 +239,6 @@ struct v3_pci {
 	struct device *dev;
 	void __iomem *base;
 	void __iomem *config_base;
-	struct pci_bus *bus;
 	u32 config_mem;
 	u32 non_pre_mem;
 	u32 pre_mem;
@@ -904,17 +903,7 @@ static int v3_pci_probe(struct platform_device *pdev)
 	val |= V3_SYSTEM_M_LOCK;
 	writew(val, v3->base + V3_SYSTEM);
 
-	ret = pci_scan_root_bus_bridge(host);
-	if (ret) {
-		dev_err(dev, "failed to register host: %d\n", ret);
-		return ret;
-	}
-	v3->bus = host->bus;
-
-	pci_bus_assign_resources(v3->bus);
-	pci_bus_add_devices(v3->bus);
-
-	return 0;
+	return pci_host_probe(host);
 }
 
 static const struct of_device_id v3_pci_of_match[] = {
