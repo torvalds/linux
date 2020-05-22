@@ -125,8 +125,8 @@ static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("LINL"),
 	SND_SOC_DAPM_INPUT("LINR"),
 
-	SND_SOC_DAPM_PGA("Left Line Input", MAX9867_PWRMAN, 6, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Right Line Input", MAX9867_PWRMAN, 5, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Left Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_PGA("Right Line Input", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER_NAMED_CTL("Input Mixer", SND_SOC_NOPM, 0, 0,
 				     max9867_input_mixer_controls,
 				     ARRAY_SIZE(max9867_input_mixer_controls)),
@@ -134,8 +134,8 @@ static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 			 &max9867_left_dmic_mux),
 	SND_SOC_DAPM_MUX("DMICR Mux", SND_SOC_NOPM, 0, 0,
 			 &max9867_right_dmic_mux),
-	SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", MAX9867_PWRMAN, 1, 0),
-	SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", MAX9867_PWRMAN, 0, 0),
+	SND_SOC_DAPM_ADC("ADCL", "HiFi Capture", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADCR", "HiFi Capture", SND_SOC_NOPM, 0, 0),
 
 	SND_SOC_DAPM_MIXER("Digital", SND_SOC_NOPM, 0, 0,
 			   max9867_sidetone_mixer_controls,
@@ -143,8 +143,8 @@ static const struct snd_soc_dapm_widget max9867_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER_NAMED_CTL("Output Mixer", SND_SOC_NOPM, 0, 0,
 				     max9867_output_mixer_controls,
 				     ARRAY_SIZE(max9867_output_mixer_controls)),
-	SND_SOC_DAPM_DAC("DACL", "HiFi Playback", MAX9867_PWRMAN, 3, 0),
-	SND_SOC_DAPM_DAC("DACR", "HiFi Playback", MAX9867_PWRMAN, 2, 0),
+	SND_SOC_DAPM_DAC("DACL", "HiFi Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DACR", "HiFi Playback", SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_SWITCH("Master Playback", SND_SOC_NOPM, 0, 0,
 			    &max9867_line_out_control),
 	SND_SOC_DAPM_OUTPUT("LOUT"),
@@ -452,15 +452,14 @@ static int max9867_set_bias_level(struct snd_soc_component *component,
 			if (err)
 				return err;
 
-			err = regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
-						 MAX9867_SHTDOWN, MAX9867_SHTDOWN);
+			err = regmap_write(max9867->regmap,
+					   MAX9867_PWRMAN, 0xff);
 			if (err)
 				return err;
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		err = regmap_update_bits(max9867->regmap, MAX9867_PWRMAN,
-					 MAX9867_SHTDOWN, 0);
+		err = regmap_write(max9867->regmap, MAX9867_PWRMAN, 0);
 		if (err)
 			return err;
 
