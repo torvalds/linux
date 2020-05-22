@@ -24,9 +24,9 @@
 
 #include "hyperv_vmbus.h"
 
-static void init_vp_index(struct vmbus_channel *channel, u16 dev_type);
+static void init_vp_index(struct vmbus_channel *channel);
 
-static const struct vmbus_device vmbus_devs[] = {
+const struct vmbus_device vmbus_devs[] = {
 	/* IDE */
 	{ .dev_type = HV_IDE,
 	  HV_IDE_GUID,
@@ -432,6 +432,13 @@ void hv_process_channel_removal(struct vmbus_channel *channel)
 	}
 
 	/*
+	 * If this is a "perf" channel, updates the hv_numa_map[] masks so that
+	 * init_vp_index() can (re-)use the CPU.
+	 */
+	if (hv_is_perf_channel(channel))
+		hv_clear_alloced_cpu(channel->target_cpu);
+
+	/*
 	 * Upon suspend, an in-use hv_sock channel is marked as "rescinded" and
 	 * the relid is invalidated; after hibernation, when the user-space app
 	 * destroys the channel, the relid is INVALID_RELID, and in this case
@@ -497,7 +504,7 @@ static void vmbus_add_channel_work(struct work_struct *work)
 	if (!newchannel->device_obj)
 		goto err_deq_chan;
 
-	newchannel->device_obj->device_id = hv_get_dev_type(newchannel);
+	newchannel->device_obj->device_id = newchannel->device_id;
 	/*
 	 * Add the new device to the bus. This will kick off device-driver
 	 * binding which eventually invokes the device driver's AddDevice()
@@ -580,7 +587,7 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 	 */
 	mutex_lock(&vmbus_connection.channel_mutex);
 
-	init_vp_index(newchannel, hv_get_dev_type(newchannel));
+	init_vp_index(newchannel);
 
 	/* Remember the channels that should be cleaned up upon suspend. */
 	if (is_hvsock_channel(newchannel) || is_sub_channel(newchannel))
@@ -676,9 +683,9 @@ static int next_numa_node_id;
  * evenly among all the available NUMA nodes.  Once the node is assigned,
  * we will assign the CPU based on a simple round robin scheme.
  */
-static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
+static void init_vp_index(struct vmbus_channel *channel)
 {
-	bool perf_chn = vmbus_devs[dev_type].perf_device;
+	bool perf_chn = hv_is_perf_channel(channel);
 	cpumask_var_t available_mask;
 	struct cpumask *alloced_mask;
 	u32 target_cpu;
@@ -699,6 +706,8 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		channel->target_cpu = VMBUS_CONNECT_CPU;
 		channel->target_vp =
 			hv_cpu_number_to_vp_number(VMBUS_CONNECT_CPU);
+		if (perf_chn)
+			hv_set_alloced_cpu(VMBUS_CONNECT_CPU);
 		return;
 	}
 
@@ -862,6 +871,7 @@ static void vmbus_setup_channel_state(struct vmbus_channel *channel,
 	       sizeof(struct vmbus_channel_offer_channel));
 	channel->monitor_grp = (u8)offer->monitorid / 32;
 	channel->monitor_bit = (u8)offer->monitorid % 32;
+	channel->device_id = hv_get_dev_type(channel);
 }
 
 /*

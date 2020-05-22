@@ -1687,8 +1687,8 @@ static ssize_t target_cpu_show(struct vmbus_channel *channel, char *buf)
 static ssize_t target_cpu_store(struct vmbus_channel *channel,
 				const char *buf, size_t count)
 {
+	u32 target_cpu, origin_cpu;
 	ssize_t ret = count;
-	u32 target_cpu;
 
 	if (vmbus_proto_version < VERSION_WIN10_V4_1)
 		return -EIO;
@@ -1741,7 +1741,8 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 		goto cpu_store_unlock;
 	}
 
-	if (channel->target_cpu == target_cpu)
+	origin_cpu = channel->target_cpu;
+	if (target_cpu == origin_cpu)
 		goto cpu_store_unlock;
 
 	if (vmbus_send_modifychannel(channel->offermsg.child_relid,
@@ -1763,13 +1764,19 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	 * in on a CPU that is different from the channel target_cpu value.
 	 */
 
-	if (channel->change_target_cpu_callback)
-		(*channel->change_target_cpu_callback)(channel,
-				channel->target_cpu, target_cpu);
-
 	channel->target_cpu = target_cpu;
 	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 	channel->numa_node = cpu_to_node(target_cpu);
+
+	/* See init_vp_index(). */
+	if (hv_is_perf_channel(channel))
+		hv_update_alloced_cpus(origin_cpu, target_cpu);
+
+	/* Currently set only for storvsc channels. */
+	if (channel->change_target_cpu_callback) {
+		(*channel->change_target_cpu_callback)(channel,
+				origin_cpu, target_cpu);
+	}
 
 cpu_store_unlock:
 	mutex_unlock(&vmbus_connection.channel_mutex);

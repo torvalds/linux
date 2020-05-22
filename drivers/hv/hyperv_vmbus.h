@@ -395,6 +395,54 @@ enum delay {
 	MESSAGE_DELAY   = 1,
 };
 
+extern const struct vmbus_device vmbus_devs[];
+
+static inline bool hv_is_perf_channel(struct vmbus_channel *channel)
+{
+	return vmbus_devs[channel->device_id].perf_device;
+}
+
+static inline bool hv_is_alloced_cpu(unsigned int cpu)
+{
+	struct vmbus_channel *channel, *sc;
+
+	lockdep_assert_held(&vmbus_connection.channel_mutex);
+	/*
+	 * List additions/deletions as well as updates of the target CPUs are
+	 * protected by channel_mutex.
+	 */
+	list_for_each_entry(channel, &vmbus_connection.chn_list, listentry) {
+		if (!hv_is_perf_channel(channel))
+			continue;
+		if (channel->target_cpu == cpu)
+			return true;
+		list_for_each_entry(sc, &channel->sc_list, sc_list) {
+			if (sc->target_cpu == cpu)
+				return true;
+		}
+	}
+	return false;
+}
+
+static inline void hv_set_alloced_cpu(unsigned int cpu)
+{
+	cpumask_set_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
+}
+
+static inline void hv_clear_alloced_cpu(unsigned int cpu)
+{
+	if (hv_is_alloced_cpu(cpu))
+		return;
+	cpumask_clear_cpu(cpu, &hv_context.hv_numa_map[cpu_to_node(cpu)]);
+}
+
+static inline void hv_update_alloced_cpus(unsigned int old_cpu,
+					  unsigned int new_cpu)
+{
+	hv_set_alloced_cpu(new_cpu);
+	hv_clear_alloced_cpu(old_cpu);
+}
+
 #ifdef CONFIG_HYPERV_TESTING
 
 int hv_debug_add_dev_dir(struct hv_device *dev);

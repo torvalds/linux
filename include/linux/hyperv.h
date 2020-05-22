@@ -902,6 +902,13 @@ struct vmbus_channel {
 	bool probe_done;
 
 	/*
+	 * Cache the device ID here for easy access; this is useful, in
+	 * particular, in situations where the channel's device_obj has
+	 * not been allocated/initialized yet.
+	 */
+	u16 device_id;
+
+	/*
 	 * We must offload the handling of the primary/sub channels
 	 * from the single-threaded vmbus_connection.work_queue to
 	 * two different workqueue, otherwise we can block
