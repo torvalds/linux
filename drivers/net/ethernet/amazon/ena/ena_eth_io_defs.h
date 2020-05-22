@@ -414,4 +414,4 @@ struct ena_eth_io_numa_node_cfg_reg {
 #define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_SHIFT          31
 #define ENA_ETH_IO_NUMA_NODE_CFG_REG_ENABLED_MASK           BIT(31)
 
-#endif /*_ENA_ETH_IO_H_ */
+#endif /* _ENA_ETH_IO_H_ */
