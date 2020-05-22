@@ -204,7 +204,7 @@ do {									\
 			retval = -EFAULT;				\
 			(x) = 0;					\
 		} else {						\
-			(x) = *(__force __typeof__((ptr)))&__x;		\
+			(x) = *(__force __typeof__(*(ptr)) *)&__x;	\
 		}							\
 		break;							\
 	}								\
