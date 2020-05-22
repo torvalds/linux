@@ -788,7 +788,7 @@ retry:
 		sectors = k.k->size - offset_into_extent;
 
 		ret = bch2_read_indirect_extent(trans,
-					&offset_into_extent, sk.k);
+					&offset_into_extent, &sk);
 		if (ret)
 			break;
 
