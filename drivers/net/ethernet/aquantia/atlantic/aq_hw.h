@@ -18,6 +18,12 @@
 #define AQ_HW_MAC_COUNTER_HZ   312500000ll
 #define AQ_HW_PHY_COUNTER_HZ   160000000ll
 
+enum aq_tc_mode {
+	AQ_TC_MODE_INVALID = -1,
+	AQ_TC_MODE_8TCS,
+	AQ_TC_MODE_4TCS,
+};
+
 #define AQ_RX_FIRST_LOC_FVLANID     0U
 #define AQ_RX_LAST_LOC_FVLANID	   15U
 #define AQ_RX_FIRST_LOC_FETHERT    16U
@@ -280,10 +286,6 @@ struct aq_hw_ops {
 
 	int (*hw_set_offload)(struct aq_hw_s *self,
 			      struct aq_nic_cfg_s *aq_nic_cfg);
-
-	int (*hw_tx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
-
-	int (*hw_rx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
 
 	int (*hw_ring_hwts_rx_fill)(struct aq_hw_s *self,
 				    struct aq_ring_s *aq_ring);

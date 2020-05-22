@@ -131,13 +131,16 @@ static int hw_atl_b0_tc_ptp_set(struct aq_hw_s *self)
 
 static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 {
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	u32 tx_buff_size = HW_ATL_B0_TXBUF_MAX;
 	u32 rx_buff_size = HW_ATL_B0_RXBUF_MAX;
 	unsigned int i_priority = 0U;
 	u32 tc = 0U;
 
-	tx_buff_size -= HW_ATL_B0_PTP_TXBUF_SIZE;
-	rx_buff_size -= HW_ATL_B0_PTP_RXBUF_SIZE;
+	if (cfg->is_ptp) {
+		tx_buff_size -= HW_ATL_B0_PTP_TXBUF_SIZE;
+		rx_buff_size -= HW_ATL_B0_PTP_RXBUF_SIZE;
+	}
 
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
@@ -180,7 +183,8 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 
 	hw_atl_b0_set_fc(self, self->aq_nic_cfg->fc.req, tc);
 
-	hw_atl_b0_tc_ptp_set(self);
+	if (cfg->is_ptp)
+		hw_atl_b0_tc_ptp_set(self);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
@@ -1079,18 +1083,6 @@ int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self, struct aq_ring_s *ring)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_tx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
-{
-	*tc_mode = hw_atl_tpb_tps_tx_tc_mode_get(self);
-	return aq_hw_err_from_flags(self);
-}
-
-static int hw_atl_b0_rx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
-{
-	*tc_mode = hw_atl_rpb_rpf_rx_traf_class_mode_get(self);
-	return aq_hw_err_from_flags(self);
-}
-
 #define get_ptp_ts_val_u64(self, indx) \
 	((u64)(hw_atl_pcs_ptp_clock_get(self, indx) & 0xffff))
 
@@ -1507,9 +1499,6 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
-
-	.hw_tx_tc_mode_get       = hw_atl_b0_tx_tc_mode_get,
-	.hw_rx_tc_mode_get       = hw_atl_b0_rx_tc_mode_get,
 
 	.hw_ring_hwts_rx_fill        = hw_atl_b0_hw_ring_hwts_rx_fill,
 	.hw_ring_hwts_rx_receive     = hw_atl_b0_hw_ring_hwts_rx_receive,

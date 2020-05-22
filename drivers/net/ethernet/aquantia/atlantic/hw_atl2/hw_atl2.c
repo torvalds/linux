@@ -91,16 +91,36 @@ static int hw_atl2_hw_reset(struct aq_hw_s *self)
 
 static int hw_atl2_hw_queue_to_tc_map_set(struct aq_hw_s *self)
 {
-	if (!hw_atl_rpb_rpf_rx_traf_class_mode_get(self)) {
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(0), 0x11110000);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(8), 0x33332222);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(16), 0x55554444);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(24), 0x77776666);
-	} else {
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(0), 0x00000000);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(8), 0x11111111);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(16), 0x22222222);
-		aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(24), 0x33333333);
+	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
+	unsigned int tcs, q_per_tc;
+	unsigned int tc, q;
+	u32 value = 0;
+
+	switch (cfg->tc_mode) {
+	case AQ_TC_MODE_8TCS:
+		tcs = 8;
+		q_per_tc = 4;
+		break;
+	case AQ_TC_MODE_4TCS:
+		tcs = 4;
+		q_per_tc = 8;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	for (tc = 0; tc != tcs; tc++) {
+		unsigned int tc_q_offset = tc * q_per_tc;
+
+		for (q = tc_q_offset; q != tc_q_offset + q_per_tc; q++)
+			value |= tc << HW_ATL2_RX_Q_TC_MAP_SHIFT(q);
+
+		if (HW_ATL2_RX_Q_TC_MAP_ADR(q) !=
+		    HW_ATL2_RX_Q_TC_MAP_ADR(q - 1)) {
+			aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(q - 1),
+					value);
+			value = 0;
+		}
 	}
 
 	return aq_hw_err_from_flags(self);

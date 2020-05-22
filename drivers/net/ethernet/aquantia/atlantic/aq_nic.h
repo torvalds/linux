@@ -59,6 +59,8 @@ struct aq_nic_cfg_s {
 	bool is_polling;
 	bool is_rss;
 	bool is_lro;
+	bool is_ptp;
+	enum aq_tc_mode tc_mode;
 	u32 priv_flags;
 	u8  tcs;
 	struct aq_rss_parameters aq_rss;

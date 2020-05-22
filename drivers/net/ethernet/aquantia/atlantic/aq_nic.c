@@ -89,6 +89,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 	cfg->is_autoneg = AQ_CFG_IS_AUTONEG_DEF;
 
 	cfg->is_lro = AQ_CFG_IS_LRO_DEF;
+	cfg->is_ptp = true;
 
 	/*descriptors */
 	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
@@ -121,6 +122,11 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->is_rss = 0U;
 		cfg->vecs = 1U;
 	}
+
+	if (cfg->vecs <= 4)
+		cfg->tc_mode = AQ_TC_MODE_8TCS;
+	else
+		cfg->tc_mode = AQ_TC_MODE_4TCS;
 
 	/* Check if we have enough vectors allocated for
 	 * link status IRQ. If no - we'll know link state from
@@ -409,17 +415,19 @@ int aq_nic_init(struct aq_nic_s *self)
 		aq_vec_init(aq_vec, self->aq_hw_ops, self->aq_hw);
 	}
 
-	err = aq_ptp_init(self, self->irqvecs - 1);
-	if (err < 0)
-		goto err_exit;
+	if (aq_nic_get_cfg(self)->is_ptp) {
+		err = aq_ptp_init(self, self->irqvecs - 1);
+		if (err < 0)
+			goto err_exit;
 
-	err = aq_ptp_ring_alloc(self);
-	if (err < 0)
-		goto err_exit;
+		err = aq_ptp_ring_alloc(self);
+		if (err < 0)
+			goto err_exit;
 
-	err = aq_ptp_ring_init(self);
-	if (err < 0)
-		goto err_exit;
+		err = aq_ptp_ring_init(self);
+		if (err < 0)
+			goto err_exit;
+	}
 
 	netif_carrier_off(self->ndev);
 
