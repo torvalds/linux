@@ -1114,7 +1114,6 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 {
 	struct iommu_domain *domain;
-	int ret;
 
 	domain = iommu_domain_alloc(&platform_bus_type);
 	if (!domain)
@@ -1127,12 +1126,6 @@ static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 	if (IS_ERR(gmu->aspace)) {
 		iommu_domain_free(domain);
 		return PTR_ERR(gmu->aspace);
-	}
-
-	ret = gmu->aspace->mmu->funcs->attach(gmu->aspace->mmu);
-	if (ret) {
-		msm_gem_address_space_put(gmu->aspace);
-		return ret;
 	}
 
 	return 0;

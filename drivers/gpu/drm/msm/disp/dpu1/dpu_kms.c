@@ -794,7 +794,6 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 {
 	struct iommu_domain *domain;
 	struct msm_gem_address_space *aspace;
-	int ret;
 
 	domain = iommu_domain_alloc(&platform_bus_type);
 	if (!domain)
@@ -808,13 +807,6 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	if (IS_ERR(aspace)) {
 		iommu_domain_free(domain);
 		return PTR_ERR(aspace);
-	}
-
-	ret = aspace->mmu->funcs->attach(aspace->mmu);
-	if (ret) {
-		DPU_ERROR("failed to attach iommu %d\n", ret);
-		msm_gem_address_space_put(aspace);
-		return ret;
 	}
 
 	dpu_kms->base.aspace = aspace;
