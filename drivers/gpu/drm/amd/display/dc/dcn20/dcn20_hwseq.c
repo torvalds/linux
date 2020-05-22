@@ -1265,14 +1265,13 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	if (old_pipe->stream_res.tg != new_pipe->stream_res.tg)
 		new_pipe->update_flags.bits.tg_changed = 1;
 
-	/* Detect mpcc blending changes, only dpp inst and bot matter here */
+	/*
+	 * Detect mpcc blending changes, only dpp inst and opp matter here,
+	 * mpccs getting removed/inserted update connected ones during their own
+	 * programming
+	 */
 	if (old_pipe->plane_res.dpp != new_pipe->plane_res.dpp
-			|| old_pipe->stream_res.opp != new_pipe->stream_res.opp
-			|| (!old_pipe->bottom_pipe && new_pipe->bottom_pipe)
-			|| (old_pipe->bottom_pipe && !new_pipe->bottom_pipe)
-			|| (old_pipe->bottom_pipe && new_pipe->bottom_pipe
-				&& old_pipe->bottom_pipe->plane_res.mpcc_inst
-					!= new_pipe->bottom_pipe->plane_res.mpcc_inst))
+			|| old_pipe->stream_res.opp != new_pipe->stream_res.opp)
 		new_pipe->update_flags.bits.mpcc = 1;
 
 	/* Detect dppclk change */
