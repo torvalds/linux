@@ -172,7 +172,6 @@ struct brcm_pcie {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
-	struct pci_bus		*root_bus;
 	struct device_node	*np;
 	bool			ssc;
 	int			gen;
@@ -919,9 +918,10 @@ static void __brcm_pcie_remove(struct brcm_pcie *pcie)
 static int brcm_pcie_remove(struct platform_device *pdev)
 {
 	struct brcm_pcie *pcie = platform_get_drvdata(pdev);
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 
-	pci_stop_root_bus(pcie->root_bus);
-	pci_remove_root_bus(pcie->root_bus);
+	pci_stop_root_bus(bridge->bus);
+	pci_remove_root_bus(bridge->bus);
 	__brcm_pcie_remove(pcie);
 
 	return 0;
@@ -933,7 +933,6 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	struct pci_host_bridge *bridge;
 	struct device_node *fw_np;
 	struct brcm_pcie *pcie;
-	struct pci_bus *child;
 	struct resource *res;
 	int ret;
 
@@ -1004,20 +1003,9 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	bridge->map_irq = of_irq_parse_and_map_pci;
 	bridge->swizzle_irq = pci_common_swizzle;
 
-	ret = pci_scan_root_bus_bridge(bridge);
-	if (ret < 0) {
-		dev_err(pcie->dev, "Scanning root bridge failed\n");
-		goto fail;
-	}
-
-	pci_assign_unassigned_bus_resources(bridge->bus);
-	list_for_each_entry(child, &bridge->bus->children, node)
-		pcie_bus_configure_settings(child);
-	pci_bus_add_devices(bridge->bus);
 	platform_set_drvdata(pdev, pcie);
-	pcie->root_bus = bridge->bus;
 
-	return 0;
+	return pci_host_probe(bridge);
 fail:
 	__brcm_pcie_remove(pcie);
 	return ret;
