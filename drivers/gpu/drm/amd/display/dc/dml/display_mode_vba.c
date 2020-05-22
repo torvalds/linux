@@ -623,14 +623,14 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 						mode_lib->vba.ViewportWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_width;
 						mode_lib->vba.ViewportWidthChroma[mode_lib->vba.NumberOfActivePlanes] +=
-								src_k->viewport_width;
+								src_k->viewport_width_c;
 						mode_lib->vba.ScalerRecoutWidth[mode_lib->vba.NumberOfActivePlanes] +=
 								dst_k->recout_width;
 					} else {
 						mode_lib->vba.ViewportHeight[mode_lib->vba.NumberOfActivePlanes] +=
 								src_k->viewport_height;
 						mode_lib->vba.ViewportHeightChroma[mode_lib->vba.NumberOfActivePlanes] +=
-								src_k->viewport_height;
+								src_k->viewport_height_c;
 					}
 					mode_lib->vba.NumberOfDSCSlices[mode_lib->vba.NumberOfActivePlanes] +=
 							dout_k->dsc_slices;
