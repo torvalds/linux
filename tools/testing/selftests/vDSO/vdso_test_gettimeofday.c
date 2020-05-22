@@ -17,10 +17,7 @@
 #include <sys/time.h>
 
 #include "../kselftest.h"
-
-extern void *vdso_sym(const char *version, const char *name);
-extern void vdso_init_from_sysinfo_ehdr(uintptr_t base);
-extern void vdso_init_from_auxv(void *auxv);
+#include "parse_vdso.h"
 
 /*
  * ARM64's vDSO exports its gettimeofday() implementation with a different
