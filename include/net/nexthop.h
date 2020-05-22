@@ -26,6 +26,7 @@ struct nh_config {
 	u8		nh_family;
 	u8		nh_protocol;
 	u8		nh_blackhole;
+	u8		nh_fdb;
 	u32		nh_flags;
 
 	int		nh_ifindex;
@@ -52,6 +53,7 @@ struct nh_info {
 
 	u8			family;
 	bool			reject_nh;
+	bool			fdb_nh;
 
 	union {
 		struct fib_nh_common	fib_nhc;
@@ -80,6 +82,7 @@ struct nexthop {
 	struct rb_node		rb_node;    /* entry on netns rbtree */
 	struct list_head	fi_list;    /* v4 entries using nh */
 	struct list_head	f6i_list;   /* v6 entries using nh */
+	struct list_head        fdb_list;   /* fdb entries using this nh */
 	struct list_head	grp_list;   /* nh group entries using this nh */
 	struct net		*net;
 
@@ -88,6 +91,7 @@ struct nexthop {
 	u8			protocol;   /* app managing this nh */
 	u8			nh_flags;
 	bool			is_group;
+	bool			is_fdb_nh;
 
 	refcount_t		refcnt;
 	struct rcu_head		rcu;
@@ -304,4 +308,32 @@ static inline void nexthop_path_fib6_result(struct fib6_result *res, int hash)
 int nexthop_for_each_fib6_nh(struct nexthop *nh,
 			     int (*cb)(struct fib6_nh *nh, void *arg),
 			     void *arg);
+
+static inline int nexthop_get_family(struct nexthop *nh)
+{
+	struct nh_info *nhi = rcu_dereference_rtnl(nh->nh_info);
+
+	return nhi->family;
+}
+
+static inline
+struct fib_nh_common *nexthop_fdb_nhc(struct nexthop *nh)
+{
+	struct nh_info *nhi = rcu_dereference_rtnl(nh->nh_info);
+
+	return &nhi->fib_nhc;
+}
+
+static inline struct fib_nh_common *nexthop_path_fdb_result(struct nexthop *nh,
+							    int hash)
+{
+	struct nh_info *nhi;
+	struct nexthop *nhp;
+
+	nhp = nexthop_select_path(nh, hash);
+	if (unlikely(!nhp))
+		return NULL;
+	nhi = rcu_dereference(nhp->nh_info);
+	return &nhi->fib_nhc;
+}
 #endif
