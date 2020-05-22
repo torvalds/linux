@@ -50,12 +50,6 @@
 #define DRV_MODULE_GEN_SUBMINOR 0
 
 #define DRV_MODULE_NAME		"ena"
-#ifndef DRV_MODULE_GENERATION
-#define DRV_MODULE_GENERATION \
-	__stringify(DRV_MODULE_GEN_MAJOR) "."	\
-	__stringify(DRV_MODULE_GEN_MINOR) "."	\
-	__stringify(DRV_MODULE_GEN_SUBMINOR) "K"
-#endif
 
 #define DEVICE_NAME	"Elastic Network Adapter (ENA)"
 
