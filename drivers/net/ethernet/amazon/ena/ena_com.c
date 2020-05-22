@@ -1281,13 +1281,9 @@ static int ena_com_ind_tbl_convert_to_device(struct ena_com_dev *ena_dev)
 static void ena_com_update_intr_delay_resolution(struct ena_com_dev *ena_dev,
 						 u16 intr_delay_resolution)
 {
-	/* Initial value of intr_delay_resolution might be 0 */
-	u16 prev_intr_delay_resolution =
-		ena_dev->intr_delay_resolution ?
-		ena_dev->intr_delay_resolution :
-		ENA_DEFAULT_INTR_DELAY_RESOLUTION;
+	u16 prev_intr_delay_resolution = ena_dev->intr_delay_resolution;
 
-	if (!intr_delay_resolution) {
+	if (unlikely(!intr_delay_resolution)) {
 		pr_err("Illegal intr_delay_resolution provided. Going to use default 1 usec resolution\n");
 		intr_delay_resolution = ENA_DEFAULT_INTR_DELAY_RESOLUTION;
 	}
