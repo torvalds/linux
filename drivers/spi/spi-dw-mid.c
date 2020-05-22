@@ -133,10 +133,10 @@ static bool mid_spi_can_dma(struct spi_controller *master,
 	return xfer->len > dws->fifo_len;
 }
 
-static enum dma_slave_buswidth convert_dma_width(u32 dma_width) {
-	if (dma_width == 1)
+static enum dma_slave_buswidth convert_dma_width(u8 n_bytes) {
+	if (n_bytes == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
-	else if (dma_width == 2)
+	else if (n_bytes == 2)
 		return DMA_SLAVE_BUSWIDTH_2_BYTES;
 
 	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
@@ -172,7 +172,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
 	txconf.dst_addr = dws->dma_addr;
 	txconf.dst_maxburst = 16;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = convert_dma_width(dws->dma_width);
+	txconf.dst_addr_width = convert_dma_width(dws->n_bytes);
 	txconf.device_fc = false;
 
 	dmaengine_slave_config(dws->txchan, &txconf);
@@ -221,7 +221,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	rxconf.src_addr = dws->dma_addr;
 	rxconf.src_maxburst = 16;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_addr_width = convert_dma_width(dws->dma_width);
+	rxconf.src_addr_width = convert_dma_width(dws->n_bytes);
 	rxconf.device_fc = false;
 
 	dmaengine_slave_config(dws->rxchan, &rxconf);
