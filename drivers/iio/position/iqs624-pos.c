@@ -23,6 +23,7 @@
 
 struct iqs624_pos_private {
 	struct iqs62x_core *iqs62x;
+	struct iio_dev *indio_dev;
 	struct notifier_block notifier;
 	struct mutex lock;
 	bool angle_en;
@@ -59,7 +60,7 @@ static int iqs624_pos_notifier(struct notifier_block *notifier,
 
 	iqs624_pos = container_of(notifier, struct iqs624_pos_private,
 				  notifier);
-	indio_dev = iio_priv_to_dev(iqs624_pos);
+	indio_dev = iqs624_pos->indio_dev;
 	timestamp = iio_get_time_ns(indio_dev);
 
 	iqs62x = iqs624_pos->iqs62x;
@@ -98,7 +99,7 @@ static int iqs624_pos_notifier(struct notifier_block *notifier,
 static void iqs624_pos_notifier_unregister(void *context)
 {
 	struct iqs624_pos_private *iqs624_pos = context;
-	struct iio_dev *indio_dev = iio_priv_to_dev(iqs624_pos);
+	struct iio_dev *indio_dev = iqs624_pos->indio_dev;
 	int ret;
 
 	ret = blocking_notifier_chain_unregister(&iqs624_pos->iqs62x->nh,
@@ -243,6 +244,7 @@ static int iqs624_pos_probe(struct platform_device *pdev)
 
 	iqs624_pos = iio_priv(indio_dev);
 	iqs624_pos->iqs62x = iqs62x;
+	iqs624_pos->indio_dev = indio_dev;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->dev.parent = &pdev->dev;
