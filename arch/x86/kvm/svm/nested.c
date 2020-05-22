@@ -262,6 +262,43 @@ void sync_nested_vmcb_control(struct vcpu_svm *svm)
 	svm->nested.ctl.int_ctl        |= svm->vmcb->control.int_ctl & mask;
 }
 
+/*
+ * Transfer any event that L0 or L1 wanted to inject into L2 to
+ * EXIT_INT_INFO.
+ */
+static void nested_vmcb_save_pending_event(struct vcpu_svm *svm,
+					   struct vmcb *nested_vmcb)
+{
+	struct kvm_vcpu *vcpu = &svm->vcpu;
+	u32 exit_int_info = 0;
+	unsigned int nr;
+
+	if (vcpu->arch.exception.injected) {
+		nr = vcpu->arch.exception.nr;
+		exit_int_info = nr | SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_EXEPT;
+
+		if (vcpu->arch.exception.has_error_code) {
+			exit_int_info |= SVM_EVTINJ_VALID_ERR;
+			nested_vmcb->control.exit_int_info_err =
+				vcpu->arch.exception.error_code;
+		}
+
+	} else if (vcpu->arch.nmi_injected) {
+		exit_int_info = SVM_EVTINJ_VALID | SVM_EVTINJ_TYPE_NMI;
+
+	} else if (vcpu->arch.interrupt.injected) {
+		nr = vcpu->arch.interrupt.nr;
+		exit_int_info = nr | SVM_EVTINJ_VALID;
+
+		if (vcpu->arch.interrupt.soft)
+			exit_int_info |= SVM_EVTINJ_TYPE_SOFT;
+		else
+			exit_int_info |= SVM_EVTINJ_TYPE_INTR;
+	}
+
+	nested_vmcb->control.exit_int_info = exit_int_info;
+}
+
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
 {
 	/* Load the nested guest state */
@@ -466,13 +503,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	struct vmcb *vmcb = svm->vmcb;
 	struct kvm_host_map map;
 
-	trace_kvm_nested_vmexit_inject(vmcb->control.exit_code,
-				       vmcb->control.exit_info_1,
-				       vmcb->control.exit_info_2,
-				       vmcb->control.exit_int_info,
-				       vmcb->control.exit_int_info_err,
-				       KVM_ISA_SVM);
-
 	rc = kvm_vcpu_map(&svm->vcpu, gpa_to_gfn(svm->nested.vmcb), &map);
 	if (rc) {
 		if (rc == -EINVAL)
@@ -517,8 +547,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->control.exit_code_hi      = vmcb->control.exit_code_hi;
 	nested_vmcb->control.exit_info_1       = vmcb->control.exit_info_1;
 	nested_vmcb->control.exit_info_2       = vmcb->control.exit_info_2;
-	nested_vmcb->control.exit_int_info     = vmcb->control.exit_int_info;
-	nested_vmcb->control.exit_int_info_err = vmcb->control.exit_int_info_err;
+
+	if (nested_vmcb->control.exit_code != SVM_EXIT_ERR)
+		nested_vmcb_save_pending_event(svm, nested_vmcb);
 
 	if (svm->nrips_enabled)
 		nested_vmcb->control.next_rip  = vmcb->control.next_rip;
@@ -538,9 +569,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 
 	svm->vmcb->control.tsc_offset = svm->vcpu.arch.tsc_offset =
 		svm->vcpu.arch.l1_tsc_offset;
-
-	kvm_clear_exception_queue(&svm->vcpu);
-	kvm_clear_interrupt_queue(&svm->vcpu);
 
 	svm->nested.ctl.nested_cr3 = 0;
 
@@ -569,6 +597,13 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	svm->vmcb->control.exit_int_info = 0;
 
 	mark_all_dirty(svm->vmcb);
+
+	trace_kvm_nested_vmexit_inject(nested_vmcb->control.exit_code,
+				       nested_vmcb->control.exit_info_1,
+				       nested_vmcb->control.exit_info_2,
+				       nested_vmcb->control.exit_int_info,
+				       nested_vmcb->control.exit_int_info_err,
+				       KVM_ISA_SVM);
 
 	kvm_vcpu_unmap(&svm->vcpu, &map, true);
 
