@@ -540,8 +540,10 @@ static int bch_set_geometry(struct gpmi_nand_data *this)
 		return ret;
 
 	ret = pm_runtime_get_sync(this->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(this->dev);
 		return ret;
+	}
 
 	/*
 	* Due to erratum #2847 of the MX23, the BCH cannot be soft reset on this
