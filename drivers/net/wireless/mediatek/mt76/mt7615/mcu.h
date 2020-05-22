@@ -327,7 +327,8 @@ struct mt7615_hw_scan_req {
 		       */
 	u8 ssid_type; /* BIT(0) wildcard SSID
 		       * BIT(1) P2P wildcard SSID
-		       * BIT(2) specified SSID
+		       * BIT(2) specified SSID + wildcard SSID
+		       * BIT(2) + ssid_type_ext BIT(0) specified SSID only
 		       */
 	u8 ssids_num;
 	u8 probe_req_num; /* Number of probe request for each SSID */
@@ -362,7 +363,8 @@ struct mt7615_hw_scan_req {
 	struct mt7615_mcu_scan_ssid ext_ssids[6];
 	u8 bssid[ETH_ALEN];
 	u8 random_mac[ETH_ALEN]; /* valid when BIT(1) in scan_func is set. */
-	u8 pad[64];
+	u8 pad[63];
+	u8 ssid_type_ext;
 } __packed;
 
 #define SCAN_DONE_EVENT_MAX_CHANNEL_NUM	64
