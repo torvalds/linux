@@ -3832,11 +3832,11 @@ static void ena_timer_service(struct timer_list *t)
 	mod_timer(&adapter->timer_service, round_jiffies(jiffies + HZ));
 }
 
-static int ena_calc_max_io_queue_num(struct pci_dev *pdev,
+static u32 ena_calc_max_io_queue_num(struct pci_dev *pdev,
 				     struct ena_com_dev *ena_dev,
 				     struct ena_com_dev_get_features_ctx *get_feat_ctx)
 {
-	int io_tx_sq_num, io_tx_cq_num, io_rx_num, max_num_io_queues;
+	u32 io_tx_sq_num, io_tx_cq_num, io_rx_num, max_num_io_queues;
 
 	if (ena_dev->supported_features & BIT(ENA_ADMIN_MAX_QUEUES_EXT)) {
 		struct ena_admin_queue_ext_feature_fields *max_queue_ext =
