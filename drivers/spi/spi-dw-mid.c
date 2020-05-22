@@ -20,9 +20,6 @@
 #define RX_BUSY		0
 #define TX_BUSY		1
 
-static struct dw_dma_slave mid_dma_tx = { .dst_id = 1 };
-static struct dw_dma_slave mid_dma_rx = { .src_id = 0 };
-
 static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_dma_slave *s = param;
@@ -36,9 +33,11 @@ static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 
 static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 {
+	struct dw_dma_slave slave = {
+		.src_id = 0,
+		.dst_id = 0
+	};
 	struct pci_dev *dma_dev;
-	struct dw_dma_slave *tx = dws->dma_tx;
-	struct dw_dma_slave *rx = dws->dma_rx;
 	dma_cap_mask_t mask;
 
 	/*
@@ -53,14 +52,14 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* 1. Init rx channel */
-	rx->dma_dev = &dma_dev->dev;
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, rx);
+	slave.dma_dev = &dma_dev->dev;
+	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
 	if (!dws->rxchan)
 		goto err_exit;
 
 	/* 2. Init tx channel */
-	tx->dma_dev = &dma_dev->dev;
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, tx);
+	slave.dst_id = 1;
+	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
 	if (!dws->txchan)
 		goto free_rxchan;
 
@@ -317,8 +316,6 @@ static const struct dw_spi_dma_ops mfld_dma_ops = {
 
 static void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws)
 {
-	dws->dma_tx = &mid_dma_tx;
-	dws->dma_rx = &mid_dma_rx;
 	dws->dma_ops = &mfld_dma_ops;
 }
 
