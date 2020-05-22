@@ -275,6 +275,7 @@ struct sdhci_msm_host {
 	u32 transfer_mode;
 	bool updated_ddr_cfg;
 	bool uses_tassadar_dll;
+	u32 dll_config;
 	u32 ddr_config;
 };
 
@@ -617,6 +618,9 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 	config &= ~CORE_CLK_PWRSAVE;
 	writel_relaxed(config, host->ioaddr + msm_offset->core_vendor_spec);
 
+	config = msm_host->dll_config;
+	writel_relaxed(config, host->ioaddr + msm_offset->core_dll_config);
+
 	if (msm_host->use_14lpp_dll_reset) {
 		config = readl_relaxed(host->ioaddr +
 				msm_offset->core_dll_config);
@@ -642,7 +646,9 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 	config |= CORE_DLL_PDN;
 	writel_relaxed(config, host->ioaddr +
 			msm_offset->core_dll_config);
-	msm_cm_dll_set_freq(host);
+
+	if (!msm_host->dll_config)
+		msm_cm_dll_set_freq(host);
 
 	if (msm_host->use_14lpp_dll_reset &&
 	    !IS_ERR_OR_NULL(msm_host->xo_clk)) {
@@ -682,7 +688,8 @@ static int msm_init_cm_dll(struct sdhci_host *host)
 			msm_offset->core_dll_config);
 
 	if (msm_host->use_14lpp_dll_reset) {
-		msm_cm_dll_set_freq(host);
+		if (!msm_host->dll_config)
+			msm_cm_dll_set_freq(host);
 		config = readl_relaxed(host->ioaddr +
 				msm_offset->core_dll_config_2);
 		config &= ~CORE_DLL_CLOCK_DISABLE;
@@ -1944,6 +1951,8 @@ static inline void sdhci_msm_get_of_property(struct platform_device *pdev,
 	if (of_property_read_u32(node, "qcom,ddr-config",
 				&msm_host->ddr_config))
 		msm_host->ddr_config = DDR_CONFIG_POR_VAL;
+
+	of_property_read_u32(node, "qcom,dll-config", &msm_host->dll_config);
 }
 
 
