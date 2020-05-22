@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x3353119e1
+#define DMUB_FW_VERSION_GIT_HASH 0x5470fd231
 #define DMUB_FW_VERSION_MAJOR 1
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 13
+#define DMUB_FW_VERSION_REVISION 14
 #define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
 #endif
 
@@ -421,6 +421,8 @@ struct dmub_cmd_psr_copy_settings_data {
 	uint8_t frame_delay;
 	uint8_t frame_cap_ind;
 	uint8_t pad[3];
+	uint16_t init_sdp_deadline;
+	uint16_t pad2;
 };
 
 struct dmub_rb_cmd_psr_copy_settings {
