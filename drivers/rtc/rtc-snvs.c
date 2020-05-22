@@ -362,7 +362,7 @@ static int __maybe_unused snvs_rtc_suspend_noirq(struct device *dev)
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
 	if (data->clk)
-		clk_disable_unprepare(data->clk);
+		clk_disable(data->clk);
 
 	return 0;
 }
@@ -372,7 +372,7 @@ static int __maybe_unused snvs_rtc_resume_noirq(struct device *dev)
 	struct snvs_rtc_data *data = dev_get_drvdata(dev);
 
 	if (data->clk)
-		return clk_prepare_enable(data->clk);
+		return clk_enable(data->clk);
 
 	return 0;
 }
