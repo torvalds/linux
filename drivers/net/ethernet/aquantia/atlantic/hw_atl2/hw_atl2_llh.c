@@ -68,6 +68,15 @@ void hw_atl2_rpf_vlan_flr_tag_set(struct aq_hw_s *aq_hw, u32 tag, u32 filter)
 
 /* TX */
 
+void hw_atl2_tpb_tx_tc_q_rand_map_en_set(struct aq_hw_s *aq_hw,
+					 const u32 tc_q_rand_map_en)
+{
+	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_ADR,
+			    HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_MSK,
+			    HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_SHIFT,
+			    tc_q_rand_map_en);
+}
+
 void hw_atl2_tpb_tx_buf_clk_gate_en_set(struct aq_hw_s *aq_hw, u32 clk_gate_en)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_ADR,

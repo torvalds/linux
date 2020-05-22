@@ -132,6 +132,24 @@
 /* Default value of bitfield rx_q{Q}_tc_map[2:0] */
 #define HW_ATL2_RX_Q_TC_MAP_DEFAULT 0x0
 
+/* tx tx_tc_q_rand_map_en bitfield definitions
+ * preprocessor definitions for the bitfield "tx_tc_q_rand_map_en".
+ * port="pif_tpb_tx_tc_q_rand_map_en_i"
+ */
+
+/* register address for bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_ADR 0x00007900
+/* bitmask for bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_MSK 0x00000200
+/* inverted bitmask for bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_MSKN 0xFFFFFDFF
+/* lower bit position of bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_SHIFT 9
+/* width of bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_WIDTH 1
+/* default value of bitfield tx_tc_q_rand_map_en */
+#define HW_ATL2_TPB_TX_TC_Q_RAND_MAP_EN_DEFAULT 0x0
+
 /* tx tx_buffer_clk_gate_en bitfield definitions
  * preprocessor definitions for the bitfield "tx_buffer_clk_gate_en".
  * port="pif_tpb_tx_buffer_clk_gate_en_i"
@@ -150,8 +168,25 @@
 /* default value of bitfield tx_buffer_clk_gate_en */
 #define HW_ATL2_TPB_TX_BUF_CLK_GATE_EN_DEFAULT 0x0
 
-/* tx data_tc{t}_credit_max[b:0] bitfield definitions
- * preprocessor definitions for the bitfield "data_tc{t}_credit_max[b:0]".
+/* tx tx_q_tc_map{q} bitfield definitions
+ * preprocessor definitions for the bitfield "tx_q_tc_map{q}".
+ * parameter: queue {q} | bit-level stride | range [0, 31]
+ * port="pif_tpb_tx_q_tc_map0_i[2:0]"
+ */
+
+/* register address for bitfield tx_q_tc_map{q} */
+#define HW_ATL2_TX_Q_TC_MAP_ADR(queue) \
+	(((queue) < 32) ? 0x0000799C + ((queue) / 4) * 4 : 0)
+/* lower bit position of bitfield tx_q_tc_map{q} */
+#define HW_ATL2_TX_Q_TC_MAP_SHIFT(queue) \
+	(((queue) < 32) ? ((queue) * 8) % 32 : 0)
+/* width of bitfield tx_q_tc_map{q} */
+#define HW_ATL2_TX_Q_TC_MAP_WIDTH 3
+/* default value of bitfield tx_q_tc_map{q} */
+#define HW_ATL2_TX_Q_TC_MAP_DEFAULT 0x0
+
+/* tx data_tc{t}_credit_max[f:0] bitfield definitions
+ * preprocessor definitions for the bitfield "data_tc{t}_credit_max[f:0]".
  * parameter: tc {t} | stride size 0x4 | range [0, 7]
  * port="pif_tps_data_tc0_credit_max_i[11:0]"
  */

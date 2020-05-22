@@ -95,7 +95,10 @@ static int hw_atl2_hw_queue_to_tc_map_set(struct aq_hw_s *self)
 	struct aq_nic_cfg_s *cfg = self->aq_nic_cfg;
 	unsigned int tcs, q_per_tc;
 	unsigned int tc, q;
-	u32 value = 0;
+	u32 rx_map = 0;
+	u32 tx_map = 0;
+
+	hw_atl2_tpb_tx_tc_q_rand_map_en_set(self, 1U);
 
 	switch (cfg->tc_mode) {
 	case AQ_TC_MODE_8TCS:
@@ -113,14 +116,24 @@ static int hw_atl2_hw_queue_to_tc_map_set(struct aq_hw_s *self)
 	for (tc = 0; tc != tcs; tc++) {
 		unsigned int tc_q_offset = tc * q_per_tc;
 
-		for (q = tc_q_offset; q != tc_q_offset + q_per_tc; q++)
-			value |= tc << HW_ATL2_RX_Q_TC_MAP_SHIFT(q);
+		for (q = tc_q_offset; q != tc_q_offset + q_per_tc; q++) {
+			rx_map |= tc << HW_ATL2_RX_Q_TC_MAP_SHIFT(q);
+			if (HW_ATL2_RX_Q_TC_MAP_ADR(q) !=
+			    HW_ATL2_RX_Q_TC_MAP_ADR(q + 1)) {
+				aq_hw_write_reg(self,
+						HW_ATL2_RX_Q_TC_MAP_ADR(q),
+						rx_map);
+				rx_map = 0;
+			}
 
-		if (HW_ATL2_RX_Q_TC_MAP_ADR(q) !=
-		    HW_ATL2_RX_Q_TC_MAP_ADR(q - 1)) {
-			aq_hw_write_reg(self, HW_ATL2_RX_Q_TC_MAP_ADR(q - 1),
-					value);
-			value = 0;
+			tx_map |= tc << HW_ATL2_TX_Q_TC_MAP_SHIFT(q);
+			if (HW_ATL2_TX_Q_TC_MAP_ADR(q) !=
+			    HW_ATL2_TX_Q_TC_MAP_ADR(q + 1)) {
+				aq_hw_write_reg(self,
+						HW_ATL2_TX_Q_TC_MAP_ADR(q),
+						tx_map);
+				tx_map = 0;
+			}
 		}
 	}
 
@@ -181,7 +194,7 @@ static int hw_atl2_hw_qos_set(struct aq_hw_s *self)
 		hw_atl_rpf_rpb_user_priority_tc_map_set(self, prio,
 							cfg->prio_tc_map[prio]);
 
-	/* ATL2 Apply legacy ring to TC mapping */
+	/* ATL2 Apply ring to TC mapping */
 	hw_atl2_hw_queue_to_tc_map_set(self);
 
 	return aq_hw_err_from_flags(self);
