@@ -1599,6 +1599,7 @@ static int flexrm_mbox_probe(struct platform_device *pdev)
 					  1 << RING_CMPL_ALIGN_ORDER, 0);
 	if (!mbox->cmpl_pool) {
 		ret = -ENOMEM;
+		goto fail_destroy_bd_pool;
 	}
 
 	/* Allocate platform MSIs for each ring */
@@ -1661,6 +1662,7 @@ fail_free_debugfs_root:
 	platform_msi_domain_free_irqs(dev);
 fail_destroy_cmpl_pool:
 	dma_pool_destroy(mbox->cmpl_pool);
+fail_destroy_bd_pool:
 	dma_pool_destroy(mbox->bd_pool);
 fail:
 	return ret;

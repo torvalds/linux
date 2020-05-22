@@ -643,7 +643,7 @@ static int capture_open(struct file *file)
 	if (ret)
 		v4l2_err(priv->src_sd, "v4l2_fh_open failed\n");
 
-	ret = v4l2_pipeline_pm_use(&vfd->entity, 1);
+	ret = v4l2_pipeline_pm_get(&vfd->entity);
 	if (ret)
 		v4l2_fh_release(file);
 
@@ -664,7 +664,7 @@ static int capture_release(struct file *file)
 		vq->owner = NULL;
 	}
 
-	v4l2_pipeline_pm_use(&vfd->entity, 0);
+	v4l2_pipeline_pm_put(&vfd->entity);
 
 	v4l2_fh_release(file);
 	mutex_unlock(&priv->mutex);
@@ -742,7 +742,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 
 	vfd->v4l2_dev = v4l2_dev;
 
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(vfd, VFL_TYPE_VIDEO, -1);
 	if (ret) {
 		v4l2_err(sd, "Failed to register video device\n");
 		return ret;
@@ -778,7 +778,7 @@ int imx_media_capture_device_register(struct imx_media_video_dev *vdev)
 	/* setup default format */
 	fmt_src.pad = priv->src_sd_pad;
 	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
+	ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &fmt_src);
 	if (ret) {
 		v4l2_err(sd, "failed to get src_sd format\n");
 		goto unreg;

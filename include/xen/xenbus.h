@@ -42,10 +42,12 @@
 #include <linux/completion.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/semaphore.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
+#include <xen/interface/event_channel.h>
 
 #define XENBUS_MAX_RING_GRANT_ORDER 4
 #define XENBUS_MAX_RING_GRANTS      (1U << XENBUS_MAX_RING_GRANT_ORDER)
@@ -76,7 +78,7 @@ struct xenbus_device {
 	enum xenbus_state state;
 	struct completion down;
 	struct work_struct work;
-	spinlock_t reclaim_lock;
+	struct semaphore reclaim_sem;
 };
 
 static inline struct xenbus_device *to_xenbus_device(struct device *dev)
@@ -208,18 +210,11 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 		      unsigned int nr_pages, grant_ref_t *grefs);
 int xenbus_map_ring_valloc(struct xenbus_device *dev, grant_ref_t *gnt_refs,
 			   unsigned int nr_grefs, void **vaddr);
-int xenbus_map_ring(struct xenbus_device *dev,
-		    grant_ref_t *gnt_refs, unsigned int nr_grefs,
-		    grant_handle_t *handles, unsigned long *vaddrs,
-		    bool *leaked);
 
 int xenbus_unmap_ring_vfree(struct xenbus_device *dev, void *vaddr);
-int xenbus_unmap_ring(struct xenbus_device *dev,
-		      grant_handle_t *handles, unsigned int nr_handles,
-		      unsigned long *vaddrs);
 
-int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port);
-int xenbus_free_evtchn(struct xenbus_device *dev, int port);
+int xenbus_alloc_evtchn(struct xenbus_device *dev, evtchn_port_t *port);
+int xenbus_free_evtchn(struct xenbus_device *dev, evtchn_port_t port);
 
 enum xenbus_state xenbus_read_driver_state(const char *path);
 

@@ -32,7 +32,6 @@ int amdgpu_mmhub_ras_late_init(struct amdgpu_device *adev)
 	};
 	struct ras_fs_if fs_info = {
 		.sysfs_name = "mmhub_err_count",
-		.debugfs_name = "mmhub_err_inject",
 	};
 
 	if (!adev->mmhub.ras_if) {

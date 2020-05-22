@@ -18,6 +18,7 @@
 #include "hw_atl/hw_atl_b0.h"
 #include "aq_filters.h"
 #include "aq_drvinfo.h"
+#include "aq_macsec.h"
 
 static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_0001), },
@@ -324,6 +325,10 @@ static void aq_pci_remove(struct pci_dev *pdev)
 		aq_clear_rxnfc_all_rules(self);
 		if (self->ndev->reg_state == NETREG_REGISTERED)
 			unregister_netdev(self->ndev);
+
+#if IS_ENABLED(CONFIG_MACSEC)
+		aq_macsec_free(self);
+#endif
 		aq_nic_free_vectors(self);
 		aq_pci_free_irq_vectors(self);
 		iounmap(self->aq_hw->mmio);
@@ -359,7 +364,8 @@ static int aq_suspend_common(struct device *dev, bool deep)
 	netif_device_detach(nic->ndev);
 	netif_tx_stop_all_queues(nic->ndev);
 
-	aq_nic_stop(nic);
+	if (netif_running(nic->ndev))
+		aq_nic_stop(nic);
 
 	if (deep) {
 		aq_nic_deinit(nic, !nic->aq_hw->aq_nic_cfg->wol);
@@ -375,7 +381,7 @@ static int atl_resume_common(struct device *dev, bool deep)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct aq_nic_s *nic;
-	int ret;
+	int ret = 0;
 
 	nic = pci_get_drvdata(pdev);
 
@@ -390,9 +396,11 @@ static int atl_resume_common(struct device *dev, bool deep)
 			goto err_exit;
 	}
 
-	ret = aq_nic_start(nic);
-	if (ret)
-		goto err_exit;
+	if (netif_running(nic->ndev)) {
+		ret = aq_nic_start(nic);
+		if (ret)
+			goto err_exit;
+	}
 
 	netif_device_attach(nic->ndev);
 	netif_tx_start_all_queues(nic->ndev);

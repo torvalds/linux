@@ -1572,7 +1572,7 @@ sh_mobile_lcdc_overlay_fb_init(struct sh_mobile_lcdc_overlay *ovl)
 	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &sh_mobile_lcdc_overlay_ops;
 	info->device = priv->dev;
-	info->screen_base = ovl->fb_mem;
+	info->screen_buffer = ovl->fb_mem;
 	info->par = ovl;
 
 	/* Initialize fixed screen information. Restrict pan to 2 lines steps
@@ -2056,7 +2056,7 @@ sh_mobile_lcdc_channel_fb_init(struct sh_mobile_lcdc_chan *ch,
 	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &sh_mobile_lcdc_ops;
 	info->device = priv->dev;
-	info->screen_base = ch->fb_mem;
+	info->screen_buffer = ch->fb_mem;
 	info->pseudo_palette = &ch->pseudo_palette;
 	info->par = ch;
 

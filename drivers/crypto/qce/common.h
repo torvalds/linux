@@ -12,6 +12,9 @@
 #include <crypto/hash.h>
 #include <crypto/internal/skcipher.h>
 
+/* xts du size */
+#define QCE_SECTOR_SIZE			512
+
 /* key size in bytes */
 #define QCE_SHA_HMAC_KEY_SIZE		64
 #define QCE_MAX_CIPHER_KEY_SIZE		AES_KEYSIZE_256

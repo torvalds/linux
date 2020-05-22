@@ -23,6 +23,9 @@ mock_context(struct drm_i915_private *i915,
 	INIT_LIST_HEAD(&ctx->link);
 	ctx->i915 = i915;
 
+	spin_lock_init(&ctx->stale.lock);
+	INIT_LIST_HEAD(&ctx->stale.engines);
+
 	i915_gem_context_set_persistence(ctx);
 
 	mutex_init(&ctx->engines_mutex);
@@ -37,7 +40,7 @@ mock_context(struct drm_i915_private *i915,
 	if (name) {
 		struct i915_ppgtt *ppgtt;
 
-		strncpy(ctx->name, name, sizeof(ctx->name));
+		strncpy(ctx->name, name, sizeof(ctx->name) - 1);
 
 		ppgtt = mock_ppgtt(i915, name);
 		if (!ppgtt)
@@ -83,6 +86,8 @@ live_context(struct drm_i915_private *i915, struct file *file)
 	if (IS_ERR(ctx))
 		return ctx;
 
+	i915_gem_context_set_no_error_capture(ctx);
+
 	err = gem_context_register(ctx, to_drm_file(file)->driver_priv, &id);
 	if (err < 0)
 		goto err_ctx;
@@ -105,6 +110,7 @@ kernel_context(struct drm_i915_private *i915)
 
 	i915_gem_context_clear_bannable(ctx);
 	i915_gem_context_set_persistence(ctx);
+	i915_gem_context_set_no_error_capture(ctx);
 
 	return ctx;
 }

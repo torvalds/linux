@@ -273,21 +273,10 @@ struct i915_vma {
 	struct rb_node obj_node;
 	struct hlist_node obj_hash;
 
-	/** This vma's place in the execbuf reservation list */
-	struct list_head exec_link;
-	struct list_head reloc_link;
-
 	/** This vma's place in the eviction list */
 	struct list_head evict_link;
 
 	struct list_head closed_link;
-
-	/**
-	 * Used for performing relocations during execbuffer insertion.
-	 */
-	unsigned int *exec_flags;
-	struct hlist_node exec_node;
-	u32 exec_handle;
 };
 
 #endif

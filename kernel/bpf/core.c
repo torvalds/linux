@@ -97,7 +97,7 @@ struct bpf_prog *bpf_prog_alloc_no_stats(unsigned int size, gfp_t gfp_extra_flag
 	fp->aux->prog = fp;
 	fp->jit_requested = ebpf_jit_enabled();
 
-	INIT_LIST_HEAD_RCU(&fp->aux->ksym_lnode);
+	INIT_LIST_HEAD_RCU(&fp->aux->ksym.lnode);
 
 	return fp;
 }
@@ -523,22 +523,22 @@ int bpf_jit_kallsyms __read_mostly = IS_BUILTIN(CONFIG_BPF_JIT_DEFAULT_ON);
 int bpf_jit_harden   __read_mostly;
 long bpf_jit_limit   __read_mostly;
 
-static __always_inline void
-bpf_get_prog_addr_region(const struct bpf_prog *prog,
-			 unsigned long *symbol_start,
-			 unsigned long *symbol_end)
+static void
+bpf_prog_ksym_set_addr(struct bpf_prog *prog)
 {
 	const struct bpf_binary_header *hdr = bpf_jit_binary_hdr(prog);
 	unsigned long addr = (unsigned long)hdr;
 
 	WARN_ON_ONCE(!bpf_prog_ebpf_jited(prog));
 
-	*symbol_start = addr;
-	*symbol_end   = addr + hdr->pages * PAGE_SIZE;
+	prog->aux->ksym.start = (unsigned long) prog->bpf_func;
+	prog->aux->ksym.end   = addr + hdr->pages * PAGE_SIZE;
 }
 
-void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
+static void
+bpf_prog_ksym_set_name(struct bpf_prog *prog)
 {
+	char *sym = prog->aux->ksym.name;
 	const char *end = sym + KSYM_NAME_LEN;
 	const struct btf_type *type;
 	const char *func_name;
@@ -572,36 +572,27 @@ void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 		*sym = 0;
 }
 
-static __always_inline unsigned long
-bpf_get_prog_addr_start(struct latch_tree_node *n)
+static unsigned long bpf_get_ksym_start(struct latch_tree_node *n)
 {
-	unsigned long symbol_start, symbol_end;
-	const struct bpf_prog_aux *aux;
-
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
-	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
-
-	return symbol_start;
+	return container_of(n, struct bpf_ksym, tnode)->start;
 }
 
 static __always_inline bool bpf_tree_less(struct latch_tree_node *a,
 					  struct latch_tree_node *b)
 {
-	return bpf_get_prog_addr_start(a) < bpf_get_prog_addr_start(b);
+	return bpf_get_ksym_start(a) < bpf_get_ksym_start(b);
 }
 
 static __always_inline int bpf_tree_comp(void *key, struct latch_tree_node *n)
 {
 	unsigned long val = (unsigned long)key;
-	unsigned long symbol_start, symbol_end;
-	const struct bpf_prog_aux *aux;
+	const struct bpf_ksym *ksym;
 
-	aux = container_of(n, struct bpf_prog_aux, ksym_tnode);
-	bpf_get_prog_addr_region(aux->prog, &symbol_start, &symbol_end);
+	ksym = container_of(n, struct bpf_ksym, tnode);
 
-	if (val < symbol_start)
+	if (val < ksym->start)
 		return -1;
-	if (val >= symbol_end)
+	if (val >= ksym->end)
 		return  1;
 
 	return 0;
@@ -616,20 +607,29 @@ static DEFINE_SPINLOCK(bpf_lock);
 static LIST_HEAD(bpf_kallsyms);
 static struct latch_tree_root bpf_tree __cacheline_aligned;
 
-static void bpf_prog_ksym_node_add(struct bpf_prog_aux *aux)
+void bpf_ksym_add(struct bpf_ksym *ksym)
 {
-	WARN_ON_ONCE(!list_empty(&aux->ksym_lnode));
-	list_add_tail_rcu(&aux->ksym_lnode, &bpf_kallsyms);
-	latch_tree_insert(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
+	spin_lock_bh(&bpf_lock);
+	WARN_ON_ONCE(!list_empty(&ksym->lnode));
+	list_add_tail_rcu(&ksym->lnode, &bpf_kallsyms);
+	latch_tree_insert(&ksym->tnode, &bpf_tree, &bpf_tree_ops);
+	spin_unlock_bh(&bpf_lock);
 }
 
-static void bpf_prog_ksym_node_del(struct bpf_prog_aux *aux)
+static void __bpf_ksym_del(struct bpf_ksym *ksym)
 {
-	if (list_empty(&aux->ksym_lnode))
+	if (list_empty(&ksym->lnode))
 		return;
 
-	latch_tree_erase(&aux->ksym_tnode, &bpf_tree, &bpf_tree_ops);
-	list_del_rcu(&aux->ksym_lnode);
+	latch_tree_erase(&ksym->tnode, &bpf_tree, &bpf_tree_ops);
+	list_del_rcu(&ksym->lnode);
+}
+
+void bpf_ksym_del(struct bpf_ksym *ksym)
+{
+	spin_lock_bh(&bpf_lock);
+	__bpf_ksym_del(ksym);
+	spin_unlock_bh(&bpf_lock);
 }
 
 static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
@@ -639,8 +639,8 @@ static bool bpf_prog_kallsyms_candidate(const struct bpf_prog *fp)
 
 static bool bpf_prog_kallsyms_verify_off(const struct bpf_prog *fp)
 {
-	return list_empty(&fp->aux->ksym_lnode) ||
-	       fp->aux->ksym_lnode.prev == LIST_POISON2;
+	return list_empty(&fp->aux->ksym.lnode) ||
+	       fp->aux->ksym.lnode.prev == LIST_POISON2;
 }
 
 void bpf_prog_kallsyms_add(struct bpf_prog *fp)
@@ -649,9 +649,11 @@ void bpf_prog_kallsyms_add(struct bpf_prog *fp)
 	    !capable(CAP_SYS_ADMIN))
 		return;
 
-	spin_lock_bh(&bpf_lock);
-	bpf_prog_ksym_node_add(fp->aux);
-	spin_unlock_bh(&bpf_lock);
+	bpf_prog_ksym_set_addr(fp);
+	bpf_prog_ksym_set_name(fp);
+	fp->aux->ksym.prog = true;
+
+	bpf_ksym_add(&fp->aux->ksym);
 }
 
 void bpf_prog_kallsyms_del(struct bpf_prog *fp)
@@ -659,33 +661,30 @@ void bpf_prog_kallsyms_del(struct bpf_prog *fp)
 	if (!bpf_prog_kallsyms_candidate(fp))
 		return;
 
-	spin_lock_bh(&bpf_lock);
-	bpf_prog_ksym_node_del(fp->aux);
-	spin_unlock_bh(&bpf_lock);
+	bpf_ksym_del(&fp->aux->ksym);
 }
 
-static struct bpf_prog *bpf_prog_kallsyms_find(unsigned long addr)
+static struct bpf_ksym *bpf_ksym_find(unsigned long addr)
 {
 	struct latch_tree_node *n;
 
 	n = latch_tree_find((void *)addr, &bpf_tree, &bpf_tree_ops);
-	return n ?
-	       container_of(n, struct bpf_prog_aux, ksym_tnode)->prog :
-	       NULL;
+	return n ? container_of(n, struct bpf_ksym, tnode) : NULL;
 }
 
 const char *__bpf_address_lookup(unsigned long addr, unsigned long *size,
 				 unsigned long *off, char *sym)
 {
-	unsigned long symbol_start, symbol_end;
-	struct bpf_prog *prog;
+	struct bpf_ksym *ksym;
 	char *ret = NULL;
 
 	rcu_read_lock();
-	prog = bpf_prog_kallsyms_find(addr);
-	if (prog) {
-		bpf_get_prog_addr_region(prog, &symbol_start, &symbol_end);
-		bpf_get_prog_name(prog, sym);
+	ksym = bpf_ksym_find(addr);
+	if (ksym) {
+		unsigned long symbol_start = ksym->start;
+		unsigned long symbol_end = ksym->end;
+
+		strncpy(sym, ksym->name, KSYM_NAME_LEN);
 
 		ret = sym;
 		if (size)
@@ -703,10 +702,19 @@ bool is_bpf_text_address(unsigned long addr)
 	bool ret;
 
 	rcu_read_lock();
-	ret = bpf_prog_kallsyms_find(addr) != NULL;
+	ret = bpf_ksym_find(addr) != NULL;
 	rcu_read_unlock();
 
 	return ret;
+}
+
+static struct bpf_prog *bpf_prog_ksym_find(unsigned long addr)
+{
+	struct bpf_ksym *ksym = bpf_ksym_find(addr);
+
+	return ksym && ksym->prog ?
+	       container_of(ksym, struct bpf_prog_aux, ksym)->prog :
+	       NULL;
 }
 
 const struct exception_table_entry *search_bpf_extables(unsigned long addr)
@@ -715,7 +723,7 @@ const struct exception_table_entry *search_bpf_extables(unsigned long addr)
 	struct bpf_prog *prog;
 
 	rcu_read_lock();
-	prog = bpf_prog_kallsyms_find(addr);
+	prog = bpf_prog_ksym_find(addr);
 	if (!prog)
 		goto out;
 	if (!prog->aux->num_exentries)
@@ -730,7 +738,7 @@ out:
 int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		    char *sym)
 {
-	struct bpf_prog_aux *aux;
+	struct bpf_ksym *ksym;
 	unsigned int it = 0;
 	int ret = -ERANGE;
 
@@ -738,13 +746,13 @@ int bpf_get_kallsym(unsigned int symnum, unsigned long *value, char *type,
 		return ret;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(aux, &bpf_kallsyms, ksym_lnode) {
+	list_for_each_entry_rcu(ksym, &bpf_kallsyms, lnode) {
 		if (it++ != symnum)
 			continue;
 
-		bpf_get_prog_name(aux->prog, sym);
+		strncpy(sym, ksym->name, KSYM_NAME_LEN);
 
-		*value = (unsigned long)aux->prog->bpf_func;
+		*value = ksym->start;
 		*type  = BPF_SYM_ELF_TYPE;
 
 		ret = 0;
@@ -2148,7 +2156,9 @@ const struct bpf_func_proto bpf_get_current_pid_tgid_proto __weak;
 const struct bpf_func_proto bpf_get_current_uid_gid_proto __weak;
 const struct bpf_func_proto bpf_get_current_comm_proto __weak;
 const struct bpf_func_proto bpf_get_current_cgroup_id_proto __weak;
+const struct bpf_func_proto bpf_get_current_ancestor_cgroup_id_proto __weak;
 const struct bpf_func_proto bpf_get_local_storage_proto __weak;
+const struct bpf_func_proto bpf_get_ns_current_pid_tgid_proto __weak;
 
 const struct bpf_func_proto * __weak bpf_get_trace_printk_proto(void)
 {

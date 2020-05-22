@@ -193,12 +193,12 @@ static char *translate_scan(struct adapter *padapter,
 	/*Add basic and extended rates */
 	max_rate = 0;
 	p = custom;
-	p += snprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
+	p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom), " Rates (Mb/s): ");
 	while (pnetwork->network.SupportedRates[i] != 0) {
 		rate = pnetwork->network.SupportedRates[i]&0x7F;
 		if (rate > max_rate)
 			max_rate = rate;
-		p += snprintf(p, MAX_CUSTOM_LEN - (p - custom),
+		p += scnprintf(p, MAX_CUSTOM_LEN - (p - custom),
 			      "%d%s ", rate >> 1, (rate & 1) ? ".5" : "");
 		i++;
 	}
@@ -2009,21 +2009,16 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	struct ieee_param *param;
 	uint ret = 0;
 
-	if (p->length < sizeof(struct ieee_param) || !p->pointer) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!p->pointer || p->length != sizeof(struct ieee_param))
+		return -EINVAL;
 
 	param = (struct ieee_param *)rtw_malloc(p->length);
-	if (!param) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!param)
+		return -ENOMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	switch (param->cmd) {
@@ -2054,9 +2049,6 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 		ret = -EFAULT;
 
 	kfree(param);
-
-out:
-
 	return ret;
 }
 
@@ -2791,26 +2783,19 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	* so, we just check hw_init_completed
 	*/
 
-	if (!padapter->hw_init_completed) {
-		ret = -EPERM;
-		goto out;
-	}
+	if (!padapter->hw_init_completed)
+		return -EPERM;
 
-	if (!p->pointer) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!p->pointer || p->length != sizeof(struct ieee_param))
+		return -EINVAL;
 
 	param = (struct ieee_param *)rtw_malloc(p->length);
-	if (!param) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!param)
+		return -ENOMEM;
 
 	if (copy_from_user(param, p->pointer, p->length)) {
 		kfree(param);
-		ret = -EFAULT;
-		goto out;
+		return -EFAULT;
 	}
 
 	switch (param->cmd) {
@@ -2865,7 +2850,6 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
 		ret = -EFAULT;
 	kfree(param);
-out:
 	return ret;
 }
 #endif

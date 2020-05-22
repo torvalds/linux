@@ -3,6 +3,6 @@
 config AMDTEE
 	tristate "AMD-TEE"
 	default m
-	depends on CRYPTO_DEV_SP_PSP
+	depends on CRYPTO_DEV_SP_PSP && CRYPTO_DEV_CCP_DD
 	help
 	  This implements AMD's Trusted Execution Environment (TEE) driver.

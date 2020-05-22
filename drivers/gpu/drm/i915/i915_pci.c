@@ -26,6 +26,7 @@
 #include <linux/vga_switcheroo.h>
 
 #include <drm/drm_drv.h>
+#include <drm/i915_pciids.h>
 
 #include "display/intel_fbdev.h"
 
@@ -437,7 +438,7 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
-	.ppgtt_type = INTEL_PPGTT_FULL, \
+	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
 	IVB_CURSOR_OFFSETS, \
@@ -494,7 +495,7 @@ static const struct intel_device_info vlv_info = {
 	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
-	.ppgtt_type = INTEL_PPGTT_FULL,
+	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 31,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
@@ -615,7 +616,8 @@ static const struct intel_device_info chv_info = {
 	.has_gt_uc = 1, \
 	.display.has_hdcp = 1, \
 	.display.has_ipc = 1, \
-	.ddb_size = 896
+	.ddb_size = 896, \
+	.num_supported_dbuf_slices = 1
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
@@ -650,6 +652,7 @@ static const struct intel_device_info skl_gt4_info = {
 #define GEN9_LP_FEATURES \
 	GEN(9), \
 	.is_lp = 1, \
+	.num_supported_dbuf_slices = 1, \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
@@ -774,6 +777,7 @@ static const struct intel_device_info cnl_info = {
 	}, \
 	GEN(11), \
 	.ddb_size = 2048, \
+	.num_supported_dbuf_slices = 2, \
 	.has_logical_ring_elsq = 1, \
 	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145 }
 
@@ -819,11 +823,9 @@ static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
-	.require_force_probe = 1,
 	.display.has_modular_fia = 1,
 	.engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
-	.has_rps = false, /* XXX disabled for debugging */
 };
 
 #define GEN12_DGFX_FEATURES \
@@ -928,13 +930,6 @@ static bool force_probe(u16 device_id, const char *devices)
 	char *s, *p, *tok;
 	bool ret;
 
-	/* FIXME: transitional */
-	if (i915_modparams.alpha_support) {
-		DRM_INFO("i915.alpha_support is deprecated, use i915.force_probe=%04x instead\n",
-			 device_id);
-		return true;
-	}
-
 	if (!devices || !*devices)
 		return false;
 
@@ -968,7 +963,8 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (intel_info->require_force_probe &&
 	    !force_probe(pdev->device, i915_modparams.force_probe)) {
-		DRM_INFO("Your graphics device %04x is not properly supported by the driver in this\n"
+		dev_info(&pdev->dev,
+			 "Your graphics device %04x is not properly supported by the driver in this\n"
 			 "kernel version. To force driver probe anyway, use i915.force_probe=%04x\n"
 			 "module parameter or CONFIG_DRM_I915_FORCE_PROBE=%04x configuration option,\n"
 			 "or (recommended) check for kernel updates.\n",

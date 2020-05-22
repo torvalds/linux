@@ -5,6 +5,7 @@
 #define __SDW_BUS_H
 
 #define DEFAULT_BANK_SWITCH_TIMEOUT 3000
+#define DEFAULT_PROBE_TIMEOUT       2000
 
 #if IS_ENABLED(CONFIG_ACPI)
 int sdw_acpi_find_slaves(struct sdw_bus *bus);
@@ -163,5 +164,13 @@ sdw_update(struct sdw_slave *slave, u32 addr, u8 mask, u8 val)
 	tmp = (tmp & ~mask) | val;
 	return sdw_write(slave, addr, tmp);
 }
+
+/*
+ * At the moment we only track Master-initiated hw_reset.
+ * Additional fields can be added as needed
+ */
+#define SDW_UNATTACH_REQUEST_MASTER_RESET	BIT(0)
+
+void sdw_clear_slave_status(struct sdw_bus *bus, u32 request);
 
 #endif /* __SDW_BUS_H */

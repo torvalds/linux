@@ -1342,8 +1342,8 @@ static int ni_m_gate2_to_generic_gate(unsigned int gate, unsigned int *src)
 
 static inline unsigned int ni_tio_get_gate_mode(struct ni_gpct *counter)
 {
-	unsigned int mode = ni_tio_get_soft_copy(
-		counter, NITIO_MODE_REG(counter->counter_index));
+	unsigned int mode = ni_tio_get_soft_copy(counter,
+				NITIO_MODE_REG(counter->counter_index));
 	unsigned int ret = 0;
 
 	if ((mode & GI_GATING_MODE_MASK) == GI_GATING_DISABLED)
@@ -1358,8 +1358,8 @@ static inline unsigned int ni_tio_get_gate_mode(struct ni_gpct *counter)
 
 static inline unsigned int ni_tio_get_gate2_mode(struct ni_gpct *counter)
 {
-	unsigned int mode = ni_tio_get_soft_copy(
-		counter, NITIO_GATE2_REG(counter->counter_index));
+	unsigned int mode = ni_tio_get_soft_copy(counter,
+				NITIO_GATE2_REG(counter->counter_index));
 	unsigned int ret = 0;
 
 	if (!(mode & GI_GATE2_MODE))

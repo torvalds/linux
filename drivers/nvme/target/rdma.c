@@ -31,6 +31,9 @@
 #define NVMET_RDMA_MAX_INLINE_SGE		4
 #define NVMET_RDMA_MAX_INLINE_DATA_SIZE		max_t(int, SZ_16K, PAGE_SIZE)
 
+/* Assume mpsmin == device_page_size == 4KB */
+#define NVMET_RDMA_MAX_MDTS			8
+
 struct nvmet_rdma_cmd {
 	struct ib_sge		sge[NVMET_RDMA_MAX_INLINE_SGE + 1];
 	struct ib_cqe		cqe;
@@ -75,6 +78,7 @@ enum nvmet_rdma_queue_state {
 
 struct nvmet_rdma_queue {
 	struct rdma_cm_id	*cm_id;
+	struct ib_qp		*qp;
 	struct nvmet_port	*port;
 	struct ib_cq		*cq;
 	atomic_t		sq_wr_avail;
@@ -100,6 +104,13 @@ struct nvmet_rdma_queue {
 	int			send_queue_size;
 
 	struct list_head	queue_list;
+};
+
+struct nvmet_rdma_port {
+	struct nvmet_port	*nport;
+	struct sockaddr_storage addr;
+	struct rdma_cm_id	*cm_id;
+	struct delayed_work	repair_work;
 };
 
 struct nvmet_rdma_device {
@@ -141,12 +152,6 @@ static const struct nvmet_fabrics_ops nvmet_rdma_ops;
 static int num_pages(int len)
 {
 	return 1 + (((len - 1) & PAGE_MASK) >> PAGE_SHIFT);
-}
-
-/* XXX: really should move to a generic header sooner or later.. */
-static inline u32 get_unaligned_le24(const u8 *p)
-{
-	return (u32)p[0] | (u32)p[1] << 8 | (u32)p[2] << 16;
 }
 
 static inline bool nvmet_rdma_need_data_in(struct nvmet_rdma_rsp *rsp)
@@ -464,7 +469,7 @@ static int nvmet_rdma_post_recv(struct nvmet_rdma_device *ndev,
 	if (ndev->srq)
 		ret = ib_post_srq_recv(ndev->srq, &cmd->wr, NULL);
 	else
-		ret = ib_post_recv(cmd->queue->cm_id->qp, &cmd->wr, NULL);
+		ret = ib_post_recv(cmd->queue->qp, &cmd->wr, NULL);
 
 	if (unlikely(ret))
 		pr_err("post_recv cmd failed\n");
@@ -503,7 +508,7 @@ static void nvmet_rdma_release_rsp(struct nvmet_rdma_rsp *rsp)
 	atomic_add(1 + rsp->n_rdma, &queue->sq_wr_avail);
 
 	if (rsp->n_rdma) {
-		rdma_rw_ctx_destroy(&rsp->rw, queue->cm_id->qp,
+		rdma_rw_ctx_destroy(&rsp->rw, queue->qp,
 				queue->cm_id->port_num, rsp->req.sg,
 				rsp->req.sg_cnt, nvmet_data_dir(&rsp->req));
 	}
@@ -587,7 +592,7 @@ static void nvmet_rdma_read_data_done(struct ib_cq *cq, struct ib_wc *wc)
 
 	WARN_ON(rsp->n_rdma <= 0);
 	atomic_add(rsp->n_rdma, &queue->sq_wr_avail);
-	rdma_rw_ctx_destroy(&rsp->rw, queue->cm_id->qp,
+	rdma_rw_ctx_destroy(&rsp->rw, queue->qp,
 			queue->cm_id->port_num, rsp->req.sg,
 			rsp->req.sg_cnt, nvmet_data_dir(&rsp->req));
 	rsp->n_rdma = 0;
@@ -742,7 +747,7 @@ static bool nvmet_rdma_execute_command(struct nvmet_rdma_rsp *rsp)
 	}
 
 	if (nvmet_rdma_need_data_in(rsp)) {
-		if (rdma_rw_ctx_post(&rsp->rw, queue->cm_id->qp,
+		if (rdma_rw_ctx_post(&rsp->rw, queue->qp,
 				queue->cm_id->port_num, &rsp->read_cqe, NULL))
 			nvmet_req_complete(&rsp->req, NVME_SC_DATA_XFER_ERROR);
 	} else {
@@ -914,7 +919,8 @@ static void nvmet_rdma_free_dev(struct kref *ref)
 static struct nvmet_rdma_device *
 nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 {
-	struct nvmet_port *port = cm_id->context;
+	struct nvmet_rdma_port *port = cm_id->context;
+	struct nvmet_port *nport = port->nport;
 	struct nvmet_rdma_device *ndev;
 	int inline_page_count;
 	int inline_sge_count;
@@ -931,17 +937,17 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	if (!ndev)
 		goto out_err;
 
-	inline_page_count = num_pages(port->inline_data_size);
+	inline_page_count = num_pages(nport->inline_data_size);
 	inline_sge_count = max(cm_id->device->attrs.max_sge_rd,
 				cm_id->device->attrs.max_recv_sge) - 1;
 	if (inline_page_count > inline_sge_count) {
 		pr_warn("inline_data_size %d cannot be supported by device %s. Reducing to %lu.\n",
-			port->inline_data_size, cm_id->device->name,
+			nport->inline_data_size, cm_id->device->name,
 			inline_sge_count * PAGE_SIZE);
-		port->inline_data_size = inline_sge_count * PAGE_SIZE;
+		nport->inline_data_size = inline_sge_count * PAGE_SIZE;
 		inline_page_count = inline_sge_count;
 	}
-	ndev->inline_data_size = port->inline_data_size;
+	ndev->inline_data_size = nport->inline_data_size;
 	ndev->inline_page_count = inline_page_count;
 	ndev->device = cm_id->device;
 	kref_init(&ndev->ref);
@@ -975,7 +981,7 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 {
 	struct ib_qp_init_attr qp_attr;
 	struct nvmet_rdma_device *ndev = queue->dev;
-	int comp_vector, nr_cqe, ret, i;
+	int comp_vector, nr_cqe, ret, i, factor;
 
 	/*
 	 * Spread the io queues across completion vectors,
@@ -1008,7 +1014,9 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 	qp_attr.qp_type = IB_QPT_RC;
 	/* +1 for drain */
 	qp_attr.cap.max_send_wr = queue->send_queue_size + 1;
-	qp_attr.cap.max_rdma_ctxs = queue->send_queue_size;
+	factor = rdma_rw_mr_factor(ndev->device, queue->cm_id->port_num,
+				   1 << NVMET_RDMA_MAX_MDTS);
+	qp_attr.cap.max_rdma_ctxs = queue->send_queue_size * factor;
 	qp_attr.cap.max_send_sge = max(ndev->device->attrs.max_sge_rd,
 					ndev->device->attrs.max_send_sge);
 
@@ -1025,6 +1033,7 @@ static int nvmet_rdma_create_queue_ib(struct nvmet_rdma_queue *queue)
 		pr_err("failed to create_qp ret= %d\n", ret);
 		goto err_destroy_cq;
 	}
+	queue->qp = queue->cm_id->qp;
 
 	atomic_set(&queue->sq_wr_avail, qp_attr.cap.max_send_wr);
 
@@ -1053,11 +1062,10 @@ err_destroy_cq:
 
 static void nvmet_rdma_destroy_queue_ib(struct nvmet_rdma_queue *queue)
 {
-	struct ib_qp *qp = queue->cm_id->qp;
-
-	ib_drain_qp(qp);
-	rdma_destroy_id(queue->cm_id);
-	ib_destroy_qp(qp);
+	ib_drain_qp(queue->qp);
+	if (queue->cm_id)
+		rdma_destroy_id(queue->cm_id);
+	ib_destroy_qp(queue->qp);
 	ib_free_cq(queue->cq);
 }
 
@@ -1267,6 +1275,7 @@ static int nvmet_rdma_cm_accept(struct rdma_cm_id *cm_id,
 static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 		struct rdma_cm_event *event)
 {
+	struct nvmet_rdma_port *port = cm_id->context;
 	struct nvmet_rdma_device *ndev;
 	struct nvmet_rdma_queue *queue;
 	int ret = -EINVAL;
@@ -1282,7 +1291,7 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 		ret = -ENOMEM;
 		goto put_device;
 	}
-	queue->port = cm_id->context;
+	queue->port = port->nport;
 
 	if (queue->host_qid == 0) {
 		/* Let inflight controller teardown complete */
@@ -1291,9 +1300,12 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	ret = nvmet_rdma_cm_accept(cm_id, queue, &event->param.conn);
 	if (ret) {
-		schedule_work(&queue->release_work);
-		/* Destroying rdma_cm id is not needed here */
-		return 0;
+		/*
+		 * Don't destroy the cm_id in free path, as we implicitly
+		 * destroy the cm_id here with non-zero ret code.
+		 */
+		queue->cm_id = NULL;
+		goto free_queue;
 	}
 
 	mutex_lock(&nvmet_rdma_queue_mutex);
@@ -1302,6 +1314,8 @@ static int nvmet_rdma_queue_connect(struct rdma_cm_id *cm_id,
 
 	return 0;
 
+free_queue:
+	nvmet_rdma_free_queue(queue);
 put_device:
 	kref_put(&ndev->ref, nvmet_rdma_free_dev);
 
@@ -1407,7 +1421,7 @@ static void nvmet_rdma_queue_connect_fail(struct rdma_cm_id *cm_id,
 static int nvmet_rdma_device_removal(struct rdma_cm_id *cm_id,
 		struct nvmet_rdma_queue *queue)
 {
-	struct nvmet_port *port;
+	struct nvmet_rdma_port *port;
 
 	if (queue) {
 		/*
@@ -1426,7 +1440,7 @@ static int nvmet_rdma_device_removal(struct rdma_cm_id *cm_id,
 	 * cm_id destroy. use atomic xchg to make sure
 	 * we don't compete with remove_port.
 	 */
-	if (xchg(&port->priv, NULL) != cm_id)
+	if (xchg(&port->cm_id, NULL) != cm_id)
 		return 0;
 
 	/*
@@ -1457,6 +1471,13 @@ static int nvmet_rdma_cm_handler(struct rdma_cm_id *cm_id,
 		nvmet_rdma_queue_established(queue);
 		break;
 	case RDMA_CM_EVENT_ADDR_CHANGE:
+		if (!queue) {
+			struct nvmet_rdma_port *port = cm_id->context;
+
+			schedule_delayed_work(&port->repair_work, 0);
+			break;
+		}
+		/* FALLTHROUGH */
 	case RDMA_CM_EVENT_DISCONNECTED:
 	case RDMA_CM_EVENT_TIMEWAIT_EXIT:
 		nvmet_rdma_queue_disconnect(queue);
@@ -1499,42 +1520,19 @@ restart:
 	mutex_unlock(&nvmet_rdma_queue_mutex);
 }
 
-static int nvmet_rdma_add_port(struct nvmet_port *port)
+static void nvmet_rdma_disable_port(struct nvmet_rdma_port *port)
 {
+	struct rdma_cm_id *cm_id = xchg(&port->cm_id, NULL);
+
+	if (cm_id)
+		rdma_destroy_id(cm_id);
+}
+
+static int nvmet_rdma_enable_port(struct nvmet_rdma_port *port)
+{
+	struct sockaddr *addr = (struct sockaddr *)&port->addr;
 	struct rdma_cm_id *cm_id;
-	struct sockaddr_storage addr = { };
-	__kernel_sa_family_t af;
 	int ret;
-
-	switch (port->disc_addr.adrfam) {
-	case NVMF_ADDR_FAMILY_IP4:
-		af = AF_INET;
-		break;
-	case NVMF_ADDR_FAMILY_IP6:
-		af = AF_INET6;
-		break;
-	default:
-		pr_err("address family %d not supported\n",
-				port->disc_addr.adrfam);
-		return -EINVAL;
-	}
-
-	if (port->inline_data_size < 0) {
-		port->inline_data_size = NVMET_RDMA_DEFAULT_INLINE_DATA_SIZE;
-	} else if (port->inline_data_size > NVMET_RDMA_MAX_INLINE_DATA_SIZE) {
-		pr_warn("inline_data_size %u is too large, reducing to %u\n",
-			port->inline_data_size,
-			NVMET_RDMA_MAX_INLINE_DATA_SIZE);
-		port->inline_data_size = NVMET_RDMA_MAX_INLINE_DATA_SIZE;
-	}
-
-	ret = inet_pton_with_scope(&init_net, af, port->disc_addr.traddr,
-			port->disc_addr.trsvcid, &addr);
-	if (ret) {
-		pr_err("malformed ip/port passed: %s:%s\n",
-			port->disc_addr.traddr, port->disc_addr.trsvcid);
-		return ret;
-	}
 
 	cm_id = rdma_create_id(&init_net, nvmet_rdma_cm_handler, port,
 			RDMA_PS_TCP, IB_QPT_RC);
@@ -1553,23 +1551,19 @@ static int nvmet_rdma_add_port(struct nvmet_port *port)
 		goto out_destroy_id;
 	}
 
-	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&addr);
+	ret = rdma_bind_addr(cm_id, addr);
 	if (ret) {
-		pr_err("binding CM ID to %pISpcs failed (%d)\n",
-			(struct sockaddr *)&addr, ret);
+		pr_err("binding CM ID to %pISpcs failed (%d)\n", addr, ret);
 		goto out_destroy_id;
 	}
 
 	ret = rdma_listen(cm_id, 128);
 	if (ret) {
-		pr_err("listening to %pISpcs failed (%d)\n",
-			(struct sockaddr *)&addr, ret);
+		pr_err("listening to %pISpcs failed (%d)\n", addr, ret);
 		goto out_destroy_id;
 	}
 
-	pr_info("enabling port %d (%pISpcs)\n",
-		le16_to_cpu(port->disc_addr.portid), (struct sockaddr *)&addr);
-	port->priv = cm_id;
+	port->cm_id = cm_id;
 	return 0;
 
 out_destroy_id:
@@ -1577,18 +1571,92 @@ out_destroy_id:
 	return ret;
 }
 
-static void nvmet_rdma_remove_port(struct nvmet_port *port)
+static void nvmet_rdma_repair_port_work(struct work_struct *w)
 {
-	struct rdma_cm_id *cm_id = xchg(&port->priv, NULL);
+	struct nvmet_rdma_port *port = container_of(to_delayed_work(w),
+			struct nvmet_rdma_port, repair_work);
+	int ret;
 
-	if (cm_id)
-		rdma_destroy_id(cm_id);
+	nvmet_rdma_disable_port(port);
+	ret = nvmet_rdma_enable_port(port);
+	if (ret)
+		schedule_delayed_work(&port->repair_work, 5 * HZ);
+}
+
+static int nvmet_rdma_add_port(struct nvmet_port *nport)
+{
+	struct nvmet_rdma_port *port;
+	__kernel_sa_family_t af;
+	int ret;
+
+	port = kzalloc(sizeof(*port), GFP_KERNEL);
+	if (!port)
+		return -ENOMEM;
+
+	nport->priv = port;
+	port->nport = nport;
+	INIT_DELAYED_WORK(&port->repair_work, nvmet_rdma_repair_port_work);
+
+	switch (nport->disc_addr.adrfam) {
+	case NVMF_ADDR_FAMILY_IP4:
+		af = AF_INET;
+		break;
+	case NVMF_ADDR_FAMILY_IP6:
+		af = AF_INET6;
+		break;
+	default:
+		pr_err("address family %d not supported\n",
+			nport->disc_addr.adrfam);
+		ret = -EINVAL;
+		goto out_free_port;
+	}
+
+	if (nport->inline_data_size < 0) {
+		nport->inline_data_size = NVMET_RDMA_DEFAULT_INLINE_DATA_SIZE;
+	} else if (nport->inline_data_size > NVMET_RDMA_MAX_INLINE_DATA_SIZE) {
+		pr_warn("inline_data_size %u is too large, reducing to %u\n",
+			nport->inline_data_size,
+			NVMET_RDMA_MAX_INLINE_DATA_SIZE);
+		nport->inline_data_size = NVMET_RDMA_MAX_INLINE_DATA_SIZE;
+	}
+
+	ret = inet_pton_with_scope(&init_net, af, nport->disc_addr.traddr,
+			nport->disc_addr.trsvcid, &port->addr);
+	if (ret) {
+		pr_err("malformed ip/port passed: %s:%s\n",
+			nport->disc_addr.traddr, nport->disc_addr.trsvcid);
+		goto out_free_port;
+	}
+
+	ret = nvmet_rdma_enable_port(port);
+	if (ret)
+		goto out_free_port;
+
+	pr_info("enabling port %d (%pISpcs)\n",
+		le16_to_cpu(nport->disc_addr.portid),
+		(struct sockaddr *)&port->addr);
+
+	return 0;
+
+out_free_port:
+	kfree(port);
+	return ret;
+}
+
+static void nvmet_rdma_remove_port(struct nvmet_port *nport)
+{
+	struct nvmet_rdma_port *port = nport->priv;
+
+	cancel_delayed_work_sync(&port->repair_work);
+	nvmet_rdma_disable_port(port);
+	kfree(port);
 }
 
 static void nvmet_rdma_disc_port_addr(struct nvmet_req *req,
-		struct nvmet_port *port, char *traddr)
+		struct nvmet_port *nport, char *traddr)
 {
-	struct rdma_cm_id *cm_id = port->priv;
+	struct nvmet_rdma_port *port = nport->priv;
+	struct rdma_cm_id *cm_id = port->cm_id;
 
 	if (inet_addr_is_any((struct sockaddr *)&cm_id->route.addr.src_addr)) {
 		struct nvmet_rdma_rsp *rsp =
@@ -1598,8 +1666,13 @@ static void nvmet_rdma_disc_port_addr(struct nvmet_req *req,
 
 		sprintf(traddr, "%pISc", addr);
 	} else {
-		memcpy(traddr, port->disc_addr.traddr, NVMF_TRADDR_SIZE);
+		memcpy(traddr, nport->disc_addr.traddr, NVMF_TRADDR_SIZE);
 	}
+}
+
+static u8 nvmet_rdma_get_mdts(const struct nvmet_ctrl *ctrl)
+{
+	return NVMET_RDMA_MAX_MDTS;
 }
 
 static const struct nvmet_fabrics_ops nvmet_rdma_ops = {
@@ -1612,6 +1685,7 @@ static const struct nvmet_fabrics_ops nvmet_rdma_ops = {
 	.queue_response		= nvmet_rdma_queue_response,
 	.delete_ctrl		= nvmet_rdma_delete_ctrl,
 	.disc_traddr		= nvmet_rdma_disc_port_addr,
+	.get_mdts		= nvmet_rdma_get_mdts,
 };
 
 static void nvmet_rdma_remove_one(struct ib_device *ib_device, void *client_data)

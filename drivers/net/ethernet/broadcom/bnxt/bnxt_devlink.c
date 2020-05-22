@@ -150,7 +150,7 @@ void bnxt_dl_fw_reporters_create(struct bnxt *bp)
 	health->fw_reset_reporter =
 		devlink_health_reporter_create(bp->dl,
 					       &bnxt_dl_fw_reset_reporter_ops,
-					       0, true, bp);
+					       0, bp);
 	if (IS_ERR(health->fw_reset_reporter)) {
 		netdev_warn(bp->dev, "Failed to create FW fatal health reporter, rc = %ld\n",
 			    PTR_ERR(health->fw_reset_reporter));
@@ -166,7 +166,7 @@ err_recovery:
 		health->fw_reporter =
 			devlink_health_reporter_create(bp->dl,
 						       &bnxt_dl_fw_reporter_ops,
-						       0, false, bp);
+						       0, bp);
 		if (IS_ERR(health->fw_reporter)) {
 			netdev_warn(bp->dev, "Failed to create FW health reporter, rc = %ld\n",
 				    PTR_ERR(health->fw_reporter));
@@ -182,7 +182,7 @@ err_recovery:
 	health->fw_fatal_reporter =
 		devlink_health_reporter_create(bp->dl,
 					       &bnxt_dl_fw_fatal_reporter_ops,
-					       0, true, bp);
+					       0, bp);
 	if (IS_ERR(health->fw_fatal_reporter)) {
 		netdev_warn(bp->dev, "Failed to create FW fatal health reporter, rc = %ld\n",
 			    PTR_ERR(health->fw_fatal_reporter));
@@ -403,6 +403,14 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
+	if (strlen(bp->board_partno)) {
+		rc = devlink_info_version_fixed_put(req,
+			DEVLINK_INFO_VERSION_GENERIC_BOARD_ID,
+			bp->board_partno);
+		if (rc)
+			return rc;
+	}
+
 	sprintf(buf, "%X", bp->chip_num);
 	rc = devlink_info_version_fixed_put(req,
 			DEVLINK_INFO_VERSION_GENERIC_ASIC_ID, buf);
@@ -471,13 +479,19 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 			 ver_resp->roce_fw_bld_8b, ver_resp->roce_fw_rsvd_8b);
 	}
 	rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_APP, fw_ver);
+			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, fw_ver);
+	if (rc)
+		return rc;
+
+	rc = devlink_info_version_running_put(req,
+				DEVLINK_INFO_VERSION_GENERIC_FW_MGMT_API,
+				bp->hwrm_ver_supp);
 	if (rc)
 		return rc;
 
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5)) {
 		rc = devlink_info_version_running_put(req,
-			DEVLINK_INFO_VERSION_GENERIC_FW_MGMT, mgmt_ver);
+			DEVLINK_INFO_VERSION_GENERIC_FW_NCSI, mgmt_ver);
 		if (rc)
 			return rc;
 
@@ -641,14 +655,14 @@ static int bnxt_dl_params_register(struct bnxt *bp)
 	rc = devlink_params_register(bp->dl, bnxt_dl_params,
 				     ARRAY_SIZE(bnxt_dl_params));
 	if (rc) {
-		netdev_warn(bp->dev, "devlink_params_register failed. rc=%d",
+		netdev_warn(bp->dev, "devlink_params_register failed. rc=%d\n",
 			    rc);
 		return rc;
 	}
 	rc = devlink_port_params_register(&bp->dl_port, bnxt_dl_port_params,
 					  ARRAY_SIZE(bnxt_dl_port_params));
 	if (rc) {
-		netdev_err(bp->dev, "devlink_port_params_register failed");
+		netdev_err(bp->dev, "devlink_port_params_register failed\n");
 		devlink_params_unregister(bp->dl, bnxt_dl_params,
 					  ARRAY_SIZE(bnxt_dl_params));
 		return rc;
@@ -679,7 +693,7 @@ int bnxt_dl_register(struct bnxt *bp)
 	else
 		dl = devlink_alloc(&bnxt_vf_dl_ops, sizeof(struct bnxt_dl));
 	if (!dl) {
-		netdev_warn(bp->dev, "devlink_alloc failed");
+		netdev_warn(bp->dev, "devlink_alloc failed\n");
 		return -ENOMEM;
 	}
 
@@ -692,7 +706,7 @@ int bnxt_dl_register(struct bnxt *bp)
 
 	rc = devlink_register(dl, &bp->pdev->dev);
 	if (rc) {
-		netdev_warn(bp->dev, "devlink_register failed. rc=%d", rc);
+		netdev_warn(bp->dev, "devlink_register failed. rc=%d\n", rc);
 		goto err_dl_free;
 	}
 
@@ -704,7 +718,7 @@ int bnxt_dl_register(struct bnxt *bp)
 			       sizeof(bp->dsn));
 	rc = devlink_port_register(dl, &bp->dl_port, bp->pf.port_id);
 	if (rc) {
-		netdev_err(bp->dev, "devlink_port_register failed");
+		netdev_err(bp->dev, "devlink_port_register failed\n");
 		goto err_dl_unreg;
 	}
 

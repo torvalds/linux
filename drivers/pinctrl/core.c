@@ -176,6 +176,7 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 
 	return desc->name;
 }
+EXPORT_SYMBOL_GPL(pin_get_name);
 
 /* Deletes a range of pin descriptors */
 static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
@@ -2021,7 +2022,6 @@ static int pinctrl_claim_hogs(struct pinctrl_dev *pctldev)
 		return PTR_ERR(pctldev->p);
 	}
 
-	kref_get(&pctldev->p->users);
 	pctldev->hog_default =
 		pinctrl_lookup_state(pctldev->p, PINCTRL_STATE_DEFAULT);
 	if (IS_ERR(pctldev->hog_default)) {

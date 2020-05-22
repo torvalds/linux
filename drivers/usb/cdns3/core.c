@@ -330,9 +330,9 @@ exit:
  *
  * Returns role
  */
-static enum usb_role cdns3_role_get(struct device *dev)
+static enum usb_role cdns3_role_get(struct usb_role_switch *sw)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns3 *cdns = usb_role_switch_get_drvdata(sw);
 
 	return cdns->role;
 }
@@ -346,9 +346,9 @@ static enum usb_role cdns3_role_get(struct device *dev)
  * - Role switch for dual-role devices
  * - USB_ROLE_GADGET <--> USB_ROLE_NONE for peripheral-only devices
  */
-static int cdns3_role_set(struct device *dev, enum usb_role role)
+static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 {
-	struct cdns3 *cdns = dev_get_drvdata(dev);
+	struct cdns3 *cdns = usb_role_switch_get_drvdata(sw);
 	int ret = 0;
 
 	pm_runtime_get_sync(cdns->dev);
@@ -423,12 +423,6 @@ pm_put:
 	return ret;
 }
 
-static const struct usb_role_switch_desc cdns3_switch_desc = {
-	.set = cdns3_role_set,
-	.get = cdns3_role_get,
-	.allow_userspace_control = true,
-};
-
 /**
  * cdns3_probe - probe for cdns3 core device
  * @pdev: Pointer to cdns3 core platform device
@@ -437,6 +431,7 @@ static const struct usb_role_switch_desc cdns3_switch_desc = {
  */
 static int cdns3_probe(struct platform_device *pdev)
 {
+	struct usb_role_switch_desc sw_desc = { };
 	struct device *dev = &pdev->dev;
 	struct resource	*res;
 	struct cdns3 *cdns;
@@ -529,7 +524,12 @@ static int cdns3_probe(struct platform_device *pdev)
 	if (ret)
 		goto err3;
 
-	cdns->role_sw = usb_role_switch_register(dev, &cdns3_switch_desc);
+	sw_desc.set = cdns3_role_set;
+	sw_desc.get = cdns3_role_get;
+	sw_desc.allow_userspace_control = true;
+	sw_desc.driver_data = cdns;
+
+	cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(cdns->role_sw)) {
 		ret = PTR_ERR(cdns->role_sw);
 		dev_warn(dev, "Unable to register Role Switch\n");

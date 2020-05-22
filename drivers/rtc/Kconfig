@@ -41,9 +41,6 @@ config RTC_HCTOSYS_DEVICE
 	  device should record time in UTC, since the kernel won't do
 	  timezone correction.
 
-	  The driver for this RTC device must be loaded before late_initcall
-	  functions run, so it must usually be statically linked.
-
 	  This clock should be battery-backed, so that it reads the correct
 	  time when the system boots from a power-off state. Otherwise, your
 	  system will need an external clock source (like an NTP server).
@@ -241,6 +238,7 @@ config RTC_DRV_AS3722
 config RTC_DRV_DS1307
 	tristate "Dallas/Maxim DS1307/37/38/39/40/41, ST M41T00, EPSON RX-8025, ISL12057"
 	select REGMAP_I2C
+	select WATCHDOG_CORE if WATCHDOG
 	help
 	  If you say yes here you get support for various compatible RTC
 	  chips (often with battery backup) connected with I2C. This driver
@@ -327,6 +325,7 @@ config RTC_DRV_MAX6900
 config RTC_DRV_MAX8907
 	tristate "Maxim MAX8907"
 	depends on MFD_MAX8907 || COMPILE_TEST
+	select REGMAP_IRQ
 	help
 	  If you say yes here you will get support for the
 	  RTC of Maxim MAX8907 PMIC.
@@ -590,6 +589,16 @@ config RTC_DRV_RC5T583
 
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-rc5t583.
+
+config RTC_DRV_RC5T619
+	tristate "RICOH RC5T619 RTC driver"
+	depends on MFD_RN5T618
+	help
+	  If you say yes here you get support for the RTC on the
+	  RICOH RC5T619 chips.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-rc5t619.
 
 config RTC_DRV_S35390A
 	tristate "Seiko Instruments S-35390A"
@@ -1334,7 +1343,7 @@ config RTC_DRV_IMXDI
 
 config RTC_DRV_FSL_FTM_ALARM
 	tristate "Freescale FlexTimer alarm timer"
-	depends on ARCH_LAYERSCAPE || SOC_LS1021A
+	depends on ARCH_LAYERSCAPE || SOC_LS1021A || COMPILE_TEST
 	help
 	   For the FlexTimer in LS1012A, LS1021A, LS1028A, LS1043A, LS1046A,
 	   LS1088A, LS208xA, we can use FTM as the wakeup source.
@@ -1761,6 +1770,7 @@ config RTC_DRV_MXC_V2
 config RTC_DRV_SNVS
 	tristate "Freescale SNVS RTC support"
 	select REGMAP_MMIO
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
 	depends on OF
 	help
@@ -1805,6 +1815,16 @@ config RTC_DRV_MOXART
 
 	   This driver can also be built as a module. If so, the module
 	   will be called rtc-moxart
+
+config RTC_DRV_MT2712
+	tristate "MediaTek MT2712 SoC based RTC"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	help
+	  This enables support for the real time clock built in the MediaTek
+	  SoCs for MT2712.
+
+	  This drive can also be built as a module. If so, the module
+	  will be called rtc-mt2712.
 
 config RTC_DRV_MT6397
 	tristate "MediaTek PMIC based RTC"

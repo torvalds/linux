@@ -728,7 +728,7 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			       " MEM 0x%016llx..0x%016llx -> 0x%016llx %s\n",
 			       range.cpu_addr, range.cpu_addr + range.size - 1,
 			       range.pci_addr,
-			       (range.pci_space & 0x40000000) ?
+			       (range.flags & IORESOURCE_PREFETCH) ?
 			       "Prefetch" : "");
 
 			/* We support only 3 memory ranges */
@@ -1399,14 +1399,8 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 			pci_assign_unassigned_bus_resources(bus);
 	}
 
-	/* Fixup EEH */
-	eeh_add_device_tree_late(bus);
-
 	/* Add new devices to global lists.  Register in proc, sysfs. */
 	pci_bus_add_devices(bus);
-
-	/* sysfs files should only be added after devices are added */
-	eeh_add_sysfs_files(bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
 

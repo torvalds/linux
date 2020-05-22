@@ -254,26 +254,41 @@ struct v3d_csd_job {
 };
 
 /**
- * _wait_for - magic (register) wait macro
+ * __wait_for - magic wait macro
  *
- * Does the right thing for modeset paths when run under kdgb or similar atomic
- * contexts. Note that it's important that we check the condition again after
- * having timed out, since the timeout could be due to preemption or similar and
- * we've never had a chance to check the condition before the timeout.
+ * Macro to help avoid open coding check/wait/timeout patterns. Note that it's
+ * important that we check the condition again after having timed out, since the
+ * timeout could be due to preemption or similar and we've never had a chance to
+ * check the condition before the timeout.
  */
-#define wait_for(COND, MS) ({ \
-	unsigned long timeout__ = jiffies + msecs_to_jiffies(MS) + 1;	\
-	int ret__ = 0;							\
-	while (!(COND)) {						\
-		if (time_after(jiffies, timeout__)) {			\
-			if (!(COND))					\
-				ret__ = -ETIMEDOUT;			\
+#define __wait_for(OP, COND, US, Wmin, Wmax) ({ \
+	const ktime_t end__ = ktime_add_ns(ktime_get_raw(), 1000ll * (US)); \
+	long wait__ = (Wmin); /* recommended min for usleep is 10 us */	\
+	int ret__;							\
+	might_sleep();							\
+	for (;;) {							\
+		const bool expired__ = ktime_after(ktime_get_raw(), end__); \
+		OP;							\
+		/* Guarantee COND check prior to timeout */		\
+		barrier();						\
+		if (COND) {						\
+			ret__ = 0;					\
 			break;						\
 		}							\
-		msleep(1);					\
+		if (expired__) {					\
+			ret__ = -ETIMEDOUT;				\
+			break;						\
+		}							\
+		usleep_range(wait__, wait__ * 2);			\
+		if (wait__ < (Wmax))					\
+			wait__ <<= 1;					\
 	}								\
 	ret__;								\
 })
+
+#define _wait_for(COND, US, Wmin, Wmax)	__wait_for(, (COND), (US), (Wmin), \
+						   (Wmax))
+#define wait_for(COND, MS)		_wait_for((COND), (MS) * 1000, 10, 1000)
 
 static inline unsigned long nsecs_to_jiffies_timeout(const u64 n)
 {

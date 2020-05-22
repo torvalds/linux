@@ -75,7 +75,7 @@
 struct opa_vnic_rdma_netdev {
 	struct rdma_netdev rn;  /* keep this first */
 	/* followed by device private data */
-	char *dev_priv[0];
+	char *dev_priv[];
 };
 
 static inline void *opa_vnic_priv(const struct net_device *dev)

@@ -972,9 +972,9 @@ static inline int rhashtable_lookup_insert_key(
 /**
  * rhashtable_lookup_get_insert_key - lookup and insert object into hash table
  * @ht:		hash table
+ * @key:	key
  * @obj:	pointer to hash head inside object
  * @params:	hash table parameters
- * @data:	pointer to element data already in hashes
  *
  * Just like rhashtable_lookup_insert_key(), but this function returns the
  * object if it exists, NULL if it does not and the insertion was successful,

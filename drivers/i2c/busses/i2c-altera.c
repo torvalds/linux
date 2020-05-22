@@ -147,7 +147,7 @@ static void altr_i2c_init(struct altr_i2c_dev *idev)
 		  (ALTR_I2C_THRESHOLD << ALTR_I2C_CTRL_TCT_SHFT);
 	u32 t_high, t_low;
 
-	if (idev->bus_clk_rate <= 100000) {
+	if (idev->bus_clk_rate <= I2C_MAX_STANDARD_MODE_FREQ) {
 		tmp &= ~ALTR_I2C_CTRL_BSPEED;
 		/* Standard mode SCL 50/50 */
 		t_high = divisor * 1 / 2;
@@ -171,7 +171,7 @@ static void altr_i2c_init(struct altr_i2c_dev *idev)
 	/* SCL Low Time */
 	writel(t_low, idev->base + ALTR_I2C_SCL_LOW);
 	/* SDA Hold Time, 300ns */
-	writel(div_u64(300 * clk_mhz, 1000), idev->base + ALTR_I2C_SDA_HOLD);
+	writel(3 * clk_mhz / 10, idev->base + ALTR_I2C_SDA_HOLD);
 
 	/* Mask all master interrupt bits */
 	altr_i2c_int_enable(idev, ALTR_I2C_ALL_IRQ, false);
@@ -423,10 +423,10 @@ static int altr_i2c_probe(struct platform_device *pdev)
 				       &idev->bus_clk_rate);
 	if (val) {
 		dev_err(&pdev->dev, "Default to 100kHz\n");
-		idev->bus_clk_rate = 100000;	/* default clock rate */
+		idev->bus_clk_rate = I2C_MAX_STANDARD_MODE_FREQ;	/* default clock rate */
 	}
 
-	if (idev->bus_clk_rate > 400000) {
+	if (idev->bus_clk_rate > I2C_MAX_FAST_MODE_FREQ) {
 		dev_err(&pdev->dev, "invalid clock-frequency %d\n",
 			idev->bus_clk_rate);
 		return -EINVAL;

@@ -650,8 +650,8 @@ static unsigned int cdns_uart_tx_empty(struct uart_port *port)
 	unsigned int status;
 
 	status = readl(port->membase + CDNS_UART_SR) &
-				CDNS_UART_SR_TXEMPTY;
-	return status ? TIOCSER_TEMT : 0;
+		       (CDNS_UART_SR_TXEMPTY | CDNS_UART_SR_TACTIVE);
+	return (status == CDNS_UART_SR_TXEMPTY) ? TIOCSER_TEMT : 0;
 }
 
 /**
@@ -693,20 +693,8 @@ static void cdns_uart_set_termios(struct uart_port *port,
 	u32 cval = 0;
 	unsigned int baud, minbaud, maxbaud;
 	unsigned long flags;
-	unsigned int ctrl_reg, mode_reg, val;
-	int err;
+	unsigned int ctrl_reg, mode_reg;
 
-	/* Wait for the transmit FIFO to empty before making changes */
-	if (!(readl(port->membase + CDNS_UART_CR) &
-				CDNS_UART_CR_TX_DIS)) {
-		err = readl_poll_timeout(port->membase + CDNS_UART_SR,
-					 val, (val & CDNS_UART_SR_TXEMPTY),
-					 1000, TX_TIMEOUT);
-		if (err) {
-			dev_err(port->dev, "timed out waiting for tx empty");
-			return;
-		}
-	}
 	spin_lock_irqsave(&port->lock, flags);
 
 	/* Disable the TX and RX to set baud rate */

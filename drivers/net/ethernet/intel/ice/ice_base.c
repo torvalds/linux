@@ -203,8 +203,7 @@ static void ice_cfg_itr_gran(struct ice_hw *hw)
  */
 static u16 ice_calc_q_handle(struct ice_vsi *vsi, struct ice_ring *ring, u8 tc)
 {
-	WARN_ONCE(ice_ring_is_xdp(ring) && tc,
-		  "XDP ring can't belong to TC other than 0");
+	WARN_ONCE(ice_ring_is_xdp(ring) && tc, "XDP ring can't belong to TC other than 0\n");
 
 	/* Idea here for calculation is that we subtract the number of queue
 	 * count from TC that ring belongs to from it's absolute queue index
@@ -247,7 +246,6 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
 	 */
 	switch (vsi->type) {
 	case ICE_VSI_LB:
-		/* fall through */
 	case ICE_VSI_PF:
 		tlan_ctx->vmvf_type = ICE_TLAN_CTX_VMVF_TYPE_PF;
 		break;
@@ -387,8 +385,8 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	 /* Enable Flexible Descriptors in the queue context which
 	  * allows this driver to select a specific receive descriptor format
 	  */
+	regval = rd32(hw, QRXFLXP_CNTXT(pf_q));
 	if (vsi->type != ICE_VSI_VF) {
-		regval = rd32(hw, QRXFLXP_CNTXT(pf_q));
 		regval |= (rxdid << QRXFLXP_CNTXT_RXDID_IDX_S) &
 			QRXFLXP_CNTXT_RXDID_IDX_M;
 
@@ -399,8 +397,12 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 		regval |= (0x03 << QRXFLXP_CNTXT_RXDID_PRIO_S) &
 			QRXFLXP_CNTXT_RXDID_PRIO_M;
 
-		wr32(hw, QRXFLXP_CNTXT(pf_q), regval);
+	} else {
+		regval &= ~(QRXFLXP_CNTXT_RXDID_IDX_M |
+			    QRXFLXP_CNTXT_RXDID_PRIO_M |
+			    QRXFLXP_CNTXT_TS_M);
 	}
+	wr32(hw, QRXFLXP_CNTXT(pf_q), regval);
 
 	/* Absolute queue number out of 2K needs to be passed */
 	err = ice_write_rxq_ctx(hw, &rlan_ctx, pf_q);
@@ -459,17 +461,20 @@ int __ice_vsi_get_qs(struct ice_qs_cfg *qs_cfg)
 }
 
 /**
- * ice_vsi_ctrl_rx_ring - Start or stop a VSI's Rx ring
+ * ice_vsi_ctrl_one_rx_ring - start/stop VSI's Rx ring with no busy wait
  * @vsi: the VSI being configured
- * @ena: start or stop the Rx rings
- * @rxq_idx: Rx queue index
+ * @ena: start or stop the Rx ring
+ * @rxq_idx: 0-based Rx queue index for the VSI passed in
+ * @wait: wait or don't wait for configuration to finish in hardware
+ *
+ * Return 0 on success and negative on error.
  */
-int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
+int
+ice_vsi_ctrl_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx, bool wait)
 {
 	int pf_q = vsi->rxq_map[rxq_idx];
 	struct ice_pf *pf = vsi->back;
 	struct ice_hw *hw = &pf->hw;
-	int ret = 0;
 	u32 rx_reg;
 
 	rx_reg = rd32(hw, QRX_CTRL(pf_q));
@@ -485,13 +490,30 @@ int ice_vsi_ctrl_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
 		rx_reg &= ~QRX_CTRL_QENA_REQ_M;
 	wr32(hw, QRX_CTRL(pf_q), rx_reg);
 
-	/* wait for the change to finish */
-	ret = ice_pf_rxq_wait(pf, pf_q, ena);
-	if (ret)
-		dev_err(ice_pf_to_dev(pf), "VSI idx %d Rx ring %d %sable timeout\n",
-			vsi->idx, pf_q, (ena ? "en" : "dis"));
+	if (!wait)
+		return 0;
 
-	return ret;
+	ice_flush(hw);
+	return ice_pf_rxq_wait(pf, pf_q, ena);
+}
+
+/**
+ * ice_vsi_wait_one_rx_ring - wait for a VSI's Rx ring to be stopped/started
+ * @vsi: the VSI being configured
+ * @ena: true/false to verify Rx ring has been enabled/disabled respectively
+ * @rxq_idx: 0-based Rx queue index for the VSI passed in
+ *
+ * This routine will wait for the given Rx queue of the VSI to reach the
+ * enabled or disabled state. Returns -ETIMEDOUT in case of failing to reach
+ * the requested state after multiple retries; else will return 0 in case of
+ * success.
+ */
+int ice_vsi_wait_one_rx_ring(struct ice_vsi *vsi, bool ena, u16 rxq_idx)
+{
+	int pf_q = vsi->rxq_map[rxq_idx];
+	struct ice_pf *pf = vsi->back;
+
+	return ice_pf_rxq_wait(pf, pf_q, ena);
 }
 
 /**

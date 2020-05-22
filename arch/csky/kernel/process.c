@@ -16,6 +16,12 @@
 
 struct cpuinfo_csky cpu_data[NR_CPUS];
 
+#ifdef CONFIG_STACKPROTECTOR
+#include <linux/stackprotector.h>
+unsigned long __stack_chk_guard __read_mostly;
+EXPORT_SYMBOL(__stack_chk_guard);
+#endif
+
 asmlinkage void ret_from_fork(void);
 asmlinkage void ret_from_kernel_thread(void);
 
@@ -34,10 +40,11 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return sw->r15;
 }
 
-int copy_thread(unsigned long clone_flags,
+int copy_thread_tls(unsigned long clone_flags,
 		unsigned long usp,
 		unsigned long kthread_arg,
-		struct task_struct *p)
+		struct task_struct *p,
+		unsigned long tls)
 {
 	struct switch_stack *childstack;
 	struct pt_regs *childregs = task_pt_regs(p);
@@ -64,7 +71,7 @@ int copy_thread(unsigned long clone_flags,
 			childregs->usp = usp;
 		if (clone_flags & CLONE_SETTLS)
 			task_thread_info(p)->tp_value = childregs->tls
-						      = childregs->regs[0];
+						      = tls;
 
 		childregs->a0 = 0;
 		childstack->r15 = (unsigned long) ret_from_fork;

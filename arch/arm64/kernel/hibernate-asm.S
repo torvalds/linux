@@ -110,8 +110,6 @@ ENTRY(swsusp_arch_suspend_exit)
 	cbz	x24, 3f		/* Do we need to re-initialise EL2? */
 	hvc	#0
 3:	ret
-
-	.ltorg
 ENDPROC(swsusp_arch_suspend_exit)
 
 /*

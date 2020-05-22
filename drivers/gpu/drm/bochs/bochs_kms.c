@@ -7,7 +7,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_probe_helper.h>
-#include <drm/drm_vblank.h>
 
 #include "bochs.h"
 
@@ -57,16 +56,8 @@ static void bochs_pipe_update(struct drm_simple_display_pipe *pipe,
 			      struct drm_plane_state *old_state)
 {
 	struct bochs_device *bochs = pipe->crtc.dev->dev_private;
-	struct drm_crtc *crtc = &pipe->crtc;
 
 	bochs_plane_update(bochs, pipe->plane.state);
-
-	if (crtc->state->event) {
-		spin_lock_irq(&crtc->dev->event_lock);
-		drm_crtc_send_vblank_event(crtc, crtc->state->event);
-		crtc->state->event = NULL;
-		spin_unlock_irq(&crtc->dev->event_lock);
-	}
 }
 
 static const struct drm_simple_display_pipe_funcs bochs_pipe_funcs = {
@@ -92,32 +83,11 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static enum drm_mode_status bochs_connector_mode_valid(struct drm_connector *connector,
-				      struct drm_display_mode *mode)
-{
-	struct bochs_device *bochs =
-		container_of(connector, struct bochs_device, connector);
-	unsigned long size = mode->hdisplay * mode->vdisplay * 4;
-
-	/*
-	 * Make sure we can fit two framebuffers into video memory.
-	 * This allows up to 1600x1200 with 16 MB (default size).
-	 * If you want more try this:
-	 *     'qemu -vga std -global VGA.vgamem_mb=32 $otherargs'
-	 */
-	if (size * 2 > bochs->fb_size)
-		return MODE_BAD;
-
-	return MODE_OK;
-}
-
 static const struct drm_connector_helper_funcs bochs_connector_connector_helper_funcs = {
 	.get_modes = bochs_connector_get_modes,
-	.mode_valid = bochs_connector_mode_valid,
 };
 
 static const struct drm_connector_funcs bochs_connector_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = drm_connector_cleanup,
 	.reset = drm_atomic_helper_connector_reset,
@@ -157,6 +127,7 @@ bochs_gem_fb_create(struct drm_device *dev, struct drm_file *file,
 
 const struct drm_mode_config_funcs bochs_mode_funcs = {
 	.fb_create = bochs_gem_fb_create,
+	.mode_valid = drm_vram_helper_mode_valid,
 	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
@@ -192,6 +163,9 @@ int bochs_kms_init(struct bochs_device *bochs)
 
 void bochs_kms_fini(struct bochs_device *bochs)
 {
+	if (!bochs->dev->mode_config.num_connector)
+		return;
+
 	drm_atomic_helper_shutdown(bochs->dev);
 	drm_mode_config_cleanup(bochs->dev);
 }

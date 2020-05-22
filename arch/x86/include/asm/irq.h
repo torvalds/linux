@@ -36,7 +36,7 @@ extern void native_init_IRQ(void);
 
 extern void handle_irq(struct irq_desc *desc, struct pt_regs *regs);
 
-extern __visible unsigned int do_IRQ(struct pt_regs *regs);
+extern __visible void do_IRQ(struct pt_regs *regs);
 
 extern void init_ISA_irqs(void);
 

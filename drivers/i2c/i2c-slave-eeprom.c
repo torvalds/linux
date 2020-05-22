@@ -96,7 +96,7 @@ static ssize_t i2c_slave_eeprom_bin_read(struct file *filp, struct kobject *kobj
 	struct eeprom_data *eeprom;
 	unsigned long flags;
 
-	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	eeprom = dev_get_drvdata(kobj_to_dev(kobj));
 
 	spin_lock_irqsave(&eeprom->buffer_lock, flags);
 	memcpy(buf, &eeprom->buffer[off], count);
@@ -111,7 +111,7 @@ static ssize_t i2c_slave_eeprom_bin_write(struct file *filp, struct kobject *kob
 	struct eeprom_data *eeprom;
 	unsigned long flags;
 
-	eeprom = dev_get_drvdata(container_of(kobj, struct device, kobj));
+	eeprom = dev_get_drvdata(kobj_to_dev(kobj));
 
 	spin_lock_irqsave(&eeprom->buffer_lock, flags);
 	memcpy(&eeprom->buffer[off], buf, count);

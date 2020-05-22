@@ -29,6 +29,7 @@
 #include <net/drop_monitor.h>
 #include <net/genetlink.h>
 #include <net/netevent.h>
+#include <net/flow_offload.h>
 
 #include <trace/events/skb.h>
 #include <trace/events/napi.h>
@@ -67,7 +68,7 @@ struct net_dm_hw_entry {
 
 struct net_dm_hw_entries {
 	u32 num_entries;
-	struct net_dm_hw_entry entries[0];
+	struct net_dm_hw_entry entries[];
 };
 
 struct per_cpu_dm_data {
@@ -701,6 +702,13 @@ static void net_dm_packet_work(struct work_struct *work)
 }
 
 static size_t
+net_dm_flow_action_cookie_size(const struct net_dm_hw_metadata *hw_metadata)
+{
+	return hw_metadata->fa_cookie ?
+	       nla_total_size(hw_metadata->fa_cookie->cookie_len) : 0;
+}
+
+static size_t
 net_dm_hw_packet_report_size(size_t payload_len,
 			     const struct net_dm_hw_metadata *hw_metadata)
 {
@@ -717,6 +725,8 @@ net_dm_hw_packet_report_size(size_t payload_len,
 	       nla_total_size(strlen(hw_metadata->trap_name) + 1) +
 	       /* NET_DM_ATTR_IN_PORT */
 	       net_dm_in_port_size() +
+	       /* NET_DM_ATTR_FLOW_ACTION_COOKIE */
+	       net_dm_flow_action_cookie_size(hw_metadata) +
 	       /* NET_DM_ATTR_TIMESTAMP */
 	       nla_total_size(sizeof(u64)) +
 	       /* NET_DM_ATTR_ORIG_LEN */
@@ -762,6 +772,12 @@ static int net_dm_hw_packet_report_fill(struct sk_buff *msg,
 			goto nla_put_failure;
 	}
 
+	if (hw_metadata->fa_cookie &&
+	    nla_put(msg, NET_DM_ATTR_FLOW_ACTION_COOKIE,
+		    hw_metadata->fa_cookie->cookie_len,
+		    hw_metadata->fa_cookie->cookie))
+		goto nla_put_failure;
+
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_TIMESTAMP,
 			      ktime_to_ns(skb->tstamp), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
@@ -794,11 +810,12 @@ nla_put_failure:
 static struct net_dm_hw_metadata *
 net_dm_hw_metadata_clone(const struct net_dm_hw_metadata *hw_metadata)
 {
+	const struct flow_action_cookie *fa_cookie;
 	struct net_dm_hw_metadata *n_hw_metadata;
 	const char *trap_group_name;
 	const char *trap_name;
 
-	n_hw_metadata = kmalloc(sizeof(*hw_metadata), GFP_ATOMIC);
+	n_hw_metadata = kzalloc(sizeof(*hw_metadata), GFP_ATOMIC);
 	if (!n_hw_metadata)
 		return NULL;
 
@@ -812,12 +829,25 @@ net_dm_hw_metadata_clone(const struct net_dm_hw_metadata *hw_metadata)
 		goto free_trap_group;
 	n_hw_metadata->trap_name = trap_name;
 
+	if (hw_metadata->fa_cookie) {
+		size_t cookie_size = sizeof(*fa_cookie) +
+				     hw_metadata->fa_cookie->cookie_len;
+
+		fa_cookie = kmemdup(hw_metadata->fa_cookie, cookie_size,
+				    GFP_ATOMIC);
+		if (!fa_cookie)
+			goto free_trap_name;
+		n_hw_metadata->fa_cookie = fa_cookie;
+	}
+
 	n_hw_metadata->input_dev = hw_metadata->input_dev;
 	if (n_hw_metadata->input_dev)
 		dev_hold(n_hw_metadata->input_dev);
 
 	return n_hw_metadata;
 
+free_trap_name:
+	kfree(trap_name);
 free_trap_group:
 	kfree(trap_group_name);
 free_hw_metadata:
@@ -830,6 +860,7 @@ net_dm_hw_metadata_free(const struct net_dm_hw_metadata *hw_metadata)
 {
 	if (hw_metadata->input_dev)
 		dev_put(hw_metadata->input_dev);
+	kfree(hw_metadata->fa_cookie);
 	kfree(hw_metadata->trap_name);
 	kfree(hw_metadata->trap_group_name);
 	kfree(hw_metadata);

@@ -108,6 +108,7 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 		dma_resv_fini(dmabuf->resv);
 
 	module_put(dmabuf->owner);
+	kfree(dmabuf->name);
 	kfree(dmabuf);
 	return 0;
 }
@@ -524,7 +525,10 @@ struct dma_buf *dma_buf_export(const struct dma_buf_export_info *exp_info)
 	}
 
 	if (WARN_ON(exp_info->ops->cache_sgt_mapping &&
-		    exp_info->ops->dynamic_mapping))
+		    (exp_info->ops->pin || exp_info->ops->unpin)))
+		return ERR_PTR(-EINVAL);
+
+	if (WARN_ON(!exp_info->ops->pin != !exp_info->ops->unpin))
 		return ERR_PTR(-EINVAL);
 
 	if (!try_module_get(exp_info->owner))
@@ -651,7 +655,8 @@ EXPORT_SYMBOL_GPL(dma_buf_put);
  * calls attach() of dma_buf_ops to allow device-specific attach functionality
  * @dmabuf:		[in]	buffer to attach device to.
  * @dev:		[in]	device to be attached.
- * @dynamic_mapping:	[in]	calling convention for map/unmap
+ * @importer_ops	[in]	importer operations for the attachment
+ * @importer_priv	[in]	importer private pointer for the attachment
  *
  * Returns struct dma_buf_attachment pointer for this attachment. Attachments
  * must be cleaned up by calling dma_buf_detach().
@@ -667,12 +672,16 @@ EXPORT_SYMBOL_GPL(dma_buf_put);
  */
 struct dma_buf_attachment *
 dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
-		       bool dynamic_mapping)
+		       const struct dma_buf_attach_ops *importer_ops,
+		       void *importer_priv)
 {
 	struct dma_buf_attachment *attach;
 	int ret;
 
 	if (WARN_ON(!dmabuf || !dev))
+		return ERR_PTR(-EINVAL);
+
+	if (WARN_ON(importer_ops && !importer_ops->move_notify))
 		return ERR_PTR(-EINVAL);
 
 	attach = kzalloc(sizeof(*attach), GFP_KERNEL);
@@ -681,7 +690,8 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 
 	attach->dev = dev;
 	attach->dmabuf = dmabuf;
-	attach->dynamic_mapping = dynamic_mapping;
+	attach->importer_ops = importer_ops;
+	attach->importer_priv = importer_priv;
 
 	if (dmabuf->ops->attach) {
 		ret = dmabuf->ops->attach(dmabuf, attach);
@@ -700,15 +710,19 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	    dma_buf_is_dynamic(dmabuf)) {
 		struct sg_table *sgt;
 
-		if (dma_buf_is_dynamic(attach->dmabuf))
+		if (dma_buf_is_dynamic(attach->dmabuf)) {
 			dma_resv_lock(attach->dmabuf->resv, NULL);
+			ret = dma_buf_pin(attach);
+			if (ret)
+				goto err_unlock;
+		}
 
 		sgt = dmabuf->ops->map_dma_buf(attach, DMA_BIDIRECTIONAL);
 		if (!sgt)
 			sgt = ERR_PTR(-ENOMEM);
 		if (IS_ERR(sgt)) {
 			ret = PTR_ERR(sgt);
-			goto err_unlock;
+			goto err_unpin;
 		}
 		if (dma_buf_is_dynamic(attach->dmabuf))
 			dma_resv_unlock(attach->dmabuf->resv);
@@ -721,6 +735,10 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 err_attach:
 	kfree(attach);
 	return ERR_PTR(ret);
+
+err_unpin:
+	if (dma_buf_is_dynamic(attach->dmabuf))
+		dma_buf_unpin(attach);
 
 err_unlock:
 	if (dma_buf_is_dynamic(attach->dmabuf))
@@ -742,7 +760,7 @@ EXPORT_SYMBOL_GPL(dma_buf_dynamic_attach);
 struct dma_buf_attachment *dma_buf_attach(struct dma_buf *dmabuf,
 					  struct device *dev)
 {
-	return dma_buf_dynamic_attach(dmabuf, dev, false);
+	return dma_buf_dynamic_attach(dmabuf, dev, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(dma_buf_attach);
 
@@ -765,8 +783,10 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 
 		dmabuf->ops->unmap_dma_buf(attach, attach->sgt, attach->dir);
 
-		if (dma_buf_is_dynamic(attach->dmabuf))
+		if (dma_buf_is_dynamic(attach->dmabuf)) {
+			dma_buf_unpin(attach);
 			dma_resv_unlock(attach->dmabuf->resv);
+		}
 	}
 
 	dma_resv_lock(dmabuf->resv, NULL);
@@ -778,6 +798,44 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 	kfree(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_detach);
+
+/**
+ * dma_buf_pin - Lock down the DMA-buf
+ *
+ * @attach:	[in]	attachment which should be pinned
+ *
+ * Returns:
+ * 0 on success, negative error code on failure.
+ */
+int dma_buf_pin(struct dma_buf_attachment *attach)
+{
+	struct dma_buf *dmabuf = attach->dmabuf;
+	int ret = 0;
+
+	dma_resv_assert_held(dmabuf->resv);
+
+	if (dmabuf->ops->pin)
+		ret = dmabuf->ops->pin(attach);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_pin);
+
+/**
+ * dma_buf_unpin - Remove lock from DMA-buf
+ *
+ * @attach:	[in]	attachment which should be unpinned
+ */
+void dma_buf_unpin(struct dma_buf_attachment *attach)
+{
+	struct dma_buf *dmabuf = attach->dmabuf;
+
+	dma_resv_assert_held(dmabuf->resv);
+
+	if (dmabuf->ops->unpin)
+		dmabuf->ops->unpin(attach);
+}
+EXPORT_SYMBOL_GPL(dma_buf_unpin);
 
 /**
  * dma_buf_map_attachment - Returns the scatterlist table of the attachment;
@@ -798,6 +856,7 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 					enum dma_data_direction direction)
 {
 	struct sg_table *sg_table;
+	int r;
 
 	might_sleep();
 
@@ -819,12 +878,22 @@ struct sg_table *dma_buf_map_attachment(struct dma_buf_attachment *attach,
 		return attach->sgt;
 	}
 
-	if (dma_buf_is_dynamic(attach->dmabuf))
+	if (dma_buf_is_dynamic(attach->dmabuf)) {
 		dma_resv_assert_held(attach->dmabuf->resv);
+		if (!IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY)) {
+			r = dma_buf_pin(attach);
+			if (r)
+				return ERR_PTR(r);
+		}
+	}
 
 	sg_table = attach->dmabuf->ops->map_dma_buf(attach, direction);
 	if (!sg_table)
 		sg_table = ERR_PTR(-ENOMEM);
+
+	if (IS_ERR(sg_table) && dma_buf_is_dynamic(attach->dmabuf) &&
+	     !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
+		dma_buf_unpin(attach);
 
 	if (!IS_ERR(sg_table) && attach->dmabuf->ops->cache_sgt_mapping) {
 		attach->sgt = sg_table;
@@ -864,8 +933,32 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 		dma_resv_assert_held(attach->dmabuf->resv);
 
 	attach->dmabuf->ops->unmap_dma_buf(attach, sg_table, direction);
+
+	if (dma_buf_is_dynamic(attach->dmabuf) &&
+	    !IS_ENABLED(CONFIG_DMABUF_MOVE_NOTIFY))
+		dma_buf_unpin(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
+
+/**
+ * dma_buf_move_notify - notify attachments that DMA-buf is moving
+ *
+ * @dmabuf:	[in]	buffer which is moving
+ *
+ * Informs all attachmenst that they need to destroy and recreated all their
+ * mappings.
+ */
+void dma_buf_move_notify(struct dma_buf *dmabuf)
+{
+	struct dma_buf_attachment *attach;
+
+	dma_resv_assert_held(dmabuf->resv);
+
+	list_for_each_entry(attach, &dmabuf->attachments, node)
+		if (attach->importer_ops)
+			attach->importer_ops->move_notify(attach);
+}
+EXPORT_SYMBOL_GPL(dma_buf_move_notify);
 
 /**
  * DOC: cpu access

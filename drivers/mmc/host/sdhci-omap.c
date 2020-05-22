@@ -108,6 +108,11 @@ struct sdhci_omap_host {
 	struct pinctrl		*pinctrl;
 	struct pinctrl_state	**pinctrl_state;
 	bool			is_tuning;
+	/* Omap specific context save */
+	u32			con;
+	u32			hctl;
+	u32			sysctl;
+	u32			capa;
 };
 
 static void sdhci_omap_start_clock(struct sdhci_omap_host *omap_host);
@@ -1192,6 +1197,9 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	if (of_find_property(dev->of_node, "dmas", NULL))
 		sdhci_switch_external_dma(host, true);
 
+	/* R1B responses is required to properly manage HW busy detection. */
+	mmc->caps |= MMC_CAP_NEED_RSP_BUSY;
+
 	ret = sdhci_setup_host(host);
 	if (ret)
 		goto err_put_sync;
@@ -1232,12 +1240,64 @@ static int sdhci_omap_remove(struct platform_device *pdev)
 
 	return 0;
 }
+#ifdef CONFIG_PM_SLEEP
+static void sdhci_omap_context_save(struct sdhci_omap_host *omap_host)
+{
+	omap_host->con = sdhci_omap_readl(omap_host, SDHCI_OMAP_CON);
+	omap_host->hctl = sdhci_omap_readl(omap_host, SDHCI_OMAP_HCTL);
+	omap_host->capa = sdhci_omap_readl(omap_host, SDHCI_OMAP_CAPA);
+}
+
+static void sdhci_omap_context_restore(struct sdhci_omap_host *omap_host)
+{
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_CON, omap_host->con);
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_HCTL, omap_host->hctl);
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_CAPA, omap_host->capa);
+}
+
+static int __maybe_unused sdhci_omap_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_omap_host *omap_host = sdhci_pltfm_priv(pltfm_host);
+
+	sdhci_suspend_host(host);
+
+	sdhci_omap_context_save(omap_host);
+
+	pinctrl_pm_select_idle_state(dev);
+
+	pm_runtime_force_suspend(dev);
+
+	return 0;
+}
+
+static int __maybe_unused sdhci_omap_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_omap_host *omap_host = sdhci_pltfm_priv(pltfm_host);
+
+	pm_runtime_force_resume(dev);
+
+	pinctrl_pm_select_default_state(dev);
+
+	sdhci_omap_context_restore(omap_host);
+
+	sdhci_resume_host(host);
+
+	return 0;
+}
+#endif
+static SIMPLE_DEV_PM_OPS(sdhci_omap_dev_pm_ops, sdhci_omap_suspend,
+			 sdhci_omap_resume);
 
 static struct platform_driver sdhci_omap_driver = {
 	.probe = sdhci_omap_probe,
 	.remove = sdhci_omap_remove,
 	.driver = {
 		   .name = "sdhci-omap",
+		   .pm = &sdhci_omap_dev_pm_ops,
 		   .of_match_table = omap_sdhci_match,
 		  },
 };

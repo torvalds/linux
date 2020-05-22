@@ -94,11 +94,8 @@ extern u64 ppc64_pft_size;
  * stack by default, so in the absence of a PT_GNU_STACK program header
  * we turn execute permission off.
  */
-#define VM_STACK_DEFAULT_FLAGS32	(VM_READ | VM_WRITE | VM_EXEC | \
-					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
-
-#define VM_STACK_DEFAULT_FLAGS64	(VM_READ | VM_WRITE | \
-					 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+#define VM_STACK_DEFAULT_FLAGS32	VM_DATA_FLAGS_EXEC
+#define VM_STACK_DEFAULT_FLAGS64	VM_DATA_FLAGS_NON_EXEC
 
 #define VM_STACK_DEFAULT_FLAGS \
 	(is_32bit_task() ? \

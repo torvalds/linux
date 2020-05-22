@@ -45,7 +45,8 @@ allOf:
 
 properties:
   "#dma-cells":
-    const: 1
+    minimum: 1
+    maximum: 2
     description: |
       The cell is the PSI-L  thread ID of the remote (to UDMAP) end.
       Valid ranges for thread ID depends on the data movement direction:
@@ -54,6 +55,8 @@ properties:
 
       Please refer to the device documentation for the PSI-L thread map and also
       the PSI-L peripheral chapter for the correct thread ID.
+
+      When #dma-cells is 2, the second parameter is the channel ATYPE.
 
   compatible:
     enum:
@@ -131,6 +134,20 @@ required:
   - ti,sci-rm-range-rchan
   - ti,sci-rm-range-rflow
 
+if:
+  properties:
+    "#dma-cells":
+      const: 2
+then:
+  properties:
+    ti,udma-atype:
+      description: ATYPE value which should be used by non slave channels
+      allOf:
+        - $ref: /schemas/types.yaml#/definitions/uint32
+
+  required:
+    - ti,udma-atype
+
 examples:
   - |+
     cbass_main {
@@ -143,7 +160,7 @@ examples:
             #size-cells = <2>;
             dma-coherent;
             dma-ranges;
-            ranges;
+            ranges = <0x0 0x30800000 0x0 0x30800000 0x0 0x05000000>;
 
             ti,sci-dev-id = <118>;
 
@@ -168,17 +185,5 @@ examples:
                                         <0x5>; /* RX_CHAN */
                 ti,sci-rm-range-rflow = <0x6>; /* GP RFLOW */
             };
-        };
-
-        mcasp0: mcasp@02B00000 {
-            dmas = <&main_udmap 0xc400>, <&main_udmap 0x4400>;
-            dma-names = "tx", "rx";
-        };
-
-        crypto: crypto@4E00000 {
-            compatible = "ti,sa2ul-crypto";
-
-            dmas = <&main_udmap 0xc000>, <&main_udmap 0x4000>, <&main_udmap 0x4001>;
-            dma-names = "tx", "rx1", "rx2";
         };
     };

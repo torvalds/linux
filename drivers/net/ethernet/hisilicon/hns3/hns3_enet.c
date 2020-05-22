@@ -1107,6 +1107,10 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 			return ret;
 
 		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
+	} else if (type == DESC_TYPE_FRAGLIST_SKB) {
+		struct sk_buff *skb = (struct sk_buff *)priv;
+
+		dma = dma_map_single(dev, skb->data, size, DMA_TO_DEVICE);
 	} else {
 		frag = (skb_frag_t *)priv;
 		dma = skb_frag_dma_map(dev, frag, 0, size, DMA_TO_DEVICE);
@@ -1144,8 +1148,9 @@ static int hns3_fill_desc(struct hns3_enet_ring *ring, void *priv,
 		/* The txbd's baseinfo of DESC_TYPE_PAGE & DESC_TYPE_SKB */
 		desc_cb->priv = priv;
 		desc_cb->dma = dma + HNS3_MAX_BD_SIZE * k;
-		desc_cb->type = (type == DESC_TYPE_SKB && !k) ?
-				DESC_TYPE_SKB : DESC_TYPE_PAGE;
+		desc_cb->type = ((type == DESC_TYPE_FRAGLIST_SKB ||
+				  type == DESC_TYPE_SKB) && !k) ?
+				type : DESC_TYPE_PAGE;
 
 		/* now, fill the descriptor */
 		desc->addr = cpu_to_le64(dma + HNS3_MAX_BD_SIZE * k);
@@ -1354,7 +1359,9 @@ static void hns3_clear_desc(struct hns3_enet_ring *ring, int next_to_use_orig)
 		ring_ptr_move_bw(ring, next_to_use);
 
 		/* unmap the descriptor dma address */
-		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB)
+		if (ring->desc_cb[ring->next_to_use].type == DESC_TYPE_SKB ||
+		    ring->desc_cb[ring->next_to_use].type ==
+		    DESC_TYPE_FRAGLIST_SKB)
 			dma_unmap_single(dev,
 					 ring->desc_cb[ring->next_to_use].dma,
 					ring->desc_cb[ring->next_to_use].length,
@@ -1447,7 +1454,8 @@ netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto out;
 
 	skb_walk_frags(skb, frag_skb) {
-		ret = hns3_fill_skb_to_desc(ring, frag_skb, DESC_TYPE_PAGE);
+		ret = hns3_fill_skb_to_desc(ring, frag_skb,
+					    DESC_TYPE_FRAGLIST_SKB);
 		if (unlikely(ret < 0))
 			goto fill_err;
 
@@ -1711,7 +1719,7 @@ static int hns3_setup_tc(struct net_device *netdev, void *type_data)
 	netif_dbg(h, drv, netdev, "setup tc: num_tc=%u\n", tc);
 
 	return (kinfo->dcb_ops && kinfo->dcb_ops->setup_tc) ?
-		kinfo->dcb_ops->setup_tc(h, tc, prio_tc) : -EOPNOTSUPP;
+		kinfo->dcb_ops->setup_tc(h, tc ? tc : 1, prio_tc) : -EOPNOTSUPP;
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
@@ -2228,7 +2236,7 @@ static void hns3_reset_prepare(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "hns3 flr prepare\n");
+	dev_info(&pdev->dev, "FLR prepare\n");
 	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_prepare)
 		ae_dev->ops->flr_prepare(ae_dev);
 }
@@ -2237,7 +2245,7 @@ static void hns3_reset_done(struct pci_dev *pdev)
 {
 	struct hnae3_ae_dev *ae_dev = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "hns3 flr done\n");
+	dev_info(&pdev->dev, "FLR done\n");
 	if (ae_dev && ae_dev->ops && ae_dev->ops->flr_done)
 		ae_dev->ops->flr_done(ae_dev);
 }
@@ -2356,7 +2364,7 @@ static int hns3_map_buffer(struct hns3_enet_ring *ring, struct hns3_desc_cb *cb)
 static void hns3_unmap_buffer(struct hns3_enet_ring *ring,
 			      struct hns3_desc_cb *cb)
 {
-	if (cb->type == DESC_TYPE_SKB)
+	if (cb->type == DESC_TYPE_SKB || cb->type == DESC_TYPE_FRAGLIST_SKB)
 		dma_unmap_single(ring_to_dev(ring), cb->dma, cb->length,
 				 ring_to_dma_dir(ring));
 	else if (cb->length)

@@ -186,7 +186,7 @@ static int p2wi_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	struct device_node *childnp;
 	unsigned long parent_clk_freq;
-	u32 clk_freq = 100000;
+	u32 clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
 	struct resource *r;
 	struct p2wi *p2wi;
 	u32 slave_addr;

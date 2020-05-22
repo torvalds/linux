@@ -21,6 +21,8 @@ properties:
       - goodix,gt911
       - goodix,gt9110
       - goodix,gt912
+      - goodix,gt9147
+      - goodix,gt917s
       - goodix,gt927
       - goodix,gt9271
       - goodix,gt928
@@ -62,7 +64,7 @@ required:
 
 examples:
 - |
-    i2c@00000000 {
+    i2c {
       #address-cells = <1>;
       #size-cells = <0>;
       gt928@5d {

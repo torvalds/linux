@@ -15,7 +15,6 @@
 #include <asm/vtoc.h>
 
 #include "check.h"
-#include "ibm.h"
 
 
 union label_t {

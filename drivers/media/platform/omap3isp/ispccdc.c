@@ -1312,6 +1312,10 @@ static void __ccdc_enable(struct isp_ccdc_device *ccdc, int enable)
 {
 	struct isp_device *isp = to_isp_device(ccdc);
 
+	/* Avoid restarting the CCDC when streaming is stopping. */
+	if (enable && ccdc->stopping & CCDC_STOP_REQUEST)
+		return;
+
 	isp_reg_clr_set(isp, OMAP3_ISP_IOMEM_CCDC, ISPCCDC_PCR,
 			ISPCCDC_PCR_EN, enable ? ISPCCDC_PCR_EN : 0);
 

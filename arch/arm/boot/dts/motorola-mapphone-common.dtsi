@@ -182,6 +182,14 @@
 		pwm-names = "enable", "direction";
 		direction-duty-cycle-ns = <10000000>;
 	};
+
+	backlight: backlight {
+		compatible = "led-backlight";
+
+		leds = <&backlight_led>;
+		brightness-levels = <31 63 95 127 159 191 223 255>;
+		default-brightness-level = <6>;
+	};
 };
 
 &dss {
@@ -204,6 +212,8 @@
 		label = "lcd0";
 		vddi-supply = <&lcd_regulator>;
 		reset-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;	/* gpio101 */
+
+		backlight = <&backlight>;
 
 		width-mm = <50>;
 		height-mm = <89>;
@@ -393,12 +403,11 @@
 		ramp-up-us = <1024>;
 		ramp-down-us = <8193>;
 
-		led@0 {
+		backlight_led: led@0 {
 			reg = <0>;
 			led-sources = <2>;
 			ti,led-mode = <0>;
 			label = ":backlight";
-			linux,default-trigger = "backlight";
 		};
 
 		led@1 {
@@ -420,7 +429,7 @@
 		reset-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>; /* gpio173 */
 
 		/* gpio_183 with sys_nirq2 pad as wakeup */
-		interrupts-extended = <&gpio6 23 IRQ_TYPE_EDGE_FALLING>,
+		interrupts-extended = <&gpio6 23 IRQ_TYPE_LEVEL_LOW>,
 				      <&omap4_pmx_core 0x160>;
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;

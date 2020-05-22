@@ -464,25 +464,13 @@ static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
 	return vsca->src_frame;
 };
 
-static void vimc_sca_release(struct v4l2_subdev *sd)
+void vimc_sca_release(struct vimc_ent_device *ved)
 {
 	struct vimc_sca_device *vsca =
-				container_of(sd, struct vimc_sca_device, sd);
+		container_of(ved, struct vimc_sca_device, ved);
 
 	media_entity_cleanup(vsca->ved.ent);
 	kfree(vsca);
-}
-
-static const struct v4l2_subdev_internal_ops vimc_sca_int_ops = {
-	.release = vimc_sca_release,
-};
-
-void vimc_sca_rm(struct vimc_device *vimc, struct vimc_ent_device *ved)
-{
-	struct vimc_sca_device *vsca;
-
-	vsca = container_of(ved, struct vimc_sca_device, ved);
-	v4l2_device_unregister_subdev(&vsca->sd);
 }
 
 struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
@@ -504,15 +492,14 @@ struct vimc_ent_device *vimc_sca_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vsca->ved, &vsca->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
-				   vsca->pads,
-				   &vimc_sca_int_ops, &vimc_sca_ops);
+				   vsca->pads, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
 		return NULL;
 	}
 
 	vsca->ved.process_frame = vimc_sca_process_frame;
-	vsca->ved.dev = &vimc->pdev.dev;
+	vsca->ved.dev = vimc->mdev.dev;
 
 	/* Initialize the frame format */
 	vsca->sink_fmt = sink_fmt_default;

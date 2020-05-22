@@ -601,7 +601,7 @@ static struct undef_hook setend_hooks[] = {
 	},
 	{
 		/* Thumb mode */
-		.instr_mask	= 0x0000fff7,
+		.instr_mask	= 0xfffffff7,
 		.instr_val	= 0x0000b650,
 		.pstate_mask	= (PSR_AA32_T_BIT | PSR_AA32_MODE_MASK),
 		.pstate_val	= (PSR_AA32_T_BIT | PSR_AA32_MODE_USR),
@@ -630,7 +630,7 @@ static int __init armv8_deprecated_init(void)
 		register_insn_emulation(&cp15_barrier_ops);
 
 	if (IS_ENABLED(CONFIG_SETEND_EMULATION)) {
-		if(system_supports_mixed_endian_el0())
+		if (system_supports_mixed_endian_el0())
 			register_insn_emulation(&setend_ops);
 		else
 			pr_info("setend instruction emulation is not supported on this system\n");

@@ -377,7 +377,7 @@
 	};
 
 	sata: sata@fc600000 {
-		compatible = "renesas,sata-r8a7779", "renesas,rcar-sata";
+		compatible = "renesas,sata-r8a7779";
 		reg = <0xfc600000 0x200000>;
 		interrupts = <GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp1_clks R8A7779_CLK_SATA>;

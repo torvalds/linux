@@ -66,15 +66,20 @@ static int mlx5_cmd_dr_create_flow_table(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_table *next_ft)
 {
 	struct mlx5dr_table *tbl;
+	u32 flags;
 	int err;
 
 	if (mlx5_dr_is_fw_table(ft->flags))
 		return mlx5_fs_cmd_get_fw_cmds()->create_flow_table(ns, ft,
 								    log_size,
 								    next_ft);
+	flags = ft->flags;
+	/* turn off encap/decap if not supported for sw-str by fw */
+	if (!MLX5_CAP_FLOWTABLE(ns->dev, sw_owner_reformat_supported))
+		flags = ft->flags & ~(MLX5_FLOW_TABLE_TUNNEL_EN_REFORMAT |
+				      MLX5_FLOW_TABLE_TUNNEL_EN_DECAP);
 
-	tbl = mlx5dr_table_create(ns->fs_dr_domain.dr_domain,
-				  ft->level, ft->flags);
+	tbl = mlx5dr_table_create(ns->fs_dr_domain.dr_domain, ft->level, flags);
 	if (!tbl) {
 		mlx5_core_err(ns->dev, "Failed creating dr flow_table\n");
 		return -EINVAL;
@@ -135,7 +140,7 @@ static int mlx5_cmd_dr_create_flow_group(struct mlx5_flow_root_namespace *ns,
 					 struct mlx5_flow_group *fg)
 {
 	struct mlx5dr_matcher *matcher;
-	u16 priority = MLX5_GET(create_flow_group_in, in,
+	u32 priority = MLX5_GET(create_flow_group_in, in,
 				start_flow_index);
 	u8 match_criteria_enable = MLX5_GET(create_flow_group_in,
 					    in,
@@ -379,6 +384,7 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 	if (fte->action.action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
 		list_for_each_entry(dst, &fte->node.children, node.list) {
 			enum mlx5_flow_destination_type type = dst->dest_attr.type;
+			u32 ft_id;
 
 			if (num_actions == MLX5_FLOW_CONTEXT_ACTION_MAX ||
 			    num_term_actions >= MLX5_FLOW_CONTEXT_ACTION_MAX) {
@@ -414,6 +420,17 @@ static int mlx5_cmd_dr_create_fte(struct mlx5_flow_root_namespace *ns,
 						dst->dest_attr.vport.pkt_reformat->action.dr_action;
 
 				num_term_actions++;
+				break;
+			case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
+				ft_id = dst->dest_attr.ft_num;
+				tmp_action = mlx5dr_action_create_dest_table_num(domain,
+										 ft_id);
+				if (!tmp_action) {
+					err = -ENOMEM;
+					goto free_actions;
+				}
+				fs_dr_actions[fs_dr_num_actions++] = tmp_action;
+				term_actions[num_term_actions++].dest = tmp_action;
 				break;
 			default:
 				err = -EOPNOTSUPP;

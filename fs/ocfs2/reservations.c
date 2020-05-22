@@ -33,9 +33,6 @@
 
 static DEFINE_SPINLOCK(resv_lock);
 
-#define	OCFS2_MIN_RESV_WINDOW_BITS	8
-#define	OCFS2_MAX_RESV_WINDOW_BITS	1024
-
 int ocfs2_dir_resv_allowed(struct ocfs2_super *osb)
 {
 	return (osb->osb_resv_level && osb->osb_dir_resv_level);

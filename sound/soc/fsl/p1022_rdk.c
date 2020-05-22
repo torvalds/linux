@@ -134,14 +134,14 @@ static int p1022_rdk_startup(struct snd_pcm_substream *substream)
 	int ret = 0;
 
 	/* Tell the codec driver what the serial protocol is. */
-	ret = snd_soc_dai_set_fmt(rtd->codec_dai, mdata->dai_format);
+	ret = snd_soc_dai_set_fmt(asoc_rtd_to_codec(rtd, 0), mdata->dai_format);
 	if (ret < 0) {
 		dev_err(dev, "could not set codec driver audio format (ret=%i)\n",
 			ret);
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_pll(rtd->codec_dai, 0, 0, mdata->clk_frequency,
+	ret = snd_soc_dai_set_pll(asoc_rtd_to_codec(rtd, 0), 0, 0, mdata->clk_frequency,
 		mdata->clk_frequency);
 	if (ret < 0) {
 		dev_err(dev, "could not set codec PLL frequency (ret=%i)\n",

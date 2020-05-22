@@ -1,0 +1,50 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2020 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * Common PRUSS data for TI AM57xx platforms
+ */
+
+&ocp {
+	pruss1_tm: target-module@4b226000 {
+		compatible = "ti,sysc-pruss", "ti,sysc";
+		reg = <0x4b226000 0x4>,
+		      <0x4b226004 0x4>;
+		reg-names = "rev", "sysc";
+		ti,sysc-mask = <(SYSC_PRUSS_STANDBY_INIT |
+				 SYSC_PRUSS_SUB_MWAIT)>;
+		ti,sysc-midle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>;
+		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>;
+		/* Domains (P, C): coreaon_pwrdm, l4per2_clkdm */
+		clocks = <&l4per2_clkctrl DRA7_L4PER2_PRUSS1_CLKCTRL 0>;
+		clock-names = "fck";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x4b200000 0x80000>;
+	};
+
+	pruss2_tm: target-module@4b2a6000 {
+		compatible = "ti,sysc-pruss", "ti,sysc";
+		reg = <0x4b2a6000 0x4>,
+		      <0x4b2a6004 0x4>;
+		reg-names = "rev", "sysc";
+		ti,sysc-mask = <(SYSC_PRUSS_STANDBY_INIT |
+				 SYSC_PRUSS_SUB_MWAIT)>;
+		ti,sysc-midle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>;
+		ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+				<SYSC_IDLE_NO>,
+				<SYSC_IDLE_SMART>;
+		/* Domains (P, C): coreaon_pwrdm, l4per2_clkdm */
+		clocks = <&l4per2_clkctrl DRA7_L4PER2_PRUSS2_CLKCTRL 0>;
+		clock-names = "fck";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x4b280000 0x80000>;
+	};
+};

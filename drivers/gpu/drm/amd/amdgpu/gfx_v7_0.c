@@ -3346,6 +3346,10 @@ static int gfx_v7_0_rlc_init(struct amdgpu_device *adev)
 			return r;
 	}
 
+	/* init spm vmid with 0xf */
+	if (adev->gfx.rlc.funcs->update_spm_vmid)
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+
 	return 0;
 }
 
@@ -3568,6 +3572,18 @@ static int gfx_v7_0_rlc_resume(struct amdgpu_device *adev)
 	adev->gfx.rlc.funcs->start(adev);
 
 	return 0;
+}
+
+static void gfx_v7_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
+{
+	u32 data;
+
+	data = RREG32(mmRLC_SPM_VMID);
+
+	data &= ~RLC_SPM_VMID__RLC_SPM_VMID_MASK;
+	data |= (vmid & RLC_SPM_VMID__RLC_SPM_VMID_MASK) << RLC_SPM_VMID__RLC_SPM_VMID__SHIFT;
+
+	WREG32(mmRLC_SPM_VMID, data);
 }
 
 static void gfx_v7_0_enable_cgcg(struct amdgpu_device *adev, bool enable)
@@ -4221,7 +4237,8 @@ static const struct amdgpu_rlc_funcs gfx_v7_0_rlc_funcs = {
 	.resume = gfx_v7_0_rlc_resume,
 	.stop = gfx_v7_0_rlc_stop,
 	.reset = gfx_v7_0_rlc_reset,
-	.start = gfx_v7_0_rlc_start
+	.start = gfx_v7_0_rlc_start,
+	.update_spm_vmid = gfx_v7_0_update_spm_vmid
 };
 
 static int gfx_v7_0_early_init(void *handle)
@@ -4337,6 +4354,11 @@ static void gfx_v7_0_gpu_early_init(struct amdgpu_device *adev)
 
 	adev->gfx.config.mc_arb_ramcfg = RREG32(mmMC_ARB_RAMCFG);
 	mc_arb_ramcfg = adev->gfx.config.mc_arb_ramcfg;
+
+	adev->gfx.config.num_banks = REG_GET_FIELD(mc_arb_ramcfg,
+				MC_ARB_RAMCFG, NOOFBANK);
+	adev->gfx.config.num_ranks = REG_GET_FIELD(mc_arb_ramcfg,
+				MC_ARB_RAMCFG, NOOFRANKS);
 
 	adev->gfx.config.num_tile_pipes = adev->gfx.config.max_tile_pipes;
 	adev->gfx.config.mem_max_burst_length_bytes = 256;

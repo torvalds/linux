@@ -20,6 +20,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev);
 netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
+void efx_xmit_done_single(struct efx_tx_queue *tx_queue);
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		 void *type_data);
 extern unsigned int efx_piobuf_size;
@@ -150,24 +151,6 @@ static inline s32 efx_filter_get_rx_ids(struct efx_nic *efx,
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id);
 bool __efx_filter_rfs_expire(struct efx_channel *channel, unsigned int quota);
-static inline void efx_filter_rfs_expire(struct work_struct *data)
-{
-	struct delayed_work *dwork = to_delayed_work(data);
-	struct efx_channel *channel;
-	unsigned int time, quota;
-
-	channel = container_of(dwork, struct efx_channel, filter_work);
-	time = jiffies - channel->rfs_last_expiry;
-	quota = channel->rfs_filter_count * time / (30 * HZ);
-	if (quota > 20 && __efx_filter_rfs_expire(channel, min(channel->rfs_filter_count, quota)))
-		channel->rfs_last_expiry += time;
-	/* Ensure we do more work eventually even if NAPI poll is not happening */
-	schedule_delayed_work(dwork, 30 * HZ);
-}
-#define efx_filter_rfs_enabled() 1
-#else
-static inline void efx_filter_rfs_expire(struct work_struct *data) {}
-#define efx_filter_rfs_enabled() 0
 #endif
 
 /* RSS contexts */

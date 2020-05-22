@@ -301,6 +301,7 @@ static void cxgb4_mqprio_free_hw_resources(struct net_device *dev)
 			cxgb4_clear_msix_aff(eorxq->msix->vec,
 					     eorxq->msix->aff_mask);
 			free_irq(eorxq->msix->vec, &eorxq->rspq);
+			cxgb4_free_msix_idx_in_bmap(adap, eorxq->msix->idx);
 		}
 
 		free_rspq_fl(adap, &eorxq->rspq, &eorxq->fl);
@@ -609,6 +610,28 @@ out:
 		cxgb_open(dev);
 
 	return ret;
+}
+
+void cxgb4_mqprio_stop_offload(struct adapter *adap)
+{
+	struct cxgb4_tc_port_mqprio *tc_port_mqprio;
+	struct net_device *dev;
+	u8 i;
+
+	if (!adap->tc_mqprio || !adap->tc_mqprio->port_mqprio)
+		return;
+
+	for_each_port(adap, i) {
+		dev = adap->port[i];
+		if (!dev)
+			continue;
+
+		tc_port_mqprio = &adap->tc_mqprio->port_mqprio[i];
+		if (!tc_port_mqprio->mqprio.qopt.num_tc)
+			continue;
+
+		cxgb4_mqprio_disable_offload(dev);
+	}
 }
 
 int cxgb4_init_tc_mqprio(struct adapter *adap)

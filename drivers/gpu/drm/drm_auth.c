@@ -153,11 +153,6 @@ static int drm_new_set_master(struct drm_device *dev, struct drm_file *fpriv)
 		return -ENOMEM;
 	}
 
-	if (dev->driver->master_create) {
-		ret = dev->driver->master_create(dev, fpriv->master);
-		if (ret)
-			goto out_err;
-	}
 	fpriv->is_master = 1;
 	fpriv->authenticated = 1;
 
@@ -331,9 +326,6 @@ static void drm_master_destroy(struct kref *kref)
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		drm_lease_destroy(master);
-
-	if (dev->driver->master_destroy)
-		dev->driver->master_destroy(dev, master);
 
 	drm_legacy_master_rmmaps(dev, master);
 

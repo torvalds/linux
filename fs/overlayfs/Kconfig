@@ -93,6 +93,7 @@ config OVERLAY_FS_XINO_AUTO
 	bool "Overlayfs: auto enable inode number mapping"
 	default n
 	depends on OVERLAY_FS
+	depends on 64BIT
 	help
 	  If this config option is enabled then overlay filesystems will use
 	  unused high bits in undelying filesystem inode numbers to map all

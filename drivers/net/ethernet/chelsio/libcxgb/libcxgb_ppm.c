@@ -35,7 +35,6 @@
  */
 
 #define DRV_NAME "libcxgb"
-#define DRV_VERSION "1.0.0-ko"
 #define pr_fmt(fmt) DRV_NAME ": " fmt
 
 #include <linux/kernel.h>
@@ -530,5 +529,4 @@ EXPORT_SYMBOL(cxgbi_tagmask_set);
 
 MODULE_AUTHOR("Chelsio Communications");
 MODULE_DESCRIPTION("Chelsio common library");
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("Dual BSD/GPL");

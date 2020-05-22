@@ -944,6 +944,7 @@ static struct timer_base *lock_timer_base(struct timer_list *timer,
 
 #define MOD_TIMER_PENDING_ONLY		0x01
 #define MOD_TIMER_REDUCE		0x02
+#define MOD_TIMER_NOTPENDING		0x04
 
 static inline int
 __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int options)
@@ -960,7 +961,7 @@ __mod_timer(struct timer_list *timer, unsigned long expires, unsigned int option
 	 * the timer is re-modified to have the same timeout or ends up in the
 	 * same array bucket then just return:
 	 */
-	if (timer_pending(timer)) {
+	if (!(options & MOD_TIMER_NOTPENDING) && timer_pending(timer)) {
 		/*
 		 * The downside of this optimization is that it can result in
 		 * larger granularity than you would get from adding a new
@@ -1133,7 +1134,7 @@ EXPORT_SYMBOL(timer_reduce);
 void add_timer(struct timer_list *timer)
 {
 	BUG_ON(timer_pending(timer));
-	mod_timer(timer, timer->expires);
+	__mod_timer(timer, timer->expires, MOD_TIMER_NOTPENDING);
 }
 EXPORT_SYMBOL(add_timer);
 
@@ -1893,7 +1894,7 @@ signed long __sched schedule_timeout(signed long timeout)
 
 	timer.task = current;
 	timer_setup_on_stack(&timer.timer, process_timeout, 0);
-	__mod_timer(&timer.timer, expire, 0);
+	__mod_timer(&timer.timer, expire, MOD_TIMER_NOTPENDING);
 	schedule();
 	del_singleshot_timer_sync(&timer.timer);
 

@@ -191,10 +191,10 @@ static inline int hif_set_block_ack_policy(struct wfx_vif *wvif,
 }
 
 static inline int hif_set_association_mode(struct wfx_vif *wvif,
-					   struct ieee80211_bss_conf *info,
-					   struct ieee80211_sta_ht_cap *ht_cap)
+					   struct ieee80211_bss_conf *info)
 {
 	int basic_rates = wfx_rate_mask_to_hw(wvif->wdev, info->basic_rates);
+	struct ieee80211_sta *sta = NULL;
 	struct hif_mib_set_association_mode val = {
 		.preambtype_use = 1,
 		.mode = 1,
@@ -204,12 +204,17 @@ static inline int hif_set_association_mode(struct wfx_vif *wvif,
 		.basic_rate_set = cpu_to_le32(basic_rates)
 	};
 
+	rcu_read_lock(); // protect sta
+	if (info->bssid && !info->ibss_joined)
+		sta = ieee80211_find_sta(wvif->vif, info->bssid);
+
 	// FIXME: it is strange to not retrieve all information from bss_info
-	if (ht_cap && ht_cap->ht_supported) {
-		val.mpdu_start_spacing = ht_cap->ampdu_density;
+	if (sta && sta->ht_cap.ht_supported) {
+		val.mpdu_start_spacing = sta->ht_cap.ampdu_density;
 		if (!(info->ht_operation_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT))
-			val.greenfield = !!(ht_cap->cap & IEEE80211_HT_CAP_GRN_FLD);
+			val.greenfield = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
 	}
+	rcu_read_unlock();
 
 	return hif_write_mib(wvif->wdev, wvif->id,
 			     HIF_MIB_ID_SET_ASSOCIATION_MODE, &val, sizeof(val));

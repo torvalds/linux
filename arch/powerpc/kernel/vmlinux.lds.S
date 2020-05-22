@@ -256,6 +256,7 @@ SECTIONS
 		*(.dynamic)
 	}
 	.hash : AT(ADDR(.hash) - LOAD_OFFSET) { *(.hash) }
+	.gnu.hash : AT(ADDR(.gnu.hash) - LOAD_OFFSET) { *(.gnu.hash) }
 	.interp : AT(ADDR(.interp) - LOAD_OFFSET) { *(.interp) }
 	.rela.dyn : AT(ADDR(.rela.dyn) - LOAD_OFFSET)
 	{

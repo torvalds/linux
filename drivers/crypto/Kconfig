@@ -233,20 +233,6 @@ config CRYPTO_CRC32_S390
 
 	  It is available with IBM z13 or later.
 
-config CRYPTO_DEV_MARVELL_CESA
-	tristate "Marvell's Cryptographic Engine driver"
-	depends on PLAT_ORION || ARCH_MVEBU
-	select CRYPTO_LIB_AES
-	select CRYPTO_LIB_DES
-	select CRYPTO_SKCIPHER
-	select CRYPTO_HASH
-	select SRAM
-	help
-	  This driver allows you to utilize the Cryptographic Engines and
-	  Security Accelerator (CESA) which can be found on MVEBU and ORION
-	  platforms.
-	  This driver supports CPU offload through DMA transfers.
-
 config CRYPTO_DEV_NIAGARA2
 	tristate "Niagara2 Stream Processing Unit driver"
 	select CRYPTO_LIB_DES
@@ -606,6 +592,7 @@ config CRYPTO_DEV_MXS_DCP
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
 source "drivers/crypto/cavium/nitrox/Kconfig"
+source "drivers/crypto/marvell/Kconfig"
 
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"
@@ -685,6 +672,29 @@ choice
 
 endchoice
 
+config CRYPTO_DEV_QCE_SW_MAX_LEN
+	int "Default maximum request size to use software for AES"
+	depends on CRYPTO_DEV_QCE && CRYPTO_DEV_QCE_SKCIPHER
+	default 512
+	help
+	  This sets the default maximum request size to perform AES requests
+	  using software instead of the crypto engine.  It can be changed by
+	  setting the aes_sw_max_len parameter.
+
+	  Small blocks are processed faster in software than hardware.
+	  Considering the 256-bit ciphers, software is 2-3 times faster than
+	  qce at 256-bytes, 30% faster at 512, and about even at 768-bytes.
+	  With 128-bit keys, the break-even point would be around 1024-bytes.
+
+	  The default is set a little lower, to 512 bytes, to balance the
+	  cost in CPU usage.  The minimum recommended setting is 16-bytes
+	  (1 AES block), since AES-GCM will fail if you set it lower.
+	  Setting this to zero will send all requests to the hardware.
+
+	  Note that 192-bit keys are not supported by the hardware and are
+	  always processed by the software fallback, and all DES requests
+	  are done by the hardware.
+
 config CRYPTO_DEV_QCOM_RNG
 	tristate "Qualcomm Random Number Generator Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
@@ -730,6 +740,18 @@ config CRYPTO_DEV_ROCKCHIP
 	help
 	  This driver interfaces with the hardware crypto accelerator.
 	  Supporting cbc/ecb chainmode, and aes/des/des3_ede cipher mode.
+
+config CRYPTO_DEV_ZYNQMP_AES
+	tristate "Support for Xilinx ZynqMP AES hw accelerator"
+	depends on ZYNQMP_FIRMWARE || COMPILE_TEST
+	select CRYPTO_AES
+	select CRYPTO_ENGINE
+	select CRYPTO_AEAD
+	help
+	  Xilinx ZynqMP has AES-GCM engine used for symmetric key
+	  encryption and decryption. This driver interfaces with AES hw
+	  accelerator. Select this if you want to use the ZynqMP module
+	  for AES algorithms.
 
 config CRYPTO_DEV_MEDIATEK
 	tristate "MediaTek's EIP97 Cryptographic Engine driver"

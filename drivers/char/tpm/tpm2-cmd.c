@@ -525,6 +525,8 @@ static int tpm2_init_bank_info(struct tpm_chip *chip, u32 bank_index)
 		return 0;
 	}
 
+	bank->crypto_id = HASH_ALGO__LAST;
+
 	return tpm2_pcr_read(chip, 0, &digest, &bank->digest_size);
 }
 
@@ -613,7 +615,7 @@ out:
 	return rc;
 }
 
-static int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
+int tpm2_get_cc_attrs_tbl(struct tpm_chip *chip)
 {
 	struct tpm_buf buf;
 	u32 nr_commands;

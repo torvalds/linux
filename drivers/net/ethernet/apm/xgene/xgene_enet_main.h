@@ -28,7 +28,6 @@
 #include "xgene_enet_ring2.h"
 #include "../../../phy/mdio-xgene.h"
 
-#define XGENE_DRV_VERSION	"v1.0"
 #define ETHER_MIN_PACKET	64
 #define ETHER_STD_PACKET	1518
 #define XGENE_ENET_STD_MTU	1536

@@ -219,7 +219,7 @@ struct aem_read_sensor_req {
 
 struct aem_read_sensor_resp {
 	struct aem_iana_id	id;
-	u8			bytes[0];
+	u8			bytes[];
 } __packed;
 
 /* Data structures to talk to the IPMI layer */

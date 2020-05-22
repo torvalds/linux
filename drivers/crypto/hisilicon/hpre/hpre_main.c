@@ -82,8 +82,7 @@
 
 #define HPRE_VIA_MSI_DSM		1
 
-static LIST_HEAD(hpre_list);
-static DEFINE_MUTEX(hpre_list_lock);
+static struct hisi_qm_list hpre_devices;
 static const char hpre_name[] = "hisi_hpre";
 static struct dentry *hpre_debugfs_root;
 static const struct pci_device_id hpre_dev_ids[] = {
@@ -196,43 +195,17 @@ static u32 hpre_pf_q_num = HPRE_PF_DEF_Q_NUM;
 module_param_cb(hpre_pf_q_num, &hpre_pf_q_num_ops, &hpre_pf_q_num, 0444);
 MODULE_PARM_DESC(hpre_pf_q_num, "Number of queues in PF of CS(1-1024)");
 
-static inline void hpre_add_to_list(struct hpre *hpre)
+struct hisi_qp *hpre_create_qp(void)
 {
-	mutex_lock(&hpre_list_lock);
-	list_add_tail(&hpre->list, &hpre_list);
-	mutex_unlock(&hpre_list_lock);
-}
+	int node = cpu_to_node(smp_processor_id());
+	struct hisi_qp *qp = NULL;
+	int ret;
 
-static inline void hpre_remove_from_list(struct hpre *hpre)
-{
-	mutex_lock(&hpre_list_lock);
-	list_del(&hpre->list);
-	mutex_unlock(&hpre_list_lock);
-}
+	ret = hisi_qm_alloc_qps_node(&hpre_devices, 1, 0, node, &qp);
+	if (!ret)
+		return qp;
 
-struct hpre *hpre_find_device(int node)
-{
-	struct hpre *hpre, *ret = NULL;
-	int min_distance = INT_MAX;
-	struct device *dev;
-	int dev_node = 0;
-
-	mutex_lock(&hpre_list_lock);
-	list_for_each_entry(hpre, &hpre_list, list) {
-		dev = &hpre->qm.pdev->dev;
-#ifdef CONFIG_NUMA
-		dev_node = dev->numa_node;
-		if (dev_node < 0)
-			dev_node = 0;
-#endif
-		if (node_distance(dev_node, node) < min_distance) {
-			ret = hpre;
-			min_distance = node_distance(dev_node, node);
-		}
-	}
-	mutex_unlock(&hpre_list_lock);
-
-	return ret;
+	return NULL;
 }
 
 static int hpre_cfg_by_dsm(struct hisi_qm *qm)
@@ -349,18 +322,14 @@ static void hpre_cnt_regs_clear(struct hisi_qm *qm)
 	hisi_qm_debug_regs_clear(qm);
 }
 
-static void hpre_hw_error_disable(struct hpre *hpre)
+static void hpre_hw_error_disable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
-
 	/* disable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_DISABLE, qm->io_base + HPRE_INT_MASK);
 }
 
-static void hpre_hw_error_enable(struct hpre *hpre)
+static void hpre_hw_error_enable(struct hisi_qm *qm)
 {
-	struct hisi_qm *qm = &hpre->qm;
-
 	/* enable hpre hw error interrupts */
 	writel(HPRE_CORE_INT_ENABLE, qm->io_base + HPRE_INT_MASK);
 	writel(HPRE_HAC_RAS_CE_ENABLE, qm->io_base + HPRE_RAS_CE_ENB);
@@ -713,12 +682,38 @@ static int hpre_qm_pre_init(struct hisi_qm *qm, struct pci_dev *pdev)
 	return 0;
 }
 
-static void hpre_hw_err_init(struct hpre *hpre)
+static void hpre_log_hw_error(struct hisi_qm *qm, u32 err_sts)
 {
-	hisi_qm_hw_error_init(&hpre->qm, QM_BASE_CE, QM_BASE_NFE,
-			      0, QM_DB_RANDOM_INVALID);
-	hpre_hw_error_enable(hpre);
+	const struct hpre_hw_error *err = hpre_hw_errors;
+	struct device *dev = &qm->pdev->dev;
+
+	while (err->msg) {
+		if (err->int_msk & err_sts)
+			dev_warn(dev, "%s [error status=0x%x] found\n",
+				 err->msg, err->int_msk);
+		err++;
+	}
+
+	writel(err_sts, qm->io_base + HPRE_HAC_SOURCE_INT);
 }
+
+static u32 hpre_get_hw_err_status(struct hisi_qm *qm)
+{
+	return readl(qm->io_base + HPRE_HAC_INT_STATUS);
+}
+
+static const struct hisi_qm_err_ini hpre_err_ini = {
+	.hw_err_enable		= hpre_hw_error_enable,
+	.hw_err_disable		= hpre_hw_error_disable,
+	.get_dev_hw_err_status	= hpre_get_hw_err_status,
+	.log_dev_hw_err		= hpre_log_hw_error,
+	.err_info		= {
+		.ce			= QM_BASE_CE,
+		.nfe			= QM_BASE_NFE | QM_ACC_DO_TASK_TIMEOUT,
+		.fe			= 0,
+		.msi			= QM_DB_RANDOM_INVALID,
+	}
+};
 
 static int hpre_pf_probe_init(struct hpre *hpre)
 {
@@ -731,7 +726,8 @@ static int hpre_pf_probe_init(struct hpre *hpre)
 	if (ret)
 		return ret;
 
-	hpre_hw_err_init(hpre);
+	qm->err_ini = &hpre_err_ini;
+	hisi_qm_dev_err_init(qm);
 
 	return 0;
 }
@@ -776,22 +772,21 @@ static int hpre_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		dev_warn(&pdev->dev, "init debugfs fail!\n");
 
-	hpre_add_to_list(hpre);
+	hisi_qm_add_to_list(qm, &hpre_devices);
 
 	ret = hpre_algs_register();
 	if (ret < 0) {
-		hpre_remove_from_list(hpre);
 		pci_err(pdev, "fail to register algs to crypto!\n");
 		goto err_with_qm_start;
 	}
 	return 0;
 
 err_with_qm_start:
+	hisi_qm_del_from_list(qm, &hpre_devices);
 	hisi_qm_stop(qm);
 
 err_with_err_init:
-	if (pdev->is_physfn)
-		hpre_hw_error_disable(hpre);
+	hisi_qm_dev_err_uninit(qm);
 
 err_with_qm_init:
 	hisi_qm_uninit(qm);
@@ -907,7 +902,7 @@ static void hpre_remove(struct pci_dev *pdev)
 	int ret;
 
 	hpre_algs_unregister();
-	hpre_remove_from_list(hpre);
+	hisi_qm_del_from_list(qm, &hpre_devices);
 	if (qm->fun_type == QM_HW_PF && hpre->num_vfs != 0) {
 		ret = hpre_sriov_disable(pdev);
 		if (ret) {
@@ -922,69 +917,13 @@ static void hpre_remove(struct pci_dev *pdev)
 
 	hpre_debugfs_exit(hpre);
 	hisi_qm_stop(qm);
-	if (qm->fun_type == QM_HW_PF)
-		hpre_hw_error_disable(hpre);
+	hisi_qm_dev_err_uninit(qm);
 	hisi_qm_uninit(qm);
 }
 
-static void hpre_log_hw_error(struct hpre *hpre, u32 err_sts)
-{
-	const struct hpre_hw_error *err = hpre_hw_errors;
-	struct device *dev = &hpre->qm.pdev->dev;
-
-	while (err->msg) {
-		if (err->int_msk & err_sts)
-			dev_warn(dev, "%s [error status=0x%x] found\n",
-				 err->msg, err->int_msk);
-		err++;
-	}
-}
-
-static pci_ers_result_t hpre_hw_error_handle(struct hpre *hpre)
-{
-	u32 err_sts;
-
-	/* read err sts */
-	err_sts = readl(hpre->qm.io_base + HPRE_HAC_INT_STATUS);
-	if (err_sts) {
-		hpre_log_hw_error(hpre, err_sts);
-
-		/* clear error interrupts */
-		writel(err_sts, hpre->qm.io_base + HPRE_HAC_SOURCE_INT);
-		return PCI_ERS_RESULT_NEED_RESET;
-	}
-
-	return PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t hpre_process_hw_error(struct pci_dev *pdev)
-{
-	struct hpre *hpre = pci_get_drvdata(pdev);
-	pci_ers_result_t qm_ret, hpre_ret;
-
-	/* log qm error */
-	qm_ret = hisi_qm_hw_error_handle(&hpre->qm);
-
-	/* log hpre error */
-	hpre_ret = hpre_hw_error_handle(hpre);
-
-	return (qm_ret == PCI_ERS_RESULT_NEED_RESET ||
-		hpre_ret == PCI_ERS_RESULT_NEED_RESET) ?
-		PCI_ERS_RESULT_NEED_RESET : PCI_ERS_RESULT_RECOVERED;
-}
-
-static pci_ers_result_t hpre_error_detected(struct pci_dev *pdev,
-					    pci_channel_state_t state)
-{
-	pci_info(pdev, "PCI error detected, state(=%d)!!\n", state);
-	if (state == pci_channel_io_perm_failure)
-		return PCI_ERS_RESULT_DISCONNECT;
-
-	return hpre_process_hw_error(pdev);
-}
 
 static const struct pci_error_handlers hpre_err_handler = {
-	.error_detected		= hpre_error_detected,
+	.error_detected		= hisi_qm_dev_err_detected,
 };
 
 static struct pci_driver hpre_pci_driver = {
@@ -1013,6 +952,7 @@ static int __init hpre_init(void)
 {
 	int ret;
 
+	hisi_qm_init_list(&hpre_devices);
 	hpre_register_debugfs();
 
 	ret = pci_register_driver(&hpre_pci_driver);

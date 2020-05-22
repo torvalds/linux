@@ -936,8 +936,6 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	char *frozen_buffer = NULL;
 	unsigned long start_lock, time_lock;
 
-	if (is_handle_aborted(handle))
-		return -EROFS;
 	journal = transaction->t_journal;
 
 	jbd_debug(5, "journal_head %p, force_copy %d\n", jh, force_copy);
@@ -1152,8 +1150,8 @@ static bool jbd2_write_access_granted(handle_t *handle, struct buffer_head *bh,
 	/* For undo access buffer must have data copied */
 	if (undo && !jh->b_committed_data)
 		goto out;
-	if (jh->b_transaction != handle->h_transaction &&
-	    jh->b_next_transaction != handle->h_transaction)
+	if (READ_ONCE(jh->b_transaction) != handle->h_transaction &&
+	    READ_ONCE(jh->b_next_transaction) != handle->h_transaction)
 		goto out;
 	/*
 	 * There are two reasons for the barrier here:
@@ -1188,6 +1186,9 @@ int jbd2_journal_get_write_access(handle_t *handle, struct buffer_head *bh)
 {
 	struct journal_head *jh;
 	int rc;
+
+	if (is_handle_aborted(handle))
+		return -EROFS;
 
 	if (jbd2_write_access_granted(handle, bh, false))
 		return 0;
@@ -1325,6 +1326,9 @@ int jbd2_journal_get_undo_access(handle_t *handle, struct buffer_head *bh)
 	int err;
 	struct journal_head *jh;
 	char *committed_data = NULL;
+
+	if (is_handle_aborted(handle))
+		return -EROFS;
 
 	if (jbd2_write_access_granted(handle, bh, true))
 		return 0;
@@ -2565,8 +2569,8 @@ bool __jbd2_journal_refile_buffer(struct journal_head *jh)
 	 * our jh reference and thus __jbd2_journal_file_buffer() must not
 	 * take a new one.
 	 */
-	jh->b_transaction = jh->b_next_transaction;
-	jh->b_next_transaction = NULL;
+	WRITE_ONCE(jh->b_transaction, jh->b_next_transaction);
+	WRITE_ONCE(jh->b_next_transaction, NULL);
 	if (buffer_freed(bh))
 		jlist = BJ_Forget;
 	else if (jh->b_modified)

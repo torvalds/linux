@@ -26,6 +26,7 @@ static const struct acpi_device_id intel_vbtn_ids[] = {
 	{"INT33D6", 0},
 	{"", 0},
 };
+MODULE_DEVICE_TABLE(acpi, intel_vbtn_ids);
 
 /* In theory, these are HID usages. */
 static const struct key_entry intel_vbtn_keymap[] = {
@@ -239,7 +240,6 @@ static struct platform_driver intel_vbtn_pl_driver = {
 	.probe = intel_vbtn_probe,
 	.remove = intel_vbtn_remove,
 };
-MODULE_DEVICE_TABLE(acpi, intel_vbtn_ids);
 
 static acpi_status __init
 check_acpi_dev(acpi_handle handle, u32 lvl, void *context, void **rv)

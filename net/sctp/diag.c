@@ -237,15 +237,11 @@ static size_t inet_assoc_attr_size(struct sctp_association *asoc)
 		addrcnt++;
 
 	return	  nla_total_size(sizeof(struct sctp_info))
-		+ nla_total_size(1) /* INET_DIAG_SHUTDOWN */
-		+ nla_total_size(1) /* INET_DIAG_TOS */
-		+ nla_total_size(1) /* INET_DIAG_TCLASS */
-		+ nla_total_size(4) /* INET_DIAG_MARK */
-		+ nla_total_size(4) /* INET_DIAG_CLASS_ID */
 		+ nla_total_size(addrlen * asoc->peer.transport_count)
 		+ nla_total_size(addrlen * addrcnt)
-		+ nla_total_size(sizeof(struct inet_diag_meminfo))
 		+ nla_total_size(sizeof(struct inet_diag_msg))
+		+ inet_diag_msg_attrs_size()
+		+ nla_total_size(sizeof(struct inet_diag_meminfo))
 		+ 64;
 }
 
@@ -432,11 +428,12 @@ static void sctp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		sctp_get_sctp_info(sk, infox->asoc, infox->sctpinfo);
 }
 
-static int sctp_diag_dump_one(struct sk_buff *in_skb,
-			      const struct nlmsghdr *nlh,
+static int sctp_diag_dump_one(struct netlink_callback *cb,
 			      const struct inet_diag_req_v2 *req)
 {
+	struct sk_buff *in_skb = cb->skb;
 	struct net *net = sock_net(in_skb->sk);
+	const struct nlmsghdr *nlh = cb->nlh;
 	union sctp_addr laddr, paddr;
 	struct sctp_comm_param commp = {
 		.skb = in_skb,
@@ -470,7 +467,7 @@ static int sctp_diag_dump_one(struct sk_buff *in_skb,
 }
 
 static void sctp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			   const struct inet_diag_req_v2 *r, struct nlattr *bc)
+			   const struct inet_diag_req_v2 *r)
 {
 	u32 idiag_states = r->idiag_states;
 	struct net *net = sock_net(skb->sk);

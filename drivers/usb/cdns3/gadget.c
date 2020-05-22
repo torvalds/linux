@@ -1380,7 +1380,7 @@ static bool cdns3_request_handled(struct cdns3_endpoint *priv_ep,
 				  struct cdns3_request *priv_req)
 {
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
-	struct cdns3_trb *trb = priv_req->trb;
+	struct cdns3_trb *trb;
 	int current_index = 0;
 	int handled = 0;
 	int doorbell;
@@ -2550,7 +2550,7 @@ found:
 	/* Update ring only if removed request is on pending_req_list list */
 	if (req_on_hw_ring) {
 		link_trb->buffer = TRB_BUFFER(priv_ep->trb_pool_dma +
-					      (priv_req->start_trb * TRB_SIZE));
+			((priv_req->end_trb + 1) * TRB_SIZE));
 		link_trb->control = (link_trb->control & TRB_CYCLE) |
 				    TRB_TYPE(TRB_LINK) | TRB_CHAIN;
 
@@ -2595,10 +2595,20 @@ int __cdns3_gadget_ep_clear_halt(struct cdns3_endpoint *priv_ep)
 {
 	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
 	struct usb_request *request;
+	struct cdns3_request *priv_req;
+	struct cdns3_trb *trb = NULL;
 	int ret;
 	int val;
 
 	trace_cdns3_halt(priv_ep, 0, 0);
+
+	request = cdns3_next_request(&priv_ep->pending_req_list);
+	if (request) {
+		priv_req = to_cdns3_request(request);
+		trb = priv_req->trb;
+		if (trb)
+			trb->control = trb->control ^ TRB_CYCLE;
+	}
 
 	writel(EP_CMD_CSTALL | EP_CMD_EPRST, &priv_dev->regs->ep_cmd);
 
@@ -2610,10 +2620,11 @@ int __cdns3_gadget_ep_clear_halt(struct cdns3_endpoint *priv_ep)
 
 	priv_ep->flags &= ~(EP_STALLED | EP_STALL_PENDING);
 
-	request = cdns3_next_request(&priv_ep->pending_req_list);
-
-	if (request)
+	if (request) {
+		if (trb)
+			trb->control = trb->control ^ TRB_CYCLE;
 		cdns3_rearm_transfer(priv_ep, 1);
+	}
 
 	cdns3_start_all_request(priv_dev, priv_ep);
 	return ret;
