@@ -61,6 +61,7 @@ Hardware Monitoring Kernel Drivers
    ftsteutates
    g760a
    g762
+   gsc-hwmon
    gl518sm
    hih6130
    ibmaem
