@@ -169,14 +169,15 @@ static int cdns_pcie_host_init_address_translation(struct cdns_pcie_rc *rc)
 }
 
 static int cdns_pcie_host_init(struct device *dev,
-			       struct list_head *resources,
 			       struct cdns_pcie_rc *rc)
 {
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(rc);
 	struct resource *bus_range = NULL;
 	int err;
 
 	/* Parse our PCI ranges and request their resources */
-	err = pci_parse_request_of_pci_ranges(dev, resources, NULL, &bus_range);
+	err = pci_parse_request_of_pci_ranges(dev, &bridge->windows, NULL,
+					      &bus_range);
 	if (err)
 		return err;
 
@@ -185,17 +186,9 @@ static int cdns_pcie_host_init(struct device *dev,
 
 	err = cdns_pcie_host_init_root_port(rc);
 	if (err)
-		goto err_out;
+		return err;
 
-	err = cdns_pcie_host_init_address_translation(rc);
-	if (err)
-		goto err_out;
-
-	return 0;
-
- err_out:
-	pci_free_resource_list(resources);
-	return err;
+	return cdns_pcie_host_init_address_translation(rc);
 }
 
 int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
@@ -204,7 +197,6 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *np = dev->of_node;
 	struct pci_host_bridge *bridge;
-	struct list_head resources;
 	struct cdns_pcie *pcie;
 	struct resource *res;
 	int ret;
@@ -248,11 +240,10 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	pcie->mem_res = res;
 
-	ret = cdns_pcie_host_init(dev, &resources, rc);
+	ret = cdns_pcie_host_init(dev, rc);
 	if (ret)
 		goto err_init;
 
-	list_splice_init(&resources, &bridge->windows);
 	bridge->dev.parent = dev;
 	bridge->busnr = pcie->bus;
 	bridge->ops = &cdns_pcie_host_ops;
@@ -261,12 +252,9 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	ret = pci_host_probe(bridge);
 	if (ret < 0)
-		goto err_host_probe;
+		goto err_init;
 
 	return 0;
-
- err_host_probe:
-	pci_free_resource_list(&resources);
 
  err_init:
 	pm_runtime_put_sync(dev);
