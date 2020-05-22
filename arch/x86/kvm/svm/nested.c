@@ -234,6 +234,34 @@ static void load_nested_vmcb_control(struct vcpu_svm *svm,
 	svm->nested.ctl.iopm_base_pa  &= ~0x0fffULL;
 }
 
+/*
+ * Synchronize fields that are written by the processor, so that
+ * they can be copied back into the nested_vmcb.
+ */
+void sync_nested_vmcb_control(struct vcpu_svm *svm)
+{
+	u32 mask;
+	svm->nested.ctl.event_inj      = svm->vmcb->control.event_inj;
+	svm->nested.ctl.event_inj_err  = svm->vmcb->control.event_inj_err;
+
+	/* Only a few fields of int_ctl are written by the processor.  */
+	mask = V_IRQ_MASK | V_TPR_MASK;
+	if (!(svm->nested.ctl.int_ctl & V_INTR_MASKING_MASK) &&
+	    is_intercept(svm, SVM_EXIT_VINTR)) {
+		/*
+		 * In order to request an interrupt window, L0 is usurping
+		 * svm->vmcb->control.int_ctl and possibly setting V_IRQ
+		 * even if it was clear in L1's VMCB.  Restoring it would be
+		 * wrong.  However, in this case V_IRQ will remain true until
+		 * interrupt_window_interception calls svm_clear_vintr and
+		 * restores int_ctl.  We can just leave it aside.
+		 */
+		mask &= ~V_IRQ_MASK;
+	}
+	svm->nested.ctl.int_ctl        &= ~mask;
+	svm->nested.ctl.int_ctl        |= svm->vmcb->control.int_ctl & mask;
+}
+
 static void nested_prepare_vmcb_save(struct vcpu_svm *svm, struct vmcb *nested_vmcb)
 {
 	/* Load the nested guest state */
@@ -471,6 +499,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	/* Exit Guest-Mode */
 	leave_guest_mode(&svm->vcpu);
 	svm->nested.vmcb = 0;
+	WARN_ON_ONCE(svm->nested.nested_run_pending);
 
 	/* in case we halted in L2 */
 	svm->vcpu.arch.mp_state = KVM_MP_STATE_RUNNABLE;
@@ -497,8 +526,6 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.dr6    = svm->vcpu.arch.dr6;
 	nested_vmcb->save.cpl    = vmcb->save.cpl;
 
-	nested_vmcb->control.int_ctl           = vmcb->control.int_ctl;
-	nested_vmcb->control.int_vector        = vmcb->control.int_vector;
 	nested_vmcb->control.int_state         = vmcb->control.int_state;
 	nested_vmcb->control.exit_code         = vmcb->control.exit_code;
 	nested_vmcb->control.exit_code_hi      = vmcb->control.exit_code_hi;
@@ -510,33 +537,15 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	if (svm->nrips_enabled)
 		nested_vmcb->control.next_rip  = vmcb->control.next_rip;
 
-	/*
-	 * If we emulate a VMRUN/#VMEXIT in the same host #vmexit cycle we have
-	 * to make sure that we do not lose injected events. So check event_inj
-	 * here and copy it to exit_int_info if it is valid.
-	 * Exit_int_info and event_inj can't be both valid because the case
-	 * below only happens on a VMRUN instruction intercept which has
-	 * no valid exit_int_info set.
-	 */
-	if (vmcb->control.event_inj & SVM_EVTINJ_VALID) {
-		struct vmcb_control_area *nc = &nested_vmcb->control;
-
-		nc->exit_int_info     = vmcb->control.event_inj;
-		nc->exit_int_info_err = vmcb->control.event_inj_err;
-	}
-
-	nested_vmcb->control.tlb_ctl           = 0;
-	nested_vmcb->control.event_inj         = 0;
-	nested_vmcb->control.event_inj_err     = 0;
+	nested_vmcb->control.int_ctl           = svm->nested.ctl.int_ctl;
+	nested_vmcb->control.tlb_ctl           = svm->nested.ctl.tlb_ctl;
+	nested_vmcb->control.event_inj         = svm->nested.ctl.event_inj;
+	nested_vmcb->control.event_inj_err     = svm->nested.ctl.event_inj_err;
 
 	nested_vmcb->control.pause_filter_count =
 		svm->vmcb->control.pause_filter_count;
 	nested_vmcb->control.pause_filter_thresh =
 		svm->vmcb->control.pause_filter_thresh;
-
-	/* We always set V_INTR_MASKING and remember the old value in hflags */
-	if (!(svm->vcpu.arch.hflags & HF_VINTR_MASK))
-		nested_vmcb->control.int_ctl &= ~V_INTR_MASKING_MASK;
 
 	/* Restore the original control entries */
 	copy_vmcb_control_area(&vmcb->control, &hsave->control);
