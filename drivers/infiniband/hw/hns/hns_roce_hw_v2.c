@@ -2776,14 +2776,9 @@ static void *get_sw_cqe_v2(struct hns_roce_cq *hr_cq, int n)
 		!!(n & hr_cq->cq_depth)) ? cqe : NULL;
 }
 
-static struct hns_roce_v2_cqe *next_cqe_sw_v2(struct hns_roce_cq *hr_cq)
+static inline void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 ci)
 {
-	return get_sw_cqe_v2(hr_cq, hr_cq->cons_index);
-}
-
-static void hns_roce_v2_cq_set_ci(struct hns_roce_cq *hr_cq, u32 cons_index)
-{
-	*hr_cq->set_ci_db = cons_index & V2_CQ_DB_PARAMETER_CONS_IDX_M;
+	*hr_cq->set_ci_db = ci & V2_CQ_DB_PARAMETER_CONS_IDX_M;
 }
 
 static void __hns_roce_v2_cq_clean(struct hns_roce_cq *hr_cq, u32 qpn,
@@ -3106,7 +3101,7 @@ static int hns_roce_v2_poll_one(struct hns_roce_cq *hr_cq,
 	int ret;
 
 	/* Find cqe according to consumer index */
-	cqe = next_cqe_sw_v2(hr_cq);
+	cqe = get_sw_cqe_v2(hr_cq, hr_cq->cons_index);
 	if (!cqe)
 		return -EAGAIN;
 
