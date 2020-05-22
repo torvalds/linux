@@ -1114,15 +1114,14 @@ static int a6xx_gmu_memory_alloc(struct a6xx_gmu *gmu, struct a6xx_gmu_bo *bo,
 static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 {
 	struct iommu_domain *domain;
+	struct msm_mmu *mmu;
 
 	domain = iommu_domain_alloc(&platform_bus_type);
 	if (!domain)
 		return -ENODEV;
 
-	domain->geometry.aperture_start = 0x00000000;
-	domain->geometry.aperture_end = 0x7fffffff;
-
-	gmu->aspace = msm_gem_address_space_create(gmu->dev, domain, "gmu");
+	mmu = msm_iommu_new(gmu->dev, domain);
+	gmu->aspace = msm_gem_address_space_create(mmu, "gmu", 0x0, 0x7fffffff);
 	if (IS_ERR(gmu->aspace)) {
 		iommu_domain_free(domain);
 		return PTR_ERR(gmu->aspace);
