@@ -179,37 +179,6 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
 	umem->zc = false;
 }
 
-static void xdp_umem_unmap_pages(struct xdp_umem *umem)
-{
-	unsigned int i;
-
-	for (i = 0; i < umem->npgs; i++)
-		if (PageHighMem(umem->pgs[i]))
-			vunmap(umem->pages[i].addr);
-}
-
-static int xdp_umem_map_pages(struct xdp_umem *umem)
-{
-	unsigned int i;
-	void *addr;
-
-	for (i = 0; i < umem->npgs; i++) {
-		if (PageHighMem(umem->pgs[i]))
-			addr = vmap(&umem->pgs[i], 1, VM_MAP, PAGE_KERNEL);
-		else
-			addr = page_address(umem->pgs[i]);
-
-		if (!addr) {
-			xdp_umem_unmap_pages(umem);
-			return -ENOMEM;
-		}
-
-		umem->pages[i].addr = addr;
-	}
-
-	return 0;
-}
-
 static void xdp_umem_unpin_pages(struct xdp_umem *umem)
 {
 	unpin_user_pages_dirty_lock(umem->pgs, umem->npgs, true);
@@ -244,13 +213,8 @@ static void xdp_umem_release(struct xdp_umem *umem)
 		umem->cq = NULL;
 	}
 
-	xsk_reuseq_destroy(umem);
-
-	xdp_umem_unmap_pages(umem);
+	xp_destroy(umem->pool);
 	xdp_umem_unpin_pages(umem);
-
-	kvfree(umem->pages);
-	umem->pages = NULL;
 
 	xdp_umem_unaccount_pages(umem);
 	kfree(umem);
@@ -385,11 +349,9 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (headroom >= chunk_size - XDP_PACKET_HEADROOM)
 		return -EINVAL;
 
-	umem->chunk_mask = unaligned_chunks ? XSK_UNALIGNED_BUF_ADDR_MASK
-					    : ~((u64)chunk_size - 1);
 	umem->size = size;
 	umem->headroom = headroom;
-	umem->chunk_size_nohr = chunk_size - headroom;
+	umem->chunk_size = chunk_size;
 	umem->npgs = size / PAGE_SIZE;
 	umem->pgs = NULL;
 	umem->user = NULL;
@@ -407,18 +369,13 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if (err)
 		goto out_account;
 
-	umem->pages = kvcalloc(umem->npgs, sizeof(*umem->pages),
-			       GFP_KERNEL_ACCOUNT);
-	if (!umem->pages) {
+	umem->pool = xp_create(umem->pgs, umem->npgs, chunks, chunk_size,
+			       headroom, size, unaligned_chunks);
+	if (!umem->pool) {
 		err = -ENOMEM;
 		goto out_pin;
 	}
-
-	err = xdp_umem_map_pages(umem);
-	if (!err)
-		return 0;
-
-	kvfree(umem->pages);
+	return 0;
 
 out_pin:
 	xdp_umem_unpin_pages(umem);

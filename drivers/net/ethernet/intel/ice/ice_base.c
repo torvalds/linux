@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019, Intel Corporation. */
 
+#include <net/xdp_sock_drv.h>
 #include "ice_base.h"
 #include "ice_dcb_lib.h"
 
@@ -308,24 +309,23 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 		if (ring->xsk_umem) {
 			xdp_rxq_info_unreg_mem_model(&ring->xdp_rxq);
 
-			ring->rx_buf_len = ring->xsk_umem->chunk_size_nohr -
-					   XDP_PACKET_HEADROOM;
+			ring->rx_buf_len =
+				xsk_umem_get_rx_frame_size(ring->xsk_umem);
 			/* For AF_XDP ZC, we disallow packets to span on
 			 * multiple buffers, thus letting us skip that
 			 * handling in the fast-path.
 			 */
 			chain_len = 1;
-			ring->zca.free = ice_zca_free;
 			err = xdp_rxq_info_reg_mem_model(&ring->xdp_rxq,
-							 MEM_TYPE_ZERO_COPY,
-							 &ring->zca);
+							 MEM_TYPE_XSK_BUFF_POOL,
+							 NULL);
 			if (err)
 				return err;
+			xsk_buff_set_rxq_info(ring->xsk_umem, &ring->xdp_rxq);
 
-			dev_info(ice_pf_to_dev(vsi->back), "Registered XDP mem model MEM_TYPE_ZERO_COPY on Rx ring %d\n",
+			dev_info(ice_pf_to_dev(vsi->back), "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
 		} else {
-			ring->zca.free = NULL;
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
 				/* coverity[check_return] */
 				xdp_rxq_info_reg(&ring->xdp_rxq,
@@ -426,7 +426,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	writel(0, ring->tail);
 
 	err = ring->xsk_umem ?
-	      ice_alloc_rx_bufs_slow_zc(ring, ICE_DESC_UNUSED(ring)) :
+	      ice_alloc_rx_bufs_zc(ring, ICE_DESC_UNUSED(ring)) :
 	      ice_alloc_rx_bufs(ring, ICE_DESC_UNUSED(ring));
 	if (err)
 		dev_info(ice_pf_to_dev(vsi->back), "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
