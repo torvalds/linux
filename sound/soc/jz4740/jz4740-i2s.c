@@ -504,7 +504,6 @@ static const struct snd_soc_component_driver jz4740_i2s_component = {
 	.resume		= jz4740_i2s_resume,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id jz4740_of_matches[] = {
 	{ .compatible = "ingenic,jz4740-i2s", .data = &jz4740_i2s_soc_info },
 	{ .compatible = "ingenic,jz4760-i2s", .data = &jz4760_i2s_soc_info },
@@ -513,7 +512,6 @@ static const struct of_device_id jz4740_of_matches[] = {
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, jz4740_of_matches);
-#endif
 
 static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 {
@@ -558,7 +556,7 @@ static struct platform_driver jz4740_i2s_driver = {
 	.probe = jz4740_i2s_dev_probe,
 	.driver = {
 		.name = "jz4740-i2s",
-		.of_match_table = of_match_ptr(jz4740_of_matches)
+		.of_match_table = jz4740_of_matches,
 	},
 };
 
