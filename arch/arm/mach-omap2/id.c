@@ -775,15 +775,13 @@ static const char * __init omap_get_family(void)
 		return kasprintf(GFP_KERNEL, "Unknown");
 }
 
-static ssize_t omap_get_type(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t
+type_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", omap_types[omap_type()]);
 }
 
-static struct device_attribute omap_soc_attr =
-	__ATTR(type,  S_IRUGO, omap_get_type,  NULL);
+static DEVICE_ATTR_RO(type);
 
 void __init omap_soc_device_init(void)
 {
@@ -806,6 +804,6 @@ void __init omap_soc_device_init(void)
 	}
 
 	parent = soc_device_to_device(soc_dev);
-	device_create_file(parent, &omap_soc_attr);
+	device_create_file(parent, &dev_attr_type);
 }
 #endif /* CONFIG_SOC_BUS */
