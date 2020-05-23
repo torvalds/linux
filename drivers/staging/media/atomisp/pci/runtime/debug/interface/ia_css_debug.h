@@ -44,8 +44,9 @@
 #define IA_CSS_DEBUG_PARAM   8
 /*! Level for tracing info messages */
 #define IA_CSS_DEBUG_INFO    9
+
 /* Global variable which controls the verbosity levels of the debug tracing */
-extern unsigned int ia_css_debug_trace_level;
+extern int dbg_level;
 
 /*! @brief Enum defining the different isp parameters to dump.
  *  Values can be combined to dump a combination of sets.
@@ -130,7 +131,7 @@ enum ia_css_debug_enable_param_dump {
 static inline void
 ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
 {
-	if (ia_css_debug_trace_level >= level)
+	if (dbg_level >= level)
 		sh_css_vprint(fmt, args);
 }
 

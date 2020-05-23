@@ -83,7 +83,7 @@ MODULE_PARM_DESC(defer_fw_load,
 /* cross componnet debug message flag */
 int dbg_level;
 module_param(dbg_level, int, 0644);
-MODULE_PARM_DESC(dbg_level, "debug message on/off (default:off)");
+MODULE_PARM_DESC(dbg_level, "debug message level (default:0)");
 
 /* log function switch */
 int dbg_func = 2;

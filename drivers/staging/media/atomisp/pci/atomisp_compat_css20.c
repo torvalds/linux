@@ -85,7 +85,7 @@ void atomisp_css_debug_set_dtrace_level(const unsigned int trace_level)
 
 unsigned int atomisp_css_debug_get_dtrace_level(void)
 {
-	return ia_css_debug_trace_level;
+	return dbg_level;
 }
 
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
