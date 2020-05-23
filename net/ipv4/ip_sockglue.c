@@ -1347,8 +1347,8 @@ int compat_ip_setsockopt(struct sock *sk, int level, int optname,
 	{
 		const int size0 = offsetof(struct compat_group_filter, gf_slist);
 		struct compat_group_filter *gf32;
+		unsigned int n;
 		void *p;
-		int n;
 
 		if (optlen < size0)
 			return -EINVAL;
