@@ -104,7 +104,7 @@ void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch_scnmemcpy(out, d.v->d_name,
 		      bch2_dirent_name_bytes(d));
-	pr_buf(out, " -> %llu", d.v->d_inum);
+	pr_buf(out, " -> %llu type %u", d.v->d_inum, d.v->d_type);
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
