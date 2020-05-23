@@ -146,15 +146,16 @@ static const char * __init ux500_get_revision(void)
 	return kasprintf(GFP_KERNEL, "%s", "Unknown");
 }
 
-static ssize_t ux500_get_process(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t
+process_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	if (dbx500_id.process == 0x00)
 		return sprintf(buf, "Standard\n");
 
 	return sprintf(buf, "%02xnm\n", dbx500_id.process);
 }
+
+static DEVICE_ATTR_RO(process);
 
 static const char *db8500_read_soc_id(struct device_node *backupram)
 {
@@ -186,9 +187,6 @@ static void __init soc_info_populate(struct soc_device_attribute *soc_dev_attr,
 	soc_dev_attr->revision = ux500_get_revision();
 }
 
-static const struct device_attribute ux500_soc_attr =
-	__ATTR(process,  S_IRUGO, ux500_get_process,  NULL);
-
 static int __init ux500_soc_device_init(void)
 {
 	struct device *parent;
@@ -218,7 +216,7 @@ static int __init ux500_soc_device_init(void)
 	}
 
 	parent = soc_device_to_device(soc_dev);
-	device_create_file(parent, &ux500_soc_attr);
+	device_create_file(parent, &dev_attr_process);
 
 	return 0;
 }
