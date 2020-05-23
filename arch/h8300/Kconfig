@@ -26,6 +26,7 @@ config H8300
 	select HAVE_ARCH_HASH
 	select CPU_NO_EFFICIENT_FFS
 	select UACCESS_MEMCPY
+	select HAVE_COPY_THREAD_TLS
 
 config CPU_BIG_ENDIAN
 	def_bool y
