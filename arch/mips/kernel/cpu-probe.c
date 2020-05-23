@@ -2017,8 +2017,10 @@ static inline void decode_cpucfg(struct cpuinfo_mips *c)
 	if (cfg2 & LOONGSON_CFG2_LEXT2)
 		c->ases |= MIPS_ASE_LOONGSON_EXT2;
 
-	if (cfg2 & LOONGSON_CFG2_LSPW)
+	if (cfg2 & LOONGSON_CFG2_LSPW) {
 		c->options |= MIPS_CPU_LDPTE;
+		c->guest.options |= MIPS_CPU_LDPTE;
+	}
 
 	if (cfg3 & LOONGSON_CFG3_LCAMP)
 		c->ases |= MIPS_ASE_LOONGSON_CAM;
