@@ -165,7 +165,7 @@ static int genregs_set(struct task_struct *target,
 }
 
 #ifdef CONFIG_SH_FPU
-int fpregs_get(struct task_struct *target,
+static int fpregs_get(struct task_struct *target,
 	       const struct user_regset *regset,
 	       struct membuf to)
 {

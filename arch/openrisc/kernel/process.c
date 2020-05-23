@@ -214,13 +214,6 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	regs->sp = sp;
 }
 
-/* Fill in the fpu structure for a core dump.  */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t * fpu)
-{
-	/* TODO */
-	return 0;
-}
-
 extern struct thread_info *_switch(struct thread_info *old_ti,
 				   struct thread_info *new_ti);
 extern int lwa_flag;

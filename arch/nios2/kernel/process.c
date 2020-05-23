@@ -251,11 +251,3 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	regs->ea = pc;
 	regs->sp = sp;
 }
-
-#include <linux/elfcore.h>
-
-/* Fill in the FPU structure for a core dump. */
-int dump_fpu(struct pt_regs *regs, elf_fpregset_t *r)
-{
-	return 0; /* Nios2 has no FPU and thus no FPU registers */
-}
