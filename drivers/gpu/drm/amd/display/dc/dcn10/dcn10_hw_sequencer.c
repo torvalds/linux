@@ -1625,11 +1625,78 @@ void dcn10_pipe_control_lock(
 		hws->funcs.verify_allow_pstate_change_high(dc);
 }
 
+/**
+ * delay_cursor_until_vupdate() - Delay cursor update if too close to VUPDATE.
+ *
+ * Software keepout workaround to prevent cursor update locking from stalling
+ * out cursor updates indefinitely or from old values from being retained in
+ * the case where the viewport changes in the same frame as the cursor.
+ *
+ * The idea is to calculate the remaining time from VPOS to VUPDATE. If it's
+ * too close to VUPDATE, then stall out until VUPDATE finishes.
+ *
+ * TODO: Optimize cursor programming to be once per frame before VUPDATE
+ *       to avoid the need for this workaround.
+ */
+static void delay_cursor_until_vupdate(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct crtc_position position;
+	uint32_t vupdate_start, vupdate_end;
+	unsigned int lines_to_vupdate, us_to_vupdate, vpos;
+	unsigned int us_per_line, us_vupdate;
+
+	if (!dc->hwss.calc_vupdate_position || !dc->hwss.get_position)
+		return;
+
+	if (!pipe_ctx->stream_res.stream_enc || !pipe_ctx->stream_res.tg)
+		return;
+
+	dc->hwss.calc_vupdate_position(dc, pipe_ctx, &vupdate_start,
+				       &vupdate_end);
+
+	dc->hwss.get_position(&pipe_ctx, 1, &position);
+	vpos = position.vertical_count;
+
+	/* Avoid wraparound calculation issues */
+	vupdate_start += stream->timing.v_total;
+	vupdate_end += stream->timing.v_total;
+	vpos += stream->timing.v_total;
+
+	if (vpos <= vupdate_start) {
+		/* VPOS is in VACTIVE or back porch. */
+		lines_to_vupdate = vupdate_start - vpos;
+	} else if (vpos > vupdate_end) {
+		/* VPOS is in the front porch. */
+		return;
+	} else {
+		/* VPOS is in VUPDATE. */
+		lines_to_vupdate = 0;
+	}
+
+	/* Calculate time until VUPDATE in microseconds. */
+	us_per_line =
+		stream->timing.h_total * 10000u / stream->timing.pix_clk_100hz;
+	us_to_vupdate = lines_to_vupdate * us_per_line;
+
+	/* 70 us is a conservative estimate of cursor update time*/
+	if (us_to_vupdate > 70)
+		return;
+
+	/* Stall out until the cursor update completes. */
+	us_vupdate = (vupdate_end - vupdate_start + 1) * us_per_line;
+	udelay(us_to_vupdate + us_vupdate);
+}
+
 void dcn10_cursor_lock(struct dc *dc, struct pipe_ctx *pipe, bool lock)
 {
 	/* cursor lock is per MPCC tree, so only need to lock one pipe per stream */
 	if (!pipe || pipe->top_pipe)
 		return;
+
+	/* Prevent cursor lock from stalling out cursor updates. */
+	if (lock)
+		delay_cursor_until_vupdate(dc, pipe);
 
 	dc->res_pool->mpc->funcs->cursor_lock(dc->res_pool->mpc,
 			pipe->stream_res.opp->inst, lock);
@@ -3236,7 +3303,7 @@ int dcn10_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx)
 	return vertical_line_start;
 }
 
-static void dcn10_calc_vupdate_position(
+void dcn10_calc_vupdate_position(
 		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		uint32_t *start_line,
