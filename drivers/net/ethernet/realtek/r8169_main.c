@@ -1085,7 +1085,7 @@ static u32 r8168dp_ocp_read(struct rtl8169_private *tp, u16 reg)
 		RTL_R32(tp, OCPDR) : ~0;
 }
 
-static u32 r8168ep_ocp_read(struct rtl8169_private *tp, u8 mask, u16 reg)
+static u32 r8168ep_ocp_read(struct rtl8169_private *tp, u16 reg)
 {
 	return _rtl_eri_read(tp, reg, ERIAR_OOB);
 }
@@ -1132,7 +1132,7 @@ DECLARE_RTL_COND(rtl_dp_ocp_read_cond)
 
 DECLARE_RTL_COND(rtl_ep_ocp_read_cond)
 {
-	return r8168ep_ocp_read(tp, 0x0f, 0x124) & 0x00000001;
+	return r8168ep_ocp_read(tp, 0x124) & 0x00000001;
 }
 
 DECLARE_RTL_COND(rtl_ocp_tx_cond)
@@ -1157,8 +1157,7 @@ static void rtl8168dp_driver_start(struct rtl8169_private *tp)
 static void rtl8168ep_driver_start(struct rtl8169_private *tp)
 {
 	r8168ep_ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_START);
-	r8168ep_ocp_write(tp, 0x01, 0x30,
-			  r8168ep_ocp_read(tp, 0x01, 0x30) | 0x01);
+	r8168ep_ocp_write(tp, 0x01, 0x30, r8168ep_ocp_read(tp, 0x30) | 0x01);
 	rtl_loop_wait_high(tp, &rtl_ep_ocp_read_cond, 10000, 10);
 }
 
@@ -1189,8 +1188,7 @@ static void rtl8168ep_driver_stop(struct rtl8169_private *tp)
 {
 	rtl8168ep_stop_cmac(tp);
 	r8168ep_ocp_write(tp, 0x01, 0x180, OOB_CMD_DRIVER_STOP);
-	r8168ep_ocp_write(tp, 0x01, 0x30,
-			  r8168ep_ocp_read(tp, 0x01, 0x30) | 0x01);
+	r8168ep_ocp_write(tp, 0x01, 0x30, r8168ep_ocp_read(tp, 0x30) | 0x01);
 	rtl_loop_wait_low(tp, &rtl_ep_ocp_read_cond, 10000, 10);
 }
 
@@ -1220,7 +1218,7 @@ static bool r8168dp_check_dash(struct rtl8169_private *tp)
 
 static bool r8168ep_check_dash(struct rtl8169_private *tp)
 {
-	return !!(r8168ep_ocp_read(tp, 0x0f, 0x128) & 0x00000001);
+	return r8168ep_ocp_read(tp, 0x128) & 0x00000001;
 }
 
 static bool r8168_check_dash(struct rtl8169_private *tp)
