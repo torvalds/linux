@@ -290,6 +290,15 @@ const struct snd_motu_spec snd_motu_spec_828mk3 = {
 	.rx_fixed_pcm_chunks = {14, 14, 10},
 };
 
+const struct snd_motu_spec snd_motu_spec_ultralite_mk3 = {
+	.name = "UltraLiteMk3",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_RX_MIDI_3RD_Q |
+		 SND_MOTU_SPEC_TX_MIDI_3RD_Q,
+	.tx_fixed_pcm_chunks = {18, 14, 10},
+	.rx_fixed_pcm_chunks = {14, 14, 14},
+};
+
 const struct snd_motu_spec snd_motu_spec_audio_express = {
 	.name = "AudioExpress",
 	.protocol_version = SND_MOTU_PROTOCOL_V3,
