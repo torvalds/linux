@@ -67,6 +67,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	VCPU_STAT("vz_ghfc", vz_ghfc_exits),
 	VCPU_STAT("vz_gpa", vz_gpa_exits),
 	VCPU_STAT("vz_resvd", vz_resvd_exits),
+	VCPU_STAT("vz_cpucfg", vz_cpucfg_exits),
 #endif
 	VCPU_STAT("halt_successful_poll", halt_successful_poll),
 	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
