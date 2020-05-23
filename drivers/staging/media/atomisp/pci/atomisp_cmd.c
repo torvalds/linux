@@ -1503,11 +1503,8 @@ void atomisp_wdt_work(struct work_struct *work)
 	}
 
 	if (css_recover) {
-		unsigned int old_dbglevel = dbg_level;
-
 		atomisp_css_debug_dump_sp_sw_debug_info();
 		atomisp_css_debug_dump_debug_info(__func__);
-		dbg_level = old_dbglevel;
 		for (i = 0; i < isp->num_of_streams; i++) {
 			struct atomisp_sub_device *asd = &isp->asd[i];
 
