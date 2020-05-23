@@ -567,6 +567,24 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
+int do_statx(int dfd, const char __user *filename, unsigned flags,
+	     unsigned int mask, struct statx __user *buffer)
+{
+	struct kstat stat;
+	int error;
+
+	if (mask & STATX__RESERVED)
+		return -EINVAL;
+	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
+		return -EINVAL;
+
+	error = vfs_statx(dfd, filename, flags, &stat, mask);
+	if (error)
+		return error;
+
+	return cp_statx(&stat, buffer);
+}
+
 /**
  * sys_statx - System call to get enhanced stats
  * @dfd: Base directory to pathwalk from *or* fd to stat.
@@ -583,19 +601,7 @@ SYSCALL_DEFINE5(statx,
 		unsigned int, mask,
 		struct statx __user *, buffer)
 {
-	struct kstat stat;
-	int error;
-
-	if (mask & STATX__RESERVED)
-		return -EINVAL;
-	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
-		return -EINVAL;
-
-	error = vfs_statx(dfd, filename, flags, &stat, mask);
-	if (error)
-		return error;
-
-	return cp_statx(&stat, buffer);
+	return do_statx(dfd, filename, flags, mask, buffer);
 }
 
 #ifdef CONFIG_COMPAT
