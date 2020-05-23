@@ -39,45 +39,37 @@ static const char *realview_arch_str(u32 id)
 	}
 }
 
-static ssize_t realview_get_manf(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+manufacturer_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%02x\n", realview_coreid >> 24);
 }
 
-static struct device_attribute realview_manf_attr =
-	__ATTR(manufacturer,  S_IRUGO, realview_get_manf,  NULL);
+static DEVICE_ATTR_RO(manufacturer);
 
-static ssize_t realview_get_board(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+board_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "HBI-%03x\n", ((realview_coreid >> 16) & 0xfff));
 }
 
-static struct device_attribute realview_board_attr =
-	__ATTR(board,  S_IRUGO, realview_get_board,  NULL);
+static DEVICE_ATTR_RO(board);
 
-static ssize_t realview_get_arch(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+fpga_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", realview_arch_str(realview_coreid));
 }
 
-static struct device_attribute realview_arch_attr =
-	__ATTR(fpga,  S_IRUGO, realview_get_arch,  NULL);
+static DEVICE_ATTR_RO(fpga);
 
-static ssize_t realview_get_build(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t
+build_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%02x\n", (realview_coreid & 0xFF));
 }
 
-static struct device_attribute realview_build_attr =
-	__ATTR(build,  S_IRUGO, realview_get_build,  NULL);
+static DEVICE_ATTR_RO(build);
 
 static int realview_soc_probe(struct platform_device *pdev)
 {
@@ -112,10 +104,10 @@ static int realview_soc_probe(struct platform_device *pdev)
 	if (ret)
 		return -ENODEV;
 
-	device_create_file(soc_device_to_device(soc_dev), &realview_manf_attr);
-	device_create_file(soc_device_to_device(soc_dev), &realview_board_attr);
-	device_create_file(soc_device_to_device(soc_dev), &realview_arch_attr);
-	device_create_file(soc_device_to_device(soc_dev), &realview_build_attr);
+	device_create_file(soc_device_to_device(soc_dev), &dev_attr_manufacturer);
+	device_create_file(soc_device_to_device(soc_dev), &dev_attr_board);
+	device_create_file(soc_device_to_device(soc_dev), &dev_attr_fpga);
+	device_create_file(soc_device_to_device(soc_dev), &dev_attr_build);
 
 	dev_info(&pdev->dev, "RealView Syscon Core ID: 0x%08x, HBI-%03x\n",
 		 realview_coreid,
