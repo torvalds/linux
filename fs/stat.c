@@ -152,7 +152,8 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 }
 EXPORT_SYMBOL(vfs_statx_fd);
 
-inline unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags, int flags)
+static inline unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags,
+						 int flags)
 {
 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
@@ -533,7 +534,7 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-noinline_for_stack int
+static noinline_for_stack int
 cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
 	struct statx tmp;
