@@ -140,7 +140,8 @@ asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
+efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
+				   efi_system_table_t *sys_table_arg)
 {
 	efi_loaded_image_t *image;
 	efi_status_t status;

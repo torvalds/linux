@@ -40,6 +40,9 @@ extern bool efi_novamap;
 
 extern const efi_system_table_t *efi_system_table;
 
+efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
+				   efi_system_table_t *sys_table_arg);
+
 #ifndef ARCH_HAS_EFISTUB_WRAPPERS
 
 #define efi_is_native()		(true)
