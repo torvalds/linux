@@ -146,6 +146,10 @@ static int hdq_write_byte(struct hdq_data *hdq_data, u8 val, u8 *status)
 		goto rtn;
 	}
 
+	if (hdq_data->hdq_irqstatus)
+		dev_err(hdq_data->dev, "TX irqstatus not cleared (%02x)\n",
+			hdq_data->hdq_irqstatus);
+
 	*status = 0;
 
 	hdq_reg_out(hdq_data, OMAP_HDQ_TX_DATA, val);
@@ -242,6 +246,10 @@ static int omap_hdq_break(struct hdq_data *hdq_data)
 		ret = -EINTR;
 		goto rtn;
 	}
+
+	if (hdq_data->hdq_irqstatus)
+		dev_err(hdq_data->dev, "break irqstatus not cleared (%02x)\n",
+			hdq_data->hdq_irqstatus);
 
 	/* set the INIT and GO bit */
 	hdq_reg_merge(hdq_data, OMAP_HDQ_CTRL_STATUS,
