@@ -937,12 +937,12 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2]);
 
 	return 0;
 }

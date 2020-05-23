@@ -68,10 +68,10 @@ close_obj:
 static int do_help(int argc, char **argv)
 {
 	fprintf(stderr,
-		"Usage: %s %s pin OBJ PATH\n"
-		"       %s %s help\n"
-		"\n",
-		bin_name, argv[-2], bin_name, argv[-2]);
+		"Usage: %1$s %2$s pin OBJ PATH\n"
+		"       %1$s %2$s help\n"
+		"",
+		bin_name, "iter");
 
 	return 0;
 }

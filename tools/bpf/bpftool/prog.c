@@ -1984,24 +1984,24 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list } [PROG]\n"
-		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
-		"       %s %s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
-		"       %s %s pin   PROG FILE\n"
-		"       %s %s { load | loadall } OBJ  PATH \\\n"
+		"Usage: %1$s %2$s { show | list } [PROG]\n"
+		"       %1$s %2$s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
+		"       %1$s %2$s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
+		"       %1$s %2$s pin   PROG FILE\n"
+		"       %1$s %2$s { load | loadall } OBJ  PATH \\\n"
 		"                         [type TYPE] [dev NAME] \\\n"
 		"                         [map { idx IDX | name NAME } MAP]\\\n"
 		"                         [pinmaps MAP_DIR]\n"
-		"       %s %s attach PROG ATTACH_TYPE [MAP]\n"
-		"       %s %s detach PROG ATTACH_TYPE [MAP]\n"
-		"       %s %s run PROG \\\n"
+		"       %1$s %2$s attach PROG ATTACH_TYPE [MAP]\n"
+		"       %1$s %2$s detach PROG ATTACH_TYPE [MAP]\n"
+		"       %1$s %2$s run PROG \\\n"
 		"                         data_in FILE \\\n"
 		"                         [data_out FILE [data_size_out L]] \\\n"
 		"                         [ctx_in FILE [ctx_out FILE [ctx_size_out M]]] \\\n"
 		"                         [repeat N]\n"
-		"       %s %s profile PROG [duration DURATION] METRICs\n"
-		"       %s %s tracelog\n"
-		"       %s %s help\n"
+		"       %1$s %2$s profile PROG [duration DURATION] METRICs\n"
+		"       %1$s %2$s tracelog\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
@@ -2022,10 +2022,7 @@ static int do_help(int argc, char **argv)
 		"       METRIC := { cycles | instructions | l1d_loads | llc_misses }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2]);
 
 	return 0;
 }

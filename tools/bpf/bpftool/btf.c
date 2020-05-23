@@ -951,9 +951,9 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s btf { show | list } [id BTF_ID]\n"
-		"       %s btf dump BTF_SRC [format FORMAT]\n"
-		"       %s btf help\n"
+		"Usage: %1$s %2$s { show | list } [id BTF_ID]\n"
+		"       %1$s %2$s dump BTF_SRC [format FORMAT]\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       BTF_SRC := { id BTF_ID | prog PROG | map MAP [{key | value | kv | all}] | file FILE }\n"
 		"       FORMAT  := { raw | c }\n"
@@ -961,7 +961,7 @@ static int do_help(int argc, char **argv)
 		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
-		bin_name, bin_name, bin_name);
+		bin_name, "btf");
 
 	return 0;
 }
