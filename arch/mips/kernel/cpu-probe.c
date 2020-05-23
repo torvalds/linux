@@ -633,14 +633,14 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		config = read_c0_config6();
 
 		if (flags & FTLB_EN)
-			config |= MIPS_CONF6_FTLBEN;
+			config |= MIPS_CONF6_MTI_FTLBEN;
 		else
-			config &= ~MIPS_CONF6_FTLBEN;
+			config &= ~MIPS_CONF6_MTI_FTLBEN;
 
 		if (flags & FTLB_SET_PROB) {
-			config &= ~(3 << MIPS_CONF6_FTLBP_SHIFT);
+			config &= ~(3 << MIPS_CONF6_MTI_FTLBP_SHIFT);
 			config |= calculate_ftlb_probability(c)
-				  << MIPS_CONF6_FTLBP_SHIFT;
+				  << MIPS_CONF6_MTI_FTLBP_SHIFT;
 		}
 
 		write_c0_config6(config);
@@ -660,10 +660,10 @@ static int set_ftlb_enable(struct cpuinfo_mips *c, enum ftlb_flags flags)
 		config = read_c0_config6();
 		if (flags & FTLB_EN)
 			/* Enable FTLB */
-			write_c0_config6(config & ~MIPS_CONF6_FTLBDIS);
+			write_c0_config6(config & ~MIPS_CONF6_LOONGSON_FTLBDIS);
 		else
 			/* Disable FTLB */
-			write_c0_config6(config | MIPS_CONF6_FTLBDIS);
+			write_c0_config6(config | MIPS_CONF6_LOONGSON_FTLBDIS);
 		break;
 	default:
 		return 1;
