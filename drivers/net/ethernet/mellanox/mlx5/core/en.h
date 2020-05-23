@@ -365,10 +365,7 @@ struct mlx5e_dma_info {
 	dma_addr_t addr;
 	union {
 		struct page *page;
-		struct {
-			u64 handle;
-			void *data;
-		} xsk;
+		struct xdp_buff *xsk;
 	};
 };
 
@@ -581,7 +578,6 @@ struct mlx5e_rq {
 		} mpwqe;
 	};
 	struct {
-		u16            umem_headroom;
 		u16            headroom;
 		u32            frame0_sz;
 		u8             map_dir;   /* dma map direction */
@@ -614,7 +610,6 @@ struct mlx5e_rq {
 	struct page_pool      *page_pool;
 
 	/* AF_XDP zero-copy */
-	struct zero_copy_allocator zca;
 	struct xdp_umem       *umem;
 
 	struct work_struct     recover_work;

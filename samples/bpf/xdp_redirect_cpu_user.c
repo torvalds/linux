@@ -19,9 +19,6 @@ static const char *__doc__ =
 #include <time.h>
 #include <linux/limits.h>
 
-#define __must_check
-#include <linux/err.h>
-
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
@@ -622,7 +619,7 @@ static struct bpf_link * attach_tp(struct bpf_object *obj,
 	}
 
 	link = bpf_program__attach_tracepoint(prog, tp_category, tp_name);
-	if (IS_ERR(link))
+	if (libbpf_get_error(link))
 		exit(EXIT_FAIL_BPF);
 
 	return link;

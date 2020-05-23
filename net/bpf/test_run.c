@@ -160,16 +160,20 @@ static void *bpf_test_init(const union bpf_attr *kattr, u32 size,
 			   u32 headroom, u32 tailroom)
 {
 	void __user *data_in = u64_to_user_ptr(kattr->test.data_in);
+	u32 user_size = kattr->test.data_size_in;
 	void *data;
 
 	if (size < ETH_HLEN || size > PAGE_SIZE - headroom - tailroom)
 		return ERR_PTR(-EINVAL);
 
+	if (user_size > size)
+		return ERR_PTR(-EMSGSIZE);
+
 	data = kzalloc(size + headroom + tailroom, GFP_USER);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	if (copy_from_user(data + headroom, data_in, size)) {
+	if (copy_from_user(data + headroom, data_in, user_size)) {
 		kfree(data);
 		return ERR_PTR(-EFAULT);
 	}
@@ -486,8 +490,6 @@ int bpf_prog_test_run_xdp(struct bpf_prog *prog, const union bpf_attr *kattr,
 
 	/* XDP have extra tailroom as (most) drivers use full page */
 	max_data_sz = 4096 - headroom - tailroom;
-	if (size > max_data_sz)
-		return -EINVAL;
 
 	data = bpf_test_init(kattr, max_data_sz, headroom, tailroom);
 	if (IS_ERR(data))

@@ -29,8 +29,8 @@ CGROUP COMMANDS
 |	*PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
 |	*ATTACH_TYPE* := { **ingress** | **egress** | **sock_create** | **sock_ops** | **device** |
 |		**bind4** | **bind6** | **post_bind4** | **post_bind6** | **connect4** | **connect6** |
-|		**sendmsg4** | **sendmsg6** | **recvmsg4** | **recvmsg6** | **sysctl** |
-|		**getsockopt** | **setsockopt** }
+|               **getpeername4** | **getpeername6** | **getsockname4** | **getsockname6** | **sendmsg4** |
+|               **sendmsg6** | **recvmsg4** | **recvmsg6** | **sysctl** | **getsockopt** | **setsockopt** }
 |	*ATTACH_FLAGS* := { **multi** | **override** }
 
 DESCRIPTION
@@ -101,7 +101,11 @@ DESCRIPTION
                   an unconnected udp6 socket (since 5.2);
 		  **sysctl** sysctl access (since 5.2);
 		  **getsockopt** call to getsockopt (since 5.3);
-		  **setsockopt** call to setsockopt (since 5.3).
+		  **setsockopt** call to setsockopt (since 5.3);
+		  **getpeername4** call to getpeername(2) for an inet4 socket (since 5.8);
+		  **getpeername6** call to getpeername(2) for an inet6 socket (since 5.8);
+		  **getsockname4** call to getsockname(2) for an inet4 socket (since 5.8);
+		  **getsockname6** call to getsockname(2) for an inet6 socket (since 5.8).
 
 	**bpftool cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 		  Detach *PROG* from the cgroup *CGROUP* and attach type
