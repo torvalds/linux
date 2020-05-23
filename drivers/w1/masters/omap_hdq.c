@@ -464,7 +464,7 @@ static u8 omap_w1_read_byte(void *_hdq)
 
 	ret = hdq_read_byte(hdq_data, &val);
 	if (ret)
-		ret = -1;
+		val = -1;
 
 	pm_runtime_mark_last_busy(hdq_data->dev);
 	pm_runtime_put_autosuspend(hdq_data->dev);
