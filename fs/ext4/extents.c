@@ -4938,8 +4938,9 @@ int ext4_get_es_cache(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		fieinfo->fi_flags &= ~FIEMAP_FLAG_CACHE;
 	}
 
-	if (fiemap_check_flags(fieinfo, FIEMAP_FLAG_SYNC))
-		return -EBADR;
+	error = fiemap_prep(inode, fieinfo, start, &len, FIEMAP_FLAG_SYNC);
+	if (error)
+		return error;
 
 	error = ext4_fiemap_check_ranges(inode, start, &len);
 	if (error)
