@@ -265,6 +265,7 @@ enum {
 	Opt_key,
 	Opt_ip,
 	Opt_crush_location,
+	Opt_read_from_replica,
 	/* string args above */
 	Opt_share,
 	Opt_crc,
@@ -272,6 +273,19 @@ enum {
 	Opt_cephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_abort_on_full,
+};
+
+enum {
+	Opt_read_from_replica_no,
+	Opt_read_from_replica_balance,
+	Opt_read_from_replica_localize,
+};
+
+static const struct constant_table ceph_param_read_from_replica[] = {
+	{"no",		Opt_read_from_replica_no},
+	{"balance",	Opt_read_from_replica_balance},
+	{"localize",	Opt_read_from_replica_localize},
+	{}
 };
 
 static const struct fs_parameter_spec ceph_parameters[] = {
@@ -290,6 +304,8 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
 	__fsparam	(fs_param_is_s32, "osdtimeout", Opt_osdtimeout,
 			 fs_param_deprecated, NULL),
+	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
+			 ceph_param_read_from_replica),
 	fsparam_string	("secret",			Opt_secret),
 	fsparam_flag_no ("share",			Opt_share),
 	fsparam_flag_no ("tcp_nodelay",			Opt_tcp_nodelay),
@@ -472,6 +488,24 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 			return err;
 		}
 		break;
+	case Opt_read_from_replica:
+		switch (result.uint_32) {
+		case Opt_read_from_replica_no:
+			opt->osd_req_flags &= ~(CEPH_OSD_FLAG_BALANCE_READS |
+						CEPH_OSD_FLAG_LOCALIZE_READS);
+			break;
+		case Opt_read_from_replica_balance:
+			opt->osd_req_flags |= CEPH_OSD_FLAG_BALANCE_READS;
+			opt->osd_req_flags &= ~CEPH_OSD_FLAG_LOCALIZE_READS;
+			break;
+		case Opt_read_from_replica_localize:
+			opt->osd_req_flags |= CEPH_OSD_FLAG_LOCALIZE_READS;
+			opt->osd_req_flags &= ~CEPH_OSD_FLAG_BALANCE_READS;
+			break;
+		default:
+			BUG();
+		}
+		break;
 
 	case Opt_osdtimeout:
 		warn_plog(&log, "Ignoring osdtimeout");
@@ -579,6 +613,11 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 			seq_putc(m, '|');
 		}
 		seq_putc(m, ',');
+	}
+	if (opt->osd_req_flags & CEPH_OSD_FLAG_BALANCE_READS) {
+		seq_puts(m, "read_from_replica=balance,");
+	} else if (opt->osd_req_flags & CEPH_OSD_FLAG_LOCALIZE_READS) {
+		seq_puts(m, "read_from_replica=localize,");
 	}
 
 	if (opt->flags & CEPH_OPT_FSID)

@@ -53,6 +53,8 @@ struct ceph_options {
 	unsigned long osd_keepalive_timeout;	/* jiffies */
 	unsigned long osd_request_timeout;	/* jiffies */
 
+	u32 osd_req_flags;  /* CEPH_OSD_FLAG_*, applied to each OSD request */
+
 	/*
 	 * any type that can't be simply compared or doesn't need
 	 * to be compared should go beyond this point,
