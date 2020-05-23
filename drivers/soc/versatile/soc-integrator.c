@@ -88,6 +88,16 @@ build_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static DEVICE_ATTR_RO(build);
 
+static struct attribute *integrator_attrs[] = {
+	&dev_attr_manufacturer.attr,
+	&dev_attr_arch.attr,
+	&dev_attr_fpga.attr,
+	&dev_attr_build.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(integrator);
+
 static int __init integrator_soc_init(void)
 {
 	static struct regmap *syscon_regmap;
@@ -119,17 +129,13 @@ static int __init integrator_soc_init(void)
 	soc_dev_attr->soc_id = "Integrator";
 	soc_dev_attr->machine = "Integrator";
 	soc_dev_attr->family = "Versatile";
+	soc_dev_attr->custom_attr_group = integrator_groups[0];
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
 		return -ENODEV;
 	}
 	dev = soc_device_to_device(soc_dev);
-
-	device_create_file(dev, &dev_attr_manufacturer);
-	device_create_file(dev, &dev_attr_arch);
-	device_create_file(dev, &dev_attr_fpga);
-	device_create_file(dev, &dev_attr_build);
 
 	dev_info(dev, "Detected ARM core module:\n");
 	dev_info(dev, "    Manufacturer: %02x\n", (val >> 24));
