@@ -864,8 +864,9 @@ ice_find_seg_in_pkg(struct ice_hw *hw, u32 seg_type,
 	u32 i;
 
 	ice_debug(hw, ICE_DBG_PKG, "Package format version: %d.%d.%d.%d\n",
-		  pkg_hdr->format_ver.major, pkg_hdr->format_ver.minor,
-		  pkg_hdr->format_ver.update, pkg_hdr->format_ver.draft);
+		  pkg_hdr->pkg_format_ver.major, pkg_hdr->pkg_format_ver.minor,
+		  pkg_hdr->pkg_format_ver.update,
+		  pkg_hdr->pkg_format_ver.draft);
 
 	/* Search all package segments for the requested segment type */
 	for (i = 0; i < le32_to_cpu(pkg_hdr->seg_count); i++) {
@@ -1035,13 +1036,15 @@ ice_download_pkg(struct ice_hw *hw, struct ice_seg *ice_seg)
 {
 	struct ice_buf_table *ice_buf_tbl;
 
-	ice_debug(hw, ICE_DBG_PKG, "Segment version: %d.%d.%d.%d\n",
-		  ice_seg->hdr.seg_ver.major, ice_seg->hdr.seg_ver.minor,
-		  ice_seg->hdr.seg_ver.update, ice_seg->hdr.seg_ver.draft);
+	ice_debug(hw, ICE_DBG_PKG, "Segment format version: %d.%d.%d.%d\n",
+		  ice_seg->hdr.seg_format_ver.major,
+		  ice_seg->hdr.seg_format_ver.minor,
+		  ice_seg->hdr.seg_format_ver.update,
+		  ice_seg->hdr.seg_format_ver.draft);
 
 	ice_debug(hw, ICE_DBG_PKG, "Seg: type 0x%X, size %d, name %s\n",
 		  le32_to_cpu(ice_seg->hdr.seg_type),
-		  le32_to_cpu(ice_seg->hdr.seg_size), ice_seg->hdr.seg_name);
+		  le32_to_cpu(ice_seg->hdr.seg_size), ice_seg->hdr.seg_id);
 
 	ice_buf_tbl = ice_find_buf_table(ice_seg);
 
@@ -1086,14 +1089,16 @@ ice_init_pkg_info(struct ice_hw *hw, struct ice_pkg_hdr *pkg_hdr)
 
 	seg_hdr = ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg_hdr);
 	if (seg_hdr) {
-		hw->ice_pkg_ver = seg_hdr->seg_ver;
-		memcpy(hw->ice_pkg_name, seg_hdr->seg_name,
+		hw->ice_pkg_ver = seg_hdr->seg_format_ver;
+		memcpy(hw->ice_pkg_name, seg_hdr->seg_id,
 		       sizeof(hw->ice_pkg_name));
 
-		ice_debug(hw, ICE_DBG_PKG, "Ice Pkg: %d.%d.%d.%d, %s\n",
-			  seg_hdr->seg_ver.major, seg_hdr->seg_ver.minor,
-			  seg_hdr->seg_ver.update, seg_hdr->seg_ver.draft,
-			  seg_hdr->seg_name);
+		ice_debug(hw, ICE_DBG_PKG, "Ice Seg: %d.%d.%d.%d, %s\n",
+			  seg_hdr->seg_format_ver.major,
+			  seg_hdr->seg_format_ver.minor,
+			  seg_hdr->seg_format_ver.update,
+			  seg_hdr->seg_format_ver.draft,
+			  seg_hdr->seg_id);
 	} else {
 		ice_debug(hw, ICE_DBG_INIT,
 			  "Did not find ice segment in driver package\n");
@@ -1134,9 +1139,11 @@ static enum ice_status ice_get_pkg_info(struct ice_hw *hw)
 		if (pkg_info->pkg_info[i].is_active) {
 			flags[place++] = 'A';
 			hw->active_pkg_ver = pkg_info->pkg_info[i].ver;
+			hw->active_track_id =
+				le32_to_cpu(pkg_info->pkg_info[i].track_id);
 			memcpy(hw->active_pkg_name,
 			       pkg_info->pkg_info[i].name,
-			       sizeof(hw->active_pkg_name));
+			       sizeof(pkg_info->pkg_info[i].name));
 			hw->active_pkg_in_nvm = pkg_info->pkg_info[i].is_in_nvm;
 		}
 		if (pkg_info->pkg_info[i].is_active_at_boot)
@@ -1176,10 +1183,10 @@ static enum ice_status ice_verify_pkg(struct ice_pkg_hdr *pkg, u32 len)
 	if (len < sizeof(*pkg))
 		return ICE_ERR_BUF_TOO_SHORT;
 
-	if (pkg->format_ver.major != ICE_PKG_FMT_VER_MAJ ||
-	    pkg->format_ver.minor != ICE_PKG_FMT_VER_MNR ||
-	    pkg->format_ver.update != ICE_PKG_FMT_VER_UPD ||
-	    pkg->format_ver.draft != ICE_PKG_FMT_VER_DFT)
+	if (pkg->pkg_format_ver.major != ICE_PKG_FMT_VER_MAJ ||
+	    pkg->pkg_format_ver.minor != ICE_PKG_FMT_VER_MNR ||
+	    pkg->pkg_format_ver.update != ICE_PKG_FMT_VER_UPD ||
+	    pkg->pkg_format_ver.draft != ICE_PKG_FMT_VER_DFT)
 		return ICE_ERR_CFG;
 
 	/* pkg must have at least one segment */
@@ -1261,6 +1268,68 @@ static enum ice_status ice_chk_pkg_version(struct ice_pkg_ver *pkg_ver)
 }
 
 /**
+ * ice_chk_pkg_compat
+ * @hw: pointer to the hardware structure
+ * @ospkg: pointer to the package hdr
+ * @seg: pointer to the package segment hdr
+ *
+ * This function checks the package version compatibility with driver and NVM
+ */
+static enum ice_status
+ice_chk_pkg_compat(struct ice_hw *hw, struct ice_pkg_hdr *ospkg,
+		   struct ice_seg **seg)
+{
+	struct ice_aqc_get_pkg_info_resp *pkg;
+	enum ice_status status;
+	u16 size;
+	u32 i;
+
+	/* Check package version compatibility */
+	status = ice_chk_pkg_version(&hw->pkg_ver);
+	if (status) {
+		ice_debug(hw, ICE_DBG_INIT, "Package version check failed.\n");
+		return status;
+	}
+
+	/* find ICE segment in given package */
+	*seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE,
+						     ospkg);
+	if (!*seg) {
+		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
+		return ICE_ERR_CFG;
+	}
+
+	/* Check if FW is compatible with the OS package */
+	size = struct_size(pkg, pkg_info, ICE_PKG_CNT - 1);
+	pkg = kzalloc(size, GFP_KERNEL);
+	if (!pkg)
+		return ICE_ERR_NO_MEMORY;
+
+	status = ice_aq_get_pkg_info_list(hw, pkg, size, NULL);
+	if (status)
+		goto fw_ddp_compat_free_alloc;
+
+	for (i = 0; i < le32_to_cpu(pkg->count); i++) {
+		/* loop till we find the NVM package */
+		if (!pkg->pkg_info[i].is_in_nvm)
+			continue;
+		if ((*seg)->hdr.seg_format_ver.major !=
+			pkg->pkg_info[i].ver.major ||
+		    (*seg)->hdr.seg_format_ver.minor >
+			pkg->pkg_info[i].ver.minor) {
+			status = ICE_ERR_FW_DDP_MISMATCH;
+			ice_debug(hw, ICE_DBG_INIT,
+				  "OS package is not compatible with NVM.\n");
+		}
+		/* done processing NVM package so break */
+		break;
+	}
+fw_ddp_compat_free_alloc:
+	kfree(pkg);
+	return status;
+}
+
+/**
  * ice_init_pkg - initialize/download package
  * @hw: pointer to the hardware structure
  * @buf: pointer to the package buffer
@@ -1310,16 +1379,9 @@ enum ice_status ice_init_pkg(struct ice_hw *hw, u8 *buf, u32 len)
 	/* before downloading the package, check package version for
 	 * compatibility with driver
 	 */
-	status = ice_chk_pkg_version(&hw->pkg_ver);
+	status = ice_chk_pkg_compat(hw, pkg, &seg);
 	if (status)
 		return status;
-
-	/* find segment in given package */
-	seg = (struct ice_seg *)ice_find_seg_in_pkg(hw, SEGMENT_TYPE_ICE, pkg);
-	if (!seg) {
-		ice_debug(hw, ICE_DBG_INIT, "no ice segment in package.\n");
-		return ICE_ERR_CFG;
-	}
 
 	/* initialize package hints and then download package */
 	ice_init_pkg_hints(hw, seg);
@@ -1630,6 +1692,34 @@ ice_find_free_tunnel_entry(struct ice_hw *hw, enum ice_tunnel_type type,
 		}
 
 	return false;
+}
+
+/**
+ * ice_get_open_tunnel_port - retrieve an open tunnel port
+ * @hw: pointer to the HW structure
+ * @type: tunnel type (TNL_ALL will return any open port)
+ * @port: returns open port
+ */
+bool
+ice_get_open_tunnel_port(struct ice_hw *hw, enum ice_tunnel_type type,
+			 u16 *port)
+{
+	bool res = false;
+	u16 i;
+
+	mutex_lock(&hw->tnl_lock);
+
+	for (i = 0; i < hw->tnl.count && i < ICE_TUNNEL_MAX_ENTRIES; i++)
+		if (hw->tnl.tbl[i].valid && hw->tnl.tbl[i].in_use &&
+		    (type == TNL_ALL || hw->tnl.tbl[i].type == type)) {
+			*port = hw->tnl.tbl[i].port;
+			res = true;
+			break;
+		}
+
+	mutex_unlock(&hw->tnl_lock);
+
+	return res;
 }
 
 /**
@@ -2332,6 +2422,12 @@ ice_find_prof_id(struct ice_hw *hw, enum ice_block blk,
 	u16 off;
 	u8 i;
 
+	/* For FD, we don't want to re-use a existed profile with the same
+	 * field vector and mask. This will cause rule interference.
+	 */
+	if (blk == ICE_BLK_FD)
+		return ICE_ERR_DOES_NOT_EXIST;
+
 	for (i = 0; i < (u8)es->count; i++) {
 		off = i * es->fvw;
 
@@ -2353,6 +2449,9 @@ ice_find_prof_id(struct ice_hw *hw, enum ice_block blk,
 static bool ice_prof_id_rsrc_type(enum ice_block blk, u16 *rsrc_type)
 {
 	switch (blk) {
+	case ICE_BLK_FD:
+		*rsrc_type = ICE_AQC_RES_TYPE_FD_PROF_BLDR_PROFID;
+		break;
 	case ICE_BLK_RSS:
 		*rsrc_type = ICE_AQC_RES_TYPE_HASH_PROF_BLDR_PROFID;
 		break;
@@ -2370,6 +2469,9 @@ static bool ice_prof_id_rsrc_type(enum ice_block blk, u16 *rsrc_type)
 static bool ice_tcam_ent_rsrc_type(enum ice_block blk, u16 *rsrc_type)
 {
 	switch (blk) {
+	case ICE_BLK_FD:
+		*rsrc_type = ICE_AQC_RES_TYPE_FD_PROF_BLDR_TCAM;
+		break;
 	case ICE_BLK_RSS:
 		*rsrc_type = ICE_AQC_RES_TYPE_HASH_PROF_BLDR_TCAM;
 		break;
@@ -2813,6 +2915,12 @@ static void ice_free_flow_profs(struct ice_hw *hw, u8 blk_idx)
 
 	mutex_lock(&hw->fl_profs_locks[blk_idx]);
 	list_for_each_entry_safe(p, tmp, &hw->fl_profs[blk_idx], l_entry) {
+		struct ice_flow_entry *e, *t;
+
+		list_for_each_entry_safe(e, t, &p->entries, l_entry)
+			ice_flow_rem_entry(hw, (enum ice_block)blk_idx,
+					   ICE_FLOW_ENTRY_HNDL(e));
+
 		list_del(&p->l_entry);
 		devm_kfree(ice_hw_to_dev(hw), p);
 	}
@@ -3442,6 +3550,212 @@ error_tmp:
 }
 
 /**
+ * ice_update_fd_mask - set Flow Director Field Vector mask for a profile
+ * @hw: pointer to the HW struct
+ * @prof_id: profile ID
+ * @mask_sel: mask select
+ *
+ * This function enable any of the masks selected by the mask select parameter
+ * for the profile specified.
+ */
+static void ice_update_fd_mask(struct ice_hw *hw, u16 prof_id, u32 mask_sel)
+{
+	wr32(hw, GLQF_FDMASK_SEL(prof_id), mask_sel);
+
+	ice_debug(hw, ICE_DBG_INIT, "fd mask(%d): %x = %x\n", prof_id,
+		  GLQF_FDMASK_SEL(prof_id), mask_sel);
+}
+
+struct ice_fd_src_dst_pair {
+	u8 prot_id;
+	u8 count;
+	u16 off;
+};
+
+static const struct ice_fd_src_dst_pair ice_fd_pairs[] = {
+	/* These are defined in pairs */
+	{ ICE_PROT_IPV4_OF_OR_S, 2, 12 },
+	{ ICE_PROT_IPV4_OF_OR_S, 2, 16 },
+
+	{ ICE_PROT_IPV4_IL, 2, 12 },
+	{ ICE_PROT_IPV4_IL, 2, 16 },
+
+	{ ICE_PROT_IPV6_OF_OR_S, 8, 8 },
+	{ ICE_PROT_IPV6_OF_OR_S, 8, 24 },
+
+	{ ICE_PROT_IPV6_IL, 8, 8 },
+	{ ICE_PROT_IPV6_IL, 8, 24 },
+
+	{ ICE_PROT_TCP_IL, 1, 0 },
+	{ ICE_PROT_TCP_IL, 1, 2 },
+
+	{ ICE_PROT_UDP_OF, 1, 0 },
+	{ ICE_PROT_UDP_OF, 1, 2 },
+
+	{ ICE_PROT_UDP_IL_OR_S, 1, 0 },
+	{ ICE_PROT_UDP_IL_OR_S, 1, 2 },
+
+	{ ICE_PROT_SCTP_IL, 1, 0 },
+	{ ICE_PROT_SCTP_IL, 1, 2 }
+};
+
+#define ICE_FD_SRC_DST_PAIR_COUNT	ARRAY_SIZE(ice_fd_pairs)
+
+/**
+ * ice_update_fd_swap - set register appropriately for a FD FV extraction
+ * @hw: pointer to the HW struct
+ * @prof_id: profile ID
+ * @es: extraction sequence (length of array is determined by the block)
+ */
+static enum ice_status
+ice_update_fd_swap(struct ice_hw *hw, u16 prof_id, struct ice_fv_word *es)
+{
+	DECLARE_BITMAP(pair_list, ICE_FD_SRC_DST_PAIR_COUNT);
+	u8 pair_start[ICE_FD_SRC_DST_PAIR_COUNT] = { 0 };
+#define ICE_FD_FV_NOT_FOUND (-2)
+	s8 first_free = ICE_FD_FV_NOT_FOUND;
+	u8 used[ICE_MAX_FV_WORDS] = { 0 };
+	s8 orig_free, si;
+	u32 mask_sel = 0;
+	u8 i, j, k;
+
+	bitmap_zero(pair_list, ICE_FD_SRC_DST_PAIR_COUNT);
+
+	/* This code assumes that the Flow Director field vectors are assigned
+	 * from the end of the FV indexes working towards the zero index, that
+	 * only complete fields will be included and will be consecutive, and
+	 * that there are no gaps between valid indexes.
+	 */
+
+	/* Determine swap fields present */
+	for (i = 0; i < hw->blk[ICE_BLK_FD].es.fvw; i++) {
+		/* Find the first free entry, assuming right to left population.
+		 * This is where we can start adding additional pairs if needed.
+		 */
+		if (first_free == ICE_FD_FV_NOT_FOUND && es[i].prot_id !=
+		    ICE_PROT_INVALID)
+			first_free = i - 1;
+
+		for (j = 0; j < ICE_FD_SRC_DST_PAIR_COUNT; j++)
+			if (es[i].prot_id == ice_fd_pairs[j].prot_id &&
+			    es[i].off == ice_fd_pairs[j].off) {
+				set_bit(j, pair_list);
+				pair_start[j] = i;
+			}
+	}
+
+	orig_free = first_free;
+
+	/* determine missing swap fields that need to be added */
+	for (i = 0; i < ICE_FD_SRC_DST_PAIR_COUNT; i += 2) {
+		u8 bit1 = test_bit(i + 1, pair_list);
+		u8 bit0 = test_bit(i, pair_list);
+
+		if (bit0 ^ bit1) {
+			u8 index;
+
+			/* add the appropriate 'paired' entry */
+			if (!bit0)
+				index = i;
+			else
+				index = i + 1;
+
+			/* check for room */
+			if (first_free + 1 < (s8)ice_fd_pairs[index].count)
+				return ICE_ERR_MAX_LIMIT;
+
+			/* place in extraction sequence */
+			for (k = 0; k < ice_fd_pairs[index].count; k++) {
+				es[first_free - k].prot_id =
+					ice_fd_pairs[index].prot_id;
+				es[first_free - k].off =
+					ice_fd_pairs[index].off + (k * 2);
+
+				if (k > first_free)
+					return ICE_ERR_OUT_OF_RANGE;
+
+				/* keep track of non-relevant fields */
+				mask_sel |= BIT(first_free - k);
+			}
+
+			pair_start[index] = first_free;
+			first_free -= ice_fd_pairs[index].count;
+		}
+	}
+
+	/* fill in the swap array */
+	si = hw->blk[ICE_BLK_FD].es.fvw - 1;
+	while (si >= 0) {
+		u8 indexes_used = 1;
+
+		/* assume flat at this index */
+#define ICE_SWAP_VALID	0x80
+		used[si] = si | ICE_SWAP_VALID;
+
+		if (orig_free == ICE_FD_FV_NOT_FOUND || si <= orig_free) {
+			si -= indexes_used;
+			continue;
+		}
+
+		/* check for a swap location */
+		for (j = 0; j < ICE_FD_SRC_DST_PAIR_COUNT; j++)
+			if (es[si].prot_id == ice_fd_pairs[j].prot_id &&
+			    es[si].off == ice_fd_pairs[j].off) {
+				u8 idx;
+
+				/* determine the appropriate matching field */
+				idx = j + ((j % 2) ? -1 : 1);
+
+				indexes_used = ice_fd_pairs[idx].count;
+				for (k = 0; k < indexes_used; k++) {
+					used[si - k] = (pair_start[idx] - k) |
+						ICE_SWAP_VALID;
+				}
+
+				break;
+			}
+
+		si -= indexes_used;
+	}
+
+	/* for each set of 4 swap and 4 inset indexes, write the appropriate
+	 * register
+	 */
+	for (j = 0; j < hw->blk[ICE_BLK_FD].es.fvw / 4; j++) {
+		u32 raw_swap = 0;
+		u32 raw_in = 0;
+
+		for (k = 0; k < 4; k++) {
+			u8 idx;
+
+			idx = (j * 4) + k;
+			if (used[idx] && !(mask_sel & BIT(idx))) {
+				raw_swap |= used[idx] << (k * BITS_PER_BYTE);
+#define ICE_INSET_DFLT 0x9f
+				raw_in |= ICE_INSET_DFLT << (k * BITS_PER_BYTE);
+			}
+		}
+
+		/* write the appropriate swap register set */
+		wr32(hw, GLQF_FDSWAP(prof_id, j), raw_swap);
+
+		ice_debug(hw, ICE_DBG_INIT, "swap wr(%d, %d): %x = %08x\n",
+			  prof_id, j, GLQF_FDSWAP(prof_id, j), raw_swap);
+
+		/* write the appropriate inset register set */
+		wr32(hw, GLQF_FDINSET(prof_id, j), raw_in);
+
+		ice_debug(hw, ICE_DBG_INIT, "inset wr(%d, %d): %x = %08x\n",
+			  prof_id, j, GLQF_FDINSET(prof_id, j), raw_in);
+	}
+
+	/* initially clear the mask select for this profile */
+	ice_update_fd_mask(hw, prof_id, 0);
+
+	return 0;
+}
+
+/**
  * ice_add_prof - add profile
  * @hw: pointer to the HW struct
  * @blk: hardware block
@@ -3476,6 +3790,18 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 		status = ice_alloc_prof_id(hw, blk, &prof_id);
 		if (status)
 			goto err_ice_add_prof;
+		if (blk == ICE_BLK_FD) {
+			/* For Flow Director block, the extraction sequence may
+			 * need to be altered in the case where there are paired
+			 * fields that have no match. This is necessary because
+			 * for Flow Director, src and dest fields need to paired
+			 * for filter programming and these values are swapped
+			 * during Tx.
+			 */
+			status = ice_update_fd_swap(hw, prof_id, es);
+			if (status)
+				goto err_ice_add_prof;
+		}
 
 		/* and write new es */
 		ice_write_es(hw, blk, prof_id, es);

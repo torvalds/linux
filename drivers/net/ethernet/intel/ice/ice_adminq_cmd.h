@@ -107,6 +107,7 @@ struct ice_aqc_list_caps_elem {
 #define ICE_AQC_CAPS_RXQS				0x0041
 #define ICE_AQC_CAPS_TXQS				0x0042
 #define ICE_AQC_CAPS_MSIX				0x0043
+#define ICE_AQC_CAPS_FD					0x0045
 #define ICE_AQC_CAPS_MAX_MTU				0x0047
 
 	u8 major_ver;
@@ -232,6 +233,11 @@ struct ice_aqc_get_sw_cfg_resp {
  */
 #define ICE_AQC_RES_TYPE_VSI_LIST_REP			0x03
 #define ICE_AQC_RES_TYPE_VSI_LIST_PRUNE			0x04
+#define ICE_AQC_RES_TYPE_FDIR_COUNTER_BLOCK		0x21
+#define ICE_AQC_RES_TYPE_FDIR_GUARANTEED_ENTRIES	0x22
+#define ICE_AQC_RES_TYPE_FDIR_SHARED_ENTRIES		0x23
+#define ICE_AQC_RES_TYPE_FD_PROF_BLDR_PROFID		0x58
+#define ICE_AQC_RES_TYPE_FD_PROF_BLDR_TCAM		0x59
 #define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_PROFID		0x60
 #define ICE_AQC_RES_TYPE_HASH_PROF_BLDR_TCAM		0x61
 
@@ -239,6 +245,9 @@ struct ice_aqc_get_sw_cfg_resp {
 #define ICE_AQC_RES_TYPE_FLAG_IGNORE_INDEX		BIT(13)
 
 #define ICE_AQC_RES_TYPE_FLAG_DEDICATED			0x00
+
+#define ICE_AQC_RES_TYPE_S	0
+#define ICE_AQC_RES_TYPE_M	(0x07F << ICE_AQC_RES_TYPE_S)
 
 /* Allocate Resources command (indirect 0x0208)
  * Free Resources command (indirect 0x0209)
@@ -1059,6 +1068,25 @@ struct ice_aqc_set_phy_cfg_data {
 	u8 rsvd1;
 };
 
+/* Set MAC Config command data structure (direct 0x0603) */
+struct ice_aqc_set_mac_cfg {
+	__le16 max_frame_size;
+	u8 params;
+#define ICE_AQ_SET_MAC_PACE_S		3
+#define ICE_AQ_SET_MAC_PACE_M		(0xF << ICE_AQ_SET_MAC_PACE_S)
+#define ICE_AQ_SET_MAC_PACE_TYPE_M	BIT(7)
+#define ICE_AQ_SET_MAC_PACE_TYPE_RATE	0
+#define ICE_AQ_SET_MAC_PACE_TYPE_FIXED	ICE_AQ_SET_MAC_PACE_TYPE_M
+	u8 tx_tmr_priority;
+	__le16 tx_tmr_value;
+	__le16 fc_refresh_threshold;
+	u8 drop_opts;
+#define ICE_AQ_SET_MAC_AUTO_DROP_MASK		BIT(0)
+#define ICE_AQ_SET_MAC_AUTO_DROP_NONE		0
+#define ICE_AQ_SET_MAC_AUTO_DROP_BLOCKING_PKTS	BIT(0)
+	u8 reserved[7];
+};
+
 /* Restart AN command data structure (direct 0x0605)
  * Also used for response, with only the lport_num field present.
  */
@@ -1675,10 +1703,12 @@ struct ice_pkg_ver {
 };
 
 #define ICE_PKG_NAME_SIZE	32
+#define ICE_SEG_NAME_SIZE	28
 
 struct ice_aqc_get_pkg_info {
 	struct ice_pkg_ver ver;
-	char name[ICE_PKG_NAME_SIZE];
+	char name[ICE_SEG_NAME_SIZE];
+	__le32 track_id;
 	u8 is_in_nvm;
 	u8 is_active;
 	u8 is_active_at_boot;
@@ -1765,6 +1795,7 @@ struct ice_aq_desc {
 		struct ice_aqc_download_pkg download_pkg;
 		struct ice_aqc_set_mac_lb set_mac_lb;
 		struct ice_aqc_alloc_free_res_cmd sw_res_ctrl;
+		struct ice_aqc_set_mac_cfg set_mac_cfg;
 		struct ice_aqc_set_event_mask set_event_mask;
 		struct ice_aqc_get_link_status get_link_status;
 		struct ice_aqc_event_lan_overflow lan_overflow;
@@ -1861,6 +1892,7 @@ enum ice_adminq_opc {
 	/* PHY commands */
 	ice_aqc_opc_get_phy_caps			= 0x0600,
 	ice_aqc_opc_set_phy_cfg				= 0x0601,
+	ice_aqc_opc_set_mac_cfg				= 0x0603,
 	ice_aqc_opc_restart_an				= 0x0605,
 	ice_aqc_opc_get_link_status			= 0x0607,
 	ice_aqc_opc_set_event_mask			= 0x0613,

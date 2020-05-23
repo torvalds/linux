@@ -130,6 +130,8 @@ static const struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("illegal_bytes.nic", stats.illegal_bytes),
 	ICE_PF_STAT("mac_local_faults.nic", stats.mac_local_faults),
 	ICE_PF_STAT("mac_remote_faults.nic", stats.mac_remote_faults),
+	ICE_PF_STAT("fdir_sb_match.nic", stats.fd_sb_match),
+	ICE_PF_STAT("fdir_sb_status.nic", stats.fd_sb_status),
 };
 
 static const u32 ice_regs_dump_list[] = {
@@ -140,9 +142,6 @@ static const u32 ice_regs_dump_list[] = {
 	QINT_RQCTL(0),
 	PFINT_OICR_ENA,
 	QRX_ITR(0),
-	PF0INT_ITR_0(0),
-	PF0INT_ITR_1(0),
-	PF0INT_ITR_2(0),
 };
 
 struct ice_priv_flag {
@@ -206,7 +205,7 @@ ice_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	struct ice_pf *pf = np->vsi->back;
 	struct ice_hw *hw = &pf->hw;
 	u32 *regs_buf = (u32 *)p;
-	int i;
+	unsigned int i;
 
 	regs->version = 1;
 
@@ -309,7 +308,7 @@ out:
  */
 static bool ice_active_vfs(struct ice_pf *pf)
 {
-	int i;
+	unsigned int i;
 
 	ice_for_each_vf(pf, i) {
 		struct ice_vf *vf = &pf->vf[i];
@@ -379,7 +378,7 @@ static int ice_reg_pattern_test(struct ice_hw *hw, u32 reg, u32 mask)
 		0x00000000, 0xFFFFFFFF
 	};
 	u32 val, orig_val;
-	int i;
+	unsigned int i;
 
 	orig_val = rd32(hw, reg);
 	for (i = 0; i < ARRAY_SIZE(patterns); ++i) {
@@ -432,7 +431,7 @@ static u64 ice_reg_test(struct net_device *netdev)
 			GLINT_ITR(2, 1) - GLINT_ITR(2, 0)},
 		{GLINT_CTL, 0xffff0001, 1, 0}
 	};
-	int i;
+	unsigned int i;
 
 	netdev_dbg(netdev, "Register test\n");
 	for (i = 0; i < ARRAY_SIZE(ice_reg_list); ++i) {
@@ -2535,6 +2534,10 @@ static int ice_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 	struct ice_vsi *vsi = np->vsi;
 
 	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		return ice_add_fdir_ethtool(vsi, cmd);
+	case ETHTOOL_SRXCLSRLDEL:
+		return ice_del_fdir_ethtool(vsi, cmd);
 	case ETHTOOL_SRXFH:
 		return ice_set_rss_hash_opt(vsi, cmd);
 	default:
@@ -2558,11 +2561,26 @@ ice_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd,
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_vsi *vsi = np->vsi;
 	int ret = -EOPNOTSUPP;
+	struct ice_hw *hw;
+
+	hw = &vsi->back->hw;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
 		cmd->data = vsi->rss_size;
 		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		cmd->rule_cnt = hw->fdir_active_fltr;
+		/* report total rule count */
+		cmd->data = ice_get_fdir_cnt_all(hw);
+		ret = 0;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		ret = ice_get_ethtool_fdir_entry(hw, cmd);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		ret = ice_get_fdir_fltr_ids(hw, cmd, (u32 *)rule_locs);
 		break;
 	case ETHTOOL_GRXFH:
 		ice_get_rss_hash_opt(vsi, cmd);
@@ -3184,6 +3202,10 @@ ice_get_channels(struct net_device *dev, struct ethtool_channels *ch)
 	ch->combined_count = ice_get_combined_cnt(vsi);
 	ch->rx_count = vsi->num_rxq - ch->combined_count;
 	ch->tx_count = vsi->num_txq - ch->combined_count;
+
+	/* report other queues */
+	ch->other_count = test_bit(ICE_FLAG_FD_ENA, pf->flags) ? 1 : 0;
+	ch->max_other = ch->other_count;
 }
 
 /**
@@ -3229,7 +3251,7 @@ static int ice_vsi_set_dflt_rss_lut(struct ice_vsi *vsi, int req_rss_size)
 	if (status) {
 		dev_err(dev, "Cannot set RSS lut, err %s aq_err %s\n",
 			ice_stat_str(status),
-			ice_aq_str(hw->adminq.rq_last_status));
+			ice_aq_str(hw->adminq.sq_last_status));
 		err = -EIO;
 	}
 
@@ -3256,8 +3278,13 @@ static int ice_set_channels(struct net_device *dev, struct ethtool_channels *ch)
 		return -EOPNOTSUPP;
 	}
 	/* do not support changing other_count */
-	if (ch->other_count)
+	if (ch->other_count != (test_bit(ICE_FLAG_FD_ENA, pf->flags) ? 1U : 0U))
 		return -EINVAL;
+
+	if (test_bit(ICE_FLAG_FD_ENA, pf->flags) && pf->hw.fdir_active_fltr) {
+		netdev_err(dev, "Cannot set channels when Flow Director filters are active\n");
+		return -EOPNOTSUPP;
+	}
 
 	curr_combined = ice_get_combined_cnt(vsi);
 
@@ -3732,10 +3759,10 @@ ice_get_module_eeprom(struct net_device *netdev,
 	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	bool is_sfp = false;
+	unsigned int i;
 	u16 offset = 0;
 	u8 value = 0;
 	u8 page = 0;
-	int i;
 
 	status = ice_aq_sff_eeprom(hw, 0, addr, offset, page, 0,
 				   &value, 1, 0, NULL);
