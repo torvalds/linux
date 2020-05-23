@@ -10,3 +10,4 @@ obj-$(CONFIG_NUMA)	+= numa.o
 obj-$(CONFIG_RS780_HPET) += hpet.o
 obj-$(CONFIG_PCI) += pci.o
 obj-$(CONFIG_SUSPEND) += pm.o
+obj-$(CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION) += cpucfg-emul.o

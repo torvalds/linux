@@ -105,6 +105,15 @@ struct cpuinfo_mips {
 	unsigned int		gtoffset_mask;
 	unsigned int		guestid_mask;
 	unsigned int		guestid_cache;
+
+#ifdef CONFIG_CPU_LOONGSON3_CPUCFG_EMULATION
+	/* CPUCFG data for this CPU, synthesized at probe time.
+	 *
+	 * CPUCFG select 0 is PRId, 4 and above are unimplemented for now.
+	 * So the only stored values are for CPUCFG selects 1-3 inclusive.
+	 */
+	u32 loongson3_cpucfg_data[3];
+#endif
 } __attribute__((aligned(SMP_CACHE_BYTES)));
 
 extern struct cpuinfo_mips cpu_data[];

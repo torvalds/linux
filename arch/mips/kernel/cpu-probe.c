@@ -28,6 +28,8 @@
 #include <asm/spram.h>
 #include <linux/uaccess.h>
 
+#include <asm/mach-loongson64/cpucfg-emul.h>
+
 /* Hardware capabilities */
 unsigned int elf_hwcap __read_mostly;
 EXPORT_SYMBOL_GPL(elf_hwcap);
@@ -2399,6 +2401,13 @@ void cpu_probe(void)
 		cpu_probe_vz(c);
 
 	cpu_probe_vmbits(c);
+
+	/* Synthesize CPUCFG data if running on Loongson processors;
+	 * no-op otherwise.
+	 *
+	 * This looks at previously probed features, so keep this at bottom.
+	 */
+	loongson3_cpucfg_synthesize_data(c);
 
 #ifdef CONFIG_64BIT
 	if (cpu == 0)

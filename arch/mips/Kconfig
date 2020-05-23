@@ -1441,6 +1441,18 @@ config CPU_LOONGSON3_WORKAROUNDS
 
 	  If unsure, please say Y.
 
+config CPU_LOONGSON3_CPUCFG_EMULATION
+	bool "Emulate the CPUCFG instruction on older Loongson cores"
+	default y
+	depends on CPU_LOONGSON64
+	help
+	  Loongson-3A R4 and newer have the CPUCFG instruction available for
+	  userland to query CPU capabilities, much like CPUID on x86. This
+	  option provides emulation of the instruction on older Loongson
+	  cores, back to Loongson-3A1000.
+
+	  If unsure, please say Y.
+
 config CPU_LOONGSON2E
 	bool "Loongson 2E"
 	depends on SYS_HAS_CPU_LOONGSON2E
