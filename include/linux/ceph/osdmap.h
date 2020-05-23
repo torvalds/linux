@@ -317,6 +317,9 @@ int ceph_parse_crush_location(char *crush_location, struct rb_root *locs);
 int ceph_compare_crush_locs(struct rb_root *locs1, struct rb_root *locs2);
 void ceph_clear_crush_locs(struct rb_root *locs);
 
+int ceph_get_crush_locality(struct ceph_osdmap *osdmap, int id,
+			    struct rb_root *locs);
+
 extern struct ceph_pg_pool_info *ceph_pg_pool_by_id(struct ceph_osdmap *map,
 						    u64 id);
 extern const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id);
