@@ -14,6 +14,7 @@
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
 #include <linux/uio.h>
+#include <linux/fiemap.h>
 #include "nilfs.h"
 #include "btnode.h"
 #include "segment.h"

@@ -25,6 +25,7 @@
 #include <linux/freezer.h>
 #include <linux/sched/signal.h>
 #include <linux/wait_bit.h>
+#include <linux/fiemap.h>
 
 #include <asm/div64.h>
 #include "cifsfs.h"

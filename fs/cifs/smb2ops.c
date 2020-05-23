@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/sort.h>
 #include <crypto/aead.h>
+#include <linux/fiemap.h>
 #include "cifsfs.h"
 #include "cifsglob.h"
 #include "smb2pdu.h"

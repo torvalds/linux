@@ -10,6 +10,7 @@
 #include <linux/xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/ratelimit.h>
+#include <linux/fiemap.h>
 #include "overlayfs.h"
 
 
