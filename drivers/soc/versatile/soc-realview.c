@@ -71,6 +71,16 @@ build_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 static DEVICE_ATTR_RO(build);
 
+static struct attribute *realview_attrs[] = {
+	&dev_attr_manufacturer.attr,
+	&dev_attr_board.attr,
+	&dev_attr_fpga.attr,
+	&dev_attr_build.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(realview);
+
 static int realview_soc_probe(struct platform_device *pdev)
 {
 	struct regmap *syscon_regmap;
@@ -94,6 +104,7 @@ static int realview_soc_probe(struct platform_device *pdev)
 
 	soc_dev_attr->machine = "RealView";
 	soc_dev_attr->family = "Versatile";
+	soc_dev_attr->custom_attr_group = realview_groups[0];
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
@@ -103,11 +114,6 @@ static int realview_soc_probe(struct platform_device *pdev)
 			  &realview_coreid);
 	if (ret)
 		return -ENODEV;
-
-	device_create_file(soc_device_to_device(soc_dev), &dev_attr_manufacturer);
-	device_create_file(soc_device_to_device(soc_dev), &dev_attr_board);
-	device_create_file(soc_device_to_device(soc_dev), &dev_attr_fpga);
-	device_create_file(soc_device_to_device(soc_dev), &dev_attr_build);
 
 	dev_info(&pdev->dev, "RealView Syscon Core ID: 0x%08x, HBI-%03x\n",
 		 realview_coreid,
