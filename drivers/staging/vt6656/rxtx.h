@@ -179,11 +179,6 @@ struct vnt_tx_short_buf_head {
 	__le16 time_stamp_off;
 } __packed;
 
-struct vnt_beacon_buffer {
-	struct vnt_tx_usb_header usb;
-	struct vnt_tx_short_buf_head short_head;
-} __packed;
-
 int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb);
 int vnt_beacon_make(struct vnt_private *priv, struct ieee80211_vif *vif);
 int vnt_beacon_enable(struct vnt_private *priv, struct ieee80211_vif *vif,

@@ -634,7 +634,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 {
-	struct vnt_beacon_buffer *beacon_buffer;
+	struct vnt_tx_usb_header *usb;
 	struct vnt_tx_short_buf_head *short_head;
 	struct ieee80211_tx_info *info;
 	struct vnt_usb_send_context *context;
@@ -701,13 +701,13 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	if (priv->seq_counter > 0x0fff)
 		priv->seq_counter = 0;
 
-	beacon_buffer = skb_push(skb, sizeof(struct vnt_tx_usb_header));
-	beacon_buffer->usb.tx_byte_count = cpu_to_le16(count);
-	beacon_buffer->usb.pkt_no = context->pkt_no;
-	beacon_buffer->usb.type = 0x01;
+	usb = skb_push(skb, sizeof(*usb));
+	usb->tx_byte_count = cpu_to_le16(count);
+	usb->pkt_no = context->pkt_no;
+	usb->type = 0x01;
 
 	context->type = CONTEXT_BEACON_PACKET;
-	context->tx_buffer = beacon_buffer;
+	context->tx_buffer = usb;
 	context->buf_len = skb->len;
 
 	spin_lock_irqsave(&priv->lock, flags);
