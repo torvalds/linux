@@ -166,6 +166,7 @@ int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
 {
 	u64 maxbytes = inode->i_sb->s_maxbytes;
 	u32 incompat_flags;
+	int ret = 0;
 
 	if (*len == 0)
 		return -EINVAL;
@@ -178,13 +179,17 @@ int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	if (*len > maxbytes || (maxbytes - *len) < start)
 		*len = maxbytes - start;
 
+	supported_flags |= FIEMAP_FLAG_SYNC;
 	supported_flags &= FIEMAP_FLAGS_COMPAT;
 	incompat_flags = fieinfo->fi_flags & ~supported_flags;
 	if (incompat_flags) {
 		fieinfo->fi_flags = incompat_flags;
 		return -EBADR;
 	}
-	return 0;
+
+	if (fieinfo->fi_flags & FIEMAP_FLAG_SYNC)
+		ret = filemap_write_and_wait(inode->i_mapping);
+	return ret;
 }
 EXPORT_SYMBOL(fiemap_prep);
 
@@ -212,9 +217,6 @@ static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 	    !access_ok(fieinfo.fi_extents_start,
 		       fieinfo.fi_extents_max * sizeof(struct fiemap_extent)))
 		return -EFAULT;
-
-	if (fieinfo.fi_flags & FIEMAP_FLAG_SYNC)
-		filemap_write_and_wait(inode->i_mapping);
 
 	error = inode->i_op->fiemap(inode, &fieinfo, fiemap.fm_start,
 			fiemap.fm_length);

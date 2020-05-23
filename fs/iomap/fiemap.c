@@ -75,15 +75,9 @@ int iomap_fiemap(struct inode *inode, struct fiemap_extent_info *fi,
 	ctx.fi = fi;
 	ctx.prev.type = IOMAP_HOLE;
 
-	ret = fiemap_prep(inode, fi, start, &len, FIEMAP_FLAG_SYNC);
+	ret = fiemap_prep(inode, fi, start, &len, 0);
 	if (ret)
 		return ret;
-
-	if (fi->fi_flags & FIEMAP_FLAG_SYNC) {
-		ret = filemap_write_and_wait(inode->i_mapping);
-		if (ret)
-			return ret;
-	}
 
 	while (len > 0) {
 		ret = iomap_apply(inode, start, len, IOMAP_REPORT, ops, &ctx,
