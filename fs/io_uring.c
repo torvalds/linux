@@ -482,7 +482,7 @@ struct io_statx {
 	int				dfd;
 	unsigned int			mask;
 	unsigned int			flags;
-	struct filename			*filename;
+	const char __user		*filename;
 	struct statx __user		*buffer;
 };
 
@@ -3376,43 +3376,23 @@ static int io_fadvise(struct io_kiocb *req, bool force_nonblock)
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	const char __user *fname;
-	unsigned lookup_flags;
-	int ret;
-
 	if (sqe->ioprio || sqe->buf_index)
 		return -EINVAL;
 	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
-	if (req->flags & REQ_F_NEED_CLEANUP)
-		return 0;
 
 	req->statx.dfd = READ_ONCE(sqe->fd);
 	req->statx.mask = READ_ONCE(sqe->len);
-	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
+	req->statx.filename = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	req->statx.buffer = u64_to_user_ptr(READ_ONCE(sqe->addr2));
 	req->statx.flags = READ_ONCE(sqe->statx_flags);
 
-	if (vfs_stat_set_lookup_flags(&lookup_flags, req->statx.flags))
-		return -EINVAL;
-
-	req->statx.filename = getname_flags(fname, lookup_flags, NULL);
-	if (IS_ERR(req->statx.filename)) {
-		ret = PTR_ERR(req->statx.filename);
-		req->statx.filename = NULL;
-		return ret;
-	}
-
-	req->flags |= REQ_F_NEED_CLEANUP;
 	return 0;
 }
 
 static int io_statx(struct io_kiocb *req, bool force_nonblock)
 {
 	struct io_statx *ctx = &req->statx;
-	unsigned lookup_flags;
-	struct path path;
-	struct kstat stat;
 	int ret;
 
 	if (force_nonblock) {
@@ -3422,29 +3402,9 @@ static int io_statx(struct io_kiocb *req, bool force_nonblock)
 		return -EAGAIN;
 	}
 
-	if (vfs_stat_set_lookup_flags(&lookup_flags, ctx->flags))
-		return -EINVAL;
+	ret = do_statx(ctx->dfd, ctx->filename, ctx->flags, ctx->mask,
+		       ctx->buffer);
 
-retry:
-	/* filename_lookup() drops it, keep a reference */
-	ctx->filename->refcnt++;
-
-	ret = filename_lookup(ctx->dfd, ctx->filename, lookup_flags, &path,
-				NULL);
-	if (ret)
-		goto err;
-
-	ret = vfs_getattr(&path, &stat, ctx->mask, ctx->flags);
-	path_put(&path);
-	if (retry_estale(ret, lookup_flags)) {
-		lookup_flags |= LOOKUP_REVAL;
-		goto retry;
-	}
-	if (!ret)
-		ret = cp_statx(&stat, ctx->buffer);
-err:
-	putname(ctx->filename);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail_links(req);
 	io_cqring_add_event(req, ret);
@@ -5196,8 +5156,6 @@ static void io_cleanup_req(struct io_kiocb *req)
 		break;
 	case IORING_OP_OPENAT:
 	case IORING_OP_OPENAT2:
-	case IORING_OP_STATX:
-		putname(req->open.filename);
 		break;
 	case IORING_OP_SPLICE:
 	case IORING_OP_TEE:
