@@ -458,6 +458,7 @@ static int vpif_probe(struct platform_device *pdev)
 	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res_irq) {
 		dev_warn(&pdev->dev, "Missing IRQ resource.\n");
+		pm_runtime_put(&pdev->dev);
 		return -EINVAL;
 	}
 
