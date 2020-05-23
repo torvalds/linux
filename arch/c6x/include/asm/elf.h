@@ -56,7 +56,6 @@ do {								\
 /* Nothing for now. Need to setup DP... */
 #define ELF_PLAT_INIT(_r)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
 
 #define ELF_CORE_COPY_REGS(_dest, _regs)		\
