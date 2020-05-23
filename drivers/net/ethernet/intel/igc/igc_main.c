@@ -2174,18 +2174,6 @@ static bool igc_clean_tx_irq(struct igc_q_vector *q_vector, int napi_budget)
 	return !!budget;
 }
 
-static void igc_restore_nfc_rules(struct igc_adapter *adapter)
-{
-	struct igc_nfc_rule *rule;
-
-	spin_lock(&adapter->nfc_rule_lock);
-
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
-		igc_enable_nfc_rule(adapter, rule);
-
-	spin_unlock(&adapter->nfc_rule_lock);
-}
-
 static int igc_find_mac_filter(struct igc_adapter *adapter,
 			       enum igc_mac_filter_type type, const u8 *addr)
 {
@@ -2242,15 +2230,12 @@ static int igc_get_avail_mac_filter_slot(struct igc_adapter *adapter)
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_add_mac_filter(struct igc_adapter *adapter,
-		       enum igc_mac_filter_type type, const u8 *addr,
-		       int queue)
+static int igc_add_mac_filter(struct igc_adapter *adapter,
+			      enum igc_mac_filter_type type, const u8 *addr,
+			      int queue)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
-
-	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
 
 	index = igc_find_mac_filter(adapter, type, addr);
 	if (index >= 0)
@@ -2274,21 +2259,16 @@ update_filter:
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @type: MAC address filter type (source or destination)
  * @addr: MAC address
- *
- * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_del_mac_filter(struct igc_adapter *adapter,
-		       enum igc_mac_filter_type type, const u8 *addr)
+static void igc_del_mac_filter(struct igc_adapter *adapter,
+			       enum igc_mac_filter_type type, const u8 *addr)
 {
 	struct net_device *dev = adapter->netdev;
 	int index;
 
-	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
-
 	index = igc_find_mac_filter(adapter, type, addr);
 	if (index < 0)
-		return -ENOENT;
+		return;
 
 	if (index == 0) {
 		/* If this is the default filter, we don't actually delete it.
@@ -2306,8 +2286,6 @@ int igc_del_mac_filter(struct igc_adapter *adapter,
 
 		igc_clear_mac_filter_hw(adapter, index);
 	}
-
-	return 0;
 }
 
 /**
@@ -2318,7 +2296,8 @@ int igc_del_mac_filter(struct igc_adapter *adapter,
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio, int queue)
+static int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio,
+				    int queue)
 {
 	struct net_device *dev = adapter->netdev;
 	struct igc_hw *hw = &adapter->hw;
@@ -2346,7 +2325,7 @@ int igc_add_vlan_prio_filter(struct igc_adapter *adapter, int prio, int queue)
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @prio: VLAN priority value
  */
-void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio)
+static void igc_del_vlan_prio_filter(struct igc_adapter *adapter, int prio)
 {
 	struct igc_hw *hw = &adapter->hw;
 	u32 vlanpqf;
@@ -2387,7 +2366,8 @@ static int igc_get_avail_etype_filter_slot(struct igc_adapter *adapter)
  *
  * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype, int queue)
+static int igc_add_etype_filter(struct igc_adapter *adapter, u16 etype,
+				int queue)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int index;
@@ -2436,23 +2416,179 @@ static int igc_find_etype_filter(struct igc_adapter *adapter, u16 etype)
  * igc_del_etype_filter() - Delete ethertype filter
  * @adapter: Pointer to adapter where the filter should be deleted from
  * @etype: Ethertype value
- *
- * Return: 0 in case of success, negative errno code otherwise.
  */
-int igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
+static void igc_del_etype_filter(struct igc_adapter *adapter, u16 etype)
 {
 	struct igc_hw *hw = &adapter->hw;
 	int index;
 
 	index = igc_find_etype_filter(adapter, etype);
 	if (index < 0)
-		return -ENOENT;
+		return;
 
 	wr32(IGC_ETQF(index), 0);
 
 	netdev_dbg(adapter->netdev, "Delete ethertype filter: etype %04x\n",
 		   etype);
+}
+
+static int igc_enable_nfc_rule(struct igc_adapter *adapter,
+			       const struct igc_nfc_rule *rule)
+{
+	int err;
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE) {
+		err = igc_add_etype_filter(adapter, rule->filter.etype,
+					   rule->action);
+		if (err)
+			return err;
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR) {
+		err = igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_SRC,
+					 rule->filter.src_addr, rule->action);
+		if (err)
+			return err;
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR) {
+		err = igc_add_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST,
+					 rule->filter.dst_addr, rule->action);
+		if (err)
+			return err;
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (rule->filter.vlan_tci & VLAN_PRIO_MASK) >>
+			   VLAN_PRIO_SHIFT;
+
+		err = igc_add_vlan_prio_filter(adapter, prio, rule->action);
+		if (err)
+			return err;
+	}
+
 	return 0;
+}
+
+static void igc_disable_nfc_rule(struct igc_adapter *adapter,
+				 const struct igc_nfc_rule *rule)
+{
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_ETHER_TYPE)
+		igc_del_etype_filter(adapter, rule->filter.etype);
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_VLAN_TCI) {
+		int prio = (rule->filter.vlan_tci & VLAN_PRIO_MASK) >>
+			   VLAN_PRIO_SHIFT;
+
+		igc_del_vlan_prio_filter(adapter, prio);
+	}
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_SRC_MAC_ADDR)
+		igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_SRC,
+				   rule->filter.src_addr);
+
+	if (rule->filter.match_flags & IGC_FILTER_FLAG_DST_MAC_ADDR)
+		igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST,
+				   rule->filter.dst_addr);
+}
+
+/**
+ * igc_get_nfc_rule() - Get NFC rule
+ * @adapter: Pointer to adapter
+ * @location: Rule location
+ *
+ * Context: Expects adapter->nfc_rule_lock to be held by caller.
+ *
+ * Return: Pointer to NFC rule at @location. If not found, NULL.
+ */
+struct igc_nfc_rule *igc_get_nfc_rule(struct igc_adapter *adapter,
+				      u32 location)
+{
+	struct igc_nfc_rule *rule;
+
+	list_for_each_entry(rule, &adapter->nfc_rule_list, list) {
+		if (rule->location == location)
+			return rule;
+		if (rule->location > location)
+			break;
+	}
+
+	return NULL;
+}
+
+/**
+ * igc_del_nfc_rule() - Delete NFC rule
+ * @adapter: Pointer to adapter
+ * @rule: Pointer to rule to be deleted
+ *
+ * Disable NFC rule in hardware and delete it from adapter.
+ *
+ * Context: Expects adapter->nfc_rule_lock to be held by caller.
+ */
+void igc_del_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule)
+{
+	igc_disable_nfc_rule(adapter, rule);
+
+	list_del(&rule->list);
+	adapter->nfc_rule_count--;
+
+	kfree(rule);
+}
+
+static void igc_flush_nfc_rules(struct igc_adapter *adapter)
+{
+	struct igc_nfc_rule *rule, *tmp;
+
+	mutex_lock(&adapter->nfc_rule_lock);
+
+	list_for_each_entry_safe(rule, tmp, &adapter->nfc_rule_list, list)
+		igc_del_nfc_rule(adapter, rule);
+
+	mutex_unlock(&adapter->nfc_rule_lock);
+}
+
+/**
+ * igc_add_nfc_rule() - Add NFC rule
+ * @adapter: Pointer to adapter
+ * @rule: Pointer to rule to be added
+ *
+ * Enable NFC rule in hardware and add it to adapter.
+ *
+ * Context: Expects adapter->nfc_rule_lock to be held by caller.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int igc_add_nfc_rule(struct igc_adapter *adapter, struct igc_nfc_rule *rule)
+{
+	struct igc_nfc_rule *pred, *cur;
+	int err;
+
+	err = igc_enable_nfc_rule(adapter, rule);
+	if (err)
+		return err;
+
+	pred = NULL;
+	list_for_each_entry(cur, &adapter->nfc_rule_list, list) {
+		if (cur->location >= rule->location)
+			break;
+		pred = cur;
+	}
+
+	list_add(&rule->list, pred ? &pred->list : &adapter->nfc_rule_list);
+	adapter->nfc_rule_count++;
+	return 0;
+}
+
+static void igc_restore_nfc_rules(struct igc_adapter *adapter)
+{
+	struct igc_nfc_rule *rule;
+
+	mutex_lock(&adapter->nfc_rule_lock);
+
+	list_for_each_entry_reverse(rule, &adapter->nfc_rule_list, list)
+		igc_enable_nfc_rule(adapter, rule);
+
+	mutex_unlock(&adapter->nfc_rule_lock);
 }
 
 static int igc_uc_sync(struct net_device *netdev, const unsigned char *addr)
@@ -2466,7 +2602,8 @@ static int igc_uc_unsync(struct net_device *netdev, const unsigned char *addr)
 {
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
-	return igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
+	igc_del_mac_filter(adapter, IGC_MAC_FILTER_TYPE_DST, addr);
+	return 0;
 }
 
 /**
@@ -3424,7 +3561,10 @@ static int igc_sw_init(struct igc_adapter *adapter)
 				VLAN_HLEN;
 	adapter->min_frame_size = ETH_ZLEN + ETH_FCS_LEN;
 
-	spin_lock_init(&adapter->nfc_rule_lock);
+	mutex_init(&adapter->nfc_rule_lock);
+	INIT_LIST_HEAD(&adapter->nfc_rule_list);
+	adapter->nfc_rule_count = 0;
+
 	spin_lock_init(&adapter->stats64_lock);
 	/* Assume MSI-X interrupts, will be checked during IRQ allocation */
 	adapter->flags |= IGC_FLAG_HAS_MSIX;
@@ -3651,18 +3791,6 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.mgpdc += rd32(IGC_MGTPDC);
 }
 
-static void igc_nfc_rule_exit(struct igc_adapter *adapter)
-{
-	struct igc_nfc_rule *rule;
-
-	spin_lock(&adapter->nfc_rule_lock);
-
-	hlist_for_each_entry(rule, &adapter->nfc_rule_list, nfc_node)
-		igc_disable_nfc_rule(adapter, rule);
-
-	spin_unlock(&adapter->nfc_rule_lock);
-}
-
 /**
  * igc_down - Close the interface
  * @adapter: board private structure
@@ -3680,8 +3808,6 @@ void igc_down(struct igc_adapter *adapter)
 	rctl = rd32(IGC_RCTL);
 	wr32(IGC_RCTL, rctl & ~IGC_RCTL_EN);
 	/* flush and sleep below */
-
-	igc_nfc_rule_exit(adapter);
 
 	/* set trans_start so we don't get spurious watchdogs during reset */
 	netif_trans_update(netdev);
@@ -3831,20 +3957,8 @@ static int igc_set_features(struct net_device *netdev,
 	if (!(changed & (NETIF_F_RXALL | NETIF_F_NTUPLE)))
 		return 0;
 
-	if (!(features & NETIF_F_NTUPLE)) {
-		struct hlist_node *node2;
-		struct igc_nfc_rule *rule;
-
-		spin_lock(&adapter->nfc_rule_lock);
-		hlist_for_each_entry_safe(rule, node2,
-					  &adapter->nfc_rule_list, nfc_node) {
-			igc_disable_nfc_rule(adapter, rule);
-			hlist_del(&rule->nfc_node);
-			kfree(rule);
-		}
-		spin_unlock(&adapter->nfc_rule_lock);
-		adapter->nfc_rule_count = 0;
-	}
+	if (!(features & NETIF_F_NTUPLE))
+		igc_flush_nfc_rules(adapter);
 
 	netdev->features = features;
 
@@ -5110,6 +5224,8 @@ static void igc_remove(struct pci_dev *pdev)
 	struct igc_adapter *adapter = netdev_priv(netdev);
 
 	pm_runtime_get_noresume(&pdev->dev);
+
+	igc_flush_nfc_rules(adapter);
 
 	igc_ptp_stop(adapter);
 

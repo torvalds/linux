@@ -265,13 +265,9 @@
 #define IGC_TXD_POPTS_IXSM	0x01       /* Insert IP checksum */
 #define IGC_TXD_POPTS_TXSM	0x02       /* Insert TCP/UDP checksum */
 #define IGC_TXD_CMD_EOP		0x01000000 /* End of Packet */
-#define IGC_TXD_CMD_IFCS	0x02000000 /* Insert FCS (Ethernet CRC) */
 #define IGC_TXD_CMD_IC		0x04000000 /* Insert Checksum */
-#define IGC_TXD_CMD_RS		0x08000000 /* Report Status */
-#define IGC_TXD_CMD_RPS		0x10000000 /* Report Packet Sent */
 #define IGC_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define IGC_TXD_CMD_VLE		0x40000000 /* Add VLAN tag */
-#define IGC_TXD_CMD_IDE		0x80000000 /* Enable Tidv register */
 #define IGC_TXD_STAT_DD		0x00000001 /* Descriptor Done */
 #define IGC_TXD_STAT_EC		0x00000002 /* Excess Collisions */
 #define IGC_TXD_STAT_LC		0x00000004 /* Late Collisions */
