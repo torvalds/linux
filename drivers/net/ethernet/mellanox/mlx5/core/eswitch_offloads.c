@@ -366,6 +366,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 			}
 		}
 	}
+
+	if (attr->decap_pkt_reformat)
+		flow_act.pkt_reformat = attr->decap_pkt_reformat;
+
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
 		dest[i].counter_id = mlx5_fc_id(attr->counter);
@@ -1727,7 +1731,9 @@ static int mlx5_esw_offloads_pair(struct mlx5_eswitch *esw,
 
 static void mlx5_esw_offloads_unpair(struct mlx5_eswitch *esw)
 {
+#if IS_ENABLED(CONFIG_MLX5_CLS_ACT)
 	mlx5e_tc_clean_fdb_peer_flows(esw);
+#endif
 	esw_del_fdb_peer_miss_rules(esw);
 }
 

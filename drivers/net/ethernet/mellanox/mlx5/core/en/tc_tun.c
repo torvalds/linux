@@ -4,8 +4,11 @@
 #include <net/vxlan.h>
 #include <net/gre.h>
 #include <net/geneve.h>
+#include <net/bareudp.h>
 #include "en/tc_tun.h"
 #include "en_tc.h"
+#include "rep/tc.h"
+#include "rep/neigh.h"
 
 struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 {
@@ -16,6 +19,8 @@ struct mlx5e_tc_tunnel *mlx5e_get_tc_tun(struct net_device *tunnel_dev)
 	else if (netif_is_gretap(tunnel_dev) ||
 		 netif_is_ip6gretap(tunnel_dev))
 		return &gre_tunnel;
+	else if (netif_is_bareudp(tunnel_dev))
+		return &mplsoudp_tunnel;
 	else
 		return NULL;
 }
@@ -96,9 +101,8 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	}
 
 	rt = ip_route_output_key(dev_net(mirred_dev), fl4);
-	ret = PTR_ERR_OR_ZERO(rt);
-	if (ret)
-		return ret;
+	if (IS_ERR(rt))
+		return PTR_ERR(rt);
 
 	if (mlx5_lag_is_multipath(mdev) && rt->rt_gw_family != AF_INET) {
 		ip_rt_put(rt);
