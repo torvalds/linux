@@ -56,45 +56,37 @@ static const char *integrator_fpga_str(u32 id)
 	}
 }
 
-static ssize_t integrator_get_manf(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+manufacturer_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%02x\n", integrator_coreid >> 24);
 }
 
-static struct device_attribute integrator_manf_attr =
-	__ATTR(manufacturer,  S_IRUGO, integrator_get_manf,  NULL);
+static DEVICE_ATTR_RO(manufacturer);
 
-static ssize_t integrator_get_arch(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+arch_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", integrator_arch_str(integrator_coreid));
 }
 
-static struct device_attribute integrator_arch_attr =
-	__ATTR(arch,  S_IRUGO, integrator_get_arch,  NULL);
+static DEVICE_ATTR_RO(arch);
 
-static ssize_t integrator_get_fpga(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
+static ssize_t
+fpga_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%s\n", integrator_fpga_str(integrator_coreid));
 }
 
-static struct device_attribute integrator_fpga_attr =
-	__ATTR(fpga,  S_IRUGO, integrator_get_fpga,  NULL);
+static DEVICE_ATTR_RO(fpga);
 
-static ssize_t integrator_get_build(struct device *dev,
-			       struct device_attribute *attr,
-			       char *buf)
+static ssize_t
+build_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "%02x\n", (integrator_coreid >> 4) & 0xFF);
 }
 
-static struct device_attribute integrator_build_attr =
-	__ATTR(build,  S_IRUGO, integrator_get_build,  NULL);
+static DEVICE_ATTR_RO(build);
 
 static int __init integrator_soc_init(void)
 {
@@ -134,10 +126,10 @@ static int __init integrator_soc_init(void)
 	}
 	dev = soc_device_to_device(soc_dev);
 
-	device_create_file(dev, &integrator_manf_attr);
-	device_create_file(dev, &integrator_arch_attr);
-	device_create_file(dev, &integrator_fpga_attr);
-	device_create_file(dev, &integrator_build_attr);
+	device_create_file(dev, &dev_attr_manufacturer);
+	device_create_file(dev, &dev_attr_arch);
+	device_create_file(dev, &dev_attr_fpga);
+	device_create_file(dev, &dev_attr_build);
 
 	dev_info(dev, "Detected ARM core module:\n");
 	dev_info(dev, "    Manufacturer: %02x\n", (val >> 24));
