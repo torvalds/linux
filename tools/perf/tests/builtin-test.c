@@ -334,7 +334,7 @@ static struct test *tests[] = {
 	arch_tests,
 };
 
-static bool perf_test__matches(struct test *test, int curr, int argc, const char *argv[])
+static bool perf_test__matches(const char *desc, int curr, int argc, const char *argv[])
 {
 	int i;
 
@@ -351,7 +351,7 @@ static bool perf_test__matches(struct test *test, int curr, int argc, const char
 			continue;
 		}
 
-		if (strcasestr(test->desc, argv[i]))
+		if (strcasestr(desc, argv[i]))
 			return true;
 	}
 
@@ -580,7 +580,7 @@ static int run_shell_tests(int argc, const char *argv[], int i, int width)
 			.priv = &st,
 		};
 
-		if (!perf_test__matches(&test, curr, argc, argv))
+		if (!perf_test__matches(test.desc, curr, argc, argv))
 			continue;
 
 		st.file = ent->d_name;
@@ -608,9 +608,25 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 	for_each_test(j, t) {
 		int curr = i++, err;
+		int subi;
 
-		if (!perf_test__matches(t, curr, argc, argv))
-			continue;
+		if (!perf_test__matches(t->desc, curr, argc, argv)) {
+			bool skip = true;
+			int subn;
+
+			if (!t->subtest.get_nr)
+				continue;
+
+			subn = t->subtest.get_nr();
+
+			for (subi = 0; subi < subn; subi++) {
+				if (perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+					skip = false;
+			}
+
+			if (skip)
+				continue;
+		}
 
 		if (t->is_supported && !t->is_supported()) {
 			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
@@ -638,7 +654,6 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			 */
 			int subw = width > 2 ? width - 2 : width;
 			bool skip = false;
-			int subi;
 
 			if (subn <= 0) {
 				color_fprintf(stderr, PERF_COLOR_YELLOW,
@@ -655,6 +670,9 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 			}
 
 			for (subi = 0; subi < subn; subi++) {
+				if (!perf_test__matches(t->subtest.get_desc(subi), curr, argc, argv))
+					continue;
+
 				pr_info("%2d.%1d: %-*s:", i, subi + 1, subw,
 					t->subtest.get_desc(subi));
 				err = test_and_print(t, skip, subi);
@@ -688,7 +706,7 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 			.desc = shell_test__description(bf, sizeof(bf), path, ent->d_name),
 		};
 
-		if (!perf_test__matches(&t, curr, argc, argv))
+		if (!perf_test__matches(t.desc, curr, argc, argv))
 			continue;
 
 		pr_info("%2d: %s\n", i, t.desc);
@@ -707,7 +725,7 @@ static int perf_test__list(int argc, const char **argv)
 	for_each_test(j, t) {
 		int curr = i++;
 
-		if (!perf_test__matches(t, curr, argc, argv) ||
+		if (!perf_test__matches(t->desc, curr, argc, argv) ||
 		    (t->is_supported && !t->is_supported()))
 			continue;
 
