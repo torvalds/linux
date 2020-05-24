@@ -134,31 +134,32 @@ ENTRY(csky_systemcall)
 #endif
 	psrset  ee, ie
 
-	lrw     r11, __NR_syscalls
-	cmphs   syscallid, r11		/* Check nr of syscall */
+	lrw     r9, __NR_syscalls
+	cmphs   syscallid, r9		/* Check nr of syscall */
 	bt      ret_from_exception
 
-	lrw     r13, sys_call_table
-	ixw     r13, syscallid
-	ldw     r11, (r13)
-	cmpnei  r11, 0
+	lrw     r9, sys_call_table
+	ixw     r9, syscallid
+	ldw     syscallid, (r9)
+	cmpnei  syscallid, 0
 	bf      ret_from_exception
 
 	mov     r9, sp
 	bmaski  r10, THREAD_SHIFT
 	andn    r9, r10
-	ldw     r12, (r9, TINFO_FLAGS)
-	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r12, 0
+	ldw     r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_SYSCALL_WORK
+	and	r10, r9
+	cmpnei	r10, 0
 	bt      csky_syscall_trace
 #if defined(__CSKYABIV2__)
 	subi    sp, 8
 	stw  	r5, (sp, 0x4)
 	stw  	r4, (sp, 0x0)
-	jsr     r11                      /* Do system call */
+	jsr     syscallid                      /* Do system call */
 	addi 	sp, 8
 #else
-	jsr     r11
+	jsr     syscallid
 #endif
 	stw     a0, (sp, LSAVE_A0)      /* Save return value */
 	jmpi    ret_from_exception
@@ -177,13 +178,12 @@ csky_syscall_trace:
 	stw	r9, (sp, 0x0)
 	ldw	r9, (sp, LSAVE_A5)
 	stw	r9, (sp, 0x4)
+	jsr	syscallid                     /* Do system call */
+	addi	sp, 8
 #else
 	ldw	r6, (sp, LSAVE_A4)
 	ldw	r7, (sp, LSAVE_A5)
-#endif
-	jsr	r11                     /* Do system call */
-#if defined(__CSKYABIV2__)
-	addi	sp, 8
+	jsr	syscallid                     /* Do system call */
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
@@ -202,18 +202,20 @@ ENTRY(ret_from_fork)
 	mov	r9, sp
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
-	ldw	r12, (r9, TINFO_FLAGS)
-	ANDI_R3	r12, (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT | _TIF_SYSCALL_AUDIT)
-	cmpnei	r12, 0
+	ldw	r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_SYSCALL_WORK
+	and	r10, r9
+	cmpnei	r10, 0
 	bf	ret_from_exception
 	mov	a0, sp			/* sp = pt_regs pointer */
 	jbsr	syscall_trace_exit
 
 ret_from_exception:
 	psrclr	ie
-	ld	syscallid, (sp, LSAVE_PSR)
-	btsti	syscallid, 31
+	ld	r9, (sp, LSAVE_PSR)
+	btsti	r9, 31
 
+	bt	1f
 	/*
 	 * Load address of current->thread_info, Then get address of task_struct
 	 * Get task_needreshed in task_struct
@@ -222,15 +224,19 @@ ret_from_exception:
 	bmaski	r10, THREAD_SHIFT
 	andn	r9, r10
 
-	bt	1f
-	ldw	r12, (r9, TINFO_FLAGS)
-	andi	r12, (_TIF_SIGPENDING | _TIF_NOTIFY_RESUME | _TIF_NEED_RESCHED | _TIF_UPROBE)
-	cmpnei	r12, 0
+	ldw	r10, (r9, TINFO_FLAGS)
+	lrw	r9, _TIF_WORK_MASK
+	and	r10, r9
+	cmpnei	r10, 0
 	bt	exit_work
 1:
 #ifdef CONFIG_PREEMPTION
-	ldw	r12, (r9, TINFO_PREEMPT)
-	cmpnei	r12, 0
+	mov	r9, sp
+	bmaski	r10, THREAD_SHIFT
+	andn	r9, r10
+
+	ldw	r10, (r9, TINFO_PREEMPT)
+	cmpnei	r10, 0
 	bt	2f
 	jbsr	preempt_schedule_irq	/* irq en/disable is done inside */
 2:
@@ -246,15 +252,15 @@ ret_from_exception:
 	RESTORE_ALL
 
 exit_work:
-	lrw	syscallid, ret_from_exception
-	mov	lr, syscallid
+	lrw	r9, ret_from_exception
+	mov	lr, r9
 
-	btsti	r12, TIF_NEED_RESCHED
+	btsti	r10, TIF_NEED_RESCHED
 	bt	work_resched
 
 	psrset	ie
 	mov	a0, sp
-	mov	a1, r12
+	mov	a1, r10
 	jmpi	do_notify_resume
 
 work_resched:
