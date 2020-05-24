@@ -207,25 +207,25 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
 		.priority = 0,
-		.tc = 1,
+		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
 		.priority = 0,
-		.tc = 1,
+		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 		.priority = 0,
-		.tc = 1,
+		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
 		.priority = 0,
-		.tc = 1,
+		.tc = 0,
 	},
 };
 
