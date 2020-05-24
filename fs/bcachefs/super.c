@@ -192,8 +192,12 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	 */
 	bch2_journal_flush_all_pins(&c->journal);
 
+	/*
+	 * If the allocator threads didn't all start up, the btree updates to
+	 * write out alloc info aren't going to work:
+	 */
 	if (!test_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags))
-		goto allocator_not_running;
+		goto nowrote_alloc;
 
 	do {
 		wrote = false;
@@ -205,7 +209,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
 
 		if (ret)
-			break;
+			goto nowrote_alloc;
 
 		for_each_member_device(ca, c, i)
 			bch2_dev_allocator_quiesce(c, ca);
@@ -224,7 +228,9 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 
 		clean_passes = wrote ? 0 : clean_passes + 1;
 	} while (clean_passes < 2);
-allocator_not_running:
+
+	set_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
+nowrote_alloc:
 	for_each_member_device(ca, c, i)
 		bch2_dev_allocator_stop(ca);
 
@@ -306,6 +312,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 	    !test_bit(BCH_FS_ERROR, &c->flags) &&
 	    !test_bit(BCH_FS_EMERGENCY_RO, &c->flags) &&
 	    test_bit(BCH_FS_STARTED, &c->flags) &&
+	    test_bit(BCH_FS_ALLOC_CLEAN, &c->flags) &&
 	    !c->opts.norecovery)
 		bch2_fs_mark_clean(c);
 
@@ -393,6 +400,8 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	ret = bch2_fs_mark_dirty(c);
 	if (ret)
 		goto err;
+
+	clear_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
 
 	for_each_rw_member(ca, c, i)
 		bch2_dev_allocator_add(c, ca);
