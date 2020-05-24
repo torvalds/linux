@@ -3849,10 +3849,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
-					netdev_warn(priv->netdev,
-						    "devices %s %s not on same switch HW, can't offload forwarding\n",
-						    priv->netdev->name,
-						    out_dev->name);
 					return -EOPNOTSUPP;
 				}
 
