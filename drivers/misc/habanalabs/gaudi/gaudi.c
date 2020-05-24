@@ -5975,7 +5975,7 @@ static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate,
 	return gaudi->events_stat;
 }
 
-static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
+static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 					u32 flags)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -5984,14 +5984,14 @@ static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
 		hdev->hard_reset_pending)
-		return;
-
-	mutex_lock(&hdev->mmu_cache_lock);
+		return 0;
 
 	if (hdev->pldm)
 		timeout_usec = GAUDI_PLDM_MMU_TIMEOUT_USEC;
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
+
+	mutex_lock(&hdev->mmu_cache_lock);
 
 	/* L0 & L1 invalidation */
 	WREG32(mmSTLB_INV_PS, 2);
@@ -6006,14 +6006,18 @@ static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 
 	WREG32(mmSTLB_INV_SET, 0);
 
-	if (rc)
-		dev_notice_ratelimited(hdev->dev,
-			"Timeout when waiting for MMU cache invalidation\n");
-
 	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc) {
+		dev_err_ratelimited(hdev->dev,
+					"MMU cache invalidation timeout\n");
+		hl_device_reset(hdev, true, false);
+	}
+
+	return rc;
 }
 
-static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
+static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 				bool is_hard, u32 asid, u64 va, u64 size)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -6024,7 +6028,7 @@ static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
 		hdev->hard_reset_pending)
-		return;
+		return 0;
 
 	mutex_lock(&hdev->mmu_cache_lock);
 
@@ -6055,11 +6059,15 @@ static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 		1000,
 		timeout_usec);
 
-	if (rc)
-		dev_notice_ratelimited(hdev->dev,
-			"Timeout when waiting for MMU cache invalidation\n");
-
 	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc) {
+		dev_err_ratelimited(hdev->dev,
+					"MMU cache invalidation timeout\n");
+		hl_device_reset(hdev, true, false);
+	}
+
+	return rc;
 }
 
 static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev,

@@ -675,9 +675,9 @@ struct hl_asic_funcs {
 				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
 	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
-	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
+	int (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
 					u32 flags);
-	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
+	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
@@ -755,8 +755,8 @@ struct hl_va_range {
  *                      with huge pages.
  * @dram_va_range: holds available virtual addresses for DRAM mappings.
  * @mem_hash_lock: protects the mem_hash.
- * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
- *            MMU hash or walking the PGT requires talking this lock
+ * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
+ *            MMU hash or walking the PGT requires talking this lock.
  * @debugfs_list: node in debugfs list of contexts.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
