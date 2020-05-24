@@ -44,6 +44,13 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
 						struct journal_keys *,
 						struct btree *);
 
+typedef int (*btree_walk_node_fn)(struct bch_fs *c, struct btree *b);
+typedef int (*btree_walk_key_fn)(struct bch_fs *c, enum btree_id id,
+				 unsigned level, struct bkey_s_c k);
+
+int bch2_btree_and_journal_walk(struct bch_fs *, struct journal_keys *, enum btree_id,
+				btree_walk_node_fn, btree_walk_key_fn);
+
 void bch2_journal_keys_free(struct journal_keys *);
 void bch2_journal_entries_free(struct list_head *);
 

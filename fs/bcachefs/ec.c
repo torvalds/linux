@@ -1273,38 +1273,28 @@ int bch2_stripes_write(struct bch_fs *c, unsigned flags, bool *wrote)
 	return ret;
 }
 
+static int bch2_stripes_read_fn(struct bch_fs *c, enum btree_id id,
+			      unsigned level, struct bkey_s_c k)
+{
+	int ret = 0;
+
+	if (k.k->type == KEY_TYPE_stripe)
+		ret = __ec_stripe_mem_alloc(c, k.k->p.offset, GFP_KERNEL) ?:
+			bch2_mark_key(c, k, 0, 0, NULL, 0,
+				      BTREE_TRIGGER_ALLOC_READ|
+				      BTREE_TRIGGER_NOATOMIC);
+
+	return ret;
+}
+
 int bch2_stripes_read(struct bch_fs *c, struct journal_keys *journal_keys)
 {
-	struct btree_trans trans;
-	struct btree_and_journal_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	ret = bch2_fs_ec_start(c);
+	int ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_EC,
+					  NULL, bch2_stripes_read_fn);
 	if (ret)
-		return ret;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	bch2_btree_and_journal_iter_init(&iter, &trans, journal_keys,
-					 BTREE_ID_EC, POS_MIN);
-
-
-	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		bch2_mark_key(c, k, 0, 0, NULL, 0,
-			      BTREE_TRIGGER_ALLOC_READ|
-			      BTREE_TRIGGER_NOATOMIC);
-
-		bch2_btree_and_journal_iter_advance(&iter);
-	}
-
-	ret = bch2_trans_exit(&trans) ?: ret;
-	if (ret) {
 		bch_err(c, "error reading stripes: %i", ret);
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
@@ -1341,11 +1331,6 @@ int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)
 			return -ENOMEM;
 #endif
 	return 0;
-}
-
-int bch2_fs_ec_start(struct bch_fs *c)
-{
-	return bch2_ec_mem_alloc(c, false);
 }
 
 void bch2_fs_ec_exit(struct bch_fs *c)

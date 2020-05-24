@@ -208,29 +208,25 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c,
 			       get_alloc_field(a.v, &d, i));
 }
 
-int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
+static int bch2_alloc_read_fn(struct bch_fs *c, enum btree_id id,
+			      unsigned level, struct bkey_s_c k)
 {
-	struct btree_trans trans;
-	struct btree_and_journal_iter iter;
-	struct bkey_s_c k;
-	struct bch_dev *ca;
-	unsigned i;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	bch2_btree_and_journal_iter_init(&iter, &trans, journal_keys,
-					 BTREE_ID_ALLOC, POS_MIN);
-
-	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+	if (!level)
 		bch2_mark_key(c, k, 0, 0, NULL, 0,
 			      BTREE_TRIGGER_ALLOC_READ|
 			      BTREE_TRIGGER_NOATOMIC);
 
-		bch2_btree_and_journal_iter_advance(&iter);
-	}
+	return 0;
+}
 
-	ret = bch2_trans_exit(&trans) ?: ret;
+int bch2_alloc_read(struct bch_fs *c, struct journal_keys *journal_keys)
+{
+	struct bch_dev *ca;
+	unsigned i;
+	int ret = 0;
+
+	ret = bch2_btree_and_journal_walk(c, journal_keys, BTREE_ID_ALLOC,
+					  NULL, bch2_alloc_read_fn);
 	if (ret) {
 		bch_err(c, "error reading alloc info: %i", ret);
 		return ret;
