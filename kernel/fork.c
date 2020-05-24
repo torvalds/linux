@@ -2493,29 +2493,6 @@ long _do_fork(struct kernel_clone_args *args)
 	return nr;
 }
 
-#ifndef CONFIG_HAVE_COPY_THREAD_TLS
-/* For compatibility with architectures that call do_fork directly rather than
- * using the syscall entry points below. */
-long do_fork(unsigned long clone_flags,
-	      unsigned long stack_start,
-	      unsigned long stack_size,
-	      int __user *parent_tidptr,
-	      int __user *child_tidptr)
-{
-	struct kernel_clone_args args = {
-		.flags		= (lower_32_bits(clone_flags) & ~CSIGNAL),
-		.pidfd		= parent_tidptr,
-		.child_tid	= child_tidptr,
-		.parent_tid	= parent_tidptr,
-		.exit_signal	= (lower_32_bits(clone_flags) & CSIGNAL),
-		.stack		= stack_start,
-		.stack_size	= stack_size,
-	};
-
-	return _do_fork(&args);
-}
-#endif
-
 /*
  * Create a kernel thread.
  */
@@ -2923,7 +2900,7 @@ static int unshare_fd(unsigned long unshare_flags, struct files_struct **new_fdp
 /*
  * unshare allows a process to 'unshare' part of the process
  * context which was originally shared using clone.  copy_*
- * functions used by do_fork() cannot be used here directly
+ * functions used by _do_fork() cannot be used here directly
  * because they modify an inactive task_struct that is being
  * constructed. Here we are modifying the current, active,
  * task_struct.
