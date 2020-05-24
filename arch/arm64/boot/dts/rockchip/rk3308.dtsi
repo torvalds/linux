@@ -1629,7 +1629,7 @@
 		};
 
 		tsadc {
-			tsadc_otp_gpio: tsadc-otp-gpio {
+			tsadc_otp_pin: tsadc-otp-pin {
 				rockchip,pins =
 					<0 RK_PB2 0 &pcfg_pull_none>;
 			};
@@ -1657,7 +1657,7 @@
 					<2 RK_PA3 1 &pcfg_pull_none>;
 			};
 
-			uart0_rts_gpio: uart0-rts-gpio {
+			uart0_rts_pin: uart0-rts-pin {
 				rockchip,pins =
 					<2 RK_PA3 0 &pcfg_pull_none>;
 			};
@@ -1730,7 +1730,7 @@
 					<4 RK_PA7 1 &pcfg_pull_none>;
 			};
 
-			uart4_rts_gpio: uart4-rts-gpio {
+			uart4_rts_pin: uart4-rts-pin {
 				rockchip,pins =
 					<4 RK_PA7 0 &pcfg_pull_none>;
 			};

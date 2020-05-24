@@ -125,7 +125,7 @@
 	};
 
 	sdmmc {
-		sdmmc_cd_gpio: sdmmc-cd-gpio {
+		sdmmc_cd_pin: sdmmc-cd-pin {
 			rockchip,pins =
 				<2 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
