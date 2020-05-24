@@ -279,9 +279,9 @@ struct ia_css_isp_parameter_set_info {
    a binary. It depends on the binary which ones are used. */
 struct sh_css_binary_args {
 	struct ia_css_frame *in_frame;	     /* input frame */
-	struct ia_css_frame
+	const struct ia_css_frame
 		*delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];   /* reference input frame */
-	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];   /* tnr frames */
+	const struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];   /* tnr frames */
 	struct ia_css_frame
 		*out_frame[IA_CSS_BINARY_MAX_OUTPUT_PORTS];      /* output frame */
 	struct ia_css_frame *out_vf_frame;   /* viewfinder output frame */

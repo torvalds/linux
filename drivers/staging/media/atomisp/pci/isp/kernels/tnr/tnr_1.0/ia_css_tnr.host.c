@@ -95,7 +95,7 @@ ia_css_tnr_config(
 void
 ia_css_tnr_configure(
     const struct ia_css_binary     *binary,
-    const struct ia_css_frame **frames)
+    const struct ia_css_frame * const *frames)
 {
 	struct ia_css_tnr_configuration config;
 	unsigned int i;

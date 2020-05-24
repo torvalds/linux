@@ -2662,7 +2662,7 @@ void sh_css_dump_pipe_stripe_info(void)
 
 static void
 ia_css_debug_pipe_graph_dump_frame(
-    struct ia_css_frame *frame,
+    const struct ia_css_frame *frame,
     enum ia_css_pipe_id id,
     char const *blob_name,
     char const *frame_name,

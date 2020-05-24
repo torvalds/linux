@@ -47,7 +47,7 @@ ia_css_tnr_config(
 void
 ia_css_tnr_configure(
     const struct ia_css_binary     *binary,
-    const struct ia_css_frame **frames);
+    const struct ia_css_frame * const *frames);
 
 void
 ia_css_init_tnr_state(

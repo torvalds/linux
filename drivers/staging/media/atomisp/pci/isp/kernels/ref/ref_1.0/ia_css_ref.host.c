@@ -52,7 +52,7 @@ ia_css_ref_config(
 void
 ia_css_ref_configure(
     const struct ia_css_binary     *binary,
-    const struct ia_css_frame **ref_frames,
+    const struct ia_css_frame * const *ref_frames,
     const uint32_t dvs_frame_delay)
 {
 	struct ia_css_ref_configuration config;

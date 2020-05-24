@@ -838,8 +838,8 @@ configure_isp_from_args(
 	ia_css_dvs_configure(binary, &args->out_frame[0]->info);
 	ia_css_output_configure(binary, &args->out_frame[0]->info);
 	ia_css_raw_configure(pipeline, binary, &args->in_frame->info, &binary->in_frame_info, two_ppc, deinterleaved);
-	ia_css_ref_configure(binary, (const struct ia_css_frame **)args->delay_frames, pipeline->dvs_frame_delay);
-	ia_css_tnr_configure(binary, (const struct ia_css_frame **)args->tnr_frames);
+	ia_css_ref_configure(binary, args->delay_frames, pipeline->dvs_frame_delay);
+	ia_css_tnr_configure(binary, args->tnr_frames);
 	ia_css_bayer_io_config(binary, args);
 	return IA_CSS_SUCCESS;
 }
