@@ -4046,11 +4046,11 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_RXL(mlxsw_sp_rx_listener_ptp, LLDP, TRAP_TO_CPU,
 		  false, SP_LLDP, DISCARD),
 	MLXSW_SP_RXL_MARK(DHCP, MIRROR_TO_CPU, DHCP, false),
-	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, IGMP, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, IGMP, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU, IGMP, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU, IGMP, false),
-	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, IGMP, false),
+	MLXSW_SP_RXL_MARK(IGMP_QUERY, MIRROR_TO_CPU, MC_SNOOPING, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, TRAP_TO_CPU, MC_SNOOPING, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, TRAP_TO_CPU, MC_SNOOPING, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, TRAP_TO_CPU, MC_SNOOPING, false),
+	MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, TRAP_TO_CPU, MC_SNOOPING, false),
 	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, ARP, false),
 	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, ARP, false),
 	MLXSW_SP_RXL_NO_MARK(FID_MISS, TRAP_TO_CPU, IP2ME, false),
@@ -4155,7 +4155,7 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 			rate = 128;
 			burst_size = 7;
 			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_MLD:
 			rate = 16 * 1024;
 			burst_size = 10;
@@ -4235,7 +4235,7 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 			priority = 4;
 			tc = 4;
 			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IGMP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6_MLD:
 			priority = 3;
