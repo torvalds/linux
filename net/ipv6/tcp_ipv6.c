@@ -463,6 +463,8 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		if (fastopen && !fastopen->sk)
 			break;
 
+		ipv6_icmp_error(sk, skb, err, th->dest, ntohl(info), (u8 *)th);
+
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
 			sk->sk_error_report(sk);		/* Wake people up to see the error (see connect in sock.c) */
