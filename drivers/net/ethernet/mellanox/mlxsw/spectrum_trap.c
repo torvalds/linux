@@ -21,7 +21,6 @@ struct mlxsw_sp_trap_group_item {
 	struct devlink_trap_group group;
 	u16 hw_group_id;
 	u8 priority;
-	u8 tc;
 };
 
 #define MLXSW_SP_TRAP_LISTENERS_MAX 3
@@ -207,25 +206,21 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(L2_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L2_DISCARDS,
 		.priority = 0,
-		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(L3_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_DISCARDS,
 		.priority = 0,
-		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 		.priority = 0,
-		.tc = 0,
 	},
 	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
 		.priority = 0,
-		.tc = 0,
 	},
 };
 
@@ -865,7 +860,7 @@ __mlxsw_sp_trap_group_init(struct mlxsw_core *mlxsw_core,
 	}
 
 	mlxsw_reg_htgt_pack(htgt_pl, group_item->hw_group_id, hw_policer_id,
-			    group_item->priority, group_item->tc);
+			    group_item->priority, group_item->priority);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(htgt), htgt_pl);
 }
 
