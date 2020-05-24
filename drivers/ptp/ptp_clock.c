@@ -147,8 +147,14 @@ static int ptp_clock_adjtime(struct posix_clock *pc, struct __kernel_timex *tx)
 			err = ops->adjfreq(ops, ppb);
 		ptp->dialed_frequency = tx->freq;
 	} else if (tx->modes & ADJ_OFFSET) {
-		if (ops->adjphase)
-			err = ops->adjphase(ops, tx->offset);
+		if (ops->adjphase) {
+			s32 offset = tx->offset;
+
+			if (!(tx->modes & ADJ_NANO))
+				offset *= NSEC_PER_USEC;
+
+			err = ops->adjphase(ops, offset);
+		}
 	} else if (tx->modes == 0) {
 		tx->freq = ptp->dialed_frequency;
 		err = 0;
