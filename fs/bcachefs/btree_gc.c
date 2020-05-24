@@ -581,8 +581,10 @@ static int bch2_gc_done(struct bch_fs *c,
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
 		if (verify)						\
-			fsck_err(c, "dev %u bucket %zu has wrong " #_f	\
+			fsck_err(c, "bucket %u:%zu gen %u data type %s has wrong " #_f	\
 				": got %u, should be %u", i, b,		\
+				dst->b[b].mark.gen,			\
+				bch2_data_types[dst->b[b].mark.data_type],\
 				dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
 	}

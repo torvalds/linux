@@ -778,29 +778,31 @@ static int bch2_mark_alloc(struct bch_fs *c, struct bkey_s_c k,
 })
 
 static int __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-				       size_t b, enum bch_data_type type,
+				       size_t b, enum bch_data_type data_type,
 				       unsigned sectors, bool gc)
 {
 	struct bucket *g = __bucket(ca, b, gc);
 	struct bucket_mark old, new;
 	bool overflow;
 
-	BUG_ON(type != BCH_DATA_SB &&
-	       type != BCH_DATA_JOURNAL);
+	BUG_ON(data_type != BCH_DATA_SB &&
+	       data_type != BCH_DATA_JOURNAL);
 
 	old = bucket_cmpxchg(g, new, ({
-		new.data_type	= type;
+		new.data_type	= data_type;
 		overflow = checked_add(new.dirty_sectors, sectors);
 	}));
 
 	bch2_fs_inconsistent_on(old.data_type &&
-				old.data_type != type, c,
+				old.data_type != data_type, c,
 		"different types of data in same bucket: %s, %s",
 		bch2_data_types[old.data_type],
-		bch2_data_types[type]);
+		bch2_data_types[data_type]);
 
 	bch2_fs_inconsistent_on(overflow, c,
-		"bucket sector count overflow: %u + %u > U16_MAX",
+		"bucket %u:%zu gen %u data type %s sector count overflow: %u + %u > U16_MAX",
+		ca->dev_idx, b, new.gen,
+		bch2_data_types[old.data_type ?: data_type],
 		old.dirty_sectors, sectors);
 
 	if (c)
@@ -926,6 +928,7 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 	struct bucket_mark old, new;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct bucket *g = PTR_BUCKET(ca, &p.ptr, gc);
+	u16 *dst_sectors, orig_sectors;
 	bool overflow;
 	u64 v;
 
@@ -953,10 +956,12 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 			return true;
 		}
 
-		if (!p.ptr.cached)
-			overflow = checked_add(new.dirty_sectors, sectors);
-		else
-			overflow = checked_add(new.cached_sectors, sectors);
+		dst_sectors = !p.ptr.cached
+			? &new.dirty_sectors
+			: &new.cached_sectors;
+		orig_sectors = *dst_sectors;
+
+		overflow = checked_add(*dst_sectors, sectors);
 
 		if (!new.dirty_sectors &&
 		    !new.cached_sectors) {
@@ -987,10 +992,10 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 			bch2_data_types[data_type]);
 
 	bch2_fs_inconsistent_on(overflow, c,
-		"bucket sector count overflow: %u + %lli > U16_MAX",
-		!p.ptr.cached
-		? old.dirty_sectors
-		: old.cached_sectors, sectors);
+		"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U16_MAX",
+		p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), new.gen,
+		bch2_data_types[old.data_type ?: data_type],
+		orig_sectors, sectors);
 
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
@@ -1504,7 +1509,9 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 
 	if (checked_add(*dst_sectors, sectors)) {
 		bch2_fs_inconsistent(c,
-			"bucket sector count overflow: %u + %lli > U16_MAX",
+			"bucket %llu:%llu gen %u data type %s sector count overflow: %u + %lli > U16_MAX",
+			iter->pos.inode, iter->pos.offset, u.gen,
+			bch2_data_types[u.data_type ?: data_type],
 			orig_sectors, sectors);
 		/* return an error indicating that we need full fsck */
 		ret = -EIO;
