@@ -19,7 +19,7 @@ void test_mmap(void)
 	const size_t map_sz = roundup_page(sizeof(struct map_data));
 	const int zero = 0, one = 1, two = 2, far = 1500;
 	const long page_size = sysconf(_SC_PAGE_SIZE);
-	int err, duration = 0, i, data_map_fd, data_map_id, tmp_fd;
+	int err, duration = 0, i, data_map_fd, data_map_id, tmp_fd, rdmap_fd;
 	struct bpf_map *data_map, *bss_map;
 	void *bss_mmaped = NULL, *map_mmaped = NULL, *tmp1, *tmp2;
 	struct test_mmap__bss *bss_data;
@@ -36,6 +36,17 @@ void test_mmap(void)
 	bss_map = skel->maps.bss;
 	data_map = skel->maps.data_map;
 	data_map_fd = bpf_map__fd(data_map);
+
+	rdmap_fd = bpf_map__fd(skel->maps.rdonly_map);
+	tmp1 = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, rdmap_fd, 0);
+	if (CHECK(tmp1 != MAP_FAILED, "rdonly_write_mmap", "unexpected success\n")) {
+		munmap(tmp1, 4096);
+		goto cleanup;
+	}
+	/* now double-check if it's mmap()'able at all */
+	tmp1 = mmap(NULL, 4096, PROT_READ, MAP_SHARED, rdmap_fd, 0);
+	if (CHECK(tmp1 == MAP_FAILED, "rdonly_read_mmap", "failed: %d\n", errno))
+		goto cleanup;
 
 	/* get map's ID */
 	memset(&map_info, 0, map_info_sz);

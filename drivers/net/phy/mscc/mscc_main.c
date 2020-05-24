@@ -1303,6 +1303,8 @@ static void vsc8584_get_base_addr(struct phy_device *phydev)
 		vsc8531->base_addr = phydev->mdio.addr + addr;
 	else
 		vsc8531->base_addr = phydev->mdio.addr - addr;
+
+	vsc8531->addr = addr;
 }
 
 static int vsc8584_config_init(struct phy_device *phydev)

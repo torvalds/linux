@@ -185,7 +185,7 @@ static int regs_dbg_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-const struct file_operations queue_dbg_fops = {
+static const struct file_operations queue_dbg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= queue_dbg_open,
 	.llseek		= no_llseek,
@@ -193,7 +193,7 @@ const struct file_operations queue_dbg_fops = {
 	.release	= queue_dbg_release,
 };
 
-const struct file_operations regs_dbg_fops = {
+static const struct file_operations regs_dbg_fops = {
 	.owner		= THIS_MODULE,
 	.open		= regs_dbg_open,
 	.llseek		= generic_file_llseek,

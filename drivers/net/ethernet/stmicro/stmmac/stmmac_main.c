@@ -5181,8 +5181,6 @@ int stmmac_resume(struct device *dev)
 			return ret;
 	}
 
-	netif_device_attach(ndev);
-
 	mutex_lock(&priv->lock);
 
 	stmmac_reset_queues_param(priv);
@@ -5208,6 +5206,8 @@ int stmmac_resume(struct device *dev)
 	}
 
 	phylink_mac_change(priv->phylink, true);
+
+	netif_device_attach(ndev);
 
 	return 0;
 }

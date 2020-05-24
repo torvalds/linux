@@ -23,6 +23,10 @@ int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q)
 		pr_err("zone_size must be power-of-two\n");
 		return -EINVAL;
 	}
+	if (dev->zone_size > dev->size) {
+		pr_err("Zone size larger than device capacity\n");
+		return -EINVAL;
+	}
 
 	dev->zone_size_sects = dev->zone_size << ZONE_SIZE_SHIFT;
 	dev->nr_zones = dev_size >>
