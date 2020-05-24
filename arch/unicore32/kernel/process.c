@@ -219,9 +219,9 @@ void release_thread(struct task_struct *dead_task)
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
-int
-copy_thread(unsigned long clone_flags, unsigned long stack_start,
-	    unsigned long stk_sz, struct task_struct *p)
+int copy_thread_tls(unsigned long clone_flags, unsigned long stack_start,
+		    unsigned long stk_sz, struct task_struct *p,
+		    unsigned long tls)
 {
 	struct thread_info *thread = task_thread_info(p);
 	struct pt_regs *childregs = task_pt_regs(p);
@@ -241,7 +241,7 @@ copy_thread(unsigned long clone_flags, unsigned long stack_start,
 			childregs->UCreg_sp = stack_start;
 
 		if (clone_flags & CLONE_SETTLS)
-			childregs->UCreg_16 = childregs->UCreg_03;
+			childregs->UCreg_16 = tls;
 	}
 	return 0;
 }
