@@ -22,7 +22,6 @@ config C6X
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
 	select MMU_GATHER_NO_RANGE if MMU
-	select HAVE_COPY_THREAD_TLS
 
 config MMU
 	def_bool n

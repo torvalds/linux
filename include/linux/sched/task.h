@@ -65,22 +65,9 @@ extern void fork_init(void);
 
 extern void release_task(struct task_struct * p);
 
-#ifdef CONFIG_HAVE_COPY_THREAD_TLS
 extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
 			struct task_struct *, unsigned long);
-#else
-extern int copy_thread(unsigned long, unsigned long, unsigned long,
-			struct task_struct *);
 
-/* Architectures that haven't opted into copy_thread_tls get the tls argument
- * via pt_regs, so ignore the tls argument passed via C. */
-static inline int copy_thread_tls(
-		unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
-{
-	return copy_thread(clone_flags, sp, arg, p);
-}
-#endif
 extern void flush_thread(void);
 
 #ifdef CONFIG_HAVE_EXIT_THREAD

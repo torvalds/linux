@@ -46,7 +46,6 @@ config MICROBLAZE
 	select CPU_NO_EFFICIENT_FFS
 	select MMU_GATHER_NO_RANGE if MMU
 	select SPARSE_IRQ
-	select HAVE_COPY_THREAD_TLS
 
 # Endianness selection
 choice
