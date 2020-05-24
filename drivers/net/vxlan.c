@@ -263,6 +263,8 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	struct nlmsghdr *nlh;
 	struct nexthop *nh;
 	struct ndmsg *ndm;
+	int nh_family;
+	u32 nh_id;
 
 	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
@@ -273,13 +275,20 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	send_eth = send_ip = true;
 
-	nh = rcu_dereference_rtnl(fdb->nh);
+	rcu_read_lock();
+	nh = rcu_dereference(fdb->nh);
+	if (nh) {
+		nh_family = nexthop_get_family(nh);
+		nh_id = nh->id;
+	}
+	rcu_read_unlock();
+
 	if (type == RTM_GETNEIGH) {
 		if (rdst) {
 			send_ip = !vxlan_addr_any(&rdst->remote_ip);
 			ndm->ndm_family = send_ip ? rdst->remote_ip.sa.sa_family : AF_INET;
 		} else if (nh) {
-			ndm->ndm_family = nexthop_get_family(nh);
+			ndm->ndm_family = nh_family;
 		}
 		send_eth = !is_zero_ether_addr(fdb->eth_addr);
 	} else
@@ -299,7 +308,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
 		goto nla_put_failure;
 	if (nh) {
-		if (nla_put_u32(skb, NDA_NH_ID, nh->id))
+		if (nla_put_u32(skb, NDA_NH_ID, nh_id))
 			goto nla_put_failure;
 	} else if (rdst) {
 		if (send_ip && vxlan_nla_put_addr(skb, NDA_DST,
