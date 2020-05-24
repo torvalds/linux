@@ -712,17 +712,18 @@ EXPORT_SYMBOL_GPL(software_node_register_nodes);
  * @nodes: Zero terminated array of software nodes to be unregistered
  *
  * Unregister multiple software nodes at once.
+ *
+ * NOTE: Be careful using this call if the nodes had parent pointers set up in
+ * them before registering.  If so, it is wiser to remove the nodes
+ * individually, in the correct order (child before parent) instead of relying
+ * on the sequential order of the list of nodes in the array.
  */
 void software_node_unregister_nodes(const struct software_node *nodes)
 {
-	struct swnode *swnode;
 	int i;
 
-	for (i = 0; nodes[i].name; i++) {
-		swnode = software_node_to_swnode(&nodes[i]);
-		if (swnode)
-			fwnode_remove_software_node(&swnode->fwnode);
-	}
+	for (i = 0; nodes[i].name; i++)
+		software_node_unregister(&nodes[i]);
 }
 EXPORT_SYMBOL_GPL(software_node_unregister_nodes);
 
@@ -740,6 +741,20 @@ int software_node_register(const struct software_node *node)
 	return PTR_ERR_OR_ZERO(swnode_register(node, parent, 0));
 }
 EXPORT_SYMBOL_GPL(software_node_register);
+
+/**
+ * software_node_unregister - Unregister static software node
+ * @node: The software node to be unregistered
+ */
+void software_node_unregister(const struct software_node *node)
+{
+	struct swnode *swnode;
+
+	swnode = software_node_to_swnode(node);
+	if (swnode)
+		fwnode_remove_software_node(&swnode->fwnode);
+}
+EXPORT_SYMBOL_GPL(software_node_unregister);
 
 struct fwnode_handle *
 fwnode_create_software_node(const struct property_entry *properties,
