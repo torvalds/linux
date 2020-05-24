@@ -82,20 +82,34 @@ struct qmp_phy_init_tbl {
 	 * register part of layout ?
 	 * if yes, then offset gives index in the reg-layout
 	 */
-	int in_layout;
+	bool in_layout;
+	/*
+	 * mask of lanes for which this register is written
+	 * for cases when second lane needs different values
+	 */
+	u8 lane_mask;
 };
 
 #define QMP_PHY_INIT_CFG(o, v)		\
 	{				\
 		.offset = o,		\
 		.val = v,		\
+		.lane_mask = 0xff,	\
 	}
 
 #define QMP_PHY_INIT_CFG_L(o, v)	\
 	{				\
 		.offset = o,		\
 		.val = v,		\
-		.in_layout = 1,		\
+		.in_layout = true,	\
+		.lane_mask = 0xff,	\
+	}
+
+#define QMP_PHY_INIT_CFG_LANE(o, v, l)	\
+	{				\
+		.offset = o,		\
+		.val = v,		\
+		.lane_mask = l,		\
 	}
 
 /* set of registers with offsets different per-PHY */
@@ -2085,10 +2099,11 @@ static const struct qmp_phy_cfg sm8150_usb3phy_cfg = {
 	.is_dual_lane_phy	= true,
 };
 
-static void qcom_qmp_phy_configure(void __iomem *base,
-				   const unsigned int *regs,
-				   const struct qmp_phy_init_tbl tbl[],
-				   int num)
+static void qcom_qmp_phy_configure_lane(void __iomem *base,
+					const unsigned int *regs,
+					const struct qmp_phy_init_tbl tbl[],
+					int num,
+					u8 lane_mask)
 {
 	int i;
 	const struct qmp_phy_init_tbl *t = tbl;
@@ -2097,11 +2112,22 @@ static void qcom_qmp_phy_configure(void __iomem *base,
 		return;
 
 	for (i = 0; i < num; i++, t++) {
+		if (!(t->lane_mask & lane_mask))
+			continue;
+
 		if (t->in_layout)
 			writel(t->val, base + regs[t->offset]);
 		else
 			writel(t->val, base + t->offset);
 	}
+}
+
+static void qcom_qmp_phy_configure(void __iomem *base,
+				   const unsigned int *regs,
+				   const struct qmp_phy_init_tbl tbl[],
+				   int num)
+{
+	qcom_qmp_phy_configure_lane(base, regs, tbl, num, 0xff);
 }
 
 static int qcom_qmp_phy_com_init(struct qmp_phy *qphy)
@@ -2318,16 +2344,18 @@ static int qcom_qmp_phy_enable(struct phy *phy)
 	}
 
 	/* Tx, Rx, and PCS configurations */
-	qcom_qmp_phy_configure(tx, cfg->regs, cfg->tx_tbl, cfg->tx_tbl_num);
+	qcom_qmp_phy_configure_lane(tx, cfg->regs,
+				    cfg->tx_tbl, cfg->tx_tbl_num, 1);
 	/* Configuration for other LANE for USB-DP combo PHY */
 	if (cfg->is_dual_lane_phy)
-		qcom_qmp_phy_configure(qphy->tx2, cfg->regs,
-				       cfg->tx_tbl, cfg->tx_tbl_num);
+		qcom_qmp_phy_configure_lane(qphy->tx2, cfg->regs,
+					    cfg->tx_tbl, cfg->tx_tbl_num, 2);
 
-	qcom_qmp_phy_configure(rx, cfg->regs, cfg->rx_tbl, cfg->rx_tbl_num);
+	qcom_qmp_phy_configure_lane(rx, cfg->regs,
+				    cfg->rx_tbl, cfg->rx_tbl_num, 1);
 	if (cfg->is_dual_lane_phy)
-		qcom_qmp_phy_configure(qphy->rx2, cfg->regs,
-				       cfg->rx_tbl, cfg->rx_tbl_num);
+		qcom_qmp_phy_configure_lane(qphy->rx2, cfg->regs,
+					    cfg->rx_tbl, cfg->rx_tbl_num, 2);
 
 	qcom_qmp_phy_configure(pcs, cfg->regs, cfg->pcs_tbl, cfg->pcs_tbl_num);
 	ret = reset_control_deassert(qmp->ufs_reset);
