@@ -128,6 +128,7 @@ struct parse_events_state {
 	struct parse_events_error *error;
 	struct evlist	  *evlist;
 	struct list_head	  *terms;
+	int			   stoken;
 };
 
 void parse_events__handle_error(struct parse_events_error *err, int idx,

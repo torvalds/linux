@@ -26,7 +26,7 @@
 #include <api/fs/tracing_path.h>
 #include <perf/cpumap.h>
 #include "parse-events-bison.h"
-#define YY_EXTRA_TYPE int
+#define YY_EXTRA_TYPE void*
 #include "parse-events-flex.h"
 #include "pmu.h"
 #include "thread_map.h"
@@ -2027,13 +2027,14 @@ perf_pmu__parse_check(const char *name)
 	return r ? r->type : PMU_EVENT_SYMBOL_ERR;
 }
 
-static int parse_events__scanner(const char *str, void *parse_state, int start_token)
+static int parse_events__scanner(const char *str,
+				 struct parse_events_state *parse_state)
 {
 	YY_BUFFER_STATE buffer;
 	void *scanner;
 	int ret;
 
-	ret = parse_events_lex_init_extra(start_token, &scanner);
+	ret = parse_events_lex_init_extra(parse_state, &scanner);
 	if (ret)
 		return ret;
 
@@ -2057,11 +2058,12 @@ static int parse_events__scanner(const char *str, void *parse_state, int start_t
 int parse_events_terms(struct list_head *terms, const char *str)
 {
 	struct parse_events_state parse_state = {
-		.terms = NULL,
+		.terms  = NULL,
+		.stoken = PE_START_TERMS,
 	};
 	int ret;
 
-	ret = parse_events__scanner(str, &parse_state, PE_START_TERMS);
+	ret = parse_events__scanner(str, &parse_state);
 	if (!ret) {
 		list_splice(parse_state.terms, terms);
 		zfree(&parse_state.terms);
@@ -2080,10 +2082,11 @@ int parse_events(struct evlist *evlist, const char *str,
 		.idx    = evlist->core.nr_entries,
 		.error  = err,
 		.evlist = evlist,
+		.stoken = PE_START_EVENTS,
 	};
 	int ret;
 
-	ret = parse_events__scanner(str, &parse_state, PE_START_EVENTS);
+	ret = parse_events__scanner(str, &parse_state);
 	perf_pmu__parse_cleanup();
 
 	if (!ret && list_empty(&parse_state.list)) {
