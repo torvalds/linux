@@ -1146,8 +1146,9 @@ mt7915_dma_reset(struct mt7915_dev *dev)
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
+	}
 
 	/* re-init prefetch settings after reset */
 	mt7915_dma_prefetch(dev);
