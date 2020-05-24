@@ -821,6 +821,19 @@
 			status = "disabled";
 		};
 
+		xhci: usb@ee000000 {
+			compatible = "renesas,xhci-r8a7742",
+				     "renesas,rcar-gen2-xhci";
+			reg = <0 0xee000000 0 0xc00>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 328>;
+			power-domains = <&sysc R8A7742_PD_ALWAYS_ON>;
+			resets = <&cpg 328>;
+			phys = <&usb2 1>;
+			phy-names = "usb";
+			status = "disabled";
+		};
+
 		pci0: pci@ee090000 {
 			compatible = "renesas,pci-r8a7742",
 				     "renesas,pci-rcar-gen2";
