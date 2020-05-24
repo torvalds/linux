@@ -31,7 +31,7 @@ struct ia_css_preview_settings {
 	struct ia_css_binary vf_pp_binary;
 
 	/* 2401 only for these two - do we in fact use them for anything real */
-	struct ia_css_frame *delay_frames[MAX_NUM_DELAY_FRAMES];
+	struct ia_css_frame *delay_frames[MAX_NUM_VIDEO_DELAY_FRAMES];
 	struct ia_css_frame *tnr_frames[NUM_TNR_FRAMES];
 
 	struct ia_css_pipe *copy_pipe;

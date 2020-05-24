@@ -225,8 +225,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 
 #define NUM_VIDEO_TNR_FRAMES		2
 
-#define MAX_NUM_DELAY_FRAMES	MAX(MAX_NUM_VIDEO_DELAY_FRAMES, NUM_PREVIEW_DVS_FRAMES)
-
 /* Note that this is the define used to configure all data structures common for all modes */
 /* It should be equal or bigger to the max number of DVS frames for all possible modes */
 /* Rules: these implement logic shared between the host code and ISP firmware.
