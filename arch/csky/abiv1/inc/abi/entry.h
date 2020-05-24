@@ -80,7 +80,6 @@
 .endm
 
 .macro	RESTORE_ALL
-	psrclr  ie
 	ldw	lr, (sp, 4)
 	ldw     a0, (sp, 8)
 	mtcr    a0, epc

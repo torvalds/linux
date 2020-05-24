@@ -63,7 +63,6 @@
 .endm
 
 .macro	RESTORE_ALL
-	psrclr  ie
 	ldw	tls, (sp, 0)
 	ldw	lr, (sp, 4)
 	ldw	a0, (sp, 8)
