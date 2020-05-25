@@ -52,6 +52,9 @@
 #define BIF_MMSCH1_DOORBELL_RANGE__OFFSET_MASK          0x00000FFCL
 #define BIF_MMSCH1_DOORBELL_RANGE__SIZE_MASK            0x001F0000L
 
+#define mmRCC_DEV0_EPF0_STRAP0_ALDE			0x0015
+#define mmRCC_DEV0_EPF0_STRAP0_ALDE_BASE_IDX		2
+
 static void nbio_v7_4_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status);
 
@@ -65,7 +68,12 @@ static void nbio_v7_4_remap_hdp_registers(struct amdgpu_device *adev)
 
 static u32 nbio_v7_4_get_rev_id(struct amdgpu_device *adev)
 {
-	u32 tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
+	u32 tmp;
+
+	if (adev->asic_type == CHIP_ALDEBARAN)
+		tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0_ALDE);
+	else
+		tmp = RREG32_SOC15(NBIO, 0, mmRCC_DEV0_EPF0_STRAP0);
 
 	tmp &= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0_MASK;
 	tmp >>= RCC_DEV0_EPF0_STRAP0__STRAP_ATI_REV_ID_DEV0_F0__SHIFT;
