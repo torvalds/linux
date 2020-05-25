@@ -917,6 +917,8 @@ struct atomisp_acc_map {
 
 #define ATOMISP_MAP_FLAG_NOFLUSH	0x0001	/* Do not flush cache */
 #define ATOMISP_MAP_FLAG_CACHED		0x0002	/* Enable cache */
+#define ATOMISP_MAP_FLAG_CONTIGUOUS	0x0004
+#define ATOMISP_MAP_FLAG_CLEARED	0x0008
 
 struct atomisp_acc_state {
 	__u32 flags;			/* Flags, see list below */

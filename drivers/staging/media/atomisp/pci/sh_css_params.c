@@ -3267,11 +3267,11 @@ sh_css_params_init(void) {
 			xmem_sp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
 						  mmgr_alloc_attr(sizeof(struct sh_css_sp_stage),
-								  MMGR_ATTRIBUTE_CLEARED));
+								  ATOMISP_MAP_FLAG_CLEARED));
 			xmem_isp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
 						  mmgr_alloc_attr(sizeof(struct sh_css_sp_stage),
-								  MMGR_ATTRIBUTE_CLEARED));
+								  ATOMISP_MAP_FLAG_CLEARED));
 
 			if ((xmem_sp_stage_ptrs[p][i] == mmgr_NULL) ||
 			    (xmem_isp_stage_ptrs[p][i] == mmgr_NULL)) {
@@ -3290,10 +3290,10 @@ sh_css_params_init(void) {
 	sp_ddr_ptrs = ia_css_refcount_increment(-1,
 						mmgr_alloc_attr(CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
 									 HIVE_ISP_DDR_WORD_BYTES),
-								MMGR_ATTRIBUTE_CLEARED));
+								ATOMISP_MAP_FLAG_CLEARED));
 	xmem_sp_group_ptrs = ia_css_refcount_increment(-1,
 						       mmgr_alloc_attr(sizeof(struct sh_css_sp_group),
-								       MMGR_ATTRIBUTE_CLEARED));
+								       ATOMISP_MAP_FLAG_CLEARED));
 
 	if ((sp_ddr_ptrs == mmgr_NULL) ||
 	    (xmem_sp_group_ptrs == mmgr_NULL))

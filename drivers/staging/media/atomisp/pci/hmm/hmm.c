@@ -193,7 +193,7 @@ int hmm_init(void)
 	 * at the beginning, to avoid hmm_alloc return 0 in the
 	 * further allocation.
 	 */
-	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, false);
+	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, 0);
 
 	if (!ret) {
 		ret = sysfs_create_group(&atomisp_dev->kobj,
@@ -219,11 +219,15 @@ void hmm_cleanup(void)
 }
 
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr, bool cached)
+		     int from_highmem, const void __user *userptr,
+		     const uint16_t attrs)
 {
 	unsigned int pgnr;
 	struct hmm_buffer_object *bo;
+	bool cached = attrs & ATOMISP_MAP_FLAG_CACHED;
 	int ret;
+
+	WARN_ON(attrs & ATOMISP_MAP_FLAG_CONTIGUOUS);
 
 	/*
 	 * Check if we are initialized. In the ideal world we wouldn't need
@@ -257,6 +261,9 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	}
 
 	hmm_mem_stat.tol_cnt += pgnr;
+
+	if (attrs & ATOMISP_MAP_FLAG_CLEARED)
+		hmm_set(bo->start, 0, bytes);
 
 	return bo->start;
 

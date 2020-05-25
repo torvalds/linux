@@ -76,9 +76,6 @@
  * within the allocation referencable from the
  * returned pointer/address.
  */
-#define MMGR_ATTRIBUTE_CACHED		0x0001
-#define MMGR_ATTRIBUTE_CONTIGUOUS	0x0002
-#define MMGR_ATTRIBUTE_CLEARED		0x0008
 
 #define mmgr_NULL		((hrt_vaddress)0)
 #define mmgr_EXCEPTION		((hrt_vaddress)-1)

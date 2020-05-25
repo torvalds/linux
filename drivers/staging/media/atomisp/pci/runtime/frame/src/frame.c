@@ -178,7 +178,7 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 		}
 
 		return hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-				 attribute & MMGR_ATTRIBUTE_CACHED);
+				 attribute & ATOMISP_MAP_FLAG_CACHED);
 
 		if (me->data == mmgr_NULL)
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
@@ -799,7 +799,7 @@ static enum ia_css_err frame_allocate_buffer_data(struct ia_css_frame *frame)
 #endif
 	frame->data = mmgr_alloc_attr(frame->data_bytes,
 				      frame->contiguous ?
-				      MMGR_ATTRIBUTE_CONTIGUOUS : 0);
+				      ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
 
 	if (frame->data == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;

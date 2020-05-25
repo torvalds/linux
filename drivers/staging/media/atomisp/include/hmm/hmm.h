@@ -35,7 +35,8 @@ int hmm_init(void);
 void hmm_cleanup(void);
 
 ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr, bool cached);
+		     int from_highmem, const void __user *userptr,
+		     const uint16_t attrs);
 void hmm_free(ia_css_ptr ptr);
 int hmm_load(ia_css_ptr virt, void *data, unsigned int bytes);
 int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes);
