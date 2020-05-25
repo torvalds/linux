@@ -47,8 +47,6 @@ void mptcp_crypto_key_sha(u64 key, u32 *token, u64 *idsn)
 void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 {
 	u8 input[SHA256_BLOCK_SIZE + SHA256_DIGEST_SIZE];
-	__be32 mptcp_hashed_key[SHA256_DIGEST_WORDS];
-	__be32 *hash_out = (__force __be32 *)hmac;
 	struct sha256_state state;
 	u8 key1be[8];
 	u8 key2be[8];
@@ -86,11 +84,7 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 
 	sha256_init(&state);
 	sha256_update(&state, input, SHA256_BLOCK_SIZE + SHA256_DIGEST_SIZE);
-	sha256_final(&state, (u8 *)mptcp_hashed_key);
-
-	/* takes only first 160 bits */
-	for (i = 0; i < 5; i++)
-		hash_out[i] = mptcp_hashed_key[i];
+	sha256_final(&state, (u8 *)hmac);
 }
 
 #ifdef CONFIG_MPTCP_HMAC_TEST
@@ -101,29 +95,29 @@ struct test_cast {
 };
 
 /* we can't reuse RFC 4231 test vectors, as we have constraint on the
- * input and key size, and we truncate the output.
+ * input and key size.
  */
 static struct test_cast tests[] = {
 	{
 		.key = "0b0b0b0b0b0b0b0b",
 		.msg = "48692054",
-		.result = "8385e24fb4235ac37556b6b886db106284a1da67",
+		.result = "8385e24fb4235ac37556b6b886db106284a1da671699f46db1f235ec622dcafa",
 	},
 	{
 		.key = "aaaaaaaaaaaaaaaa",
 		.msg = "dddddddd",
-		.result = "2c5e219164ff1dca1c4a92318d847bb6b9d44492",
+		.result = "2c5e219164ff1dca1c4a92318d847bb6b9d44492984e1eb71aff9022f71046e9",
 	},
 	{
 		.key = "0102030405060708",
 		.msg = "cdcdcdcd",
-		.result = "e73b9ba9969969cefb04aa0d6df18ec2fcc075b6",
+		.result = "e73b9ba9969969cefb04aa0d6df18ec2fcc075b6f23b4d8c4da736a5dbbc6e7d",
 	},
 };
 
 static int __init test_mptcp_crypto(void)
 {
-	char hmac[20], hmac_hex[41];
+	char hmac[32], hmac_hex[65];
 	u32 nonce1, nonce2;
 	u64 key1, key2;
 	u8 msg[8];
@@ -140,11 +134,11 @@ static int __init test_mptcp_crypto(void)
 		put_unaligned_be32(nonce2, &msg[4]);
 
 		mptcp_crypto_hmac_sha(key1, key2, msg, 8, hmac);
-		for (j = 0; j < 20; ++j)
+		for (j = 0; j < 32; ++j)
 			sprintf(&hmac_hex[j << 1], "%02x", hmac[j] & 0xff);
-		hmac_hex[40] = 0;
+		hmac_hex[64] = 0;
 
-		if (memcmp(hmac_hex, tests[i].result, 40))
+		if (memcmp(hmac_hex, tests[i].result, 64))
 			pr_err("test %d failed, got %s expected %s", i,
 			       hmac_hex, tests[i].result);
 		else

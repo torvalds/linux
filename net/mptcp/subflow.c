@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <crypto/algapi.h>
+#include <crypto/sha.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <net/inet_hashtables.h>
@@ -89,7 +90,7 @@ static bool subflow_token_join_request(struct request_sock *req,
 				       const struct sk_buff *skb)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
-	u8 hmac[MPTCPOPT_HMAC_LEN];
+	u8 hmac[SHA256_DIGEST_SIZE];
 	struct mptcp_sock *msk;
 	int local_id;
 
@@ -201,7 +202,7 @@ static void subflow_v6_init_req(struct request_sock *req,
 /* validate received truncated hmac and create hmac for third ACK */
 static bool subflow_thmac_valid(struct mptcp_subflow_context *subflow)
 {
-	u8 hmac[MPTCPOPT_HMAC_LEN];
+	u8 hmac[SHA256_DIGEST_SIZE];
 	u64 thmac;
 
 	subflow_generate_hmac(subflow->remote_key, subflow->local_key,
@@ -267,6 +268,8 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 			subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
 		}
 	} else if (subflow->mp_join) {
+		u8 hmac[SHA256_DIGEST_SIZE];
+
 		pr_debug("subflow=%p, thmac=%llu, remote_nonce=%u",
 			 subflow, subflow->thmac,
 			 subflow->remote_nonce);
@@ -279,7 +282,9 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 		subflow_generate_hmac(subflow->local_key, subflow->remote_key,
 				      subflow->local_nonce,
 				      subflow->remote_nonce,
-				      subflow->hmac);
+				      hmac);
+
+		memcpy(subflow->hmac, hmac, MPTCPOPT_HMAC_LEN);
 
 		if (skb)
 			subflow->ssn_offset = TCP_SKB_CB(skb)->seq;
@@ -347,7 +352,7 @@ static bool subflow_hmac_valid(const struct request_sock *req,
 			       const struct mptcp_options_received *mp_opt)
 {
 	const struct mptcp_subflow_request_sock *subflow_req;
-	u8 hmac[MPTCPOPT_HMAC_LEN];
+	u8 hmac[SHA256_DIGEST_SIZE];
 	struct mptcp_sock *msk;
 	bool ret;
 
@@ -361,7 +366,7 @@ static bool subflow_hmac_valid(const struct request_sock *req,
 			      subflow_req->local_nonce, hmac);
 
 	ret = true;
-	if (crypto_memneq(hmac, mp_opt->hmac, sizeof(hmac)))
+	if (crypto_memneq(hmac, mp_opt->hmac, MPTCPOPT_HMAC_LEN))
 		ret = false;
 
 	sock_put((struct sock *)msk);
