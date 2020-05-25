@@ -624,7 +624,7 @@
 				clock-names = "ckil", "osc";
 			};
 
-			src: src@30390000 {
+			src: reset-controller@30390000 {
 				compatible = "fsl,imx7d-src", "syscon";
 				reg = <0x30390000 0x10000>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
