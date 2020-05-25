@@ -63,4 +63,9 @@ auto
         with the highest resolution, it will choose one with the highest color
         depth.
 
+list
+        The EFI stub will list out all the display modes that are available. A
+        specific mode can then be chosen using one of the above options for the
+        next boot.
+
 Edgar Hucek <gimli@dark-green.com>

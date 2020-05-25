@@ -140,7 +140,7 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 	 * The EFI firmware loader could have placed the kernel image
 	 * anywhere in memory, but the kernel has restrictions on the
 	 * max physical address it can run at.  Some architectures
-	 * also have a prefered address, so first try to relocate
+	 * also have a preferred address, so first try to relocate
 	 * to the preferred address.  If that fails, allocate as low
 	 * as possible while respecting the required alignment.
 	 */
@@ -157,7 +157,7 @@ efi_status_t efi_relocate_kernel(unsigned long *image_addr,
 					     min_addr);
 	}
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to allocate usable memory for kernel.\n");
+		efi_err("Failed to allocate usable memory for kernel.\n");
 		return status;
 	}
 

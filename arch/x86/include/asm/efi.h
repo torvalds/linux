@@ -9,6 +9,7 @@
 #include <asm/nospec-branch.h>
 #include <asm/mmu_context.h>
 #include <linux/build_bug.h>
+#include <linux/kernel.h>
 
 extern unsigned long efi_fw_vendor, efi_config_table;
 
@@ -225,13 +226,15 @@ efi_status_t efi_set_virtual_address_map(unsigned long memory_map_size,
 
 /* arch specific definitions used by the stub code */
 
-extern const bool efi_is64;
+#ifdef CONFIG_EFI_MIXED
+
+#define ARCH_HAS_EFISTUB_WRAPPERS
 
 static inline bool efi_is_64bit(void)
 {
-	if (IS_ENABLED(CONFIG_EFI_MIXED))
-		return efi_is64;
-	return IS_ENABLED(CONFIG_X86_64);
+	extern const bool efi_is64;
+
+	return efi_is64;
 }
 
 static inline bool efi_is_native(void)
@@ -290,6 +293,15 @@ static inline u32 efi64_convert_status(efi_status_t status)
 
 #define __efi64_argmap_allocate_pool(type, size, buffer)		\
 	((type), (size), efi64_zero_upper(buffer))
+
+#define __efi64_argmap_create_event(type, tpl, f, c, event)		\
+	((type), (tpl), (f), (c), efi64_zero_upper(event))
+
+#define __efi64_argmap_set_timer(event, type, time)			\
+	((event), (type), lower_32_bits(time), upper_32_bits(time))
+
+#define __efi64_argmap_wait_for_event(num, event, index)		\
+	((num), (event), efi64_zero_upper(index))
 
 #define __efi64_argmap_handle_protocol(handle, protocol, interface)	\
 	((handle), (protocol), efi64_zero_upper(interface))
@@ -355,6 +367,15 @@ static inline u32 efi64_convert_status(efi_status_t status)
 		: __efi64_thunk_map(efi_table_attr(efi_system_table,	\
 						   runtime),		\
 				    func, __VA_ARGS__))
+
+#else /* CONFIG_EFI_MIXED */
+
+static inline bool efi_is_64bit(void)
+{
+	return IS_ENABLED(CONFIG_X86_64);
+}
+
+#endif /* CONFIG_EFI_MIXED */
 
 extern bool efi_reboot_required(void);
 extern bool efi_is_table_address(unsigned long phys_addr);
