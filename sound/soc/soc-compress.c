@@ -439,11 +439,9 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto err;
 
-	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->set_params) {
-		ret = rtd->dai_link->compr_ops->set_params(cstream);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_link_compr_set_params(cstream);
+	if (ret < 0)
+		goto err;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
@@ -507,11 +505,9 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->set_params) {
-		ret = fe->dai_link->compr_ops->set_params(cstream);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_link_compr_set_params(cstream);
+	if (ret < 0)
+		goto out;
 
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_START);
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
