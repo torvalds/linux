@@ -108,23 +108,20 @@ static int exp_idx;
 struct ref_perf_ops {
 	void (*init)(void);
 	void (*cleanup)(void);
-	int (*readlock)(void);
-	void (*readunlock)(int idx);
+	void (*readsection)(const int nloops);
 	const char *name;
 };
 
 static struct ref_perf_ops *cur_ops;
 
-// Definitions for RCU ref perf testing.
-static int ref_rcu_read_lock(void) __acquires(RCU)
+static void ref_rcu_read_section(const int nloops)
 {
-	rcu_read_lock();
-	return 0;
-}
+	int i;
 
-static void ref_rcu_read_unlock(int idx) __releases(RCU)
-{
-	rcu_read_unlock();
+	for (i = nloops; i >= 0; i--) {
+		rcu_read_lock();
+		rcu_read_unlock();
+	}
 }
 
 static void rcu_sync_perf_init(void)
@@ -133,8 +130,7 @@ static void rcu_sync_perf_init(void)
 
 static struct ref_perf_ops rcu_ops = {
 	.init		= rcu_sync_perf_init,
-	.readlock	= ref_rcu_read_lock,
-	.readunlock	= ref_rcu_read_unlock,
+	.readsection	= ref_rcu_read_section,
 	.name		= "rcu"
 };
 
@@ -143,42 +139,39 @@ static struct ref_perf_ops rcu_ops = {
 DEFINE_STATIC_SRCU(srcu_refctl_perf);
 static struct srcu_struct *srcu_ctlp = &srcu_refctl_perf;
 
-static int srcu_ref_perf_read_lock(void) __acquires(srcu_ctlp)
+static void srcu_ref_perf_read_section(int nloops)
 {
-	return srcu_read_lock(srcu_ctlp);
-}
+	int i;
+	int idx;
 
-static void srcu_ref_perf_read_unlock(int idx) __releases(srcu_ctlp)
-{
-	srcu_read_unlock(srcu_ctlp, idx);
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock(srcu_ctlp);
+		srcu_read_unlock(srcu_ctlp, idx);
+	}
 }
 
 static struct ref_perf_ops srcu_ops = {
 	.init		= rcu_sync_perf_init,
-	.readlock	= srcu_ref_perf_read_lock,
-	.readunlock	= srcu_ref_perf_read_unlock,
+	.readsection	= srcu_ref_perf_read_section,
 	.name		= "srcu"
 };
 
 // Definitions for reference count
 static atomic_t refcnt;
 
-static int srcu_ref_perf_refcnt_lock(void)
+static void ref_perf_refcnt_section(const int nloops)
 {
-	atomic_inc(&refcnt);
-	return 0;
-}
+	int i;
 
-static void srcu_ref_perf_refcnt_unlock(int idx) __releases(srcu_ctlp)
-{
-	atomic_dec(&refcnt);
-	srcu_read_unlock(srcu_ctlp, idx);
+	for (i = nloops; i >= 0; i--) {
+		atomic_inc(&refcnt);
+		atomic_dec(&refcnt);
+	}
 }
 
 static struct ref_perf_ops refcnt_ops = {
 	.init		= rcu_sync_perf_init,
-	.readlock	= srcu_ref_perf_refcnt_lock,
-	.readunlock	= srcu_ref_perf_refcnt_unlock,
+	.readsection	= ref_perf_refcnt_section,
 	.name		= "refcnt"
 };
 
@@ -190,21 +183,19 @@ static void ref_perf_rwlock_init(void)
 	rwlock_init(&test_rwlock);
 }
 
-static int ref_perf_rwlock_lock(void)
+static void ref_perf_rwlock_section(const int nloops)
 {
-	read_lock(&test_rwlock);
-	return 0;
-}
+	int i;
 
-static void ref_perf_rwlock_unlock(int idx)
-{
-	read_unlock(&test_rwlock);
+	for (i = nloops; i >= 0; i--) {
+		read_lock(&test_rwlock);
+		read_unlock(&test_rwlock);
+	}
 }
 
 static struct ref_perf_ops rwlock_ops = {
 	.init		= ref_perf_rwlock_init,
-	.readlock	= ref_perf_rwlock_lock,
-	.readunlock	= ref_perf_rwlock_unlock,
+	.readsection	= ref_perf_rwlock_section,
 	.name		= "rwlock"
 };
 
@@ -216,21 +207,19 @@ static void ref_perf_rwsem_init(void)
 	init_rwsem(&test_rwsem);
 }
 
-static int ref_perf_rwsem_lock(void)
+static void ref_perf_rwsem_section(const int nloops)
 {
-	down_read(&test_rwsem);
-	return 0;
-}
+	int i;
 
-static void ref_perf_rwsem_unlock(int idx)
-{
-	up_read(&test_rwsem);
+	for (i = nloops; i >= 0; i--) {
+		down_read(&test_rwsem);
+		up_read(&test_rwsem);
+	}
 }
 
 static struct ref_perf_ops rwsem_ops = {
 	.init		= ref_perf_rwsem_init,
-	.readlock	= ref_perf_rwsem_lock,
-	.readunlock	= ref_perf_rwsem_unlock,
+	.readsection	= ref_perf_rwsem_section,
 	.name		= "rwsem"
 };
 
@@ -242,8 +231,6 @@ ref_perf_reader(void *arg)
 	unsigned long flags;
 	long me = (long)arg;
 	struct reader_task *rt = &(reader_tasks[me]);
-	unsigned long spincnt;
-	int idx;
 	u64 start;
 	s64 duration;
 
@@ -275,10 +262,7 @@ repeat:
 
 	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d started", me, exp_idx);
 
-	for (spincnt = 0; spincnt < loops; spincnt++) {
-		idx = cur_ops->readlock();
-		cur_ops->readunlock(idx);
-	}
+	cur_ops->readsection(loops);
 
 	duration = ktime_get_mono_fast_ns() - start;
 	local_irq_restore(flags);
