@@ -2387,16 +2387,16 @@ static int __init ns_init_module(void)
 
 	ret = nand_create_bbt(chip);
 	if (ret)
-		goto err_exit;
+		goto free_ns_object;
 
 	ret = ns_parse_badblocks(ns, nsmtd);
 	if (ret)
-		goto err_exit;
+		goto free_ns_object;
 
 	/* Register NAND partitions */
 	ret = mtd_device_register(nsmtd, &ns->partitions[0], ns->nbparts);
 	if (ret)
-		goto err_exit;
+		goto free_ns_object;
 
 	ret = ns_debugfs_create(ns);
 	if (ret)
@@ -2407,6 +2407,7 @@ static int __init ns_init_module(void)
 unregister_mtd:
 	WARN_ON(mtd_device_unregister(nsmtd));
 err_exit:
+free_ns_object:
 	ns_free(ns);
 	nand_cleanup(chip);
 error:
