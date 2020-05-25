@@ -343,6 +343,9 @@ static void socinfo_debugfs_init(struct qcom_socinfo *qcom_socinfo,
 
 	qcom_socinfo->info.fmt = __le32_to_cpu(info->fmt);
 
+	debugfs_create_x32("info_fmt", 0400, qcom_socinfo->dbg_root,
+			   &qcom_socinfo->info.fmt);
+
 	switch (qcom_socinfo->info.fmt) {
 	case SOCINFO_VERSION(0, 15):
 		qcom_socinfo->info.nmodem_supported = __le32_to_cpu(info->nmodem_supported);
