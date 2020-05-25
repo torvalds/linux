@@ -48,7 +48,7 @@ struct videomode;
  * @MODE_HSYNC: hsync out of range
  * @MODE_VSYNC: vsync out of range
  * @MODE_H_ILLEGAL: mode has illegal horizontal timings
- * @MODE_V_ILLEGAL: mode has illegal horizontal timings
+ * @MODE_V_ILLEGAL: mode has illegal vertical timings
  * @MODE_BAD_WIDTH: requires an unsupported linepitch
  * @MODE_NOMODE: no mode with a matching name
  * @MODE_NO_INTERLACE: interlaced mode not supported

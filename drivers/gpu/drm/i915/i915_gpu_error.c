@@ -1207,8 +1207,6 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 static void record_request(const struct i915_request *request,
 			   struct i915_request_coredump *erq)
 {
-	const struct i915_gem_context *ctx;
-
 	erq->flags = request->fence.flags;
 	erq->context = request->fence.context;
 	erq->seqno = request->fence.seqno;
@@ -1219,9 +1217,13 @@ static void record_request(const struct i915_request *request,
 
 	erq->pid = 0;
 	rcu_read_lock();
-	ctx = rcu_dereference(request->context->gem_context);
-	if (ctx)
-		erq->pid = pid_nr(ctx->pid);
+	if (!intel_context_is_closed(request->context)) {
+		const struct i915_gem_context *ctx;
+
+		ctx = rcu_dereference(request->context->gem_context);
+		if (ctx)
+			erq->pid = pid_nr(ctx->pid);
+	}
 	rcu_read_unlock();
 }
 

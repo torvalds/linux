@@ -47,7 +47,7 @@ ifeq ($(CSKYABI),abiv2)
 KBUILD_CFLAGS += -mno-stack-size
 endif
 
-ifdef CONFIG_STACKTRACE
+ifdef CONFIG_FRAME_POINTER
 KBUILD_CFLAGS += -mbacktrace
 endif
 
