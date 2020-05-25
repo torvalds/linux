@@ -327,11 +327,6 @@ INCLUDES_cht += \
 #	-I$(atomisp)/pci/css_2401_system/hrt/ \
 #	-I$(atomisp)/pci/css_2401_system/hive_isp_css_2401_system_generated/ \
 
-
-ifeq ($(CONFIG_ION),y)
-INCLUDES += -I$(srctree)/drivers/staging/android/ion
-endif
-
 DEFINES := -DHRT_HW -DHRT_ISP_CSS_CUSTOM_HOST -DHRT_USE_VIR_ADDRS -D__HOST__
 #DEFINES += -DUSE_DYNAMIC_BIN
 #DEFINES += -DISP_POWER_GATING

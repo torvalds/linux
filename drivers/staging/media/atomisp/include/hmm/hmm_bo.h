@@ -77,9 +77,6 @@ enum hmm_bo_type {
 	HMM_BO_PRIVATE,
 	HMM_BO_SHARE,
 	HMM_BO_USER,
-#ifdef CONFIG_ION
-	HMM_BO_ION,
-#endif
 	HMM_BO_LAST,
 };
 
@@ -111,9 +108,6 @@ struct hmm_bo_device {
 
 	/* list lock is used to protect the entire_bo_list */
 	spinlock_t	list_lock;
-#ifdef CONFIG_ION
-	struct ion_client	*iclient;
-#endif
 	int flag;
 
 	/* linked list for entire buffer object */
@@ -142,9 +136,6 @@ struct hmm_buffer_object {
 	struct hmm_page_object	*page_obj;	/* physical pages */
 	int		from_highmem;
 	int		mmap_count;
-#ifdef CONFIG_ION
-	struct ion_handle	*ihandle;
-#endif
 	int		status;
 	int		mem_type;
 	void		*vmap_addr; /* kernel virtual address by vmap */

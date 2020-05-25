@@ -25,27 +25,15 @@
 
 #define HRT_BUF_FLAG_CACHED BIT(0)
 
-enum hrt_userptr_type {
-	HRT_USR_PTR = 0,
-#ifdef CONFIG_ION
-	HRT_USR_ION,
-#endif
-};
-
 struct hrt_userbuffer_attr {
-	enum hrt_userptr_type	type;
 	unsigned int		pgnr;
 };
-
-void hrt_isp_css_mm_set_user_ptr(void __user *userptr,
-				 unsigned int num_pages, enum hrt_userptr_type);
 
 /* Allocate memory, returns a virtual address */
 ia_css_ptr hrt_isp_css_mm_alloc(size_t bytes);
 ia_css_ptr hrt_isp_css_mm_alloc_user_ptr(size_t bytes,
 	const void __user *userptr,
 	unsigned int num_pages,
-	enum hrt_userptr_type,
 	bool cached);
 ia_css_ptr hrt_isp_css_mm_alloc_cached(size_t bytes);
 

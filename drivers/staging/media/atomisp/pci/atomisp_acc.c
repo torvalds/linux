@@ -355,7 +355,7 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 		pgnr = DIV_ROUND_UP(map->length, PAGE_SIZE);
 		cssptr = hrt_isp_css_mm_alloc_user_ptr(map->length,
 						       map->user_ptr,
-						       pgnr, HRT_USR_PTR,
+						       pgnr,
 						       (map->flags & ATOMISP_MAP_FLAG_CACHED));
 	} else {
 		/* Allocate private buffer. */

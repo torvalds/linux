@@ -80,6 +80,5 @@ mmgr_mmap(const void __user *ptr, const size_t size,
 
 	return hrt_isp_css_mm_alloc_user_ptr(
 		   size, ptr, userbuffer_attr->pgnr,
-		   userbuffer_attr->type,
 		   attribute & HRT_BUF_FLAG_CACHED);
 }

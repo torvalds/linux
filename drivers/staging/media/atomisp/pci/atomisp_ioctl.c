@@ -1205,41 +1205,6 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 		}
 
 		attributes.pgnr = pgnr;
-		attributes.type = HRT_USR_PTR;
-#ifdef CONFIG_ION
-		if (!atomisp_hw_is_isp2401) {
-			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION)
-					attributes.type = HRT_USR_ION;
-		} else {
-			if (buf->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_ION) {
-				attributes.type = HRT_USR_ION;
-				if (asd->ion_dev_fd->val !=  ION_FD_UNSET) {
-					dev_dbg(isp->dev, "ION buffer queued, share_fd=%lddev_fd=%d.\n",
-						buf->m.userptr, asd->ion_dev_fd->val);
-					/*
-					* Make sure the shared fd we just got
-					* from user space isn't larger than
-					* the space we have for it.
-					*/
-					if ((buf->m.userptr &
-					    (ATOMISP_ION_DEVICE_FD_MASK)) != 0) {
-						dev_err(isp->dev,
-							"Error: v4l2 buffer fd:0X%0lX > 0XFFFF.\n",
-							buf->m.userptr);
-						ret = -EINVAL;
-						goto error;
-					}
-					buf->m.userptr |= asd->ion_dev_fd->val <<
-							ATOMISP_ION_DEVICE_FD_OFFSET;
-				} else {
-					dev_err(isp->dev, "v4l2 buffer type is ION, \
-							but no dev fd set from userspace.\n");
-					ret = -EINVAL;
-					goto error;
-				}
-			}
-		}
-#endif
 		ret = atomisp_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
 					    0, &attributes);

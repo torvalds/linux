@@ -1223,11 +1223,6 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 		asd->select_isp_version = v4l2_ctrl_new_custom(&asd->ctrl_handler,
 							       &ctrl_select_isp_version,
 							       NULL);
-#if 0 /* #ifdef CONFIG_ION */
-		asd->ion_dev_fd = v4l2_ctrl_new_custom(&asd->ctrl_handler,
-						       &ctrl_ion_dev_fd,
-						       NULL);
-#endif
 	}
 
 	/* Make controls visible on subdev as well. */
