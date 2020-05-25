@@ -77,18 +77,15 @@ static int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 	pm_runtime_put_sync(mcbsp->dev);
 
 	r = clk_set_parent(mcbsp->fclk, fck_src);
-	if (r) {
+	if (r)
 		dev_err(mcbsp->dev, "CLKS: could not clk_set_parent() to %s\n",
 			src);
-		clk_put(fck_src);
-		return r;
-	}
 
 	pm_runtime_get_sync(mcbsp->dev);
 
 	clk_put(fck_src);
 
-	return 0;
+	return r;
 }
 
 static irqreturn_t omap_mcbsp_irq_handler(int irq, void *data)
