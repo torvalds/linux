@@ -978,24 +978,6 @@ static int ns_read_error(unsigned int page_no)
 	return 0;
 }
 
-static void ns_free_lists(void)
-{
-	struct list_head *pos, *n;
-	list_for_each_safe(pos, n, &weak_blocks) {
-		list_del(pos);
-		kfree(list_entry(pos, struct weak_block, list));
-	}
-	list_for_each_safe(pos, n, &weak_pages) {
-		list_del(pos);
-		kfree(list_entry(pos, struct weak_page, list));
-	}
-	list_for_each_safe(pos, n, &grave_pages) {
-		list_del(pos);
-		kfree(list_entry(pos, struct grave_page, list));
-	}
-	kfree(erase_block_wear);
-}
-
 static int ns_setup_wear_reporting(struct mtd_info *mtd)
 {
 	size_t mem;
@@ -2443,12 +2425,30 @@ static void __exit ns_cleanup_module(void)
 {
 	struct nand_chip *chip = mtd_to_nand(nsmtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
+	struct list_head *pos, *n;
 
 	ns_debugfs_remove(ns);
-	ns_free(ns);    /* Free nandsim private resources */
-	nand_release(chip); /* Unregister driver */
-	kfree(ns);        /* Free other structures */
-	ns_free_lists();
+	WARN_ON(mtd_device_unregister(nsmtd));
+	ns_free(ns);
+	kfree(erase_block_wear);
+	nand_cleanup(chip);
+
+	list_for_each_safe(pos, n, &grave_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct grave_page, list));
+	}
+
+	list_for_each_safe(pos, n, &weak_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_page, list));
+	}
+
+	list_for_each_safe(pos, n, &weak_blocks) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_block, list));
+	}
+
+	kfree(ns);
 }
 
 module_exit(ns_cleanup_module);
