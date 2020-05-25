@@ -2383,7 +2383,7 @@ static int __init ns_init_module(void)
 
 	ret = ns_init(nsmtd);
 	if (ret)
-		goto err_exit;
+		goto free_ebw;
 
 	ret = nand_create_bbt(chip);
 	if (ret)
@@ -2409,6 +2409,8 @@ unregister_mtd:
 err_exit:
 free_ns_object:
 	ns_free(ns);
+free_ebw:
+	kfree(erase_block_wear);
 	nand_cleanup(chip);
 error:
 	kfree(ns);
