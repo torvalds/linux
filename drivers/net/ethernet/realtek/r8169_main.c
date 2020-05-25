@@ -2953,11 +2953,11 @@ static void rtl_hw_start_8168f(struct rtl8169_private *tp)
 	rtl_set_def_aspm_entry_latency(tp);
 
 	rtl_eri_write(tp, 0xc0, ERIAR_MASK_0011, 0x0000);
-	rtl_eri_write(tp, 0xb8, ERIAR_MASK_0011, 0x0000);
+	rtl_eri_write(tp, 0xb8, ERIAR_MASK_1111, 0x0000);
 	rtl_set_fifo_size(tp, 0x10, 0x10, 0x02, 0x06);
 	rtl_reset_packet_filter(tp);
 	rtl_eri_set_bits(tp, 0x1b0, BIT(4));
-	rtl_eri_set_bits(tp, 0x1d0, BIT(4));
+	rtl_eri_set_bits(tp, 0x1d0, BIT(4) | BIT(1));
 	rtl_eri_write(tp, 0xcc, ERIAR_MASK_1111, 0x00000050);
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_1111, 0x00000060);
 
@@ -2986,7 +2986,7 @@ static void rtl_hw_start_8168f_1(struct rtl8169_private *tp)
 
 	rtl_ephy_init(tp, e_info_8168f_1);
 
-	rtl_w0w1_eri(tp, 0x0d4, 0x0c00, 0xff00);
+	rtl_eri_set_bits(tp, 0x0d4, 0x1f00);
 }
 
 static void rtl_hw_start_8411(struct rtl8169_private *tp)
