@@ -69,7 +69,7 @@
 #define RESET_SYS_CPU_L2		58
 #define RESET_SYS_CPU_P			59
 #define RESET_SYS_CPU_MBIST		60
-/*					61	*/
+#define RESET_ACODEC			61
 /*					62	*/
 /*					63	*/
 /*	RESET2					*/
