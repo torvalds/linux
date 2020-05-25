@@ -2,7 +2,14 @@
 choice
 	prompt "Machine type"
 	depends on MACH_INGENIC
-	default JZ4740_QI_LB60
+	default INGENIC_GENERIC_BOARD
+
+config INGENIC_GENERIC_BOARD
+	bool "Generic board"
+	select MACH_JZ4740
+	select MACH_JZ4770
+	select MACH_JZ4780
+	select MACH_X1000
 
 config JZ4740_QI_LB60
 	bool "Qi Hardware Ben NanoNote"
