@@ -2273,6 +2273,7 @@ static const struct nand_controller_ops ns_controller_ops = {
  */
 static int __init ns_init_module(void)
 {
+	struct list_head *pos, *n;
 	struct nand_chip *chip;
 	struct nandsim *ns;
 	int ret;
@@ -2340,11 +2341,11 @@ static int __init ns_init_module(void)
 
 	ret = ns_parse_weakpages();
 	if (ret)
-		goto error;
+		goto free_wb_list;
 
 	ret = ns_parse_gravepages();
 	if (ret)
-		goto error;
+		goto free_wp_list;
 
 	nand_controller_init(&ns->base);
 	ns->base.ops = &ns_controller_ops;
@@ -2353,7 +2354,7 @@ static int __init ns_init_module(void)
 	ret = nand_scan(chip, 1);
 	if (ret) {
 		NS_ERR("Could not scan NAND Simulator device\n");
-		goto error;
+		goto free_gp_list;
 	}
 
 	if (overridesize) {
@@ -2412,9 +2413,23 @@ free_ebw:
 	kfree(erase_block_wear);
 cleanup_nand:
 	nand_cleanup(chip);
+free_gp_list:
+	list_for_each_safe(pos, n, &grave_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct grave_page, list));
+	}
+free_wp_list:
+	list_for_each_safe(pos, n, &weak_pages) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_page, list));
+	}
+free_wb_list:
+	list_for_each_safe(pos, n, &weak_blocks) {
+		list_del(pos);
+		kfree(list_entry(pos, struct weak_block, list));
+	}
 error:
 	kfree(ns);
-	ns_free_lists();
 
 	return ret;
 }
