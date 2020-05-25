@@ -424,21 +424,16 @@ static int ggtt_bind_vma(struct i915_vma *vma,
 	struct drm_i915_gem_object *obj = vma->obj;
 	u32 pte_flags;
 
+	if (i915_vma_is_bound(vma, ~flags & I915_VMA_BIND_MASK))
+		return 0;
+
 	/* Applicable to VLV (gen8+ do not support RO in the GGTT) */
 	pte_flags = 0;
 	if (i915_gem_object_is_readonly(obj))
 		pte_flags |= PTE_READ_ONLY;
 
 	vma->vm->insert_entries(vma->vm, vma, cache_level, pte_flags);
-
 	vma->page_sizes.gtt = I915_GTT_PAGE_SIZE;
-
-	/*
-	 * Without aliasing PPGTT there's no difference between
-	 * GLOBAL/LOCAL_BIND, it's all the same ptes. Hence unconditionally
-	 * upgrade to both bound if we bind either to avoid double-binding.
-	 */
-	atomic_or(I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND, &vma->flags);
 
 	return 0;
 }
