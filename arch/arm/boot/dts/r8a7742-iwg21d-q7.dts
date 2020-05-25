@@ -14,6 +14,7 @@
 
 	aliases {
 		serial2 = &scifa2;
+		serial4 = &scifb2;
 	};
 
 	chosen {
@@ -27,11 +28,24 @@
 		groups = "scifa2_data_c";
 		function = "scifa2";
 	};
+
+	scifb2_pins: scifb2 {
+		groups = "scifb2_data", "scifb2_ctrl";
+		function = "scifb2";
+	};
 };
 
 &scifa2 {
 	pinctrl-0 = <&scifa2_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+};
+
+&scifb2 {
+	pinctrl-0 = <&scifb2_pins>;
+	pinctrl-names = "default";
+
+	uart-has-rtscts;
 	status = "okay";
 };
