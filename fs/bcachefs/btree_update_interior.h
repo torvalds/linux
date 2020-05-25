@@ -6,34 +6,13 @@
 #include "btree_locking.h"
 #include "btree_update.h"
 
-struct btree_reserve {
-	struct disk_reservation	disk_res;
-	unsigned		nr;
-	struct btree		*b[BTREE_RESERVE_MAX];
-};
-
 void __bch2_btree_calc_format(struct bkey_format_state *, struct btree *);
 bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *,
 				struct bkey_format *);
 
-/* Btree node freeing/allocation: */
+#define BTREE_UPDATE_NODES_MAX		((BTREE_MAX_DEPTH - 2) * 2 + GC_MERGE_NODES)
 
-/*
- * Tracks a btree node that has been (or is about to be) freed in memory, but
- * has _not_ yet been freed on disk (because the write that makes the new
- * node(s) visible and frees the old hasn't completed yet)
- */
-struct pending_btree_node_free {
-	bool			index_update_done;
-
-	__le64			seq;
-	enum btree_id		btree_id;
-	unsigned		level;
-	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
-};
-
-#define BTREE_UPDATE_JOURNAL_RES		\
-	((BKEY_BTREE_PTR_U64s_MAX + 1) * (BTREE_MAX_DEPTH - 1) * 2)
+#define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
 
 /*
  * Tracks an in progress split/rewrite of a btree node and the update to the
@@ -72,9 +51,8 @@ struct btree_update {
 	unsigned			nodes_written:1;
 
 	enum btree_id			btree_id;
-	u8				level;
 
-	struct btree_reserve		*reserve;
+	struct disk_reservation		disk_res;
 	struct journal_preres		journal_preres;
 
 	/*
@@ -96,16 +74,27 @@ struct btree_update {
 	 */
 	struct journal_entry_pin	journal;
 
-	/*
-	 * Nodes being freed:
-	 * Protected by c->btree_node_pending_free_lock
-	 */
-	struct pending_btree_node_free	pending[BTREE_MAX_DEPTH + GC_MERGE_NODES];
-	unsigned			nr_pending;
+	/* Preallocated nodes we reserve when we start the update: */
+	struct btree			*prealloc_nodes[BTREE_UPDATE_NODES_MAX];
+	unsigned			nr_prealloc_nodes;
+
+	/* Nodes being freed: */
+	struct keylist			old_keys;
+	u64				_old_keys[BTREE_UPDATE_NODES_MAX *
+						  BKEY_BTREE_PTR_VAL_U64s_MAX];
+
+	/* Nodes being added: */
+	struct keylist			new_keys;
+	u64				_new_keys[BTREE_UPDATE_NODES_MAX *
+						  BKEY_BTREE_PTR_VAL_U64s_MAX];
 
 	/* New nodes, that will be made reachable by this update: */
-	struct btree			*new_nodes[BTREE_MAX_DEPTH * 2 + GC_MERGE_NODES];
+	struct btree			*new_nodes[BTREE_UPDATE_NODES_MAX];
 	unsigned			nr_new_nodes;
+
+	u8				open_buckets[BTREE_UPDATE_NODES_MAX *
+						     BCH_REPLICAS_MAX];
+	u8				nr_open_buckets;
 
 	unsigned			journal_u64s;
 	u64				journal_entries[BTREE_UPDATE_JOURNAL_RES];
@@ -120,13 +109,11 @@ struct btree_update {
 	u64				inline_keys[BKEY_BTREE_PTR_U64s_MAX * 3];
 };
 
-#define for_each_pending_btree_node_free(c, as, p)			\
-	list_for_each_entry(as, &c->btree_interior_update_list, list)	\
-		for (p = as->pending; p < as->pending + as->nr_pending; p++)
-
 void bch2_btree_node_free_inmem(struct bch_fs *, struct btree *,
 				struct btree_iter *);
 void bch2_btree_node_free_never_inserted(struct bch_fs *, struct btree *);
+
+void bch2_btree_update_get_open_buckets(struct btree_update *, struct btree *);
 
 struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 						  struct btree *,
@@ -139,6 +126,7 @@ bch2_btree_update_start(struct btree_trans *, enum btree_id, unsigned,
 
 void bch2_btree_interior_update_will_free_node(struct btree_update *,
 					       struct btree *);
+void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
 
 void bch2_btree_insert_node(struct btree_update *, struct btree *,
 			    struct btree_iter *, struct keylist *,
@@ -332,6 +320,10 @@ static inline bool bch2_btree_node_insert_fits(struct bch_fs *c,
 ssize_t bch2_btree_updates_print(struct bch_fs *, char *);
 
 size_t bch2_btree_interior_updates_nr_pending(struct bch_fs *);
+
+void bch2_journal_entries_to_btree_roots(struct bch_fs *, struct jset *);
+struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
+					struct jset_entry *, struct jset_entry *);
 
 void bch2_fs_btree_interior_update_exit(struct bch_fs *);
 int bch2_fs_btree_interior_update_init(struct bch_fs *);

@@ -330,7 +330,7 @@ static void bch2_journal_pin_add_locked(struct journal *j, u64 seq,
 
 	__journal_pin_drop(j, pin);
 
-	BUG_ON(!atomic_read(&pin_list->count));
+	BUG_ON(!atomic_read(&pin_list->count) && seq == journal_last_seq(j));
 
 	atomic_inc(&pin_list->count);
 	pin->seq	= seq;

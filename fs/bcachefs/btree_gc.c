@@ -466,6 +466,7 @@ static void bch2_mark_superblocks(struct bch_fs *c)
 	mutex_unlock(&c->sb_lock);
 }
 
+#if 0
 /* Also see bch2_pending_btree_node_free_insert_done() */
 static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 {
@@ -483,6 +484,7 @@ static void bch2_mark_pending_btree_node_frees(struct bch_fs *c)
 
 	mutex_unlock(&c->btree_interior_update_lock);
 }
+#endif
 
 static void bch2_mark_allocator_buckets(struct bch_fs *c)
 {
@@ -801,6 +803,10 @@ int bch2_gc(struct bch_fs *c, struct journal_keys *journal_keys,
 	trace_gc_start(c);
 
 	down_write(&c->gc_lock);
+
+	/* flush interior btree updates: */
+	closure_wait_event(&c->btree_interior_update_wait,
+			   !bch2_btree_interior_updates_nr_pending(c));
 again:
 	ret = bch2_gc_start(c, metadata_only);
 	if (ret)
@@ -812,7 +818,9 @@ again:
 	if (ret)
 		goto out;
 
+#if 0
 	bch2_mark_pending_btree_node_frees(c);
+#endif
 	bch2_mark_allocator_buckets(c);
 
 	c->gc_count++;
@@ -1037,6 +1045,8 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 		btree_node_reset_sib_u64s(n);
 
 		bch2_btree_build_aux_trees(n);
+
+		bch2_btree_update_add_new_node(as, n);
 		six_unlock_write(&n->c.lock);
 
 		bch2_btree_node_write(c, n, SIX_LOCK_intent);
@@ -1085,7 +1095,7 @@ next:
 	bch2_btree_iter_node_replace(iter, new_nodes[0]);
 
 	for (i = 0; i < nr_new_nodes; i++)
-		bch2_open_buckets_put(c, &new_nodes[i]->ob);
+		bch2_btree_update_get_open_buckets(as, new_nodes[i]);
 
 	/* Free the old nodes and update our sliding window */
 	for (i = 0; i < nr_old_nodes; i++) {

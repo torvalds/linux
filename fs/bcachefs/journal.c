@@ -958,15 +958,12 @@ void bch2_dev_journal_stop(struct journal *j, struct bch_dev *ca)
 
 void bch2_fs_journal_stop(struct journal *j)
 {
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-
 	bch2_journal_flush_all_pins(j);
 
 	wait_event(j->wait, journal_entry_close(j));
 
 	/* do we need to write another journal entry? */
-	if (test_bit(JOURNAL_NOT_EMPTY, &j->flags) ||
-	    c->btree_roots_dirty)
+	if (test_bit(JOURNAL_NOT_EMPTY, &j->flags))
 		bch2_journal_meta(j);
 
 	journal_quiesce(j);

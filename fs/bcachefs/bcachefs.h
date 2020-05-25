@@ -603,12 +603,9 @@ struct bch_fs {
 	struct bio_set		btree_bio;
 
 	struct btree_root	btree_roots[BTREE_ID_NR];
-	bool			btree_roots_dirty;
 	struct mutex		btree_root_lock;
 
 	struct btree_cache	btree_cache;
-
-	mempool_t		btree_reserve_pool;
 
 	/*
 	 * Cache of allocated btree nodes - if we allocate a btree node and
@@ -626,6 +623,9 @@ struct bch_fs {
 	struct list_head	btree_interior_updates_unwritten;
 	struct mutex		btree_interior_update_lock;
 	struct closure_waitlist	btree_interior_update_wait;
+
+	struct workqueue_struct	*btree_interior_update_worker;
+	struct work_struct	btree_interior_update_work;
 
 	mempool_t		btree_iters_pool;
 

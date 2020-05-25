@@ -151,15 +151,8 @@ retry:
 	}
 
 	/* flush relevant btree updates */
-	while (1) {
-		closure_wait_event(&c->btree_interior_update_wait,
-				   !bch2_btree_interior_updates_nr_pending(c) ||
-				   c->btree_roots_dirty);
-		if (c->btree_roots_dirty)
-			bch2_journal_meta(&c->journal);
-		if (!bch2_btree_interior_updates_nr_pending(c))
-			break;
-	}
+	closure_wait_event(&c->btree_interior_update_wait,
+			   !bch2_btree_interior_updates_nr_pending(c));
 
 	ret = 0;
 err:

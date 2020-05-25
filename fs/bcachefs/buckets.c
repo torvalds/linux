@@ -1180,7 +1180,7 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
-int bch2_mark_key_locked(struct bch_fs *c,
+static int bch2_mark_key_locked(struct bch_fs *c,
 		   struct bkey_s_c k,
 		   unsigned offset, s64 sectors,
 		   struct bch_fs_usage *fs_usage,

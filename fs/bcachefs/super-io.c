@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "btree_update_interior.h"
 #include "buckets.h"
 #include "checksum.h"
 #include "disk_groups.h"
@@ -955,7 +956,6 @@ int bch2_fs_mark_dirty(struct bch_fs *c)
 
 	mutex_lock(&c->sb_lock);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
-	c->disk_sb.sb->compat[0] &= ~(1ULL << BCH_COMPAT_FEAT_ALLOC_METADATA);
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_new_extent_overwrite;
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_extents_above_btree_updates;
 	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_btree_updates_journalled;
@@ -989,26 +989,7 @@ bch2_journal_super_entries_add_common(struct bch_fs *c,
 				      struct jset_entry *entry,
 				      u64 journal_seq)
 {
-	struct btree_root *r;
 	unsigned i;
-
-	mutex_lock(&c->btree_root_lock);
-
-	for (r = c->btree_roots;
-	     r < c->btree_roots + BTREE_ID_NR;
-	     r++)
-		if (r->alive) {
-			entry_init_u64s(entry, r->key.u64s + 1);
-			entry->btree_id	= r - c->btree_roots;
-			entry->level	= r->level;
-			entry->type	= BCH_JSET_ENTRY_btree_root;
-			bkey_copy(&entry->start[0], &r->key);
-
-			entry = vstruct_next(entry);
-		}
-	c->btree_roots_dirty = false;
-
-	mutex_unlock(&c->btree_root_lock);
 
 	percpu_down_read(&c->mark_lock);
 
@@ -1111,6 +1092,7 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 
 	entry = sb_clean->start;
 	entry = bch2_journal_super_entries_add_common(c, entry, 0);
+	entry = bch2_btree_roots_to_journal_entries(c, entry, entry);
 	BUG_ON((void *) entry > vstruct_end(&sb_clean->field));
 
 	memset(entry, 0,

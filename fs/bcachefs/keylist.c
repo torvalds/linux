@@ -6,7 +6,7 @@
 int bch2_keylist_realloc(struct keylist *l, u64 *inline_u64s,
 			size_t nr_inline_u64s, size_t new_u64s)
 {
-	size_t oldsize = bch_keylist_u64s(l);
+	size_t oldsize = bch2_keylist_u64s(l);
 	size_t newsize = oldsize + new_u64s;
 	u64 *old_buf = l->keys_p == inline_u64s ? NULL : l->keys_p;
 	u64 *new_keys;
@@ -52,7 +52,7 @@ void bch2_keylist_pop_front(struct keylist *l)
 
 	memmove_u64s_down(l->keys,
 			  bkey_next(l->keys),
-			  bch_keylist_u64s(l));
+			  bch2_keylist_u64s(l));
 }
 
 #ifdef CONFIG_BCACHEFS_DEBUG

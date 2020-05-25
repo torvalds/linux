@@ -1461,11 +1461,6 @@ again:
 		}
 	rcu_read_unlock();
 
-	if (c->btree_roots_dirty) {
-		bch2_journal_meta(&c->journal);
-		goto again;
-	}
-
 	return !nodes_unwritten &&
 		!bch2_btree_interior_updates_nr_pending(c);
 }

@@ -36,14 +36,14 @@ static inline bool bch2_keylist_empty(struct keylist *l)
 	return l->top == l->keys;
 }
 
-static inline size_t bch_keylist_u64s(struct keylist *l)
+static inline size_t bch2_keylist_u64s(struct keylist *l)
 {
 	return l->top_p - l->keys_p;
 }
 
 static inline size_t bch2_keylist_bytes(struct keylist *l)
 {
-	return bch_keylist_u64s(l) * sizeof(u64);
+	return bch2_keylist_u64s(l) * sizeof(u64);
 }
 
 static inline struct bkey_i *bch2_keylist_front(struct keylist *l)

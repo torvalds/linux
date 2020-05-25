@@ -38,7 +38,7 @@ static inline void bch2_journal_pin_add(struct journal *j, u64 seq,
 					struct journal_entry_pin *pin,
 					journal_pin_flush_fn flush_fn)
 {
-	if (unlikely(!journal_pin_active(pin)))
+	if (unlikely(!journal_pin_active(pin) || pin->seq > seq))
 		__bch2_journal_pin_add(j, seq, pin, flush_fn);
 }
 

@@ -414,8 +414,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 	}
 
 	if (unlikely(trans->extra_journal_entry_u64s)) {
-		memcpy_u64s_small(bch2_journal_reservation_entry(&c->journal,
-								 &trans->journal_res),
+		memcpy_u64s_small(journal_res_entry(&c->journal, &trans->journal_res),
 				  trans->extra_journal_entries,
 				  trans->extra_journal_entry_u64s);
 
@@ -520,6 +519,10 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 		if (!same_leaf_as_prev(trans, i))
 			bch2_btree_node_unlock_write_inlined(iter_l(i->iter)->b,
 							     i->iter);
+
+	if (!ret && trans->journal_pin)
+		bch2_journal_pin_add(&trans->c->journal, trans->journal_res.seq,
+				     trans->journal_pin, NULL);
 
 	/*
 	 * Drop journal reservation after dropping write locks, since dropping

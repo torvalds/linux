@@ -763,6 +763,7 @@ static int verify_superblock_clean(struct bch_fs *c,
 			"superblock read clock doesn't match journal after clean shutdown");
 
 	for (i = 0; i < BTREE_ID_NR; i++) {
+		char buf1[200], buf2[200];
 		struct bkey_i *k1, *k2;
 		unsigned l1 = 0, l2 = 0;
 
@@ -778,7 +779,11 @@ static int verify_superblock_clean(struct bch_fs *c,
 				    k1->k.u64s != k2->k.u64s ||
 				    memcmp(k1, k2, bkey_bytes(k1)) ||
 				    l1 != l2, c,
-			"superblock btree root doesn't match journal after clean shutdown");
+			"superblock btree root %u doesn't match journal after clean shutdown\n"
+			"sb:      l=%u %s\n"
+			"journal: l=%u %s\n", i,
+			l1, (bch2_bkey_val_to_text(&PBUF(buf1), c, bkey_i_to_s_c(k1)), buf1),
+			l2, (bch2_bkey_val_to_text(&PBUF(buf2), c, bkey_i_to_s_c(k2)), buf2));
 	}
 fsck_err:
 	return ret;

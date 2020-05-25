@@ -227,6 +227,7 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		 */
 		closure_wait_event(&c->btree_interior_update_wait,
 				   !bch2_btree_interior_updates_nr_pending(c));
+		flush_work(&c->btree_interior_update_work);
 
 		clean_passes = wrote ? 0 : clean_passes + 1;
 	} while (clean_passes < 2);
@@ -234,6 +235,10 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch_verbose(c, "writing alloc info complete");
 	set_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
 nowrote_alloc:
+	closure_wait_event(&c->btree_interior_update_wait,
+			   !bch2_btree_interior_updates_nr_pending(c));
+	flush_work(&c->btree_interior_update_work);
+
 	for_each_member_device(ca, c, i)
 		bch2_dev_allocator_stop(ca);
 

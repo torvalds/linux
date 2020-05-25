@@ -774,14 +774,8 @@ int bch2_data_job(struct bch_fs *c,
 
 		ret = bch2_move_btree(c, rereplicate_pred, c, stats) ?: ret;
 
-		while (1) {
-			closure_wait_event(&c->btree_interior_update_wait,
-					   !bch2_btree_interior_updates_nr_pending(c) ||
-					   c->btree_roots_dirty);
-			if (!bch2_btree_interior_updates_nr_pending(c))
-				break;
-			bch2_journal_meta(&c->journal);
-		}
+		closure_wait_event(&c->btree_interior_update_wait,
+				   !bch2_btree_interior_updates_nr_pending(c));
 
 		ret = bch2_replicas_gc2(c) ?: ret;
 
