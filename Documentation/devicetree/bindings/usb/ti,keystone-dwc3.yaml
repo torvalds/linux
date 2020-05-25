@@ -34,6 +34,16 @@ properties:
       value. This property is as per the binding,
       Documentation/devicetree/bindings/soc/ti/sci-pm-domain.txt
 
+  phys:
+    description:
+      PHY specifier for the USB3.0 PHY. Some SoCs need the USB3.0 PHY
+      to be turned on before the controller.
+      Documentation/devicetree/bindings/phy/phy-bindings.txt
+
+  phy-names:
+    items:
+      - const: "usb3-phy"
+
   dwc3:
     description: This is the node representing the DWC3 controller instance
       Documentation/devicetree/bindings/usb/dwc3.txt
