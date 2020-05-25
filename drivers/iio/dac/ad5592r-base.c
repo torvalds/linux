@@ -508,11 +508,11 @@ static void ad5592r_setup_channel(struct iio_dev *iio_dev,
 	chan->ext_info = ad5592r_ext_info;
 }
 
-static int ad5592r_alloc_channels(struct ad5592r_state *st)
+static int ad5592r_alloc_channels(struct iio_dev *iio_dev)
 {
+	struct ad5592r_state *st = iio_priv(iio_dev);
 	unsigned i, curr_channel = 0,
 		 num_channels = st->num_channels;
-	struct iio_dev *iio_dev = iio_priv_to_dev(st);
 	struct iio_chan_spec *channels;
 	struct fwnode_handle *child;
 	u32 reg, tmp;
@@ -636,7 +636,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad5592r_alloc_channels(st);
+	ret = ad5592r_alloc_channels(iio_dev);
 	if (ret)
 		goto error_disable_reg;
 
