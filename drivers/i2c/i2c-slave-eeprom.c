@@ -152,7 +152,6 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_de
 	if (!eeprom)
 		return -ENOMEM;
 
-	eeprom->idx_write_cnt = 0;
 	eeprom->num_address_bytes = flag_addr16 ? 2 : 1;
 	eeprom->address_mask = size - 1;
 	eeprom->read_only = FIELD_GET(I2C_SLAVE_FLAG_RO, id->driver_data);
