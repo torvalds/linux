@@ -162,8 +162,7 @@ struct tee_shm *tee_shm_alloc(struct tee_context *ctx, size_t size, u32 flags)
 		}
 	}
 
-	if (ctx)
-		teedev_ctx_get(ctx);
+	teedev_ctx_get(ctx);
 
 	return shm;
 err_rem:
