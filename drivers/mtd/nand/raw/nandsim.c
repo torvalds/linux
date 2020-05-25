@@ -508,7 +508,7 @@ static int nandsim_debugfs_create(struct nandsim *ns)
 		return 0;
 	}
 
-	dent = debugfs_create_file("nandsim_wear_report", S_IRUSR, root, ns,
+	dent = debugfs_create_file("nandsim_wear_report", 0400, root, ns,
 				   &nandsim_fops);
 	if (IS_ERR_OR_NULL(dent)) {
 		NS_ERR("cannot create \"nandsim_wear_report\" debugfs entry\n");
