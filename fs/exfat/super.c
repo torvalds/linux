@@ -203,6 +203,12 @@ enum {
 	Opt_errors,
 	Opt_discard,
 	Opt_time_offset,
+
+	/* Deprecated options */
+	Opt_utf8,
+	Opt_debug,
+	Opt_namecase,
+	Opt_codepage,
 };
 
 static const struct constant_table exfat_param_enums[] = {
@@ -223,6 +229,14 @@ static const struct fs_parameter_spec exfat_parameters[] = {
 	fsparam_enum("errors",			Opt_errors, exfat_param_enums),
 	fsparam_flag("discard",			Opt_discard),
 	fsparam_s32("time_offset",		Opt_time_offset),
+	__fsparam(NULL, "utf8",			Opt_utf8, fs_param_deprecated,
+		  NULL),
+	__fsparam(NULL, "debug",		Opt_debug, fs_param_deprecated,
+		  NULL),
+	__fsparam(fs_param_is_u32, "namecase",	Opt_namecase,
+		  fs_param_deprecated, NULL),
+	__fsparam(fs_param_is_u32, "codepage",	Opt_codepage,
+		  fs_param_deprecated, NULL),
 	{}
 };
 
@@ -277,6 +291,11 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		if (result.int_32 < -24 * 60 || result.int_32 > 24 * 60)
 			return -EINVAL;
 		opts->time_offset = result.int_32;
+		break;
+	case Opt_utf8:
+	case Opt_debug:
+	case Opt_namecase:
+	case Opt_codepage:
 		break;
 	default:
 		return -EINVAL;

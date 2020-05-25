@@ -129,7 +129,7 @@ static void keep_key_fresh(struct wg_peer *peer)
 	rcu_read_lock_bh();
 	keypair = rcu_dereference_bh(peer->keypairs.current_keypair);
 	send = keypair && READ_ONCE(keypair->sending.is_valid) &&
-	       (atomic64_read(&keypair->sending.counter.counter) > REKEY_AFTER_MESSAGES ||
+	       (atomic64_read(&keypair->sending_counter) > REKEY_AFTER_MESSAGES ||
 		(keypair->i_am_the_initiator &&
 		 wg_birthdate_has_expired(keypair->sending.birthdate, REKEY_AFTER_TIME)));
 	rcu_read_unlock_bh();
@@ -166,6 +166,11 @@ static bool encrypt_packet(struct sk_buff *skb, struct noise_keypair *keypair)
 	struct message_data *header;
 	struct sk_buff *trailer;
 	int num_frags;
+
+	/* Force hash calculation before encryption so that flow analysis is
+	 * consistent over the inner packet.
+	 */
+	skb_get_hash(skb);
 
 	/* Calculate lengths. */
 	padding_len = calculate_skb_padding(skb);
@@ -295,7 +300,7 @@ void wg_packet_encrypt_worker(struct work_struct *work)
 		skb_list_walk_safe(first, skb, next) {
 			if (likely(encrypt_packet(skb,
 					PACKET_CB(first)->keypair))) {
-				wg_reset_packet(skb);
+				wg_reset_packet(skb, true);
 			} else {
 				state = PACKET_STATE_DEAD;
 				break;
@@ -344,7 +349,6 @@ void wg_packet_purge_staged_packets(struct wg_peer *peer)
 
 void wg_packet_send_staged_packets(struct wg_peer *peer)
 {
-	struct noise_symmetric_key *key;
 	struct noise_keypair *keypair;
 	struct sk_buff_head packets;
 	struct sk_buff *skb;
@@ -364,10 +368,9 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	rcu_read_unlock_bh();
 	if (unlikely(!keypair))
 		goto out_nokey;
-	key = &keypair->sending;
-	if (unlikely(!READ_ONCE(key->is_valid)))
+	if (unlikely(!READ_ONCE(keypair->sending.is_valid)))
 		goto out_nokey;
-	if (unlikely(wg_birthdate_has_expired(key->birthdate,
+	if (unlikely(wg_birthdate_has_expired(keypair->sending.birthdate,
 					      REJECT_AFTER_TIME)))
 		goto out_invalid;
 
@@ -382,7 +385,7 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 		 */
 		PACKET_CB(skb)->ds = ip_tunnel_ecn_encap(0, ip_hdr(skb), skb);
 		PACKET_CB(skb)->nonce =
-				atomic64_inc_return(&key->counter.counter) - 1;
+				atomic64_inc_return(&keypair->sending_counter) - 1;
 		if (unlikely(PACKET_CB(skb)->nonce >= REJECT_AFTER_MESSAGES))
 			goto out_invalid;
 	}
@@ -394,7 +397,7 @@ void wg_packet_send_staged_packets(struct wg_peer *peer)
 	return;
 
 out_invalid:
-	WRITE_ONCE(key->is_valid, false);
+	WRITE_ONCE(keypair->sending.is_valid, false);
 out_nokey:
 	wg_noise_keypair_put(keypair, false);
 

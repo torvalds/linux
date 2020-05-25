@@ -442,17 +442,14 @@
 &q6asmdai {
 	dai@0 {
 		reg = <0>;
-		direction = <2>;
 	};
 
 	dai@1 {
 		reg = <1>;
-		direction = <2>;
 	};
 
 	dai@2 {
 		reg = <2>;
-		direction = <1>;
 	};
 
 	dai@3 {

@@ -8,9 +8,9 @@
 
 /* Platform-specific information */
 struct felix_info {
-	struct resource			*target_io_res;
-	struct resource			*port_io_res;
-	struct resource			*imdio_res;
+	const struct resource		*target_io_res;
+	const struct resource		*port_io_res;
+	const struct resource		*imdio_res;
 	const struct reg_field		*regfields;
 	const u32 *const		*map;
 	const struct ocelot_ops		*ops;

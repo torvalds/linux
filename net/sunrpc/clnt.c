@@ -889,7 +889,9 @@ static void rpc_free_client_work(struct work_struct *work)
 	 * here.
 	 */
 	rpc_clnt_debugfs_unregister(clnt);
+	rpc_free_clid(clnt);
 	rpc_clnt_remove_pipedir(clnt);
+	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 
 	kfree(clnt);
 	rpciod_down();
@@ -907,10 +909,8 @@ rpc_free_client(struct rpc_clnt *clnt)
 	rpc_unregister_client(clnt);
 	rpc_free_iostats(clnt->cl_metrics);
 	clnt->cl_metrics = NULL;
-	xprt_put(rcu_dereference_raw(clnt->cl_xprt));
 	xprt_iter_destroy(&clnt->cl_xpi);
 	put_cred(clnt->cl_cred);
-	rpc_free_clid(clnt);
 
 	INIT_WORK(&clnt->cl_work, rpc_free_client_work);
 	schedule_work(&clnt->cl_work);
@@ -2432,6 +2432,11 @@ static void
 rpc_check_timeout(struct rpc_task *task)
 {
 	struct rpc_clnt	*clnt = task->tk_client;
+
+	if (RPC_SIGNALLED(task)) {
+		rpc_call_rpcerror(task, -ERESTARTSYS);
+		return;
+	}
 
 	if (xprt_adjust_timeout(task->tk_rqstp) == 0)
 		return;

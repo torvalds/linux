@@ -441,7 +441,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 
 /**
  * dm_crtc_high_irq() - Handles CRTC interrupt
- * @interrupt_params: ignored
+ * @interrupt_params: used for determining the CRTC instance
  *
  * Handles the CRTC/VSYNC interrupt by notfying DRM's VBLANK
  * event handler.
@@ -455,70 +455,6 @@ static void dm_crtc_high_irq(void *interrupt_params)
 	unsigned long flags;
 
 	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
-
-	if (acrtc) {
-		acrtc_state = to_dm_crtc_state(acrtc->base.state);
-
-		DRM_DEBUG_VBL("crtc:%d, vupdate-vrr:%d\n",
-			      acrtc->crtc_id,
-			      amdgpu_dm_vrr_active(acrtc_state));
-
-		/* Core vblank handling at start of front-porch is only possible
-		 * in non-vrr mode, as only there vblank timestamping will give
-		 * valid results while done in front-porch. Otherwise defer it
-		 * to dm_vupdate_high_irq after end of front-porch.
-		 */
-		if (!amdgpu_dm_vrr_active(acrtc_state))
-			drm_crtc_handle_vblank(&acrtc->base);
-
-		/* Following stuff must happen at start of vblank, for crc
-		 * computation and below-the-range btr support in vrr mode.
-		 */
-		amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
-
-		if (acrtc_state->stream && adev->family >= AMDGPU_FAMILY_AI &&
-		    acrtc_state->vrr_params.supported &&
-		    acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE) {
-			spin_lock_irqsave(&adev->ddev->event_lock, flags);
-			mod_freesync_handle_v_update(
-				adev->dm.freesync_module,
-				acrtc_state->stream,
-				&acrtc_state->vrr_params);
-
-			dc_stream_adjust_vmin_vmax(
-				adev->dm.dc,
-				acrtc_state->stream,
-				&acrtc_state->vrr_params.adjust);
-			spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
-		}
-	}
-}
-
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-/**
- * dm_dcn_crtc_high_irq() - Handles VStartup interrupt for DCN generation ASICs
- * @interrupt params - interrupt parameters
- *
- * Notify DRM's vblank event handler at VSTARTUP
- *
- * Unlike DCE hardware, we trigger the handler at VSTARTUP. at which:
- * * We are close enough to VUPDATE - the point of no return for hw
- * * We are in the fixed portion of variable front porch when vrr is enabled
- * * We are before VUPDATE, where double-buffered vrr registers are swapped
- *
- * It is therefore the correct place to signal vblank, send user flip events,
- * and update VRR.
- */
-static void dm_dcn_crtc_high_irq(void *interrupt_params)
-{
-	struct common_irq_params *irq_params = interrupt_params;
-	struct amdgpu_device *adev = irq_params->adev;
-	struct amdgpu_crtc *acrtc;
-	struct dm_crtc_state *acrtc_state;
-	unsigned long flags;
-
-	acrtc = get_crtc_by_otg_inst(adev, irq_params->irq_src - IRQ_TYPE_VBLANK);
-
 	if (!acrtc)
 		return;
 
@@ -528,22 +464,35 @@ static void dm_dcn_crtc_high_irq(void *interrupt_params)
 			 amdgpu_dm_vrr_active(acrtc_state),
 			 acrtc_state->active_planes);
 
+	/**
+	 * Core vblank handling at start of front-porch is only possible
+	 * in non-vrr mode, as only there vblank timestamping will give
+	 * valid results while done in front-porch. Otherwise defer it
+	 * to dm_vupdate_high_irq after end of front-porch.
+	 */
+	if (!amdgpu_dm_vrr_active(acrtc_state))
+		drm_crtc_handle_vblank(&acrtc->base);
+
+	/**
+	 * Following stuff must happen at start of vblank, for crc
+	 * computation and below-the-range btr support in vrr mode.
+	 */
 	amdgpu_dm_crtc_handle_crc_irq(&acrtc->base);
-	drm_crtc_handle_vblank(&acrtc->base);
+
+	/* BTR updates need to happen before VUPDATE on Vega and above. */
+	if (adev->family < AMDGPU_FAMILY_AI)
+		return;
 
 	spin_lock_irqsave(&adev->ddev->event_lock, flags);
 
-	if (acrtc_state->vrr_params.supported &&
+	if (acrtc_state->stream && acrtc_state->vrr_params.supported &&
 	    acrtc_state->freesync_config.state == VRR_STATE_ACTIVE_VARIABLE) {
-		mod_freesync_handle_v_update(
-		adev->dm.freesync_module,
-		acrtc_state->stream,
-		&acrtc_state->vrr_params);
+		mod_freesync_handle_v_update(adev->dm.freesync_module,
+					     acrtc_state->stream,
+					     &acrtc_state->vrr_params);
 
-		dc_stream_adjust_vmin_vmax(
-			adev->dm.dc,
-			acrtc_state->stream,
-			&acrtc_state->vrr_params.adjust);
+		dc_stream_adjust_vmin_vmax(adev->dm.dc, acrtc_state->stream,
+					   &acrtc_state->vrr_params.adjust);
 	}
 
 	/*
@@ -556,7 +505,8 @@ static void dm_dcn_crtc_high_irq(void *interrupt_params)
 	 * avoid race conditions between flip programming and completion,
 	 * which could cause too early flip completion events.
 	 */
-	if (acrtc->pflip_status == AMDGPU_FLIP_SUBMITTED &&
+	if (adev->family >= AMDGPU_FAMILY_RV &&
+	    acrtc->pflip_status == AMDGPU_FLIP_SUBMITTED &&
 	    acrtc_state->active_planes == 0) {
 		if (acrtc->event) {
 			drm_crtc_send_vblank_event(&acrtc->base, acrtc->event);
@@ -568,7 +518,6 @@ static void dm_dcn_crtc_high_irq(void *interrupt_params)
 
 	spin_unlock_irqrestore(&adev->ddev->event_lock, flags);
 }
-#endif
 
 static int dm_set_clockgating_state(void *handle,
 		  enum amd_clockgating_state state)
@@ -2445,8 +2394,36 @@ static int dcn10_register_irq_handlers(struct amdgpu_device *adev)
 		c_irq_params->adev = adev;
 		c_irq_params->irq_src = int_params.irq_source;
 
+		amdgpu_dm_irq_register_interrupt(
+			adev, &int_params, dm_crtc_high_irq, c_irq_params);
+	}
+
+	/* Use VUPDATE_NO_LOCK interrupt on DCN, which seems to correspond to
+	 * the regular VUPDATE interrupt on DCE. We want DC_IRQ_SOURCE_VUPDATEx
+	 * to trigger at end of each vblank, regardless of state of the lock,
+	 * matching DCE behaviour.
+	 */
+	for (i = DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT;
+	     i <= DCN_1_0__SRCID__OTG0_IHC_V_UPDATE_NO_LOCK_INTERRUPT + adev->mode_info.num_crtc - 1;
+	     i++) {
+		r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_DCE, i, &adev->vupdate_irq);
+
+		if (r) {
+			DRM_ERROR("Failed to add vupdate irq id!\n");
+			return r;
+		}
+
+		int_params.int_context = INTERRUPT_HIGH_IRQ_CONTEXT;
+		int_params.irq_source =
+			dc_interrupt_to_irq_source(dc, i, 0);
+
+		c_irq_params = &adev->dm.vupdate_params[int_params.irq_source - DC_IRQ_SOURCE_VUPDATE1];
+
+		c_irq_params->adev = adev;
+		c_irq_params->irq_src = int_params.irq_source;
+
 		amdgpu_dm_irq_register_interrupt(adev, &int_params,
-				dm_dcn_crtc_high_irq, c_irq_params);
+				dm_vupdate_high_irq, c_irq_params);
 	}
 
 	/* Use GRPH_PFLIP interrupt */
@@ -4452,10 +4429,6 @@ static inline int dm_set_vupdate_irq(struct drm_crtc *crtc, bool enable)
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	int rc;
-
-	/* Do not set vupdate for DCN hardware */
-	if (adev->family > AMDGPU_FAMILY_AI)
-		return 0;
 
 	irq_source = IRQ_TYPE_VUPDATE + acrtc->otg_inst;
 
@@ -7882,6 +7855,7 @@ static int dm_update_plane_state(struct dc *dc,
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	struct dm_crtc_state *dm_new_crtc_state, *dm_old_crtc_state;
 	struct dm_plane_state *dm_new_plane_state, *dm_old_plane_state;
+	struct amdgpu_crtc *new_acrtc;
 	bool needs_reset;
 	int ret = 0;
 
@@ -7891,9 +7865,30 @@ static int dm_update_plane_state(struct dc *dc,
 	dm_new_plane_state = to_dm_plane_state(new_plane_state);
 	dm_old_plane_state = to_dm_plane_state(old_plane_state);
 
-	/*TODO Implement atomic check for cursor plane */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR)
+	/*TODO Implement better atomic check for cursor plane */
+	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
+		if (!enable || !new_plane_crtc ||
+			drm_atomic_plane_disabling(plane->state, new_plane_state))
+			return 0;
+
+		new_acrtc = to_amdgpu_crtc(new_plane_crtc);
+
+		if ((new_plane_state->crtc_w > new_acrtc->max_cursor_width) ||
+			(new_plane_state->crtc_h > new_acrtc->max_cursor_height)) {
+			DRM_DEBUG_ATOMIC("Bad cursor size %d x %d\n",
+							 new_plane_state->crtc_w, new_plane_state->crtc_h);
+			return -EINVAL;
+		}
+
+		if (new_plane_state->crtc_x <= -new_acrtc->max_cursor_width ||
+			new_plane_state->crtc_y <= -new_acrtc->max_cursor_height) {
+			DRM_DEBUG_ATOMIC("Bad cursor position %d, %d\n",
+							 new_plane_state->crtc_x, new_plane_state->crtc_y);
+			return -EINVAL;
+		}
+
 		return 0;
+	}
 
 	needs_reset = should_reset_plane(state, plane, old_plane_state,
 					 new_plane_state);

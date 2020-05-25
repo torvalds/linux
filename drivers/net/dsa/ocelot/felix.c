@@ -388,6 +388,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	struct ocelot *ocelot = &felix->ocelot;
 	phy_interface_t *port_phy_modes;
 	resource_size_t switch_base;
+	struct resource res;
 	int port, i, err;
 
 	ocelot->num_phys_ports = num_phys_ports;
@@ -422,17 +423,16 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 
 	for (i = 0; i < TARGET_MAX; i++) {
 		struct regmap *target;
-		struct resource *res;
 
 		if (!felix->info->target_io_res[i].name)
 			continue;
 
-		res = &felix->info->target_io_res[i];
-		res->flags = IORESOURCE_MEM;
-		res->start += switch_base;
-		res->end += switch_base;
+		memcpy(&res, &felix->info->target_io_res[i], sizeof(res));
+		res.flags = IORESOURCE_MEM;
+		res.start += switch_base;
+		res.end += switch_base;
 
-		target = ocelot_regmap_init(ocelot, res);
+		target = ocelot_regmap_init(ocelot, &res);
 		if (IS_ERR(target)) {
 			dev_err(ocelot->dev,
 				"Failed to map device memory space\n");
@@ -453,7 +453,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	for (port = 0; port < num_phys_ports; port++) {
 		struct ocelot_port *ocelot_port;
 		void __iomem *port_regs;
-		struct resource *res;
 
 		ocelot_port = devm_kzalloc(ocelot->dev,
 					   sizeof(struct ocelot_port),
@@ -465,12 +464,12 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 			return -ENOMEM;
 		}
 
-		res = &felix->info->port_io_res[port];
-		res->flags = IORESOURCE_MEM;
-		res->start += switch_base;
-		res->end += switch_base;
+		memcpy(&res, &felix->info->port_io_res[port], sizeof(res));
+		res.flags = IORESOURCE_MEM;
+		res.start += switch_base;
+		res.end += switch_base;
 
-		port_regs = devm_ioremap_resource(ocelot->dev, res);
+		port_regs = devm_ioremap_resource(ocelot->dev, &res);
 		if (IS_ERR(port_regs)) {
 			dev_err(ocelot->dev,
 				"failed to map registers for port %d\n", port);

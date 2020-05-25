@@ -3073,6 +3073,11 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 	return true;
 }
 
+static bool same_port_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
+{
+	return priv->mdev == peer_priv->mdev;
+}
+
 static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *fmdev, *pmdev;
@@ -3291,7 +3296,7 @@ static inline int hash_encap_info(struct encap_key *key)
 }
 
 
-static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
+static bool is_merged_eswitch_vfs(struct mlx5e_priv *priv,
 				  struct net_device *peer_netdev)
 {
 	struct mlx5e_priv *peer_priv;
@@ -3299,12 +3304,10 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 	peer_priv = netdev_priv(peer_netdev);
 
 	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
-		mlx5e_eswitch_rep(priv->netdev) &&
-		mlx5e_eswitch_rep(peer_netdev) &&
+		mlx5e_eswitch_vf_rep(priv->netdev) &&
+		mlx5e_eswitch_vf_rep(peer_netdev) &&
 		same_hw_devs(priv, peer_priv));
 }
-
-
 
 bool mlx5e_encap_take(struct mlx5e_encap_entry *e)
 {
@@ -3575,14 +3578,37 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 	return err;
 }
 
+static bool same_hw_reps(struct mlx5e_priv *priv,
+			 struct net_device *peer_netdev)
+{
+	struct mlx5e_priv *peer_priv;
+
+	peer_priv = netdev_priv(peer_netdev);
+
+	return mlx5e_eswitch_rep(priv->netdev) &&
+	       mlx5e_eswitch_rep(peer_netdev) &&
+	       same_hw_devs(priv, peer_priv);
+}
+
+static bool is_lag_dev(struct mlx5e_priv *priv,
+		       struct net_device *peer_netdev)
+{
+	return ((mlx5_lag_is_sriov(priv->mdev) ||
+		 mlx5_lag_is_multipath(priv->mdev)) &&
+		 same_hw_reps(priv, peer_netdev));
+}
+
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev)
 {
-	if (is_merged_eswitch_dev(priv, out_dev))
+	if (is_merged_eswitch_vfs(priv, out_dev))
+		return true;
+
+	if (is_lag_dev(priv, out_dev))
 		return true;
 
 	return mlx5e_eswitch_rep(out_dev) &&
-	       same_hw_devs(priv, netdev_priv(out_dev));
+	       same_port_devs(priv, netdev_priv(out_dev));
 }
 
 static bool is_duplicated_output_device(struct net_device *dev,
