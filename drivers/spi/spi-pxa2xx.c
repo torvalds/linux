@@ -1739,7 +1739,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 
 	/* Register with the SPI framework */
 	platform_set_drvdata(pdev, drv_data);
-	status = devm_spi_register_controller(&pdev->dev, master);
+	status = spi_register_controller(master);
 	if (status != 0) {
 		dev_err(&pdev->dev, "problem registering spi master\n");
 		goto out_error_clock_enabled;
@@ -1772,6 +1772,8 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	ssp = drv_data->ssp;
 
 	pm_runtime_get_sync(&pdev->dev);
+
+	spi_unregister_controller(drv_data->master);
 
 	/* Disable the SSP at the peripheral and SOC level */
 	pxa2xx_spi_write(drv_data, SSCR0, 0);
