@@ -38,6 +38,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dpcm.h>
 #include <sound/soc-topology.h>
+#include <sound/soc-link.h>
 #include <sound/initval.h>
 
 #define CREATE_TRACE_POINTS
@@ -1049,14 +1050,9 @@ static int soc_init_pcm_runtime(struct snd_soc_card *card,
 	rtd->pmdown_time = pmdown_time;
 
 	/* do machine specific initialization */
-	if (dai_link->init) {
-		ret = dai_link->init(rtd);
-		if (ret < 0) {
-			dev_err(card->dev, "ASoC: failed to init %s: %d\n",
-				dai_link->name, ret);
-			return ret;
-		}
-	}
+	ret = snd_soc_link_init(rtd);
+	if (ret < 0)
+		return ret;
 
 	if (dai_link->dai_fmt) {
 		ret = snd_soc_runtime_set_dai_fmt(rtd, dai_link->dai_fmt);
@@ -1660,7 +1656,11 @@ match:
 			dai_link->dpcm_playback = 1;
 			dai_link->dpcm_capture = 1;
 
-			/* override any BE fixups */
+			/*
+			 * override any BE fixups
+			 * see
+			 *	snd_soc_link_be_hw_params_fixup()
+			 */
 			dai_link->be_hw_params_fixup =
 				component->driver->be_hw_params_fixup;
 

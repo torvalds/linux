@@ -19,6 +19,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/soc-dpcm.h>
+#include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
 static int soc_compr_components_open(struct snd_compr_stream *cstream,
@@ -95,15 +96,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto machine_err;
 
-	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
-		ret = rtd->dai_link->compr_ops->startup(cstream);
-		if (ret < 0) {
-			dev_err(rtd->dev,
-				"Compress ASoC: %s startup failed: %d\n",
-				rtd->dai_link->name, ret);
-			goto machine_err;
-		}
-	}
+	ret = snd_soc_link_compr_startup(cstream);
+	if (ret < 0)
+		goto machine_err;
 
 	snd_soc_runtime_activate(rtd, cstream->direction);
 
@@ -179,14 +174,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto open_err;
 
-	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
-		ret = fe->dai_link->compr_ops->startup(cstream);
-		if (ret < 0) {
-			pr_err("Compress ASoC: %s startup failed: %d\n",
-			       fe->dai_link->name, ret);
-			goto machine_err;
-		}
-	}
+	ret = snd_soc_link_compr_startup(cstream);
+	if (ret < 0)
+		goto machine_err;
 
 	dpcm_clear_pending_state(fe, stream);
 	dpcm_path_put(&list);
@@ -237,8 +227,7 @@ static int soc_compr_free(struct snd_compr_stream *cstream)
 	if (!snd_soc_dai_active(codec_dai))
 		codec_dai->rate = 0;
 
-	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->shutdown)
-		rtd->dai_link->compr_ops->shutdown(cstream);
+	snd_soc_link_compr_shutdown(cstream);
 
 	soc_compr_components_free(cstream, NULL);
 
@@ -293,8 +282,7 @@ static int soc_compr_free_fe(struct snd_compr_stream *cstream)
 
 	fe->dpcm[stream].runtime = NULL;
 
-	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->shutdown)
-		fe->dai_link->compr_ops->shutdown(cstream);
+	snd_soc_link_compr_shutdown(cstream);
 
 	soc_compr_components_free(cstream, NULL);
 
@@ -451,11 +439,9 @@ static int soc_compr_set_params(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto err;
 
-	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->set_params) {
-		ret = rtd->dai_link->compr_ops->set_params(cstream);
-		if (ret < 0)
-			goto err;
-	}
+	ret = snd_soc_link_compr_set_params(cstream);
+	if (ret < 0)
+		goto err;
 
 	if (cstream->direction == SND_COMPRESS_PLAYBACK)
 		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
@@ -519,11 +505,9 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 	if (ret < 0)
 		goto out;
 
-	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->set_params) {
-		ret = fe->dai_link->compr_ops->set_params(cstream);
-		if (ret < 0)
-			goto out;
-	}
+	ret = snd_soc_link_compr_set_params(cstream);
+	if (ret < 0)
+		goto out;
 
 	dpcm_dapm_stream_event(fe, stream, SND_SOC_DAPM_STREAM_START);
 	fe->dpcm[stream].state = SND_SOC_DPCM_STATE_PREPARE;
