@@ -648,17 +648,16 @@ bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 }
 
 
-bool dc_link_aux_try_to_configure_timeout(struct ddc_service *ddc,
+uint32_t dc_link_aux_configure_timeout(struct ddc_service *ddc,
 		uint32_t timeout)
 {
-	bool result = false;
+	uint32_t prev_timeout = 0;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 
-	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout) {
-		ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
-		result = true;
-	}
-	return result;
+	if (ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout)
+		prev_timeout =
+				ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en]->funcs->configure_timeout(ddc, timeout);
+	return prev_timeout;
 }
 
 /*test only function*/
