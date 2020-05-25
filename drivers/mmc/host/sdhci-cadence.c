@@ -97,6 +97,11 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	u32 tmp;
 	int ret;
 
+	ret = readl_poll_timeout(reg, tmp, !(tmp & SDHCI_CDNS_HRS04_ACK),
+				 0, 10);
+	if (ret)
+		return ret;
+
 	tmp = FIELD_PREP(SDHCI_CDNS_HRS04_WDATA, data) |
 	      FIELD_PREP(SDHCI_CDNS_HRS04_ADDR, addr);
 	writel(tmp, reg);
@@ -111,7 +116,10 @@ static int sdhci_cdns_write_phy_reg(struct sdhci_cdns_priv *priv,
 	tmp &= ~SDHCI_CDNS_HRS04_WR;
 	writel(tmp, reg);
 
-	return 0;
+	ret = readl_poll_timeout(reg, tmp, !(tmp & SDHCI_CDNS_HRS04_ACK),
+				 0, 10);
+
+	return ret;
 }
 
 static unsigned int sdhci_cdns_phy_param_count(struct device_node *np)
