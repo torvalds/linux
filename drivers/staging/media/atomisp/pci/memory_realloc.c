@@ -32,12 +32,11 @@ bool reallocate_buffer(
     enum ia_css_err *err)
 {
 	bool ret;
-	u16	mmgr_attribute = MMGR_ATTRIBUTE_DEFAULT;
 
 	IA_CSS_ENTER_PRIVATE("void");
 
 	ret = realloc_isp_css_mm_buf(curr_buf,
-				     curr_size, needed_size, force, err, mmgr_attribute);
+				     curr_size, needed_size, force, err, 0);
 
 	IA_CSS_LEAVE_PRIVATE("ret=%d", ret);
 	return ret;

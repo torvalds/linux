@@ -17,7 +17,7 @@
 #include <type_support.h>
 #include <assert_support.h>
 #include <platform_support.h> /* memset */
-#include <memory_access.h>    /* mmmgr_malloc, mhmm_free */
+#include <memory_access.h>    /* mmmgr_alloc_attr */
 #include <ia_css_debug.h>
 
 /*
@@ -297,7 +297,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 			}
 			if ((*handle)->vptr == 0x0) {
 				/* we need to allocate */
-				(*handle)->vptr = mmgr_malloc((*handle)->size);
+				(*handle)->vptr = mmgr_alloc_attr((*handle)->size, 0);
 			} else {
 				/* we popped a buffer */
 				return;

@@ -63,7 +63,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	 * Data used to be stored separately, because of access alignment constraints,
 	 * fix the FW generation instead
 	 */
-	code_addr = mmgr_malloc(spctrl_cfg->code_size);
+	code_addr = mmgr_alloc_attr(spctrl_cfg->code_size, 0);
 	if (code_addr == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	mmgr_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);

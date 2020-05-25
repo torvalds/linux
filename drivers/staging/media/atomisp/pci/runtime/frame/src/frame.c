@@ -19,6 +19,7 @@
 #include "isp.h"
 #include "sh_css_internal.h"
 #include "memory_access.h"
+#include "atomisp_internal.h"
 
 #define NV12_TILEY_TILE_WIDTH  128
 #define NV12_TILEY_TILE_HEIGHT  32
@@ -96,7 +97,7 @@ ia_css_elems_bytes_from_info(
 void ia_css_frame_zero(struct ia_css_frame *frame)
 {
 	assert(frame);
-	mmgr_clear(frame->data, frame->data_bytes);
+	hmm_set(frame->data, 0, frame->data_bytes);
 }
 
 enum ia_css_err ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
@@ -166,10 +167,19 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 		return err;
 
 	if (err == IA_CSS_SUCCESS) {
-		/* use mmgr_mmap to map */
-		me->data = (ia_css_ptr) mmgr_mmap(data,
-						  me->data_bytes,
-						  attribute, pgnr);
+		if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is less than the expected size..\n");
+			return -ENOMEM;
+		} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is large than the expected size..\n");
+			return -ENOMEM;
+		}
+
+		return hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
+				 attribute & MMGR_ATTRIBUTE_CACHED);
+
 		if (me->data == mmgr_NULL)
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
@@ -789,8 +799,7 @@ static enum ia_css_err frame_allocate_buffer_data(struct ia_css_frame *frame)
 #endif
 	frame->data = mmgr_alloc_attr(frame->data_bytes,
 				      frame->contiguous ?
-				      MMGR_ATTRIBUTE_CONTIGUOUS :
-				      MMGR_ATTRIBUTE_DEFAULT);
+				      MMGR_ATTRIBUTE_CONTIGUOUS : 0);
 
 	if (frame->data == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;

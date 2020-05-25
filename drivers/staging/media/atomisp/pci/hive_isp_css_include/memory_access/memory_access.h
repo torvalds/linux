@@ -76,37 +76,12 @@
  * within the allocation referencable from the
  * returned pointer/address.
  */
-#define MMGR_ATTRIBUTE_MASK		0x000f
 #define MMGR_ATTRIBUTE_CACHED		0x0001
 #define MMGR_ATTRIBUTE_CONTIGUOUS	0x0002
-#define MMGR_ATTRIBUTE_PAGEALIGN	0x0004
 #define MMGR_ATTRIBUTE_CLEARED		0x0008
-#define MMGR_ATTRIBUTE_UNUSED		0xfff0
 
-/* #define MMGR_ATTRIBUTE_DEFAULT	(MMGR_ATTRIBUTE_CACHED) */
-#define MMGR_ATTRIBUTE_DEFAULT	0
-
-extern const hrt_vaddress	mmgr_NULL;
-extern const hrt_vaddress	mmgr_EXCEPTION;
-
-/*! Return the address of an allocation in memory
-
- \param	size[in]		Size in bytes of the allocation
- \param	caller_func[in]		Caller function name
- \param	caller_line[in]		Caller function line number
-
- \return vaddress
- */
-hrt_vaddress mmgr_malloc(const size_t size);
-
-/*! Return the address of a zero initialised allocation in memory
-
- \param	N[in]			Horizontal dimension of array
- \param	size[in]		Vertical dimension of array  Total size is N*size
-
- \return vaddress
- */
-hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
+#define mmgr_NULL		((hrt_vaddress)0)
+#define mmgr_EXCEPTION		((hrt_vaddress)-1)
 
 /*! Return the address of an allocation in memory
 
@@ -118,38 +93,6 @@ hrt_vaddress mmgr_calloc(const size_t N, const size_t size);
  */
 
 hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
-
-/*! Return the address of a mapped existing allocation in memory
-
- \param	ptr[in]			Pointer to an allocation in a different
-				virtual memory page table, but the same
-				physical memory
- \param size[in]		Size of the memory of the pointer
- \param	attribute[in]		Bit vector specifying the properties
-				of the allocation
- \param context			Pointer of a context provided by
-				client/driver for additional parameters
-				needed by the implementation
- \Note
-	This interface is tentative, limited to the desired function
-	the actual interface may require furhter parameters
-
- \return vaddress
- */
-hrt_vaddress mmgr_mmap(
-    const void __user *ptr,
-    const size_t size,
-    u16 attribute,
-    unsigned int pgnr);
-
-/*! Zero initialise an allocation in memory
-
- \param	vaddr[in]		Address of an allocation
- \param	size[in]		Size in bytes of the area to be cleared
-
- \return none
- */
-void mmgr_clear(hrt_vaddress vaddr, const size_t	size);
 
 /*! Read an array of bytes from a virtual memory address
 
