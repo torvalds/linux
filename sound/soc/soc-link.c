@@ -35,3 +35,68 @@ int snd_soc_link_init(struct snd_soc_pcm_runtime *rtd)
 
 	return soc_link_ret(rtd, ret);
 }
+
+int snd_soc_link_startup(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->startup)
+		ret = rtd->dai_link->ops->startup(substream);
+
+	return soc_link_ret(rtd, ret);
+}
+
+void snd_soc_link_shutdown(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->shutdown)
+		rtd->dai_link->ops->shutdown(substream);
+}
+
+int snd_soc_link_prepare(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream)
+{
+	int ret = 0;
+
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->prepare)
+		ret = rtd->dai_link->ops->prepare(substream);
+
+	return soc_link_ret(rtd, ret);
+}
+
+int snd_soc_link_hw_params(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream,
+			   struct snd_pcm_hw_params *params)
+{
+	int ret = 0;
+
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->hw_params)
+		ret = rtd->dai_link->ops->hw_params(substream, params);
+
+	return soc_link_ret(rtd, ret);
+}
+
+void snd_soc_link_hw_free(struct snd_soc_pcm_runtime *rtd,
+			  struct snd_pcm_substream *substream)
+{
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->hw_free)
+		rtd->dai_link->ops->hw_free(substream);
+}
+
+int snd_soc_link_trigger(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream, int cmd)
+{
+	int ret = 0;
+
+	if (rtd->dai_link->ops &&
+	    rtd->dai_link->ops->trigger)
+		ret = rtd->dai_link->ops->trigger(substream, cmd);
+
+	return soc_link_ret(rtd, ret);
+}

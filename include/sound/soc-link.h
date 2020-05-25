@@ -9,5 +9,18 @@
 #define __SOC_LINK_H
 
 int snd_soc_link_init(struct snd_soc_pcm_runtime *rtd);
+int snd_soc_link_startup(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream);
+void snd_soc_link_shutdown(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream);
+int snd_soc_link_prepare(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream);
+int snd_soc_link_hw_params(struct snd_soc_pcm_runtime *rtd,
+			   struct snd_pcm_substream *substream,
+			   struct snd_pcm_hw_params *params);
+void snd_soc_link_hw_free(struct snd_soc_pcm_runtime *rtd,
+			  struct snd_pcm_substream *substream);
+int snd_soc_link_trigger(struct snd_soc_pcm_runtime *rtd,
+			 struct snd_pcm_substream *substream, int cmd);
 
 #endif /* __SOC_LINK_H */
