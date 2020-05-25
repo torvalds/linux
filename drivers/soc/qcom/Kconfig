@@ -117,7 +117,7 @@ config QCOM_RPMH
 	  help apply the aggregated state on the resource.
 
 config QCOM_RPMHPD
-	bool "Qualcomm RPMh Power domain driver"
+	tristate "Qualcomm RPMh Power domain driver"
 	depends on QCOM_RPMH && QCOM_COMMAND_DB
 	help
 	  QCOM RPMh Power domain driver to support power-domains with
@@ -126,8 +126,8 @@ config QCOM_RPMHPD
 	  for the voltage rail.
 
 config QCOM_RPMPD
-	bool "Qualcomm RPM Power domain driver"
-	depends on QCOM_SMD_RPM=y
+	tristate "Qualcomm RPM Power domain driver"
+	depends on QCOM_SMD_RPM
 	help
 	  QCOM RPM Power domain driver to support power-domains with
 	  performance states. The driver communicates a performance state
