@@ -1404,7 +1404,6 @@ out:
 	if (ip->i_qadata)
 		gfs2_assert_warn(sdp, ip->i_qadata->qa_ref == 0);
 	gfs2_rs_delete(ip, NULL);
-	gfs2_qa_put(ip);
 	gfs2_ordered_del_inode(ip);
 	clear_inode(inode);
 	gfs2_dir_hash_inval(ip);

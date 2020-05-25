@@ -96,6 +96,16 @@ void tipc_sub_get(struct tipc_subscription *subscription);
 		(swap_ ? swab32(val__) : val__);			\
 	})
 
+/* tipc_sub_write - write val_ to field_ of struct sub_ in user endian format
+ */
+#define tipc_sub_write(sub_, field_, val_)				\
+	({								\
+		struct tipc_subscr *sub__ = sub_;			\
+		u32 val__ = val_;					\
+		int swap_ = !((sub__)->filter & TIPC_FILTER_MASK);	\
+		(sub__)->field_ = swap_ ? swab32(val__) : val__;	\
+	})
+
 /* tipc_evt_write - write val_ to field_ of struct evt_ in user endian format
  */
 #define tipc_evt_write(evt_, field_, val_)				\

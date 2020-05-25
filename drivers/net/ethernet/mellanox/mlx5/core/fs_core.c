@@ -344,17 +344,12 @@ static void tree_put_node(struct fs_node *node, bool locked)
 		if (node->del_hw_func)
 			node->del_hw_func(node);
 		if (parent_node) {
-			/* Only root namespace doesn't have parent and we just
-			 * need to free its node.
-			 */
 			down_write_ref_node(parent_node, locked);
 			list_del_init(&node->list);
-			if (node->del_sw_func)
-				node->del_sw_func(node);
-			up_write_ref_node(parent_node, locked);
-		} else {
-			kfree(node);
 		}
+		node->del_sw_func(node);
+		if (parent_node)
+			up_write_ref_node(parent_node, locked);
 		node = NULL;
 	}
 	if (!node && parent_node)
@@ -468,8 +463,10 @@ static void del_sw_flow_table(struct fs_node *node)
 	fs_get_obj(ft, node);
 
 	rhltable_destroy(&ft->fgs_hash);
-	fs_get_obj(prio, ft->node.parent);
-	prio->num_ft--;
+	if (ft->node.parent) {
+		fs_get_obj(prio, ft->node.parent);
+		prio->num_ft--;
+	}
 	kfree(ft);
 }
 
@@ -2351,6 +2348,17 @@ static int init_root_tree(struct mlx5_flow_steering *steering,
 	return 0;
 }
 
+static void del_sw_root_ns(struct fs_node *node)
+{
+	struct mlx5_flow_root_namespace *root_ns;
+	struct mlx5_flow_namespace *ns;
+
+	fs_get_obj(ns, node);
+	root_ns = container_of(ns, struct mlx5_flow_root_namespace, ns);
+	mutex_destroy(&root_ns->chain_lock);
+	kfree(node);
+}
+
 static struct mlx5_flow_root_namespace
 *create_root_ns(struct mlx5_flow_steering *steering,
 		enum fs_flow_table_type table_type)
@@ -2377,7 +2385,7 @@ static struct mlx5_flow_root_namespace
 	ns = &root_ns->ns;
 	fs_init_namespace(ns);
 	mutex_init(&root_ns->chain_lock);
-	tree_init_node(&ns->node, NULL, NULL);
+	tree_init_node(&ns->node, NULL, del_sw_root_ns);
 	tree_add_node(&ns->node, NULL);
 
 	return root_ns;

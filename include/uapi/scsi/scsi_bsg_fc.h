@@ -209,7 +209,7 @@ struct fc_bsg_host_vendor {
 	__u64 vendor_id;
 
 	/* start of vendor command area */
-	__u32 vendor_cmd[];
+	__u32 vendor_cmd[0];
 };
 
 /* Response:

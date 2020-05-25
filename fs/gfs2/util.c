@@ -119,6 +119,12 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 	if (!sb_rdonly(sdp->sd_vfs))
 		ret = gfs2_make_fs_ro(sdp);
 
+	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
+		if (!ret)
+			ret = -EIO;
+		clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
+		goto skip_recovery;
+	}
 	/*
 	 * Drop the glock for our journal so another node can recover it.
 	 */
@@ -159,10 +165,6 @@ static void signal_our_withdraw(struct gfs2_sbd *sdp)
 		wait_on_bit(&gl->gl_flags, GLF_FREEING, TASK_UNINTERRUPTIBLE);
 	}
 
-	if (sdp->sd_lockstruct.ls_ops->lm_lock == NULL) { /* lock_nolock */
-		clear_bit(SDF_WITHDRAW_RECOVERY, &sdp->sd_flags);
-		goto skip_recovery;
-	}
 	/*
 	 * Dequeue the "live" glock, but keep a reference so it's never freed.
 	 */

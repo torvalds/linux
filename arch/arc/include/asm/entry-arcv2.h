@@ -233,6 +233,8 @@
 
 #ifdef CONFIG_ARC_IRQ_NO_AUTOSAVE
 	__RESTORE_REGFILE_HARD
+
+	; SP points to PC/STAT32: hw restores them despite NO_AUTOSAVE
 	add	sp, sp, SZ_PT_REGS - 8
 #else
 	add	sp, sp, PT_r0
