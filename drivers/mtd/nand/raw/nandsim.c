@@ -786,6 +786,11 @@ free_partition_names:
  */
 static void ns_free(struct nandsim *ns)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ns->partitions); ++i)
+		kfree(ns->partitions[i].name);
+
 	kfree(ns->buf.byte);
 	ns_free_device(ns);
 
@@ -2270,7 +2275,7 @@ static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
 	struct nandsim *ns;
-	int ret, i;
+	int ret;
 
 	if (bus_width != 8 && bus_width != 16) {
 		NS_ERR("wrong bus width (%d), use only 8 or 16\n", bus_width);
@@ -2402,8 +2407,6 @@ static int __init ns_init_module(void)
 err_exit:
 	ns_free(ns);
 	nand_release(chip);
-	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
-		kfree(ns->partitions[i].name);
 error:
 	kfree(ns);
 	ns_free_lists();
@@ -2420,13 +2423,10 @@ static void __exit ns_cleanup_module(void)
 {
 	struct nand_chip *chip = mtd_to_nand(nsmtd);
 	struct nandsim *ns = nand_get_controller_data(chip);
-	int i;
 
 	ns_debugfs_remove(ns);
 	ns_free(ns);    /* Free nandsim private resources */
 	nand_release(chip); /* Unregister driver */
-	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
-		kfree(ns->partitions[i].name);
 	kfree(ns);        /* Free other structures */
 	ns_free_lists();
 }
