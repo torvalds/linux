@@ -767,7 +767,9 @@ struct kvm_vcpu_arch {
 		bool halted;
 		gfn_t gfns[ASYNC_PF_PER_VCPU];
 		struct gfn_to_hva_cache data;
-		u64 msr_val;
+		u64 msr_en_val; /* MSR_KVM_ASYNC_PF_EN */
+		u64 msr_int_val; /* MSR_KVM_ASYNC_PF_INT */
+		u16 vec;
 		u32 id;
 		bool send_user_only;
 		u32 host_apf_flags;
