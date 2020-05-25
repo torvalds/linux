@@ -1248,7 +1248,7 @@ static const u32 emulated_msrs_all[] = {
 	HV_X64_MSR_TSC_EMULATION_STATUS,
 
 	MSR_KVM_ASYNC_PF_EN, MSR_KVM_STEAL_TIME,
-	MSR_KVM_PV_EOI_EN, MSR_KVM_ASYNC_PF_INT,
+	MSR_KVM_PV_EOI_EN, MSR_KVM_ASYNC_PF_INT, MSR_KVM_ASYNC_PF_ACK,
 
 	MSR_IA32_TSC_ADJUST,
 	MSR_IA32_TSCDEADLINE,
@@ -2946,6 +2946,12 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (kvm_pv_enable_async_pf_int(vcpu, data))
 			return 1;
 		break;
+	case MSR_KVM_ASYNC_PF_ACK:
+		if (data & 0x1) {
+			vcpu->arch.apf.pageready_pending = false;
+			kvm_check_async_pf_completion(vcpu);
+		}
+		break;
 	case MSR_KVM_STEAL_TIME:
 
 		if (unlikely(!sched_info_on()))
@@ -3224,6 +3230,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_KVM_ASYNC_PF_INT:
 		msr_info->data = vcpu->arch.apf.msr_int_val;
+		break;
+	case MSR_KVM_ASYNC_PF_ACK:
+		msr_info->data = 0;
 		break;
 	case MSR_KVM_STEAL_TIME:
 		msr_info->data = vcpu->arch.st.msr_val;
@@ -8413,6 +8422,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_hv_process_stimers(vcpu);
 		if (kvm_check_request(KVM_REQ_APICV_UPDATE, vcpu))
 			kvm_vcpu_update_apicv(vcpu);
+		if (kvm_check_request(KVM_REQ_APF_READY, vcpu))
+			kvm_check_async_pf_completion(vcpu);
 	}
 
 	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
@@ -8663,8 +8674,6 @@ static int vcpu_run(struct kvm_vcpu *vcpu)
 			++vcpu->stat.request_irq_exits;
 			break;
 		}
-
-		kvm_check_async_pf_completion(vcpu);
 
 		if (signal_pending(current)) {
 			r = -EINTR;
@@ -10555,11 +10564,20 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 	trace_kvm_async_pf_ready(work->arch.token, work->cr2_or_gpa);
 
 	if (kvm_pv_async_pf_enabled(vcpu) &&
-	    !apf_put_user_ready(vcpu, work->arch.token))
+	    !apf_put_user_ready(vcpu, work->arch.token)) {
+		vcpu->arch.apf.pageready_pending = true;
 		kvm_apic_set_irq(vcpu, &irq, NULL);
+	}
 
 	vcpu->arch.apf.halted = false;
 	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+}
+
+void kvm_arch_async_page_present_queued(struct kvm_vcpu *vcpu)
+{
+	kvm_make_request(KVM_REQ_APF_READY, vcpu);
+	if (!vcpu->arch.apf.pageready_pending)
+		kvm_vcpu_kick(vcpu);
 }
 
 bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu)

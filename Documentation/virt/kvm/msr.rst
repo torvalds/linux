@@ -236,7 +236,9 @@ data:
 	of these bytes is a token which was previously delivered as 'page not
 	present' event. The event indicates the page in now available. Guest is
 	supposed to write '0' to 'token' when it is done handling 'page ready'
-	event so the next one can be delivered.
+	event and to write 1' to MSR_KVM_ASYNC_PF_ACK after clearing the location;
+	writing to the MSR forces KVM to re-scan its queue and deliver the next
+	pending notification.
 
 	Note, MSR_KVM_ASYNC_PF_INT MSR specifying the interrupt vector for 'page
 	ready' APF delivery needs to be written to before enabling APF mechanism
@@ -359,3 +361,14 @@ data:
 	Interrupt vector for asynchnonous 'page ready' notifications delivery.
 	The vector has to be set up before asynchronous page fault mechanism
 	is enabled in MSR_KVM_ASYNC_PF_EN.
+
+MSR_KVM_ASYNC_PF_ACK:
+	0x4b564d07
+
+data:
+	Asynchronous page fault (APF) acknowledgment.
+
+	When the guest is done processing 'page ready' APF event and 'token'
+	field in 'struct kvm_vcpu_pv_apf_data' is cleared it is supposed to
+	write '1' to bit 0 of the MSR, this causes the host to re-scan its queue
+	and check if there are more notifications pending.
