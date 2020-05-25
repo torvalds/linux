@@ -57,7 +57,10 @@ MODULE_PARM_DESC(perf_type, "Type of test (rcu, srcu, refcnt, rwsem, rwlock.");
 
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
 
-// Number of loops per experiment, all readers execute an operation concurrently
+// Wait until there are multiple CPUs before starting test.
+torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_PERF_TEST) ? 10 : 0,
+	      "Holdoff time before test start (s)");
+// Number of loops per experiment, all readers execute operations concurrently.
 torture_param(long, loops, 10000000, "Number of loops per experiment.");
 
 #ifdef MODULE
@@ -248,6 +251,8 @@ ref_perf_reader(void *arg)
 	set_cpus_allowed_ptr(current, cpumask_of(me % nr_cpu_ids));
 	set_user_nice(current, MAX_NICE);
 	atomic_inc(&n_init);
+	if (holdoff)
+		schedule_timeout_interruptible(holdoff * HZ);
 repeat:
 	VERBOSE_PERFOUT("ref_perf_reader %ld: waiting to start next experiment on cpu %d", me, smp_processor_id());
 
@@ -357,6 +362,8 @@ static int main_func(void *arg)
 
 	// Wait for all threads to start.
 	wait_event(main_wq, atomic_read(&n_init) == (nreaders + 1));
+	if (holdoff)
+		schedule_timeout_interruptible(holdoff * HZ);
 
 	// Start exp readers up per experiment
 	for (exp = 0; exp < nreaders && !torture_must_stop(); exp++) {
@@ -420,8 +427,8 @@ static void
 ref_perf_print_module_parms(struct ref_perf_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" PERF_FLAG
-		 "--- %s:  verbose=%d shutdown=%d loops=%ld\n", perf_type, tag,
-		 verbose, shutdown, loops);
+		 "--- %s:  verbose=%d shutdown=%d holdoff=%d loops=%ld\n", perf_type, tag,
+		 verbose, shutdown, holdoff, loops);
 }
 
 static void
