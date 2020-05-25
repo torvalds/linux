@@ -5774,7 +5774,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	u16 event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK)
 			>> EQ_CTL_EVENT_TYPE_SHIFT);
 	u8 cause;
-	bool soft_reset_required;
+	bool reset_required;
 
 	gaudi->events_stat[event_type]++;
 	gaudi->events_stat_aggregate[event_type]++;
@@ -5840,12 +5840,18 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_TPC6_DEC:
 	case GAUDI_EVENT_TPC7_DEC:
 		gaudi_print_irq_info(hdev, event_type, true);
-		soft_reset_required = gaudi_tpc_read_interrupts(hdev,
+		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_dec_event_to_tpc_id(event_type),
 					"AXI_SLV_DEC_Error");
-		if (soft_reset_required)
-			hl_device_reset(hdev, false, false);
-		hl_fw_unmask_irq(hdev, event_type);
+		if (reset_required) {
+			dev_err(hdev->dev, "hard reset required due to %s\n",
+				gaudi_irq_map_table[event_type].name);
+
+			if (hdev->hard_reset_on_fw_events)
+				hl_device_reset(hdev, true, false);
+		} else {
+			hl_fw_unmask_irq(hdev, event_type);
+		}
 		break;
 
 	case GAUDI_EVENT_TPC0_KRN_ERR:
@@ -5857,12 +5863,18 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_TPC6_KRN_ERR:
 	case GAUDI_EVENT_TPC7_KRN_ERR:
 		gaudi_print_irq_info(hdev, event_type, true);
-		soft_reset_required = gaudi_tpc_read_interrupts(hdev,
+		reset_required = gaudi_tpc_read_interrupts(hdev,
 					tpc_krn_event_to_tpc_id(event_type),
 					"KRN_ERR");
-		if (soft_reset_required)
-			hl_device_reset(hdev, false, false);
-		hl_fw_unmask_irq(hdev, event_type);
+		if (reset_required) {
+			dev_err(hdev->dev, "hard reset required due to %s\n",
+				gaudi_irq_map_table[event_type].name);
+
+			if (hdev->hard_reset_on_fw_events)
+				hl_device_reset(hdev, true, false);
+		} else {
+			hl_fw_unmask_irq(hdev, event_type);
+		}
 		break;
 
 	case GAUDI_EVENT_PCIE_CORE_SERR:
@@ -5913,8 +5925,8 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
 		gaudi_print_irq_info(hdev, event_type, true);
-		hl_device_reset(hdev, false, false);
-		hl_fw_unmask_irq(hdev, event_type);
+		if (hdev->hard_reset_on_fw_events)
+			hl_device_reset(hdev, true, false);
 		break;
 
 	case GAUDI_EVENT_TPC0_BMON_SPMU:
@@ -5963,7 +5975,7 @@ static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate,
 	return gaudi->events_stat;
 }
 
-static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
+static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 					u32 flags)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -5972,34 +5984,40 @@ static void gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
 		hdev->hard_reset_pending)
-		return;
-
-	mutex_lock(&hdev->mmu_cache_lock);
+		return 0;
 
 	if (hdev->pldm)
 		timeout_usec = GAUDI_PLDM_MMU_TIMEOUT_USEC;
 	else
 		timeout_usec = MMU_CONFIG_TIMEOUT_USEC;
 
+	mutex_lock(&hdev->mmu_cache_lock);
+
 	/* L0 & L1 invalidation */
-	WREG32(mmSTLB_INV_ALL_START, 1);
+	WREG32(mmSTLB_INV_PS, 2);
 
 	rc = hl_poll_timeout(
 		hdev,
-		mmSTLB_INV_ALL_START,
+		mmSTLB_INV_PS,
 		status,
 		!status,
 		1000,
 		timeout_usec);
 
-	if (rc)
-		dev_notice_ratelimited(hdev->dev,
-			"Timeout when waiting for MMU cache invalidation\n");
+	WREG32(mmSTLB_INV_SET, 0);
 
 	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc) {
+		dev_err_ratelimited(hdev->dev,
+					"MMU cache invalidation timeout\n");
+		hl_device_reset(hdev, true, false);
+	}
+
+	return rc;
 }
 
-static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
+static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 				bool is_hard, u32 asid, u64 va, u64 size)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
@@ -6010,7 +6028,7 @@ static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU) ||
 		hdev->hard_reset_pending)
-		return;
+		return 0;
 
 	mutex_lock(&hdev->mmu_cache_lock);
 
@@ -6041,11 +6059,15 @@ static void gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 		1000,
 		timeout_usec);
 
-	if (rc)
-		dev_notice_ratelimited(hdev->dev,
-			"Timeout when waiting for MMU cache invalidation\n");
-
 	mutex_unlock(&hdev->mmu_cache_lock);
+
+	if (rc) {
+		dev_err_ratelimited(hdev->dev,
+					"MMU cache invalidation timeout\n");
+		hl_device_reset(hdev, true, false);
+	}
+
+	return rc;
 }
 
 static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev,

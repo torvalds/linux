@@ -675,9 +675,9 @@ struct hl_asic_funcs {
 				u32 *size);
 	u64 (*read_pte)(struct hl_device *hdev, u64 addr);
 	void (*write_pte)(struct hl_device *hdev, u64 addr, u64 val);
-	void (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
+	int (*mmu_invalidate_cache)(struct hl_device *hdev, bool is_hard,
 					u32 flags);
-	void (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
+	int (*mmu_invalidate_cache_range)(struct hl_device *hdev, bool is_hard,
 			u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	void (*enable_clock_gating)(struct hl_device *hdev);
@@ -755,8 +755,8 @@ struct hl_va_range {
  *                      with huge pages.
  * @dram_va_range: holds available virtual addresses for DRAM mappings.
  * @mem_hash_lock: protects the mem_hash.
- * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifing the
- *            MMU hash or walking the PGT requires talking this lock
+ * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
+ *            MMU hash or walking the PGT requires talking this lock.
  * @debugfs_list: node in debugfs list of contexts.
  * @cs_sequence: sequence number for CS. Value is assigned to a CS and passed
  *			to user so user could inquire about CS. It is used as
@@ -1436,6 +1436,7 @@ struct hl_device_idle_busy_ts {
  * @stop_on_err: true if engines should stop on error.
  * @supports_sync_stream: is sync stream supported.
  * @supports_coresight: is CoreSight supported.
+ * @supports_soft_reset: is soft reset supported.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -1522,6 +1523,7 @@ struct hl_device {
 	u8				stop_on_err;
 	u8				supports_sync_stream;
 	u8				supports_coresight;
+	u8				supports_soft_reset;
 
 	/* Parameters for bring-up */
 	u8				mmu_enable;

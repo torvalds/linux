@@ -183,6 +183,11 @@ static ssize_t soft_reset_store(struct device *dev,
 		goto out;
 	}
 
+	if (!hdev->supports_soft_reset) {
+		dev_err(hdev->dev, "Device does not support soft-reset\n");
+		goto out;
+	}
+
 	dev_warn(hdev->dev, "Soft-Reset requested through sysfs\n");
 
 	hl_device_reset(hdev, false, false);
