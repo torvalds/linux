@@ -607,7 +607,7 @@ have_compressed:
 	}
 
 	if (!mempool_initialized(&c->decompress_workspace)) {
-		ret = mempool_init_kmalloc_pool(
+		ret = mempool_init_kvpmalloc_pool(
 				&c->decompress_workspace,
 				1, decompress_workspace_size);
 		if (ret)
