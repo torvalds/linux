@@ -553,7 +553,7 @@ static int do_dump(int argc, char **argv)
 			btf = btf__parse_elf(*argv, NULL);
 
 		if (IS_ERR(btf)) {
-			err = PTR_ERR(btf);
+			err = -PTR_ERR(btf);
 			btf = NULL;
 			p_err("failed to load BTF from %s: %s",
 			      *argv, strerror(err));
