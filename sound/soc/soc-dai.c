@@ -8,6 +8,7 @@
 
 #include <sound/soc.h>
 #include <sound/soc-dai.h>
+#include <sound/soc-link.h>
 
 #define soc_dai_ret(dai, ret) _soc_dai_ret(dai, __func__, ret)
 static inline int _soc_dai_ret(struct snd_soc_dai *dai,
@@ -313,11 +314,9 @@ int snd_soc_dai_hw_params(struct snd_soc_dai *dai,
 	int ret = 0;
 
 	/* perform any topology hw_params fixups before DAI  */
-	if (rtd->dai_link->be_hw_params_fixup) {
-		ret = rtd->dai_link->be_hw_params_fixup(rtd, params);
-		if (ret < 0)
-			goto end;
-	}
+	ret = snd_soc_link_be_hw_params_fixup(rtd, params);
+	if (ret < 0)
+		goto end;
 
 	if (dai->driver->ops &&
 	    dai->driver->ops->hw_params)

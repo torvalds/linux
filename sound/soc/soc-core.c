@@ -1656,7 +1656,11 @@ match:
 			dai_link->dpcm_playback = 1;
 			dai_link->dpcm_capture = 1;
 
-			/* override any BE fixups */
+			/*
+			 * override any BE fixups
+			 * see
+			 *	snd_soc_link_be_hw_params_fixup()
+			 */
 			dai_link->be_hw_params_fixup =
 				component->driver->be_hw_params_fixup;
 
