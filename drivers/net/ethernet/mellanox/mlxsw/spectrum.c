@@ -4093,6 +4093,8 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV6, TRAP_TO_CPU, IP2ME, false),
 	MLXSW_SP_RXL_MARK(IPV4_VRRP, TRAP_TO_CPU, VRRP, false),
 	MLXSW_SP_RXL_MARK(IPV6_VRRP, TRAP_TO_CPU, VRRP, false),
+	MLXSW_SP_RXL_MARK(IPV4_BFD, TRAP_TO_CPU, BFD, false),
+	MLXSW_SP_RXL_MARK(IPV6_BFD, TRAP_TO_CPU, BFD, false),
 	MLXSW_SP_RXL_NO_MARK(DISCARD_ING_ROUTER_SIP_CLASS_E, FORWARD,
 			     ROUTER_EXP, false),
 	MLXSW_SP_RXL_NO_MARK(DISCARD_ING_ROUTER_MC_DMAC, FORWARD,
@@ -4185,6 +4187,10 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 			rate = 360;
 			burst_size = 7;
 			break;
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD:
+			rate = 20 * 1024;
+			burst_size = 10;
+			break;
 		default:
 			continue;
 		}
@@ -4226,6 +4232,7 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD:
 			priority = 5;
 			tc = 5;
 			break;
