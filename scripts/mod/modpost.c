@@ -300,17 +300,21 @@ static const char *sec_name(struct elf_info *elf, int secindex)
 	return sech_name(elf, &elf->sechdrs[secindex]);
 }
 
-static void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
+static void *sym_get_data_by_offset(const struct elf_info *info,
+				    unsigned int secindex, unsigned long offset)
 {
-	unsigned int secindex = get_secindex(info, sym);
 	Elf_Shdr *sechdr = &info->sechdrs[secindex];
-	unsigned long offset;
 
-	offset = sym->st_value;
 	if (info->hdr->e_type != ET_REL)
 		offset -= sechdr->sh_addr;
 
 	return (void *)info->hdr + sechdr->sh_offset + offset;
+}
+
+static void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
+{
+	return sym_get_data_by_offset(info, get_secindex(info, sym),
+				      sym->st_value);
 }
 
 #define strstarts(str, prefix) (strncmp(str, prefix, strlen(prefix)) == 0)
@@ -1752,11 +1756,7 @@ static void check_section_mismatch(const char *modname, struct elf_info *elf,
 static unsigned int *reloc_location(struct elf_info *elf,
 				    Elf_Shdr *sechdr, Elf_Rela *r)
 {
-	Elf_Shdr *sechdrs = elf->sechdrs;
-	int section = sechdr->sh_info;
-
-	return (void *)elf->hdr + sechdrs[section].sh_offset +
-		r->r_offset;
+	return sym_get_data_by_offset(elf, sechdr->sh_info, r->r_offset);
 }
 
 static int addend_386_rel(struct elf_info *elf, Elf_Shdr *sechdr, Elf_Rela *r)
