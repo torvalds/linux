@@ -2366,7 +2366,7 @@ static int __init ns_init_module(void)
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
 			ret = -EINVAL;
-			goto err_exit;
+			goto cleanup_nand;
 		}
 
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */
@@ -2379,7 +2379,7 @@ static int __init ns_init_module(void)
 
 	ret = ns_setup_wear_reporting(nsmtd);
 	if (ret)
-		goto err_exit;
+		goto cleanup_nand;
 
 	ret = ns_init(nsmtd);
 	if (ret)
@@ -2406,11 +2406,11 @@ static int __init ns_init_module(void)
 
 unregister_mtd:
 	WARN_ON(mtd_device_unregister(nsmtd));
-err_exit:
 free_ns_object:
 	ns_free(ns);
 free_ebw:
 	kfree(erase_block_wear);
+cleanup_nand:
 	nand_cleanup(chip);
 error:
 	kfree(ns);
