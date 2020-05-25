@@ -39,8 +39,6 @@
 #include "device_access.h"
 #include "irq.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
-
 static const char *DRIVER = "atomisp";	/* max size 15 */
 static const char *CARD = "ATOM ISP";	/* max size 31 */
 
@@ -1183,8 +1181,6 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	 * address and reprograme out page table properly
 	 */
 	if (buf->memory == V4L2_MEMORY_USERPTR) {
-		struct hrt_userbuffer_attr attributes;
-
 		vb = pipe->capq.bufs[buf->index];
 		vm_mem = vb->priv;
 		if (!vm_mem) {
@@ -1204,10 +1200,9 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 			goto error;
 		}
 
-		attributes.pgnr = pgnr;
 		ret = atomisp_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
-					    0, &attributes);
+					    0, pgnr);
 		if (ret) {
 			dev_err(isp->dev, "Failed to map user buffer\n");
 			goto error;

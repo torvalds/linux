@@ -32,8 +32,6 @@
 #include "atomisp_ioctl.h"
 #include "atomisp_acc.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
-
 #include <asm/intel-mid.h>
 
 #include "ia_css_debug.h"
@@ -2187,9 +2185,9 @@ void atomisp_css_frame_free(struct ia_css_frame *frame)
 int atomisp_css_frame_map(struct ia_css_frame **frame,
 			  const struct ia_css_frame_info *info,
 			  const void __user *data, uint16_t attribute,
-			  void *context)
+			  unsigned int pgnr)
 {
-	if (ia_css_frame_map(frame, info, data, attribute, context)
+	if (ia_css_frame_map(frame, info, data, attribute, pgnr)
 	    != IA_CSS_SUCCESS)
 		return -ENOMEM;
 

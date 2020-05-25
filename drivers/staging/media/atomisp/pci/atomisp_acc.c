@@ -28,7 +28,6 @@
 #include "atomisp_compat.h"
 #include "atomisp_cmd.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
 #include "memory_access/memory_access.h"
 #include "ia_css.h"
 
@@ -353,16 +352,23 @@ int atomisp_acc_map(struct atomisp_sub_device *asd, struct atomisp_acc_map *map)
 		}
 
 		pgnr = DIV_ROUND_UP(map->length, PAGE_SIZE);
-		cssptr = hrt_isp_css_mm_alloc_user_ptr(map->length,
-						       map->user_ptr,
-						       pgnr,
-						       (map->flags & ATOMISP_MAP_FLAG_CACHED));
+		if (pgnr < ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is less than the expected size..\n");
+			return -ENOMEM;
+		} else if (pgnr > ((PAGE_ALIGN(map->length)) >> PAGE_SHIFT)) {
+			dev_err(atomisp_dev,
+				"user space memory size is large than the expected size..\n");
+			return -ENOMEM;
+		}
+
+		cssptr = hmm_alloc(map->length, HMM_BO_USER, 0, map->user_ptr,
+				   map->flags & ATOMISP_MAP_FLAG_CACHED);
+
 	} else {
 		/* Allocate private buffer. */
-		if (map->flags & ATOMISP_MAP_FLAG_CACHED)
-			cssptr = hrt_isp_css_mm_calloc_cached(map->length);
-		else
-			cssptr = hrt_isp_css_mm_calloc(map->length);
+		cssptr = hmm_alloc(map->length, HMM_BO_PRIVATE, 0, NULL,
+				   map->flags & ATOMISP_MAP_FLAG_CACHED);
 	}
 
 	if (!cssptr)

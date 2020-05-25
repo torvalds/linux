@@ -140,7 +140,7 @@ hrt_vaddress mmgr_mmap(
     const void __user *ptr,
     const size_t size,
     u16 attribute,
-    void *context);
+    unsigned int pgnr);
 
 /*! Zero initialise an allocation in memory
 

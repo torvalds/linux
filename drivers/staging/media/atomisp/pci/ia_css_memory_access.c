@@ -17,7 +17,8 @@
 #include <assert_support.h>
 #include <memory_access.h>
 #include <ia_css_env.h>
-#include <hrt/hive_isp_css_mm_hrt.h>
+
+#include "atomisp_internal.h"
 
 const hrt_vaddress mmgr_NULL = (hrt_vaddress)0;
 const hrt_vaddress mmgr_EXCEPTION = (hrt_vaddress)-1;
@@ -31,20 +32,20 @@ mmgr_malloc(const size_t size)
 hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attrs)
 {
 	u16 masked_attrs = attrs & MMGR_ATTRIBUTE_MASK;
+	ia_css_ptr data;
 
 	WARN_ON(attrs & MMGR_ATTRIBUTE_CONTIGUOUS);
 
-	if (masked_attrs & MMGR_ATTRIBUTE_CLEARED) {
-		if (masked_attrs & MMGR_ATTRIBUTE_CACHED)
-			return (ia_css_ptr) hrt_isp_css_mm_calloc_cached(size);
-		else
-			return (ia_css_ptr) hrt_isp_css_mm_calloc(size);
-	} else {
-		if (masked_attrs & MMGR_ATTRIBUTE_CACHED)
-			return (ia_css_ptr) hrt_isp_css_mm_alloc_cached(size);
-		else
-			return (ia_css_ptr) hrt_isp_css_mm_alloc(size);
-	}
+	data = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL,
+			 masked_attrs & MMGR_ATTRIBUTE_CACHED);
+
+	if (!data)
+		return 0;
+
+	if (masked_attrs & MMGR_ATTRIBUTE_CLEARED)
+		hmm_set(data, 0, size);
+
+	return (ia_css_ptr)data;
 }
 
 hrt_vaddress
@@ -74,11 +75,19 @@ mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size)
 
 hrt_vaddress
 mmgr_mmap(const void __user *ptr, const size_t size,
-	  u16 attribute, void *context)
+	  u16 attribute, unsigned int pgnr)
 {
-	struct hrt_userbuffer_attr *userbuffer_attr = context;
+	if (pgnr < ((PAGE_ALIGN(size)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is less than the expected size..\n");
+		return -ENOMEM;
+	} else if (pgnr > ((PAGE_ALIGN(size)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is large than the expected size..\n");
+		return -ENOMEM;
+	}
 
-	return hrt_isp_css_mm_alloc_user_ptr(
-		   size, ptr, userbuffer_attr->pgnr,
-		   attribute & HRT_BUF_FLAG_CACHED);
+	return hmm_alloc(size, HMM_BO_USER, 0, ptr,
+			 attribute & MMGR_ATTRIBUTE_CACHED);
+
 }

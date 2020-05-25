@@ -44,7 +44,7 @@
 #include "atomisp_subdev.h"
 #include "atomisp_dfs_tables.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
+#include <hmm/hmm.h>
 
 #include "sh_css_hrt.h"
 #include "sh_css_defs.h"

@@ -152,7 +152,7 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 				 const struct ia_css_frame_info *info,
 				 const void __user *data,
 				 u16 attribute,
-				 void *context)
+				 unsigned int pgnr)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_frame *me;
@@ -169,7 +169,7 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 		/* use mmgr_mmap to map */
 		me->data = (ia_css_ptr) mmgr_mmap(data,
 						  me->data_bytes,
-						  attribute, context);
+						  attribute, pgnr);
 		if (me->data == mmgr_NULL)
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
 	}

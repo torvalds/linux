@@ -336,7 +336,7 @@ ia_css_frame_map(struct ia_css_frame **frame,
 		 const struct ia_css_frame_info *info,
 		 const void __user *data,
 		 u16 attribute,
-		 void *context);
+		 unsigned int pgnr);
 
 /* @brief Unmap a CSS frame structure.
  *

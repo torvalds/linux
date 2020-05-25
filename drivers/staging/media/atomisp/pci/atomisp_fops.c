@@ -34,8 +34,6 @@
 #include "atomisp-regs.h"
 #include "hmm/hmm.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
-
 #include "type_support.h"
 #include "device_access/device_access.h"
 #include "memory_access/memory_access.h"

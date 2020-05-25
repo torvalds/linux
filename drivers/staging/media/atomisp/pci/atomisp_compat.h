@@ -261,7 +261,7 @@ void atomisp_css_frame_free(struct ia_css_frame *frame);
 int atomisp_css_frame_map(struct ia_css_frame **frame,
 			  const struct ia_css_frame_info *info,
 			  const void __user *data, uint16_t attribute,
-			  void *context);
+			  unsigned int pgnr);
 
 int atomisp_css_set_black_frame(struct atomisp_sub_device *asd,
 				const struct ia_css_frame *raw_black_frame);

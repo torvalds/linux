@@ -42,8 +42,6 @@
 #include "hmm/hmm.h"
 #include "atomisp_trace_event.h"
 
-#include "hrt/hive_isp_css_mm_hrt.h"
-
 #include "device_access.h"
 
 /* Timeouts to wait for all subdevs to be registered */
