@@ -954,7 +954,8 @@ fallback:
 
 		pr_debug("block timeout %ld", timeo);
 		mptcp_wait_data(sk, &timeo);
-		if (unlikely(__mptcp_tcp_fallback(msk)))
+		ssock = __mptcp_tcp_fallback(msk);
+		if (unlikely(ssock))
 			goto fallback;
 	}
 
