@@ -3264,6 +3264,8 @@ static int coda_probe(struct platform_device *pdev)
 	return 0;
 
 err_alloc_workqueue:
+	pm_runtime_disable(&pdev->dev);
+	pm_runtime_put_noidle(&pdev->dev);
 	destroy_workqueue(dev->workqueue);
 err_v4l2_register:
 	v4l2_device_unregister(&dev->v4l2_dev);
