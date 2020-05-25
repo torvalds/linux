@@ -9,6 +9,7 @@ struct bmi160_data {
 	struct regmap *regmap;
 	struct iio_trigger *trig;
 	struct regulator_bulk_data supplies[2];
+	struct iio_mount_matrix orientation;
 };
 
 extern const struct regmap_config bmi160_regmap_config;

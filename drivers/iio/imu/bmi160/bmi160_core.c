@@ -110,6 +110,7 @@
 		.storagebits = 16,				\
 		.endianness = IIO_LE,				\
 	},							\
+	.ext_info = bmi160_ext_info,				\
 }
 
 /* scan indexes follow DATA register order */
@@ -263,6 +264,20 @@ static const struct  bmi160_odr_item bmi160_odr_table[] = {
 		.tbl	= bmi160_gyro_odr,
 		.num	= ARRAY_SIZE(bmi160_gyro_odr),
 	},
+};
+
+static const struct iio_mount_matrix *
+bmi160_get_mount_matrix(const struct iio_dev *indio_dev,
+			const struct iio_chan_spec *chan)
+{
+	struct bmi160_data *data = iio_priv(indio_dev);
+
+	return &data->orientation;
+}
+
+static const struct iio_chan_spec_ext_info bmi160_ext_info[] = {
+	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, bmi160_get_mount_matrix),
+	{ }
 };
 
 static const struct iio_chan_spec bmi160_channels[] = {
@@ -838,6 +853,11 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 		dev_err(dev, "Failed to get regulators: %d\n", ret);
 		return ret;
 	}
+
+	ret = iio_read_mount_matrix(dev, "mount-matrix",
+				    &data->orientation);
+	if (ret)
+		return ret;
 
 	ret = bmi160_chip_init(data, use_spi);
 	if (ret)
