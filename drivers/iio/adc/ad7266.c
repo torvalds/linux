@@ -74,8 +74,6 @@ static int ad7266_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops iio_triggered_buffer_setup_ops = {
 	.preenable = &ad7266_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
 	.postdisable = &ad7266_postdisable,
 };
 

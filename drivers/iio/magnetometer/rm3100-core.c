@@ -463,8 +463,6 @@ static int rm3100_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops rm3100_buffer_ops = {
 	.preenable = rm3100_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = rm3100_buffer_postdisable,
 };
 

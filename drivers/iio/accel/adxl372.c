@@ -795,13 +795,9 @@ static int adxl372_buffer_postenable(struct iio_dev *indio_dev)
 	unsigned int mask;
 	int i, ret;
 
-	ret = iio_triggered_buffer_postenable(indio_dev);
-	if (ret < 0)
-		return ret;
-
 	ret = adxl372_set_interrupts(st, ADXL372_INT1_MAP_FIFO_FULL_MSK, 0);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	mask = *indio_dev->active_scan_mask;
 
@@ -810,10 +806,8 @@ static int adxl372_buffer_postenable(struct iio_dev *indio_dev)
 			break;
 	}
 
-	if (i == ARRAY_SIZE(adxl372_axis_lookup_table)) {
-		ret = -EINVAL;
-		goto err;
-	}
+	if (i == ARRAY_SIZE(adxl372_axis_lookup_table))
+		return -EINVAL;
 
 	st->fifo_format = adxl372_axis_lookup_table[i].fifo_format;
 	st->fifo_set_size = bitmap_weight(indio_dev->active_scan_mask,
@@ -833,14 +827,10 @@ static int adxl372_buffer_postenable(struct iio_dev *indio_dev)
 	if (ret < 0) {
 		st->fifo_mode = ADXL372_FIFO_BYPASSED;
 		adxl372_set_interrupts(st, 0, 0);
-		goto err;
+		return ret;
 	}
 
 	return 0;
-
-err:
-	iio_triggered_buffer_predisable(indio_dev);
-	return ret;
 }
 
 static int adxl372_buffer_predisable(struct iio_dev *indio_dev)
@@ -851,7 +841,7 @@ static int adxl372_buffer_predisable(struct iio_dev *indio_dev)
 	st->fifo_mode = ADXL372_FIFO_BYPASSED;
 	adxl372_configure_fifo(st);
 
-	return iio_triggered_buffer_predisable(indio_dev);
+	return 0;
 }
 
 static const struct iio_buffer_setup_ops adxl372_buffer_ops = {

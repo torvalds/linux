@@ -1027,9 +1027,7 @@ static const struct iio_chan_spec kxcjk1013_channels[] = {
 
 static const struct iio_buffer_setup_ops kxcjk1013_buffer_setup_ops = {
 	.preenable		= kxcjk1013_buffer_preenable,
-	.postenable		= iio_triggered_buffer_postenable,
 	.postdisable		= kxcjk1013_buffer_postdisable,
-	.predisable		= iio_triggered_buffer_predisable,
 };
 
 static const struct iio_info kxcjk1013_info = {

@@ -492,8 +492,6 @@ static int stk8312_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops stk8312_buffer_setup_ops = {
 	.preenable   = stk8312_buffer_preenable,
-	.postenable  = iio_triggered_buffer_postenable,
-	.predisable  = iio_triggered_buffer_predisable,
 	.postdisable = stk8312_buffer_postdisable,
 };
 

@@ -187,8 +187,6 @@ static const struct iio_info adc084s021_info = {
 
 static const struct iio_buffer_setup_ops adc084s021_buffer_setup_ops = {
 	.preenable = adc084s021_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = adc084s021_buffer_postdisable,
 };
 

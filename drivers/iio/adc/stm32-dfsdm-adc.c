@@ -995,7 +995,7 @@ static int stm32_dfsdm_update_scan_mode(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static int __stm32_dfsdm_postenable(struct iio_dev *indio_dev)
+static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 	int ret;
@@ -1038,30 +1038,7 @@ err_stop_hwc:
 	return ret;
 }
 
-static int stm32_dfsdm_postenable(struct iio_dev *indio_dev)
-{
-	int ret;
-
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
-		ret = iio_triggered_buffer_postenable(indio_dev);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = __stm32_dfsdm_postenable(indio_dev);
-	if (ret < 0)
-		goto err_predisable;
-
-	return 0;
-
-err_predisable:
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
-		iio_triggered_buffer_predisable(indio_dev);
-
-	return ret;
-}
-
-static void __stm32_dfsdm_predisable(struct iio_dev *indio_dev)
+static int stm32_dfsdm_predisable(struct iio_dev *indio_dev)
 {
 	struct stm32_dfsdm_adc *adc = iio_priv(indio_dev);
 
@@ -1073,14 +1050,6 @@ static void __stm32_dfsdm_predisable(struct iio_dev *indio_dev)
 
 	if (adc->hwc)
 		iio_hw_consumer_disable(adc->hwc);
-}
-
-static int stm32_dfsdm_predisable(struct iio_dev *indio_dev)
-{
-	__stm32_dfsdm_predisable(indio_dev);
-
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED)
-		iio_triggered_buffer_predisable(indio_dev);
 
 	return 0;
 }
@@ -1668,7 +1637,7 @@ static int __maybe_unused stm32_dfsdm_adc_suspend(struct device *dev)
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
 	if (iio_buffer_enabled(indio_dev))
-		__stm32_dfsdm_predisable(indio_dev);
+		stm32_dfsdm_predisable(indio_dev);
 
 	return 0;
 }
@@ -1691,7 +1660,7 @@ static int __maybe_unused stm32_dfsdm_adc_resume(struct device *dev)
 	}
 
 	if (iio_buffer_enabled(indio_dev))
-		__stm32_dfsdm_postenable(indio_dev);
+		stm32_dfsdm_postenable(indio_dev);
 
 	return 0;
 }

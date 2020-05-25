@@ -736,8 +736,6 @@ static int sx9310_buffer_postdisable(struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops sx9310_buffer_setup_ops = {
 	.preenable = sx9310_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = sx9310_buffer_postdisable,
 };
 

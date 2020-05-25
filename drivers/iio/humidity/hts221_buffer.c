@@ -153,8 +153,6 @@ static int hts221_buffer_postdisable(struct iio_dev *iio_dev)
 
 static const struct iio_buffer_setup_ops hts221_buffer_ops = {
 	.preenable = hts221_buffer_preenable,
-	.postenable = iio_triggered_buffer_postenable,
-	.predisable = iio_triggered_buffer_predisable,
 	.postdisable = hts221_buffer_postdisable,
 };
 
