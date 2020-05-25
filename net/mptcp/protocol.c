@@ -144,12 +144,29 @@ static void __mptcp_move_skb(struct mptcp_sock *msk, struct sock *ssk,
 			     unsigned int offset, size_t copy_len)
 {
 	struct sock *sk = (struct sock *)msk;
+	struct sk_buff *tail;
 
 	__skb_unlink(skb, &ssk->sk_receive_queue);
+
+	skb_ext_reset(skb);
+	skb_orphan(skb);
+	msk->ack_seq += copy_len;
+
+	tail = skb_peek_tail(&sk->sk_receive_queue);
+	if (offset == 0 && tail) {
+		bool fragstolen;
+		int delta;
+
+		if (skb_try_coalesce(tail, skb, &fragstolen, &delta)) {
+			kfree_skb_partial(skb, fragstolen);
+			atomic_add(delta, &sk->sk_rmem_alloc);
+			sk_mem_charge(sk, delta);
+			return;
+		}
+	}
+
 	skb_set_owner_r(skb, sk);
 	__skb_queue_tail(&sk->sk_receive_queue, skb);
-
-	msk->ack_seq += copy_len;
 	MPTCP_SKB_CB(skb)->offset = offset;
 }
 
