@@ -1404,6 +1404,11 @@ err_port_module_info_get:
 	return err;
 }
 
+enum {
+	MLXSW_REG_HTGT_TRAP_GROUP_SX2_RX = 1,
+	MLXSW_REG_HTGT_TRAP_GROUP_SX2_CTRL = 2,
+};
+
 #define MLXSW_SX_RXL(_trap_id) \
 	MLXSW_RXL(mlxsw_sx_rx_listener_func, _trap_id, TRAP_TO_CPU,	\
 		  false, SX2_RX, FORWARD)
