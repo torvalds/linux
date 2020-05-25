@@ -766,12 +766,14 @@ static int __init ns_init(struct mtd_info *mtd)
 		NS_ERR("init_nandsim: unable to allocate %u bytes for the internal buffer\n",
 			ns->geom.pgszoob);
 		ret = -ENOMEM;
-		goto free_partition_names;
+		goto free_device;
 	}
 	memset(ns->buf.byte, 0xFF, ns->geom.pgszoob);
 
 	return 0;
 
+free_device:
+	ns_free_device(ns);
 free_partition_names:
 	for (i = 0; i < ARRAY_SIZE(ns->partitions); ++i)
 		kfree(ns->partitions[i].name);
