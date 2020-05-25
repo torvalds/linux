@@ -126,3 +126,13 @@ int snd_soc_link_compr_startup(struct snd_compr_stream *cstream)
 	return soc_link_ret(rtd, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_link_compr_startup);
+
+void snd_soc_link_compr_shutdown(struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+
+	if (rtd->dai_link->compr_ops &&
+	    rtd->dai_link->compr_ops->shutdown)
+		rtd->dai_link->compr_ops->shutdown(cstream);
+}
+EXPORT_SYMBOL_GPL(snd_soc_link_compr_shutdown);
