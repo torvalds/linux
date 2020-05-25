@@ -771,7 +771,7 @@ static int sun50i_iommu_of_xlate(struct device *dev,
 	return iommu_fwspec_add_ids(dev, &id, 1);
 }
 
-static struct iommu_ops sun50i_iommu_ops = {
+static const struct iommu_ops sun50i_iommu_ops = {
 	.pgsize_bitmap	= SZ_4K,
 	.attach_dev	= sun50i_iommu_attach_device,
 	.detach_dev	= sun50i_iommu_detach_device,
