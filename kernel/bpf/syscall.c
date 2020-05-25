@@ -3924,7 +3924,7 @@ static int link_update(union bpf_attr *attr)
 	if (link->ops->update_prog)
 		ret = link->ops->update_prog(link, new_prog, old_prog);
 	else
-		ret = EINVAL;
+		ret = -EINVAL;
 
 out_put_progs:
 	if (old_prog)
