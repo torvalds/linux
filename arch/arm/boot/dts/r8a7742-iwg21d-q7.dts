@@ -90,6 +90,11 @@
 	};
 };
 
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &scifa2 {
 	pinctrl-0 = <&scifa2_pins>;
 	pinctrl-names = "default";
