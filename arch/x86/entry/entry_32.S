@@ -1475,6 +1475,11 @@ BUILD_INTERRUPT3(hv_stimer0_callback_vector, HYPERV_STIMER0_VECTOR,
 
 #endif /* CONFIG_HYPERV */
 
+#ifdef CONFIG_KVM_GUEST
+BUILD_INTERRUPT3(kvm_async_pf_vector, HYPERVISOR_CALLBACK_VECTOR,
+		 kvm_async_pf_intr)
+#endif
+
 SYM_CODE_START(page_fault)
 	ASM_CLAC
 	pushl	$do_page_fault
