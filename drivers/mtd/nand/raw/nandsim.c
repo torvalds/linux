@@ -543,12 +543,12 @@ static int __init ns_alloc_device(struct nandsim *ns)
 		if (!(cfile->f_mode & FMODE_CAN_READ)) {
 			NS_ERR("alloc_device: cache file not readable\n");
 			err = -EINVAL;
-			goto err_close;
+			goto err_close_filp;
 		}
 		if (!(cfile->f_mode & FMODE_CAN_WRITE)) {
 			NS_ERR("alloc_device: cache file not writeable\n");
 			err = -EINVAL;
-			goto err_close;
+			goto err_close_filp;
 		}
 		ns->pages_written =
 			vzalloc(array_size(sizeof(unsigned long),
@@ -556,16 +556,24 @@ static int __init ns_alloc_device(struct nandsim *ns)
 		if (!ns->pages_written) {
 			NS_ERR("alloc_device: unable to allocate pages written array\n");
 			err = -ENOMEM;
-			goto err_close;
+			goto err_close_filp;
 		}
 		ns->file_buf = kmalloc(ns->geom.pgszoob, GFP_KERNEL);
 		if (!ns->file_buf) {
 			NS_ERR("alloc_device: unable to allocate file buf\n");
 			err = -ENOMEM;
-			goto err_free;
+			goto err_free_pw;
 		}
 		ns->cfile = cfile;
+
 		return 0;
+
+err_free_pw:
+		vfree(ns->pages_written);
+err_close_filp:
+		filp_close(cfile, NULL);
+
+		return err;
 	}
 
 	ns->pages = vmalloc(array_size(sizeof(union ns_mem), ns->geom.pgnum));
@@ -580,15 +588,15 @@ static int __init ns_alloc_device(struct nandsim *ns)
 						ns->geom.pgszoob, 0, 0, NULL);
 	if (!ns->nand_pages_slab) {
 		NS_ERR("cache_create: unable to create kmem_cache\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_free_pg;
 	}
 
 	return 0;
 
-err_free:
-	vfree(ns->pages_written);
-err_close:
-	filp_close(cfile, NULL);
+err_free_pg:
+	vfree(ns->pages);
+
 	return err;
 }
 
