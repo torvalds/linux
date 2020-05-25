@@ -932,6 +932,8 @@ patternProperties:
     description: Silead Inc.
   "^silergy,.*":
     description: Silergy Corp.
+  "^silex-insight,.*":
+    description: Silex Insight
   "^siliconmitus,.*":
     description: Silicon Mitus, Inc.
   "^simtek,.*":
