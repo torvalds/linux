@@ -4164,7 +4164,7 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 #endif
 
 	vcpu->arch.l1tf_flush_l1d = true;
-	switch (vcpu->arch.apf.host_apf_reason) {
+	switch (vcpu->arch.apf.host_apf_flags) {
 	default:
 		trace_kvm_page_fault(fault_address, error_code);
 
@@ -4174,13 +4174,13 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 				insn_len);
 		break;
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
-		vcpu->arch.apf.host_apf_reason = 0;
+		vcpu->arch.apf.host_apf_flags = 0;
 		local_irq_disable();
 		kvm_async_pf_task_wait_schedule(fault_address);
 		local_irq_enable();
 		break;
 	case KVM_PV_REASON_PAGE_READY:
-		vcpu->arch.apf.host_apf_reason = 0;
+		vcpu->arch.apf.host_apf_flags = 0;
 		local_irq_disable();
 		kvm_async_pf_task_wake(fault_address);
 		local_irq_enable();

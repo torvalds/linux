@@ -921,7 +921,7 @@ int nested_svm_exit_special(struct vcpu_svm *svm)
 		if (get_host_vmcb(svm)->control.intercept_exceptions & excp_bits)
 			return NESTED_EXIT_HOST;
 		else if (exit_code == SVM_EXIT_EXCP_BASE + PF_VECTOR &&
-			 svm->vcpu.arch.apf.host_apf_reason)
+			 svm->vcpu.arch.apf.host_apf_flags)
 			/* Trap async PF even if not shadowing */
 			return NESTED_EXIT_HOST;
 		break;

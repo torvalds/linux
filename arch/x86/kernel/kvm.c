@@ -218,23 +218,23 @@ again:
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
 
-u32 kvm_read_and_reset_pf_reason(void)
+u32 kvm_read_and_reset_apf_flags(void)
 {
-	u32 reason = 0;
+	u32 flags = 0;
 
 	if (__this_cpu_read(apf_reason.enabled)) {
-		reason = __this_cpu_read(apf_reason.reason);
-		__this_cpu_write(apf_reason.reason, 0);
+		flags = __this_cpu_read(apf_reason.flags);
+		__this_cpu_write(apf_reason.flags, 0);
 	}
 
-	return reason;
+	return flags;
 }
-EXPORT_SYMBOL_GPL(kvm_read_and_reset_pf_reason);
-NOKPROBE_SYMBOL(kvm_read_and_reset_pf_reason);
+EXPORT_SYMBOL_GPL(kvm_read_and_reset_apf_flags);
+NOKPROBE_SYMBOL(kvm_read_and_reset_apf_flags);
 
 bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
-	u32 reason = kvm_read_and_reset_pf_reason();
+	u32 reason = kvm_read_and_reset_apf_flags();
 
 	switch (reason) {
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:

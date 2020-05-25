@@ -112,8 +112,9 @@ struct kvm_mmu_op_release_pt {
 #define KVM_PV_REASON_PAGE_READY 2
 
 struct kvm_vcpu_pv_apf_data {
-	__u32 reason;
-	__u8 pad[60];
+	__u32 flags;
+	__u32 token; /* Used for page ready notification only */
+	__u8 pad[56];
 	__u32 enabled;
 };
 
