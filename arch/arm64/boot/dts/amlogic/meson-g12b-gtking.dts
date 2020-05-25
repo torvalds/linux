@@ -11,8 +11,8 @@
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "ugoos,am6", "amlogic,s922x", "amlogic,g12b";
-	model = "Ugoos AM6";
+	compatible = "azw,gtking", "amlogic,g12b";
+	model = "Beelink GT-King";
 
 	spdif_dit: audio-codec-1 {
 		#sound-dai-cells = <0>;
@@ -23,7 +23,7 @@
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12B-UGOOS-AM6";
+		model = "G12B-GTKING";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
@@ -122,10 +122,6 @@
 	status = "okay";
 };
 
-&ir {
-	linux,rc-map-name = "rc-khadas";
-};
-
 &spdifout {
 	pinctrl-0 = <&spdif_out_h_pins>;
 	pinctrl-names = "default";
@@ -146,39 +142,4 @@
 
 &tohdmitx {
 	status = "okay";
-};
-
-&uart_A {
-	status = "okay";
-	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
-	pinctrl-names = "default";
-	uart-has-rtscts;
-
-	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		max-speed = <2000000>;
-		clocks = <&wifi32k>;
-	clock-names = "lpo";
-	};
-};
-
-&uart_AO {
-	status = "okay";
-	pinctrl-0 = <&uart_ao_a_pins>;
-	pinctrl-names = "default";
-};
-
-&usb {
-	status = "okay";
-	dr_mode = "host";
-	vbus-regulator = <&usb_pwr_en>;
-};
-
-&usb2_phy0 {
-	phy-supply = <&usb1_pow>;
-};
-
-&usb2_phy1 {
-	phy-supply = <&usb1_pow>;
 };

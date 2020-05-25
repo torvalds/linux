@@ -11,27 +11,40 @@
 #include <dt-bindings/sound/meson-g12a-tohdmitx.h>
 
 / {
-	compatible = "ugoos,am6", "amlogic,s922x", "amlogic,g12b";
-	model = "Ugoos AM6";
+	compatible = "azw,gtking", "amlogic,g12b";
+	model = "Beelink GT-King Pro";
 
-	spdif_dit: audio-codec-1 {
-		#sound-dai-cells = <0>;
-		compatible = "linux,spdif-dit";
-		status = "okay";
-		sound-name-prefix = "DIT";
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		poll-interval = <100>;
+
+		power-button {
+			label = "power";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		white {
+			label = "power:white";
+			gpios = <&gpio_ao GPIOAO_11 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
 	};
 
 	sound {
 		compatible = "amlogic,axg-sound-card";
-		model = "G12B-UGOOS-AM6";
+		model = "G12B-GTKING-PRO";
 		audio-aux-devs = <&tdmout_b>;
 		audio-routing = "TDMOUT_B IN 0", "FRDDR_A OUT 1",
 				"TDMOUT_B IN 1", "FRDDR_B OUT 1",
 				"TDMOUT_B IN 2", "FRDDR_C OUT 1",
-				"TDM_B Playback", "TDMOUT_B OUT",
-				"SPDIFOUT IN 0", "FRDDR_A OUT 3",
-				"SPDIFOUT IN 1", "FRDDR_B OUT 3",
-				"SPDIFOUT IN 2", "FRDDR_C OUT 3";
+				"TDM_B Playback", "TDMOUT_B OUT";
 
 		assigned-clocks = <&clkc CLKID_MPLL2>,
 				  <&clkc CLKID_MPLL0>,
@@ -69,30 +82,7 @@
 			};
 		};
 
-		/* spdif hdmi or toslink interface */
 		dai-link-4 {
-			sound-dai = <&spdifout>;
-
-			codec-0 {
-				sound-dai = <&spdif_dit>;
-			};
-
-			codec-1 {
-				sound-dai = <&tohdmitx TOHDMITX_SPDIF_IN_A>;
-			};
-		};
-
-		/* spdif hdmi interface */
-		dai-link-5 {
-			sound-dai = <&spdifout_b>;
-
-			codec {
-				sound-dai = <&tohdmitx TOHDMITX_SPDIF_IN_B>;
-			};
-		};
-
-		/* hdmi glue */
-		dai-link-6 {
 			sound-dai = <&tohdmitx TOHDMITX_I2S_OUT>;
 
 			codec {
@@ -122,20 +112,6 @@
 	status = "okay";
 };
 
-&ir {
-	linux,rc-map-name = "rc-khadas";
-};
-
-&spdifout {
-	pinctrl-0 = <&spdif_out_h_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
-&spdifout_b {
-	status = "okay";
-};
-
 &tdmif_b {
 	status = "okay";
 };
@@ -146,39 +122,4 @@
 
 &tohdmitx {
 	status = "okay";
-};
-
-&uart_A {
-	status = "okay";
-	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
-	pinctrl-names = "default";
-	uart-has-rtscts;
-
-	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		shutdown-gpios = <&gpio GPIOX_17 GPIO_ACTIVE_HIGH>;
-		max-speed = <2000000>;
-		clocks = <&wifi32k>;
-	clock-names = "lpo";
-	};
-};
-
-&uart_AO {
-	status = "okay";
-	pinctrl-0 = <&uart_ao_a_pins>;
-	pinctrl-names = "default";
-};
-
-&usb {
-	status = "okay";
-	dr_mode = "host";
-	vbus-regulator = <&usb_pwr_en>;
-};
-
-&usb2_phy0 {
-	phy-supply = <&usb1_pow>;
-};
-
-&usb2_phy1 {
-	phy-supply = <&usb1_pow>;
 };
