@@ -72,7 +72,8 @@ static void psp_check_pmfw_centralized_cstate_management(struct psp_context *psp
 	if (adev->flags & AMD_IS_APU)
 		return;
 
-	if ((adev->asic_type == CHIP_ARCTURUS) ||
+	if ((adev->asic_type == CHIP_ARCTURUS)	||
+	    (adev->asic_type == CHIP_ALDEBARAN)	||
 	    (adev->asic_type >= CHIP_NAVI12))
 		psp->pmfw_centralized_cstate_management = true;
 }
