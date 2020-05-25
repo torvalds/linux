@@ -29,8 +29,7 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
 	void *dst;
 	int i;
 
-	if (drm_WARN_ON(obj->base.dev,
-			i915_gem_object_needs_bit17_swizzle(obj)))
+	if (GEM_WARN_ON(i915_gem_object_needs_bit17_swizzle(obj)))
 		return -EINVAL;
 
 	/*

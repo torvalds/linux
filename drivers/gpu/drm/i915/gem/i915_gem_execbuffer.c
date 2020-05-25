@@ -1626,8 +1626,7 @@ eb_relocate_entry(struct i915_execbuffer *eb,
 			err = i915_vma_bind(target->vma,
 					    target->vma->obj->cache_level,
 					    PIN_GLOBAL, NULL);
-			if (drm_WARN_ONCE(&i915->drm, err,
-				      "Unexpected failure to bind target VMA!"))
+			if (err)
 				return err;
 		}
 	}
