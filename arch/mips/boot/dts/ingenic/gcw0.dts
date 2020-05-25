@@ -19,6 +19,12 @@
 		serial3 = &uart3;
 	};
 
+	memory: memory {
+		device_type = "memory";
+		reg = <0x0 0x10000000>,
+		      <0x30000000 0x10000000>;
+	};
+
 	chosen {
 		stdout-path = "serial2:57600n8";
 	};
