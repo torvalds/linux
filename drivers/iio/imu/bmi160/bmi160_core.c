@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/of_irq.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/triggered_buffer.h>
@@ -709,6 +710,12 @@ static int bmi160_chip_init(struct bmi160_data *data, bool use_spi)
 	unsigned int val;
 	struct device *dev = regmap_get_device(data->regmap);
 
+	ret = regulator_bulk_enable(ARRAY_SIZE(data->supplies), data->supplies);
+	if (ret) {
+		dev_err(dev, "Failed to enable regulators: %d\n", ret);
+		return ret;
+	}
+
 	ret = regmap_write(data->regmap, BMI160_REG_CMD, BMI160_CMD_SOFTRESET);
 	if (ret)
 		return ret;
@@ -793,9 +800,16 @@ int bmi160_probe_trigger(struct iio_dev *indio_dev, int irq, u32 irq_type)
 static void bmi160_chip_uninit(void *data)
 {
 	struct bmi160_data *bmi_data = data;
+	struct device *dev = regmap_get_device(bmi_data->regmap);
+	int ret;
 
 	bmi160_set_mode(bmi_data, BMI160_GYRO, false);
 	bmi160_set_mode(bmi_data, BMI160_ACCEL, false);
+
+	ret = regulator_bulk_disable(ARRAY_SIZE(bmi_data->supplies),
+				     bmi_data->supplies);
+	if (ret)
+		dev_err(dev, "Failed to disable regulators: %d\n", ret);
 }
 
 int bmi160_core_probe(struct device *dev, struct regmap *regmap,
@@ -814,6 +828,16 @@ int bmi160_core_probe(struct device *dev, struct regmap *regmap,
 	data = iio_priv(indio_dev);
 	dev_set_drvdata(dev, indio_dev);
 	data->regmap = regmap;
+
+	data->supplies[0].supply = "vdd";
+	data->supplies[1].supply = "vddio";
+	ret = devm_regulator_bulk_get(dev,
+				      ARRAY_SIZE(data->supplies),
+				      data->supplies);
+	if (ret) {
+		dev_err(dev, "Failed to get regulators: %d\n", ret);
+		return ret;
+	}
 
 	ret = bmi160_chip_init(data, use_spi);
 	if (ret)
