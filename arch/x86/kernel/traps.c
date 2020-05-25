@@ -328,7 +328,7 @@ DEFINE_IDTENTRY_DF(exc_double_fault)
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_VMAP_STACK
 	unsigned long address = read_cr2();
 #endif
 
