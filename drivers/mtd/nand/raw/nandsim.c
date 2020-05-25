@@ -2310,7 +2310,7 @@ static int __init ns_init_module(void)
 	default:
 		NS_ERR("bbt has to be 0..2\n");
 		ret = -EINVAL;
-		goto error;
+		goto free_ns_struct;
 	}
 	/*
 	 * Perform minimum nandsim structure initialization to handle
@@ -2337,7 +2337,7 @@ static int __init ns_init_module(void)
 
 	ret = ns_parse_weakblocks();
 	if (ret)
-		goto error;
+		goto free_ns_struct;
 
 	ret = ns_parse_weakpages();
 	if (ret)
@@ -2428,7 +2428,7 @@ free_wb_list:
 		list_del(pos);
 		kfree(list_entry(pos, struct weak_block, list));
 	}
-error:
+free_ns_struct:
 	kfree(ns);
 
 	return ret;
