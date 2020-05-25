@@ -520,6 +520,11 @@ static int ns_debugfs_create(struct nandsim *ns)
 	return 0;
 }
 
+static void ns_debugfs_remove(struct nandsim *ns)
+{
+	debugfs_remove_recursive(ns->dent);
+}
+
 /*
  * Allocate array of page pointers, create slab allocation for an array
  * and initialize the array by NULL pointers.
@@ -2398,6 +2403,7 @@ static void __exit ns_cleanup_module(void)
 	struct nandsim *ns = nand_get_controller_data(chip);
 	int i;
 
+	ns_debugfs_remove(ns);
 	ns_free(ns);    /* Free nandsim private resources */
 	nand_release(chip); /* Unregister driver */
 	for (i = 0;i < ARRAY_SIZE(ns->partitions); ++i)
