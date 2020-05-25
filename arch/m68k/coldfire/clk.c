@@ -73,21 +73,6 @@ struct clk_ops clk_ops1 = {
 #endif /* MCFPM_PPMCR1 */
 #endif /* MCFPM_PPMCR0 */
 
-static void __clk_enable2(struct clk *clk)
-{
-	__raw_writel(__raw_readl(MCFSDHC_CLK) | (1 << clk->slot), MCFSDHC_CLK);
-}
-
-static void __clk_disable2(struct clk *clk)
-{
-	__raw_writel(__raw_readl(MCFSDHC_CLK) & ~(1 << clk->slot), MCFSDHC_CLK);
-}
-
-struct clk_ops clk_ops2 = {
-	.enable		= __clk_enable2,
-	.disable	= __clk_disable2,
-};
-
 struct clk *clk_get(struct device *dev, const char *id)
 {
 	const char *clk_name = dev ? dev_name(dev) : id ? id : NULL;

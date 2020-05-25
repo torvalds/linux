@@ -204,6 +204,21 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_1_29, /* uart 9 */
 };
 
+static void __clk_enable2(struct clk *clk)
+{
+	__raw_writel(__raw_readl(MCFSDHC_CLK) | (1 << clk->slot), MCFSDHC_CLK);
+}
+
+static void __clk_disable2(struct clk *clk)
+{
+	__raw_writel(__raw_readl(MCFSDHC_CLK) & ~(1 << clk->slot), MCFSDHC_CLK);
+}
+
+struct clk_ops clk_ops2 = {
+	.enable		= __clk_enable2,
+	.disable	= __clk_disable2,
+};
+
 static void __init m5441x_clk_init(void)
 {
 	unsigned i;
