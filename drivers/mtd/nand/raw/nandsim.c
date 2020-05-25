@@ -2400,13 +2400,15 @@ static int __init ns_init_module(void)
 
 	ret = ns_debugfs_create(ns);
 	if (ret)
-		goto err_exit;
+		goto unregister_mtd;
 
         return 0;
 
+unregister_mtd:
+	WARN_ON(mtd_device_unregister(nsmtd));
 err_exit:
 	ns_free(ns);
-	nand_release(chip);
+	nand_cleanup(chip);
 error:
 	kfree(ns);
 	ns_free_lists();
