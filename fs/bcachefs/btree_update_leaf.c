@@ -413,6 +413,16 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			goto err;
 	}
 
+	if (unlikely(trans->extra_journal_entry_u64s)) {
+		memcpy_u64s_small(bch2_journal_reservation_entry(&c->journal,
+								 &trans->journal_res),
+				  trans->extra_journal_entries,
+				  trans->extra_journal_entry_u64s);
+
+		trans->journal_res.offset	+= trans->extra_journal_entry_u64s;
+		trans->journal_res.u64s		-= trans->extra_journal_entry_u64s;
+	}
+
 	/*
 	 * Not allowed to fail after we've gotten our journal reservation - we
 	 * have to use it:
@@ -800,7 +810,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 	memset(&trans->journal_preres, 0, sizeof(trans->journal_preres));
 
-	trans->journal_u64s		= 0;
+	trans->journal_u64s		= trans->extra_journal_entry_u64s;
 	trans->journal_preres_u64s	= 0;
 
 	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&

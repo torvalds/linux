@@ -308,6 +308,9 @@ struct btree_trans {
 	struct btree_insert_entry *updates2;
 
 	/* update path: */
+	struct jset_entry	*extra_journal_entries;
+	unsigned		extra_journal_entry_u64s;
+
 	struct journal_res	journal_res;
 	struct journal_preres	journal_preres;
 	u64			*journal_seq;

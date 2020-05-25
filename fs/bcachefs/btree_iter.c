@@ -2153,6 +2153,9 @@ void bch2_trans_reset(struct btree_trans *trans, unsigned flags)
 	trans->nr_updates2		= 0;
 	trans->mem_top			= 0;
 
+	trans->extra_journal_entries	= NULL;
+	trans->extra_journal_entry_u64s	= 0;
+
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;
 		memset((void *) trans->fs_usage_deltas +
