@@ -19,6 +19,7 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/soc-dpcm.h>
+#include <sound/soc-link.h>
 #include <linux/pm_runtime.h>
 
 static int soc_compr_components_open(struct snd_compr_stream *cstream,
@@ -95,15 +96,9 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto machine_err;
 
-	if (rtd->dai_link->compr_ops && rtd->dai_link->compr_ops->startup) {
-		ret = rtd->dai_link->compr_ops->startup(cstream);
-		if (ret < 0) {
-			dev_err(rtd->dev,
-				"Compress ASoC: %s startup failed: %d\n",
-				rtd->dai_link->name, ret);
-			goto machine_err;
-		}
-	}
+	ret = snd_soc_link_compr_startup(cstream);
+	if (ret < 0)
+		goto machine_err;
 
 	snd_soc_runtime_activate(rtd, cstream->direction);
 
@@ -179,14 +174,9 @@ static int soc_compr_open_fe(struct snd_compr_stream *cstream)
 	if (ret < 0)
 		goto open_err;
 
-	if (fe->dai_link->compr_ops && fe->dai_link->compr_ops->startup) {
-		ret = fe->dai_link->compr_ops->startup(cstream);
-		if (ret < 0) {
-			pr_err("Compress ASoC: %s startup failed: %d\n",
-			       fe->dai_link->name, ret);
-			goto machine_err;
-		}
-	}
+	ret = snd_soc_link_compr_startup(cstream);
+	if (ret < 0)
+		goto machine_err;
 
 	dpcm_clear_pending_state(fe, stream);
 	dpcm_path_put(&list);

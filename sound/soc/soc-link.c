@@ -113,3 +113,16 @@ int snd_soc_link_trigger(struct snd_pcm_substream *substream, int cmd)
 
 	return soc_link_ret(rtd, ret);
 }
+
+int snd_soc_link_compr_startup(struct snd_compr_stream *cstream)
+{
+	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
+	int ret = 0;
+
+	if (rtd->dai_link->compr_ops &&
+	    rtd->dai_link->compr_ops->startup)
+		ret = rtd->dai_link->compr_ops->startup(cstream);
+
+	return soc_link_ret(rtd, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_link_compr_startup);
