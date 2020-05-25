@@ -625,6 +625,7 @@ static void __init run_tests_load_store(void)
 
 struct compute_test {
 	char *mnemonic;
+	unsigned long cpu_feature;
 	struct {
 		char *descr;
 		unsigned long flags;
@@ -1067,6 +1068,11 @@ static void __init run_tests_compute(void)
 
 	for (i = 0; i < ARRAY_SIZE(compute_tests); i++) {
 		test = &compute_tests[i];
+
+		if (test->cpu_feature && !early_cpu_has_feature(test->cpu_feature)) {
+			show_result(test->mnemonic, "SKIP (!CPU_FTR)");
+			continue;
+		}
 
 		for (j = 0; j < MAX_SUBTESTS && test->subtests[j].descr; j++) {
 			instr = test->subtests[j].instr;
