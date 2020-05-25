@@ -265,6 +265,14 @@
 #define PPC_INST_BRANCH			0x48000000
 #define PPC_INST_BRANCH_COND		0x40800000
 
+/* Prefixes */
+#define PPC_PREFIX_MLS			0x06000000
+#define PPC_PREFIX_8LS			0x04000000
+
+/* Prefixed instructions */
+#define PPC_INST_PLD			0xe4000000
+#define PPC_INST_PSTD			0xf4000000
+
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
 #define ___PPC_RB(b)	(((b) & 0x1f) << 11)
@@ -296,6 +304,7 @@
 #define __PPC_CT(t)	(((t) & 0x0f) << 21)
 #define __PPC_SPR(r)	((((r) & 0x1f) << 16) | ((((r) >> 5) & 0x1f) << 11))
 #define __PPC_RC21	(0x1 << 10)
+#define __PPC_PRFX_R(r)	(((r) & 0x1) << 20)
 
 /*
  * Both low and high 16 bits are added as SIGNED additions, so if low 16 bits

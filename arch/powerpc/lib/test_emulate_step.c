@@ -19,6 +19,18 @@
 #define IGNORE_XER	(0x1UL << 32)
 #define IGNORE_CCR	(0x1UL << 33)
 
+#define TEST_PLD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_8LS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_PLD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
+#define TEST_PLWZ(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_RAW_LWZ(r, base, i))
+
+#define TEST_PSTD(r, base, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_8LS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_INST_PSTD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
+
 static void __init init_pt_regs(struct pt_regs *regs)
 {
 	static unsigned long msr;
@@ -70,6 +82,29 @@ static void __init test_ld(void)
 		show_result("ld", "FAIL");
 }
 
+static void __init test_pld(void)
+{
+	struct pt_regs regs;
+	unsigned long a = 0x23;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pld", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+
+	/* pld r5, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PLD(5, 3, 0, 0));
+
+	if (stepped == 1 && regs.gpr[5] == a)
+		show_result("pld", "PASS");
+	else
+		show_result("pld", "FAIL");
+}
+
 static void __init test_lwz(void)
 {
 	struct pt_regs regs;
@@ -86,6 +121,30 @@ static void __init test_lwz(void)
 		show_result("lwz", "PASS");
 	else
 		show_result("lwz", "FAIL");
+}
+
+static void __init test_plwz(void)
+{
+	struct pt_regs regs;
+	unsigned int a = 0x4545;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("plwz", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+
+	/* plwz r5, 0(r3), 0 */
+
+	stepped = emulate_step(&regs, TEST_PLWZ(5, 3, 0, 0));
+
+	if (stepped == 1 && regs.gpr[5] == a)
+		show_result("plwz", "PASS");
+	else
+		show_result("plwz", "FAIL");
 }
 
 static void __init test_lwzx(void)
@@ -123,6 +182,29 @@ static void __init test_std(void)
 		show_result("std", "PASS");
 	else
 		show_result("std", "FAIL");
+}
+
+static void __init test_pstd(void)
+{
+	struct pt_regs regs;
+	unsigned long a = 0x1234;
+	int stepped = -1;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_31)) {
+		show_result("pstd", "SKIP (!CPU_FTR_ARCH_31)");
+		return;
+	}
+
+	init_pt_regs(&regs);
+	regs.gpr[3] = (unsigned long)&a;
+	regs.gpr[5] = 0x5678;
+
+	/* pstd r5, 0(r3), 0 */
+	stepped = emulate_step(&regs, TEST_PSTD(5, 3, 0, 0));
+	if (stepped == 1 || regs.gpr[5] == a)
+		show_result("pstd", "PASS");
+	else
+		show_result("pstd", "FAIL");
 }
 
 static void __init test_ldarx_stdcx(void)
@@ -404,9 +486,12 @@ static void __init test_lxvd2x_stxvd2x(void)
 static void __init run_tests_load_store(void)
 {
 	test_ld();
+	test_pld();
 	test_lwz();
+	test_plwz();
 	test_lwzx();
 	test_std();
+	test_pstd();
 	test_ldarx_stdcx();
 	test_lfsx_stfsx();
 	test_lfdx_stfdx();
