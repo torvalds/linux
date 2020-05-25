@@ -330,11 +330,6 @@ ENTRY(__switch_to)
 	lrw	a3, TASK_THREAD
 	addu	a3, a0
 
-	mfcr	a2, psr			/* Save PSR value */
-	stw	a2, (a3, THREAD_SR)	/* Save PSR in task struct */
-	bclri	a2, 6			/* Disable interrupts */
-	mtcr	a2, psr
-
 	SAVE_SWITCH_STACK
 
 	stw	sp, (a3, THREAD_KSP)
@@ -345,12 +340,9 @@ ENTRY(__switch_to)
 
 	ldw	sp, (a3, THREAD_KSP)	/* Set next kernel sp */
 
-	ldw	a2, (a3, THREAD_SR)	/* Set next PSR */
-	mtcr	a2, psr
-
 #if  defined(__CSKYABIV2__)
-	addi	r7, a1, TASK_THREAD_INFO
-	ldw	tls, (r7, TINFO_TP_VALUE)
+	addi	a3, a1, TASK_THREAD_INFO
+	ldw	tls, (a3, TINFO_TP_VALUE)
 #endif
 
 	RESTORE_SWITCH_STACK

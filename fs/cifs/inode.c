@@ -730,7 +730,7 @@ static __u64 simple_hashstr(const char *str)
  * cifs_backup_query_path_info - SMB1 fallback code to get ino
  *
  * Fallback code to get file metadata when we don't have access to
- * @full_path (EACCESS) and have backup creds.
+ * @full_path (EACCES) and have backup creds.
  *
  * @data will be set to search info result buffer
  * @resp_buf will be set to cifs resp buf and needs to be freed with

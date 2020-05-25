@@ -17,7 +17,7 @@
 #define TRANS_TAP_LEN strlen(TRANS_TAP)
 
 #define TRANS_GRE "gre"
-#define TRANS_GRE_LEN strlen(TRANS_RAW)
+#define TRANS_GRE_LEN strlen(TRANS_GRE)
 
 #define TRANS_L2TPV3 "l2tpv3"
 #define TRANS_L2TPV3_LEN strlen(TRANS_L2TPV3)

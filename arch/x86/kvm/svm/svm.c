@@ -1672,17 +1672,14 @@ static void new_asid(struct vcpu_svm *svm, struct svm_cpu_data *sd)
 	mark_dirty(svm->vmcb, VMCB_ASID);
 }
 
-static u64 svm_get_dr6(struct kvm_vcpu *vcpu)
+static void svm_set_dr6(struct vcpu_svm *svm, unsigned long value)
 {
-	return to_svm(vcpu)->vmcb->save.dr6;
-}
+	struct vmcb *vmcb = svm->vmcb;
 
-static void svm_set_dr6(struct kvm_vcpu *vcpu, unsigned long value)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	svm->vmcb->save.dr6 = value;
-	mark_dirty(svm->vmcb, VMCB_DR);
+	if (unlikely(value != vmcb->save.dr6)) {
+		vmcb->save.dr6 = value;
+		mark_dirty(vmcb, VMCB_DR);
+	}
 }
 
 static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
@@ -1693,9 +1690,12 @@ static void svm_sync_dirty_debug_regs(struct kvm_vcpu *vcpu)
 	get_debugreg(vcpu->arch.db[1], 1);
 	get_debugreg(vcpu->arch.db[2], 2);
 	get_debugreg(vcpu->arch.db[3], 3);
-	vcpu->arch.dr6 = svm_get_dr6(vcpu);
+	/*
+	 * We cannot reset svm->vmcb->save.dr6 to DR6_FIXED_1|DR6_RTM here,
+	 * because db_interception might need it.  We can do it before vmentry.
+	 */
+	vcpu->arch.dr6 = svm->vmcb->save.dr6;
 	vcpu->arch.dr7 = svm->vmcb->save.dr7;
-
 	vcpu->arch.switch_db_regs &= ~KVM_DEBUGREG_WONT_EXIT;
 	set_dr_intercepts(svm);
 }
@@ -1739,7 +1739,8 @@ static int db_interception(struct vcpu_svm *svm)
 	if (!(svm->vcpu.guest_debug &
 	      (KVM_GUESTDBG_SINGLESTEP | KVM_GUESTDBG_USE_HW_BP)) &&
 		!svm->nmi_singlestep) {
-		kvm_queue_exception(&svm->vcpu, DB_VECTOR);
+		u32 payload = (svm->vmcb->save.dr6 ^ DR6_RTM) & ~DR6_FIXED_1;
+		kvm_queue_exception_p(&svm->vcpu, DB_VECTOR, payload);
 		return 1;
 	}
 
@@ -3317,6 +3318,15 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
+	/*
+	 * Run with all-zero DR6 unless needed, so that we can get the exact cause
+	 * of a #DB.
+	 */
+	if (unlikely(svm->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT))
+		svm_set_dr6(svm, vcpu->arch.dr6);
+	else
+		svm_set_dr6(svm, DR6_FIXED_1 | DR6_RTM);
+
 	clgi();
 	kvm_load_guest_xsave_state(vcpu);
 
@@ -3931,8 +3941,6 @@ static struct kvm_x86_ops svm_x86_ops __initdata = {
 	.set_idt = svm_set_idt,
 	.get_gdt = svm_get_gdt,
 	.set_gdt = svm_set_gdt,
-	.get_dr6 = svm_get_dr6,
-	.set_dr6 = svm_set_dr6,
 	.set_dr7 = svm_set_dr7,
 	.sync_dirty_debug_regs = svm_sync_dirty_debug_regs,
 	.cache_reg = svm_cache_reg,

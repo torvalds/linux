@@ -136,25 +136,21 @@ static int bareudp_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	oiph = skb_network_header(skb);
 	skb_reset_network_header(skb);
 
-	if (family == AF_INET)
+	if (!IS_ENABLED(CONFIG_IPV6) || family == AF_INET)
 		err = IP_ECN_decapsulate(oiph, skb);
-#if IS_ENABLED(CONFIG_IPV6)
 	else
 		err = IP6_ECN_decapsulate(oiph, skb);
-#endif
 
 	if (unlikely(err)) {
 		if (log_ecn_error) {
-			if  (family == AF_INET)
+			if  (!IS_ENABLED(CONFIG_IPV6) || family == AF_INET)
 				net_info_ratelimited("non-ECT from %pI4 "
 						     "with TOS=%#x\n",
 						     &((struct iphdr *)oiph)->saddr,
 						     ((struct iphdr *)oiph)->tos);
-#if IS_ENABLED(CONFIG_IPV6)
 			else
 				net_info_ratelimited("non-ECT from %pI6\n",
 						     &((struct ipv6hdr *)oiph)->saddr);
-#endif
 		}
 		if (err > 1) {
 			++bareudp->dev->stats.rx_frame_errors;
@@ -350,7 +346,6 @@ free_dst:
 	return err;
 }
 
-#if IS_ENABLED(CONFIG_IPV6)
 static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 			     struct bareudp_dev *bareudp,
 			     const struct ip_tunnel_info *info)
@@ -411,7 +406,6 @@ free_dst:
 	dst_release(dst);
 	return err;
 }
-#endif
 
 static netdev_tx_t bareudp_xmit(struct sk_buff *skb, struct net_device *dev)
 {
@@ -435,11 +429,9 @@ static netdev_tx_t bareudp_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	rcu_read_lock();
-#if IS_ENABLED(CONFIG_IPV6)
-	if (info->mode & IP_TUNNEL_INFO_IPV6)
+	if (IS_ENABLED(CONFIG_IPV6) && info->mode & IP_TUNNEL_INFO_IPV6)
 		err = bareudp6_xmit_skb(skb, dev, bareudp, info);
 	else
-#endif
 		err = bareudp_xmit_skb(skb, dev, bareudp, info);
 
 	rcu_read_unlock();
@@ -467,7 +459,7 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 
 	use_cache = ip_tunnel_dst_cache_usable(skb, info);
 
-	if (ip_tunnel_info_af(info) == AF_INET) {
+	if (!IS_ENABLED(CONFIG_IPV6) || ip_tunnel_info_af(info) == AF_INET) {
 		struct rtable *rt;
 		__be32 saddr;
 
@@ -478,7 +470,6 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 
 		ip_rt_put(rt);
 		info->key.u.ipv4.src = saddr;
-#if IS_ENABLED(CONFIG_IPV6)
 	} else if (ip_tunnel_info_af(info) == AF_INET6) {
 		struct dst_entry *dst;
 		struct in6_addr saddr;
@@ -492,7 +483,6 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 
 		dst_release(dst);
 		info->key.u.ipv6.src = saddr;
-#endif
 	} else {
 		return -EINVAL;
 	}

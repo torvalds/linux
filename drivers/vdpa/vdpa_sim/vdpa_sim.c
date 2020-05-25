@@ -89,15 +89,14 @@ static struct vdpasim *dev_to_sim(struct device *dev)
 static void vdpasim_queue_ready(struct vdpasim *vdpasim, unsigned int idx)
 {
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
-	int ret;
 
-	ret = vringh_init_iotlb(&vq->vring, vdpasim_features,
-				VDPASIM_QUEUE_MAX, false,
-				(struct vring_desc *)(uintptr_t)vq->desc_addr,
-				(struct vring_avail *)
-				(uintptr_t)vq->driver_addr,
-				(struct vring_used *)
-				(uintptr_t)vq->device_addr);
+	vringh_init_iotlb(&vq->vring, vdpasim_features,
+			  VDPASIM_QUEUE_MAX, false,
+			  (struct vring_desc *)(uintptr_t)vq->desc_addr,
+			  (struct vring_avail *)
+			  (uintptr_t)vq->driver_addr,
+			  (struct vring_used *)
+			  (uintptr_t)vq->device_addr);
 }
 
 static void vdpasim_vq_reset(struct vdpasim_virtqueue *vq)

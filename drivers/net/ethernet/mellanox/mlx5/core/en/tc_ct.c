@@ -699,6 +699,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct netlink_ext_ack *extack)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector_key_ct *mask, *key;
 	bool trk, est, untrk, unest, new;
 	u32 ctstate = 0, ctstate_mask = 0;
@@ -706,7 +707,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	u16 ct_state, ct_state_mask;
 	struct flow_match_ct match;
 
-	if (!flow_rule_match_key(f->rule, FLOW_DISSECTOR_KEY_CT))
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CT))
 		return 0;
 
 	if (!ct_priv) {
@@ -715,7 +716,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	flow_rule_match_ct(f->rule, &match);
+	flow_rule_match_ct(rule, &match);
 
 	key = match.key;
 	mask = match.mask;
