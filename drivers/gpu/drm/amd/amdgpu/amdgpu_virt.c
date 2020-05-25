@@ -640,6 +640,7 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	case CHIP_NAVI12:
 	case CHIP_SIENNA_CICHLID:
 	case CHIP_ARCTURUS:
+	case CHIP_ALDEBARAN:
 		reg = RREG32(mmRCC_IOV_FUNC_IDENTIFIER);
 		break;
 	default: /* other chip doesn't support SRIOV */
