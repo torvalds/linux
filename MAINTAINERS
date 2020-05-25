@@ -18456,7 +18456,7 @@ L:	netdev@vger.kernel.org
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	include/net/xdp_sock*
-F:	include/net/xsk_buffer_pool.h
+F:	include/net/xsk_buff_pool.h
 F:	include/uapi/linux/if_xdp.h
 F:	net/xdp/
 F:	samples/bpf/xdpsock*
