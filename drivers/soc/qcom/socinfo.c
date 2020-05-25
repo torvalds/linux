@@ -274,7 +274,10 @@ static int qcom_show_pmic_model(struct seq_file *seq, void *p)
 	if (model < 0)
 		return -EINVAL;
 
-	seq_printf(seq, "%s\n", pmic_models[model]);
+	if (model <= ARRAY_SIZE(pmic_models) && pmic_models[model])
+		seq_printf(seq, "%s\n", pmic_models[model]);
+	else
+		seq_printf(seq, "unknown (%d)\n", model);
 
 	return 0;
 }
