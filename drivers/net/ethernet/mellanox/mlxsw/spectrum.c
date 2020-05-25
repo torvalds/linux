@@ -4235,11 +4235,11 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 			tc = 4;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
 			priority = 3;
 			tc = 3;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_NEIGH_DISCOVERY:
+		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP:
