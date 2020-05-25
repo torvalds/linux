@@ -3943,7 +3943,7 @@ void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 	/* s390 will always inject the page directly */
 }
 
-bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
+bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu)
 {
 	/*
 	 * s390 will always inject the page directly,

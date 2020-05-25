@@ -973,7 +973,7 @@ struct kvm_arch_async_pf {
 	unsigned long pfault_token;
 };
 
-bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu);
 
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);

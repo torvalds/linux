@@ -10521,7 +10521,7 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 	vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 }
 
-bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu)
+bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu)
 {
 	if (!(vcpu->arch.apf.msr_val & KVM_ASYNC_PF_ENABLED))
 		return true;
