@@ -3103,6 +3103,7 @@ static int smiapp_probe(struct i2c_client *client)
 	return 0;
 
 out_disable_runtime_pm:
+	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
 
 out_media_entity_cleanup:
