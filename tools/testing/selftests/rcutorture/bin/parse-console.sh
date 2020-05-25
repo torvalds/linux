@@ -33,8 +33,8 @@ then
 fi
 cat /dev/null > $file.diags
 
-# Check for proper termination, except that rcuperf runs don't indicate this.
-if test "$TORTURE_SUITE" != rcuperf
+# Check for proper termination, except for rcuperf and refperf.
+if test "$TORTURE_SUITE" != rcuperf && test "$TORTURE_SUITE" != refperf
 then
 	# check for abject failure
 
