@@ -739,7 +739,8 @@ static int __init ns_init(struct mtd_info *mtd)
 	printk("sector address bytes: %u\n",    ns->geom.secaddrbytes);
 	printk("options: %#x\n",                ns->options);
 
-	if ((ret = ns_alloc_device(ns)) != 0)
+	ret = ns_alloc_device(ns);
+	if (ret)
 		return ret;
 
 	/* Allocate / initialize the internal buffer */
@@ -1747,7 +1748,7 @@ static void ns_switch_state(struct nandsim *ns)
 
 		NS_DBG("switch_state: operation is unknown, try to find it\n");
 
-		if (ns_find_operation(ns, 0) != 0)
+		if (!ns_find_operation(ns, 0))
 			return;
 
 		if ((ns->state & ACTION_MASK) &&
@@ -2243,7 +2244,7 @@ static int __init ns_init_module(void)
 {
 	struct nand_chip *chip;
 	struct nandsim *ns;
-	int retval = -ENOMEM, i;
+	int ret, i;
 
 	if (bus_width != 8 && bus_width != 16) {
 		NS_ERR("wrong bus width (%d), use only 8 or 16\n", bus_width);
@@ -2276,7 +2277,7 @@ static int __init ns_init_module(void)
 		break;
 	default:
 		NS_ERR("bbt has to be 0..2\n");
-		retval = -EINVAL;
+		ret = -EINVAL;
 		goto error;
 	}
 	/*
@@ -2302,21 +2303,24 @@ static int __init ns_init_module(void)
 
 	nsmtd->owner = THIS_MODULE;
 
-	if ((retval = ns_parse_weakblocks()) != 0)
+	ret = ns_parse_weakblocks();
+	if (ret)
 		goto error;
 
-	if ((retval = ns_parse_weakpages()) != 0)
+	ret = ns_parse_weakpages();
+	if (ret)
 		goto error;
 
-	if ((retval = ns_parse_gravepages()) != 0)
+	ret = ns_parse_gravepages();
+	if (ret)
 		goto error;
 
 	nand_controller_init(&ns->base);
 	ns->base.ops = &ns_controller_ops;
 	chip->controller = &ns->base;
 
-	retval = nand_scan(chip, 1);
-	if (retval) {
+	ret = nand_scan(chip, 1);
+	if (ret) {
 		NS_ERR("Could not scan NAND Simulator device\n");
 		goto error;
 	}
@@ -2330,7 +2334,7 @@ static int __init ns_init_module(void)
 
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
-			retval = -EINVAL;
+			ret = -EINVAL;
 			goto err_exit;
 		}
 
@@ -2342,25 +2346,29 @@ static int __init ns_init_module(void)
 		chip->pagemask = (targetsize >> chip->page_shift) - 1;
 	}
 
-	if ((retval = ns_setup_wear_reporting(nsmtd)) != 0)
+	ret = ns_setup_wear_reporting(nsmtd);
+	if (ret)
 		goto err_exit;
 
-	if ((retval = ns_init(nsmtd)) != 0)
+	ret = ns_init(nsmtd);
+	if (ret)
 		goto err_exit;
 
-	if ((retval = nand_create_bbt(chip)) != 0)
+	ret = nand_create_bbt(chip);
+	if (ret)
 		goto err_exit;
 
-	if ((retval = ns_parse_badblocks(ns, nsmtd)) != 0)
+	ret = ns_parse_badblocks(ns, nsmtd);
+	if (ret)
 		goto err_exit;
 
 	/* Register NAND partitions */
-	retval = mtd_device_register(nsmtd, &ns->partitions[0],
-				     ns->nbparts);
-	if (retval != 0)
+	ret = mtd_device_register(nsmtd, &ns->partitions[0], ns->nbparts);
+	if (ret)
 		goto err_exit;
 
-	if ((retval = ns_debugfs_create(ns)) != 0)
+	ret = ns_debugfs_create(ns);
+	if (ret)
 		goto err_exit;
 
         return 0;
@@ -2374,7 +2382,7 @@ error:
 	kfree(ns);
 	ns_free_lists();
 
-	return retval;
+	return ret;
 }
 
 module_init(ns_init_module);
