@@ -86,6 +86,12 @@ KVM_FEATURE_PV_SCHED_YIELD        13          guest checks this feature bit
                                               before using paravirtualized
                                               sched yield.
 
+KVM_FEATURE_ASYNC_PF_INT          14          guest checks this feature bit
+                                              before using the second async
+                                              pf control msr 0x4b564d06 and
+                                              async pf acknowledgment msr
+                                              0x4b564d07.
+
 KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
                                               per-cpu warps are expeced in
                                               kvmclock

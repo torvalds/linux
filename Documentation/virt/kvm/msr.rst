@@ -213,7 +213,8 @@ data:
 	cpl == 0. Bit 2 is 1 if asynchronous page faults are delivered to L1 as
 	#PF vmexits.  Bit 2 can be set only if KVM_FEATURE_ASYNC_PF_VMEXIT is
 	present in CPUID. Bit 3 enables interrupt based delivery of 'page ready'
-	events.
+	events. Bit 3 can only be set if KVM_FEATURE_ASYNC_PF_INT is present in
+	CPUID.
 
 	'Page not present' events are currently always delivered as synthetic
 	#PF exception. During delivery of these events APF CR2 register contains
@@ -242,7 +243,8 @@ data:
 
 	Note, MSR_KVM_ASYNC_PF_INT MSR specifying the interrupt vector for 'page
 	ready' APF delivery needs to be written to before enabling APF mechanism
-	in MSR_KVM_ASYNC_PF_EN or interrupt #0 can get injected.
+	in MSR_KVM_ASYNC_PF_EN or interrupt #0 can get injected. The MSR is
+	available if KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
 
 	Note, previously, 'page ready' events were delivered via the same #PF
 	exception as 'page not present' events but this is now deprecated. If
@@ -360,7 +362,8 @@ data:
 
 	Interrupt vector for asynchnonous 'page ready' notifications delivery.
 	The vector has to be set up before asynchronous page fault mechanism
-	is enabled in MSR_KVM_ASYNC_PF_EN.
+	is enabled in MSR_KVM_ASYNC_PF_EN.  The MSR is only available if
+	KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
 
 MSR_KVM_ASYNC_PF_ACK:
 	0x4b564d07
@@ -371,4 +374,5 @@ data:
 	When the guest is done processing 'page ready' APF event and 'token'
 	field in 'struct kvm_vcpu_pv_apf_data' is cleared it is supposed to
 	write '1' to bit 0 of the MSR, this causes the host to re-scan its queue
-	and check if there are more notifications pending.
+	and check if there are more notifications pending. The MSR is available
+	if KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
