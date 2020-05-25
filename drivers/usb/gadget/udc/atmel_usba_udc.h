@@ -290,6 +290,12 @@ struct usba_ep {
 #endif
 };
 
+struct usba_ep_config {
+	u8					nr_banks;
+	unsigned int				can_dma:1;
+	unsigned int				can_isoc:1;
+};
+
 struct usba_request {
 	struct usb_request			req;
 	struct list_head			queue;
@@ -305,6 +311,12 @@ struct usba_request {
 struct usba_udc_errata {
 	void (*toggle_bias)(struct usba_udc *udc, int is_on);
 	void (*pulse_bias)(struct usba_udc *udc);
+};
+
+struct usba_udc_config {
+	const struct usba_udc_errata *errata;
+	const struct usba_ep_config *config;
+	const int num_ep;
 };
 
 struct usba_udc {

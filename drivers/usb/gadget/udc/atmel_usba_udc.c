@@ -2043,10 +2043,56 @@ static const struct usba_udc_errata at91sam9g45_errata = {
 	.pulse_bias = at91sam9g45_pulse_bias,
 };
 
+static const struct usba_ep_config ep_config_sam9[] __initconst = {
+	{ .nr_banks = 1 },				/* ep 0 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 1 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 2 */
+	{ .nr_banks = 3, .can_dma = 1 },		/* ep 3 */
+	{ .nr_banks = 3, .can_dma = 1 },		/* ep 4 */
+	{ .nr_banks = 3, .can_dma = 1, .can_isoc = 1 },	/* ep 5 */
+	{ .nr_banks = 3, .can_dma = 1, .can_isoc = 1 },	/* ep 6 */
+};
+
+static const struct usba_ep_config ep_config_sama5[] __initconst = {
+	{ .nr_banks = 1 },				/* ep 0 */
+	{ .nr_banks = 3, .can_dma = 1, .can_isoc = 1 },	/* ep 1 */
+	{ .nr_banks = 3, .can_dma = 1, .can_isoc = 1 },	/* ep 2 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 3 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 4 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 5 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 6 */
+	{ .nr_banks = 2, .can_dma = 1, .can_isoc = 1 },	/* ep 7 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 8 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 9 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 10 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 11 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 12 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 13 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 14 */
+	{ .nr_banks = 2, .can_isoc = 1 },		/* ep 15 */
+};
+
+static const struct usba_udc_config udc_at91sam9rl_cfg = {
+	.errata = &at91sam9rl_errata,
+	.config = ep_config_sam9,
+	.num_ep = ARRAY_SIZE(ep_config_sam9),
+};
+
+static const struct usba_udc_config udc_at91sam9g45_cfg = {
+	.errata = &at91sam9g45_errata,
+	.config = ep_config_sam9,
+	.num_ep = ARRAY_SIZE(ep_config_sam9),
+};
+
+static const struct usba_udc_config udc_sama5d3_cfg = {
+	.config = ep_config_sama5,
+	.num_ep = ARRAY_SIZE(ep_config_sama5),
+};
+
 static const struct of_device_id atmel_udc_dt_ids[] = {
-	{ .compatible = "atmel,at91sam9rl-udc", .data = &at91sam9rl_errata },
-	{ .compatible = "atmel,at91sam9g45-udc", .data = &at91sam9g45_errata },
-	{ .compatible = "atmel,sama5d3-udc" },
+	{ .compatible = "atmel,at91sam9rl-udc", .data = &udc_at91sam9rl_cfg },
+	{ .compatible = "atmel,at91sam9g45-udc", .data = &udc_at91sam9g45_cfg },
+	{ .compatible = "atmel,sama5d3-udc", .data = &udc_sama5d3_cfg },
 	{ /* sentinel */ }
 };
 
@@ -2055,18 +2101,19 @@ MODULE_DEVICE_TABLE(of, atmel_udc_dt_ids);
 static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 						    struct usba_udc *udc)
 {
-	u32 val;
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	struct device_node *pp;
 	int i, ret;
 	struct usba_ep *eps, *ep;
+	const struct usba_udc_config *udc_config;
 
 	match = of_match_node(atmel_udc_dt_ids, np);
 	if (!match)
 		return ERR_PTR(-EINVAL);
 
-	udc->errata = match->data;
+	udc_config = match->data;
+	udc->errata = udc_config->errata;
 	udc->pmc = syscon_regmap_lookup_by_compatible("atmel,at91sam9g45-pmc");
 	if (IS_ERR(udc->pmc))
 		udc->pmc = syscon_regmap_lookup_by_compatible("atmel,at91sam9rl-pmc");
@@ -2082,8 +2129,7 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	if (fifo_mode == 0) {
 		pp = NULL;
-		while ((pp = of_get_next_child(np, pp)))
-			udc->num_ep++;
+		udc->num_ep = udc_config->num_ep;
 		udc->configured_ep = 1;
 	} else {
 		udc->num_ep = usba_config_fifo_table(udc);
@@ -2100,52 +2146,38 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	pp = NULL;
 	i = 0;
-	while ((pp = of_get_next_child(np, pp)) && i < udc->num_ep) {
+	while (i < udc->num_ep) {
+		const struct usba_ep_config *ep_cfg = &udc_config->config[i];
+
 		ep = &eps[i];
 
-		ret = of_property_read_u32(pp, "reg", &val);
-		if (ret) {
-			dev_err(&pdev->dev, "of_probe: reg error(%d)\n", ret);
-			goto err;
-		}
-		ep->index = fifo_mode ? udc->fifo_cfg[i].hw_ep_num : val;
+		ep->index = fifo_mode ? udc->fifo_cfg[i].hw_ep_num : i;
 
-		ret = of_property_read_u32(pp, "atmel,fifo-size", &val);
-		if (ret) {
-			dev_err(&pdev->dev, "of_probe: fifo-size error(%d)\n", ret);
-			goto err;
-		}
+		/* Only the first EP is 64 bytes */
+		if (ep->index == 0)
+			ep->fifo_size = 64;
+		else
+			ep->fifo_size = 1024;
+
 		if (fifo_mode) {
-			if (val < udc->fifo_cfg[i].fifo_size) {
+			if (ep->fifo_size < udc->fifo_cfg[i].fifo_size)
 				dev_warn(&pdev->dev,
-					 "Using max fifo-size value from DT\n");
-				ep->fifo_size = val;
-			} else {
+					 "Using default max fifo-size value\n");
+			else
 				ep->fifo_size = udc->fifo_cfg[i].fifo_size;
-			}
-		} else {
-			ep->fifo_size = val;
 		}
 
-		ret = of_property_read_u32(pp, "atmel,nb-banks", &val);
-		if (ret) {
-			dev_err(&pdev->dev, "of_probe: nb-banks error(%d)\n", ret);
-			goto err;
-		}
+		ep->nr_banks = ep_cfg->nr_banks;
 		if (fifo_mode) {
-			if (val < udc->fifo_cfg[i].nr_banks) {
+			if (ep->nr_banks < udc->fifo_cfg[i].nr_banks)
 				dev_warn(&pdev->dev,
-					 "Using max nb-banks value from DT\n");
-				ep->nr_banks = val;
-			} else {
+					 "Using default max nb-banks value\n");
+			else
 				ep->nr_banks = udc->fifo_cfg[i].nr_banks;
-			}
-		} else {
-			ep->nr_banks = val;
 		}
 
-		ep->can_dma = of_property_read_bool(pp, "atmel,can-dma");
-		ep->can_isoc = of_property_read_bool(pp, "atmel,can-isoc");
+		ep->can_dma = ep_cfg->can_dma;
+		ep->can_isoc = ep_cfg->can_isoc;
 
 		sprintf(ep->name, "ep%d", ep->index);
 		ep->ep.name = ep->name;
