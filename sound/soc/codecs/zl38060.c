@@ -295,7 +295,7 @@ static int zl38_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	err = regmap_update_bits(priv->regmap, REG_TDMA_CFG_CLK,
 				 CFG_CLK_FSRATE_MASK, fsrate);
