@@ -47,6 +47,11 @@
 	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
 			PPC_INST_STFD | ___PPC_RT(r) | ___PPC_RA(base) | IMM_L(i))
 
+#define TEST_PADDI(t, a, i, pr) \
+	ppc_inst_prefix(PPC_PREFIX_MLS | __PPC_PRFX_R(pr) | IMM_H(i), \
+			PPC_RAW_ADDI(t, a, i))
+
+
 static void __init init_pt_regs(struct pt_regs *regs)
 {
 	static unsigned long msr;
@@ -634,6 +639,11 @@ struct compute_test {
 	} subtests[MAX_SUBTESTS + 1];
 };
 
+/* Extreme values for si0||si1 (the MLS:D-form 34 bit immediate field) */
+#define SI_MIN BIT(33)
+#define SI_MAX (BIT(33) - 1)
+#define SI_UMAX (BIT(34) - 1)
+
 static struct compute_test compute_tests[] = {
 	{
 		.mnemonic = "nop",
@@ -1003,6 +1013,121 @@ static struct compute_test compute_tests[] = {
 				.regs = {
 					.gpr[21] = LONG_MIN | (uint)INT_MIN,
 					.gpr[22] = LONG_MIN | (uint)INT_MIN,
+				}
+			}
+		}
+	},
+	{
+		.mnemonic = "paddi",
+		.cpu_feature = CPU_FTR_ARCH_31,
+		.subtests = {
+			{
+				.descr = "RA = LONG_MIN, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MIN, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MIN,
+				}
+			},
+			{
+				.descr = "RA = LONG_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = LONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, SI = SI_UMAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_UMAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = ULONG_MAX, SI = 0x1, R = 0",
+				.instr = TEST_PADDI(21, 22, 0x1, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = ULONG_MAX,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MIN, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MIN,
+				}
+			},
+			{
+				.descr = "RA = INT_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = INT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, SI = 0x1, R = 0",
+				.instr = TEST_PADDI(21, 22, 0x1, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA = UINT_MAX, SI = SI_MAX, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MAX, 0),
+				.regs = {
+					.gpr[21] = 0,
+					.gpr[22] = UINT_MAX,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 0, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0x0,
+				}
+			},
+			{
+				.descr = "RA = 0, SI = SI_MIN, R = 0",
+				.instr = TEST_PADDI(21, 22, SI_MIN, 0),
+				.regs = {
+					.gpr[21] = 0x0,
+					.gpr[22] = 0x0,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = 0, R = 1",
+				.instr = TEST_PADDI(21, 0, 0, 1),
+				.regs = {
+					.gpr[21] = 0,
+				}
+			},
+			{
+				.descr = "RA is r0, SI = SI_MIN, R = 1",
+				.instr = TEST_PADDI(21, 0, SI_MIN, 1),
+				.regs = {
+					.gpr[21] = 0,
 				}
 			}
 		}
