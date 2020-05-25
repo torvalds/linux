@@ -1265,8 +1265,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(ip, &chipinfo, sizeof(chipinfo)))
 			return -EFAULT;
 		return 0;
-	} else if (cmd == GPIO_GET_LINEINFO_IOCTL ||
-		   cmd == GPIO_GET_LINEINFO_WATCH_IOCTL) {
+	} else if (cmd == GPIO_GET_LINEINFO_IOCTL) {
 		struct gpioline_info lineinfo;
 
 		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
@@ -1278,8 +1277,28 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 		hwgpio = gpio_chip_hwgpio(desc);
 
-		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL &&
-		    test_bit(hwgpio, priv->watched_lines))
+		gpio_desc_to_lineinfo(desc, &lineinfo);
+
+		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
+			return -EFAULT;
+		return 0;
+	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
+		return linehandle_create(gdev, ip);
+	} else if (cmd == GPIO_GET_LINEEVENT_IOCTL) {
+		return lineevent_create(gdev, ip);
+	} else if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL) {
+		struct gpioline_info lineinfo;
+
+		if (copy_from_user(&lineinfo, ip, sizeof(lineinfo)))
+			return -EFAULT;
+
+		desc = gpiochip_get_desc(gc, lineinfo.line_offset);
+		if (IS_ERR(desc))
+			return PTR_ERR(desc);
+
+		hwgpio = gpio_chip_hwgpio(desc);
+
+		if (test_bit(hwgpio, priv->watched_lines))
 			return -EBUSY;
 
 		gpio_desc_to_lineinfo(desc, &lineinfo);
@@ -1287,14 +1306,8 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 
-		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL)
-			set_bit(hwgpio, priv->watched_lines);
-
+		set_bit(hwgpio, priv->watched_lines);
 		return 0;
-	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
-		return linehandle_create(gdev, ip);
-	} else if (cmd == GPIO_GET_LINEEVENT_IOCTL) {
-		return lineevent_create(gdev, ip);
 	} else if (cmd == GPIO_GET_LINEINFO_UNWATCH_IOCTL) {
 		if (copy_from_user(&offset, ip, sizeof(offset)))
 			return -EFAULT;
