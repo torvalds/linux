@@ -328,6 +328,6 @@ sh_css_load_blob(const unsigned char *blob, unsigned int size)
 
 	assert(blob);
 	if (target_addr)
-		mmgr_store(target_addr, blob, size);
+		hmm_store(target_addr, blob, size);
 	return target_addr;
 }

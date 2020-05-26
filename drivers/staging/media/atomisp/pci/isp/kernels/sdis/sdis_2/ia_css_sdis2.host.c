@@ -189,7 +189,7 @@ ia_css_get_dvs2_statistics(
 	map = ia_css_isp_dvs_statistics_map_allocate(isp_stats, NULL);
 	if (map)
 	{
-		mmgr_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
+		hmm_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
 		ia_css_translate_dvs2_statistics(host_stats, map);
 		ia_css_isp_dvs_statistics_map_free(map);
 	} else

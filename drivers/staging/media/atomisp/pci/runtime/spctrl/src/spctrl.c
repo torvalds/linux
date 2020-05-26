@@ -66,7 +66,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	code_addr = mmgr_alloc_attr(spctrl_cfg->code_size, 0);
 	if (code_addr == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	mmgr_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);
+	hmm_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);
 
 	if (sizeof(hrt_vaddress) > sizeof(hrt_data)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,

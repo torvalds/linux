@@ -18,16 +18,3 @@ hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attrs)
 {
 	return hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, attrs);
 }
-
-void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size)
-{
-	if (vaddr && data)
-		hmm_load(vaddr, data, size);
-}
-
-void
-mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size)
-{
-	if (vaddr && data)
-		hmm_store(vaddr, data, size);
-}

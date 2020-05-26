@@ -91,24 +91,4 @@
 
 hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
 
-/*! Read an array of bytes from a virtual memory address
-
- \param	vaddr[in]		Address of an allocation
- \param	data[out]		pointer to the destination array
- \param	size[in]		number of bytes to read
-
- \return none
- */
-void mmgr_load(const hrt_vaddress vaddr, void *data, const size_t size);
-
-/*! Write an array of bytes to device registers or memory in the device
-
- \param	vaddr[in]		Address of an allocation
- \param	data[in]		pointer to the source array
- \param	size[in]		number of bytes to write
-
- \return none
- */
-void mmgr_store(const hrt_vaddress vaddr, const void *data, const size_t size);
-
 #endif /* __MEMORY_ACCESS_H_INCLUDED__ */

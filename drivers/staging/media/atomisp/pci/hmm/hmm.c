@@ -403,9 +403,14 @@ static int load_and_flush(ia_css_ptr virt, void *data, unsigned int bytes)
 /* Read function in ISP memory management */
 int hmm_load(ia_css_ptr virt, void *data, unsigned int bytes)
 {
+	if (!virt) {
+		dev_warn(atomisp_dev,
+			"hmm_store: address is NULL\n");
+		return -EINVAL;
+	}
 	if (!data) {
 		dev_err(atomisp_dev,
-			"hmm_load NULL argument\n");
+			"hmm_store: data is a NULL argument\n");
 		return -EINVAL;
 	}
 	return load_and_flush(virt, data, bytes);
@@ -424,6 +429,17 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 	unsigned int idx, offset, len;
 	char *src, *des;
 	int ret;
+
+	if (!virt) {
+		dev_warn(atomisp_dev,
+			"hmm_store: address is NULL\n");
+		return -EINVAL;
+	}
+	if (!data) {
+		dev_err(atomisp_dev,
+			"hmm_store: data is a NULL argument\n");
+		return -EINVAL;
+	}
 
 	bo = hmm_bo_device_search_in_range(&bo_device, virt);
 	ret = hmm_check_bo(bo, virt);

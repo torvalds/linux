@@ -1521,7 +1521,7 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 			int ofs = y * width + x;
 
 			for (k = 0; k < ISP_VEC_NELEMS; k += 2) {
-				mmgr_load(ptr, (void *)(&data), sizeof(int));
+				hmm_load(ptr, (void *)(&data), sizeof(int));
 				params->fpn_config.data[ofs + 2 * k] =
 				    (short)(data & 0xFFFF);
 				params->fpn_config.data[ofs + 2 * k + 2] =
@@ -1529,7 +1529,7 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 				ptr += sizeof(int);	/* byte system address */
 			}
 			for (k = 0; k < ISP_VEC_NELEMS; k += 2) {
-				mmgr_load(ptr, (void *)(&data), sizeof(int));
+				hmm_load(ptr, (void *)(&data), sizeof(int));
 				params->fpn_config.data[ofs + 2 * k + 1] =
 				    (short)(data & 0xFFFF);
 				params->fpn_config.data[ofs + 2 * k + 3] =
@@ -1620,7 +1620,7 @@ ia_css_params_store_ia_css_host_data(
 
 	IA_CSS_ENTER_PRIVATE("");
 
-	mmgr_store(ddr_addr,
+	hmm_store(ddr_addr,
 		   (void *)(data->address),
 		   (size_t)data->size);
 
@@ -2133,7 +2133,7 @@ ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
 	map = ia_css_isp_3a_statistics_map_allocate(isp_stats, NULL);
 	if (map)
 	{
-		mmgr_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
+		hmm_load(isp_stats->data_ptr, map->data_ptr, isp_stats->size);
 		ia_css_translate_3a_statistics(host_stats, map);
 		ia_css_isp_3a_statistics_map_free(map);
 	} else
@@ -3368,7 +3368,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 		} else {
 			gdc_lut_convert_to_isp_format((const int(*)[HRT_GDC_N])lut,
 						      interleaved_lut_temp);
-			mmgr_store(pipe->scaler_pp_lut,
+			hmm_store(pipe->scaler_pp_lut,
 				   (int *)interleaved_lut_temp,
 				   sizeof(zoom_table));
 		}
@@ -3411,7 +3411,7 @@ enum ia_css_err sh_css_params_map_and_store_default_gdc_lut(void)
 
 	gdc_lut_convert_to_isp_format((const int(*)[HRT_GDC_N])zoom_table,
 				      interleaved_lut_temp);
-	mmgr_store(default_gdc_lut, (int *)interleaved_lut_temp,
+	hmm_store(default_gdc_lut, (int *)interleaved_lut_temp,
 		   sizeof(zoom_table));
 
 	IA_CSS_LEAVE_PRIVATE("lut(%u) err=%d", default_gdc_lut, err);
@@ -3656,7 +3656,7 @@ static void sh_css_update_isp_params_to_ddr(
 
 	assert(params);
 
-	mmgr_store(ddr_ptr, &params->uds, size);
+	hmm_store(ddr_ptr, &params->uds, size);
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 
@@ -3672,7 +3672,7 @@ static void sh_css_update_isp_mem_params_to_ddr(
 
 	params = ia_css_isp_param_get_mem_init(&binary->mem_params,
 					       IA_CSS_PARAM_CLASS_PARAM, mem);
-	mmgr_store(ddr_mem_ptr, params->address, size);
+	hmm_store(ddr_mem_ptr, params->address, size);
 
 	IA_CSS_LEAVE_PRIVATE("void");
 }
@@ -4176,7 +4176,7 @@ sh_css_params_write_to_ddr_internal(
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
 			return err;
 		}
-		mmgr_store(ddr_map->macc_tbl,
+		hmm_store(ddr_map->macc_tbl,
 			   converted_macc_table.data,
 			   sizeof(converted_macc_table.data));
 	}
@@ -4461,7 +4461,7 @@ struct ia_css_shading_table *ia_css_get_shading_table(struct ia_css_stream
 hrt_vaddress sh_css_store_sp_group_to_ddr(void)
 {
 	IA_CSS_ENTER_LEAVE_PRIVATE("void");
-	mmgr_store(xmem_sp_group_ptrs,
+	hmm_store(xmem_sp_group_ptrs,
 		   &sh_css_sp_group,
 		   sizeof(struct sh_css_sp_group));
 	return xmem_sp_group_ptrs;
@@ -4472,7 +4472,7 @@ hrt_vaddress sh_css_store_sp_stage_to_ddr(
     unsigned int stage)
 {
 	IA_CSS_ENTER_LEAVE_PRIVATE("void");
-	mmgr_store(xmem_sp_stage_ptrs[pipe][stage],
+	hmm_store(xmem_sp_stage_ptrs[pipe][stage],
 		   &sh_css_sp_stage,
 		   sizeof(struct sh_css_sp_stage));
 	return xmem_sp_stage_ptrs[pipe][stage];
@@ -4483,7 +4483,7 @@ hrt_vaddress sh_css_store_isp_stage_to_ddr(
     unsigned int stage)
 {
 	IA_CSS_ENTER_LEAVE_PRIVATE("void");
-	mmgr_store(xmem_isp_stage_ptrs[pipe][stage],
+	hmm_store(xmem_isp_stage_ptrs[pipe][stage],
 		   &sh_css_isp_stage,
 		   sizeof(struct sh_css_isp_stage));
 	return xmem_isp_stage_ptrs[pipe][stage];
@@ -4545,7 +4545,7 @@ static enum ia_css_err write_ia_css_isp_parameter_set_info_to_ddr(
 					 mmgr_alloc_attr(sizeof(struct ia_css_isp_parameter_set_info), 0));
 	succ = (*out != mmgr_NULL);
 	if (succ)
-		mmgr_store(*out,
+		hmm_store(*out,
 			   me, sizeof(struct ia_css_isp_parameter_set_info));
 	else
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -4574,7 +4574,7 @@ free_ia_css_isp_parameter_set_info(
 		return err;
 	}
 
-	mmgr_load(ptr, &isp_params_info.mem_map, sizeof(struct sh_css_ddr_address_map));
+	hmm_load(ptr, &isp_params_info.mem_map, sizeof(struct sh_css_ddr_address_map));
 	/* copy map using size info */
 	for (i = 0; i < (sizeof(struct sh_css_ddr_address_map_size) /
 			 sizeof(size_t)); i++)

@@ -4314,7 +4314,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
 
-	mmgr_store(h_vbuf->vptr,
+	hmm_store(h_vbuf->vptr,
 		   (void *)(&ddr_buffer),
 		   sizeof(struct sh_css_hmm_buffer));
 	if ((buf_type == IA_CSS_BUFFER_TYPE_3A_STATISTICS)
@@ -4473,7 +4473,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 		    ddr_buffer_addr, buf_type);
 		if (hmm_buffer_record) {
 			/* valid hmm_buffer_record found. Save the kernel_ptr
-			 * for validation after performing mmgr_load.  The
+			 * for validation after performing hmm_load.  The
 			 * vbuf handle and buffer_record can be released.
 			 */
 			kernel_ptr = hmm_buffer_record->kernel_ptr;
@@ -4486,7 +4486,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		}
 
-		mmgr_load(ddr_buffer_addr,
+		hmm_load(ddr_buffer_addr,
 			  &ddr_buffer,
 			  sizeof(struct sh_css_hmm_buffer));
 
@@ -10851,10 +10851,10 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
 				sp_dmem_load(SP0_ID,
 						(unsigned int)sp_address_of(sp_group),
 						&sp_group, sizeof(struct sh_css_sp_group));
-				mmgr_load(sp_group.pipe[thread_id].sp_stage_addr[stage_num],
+				hmm_load(sp_group.pipe[thread_id].sp_stage_addr[stage_num],
 					    &sp_stage, sizeof(struct sh_css_sp_stage));
 
-				mmgr_load(sp_stage.isp_stage_addr,
+				hmm_load(sp_stage.isp_stage_addr,
 					    &isp_stage, sizeof(struct sh_css_isp_stage));
 
 				for (mem = 0; mem < N_IA_CSS_ISP_MEMORIES; mem++) {
@@ -10870,7 +10870,7 @@ ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
 						isp_seg->params[IA_CSS_PARAM_CLASS_PARAM][mem].size;
 				}
 
-				mmgr_store(sp_stage.isp_stage_addr,
+				hmm_store(sp_stage.isp_stage_addr,
 					    &isp_stage, sizeof(struct sh_css_isp_stage));
 			}
 		}

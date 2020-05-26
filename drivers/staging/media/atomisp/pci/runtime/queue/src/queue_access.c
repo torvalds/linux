@@ -63,7 +63,7 @@ int ia_css_queue_load(
 
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
 		/* doing DMA transfer of entire structure */
-		mmgr_load(rdesc->desc.remote.cb_desc_addr,
+		hmm_load(rdesc->desc.remote.cb_desc_addr,
 			  (void *)cb_desc,
 			  sizeof(ia_css_circbuf_desc_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
@@ -110,7 +110,7 @@ int ia_css_queue_store(
 					    cb_desc->step);
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
 		/* doing DMA transfer of entire structure */
-		mmgr_store(rdesc->desc.remote.cb_desc_addr,
+		hmm_store(rdesc->desc.remote.cb_desc_addr,
 			   (void *)cb_desc,
 			   sizeof(ia_css_circbuf_desc_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_ISP) {
@@ -136,7 +136,7 @@ int ia_css_queue_item_load(
 			     item,
 			     sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
-		mmgr_load(rdesc->desc.remote.cb_elems_addr
+		hmm_load(rdesc->desc.remote.cb_elems_addr
 			  + position * sizeof(ia_css_circbuf_elem_t),
 			  (void *)item,
 			  sizeof(ia_css_circbuf_elem_t));
@@ -163,7 +163,7 @@ int ia_css_queue_item_store(
 			      item,
 			      sizeof(ia_css_circbuf_elem_t));
 	} else if (rdesc->location == IA_CSS_QUEUE_LOC_HOST) {
-		mmgr_store(rdesc->desc.remote.cb_elems_addr
+		hmm_store(rdesc->desc.remote.cb_elems_addr
 			   + position * sizeof(ia_css_circbuf_elem_t),
 			   (void *)item,
 			   sizeof(ia_css_circbuf_elem_t));

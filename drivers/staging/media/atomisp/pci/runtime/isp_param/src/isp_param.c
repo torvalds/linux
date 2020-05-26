@@ -194,7 +194,7 @@ ia_css_isp_param_copy_isp_mem_if_to_ddr(
 			return IA_CSS_ERR_INTERNAL_ERROR;
 		if (!size)
 			continue;
-		mmgr_store(ddr_mem_ptr, host_mem_ptr, size);
+		hmm_store(ddr_mem_ptr, host_mem_ptr, size);
 	}
 	return IA_CSS_SUCCESS;
 }
