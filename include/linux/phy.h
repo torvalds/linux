@@ -699,6 +699,10 @@ struct phy_driver {
 
 	/* Start a cable test */
 	int (*cable_test_start)(struct phy_device *dev);
+
+	/* Start a raw TDR cable test */
+	int (*cable_test_tdr_start)(struct phy_device *dev);
+
 	/* Once per second, or on interrupt, request the status of the
 	 * test.
 	 */
@@ -1251,10 +1255,19 @@ int phy_reset_after_clk_enable(struct phy_device *phydev);
 #if IS_ENABLED(CONFIG_PHYLIB)
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack);
+int phy_start_cable_test_tdr(struct phy_device *phydev,
+			     struct netlink_ext_ack *extack);
 #else
 static inline
 int phy_start_cable_test(struct phy_device *phydev,
 			 struct netlink_ext_ack *extack)
+{
+	NL_SET_ERR_MSG(extack, "Kernel not compiled with PHYLIB support");
+	return -EOPNOTSUPP;
+}
+static inline
+int phy_start_cable_test_tdr(struct phy_device *phydev,
+			     struct netlink_ext_ack *extack)
 {
 	NL_SET_ERR_MSG(extack, "Kernel not compiled with PHYLIB support");
 	return -EOPNOTSUPP;

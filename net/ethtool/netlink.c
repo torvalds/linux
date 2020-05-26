@@ -844,6 +844,11 @@ static const struct genl_ops ethtool_genl_ops[] = {
 		.flags	= GENL_UNS_ADMIN_PERM,
 		.doit	= ethnl_act_cable_test,
 	},
+	{
+		.cmd	= ETHTOOL_MSG_CABLE_TEST_TDR_ACT,
+		.flags	= GENL_UNS_ADMIN_PERM,
+		.doit	= ethnl_act_cable_test_tdr,
+	},
 };
 
 static const struct genl_multicast_group ethtool_nl_mcgrps[] = {

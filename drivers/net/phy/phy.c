@@ -519,7 +519,7 @@ int phy_start_cable_test(struct phy_device *phydev,
 		goto out;
 	}
 
-	err = ethnl_cable_test_alloc(phydev);
+	err = ethnl_cable_test_alloc(phydev, ETHTOOL_MSG_CABLE_TEST_NTF);
 	if (err)
 		goto out;
 
@@ -551,6 +551,69 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(phy_start_cable_test);
+
+int phy_start_cable_test_tdr(struct phy_device *phydev,
+			     struct netlink_ext_ack *extack)
+{
+	struct net_device *dev = phydev->attached_dev;
+	int err = -ENOMEM;
+
+	if (!(phydev->drv &&
+	      phydev->drv->cable_test_tdr_start &&
+	      phydev->drv->cable_test_get_status)) {
+		NL_SET_ERR_MSG(extack,
+			       "PHY driver does not support cable test TDR");
+		return -EOPNOTSUPP;
+	}
+
+	mutex_lock(&phydev->lock);
+	if (phydev->state == PHY_CABLETEST) {
+		NL_SET_ERR_MSG(extack,
+			       "PHY already performing a test");
+		err = -EBUSY;
+		goto out;
+	}
+
+	if (phydev->state < PHY_UP ||
+	    phydev->state > PHY_CABLETEST) {
+		NL_SET_ERR_MSG(extack,
+			       "PHY not configured. Try setting interface up");
+		err = -EBUSY;
+		goto out;
+	}
+
+	err = ethnl_cable_test_alloc(phydev, ETHTOOL_MSG_CABLE_TEST_TDR_NTF);
+	if (err)
+		goto out;
+
+	/* Mark the carrier down until the test is complete */
+	phy_link_down(phydev);
+
+	netif_testing_on(dev);
+	err = phydev->drv->cable_test_tdr_start(phydev);
+	if (err) {
+		netif_testing_off(dev);
+		phy_link_up(phydev);
+		goto out_free;
+	}
+
+	phydev->state = PHY_CABLETEST;
+
+	if (phy_polling_mode(phydev))
+		phy_trigger_machine(phydev);
+
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+
+out_free:
+	ethnl_cable_test_free(phydev);
+out:
+	mutex_unlock(&phydev->lock);
+
+	return err;
+}
+EXPORT_SYMBOL(phy_start_cable_test_tdr);
 
 static int phy_config_aneg(struct phy_device *phydev)
 {
