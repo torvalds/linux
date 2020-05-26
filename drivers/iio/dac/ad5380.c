@@ -240,7 +240,7 @@ static const struct iio_info ad5380_info = {
 	.write_raw = ad5380_write_raw,
 };
 
-static struct iio_chan_spec_ext_info ad5380_ext_info[] = {
+static const struct iio_chan_spec_ext_info ad5380_ext_info[] = {
 	{
 		.name = "powerdown",
 		.read = ad5380_read_dac_powerdown,
