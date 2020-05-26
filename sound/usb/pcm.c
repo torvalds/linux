@@ -134,6 +134,8 @@ static struct audioformat *find_format(struct snd_usb_substream *subs)
 			found = fp;
 			cur_attr = attr;
 		}
+
+		snd_vendor_set_pcm_binterval(fp, found, &cur_attr, &attr);
 	}
 	return found;
 }
@@ -642,6 +644,10 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		}
 		dev_dbg(&dev->dev, "setting usb interface %d:%d\n",
 			fmt->iface, fmt->altsetting);
+		err = snd_vendor_set_pcm_intf(iface, fmt->iface,
+					      fmt->altsetting, subs->direction);
+		if (err)
+			return err;
 		snd_usb_set_interface_quirk(dev);
 	}
 
@@ -1040,6 +1046,10 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	struct usb_interface *iface;
 	int ret;
 
+	ret = snd_vendor_set_pcm_buf(subs->dev, subs->cur_audiofmt->iface);
+	if (ret)
+		return ret;
+
 	if (! subs->cur_audiofmt) {
 		dev_err(&subs->dev->dev, "no format is specified!\n");
 		return -ENXIO;
@@ -1072,6 +1082,17 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 					       subs->cur_rate);
 		if (ret < 0)
 			goto unlock;
+
+		if (snd_vendor_get_ops()) {
+			ret = snd_vendor_set_rate(iface,
+						  subs->cur_audiofmt->iface,
+						  subs->cur_rate,
+						  subs->cur_audiofmt->altsetting);
+			if (!ret) {
+				subs->need_setup_ep = false;
+				goto unlock;
+			}
+		}
 
 		ret = configure_endpoint(subs);
 		if (ret < 0)
@@ -1482,6 +1503,11 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_usb_substream *subs = &as->substream[direction];
 	int ret;
 
+	ret = snd_vendor_set_pcm_connection(subs->dev, SOUND_PCM_OPEN,
+					    direction);
+	if (ret)
+		return ret;
+
 	subs->interface = -1;
 	subs->altset_idx = 0;
 	runtime->hw = snd_usb_hardware;
@@ -1510,12 +1536,23 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_usb_substream *subs = &as->substream[direction];
 	int ret;
 
+	ret = snd_vendor_set_pcm_connection(subs->dev, SOUND_PCM_CLOSE,
+					    direction);
+	if (ret)
+		return ret;
+
 	snd_media_stop_pipeline(subs);
 
 	if (!as->chip->keep_iface &&
 	    subs->interface >= 0 &&
 	    !snd_usb_lock_shutdown(subs->stream->chip)) {
 		usb_set_interface(subs->dev, subs->interface, 0);
+		ret = snd_vendor_set_pcm_intf(usb_ifnum_to_if(subs->dev,
+							      subs->interface),
+					      subs->interface, 0,
+					      direction);
+		if (ret)
+			return ret;
 		subs->interface = -1;
 		ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D1);
 		snd_usb_unlock_shutdown(subs->stream->chip);
