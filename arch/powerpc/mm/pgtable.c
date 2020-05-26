@@ -100,7 +100,7 @@ static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
  * instead we "filter out" the exec permission for non clean pages.
  */
-static pte_t set_pte_filter(pte_t pte)
+static inline pte_t set_pte_filter(pte_t pte)
 {
 	struct page *pg;
 
@@ -249,16 +249,42 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 
 #else
 		/*
-		 * Not used on non book3s64 platforms. But 8xx
-		 * can possibly use tsize derived from hstate.
+		 * Not used on non book3s64 platforms.
+		 * 8xx compares it with mmu_virtual_psize to
+		 * know if it is a huge page or not.
 		 */
-		psize = 0;
+		psize = MMU_PAGE_COUNT;
 #endif
 		__ptep_set_access_flags(vma, ptep, pte, addr, psize);
 	}
 	return changed;
 #endif
 }
+
+#if defined(CONFIG_PPC_8xx)
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+{
+	pmd_t *pmd = pmd_ptr(mm, addr);
+	pte_basic_t val;
+	pte_basic_t *entry = &ptep->pte;
+	int num = is_hugepd(*((hugepd_t *)pmd)) ? 1 : SZ_512K / SZ_4K;
+	int i;
+
+	/*
+	 * Make sure hardware valid bit is not set. We don't do
+	 * tlb flush for this update.
+	 */
+	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+
+	pte = pte_mkpte(pte);
+
+	pte = set_pte_filter(pte);
+
+	val = pte_val(pte);
+	for (i = 0; i < num; i++, entry++, val += SZ_4K)
+		*entry = val;
+}
+#endif
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #ifdef CONFIG_DEBUG_VM

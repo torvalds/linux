@@ -11,6 +11,11 @@
 
 static const struct flag_info flag_array[] = {
 	{
+		.mask	= _PAGE_HUGE,
+		.val	= _PAGE_HUGE,
+		.set	= "huge",
+		.clear	= "    ",
+	}, {
 		.mask	= _PAGE_SH,
 		.val	= 0,
 		.set	= "user",
