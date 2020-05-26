@@ -2353,7 +2353,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 		if (qp->ibqp.qp_type != IB_QPT_RAW_PACKET &&
 		    !(qp->flags & IB_QP_CREATE_SOURCE_QPN)) {
 			err = mlx5_core_qp_modify(dev, MLX5_CMD_OP_2RST_QP, 0,
-						  NULL, &base->mqp);
+						  NULL, &base->mqp, NULL);
 		} else {
 			struct mlx5_modify_raw_qp_param raw_qp_param = {
 				.operation = MLX5_CMD_OP_2RST_QP
@@ -3978,7 +3978,10 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		err = modify_raw_packet_qp(dev, qp, &raw_qp_param, tx_affinity);
 	} else {
-		err = mlx5_core_qp_modify(dev, op, optpar, qpc, &base->mqp);
+		u32 ece = MLX5_CAP_GEN(dev->mdev, ece_support) ?
+				  ucmd->ece_options : 0;
+		err = mlx5_core_qp_modify(dev, op, optpar, qpc, &base->mqp,
+					  &ece);
 	}
 
 	if (err)
@@ -4131,7 +4134,6 @@ static int mlx5_ib_modify_dct(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 		set_id = mlx5_ib_get_counters_id(dev, attr->port_num - 1);
 		MLX5_SET(dctc, dctc, counter_set_id, set_id);
-
 	} else if (cur_state == IB_QPS_INIT && new_state == IB_QPS_RTR) {
 		struct mlx5_ib_modify_qp_resp resp = {};
 		u32 out[MLX5_ST_SZ_DW(create_dct_out)] = {0};
@@ -4182,7 +4184,6 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	struct mlx5_ib_modify_qp ucmd = {};
 	enum ib_qp_type qp_type;
 	enum ib_qp_state cur_state, new_state;
-	size_t required_cmd_sz;
 	int err = -EINVAL;
 	int port;
 
@@ -4190,9 +4191,7 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		return -ENOSYS;
 
 	if (udata && udata->inlen) {
-		required_cmd_sz = offsetof(typeof(ucmd), reserved) +
-			sizeof(ucmd.reserved);
-		if (udata->inlen < required_cmd_sz)
+		if (udata->inlen < offsetofend(typeof(ucmd), ece_options))
 			return -EINVAL;
 
 		if (udata->inlen > sizeof(ucmd) &&
@@ -4205,10 +4204,10 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			return -EFAULT;
 
 		if (ucmd.comp_mask ||
-		    memchr_inv(&ucmd.reserved, 0, sizeof(ucmd.reserved)) ||
 		    memchr_inv(&ucmd.burst_info.reserved, 0,
 			       sizeof(ucmd.burst_info.reserved)))
 			return -EOPNOTSUPP;
+
 	}
 
 	if (unlikely(ibqp->qp_type == IB_QPT_GSI))
@@ -4217,8 +4216,12 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	qp_type = (unlikely(ibqp->qp_type == MLX5_IB_QPT_HW_GSI)) ? IB_QPT_GSI :
 								    qp->type;
 
-	if (qp_type == MLX5_IB_QPT_DCT)
+	if (qp_type == MLX5_IB_QPT_DCT) {
+		if (memchr_inv(&ucmd.ece_options, 0, sizeof(ucmd.ece_options)))
+			return -EOPNOTSUPP;
+
 		return mlx5_ib_modify_dct(ibqp, attr, attr_mask, udata);
+	}
 
 	mutex_lock(&qp->mutex);
 

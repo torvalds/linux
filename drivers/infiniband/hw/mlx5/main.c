@@ -1959,6 +1959,9 @@ uar_done:
 		resp.response_length += sizeof(resp.dump_fill_mkey);
 	}
 
+	if (MLX5_CAP_GEN(dev->mdev, ece_support))
+		resp.comp_mask |= MLX5_IB_ALLOC_UCONTEXT_RESP_MASK_ECE;
+
 	err = ib_copy_to_udata(udata, &resp, resp.response_length);
 	if (err)
 		goto out_mdev;
