@@ -67,13 +67,8 @@ static int al_pcie_init(struct pci_config_window *cfg)
 	dev_dbg(dev, "Root port dbi res: %pR\n", res);
 
 	al_pcie->dbi_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(al_pcie->dbi_base)) {
-		long err = PTR_ERR(al_pcie->dbi_base);
-
-		dev_err(dev, "couldn't remap dbi base %pR (err:%ld)\n",
-			res, err);
-		return err;
-	}
+	if (IS_ERR(al_pcie->dbi_base))
+		return PTR_ERR(al_pcie->dbi_base);
 
 	cfg->priv = al_pcie;
 
@@ -408,10 +403,8 @@ static int al_pcie_probe(struct platform_device *pdev)
 
 	dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 	pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_res);
-	if (IS_ERR(pci->dbi_base)) {
-		dev_err(dev, "couldn't remap dbi base %pR\n", dbi_res);
+	if (IS_ERR(pci->dbi_base))
 		return PTR_ERR(pci->dbi_base);
-	}
 
 	ecam_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
 	if (!ecam_res) {

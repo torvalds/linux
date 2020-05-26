@@ -225,10 +225,8 @@ int cdns_pcie_host_setup(struct cdns_pcie_rc *rc)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "cfg");
 	rc->cfg_base = devm_pci_remap_cfg_resource(dev, res);
-	if (IS_ERR(rc->cfg_base)) {
-		dev_err(dev, "missing \"cfg\"\n");
+	if (IS_ERR(rc->cfg_base))
 		return PTR_ERR(rc->cfg_base);
-	}
 	rc->cfg_res = res;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mem");
