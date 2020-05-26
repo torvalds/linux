@@ -1089,7 +1089,6 @@ int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 		}
 		pr_info("Replacing I/O driver %s with %s\n",
 			old_dbg_io_ops->name, new_dbg_io_ops->name);
-		old_dbg_io_ops->deinit();
 	}
 
 	if (new_dbg_io_ops->init) {
@@ -1104,8 +1103,10 @@ int kgdb_register_io_module(struct kgdb_io *new_dbg_io_ops)
 
 	spin_unlock(&kgdb_registration_lock);
 
-	if (old_dbg_io_ops)
+	if (old_dbg_io_ops) {
+		old_dbg_io_ops->deinit();
 		return 0;
+	}
 
 	pr_info("Registered I/O driver %s\n", new_dbg_io_ops->name);
 
