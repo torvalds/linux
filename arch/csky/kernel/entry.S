@@ -168,6 +168,8 @@ ENTRY(csky_systemcall)
 csky_syscall_trace:
 	mov	a0, sp                  /* sp = pt_regs pointer */
 	jbsr	syscall_trace_enter
+	cmpnei	a0, 0
+	bt	1f
 	/* Prepare args before do system call */
 	ldw	a0, (sp, LSAVE_A0)
 	ldw	a1, (sp, LSAVE_A1)
@@ -188,6 +190,7 @@ csky_syscall_trace:
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
+1:
 #ifdef CONFIG_DEBUG_RSEQ
 	mov	a0, sp
 	jbsr	rseq_syscall
