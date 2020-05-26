@@ -555,11 +555,36 @@ static int gaudi_early_fini(struct hl_device *hdev)
 static void gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 trace_freq = 0;
+	u32 pll_clk = 0;
+	u32 div_fctr = RREG32(mmPSOC_CPU_PLL_DIV_FACTOR_2);
+	u32 div_sel = RREG32(mmPSOC_CPU_PLL_DIV_SEL_2);
+	u32 nr = RREG32(mmPSOC_CPU_PLL_NR);
+	u32 nf = RREG32(mmPSOC_CPU_PLL_NF);
+	u32 od = RREG32(mmPSOC_CPU_PLL_OD);
 
-	prop->psoc_pci_pll_nr = RREG32(mmPSOC_PCI_PLL_NR);
-	prop->psoc_pci_pll_nf = RREG32(mmPSOC_PCI_PLL_NF);
-	prop->psoc_pci_pll_od = RREG32(mmPSOC_PCI_PLL_OD);
-	prop->psoc_pci_pll_div_factor = RREG32(mmPSOC_PCI_PLL_DIV_FACTOR_1);
+	if (div_sel == DIV_SEL_REF_CLK || div_sel == DIV_SEL_DIVIDED_REF) {
+		if (div_sel == DIV_SEL_REF_CLK)
+			trace_freq = PLL_REF_CLK;
+		else
+			trace_freq = PLL_REF_CLK / (div_fctr + 1);
+	} else if (div_sel == DIV_SEL_PLL_CLK ||
+					div_sel == DIV_SEL_DIVIDED_PLL) {
+		pll_clk = PLL_REF_CLK * (nf + 1) / ((nr + 1) * (od + 1));
+		if (div_sel == DIV_SEL_PLL_CLK)
+			trace_freq = pll_clk;
+		else
+			trace_freq = pll_clk / (div_fctr + 1);
+	} else {
+		dev_warn(hdev->dev,
+			"Received invalid div select value: %d", div_sel);
+	}
+
+	prop->psoc_timestamp_frequency = trace_freq;
+	prop->psoc_pci_pll_nr = nr;
+	prop->psoc_pci_pll_nf = nf;
+	prop->psoc_pci_pll_od = od;
+	prop->psoc_pci_pll_div_factor = div_fctr;
 }
 
 static int _gaudi_init_tpc_mem(struct hl_device *hdev,

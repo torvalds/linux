@@ -91,6 +91,7 @@
 
 #include "psoc_pci_pll_regs.h"
 #include "psoc_hbm_pll_regs.h"
+#include "psoc_cpu_pll_regs.h"
 
 #define GAUDI_ECC_MEM_SEL_OFFSET	0xF18
 #define GAUDI_ECC_ADDRESS_OFFSET	0xF1C

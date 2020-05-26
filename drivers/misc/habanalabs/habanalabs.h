@@ -247,6 +247,7 @@ struct hl_mmu_properties {
  * @psoc_pci_pll_nf: PCI PLL NF value.
  * @psoc_pci_pll_od: PCI PLL OD value.
  * @psoc_pci_pll_div_factor: PCI PLL DIV FACTOR 1 value.
+ * @psoc_timestamp_frequency: frequency of the psoc timestamp clock.
  * @high_pll: high PLL frequency used by the device.
  * @cb_pool_cb_cnt: number of CBs in the CB pool.
  * @cb_pool_cb_size: size of each CB in the CB pool.
@@ -291,6 +292,7 @@ struct asic_fixed_properties {
 	u32				psoc_pci_pll_nf;
 	u32				psoc_pci_pll_od;
 	u32				psoc_pci_pll_div_factor;
+	u32				psoc_timestamp_frequency;
 	u32				high_pll;
 	u32				cb_pool_cb_cnt;
 	u32				cb_pool_cb_size;
@@ -531,6 +533,15 @@ enum hl_pll_frequency {
 	PLL_HIGH = 1,
 	PLL_LOW,
 	PLL_LAST
+};
+
+#define PLL_REF_CLK 50
+
+enum div_select_defs {
+	DIV_SEL_REF_CLK = 0,
+	DIV_SEL_PLL_CLK = 1,
+	DIV_SEL_DIVIDED_REF = 2,
+	DIV_SEL_DIVIDED_PLL = 3,
 };
 
 /**

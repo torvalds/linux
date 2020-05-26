@@ -232,6 +232,7 @@ static int goya_config_stm(struct hl_device *hdev,
 {
 	struct hl_debug_params_stm *input;
 	u64 base_reg;
+	u32 frequency;
 	int rc;
 
 	if (params->reg_idx >= ARRAY_SIZE(debug_stm_regs)) {
@@ -264,7 +265,10 @@ static int goya_config_stm(struct hl_device *hdev,
 		WREG32(base_reg + 0xE20, 0xFFFFFFFF);
 		WREG32(base_reg + 0xEF4, input->id);
 		WREG32(base_reg + 0xDF4, 0x80);
-		WREG32(base_reg + 0xE8C, input->frequency);
+		frequency = hdev->asic_prop.psoc_timestamp_frequency;
+		if (frequency == 0)
+			frequency = input->frequency;
+		WREG32(base_reg + 0xE8C, frequency);
 		WREG32(base_reg + 0xE90, 0x7FF);
 		WREG32(base_reg + 0xE80, 0x27 | (input->id << 16));
 	} else {
