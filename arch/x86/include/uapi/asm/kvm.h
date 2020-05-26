@@ -400,6 +400,7 @@ struct kvm_sync_regs {
 
 #define KVM_STATE_NESTED_SVM_VMCB_SIZE	0x1000
 
+#define KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE	0x00000001
 
 struct kvm_vmx_nested_state_data {
 	__u8 vmcs12[KVM_STATE_NESTED_VMX_VMCS_SIZE];
@@ -407,8 +408,10 @@ struct kvm_vmx_nested_state_data {
 };
 
 struct kvm_vmx_nested_state_hdr {
+	__u32 flags;
 	__u64 vmxon_pa;
 	__u64 vmcs12_pa;
+	__u64 preemption_timer_deadline;
 
 	struct {
 		__u16 flags;

@@ -2087,9 +2087,29 @@ static enum hrtimer_restart vmx_preemption_timer_fn(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu)
+static u64 vmx_calc_preemption_timer_value(struct kvm_vcpu *vcpu)
 {
-	u64 preemption_timeout = get_vmcs12(vcpu)->vmx_preemption_timer_value;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	u64 timer_value = 0;
+
+	u64 l1_scaled_tsc = kvm_read_l1_tsc(vcpu, rdtsc()) >>
+			    VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE;
+
+	if (!vmx->nested.has_preemption_timer_deadline) {
+		timer_value = vmcs12->vmx_preemption_timer_value;
+		vmx->nested.preemption_timer_deadline = timer_value +
+							l1_scaled_tsc;
+		vmx->nested.has_preemption_timer_deadline = true;
+	} else if (l1_scaled_tsc < vmx->nested.preemption_timer_deadline)
+		timer_value = vmx->nested.preemption_timer_deadline -
+			      l1_scaled_tsc;
+	return timer_value;
+}
+
+static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu,
+					u64 preemption_timeout)
+{
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
 	/*
@@ -3348,8 +3368,10 @@ enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
 	 * the timer.
 	 */
 	vmx->nested.preemption_timer_expired = false;
-	if (nested_cpu_has_preemption_timer(vmcs12))
-		vmx_start_preemption_timer(vcpu);
+	if (nested_cpu_has_preemption_timer(vmcs12)) {
+		u64 timer_value = vmx_calc_preemption_timer_value(vcpu);
+		vmx_start_preemption_timer(vcpu, timer_value);
+	}
 
 	/*
 	 * Note no nested_vmx_succeed or nested_vmx_fail here. At this point
@@ -3457,6 +3479,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * the nested entry.
 	 */
 	vmx->nested.nested_run_pending = 1;
+	vmx->nested.has_preemption_timer_deadline = false;
 	status = nested_vmx_enter_non_root_mode(vcpu, true);
 	if (unlikely(status != NVMX_VMENTRY_SUCCESS))
 		goto vmentry_failed;
@@ -3957,9 +3980,10 @@ static void sync_vmcs02_to_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 		vmcs12->guest_activity_state = GUEST_ACTIVITY_ACTIVE;
 
 	if (nested_cpu_has_preemption_timer(vmcs12) &&
-	    vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER)
-			vmcs12->vmx_preemption_timer_value =
-				vmx_get_preemption_timer_value(vcpu);
+	    vmcs12->vm_exit_controls & VM_EXIT_SAVE_VMX_PREEMPTION_TIMER &&
+	    !vmx->nested.nested_run_pending)
+		vmcs12->vmx_preemption_timer_value =
+			vmx_get_preemption_timer_value(vcpu);
 
 	/*
 	 * In some cases (usually, nested EPT), L2 is allowed to change its
@@ -5891,8 +5915,10 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 		.flags = 0,
 		.format = KVM_STATE_NESTED_FORMAT_VMX,
 		.size = sizeof(kvm_state),
+		.hdr.vmx.flags = 0,
 		.hdr.vmx.vmxon_pa = -1ull,
 		.hdr.vmx.vmcs12_pa = -1ull,
+		.hdr.vmx.preemption_timer_deadline = 0,
 	};
 	struct kvm_vmx_nested_state_data __user *user_vmx_nested_state =
 		&user_kvm_nested_state->data.vmx[0];
@@ -5934,6 +5960,14 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 
 			if (vmx->nested.mtf_pending)
 				kvm_state.flags |= KVM_STATE_NESTED_MTF_PENDING;
+
+			if (nested_cpu_has_preemption_timer(vmcs12) &&
+			    vmx->nested.has_preemption_timer_deadline) {
+				kvm_state.hdr.vmx.flags |=
+					KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE;
+				kvm_state.hdr.vmx.preemption_timer_deadline =
+					vmx->nested.preemption_timer_deadline;
+			}
 		}
 	}
 
@@ -5979,7 +6013,6 @@ static int vmx_get_nested_state(struct kvm_vcpu *vcpu,
 				 get_shadow_vmcs12(vcpu), VMCS12_SIZE))
 			return -EFAULT;
 	}
-
 out:
 	return kvm_state.size;
 }
@@ -6139,6 +6172,12 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		if (shadow_vmcs12->hdr.revision_id != VMCS12_REVISION ||
 		    !shadow_vmcs12->hdr.shadow_vmcs)
 			goto error_guest_mode;
+	}
+
+	if (kvm_state->hdr.vmx.flags & KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE) {
+		vmx->nested.has_preemption_timer_deadline = true;
+		vmx->nested.preemption_timer_deadline =
+			kvm_state->hdr.vmx.preemption_timer_deadline;
 	}
 
 	if (nested_vmx_check_controls(vcpu, vmcs12) ||

@@ -169,6 +169,8 @@ struct nested_vmx {
 	u16 posted_intr_nv;
 
 	struct hrtimer preemption_timer;
+	u64 preemption_timer_deadline;
+	bool has_preemption_timer_deadline;
 	bool preemption_timer_expired;
 
 	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
