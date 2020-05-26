@@ -1167,27 +1167,11 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
-	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high & 0xff));
 	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low & 0xff));
 	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
 
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
-
-	return 0;
-}
-
-static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t val = 0;
-
-	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTH_CLR__SHIFT);
-	val |= (1 << THM_THERMAL_INT_ENA__THERM_INTL_CLR__SHIFT);
-	val |= (1 << THM_THERMAL_INT_ENA__THERM_TRIGGER_CLR__SHIFT);
-
-	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, val);
 
 	return 0;
 }
@@ -1209,7 +1193,7 @@ int smu_v11_0_start_thermal_control(struct smu_context *smu)
 		if (ret)
 			return ret;
 
-		ret = smu_v11_0_enable_thermal_alert(smu);
+		ret = amdgpu_irq_get(adev, smu->irq_source, 0);
 		if (ret)
 			return ret;
 
@@ -1233,11 +1217,7 @@ int smu_v11_0_start_thermal_control(struct smu_context *smu)
 
 int smu_v11_0_stop_thermal_control(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
-
-	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, 0);
-
-	return 0;
+	return amdgpu_irq_put(smu->adev, smu->irq_source, 0);
 }
 
 static uint16_t convert_to_vddc(uint8_t vid)
@@ -1508,6 +1488,59 @@ int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
+				   struct amdgpu_irq_src *source,
+				   unsigned tyep,
+				   enum amdgpu_interrupt_state state)
+{
+	uint32_t val = 0;
+
+	switch (state) {
+	case AMDGPU_IRQ_STATE_DISABLE:
+		/* For THM irqs */
+		val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 1);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 1);
+		WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
+
+		WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, 0);
+
+		/* For MP1 SW irqs */
+		val = RREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL);
+		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 1);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL, val);
+
+		break;
+	case AMDGPU_IRQ_STATE_ENABLE:
+		/* For THM irqs */
+		val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
+		val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
+		WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
+
+		val = (1 << THM_THERMAL_INT_ENA__THERM_INTH_CLR__SHIFT);
+		val |= (1 << THM_THERMAL_INT_ENA__THERM_INTL_CLR__SHIFT);
+		val |= (1 << THM_THERMAL_INT_ENA__THERM_TRIGGER_CLR__SHIFT);
+		WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_ENA, val);
+
+		/* For MP1 SW irqs */
+		val = RREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT);
+		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, ID, 0xFE);
+		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT, VALID, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT, val);
+
+		val = RREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL);
+		val = REG_SET_FIELD(val, MP1_SMN_IH_SW_INT_CTRL, INT_MASK, 0);
+		WREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL, val);
+
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
 {
 	return smu_send_smc_msg(smu,
@@ -1593,6 +1626,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 
 static const struct amdgpu_irq_src_funcs smu_v11_0_irq_funcs =
 {
+	.set = smu_v11_0_set_irq_state,
 	.process = smu_v11_0_irq_process,
 };
 
@@ -1611,6 +1645,7 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 		return -ENOMEM;
 	smu->irq_source = irq_src;
 
+	irq_src->num_types = 1;
 	irq_src->funcs = &smu_v11_0_irq_funcs;
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
