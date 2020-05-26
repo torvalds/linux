@@ -459,7 +459,7 @@ static bool mmc35240_is_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static struct reg_default mmc35240_reg_defaults[] = {
+static const struct reg_default mmc35240_reg_defaults[] = {
 	{ MMC35240_REG_CTRL0,  0x00 },
 	{ MMC35240_REG_CTRL1,  0x00 },
 };
