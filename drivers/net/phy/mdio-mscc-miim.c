@@ -43,12 +43,8 @@ static int mscc_miim_wait_ready(struct mii_bus *bus)
 	struct mscc_miim_dev *miim = bus->priv;
 	u32 val;
 
-	readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
-			   !(val & MSCC_MIIM_STATUS_STAT_BUSY), 50, 10000);
-	if (val & MSCC_MIIM_STATUS_STAT_BUSY)
-		return -ETIMEDOUT;
-
-	return 0;
+	return readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
+				  !(val & MSCC_MIIM_STATUS_STAT_BUSY), 50, 10000);
 }
 
 static int mscc_miim_read(struct mii_bus *bus, int mii_id, int regnum)
