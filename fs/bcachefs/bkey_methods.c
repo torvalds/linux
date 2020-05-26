@@ -176,13 +176,17 @@ void bch2_bpos_to_text(struct printbuf *out, struct bpos pos)
 
 void bch2_bkey_to_text(struct printbuf *out, const struct bkey *k)
 {
-	pr_buf(out, "u64s %u type %s ", k->u64s,
-	       bch2_bkey_types[k->type]);
+	if (k) {
+		pr_buf(out, "u64s %u type %s ", k->u64s,
+		       bch2_bkey_types[k->type]);
 
-	bch2_bpos_to_text(out, k->p);
+		bch2_bpos_to_text(out, k->p);
 
-	pr_buf(out, " snap %u len %u ver %llu",
-	       k->p.snapshot, k->size, k->version.lo);
+		pr_buf(out, " snap %u len %u ver %llu",
+		       k->p.snapshot, k->size, k->version.lo);
+	} else {
+		pr_buf(out, "(null)");
+	}
 }
 
 void bch2_val_to_text(struct printbuf *out, struct bch_fs *c,
@@ -198,8 +202,11 @@ void bch2_bkey_val_to_text(struct printbuf *out, struct bch_fs *c,
 			   struct bkey_s_c k)
 {
 	bch2_bkey_to_text(out, k.k);
-	pr_buf(out, ": ");
-	bch2_val_to_text(out, c, k);
+
+	if (k.k) {
+		pr_buf(out, ": ");
+		bch2_val_to_text(out, c, k);
+	}
 }
 
 void bch2_bkey_swab_val(struct bkey_s k)
