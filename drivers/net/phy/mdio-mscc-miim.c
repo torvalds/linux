@@ -44,7 +44,7 @@ static int mscc_miim_wait_ready(struct mii_bus *bus)
 	u32 val;
 
 	readl_poll_timeout(miim->regs + MSCC_MIIM_REG_STATUS, val,
-			   !(val & MSCC_MIIM_STATUS_STAT_BUSY), 100, 250000);
+			   !(val & MSCC_MIIM_STATUS_STAT_BUSY), 50, 10000);
 	if (val & MSCC_MIIM_STATUS_STAT_BUSY)
 		return -ETIMEDOUT;
 
