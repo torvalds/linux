@@ -694,17 +694,21 @@ static void nh_group_rebalance(struct nh_group *nhg)
 	}
 }
 
-static void remove_nh_grp_entry(struct nh_grp_entry *nhge,
-				struct nh_group *nhg,
+static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 				struct nl_info *nlinfo)
 {
+	struct nexthop *nhp = nhge->nh_parent;
 	struct nexthop *nh = nhge->nh;
 	struct nh_grp_entry *nhges;
+	struct nh_group *nhg;
 	bool found = false;
 	int i;
 
 	WARN_ON(!nh);
 
+	list_del(&nhge->nh_list);
+
+	nhg = rtnl_dereference(nhp->nh_grp);
 	nhges = nhg->nh_entries;
 	for (i = 0; i < nhg->num_nh; ++i) {
 		if (found) {
@@ -728,7 +732,11 @@ static void remove_nh_grp_entry(struct nh_grp_entry *nhge,
 	nexthop_put(nh);
 
 	if (nlinfo)
-		nexthop_notify(RTM_NEWNEXTHOP, nhge->nh_parent, nlinfo);
+		nexthop_notify(RTM_NEWNEXTHOP, nhp, nlinfo);
+
+	/* if this group has no more entries then remove it */
+	if (!nhg->num_nh)
+		remove_nexthop(net, nhp, nlinfo);
 }
 
 static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
@@ -736,17 +744,8 @@ static void remove_nexthop_from_groups(struct net *net, struct nexthop *nh,
 {
 	struct nh_grp_entry *nhge, *tmp;
 
-	list_for_each_entry_safe(nhge, tmp, &nh->grp_list, nh_list) {
-		struct nh_group *nhg;
-
-		list_del(&nhge->nh_list);
-		nhg = rtnl_dereference(nhge->nh_parent->nh_grp);
-		remove_nh_grp_entry(nhge, nhg, nlinfo);
-
-		/* if this group has no more entries then remove it */
-		if (!nhg->num_nh)
-			remove_nexthop(net, nhge->nh_parent, nlinfo);
-	}
+	list_for_each_entry_safe(nhge, tmp, &nh->grp_list, nh_list)
+		remove_nh_grp_entry(net, nhge, nlinfo);
 }
 
 static void remove_nexthop_group(struct nexthop *nh, struct nl_info *nlinfo)
