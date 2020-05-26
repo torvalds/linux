@@ -183,6 +183,7 @@ struct qed_rdma_qp {
 	void *shared_queue;
 	dma_addr_t shared_queue_phys_addr;
 	struct qed_iwarp_ep *ep;
+	u8 edpm_mode;
 };
 
 static inline bool qed_rdma_is_xrc_qp(struct qed_rdma_qp *qp)

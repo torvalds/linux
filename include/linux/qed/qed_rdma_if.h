@@ -335,6 +335,9 @@ struct qed_rdma_create_qp_in_params {
 	u16 xrcd_id;
 	u8 stats_queue;
 	enum qed_rdma_qp_type qp_type;
+	u8 flags;
+#define QED_ROCE_EDPM_MODE_MASK      0x1
+#define QED_ROCE_EDPM_MODE_SHIFT     0
 };
 
 struct qed_rdma_create_qp_out_params {

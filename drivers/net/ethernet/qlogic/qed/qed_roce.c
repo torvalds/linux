@@ -459,6 +459,9 @@ static int qed_roce_sp_create_requester(struct qed_hwfn *p_hwfn,
 		  ROCE_CREATE_QP_REQ_RAMROD_DATA_XRC_FLAG,
 		  qed_rdma_is_xrc_qp(qp));
 
+	SET_FIELD(p_ramrod->flags2,
+		  ROCE_CREATE_QP_REQ_RAMROD_DATA_EDPM_MODE, qp->edpm_mode);
+
 	p_ramrod->max_ord = qp->max_rd_atomic_req;
 	p_ramrod->traffic_class = qp->traffic_class_tos;
 	p_ramrod->hop_limit = qp->hop_limit_ttl;

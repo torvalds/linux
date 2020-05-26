@@ -1378,6 +1378,7 @@ qed_rdma_create_qp(void *rdma_cxt,
 		rc = qed_iwarp_create_qp(p_hwfn, qp, out_params);
 		qp->qpid = qp->icid;
 	} else {
+		qp->edpm_mode = GET_FIELD(in_params->flags, QED_ROCE_EDPM_MODE);
 		rc = qed_roce_alloc_cid(p_hwfn, &qp->icid);
 		qp->qpid = ((0xFF << 16) | qp->icid);
 	}
