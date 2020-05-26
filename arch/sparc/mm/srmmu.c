@@ -364,9 +364,13 @@ pgtable_t pte_alloc_one(struct mm_struct *mm)
 	if ((ptep = pte_alloc_one_kernel(mm)) == 0)
 		return NULL;
 	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
-	if (!pgtable_pte_page_ctor(page)) {
-		return NULL;
+	spin_lock(&mm->page_table_lock);
+	if (page_ref_inc_return(page) == 2 && !pgtable_pte_page_ctor(page)) {
+		page_ref_dec(page);
+		ptep = NULL;
 	}
+	spin_unlock(&mm->page_table_lock);
+
 	return ptep;
 }
 
@@ -375,7 +379,11 @@ void pte_free(struct mm_struct *mm, pgtable_t ptep)
 	struct page *page;
 
 	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
-	pgtable_pte_page_dtor(page);
+	spin_lock(&mm->page_table_lock);
+	if (page_ref_dec_return(page) == 1)
+		pgtable_pte_page_dtor(page);
+	spin_unlock(&mm->page_table_lock);
+
 	srmmu_free_nocache(ptep, SRMMU_PTE_TABLE_SIZE);
 }
 
