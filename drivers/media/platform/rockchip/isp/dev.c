@@ -41,6 +41,7 @@
 #include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regmap.h>
@@ -867,6 +868,24 @@ err:
 	return ret;
 }
 
+static inline bool is_iommu_enable(struct device *dev)
+{
+	struct device_node *iommu;
+
+	iommu = of_parse_phandle(dev->of_node, "iommus", 0);
+	if (!iommu) {
+		dev_info(dev, "no iommu attached, using non-iommu buffers\n");
+		return false;
+	} else if (!of_device_is_available(iommu)) {
+		dev_info(dev, "iommu is disabled, using non-iommu buffers\n");
+		of_node_put(iommu);
+		return false;
+	}
+	of_node_put(iommu);
+
+	return true;
+}
+
 static int rkisp_vs_irq_parse(struct platform_device *pdev)
 {
 	int ret;
@@ -1074,6 +1093,13 @@ static int rkisp_plat_probe(struct platform_device *pdev)
 	ret = rkisp_register_platform_subdevs(isp_dev);
 	if (ret < 0)
 		goto err_unreg_media_dev;
+
+	if (!is_iommu_enable(dev)) {
+		ret = of_reserved_mem_device_init(dev);
+		if (ret)
+			v4l2_warn(v4l2_dev,
+				  "No reserved memory region assign to isp\n");
+	}
 
 	pm_runtime_enable(&pdev->dev);
 
