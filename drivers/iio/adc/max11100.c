@@ -37,7 +37,7 @@ struct max11100_state {
 	u8 buffer[3] ____cacheline_aligned;
 };
 
-static struct iio_chan_spec max11100_channels[] = {
+static const struct iio_chan_spec max11100_channels[] = {
 	{ /* [0] */
 		.type = IIO_VOLTAGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
