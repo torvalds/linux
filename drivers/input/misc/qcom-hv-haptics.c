@@ -58,6 +58,7 @@
 #define DEFAULT_VMAX_MV				5000
 
 #define HAP_CFG_DRV_WF_SEL_REG			0x49
+#define DRV_WF_FMT_BIT				BIT(4)
 #define DRV_WF_SEL_MASK				GENMASK(1, 0)
 
 #define HAP_CFG_AUTO_SHUTDOWN_CFG_REG		0x4A
@@ -1878,6 +1879,12 @@ static int haptics_hw_init(struct haptics_chip *chip)
 
 	/* Config T_LRA */
 	rc = haptics_config_openloop_lra_period(chip, chip->config.cl_t_lra_us);
+	if (rc < 0)
+		return rc;
+
+	/* Config to use 2's complement values for sample data */
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_DRV_WF_SEL_REG, DRV_WF_FMT_BIT, 0);
 	if (rc < 0)
 		return rc;
 
