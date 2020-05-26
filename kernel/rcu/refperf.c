@@ -283,7 +283,7 @@ end:
 	return 0;
 }
 
-void reset_readers(void)
+static void reset_readers(void)
 {
 	int i;
 	struct reader_task *rt;
@@ -296,7 +296,7 @@ void reset_readers(void)
 }
 
 // Print the results of each reader and return the sum of all their durations.
-u64 process_durations(int n)
+static u64 process_durations(int n)
 {
 	int i;
 	struct reader_task *rt;
