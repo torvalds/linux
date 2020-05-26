@@ -277,6 +277,12 @@
 		#size-cells = <1>;
 		ranges;
 
+		isp_reserved: isp {
+			compatible = "shared-dma-pool";
+			reusable;
+			size = <0x6800000>;
+		};
+
 		ramoops: ramoops@8000000 {
 			compatible = "ramoops";
 			reg = <0x8000000 0x100000>;
@@ -1586,7 +1592,8 @@
 		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>;
 		assigned-clock-rates = <500000000>, <250000000>;
 		power-domains = <&power RV1126_PD_VI>;
-		iommus = <&rkisp_mmu>;
+		/* iommus = <&rkisp_mmu>; */
+		memory-region = <&isp_reserved>;
 		status = "disabled";
 	};
 
