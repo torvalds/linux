@@ -264,7 +264,7 @@ install_pkgconfig: $(PC_FILE)
 	$(call QUIET_INSTALL, $(PC_FILE)) \
 		$(call do_install,$(PC_FILE),$(libdir_SQ)/pkgconfig,644)
 
-install: install_lib install_pkgconfig
+install: install_lib install_pkgconfig install_headers
 
 ### Cleaning rules
 
