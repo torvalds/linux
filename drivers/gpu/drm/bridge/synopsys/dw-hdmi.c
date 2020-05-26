@@ -2317,6 +2317,10 @@ static void dw_hdmi_update_phy_mask(struct dw_hdmi *hdmi)
 					  hdmi->rxsense);
 }
 
+/* -----------------------------------------------------------------------------
+ * DRM Connector Operations
+ */
+
 static enum drm_connector_status
 dw_hdmi_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -2437,6 +2441,59 @@ static const struct drm_connector_helper_funcs dw_hdmi_connector_helper_funcs = 
 	.get_modes = dw_hdmi_connector_get_modes,
 	.atomic_check = dw_hdmi_connector_atomic_check,
 };
+
+static int dw_hdmi_connector_create(struct dw_hdmi *hdmi)
+{
+	struct drm_connector *connector = &hdmi->connector;
+	struct cec_connector_info conn_info;
+	struct cec_notifier *notifier;
+
+	if (hdmi->version >= 0x200a)
+		connector->ycbcr_420_allowed =
+			hdmi->plat_data->ycbcr_420_allowed;
+	else
+		connector->ycbcr_420_allowed = false;
+
+	connector->interlace_allowed = 1;
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
+
+	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
+
+	drm_connector_init_with_ddc(hdmi->bridge.dev, connector,
+				    &dw_hdmi_connector_funcs,
+				    DRM_MODE_CONNECTOR_HDMIA,
+				    hdmi->ddc);
+
+	/*
+	 * drm_connector_attach_max_bpc_property() requires the
+	 * connector to have a state.
+	 */
+	drm_atomic_helper_connector_reset(connector);
+
+	drm_connector_attach_max_bpc_property(connector, 8, 16);
+
+	if (hdmi->version >= 0x200a && hdmi->plat_data->use_drm_infoframe)
+		drm_object_attach_property(&connector->base,
+			connector->dev->mode_config.hdr_output_metadata_property, 0);
+
+	drm_connector_attach_encoder(connector, hdmi->bridge.encoder);
+
+	cec_fill_conn_info_from_drm(&conn_info, connector);
+
+	notifier = cec_notifier_conn_register(hdmi->dev, NULL, &conn_info);
+	if (!notifier)
+		return -ENOMEM;
+
+	mutex_lock(&hdmi->cec_notifier_mutex);
+	hdmi->cec_notifier = notifier;
+	mutex_unlock(&hdmi->cec_notifier_mutex);
+
+	return 0;
+}
+
+/* -----------------------------------------------------------------------------
+ * DRM Bridge Operations
+ */
 
 /*
  * Possible output formats :
@@ -2713,51 +2770,13 @@ static int dw_hdmi_bridge_attach(struct drm_bridge *bridge,
 				 enum drm_bridge_attach_flags flags)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;
-	struct drm_encoder *encoder = bridge->encoder;
-	struct drm_connector *connector = &hdmi->connector;
-	struct cec_connector_info conn_info;
-	struct cec_notifier *notifier;
 
 	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR) {
 		DRM_ERROR("Fix bridge driver to make connector optional!");
 		return -EINVAL;
 	}
 
-	connector->interlace_allowed = 1;
-	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	drm_connector_helper_add(connector, &dw_hdmi_connector_helper_funcs);
-
-	drm_connector_init_with_ddc(bridge->dev, connector,
-				    &dw_hdmi_connector_funcs,
-				    DRM_MODE_CONNECTOR_HDMIA,
-				    hdmi->ddc);
-
-	/*
-	 * drm_connector_attach_max_bpc_property() requires the
-	 * connector to have a state.
-	 */
-	drm_atomic_helper_connector_reset(connector);
-
-	drm_connector_attach_max_bpc_property(connector, 8, 16);
-
-	if (hdmi->version >= 0x200a && hdmi->plat_data->use_drm_infoframe)
-		drm_object_attach_property(&connector->base,
-			connector->dev->mode_config.hdr_output_metadata_property, 0);
-
-	drm_connector_attach_encoder(connector, encoder);
-
-	cec_fill_conn_info_from_drm(&conn_info, connector);
-
-	notifier = cec_notifier_conn_register(hdmi->dev, NULL, &conn_info);
-	if (!notifier)
-		return -ENOMEM;
-
-	mutex_lock(&hdmi->cec_notifier_mutex);
-	hdmi->cec_notifier = notifier;
-	mutex_unlock(&hdmi->cec_notifier_mutex);
-
-	return 0;
+	return dw_hdmi_connector_create(hdmi);
 }
 
 static void dw_hdmi_bridge_detach(struct drm_bridge *bridge)
@@ -2840,6 +2859,10 @@ static const struct drm_bridge_funcs dw_hdmi_bridge_funcs = {
 	.mode_set = dw_hdmi_bridge_mode_set,
 	.mode_valid = dw_hdmi_bridge_mode_valid,
 };
+
+/* -----------------------------------------------------------------------------
+ * IRQ Handling
+ */
 
 static irqreturn_t dw_hdmi_i2c_irq(struct dw_hdmi *hdmi)
 {
@@ -3302,12 +3325,6 @@ __dw_hdmi_probe(struct platform_device *pdev,
 #ifdef CONFIG_OF
 	hdmi->bridge.of_node = pdev->dev.of_node;
 #endif
-
-	if (hdmi->version >= 0x200a)
-		hdmi->connector.ycbcr_420_allowed =
-			hdmi->plat_data->ycbcr_420_allowed;
-	else
-		hdmi->connector.ycbcr_420_allowed = false;
 
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	pdevinfo.parent = dev;
