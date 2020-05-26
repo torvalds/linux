@@ -457,33 +457,15 @@ do {									\
 /*
  * Check whether bios must be queued in the device-mapper core rather
  * than here in the target.
- *
- * If MPATHF_QUEUE_IF_NO_PATH and MPATHF_SAVED_QUEUE_IF_NO_PATH hold
- * the same value then we are not between multipath_presuspend()
- * and multipath_resume() calls and we have no need to check
- * for the DMF_NOFLUSH_SUSPENDING flag.
  */
-static bool __must_push_back(struct multipath *m, unsigned long flags)
+static bool __must_push_back(struct multipath *m)
 {
-	return ((test_bit(MPATHF_QUEUE_IF_NO_PATH, &flags) !=
-		 test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &flags)) &&
-		dm_noflush_suspending(m->ti));
+	return dm_noflush_suspending(m->ti);
 }
 
-/*
- * Following functions use READ_ONCE to get atomic access to
- * all m->flags to avoid taking spinlock
- */
 static bool must_push_back_rq(struct multipath *m)
 {
-	unsigned long flags = READ_ONCE(m->flags);
-	return test_bit(MPATHF_QUEUE_IF_NO_PATH, &flags) || __must_push_back(m, flags);
-}
-
-static bool must_push_back_bio(struct multipath *m)
-{
-	unsigned long flags = READ_ONCE(m->flags);
-	return __must_push_back(m, flags);
+	return test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) || __must_push_back(m);
 }
 
 /*
@@ -620,7 +602,7 @@ static int __multipath_map_bio(struct multipath *m, struct bio *bio,
 		return DM_MAPIO_SUBMITTED;
 
 	if (!pgpath) {
-		if (must_push_back_bio(m))
+		if (__must_push_back(m))
 			return DM_MAPIO_REQUEUE;
 		dm_report_EIO(m);
 		return DM_MAPIO_KILL;
@@ -1642,7 +1624,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 
 	if (atomic_read(&m->nr_valid_paths) == 0 &&
 	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
-		if (must_push_back_bio(m)) {
+		if (__must_push_back(m)) {
 			r = DM_ENDIO_REQUEUE;
 		} else {
 			dm_report_EIO(m);
