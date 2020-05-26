@@ -118,10 +118,10 @@ static inline int smu_send_smc_msg(struct smu_context *smu, enum smu_message_typ
 	((smu)->ppt_funcs->tables_init ? (smu)->ppt_funcs->tables_init((smu), (tab)) : 0)
 #define smu_set_thermal_fan_table(smu) \
 	((smu)->ppt_funcs->set_thermal_fan_table ? (smu)->ppt_funcs->set_thermal_fan_table((smu)) : 0)
-#define smu_start_thermal_control(smu) \
-	((smu)->ppt_funcs->start_thermal_control? (smu)->ppt_funcs->start_thermal_control((smu)) : 0)
-#define smu_stop_thermal_control(smu) \
-	((smu)->ppt_funcs->stop_thermal_control? (smu)->ppt_funcs->stop_thermal_control((smu)) : 0)
+#define smu_enable_thermal_alert(smu) \
+	((smu)->ppt_funcs->enable_thermal_alert? (smu)->ppt_funcs->enable_thermal_alert((smu)) : 0)
+#define smu_disable_thermal_alert(smu) \
+	((smu)->ppt_funcs->disable_thermal_alert? (smu)->ppt_funcs->disable_thermal_alert((smu)) : 0)
 
 #define smu_smc_read_sensor(smu, sensor, data, size) \
 	((smu)->ppt_funcs->read_sensor? (smu)->ppt_funcs->read_sensor((smu), (sensor), (data), (size)) : -EINVAL)

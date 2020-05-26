@@ -207,9 +207,9 @@ int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
 
-int smu_v11_0_start_thermal_control(struct smu_context *smu);
+int smu_v11_0_enable_thermal_alert(struct smu_context *smu);
 
-int smu_v11_0_stop_thermal_control(struct smu_context *smu);
+int smu_v11_0_disable_thermal_alert(struct smu_context *smu);
 
 int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,

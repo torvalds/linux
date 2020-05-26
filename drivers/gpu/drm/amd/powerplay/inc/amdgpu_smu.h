@@ -530,8 +530,8 @@ struct pptable_funcs {
 	int (*set_power_limit)(struct smu_context *smu, uint32_t n);
 	int (*get_current_clk_freq)(struct smu_context *smu, enum smu_clk_type clk_id, uint32_t *value);
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
-	int (*start_thermal_control)(struct smu_context *smu);
-	int (*stop_thermal_control)(struct smu_context *smu);
+	int (*enable_thermal_alert)(struct smu_context *smu);
+	int (*disable_thermal_alert)(struct smu_context *smu);
 	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
 	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
 	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,

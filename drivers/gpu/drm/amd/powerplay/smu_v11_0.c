@@ -1176,7 +1176,7 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	return 0;
 }
 
-int smu_v11_0_start_thermal_control(struct smu_context *smu)
+int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
 	struct smu_temperature_range range;
@@ -1215,7 +1215,7 @@ int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v11_0_stop_thermal_control(struct smu_context *smu)
+int smu_v11_0_disable_thermal_alert(struct smu_context *smu)
 {
 	return amdgpu_irq_put(smu->adev, smu->irq_source, 0);
 }
