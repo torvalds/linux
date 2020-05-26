@@ -143,19 +143,6 @@ void wfx_tx_queues_put(struct wfx_dev *wdev, struct sk_buff *skb)
 		skb_queue_tail(&queue->normal, skb);
 }
 
-int wfx_pending_requeue(struct wfx_dev *wdev, struct sk_buff *skb)
-{
-	struct wfx_queue *queue = &wdev->tx_queue[skb_get_queue_mapping(skb)];
-
-	WARN_ON(skb_get_queue_mapping(skb) > 3);
-	WARN_ON(!atomic_read(&queue->pending_frames));
-
-	atomic_dec(&queue->pending_frames);
-	skb_unlink(skb, &wdev->tx_pending);
-	wfx_tx_queues_put(wdev, skb);
-	return 0;
-}
-
 void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 {
 	struct wfx_queue *queue;
