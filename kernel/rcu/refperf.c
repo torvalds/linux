@@ -252,14 +252,15 @@ repeat:
 	// Make sure that the CPU is affinitized appropriately during testing.
 	WARN_ON_ONCE(smp_processor_id() != me);
 
+	smp_mb__before_atomic();
 	atomic_dec(&rt->start);
+
+	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d started", me, exp_idx);
 
 	// To prevent noise, keep interrupts disabled. This also has the
 	// effect of preventing entries into slow path for rcu_read_unlock().
 	local_irq_save(flags);
 	start = ktime_get_mono_fast_ns();
-
-	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d started", me, exp_idx);
 
 	cur_ops->readsection(loops);
 
@@ -268,13 +269,11 @@ repeat:
 
 	rt->last_duration_ns = WARN_ON_ONCE(duration < 0) ? 0 : duration;
 
-	atomic_dec(&nreaders_exp);
+	if (atomic_dec_and_test(&nreaders_exp))
+		wake_up(&main_wq);
 
 	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d ended, (readers remaining=%d)",
 			me, exp_idx, atomic_read(&nreaders_exp));
-
-	if (!atomic_read(&nreaders_exp))
-		wake_up(&main_wq);
 
 	if (!torture_must_stop())
 		goto repeat;
