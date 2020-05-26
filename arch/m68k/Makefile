@@ -70,9 +70,8 @@ ifdef CONFIG_MMU
 KBUILD_CFLAGS += -fno-strength-reduce -ffixed-a2
 else
 # we can use a m68k-linux-gcc toolchain with these in place
-KBUILD_CFLAGS += -DUTS_SYSNAME=\"uClinux\"
-KBUILD_CFLAGS += -D__uClinux__
-KBUILD_AFLAGS += -D__uClinux__
+KBUILD_CPPFLAGS += -DUTS_SYSNAME=\"uClinux\"
+KBUILD_CPPFLAGS += -D__uClinux__
 endif
 
 KBUILD_LDFLAGS := -m m68kelf
