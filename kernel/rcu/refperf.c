@@ -301,9 +301,12 @@ u64 process_durations(int n)
 	int i;
 	struct reader_task *rt;
 	char buf1[64];
-	char buf[512];
+	char *buf;
 	u64 sum = 0;
 
+	buf = kmalloc(128 + nreaders * 32, GFP_KERNEL);
+	if (!buf)
+		return 0;
 	buf[0] = 0;
 	sprintf(buf, "Experiment #%d (Format: <THREAD-NUM>:<Total loop time in ns>)",
 		exp_idx);
@@ -322,6 +325,7 @@ u64 process_durations(int n)
 
 	PERFOUT("%s\n", buf);
 
+	kfree(buf);
 	return sum;
 }
 
