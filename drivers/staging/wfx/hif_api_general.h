@@ -201,9 +201,10 @@ struct hif_cnf_control_gpio {
 } __packed;
 
 enum hif_generic_indication_type {
-	HIF_GENERIC_INDICATION_TYPE_RAW      = 0x0,
-	HIF_GENERIC_INDICATION_TYPE_STRING   = 0x1,
-	HIF_GENERIC_INDICATION_TYPE_RX_STATS = 0x2
+	HIF_GENERIC_INDICATION_TYPE_RAW                = 0x0,
+	HIF_GENERIC_INDICATION_TYPE_STRING             = 0x1,
+	HIF_GENERIC_INDICATION_TYPE_RX_STATS           = 0x2,
+	HIF_GENERIC_INDICATION_TYPE_TX_POWER_LOOP_INFO = 0x3,
 };
 
 struct hif_rx_stats {
@@ -222,8 +223,19 @@ struct hif_rx_stats {
 	s8     current_temp;
 } __packed;
 
+struct hif_tx_power_loop_info {
+	__le16 tx_gain_dig;
+	__le16 tx_gain_pa;
+	__le16 target_pout; // signed value
+	__le16 p_estimation; // signed value
+	__le16 vpdet;
+	u8     measurement_index;
+	u8     reserved;
+} __packed;
+
 union hif_indication_data {
 	struct hif_rx_stats rx_stats;
+	struct hif_tx_power_loop_info tx_power_loop_info;
 	u8     raw_data[1];
 };
 

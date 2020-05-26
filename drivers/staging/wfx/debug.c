@@ -178,6 +178,30 @@ static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(wfx_rx_stats);
 
+static int wfx_tx_power_loop_show(struct seq_file *seq, void *v)
+{
+	struct wfx_dev *wdev = seq->private;
+	struct hif_tx_power_loop_info *st = &wdev->tx_power_loop_info;
+	int tmp;
+
+	mutex_lock(&wdev->tx_power_loop_info_lock);
+	tmp = le16_to_cpu(st->tx_gain_dig);
+	seq_printf(seq, "Tx gain digital: %d\n", tmp);
+	tmp = le16_to_cpu(st->tx_gain_pa);
+	seq_printf(seq, "Tx gain PA: %d\n", tmp);
+	tmp = (s16)le16_to_cpu(st->target_pout);
+	seq_printf(seq, "Target Pout: %d.%02d dBm\n", tmp / 4, (tmp % 4) * 25);
+	tmp = (s16)le16_to_cpu(st->p_estimation);
+	seq_printf(seq, "FEM Pout: %d.%02d dBm\n", tmp / 4, (tmp % 4) * 25);
+	tmp = le16_to_cpu(st->vpdet);
+	seq_printf(seq, "Vpdet: %d mV\n", tmp);
+	seq_printf(seq, "Measure index: %d\n", st->measurement_index);
+	mutex_unlock(&wdev->tx_power_loop_info_lock);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(wfx_tx_power_loop);
+
 static ssize_t wfx_send_pds_write(struct file *file,
 				  const char __user *user_buf,
 				  size_t count, loff_t *ppos)
@@ -317,6 +341,8 @@ int wfx_debug_init(struct wfx_dev *wdev)
 	d = debugfs_create_dir("wfx", wdev->hw->wiphy->debugfsdir);
 	debugfs_create_file("counters", 0444, d, wdev, &wfx_counters_fops);
 	debugfs_create_file("rx_stats", 0444, d, wdev, &wfx_rx_stats_fops);
+	debugfs_create_file("tx_power_loop", 0444, d, wdev,
+			    &wfx_tx_power_loop_fops);
 	debugfs_create_file("send_pds", 0200, d, wdev, &wfx_send_pds_fops);
 	debugfs_create_file("burn_slk_key", 0200, d, wdev,
 			    &wfx_burn_slk_key_fops);

@@ -274,6 +274,7 @@ static void wfx_free_common(void *data)
 {
 	struct wfx_dev *wdev = data;
 
+	mutex_destroy(&wdev->tx_power_loop_info_lock);
 	mutex_destroy(&wdev->rx_stats_lock);
 	mutex_destroy(&wdev->conf_mutex);
 	ieee80211_free_hw(wdev->hw);
@@ -344,6 +345,7 @@ struct wfx_dev *wfx_init_common(struct device *dev,
 
 	mutex_init(&wdev->conf_mutex);
 	mutex_init(&wdev->rx_stats_lock);
+	mutex_init(&wdev->tx_power_loop_info_lock);
 	init_completion(&wdev->firmware_ready);
 	INIT_DELAYED_WORK(&wdev->cooling_timeout_work,
 			  wfx_cooling_timeout_work);

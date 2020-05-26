@@ -278,6 +278,13 @@ static int hif_generic_indication(struct wfx_dev *wdev,
 		       sizeof(wdev->rx_stats));
 		mutex_unlock(&wdev->rx_stats_lock);
 		return 0;
+	case HIF_GENERIC_INDICATION_TYPE_TX_POWER_LOOP_INFO:
+		mutex_lock(&wdev->tx_power_loop_info_lock);
+		memcpy(&wdev->tx_power_loop_info,
+		       &body->indication_data.tx_power_loop_info,
+		       sizeof(wdev->tx_power_loop_info));
+		mutex_unlock(&wdev->tx_power_loop_info_lock);
+		return 0;
 	default:
 		dev_err(wdev->dev, "generic_indication: unknown indication type: %#.8x\n",
 			type);
