@@ -236,16 +236,16 @@ err_cmd:
 	return err;
 }
 
-int mlx5_core_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
-			u32 *in, int inlen)
+int mlx5_qpc_create_qp(struct mlx5_ib_dev *dev, struct mlx5_core_qp *qp,
+		       u32 *in, int inlen, u32 *out)
 {
-	u32 out[MLX5_ST_SZ_DW(create_qp_out)] = {};
 	u32 din[MLX5_ST_SZ_DW(destroy_qp_in)] = {};
 	int err;
 
 	MLX5_SET(create_qp_in, in, opcode, MLX5_CMD_OP_CREATE_QP);
 
-	err = mlx5_cmd_exec(dev->mdev, in, inlen, out, sizeof(out));
+	err = mlx5_cmd_exec(dev->mdev, in, inlen, out,
+			    MLX5_ST_SZ_BYTES(create_qp_out));
 	if (err)
 		return err;
 
