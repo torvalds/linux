@@ -51,11 +51,15 @@ static int tfp410_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret;
 
-	edid = drm_bridge_get_edid(dvi->next_bridge, connector);
-	if (IS_ERR_OR_NULL(edid)) {
-		if (edid != ERR_PTR(-ENOTSUPP))
+	if (dvi->next_bridge->ops & DRM_BRIDGE_OP_EDID) {
+		edid = drm_bridge_get_edid(dvi->next_bridge, connector);
+		if (!edid)
 			DRM_INFO("EDID read failed. Fallback to standard modes\n");
+	} else {
+		edid = NULL;
+	}
 
+	if (!edid) {
 		/*
 		 * No EDID, fallback on the XGA standard modes and prefer a mode
 		 * pretty much anything can handle.

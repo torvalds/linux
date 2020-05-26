@@ -1086,16 +1086,16 @@ EXPORT_SYMBOL_GPL(drm_bridge_get_modes);
  *
  * If the bridge supports output EDID retrieval, as reported by the
  * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.get_edid to
- * get the EDID and return it. Otherwise return ERR_PTR(-ENOTSUPP).
+ * get the EDID and return it. Otherwise return NULL.
  *
  * RETURNS:
- * The retrieved EDID on success, or an error pointer otherwise.
+ * The retrieved EDID on success, or NULL otherwise.
  */
 struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
 				 struct drm_connector *connector)
 {
 	if (!(bridge->ops & DRM_BRIDGE_OP_EDID))
-		return ERR_PTR(-ENOTSUPP);
+		return NULL;
 
 	return bridge->funcs->get_edid(bridge, connector);
 }
