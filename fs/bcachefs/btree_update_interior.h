@@ -333,4 +333,7 @@ ssize_t bch2_btree_updates_print(struct bch_fs *, char *);
 
 size_t bch2_btree_interior_updates_nr_pending(struct bch_fs *);
 
+void bch2_fs_btree_interior_update_exit(struct bch_fs *);
+int bch2_fs_btree_interior_update_init(struct bch_fs *);
+
 #endif /* _BCACHEFS_BTREE_UPDATE_INTERIOR_H */

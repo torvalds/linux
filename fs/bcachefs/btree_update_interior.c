@@ -2247,3 +2247,22 @@ size_t bch2_btree_interior_updates_nr_pending(struct bch_fs *c)
 
 	return ret;
 }
+
+void bch2_fs_btree_interior_update_exit(struct bch_fs *c)
+{
+	mempool_exit(&c->btree_interior_update_pool);
+	mempool_exit(&c->btree_reserve_pool);
+}
+
+int bch2_fs_btree_interior_update_init(struct bch_fs *c)
+{
+	mutex_init(&c->btree_reserve_cache_lock);
+	INIT_LIST_HEAD(&c->btree_interior_update_list);
+	INIT_LIST_HEAD(&c->btree_interior_updates_unwritten);
+	mutex_init(&c->btree_interior_update_lock);
+
+	return  mempool_init_kmalloc_pool(&c->btree_reserve_pool, 1,
+					  sizeof(struct btree_reserve)) ?:
+		mempool_init_kmalloc_pool(&c->btree_interior_update_pool, 1,
+					  sizeof(struct btree_update));
+}
