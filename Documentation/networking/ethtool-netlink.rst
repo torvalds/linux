@@ -1023,9 +1023,25 @@ Start a cable test and report raw TDR data
 
 Request contents:
 
-  ====================================  ======  ==========================
-  ``ETHTOOL_A_CABLE_TEST_TDR_HEADER``   nested  request header
-  ====================================  ======  ==========================
+ +--------------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_HEADER``        | nested | reply header          |
+ +--------------------------------------------+--------+-----------------------+
+ | ``ETHTOOL_A_CABLE_TEST_TDR_CFG``           | nested | test configuration    |
+ +-+------------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE `` | u32    | first data distance   |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_LAST_DISTANCE ``  | u32    | last data distance    |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_STEP_STEP_DISTANCE ``  | u32    | distance of each step |
+ +-+-+----------------------------------------+--------+-----------------------+
+ | | ``ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR``    | u8     | pair to test          |
+ +-+-+----------------------------------------+--------+-----------------------+
+
+The ETHTOOL_A_CABLE_TEST_TDR_CFG is optional, as well as all members
+of the nest. All distances are expressed in centimeters. The PHY takes
+the distances as a guide, and rounds to the nearest distance it
+actually supports. If a pair is passed, only that one pair will be
+tested. Otherwise all pairs are tested.
 
 Notification contents:
 
