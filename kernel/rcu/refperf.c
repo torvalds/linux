@@ -83,12 +83,6 @@ struct reader_task {
 	atomic_t start;
 	wait_queue_head_t wq;
 	u64 last_duration_ns;
-
-	// The average latency When 1..<this reader> are concurrently
-	// running an experiment. For example, if this reader_task is
-	// of index 5 in the reader_tasks array, then result is for
-	// 6 cores.
-	u64 result_avg;
 };
 
 static struct task_struct *shutdown_task;
@@ -289,12 +283,12 @@ end:
 	return 0;
 }
 
-void reset_readers(int n)
+void reset_readers(void)
 {
 	int i;
 	struct reader_task *rt;
 
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < nreaders; i++) {
 		rt = &(reader_tasks[i]);
 
 		rt->last_duration_ns = 0;
@@ -314,7 +308,7 @@ u64 process_durations(int n)
 	sprintf(buf, "Experiment #%d (Format: <THREAD-NUM>:<Total loop time in ns>)",
 		exp_idx);
 
-	for (i = 0; i <= n && !torture_must_stop(); i++) {
+	for (i = 0; i < n && !torture_must_stop(); i++) {
 		rt = &(reader_tasks[i]);
 		sprintf(buf1, "%d: %llu\t", i, rt->last_duration_ns);
 
@@ -342,11 +336,15 @@ static int main_func(void *arg)
 	int exp, r;
 	char buf1[64];
 	char buf[512];
+	u64 *result_avg;
 
 	set_cpus_allowed_ptr(current, cpumask_of(nreaders % nr_cpu_ids));
 	set_user_nice(current, MAX_NICE);
 
 	VERBOSE_PERFOUT("main_func task started");
+	result_avg = kzalloc(nruns * sizeof(*result_avg), GFP_KERNEL);
+	if (!result_avg)
+		VERBOSE_PERFOUT_ERRSTRING("out of memory");
 	atomic_inc(&n_init);
 
 	// Wait for all threads to start.
@@ -355,22 +353,24 @@ static int main_func(void *arg)
 		schedule_timeout_interruptible(holdoff * HZ);
 
 	// Start exp readers up per experiment
-	for (exp = 0; exp < nreaders && !torture_must_stop(); exp++) {
+	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
+		if (!result_avg)
+			break;
 		if (torture_must_stop())
 			goto end;
 
-		reset_readers(exp);
-		atomic_set(&nreaders_exp, exp + 1);
+		reset_readers();
+		atomic_set(&nreaders_exp, nreaders);
 
 		exp_idx = exp;
 
-		for (r = 0; r <= exp; r++) {
+		for (r = 0; r < nreaders; r++) {
 			atomic_set(&reader_tasks[r].start, 1);
 			wake_up(&reader_tasks[r].wq);
 		}
 
 		VERBOSE_PERFOUT("main_func: experiment started, waiting for %d readers",
-				exp);
+				nreaders);
 
 		wait_event(main_wq,
 			   !atomic_read(&nreaders_exp) || torture_must_stop());
@@ -380,7 +380,7 @@ static int main_func(void *arg)
 		if (torture_must_stop())
 			goto end;
 
-		reader_tasks[exp].result_avg = 1000 * process_durations(exp) / ((exp + 1) * loops);
+		result_avg[exp] = 1000 * process_durations(nreaders) / (nreaders * loops);
 	}
 
 	// Print the average of all experiments
@@ -390,12 +390,15 @@ static int main_func(void *arg)
 	strcat(buf, "\n");
 	strcat(buf, "Threads\tTime(ns)\n");
 
-	for (exp = 0; exp < nreaders; exp++) {
-		sprintf(buf1, "%d\t%llu.%03d\n", exp + 1, reader_tasks[exp].result_avg / 1000, (int)(reader_tasks[exp].result_avg % 1000));
+	for (exp = 0; exp < nruns; exp++) {
+		if (!result_avg)
+			break;
+		sprintf(buf1, "%d\t%llu.%03d\n", exp + 1, result_avg[exp] / 1000, (int)(result_avg[exp] % 1000));
 		strcat(buf, buf1);
 	}
 
-	PERFOUT("%s", buf);
+	if (result_avg)
+		PERFOUT("%s", buf);
 
 	// This will shutdown everything including us.
 	if (shutdown) {
@@ -416,8 +419,8 @@ static void
 ref_perf_print_module_parms(struct ref_perf_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" PERF_FLAG
-		 "--- %s:  verbose=%d shutdown=%d holdoff=%d loops=%ld nreaders=%d\n", perf_type, tag,
-		 verbose, shutdown, holdoff, loops, nreaders);
+		 "--- %s:  verbose=%d shutdown=%d holdoff=%d loops=%ld nreaders=%d nruns=%d\n", perf_type, tag,
+		 verbose, shutdown, holdoff, loops, nreaders, nruns);
 }
 
 static void
