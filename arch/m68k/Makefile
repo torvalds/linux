@@ -97,26 +97,8 @@ head-$(CONFIG_SUN3)		:= arch/m68k/kernel/sun3-head.o
 head-$(CONFIG_M68000)		:= arch/m68k/68000/head.o
 head-$(CONFIG_COLDFIRE)		:= arch/m68k/coldfire/head.o
 
-core-y				+= arch/m68k/kernel/	arch/m68k/mm/
+core-y				+= arch/m68k/
 libs-y				+= arch/m68k/lib/
-
-core-$(CONFIG_Q40)		+= arch/m68k/q40/
-core-$(CONFIG_AMIGA)		+= arch/m68k/amiga/
-core-$(CONFIG_ATARI)		+= arch/m68k/atari/
-core-$(CONFIG_MAC)		+= arch/m68k/mac/
-core-$(CONFIG_HP300)		+= arch/m68k/hp300/
-core-$(CONFIG_APOLLO)		+= arch/m68k/apollo/
-core-$(CONFIG_MVME147)		+= arch/m68k/mvme147/
-core-$(CONFIG_MVME16x)		+= arch/m68k/mvme16x/
-core-$(CONFIG_BVME6000)		+= arch/m68k/bvme6000/
-core-$(CONFIG_SUN3X)		+= arch/m68k/sun3x/	arch/m68k/sun3/
-core-$(CONFIG_SUN3)		+= arch/m68k/sun3/	arch/m68k/sun3/prom/
-core-$(CONFIG_NATFEAT)		+= arch/m68k/emu/
-core-$(CONFIG_M68040)		+= arch/m68k/fpsp040/
-core-$(CONFIG_M68060)		+= arch/m68k/ifpsp060/
-core-$(CONFIG_M68KFPU_EMU)	+= arch/m68k/math-emu/
-core-$(CONFIG_M68000)		+= arch/m68k/68000/
-core-$(CONFIG_COLDFIRE)		+= arch/m68k/coldfire/
 
 
 all:	zImage
