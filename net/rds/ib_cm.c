@@ -37,6 +37,7 @@
 #include <linux/vmalloc.h>
 #include <linux/ratelimit.h>
 #include <net/addrconf.h>
+#include <rdma/ib_cm.h>
 
 #include "rds_single_path.h"
 #include "rds.h"
@@ -927,7 +928,8 @@ out:
 	if (conn)
 		mutex_unlock(&conn->c_cm_lock);
 	if (err)
-		rdma_reject(cm_id, &err, sizeof(int));
+		rdma_reject(cm_id, &err, sizeof(int),
+			    IB_CM_REJ_CONSUMER_DEFINED);
 	return destroy;
 }
 

@@ -320,7 +320,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
  * rdma_reject - Called to reject a connection request or response.
  */
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
-		u8 private_data_len);
+		u8 private_data_len, u8 reason);
 
 /**
  * rdma_disconnect - This function disconnects the associated QP and

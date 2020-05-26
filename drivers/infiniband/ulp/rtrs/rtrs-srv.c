@@ -15,6 +15,7 @@
 
 #include "rtrs-srv.h"
 #include "rtrs-log.h"
+#include <rdma/ib_cm.h>
 
 MODULE_DESCRIPTION("RDMA Transport Server");
 MODULE_LICENSE("GPL");
@@ -1576,7 +1577,7 @@ static int rtrs_rdma_do_reject(struct rdma_cm_id *cm_id, int errno)
 		.errno = cpu_to_le16(errno),
 	};
 
-	err = rdma_reject(cm_id, &msg, sizeof(msg));
+	err = rdma_reject(cm_id, &msg, sizeof(msg), IB_CM_REJ_CONSUMER_DEFINED);
 	if (err)
 		pr_err("rdma_reject(), err: %d\n", err);
 
