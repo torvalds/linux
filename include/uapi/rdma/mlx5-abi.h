@@ -429,6 +429,8 @@ struct mlx5_ib_modify_qp {
 struct mlx5_ib_modify_qp_resp {
 	__u32	response_length;
 	__u32	dctn;
+	__u32   ece_options;
+	__u32   reserved;
 };
 
 struct mlx5_ib_create_wq_resp {

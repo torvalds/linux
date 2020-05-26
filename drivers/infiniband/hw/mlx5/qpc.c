@@ -341,6 +341,27 @@ static void mbox_free(struct mbox_info *mbox)
 	kfree(mbox->out);
 }
 
+static int get_ece_from_mbox(void *out, u16 opcode)
+{
+	int ece = 0;
+
+	switch (opcode) {
+	case MLX5_CMD_OP_INIT2RTR_QP:
+		ece = MLX5_GET(init2rtr_qp_out, out, ece);
+		break;
+	case MLX5_CMD_OP_RTR2RTS_QP:
+		ece = MLX5_GET(rtr2rts_qp_out, out, ece);
+		break;
+	case MLX5_CMD_OP_RTS2RTS_QP:
+		ece = MLX5_GET(rts2rts_qp_out, out, ece);
+		break;
+	default:
+		break;
+	}
+
+	return ece;
+}
+
 static int modify_qp_mbox_alloc(struct mlx5_core_dev *dev, u16 opcode, int qpn,
 				u32 opt_param_mask, void *qpc,
 				struct mbox_info *mbox, u16 uid, u32 ece)
@@ -438,6 +459,10 @@ int mlx5_core_qp_modify(struct mlx5_ib_dev *dev, u16 opcode, u32 opt_param_mask,
 
 	err = mlx5_cmd_exec(dev->mdev, mbox.in, mbox.inlen, mbox.out,
 			    mbox.outlen);
+
+	if (ece)
+		*ece = get_ece_from_mbox(mbox.out, opcode);
+
 	mbox_free(&mbox);
 	return err;
 }

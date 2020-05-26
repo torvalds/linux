@@ -3708,6 +3708,7 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 			       enum ib_qp_state cur_state,
 			       enum ib_qp_state new_state,
 			       const struct mlx5_ib_modify_qp *ucmd,
+			       struct mlx5_ib_modify_qp_resp *resp,
 			       struct ib_udata *udata)
 {
 	static const u16 optab[MLX5_QP_NUM_STATE][MLX5_QP_NUM_STATE] = {
@@ -3978,10 +3979,15 @@ static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
 
 		err = modify_raw_packet_qp(dev, qp, &raw_qp_param, tx_affinity);
 	} else {
-		u32 ece = MLX5_CAP_GEN(dev->mdev, ece_support) ?
-				  ucmd->ece_options : 0;
+		if (udata) {
+			/* For the kernel flows, the resp will stay zero */
+			resp->ece_options =
+				MLX5_CAP_GEN(dev->mdev, ece_support) ?
+					ucmd->ece_options : 0;
+			resp->response_length = sizeof(*resp);
+		}
 		err = mlx5_core_qp_modify(dev, op, optpar, qpc, &base->mqp,
-					  &ece);
+					  &resp->ece_options);
 	}
 
 	if (err)
@@ -4180,6 +4186,7 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		      int attr_mask, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(ibqp->device);
+	struct mlx5_ib_modify_qp_resp resp = {};
 	struct mlx5_ib_qp *qp = to_mqp(ibqp);
 	struct mlx5_ib_modify_qp ucmd = {};
 	enum ib_qp_type qp_type;
@@ -4292,7 +4299,17 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	}
 
 	err = __mlx5_ib_modify_qp(ibqp, attr, attr_mask, cur_state,
-				  new_state, &ucmd, udata);
+				  new_state, &ucmd, &resp, udata);
+
+	/* resp.response_length is set in ECE supported flows only */
+	if (!err && resp.response_length &&
+	    udata->outlen >= resp.response_length)
+		/*
+		 * We don't check return value of the function below
+		 * on purpose, because it is unclear how to unwind the
+		 * error flow after QP was modified to the new state.
+		 */
+		ib_copy_to_udata(udata, &resp, resp.response_length);
 
 out:
 	mutex_unlock(&qp->mutex);
