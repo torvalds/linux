@@ -24,7 +24,7 @@ configfile=`echo $i | sed -e 's/^.*\///'`
 
 sed -e 's/^\[[^]]*]//' < $i/console.log | tr -d '\015' |
 awk -v configfile="$configfile" '
-/^[ 	]*Threads	Time\(ns\) *$/ {
+/^[ 	]*Runs	Time\(ns\) *$/ {
 	if (dataphase + 0 == 0) {
 		dataphase = 1;
 		# print configfile, $0;
