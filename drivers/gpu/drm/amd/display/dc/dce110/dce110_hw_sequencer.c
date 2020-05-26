@@ -1069,8 +1069,17 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
-	if (dc_is_dp_signal(pipe_ctx->stream->signal))
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
 		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
+
+		/*
+		 * After output is idle pattern some sinks need time to recognize the stream
+		 * has changed or they enter protection state and hang.
+		 */
+		if (!dc_is_embedded_signal(pipe_ctx->stream->signal))
+			msleep(60);
+	}
+
 }
 
 
