@@ -46,7 +46,7 @@ and posted this:
 	to communicate user requirements to these people is a waste of
 	time. They are much too "intelligent" to listen to lesser mortals.
 
-(http://lwn.net/Articles/131776/).
+(https://lwn.net/Articles/131776/).
 
 The reality of the situation was different; the kernel developers were far
 more concerned about system stability, long-term maintenance, and finding
