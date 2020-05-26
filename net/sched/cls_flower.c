@@ -781,9 +781,17 @@ static int fl_set_key_mpls(struct nlattr **tb,
 			   struct flow_dissector_key_mpls *key_mask,
 			   struct netlink_ext_ack *extack)
 {
+	struct flow_dissector_mpls_lse *lse_mask;
+	struct flow_dissector_mpls_lse *lse_val;
+
+	lse_val = &key_val->ls[0];
+	lse_mask = &key_mask->ls[0];
+
 	if (tb[TCA_FLOWER_KEY_MPLS_TTL]) {
-		key_val->mpls_ttl = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TTL]);
-		key_mask->mpls_ttl = MPLS_TTL_MASK;
+		lse_val->mpls_ttl = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TTL]);
+		lse_mask->mpls_ttl = MPLS_TTL_MASK;
+		dissector_set_mpls_lse(key_val, 0);
+		dissector_set_mpls_lse(key_mask, 0);
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_BOS]) {
 		u8 bos = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_BOS]);
@@ -794,8 +802,10 @@ static int fl_set_key_mpls(struct nlattr **tb,
 					    "Bottom Of Stack (BOS) must be 0 or 1");
 			return -EINVAL;
 		}
-		key_val->mpls_bos = bos;
-		key_mask->mpls_bos = MPLS_BOS_MASK;
+		lse_val->mpls_bos = bos;
+		lse_mask->mpls_bos = MPLS_BOS_MASK;
+		dissector_set_mpls_lse(key_val, 0);
+		dissector_set_mpls_lse(key_mask, 0);
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_TC]) {
 		u8 tc = nla_get_u8(tb[TCA_FLOWER_KEY_MPLS_TC]);
@@ -806,8 +816,10 @@ static int fl_set_key_mpls(struct nlattr **tb,
 					    "Traffic Class (TC) must be between 0 and 7");
 			return -EINVAL;
 		}
-		key_val->mpls_tc = tc;
-		key_mask->mpls_tc = MPLS_TC_MASK;
+		lse_val->mpls_tc = tc;
+		lse_mask->mpls_tc = MPLS_TC_MASK;
+		dissector_set_mpls_lse(key_val, 0);
+		dissector_set_mpls_lse(key_mask, 0);
 	}
 	if (tb[TCA_FLOWER_KEY_MPLS_LABEL]) {
 		u32 label = nla_get_u32(tb[TCA_FLOWER_KEY_MPLS_LABEL]);
@@ -818,8 +830,10 @@ static int fl_set_key_mpls(struct nlattr **tb,
 					    "Label must be between 0 and 1048575");
 			return -EINVAL;
 		}
-		key_val->mpls_label = label;
-		key_mask->mpls_label = MPLS_LABEL_MASK;
+		lse_val->mpls_label = label;
+		lse_mask->mpls_label = MPLS_LABEL_MASK;
+		dissector_set_mpls_lse(key_val, 0);
+		dissector_set_mpls_lse(key_mask, 0);
 	}
 	return 0;
 }
@@ -2222,31 +2236,37 @@ static int fl_dump_key_mpls(struct sk_buff *skb,
 			    struct flow_dissector_key_mpls *mpls_key,
 			    struct flow_dissector_key_mpls *mpls_mask)
 {
+	struct flow_dissector_mpls_lse *lse_mask;
+	struct flow_dissector_mpls_lse *lse_key;
 	int err;
 
 	if (!memchr_inv(mpls_mask, 0, sizeof(*mpls_mask)))
 		return 0;
-	if (mpls_mask->mpls_ttl) {
+
+	lse_mask = &mpls_mask->ls[0];
+	lse_key = &mpls_key->ls[0];
+
+	if (lse_mask->mpls_ttl) {
 		err = nla_put_u8(skb, TCA_FLOWER_KEY_MPLS_TTL,
-				 mpls_key->mpls_ttl);
+				 lse_key->mpls_ttl);
 		if (err)
 			return err;
 	}
-	if (mpls_mask->mpls_tc) {
+	if (lse_mask->mpls_tc) {
 		err = nla_put_u8(skb, TCA_FLOWER_KEY_MPLS_TC,
-				 mpls_key->mpls_tc);
+				 lse_key->mpls_tc);
 		if (err)
 			return err;
 	}
-	if (mpls_mask->mpls_label) {
+	if (lse_mask->mpls_label) {
 		err = nla_put_u32(skb, TCA_FLOWER_KEY_MPLS_LABEL,
-				  mpls_key->mpls_label);
+				  lse_key->mpls_label);
 		if (err)
 			return err;
 	}
-	if (mpls_mask->mpls_bos) {
+	if (lse_mask->mpls_bos) {
 		err = nla_put_u8(skb, TCA_FLOWER_KEY_MPLS_BOS,
-				 mpls_key->mpls_bos);
+				 lse_key->mpls_bos);
 		if (err)
 			return err;
 	}

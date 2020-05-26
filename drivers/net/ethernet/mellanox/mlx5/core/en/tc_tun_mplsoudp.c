@@ -101,25 +101,36 @@ static int parse_tunnel(struct mlx5e_priv *priv,
 
 	flow_rule_match_mpls(rule, &match);
 
-	MLX5_SET(fte_match_set_misc2, misc2_c,
-		 outer_first_mpls_over_udp.mpls_label, match.mask->mpls_label);
-	MLX5_SET(fte_match_set_misc2, misc2_v,
-		 outer_first_mpls_over_udp.mpls_label, match.key->mpls_label);
+	/* Only support matching the first LSE */
+	if (match.mask->used_lses != 1)
+		return -EOPNOTSUPP;
 
 	MLX5_SET(fte_match_set_misc2, misc2_c,
-		 outer_first_mpls_over_udp.mpls_exp, match.mask->mpls_tc);
+		 outer_first_mpls_over_udp.mpls_label,
+		 match.mask->ls[0].mpls_label);
 	MLX5_SET(fte_match_set_misc2, misc2_v,
-		 outer_first_mpls_over_udp.mpls_exp, match.key->mpls_tc);
+		 outer_first_mpls_over_udp.mpls_label,
+		 match.key->ls[0].mpls_label);
 
 	MLX5_SET(fte_match_set_misc2, misc2_c,
-		 outer_first_mpls_over_udp.mpls_s_bos, match.mask->mpls_bos);
+		 outer_first_mpls_over_udp.mpls_exp,
+		 match.mask->ls[0].mpls_tc);
 	MLX5_SET(fte_match_set_misc2, misc2_v,
-		 outer_first_mpls_over_udp.mpls_s_bos, match.key->mpls_bos);
+		 outer_first_mpls_over_udp.mpls_exp, match.key->ls[0].mpls_tc);
 
 	MLX5_SET(fte_match_set_misc2, misc2_c,
-		 outer_first_mpls_over_udp.mpls_ttl, match.mask->mpls_ttl);
+		 outer_first_mpls_over_udp.mpls_s_bos,
+		 match.mask->ls[0].mpls_bos);
 	MLX5_SET(fte_match_set_misc2, misc2_v,
-		 outer_first_mpls_over_udp.mpls_ttl, match.key->mpls_ttl);
+		 outer_first_mpls_over_udp.mpls_s_bos,
+		 match.key->ls[0].mpls_bos);
+
+	MLX5_SET(fte_match_set_misc2, misc2_c,
+		 outer_first_mpls_over_udp.mpls_ttl,
+		 match.mask->ls[0].mpls_ttl);
+	MLX5_SET(fte_match_set_misc2, misc2_v,
+		 outer_first_mpls_over_udp.mpls_ttl,
+		 match.key->ls[0].mpls_ttl);
 	spec->match_criteria_enable |= MLX5_MATCH_MISC_PARAMETERS_2;
 
 	return 0;

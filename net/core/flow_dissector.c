@@ -480,15 +480,18 @@ EXPORT_SYMBOL(skb_flow_dissect_tunnel_info);
 static enum flow_dissect_ret
 __skb_flow_dissect_mpls(const struct sk_buff *skb,
 			struct flow_dissector *flow_dissector,
-			void *target_container, void *data, int nhoff, int hlen)
+			void *target_container, void *data, int nhoff, int hlen,
+			int lse_index, bool *entropy_label)
 {
-	struct flow_dissector_key_keyid *key_keyid;
-	struct mpls_label *hdr, _hdr[2];
-	u32 entry, label;
+	struct mpls_label *hdr, _hdr;
+	u32 entry, label, bos;
 
 	if (!dissector_uses_key(flow_dissector,
 				FLOW_DISSECTOR_KEY_MPLS_ENTROPY) &&
 	    !dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS))
+		return FLOW_DISSECT_RET_OUT_GOOD;
+
+	if (lse_index >= FLOW_DIS_MPLS_MAX)
 		return FLOW_DISSECT_RET_OUT_GOOD;
 
 	hdr = __skb_header_pointer(skb, nhoff, sizeof(_hdr), data,
@@ -496,31 +499,40 @@ __skb_flow_dissect_mpls(const struct sk_buff *skb,
 	if (!hdr)
 		return FLOW_DISSECT_RET_OUT_BAD;
 
-	entry = ntohl(hdr[0].entry);
+	entry = ntohl(hdr->entry);
 	label = (entry & MPLS_LS_LABEL_MASK) >> MPLS_LS_LABEL_SHIFT;
+	bos = (entry & MPLS_LS_S_MASK) >> MPLS_LS_S_SHIFT;
 
 	if (dissector_uses_key(flow_dissector, FLOW_DISSECTOR_KEY_MPLS)) {
 		struct flow_dissector_key_mpls *key_mpls;
+		struct flow_dissector_mpls_lse *lse;
 
 		key_mpls = skb_flow_dissector_target(flow_dissector,
 						     FLOW_DISSECTOR_KEY_MPLS,
 						     target_container);
-		key_mpls->mpls_label = label;
-		key_mpls->mpls_ttl = (entry & MPLS_LS_TTL_MASK)
-					>> MPLS_LS_TTL_SHIFT;
-		key_mpls->mpls_tc = (entry & MPLS_LS_TC_MASK)
-					>> MPLS_LS_TC_SHIFT;
-		key_mpls->mpls_bos = (entry & MPLS_LS_S_MASK)
-					>> MPLS_LS_S_SHIFT;
+		lse = &key_mpls->ls[lse_index];
+
+		lse->mpls_ttl = (entry & MPLS_LS_TTL_MASK) >> MPLS_LS_TTL_SHIFT;
+		lse->mpls_bos = bos;
+		lse->mpls_tc = (entry & MPLS_LS_TC_MASK) >> MPLS_LS_TC_SHIFT;
+		lse->mpls_label = label;
+		dissector_set_mpls_lse(key_mpls, lse_index);
 	}
 
-	if (label == MPLS_LABEL_ENTROPY) {
+	if (*entropy_label &&
+	    dissector_uses_key(flow_dissector,
+			       FLOW_DISSECTOR_KEY_MPLS_ENTROPY)) {
+		struct flow_dissector_key_keyid *key_keyid;
+
 		key_keyid = skb_flow_dissector_target(flow_dissector,
 						      FLOW_DISSECTOR_KEY_MPLS_ENTROPY,
 						      target_container);
-		key_keyid->keyid = hdr[1].entry & htonl(MPLS_LS_LABEL_MASK);
+		key_keyid->keyid = cpu_to_be32(label);
 	}
-	return FLOW_DISSECT_RET_OUT_GOOD;
+
+	*entropy_label = label == MPLS_LABEL_ENTROPY;
+
+	return bos ? FLOW_DISSECT_RET_OUT_GOOD : FLOW_DISSECT_RET_PROTO_AGAIN;
 }
 
 static enum flow_dissect_ret
@@ -979,6 +991,8 @@ bool __skb_flow_dissect(const struct net *net,
 	struct bpf_prog *attached = NULL;
 	enum flow_dissect_ret fdret;
 	enum flow_dissector_key_id dissector_vlan = FLOW_DISSECTOR_KEY_MAX;
+	bool mpls_el = false;
+	int mpls_lse = 0;
 	int num_hdrs = 0;
 	u8 ip_proto = 0;
 	bool ret;
@@ -1278,7 +1292,10 @@ proto_again:
 	case htons(ETH_P_MPLS_MC):
 		fdret = __skb_flow_dissect_mpls(skb, flow_dissector,
 						target_container, data,
-						nhoff, hlen);
+						nhoff, hlen, mpls_lse,
+						&mpls_el);
+		nhoff += sizeof(struct mpls_label);
+		mpls_lse++;
 		break;
 	case htons(ETH_P_FCOE):
 		if ((hlen - nhoff) < FCOE_HEADER_LEN) {
