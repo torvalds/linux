@@ -2223,10 +2223,21 @@ static const struct i2c_algorithm arcturus_i2c_eeprom_i2c_algo = {
 	.functionality = arcturus_i2c_eeprom_i2c_func,
 };
 
+static bool arcturus_i2c_adapter_is_added(struct i2c_adapter *control)
+{
+	struct amdgpu_device *adev = to_amdgpu_device(control);
+
+	return control->dev.parent == &adev->pdev->dev;
+}
+
 static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
+
+	/* smu_i2c_eeprom_init may be called twice in sriov */
+	if (arcturus_i2c_adapter_is_added(control))
+		return 0;
 
 	control->owner = THIS_MODULE;
 	control->class = I2C_CLASS_SPD;
@@ -2243,6 +2254,9 @@ static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 
 static void arcturus_i2c_eeprom_control_fini(struct i2c_adapter *control)
 {
+	if (!arcturus_i2c_adapter_is_added(control))
+		return;
+
 	i2c_del_adapter(control);
 }
 
