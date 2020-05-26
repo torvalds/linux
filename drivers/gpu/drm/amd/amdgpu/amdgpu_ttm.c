@@ -1822,14 +1822,6 @@ static int amdgpu_ttm_training_reserve_vram_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
-static u64 amdgpu_ttm_training_get_c2p_offset(u64 vram_size)
-{
-       if ((vram_size & (SZ_1M - 1)) < (SZ_4K + 1) )
-               vram_size -= SZ_1M;
-
-       return ALIGN(vram_size, SZ_1M);
-}
-
 static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 {
 	struct psp_memory_training_context *ctx = &adev->psp.mem_train_ctx;
@@ -1837,7 +1829,7 @@ static void amdgpu_ttm_training_data_block_init(struct amdgpu_device *adev)
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->c2p_train_data_offset =
-		amdgpu_ttm_training_get_c2p_offset(adev->gmc.mc_vram_size);
+		ALIGN((adev->gmc.mc_vram_size - adev->discovery_tmr_size - SZ_1M), SZ_1M);
 	ctx->p2c_train_data_offset =
 		(adev->gmc.mc_vram_size - GDDR6_MEM_TRAINING_OFFSET);
 	ctx->train_data_size =
@@ -1861,10 +1853,9 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 
 	if (!amdgpu_sriov_vf(adev)) {
 		ret = amdgpu_mem_train_support(adev);
-		if (ret == 1) {
+		if (ret == 1)
 			mem_train_support = true;
-			amdgpu_ttm_training_data_block_init(adev);
-		} else if (ret == -1)
+		else if (ret == -1)
 			return -EINVAL;
 		else
 			DRM_DEBUG("memory training does not support!\n");
@@ -1879,22 +1870,24 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 	 */
 	adev->discovery_tmr_size =
 		amdgpu_atomfirmware_get_fw_reserved_fb_size(adev);
-	if (!adev->discovery_tmr_size) {
+	if (!adev->discovery_tmr_size)
 		adev->discovery_tmr_size = DISCOVERY_TMR_SIZE;
-		if (mem_train_support) {
-			/* reserve vram for mem train indepently */
-			ret = amdgpu_bo_create_kernel_at(adev,
-						 ctx->c2p_train_data_offset,
-						 ctx->train_data_size,
-						 AMDGPU_GEM_DOMAIN_VRAM,
-						 &ctx->c2p_bo,
-						 NULL);
-			if (ret) {
-				DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
-				amdgpu_ttm_training_reserve_vram_fini(adev);
-				return ret;
-			}
+
+	if (mem_train_support) {
+		/* reserve vram for mem train according to TMR location */
+		amdgpu_ttm_training_data_block_init(adev);
+		ret = amdgpu_bo_create_kernel_at(adev,
+					 ctx->c2p_train_data_offset,
+					 ctx->train_data_size,
+					 AMDGPU_GEM_DOMAIN_VRAM,
+					 &ctx->c2p_bo,
+					 NULL);
+		if (ret) {
+			DRM_ERROR("alloc c2p_bo failed(%d)!\n", ret);
+			amdgpu_ttm_training_reserve_vram_fini(adev);
+			return ret;
 		}
+		ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
 	}
 
 	ret = amdgpu_bo_create_kernel_at(adev,
@@ -1908,9 +1901,6 @@ static int amdgpu_ttm_reserve_tmr(struct amdgpu_device *adev)
 		amdgpu_bo_free_kernel(&adev->discovery_memory, NULL, NULL);
 		return ret;
 	}
-
-	if (mem_train_support)
-		ctx->init = PSP_MEM_TRAIN_RESERVE_SUCCESS;
 
 	return 0;
 }
