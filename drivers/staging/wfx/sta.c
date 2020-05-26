@@ -200,36 +200,49 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	mutex_unlock(&wdev->conf_mutex);
 }
 
-static int wfx_update_pm(struct wfx_vif *wvif)
+int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 {
-	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
-	bool ps = wvif->vif->bss_conf.ps;
-	int ps_timeout = conf->dynamic_ps_timeout;
 	struct ieee80211_channel *chan0 = NULL, *chan1 = NULL;
+	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
 
-	WARN_ON(conf->dynamic_ps_timeout < 0);
-	if (!wvif->vif->bss_conf.assoc)
-		return 0;
-	if (!ps)
-		ps_timeout = 0;
-	if (wvif->uapsd_mask)
-		ps_timeout = 0;
-
-	// Kernel disable powersave when an AP is in use. In contrary, it is
-	// absolutely necessary to enable legacy powersave for WF200 if channels
-	// are differents.
+	WARN(!wvif->vif->bss_conf.assoc && enable_ps,
+	     "enable_ps is reliable only if associated");
 	if (wdev_to_wvif(wvif->wdev, 0))
 		chan0 = wdev_to_wvif(wvif->wdev, 0)->vif->bss_conf.chandef.chan;
 	if (wdev_to_wvif(wvif->wdev, 1))
 		chan1 = wdev_to_wvif(wvif->wdev, 1)->vif->bss_conf.chandef.chan;
 	if (chan0 && chan1 && chan0->hw_value != chan1->hw_value &&
 	    wvif->vif->type != NL80211_IFTYPE_AP) {
-		ps = true;
+		// It is necessary to enable powersave if channels
+		// are differents.
+		if (enable_ps)
+			*enable_ps = true;
 		if (wvif->bss_not_support_ps_poll)
-			ps_timeout = 30;
+			return 30;
 		else
-			ps_timeout = 0;
+			return 0;
 	}
+	if (enable_ps)
+		*enable_ps = wvif->vif->bss_conf.ps;
+	if (wvif->vif->bss_conf.assoc && wvif->vif->bss_conf.ps)
+		return conf->dynamic_ps_timeout;
+	else
+		return -1;
+}
+
+int wfx_update_pm(struct wfx_vif *wvif)
+{
+	int ps_timeout;
+	bool ps;
+
+	if (!wvif->vif->bss_conf.assoc)
+		return 0;
+	ps_timeout = wfx_get_ps_timeout(wvif, &ps);
+	if (!ps)
+		ps_timeout = 0;
+	WARN_ON(ps_timeout < 0);
+	if (wvif->uapsd_mask)
+		ps_timeout = 0;
 
 	if (!wait_for_completion_timeout(&wvif->set_pm_mode_complete,
 					 TU_TO_JIFFIES(512)))
