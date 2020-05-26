@@ -987,7 +987,8 @@ static void gfx_v9_0_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS)
+	if ((adev->asic_type != CHIP_ARCTURUS) &&
+	    (adev->asic_type != CHIP_ALDEBARAN))
 		soc15_program_register_sequence(adev, golden_settings_gc_9_x_common,
 						(const u32)ARRAY_SIZE(golden_settings_gc_9_x_common));
 }
