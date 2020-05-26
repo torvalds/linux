@@ -2091,20 +2091,16 @@ static u64 vmx_calc_preemption_timer_value(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	u64 timer_value = 0;
 
 	u64 l1_scaled_tsc = kvm_read_l1_tsc(vcpu, rdtsc()) >>
 			    VMX_MISC_EMULATED_PREEMPTION_TIMER_RATE;
 
 	if (!vmx->nested.has_preemption_timer_deadline) {
-		timer_value = vmcs12->vmx_preemption_timer_value;
-		vmx->nested.preemption_timer_deadline = timer_value +
-							l1_scaled_tsc;
+		vmx->nested.preemption_timer_deadline =
+			vmcs12->vmx_preemption_timer_value + l1_scaled_tsc;
 		vmx->nested.has_preemption_timer_deadline = true;
-	} else if (l1_scaled_tsc < vmx->nested.preemption_timer_deadline)
-		timer_value = vmx->nested.preemption_timer_deadline -
-			      l1_scaled_tsc;
-	return timer_value;
+	}
+	return vmx->nested.preemption_timer_deadline - l1_scaled_tsc;
 }
 
 static void vmx_start_preemption_timer(struct kvm_vcpu *vcpu,
