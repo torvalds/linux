@@ -4845,6 +4845,7 @@ static int io_timeout(struct io_kiocb *req)
 	u32 seq = req->sequence;
 
 	data = &req->io->timeout;
+	spin_lock_irq(&ctx->completion_lock);
 
 	/*
 	 * sqe->off holds how many events that need to occur for this
@@ -4853,7 +4854,6 @@ static int io_timeout(struct io_kiocb *req)
 	 */
 	if (!count) {
 		req->flags |= REQ_F_TIMEOUT_NOSEQ;
-		spin_lock_irq(&ctx->completion_lock);
 		entry = ctx->timeout_list.prev;
 		goto add;
 	}
@@ -4864,7 +4864,6 @@ static int io_timeout(struct io_kiocb *req)
 	 * Insertion sort, ensuring the first entry in the list is always
 	 * the one we need first.
 	 */
-	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_prev(entry, &ctx->timeout_list) {
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
 		unsigned nxt_seq;
