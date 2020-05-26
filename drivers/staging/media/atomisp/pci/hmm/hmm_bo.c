@@ -997,6 +997,9 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	 * Handle frame buffer allocated in other kerenl space driver
 	 * and map to user space
 	 */
+
+	userptr = untagged_addr(userptr);
+
 	if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
 		page_nr = get_pfnmap_pages(current, current->mm,
 					   (unsigned long)userptr,
