@@ -43,15 +43,10 @@ static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 				struct ieee80211_tx_rate *rates)
 {
 	int i;
-	size_t count;
 	struct wfx_dev *wdev = wvif->wdev;
 
 	WARN(rates[0].idx < 0, "invalid rate policy");
 	memset(policy, 0, sizeof(*policy));
-	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
-		if (rates[i].idx < 0)
-			break;
-	count = i;
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; ++i) {
 		int rateid;
 		u8 count;
