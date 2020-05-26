@@ -100,7 +100,10 @@ int ethnl_cable_test_alloc(struct phy_device *phydev, u8 cmd)
 {
 	int err = -ENOMEM;
 
-	phydev->skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	/* One TDR sample occupies 20 bytes. For a 150 meter cable,
+	 * with four pairs, around 12K is needed.
+	 */
+	phydev->skb = genlmsg_new(SZ_16K, GFP_KERNEL);
 	if (!phydev->skb)
 		goto out;
 
@@ -251,3 +254,78 @@ out_dev_put:
 	dev_put(dev);
 	return ret;
 }
+ 
+int ethnl_cable_test_amplitude(struct phy_device *phydev,
+			       u8 pair, s16 mV)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb,
+			      ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u8(phydev->skb, ETHTOOL_A_CABLE_AMPLITUDE_PAIR, pair))
+		goto err;
+	if (nla_put_u16(phydev->skb, ETHTOOL_A_CABLE_AMPLITUDE_mV, mV))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_amplitude);
+
+int ethnl_cable_test_pulse(struct phy_device *phydev, u16 mV)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb, ETHTOOL_A_CABLE_TDR_NEST_PULSE);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u16(phydev->skb, ETHTOOL_A_CABLE_PULSE_mV, mV))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_pulse);
+
+int ethnl_cable_test_step(struct phy_device *phydev, u32 first, u32 last,
+			  u32 step)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb, ETHTOOL_A_CABLE_TDR_NEST_STEP);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE,
+			first))
+		goto err;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_LAST_DISTANCE, last))
+		goto err;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_STEP_DISTANCE, step))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_step);

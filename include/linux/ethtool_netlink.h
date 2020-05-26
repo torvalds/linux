@@ -22,6 +22,10 @@ void ethnl_cable_test_free(struct phy_device *phydev);
 void ethnl_cable_test_finished(struct phy_device *phydev);
 int ethnl_cable_test_result(struct phy_device *phydev, u8 pair, u8 result);
 int ethnl_cable_test_fault_length(struct phy_device *phydev, u8 pair, u32 cm);
+int ethnl_cable_test_amplitude(struct phy_device *phydev, u8 pair, s16 mV);
+int ethnl_cable_test_pulse(struct phy_device *phydev, u16 mV);
+int ethnl_cable_test_step(struct phy_device *phydev, u32 first, u32 last,
+			  u32 step);
 #else
 static inline int ethnl_cable_test_alloc(struct phy_device *phydev, u8 cmd)
 {
@@ -43,6 +47,23 @@ static inline int ethnl_cable_test_result(struct phy_device *phydev, u8 pair,
 
 static inline int ethnl_cable_test_fault_length(struct phy_device *phydev,
 						u8 pair, u32 cm)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ethnl_cable_test_amplitude(struct phy_device *phydev,
+					     u8 pair, s16 mV)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ethnl_cable_test_pulse(struct phy_device *phydev, u16 mV)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int ethnl_cable_test_step(struct phy_device *phydev, u32 first,
+					u32 last, u32 step)
 {
 	return -EOPNOTSUPP;
 }
