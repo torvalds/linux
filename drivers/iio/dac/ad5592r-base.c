@@ -484,7 +484,7 @@ static ssize_t ad5592r_show_scale_available(struct iio_dev *iio_dev,
 		st->scale_avail[1][0], st->scale_avail[1][1]);
 }
 
-static struct iio_chan_spec_ext_info ad5592r_ext_info[] = {
+static const struct iio_chan_spec_ext_info ad5592r_ext_info[] = {
 	{
 	 .name = "scale_available",
 	 .read = ad5592r_show_scale_available,
