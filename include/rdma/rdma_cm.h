@@ -264,6 +264,9 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
  */
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
+int rdma_connect_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		     struct rdma_ucm_ece *ece);
+
 /**
  * rdma_listen - This function is called by the passive side to
  *   listen for incoming connection requests.
