@@ -582,7 +582,7 @@ static int adcx140_reset(struct adcx140_priv *adcx140)
 	/* 8.4.2: wait >= 10 ms after entering sleep mode. */
 	usleep_range(10000, 100000);
 
-	return 0;
+	return ret;
 }
 
 static int adcx140_hw_params(struct snd_pcm_substream *substream,
@@ -775,8 +775,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		bias_source = ADCX140_MIC_BIAS_VAL_VREF;
 
-	if (bias_source < ADCX140_MIC_BIAS_VAL_VREF ||
-	    bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
+	if (bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
 		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
 		return -EINVAL;
 	}
@@ -786,8 +785,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		vref_source = ADCX140_MIC_BIAS_VREF_275V;
 
-	if (vref_source < ADCX140_MIC_BIAS_VREF_275V ||
-	    vref_source > ADCX140_MIC_BIAS_VREF_1375V) {
+	if (vref_source > ADCX140_MIC_BIAS_VREF_1375V) {
 		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
 		return -EINVAL;
 	}
