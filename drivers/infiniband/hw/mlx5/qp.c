@@ -3688,10 +3688,11 @@ static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
 				    struct rdma_counter *counter)
 {
 	struct mlx5_ib_dev *dev = to_mdev(qp->device);
+	u32 in[MLX5_ST_SZ_DW(rts2rts_qp_in)] = {};
 	struct mlx5_ib_qp *mqp = to_mqp(qp);
-	struct mlx5_qp_context context = {};
 	struct mlx5_ib_qp_base *base;
 	u32 set_id;
+	u32 *qpc;
 
 	if (counter)
 		set_id = counter->id;
@@ -3699,11 +3700,15 @@ static int __mlx5_ib_qp_set_counter(struct ib_qp *qp,
 		set_id = mlx5_ib_get_counters_id(dev, mqp->port - 1);
 
 	base = &mqp->trans_qp.base;
-	context.qp_counter_set_usr_page &= cpu_to_be32(0xffffff);
-	context.qp_counter_set_usr_page |= cpu_to_be32(set_id << 24);
-	return mlx5_core_qp_modify(dev, MLX5_CMD_OP_RTS2RTS_QP,
-				   MLX5_QP_OPTPAR_COUNTER_SET_ID, &context,
-				   &base->mqp);
+	MLX5_SET(rts2rts_qp_in, in, opcode, MLX5_CMD_OP_RTS2RTS_QP);
+	MLX5_SET(rts2rts_qp_in, in, qpn, base->mqp.qpn);
+	MLX5_SET(rts2rts_qp_in, in, uid, base->mqp.uid);
+	MLX5_SET(rts2rts_qp_in, in, opt_param_mask,
+		 MLX5_QP_OPTPAR_COUNTER_SET_ID);
+
+	qpc = MLX5_ADDR_OF(rts2rts_qp_in, in, qpc);
+	MLX5_SET(qpc, qpc, counter_set_id, set_id);
+	return mlx5_cmd_exec_in(dev->mdev, rts2rts_qp, in);
 }
 
 static int __mlx5_ib_modify_qp(struct ib_qp *ibqp,
