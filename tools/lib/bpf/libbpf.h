@@ -533,6 +533,7 @@ perf_buffer__new_raw(int map_fd, size_t page_cnt,
 
 LIBBPF_API void perf_buffer__free(struct perf_buffer *pb);
 LIBBPF_API int perf_buffer__poll(struct perf_buffer *pb, int timeout_ms);
+LIBBPF_API int perf_buffer__consume(struct perf_buffer *pb);
 
 typedef enum bpf_perf_event_ret
 	(*bpf_perf_event_print_t)(struct perf_event_header *hdr,
