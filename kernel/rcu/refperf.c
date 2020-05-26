@@ -99,6 +99,7 @@ static atomic_t nreaders_exp;
 
 // Use to wait for all threads to start.
 static atomic_t n_init;
+static atomic_t n_started;
 
 // Track which experiment is currently running.
 static int exp_idx;
@@ -253,6 +254,9 @@ repeat:
 	WARN_ON_ONCE(smp_processor_id() != me);
 
 	WRITE_ONCE(rt->start_reader, 0);
+	if (!atomic_dec_return(&n_started))
+		while (atomic_read_acquire(&n_started))
+			cpu_relax();
 
 	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d started", me, exp_idx);
 
@@ -367,6 +371,7 @@ static int main_func(void *arg)
 
 		reset_readers();
 		atomic_set(&nreaders_exp, nreaders);
+		atomic_set(&n_started, nreaders);
 
 		exp_idx = exp;
 
