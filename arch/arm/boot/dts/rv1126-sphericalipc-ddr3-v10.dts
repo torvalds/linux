@@ -461,7 +461,7 @@
 };
 
 &rkisp_mmu {
-	status = "okay";
+	status = "disabled";
 };
 
 &rkispp {
