@@ -529,7 +529,7 @@ static bool blk_crypto_fallback_inited;
 static int blk_crypto_fallback_init(void)
 {
 	int i;
-	int err = -ENOMEM;
+	int err;
 
 	if (blk_crypto_fallback_inited)
 		return 0;
