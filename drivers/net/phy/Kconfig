@@ -184,7 +184,8 @@ config MDIO_MSCC_MIIM
 	depends on HAS_IOMEM
 	help
 	  This driver supports the MIIM (MDIO) interface found in the network
-	  switches of the Microsemi SoCs
+	  switches of the Microsemi SoCs; it is recommended to switch on
+	  CONFIG_HIGH_RES_TIMERS
 
 config MDIO_MVUSB
 	tristate "Marvell USB to MDIO Adapter"
