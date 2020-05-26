@@ -456,7 +456,7 @@ static int intel_ntb4_link_enable(struct ntb_dev *ntb,
 	return 0;
 }
 
-int intel_ntb4_link_disable(struct ntb_dev *ntb)
+static int intel_ntb4_link_disable(struct ntb_dev *ntb)
 {
 	struct intel_ntb_dev *ndev;
 	u32 ntb_cntl;
