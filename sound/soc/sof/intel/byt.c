@@ -236,6 +236,10 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 
 static int byt_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
+	/* unmask and prepare to receive Done interrupt */
+	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
+					   SHIM_IMRX_DONE, 0);
+
 	/* send the message */
 	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
 			  msg->msg_size);
@@ -301,7 +305,7 @@ static void byt_host_done(struct snd_sof_dev *sdev)
 					   SHIM_BYT_IPCD_DONE,
 					   SHIM_BYT_IPCD_DONE);
 
-	/* unmask busy interrupt */
+	/* unmask and prepare to receive next new message */
 	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
 					   SHIM_IMRX_BUSY, 0);
 }
@@ -311,10 +315,6 @@ static void byt_dsp_done(struct snd_sof_dev *sdev)
 	/* clear DONE bit - tell DSP we have completed */
 	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IPCX,
 					   SHIM_BYT_IPCX_DONE, 0);
-
-	/* unmask Done interrupt */
-	snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
-					   SHIM_IMRX_DONE, 0);
 }
 
 /*
@@ -453,9 +453,10 @@ static int byt_suspend(struct snd_sof_dev *sdev, u32 target_state)
 
 static int byt_resume(struct snd_sof_dev *sdev)
 {
-	/* Enable Interrupt from both sides */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
+	/* enable BUSY and disable DONE Interrupt by default */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX,
+				  SHIM_IMRX_BUSY | SHIM_IMRX_DONE,
+				  SHIM_IMRX_DONE);
 
 	return 0;
 }
@@ -606,9 +607,10 @@ irq:
 		return ret;
 	}
 
-	/* enable Interrupt from both sides */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
+	/* enable BUSY and disable DONE Interrupt by default */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX,
+				  SHIM_IMRX_BUSY | SHIM_IMRX_DONE,
+				  SHIM_IMRX_DONE);
 
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
@@ -808,9 +810,10 @@ irq:
 		return ret;
 	}
 
-	/* enable Interrupt from both sides */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
+	/* enable BUSY and disable DONE Interrupt by default */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX,
+				  SHIM_IMRX_BUSY | SHIM_IMRX_DONE,
+				  SHIM_IMRX_DONE);
 
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
