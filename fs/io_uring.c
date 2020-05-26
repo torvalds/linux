@@ -3492,25 +3492,15 @@ static int io_close(struct io_kiocb *req, bool force_nonblock)
 
 	req->close.put_file = NULL;
 	ret = __close_fd_get_file(req->close.fd, &req->close.put_file);
-	if (ret < 0) {
-		if (ret == -ENOENT)
-			ret = -EBADF;
-		return ret;
-	}
+	if (ret < 0)
+		return (ret == -ENOENT) ? -EBADF : ret;
 
 	/* if the file has a flush method, be safe and punt to async */
 	if (req->close.put_file->f_op->flush && force_nonblock) {
-		/* submission ref will be dropped, take it for async */
-		refcount_inc(&req->refs);
-
+		/* avoid grabbing files - we don't need the files */
+		req->flags |= REQ_F_NO_FILE_TABLE | REQ_F_MUST_PUNT;
 		req->work.func = io_close_finish;
-		/*
-		 * Do manual async queue here to avoid grabbing files - we don't
-		 * need the files, and it'll cause io_close_finish() to close
-		 * the file again and cause a double CQE entry for this request
-		 */
-		io_queue_async_work(req);
-		return 0;
+		return -EAGAIN;
 	}
 
 	/*
