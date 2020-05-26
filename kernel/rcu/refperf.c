@@ -100,6 +100,8 @@ static atomic_t nreaders_exp;
 // Use to wait for all threads to start.
 static atomic_t n_init;
 static atomic_t n_started;
+static atomic_t n_warmedup;
+static atomic_t n_cooleddown;
 
 // Track which experiment is currently running.
 static int exp_idx;
@@ -260,8 +262,15 @@ repeat:
 
 	VERBOSE_PERFOUT("ref_perf_reader %ld: experiment %d started", me, exp_idx);
 
-	// To prevent noise, keep interrupts disabled. This also has the
-	// effect of preventing entries into slow path for rcu_read_unlock().
+
+	// To reduce noise, do an initial cache-warming invocation, check
+	// in, and then keep warming until everyone has checked in.
+	cur_ops->readsection(loops);
+	if (!atomic_dec_return(&n_warmedup))
+		while (atomic_read_acquire(&n_warmedup))
+			cur_ops->readsection(loops);
+	// Also keep interrupts disabled.  This also has the effect
+	// of preventing entries into slow path for rcu_read_unlock().
 	local_irq_save(flags);
 	start = ktime_get_mono_fast_ns();
 
@@ -271,6 +280,11 @@ repeat:
 	local_irq_restore(flags);
 
 	rt->last_duration_ns = WARN_ON_ONCE(duration < 0) ? 0 : duration;
+	// To reduce runtime-skew noise, do maintain-load invocations until
+	// everyone is done.
+	if (!atomic_dec_return(&n_cooleddown))
+		while (atomic_read_acquire(&n_cooleddown))
+			cur_ops->readsection(loops);
 
 	if (atomic_dec_and_test(&nreaders_exp))
 		wake_up(&main_wq);
@@ -372,6 +386,8 @@ static int main_func(void *arg)
 		reset_readers();
 		atomic_set(&nreaders_exp, nreaders);
 		atomic_set(&n_started, nreaders);
+		atomic_set(&n_warmedup, nreaders);
+		atomic_set(&n_cooleddown, nreaders);
 
 		exp_idx = exp;
 
