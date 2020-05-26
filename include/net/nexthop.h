@@ -70,6 +70,7 @@ struct nh_grp_entry {
 };
 
 struct nh_group {
+	struct nh_group		*spare; /* spare group for removals */
 	u16			num_nh;
 	bool			mpath;
 	bool			has_v4;
