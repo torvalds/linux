@@ -233,6 +233,39 @@ struct fib_nh_common *nexthop_fib_nhc(struct nexthop *nh, int nhsel)
 	return &nhi->fib_nhc;
 }
 
+/* called from fib_table_lookup with rcu_lock */
+static inline
+struct fib_nh_common *nexthop_get_nhc_lookup(const struct nexthop *nh,
+					     int fib_flags,
+					     const struct flowi4 *flp,
+					     int *nhsel)
+{
+	struct nh_info *nhi;
+
+	if (nh->is_group) {
+		struct nh_group *nhg = rcu_dereference(nh->nh_grp);
+		int i;
+
+		for (i = 0; i < nhg->num_nh; i++) {
+			struct nexthop *nhe = nhg->nh_entries[i].nh;
+
+			nhi = rcu_dereference(nhe->nh_info);
+			if (fib_lookup_good_nhc(&nhi->fib_nhc, fib_flags, flp)) {
+				*nhsel = i;
+				return &nhi->fib_nhc;
+			}
+		}
+	} else {
+		nhi = rcu_dereference(nh->nh_info);
+		if (fib_lookup_good_nhc(&nhi->fib_nhc, fib_flags, flp)) {
+			*nhsel = 0;
+			return &nhi->fib_nhc;
+		}
+	}
+
+	return NULL;
+}
+
 static inline unsigned int fib_info_num_path(const struct fib_info *fi)
 {
 	if (unlikely(fi->nh))
