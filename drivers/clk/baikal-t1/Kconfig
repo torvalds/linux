@@ -27,4 +27,16 @@ config CLK_BT1_CCU_PLL
 	  CPUs, DDR, etc.) or passed over the clock dividers to be only
 	  then used as an individual reference clock of a target device.
 
+config CLK_BT1_CCU_DIV
+	bool "Baikal-T1 CCU Dividers support"
+	select RESET_CONTROLLER
+	select MFD_SYSCON
+	default MIPS_BAIKAL_T1
+	help
+	  Enable this to support the CCU dividers used to distribute clocks
+	  between AXI-bus and system devices coming from CCU PLLs of Baikal-T1
+	  SoC. CCU dividers can be either configurable or with fixed divider,
+	  either gateable or ungateable. Some of the CCU dividers can be as well
+	  used to reset the domains they're supplying clock to.
+
 endif
