@@ -1514,7 +1514,7 @@ static int hdmi_phy_configure(struct dw_hdmi *hdmi)
 
 	/* Write to the PHY as configured by the platform */
 	if (pdata->configure_phy)
-		ret = pdata->configure_phy(hdmi, pdata, mpixelclock);
+		ret = pdata->configure_phy(hdmi, pdata->priv_data, mpixelclock);
 	else
 		ret = phy->configure(hdmi, pdata, mpixelclock);
 	if (ret) {

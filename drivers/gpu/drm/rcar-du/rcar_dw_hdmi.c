@@ -52,8 +52,7 @@ rcar_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
 	return MODE_OK;
 }
 
-static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
-				   const struct dw_hdmi_plat_data *pdata,
+static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi, void *data,
 				   unsigned long mpixelclock)
 {
 	const struct rcar_hdmi_phy_params *params = rcar_hdmi_phy_params;
