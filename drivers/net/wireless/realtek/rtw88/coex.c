@@ -283,6 +283,7 @@ void rtw_coex_write_scbd(struct rtw_dev *rtwdev, u16 bitpos, bool set)
 		rtw_write16(rtwdev, REG_WIFI_BT_INFO, val);
 	}
 }
+EXPORT_SYMBOL(rtw_coex_write_scbd);
 
 static u16 rtw_coex_read_scbd(struct rtw_dev *rtwdev)
 {
@@ -732,6 +733,7 @@ u32 rtw_coex_read_indirect_reg(struct rtw_dev *rtwdev, u16 addr)
 
 	return val;
 }
+EXPORT_SYMBOL(rtw_coex_read_indirect_reg);
 
 void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 				 u32 mask, u32 val)
@@ -745,6 +747,7 @@ void rtw_coex_write_indirect_reg(struct rtw_dev *rtwdev, u16 addr,
 	if (!ltecoex_reg_write(rtwdev, addr, tmp))
 		rtw_err(rtwdev, "failed to write indirect register\n");
 }
+EXPORT_SYMBOL(rtw_coex_write_indirect_reg);
 
 static void rtw_coex_coex_ctrl_owner(struct rtw_dev *rtwdev, bool wifi_control)
 {

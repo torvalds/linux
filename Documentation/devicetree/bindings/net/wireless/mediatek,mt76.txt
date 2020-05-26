@@ -25,6 +25,9 @@ Optional properties:
 - mediatek,mtd-eeprom: Specify a MTD partition + offset containing EEPROM data
 - big-endian: if the radio eeprom partition is written in big-endian, specify
   this property
+- mediatek,eeprom-merge-otp: Merge EEPROM data with OTP data. Can be used on
+  boards where the flash calibration data is generic and specific calibration
+  data should be pulled from the OTP ROM
 
 The MAC address can as well be set with corresponding optional properties
 defined in net/ethernet.txt.

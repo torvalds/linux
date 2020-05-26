@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,7 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,6 +86,7 @@ struct iwl_fwrt_shared_mem_cfg {
 		u32 rxfifo1_size;
 	} lmac[MAX_NUM_LMAC];
 	u32 rxfifo2_size;
+	u32 rxfifo2_control_size;
 	u32 internal_txfifo_addr;
 	u32 internal_txfifo_size[TX_FIFO_INTERNAL_MAX_NUM];
 };
@@ -241,5 +242,6 @@ int iwl_init_paging(struct iwl_fw_runtime *fwrt, enum iwl_ucode_type type);
 void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
 
 void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
+int iwl_set_soc_latency(struct iwl_fw_runtime *fwrt);
 
 #endif /* __iwl_fw_runtime_h__ */

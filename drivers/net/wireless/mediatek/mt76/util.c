@@ -46,7 +46,7 @@ int mt76_wcid_alloc(unsigned long *mask, int size)
 {
 	int i, idx = 0, cur;
 
-	for (i = 0; i < size / BITS_PER_LONG; i++) {
+	for (i = 0; i < DIV_ROUND_UP(size, BITS_PER_LONG); i++) {
 		idx = ffs(~mask[i]);
 		if (!idx)
 			continue;

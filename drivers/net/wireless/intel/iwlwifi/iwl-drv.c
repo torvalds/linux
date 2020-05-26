@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2014, 2018 - 2020  Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,7 +85,7 @@
 
 #define DRV_DESCRIPTION	"Intel(R) Wireless WiFi driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
-MODULE_AUTHOR(DRV_COPYRIGHT " " DRV_AUTHOR);
+MODULE_AUTHOR(DRV_AUTHOR);
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -1776,7 +1774,6 @@ static int __init iwl_drv_init(void)
 		INIT_LIST_HEAD(&iwlwifi_opmode_table[i].drv);
 
 	pr_info(DRV_DESCRIPTION "\n");
-	pr_info(DRV_COPYRIGHT "\n");
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* Create the root of iwlwifi debugfs subsystem. */
@@ -1823,11 +1820,6 @@ MODULE_PARM_DESC(amsdu_size,
 		 "4K for other devices 1:4K 2:8K 3:12K 4: 2K (default 0)");
 module_param_named(fw_restart, iwlwifi_mod_params.fw_restart, bool, 0444);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
-
-module_param_named(antenna_coupling, iwlwifi_mod_params.antenna_coupling,
-		   int, 0444);
-MODULE_PARM_DESC(antenna_coupling,
-		 "specify antenna coupling in dB (default: 0 dB)");
 
 module_param_named(nvm_file, iwlwifi_mod_params.nvm_file, charp, 0444);
 MODULE_PARM_DESC(nvm_file, "NVM file name");

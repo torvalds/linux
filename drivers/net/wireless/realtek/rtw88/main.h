@@ -11,6 +11,7 @@
 #include <linux/average.h>
 #include <linux/bitops.h>
 #include <linux/bitfield.h>
+#include <linux/iopoll.h>
 #include <linux/interrupt.h>
 
 #include "util.h"
@@ -39,9 +40,6 @@ extern bool rtw_bf_support;
 extern unsigned int rtw_fw_lps_deep_mode;
 extern unsigned int rtw_debug_mask;
 extern const struct ieee80211_ops rtw_ops;
-extern struct rtw_chip_info rtw8822b_hw_spec;
-extern struct rtw_chip_info rtw8822c_hw_spec;
-extern struct rtw_chip_info rtw8723d_hw_spec;
 
 #define RTW_MAX_CHANNEL_NUM_2G 14
 #define RTW_MAX_CHANNEL_NUM_5G 49
@@ -518,6 +516,12 @@ struct rtw_hw_reg {
 	u32 mask;
 };
 
+struct rtw_ltecoex_addr {
+	u32 ctrl;
+	u32 wdata;
+	u32 rdata;
+};
+
 struct rtw_reg_domain {
 	u32 addr;
 	u32 mask;
@@ -794,6 +798,7 @@ struct rtw_regulatory {
 
 struct rtw_chip_ops {
 	int (*mac_init)(struct rtw_dev *rtwdev);
+	void (*shutdown)(struct rtw_dev *rtwdev);
 	int (*read_efuse)(struct rtw_dev *rtwdev, u8 *map);
 	void (*phy_set_param)(struct rtw_dev *rtwdev);
 	void (*set_channel)(struct rtw_dev *rtwdev, u8 channel,
@@ -943,6 +948,16 @@ struct rtw_rqpn {
 	enum rtw_dma_mapping dma_map_hi;
 };
 
+struct rtw_prioq_addr {
+	u32 rsvd;
+	u32 avail;
+};
+
+struct rtw_prioq_addrs {
+	struct rtw_prioq_addr prio[RTW_DMA_MAPPING_MAX];
+	bool wsize;
+};
+
 struct rtw_page_table {
 	u16 hq_num;
 	u16 nq_num;
@@ -1055,6 +1070,8 @@ struct rtw_pwr_track_tbl {
 	const u8 *pwrtrk_2g_cckb_p;
 	const u8 *pwrtrk_2g_ccka_n;
 	const u8 *pwrtrk_2g_ccka_p;
+	const s8 *pwrtrk_xtal_n;
+	const s8 *pwrtrk_xtal_p;
 };
 
 enum rtw_wlan_cpu {
@@ -1097,6 +1114,7 @@ struct rtw_chip_info {
 	const struct rtw_pwr_seq_cmd **pwr_on_seq;
 	const struct rtw_pwr_seq_cmd **pwr_off_seq;
 	const struct rtw_rqpn *rqpn_table;
+	const struct rtw_prioq_addrs *prioq_addrs;
 	const struct rtw_page_table *page_table;
 	const struct rtw_intf_phy_para_table *intf_table;
 
@@ -1106,6 +1124,7 @@ struct rtw_chip_info {
 	u32 rf_sipi_addr[2];
 	const struct rtw_rf_sipi_addr *rf_sipi_read_addr;
 	u8 fix_rf_phy_num;
+	const struct rtw_ltecoex_addr *ltecoex_addr;
 
 	const struct rtw_table *mac_tbl;
 	const struct rtw_table *agc_tbl;
@@ -1399,6 +1418,16 @@ struct rtw_pkt_count {
 DECLARE_EWMA(evm, 10, 4);
 DECLARE_EWMA(snr, 10, 4);
 
+struct rtw_iqk_info {
+	bool done;
+	struct {
+		u32 s1_x;
+		u32 s1_y;
+		u32 s0_x;
+		u32 s0_y;
+	} result;
+};
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -1436,6 +1465,8 @@ struct rtw_dm_info {
 	bool pwr_trk_triggered;
 	bool pwr_trk_init_trigger;
 	struct ewma_thermal avg_thermal[RTW_RF_PATH_MAX];
+	s8 txagc_remnant_cck;
+	s8 txagc_remnant_ofdm;
 
 	/* backup dack results for each path and I/Q */
 	u32 dack_adck[RTW_RF_PATH_MAX];
@@ -1458,6 +1489,8 @@ struct rtw_dm_info {
 	struct rtw_pkt_count last_pkt_count;
 	struct ewma_evm ewma_evm[RTW_EVM_NUM];
 	struct ewma_snr ewma_snr[RTW_SNR_NUM];
+
+	struct rtw_iqk_info iqk;
 };
 
 struct rtw_efuse {

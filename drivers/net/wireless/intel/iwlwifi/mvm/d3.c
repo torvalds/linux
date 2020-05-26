@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,9 +77,6 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (iwlwifi_mod_params.swcrypto)
-		return;
 
 	mutex_lock(&mvm->mutex);
 
@@ -843,18 +838,16 @@ iwl_mvm_wowlan_config(struct iwl_mvm *mvm,
 			return ret;
 	}
 
-	if (!iwlwifi_mod_params.swcrypto) {
-		/*
-		 * This needs to be unlocked due to lock ordering
-		 * constraints. Since we're in the suspend path
-		 * that isn't really a problem though.
-		 */
-		mutex_unlock(&mvm->mutex);
-		ret = iwl_mvm_wowlan_config_key_params(mvm, vif, CMD_ASYNC);
-		mutex_lock(&mvm->mutex);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * This needs to be unlocked due to lock ordering
+	 * constraints. Since we're in the suspend path
+	 * that isn't really a problem though.
+	 */
+	mutex_unlock(&mvm->mutex);
+	ret = iwl_mvm_wowlan_config_key_params(mvm, vif, CMD_ASYNC);
+	mutex_lock(&mvm->mutex);
+	if (ret)
+		return ret;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, WOWLAN_CONFIGURATION, 0,
 				   sizeof(*wowlan_config_cmd),
@@ -1992,6 +1985,9 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 		ret = 1;
 		goto err;
 	}
+
+	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_HOST_D3_END,
+			       NULL);
 
 	ret = iwl_trans_d3_resume(mvm->trans, &d3_status, test, !unified_image);
 	if (ret)

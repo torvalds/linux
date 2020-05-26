@@ -141,6 +141,7 @@ int rtw_read8_physical_efuse(struct rtw_dev *rtwdev, u16 addr, u8 *data)
 
 	return 0;
 }
+EXPORT_SYMBOL(rtw_read8_physical_efuse);
 
 int rtw_parse_efuse_map(struct rtw_dev *rtwdev)
 {

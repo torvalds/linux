@@ -1427,7 +1427,8 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 }
 
 static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
-						  struct iwl_rxq *rxq, int i)
+						  struct iwl_rxq *rxq, int i,
+						  bool *join)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_mem_buffer *rxb;
@@ -1441,10 +1442,12 @@ static struct iwl_rx_mem_buffer *iwl_pcie_get_rxb(struct iwl_trans *trans,
 		return rxb;
 	}
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
 		vid = le16_to_cpu(rxq->cd[i].rbid);
-	else
+		*join = rxq->cd[i].flags & IWL_RX_CD_FLAGS_FRAGMENTED;
+	} else {
 		vid = le32_to_cpu(rxq->bd_32[i]) & 0x0FFF; /* 12-bit VID */
+	}
 
 	if (!vid || vid > RX_POOL_SIZE(trans_pcie->num_rx_bufs))
 		goto out_err;
@@ -1502,6 +1505,7 @@ restart:
 		u32 rb_pending_alloc =
 			atomic_read(&trans_pcie->rba.req_pending) *
 			RX_CLAIM_REQ_ALLOC;
+		bool join = false;
 
 		if (unlikely(rb_pending_alloc >= rxq->queue_size / 2 &&
 			     !emergency)) {
@@ -1514,11 +1518,29 @@ restart:
 
 		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
 
-		rxb = iwl_pcie_get_rxb(trans, rxq, i);
+		rxb = iwl_pcie_get_rxb(trans, rxq, i, &join);
 		if (!rxb)
 			goto out;
 
-		iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency, i);
+		if (unlikely(join || rxq->next_rb_is_fragment)) {
+			rxq->next_rb_is_fragment = join;
+			/*
+			 * We can only get a multi-RB in the following cases:
+			 *  - firmware issue, sending a too big notification
+			 *  - sniffer mode with a large A-MSDU
+			 *  - large MTU frames (>2k)
+			 * since the multi-RB functionality is limited to newer
+			 * hardware that cannot put multiple entries into a
+			 * single RB.
+			 *
+			 * Right now, the higher layers aren't set up to deal
+			 * with that, so discard all of these.
+			 */
+			list_add_tail(&rxb->list, &rxq->rx_free);
+			rxq->free_count++;
+		} else {
+			iwl_pcie_rx_handle_rb(trans, rxq, rxb, emergency, i);
+		}
 
 		i = (i + 1) & (rxq->queue_size - 1);
 

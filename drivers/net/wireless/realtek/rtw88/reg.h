@@ -69,6 +69,7 @@
 #define BIT_DPDT_SEL_EN		BIT(23)
 #define REG_LEDCFG2		0x004E
 #define REG_PAD_CTRL1		0x0064
+#define BIT_BT_BTG_SEL		BIT(31)
 #define BIT_PAPE_WLBT_SEL	BIT(29)
 #define BIT_LNAON_WLBT_SEL	BIT(28)
 #define BIT_BTGP_JTAG_EN	BIT(24)
@@ -82,6 +83,7 @@
 #define BIT_DBG_GNT_WL_BT	BIT(27)
 #define BIT_LTE_MUX_CTRL_PATH	BIT(26)
 #define REG_HCI_OPT_CTRL	0x0074
+#define BIT_USB_SUS_DIS		BIT(8)
 
 #define REG_AFE_CTRL_4		0x0078
 #define BIT_CK320M_AFE_EN	BIT(4)
@@ -611,7 +613,10 @@
 
 #define REG_IGN_GNTBT4	0x4160
 
+#define RF_MODE		0x00
 #define RF_MODOPT	0x01
+#define RF_WLINT	0x01
+#define RF_WLSEL	0x02
 #define RF_DTXLOK	0x08
 #define RF_CFGCH	0x18
 #define RF_RCK		0x1d
@@ -619,9 +624,15 @@
 #define RF_LUTWD1	0x3e
 #define RF_LUTWD0	0x3f
 #define RF_T_METER	0x42
+#define RF_BSPAD	0x54
+#define RF_GAINTX	0x56
+#define RF_TXATANK	0x64
+#define RF_TRXIQ	0x66
+#define RF_RXIQGEN	0x8d
 #define RF_XTALX2	0xb8
 #define RF_MALSEL	0xbe
 #define RF_RCKD		0xde
+#define RF_TXADBG	0xde
 #define RF_LUTDBG	0xdf
 #define RF_LUTWE2	0xee
 #define RF_LUTWE	0xef

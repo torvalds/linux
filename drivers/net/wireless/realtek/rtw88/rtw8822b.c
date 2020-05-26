@@ -2,6 +2,7 @@
 /* Copyright(c) 2018-2019  Realtek Corporation
  */
 
+#include <linux/module.h>
 #include "main.h"
 #include "coex.h"
 #include "fw.h"
@@ -1550,16 +1551,6 @@ static void rtw8822b_bf_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
 }
 
 static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822b[] = {
-	{0x0086,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, BIT(0), 0},
-	{0x0086,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_POLLING, BIT(1), BIT(1)},
 	{0x004A,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK,
@@ -1688,11 +1679,6 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822b[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, 0xFF, 0x0c},
-	{0x0068,
-	 RTW_PWR_CUT_C_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(4), BIT(4)},
 	{0x0029,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -1721,11 +1707,6 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_act_8822b[] = {
 };
 
 static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822b[] = {
-	{0x0003,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(2), 0},
 	{0x0093,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -1794,11 +1775,6 @@ static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8822b[] = {
 };
 
 static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
-	{0x0005,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(7), BIT(7)},
 	{0x0007,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_SDIO_MSK,
@@ -1819,46 +1795,6 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
 	 RTW_PWR_INTF_USB_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(0), 0},
-	{0x0067,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(5), 0},
-	{0x0067,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(4), 0},
-	{0x004F,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(0), 0},
-	{0x0067,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(1), 0},
-	{0x0046,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(6), BIT(6)},
-	{0x0067,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(2), 0},
-	{0x0046,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(7), BIT(7)},
-	{0x0062,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_MAC,
-	 RTW_PWR_CMD_WRITE, BIT(4), BIT(4)},
 	{0x0081,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -1869,41 +1805,11 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8822b[] = {
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_SDIO_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(3) | BIT(4), BIT(3)},
-	{0x0086,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, BIT(0), BIT(0)},
-	{0x0086,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_POLLING, BIT(1), 0},
 	{0x0090,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_PCI_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(1), 0},
-	{0x0044,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, 0xFF, 0},
-	{0x0040,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, 0xFF, 0x90},
-	{0x0041,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, 0xFF, 0x00},
-	{0x0042,
-	 RTW_PWR_CUT_ALL_MSK,
-	 RTW_PWR_INTF_SDIO_MSK,
-	 RTW_PWR_ADDR_SDIO,
-	 RTW_PWR_CMD_WRITE, 0xFF, 0x04},
 	{0xFFFF,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -2057,6 +1963,12 @@ static const struct rtw_hw_reg rtw8822b_dig[] = {
 	[1] = { .addr = 0xe50, .mask = 0x7f },
 };
 
+static const struct rtw_ltecoex_addr rtw8822b_ltecoex_addr = {
+	.ctrl = LTECOEX_ACCESS_CTRL,
+	.wdata = LTECOEX_WRITE_DATA,
+	.rdata = LTECOEX_READ_DATA,
+};
+
 static const struct rtw_page_table page_table_8822b[] = {
 	{64, 64, 64, 64, 1},
 	{64, 64, 64, 64, 1},
@@ -2081,6 +1993,22 @@ static const struct rtw_rqpn rqpn_table_8822b[] = {
 	{RTW_DMA_MAPPING_NORMAL, RTW_DMA_MAPPING_NORMAL,
 	 RTW_DMA_MAPPING_LOW, RTW_DMA_MAPPING_LOW,
 	 RTW_DMA_MAPPING_EXTRA, RTW_DMA_MAPPING_HIGH},
+};
+
+static struct rtw_prioq_addrs prioq_addrs_8822b = {
+	.prio[RTW_DMA_MAPPING_EXTRA] = {
+		.rsvd = REG_FIFOPAGE_INFO_4, .avail = REG_FIFOPAGE_INFO_4 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_LOW] = {
+		.rsvd = REG_FIFOPAGE_INFO_2, .avail = REG_FIFOPAGE_INFO_2 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_NORMAL] = {
+		.rsvd = REG_FIFOPAGE_INFO_3, .avail = REG_FIFOPAGE_INFO_3 + 2,
+	},
+	.prio[RTW_DMA_MAPPING_HIGH] = {
+		.rsvd = REG_FIFOPAGE_INFO_1, .avail = REG_FIFOPAGE_INFO_1 + 2,
+	},
+	.wsize = true,
 };
 
 static struct rtw_chip_ops rtw8822b_ops = {
@@ -2433,11 +2361,13 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.pwr_off_seq = card_disable_flow_8822b,
 	.page_table = page_table_8822b,
 	.rqpn_table = rqpn_table_8822b,
+	.prioq_addrs = &prioq_addrs_8822b,
 	.intf_table = &phy_para_table_8822b,
 	.dig = rtw8822b_dig,
 	.dig_cck = NULL,
 	.rf_base_addr = {0x2800, 0x2c00},
 	.rf_sipi_addr = {0xc90, 0xe90},
+	.ltecoex_addr = &rtw8822b_ltecoex_addr,
 	.mac_tbl = &rtw8822b_mac_tbl,
 	.agc_tbl = &rtw8822b_agc_tbl,
 	.bb_tbl = &rtw8822b_bb_tbl,
@@ -2482,3 +2412,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 EXPORT_SYMBOL(rtw8822b_hw_spec);
 
 MODULE_FIRMWARE("rtw88/rtw8822b_fw.bin");
+
+MODULE_AUTHOR("Realtek Corporation");
+MODULE_DESCRIPTION("Realtek 802.11ac wireless 8822b driver");
+MODULE_LICENSE("Dual BSD/GPL");

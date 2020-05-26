@@ -477,12 +477,16 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_TH1		0x108
 #define IWL_CFG_RF_TYPE_JF2		0x105
 #define IWL_CFG_RF_TYPE_JF1		0x108
+#define IWL_CFG_RF_TYPE_HR2		0x10A
+#define IWL_CFG_RF_TYPE_HR1		0x10C
 
 #define IWL_CFG_RF_ID_TH		0x1
 #define IWL_CFG_RF_ID_TH1		0x1
 #define IWL_CFG_RF_ID_JF		0x3
 #define IWL_CFG_RF_ID_JF1		0x6
 #define IWL_CFG_RF_ID_JF1_DIV		0xA
+#define IWL_CFG_RF_ID_HR		0x7
+#define IWL_CFG_RF_ID_HR1		0x4
 
 #define IWL_CFG_NO_160			0x0
 #define IWL_CFG_160			0x1
@@ -535,6 +539,8 @@ extern const char iwl9260_killer_1550_name[];
 extern const char iwl9560_killer_1550i_name[];
 extern const char iwl9560_killer_1550s_name[];
 extern const char iwl_ax200_name[];
+extern const char iwl_ax201_name[];
+extern const char iwl_ax101_name[];
 extern const char iwl_ax200_killer_1650w_name[];
 extern const char iwl_ax200_killer_1650x_name[];
 
@@ -609,9 +615,9 @@ extern const struct iwl_cfg iwl9560_qu_c0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_qnj_b0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
-extern const struct iwl_cfg iwl_ax101_cfg_qu_hr;
-extern const struct iwl_cfg iwl_ax101_cfg_qu_c0_hr_b0;
-extern const struct iwl_cfg iwl_ax101_cfg_quz_hr;
+extern const struct iwl_cfg iwl_qu_b0_hr1_b0;
+extern const struct iwl_cfg iwl_qu_c0_hr1_b0;
+extern const struct iwl_cfg iwl_quz_a0_hr1_b0;
 extern const struct iwl_cfg iwl_ax200_cfg_cc;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
@@ -625,8 +631,7 @@ extern const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg killer1650x_2ax_cfg;
 extern const struct iwl_cfg killer1650w_2ax_cfg;
-extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
-extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
+extern const struct iwl_cfg iwl_qnj_b0_hr_b0_cfg;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;

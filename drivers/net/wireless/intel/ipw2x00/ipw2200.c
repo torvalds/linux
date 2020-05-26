@@ -3386,7 +3386,7 @@ struct ipw_fw {
 	__le32 boot_size;
 	__le32 ucode_size;
 	__le32 fw_size;
-	u8 data[0];
+	u8 data[];
 };
 
 static int ipw_get_fw(struct ipw_priv *priv,
