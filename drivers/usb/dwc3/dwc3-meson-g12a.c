@@ -708,11 +708,7 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 		return PTR_ERR(base);
 
 	priv->drvdata = of_device_get_match_data(&pdev->dev);
-
 	priv->dev = dev;
-	ret = priv->drvdata->setup_regmaps(priv, base);
-	if (ret)
-		return ret;
 
 	priv->vbus = devm_regulator_get_optional(dev, "vbus");
 	if (IS_ERR(priv->vbus)) {
@@ -748,6 +744,10 @@ static int dwc3_meson_g12a_probe(struct platform_device *pdev)
 	ret = dwc3_meson_g12a_get_phys(priv);
 	if (ret)
 		goto err_disable_clks;
+
+	ret = priv->drvdata->setup_regmaps(priv, base);
+	if (ret)
+		return ret;
 
 	if (priv->vbus) {
 		ret = regulator_enable(priv->vbus);
