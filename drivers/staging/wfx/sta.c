@@ -203,7 +203,7 @@ void wfx_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 static int wfx_update_pm(struct wfx_vif *wvif)
 {
 	struct ieee80211_conf *conf = &wvif->wdev->hw->conf;
-	bool ps = conf->flags & IEEE80211_CONF_PS;
+	bool ps = wvif->vif->bss_conf.ps;
 	int ps_timeout = conf->dynamic_ps_timeout;
 	struct ieee80211_channel *chan0 = NULL, *chan1 = NULL;
 
