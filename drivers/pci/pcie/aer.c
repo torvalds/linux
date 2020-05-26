@@ -253,12 +253,8 @@ void pci_aer_clear_device_status(struct pci_dev *dev)
 
 int pci_aer_clear_nonfatal_status(struct pci_dev *dev)
 {
-	int pos;
+	int pos = dev->aer_cap;
 	u32 status, sev;
-
-	pos = dev->aer_cap;
-	if (!pos)
-		return -EIO;
 
 	if (!pcie_aer_is_native(dev))
 		return -EIO;
@@ -276,12 +272,8 @@ EXPORT_SYMBOL_GPL(pci_aer_clear_nonfatal_status);
 
 void pci_aer_clear_fatal_status(struct pci_dev *dev)
 {
-	int pos;
+	int pos = dev->aer_cap;
 	u32 status, sev;
-
-	pos = dev->aer_cap;
-	if (!pos)
-		return;
 
 	if (!pcie_aer_is_native(dev))
 		return;
