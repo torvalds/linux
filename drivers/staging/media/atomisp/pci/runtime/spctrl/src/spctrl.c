@@ -26,7 +26,7 @@ struct spctrl_context_info {
 	u32        spctrl_config_dmem_addr; /* location of dmem_cfg  in SP dmem */
 	u32        spctrl_state_dmem_addr;
 	unsigned int    sp_entry;           /* entry function ptr on SP */
-	hrt_vaddress    code_addr;          /* sp firmware location in host mem-DDR*/
+	ia_css_ptr    code_addr;          /* sp firmware location in host mem-DDR*/
 	u32        code_size;
 	char           *program_name;       /* used in case of PLATFORM_SIM */
 };
@@ -38,7 +38,7 @@ static bool spctrl_loaded[N_SP_ID] = {0};
 enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 				      ia_css_spctrl_cfg *spctrl_cfg)
 {
-	hrt_vaddress code_addr = mmgr_NULL;
+	ia_css_ptr code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
 	if ((sp_id >= N_SP_ID) || (!spctrl_cfg))
@@ -68,9 +68,9 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	hmm_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);
 
-	if (sizeof(hrt_vaddress) > sizeof(hrt_data)) {
+	if (sizeof(ia_css_ptr) > sizeof(hrt_data)) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_ERROR,
-				    "size of hrt_vaddress can not be greater than hrt_data\n");
+				    "size of ia_css_ptr can not be greater than hrt_data\n");
 		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
 		return IA_CSS_ERR_INTERNAL_ERROR;
@@ -112,7 +112,7 @@ void sh_css_spctrl_reload_fw(sp_ID_t sp_id)
 	spctrl_loaded[sp_id] = true;
 }
 
-hrt_vaddress get_sp_code_addr(sp_ID_t  sp_id)
+ia_css_ptr get_sp_code_addr(sp_ID_t  sp_id)
 {
 	return spctrl_cofig_info[sp_id].code_addr;
 }

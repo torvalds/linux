@@ -27,7 +27,7 @@
 
 /* The address of the remote copy */
 hrt_address	debug_buffer_address = (hrt_address) - 1;
-hrt_vaddress	debug_buffer_ddr_address = (hrt_vaddress)-1;
+ia_css_ptr	debug_buffer_ddr_address = (ia_css_ptr)-1;
 /* The local copy */
 static debug_data_t		debug_data;
 debug_data_t		*debug_data_ptr = &debug_data;
@@ -40,7 +40,7 @@ void debug_buffer_init(const hrt_address addr)
 	debug_data.tail = 0;
 }
 
-void debug_buffer_ddr_init(const hrt_vaddress addr)
+void debug_buffer_ddr_init(const ia_css_ptr addr)
 {
 	debug_buf_mode_t mode = DEBUG_BUFFER_MODE_LINEAR;
 	u32 enable = 1;

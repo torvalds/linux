@@ -64,7 +64,7 @@ struct sh_css {
 	mipi_sizes_for_check[N_CSI_PORTS][IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT];
 	unsigned int                   mipi_frame_size[N_CSI_PORTS];
 #endif
-	hrt_vaddress                   sp_bin_addr;
+	ia_css_ptr                   sp_bin_addr;
 	hrt_data                       page_table_base_index;
 	unsigned int
 	size_mem_words; /* \deprecated{Use ia_css_mipi_buffer_config instead.}*/

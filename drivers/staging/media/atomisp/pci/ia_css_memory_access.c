@@ -14,7 +14,7 @@
 
 #include <memory_access.h>
 
-hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attrs)
+ia_css_ptr mmgr_alloc_attr(const size_t size, const uint16_t attrs)
 {
 	return hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, attrs);
 }

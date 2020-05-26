@@ -146,7 +146,7 @@ struct ia_css_pipe {
 		struct ia_css_capture_settings capture;
 		struct ia_css_yuvpp_settings yuvpp;
 	} pipe_settings;
-	hrt_vaddress scaler_pp_lut;
+	ia_css_ptr scaler_pp_lut;
 	struct osys_object *osys_obj;
 
 	/* This number is unique per pipe each instance of css. This number is

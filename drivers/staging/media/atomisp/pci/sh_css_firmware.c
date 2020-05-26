@@ -319,10 +319,10 @@ void sh_css_unload_firmware(void)
 	sh_css_num_binaries = 0;
 }
 
-hrt_vaddress
+ia_css_ptr
 sh_css_load_blob(const unsigned char *blob, unsigned int size)
 {
-	hrt_vaddress target_addr = mmgr_alloc_attr(size, 0);
+	ia_css_ptr target_addr = mmgr_alloc_attr(size, 0);
 	/* this will allocate memory aligned to a DDR word boundary which
 	   is required for the CSS DMA to read the instructions. */
 

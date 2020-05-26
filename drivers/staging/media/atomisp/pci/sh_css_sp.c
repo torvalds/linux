@@ -82,7 +82,7 @@ set_output_frame_buffer(const struct ia_css_frame *frame,
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 				    const enum sh_css_queue_id queue_id,
-				    const hrt_vaddress xmem_addr,
+				    const ia_css_ptr xmem_addr,
 				    const enum ia_css_buffer_type buf_type);
 
 static void
@@ -412,7 +412,7 @@ sh_css_sp_get_sw_interrupt_value(unsigned int irq)
 static void
 sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 				    const enum sh_css_queue_id queue_id,
-				    const hrt_vaddress xmem_addr,
+				    const ia_css_ptr xmem_addr,
 				    const enum ia_css_buffer_type buf_type)
 {
 	assert(buf_type < IA_CSS_NUM_BUFFER_TYPE);

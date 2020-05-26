@@ -383,7 +383,7 @@ static struct sh_css_hmm_buffer_record
 				  hrt_address kernel_ptr);
 
 static struct sh_css_hmm_buffer_record
-*sh_css_hmm_buffer_record_validate(hrt_vaddress ddr_buffer_addr,
+*sh_css_hmm_buffer_record_validate(ia_css_ptr ddr_buffer_addr,
 				   enum ia_css_buffer_type type);
 
 void
@@ -4406,7 +4406,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			   struct ia_css_buffer *buffer) {
 	enum ia_css_err return_err;
 	enum sh_css_queue_id queue_id;
-	hrt_vaddress ddr_buffer_addr = (hrt_vaddress)0;
+	ia_css_ptr ddr_buffer_addr = (ia_css_ptr)0;
 	struct sh_css_hmm_buffer ddr_buffer;
 	enum ia_css_buffer_type buf_type;
 	enum ia_css_pipe_id pipe_id;
@@ -8437,7 +8437,7 @@ remove_firmware(struct ia_css_fw_info **l, struct ia_css_fw_info *firmware) {
 }
 
 static enum ia_css_err upload_isp_code(struct ia_css_fw_info *firmware) {
-	hrt_vaddress binary;
+	ia_css_ptr binary;
 
 	if (!firmware) {
 		IA_CSS_ERROR("NULL input parameter");
@@ -11073,7 +11073,7 @@ static struct sh_css_hmm_buffer_record
 }
 
 static struct sh_css_hmm_buffer_record
-*sh_css_hmm_buffer_record_validate(hrt_vaddress ddr_buffer_addr,
+*sh_css_hmm_buffer_record_validate(ia_css_ptr ddr_buffer_addr,
 				    enum ia_css_buffer_type type) {
 	int i;
 	struct sh_css_hmm_buffer_record *buffer_record = NULL;

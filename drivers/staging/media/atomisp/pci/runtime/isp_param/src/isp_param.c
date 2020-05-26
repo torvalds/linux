@@ -34,7 +34,7 @@ ia_css_isp_param_set_css_mem_init(
     struct ia_css_isp_param_css_segments *mem_init,
     enum ia_css_param_class pclass,
     enum ia_css_isp_memories mem,
-    hrt_vaddress address, size_t size)
+    ia_css_ptr address, size_t size)
 {
 	mem_init->params[pclass][mem].address = address;
 	mem_init->params[pclass][mem].size = (uint32_t)size;
@@ -187,7 +187,7 @@ ia_css_isp_param_copy_isp_mem_if_to_ddr(
 	for (mem = 0; mem < N_IA_CSS_ISP_MEMORIES; mem++)
 	{
 		size_t       size	  = host->params[pclass][mem].size;
-		hrt_vaddress ddr_mem_ptr  = ddr->params[pclass][mem].address;
+		ia_css_ptr ddr_mem_ptr  = ddr->params[pclass][mem].address;
 		char	    *host_mem_ptr = host->params[pclass][mem].address;
 
 		if (size != ddr->params[pclass][mem].size)

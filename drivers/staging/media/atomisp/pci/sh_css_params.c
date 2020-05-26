@@ -124,17 +124,17 @@
 
 /* We keep a second copy of the ptr struct for the SP to access.
    Again, this would not be necessary on the chip. */
-static hrt_vaddress sp_ddr_ptrs;
+static ia_css_ptr sp_ddr_ptrs;
 
 /* sp group address on DDR */
-static hrt_vaddress xmem_sp_group_ptrs;
+static ia_css_ptr xmem_sp_group_ptrs;
 
-static hrt_vaddress xmem_sp_stage_ptrs[IA_CSS_PIPE_ID_NUM]
+static ia_css_ptr xmem_sp_stage_ptrs[IA_CSS_PIPE_ID_NUM]
 [SH_CSS_MAX_STAGES];
-static hrt_vaddress xmem_isp_stage_ptrs[IA_CSS_PIPE_ID_NUM]
+static ia_css_ptr xmem_isp_stage_ptrs[IA_CSS_PIPE_ID_NUM]
 [SH_CSS_MAX_STAGES];
 
-static hrt_vaddress default_gdc_lut;
+static ia_css_ptr default_gdc_lut;
 static int interleaved_lut_temp[4][HRT_GDC_N];
 
 /* END DO NOT MOVE INTO VIMALS_WORLD */
@@ -1235,10 +1235,10 @@ ref_sh_css_ddr_address_map(
 static enum ia_css_err
 write_ia_css_isp_parameter_set_info_to_ddr(
     struct ia_css_isp_parameter_set_info *me,
-    hrt_vaddress *out);
+    ia_css_ptr *out);
 
 static enum ia_css_err
-free_ia_css_isp_parameter_set_info(hrt_vaddress ptr);
+free_ia_css_isp_parameter_set_info(ia_css_ptr ptr);
 
 static enum ia_css_err
 sh_css_params_write_to_ddr_internal(
@@ -1292,7 +1292,7 @@ sh_css_update_uds_and_crop_info_based_on_zoom_region(
     struct ia_css_resolution pipe_in_res,
     bool enable_zoom);
 
-hrt_vaddress
+ia_css_ptr
 sh_css_params_ddr_address_map(void)
 {
 	return sp_ddr_ptrs;
@@ -1350,7 +1350,7 @@ convert_allocate_fpntbl(struct ia_css_isp_parameters *params)
 }
 
 static enum ia_css_err
-store_fpntbl(struct ia_css_isp_parameters *params, hrt_vaddress ptr) {
+store_fpntbl(struct ia_css_isp_parameters *params, ia_css_ptr ptr) {
 	struct ia_css_host_data *isp_data;
 
 	assert(params);
@@ -1479,7 +1479,7 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 	 * that it can use the DMA.
 	 */
 	unsigned int height, width, y, x, k, data;
-	hrt_vaddress ptr;
+	ia_css_ptr ptr;
 
 	assert(stream);
 	assert(raw_black_frame);
@@ -1609,7 +1609,7 @@ sh_css_set_shading_table(struct ia_css_stream *stream,
 
 void
 ia_css_params_store_ia_css_host_data(
-    hrt_vaddress ddr_addr,
+    ia_css_ptr ddr_addr,
     struct ia_css_host_data *data)
 {
 	assert(data);
@@ -1676,7 +1676,7 @@ ia_css_params_alloc_convert_sctbl(
 
 enum ia_css_err ia_css_params_store_sctbl(
     const struct ia_css_pipeline_stage *stage,
-    hrt_vaddress sc_tbl,
+    ia_css_ptr sc_tbl,
     const struct ia_css_shading_table  *sc_config)
 {
 	struct ia_css_host_data *isp_sc_tbl;
@@ -2707,7 +2707,7 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  * Deprecated: Implement mmgr_realloc()
  */
 static bool realloc_isp_css_mm_buf(
-    hrt_vaddress *curr_buf,
+    ia_css_ptr *curr_buf,
     size_t *curr_size,
     size_t needed_size,
     bool force,
@@ -2748,7 +2748,7 @@ static bool realloc_isp_css_mm_buf(
 }
 
 static bool reallocate_buffer(
-    hrt_vaddress *curr_buf,
+    ia_css_ptr *curr_buf,
     size_t *curr_size,
     size_t needed_size,
     bool force,
@@ -3313,12 +3313,12 @@ static void host_lut_store(const void *lut)
 }
 
 /* Note that allocation is in ipu address space. */
-inline hrt_vaddress sh_css_params_alloc_gdc_lut(void)
+inline ia_css_ptr sh_css_params_alloc_gdc_lut(void)
 {
 	return mmgr_alloc_attr(sizeof(zoom_table), 0);
 }
 
-inline void sh_css_params_free_gdc_lut(hrt_vaddress addr)
+inline void sh_css_params_free_gdc_lut(ia_css_ptr addr)
 {
 	if (addr != mmgr_NULL)
 		hmm_free(addr);
@@ -3377,7 +3377,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 }
 
 /* if pipe is NULL, returns default lut addr. */
-hrt_vaddress sh_css_pipe_get_pp_gdc_lut(const struct ia_css_pipe *pipe)
+ia_css_ptr sh_css_pipe_get_pp_gdc_lut(const struct ia_css_pipe *pipe)
 {
 	assert(pipe);
 
@@ -3426,13 +3426,13 @@ void sh_css_params_free_default_gdc_lut(void)
 	IA_CSS_LEAVE_PRIVATE("void");
 }
 
-hrt_vaddress sh_css_params_get_default_gdc_lut(void)
+ia_css_ptr sh_css_params_get_default_gdc_lut(void)
 {
 	return default_gdc_lut;
 }
 
 static void free_param_set_callback(
-    hrt_vaddress ptr)
+    ia_css_ptr ptr)
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
@@ -3442,7 +3442,7 @@ static void free_param_set_callback(
 }
 
 static void free_buffer_callback(
-    hrt_vaddress ptr)
+    ia_css_ptr ptr)
 {
 	IA_CSS_ENTER_PRIVATE("void");
 
@@ -3475,7 +3475,7 @@ static void free_map(struct sh_css_ddr_address_map *map)
 {
 	unsigned int i;
 
-	hrt_vaddress *addrs = (hrt_vaddress *)map;
+	ia_css_ptr *addrs = (ia_css_ptr *)map;
 
 	IA_CSS_ENTER_PRIVATE("void");
 
@@ -3626,7 +3626,7 @@ store_morph_plane(
     unsigned short *data,
     unsigned int width,
     unsigned int height,
-    hrt_vaddress dest,
+    ia_css_ptr dest,
     unsigned int aligned_width) {
 	struct ia_css_host_data *isp_data;
 
@@ -3646,7 +3646,7 @@ store_morph_plane(
 
 static void sh_css_update_isp_params_to_ddr(
     struct ia_css_isp_parameters *params,
-    hrt_vaddress ddr_ptr)
+    ia_css_ptr ddr_ptr)
 {
 	size_t size = sizeof(params->uds);
 
@@ -3660,7 +3660,7 @@ static void sh_css_update_isp_params_to_ddr(
 
 static void sh_css_update_isp_mem_params_to_ddr(
     const struct ia_css_binary *binary,
-    hrt_vaddress ddr_mem_ptr,
+    ia_css_ptr ddr_mem_ptr,
     size_t size,
     enum ia_css_isp_memories mem)
 {
@@ -3678,7 +3678,7 @@ static void sh_css_update_isp_mem_params_to_ddr(
 void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/ void)
 {
 	unsigned int i;
-	hrt_vaddress cpy;
+	ia_css_ptr cpy;
 	enum sh_css_queue_id param_queue_ids[3] = {	IA_CSS_PARAMETER_SET_QUEUE_ID,
 						    IA_CSS_PER_FRAME_PARAMETER_SET_QUEUE_ID,
 						    SH_CSS_INVALID_QUEUE_ID
@@ -3693,7 +3693,7 @@ void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/ void)
 	}
 
 	for (i = 0; SH_CSS_INVALID_QUEUE_ID != param_queue_ids[i]; i++) {
-		cpy = (hrt_vaddress)0;
+		cpy = (ia_css_ptr)0;
 		/* clean-up old copy */
 		while (ia_css_bufq_dequeue_buffer(param_queue_ids[i],
 						  (uint32_t *)&cpy) == IA_CSS_SUCCESS) {
@@ -3708,7 +3708,7 @@ void ia_css_dequeue_param_buffers(/*unsigned int pipe_num*/ void)
 
 			IA_CSS_LOG("dequeued param set %x from %d, release ref", cpy, 0);
 			free_ia_css_isp_parameter_set_info(cpy);
-			cpy = (hrt_vaddress)0;
+			cpy = (ia_css_ptr)0;
 		}
 	}
 
@@ -3756,7 +3756,7 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 			       bool commit,
 			       struct ia_css_pipe *pipe_in) {
 	enum ia_css_err err = IA_CSS_SUCCESS;
-	hrt_vaddress cpy;
+	ia_css_ptr cpy;
 	int i;
 	unsigned int raw_bit_depth = 10;
 	unsigned int isp_pipe_version = SH_CSS_ISP_PIPE_VERSION_1;
@@ -4241,11 +4241,11 @@ sh_css_params_write_to_ddr_internal(
 	if (binary->info->sp.enable.ca_gdc)
 	{
 		unsigned int i;
-		hrt_vaddress *virt_addr_tetra_x[
+		ia_css_ptr *virt_addr_tetra_x[
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 		size_t *virt_size_tetra_x[
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
-		hrt_vaddress *virt_addr_tetra_y[
+		ia_css_ptr *virt_addr_tetra_y[
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 		size_t *virt_size_tetra_y[
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
@@ -4456,7 +4456,7 @@ struct ia_css_shading_table *ia_css_get_shading_table(struct ia_css_stream
 	return table;
 }
 
-hrt_vaddress sh_css_store_sp_group_to_ddr(void)
+ia_css_ptr sh_css_store_sp_group_to_ddr(void)
 {
 	IA_CSS_ENTER_LEAVE_PRIVATE("void");
 	hmm_store(xmem_sp_group_ptrs,
@@ -4465,7 +4465,7 @@ hrt_vaddress sh_css_store_sp_group_to_ddr(void)
 	return xmem_sp_group_ptrs;
 }
 
-hrt_vaddress sh_css_store_sp_stage_to_ddr(
+ia_css_ptr sh_css_store_sp_stage_to_ddr(
     unsigned int pipe,
     unsigned int stage)
 {
@@ -4476,7 +4476,7 @@ hrt_vaddress sh_css_store_sp_stage_to_ddr(
 	return xmem_sp_stage_ptrs[pipe][stage];
 }
 
-hrt_vaddress sh_css_store_isp_stage_to_ddr(
+ia_css_ptr sh_css_store_isp_stage_to_ddr(
     unsigned int pipe,
     unsigned int stage)
 {
@@ -4500,7 +4500,7 @@ static enum ia_css_err ref_sh_css_ddr_address_map(
 	*/
 	union {
 		struct sh_css_ddr_address_map *map;
-		hrt_vaddress *addrs;
+		ia_css_ptr *addrs;
 	} in_addrs, to_addrs;
 
 	IA_CSS_ENTER_PRIVATE("void");
@@ -4511,7 +4511,7 @@ static enum ia_css_err ref_sh_css_ddr_address_map(
 	to_addrs.map = out;
 
 	assert(sizeof(struct sh_css_ddr_address_map_size) / sizeof(size_t) ==
-	       sizeof(struct sh_css_ddr_address_map) / sizeof(hrt_vaddress));
+	       sizeof(struct sh_css_ddr_address_map) / sizeof(ia_css_ptr));
 
 	/* copy map using size info */
 	for (i = 0; i < (sizeof(struct sh_css_ddr_address_map_size) /
@@ -4529,7 +4529,7 @@ static enum ia_css_err ref_sh_css_ddr_address_map(
 
 static enum ia_css_err write_ia_css_isp_parameter_set_info_to_ddr(
     struct ia_css_isp_parameter_set_info *me,
-    hrt_vaddress *out)
+    ia_css_ptr *out)
 {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	bool succ;
@@ -4554,11 +4554,11 @@ static enum ia_css_err write_ia_css_isp_parameter_set_info_to_ddr(
 
 static enum ia_css_err
 free_ia_css_isp_parameter_set_info(
-    hrt_vaddress ptr) {
+    ia_css_ptr ptr) {
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_isp_parameter_set_info isp_params_info;
 	unsigned int i;
-	hrt_vaddress *addrs = (hrt_vaddress *) &isp_params_info.mem_map;
+	ia_css_ptr *addrs = (ia_css_ptr *) &isp_params_info.mem_map;
 
 	IA_CSS_ENTER_PRIVATE("ptr = %u", ptr);
 

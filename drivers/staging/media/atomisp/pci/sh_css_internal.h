@@ -209,28 +209,28 @@ enum sh_css_sp_event_type {
 };
 
 /* xmem address map allocation per pipeline, css pointers */
-/* Note that the struct below should only consist of hrt_vaddress-es
+/* Note that the struct below should only consist of ia_css_ptr-es
    Otherwise this will cause a fail in the function ref_sh_css_ddr_address_map
  */
 struct sh_css_ddr_address_map {
-	hrt_vaddress isp_param;
-	hrt_vaddress isp_mem_param[SH_CSS_MAX_STAGES][IA_CSS_NUM_MEMORIES];
-	hrt_vaddress macc_tbl;
-	hrt_vaddress fpn_tbl;
-	hrt_vaddress sc_tbl;
-	hrt_vaddress tetra_r_x;
-	hrt_vaddress tetra_r_y;
-	hrt_vaddress tetra_gr_x;
-	hrt_vaddress tetra_gr_y;
-	hrt_vaddress tetra_gb_x;
-	hrt_vaddress tetra_gb_y;
-	hrt_vaddress tetra_b_x;
-	hrt_vaddress tetra_b_y;
-	hrt_vaddress tetra_ratb_x;
-	hrt_vaddress tetra_ratb_y;
-	hrt_vaddress tetra_batr_x;
-	hrt_vaddress tetra_batr_y;
-	hrt_vaddress dvs_6axis_params_y;
+	ia_css_ptr isp_param;
+	ia_css_ptr isp_mem_param[SH_CSS_MAX_STAGES][IA_CSS_NUM_MEMORIES];
+	ia_css_ptr macc_tbl;
+	ia_css_ptr fpn_tbl;
+	ia_css_ptr sc_tbl;
+	ia_css_ptr tetra_r_x;
+	ia_css_ptr tetra_r_y;
+	ia_css_ptr tetra_gr_x;
+	ia_css_ptr tetra_gr_y;
+	ia_css_ptr tetra_gb_x;
+	ia_css_ptr tetra_gb_y;
+	ia_css_ptr tetra_b_x;
+	ia_css_ptr tetra_b_y;
+	ia_css_ptr tetra_ratb_x;
+	ia_css_ptr tetra_ratb_y;
+	ia_css_ptr tetra_batr_x;
+	ia_css_ptr tetra_batr_y;
+	ia_css_ptr dvs_6axis_params_y;
 };
 
 #define SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT					\
@@ -531,8 +531,8 @@ struct sh_css_sp_pipeline {
 	u32	port_id;	/* port_id for input system */
 	u32	num_stages;		/* the pipe config */
 	u32	running;	/* needed for pipe termination */
-	hrt_vaddress	sp_stage_addr[SH_CSS_MAX_STAGES];
-	hrt_vaddress	scaler_pp_lut; /* Early bound LUT */
+	ia_css_ptr	sp_stage_addr[SH_CSS_MAX_STAGES];
+	ia_css_ptr	scaler_pp_lut; /* Early bound LUT */
 	u32	dummy; /* stage ptr is only used on sp but lives in
 				  this struct; needs cleanup */
 	s32 num_execs; /* number of times to run if this is
@@ -544,7 +544,7 @@ struct sh_css_sp_pipeline {
 		u32        height;   /* Number of lines */
 		u32        stride;   /* Stride (in bytes) per line */
 		u32        size;     /* Total size (in bytes) */
-		hrt_vaddress    cont_buf; /* Address of continuous buffer */
+		ia_css_ptr    cont_buf; /* Address of continuous buffer */
 	} metadata;
 #endif
 #if defined(SH_CSS_ENABLE_PER_FRAME_PARAMS)
@@ -657,9 +657,9 @@ struct sh_css_sp_stage {
 	struct ia_css_frames_sp		frames;
 	struct ia_css_resolution	dvs_envelope;
 	struct sh_css_uds_info		uds;
-	hrt_vaddress			isp_stage_addr;
-	hrt_vaddress			xmem_bin_addr;
-	hrt_vaddress			xmem_map_addr;
+	ia_css_ptr			isp_stage_addr;
+	ia_css_ptr			xmem_bin_addr;
+	ia_css_ptr			xmem_map_addr;
 
 	u16		top_cropping;
 	u16		row_stripes_height;
@@ -692,7 +692,7 @@ struct sh_css_sp_group {
 /* Data in SP dmem that is set from the host every stage. */
 struct sh_css_sp_per_frame_data {
 	/* ddr address of sp_group and sp_stage */
-	hrt_vaddress			sp_group_addr;
+	ia_css_ptr			sp_group_addr;
 };
 
 #define SH_CSS_NUM_SDW_IRQS 3
@@ -742,11 +742,11 @@ struct sh_css_hmm_buffer {
 	union {
 		struct ia_css_isp_3a_statistics  s3a;
 		struct ia_css_isp_dvs_statistics dis;
-		hrt_vaddress skc_dvs_statistics;
-		hrt_vaddress lace_stat;
+		ia_css_ptr skc_dvs_statistics;
+		ia_css_ptr lace_stat;
 		struct ia_css_metadata	metadata;
 		struct frame_data_wrapper {
-			hrt_vaddress	frame_data;
+			ia_css_ptr	frame_data;
 			u32	flashed;
 			u32	exp_id;
 			u32	isp_parameters_id; /** Unique ID to track which config was
@@ -755,7 +755,7 @@ struct sh_css_hmm_buffer {
 			struct sh_css_config_on_frame_enqueue config_on_frame_enqueue;
 #endif
 		} frame;
-		hrt_vaddress ddr_ptrs;
+		ia_css_ptr ddr_ptrs;
 	} payload;
 	/*
 	 * kernel_ptr is present for host administration purposes only.
@@ -834,12 +834,12 @@ struct host_sp_communication {
 	 * TODO:
 	 *   Remove it when the Host and the SP is decoupled.
 	 */
-	hrt_vaddress host2sp_offline_frames[NUM_CONTINUOUS_FRAMES];
-	hrt_vaddress host2sp_offline_metadata[NUM_CONTINUOUS_FRAMES];
+	ia_css_ptr host2sp_offline_frames[NUM_CONTINUOUS_FRAMES];
+	ia_css_ptr host2sp_offline_metadata[NUM_CONTINUOUS_FRAMES];
 
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-	hrt_vaddress host2sp_mipi_frames[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
-	hrt_vaddress host2sp_mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
+	ia_css_ptr host2sp_mipi_frames[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
+	ia_css_ptr host2sp_mipi_metadata[N_CSI_PORTS][NUM_MIPI_FRAMES_PER_STREAM];
 	u32 host2sp_num_mipi_frames[N_CSI_PORTS];
 #endif
 	u32 host2sp_cont_avail_num_raw_frames;
@@ -960,7 +960,7 @@ sh_css_vprint(const char *fmt, va_list args)
    issue with the firmware struct/union's.
    More permanent solution will be to refactor this include.
 */
-hrt_vaddress sh_css_params_ddr_address_map(void);
+ia_css_ptr sh_css_params_ddr_address_map(void);
 
 enum ia_css_err
 sh_css_params_init(void);
@@ -1010,13 +1010,13 @@ sh_css_get_mipi_sizes_for_check(const unsigned int port,
 
 #endif
 
-hrt_vaddress
+ia_css_ptr
 sh_css_store_sp_group_to_ddr(void);
 
-hrt_vaddress
+ia_css_ptr
 sh_css_store_sp_stage_to_ddr(unsigned int pipe, unsigned int stage);
 
-hrt_vaddress
+ia_css_ptr
 sh_css_store_isp_stage_to_ddr(unsigned int pipe, unsigned int stage);
 
 void

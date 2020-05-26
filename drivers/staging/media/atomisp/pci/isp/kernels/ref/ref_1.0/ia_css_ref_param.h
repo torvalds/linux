@@ -28,8 +28,8 @@ struct ia_css_ref_configuration {
 struct sh_css_isp_ref_isp_config {
 	u32 width_a_over_b;
 	struct dma_port_config port_b;
-	hrt_vaddress ref_frame_addr_y[MAX_NUM_VIDEO_DELAY_FRAMES];
-	hrt_vaddress ref_frame_addr_c[MAX_NUM_VIDEO_DELAY_FRAMES];
+	ia_css_ptr ref_frame_addr_y[MAX_NUM_VIDEO_DELAY_FRAMES];
+	ia_css_ptr ref_frame_addr_c[MAX_NUM_VIDEO_DELAY_FRAMES];
 	u32 dvs_frame_delay;
 };
 

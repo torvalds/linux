@@ -2489,7 +2489,7 @@ void ia_css_debug_dump_perf_counters(void)
 
 void sh_css_init_ddr_debug_queue(void)
 {
-	hrt_vaddress ddr_debug_queue_addr =
+	ia_css_ptr ddr_debug_queue_addr =
 			mmgr_alloc_attr(sizeof(debug_data_ddr_t), 0);
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_debug_buffer_ddr_address;

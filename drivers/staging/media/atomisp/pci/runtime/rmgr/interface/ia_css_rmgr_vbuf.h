@@ -17,13 +17,14 @@
 
 #include "ia_css_rmgr.h"
 #include <type_support.h>
+#include <ia_css_types.h>
 #include <system_types.h>
 
 /**
  * @brief Data structure for the resource handle (host, vbuf)
  */
 struct ia_css_rmgr_vbuf_handle {
-	hrt_vaddress vptr;
+	ia_css_ptr vptr;
 	u8 count;
 	u32 size;
 };

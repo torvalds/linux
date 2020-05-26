@@ -22,7 +22,7 @@
  * those defined in <stdint.h>
  *
  * The address representation is private to the system
- * and represented as "hrt_vaddress" rather than a
+ * and represented as "ia_css_ptr" rather than a
  * pointer, as the memory allocation cannot be accessed
  * by dereferencing but reaquires load and store access
  * functions
@@ -49,7 +49,7 @@
 
 /*
  * User provided file that defines the (sub)system address types:
- *	- hrt_vaddress	a type that can hold the (sub)system virtual address range
+ *	- ia_css_ptr	a type that can hold the (sub)system virtual address range
  */
 #include "system_types.h"
 
@@ -77,8 +77,8 @@
  * returned pointer/address.
  */
 
-#define mmgr_NULL		((hrt_vaddress)0)
-#define mmgr_EXCEPTION		((hrt_vaddress)-1)
+#define mmgr_NULL		((ia_css_ptr)0)
+#define mmgr_EXCEPTION		((ia_css_ptr)-1)
 
 /*! Return the address of an allocation in memory
 
@@ -89,6 +89,6 @@
  \return vaddress
  */
 
-hrt_vaddress mmgr_alloc_attr(const size_t size, const uint16_t attribute);
+ia_css_ptr mmgr_alloc_attr(const size_t size, const uint16_t attribute);
 
 #endif /* __MEMORY_ACCESS_H_INCLUDED__ */

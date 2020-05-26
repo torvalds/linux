@@ -34,7 +34,7 @@ struct sh_css_isp_tnr_isp_config {
 	u32 width_a_over_b;
 	u32 frame_height;
 	struct dma_port_config port_b;
-	hrt_vaddress tnr_frame_addr[NUM_TNR_FRAMES];
+	ia_css_ptr tnr_frame_addr[NUM_TNR_FRAMES];
 };
 
 #endif /* __IA_CSS_TNR_PARAM_H */

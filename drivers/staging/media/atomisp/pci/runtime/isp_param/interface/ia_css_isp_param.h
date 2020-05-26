@@ -31,7 +31,7 @@ ia_css_isp_param_set_css_mem_init(
     struct ia_css_isp_param_css_segments *mem_init,
     enum ia_css_param_class pclass,
     enum ia_css_isp_memories mem,
-    hrt_vaddress address, size_t size);
+    ia_css_ptr address, size_t size);
 
 void
 ia_css_isp_param_set_isp_mem_init(
