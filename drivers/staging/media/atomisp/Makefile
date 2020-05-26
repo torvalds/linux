@@ -115,7 +115,6 @@ atomisp-objs += \
 	pci/isp/kernels/xnr/xnr_3.0/ia_css_xnr3.host.o \
 	pci/isp/kernels/ynr/ynr_1.0/ia_css_ynr.host.o \
 	pci/isp/kernels/ynr/ynr_2/ia_css_ynr2.host.o \
-	pci/memory_realloc.o \
 	pci/mmu/isp_mmu.o \
 	pci/mmu/sh_mmu_mrfld.o \
 	pci/runtime/binary/src/binary.o \
