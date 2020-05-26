@@ -3354,19 +3354,6 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			}
 		}
 		break;
-	case WLAN_CATEGORY_SA_QUERY:
-		if (len < (IEEE80211_MIN_ACTION_SIZE +
-			   sizeof(mgmt->u.action.u.sa_query)))
-			break;
-
-		switch (mgmt->u.action.u.sa_query.action) {
-		case WLAN_ACTION_SA_QUERY_REQUEST:
-			if (sdata->vif.type != NL80211_IFTYPE_STATION)
-				break;
-			ieee80211_process_sa_query_req(sdata, mgmt, len);
-			goto handled;
-		}
-		break;
 	case WLAN_CATEGORY_SELF_PROTECTED:
 		if (len < (IEEE80211_MIN_ACTION_SIZE +
 			   sizeof(mgmt->u.action.u.self_prot.action_code)))
@@ -3454,6 +3441,41 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	}
 
 	return RX_CONTINUE;
+}
+
+static ieee80211_rx_result debug_noinline
+ieee80211_rx_h_action_post_userspace(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_sub_if_data *sdata = rx->sdata;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) rx->skb->data;
+	int len = rx->skb->len;
+
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return RX_CONTINUE;
+
+	switch (mgmt->u.action.category) {
+	case WLAN_CATEGORY_SA_QUERY:
+		if (len < (IEEE80211_MIN_ACTION_SIZE +
+			   sizeof(mgmt->u.action.u.sa_query)))
+			break;
+
+		switch (mgmt->u.action.u.sa_query.action) {
+		case WLAN_ACTION_SA_QUERY_REQUEST:
+			if (sdata->vif.type != NL80211_IFTYPE_STATION)
+				break;
+			ieee80211_process_sa_query_req(sdata, mgmt, len);
+			goto handled;
+		}
+		break;
+	}
+
+	return RX_CONTINUE;
+
+ handled:
+	if (rx->sta)
+		rx->sta->rx_stats.packets++;
+	dev_kfree_skb(rx->skb);
+	return RX_QUEUED;
 }
 
 static ieee80211_rx_result debug_noinline
@@ -3736,6 +3758,7 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		CALL_RXH(ieee80211_rx_h_mgmt_check);
 		CALL_RXH(ieee80211_rx_h_action);
 		CALL_RXH(ieee80211_rx_h_userspace_mgmt);
+		CALL_RXH(ieee80211_rx_h_action_post_userspace);
 		CALL_RXH(ieee80211_rx_h_action_return);
 		CALL_RXH(ieee80211_rx_h_mgmt);
 
