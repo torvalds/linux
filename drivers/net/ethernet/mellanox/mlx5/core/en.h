@@ -191,13 +191,8 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 
 struct mlx5e_tx_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
-	union {
-		struct {
-			struct mlx5_wqe_eth_seg  eth;
-			struct mlx5_wqe_data_seg data[0];
-		};
-		u8 tls_progress_params_ctx[0];
-	};
+	struct mlx5_wqe_eth_seg  eth;
+	struct mlx5_wqe_data_seg data[0];
 };
 
 struct mlx5e_rx_wqe_ll {
@@ -213,10 +208,7 @@ struct mlx5e_umr_wqe {
 	struct mlx5_wqe_ctrl_seg       ctrl;
 	struct mlx5_wqe_umr_ctrl_seg   uctrl;
 	struct mlx5_mkey_seg           mkc;
-	union {
-		struct mlx5_mtt        inline_mtts[0];
-		u8                     tls_static_params_ctx[0];
-	};
+	struct mlx5_mtt                inline_mtts[0];
 };
 
 extern const char mlx5e_self_tests[][ETH_GSTRING_LEN];

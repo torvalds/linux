@@ -34,15 +34,15 @@
 #ifndef __MLX5E_TLS_RXTX_H__
 #define __MLX5E_TLS_RXTX_H__
 
+#include "en_accel/ktls_txrx.h"
+
 #ifdef CONFIG_MLX5_EN_TLS
 
 #include <linux/skbuff.h>
 #include "en.h"
 #include "en/txrx.h"
 
-struct mlx5e_accel_tx_tls_state {
-	u32 tls_tisn;
-};
+u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq);
 
 bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 			     struct sk_buff *skb, struct mlx5e_accel_tx_tls_state *state);
@@ -51,6 +51,13 @@ void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *c
 
 void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 			     u32 *cqe_bcnt);
+
+#else
+
+static inline u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	return 0;
+}
 
 #endif /* CONFIG_MLX5_EN_TLS */
 

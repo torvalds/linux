@@ -387,3 +387,17 @@ void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
 	remove_metadata_hdr(skb);
 	*cqe_bcnt -= MLX5E_METADATA_ETHER_LEN;
 }
+
+u16 mlx5e_tls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	struct mlx5_core_dev *mdev = sq->channel->mdev;
+
+	if (!mlx5_accel_is_tls_device(mdev))
+		return 0;
+
+	if (MLX5_CAP_GEN(mdev, tls_tx))
+		return mlx5e_ktls_get_stop_room(sq);
+
+	/* Resync SKB. */
+	return mlx5e_stop_room_for_wqe(MLX5_SEND_WQE_MAX_WQEBBS);
+}
