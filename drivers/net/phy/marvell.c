@@ -1751,15 +1751,12 @@ static int marvell_vct5_wait_complete(struct phy_device *phydev)
 	int val;
 
 	for (i = 0; i < 32; i++) {
-		val = phy_read_paged(phydev, MII_MARVELL_VCT5_PAGE,
-				     MII_VCT5_CTRL);
+		val = __phy_read(phydev, MII_VCT5_CTRL);
 		if (val < 0)
 			return val;
 
 		if (val & MII_VCT5_CTRL_COMPLETE)
 			return 0;
-
-		usleep_range(1000, 2000);
 	}
 
 	phydev_err(phydev, "Timeout while waiting for cable test to finish\n");
@@ -1773,7 +1770,7 @@ static int marvell_vct5_amplitude(struct phy_device *phydev, int pair)
 	int reg;
 
 	reg = MII_VCT5_TX_RX_MDI0_COUPLING + pair;
-	val = phy_read_paged(phydev, MII_MARVELL_VCT5_PAGE, reg);
+	val = __phy_read(phydev, reg);
 
 	if (val < 0)
 		return 0;
@@ -1805,9 +1802,8 @@ static int marvell_vct5_amplitude_distance(struct phy_device *phydev,
 	int mV;
 	int i;
 
-	err = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
-			      MII_VCT5_SAMPLE_POINT_DISTANCE,
-			      distance);
+	err = __phy_write(phydev, MII_VCT5_SAMPLE_POINT_DISTANCE,
+			  distance);
 	if (err)
 		return err;
 
@@ -1816,8 +1812,7 @@ static int marvell_vct5_amplitude_distance(struct phy_device *phydev,
 		MII_VCT5_CTRL_SAMPLES_DEFAULT |
 		MII_VCT5_CTRL_SAMPLE_POINT |
 		MII_VCT5_CTRL_PEEK_HYST_DEFAULT;
-	err = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
-			      MII_VCT5_CTRL, reg);
+	err = __phy_write(phydev, MII_VCT5_CTRL, reg);
 	if (err)
 		return err;
 
@@ -1840,6 +1835,7 @@ static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
 {
 	struct marvell_priv *priv = phydev->priv;
 	int distance;
+	int page;
 	int err;
 	u16 reg;
 
@@ -1853,16 +1849,27 @@ static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
 	if (err)
 		return err;
 
+	/* Reading the TDR data is very MDIO heavy. We need to optimize
+	 * access to keep the time to a minimum. So lock the bus once,
+	 * and don't release it until complete. We can then avoid having
+	 * to change the page for every access, greatly speeding things
+	 * up.
+	 */
+	page = phy_select_page(phydev, MII_MARVELL_VCT5_PAGE);
+	if (page < 0)
+		return page;
+
 	for (distance = priv->first;
 	     distance <= priv->last;
 	     distance += priv->step) {
 		err = marvell_vct5_amplitude_distance(phydev, distance,
 						      priv->pair);
 		if (err)
-			return err;
+			goto restore_page;
 	}
 
-	return 0;
+restore_page:
+	return phy_restore_page(phydev, page, err);
 }
 
 static int marvell_cable_test_start_common(struct phy_device *phydev)
