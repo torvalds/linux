@@ -408,10 +408,8 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 
 	sb->s_op = &erofs_sops;
-
-#ifdef CONFIG_EROFS_FS_XATTR
 	sb->s_xattr = erofs_xattr_handlers;
-#endif
+
 	/* set erofs default mount options */
 	erofs_default_options(sbi);
 
