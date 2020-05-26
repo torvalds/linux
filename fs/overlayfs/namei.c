@@ -191,16 +191,36 @@ static bool ovl_is_opaquedir(struct dentry *dentry)
 	return ovl_check_dir_xattr(dentry, OVL_XATTR_OPAQUE);
 }
 
+static struct dentry *ovl_lookup_positive_unlocked(const char *name,
+						   struct dentry *base, int len,
+						   bool drop_negative)
+{
+	struct dentry *ret = lookup_one_len_unlocked(name, base, len);
+
+	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
+		if (drop_negative && ret->d_lockref.count == 1) {
+			spin_lock(&ret->d_lock);
+			/* Recheck condition under lock */
+			if (d_is_negative(ret) && ret->d_lockref.count == 1)
+				__d_drop(ret);
+			spin_unlock(&ret->d_lock);
+		}
+		dput(ret);
+		ret = ERR_PTR(-ENOENT);
+	}
+	return ret;
+}
+
 static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 			     const char *name, unsigned int namelen,
 			     size_t prelen, const char *post,
-			     struct dentry **ret)
+			     struct dentry **ret, bool drop_negative)
 {
 	struct dentry *this;
 	int err;
 	bool last_element = !post[0];
 
-	this = lookup_positive_unlocked(name, base, namelen);
+	this = ovl_lookup_positive_unlocked(name, base, namelen, drop_negative);
 	if (IS_ERR(this)) {
 		err = PTR_ERR(this);
 		this = NULL;
@@ -276,7 +296,7 @@ out_err:
 }
 
 static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
-			    struct dentry **ret)
+			    struct dentry **ret, bool drop_negative)
 {
 	/* Counting down from the end, since the prefix can change */
 	size_t rem = d->name.len - 1;
@@ -285,7 +305,7 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 
 	if (d->name.name[0] != '/')
 		return ovl_lookup_single(base, d, d->name.name, d->name.len,
-					 0, "", ret);
+					 0, "", ret, drop_negative);
 
 	while (!IS_ERR_OR_NULL(base) && d_can_lookup(base)) {
 		const char *s = d->name.name + d->name.len - rem;
@@ -298,7 +318,8 @@ static int ovl_lookup_layer(struct dentry *base, struct ovl_lookup_data *d,
 			return -EIO;
 
 		err = ovl_lookup_single(base, d, s, thislen,
-					d->name.len - rem, next, &base);
+					d->name.len - rem, next, &base,
+					drop_negative);
 		dput(dentry);
 		if (err)
 			return err;
@@ -830,7 +851,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 	old_cred = ovl_override_creds(dentry->d_sb);
 	upperdir = ovl_dentry_upper(dentry->d_parent);
 	if (upperdir) {
-		err = ovl_lookup_layer(upperdir, &d, &upperdentry);
+		err = ovl_lookup_layer(upperdir, &d, &upperdentry, true);
 		if (err)
 			goto out;
 
@@ -888,7 +909,7 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		else
 			d.last = lower.layer->idx == roe->numlower;
 
-		err = ovl_lookup_layer(lower.dentry, &d, &this);
+		err = ovl_lookup_layer(lower.dentry, &d, &this, false);
 		if (err)
 			goto out_put;
 
