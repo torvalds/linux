@@ -130,6 +130,8 @@ struct hmm_buffer_object {
 	struct list_head	list;
 	struct kref	kref;
 
+	struct page **pages;
+
 	/* mutex protecting this BO */
 	struct mutex		mutex;
 	enum hmm_bo_type	type;
