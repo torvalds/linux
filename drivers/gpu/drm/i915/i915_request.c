@@ -1053,148 +1053,6 @@ await_fence:
 					     I915_FENCE_GFP);
 }
 
-static int
-i915_request_await_request(struct i915_request *to, struct i915_request *from)
-{
-	int ret;
-
-	GEM_BUG_ON(to == from);
-	GEM_BUG_ON(to->timeline == from->timeline);
-
-	if (i915_request_completed(from)) {
-		i915_sw_fence_set_error_once(&to->submit, from->fence.error);
-		return 0;
-	}
-
-	if (to->engine->schedule) {
-		ret = i915_sched_node_add_dependency(&to->sched,
-						     &from->sched,
-						     I915_DEPENDENCY_EXTERNAL);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (to->engine == from->engine)
-		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
-						       &from->submit,
-						       I915_FENCE_GFP);
-	else
-		ret = emit_semaphore_wait(to, from, I915_FENCE_GFP);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static void mark_external(struct i915_request *rq)
-{
-	/*
-	 * The downside of using semaphores is that we lose metadata passing
-	 * along the signaling chain. This is particularly nasty when we
-	 * need to pass along a fatal error such as EFAULT or EDEADLK. For
-	 * fatal errors we want to scrub the request before it is executed,
-	 * which means that we cannot preload the request onto HW and have
-	 * it wait upon a semaphore.
-	 */
-	rq->sched.flags |= I915_SCHED_HAS_EXTERNAL_CHAIN;
-}
-
-static int
-__i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
-{
-	mark_external(rq);
-	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
-					     i915_fence_context_timeout(rq->i915,
-									fence->context),
-					     I915_FENCE_GFP);
-}
-
-static int
-i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
-{
-	struct dma_fence *iter;
-	int err = 0;
-
-	if (!to_dma_fence_chain(fence))
-		return __i915_request_await_external(rq, fence);
-
-	dma_fence_chain_for_each(iter, fence) {
-		struct dma_fence_chain *chain = to_dma_fence_chain(iter);
-
-		if (!dma_fence_is_i915(chain->fence)) {
-			err = __i915_request_await_external(rq, iter);
-			break;
-		}
-
-		err = i915_request_await_dma_fence(rq, chain->fence);
-		if (err < 0)
-			break;
-	}
-
-	dma_fence_put(iter);
-	return err;
-}
-
-int
-i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
-{
-	struct dma_fence **child = &fence;
-	unsigned int nchild = 1;
-	int ret;
-
-	/*
-	 * Note that if the fence-array was created in signal-on-any mode,
-	 * we should *not* decompose it into its individual fences. However,
-	 * we don't currently store which mode the fence-array is operating
-	 * in. Fortunately, the only user of signal-on-any is private to
-	 * amdgpu and we should not see any incoming fence-array from
-	 * sync-file being in signal-on-any mode.
-	 */
-	if (dma_fence_is_array(fence)) {
-		struct dma_fence_array *array = to_dma_fence_array(fence);
-
-		child = array->fences;
-		nchild = array->num_fences;
-		GEM_BUG_ON(!nchild);
-	}
-
-	do {
-		fence = *child++;
-		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
-			i915_sw_fence_set_error_once(&rq->submit, fence->error);
-			continue;
-		}
-
-		/*
-		 * Requests on the same timeline are explicitly ordered, along
-		 * with their dependencies, by i915_request_add() which ensures
-		 * that requests are submitted in-order through each ring.
-		 */
-		if (fence->context == rq->fence.context)
-			continue;
-
-		/* Squash repeated waits to the same timelines */
-		if (fence->context &&
-		    intel_timeline_sync_is_later(i915_request_timeline(rq),
-						 fence))
-			continue;
-
-		if (dma_fence_is_i915(fence))
-			ret = i915_request_await_request(rq, to_request(fence));
-		else
-			ret = i915_request_await_external(rq, fence);
-		if (ret < 0)
-			return ret;
-
-		/* Record the latest fence used against each timeline */
-		if (fence->context)
-			intel_timeline_sync_set(i915_request_timeline(rq),
-						fence);
-	} while (--nchild);
-
-	return 0;
-}
-
 static bool intel_timeline_sync_has_start(struct intel_timeline *tl,
 					  struct dma_fence *fence)
 {
@@ -1282,6 +1140,55 @@ __i915_request_await_execution(struct i915_request *to,
 					     &from->fence);
 }
 
+static void mark_external(struct i915_request *rq)
+{
+	/*
+	 * The downside of using semaphores is that we lose metadata passing
+	 * along the signaling chain. This is particularly nasty when we
+	 * need to pass along a fatal error such as EFAULT or EDEADLK. For
+	 * fatal errors we want to scrub the request before it is executed,
+	 * which means that we cannot preload the request onto HW and have
+	 * it wait upon a semaphore.
+	 */
+	rq->sched.flags |= I915_SCHED_HAS_EXTERNAL_CHAIN;
+}
+
+static int
+__i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
+{
+	mark_external(rq);
+	return i915_sw_fence_await_dma_fence(&rq->submit, fence,
+					     i915_fence_context_timeout(rq->i915,
+									fence->context),
+					     I915_FENCE_GFP);
+}
+
+static int
+i915_request_await_external(struct i915_request *rq, struct dma_fence *fence)
+{
+	struct dma_fence *iter;
+	int err = 0;
+
+	if (!to_dma_fence_chain(fence))
+		return __i915_request_await_external(rq, fence);
+
+	dma_fence_chain_for_each(iter, fence) {
+		struct dma_fence_chain *chain = to_dma_fence_chain(iter);
+
+		if (!dma_fence_is_i915(chain->fence)) {
+			err = __i915_request_await_external(rq, iter);
+			break;
+		}
+
+		err = i915_request_await_dma_fence(rq, chain->fence);
+		if (err < 0)
+			break;
+	}
+
+	dma_fence_put(iter);
+	return err;
+}
+
 int
 i915_request_await_execution(struct i915_request *rq,
 			     struct dma_fence *fence,
@@ -1325,6 +1232,99 @@ i915_request_await_execution(struct i915_request *rq,
 			ret = i915_request_await_external(rq, fence);
 		if (ret < 0)
 			return ret;
+	} while (--nchild);
+
+	return 0;
+}
+
+static int
+i915_request_await_request(struct i915_request *to, struct i915_request *from)
+{
+	int ret;
+
+	GEM_BUG_ON(to == from);
+	GEM_BUG_ON(to->timeline == from->timeline);
+
+	if (i915_request_completed(from)) {
+		i915_sw_fence_set_error_once(&to->submit, from->fence.error);
+		return 0;
+	}
+
+	if (to->engine->schedule) {
+		ret = i915_sched_node_add_dependency(&to->sched,
+						     &from->sched,
+						     I915_DEPENDENCY_EXTERNAL);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (to->engine == READ_ONCE(from->engine))
+		ret = i915_sw_fence_await_sw_fence_gfp(&to->submit,
+						       &from->submit,
+						       I915_FENCE_GFP);
+	else
+		ret = emit_semaphore_wait(to, from, I915_FENCE_GFP);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+int
+i915_request_await_dma_fence(struct i915_request *rq, struct dma_fence *fence)
+{
+	struct dma_fence **child = &fence;
+	unsigned int nchild = 1;
+	int ret;
+
+	/*
+	 * Note that if the fence-array was created in signal-on-any mode,
+	 * we should *not* decompose it into its individual fences. However,
+	 * we don't currently store which mode the fence-array is operating
+	 * in. Fortunately, the only user of signal-on-any is private to
+	 * amdgpu and we should not see any incoming fence-array from
+	 * sync-file being in signal-on-any mode.
+	 */
+	if (dma_fence_is_array(fence)) {
+		struct dma_fence_array *array = to_dma_fence_array(fence);
+
+		child = array->fences;
+		nchild = array->num_fences;
+		GEM_BUG_ON(!nchild);
+	}
+
+	do {
+		fence = *child++;
+		if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+			i915_sw_fence_set_error_once(&rq->submit, fence->error);
+			continue;
+		}
+
+		/*
+		 * Requests on the same timeline are explicitly ordered, along
+		 * with their dependencies, by i915_request_add() which ensures
+		 * that requests are submitted in-order through each ring.
+		 */
+		if (fence->context == rq->fence.context)
+			continue;
+
+		/* Squash repeated waits to the same timelines */
+		if (fence->context &&
+		    intel_timeline_sync_is_later(i915_request_timeline(rq),
+						 fence))
+			continue;
+
+		if (dma_fence_is_i915(fence))
+			ret = i915_request_await_request(rq, to_request(fence));
+		else
+			ret = i915_request_await_external(rq, fence);
+		if (ret < 0)
+			return ret;
+
+		/* Record the latest fence used against each timeline */
+		if (fence->context)
+			intel_timeline_sync_set(i915_request_timeline(rq),
+						fence);
 	} while (--nchild);
 
 	return 0;
