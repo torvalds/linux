@@ -924,6 +924,7 @@ static void dw_mipi_dsi_bridge_enable(struct drm_bridge *bridge)
 
 static enum drm_mode_status
 dw_mipi_dsi_bridge_mode_valid(struct drm_bridge *bridge,
+			      const struct drm_display_info *info,
 			      const struct drm_display_mode *mode)
 {
 	struct dw_mipi_dsi *dsi = bridge_to_dsi(bridge);

@@ -35,6 +35,7 @@
 struct drm_bridge;
 struct drm_bridge_timings;
 struct drm_connector;
+struct drm_display_info;
 struct drm_panel;
 struct edid;
 struct i2c_adapter;
@@ -112,6 +113,7 @@ struct drm_bridge_funcs {
 	 * drm_mode_status Enum
 	 */
 	enum drm_mode_status (*mode_valid)(struct drm_bridge *bridge,
+					   const struct drm_display_info *info,
 					   const struct drm_display_mode *mode);
 
 	/**
@@ -836,6 +838,7 @@ bool drm_bridge_chain_mode_fixup(struct drm_bridge *bridge,
 				 struct drm_display_mode *adjusted_mode);
 enum drm_mode_status
 drm_bridge_chain_mode_valid(struct drm_bridge *bridge,
+			    const struct drm_display_info *info,
 			    const struct drm_display_mode *mode);
 void drm_bridge_chain_disable(struct drm_bridge *bridge);
 void drm_bridge_chain_post_disable(struct drm_bridge *bridge);

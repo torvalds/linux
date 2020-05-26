@@ -2767,6 +2767,7 @@ static void dw_hdmi_bridge_detach(struct drm_bridge *bridge)
 
 static enum drm_mode_status
 dw_hdmi_bridge_mode_valid(struct drm_bridge *bridge,
+			  const struct drm_display_info *info,
 			  const struct drm_display_mode *mode)
 {
 	struct dw_hdmi *hdmi = bridge->driver_private;

@@ -377,6 +377,7 @@ EXPORT_SYMBOL(drm_bridge_chain_mode_fixup);
  * drm_bridge_chain_mode_valid - validate the mode against all bridges in the
  *				 encoder chain.
  * @bridge: bridge control structure
+ * @info: display info against which the mode shall be validated
  * @mode: desired mode to be validated
  *
  * Calls &drm_bridge_funcs.mode_valid for all the bridges in the encoder
@@ -390,6 +391,7 @@ EXPORT_SYMBOL(drm_bridge_chain_mode_fixup);
  */
 enum drm_mode_status
 drm_bridge_chain_mode_valid(struct drm_bridge *bridge,
+			    const struct drm_display_info *info,
 			    const struct drm_display_mode *mode)
 {
 	struct drm_encoder *encoder;
@@ -404,7 +406,7 @@ drm_bridge_chain_mode_valid(struct drm_bridge *bridge,
 		if (!bridge->funcs->mode_valid)
 			continue;
 
-		ret = bridge->funcs->mode_valid(bridge, mode);
+		ret = bridge->funcs->mode_valid(bridge, info, mode);
 		if (ret != MODE_OK)
 			return ret;
 	}

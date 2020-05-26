@@ -548,6 +548,7 @@ static int venc_bridge_attach(struct drm_bridge *bridge,
 
 static enum drm_mode_status
 venc_bridge_mode_valid(struct drm_bridge *bridge,
+		       const struct drm_display_info *info,
 		       const struct drm_display_mode *mode)
 {
 	switch (venc_get_videomode(mode)) {
