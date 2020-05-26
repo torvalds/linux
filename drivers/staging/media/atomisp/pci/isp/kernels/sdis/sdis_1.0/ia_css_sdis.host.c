@@ -12,7 +12,8 @@
  * more details.
  */
 
-#include "memory_access.h"
+#include "hmm.h"
+
 #include "assert_support.h"
 #include "ia_css_debug.h"
 #include "ia_css_sdis_types.h"
@@ -329,7 +330,7 @@ ia_css_isp_dvs_statistics_allocate(
 			    HIVE_ISP_DDR_WORD_BYTES);
 
 	me->size = hor_size + ver_size;
-	me->data_ptr = mmgr_alloc_attr(me->size, 0);
+	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (me->data_ptr == mmgr_NULL)
 		goto err;
 	me->hor_size = hor_size;

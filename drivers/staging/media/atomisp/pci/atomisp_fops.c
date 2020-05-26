@@ -36,7 +36,6 @@
 
 #include "type_support.h"
 #include "device_access/device_access.h"
-#include "memory_access/memory_access.h"
 
 #include "atomisp_acc.h"
 

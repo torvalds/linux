@@ -12,11 +12,12 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_debug.h"
 #include "sw_event_global.h"		/* encode_sw_event */
 #include "sp.h"			/* cnd_sp_irq_enable() */
 #include "assert_support.h"
-#include "memory_access.h"
 #include "sh_css_sp.h"
 #include "ia_css_pipeline.h"
 #include "ia_css_isp_param.h"

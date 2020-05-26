@@ -13,7 +13,6 @@
  */
 
 #include "debug.h"
-#include "memory_access.h"
 
 #ifndef __INLINE_INPUT_SYSTEM__
 #define __INLINE_INPUT_SYSTEM__
@@ -2490,7 +2489,7 @@ void ia_css_debug_dump_perf_counters(void)
 void sh_css_init_ddr_debug_queue(void)
 {
 	ia_css_ptr ddr_debug_queue_addr =
-			mmgr_alloc_attr(sizeof(debug_data_ddr_t), 0);
+			hmm_alloc(sizeof(debug_data_ddr_t), HMM_BO_PRIVATE, 0, NULL, 0);
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_debug_buffer_ddr_address;
 

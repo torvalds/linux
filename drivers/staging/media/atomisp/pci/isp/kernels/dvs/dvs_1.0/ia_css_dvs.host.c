@@ -12,6 +12,8 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_frame_public.h"
 #define IA_CSS_INCLUDE_CONFIGURATIONS
 #include "ia_css_isp_configs.h"
@@ -22,7 +24,6 @@
 #include "sh_css_params.h"
 #include "ia_css_binary.h"
 #include "ia_css_debug.h"
-#include "memory_access.h"
 #include "assert_support.h"
 
 #include "ia_css_dvs.host.h"

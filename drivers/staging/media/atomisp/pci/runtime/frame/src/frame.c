@@ -12,13 +12,14 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_frame.h"
 #include <math_support.h>
 #include "assert_support.h"
 #include "ia_css_debug.h"
 #include "isp.h"
 #include "sh_css_internal.h"
-#include "memory_access.h"
 #include "atomisp_internal.h"
 
 #define NV12_TILEY_TILE_WIDTH  128
@@ -170,20 +171,23 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 		if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
 			dev_err(atomisp_dev,
 				"user space memory size is less than the expected size..\n");
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto error;
 		} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
 			dev_err(atomisp_dev,
 				"user space memory size is large than the expected size..\n");
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto error;
 		}
 
-		return hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-				 attribute & ATOMISP_MAP_FLAG_CACHED);
+		me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
+				     attribute & ATOMISP_MAP_FLAG_CACHED);
 
 		if (me->data == mmgr_NULL)
 			err = IA_CSS_ERR_INVALID_ARGUMENTS;
 	}
 
+error:
 	if (err != IA_CSS_SUCCESS) {
 		sh_css_free(me);
 		me = NULL;
@@ -797,9 +801,10 @@ static enum ia_css_err frame_allocate_buffer_data(struct ia_css_frame *frame)
 #ifdef ISP2401
 	IA_CSS_ENTER_LEAVE_PRIVATE("frame->data_bytes=%d\n", frame->data_bytes);
 #endif
-	frame->data = mmgr_alloc_attr(frame->data_bytes,
-				      frame->contiguous ?
-				      ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
+	frame->data = hmm_alloc(frame->data_bytes,
+			        HMM_BO_PRIVATE, 0, NULL,
+			        frame->contiguous ?
+			        ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
 
 	if (frame->data == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;

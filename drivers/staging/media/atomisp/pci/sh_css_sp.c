@@ -12,6 +12,8 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "sh_css_sp.h"
 
 #if !defined(HAS_NO_INPUT_FORMATTER)
@@ -43,7 +45,6 @@
 
 /*#include "sp.h"*/	/* host2sp_enqueue_frame_data() */
 
-#include "memory_access.h"
 
 #include "assert_support.h"
 #include "platform_support.h"	/* hrt_sleep() */

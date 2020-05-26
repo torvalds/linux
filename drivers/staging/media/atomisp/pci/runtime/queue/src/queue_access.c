@@ -12,11 +12,12 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "type_support.h"
 #include "queue_access.h"
 #include "ia_css_circbuf.h"
 #include "sp.h"
-#include "memory_access.h"
 #include "assert_support.h"
 
 int ia_css_queue_load(

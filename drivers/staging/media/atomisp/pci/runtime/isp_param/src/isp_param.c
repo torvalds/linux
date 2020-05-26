@@ -12,7 +12,8 @@
  * more details.
  */
 
-#include "memory_access.h"
+#include "hmm.h"
+
 #include "ia_css_pipeline.h"
 #include "ia_css_isp_param.h"
 
@@ -127,7 +128,7 @@ ia_css_isp_param_allocate_isp_parameters(
 					goto cleanup;
 				}
 				if (pclass != IA_CSS_PARAM_CLASS_PARAM) {
-					css_params->params[pclass][mem].address = mmgr_alloc_attr(size, 0);
+					css_params->params[pclass][mem].address = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
 					if (!css_params->params[pclass][mem].address) {
 						err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 						goto cleanup;

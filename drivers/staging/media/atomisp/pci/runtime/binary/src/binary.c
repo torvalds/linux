@@ -14,6 +14,9 @@
 
 #include <math_support.h>
 #include <gdc_device.h>	/* HR_GDC_N */
+
+#include "hmm.h"
+
 #include "isp.h"	/* ISP_VEC_NELEMS */
 
 #include "ia_css_binary.h"
@@ -33,7 +36,6 @@
 
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
 
-#include "memory_access.h"
 
 #include "assert_support.h"
 

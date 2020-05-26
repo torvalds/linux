@@ -14,7 +14,6 @@
 
 #if !defined(HAS_NO_HMEM)
 
-#include "memory_access.h"
 #include "ia_css_types.h"
 #include "sh_css_internal.h"
 #include "sh_css_frac.h"

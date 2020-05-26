@@ -28,6 +28,9 @@
 #include "hmm/hmm_pool.h"
 #include "ia_css_types.h"
 
+#define mmgr_NULL              ((ia_css_ptr)0)
+#define mmgr_EXCEPTION         ((ia_css_ptr)-1)
+
 int hmm_pool_register(unsigned int pool_size, enum hmm_pool_type pool_type);
 void hmm_pool_unregister(enum hmm_pool_type pool_type);
 

@@ -22,7 +22,6 @@
 #define __INLINE_ISP__
 #include "isp.h"
 
-#include "memory_access.h"
 
 #include "assert_support.h"
 

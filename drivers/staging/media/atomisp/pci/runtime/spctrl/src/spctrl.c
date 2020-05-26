@@ -12,11 +12,12 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_types.h"
 #define __INLINE_SP__
 #include "sp.h"
 
-#include "memory_access.h"
 #include "assert_support.h"
 #include "ia_css_spctrl.h"
 #include "ia_css_debug.h"
@@ -63,7 +64,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	 * Data used to be stored separately, because of access alignment constraints,
 	 * fix the FW generation instead
 	 */
-	code_addr = mmgr_alloc_attr(spctrl_cfg->code_size, 0);
+	code_addr = hmm_alloc(spctrl_cfg->code_size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (code_addr == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	hmm_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);

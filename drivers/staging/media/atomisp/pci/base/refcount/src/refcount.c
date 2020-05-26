@@ -12,8 +12,9 @@
  * more details.
  */
 
+#include "hmm.h"
+
 #include "ia_css_refcount.h"
-#include "memory_access/memory_access.h"
 #include "sh_css_defs.h"
 
 #include "platform_support.h"

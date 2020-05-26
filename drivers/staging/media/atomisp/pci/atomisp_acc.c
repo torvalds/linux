@@ -23,12 +23,13 @@
 #include <linux/init.h>
 #include <media/v4l2-event.h>
 
+#include "hmm.h"
+
 #include "atomisp_acc.h"
 #include "atomisp_internal.h"
 #include "atomisp_compat.h"
 #include "atomisp_cmd.h"
 
-#include "memory_access/memory_access.h"
 #include "ia_css.h"
 
 static const struct {

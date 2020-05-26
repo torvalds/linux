@@ -19,7 +19,6 @@
 #include "type_support.h"
 #include "mmu/isp_mmu.h"
 #include "mmu/sh_mmu_mrfld.h"
-#include "memory_access/memory_access.h"
 #include "atomisp_compat.h"
 
 #define MERR_VALID_PTE_MASK	0x80000000

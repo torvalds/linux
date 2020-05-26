@@ -14,11 +14,12 @@
 
 #include "debug.h"
 
+#include "hmm.h"
+
 #ifndef __INLINE_DEBUG__
 #include "debug_private.h"
 #endif /* __INLINE_DEBUG__ */
 
-#include "memory_access.h"
 
 #define __INLINE_SP__
 #include "sp.h"

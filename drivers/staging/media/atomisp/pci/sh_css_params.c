@@ -24,6 +24,7 @@
 #define IA_CSS_INCLUDE_PARAMETERS
 #define IA_CSS_INCLUDE_ACC_PARAMETERS
 
+#include "hmm.h"
 #include "sh_css_params.h"
 #include "ia_css_queue.h"
 #include "sw_event_global.h"		/* Event IDs */
@@ -45,7 +46,6 @@
 #include "sh_css_sp.h"
 #include "ia_css_pipeline.h"
 #include "ia_css_debug.h"
-#include "memory_access.h"
 
 #include "ia_css_isp_param.h"
 #include "ia_css_isp_params.h"
@@ -2734,8 +2734,10 @@ static bool realloc_isp_css_mm_buf(
 
 	id = IA_CSS_REFCOUNT_PARAM_BUFFER;
 	ia_css_refcount_decrement(id, *curr_buf);
-	*curr_buf = ia_css_refcount_increment(id, mmgr_alloc_attr(needed_size,
-					      mmgr_attribute));
+	*curr_buf = ia_css_refcount_increment(id, hmm_alloc(needed_size,
+							    HMM_BO_PRIVATE, 0,
+							    NULL,
+							    mmgr_attribute));
 
 	if (!*curr_buf) {
 		*err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -2800,7 +2802,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	me->hmem_size = CEIL_MUL(me->hmem_size, HIVE_ISP_DDR_WORD_BYTES);
 
 	me->size = me->dmem_size + me->vmem_size * 2 + me->hmem_size;
-	me->data_ptr = mmgr_alloc_attr(me->size, 0);
+	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (me->data_ptr == mmgr_NULL) {
 		sh_css_free(me);
 		me = NULL;
@@ -2850,7 +2852,7 @@ ia_css_metadata_allocate(const struct ia_css_metadata_info *metadata_info)
 
 	md->info = *metadata_info;
 	md->exp_id = 0;
-	md->address = mmgr_alloc_attr(metadata_info->size, 0);
+	md->address = hmm_alloc(metadata_info->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (md->address == mmgr_NULL)
 		goto error;
 
@@ -3007,13 +3009,13 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 	ddr_ptrs_size->isp_param = params_size;
 	ddr_ptrs->isp_param =
 	ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_BUFFER,
-				  mmgr_alloc_attr(params_size, 0));
+				  hmm_alloc(params_size, HMM_BO_PRIVATE, 0, NULL, 0));
 	succ &= (ddr_ptrs->isp_param != mmgr_NULL);
 
 	ddr_ptrs_size->macc_tbl = sizeof(struct ia_css_macc_table);
 	ddr_ptrs->macc_tbl =
 	ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_BUFFER,
-				  mmgr_alloc_attr(sizeof(struct ia_css_macc_table), 0));
+				  hmm_alloc(sizeof(struct ia_css_macc_table), HMM_BO_PRIVATE, 0, NULL, 0));
 	succ &= (ddr_ptrs->macc_tbl != mmgr_NULL);
 
 	*isp_params_out = params;
@@ -3264,12 +3266,14 @@ sh_css_params_init(void) {
 		for (i = 0; i < SH_CSS_MAX_STAGES; i++) {
 			xmem_sp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
-						  mmgr_alloc_attr(sizeof(struct sh_css_sp_stage),
-								  ATOMISP_MAP_FLAG_CLEARED));
+						  hmm_alloc(sizeof(struct sh_css_sp_stage),
+							    HMM_BO_PRIVATE, 0, NULL,
+							    ATOMISP_MAP_FLAG_CLEARED));
 			xmem_isp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
-						  mmgr_alloc_attr(sizeof(struct sh_css_sp_stage),
-								  ATOMISP_MAP_FLAG_CLEARED));
+						  hmm_alloc(sizeof(struct sh_css_sp_stage),
+							    HMM_BO_PRIVATE, 0, NULL,
+							    ATOMISP_MAP_FLAG_CLEARED));
 
 			if ((xmem_sp_stage_ptrs[p][i] == mmgr_NULL) ||
 			    (xmem_isp_stage_ptrs[p][i] == mmgr_NULL)) {
@@ -3286,12 +3290,14 @@ sh_css_params_init(void) {
 	ia_css_config_xnr_table();
 
 	sp_ddr_ptrs = ia_css_refcount_increment(-1,
-						mmgr_alloc_attr(CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
-									 HIVE_ISP_DDR_WORD_BYTES),
-								ATOMISP_MAP_FLAG_CLEARED));
+						hmm_alloc(CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
+								   HIVE_ISP_DDR_WORD_BYTES),
+							  HMM_BO_PRIVATE, 0, NULL,
+							  ATOMISP_MAP_FLAG_CLEARED));
 	xmem_sp_group_ptrs = ia_css_refcount_increment(-1,
-						       mmgr_alloc_attr(sizeof(struct sh_css_sp_group),
-								       ATOMISP_MAP_FLAG_CLEARED));
+						       hmm_alloc(sizeof(struct sh_css_sp_group),
+								 HMM_BO_PRIVATE, 0, NULL,
+								 ATOMISP_MAP_FLAG_CLEARED));
 
 	if ((sp_ddr_ptrs == mmgr_NULL) ||
 	    (xmem_sp_group_ptrs == mmgr_NULL))
@@ -3315,7 +3321,7 @@ static void host_lut_store(const void *lut)
 /* Note that allocation is in ipu address space. */
 inline ia_css_ptr sh_css_params_alloc_gdc_lut(void)
 {
-	return mmgr_alloc_attr(sizeof(zoom_table), 0);
+	return hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
 }
 
 inline void sh_css_params_free_gdc_lut(ia_css_ptr addr)
@@ -3355,7 +3361,7 @@ enum ia_css_err ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 
 	if (!stream_started) {
 		if (!atomisp_hw_is_isp2401)
-			pipe->scaler_pp_lut = mmgr_alloc_attr(sizeof(zoom_table), 0);
+			pipe->scaler_pp_lut = hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
 		else
 			pipe->scaler_pp_lut = sh_css_params_alloc_gdc_lut();
 
@@ -3400,7 +3406,7 @@ enum ia_css_err sh_css_params_map_and_store_default_gdc_lut(void)
 	host_lut_store((void *)zoom_table);
 
 	if (!atomisp_hw_is_isp2401)
-		default_gdc_lut = mmgr_alloc_attr(sizeof(zoom_table), 0);
+		default_gdc_lut = hmm_alloc(sizeof(zoom_table), HMM_BO_PRIVATE, 0, NULL, 0);
 	else
 		default_gdc_lut = sh_css_params_alloc_gdc_lut();
 
@@ -4540,7 +4546,7 @@ static enum ia_css_err write_ia_css_isp_parameter_set_info_to_ddr(
 	assert(out);
 
 	*out = ia_css_refcount_increment(IA_CSS_REFCOUNT_PARAM_SET_POOL,
-					 mmgr_alloc_attr(sizeof(struct ia_css_isp_parameter_set_info), 0));
+					 hmm_alloc(sizeof(struct ia_css_isp_parameter_set_info), HMM_BO_PRIVATE, 0, NULL, 0));
 	succ = (*out != mmgr_NULL);
 	if (succ)
 		hmm_store(*out,

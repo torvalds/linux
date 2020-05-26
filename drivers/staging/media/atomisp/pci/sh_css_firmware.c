@@ -15,6 +15,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#include "hmm.h"
+
 #include <math_support.h>
 #include "platform_support.h"
 #include "sh_css_firmware.h"
@@ -24,7 +26,6 @@
 #include "sh_css_internal.h"
 #include "ia_css_isp_param.h"
 
-#include "memory_access.h"
 #include "assert_support.h"
 #include "string_support.h"
 
@@ -322,7 +323,7 @@ void sh_css_unload_firmware(void)
 ia_css_ptr
 sh_css_load_blob(const unsigned char *blob, unsigned int size)
 {
-	ia_css_ptr target_addr = mmgr_alloc_attr(size, 0);
+	ia_css_ptr target_addr = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
 	/* this will allocate memory aligned to a DDR word boundary which
 	   is required for the CSS DMA to read the instructions. */
 

@@ -43,7 +43,6 @@ ia_css_mmu_invalidate_cache(void)
 			    "ia_css_mmu_invalidate_cache() leave\n");
 }
 
-/* Deprecated, this is an HRT backend function (memory_access.h) */
 void
 sh_css_mmu_set_page_table_base_index(hrt_data base_index)
 {

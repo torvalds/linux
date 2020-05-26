@@ -18,7 +18,6 @@
 #include <ia_css_err.h>
 #include <ia_css_types.h>
 #include "ia_css_debug.h"
-#include "memory_access.h"
 
 static struct ia_css_dvs_6axis_config *
 alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,

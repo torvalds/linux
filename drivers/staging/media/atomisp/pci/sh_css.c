@@ -17,6 +17,8 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
+#include "hmm.h"
+
 #include "ia_css.h"
 #include "sh_css_hrt.h"		/* only for file 2 MIPI */
 #include "ia_css_buffer.h"
@@ -52,7 +54,6 @@
 #include "ia_css_isys.h"
 #endif
 
-#include "memory_access.h"
 #include "tag.h"
 #include "assert_support.h"
 #include "math_support.h"
