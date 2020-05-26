@@ -29,6 +29,21 @@ config BRCMSTB_GISB_ARB
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
 
+config BT1_APB
+	tristate "Baikal-T1 APB-bus driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  Baikal-T1 AXI-APB bridge is used to access the SoC subsystem CSRs.
+	  IO requests are routed to this bus by means of the DW AMBA 3 AXI
+	  Interconnect. In case of any APB protocol collisions, slave device
+	  not responding on timeout an IRQ is raised with an erroneous address
+	  reported to the APB terminator (APB Errors Handler Block). This
+	  driver provides the interrupt handler to detect the erroneous
+	  address, prints an error message about the address fault, updates an
+	  errors counter. The counter and the APB-bus operations timeout can be
+	  accessed via corresponding sysfs nodes.
+
 config BT1_AXI
 	tristate "Baikal-T1 AXI-bus driver"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
