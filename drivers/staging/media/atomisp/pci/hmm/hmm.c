@@ -253,7 +253,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		goto alloc_page_err;
 	}
 
-	/* Combind the virtual address and pages togather */
+	/* Combine the virtual address and pages together */
 	ret = hmm_bo_bind(bo);
 	if (ret) {
 		dev_err(atomisp_dev, "hmm_bo_bind failed.\n");
@@ -264,6 +264,10 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 
 	if (attrs & ATOMISP_MAP_FLAG_CLEARED)
 		hmm_set(bo->start, 0, bytes);
+
+	    dev_dbg(atomisp_dev,
+	    "%s: pages: 0x%08x (%ld bytes), type: %d from highmem %d, user ptr %p, cached %d\n",
+	    __func__, bo->start, bytes, type, from_highmem, userptr, cached);
 
 	return bo->start;
 
