@@ -42,15 +42,13 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev,
 static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 				struct ieee80211_tx_rate *rates)
 {
-	int i;
 	struct wfx_dev *wdev = wvif->wdev;
+	int i, rateid;
+	u8 count;
 
 	WARN(rates[0].idx < 0, "invalid rate policy");
 	memset(policy, 0, sizeof(*policy));
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; ++i) {
-		int rateid;
-		u8 count;
-
 		if (rates[i].idx < 0)
 			break;
 		WARN_ON(rates[i].count > 15);
