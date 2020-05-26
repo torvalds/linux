@@ -214,6 +214,11 @@
 #define MII_VCT5_TX_PULSE_CTRL_MAX_AMP			BIT(7)
 #define MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV		(0x6 << 0)
 
+/* For TDR measurements less than 11 meters, a short pulse should be
+ * used.
+ */
+#define TDR_SHORT_CABLE_LENGTH	11
+
 #define MII_VCT7_PAIR_0_DISTANCE	0x10
 #define MII_VCT7_PAIR_1_DISTANCE	0x11
 #define MII_VCT7_PAIR_2_DISTANCE	0x12
@@ -1835,14 +1840,19 @@ static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
 {
 	struct marvell_priv *priv = phydev->priv;
 	int distance;
+	u16 width;
 	int page;
 	int err;
 	u16 reg;
 
+	if (priv->first <= TDR_SHORT_CABLE_LENGTH)
+		width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS;
+	else
+		width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_128nS;
+
 	reg = MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV |
 		MII_VCT5_TX_PULSE_CTRL_DONT_WAIT_LINK_DOWN |
-		MII_VCT5_TX_PULSE_CTRL_MAX_AMP |
-		MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS;
+		MII_VCT5_TX_PULSE_CTRL_MAX_AMP | width;
 
 	err = phy_write_paged(phydev, MII_MARVELL_VCT5_PAGE,
 			      MII_VCT5_TX_PULSE_CTRL, reg);
@@ -1866,6 +1876,17 @@ static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
 						      priv->pair);
 		if (err)
 			goto restore_page;
+
+		if (distance > TDR_SHORT_CABLE_LENGTH &&
+		    width == MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_32nS) {
+			width = MII_VCT5_TX_PULSE_CTRL_PULSE_WIDTH_128nS;
+			reg = MII_VCT5_TX_PULSE_CTRL_GT_140m_46_86mV |
+				MII_VCT5_TX_PULSE_CTRL_DONT_WAIT_LINK_DOWN |
+				MII_VCT5_TX_PULSE_CTRL_MAX_AMP | width;
+			err = __phy_write(phydev, MII_VCT5_TX_PULSE_CTRL, reg);
+			if (err)
+				goto restore_page;
+		}
 	}
 
 restore_page:
