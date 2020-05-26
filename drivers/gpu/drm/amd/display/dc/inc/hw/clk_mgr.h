@@ -198,11 +198,17 @@ struct wm_table {
 #endif
 };
 
+struct dummy_pstate_entry {
+	unsigned int dram_speed_mts;
+	unsigned int dummy_pstate_latency_us;
+};
+
 struct clk_bw_params {
 	unsigned int vram_type;
 	unsigned int num_channels;
 	struct clk_limit_table clk_table;
 	struct wm_table wm_table;
+	struct dummy_pstate_entry dummy_pstate_table[4];
 };
 /* Public interfaces */
 
