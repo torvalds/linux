@@ -333,9 +333,10 @@ u64 process_durations(int n)
 // point all the timestamps are printed.
 static int main_func(void *arg)
 {
+	bool errexit = false;
 	int exp, r;
 	char buf1[64];
-	char buf[512];
+	char *buf;
 	u64 *result_avg;
 
 	set_cpus_allowed_ptr(current, cpumask_of(nreaders % nr_cpu_ids));
@@ -343,8 +344,11 @@ static int main_func(void *arg)
 
 	VERBOSE_PERFOUT("main_func task started");
 	result_avg = kzalloc(nruns * sizeof(*result_avg), GFP_KERNEL);
-	if (!result_avg)
+	buf = kzalloc(64 + nruns * 32, GFP_KERNEL);
+	if (!result_avg || !buf) {
 		VERBOSE_PERFOUT_ERRSTRING("out of memory");
+		errexit = true;
+	}
 	atomic_inc(&n_init);
 
 	// Wait for all threads to start.
@@ -354,7 +358,7 @@ static int main_func(void *arg)
 
 	// Start exp readers up per experiment
 	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
-		if (!result_avg)
+		if (errexit)
 			break;
 		if (torture_must_stop())
 			goto end;
@@ -391,13 +395,13 @@ static int main_func(void *arg)
 	strcat(buf, "Threads\tTime(ns)\n");
 
 	for (exp = 0; exp < nruns; exp++) {
-		if (!result_avg)
+		if (errexit)
 			break;
 		sprintf(buf1, "%d\t%llu.%03d\n", exp + 1, result_avg[exp] / 1000, (int)(result_avg[exp] % 1000));
 		strcat(buf, buf1);
 	}
 
-	if (result_avg)
+	if (!errexit)
 		PERFOUT("%s", buf);
 
 	// This will shutdown everything including us.
@@ -412,6 +416,8 @@ static int main_func(void *arg)
 
 end:
 	torture_kthread_stopping("main_func");
+	kfree(result_avg);
+	kfree(buf);
 	return 0;
 }
 
