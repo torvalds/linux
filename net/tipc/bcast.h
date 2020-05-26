@@ -45,6 +45,7 @@ struct tipc_nl_msg;
 struct tipc_nlist;
 struct tipc_nitem;
 extern const char tipc_bclink_name[];
+extern unsigned long sysctl_tipc_bc_retruni;
 
 #define TIPC_METHOD_EXPIRE msecs_to_jiffies(5000)
 
@@ -93,7 +94,8 @@ int tipc_bcast_rcv(struct net *net, struct tipc_link *l, struct sk_buff *skb);
 void tipc_bcast_ack_rcv(struct net *net, struct tipc_link *l,
 			struct tipc_msg *hdr);
 int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
-			struct tipc_msg *hdr);
+			struct tipc_msg *hdr,
+			struct sk_buff_head *retrq);
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 int tipc_bclink_reset_stats(struct net *net);
