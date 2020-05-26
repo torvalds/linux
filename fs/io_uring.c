@@ -982,19 +982,6 @@ static inline bool req_need_defer(struct io_kiocb *req)
 	return false;
 }
 
-static struct io_kiocb *io_get_deferred_req(struct io_ring_ctx *ctx)
-{
-	struct io_kiocb *req;
-
-	req = list_first_entry_or_null(&ctx->defer_list, struct io_kiocb, list);
-	if (req && !req_need_defer(req)) {
-		list_del_init(&req->list);
-		return req;
-	}
-
-	return NULL;
-}
-
 static struct io_kiocb *io_get_timeout_req(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
@@ -1127,6 +1114,19 @@ static void io_kill_timeouts(struct io_ring_ctx *ctx)
 	spin_unlock_irq(&ctx->completion_lock);
 }
 
+static void __io_queue_deferred(struct io_ring_ctx *ctx)
+{
+	do {
+		struct io_kiocb *req = list_first_entry(&ctx->defer_list,
+							struct io_kiocb, list);
+
+		if (req_need_defer(req))
+			break;
+		list_del_init(&req->list);
+		io_queue_async_work(req);
+	} while (!list_empty(&ctx->defer_list));
+}
+
 static void io_commit_cqring(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
@@ -1136,8 +1136,8 @@ static void io_commit_cqring(struct io_ring_ctx *ctx)
 
 	__io_commit_cqring(ctx);
 
-	while ((req = io_get_deferred_req(ctx)) != NULL)
-		io_queue_async_work(req);
+	if (unlikely(!list_empty(&ctx->defer_list)))
+		__io_queue_deferred(ctx);
 }
 
 static struct io_uring_cqe *io_get_cqring(struct io_ring_ctx *ctx)
