@@ -32,7 +32,7 @@ sun8i_dw_hdmi_encoder_helper_funcs = {
 
 static enum drm_mode_status
 sun8i_dw_hdmi_mode_valid_a83t(struct dw_hdmi *hdmi, void *data,
-			      struct drm_connector *connector,
+			      const struct drm_display_info *info,
 			      const struct drm_display_mode *mode)
 {
 	if (mode->clock > 297000)
@@ -43,7 +43,7 @@ sun8i_dw_hdmi_mode_valid_a83t(struct dw_hdmi *hdmi, void *data,
 
 static enum drm_mode_status
 sun8i_dw_hdmi_mode_valid_h6(struct dw_hdmi *hdmi, void *data,
-			    struct drm_connector *connector,
+			    const struct drm_display_info *info,
 			    const struct drm_display_mode *mode)
 {
 	/*

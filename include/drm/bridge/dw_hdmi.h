@@ -8,7 +8,7 @@
 
 #include <sound/hdmi-codec.h>
 
-struct drm_connector;
+struct drm_display_info;
 struct drm_display_mode;
 struct drm_encoder;
 struct dw_hdmi;
@@ -137,7 +137,7 @@ struct dw_hdmi_plat_data {
 
 	/* Platform-specific mode validation (optional). */
 	enum drm_mode_status (*mode_valid)(struct dw_hdmi *hdmi, void *data,
-					   struct drm_connector *connector,
+					   const struct drm_display_info *info,
 					   const struct drm_display_mode *mode);
 
 	/* Vendor PHY support */

@@ -39,7 +39,7 @@ static const struct rcar_hdmi_phy_params rcar_hdmi_phy_params[] = {
 
 static enum drm_mode_status
 rcar_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
-		     struct drm_connector *connector,
+		     const struct drm_display_info *info,
 		     const struct drm_display_mode *mode)
 {
 	/*

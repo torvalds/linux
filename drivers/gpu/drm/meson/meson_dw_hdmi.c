@@ -631,12 +631,12 @@ static irqreturn_t dw_hdmi_top_thread_irq(int irq, void *dev_id)
 
 static enum drm_mode_status
 dw_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
-		   struct drm_connector *connector,
+		   const struct drm_display_info *display_info,
 		   const struct drm_display_mode *mode)
 {
 	struct meson_dw_hdmi *dw_hdmi = data;
 	struct meson_drm *priv = dw_hdmi->priv;
-	bool is_hdmi2_sink = connector->display_info.hdmi.scdc.supported;
+	bool is_hdmi2_sink = display_info->hdmi.scdc.supported;
 	unsigned int phy_freq;
 	unsigned int vclk_freq;
 	unsigned int venc_freq;
@@ -647,10 +647,10 @@ dw_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
 	DRM_DEBUG_DRIVER("Modeline " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
 	/* If sink does not support 540MHz, reject the non-420 HDMI2 modes */
-	if (connector->display_info.max_tmds_clock &&
-	    mode->clock > connector->display_info.max_tmds_clock &&
-	    !drm_mode_is_420_only(&connector->display_info, mode) &&
-	    !drm_mode_is_420_also(&connector->display_info, mode))
+	if (display_info->max_tmds_clock &&
+	    mode->clock > display_info->max_tmds_clock &&
+	    !drm_mode_is_420_only(display_info, mode) &&
+	    !drm_mode_is_420_also(display_info, mode))
 		return MODE_BAD;
 
 	/* Check against non-VIC supported modes */
@@ -667,9 +667,9 @@ dw_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
 	vclk_freq = mode->clock;
 
 	/* For 420, pixel clock is half unlike venc clock */
-	if (drm_mode_is_420_only(&connector->display_info, mode) ||
+	if (drm_mode_is_420_only(display_info, mode) ||
 	    (!is_hdmi2_sink &&
-	     drm_mode_is_420_also(&connector->display_info, mode)))
+	     drm_mode_is_420_also(display_info, mode)))
 		vclk_freq /= 2;
 
 	/* TMDS clock is pixel_clock * 10 */
@@ -684,9 +684,9 @@ dw_hdmi_mode_valid(struct dw_hdmi *hdmi, void *data,
 
 	/* VENC double pixels for 1080i, 720p and YUV420 modes */
 	if (meson_venc_hdmi_venc_repeat(vic) ||
-	    drm_mode_is_420_only(&connector->display_info, mode) ||
+	    drm_mode_is_420_only(display_info, mode) ||
 	    (!is_hdmi2_sink &&
-	     drm_mode_is_420_also(&connector->display_info, mode)))
+	     drm_mode_is_420_also(display_info, mode)))
 		venc_freq *= 2;
 
 	vclk_freq = max(venc_freq, hdmi_freq);
