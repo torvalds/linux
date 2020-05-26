@@ -281,7 +281,8 @@ Initialization
 5. **Optional** Set the coded frame interval on the ``CAPTURE`` queue via
    :c:func:`VIDIOC_S_PARM`. This is only necessary if the coded frame
    interval is different from the raw frame interval, which is typically
-   the case for off-line encoding.
+   the case for off-line encoding. Support for this feature is signalled
+   by the :ref:`V4L2_FMT_FLAG_ENC_CAP_FRAME_INTERVAL <fmtdesc-flags>` format flag.
 
    * ** Required fields:**
 
