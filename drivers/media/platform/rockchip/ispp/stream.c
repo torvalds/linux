@@ -229,8 +229,7 @@ static void check_to_force_update(struct rkispp_device *dev, u32 mis_val)
 	/* wait nr_shp/fec/scl idle */
 	for (i = STREAM_S0; i < STREAM_MAX; i++) {
 		stream = &vdev->stream[i];
-		if (stream->is_upd &&
-		    (!is_fec_en || !vdev->fec.is_end))
+		if (stream->is_upd && !is_fec_en)
 			mask |= stream->config->frame_end_id;
 	}
 
@@ -1842,7 +1841,7 @@ static void fec_work_event(struct rkispp_device *dev,
 		dummy = vdev->fec.cur_rd;
 		val = dummy->dma_addr;
 		writel(val, base + RKISPP_FEC_RD_Y_BASE);
-		val = dummy->dma_addr + vdev->nr.uv_offset;
+		val += vdev->fec.uv_offset;
 		writel(val, base + RKISPP_FEC_RD_UV_BASE);
 		is_start = true;
 	}
@@ -1920,6 +1919,12 @@ static void nr_work_event(struct rkispp_device *dev,
 		}
 	}
 
+	if (!vdev->fec.is_end) {
+		if (buf_rd)
+			list_add_tail(&buf_rd->list, &vdev->nr.list_rd);
+		goto end;
+	}
+
 	list = &vdev->nr.list_rd;
 	if (buf_rd && vdev->nr.is_end && list_empty(list)) {
 		/* nr read buf from isp or tnr */
@@ -1991,7 +1996,7 @@ static void nr_work_event(struct rkispp_device *dev,
 		dummy = vdev->nr.cur_wr;
 		val = dummy->dma_addr;
 		writel(val, base + RKISPP_SHARP_WR_Y_BASE);
-		val = dummy->dma_addr + vdev->nr.uv_offset;
+		val += vdev->fec.uv_offset;
 		writel(val, base + RKISPP_SHARP_WR_UV_BASE);
 	}
 
@@ -2024,7 +2029,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			writel(NR_SHP_ST, base + RKISPP_CTRL_STRT);
 		vdev->nr.is_end = false;
 	}
-
+end:
 	/* nr_shp->fec->scl
 	 * fec start working should after nr
 	 * for scl will update by OTHER_FORCE_UPD
