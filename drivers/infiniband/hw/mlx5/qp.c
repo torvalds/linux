@@ -1552,6 +1552,7 @@ struct mlx5_create_qp_params {
 	struct ib_udata *udata;
 	size_t inlen;
 	size_t outlen;
+	size_t ucmd_size;
 	void *ucmd;
 	u8 is_rss_raw : 1;
 	struct ib_qp_init_attr *attr;
@@ -1839,6 +1840,7 @@ static int get_atomic_mode(struct mlx5_ib_dev *dev,
 static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			     struct mlx5_create_qp_params *params)
 {
+	struct mlx5_ib_create_qp *ucmd = params->ucmd;
 	struct ib_qp_init_attr *attr = params->attr;
 	u32 uidx = params->uidx;
 	struct mlx5_ib_resources *devr = &dev->devr;
@@ -1860,6 +1862,8 @@ static int create_xrc_tgt_qp(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (!in)
 		return -ENOMEM;
 
+	if (MLX5_CAP_GEN(mdev, ece_support))
+		MLX5_SET(create_qp_in, in, ece, ucmd->ece_options);
 	qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 
 	MLX5_SET(qpc, qpc, st, MLX5_QP_ST_XRC);
@@ -1974,6 +1978,8 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (is_sqp(init_attr->qp_type))
 		qp->port = init_attr->port_num;
 
+	if (MLX5_CAP_GEN(mdev, ece_support))
+		MLX5_SET(create_qp_in, in, ece, ucmd->ece_options);
 	qpc = MLX5_ADDR_OF(create_qp_in, in, qpc);
 
 	MLX5_SET(qpc, qpc, st, mlx5_st);
@@ -2709,19 +2715,22 @@ static int process_udata_size(struct mlx5_ib_dev *dev,
 			      struct mlx5_create_qp_params *params)
 {
 	size_t ucmd = sizeof(struct mlx5_ib_create_qp);
-	struct ib_qp_init_attr *attr = params->attr;
 	struct ib_udata *udata = params->udata;
 	size_t outlen = udata->outlen;
 	size_t inlen = udata->inlen;
 
 	params->outlen = min(outlen, sizeof(struct mlx5_ib_create_qp_resp));
-	if (attr->qp_type == IB_QPT_DRIVER) {
-		params->inlen = (inlen < ucmd) ? 0 : ucmd;
-		goto out;
-	}
-
+	params->ucmd_size = ucmd;
 	if (!params->is_rss_raw) {
-		params->inlen = ucmd;
+		/* User has old rdma-core, which doesn't support ECE */
+		size_t min_inlen =
+			offsetof(struct mlx5_ib_create_qp, ece_options);
+
+		/*
+		 * We will check in check_ucmd_data() that user
+		 * cleared everything after inlen.
+		 */
+		params->inlen = (inlen < min_inlen) ? 0 : min(inlen, ucmd);
 		goto out;
 	}
 
@@ -2733,13 +2742,14 @@ static int process_udata_size(struct mlx5_ib_dev *dev,
 		return -EINVAL;
 
 	ucmd = sizeof(struct mlx5_ib_create_qp_rss);
+	params->ucmd_size = ucmd;
 	if (inlen > ucmd && !ib_is_udata_cleared(udata, ucmd, inlen - ucmd))
 		return -EINVAL;
 
 	params->inlen = min(ucmd, inlen);
 out:
 	if (!params->inlen)
-		mlx5_ib_dbg(dev, "udata is too small or not cleared\n");
+		mlx5_ib_dbg(dev, "udata is too small\n");
 
 	return (params->inlen) ? 0 : -EINVAL;
 }
@@ -2855,6 +2865,49 @@ static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
 	return 0;
 }
 
+static int check_ucmd_data(struct mlx5_ib_dev *dev,
+			   struct mlx5_create_qp_params *params)
+{
+	struct ib_qp_init_attr *attr = params->attr;
+	struct ib_udata *udata = params->udata;
+	size_t size, last;
+	int ret;
+
+	if (params->is_rss_raw)
+		/*
+		 * These QPs don't have "reserved" field in their
+		 * create_qp input struct, so their data is always valid.
+		 */
+		last = sizeof(struct mlx5_ib_create_qp_rss);
+	else
+		/* IB_QPT_RAW_PACKET and IB_QPT_DRIVER don't have ECE data */
+		switch (attr->qp_type) {
+		case IB_QPT_DRIVER:
+		case IB_QPT_RAW_PACKET:
+			last = offsetof(struct mlx5_ib_create_qp, ece_options);
+			break;
+		default:
+			last = offsetof(struct mlx5_ib_create_qp, reserved);
+		}
+
+	if (udata->inlen <= last)
+		return 0;
+
+	/*
+	 * User provides different create_qp structures based on the
+	 * flow and we need to know if he cleared memory after our
+	 * struct create_qp ends.
+	 */
+	size = udata->inlen - last;
+	ret = ib_is_udata_cleared(params->udata, last, size);
+	if (!ret)
+		mlx5_ib_dbg(
+			dev,
+			"udata is not cleared, inlen = %lu, ucmd = %lu, last = %lu, size = %lu\n",
+			udata->inlen, params->ucmd_size, last, size);
+	return ret ? 0 : -EINVAL;
+}
+
 struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 				struct ib_udata *udata)
 {
@@ -2888,7 +2941,11 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 		if (err)
 			return ERR_PTR(err);
 
-		params.ucmd = kzalloc(params.inlen, GFP_KERNEL);
+		err = check_ucmd_data(dev, &params);
+		if (err)
+			return ERR_PTR(err);
+
+		params.ucmd = kzalloc(params.ucmd_size, GFP_KERNEL);
 		if (!params.ucmd)
 			return ERR_PTR(-ENOMEM);
 
