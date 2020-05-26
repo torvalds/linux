@@ -456,6 +456,13 @@ static int byt_resume(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int byt_remove(struct snd_sof_dev *sdev)
+{
+	byt_reset_dsp_disable_int(sdev);
+
+	return 0;
+}
+
 /* Baytrail DAIs */
 static struct snd_soc_dai_driver byt_dai[] = {
 {
@@ -811,6 +818,7 @@ irq:
 const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
+	.remove		= byt_remove,
 
 	/* DSP core boot / reset */
 	.run		= byt_run,
@@ -889,6 +897,7 @@ EXPORT_SYMBOL_NS(byt_chip_info, SND_SOC_SOF_BAYTRAIL);
 const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
 	.probe		= byt_acpi_probe,
+	.remove		= byt_remove,
 
 	/* DSP core boot / reset */
 	.run		= byt_run,
