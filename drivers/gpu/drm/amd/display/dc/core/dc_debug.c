@@ -365,3 +365,62 @@ void context_clock_trace(
 			context->bw_ctx.bw.dcn.clk.socclk_khz);
 #endif
 }
+
+/**
+ * dc_status_to_str - convert dc_status to a human readable string
+ * @status: dc_status to be converted
+ *
+ * Return:
+ * A string describing the DC status.
+ */
+char *dc_status_to_str(enum dc_status status)
+{
+	switch (status) {
+	case DC_OK:
+		return "DC OK";
+	case DC_NO_CONTROLLER_RESOURCE:
+		return "No controller resource";
+	case DC_NO_STREAM_ENC_RESOURCE:
+		return "No stream encoder";
+	case DC_NO_CLOCK_SOURCE_RESOURCE:
+		return "No clock source";
+	case DC_FAIL_CONTROLLER_VALIDATE:
+		return "Controller validation failure";
+	case DC_FAIL_ENC_VALIDATE:
+		return "Encoder validation failure";
+	case DC_FAIL_ATTACH_SURFACES:
+		return "Surfaces attachment failure";
+	case DC_FAIL_DETACH_SURFACES:
+		return "Surfaces detachment failure";
+	case DC_FAIL_SURFACE_VALIDATE:
+		return "Surface validation failure";
+	case DC_NO_DP_LINK_BANDWIDTH:
+		return "No DP link bandwidth";
+	case DC_EXCEED_DONGLE_CAP:
+		return "Exceed dongle capability";
+	case DC_SURFACE_PIXEL_FORMAT_UNSUPPORTED:
+		return "Unsupported pixel format";
+	case DC_FAIL_BANDWIDTH_VALIDATE:
+		return "Bandwidth validation failure (BW and Watermark)";
+	case DC_FAIL_SCALING:
+		return "Scaling failure";
+	case DC_FAIL_DP_LINK_TRAINING:
+		return "DP link training failure";
+	case DC_FAIL_DSC_VALIDATE:
+		return "DSC validation failure";
+	case DC_NO_DSC_RESOURCE:
+		return "No DSC resource";
+	case DC_FAIL_UNSUPPORTED_1:
+		return "Unsupported";
+	case DC_FAIL_CLK_EXCEED_MAX:
+		return "Clk exceed max failure";
+	case DC_FAIL_CLK_BELOW_MIN:
+		return "Fail clk below minimum";
+	case DC_FAIL_CLK_BELOW_CFG_REQUIRED:
+		return "Fail clk below required CFG (hard_min in PPLIB)";
+	case DC_ERROR_UNEXPECTED:
+		return "Unexpected error";
+	}
+
+	return "Unexpected status error";
+}
