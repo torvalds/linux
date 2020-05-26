@@ -4330,50 +4330,35 @@ static inline enum ib_mig_state to_ib_mig_state(int mlx5_mig_state)
 	}
 }
 
-static int to_ib_qp_access_flags(int mlx5_flags)
-{
-	int ib_flags = 0;
-
-	if (mlx5_flags & MLX5_QP_BIT_RRE)
-		ib_flags |= IB_ACCESS_REMOTE_READ;
-	if (mlx5_flags & MLX5_QP_BIT_RWE)
-		ib_flags |= IB_ACCESS_REMOTE_WRITE;
-	if (mlx5_flags & MLX5_QP_BIT_RAE)
-		ib_flags |= IB_ACCESS_REMOTE_ATOMIC;
-
-	return ib_flags;
-}
-
 static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
-			    struct rdma_ah_attr *ah_attr,
-			    struct mlx5_qp_path *path)
+			    struct rdma_ah_attr *ah_attr, void *path)
 {
+	int port = MLX5_GET(ads, path, vhca_port_num);
+	int static_rate;
 
 	memset(ah_attr, 0, sizeof(*ah_attr));
 
-	if (!path->port || path->port > ibdev->num_ports)
+	if (!port || port > ibdev->num_ports)
 		return;
 
-	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, path->port);
+	ah_attr->type = rdma_ah_find_type(&ibdev->ib_dev, port);
 
-	rdma_ah_set_port_num(ah_attr, path->port);
-	rdma_ah_set_sl(ah_attr, path->dci_cfi_prio_sl & 0xf);
+	rdma_ah_set_port_num(ah_attr, port);
+	rdma_ah_set_sl(ah_attr, MLX5_GET(ads, path, sl));
 
-	rdma_ah_set_dlid(ah_attr, be16_to_cpu(path->rlid));
-	rdma_ah_set_path_bits(ah_attr, path->grh_mlid & 0x7f);
-	rdma_ah_set_static_rate(ah_attr,
-				path->static_rate ? path->static_rate - 5 : 0);
+	rdma_ah_set_dlid(ah_attr, MLX5_GET(ads, path, rlid));
+	rdma_ah_set_path_bits(ah_attr, MLX5_GET(ads, path, mlid));
 
-	if (path->grh_mlid & (1 << 7) ||
+	static_rate = MLX5_GET(ads, path, stat_rate);
+	rdma_ah_set_static_rate(ah_attr, static_rate ? static_rate - 5 : 0);
+	if (MLX5_GET(ads, path, grh) ||
 	    ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
-		u32 tc_fl = be32_to_cpu(path->tclass_flowlabel);
-
-		rdma_ah_set_grh(ah_attr, NULL,
-				tc_fl & 0xfffff,
-				path->mgid_index,
-				path->hop_limit,
-				(tc_fl >> 20) & 0xff);
-		rdma_ah_set_dgid_raw(ah_attr, path->rgid);
+		rdma_ah_set_grh(ah_attr, NULL, MLX5_GET(ads, path, flow_label),
+				MLX5_GET(ads, path, src_addr_index),
+				MLX5_GET(ads, path, hop_limit),
+				MLX5_GET(ads, path, tclass));
+		memcpy(ah_attr, MLX5_ADDR_OF(ads, path, rgid_rip),
+		       MLX5_FLD_SZ_BYTES(ads, rgid_rip));
 	}
 }
 
@@ -4495,10 +4480,9 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 			 struct ib_qp_attr *qp_attr)
 {
 	int outlen = MLX5_ST_SZ_BYTES(query_qp_out);
-	struct mlx5_qp_context *context;
-	int mlx5_state;
+	void *qpc, *pri_path, *alt_path;
 	u32 *outb;
-	int err = 0;
+	int err;
 
 	outb = kzalloc(outlen, GFP_KERNEL);
 	if (!outb)
@@ -4508,47 +4492,46 @@ static int query_qp_attr(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	if (err)
 		goto out;
 
-	/* FIXME: use MLX5_GET rather than mlx5_qp_context manual struct */
-	context = (struct mlx5_qp_context *)MLX5_ADDR_OF(query_qp_out, outb, qpc);
+	qpc = MLX5_ADDR_OF(query_qp_out, outb, qpc);
 
-	mlx5_state = be32_to_cpu(context->flags) >> 28;
+	qp->state = to_ib_qp_state(MLX5_GET(qpc, qpc, state));
+	if (MLX5_GET(qpc, qpc, state) == MLX5_QP_STATE_SQ_DRAINING)
+		qp_attr->sq_draining = 1;
 
-	qp->state		     = to_ib_qp_state(mlx5_state);
-	qp_attr->path_mtu	     = context->mtu_msgmax >> 5;
-	qp_attr->path_mig_state	     =
-		to_ib_mig_state((be32_to_cpu(context->flags) >> 11) & 0x3);
-	qp_attr->qkey		     = be32_to_cpu(context->qkey);
-	qp_attr->rq_psn		     = be32_to_cpu(context->rnr_nextrecvpsn) & 0xffffff;
-	qp_attr->sq_psn		     = be32_to_cpu(context->next_send_psn) & 0xffffff;
-	qp_attr->dest_qp_num	     = be32_to_cpu(context->log_pg_sz_remote_qpn) & 0xffffff;
-	qp_attr->qp_access_flags     =
-		to_ib_qp_access_flags(be32_to_cpu(context->params2));
+	qp_attr->path_mtu = MLX5_GET(qpc, qpc, mtu);
+	qp_attr->path_mig_state = to_ib_mig_state(MLX5_GET(qpc, qpc, pm_state));
+	qp_attr->qkey = MLX5_GET(qpc, qpc, q_key);
+	qp_attr->rq_psn = MLX5_GET(qpc, qpc, next_rcv_psn);
+	qp_attr->sq_psn = MLX5_GET(qpc, qpc, next_send_psn);
+	qp_attr->dest_qp_num = MLX5_GET(qpc, qpc, remote_qpn);
+
+	if (MLX5_GET(qpc, qpc, rre))
+		qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ;
+	if (MLX5_GET(qpc, qpc, rwe))
+		qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_WRITE;
+	if (MLX5_GET(qpc, qpc, rae))
+		qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_ATOMIC;
+
+	qp_attr->max_rd_atomic = 1 << MLX5_GET(qpc, qpc, log_sra_max);
+	qp_attr->max_dest_rd_atomic = 1 << MLX5_GET(qpc, qpc, log_rra_max);
+	qp_attr->min_rnr_timer = MLX5_GET(qpc, qpc, min_rnr_nak);
+	qp_attr->retry_cnt = MLX5_GET(qpc, qpc, retry_count);
+	qp_attr->rnr_retry = MLX5_GET(qpc, qpc, rnr_retry);
+
+	pri_path = MLX5_ADDR_OF(qpc, qpc, primary_address_path);
+	alt_path = MLX5_ADDR_OF(qpc, qpc, secondary_address_path);
 
 	if (qp->ibqp.qp_type == IB_QPT_RC || qp->ibqp.qp_type == IB_QPT_UC) {
-		to_rdma_ah_attr(dev, &qp_attr->ah_attr, &context->pri_path);
-		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, &context->alt_path);
-		qp_attr->alt_pkey_index =
-			be16_to_cpu(context->alt_path.pkey_index);
-		qp_attr->alt_port_num	=
-			rdma_ah_get_port_num(&qp_attr->alt_ah_attr);
+		to_rdma_ah_attr(dev, &qp_attr->ah_attr, pri_path);
+		to_rdma_ah_attr(dev, &qp_attr->alt_ah_attr, alt_path);
+		qp_attr->alt_pkey_index = MLX5_GET(ads, alt_path, pkey_index);
+		qp_attr->alt_port_num = MLX5_GET(ads, alt_path, vhca_port_num);
 	}
 
-	qp_attr->pkey_index = be16_to_cpu(context->pri_path.pkey_index);
-	qp_attr->port_num = context->pri_path.port;
-
-	/* qp_attr->en_sqd_async_notify is only applicable in modify qp */
-	qp_attr->sq_draining = mlx5_state == MLX5_QP_STATE_SQ_DRAINING;
-
-	qp_attr->max_rd_atomic = 1 << ((be32_to_cpu(context->params1) >> 21) & 0x7);
-
-	qp_attr->max_dest_rd_atomic =
-		1 << ((be32_to_cpu(context->params2) >> 21) & 0x7);
-	qp_attr->min_rnr_timer	    =
-		(be32_to_cpu(context->rnr_nextrecvpsn) >> 24) & 0x1f;
-	qp_attr->timeout	    = context->pri_path.ackto_lt >> 3;
-	qp_attr->retry_cnt	    = (be32_to_cpu(context->params1) >> 16) & 0x7;
-	qp_attr->rnr_retry	    = (be32_to_cpu(context->params1) >> 13) & 0x7;
-	qp_attr->alt_timeout	    = context->alt_path.ackto_lt >> 3;
+	qp_attr->pkey_index = MLX5_GET(ads, pri_path, pkey_index);
+	qp_attr->port_num = MLX5_GET(ads, pri_path, vhca_port_num);
+	qp_attr->timeout = MLX5_GET(ads, pri_path, ack_timeout);
+	qp_attr->alt_timeout = MLX5_GET(ads, alt_path, ack_timeout);
 
 out:
 	kfree(outb);
