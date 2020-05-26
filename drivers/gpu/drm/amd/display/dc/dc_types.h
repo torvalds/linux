@@ -261,6 +261,9 @@ struct dc_edid_caps {
 	bool edid_hdmi;
 	bool hdr_supported;
 
+	uint32_t max_tmds_clk_mhz;
+	uint32_t max_forum_tmds_clk_mhz;
+
 	struct dc_panel_patch panel_patch;
 };
 
