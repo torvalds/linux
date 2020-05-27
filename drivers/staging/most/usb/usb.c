@@ -729,6 +729,8 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	struct most_dev *mdev = clear_work->mdev;
 	unsigned int channel = clear_work->channel;
 	int pipe = clear_work->pipe;
+	int snd_pipe;
+	int peer;
 
 	mutex_lock(&mdev->io_mutex);
 	most_stop_enqueue(&mdev->iface, channel);
@@ -746,9 +748,12 @@ static void wq_clear_halt(struct work_struct *wq_obj)
 	 */
 	if (mdev->conf[channel].data_type == MOST_CH_ASYNC &&
 	    mdev->conf[channel].direction == MOST_CH_RX) {
-		int peer = 1 - channel;
-		int snd_pipe = usb_sndbulkpipe(mdev->usb_device,
-					       mdev->ep_address[peer]);
+		if (channel == 0)
+			peer = 1;
+		else
+			peer = 0;
+		snd_pipe = usb_sndbulkpipe(mdev->usb_device,
+					   mdev->ep_address[peer]);
 		usb_clear_halt(mdev->usb_device, snd_pipe);
 	}
 	mdev->is_channel_healthy[channel] = true;
