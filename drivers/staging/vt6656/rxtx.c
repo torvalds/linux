@@ -545,12 +545,17 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		return -ENOMEM;
 	}
 
-	tx_context->skb = skb;
 	tx_context->pkt_type = pkt_type;
 	tx_context->frame_len = skb->len + 4;
 	tx_context->tx_rate =  rate->hw_value;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
+
+	tx_context->skb = skb_clone(skb, GFP_ATOMIC);
+	if (!tx_context->skb) {
+		tx_context->in_use = false;
+		return -ENOMEM;
+	}
 
 	tx_header_size = vnt_get_hdr_size(info);
 	tx_bytes = tx_header_size + skb->len;
@@ -565,11 +570,8 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	tx_buffer->usb.type = 0x00;
 
 	tx_context->type = CONTEXT_DATA_PACKET;
-	tx_context->tx_buffer = tx_buffer;
+	tx_context->tx_buffer = skb->data;
 	tx_context->buf_len = skb->len;
-
-	/* Return skb->data to mac80211 header */
-	skb_pull(skb, tx_header_size);
 
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
@@ -606,7 +608,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LHEAD);
 
 	tx_buffer_head->frag_ctl =
-			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb) << 10);
+			cpu_to_le16(ieee80211_hdrlen(hdr->frame_control) << 10);
 
 	if (info->control.hw_key)
 		tx_context->frame_len += info->control.hw_key->icv_len;
@@ -623,9 +625,12 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (vnt_tx_context(priv, tx_context)) {
+		dev_kfree_skb(tx_context->skb);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return -EIO;
 	}
+
+	dev_kfree_skb(skb);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
