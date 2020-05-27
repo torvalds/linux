@@ -266,16 +266,12 @@
 	};
 
 	vdd_log: vdd-log {
-		compatible = "pwm-regulator";
+		compatible = "regulator-fixed";
 		regulator-name = "vdd_log";
-		regulator-min-microvolt = <800000>;
-		regulator-max-microvolt = <1400000>;
+		regulator-min-microvolt = <950000>;
+		regulator-max-microvolt = <950000>;
 		regulator-always-on;
 		regulator-boot-on;
-
-		/* for rockchip boot on */
-		rockchip,pwm_id= <2>;
-		rockchip,pwm_voltage = <900000>;
 	};
 };
 
