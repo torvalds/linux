@@ -1613,7 +1613,8 @@ struct ib_cq {
 
 	/* updated only by trace points */
 	ktime_t timestamp;
-	bool interrupt;
+	u8 interrupt:1;
+	u8 shared:1;
 
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
@@ -3909,6 +3910,8 @@ static inline struct ib_cq *ib_alloc_cq_any(struct ib_device *dev,
  * ib_free_cq_user - Free kernel/user CQ
  * @cq: The CQ to free
  * @udata: Valid user data or NULL for kernel objects
+ *
+ * NOTE: This function shouldn't be called on shared CQs.
  */
 void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata);
 
