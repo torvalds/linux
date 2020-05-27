@@ -134,6 +134,12 @@ enum lpg_src {
 	PWM_VALUE,
 };
 
+enum ppg_num_nvmems {
+	PPG_NO_NVMEMS,
+	PPG_NVMEMS_1, /* A single nvmem for both LUT and LPG channel config */
+	PPG_NVMEMS_2, /* Two separate nvmems for LUT and LPG channel config */
+};
+
 static const int pwm_size[NUM_PWM_SIZE] = {6, 9};
 static const int clk_freq_hz[NUM_PWM_CLK] = {1024, 32768, 19200000};
 static const int clk_prediv[NUM_CLK_PREDIV] = {1, 3, 5, 6};
@@ -164,6 +170,7 @@ struct lpg_pwm_config {
 struct qpnp_lpg_lut {
 	struct qpnp_lpg_chip	*chip;
 	struct mutex		lock;
+	enum ppg_num_nvmems	nvmem_count;
 	u32			reg_base;
 	u32			*pattern; /* patterns in percentage */
 };
@@ -515,6 +522,18 @@ unlock:
 	return rc;
 }
 
+#define SDAM_START_BASE			0x40
+static u8 qpnp_lpg_get_sdam_lut_idx(struct qpnp_lpg_channel *lpg, u8 idx)
+{
+	struct qpnp_lpg_chip *chip = lpg->chip;
+	u8 val = idx;
+
+	if (chip->lut->nvmem_count == PPG_NVMEMS_2)
+		val += (chip->lut->reg_base - SDAM_START_BASE);
+
+	return val;
+}
+
 static int qpnp_lpg_set_sdam_ramp_config(struct qpnp_lpg_channel *lpg)
 {
 	struct lpg_ramp_config *ramp = &lpg->ramp_config;
@@ -544,15 +563,16 @@ static int qpnp_lpg_set_sdam_ramp_config(struct qpnp_lpg_channel *lpg)
 	}
 
 	/* Set hi_idx and lo_idx */
-	rc = qpnp_lpg_sdam_write(lpg, SDAM_END_INDEX_OFFSET, ramp->hi_idx);
+	val = qpnp_lpg_get_sdam_lut_idx(lpg, ramp->hi_idx);
+	rc = qpnp_lpg_sdam_write(lpg, SDAM_END_INDEX_OFFSET, val);
 	if (rc < 0) {
 		dev_err(lpg->chip->dev, "Write SDAM_REG_END_INDEX failed, rc=%d\n",
 					rc);
 		return rc;
 	}
 
-	rc = qpnp_lpg_sdam_write(lpg, SDAM_START_INDEX_OFFSET,
-						ramp->lo_idx);
+	val = qpnp_lpg_get_sdam_lut_idx(lpg, ramp->lo_idx);
+	rc = qpnp_lpg_sdam_write(lpg, SDAM_START_INDEX_OFFSET, val);
 	if (rc < 0) {
 		dev_err(lpg->chip->dev, "Write SDAM_REG_START_INDEX failed, rc=%d\n",
 					rc);
@@ -882,6 +902,63 @@ static int qpnp_lpg_pwm_config(struct pwm_chip *pwm_chip,
 	return qpnp_lpg_config(lpg, duty_ns, period_ns);
 }
 
+#define SDAM_PBS_TRIG_SET			0xe5
+#define SDAM_PBS_TRIG_CLR			0xe6
+static int qpnp_lpg_clear_pbs_trigger(struct qpnp_lpg_chip *chip)
+{
+	int rc;
+
+	rc = qpnp_lpg_chan_nvmem_write(chip,
+			SDAM_REG_PBS_SEQ_EN, 0);
+	if (rc < 0) {
+		dev_err(chip->dev, "Write SDAM_REG_PBS_SEQ_EN failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	if (chip->lut->nvmem_count == PPG_NVMEMS_2) {
+		rc = qpnp_lpg_chan_nvmem_write(chip, SDAM_PBS_TRIG_CLR,
+				PBS_SW_TRG_BIT);
+		if (rc < 0) {
+			dev_err(chip->dev, "Failed to fire PBS seq, rc=%d\n",
+					rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+static int qpnp_lpg_set_pbs_trigger(struct qpnp_lpg_chip *chip)
+{
+	int rc;
+
+	rc = qpnp_lpg_chan_nvmem_write(chip,
+			SDAM_REG_PBS_SEQ_EN, PBS_SW_TRG_BIT);
+	if (rc < 0) {
+		dev_err(chip->dev, "Write SDAM_REG_PBS_SEQ_EN failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	if (chip->lut->nvmem_count == PPG_NVMEMS_1) {
+		if (!chip->pbs_dev_node) {
+			dev_err(chip->dev, "PBS device unavailable\n");
+			return -ENODEV;
+		}
+		rc = qpnp_pbs_trigger_event(chip->pbs_dev_node,
+				PBS_SW_TRG_BIT);
+	} else {
+		rc = qpnp_lpg_chan_nvmem_write(chip, SDAM_PBS_TRIG_SET,
+					      PBS_SW_TRG_BIT);
+	}
+
+	if (rc < 0)
+		dev_err(chip->dev, "Failed to trigger PBS, rc=%d\n", rc);
+
+	return rc;
+}
+
 static int qpnp_lpg_pbs_trigger_enable(struct qpnp_lpg_channel *lpg, bool en)
 {
 	struct qpnp_lpg_chip *chip = lpg->chip;
@@ -889,33 +966,17 @@ static int qpnp_lpg_pbs_trigger_enable(struct qpnp_lpg_channel *lpg, bool en)
 
 	if (en) {
 		if (chip->pbs_en_bitmap == 0) {
-			rc = qpnp_lpg_chan_nvmem_write(chip,
-					SDAM_REG_PBS_SEQ_EN, PBS_SW_TRG_BIT);
-			if (rc < 0) {
-				dev_err(chip->dev, "Write SDAM_REG_PBS_SEQ_EN failed, rc=%d\n",
-						rc);
+			rc = qpnp_lpg_set_pbs_trigger(chip);
+			if (rc < 0)
 				return rc;
-			}
-
-			rc = qpnp_pbs_trigger_event(chip->pbs_dev_node,
-					PBS_SW_TRG_BIT);
-			if (rc < 0) {
-				dev_err(chip->dev, "Failed to trigger PBS, rc=%d\n",
-						rc);
-				return rc;
-			}
 		}
 		set_bit(lpg->lpg_idx, &chip->pbs_en_bitmap);
 	} else {
 		clear_bit(lpg->lpg_idx, &chip->pbs_en_bitmap);
 		if (chip->pbs_en_bitmap == 0) {
-			rc = qpnp_lpg_chan_nvmem_write(chip,
-					SDAM_REG_PBS_SEQ_EN, 0);
-			if (rc < 0) {
-				dev_err(chip->dev, "Write SDAM_REG_PBS_SEQ_EN failed, rc=%d\n",
-						rc);
+			rc = qpnp_lpg_clear_pbs_trigger(chip);
+			if (rc < 0)
 				return rc;
-			}
 		}
 	}
 
@@ -1474,8 +1535,10 @@ static int qpnp_lpg_get_nvmem_dt(struct qpnp_lpg_chip *chip)
 
 		chip->lut_nvmem = lut_nv;
 		chip->lpg_chan_nvmem = lpg_nv;
+		chip->lut->nvmem_count = PPG_NVMEMS_2;
 	} else {
 		chip->lut_nvmem = chip->lpg_chan_nvmem = ppg_nv;
+		chip->lut->nvmem_count = PPG_NVMEMS_1;
 	}
 
 	return 0;
@@ -1525,11 +1588,15 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 			return rc;
 
 		chip->use_sdam = true;
-		chip->pbs_dev_node = of_parse_phandle(chip->dev->of_node,
-				"qcom,pbs-client", 0);
-		if (!chip->pbs_dev_node) {
-			dev_err(chip->dev, "Missing qcom,pbs-client property\n");
-			return -EINVAL;
+		if (of_find_property(chip->dev->of_node, "qcom,pbs-client",
+					NULL)) {
+			chip->pbs_dev_node = of_parse_phandle(
+					chip->dev->of_node,
+					"qcom,pbs-client", 0);
+			if (!chip->pbs_dev_node) {
+				dev_err(chip->dev, "Missing qcom,pbs-client property\n");
+				return -ENODEV;
+			}
 		}
 
 		rc = of_property_read_u32(chip->dev->of_node,
@@ -1648,6 +1715,7 @@ static int qpnp_lpg_remove(struct platform_device *pdev)
 	struct qpnp_lpg_chip *chip = dev_get_drvdata(&pdev->dev);
 	int rc = 0;
 
+	of_node_put(chip->pbs_dev_node);
 	rc = pwmchip_remove(&chip->pwm_chip);
 	if (rc < 0)
 		dev_err(chip->dev, "Remove pwmchip failed, rc=%d\n", rc);
