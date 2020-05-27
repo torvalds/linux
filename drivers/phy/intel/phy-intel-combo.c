@@ -199,7 +199,7 @@ static int intel_cbphy_pcie_dis_pad_refclk(struct intel_cbphy_iphy *iphy)
 
 static int intel_cbphy_set_mode(struct intel_combo_phy *cbphy)
 {
-	enum intel_combo_mode cb_mode = PHY_PCIE_MODE;
+	enum intel_combo_mode cb_mode;
 	enum aggregated_mode aggr = cbphy->aggr_mode;
 	struct device *dev = cbphy->dev;
 	enum intel_phy_mode mode;
@@ -224,6 +224,8 @@ static int intel_cbphy_set_mode(struct intel_combo_phy *cbphy)
 
 		cb_mode = SATA0_SATA1_MODE;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = regmap_write(cbphy->hsiocfg, REG_COMBO_MODE(cbphy->bid), cb_mode);
