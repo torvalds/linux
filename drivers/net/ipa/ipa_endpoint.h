@@ -41,7 +41,6 @@ enum ipa_endpoint_name {
 
 /**
  * struct ipa_endpoint - IPA endpoint information
- * @client:	Client associated with the endpoint
  * @channel_id:	EP's GSI channel
  * @evt_ring_id: EP's GSI channel event ring
  */
