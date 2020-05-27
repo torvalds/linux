@@ -1,0 +1,21 @@
+[
+    {
+        "id": "83be",
+        "name": "Create FQ-PIE with invalid number of flows",
+        "category": [
+            "qdisc",
+            "fq_pie"
+        ],
+        "setup": [
+            "$IP link add dev $DUMMY type dummy || /bin/true"
+        ],
+        "cmdUnderTest": "$TC qdisc add dev $DUMMY root fq_pie flows 65536",
+        "expExitCode": "2",
+        "verifyCmd": "$TC qdisc show dev $DUMMY",
+        "matchPattern": "qdisc",
+        "matchCount": "0",
+        "teardown": [
+            "$IP link del dev $DUMMY"
+        ]
+    }
+]
