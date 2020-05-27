@@ -25,35 +25,21 @@ static int init_encap_attr(struct net_device *tunnel_dev,
 	return 0;
 }
 
-static inline __be32 mpls_label_id_field(__be32 label, u8 tos, u8 ttl)
-{
-	u32 res;
-
-	/* mpls label is 32 bits long and construction as follows:
-	 * 20 bits label
-	 * 3 bits tos
-	 * 1 bit bottom of stack. Since we support only one label, this bit is
-	 *       always set.
-	 * 8 bits TTL
-	 */
-	res = be32_to_cpu(label) << 12 | 1 << 8 | (tos & 7) <<  9 | ttl;
-	return cpu_to_be32(res);
-}
-
 static int generate_ip_tun_hdr(char buf[],
 			       __u8 *ip_proto,
 			       struct mlx5e_encap_entry *r)
 {
 	const struct ip_tunnel_key *tun_key = &r->tun_info->key;
-	__be32 tun_id = tunnel_id_to_key32(tun_key->tun_id);
 	struct udphdr *udp = (struct udphdr *)(buf);
 	struct mpls_shim_hdr *mpls;
+	u32 tun_id;
 
+	tun_id = be32_to_cpu(tunnel_id_to_key32(tun_key->tun_id));
 	mpls = (struct mpls_shim_hdr *)(udp + 1);
 	*ip_proto = IPPROTO_UDP;
 
 	udp->dest = tun_key->tp_dst;
-	mpls->label_stack_entry = mpls_label_id_field(tun_id, tun_key->tos, tun_key->ttl);
+	*mpls = mpls_entry_encode(tun_id, tun_key->ttl, tun_key->tos, true);
 
 	return 0;
 }
