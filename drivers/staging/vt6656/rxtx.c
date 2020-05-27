@@ -512,7 +512,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	struct vnt_tx_fifo_head *tx_buffer_head;
 	struct vnt_usb_send_context *tx_context;
 	unsigned long flags;
-	u16 tx_bytes, tx_header_size;
 	u8 pkt_type;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
@@ -557,21 +556,11 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 		return -ENOMEM;
 	}
 
-	tx_header_size = vnt_get_hdr_size(info);
-	tx_bytes = tx_header_size + skb->len;
-	tx_header_size += sizeof(struct vnt_tx_usb_header);
-
-	tx_buffer = skb_push(skb, tx_header_size);
+	tx_buffer = skb_push(skb, vnt_get_hdr_size(info));
+	tx_context->tx_buffer = tx_buffer;
 	tx_buffer_head = &tx_buffer->fifo_head;
 
-	/* Fill USB header */
-	tx_buffer->usb.tx_byte_count = cpu_to_le16(tx_bytes);
-	tx_buffer->usb.pkt_no = tx_context->pkt_no;
-	tx_buffer->usb.type = 0x00;
-
 	tx_context->type = CONTEXT_DATA_PACKET;
-	tx_context->tx_buffer = skb->data;
-	tx_context->buf_len = skb->len;
 
 	/*Set fifo controls */
 	if (pkt_type == PK_TYPE_11A)
@@ -624,7 +613,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (vnt_tx_context(priv, tx_context)) {
+	if (vnt_tx_context(priv, tx_context, skb)) {
 		dev_kfree_skb(tx_context->skb);
 		spin_unlock_irqrestore(&priv->lock, flags);
 		return -EIO;
@@ -639,14 +628,13 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 {
-	struct vnt_tx_usb_header *usb;
 	struct vnt_tx_short_buf_head *short_head;
 	struct ieee80211_tx_info *info;
 	struct vnt_usb_send_context *context;
 	struct ieee80211_mgmt *mgmt_hdr;
 	unsigned long flags;
 	u32 frame_size = skb->len + 4;
-	u16 current_rate, count;
+	u16 current_rate;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -663,7 +651,6 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 
 	mgmt_hdr = (struct ieee80211_mgmt *)skb->data;
 	short_head = skb_push(skb, sizeof(*short_head));
-	count = skb->len;
 
 	if (priv->bb_type == BB_TYPE_11A) {
 		current_rate = RATE_6M;
@@ -706,18 +693,11 @@ static int vnt_beacon_xmit(struct vnt_private *priv, struct sk_buff *skb)
 	if (priv->seq_counter > 0x0fff)
 		priv->seq_counter = 0;
 
-	usb = skb_push(skb, sizeof(*usb));
-	usb->tx_byte_count = cpu_to_le16(count);
-	usb->pkt_no = context->pkt_no;
-	usb->type = 0x01;
-
 	context->type = CONTEXT_BEACON_PACKET;
-	context->tx_buffer = usb;
-	context->buf_len = skb->len;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	if (vnt_tx_context(priv, context))
+	if (vnt_tx_context(priv, context, skb))
 		ieee80211_free_txskb(priv->hw, context->skb);
 
 	spin_unlock_irqrestore(&priv->lock, flags);

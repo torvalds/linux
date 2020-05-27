@@ -41,6 +41,12 @@ struct vnt_interrupt_data {
 	u8 sw[2];
 } __packed;
 
+struct vnt_tx_usb_header {
+	u8 type;
+	u8 pkt_no;
+	__le16 tx_byte_count;
+} __packed;
+
 #define VNT_REG_BLOCK_SIZE	64
 
 int vnt_control_out(struct vnt_private *priv, u8 request, u16 value,
@@ -57,6 +63,7 @@ int vnt_control_out_blocks(struct vnt_private *priv,
 int vnt_start_interrupt_urb(struct vnt_private *priv);
 int vnt_submit_rx_urb(struct vnt_private *priv, struct vnt_rcb *rcb);
 int vnt_tx_context(struct vnt_private *priv,
-		   struct vnt_usb_send_context *context);
+		   struct vnt_usb_send_context *context,
+		   struct sk_buff *skb);
 
 #endif /* __USBPIPE_H__ */

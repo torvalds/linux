@@ -206,8 +206,7 @@ struct vnt_rsp_card_init {
  * Enum of context types for SendPacket
  */
 enum {
-	CONTEXT_DATA_PACKET = 1,
-	CONTEXT_MGMT_PACKET,
+	CONTEXT_DATA_PACKET = 0,
 	CONTEXT_BEACON_PACKET
 };
 
@@ -239,7 +238,6 @@ struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
 	void *tx_buffer;
-	unsigned int buf_len;
 	u32 frame_len;
 	u16 tx_hdr_size;
 	u16 tx_rate;

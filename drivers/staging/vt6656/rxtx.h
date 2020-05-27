@@ -159,14 +159,7 @@ struct vnt_tx_fifo_head {
 	__le16 current_rate;
 } __packed;
 
-struct vnt_tx_usb_header {
-	u8 type;
-	u8 pkt_no;
-	__le16 tx_byte_count;
-} __packed;
-
 struct vnt_tx_buffer {
-	struct vnt_tx_usb_header usb;
 	struct vnt_tx_fifo_head fifo_head;
 	union vnt_tx_head tx_head;
 } __packed;

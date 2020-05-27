@@ -428,7 +428,8 @@ static void vnt_tx_context_complete(struct urb *urb)
 
 	switch (urb->status) {
 	case 0:
-		dev_dbg(&priv->usb->dev, "Write %d bytes\n", context->buf_len);
+		dev_dbg(&priv->usb->dev,
+			"Write %d bytes\n", urb->actual_length);
 		break;
 	case -ECONNRESET:
 	case -ENOENT:
@@ -453,17 +454,25 @@ static void vnt_tx_context_complete(struct urb *urb)
 }
 
 int vnt_tx_context(struct vnt_private *priv,
-		   struct vnt_usb_send_context *context)
+		   struct vnt_usb_send_context *context,
+		   struct sk_buff *skb)
 {
-	int status;
+	struct vnt_tx_usb_header *usb;
 	struct urb *urb;
+	int status;
+	u16 count = skb->len;
+
+	usb = skb_push(skb, sizeof(*usb));
+	usb->tx_byte_count = cpu_to_le16(count);
+	usb->pkt_no = context->pkt_no;
+	usb->type = context->type;
 
 	if (test_bit(DEVICE_FLAGS_DISCONNECTED, &priv->flags)) {
 		context->in_use = false;
 		return -ENODEV;
 	}
 
-	if (context->buf_len > MAX_TOTAL_SIZE_WITH_ALL_HEADERS) {
+	if (skb->len > MAX_TOTAL_SIZE_WITH_ALL_HEADERS) {
 		context->in_use = false;
 		return -E2BIG;
 	}
@@ -477,8 +486,8 @@ int vnt_tx_context(struct vnt_private *priv,
 	usb_fill_bulk_urb(urb,
 			  priv->usb,
 			  usb_sndbulkpipe(priv->usb, 3),
-			  context->tx_buffer,
-			  context->buf_len,
+			  skb->data,
+			  skb->len,
 			  vnt_tx_context_complete,
 			  context);
 
