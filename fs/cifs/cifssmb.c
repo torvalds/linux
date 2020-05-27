@@ -2375,7 +2375,7 @@ int
 CIFSSMBWrite2(const unsigned int xid, struct cifs_io_parms *io_parms,
 	      unsigned int *nbytes, struct kvec *iov, int n_vec)
 {
-	int rc = -EACCES;
+	int rc;
 	WRITE_REQ *pSMB = NULL;
 	int wct;
 	int smb_hdr_len;
