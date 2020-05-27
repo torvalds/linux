@@ -813,7 +813,7 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 			return 0;
 		}
 	}
-	return -EFAULT;
+	return -EINVAL;
 }
 
 #define get_static_reg_addr(regs, name, reg_addr) \
@@ -835,7 +835,7 @@ static ssize_t value_show(struct device *dev, struct device_attribute *attr,
 		reg_addr = dci_obj->reg_addr;
 	else if (get_static_reg_addr(ro_regs, name, &reg_addr) &&
 		 get_static_reg_addr(rw_regs, name, &reg_addr))
-		return -EFAULT;
+		return -EINVAL;
 
 	err = drci_rd_reg(dci_obj->usb_device, reg_addr, &val);
 	if (err < 0)
@@ -870,7 +870,7 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 	else if (!get_static_reg_addr(rw_regs, name, &reg_addr))
 		err = drci_wr_reg(usb_dev, reg_addr, val);
 	else
-		return -EFAULT;
+		return -EINVAL;
 
 	if (err < 0)
 		return err;
