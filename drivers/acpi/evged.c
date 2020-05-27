@@ -103,7 +103,7 @@ static acpi_status acpi_ged_request_interrupt(struct acpi_resource *ares,
 		trigger = p->triggering;
 	} else {
 		gsi = pext->interrupts[0];
-		trigger = p->triggering;
+		trigger = pext->triggering;
 	}
 
 	irq = r.start;
