@@ -72,7 +72,7 @@
  *
  *
  *              +-------------------------------------------+
- *              |            incfs_super_block              |]---+
+ *              |            incfs_file_header              |]---+
  *              +-------------------------------------------+    |
  *              |                 metadata                  |<---+
  *              |           incfs_file_signature            |]---+
@@ -123,6 +123,7 @@ enum incfs_metadata_type {
 
 enum incfs_file_header_flags {
 	INCFS_FILE_COMPLETE = 1 << 0,
+	INCFS_FILE_MAPPED = 1 << 1,
 };
 
 /* Header included at the beginning of all metadata records on the disk. */
@@ -164,20 +165,33 @@ struct incfs_file_header {
 	__le16 fh_data_block_size;
 
 	/* File flags, from incfs_file_header_flags */
-	__le32 fh_file_header_flags;
+	__le32 fh_flags;
 
-	/* Offset of the first metadata record */
-	__le64 fh_first_md_offset;
+	union {
+		/* Standard incfs file */
+		struct {
+			/* Offset of the first metadata record */
+			__le64 fh_first_md_offset;
 
-	/*
-	 * Put file specific information after this point
-	 */
+			/* Full size of the file's content */
+			__le64 fh_file_size;
 
-	/* Full size of the file's content */
-	__le64 fh_file_size;
+			/* File uuid */
+			incfs_uuid_t fh_uuid;
+		};
 
-	/* File uuid */
-	incfs_uuid_t fh_uuid;
+		/* Mapped file - INCFS_FILE_MAPPED set in fh_flags */
+		struct {
+			/* Offset in original file */
+			__le64 fh_original_offset;
+
+			/* Full size of the file's content */
+			__le64 fh_mapped_file_size;
+
+			/* Original file's uuid */
+			incfs_uuid_t fh_original_uuid;
+		};
+	};
 } __packed;
 
 enum incfs_block_map_entry_flags {
@@ -293,6 +307,9 @@ int incfs_write_blockmap_to_backing_file(struct backing_file_context *bfc,
 
 int incfs_write_fh_to_backing_file(struct backing_file_context *bfc,
 				   incfs_uuid_t *uuid, u64 file_size);
+
+int incfs_write_mapping_fh_to_backing_file(struct backing_file_context *bfc,
+				incfs_uuid_t *uuid, u64 file_size, u64 offset);
 
 int incfs_write_data_block_to_backing_file(struct backing_file_context *bfc,
 					   struct mem_range block,
