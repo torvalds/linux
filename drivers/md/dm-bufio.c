@@ -1359,32 +1359,6 @@ int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t c
 EXPORT_SYMBOL_GPL(dm_bufio_issue_discard);
 
 /*
- * Free the specified range of buffers. If a buffer is held by other process, it
- * is not freed. If a buffer is dirty, it is discarded without writeback.
- * Finally, send the discard request to the device.
- */
-int dm_bufio_discard_buffers(struct dm_bufio_client *c, sector_t block, sector_t count)
-{
-	sector_t i;
-
-	for (i = block; i < block + count; i++) {
-		struct dm_buffer *b;
-		dm_bufio_lock(c);
-		b = __find(c, i);
-		if (b && likely(!b->hold_count)) {
-			wait_on_bit_io(&b->state, B_READING, TASK_UNINTERRUPTIBLE);
-			wait_on_bit_io(&b->state, B_WRITING, TASK_UNINTERRUPTIBLE);
-			__unlink_buffer(b);
-			__free_buffer_wake(b);
-		}
-		dm_bufio_unlock(c);
-	}
-
-	return dm_bufio_issue_discard(c, block, count);
-}
-EXPORT_SYMBOL_GPL(dm_bufio_discard_buffers);
-
-/*
  * We first delete any other buffer that may be at that new location.
  *
  * Then, we write the buffer to the original location if it was dirty.
