@@ -808,7 +808,7 @@ static int get_stat_reg_addr(const struct regs *regs, int size,
 	int i;
 
 	for (i = 0; i < size; i++) {
-		if (!strcmp(name, regs[i].name)) {
+		if (sysfs_streq(name, regs[i].name)) {
 			*reg_addr = regs[i].reg;
 			return 0;
 		}
@@ -828,10 +828,10 @@ static ssize_t value_show(struct device *dev, struct device_attribute *attr,
 	u16 reg_addr;
 	int err;
 
-	if (!strcmp(name, "arb_address"))
+	if (sysfs_streq(name, "arb_address"))
 		return snprintf(buf, PAGE_SIZE, "%04x\n", dci_obj->reg_addr);
 
-	if (!strcmp(name, "arb_value"))
+	if (sysfs_streq(name, "arb_value"))
 		reg_addr = dci_obj->reg_addr;
 	else if (get_static_reg_addr(ro_regs, name, &reg_addr) &&
 		 get_static_reg_addr(rw_regs, name, &reg_addr))
@@ -858,14 +858,14 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 	if (err)
 		return err;
 
-	if (!strcmp(name, "arb_address")) {
+	if (sysfs_streq(name, "arb_address")) {
 		dci_obj->reg_addr = val;
 		return count;
 	}
 
-	if (!strcmp(name, "arb_value"))
+	if (sysfs_streq(name, "arb_value"))
 		err = drci_wr_reg(usb_dev, dci_obj->reg_addr, val);
-	else if (!strcmp(name, "sync_ep"))
+	else if (sysfs_streq(name, "sync_ep"))
 		err = start_sync_ep(usb_dev, val);
 	else if (!get_static_reg_addr(rw_regs, name, &reg_addr))
 		err = drci_wr_reg(usb_dev, reg_addr, val);
