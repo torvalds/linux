@@ -191,6 +191,7 @@ struct igc_fc_info {
 
 struct igc_dev_spec_base {
 	bool clear_semaphore_once;
+	bool eee_enable;
 };
 
 struct igc_hw {

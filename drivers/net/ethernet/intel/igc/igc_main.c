@@ -102,6 +102,9 @@ void igc_reset(struct igc_adapter *adapter)
 	if (hw->mac.ops.init_hw(hw))
 		netdev_err(dev, "Error on hardware initialization\n");
 
+	/* Re-establish EEE setting */
+	igc_set_eee_i225(hw, true, true, true);
+
 	if (!netif_running(adapter->netdev))
 		igc_power_down_link(adapter);
 
@@ -4252,6 +4255,15 @@ static void igc_watchdog_task(struct work_struct *work)
 				    (ctrl & IGC_CTRL_RFCE) ?  "RX" :
 				    (ctrl & IGC_CTRL_TFCE) ?  "TX" : "None");
 
+			/* disable EEE if enabled */
+			if ((adapter->flags & IGC_FLAG_EEE) &&
+			    adapter->link_duplex == HALF_DUPLEX) {
+				netdev_info(netdev,
+					    "EEE Disabled: unsupported at half duplex. Re-enable using ethtool when at full duplex\n");
+				adapter->hw.dev_spec._base.eee_enable = false;
+				adapter->flags &= ~IGC_FLAG_EEE;
+			}
+
 			/* check if SmartSpeed worked */
 			igc_check_downshift(hw);
 			if (phy->speed_downgraded)
@@ -5182,6 +5194,10 @@ static int igc_probe(struct pci_dev *pdev,
 	netdev_info(netdev, "MAC: %pM\n", netdev->dev_addr);
 
 	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NO_DIRECT_COMPLETE);
+	/* Disable EEE for internal PHY devices */
+	hw->dev_spec._base.eee_enable = false;
+	adapter->flags &= ~IGC_FLAG_EEE;
+	igc_set_eee_i225(hw, false, false, false);
 
 	pm_runtime_put_noidle(&pdev->dev);
 
