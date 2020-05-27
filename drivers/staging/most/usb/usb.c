@@ -153,7 +153,9 @@ static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 	*buf = le16_to_cpu(*dma_buf);
 	kfree(dma_buf);
 
-	return retval;
+	if (retval < 0)
+		return retval;
+	return 0;
 }
 
 /**
@@ -686,22 +688,22 @@ static void wq_netinfo(struct work_struct *wq_obj)
 	u16 hi, mi, lo, link;
 	u8 hw_addr[6];
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_HI, &hi)) {
 		dev_err(dev, "Vendor request 'hw_addr_hi' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_MI, &mi)) {
 		dev_err(dev, "Vendor request 'hw_addr_mid' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_HW_ADDR_LO, &lo)) {
 		dev_err(dev, "Vendor request 'hw_addr_low' failed\n");
 		return;
 	}
 
-	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link) < 0) {
+	if (drci_rd_reg(usb_device, DRCI_REG_NI_STATE, &link)) {
 		dev_err(dev, "Vendor request 'link status' failed\n");
 		return;
 	}
