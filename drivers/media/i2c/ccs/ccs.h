@@ -21,7 +21,7 @@
 #include "ccs-quirk.h"
 #include "ccs-regs.h"
 #include "ccs-reg-access.h"
-#include "../smiapp-pll.h"
+#include "../ccs-pll.h"
 #include "smiapp-reg-defs.h"
 
 /*
@@ -256,7 +256,7 @@ struct ccs_sensor {
 
 	struct ccs_module_info minfo;
 
-	struct smiapp_pll pll;
+	struct ccs_pll pll;
 
 	/* Is a default format supported for a given BPP? */
 	unsigned long *valid_link_freqs;

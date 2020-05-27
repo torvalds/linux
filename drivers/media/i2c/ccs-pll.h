@@ -1,32 +1,33 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * drivers/media/i2c/smiapp-pll.h
+ * drivers/media/i2c/ccs-pll.h
  *
- * Generic driver for SMIA/SMIA++ compliant camera modules
+ * Generic MIPI CCS/SMIA/SMIA++ PLL calculator
  *
+ * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
 
-#ifndef SMIAPP_PLL_H
-#define SMIAPP_PLL_H
+#ifndef CCS_PLL_H
+#define CCS_PLL_H
 
 /* CSI-2 or CCP-2 */
-#define SMIAPP_PLL_BUS_TYPE_CSI2				0x00
-#define SMIAPP_PLL_BUS_TYPE_PARALLEL				0x01
+#define CCS_PLL_BUS_TYPE_CSI2				0x00
+#define CCS_PLL_BUS_TYPE_PARALLEL				0x01
 
 /* op pix clock is for all lanes in total normally */
-#define SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
-#define SMIAPP_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
+#define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
+#define CCS_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
 
-struct smiapp_pll_branch {
+struct ccs_pll_branch {
 	uint16_t sys_clk_div;
 	uint16_t pix_clk_div;
 	uint32_t sys_clk_freq_hz;
 	uint32_t pix_clk_freq_hz;
 };
 
-struct smiapp_pll {
+struct ccs_pll {
 	/* input values */
 	uint8_t bus_type;
 	union {
@@ -51,14 +52,14 @@ struct smiapp_pll {
 	uint16_t pll_multiplier;
 	uint32_t pll_ip_clk_freq_hz;
 	uint32_t pll_op_clk_freq_hz;
-	struct smiapp_pll_branch vt;
-	struct smiapp_pll_branch op;
+	struct ccs_pll_branch vt;
+	struct ccs_pll_branch op;
 
 	uint32_t pixel_rate_csi;
 	uint32_t pixel_rate_pixel_array;
 };
 
-struct smiapp_pll_branch_limits {
+struct ccs_pll_branch_limits {
 	uint16_t min_sys_clk_div;
 	uint16_t max_sys_clk_div;
 	uint32_t min_sys_clk_freq_hz;
@@ -69,7 +70,7 @@ struct smiapp_pll_branch_limits {
 	uint32_t max_pix_clk_freq_hz;
 };
 
-struct smiapp_pll_limits {
+struct ccs_pll_limits {
 	/* Strict PLL limits */
 	uint32_t min_ext_clk_freq_hz;
 	uint32_t max_ext_clk_freq_hz;
@@ -82,8 +83,8 @@ struct smiapp_pll_limits {
 	uint32_t min_pll_op_freq_hz;
 	uint32_t max_pll_op_freq_hz;
 
-	struct smiapp_pll_branch_limits vt;
-	struct smiapp_pll_branch_limits op;
+	struct ccs_pll_branch_limits vt;
+	struct ccs_pll_branch_limits op;
 
 	/* Other relevant limits */
 	uint32_t min_line_length_pck_bin;
@@ -92,8 +93,7 @@ struct smiapp_pll_limits {
 
 struct device;
 
-int smiapp_pll_calculate(struct device *dev,
-			 const struct smiapp_pll_limits *limits,
-			 struct smiapp_pll *pll);
+int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *limits,
+		      struct ccs_pll *pll);
 
-#endif /* SMIAPP_PLL_H */
+#endif /* CCS_PLL_H */

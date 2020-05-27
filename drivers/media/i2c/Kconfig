@@ -722,7 +722,7 @@ menu "Camera sensor devices"
 config VIDEO_APTINA_PLL
 	tristate
 
-config VIDEO_SMIAPP_PLL
+config VIDEO_CCS_PLL
 	tristate
 
 config VIDEO_HI556

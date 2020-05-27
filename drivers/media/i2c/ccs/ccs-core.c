@@ -363,7 +363,7 @@ static int ccs_read_frame_fmt(struct ccs_sensor *sensor)
 
 static int ccs_pll_configure(struct ccs_sensor *sensor)
 {
-	struct smiapp_pll *pll = &sensor->pll;
+	struct ccs_pll *pll = &sensor->pll;
 	int rval;
 
 	rval = ccs_write(sensor, VT_PIX_CLK_DIV, pll->vt.pix_clk_div);
@@ -386,7 +386,7 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
 			 DIV_ROUND_UP(pll->op.sys_clk_freq_hz,
 				      1000000 / 256 / 256));
-	if (rval < 0 || sensor->pll.flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)
+	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
 	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op.pix_clk_div);
@@ -396,10 +396,10 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	return ccs_write(sensor, OP_SYS_CLK_DIV, pll->op.sys_clk_div);
 }
 
-static int ccs_pll_try(struct ccs_sensor *sensor, struct smiapp_pll *pll)
+static int ccs_pll_try(struct ccs_sensor *sensor, struct ccs_pll *pll)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct smiapp_pll_limits lim = {
+	struct ccs_pll_limits lim = {
 		.min_pre_pll_clk_div = CCS_LIM(sensor, MIN_PRE_PLL_CLK_DIV),
 		.max_pre_pll_clk_div = CCS_LIM(sensor, MAX_PRE_PLL_CLK_DIV),
 		.min_pll_ip_freq_hz = CCS_LIM(sensor, MIN_PLL_IP_CLK_FREQ_MHZ),
@@ -431,12 +431,12 @@ static int ccs_pll_try(struct ccs_sensor *sensor, struct smiapp_pll *pll)
 		.min_line_length_pck = CCS_LIM(sensor, MIN_LINE_LENGTH_PCK),
 	};
 
-	return smiapp_pll_calculate(&client->dev, &lim, pll);
+	return ccs_pll_calculate(&client->dev, &lim, pll);
 }
 
 static int ccs_pll_update(struct ccs_sensor *sensor)
 {
-	struct smiapp_pll *pll = &sensor->pll;
+	struct ccs_pll *pll = &sensor->pll;
 	int rval;
 
 	pll->binning_horizontal = sensor->binning_horizontal;
@@ -829,7 +829,7 @@ static void ccs_free_controls(struct ccs_sensor *sensor)
 static int ccs_get_mbus_formats(struct ccs_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct smiapp_pll *pll = &sensor->pll;
+	struct ccs_pll *pll = &sensor->pll;
 	u8 compressed_max_bpp = 0;
 	unsigned int type, n;
 	unsigned int i, pixel_order;
@@ -3155,7 +3155,7 @@ static int ccs_probe(struct i2c_client *client)
 	    !CCS_LIM(sensor, MIN_OP_PIX_CLK_DIV) ||
 	    !CCS_LIM(sensor, MAX_OP_PIX_CLK_DIV)) {
 		/* No OP clock branch */
-		sensor->pll.flags |= SMIAPP_PLL_FLAG_NO_OP_CLOCKS;
+		sensor->pll.flags |= CCS_PLL_FLAG_NO_OP_CLOCKS;
 	} else if (CCS_LIM(sensor, SCALING_CAPABILITY)
 		   != CCS_SCALING_CAPABILITY_NONE ||
 		   CCS_LIM(sensor, DIGITAL_CROP_CAPABILITY)
@@ -3172,7 +3172,7 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->scale_m = CCS_LIM(sensor, SCALER_N_MIN);
 
 	/* prepare PLL configuration input values */
-	sensor->pll.bus_type = SMIAPP_PLL_BUS_TYPE_CSI2;
+	sensor->pll.bus_type = CCS_PLL_BUS_TYPE_CSI2;
 	sensor->pll.csi2.lanes = sensor->hwcfg.lanes;
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);

@@ -4,7 +4,7 @@ config VIDEO_CCS
 	depends on I2C && VIDEO_V4L2 && HAVE_CLK
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
-	select VIDEO_SMIAPP_PLL
+	select VIDEO_CCS_PLL
 	select V4L2_FWNODE
 	help
 	  This is a generic driver for MIPI CCS, SMIA++ and SMIA compliant

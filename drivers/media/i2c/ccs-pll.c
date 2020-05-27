@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * drivers/media/i2c/smiapp-pll.c
+ * drivers/media/i2c/ccs-pll.c
  *
- * Generic driver for SMIA/SMIA++ compliant camera modules
+ * Generic MIPI CCS/SMIA/SMIA++ PLL calculator
  *
+ * Copyright (C) 2020 Intel Corporation
  * Copyright (C) 2011--2012 Nokia Corporation
  * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  */
@@ -13,7 +14,7 @@
 #include <linux/lcm.h>
 #include <linux/module.h>
 
-#include "smiapp-pll.h"
+#include "ccs-pll.h"
 
 /* Return an even number or one. */
 static inline uint32_t clk_div_even(uint32_t a)
@@ -50,11 +51,11 @@ static int bounds_check(struct device *dev, uint32_t val,
 	return -EINVAL;
 }
 
-static void print_pll(struct device *dev, struct smiapp_pll *pll)
+static void print_pll(struct device *dev, struct ccs_pll *pll)
 {
 	dev_dbg(dev, "pre_pll_clk_div\t%u\n",  pll->pre_pll_clk_div);
 	dev_dbg(dev, "pll_multiplier \t%u\n",  pll->pll_multiplier);
-	if (!(pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)) {
+	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)) {
 		dev_dbg(dev, "op_sys_clk_div \t%u\n", pll->op.sys_clk_div);
 		dev_dbg(dev, "op_pix_clk_div \t%u\n", pll->op.pix_clk_div);
 	}
@@ -64,7 +65,7 @@ static void print_pll(struct device *dev, struct smiapp_pll *pll)
 	dev_dbg(dev, "ext_clk_freq_hz \t%u\n", pll->ext_clk_freq_hz);
 	dev_dbg(dev, "pll_ip_clk_freq_hz \t%u\n", pll->pll_ip_clk_freq_hz);
 	dev_dbg(dev, "pll_op_clk_freq_hz \t%u\n", pll->pll_op_clk_freq_hz);
-	if (!(pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)) {
+	if (!(pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)) {
 		dev_dbg(dev, "op_sys_clk_freq_hz \t%u\n",
 			pll->op.sys_clk_freq_hz);
 		dev_dbg(dev, "op_pix_clk_freq_hz \t%u\n",
@@ -75,10 +76,9 @@ static void print_pll(struct device *dev, struct smiapp_pll *pll)
 }
 
 static int check_all_bounds(struct device *dev,
-			    const struct smiapp_pll_limits *limits,
-			    const struct smiapp_pll_branch_limits *op_limits,
-			    struct smiapp_pll *pll,
-			    struct smiapp_pll_branch *op_pll)
+			    const struct ccs_pll_limits *limits,
+			    const struct ccs_pll_branch_limits *op_limits,
+			    struct ccs_pll *pll, struct ccs_pll_branch *op_pll)
 {
 	int rval;
 
@@ -118,7 +118,7 @@ static int check_all_bounds(struct device *dev,
 	 * If there are no OP clocks, the VT clocks are contained in
 	 * the OP clock struct.
 	 */
-	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS)
+	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
 	if (!rval)
@@ -148,11 +148,11 @@ static int check_all_bounds(struct device *dev,
  *
  * @return Zero on success, error code on error.
  */
-static int __smiapp_pll_calculate(
-	struct device *dev, const struct smiapp_pll_limits *limits,
-	const struct smiapp_pll_branch_limits *op_limits,
-	struct smiapp_pll *pll, struct smiapp_pll_branch *op_pll, uint32_t mul,
-	uint32_t div, uint32_t lane_op_clock_ratio)
+static int
+__ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *limits,
+		    const struct ccs_pll_branch_limits *op_limits,
+		    struct ccs_pll *pll, struct ccs_pll_branch *op_pll,
+		    uint32_t mul, uint32_t div, uint32_t lane_op_clock_ratio)
 {
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
@@ -252,7 +252,7 @@ static int __smiapp_pll_calculate(
 	op_pll->pix_clk_freq_hz =
 		op_pll->sys_clk_freq_hz / op_pll->pix_clk_div;
 
-	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS) {
+	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
 		/* No OP clocks --- VT clocks are used instead. */
 		goto out_skip_vt_calc;
 	}
@@ -383,12 +383,11 @@ out_skip_vt_calc:
 	return check_all_bounds(dev, limits, op_limits, pll, op_pll);
 }
 
-int smiapp_pll_calculate(struct device *dev,
-			 const struct smiapp_pll_limits *limits,
-			 struct smiapp_pll *pll)
+int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *limits,
+		      struct ccs_pll *pll)
 {
-	const struct smiapp_pll_branch_limits *op_limits = &limits->op;
-	struct smiapp_pll_branch *op_pll = &pll->op;
+	const struct ccs_pll_branch_limits *op_limits = &limits->op;
+	struct ccs_pll_branch *op_pll = &pll->op;
 	uint16_t min_pre_pll_clk_div;
 	uint16_t max_pre_pll_clk_div;
 	uint32_t lane_op_clock_ratio;
@@ -396,7 +395,7 @@ int smiapp_pll_calculate(struct device *dev,
 	unsigned int i;
 	int rval = -EINVAL;
 
-	if (pll->flags & SMIAPP_PLL_FLAG_NO_OP_CLOCKS) {
+	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
 		/*
 		 * If there's no OP PLL at all, use the VT values
 		 * instead. The OP values are ignored for the rest of
@@ -406,7 +405,7 @@ int smiapp_pll_calculate(struct device *dev,
 		op_pll = &pll->vt;
 	}
 
-	if (pll->flags & SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
+	if (pll->flags & CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
 		lane_op_clock_ratio = pll->csi2.lanes;
 	else
 		lane_op_clock_ratio = 1;
@@ -416,12 +415,12 @@ int smiapp_pll_calculate(struct device *dev,
 		pll->binning_vertical);
 
 	switch (pll->bus_type) {
-	case SMIAPP_PLL_BUS_TYPE_CSI2:
+	case CCS_PLL_BUS_TYPE_CSI2:
 		/* CSI transfers 2 bits per clock per lane; thus times 2 */
 		pll->pll_op_clk_freq_hz = pll->link_freq * 2
 			* (pll->csi2.lanes / lane_op_clock_ratio);
 		break;
-	case SMIAPP_PLL_BUS_TYPE_PARALLEL:
+	case CCS_PLL_BUS_TYPE_PARALLEL:
 		pll->pll_op_clk_freq_hz = pll->link_freq * pll->bits_per_pixel
 			/ DIV_ROUND_UP(pll->bits_per_pixel,
 				       pll->parallel.bus_width);
@@ -461,9 +460,8 @@ int smiapp_pll_calculate(struct device *dev,
 	for (pll->pre_pll_clk_div = min_pre_pll_clk_div;
 	     pll->pre_pll_clk_div <= max_pre_pll_clk_div;
 	     pll->pre_pll_clk_div += 2 - (pll->pre_pll_clk_div & 1)) {
-		rval = __smiapp_pll_calculate(dev, limits, op_limits, pll,
-					      op_pll, mul, div,
-					      lane_op_clock_ratio);
+		rval = __ccs_pll_calculate(dev, limits, op_limits, pll, op_pll,
+					   mul, div, lane_op_clock_ratio);
 		if (rval)
 			continue;
 
@@ -475,8 +473,8 @@ int smiapp_pll_calculate(struct device *dev,
 
 	return rval;
 }
-EXPORT_SYMBOL_GPL(smiapp_pll_calculate);
+EXPORT_SYMBOL_GPL(ccs_pll_calculate);
 
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
-MODULE_DESCRIPTION("Generic SMIA/SMIA++ PLL calculator");
+MODULE_DESCRIPTION("Generic MIPI CCS/SMIA/SMIA++ PLL calculator");
 MODULE_LICENSE("GPL");

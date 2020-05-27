@@ -11635,9 +11635,9 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/i2c/mipi-ccs.yaml
 F:	Documentation/driver-api/media/drivers/ccs/
+F:	drivers/media/i2c/ccs-pll.c
+F:	drivers/media/i2c/ccs-pll.h
 F:	drivers/media/i2c/ccs/
-F:	drivers/media/i2c/smiapp-pll.c
-F:	drivers/media/i2c/smiapp-pll.h
 F:	include/uapi/linux/smiapp.h
 
 MIPS
