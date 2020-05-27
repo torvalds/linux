@@ -467,18 +467,16 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 	if (iface->num_channels <= channel || channel < 0)
 		return -ECHRNG;
 
+	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_KERNEL);
+	if (!urb)
+		return -ENOMEM;
+
 	conf = &mdev->conf[channel];
 
 	mutex_lock(&mdev->io_mutex);
 	if (!mdev->usb_device) {
 		retval = -ENODEV;
-		goto unlock_io_mutex;
-	}
-
-	urb = usb_alloc_urb(NO_ISOCHRONOUS_URB, GFP_ATOMIC);
-	if (!urb) {
-		retval = -ENOMEM;
-		goto unlock_io_mutex;
+		goto err_free_urb;
 	}
 
 	if ((conf->direction & MOST_CH_TX) && mdev->padding_active[channel] &&
