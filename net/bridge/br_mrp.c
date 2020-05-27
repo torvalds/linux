@@ -376,24 +376,24 @@ int br_mrp_set_port_state(struct net_bridge_port *p,
  * note: already called with rtnl_lock
  */
 int br_mrp_set_port_role(struct net_bridge_port *p,
-			 struct br_mrp_port_role *role)
+			 enum br_mrp_port_role_type role)
 {
 	struct br_mrp *mrp;
 
 	if (!p || !(p->flags & BR_MRP_AWARE))
 		return -EINVAL;
 
-	mrp = br_mrp_find_id(p->br, role->ring_id);
+	mrp = br_mrp_find_port(p->br, p);
 
 	if (!mrp)
 		return -EINVAL;
 
-	if (role->role == BR_MRP_PORT_ROLE_PRIMARY)
+	if (role == BR_MRP_PORT_ROLE_PRIMARY)
 		rcu_assign_pointer(mrp->p_port, p);
 	else
 		rcu_assign_pointer(mrp->s_port, p);
 
-	br_mrp_port_switchdev_set_role(p, role->role);
+	br_mrp_port_switchdev_set_role(p, role);
 
 	return 0;
 }

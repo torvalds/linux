@@ -37,7 +37,7 @@ int br_mrp_del(struct net_bridge *br, struct br_mrp_instance *instance);
 int br_mrp_set_port_state(struct net_bridge_port *p,
 			  enum br_mrp_port_state_type state);
 int br_mrp_set_port_role(struct net_bridge_port *p,
-			 struct br_mrp_port_role *role);
+			 enum br_mrp_port_role_type role);
 int br_mrp_set_ring_state(struct net_bridge *br,
 			  struct br_mrp_ring_state *state);
 int br_mrp_set_ring_role(struct net_bridge *br, struct br_mrp_ring_role *role);
