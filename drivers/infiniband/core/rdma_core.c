@@ -158,9 +158,9 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	uobj->context = NULL;
 
 	/*
-	 * For DESTROY the usecnt is held write locked, the caller is expected
-	 * to put it unlock and put the object when done with it. Only DESTROY
-	 * can remove the IDR handle.
+	 * For DESTROY the usecnt is not changed, the caller is expected to
+	 * manage it via uobj_put_destroy(). Only DESTROY can remove the IDR
+	 * handle.
 	 */
 	if (reason != RDMA_REMOVE_DESTROY)
 		atomic_set(&uobj->usecnt, 0);
@@ -192,7 +192,7 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 /*
  * This calls uverbs_destroy_uobject() using the RDMA_REMOVE_DESTROY
  * sequence. It should only be used from command callbacks. On success the
- * caller must pair this with rdma_lookup_put_uobject(LOOKUP_WRITE). This
+ * caller must pair this with uobj_put_destroy(). This
  * version requires the caller to have already obtained an
  * LOOKUP_DESTROY uobject kref.
  */
@@ -203,6 +203,13 @@ int uobj_destroy(struct ib_uobject *uobj)
 
 	down_read(&ufile->hw_destroy_rwsem);
 
+	/*
+	 * Once the uobject is destroyed by RDMA_REMOVE_DESTROY then it is left
+	 * write locked as the callers put it back with UVERBS_LOOKUP_DESTROY.
+	 * This is because any other concurrent thread can still see the object
+	 * in the xarray due to RCU. Leaving it locked ensures nothing else will
+	 * touch it.
+	 */
 	ret = uverbs_try_lock_object(uobj, UVERBS_LOOKUP_WRITE);
 	if (ret)
 		goto out_unlock;
@@ -221,7 +228,7 @@ out_unlock:
 /*
  * uobj_get_destroy destroys the HW object and returns a handle to the uobj
  * with a NULL object pointer. The caller must pair this with
- * uverbs_put_destroy.
+ * uobj_put_destroy().
  */
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 				      u32 id, struct ib_uverbs_file *ufile)
@@ -256,7 +263,7 @@ int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+	uobj_put_destroy(uobj);
 	return success_res;
 }
 
