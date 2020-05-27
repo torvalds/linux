@@ -118,8 +118,6 @@ bool afs_cm_incoming_call(struct afs_call *call)
 {
 	_enter("{%u, CB.OP %u}", call->service_id, call->operation_ID);
 
-	call->epoch = rxrpc_kernel_get_epoch(call->net->socket, call->rxcall);
-
 	switch (call->operation_ID) {
 	case CBCallBack:
 		call->type = &afs_SRXCBCallBack;
@@ -150,49 +148,6 @@ bool afs_cm_incoming_call(struct afs_call *call)
 }
 
 /*
- * Record a probe to the cache manager from a server.
- */
-static int afs_record_cm_probe(struct afs_call *call, struct afs_server *server)
-{
-	_enter("");
-
-	if (test_bit(AFS_SERVER_FL_HAVE_EPOCH, &server->flags) &&
-	    !afs_is_probing_server(server)) {
-		if (server->cm_epoch == call->epoch)
-			return 0;
-
-		if (!server->probe.said_rebooted) {
-			pr_notice("kAFS: FS rebooted %pU\n", &server->uuid);
-			server->probe.said_rebooted = true;
-		}
-	}
-
-	spin_lock(&server->probe_lock);
-
-	if (!test_and_set_bit(AFS_SERVER_FL_HAVE_EPOCH, &server->flags)) {
-		server->cm_epoch = call->epoch;
-		server->probe.cm_epoch = call->epoch;
-		goto out;
-	}
-
-	if (server->probe.cm_probed &&
-	    call->epoch != server->probe.cm_epoch &&
-	    !server->probe.said_inconsistent) {
-		pr_notice("kAFS: FS endpoints inconsistent %pU\n",
-			  &server->uuid);
-		server->probe.said_inconsistent = true;
-	}
-
-	if (!server->probe.cm_probed || call->epoch == server->cm_epoch)
-		server->probe.cm_epoch = server->cm_epoch;
-
-out:
-	server->probe.cm_probed = true;
-	spin_unlock(&server->probe_lock);
-	return 0;
-}
-
-/*
  * Find the server record by peer address and record a probe to the cache
  * manager from a server.
  */
@@ -210,7 +165,7 @@ static int afs_find_cm_server_by_peer(struct afs_call *call)
 	}
 
 	call->server = server;
-	return afs_record_cm_probe(call, server);
+	return 0;
 }
 
 /*
@@ -231,7 +186,7 @@ static int afs_find_cm_server_by_uuid(struct afs_call *call,
 	}
 
 	call->server = server;
-	return afs_record_cm_probe(call, server);
+	return 0;
 }
 
 /*
