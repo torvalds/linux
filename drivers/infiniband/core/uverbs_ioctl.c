@@ -137,7 +137,7 @@ EXPORT_SYMBOL(_uverbs_alloc);
 static bool uverbs_is_attr_cleared(const struct ib_uverbs_attr *uattr,
 				   u16 len)
 {
-	if (uattr->len > sizeof(((struct ib_uverbs_attr *)0)->data))
+	if (uattr->len > sizeof_field(struct ib_uverbs_attr, data))
 		return ib_is_buffer_cleared(u64_to_user_ptr(uattr->data) + len,
 					    uattr->len - len);
 

@@ -190,7 +190,7 @@ static u32 tid;
 
 #define PATH_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct sa_path_rec, field),	\
-	.struct_size_bytes   = sizeof((struct sa_path_rec *)0)->field,	\
+	.struct_size_bytes   = sizeof_field(struct sa_path_rec, field),	\
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field path_rec_table[] = {
@@ -292,7 +292,7 @@ static const struct ib_field path_rec_table[] = {
 	.struct_offset_bytes = \
 		offsetof(struct sa_path_rec, field), \
 	.struct_size_bytes   = \
-		sizeof((struct sa_path_rec *)0)->field,	\
+		sizeof_field(struct sa_path_rec, field),	\
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field opa_path_rec_table[] = {
@@ -420,7 +420,7 @@ static const struct ib_field opa_path_rec_table[] = {
 
 #define MCMEMBER_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_sa_mcmember_rec, field),	\
-	.struct_size_bytes   = sizeof ((struct ib_sa_mcmember_rec *) 0)->field,	\
+	.struct_size_bytes   = sizeof_field(struct ib_sa_mcmember_rec, field),	\
 	.field_name          = "sa_mcmember_rec:" #field
 
 static const struct ib_field mcmember_rec_table[] = {
@@ -504,7 +504,7 @@ static const struct ib_field mcmember_rec_table[] = {
 
 #define SERVICE_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_sa_service_rec, field),	\
-	.struct_size_bytes   = sizeof ((struct ib_sa_service_rec *) 0)->field,	\
+	.struct_size_bytes   = sizeof_field(struct ib_sa_service_rec, field),	\
 	.field_name          = "sa_service_rec:" #field
 
 static const struct ib_field service_rec_table[] = {
@@ -552,7 +552,7 @@ static const struct ib_field service_rec_table[] = {
 
 #define CLASSPORTINFO_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_class_port_info, field),	\
-	.struct_size_bytes   = sizeof((struct ib_class_port_info *)0)->field,	\
+	.struct_size_bytes   = sizeof_field(struct ib_class_port_info, field),	\
 	.field_name          = "ib_class_port_info:" #field
 
 static const struct ib_field ib_classport_info_rec_table[] = {
@@ -630,7 +630,7 @@ static const struct ib_field ib_classport_info_rec_table[] = {
 	.struct_offset_bytes =\
 		offsetof(struct opa_class_port_info, field),	\
 	.struct_size_bytes   = \
-		sizeof((struct opa_class_port_info *)0)->field,	\
+		sizeof_field(struct opa_class_port_info, field),	\
 	.field_name          = "opa_class_port_info:" #field
 
 static const struct ib_field opa_classport_info_rec_table[] = {
@@ -710,7 +710,7 @@ static const struct ib_field opa_classport_info_rec_table[] = {
 
 #define GUIDINFO_REC_FIELD(field) \
 	.struct_offset_bytes = offsetof(struct ib_sa_guidinfo_rec, field),	\
-	.struct_size_bytes   = sizeof((struct ib_sa_guidinfo_rec *) 0)->field,	\
+	.struct_size_bytes   = sizeof_field(struct ib_sa_guidinfo_rec, field),	\
 	.field_name          = "sa_guidinfo_rec:" #field
 
 static const struct ib_field guidinfo_rec_table[] = {

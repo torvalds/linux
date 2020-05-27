@@ -420,9 +420,9 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
-			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
-			    sizeof(void *)),				       \
+			BUILD_BUG_ON_ZERO(sizeof_field(struct ib_device_ops,   \
+						       ibdev_fn) !=            \
+					  sizeof(void *)),                     \
 	}
 
 /*
@@ -435,9 +435,9 @@ struct uapi_definition {
 		.scope = UAPI_SCOPE_METHOD,                                    \
 		.needs_fn_offset =                                             \
 			offsetof(struct ib_device_ops, ibdev_fn) +             \
-			BUILD_BUG_ON_ZERO(                                     \
-			    sizeof(((struct ib_device_ops *)0)->ibdev_fn) !=   \
-			    sizeof(void *)),                                   \
+			BUILD_BUG_ON_ZERO(sizeof_field(struct ib_device_ops,   \
+						       ibdev_fn) !=            \
+					  sizeof(void *)),                     \
 	}
 
 /* Call a function to determine if the entire object is supported or not */

@@ -3741,7 +3741,7 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
 			  BUILD_BUG_ON_ZERO(offsetof(req, response) != 0) +    \
-			  BUILD_BUG_ON_ZERO(sizeof(((req *)0)->response) !=    \
+			  BUILD_BUG_ON_ZERO(sizeof_field(req, response) !=    \
 					    sizeof(u64)),                      \
 	.write.req_size = sizeof(req), .write.resp_size = sizeof(resp)
 
