@@ -176,7 +176,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		panic("CPU%u detected unsupported configuration\n", cpu);
 	}
 
-	return ret;
+	return -EIO;
 }
 
 static void init_gic_priority_masking(void)
