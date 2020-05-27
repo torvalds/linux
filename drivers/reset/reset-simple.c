@@ -18,9 +18,8 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
+#include <linux/reset/reset-simple.h>
 #include <linux/spinlock.h>
-
-#include "reset-simple.h"
 
 static inline struct reset_simple_data *
 to_reset_simple_data(struct reset_controller_dev *rcdev)
