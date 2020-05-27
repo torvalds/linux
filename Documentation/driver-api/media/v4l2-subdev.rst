@@ -319,8 +319,7 @@ The device node handles a subset of the V4L2 API.
 	events can also be reported by one (or several) V4L2 device nodes.
 
 	Sub-device drivers that want to use events need to set the
-	``V4L2_SUBDEV_USES_EVENTS`` :c:type:`v4l2_subdev`.flags and initialize
-	:c:type:`v4l2_subdev`.nevents to events queue depth before registering
+	``V4L2_SUBDEV_FL_HAS_EVENTS`` :c:type:`v4l2_subdev`.flags before registering
 	the sub-device. After registration events can be queued as usual on the
 	:c:type:`v4l2_subdev`.devnode device node.
 
