@@ -588,7 +588,7 @@ static int create_elf_fdpic_tables(struct linux_binprm *bprm,
 	nitems = 1 + DLINFO_ITEMS + (k_platform ? 1 : 0) +
 		(k_base_platform ? 1 : 0) + AT_VECTOR_SIZE_ARCH;
 
-	if (bprm->interp_flags & BINPRM_FLAGS_EXECFD)
+	if (bprm->have_execfd)
 		nitems++;
 
 	csp = sp;
