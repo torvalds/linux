@@ -1204,18 +1204,19 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->chip_port;
 
-	/* The function is only used for PTP operations for now */
-	if (!ocelot->ptp)
-		return -EOPNOTSUPP;
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return ocelot_hwstamp_set(ocelot, port, ifr);
-	case SIOCGHWTSTAMP:
-		return ocelot_hwstamp_get(ocelot, port, ifr);
-	default:
-		return -EOPNOTSUPP;
+	/* If the attached PHY device isn't capable of timestamping operations,
+	 * use our own (when possible).
+	 */
+	if (!phy_has_hwtstamp(dev->phydev) && ocelot->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return ocelot_hwstamp_set(ocelot, port, ifr);
+		case SIOCGHWTSTAMP:
+			return ocelot_hwstamp_get(ocelot, port, ifr);
+		}
 	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
 static const struct net_device_ops ocelot_port_netdev_ops = {
