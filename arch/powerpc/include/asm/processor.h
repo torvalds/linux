@@ -302,7 +302,6 @@ struct thread_struct {
 	.ksp = INIT_SP, \
 	.addr_limit = KERNEL_DS, \
 	.fpexc_mode = 0, \
-	.fscr = FSCR_TAR | FSCR_EBB \
 }
 #endif
 
