@@ -426,6 +426,9 @@ int hclge_cmd_init(struct hclge_dev *hdev)
 	 * reset may happen when lower level reset is being processed.
 	 */
 	if ((hclge_is_reset_pending(hdev))) {
+		dev_err(&hdev->pdev->dev,
+			"failed to init cmd since reset %#lx pending\n",
+			hdev->reset_pending);
 		ret = -EBUSY;
 		goto err_cmd_init;
 	}
