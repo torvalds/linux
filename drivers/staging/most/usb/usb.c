@@ -919,6 +919,7 @@ static void release_dci(struct device *dev)
 {
 	struct most_dci_obj *dci = to_dci_obj(dev);
 
+	put_device(dev->parent);
 	kfree(dci);
 }
 
@@ -1123,6 +1124,7 @@ static void hdm_disconnect(struct usb_interface *interface)
 	kfree(mdev->cap);
 	kfree(mdev->conf);
 	kfree(mdev->ep_address);
+	put_device(&mdev->dci->dev);
 	put_device(&mdev->dev);
 }
 
