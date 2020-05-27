@@ -491,9 +491,9 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->save.cr2    = vmcb->save.cr2;
 	nested_vmcb->save.cr4    = svm->vcpu.arch.cr4;
 	nested_vmcb->save.rflags = kvm_get_rflags(&svm->vcpu);
-	nested_vmcb->save.rip    = vmcb->save.rip;
-	nested_vmcb->save.rsp    = vmcb->save.rsp;
-	nested_vmcb->save.rax    = vmcb->save.rax;
+	nested_vmcb->save.rip    = kvm_rip_read(&svm->vcpu);
+	nested_vmcb->save.rsp    = kvm_rsp_read(&svm->vcpu);
+	nested_vmcb->save.rax    = kvm_rax_read(&svm->vcpu);
 	nested_vmcb->save.dr7    = vmcb->save.dr7;
 	nested_vmcb->save.dr6    = svm->vcpu.arch.dr6;
 	nested_vmcb->save.cpl    = vmcb->save.cpl;
