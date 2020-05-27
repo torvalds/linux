@@ -328,6 +328,7 @@ static int ircut_probe(struct platform_device *pdev)
 
 	sd = &ircut->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
+	sd->entity.flags = 1;
 
 	memset(facing, 0, sizeof(facing));
 	if (strcmp(ircut->module_facing, "back") == 0)
