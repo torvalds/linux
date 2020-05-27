@@ -101,7 +101,6 @@ struct iommu_cmd {
 struct kmem_cache *amd_iommu_irq_cache;
 
 static void update_domain(struct protection_domain *domain);
-static int protection_domain_init(struct protection_domain *domain, int mode);
 static void detach_device(struct device *dev);
 static void update_and_flush_device_table(struct protection_domain *domain,
 					  struct domain_pgtable *pgtable);
@@ -1819,58 +1818,6 @@ static void free_gcr3_table(struct protection_domain *domain)
 }
 
 /*
- * Free a domain, only used if something went wrong in the
- * allocation path and we need to free an already allocated page table
- */
-static void dma_ops_domain_free(struct protection_domain *domain)
-{
-	struct domain_pgtable pgtable;
-
-	if (!domain)
-		return;
-
-	iommu_put_dma_cookie(&domain->domain);
-
-	amd_iommu_domain_get_pgtable(domain, &pgtable);
-	atomic64_set(&domain->pt_root, 0);
-	free_pagetable(&pgtable);
-
-	if (domain->id)
-		domain_id_free(domain->id);
-
-	kfree(domain);
-}
-
-/*
- * Allocates a new protection domain usable for the dma_ops functions.
- * It also initializes the page table and the address allocator data
- * structures required for the dma_ops interface
- */
-static struct protection_domain *dma_ops_domain_alloc(void)
-{
-	struct protection_domain *domain;
-
-	domain = kzalloc(sizeof(struct protection_domain), GFP_KERNEL);
-	if (!domain)
-		return NULL;
-
-	if (protection_domain_init(domain, DEFAULT_PGTABLE_LEVEL))
-		goto free_domain;
-
-	domain->flags = PD_DMA_OPS_MASK;
-
-	if (iommu_get_dma_cookie(&domain->domain) == -ENOMEM)
-		goto free_domain;
-
-	return domain;
-
-free_domain:
-	dma_ops_domain_free(domain);
-
-	return NULL;
-}
-
-/*
  * little helper function to check whether a given protection domain is a
  * dma_ops domain
  */
@@ -2447,36 +2394,32 @@ out_err:
 
 static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 {
-	struct protection_domain *pdomain;
+	struct protection_domain *domain;
+	int mode = DEFAULT_PGTABLE_LEVEL;
 
-	switch (type) {
-	case IOMMU_DOMAIN_UNMANAGED:
-		pdomain = protection_domain_alloc(DEFAULT_PGTABLE_LEVEL);
-		if (!pdomain)
-			return NULL;
+	if (type == IOMMU_DOMAIN_IDENTITY)
+		mode = PAGE_MODE_NONE;
 
-		pdomain->domain.geometry.aperture_start = 0;
-		pdomain->domain.geometry.aperture_end   = ~0ULL;
-		pdomain->domain.geometry.force_aperture = true;
-
-		break;
-	case IOMMU_DOMAIN_DMA:
-		pdomain = dma_ops_domain_alloc();
-		if (!pdomain) {
-			pr_err("Failed to allocate\n");
-			return NULL;
-		}
-		break;
-	case IOMMU_DOMAIN_IDENTITY:
-		pdomain = protection_domain_alloc(PAGE_MODE_NONE);
-		if (!pdomain)
-			return NULL;
-		break;
-	default:
+	domain = protection_domain_alloc(mode);
+	if (!domain)
 		return NULL;
+
+	domain->domain.geometry.aperture_start = 0;
+	domain->domain.geometry.aperture_end   = ~0ULL;
+	domain->domain.geometry.force_aperture = true;
+
+	if (type == IOMMU_DOMAIN_DMA) {
+		if (iommu_get_dma_cookie(&domain->domain) == -ENOMEM)
+			goto free_domain;
+		domain->flags = PD_DMA_OPS_MASK;
 	}
 
-	return &pdomain->domain;
+	return &domain->domain;
+
+free_domain:
+	protection_domain_free(domain);
+
+	return NULL;
 }
 
 static void amd_iommu_domain_free(struct iommu_domain *dom)
@@ -2493,18 +2436,13 @@ static void amd_iommu_domain_free(struct iommu_domain *dom)
 	if (!dom)
 		return;
 
-	switch (dom->type) {
-	case IOMMU_DOMAIN_DMA:
-		/* Now release the domain */
-		dma_ops_domain_free(domain);
-		break;
-	default:
-		if (domain->flags & PD_IOMMUV2_MASK)
-			free_gcr3_table(domain);
+	if (dom->type == IOMMU_DOMAIN_DMA)
+		iommu_put_dma_cookie(&domain->domain);
 
-		protection_domain_free(domain);
-		break;
-	}
+	if (domain->flags & PD_IOMMUV2_MASK)
+		free_gcr3_table(domain);
+
+	protection_domain_free(domain);
 }
 
 static void amd_iommu_detach_device(struct iommu_domain *dom,
