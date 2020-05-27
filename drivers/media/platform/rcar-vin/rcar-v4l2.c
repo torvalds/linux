@@ -350,9 +350,9 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	 * all of the related pixel formats. If mbus_code is not set enumerate
 	 * all possible pixelformats.
 	 *
-	 * TODO: Once raw capture formats are added to the driver this needs
-	 * to be extended so raw media bus codes only result in raw pixel
-	 * formats.
+	 * TODO: Once raw MEDIA_BUS_FMT_SRGGB12_1X12 format is added to the
+	 * driver this needs to be extended so raw media bus code only result in
+	 * raw pixel format.
 	 */
 	switch (f->mbus_code) {
 	case 0:
@@ -362,6 +362,11 @@ static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 	case MEDIA_BUS_FMT_UYVY10_2X10:
 	case MEDIA_BUS_FMT_RGB888_1X24:
 		break;
+	case MEDIA_BUS_FMT_SRGGB8_1X8:
+		if (f->index)
+			return -EINVAL;
+		f->pixelformat = V4L2_PIX_FMT_SRGGB8;
+		return 0;
 	default:
 		return -EINVAL;
 	}
