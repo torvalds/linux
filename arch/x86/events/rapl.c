@@ -537,6 +537,16 @@ static struct perf_msr intel_rapl_msrs[] = {
 	[PERF_RAPL_PSYS] = { MSR_PLATFORM_ENERGY_STATUS, &rapl_events_psys_group,  test_msr },
 };
 
+/*
+ * Force to PERF_RAPL_MAX size due to:
+ * - perf_msr_probe(PERF_RAPL_MAX)
+ * - want to use same event codes across both architectures
+ */
+static struct perf_msr amd_rapl_msrs[PERF_RAPL_MAX] = {
+	[PERF_RAPL_PKG]  = { MSR_AMD_PKG_ENERGY_STATUS,  &rapl_events_pkg_group,   test_msr },
+};
+
+
 static int rapl_cpu_offline(unsigned int cpu)
 {
 	struct rapl_pmu *pmu = cpu_to_rapl_pmu(cpu);
@@ -740,6 +750,13 @@ static struct rapl_model model_skl = {
 	.rapl_msrs      = intel_rapl_msrs,
 };
 
+static struct rapl_model model_amd_fam17h = {
+	.events		= BIT(PERF_RAPL_PKG),
+	.apply_quirk	= false,
+	.msr_power_unit = MSR_AMD_RAPL_POWER_UNIT,
+	.rapl_msrs      = amd_rapl_msrs,
+};
+
 static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE,		&model_snb),
 	X86_MATCH_INTEL_FAM6_MODEL(SANDYBRIDGE_X,	&model_snbep),
@@ -770,6 +787,7 @@ static const struct x86_cpu_id rapl_model_match[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&model_hsx),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE_L,		&model_skl),
 	X86_MATCH_INTEL_FAM6_MODEL(COMETLAKE,		&model_skl),
+	X86_MATCH_VENDOR_FAM(AMD, 0x17, &model_amd_fam17h),
 	{},
 };
 MODULE_DEVICE_TABLE(x86cpu, rapl_model_match);
