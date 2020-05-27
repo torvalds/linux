@@ -949,7 +949,6 @@ static void qdisc_free_cb(struct rcu_head *head)
 static void qdisc_destroy(struct Qdisc *qdisc)
 {
 	const struct Qdisc_ops  *ops = qdisc->ops;
-	struct sk_buff *skb, *tmp;
 
 #ifdef CONFIG_NET_SCHED
 	qdisc_hash_del(qdisc);
@@ -957,23 +956,14 @@ static void qdisc_destroy(struct Qdisc *qdisc)
 	qdisc_put_stab(rtnl_dereference(qdisc->stab));
 #endif
 	gen_kill_estimator(&qdisc->rate_est);
-	if (ops->reset)
-		ops->reset(qdisc);
+
+	qdisc_reset(qdisc);
+
 	if (ops->destroy)
 		ops->destroy(qdisc);
 
 	module_put(ops->owner);
 	dev_put(qdisc_dev(qdisc));
-
-	skb_queue_walk_safe(&qdisc->gso_skb, skb, tmp) {
-		__skb_unlink(skb, &qdisc->gso_skb);
-		kfree_skb_list(skb);
-	}
-
-	skb_queue_walk_safe(&qdisc->skb_bad_txq, skb, tmp) {
-		__skb_unlink(skb, &qdisc->skb_bad_txq);
-		kfree_skb_list(skb);
-	}
 
 	call_rcu(&qdisc->rcu, qdisc_free_cb);
 }
