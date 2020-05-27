@@ -920,9 +920,15 @@ static int at803x_cable_test_one_pair(struct phy_device *phydev, int pair)
 static int at803x_cable_test_get_status(struct phy_device *phydev,
 					bool *finished)
 {
-	unsigned long pair_mask = 0xf;
+	unsigned long pair_mask;
 	int retries = 20;
 	int pair, ret;
+
+	if (phydev->phy_id == ATH9331_PHY_ID ||
+	    phydev->phy_id == ATH8032_PHY_ID)
+		pair_mask = 0x3;
+	else
+		pair_mask = 0xf;
 
 	*finished = false;
 
@@ -958,7 +964,9 @@ static int at803x_cable_test_start(struct phy_device *phydev)
 	 */
 	phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
 	phy_write(phydev, MII_ADVERTISE, ADVERTISE_CSMA);
-	phy_write(phydev, MII_CTRL1000, 0);
+	if (phydev->phy_id != ATH9331_PHY_ID &&
+	    phydev->phy_id != ATH8032_PHY_ID)
+		phy_write(phydev, MII_CTRL1000, 0);
 
 	/* we do all the (time consuming) work later */
 	return 0;
@@ -1030,6 +1038,7 @@ static struct phy_driver at803x_driver[] = {
 	.name			= "Qualcomm Atheros AR8032",
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
+	.flags			= PHY_POLL_CABLE_TEST,
 	.config_init		= at803x_config_init,
 	.link_change_notify	= at803x_link_change_notify,
 	.set_wol		= at803x_set_wol,
@@ -1039,15 +1048,20 @@ static struct phy_driver at803x_driver[] = {
 	/* PHY_BASIC_FEATURES */
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
 }, {
 	/* ATHEROS AR9331 */
 	PHY_ID_MATCH_EXACT(ATH9331_PHY_ID),
 	.name			= "Qualcomm Atheros AR9331 built-in PHY",
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
+	.flags			= PHY_POLL_CABLE_TEST,
 	/* PHY_BASIC_FEATURES */
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
 } };
 
 module_phy_driver(at803x_driver);
