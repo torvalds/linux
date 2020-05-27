@@ -458,23 +458,23 @@ static void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
  *
  */
 
-int tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
+int tcp_v4_err(struct sk_buff *skb, u32 info)
 {
-	const struct iphdr *iph = (const struct iphdr *)icmp_skb->data;
-	struct tcphdr *th = (struct tcphdr *)(icmp_skb->data + (iph->ihl << 2));
+	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	struct tcphdr *th = (struct tcphdr *)(skb->data + (iph->ihl << 2));
 	struct tcp_sock *tp;
 	struct inet_sock *inet;
-	const int type = icmp_hdr(icmp_skb)->type;
-	const int code = icmp_hdr(icmp_skb)->code;
+	const int type = icmp_hdr(skb)->type;
+	const int code = icmp_hdr(skb)->code;
 	struct sock *sk;
 	struct request_sock *fastopen;
 	u32 seq, snd_una;
 	int err;
-	struct net *net = dev_net(icmp_skb->dev);
+	struct net *net = dev_net(skb->dev);
 
 	sk = __inet_lookup_established(net, &tcp_hashinfo, iph->daddr,
 				       th->dest, iph->saddr, ntohs(th->source),
-				       inet_iif(icmp_skb), 0);
+				       inet_iif(skb), 0);
 	if (!sk) {
 		__ICMP_INC_STATS(net, ICMP_MIB_INERRORS);
 		return -ENOENT;
@@ -524,7 +524,7 @@ int tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 	switch (type) {
 	case ICMP_REDIRECT:
 		if (!sock_owned_by_user(sk))
-			do_redirect(icmp_skb, sk);
+			do_redirect(skb, sk);
 		goto out;
 	case ICMP_SOURCE_QUENCH:
 		/* Just silently ignore these. */
@@ -578,7 +578,7 @@ int tcp_v4_err(struct sk_buff *icmp_skb, u32 info)
 		if (fastopen && !fastopen->sk)
 			break;
 
-		ip_icmp_error(sk, icmp_skb, err, th->dest, info, (u8 *)th);
+		ip_icmp_error(sk, skb, err, th->dest, info, (u8 *)th);
 
 		if (!sock_owned_by_user(sk)) {
 			sk->sk_err = err;
