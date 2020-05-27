@@ -586,9 +586,7 @@ static void bpf_map_mmap_open(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 
-	bpf_map_inc_with_uref(map);
-
-	if (vma->vm_flags & VM_WRITE) {
+	if (vma->vm_flags & VM_MAYWRITE) {
 		mutex_lock(&map->freeze_mutex);
 		map->writecnt++;
 		mutex_unlock(&map->freeze_mutex);
@@ -600,13 +598,11 @@ static void bpf_map_mmap_close(struct vm_area_struct *vma)
 {
 	struct bpf_map *map = vma->vm_file->private_data;
 
-	if (vma->vm_flags & VM_WRITE) {
+	if (vma->vm_flags & VM_MAYWRITE) {
 		mutex_lock(&map->freeze_mutex);
 		map->writecnt--;
 		mutex_unlock(&map->freeze_mutex);
 	}
-
-	bpf_map_put_with_uref(map);
 }
 
 static const struct vm_operations_struct bpf_map_default_vmops = {
@@ -627,22 +623,35 @@ static int bpf_map_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	mutex_lock(&map->freeze_mutex);
 
-	if ((vma->vm_flags & VM_WRITE) && map->frozen) {
-		err = -EPERM;
-		goto out;
+	if (vma->vm_flags & VM_WRITE) {
+		if (map->frozen) {
+			err = -EPERM;
+			goto out;
+		}
+		/* map is meant to be read-only, so do not allow mapping as
+		 * writable, because it's possible to leak a writable page
+		 * reference and allows user-space to still modify it after
+		 * freezing, while verifier will assume contents do not change
+		 */
+		if (map->map_flags & BPF_F_RDONLY_PROG) {
+			err = -EACCES;
+			goto out;
+		}
 	}
 
 	/* set default open/close callbacks */
 	vma->vm_ops = &bpf_map_default_vmops;
 	vma->vm_private_data = map;
+	vma->vm_flags &= ~VM_MAYEXEC;
+	if (!(vma->vm_flags & VM_WRITE))
+		/* disallow re-mapping with PROT_WRITE */
+		vma->vm_flags &= ~VM_MAYWRITE;
 
 	err = map->ops->map_mmap(map, vma);
 	if (err)
 		goto out;
 
-	bpf_map_inc_with_uref(map);
-
-	if (vma->vm_flags & VM_WRITE)
+	if (vma->vm_flags & VM_MAYWRITE)
 		map->writecnt++;
 out:
 	mutex_unlock(&map->freeze_mutex);
@@ -1487,8 +1496,10 @@ static int map_lookup_and_delete_elem(union bpf_attr *attr)
 	if (err)
 		goto free_value;
 
-	if (copy_to_user(uvalue, value, value_size) != 0)
+	if (copy_to_user(uvalue, value, value_size) != 0) {
+		err = -EFAULT;
 		goto free_value;
+	}
 
 	err = 0;
 
@@ -2285,7 +2296,7 @@ static void bpf_link_show_fdinfo(struct seq_file *m, struct file *filp)
 }
 #endif
 
-const struct file_operations bpf_link_fops = {
+static const struct file_operations bpf_link_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_link_show_fdinfo,
 #endif
@@ -3630,8 +3641,10 @@ static int link_update(union bpf_attr *attr)
 		return PTR_ERR(link);
 
 	new_prog = bpf_prog_get(attr->link_update.new_prog_fd);
-	if (IS_ERR(new_prog))
-		return PTR_ERR(new_prog);
+	if (IS_ERR(new_prog)) {
+		ret = PTR_ERR(new_prog);
+		goto out_put_link;
+	}
 
 	if (flags & BPF_F_REPLACE) {
 		old_prog = bpf_prog_get(attr->link_update.old_prog_fd);
@@ -3640,6 +3653,9 @@ static int link_update(union bpf_attr *attr)
 			old_prog = NULL;
 			goto out_put_progs;
 		}
+	} else if (attr->link_update.old_prog_fd) {
+		ret = -EINVAL;
+		goto out_put_progs;
 	}
 
 #ifdef CONFIG_CGROUP_BPF
@@ -3655,6 +3671,8 @@ out_put_progs:
 		bpf_prog_put(old_prog);
 	if (ret)
 		bpf_prog_put(new_prog);
+out_put_link:
+	bpf_link_put(link);
 	return ret;
 }
 

@@ -173,7 +173,7 @@ struct blk_mq_hw_ctx {
 	 * blocking (BLK_MQ_F_BLOCKING). Must be the last member - see also
 	 * blk_mq_hw_ctx_size().
 	 */
-	struct srcu_struct	srcu[0];
+	struct srcu_struct	srcu[];
 };
 
 /**

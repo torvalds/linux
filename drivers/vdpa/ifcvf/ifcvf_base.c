@@ -301,12 +301,10 @@ int ifcvf_set_vq_state(struct ifcvf_hw *hw, u16 qid, u64 num)
 
 static int ifcvf_hw_enable(struct ifcvf_hw *hw)
 {
-	struct ifcvf_lm_cfg __iomem *ifcvf_lm;
 	struct virtio_pci_common_cfg __iomem *cfg;
 	struct ifcvf_adapter *ifcvf;
 	u32 i;
 
-	ifcvf_lm = (struct ifcvf_lm_cfg __iomem *)hw->lm_cfg;
 	ifcvf = vf_to_adapter(hw);
 	cfg = hw->common_cfg;
 	ifc_iowrite16(IFCVF_MSI_CONFIG_OFF, &cfg->msix_config);

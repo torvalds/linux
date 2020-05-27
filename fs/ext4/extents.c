@@ -3374,8 +3374,8 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		(unsigned long long)map->m_lblk, map_len);
 
 	sbi = EXT4_SB(inode->i_sb);
-	eof_block = (inode->i_size + inode->i_sb->s_blocksize - 1) >>
-		inode->i_sb->s_blocksize_bits;
+	eof_block = (EXT4_I(inode)->i_disksize + inode->i_sb->s_blocksize - 1)
+			>> inode->i_sb->s_blocksize_bits;
 	if (eof_block < map->m_lblk + map_len)
 		eof_block = map->m_lblk + map_len;
 
@@ -3627,8 +3627,8 @@ static int ext4_split_convert_extents(handle_t *handle,
 		  __func__, inode->i_ino,
 		  (unsigned long long)map->m_lblk, map->m_len);
 
-	eof_block = (inode->i_size + inode->i_sb->s_blocksize - 1) >>
-		inode->i_sb->s_blocksize_bits;
+	eof_block = (EXT4_I(inode)->i_disksize + inode->i_sb->s_blocksize - 1)
+			>> inode->i_sb->s_blocksize_bits;
 	if (eof_block < map->m_lblk + map->m_len)
 		eof_block = map->m_lblk + map->m_len;
 	/*
@@ -4832,6 +4832,28 @@ static const struct iomap_ops ext4_iomap_xattr_ops = {
 	.iomap_begin		= ext4_iomap_xattr_begin,
 };
 
+static int ext4_fiemap_check_ranges(struct inode *inode, u64 start, u64 *len)
+{
+	u64 maxbytes;
+
+	if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))
+		maxbytes = inode->i_sb->s_maxbytes;
+	else
+		maxbytes = EXT4_SB(inode->i_sb)->s_bitmap_maxbytes;
+
+	if (*len == 0)
+		return -EINVAL;
+	if (start > maxbytes)
+		return -EFBIG;
+
+	/*
+	 * Shrink request scope to what the fs can actually handle.
+	 */
+	if (*len > maxbytes || (maxbytes - *len) < start)
+		*len = maxbytes - start;
+	return 0;
+}
+
 static int _ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len, bool from_es_cache)
 {
@@ -4851,6 +4873,15 @@ static int _ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 
 	if (fiemap_check_flags(fieinfo, ext4_fiemap_flags))
 		return -EBADR;
+
+	/*
+	 * For bitmap files the maximum size limit could be smaller than
+	 * s_maxbytes, so check len here manually instead of just relying on the
+	 * generic check.
+	 */
+	error = ext4_fiemap_check_ranges(inode, start, &len);
+	if (error)
+		return error;
 
 	if (fieinfo->fi_flags & FIEMAP_FLAG_XATTR) {
 		fieinfo->fi_flags &= ~FIEMAP_FLAG_XATTR;

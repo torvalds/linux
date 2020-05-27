@@ -159,7 +159,12 @@ class IocgStat:
         else:
             self.inflight_pct = 0
 
-        self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
+        # vdebt used to be an atomic64_t and is now u64, support both
+        try:
+            self.debt_ms = iocg.abs_vdebt.counter.value_() / VTIME_PER_USEC / 1000
+        except:
+            self.debt_ms = iocg.abs_vdebt.value_() / VTIME_PER_USEC / 1000
+
         self.use_delay = blkg.use_delay.counter.value_()
         self.delay_ms = blkg.delay_nsec.counter.value_() / 1_000_000
 

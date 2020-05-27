@@ -1617,6 +1617,10 @@ static int __maybe_unused inv_mpu_resume(struct device *dev)
 	if (result)
 		goto out_unlock;
 
+	pm_runtime_disable(dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
+
 	result = inv_mpu6050_switch_engine(st, true, st->suspended_sensors);
 	if (result)
 		goto out_unlock;
@@ -1638,13 +1642,18 @@ static int __maybe_unused inv_mpu_suspend(struct device *dev)
 
 	mutex_lock(&st->lock);
 
+	st->suspended_sensors = 0;
+	if (pm_runtime_suspended(dev)) {
+		result = 0;
+		goto out_unlock;
+	}
+
 	if (iio_buffer_enabled(indio_dev)) {
 		result = inv_mpu6050_prepare_fifo(st, false);
 		if (result)
 			goto out_unlock;
 	}
 
-	st->suspended_sensors = 0;
 	if (st->chip_config.accl_en)
 		st->suspended_sensors |= INV_MPU6050_SENSOR_ACCL;
 	if (st->chip_config.gyro_en)

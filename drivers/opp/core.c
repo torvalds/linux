@@ -819,6 +819,8 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	if (unlikely(!target_freq)) {
 		if (opp_table->required_opp_tables) {
 			ret = _set_required_opps(dev, opp_table, NULL);
+		} else if (!_get_opp_count(opp_table)) {
+			return 0;
 		} else {
 			dev_err(dev, "target frequency can't be 0\n");
 			ret = -EINVAL;
@@ -846,6 +848,18 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		dev_dbg(dev, "%s: old/new frequencies (%lu Hz) are same, nothing to do\n",
 			__func__, freq);
 		ret = 0;
+		goto put_opp_table;
+	}
+
+	/*
+	 * For IO devices which require an OPP on some platforms/SoCs
+	 * while just needing to scale the clock on some others
+	 * we look for empty OPP tables with just a clock handle and
+	 * scale only the clk. This makes dev_pm_opp_set_rate()
+	 * equivalent to a clk_set_rate()
+	 */
+	if (!_get_opp_count(opp_table)) {
+		ret = _generic_set_opp_clk_only(dev, clk, freq);
 		goto put_opp_table;
 	}
 

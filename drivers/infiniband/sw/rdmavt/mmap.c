@@ -154,7 +154,7 @@ done:
  * @udata: user data (must be valid!)
  * @obj: opaque pointer to a cq, wq etc
  *
- * Return: rvt_mmap struct on success
+ * Return: rvt_mmap struct on success, ERR_PTR on failure
  */
 struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
 					   struct ib_udata *udata, void *obj)
@@ -166,7 +166,7 @@ struct rvt_mmap_info *rvt_create_mmap_info(struct rvt_dev_info *rdi, u32 size,
 
 	ip = kmalloc_node(sizeof(*ip), GFP_KERNEL, rdi->dparms.node);
 	if (!ip)
-		return ip;
+		return ERR_PTR(-ENOMEM);
 
 	size = PAGE_ALIGN(size);
 
