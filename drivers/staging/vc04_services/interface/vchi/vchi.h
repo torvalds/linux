@@ -60,10 +60,6 @@ struct vchi_service_handle;
  * (local / remote)
  *****************************************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Routine used to initialise the vchi on both local + remote connections
 extern int32_t vchi_initialise(struct vchi_instance_handle **instance_handle);
 
@@ -157,10 +153,6 @@ extern int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
 /******************************************************************************
  * Configuration plumbing
  *****************************************************************************/
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* VCHI_H_ */
 
