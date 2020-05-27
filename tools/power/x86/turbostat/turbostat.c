@@ -4698,6 +4698,32 @@ unsigned int intel_model_duplicates(unsigned int model)
 	}
 	return model;
 }
+
+void print_dev_latency(void)
+{
+	char *path = "/dev/cpu_dma_latency";
+	int fd;
+	int value;
+	int retval;
+
+	fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		warn("fopen %s\n", path);
+		return;
+	}
+
+	retval = read(fd, (void *)&value, sizeof(int));
+	if (retval != sizeof(int)) {
+		warn("read %s\n", path);
+		close(fd);
+		return;
+	}
+	fprintf(outf, "/dev/cpu_dma_latency: %d usec (%s)\n",
+		value, value == 2000000000 ? "default" : "constrained");
+
+	close(fd);
+}
+
 void process_cpuid()
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -4966,6 +4992,8 @@ void process_cpuid()
 	if (!quiet)
 		dump_cstate_pstate_config_info(family, model);
 
+	if (!quiet)
+		print_dev_latency();
 	if (!quiet)
 		dump_sysfs_cstate_config();
 	if (!quiet)
