@@ -584,9 +584,7 @@ struct mlx5_ifc_fte_match_set_misc2_bits {
 
 	u8         metadata_reg_a[0x20];
 
-	u8         metadata_reg_b[0x20];
-
-	u8         reserved_at_1c0[0x40];
+	u8         reserved_at_1a0[0x60];
 };
 
 struct mlx5_ifc_fte_match_set_misc3_bits {
@@ -1210,7 +1208,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_99[0x2];
 	u8         log_max_qp[0x5];
 
-	u8         reserved_at_a0[0xb];
+	u8         reserved_at_a0[0x3];
+	u8	   ece_support[0x1];
+	u8	   reserved_at_a4[0x7];
 	u8         log_max_srq[0x5];
 	u8         reserved_at_b0[0x10];
 
@@ -4220,7 +4220,8 @@ struct mlx5_ifc_rts2rts_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_rts2rts_qp_in_bits {
@@ -4237,7 +4238,7 @@ struct mlx5_ifc_rts2rts_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
@@ -4250,7 +4251,8 @@ struct mlx5_ifc_rtr2rts_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_rtr2rts_qp_in_bits {
@@ -4267,7 +4269,7 @@ struct mlx5_ifc_rtr2rts_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
@@ -4819,7 +4821,8 @@ struct mlx5_ifc_query_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 
 	u8         opt_param_mask[0x20];
 
@@ -6584,7 +6587,8 @@ struct mlx5_ifc_init2rtr_qp_out_bits {
 
 	u8         syndrome[0x20];
 
-	u8         reserved_at_40[0x40];
+	u8         reserved_at_40[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_init2rtr_qp_in_bits {
@@ -6601,7 +6605,7 @@ struct mlx5_ifc_init2rtr_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
@@ -7697,7 +7701,7 @@ struct mlx5_ifc_create_qp_out_bits {
 	u8         reserved_at_40[0x8];
 	u8         qpn[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_create_qp_in_bits {
@@ -7711,7 +7715,7 @@ struct mlx5_ifc_create_qp_in_bits {
 
 	u8         opt_param_mask[0x20];
 
-	u8         reserved_at_a0[0x20];
+	u8         ece[0x20];
 
 	struct mlx5_ifc_qpc_bits qpc;
 
