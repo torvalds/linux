@@ -240,7 +240,7 @@
 
 &ltdc {
 	status = "okay";
-	pinctrl-0 = <&ltdc_pins>;
+	pinctrl-0 = <&ltdc_pins_a>;
 	pinctrl-names = "default";
 
 	port {
