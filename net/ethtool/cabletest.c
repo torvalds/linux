@@ -5,7 +5,11 @@
 #include "netlink.h"
 #include "common.h"
 
-/* CABLE_TEST_ACT */
+/* 802.3 standard allows 100 meters for BaseT cables. However longer
+ * cables might work, depending on the quality of the cables and the
+ * PHY. So allow testing for up to 150 meters.
+ */
+#define MAX_CABLE_LENGTH_CM (150 * 100)
 
 static const struct nla_policy
 cable_test_act_policy[ETHTOOL_A_CABLE_TEST_MAX + 1] = {
@@ -13,7 +17,7 @@ cable_test_act_policy[ETHTOOL_A_CABLE_TEST_MAX + 1] = {
 	[ETHTOOL_A_CABLE_TEST_HEADER]		= { .type = NLA_NESTED },
 };
 
-static int ethnl_cable_test_started(struct phy_device *phydev)
+static int ethnl_cable_test_started(struct phy_device *phydev, u8 cmd)
 {
 	struct sk_buff *skb;
 	int err = -ENOMEM;
@@ -23,7 +27,7 @@ static int ethnl_cable_test_started(struct phy_device *phydev)
 	if (!skb)
 		goto out;
 
-	ehdr = ethnl_bcastmsg_put(skb, ETHTOOL_MSG_CABLE_TEST_NTF);
+	ehdr = ethnl_bcastmsg_put(skb, cmd);
 	if (!ehdr) {
 		err = -EMSGSIZE;
 		goto out;
@@ -86,7 +90,8 @@ int ethnl_act_cable_test(struct sk_buff *skb, struct genl_info *info)
 	ethnl_ops_complete(dev);
 
 	if (!ret)
-		ethnl_cable_test_started(dev->phydev);
+		ethnl_cable_test_started(dev->phydev,
+					 ETHTOOL_MSG_CABLE_TEST_NTF);
 
 out_rtnl:
 	rtnl_unlock();
@@ -95,16 +100,18 @@ out_dev_put:
 	return ret;
 }
 
-int ethnl_cable_test_alloc(struct phy_device *phydev)
+int ethnl_cable_test_alloc(struct phy_device *phydev, u8 cmd)
 {
 	int err = -ENOMEM;
 
-	phydev->skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	/* One TDR sample occupies 20 bytes. For a 150 meter cable,
+	 * with four pairs, around 12K is needed.
+	 */
+	phydev->skb = genlmsg_new(SZ_16K, GFP_KERNEL);
 	if (!phydev->skb)
 		goto out;
 
-	phydev->ehdr = ethnl_bcastmsg_put(phydev->skb,
-					  ETHTOOL_MSG_CABLE_TEST_NTF);
+	phydev->ehdr = ethnl_bcastmsg_put(phydev->skb, cmd);
 	if (!phydev->ehdr) {
 		err = -EMSGSIZE;
 		goto out;
@@ -199,3 +206,226 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ethnl_cable_test_fault_length);
+
+struct cable_test_tdr_req_info {
+	struct ethnl_req_info		base;
+};
+
+static const struct nla_policy
+cable_test_tdr_act_cfg_policy[ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX + 1] = {
+	[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]	= { .type = NLA_U32 },
+	[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST]	= { .type = NLA_U32 },
+	[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP]	= { .type = NLA_U32 },
+	[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]	= { .type = NLA_U8 },
+};
+
+static const struct nla_policy
+cable_test_tdr_act_policy[ETHTOOL_A_CABLE_TEST_TDR_MAX + 1] = {
+	[ETHTOOL_A_CABLE_TEST_TDR_UNSPEC]	= { .type = NLA_REJECT },
+	[ETHTOOL_A_CABLE_TEST_TDR_HEADER]	= { .type = NLA_NESTED },
+	[ETHTOOL_A_CABLE_TEST_TDR_CFG]		= { .type = NLA_NESTED },
+};
+
+/* CABLE_TEST_TDR_ACT */
+int ethnl_act_cable_test_tdr_cfg(const struct nlattr *nest,
+				 struct genl_info *info,
+				 struct phy_tdr_config *cfg)
+{
+	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX + 1];
+	int ret;
+
+	ret = nla_parse_nested(tb, ETHTOOL_A_CABLE_TEST_TDR_CFG_MAX, nest,
+			       cable_test_tdr_act_cfg_policy, info->extack);
+	if (ret < 0)
+		return ret;
+
+	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST])
+		cfg->first = nla_get_u32(
+			tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST]);
+	else
+		cfg->first = 100;
+	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST])
+		cfg->last = nla_get_u32(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST]);
+	else
+		cfg->last = MAX_CABLE_LENGTH_CM;
+
+	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP])
+		cfg->step = nla_get_u32(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP]);
+	else
+		cfg->step = 100;
+
+	if (tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]) {
+		cfg->pair = nla_get_u8(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR]);
+		if (cfg->pair > ETHTOOL_A_CABLE_PAIR_D) {
+			NL_SET_ERR_MSG_ATTR(
+				info->extack,
+				tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_PAIR],
+				"invalid pair parameter");
+			return -EINVAL;
+		}
+	} else {
+		cfg->pair = PHY_PAIR_ALL;
+	}
+
+	if (cfg->first > MAX_CABLE_LENGTH_CM) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_FIRST],
+				    "invalid first parameter");
+		return -EINVAL;
+	}
+
+	if (cfg->last > MAX_CABLE_LENGTH_CM) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_LAST],
+				    "invalid last parameter");
+		return -EINVAL;
+	}
+
+	if (cfg->first > cfg->last) {
+		NL_SET_ERR_MSG(info->extack, "invalid first/last parameter");
+		return -EINVAL;
+	}
+
+	if (!cfg->step) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP],
+				    "invalid step parameter");
+		return -EINVAL;
+	}
+
+	if (cfg->step > (cfg->last - cfg->first)) {
+		NL_SET_ERR_MSG_ATTR(info->extack,
+				    tb[ETHTOOL_A_CABLE_TEST_TDR_CFG_STEP],
+				    "step parameter too big");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int ethnl_act_cable_test_tdr(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[ETHTOOL_A_CABLE_TEST_TDR_MAX + 1];
+	struct ethnl_req_info req_info = {};
+	struct phy_tdr_config cfg;
+	struct net_device *dev;
+	int ret;
+
+	ret = nlmsg_parse(info->nlhdr, GENL_HDRLEN, tb,
+			  ETHTOOL_A_CABLE_TEST_TDR_MAX,
+			  cable_test_tdr_act_policy, info->extack);
+	if (ret < 0)
+		return ret;
+
+	ret = ethnl_parse_header_dev_get(&req_info,
+					 tb[ETHTOOL_A_CABLE_TEST_TDR_HEADER],
+					 genl_info_net(info), info->extack,
+					 true);
+	if (ret < 0)
+		return ret;
+
+	dev = req_info.dev;
+	if (!dev->phydev) {
+		ret = -EOPNOTSUPP;
+		goto out_dev_put;
+	}
+
+	ret = ethnl_act_cable_test_tdr_cfg(tb[ETHTOOL_A_CABLE_TEST_TDR_CFG],
+					   info, &cfg);
+	if (ret)
+		goto out_dev_put;
+
+	rtnl_lock();
+	ret = ethnl_ops_begin(dev);
+	if (ret < 0)
+		goto out_rtnl;
+
+	ret = phy_start_cable_test_tdr(dev->phydev, info->extack, &cfg);
+
+	ethnl_ops_complete(dev);
+
+	if (!ret)
+		ethnl_cable_test_started(dev->phydev,
+					 ETHTOOL_MSG_CABLE_TEST_TDR_NTF);
+
+out_rtnl:
+	rtnl_unlock();
+out_dev_put:
+	dev_put(dev);
+	return ret;
+}
+ 
+int ethnl_cable_test_amplitude(struct phy_device *phydev,
+			       u8 pair, s16 mV)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb,
+			      ETHTOOL_A_CABLE_TDR_NEST_AMPLITUDE);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u8(phydev->skb, ETHTOOL_A_CABLE_AMPLITUDE_PAIR, pair))
+		goto err;
+	if (nla_put_u16(phydev->skb, ETHTOOL_A_CABLE_AMPLITUDE_mV, mV))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_amplitude);
+
+int ethnl_cable_test_pulse(struct phy_device *phydev, u16 mV)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb, ETHTOOL_A_CABLE_TDR_NEST_PULSE);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u16(phydev->skb, ETHTOOL_A_CABLE_PULSE_mV, mV))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_pulse);
+
+int ethnl_cable_test_step(struct phy_device *phydev, u32 first, u32 last,
+			  u32 step)
+{
+	struct nlattr *nest;
+	int ret = -EMSGSIZE;
+
+	nest = nla_nest_start(phydev->skb, ETHTOOL_A_CABLE_TDR_NEST_STEP);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_FIRST_DISTANCE,
+			first))
+		goto err;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_LAST_DISTANCE, last))
+		goto err;
+
+	if (nla_put_u32(phydev->skb, ETHTOOL_A_CABLE_STEP_STEP_DISTANCE, step))
+		goto err;
+
+	nla_nest_end(phydev->skb, nest);
+	return 0;
+
+err:
+	nla_nest_cancel(phydev->skb, nest);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ethnl_cable_test_step);

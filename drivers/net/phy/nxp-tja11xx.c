@@ -194,7 +194,7 @@ static int tja11xx_config_aneg_cable_test(struct phy_device *phydev)
 	    !phydev->drv->cable_test_get_status)
 		return 0;
 
-	ret = ethnl_cable_test_alloc(phydev);
+	ret = ethnl_cable_test_alloc(phydev, ETHTOOL_MSG_CABLE_TEST_NTF);
 	if (ret)
 		return ret;
 
