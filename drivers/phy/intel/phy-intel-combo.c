@@ -134,7 +134,7 @@ static inline void combo_phy_w32_off_mask(void __iomem *base, unsigned int reg,
 
 	reg_val = readl(base + reg);
 	reg_val &= ~mask;
-	reg_val |= FIELD_PREP(mask, val);
+	reg_val |= val;
 	writel(reg_val, base + reg);
 }
 
@@ -169,7 +169,7 @@ static int intel_cbphy_pcie_en_pad_refclk(struct intel_cbphy_iphy *iphy)
 		return 0;
 
 	combo_phy_w32_off_mask(cbphy->app_base, PCIE_PHY_GEN_CTRL,
-			       PCIE_PHY_CLK_PAD, 0);
+			       PCIE_PHY_CLK_PAD, FIELD_PREP(PCIE_PHY_CLK_PAD, 0));
 
 	/* Delay for stable clock PLL */
 	usleep_range(50, 100);
@@ -192,7 +192,7 @@ static int intel_cbphy_pcie_dis_pad_refclk(struct intel_cbphy_iphy *iphy)
 		return 0;
 
 	combo_phy_w32_off_mask(cbphy->app_base, PCIE_PHY_GEN_CTRL,
-			       PCIE_PHY_CLK_PAD, 1);
+			       PCIE_PHY_CLK_PAD, FIELD_PREP(PCIE_PHY_CLK_PAD, 1));
 
 	return 0;
 }
@@ -385,7 +385,7 @@ static int intel_cbphy_calibrate(struct phy *phy)
 
 	/* trigger auto RX adaptation */
 	combo_phy_w32_off_mask(cr_base, CR_ADDR(PCS_XF_ATE_OVRD_IN_2, id),
-			       ADAPT_REQ_MSK, 3);
+			       ADAPT_REQ_MSK, FIELD_PREP(ADAPT_REQ_MSK, 3));
 	/* Wait RX adaptation to finish */
 	ret = readl_poll_timeout(cr_base + CR_ADDR(PCS_XF_RX_ADAPT_ACK, id),
 				 val, val & RX_ADAPT_ACK_BIT, 10, 5000);
@@ -396,7 +396,7 @@ static int intel_cbphy_calibrate(struct phy *phy)
 
 	/* Stop RX adaptation */
 	combo_phy_w32_off_mask(cr_base, CR_ADDR(PCS_XF_ATE_OVRD_IN_2, id),
-			       ADAPT_REQ_MSK, 0);
+			       ADAPT_REQ_MSK, FIELD_PREP(ADAPT_REQ_MSK, 0));
 
 	return ret;
 }
