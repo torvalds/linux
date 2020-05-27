@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2019 Intel Corporation
+ * Copyright (c) 2018 - 2020 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -859,6 +859,7 @@ enum ieee80211_ht_chanwidth_values {
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ: 40 MHz channel width
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ: 80 MHz channel width
  * @IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ: 160 MHz or 80+80 MHz channel width
+ * @IEEE80211_OPMODE_NOTIF_BW_160_80P80: 160 / 80+80 MHz indicator flag
  * @IEEE80211_OPMODE_NOTIF_RX_NSS_MASK: number of spatial streams mask
  *	(the NSS value is the value of this field + 1)
  * @IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT: number of spatial streams shift
@@ -866,11 +867,12 @@ enum ieee80211_ht_chanwidth_values {
  *	using a beamforming steering matrix
  */
 enum ieee80211_vht_opmode_bits {
-	IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK	= 3,
+	IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK	= 0x03,
 	IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ	= 0,
 	IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ	= 1,
 	IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ	= 2,
 	IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ	= 3,
+	IEEE80211_OPMODE_NOTIF_BW_160_80P80	= 0x04,
 	IEEE80211_OPMODE_NOTIF_RX_NSS_MASK	= 0x70,
 	IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT	= 4,
 	IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF	= 0x80,
@@ -1065,6 +1067,7 @@ struct ieee80211_mgmt {
 /* Supported rates membership selectors */
 #define BSS_MEMBERSHIP_SELECTOR_HT_PHY	127
 #define BSS_MEMBERSHIP_SELECTOR_VHT_PHY	126
+#define BSS_MEMBERSHIP_SELECTOR_HE_PHY	122
 
 /* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE offsetof(struct ieee80211_mgmt, u.action.u)
@@ -1731,6 +1734,9 @@ struct ieee80211_mu_edca_param_set {
  * @ext_nss_bw_capable: indicates whether or not the local transmitter
  *	(rate scaling algorithm) can deal with the new logic
  *	(dot11VHTExtendedNSSBWCapable)
+ * @max_vht_nss: current maximum NSS as advertised by the STA in
+ *	operating mode notification, can be 0 in which case the
+ *	capability data will be used to derive this (from MCS support)
  *
  * Due to the VHT Extended NSS Bandwidth Support, the maximum NSS can
  * vary for a given BW/MCS. This function parses the data.
@@ -1739,7 +1745,8 @@ struct ieee80211_mu_edca_param_set {
  */
 int ieee80211_get_vht_max_nss(struct ieee80211_vht_cap *cap,
 			      enum ieee80211_vht_chanwidth bw,
-			      int mcs, bool ext_nss_bw_capable);
+			      int mcs, bool ext_nss_bw_capable,
+			      unsigned int max_vht_nss);
 
 /* 802.11ax HE MAC capabilities */
 #define IEEE80211_HE_MAC_CAP0_HTC_HE				0x01
@@ -3322,6 +3329,16 @@ static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
 /* convert time units */
 #define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
 #define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
+
+/* convert frequencies */
+#define MHZ_TO_KHZ(freq) ((freq) * 1000)
+#define KHZ_TO_MHZ(freq) ((freq) / 1000)
+
+/* convert powers */
+#define DBI_TO_MBI(gain) ((gain) * 100)
+#define MBI_TO_DBI(gain) ((gain) / 100)
+#define DBM_TO_MBM(gain) ((gain) * 100)
+#define MBM_TO_DBM(gain) ((gain) / 100)
 
 /**
  * ieee80211_action_contains_tpc - checks if the frame contains TPC element

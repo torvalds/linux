@@ -635,6 +635,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 	[NL80211_ATTR_CONTROL_PORT_NO_PREAUTH] = { .type = NLA_FLAG },
 	[NL80211_ATTR_PMK_LIFETIME] = NLA_POLICY_MIN(NLA_U32, 1),
 	[NL80211_ATTR_PMK_REAUTH_THRESHOLD] = NLA_POLICY_RANGE(NLA_U8, 1, 100),
+	[NL80211_ATTR_RECEIVE_MULTICAST] = { .type = NLA_FLAG },
 };
 
 /* policy for the key attributes */
@@ -3860,14 +3861,25 @@ static int nl80211_get_key(struct sk_buff *skb, struct genl_info *info)
 	};
 	void *hdr;
 	struct sk_buff *msg;
+	bool bigtk_support = false;
+
+	if (wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+		bigtk_support = true;
+
+	if ((dev->ieee80211_ptr->iftype == NL80211_IFTYPE_STATION ||
+	     dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_CLIENT) &&
+	    wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
+		bigtk_support = true;
 
 	if (info->attrs[NL80211_ATTR_KEY_IDX]) {
 		key_idx = nla_get_u8(info->attrs[NL80211_ATTR_KEY_IDX]);
-		if (key_idx > 5 &&
-		    !wiphy_ext_feature_isset(
-			    &rdev->wiphy,
-			    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+
+		if (key_idx >= 6 && key_idx <= 7 && !bigtk_support) {
+			GENL_SET_ERR_MSG(info, "BIGTK not supported");
 			return -EINVAL;
+		}
 	}
 
 	if (info->attrs[NL80211_ATTR_MAC])
@@ -4679,6 +4691,8 @@ static void nl80211_check_ap_rate_selectors(struct cfg80211_ap_settings *params,
 			params->ht_required = true;
 		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_VHT_PHY)
 			params->vht_required = true;
+		if (rates[2 + i] == BSS_MEMBERSHIP_SELECTOR_HE_PHY)
+			params->he_required = true;
 	}
 }
 
@@ -10726,9 +10740,18 @@ static int nl80211_register_mgmt(struct sk_buff *skb, struct genl_info *info)
 	if (!rdev->ops->mgmt_tx)
 		return -EOPNOTSUPP;
 
+	if (info->attrs[NL80211_ATTR_RECEIVE_MULTICAST] &&
+	    !wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_MULTICAST_REGISTRATIONS)) {
+		GENL_SET_ERR_MSG(info,
+				 "multicast RX registrations are not supported");
+		return -EOPNOTSUPP;
+	}
+
 	return cfg80211_mlme_register_mgmt(wdev, info->snd_portid, frame_type,
 					   nla_data(info->attrs[NL80211_ATTR_FRAME_MATCH]),
 					   nla_len(info->attrs[NL80211_ATTR_FRAME_MATCH]),
+					   info->attrs[NL80211_ATTR_RECEIVE_MULTICAST],
 					   info->extack);
 }
 
@@ -15495,10 +15518,19 @@ void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev, const u8 *buf,
 	if (WARN_ON(len < 2))
 		return;
 
-	if (ieee80211_is_deauth(mgmt->frame_control))
+	if (ieee80211_is_deauth(mgmt->frame_control)) {
 		cmd = NL80211_CMD_UNPROT_DEAUTHENTICATE;
-	else
+	} else if (ieee80211_is_disassoc(mgmt->frame_control)) {
 		cmd = NL80211_CMD_UNPROT_DISASSOCIATE;
+	} else if (ieee80211_is_beacon(mgmt->frame_control)) {
+		if (wdev->unprot_beacon_reported &&
+		    elapsed_jiffies_msecs(wdev->unprot_beacon_reported) < 10000)
+			return;
+		cmd = NL80211_CMD_UNPROT_BEACON;
+		wdev->unprot_beacon_reported = jiffies;
+	} else {
+		return;
+	}
 
 	trace_cfg80211_rx_unprot_mlme_mgmt(dev, buf, len);
 	nl80211_send_mlme_event(rdev, dev, buf, len, cmd, GFP_ATOMIC, -1,

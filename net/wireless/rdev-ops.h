@@ -819,13 +819,16 @@ rdev_set_cqm_txe_config(struct cfg80211_registered_device *rdev,
 }
 
 static inline void
-rdev_mgmt_frame_register(struct cfg80211_registered_device *rdev,
-			 struct wireless_dev *wdev, u16 frame_type, bool reg)
+rdev_update_mgmt_frame_registrations(struct cfg80211_registered_device *rdev,
+				     struct wireless_dev *wdev,
+				     struct mgmt_frame_regs *upd)
 {
 	might_sleep();
 
-	trace_rdev_mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
-	rdev->ops->mgmt_frame_register(&rdev->wiphy, wdev , frame_type, reg);
+	trace_rdev_update_mgmt_frame_registrations(&rdev->wiphy, wdev, upd);
+	if (rdev->ops->update_mgmt_frame_registrations)
+		rdev->ops->update_mgmt_frame_registrations(&rdev->wiphy, wdev,
+							   upd);
 	trace_rdev_return_void(&rdev->wiphy);
 }
 
