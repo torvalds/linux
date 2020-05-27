@@ -1817,15 +1817,6 @@ static void free_gcr3_table(struct protection_domain *domain)
 	free_page((unsigned long)domain->gcr3_tbl);
 }
 
-/*
- * little helper function to check whether a given protection domain is a
- * dma_ops domain
- */
-static bool dma_ops_domain(struct protection_domain *domain)
-{
-	return domain->flags & PD_DMA_OPS_MASK;
-}
-
 static void set_dte_entry(u16 devid, struct protection_domain *domain,
 			  struct domain_pgtable *pgtable,
 			  bool ats, bool ppr)
@@ -2408,11 +2399,9 @@ static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 	domain->domain.geometry.aperture_end   = ~0ULL;
 	domain->domain.geometry.force_aperture = true;
 
-	if (type == IOMMU_DOMAIN_DMA) {
-		if (iommu_get_dma_cookie(&domain->domain) == -ENOMEM)
-			goto free_domain;
-		domain->flags = PD_DMA_OPS_MASK;
-	}
+	if (type == IOMMU_DOMAIN_DMA &&
+	    iommu_get_dma_cookie(&domain->domain) == -ENOMEM)
+		goto free_domain;
 
 	return &domain->domain;
 
@@ -3024,17 +3013,18 @@ struct iommu_domain *amd_iommu_get_v2_domain(struct pci_dev *pdev)
 	if (!check_device(dev))
 		return NULL;
 
-	pdomain = get_dev_data(dev)->domain;
+	pdomain   = get_dev_data(dev)->domain;
+	io_domain = iommu_get_domain_for_dev(dev);
 	if (pdomain == NULL && get_dev_data(dev)->defer_attach) {
 		get_dev_data(dev)->defer_attach = false;
-		io_domain = iommu_get_domain_for_dev(dev);
 		pdomain = to_pdomain(io_domain);
 		attach_device(dev, pdomain);
 	}
+
 	if (pdomain == NULL)
 		return NULL;
 
-	if (!dma_ops_domain(pdomain))
+	if (io_domain->type != IOMMU_DOMAIN_DMA)
 		return NULL;
 
 	/* Only return IOMMUv2 domains */
