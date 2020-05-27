@@ -486,7 +486,9 @@ struct afs_server {
 
 	struct afs_addr_list	__rcu *addresses;
 	struct afs_cell		*cell;		/* Cell to which belongs (pins ref) */
-	struct rb_node		uuid_rb;	/* Link in cell->fs_servers */
+	struct rb_node		uuid_rb;	/* Link in net->fs_servers */
+	struct afs_server __rcu	*uuid_next;	/* Next server with same UUID */
+	struct afs_server	*uuid_prev;	/* Previous server with same UUID */
 	struct list_head	probe_link;	/* Link in net->fs_probe_list */
 	struct hlist_node	addr4_link;	/* Link in net->fs_addresses4 */
 	struct hlist_node	addr6_link;	/* Link in net->fs_addresses6 */

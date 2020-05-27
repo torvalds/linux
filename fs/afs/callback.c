@@ -21,11 +21,17 @@
 #include "internal.h"
 
 /*
- * allow the fileserver to request callback state (re-)initialisation
+ * Allow the fileserver to request callback state (re-)initialisation.
+ * Unfortunately, UUIDs are not guaranteed unique.
  */
 void afs_init_callback_state(struct afs_server *server)
 {
-	server->cb_s_break++;
+	rcu_read_lock();
+	do {
+		server->cb_s_break++;
+		server = rcu_dereference(server->uuid_next);
+	} while (0);
+	rcu_read_unlock();
 }
 
 /*

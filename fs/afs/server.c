@@ -130,13 +130,15 @@ struct afs_server *afs_find_server_by_uuid(struct afs_net *net, const uuid_t *uu
 }
 
 /*
- * Install a server record in the namespace tree
+ * Install a server record in the namespace tree.  If there's a clash, we stick
+ * it into a list anchored on whichever afs_server struct is actually in the
+ * tree.
  */
 static struct afs_server *afs_install_server(struct afs_cell *cell,
 					     struct afs_server *candidate)
 {
 	const struct afs_addr_list *alist;
-	struct afs_server *server;
+	struct afs_server *server, *next;
 	struct afs_net *net = cell->net;
 	struct rb_node **pp, *p;
 	int diff;
@@ -153,12 +155,30 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 		_debug("- consider %p", p);
 		server = rb_entry(p, struct afs_server, uuid_rb);
 		diff = memcmp(&candidate->uuid, &server->uuid, sizeof(uuid_t));
-		if (diff < 0)
+		if (diff < 0) {
 			pp = &(*pp)->rb_left;
-		else if (diff > 0)
+		} else if (diff > 0) {
 			pp = &(*pp)->rb_right;
-		else
-			goto exists;
+		} else {
+			if (server->cell == cell)
+				goto exists;
+
+			/* We have the same UUID representing servers in
+			 * different cells.  Append the new server to the list.
+			 */
+			for (;;) {
+				next = rcu_dereference_protected(
+					server->uuid_next,
+					lockdep_is_held(&net->fs_lock.lock));
+				if (!next)
+					break;
+				server = next;
+			}
+			rcu_assign_pointer(server->uuid_next, candidate);
+			candidate->uuid_prev = server;
+			server = candidate;
+			goto added_dup;
+		}
 	}
 
 	server = candidate;
@@ -166,6 +186,7 @@ static struct afs_server *afs_install_server(struct afs_cell *cell,
 	rb_insert_color(&server->uuid_rb, &net->fs_servers);
 	hlist_add_head_rcu(&server->proc_link, &net->fs_proc);
 
+added_dup:
 	write_seqlock(&net->fs_addr_lock);
 	alist = rcu_dereference_protected(server->addresses,
 					  lockdep_is_held(&net->fs_addr_lock.lock));
@@ -453,7 +474,7 @@ static void afs_destroy_server(struct afs_net *net, struct afs_server *server)
  */
 static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 {
-	struct afs_server *server;
+	struct afs_server *server, *next, *prev;
 	int active;
 
 	while ((server = gc_list)) {
@@ -465,7 +486,26 @@ static void afs_gc_servers(struct afs_net *net, struct afs_server *gc_list)
 		if (active == 0) {
 			trace_afs_server(server, atomic_read(&server->ref),
 					 active, afs_server_trace_gc);
-			rb_erase(&server->uuid_rb, &net->fs_servers);
+			next = rcu_dereference_protected(
+				server->uuid_next, lockdep_is_held(&net->fs_lock.lock));
+			prev = server->uuid_prev;
+			if (!prev) {
+				/* The one at the front is in the tree */
+				if (!next) {
+					rb_erase(&server->uuid_rb, &net->fs_servers);
+				} else {
+					rb_replace_node_rcu(&server->uuid_rb,
+							    &next->uuid_rb,
+							    &net->fs_servers);
+					next->uuid_prev = NULL;
+				}
+			} else {
+				/* This server is not at the front */
+				rcu_assign_pointer(prev->uuid_next, next);
+				if (next)
+					next->uuid_prev = prev;
+			}
+
 			list_del(&server->probe_link);
 			hlist_del_rcu(&server->proc_link);
 			if (!hlist_unhashed(&server->addr4_link))
