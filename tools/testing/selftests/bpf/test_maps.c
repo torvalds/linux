@@ -1394,11 +1394,11 @@ static void test_map_rdonly(void)
 
 	key = 1;
 	value = 1234;
-	/* Insert key=1 element. */
+	/* Try to insert key=1 element. */
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == -1 &&
 	       errno == EPERM);
 
-	/* Check that key=2 is not found. */
+	/* Check that key=1 is not found. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == ENOENT);
 
@@ -1422,7 +1422,7 @@ static void test_map_wronly(void)
 	/* Insert key=1 element. */
 	assert(bpf_map_update_elem(fd, &key, &value, BPF_ANY) == 0);
 
-	/* Check that key=2 is not found. */
+	/* Check that reading elements and keys from the map is not allowed. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == EPERM);
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
 
