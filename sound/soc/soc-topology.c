@@ -2685,12 +2685,6 @@ static int soc_valid_header(struct soc_tplg *tplg,
 		return -EINVAL;
 	}
 
-	if (tplg->pass == le32_to_cpu(hdr->type))
-		dev_dbg(tplg->dev,
-			"ASoC: Got 0x%x bytes of type %d version %d vendor %d at pass %d\n",
-			hdr->payload_size, hdr->type, hdr->version,
-			hdr->vendor_type, tplg->pass);
-
 	return 1;
 }
 
@@ -2698,6 +2692,10 @@ static int soc_valid_header(struct soc_tplg *tplg,
 static int soc_tplg_load_header(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
+	int (*elem_load)(struct soc_tplg *tplg,
+			 struct snd_soc_tplg_hdr *hdr);
+	unsigned int hdr_pass;
+
 	tplg->pos = tplg->hdr_pos + sizeof(struct snd_soc_tplg_hdr);
 
 	/* check for matching ID */
@@ -2711,24 +2709,48 @@ static int soc_tplg_load_header(struct soc_tplg *tplg,
 	case SND_SOC_TPLG_TYPE_MIXER:
 	case SND_SOC_TPLG_TYPE_ENUM:
 	case SND_SOC_TPLG_TYPE_BYTES:
-		return soc_tplg_kcontrol_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_MIXER;
+		elem_load = soc_tplg_kcontrol_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAPM_GRAPH:
-		return soc_tplg_dapm_graph_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_GRAPH;
+		elem_load = soc_tplg_dapm_graph_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAPM_WIDGET:
-		return soc_tplg_dapm_widget_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_WIDGET;
+		elem_load = soc_tplg_dapm_widget_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_PCM:
-		return soc_tplg_pcm_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_PCM_DAI;
+		elem_load = soc_tplg_pcm_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAI:
-		return soc_tplg_dai_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_BE_DAI;
+		elem_load = soc_tplg_dai_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_DAI_LINK:
 	case SND_SOC_TPLG_TYPE_BACKEND_LINK:
 		/* physical link configurations */
-		return soc_tplg_link_elems_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_LINK;
+		elem_load = soc_tplg_link_elems_load;
+		break;
 	case SND_SOC_TPLG_TYPE_MANIFEST:
-		return soc_tplg_manifest_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_MANIFEST;
+		elem_load = soc_tplg_manifest_load;
+		break;
 	default:
 		/* bespoke vendor data object */
-		return soc_tplg_vendor_load(tplg, hdr);
+		hdr_pass = SOC_TPLG_PASS_VENDOR;
+		elem_load = soc_tplg_vendor_load;
+		break;
+	}
+
+	if (tplg->pass == hdr_pass) {
+		dev_dbg(tplg->dev,
+			"ASoC: Got 0x%x bytes of type %d version %d vendor %d at pass %d\n",
+			hdr->payload_size, hdr->type, hdr->version,
+			hdr->vendor_type, tplg->pass);
+		return elem_load(tplg, hdr);
 	}
 
 	return 0;
