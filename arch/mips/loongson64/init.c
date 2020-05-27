@@ -5,6 +5,7 @@
  */
 
 #include <linux/irqchip.h>
+#include <linux/logic_pio.h>
 #include <linux/memblock.h>
 #include <asm/bootinfo.h>
 #include <asm/traps.h>
@@ -45,8 +46,7 @@ void __init prom_init(void)
 	prom_init_env();
 
 	/* init base address of io space */
-	set_io_port_base((unsigned long)
-		ioremap(LOONGSON_PCIIO_BASE, LOONGSON_PCIIO_SIZE));
+	set_io_port_base(PCI_IOBASE);
 
 	loongson_sysconf.early_config();
 
@@ -63,7 +63,45 @@ void __init prom_free_prom_memory(void)
 {
 }
 
+static __init void reserve_pio_range(void)
+{
+	struct logic_pio_hwaddr *range;
+
+	range = kzalloc(sizeof(*range), GFP_ATOMIC);
+	if (!range)
+		return;
+
+	range->fwnode = &of_root->fwnode;
+	range->size = MMIO_LOWER_RESERVED;
+	range->hw_start = LOONGSON_PCIIO_BASE;
+	range->flags = LOGIC_PIO_CPU_MMIO;
+
+	if (logic_pio_register_range(range)) {
+		pr_err("Failed to reserve PIO range for legacy ISA\n");
+		goto free_range;
+	}
+
+	if (WARN(range->io_start != 0,
+			"Reserved PIO range does not start from 0\n"))
+		goto unregister;
+
+	/*
+	 * i8259 would access I/O space, so mapping must be done here.
+	 * Please remove it when all drivers can be managed by logic_pio.
+	 */
+	ioremap_page_range(PCI_IOBASE, PCI_IOBASE + MMIO_LOWER_RESERVED,
+				LOONGSON_PCIIO_BASE,
+				pgprot_device(PAGE_KERNEL));
+
+	return;
+unregister:
+	logic_pio_unregister_range(range);
+free_range:
+	kfree(range);
+}
+
 void __init arch_init_irq(void)
 {
+	reserve_pio_range();
 	irqchip_init();
 }
