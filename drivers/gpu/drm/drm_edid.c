@@ -3236,7 +3236,8 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 /*
  * Search EDID for CEA extension block.
  */
-static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
+static u8 *drm_find_edid_extension(const struct edid *edid,
+				   int ext_id, int *ext_index)
 {
 	u8 *edid_ext = NULL;
 	int i;
@@ -3246,23 +3247,26 @@ static u8 *drm_find_edid_extension(const struct edid *edid, int ext_id)
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = 0; i < edid->extensions; i++) {
+	for (i = *ext_index; i < edid->extensions; i++) {
 		edid_ext = (u8 *)edid + EDID_LENGTH * (i + 1);
 		if (edid_ext[0] == ext_id)
 			break;
 	}
 
-	if (i == edid->extensions)
+	if (i >= edid->extensions)
 		return NULL;
+
+	*ext_index = i + 1;
 
 	return edid_ext;
 }
 
 
 static u8 *drm_find_displayid_extension(const struct edid *edid,
-					int *length, int *idx)
+					int *length, int *idx,
+					int *ext_index)
 {
-	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT);
+	u8 *displayid = drm_find_edid_extension(edid, DISPLAYID_EXT, ext_index);
 	struct displayid_hdr *base;
 	int ret;
 
@@ -3289,14 +3293,18 @@ static u8 *drm_find_cea_extension(const struct edid *edid)
 	struct displayid_block *block;
 	u8 *cea;
 	u8 *displayid;
+	int ext_index;
 
 	/* Look for a top level CEA extension block */
-	cea = drm_find_edid_extension(edid, CEA_EXT);
+	ext_index = 0;
+	cea = drm_find_edid_extension(edid, CEA_EXT, &ext_index);
 	if (cea)
 		return cea;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
-	displayid = drm_find_displayid_extension(edid, &length, &idx);
+	ext_index = 0;
+	displayid = drm_find_displayid_extension(edid, &length, &idx,
+						 &ext_index);
 	if (!displayid)
 		return NULL;
 
@@ -5246,8 +5254,10 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	int length, idx;
 	struct displayid_block *block;
 	int num_modes = 0;
+	int ext_index = 0;
 
-	displayid = drm_find_displayid_extension(edid, &length, &idx);
+	displayid = drm_find_displayid_extension(edid, &length, &idx,
+						 &ext_index);
 	if (!displayid)
 		return 0;
 
@@ -5922,11 +5932,13 @@ void drm_update_tile_info(struct drm_connector *connector,
 			  const struct edid *edid)
 {
 	const void *displayid = NULL;
+	int ext_index = 0;
 	int length, idx;
 	int ret;
 
 	connector->has_tile = false;
-	displayid = drm_find_displayid_extension(edid, &length, &idx);
+	displayid = drm_find_displayid_extension(edid, &length, &idx,
+						 &ext_index);
 	if (!displayid) {
 		/* drop reference to any tile group we had */
 		goto out_drop_ref;
