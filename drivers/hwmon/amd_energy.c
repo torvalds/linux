@@ -379,8 +379,10 @@ static int __init amd_energy_init(void)
 		return ret;
 
 	amd_energy_platdev = platform_device_alloc(DRVNAME, 0);
-	if (!amd_energy_platdev)
+	if (!amd_energy_platdev) {
+		platform_driver_unregister(&amd_energy_driver);
 		return -ENOMEM;
+	}
 
 	ret = platform_device_add(amd_energy_platdev);
 	if (ret) {
