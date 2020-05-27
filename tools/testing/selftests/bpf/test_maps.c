@@ -1410,7 +1410,7 @@ static void test_map_wronly(void)
 	fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(key), sizeof(value),
 			    MAP_SIZE, map_flags | BPF_F_WRONLY);
 	if (fd < 0) {
-		printf("Failed to create map for read only test '%s'!\n",
+		printf("Failed to create map for write only test '%s'!\n",
 		       strerror(errno));
 		exit(1);
 	}
