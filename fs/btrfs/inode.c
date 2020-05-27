@@ -1359,6 +1359,8 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 			   const u64 start, const u64 end,
 			   int *page_started, unsigned long *nr_written)
 {
+	const bool is_space_ino = btrfs_is_free_space_inode(BTRFS_I(inode));
+	const u64 range_bytes = end + 1 - start;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	u64 range_start = start;
 	u64 count;
@@ -1386,19 +1388,27 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 	 *    that if the COW path fails for any reason, it decrements (through
 	 *    extent_clear_unlock_delalloc()) the bytes_may_use counter of the
 	 *    data space info, which we incremented in the step above.
+	 *
+	 * If we need to fallback to cow and the inode corresponds to a free
+	 * space cache inode, we must also increment bytes_may_use of the data
+	 * space_info for the same reason. Space caches always get a prealloc
+	 * extent for them, however scrub or balance may have set the block
+	 * group that contains that extent to RO mode.
 	 */
-	count = count_range_bits(io_tree, &range_start, end, end + 1 - start,
+	count = count_range_bits(io_tree, &range_start, end, range_bytes,
 				 EXTENT_NORESERVE, 0);
-	if (count > 0) {
+	if (count > 0 || is_space_ino) {
+		const u64 bytes = is_space_ino ? range_bytes : count;
 		struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 		struct btrfs_space_info *sinfo = fs_info->data_sinfo;
 
 		spin_lock(&sinfo->lock);
-		btrfs_space_info_update_bytes_may_use(fs_info, sinfo, count);
+		btrfs_space_info_update_bytes_may_use(fs_info, sinfo, bytes);
 		spin_unlock(&sinfo->lock);
 
-		clear_extent_bit(io_tree, start, end, EXTENT_NORESERVE, 0, 0,
-				 NULL);
+		if (count > 0)
+			clear_extent_bit(io_tree, start, end, EXTENT_NORESERVE,
+					 0, 0, NULL);
 	}
 
 	return cow_file_range(inode, locked_page, start, end, page_started,
