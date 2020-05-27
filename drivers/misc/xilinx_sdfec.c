@@ -648,7 +648,7 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 			 ((reg * XSDFEC_REG_WIDTH_JUMP) % PAGE_SIZE));
 		put_page(pages[i]);
 	}
-	return reg;
+	return 0;
 }
 
 static int xsdfec_add_ldpc(struct xsdfec_dev *xsdfec, void __user *arg)
@@ -722,8 +722,6 @@ static int xsdfec_add_ldpc(struct xsdfec_dev *xsdfec, void __user *arg)
 	ret = xsdfec_table_write(xsdfec, 4 * ldpc->qc_off, ldpc->qc_table,
 				 ldpc->nqc, XSDFEC_LDPC_QC_TABLE_ADDR_BASE,
 				 XSDFEC_QC_TABLE_DEPTH);
-	if (ret > 0)
-		ret = 0;
 err_out:
 	kfree(ldpc);
 	return ret;
