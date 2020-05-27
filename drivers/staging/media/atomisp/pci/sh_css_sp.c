@@ -839,6 +839,17 @@ configure_isp_from_args(
 	ia_css_dvs_configure(binary, &args->out_frame[0]->info);
 	ia_css_output_configure(binary, &args->out_frame[0]->info);
 	ia_css_raw_configure(pipeline, binary, &args->in_frame->info, &binary->in_frame_info, two_ppc, deinterleaved);
+
+	/*
+	 * FIXME: args->delay_frames can be NULL here
+	 *
+	 * Somehow, the driver at the Intel Atom Yocto tree doesn't seem to
+	 * suffer from the same issue.
+	 *
+	 * Anyway, the function below should now handle a NULL delay_frames
+	 * without crashing, but the pipeline should likely be built without
+	 * adding it at the first place (or there are a hidden bug somewhere)
+	 */
 	ia_css_ref_configure(binary, args->delay_frames, pipeline->dvs_frame_delay);
 	ia_css_tnr_configure(binary, args->tnr_frames);
 	ia_css_bayer_io_config(binary, args);
