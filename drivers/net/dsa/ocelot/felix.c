@@ -594,6 +594,7 @@ static int felix_setup(struct dsa_switch *ds)
 				 ANA_FLOODING, tc);
 
 	ds->mtu_enforcement_ingress = true;
+	ds->configure_vlan_while_not_filtering = true;
 	/* It looks like the MAC/PCS interrupt register - PM0_IEVENT (0x8040)
 	 * isn't instantiated for the Felix PF.
 	 * In-band AN may take a few ms to complete, so we need to poll.
