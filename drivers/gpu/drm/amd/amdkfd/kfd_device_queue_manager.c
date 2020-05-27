@@ -153,6 +153,52 @@ void decrement_queue_count(struct device_queue_manager *dqm,
 		dqm->active_cp_queue_count--;
 }
 
+int read_sdma_queue_counter(struct queue *q, uint64_t *val)
+{
+	int ret;
+	uint64_t tmp = 0;
+
+	if (!q || !val)
+		return -EINVAL;
+	/*
+	 * SDMA activity counter is stored at queue's RPTR + 0x8 location.
+	 */
+	if (!access_ok((const void __user *)((uint64_t)q->properties.read_ptr +
+					sizeof(uint64_t)), sizeof(uint64_t))) {
+		pr_err("Can't access sdma queue activity counter\n");
+		return -EFAULT;
+	}
+
+	ret = get_user(tmp, (uint64_t *)((uint64_t)(q->properties.read_ptr) +
+						    sizeof(uint64_t)));
+	if (!ret) {
+		*val = tmp;
+	}
+
+	return ret;
+}
+
+static int update_sdma_queue_past_activity_stats(struct kfd_process_device *pdd,
+						 struct queue *q)
+{
+	int ret;
+	uint64_t val = 0;
+
+	if (!pdd)
+		return -ENODEV;
+
+	ret = read_sdma_queue_counter(q, &val);
+	if (ret) {
+		pr_err("Failed to read SDMA queue counter for queue: %d\n",
+				q->properties.queue_id);
+		return ret;
+	}
+
+	pdd->sdma_past_activity_counter += val;
+
+	return ret;
+}
+
 static int allocate_doorbell(struct qcm_process_device *qpd, struct queue *q)
 {
 	struct kfd_dev *dev = qpd->dqm->dev;
@@ -486,6 +532,12 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 				q->pipe, q->queue);
 	if (retval == -ETIME)
 		qpd->reset_wavefronts = true;
+
+	/* Get the SDMA queue stats */
+        if ((q->properties.type == KFD_QUEUE_TYPE_SDMA) ||
+            (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
+                update_sdma_queue_past_activity_stats(qpd_to_pdd(qpd), q);
+        }
 
 	mqd_mgr->free_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 
@@ -1468,6 +1520,11 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 		}
 	}
 
+	/* Get the SDMA queue stats */
+	if ((q->properties.type == KFD_QUEUE_TYPE_SDMA) ||
+	    (q->properties.type == KFD_QUEUE_TYPE_SDMA_XGMI)) {
+		update_sdma_queue_past_activity_stats(qpd_to_pdd(qpd), q);
+	}
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
 	 * type
