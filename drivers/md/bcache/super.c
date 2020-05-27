@@ -2327,6 +2327,7 @@ static ssize_t bch_pending_bdevs_cleanup(struct kobject *k,
 
 kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
+kobj_attribute_write(register_async,	register_bcache);
 kobj_attribute_write(pendings_cleanup,	bch_pending_bdevs_cleanup);
 
 static bool bch_is_open_backing(struct block_device *bdev)
@@ -2360,6 +2361,83 @@ static bool bch_is_open_cache(struct block_device *bdev)
 static bool bch_is_open(struct block_device *bdev)
 {
 	return bch_is_open_cache(bdev) || bch_is_open_backing(bdev);
+}
+
+struct async_reg_args {
+	struct work_struct reg_work;
+	char *path;
+	struct cache_sb *sb;
+	struct cache_sb_disk *sb_disk;
+	struct block_device *bdev;
+};
+
+static void register_bdev_worker(struct work_struct *work)
+{
+	int fail = false;
+	struct async_reg_args *args =
+		container_of(work, struct async_reg_args, reg_work);
+	struct cached_dev *dc;
+
+	dc = kzalloc(sizeof(*dc), GFP_KERNEL);
+	if (!dc) {
+		fail = true;
+		put_page(virt_to_page(args->sb_disk));
+		blkdev_put(args->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+		goto out;
+	}
+
+	mutex_lock(&bch_register_lock);
+	if (register_bdev(args->sb, args->sb_disk, args->bdev, dc) < 0)
+		fail = true;
+	mutex_unlock(&bch_register_lock);
+
+out:
+	if (fail)
+		pr_info("error %s: fail to register backing device\n",
+			args->path);
+	kfree(args->sb);
+	kfree(args->path);
+	kfree(args);
+	module_put(THIS_MODULE);
+}
+
+static void register_cache_worker(struct work_struct *work)
+{
+	int fail = false;
+	struct async_reg_args *args =
+		container_of(work, struct async_reg_args, reg_work);
+	struct cache *ca;
+
+	ca = kzalloc(sizeof(*ca), GFP_KERNEL);
+	if (!ca) {
+		fail = true;
+		put_page(virt_to_page(args->sb_disk));
+		blkdev_put(args->bdev, FMODE_READ | FMODE_WRITE | FMODE_EXCL);
+		goto out;
+	}
+
+	/* blkdev_put() will be called in bch_cache_release() */
+	if (register_cache(args->sb, args->sb_disk, args->bdev, ca) != 0)
+		fail = true;
+
+out:
+	if (fail)
+		pr_info("error %s: fail to register cache device\n",
+			args->path);
+	kfree(args->sb);
+	kfree(args->path);
+	kfree(args);
+	module_put(THIS_MODULE);
+}
+
+static void register_device_aync(struct async_reg_args *args)
+{
+	if (SB_IS_BDEV(args->sb))
+		INIT_WORK(&args->reg_work, register_bdev_worker);
+	else
+		INIT_WORK(&args->reg_work, register_cache_worker);
+
+	queue_work(system_wq, &args->reg_work);
 }
 
 static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
@@ -2424,6 +2502,26 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 		goto out_blkdev_put;
 
 	err = "failed to register device";
+	if (attr == &ksysfs_register_async) {
+		/* register in asynchronous way */
+		struct async_reg_args *args =
+			kzalloc(sizeof(struct async_reg_args), GFP_KERNEL);
+
+		if (!args) {
+			ret = -ENOMEM;
+			err = "cannot allocate memory";
+			goto out_put_sb_page;
+		}
+
+		args->path	= path;
+		args->sb	= sb;
+		args->sb_disk	= sb_disk;
+		args->bdev	= bdev;
+		register_device_aync(args);
+		/* No wait and returns to user space */
+		goto async_done;
+	}
+
 	if (SB_IS_BDEV(sb)) {
 		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 
@@ -2451,6 +2549,7 @@ done:
 	kfree(sb);
 	kfree(path);
 	module_put(THIS_MODULE);
+async_done:
 	return size;
 
 out_put_sb_page:
@@ -2666,6 +2765,7 @@ static int __init bcache_init(void)
 	static const struct attribute *files[] = {
 		&ksysfs_register.attr,
 		&ksysfs_register_quiet.attr,
+		&ksysfs_register_async.attr,
 		&ksysfs_pendings_cleanup.attr,
 		NULL
 	};
