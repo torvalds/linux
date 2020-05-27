@@ -2746,6 +2746,10 @@ static int sja1105_vlan_filtering(struct dsa_switch *ds, int port, bool enabled)
 
 	sja1105_frame_memory_partitioning(priv);
 
+	rc = sja1105_build_vlan_table(priv, false);
+	if (rc)
+		return rc;
+
 	rc = sja1105_static_config_reload(priv, SJA1105_VLAN_FILTERING);
 	if (rc)
 		dev_err(ds->dev, "Failed to change VLAN Ethertype\n");
