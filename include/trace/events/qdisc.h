@@ -96,6 +96,29 @@ TRACE_EVENT(qdisc_destroy,
 		  TC_H_MAJ(__entry->handle) >> 16, TC_H_MIN(__entry->handle))
 );
 
+TRACE_EVENT(qdisc_create,
+
+	TP_PROTO(const struct Qdisc_ops *ops, struct net_device *dev, u32 parent),
+
+	TP_ARGS(ops, dev, parent),
+
+	TP_STRUCT__entry(
+		__string(	dev,		dev->name	)
+		__string(	kind,		ops->id		)
+		__field(	u32,		parent		)
+	),
+
+	TP_fast_assign(
+		__assign_str(dev, dev->name);
+		__assign_str(kind, ops->id);
+		__entry->parent = parent;
+	),
+
+	TP_printk("dev=%s kind=%s parent=%x:%x",
+		  __get_str(dev), __get_str(kind),
+		  TC_H_MAJ(__entry->parent) >> 16, TC_H_MIN(__entry->parent))
+);
+
 #endif /* _TRACE_QDISC_H */
 
 /* This part must be outside protection */
