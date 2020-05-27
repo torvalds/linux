@@ -1401,6 +1401,8 @@ static void test_map_rdonly(void)
 	/* Check that key=2 is not found. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == ENOENT);
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == ENOENT);
+
+	close(fd);
 }
 
 static void test_map_wronly(void)
@@ -1423,6 +1425,8 @@ static void test_map_wronly(void)
 	/* Check that key=2 is not found. */
 	assert(bpf_map_lookup_elem(fd, &key, &value) == -1 && errno == EPERM);
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
+
+	close(fd);
 }
 
 static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
