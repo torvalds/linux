@@ -1468,7 +1468,7 @@ out_put_node:
 	return ret;
 }
 
-static int mtk_star_suspend(struct device *dev)
+static __maybe_unused int mtk_star_suspend(struct device *dev)
 {
 	struct mtk_star_priv *priv;
 	struct net_device *ndev;
@@ -1484,7 +1484,7 @@ static int mtk_star_suspend(struct device *dev)
 	return 0;
 }
 
-static int mtk_star_resume(struct device *dev)
+static __maybe_unused int mtk_star_resume(struct device *dev)
 {
 	struct mtk_star_priv *priv;
 	struct net_device *ndev;
