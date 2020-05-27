@@ -1925,6 +1925,7 @@ need_timeslice(const struct intel_engine_cs *engine,
 	if (!list_is_last(&rq->sched.link, &engine->active.requests))
 		hint = max(hint, rq_prio(list_next_entry(rq, sched.link)));
 
+	GEM_BUG_ON(hint >= I915_PRIORITY_UNPREEMPTABLE);
 	return hint >= effective_prio(rq);
 }
 
