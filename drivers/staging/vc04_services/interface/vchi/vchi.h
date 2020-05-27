@@ -100,11 +100,6 @@ extern int32_t vchi_service_use(const struct vchi_service_handle *handle);
 // Routine to decrement ref count on a named service
 extern int32_t vchi_service_release(const struct vchi_service_handle *handle);
 
-// Routine to set a control option for a named service
-extern int32_t vchi_service_set_option(const struct vchi_service_handle *handle,
-				       enum vchi_service_option option,
-				       int value);
-
 /* Routine to send a message from kernel memory across a service */
 extern int
 vchi_queue_kernel_message(struct vchi_service_handle *handle,
