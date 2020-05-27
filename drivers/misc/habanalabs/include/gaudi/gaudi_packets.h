@@ -197,6 +197,9 @@ struct packet_wait {
 	__le32 ctl;
 };
 
+#define GAUDI_PKT_LOAD_AND_EXE_CFG_DST_SHIFT	0
+#define GAUDI_PKT_LOAD_AND_EXE_CFG_DST_MASK	0x00000001
+
 struct packet_load_and_exe {
 	__le32 cfg;
 	__le32 ctl;

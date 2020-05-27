@@ -3790,6 +3790,25 @@ static int gaudi_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 						src_in_host);
 }
 
+static int gaudi_validate_load_and_exe_pkt(struct hl_device *hdev,
+					struct hl_cs_parser *parser,
+					struct packet_load_and_exe *user_pkt)
+{
+	u32 cfg;
+
+	cfg = le32_to_cpu(user_pkt->cfg);
+
+	if (cfg & GAUDI_PKT_LOAD_AND_EXE_CFG_DST_MASK) {
+		dev_err(hdev->dev,
+			"User not allowed to use Load and Execute\n");
+		return -EPERM;
+	}
+
+	parser->patched_cb_size += sizeof(struct packet_load_and_exe);
+
+	return 0;
+}
+
 static int gaudi_validate_cb(struct hl_device *hdev,
 			struct hl_cs_parser *parser, bool is_mmu)
 {
@@ -3838,6 +3857,11 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 			rc = -EPERM;
 			break;
 
+		case PACKET_LOAD_AND_EXE:
+			rc = gaudi_validate_load_and_exe_pkt(hdev, parser,
+				(struct packet_load_and_exe *) user_pkt);
+			break;
+
 		case PACKET_LIN_DMA:
 			parser->contains_dma_pkt = true;
 			if (is_mmu)
@@ -3855,7 +3879,6 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 		case PACKET_FENCE:
 		case PACKET_NOP:
 		case PACKET_ARB_POINT:
-		case PACKET_LOAD_AND_EXE:
 			parser->patched_cb_size += pkt_size;
 			break;
 
