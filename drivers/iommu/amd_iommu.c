@@ -1391,20 +1391,19 @@ static struct page *free_sub_pt(unsigned long root, int mode,
 	return freelist;
 }
 
-static void free_pagetable(struct protection_domain *domain)
+static void free_pagetable(struct domain_pgtable *pgtable)
 {
-	struct domain_pgtable pgtable;
 	struct page *freelist = NULL;
 	unsigned long root;
 
-	amd_iommu_domain_get_pgtable(domain, &pgtable);
-	atomic64_set(&domain->pt_root, 0);
+	if (pgtable->mode == PAGE_MODE_NONE)
+		return;
 
-	BUG_ON(pgtable.mode < PAGE_MODE_NONE ||
-	       pgtable.mode > PAGE_MODE_6_LEVEL);
+	BUG_ON(pgtable->mode < PAGE_MODE_NONE ||
+	       pgtable->mode > PAGE_MODE_6_LEVEL);
 
-	root = (unsigned long)pgtable.root;
-	freelist = free_sub_pt(root, pgtable.mode, freelist);
+	root = (unsigned long)pgtable->root;
+	freelist = free_sub_pt(root, pgtable->mode, freelist);
 
 	free_page_list(freelist);
 }
@@ -1823,12 +1822,16 @@ static void free_gcr3_table(struct protection_domain *domain)
  */
 static void dma_ops_domain_free(struct protection_domain *domain)
 {
+	struct domain_pgtable pgtable;
+
 	if (!domain)
 		return;
 
 	iommu_put_dma_cookie(&domain->domain);
 
-	free_pagetable(domain);
+	amd_iommu_domain_get_pgtable(domain, &pgtable);
+	atomic64_set(&domain->pt_root, 0);
+	free_pagetable(&pgtable);
 
 	if (domain->id)
 		domain_id_free(domain->id);
@@ -2496,9 +2499,8 @@ static void amd_iommu_domain_free(struct iommu_domain *dom)
 		break;
 	default:
 		amd_iommu_domain_get_pgtable(domain, &pgtable);
-
-		if (pgtable.mode != PAGE_MODE_NONE)
-			free_pagetable(domain);
+		atomic64_set(&domain->pt_root, 0);
+		free_pagetable(&pgtable);
 
 		if (domain->flags & PD_IOMMUV2_MASK)
 			free_gcr3_table(domain);
@@ -2796,7 +2798,6 @@ void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 	struct protection_domain *domain = to_pdomain(dom);
 	struct domain_pgtable pgtable;
 	unsigned long flags;
-	u64 pt_root;
 
 	spin_lock_irqsave(&domain->lock, flags);
 
@@ -2804,18 +2805,13 @@ void amd_iommu_domain_direct_map(struct iommu_domain *dom)
 	amd_iommu_domain_get_pgtable(domain, &pgtable);
 
 	/* Update data structure */
-	pt_root = amd_iommu_domain_encode_pgtable(NULL, PAGE_MODE_NONE);
-	atomic64_set(&domain->pt_root, pt_root);
+	atomic64_set(&domain->pt_root, 0);
 
 	/* Make changes visible to IOMMUs */
 	update_domain(domain);
 
-	/* Restore old pgtable in domain->ptroot to free page-table */
-	pt_root = amd_iommu_domain_encode_pgtable(pgtable.root, pgtable.mode);
-	atomic64_set(&domain->pt_root, pt_root);
-
 	/* Page-table is not visible to IOMMU anymore, so free it */
-	free_pagetable(domain);
+	free_pagetable(&pgtable);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 }
