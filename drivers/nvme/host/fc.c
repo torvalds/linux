@@ -108,7 +108,7 @@ struct nvme_fc_fcp_op {
 struct nvme_fcp_op_w_sgl {
 	struct nvme_fc_fcp_op	op;
 	struct scatterlist	sgl[NVME_INLINE_SG_CNT];
-	uint8_t			priv[0];
+	uint8_t			priv[];
 };
 
 struct nvme_fc_lport {
@@ -3246,7 +3246,9 @@ nvme_fc_reconnect_or_delete(struct nvme_fc_ctrl *ctrl, int status)
 			dev_warn(ctrl->ctrl.device,
 				"NVME-FC{%d}: dev_loss_tmo (%d) expired "
 				"while waiting for remoteport connectivity.\n",
-				ctrl->cnum, portptr->dev_loss_tmo);
+				ctrl->cnum, min_t(int, portptr->dev_loss_tmo,
+					(ctrl->ctrl.opts->max_reconnects *
+					 ctrl->ctrl.opts->reconnect_delay)));
 		WARN_ON(nvme_delete_ctrl(&ctrl->ctrl));
 	}
 }
