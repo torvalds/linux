@@ -6,7 +6,6 @@
  * Limitations:
  * - The .apply callback doesn't complete the currently running period before
  *   reconfiguring the hardware.
- * - Each period starts with the inactive part.
  */
 
 #include <linux/clk.h>
@@ -163,7 +162,7 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	/* Calculate duty value */
 	tmp = (unsigned long long)rate * state->duty_cycle;
 	do_div(tmp, NSEC_PER_SEC);
-	duty = period - tmp;
+	duty = tmp;
 
 	if (duty >= period)
 		duty = period - 1;
@@ -189,18 +188,26 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
 			   TCU_TCSR_PWM_SD, TCU_TCSR_PWM_SD);
 
-	/* Set polarity */
-	switch (state->polarity) {
-	case PWM_POLARITY_NORMAL:
+	/*
+	 * Set polarity.
+	 *
+	 * The PWM starts in inactive state until the internal timer reaches the
+	 * duty value, then becomes active until the timer reaches the period
+	 * value. In theory, we should then use (period - duty) as the real duty
+	 * value, as a high duty value would otherwise result in the PWM pin
+	 * being inactive most of the time.
+	 *
+	 * Here, we don't do that, and instead invert the polarity of the PWM
+	 * when it is active. This trick makes the PWM start with its active
+	 * state instead of its inactive state.
+	 */
+	if ((state->polarity == PWM_POLARITY_NORMAL) ^ state->enabled)
 		regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
 				   TCU_TCSR_PWM_INITL_HIGH, 0);
-		break;
-	case PWM_POLARITY_INVERSED:
+	else
 		regmap_update_bits(jz4740->map, TCU_REG_TCSRc(pwm->hwpwm),
 				   TCU_TCSR_PWM_INITL_HIGH,
 				   TCU_TCSR_PWM_INITL_HIGH);
-		break;
-	}
 
 	if (state->enabled)
 		jz4740_pwm_enable(chip, pwm);
