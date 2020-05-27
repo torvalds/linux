@@ -768,10 +768,12 @@ unsigned long efi_main(efi_handle_t handle,
 			efi_err("Failed to load initrd!\n");
 			goto fail;
 		}
-		efi_set_u64_split(addr, &hdr->ramdisk_image,
-				  &boot_params->ext_ramdisk_image);
-		efi_set_u64_split(size, &hdr->ramdisk_size,
-				  &boot_params->ext_ramdisk_size);
+		if (size > 0) {
+			efi_set_u64_split(addr, &hdr->ramdisk_image,
+					  &boot_params->ext_ramdisk_image);
+			efi_set_u64_split(size, &hdr->ramdisk_size,
+					  &boot_params->ext_ramdisk_size);
+		}
 	}
 
 	/*
