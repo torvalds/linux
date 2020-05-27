@@ -173,6 +173,7 @@ struct qpnp_lpg_lut {
 	enum ppg_num_nvmems	nvmem_count;
 	u32			reg_base;
 	u32			*pattern; /* patterns in percentage */
+	u32			ramp_step_tick_us;
 };
 
 struct qpnp_lpg_channel {
@@ -550,8 +551,8 @@ static int qpnp_lpg_set_sdam_ramp_config(struct qpnp_lpg_channel *lpg)
 		return rc;
 	}
 
-	/* Set ramp step duration, one WAIT_TICK is 7.8ms */
-	val = (ramp->step_ms * 1000 / 7800) & 0xff;
+	/* Set ramp step duration, in ticks */
+	val = (ramp->step_ms * 1000 / lpg->chip->lut->ramp_step_tick_us) & 0xff;
 	if (val > 0)
 		val--;
 	addr = SDAM_REG_RAMP_STEP_DURATION;
@@ -1549,6 +1550,7 @@ err:
 	return rc;
 }
 
+#define DEFAULT_TICK_DURATION_US	7800
 static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 {
 	int rc = 0, i;
@@ -1607,6 +1609,10 @@ static int qpnp_lpg_parse_dt(struct qpnp_lpg_chip *chip)
 			of_node_put(chip->pbs_dev_node);
 			return rc;
 		}
+
+		chip->lut->ramp_step_tick_us = DEFAULT_TICK_DURATION_US;
+		of_property_read_u32(chip->dev->of_node, "qcom,tick-period-us",
+				&chip->lut->ramp_step_tick_us);
 
 		rc = qpnp_lpg_parse_pattern_dt(chip, SDAM_LUT_COUNT_MAX);
 		if (rc < 0) {
