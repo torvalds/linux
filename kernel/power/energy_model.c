@@ -78,8 +78,9 @@ core_initcall(em_debug_init);
 #else /* CONFIG_DEBUG_FS */
 static void em_debug_create_pd(struct em_perf_domain *pd, int cpu) {}
 #endif
-static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
-						struct em_data_callback *cb)
+static struct em_perf_domain *
+em_create_pd(struct device *dev, int nr_states, struct em_data_callback *cb,
+	     cpumask_t *span)
 {
 	unsigned long opp_eff, prev_opp_eff = ULONG_MAX;
 	unsigned long power, freq, prev_freq = 0;
@@ -106,7 +107,7 @@ static struct em_perf_domain *em_create_pd(cpumask_t *span, int nr_states,
 		 * lowest performance state of 'cpu' above 'freq' and updates
 		 * 'power' and 'freq' accordingly.
 		 */
-		ret = cb->active_power(&power, &freq, cpu);
+		ret = cb->active_power(&power, &freq, dev);
 		if (ret) {
 			pr_err("pd%d: invalid perf. state: %d\n", cpu, ret);
 			goto free_ps_table;
@@ -237,7 +238,7 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 	}
 
 	/* Create the performance domain and add it to the Energy Model. */
-	pd = em_create_pd(span, nr_states, cb);
+	pd = em_create_pd(dev, nr_states, cb, span);
 	if (!pd) {
 		ret = -EINVAL;
 		goto unlock;
