@@ -1042,7 +1042,9 @@ int atomisp_css_irq_enable(struct atomisp_device *isp,
 		__func__, info,
 		enable ? "enable" : "disable");
 	if (ia_css_irq_enable(info, enable) != IA_CSS_SUCCESS) {
-		dev_warn(isp->dev, "%s:Invalid irq info.\n", __func__);
+		dev_warn(isp->dev, "%s:Invalid irq info: 0x%08x when %s.\n",
+			 __func__, info,
+			 enable ? "enabling" : "disabling");
 		return -EINVAL;
 	}
 
