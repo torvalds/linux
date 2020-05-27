@@ -183,10 +183,11 @@ static inline int start_sync_ep(struct usb_device *usb_dev, u16 ep)
 
 /**
  * get_stream_frame_size - calculate frame size of current configuration
+ * @dev: device structure
  * @cfg: channel configuration
  */
-static unsigned int get_stream_frame_size(struct most_channel_config *cfg,
-					  struct device *dev)
+static unsigned int get_stream_frame_size(struct device *dev,
+					  struct most_channel_config *cfg)
 {
 	unsigned int frame_size = 0;
 	unsigned int sub_size = cfg->subbuffer_size;
@@ -270,7 +271,7 @@ static int hdm_poison_channel(struct most_interface *iface, int channel)
 static int hdm_add_padding(struct most_dev *mdev, int channel, struct mbo *mbo)
 {
 	struct most_channel_config *conf = &mdev->conf[channel];
-	unsigned int frame_size = get_stream_frame_size(conf, &mdev->dev);
+	unsigned int frame_size = get_stream_frame_size(&mdev->dev, conf);
 	unsigned int j, num_frames;
 
 	if (!frame_size)
@@ -304,7 +305,7 @@ static int hdm_remove_padding(struct most_dev *mdev, int channel,
 			      struct mbo *mbo)
 {
 	struct most_channel_config *const conf = &mdev->conf[channel];
-	unsigned int frame_size = get_stream_frame_size(conf, &mdev->dev);
+	unsigned int frame_size = get_stream_frame_size(&mdev->dev, conf);
 	unsigned int j, num_frames;
 
 	if (!frame_size)
@@ -600,7 +601,7 @@ static int hdm_configure_channel(struct most_interface *iface, int channel,
 
 	mdev->padding_active[channel] = true;
 
-	frame_size = get_stream_frame_size(conf, &mdev->dev);
+	frame_size = get_stream_frame_size(&mdev->dev, conf);
 	if (frame_size == 0 || frame_size > USB_MTU) {
 		dev_warn(dev, "Misconfig: frame size wrong\n");
 		return -EINVAL;
