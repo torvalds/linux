@@ -246,8 +246,8 @@ static inline void soc_control_err(struct soc_tplg *tplg,
 }
 
 /* pass vendor data to component driver for processing */
-static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
-	struct snd_soc_tplg_hdr *hdr)
+static int soc_tplg_vendor_load(struct soc_tplg *tplg,
+				struct snd_soc_tplg_hdr *hdr)
 {
 	int ret = 0;
 
@@ -266,16 +266,6 @@ static int soc_tplg_vendor_load_(struct soc_tplg *tplg,
 			soc_tplg_get_hdr_offset(tplg),
 			hdr->type, hdr->vendor_type);
 	return ret;
-}
-
-/* pass vendor data to component driver for processing */
-static int soc_tplg_vendor_load(struct soc_tplg *tplg,
-	struct snd_soc_tplg_hdr *hdr)
-{
-	if (tplg->pass != SOC_TPLG_PASS_VENDOR)
-		return 0;
-
-	return soc_tplg_vendor_load_(tplg, hdr);
 }
 
 /* optionally pass new dynamic widget to component driver. This is mainly for
@@ -1127,12 +1117,6 @@ static int soc_tplg_kcontrol_elems_load(struct soc_tplg *tplg,
 	int ret;
 	int i;
 
-	if (tplg->pass != SOC_TPLG_PASS_MIXER) {
-		tplg->pos += le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-		return 0;
-	}
-
 	dev_dbg(tplg->dev, "ASoC: adding %d kcontrols at 0x%lx\n", hdr->count,
 		soc_tplg_get_offset(tplg));
 
@@ -1203,14 +1187,6 @@ static int soc_tplg_dapm_graph_elems_load(struct soc_tplg *tplg,
 	int ret = 0;
 
 	count = le32_to_cpu(hdr->count);
-
-	if (tplg->pass != SOC_TPLG_PASS_GRAPH) {
-		tplg->pos +=
-			le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-
-		return 0;
-	}
 
 	if (soc_tplg_check_elem_count(tplg,
 		sizeof(struct snd_soc_tplg_dapm_graph_elem),
@@ -1741,9 +1717,6 @@ static int soc_tplg_dapm_widget_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_WIDGET)
-		return 0;
-
 	dev_dbg(tplg->dev, "ASoC: adding %d DAPM widgets\n", count);
 
 	for (i = 0; i < count; i++) {
@@ -2101,9 +2074,6 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_PCM_DAI)
-		return 0;
-
 	/* check the element size and count */
 	pcm = (struct snd_soc_tplg_pcm *)tplg->pos;
 	size = le32_to_cpu(pcm->size);
@@ -2386,12 +2356,6 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_LINK) {
-		tplg->pos += le32_to_cpu(hdr->size) +
-			le32_to_cpu(hdr->payload_size);
-		return 0;
-	}
-
 	/* check the element size and count */
 	link = (struct snd_soc_tplg_link_config *)tplg->pos;
 	size = le32_to_cpu(link->size);
@@ -2528,9 +2492,6 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 
 	count = le32_to_cpu(hdr->count);
 
-	if (tplg->pass != SOC_TPLG_PASS_BE_DAI)
-		return 0;
-
 	/* config the existing BE DAIs */
 	for (i = 0; i < count; i++) {
 		dai = (struct snd_soc_tplg_dai *)tplg->pos;
@@ -2609,9 +2570,6 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_manifest *manifest, *_manifest;
 	bool abi_match;
 	int ret = 0;
-
-	if (tplg->pass != SOC_TPLG_PASS_MANIFEST)
-		return 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
 
