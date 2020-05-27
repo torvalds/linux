@@ -1128,6 +1128,28 @@ void dev_activate(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_activate);
 
+static void qdisc_deactivate(struct Qdisc *qdisc)
+{
+	bool nolock = qdisc->flags & TCQ_F_NOLOCK;
+
+	if (qdisc->flags & TCQ_F_BUILTIN)
+		return;
+	if (test_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state))
+		return;
+
+	if (nolock)
+		spin_lock_bh(&qdisc->seqlock);
+	spin_lock_bh(qdisc_lock(qdisc));
+
+	set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
+
+	qdisc_reset(qdisc);
+
+	spin_unlock_bh(qdisc_lock(qdisc));
+	if (nolock)
+		spin_unlock_bh(&qdisc->seqlock);
+}
+
 static void dev_deactivate_queue(struct net_device *dev,
 				 struct netdev_queue *dev_queue,
 				 void *_qdisc_default)
@@ -1137,21 +1159,8 @@ static void dev_deactivate_queue(struct net_device *dev,
 
 	qdisc = rtnl_dereference(dev_queue->qdisc);
 	if (qdisc) {
-		bool nolock = qdisc->flags & TCQ_F_NOLOCK;
-
-		if (nolock)
-			spin_lock_bh(&qdisc->seqlock);
-		spin_lock_bh(qdisc_lock(qdisc));
-
-		if (!(qdisc->flags & TCQ_F_BUILTIN))
-			set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
-
+		qdisc_deactivate(qdisc);
 		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
-		qdisc_reset(qdisc);
-
-		spin_unlock_bh(qdisc_lock(qdisc));
-		if (nolock)
-			spin_unlock_bh(&qdisc->seqlock);
 	}
 }
 
