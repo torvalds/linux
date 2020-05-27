@@ -143,6 +143,7 @@ static struct platform_driver vexpress_reset_driver = {
 	.driver = {
 		.name = "vexpress-reset",
 		.of_match_table = vexpress_reset_of_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
