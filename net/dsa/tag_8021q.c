@@ -140,34 +140,6 @@ bool vid_is_dsa_8021q(u16 vid)
 }
 EXPORT_SYMBOL_GPL(vid_is_dsa_8021q);
 
-static int dsa_8021q_restore_pvid(struct dsa_switch *ds, int port)
-{
-	struct bridge_vlan_info vinfo;
-	struct net_device *slave;
-	u16 pvid;
-	int err;
-
-	if (!dsa_is_user_port(ds, port))
-		return 0;
-
-	slave = dsa_to_port(ds, port)->slave;
-
-	err = br_vlan_get_pvid(slave, &pvid);
-	if (!pvid || err < 0)
-		/* There is no pvid on the bridge for this port, which is
-		 * perfectly valid. Nothing to restore, bye-bye!
-		 */
-		return 0;
-
-	err = br_vlan_get_info(slave, pvid, &vinfo);
-	if (err < 0) {
-		dev_err(ds->dev, "Couldn't determine PVID attributes\n");
-		return err;
-	}
-
-	return dsa_port_vid_add(dsa_to_port(ds, port), pvid, vinfo.flags);
-}
-
 /* If @enabled is true, installs @vid with @flags into the switch port's HW
  * filter.
  * If @enabled is false, deletes @vid (ignores @flags) from the port. Had the
@@ -178,39 +150,11 @@ static int dsa_8021q_vid_apply(struct dsa_switch *ds, int port, u16 vid,
 			       u16 flags, bool enabled)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct bridge_vlan_info vinfo;
-	int err;
 
 	if (enabled)
 		return dsa_port_vid_add(dp, vid, flags);
 
-	err = dsa_port_vid_del(dp, vid);
-	if (err < 0)
-		return err;
-
-	/* Nothing to restore from the bridge for a non-user port.
-	 * The CPU port VLANs are restored implicitly with the user ports,
-	 * similar to how the bridge does in dsa_slave_vlan_add and
-	 * dsa_slave_vlan_del.
-	 */
-	if (!dsa_is_user_port(ds, port))
-		return 0;
-
-	err = br_vlan_get_info(dp->slave, vid, &vinfo);
-	/* Couldn't determine bridge attributes for this vid,
-	 * it means the bridge had not configured it.
-	 */
-	if (err < 0)
-		return 0;
-
-	/* Restore the VID from the bridge */
-	err = dsa_port_vid_add(dp, vid, vinfo.flags);
-	if (err < 0)
-		return err;
-
-	vinfo.flags &= ~BRIDGE_VLAN_INFO_PVID;
-
-	return dsa_port_vid_add(dp->cpu_dp, vid, vinfo.flags);
+	return dsa_port_vid_del(dp, vid);
 }
 
 /* RX VLAN tagging (left) and TX VLAN tagging (right) setup shown for a single
@@ -328,9 +272,6 @@ int dsa_port_setup_8021q_tagging(struct dsa_switch *ds, int port, bool enabled)
 			tx_vid, upstream, err);
 		return err;
 	}
-
-	if (!enabled)
-		err = dsa_8021q_restore_pvid(ds, port);
 
 	return err;
 }
