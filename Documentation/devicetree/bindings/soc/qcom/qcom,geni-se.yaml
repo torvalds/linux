@@ -45,6 +45,12 @@ properties:
 
   ranges: true
 
+  interconnects:
+    maxItems: 1
+
+  interconnect-names:
+    const: qup-core
+
 required:
   - compatible
   - reg
@@ -71,6 +77,17 @@ patternProperties:
       clocks:
         description: Serial engine core clock needed by the device.
         maxItems: 1
+
+      interconnects:
+         minItems: 2
+         maxItems: 3
+
+      interconnect-names:
+         minItems: 2
+         items:
+           - const: qup-core
+           - const: qup-config
+           - const: qup-memory
 
     required:
       - reg
