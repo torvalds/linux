@@ -369,12 +369,13 @@ static int main_func(void *arg)
 		VERBOSE_PERFOUT_ERRSTRING("out of memory");
 		errexit = true;
 	}
-	atomic_inc(&n_init);
-
-	// Wait for all threads to start.
-	wait_event(main_wq, atomic_read(&n_init) == (nreaders + 1));
 	if (holdoff)
 		schedule_timeout_interruptible(holdoff * HZ);
+
+	// Wait for all threads to start.
+	atomic_inc(&n_init);
+	while (atomic_read(&n_init) < nreaders + 1)
+		schedule_timeout_uninterruptible(1);
 
 	// Start exp readers up per experiment
 	for (exp = 0; exp < nruns && !torture_must_stop(); exp++) {
@@ -565,14 +566,6 @@ ref_perf_init(void)
 	firsterr = torture_create_kthread(main_func, NULL, main_task);
 	if (firsterr)
 		goto unwind;
-	schedule_timeout_uninterruptible(1);
-
-
-	// Wait until all threads start
-	while (atomic_read(&n_init) < nreaders + 1)
-		schedule_timeout_uninterruptible(1);
-
-	wake_up(&main_wq);
 
 	torture_init_end();
 	return 0;
