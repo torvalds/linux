@@ -167,6 +167,7 @@ static struct {
 	u64 fields;
 	u64 invalid_fields;
 	u64 user_set_fields;
+	u64 user_unset_fields;
 } output[OUTPUT_TYPE_MAX] = {
 
 	[PERF_TYPE_HARDWARE] = {
@@ -2131,10 +2132,18 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	sample_type = perf_evlist__combined_sample_type(evlist);
 	callchain_param_setup(sample_type);
 
-	/* Enable fields for callchain entries, if it got enabled. */
-	if (callchain_param.record_mode != CALLCHAIN_NONE) {
-		output[output_type(evsel->core.attr.type)].fields |= PERF_OUTPUT_IP |
-								     PERF_OUTPUT_SYM;
+	/* Enable fields for callchain entries */
+	if (symbol_conf.use_callchain &&
+	    (sample_type & PERF_SAMPLE_CALLCHAIN ||
+	     sample_type & PERF_SAMPLE_BRANCH_STACK ||
+	     (sample_type & PERF_SAMPLE_REGS_USER &&
+	      sample_type & PERF_SAMPLE_STACK_USER))) {
+		int type = output_type(evsel->core.attr.type);
+
+		if (!(output[type].user_unset_fields & PERF_OUTPUT_IP))
+			output[type].fields |= PERF_OUTPUT_IP;
+		if (!(output[type].user_unset_fields & PERF_OUTPUT_SYM))
+			output[type].fields |= PERF_OUTPUT_SYM;
 	}
 	set_print_ip_opts(&evsel->core.attr);
 	return 0;
@@ -2687,9 +2696,11 @@ parse:
 					if (change == REMOVE) {
 						output[j].fields &= ~all_output_options[i].field;
 						output[j].user_set_fields &= ~all_output_options[i].field;
+						output[j].user_unset_fields |= all_output_options[i].field;
 					} else {
 						output[j].fields |= all_output_options[i].field;
 						output[j].user_set_fields |= all_output_options[i].field;
+						output[j].user_unset_fields &= ~all_output_options[i].field;
 					}
 					output[j].user_set = true;
 					output[j].wildcard_set = true;
