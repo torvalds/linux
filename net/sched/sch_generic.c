@@ -911,6 +911,8 @@ void qdisc_reset(struct Qdisc *qdisc)
 	const struct Qdisc_ops *ops = qdisc->ops;
 	struct sk_buff *skb, *tmp;
 
+	trace_qdisc_reset(qdisc);
+
 	if (ops->reset)
 		ops->reset(qdisc);
 
@@ -964,6 +966,8 @@ static void qdisc_destroy(struct Qdisc *qdisc)
 
 	module_put(ops->owner);
 	dev_put(qdisc_dev(qdisc));
+
+	trace_qdisc_destroy(qdisc);
 
 	call_rcu(&qdisc->rcu, qdisc_free_cb);
 }
