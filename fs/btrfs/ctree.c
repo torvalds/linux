@@ -2488,19 +2488,6 @@ done:
 	return ret;
 }
 
-static int key_search(struct extent_buffer *b, const struct btrfs_key *key,
-		      int *prev_cmp, int *slot)
-{
-	if (*prev_cmp != 0) {
-		*prev_cmp = btrfs_bin_search(b, key, slot);
-		return *prev_cmp;
-	}
-
-	*slot = 0;
-
-	return 0;
-}
-
 int btrfs_find_item(struct btrfs_root *fs_root, struct btrfs_path *path,
 		u64 iobjectid, u64 ioff, u8 key_type,
 		struct btrfs_key *found_key)
@@ -2770,9 +2757,23 @@ cow_done:
 			}
 		}
 
-		ret = key_search(b, key, &prev_cmp, &slot);
-		if (ret < 0)
-			goto done;
+		/*
+		 * If btrfs_bin_search returns an exact match (prev_cmp == 0)
+		 * we can safely assume the target key will always be in slot 0
+		 * on lower levels due to the invariants BTRFS' btree provides,
+		 * namely that a btrfs_key_ptr entry always points to the
+		 * lowest key in the child node, thus we can skip searching
+		 * lower levels
+		 */
+		if (prev_cmp == 0) {
+			slot = 0;
+			ret = 0;
+		} else {
+			ret = btrfs_bin_search(b, key, &slot);
+			prev_cmp = ret;
+			if (ret < 0)
+				goto done;
+		}
 
 		if (level == 0) {
 			p->slots[level] = slot;
@@ -2896,7 +2897,6 @@ int btrfs_search_old_slot(struct btrfs_root *root, const struct btrfs_key *key,
 	int level;
 	int lowest_unlock = 1;
 	u8 lowest_level = 0;
-	int prev_cmp = -1;
 
 	lowest_level = p->lowest_level;
 	WARN_ON(p->nodes[0] != NULL);
@@ -2929,12 +2929,7 @@ again:
 		 */
 		btrfs_unlock_up_safe(p, level + 1);
 
-		/*
-		 * Since we can unwind ebs we want to do a real search every
-		 * time.
-		 */
-		prev_cmp = -1;
-		ret = key_search(b, key, &prev_cmp, &slot);
+		ret = btrfs_bin_search(b, key, &slot);
 		if (ret < 0)
 			goto done;
 
