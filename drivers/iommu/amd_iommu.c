@@ -71,6 +71,8 @@
  */
 #define AMD_IOMMU_PGSIZES	((~0xFFFUL) & ~(2ULL << 38))
 
+#define DEFAULT_PGTABLE_LEVEL	PAGE_MODE_3_LEVEL
+
 static DEFINE_SPINLOCK(pd_bitmap_lock);
 
 /* List of all available dev_data structures */
@@ -99,7 +101,7 @@ struct iommu_cmd {
 struct kmem_cache *amd_iommu_irq_cache;
 
 static void update_domain(struct protection_domain *domain);
-static int protection_domain_init(struct protection_domain *domain);
+static int protection_domain_init(struct protection_domain *domain, int mode);
 static void detach_device(struct device *dev);
 static void update_and_flush_device_table(struct protection_domain *domain,
 					  struct domain_pgtable *pgtable);
@@ -1847,21 +1849,14 @@ static void dma_ops_domain_free(struct protection_domain *domain)
 static struct protection_domain *dma_ops_domain_alloc(void)
 {
 	struct protection_domain *domain;
-	u64 *pt_root, root;
 
 	domain = kzalloc(sizeof(struct protection_domain), GFP_KERNEL);
 	if (!domain)
 		return NULL;
 
-	if (protection_domain_init(domain))
+	if (protection_domain_init(domain, DEFAULT_PGTABLE_LEVEL))
 		goto free_domain;
 
-	pt_root = (void *)get_zeroed_page(GFP_KERNEL);
-	if (!pt_root)
-		goto free_domain;
-
-	root = amd_iommu_domain_encode_pgtable(pt_root, PAGE_MODE_3_LEVEL);
-	atomic64_set(&domain->pt_root, root);
 	domain->flags = PD_DMA_OPS_MASK;
 
 	if (iommu_get_dma_cookie(&domain->domain) == -ENOMEM)
@@ -2401,18 +2396,31 @@ static void protection_domain_free(struct protection_domain *domain)
 	kfree(domain);
 }
 
-static int protection_domain_init(struct protection_domain *domain)
+static int protection_domain_init(struct protection_domain *domain, int mode)
 {
+	u64 *pt_root = NULL, root;
+
+	BUG_ON(mode < PAGE_MODE_NONE || mode > PAGE_MODE_6_LEVEL);
+
 	spin_lock_init(&domain->lock);
 	domain->id = domain_id_alloc();
 	if (!domain->id)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&domain->dev_list);
 
+	if (mode != PAGE_MODE_NONE) {
+		pt_root = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!pt_root)
+			return -ENOMEM;
+	}
+
+	root = amd_iommu_domain_encode_pgtable(pt_root, mode);
+	atomic64_set(&domain->pt_root, root);
+
 	return 0;
 }
 
-static struct protection_domain *protection_domain_alloc(void)
+static struct protection_domain *protection_domain_alloc(int mode)
 {
 	struct protection_domain *domain;
 
@@ -2420,7 +2428,7 @@ static struct protection_domain *protection_domain_alloc(void)
 	if (!domain)
 		return NULL;
 
-	if (protection_domain_init(domain))
+	if (protection_domain_init(domain, mode))
 		goto out_err;
 
 	return domain;
@@ -2434,22 +2442,12 @@ out_err:
 static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 {
 	struct protection_domain *pdomain;
-	u64 *pt_root, root;
 
 	switch (type) {
 	case IOMMU_DOMAIN_UNMANAGED:
-		pdomain = protection_domain_alloc();
+		pdomain = protection_domain_alloc(DEFAULT_PGTABLE_LEVEL);
 		if (!pdomain)
 			return NULL;
-
-		pt_root = (void *)get_zeroed_page(GFP_KERNEL);
-		if (!pt_root) {
-			protection_domain_free(pdomain);
-			return NULL;
-		}
-
-		root = amd_iommu_domain_encode_pgtable(pt_root, PAGE_MODE_3_LEVEL);
-		atomic64_set(&pdomain->pt_root, root);
 
 		pdomain->domain.geometry.aperture_start = 0;
 		pdomain->domain.geometry.aperture_end   = ~0ULL;
@@ -2464,11 +2462,9 @@ static struct iommu_domain *amd_iommu_domain_alloc(unsigned type)
 		}
 		break;
 	case IOMMU_DOMAIN_IDENTITY:
-		pdomain = protection_domain_alloc();
+		pdomain = protection_domain_alloc(PAGE_MODE_NONE);
 		if (!pdomain)
 			return NULL;
-
-		atomic64_set(&pdomain->pt_root, PAGE_MODE_NONE);
 		break;
 	default:
 		return NULL;
