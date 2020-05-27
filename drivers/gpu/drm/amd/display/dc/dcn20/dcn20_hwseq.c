@@ -49,6 +49,8 @@
 #include "dc_link_dp.h"
 #include "vm_helper.h"
 #include "dccg.h"
+#include "dc_dmub_srv.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -1194,7 +1196,21 @@ void dcn20_pipe_control_lock(
 		    (!flip_immediate && pipe->stream_res.gsl_group > 0))
 			dcn20_setup_gsl_group_as_lock(dc, pipe, flip_immediate);
 
-	if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
+	if (pipe->stream && should_use_dmub_lock(pipe->stream->link)) {
+		union dmub_hw_lock_flags hw_locks = { 0 };
+		struct dmub_hw_lock_inst_flags inst_flags = { 0 };
+
+		hw_locks.bits.lock_pipe = 1;
+		inst_flags.otg_inst =  pipe->stream_res.tg->inst;
+
+		if (pipe->plane_state != NULL)
+			hw_locks.bits.triple_buffer_lock = pipe->plane_state->triplebuffer_flips;
+
+		dmub_hw_lock_mgr_cmd(dc->ctx->dmub_srv,
+					lock,
+					&hw_locks,
+					&inst_flags);
+	} else if (pipe->plane_state != NULL && pipe->plane_state->triplebuffer_flips) {
 		if (lock)
 			pipe->stream_res.tg->funcs->triplebuffer_lock(pipe->stream_res.tg);
 		else

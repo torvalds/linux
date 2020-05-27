@@ -12,6 +12,8 @@
 #include "dc_link_ddc.h"
 #include "core_status.h"
 #include "dpcd_defs.h"
+#include "dc_dmub_srv.h"
+#include "dce/dmub_hw_lock_mgr.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -4030,9 +4032,23 @@ bool dc_link_dp_set_test_pattern(
 			break;
 		}
 
-		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable)
-			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable(
-					pipe_ctx->stream_res.tg);
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable) {
+			if (pipe_ctx->stream && should_use_dmub_lock(pipe_ctx->stream->link)) {
+				union dmub_hw_lock_flags hw_locks = { 0 };
+				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
+
+				hw_locks.bits.lock_dig = 1;
+				inst_flags.dig_inst = pipe_ctx->stream_res.tg->inst;
+
+				dmub_hw_lock_mgr_cmd(link->ctx->dmub_srv,
+							true,
+							&hw_locks,
+							&inst_flags);
+			} else
+				pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_enable(
+						pipe_ctx->stream_res.tg);
+		}
+
 		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
@@ -4059,9 +4075,24 @@ bool dc_link_dp_set_test_pattern(
 				CRTC_STATE_VBLANK);
 		pipe_ctx->stream_res.tg->funcs->wait_for_state(pipe_ctx->stream_res.tg,
 				CRTC_STATE_VACTIVE);
-		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable)
-			pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable(
-					pipe_ctx->stream_res.tg);
+
+		if (pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable) {
+			if (pipe_ctx->stream && should_use_dmub_lock(pipe_ctx->stream->link)) {
+				union dmub_hw_lock_flags hw_locks = { 0 };
+				struct dmub_hw_lock_inst_flags inst_flags = { 0 };
+
+				hw_locks.bits.lock_dig = 1;
+				inst_flags.dig_inst = pipe_ctx->stream_res.tg->inst;
+
+				dmub_hw_lock_mgr_cmd(link->ctx->dmub_srv,
+							false,
+							&hw_locks,
+							&inst_flags);
+			} else
+				pipe_ctx->stream_res.tg->funcs->lock_doublebuffer_disable(
+						pipe_ctx->stream_res.tg);
+		}
+
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
