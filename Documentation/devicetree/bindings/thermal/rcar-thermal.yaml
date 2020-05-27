@@ -20,6 +20,7 @@ properties:
           - const: renesas,rcar-thermal # Generic without thermal-zone
       - items:
           - enum:
+              - renesas,thermal-r8a7742 # RZ/G1H
               - renesas,thermal-r8a7743 # RZ/G1M
               - renesas,thermal-r8a7744 # RZ/G1N
           - const: renesas,rcar-gen2-thermal # Generic thermal-zone
