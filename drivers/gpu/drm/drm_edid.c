@@ -5888,22 +5888,21 @@ static void drm_parse_tiled_block(struct drm_connector *connector,
 	DRM_DEBUG_KMS("vend %c%c%c\n", tile->topology_id[0], tile->topology_id[1], tile->topology_id[2]);
 
 	tg = drm_mode_get_tile_group(connector->dev, tile->topology_id);
-	if (!tg) {
+	if (!tg)
 		tg = drm_mode_create_tile_group(connector->dev, tile->topology_id);
-	}
 	if (!tg)
 		return;
 
 	if (connector->tile_group != tg) {
 		/* if we haven't got a pointer,
 		   take the reference, drop ref to old tile group */
-		if (connector->tile_group) {
+		if (connector->tile_group)
 			drm_mode_put_tile_group(connector->dev, connector->tile_group);
-		}
 		connector->tile_group = tg;
-	} else
+	} else {
 		/* if same tile group, then release the ref we just took. */
 		drm_mode_put_tile_group(connector->dev, tg);
+	}
 }
 
 static void drm_displayid_parse_tiled(struct drm_connector *connector,
