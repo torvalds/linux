@@ -3147,6 +3147,12 @@ error_exit:
 	return status;
 }
 
+enum vchiq_status vchiq_queue_kernel_message(unsigned int handle, void *context,
+				      size_t size)
+{
+	return vchiq_queue_message(handle, memcpy_copy_callback, context, size);
+}
+
 void
 vchiq_release_message(unsigned int handle,
 		      struct vchiq_header *header)
