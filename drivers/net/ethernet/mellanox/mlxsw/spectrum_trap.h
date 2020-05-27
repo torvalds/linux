@@ -17,6 +17,8 @@ struct mlxsw_sp_trap {
 	struct mlxsw_sp_trap_item *trap_items_arr;
 	u64 traps_count; /* Number of registered traps */
 
+	u16 thin_policer_hw_id;
+
 	u64 max_policers;
 	unsigned long policers_usage[]; /* Usage bitmap */
 };

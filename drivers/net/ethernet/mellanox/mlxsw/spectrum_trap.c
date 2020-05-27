@@ -441,8 +441,6 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 	},
 };
 
-#define MLXSW_SP_THIN_POLICER_ID	(MLXSW_REG_HTGT_TRAP_GROUP_MAX + 1)
-
 static struct mlxsw_sp_trap_policer_item *
 mlxsw_sp_trap_policer_item_lookup(struct mlxsw_sp *mlxsw_sp, u32 id)
 {
@@ -487,14 +485,21 @@ mlxsw_sp_trap_item_lookup(struct mlxsw_sp *mlxsw_sp, u16 id)
 
 static int mlxsw_sp_trap_cpu_policers_set(struct mlxsw_sp *mlxsw_sp)
 {
+	struct mlxsw_sp_trap *trap = mlxsw_sp->trap;
 	char qpcr_pl[MLXSW_REG_QPCR_LEN];
+	u16 hw_id;
 
 	/* The purpose of "thin" policer is to drop as many packets
 	 * as possible. The dummy group is using it.
 	 */
-	__set_bit(MLXSW_SP_THIN_POLICER_ID, mlxsw_sp->trap->policers_usage);
-	mlxsw_reg_qpcr_pack(qpcr_pl, MLXSW_SP_THIN_POLICER_ID,
-			    MLXSW_REG_QPCR_IR_UNITS_M, false, 1, 4);
+	hw_id = find_first_zero_bit(trap->policers_usage, trap->max_policers);
+	if (WARN_ON(hw_id == trap->max_policers))
+		return -ENOBUFS;
+
+	__set_bit(hw_id, trap->policers_usage);
+	trap->thin_policer_hw_id = hw_id;
+	mlxsw_reg_qpcr_pack(qpcr_pl, hw_id, MLXSW_REG_QPCR_IR_UNITS_M,
+			    false, 1, 4);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(qpcr), qpcr_pl);
 }
 
@@ -503,7 +508,7 @@ static int mlxsw_sp_trap_dummy_group_init(struct mlxsw_sp *mlxsw_sp)
 	char htgt_pl[MLXSW_REG_HTGT_LEN];
 
 	mlxsw_reg_htgt_pack(htgt_pl, MLXSW_REG_HTGT_TRAP_GROUP_SP_DUMMY,
-			    MLXSW_SP_THIN_POLICER_ID, 0, 1);
+			    mlxsw_sp->trap->thin_policer_hw_id, 0, 1);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(htgt), htgt_pl);
 }
 
