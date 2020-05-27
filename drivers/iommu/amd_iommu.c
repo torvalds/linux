@@ -22,7 +22,6 @@
 #include <linux/dma-direct.h>
 #include <linux/dma-iommu.h>
 #include <linux/iommu-helper.h>
-#include <linux/iommu.h>
 #include <linux/delay.h>
 #include <linux/amd-iommu.h>
 #include <linux/notifier.h>
@@ -43,8 +42,7 @@
 #include <asm/gart.h>
 #include <asm/dma.h>
 
-#include "amd_iommu_proto.h"
-#include "amd_iommu_types.h"
+#include "amd_iommu.h"
 #include "irq_remapping.h"
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))

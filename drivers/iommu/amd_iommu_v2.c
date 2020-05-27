@@ -13,13 +13,11 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/sched/mm.h>
-#include <linux/iommu.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
 
-#include "amd_iommu_types.h"
-#include "amd_iommu_proto.h"
+#include "amd_iommu.h"
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Joerg Roedel <jroedel@suse.de>");
