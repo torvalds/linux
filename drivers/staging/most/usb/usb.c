@@ -519,13 +519,13 @@ static int hdm_enqueue(struct most_interface *iface, int channel,
 			"URB submit failed with error %d.\n", retval);
 		goto err_unanchor_urb;
 	}
-	goto unlock_io_mutex;
+	mutex_unlock(&mdev->io_mutex);
+	return 0;
 
 err_unanchor_urb:
 	usb_unanchor_urb(urb);
 err_free_urb:
 	usb_free_urb(urb);
-unlock_io_mutex:
 	mutex_unlock(&mdev->io_mutex);
 	return retval;
 }
