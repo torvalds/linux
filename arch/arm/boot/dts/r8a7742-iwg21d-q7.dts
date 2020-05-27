@@ -5,6 +5,29 @@
  * Copyright (C) 2020 Renesas Electronics Corp.
  */
 
+/*
+ * SSI-SGTL5000
+ *
+ * This command is required when Playback/Capture
+ *
+ *      amixer set "DVC Out" 100%
+ *      amixer set "DVC In" 100%
+ *
+ * You can use Mute
+ *
+ *      amixer set "DVC Out Mute" on
+ *      amixer set "DVC In Mute" on
+ *
+ * You can use Volume Ramp
+ *
+ *      amixer set "DVC Out Ramp Up Rate"   "0.125 dB/64 steps"
+ *      amixer set "DVC Out Ramp Down Rate" "0.125 dB/512 steps"
+ *      amixer set "DVC Out Ramp" on
+ *      aplay xxx.wav &
+ *      amixer set "DVC Out"  80%  // Volume Down
+ *      amixer set "DVC Out" 100%  // Volume Up
+ */
+
 /dts-v1/;
 #include "r8a7742-iwg21m.dtsi"
 
@@ -35,6 +58,21 @@
 		regulator-min-microvolt = <1500000>;
 		regulator-max-microvolt = <1500000>;
 		regulator-always-on;
+	};
+
+	rsnd_sgtl5000: sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&sndcodec>;
+		simple-audio-card,frame-master = <&sndcodec>;
+
+		sndcpu: simple-audio-card,cpu {
+			sound-dai = <&rcar_sound>;
+		};
+
+		sndcodec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 
 	vcc_sdhi2: regulator-vcc-sdhi2 {
@@ -125,6 +163,27 @@
 		function = "sdhi2";
 		power-source = <1800>;
 	};
+
+	sound_pins: sound {
+		groups = "ssi34_ctrl", "ssi3_data", "ssi4_data";
+		function = "ssi";
+	};
+};
+
+&rcar_sound {
+	pinctrl-0 = <&sound_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	/* Single DAI */
+	#sound-dai-cells = <0>;
+
+	rcar_sound,dai {
+		dai0 {
+			playback = <&ssi4 &src4 &dvc1>;
+			capture = <&ssi3 &src3 &dvc0>;
+		};
+	};
 };
 
 &rwdt {
@@ -158,4 +217,8 @@
 	wp-gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 	sd-uhs-sdr50;
 	status = "okay";
+};
+
+&ssi4 {
+	shared-pin;
 };
