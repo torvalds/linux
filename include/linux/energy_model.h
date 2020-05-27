@@ -10,13 +10,13 @@
 #include <linux/types.h>
 
 /**
- * em_cap_state - Capacity state of a performance domain
+ * em_perf_state - Performance state of a performance domain
  * @frequency:	The CPU frequency in KHz, for consistency with CPUFreq
  * @power:	The power consumed by 1 CPU at this level, in milli-watts
  * @cost:	The cost coefficient associated with this level, used during
  *		energy calculation. Equal to: power * max_frequency / frequency
  */
-struct em_cap_state {
+struct em_perf_state {
 	unsigned long frequency;
 	unsigned long power;
 	unsigned long cost;
@@ -24,8 +24,8 @@ struct em_cap_state {
 
 /**
  * em_perf_domain - Performance domain
- * @table:		List of capacity states, in ascending order
- * @nr_cap_states:	Number of capacity states
+ * @table:		List of performance states, in ascending order
+ * @nr_perf_states:	Number of performance states
  * @cpus:		Cpumask covering the CPUs of the domain
  *
  * A "performance domain" represents a group of CPUs whose performance is
@@ -34,22 +34,27 @@ struct em_cap_state {
  * CPUFreq policies.
  */
 struct em_perf_domain {
-	struct em_cap_state *table;
-	int nr_cap_states;
+	struct em_perf_state *table;
+	int nr_perf_states;
 	unsigned long cpus[];
 };
+
+#define em_span_cpus(em) (to_cpumask((em)->cpus))
 
 #ifdef CONFIG_ENERGY_MODEL
 #define EM_CPU_MAX_POWER 0xFFFF
 
 struct em_data_callback {
 	/**
-	 * active_power() - Provide power at the next capacity state of a CPU
-	 * @power	: Active power at the capacity state in mW (modified)
-	 * @freq	: Frequency at the capacity state in kHz (modified)
+	 * active_power() - Provide power at the next performance state of
+	 *		a CPU
+	 * @power	: Active power at the performance state in mW
+	 *		(modified)
+	 * @freq	: Frequency at the performance state in kHz
+	 *		(modified)
 	 * @cpu		: CPU for which we do this operation
 	 *
-	 * active_power() must find the lowest capacity state of 'cpu' above
+	 * active_power() must find the lowest performance state of 'cpu' above
 	 * 'freq' and update 'power' and 'freq' to the matching active power
 	 * and frequency.
 	 *
@@ -80,46 +85,46 @@ static inline unsigned long em_pd_energy(struct em_perf_domain *pd,
 				unsigned long max_util, unsigned long sum_util)
 {
 	unsigned long freq, scale_cpu;
-	struct em_cap_state *cs;
+	struct em_perf_state *ps;
 	int i, cpu;
 
 	/*
-	 * In order to predict the capacity state, map the utilization of the
-	 * most utilized CPU of the performance domain to a requested frequency,
-	 * like schedutil.
+	 * In order to predict the performance state, map the utilization of
+	 * the most utilized CPU of the performance domain to a requested
+	 * frequency, like schedutil.
 	 */
 	cpu = cpumask_first(to_cpumask(pd->cpus));
 	scale_cpu = arch_scale_cpu_capacity(cpu);
-	cs = &pd->table[pd->nr_cap_states - 1];
-	freq = map_util_freq(max_util, cs->frequency, scale_cpu);
+	ps = &pd->table[pd->nr_perf_states - 1];
+	freq = map_util_freq(max_util, ps->frequency, scale_cpu);
 
 	/*
-	 * Find the lowest capacity state of the Energy Model above the
+	 * Find the lowest performance state of the Energy Model above the
 	 * requested frequency.
 	 */
-	for (i = 0; i < pd->nr_cap_states; i++) {
-		cs = &pd->table[i];
-		if (cs->frequency >= freq)
+	for (i = 0; i < pd->nr_perf_states; i++) {
+		ps = &pd->table[i];
+		if (ps->frequency >= freq)
 			break;
 	}
 
 	/*
-	 * The capacity of a CPU in the domain at that capacity state (cs)
+	 * The capacity of a CPU in the domain at the performance state (ps)
 	 * can be computed as:
 	 *
-	 *             cs->freq * scale_cpu
-	 *   cs->cap = --------------------                          (1)
+	 *             ps->freq * scale_cpu
+	 *   ps->cap = --------------------                          (1)
 	 *                 cpu_max_freq
 	 *
 	 * So, ignoring the costs of idle states (which are not available in
-	 * the EM), the energy consumed by this CPU at that capacity state is
-	 * estimated as:
+	 * the EM), the energy consumed by this CPU at that performance state
+	 * is estimated as:
 	 *
-	 *             cs->power * cpu_util
+	 *             ps->power * cpu_util
 	 *   cpu_nrg = --------------------                          (2)
-	 *                   cs->cap
+	 *                   ps->cap
 	 *
-	 * since 'cpu_util / cs->cap' represents its percentage of busy time.
+	 * since 'cpu_util / ps->cap' represents its percentage of busy time.
 	 *
 	 *   NOTE: Although the result of this computation actually is in
 	 *         units of power, it can be manipulated as an energy value
@@ -129,34 +134,35 @@ static inline unsigned long em_pd_energy(struct em_perf_domain *pd,
 	 * By injecting (1) in (2), 'cpu_nrg' can be re-expressed as a product
 	 * of two terms:
 	 *
-	 *             cs->power * cpu_max_freq   cpu_util
+	 *             ps->power * cpu_max_freq   cpu_util
 	 *   cpu_nrg = ------------------------ * ---------          (3)
-	 *                    cs->freq            scale_cpu
+	 *                    ps->freq            scale_cpu
 	 *
-	 * The first term is static, and is stored in the em_cap_state struct
-	 * as 'cs->cost'.
+	 * The first term is static, and is stored in the em_perf_state struct
+	 * as 'ps->cost'.
 	 *
 	 * Since all CPUs of the domain have the same micro-architecture, they
-	 * share the same 'cs->cost', and the same CPU capacity. Hence, the
+	 * share the same 'ps->cost', and the same CPU capacity. Hence, the
 	 * total energy of the domain (which is the simple sum of the energy of
 	 * all of its CPUs) can be factorized as:
 	 *
-	 *            cs->cost * \Sum cpu_util
+	 *            ps->cost * \Sum cpu_util
 	 *   pd_nrg = ------------------------                       (4)
 	 *                  scale_cpu
 	 */
-	return cs->cost * sum_util / scale_cpu;
+	return ps->cost * sum_util / scale_cpu;
 }
 
 /**
- * em_pd_nr_cap_states() - Get the number of capacity states of a perf. domain
+ * em_pd_nr_perf_states() - Get the number of performance states of a perf.
+ *				domain
  * @pd		: performance domain for which this must be done
  *
- * Return: the number of capacity states in the performance domain table
+ * Return: the number of performance states in the performance domain table
  */
-static inline int em_pd_nr_cap_states(struct em_perf_domain *pd)
+static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 {
-	return pd->nr_cap_states;
+	return pd->nr_perf_states;
 }
 
 #else
@@ -177,7 +183,7 @@ static inline unsigned long em_pd_energy(struct em_perf_domain *pd,
 {
 	return 0;
 }
-static inline int em_pd_nr_cap_states(struct em_perf_domain *pd)
+static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 {
 	return 0;
 }
