@@ -280,11 +280,10 @@ static struct iommu_dev_data *find_dev_data(u16 devid)
 	return dev_data;
 }
 
-struct iommu_dev_data *get_dev_data(struct device *dev)
+static struct iommu_dev_data *get_dev_data(struct device *dev)
 {
 	return dev->archdata.iommu;
 }
-EXPORT_SYMBOL(get_dev_data);
 
 /*
 * Find or create an IOMMU group for a acpihid device.
@@ -2706,12 +2705,14 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 	list_add_tail(&region->list, head);
 }
 
-static bool amd_iommu_is_attach_deferred(struct iommu_domain *domain,
-					 struct device *dev)
+bool amd_iommu_is_attach_deferred(struct iommu_domain *domain,
+				  struct device *dev)
 {
 	struct iommu_dev_data *dev_data = dev->archdata.iommu;
+
 	return dev_data->defer_attach;
 }
+EXPORT_SYMBOL_GPL(amd_iommu_is_attach_deferred);
 
 static void amd_iommu_flush_iotlb_all(struct iommu_domain *domain)
 {

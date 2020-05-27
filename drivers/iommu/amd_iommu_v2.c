@@ -517,13 +517,12 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 	struct amd_iommu_fault *iommu_fault;
 	struct pasid_state *pasid_state;
 	struct device_state *dev_state;
+	struct pci_dev *pdev = NULL;
 	unsigned long flags;
 	struct fault *fault;
 	bool finish;
 	u16 tag, devid;
 	int ret;
-	struct iommu_dev_data *dev_data;
-	struct pci_dev *pdev = NULL;
 
 	iommu_fault = data;
 	tag         = iommu_fault->tag & 0x1ff;
@@ -534,12 +533,11 @@ static int ppr_notifier(struct notifier_block *nb, unsigned long e, void *data)
 					   devid & 0xff);
 	if (!pdev)
 		return -ENODEV;
-	dev_data = get_dev_data(&pdev->dev);
+
+	ret = NOTIFY_DONE;
 
 	/* In kdump kernel pci dev is not initialized yet -> send INVALID */
-	ret = NOTIFY_DONE;
-	if (translation_pre_enabled(amd_iommu_rlookup_table[devid])
-		&& dev_data->defer_attach) {
+	if (amd_iommu_is_attach_deferred(NULL, &pdev->dev)) {
 		amd_iommu_complete_ppr(pdev, iommu_fault->pasid,
 				       PPR_INVALID, tag);
 		goto out;
