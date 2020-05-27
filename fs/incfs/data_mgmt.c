@@ -8,6 +8,7 @@
 #include <linux/ktime.h>
 #include <linux/lz4.h>
 #include <linux/mm.h>
+#include <linux/namei.h>
 #include <linux/pagemap.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -123,6 +124,86 @@ static void data_file_segment_init(struct data_file_segment *segment)
 	INIT_LIST_HEAD(&segment->reads_list_head);
 }
 
+char *file_id_to_str(incfs_uuid_t id)
+{
+	char *result = kmalloc(1 + sizeof(id.bytes) * 2, GFP_NOFS);
+	char *end;
+
+	if (!result)
+		return NULL;
+
+	end = bin2hex(result, id.bytes, sizeof(id.bytes));
+	*end = 0;
+	return result;
+}
+
+struct dentry *incfs_lookup_dentry(struct dentry *parent, const char *name)
+{
+	struct inode *inode;
+	struct dentry *result = NULL;
+
+	if (!parent)
+		return ERR_PTR(-EFAULT);
+
+	inode = d_inode(parent);
+	inode_lock_nested(inode, I_MUTEX_PARENT);
+	result = lookup_one_len(name, parent, strlen(name));
+	inode_unlock(inode);
+
+	if (IS_ERR(result))
+		pr_warn("%s err:%ld\n", __func__, PTR_ERR(result));
+
+	return result;
+}
+
+static struct data_file *handle_mapped_file(struct mount_info *mi,
+					    struct data_file *df)
+{
+	char *file_id_str;
+	struct dentry *index_file_dentry;
+	struct path path;
+	struct file *bf;
+	struct data_file *result = NULL;
+
+	file_id_str = file_id_to_str(df->df_id);
+	if (!file_id_str)
+		return ERR_PTR(-ENOENT);
+
+	index_file_dentry = incfs_lookup_dentry(mi->mi_index_dir,
+						file_id_str);
+	kfree(file_id_str);
+	if (!index_file_dentry)
+		return ERR_PTR(-ENOENT);
+	if (IS_ERR(index_file_dentry))
+		return (struct data_file *)index_file_dentry;
+	if (!d_really_is_positive(index_file_dentry)) {
+		result = ERR_PTR(-ENOENT);
+		goto out;
+	}
+
+	path = (struct path) {
+		.mnt = mi->mi_backing_dir_path.mnt,
+		.dentry = index_file_dentry
+	};
+
+	bf = dentry_open(&path, O_RDWR | O_NOATIME | O_LARGEFILE, mi->mi_owner);
+	if (IS_ERR(bf)) {
+		result = (struct data_file *)bf;
+		goto out;
+	}
+
+	result = incfs_open_data_file(mi, bf);
+	fput(bf);
+	if (IS_ERR(result))
+		goto out;
+
+	result->df_mapped_offset = df->df_metadata_off;
+
+out:
+	dput(index_file_dentry);
+	return result;
+}
+
 struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 {
 	struct data_file *df = NULL;
@@ -166,6 +247,13 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 	df->df_size = size;
 	if (size > 0)
 		df->df_data_block_count = get_blocks_count_for_size(size);
+
+	if (df->df_header_flags & INCFS_FILE_MAPPED) {
+		struct data_file *mapped_df = handle_mapped_file(mi, df);
+
+		incfs_free_data_file(df);
+		return mapped_df;
+	}
 
 	md_records = incfs_scan_metadata_chain(df);
 	if (md_records < 0)

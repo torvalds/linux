@@ -2232,7 +2232,8 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_data(const char *mount_dir, struct test_file *file)
+static int emit_partial_test_file_data(const char *mount_dir,
+				       struct test_file *file)
 {
 	int i, j;
 	int block_cnt = 1 + (file->size - 1) / INCFS_DATA_FILE_BLOCK_SIZE;
@@ -2455,7 +2456,8 @@ failure:
 	return TEST_FAILURE;
 }
 
-static int emit_partial_test_file_hash(const char *mount_dir, struct test_file *file)
+static int emit_partial_test_file_hash(const char *mount_dir,
+				       struct test_file *file)
 {
 	int err;
 	int fd;
@@ -2679,6 +2681,166 @@ static int large_file_test(const char *mount_dir)
 failure:
 	close(fd);
 	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
+	return result;
+}
+
+static int validate_mapped_file(const char *orig_name, const char *name,
+				size_t size, size_t offset)
+{
+	struct stat st;
+	int orig_fd = -1, fd = -1;
+	size_t block;
+	int result = TEST_FAILURE;
+
+	if (stat(name, &st)) {
+		ksft_print_msg("Failed to stat %s with error %s\n",
+			       name, strerror(errno));
+		goto failure;
+	}
+
+	if (size != st.st_size) {
+		ksft_print_msg("Mismatched file sizes for file %s - expected %llu, got %llu\n",
+				   name, size, st.st_size);
+		goto failure;
+	}
+
+	fd = open(name, O_RDONLY | O_CLOEXEC);
+	if (fd == -1) {
+		ksft_print_msg("Failed to open %s with error %s\n", name,
+			       strerror(errno));
+		goto failure;
+	}
+
+	orig_fd = open(orig_name, O_RDONLY | O_CLOEXEC);
+	if (orig_fd == -1) {
+		ksft_print_msg("Failed to open %s with error %s\n", orig_name,
+			       strerror(errno));
+		goto failure;
+	}
+
+	for (block = 0; block < size; block += INCFS_DATA_FILE_BLOCK_SIZE) {
+		uint8_t orig_data[INCFS_DATA_FILE_BLOCK_SIZE];
+		uint8_t data[INCFS_DATA_FILE_BLOCK_SIZE];
+		ssize_t orig_read, mapped_read;
+
+		orig_read = pread(orig_fd, orig_data,
+				 INCFS_DATA_FILE_BLOCK_SIZE, block + offset);
+		mapped_read = pread(fd, data, INCFS_DATA_FILE_BLOCK_SIZE,
+				    block);
+
+		if (orig_read < mapped_read ||
+		    mapped_read != min(size - block,
+				       INCFS_DATA_FILE_BLOCK_SIZE)) {
+			ksft_print_msg("Failed to read enough data: %llu %llu %llu %lld %lld\n",
+				       block, size, offset, orig_read,
+				       mapped_read);
+			goto failure;
+		}
+
+		if (memcmp(orig_data, data, mapped_read)) {
+			ksft_print_msg("Data doesn't match: %llu %llu %llu %lld %lld\n",
+				       block, size, offset, orig_read,
+				       mapped_read);
+			goto failure;
+		}
+	}
+
+	result = TEST_SUCCESS;
+
+failure:
+	close(orig_fd);
+	close(fd);
+	return result;
+}
+
+static int mapped_file_test(const char *mount_dir)
+{
+	char *backing_dir;
+	int result = TEST_FAILURE;
+	int cmd_fd = -1;
+	int i;
+	struct test_files_set test = get_test_files_set();
+	const int file_num = test.files_count;
+
+	backing_dir = create_backing_dir(mount_dir);
+	if (!backing_dir)
+		goto failure;
+
+	if (mount_fs_opt(mount_dir, backing_dir, "readahead=0", false) != 0)
+		goto failure;
+
+	cmd_fd = open_commands_file(mount_dir);
+	if (cmd_fd < 0)
+		goto failure;
+
+	for (i = 0; i < file_num; ++i) {
+		struct test_file *file = &test.files[i];
+		size_t blocks = file->size / INCFS_DATA_FILE_BLOCK_SIZE;
+		size_t mapped_offset = blocks / 4 *
+			INCFS_DATA_FILE_BLOCK_SIZE;
+		size_t mapped_size = file->size / 4 * 3 - mapped_offset;
+		struct incfs_create_mapped_file_args mfa;
+		char mapped_file_name[FILENAME_MAX];
+		char orig_file_path[PATH_MAX];
+		char mapped_file_path[PATH_MAX];
+
+		if (emit_file(cmd_fd, NULL, file->name, &file->id, file->size,
+					NULL) < 0)
+			goto failure;
+
+		if (emit_test_file_data(mount_dir, file))
+			goto failure;
+
+		if (snprintf(mapped_file_name, ARRAY_SIZE(mapped_file_name),
+					"%s.mapped", file->name) < 0)
+			goto failure;
+
+		mfa = (struct incfs_create_mapped_file_args) {
+			.size = mapped_size,
+			.mode = 0664,
+			.file_name = ptr_to_u64(mapped_file_name),
+			.source_file_id = file->id,
+			.source_offset = mapped_offset,
+		};
+
+		result = ioctl(cmd_fd, INCFS_IOC_CREATE_MAPPED_FILE, &mfa);
+		if (result) {
+			ksft_print_msg(
+				"Failed to create mapped file with error %d\n",
+				result);
+			goto failure;
+		}
+
+		result = snprintf(orig_file_path,
+				  ARRAY_SIZE(orig_file_path), "%s/%s",
+				  mount_dir, file->name);
+
+		if (result < 0 || result >= ARRAY_SIZE(mapped_file_path)) {
+			result = TEST_FAILURE;
+			goto failure;
+		}
+
+		result = snprintf(mapped_file_path,
+				  ARRAY_SIZE(mapped_file_path), "%s/%s",
+				  mount_dir, mapped_file_name);
+
+		if (result < 0 || result >= ARRAY_SIZE(mapped_file_path)) {
+			result = TEST_FAILURE;
+			goto failure;
+		}
+
+		result = validate_mapped_file(orig_file_path, mapped_file_path,
+					      mapped_size, mapped_offset);
+		if (result)
+			goto failure;
+	}
+
+failure:
+	close(cmd_fd);
+	umount(mount_dir);
+	free(backing_dir);
 	return result;
 }
 
@@ -2791,6 +2953,7 @@ int main(int argc, char *argv[])
 		MAKE_TEST(get_blocks_test),
 		MAKE_TEST(get_hash_blocks_test),
 		MAKE_TEST(large_file_test),
+		MAKE_TEST(mapped_file_test),
 	};
 #undef MAKE_TEST
 

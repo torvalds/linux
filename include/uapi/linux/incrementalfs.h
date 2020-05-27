@@ -92,6 +92,10 @@
 #define INCFS_IOC_GET_FILLED_BLOCKS                                            \
 	_IOR(INCFS_IOCTL_BASE_CODE, 34, struct incfs_get_filled_blocks_args)
 
+/* Creates a new mapped file */
+#define INCFS_IOC_CREATE_MAPPED_FILE \
+	_IOWR(INCFS_IOCTL_BASE_CODE, 35, struct incfs_create_mapped_file_args)
+
 enum incfs_compression_alg {
 	COMPRESSION_NONE = 0,
 	COMPRESSION_LZ4 = 1
@@ -329,6 +333,52 @@ struct incfs_get_filled_blocks_args {
 
 	/* Sector scanned up to, if the call was interrupted */
 	__u32 index_out;
+};
+
+/*
+ * Create a new mapped file
+ * Argument for INCFS_IOC_CREATE_MAPPED_FILE
+ */
+struct incfs_create_mapped_file_args {
+	/*
+	 * Total size of the new file.
+	 */
+	__aligned_u64 size;
+
+	/*
+	 * File mode. Permissions and dir flag.
+	 */
+	__u16 mode;
+
+	__u16 reserved1;
+
+	__u32 reserved2;
+
+	/*
+	 * A pointer to a null-terminated relative path to the incfs mount
+	 * point
+	 * Max length: PATH_MAX
+	 *
+	 * Equivalent to: char *directory_path;
+	 */
+	__aligned_u64 directory_path;
+
+	/*
+	 * A pointer to a null-terminated file name.
+	 * Max length: PATH_MAX
+	 *
+	 * Equivalent to: char *file_name;
+	 */
+	__aligned_u64 file_name;
+
+	/* Id of source file to map. */
+	incfs_uuid_t source_file_id;
+
+	/*
+	 * Offset in source file to start mapping. Must be a multiple of
+	 * INCFS_DATA_FILE_BLOCK_SIZE
+	 */
+	__aligned_u64 source_offset;
 };
 
 #endif /* _UAPI_LINUX_INCREMENTALFS_H */
