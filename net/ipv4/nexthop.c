@@ -37,7 +37,7 @@ static const struct nla_policy rtm_nh_policy[NHA_MAX + 1] = {
 };
 
 static int call_nexthop_notifiers(struct net *net,
-				  enum fib_event_type event_type,
+				  enum nexthop_event_type event_type,
 				  struct nexthop *nh)
 {
 	int err;
