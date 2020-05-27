@@ -695,12 +695,25 @@ static int queue_if_no_path(struct multipath *m, bool queue_if_no_path,
 			    bool save_old_value)
 {
 	unsigned long flags;
+	bool queue_if_no_path_bit, saved_queue_if_no_path_bit;
 
 	spin_lock_irqsave(&m->lock, flags);
-	assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags,
-		   (save_old_value && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) ||
-		   (!save_old_value && queue_if_no_path));
+
+	queue_if_no_path_bit = test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
+	saved_queue_if_no_path_bit = test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+
+	if (save_old_value) {
+		if (unlikely(!queue_if_no_path_bit && saved_queue_if_no_path_bit)) {
+			DMERR("%s: QIFNP disabled but saved as enabled, saving again loses state, not saving!",
+			      dm_device_name(dm_table_get_md(m->ti->table)));
+		} else
+			assign_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path_bit);
+	} else if (!queue_if_no_path && saved_queue_if_no_path_bit) {
+		/* due to "fail_if_no_path" message, need to honor it. */
+		clear_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+	}
 	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags, queue_if_no_path);
+
 	spin_unlock_irqrestore(&m->lock, flags);
 
 	if (!queue_if_no_path) {
@@ -1653,16 +1666,19 @@ done:
 }
 
 /*
- * Suspend can't complete until all the I/O is processed so if
- * the last path fails we must error any remaining I/O.
- * Note that if the freeze_bdev fails while suspending, the
- * queue_if_no_path state is lost - userspace should reset it.
+ * Suspend with flush can't complete until all the I/O is processed
+ * so if the last path fails we must error any remaining I/O.
+ * - Note that if the freeze_bdev fails while suspending, the
+ *   queue_if_no_path state is lost - userspace should reset it.
+ * Otherwise, during noflush suspend, queue_if_no_path will not change.
  */
 static void multipath_presuspend(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
 
-	queue_if_no_path(m, false, true);
+	/* FIXME: bio-based shouldn't need to always disable queue_if_no_path */
+	if (m->queue_mode == DM_TYPE_BIO_BASED || !dm_noflush_suspending(m->ti))
+		queue_if_no_path(m, false, true);
 }
 
 static void multipath_postsuspend(struct dm_target *ti)
@@ -1683,8 +1699,10 @@ static void multipath_resume(struct dm_target *ti)
 	unsigned long flags;
 
 	spin_lock_irqsave(&m->lock, flags);
-	assign_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags,
-		   test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags));
+	if (test_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags)) {
+		set_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags);
+		clear_bit(MPATHF_SAVED_QUEUE_IF_NO_PATH, &m->flags);
+	}
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
