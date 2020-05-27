@@ -332,12 +332,55 @@ free_required_opps:
 	return ret;
 }
 
+static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
+{
+	struct device_node *np, *opp_np;
+	struct property *prop;
+
+	if (!opp_table) {
+		np = of_node_get(dev->of_node);
+		if (!np)
+			return -ENODEV;
+
+		opp_np = _opp_of_get_opp_desc_node(np, 0);
+		of_node_put(np);
+	} else {
+		opp_np = of_node_get(opp_table->np);
+	}
+
+	/* Lets not fail in case we are parsing opp-v1 bindings */
+	if (!opp_np)
+		return 0;
+
+	/* Checking only first OPP is sufficient */
+	np = of_get_next_available_child(opp_np, NULL);
+	if (!np) {
+		dev_err(dev, "OPP table empty\n");
+		return -EINVAL;
+	}
+	of_node_put(opp_np);
+
+	prop = of_find_property(np, "opp-peak-kBps", NULL);
+	of_node_put(np);
+
+	if (!prop || !prop->length)
+		return 0;
+
+	return 1;
+}
+
 int dev_pm_opp_of_find_icc_paths(struct device *dev,
 				 struct opp_table *opp_table)
 {
 	struct device_node *np;
-	int ret = 0, i, count, num_paths;
+	int ret, i, count, num_paths;
 	struct icc_path **paths;
+
+	ret = _bandwidth_supported(dev, opp_table);
+	if (ret <= 0)
+		return ret;
+
+	ret = 0;
 
 	np = of_node_get(dev->of_node);
 	if (!np)
