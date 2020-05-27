@@ -464,7 +464,8 @@ static int afs_deliver_cb_probe(struct afs_call *call)
 }
 
 /*
- * allow the fileserver to quickly find out if the fileserver has been rebooted
+ * Allow the fileserver to quickly find out if the cache manager has been
+ * rebooted.
  */
 static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 {
@@ -536,7 +537,7 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 
 	if (!afs_check_call_state(call, AFS_CALL_SV_REPLYING))
 		return afs_io_error(call, afs_io_error_cm_reply);
-	return afs_find_cm_server_by_uuid(call, call->request);
+	return afs_find_cm_server_by_peer(call);
 }
 
 /*
