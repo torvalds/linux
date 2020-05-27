@@ -139,9 +139,10 @@ static void wq_netinfo(struct work_struct *wq_obj);
 static inline int drci_rd_reg(struct usb_device *dev, u16 reg, u16 *buf)
 {
 	int retval;
-	__le16 *dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
+	__le16 *dma_buf;
 	u8 req_type = USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE;
 
+	dma_buf = kzalloc(sizeof(*dma_buf), GFP_KERNEL);
 	if (!dma_buf)
 		return -ENOMEM;
 
@@ -846,8 +847,9 @@ static ssize_t value_store(struct device *dev, struct device_attribute *attr,
 	const char *name = attr->attr.name;
 	struct most_dci_obj *dci_obj = to_dci_obj(dev);
 	struct usb_device *usb_dev = dci_obj->usb_device;
-	int err = kstrtou16(buf, 16, &val);
+	int err;
 
+	err = kstrtou16(buf, 16, &val);
 	if (err)
 		return err;
 
@@ -939,13 +941,14 @@ hdm_probe(struct usb_interface *interface, const struct usb_device_id *id)
 	struct usb_host_interface *usb_iface_desc = interface->cur_altsetting;
 	struct usb_device *usb_dev = interface_to_usbdev(interface);
 	struct device *dev = &usb_dev->dev;
-	struct most_dev *mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
+	struct most_dev *mdev;
 	unsigned int i;
 	unsigned int num_endpoints;
 	struct most_channel_capability *tmp_cap;
 	struct usb_endpoint_descriptor *ep_desc;
 	int ret = -ENOMEM;
 
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
 
