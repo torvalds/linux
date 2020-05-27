@@ -482,7 +482,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	nid_t ino = -1;
 	int err = 0;
 	unsigned int root_ino = F2FS_ROOT_INO(F2FS_I_SB(dir));
-	struct fscrypt_name fname;
+	struct f2fs_filename fname;
 
 	trace_f2fs_lookup_start(dir, dentry, flags);
 
@@ -491,14 +491,14 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 		goto out;
 	}
 
-	err = fscrypt_prepare_lookup(dir, dentry, &fname);
+	err = f2fs_prepare_lookup(dir, dentry, &fname);
 	generic_set_encrypted_ci_d_ops(dir, dentry);
 	if (err == -ENOENT)
 		goto out_splice;
 	if (err)
 		goto out;
 	de = __f2fs_find_entry(dir, &fname, &page);
-	fscrypt_free_filename(&fname);
+	f2fs_free_filename(&fname);
 
 	if (!de) {
 		if (IS_ERR(page)) {
