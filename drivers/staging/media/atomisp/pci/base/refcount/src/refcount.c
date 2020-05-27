@@ -81,7 +81,7 @@ enum ia_css_err ia_css_refcount_init(uint32_t size)
 		return IA_CSS_ERR_INTERNAL_ERROR;
 	}
 	myrefcount.items =
-	    sh_css_malloc(sizeof(struct ia_css_refcount_entry) * size);
+	    kvmalloc(sizeof(struct ia_css_refcount_entry) * size, GFP_KERNEL);
 	if (!myrefcount.items)
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 	if (err == IA_CSS_SUCCESS) {
@@ -115,7 +115,7 @@ void ia_css_refcount_uninit(void)
 			entry->id = 0;
 		}
 	}
-	sh_css_free(myrefcount.items);
+	kvfree(myrefcount.items);
 	myrefcount.items = NULL;
 	myrefcount.size = 0;
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,

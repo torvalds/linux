@@ -1862,35 +1862,6 @@ ia_css_enable_isys_event_queue(bool enable) {
 	return IA_CSS_SUCCESS;
 }
 
-void *sh_css_malloc(size_t size)
-{
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "sh_css_malloc() enter: size=%zu\n",
-			    size);
-	/* FIXME: This first test can probably go away */
-	if (size == 0)
-		return NULL;
-	if (size > PAGE_SIZE)
-		return vmalloc(size);
-	return kmalloc(size, GFP_KERNEL);
-}
-
-void *sh_css_calloc(size_t N, size_t size)
-{
-	void *p;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "sh_css_calloc() enter: N=%zu, size=%zu\n", N, size);
-
-	/* FIXME: this test can probably go away */
-	if (size > 0) {
-		p = sh_css_malloc(N * size);
-		if (p)
-			memset(p, 0, size);
-		return p;
-	}
-	return NULL;
-}
-
 void sh_css_free(void *ptr)
 {
 	if (is_vmalloc_addr(ptr))
@@ -9035,7 +9006,7 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 				    i);
 			if (err != IA_CSS_SUCCESS) {
 				IA_CSS_LEAVE_ERR_PRIVATE(err);
-				sh_css_free(internal_pipe);
+				kvfree(internal_pipe);
 				internal_pipe = NULL;
 				return err;
 			}
@@ -9054,7 +9025,7 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 				    i);
 			if (err != IA_CSS_SUCCESS) {
 				IA_CSS_LEAVE_ERR_PRIVATE(err);
-				sh_css_free(internal_pipe);
+				kvfree(internal_pipe);
 				internal_pipe = NULL;
 				return err;
 			}
@@ -9066,7 +9037,7 @@ ia_css_pipe_create_extra(const struct ia_css_pipe_config *config,
 						    internal_pipe->config.acc_extension);
 		if (err != IA_CSS_SUCCESS) {
 			IA_CSS_LEAVE_ERR_PRIVATE(err);
-			sh_css_free(internal_pipe);
+			kvfree(internal_pipe);
 			return err;
 		}
 	}

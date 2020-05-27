@@ -189,7 +189,7 @@ enum ia_css_err ia_css_frame_map(struct ia_css_frame **frame,
 
 error:
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kvfree(me);
 		me = NULL;
 	}
 
@@ -228,7 +228,7 @@ enum ia_css_err ia_css_frame_create_from_info(struct ia_css_frame **frame,
 	err = ia_css_frame_init_planes(me);
 
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kvfree(me);
 		me = NULL;
 	}
 
@@ -321,7 +321,7 @@ void ia_css_frame_free(struct ia_css_frame *frame)
 
 	if (frame) {
 		hmm_free(frame->data);
-		sh_css_free(frame);
+		kvfree(frame);
 	}
 
 	IA_CSS_LEAVE_PRIVATE("void");
@@ -551,7 +551,7 @@ enum ia_css_err ia_css_frame_allocate_with_buffer_size(
 	err = frame_allocate_buffer_data(me);
 
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kvfree(me);
 		me = NULL;
 	}
 
@@ -837,7 +837,7 @@ static enum ia_css_err frame_allocate_with_data(struct ia_css_frame **frame,
 		err = frame_allocate_buffer_data(me);
 
 	if (err != IA_CSS_SUCCESS) {
-		sh_css_free(me);
+		kvfree(me);
 #ifndef ISP2401
 		return err;
 #else
@@ -858,7 +858,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	bool contiguous,
 	bool valid)
 {
-	struct ia_css_frame *me = sh_css_malloc(sizeof(*me));
+	struct ia_css_frame *me = kvmalloc(sizeof(*me), GFP_KERNEL);
 
 	if (!me)
 		return NULL;

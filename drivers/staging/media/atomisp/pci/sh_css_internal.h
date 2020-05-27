@@ -968,12 +968,6 @@ sh_css_params_init(void);
 void
 sh_css_params_uninit(void);
 
-void *sh_css_malloc(size_t size);
-
-void *sh_css_calloc(size_t N, size_t size);
-
-void sh_css_free(void *ptr);
-
 /* For Acceleration API: Flush FW (shared buffer pointer) arguments */
 void sh_css_flush(struct ia_css_acc_fw *fw);
 

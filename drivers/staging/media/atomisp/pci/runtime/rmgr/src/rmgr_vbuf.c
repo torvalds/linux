@@ -152,7 +152,7 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 		bytes_needed =
 		    sizeof(void *) *
 		    pool->size;
-		pool->handles = sh_css_malloc(bytes_needed);
+		pool->handles = kvmalloc(bytes_needed, GFP_KERNEL);
 		if (pool->handles)
 			memset(pool->handles, 0, bytes_needed);
 		else
@@ -196,7 +196,7 @@ void ia_css_rmgr_uninit_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 			}
 		}
 		/* now free the pool handles list */
-		sh_css_free(pool->handles);
+		kvfree(pool->handles);
 		pool->handles = NULL;
 	}
 }

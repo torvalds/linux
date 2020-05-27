@@ -927,8 +927,8 @@ ia_css_binary_init_infos(void) {
 	if (num_of_isp_binaries == 0)
 		return IA_CSS_SUCCESS;
 
-	all_binaries = sh_css_malloc(num_of_isp_binaries *
-				     sizeof(*all_binaries));
+	all_binaries = kvmalloc(num_of_isp_binaries * sizeof(*all_binaries),
+				GFP_KERNEL);
 	if (!all_binaries)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 
@@ -966,7 +966,7 @@ ia_css_binary_uninit(void) {
 		}
 		binary_infos[i] = NULL;
 	}
-	sh_css_free(all_binaries);
+	kvfree(all_binaries);
 	return IA_CSS_SUCCESS;
 }
 

@@ -512,7 +512,7 @@ static void pipeline_stage_destroy(struct ia_css_pipeline_stage *stage)
 		ia_css_frame_free(stage->args.out_vf_frame);
 		stage->args.out_vf_frame = NULL;
 	}
-	sh_css_free(stage);
+	kvfree(stage);
 }
 
 static void pipeline_init_sp_thread_map(void)
@@ -593,7 +593,7 @@ static enum ia_css_err pipeline_stage_create(
 		out_frame[i] = stage_desc->out_frame[i];
 	}
 
-	stage = sh_css_malloc(sizeof(*stage));
+	stage = kvmalloc(sizeof(*stage), GFP_KERNEL);
 	if (!stage) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;

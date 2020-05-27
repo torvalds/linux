@@ -67,13 +67,16 @@ make_histogram(struct sh_css_pc_histogram *histogram, unsigned int length)
 		return;
 	if (histogram->run)
 		return;
-	histogram->run = sh_css_malloc(length * sizeof(*histogram->run));
+	histogram->run = kvmalloc(length * sizeof(*histogram->run),
+				  GFP_KERNEL);
 	if (!histogram->run)
 		return;
-	histogram->stall = sh_css_malloc(length * sizeof(*histogram->stall));
+	histogram->stall = kvmalloc(length * sizeof(*histogram->stall),
+				    GFP_KERNEL);
 	if (!histogram->stall)
 		return;
-	histogram->msink = sh_css_malloc(length * sizeof(*histogram->msink));
+	histogram->msink = kvmalloc(length * sizeof(*histogram->msink),
+				    GFP_KERNEL);
 	if (!histogram->msink)
 		return;
 

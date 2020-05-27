@@ -1496,12 +1496,13 @@ sh_css_set_black_frame(struct ia_css_stream *stream,
 	if (params->fpn_config.data &&
 	    (params->fpn_config.width != width || params->fpn_config.height != height))
 	{
-		sh_css_free(params->fpn_config.data);
+		kvfree(params->fpn_config.data);
 		params->fpn_config.data = NULL;
 	}
 	if (!params->fpn_config.data)
 	{
-		params->fpn_config.data = sh_css_malloc(height * width * sizeof(short));
+		params->fpn_config.data = kvmalloc(height * width *
+						   sizeof(short), GFP_KERNEL);
 		if (!params->fpn_config.data) {
 			IA_CSS_ERROR("out of memory");
 			IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
@@ -1910,16 +1911,16 @@ void ia_css_morph_table_free(
 
 	for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
 		if (me->coordinates_x[i]) {
-			sh_css_free(me->coordinates_x[i]);
+			kvfree(me->coordinates_x[i]);
 			me->coordinates_x[i] = NULL;
 		}
 		if (me->coordinates_y[i]) {
-			sh_css_free(me->coordinates_y[i]);
+			kvfree(me->coordinates_y[i]);
 			me->coordinates_y[i] = NULL;
 		}
 	}
 
-	sh_css_free(me);
+	kvfree(me);
 	IA_CSS_LEAVE("void");
 }
 
@@ -1932,7 +1933,7 @@ struct ia_css_morph_table *ia_css_morph_table_allocate(
 
 	IA_CSS_ENTER("");
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
 		IA_CSS_ERROR("out of memory");
 		return me;
@@ -1944,12 +1945,12 @@ struct ia_css_morph_table *ia_css_morph_table_allocate(
 	}
 
 	for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
-		me->coordinates_x[i] =
-		    sh_css_malloc(height * width *
-				  sizeof(*me->coordinates_x[i]));
-		me->coordinates_y[i] =
-		    sh_css_malloc(height * width *
-				  sizeof(*me->coordinates_y[i]));
+		me->coordinates_x[i] = kvmalloc(height * width *
+						sizeof(*me->coordinates_x[i]),
+						GFP_KERNEL);
+		me->coordinates_y[i] = kvmalloc(height * width *
+						sizeof(*me->coordinates_y[i]),
+						GFP_KERNEL);
 
 		if ((!me->coordinates_x[i]) ||
 		    (!me->coordinates_y[i])) {
@@ -2063,11 +2064,11 @@ ia_css_isp_3a_statistics_map_free(struct ia_css_isp_3a_statistics_map *me)
 {
 	if (me) {
 		if (me->data_allocated) {
-			sh_css_free(me->data_ptr);
+			kvfree(me->data_ptr);
 			me->data_ptr = NULL;
 			me->data_allocated = false;
 		}
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -2081,7 +2082,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
 		IA_CSS_LEAVE("cannot allocate memory");
 		goto err;
@@ -2090,7 +2091,7 @@ ia_css_isp_3a_statistics_map_allocate(
 	me->data_ptr = data_ptr;
 	me->data_allocated = !data_ptr;
 	if (!data_ptr) {
-		me->data_ptr = sh_css_malloc(isp_stats->size);
+		me->data_ptr = kvmalloc(isp_stats->size, GFP_KERNEL);
 		if (!me->data_ptr) {
 			IA_CSS_LEAVE("cannot allocate memory");
 			goto err;
@@ -2113,7 +2114,7 @@ ia_css_isp_3a_statistics_map_allocate(
 
 err:
 	if (me)
-		sh_css_free(me);
+		kvfree(me);
 	return NULL;
 }
 
@@ -2780,7 +2781,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	if (!grid->enable)
 		return NULL;
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
@@ -2804,7 +2805,7 @@ ia_css_isp_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 	me->size = me->dmem_size + me->vmem_size * 2 + me->hmem_size;
 	me->data_ptr = hmm_alloc(me->size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (me->data_ptr == mmgr_NULL) {
-		sh_css_free(me);
+		kvfree(me);
 		me = NULL;
 		goto err;
 	}
@@ -2827,7 +2828,7 @@ ia_css_isp_3a_statistics_free(struct ia_css_isp_3a_statistics *me)
 {
 	if (me) {
 		hmm_free(me->data_ptr);
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -2846,7 +2847,7 @@ ia_css_metadata_allocate(const struct ia_css_metadata_info *metadata_info)
 	if (metadata_info->size == 0)
 		return NULL;
 
-	md = sh_css_malloc(sizeof(*md));
+	md = kvmalloc(sizeof(*md), GFP_KERNEL);
 	if (!md)
 		goto error;
 
@@ -2876,7 +2877,7 @@ ia_css_metadata_free(struct ia_css_metadata *me)
 		 * and debugging. */
 		IA_CSS_ENTER("me=%p", me);
 		hmm_free(me->address);
-		sh_css_free(me);
+		kvfree(me);
 		IA_CSS_LEAVE("void");
 	}
 }
@@ -2977,7 +2978,7 @@ sh_css_create_isp_params(struct ia_css_stream *stream,
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	size_t params_size;
 	struct ia_css_isp_parameters *params =
-	sh_css_malloc(sizeof(struct ia_css_isp_parameters));
+	kvmalloc(sizeof(struct ia_css_isp_parameters), GFP_KERNEL);
 
 	if (!params)
 	{
@@ -3526,7 +3527,7 @@ ia_css_stream_isp_parameters_uninit(struct ia_css_stream *stream)
 		free_map(&per_frame_params->ddr_ptrs);
 
 	if (params->fpn_config.data) {
-		sh_css_free(params->fpn_config.data);
+		kvfree(params->fpn_config.data);
 		params->fpn_config.data = NULL;
 	}
 
@@ -3542,9 +3543,9 @@ ia_css_stream_isp_parameters_uninit(struct ia_css_stream *stream)
 		}
 	}
 
-	sh_css_free(params);
+	kvfree(params);
 	if (per_frame_params)
-		sh_css_free(per_frame_params);
+		kvfree(per_frame_params);
 	stream->isp_params_configs = NULL;
 	stream->per_frame_isp_params_configs = NULL;
 
@@ -4880,19 +4881,18 @@ ia_css_3a_statistics_allocate(const struct ia_css_3a_grid_info *grid)
 
 	assert(grid);
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
 	me->grid = *grid;
 	grid_size = grid->width * grid->height;
-	me->data = sh_css_malloc(grid_size * sizeof(*me->data));
+	me->data = kvmalloc(grid_size * sizeof(*me->data), GFP_KERNEL);
 	if (!me->data)
 		goto err;
 #if !defined(HAS_NO_HMEM)
 	/* No weighted histogram, no structure, treat the histogram data as a byte dump in a byte array */
-	me->rgby_data = (struct ia_css_3a_rgby_output *)sh_css_malloc(sizeof_hmem(
-			    HMEM0_ID));
+	me->rgby_data = kvmalloc(sizeof_hmem(HMEM0_ID), GFP_KERNEL);
 #else
 	me->rgby_data = NULL;
 #endif
@@ -4910,10 +4910,10 @@ void
 ia_css_3a_statistics_free(struct ia_css_3a_statistics *me)
 {
 	if (me) {
-		sh_css_free(me->rgby_data);
-		sh_css_free(me->data);
+		kvfree(me->rgby_data);
+		kvfree(me->data);
 		memset(me, 0, sizeof(struct ia_css_3a_statistics));
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -4924,18 +4924,18 @@ ia_css_dvs_statistics_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
 	me->grid = *grid;
-	me->hor_proj = sh_css_malloc(grid->height * IA_CSS_DVS_NUM_COEF_TYPES *
-				     sizeof(*me->hor_proj));
+	me->hor_proj = kvmalloc(grid->height * IA_CSS_DVS_NUM_COEF_TYPES *
+				sizeof(*me->hor_proj), GFP_KERNEL);
 	if (!me->hor_proj)
 		goto err;
 
-	me->ver_proj = sh_css_malloc(grid->width * IA_CSS_DVS_NUM_COEF_TYPES *
-				     sizeof(*me->ver_proj));
+	me->ver_proj = kvmalloc(grid->width * IA_CSS_DVS_NUM_COEF_TYPES *
+				sizeof(*me->ver_proj), GFP_KERNEL);
 	if (!me->ver_proj)
 		goto err;
 
@@ -4949,10 +4949,10 @@ void
 ia_css_dvs_statistics_free(struct ia_css_dvs_statistics *me)
 {
 	if (me) {
-		sh_css_free(me->hor_proj);
-		sh_css_free(me->ver_proj);
+		kvfree(me->hor_proj);
+		kvfree(me->ver_proj);
 		memset(me, 0, sizeof(struct ia_css_dvs_statistics));
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -4963,21 +4963,21 @@ ia_css_dvs_coefficients_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
 	me->grid = *grid;
 
-	me->hor_coefs = sh_css_malloc(grid->num_hor_coefs *
-				      IA_CSS_DVS_NUM_COEF_TYPES *
-				      sizeof(*me->hor_coefs));
+	me->hor_coefs = kvmalloc(grid->num_hor_coefs *
+				 IA_CSS_DVS_NUM_COEF_TYPES *
+				 sizeof(*me->hor_coefs), GFP_KERNEL);
 	if (!me->hor_coefs)
 		goto err;
 
-	me->ver_coefs = sh_css_malloc(grid->num_ver_coefs *
-				      IA_CSS_DVS_NUM_COEF_TYPES *
-				      sizeof(*me->ver_coefs));
+	me->ver_coefs = kvmalloc(grid->num_ver_coefs *
+				 IA_CSS_DVS_NUM_COEF_TYPES *
+				 sizeof(*me->ver_coefs), GFP_KERNEL);
 	if (!me->ver_coefs)
 		goto err;
 
@@ -4991,10 +4991,10 @@ void
 ia_css_dvs_coefficients_free(struct ia_css_dvs_coefficients *me)
 {
 	if (me) {
-		sh_css_free(me->hor_coefs);
-		sh_css_free(me->ver_coefs);
+		kvfree(me->hor_coefs);
+		kvfree(me->ver_coefs);
 		memset(me, 0, sizeof(struct ia_css_dvs_coefficients));
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -5005,49 +5005,65 @@ ia_css_dvs2_statistics_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
 	me->grid = *grid;
 
-	me->hor_prod.odd_real = sh_css_malloc(grid->aligned_width *
-					      grid->aligned_height * sizeof(*me->hor_prod.odd_real));
+	me->hor_prod.odd_real = kvmalloc(grid->aligned_width *
+					 grid->aligned_height *
+					 sizeof(*me->hor_prod.odd_real),
+					 GFP_KERNEL);
 	if (!me->hor_prod.odd_real)
 		goto err;
 
-	me->hor_prod.odd_imag = sh_css_malloc(grid->aligned_width *
-					      grid->aligned_height * sizeof(*me->hor_prod.odd_imag));
+	me->hor_prod.odd_imag = kvmalloc(grid->aligned_width *
+					 grid->aligned_height *
+					 sizeof(*me->hor_prod.odd_imag),
+					 GFP_KERNEL);
 	if (!me->hor_prod.odd_imag)
 		goto err;
 
-	me->hor_prod.even_real = sh_css_malloc(grid->aligned_width *
-					       grid->aligned_height * sizeof(*me->hor_prod.even_real));
+	me->hor_prod.even_real = kvmalloc(grid->aligned_width *
+					  grid->aligned_height *
+					  sizeof(*me->hor_prod.even_real),
+					  GFP_KERNEL);
 	if (!me->hor_prod.even_real)
 		goto err;
 
-	me->hor_prod.even_imag = sh_css_malloc(grid->aligned_width *
-					       grid->aligned_height * sizeof(*me->hor_prod.even_imag));
+	me->hor_prod.even_imag = kvmalloc(grid->aligned_width *
+					  grid->aligned_height *
+					  sizeof(*me->hor_prod.even_imag),
+					  GFP_KERNEL);
 	if (!me->hor_prod.even_imag)
 		goto err;
 
-	me->ver_prod.odd_real = sh_css_malloc(grid->aligned_width *
-					      grid->aligned_height * sizeof(*me->ver_prod.odd_real));
+	me->ver_prod.odd_real = kvmalloc(grid->aligned_width *
+					 grid->aligned_height *
+					 sizeof(*me->ver_prod.odd_real),
+					 GFP_KERNEL);
 	if (!me->ver_prod.odd_real)
 		goto err;
 
-	me->ver_prod.odd_imag = sh_css_malloc(grid->aligned_width *
-					      grid->aligned_height * sizeof(*me->ver_prod.odd_imag));
+	me->ver_prod.odd_imag = kvmalloc(grid->aligned_width *
+					 grid->aligned_height *
+					 sizeof(*me->ver_prod.odd_imag),
+					 GFP_KERNEL);
 	if (!me->ver_prod.odd_imag)
 		goto err;
 
-	me->ver_prod.even_real = sh_css_malloc(grid->aligned_width *
-					       grid->aligned_height * sizeof(*me->ver_prod.even_real));
+	me->ver_prod.even_real = kvmalloc(grid->aligned_width *
+					  grid->aligned_height *
+					  sizeof(*me->ver_prod.even_real),
+					  GFP_KERNEL);
 	if (!me->ver_prod.even_real)
 		goto err;
 
-	me->ver_prod.even_imag = sh_css_malloc(grid->aligned_width *
-					       grid->aligned_height * sizeof(*me->ver_prod.even_imag));
+	me->ver_prod.even_imag = kvmalloc(grid->aligned_width *
+					  grid->aligned_height *
+					  sizeof(*me->ver_prod.even_imag),
+					  GFP_KERNEL);
 	if (!me->ver_prod.even_imag)
 		goto err;
 
@@ -5061,16 +5077,16 @@ void
 ia_css_dvs2_statistics_free(struct ia_css_dvs2_statistics *me)
 {
 	if (me) {
-		sh_css_free(me->hor_prod.odd_real);
-		sh_css_free(me->hor_prod.odd_imag);
-		sh_css_free(me->hor_prod.even_real);
-		sh_css_free(me->hor_prod.even_imag);
-		sh_css_free(me->ver_prod.odd_real);
-		sh_css_free(me->ver_prod.odd_imag);
-		sh_css_free(me->ver_prod.even_real);
-		sh_css_free(me->ver_prod.even_imag);
+		kvfree(me->hor_prod.odd_real);
+		kvfree(me->hor_prod.odd_imag);
+		kvfree(me->hor_prod.even_real);
+		kvfree(me->hor_prod.even_imag);
+		kvfree(me->ver_prod.odd_real);
+		kvfree(me->ver_prod.odd_imag);
+		kvfree(me->ver_prod.even_real);
+		kvfree(me->ver_prod.even_imag);
 		memset(me, 0, sizeof(struct ia_css_dvs2_statistics));
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -5081,49 +5097,57 @@ ia_css_dvs2_coefficients_allocate(const struct ia_css_dvs_grid_info *grid)
 
 	assert(grid);
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
 	me->grid = *grid;
 
-	me->hor_coefs.odd_real = sh_css_malloc(grid->num_hor_coefs *
-					       sizeof(*me->hor_coefs.odd_real));
+	me->hor_coefs.odd_real = kvmalloc(grid->num_hor_coefs *
+					  sizeof(*me->hor_coefs.odd_real),
+					  GFP_KERNEL);
 	if (!me->hor_coefs.odd_real)
 		goto err;
 
-	me->hor_coefs.odd_imag = sh_css_malloc(grid->num_hor_coefs *
-					       sizeof(*me->hor_coefs.odd_imag));
+	me->hor_coefs.odd_imag = kvmalloc(grid->num_hor_coefs *
+					  sizeof(*me->hor_coefs.odd_imag),
+					  GFP_KERNEL);
 	if (!me->hor_coefs.odd_imag)
 		goto err;
 
-	me->hor_coefs.even_real = sh_css_malloc(grid->num_hor_coefs *
-						sizeof(*me->hor_coefs.even_real));
+	me->hor_coefs.even_real = kvmalloc(grid->num_hor_coefs *
+					   sizeof(*me->hor_coefs.even_real),
+					   GFP_KERNEL);
 	if (!me->hor_coefs.even_real)
 		goto err;
 
-	me->hor_coefs.even_imag = sh_css_malloc(grid->num_hor_coefs *
-						sizeof(*me->hor_coefs.even_imag));
+	me->hor_coefs.even_imag = kvmalloc(grid->num_hor_coefs *
+					   sizeof(*me->hor_coefs.even_imag),
+					   GFP_KERNEL);
 	if (!me->hor_coefs.even_imag)
 		goto err;
 
-	me->ver_coefs.odd_real = sh_css_malloc(grid->num_ver_coefs *
-					       sizeof(*me->ver_coefs.odd_real));
+	me->ver_coefs.odd_real = kvmalloc(grid->num_ver_coefs *
+					  sizeof(*me->ver_coefs.odd_real),
+					  GFP_KERNEL);
 	if (!me->ver_coefs.odd_real)
 		goto err;
 
-	me->ver_coefs.odd_imag = sh_css_malloc(grid->num_ver_coefs *
-					       sizeof(*me->ver_coefs.odd_imag));
+	me->ver_coefs.odd_imag = kvmalloc(grid->num_ver_coefs *
+					  sizeof(*me->ver_coefs.odd_imag),
+					  GFP_KERNEL);
 	if (!me->ver_coefs.odd_imag)
 		goto err;
 
-	me->ver_coefs.even_real = sh_css_malloc(grid->num_ver_coefs *
-						sizeof(*me->ver_coefs.even_real));
+	me->ver_coefs.even_real = kvmalloc(grid->num_ver_coefs *
+					   sizeof(*me->ver_coefs.even_real),
+					   GFP_KERNEL);
 	if (!me->ver_coefs.even_real)
 		goto err;
 
-	me->ver_coefs.even_imag = sh_css_malloc(grid->num_ver_coefs *
-						sizeof(*me->ver_coefs.even_imag));
+	me->ver_coefs.even_imag = kvmalloc(grid->num_ver_coefs *
+					   sizeof(*me->ver_coefs.even_imag),
+					   GFP_KERNEL);
 	if (!me->ver_coefs.even_imag)
 		goto err;
 
@@ -5137,16 +5161,16 @@ void
 ia_css_dvs2_coefficients_free(struct ia_css_dvs2_coefficients *me)
 {
 	if (me) {
-		sh_css_free(me->hor_coefs.odd_real);
-		sh_css_free(me->hor_coefs.odd_imag);
-		sh_css_free(me->hor_coefs.even_real);
-		sh_css_free(me->hor_coefs.even_imag);
-		sh_css_free(me->ver_coefs.odd_real);
-		sh_css_free(me->ver_coefs.odd_imag);
-		sh_css_free(me->ver_coefs.even_real);
-		sh_css_free(me->ver_coefs.even_imag);
+		kvfree(me->hor_coefs.odd_real);
+		kvfree(me->hor_coefs.odd_imag);
+		kvfree(me->hor_coefs.even_real);
+		kvfree(me->hor_coefs.even_imag);
+		kvfree(me->ver_coefs.odd_real);
+		kvfree(me->ver_coefs.odd_imag);
+		kvfree(me->ver_coefs.even_real);
+		kvfree(me->ver_coefs.even_imag);
 		memset(me, 0, sizeof(struct ia_css_dvs2_coefficients));
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
@@ -5169,8 +5193,8 @@ ia_css_dvs2_6axis_config_allocate(const struct ia_css_stream *stream)
 		goto err;
 	}
 
-	dvs_config = (struct ia_css_dvs_6axis_config *)sh_css_calloc(1,
-		     sizeof(struct ia_css_dvs_6axis_config));
+	dvs_config = kvcalloc(1, sizeof(struct ia_css_dvs_6axis_config),
+			      GFP_KERNEL);
 	if (!dvs_config)
 		goto err;
 
@@ -5184,23 +5208,25 @@ ia_css_dvs2_6axis_config_allocate(const struct ia_css_stream *stream)
 				    params->pipe_dvs_6axis_config[IA_CSS_PIPE_ID_VIDEO]->height_uv;
 	IA_CSS_LOG("table Y: W %d H %d", width_y, height_y);
 	IA_CSS_LOG("table UV: W %d H %d", width_uv, height_uv);
-	dvs_config->xcoords_y = (uint32_t *)sh_css_malloc(width_y * height_y * sizeof(
-				    uint32_t));
+	dvs_config->xcoords_y = kvmalloc(width_y * height_y * sizeof(uint32_t),
+					 GFP_KERNEL);
 	if (!dvs_config->xcoords_y)
 		goto err;
 
-	dvs_config->ycoords_y = (uint32_t *)sh_css_malloc(width_y * height_y * sizeof(
-				    uint32_t));
+	dvs_config->ycoords_y = kvmalloc(width_y * height_y * sizeof(uint32_t),
+					 GFP_KERNEL);
 	if (!dvs_config->ycoords_y)
 		goto err;
 
-	dvs_config->xcoords_uv = (uint32_t *)sh_css_malloc(width_uv * height_uv *
-				 sizeof(uint32_t));
+	dvs_config->xcoords_uv = kvmalloc(width_uv * height_uv *
+					  sizeof(uint32_t),
+					  GFP_KERNEL);
 	if (!dvs_config->xcoords_uv)
 		goto err;
 
-	dvs_config->ycoords_uv = (uint32_t *)sh_css_malloc(width_uv * height_uv *
-				 sizeof(uint32_t));
+	dvs_config->ycoords_uv = kvmalloc(width_uv * height_uv *
+					  sizeof(uint32_t),
+					  GFP_KERNEL);
 	if (!dvs_config->ycoords_uv)
 		goto err;
 
@@ -5214,12 +5240,12 @@ void
 ia_css_dvs2_6axis_config_free(struct ia_css_dvs_6axis_config *dvs_6axis_config)
 {
 	if (dvs_6axis_config) {
-		sh_css_free(dvs_6axis_config->xcoords_y);
-		sh_css_free(dvs_6axis_config->ycoords_y);
-		sh_css_free(dvs_6axis_config->xcoords_uv);
-		sh_css_free(dvs_6axis_config->ycoords_uv);
+		kvfree(dvs_6axis_config->xcoords_y);
+		kvfree(dvs_6axis_config->ycoords_y);
+		kvfree(dvs_6axis_config->xcoords_uv);
+		kvfree(dvs_6axis_config->ycoords_uv);
 		memset(dvs_6axis_config, 0, sizeof(struct ia_css_dvs_6axis_config));
-		sh_css_free(dvs_6axis_config);
+		kvfree(dvs_6axis_config);
 	}
 }
 

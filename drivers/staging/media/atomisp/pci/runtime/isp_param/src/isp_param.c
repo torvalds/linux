@@ -122,7 +122,9 @@ ia_css_isp_param_allocate_isp_parameters(
 			css_params->params[pclass][mem].size = size;
 			css_params->params[pclass][mem].address = 0x0;
 			if (size) {
-				mem_params->params[pclass][mem].address = sh_css_calloc(1, size);
+				mem_params->params[pclass][mem].address = kvcalloc(1,
+										   size,
+										   GFP_KERNEL);
 				if (!mem_params->params[pclass][mem].address) {
 					err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 					goto cleanup;
@@ -153,7 +155,7 @@ ia_css_isp_param_destroy_isp_parameters(
 	for (mem = 0; mem < IA_CSS_NUM_MEMORIES; mem++) {
 		for (pclass = 0; pclass < IA_CSS_NUM_PARAM_CLASSES; pclass++) {
 			if (mem_params->params[pclass][mem].address)
-				sh_css_free(mem_params->params[pclass][mem].address);
+				kvfree(mem_params->params[pclass][mem].address);
 			if (css_params->params[pclass][mem].address)
 				hmm_free(css_params->params[pclass][mem].address);
 			mem_params->params[pclass][mem].address = NULL;

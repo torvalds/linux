@@ -318,7 +318,7 @@ ia_css_isp_dvs_statistics_allocate(
 	if (!grid->enable)
 		return NULL;
 
-	me = sh_css_calloc(1, sizeof(*me));
+	me = kvcalloc(1, sizeof(*me), GFP_KERNEL);
 	if (!me)
 		goto err;
 
@@ -359,7 +359,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	 * so we use a local char * instead. */
 	char *base_ptr;
 
-	me = sh_css_malloc(sizeof(*me));
+	me = kvmalloc(sizeof(*me), GFP_KERNEL);
 	if (!me) {
 		IA_CSS_LOG("cannot allocate memory");
 		goto err;
@@ -369,7 +369,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	me->data_allocated = !data_ptr;
 
 	if (!me->data_ptr) {
-		me->data_ptr = sh_css_malloc(isp_stats->size);
+		me->data_ptr = kvmalloc(isp_stats->size, GFP_KERNEL);
 		if (!me->data_ptr) {
 			IA_CSS_LOG("cannot allocate memory");
 			goto err;
@@ -386,7 +386,7 @@ ia_css_isp_dvs_statistics_map_allocate(
 	return me;
 err:
 	if (me)
-		sh_css_free(me);
+		kvfree(me);
 	return NULL;
 }
 
@@ -395,8 +395,8 @@ ia_css_isp_dvs_statistics_map_free(struct ia_css_isp_dvs_statistics_map *me)
 {
 	if (me) {
 		if (me->data_allocated)
-			sh_css_free(me->data_ptr);
-		sh_css_free(me);
+			kvfree(me->data_ptr);
+		kvfree(me);
 	}
 }
 
@@ -405,7 +405,7 @@ ia_css_isp_dvs_statistics_free(struct ia_css_isp_dvs_statistics *me)
 {
 	if (me) {
 		hmm_free(me->data_ptr);
-		sh_css_free(me);
+		kvfree(me);
 	}
 }
 
