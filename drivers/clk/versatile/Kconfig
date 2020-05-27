@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-menuconfig COMMON_CLK_VERSATILE
-	bool "Clock driver for ARM Reference designs" if COMPILE_TEST
-	default y if ARCH_INTEGRATOR || ARCH_REALVIEW || \
-		ARCH_VERSATILE || ARCH_VEXPRESS
-
-if COMMON_CLK_VERSATILE
+menu "Clock driver for ARM Reference designs"
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || \
+		ARCH_VERSATILE || ARCH_VEXPRESS || ARCH_ZYNQ || COMPILE_TEST
 
 config ICST
 	bool "Clock driver for ARM Reference designs ICST"
@@ -32,4 +29,4 @@ config CLK_VEXPRESS_OSC
 	  Express platforms hidden behind its configuration infrastructure,
 	  commonly known as OSCs.
 
-endif
+endmenu
