@@ -1588,10 +1588,12 @@ struct ib_ah {
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
 enum ib_poll_context {
-	IB_POLL_DIRECT,		   /* caller context, no hw completions */
 	IB_POLL_SOFTIRQ,	   /* poll from softirq context */
 	IB_POLL_WORKQUEUE,	   /* poll from workqueue */
 	IB_POLL_UNBOUND_WORKQUEUE, /* poll from unbound workqueue */
+	IB_POLL_LAST_POOL_TYPE = IB_POLL_UNBOUND_WORKQUEUE,
+
+	IB_POLL_DIRECT,		   /* caller context, no hw completions */
 };
 
 struct ib_cq {
@@ -1601,9 +1603,11 @@ struct ib_cq {
 	void                  (*event_handler)(struct ib_event *, void *);
 	void                   *cq_context;
 	int               	cqe;
+	unsigned int		cqe_used;
 	atomic_t          	usecnt; /* count number of work queues */
 	enum ib_poll_context	poll_ctx;
 	struct ib_wc		*wc;
+	struct list_head        pool_entry;
 	union {
 		struct irq_poll		iop;
 		struct work_struct	work;
@@ -1615,6 +1619,7 @@ struct ib_cq {
 	ktime_t timestamp;
 	u8 interrupt:1;
 	u8 shared:1;
+	unsigned int comp_vector;
 
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
@@ -2734,6 +2739,10 @@ struct ib_device {
 #endif
 
 	u32                          index;
+
+	spinlock_t                   cq_pools_lock;
+	struct list_head             cq_pools[IB_POLL_LAST_POOL_TYPE + 1];
+
 	struct rdma_restrack_root *res;
 
 	const struct uapi_definition   *driver_def;
@@ -4036,6 +4045,12 @@ static inline int ib_req_notify_cq(struct ib_cq *cq,
 {
 	return cq->device->ops.req_notify_cq(cq, flags);
 }
+
+struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
+			     int comp_vector_hint,
+			     enum ib_poll_context poll_ctx);
+
+void ib_cq_pool_put(struct ib_cq *cq, unsigned int nr_cqe);
 
 /**
  * ib_req_ncomp_notif - Request completion notification when there are
