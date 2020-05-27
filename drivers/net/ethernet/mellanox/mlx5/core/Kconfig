@@ -84,7 +84,7 @@ config MLX5_CLS_ACT
 	default y
 	help
 	  mlx5 ConnectX offloads support for TC classifier action (NET_CLS_ACT),
-	  works in both native NIC mdoe and Switchdev SRIOV mode.
+	  works in both native NIC mode and Switchdev SRIOV mode.
 	  Actions get attached to a Hardware offloaded classifiers and are
 	  invoked after a successful classification. Actions are used to
 	  overwrite the classification result, instantly drop or redirect and/or
