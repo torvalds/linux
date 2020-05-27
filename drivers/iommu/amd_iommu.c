@@ -413,13 +413,8 @@ static void iommu_ignore_device(struct device *dev)
 static void amd_iommu_uninit_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
-	int devid;
 
-	devid = get_device_id(dev);
-	if (devid < 0)
-		return;
-
-	dev_data = search_dev_data(devid);
+	dev_data = dev_iommu_priv_get(dev);
 	if (!dev_data)
 		return;
 
@@ -2173,14 +2168,10 @@ static void amd_iommu_probe_finalize(struct device *dev)
 
 static void amd_iommu_release_device(struct device *dev)
 {
+	int devid = get_device_id(dev);
 	struct amd_iommu *iommu;
-	int devid;
 
 	if (!check_device(dev))
-		return;
-
-	devid = get_device_id(dev);
-	if (devid < 0)
 		return;
 
 	iommu = amd_iommu_rlookup_table[devid];
