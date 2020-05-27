@@ -592,7 +592,7 @@ SYSCALL_DEFINE0(ni_syscall)
  * The return value must be fed into the state argument of
  * idtentry_exit().
  */
-idtentry_state_t noinstr idtentry_enter(struct pt_regs *regs)
+noinstr idtentry_state_t idtentry_enter(struct pt_regs *regs)
 {
 	idtentry_state_t ret = {
 		.exit_rcu = false,
@@ -687,7 +687,7 @@ static void idtentry_exit_cond_resched(struct pt_regs *regs, bool may_sched)
  * Counterpart to idtentry_enter(). The return value of the entry
  * function must be fed into the @state argument.
  */
-void noinstr idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
+noinstr void idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
 {
 	lockdep_assert_irqs_disabled();
 
@@ -731,7 +731,7 @@ void noinstr idtentry_exit(struct pt_regs *regs, idtentry_state_t state)
  * Invokes enter_from_user_mode() to establish the proper context for
  * NOHZ_FULL. Otherwise scheduling on exit would not be possible.
  */
-void noinstr idtentry_enter_user(struct pt_regs *regs)
+noinstr void idtentry_enter_user(struct pt_regs *regs)
 {
 	check_user_regs(regs);
 	enter_from_user_mode();
@@ -749,11 +749,45 @@ void noinstr idtentry_enter_user(struct pt_regs *regs)
  *
  * Counterpart to idtentry_enter_user().
  */
-void noinstr idtentry_exit_user(struct pt_regs *regs)
+noinstr void idtentry_exit_user(struct pt_regs *regs)
 {
 	lockdep_assert_irqs_disabled();
 
 	prepare_exit_to_usermode(regs);
+}
+
+noinstr bool idtentry_enter_nmi(struct pt_regs *regs)
+{
+	bool irq_state = lockdep_hardirqs_enabled(current);
+
+	__nmi_enter();
+	lockdep_hardirqs_off(CALLER_ADDR0);
+	lockdep_hardirq_enter();
+	rcu_nmi_enter();
+
+	instrumentation_begin();
+	trace_hardirqs_off_finish();
+	ftrace_nmi_enter();
+	instrumentation_end();
+
+	return irq_state;
+}
+
+noinstr void idtentry_exit_nmi(struct pt_regs *regs, bool restore)
+{
+	instrumentation_begin();
+	ftrace_nmi_exit();
+	if (restore) {
+		trace_hardirqs_on_prepare();
+		lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	}
+	instrumentation_end();
+
+	rcu_nmi_exit();
+	lockdep_hardirq_exit();
+	if (restore)
+		lockdep_hardirqs_on(CALLER_ADDR0);
+	__nmi_exit();
 }
 
 #ifdef CONFIG_XEN_PV
