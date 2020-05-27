@@ -114,8 +114,12 @@ static int sof_resume(struct device *dev, bool runtime_resume)
 		return ret;
 	}
 
-	/* Nothing further to do if resuming from a low-power D0 substate */
-	if (!runtime_resume && old_state == SOF_DSP_PM_D0)
+	/*
+	 * Nothing further to be done for platforms that support the low power
+	 * D0 substate.
+	 */
+	if (!runtime_resume && sof_ops(sdev)->set_power_state &&
+	    old_state == SOF_DSP_PM_D0)
 		return 0;
 
 	sdev->fw_state = SOF_FW_BOOT_PREPARE;
