@@ -1405,7 +1405,7 @@ static void test_map_rdonly(void)
 	close(fd);
 }
 
-static void test_map_wronly(void)
+static void test_map_wronly_hash(void)
 {
 	int fd, key = 0, value = 0;
 
@@ -1427,6 +1427,44 @@ static void test_map_wronly(void)
 	assert(bpf_map_get_next_key(fd, &key, &value) == -1 && errno == EPERM);
 
 	close(fd);
+}
+
+static void test_map_wronly_stack_or_queue(enum bpf_map_type map_type)
+{
+	int fd, value = 0;
+
+	assert(map_type == BPF_MAP_TYPE_QUEUE ||
+	       map_type == BPF_MAP_TYPE_STACK);
+	fd = bpf_create_map(map_type, 0, sizeof(value), MAP_SIZE,
+			    map_flags | BPF_F_WRONLY);
+	/* Stack/Queue maps do not support BPF_F_NO_PREALLOC */
+	if (map_flags & BPF_F_NO_PREALLOC) {
+		assert(fd < 0 && errno == EINVAL);
+		return;
+	}
+	if (fd < 0) {
+		printf("Failed to create map '%s'!\n", strerror(errno));
+		exit(1);
+	}
+
+	value = 1234;
+	assert(bpf_map_update_elem(fd, NULL, &value, BPF_ANY) == 0);
+
+	/* Peek element should fail */
+	assert(bpf_map_lookup_elem(fd, NULL, &value) == -1 && errno == EPERM);
+
+	/* Pop element should fail */
+	assert(bpf_map_lookup_and_delete_elem(fd, NULL, &value) == -1 &&
+	       errno == EPERM);
+
+	close(fd);
+}
+
+static void test_map_wronly(void)
+{
+	test_map_wronly_hash();
+	test_map_wronly_stack_or_queue(BPF_MAP_TYPE_STACK);
+	test_map_wronly_stack_or_queue(BPF_MAP_TYPE_QUEUE);
 }
 
 static void prepare_reuseport_grp(int type, int map_fd, size_t map_elem_size,
