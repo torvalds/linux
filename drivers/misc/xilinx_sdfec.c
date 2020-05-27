@@ -627,12 +627,11 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 
 	nr_pages = n;
 
-	res = get_user_pages_fast((unsigned long)src_ptr, nr_pages, 0, pages);
+	res = pin_user_pages_fast((unsigned long)src_ptr, nr_pages, 0, pages);
 	if (res < nr_pages) {
-		if (res > 0) {
-			for (i = 0; i < res; i++)
-				put_page(pages[i]);
-		}
+		if (res > 0)
+			unpin_user_pages(pages, res);
+
 		return -EINVAL;
 	}
 
@@ -646,7 +645,7 @@ static int xsdfec_table_write(struct xsdfec_dev *xsdfec, u32 offset,
 			reg++;
 		} while ((reg < len) &&
 			 ((reg * XSDFEC_REG_WIDTH_JUMP) % PAGE_SIZE));
-		put_page(pages[i]);
+		unpin_user_page(pages[i]);
 	}
 	return 0;
 }
