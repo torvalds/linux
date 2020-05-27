@@ -752,9 +752,11 @@ static int omap_sham_align_sgs(struct scatterlist *sg,
 
 	if (!sg || !sg->length || !nbytes) {
 		if (bufcnt) {
+			bufcnt = DIV_ROUND_UP(bufcnt, bs) * bs;
 			sg_init_table(rctx->sgl, 1);
 			sg_set_buf(rctx->sgl, rctx->dd->xmit_buf, bufcnt);
 			rctx->sg = rctx->sgl;
+			rctx->sg_len = 1;
 		}
 
 		return 0;
