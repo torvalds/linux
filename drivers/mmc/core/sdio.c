@@ -27,6 +27,24 @@
 #include "sdio_ops.h"
 #include "sdio_cis.h"
 
+MMC_DEV_ATTR(vendor, "0x%04x\n", card->cis.vendor);
+MMC_DEV_ATTR(device, "0x%04x\n", card->cis.device);
+MMC_DEV_ATTR(ocr, "0x%08x\n", card->ocr);
+MMC_DEV_ATTR(rca, "0x%04x\n", card->rca);
+
+static struct attribute *sdio_std_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_device.attr,
+	&dev_attr_ocr.attr,
+	&dev_attr_rca.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(sdio_std);
+
+static struct device_type sdio_type = {
+	.groups = sdio_std_groups,
+};
+
 static int sdio_read_fbr(struct sdio_func *func)
 {
 	int ret;
@@ -618,7 +636,7 @@ try_again:
 	/*
 	 * Allocate card structure.
 	 */
-	card = mmc_alloc_card(host, NULL);
+	card = mmc_alloc_card(host, &sdio_type);
 	if (IS_ERR(card))
 		return PTR_ERR(card);
 

@@ -707,7 +707,12 @@ static ssize_t mmc_dsr_show(struct device *dev,
 
 static DEVICE_ATTR(dsr, S_IRUGO, mmc_dsr_show, NULL);
 
+MMC_DEV_ATTR(vendor, "0x%04x\n", card->cis.vendor);
+MMC_DEV_ATTR(device, "0x%04x\n", card->cis.device);
+
 static struct attribute *sd_std_attrs[] = {
+	&dev_attr_vendor.attr,
+	&dev_attr_device.attr,
 	&dev_attr_cid.attr,
 	&dev_attr_csd.attr,
 	&dev_attr_scr.attr,
@@ -726,7 +731,26 @@ static struct attribute *sd_std_attrs[] = {
 	&dev_attr_dsr.attr,
 	NULL,
 };
-ATTRIBUTE_GROUPS(sd_std);
+
+static umode_t sd_std_is_visible(struct kobject *kobj, struct attribute *attr,
+				 int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct mmc_card *card = mmc_dev_to_card(dev);
+
+	/* CIS vendor and device ids are available only for Combo cards */
+	if ((attr == &dev_attr_vendor.attr || attr == &dev_attr_device.attr) &&
+	    card->type != MMC_TYPE_SD_COMBO)
+		return 0;
+
+	return attr->mode;
+}
+
+static const struct attribute_group sd_std_group = {
+	.attrs = sd_std_attrs,
+	.is_visible = sd_std_is_visible,
+};
+__ATTRIBUTE_GROUPS(sd_std);
 
 struct device_type sd_type = {
 	.groups = sd_std_groups,
