@@ -444,7 +444,7 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 		service->callback(service->callback_param,
 				  VCHI_CALLBACK_MSG_AVAILABLE, NULL);
 
-		goto done;
+		break;
 
 	case VCHIQ_BULK_TRANSMIT_DONE:
 		service->callback(service->callback_param,
@@ -483,8 +483,6 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 	}
 
 release:
-	vchiq_release_message(service->handle, header);
-done:
 	return VCHIQ_SUCCESS;
 }
 
