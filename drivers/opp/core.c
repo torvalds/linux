@@ -725,6 +725,34 @@ restore_voltage:
 	return ret;
 }
 
+static int _set_opp_bw(const struct opp_table *opp_table,
+		       struct dev_pm_opp *opp, struct device *dev, bool remove)
+{
+	u32 avg, peak;
+	int i, ret;
+
+	if (!opp_table->paths)
+		return 0;
+
+	for (i = 0; i < opp_table->path_count; i++) {
+		if (remove) {
+			avg = 0;
+			peak = 0;
+		} else {
+			avg = opp->bandwidth[i].avg;
+			peak = opp->bandwidth[i].peak;
+		}
+		ret = icc_set_bw(opp_table->paths[i], avg, peak);
+		if (ret) {
+			dev_err(dev, "Failed to %s bandwidth[%d]: %d\n",
+				remove ? "remove" : "set", i, ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int _set_opp_custom(const struct opp_table *opp_table,
 			   struct device *dev, unsigned long old_freq,
 			   unsigned long freq,
@@ -820,7 +848,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	unsigned long freq, old_freq, temp_freq;
 	struct dev_pm_opp *old_opp, *opp;
 	struct clk *clk;
-	int ret, i;
+	int ret;
 
 	opp_table = _find_opp_table(dev);
 	if (IS_ERR(opp_table)) {
@@ -837,11 +865,16 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		if (!_get_opp_count(opp_table))
 			return 0;
 
-		if (!opp_table->required_opp_tables && !opp_table->regulators) {
+		if (!opp_table->required_opp_tables && !opp_table->regulators &&
+		    !opp_table->paths) {
 			dev_err(dev, "target frequency can't be 0\n");
 			ret = -EINVAL;
 			goto put_opp_table;
 		}
+
+		ret = _set_opp_bw(opp_table, NULL, dev, true);
+		if (ret)
+			return ret;
 
 		if (opp_table->regulator_enabled) {
 			regulator_disable(opp_table->regulators[0]);
@@ -932,16 +965,8 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 			dev_err(dev, "Failed to set required opps: %d\n", ret);
 	}
 
-	if (!ret && opp_table->paths) {
-		for (i = 0; i < opp_table->path_count; i++) {
-			ret = icc_set_bw(opp_table->paths[i],
-					 opp->bandwidth[i].avg,
-					 opp->bandwidth[i].peak);
-			if (ret)
-				dev_err(dev, "Failed to set bandwidth[%d]: %d\n",
-					i, ret);
-		}
-	}
+	if (!ret)
+		ret = _set_opp_bw(opp_table, opp, dev, false);
 
 put_opp:
 	dev_pm_opp_put(opp);
