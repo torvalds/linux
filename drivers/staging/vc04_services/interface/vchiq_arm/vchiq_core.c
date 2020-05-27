@@ -1484,15 +1484,6 @@ parse_open(struct vchiq_state *state, struct vchiq_header *header)
 					: VCHIQ_SRVSTATE_OPEN);
 			}
 
-			service->remoteport = remoteport;
-			service->client_id = ((int *)header->data)[1];
-			if (make_service_callback(service, VCHIQ_SERVICE_OPENED,
-				NULL, NULL) == VCHIQ_RETRY) {
-				/* Bail out if not ready */
-				service->remoteport = VCHIQ_PORT_FREE;
-				goto bail_not_ready;
-			}
-
 			/* Success - the message has been dealt with */
 			unlock_service(service);
 			return 1;

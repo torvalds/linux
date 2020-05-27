@@ -461,10 +461,6 @@ static enum vchiq_status shim_callback(enum vchiq_reason reason,
 				  VCHI_CALLBACK_SERVICE_CLOSED, NULL);
 		break;
 
-	case VCHIQ_SERVICE_OPENED:
-		/* No equivalent VCHI reason */
-		break;
-
 	case VCHIQ_BULK_TRANSMIT_ABORTED:
 		service->callback(service->callback_param,
 				  VCHI_CALLBACK_BULK_TRANSMIT_ABORTED,
