@@ -1700,6 +1700,10 @@
 			<&cru SCLK_HEVC_CORE>, <&cru SCLK_HEVC_CABAC>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_core",
 				"clk_cabac";
+		rockchip,normal-rates = <300000000>, <0>, <200000000>,
+				<200000000>;
+		rockchip,advanced-rates = <500000000>, <0>, <400000000>,
+				<400000000>;
 		resets = <&cru SRST_VIDEO_AXI>, <&cru SRST_VIDEO_AHB>,
 			<&cru SRST_VIDEO>;
 		reset-names = "shared_video_a", "shared_video_h", "video_core";
@@ -1735,6 +1739,8 @@
 		interrupt-names = "irq_dec";
 		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <300000000>, <0>;
+		rockchip,advanced-rates = <600000000>, <0>;
 		resets = <&cru SRST_VIDEO_AXI>, <&cru SRST_VIDEO_AHB>;
 		reset-names = "shared_video_a", "shared_video_h";
 		iommus = <&vpu_mmu>;
