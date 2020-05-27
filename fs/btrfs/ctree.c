@@ -2335,16 +2335,15 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	u64 blocknr;
 	u64 gen;
-	struct extent_buffer *b = *eb_ret;
 	struct extent_buffer *tmp;
 	struct btrfs_key first_key;
 	int ret;
 	int parent_level;
 
-	blocknr = btrfs_node_blockptr(b, slot);
-	gen = btrfs_node_ptr_generation(b, slot);
-	parent_level = btrfs_header_level(b);
-	btrfs_node_key_to_cpu(b, &first_key, slot);
+	blocknr = btrfs_node_blockptr(*eb_ret, slot);
+	gen = btrfs_node_ptr_generation(*eb_ret, slot);
+	parent_level = btrfs_header_level(*eb_ret);
+	btrfs_node_key_to_cpu(*eb_ret, &first_key, slot);
 
 	tmp = find_extent_buffer(fs_info, blocknr);
 	if (tmp) {
