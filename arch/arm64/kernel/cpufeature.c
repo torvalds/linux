@@ -595,16 +595,16 @@ static int search_cmp_ftr_reg(const void *id, const void *regp)
 }
 
 /*
- * get_arm64_ftr_reg - Lookup a feature register entry using its
- * sys_reg() encoding. With the array arm64_ftr_regs sorted in the
- * ascending order of sys_id , we use binary search to find a matching
+ * get_arm64_ftr_reg_nowarn - Looks up a feature register entry using
+ * its sys_reg() encoding. With the array arm64_ftr_regs sorted in the
+ * ascending order of sys_id, we use binary search to find a matching
  * entry.
  *
  * returns - Upon success,  matching ftr_reg entry for id.
  *         - NULL on failure. It is upto the caller to decide
  *	     the impact of a failure.
  */
-static struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
+static struct arm64_ftr_reg *get_arm64_ftr_reg_nowarn(u32 sys_id)
 {
 	const struct __ftr_reg_entry *ret;
 
@@ -616,6 +616,27 @@ static struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
 	if (ret)
 		return ret->reg;
 	return NULL;
+}
+
+/*
+ * get_arm64_ftr_reg - Looks up a feature register entry using
+ * its sys_reg() encoding. This calls get_arm64_ftr_reg_nowarn().
+ *
+ * returns - Upon success,  matching ftr_reg entry for id.
+ *         - NULL on failure but with an WARN_ON().
+ */
+static struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id)
+{
+	struct arm64_ftr_reg *reg;
+
+	reg = get_arm64_ftr_reg_nowarn(sys_id);
+
+	/*
+	 * Requesting a non-existent register search is an error. Warn
+	 * and let the caller handle it.
+	 */
+	WARN_ON(!reg);
+	return reg;
 }
 
 static u64 arm64_ftr_set_value(const struct arm64_ftr_bits *ftrp, s64 reg,
@@ -679,7 +700,8 @@ static void __init init_cpu_ftr_reg(u32 sys_reg, u64 new)
 	const struct arm64_ftr_bits *ftrp;
 	struct arm64_ftr_reg *reg = get_arm64_ftr_reg(sys_reg);
 
-	BUG_ON(!reg);
+	if (!reg)
+		return;
 
 	for (ftrp = reg->ftr_bits; ftrp->width; ftrp++) {
 		u64 ftr_mask = arm64_ftr_mask(ftrp);
@@ -813,7 +835,9 @@ static int check_update_ftr_reg(u32 sys_id, int cpu, u64 val, u64 boot)
 {
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(sys_id);
 
-	BUG_ON(!regp);
+	if (!regp)
+		return 0;
+
 	update_cpu_ftr_reg(regp, val);
 	if ((boot & regp->strict_mask) == (val & regp->strict_mask))
 		return 0;
@@ -827,7 +851,7 @@ static void relax_cpu_ftr_reg(u32 sys_id, int field)
 	const struct arm64_ftr_bits *ftrp;
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(sys_id);
 
-	if (WARN_ON(!regp))
+	if (!regp)
 		return;
 
 	for (ftrp = regp->ftr_bits; ftrp->width; ftrp++) {
@@ -1020,8 +1044,8 @@ u64 read_sanitised_ftr_reg(u32 id)
 {
 	struct arm64_ftr_reg *regp = get_arm64_ftr_reg(id);
 
-	/* We shouldn't get a request for an unsupported register */
-	BUG_ON(!regp);
+	if (!regp)
+		return 0;
 	return regp->sys_val;
 }
 
@@ -2626,7 +2650,7 @@ static int emulate_sys_reg(u32 id, u64 *valp)
 	if (sys_reg_CRm(id) == 0)
 		return emulate_id_reg(id, valp);
 
-	regp = get_arm64_ftr_reg(id);
+	regp = get_arm64_ftr_reg_nowarn(id);
 	if (regp)
 		*valp = arm64_ftr_reg_user_value(regp);
 	else
