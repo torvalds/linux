@@ -4614,7 +4614,7 @@ void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
 	dpkts = cur_stats.rx_packets - rpriv->prev_vf_vport_stats.rx_packets;
 	dbytes = cur_stats.rx_bytes - rpriv->prev_vf_vport_stats.rx_bytes;
 	rpriv->prev_vf_vport_stats = cur_stats;
-	flow_stats_update(&ma->stats, dpkts, dbytes, jiffies,
+	flow_stats_update(&ma->stats, dbytes, dpkts, jiffies,
 			  FLOW_ACTION_HW_STATS_DELAYED);
 }
 
