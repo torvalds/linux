@@ -1550,4 +1550,11 @@ static inline bool mlx5_ib_can_use_umr(struct mlx5_ib_dev *dev,
 
 int mlx5_ib_enable_driver(struct ib_device *dev);
 int mlx5_ib_test_wc(struct mlx5_ib_dev *dev);
+
+static inline bool mlx5_ib_lag_should_assign_affinity(struct mlx5_ib_dev *dev)
+{
+	return dev->lag_active ||
+		(MLX5_CAP_GEN(dev->mdev, num_lag_ports) > 1 &&
+		 MLX5_CAP_GEN(dev->mdev, lag_tx_port_affinity));
+}
 #endif /* MLX5_IB_H */

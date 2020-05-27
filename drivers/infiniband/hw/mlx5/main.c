@@ -1972,7 +1972,7 @@ uar_done:
 	context->lib_caps = req.lib_caps;
 	print_lib_caps(dev, context->lib_caps);
 
-	if (dev->lag_active) {
+	if (mlx5_ib_lag_should_assign_affinity(dev)) {
 		u8 port = mlx5_core_native_port_num(dev->mdev) - 1;
 
 		atomic_set(&context->tx_port_affinity,

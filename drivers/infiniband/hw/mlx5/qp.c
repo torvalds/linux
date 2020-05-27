@@ -3653,7 +3653,8 @@ static unsigned int get_tx_affinity(struct ib_qp *qp,
 	struct mlx5_ib_qp_base *qp_base;
 	unsigned int tx_affinity;
 
-	if (!(dev->lag_active && qp_supports_affinity(qp)))
+	if (!(mlx5_ib_lag_should_assign_affinity(dev) &&
+	      qp_supports_affinity(qp)))
 		return 0;
 
 	if (mqp->flags & MLX5_IB_QP_CREATE_SQPN_QP1)
