@@ -24,6 +24,7 @@ properties:
 
       - items:
           - enum:
+              - renesas,r8a7742-wdt      # RZ/G1H
               - renesas,r8a7743-wdt      # RZ/G1M
               - renesas,r8a7744-wdt      # RZ/G1N
               - renesas,r8a7745-wdt      # RZ/G1E
