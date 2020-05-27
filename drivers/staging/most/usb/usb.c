@@ -192,12 +192,12 @@ static inline int start_sync_ep(struct usb_device *usb_dev, u16 ep)
 static unsigned int get_stream_frame_size(struct device *dev,
 					  struct most_channel_config *cfg)
 {
-	unsigned int frame_size = 0;
+	unsigned int frame_size;
 	unsigned int sub_size = cfg->subbuffer_size;
 
 	if (!sub_size) {
 		dev_warn(dev, "Misconfig: Subbuffer size zero.\n");
-		return frame_size;
+		return 0;
 	}
 	switch (cfg->data_type) {
 	case MOST_CH_ISOC:
