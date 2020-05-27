@@ -1035,7 +1035,8 @@ static void gmc_v9_0_get_vm_pte(struct amdgpu_device *adev,
 		*flags &= ~AMDGPU_PTE_VALID;
 	}
 
-	if (adev->asic_type == CHIP_ARCTURUS &&
+	if ((adev->asic_type == CHIP_ARCTURUS ||
+	    adev->asic_type == CHIP_ALDEBARAN) &&
 	    !(*flags & AMDGPU_PTE_SYSTEM) &&
 	    mapping->bo_va->is_xgmi)
 		*flags |= AMDGPU_PTE_SNOOPED;
