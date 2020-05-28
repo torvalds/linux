@@ -14,7 +14,7 @@
 
 #include <asm/mach-types.h>
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 #define	COLIBRI270_RESET_GPIO	53
 #define	COLIBRI270_PPEN_GPIO	107

@@ -30,7 +30,7 @@
 
 #include "pxa27x.h"
 #include <linux/platform_data/asoc-pxa.h>
-#include <mach/vpac270.h>
+#include "vpac270.h"
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>

@@ -12,8 +12,8 @@
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
-#include <mach/palmtx.h>
-#include "soc_common.h"
+#include "palmtx.h"
+#include <pcmcia/soc_common.h>
 
 static struct gpio palmtx_pcmcia_gpios[] = {
 	{ GPIO_NR_PALMTX_PCMCIA_POWER1,	GPIOF_INIT_LOW,	"PCMCIA Power 1" },

@@ -12,7 +12,7 @@
 #ifndef _INCLUDE_PALMTX_H_
 #define _INCLUDE_PALMTX_H_
 
-#include "irqs.h" /* PXA_GPIO_TO_IRQ */
+#include <mach/irqs.h> /* PXA_GPIO_TO_IRQ */
 
 /** HERE ARE GPIOs **/
 

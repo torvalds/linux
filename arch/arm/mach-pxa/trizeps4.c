@@ -40,7 +40,7 @@
 #include <asm/mach/flash.h>
 
 #include "pxa27x.h"
-#include <mach/trizeps4.h>
+#include "trizeps4.h"
 #include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>

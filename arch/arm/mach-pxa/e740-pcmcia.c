@@ -18,7 +18,7 @@
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 static int e740_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {

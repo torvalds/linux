@@ -14,7 +14,7 @@
 
 #include <asm/mach-types.h>
 #include <mach/palmld.h>
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 static struct gpio palmld_pcmcia_gpios[] = {
 	{ GPIO_NR_PALMLD_PCMCIA_POWER,	GPIOF_INIT_LOW,	"PCMCIA Power" },

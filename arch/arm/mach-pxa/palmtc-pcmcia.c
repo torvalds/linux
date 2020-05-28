@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 
 #include <asm/mach-types.h>
-#include <mach/palmtc.h>
-#include "soc_common.h"
+#include "palmtc.h"
+#include <pcmcia/soc_common.h>
 
 static struct gpio palmtc_pcmcia_gpios[] = {
 	{ GPIO_NR_PALMTC_PCMCIA_POWER1,	GPIOF_INIT_LOW,	"PCMCIA Power 1" },

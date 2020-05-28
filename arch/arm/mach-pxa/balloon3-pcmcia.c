@@ -20,11 +20,11 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
-#include <mach/balloon3.h>
+#include "balloon3.h"
 
 #include <asm/mach-types.h>
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 static int balloon3_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {

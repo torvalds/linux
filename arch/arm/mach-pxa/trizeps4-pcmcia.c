@@ -20,9 +20,9 @@
 #include <asm/irq.h>
 
 #include <mach/pxa2xx-regs.h>
-#include <mach/trizeps4.h>
+#include "trizeps4.h"
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 extern void board_pcmcia_power(int power);
 

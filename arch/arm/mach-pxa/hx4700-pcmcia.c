@@ -12,7 +12,7 @@
 #include <asm/mach-types.h>
 #include <mach/hx4700.h>
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 static struct gpio gpios[] = {
 	{ GPIO114_HX4700_CF_RESET,    GPIOF_OUT_INIT_LOW,   "CF reset"        },

@@ -22,13 +22,11 @@
 #include <linux/gpio.h>
 
 #include <pcmcia/ss.h>
+#include <pcmcia/soc_common.h>
 
 #include <asm/irq.h>
 
-#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
-
-#include "soc_common.h"
-#include "pxa2xx_base.h"
+#include "viper-pcmcia.h"
 
 static struct platform_device *arcom_pcmcia_dev;
 

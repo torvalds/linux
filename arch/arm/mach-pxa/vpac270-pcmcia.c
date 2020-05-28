@@ -13,9 +13,9 @@
 
 #include <asm/mach-types.h>
 
-#include <mach/vpac270.h>
+#include "vpac270.h"
 
-#include "soc_common.h"
+#include <pcmcia/soc_common.h>
 
 static struct gpio vpac270_pcmcia_gpios[] = {
 	{ GPIO107_VPAC270_PCMCIA_PPEN,	GPIOF_INIT_LOW,	"PCMCIA PPEN" },
