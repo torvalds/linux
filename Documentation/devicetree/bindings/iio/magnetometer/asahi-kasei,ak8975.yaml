@@ -46,6 +46,11 @@ properties:
   mount-matrix:
     description: an optional 3x3 mounting rotation matrix.
 
+  reset-gpios:
+    description: |
+      an optional pin needed for AK09911 to set the reset state. This should
+      be usually active low
+
 required:
   - compatible
   - reg
@@ -53,6 +58,7 @@ required:
 examples:
   - |
     #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
     i2c {
         #address-cells = <1>;
         #size-cells = <0>;
@@ -63,6 +69,7 @@ examples:
             interrupt-parent = <&gpio6>;
             interrupts = <15 IRQ_TYPE_EDGE_RISING>;
             vdd-supply = <&ldo_3v3_gnss>;
+            reset-gpios = <&msmgpio 111 GPIO_ACTIVE_LOW>;
             mount-matrix = "-0.984807753012208",  /* x0 */
                            "0",                   /* y0 */
                            "-0.173648177666930",  /* z0 */
