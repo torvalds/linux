@@ -869,24 +869,16 @@ static int rkvenc_init(struct mpp_dev *mpp)
 	mpp_set_clk_info_rate_hz(&enc->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 	mpp_set_clk_info_rate_hz(&enc->core_clk_info, CLK_MODE_DEFAULT, 600 * MHZ);
 
-	enc->rst_a = devm_reset_control_get_shared(mpp->dev, "video_a");
-	if (IS_ERR_OR_NULL(enc->rst_a)) {
+	/* Get reset control from dtsi */
+	enc->rst_a = mpp_reset_control_get(mpp, RST_TYPE_A, "video_a");
+	if (!enc->rst_a)
 		mpp_err("No aclk reset resource define\n");
-		enc->rst_a = NULL;
-	}
-	enc->rst_h = devm_reset_control_get_shared(mpp->dev, "video_h");
-	if (IS_ERR_OR_NULL(enc->rst_h)) {
+	enc->rst_h = mpp_reset_control_get(mpp, RST_TYPE_H, "video_h");
+	if (!enc->rst_h)
 		mpp_err("No hclk reset resource define\n");
-		enc->rst_h = NULL;
-	}
-	enc->rst_core = devm_reset_control_get_shared(mpp->dev, "video_core");
-	if (IS_ERR_OR_NULL(enc->rst_core)) {
+	enc->rst_core = mpp_reset_control_get(mpp, RST_TYPE_CORE, "video_core");
+	if (!enc->rst_core)
 		mpp_err("No core reset resource define\n");
-		enc->rst_core = NULL;
-	}
-	mpp_safe_unreset(enc->rst_a);
-	mpp_safe_unreset(enc->rst_h);
-	mpp_safe_unreset(enc->rst_core);
 
 #ifdef CONFIG_PM_DEVFREQ
 	ret = rkvenc_devfreq_init(mpp);

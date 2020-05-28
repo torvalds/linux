@@ -545,16 +545,13 @@ static int vdpu_init(struct mpp_dev *mpp)
 	/* Set default rates */
 	mpp_set_clk_info_rate_hz(&dec->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
-	dec->rst_a = mpp_reset_control_get(mpp, "video_a");
-	if (IS_ERR_OR_NULL(dec->rst_a)) {
+	/* Get reset control from dtsi */
+	dec->rst_a = mpp_reset_control_get(mpp, RST_TYPE_A, "video_a");
+	if (!dec->rst_a)
 		mpp_err("No aclk reset resource define\n");
-		dec->rst_a = NULL;
-	}
-	dec->rst_h = mpp_reset_control_get(mpp, "video_h");
-	if (IS_ERR_OR_NULL(dec->rst_h)) {
+	dec->rst_h = mpp_reset_control_get(mpp, RST_TYPE_H, "video_h");
+	if (!dec->rst_h)
 		mpp_err("No hclk reset resource define\n");
-		dec->rst_h = NULL;
-	}
 
 	return 0;
 }

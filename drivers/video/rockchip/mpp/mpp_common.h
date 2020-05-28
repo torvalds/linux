@@ -111,6 +111,18 @@ enum MPP_CLOCK_MODE {
 	CLK_MODE_BUTT,
 };
 
+enum MPP_RESET_TYPE {
+	RST_TYPE_BASE		= 0,
+	RST_TYPE_A		= RST_TYPE_BASE,
+	RST_TYPE_H,
+	RST_TYPE_NIU_A,
+	RST_TYPE_NIU_H,
+	RST_TYPE_CORE,
+	RST_TYPE_CABAC,
+	RST_TYPE_HEVC_CABAC,
+	RST_TYPE_BUTT,
+};
+
 /* data common struct for parse out */
 struct mpp_request {
 	__u32 cmd;
@@ -324,15 +336,13 @@ struct mpp_taskqueue {
 	struct list_head mmu_list;
 };
 
-struct mpp_reset_clk {
-	struct list_head link;
-	struct reset_control *clk;
-	char name[20];
-};
-
 struct mpp_reset_group {
+	/* the flag for whether use rw_sem */
+	u32 rw_sem_on;
 	struct rw_semaphore rw_sem;
-	struct list_head clk;
+	struct reset_control *resets[RST_TYPE_BUTT];
+	/* for set rw_sem */
+	struct mpp_taskqueue *queue;
 };
 
 struct mpp_service {
@@ -416,8 +426,6 @@ struct mpp_dev_ops {
 
 int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 		       struct mpp_service *srv);
-int mpp_reset_group_init(struct mpp_reset_group *group,
-			 struct mpp_service *srv);
 
 struct mpp_mem_region *
 mpp_task_attach_fd(struct mpp_task *task, int fd);
@@ -454,8 +462,9 @@ int mpp_dev_reset(struct mpp_dev *mpp);
 irqreturn_t mpp_dev_irq(int irq, void *param);
 irqreturn_t mpp_dev_isr_sched(int irq, void *param);
 
-struct reset_control *
-mpp_reset_control_get(struct mpp_dev *mpp, const char *name);
+struct reset_control *mpp_reset_control_get(struct mpp_dev *mpp,
+					    enum MPP_RESET_TYPE type,
+					    const char *name);
 
 u32 mpp_get_grf(struct mpp_grf_info *grf_info);
 int mpp_set_grf(struct mpp_grf_info *grf_info);
@@ -553,6 +562,38 @@ static inline int mpp_clk_safe_disable(struct clk *clk)
 {
 	if (clk)
 		clk_disable_unprepare(clk);
+
+	return 0;
+}
+
+static inline int mpp_reset_down_read(struct mpp_reset_group *group)
+{
+	if (group && group->rw_sem_on)
+		down_read(&group->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_reset_up_read(struct mpp_reset_group *group)
+{
+	if (group && group->rw_sem_on)
+		up_read(&group->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_reset_down_write(struct mpp_reset_group *group)
+{
+	if (group && group->rw_sem_on)
+		down_write(&group->rw_sem);
+
+	return 0;
+}
+
+static inline int mpp_reset_up_write(struct mpp_reset_group *group)
+{
+	if (group && group->rw_sem_on)
+		up_write(&group->rw_sem);
 
 	return 0;
 }

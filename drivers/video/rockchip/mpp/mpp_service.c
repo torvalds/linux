@@ -229,7 +229,7 @@ static int mpp_service_probe(struct platform_device *pdev)
 			if (!group)
 				continue;
 
-			mpp_reset_group_init(group, srv);
+			init_rwsem(&group->rw_sem);
 			srv->reset_groups[i] = group;
 		}
 	}

@@ -317,7 +317,7 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	mpp = session->mpp;
 
 	/* hardware maybe dead, reset it */
-	up_read(&mpp->reset_group->rw_sem);
+	mpp_reset_up_read(mpp->reset_group);
 	mpp_dev_reset(mpp);
 	mpp_power_off(mpp);
 
@@ -395,83 +395,54 @@ static int mpp_refresh_pm_runtime(struct mpp_iommu_info *info,
 }
 
 struct reset_control *
-mpp_reset_control_get(struct mpp_dev *mpp, const char *name)
+mpp_reset_control_get(struct mpp_dev *mpp, enum MPP_RESET_TYPE type, const char *name)
 {
-	struct mpp_reset_clk *rst_clk = NULL, *n;
-	struct reset_control *clk = NULL;
-	struct device *dev = mpp->dev;
-	char shared_name[30] = "shared_";
-	int index = 0;
-	int clk_cnt = 0, i = 0;
-	static const char * const clk_list[] = {
-		"video_a", "video_h",
-		"niu_a", "niu_h",
-		"video_cabac", "video_core",
-		"video_hevc_cabac",
-	};
+	int index;
+	struct reset_control *rst = NULL;
+	char shared_name[32] = "shared_";
+	struct mpp_reset_group *group;
 
-	if (!name) {
-		mpp_err("error: reset clk name is null\n");
-		return NULL;
-	}
-
-	clk_cnt = ARRAY_SIZE(clk_list);
-	for (i = 0; i < clk_cnt; i++) {
-		if (!strcmp(clk_list[i], name))
-			break;
-	}
-	if (i == clk_cnt) {
-		mpp_err("error: reset clk name is error\n");
-		return NULL;
-	}
-
-	if (!dev) {
-		mpp_err("error: dev is null\n");
-		return NULL;
-	}
-
-	/* not shared reset clk */
-	index = of_property_match_string(dev->of_node, "reset-names", name);
+	/* check reset whether belone to device alone */
+	index = of_property_match_string(mpp->dev->of_node, "reset-names", name);
 	if (index >= 0) {
-		clk = devm_reset_control_get(dev, name);
-		return clk;
+		rst = devm_reset_control_get(mpp->dev, name);
+		mpp_safe_unreset(rst);
+
+		return rst;
 	}
 
-	/* shared reset clk */
+	/* check reset whether is shared */
 	strncat(shared_name, name,
 		sizeof(shared_name) - strlen(shared_name) - 1);
-	index = of_property_match_string(dev->of_node, "reset-names",
-					 shared_name);
-	if (index >= 0) {
-		down_write(&mpp->reset_group->rw_sem);
-		list_for_each_entry_safe(rst_clk, n,
-					 &mpp->reset_group->clk, link) {
-			if (!strcmp(rst_clk->name, name)) {
-				clk = rst_clk->clk;
-				break;
-			}
-		}
-		if (!clk) {
-			rst_clk = devm_kzalloc(dev, sizeof(*rst_clk),
-					       GFP_KERNEL);
-			strncpy(rst_clk->name, name, sizeof(rst_clk->name));
-			rst_clk->clk = devm_reset_control_get(dev,
-							      shared_name);
-			if (IS_ERR_OR_NULL(rst_clk->clk))
-				goto fail;
-
-			INIT_LIST_HEAD(&rst_clk->link);
-			list_add_tail(&rst_clk->link, &mpp->reset_group->clk);
-			clk = rst_clk->clk;
-		}
-		up_write(&mpp->reset_group->rw_sem);
+	index = of_property_match_string(mpp->dev->of_node,
+					 "reset-names", shared_name);
+	if (index < 0) {
+		dev_err(mpp->dev, "%s is not found!\n", shared_name);
+		return NULL;
 	}
 
-	return clk;
-fail:
-	devm_kfree(dev, rst_clk);
-	up_write(&mpp->reset_group->rw_sem);
-	return NULL;
+	if (!mpp->reset_group) {
+		dev_err(mpp->dev, "reset group is empty!\n");
+		return NULL;
+	}
+	group = mpp->reset_group;
+
+	down_write(&group->rw_sem);
+	rst = group->resets[type];
+	if (!rst) {
+		rst = devm_reset_control_get(mpp->dev, shared_name);
+		mpp_safe_unreset(rst);
+		group->resets[type] = rst;
+		group->queue = mpp->queue;
+	}
+	/* if reset not in the same queue, it means different device
+	 * may reset in the same time, then rw_sem_on should set true.
+	 */
+	group->rw_sem_on |= (group->queue != mpp->queue) ? true : false;
+	dev_info(mpp->dev, "reset_group->rw_sem_on=%d\n", group->rw_sem_on);
+	up_write(&group->rw_sem);
+
+	return rst;
 }
 
 int mpp_dev_reset(struct mpp_dev *mpp)
@@ -491,7 +462,7 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 		mpp->hw_ops->reduce_freq(mpp);
 	/* FIXME lock resource lock of the other devices in combo */
 	down_write(&mpp->iommu_info->rw_sem);
-	down_write(&mpp->reset_group->rw_sem);
+	mpp_reset_down_write(mpp->reset_group);
 	atomic_set(&mpp->reset_request, 0);
 	mpp_iommu_detach(mpp->iommu_info);
 
@@ -507,7 +478,7 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	mpp_refresh_pm_runtime(mpp->iommu_info, mpp->dev);
 
 	mpp_iommu_attach(mpp->iommu_info);
-	up_write(&mpp->reset_group->rw_sem);
+	mpp_reset_up_write(mpp->reset_group);
 	up_write(&mpp->iommu_info->rw_sem);
 
 	dev_info(mpp->dev, "reset done\n");
@@ -556,7 +527,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 * TODO: Lock the reader locker of the device resource lock here,
 	 * release at the finish operation
 	 */
-	down_read(&mpp->reset_group->rw_sem);
+	mpp_reset_down_read(mpp->reset_group);
 
 	set_bit(TASK_STATE_START, &task->state);
 	schedule_delayed_work(&task->timeout_work,
@@ -797,15 +768,6 @@ int mpp_taskqueue_init(struct mpp_taskqueue *queue,
 	INIT_WORK(&queue->work, mpp_task_try_run);
 
 	queue->srv = srv;
-
-	return 0;
-}
-
-int mpp_reset_group_init(struct mpp_reset_group *group,
-			 struct mpp_service *srv)
-{
-	init_rwsem(&group->rw_sem);
-	INIT_LIST_HEAD(&group->clk);
 
 	return 0;
 }
@@ -1423,7 +1385,7 @@ int mpp_task_finish(struct mpp_session *session,
 	if (mpp->dev_ops->finish)
 		mpp->dev_ops->finish(mpp, task);
 
-	up_read(&mpp->reset_group->rw_sem);
+	mpp_reset_up_read(mpp->reset_group);
 	if (atomic_read(&mpp->reset_request) > 0)
 		mpp_dev_reset(mpp);
 	mpp_power_off(mpp);

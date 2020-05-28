@@ -822,21 +822,15 @@ static int iep2_init(struct mpp_dev *mpp)
 	/* Set default rates */
 	mpp_set_clk_info_rate_hz(&iep->aclk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
-	iep->rst_a = devm_reset_control_get(mpp->dev, "rst_a");
-	if (IS_ERR_OR_NULL(iep->rst_a)) {
+	iep->rst_a = mpp_reset_control_get(mpp, RST_TYPE_A, "rst_a");
+	if (!iep->rst_a)
 		mpp_err("No aclk reset resource define\n");
-		iep->rst_a = NULL;
-	}
-	iep->rst_h = devm_reset_control_get(mpp->dev, "rst_h");
-	if (IS_ERR_OR_NULL(iep->rst_h)) {
+	iep->rst_h = mpp_reset_control_get(mpp, RST_TYPE_H, "rst_h");
+	if (!iep->rst_h)
 		mpp_err("No hclk reset resource define\n");
-		iep->rst_h = NULL;
-	}
-	iep->rst_s = devm_reset_control_get(mpp->dev, "rst_s");
-	if (IS_ERR_OR_NULL(iep->rst_h)) {
+	iep->rst_s = mpp_reset_control_get(mpp, RST_TYPE_CORE, "rst_s");
+	if (!iep->rst_s)
 		mpp_err("No sclk reset resource define\n");
-		iep->rst_s = NULL;
-	}
 
 	iep->roi.size = IEP2_TILE_W_MAX * IEP2_TILE_H_MAX;
 	iep->roi.vaddr = dma_alloc_coherent(mpp->dev, iep->roi.size,

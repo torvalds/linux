@@ -1182,41 +1182,28 @@ static int rkvdec_init(struct mpp_dev *mpp)
 	mpp_set_clk_info_rate_hz(&dec->cabac_clk_info, CLK_MODE_DEFAULT, 200 * MHZ);
 	mpp_set_clk_info_rate_hz(&dec->hevc_cabac_clk_info, CLK_MODE_DEFAULT, 300 * MHZ);
 
-	dec->rst_a = mpp_reset_control_get(mpp, "video_a");
-	if (IS_ERR_OR_NULL(dec->rst_a)) {
+	/* Get reset control from dtsi */
+	dec->rst_a = mpp_reset_control_get(mpp, RST_TYPE_A, "video_a");
+	if (!dec->rst_a)
 		mpp_err("No aclk reset resource define\n");
-		dec->rst_a = NULL;
-	}
-	dec->rst_h = mpp_reset_control_get(mpp, "video_h");
-	if (IS_ERR_OR_NULL(dec->rst_h)) {
+	dec->rst_h = mpp_reset_control_get(mpp, RST_TYPE_H, "video_h");
+	if (!dec->rst_h)
 		mpp_err("No hclk reset resource define\n");
-		dec->rst_h = NULL;
-	}
-	dec->rst_niu_a = mpp_reset_control_get(mpp, "niu_a");
-	if (IS_ERR_OR_NULL(dec->rst_niu_a)) {
+	dec->rst_niu_a = mpp_reset_control_get(mpp, RST_TYPE_NIU_A, "niu_a");
+	if (!dec->rst_niu_a)
 		mpp_err("No niu aclk reset resource define\n");
-		dec->rst_niu_a = NULL;
-	}
-	dec->rst_niu_h = mpp_reset_control_get(mpp, "niu_h");
-	if (IS_ERR_OR_NULL(dec->rst_niu_h)) {
+	dec->rst_niu_h = mpp_reset_control_get(mpp, RST_TYPE_NIU_H, "niu_h");
+	if (!dec->rst_niu_h)
 		mpp_err("No niu hclk reset resource define\n");
-		dec->rst_niu_h = NULL;
-	}
-	dec->rst_cabac = mpp_reset_control_get(mpp, "video_cabac");
-	if (IS_ERR_OR_NULL(dec->rst_cabac)) {
-		mpp_err("No cabac reset resource define\n");
-		dec->rst_cabac = NULL;
-	}
-	dec->rst_core = mpp_reset_control_get(mpp, "video_core");
-	if (IS_ERR_OR_NULL(dec->rst_core)) {
+	dec->rst_core = mpp_reset_control_get(mpp, RST_TYPE_CORE, "video_core");
+	if (!dec->rst_core)
 		mpp_err("No core reset resource define\n");
-		dec->rst_core = NULL;
-	}
-	dec->rst_hevc_cabac = mpp_reset_control_get(mpp, "video_hevc_cabac");
-	if (IS_ERR_OR_NULL(dec->rst_hevc_cabac)) {
+	dec->rst_cabac = mpp_reset_control_get(mpp, RST_TYPE_CABAC, "video_cabac");
+	if (!dec->rst_cabac)
+		mpp_err("No cabac reset resource define\n");
+	dec->rst_hevc_cabac = mpp_reset_control_get(mpp, RST_TYPE_HEVC_CABAC, "video_hevc_cabac");
+	if (!dec->rst_hevc_cabac)
 		mpp_err("No hevc cabac reset resource define\n");
-		dec->rst_hevc_cabac = NULL;
-	}
 
 	return 0;
 }
