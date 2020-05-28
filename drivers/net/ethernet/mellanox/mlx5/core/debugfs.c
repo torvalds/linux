@@ -171,7 +171,7 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 	cmd = &dev->priv.cmdif_debugfs;
 	*cmd = debugfs_create_dir("commands", dev->priv.dbg_root);
 
-	for (i = 0; i < ARRAY_SIZE(dev->cmd.stats); i++) {
+	for (i = 0; i < MLX5_CMD_OP_MAX; i++) {
 		stats = &dev->cmd.stats[i];
 		namep = mlx5_command_str(i);
 		if (strcmp(namep, "unknown command opcode")) {
