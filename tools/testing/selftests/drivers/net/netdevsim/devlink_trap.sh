@@ -264,6 +264,8 @@ trap_policer_test()
 	local packets_t0
 	local packets_t1
 
+	RET=0
+
 	if [ $(devlink_trap_policers_num_get) -eq 0 ]; then
 		check_err 1 "Failed to dump policers"
 	fi
@@ -328,6 +330,8 @@ trap_group_check_policer()
 
 trap_policer_bind_test()
 {
+	RET=0
+
 	devlink trap group set $DEVLINK_DEV group l2_drops policer 1
 	check_err $? "Failed to bind a valid policer"
 	if [ $(devlink_trap_group_policer_get "l2_drops") -ne 1 ]; then
