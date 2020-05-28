@@ -1910,15 +1910,9 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 		}
 	}
 
-	if (card->late_probe) {
-		ret = card->late_probe(card);
-		if (ret < 0) {
-			dev_err(card->dev, "ASoC: %s late_probe() failed: %d\n",
-				card->name, ret);
-			goto probe_end;
-		}
-	}
-	card->probed = 1;
+	ret = snd_soc_card_late_probe(card);
+	if (ret < 0)
+		goto probe_end;
 
 	snd_soc_dapm_new_widgets(card);
 

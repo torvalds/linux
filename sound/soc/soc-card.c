@@ -142,3 +142,27 @@ int snd_soc_card_probe(struct snd_soc_card *card)
 
 	return 0;
 }
+
+int snd_soc_card_late_probe(struct snd_soc_card *card)
+{
+	if (card->late_probe) {
+		int ret = card->late_probe(card);
+
+		if (ret < 0)
+			return soc_card_ret(card, ret);
+	}
+
+	/*
+	 * It has "card->probe" and "card->late_probe" callbacks,
+	 * and "late_probe" callback is called after "probe".
+	 * This means, we can set "card->probed" flag afer "late_probe"
+	 * for all cases.
+	 *
+	 * see
+	 *	snd_soc_bind_card()
+	 *	snd_soc_card_probe()
+	 */
+	card->probed = 1;
+
+	return 0;
+}
