@@ -311,15 +311,15 @@ static ssize_t timeout_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(timeout);
 
-static ssize_t inject_error_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t inject_error_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "Error injection: nodev irq\n");
 }
 
 static ssize_t inject_error_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *data, size_t count)
+				  struct device_attribute *attr,
+				  const char *data, size_t count)
 {
 	struct bt1_apb *apb = dev_get_drvdata(dev);
 
