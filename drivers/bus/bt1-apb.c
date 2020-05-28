@@ -15,6 +15,7 @@
 #include <linux/atomic.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/nmi.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -163,12 +164,10 @@ static int bt1_apb_request_regs(struct bt1_apb *apb)
 	}
 
 	apb->res = devm_platform_ioremap_resource_byname(pdev, "nodev");
-	if (IS_ERR(apb->res)) {
+	if (IS_ERR(apb->res))
 		dev_err(apb->dev, "Couldn't map reserved region\n");
-		return PTR_ERR(apb->res);
-	}
 
-	return 0;
+	return PTR_ERR_OR_ZERO(apb->res);
 }
 
 static int bt1_apb_request_rst(struct bt1_apb *apb)
@@ -310,15 +309,15 @@ static ssize_t timeout_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(timeout);
 
-static ssize_t inject_error_show(struct device *dev, struct device_attribute *attr,
-			     char *buf)
+static ssize_t inject_error_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "Error injection: nodev irq\n");
 }
 
 static ssize_t inject_error_store(struct device *dev,
-			      struct device_attribute *attr,
-			      const char *data, size_t count)
+				  struct device_attribute *attr,
+				  const char *data, size_t count)
 {
 	struct bt1_apb *apb = dev_get_drvdata(dev);
 
@@ -326,9 +325,9 @@ static ssize_t inject_error_store(struct device *dev,
 	 * Either dummy read from the unmapped address in the APB IO area
 	 * or manually set the IRQ status.
 	 */
-	if (!strncmp(data, "nodev", 5))
+	if (sysfs_streq(data, "nodev"))
 		readl(apb->res);
-	else if (!strncmp(data, "irq", 3))
+	else if (sysfs_streq(data, "irq"))
 		regmap_update_bits(apb->regs, APB_EHB_ISR, APB_EHB_ISR_PENDING,
 				   APB_EHB_ISR_PENDING);
 	else
