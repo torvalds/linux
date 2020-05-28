@@ -5,6 +5,7 @@
 #include <linux/interrupt.h>
 
 #include <asm/cpu_entry_area.h>
+#include <asm/set_memory.h>
 #include <asm/traps.h>
 #include <asm/proto.h>
 #include <asm/desc.h>
@@ -156,37 +157,25 @@ static const __initconst struct idt_data apic_idts[] = {
 #endif
 };
 
-#ifdef CONFIG_X86_64
-/*
- * Early traps running on the DEFAULT_STACK because the other interrupt
- * stacks work only after cpu_init().
- */
-static const __initconst struct idt_data early_pf_idts[] = {
-	INTG(X86_TRAP_PF,		asm_exc_page_fault),
-};
-#endif
-
-/* Must be page-aligned because the real IDT is used in a fixmap. */
-gate_desc idt_table[IDT_ENTRIES] __page_aligned_bss;
+/* Must be page-aligned because the real IDT is used in the cpu entry area */
+static gate_desc idt_table[IDT_ENTRIES] __page_aligned_bss;
 
 struct desc_ptr idt_descr __ro_after_init = {
 	.size		= IDT_TABLE_SIZE - 1,
 	.address	= (unsigned long) idt_table,
 };
 
-#ifdef CONFIG_X86_64
-/*
- * The exceptions which use Interrupt stacks. They are setup after
- * cpu_init() when the TSS has been initialized.
- */
-static const __initconst struct idt_data ist_idts[] = {
-	ISTG(X86_TRAP_DB,	asm_exc_debug,		IST_INDEX_DB),
-	ISTG(X86_TRAP_NMI,	asm_exc_nmi,		IST_INDEX_NMI),
-	ISTG(X86_TRAP_DF,	asm_exc_double_fault,	IST_INDEX_DF),
-#ifdef CONFIG_X86_MCE
-	ISTG(X86_TRAP_MC,	asm_exc_machine_check,	IST_INDEX_MCE),
-#endif
-};
+void load_current_idt(void)
+{
+	lockdep_assert_irqs_disabled();
+	load_idt(&idt_descr);
+}
+
+#ifdef CONFIG_X86_F00F_BUG
+bool idt_is_f00f_address(unsigned long address)
+{
+	return ((address - idt_descr.address) >> 3) == 6;
+}
 #endif
 
 static inline void idt_init_desc(gate_desc *gate, const struct idt_data *d)
@@ -255,6 +244,27 @@ void __init idt_setup_traps(void)
 }
 
 #ifdef CONFIG_X86_64
+/*
+ * Early traps running on the DEFAULT_STACK because the other interrupt
+ * stacks work only after cpu_init().
+ */
+static const __initconst struct idt_data early_pf_idts[] = {
+	INTG(X86_TRAP_PF,		asm_exc_page_fault),
+};
+
+/*
+ * The exceptions which use Interrupt stacks. They are setup after
+ * cpu_init() when the TSS has been initialized.
+ */
+static const __initconst struct idt_data ist_idts[] = {
+	ISTG(X86_TRAP_DB,	asm_exc_debug,		IST_INDEX_DB),
+	ISTG(X86_TRAP_NMI,	asm_exc_nmi,		IST_INDEX_NMI),
+	ISTG(X86_TRAP_DF,	asm_exc_double_fault,	IST_INDEX_DF),
+#ifdef CONFIG_X86_MCE
+	ISTG(X86_TRAP_MC,	asm_exc_machine_check,	IST_INDEX_MCE),
+#endif
+};
+
 /**
  * idt_setup_early_pf - Initialize the idt table with early pagefault handler
  *
@@ -324,6 +334,9 @@ void __init idt_setup_apic_and_irq_gates(void)
 	/* Map IDT into CPU entry area and reload it. */
 	idt_map_in_cea();
 	load_idt(&idt_descr);
+
+	/* Make the IDT table read only */
+	set_memory_ro((unsigned long)&idt_table, 1);
 
 	idt_setup_done = true;
 }

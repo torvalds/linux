@@ -414,21 +414,13 @@ static int is_errata100(struct pt_regs *regs, unsigned long address)
 	return 0;
 }
 
+/* Pentium F0 0F C7 C8 bug workaround: */
 static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 {
 #ifdef CONFIG_X86_F00F_BUG
-	unsigned long nr;
-
-	/*
-	 * Pentium F0 0F C7 C8 bug workaround:
-	 */
-	if (boot_cpu_has_bug(X86_BUG_F00F)) {
-		nr = (address - idt_descr.address) >> 3;
-
-		if (nr == 6) {
-			handle_invalid_op(regs);
-			return 1;
-		}
+	if (boot_cpu_has_bug(X86_BUG_F00F) && idt_is_f00f_address(address)) {
+		handle_invalid_op(regs);
+		return 1;
 	}
 #endif
 	return 0;
