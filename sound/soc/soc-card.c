@@ -109,3 +109,13 @@ int snd_soc_card_resume_pre(struct snd_soc_card *card)
 
 	return soc_card_ret(card, ret);
 }
+
+int snd_soc_card_resume_post(struct snd_soc_card *card)
+{
+	int ret = 0;
+
+	if (card->resume_post)
+		ret = card->resume_post(card);
+
+	return soc_card_ret(card, ret);
+}

@@ -692,8 +692,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		}
 	}
 
-	if (card->resume_post)
-		card->resume_post(card);
+	snd_soc_card_resume_post(card);
 
 	dev_dbg(card->dev, "ASoC: resume work completed\n");
 
