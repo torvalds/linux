@@ -179,3 +179,15 @@ int snd_soc_card_remove(struct snd_soc_card *card)
 
 	return soc_card_ret(card, ret);
 }
+
+int snd_soc_card_set_bias_level(struct snd_soc_card *card,
+				struct snd_soc_dapm_context *dapm,
+				enum snd_soc_bias_level level)
+{
+	int ret = 0;
+
+	if (card && card->set_bias_level)
+		ret = card->set_bias_level(card, dapm, level);
+
+	return soc_card_ret(card, ret);
+}
