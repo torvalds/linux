@@ -429,9 +429,13 @@ void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
  * Callers are responsible for flushing the PWC.
  *
  * When page tables are being unmapped/freed as part of page fault path
- * (full == false), ptes are not expected. There is code to unmap them
- * and emit a warning if encountered, but there may already be data
- * corruption due to the unexpected mappings.
+ * (full == false), valid ptes are generally not expected; however, there
+ * is one situation where they arise, which is when dirty page logging is
+ * turned off for a memslot while the VM is running.  The new memslot
+ * becomes visible to page faults before the memslot commit function
+ * gets to flush the memslot, which can lead to a 2MB page mapping being
+ * installed for a guest physical address where there are already 64kB
+ * (or 4kB) mappings (of sub-pages of the same 2MB page).
  */
 static void kvmppc_unmap_free_pte(struct kvm *kvm, pte_t *pte, bool full,
 				  unsigned int lpid)
@@ -445,7 +449,6 @@ static void kvmppc_unmap_free_pte(struct kvm *kvm, pte_t *pte, bool full,
 		for (it = 0; it < PTRS_PER_PTE; ++it, ++p) {
 			if (pte_val(*p) == 0)
 				continue;
-			WARN_ON_ONCE(1);
 			kvmppc_unmap_pte(kvm, p,
 					 pte_pfn(*p) << PAGE_SHIFT,
 					 PAGE_SHIFT, NULL, lpid);
