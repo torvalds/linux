@@ -220,9 +220,9 @@ static ssize_t inject_error_store(struct device *dev,
 	 * error while unaligned writing - the AXI bus write error handled
 	 * by this driver.
 	 */
-	if (!strncmp(data, "bus", 3))
+	if (sysfs_streq(data, "bus"))
 		readb(axi->qos_regs);
-	else if (!strncmp(data, "unaligned", 9))
+	else if (sysfs_streq(data, "unaligned"))
 		writeb(0, axi->qos_regs);
 	else
 		return -EINVAL;
