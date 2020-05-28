@@ -1588,8 +1588,12 @@ static int __tipc_sendstream(struct socket *sock, struct msghdr *m, size_t dlen)
 				tsk->pkt_cnt += skb_queue_len(txq);
 			} else {
 				skb = skb_peek_tail(txq);
-				msg_set_ack_required(buf_msg(skb));
-				tsk->expect_ack = true;
+				if (skb) {
+					msg_set_ack_required(buf_msg(skb));
+					tsk->expect_ack = true;
+				} else {
+					tsk->expect_ack = false;
+				}
 				tsk->msg_acc = 0;
 				tsk->pkt_cnt = 0;
 			}
