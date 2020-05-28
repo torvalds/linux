@@ -72,6 +72,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_clock = dcn10_set_clock,
 	.get_clock = dcn10_get_clock,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
+	.calc_vupdate_position = dcn10_calc_vupdate_position,
 	.set_backlight_level = dce110_set_backlight_level,
 	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 };

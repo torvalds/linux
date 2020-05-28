@@ -441,9 +441,8 @@ static bool gmc_v9_0_use_invalidate_semaphore(struct amdgpu_device *adev,
 	return ((vmhub == AMDGPU_MMHUB_0 ||
 		 vmhub == AMDGPU_MMHUB_1) &&
 		(!amdgpu_sriov_vf(adev)) &&
-		(!(adev->asic_type == CHIP_RAVEN &&
-		   adev->rev_id < 0x8 &&
-		   adev->pdev->device == 0x15d8)));
+		(!(!(adev->apu_flags & AMD_APU_IS_RAVEN2) &&
+		   (adev->apu_flags & AMD_APU_IS_PICASSO))));
 }
 
 static bool gmc_v9_0_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,

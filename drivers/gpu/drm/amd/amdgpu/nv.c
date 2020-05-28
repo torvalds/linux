@@ -548,13 +548,6 @@ static bool nv_need_full_reset(struct amdgpu_device *adev)
 	return true;
 }
 
-static void nv_get_pcie_usage(struct amdgpu_device *adev,
-			      uint64_t *count0,
-			      uint64_t *count1)
-{
-	/*TODO*/
-}
-
 static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 {
 #if 0
@@ -629,7 +622,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.invalidate_hdp = &nv_invalidate_hdp,
 	.init_doorbell_index = &nv_init_doorbell_index,
 	.need_full_reset = &nv_need_full_reset,
-	.get_pcie_usage = &nv_get_pcie_usage,
 	.need_reset_on_init = &nv_need_reset_on_init,
 	.get_pcie_replay_count = &nv_get_pcie_replay_count,
 	.supports_baco = &nv_asic_supports_baco,

@@ -34,6 +34,11 @@ struct dc;
 void dcn10_hw_sequencer_construct(struct dc *dc);
 
 int dcn10_get_vupdate_offset_from_vsync(struct pipe_ctx *pipe_ctx);
+void dcn10_calc_vupdate_position(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		uint32_t *start_line,
+		uint32_t *end_line);
 void dcn10_setup_vupdate_interrupt(struct dc *dc, struct pipe_ctx *pipe_ctx);
 enum dc_status dcn10_enable_stream_timing(
 		struct pipe_ctx *pipe_ctx,

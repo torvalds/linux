@@ -3245,6 +3245,10 @@ void core_link_enable_stream(
 			dp_set_dsc_enable(pipe_ctx, true);
 
 	}
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		core_link_set_avmute(pipe_ctx, false);
+	}
 }
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
@@ -3256,6 +3260,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 	if (!IS_DIAG_DC(dc->ctx->dce_environment) &&
 			dc_is_virtual_signal(pipe_ctx->stream->signal))
 		return;
+
+	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A) {
+		core_link_set_avmute(pipe_ctx, true);
+	}
 
 #if defined(CONFIG_DRM_AMD_DC_HDCP)
 	update_psp_stream_config(pipe_ctx, true);

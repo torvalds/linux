@@ -226,7 +226,8 @@ static int smu10_start_smu(struct pp_hwmgr *hwmgr)
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetSmuVersion, &hwmgr->smu_version);
 	adev->pm.fw_version = hwmgr->smu_version >> 8;
 
-	if (adev->rev_id < 0x8 && adev->pdev->device != 0x15d8 &&
+	if (!(adev->apu_flags & AMD_APU_IS_RAVEN2) &&
+	    (adev->apu_flags & AMD_APU_IS_RAVEN) &&
 	    adev->pm.fw_version < 0x1e45)
 		adev->pm.pp_feature &= ~PP_GFXOFF_MASK;
 

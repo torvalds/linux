@@ -623,6 +623,9 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
 	struct arcturus_dpm_table *dpm_table = NULL;
 
+	if (amdgpu_ras_intr_triggered())
+		return snprintf(buf, PAGE_SIZE, "unavailable\n");
+
 	dpm_table = smu_dpm->dpm_context;
 
 	switch (type) {
@@ -997,6 +1000,9 @@ static int arcturus_read_sensor(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 	int ret = 0;
+
+	if (amdgpu_ras_intr_triggered())
+		return 0;
 
 	if (!data || !size)
 		return -EINVAL;

@@ -450,6 +450,7 @@ struct amdgpu_pm {
 
 	/* Used for I2C access to various EEPROMs on relevant ASICs */
 	struct i2c_adapter smu_i2c;
+	struct list_head	pm_attr_list;
 };
 
 #define R600_SSTU_DFLT                               0
