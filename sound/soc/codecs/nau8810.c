@@ -895,6 +895,8 @@ static int nau8810_i2c_probe(struct i2c_client *i2c,
 
 static const struct i2c_device_id nau8810_i2c_id[] = {
 	{ "nau8810", 0 },
+	{ "nau8812", 0 },
+	{ "nau8814", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, nau8810_i2c_id);
@@ -902,6 +904,8 @@ MODULE_DEVICE_TABLE(i2c, nau8810_i2c_id);
 #ifdef CONFIG_OF
 static const struct of_device_id nau8810_of_match[] = {
 	{ .compatible = "nuvoton,nau8810", },
+	{ .compatible = "nuvoton,nau8812", },
+	{ .compatible = "nuvoton,nau8814", },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, nau8810_of_match);
