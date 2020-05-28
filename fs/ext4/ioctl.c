@@ -300,7 +300,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	int err = -EPERM, migrate = 0;
 	struct ext4_iloc iloc;
 	unsigned int oldflags, mask, i;
-	unsigned int jflag;
 	struct super_block *sb = inode->i_sb;
 
 	/* Is it quota file? Do not allow user to mess with it */
@@ -308,9 +307,6 @@ static int ext4_ioctl_setflags(struct inode *inode,
 		goto flags_out;
 
 	oldflags = ei->i_flags;
-
-	/* The JOURNAL_DATA flag is modifiable only by root */
-	jflag = flags & EXT4_JOURNAL_DATA_FL;
 
 	err = vfs_ioc_setflags_prepare(inode, oldflags, flags);
 	if (err)
@@ -320,7 +316,7 @@ static int ext4_ioctl_setflags(struct inode *inode,
 	 * The JOURNAL_DATA flag can only be changed by
 	 * the relevant capability.
 	 */
-	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
+	if ((flags ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
 		if (!capable(CAP_SYS_RESOURCE))
 			goto flags_out;
 	}
@@ -391,7 +387,7 @@ flags_err:
 	if (err)
 		goto flags_out;
 
-	if ((jflag ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
+	if ((flags ^ oldflags) & (EXT4_JOURNAL_DATA_FL)) {
 		/*
 		 * Changes to the journaling mode can cause unsafe changes to
 		 * S_DAX if the inode is DAX
@@ -401,7 +397,8 @@ flags_err:
 			goto flags_out;
 		}
 
-		err = ext4_change_inode_journal_flag(inode, jflag);
+		err = ext4_change_inode_journal_flag(inode,
+						     flags & EXT4_JOURNAL_DATA_FL);
 		if (err)
 			goto flags_out;
 	}
