@@ -133,7 +133,7 @@ static const struct attribute_group priv_attr_group = {
 	.attrs = priv_attrs,
 };
 
-const struct attribute_group *l2_get_priv_group(struct cacheinfo *this_leaf)
+static const struct attribute_group *l2_get_priv_group(struct cacheinfo *this_leaf)
 {
 	/* We want to use private group for L2 cache only */
 	if (this_leaf->level == 2)
