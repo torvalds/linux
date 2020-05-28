@@ -1457,11 +1457,13 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	if (ret < 0)
 		return ret;
 
-	if (!ret && unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags))) {
+	if (k.k->type != KEY_TYPE_alloc ||
+	    (!ret && unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags)))) {
 		/*
 		 * During journal replay, and if gc repairs alloc info at
 		 * runtime, the alloc info in the btree might not be up to date
-		 * yet - so, trust the in memory mark:
+		 * yet - so, trust the in memory mark - unless we're already
+		 * updating that key:
 		 */
 		struct bucket *g;
 		struct bucket_mark m;
@@ -1472,22 +1474,39 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		u	= alloc_mem_to_key(g, m);
 		percpu_up_read(&c->mark_lock);
 	} else {
-		/*
-		 * Unless we're already updating that key:
-		 */
-		if (k.k->type != KEY_TYPE_alloc) {
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "pointer to nonexistent bucket %llu:%llu",
-				      iter->pos.inode, iter->pos.offset);
-			ret = -1;
-			goto out;
-		}
-
 		u = bch2_alloc_unpack(k);
 	}
 
-	if (gen_after(u.gen, p.ptr.gen)) {
+	if (u.gen != p.ptr.gen) {
 		ret = 1;
+
+		if (gen_after(p.ptr.gen, u.gen)) {
+			bch2_fs_inconsistent(c,
+				      "bucket %llu:%llu gen %u data type %s: ptr gen %u newer than bucket gen",
+				      iter->pos.inode, iter->pos.offset, u.gen,
+				      bch2_data_types[u.data_type ?: data_type],
+				      p.ptr.gen);
+			ret = -EIO;
+		}
+
+		if (gen_cmp(u.gen, p.ptr.gen) >= 96U) {
+			bch2_fs_inconsistent(c,
+				      "bucket %llu:%llu gen %u data type %s: ptr gen %u too stale",
+				      iter->pos.inode, iter->pos.offset, u.gen,
+				      bch2_data_types[u.data_type ?: data_type],
+				      p.ptr.gen);
+			ret = -EIO;
+		}
+
+		if (!p.ptr.cached) {
+			bch2_fs_inconsistent(c,
+				      "bucket %llu:%llu gen %u data type %s: stale dirty ptr (gen %u)",
+				      iter->pos.inode, iter->pos.offset, u.gen,
+				      bch2_data_types[u.data_type ?: data_type],
+				      p.ptr.gen);
+			ret = -EIO;
+		}
+
 		goto out;
 	}
 

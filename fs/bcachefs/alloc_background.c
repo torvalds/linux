@@ -843,7 +843,7 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	struct bkey_s_c k;
 	bool invalidating_cached_data;
 	size_t b;
-	int ret;
+	int ret = 0;
 
 	BUG_ON(!ca->alloc_heap.used ||
 	       !ca->alloc_heap.data[0].nr);
@@ -857,10 +857,17 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 
 	BUG_ON(!fifo_push(&ca->free_inc, b));
 
+	g = bucket(ca, b);
+	m = READ_ONCE(g->mark);
+
 	bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
 
 	spin_unlock(&c->freelist_lock);
 	percpu_up_read(&c->mark_lock);
+
+	invalidating_cached_data = m.cached_sectors != 0;
+	if (!invalidating_cached_data)
+		goto out;
 
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
@@ -915,7 +922,7 @@ retry:
 				flags);
 	if (ret == -EINTR)
 		goto retry;
-
+out:
 	if (!ret) {
 		/* remove from alloc_heap: */
 		struct alloc_heap_entry e, *top = ca->alloc_heap.data;
