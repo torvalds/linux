@@ -978,8 +978,9 @@ int snd_soc_add_pcm_runtime(struct snd_soc_card *card,
 	/*
 	 * Notify the machine driver for extra initialization
 	 */
-	if (card->add_dai_link)
-		card->add_dai_link(card, dai_link);
+	ret = snd_soc_card_add_dai_link(card, dai_link);
+	if (ret < 0)
+		return ret;
 
 	if (dai_link->ignore)
 		return 0;

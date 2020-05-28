@@ -203,3 +203,15 @@ int snd_soc_card_set_bias_level_post(struct snd_soc_card *card,
 
 	return soc_card_ret(card, ret);
 }
+
+int snd_soc_card_add_dai_link(struct snd_soc_card *card,
+			      struct snd_soc_dai_link *dai_link)
+{
+	int ret = 0;
+
+	if (card->add_dai_link)
+		ret = card->add_dai_link(card, dai_link);
+
+	return soc_card_ret(card, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_card_add_dai_link);
