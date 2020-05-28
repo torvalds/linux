@@ -1450,5 +1450,6 @@ static inline void snd_soc_dapm_mutex_unlock(struct snd_soc_dapm_context *dapm)
 }
 
 #include <sound/soc-component.h>
+#include <sound/soc-card.h>
 
 #endif
