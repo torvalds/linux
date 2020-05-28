@@ -735,8 +735,7 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 	if (ret != 0)
 		goto out;
 
-	if (card && card->set_bias_level_post)
-		ret = card->set_bias_level_post(card, dapm, level);
+	ret = snd_soc_card_set_bias_level_post(card, dapm, level);
 out:
 	trace_snd_soc_bias_level_done(card, level);
 
