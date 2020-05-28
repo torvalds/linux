@@ -89,15 +89,6 @@ static struct ctl_table rds_tcp_sysctl_table[] = {
 	{ }
 };
 
-/* doing it this way avoids calling tcp_sk() */
-void rds_tcp_nonagle(struct socket *sock)
-{
-	int val = 1;
-
-	kernel_setsockopt(sock, SOL_TCP, TCP_NODELAY, (void *)&val,
-			      sizeof(val));
-}
-
 u32 rds_tcp_write_seq(struct rds_tcp_connection *tc)
 {
 	/* seq# of the last byte of data in tcp send buffer */
@@ -502,7 +493,7 @@ void rds_tcp_tune(struct socket *sock)
 	struct net *net = sock_net(sk);
 	struct rds_tcp_net *rtn = net_generic(net, rds_tcp_netid);
 
-	rds_tcp_nonagle(sock);
+	tcp_sock_set_nodelay(sock->sk);
 	lock_sock(sk);
 	if (rtn->sndbuf_size > 0) {
 		sk->sk_sndbuf = rtn->sndbuf_size;
