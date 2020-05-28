@@ -44,6 +44,7 @@ Hardware Monitoring Kernel Drivers
    asc7621
    aspeed-pwm-tacho
    bel-pfe
+   bt1-pvt
    coretemp
    da9052
    da9055
