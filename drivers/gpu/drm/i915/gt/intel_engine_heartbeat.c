@@ -48,8 +48,10 @@ static void show_heartbeat(const struct i915_request *rq,
 	struct drm_printer p = drm_debug_printer("heartbeat");
 
 	intel_engine_dump(engine, &p,
-			  "%s heartbeat {prio:%d} not ticking\n",
+			  "%s heartbeat {seqno:%llx:%lld, prio:%d} not ticking\n",
 			  engine->name,
+			  rq->fence.context,
+			  rq->fence.seqno,
 			  rq->sched.attr.priority);
 }
 
@@ -76,8 +78,19 @@ static void heartbeat(struct work_struct *wrk)
 		goto out;
 
 	if (engine->heartbeat.systole) {
-		if (engine->schedule &&
-		    rq->sched.attr.priority < I915_PRIORITY_BARRIER) {
+		if (!i915_sw_fence_signaled(&rq->submit)) {
+			/*
+			 * Not yet submitted, system is stalled.
+			 *
+			 * This more often happens for ring submission,
+			 * where all contexts are funnelled into a common
+			 * ringbuffer. If one context is blocked on an
+			 * external fence, not only is it not submitted,
+			 * but all other contexts, including the kernel
+			 * context are stuck waiting for the signal.
+			 */
+		} else if (engine->schedule &&
+			   rq->sched.attr.priority < I915_PRIORITY_BARRIER) {
 			/*
 			 * Gradually raise the priority of the heartbeat to
 			 * give high priority work [which presumably desires
