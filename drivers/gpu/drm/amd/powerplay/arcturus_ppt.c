@@ -489,25 +489,10 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 
 static int arcturus_check_powerplay_table(struct smu_context *smu)
 {
-	return 0;
-}
-
-static int arcturus_store_powerplay_table(struct smu_context *smu)
-{
-	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+		table_context->power_play_table;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	int ret = 0;
-
-	if (!table_context->power_play_table)
-		return -EINVAL;
-
-	powerplay_table = table_context->power_play_table;
-
-	memcpy(table_context->driver_pptable, &powerplay_table->smc_pptable,
-	       sizeof(PPTable_t));
-
-	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
 
 	mutex_lock(&smu_baco->mutex);
 	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
@@ -515,7 +500,22 @@ static int arcturus_store_powerplay_table(struct smu_context *smu)
 		smu_baco->platform_support = true;
 	mutex_unlock(&smu_baco->mutex);
 
-	return ret;
+	table_context->thermal_controller_type =
+		powerplay_table->thermal_controller_type;
+
+	return 0;
+}
+
+static int arcturus_store_powerplay_table(struct smu_context *smu)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+		table_context->power_play_table;
+
+	memcpy(table_context->driver_pptable, &powerplay_table->smc_pptable,
+	       sizeof(PPTable_t));
+
+	return 0;
 }
 
 static int arcturus_append_powerplay_table(struct smu_context *smu)
@@ -544,6 +544,29 @@ static int arcturus_append_powerplay_table(struct smu_context *smu)
 		       sizeof(*smc_dpm_table) - offsetof(struct atom_smc_dpm_info_v4_6, maxvoltagestepgfx));
 
 	return 0;
+}
+
+static int arcturus_setup_pptable(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_v11_0_setup_pptable(smu);
+	if (ret)
+		return ret;
+
+	ret = arcturus_store_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	ret = arcturus_append_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	ret = arcturus_check_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int arcturus_run_btc(struct smu_context *smu)
@@ -2416,10 +2439,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* internal structurs allocations */
 	.tables_init = arcturus_tables_init,
 	.alloc_dpm_context = arcturus_allocate_dpm_context,
-	/* pptable related */
-	.check_powerplay_table = arcturus_check_powerplay_table,
-	.store_powerplay_table = arcturus_store_powerplay_table,
-	.append_powerplay_table = arcturus_append_powerplay_table,
 	/* init dpm */
 	.get_allowed_feature_mask = arcturus_get_allowed_feature_mask,
 	/* btc */
@@ -2455,10 +2474,9 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.check_fw_status = smu_v11_0_check_fw_status,
-	.setup_pptable = smu_v11_0_setup_pptable,
+	/* pptable related */
+	.setup_pptable = arcturus_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.check_pptable = smu_v11_0_check_pptable,
-	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_tables = smu_v11_0_populate_smc_pptable,
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.write_pptable = smu_v11_0_write_pptable,

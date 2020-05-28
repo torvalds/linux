@@ -1115,23 +1115,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			return ret;
 
 		/*
-		 * check if the format_revision in vbios is up to pptable header
-		 * version, and the structure size is not 0.
-		 */
-		ret = smu_check_pptable(smu);
-		if (ret)
-			return ret;
-
-		/*
-		 * Parse pptable format and fill PPTable_t smc_pptable to
-		 * smu_table_context structure. And read the smc_dpm_table from vbios,
-		 * then fill it into smc_pptable.
-		 */
-		ret = smu_parse_pptable(smu);
-		if (ret)
-			return ret;
-
-		/*
 		 * Send msg GetDriverIfVersion to check if the return value is equal
 		 * with DRIVER_IF_VERSION of smc header.
 		 */

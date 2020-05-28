@@ -359,6 +359,20 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 
 static int sienna_cichlid_check_powerplay_table(struct smu_context *smu)
 {
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+		table_context->power_play_table;
+	struct smu_baco_context *smu_baco = &smu->smu_baco;
+
+	mutex_lock(&smu_baco->mutex);
+	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->platform_support = true;
+	mutex_unlock(&smu_baco->mutex);
+
+	table_context->thermal_controller_type =
+		powerplay_table->thermal_controller_type;
+
 	return 0;
 }
 
@@ -470,27 +484,37 @@ static int sienna_cichlid_append_powerplay_table(struct smu_context *smu)
 
 static int sienna_cichlid_store_powerplay_table(struct smu_context *smu)
 {
-	struct smu_11_0_powerplay_table *powerplay_table = NULL;
 	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_baco_context *smu_baco = &smu->smu_baco;
-
-	if (!table_context->power_play_table)
-		return -EINVAL;
-
-	powerplay_table = table_context->power_play_table;
+	struct smu_11_0_powerplay_table *powerplay_table =
+		table_context->power_play_table;
 
 	memcpy(table_context->driver_pptable, &powerplay_table->smc_pptable,
 	       sizeof(PPTable_t));
 
-	table_context->thermal_controller_type = powerplay_table->thermal_controller_type;
-
-	mutex_lock(&smu_baco->mutex);
-	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
-	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
-		smu_baco->platform_support = true;
-	mutex_unlock(&smu_baco->mutex);
-
 	return 0;
+}
+
+static int sienna_cichlid_setup_pptable(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_v11_0_setup_pptable(smu);
+	if (ret)
+		return ret;
+
+	ret = sienna_cichlid_store_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	ret = sienna_cichlid_append_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	ret = sienna_cichlid_check_powerplay_table(smu);
+	if (ret)
+		return ret;
+
+	return ret;
 }
 
 static int sienna_cichlid_tables_init(struct smu_context *smu, struct smu_table *tables)
@@ -2411,9 +2435,6 @@ static void sienna_cichlid_dump_pptable(struct smu_context *smu)
 static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.tables_init = sienna_cichlid_tables_init,
 	.alloc_dpm_context = sienna_cichlid_allocate_dpm_context,
-	.store_powerplay_table = sienna_cichlid_store_powerplay_table,
-	.check_powerplay_table = sienna_cichlid_check_powerplay_table,
-	.append_powerplay_table = sienna_cichlid_append_powerplay_table,
 	.get_smu_msg_index = sienna_cichlid_get_smu_msg_index,
 	.get_smu_clk_index = sienna_cichlid_get_smu_clk_index,
 	.get_smu_feature_index = sienna_cichlid_get_smu_feature_index,
@@ -2455,10 +2476,8 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.init_power = smu_v11_0_init_power,
 	.fini_power = smu_v11_0_fini_power,
 	.check_fw_status = smu_v11_0_check_fw_status,
-	.setup_pptable = smu_v11_0_setup_pptable,
+	.setup_pptable = sienna_cichlid_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.check_pptable = smu_v11_0_check_pptable,
-	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_tables = smu_v11_0_populate_smc_pptable,
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.write_pptable = smu_v11_0_write_pptable,

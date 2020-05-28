@@ -417,9 +417,6 @@ struct i2c_adapter;
 
 struct pptable_funcs {
 	int (*alloc_dpm_context)(struct smu_context *smu);
-	int (*store_powerplay_table)(struct smu_context *smu);
-	int (*check_powerplay_table)(struct smu_context *smu);
-	int (*append_powerplay_table)(struct smu_context *smu);
 	int (*get_smu_msg_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_clk_index)(struct smu_context *smu, uint32_t index);
 	int (*get_smu_feature_index)(struct smu_context *smu, uint32_t index);
@@ -506,8 +503,6 @@ struct pptable_funcs {
 	int (*check_fw_status)(struct smu_context *smu);
 	int (*setup_pptable)(struct smu_context *smu);
 	int (*get_vbios_bootup_values)(struct smu_context *smu);
-	int (*check_pptable)(struct smu_context *smu);
-	int (*parse_pptable)(struct smu_context *smu);
 	int (*populate_smc_tables)(struct smu_context *smu);
 	int (*check_fw_version)(struct smu_context *smu);
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
