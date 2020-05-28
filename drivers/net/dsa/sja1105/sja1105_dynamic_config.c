@@ -136,6 +136,12 @@
 #define SJA1105_SIZE_RETAGGING_DYN_CMD				\
 	(SJA1105_SIZE_DYN_CMD + SJA1105_SIZE_RETAGGING_ENTRY)
 
+#define SJA1105ET_SIZE_CBS_DYN_CMD				\
+	(SJA1105_SIZE_DYN_CMD + SJA1105ET_SIZE_CBS_ENTRY)
+
+#define SJA1105PQRS_SIZE_CBS_DYN_CMD				\
+	(SJA1105_SIZE_DYN_CMD + SJA1105PQRS_SIZE_CBS_ENTRY)
+
 #define SJA1105_MAX_DYN_CMD_SIZE				\
 	SJA1105PQRS_SIZE_MAC_CONFIG_DYN_CMD
 
@@ -542,6 +548,60 @@ sja1105_retagging_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
 	sja1105_packing(p, &cmd->index,     5,  0, size, op);
 }
 
+static void sja1105et_cbs_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+				      enum packing_op op)
+{
+	u8 *p = buf + SJA1105ET_SIZE_CBS_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid, 31, 31, size, op);
+	sja1105_packing(p, &cmd->index, 19, 16, size, op);
+}
+
+static size_t sja1105et_cbs_entry_packing(void *buf, void *entry_ptr,
+					  enum packing_op op)
+{
+	const size_t size = SJA1105ET_SIZE_CBS_ENTRY;
+	struct sja1105_cbs_entry *entry = entry_ptr;
+	u8 *cmd = buf + size;
+	u32 *p = buf;
+
+	sja1105_packing(cmd, &entry->port, 5, 3, SJA1105_SIZE_DYN_CMD, op);
+	sja1105_packing(cmd, &entry->prio, 2, 0, SJA1105_SIZE_DYN_CMD, op);
+	sja1105_packing(p + 3, &entry->credit_lo,  31, 0, size, op);
+	sja1105_packing(p + 2, &entry->credit_hi,  31, 0, size, op);
+	sja1105_packing(p + 1, &entry->send_slope, 31, 0, size, op);
+	sja1105_packing(p + 0, &entry->idle_slope, 31, 0, size, op);
+	return size;
+}
+
+static void sja1105pqrs_cbs_cmd_packing(void *buf, struct sja1105_dyn_cmd *cmd,
+					enum packing_op op)
+{
+	u8 *p = buf + SJA1105PQRS_SIZE_CBS_ENTRY;
+	const int size = SJA1105_SIZE_DYN_CMD;
+
+	sja1105_packing(p, &cmd->valid,   31, 31, size, op);
+	sja1105_packing(p, &cmd->rdwrset, 30, 30, size, op);
+	sja1105_packing(p, &cmd->errors,  29, 29, size, op);
+	sja1105_packing(p, &cmd->index,    3,  0, size, op);
+}
+
+static size_t sja1105pqrs_cbs_entry_packing(void *buf, void *entry_ptr,
+					    enum packing_op op)
+{
+	const size_t size = SJA1105PQRS_SIZE_CBS_ENTRY;
+	struct sja1105_cbs_entry *entry = entry_ptr;
+
+	sja1105_packing(buf, &entry->port,      159, 157, size, op);
+	sja1105_packing(buf, &entry->prio,      156, 154, size, op);
+	sja1105_packing(buf, &entry->credit_lo, 153, 122, size, op);
+	sja1105_packing(buf, &entry->credit_hi, 121,  90, size, op);
+	sja1105_packing(buf, &entry->send_slope, 89,  58, size, op);
+	sja1105_packing(buf, &entry->idle_slope, 57,  26, size, op);
+	return size;
+}
+
 #define OP_READ		BIT(0)
 #define OP_WRITE	BIT(1)
 #define OP_DEL		BIT(2)
@@ -630,6 +690,14 @@ struct sja1105_dynamic_table_ops sja1105et_dyn_ops[BLK_IDX_MAX_DYN] = {
 		.access = (OP_WRITE | OP_DEL),
 		.packed_size = SJA1105_SIZE_RETAGGING_DYN_CMD,
 		.addr = 0x31,
+	},
+	[BLK_IDX_CBS] = {
+		.entry_packing = sja1105et_cbs_entry_packing,
+		.cmd_packing = sja1105et_cbs_cmd_packing,
+		.max_entry_count = SJA1105ET_MAX_CBS_COUNT,
+		.access = OP_WRITE,
+		.packed_size = SJA1105ET_SIZE_CBS_DYN_CMD,
+		.addr = 0x2c,
 	},
 	[BLK_IDX_XMII_PARAMS] = {0},
 };
@@ -724,6 +792,14 @@ struct sja1105_dynamic_table_ops sja1105pqrs_dyn_ops[BLK_IDX_MAX_DYN] = {
 		.access = (OP_READ | OP_WRITE | OP_DEL),
 		.packed_size = SJA1105_SIZE_RETAGGING_DYN_CMD,
 		.addr = 0x38,
+	},
+	[BLK_IDX_CBS] = {
+		.entry_packing = sja1105pqrs_cbs_entry_packing,
+		.cmd_packing = sja1105pqrs_cbs_cmd_packing,
+		.max_entry_count = SJA1105PQRS_MAX_CBS_COUNT,
+		.access = OP_WRITE,
+		.packed_size = SJA1105PQRS_SIZE_CBS_DYN_CMD,
+		.addr = 0x32,
 	},
 	[BLK_IDX_XMII_PARAMS] = {0},
 };

@@ -84,6 +84,7 @@ struct sja1105_info {
 	 * the egress timestamps.
 	 */
 	int ptpegr_ts_bytes;
+	int num_cbs_shapers;
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
 	const struct sja1105_regs *regs;
@@ -218,6 +219,7 @@ struct sja1105_private {
 	struct mutex mgmt_lock;
 	bool expect_dsa_8021q;
 	enum sja1105_vlan_state vlan_state;
+	struct sja1105_cbs_entry *cbs;
 	struct sja1105_tagger_data tagger_data;
 	struct sja1105_ptp_data ptp_data;
 	struct sja1105_tas_data tas_data;

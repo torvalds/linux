@@ -30,11 +30,13 @@
 #define SJA1105ET_SIZE_L2_LOOKUP_PARAMS_ENTRY		4
 #define SJA1105ET_SIZE_GENERAL_PARAMS_ENTRY		40
 #define SJA1105ET_SIZE_AVB_PARAMS_ENTRY			12
+#define SJA1105ET_SIZE_CBS_ENTRY			16
 #define SJA1105PQRS_SIZE_L2_LOOKUP_ENTRY		20
 #define SJA1105PQRS_SIZE_MAC_CONFIG_ENTRY		32
 #define SJA1105PQRS_SIZE_L2_LOOKUP_PARAMS_ENTRY		16
 #define SJA1105PQRS_SIZE_GENERAL_PARAMS_ENTRY		44
 #define SJA1105PQRS_SIZE_AVB_PARAMS_ENTRY		16
+#define SJA1105PQRS_SIZE_CBS_ENTRY			20
 
 /* UM10944.pdf Page 11, Table 2. Configuration Blocks */
 enum {
@@ -56,6 +58,7 @@ enum {
 	BLKID_AVB_PARAMS				= 0x10,
 	BLKID_GENERAL_PARAMS				= 0x11,
 	BLKID_RETAGGING					= 0x12,
+	BLKID_CBS					= 0x13,
 	BLKID_XMII_PARAMS				= 0x4E,
 };
 
@@ -78,6 +81,7 @@ enum sja1105_blk_idx {
 	BLK_IDX_AVB_PARAMS,
 	BLK_IDX_GENERAL_PARAMS,
 	BLK_IDX_RETAGGING,
+	BLK_IDX_CBS,
 	BLK_IDX_XMII_PARAMS,
 	BLK_IDX_MAX,
 	/* Fake block indices that are only valid for dynamic access */
@@ -105,6 +109,8 @@ enum sja1105_blk_idx {
 #define SJA1105_MAX_RETAGGING_COUNT			32
 #define SJA1105_MAX_XMII_PARAMS_COUNT			1
 #define SJA1105_MAX_AVB_PARAMS_COUNT			1
+#define SJA1105ET_MAX_CBS_COUNT				10
+#define SJA1105PQRS_MAX_CBS_COUNT			16
 
 #define SJA1105_MAX_FRAME_MEMORY			929
 #define SJA1105_MAX_FRAME_MEMORY_RETAGGING		910
@@ -287,6 +293,15 @@ struct sja1105_retagging_entry {
 	u64 do_not_learn;
 	u64 use_dest_ports;
 	u64 destports;
+};
+
+struct sja1105_cbs_entry {
+	u64 port;
+	u64 prio;
+	u64 credit_hi;
+	u64 credit_lo;
+	u64 send_slope;
+	u64 idle_slope;
 };
 
 struct sja1105_xmii_params_entry {

@@ -1640,6 +1640,92 @@ static void sja1105_bridge_leave(struct dsa_switch *ds, int port,
 	sja1105_bridge_member(ds, port, br, false);
 }
 
+#define BYTES_PER_KBIT (1000LL / 8)
+
+static int sja1105_find_unused_cbs_shaper(struct sja1105_private *priv)
+{
+	int i;
+
+	for (i = 0; i < priv->info->num_cbs_shapers; i++)
+		if (!priv->cbs[i].idle_slope && !priv->cbs[i].send_slope)
+			return i;
+
+	return -1;
+}
+
+static int sja1105_delete_cbs_shaper(struct sja1105_private *priv, int port,
+				     int prio)
+{
+	int i;
+
+	for (i = 0; i < priv->info->num_cbs_shapers; i++) {
+		struct sja1105_cbs_entry *cbs = &priv->cbs[i];
+
+		if (cbs->port == port && cbs->prio == prio) {
+			memset(cbs, 0, sizeof(*cbs));
+			return sja1105_dynamic_config_write(priv, BLK_IDX_CBS,
+							    i, cbs, true);
+		}
+	}
+
+	return 0;
+}
+
+static int sja1105_setup_tc_cbs(struct dsa_switch *ds, int port,
+				struct tc_cbs_qopt_offload *offload)
+{
+	struct sja1105_private *priv = ds->priv;
+	struct sja1105_cbs_entry *cbs;
+	int index;
+
+	if (!offload->enable)
+		return sja1105_delete_cbs_shaper(priv, port, offload->queue);
+
+	index = sja1105_find_unused_cbs_shaper(priv);
+	if (index < 0)
+		return -ENOSPC;
+
+	cbs = &priv->cbs[index];
+	cbs->port = port;
+	cbs->prio = offload->queue;
+	/* locredit and sendslope are negative by definition. In hardware,
+	 * positive values must be provided, and the negative sign is implicit.
+	 */
+	cbs->credit_hi = offload->hicredit;
+	cbs->credit_lo = abs(offload->locredit);
+	/* User space is in kbits/sec, hardware in bytes/sec */
+	cbs->idle_slope = offload->idleslope * BYTES_PER_KBIT;
+	cbs->send_slope = abs(offload->sendslope * BYTES_PER_KBIT);
+	/* Convert the negative values from 64-bit 2's complement
+	 * to 32-bit 2's complement (for the case of 0x80000000 whose
+	 * negative is still negative).
+	 */
+	cbs->credit_lo &= GENMASK_ULL(31, 0);
+	cbs->send_slope &= GENMASK_ULL(31, 0);
+
+	return sja1105_dynamic_config_write(priv, BLK_IDX_CBS, index, cbs,
+					    true);
+}
+
+static int sja1105_reload_cbs(struct sja1105_private *priv)
+{
+	int rc = 0, i;
+
+	for (i = 0; i < priv->info->num_cbs_shapers; i++) {
+		struct sja1105_cbs_entry *cbs = &priv->cbs[i];
+
+		if (!cbs->idle_slope && !cbs->send_slope)
+			continue;
+
+		rc = sja1105_dynamic_config_write(priv, BLK_IDX_CBS, i, cbs,
+						  true);
+		if (rc)
+			break;
+	}
+
+	return rc;
+}
+
 static const char * const sja1105_reset_reasons[] = {
 	[SJA1105_VLAN_FILTERING] = "VLAN filtering",
 	[SJA1105_RX_HWTSTAMPING] = "RX timestamping",
@@ -1754,6 +1840,10 @@ out_unlock_ptp:
 			sja1105_sgmii_pcs_force_speed(priv, speed);
 		}
 	}
+
+	rc = sja1105_reload_cbs(priv);
+	if (rc < 0)
+		goto out;
 out:
 	mutex_unlock(&priv->mgmt_lock);
 
@@ -3131,6 +3221,8 @@ static int sja1105_port_setup_tc(struct dsa_switch *ds, int port,
 	switch (type) {
 	case TC_SETUP_QDISC_TAPRIO:
 		return sja1105_setup_tc_taprio(ds, port, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return sja1105_setup_tc_cbs(ds, port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -3407,6 +3499,14 @@ static int sja1105_probe(struct spi_device *spi)
 	rc = dsa_register_switch(priv->ds);
 	if (rc)
 		return rc;
+
+	if (IS_ENABLED(CONFIG_NET_SCH_CBS)) {
+		priv->cbs = devm_kcalloc(dev, priv->info->num_cbs_shapers,
+					 sizeof(struct sja1105_cbs_entry),
+					 GFP_KERNEL);
+		if (!priv->cbs)
+			return -ENOMEM;
+	}
 
 	/* Connections between dsa_port and sja1105_port */
 	for (port = 0; port < SJA1105_NUM_PORTS; port++) {
