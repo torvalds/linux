@@ -254,31 +254,6 @@ static int nv_read_register(struct amdgpu_device *adev, u32 se_num,
 	return -EINVAL;
 }
 
-#if 0
-static void nv_gpu_pci_config_reset(struct amdgpu_device *adev)
-{
-	u32 i;
-
-	dev_info(adev->dev, "GPU pci config reset\n");
-
-	/* disable BM */
-	pci_clear_master(adev->pdev);
-	/* reset */
-	amdgpu_pci_config_reset(adev);
-
-	udelay(100);
-
-	/* wait for asic to come out of reset */
-	for (i = 0; i < adev->usec_timeout; i++) {
-		u32 memsize = nbio_v2_3_get_memsize(adev);
-		if (memsize != 0xffffffff)
-			break;
-		udelay(1);
-	}
-
-}
-#endif
-
 static int nv_asic_mode1_reset(struct amdgpu_device *adev)
 {
 	u32 i;
@@ -336,15 +311,6 @@ nv_asic_reset_method(struct amdgpu_device *adev)
 
 static int nv_asic_reset(struct amdgpu_device *adev)
 {
-
-	/* FIXME: it doesn't work since vega10 */
-#if 0
-	amdgpu_atombios_scratch_regs_engine_hung(adev, true);
-
-	nv_gpu_pci_config_reset(adev);
-
-	amdgpu_atombios_scratch_regs_engine_hung(adev, false);
-#endif
 	int ret = 0;
 	struct smu_context *smu = &adev->smu;
 
