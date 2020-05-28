@@ -42,6 +42,7 @@
  */
 
 #include <linux/cpufreq.h>
+#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -178,6 +179,7 @@ struct private_data {
 	struct completion done;
 	struct semaphore sem;
 	struct pmap pmap;
+	int host_irq;
 };
 
 static void __iomem *__map_region(const char *name)
@@ -195,12 +197,36 @@ static void __iomem *__map_region(const char *name)
 	return ptr;
 }
 
+static unsigned long wait_for_avs_command(struct private_data *priv,
+					  unsigned long timeout)
+{
+	unsigned long time_left = 0;
+	u32 val;
+
+	/* Event driven, wait for the command interrupt */
+	if (priv->host_irq >= 0)
+		return wait_for_completion_timeout(&priv->done,
+						   msecs_to_jiffies(timeout));
+
+	/* Polling for command completion */
+	do {
+		time_left = timeout;
+		val = readl(priv->base + AVS_MBOX_STATUS);
+		if (val)
+			break;
+
+		usleep_range(1000, 2000);
+	} while (--timeout);
+
+	return time_left;
+}
+
 static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 			       unsigned int num_in, unsigned int num_out,
 			       u32 args[])
 {
-	unsigned long time_left = msecs_to_jiffies(AVS_TIMEOUT);
 	void __iomem *base = priv->base;
+	unsigned long time_left;
 	unsigned int i;
 	int ret;
 	u32 val;
@@ -238,7 +264,7 @@ static int __issue_avs_command(struct private_data *priv, unsigned int cmd,
 	writel(AVS_CPU_L2_INT_MASK, priv->avs_intr_base + AVS_CPU_L2_SET0);
 
 	/* Wait for AVS co-processor to finish processing the command. */
-	time_left = wait_for_completion_timeout(&priv->done, time_left);
+	time_left = wait_for_avs_command(priv, AVS_TIMEOUT);
 
 	/*
 	 * If the AVS status is not in the expected range, it means AVS didn't
@@ -509,7 +535,7 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 {
 	struct private_data *priv;
 	struct device *dev;
-	int host_irq, ret;
+	int ret;
 
 	dev = &pdev->dev;
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -536,19 +562,14 @@ static int brcm_avs_prepare_init(struct platform_device *pdev)
 		goto unmap_base;
 	}
 
-	host_irq = platform_get_irq_byname(pdev, BRCM_AVS_HOST_INTR);
-	if (host_irq < 0) {
-		dev_err(dev, "Couldn't find interrupt %s -- %d\n",
-			BRCM_AVS_HOST_INTR, host_irq);
-		ret = host_irq;
-		goto unmap_intr_base;
-	}
+	priv->host_irq = platform_get_irq_byname(pdev, BRCM_AVS_HOST_INTR);
 
-	ret = devm_request_irq(dev, host_irq, irq_handler, IRQF_TRIGGER_RISING,
+	ret = devm_request_irq(dev, priv->host_irq, irq_handler,
+			       IRQF_TRIGGER_RISING,
 			       BRCM_AVS_HOST_INTR, priv);
-	if (ret) {
+	if (ret && priv->host_irq >= 0) {
 		dev_err(dev, "IRQ request failed: %s (%d) -- %d\n",
-			BRCM_AVS_HOST_INTR, host_irq, ret);
+			BRCM_AVS_HOST_INTR, priv->host_irq, ret);
 		goto unmap_intr_base;
 	}
 
