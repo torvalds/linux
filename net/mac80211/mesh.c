@@ -565,6 +565,7 @@ int mesh_add_he_oper_ie(struct ieee80211_sub_if_data *sdata,
 {
 	const struct ieee80211_sta_he_cap *he_cap;
 	struct ieee80211_supported_band *sband;
+	u32 len;
 	u8 *pos;
 
 	sband = ieee80211_get_sband(sdata);
@@ -578,11 +579,15 @@ int mesh_add_he_oper_ie(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_10)
 		return 0;
 
-	if (skb_tailroom(skb) < 2 + 1 + sizeof(struct ieee80211_he_operation))
+	len = 2 + 1 + sizeof(struct ieee80211_he_operation);
+	if (sdata->vif.bss_conf.chandef.chan->band == NL80211_BAND_6GHZ)
+		len += sizeof(struct ieee80211_he_6ghz_oper);
+
+	if (skb_tailroom(skb) < len)
 		return -ENOMEM;
 
-	pos = skb_put(skb, 2 + 1 + sizeof(struct ieee80211_he_operation));
-	ieee80211_ie_build_he_oper(pos);
+	pos = skb_put(skb, len);
+	ieee80211_ie_build_he_oper(pos, &sdata->vif.bss_conf.chandef);
 
 	return 0;
 }
@@ -773,6 +778,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		   2 + sizeof(struct ieee80211_vht_operation) +
 		   ie_len_he_cap +
 		   2 + 1 + sizeof(struct ieee80211_he_operation) +
+			   sizeof(struct ieee80211_he_6ghz_oper) +
 		   2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
 		   ifmsh->ie_len;
 
