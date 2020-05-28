@@ -6,6 +6,7 @@
 // Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 //
 #include <sound/soc.h>
+#include <sound/jack.h>
 
 #define soc_card_ret(dai, ret) _soc_card_ret(dai, __func__, ret)
 static inline int _soc_card_ret(struct snd_soc_card *card,
@@ -40,3 +41,41 @@ struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(snd_soc_card_get_kcontrol);
+
+/**
+ * snd_soc_card_jack_new - Create a new jack
+ * @card:  ASoC card
+ * @id:    an identifying string for this jack
+ * @type:  a bitmask of enum snd_jack_type values that can be detected by
+ *         this jack
+ * @jack:  structure to use for the jack
+ * @pins:  Array of jack pins to be added to the jack or NULL
+ * @num_pins: Number of elements in the @pins array
+ *
+ * Creates a new jack object.
+ *
+ * Returns zero if successful, or a negative error code on failure.
+ * On success jack will be initialised.
+ */
+int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
+			  struct snd_soc_jack *jack,
+			  struct snd_soc_jack_pin *pins, unsigned int num_pins)
+{
+	int ret;
+
+	mutex_init(&jack->mutex);
+	jack->card = card;
+	INIT_LIST_HEAD(&jack->pins);
+	INIT_LIST_HEAD(&jack->jack_zones);
+	BLOCKING_INIT_NOTIFIER_HEAD(&jack->notifier);
+
+	ret = snd_jack_new(card->snd_card, id, type, &jack->jack, false, false);
+	if (ret)
+		goto end;
+
+	if (num_pins)
+		ret = snd_soc_jack_add_pins(jack, num_pins, pins);
+end:
+	return soc_card_ret(card, ret);
+}
+EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);

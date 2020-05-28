@@ -509,10 +509,6 @@ int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hardware *hw);
 
 /* Jack reporting */
-int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
-	struct snd_soc_jack *jack, struct snd_soc_jack_pin *pins,
-	unsigned int num_pins);
-
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
