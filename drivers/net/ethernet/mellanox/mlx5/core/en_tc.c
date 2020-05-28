@@ -1873,7 +1873,7 @@ enc_opts_is_dont_care_or_full_match(struct mlx5e_priv *priv,
 		    memchr_inv(opt->opt_data, 0, opt->length * 4)) {
 			*dont_care = false;
 
-			if (opt->opt_class != U16_MAX ||
+			if (opt->opt_class != htons(U16_MAX) ||
 			    opt->type != U8_MAX) {
 				NL_SET_ERR_MSG(extack,
 					       "Partial match of tunnel options in chain > 0 isn't supported");
