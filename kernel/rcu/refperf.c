@@ -66,8 +66,8 @@ torture_param(long, loops, 10000000, "Number of loops per experiment.");
 torture_param(int, nreaders, -1, "Number of readers, -1 for 75% of CPUs.");
 // Number of runs.
 torture_param(int, nruns, 30, "Number of experiments to run.");
-// Reader delay in nanoseconds, 0 for no delay.
-torture_param(int, readdelay, 0, "Read-side delay in nanoseconds.");
+// Reader delay in microseconds, 0 for no delay.
+torture_param(int, readdelay, 0, "Read-side delay in microseconds.");
 
 #ifdef MODULE
 # define REFPERF_SHUTDOWN 0
@@ -111,6 +111,7 @@ struct ref_perf_ops {
 	void (*init)(void);
 	void (*cleanup)(void);
 	void (*readsection)(const int nloops);
+	void (*delaysection)(const int nloops, const int ndelay);
 	const char *name;
 };
 
@@ -126,6 +127,17 @@ static void ref_rcu_read_section(const int nloops)
 	}
 }
 
+static void ref_rcu_delay_section(const int nloops, const int ndelay)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		rcu_read_lock();
+		udelay(ndelay);
+		rcu_read_unlock();
+	}
+}
+
 static void rcu_sync_perf_init(void)
 {
 }
@@ -133,6 +145,7 @@ static void rcu_sync_perf_init(void)
 static struct ref_perf_ops rcu_ops = {
 	.init		= rcu_sync_perf_init,
 	.readsection	= ref_rcu_read_section,
+	.delaysection	= ref_rcu_delay_section,
 	.name		= "rcu"
 };
 
@@ -141,7 +154,7 @@ static struct ref_perf_ops rcu_ops = {
 DEFINE_STATIC_SRCU(srcu_refctl_perf);
 static struct srcu_struct *srcu_ctlp = &srcu_refctl_perf;
 
-static void srcu_ref_perf_read_section(int nloops)
+static void srcu_ref_perf_read_section(const int nloops)
 {
 	int i;
 	int idx;
@@ -152,16 +165,29 @@ static void srcu_ref_perf_read_section(int nloops)
 	}
 }
 
+static void srcu_ref_perf_delay_section(const int nloops, const int ndelay)
+{
+	int i;
+	int idx;
+
+	for (i = nloops; i >= 0; i--) {
+		idx = srcu_read_lock(srcu_ctlp);
+		udelay(ndelay);
+		srcu_read_unlock(srcu_ctlp, idx);
+	}
+}
+
 static struct ref_perf_ops srcu_ops = {
 	.init		= rcu_sync_perf_init,
 	.readsection	= srcu_ref_perf_read_section,
+	.delaysection	= srcu_ref_perf_delay_section,
 	.name		= "srcu"
 };
 
 // Definitions for reference count
 static atomic_t refcnt;
 
-static void ref_perf_refcnt_section(const int nloops)
+static void ref_refcnt_section(const int nloops)
 {
 	int i;
 
@@ -171,21 +197,33 @@ static void ref_perf_refcnt_section(const int nloops)
 	}
 }
 
+static void ref_refcnt_delay_section(const int nloops, const int ndelay)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		atomic_inc(&refcnt);
+		udelay(ndelay);
+		atomic_dec(&refcnt);
+	}
+}
+
 static struct ref_perf_ops refcnt_ops = {
 	.init		= rcu_sync_perf_init,
-	.readsection	= ref_perf_refcnt_section,
+	.readsection	= ref_refcnt_section,
+	.delaysection	= ref_refcnt_delay_section,
 	.name		= "refcnt"
 };
 
 // Definitions for rwlock
 static rwlock_t test_rwlock;
 
-static void ref_perf_rwlock_init(void)
+static void ref_rwlock_init(void)
 {
 	rwlock_init(&test_rwlock);
 }
 
-static void ref_perf_rwlock_section(const int nloops)
+static void ref_rwlock_section(const int nloops)
 {
 	int i;
 
@@ -195,21 +233,33 @@ static void ref_perf_rwlock_section(const int nloops)
 	}
 }
 
+static void ref_rwlock_delay_section(const int nloops, const int ndelay)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		read_lock(&test_rwlock);
+		udelay(ndelay);
+		read_unlock(&test_rwlock);
+	}
+}
+
 static struct ref_perf_ops rwlock_ops = {
-	.init		= ref_perf_rwlock_init,
-	.readsection	= ref_perf_rwlock_section,
+	.init		= ref_rwlock_init,
+	.readsection	= ref_rwlock_section,
+	.delaysection	= ref_rwlock_delay_section,
 	.name		= "rwlock"
 };
 
 // Definitions for rwsem
 static struct rw_semaphore test_rwsem;
 
-static void ref_perf_rwsem_init(void)
+static void ref_rwsem_init(void)
 {
 	init_rwsem(&test_rwsem);
 }
 
-static void ref_perf_rwsem_section(const int nloops)
+static void ref_rwsem_section(const int nloops)
 {
 	int i;
 
@@ -219,11 +269,31 @@ static void ref_perf_rwsem_section(const int nloops)
 	}
 }
 
+static void ref_rwsem_delay_section(const int nloops, const int ndelay)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--) {
+		down_read(&test_rwsem);
+		udelay(ndelay);
+		up_read(&test_rwsem);
+	}
+}
+
 static struct ref_perf_ops rwsem_ops = {
-	.init		= ref_perf_rwsem_init,
-	.readsection	= ref_perf_rwsem_section,
+	.init		= ref_rwsem_init,
+	.readsection	= ref_rwsem_section,
+	.delaysection	= ref_rwsem_delay_section,
 	.name		= "rwsem"
 };
+
+static void rcu_perf_one_reader(void)
+{
+	if (readdelay <= 0)
+		cur_ops->readsection(loops);
+	else
+		cur_ops->delaysection(loops, readdelay);
+}
 
 // Reader kthread.  Repeatedly does empty RCU read-side
 // critical section, minimizing update-side interference.
@@ -265,16 +335,16 @@ repeat:
 
 	// To reduce noise, do an initial cache-warming invocation, check
 	// in, and then keep warming until everyone has checked in.
-	cur_ops->readsection(loops);
+	rcu_perf_one_reader();
 	if (!atomic_dec_return(&n_warmedup))
 		while (atomic_read_acquire(&n_warmedup))
-			cur_ops->readsection(loops);
+			rcu_perf_one_reader();
 	// Also keep interrupts disabled.  This also has the effect
 	// of preventing entries into slow path for rcu_read_unlock().
 	local_irq_save(flags);
 	start = ktime_get_mono_fast_ns();
 
-	cur_ops->readsection(loops);
+	rcu_perf_one_reader();
 
 	duration = ktime_get_mono_fast_ns() - start;
 	local_irq_restore(flags);
@@ -284,7 +354,7 @@ repeat:
 	// everyone is done.
 	if (!atomic_dec_return(&n_cooleddown))
 		while (atomic_read_acquire(&n_cooleddown))
-			cur_ops->readsection(loops);
+			rcu_perf_one_reader();
 
 	if (atomic_dec_and_test(&nreaders_exp))
 		wake_up(&main_wq);
@@ -449,8 +519,8 @@ static void
 ref_perf_print_module_parms(struct ref_perf_ops *cur_ops, const char *tag)
 {
 	pr_alert("%s" PERF_FLAG
-		 "--- %s:  verbose=%d shutdown=%d holdoff=%d loops=%ld nreaders=%d nruns=%d\n", perf_type, tag,
-		 verbose, shutdown, holdoff, loops, nreaders, nruns);
+		 "--- %s:  verbose=%d shutdown=%d holdoff=%d loops=%ld nreaders=%d nruns=%d readdelay=%d\n", perf_type, tag,
+		 verbose, shutdown, holdoff, loops, nreaders, nruns, readdelay);
 }
 
 static void
