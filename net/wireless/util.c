@@ -242,7 +242,9 @@ int cfg80211_validate_key_settings(struct cfg80211_registered_device *rdev,
 	int max_key_idx = 5;
 
 	if (wiphy_ext_feature_isset(&rdev->wiphy,
-				    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION) ||
+	    wiphy_ext_feature_isset(&rdev->wiphy,
+				    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
 		max_key_idx = 7;
 	if (key_idx < 0 || key_idx > max_key_idx)
 		return -EINVAL;
