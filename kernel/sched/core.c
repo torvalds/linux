@@ -20,6 +20,7 @@
 #include "../smpboot.h"
 
 #include "pelt.h"
+#include "smp.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
