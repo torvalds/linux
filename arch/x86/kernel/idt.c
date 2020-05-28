@@ -61,7 +61,11 @@ static bool idt_setup_done __initdata;
 static const __initconst struct idt_data early_idts[] = {
 	INTG(X86_TRAP_DB,		asm_exc_debug),
 	SYSG(X86_TRAP_BP,		asm_exc_int3),
+
 #ifdef CONFIG_X86_32
+	/*
+	 * Not possible on 64-bit. See idt_setup_early_pf() for details.
+	 */
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 #endif
 };
@@ -256,8 +260,10 @@ void __init idt_setup_traps(void)
  * cpu_init() is invoked and sets up TSS. The IST variant is installed
  * after that.
  *
- * FIXME: Why is 32bit and 64bit installing the PF handler at different
- * places in the early setup code?
+ * Note, that X86_64 cannot install the real #PF handler in
+ * idt_setup_early_traps() because the memory intialization needs the #PF
+ * handler from the early_idt_handler_array to initialize the early page
+ * tables.
  */
 void __init idt_setup_early_pf(void)
 {
