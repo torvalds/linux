@@ -21,6 +21,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mem2mem.h>
+#include <media/v4l2-rect.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-contig.h>
 
@@ -1301,19 +1302,6 @@ static int fimc_cap_g_selection(struct file *file, void *fh,
 	return -EINVAL;
 }
 
-/* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
-static int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
-{
-	if (a->left < b->left || a->top < b->top)
-		return 0;
-	if (a->left + a->width > b->left + b->width)
-		return 0;
-	if (a->top + a->height > b->top + b->height)
-		return 0;
-
-	return 1;
-}
-
 static int fimc_cap_s_selection(struct file *file, void *fh,
 				struct v4l2_selection *s)
 {
@@ -1336,11 +1324,11 @@ static int fimc_cap_s_selection(struct file *file, void *fh,
 	fimc_capture_try_selection(ctx, &rect, s->target);
 
 	if (s->flags & V4L2_SEL_FLAG_LE &&
-	    !enclosed_rectangle(&rect, &s->r))
+	    !v4l2_rect_enclosed(&rect, &s->r))
 		return -ERANGE;
 
 	if (s->flags & V4L2_SEL_FLAG_GE &&
-	    !enclosed_rectangle(&s->r, &rect))
+	    !v4l2_rect_enclosed(&s->r, &rect))
 		return -ERANGE;
 
 	s->r = rect;
