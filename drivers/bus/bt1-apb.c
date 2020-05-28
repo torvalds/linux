@@ -164,12 +164,10 @@ static int bt1_apb_request_regs(struct bt1_apb *apb)
 	}
 
 	apb->res = devm_platform_ioremap_resource_byname(pdev, "nodev");
-	if (IS_ERR(apb->res)) {
+	if (IS_ERR(apb->res))
 		dev_err(apb->dev, "Couldn't map reserved region\n");
-		return PTR_ERR(apb->res);
-	}
 
-	return 0;
+	return PTR_ERR_OR_ZERO(apb->res);
 }
 
 static int bt1_apb_request_rst(struct bt1_apb *apb)
