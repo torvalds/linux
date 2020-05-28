@@ -799,6 +799,147 @@ int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 	return 0;
 }
 
+static int smu_init_fb_allocations(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	struct smu_table *driver_table = &(smu_table->driver_table);
+	uint32_t max_table_size = 0;
+	int ret, i;
+
+	/* VRAM allocation for tool table */
+	if (tables[SMU_TABLE_PMSTATUSLOG].size) {
+		ret = amdgpu_bo_create_kernel(adev,
+					      tables[SMU_TABLE_PMSTATUSLOG].size,
+					      tables[SMU_TABLE_PMSTATUSLOG].align,
+					      tables[SMU_TABLE_PMSTATUSLOG].domain,
+					      &tables[SMU_TABLE_PMSTATUSLOG].bo,
+					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
+					      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
+		if (ret) {
+			pr_err("VRAM allocation for tool table failed!\n");
+			return ret;
+		}
+	}
+
+	/* VRAM allocation for driver table */
+	for (i = 0; i < SMU_TABLE_COUNT; i++) {
+		if (tables[i].size == 0)
+			continue;
+
+		if (i == SMU_TABLE_PMSTATUSLOG)
+			continue;
+
+		if (max_table_size < tables[i].size)
+			max_table_size = tables[i].size;
+	}
+
+	driver_table->size = max_table_size;
+	driver_table->align = PAGE_SIZE;
+	driver_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
+
+	ret = amdgpu_bo_create_kernel(adev,
+				      driver_table->size,
+				      driver_table->align,
+				      driver_table->domain,
+				      &driver_table->bo,
+				      &driver_table->mc_address,
+				      &driver_table->cpu_addr);
+	if (ret) {
+		pr_err("VRAM allocation for driver table failed!\n");
+		if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
+			amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
+					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
+					      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
+	}
+
+	return ret;
+}
+
+static int smu_fini_fb_allocations(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	struct smu_table *driver_table = &(smu_table->driver_table);
+
+	if (!tables)
+		return 0;
+
+	if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
+		amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
+				      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
+				      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
+
+	amdgpu_bo_free_kernel(&driver_table->bo,
+			      &driver_table->mc_address,
+			      &driver_table->cpu_addr);
+
+	return 0;
+}
+
+/**
+ * smu_alloc_memory_pool - allocate memory pool in the system memory
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This memory pool will be used for SMC use and msg SetSystemVirtualDramAddr
+ * and DramLogSetDramAddr can notify it changed.
+ *
+ * Returns 0 on success, error on failure.
+ */
+static int smu_alloc_memory_pool(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+	uint64_t pool_size = smu->pool_size;
+	int ret = 0;
+
+	if (pool_size == SMU_MEMORY_POOL_SIZE_ZERO)
+		return ret;
+
+	memory_pool->size = pool_size;
+	memory_pool->align = PAGE_SIZE;
+	memory_pool->domain = AMDGPU_GEM_DOMAIN_GTT;
+
+	switch (pool_size) {
+	case SMU_MEMORY_POOL_SIZE_256_MB:
+	case SMU_MEMORY_POOL_SIZE_512_MB:
+	case SMU_MEMORY_POOL_SIZE_1_GB:
+	case SMU_MEMORY_POOL_SIZE_2_GB:
+		ret = amdgpu_bo_create_kernel(adev,
+					      memory_pool->size,
+					      memory_pool->align,
+					      memory_pool->domain,
+					      &memory_pool->bo,
+					      &memory_pool->mc_address,
+					      &memory_pool->cpu_addr);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int smu_free_memory_pool(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+
+	if (memory_pool->size == SMU_MEMORY_POOL_SIZE_ZERO)
+		return 0;
+
+	amdgpu_bo_free_kernel(&memory_pool->bo,
+			      &memory_pool->mc_address,
+			      &memory_pool->cpu_addr);
+
+	memset(memory_pool, 0, sizeof(struct smu_table));
+
+	return 0;
+}
+
 static int smu_smc_table_sw_init(struct smu_context *smu)
 {
 	int ret;
@@ -823,12 +964,37 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 		return ret;
 	}
 
+	/*
+	 * allocate vram bos to store smc table contents.
+	 */
+	ret = smu_init_fb_allocations(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_alloc_memory_pool(smu);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int smu_smc_table_sw_fini(struct smu_context *smu)
 {
 	int ret;
+
+	ret = smu_free_memory_pool(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_fini_fb_allocations(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_fini_power(smu);
+	if (ret) {
+		pr_err("Failed to init smu_fini_power!\n");
+		return ret;
+	}
 
 	ret = smu_fini_smc_tables(smu);
 	if (ret) {
@@ -920,91 +1086,6 @@ static int smu_sw_fini(void *handle)
 		return ret;
 	}
 
-	ret = smu_fini_power(smu);
-	if (ret) {
-		pr_err("Failed to init smu_fini_power!\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int smu_init_fb_allocations(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
-	struct smu_table *driver_table = &(smu_table->driver_table);
-	uint32_t max_table_size = 0;
-	int ret, i;
-
-	/* VRAM allocation for tool table */
-	if (tables[SMU_TABLE_PMSTATUSLOG].size) {
-		ret = amdgpu_bo_create_kernel(adev,
-					      tables[SMU_TABLE_PMSTATUSLOG].size,
-					      tables[SMU_TABLE_PMSTATUSLOG].align,
-					      tables[SMU_TABLE_PMSTATUSLOG].domain,
-					      &tables[SMU_TABLE_PMSTATUSLOG].bo,
-					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
-					      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
-		if (ret) {
-			pr_err("VRAM allocation for tool table failed!\n");
-			return ret;
-		}
-	}
-
-	/* VRAM allocation for driver table */
-	for (i = 0; i < SMU_TABLE_COUNT; i++) {
-		if (tables[i].size == 0)
-			continue;
-
-		if (i == SMU_TABLE_PMSTATUSLOG)
-			continue;
-
-		if (max_table_size < tables[i].size)
-			max_table_size = tables[i].size;
-	}
-
-	driver_table->size = max_table_size;
-	driver_table->align = PAGE_SIZE;
-	driver_table->domain = AMDGPU_GEM_DOMAIN_VRAM;
-
-	ret = amdgpu_bo_create_kernel(adev,
-				      driver_table->size,
-				      driver_table->align,
-				      driver_table->domain,
-				      &driver_table->bo,
-				      &driver_table->mc_address,
-				      &driver_table->cpu_addr);
-	if (ret) {
-		pr_err("VRAM allocation for driver table failed!\n");
-		if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
-			amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
-					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
-					      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
-	}
-
-	return ret;
-}
-
-static int smu_fini_fb_allocations(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *tables = smu_table->tables;
-	struct smu_table *driver_table = &(smu_table->driver_table);
-
-	if (!tables)
-		return 0;
-
-	if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
-		amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
-				      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
-				      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
-
-	amdgpu_bo_free_kernel(&driver_table->bo,
-			      &driver_table->mc_address,
-			      &driver_table->cpu_addr);
-
 	return 0;
 }
 
@@ -1042,13 +1123,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		 * version, and the structure size is not 0.
 		 */
 		ret = smu_check_pptable(smu);
-		if (ret)
-			return ret;
-
-		/*
-		 * allocate vram bos to store smc table contents.
-		 */
-		ret = smu_init_fb_allocations(smu);
 		if (ret)
 			return ret;
 
@@ -1169,68 +1243,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	return ret;
 }
 
-/**
- * smu_alloc_memory_pool - allocate memory pool in the system memory
- *
- * @smu: amdgpu_device pointer
- *
- * This memory pool will be used for SMC use and msg SetSystemVirtualDramAddr
- * and DramLogSetDramAddr can notify it changed.
- *
- * Returns 0 on success, error on failure.
- */
-static int smu_alloc_memory_pool(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *memory_pool = &smu_table->memory_pool;
-	uint64_t pool_size = smu->pool_size;
-	int ret = 0;
-
-	if (pool_size == SMU_MEMORY_POOL_SIZE_ZERO)
-		return ret;
-
-	memory_pool->size = pool_size;
-	memory_pool->align = PAGE_SIZE;
-	memory_pool->domain = AMDGPU_GEM_DOMAIN_GTT;
-
-	switch (pool_size) {
-	case SMU_MEMORY_POOL_SIZE_256_MB:
-	case SMU_MEMORY_POOL_SIZE_512_MB:
-	case SMU_MEMORY_POOL_SIZE_1_GB:
-	case SMU_MEMORY_POOL_SIZE_2_GB:
-		ret = amdgpu_bo_create_kernel(adev,
-					      memory_pool->size,
-					      memory_pool->align,
-					      memory_pool->domain,
-					      &memory_pool->bo,
-					      &memory_pool->mc_address,
-					      &memory_pool->cpu_addr);
-		break;
-	default:
-		break;
-	}
-
-	return ret;
-}
-
-static int smu_free_memory_pool(struct smu_context *smu)
-{
-	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *memory_pool = &smu_table->memory_pool;
-
-	if (memory_pool->size == SMU_MEMORY_POOL_SIZE_ZERO)
-		return 0;
-
-	amdgpu_bo_free_kernel(&memory_pool->bo,
-			      &memory_pool->mc_address,
-			      &memory_pool->cpu_addr);
-
-	memset(memory_pool, 0, sizeof(struct smu_table));
-
-	return 0;
-}
-
 static int smu_start_smc_engine(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1285,10 +1297,6 @@ static int smu_hw_init(void *handle)
 		goto failed;
 
 	ret = smu_smc_table_hw_init(smu, true);
-	if (ret)
-		goto failed;
-
-	ret = smu_alloc_memory_pool(smu);
 	if (ret)
 		goto failed;
 
@@ -1395,7 +1403,6 @@ static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
-	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
@@ -1425,23 +1432,6 @@ static int smu_hw_fini(void *handle)
 		pr_warn("Fail to stop Dpms!\n");
 		return ret;
 	}
-
-	kfree(table_context->driver_pptable);
-	table_context->driver_pptable = NULL;
-
-	kfree(table_context->max_sustainable_clocks);
-	table_context->max_sustainable_clocks = NULL;
-
-	kfree(table_context->overdrive_table);
-	table_context->overdrive_table = NULL;
-
-	ret = smu_fini_fb_allocations(smu);
-	if (ret)
-		return ret;
-
-	ret = smu_free_memory_pool(smu);
-	if (ret)
-		return ret;
 
 	return 0;
 }

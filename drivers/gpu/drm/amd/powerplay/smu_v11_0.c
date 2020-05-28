@@ -439,25 +439,67 @@ int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	struct smu_table *tables = NULL;
 	int ret = 0;
 
-	if (smu_table->tables)
-		return -EINVAL;
-
 	tables = kcalloc(SMU_TABLE_COUNT, sizeof(struct smu_table),
 			 GFP_KERNEL);
-	if (!tables)
-		return -ENOMEM;
-
+	if (!tables) {
+		ret = -ENOMEM;
+		goto err0_out;
+	}
 	smu_table->tables = tables;
 
 	ret = smu_tables_init(smu, tables);
 	if (ret)
-		return ret;
+		goto err1_out;
 
 	ret = smu_v11_0_init_dpm_context(smu);
 	if (ret)
-		return ret;
+		goto err1_out;
+
+	smu_table->driver_pptable =
+		kzalloc(tables[SMU_TABLE_PPTABLE].size, GFP_KERNEL);
+	if (!smu_table->driver_pptable) {
+		ret = -ENOMEM;
+		goto err2_out;
+	}
+
+	smu_table->max_sustainable_clocks =
+		kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks), GFP_KERNEL);
+	if (!smu_table->max_sustainable_clocks) {
+		ret = -ENOMEM;
+		goto err3_out;
+	}
+
+	/* Arcturus does not support OVERDRIVE */
+	if (tables[SMU_TABLE_OVERDRIVE].size) {
+		smu_table->overdrive_table =
+			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
+		if (!smu_table->overdrive_table) {
+			ret = -ENOMEM;
+			goto err4_out;
+		}
+
+		smu_table->boot_overdrive_table =
+			kzalloc(tables[SMU_TABLE_OVERDRIVE].size, GFP_KERNEL);
+		if (!smu_table->boot_overdrive_table) {
+			ret = -ENOMEM;
+			goto err5_out;
+		}
+	}
 
 	return 0;
+
+err5_out:
+	kfree(smu_table->overdrive_table);
+err4_out:
+	kfree(smu_table->max_sustainable_clocks);
+err3_out:
+	kfree(smu_table->driver_pptable);
+err2_out:
+	smu_v11_0_fini_dpm_context(smu);
+err1_out:
+	kfree(tables);
+err0_out:
+	return ret;
 }
 
 int smu_v11_0_fini_smc_tables(struct smu_context *smu)
@@ -467,6 +509,17 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 
 	if (!smu_table->tables)
 		return -EINVAL;
+
+	kfree(smu_table->boot_overdrive_table);
+	kfree(smu_table->overdrive_table);
+	kfree(smu_table->max_sustainable_clocks);
+	kfree(smu_table->driver_pptable);
+	smu_table->boot_overdrive_table = NULL;
+	smu_table->overdrive_table = NULL;
+	smu_table->max_sustainable_clocks = NULL;
+	smu_table->driver_pptable = NULL;
+	kfree(smu_table->hardcode_pptable);
+	smu_table->hardcode_pptable = NULL;
 
 	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
@@ -730,18 +783,6 @@ int smu_v11_0_parse_pptable(struct smu_context *smu)
 {
 	int ret;
 
-	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_table *table = &table_context->tables[SMU_TABLE_PPTABLE];
-
-	/* during TDR we need to free and alloc the pptable */
-	if (table_context->driver_pptable)
-		kfree(table_context->driver_pptable);
-
-	table_context->driver_pptable = kzalloc(table->size, GFP_KERNEL);
-
-	if (!table_context->driver_pptable)
-		return -ENOMEM;
-
 	ret = smu_store_powerplay_table(smu);
 	if (ret)
 		return -EINVAL;
@@ -982,16 +1023,9 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 {
-	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks;
+	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks =
+			smu->smu_table.max_sustainable_clocks;
 	int ret = 0;
-
-	if (!smu->smu_table.max_sustainable_clocks)
-		max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
-					 GFP_KERNEL);
-	else
-		max_sustainable_clocks = smu->smu_table.max_sustainable_clocks;
-
-	smu->smu_table.max_sustainable_clocks = (void *)max_sustainable_clocks;
 
 	max_sustainable_clocks->uclock = smu->smu_table.boot_values.uclk / 100;
 	max_sustainable_clocks->soc_clock = smu->smu_table.boot_values.socclk / 100;
@@ -1944,23 +1978,10 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 	int ret = 0;
 
 	if (initialize) {
-		if (table_context->overdrive_table) {
-			return -EINVAL;
-		}
-		table_context->overdrive_table = kzalloc(overdrive_table_size, GFP_KERNEL);
-		if (!table_context->overdrive_table) {
-			return -ENOMEM;
-		}
 		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, false);
 		if (ret) {
 			pr_err("Failed to export overdrive table!\n");
 			return ret;
-		}
-		if (!table_context->boot_overdrive_table) {
-			table_context->boot_overdrive_table = kmemdup(table_context->overdrive_table, overdrive_table_size, GFP_KERNEL);
-			if (!table_context->boot_overdrive_table) {
-				return -ENOMEM;
-			}
 		}
 	}
 	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, true);
