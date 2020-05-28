@@ -174,13 +174,14 @@ static int
 setup_sge_queues_uld(struct adapter *adap, unsigned int uld_type, bool lro)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
-	int i, ret = 0;
+	int i, ret;
 
-	ret = !(!alloc_uld_rxqs(adap, rxq_info, lro));
+	ret = alloc_uld_rxqs(adap, rxq_info, lro);
+	if (ret)
+		return ret;
 
 	/* Tell uP to route control queue completions to rdma rspq */
-	if (adap->flags & CXGB4_FULL_INIT_DONE &&
-	    !ret && uld_type == CXGB4_ULD_RDMA) {
+	if (adap->flags & CXGB4_FULL_INIT_DONE && uld_type == CXGB4_ULD_RDMA) {
 		struct sge *s = &adap->sge;
 		unsigned int cmplqid;
 		u32 param, cmdop;
