@@ -301,7 +301,7 @@ static int adc5_configure(struct adc5_chip *adc,
 
 	/* Read registers 0x42 through 0x46 */
 	ret = adc5_read(adc, ADC5_USR_DIG_PARAM, buf, sizeof(buf));
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	/* Digital param selection */
@@ -388,7 +388,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 
 	if (adc->poll_eoc) {
 		ret = adc5_poll_wait_eoc(adc);
-		if (ret < 0) {
+		if (ret) {
 			pr_err("EOC bit not set\n");
 			goto unlock;
 		}
@@ -398,7 +398,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 		if (!ret) {
 			pr_debug("Did not get completion timeout.\n");
 			ret = adc5_poll_wait_eoc(adc);
-			if (ret < 0) {
+			if (ret) {
 				pr_err("EOC bit not set\n");
 				goto unlock;
 			}
@@ -516,8 +516,6 @@ static int adc5_read_raw(struct iio_dev *indio_dev,
 	default:
 		return -EINVAL;
 	}
-
-	return 0;
 }
 
 static int adc7_read_raw(struct iio_dev *indio_dev,
@@ -761,7 +759,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 
 		ret = adc5_read(adc, ADC5_USR_REVISION1, dig_version,
 							sizeof(dig_version));
-		if (ret < 0) {
+		if (ret) {
 			dev_err(dev, "Invalid dig version read %d\n", ret);
 			return ret;
 		}
