@@ -3562,7 +3562,7 @@ static int ath11k_mac_copy_he_cap(struct ath11k *ar,
 		memcpy(he_cap_elem->phy_cap_info, band_cap->he_cap_phy_info,
 		       sizeof(he_cap_elem->phy_cap_info));
 
-		he_cap_elem->mac_cap_info[1] |=
+		he_cap_elem->mac_cap_info[1] &=
 			IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_MASK;
 		he_cap_elem->phy_cap_info[4] &=
 			~IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_MASK;
