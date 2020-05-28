@@ -26,4 +26,18 @@ static inline void *snd_soc_card_get_drvdata(struct snd_soc_card *card)
 	return card->drvdata;
 }
 
+static inline
+struct snd_soc_dai *snd_soc_card_get_codec_dai(struct snd_soc_card *card,
+					       const char *dai_name)
+{
+	struct snd_soc_pcm_runtime *rtd;
+
+	for_each_card_rtds(card, rtd) {
+		if (!strcmp(asoc_rtd_to_codec(rtd, 0)->name, dai_name))
+			return asoc_rtd_to_codec(rtd, 0);
+	}
+
+	return NULL;
+}
+
 #endif /* __SOC_CARD_H */

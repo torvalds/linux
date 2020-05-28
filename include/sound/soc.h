@@ -1373,20 +1373,6 @@ struct snd_soc_dai *snd_soc_find_dai(
 #include <sound/soc-dai.h>
 
 static inline
-struct snd_soc_dai *snd_soc_card_get_codec_dai(struct snd_soc_card *card,
-					       const char *dai_name)
-{
-	struct snd_soc_pcm_runtime *rtd;
-
-	list_for_each_entry(rtd, &card->rtd_list, list) {
-		if (!strcmp(asoc_rtd_to_codec(rtd, 0)->name, dai_name))
-			return asoc_rtd_to_codec(rtd, 0);
-	}
-
-	return NULL;
-}
-
-static inline
 int snd_soc_fixup_dai_links_platform_name(struct snd_soc_card *card,
 					  const char *platform_name)
 {
