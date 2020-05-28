@@ -39,6 +39,13 @@ void __init __maybe_unused omap_init_time_of(void)
 	timer_probe();
 }
 
+/* Used by am437x for ARM timer in non-SMP configurations */
+#if !defined(CONFIG_SMP) && defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
+void tick_broadcast(const struct cpumask *mask)
+{
+}
+#endif
+
 #ifdef CONFIG_SOC_OMAP2420
 static const char *const omap242x_boards_compat[] __initconst = {
 	"ti,omap2420",

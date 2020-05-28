@@ -39,20 +39,14 @@
 #define INCREMENTER_DENUMERATOR_RELOAD_OFFSET		0x14
 #define NUMERATOR_DENUMERATOR_MASK			0xfffff000
 
+#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
+
 static unsigned long arch_timer_freq;
 
 void set_cntfreq(void)
 {
 	omap_smc1(OMAP5_DRA7_MON_SET_CNTFRQ_INDEX, arch_timer_freq);
 }
-
-#if !defined(CONFIG_SMP) && defined(CONFIG_GENERIC_CLOCKEVENTS_BROADCAST)
-void tick_broadcast(const struct cpumask *mask)
-{
-}
-#endif
-
-#if defined(CONFIG_SOC_OMAP5) || defined(CONFIG_SOC_DRA7XX)
 
 /*
  * The realtime counter also called master counter, is a free-running
@@ -165,6 +159,14 @@ sysclk1_based:
 	iounmap(base);
 }
 
+#else
+
+static inline void realtime_counter_init(void)
+{
+}
+
+#endif	/* CONFIG_SOC_HAS_REALTIME_COUNTER */
+
 void __init omap5_realtime_timer_init(void)
 {
 	omap_clk_init();
@@ -172,4 +174,3 @@ void __init omap5_realtime_timer_init(void)
 
 	timer_probe();
 }
-#endif /* CONFIG_SOC_OMAP5 || CONFIG_SOC_DRA7XX */
