@@ -667,7 +667,7 @@
 				reg = <0x63f00000 0x60>;
 			};
 
-			iim: iim@63f98000 {
+			iim: efuse@63f98000 {
 				compatible = "fsl,imx53-iim", "fsl,imx27-iim";
 				reg = <0x63f98000 0x4000>;
 				interrupts = <69>;

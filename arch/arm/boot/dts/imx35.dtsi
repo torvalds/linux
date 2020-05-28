@@ -320,7 +320,7 @@
 				status = "disabled";
 			};
 
-			iim@53ff0000 {
+			efuse@53ff0000 {
 				compatible = "fsl,imx35-iim";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <19>;

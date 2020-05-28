@@ -540,7 +540,7 @@
 				#clock-cells = <1>;
 			};
 
-			iim: iim@10028000 {
+			iim: efuse@10028000 {
 				compatible = "fsl,imx27-iim";
 				reg = <0x10028000 0x1000>;
 				interrupts = <62>;

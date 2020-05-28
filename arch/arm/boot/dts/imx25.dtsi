@@ -542,7 +542,7 @@
 				interrupts = <26>;
 			};
 
-			iim: iim@53ff0000 {
+			iim: efuse@53ff0000 {
 				compatible = "fsl,imx25-iim", "fsl,imx27-iim";
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <19>;
