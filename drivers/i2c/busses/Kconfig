@@ -526,6 +526,7 @@ config I2C_DAVINCI
 
 config I2C_DESIGNWARE_CORE
 	tristate
+	select REGMAP
 
 config I2C_DESIGNWARE_SLAVE
 	bool "Synopsys DesignWare Slave"
