@@ -85,7 +85,7 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 		if (s->fmt == fmt)
 			goto found;
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = kzalloc(sizeof(*s), GFP_NOFS);
 	if (!s) {
 		if (!c->fsck_alloc_err)
 			bch_err(c, "kmalloc err, cannot ratelimit fsck errs");
