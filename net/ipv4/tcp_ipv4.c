@@ -404,7 +404,7 @@ void tcp_req_err(struct sock *sk, u32 seq, bool abort)
 EXPORT_SYMBOL(tcp_req_err);
 
 /* TCP-LD (RFC 6069) logic */
-static void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
+void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -441,6 +441,7 @@ static void tcp_ld_RTO_revert(struct sock *sk, u32 seq)
 		tcp_retransmit_timer(sk);
 	}
 }
+EXPORT_SYMBOL(tcp_ld_RTO_revert);
 
 /*
  * This routine is called by the ICMP module when it gets some

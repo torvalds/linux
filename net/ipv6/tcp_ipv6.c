@@ -473,6 +473,15 @@ static int tcp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 		} else
 			sk->sk_err_soft = err;
 		goto out;
+	case TCP_LISTEN:
+		break;
+	default:
+		/* check if this ICMP message allows revert of backoff.
+		 * (see RFC 6069)
+		 */
+		if (!fastopen && type == ICMPV6_DEST_UNREACH &&
+		    code == ICMPV6_NOROUTE)
+			tcp_ld_RTO_revert(sk, seq);
 	}
 
 	if (!sock_owned_by_user(sk) && np->recverr) {
