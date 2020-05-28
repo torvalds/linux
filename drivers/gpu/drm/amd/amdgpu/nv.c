@@ -41,6 +41,7 @@
 #include "hdp/hdp_5_0_0_offset.h"
 #include "hdp/hdp_5_0_0_sh_mask.h"
 #include "smuio/smuio_11_0_0_offset.h"
+#include "mp/mp_11_0_offset.h"
 
 #include "soc15.h"
 #include "soc15_common.h"
@@ -514,7 +515,6 @@ static bool nv_need_full_reset(struct amdgpu_device *adev)
 
 static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 {
-#if 0
 	u32 sol_reg;
 
 	if (adev->flags & AMD_IS_APU)
@@ -526,8 +526,7 @@ static bool nv_need_reset_on_init(struct amdgpu_device *adev)
 	sol_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_81);
 	if (sol_reg)
 		return true;
-#endif
-	/* TODO: re-enable it when mode1 reset is functional */
+
 	return false;
 }
 
