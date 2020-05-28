@@ -61,6 +61,7 @@ struct intel_uncore_type {
 		unsigned msr_offset;
 		unsigned mmio_offset;
 	};
+	unsigned mmio_map_size;
 	unsigned num_shared_regs:8;
 	unsigned single_fixed:1;
 	unsigned pair_ctr_ctl:1;

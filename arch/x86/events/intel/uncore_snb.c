@@ -426,6 +426,7 @@ static const struct attribute_group snb_uncore_imc_format_group = {
 
 static void snb_uncore_imc_init_box(struct intel_uncore_box *box)
 {
+	struct intel_uncore_type *type = box->pmu->type;
 	struct pci_dev *pdev = box->pci_dev;
 	int where = SNB_UNCORE_PCI_IMC_BAR_OFFSET;
 	resource_size_t addr;
@@ -441,7 +442,10 @@ static void snb_uncore_imc_init_box(struct intel_uncore_box *box)
 
 	addr &= ~(PAGE_SIZE - 1);
 
-	box->io_addr = ioremap(addr, SNB_UNCORE_PCI_IMC_MAP_SIZE);
+	box->io_addr = ioremap(addr, type->mmio_map_size);
+	if (!box->io_addr)
+		pr_warn("perf uncore: Failed to ioremap for %s.\n", type->name);
+
 	box->hrtimer_duration = UNCORE_SNB_IMC_HRTIMER_INTERVAL;
 }
 
@@ -597,6 +601,7 @@ static struct intel_uncore_type snb_uncore_imc = {
 	.num_counters   = 2,
 	.num_boxes	= 1,
 	.num_freerunning_types	= SNB_PCI_UNCORE_IMC_FREERUNNING_TYPE_MAX,
+	.mmio_map_size	= SNB_UNCORE_PCI_IMC_MAP_SIZE,
 	.freerunning	= snb_uncore_imc_freerunning,
 	.event_descs	= snb_uncore_imc_events,
 	.format_group	= &snb_uncore_imc_format_group,
@@ -1157,6 +1162,7 @@ static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
 {
 	struct pci_dev *pdev = tgl_uncore_get_mc_dev();
 	struct intel_uncore_pmu *pmu = box->pmu;
+	struct intel_uncore_type *type = pmu->type;
 	resource_size_t addr;
 	u32 mch_bar;
 
@@ -1179,7 +1185,9 @@ static void tgl_uncore_imc_freerunning_init_box(struct intel_uncore_box *box)
 	addr |= ((resource_size_t)mch_bar << 32);
 #endif
 
-	box->io_addr = ioremap(addr, TGL_UNCORE_PCI_IMC_MAP_SIZE);
+	box->io_addr = ioremap(addr, type->mmio_map_size);
+	if (!box->io_addr)
+		pr_warn("perf uncore: Failed to ioremap for %s.\n", type->name);
 }
 
 static struct intel_uncore_ops tgl_uncore_imc_freerunning_ops = {
@@ -1205,6 +1213,7 @@ static struct intel_uncore_type tgl_uncore_imc_free_running = {
 	.num_counters		= 3,
 	.num_boxes		= 2,
 	.num_freerunning_types	= TGL_MMIO_UNCORE_IMC_FREERUNNING_TYPE_MAX,
+	.mmio_map_size		= TGL_UNCORE_PCI_IMC_MAP_SIZE,
 	.freerunning		= tgl_uncore_imc_freerunning,
 	.ops			= &tgl_uncore_imc_freerunning_ops,
 	.event_descs		= tgl_uncore_imc_events,
