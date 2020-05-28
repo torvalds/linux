@@ -19,8 +19,8 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-IPV4_TESTS="ipv4_fcnal ipv4_grp_fcnal ipv4_withv6_fcnal ipv4_fcnal_runtime ipv4_large_grp ipv4_compat_mode ipv4_fdb_grp_fcnal"
-IPV6_TESTS="ipv6_fcnal ipv6_grp_fcnal ipv6_fcnal_runtime ipv6_large_grp ipv6_compat_mode ipv6_fdb_grp_fcnal"
+IPV4_TESTS="ipv4_fcnal ipv4_grp_fcnal ipv4_withv6_fcnal ipv4_fcnal_runtime ipv4_large_grp ipv4_compat_mode ipv4_fdb_grp_fcnal ipv4_torture"
+IPV6_TESTS="ipv6_fcnal ipv6_grp_fcnal ipv6_fcnal_runtime ipv6_large_grp ipv6_compat_mode ipv6_fdb_grp_fcnal ipv6_torture"
 
 ALL_TESTS="basic ${IPV4_TESTS} ${IPV6_TESTS}"
 TESTS="${ALL_TESTS}"
@@ -767,6 +767,62 @@ ipv6_large_grp()
 	$IP nexthop flush >/dev/null 2>&1
 }
 
+ipv6_del_add_loop1()
+{
+	while :; do
+		$IP nexthop del id 100
+		$IP nexthop add id 100 via 2001:db8:91::2 dev veth1
+	done >/dev/null 2>&1
+}
+
+ipv6_grp_replace_loop()
+{
+	while :; do
+		$IP nexthop replace id 102 group 100/101
+	done >/dev/null 2>&1
+}
+
+ipv6_torture()
+{
+	local pid1
+	local pid2
+	local pid3
+	local pid4
+	local pid5
+
+	echo
+	echo "IPv6 runtime torture"
+	echo "--------------------"
+	if [ ! -x "$(command -v mausezahn)" ]; then
+		echo "SKIP: Could not run test; need mausezahn tool"
+		return
+	fi
+
+	run_cmd "$IP nexthop add id 100 via 2001:db8:91::2 dev veth1"
+	run_cmd "$IP nexthop add id 101 via 2001:db8:92::2 dev veth3"
+	run_cmd "$IP nexthop add id 102 group 100/101"
+	run_cmd "$IP route add 2001:db8:101::1 nhid 102"
+	run_cmd "$IP route add 2001:db8:101::2 nhid 102"
+
+	ipv6_del_add_loop1 &
+	pid1=$!
+	ipv6_grp_replace_loop &
+	pid2=$!
+	ip netns exec me ping -f 2001:db8:101::1 >/dev/null 2>&1 &
+	pid3=$!
+	ip netns exec me ping -f 2001:db8:101::2 >/dev/null 2>&1 &
+	pid4=$!
+	ip netns exec me mausezahn veth1 -B 2001:db8:101::2 -A 2001:db8:91::1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	pid5=$!
+
+	sleep 300
+	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+
+	# if we did not crash, success
+	log_test 0 0 "IPv6 torture test"
+}
+
+
 ipv4_fcnal()
 {
 	local rc
@@ -1311,6 +1367,61 @@ ipv4_compat_mode()
 	log_test $? 0 "IPv4 compat mode off - nexthop delete"
 
 	sysctl_nexthop_compat_mode_set 1 "IPv4"
+}
+
+ipv4_del_add_loop1()
+{
+	while :; do
+		$IP nexthop del id 100
+		$IP nexthop add id 100 via 172.16.1.2 dev veth1
+	done >/dev/null 2>&1
+}
+
+ipv4_grp_replace_loop()
+{
+	while :; do
+		$IP nexthop replace id 102 group 100/101
+	done >/dev/null 2>&1
+}
+
+ipv4_torture()
+{
+	local pid1
+	local pid2
+	local pid3
+	local pid4
+	local pid5
+
+	echo
+	echo "IPv4 runtime torture"
+	echo "--------------------"
+	if [ ! -x "$(command -v mausezahn)" ]; then
+		echo "SKIP: Could not run test; need mausezahn tool"
+		return
+	fi
+
+	run_cmd "$IP nexthop add id 100 via 172.16.1.2 dev veth1"
+	run_cmd "$IP nexthop add id 101 via 172.16.2.2 dev veth3"
+	run_cmd "$IP nexthop add id 102 group 100/101"
+	run_cmd "$IP route add 172.16.101.1 nhid 102"
+	run_cmd "$IP route add 172.16.101.2 nhid 102"
+
+	ipv4_del_add_loop1 &
+	pid1=$!
+	ipv4_grp_replace_loop &
+	pid2=$!
+	ip netns exec me ping -f 172.16.101.1 >/dev/null 2>&1 &
+	pid3=$!
+	ip netns exec me ping -f 172.16.101.2 >/dev/null 2>&1 &
+	pid4=$!
+	ip netns exec me mausezahn veth1 -B 172.16.101.2 -A 172.16.1.1 -c 0 -t tcp "dp=1-1023, flags=syn" >/dev/null 2>&1 &
+	pid5=$!
+
+	sleep 300
+	kill -9 $pid1 $pid2 $pid3 $pid4 $pid5
+
+	# if we did not crash, success
+	log_test 0 0 "IPv4 torture test"
 }
 
 basic()
