@@ -888,11 +888,18 @@ void rkispp_params_isr(struct rkispp_params_vdev *params_vdev, u32 mis)
 		module_en_update &= ~ISPP_MODULE_ORB;
 	}
 
+	if (module_cfg_update & ISPP_MODULE_FEC &&
+	    mis & FEC_INT) {
+		fec_config(params_vdev,
+			   &new_params->fec_cfg);
+		module_cfg_update &= ~ISPP_MODULE_FEC;
+	}
+
 	new_params->module_en_update = module_en_update;
 	new_params->module_cfg_update = module_cfg_update;
 
 	if (!(module_en_update & ISPP_PARAM_UD_CK) &&
-	    !(module_cfg_update & ISPP_PARAM_UD_CK)) {
+	    !(module_cfg_update & (ISPP_PARAM_UD_CK | ISPP_MODULE_FEC))) {
 		vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 		params_vdev->cur_buf = NULL;
