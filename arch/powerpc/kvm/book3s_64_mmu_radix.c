@@ -1130,6 +1130,11 @@ void kvmppc_radix_flush_memslot(struct kvm *kvm,
 					 kvm->arch.lpid);
 		gpa += PAGE_SIZE;
 	}
+	/*
+	 * Increase the mmu notifier sequence number to prevent any page
+	 * fault that read the memslot earlier from writing a PTE.
+	 */
+	kvm->mmu_notifier_seq++;
 	spin_unlock(&kvm->mmu_lock);
 }
 
