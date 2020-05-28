@@ -91,7 +91,6 @@ struct qed_rdma_device {
 	u64 max_mr_size;
 	u32 max_cqe;
 	u32 max_mw;
-	u32 max_fmr;
 	u32 max_mr_mw_fmr_pbl;
 	u64 max_mr_mw_fmr_size;
 	u32 max_pd;

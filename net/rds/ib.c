@@ -217,7 +217,7 @@ static int rds_ib_add_one(struct ib_device *device)
 	}
 
 	rdsdebug("RDS/IB: max_mr = %d, max_wrs = %d, max_sge = %d, max_1m_mrs = %d, max_8k_mrs = %d\n",
-		 device->attrs.max_fmr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
+		 device->attrs.max_mr, rds_ibdev->max_wrs, rds_ibdev->max_sge,
 		 rds_ibdev->max_1m_mrs, rds_ibdev->max_8k_mrs);
 
 	pr_info("RDS/IB: %s: added\n", device->name);

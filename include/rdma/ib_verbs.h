@@ -430,7 +430,6 @@ struct ib_device_attr {
 	int			max_mcast_qp_attach;
 	int			max_total_mcast_qp_attach;
 	int			max_ah;
-	int			max_fmr;
 	int			max_map_per_fmr;
 	int			max_srq;
 	int			max_srq_wr;

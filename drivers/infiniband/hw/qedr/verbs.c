@@ -145,7 +145,6 @@ int qedr_query_device(struct ib_device *ibdev,
 	attr->max_mw = qattr->max_mw;
 	attr->max_pd = qattr->max_pd;
 	attr->atomic_cap = dev->atomic_cap;
-	attr->max_fmr = qattr->max_fmr;
 	attr->max_map_per_fmr = 16;
 	attr->max_qp_init_rd_atom =
 	    1 << (fls(qattr->max_qp_req_rd_atomic_resc) - 1);

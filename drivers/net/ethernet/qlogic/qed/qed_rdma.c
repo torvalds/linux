@@ -499,7 +499,6 @@ static void qed_rdma_init_devinfo(struct qed_hwfn *p_hwfn,
 		dev->max_cqe = QED_RDMA_MAX_CQE_16_BIT;
 
 	dev->max_mw = 0;
-	dev->max_fmr = QED_RDMA_MAX_FMR;
 	dev->max_mr_mw_fmr_pbl = (PAGE_SIZE / 8) * (PAGE_SIZE / 8);
 	dev->max_mr_mw_fmr_size = dev->max_mr_mw_fmr_pbl * PAGE_SIZE;
 	dev->max_pkey = QED_RDMA_MAX_P_KEY;
