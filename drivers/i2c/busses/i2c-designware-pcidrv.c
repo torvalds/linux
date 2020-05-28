@@ -149,7 +149,6 @@ static struct dw_pci_controller dw_pci_controllers[] = {
 	},
 	[cherrytrail] = {
 		.bus_num = -1,
-		.flags = MODEL_CHERRYTRAIL,
 		.scl_sda_cfg = &byt_config,
 	},
 	[elkhartlake] = {
