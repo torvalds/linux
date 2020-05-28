@@ -197,7 +197,7 @@ static inline void idt_init_desc(gate_desc *gate, const struct idt_data *d)
 #endif
 }
 
-static void
+static __init void
 idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sys)
 {
 	gate_desc desc;
@@ -210,7 +210,7 @@ idt_setup_from_table(gate_desc *idt, const struct idt_data *t, int size, bool sy
 	}
 }
 
-static void set_intr_gate(unsigned int n, const void *addr)
+static __init void set_intr_gate(unsigned int n, const void *addr)
 {
 	struct idt_data data;
 
