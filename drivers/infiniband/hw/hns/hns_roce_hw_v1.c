@@ -1146,7 +1146,7 @@ static void hns_roce_db_free(struct hns_roce_dev *hr_dev)
 static int hns_roce_raq_init(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v1_priv *priv = hr_dev->priv;
-	struct hns_roce_raq_table *raq = raq = &priv->raq_table;
+	struct hns_roce_raq_table *raq = &priv->raq_table;
 	struct device *dev = &hr_dev->pdev->dev;
 	int raq_shift = 0;
 	dma_addr_t addr;
