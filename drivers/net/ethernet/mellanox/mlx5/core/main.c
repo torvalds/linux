@@ -1272,7 +1272,7 @@ static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 					    mlx5_debugfs_root);
 	if (!priv->dbg_root) {
 		dev_err(dev->device, "mlx5_core: error, Cannot create debugfs dir, aborting\n");
-		return -ENOMEM;
+		goto err_dbg_root;
 	}
 
 	err = mlx5_health_init(dev);
@@ -1289,15 +1289,27 @@ err_pagealloc_init:
 	mlx5_health_cleanup(dev);
 err_health_init:
 	debugfs_remove(dev->priv.dbg_root);
-
+err_dbg_root:
+	mutex_destroy(&priv->pgdir_mutex);
+	mutex_destroy(&priv->alloc_mutex);
+	mutex_destroy(&priv->bfregs.wc_head.lock);
+	mutex_destroy(&priv->bfregs.reg_head.lock);
+	mutex_destroy(&dev->intf_state_mutex);
 	return err;
 }
 
 static void mlx5_mdev_uninit(struct mlx5_core_dev *dev)
 {
+	struct mlx5_priv *priv = &dev->priv;
+
 	mlx5_pagealloc_cleanup(dev);
 	mlx5_health_cleanup(dev);
 	debugfs_remove_recursive(dev->priv.dbg_root);
+	mutex_destroy(&priv->pgdir_mutex);
+	mutex_destroy(&priv->alloc_mutex);
+	mutex_destroy(&priv->bfregs.wc_head.lock);
+	mutex_destroy(&priv->bfregs.reg_head.lock);
+	mutex_destroy(&dev->intf_state_mutex);
 }
 
 #define MLX5_IB_MOD "mlx5_ib"
