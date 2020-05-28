@@ -124,7 +124,7 @@ struct tifm_adapter {
 	int                 (*has_ms_pif)(struct tifm_adapter *fm,
 					  struct tifm_dev *sock);
 
-	struct tifm_dev     *sockets[0];
+	struct tifm_dev     *sockets[];
 };
 
 struct tifm_adapter *tifm_alloc_adapter(unsigned int num_sockets,
