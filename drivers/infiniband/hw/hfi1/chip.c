@@ -14559,7 +14559,7 @@ static bool hfi1_netdev_update_rmt(struct hfi1_devdata *dd)
 	}
 
 	if (hfi1_is_rmt_full(rmt_start, NUM_NETDEV_MAP_ENTRIES)) {
-		dd_dev_err(dd, "Not enought RMT entries used = %d\n",
+		dd_dev_err(dd, "Not enough RMT entries used = %d\n",
 			   rmt_start);
 		return false;
 	}
