@@ -676,13 +676,7 @@ static int usba_ep_disable(struct usb_ep *_ep)
 
 	if (!ep->ep.desc) {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		/* REVISIT because this driver disables endpoints in
-		 * reset_all_endpoints() before calling disconnect(),
-		 * most gadget drivers would trigger this non-error ...
-		 */
-		if (udc->gadget.speed != USB_SPEED_UNKNOWN)
-			DBG(DBG_ERR, "ep_disable: %s not enabled\n",
-					ep->ep.name);
+		DBG(DBG_ERR, "ep_disable: %s not enabled\n", ep->ep.name);
 		return -EINVAL;
 	}
 	ep->ep.desc = NULL;
