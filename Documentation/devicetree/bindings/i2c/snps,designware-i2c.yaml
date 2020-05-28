@@ -31,6 +31,8 @@ properties:
         items:
           - const: mscc,ocelot-i2c
           - const: snps,designware-i2c
+      - description: Baikal-T1 SoC System I2C controller
+        const: baikal,bt1-sys-i2c
 
   reg:
     minItems: 1
