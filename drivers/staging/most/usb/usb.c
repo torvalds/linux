@@ -215,6 +215,7 @@ static unsigned int get_stream_frame_size(struct device *dev,
 		break;
 	default:
 		dev_warn(dev, "Query frame size of non-streaming channel\n");
+		frame_size = 0;
 		break;
 	}
 	return frame_size;
