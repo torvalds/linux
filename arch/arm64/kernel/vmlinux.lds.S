@@ -17,10 +17,6 @@
 
 #include "image.h"
 
-/* .exit.text needed in case of alternative patching */
-#define ARM_EXIT_KEEP(x)	x
-#define ARM_EXIT_DISCARD(x)
-
 OUTPUT_ARCH(aarch64)
 ENTRY(_text)
 
@@ -72,8 +68,8 @@ jiffies = jiffies_64;
 
 /*
  * The size of the PE/COFF section that covers the kernel image, which
- * runs from stext to _edata, must be a round multiple of the PE/COFF
- * FileAlignment, which we set to its minimum value of 0x200. 'stext'
+ * runs from _stext to _edata, must be a round multiple of the PE/COFF
+ * FileAlignment, which we set to its minimum value of 0x200. '_stext'
  * itself is 4 KB aligned, so padding out _edata to a 0x200 aligned
  * boundary should be sufficient.
  */
@@ -95,8 +91,6 @@ SECTIONS
 	 * order of matching.
 	 */
 	/DISCARD/ : {
-		ARM_EXIT_DISCARD(EXIT_TEXT)
-		ARM_EXIT_DISCARD(EXIT_DATA)
 		EXIT_CALL
 		*(.discard)
 		*(.discard.*)
@@ -139,6 +133,7 @@ SECTIONS
 
 	idmap_pg_dir = .;
 	. += IDMAP_DIR_SIZE;
+	idmap_pg_end = .;
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	tramp_pg_dir = .;
@@ -161,7 +156,7 @@ SECTIONS
 
 	__exittext_begin = .;
 	.exit.text : {
-		ARM_EXIT_KEEP(EXIT_TEXT)
+		EXIT_TEXT
 	}
 	__exittext_end = .;
 
@@ -175,7 +170,7 @@ SECTIONS
 		*(.altinstr_replacement)
 	}
 
-	. = ALIGN(PAGE_SIZE);
+	. = ALIGN(SEGMENT_ALIGN);
 	__inittext_end = .;
 	__initdata_begin = .;
 
@@ -188,7 +183,7 @@ SECTIONS
 		*(.init.rodata.* .init.bss)	/* from the EFI stub */
 	}
 	.exit.data : {
-		ARM_EXIT_KEEP(EXIT_DATA)
+		EXIT_DATA
 	}
 
 	PERCPU_SECTION(L1_CACHE_BYTES)
@@ -246,6 +241,7 @@ SECTIONS
 	. += INIT_DIR_SIZE;
 	init_pg_end = .;
 
+	. = ALIGN(SEGMENT_ALIGN);
 	__pecoff_data_size = ABSOLUTE(. - __initdata_begin);
 	_end = .;
 

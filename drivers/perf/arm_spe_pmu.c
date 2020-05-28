@@ -1133,10 +1133,8 @@ static int arm_spe_pmu_irq_probe(struct arm_spe_pmu *spe_pmu)
 	struct platform_device *pdev = spe_pmu->pdev;
 	int irq = platform_get_irq(pdev, 0);
 
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ (%d)\n", irq);
+	if (irq < 0)
 		return -ENXIO;
-	}
 
 	if (!irq_is_percpu(irq)) {
 		dev_err(&pdev->dev, "expected PPI but got SPI (%d)\n", irq);

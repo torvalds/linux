@@ -65,7 +65,7 @@ EXPORT_PER_CPU_SYMBOL(cpu_number);
  */
 struct secondary_data secondary_data;
 /* Number of CPUs which aren't online, but looping in kernel text. */
-int cpus_stuck_in_kernel;
+static int cpus_stuck_in_kernel;
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
@@ -114,10 +114,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 */
 	secondary_data.task = idle;
 	secondary_data.stack = task_stack_page(idle) + THREAD_SIZE;
-#if defined(CONFIG_ARM64_PTR_AUTH)
-	secondary_data.ptrauth_key.apia.lo = idle->thread.keys_kernel.apia.lo;
-	secondary_data.ptrauth_key.apia.hi = idle->thread.keys_kernel.apia.hi;
-#endif
 	update_cpu_boot_status(CPU_MMU_OFF);
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
@@ -140,10 +136,6 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	pr_crit("CPU%u: failed to come online\n", cpu);
 	secondary_data.task = NULL;
 	secondary_data.stack = NULL;
-#if defined(CONFIG_ARM64_PTR_AUTH)
-	secondary_data.ptrauth_key.apia.lo = 0;
-	secondary_data.ptrauth_key.apia.hi = 0;
-#endif
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 	status = READ_ONCE(secondary_data.status);
 	if (status == CPU_MMU_OFF)

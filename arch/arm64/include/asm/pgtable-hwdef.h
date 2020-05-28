@@ -190,7 +190,6 @@
  * Memory Attribute override for Stage-2 (MemAttr[3:0])
  */
 #define PTE_S2_MEMATTR(t)	(_AT(pteval_t, (t)) << 2)
-#define PTE_S2_MEMATTR_MASK	(_AT(pteval_t, 0xf) << 2)
 
 /*
  * EL2/HYP PTE/PMD definitions

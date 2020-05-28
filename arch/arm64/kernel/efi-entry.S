@@ -19,7 +19,7 @@ SYM_CODE_START(efi_enter_kernel)
 	 * point stored in x0. Save those values in registers which are
 	 * callee preserved.
 	 */
-	ldr	w2, =stext_offset
+	ldr	w2, =primary_entry_offset
 	add	x19, x0, x2		// relocated Image entrypoint
 	mov	x20, x1			// DTB address
 
