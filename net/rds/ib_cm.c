@@ -527,10 +527,10 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		return -EOPNOTSUPP;
 
 	/* The fr_queue_space is currently set to 512, to add extra space on
-	 * completion queue and send queue. This extra space is used for FRMR
+	 * completion queue and send queue. This extra space is used for FRWR
 	 * registration and invalidation work requests
 	 */
-	fr_queue_space = (rds_ibdev->use_fastreg ? RDS_IB_DEFAULT_FR_WR : 0);
+	fr_queue_space = RDS_IB_DEFAULT_FR_WR;
 
 	/* add the conn now so that connection establishment has the dev */
 	rds_ib_add_conn(rds_ibdev, conn);
