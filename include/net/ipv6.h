@@ -1188,4 +1188,11 @@ static inline int ip6_sock_set_v6only(struct sock *sk)
 	return 0;
 }
 
+static inline void ip6_sock_set_recverr(struct sock *sk)
+{
+	lock_sock(sk);
+	inet6_sk(sk)->recverr = true;
+	release_sock(sk);
+}
+
 #endif /* _NET_IPV6_H */
