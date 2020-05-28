@@ -4,6 +4,7 @@
  */
 #include <linux/interrupt.h>
 
+#include <asm/cpu_entry_area.h>
 #include <asm/traps.h>
 #include <asm/proto.h>
 #include <asm/desc.h>
@@ -281,6 +282,19 @@ void __init idt_setup_ist_traps(void)
 }
 #endif
 
+static void __init idt_map_in_cea(void)
+{
+	/*
+	 * Set the IDT descriptor to a fixed read-only location in the cpu
+	 * entry area, so that the "sidt" instruction will not leak the
+	 * location of the kernel, and to defend the IDT against arbitrary
+	 * memory write vulnerabilities.
+	 */
+	cea_set_pte(CPU_ENTRY_AREA_RO_IDT_VADDR, __pa_symbol(idt_table),
+		    PAGE_KERNEL_RO);
+	idt_descr.address = CPU_ENTRY_AREA_RO_IDT;
+}
+
 /**
  * idt_setup_apic_and_irq_gates - Setup APIC/SMP and normal interrupt gates
  */
@@ -307,6 +321,10 @@ void __init idt_setup_apic_and_irq_gates(void)
 		set_intr_gate(i, entry);
 	}
 #endif
+	/* Map IDT into CPU entry area and reload it. */
+	idt_map_in_cea();
+	load_idt(&idt_descr);
+
 	idt_setup_done = true;
 }
 
