@@ -21,7 +21,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/kprobes.h>
-#include <linux/debugfs.h>
 #include <linux/nmi.h>
 #include <linux/swait.h>
 #include <asm/timer.h>
