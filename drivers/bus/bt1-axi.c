@@ -124,12 +124,10 @@ static int bt1_axi_request_regs(struct bt1_axi *axi)
 	}
 
 	axi->qos_regs = devm_platform_ioremap_resource_byname(pdev, "qos");
-	if (IS_ERR(axi->qos_regs)) {
+	if (IS_ERR(axi->qos_regs))
 		dev_err(dev, "Couldn't map AXI-bus QoS registers\n");
-		return PTR_ERR(axi->qos_regs);
-	}
 
-	return 0;
+	return PTR_ERR_OR_ZERO(axi->qos_regs);
 }
 
 static int bt1_axi_request_rst(struct bt1_axi *axi)
@@ -173,12 +171,10 @@ static int bt1_axi_request_clk(struct bt1_axi *axi)
 	}
 
 	ret = devm_add_action_or_reset(axi->dev, bt1_axi_disable_clk, axi);
-	if (ret) {
+	if (ret)
 		dev_err(axi->dev, "Can't add AXI clock disable action\n");
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int bt1_axi_request_irq(struct bt1_axi *axi)
@@ -192,12 +188,10 @@ static int bt1_axi_request_irq(struct bt1_axi *axi)
 
 	ret = devm_request_irq(axi->dev, axi->irq, bt1_axi_isr, IRQF_SHARED,
 			       "bt1-axi", axi);
-	if (ret) {
+	if (ret)
 		dev_err(axi->dev, "Couldn't request AXI EHB IRQ\n");
-		return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
 static ssize_t count_show(struct device *dev,
