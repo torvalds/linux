@@ -1298,6 +1298,62 @@ static int context_is_writeable_or_written(struct inode *inode,
 	return ret;
 }
 
+/**
+ * ceph_find_incompatible - find an incompatible context and return it
+ * @inode: inode associated with page
+ * @page: page being dirtied
+ *
+ * We are only allowed to write into/dirty a page if the page is
+ * clean, or already dirty within the same snap context. Returns a
+ * conflicting context if there is one, NULL if there isn't, or a
+ * negative error code on other errors.
+ *
+ * Must be called with page lock held.
+ */
+static struct ceph_snap_context *
+ceph_find_incompatible(struct inode *inode, struct page *page)
+{
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	if (READ_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
+		dout(" page %p forced umount\n", page);
+		return ERR_PTR(-EIO);
+	}
+
+	for (;;) {
+		struct ceph_snap_context *snapc, *oldest;
+
+		wait_on_page_writeback(page);
+
+		snapc = page_snap_context(page);
+		if (!snapc || snapc == ci->i_head_snapc)
+			break;
+
+		/*
+		 * this page is already dirty in another (older) snap
+		 * context!  is it writeable now?
+		 */
+		oldest = get_oldest_context(inode, NULL, NULL);
+		if (snapc->seq > oldest->seq) {
+			/* not writeable -- return it for the caller to deal with */
+			ceph_put_snap_context(oldest);
+			dout(" page %p snapc %p not current or oldest\n", page, snapc);
+			return ceph_get_snap_context(snapc);
+		}
+		ceph_put_snap_context(oldest);
+
+		/* yay, writeable, do it now (without dropping page lock) */
+		dout(" page %p snapc %p not current, but oldest\n", page, snapc);
+		if (clear_page_dirty_for_io(page)) {
+			int r = writepage_nounlock(page, NULL);
+			if (r < 0)
+				return ERR_PTR(r);
+		}
+	}
+	return NULL;
+}
+
 /*
  * We are only allowed to write into/dirty the page if the page is
  * clean, or already dirty within the same snap context.
@@ -1311,61 +1367,27 @@ static int ceph_update_writeable_page(struct file *file,
 			    struct page *page)
 {
 	struct inode *inode = file_inode(file);
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_snap_context *snapc;
 	loff_t page_off = pos & PAGE_MASK;
 	int pos_in_page = pos & ~PAGE_MASK;
 	int end_in_page = pos_in_page + len;
 	loff_t i_size;
 	int r;
-	struct ceph_snap_context *snapc, *oldest;
-
-	if (READ_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN) {
-		dout(" page %p forced umount\n", page);
-		unlock_page(page);
-		return -EIO;
-	}
 
 retry_locked:
-	/* writepages currently holds page lock, but if we change that later, */
-	wait_on_page_writeback(page);
-
-	snapc = page_snap_context(page);
-	if (snapc && snapc != ci->i_head_snapc) {
-		/*
-		 * this page is already dirty in another (older) snap
-		 * context!  is it writeable now?
-		 */
-		oldest = get_oldest_context(inode, NULL, NULL);
-		if (snapc->seq > oldest->seq) {
-			ceph_put_snap_context(oldest);
-			dout(" page %p snapc %p not current or oldest\n",
-			     page, snapc);
-			/*
-			 * queue for writeback, and wait for snapc to
-			 * be writeable or written
-			 */
-			snapc = ceph_get_snap_context(snapc);
-			unlock_page(page);
-			ceph_queue_writeback(inode);
-			r = wait_event_killable(ci->i_cap_wq,
-			       context_is_writeable_or_written(inode, snapc));
-			ceph_put_snap_context(snapc);
-			if (r == -ERESTARTSYS)
-				return r;
-			return -EAGAIN;
-		}
-		ceph_put_snap_context(oldest);
-
-		/* yay, writeable, do it now (without dropping page lock) */
-		dout(" page %p snapc %p not current, but oldest\n",
-		     page, snapc);
-		if (!clear_page_dirty_for_io(page))
-			goto retry_locked;
-		r = writepage_nounlock(page, NULL);
-		if (r < 0)
+	snapc = ceph_find_incompatible(inode, page);
+	if (snapc) {
+		if (IS_ERR(snapc)) {
+			r = PTR_ERR(snapc);
 			goto fail_unlock;
-		goto retry_locked;
+		}
+		unlock_page(page);
+		ceph_queue_writeback(inode);
+		r = wait_event_killable(ci->i_cap_wq,
+					context_is_writeable_or_written(inode, snapc));
+		ceph_put_snap_context(snapc);
+		return -EAGAIN;
 	}
 
 	if (PageUptodate(page)) {
