@@ -82,6 +82,7 @@ enum {
 	VMXNET3_CMD_RESERVED3,
 	VMXNET3_CMD_SET_COALESCE,
 	VMXNET3_CMD_REGISTER_MEMREGS,
+	VMXNET3_CMD_SET_RSS_FIELDS,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -96,6 +97,7 @@ enum {
 	VMXNET3_CMD_GET_RESERVED1,
 	VMXNET3_CMD_GET_TXDATA_DESC_SIZE,
 	VMXNET3_CMD_GET_COALESCE,
+	VMXNET3_CMD_GET_RSS_FIELDS,
 };
 
 /*
@@ -685,12 +687,22 @@ struct Vmxnet3_MemRegs {
 	struct Vmxnet3_MemoryRegion		memRegs[1];
 };
 
+enum Vmxnet3_RSSField {
+	VMXNET3_RSS_FIELDS_TCPIP4 = 0x0001,
+	VMXNET3_RSS_FIELDS_TCPIP6 = 0x0002,
+	VMXNET3_RSS_FIELDS_UDPIP4 = 0x0004,
+	VMXNET3_RSS_FIELDS_UDPIP6 = 0x0008,
+	VMXNET3_RSS_FIELDS_ESPIP4 = 0x0010,
+	VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
+};
+
 /* If the command data <= 16 bytes, use the shared memory directly.
  * otherwise, use variable length configuration descriptor.
  */
 union Vmxnet3_CmdInfo {
 	struct Vmxnet3_VariableLenConfDesc	varConf;
 	struct Vmxnet3_SetPolling		setPolling;
+	enum   Vmxnet3_RSSField                 setRssFields;
 	__le64					data[2];
 };
 

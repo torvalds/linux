@@ -2554,6 +2554,39 @@ vmxnet3_init_coalesce(struct vmxnet3_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 }
 
+static void
+vmxnet3_init_rssfields(struct vmxnet3_adapter *adapter)
+{
+	struct Vmxnet3_DriverShared *shared = adapter->shared;
+	union Vmxnet3_CmdInfo *cmdInfo = &shared->cu.cmdInfo;
+	unsigned long flags;
+
+		if (!VMXNET3_VERSION_GE_4(adapter))
+			return;
+
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
+
+	if (adapter->default_rss_fields) {
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_GET_RSS_FIELDS);
+		adapter->rss_fields =
+			VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	} else {
+		cmdInfo->setRssFields = adapter->rss_fields;
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_SET_RSS_FIELDS);
+		/* Not all requested RSS may get applied, so get and
+		 * cache what was actually applied.
+		 */
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+				       VMXNET3_CMD_GET_RSS_FIELDS);
+		adapter->rss_fields =
+			VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+	}
+
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+}
+
 int
 vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 {
@@ -2603,6 +2636,7 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 	}
 
 	vmxnet3_init_coalesce(adapter);
+	vmxnet3_init_rssfields(adapter);
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		VMXNET3_WRITE_BAR0_REG(adapter,
@@ -3428,6 +3462,11 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 		}
 		adapter->coal_conf->coalMode = VMXNET3_COALESCE_DISABLED;
 		adapter->default_coal_mode = true;
+	}
+
+	if (VMXNET3_VERSION_GE_4(adapter)) {
+		adapter->default_rss_fields = true;
+		adapter->rss_fields = VMXNET3_RSS_FIELDS_DEFAULT;
 	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);

@@ -377,6 +377,8 @@ struct vmxnet3_adapter {
 	u16 rxdata_desc_size;
 
 	bool rxdataring_enabled;
+	bool default_rss_fields;
+	enum Vmxnet3_RSSField rss_fields;
 
 	struct work_struct work;
 
@@ -438,6 +440,8 @@ struct vmxnet3_adapter {
 
 #define VMXNET3_COAL_RBC_RATE(usecs) (1000000 / usecs)
 #define VMXNET3_COAL_RBC_USECS(rbc_rate) (1000000 / rbc_rate)
+#define VMXNET3_RSS_FIELDS_DEFAULT (VMXNET3_RSS_FIELDS_TCPIP4 | \
+				    VMXNET3_RSS_FIELDS_TCPIP6)
 
 int
 vmxnet3_quiesce_dev(struct vmxnet3_adapter *adapter);
