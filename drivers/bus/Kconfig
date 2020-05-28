@@ -30,7 +30,7 @@ config BRCMSTB_GISB_ARB
 	  and internal bus master decoding.
 
 config BT1_APB
-	tristate "Baikal-T1 APB-bus driver"
+	bool "Baikal-T1 APB-bus driver"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
 	select REGMAP_MMIO
 	help
