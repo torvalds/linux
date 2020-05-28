@@ -4419,7 +4419,7 @@ static bool ext4_should_enable_dax(struct inode *inode)
 	if (test_opt(inode->i_sb, DAX_ALWAYS))
 		return true;
 
-	return false;
+	return ext4_test_inode_flag(inode, EXT4_INODE_DAX);
 }
 
 void ext4_set_inode_flags(struct inode *inode, bool init)

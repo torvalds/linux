@@ -113,7 +113,7 @@ static int ext4_begin_enable_verity(struct file *filp)
 	handle_t *handle;
 	int err;
 
-	if (IS_DAX(inode))
+	if (IS_DAX(inode) || ext4_test_inode_flag(inode, EXT4_INODE_DAX))
 		return -EINVAL;
 
 	if (ext4_verity_in_progress(inode))
