@@ -15,6 +15,7 @@
 #include <linux/atomic.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/nmi.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
