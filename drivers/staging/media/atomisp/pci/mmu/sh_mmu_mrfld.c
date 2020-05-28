@@ -62,7 +62,7 @@ static unsigned int sh_get_pd_base(struct isp_mmu *mmu,
  */
 static void sh_tlb_flush(struct isp_mmu *mmu)
 {
-	atomisp_css_mmu_invalidate_cache();
+	ia_css_mmu_invalidate_cache();
 }
 
 struct isp_mmu_client sh_mmu_mrfld = {

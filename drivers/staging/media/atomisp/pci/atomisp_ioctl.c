@@ -1619,9 +1619,9 @@ static void atomisp_dma_burst_len_cfg(struct atomisp_sub_device *asd)
 				       ATOMISP_SUBDEV_PAD_SINK);
 
 	if (sink->width * sink->height >= 4096 * 3072)
-		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x7F);
+		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x7F);
 	else
-		atomisp_store_uint32(DMA_BURST_SIZE_REG, 0x00);
+		atomisp_css2_hw_store_32(DMA_BURST_SIZE_REG, 0x00);
 }
 
 /*

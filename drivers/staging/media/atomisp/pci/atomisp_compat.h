@@ -34,11 +34,7 @@ struct atomisp_metadata_buf {
 	struct list_head list;
 };
 
-void atomisp_css_debug_dump_sp_sw_debug_info(void);
-void atomisp_css_debug_dump_debug_info(const char *context);
-void atomisp_css_debug_set_dtrace_level(const unsigned int trace_level);
-
-void atomisp_store_uint32(hrt_address addr, uint32_t data);
+void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data);
 void atomisp_load_uint32(hrt_address addr, uint32_t *data);
 
 int atomisp_css_init(struct atomisp_device *isp);
@@ -84,9 +80,9 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 				enum atomisp_input_stream_id stream_id,
 				enum ia_css_pipe_id css_pipe_id);
 
-void atomisp_css_mmu_invalidate_cache(void);
+void ia_css_mmu_invalidate_cache(void);
 
-void atomisp_css_mmu_invalidate_tlb(void);
+void ia_css_mmu_invalidate_cache(void);
 
 int atomisp_css_start(struct atomisp_sub_device *asd,
 		      enum ia_css_pipe_id pipe_id, bool in_reset);

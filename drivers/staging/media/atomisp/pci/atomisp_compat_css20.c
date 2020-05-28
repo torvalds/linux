@@ -66,26 +66,6 @@ struct bayer_ds_factor {
 	unsigned int denominator;
 };
 
-void atomisp_css_debug_dump_sp_sw_debug_info(void)
-{
-	ia_css_debug_dump_sp_sw_debug_info();
-}
-
-void atomisp_css_debug_dump_debug_info(const char *context)
-{
-	ia_css_debug_dump_debug_info(context);
-}
-
-void atomisp_css_debug_set_dtrace_level(const unsigned int trace_level)
-{
-	ia_css_debug_set_dtrace_level(trace_level);
-}
-
-unsigned int atomisp_css_debug_get_dtrace_level(void)
-{
-	return dbg_level;
-}
-
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
 {
 	unsigned long flags;
@@ -104,7 +84,7 @@ static void atomisp_css2_hw_store_16(hrt_address addr, uint16_t data)
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
-static void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
+void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
 {
 	unsigned long flags;
 
@@ -191,11 +171,6 @@ static int atomisp_css2_err_print(const char *fmt, va_list args)
 	return 0;
 }
 
-void atomisp_store_uint32(hrt_address addr, uint32_t data)
-{
-	atomisp_css2_hw_store_32(addr, data);
-}
-
 void atomisp_load_uint32(hrt_address addr, uint32_t *data)
 {
 	*data = atomisp_css2_hw_load_32(addr);
@@ -211,16 +186,6 @@ static int hmm_get_mmu_base_addr(unsigned int *mmu_base_addr)
 	*mmu_base_addr = sh_mmu_mrfld.get_pd_base(&bo_device.mmu,
 			 bo_device.mmu.base_address);
 	return 0;
-}
-
-static void atomisp_isp_parameters_clean_up(
-    struct ia_css_isp_config *config)
-{
-	/*
-	 * Set NULL to configs pointer to avoid they are set into isp again when
-	 * some configs are changed and need to be updated later.
-	 */
-	memset(config, 0, sizeof(*config));
 }
 
 static void __dump_pipe_config(struct atomisp_sub_device *asd,
@@ -905,14 +870,6 @@ static inline int __set_css_print_env(struct atomisp_device *isp, int opt)
 	return ret;
 }
 
-int atomisp_css_check_firmware_version(struct atomisp_device *isp)
-{
-	if (!sh_css_check_firmware_version(isp->dev, (void *)isp->firmware->data)) {
-		return -EINVAL;
-	}
-	return 0;
-}
-
 int atomisp_css_load_firmware(struct atomisp_device *isp)
 {
 	enum ia_css_err err;
@@ -952,11 +909,6 @@ int atomisp_css_load_firmware(struct atomisp_device *isp)
 	return 0;
 }
 
-void atomisp_css_unload_firmware(struct atomisp_device *isp)
-{
-	ia_css_unload_firmware();
-}
-
 void atomisp_css_uninit(struct atomisp_device *isp)
 {
 	struct atomisp_sub_device *asd;
@@ -964,7 +916,7 @@ void atomisp_css_uninit(struct atomisp_device *isp)
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		asd = &isp->asd[i];
-		atomisp_isp_parameters_clean_up(&asd->params.config);
+		memset(&asd->params.config, 0, sizeof(asd->params.config));
 		asd->params.css_update_params_needed = false;
 	}
 
@@ -1152,16 +1104,6 @@ int atomisp_q_dis_buffer_to_css(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-void atomisp_css_mmu_invalidate_cache(void)
-{
-	ia_css_mmu_invalidate_cache();
-}
-
-void atomisp_css_mmu_invalidate_tlb(void)
-{
-	ia_css_mmu_invalidate_cache();
-}
-
 int atomisp_css_start(struct atomisp_sub_device *asd,
 		      enum ia_css_pipe_id pipe_id, bool in_reset)
 {
@@ -1285,7 +1227,7 @@ void atomisp_css_update_isp_params(struct atomisp_sub_device *asd)
 	ia_css_stream_set_isp_config(
 	    asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
 	    &asd->params.config);
-	atomisp_isp_parameters_clean_up(&asd->params.config);
+	memset(&asd->params.config, 0, sizeof(asd->params.config));
 }
 
 void atomisp_css_update_isp_params_on_pipe(struct atomisp_sub_device *asd,
@@ -1309,7 +1251,7 @@ void atomisp_css_update_isp_params_on_pipe(struct atomisp_sub_device *asd,
 	if (ret != IA_CSS_SUCCESS)
 		dev_warn(asd->isp->dev, "%s: ia_css_stream_set_isp_config_on_pipe failed %d\n",
 			 __func__, ret);
-	atomisp_isp_parameters_clean_up(&asd->params.config);
+	memset(&asd->params.config, 0, sizeof(asd->params.config));
 }
 
 int atomisp_css_queue_buffer(struct atomisp_sub_device *asd,
@@ -2264,7 +2206,7 @@ int atomisp_css_stop(struct atomisp_sub_device *asd,
 			ia_css_stream_config_defaults(
 			    &stream_env->stream_config);
 		}
-		atomisp_isp_parameters_clean_up(&asd->params.config);
+		memset(&asd->params.config, 0, sizeof(asd->params.config));
 		asd->params.css_update_params_needed = false;
 	}
 
@@ -4215,8 +4157,8 @@ int atomisp_css_wait_acc_finish(struct atomisp_sub_device *asd)
 	if (wait_for_completion_interruptible_timeout(&asd->acc.acc_done,
 		ATOMISP_ISP_TIMEOUT_DURATION) == 0) {
 		dev_err(isp->dev, "<%s: completion timeout\n", __func__);
-		atomisp_css_debug_dump_sp_sw_debug_info();
-		atomisp_css_debug_dump_debug_info(__func__);
+		ia_css_debug_dump_sp_sw_debug_info();
+		ia_css_debug_dump_debug_info(__func__);
 		ret = -EIO;
 	}
 	rt_mutex_lock(&isp->mutex);

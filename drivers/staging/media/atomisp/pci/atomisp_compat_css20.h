@@ -155,16 +155,10 @@ void atomisp_css_set_b_gamma_table(struct atomisp_sub_device *asd,
 void atomisp_css_set_anr_thres(struct atomisp_sub_device *asd,
 			       struct ia_css_anr_thres *anr_thres);
 
-int atomisp_css_check_firmware_version(struct atomisp_device *isp);
-
 int atomisp_css_load_firmware(struct atomisp_device *isp);
-
-void atomisp_css_unload_firmware(struct atomisp_device *isp);
 
 void atomisp_css_set_dvs_6axis(struct atomisp_sub_device *asd,
 			       struct ia_css_dvs_6axis_config *dvs_6axis);
-
-unsigned int atomisp_css_debug_get_dtrace_level(void);
 
 int atomisp_css_debug_dump_isp_binary(void);
 

@@ -997,7 +997,7 @@ subdev_uninit:
 	atomisp_css_uninit(isp);
 
 	if (defer_fw_load) {
-		atomisp_css_unload_firmware(isp);
+		ia_css_unload_firmware();
 		isp->css_env.isp_css_fw.data = NULL;
 		isp->css_env.isp_css_fw.bytes = 0;
 	}

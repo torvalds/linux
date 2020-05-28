@@ -42,6 +42,8 @@
 #include "hmm/hmm.h"
 #include "atomisp_trace_event.h"
 
+#include "sh_css_firmware.h"
+
 #include "device_access.h"
 
 /* Timeouts to wait for all subdevs to be registered */
@@ -657,7 +659,7 @@ static int __maybe_unused atomisp_restore_iunit_reg(struct atomisp_device *isp)
 	 * which has bugs(like sighting:4567697 and 4567699) and
 	 * will be removed in B0
 	 */
-	atomisp_store_uint32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
+	atomisp_css2_hw_store_32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
 	return 0;
 }
 
@@ -687,7 +689,7 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	if (!(irq & (1 << INTR_IIR)))
 		goto done;
 
-	atomisp_store_uint32(MRFLD_INTR_CLEAR_REG, 0xFFFFFFFF);
+	atomisp_css2_hw_store_32(MRFLD_INTR_CLEAR_REG, 0xFFFFFFFF);
 	atomisp_load_uint32(MRFLD_INTR_STATUS_REG, &irq);
 	if (irq != 0) {
 		dev_err(isp->dev,
@@ -702,7 +704,7 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 
 		pci_read_config_dword(dev, PCI_INTERRUPT_CTRL, &irq);
 		if (!(irq & (1 << INTR_IIR))) {
-			atomisp_store_uint32(MRFLD_INTR_ENABLE_REG, 0x0);
+			atomisp_css2_hw_store_32(MRFLD_INTR_ENABLE_REG, 0x0);
 			goto done;
 		}
 		dev_err(isp->dev,
@@ -1757,7 +1759,8 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 			goto load_fw_fail;
 		}
 
-		err = atomisp_css_check_firmware_version(isp);
+		err = sh_css_check_firmware_version(isp->dev,
+						    isp->firmware->data);
 		if (err) {
 			dev_dbg(&dev->dev, "Firmware version check failed\n");
 			goto fw_validation_fail;
@@ -1786,7 +1789,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 	 * bugs(like sighting:4567697 and 4567699) and will be removed
 	 * in B0
 	 */
-	atomisp_store_uint32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
+	atomisp_css2_hw_store_32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
 
 	if ((id->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
 	    ATOMISP_PCI_DEVICE_SOC_MRFLD) {
@@ -1937,7 +1940,7 @@ static void atomisp_pci_remove(struct pci_dev *dev)
 
 	atomisp_acc_cleanup(isp);
 
-	atomisp_css_unload_firmware(isp);
+	ia_css_unload_firmware();
 	hmm_cleanup();
 
 	pm_runtime_forbid(&dev->dev);

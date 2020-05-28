@@ -57,6 +57,7 @@
 
 #include "ia_css_types.h"
 #include "ia_css_stream.h"
+#include "ia_css_debug.h"
 #include "error_support.h"
 #include "bits.h"
 
@@ -1503,8 +1504,8 @@ void atomisp_wdt_work(struct work_struct *work)
 	}
 
 	if (css_recover) {
-		atomisp_css_debug_dump_sp_sw_debug_info();
-		atomisp_css_debug_dump_debug_info(__func__);
+		ia_css_debug_dump_sp_sw_debug_info();
+		ia_css_debug_dump_debug_info(__func__);
 		for (i = 0; i < isp->num_of_streams; i++) {
 			struct atomisp_sub_device *asd = &isp->asd[i];
 

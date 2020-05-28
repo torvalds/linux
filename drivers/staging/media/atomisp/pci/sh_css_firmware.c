@@ -203,7 +203,7 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	}
 
 	/* For now, let's just accept a wrong version, even if wrong */
-	return true;
+	return 0;
 }
 
 enum ia_css_err
@@ -212,7 +212,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	unsigned int i;
 	struct ia_css_fw_info *binaries;
 	struct sh_css_fw_bi_file_h *file_header;
-	bool valid_firmware = false;
+	int ret;
 	const char *release_version;
 
 	if (!atomisp_hw_is_isp2401)
@@ -224,8 +224,8 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	file_header = &firmware_header->file_header;
 	binaries = &firmware_header->binary_header;
 	strscpy(FW_rel_ver_name, file_header->version, min(sizeof(FW_rel_ver_name), sizeof(file_header->version)));
-	valid_firmware = sh_css_check_firmware_version(dev, fw_data);
-	if (!valid_firmware) {
+	ret = sh_css_check_firmware_version(dev, fw_data);
+	if (ret) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
 			     file_header->version, release_version);
 		return IA_CSS_ERR_VERSION_MISMATCH;
