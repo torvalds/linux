@@ -1429,26 +1429,17 @@ static int hclge_configure(struct hclge_dev *hdev)
 	return ret;
 }
 
-static int hclge_config_tso(struct hclge_dev *hdev, unsigned int tso_mss_min,
-			    unsigned int tso_mss_max)
+static int hclge_config_tso(struct hclge_dev *hdev, u16 tso_mss_min,
+			    u16 tso_mss_max)
 {
 	struct hclge_cfg_tso_status_cmd *req;
 	struct hclge_desc desc;
-	u16 tso_mss;
 
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_TSO_GENERIC_CONFIG, false);
 
 	req = (struct hclge_cfg_tso_status_cmd *)desc.data;
-
-	tso_mss = 0;
-	hnae3_set_field(tso_mss, HCLGE_TSO_MSS_MIN_M,
-			HCLGE_TSO_MSS_MIN_S, tso_mss_min);
-	req->tso_mss_min = cpu_to_le16(tso_mss);
-
-	tso_mss = 0;
-	hnae3_set_field(tso_mss, HCLGE_TSO_MSS_MIN_M,
-			HCLGE_TSO_MSS_MIN_S, tso_mss_max);
-	req->tso_mss_max = cpu_to_le16(tso_mss);
+	req->tso_mss_min = cpu_to_le16(tso_mss_min);
+	req->tso_mss_max = cpu_to_le16(tso_mss_max);
 
 	return hclge_cmd_send(&hdev->hw, &desc, 1);
 }
