@@ -132,6 +132,12 @@ ieee80211_update_bss_from_elems(struct ieee80211_local *local,
 			bss->beacon_rate =
 				&sband->bitrates[rx_status->rate_idx];
 	}
+
+	if (elems->vht_cap_elem)
+		bss->vht_cap_info =
+			le32_to_cpu(elems->vht_cap_elem->vht_cap_info);
+	else
+		bss->vht_cap_info = 0;
 }
 
 struct ieee80211_bss *

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  */
@@ -63,6 +63,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	u32 basic_rates = 0;
 	struct cfg80211_chan_def sta_chan_def;
 	struct ieee80211_supported_band *sband;
+	u32 vht_cap_info = 0;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -96,7 +97,11 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	cfg80211_chandef_create(&sta_chan_def, sdata->vif.bss_conf.chandef.chan,
 				NL80211_CHAN_NO_HT);
 	ieee80211_chandef_ht_oper(ie->ht_operation, &sta_chan_def);
-	ieee80211_chandef_vht_oper(&sdata->local->hw,
+
+	if (ie->vht_cap_elem)
+		vht_cap_info = le32_to_cpu(ie->vht_cap_elem->vht_cap_info);
+
+	ieee80211_chandef_vht_oper(&sdata->local->hw, vht_cap_info,
 				   ie->vht_operation, ie->ht_operation,
 				   &sta_chan_def);
 
@@ -1076,7 +1081,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_supported_band *sband;
 	int err;
-	u32 sta_flags;
+	u32 sta_flags, vht_cap_info = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -1099,8 +1104,13 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
+	if (elems->vht_cap_elem)
+		vht_cap_info =
+			le32_to_cpu(elems->vht_cap_elem->vht_cap_info);
+
 	memset(&params, 0, sizeof(params));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems, sband->band,
+					   vht_cap_info,
 					   sta_flags, sdata->vif.addr,
 					   &csa_ie);
 	if (err < 0)
