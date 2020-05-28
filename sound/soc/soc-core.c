@@ -1825,12 +1825,9 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 		goto probe_end;
 
 	/* initialise the sound card only once */
-	if (card->probe) {
-		ret = card->probe(card);
-		if (ret < 0)
-			goto probe_end;
-		card->probed = 1;
-	}
+	ret = snd_soc_card_probe(card);
+	if (ret < 0)
+		goto probe_end;
 
 	/* probe all components used by DAI links on this card */
 	ret = soc_probe_link_components(card);
