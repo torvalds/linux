@@ -356,7 +356,6 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	resp->max_mcast_qp_attach	= attr->max_mcast_qp_attach;
 	resp->max_total_mcast_qp_attach	= attr->max_total_mcast_qp_attach;
 	resp->max_ah			= attr->max_ah;
-	resp->max_map_per_fmr		= attr->max_map_per_fmr;
 	resp->max_srq			= attr->max_srq;
 	resp->max_srq_wr		= attr->max_srq_wr;
 	resp->max_srq_sge		= attr->max_srq_sge;
