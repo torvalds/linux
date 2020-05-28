@@ -151,6 +151,30 @@ static int msg_enable;
 /* turn register number and byte-enable mask into data for start of packet */
 #define MK_OP(_byteen, _reg) (BYTE_EN(_byteen) | (_reg)  << (8+2) | (_reg) >> 6)
 
+/**
+ * ks8851_lock - register access lock
+ * @ks: The chip state
+ * @flags: Spinlock flags
+ *
+ * Claim chip register access lock
+ */
+static void ks8851_lock(struct ks8851_net *ks, unsigned long *flags)
+{
+	mutex_lock(&ks->lock);
+}
+
+/**
+ * ks8851_unlock - register access unlock
+ * @ks: The chip state
+ * @flags: Spinlock flags
+ *
+ * Release chip register access lock
+ */
+static void ks8851_unlock(struct ks8851_net *ks, unsigned long *flags)
+{
+	mutex_unlock(&ks->lock);
+}
+
 /* SPI register read/write calls.
  *
  * All these calls issue SPI transactions to access the chip's registers. They
@@ -304,10 +328,11 @@ static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
 static int ks8851_write_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 	u16 val;
 	int i;
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	/*
 	 * Wake up chip in case it was powered off when stopped; otherwise,
@@ -323,7 +348,7 @@ static int ks8851_write_mac_addr(struct net_device *dev)
 	if (!netif_running(dev))
 		ks8851_set_powermode(ks, PMECR_PM_SOFTDOWN);
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 
 	return 0;
 }
@@ -337,10 +362,11 @@ static int ks8851_write_mac_addr(struct net_device *dev)
 static void ks8851_read_mac_addr(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 	u16 reg;
 	int i;
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	for (i = 0; i < ETH_ALEN; i += 2) {
 		reg = ks8851_rdreg16(ks, KS_MAR(i));
@@ -348,7 +374,7 @@ static void ks8851_read_mac_addr(struct net_device *dev)
 		dev->dev_addr[i + 1] = reg & 0xff;
 	}
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 }
 
 /**
@@ -534,10 +560,11 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 static irqreturn_t ks8851_irq(int irq, void *_ks)
 {
 	struct ks8851_net *ks = _ks;
-	unsigned status;
 	unsigned handled = 0;
+	unsigned long flags;
+	unsigned int status;
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	status = ks8851_rdreg16(ks, KS_ISR);
 
@@ -606,7 +633,7 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 		ks8851_wrreg16(ks, KS_RXCR1, rxc->rxcr1);
 	}
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 
 	if (status & IRQ_LCI)
 		mii_check_link(&ks->mii);
@@ -700,10 +727,11 @@ static void ks8851_done_tx(struct ks8851_net *ks, struct sk_buff *txb)
 static void ks8851_tx_work(struct work_struct *work)
 {
 	struct ks8851_net *ks = container_of(work, struct ks8851_net, tx_work);
+	unsigned long flags;
 	struct sk_buff *txb;
 	bool last = skb_queue_empty(&ks->txq);
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	while (!last) {
 		txb = skb_dequeue(&ks->txq);
@@ -719,7 +747,7 @@ static void ks8851_tx_work(struct work_struct *work)
 		}
 	}
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 }
 
 /**
@@ -732,6 +760,7 @@ static void ks8851_tx_work(struct work_struct *work)
 static int ks8851_net_open(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 	int ret;
 
 	ret = request_threaded_irq(dev->irq, NULL, ks8851_irq,
@@ -744,7 +773,7 @@ static int ks8851_net_open(struct net_device *dev)
 
 	/* lock the card, even if we may not actually be doing anything
 	 * else at the moment */
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	netif_dbg(ks, ifup, ks->netdev, "opening\n");
 
@@ -804,7 +833,7 @@ static int ks8851_net_open(struct net_device *dev)
 
 	netif_dbg(ks, ifup, ks->netdev, "network device up\n");
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 	mii_check_link(&ks->mii);
 	return 0;
 }
@@ -820,22 +849,23 @@ static int ks8851_net_open(struct net_device *dev)
 static int ks8851_net_stop(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 
 	netif_info(ks, ifdown, dev, "shutting down\n");
 
 	netif_stop_queue(dev);
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 	/* turn off the IRQs and ack any outstanding */
 	ks8851_wrreg16(ks, KS_IER, 0x0000);
 	ks8851_wrreg16(ks, KS_ISR, 0xffff);
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 
 	/* stop any outstanding work */
 	flush_work(&ks->tx_work);
 	flush_work(&ks->rxctrl_work);
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 	/* shutdown RX process */
 	ks8851_wrreg16(ks, KS_RXCR1, 0x0000);
 
@@ -844,7 +874,7 @@ static int ks8851_net_stop(struct net_device *dev)
 
 	/* set powermode to soft power down to save power */
 	ks8851_set_powermode(ks, PMECR_PM_SOFTDOWN);
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 
 	/* ensure any queued tx buffers are dumped */
 	while (!skb_queue_empty(&ks->txq)) {
@@ -916,13 +946,14 @@ static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
 static void ks8851_rxctrl_work(struct work_struct *work)
 {
 	struct ks8851_net *ks = container_of(work, struct ks8851_net, rxctrl_work);
+	unsigned long flags;
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 
 	/* need to shutdown RXQ before modifying filter parameters */
 	ks8851_wrreg16(ks, KS_RXCR1, 0x00);
 
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 }
 
 static void ks8851_set_rx_mode(struct net_device *dev)
@@ -1104,11 +1135,6 @@ static void ks8851_eeprom_regwrite(struct eeprom_93cx6 *ee)
  */
 static int ks8851_eeprom_claim(struct ks8851_net *ks)
 {
-	if (!(ks->rc_ccr & CCR_EEPROM))
-		return -ENOENT;
-
-	mutex_lock(&ks->lock);
-
 	/* start with clock low, cs high */
 	ks8851_wrreg16(ks, KS_EEPCR, EEPCR_EESA | EEPCR_EECS);
 	return 0;
@@ -1125,7 +1151,6 @@ static void ks8851_eeprom_release(struct ks8851_net *ks)
 	unsigned val = ks8851_rdreg16(ks, KS_EEPCR);
 
 	ks8851_wrreg16(ks, KS_EEPCR, val & ~EEPCR_EESA);
-	mutex_unlock(&ks->lock);
 }
 
 #define KS_EEPROM_MAGIC (0x00008851)
@@ -1135,6 +1160,7 @@ static int ks8851_set_eeprom(struct net_device *dev,
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	int offset = ee->offset;
+	unsigned long flags;
 	int len = ee->len;
 	u16 tmp;
 
@@ -1145,8 +1171,12 @@ static int ks8851_set_eeprom(struct net_device *dev,
 	if (ee->magic != KS_EEPROM_MAGIC)
 		return -EINVAL;
 
-	if (ks8851_eeprom_claim(ks))
+	if (!(ks->rc_ccr & CCR_EEPROM))
 		return -ENOENT;
+
+	ks8851_lock(ks, &flags);
+
+	ks8851_eeprom_claim(ks);
 
 	eeprom_93cx6_wren(&ks->eeprom, true);
 
@@ -1167,6 +1197,7 @@ static int ks8851_set_eeprom(struct net_device *dev,
 	eeprom_93cx6_wren(&ks->eeprom, false);
 
 	ks8851_eeprom_release(ks);
+	ks8851_unlock(ks, &flags);
 
 	return 0;
 }
@@ -1176,19 +1207,25 @@ static int ks8851_get_eeprom(struct net_device *dev,
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	int offset = ee->offset;
+	unsigned long flags;
 	int len = ee->len;
 
 	/* must be 2 byte aligned */
 	if (len & 1 || offset & 1)
 		return -EINVAL;
 
-	if (ks8851_eeprom_claim(ks))
+	if (!(ks->rc_ccr & CCR_EEPROM))
 		return -ENOENT;
+
+	ks8851_lock(ks, &flags);
+
+	ks8851_eeprom_claim(ks);
 
 	ee->magic = KS_EEPROM_MAGIC;
 
 	eeprom_93cx6_multiread(&ks->eeprom, offset/2, (__le16 *)data, len/2);
 	ks8851_eeprom_release(ks);
+	ks8851_unlock(ks, &flags);
 
 	return 0;
 }
@@ -1262,6 +1299,7 @@ static int ks8851_phy_reg(int reg)
 static int ks8851_phy_read(struct net_device *dev, int phy_addr, int reg)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 	int ksreg;
 	int result;
 
@@ -1269,9 +1307,9 @@ static int ks8851_phy_read(struct net_device *dev, int phy_addr, int reg)
 	if (!ksreg)
 		return 0x0;	/* no error return allowed, so use zero */
 
-	mutex_lock(&ks->lock);
+	ks8851_lock(ks, &flags);
 	result = ks8851_rdreg16(ks, ksreg);
-	mutex_unlock(&ks->lock);
+	ks8851_unlock(ks, &flags);
 
 	return result;
 }
@@ -1280,13 +1318,14 @@ static void ks8851_phy_write(struct net_device *dev,
 			     int phy, int reg, int value)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
+	unsigned long flags;
 	int ksreg;
 
 	ksreg = ks8851_phy_reg(reg);
 	if (ksreg) {
-		mutex_lock(&ks->lock);
+		ks8851_lock(ks, &flags);
 		ks8851_wrreg16(ks, ksreg, value);
-		mutex_unlock(&ks->lock);
+		ks8851_unlock(ks, &flags);
 	}
 }
 
