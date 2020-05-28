@@ -111,6 +111,16 @@ void xdp_warn(const char *msg, const char *func, const int line);
 
 struct xdp_frame *xdp_convert_zc_to_xdp_frame(struct xdp_buff *xdp);
 
+static inline
+void xdp_convert_frame_to_buff(struct xdp_frame *frame, struct xdp_buff *xdp)
+{
+	xdp->data_hard_start = frame->data - frame->headroom - sizeof(*frame);
+	xdp->data = frame->data;
+	xdp->data_end = frame->data + frame->len;
+	xdp->data_meta = frame->data - frame->metasize;
+	xdp->frame_sz = frame->frame_sz;
+}
+
 /* Convert xdp_buff to xdp_frame */
 static inline
 struct xdp_frame *convert_to_xdp_frame(struct xdp_buff *xdp)
