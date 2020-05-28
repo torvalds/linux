@@ -331,6 +331,10 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
 	}
+	if (ret == ACT_P_CREATED) {
+		to_gate(*a)->param.tcfg_clockid = -1;
+		INIT_LIST_HEAD(&(to_gate(*a)->param.entries));
+	}
 
 	if (tb[TCA_GATE_PRIORITY])
 		prio = nla_get_s32(tb[TCA_GATE_PRIORITY]);
@@ -377,7 +381,6 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 			goto chain_put;
 	}
 
-	INIT_LIST_HEAD(&p->entries);
 	if (tb[TCA_GATE_ENTRY_LIST]) {
 		err = parse_gate_list(tb[TCA_GATE_ENTRY_LIST], p, extack);
 		if (err < 0)
@@ -449,9 +452,9 @@ static void tcf_gate_cleanup(struct tc_action *a)
 	struct tcf_gate *gact = to_gate(a);
 	struct tcf_gate_params *p;
 
-	hrtimer_cancel(&gact->hitimer);
-
 	p = &gact->param;
+	if (p->tcfg_clockid != -1)
+		hrtimer_cancel(&gact->hitimer);
 
 	release_entry_list(&p->entries);
 }
