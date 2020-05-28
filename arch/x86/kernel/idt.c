@@ -51,6 +51,7 @@ struct idt_data {
 #define TSKG(_vector, _gdt)				\
 	G(_vector, NULL, DEFAULT_STACK, GATE_TASK, DPL0, _gdt << 3)
 
+#define IDT_TABLE_SIZE		(IDT_ENTRIES * sizeof(gate_desc))
 
 static bool idt_setup_done __initdata;
 
@@ -168,7 +169,7 @@ static const __initconst struct idt_data early_pf_idts[] = {
 gate_desc idt_table[IDT_ENTRIES] __page_aligned_bss;
 
 struct desc_ptr idt_descr __ro_after_init = {
-	.size		= (IDT_ENTRIES * 2 * sizeof(unsigned long)) - 1,
+	.size		= IDT_TABLE_SIZE - 1,
 	.address	= (unsigned long) idt_table,
 };
 
