@@ -1518,7 +1518,7 @@ static int ks8851_probe(struct spi_device *spi)
 	netdev->ethtool_ops = &ks8851_ethtool_ops;
 	SET_NETDEV_DEV(netdev, dev);
 
-	spi_set_drvdata(spi, ks);
+	dev_set_drvdata(dev, ks);
 
 	netif_carrier_off(ks->netdev);
 	netdev->if_port = IF_PORT_100BASET;
@@ -1567,8 +1567,10 @@ err_reg_io:
 
 static int ks8851_remove(struct spi_device *spi)
 {
-	struct ks8851_net *priv = spi_get_drvdata(spi);
 	struct device *dev = &spi->dev;
+	struct ks8851_net *priv;
+
+	priv = dev_get_drvdata(dev);
 
 	if (netif_msg_drv(priv))
 		dev_info(dev, "remove\n");
