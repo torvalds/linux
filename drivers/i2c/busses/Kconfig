@@ -549,6 +549,19 @@ config I2C_DESIGNWARE_PLATFORM
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-platform.
 
+config I2C_DESIGNWARE_BAYTRAIL
+	bool "Intel Baytrail I2C semaphore support"
+	depends on ACPI
+	depends on I2C_DESIGNWARE_PLATFORM
+	depends on (I2C_DESIGNWARE_PLATFORM=m && IOSF_MBI) || \
+		   (I2C_DESIGNWARE_PLATFORM=y && IOSF_MBI=y)
+	help
+	  This driver enables managed host access to the PMIC I2C bus on select
+	  Intel BayTrail platforms using the X-Powers AXP288 PMIC. It allows
+	  the host to request uninterrupted access to the PMIC's I2C bus from
+	  the platform firmware controlling it. You should say Y if running on
+	  a BayTrail system using the AXP288.
+
 config I2C_DESIGNWARE_PCI
 	tristate "Synopsys DesignWare PCI"
 	depends on PCI
@@ -559,18 +572,6 @@ config I2C_DESIGNWARE_PCI
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-designware-pci.
-
-config I2C_DESIGNWARE_BAYTRAIL
-	bool "Intel Baytrail I2C semaphore support"
-	depends on ACPI
-	depends on (I2C_DESIGNWARE_PLATFORM=m && IOSF_MBI) || \
-		   (I2C_DESIGNWARE_PLATFORM=y && IOSF_MBI=y)
-	help
-	  This driver enables managed host access to the PMIC I2C bus on select
-	  Intel BayTrail platforms using the X-Powers AXP288 PMIC. It allows
-	  the host to request uninterrupted access to the PMIC's I2C bus from
-	  the platform firmware controlling it. You should say Y if running on
-	  a BayTrail system using the AXP288.
 
 config I2C_DIGICOLOR
 	tristate "Conexant Digicolor I2C driver"
