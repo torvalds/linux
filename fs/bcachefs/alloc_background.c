@@ -869,6 +869,15 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	if (!invalidating_cached_data)
 		goto out;
 
+	/*
+	 * If the read-only path is trying to shut down, we can't be generating
+	 * new btree updates:
+	 */
+	if (test_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags)) {
+		ret = 1;
+		goto out;
+	}
+
 	BUG_ON(BKEY_ALLOC_VAL_U64s_MAX > 8);
 
 	bch2_btree_iter_set_pos(iter, POS(ca->dev_idx, b));
@@ -956,7 +965,7 @@ out:
 		percpu_up_read(&c->mark_lock);
 	}
 
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 static bool bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,

@@ -175,7 +175,7 @@ struct bch_fs *bch2_uuid_to_fs(__uuid_t uuid)
 static void __bch2_fs_read_only(struct bch_fs *c)
 {
 	struct bch_dev *ca;
-	bool wrote;
+	bool wrote = false;
 	unsigned i, clean_passes = 0;
 	int ret;
 
@@ -200,39 +200,46 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 		goto nowrote_alloc;
 
 	bch_verbose(c, "writing alloc info");
+	/*
+	 * This should normally just be writing the bucket read/write clocks:
+	 */
+	ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote) ?:
+		bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
+	bch_verbose(c, "writing alloc info complete");
+
+	if (ret && !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
+		bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
+
+	if (ret)
+		goto nowrote_alloc;
+
+	bch_verbose(c, "flushing journal and stopping allocators");
+
+	bch2_journal_flush_all_pins(&c->journal);
+	set_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags);
 
 	do {
-		wrote = false;
+		clean_passes++;
 
-		ret = bch2_stripes_write(c, BTREE_INSERT_NOCHECK_RW, &wrote) ?:
-			bch2_alloc_write(c, BTREE_INSERT_NOCHECK_RW, &wrote);
-
-		if (ret && !test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
-			bch2_fs_inconsistent(c, "error writing out alloc info %i", ret);
-
-		if (ret)
-			goto nowrote_alloc;
-
-		for_each_member_device(ca, c, i)
-			bch2_dev_allocator_quiesce(c, ca);
-
-		bch2_journal_flush_all_pins(&c->journal);
+		if (bch2_journal_flush_all_pins(&c->journal))
+			clean_passes = 0;
 
 		/*
-		 * We need to explicitly wait on btree interior updates to complete
-		 * before stopping the journal, flushing all journal pins isn't
-		 * sufficient, because in the BTREE_INTERIOR_UPDATING_ROOT case btree
-		 * interior updates have to drop their journal pin before they're
-		 * fully complete:
+		 * In flight interior btree updates will generate more journal
+		 * updates and btree updates (alloc btree):
 		 */
-		closure_wait_event(&c->btree_interior_update_wait,
-				   !bch2_btree_interior_updates_nr_pending(c));
+		if (bch2_btree_interior_updates_nr_pending(c)) {
+			closure_wait_event(&c->btree_interior_update_wait,
+					   !bch2_btree_interior_updates_nr_pending(c));
+			clean_passes = 0;
+		}
 		flush_work(&c->btree_interior_update_work);
 
-		clean_passes = wrote ? 0 : clean_passes + 1;
+		if (bch2_journal_flush_all_pins(&c->journal))
+			clean_passes = 0;
 	} while (clean_passes < 2);
+	bch_verbose(c, "flushing journal and stopping allocators complete");
 
-	bch_verbose(c, "writing alloc info complete");
 	set_bit(BCH_FS_ALLOC_CLEAN, &c->flags);
 nowrote_alloc:
 	closure_wait_event(&c->btree_interior_update_wait,
@@ -243,10 +250,9 @@ nowrote_alloc:
 		bch2_dev_allocator_stop(ca);
 
 	clear_bit(BCH_FS_ALLOCATOR_RUNNING, &c->flags);
+	clear_bit(BCH_FS_ALLOCATOR_STOPPING, &c->flags);
 
 	bch2_fs_journal_stop(&c->journal);
-
-	/* XXX: mark super that alloc info is persistent */
 
 	/*
 	 * the journal kicks off btree writes via reclaim - wait for in flight
