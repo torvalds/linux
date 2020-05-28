@@ -8,6 +8,11 @@
 #ifndef __SOC_CARD_H
 #define __SOC_CARD_H
 
+enum snd_soc_card_subclass {
+	SND_SOC_CARD_CLASS_INIT		= 0,
+	SND_SOC_CARD_CLASS_RUNTIME	= 1,
+};
+
 struct snd_kcontrol *snd_soc_card_get_kcontrol(struct snd_soc_card *soc_card,
 					       const char *name);
 int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,

@@ -414,11 +414,6 @@ enum snd_soc_pcm_subclass {
 	SND_SOC_PCM_CLASS_BE	= 1,
 };
 
-enum snd_soc_card_subclass {
-	SND_SOC_CARD_CLASS_INIT		= 0,
-	SND_SOC_CARD_CLASS_RUNTIME	= 1,
-};
-
 int snd_soc_register_card(struct snd_soc_card *card);
 int snd_soc_unregister_card(struct snd_soc_card *card);
 int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card);
