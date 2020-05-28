@@ -2358,8 +2358,10 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				if (last->context == rq->context)
 					goto done;
 
-				if (i915_request_has_sentinel(last))
+				if (i915_request_has_sentinel(last)) {
+					start_timeslice(engine, rq_prio(rq));
 					goto done;
+				}
 
 				/*
 				 * If GVT overrides us we only ever submit
