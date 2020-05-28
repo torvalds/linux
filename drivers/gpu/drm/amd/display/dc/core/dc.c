@@ -3666,37 +3666,27 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 		dc->idle_optimizations_allowed = allow;
 }
 
-/*
- * blank all streams, and set min and max memory clock to
- * lowest and highest DPM level, respectively
- */
+/* set min and max memory clock to lowest and highest DPM level, respectively */
 void dc_unlock_memory_clock_frequency(struct dc *dc)
 {
-	unsigned int i;
+	if (dc->clk_mgr->funcs->set_hard_min_memclk)
+		dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, false);
 
-	for (i = 0; i < MAX_PIPES; i++)
-		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
-			core_link_disable_stream(&dc->current_state->res_ctx.pipe_ctx[i]);
-
-	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, false);
-	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 }
 
-/*
- * set min memory clock to the min required for current mode,
- * max to maxDPM, and unblank streams
- */
+/* set min memory clock to the min required for current mode, max to maxDPM */
 void dc_lock_memory_clock_frequency(struct dc *dc)
 {
-	unsigned int i;
+	if (dc->clk_mgr->funcs->get_memclk_states_from_smu)
+		dc->clk_mgr->funcs->get_memclk_states_from_smu(dc->clk_mgr);
 
-	dc->clk_mgr->funcs->get_memclk_states_from_smu(dc->clk_mgr);
-	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, true);
-	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->set_hard_min_memclk)
+		dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, true);
 
-	for (i = 0; i < MAX_PIPES; i++)
-		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
-			core_link_enable_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 }
 
 static void blank_and_force_memclk(struct dc *dc, bool apply, unsigned int memclk_mhz)
