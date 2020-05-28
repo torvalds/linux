@@ -1183,13 +1183,11 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
-
-		if (!(clear_bind(vma) & I915_VMA_GLOBAL_BIND))
-			continue;
+		unsigned int was_bound = clear_bind(vma);
 
 		WARN_ON(i915_vma_bind(vma,
 				      obj ? obj->cache_level : 0,
-				      PIN_GLOBAL, NULL));
+				      was_bound, NULL));
 		if (obj) { /* only used during resume => exclusive access */
 			flush |= fetch_and_zero(&obj->write_domain);
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;
