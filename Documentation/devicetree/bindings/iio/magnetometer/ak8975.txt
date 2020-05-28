@@ -2,21 +2,28 @@
 
 Required properties:
 
-  - compatible : should be "asahi-kasei,ak8975"
-  - reg : the I2C address of the magnetometer
+  - compatible : should be "asahi-kasei,ak8975".
+  - reg : the I2C address of the magnetometer.
 
 Optional properties:
 
-  - gpios : should be device tree identifier of the magnetometer DRDY pin
-  - vdd-supply: an optional regulator that needs to be on to provide VDD
-  - mount-matrix: an optional 3x3 mounting rotation matrix
+  - gpios : AK8975 has a "Data ready" pin (DRDY) which informs that data
+      is ready to be read and is possible to listen on it. If used,
+      this should be active high. Prefer interrupt over this.
+
+  - interrupts : interrupt for DRDY pin. Triggered on rising edge.
+
+  - vdd-supply: an optional regulator that needs to be on to provide VDD.
+
+  - mount-matrix: an optional 3x3 mounting rotation matrix.
 
 Example:
 
 ak8975@c {
         compatible = "asahi-kasei,ak8975";
         reg = <0x0c>;
-        gpios = <&gpj0 7 0>;
+        interrupt-parent = <&gpio6>;
+        interrupts = <15 IRQ_TYPE_EDGE_RISING>;
         vdd-supply = <&ldo_3v3_gnss>;
         mount-matrix = "-0.984807753012208",  /* x0 */
                        "0",                   /* y0 */
