@@ -815,7 +815,7 @@ static int read_single_page(struct file *f, struct page *page)
 		tmp.data = (u8 *)__get_free_pages(GFP_NOFS, get_order(tmp.len));
 		bytes_to_read = min_t(loff_t, size - offset, PAGE_SIZE);
 		read_result = incfs_read_data_file_block(
-			range(page_start, bytes_to_read), df, block_index,
+			range(page_start, bytes_to_read), f, block_index,
 			timeout_ms, tmp);
 
 		free_pages((unsigned long)tmp.data, get_order(tmp.len));
