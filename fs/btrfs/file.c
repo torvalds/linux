@@ -1800,8 +1800,6 @@ again:
 		cond_resched();
 
 		balance_dirty_pages_ratelimited(inode->i_mapping);
-		if (dirty_pages < (fs_info->nodesize >> PAGE_SHIFT) + 1)
-			btrfs_btree_balance_dirty(fs_info);
 
 		pos += copied;
 		num_written += copied;
