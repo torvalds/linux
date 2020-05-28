@@ -9400,7 +9400,7 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	}
 
 	/* allocate the stream instance */
-	curr_stream = kmalloc(sizeof(struct ia_css_stream), GFP_KERNEL);
+	curr_stream = kzalloc(sizeof(struct ia_css_stream), GFP_KERNEL);
 	if (!curr_stream)
 	{
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
@@ -9408,7 +9408,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 		return err;
 	}
 	/* default all to 0 */
-	memset(curr_stream, 0, sizeof(struct ia_css_stream));
 	curr_stream->info.metadata_info = md_info;
 
 	/* allocate pipes */

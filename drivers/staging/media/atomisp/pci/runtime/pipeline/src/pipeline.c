@@ -593,12 +593,11 @@ static enum ia_css_err pipeline_stage_create(
 		out_frame[i] = stage_desc->out_frame[i];
 	}
 
-	stage = kvmalloc(sizeof(*stage), GFP_KERNEL);
+	stage = kvzalloc(sizeof(*stage), GFP_KERNEL);
 	if (!stage) {
 		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
 		goto ERR;
 	}
-	memset(stage, 0, sizeof(*stage));
 
 	if (firmware) {
 		stage->binary = NULL;
