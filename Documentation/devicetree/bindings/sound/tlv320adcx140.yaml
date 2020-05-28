@@ -109,7 +109,7 @@ properties:
       - minItems: 1
         maxItems: 4
         items:
-          maximum: 1
+          maximum: 7
         default: [0, 0, 0, 0]
 
 required:
