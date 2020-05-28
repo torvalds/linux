@@ -303,7 +303,6 @@ static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *prtd;
 	struct snd_soc_card *card;
-	struct acp3x_platform_info *pinfo;
 	struct i2s_stream_instance *rtd;
 	u32 pos;
 	u32 buffersize;
@@ -312,13 +311,6 @@ static snd_pcm_uframes_t acp3x_dma_pointer(struct snd_soc_component *component,
 	prtd = substream->private_data;
 	card = prtd->card;
 	rtd = substream->runtime->private_data;
-	pinfo = snd_soc_card_get_drvdata(card);
-	if (pinfo) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			rtd->i2s_instance = pinfo->play_i2s_instance;
-		else
-			rtd->i2s_instance = pinfo->cap_i2s_instance;
-	}
 
 	buffersize = frames_to_bytes(substream->runtime,
 				     substream->runtime->buffer_size);
