@@ -45,7 +45,7 @@ config BT1_APB
 	  accessed via corresponding sysfs nodes.
 
 config BT1_AXI
-	tristate "Baikal-T1 AXI-bus driver"
+	bool "Baikal-T1 AXI-bus driver"
 	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
 	select MFD_SYSCON
 	help
