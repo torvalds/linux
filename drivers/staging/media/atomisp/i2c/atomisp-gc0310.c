@@ -1321,7 +1321,6 @@ static int gc0310_probe(struct i2c_client *client)
 		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
 	// FIXME: may need to release resources allocated by acpi_bus_get_device()
 
-
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;

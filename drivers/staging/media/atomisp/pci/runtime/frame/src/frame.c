@@ -281,8 +281,7 @@ enum ia_css_err ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
 	enum ia_css_err err = IA_CSS_SUCCESS;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous() "
-			    "enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
+			    "ia_css_frame_allocate_contiguous() enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
 			    width, height, format, padded_width, raw_bit_depth);
 
 	err = frame_allocate_with_data(frame, width, height, format,
@@ -802,9 +801,9 @@ static enum ia_css_err frame_allocate_buffer_data(struct ia_css_frame *frame)
 	IA_CSS_ENTER_LEAVE_PRIVATE("frame->data_bytes=%d\n", frame->data_bytes);
 #endif
 	frame->data = hmm_alloc(frame->data_bytes,
-			        HMM_BO_PRIVATE, 0, NULL,
-			        frame->contiguous ?
-			        ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
+				HMM_BO_PRIVATE, 0, NULL,
+				frame->contiguous ?
+				ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
 
 	if (frame->data == mmgr_NULL)
 		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;

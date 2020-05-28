@@ -106,6 +106,7 @@ static const hrt_address IRQ_BASE[N_IRQ_ID] = {
 	(hrt_address)0x000000000008C000ULL,
 	(hrt_address)0x0000000000090200ULL
 };
+
 /*
 	(hrt_address)0x0000000000000500ULL};
  */
@@ -161,6 +162,7 @@ static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 	(hrt_address)0x0000000000080000ULL
 };
+
 /*	(hrt_address)0x0000000000081000ULL, */ /* capture A */
 /*	(hrt_address)0x0000000000082000ULL, */ /* capture B */
 /*	(hrt_address)0x0000000000083000ULL, */ /* capture C */
@@ -247,6 +249,7 @@ static const hrt_address IRQ_BASE[N_IRQ_ID] = {
 	(hrt_address)0x0008C000UL,
 	(hrt_address)0x00090200UL
 };
+
 /*
 	(hrt_address)0x00000500UL};
  */
@@ -297,12 +300,14 @@ static const hrt_address INPUT_FORMATTER_BASE[N_INPUT_FORMATTER_ID] = {
 	(hrt_address)0x00030200UL,
 	(hrt_address)0x00030400UL
 };
+
 /*	(hrt_address)0x00030600UL, */ /* memcpy() */
 
 /* INPUT_SYSTEM */
 static const hrt_address INPUT_SYSTEM_BASE[N_INPUT_SYSTEM_ID] = {
 	(hrt_address)0x00080000UL
 };
+
 /*	(hrt_address)0x00081000UL, */ /* capture A */
 /*	(hrt_address)0x00082000UL, */ /* capture B */
 /*	(hrt_address)0x00083000UL, */ /* capture C */

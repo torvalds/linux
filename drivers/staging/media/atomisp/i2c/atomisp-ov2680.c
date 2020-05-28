@@ -703,7 +703,7 @@ static int power_ctrl(struct v4l2_subdev *sd, bool flag)
 	if (!dev || !dev->platform_data)
 		return -ENODEV;
 
-	dev_dbg(&client->dev, "%s: %s", __func__, flag? "on" : "off");
+	dev_dbg(&client->dev, "%s: %s", __func__, flag ? "on" : "off");
 
 	if (flag) {
 		ret |= dev->platform_data->v1p8_ctrl(sd, 1);

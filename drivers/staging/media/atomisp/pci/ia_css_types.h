@@ -306,7 +306,6 @@ struct ia_css_shading_info {
 			u32 bayer_scale_ver_ratio_in;
 			u32 bayer_scale_ver_ratio_out;
 
-
 			/** Vertical ratio of bayer scaling
 			between input height and output height, for the scaling
 			which should be done before shading correction.

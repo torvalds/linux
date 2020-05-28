@@ -22,7 +22,6 @@
 #define __INLINE_ISP__
 #include "isp.h"
 
-
 #include "assert_support.h"
 
 STORAGE_CLASS_DEBUG_C bool is_debug_buffer_empty(void)

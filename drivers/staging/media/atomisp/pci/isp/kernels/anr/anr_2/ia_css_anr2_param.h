@@ -21,7 +21,7 @@
 /* Advanced Noise Reduction (ANR) thresholds */
 
 struct ia_css_isp_anr2_params {
-	VMEM_ARRAY(data, ANR_PARAM_SIZE *ISP_VEC_NELEMS);
+	VMEM_ARRAY(data, ANR_PARAM_SIZE * ISP_VEC_NELEMS);
 };
 
 #endif /* __IA_CSS_ANR2_PARAM_H */

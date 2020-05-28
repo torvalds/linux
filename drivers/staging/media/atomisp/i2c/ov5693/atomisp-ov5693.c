@@ -1087,7 +1087,7 @@ static int ov5693_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_VCM_SLEW:
 		ret = ov5693_t_vcm_slew(&dev->sd, ctrl->val);
 		break;
-	case V4L2_CID_VCM_TIMEING:
+	case V4L2_CID_VCM_TIMING:
 		ret = ov5693_t_vcm_timing(&dev->sd, ctrl->val);
 		break;
 	default:
@@ -1230,7 +1230,7 @@ static const struct v4l2_ctrl_config ov5693_controls[] = {
 	},
 	{
 		.ops = &ctrl_ops,
-		.id = V4L2_CID_VCM_TIMEING,
+		.id = V4L2_CID_VCM_TIMING,
 		.type = V4L2_CTRL_TYPE_INTEGER,
 		.name = "vcm step time",
 		.min = 0,

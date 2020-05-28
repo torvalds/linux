@@ -479,7 +479,6 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	if (i >= MAX_SUBDEVS)
 		return NULL;
 
-
 	if (power) {
 		gmin_subdevs[i].pwm_i2c_addr = power->addr;
 		dev_info(dev,
@@ -616,6 +615,7 @@ static int axp_regulator_set(struct device *dev, struct gmin_subdev *gs,
 static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 {
 	int ret;
+
 	ret = axp_regulator_set(dev, gs, gs->eldo2_sel_reg, gs->eldo2_1p8v,
 				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, true);
 	if (ret)
@@ -640,6 +640,7 @@ static int axp_v1p8_on(struct device *dev, struct gmin_subdev *gs)
 static int axp_v1p8_off(struct device *dev, struct gmin_subdev *gs)
 {
 	int ret;
+
 	ret = axp_regulator_set(dev, gs, gs->eldo1_sel_reg, gs->eldo1_1p8v,
 				ELDO_CTRL_REG, gs->eldo1_ctrl_shift, false);
 	if (ret)
@@ -649,7 +650,6 @@ static int axp_v1p8_off(struct device *dev, struct gmin_subdev *gs)
 				ELDO_CTRL_REG, gs->eldo2_ctrl_shift, false);
 	return ret;
 }
-
 
 static int gmin_gpio0_ctrl(struct v4l2_subdev *subdev, int on)
 {
@@ -752,7 +752,6 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 	default:
 		dev_err(subdev->dev, "Couldn't set power mode for v1p2\n");
 	}
-
 
 	return -EINVAL;
 }

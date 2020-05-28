@@ -171,7 +171,6 @@ enum TRACE_DUMP_FORMAT {
 #define TRACE_ISP_DATA_SIZE   (TRACE_ISP_SIZE - TRACE_ISP_HEADER_SIZE)
 #define TRACE_ISP_MAX_POINTS  (TRACE_ISP_DATA_SIZE / TRACE_ISP_ITEM_SIZE)
 
-
 /* common majors */
 /* SP0 */
 #define MAJOR_MAIN              1

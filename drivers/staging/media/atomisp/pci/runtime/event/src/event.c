@@ -29,7 +29,6 @@
 
 /*#include "sp.h"*/	/* host2sp_enqueue_frame_data() */
 
-
 #include "assert_support.h"
 #include "platform_support.h"	/* hrt_sleep() */
 

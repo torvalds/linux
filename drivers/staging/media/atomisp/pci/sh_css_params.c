@@ -4249,12 +4249,16 @@ sh_css_params_write_to_ddr_internal(
 	{
 		unsigned int i;
 		ia_css_ptr *virt_addr_tetra_x[
+
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 		size_t *virt_size_tetra_x[
+
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 		ia_css_ptr *virt_addr_tetra_y[
+
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 		size_t *virt_size_tetra_y[
+
 		IA_CSS_MORPH_TABLE_NUM_PLANES];
 
 		virt_addr_tetra_x[0] = &ddr_map->tetra_r_x;
@@ -4565,7 +4569,7 @@ free_ia_css_isp_parameter_set_info(
 	enum ia_css_err err = IA_CSS_SUCCESS;
 	struct ia_css_isp_parameter_set_info isp_params_info;
 	unsigned int i;
-	ia_css_ptr *addrs = (ia_css_ptr *) &isp_params_info.mem_map;
+	ia_css_ptr *addrs = (ia_css_ptr *)&isp_params_info.mem_map;
 
 	IA_CSS_ENTER_PRIVATE("ptr = %u", ptr);
 

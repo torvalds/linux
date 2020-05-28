@@ -177,7 +177,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 #define SH_CSS_MORPH_TABLE_ELEMS_PER_DDR_WORD \
 	(HIVE_ISP_DDR_WORD_BYTES / SH_CSS_MORPH_TABLE_ELEM_BYTES)
 
-
 #define ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR   (SH_CSS_MAX_BQ_GRID_WIDTH + 1)
 #define ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR   (SH_CSS_MAX_BQ_GRID_HEIGHT + 1)
 
@@ -275,7 +274,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + \
 	SH_CSS_SCTBL_CENTERING_MARGIN + SH_CSS_SCTBL_LAST_GRID_COUNT)
 
-
 /* ISP2401: Legacy API: Number of horizontal grids per color in the shading table. */
 #define _ISP_SCTBL_LEGACY_WIDTH_PER_COLOR(input_width, deci_factor_log2) \
 	(ISP_BQ_GRID_WIDTH(input_width, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
@@ -283,7 +281,6 @@ RGB[0,8191],coef[-8192,8191] -> RGB[0,8191]
 /* ISP2401: Legacy API: Number of vertical grids per color in the shading table. */
 #define _ISP_SCTBL_LEGACY_HEIGHT(input_height, deci_factor_log2) \
 	(ISP_BQ_GRID_HEIGHT(input_height, deci_factor_log2) + SH_CSS_SCTBL_LAST_GRID_COUNT)
-
 
 /* *****************************************************************
  * Statistics for 3A (Auto Focus, Auto White Balance, Auto Exposure)

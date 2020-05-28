@@ -502,7 +502,7 @@ ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
  */
 enum ia_css_err
 ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
-				      uint32_t fw_handle,
+				      u32 fw_handle,
 				      struct ia_css_isp_param_css_segments *css_seg,
 				      struct ia_css_isp_param_isp_segments *isp_seg);
 

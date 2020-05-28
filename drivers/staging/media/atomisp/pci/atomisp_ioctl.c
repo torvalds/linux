@@ -1563,7 +1563,7 @@ int atomisp_stream_on_master_slave_sensor(struct atomisp_device *isp,
 
 /* FIXME! ISP2400 */
 static void __wdt_on_master_slave_sensor(struct atomisp_device *isp,
-				         unsigned int wdt_duration)
+					 unsigned int wdt_duration)
 {
 	if (atomisp_buffers_queued(&isp->asd[0]))
 		atomisp_wdt_refresh(&isp->asd[0], wdt_duration);
@@ -2467,7 +2467,6 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	int i;
 	int ret = 0;
 
-
 	if (!atomisp_hw_is_isp2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
@@ -2484,7 +2483,7 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 		case V4L2_CID_EXPOSURE_METERING:
 		case V4L2_CID_IRIS_ABSOLUTE:
 		case V4L2_CID_FNUMBER_ABSOLUTE:
-		case V4L2_CID_VCM_TIMEING:
+		case V4L2_CID_VCM_TIMING:
 		case V4L2_CID_VCM_SLEW:
 		case V4L2_CID_3A_LOCK:
 		case V4L2_CID_TEST_PATTERN:

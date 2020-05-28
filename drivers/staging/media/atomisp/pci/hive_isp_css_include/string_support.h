@@ -161,5 +161,4 @@ static inline int strcpy_s(
 	return 0;
 }
 
-
 #endif /* __STRING_SUPPORT_H_INCLUDED__ */

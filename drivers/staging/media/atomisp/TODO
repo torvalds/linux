@@ -173,8 +173,8 @@ Limitations
    device but can also be extracted from the upgrade kit if you've managed
    to lose them somehow.
 
-2. Without a 3A libary the capture behaviour is not very good. To take a good
-   picture, you need tune ISP parameters by IOCTL functions or use a 3A libary
+2. Without a 3A library the capture behaviour is not very good. To take a good
+   picture, you need tune ISP parameters by IOCTL functions or use a 3A library
    such as libxcam.
 
 3. The driver is intended to drive the PCI exposed versions of the device.

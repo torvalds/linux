@@ -6005,10 +6005,9 @@ done:
 				 output_info.padded_width, 8);
 		pipe->pix.sizeimage =
 		    PAGE_ALIGN(f->fmt.pix.height * pipe->pix.bytesperline);
-
 	}
 	dev_dbg(isp->dev, "%s: image size: %d, %d bytes per line\n",
-		__func__, pipe->pix.sizeimage,pipe-> pix.bytesperline);
+		__func__, pipe->pix.sizeimage, pipe->pix.bytesperline);
 
 	if (f->fmt.pix.field == V4L2_FIELD_ANY)
 		f->fmt.pix.field = V4L2_FIELD_NONE;

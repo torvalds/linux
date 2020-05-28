@@ -46,6 +46,7 @@ struct isys2401_dma_port_cfg_s {
 	u32 cropping;
 	u32 width;
 };
+
 /* end of DMA Port */
 
 /************************************************

@@ -1274,7 +1274,7 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* VCM slew control */
 #define V4L2_CID_VCM_SLEW                  (V4L2_CID_CAMERA_LASTP1 + 11)
 /* VCM step time */
-#define V4L2_CID_VCM_TIMEING               (V4L2_CID_CAMERA_LASTP1 + 12)
+#define V4L2_CID_VCM_TIMING                (V4L2_CID_CAMERA_LASTP1 + 12)
 
 /* Query Focus Status */
 #define V4L2_CID_FOCUS_STATUS              (V4L2_CID_CAMERA_LASTP1 + 14)
