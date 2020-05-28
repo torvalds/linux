@@ -506,13 +506,23 @@ static int brcm_avs_suspend(struct cpufreq_policy *policy)
 	 * AVS co-processor, not necessarily the P-state we are running at now.
 	 * So, we get the current P-state explicitly.
 	 */
-	return brcm_avs_get_pstate(priv, &priv->pmap.state);
+	ret = brcm_avs_get_pstate(priv, &priv->pmap.state);
+	if (ret)
+		return ret;
+
+	/* This is best effort. Nothing to do if it fails. */
+	(void)__issue_avs_command(priv, AVS_CMD_S2_ENTER, 0, 0, NULL);
+
+	return 0;
 }
 
 static int brcm_avs_resume(struct cpufreq_policy *policy)
 {
 	struct private_data *priv = policy->driver_data;
 	int ret;
+
+	/* This is best effort. Nothing to do if it fails. */
+	(void)__issue_avs_command(priv, AVS_CMD_S2_EXIT, 0, 0, NULL);
 
 	ret = brcm_avs_set_pmap(priv, &priv->pmap);
 	if (ret == -EEXIST) {
