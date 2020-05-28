@@ -81,6 +81,15 @@ union ks8851_tx_hdr {
  * @vdd_reg:	Optional regulator supplying the chip
  * @vdd_io: Optional digital power supply for IO
  * @gpio: Optional reset_n gpio
+ * @lock: Bus access lock callback
+ * @unlock: Bus access unlock callback
+ * @rdreg16: 16bit register read callback
+ * @wrreg16: 16bit register write callback
+ * @rdfifo: FIFO read callback
+ * @wrfifo: FIFO write callback
+ * @start_xmit: start_xmit() implementation callback
+ * @rx_skb: rx_skb() implementation callback
+ * @flush_tx_work: flush_tx_work() implementation callback
  *
  * The @statelock is used to protect information in the structure which may
  * need to be accessed via several sources, such as the network driver layer
@@ -117,6 +126,24 @@ struct ks8851_net {
 	struct regulator	*vdd_reg;
 	struct regulator	*vdd_io;
 	int			gpio;
+
+	void			(*lock)(struct ks8851_net *ks,
+					unsigned long *flags);
+	void			(*unlock)(struct ks8851_net *ks,
+					  unsigned long *flags);
+	unsigned int		(*rdreg16)(struct ks8851_net *ks,
+					   unsigned int reg);
+	void			(*wrreg16)(struct ks8851_net *ks,
+					   unsigned int reg, unsigned int val);
+	void			(*rdfifo)(struct ks8851_net *ks, u8 *buff,
+					  unsigned int len);
+	void			(*wrfifo)(struct ks8851_net *ks,
+					  struct sk_buff *txp, bool irq);
+	netdev_tx_t		(*start_xmit)(struct sk_buff *skb,
+					      struct net_device *dev);
+	void			(*rx_skb)(struct ks8851_net *ks,
+					  struct sk_buff *skb);
+	void			(*flush_tx_work)(struct ks8851_net *ks);
 };
 
 /**
@@ -161,6 +188,34 @@ static int msg_enable;
 #define MK_OP(_byteen, _reg) (BYTE_EN(_byteen) | (_reg)  << (8+2) | (_reg) >> 6)
 
 /**
+ * ks8851_lock_spi - register access lock for SPI
+ * @ks: The chip state
+ * @flags: Spinlock flags
+ *
+ * Claim chip register access lock
+ */
+static void ks8851_lock_spi(struct ks8851_net *ks, unsigned long *flags)
+{
+	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
+
+	mutex_lock(&kss->lock);
+}
+
+/**
+ * ks8851_unlock_spi - register access unlock for SPI
+ * @ks: The chip state
+ * @flags: Spinlock flags
+ *
+ * Release chip register access lock
+ */
+static void ks8851_unlock_spi(struct ks8851_net *ks, unsigned long *flags)
+{
+	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
+
+	mutex_unlock(&kss->lock);
+}
+
+/**
  * ks8851_lock - register access lock
  * @ks: The chip state
  * @flags: Spinlock flags
@@ -169,9 +224,7 @@ static int msg_enable;
  */
 static void ks8851_lock(struct ks8851_net *ks, unsigned long *flags)
 {
-	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
-
-	mutex_lock(&kss->lock);
+	ks->lock(ks, flags);
 }
 
 /**
@@ -183,9 +236,7 @@ static void ks8851_lock(struct ks8851_net *ks, unsigned long *flags)
  */
 static void ks8851_unlock(struct ks8851_net *ks, unsigned long *flags)
 {
-	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
-
-	mutex_unlock(&kss->lock);
+	ks->unlock(ks, flags);
 }
 
 /* SPI register read/write calls.
@@ -196,14 +247,15 @@ static void ks8851_unlock(struct ks8851_net *ks, unsigned long *flags)
  */
 
 /**
- * ks8851_wrreg16 - write 16bit register value to chip
+ * ks8851_wrreg16_spi - write 16bit register value to chip via SPI
  * @ks: The chip state
  * @reg: The register address
  * @val: The value to write
  *
  * Issue a write to put the value @val into the register specified in @reg.
  */
-static void ks8851_wrreg16(struct ks8851_net *ks, unsigned reg, unsigned val)
+static void ks8851_wrreg16_spi(struct ks8851_net *ks, unsigned int reg,
+			       unsigned int val)
 {
 	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
 	struct spi_transfer *xfer = &kss->spi_xfer1;
@@ -221,6 +273,20 @@ static void ks8851_wrreg16(struct ks8851_net *ks, unsigned reg, unsigned val)
 	ret = spi_sync(kss->spidev, msg);
 	if (ret < 0)
 		netdev_err(ks->netdev, "spi_sync() failed\n");
+}
+
+/**
+ * ks8851_wrreg16 - write 16bit register value to chip
+ * @ks: The chip state
+ * @reg: The register address
+ * @val: The value to write
+ *
+ * Issue a write to put the value @val into the register specified in @reg.
+ */
+static void ks8851_wrreg16(struct ks8851_net *ks, unsigned int reg,
+			   unsigned int val)
+{
+	ks->wrreg16(ks, reg, val);
 }
 
 /**
@@ -276,18 +342,32 @@ static void ks8851_rdreg(struct ks8851_net *ks, unsigned op,
 }
 
 /**
- * ks8851_rdreg16 - read 16 bit register from device
+ * ks8851_rdreg16_spi - read 16 bit register from device via SPI
  * @ks: The chip information
  * @reg: The register address
  *
  * Read a 16bit register from the chip, returning the result
 */
-static unsigned ks8851_rdreg16(struct ks8851_net *ks, unsigned reg)
+static unsigned int ks8851_rdreg16_spi(struct ks8851_net *ks,
+				       unsigned int reg)
 {
 	__le16 rx = 0;
 
 	ks8851_rdreg(ks, MK_OP(reg & 2 ? 0xC : 0x3, reg), (u8 *)&rx, 2);
 	return le16_to_cpu(rx);
+}
+
+/**
+ * ks8851_rdreg16 - read 16 bit register from device
+ * @ks: The chip information
+ * @reg: The register address
+ *
+ * Read a 16bit register from the chip, returning the result
+ */
+static unsigned int ks8851_rdreg16(struct ks8851_net *ks,
+				   unsigned int reg)
+{
+	return ks->rdreg16(ks, reg);
 }
 
 /**
@@ -429,7 +509,7 @@ static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
 }
 
 /**
- * ks8851_rdfifo - read data from the receive fifo
+ * ks8851_rdfifo_spi - read data from the receive fifo via SPI
  * @ks: The device state.
  * @buff: The buffer address
  * @len: The length of the data to read
@@ -437,7 +517,8 @@ static void ks8851_init_mac(struct ks8851_net *ks, struct device_node *np)
  * Issue an RXQ FIFO read command and read the @len amount of data from
  * the FIFO into the buffer specified by @buff.
  */
-static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
+static void ks8851_rdfifo_spi(struct ks8851_net *ks, u8 *buff,
+			      unsigned int len)
 {
 	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
 	struct spi_transfer *xfer = kss->spi_xfer2;
@@ -482,12 +563,23 @@ static void ks8851_dbg_dumpkkt(struct ks8851_net *ks, u8 *rxpkt)
 }
 
 /**
- * ks8851_rx_skb - receive skbuff
+ * ks8851_rx_skb_spi - receive skbuff for SPI
+ * @ks: The device state
  * @skb: The skbuff
  */
-static void ks8851_rx_skb(struct sk_buff *skb)
+static void ks8851_rx_skb_spi(struct ks8851_net *ks, struct sk_buff *skb)
 {
 	netif_rx_ni(skb);
+}
+
+/**
+ * ks8851_rx_skb - receive skbuff
+ * @ks: The device state
+ * @skb: The skbuff
+ */
+static void ks8851_rx_skb(struct ks8851_net *ks, struct sk_buff *skb)
+{
+	ks->rx_skb(ks, skb);
 }
 
 /**
@@ -552,13 +644,13 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 
 				rxpkt = skb_put(skb, rxlen) - 8;
 
-				ks8851_rdfifo(ks, rxpkt, rxalign + 8);
+				ks->rdfifo(ks, rxpkt, rxalign + 8);
 
 				if (netif_msg_pktdata(ks))
 					ks8851_dbg_dumpkkt(ks, rxpkt);
 
 				skb->protocol = eth_type_trans(skb, ks->netdev);
-				ks8851_rx_skb(skb);
+				ks8851_rx_skb(ks, skb);
 
 				ks->netdev->stats.rx_packets++;
 				ks->netdev->stats.rx_bytes += rxlen;
@@ -682,7 +774,7 @@ static inline unsigned calc_txlen(unsigned len)
 }
 
 /**
- * ks8851_wrpkt - write packet to TX FIFO
+ * ks8851_wrpkt_spi - write packet to TX FIFO via SPI
  * @ks: The device state.
  * @txp: The sk_buff to transmit.
  * @irq: IRQ on completion of the packet.
@@ -692,7 +784,8 @@ static inline unsigned calc_txlen(unsigned len)
  * needs, such as IRQ on completion. Send the header and the packet data to
  * the device.
  */
-static void ks8851_wrpkt(struct ks8851_net *ks, struct sk_buff *txp, bool irq)
+static void ks8851_wrpkt_spi(struct ks8851_net *ks, struct sk_buff *txp,
+			     bool irq)
 {
 	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
 	struct spi_transfer *xfer = kss->spi_xfer2;
@@ -770,7 +863,7 @@ static void ks8851_tx_work(struct work_struct *work)
 
 		if (txb != NULL) {
 			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
-			ks8851_wrpkt(ks, txb, last);
+			ks->wrfifo(ks, txb, last);
 			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
 			ks8851_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
 
@@ -782,14 +875,24 @@ static void ks8851_tx_work(struct work_struct *work)
 }
 
 /**
+ * ks8851_flush_tx_work_spi - flush outstanding TX work for SPI
+ * @ks: The device state
+ */
+static void ks8851_flush_tx_work_spi(struct ks8851_net *ks)
+{
+	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
+
+	flush_work(&kss->tx_work);
+}
+
+/**
  * ks8851_flush_tx_work - flush outstanding TX work
  * @ks: The device state
  */
 static void ks8851_flush_tx_work(struct ks8851_net *ks)
 {
-	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
-
-	flush_work(&kss->tx_work);
+	if (ks->flush_tx_work)
+		ks->flush_tx_work(ks);
 }
 
 /**
@@ -925,7 +1028,7 @@ static int ks8851_net_stop(struct net_device *dev)
 }
 
 /**
- * ks8851_start_xmit - transmit packet
+ * ks8851_start_xmit_spi - transmit packet using SPI
  * @skb: The buffer to transmit
  * @dev: The device used to transmit the packet.
  *
@@ -937,8 +1040,8 @@ static int ks8851_net_stop(struct net_device *dev)
  * and secondly so we can round up more than one packet to transmit which
  * means we can try and avoid generating too many transmit done interrupts.
  */
-static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
-				     struct net_device *dev)
+static netdev_tx_t ks8851_start_xmit_spi(struct sk_buff *skb,
+					 struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 	unsigned needed = calc_txlen(skb->len);
@@ -964,6 +1067,27 @@ static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
 	schedule_work(&kss->tx_work);
 
 	return ret;
+}
+
+/**
+ * ks8851_start_xmit - transmit packet
+ * @skb: The buffer to transmit
+ * @dev: The device used to transmit the packet.
+ *
+ * Called by the network layer to transmit the @skb. Queue the packet for
+ * the device and schedule the necessary work to transmit the packet when
+ * it is free.
+ *
+ * We do this to firstly avoid sleeping with the network device locked,
+ * and secondly so we can round up more than one packet to transmit which
+ * means we can try and avoid generating too many transmit done interrupts.
+ */
+static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
+				     struct net_device *dev)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+
+	return ks->start_xmit(skb, dev);
 }
 
 /**
@@ -1590,6 +1714,16 @@ static int ks8851_probe(struct spi_device *spi)
 	spi->bits_per_word = 8;
 
 	ks = netdev_priv(netdev);
+
+	ks->lock = ks8851_lock_spi;
+	ks->unlock = ks8851_unlock_spi;
+	ks->rdreg16 = ks8851_rdreg16_spi;
+	ks->wrreg16 = ks8851_wrreg16_spi;
+	ks->rdfifo = ks8851_rdfifo_spi;
+	ks->wrfifo = ks8851_wrpkt_spi;
+	ks->start_xmit = ks8851_start_xmit_spi;
+	ks->rx_skb = ks8851_rx_skb_spi;
+	ks->flush_tx_work = ks8851_flush_tx_work_spi;
 
 #define STD_IRQ (IRQ_LCI |	/* Link Change */	\
 		 IRQ_TXI |	/* TX done */		\
