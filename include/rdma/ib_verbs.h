@@ -1475,12 +1475,6 @@ enum ib_mr_rereg_flags {
 	IB_MR_REREG_SUPPORTED	= ((IB_MR_REREG_ACCESS << 1) - 1)
 };
 
-struct ib_fmr_attr {
-	int	max_pages;
-	int	max_maps;
-	u8	page_shift;
-};
-
 struct ib_umem;
 
 enum rdma_remove_reason {
@@ -1853,14 +1847,6 @@ struct ib_mw {
 	struct ib_uobject	*uobject;
 	u32			rkey;
 	enum ib_mw_type         type;
-};
-
-struct ib_fmr {
-	struct ib_device	*device;
-	struct ib_pd		*pd;
-	struct list_head	list;
-	u32			lkey;
-	u32			rkey;
 };
 
 /* Supported steering options */
@@ -2505,12 +2491,6 @@ struct ib_device_ops {
 	struct ib_mw *(*alloc_mw)(struct ib_pd *pd, enum ib_mw_type type,
 				  struct ib_udata *udata);
 	int (*dealloc_mw)(struct ib_mw *mw);
-	struct ib_fmr *(*alloc_fmr)(struct ib_pd *pd, int mr_access_flags,
-				    struct ib_fmr_attr *fmr_attr);
-	int (*map_phys_fmr)(struct ib_fmr *fmr, u64 *page_list, int list_len,
-			    u64 iova);
-	int (*unmap_fmr)(struct list_head *fmr_list);
-	int (*dealloc_fmr)(struct ib_fmr *fmr);
 	int (*attach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	int (*detach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	struct ib_xrcd *(*alloc_xrcd)(struct ib_device *device,
@@ -4318,45 +4298,6 @@ static inline u32 ib_inc_rkey(u32 rkey)
 	const u32 mask = 0x000000ff;
 	return ((rkey + 1) & mask) | (rkey & ~mask);
 }
-
-/**
- * ib_alloc_fmr - Allocates a unmapped fast memory region.
- * @pd: The protection domain associated with the unmapped region.
- * @mr_access_flags: Specifies the memory access rights.
- * @fmr_attr: Attributes of the unmapped region.
- *
- * A fast memory region must be mapped before it can be used as part of
- * a work request.
- */
-struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,
-			    int mr_access_flags,
-			    struct ib_fmr_attr *fmr_attr);
-
-/**
- * ib_map_phys_fmr - Maps a list of physical pages to a fast memory region.
- * @fmr: The fast memory region to associate with the pages.
- * @page_list: An array of physical pages to map to the fast memory region.
- * @list_len: The number of pages in page_list.
- * @iova: The I/O virtual address to use with the mapped region.
- */
-static inline int ib_map_phys_fmr(struct ib_fmr *fmr,
-				  u64 *page_list, int list_len,
-				  u64 iova)
-{
-	return fmr->device->ops.map_phys_fmr(fmr, page_list, list_len, iova);
-}
-
-/**
- * ib_unmap_fmr - Removes the mapping from a list of fast memory regions.
- * @fmr_list: A linked list of fast memory regions to unmap.
- */
-int ib_unmap_fmr(struct list_head *fmr_list);
-
-/**
- * ib_dealloc_fmr - Deallocates a fast memory region.
- * @fmr: The fast memory region to deallocate.
- */
-int ib_dealloc_fmr(struct ib_fmr *fmr);
 
 /**
  * ib_attach_mcast - Attaches the specified QP to a multicast group.
