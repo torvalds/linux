@@ -325,9 +325,9 @@ static ssize_t inject_error_store(struct device *dev,
 	 * Either dummy read from the unmapped address in the APB IO area
 	 * or manually set the IRQ status.
 	 */
-	if (!strncmp(data, "nodev", 5))
+	if (sysfs_streq(data, "nodev"))
 		readl(apb->res);
-	else if (!strncmp(data, "irq", 3))
+	else if (sysfs_streq(data, "irq"))
 		regmap_update_bits(apb->regs, APB_EHB_ISR, APB_EHB_ISR_PENDING,
 				   APB_EHB_ISR_PENDING);
 	else
