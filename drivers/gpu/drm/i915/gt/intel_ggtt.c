@@ -108,13 +108,32 @@ static bool needs_idle_maps(struct drm_i915_private *i915)
 
 void i915_ggtt_suspend(struct i915_ggtt *ggtt)
 {
-	struct i915_vma *vma;
+	struct i915_vma *vma, *vn;
+	int open;
 
-	list_for_each_entry(vma, &ggtt->vm.bound_list, vm_link)
+	mutex_lock(&ggtt->vm.mutex);
+
+	/* Skip rewriting PTE on VMA unbind. */
+	open = atomic_xchg(&ggtt->vm.open, 0);
+
+	list_for_each_entry_safe(vma, vn, &ggtt->vm.bound_list, vm_link) {
+		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		i915_vma_wait_for_bind(vma);
+
+		if (i915_vma_is_pinned(vma))
+			continue;
+
+		if (!i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND)) {
+			__i915_vma_evict(vma);
+			drm_mm_remove_node(&vma->node);
+		}
+	}
 
 	ggtt->vm.clear_range(&ggtt->vm, 0, ggtt->vm.total);
 	ggtt->invalidate(ggtt);
+	atomic_set(&ggtt->vm.open, open);
+
+	mutex_unlock(&ggtt->vm.mutex);
 
 	intel_gt_check_and_clear_faults(ggtt->vm.gt);
 }
