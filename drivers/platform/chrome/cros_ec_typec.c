@@ -15,10 +15,17 @@
 #include <linux/platform_device.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/typec_altmode.h>
+#include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/role.h>
 
 #define DRV_NAME "cros-ec-typec"
+
+/* Supported alt modes. */
+enum {
+	CROS_EC_ALTMODE_DP = 0,
+	CROS_EC_ALTMODE_MAX,
+};
 
 /* Per port data. */
 struct cros_typec_port {
@@ -35,6 +42,9 @@ struct cros_typec_port {
 	/* Variables keeping track of switch state. */
 	struct typec_mux_state state;
 	uint8_t mux_flags;
+
+	/* Port alt modes. */
+	struct typec_altmode p_altmode[CROS_EC_ALTMODE_MAX];
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -142,6 +152,24 @@ static void cros_unregister_ports(struct cros_typec_data *typec)
 	}
 }
 
+/*
+ * Fake the alt mode structs until we actually start registering Type C port
+ * and partner alt modes.
+ */
+static void cros_typec_register_port_altmodes(struct cros_typec_data *typec,
+					      int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	/* All PD capable CrOS devices are assumed to support DP altmode. */
+	port->p_altmode[CROS_EC_ALTMODE_DP].svid = USB_TYPEC_DP_SID;
+	port->p_altmode[CROS_EC_ALTMODE_DP].mode = USB_TYPEC_DP_MODE;
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+	port->state.data = NULL;
+}
+
 static int cros_typec_init_ports(struct cros_typec_data *typec)
 {
 	struct device *dev = typec->dev;
@@ -205,6 +233,8 @@ static int cros_typec_init_ports(struct cros_typec_data *typec)
 		if (ret)
 			dev_dbg(dev, "No switch control for port %d\n",
 				port_num);
+
+		cros_typec_register_port_altmodes(typec, port_num);
 	}
 
 	return 0;
@@ -361,8 +391,46 @@ static int cros_typec_usb_safe_state(struct cros_typec_port *port)
 	return typec_mux_set(port->mux, &port->state);
 }
 
+/* Spoof the VDOs that were likely communicated by the partner. */
+static int cros_typec_enable_dp(struct cros_typec_data *typec,
+				int port_num,
+				struct ec_response_usb_pd_control_v2 *pd_ctrl)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	struct typec_displayport_data dp_data;
+	int ret;
+
+	if (typec->pd_ctrl_ver < 2) {
+		dev_err(typec->dev,
+			"PD_CTRL version too old: %d\n", typec->pd_ctrl_ver);
+		return -ENOTSUPP;
+	}
+
+	/* Status VDO. */
+	dp_data.status = DP_STATUS_ENABLED;
+	if (port->mux_flags & USB_PD_MUX_HPD_IRQ)
+		dp_data.status |= DP_STATUS_IRQ_HPD;
+	if (port->mux_flags & USB_PD_MUX_HPD_LVL)
+		dp_data.status |= DP_STATUS_HPD_STATE;
+
+	/* Configuration VDO. */
+	dp_data.conf = DP_CONF_SET_PIN_ASSIGN(pd_ctrl->dp_mode);
+	if (!port->state.alt) {
+		port->state.alt = &port->p_altmode[CROS_EC_ALTMODE_DP];
+		ret = cros_typec_usb_safe_state(port);
+		if (ret)
+			return ret;
+	}
+
+	port->state.data = &dp_data;
+	port->state.mode = TYPEC_MODAL_STATE(ffs(pd_ctrl->dp_mode));
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
 int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
-			     uint8_t mux_flags)
+			     uint8_t mux_flags,
+			     struct ec_response_usb_pd_control_v2 *pd_ctrl)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	enum typec_orientation orientation;
@@ -380,14 +448,15 @@ int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	if (ret)
 		return ret;
 
-	port->state.alt = NULL;
-	port->state.mode = TYPEC_STATE_USB;
-
-	if (mux_flags & USB_PD_MUX_SAFE_MODE)
+	if (mux_flags & USB_PD_MUX_DP_ENABLED) {
+		ret = cros_typec_enable_dp(typec, port_num, pd_ctrl);
+	} else if (mux_flags & USB_PD_MUX_SAFE_MODE) {
 		ret = cros_typec_usb_safe_state(port);
-	else if (mux_flags & USB_PD_MUX_USB_ENABLED)
+	} else if (mux_flags & USB_PD_MUX_USB_ENABLED) {
+		port->state.alt = NULL;
+		port->state.mode = TYPEC_STATE_USB;
 		ret = typec_mux_set(port->mux, &port->state);
-	else {
+	} else {
 		dev_info(typec->dev,
 			 "Unsupported mode requested, mux flags: %x\n",
 			 mux_flags);
@@ -400,7 +469,7 @@ int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_params_usb_pd_control req;
-	struct ec_response_usb_pd_control_v1 resp;
+	struct ec_response_usb_pd_control_v2 resp;
 	struct ec_response_usb_pd_mux_info mux_resp;
 	int ret;
 
@@ -427,7 +496,8 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	dev_dbg(typec->dev, "State %d: %s\n", port_num, resp.state);
 
 	if (typec->pd_ctrl_ver != 0)
-		cros_typec_set_port_params_v1(typec, port_num, &resp);
+		cros_typec_set_port_params_v1(typec, port_num,
+			(struct ec_response_usb_pd_control_v1 *)&resp);
 	else
 		cros_typec_set_port_params_v0(typec, port_num,
 			(struct ec_response_usb_pd_control *) &resp);
@@ -446,7 +516,7 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 		return 0;
 
 	typec->ports[port_num]->mux_flags = mux_resp.flags;
-	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags);
+	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags, &resp);
 	if (ret)
 		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
 
