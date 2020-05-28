@@ -3082,7 +3082,7 @@ enum ieee80211_tdls_actioncode {
 #define WLAN_EXT_CAPA10_OBSS_NARROW_BW_RU_TOLERANCE_SUPPORT BIT(7)
 
 /* Defines support for enhanced multi-bssid advertisement*/
-#define WLAN_EXT_CAPA11_EMA_SUPPORT	BIT(1)
+#define WLAN_EXT_CAPA11_EMA_SUPPORT	BIT(3)
 
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
