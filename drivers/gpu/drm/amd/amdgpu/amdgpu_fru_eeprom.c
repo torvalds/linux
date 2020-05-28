@@ -26,6 +26,7 @@
 #include "amdgpu_i2c.h"
 #include "smu_v11_0_i2c.h"
 #include "atom.h"
+#include "amdgpu_fru_eeprom.h"
 
 #define I2C_PRODUCT_INFO_ADDR		0xAC
 #define I2C_PRODUCT_INFO_ADDR_SIZE	0x2
