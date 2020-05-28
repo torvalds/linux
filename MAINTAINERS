@@ -7249,6 +7249,12 @@ S:	Maintained
 F:	drivers/gpio/gpio-mockup.c
 F:	tools/testing/selftests/gpio/
 
+GPIO REGMAP
+R:	Michael Walle <michael@walle.cc>
+S:	Maintained
+F:	drivers/gpio/gpio-regmap.c
+F:	include/linux/gpio/regmap.h
+
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
 M:	Bartosz Golaszewski <bgolaszewski@baylibre.com>
