@@ -286,8 +286,8 @@ TRACE_EVENT(vmbus_send_tl_connect_request,
 		    __field(int, ret)
 		    ),
 	    TP_fast_assign(
-		    memcpy(__entry->guest_id, &msg->guest_endpoint_id.b, 16);
-		    memcpy(__entry->host_id, &msg->host_service_id.b, 16);
+		    export_guid(__entry->guest_id, &msg->guest_endpoint_id);
+		    export_guid(__entry->host_id, &msg->host_service_id);
 		    __entry->ret = ret;
 		    ),
 	    TP_printk("sending guest_endpoint_id %pUl, host_service_id %pUl, "

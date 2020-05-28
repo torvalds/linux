@@ -1550,9 +1550,9 @@ static int esw_create_restore_table(struct mlx5_eswitch *esw)
 					   MLX5_FLOW_NAMESPACE_KERNEL, 1,
 					   modact);
 	if (IS_ERR(mod_hdr)) {
+		err = PTR_ERR(mod_hdr);
 		esw_warn(dev, "Failed to create restore mod header, err: %d\n",
 			 err);
-		err = PTR_ERR(mod_hdr);
 		goto err_mod_hdr;
 	}
 
@@ -2219,10 +2219,12 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 		total_vports = num_vfs + MLX5_SPECIAL_VPORTS(esw->dev);
 
 	memset(&esw->fdb_table.offloads, 0, sizeof(struct offloads_fdb));
+	mutex_init(&esw->fdb_table.offloads.vports.lock);
+	hash_init(esw->fdb_table.offloads.vports.table);
 
 	err = esw_create_uplink_offloads_acl_tables(esw);
 	if (err)
-		return err;
+		goto create_acl_err;
 
 	err = esw_create_offloads_table(esw, total_vports);
 	if (err)
@@ -2240,9 +2242,6 @@ static int esw_offloads_steering_init(struct mlx5_eswitch *esw)
 	if (err)
 		goto create_fg_err;
 
-	mutex_init(&esw->fdb_table.offloads.vports.lock);
-	hash_init(esw->fdb_table.offloads.vports.table);
-
 	return 0;
 
 create_fg_err:
@@ -2253,18 +2252,19 @@ create_restore_err:
 	esw_destroy_offloads_table(esw);
 create_offloads_err:
 	esw_destroy_uplink_offloads_acl_tables(esw);
-
+create_acl_err:
+	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	return err;
 }
 
 static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 {
-	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_fdb_tables(esw);
 	esw_destroy_restore_table(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_uplink_offloads_acl_tables(esw);
+	mutex_destroy(&esw->fdb_table.offloads.vports.lock);
 }
 
 static void
@@ -2377,9 +2377,9 @@ int esw_offloads_enable(struct mlx5_eswitch *esw)
 err_vports:
 	esw_offloads_unload_rep(esw, MLX5_VPORT_UPLINK);
 err_uplink:
-	esw_set_passing_vport_metadata(esw, false);
-err_steering_init:
 	esw_offloads_steering_cleanup(esw);
+err_steering_init:
+	esw_set_passing_vport_metadata(esw, false);
 err_vport_metadata:
 	mlx5_rdma_disable_roce(esw->dev);
 	mutex_destroy(&esw->offloads.termtbl_mutex);

@@ -302,8 +302,8 @@ static void afs_vl_dump_edestaddrreq(const struct afs_vl_cursor *vc)
 				pr_notice("VC:  - nr=%u/%u/%u pf=%u\n",
 					  a->nr_ipv4, a->nr_addrs, a->max_addrs,
 					  a->preferred);
-				pr_notice("VC:  - pr=%lx R=%lx F=%lx\n",
-					  a->probed, a->responded, a->failed);
+				pr_notice("VC:  - R=%lx F=%lx\n",
+					  a->responded, a->failed);
 				if (a == vc->ac.alist)
 					pr_notice("VC:  - current\n");
 			}

@@ -1347,6 +1347,8 @@ static int vsc8584_config_init(struct phy_device *phydev)
 	else
 		vsc8531->base_addr = phydev->mdio.addr - addr;
 
+	vsc8531->addr = addr;
+
 	/* Some parts of the init sequence are identical for every PHY in the
 	 * package. Some parts are modifying the GPIO register bank which is a
 	 * set of registers that are affecting all PHYs, a few resetting the
@@ -1770,6 +1772,8 @@ static int vsc8514_config_init(struct phy_device *phydev)
 		vsc8531->base_addr = phydev->mdio.addr + addr;
 	else
 		vsc8531->base_addr = phydev->mdio.addr - addr;
+
+	vsc8531->addr = addr;
 
 	/* Some parts of the init sequence are identical for every PHY in the
 	 * package. Some parts are modifying the GPIO register bank which is a

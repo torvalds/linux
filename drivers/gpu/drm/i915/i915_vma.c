@@ -158,16 +158,18 @@ vma_create(struct drm_i915_gem_object *obj,
 
 	GEM_BUG_ON(!IS_ALIGNED(vma->size, I915_GTT_PAGE_SIZE));
 
+	spin_lock(&obj->vma.lock);
+
 	if (i915_is_ggtt(vm)) {
 		if (unlikely(overflows_type(vma->size, u32)))
-			goto err_vma;
+			goto err_unlock;
 
 		vma->fence_size = i915_gem_fence_size(vm->i915, vma->size,
 						      i915_gem_object_get_tiling(obj),
 						      i915_gem_object_get_stride(obj));
 		if (unlikely(vma->fence_size < vma->size || /* overflow */
 			     vma->fence_size > vm->total))
-			goto err_vma;
+			goto err_unlock;
 
 		GEM_BUG_ON(!IS_ALIGNED(vma->fence_size, I915_GTT_MIN_ALIGNMENT));
 
@@ -178,8 +180,6 @@ vma_create(struct drm_i915_gem_object *obj,
 
 		__set_bit(I915_VMA_GGTT_BIT, __i915_vma_flags(vma));
 	}
-
-	spin_lock(&obj->vma.lock);
 
 	rb = NULL;
 	p = &obj->vma.tree.rb_node;
@@ -225,6 +225,8 @@ vma_create(struct drm_i915_gem_object *obj,
 
 	return vma;
 
+err_unlock:
+	spin_unlock(&obj->vma.lock);
 err_vma:
 	i915_vma_free(vma);
 	return ERR_PTR(-E2BIG);
@@ -1226,18 +1228,6 @@ int __i915_vma_unbind(struct i915_vma *vma)
 
 	lockdep_assert_held(&vma->vm->mutex);
 
-	/*
-	 * First wait upon any activity as retiring the request may
-	 * have side-effects such as unpinning or even unbinding this vma.
-	 *
-	 * XXX Actually waiting under the vm->mutex is a hinderance and
-	 * should be pipelined wherever possible. In cases where that is
-	 * unavoidable, we should lift the wait to before the mutex.
-	 */
-	ret = i915_vma_sync(vma);
-	if (ret)
-		return ret;
-
 	if (i915_vma_is_pinned(vma)) {
 		vma_print_allocator(vma, "is pinned");
 		return -EAGAIN;
@@ -1311,14 +1301,19 @@ int i915_vma_unbind(struct i915_vma *vma)
 	if (!drm_mm_node_allocated(&vma->node))
 		return 0;
 
-	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
-		/* XXX not always required: nop_clear_range */
-		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
-
 	/* Optimistic wait before taking the mutex */
 	err = i915_vma_sync(vma);
 	if (err)
 		goto out_rpm;
+
+	if (i915_vma_is_pinned(vma)) {
+		vma_print_allocator(vma, "is pinned");
+		return -EAGAIN;
+	}
+
+	if (i915_vma_is_bound(vma, I915_VMA_GLOBAL_BIND))
+		/* XXX not always required: nop_clear_range */
+		wakeref = intel_runtime_pm_get(&vm->i915->runtime_pm);
 
 	err = mutex_lock_interruptible(&vm->mutex);
 	if (err)

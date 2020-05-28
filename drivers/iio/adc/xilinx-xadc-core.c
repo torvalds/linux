@@ -102,6 +102,16 @@ static const unsigned int XADC_ZYNQ_UNMASK_TIMEOUT = 500;
 
 #define XADC_FLAGS_BUFFERED BIT(0)
 
+/*
+ * The XADC hardware supports a samplerate of up to 1MSPS. Unfortunately it does
+ * not have a hardware FIFO. Which means an interrupt is generated for each
+ * conversion sequence. At 1MSPS sample rate the CPU in ZYNQ7000 is completely
+ * overloaded by the interrupts that it soft-lockups. For this reason the driver
+ * limits the maximum samplerate 150kSPS. At this rate the CPU is fairly busy,
+ * but still responsive.
+ */
+#define XADC_MAX_SAMPLERATE 150000
+
 static void xadc_write_reg(struct xadc *xadc, unsigned int reg,
 	uint32_t val)
 {
@@ -674,7 +684,7 @@ static int xadc_trigger_set_state(struct iio_trigger *trigger, bool state)
 
 	spin_lock_irqsave(&xadc->lock, flags);
 	xadc_read_reg(xadc, XADC_AXI_REG_IPIER, &val);
-	xadc_write_reg(xadc, XADC_AXI_REG_IPISR, val & XADC_AXI_INT_EOS);
+	xadc_write_reg(xadc, XADC_AXI_REG_IPISR, XADC_AXI_INT_EOS);
 	if (state)
 		val |= XADC_AXI_INT_EOS;
 	else
@@ -722,13 +732,14 @@ static int xadc_power_adc_b(struct xadc *xadc, unsigned int seq_mode)
 {
 	uint16_t val;
 
+	/* Powerdown the ADC-B when it is not needed. */
 	switch (seq_mode) {
 	case XADC_CONF1_SEQ_SIMULTANEOUS:
 	case XADC_CONF1_SEQ_INDEPENDENT:
-		val = XADC_CONF2_PD_ADC_B;
+		val = 0;
 		break;
 	default:
-		val = 0;
+		val = XADC_CONF2_PD_ADC_B;
 		break;
 	}
 
@@ -797,6 +808,16 @@ static int xadc_preenable(struct iio_dev *indio_dev)
 	if (ret)
 		goto err;
 
+	/*
+	 * In simultaneous mode the upper and lower aux channels are samples at
+	 * the same time. In this mode the upper 8 bits in the sequencer
+	 * register are don't care and the lower 8 bits control two channels
+	 * each. As such we must set the bit if either the channel in the lower
+	 * group or the upper group is enabled.
+	 */
+	if (seq_mode == XADC_CONF1_SEQ_SIMULTANEOUS)
+		scan_mask = ((scan_mask >> 8) | scan_mask) & 0xff0000;
+
 	ret = xadc_write_adc_reg(xadc, XADC_REG_SEQ(1), scan_mask >> 16);
 	if (ret)
 		goto err;
@@ -823,11 +844,27 @@ static const struct iio_buffer_setup_ops xadc_buffer_ops = {
 	.postdisable = &xadc_postdisable,
 };
 
+static int xadc_read_samplerate(struct xadc *xadc)
+{
+	unsigned int div;
+	uint16_t val16;
+	int ret;
+
+	ret = xadc_read_adc_reg(xadc, XADC_REG_CONF2, &val16);
+	if (ret)
+		return ret;
+
+	div = (val16 & XADC_CONF2_DIV_MASK) >> XADC_CONF2_DIV_OFFSET;
+	if (div < 2)
+		div = 2;
+
+	return xadc_get_dclk_rate(xadc) / div / 26;
+}
+
 static int xadc_read_raw(struct iio_dev *indio_dev,
 	struct iio_chan_spec const *chan, int *val, int *val2, long info)
 {
 	struct xadc *xadc = iio_priv(indio_dev);
-	unsigned int div;
 	uint16_t val16;
 	int ret;
 
@@ -880,41 +917,31 @@ static int xadc_read_raw(struct iio_dev *indio_dev,
 		*val = -((273150 << 12) / 503975);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		ret = xadc_read_adc_reg(xadc, XADC_REG_CONF2, &val16);
-		if (ret)
+		ret = xadc_read_samplerate(xadc);
+		if (ret < 0)
 			return ret;
 
-		div = (val16 & XADC_CONF2_DIV_MASK) >> XADC_CONF2_DIV_OFFSET;
-		if (div < 2)
-			div = 2;
-
-		*val = xadc_get_dclk_rate(xadc) / div / 26;
-
+		*val = ret;
 		return IIO_VAL_INT;
 	default:
 		return -EINVAL;
 	}
 }
 
-static int xadc_write_raw(struct iio_dev *indio_dev,
-	struct iio_chan_spec const *chan, int val, int val2, long info)
+static int xadc_write_samplerate(struct xadc *xadc, int val)
 {
-	struct xadc *xadc = iio_priv(indio_dev);
 	unsigned long clk_rate = xadc_get_dclk_rate(xadc);
 	unsigned int div;
 
 	if (!clk_rate)
 		return -EINVAL;
 
-	if (info != IIO_CHAN_INFO_SAMP_FREQ)
-		return -EINVAL;
-
 	if (val <= 0)
 		return -EINVAL;
 
 	/* Max. 150 kSPS */
-	if (val > 150000)
-		val = 150000;
+	if (val > XADC_MAX_SAMPLERATE)
+		val = XADC_MAX_SAMPLERATE;
 
 	val *= 26;
 
@@ -927,7 +954,7 @@ static int xadc_write_raw(struct iio_dev *indio_dev,
 	 * limit.
 	 */
 	div = clk_rate / val;
-	if (clk_rate / div / 26 > 150000)
+	if (clk_rate / div / 26 > XADC_MAX_SAMPLERATE)
 		div++;
 	if (div < 2)
 		div = 2;
@@ -936,6 +963,17 @@ static int xadc_write_raw(struct iio_dev *indio_dev,
 
 	return xadc_update_adc_reg(xadc, XADC_REG_CONF2, XADC_CONF2_DIV_MASK,
 		div << XADC_CONF2_DIV_OFFSET);
+}
+
+static int xadc_write_raw(struct iio_dev *indio_dev,
+	struct iio_chan_spec const *chan, int val, int val2, long info)
+{
+	struct xadc *xadc = iio_priv(indio_dev);
+
+	if (info != IIO_CHAN_INFO_SAMP_FREQ)
+		return -EINVAL;
+
+	return xadc_write_samplerate(xadc, val);
 }
 
 static const struct iio_event_spec xadc_temp_events[] = {
@@ -1222,6 +1260,21 @@ static int xadc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(xadc->clk);
 	if (ret)
 		goto err_free_samplerate_trigger;
+
+	/*
+	 * Make sure not to exceed the maximum samplerate since otherwise the
+	 * resulting interrupt storm will soft-lock the system.
+	 */
+	if (xadc->ops->flags & XADC_FLAGS_BUFFERED) {
+		ret = xadc_read_samplerate(xadc);
+		if (ret < 0)
+			goto err_free_samplerate_trigger;
+		if (ret > XADC_MAX_SAMPLERATE) {
+			ret = xadc_write_samplerate(xadc, XADC_MAX_SAMPLERATE);
+			if (ret < 0)
+				goto err_free_samplerate_trigger;
+		}
+	}
 
 	ret = request_irq(xadc->irq, xadc->ops->interrupt_handler, 0,
 			dev_name(&pdev->dev), indio_dev);

@@ -125,10 +125,10 @@
 #define AD7193_CH_AINCOM	0x600 /* AINCOM - AINCOM */
 
 /* ID Register Bit Designations (AD7192_REG_ID) */
-#define ID_AD7190		0x4
-#define ID_AD7192		0x0
-#define ID_AD7193		0x2
-#define ID_AD7195		0x6
+#define CHIPID_AD7190		0x4
+#define CHIPID_AD7192		0x0
+#define CHIPID_AD7193		0x2
+#define CHIPID_AD7195		0x6
 #define AD7192_ID_MASK		0x0F
 
 /* GPOCON Register Bit Designations (AD7192_REG_GPOCON) */
@@ -161,7 +161,20 @@ enum {
 	AD7192_SYSCALIB_FULL_SCALE,
 };
 
+enum {
+	ID_AD7190,
+	ID_AD7192,
+	ID_AD7193,
+	ID_AD7195,
+};
+
+struct ad7192_chip_info {
+	unsigned int			chip_id;
+	const char			*name;
+};
+
 struct ad7192_state {
+	const struct ad7192_chip_info	*chip_info;
 	struct regulator		*avdd;
 	struct regulator		*dvdd;
 	struct clk			*mclk;
@@ -172,7 +185,6 @@ struct ad7192_state {
 	u32				conf;
 	u32				scale_avail[8][2];
 	u8				gpocon;
-	u8				devid;
 	u8				clock_sel;
 	struct mutex			lock;	/* protect sensor state */
 	u8				syscalib_mode[8];
@@ -348,7 +360,7 @@ static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
 
 	id &= AD7192_ID_MASK;
 
-	if (id != st->devid)
+	if (id != st->chip_info->chip_id)
 		dev_warn(&st->sd.spi->dev, "device ID query failed (0x%X)\n",
 			 id);
 
@@ -363,7 +375,7 @@ static int ad7192_setup(struct ad7192_state *st, struct device_node *np)
 		st->mode |= AD7192_MODE_REJ60;
 
 	refin2_en = of_property_read_bool(np, "adi,refin2-pins-enable");
-	if (refin2_en && st->devid != ID_AD7195)
+	if (refin2_en && st->chip_info->chip_id != CHIPID_AD7195)
 		st->conf |= AD7192_CONF_REFSEL;
 
 	st->conf &= ~AD7192_CONF_CHOP;
@@ -859,12 +871,31 @@ static const struct iio_chan_spec ad7193_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(14),
 };
 
+static const struct ad7192_chip_info ad7192_chip_info_tbl[] = {
+	[ID_AD7190] = {
+		.chip_id = CHIPID_AD7190,
+		.name = "ad7190",
+	},
+	[ID_AD7192] = {
+		.chip_id = CHIPID_AD7192,
+		.name = "ad7192",
+	},
+	[ID_AD7193] = {
+		.chip_id = CHIPID_AD7193,
+		.name = "ad7193",
+	},
+	[ID_AD7195] = {
+		.chip_id = CHIPID_AD7195,
+		.name = "ad7195",
+	},
+};
+
 static int ad7192_channels_config(struct iio_dev *indio_dev)
 {
 	struct ad7192_state *st = iio_priv(indio_dev);
 
-	switch (st->devid) {
-	case ID_AD7193:
+	switch (st->chip_info->chip_id) {
+	case CHIPID_AD7193:
 		indio_dev->channels = ad7193_channels;
 		indio_dev->num_channels = ARRAY_SIZE(ad7193_channels);
 		break;
@@ -878,10 +909,10 @@ static int ad7192_channels_config(struct iio_dev *indio_dev)
 }
 
 static const struct of_device_id ad7192_of_match[] = {
-	{ .compatible = "adi,ad7190", .data = (void *)ID_AD7190 },
-	{ .compatible = "adi,ad7192", .data = (void *)ID_AD7192 },
-	{ .compatible = "adi,ad7193", .data = (void *)ID_AD7193 },
-	{ .compatible = "adi,ad7195", .data = (void *)ID_AD7195 },
+	{ .compatible = "adi,ad7190", .data = &ad7192_chip_info_tbl[ID_AD7190] },
+	{ .compatible = "adi,ad7192", .data = &ad7192_chip_info_tbl[ID_AD7192] },
+	{ .compatible = "adi,ad7193", .data = &ad7192_chip_info_tbl[ID_AD7193] },
+	{ .compatible = "adi,ad7195", .data = &ad7192_chip_info_tbl[ID_AD7195] },
 	{}
 };
 MODULE_DEVICE_TABLE(of, ad7192_of_match);
@@ -938,16 +969,16 @@ static int ad7192_probe(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, indio_dev);
-	st->devid = (unsigned long)of_device_get_match_data(&spi->dev);
+	st->chip_info = of_device_get_match_data(&spi->dev);
 	indio_dev->dev.parent = &spi->dev;
-	indio_dev->name = spi_get_device_id(spi)->name;
+	indio_dev->name = st->chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = ad7192_channels_config(indio_dev);
 	if (ret < 0)
 		goto error_disable_dvdd;
 
-	if (st->devid == ID_AD7195)
+	if (st->chip_info->chip_id == CHIPID_AD7195)
 		indio_dev->info = &ad7195_info;
 	else
 		indio_dev->info = &ad7192_info;

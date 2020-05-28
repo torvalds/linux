@@ -26,6 +26,9 @@
 #define   SDHCI_GLI_9750_DRIVING_2    GENMASK(27, 26)
 #define   GLI_9750_DRIVING_1_VALUE    0xFFF
 #define   GLI_9750_DRIVING_2_VALUE    0x3
+#define   SDHCI_GLI_9750_SEL_1        BIT(29)
+#define   SDHCI_GLI_9750_SEL_2        BIT(31)
+#define   SDHCI_GLI_9750_ALL_RST      (BIT(24)|BIT(25)|BIT(28)|BIT(30))
 
 #define SDHCI_GLI_9750_PLL	      0x864
 #define   SDHCI_GLI_9750_PLL_TX2_INV    BIT(23)
@@ -122,6 +125,8 @@ static void gli_set_9750(struct sdhci_host *host)
 				    GLI_9750_DRIVING_1_VALUE);
 	driving_value |= FIELD_PREP(SDHCI_GLI_9750_DRIVING_2,
 				    GLI_9750_DRIVING_2_VALUE);
+	driving_value &= ~(SDHCI_GLI_9750_SEL_1|SDHCI_GLI_9750_SEL_2|SDHCI_GLI_9750_ALL_RST);
+	driving_value |= SDHCI_GLI_9750_SEL_2;
 	sdhci_writel(host, driving_value, SDHCI_GLI_9750_DRIVING);
 
 	sw_ctrl_value &= ~SDHCI_GLI_9750_SW_CTRL_4;
@@ -334,6 +339,18 @@ static u32 sdhci_gl9750_readl(struct sdhci_host *host, int reg)
 	return value;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int sdhci_pci_gli_resume(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+
+	pci_free_irq_vectors(slot->chip->pdev);
+	gli_pcie_enable_msi(slot);
+
+	return sdhci_pci_resume_host(chip);
+}
+#endif
+
 static const struct sdhci_ops sdhci_gl9755_ops = {
 	.set_clock		= sdhci_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
@@ -348,6 +365,9 @@ const struct sdhci_pci_fixes sdhci_gl9755 = {
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9755,
 	.ops            = &sdhci_gl9755_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
 };
 
 static const struct sdhci_ops sdhci_gl9750_ops = {
@@ -366,4 +386,7 @@ const struct sdhci_pci_fixes sdhci_gl9750 = {
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9750,
 	.ops            = &sdhci_gl9750_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
 };

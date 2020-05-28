@@ -38,7 +38,13 @@ struct thread_info {
 #define THREAD_SIZE_ORDER (THREAD_SHIFT - PAGE_SHIFT)
 
 #define thread_saved_fp(tsk) \
-	((unsigned long)(((struct switch_stack *)(tsk->thread.ksp))->r8))
+	((unsigned long)(((struct switch_stack *)(tsk->thread.sp))->r8))
+
+#define thread_saved_sp(tsk) \
+	((unsigned long)(tsk->thread.sp))
+
+#define thread_saved_lr(tsk) \
+	((unsigned long)(((struct switch_stack *)(tsk->thread.sp))->r15))
 
 static inline struct thread_info *current_thread_info(void)
 {
@@ -54,10 +60,10 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SIGPENDING		0	/* signal pending */
 #define TIF_NOTIFY_RESUME	1       /* callback before returning to user */
 #define TIF_NEED_RESCHED	2	/* rescheduling necessary */
-#define TIF_SYSCALL_TRACE	3	/* syscall trace active */
-#define TIF_SYSCALL_TRACEPOINT	4       /* syscall tracepoint instrumentation */
-#define TIF_SYSCALL_AUDIT	5	/* syscall auditing */
-#define TIF_UPROBE		6	/* uprobe breakpoint or singlestep */
+#define TIF_UPROBE		3	/* uprobe breakpoint or singlestep */
+#define TIF_SYSCALL_TRACE	4	/* syscall trace active */
+#define TIF_SYSCALL_TRACEPOINT	5       /* syscall tracepoint instrumentation */
+#define TIF_SYSCALL_AUDIT	6	/* syscall auditing */
 #define TIF_POLLING_NRFLAG	16	/* poll_idle() is TIF_NEED_RESCHED */
 #define TIF_MEMDIE		18      /* is terminating due to OOM killer */
 #define TIF_RESTORE_SIGMASK	20	/* restore signal mask in do_signal() */

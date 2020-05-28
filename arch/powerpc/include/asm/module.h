@@ -3,27 +3,9 @@
 #define _ASM_POWERPC_MODULE_H
 #ifdef __KERNEL__
 
-/*
- */
-
 #include <linux/list.h>
 #include <asm/bug.h>
 #include <asm-generic/module.h>
-
-
-#ifdef CONFIG_MPROFILE_KERNEL
-#define MODULE_ARCH_VERMAGIC_FTRACE	"mprofile-kernel "
-#else
-#define MODULE_ARCH_VERMAGIC_FTRACE	""
-#endif
-
-#ifdef CONFIG_RELOCATABLE
-#define MODULE_ARCH_VERMAGIC_RELOCATABLE	"relocatable "
-#else
-#define MODULE_ARCH_VERMAGIC_RELOCATABLE	""
-#endif
-
-#define MODULE_ARCH_VERMAGIC MODULE_ARCH_VERMAGIC_FTRACE MODULE_ARCH_VERMAGIC_RELOCATABLE
 
 #ifndef __powerpc64__
 /*

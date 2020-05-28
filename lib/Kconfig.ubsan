@@ -60,17 +60,14 @@ config UBSAN_SANITIZE_ALL
 	  Enabling this option will get kernel image size increased
 	  significantly.
 
-config UBSAN_NO_ALIGNMENT
-	bool "Disable checking of pointers alignment"
-	default y if HAVE_EFFICIENT_UNALIGNED_ACCESS
-	help
-	  This option disables the check of unaligned memory accesses.
-	  This option should be used when building allmodconfig.
-	  Disabling this option on architectures that support unaligned
-	  accesses may produce a lot of false positives.
-
 config UBSAN_ALIGNMENT
-	def_bool !UBSAN_NO_ALIGNMENT
+	bool "Enable checks for pointers alignment"
+	default !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	depends on !X86 || !COMPILE_TEST
+	help
+	  This option enables the check of unaligned memory accesses.
+	  Enabling this option on architectures that support unaligned
+	  accesses may produce a lot of false positives.
 
 config TEST_UBSAN
 	tristate "Module for testing for undefined behavior detection"

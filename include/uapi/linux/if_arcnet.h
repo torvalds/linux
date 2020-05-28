@@ -60,7 +60,7 @@ struct arc_rfc1201 {
 	__u8  proto;		/* protocol ID field - varies		*/
 	__u8  split_flag;	/* for use with split packets		*/
 	__be16   sequence;	/* sequence number			*/
-	__u8  payload[];	/* space remaining in packet (504 bytes)*/
+	__u8  payload[0];	/* space remaining in packet (504 bytes)*/
 };
 #define RFC1201_HDR_SIZE 4
 
@@ -69,7 +69,7 @@ struct arc_rfc1201 {
  */
 struct arc_rfc1051 {
 	__u8 proto;		/* ARC_P_RFC1051_ARP/RFC1051_IP	*/
-	__u8 payload[];	/* 507 bytes			*/
+	__u8 payload[0];	/* 507 bytes			*/
 };
 #define RFC1051_HDR_SIZE 1
 
@@ -80,7 +80,7 @@ struct arc_rfc1051 {
 struct arc_eth_encap {
 	__u8 proto;		/* Always ARC_P_ETHER			*/
 	struct ethhdr eth;	/* standard ethernet header (yuck!)	*/
-	__u8 payload[];	/* 493 bytes				*/
+	__u8 payload[0];	/* 493 bytes				*/
 };
 #define ETH_ENCAP_HDR_SIZE 14
 

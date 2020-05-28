@@ -354,6 +354,8 @@ struct vsc8531_private {
 	u64 *stats;
 	int nstats;
 	bool pkg_init;
+	/* PHY address within the package. */
+	u8 addr;
 	/* For multiple port PHYs; the MDIO address of the base PHY in the
 	 * package.
 	 */

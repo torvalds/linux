@@ -40,6 +40,7 @@ properties:
               - renesas,usbhs-r8a774c0 # RZ/G2E
               - renesas,usbhs-r8a7795  # R-Car H3
               - renesas,usbhs-r8a7796  # R-Car M3-W
+              - renesas,usbhs-r8a77961 # R-Car M3-W+
               - renesas,usbhs-r8a77965 # R-Car M3-N
               - renesas,usbhs-r8a77990 # R-Car E3
               - renesas,usbhs-r8a77995 # R-Car D3

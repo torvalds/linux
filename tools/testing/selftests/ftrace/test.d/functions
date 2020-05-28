@@ -1,3 +1,9 @@
+check_filter_file() { # check filter file introduced by dynamic ftrace
+    if [ ! -f "$1" ]; then
+        echo "$1 not found? Is dynamic ftrace not set?"
+        exit_unsupported
+    fi
+}
 
 clear_trace() { # reset trace output
     echo > trace

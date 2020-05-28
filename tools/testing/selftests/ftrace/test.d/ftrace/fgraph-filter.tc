@@ -9,6 +9,8 @@ if ! grep -q function_graph available_tracers; then
     exit_unsupported
 fi
 
+check_filter_file set_ftrace_filter
+
 fail() { # msg
     echo $1
     exit_fail

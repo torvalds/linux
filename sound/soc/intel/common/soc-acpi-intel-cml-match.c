@@ -113,14 +113,6 @@ static const struct snd_soc_acpi_adr_device rt1308_1_adr[] = {
 	}
 };
 
-static const struct snd_soc_acpi_adr_device rt1308_2_adr[] = {
-	{
-		.adr = 0x000210025D130800,
-		.num_endpoints = 1,
-		.endpoints = &single_endpoint,
-	}
-};
-
 static const struct snd_soc_acpi_adr_device rt1308_1_group1_adr[] = {
 	{
 		.adr = 0x000110025D130800,

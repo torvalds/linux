@@ -71,15 +71,6 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.extra1		= (void *)&one_jiffy,
 		.extra2		= (void *)&max_jiffies,
 	},
-	{
-		.procname	= "resend_timeout",
-		.data		= &rxrpc_resend_timeout,
-		.maxlen		= sizeof(unsigned long),
-		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
-		.extra1		= (void *)&one_jiffy,
-		.extra2		= (void *)&max_jiffies,
-	},
 
 	/* Non-time values */
 	{

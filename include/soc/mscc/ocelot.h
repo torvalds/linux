@@ -502,6 +502,7 @@ struct ocelot {
 	unsigned int			num_stats;
 
 	int				shared_queue_sz;
+	int				num_mact_rows;
 
 	struct net_device		*hw_bridge_dev;
 	u16				bridge_mask;

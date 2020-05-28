@@ -273,6 +273,7 @@ int exfat_getattr(const struct path *path, struct kstat *stat,
 	struct exfat_inode_info *ei = EXFAT_I(inode);
 
 	generic_fillattr(inode, stat);
+	exfat_truncate_atime(&stat->atime);
 	stat->result_mask |= STATX_BTIME;
 	stat->btime.tv_sec = ei->i_crtime.tv_sec;
 	stat->btime.tv_nsec = ei->i_crtime.tv_nsec;
@@ -339,6 +340,7 @@ int exfat_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	setattr_copy(inode, attr);
+	exfat_truncate_atime(&inode->i_atime);
 	mark_inode_dirty(inode);
 
 out:
@@ -346,12 +348,13 @@ out:
 }
 
 const struct file_operations exfat_file_operations = {
-	.llseek      = generic_file_llseek,
-	.read_iter   = generic_file_read_iter,
-	.write_iter  = generic_file_write_iter,
-	.mmap        = generic_file_mmap,
-	.fsync       = generic_file_fsync,
-	.splice_read = generic_file_splice_read,
+	.llseek		= generic_file_llseek,
+	.read_iter	= generic_file_read_iter,
+	.write_iter	= generic_file_write_iter,
+	.mmap		= generic_file_mmap,
+	.fsync		= generic_file_fsync,
+	.splice_read	= generic_file_splice_read,
+	.splice_write	= iter_file_splice_write,
 };
 
 const struct inode_operations exfat_file_inode_operations = {

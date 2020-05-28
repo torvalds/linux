@@ -35,6 +35,8 @@ typedef int (*hyperv_fill_flush_list_func)(
 	rdmsrl(HV_X64_MSR_SINT0 + int_num, val)
 #define hv_set_synint_state(int_num, val) \
 	wrmsrl(HV_X64_MSR_SINT0 + int_num, val)
+#define hv_recommend_using_aeoi() \
+	(!(ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED))
 
 #define hv_get_crash_ctl(val) \
 	rdmsrl(HV_X64_MSR_CRASH_CTL, val)

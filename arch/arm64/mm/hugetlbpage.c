@@ -230,6 +230,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 		ptep = (pte_t *)pudp;
 	} else if (sz == (CONT_PTE_SIZE)) {
 		pmdp = pmd_alloc(mm, pudp, addr);
+		if (!pmdp)
+			return NULL;
 
 		WARN_ON(addr & (sz - 1));
 		/*

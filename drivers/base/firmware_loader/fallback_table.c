@@ -45,5 +45,4 @@ struct ctl_table firmware_config_table[] = {
 	},
 	{ }
 };
-EXPORT_SYMBOL_GPL(firmware_config_table);
 #endif

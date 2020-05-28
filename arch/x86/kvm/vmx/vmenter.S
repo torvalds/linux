@@ -82,6 +82,9 @@ SYM_FUNC_START(vmx_vmexit)
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 
+	/* Clear RFLAGS.CF and RFLAGS.ZF to preserve VM-Exit, i.e. !VM-Fail. */
+	or $1, %_ASM_AX
+
 	pop %_ASM_AX
 .Lvmexit_skip_rsb:
 #endif

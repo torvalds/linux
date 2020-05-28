@@ -388,7 +388,9 @@ static int rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	} while (nsegs);
 
 done:
-	return xdr_stream_encode_item_absent(xdr);
+	if (xdr_stream_encode_item_absent(xdr) < 0)
+		return -EMSGSIZE;
+	return 0;
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -454,7 +456,9 @@ static int rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt,
 	*segcount = cpu_to_be32(nchunks);
 
 done:
-	return xdr_stream_encode_item_absent(xdr);
+	if (xdr_stream_encode_item_absent(xdr) < 0)
+		return -EMSGSIZE;
+	return 0;
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -480,8 +484,11 @@ static int rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	int nsegs, nchunks;
 	__be32 *segcount;
 
-	if (wtype != rpcrdma_replych)
-		return xdr_stream_encode_item_absent(xdr);
+	if (wtype != rpcrdma_replych) {
+		if (xdr_stream_encode_item_absent(xdr) < 0)
+			return -EMSGSIZE;
+		return 0;
+	}
 
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf, 0, wtype, seg);

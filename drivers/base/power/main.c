@@ -730,7 +730,7 @@ static bool dpm_async_fn(struct device *dev, async_func_t func)
 
 	if (is_async(dev)) {
 		get_device(dev);
-		async_schedule(func, dev);
+		async_schedule_dev(func, dev);
 		return true;
 	}
 

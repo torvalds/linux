@@ -47,7 +47,7 @@ static inline void ptrauth_keys_init_user(struct ptrauth_keys_user *keys)
 		get_random_bytes(&keys->apga, sizeof(keys->apga));
 }
 
-#define __ptrauth_key_install(k, v)				\
+#define __ptrauth_key_install_nosync(k, v)			\
 do {								\
 	struct ptrauth_key __pki_v = (v);			\
 	write_sysreg_s(__pki_v.lo, SYS_ ## k ## KEYLO_EL1);	\
@@ -62,8 +62,11 @@ static __always_inline void ptrauth_keys_init_kernel(struct ptrauth_keys_kernel 
 
 static __always_inline void ptrauth_keys_switch_kernel(struct ptrauth_keys_kernel *keys)
 {
-	if (system_supports_address_auth())
-		__ptrauth_key_install(APIA, keys->apia);
+	if (!system_supports_address_auth())
+		return;
+
+	__ptrauth_key_install_nosync(APIA, keys->apia);
+	isb();
 }
 
 extern int ptrauth_prctl_reset_keys(struct task_struct *tsk, unsigned long arg);

@@ -915,14 +915,11 @@ static ssize_t iio_write_channel_info(struct device *dev,
 			return -EINVAL;
 		integer = ch;
 	} else {
-		ret = iio_str_to_fixpoint(buf, fract_mult, &integer, &fract);
+		ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
+					    scale_db);
 		if (ret)
 			return ret;
 	}
-	ret = __iio_str_to_fixpoint(buf, fract_mult, &integer, &fract,
-				    scale_db);
-	if (ret)
-		return ret;
 
 	ret = indio_dev->info->write_raw(indio_dev, this_attr->c,
 					 integer, fract, this_attr->address);

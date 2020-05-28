@@ -61,8 +61,8 @@ The ``ice`` driver reports the following versions
       - running
       - ICE OS Default Package
       - The name of the DDP package that is active in the device. The DDP
-        package is loaded by the driver during initialization. Each varation
-        of DDP package shall have a unique name.
+        package is loaded by the driver during initialization. Each
+        variation of the DDP package has a unique name.
     * - ``fw.app``
       - running
       - 1.3.1.0

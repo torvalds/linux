@@ -862,7 +862,7 @@ static struct cm_id_private *cm_alloc_id_priv(struct ib_device *device,
 
 	ret = xa_alloc_cyclic_irq(&cm.local_id_table, &id, NULL, xa_limit_32b,
 				  &cm.local_id_next, GFP_KERNEL);
-	if (ret)
+	if (ret < 0)
 		goto error;
 	cm_id_priv->id.local_id = (__force __be32)id ^ cm.random_id_operand;
 
@@ -1828,11 +1828,9 @@ static void cm_format_mra(struct cm_mra_msg *mra_msg,
 
 static void cm_format_rej(struct cm_rej_msg *rej_msg,
 			  struct cm_id_private *cm_id_priv,
-			  enum ib_cm_rej_reason reason,
-			  void *ari,
-			  u8 ari_length,
-			  const void *private_data,
-			  u8 private_data_len)
+			  enum ib_cm_rej_reason reason, void *ari,
+			  u8 ari_length, const void *private_data,
+			  u8 private_data_len, enum ib_cm_state state)
 {
 	lockdep_assert_held(&cm_id_priv->lock);
 
@@ -1840,7 +1838,7 @@ static void cm_format_rej(struct cm_rej_msg *rej_msg,
 	IBA_SET(CM_REJ_REMOTE_COMM_ID, rej_msg,
 		be32_to_cpu(cm_id_priv->id.remote_id));
 
-	switch(cm_id_priv->id.state) {
+	switch (state) {
 	case IB_CM_REQ_RCVD:
 		IBA_SET(CM_REJ_LOCAL_COMM_ID, rej_msg, be32_to_cpu(0));
 		IBA_SET(CM_REJ_MESSAGE_REJECTED, rej_msg, CM_MSG_RESPONSE_REQ);
@@ -1905,8 +1903,9 @@ static void cm_dup_req_handler(struct cm_work *work,
 			      cm_id_priv->private_data_len);
 		break;
 	case IB_CM_TIMEWAIT:
-		cm_format_rej((struct cm_rej_msg *) msg->mad, cm_id_priv,
-			      IB_CM_REJ_STALE_CONN, NULL, 0, NULL, 0);
+		cm_format_rej((struct cm_rej_msg *)msg->mad, cm_id_priv,
+			      IB_CM_REJ_STALE_CONN, NULL, 0, NULL, 0,
+			      IB_CM_TIMEWAIT);
 		break;
 	default:
 		goto unlock;
@@ -2904,6 +2903,7 @@ static int cm_send_rej_locked(struct cm_id_private *cm_id_priv,
 			      u8 ari_length, const void *private_data,
 			      u8 private_data_len)
 {
+	enum ib_cm_state state = cm_id_priv->id.state;
 	struct ib_mad_send_buf *msg;
 	int ret;
 
@@ -2913,7 +2913,7 @@ static int cm_send_rej_locked(struct cm_id_private *cm_id_priv,
 	    (ari && ari_length > IB_CM_REJ_ARI_LENGTH))
 		return -EINVAL;
 
-	switch (cm_id_priv->id.state) {
+	switch (state) {
 	case IB_CM_REQ_SENT:
 	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REQ_RCVD:
@@ -2925,7 +2925,8 @@ static int cm_send_rej_locked(struct cm_id_private *cm_id_priv,
 		if (ret)
 			return ret;
 		cm_format_rej((struct cm_rej_msg *)msg->mad, cm_id_priv, reason,
-			      ari, ari_length, private_data, private_data_len);
+			      ari, ari_length, private_data, private_data_len,
+			      state);
 		break;
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
@@ -2934,7 +2935,8 @@ static int cm_send_rej_locked(struct cm_id_private *cm_id_priv,
 		if (ret)
 			return ret;
 		cm_format_rej((struct cm_rej_msg *)msg->mad, cm_id_priv, reason,
-			      ari, ari_length, private_data, private_data_len);
+			      ari, ari_length, private_data, private_data_len,
+			      state);
 		break;
 	default:
 		pr_debug("%s: local_id %d, cm_id->state: %d\n", __func__,

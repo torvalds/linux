@@ -472,15 +472,17 @@ END_FTR_SECTION_IFCLR(CPU_FTR_ARCH_207S)
 #ifdef CONFIG_PPC_BOOK3S
 	/*
 	 * If MSR EE/RI was never enabled, IRQs not reconciled, NVGPRs not
-	 * touched, AMR not set, no exit work created, then this can be used.
+	 * touched, no exit work created, then this can be used.
 	 */
 	.balign IFETCH_ALIGN_BYTES
 	.globl fast_interrupt_return
 fast_interrupt_return:
 _ASM_NOKPROBE_SYMBOL(fast_interrupt_return)
+	kuap_check_amr r3, r4
 	ld	r4,_MSR(r1)
 	andi.	r0,r4,MSR_PR
 	bne	.Lfast_user_interrupt_return
+	kuap_restore_amr r3
 	andi.	r0,r4,MSR_RI
 	li	r3,0 /* 0 return value, no EMULATE_STACK_STORE */
 	bne+	.Lfast_kernel_interrupt_return

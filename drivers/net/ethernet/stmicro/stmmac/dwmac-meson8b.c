@@ -119,6 +119,7 @@ static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
 		{ .div = 5, .val = 5, },
 		{ .div = 6, .val = 6, },
 		{ .div = 7, .val = 7, },
+		{ /* end of array */ }
 	};
 
 	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);

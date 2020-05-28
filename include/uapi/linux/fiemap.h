@@ -34,7 +34,7 @@ struct fiemap {
 	__u32 fm_mapped_extents;/* number of extents that were mapped (out) */
 	__u32 fm_extent_count;  /* size of fm_extents array (in) */
 	__u32 fm_reserved;
-	struct fiemap_extent fm_extents[]; /* array of mapped extents (out) */
+	struct fiemap_extent fm_extents[0]; /* array of mapped extents (out) */
 };
 
 #define FIEMAP_MAX_OFFSET	(~0ULL)

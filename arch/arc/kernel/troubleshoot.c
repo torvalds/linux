@@ -191,10 +191,9 @@ void show_regs(struct pt_regs *regs)
 	if (user_mode(regs))
 		show_faulting_vma(regs->ret); /* faulting code, not data */
 
-	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\n",
-		regs->event, current->thread.fault_address, regs->ret);
-
-	pr_info("STAT32: 0x%08lx", regs->status32);
+	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\nSTAT: 0x%08lx",
+		regs->event, current->thread.fault_address, regs->ret,
+		regs->status32);
 
 #define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit" " : ""
 
@@ -210,11 +209,10 @@ void show_regs(struct pt_regs *regs)
 			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
 			STS_BIT(regs, DE), STS_BIT(regs, AE));
 #endif
-	pr_cont("  BTA: 0x%08lx\n", regs->bta);
-	pr_info("BLK: %pS\n SP: 0x%08lx  FP: 0x%08lx\n",
-		(void *)regs->blink, regs->sp, regs->fp);
+	pr_cont("  BTA: 0x%08lx\n  SP: 0x%08lx  FP: 0x%08lx BLK: %pS\n",
+		regs->bta, regs->sp, regs->fp, (void *)regs->blink);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
-	       regs->lp_start, regs->lp_end, regs->lp_count);
+		regs->lp_start, regs->lp_end, regs->lp_count);
 
 	/* print regs->r0 thru regs->r12
 	 * Sequential printing was generating horrible code

@@ -2728,9 +2728,8 @@ static int brcmnand_resume(struct device *dev)
 		flash_dma_writel(ctrl, FLASH_DMA_ERROR_STATUS, 0);
 	}
 
-	if (has_edu(ctrl))
+	if (has_edu(ctrl)) {
 		ctrl->edu_config = edu_readl(ctrl, EDU_CONFIG);
-	else {
 		edu_writel(ctrl, EDU_CONFIG, ctrl->edu_config);
 		edu_readl(ctrl, EDU_CONFIG);
 		brcmnand_edu_init(ctrl);

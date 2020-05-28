@@ -291,6 +291,7 @@ int mhi_init_dev_ctxt(struct mhi_controller *mhi_cntrl)
 	}
 
 	/* Setup cmd context */
+	ret = -ENOMEM;
 	mhi_ctxt->cmd_ctxt = mhi_alloc_coherent(mhi_cntrl,
 						sizeof(*mhi_ctxt->cmd_ctxt) *
 						NR_OF_CMD_RINGS,
@@ -812,10 +813,9 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 	if (!mhi_cntrl)
 		return -EINVAL;
 
-	if (!mhi_cntrl->runtime_get || !mhi_cntrl->runtime_put)
-		return -EINVAL;
-
-	if (!mhi_cntrl->status_cb || !mhi_cntrl->link_status)
+	if (!mhi_cntrl->runtime_get || !mhi_cntrl->runtime_put ||
+	    !mhi_cntrl->status_cb || !mhi_cntrl->read_reg ||
+	    !mhi_cntrl->write_reg)
 		return -EINVAL;
 
 	ret = parse_config(mhi_cntrl, config);
@@ -1101,6 +1101,7 @@ static int mhi_driver_probe(struct device *dev)
 		}
 	}
 
+	ret = -EINVAL;
 	if (dl_chan) {
 		/*
 		 * If channel supports LPM notifications then status_cb should

@@ -3,7 +3,7 @@
 # description: ftrace - stacktrace filter command
 # flags: instance
 
-[ ! -f set_ftrace_filter ] && exit_unsupported
+check_filter_file set_ftrace_filter
 
 echo _do_fork:stacktrace >> set_ftrace_filter
 

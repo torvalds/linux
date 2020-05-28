@@ -35,6 +35,8 @@ notrace long system_call_exception(long r3, long r4, long r5,
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(regs->softe != IRQS_ENABLED);
 
+	kuap_check_amr();
+
 	account_cpu_user_entry();
 
 #ifdef CONFIG_PPC_SPLPAR
@@ -46,8 +48,6 @@ notrace long system_call_exception(long r3, long r4, long r5,
 			accumulate_stolen_time();
 	}
 #endif
-
-	kuap_check_amr();
 
 	/*
 	 * This is not required for the syscall exit path, but makes the
@@ -116,6 +116,8 @@ notrace unsigned long syscall_exit_prepare(unsigned long r3,
 	unsigned long *ti_flagsp = &current_thread_info()->flags;
 	unsigned long ti_flags;
 	unsigned long ret = 0;
+
+	kuap_check_amr();
 
 	regs->result = r3;
 
@@ -189,7 +191,7 @@ again:
 
 	/* This pattern matches prep_irq_for_idle */
 	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending())) {
+	if (unlikely(lazy_irq_pending_nocheck())) {
 		__hard_RI_enable();
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -203,8 +205,6 @@ again:
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	local_paca->tm_scratch = regs->msr;
 #endif
-
-	kuap_check_amr();
 
 	account_cpu_user_exit();
 
@@ -227,6 +227,8 @@ notrace unsigned long interrupt_exit_user_prepare(struct pt_regs *regs, unsigned
 	BUG_ON(!(regs->msr & MSR_PR));
 	BUG_ON(!FULL_REGS(regs));
 	BUG_ON(regs->softe != IRQS_ENABLED);
+
+	kuap_check_amr();
 
 	local_irq_save(flags);
 
@@ -264,7 +266,7 @@ again:
 
 	trace_hardirqs_on();
 	__hard_EE_RI_disable();
-	if (unlikely(lazy_irq_pending())) {
+	if (unlikely(lazy_irq_pending_nocheck())) {
 		__hard_RI_enable();
 		trace_hardirqs_off();
 		local_paca->irq_happened |= PACA_IRQ_HARD_DIS;
@@ -292,8 +294,6 @@ again:
 	local_paca->tm_scratch = regs->msr;
 #endif
 
-	kuap_check_amr();
-
 	account_cpu_user_exit();
 
 	return ret;
@@ -312,6 +312,8 @@ notrace unsigned long interrupt_exit_kernel_prepare(struct pt_regs *regs, unsign
 		unrecoverable_exception(regs);
 	BUG_ON(regs->msr & MSR_PR);
 	BUG_ON(!FULL_REGS(regs));
+
+	kuap_check_amr();
 
 	if (unlikely(*ti_flagsp & _TIF_EMULATE_STACK_STORE)) {
 		clear_bits(_TIF_EMULATE_STACK_STORE, ti_flagsp);
@@ -334,7 +336,7 @@ again:
 
 		trace_hardirqs_on();
 		__hard_EE_RI_disable();
-		if (unlikely(lazy_irq_pending())) {
+		if (unlikely(lazy_irq_pending_nocheck())) {
 			__hard_RI_enable();
 			irq_soft_mask_set(IRQS_ALL_DISABLED);
 			trace_hardirqs_off();

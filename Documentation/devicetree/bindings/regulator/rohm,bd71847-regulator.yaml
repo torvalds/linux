@@ -40,6 +40,8 @@ patternProperties:
         description:
           should be "ldo1", ..., "ldo6"
 
+    unevaluatedProperties: false
+
   "^BUCK[1-6]$":
     type: object
     allOf:
@@ -93,5 +95,7 @@ patternProperties:
 
     required:
       - regulator-name
-  additionalProperties: false
+
+    unevaluatedProperties: false
+
 additionalProperties: false

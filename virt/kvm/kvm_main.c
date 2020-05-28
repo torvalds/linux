@@ -259,6 +259,7 @@ static inline bool kvm_kick_many_cpus(const struct cpumask *cpus, bool wait)
 }
 
 bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
+				 struct kvm_vcpu *except,
 				 unsigned long *vcpu_bitmap, cpumask_var_t tmp)
 {
 	int i, cpu, me;
@@ -268,7 +269,8 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 	me = get_cpu();
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (vcpu_bitmap && !test_bit(i, vcpu_bitmap))
+		if ((vcpu_bitmap && !test_bit(i, vcpu_bitmap)) ||
+		    vcpu == except)
 			continue;
 
 		kvm_make_request(req, vcpu);
@@ -288,17 +290,23 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 	return called;
 }
 
-bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
+bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
+				      struct kvm_vcpu *except)
 {
 	cpumask_var_t cpus;
 	bool called;
 
 	zalloc_cpumask_var(&cpus, GFP_ATOMIC);
 
-	called = kvm_make_vcpus_request_mask(kvm, req, NULL, cpus);
+	called = kvm_make_vcpus_request_mask(kvm, req, except, NULL, cpus);
 
 	free_cpumask_var(cpus);
 	return called;
+}
+
+bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
+{
+	return kvm_make_all_cpus_request_except(kvm, req, NULL);
 }
 
 #ifndef CONFIG_HAVE_KVM_ARCH_TLB_FLUSH_ALL

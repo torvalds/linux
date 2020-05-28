@@ -259,8 +259,6 @@ properties:
 
     additionalProperties: false
 
-  additionalProperties: false
-
 additionalProperties: false
 
 required:

@@ -7,10 +7,10 @@ config MLX5_CORE
 	tristate "Mellanox 5th generation network adapters (ConnectX series) core driver"
 	depends on PCI
 	select NET_DEVLINK
-	imply PTP_1588_CLOCK
-	imply VXLAN
-	imply MLXFW
-	imply PCI_HYPERV_INTERFACE
+	depends on VXLAN || !VXLAN
+	depends on MLXFW || !MLXFW
+	depends on PTP_1588_CLOCK || !PTP_1588_CLOCK
+	depends on PCI_HYPERV_INTERFACE || !PCI_HYPERV_INTERFACE
 	default n
 	---help---
 	  Core driver for low level functionality of the ConnectX-4 and

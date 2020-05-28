@@ -845,6 +845,18 @@ static int at91_init_twi_recovery_info(struct platform_device *pdev,
 							 PINCTRL_STATE_DEFAULT);
 	dev->pinctrl_pins_gpio = pinctrl_lookup_state(dev->pinctrl,
 						      "gpio");
+	if (IS_ERR(dev->pinctrl_pins_default) ||
+	    IS_ERR(dev->pinctrl_pins_gpio)) {
+		dev_info(&pdev->dev, "pinctrl states incomplete for recovery\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * pins will be taken as GPIO, so we might as well inform pinctrl about
+	 * this and move the state to GPIO
+	 */
+	pinctrl_select_state(dev->pinctrl, dev->pinctrl_pins_gpio);
+
 	rinfo->sda_gpiod = devm_gpiod_get(&pdev->dev, "sda", GPIOD_IN);
 	if (PTR_ERR(rinfo->sda_gpiod) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
@@ -855,9 +867,7 @@ static int at91_init_twi_recovery_info(struct platform_device *pdev,
 		return -EPROBE_DEFER;
 
 	if (IS_ERR(rinfo->sda_gpiod) ||
-	    IS_ERR(rinfo->scl_gpiod) ||
-	    IS_ERR(dev->pinctrl_pins_default) ||
-	    IS_ERR(dev->pinctrl_pins_gpio)) {
+	    IS_ERR(rinfo->scl_gpiod)) {
 		dev_info(&pdev->dev, "recovery information incomplete\n");
 		if (!IS_ERR(rinfo->sda_gpiod)) {
 			gpiod_put(rinfo->sda_gpiod);
@@ -867,8 +877,12 @@ static int at91_init_twi_recovery_info(struct platform_device *pdev,
 			gpiod_put(rinfo->scl_gpiod);
 			rinfo->scl_gpiod = NULL;
 		}
+		pinctrl_select_state(dev->pinctrl, dev->pinctrl_pins_default);
 		return -EINVAL;
 	}
+
+	/* change the state of the pins back to their default state */
+	pinctrl_select_state(dev->pinctrl, dev->pinctrl_pins_default);
 
 	dev_info(&pdev->dev, "using scl, sda for recovery\n");
 

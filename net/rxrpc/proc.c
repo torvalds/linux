@@ -222,7 +222,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Proto Local                                          "
 			 " Remote                                         "
-			 " Use CW  MTU   LastUse          RTT Rc\n"
+			 " Use  CW   MTU LastUse      RTT      RTO\n"
 			 );
 		return 0;
 	}
@@ -236,15 +236,15 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 	now = ktime_get_seconds();
 	seq_printf(seq,
 		   "UDP   %-47.47s %-47.47s %3u"
-		   " %3u %5u %6llus %12llu %2u\n",
+		   " %3u %5u %6llus %8u %8u\n",
 		   lbuff,
 		   rbuff,
 		   atomic_read(&peer->usage),
 		   peer->cong_cwnd,
 		   peer->mtu,
 		   now - peer->last_tx_at,
-		   peer->rtt,
-		   peer->rtt_cursor);
+		   peer->srtt_us >> 3,
+		   jiffies_to_usecs(peer->rto_j));
 
 	return 0;
 }

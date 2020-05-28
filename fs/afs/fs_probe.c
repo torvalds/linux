@@ -32,9 +32,8 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	struct afs_server *server = call->server;
 	unsigned int server_index = call->server_index;
 	unsigned int index = call->addr_ix;
-	unsigned int rtt = UINT_MAX;
+	unsigned int rtt_us = 0;
 	bool have_result = false;
-	u64 _rtt;
 	int ret = call->error;
 
 	_enter("%pU,%u", &server->uuid, index);
@@ -93,15 +92,9 @@ responded:
 		}
 	}
 
-	/* Get the RTT and scale it to fit into a 32-bit value that represents
-	 * over a minute of time so that we can access it with one instruction
-	 * on a 32-bit system.
-	 */
-	_rtt = rxrpc_kernel_get_rtt(call->net->socket, call->rxcall);
-	_rtt /= 64;
-	rtt = (_rtt > UINT_MAX) ? UINT_MAX : _rtt;
-	if (rtt < server->probe.rtt) {
-		server->probe.rtt = rtt;
+	rtt_us = rxrpc_kernel_get_srtt(call->net->socket, call->rxcall);
+	if (rtt_us < server->probe.rtt) {
+		server->probe.rtt = rtt_us;
 		alist->preferred = index;
 		have_result = true;
 	}
@@ -113,15 +106,11 @@ out:
 	spin_unlock(&server->probe_lock);
 
 	_debug("probe [%u][%u] %pISpc rtt=%u ret=%d",
-	       server_index, index, &alist->addrs[index].transport,
-	       (unsigned int)rtt, ret);
+	       server_index, index, &alist->addrs[index].transport, rtt_us, ret);
 
 	have_result |= afs_fs_probe_done(server);
-	if (have_result) {
-		server->probe.have_result = true;
-		wake_up_var(&server->probe.have_result);
+	if (have_result)
 		wake_up_all(&server->probe_wq);
-	}
 }
 
 /*

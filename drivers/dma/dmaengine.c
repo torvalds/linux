@@ -232,10 +232,6 @@ static void chan_dev_release(struct device *dev)
 	struct dma_chan_dev *chan_dev;
 
 	chan_dev = container_of(dev, typeof(*chan_dev), device);
-	if (atomic_dec_and_test(chan_dev->idr_ref)) {
-		ida_free(&dma_ida, chan_dev->dev_id);
-		kfree(chan_dev->idr_ref);
-	}
 	kfree(chan_dev);
 }
 
@@ -1043,27 +1039,9 @@ static int get_dma_id(struct dma_device *device)
 }
 
 static int __dma_async_device_channel_register(struct dma_device *device,
-					       struct dma_chan *chan,
-					       int chan_id)
+					       struct dma_chan *chan)
 {
 	int rc = 0;
-	int chancnt = device->chancnt;
-	atomic_t *idr_ref;
-	struct dma_chan *tchan;
-
-	tchan = list_first_entry_or_null(&device->channels,
-					 struct dma_chan, device_node);
-	if (!tchan)
-		return -ENODEV;
-
-	if (tchan->dev) {
-		idr_ref = tchan->dev->idr_ref;
-	} else {
-		idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
-		if (!idr_ref)
-			return -ENOMEM;
-		atomic_set(idr_ref, 0);
-	}
 
 	chan->local = alloc_percpu(typeof(*chan->local));
 	if (!chan->local)
@@ -1079,29 +1057,36 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	 * When the chan_id is a negative value, we are dynamically adding
 	 * the channel. Otherwise we are static enumerating.
 	 */
-	chan->chan_id = chan_id < 0 ? chancnt : chan_id;
+	mutex_lock(&device->chan_mutex);
+	chan->chan_id = ida_alloc(&device->chan_ida, GFP_KERNEL);
+	mutex_unlock(&device->chan_mutex);
+	if (chan->chan_id < 0) {
+		pr_err("%s: unable to alloc ida for chan: %d\n",
+		       __func__, chan->chan_id);
+		goto err_out;
+	}
+
 	chan->dev->device.class = &dma_devclass;
 	chan->dev->device.parent = device->dev;
 	chan->dev->chan = chan;
-	chan->dev->idr_ref = idr_ref;
 	chan->dev->dev_id = device->dev_id;
-	atomic_inc(idr_ref);
 	dev_set_name(&chan->dev->device, "dma%dchan%d",
 		     device->dev_id, chan->chan_id);
-
 	rc = device_register(&chan->dev->device);
 	if (rc)
-		goto err_out;
+		goto err_out_ida;
 	chan->client_count = 0;
-	device->chancnt = chan->chan_id + 1;
+	device->chancnt++;
 
 	return 0;
 
+ err_out_ida:
+	mutex_lock(&device->chan_mutex);
+	ida_free(&device->chan_ida, chan->chan_id);
+	mutex_unlock(&device->chan_mutex);
  err_out:
 	free_percpu(chan->local);
 	kfree(chan->dev);
-	if (atomic_dec_return(idr_ref) == 0)
-		kfree(idr_ref);
 	return rc;
 }
 
@@ -1110,7 +1095,7 @@ int dma_async_device_channel_register(struct dma_device *device,
 {
 	int rc;
 
-	rc = __dma_async_device_channel_register(device, chan, -1);
+	rc = __dma_async_device_channel_register(device, chan);
 	if (rc < 0)
 		return rc;
 
@@ -1130,6 +1115,9 @@ static void __dma_async_device_channel_unregister(struct dma_device *device,
 	device->chancnt--;
 	chan->dev->chan = NULL;
 	mutex_unlock(&dma_list_mutex);
+	mutex_lock(&device->chan_mutex);
+	ida_free(&device->chan_ida, chan->chan_id);
+	mutex_unlock(&device->chan_mutex);
 	device_unregister(&chan->dev->device);
 	free_percpu(chan->local);
 }
@@ -1152,7 +1140,7 @@ EXPORT_SYMBOL_GPL(dma_async_device_channel_unregister);
  */
 int dma_async_device_register(struct dma_device *device)
 {
-	int rc, i = 0;
+	int rc;
 	struct dma_chan* chan;
 
 	if (!device)
@@ -1257,9 +1245,12 @@ int dma_async_device_register(struct dma_device *device)
 	if (rc != 0)
 		return rc;
 
+	mutex_init(&device->chan_mutex);
+	ida_init(&device->chan_ida);
+
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
-		rc = __dma_async_device_channel_register(device, chan, i++);
+		rc = __dma_async_device_channel_register(device, chan);
 		if (rc < 0)
 			goto err_out;
 	}
@@ -1334,6 +1325,7 @@ void dma_async_device_unregister(struct dma_device *device)
 	 */
 	dma_cap_set(DMA_PRIVATE, device->cap_mask);
 	dma_channel_rebalance();
+	ida_free(&dma_ida, device->dev_id);
 	dma_device_put(device);
 	mutex_unlock(&dma_list_mutex);
 }
