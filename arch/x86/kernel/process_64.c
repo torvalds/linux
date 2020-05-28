@@ -150,6 +150,44 @@ enum which_selector {
 };
 
 /*
+ * Out of line to be protected from kprobes and tracing. If this would be
+ * traced or probed than any access to a per CPU variable happens with
+ * the wrong GS.
+ *
+ * It is not used on Xen paravirt. When paravirt support is needed, it
+ * needs to be renamed with native_ prefix.
+ */
+static noinstr unsigned long __rdgsbase_inactive(void)
+{
+	unsigned long gsbase;
+
+	lockdep_assert_irqs_disabled();
+
+	native_swapgs();
+	gsbase = rdgsbase();
+	native_swapgs();
+
+	return gsbase;
+}
+
+/*
+ * Out of line to be protected from kprobes and tracing. If this would be
+ * traced or probed than any access to a per CPU variable happens with
+ * the wrong GS.
+ *
+ * It is not used on Xen paravirt. When paravirt support is needed, it
+ * needs to be renamed with native_ prefix.
+ */
+static noinstr void __wrgsbase_inactive(unsigned long gsbase)
+{
+	lockdep_assert_irqs_disabled();
+
+	native_swapgs();
+	wrgsbase(gsbase);
+	native_swapgs();
+}
+
+/*
  * Saves the FS or GS base for an outgoing thread if FSGSBASE extensions are
  * not available.  The goal is to be reasonably fast on non-FSGSBASE systems.
  * It's forcibly inlined because it'll generate better code and this function
@@ -325,6 +363,36 @@ static unsigned long x86_fsgsbase_read_task(struct task_struct *task,
 	}
 
 	return base;
+}
+
+unsigned long x86_gsbase_read_cpu_inactive(void)
+{
+	unsigned long gsbase;
+
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		gsbase = __rdgsbase_inactive();
+		local_irq_restore(flags);
+	} else {
+		rdmsrl(MSR_KERNEL_GS_BASE, gsbase);
+	}
+
+	return gsbase;
+}
+
+void x86_gsbase_write_cpu_inactive(unsigned long gsbase)
+{
+	if (static_cpu_has(X86_FEATURE_FSGSBASE)) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		__wrgsbase_inactive(gsbase);
+		local_irq_restore(flags);
+	} else {
+		wrmsrl(MSR_KERNEL_GS_BASE, gsbase);
+	}
 }
 
 unsigned long x86_fsbase_read_task(struct task_struct *task)

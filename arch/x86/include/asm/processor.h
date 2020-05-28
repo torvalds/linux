@@ -575,7 +575,7 @@ native_load_sp0(unsigned long sp0)
 	this_cpu_write(cpu_tss_rw.x86_tss.sp0, sp0);
 }
 
-static inline void native_swapgs(void)
+static __always_inline void native_swapgs(void)
 {
 #ifdef CONFIG_X86_64
 	asm volatile("swapgs" ::: "memory");
