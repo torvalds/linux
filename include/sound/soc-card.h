@@ -26,6 +26,7 @@ int snd_soc_card_resume_post(struct snd_soc_card *card);
 
 int snd_soc_card_probe(struct snd_soc_card *card);
 int snd_soc_card_late_probe(struct snd_soc_card *card);
+int snd_soc_card_remove(struct snd_soc_card *card);
 
 /* device driver data */
 static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
