@@ -1413,6 +1413,7 @@ static SIMPLE_DEV_PM_OPS(ks8851_pm_ops, ks8851_suspend, ks8851_resume);
 
 static int ks8851_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	struct net_device *ndev;
 	struct ks8851_net *ks;
 	int ret;
@@ -1431,8 +1432,7 @@ static int ks8851_probe(struct spi_device *spi)
 	ks->spidev = spi;
 	ks->tx_space = 6144;
 
-	gpio = of_get_named_gpio_flags(spi->dev.of_node, "reset-gpios",
-				       0, NULL);
+	gpio = of_get_named_gpio_flags(dev->of_node, "reset-gpios", 0, NULL);
 	if (gpio == -EPROBE_DEFER) {
 		ret = gpio;
 		goto err_gpio;
@@ -1440,15 +1440,15 @@ static int ks8851_probe(struct spi_device *spi)
 
 	ks->gpio = gpio;
 	if (gpio_is_valid(gpio)) {
-		ret = devm_gpio_request_one(&spi->dev, gpio,
+		ret = devm_gpio_request_one(dev, gpio,
 					    GPIOF_OUT_INIT_LOW, "ks8851_rst_n");
 		if (ret) {
-			dev_err(&spi->dev, "reset gpio request failed\n");
+			dev_err(dev, "reset gpio request failed\n");
 			goto err_gpio;
 		}
 	}
 
-	ks->vdd_io = devm_regulator_get(&spi->dev, "vdd-io");
+	ks->vdd_io = devm_regulator_get(dev, "vdd-io");
 	if (IS_ERR(ks->vdd_io)) {
 		ret = PTR_ERR(ks->vdd_io);
 		goto err_reg_io;
@@ -1456,12 +1456,11 @@ static int ks8851_probe(struct spi_device *spi)
 
 	ret = regulator_enable(ks->vdd_io);
 	if (ret) {
-		dev_err(&spi->dev, "regulator vdd_io enable fail: %d\n",
-			ret);
+		dev_err(dev, "regulator vdd_io enable fail: %d\n", ret);
 		goto err_reg_io;
 	}
 
-	ks->vdd_reg = devm_regulator_get(&spi->dev, "vdd");
+	ks->vdd_reg = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(ks->vdd_reg)) {
 		ret = PTR_ERR(ks->vdd_reg);
 		goto err_reg;
@@ -1469,8 +1468,7 @@ static int ks8851_probe(struct spi_device *spi)
 
 	ret = regulator_enable(ks->vdd_reg);
 	if (ret) {
-		dev_err(&spi->dev, "regulator vdd enable fail: %d\n",
-			ret);
+		dev_err(dev, "regulator vdd enable fail: %d\n", ret);
 		goto err_reg;
 	}
 
@@ -1509,7 +1507,7 @@ static int ks8851_probe(struct spi_device *spi)
 	ks->mii.mdio_read	= ks8851_phy_read;
 	ks->mii.mdio_write	= ks8851_phy_write;
 
-	dev_info(&spi->dev, "message enable is %d\n", msg_enable);
+	dev_info(dev, "message enable is %d\n", msg_enable);
 
 	/* set the default message enable */
 	ks->msg_enable = netif_msg_init(msg_enable, (NETIF_MSG_DRV |
@@ -1519,7 +1517,7 @@ static int ks8851_probe(struct spi_device *spi)
 	skb_queue_head_init(&ks->txq);
 
 	ndev->ethtool_ops = &ks8851_ethtool_ops;
-	SET_NETDEV_DEV(ndev, &spi->dev);
+	SET_NETDEV_DEV(ndev, dev);
 
 	spi_set_drvdata(spi, ks);
 
@@ -1534,7 +1532,7 @@ static int ks8851_probe(struct spi_device *spi)
 	/* simple check for a valid chip being connected to the bus */
 	cider = ks8851_rdreg16(ks, KS_CIDER);
 	if ((cider & ~CIDER_REV_MASK) != CIDER_ID) {
-		dev_err(&spi->dev, "failed to read device ID\n");
+		dev_err(dev, "failed to read device ID\n");
 		ret = -ENODEV;
 		goto err_id;
 	}
@@ -1547,7 +1545,7 @@ static int ks8851_probe(struct spi_device *spi)
 
 	ret = register_netdev(ndev);
 	if (ret) {
-		dev_err(&spi->dev, "failed to register network device\n");
+		dev_err(dev, "failed to register network device\n");
 		goto err_netdev;
 	}
 
@@ -1573,9 +1571,10 @@ err_gpio:
 static int ks8851_remove(struct spi_device *spi)
 {
 	struct ks8851_net *priv = spi_get_drvdata(spi);
+	struct device *dev = &spi->dev;
 
 	if (netif_msg_drv(priv))
-		dev_info(&spi->dev, "remove\n");
+		dev_info(dev, "remove\n");
 
 	unregister_netdev(priv->netdev);
 	if (gpio_is_valid(priv->gpio))
