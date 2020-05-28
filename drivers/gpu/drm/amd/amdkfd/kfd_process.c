@@ -103,10 +103,11 @@ static void kfd_sdma_activity_worker(struct work_struct *work)
 		return;
 
 	pdd = workarea->pdd;
+	if (!pdd)
+		return;
 	dqm = pdd->dev->dqm;
 	qpd = &pdd->qpd;
-
-	if (!pdd || !dqm || !qpd)
+	if (!dqm || !qpd)
 		return;
 
 	mm = get_task_mm(pdd->process->lead_thread);
