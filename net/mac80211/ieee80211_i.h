@@ -2144,7 +2144,7 @@ enum {
 	IEEE80211_PROBE_FLAG_RANDOM_SN		= BIT(2),
 };
 
-int ieee80211_build_preq_ies(struct ieee80211_local *local, u8 *buffer,
+int ieee80211_build_preq_ies(struct ieee80211_sub_if_data *sdata, u8 *buffer,
 			     size_t buffer_len,
 			     struct ieee80211_scan_ies *ie_desc,
 			     const u8 *ie, size_t ie_len,

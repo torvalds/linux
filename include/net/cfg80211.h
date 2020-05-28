@@ -513,6 +513,26 @@ ieee80211_get_he_sta_cap(const struct ieee80211_supported_band *sband)
 }
 
 /**
+ * ieee80211_get_he_6ghz_capa - return HE 6 GHz capabilities
+ * @sband: the sband to search for the STA on
+ * @iftype: the iftype to search for
+ *
+ * Return: the 6GHz capabilities
+ */
+static inline __le16
+ieee80211_get_he_6ghz_capa(const struct ieee80211_supported_band *sband,
+			   enum nl80211_iftype iftype)
+{
+	const struct ieee80211_sband_iftype_data *data =
+		ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (WARN_ON(!data || !data->he_cap.has_he))
+		return 0;
+
+	return data->he_6ghz_capa.capa;
+}
+
+/**
  * wiphy_read_of_freq_limits - read frequency limits from device tree
  *
  * @wiphy: the wireless device to get extra limits for
