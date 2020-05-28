@@ -136,8 +136,8 @@ examples:
       interrupts = <0>;
 
       eeprom@64 {
-        compatible = "linux,slave-24c02";
-        reg = <0x40000064>;
+        compatible = "atmel,24c02";
+        reg = <0x64>;
       };
     };
   - |
