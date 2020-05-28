@@ -265,7 +265,7 @@ submit_bio_out:
  */
 static int erofs_raw_access_readpage(struct file *file, struct page *page)
 {
-	erofs_off_t last_block;
+	erofs_off_t uninitialized_var(last_block);
 	struct bio *bio;
 
 	trace_erofs_readpage(page, true);
@@ -285,7 +285,7 @@ static int erofs_raw_access_readpages(struct file *filp,
 				      struct list_head *pages,
 				      unsigned int nr_pages)
 {
-	erofs_off_t last_block;
+	erofs_off_t uninitialized_var(last_block);
 	struct bio *bio = NULL;
 	gfp_t gfp = readahead_gfp_mask(mapping);
 	struct page *page = list_last_entry(pages, struct page, lru);
