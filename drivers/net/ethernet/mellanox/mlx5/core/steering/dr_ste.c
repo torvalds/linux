@@ -869,7 +869,7 @@ static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec)
 
 static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec)
 {
-	u32 raw_ip[4];
+	__be32 raw_ip[4];
 
 	spec->smac_47_16 = MLX5_GET(fte_match_set_lyr_2_4, mask, smac_47_16);
 
