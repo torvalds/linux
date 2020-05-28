@@ -188,10 +188,8 @@ static struct soc15_allowed_register_entry nv_allowed_read_registers[] = {
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE1)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE2)},
 	{ SOC15_REG_ENTRY(GC, 0, mmGRBM_STATUS_SE3)},
-#if 0	/* TODO: will set it when SDMA header is available */
 	{ SOC15_REG_ENTRY(SDMA0, 0, mmSDMA0_STATUS_REG)},
 	{ SOC15_REG_ENTRY(SDMA1, 0, mmSDMA1_STATUS_REG)},
-#endif
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STAT)},
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT1)},
 	{ SOC15_REG_ENTRY(GC, 0, mmCP_STALLED_STAT2)},
