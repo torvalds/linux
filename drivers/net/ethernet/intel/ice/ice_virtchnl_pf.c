@@ -2862,9 +2862,11 @@ ice_vc_add_mac_addr(struct ice_vf *vf, struct ice_vsi *vsi, u8 *mac_addr)
 		return -EIO;
 	}
 
-	/* only set dflt_lan_addr once */
-	if (is_zero_ether_addr(vf->dflt_lan_addr.addr) &&
-	    is_unicast_ether_addr(mac_addr))
+	/* Set the default LAN address to the latest unicast MAC address added
+	 * by the VF. The default LAN address is reported by the PF via
+	 * ndo_get_vf_config.
+	 */
+	if (is_unicast_ether_addr(mac_addr))
 		ether_addr_copy(vf->dflt_lan_addr.addr, mac_addr);
 
 	vf->num_mac++;

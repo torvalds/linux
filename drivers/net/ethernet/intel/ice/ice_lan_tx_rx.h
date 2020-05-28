@@ -581,7 +581,7 @@ struct ice_tlan_ctx {
 	u8 drop_ena;
 	u8 cache_prof_idx;
 	u8 pkt_shaper_prof_idx;
-	u8 int_q_state;	/* width not needed - internal do not write */
+	u8 int_q_state;	/* width not needed - internal - DO NOT WRITE!!! */
 };
 
 /* macro to make the table lines short */

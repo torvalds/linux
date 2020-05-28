@@ -7,8 +7,6 @@
 #include "ice_dcb_nl.h"
 #include <net/dcbnl.h>
 
-#define ICE_APP_PROT_ID_ROCE	0x8915
-
 /**
  * ice_dcbnl_devreset - perform enough of a ifdown/ifup to sync DCBNL info
  * @netdev: device associated with interface that needs reset

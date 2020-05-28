@@ -13,7 +13,7 @@
  */
 static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
 {
-	int offset, i;
+	unsigned int offset, i;
 
 	mutex_lock(qs_cfg->qs_mutex);
 	offset = bitmap_find_next_zero_area(qs_cfg->pf_map, qs_cfg->pf_map_size,
@@ -39,7 +39,7 @@ static int __ice_vsi_get_qs_contig(struct ice_qs_cfg *qs_cfg)
  */
 static int __ice_vsi_get_qs_sc(struct ice_qs_cfg *qs_cfg)
 {
-	int i, index = 0;
+	unsigned int i, index = 0;
 
 	mutex_lock(qs_cfg->qs_mutex);
 	for (i = 0; i < qs_cfg->q_count; i++) {
@@ -281,7 +281,9 @@ ice_setup_tx_ctx(struct ice_ring *ring, struct ice_tlan_ctx *tlan_ctx, u16 pf_q)
  */
 int ice_setup_rx_ctx(struct ice_ring *ring)
 {
+	struct device *dev = ice_pf_to_dev(ring->vsi->back);
 	int chain_len = ICE_MAX_CHAINED_RX_BUFS;
+	u16 num_bufs = ICE_DESC_UNUSED(ring);
 	struct ice_vsi *vsi = ring->vsi;
 	u32 rxdid = ICE_RXDID_FLEX_NIC;
 	struct ice_rlan_ctx rlan_ctx;
@@ -324,7 +326,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 				return err;
 			xsk_buff_set_rxq_info(ring->xsk_umem, &ring->xdp_rxq);
 
-			dev_info(ice_pf_to_dev(vsi->back), "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
+			dev_info(dev, "Registered XDP mem model MEM_TYPE_XSK_BUFF_POOL on Rx ring %d\n",
 				 ring->q_index);
 		} else {
 			if (!xdp_rxq_info_is_reg(&ring->xdp_rxq))
@@ -408,7 +410,7 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* Absolute queue number out of 2K needs to be passed */
 	err = ice_write_rxq_ctx(hw, &rlan_ctx, pf_q);
 	if (err) {
-		dev_err(ice_pf_to_dev(vsi->back), "Failed to set LAN Rx queue context for absolute Rx queue %d error: %d\n",
+		dev_err(dev, "Failed to set LAN Rx queue context for absolute Rx queue %d error: %d\n",
 			pf_q, err);
 		return -EIO;
 	}
@@ -426,13 +428,23 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	ring->tail = hw->hw_addr + QRX_TAIL(pf_q);
 	writel(0, ring->tail);
 
-	err = ring->xsk_umem ?
-	      ice_alloc_rx_bufs_zc(ring, ICE_DESC_UNUSED(ring)) :
-	      ice_alloc_rx_bufs(ring, ICE_DESC_UNUSED(ring));
-	if (err)
-		dev_info(ice_pf_to_dev(vsi->back), "Failed allocate some buffers on %sRx ring %d (pf_q %d)\n",
-			 ring->xsk_umem ? "UMEM enabled " : "",
-			 ring->q_index, pf_q);
+	if (ring->xsk_umem) {
+		if (!xsk_buff_can_alloc(ring->xsk_umem, num_bufs)) {
+			dev_warn(dev, "UMEM does not provide enough addresses to fill %d buffers on Rx ring %d\n",
+				 num_bufs, ring->q_index);
+			dev_warn(dev, "Change Rx ring/fill queue size to avoid performance issues\n");
+
+			return 0;
+		}
+
+		err = ice_alloc_rx_bufs_zc(ring, num_bufs);
+		if (err)
+			dev_info(dev, "Failed to allocate some buffers on UMEM enabled Rx ring %d (pf_q %d)\n",
+				 ring->q_index, pf_q);
+		return 0;
+	}
+
+	ice_alloc_rx_bufs(ring, num_bufs);
 
 	return 0;
 }
@@ -638,6 +650,7 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	struct ice_aqc_add_txqs_perq *txq;
 	struct ice_pf *pf = vsi->back;
 	u8 buf_len = sizeof(*qg_buf);
+	struct ice_hw *hw = &pf->hw;
 	enum ice_status status;
 	u16 pf_q;
 	u8 tc;
@@ -646,13 +659,13 @@ ice_vsi_cfg_txq(struct ice_vsi *vsi, struct ice_ring *ring,
 	ice_setup_tx_ctx(ring, &tlan_ctx, pf_q);
 	/* copy context contents into the qg_buf */
 	qg_buf->txqs[0].txq_id = cpu_to_le16(pf_q);
-	ice_set_ctx((u8 *)&tlan_ctx, qg_buf->txqs[0].txq_ctx,
+	ice_set_ctx(hw, (u8 *)&tlan_ctx, qg_buf->txqs[0].txq_ctx,
 		    ice_tlan_ctx_info);
 
 	/* init queue specific tail reg. It is referred as
 	 * transmit comm scheduler queue doorbell.
 	 */
-	ring->tail = pf->hw.hw_addr + QTX_COMM_DBELL(pf_q);
+	ring->tail = hw->hw_addr + QTX_COMM_DBELL(pf_q);
 
 	if (IS_ENABLED(CONFIG_DCB))
 		tc = ring->dcb_tc;
