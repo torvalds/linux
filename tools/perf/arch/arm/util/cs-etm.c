@@ -265,7 +265,8 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	ptr->evlist = evlist;
 	ptr->snapshot_mode = opts->auxtrace_snapshot_mode;
 
-	if (perf_can_record_switch_events())
+	if (!record_opts__no_switch_events(opts) &&
+	    perf_can_record_switch_events())
 		opts->record_switch_events = true;
 
 	evlist__for_each_entry(evlist, evsel) {
