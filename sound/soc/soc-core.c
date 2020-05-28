@@ -947,8 +947,7 @@ void snd_soc_remove_pcm_runtime(struct snd_soc_card *card,
 	/*
 	 * Notify the machine driver for extra destruction
 	 */
-	if (card->remove_dai_link)
-		card->remove_dai_link(card, rtd->dai_link);
+	snd_soc_card_remove_dai_link(card, rtd->dai_link);
 
 	soc_free_pcm_runtime(rtd);
 }

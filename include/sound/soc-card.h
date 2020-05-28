@@ -37,6 +37,8 @@ int snd_soc_card_set_bias_level_post(struct snd_soc_card *card,
 
 int snd_soc_card_add_dai_link(struct snd_soc_card *card,
 			      struct snd_soc_dai_link *dai_link);
+void snd_soc_card_remove_dai_link(struct snd_soc_card *card,
+				  struct snd_soc_dai_link *dai_link);
 
 /* device driver data */
 static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
