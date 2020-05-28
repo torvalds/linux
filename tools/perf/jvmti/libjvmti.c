@@ -32,38 +32,41 @@ static void print_error(jvmtiEnv *jvmti, const char *msg, jvmtiError ret)
 
 #ifdef HAVE_JVMTI_CMLR
 static jvmtiError
-do_get_line_numbers(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
-		    jvmti_line_info_t *tab, jint *nr)
+do_get_line_number(jvmtiEnv *jvmti, void *pc, jmethodID m, jint bci,
+		   jvmti_line_info_t *tab)
 {
-	jint i, lines = 0;
-	jint nr_lines = 0;
+	jint i, nr_lines = 0;
 	jvmtiLineNumberEntry *loc_tab = NULL;
 	jvmtiError ret;
+	jint src_line = -1;
 
 	ret = (*jvmti)->GetLineNumberTable(jvmti, m, &nr_lines, &loc_tab);
 	if (ret == JVMTI_ERROR_ABSENT_INFORMATION || ret == JVMTI_ERROR_NATIVE_METHOD) {
 		/* No debug information for this method */
-		*nr = 0;
-		return JVMTI_ERROR_NONE;
+		return ret;
 	} else if (ret != JVMTI_ERROR_NONE) {
 		print_error(jvmti, "GetLineNumberTable", ret);
 		return ret;
 	}
 
-	for (i = 0; i < nr_lines; i++) {
-		if (loc_tab[i].start_location < bci) {
-			tab[lines].pc = (unsigned long)pc;
-			tab[lines].line_number = loc_tab[i].line_number;
-			tab[lines].discrim = 0; /* not yet used */
-			tab[lines].methodID = m;
-			lines++;
-		} else {
-			break;
-		}
+	for (i = 0; i < nr_lines && loc_tab[i].start_location <= bci; i++) {
+		src_line = i;
 	}
+
+	if (src_line != -1) {
+		tab->pc = (unsigned long)pc;
+		tab->line_number = loc_tab[src_line].line_number;
+		tab->discrim = 0; /* not yet used */
+		tab->methodID = m;
+
+		ret = JVMTI_ERROR_NONE;
+	} else {
+		ret = JVMTI_ERROR_ABSENT_INFORMATION;
+	}
+
 	(*jvmti)->Deallocate(jvmti, (unsigned char *)loc_tab);
-	*nr = lines;
-	return JVMTI_ERROR_NONE;
+
+	return ret;
 }
 
 static jvmtiError
@@ -71,9 +74,8 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 {
 	const jvmtiCompiledMethodLoadRecordHeader *hdr;
 	jvmtiCompiledMethodLoadInlineRecord *rec;
-	jvmtiLineNumberEntry *lne = NULL;
 	PCStackInfo *c;
-	jint nr, ret;
+	jint ret;
 	int nr_total = 0;
 	int i, lines_total = 0;
 
@@ -86,24 +88,7 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 	for (hdr = compile_info; hdr != NULL; hdr = hdr->next) {
 		if (hdr->kind == JVMTI_CMLR_INLINE_INFO) {
 			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
-			for (i = 0; i < rec->numpcs; i++) {
-				c = rec->pcinfo + i;
-				nr = 0;
-				/*
-				 * unfortunately, need a tab to get the number of lines!
-				 */
-				ret = (*jvmti)->GetLineNumberTable(jvmti, c->methods[0], &nr, &lne);
-				if (ret == JVMTI_ERROR_NONE) {
-					/* free what was allocated for nothing */
-					(*jvmti)->Deallocate(jvmti, (unsigned char *)lne);
-					nr_total += (int)nr;
-				} else if (ret == JVMTI_ERROR_ABSENT_INFORMATION ||
-					   ret == JVMTI_ERROR_NATIVE_METHOD) {
-					/* No debug information for this method */
-				} else {
-					print_error(jvmti, "GetLineNumberTable", ret);
-				}
-			}
+			nr_total += rec->numpcs;
 		}
 	}
 
@@ -122,14 +107,17 @@ get_line_numbers(jvmtiEnv *jvmti, const void *compile_info, jvmti_line_info_t **
 			rec = (jvmtiCompiledMethodLoadInlineRecord *)hdr;
 			for (i = 0; i < rec->numpcs; i++) {
 				c = rec->pcinfo + i;
-				nr = 0;
-				ret = do_get_line_numbers(jvmti, c->pc,
-							  c->methods[0],
-							  c->bcis[0],
-							  *tab + lines_total,
-							  &nr);
+                                /*
+                                 * c->methods is the stack of inlined method calls
+                                 * at c->pc. [0] is the leaf method. Caller frames
+                                 * are ignored at the moment.
+                                 */
+				ret = do_get_line_number(jvmti, c->pc,
+							 c->methods[0],
+							 c->bcis[0],
+							 *tab + lines_total);
 				if (ret == JVMTI_ERROR_NONE)
-					lines_total += nr;
+					lines_total++;
 			}
 		}
 	}
