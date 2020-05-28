@@ -92,5 +92,8 @@ enum {
 	UPT1_F_RSS		= cpu_to_le64(0x0002),
 	UPT1_F_RXVLAN		= cpu_to_le64(0x0004),   /* VLAN tag stripping */
 	UPT1_F_LRO		= cpu_to_le64(0x0008),
+	UPT1_F_RXINNEROFLD      = cpu_to_le64(0x00010),  /* Geneve/Vxlan rx csum
+							  * offloading
+							  */
 };
 #endif

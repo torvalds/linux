@@ -219,10 +219,16 @@ struct vmxnet3_tx_ctx {
 	bool   ipv4;
 	bool   ipv6;
 	u16 mss;
-	u32 eth_ip_hdr_size; /* only valid for pkts requesting tso or csum
-				 * offloading
+	u32    l4_offset;	/* only valid for pkts requesting tso or csum
+				 * offloading. For encap offload, it refers to
+				 * inner L4 offset i.e. it includes outer header
+				 * encap header and inner eth and ip header size
 				 */
-	u32 l4_hdr_size;     /* only valid if mss != 0 */
+
+	u32	l4_hdr_size;	/* only valid if mss != 0
+				 * Refers to inner L4 hdr size for encap
+				 * offload
+				 */
 	u32 copy_size;       /* # of bytes copied into the data ring */
 	union Vmxnet3_GenericDesc *sop_txd;
 	union Vmxnet3_GenericDesc *eop_txd;

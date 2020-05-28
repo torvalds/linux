@@ -267,14 +267,43 @@ netdev_features_t vmxnet3_fix_features(struct net_device *netdev,
 	return features;
 }
 
+static void vmxnet3_enable_encap_offloads(struct net_device *netdev)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (VMXNET3_VERSION_GE_4(adapter)) {
+		netdev->hw_enc_features |= NETIF_F_SG | NETIF_F_RXCSUM |
+			NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	}
+}
+
+static void vmxnet3_disable_encap_offloads(struct net_device *netdev)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (VMXNET3_VERSION_GE_4(adapter)) {
+		netdev->hw_enc_features &= ~(NETIF_F_SG | NETIF_F_RXCSUM |
+			NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+			NETIF_F_LRO | NETIF_F_GSO_UDP_TUNNEL |
+			NETIF_F_GSO_UDP_TUNNEL_CSUM);
+	}
+}
+
 int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	unsigned long flags;
 	netdev_features_t changed = features ^ netdev->features;
+	netdev_features_t tun_offload_mask = NETIF_F_GSO_UDP_TUNNEL |
+					     NETIF_F_GSO_UDP_TUNNEL_CSUM;
+	u8 udp_tun_enabled = (netdev->features & tun_offload_mask) != 0;
 
 	if (changed & (NETIF_F_RXCSUM | NETIF_F_LRO |
-		       NETIF_F_HW_VLAN_CTAG_RX)) {
+		       NETIF_F_HW_VLAN_CTAG_RX | tun_offload_mask)) {
 		if (features & NETIF_F_RXCSUM)
 			adapter->shared->devRead.misc.uptFeatures |=
 			UPT1_F_RXCSUM;
@@ -296,6 +325,17 @@ int vmxnet3_set_features(struct net_device *netdev, netdev_features_t features)
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
 			~UPT1_F_RXVLAN;
+
+		if ((features & tun_offload_mask) != 0 && !udp_tun_enabled) {
+			vmxnet3_enable_encap_offloads(netdev);
+			adapter->shared->devRead.misc.uptFeatures |=
+			UPT1_F_RXINNEROFLD;
+		} else if ((features & tun_offload_mask) == 0 &&
+			   udp_tun_enabled) {
+			vmxnet3_disable_encap_offloads(netdev);
+			adapter->shared->devRead.misc.uptFeatures &=
+			~UPT1_F_RXINNEROFLD;
+		}
 
 		spin_lock_irqsave(&adapter->cmd_lock, flags);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
