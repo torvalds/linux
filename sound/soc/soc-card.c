@@ -99,3 +99,13 @@ int snd_soc_card_suspend_post(struct snd_soc_card *card)
 
 	return soc_card_ret(card, ret);
 }
+
+int snd_soc_card_resume_pre(struct snd_soc_card *card)
+{
+	int ret = 0;
+
+	if (card->resume_pre)
+		ret = card->resume_pre(card);
+
+	return soc_card_ret(card, ret);
+}

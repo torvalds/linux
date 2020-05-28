@@ -660,8 +660,7 @@ static void soc_resume_deferred(struct work_struct *work)
 	/* Bring us up into D2 so that DAPM starts enabling things */
 	snd_power_change_state(card->snd_card, SNDRV_CTL_POWER_D2);
 
-	if (card->resume_pre)
-		card->resume_pre(card);
+	snd_soc_card_resume_pre(card);
 
 	for_each_card_components(card, component) {
 		if (snd_soc_component_is_suspended(component))
