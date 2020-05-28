@@ -263,7 +263,7 @@ static int ena_xdp_tx_map_buff(struct ena_ring *xdp_ring,
 	dma_addr_t dma = 0;
 	u32 size;
 
-	tx_info->xdpf = convert_to_xdp_frame(xdp);
+	tx_info->xdpf = xdp_convert_buff_to_frame(xdp);
 	size = tx_info->xdpf->len;
 	ena_buf = tx_info->bufs;
 

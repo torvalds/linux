@@ -703,7 +703,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 			break;
 		case XDP_TX:
 			stats->xdp_tx++;
-			xdpf = convert_to_xdp_frame(&xdp);
+			xdpf = xdp_convert_buff_to_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
 			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);
@@ -892,7 +892,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 			break;
 		case XDP_TX:
 			stats->xdp_tx++;
-			xdpf = convert_to_xdp_frame(&xdp);
+			xdpf = xdp_convert_buff_to_frame(&xdp);
 			if (unlikely(!xdpf))
 				goto err_xdp;
 			err = virtnet_xdp_xmit(dev, 1, &xdpf, 0);

@@ -1355,7 +1355,7 @@ int cpsw_run_xdp(struct cpsw_priv *priv, int ch, struct xdp_buff *xdp,
 		ret = CPSW_XDP_PASS;
 		break;
 	case XDP_TX:
-		xdpf = convert_to_xdp_frame(xdp);
+		xdpf = xdp_convert_buff_to_frame(xdp);
 		if (unlikely(!xdpf))
 			goto drop;
 

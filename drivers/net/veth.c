@@ -541,7 +541,7 @@ out:
 static int veth_xdp_tx(struct veth_rq *rq, struct xdp_buff *xdp,
 		       struct veth_xdp_tx_bq *bq)
 {
-	struct xdp_frame *frame = convert_to_xdp_frame(xdp);
+	struct xdp_frame *frame = xdp_convert_buff_to_frame(xdp);
 
 	if (unlikely(!frame))
 		return -EOVERFLOW;

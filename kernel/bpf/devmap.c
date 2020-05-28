@@ -465,7 +465,7 @@ static inline int __xdp_enqueue(struct net_device *dev, struct xdp_buff *xdp,
 	if (unlikely(err))
 		return err;
 
-	xdpf = convert_to_xdp_frame(xdp);
+	xdpf = xdp_convert_buff_to_frame(xdp);
 	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 

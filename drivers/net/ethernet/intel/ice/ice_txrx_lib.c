@@ -254,7 +254,7 @@ int ice_xmit_xdp_ring(void *data, u16 size, struct ice_ring *xdp_ring)
  */
 int ice_xmit_xdp_buff(struct xdp_buff *xdp, struct ice_ring *xdp_ring)
 {
-	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 
 	if (unlikely(!xdpf))
 		return ICE_XDP_CONSUMED;

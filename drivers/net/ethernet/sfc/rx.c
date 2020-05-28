@@ -329,7 +329,7 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 
 	case XDP_TX:
 		/* Buffer ownership passes to tx on success. */
-		xdpf = convert_to_xdp_frame(&xdp);
+		xdpf = xdp_convert_buff_to_frame(&xdp);
 		err = efx_xdp_tx_buffers(efx, 1, &xdpf, true);
 		if (unlikely(err != 1)) {
 			efx_free_rx_buffers(rx_queue, rx_buf, 1);
