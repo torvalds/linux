@@ -13,7 +13,7 @@ maintainers:
 description: |
   SPMI PMIC voltage ADC (VADC) provides interface to clients to read
   voltage. The VADC is a 15-bit sigma-delta ADC.
-  SPMI PMIC5 voltage ADC (ADC) provides interface to clients to read
+  SPMI PMIC5/PMIC7 voltage ADC (ADC) provides interface to clients to read
   voltage. The VADC is a 16-bit sigma-delta ADC.
 
 properties:
@@ -28,6 +28,7 @@ properties:
           - qcom,spmi-vadc
           - qcom,spmi-adc5
           - qcom,spmi-adc-rev2
+          - qcom,spmi-adc7
 
   reg:
     description: VADC base address in the SPMI PMIC register map
@@ -70,6 +71,8 @@ patternProperties:
         description: |
           ADC channel number.
           See include/dt-bindings/iio/qcom,spmi-vadc.h
+          For PMIC7 ADC, the channel numbers are specified separately per PMIC
+          in the PMIC-specific files in include/dt-bindings/iio/.
 
       label:
         $ref: /schemas/types.yaml#/definitions/string
@@ -113,11 +116,11 @@ patternProperties:
               channel calibration. If property is not found, channel will be
               calibrated with 0.625V and 1.25V reference channels, also
               known as absolute calibration.
-            - For compatible property "qcom,spmi-adc5" and "qcom,spmi-adc-rev2",
-              if this property is specified VADC will use the VDD reference (1.875V)
-              and GND for channel calibration. If property is not found, channel
-              will be calibrated with 0V and 1.25V reference channels, also known
-              as absolute calibration.
+            - For compatible property "qcom,spmi-adc5", "qcom,spmi-adc7" and
+              "qcom,spmi-adc-rev2", if this property is specified VADC will use
+              the VDD reference (1.875V) and GND for channel calibration. If
+              property is not found, channel will be calibrated with 0V and 1.25V
+              reference channels, also known as absolute calibration.
         type: boolean
 
       qcom,hw-settle-time:
@@ -202,6 +205,29 @@ allOf:
             qcom,hw-settle-time:
               enum: [ 15, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1, 2,
                       4, 6, 8, 10, 16, 32, 64, 128 ]
+              default: 15
+
+            qcom,avg-samples:
+              enum: [ 1, 2, 4, 8, 16 ]
+              default: 1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: qcom,spmi-adc7
+
+    then:
+      patternProperties:
+        "^.*@[0-9a-f]+$":
+          properties:
+            qcom,decimation:
+              enum: [ 85, 340, 1360 ]
+              default: 1360
+
+            qcom,hw-settle-time:
+              enum: [ 15, 100, 200, 300, 400, 500, 600, 700, 1000, 2000, 4000,
+                      8000, 16000, 32000, 64000, 128000 ]
               default: 15
 
             qcom,avg-samples:
