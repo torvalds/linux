@@ -122,12 +122,6 @@ struct bnxt_re_frpl {
 	u64				*page_list;
 };
 
-struct bnxt_re_fmr {
-	struct bnxt_re_dev	*rdev;
-	struct ib_fmr		ib_fmr;
-	struct bnxt_qplib_mrw	qplib_fmr;
-};
-
 struct bnxt_re_mw {
 	struct bnxt_re_dev	*rdev;
 	struct ib_mw		ib_mw;

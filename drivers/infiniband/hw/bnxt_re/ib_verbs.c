@@ -177,9 +177,6 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_total_mcast_qp_attach = 0;
 	ib_attr->max_ah = dev_attr->max_ah;
 
-	ib_attr->max_fmr = 0;
-	ib_attr->max_map_per_fmr = 0;
-
 	ib_attr->max_srq = dev_attr->max_srq;
 	ib_attr->max_srq_wr = dev_attr->max_srq_wqes;
 	ib_attr->max_srq_sge = dev_attr->max_srq_sges;
