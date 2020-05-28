@@ -1801,14 +1801,11 @@ static u8
 mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
 {
-	struct mt7915_sta *msta;
 	u8 type = 0;
 
 	if (vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_AP)
 		return 0;
-
-	msta = (struct mt7915_sta *)sta->drv_priv;
 
 	if (sta->he_cap.has_he) {
 		struct ieee80211_he_cap_elem *pe;
