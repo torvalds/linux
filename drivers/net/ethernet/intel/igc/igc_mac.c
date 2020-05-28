@@ -287,7 +287,7 @@ void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 	rd32(IGC_ALGNERRC);
 	rd32(IGC_RXERRC);
 	rd32(IGC_TNCRS);
-	rd32(IGC_CEXTERR);
+	rd32(IGC_HTDPMC);
 	rd32(IGC_TSCTC);
 	rd32(IGC_TSCTFC);
 

@@ -137,7 +137,7 @@
 #define IGC_RERC	0x0402C  /* Receive Error Count - R/clr */
 #define IGC_DC		0x04030  /* Defer Count - R/clr */
 #define IGC_TNCRS	0x04034  /* Tx-No CRS - R/clr */
-#define IGC_CEXTERR	0x0403C  /* Carrier Extension Error Count - R/clr */
+#define IGC_HTDPMC	0x0403C  /* Host Transmit Discarded by MAC - R/clr */
 #define IGC_RLEC	0x04040  /* Receive Length Error Count - R/clr */
 #define IGC_XONRXC	0x04048  /* XON Rx Count - R/clr */
 #define IGC_XONTXC	0x0404C  /* XON Tx Count - R/clr */
