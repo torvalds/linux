@@ -675,12 +675,6 @@ struct umr_common {
 	struct semaphore	sem;
 };
 
-enum {
-	MLX5_FMR_INVALID,
-	MLX5_FMR_VALID,
-	MLX5_FMR_BUSY,
-};
-
 struct mlx5_cache_ent {
 	struct list_head	head;
 	/* sync access to the cahce entry
@@ -1253,8 +1247,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 			    struct ib_port_attr *props);
 int mlx5_ib_query_port(struct ib_device *ibdev, u8 port,
 		       struct ib_port_attr *props);
-int mlx5_ib_init_fmr(struct mlx5_ib_dev *dev);
-void mlx5_ib_cleanup_fmr(struct mlx5_ib_dev *dev);
 void mlx5_ib_cont_pages(struct ib_umem *umem, u64 addr,
 			unsigned long max_page_shift,
 			int *count, int *shift,
