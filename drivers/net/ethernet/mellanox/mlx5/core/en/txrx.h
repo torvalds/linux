@@ -11,6 +11,10 @@
 enum mlx5e_icosq_wqe_type {
 	MLX5E_ICOSQ_WQE_NOP,
 	MLX5E_ICOSQ_WQE_UMR_RX,
+#ifdef CONFIG_MLX5_EN_TLS
+	MLX5E_ICOSQ_WQE_UMR_TLS,
+	MLX5E_ICOSQ_WQE_SET_PSV_TLS,
+#endif
 };
 
 static inline bool
@@ -114,8 +118,15 @@ struct mlx5e_icosq_wqe_info {
 		struct {
 			struct mlx5e_rq *rq;
 		} umr;
+#ifdef CONFIG_MLX5_EN_TLS
+		struct {
+			struct mlx5e_ktls_offload_context_rx *priv_rx;
+		} tls_set_params;
+#endif
 	};
 };
+
+void mlx5e_free_icosq_descs(struct mlx5e_icosq *sq);
 
 static inline u16 mlx5e_icosq_get_next_pi(struct mlx5e_icosq *sq, u16 size)
 {

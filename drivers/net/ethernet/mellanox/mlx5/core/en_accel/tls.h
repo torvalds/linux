@@ -53,6 +53,7 @@ struct mlx5e_tls_sw_stats {
 
 struct mlx5e_tls {
 	struct mlx5e_tls_sw_stats sw_stats;
+	struct workqueue_struct *rx_wq;
 };
 
 struct mlx5e_tls_offload_context_tx {

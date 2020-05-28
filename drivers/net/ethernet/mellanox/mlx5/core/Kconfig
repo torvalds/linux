@@ -173,6 +173,7 @@ config MLX5_TLS
 config MLX5_EN_TLS
 	bool "TLS cryptography-offload accelaration"
 	depends on MLX5_CORE_EN
+	depends on XPS
 	depends on MLX5_FPGA_TLS || MLX5_TLS
 	default y
 	help

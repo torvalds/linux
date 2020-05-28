@@ -1441,6 +1441,7 @@ void mlx5e_close_icosq(struct mlx5e_icosq *sq)
 	struct mlx5e_channel *c = sq->channel;
 
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
+	mlx5e_free_icosq_descs(sq);
 	mlx5e_free_icosq(sq);
 }
 
@@ -3853,6 +3854,7 @@ int mlx5e_set_features(struct net_device *netdev, netdev_features_t features)
 #ifdef CONFIG_MLX5_EN_ARFS
 	err |= MLX5E_HANDLE_FEATURE(NETIF_F_NTUPLE, set_feature_arfs);
 #endif
+	err |= MLX5E_HANDLE_FEATURE(NETIF_F_HW_TLS_RX, mlx5e_ktls_set_feature_rx);
 
 	if (err) {
 		netdev->features = oper_features;
@@ -5143,8 +5145,14 @@ static int mlx5e_init_nic_rx(struct mlx5e_priv *priv)
 	if (err)
 		goto err_destroy_flow_steering;
 
+	err = mlx5e_accel_init_rx(priv);
+	if (err)
+		goto err_tc_nic_cleanup;
+
 	return 0;
 
+err_tc_nic_cleanup:
+	mlx5e_tc_nic_cleanup(priv);
 err_destroy_flow_steering:
 	mlx5e_destroy_flow_steering(priv);
 err_destroy_xsk_tirs:
@@ -5168,6 +5176,7 @@ err_destroy_q_counters:
 
 static void mlx5e_cleanup_nic_rx(struct mlx5e_priv *priv)
 {
+	mlx5e_accel_cleanup_rx(priv);
 	mlx5e_tc_nic_cleanup(priv);
 	mlx5e_destroy_flow_steering(priv);
 	mlx5e_destroy_direct_tirs(priv, priv->xsk_tir);

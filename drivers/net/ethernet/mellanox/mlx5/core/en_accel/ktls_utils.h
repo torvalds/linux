@@ -23,6 +23,9 @@ enum {
 int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 		      struct tls_crypto_info *crypto_info, u32 start_offload_tcp_sn);
 void mlx5e_ktls_del_tx(struct net_device *netdev, struct tls_context *tls_ctx);
+int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
+		      struct tls_crypto_info *crypto_info, u32 start_offload_tcp_sn);
+void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx);
 
 struct mlx5e_set_tls_static_params_wqe {
 	struct mlx5_wqe_ctrl_seg ctrl;
@@ -64,6 +67,7 @@ void
 mlx5e_ktls_build_progress_params(struct mlx5e_set_tls_progress_params_wqe *wqe,
 				 u16 pc, u32 sqn,
 				 u32 tis_tir_num, bool fence,
+				 u32 next_record_tcp_sn,
 				 enum tls_offload_ctx_dir direction);
 
 #endif /* __MLX5E_TLS_UTILS_H__ */

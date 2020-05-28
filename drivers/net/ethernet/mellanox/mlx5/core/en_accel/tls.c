@@ -197,6 +197,7 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 		return;
 	}
 
+	/* FPGA */
 	if (!mlx5_accel_is_tls_device(priv->mdev))
 		return;
 
@@ -221,9 +222,17 @@ void mlx5e_tls_build_netdev(struct mlx5e_priv *priv)
 
 int mlx5e_tls_init(struct mlx5e_priv *priv)
 {
-	struct mlx5e_tls *tls = kzalloc(sizeof(*tls), GFP_KERNEL);
+	struct mlx5e_tls *tls;
 
+	if (!mlx5_accel_is_tls_device(priv->mdev))
+		return 0;
+
+	tls = kzalloc(sizeof(*tls), GFP_KERNEL);
 	if (!tls)
+		return -ENOMEM;
+
+	tls->rx_wq = create_singlethread_workqueue("mlx5e_tls_rx");
+	if (!tls->rx_wq)
 		return -ENOMEM;
 
 	priv->tls = tls;
@@ -237,6 +246,7 @@ void mlx5e_tls_cleanup(struct mlx5e_priv *priv)
 	if (!tls)
 		return;
 
+	destroy_workqueue(tls->rx_wq);
 	kfree(tls);
 	priv->tls = NULL;
 }

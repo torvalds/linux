@@ -49,8 +49,8 @@ bool mlx5e_tls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 void mlx5e_tls_handle_tx_wqe(struct mlx5e_txqsq *sq, struct mlx5_wqe_ctrl_seg *cseg,
 			     struct mlx5e_accel_tx_tls_state *state);
 
-void mlx5e_tls_handle_rx_skb(struct net_device *netdev, struct sk_buff *skb,
-			     u32 *cqe_bcnt);
+void mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
+			     struct mlx5_cqe64 *cqe, u32 *cqe_bcnt);
 
 #else
 
