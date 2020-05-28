@@ -37,7 +37,7 @@ struct cros_typec_data {
 	struct device *dev;
 	struct cros_ec_device *ec;
 	int num_ports;
-	unsigned int cmd_ver;
+	unsigned int pd_ctrl_ver;
 	/* Array of ports, indexed by port number. */
 	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
 	struct notifier_block nb;
@@ -340,7 +340,7 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	req.mux = USB_PD_CTRL_MUX_NO_CHANGE;
 	req.swap = USB_PD_CTRL_SWAP_NONE;
 
-	ret = cros_typec_ec_command(typec, typec->cmd_ver,
+	ret = cros_typec_ec_command(typec, typec->pd_ctrl_ver,
 				    EC_CMD_USB_PD_CONTROL, &req, sizeof(req),
 				    &resp, sizeof(resp));
 	if (ret < 0)
@@ -351,7 +351,7 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 	dev_dbg(typec->dev, "Polarity %d: 0x%hhx\n", port_num, resp.polarity);
 	dev_dbg(typec->dev, "State %d: %s\n", port_num, resp.state);
 
-	if (typec->cmd_ver == 1)
+	if (typec->pd_ctrl_ver != 0)
 		cros_typec_set_port_params_v1(typec, port_num, &resp);
 	else
 		cros_typec_set_port_params_v0(typec, port_num,
@@ -374,13 +374,15 @@ static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
 	if (ret < 0)
 		return ret;
 
-	if (resp.version_mask & EC_VER_MASK(1))
-		typec->cmd_ver = 1;
+	if (resp.version_mask & EC_VER_MASK(2))
+		typec->pd_ctrl_ver = 2;
+	else if (resp.version_mask & EC_VER_MASK(1))
+		typec->pd_ctrl_ver = 1;
 	else
-		typec->cmd_ver = 0;
+		typec->pd_ctrl_ver = 0;
 
 	dev_dbg(typec->dev, "PD Control has version mask 0x%hhx\n",
-		typec->cmd_ver);
+		typec->pd_ctrl_ver);
 
 	return 0;
 }
