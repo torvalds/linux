@@ -771,12 +771,6 @@ struct hclge_dev {
 	u16 num_roce_msi;	/* Num of roce vectors for this PF */
 	int roce_base_vector;
 
-	u16 pending_udp_bitmap;
-
-	u16 rx_itr_default;
-	u16 tx_itr_default;
-
-	u16 adminq_work_limit; /* Num of admin receive queue desc to process */
 	unsigned long service_timer_period;
 	unsigned long service_timer_previous;
 	struct timer_list reset_timer;
