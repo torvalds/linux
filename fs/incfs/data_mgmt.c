@@ -2,15 +2,16 @@
 /*
  * Copyright 2019 Google LLC
  */
-#include <linux/gfp.h>
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/file.h>
-#include <linux/ktime.h>
-#include <linux/mm.h>
-#include <linux/workqueue.h>
-#include <linux/lz4.h>
 #include <linux/crc32.h>
+#include <linux/file.h>
+#include <linux/gfp.h>
+#include <linux/ktime.h>
+#include <linux/lz4.h>
+#include <linux/mm.h>
+#include <linux/pagemap.h>
+#include <linux/slab.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
 
 #include "data_mgmt.h"
 #include "format.h"
@@ -382,24 +383,25 @@ static void log_block_read(struct mount_info *mi, incfs_uuid_t *id,
 	++head->current_record_no;
 
 	spin_unlock(&log->rl_lock);
-	if (schedule_delayed_work(&log->ml_wakeup_work, msecs_to_jiffies(16)))
-		pr_debug("incfs: scheduled a log pollers wakeup");
+	schedule_delayed_work(&log->ml_wakeup_work, msecs_to_jiffies(16));
 }
 
-static int validate_hash_tree(struct file *bf, struct data_file *df,
-			      int block_index, struct mem_range data, u8 *buf)
+static int validate_hash_tree(struct file *bf, struct file *f, int block_index,
+			      struct mem_range data, u8 *buf)
 {
-	u8 digest[INCFS_MAX_HASH_SIZE] = {};
+	struct data_file *df = get_incfs_data_file(f);
+	u8 stored_digest[INCFS_MAX_HASH_SIZE] = {};
+	u8 calculated_digest[INCFS_MAX_HASH_SIZE] = {};
 	struct mtree *tree = NULL;
 	struct incfs_df_signature *sig = NULL;
-	struct mem_range calc_digest_rng;
-	struct mem_range saved_digest_rng;
-	struct mem_range root_hash_rng;
 	int digest_size;
 	int hash_block_index = block_index;
-	int hash_per_block;
-	int lvl = 0;
+	int lvl;
 	int res;
+	loff_t hash_block_offset[INCFS_MAX_MTREE_LEVELS];
+	size_t hash_offset_in_block[INCFS_MAX_MTREE_LEVELS];
+	int hash_per_block;
+	pgoff_t file_pages;
 
 	tree = df->df_hash_tree;
 	sig = df->df_signature;
@@ -408,38 +410,60 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 
 	digest_size = tree->alg->digest_size;
 	hash_per_block = INCFS_DATA_FILE_BLOCK_SIZE / digest_size;
-	calc_digest_rng = range(digest, digest_size);
-	res = incfs_calc_digest(tree->alg, data, calc_digest_rng);
-	if (res)
-		return res;
-
 	for (lvl = 0; lvl < tree->depth; lvl++) {
-		loff_t lvl_off =
-			tree->hash_level_suboffset[lvl] + sig->hash_offset;
-		loff_t hash_block_off = lvl_off +
-			round_down(hash_block_index * digest_size,
-				INCFS_DATA_FILE_BLOCK_SIZE);
-		size_t hash_off_in_block = hash_block_index * digest_size
-			% INCFS_DATA_FILE_BLOCK_SIZE;
-		struct mem_range buf_range = range(buf,
-					INCFS_DATA_FILE_BLOCK_SIZE);
-		ssize_t read_res = incfs_kread(bf, buf,
-				INCFS_DATA_FILE_BLOCK_SIZE, hash_block_off);
+		loff_t lvl_off = tree->hash_level_suboffset[lvl];
 
-		if (read_res < 0)
-			return read_res;
-		if (read_res != INCFS_DATA_FILE_BLOCK_SIZE)
+		hash_block_offset[lvl] =
+			lvl_off + round_down(hash_block_index * digest_size,
+					     INCFS_DATA_FILE_BLOCK_SIZE);
+		hash_offset_in_block[lvl] = hash_block_index * digest_size %
+					    INCFS_DATA_FILE_BLOCK_SIZE;
+		hash_block_index /= hash_per_block;
+	}
+
+	memcpy(stored_digest, tree->root_hash, digest_size);
+
+	file_pages = DIV_ROUND_UP(df->df_size, INCFS_DATA_FILE_BLOCK_SIZE);
+	for (lvl = tree->depth - 1; lvl >= 0; lvl--) {
+		pgoff_t hash_page =
+			file_pages +
+			hash_block_offset[lvl] / INCFS_DATA_FILE_BLOCK_SIZE;
+		struct page *page = find_get_page_flags(
+			f->f_inode->i_mapping, hash_page, FGP_ACCESSED);
+
+		if (page && PageChecked(page)) {
+			u8 *addr = kmap_atomic(page);
+
+			memcpy(stored_digest, addr + hash_offset_in_block[lvl],
+			       digest_size);
+			kunmap_atomic(addr);
+			put_page(page);
+			continue;
+		}
+
+		if (page)
+			put_page(page);
+
+		res = incfs_kread(bf, buf, INCFS_DATA_FILE_BLOCK_SIZE,
+				  hash_block_offset[lvl] + sig->hash_offset);
+		if (res < 0)
+			return res;
+		if (res != INCFS_DATA_FILE_BLOCK_SIZE)
 			return -EIO;
+		res = incfs_calc_digest(tree->alg,
+					range(buf, INCFS_DATA_FILE_BLOCK_SIZE),
+					range(calculated_digest, digest_size));
+		if (res)
+			return res;
 
-		saved_digest_rng = range(buf + hash_off_in_block, digest_size);
-		if (!incfs_equal_ranges(calc_digest_rng, saved_digest_rng)) {
+		if (memcmp(stored_digest, calculated_digest, digest_size)) {
 			int i;
 			bool zero = true;
 
 			pr_debug("incfs: Hash mismatch lvl:%d blk:%d\n",
 				lvl, block_index);
-			for (i = 0; i < saved_digest_rng.len; ++i)
-				if (saved_digest_rng.data[i]) {
+			for (i = 0; i < digest_size; i++)
+				if (stored_digest[i]) {
 					zero = false;
 					break;
 				}
@@ -449,17 +473,31 @@ static int validate_hash_tree(struct file *bf, struct data_file *df,
 			return -EBADMSG;
 		}
 
-		res = incfs_calc_digest(tree->alg, buf_range, calc_digest_rng);
-		if (res)
-			return res;
-		hash_block_index /= hash_per_block;
+		memcpy(stored_digest, buf + hash_offset_in_block[lvl],
+		       digest_size);
+
+		page = grab_cache_page(f->f_inode->i_mapping, hash_page);
+		if (page) {
+			u8 *addr = kmap_atomic(page);
+
+			memcpy(addr, buf, INCFS_DATA_FILE_BLOCK_SIZE);
+			kunmap_atomic(addr);
+			SetPageChecked(page);
+			unlock_page(page);
+			put_page(page);
+		}
 	}
 
-	root_hash_rng = range(tree->root_hash, digest_size);
-	if (!incfs_equal_ranges(calc_digest_rng, root_hash_rng)) {
-		pr_debug("incfs: Root hash mismatch blk:%d\n", block_index);
+	res = incfs_calc_digest(tree->alg, data,
+				range(calculated_digest, digest_size));
+	if (res)
+		return res;
+
+	if (memcmp(stored_digest, calculated_digest, digest_size)) {
+		pr_debug("incfs: Leaf hash mismatch blk:%d\n", block_index);
 		return -EBADMSG;
 	}
+
 	return 0;
 }
 
@@ -871,7 +909,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	return error;
 }
 
-ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
+ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 				   int index, int timeout_ms,
 				   struct mem_range tmp)
 {
@@ -881,6 +919,7 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
 	struct mount_info *mi = NULL;
 	struct file *bf = NULL;
 	struct data_file_block block = {};
+	struct data_file *df = get_incfs_data_file(f);
 
 	if (!dst.data || !df)
 		return -EFAULT;
@@ -923,7 +962,7 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct data_file *df,
 	}
 
 	if (result > 0) {
-		int err = validate_hash_tree(bf, df, index, dst, tmp.data);
+		int err = validate_hash_tree(bf, f, index, dst, tmp.data);
 
 		if (err < 0)
 			result = err;
