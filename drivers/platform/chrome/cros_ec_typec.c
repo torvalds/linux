@@ -14,6 +14,7 @@
 #include <linux/platform_data/cros_usbpd_notify.h>
 #include <linux/platform_device.h>
 #include <linux/usb/typec.h>
+#include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_mux.h>
 #include <linux/usb/role.h>
 
@@ -30,6 +31,10 @@ struct cros_typec_port {
 	struct typec_switch *ori_sw;
 	struct typec_mux *mux;
 	struct usb_role_switch *role_sw;
+
+	/* Variables keeping track of switch state. */
+	struct typec_mux_state state;
+	uint8_t mux_flags;
 };
 
 /* Platform-specific data for the Chrome OS EC Type C controller. */
@@ -264,6 +269,23 @@ static int cros_typec_add_partner(struct cros_typec_data *typec, int port_num,
 	return ret;
 }
 
+static void cros_typec_remove_partner(struct cros_typec_data *typec,
+				     int port_num)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+	port->state.data = NULL;
+
+	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
+	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
+	typec_mux_set(port->mux, &port->state);
+
+	typec_unregister_partner(port->partner);
+	port->partner = NULL;
+}
+
 static void cros_typec_set_port_params_v0(struct cros_typec_data *typec,
 		int port_num, struct ec_response_usb_pd_control *resp)
 {
@@ -317,16 +339,69 @@ static void cros_typec_set_port_params_v1(struct cros_typec_data *typec,
 	} else {
 		if (!typec->ports[port_num]->partner)
 			return;
-
-		typec_unregister_partner(typec->ports[port_num]->partner);
-		typec->ports[port_num]->partner = NULL;
+		cros_typec_remove_partner(typec, port_num);
 	}
+}
+
+static int cros_typec_get_mux_info(struct cros_typec_data *typec, int port_num,
+				   struct ec_response_usb_pd_mux_info *resp)
+{
+	struct ec_params_usb_pd_mux_info req = {
+		.port = port_num,
+	};
+
+	return cros_typec_ec_command(typec, 0, EC_CMD_USB_PD_MUX_INFO, &req,
+				     sizeof(req), resp, sizeof(*resp));
+}
+
+static int cros_typec_usb_safe_state(struct cros_typec_port *port)
+{
+	port->state.mode = TYPEC_STATE_SAFE;
+
+	return typec_mux_set(port->mux, &port->state);
+}
+
+int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
+			     uint8_t mux_flags)
+{
+	struct cros_typec_port *port = typec->ports[port_num];
+	enum typec_orientation orientation;
+	int ret;
+
+	if (!port->partner)
+		return 0;
+
+	if (mux_flags & USB_PD_MUX_POLARITY_INVERTED)
+		orientation = TYPEC_ORIENTATION_REVERSE;
+	else
+		orientation = TYPEC_ORIENTATION_NORMAL;
+
+	ret = typec_switch_set(port->ori_sw, orientation);
+	if (ret)
+		return ret;
+
+	port->state.alt = NULL;
+	port->state.mode = TYPEC_STATE_USB;
+
+	if (mux_flags & USB_PD_MUX_SAFE_MODE)
+		ret = cros_typec_usb_safe_state(port);
+	else if (mux_flags & USB_PD_MUX_USB_ENABLED)
+		ret = typec_mux_set(port->mux, &port->state);
+	else {
+		dev_info(typec->dev,
+			 "Unsupported mode requested, mux flags: %x\n",
+			 mux_flags);
+		ret = -ENOTSUPP;
+	}
+
+	return ret;
 }
 
 static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 {
 	struct ec_params_usb_pd_control req;
 	struct ec_response_usb_pd_control_v1 resp;
+	struct ec_response_usb_pd_mux_info mux_resp;
 	int ret;
 
 	if (port_num < 0 || port_num >= typec->num_ports) {
@@ -357,7 +432,26 @@ static int cros_typec_port_update(struct cros_typec_data *typec, int port_num)
 		cros_typec_set_port_params_v0(typec, port_num,
 			(struct ec_response_usb_pd_control *) &resp);
 
-	return 0;
+	/* Update the switches if they exist, according to requested state */
+	ret = cros_typec_get_mux_info(typec, port_num, &mux_resp);
+	if (ret < 0) {
+		dev_warn(typec->dev,
+			 "Failed to get mux info for port: %d, err = %d\n",
+			 port_num, ret);
+		return 0;
+	}
+
+	/* No change needs to be made, let's exit early. */
+	if (typec->ports[port_num]->mux_flags == mux_resp.flags)
+		return 0;
+
+	typec->ports[port_num]->mux_flags = mux_resp.flags;
+	ret = cros_typec_configure_mux(typec, port_num, mux_resp.flags);
+	if (ret)
+		dev_warn(typec->dev, "Configure muxes failed, err = %d\n", ret);
+
+	return usb_role_switch_set_role(typec->ports[port_num]->role_sw,
+					!!(resp.role & PD_CTRL_RESP_ROLE_DATA));
 }
 
 static int cros_typec_get_cmd_version(struct cros_typec_data *typec)
