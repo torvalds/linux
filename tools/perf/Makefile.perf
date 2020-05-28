@@ -118,6 +118,9 @@ include ../scripts/utilities.mak
 #
 # Define LIBBPF_DYNAMIC to enable libbpf dynamic linking.
 #
+# Define NO_SYSCALL_TABLE=1 to disable the use of syscall id to/from name tables
+# generated from the kernel .tbl or unistd.h files and use, if available, libaudit
+# for doing the conversions to/from strings/id.
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
