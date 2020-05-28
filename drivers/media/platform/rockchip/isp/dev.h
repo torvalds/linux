@@ -44,7 +44,7 @@
 #include "isp_stats.h"
 #include "isp_mipi_luma.h"
 
-#ifdef VIDEO_ROCKCHIP_ISP1
+#ifdef CONFIG_VIDEO_ROCKCHIP_ISP1
 #define DRIVER_NAME "rkisp1"
 #else
 #define DRIVER_NAME "rkisp"

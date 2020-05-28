@@ -1582,6 +1582,8 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	struct rkisp_stream *stream = NULL;
 	u8 rawrd = INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2;
 
+	if (local->index != RKISP_ISP_PAD_SINK)
+		return 0;
 	if (!sd)
 		return -ENODEV;
 	dev = sd_to_isp_dev(sd);

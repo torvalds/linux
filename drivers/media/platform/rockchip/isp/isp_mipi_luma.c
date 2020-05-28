@@ -426,6 +426,9 @@ int rkisp_register_luma_vdev(struct rkisp_luma_vdev *luma_vdev,
 	struct media_entity *source, *sink;
 
 	luma_vdev->dev = dev;
+	if (dev->isp_ver != ISP_V20)
+		return 0;
+
 	INIT_LIST_HEAD(&luma_vdev->stat);
 	spin_lock_init(&luma_vdev->irq_lock);
 	spin_lock_init(&luma_vdev->rd_lock);
@@ -494,10 +497,11 @@ void rkisp_unregister_luma_vdev(struct rkisp_luma_vdev *luma_vdev)
 	struct rkisp_vdev_node *node = &luma_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 
+	if (luma_vdev->dev->isp_ver != ISP_V20)
+		return;
 	kfifo_free(&luma_vdev->rd_kfifo);
 	tasklet_kill(&luma_vdev->rd_tasklet);
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
 }
-

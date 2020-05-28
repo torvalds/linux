@@ -2562,6 +2562,10 @@ void rkisp_set_stream_def_fmt(struct rkisp_device *dev, u32 id,
 	memset(&pixm, 0, sizeof(pixm));
 	if (pixelformat)
 		pixm.pixelformat = pixelformat;
+	else
+		pixm.pixelformat = stream->out_isp_fmt.fourcc;
+	if (!pixm.pixelformat)
+		return;
 	pixm.width = width;
 	pixm.height = height;
 	rkisp_set_fmt(stream, &pixm, false);
@@ -2899,7 +2903,6 @@ static int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 	case RKISP_STREAM_DMATX2://CSI_SRC_CH3
 	case RKISP_STREAM_DMATX3://CSI_SRC_CH4
 		pad = stream->id;
-		stream->linked = true;
 		dev->csi_dev.sink[pad - 1].linked = true;
 		dev->csi_dev.sink[pad - 1].index = BIT(pad - 1);
 		break;
@@ -2935,6 +2938,7 @@ static int rkisp_stream_init(struct rkisp_device *dev, u32 id)
 	init_waitqueue_head(&stream->done);
 	spin_lock_init(&stream->vbq_lock);
 
+	stream->linked = MEDIA_LNK_FL_ENABLED;
 	/* isp2 disable MP/SP, enable BRIDGE default */
 	if ((id == RKISP_STREAM_SP || id == RKISP_STREAM_MP) &&
 	    dev->isp_ver == ISP_V20)
