@@ -19,6 +19,7 @@
  */
 
 
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -73,6 +74,7 @@
 #define FW_POS_STATE		1
 #define FW_POS_TOTAL		2
 #define FW_POS_XY		3
+#define FW_POS_TOOL_TYPE	33
 #define FW_POS_CHECKSUM		34
 #define FW_POS_WIDTH		35
 #define FW_POS_PRESSURE		45
@@ -842,6 +844,7 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
 {
 	struct input_dev *input = ts->input;
 	unsigned int n_fingers;
+	unsigned int tool_type;
 	u16 finger_state;
 	int i;
 
@@ -851,6 +854,10 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
 
 	dev_dbg(&ts->client->dev,
 		"n_fingers: %u, state: %04x\n",  n_fingers, finger_state);
+
+	/* Note: all fingers have the same tool type */
+	tool_type = buf[FW_POS_TOOL_TYPE] & BIT(0) ?
+			MT_TOOL_FINGER : MT_TOOL_PALM;
 
 	for (i = 0; i < MAX_CONTACT_NUM && n_fingers; i++) {
 		if (finger_state & 1) {
@@ -867,7 +874,7 @@ static void elants_i2c_mt_event(struct elants_data *ts, u8 *buf)
 				i, x, y, p, w);
 
 			input_mt_slot(input, i);
-			input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+			input_mt_report_slot_state(input, tool_type, true);
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, y);
 			input_event(input, EV_ABS, ABS_MT_PRESSURE, p);
@@ -1307,6 +1314,8 @@ static int elants_i2c_probe(struct i2c_client *client,
 	input_set_abs_params(ts->input, ABS_MT_POSITION_Y, 0, ts->y_max, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
 	input_set_abs_params(ts->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
+	input_set_abs_params(ts->input, ABS_MT_TOOL_TYPE,
+			     0, MT_TOOL_PALM, 0, 0);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_X, ts->x_res);
 	input_abs_set_res(ts->input, ABS_MT_POSITION_Y, ts->y_res);
 	input_abs_set_res(ts->input, ABS_MT_TOUCH_MAJOR, 1);
