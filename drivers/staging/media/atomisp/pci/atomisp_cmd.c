@@ -1170,8 +1170,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 			atomisp_apply_css_parameters(asd,
 						     &asd->params.css_param);
 			if (asd->params.css_param.update_flag.dz_config)
-				atomisp_css_set_dz_config(asd,
-							  &asd->params.css_param.dz_config);
+				asd->params.config.dz_config = &asd->params.css_param.dz_config;
 			/* New global dvs 6axis config should be blocked
 			 * here if there's a buffer with per-frame parameters
 			 * pending in CSS frame buffer queue.
@@ -1262,9 +1261,15 @@ void atomisp_delayed_init_work(struct work_struct *work)
 	 */
 	if (!ATOMISP_USE_YUVPP(asd)) {
 		struct v4l2_event event = {0};
+		struct ia_css_stream *stream;
 
-		atomisp_css_allocate_continuous_frames(false, asd);
-		atomisp_css_update_continuous_frames(asd);
+		stream = asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream;
+
+
+		if (ia_css_alloc_continuous_frame_remain(stream))
+			return;
+
+		ia_css_update_continuous_frames(stream);
 
 		event.type = V4L2_EVENT_ATOMISP_RAW_BUFFERS_ALLOC_DONE;
 		v4l2_event_queue(asd->subdev.devnode, &event);
@@ -1823,7 +1828,8 @@ void atomisp_setup_flash(struct atomisp_sub_device *asd)
 			return;
 		}
 
-		atomisp_css_request_flash(asd);
+		ia_css_stream_request_flash(asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream);
+
 		asd->params.flash_state = ATOMISP_FLASH_ONGOING;
 	} else {
 		asd->params.flash_state = ATOMISP_FLASH_IDLE;
@@ -2107,10 +2113,9 @@ int atomisp_gdc_cac(struct atomisp_sub_device *asd, int flag,
 
 	asd->params.gdc_cac_en = !!*value;
 	if (asd->params.gdc_cac_en) {
-		atomisp_css_set_morph_table(asd,
-					    asd->params.css_param.morph_table);
+		asd->params.config.morph_table = asd->params.css_param.morph_table;
 	} else {
-		atomisp_css_set_morph_table(asd, NULL);
+		asd->params.config.morph_table = NULL;
 	}
 	asd->params.css_update_params_needed = true;
 	atomisp_update_capture_mode(asd);
@@ -2164,7 +2169,7 @@ int atomisp_nr(struct atomisp_sub_device *asd, int flag,
 		/* Set nr config to isp parameters */
 		memcpy(&asd->params.css_param.nr_config, arg,
 		       sizeof(struct ia_css_nr_config));
-		atomisp_css_set_nr_config(asd, &asd->params.css_param.nr_config);
+		asd->params.config.nr_config = &asd->params.css_param.nr_config;
 		asd->params.css_update_params_needed = true;
 	}
 	return 0;
@@ -2185,7 +2190,7 @@ int atomisp_tnr(struct atomisp_sub_device *asd, int flag,
 		/* Set tnr config to isp parameters */
 		memcpy(&asd->params.css_param.tnr_config, config,
 		       sizeof(struct ia_css_tnr_config));
-		atomisp_css_set_tnr_config(asd, &asd->params.css_param.tnr_config);
+		asd->params.config.tnr_config = &asd->params.css_param.tnr_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -2206,7 +2211,7 @@ int atomisp_black_level(struct atomisp_sub_device *asd, int flag,
 		/* Set ob config to isp parameters */
 		memcpy(&asd->params.css_param.ob_config, config,
 		       sizeof(struct ia_css_ob_config));
-		atomisp_css_set_ob_config(asd, &asd->params.css_param.ob_config);
+		asd->params.config.ob_config = &asd->params.css_param.ob_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -2227,7 +2232,7 @@ int atomisp_ee(struct atomisp_sub_device *asd, int flag,
 		/* Set ee config to isp parameters */
 		memcpy(&asd->params.css_param.ee_config, config,
 		       sizeof(asd->params.css_param.ee_config));
-		atomisp_css_set_ee_config(asd, &asd->params.css_param.ee_config);
+		asd->params.config.ee_config = &asd->params.css_param.ee_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -2248,7 +2253,7 @@ int atomisp_gamma(struct atomisp_sub_device *asd, int flag,
 		/* Set gamma table to isp parameters */
 		memcpy(&asd->params.css_param.gamma_table, config,
 		       sizeof(asd->params.css_param.gamma_table));
-		atomisp_css_set_gamma_table(asd, &asd->params.css_param.gamma_table);
+		asd->params.config.gamma_table = &asd->params.css_param.gamma_table;
 	}
 
 	return 0;
@@ -2288,7 +2293,7 @@ int atomisp_gamma_correction(struct atomisp_sub_device *asd, int flag,
 		/* Set gamma correction params to isp parameters */
 		memcpy(&asd->params.css_param.gc_config, config,
 		       sizeof(asd->params.css_param.gc_config));
-		atomisp_css_set_gc_config(asd, &asd->params.css_param.gc_config);
+		asd->params.config.gc_config = &asd->params.css_param.gc_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -2309,7 +2314,7 @@ int atomisp_formats(struct atomisp_sub_device *asd, int flag,
 		/* Set narrow gamma flag to isp parameters */
 		memcpy(&asd->params.css_param.formats_config, config,
 		       sizeof(asd->params.css_param.formats_config));
-		atomisp_css_set_formats_config(asd, &asd->params.css_param.formats_config);
+		asd->params.config.formats_config = &asd->params.css_param.formats_config;
 	}
 
 	return 0;
@@ -2320,7 +2325,7 @@ void atomisp_free_internal_buffers(struct atomisp_sub_device *asd)
 	atomisp_free_css_parameters(&asd->params.css_param);
 
 	if (asd->raw_output_frame) {
-		atomisp_css_frame_free(asd->raw_output_frame);
+		ia_css_frame_free(asd->raw_output_frame);
 		asd->raw_output_frame = NULL;
 	}
 }
@@ -2472,7 +2477,7 @@ int atomisp_gdc_cac_table(struct atomisp_sub_device *asd, int flag,
 		}
 		asd->params.css_param.morph_table = tab;
 		if (asd->params.gdc_cac_en)
-			atomisp_css_set_morph_table(asd, tab);
+			asd->params.config.morph_table = tab;
 	}
 
 	return 0;
@@ -2514,7 +2519,7 @@ int atomisp_macc_table(struct atomisp_sub_device *asd, int flag,
 		memcpy(macc_table, &config->table,
 		       sizeof(struct ia_css_macc_table));
 		if (config->color_effect == asd->params.color_effect)
-			atomisp_css_set_macc_table(asd, macc_table);
+			asd->params.config.macc_table = macc_table;
 	}
 
 	return 0;
@@ -3151,84 +3156,82 @@ void atomisp_apply_css_parameters(
     struct atomisp_css_params *css_param)
 {
 	if (css_param->update_flag.wb_config)
-		atomisp_css_set_wb_config(asd, &css_param->wb_config);
+		asd->params.config.wb_config = &css_param->wb_config;
 
 	if (css_param->update_flag.ob_config)
-		atomisp_css_set_ob_config(asd, &css_param->ob_config);
+		asd->params.config.ob_config = &css_param->ob_config;
 
 	if (css_param->update_flag.dp_config)
-		atomisp_css_set_dp_config(asd, &css_param->dp_config);
+		asd->params.config.dp_config = &css_param->dp_config;
 
 	if (css_param->update_flag.nr_config)
-		atomisp_css_set_nr_config(asd, &css_param->nr_config);
+		asd->params.config.nr_config = &css_param->nr_config;
 
 	if (css_param->update_flag.ee_config)
-		atomisp_css_set_ee_config(asd, &css_param->ee_config);
+		asd->params.config.ee_config = &css_param->ee_config;
 
 	if (css_param->update_flag.tnr_config)
-		atomisp_css_set_tnr_config(asd, &css_param->tnr_config);
+		asd->params.config.tnr_config = &css_param->tnr_config;
 
 	if (css_param->update_flag.a3a_config)
-		atomisp_css_set_3a_config(asd, &css_param->s3a_config);
+		asd->params.config.s3a_config = &css_param->s3a_config;
 
 	if (css_param->update_flag.ctc_config)
-		atomisp_css_set_ctc_config(asd, &css_param->ctc_config);
+		asd->params.config.ctc_config = &css_param->ctc_config;
 
 	if (css_param->update_flag.cnr_config)
-		atomisp_css_set_cnr_config(asd, &css_param->cnr_config);
+		asd->params.config.cnr_config = &css_param->cnr_config;
 
 	if (css_param->update_flag.ecd_config)
-		atomisp_css_set_ecd_config(asd, &css_param->ecd_config);
+		asd->params.config.ecd_config = &css_param->ecd_config;
 
 	if (css_param->update_flag.ynr_config)
-		atomisp_css_set_ynr_config(asd, &css_param->ynr_config);
+		asd->params.config.ynr_config = &css_param->ynr_config;
 
 	if (css_param->update_flag.fc_config)
-		atomisp_css_set_fc_config(asd, &css_param->fc_config);
+		asd->params.config.fc_config = &css_param->fc_config;
 
 	if (css_param->update_flag.macc_config)
-		atomisp_css_set_macc_config(asd, &css_param->macc_config);
+		asd->params.config.macc_config = &css_param->macc_config;
 
 	if (css_param->update_flag.aa_config)
-		atomisp_css_set_aa_config(asd, &css_param->aa_config);
+		asd->params.config.aa_config = &css_param->aa_config;
 
 	if (css_param->update_flag.anr_config)
-		atomisp_css_set_anr_config(asd, &css_param->anr_config);
+		asd->params.config.anr_config = &css_param->anr_config;
 
 	if (css_param->update_flag.xnr_config)
-		atomisp_css_set_xnr_config(asd, &css_param->xnr_config);
+		asd->params.config.xnr_config = &css_param->xnr_config;
 
 	if (css_param->update_flag.yuv2rgb_cc_config)
-		atomisp_css_set_yuv2rgb_cc_config(asd,
-						  &css_param->yuv2rgb_cc_config);
+		asd->params.config.yuv2rgb_cc_config = &css_param->yuv2rgb_cc_config;
 
 	if (css_param->update_flag.rgb2yuv_cc_config)
-		atomisp_css_set_rgb2yuv_cc_config(asd,
-						  &css_param->rgb2yuv_cc_config);
+		asd->params.config.rgb2yuv_cc_config = &css_param->rgb2yuv_cc_config;
 
 	if (css_param->update_flag.macc_table)
-		atomisp_css_set_macc_table(asd, &css_param->macc_table);
+		asd->params.config.macc_table = &css_param->macc_table;
 
 	if (css_param->update_flag.xnr_table)
-		atomisp_css_set_xnr_table(asd, &css_param->xnr_table);
+		asd->params.config.xnr_table = &css_param->xnr_table;
 
 	if (css_param->update_flag.r_gamma_table)
-		atomisp_css_set_r_gamma_table(asd, &css_param->r_gamma_table);
+		asd->params.config.r_gamma_table = &css_param->r_gamma_table;
 
 	if (css_param->update_flag.g_gamma_table)
-		atomisp_css_set_g_gamma_table(asd, &css_param->g_gamma_table);
+		asd->params.config.g_gamma_table = &css_param->g_gamma_table;
 
 	if (css_param->update_flag.b_gamma_table)
-		atomisp_css_set_b_gamma_table(asd, &css_param->b_gamma_table);
+		asd->params.config.b_gamma_table = &css_param->b_gamma_table;
 
 	if (css_param->update_flag.anr_thres)
 		atomisp_css_set_anr_thres(asd, &css_param->anr_thres);
 
 	if (css_param->update_flag.shading_table)
-		atomisp_css_set_shading_table(asd, css_param->shading_table);
+		asd->params.config.shading_table = css_param->shading_table;
 
 	if (css_param->update_flag.morph_table && asd->params.gdc_cac_en)
-		atomisp_css_set_morph_table(asd, css_param->morph_table);
+		asd->params.config.morph_table = css_param->morph_table;
 
 	if (css_param->update_flag.dvs2_coefs) {
 		struct ia_css_dvs_grid_info *dvs_grid_info =
@@ -4363,18 +4366,18 @@ int atomisp_param(struct atomisp_sub_device *asd, int flag,
 	    asd->params.color_effect != V4L2_COLORFX_BW) {
 		memcpy(&asd->params.css_param.cc_config, &config->cc_config,
 		       sizeof(struct ia_css_cc_config));
-		atomisp_css_set_cc_config(asd, &asd->params.css_param.cc_config);
+		asd->params.config.cc_config = &asd->params.css_param.cc_config;
 	}
 
-	atomisp_css_set_wb_config(asd, &asd->params.css_param.wb_config);
-	atomisp_css_set_ob_config(asd, &asd->params.css_param.ob_config);
-	atomisp_css_set_de_config(asd, &asd->params.css_param.de_config);
-	atomisp_css_set_dz_config(asd, &asd->params.css_param.dz_config);
-	atomisp_css_set_ce_config(asd, &asd->params.css_param.ce_config);
-	atomisp_css_set_dp_config(asd, &asd->params.css_param.dp_config);
-	atomisp_css_set_nr_config(asd, &asd->params.css_param.nr_config);
-	atomisp_css_set_ee_config(asd, &asd->params.css_param.ee_config);
-	atomisp_css_set_tnr_config(asd, &asd->params.css_param.tnr_config);
+	asd->params.config.wb_config = &asd->params.css_param.wb_config;
+	asd->params.config.ob_config = &asd->params.css_param.ob_config;
+	asd->params.config.de_config = &asd->params.css_param.de_config;
+	asd->params.config.dz_config = &asd->params.css_param.dz_config;
+	asd->params.config.ce_config = &asd->params.css_param.ce_config;
+	asd->params.config.dp_config = &asd->params.css_param.dp_config;
+	asd->params.config.nr_config = &asd->params.css_param.nr_config;
+	asd->params.config.ee_config = &asd->params.css_param.ee_config;
+	asd->params.config.tnr_config = &asd->params.css_param.tnr_config;
 	asd->params.css_update_params_needed = true;
 
 	return 0;
@@ -4463,9 +4466,9 @@ int atomisp_color_effect(struct atomisp_sub_device *asd, int flag,
 	atomisp_update_capture_mode(asd);
 
 	if (cc_config)
-		atomisp_css_set_cc_config(asd, cc_config);
+		asd->params.config.cc_config = cc_config;
 	if (macc_table)
-		atomisp_css_set_macc_table(asd, macc_table);
+		asd->params.config.macc_table = macc_table;
 	if (ctc_table)
 		atomisp_css_set_ctc_table(asd, ctc_table);
 	asd->params.color_effect = (u32)*effect;
@@ -4502,7 +4505,7 @@ int atomisp_bad_pixel_param(struct atomisp_sub_device *asd, int flag,
 		/* Set bad pixel to isp parameters */
 		memcpy(&asd->params.css_param.dp_config, config,
 		       sizeof(asd->params.css_param.dp_config));
-		atomisp_css_set_dp_config(asd, &asd->params.css_param.dp_config);
+		asd->params.config.dp_config = &asd->params.css_param.dp_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -4595,7 +4598,7 @@ atomisp_v4l2_framebuffer_to_css_frame(const struct v4l2_framebuffer *arg,
 	/* Note: the padded width on an ia_css_frame is in elements, not in
 	   bytes. The RAW frame we use here should always be a 16bit RAW
 	   frame. This is why we bytesperline/2 is equal to the padded with */
-	if (atomisp_css_frame_allocate(&res, arg->fmt.width, arg->fmt.height,
+	if (ia_css_frame_allocate(&res, arg->fmt.width, arg->fmt.height,
 				       sh_format, padded_width, 0)) {
 		ret = -ENOMEM;
 		goto err;
@@ -4619,7 +4622,7 @@ atomisp_v4l2_framebuffer_to_css_frame(const struct v4l2_framebuffer *arg,
 
 err:
 	if (ret && res)
-		atomisp_css_frame_free(res);
+		ia_css_frame_free(res);
 	if (tmp_buf)
 		vfree(tmp_buf);
 	if (ret == 0)
@@ -4642,10 +4645,12 @@ int atomisp_fixed_pattern_table(struct atomisp_sub_device *asd,
 	ret = atomisp_v4l2_framebuffer_to_css_frame(arg, &raw_black_frame);
 	if (ret)
 		return ret;
-	if (atomisp_css_set_black_frame(asd, raw_black_frame))
-		ret = -ENOMEM;
 
-	atomisp_css_frame_free(raw_black_frame);
+	if (sh_css_set_black_frame(asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
+				   raw_black_frame) != 0)
+		return -ENOMEM;
+
+	ia_css_frame_free(raw_black_frame);
 	return ret;
 }
 
@@ -4663,10 +4668,10 @@ int atomisp_false_color(struct atomisp_sub_device *asd, int flag,
 
 	/* Set nr config to isp parameters */
 	if (*value) {
-		atomisp_css_set_default_de_config(asd);
+		asd->params.config.de_config = NULL;
 	} else {
 		asd->params.css_param.de_config.pixelnoise = 0;
-		atomisp_css_set_de_config(asd, &asd->params.css_param.de_config);
+		asd->params.config.de_config = &asd->params.css_param.de_config;
 	}
 	asd->params.css_update_params_needed = true;
 	asd->params.false_color = *value;
@@ -4687,7 +4692,7 @@ int atomisp_false_color_param(struct atomisp_sub_device *asd, int flag,
 		/* Set false color to isp parameters */
 		memcpy(&asd->params.css_param.de_config, config,
 		       sizeof(asd->params.css_param.de_config));
-		atomisp_css_set_de_config(asd, &asd->params.css_param.de_config);
+		asd->params.config.de_config = &asd->params.css_param.de_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -4708,7 +4713,7 @@ int atomisp_white_balance_param(struct atomisp_sub_device *asd, int flag,
 		/* Set white balance to isp parameters */
 		memcpy(&asd->params.css_param.wb_config, config,
 		       sizeof(asd->params.css_param.wb_config));
-		atomisp_css_set_wb_config(asd, &asd->params.css_param.wb_config);
+		asd->params.config.wb_config = &asd->params.css_param.wb_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -4730,7 +4735,7 @@ int atomisp_3a_config_param(struct atomisp_sub_device *asd, int flag,
 		/* Set white balance to isp parameters */
 		memcpy(&asd->params.css_param.s3a_config, config,
 		       sizeof(asd->params.css_param.s3a_config));
-		atomisp_css_set_3a_config(asd, &asd->params.css_param.s3a_config);
+		asd->params.config.s3a_config = &asd->params.css_param.s3a_config;
 		asd->params.css_update_params_needed = true;
 	}
 
@@ -5191,7 +5196,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				      configure_pp_input_nop;
 	u16 stream_index = atomisp_source_pad_to_stream_id(asd, source_pad);
 	const struct atomisp_in_fmt_conv *fc;
-	int ret;
+	int ret, i;
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -5288,8 +5293,9 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	}
 
 	atomisp_css_input_set_mode(asd, IA_CSS_INPUT_MODE_BUFFERED_SENSOR);
-	atomisp_css_disable_vf_pp(asd,
-				  asd->vfpp->val != ATOMISP_VFPP_ENABLE);
+
+	for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
+		asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].pipe_extra_configs[i].disable_vf_pp = asd->vfpp->val != ATOMISP_VFPP_ENABLE;
 
 	/* ISP2401 new input system need to use copy pipe */
 	if (asd->copy_mode) {
@@ -5434,12 +5440,12 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	atomisp_update_grid_info(asd, pipe_id, source_pad);
 
 	/* Free the raw_dump buffer first */
-	atomisp_css_frame_free(asd->raw_output_frame);
+	ia_css_frame_free(asd->raw_output_frame);
 	asd->raw_output_frame = NULL;
 
 	if (!asd->continuous_mode->val &&
 	    !asd->params.online_process && !isp->sw_contex.file_input &&
-	    atomisp_css_frame_allocate_from_info(&asd->raw_output_frame,
+	    ia_css_frame_allocate_from_info(&asd->raw_output_frame,
 		    raw_output_info))
 		return -ENOMEM;
 
@@ -6086,7 +6092,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 		return -EINVAL;
 
 	if (!user_shading_table->enable) {
-		atomisp_css_set_shading_table(asd, NULL);
+		asd->params.config.shading_table = NULL;
 		asd->params.sc_en = false;
 		return 0;
 	}
@@ -6131,7 +6137,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 
 	free_table = asd->params.css_param.shading_table;
 	asd->params.css_param.shading_table = shading_table;
-	atomisp_css_set_shading_table(asd, shading_table);
+	asd->params.config.shading_table = shading_table;
 	asd->params.sc_en = true;
 
 out:

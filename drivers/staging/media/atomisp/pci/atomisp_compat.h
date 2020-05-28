@@ -243,30 +243,6 @@ int atomisp_css_input_configure_port(struct atomisp_sub_device *asd,
 				     unsigned int metadata_width,
 				     unsigned int metadata_height);
 
-int atomisp_css_frame_allocate(struct ia_css_frame **frame,
-			       unsigned int width, unsigned int height,
-			       enum ia_css_frame_format format,
-			       unsigned int padded_width,
-			       unsigned int raw_bit_depth);
-
-int atomisp_css_frame_allocate_from_info(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info);
-
-void atomisp_css_frame_free(struct ia_css_frame *frame);
-
-int atomisp_css_frame_map(struct ia_css_frame **frame,
-			  const struct ia_css_frame_info *info,
-			  const void __user *data, uint16_t attribute,
-			  unsigned int pgnr);
-
-int atomisp_css_set_black_frame(struct atomisp_sub_device *asd,
-				const struct ia_css_frame *raw_black_frame);
-
-int atomisp_css_allocate_continuous_frames(bool init_time,
-	struct atomisp_sub_device *asd);
-
-void atomisp_css_update_continuous_frames(struct atomisp_sub_device *asd);
-
 void atomisp_create_pipes_stream(struct atomisp_sub_device *asd);
 void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd);
 
@@ -276,9 +252,6 @@ int atomisp_css_stop(struct atomisp_sub_device *asd,
 int atomisp_css_continuous_set_num_raw_frames(
     struct atomisp_sub_device *asd,
     int num_frames);
-
-void atomisp_css_disable_vf_pp(struct atomisp_sub_device *asd,
-			       bool disable);
 
 int atomisp_css_copy_configure_output(struct atomisp_sub_device *asd,
 				      unsigned int stream_index,
@@ -388,60 +361,8 @@ int atomisp_css_exp_id_unlock(struct atomisp_sub_device *asd, int exp_id);
 int atomisp_css_capture_enable_xnr(struct atomisp_sub_device *asd,
 				   bool enable);
 
-void atomisp_css_send_input_frame(struct atomisp_sub_device *asd,
-				  unsigned short *data, unsigned int width,
-				  unsigned int height);
-
-bool atomisp_css_isp_has_started(void);
-
-void atomisp_css_request_flash(struct atomisp_sub_device *asd);
-
-void atomisp_css_set_wb_config(struct atomisp_sub_device *asd,
-			       struct ia_css_wb_config *wb_config);
-
-void atomisp_css_set_ob_config(struct atomisp_sub_device *asd,
-			       struct ia_css_ob_config *ob_config);
-
-void atomisp_css_set_dp_config(struct atomisp_sub_device *asd,
-			       struct ia_css_dp_config *dp_config);
-
-void atomisp_css_set_de_config(struct atomisp_sub_device *asd,
-			       struct ia_css_de_config *de_config);
-
-void atomisp_css_set_dz_config(struct atomisp_sub_device *asd,
-			       struct ia_css_dz_config *dz_config);
-
-void atomisp_css_set_default_de_config(struct atomisp_sub_device *asd);
-
-void atomisp_css_set_ce_config(struct atomisp_sub_device *asd,
-			       struct ia_css_ce_config *ce_config);
-
-void atomisp_css_set_nr_config(struct atomisp_sub_device *asd,
-			       struct ia_css_nr_config *nr_config);
-
-void atomisp_css_set_ee_config(struct atomisp_sub_device *asd,
-			       struct ia_css_ee_config *ee_config);
-
-void atomisp_css_set_tnr_config(struct atomisp_sub_device *asd,
-				struct ia_css_tnr_config *tnr_config);
-
-void atomisp_css_set_cc_config(struct atomisp_sub_device *asd,
-			       struct ia_css_cc_config *cc_config);
-
-void atomisp_css_set_macc_table(struct atomisp_sub_device *asd,
-				struct ia_css_macc_table *macc_table);
-
-void atomisp_css_set_gamma_table(struct atomisp_sub_device *asd,
-				 struct ia_css_gamma_table *gamma_table);
-
 void atomisp_css_set_ctc_table(struct atomisp_sub_device *asd,
 			       struct ia_css_ctc_table *ctc_table);
-
-void atomisp_css_set_gc_config(struct atomisp_sub_device *asd,
-			       struct ia_css_gc_config *gc_config);
-
-void atomisp_css_set_3a_config(struct atomisp_sub_device *asd,
-			       struct ia_css_3a_config *s3a_config);
 
 void atomisp_css_video_set_dis_vector(struct atomisp_sub_device *asd,
 				      struct atomisp_dis_vector *vector);

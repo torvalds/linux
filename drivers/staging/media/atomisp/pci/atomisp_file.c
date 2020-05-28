@@ -50,11 +50,12 @@ static void file_work(struct work_struct *work)
 						V4L2_SUBDEV_FORMAT_ACTIVE,
 						ATOMISP_SUBDEV_PAD_SINK);
 
-	while (!atomisp_css_isp_has_started())
+	while (!ia_css_isp_has_started())
 		usleep_range(1000, 1500);
 
-	atomisp_css_send_input_frame(asd, buf, isp_sink_fmt.width,
-				     isp_sink_fmt.height);
+	ia_css_stream_send_input_frame(asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream,
+				       buf, isp_sink_fmt.width,
+				       isp_sink_fmt.height);
 	dev_dbg(isp->dev, "<%s: streaming done\n", __func__);
 }
 

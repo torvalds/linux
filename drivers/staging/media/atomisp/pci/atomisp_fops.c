@@ -252,8 +252,7 @@ int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 				err = atomisp_calculate_real_zoom_region(asd,
 					&param->params.dz_config, css_pipe_id);
 				if (!err)
-					atomisp_css_set_dz_config(asd,
-								  &param->params.dz_config);
+					asd->params.config.dz_config = &param->params.dz_config;
 			}
 			atomisp_css_set_isp_config_applied_frame(asd,
 				vm_mem->vaddr);

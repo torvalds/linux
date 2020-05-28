@@ -891,7 +891,7 @@ void atomisp_videobuf_free_buf(struct videobuf_buffer *vb)
 
 	vm_mem = vb->priv;
 	if (vm_mem && vm_mem->vaddr) {
-		atomisp_css_frame_free(vm_mem->vaddr);
+		ia_css_frame_free(vm_mem->vaddr);
 		vm_mem->vaddr = NULL;
 	}
 }
@@ -1067,7 +1067,7 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 	 * memory management function
 	 */
 	for (i = 0; i < req->count; i++) {
-		if (atomisp_css_frame_allocate_from_info(&frame, &frame_info))
+		if (ia_css_frame_allocate_from_info(&frame, &frame_info))
 			goto error;
 		vm_mem = pipe->capq.bufs[i]->priv;
 		vm_mem->vaddr = frame;
@@ -1078,11 +1078,11 @@ int __atomisp_reqbufs(struct file *file, void *fh,
 error:
 	while (i--) {
 		vm_mem = pipe->capq.bufs[i]->priv;
-		atomisp_css_frame_free(vm_mem->vaddr);
+		ia_css_frame_free(vm_mem->vaddr);
 	}
 
 	if (asd->vf_frame)
-		atomisp_css_frame_free(asd->vf_frame);
+		ia_css_frame_free(asd->vf_frame);
 
 	return -ENOMEM;
 }
@@ -1200,7 +1200,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 			goto error;
 		}
 
-		ret = atomisp_css_frame_map(&handle, &frame_info,
+		ret = ia_css_frame_map(&handle, &frame_info,
 					    (void __user *)buf->m.userptr,
 					    0, pgnr);
 		if (ret) {
@@ -1210,7 +1210,7 @@ static int atomisp_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 		if (vm_mem->vaddr) {
 			mutex_lock(&pipe->capq.vb_lock);
-			atomisp_css_frame_free(vm_mem->vaddr);
+			ia_css_frame_free(vm_mem->vaddr);
 			vm_mem->vaddr = NULL;
 			vb->state = VIDEOBUF_NEEDS_INIT;
 			mutex_unlock(&pipe->capq.vb_lock);
@@ -1758,8 +1758,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 	if (asd->params.css_update_params_needed) {
 		atomisp_apply_css_parameters(asd, &asd->params.css_param);
 		if (asd->params.css_param.update_flag.dz_config)
-			atomisp_css_set_dz_config(asd,
-						  &asd->params.css_param.dz_config);
+			asd->params.config.dz_config = &asd->params.css_param.dz_config;
 		atomisp_css_update_isp_params(asd);
 		asd->params.css_update_params_needed = false;
 		memset(&asd->params.css_param.update_flag, 0,
