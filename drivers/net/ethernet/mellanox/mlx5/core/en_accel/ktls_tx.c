@@ -56,37 +56,26 @@ struct mlx5e_ktls_offload_context_tx {
 	bool ctx_post_pending;
 };
 
-struct mlx5e_ktls_offload_context_tx_shadow {
-	struct tls_offload_context_tx         tx_ctx;
-	struct mlx5e_ktls_offload_context_tx *priv_tx;
-};
-
 static void
 mlx5e_set_ktls_tx_priv_ctx(struct tls_context *tls_ctx,
 			   struct mlx5e_ktls_offload_context_tx *priv_tx)
 {
-	struct tls_offload_context_tx *tx_ctx = tls_offload_ctx_tx(tls_ctx);
-	struct mlx5e_ktls_offload_context_tx_shadow *shadow;
+	struct mlx5e_ktls_offload_context_tx **ctx =
+		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
 
-	BUILD_BUG_ON(sizeof(*shadow) > TLS_OFFLOAD_CONTEXT_SIZE_TX);
+	BUILD_BUG_ON(sizeof(struct mlx5e_ktls_offload_context_tx *) >
+		     TLS_OFFLOAD_CONTEXT_SIZE_TX);
 
-	shadow = (struct mlx5e_ktls_offload_context_tx_shadow *)tx_ctx;
-
-	shadow->priv_tx = priv_tx;
-	priv_tx->tx_ctx = tx_ctx;
+	*ctx = priv_tx;
 }
 
 static struct mlx5e_ktls_offload_context_tx *
 mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 {
-	struct tls_offload_context_tx *tx_ctx = tls_offload_ctx_tx(tls_ctx);
-	struct mlx5e_ktls_offload_context_tx_shadow *shadow;
+	struct mlx5e_ktls_offload_context_tx **ctx =
+		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_TX);
 
-	BUILD_BUG_ON(sizeof(*shadow) > TLS_OFFLOAD_CONTEXT_SIZE_TX);
-
-	shadow = (struct mlx5e_ktls_offload_context_tx_shadow *)tx_ctx;
-
-	return shadow->priv_tx;
+	return *ctx;
 }
 
 int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
@@ -113,6 +102,7 @@ int mlx5e_ktls_add_tx(struct net_device *netdev, struct sock *sk,
 	priv_tx->expected_seq = start_offload_tcp_sn;
 	priv_tx->crypto_info  =
 		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
+	priv_tx->tx_ctx = tls_offload_ctx_tx(tls_ctx);
 
 	mlx5e_set_ktls_tx_priv_ctx(tls_ctx, priv_tx);
 
