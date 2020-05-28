@@ -883,7 +883,8 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 	 * per-cpu with no sched_switch (except workload-only).
 	 */
 	if (!ptr->have_sched_switch && !perf_cpu_map__empty(cpus) &&
-	    !target__none(&opts->target))
+	    !target__none(&opts->target) &&
+	    !intel_pt_evsel->core.attr.exclude_user)
 		ui__warning("Intel Processor Trace decoding will not be possible except for kernel tracing!\n");
 
 	return 0;
