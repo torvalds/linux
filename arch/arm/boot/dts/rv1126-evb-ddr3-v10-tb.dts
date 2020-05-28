@@ -25,7 +25,7 @@
 
 	reserved-memory {
 		trust@0 {
-			reg = <0x00000000 0x00200000>;
+			reg = <0x00000000 0x00208000>;
 			no-map;
 		};
 
