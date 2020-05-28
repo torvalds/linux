@@ -1096,6 +1096,7 @@ struct snd_soc_card {
 	unsigned int topology_shortname_created:1;
 	unsigned int fully_routed:1;
 	unsigned int disable_route_checks:1;
+	unsigned int probed:1;
 
 	void *drvdata;
 };
