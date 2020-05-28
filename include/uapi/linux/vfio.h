@@ -1048,12 +1048,23 @@ struct vfio_bitmap {
  * field.  No guarantee is made to the user that arbitrary unmaps of iova
  * or size different from those used in the original mapping call will
  * succeed.
+ * VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP should be set to get the dirty bitmap
+ * before unmapping IO virtual addresses. When this flag is set, the user must
+ * provide a struct vfio_bitmap in data[]. User must provide zero-allocated
+ * memory via vfio_bitmap.data and its size in the vfio_bitmap.size field.
+ * A bit in the bitmap represents one page, of user provided page size in
+ * vfio_bitmap.pgsize field, consecutively starting from iova offset. Bit set
+ * indicates that the page at that offset from iova is dirty. A Bitmap of the
+ * pages in the range of unmapped size is returned in the user-provided
+ * vfio_bitmap.data.
  */
 struct vfio_iommu_type1_dma_unmap {
 	__u32	argsz;
 	__u32	flags;
+#define VFIO_DMA_UNMAP_FLAG_GET_DIRTY_BITMAP (1 << 0)
 	__u64	iova;				/* IO virtual address */
 	__u64	size;				/* Size of mapping (bytes) */
+	__u8    data[];
 };
 
 #define VFIO_IOMMU_UNMAP_DMA _IO(VFIO_TYPE, VFIO_BASE + 14)
