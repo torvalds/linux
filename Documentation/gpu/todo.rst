@@ -305,7 +305,7 @@ acquire context. Replace the boilerplate code surrounding
 drm_modeset_lock_all_ctx() with DRM_MODESET_LOCK_ALL_BEGIN() and
 DRM_MODESET_LOCK_ALL_END() instead.
 
-This should also be done for all places where drm_modest_lock_all() is still
+This should also be done for all places where drm_modeset_lock_all() is still
 used.
 
 As a reference, take a look at the conversions already completed in drm core.
