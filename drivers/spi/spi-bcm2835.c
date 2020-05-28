@@ -1391,6 +1391,15 @@ static int bcm2835_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void bcm2835_spi_shutdown(struct platform_device *pdev)
+{
+	int ret;
+
+	ret = bcm2835_spi_remove(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "failed to shutdown\n");
+}
+
 static const struct of_device_id bcm2835_spi_match[] = {
 	{ .compatible = "brcm,bcm2835-spi", },
 	{}
@@ -1404,6 +1413,7 @@ static struct platform_driver bcm2835_spi_driver = {
 	},
 	.probe		= bcm2835_spi_probe,
 	.remove		= bcm2835_spi_remove,
+	.shutdown	= bcm2835_spi_shutdown,
 };
 module_platform_driver(bcm2835_spi_driver);
 
