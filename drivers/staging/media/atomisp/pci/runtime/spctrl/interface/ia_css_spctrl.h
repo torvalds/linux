@@ -38,7 +38,7 @@ ia_css_ptr get_sp_code_addr(sp_ID_t  sp_id);
 
 /* ! Load firmware on to specfied SP
 */
-enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
+int ia_css_spctrl_load_fw(sp_ID_t sp_id,
 				      ia_css_spctrl_cfg *spctrl_cfg);
 
 /* ISP2401 */
@@ -47,15 +47,15 @@ void sh_css_spctrl_reload_fw(sp_ID_t sp_id);
 
 /*!  Unload/release any memory allocated to hold the firmware
 */
-enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id);
+int ia_css_spctrl_unload_fw(sp_ID_t sp_id);
 
 /*! Intilaize dmem_cfg in SP dmem  and  start SP program
 */
-enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id);
+int ia_css_spctrl_start(sp_ID_t sp_id);
 
 /*! stop spctrl
 */
-enum ia_css_err ia_css_spctrl_stop(sp_ID_t sp_id);
+int ia_css_spctrl_stop(sp_ID_t sp_id);
 
 /*! Query the state of SP
 */

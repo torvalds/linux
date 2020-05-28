@@ -91,7 +91,7 @@ enum ia_css_debug_enable_param_dump {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, \
 		"%s(): leave: " fmt "\n", __func__, ##__VA_ARGS__)
 
-/* Shorthand for returning an enum ia_css_err return value */
+/* Shorthand for returning an int return value */
 #define IA_CSS_LEAVE_ERR(__err) \
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, \
 		"%s() %d: leave: return_err=%d\n", __func__, __LINE__, __err)
@@ -112,7 +112,7 @@ enum ia_css_debug_enable_param_dump {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, \
 		"%s(): leave: " fmt "\n", __func__, ##__VA_ARGS__)
 
-/* Shorthand for returning an enum ia_css_err return value */
+/* Shorthand for returning an int return value */
 #define IA_CSS_LEAVE_ERR_PRIVATE(__err) \
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, \
 		"%s() %d: leave: return_err=%d\n", __func__, __LINE__, __err)

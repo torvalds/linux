@@ -137,15 +137,15 @@ void ia_css_rmgr_refcount_release_vbuf(struct ia_css_rmgr_vbuf_handle **handle)
  *
  * @param pool	The pointer to the pool
  */
-enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
+int ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	size_t bytes_needed;
 
 	rmgr_refcount_init_vbuf();
 	assert(pool);
 	if (!pool)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	/* initialize the recycle pool if used */
 	if (pool->recycle && pool->size) {
 		/* allocate memory for storing the handles */
@@ -156,7 +156,7 @@ enum ia_css_err ia_css_rmgr_init_vbuf(struct ia_css_rmgr_vbuf_pool *pool)
 		if (pool->handles)
 			memset(pool->handles, 0, bytes_needed);
 		else
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 	} else {
 		/* just in case, set the size to 0 */
 		pool->size = 0;

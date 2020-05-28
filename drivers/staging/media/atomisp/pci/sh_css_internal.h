@@ -962,7 +962,7 @@ sh_css_vprint(const char *fmt, va_list args)
 */
 ia_css_ptr sh_css_params_ddr_address_map(void);
 
-enum ia_css_err
+int
 sh_css_params_init(void);
 
 void

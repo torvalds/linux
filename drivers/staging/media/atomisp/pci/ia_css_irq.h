@@ -144,14 +144,14 @@ struct ia_css_irq {
  * @return		If an error is encountered during the interrupt info
  *			and no interrupt could be translated successfully, this
  *			will return IA_CSS_INTERNAL_ERROR. Otherwise
- *			IA_CSS_SUCCESS.
+ *			0.
  *
  * This function is expected to be executed after an interrupt has been sent
  * to the IA from the CSS. This function returns information about the interrupt
  * which is needed by the IA code to properly handle the interrupt. This
  * information includes the image pipe, buffer type etc.
  */
-enum ia_css_err
+int
 ia_css_irq_translate(unsigned int *info);
 
 /* @brief Get CSI receiver error info.
@@ -227,9 +227,9 @@ ia_css_rx_port_clear_irq_info(enum mipi_port_id port, unsigned int irq_bits);
  * @return		Returns IA_CSS_INTERNAL_ERROR if this interrupt
  *			type cannot be enabled/disabled which is true for
  *			CSS internal interrupts. Otherwise returns
- *			IA_CSS_SUCCESS.
+ *			0.
  */
-enum ia_css_err
+int
 ia_css_irq_enable(enum ia_css_irq_info type, bool enable);
 
 #endif /* __IA_CSS_IRQ_H */

@@ -75,13 +75,13 @@ char *sh_css_get_fw_version(void)
  */
 
 /* Setup sp/sp1 binary */
-static enum ia_css_err
+static int
 setup_binary(struct ia_css_fw_info *fw, const char *fw_data,
 	     struct ia_css_fw_info *sh_css_fw, unsigned int binary_id) {
 	const char *blob_data;
 
 	if ((!fw) || (!fw_data))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	blob_data = fw_data + fw->blob.offset;
 
@@ -89,16 +89,16 @@ setup_binary(struct ia_css_fw_info *fw, const char *fw_data,
 
 	sh_css_fw->blob.code = vmalloc(fw->blob.size);
 	if (!sh_css_fw->blob.code)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		return -ENOMEM;
 
 	memcpy((void *)sh_css_fw->blob.code, blob_data, fw->blob.size);
 	sh_css_fw->blob.data = (char *)sh_css_fw->blob.code + fw->blob.data_source;
 	fw_minibuffer[binary_id].buffer = sh_css_fw->blob.code;
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err
+int
 sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 		      struct ia_css_blob_descr *bd,
 		      unsigned int index) {
@@ -106,7 +106,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 	const unsigned char *blob;
 
 	if ((!fw) || (!bd))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/* Special case: only one binary in fw */
 	if (!bi) bi = (const struct ia_css_fw_info *)fw;
@@ -118,11 +118,11 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 	if (bi->blob.size != bi->blob.text_size + bi->blob.icache_size + bi->blob.data_size + bi->blob.padding_size)
 	{
 		/* sanity check, note the padding bytes added for section to DDR alignment */
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 
 	if ((bi->blob.offset % (1UL << (ISP_PMEM_WIDTH_LOG2 - 3))) != 0)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	bd->blob = blob;
 	bd->header = *bi;
@@ -133,7 +133,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 
 		namebuffer = kstrdup(name, GFP_KERNEL);
 		if (!namebuffer)
-			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			return -ENOMEM;
 		bd->name = fw_minibuffer[index].name = namebuffer;
 	} else
 	{
@@ -150,7 +150,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 					 statestruct_size,
 					 GFP_KERNEL);
 		if (!parambuf)
-			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			return -ENOMEM;
 
 		bd->mem_offsets.array[IA_CSS_PARAM_CLASS_PARAM].ptr = NULL;
 		bd->mem_offsets.array[IA_CSS_PARAM_CLASS_CONFIG].ptr = NULL;
@@ -178,7 +178,7 @@ sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 		bd->mem_offsets.array[IA_CSS_PARAM_CLASS_STATE].ptr = parambuf +
 		paramstruct_size + configstruct_size;
 	}
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 bool
@@ -206,7 +206,7 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	return 0;
 }
 
-enum ia_css_err
+int
 sh_css_load_firmware(struct device *dev, const char *fw_data,
 		     unsigned int fw_size) {
 	unsigned int i;
@@ -228,17 +228,17 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	if (ret) {
 		IA_CSS_ERROR("CSS code version (%s) and firmware version (%s) mismatch!",
 			     file_header->version, release_version);
-		return IA_CSS_ERR_VERSION_MISMATCH;
+		return -EINVAL;
 	} else {
 		IA_CSS_LOG("successfully load firmware version %s", release_version);
 	}
 
 	/* some sanity checks */
 	if (!fw_data || fw_size < sizeof(struct sh_css_fw_bi_file_h))
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 
 	if (file_header->h_size != sizeof(struct sh_css_fw_bi_file_h))
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 
 	sh_css_num_binaries = file_header->binary_nr;
 	/* Only allocate memory for ISP blob info */
@@ -248,7 +248,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 		    (sh_css_num_binaries - NUM_OF_SPS) *
 		    sizeof(*sh_css_blob_info), GFP_KERNEL);
 		if (!sh_css_blob_info)
-			return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			return -ENOMEM;
 	} else {
 		sh_css_blob_info = NULL;
 	}
@@ -256,7 +256,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	fw_minibuffer = kcalloc(sh_css_num_binaries, sizeof(struct fw_param),
 				GFP_KERNEL);
 	if (!fw_minibuffer)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		return -ENOMEM;
 
 	for (i = 0; i < sh_css_num_binaries; i++)
 	{
@@ -266,36 +266,36 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 		   cause issues for drivers
 		*/
 		static struct ia_css_blob_descr bd;
-		enum ia_css_err err;
+		int err;
 
 		err = sh_css_load_blob_info(fw_data, bi, &bd, i);
 
-		if (err != IA_CSS_SUCCESS)
-			return IA_CSS_ERR_INTERNAL_ERROR;
+		if (err)
+			return -EINVAL;
 
 		if (bi->blob.offset + bi->blob.size > fw_size)
-			return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
 
 		if (bi->type == ia_css_sp_firmware) {
 			if (i != SP_FIRMWARE)
-				return IA_CSS_ERR_INTERNAL_ERROR;
+				return -EINVAL;
 			err = setup_binary(bi, fw_data, &sh_css_sp_fw, i);
-			if (err != IA_CSS_SUCCESS)
+			if (err)
 				return err;
 		} else {
 			/* All subsequent binaries (including bootloaders) (i>NUM_OF_SPS) are ISP firmware */
 			if (i < NUM_OF_SPS)
-				return IA_CSS_ERR_INTERNAL_ERROR;
+				return -EINVAL;
 
 			if (bi->type != ia_css_isp_firmware)
-				return IA_CSS_ERR_INTERNAL_ERROR;
+				return -EINVAL;
 			if (!sh_css_blob_info) /* cannot happen but KW does not see this */
-				return IA_CSS_ERR_INTERNAL_ERROR;
+				return -EINVAL;
 			sh_css_blob_info[i - NUM_OF_SPS] = bd;
 		}
 	}
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 void sh_css_unload_firmware(void)

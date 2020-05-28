@@ -18,14 +18,14 @@
 #include "gp_timer.h" /*gp_timer_read()*/
 #include "assert_support.h"
 
-enum ia_css_err
+int
 ia_css_timer_get_current_tick(
     struct ia_css_clock_tick *curr_ts) {
 	assert(curr_ts);
 	if (!curr_ts)
 	{
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 	curr_ts->ticks = (clock_value_t)gp_timer_read(GP_TIMER_SEL);
-	return IA_CSS_SUCCESS;
+	return 0;
 }

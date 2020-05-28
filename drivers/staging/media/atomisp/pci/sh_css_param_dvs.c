@@ -27,14 +27,14 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 	unsigned int height_y = 0;
 	unsigned int width_uv = 0;
 	unsigned int height_uv = 0;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	struct ia_css_dvs_6axis_config  *dvs_config = NULL;
 
 	dvs_config = kvmalloc(sizeof(struct ia_css_dvs_6axis_config),
 			      GFP_KERNEL);
 	if (!dvs_config)	{
 		IA_CSS_ERROR("out of memory");
-		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		err = -ENOMEM;
 	} else {
 		/*Initialize new struct with latest config settings*/
 		if (dvs_config_src) {
@@ -61,7 +61,7 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 						 GFP_KERNEL);
 		if (!dvs_config->xcoords_y) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
@@ -69,7 +69,7 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 						 GFP_KERNEL);
 		if (!dvs_config->ycoords_y) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
@@ -80,7 +80,7 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 						  GFP_KERNEL);
 		if (!dvs_config->xcoords_uv) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 			goto exit;
 		}
 
@@ -88,10 +88,10 @@ alloc_dvs_6axis_table(const struct ia_css_resolution *frame_res,
 						  GFP_KERNEL);
 		if (!dvs_config->ycoords_uv) {
 			IA_CSS_ERROR("out of memory");
-			err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+			err = -ENOMEM;
 		}
 exit:
-		if (err != IA_CSS_SUCCESS) {
+		if (err) {
 			free_dvs_6axis_table(
 			    &dvs_config); /* we might have allocated some memory, release this */
 			dvs_config = NULL;

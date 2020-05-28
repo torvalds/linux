@@ -34,7 +34,7 @@
  * This function generates and returns the version string. If FW is loaded, it
  * attaches the FW version.
  */
-enum ia_css_err
+int
 ia_css_get_version(char *version, int max_size);
 
 #endif /* __IA_CSS_VERSION_H */

@@ -36,14 +36,14 @@ static struct spctrl_context_info spctrl_cofig_info[N_SP_ID];
 static bool spctrl_loaded[N_SP_ID] = {0};
 
 /* Load firmware */
-enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
+int ia_css_spctrl_load_fw(sp_ID_t sp_id,
 				      ia_css_spctrl_cfg *spctrl_cfg)
 {
 	ia_css_ptr code_addr = mmgr_NULL;
 	struct ia_css_sp_init_dmem_cfg *init_dmem_cfg;
 
 	if ((sp_id >= N_SP_ID) || (!spctrl_cfg))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
 
@@ -66,7 +66,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 	 */
 	code_addr = hmm_alloc(spctrl_cfg->code_size, HMM_BO_PRIVATE, 0, NULL, 0);
 	if (code_addr == mmgr_NULL)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		return -ENOMEM;
 	hmm_store(code_addr, spctrl_cfg->code, spctrl_cfg->code_size);
 
 	if (sizeof(ia_css_ptr) > sizeof(hrt_data)) {
@@ -74,7 +74,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 				    "size of ia_css_ptr can not be greater than hrt_data\n");
 		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 
 	init_dmem_cfg->ddr_data_addr  = code_addr + spctrl_cfg->ddr_data_offset;
@@ -83,7 +83,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 				    "DDR address pointer is not properly aligned for DMA transfer\n");
 		hmm_free(code_addr);
 		code_addr = mmgr_NULL;
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 
 	spctrl_cofig_info[sp_id].sp_entry = spctrl_cfg->sp_entry;
@@ -97,7 +97,7 @@ enum ia_css_err ia_css_spctrl_load_fw(sp_ID_t sp_id,
 		      (hrt_data)spctrl_cofig_info[sp_id].code_addr);
 	sp_ctrl_setbit(sp_id, SP_ICACHE_INV_REG, SP_ICACHE_INV_BIT);
 	spctrl_loaded[sp_id] = true;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 /* ISP2401 */
@@ -118,10 +118,10 @@ ia_css_ptr get_sp_code_addr(sp_ID_t  sp_id)
 	return spctrl_cofig_info[sp_id].code_addr;
 }
 
-enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id)
+int ia_css_spctrl_unload_fw(sp_ID_t sp_id)
 {
 	if ((sp_id >= N_SP_ID) || ((sp_id < N_SP_ID) && (!spctrl_loaded[sp_id])))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/*  freeup the resource */
 	if (spctrl_cofig_info[sp_id].code_addr) {
@@ -129,14 +129,14 @@ enum ia_css_err ia_css_spctrl_unload_fw(sp_ID_t sp_id)
 		spctrl_cofig_info[sp_id].code_addr = mmgr_NULL;
 	}
 	spctrl_loaded[sp_id] = false;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 /* Initialize dmem_cfg in SP dmem  and  start SP program*/
-enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
+int ia_css_spctrl_start(sp_ID_t sp_id)
 {
 	if ((sp_id >= N_SP_ID) || ((sp_id < N_SP_ID) && (!spctrl_loaded[sp_id])))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/* Set descr in the SP to initialize the SP DMEM */
 	/*
@@ -155,7 +155,7 @@ enum ia_css_err ia_css_spctrl_start(sp_ID_t sp_id)
 		      (hrt_data)spctrl_cofig_info[sp_id].sp_entry);
 	sp_ctrl_setbit(sp_id, SP_SC_REG, SP_RUN_BIT);
 	sp_ctrl_setbit(sp_id, SP_SC_REG, SP_START_BIT);
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 /* Query the state of SP1 */

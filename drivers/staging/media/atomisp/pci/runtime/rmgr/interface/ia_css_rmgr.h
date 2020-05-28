@@ -28,7 +28,7 @@
 /**
  * @brief Initialize resource manager (host/common)
  */
-enum ia_css_err ia_css_rmgr_init(void);
+int ia_css_rmgr_init(void);
 
 /**
  * @brief Uninitialize resource manager (host/common)

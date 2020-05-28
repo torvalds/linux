@@ -586,7 +586,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	if (irq_infos & IA_CSS_IRQ_INFO_ISYS_EVENTS_READY) {
 		while (ia_css_dequeue_isys_event(&eof_event.event) ==
-		       IA_CSS_SUCCESS) {
+		       0) {
 			/* EOF Event does not have the css_pipe returned */
 			asd = __get_asd_from_port(isp, eof_event.event.port);
 			if (!asd) {
@@ -6632,7 +6632,7 @@ int atomisp_get_invalid_frame_num(struct video_device *vdev,
 	ret = ia_css_pipe_get_info(
 		  asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL]
 		  .pipes[pipe_id], &p_info);
-	if (ret == IA_CSS_SUCCESS) {
+	if (!ret) {
 		*invalid_frame_num = p_info.num_invalid_frames;
 		return 0;
 	} else {

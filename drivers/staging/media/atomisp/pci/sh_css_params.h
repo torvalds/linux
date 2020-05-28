@@ -153,7 +153,7 @@ ia_css_params_store_ia_css_host_data(
     ia_css_ptr ddr_addr,
     struct ia_css_host_data *data);
 
-enum ia_css_err
+int
 ia_css_params_store_sctbl(
     const struct ia_css_pipeline_stage *stage,
     ia_css_ptr ddr_addr,
@@ -173,7 +173,7 @@ sh_css_params_alloc_gdc_lut(void);
 void
 sh_css_params_free_gdc_lut(ia_css_ptr addr);
 
-enum ia_css_err
+int
 sh_css_params_map_and_store_default_gdc_lut(void);
 
 void

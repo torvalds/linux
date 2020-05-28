@@ -235,12 +235,12 @@ void ia_css_sdis_clear_coefficients(
 	dvs_coefs->ver_coefs = NULL;
 }
 
-enum ia_css_err
+int
 ia_css_get_dvs_statistics(
     struct ia_css_dvs_statistics	       *host_stats,
     const struct ia_css_isp_dvs_statistics *isp_stats) {
 	struct ia_css_isp_dvs_statistics_map *map;
-	enum ia_css_err ret = IA_CSS_SUCCESS;
+	int ret = 0;
 
 	IA_CSS_ENTER("host_stats=%p, isp_stats=%p", host_stats, isp_stats);
 
@@ -256,7 +256,7 @@ ia_css_get_dvs_statistics(
 	} else
 	{
 		IA_CSS_ERROR("out of memory");
-		ret = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		ret = -ENOMEM;
 	}
 
 	IA_CSS_LEAVE_ERR(ret);

@@ -46,7 +46,7 @@ static void pipeline_init_defaults(
     unsigned int dvs_frame_delay);
 
 static void pipeline_stage_destroy(struct ia_css_pipeline_stage *stage);
-static enum ia_css_err pipeline_stage_create(
+static int pipeline_stage_create(
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_pipeline_stage **new_stage);
 static void ia_css_pipeline_set_zoom_stage(struct ia_css_pipeline *pipeline);
@@ -61,7 +61,7 @@ void ia_css_pipeline_init(void)
 	pipeline_init_sp_thread_map();
 }
 
-enum ia_css_err ia_css_pipeline_create(
+int ia_css_pipeline_create(
     struct ia_css_pipeline *pipeline,
     enum ia_css_pipe_id pipe_id,
     unsigned int pipe_num,
@@ -71,14 +71,14 @@ enum ia_css_err ia_css_pipeline_create(
 	IA_CSS_ENTER_PRIVATE("pipeline = %p, pipe_id = %d, pipe_num = %d, dvs_frame_delay = %d",
 			     pipeline, pipe_id, pipe_num, dvs_frame_delay);
 	if (!pipeline) {
-		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INVALID_ARGUMENTS);
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
+		return -EINVAL;
 	}
 
 	pipeline_init_defaults(pipeline, pipe_id, pipe_num, dvs_frame_delay);
 
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
-	return IA_CSS_SUCCESS;
+	IA_CSS_LEAVE_ERR_PRIVATE(0);
+	return 0;
 }
 
 void ia_css_pipeline_map(unsigned int pipe_num, bool map)
@@ -196,15 +196,15 @@ void ia_css_pipeline_dump_thread_map_info(void)
 	}
 }
 
-enum ia_css_err ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline)
+int ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	unsigned int thread_id;
 
 	assert(pipeline);
 
 	if (!pipeline)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_pipeline_request_stop() enter: pipeline=%p\n",
@@ -219,7 +219,7 @@ enum ia_css_err ia_css_pipeline_request_stop(struct ia_css_pipeline *pipeline)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_pipeline_request_stop() leaving\n");
 		/* queues are invalid */
-		return IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
+		return -EBUSY;
 	}
 	ia_css_bufq_enqueue_psys_event(IA_CSS_PSYS_SW_EVENT_STOP_STREAM,
 				       (uint8_t)thread_id,
@@ -264,19 +264,19 @@ void ia_css_pipeline_clean(struct ia_css_pipeline *pipeline)
  * @param       pipeline      Pointer to the pipeline to be added to.
  * @param[in]   stage_desc    The description of the stage
  * @param[out]	stage         The successor of the stage.
- * @return      IA_CSS_SUCCESS or error code upon error.
+ * @return      0 or error code upon error.
  *
  * Add a new stage to a non-NULL pipeline.
  * The stage consists of an ISP binary or firmware and input and
  * output arguments.
 */
-enum ia_css_err ia_css_pipeline_create_and_add_stage(
+int ia_css_pipeline_create_and_add_stage(
     struct ia_css_pipeline *pipeline,
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_pipeline_stage **stage)
 {
 	struct ia_css_pipeline_stage *last, *new_stage = NULL;
-	enum ia_css_err err;
+	int err;
 
 	/* other arguments can be NULL */
 	assert(pipeline);
@@ -290,7 +290,7 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_pipeline_create_and_add_stage() done: Invalid args\n");
 
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 
 	/* Find the last stage */
@@ -309,12 +309,12 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 			stage_desc->in_frame = last->args.out_frame[0];
 
 		if (!stage_desc->in_frame)
-			return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
 	}
 
 	/* Create the new stage */
 	err = pipeline_stage_create(stage_desc, &new_stage);
-	if (err != IA_CSS_SUCCESS) {
+	if (err) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_pipeline_create_and_add_stage() done: stage_create_failed\n");
 		return err;
@@ -331,7 +331,7 @@ enum ia_css_err ia_css_pipeline_create_and_add_stage(
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_pipeline_create_and_add_stage() done:\n");
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
@@ -351,7 +351,7 @@ void ia_css_pipeline_finalize_stages(struct ia_css_pipeline *pipeline,
 	ia_css_pipeline_configure_inout_port(pipeline, continuous);
 }
 
-enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
+int ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
 	int mode,
 	struct ia_css_pipeline_stage **stage)
 {
@@ -364,13 +364,13 @@ enum ia_css_err ia_css_pipeline_get_stage(struct ia_css_pipeline *pipeline,
 	for (s = pipeline->stages; s; s = s->next) {
 		if (s->mode == mode) {
 			*stage = s;
-			return IA_CSS_SUCCESS;
+			return 0;
 		}
 	}
-	return IA_CSS_ERR_INTERNAL_ERROR;
+	return -EINVAL;
 }
 
-enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
+int ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
 	*pipeline,
 	u32 fw_handle,
 	struct ia_css_pipeline_stage **stage)
@@ -383,13 +383,13 @@ enum ia_css_err ia_css_pipeline_get_stage_from_fw(struct ia_css_pipeline
 	for (s = pipeline->stages; s; s = s->next) {
 		if ((s->firmware) && (s->firmware->handle == fw_handle)) {
 			*stage = s;
-			return IA_CSS_SUCCESS;
+			return 0;
 		}
 	}
-	return IA_CSS_ERR_INTERNAL_ERROR;
+	return -EINVAL;
 }
 
-enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
+int ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
 	*pipeline,
 	u32 stage_num,
 	uint32_t *fw_handle)
@@ -398,18 +398,18 @@ enum ia_css_err ia_css_pipeline_get_fw_from_stage(struct ia_css_pipeline
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "%s()\n", __func__);
 	if ((!pipeline) || (!fw_handle))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	for (s = pipeline->stages; s; s = s->next) {
 		if ((s->stage_num == stage_num) && (s->firmware)) {
 			*fw_handle = s->firmware->handle;
-			return IA_CSS_SUCCESS;
+			return 0;
 		}
 	}
-	return IA_CSS_ERR_INTERNAL_ERROR;
+	return -EINVAL;
 }
 
-enum ia_css_err ia_css_pipeline_get_output_stage(
+int ia_css_pipeline_get_output_stage(
     struct ia_css_pipeline *pipeline,
     int mode,
     struct ia_css_pipeline_stage **stage)
@@ -429,7 +429,7 @@ enum ia_css_err ia_css_pipeline_get_output_stage(
 			*stage = s;
 	}
 	if (*stage)
-		return IA_CSS_SUCCESS;
+		return 0;
 	/* If no firmware, find binary in pipe */
 	return ia_css_pipeline_get_stage(pipeline, mode, stage);
 }
@@ -567,11 +567,11 @@ static void pipeline_unmap_num_to_sp_thread(unsigned int pipe_num)
 	pipeline_sp_thread_list[thread_id] = PIPELINE_SP_THREAD_EMPTY_TOKEN;
 }
 
-static enum ia_css_err pipeline_stage_create(
+static int pipeline_stage_create(
     struct ia_css_pipeline_stage_desc *stage_desc,
     struct ia_css_pipeline_stage **new_stage)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	struct ia_css_pipeline_stage *stage = NULL;
 	struct ia_css_binary *binary;
 	struct ia_css_frame *vf_frame;
@@ -582,7 +582,7 @@ static enum ia_css_err pipeline_stage_create(
 	/* Verify input parameters*/
 	if (!(stage_desc->in_frame) && !(stage_desc->firmware)
 	    && (stage_desc->binary) && !(stage_desc->binary->online)) {
-		err = IA_CSS_ERR_INTERNAL_ERROR;
+		err = -EINVAL;
 		goto ERR;
 	}
 
@@ -595,7 +595,7 @@ static enum ia_css_err pipeline_stage_create(
 
 	stage = kvzalloc(sizeof(*stage), GFP_KERNEL);
 	if (!stage) {
-		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		err = -ENOMEM;
 		goto ERR;
 	}
 
@@ -627,7 +627,7 @@ static enum ia_css_err pipeline_stage_create(
 		    && (binary->out_frame_info[i].res.width)) {
 			err = ia_css_frame_allocate_from_info(&out_frame[i],
 							      &binary->out_frame_info[i]);
-			if (err != IA_CSS_SUCCESS)
+			if (err)
 				goto ERR;
 			stage->out_frame_allocated[i] = true;
 		}
@@ -641,7 +641,7 @@ static enum ia_css_err pipeline_stage_create(
 		   ) {
 			err = ia_css_frame_allocate_from_info(&vf_frame,
 							      &binary->vf_frame_info);
-			if (err != IA_CSS_SUCCESS)
+			if (err)
 				goto ERR;
 			stage->vf_frame_allocated = true;
 		}
@@ -690,30 +690,30 @@ static void pipeline_init_defaults(
 static void ia_css_pipeline_set_zoom_stage(struct ia_css_pipeline *pipeline)
 {
 	struct ia_css_pipeline_stage *stage = NULL;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	assert(pipeline);
 	if (pipeline->pipe_id == IA_CSS_PIPE_ID_PREVIEW) {
 		/* in preview pipeline, vf_pp stage should do zoom */
 		err = ia_css_pipeline_get_stage(pipeline, IA_CSS_BINARY_MODE_VF_PP, &stage);
-		if (err == IA_CSS_SUCCESS)
+		if (!err)
 			stage->enable_zoom = true;
 	} else if (pipeline->pipe_id == IA_CSS_PIPE_ID_CAPTURE) {
 		/* in capture pipeline, capture_pp stage should do zoom */
 		err = ia_css_pipeline_get_stage(pipeline, IA_CSS_BINARY_MODE_CAPTURE_PP,
 						&stage);
-		if (err == IA_CSS_SUCCESS)
+		if (!err)
 			stage->enable_zoom = true;
 	} else if (pipeline->pipe_id == IA_CSS_PIPE_ID_VIDEO) {
 		/* in video pipeline, video stage should do zoom */
 		err = ia_css_pipeline_get_stage(pipeline, IA_CSS_BINARY_MODE_VIDEO, &stage);
-		if (err == IA_CSS_SUCCESS)
+		if (!err)
 			stage->enable_zoom = true;
 	} else if (pipeline->pipe_id == IA_CSS_PIPE_ID_YUVPP) {
 		/* in yuvpp pipeline, first yuv_scaler stage should do zoom */
 		err = ia_css_pipeline_get_stage(pipeline, IA_CSS_BINARY_MODE_CAPTURE_PP,
 						&stage);
-		if (err == IA_CSS_SUCCESS)
+		if (!err)
 			stage->enable_zoom = true;
 	}
 }

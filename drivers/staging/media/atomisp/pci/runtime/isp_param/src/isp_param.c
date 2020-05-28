@@ -101,12 +101,12 @@ ia_css_init_memory_interface(
 	}
 }
 
-enum ia_css_err
+int
 ia_css_isp_param_allocate_isp_parameters(
     struct ia_css_isp_param_host_segments *mem_params,
     struct ia_css_isp_param_css_segments *css_params,
     const struct ia_css_isp_param_isp_segments *mem_initializers) {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	unsigned int mem, pclass;
 
 	pclass = IA_CSS_PARAM_CLASS_PARAM;
@@ -126,13 +126,13 @@ ia_css_isp_param_allocate_isp_parameters(
 										   size,
 										   GFP_KERNEL);
 				if (!mem_params->params[pclass][mem].address) {
-					err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+					err = -ENOMEM;
 					goto cleanup;
 				}
 				if (pclass != IA_CSS_PARAM_CLASS_PARAM) {
 					css_params->params[pclass][mem].address = hmm_alloc(size, HMM_BO_PRIVATE, 0, NULL, 0);
 					if (!css_params->params[pclass][mem].address) {
-						err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+						err = -ENOMEM;
 						goto cleanup;
 					}
 				}
@@ -180,7 +180,7 @@ ia_css_isp_param_load_fw_params(
 	}
 }
 
-enum ia_css_err
+int
 ia_css_isp_param_copy_isp_mem_if_to_ddr(
     struct ia_css_isp_param_css_segments *ddr,
     const struct ia_css_isp_param_host_segments *host,
@@ -194,12 +194,12 @@ ia_css_isp_param_copy_isp_mem_if_to_ddr(
 		char	    *host_mem_ptr = host->params[pclass][mem].address;
 
 		if (size != ddr->params[pclass][mem].size)
-			return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
 		if (!size)
 			continue;
 		hmm_store(ddr_mem_ptr, host_mem_ptr, size);
 	}
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 void

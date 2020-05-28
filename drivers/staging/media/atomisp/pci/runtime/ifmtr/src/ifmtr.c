@@ -28,12 +28,12 @@
 /************************************************************
  * Static functions declarations
  ************************************************************/
-static enum ia_css_err ifmtr_start_column(
+static int ifmtr_start_column(
     const struct ia_css_stream_config *config,
     unsigned int bin_in,
     unsigned int *start_column);
 
-static enum ia_css_err ifmtr_input_start_line(
+static int ifmtr_input_start_line(
     const struct ia_css_stream_config *config,
     unsigned int bin_in,
     unsigned int *start_line);
@@ -71,7 +71,7 @@ unsigned int ia_css_ifmtr_columns_needed_for_bayer_order(
 	return 0;
 }
 
-enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
+int ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 				       struct ia_css_binary *binary)
 {
 	unsigned int start_line, start_column = 0,
@@ -97,7 +97,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 				 left_padding = 0;
 	input_formatter_cfg_t if_a_config, if_b_config;
 	enum atomisp_input_format input_format;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 	u8 if_config_index;
 
 	/* Determine which input formatter config set is targeted. */
@@ -142,10 +142,10 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 	 * columns.
 	 */
 	err = ifmtr_input_start_line(config, cropped_height, &start_line);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 	err = ifmtr_start_column(config, cropped_width, &start_column);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 
 	if (config->left_padding == -1)
@@ -358,7 +358,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		break;
 	}
 	if (width_a == 0)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	if (two_ppc)
 		left_padding /= 2;
@@ -459,7 +459,7 @@ enum ia_css_err ia_css_ifmtr_configure(struct ia_css_stream_config *config,
 		}
 	}
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 bool ifmtr_set_if_blocking_mode_reset = true;
@@ -496,7 +496,7 @@ static void ifmtr_set_if_blocking_mode(
 	return;
 }
 
-static enum ia_css_err ifmtr_start_column(
+static int ifmtr_start_column(
     const struct ia_css_stream_config *config,
     unsigned int bin_in,
     unsigned int *start_column)
@@ -505,7 +505,7 @@ static enum ia_css_err ifmtr_start_column(
 		     for_bayer = ia_css_ifmtr_columns_needed_for_bayer_order(config);
 
 	if (bin_in + 2 * for_bayer > in)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/* On the hardware, we want to use the middle of the input, so we
 	 * divide the start column by 2. */
@@ -519,10 +519,10 @@ static enum ia_css_err ifmtr_start_column(
 	 */
 	start += for_bayer;
 	*start_column = start;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-static enum ia_css_err ifmtr_input_start_line(
+static int ifmtr_input_start_line(
     const struct ia_css_stream_config *config,
     unsigned int bin_in,
     unsigned int *start_line)
@@ -531,7 +531,7 @@ static enum ia_css_err ifmtr_input_start_line(
 		     for_bayer = ia_css_ifmtr_lines_needed_for_bayer_order(config);
 
 	if (bin_in + 2 * for_bayer > in)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/* On the hardware, we want to use the middle of the input, so we
 	 * divide the start line by 2. On the simulator, we cannot handle extra
@@ -546,7 +546,7 @@ static enum ia_css_err ifmtr_input_start_line(
 	/* now we add the one line (if needed) to correct for the bayer order */
 	start += for_bayer;
 	*start_line = start;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 #endif

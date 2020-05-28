@@ -40,7 +40,7 @@ char
 bool
 sh_css_check_firmware_version(struct device *dev, const char *fw_data);
 
-enum ia_css_err
+int
 sh_css_load_firmware(struct device *dev, const char *fw_data,
 		     unsigned int fw_size);
 
@@ -48,7 +48,7 @@ void sh_css_unload_firmware(void);
 
 ia_css_ptr sh_css_load_blob(const unsigned char *blob, unsigned int size);
 
-enum ia_css_err
+int
 sh_css_load_blob_info(const char *fw, const struct ia_css_fw_info *bi,
 		      struct ia_css_blob_descr *bd, unsigned int i);
 

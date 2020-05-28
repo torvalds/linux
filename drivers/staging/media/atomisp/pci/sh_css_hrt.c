@@ -61,7 +61,7 @@ bool sh_css_hrt_system_is_idle(void)
 	return !not_idle;
 }
 
-enum ia_css_err sh_css_hrt_sp_wait(void)
+int sh_css_hrt_sp_wait(void)
 {
 #if defined(HAS_IRQ_MAP_VERSION_2)
 	irq_sw_channel_id_t	irq_id = IRQ_SW_CHANNEL0_ID;
@@ -81,5 +81,5 @@ enum ia_css_err sh_css_hrt_sp_wait(void)
 		hrt_sleep();
 	}
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

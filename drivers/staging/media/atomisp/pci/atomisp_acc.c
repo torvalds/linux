@@ -559,7 +559,7 @@ int atomisp_acc_set_state(struct atomisp_sub_device *asd,
 	struct atomisp_acc_fw *acc_fw;
 	bool enable = (arg->flags & ATOMISP_STATE_FLAG_ENABLE) != 0;
 	struct ia_css_pipe *pipe;
-	enum ia_css_err r;
+	int r;
 	int i;
 
 	if (!asd->acc.extension_mode)
@@ -581,7 +581,7 @@ int atomisp_acc_set_state(struct atomisp_sub_device *asd,
 			       pipes[acc_flag_to_pipe[i].pipe_id];
 			r = ia_css_pipe_set_qos_ext_state(pipe, acc_fw->handle,
 							  enable);
-			if (r != IA_CSS_SUCCESS)
+			if (r)
 				return -EBADRQC;
 		}
 	}

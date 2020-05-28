@@ -27,7 +27,7 @@ typedef void (*clear_func)(ia_css_ptr ptr);
  * \param[in]	size		Size of the refcount list.
  * \return				ia_css_err
  */
-enum ia_css_err ia_css_refcount_init(uint32_t size);
+int ia_css_refcount_init(uint32_t size);
 
 /*! \brief Function for de-initializing refcount list
  *

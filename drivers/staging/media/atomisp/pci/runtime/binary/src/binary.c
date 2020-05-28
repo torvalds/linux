@@ -134,7 +134,7 @@ struct sh_css_binary_sc_requirements {
 };
 
 /* Get the requirements for the shading correction. */
-static enum ia_css_err
+static int
 #ifndef ISP2401
 ia_css_binary_compute_shading_table_bayer_origin(
     const struct ia_css_binary *binary,				/* [in] */
@@ -149,7 +149,7 @@ sh_css_binary_get_sc_requirements(
     struct sh_css_binary_sc_requirements *scr)		/* [out] */
 #endif
 {
-	enum ia_css_err err;
+	int err;
 
 #ifndef ISP2401
 	/* Numerator and denominator of the fixed bayer downscaling factor.
@@ -198,7 +198,7 @@ sh_css_binary_get_sc_requirements(
 	/* Get the numerator and denominator of bayer downscaling factor. */
 	err = sh_css_bds_factor_get_numerator_denominator
 	(required_bds_factor, &bds_num, &bds_den);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 #else
 	/* Flags corresponding to NEED_BDS_FACTOR_2_00/NEED_BDS_FACTOR_1_50/NEED_BDS_FACTOR_1_25 macros
 	 * defined in isp kernels. */
@@ -228,7 +228,7 @@ sh_css_binary_get_sc_requirements(
 
 	/* Get the numerator and denominator of the required bayer downscaling factor. */
 	err = sh_css_bds_factor_get_numerator_denominator(required_bds_factor, &bds_num, &bds_den);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 	{
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 #endif
@@ -481,7 +481,7 @@ return err;
 }
 
 /* Get the shading information of Shading Correction Type 1. */
-static enum ia_css_err
+static int
 ia_css_binary_get_shading_info_type_1(const struct ia_css_binary
 				      *binary,	/* [in] */
 				      unsigned int required_bds_factor,			/* [in] */
@@ -493,7 +493,7 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary
 				      struct ia_css_pipe_config *pipe_config)			/* [out] */
 #endif
 {
-	enum ia_css_err err;
+	int err;
 #ifndef ISP2401
 	struct sh_css_shading_table_bayer_origin_compute_results res;
 #else
@@ -547,12 +547,12 @@ ia_css_binary_get_shading_info_type_1(const struct ia_css_binary
 	    required_bds_factor,
 	    stream_config,
 	    &res);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 #else
 	*shading_info = DEFAULT_SHADING_INFO_TYPE_1;
 
 	err = sh_css_binary_get_sc_requirements(binary, required_bds_factor, stream_config, &scr);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 	{
 		IA_CSS_LEAVE_ERR_PRIVATE(err);
 #endif
@@ -641,8 +641,8 @@ IA_CSS_LOG("adjust_width_bqs=%d, adjust_height_bqs=%d", adjust_width_bqs, adjust
 
 if (adjust_width_bqs > tbl_width_bqs || adjust_height_bqs > tbl_height_bqs)
 {
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_INTERNAL_ERROR);
-	return IA_CSS_ERR_INTERNAL_ERROR;
+	IA_CSS_LEAVE_ERR_PRIVATE(-EINVAL);
+	return -EINVAL;
 }
 
 /* Origin of the internal frame on the shading table. */
@@ -700,7 +700,7 @@ IA_CSS_LEAVE_ERR_PRIVATE(err);
 return err;
 }
 
-enum ia_css_err
+int
 ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 			       enum ia_css_shading_correction_type type,		/* [in] */
 			       unsigned int required_bds_factor,			/* [in] */
@@ -708,7 +708,7 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 			       struct ia_css_shading_info *shading_info,		/* [out] */
 			       struct ia_css_pipe_config *pipe_config)			/* [out] */
 {
-	enum ia_css_err err;
+	int err;
 
 	assert(binary);
 	assert(shading_info);
@@ -728,7 +728,7 @@ ia_css_binary_get_shading_info(const struct ia_css_binary *binary,			/* [in] */
 	/* Other function calls can be added here when other shading correction types will be added in the future. */
 
 	else
-		err = IA_CSS_ERR_NOT_SUPPORTED;
+		err = -ENOTSUPP;
 
 	IA_CSS_LEAVE_ERR_PRIVATE(err);
 	return err;
@@ -786,12 +786,12 @@ ia_css_binary_dvs_stat_grid_info(
 	return;
 }
 
-enum ia_css_err
+int
 ia_css_binary_3a_grid_info(const struct ia_css_binary *binary,
 			   struct ia_css_grid_info *info,
 			   struct ia_css_pipe *pipe) {
 	struct ia_css_3a_grid_info *s3a_info;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	IA_CSS_ENTER_PRIVATE("binary=%p, info=%p, pipe=%p",
 			     binary, info, pipe);
@@ -882,52 +882,52 @@ supports_bds_factor(u32 supported_factors,
 	return ((supported_factors & PACK_BDS_FACTOR(bds_factor)) != 0);
 }
 
-static enum ia_css_err
+static int
 binary_init_info(struct ia_css_binary_xinfo *info, unsigned int i,
 		 bool *binary_found) {
 	const unsigned char *blob = sh_css_blob_info[i].blob;
 	unsigned int size = sh_css_blob_info[i].header.blob.size;
 
 	if ((!info) || (!binary_found))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	*info = sh_css_blob_info[i].header.info.isp;
 	*binary_found = blob;
 	info->blob_index = i;
 	/* we don't have this binary, skip it */
 	if (!size)
-		return IA_CSS_SUCCESS;
+		return 0;
 
 	info->xmem_addr = sh_css_load_blob(blob, size);
 	if (!info->xmem_addr)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	return IA_CSS_SUCCESS;
+		return -ENOMEM;
+	return 0;
 }
 
 /* When binaries are put at the beginning, they will only
  * be selected if no other primary matches.
  */
-enum ia_css_err
+int
 ia_css_binary_init_infos(void) {
 	unsigned int i;
 	unsigned int num_of_isp_binaries = sh_css_num_binaries - NUM_OF_SPS - NUM_OF_BLS;
 
 	if (num_of_isp_binaries == 0)
-		return IA_CSS_SUCCESS;
+		return 0;
 
 	all_binaries = kvmalloc(num_of_isp_binaries * sizeof(*all_binaries),
 				GFP_KERNEL);
 	if (!all_binaries)
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		return -ENOMEM;
 
 	for (i = 0; i < num_of_isp_binaries; i++)
 	{
-		enum ia_css_err ret;
+		int ret;
 		struct ia_css_binary_xinfo *binary = &all_binaries[i];
 		bool binary_found;
 
 		ret = binary_init_info(binary, i, &binary_found);
-		if (ret != IA_CSS_SUCCESS)
+		if (ret)
 			return ret;
 		if (!binary_found)
 			continue;
@@ -937,10 +937,10 @@ ia_css_binary_init_infos(void) {
 		binary->blob = &sh_css_blob_info[i];
 		binary->mem_offsets = sh_css_blob_info[i].mem_offsets;
 	}
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err
+int
 ia_css_binary_uninit(void) {
 	unsigned int i;
 	struct ia_css_binary_xinfo *b;
@@ -955,7 +955,7 @@ ia_css_binary_uninit(void) {
 		binary_infos[i] = NULL;
 	}
 	kvfree(all_binaries);
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 /* @brief Compute decimation factor for 3A statistics and shading correction.
@@ -1073,7 +1073,7 @@ binary_in_frame_padded_width(int in_frame_width,
 	return rval;
 }
 
-enum ia_css_err
+int
 ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 			bool online,
 			bool two_ppc,
@@ -1104,7 +1104,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 
 	bool need_scaling = false;
 	struct ia_css_resolution binary_dvs_env, internal_res;
-	enum ia_css_err err;
+	int err;
 	unsigned int i;
 	const struct ia_css_frame_info *bin_out_info = NULL;
 
@@ -1118,7 +1118,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		err = ia_css_isp_param_allocate_isp_parameters(
 		    &binary->mem_params, &binary->css_params,
 		    &info->mem_initializers);
-		if (err != IA_CSS_SUCCESS) {
+		if (err) {
 			return err;
 		}
 	}
@@ -1221,7 +1221,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	{
 		err = ia_css_vf_configure(binary, bin_out_info,
 					  (struct ia_css_frame_info *)vf_info, &vf_log_ds);
-		if (err != IA_CSS_SUCCESS) {
+		if (err) {
 			if (!accelerator) {
 				ia_css_isp_param_destroy_isp_parameters(
 				    &binary->mem_params,
@@ -1242,7 +1242,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 
 		binary->vf_frame_info.format = vf_info->format;
 		if (!bin_out_info)
-			return IA_CSS_ERR_INTERNAL_ERROR;
+			return -EINVAL;
 		vf_out_vecs = __ISP_VF_OUTPUT_WIDTH_VECS(bin_out_info->padded_width,
 			      vf_log_ds);
 		vf_out_width = _ISP_VF_OUTPUT_WIDTH(vf_out_vecs);
@@ -1372,10 +1372,10 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	else
 		binary->left_padding = 0;
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err
+int
 ia_css_binary_find(struct ia_css_binary_descr *descr,
 		   struct ia_css_binary *binary) {
 	int mode;
@@ -1403,7 +1403,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 #ifdef ISP2401
 	bool enable_luma_only;
 #endif
-	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
+	int err = -EINVAL;
 	bool continuous;
 	unsigned int isp_pipe_version;
 	struct ia_css_resolution dvs_env, internal_res;
@@ -1431,7 +1431,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 			req_bin_out_info = req_out_info[i];
 	}
 	if (!req_bin_out_info)
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 #ifndef ISP2401
 	req_vf_info = descr->vf_info;
 #else
@@ -1780,7 +1780,7 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 					      descr->stream_config_left_padding,
 					      false);
 
-		if (err != IA_CSS_SUCCESS)
+		if (err)
 			break;
 		binary_init_metrics(&binary->metrics, &binary->info->sp);
 		break;

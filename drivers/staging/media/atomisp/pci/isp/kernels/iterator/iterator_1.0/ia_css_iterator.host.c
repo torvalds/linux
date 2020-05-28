@@ -37,7 +37,7 @@ ia_css_iterator_config(
 	ia_css_resolution_to_sp_resolution(&to->dvs_envelope,  from->dvs_envelope);
 }
 
-enum ia_css_err
+int
 ia_css_iterator_configure(
     const struct ia_css_binary *binary,
     const struct ia_css_frame_info *in_info) {
@@ -76,5 +76,5 @@ ia_css_iterator_configure(
 
 	ia_css_configure_iterator(binary, &config);
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

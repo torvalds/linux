@@ -271,7 +271,7 @@ convert_allocate_dvs_6axis_config(
 	return me;
 }
 
-enum ia_css_err
+int
 store_dvs_6axis_config(
     const struct ia_css_dvs_6axis_config *dvs_6axis_config,
     const struct ia_css_binary *binary,
@@ -289,8 +289,8 @@ store_dvs_6axis_config(
 
 	if (!me)
 	{
-		IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY);
-		return IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
+		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
+		return -ENOMEM;
 	}
 
 	ia_css_params_store_ia_css_host_data(
@@ -298,5 +298,5 @@ store_dvs_6axis_config(
 	    me);
 	ia_css_host_data_free(me);
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

@@ -27,7 +27,7 @@ void sh_css_hrt_sp_start_copy_frame(void);
 
 void sh_css_hrt_sp_start_isp(void);
 
-enum ia_css_err sh_css_hrt_sp_wait(void);
+int sh_css_hrt_sp_wait(void);
 
 bool sh_css_hrt_system_is_idle(void);
 

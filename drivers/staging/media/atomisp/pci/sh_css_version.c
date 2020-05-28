@@ -18,7 +18,7 @@
 #include "ia_css_err.h"
 #include "sh_css_firmware.h"
 
-enum ia_css_err
+int
 ia_css_get_version(char *version, int max_size) {
 	char *css_version;
 
@@ -28,10 +28,10 @@ ia_css_get_version(char *version, int max_size) {
 		css_version = ISP2401_CSS_VERSION_STRING;
 
 	if (max_size <= (int)strlen(css_version) + (int)strlen(sh_css_get_fw_version()) + 5)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	strcpy(version, css_version);
 	strcat(version, "FW:");
 	strcat(version, sh_css_get_fw_version());
 	strcat(version, "; ");
-	return IA_CSS_SUCCESS;
+	return 0;
 }

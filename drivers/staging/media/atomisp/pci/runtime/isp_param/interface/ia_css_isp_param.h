@@ -67,7 +67,7 @@ ia_css_init_memory_interface(
     const struct ia_css_isp_param_css_segments *css_params);
 
 /* Allocate memory parameters */
-enum ia_css_err
+int
 ia_css_isp_param_allocate_isp_parameters(
     struct ia_css_isp_param_host_segments *mem_params,
     struct ia_css_isp_param_css_segments *css_params,
@@ -88,7 +88,7 @@ ia_css_isp_param_load_fw_params(
     bool init);
 
 /* Copy host parameter images to ddr */
-enum ia_css_err
+int
 ia_css_isp_param_copy_isp_mem_if_to_ddr(
     struct ia_css_isp_param_css_segments *ddr,
     const struct ia_css_isp_param_host_segments *host,

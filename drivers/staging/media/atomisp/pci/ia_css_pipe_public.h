@@ -249,44 +249,44 @@ void ia_css_pipe_config_defaults(struct ia_css_pipe_config *pipe_config);
 /* @brief Create a pipe
  * @param[in]	config The pipe configuration.
  * @param[out]	pipe The pipe.
- * @return	IA_CSS_SUCCESS or the error code.
+ * @return	0 or the error code.
  *
  * This function will create a pipe with the given
  * configuration.
  */
-enum ia_css_err
+int
 ia_css_pipe_create(const struct ia_css_pipe_config *config,
 		   struct ia_css_pipe **pipe);
 
 /* @brief Destroy a pipe
  * @param[in]	pipe The pipe.
- * @return	IA_CSS_SUCCESS or the error code.
+ * @return	0 or the error code.
  *
  * This function will destroy a given pipe.
  */
-enum ia_css_err
+int
 ia_css_pipe_destroy(struct ia_css_pipe *pipe);
 
 /* @brief Provides information about a pipe
  * @param[in]	pipe The pipe.
  * @param[out]	pipe_info The pipe information.
- * @return	IA_CSS_SUCCESS or IA_CSS_ERR_INVALID_ARGUMENTS.
+ * @return	0 or -EINVAL.
  *
  * This function will provide information about a given pipe.
  */
-enum ia_css_err
+int
 ia_css_pipe_get_info(const struct ia_css_pipe *pipe,
 		     struct ia_css_pipe_info *pipe_info);
 
 /* @brief Configure a pipe with filter coefficients.
  * @param[in]	pipe	The pipe.
  * @param[in]	config	The pointer to ISP configuration.
- * @return		IA_CSS_SUCCESS or error code upon error.
+ * @return		0 or error code upon error.
  *
  * This function configures the filter coefficients for an image
  * pipe.
  */
-enum ia_css_err
+int
 ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
 			   struct ia_css_isp_config *config);
 
@@ -304,7 +304,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
 			at the same moment in time. There is no control over
 			the order of these events. Once an IRQ has been raised
 			all remembered events are reset.
- * @return		IA_CSS_SUCCESS.
+ * @return		0.
  *
  Controls when the Event generator in the CSS raises an IRQ to the Host.
  The main purpose of this function is to reduce the amount of interrupts
@@ -362,7 +362,7 @@ ia_css_pipe_set_isp_config(struct ia_css_pipe *pipe,
  All other events (3A, VF output, pipeline done) will not raise an interrupt
  to the Host. These events are not lost but always stored in the event queue.
  */
-enum ia_css_err
+int
 ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 			 unsigned int or_mask,
 			 unsigned int and_mask);
@@ -374,7 +374,7 @@ ia_css_pipe_set_irq_mask(struct ia_css_pipe *pipe,
 		of enum ia_css_event_irq_mask_type. Pointer may be NULL.
  * @param[out]	and_mask Current and_mask.The bits in this mask are a binary or
 		of enum ia_css_event_irq_mask_type. Pointer may be NULL.
- * @return	IA_CSS_SUCCESS.
+ * @return	0.
  *
  Reads the current event IRQ mask from the CSS. Reading returns the actual
  values as used by the SP and not any mirrored values stored at the Host.\n
@@ -383,7 +383,7 @@ Precondition:\n
 SP must be running.\n
 
 */
-enum ia_css_err
+int
 ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
 			  unsigned int *or_mask,
 			  unsigned int *and_mask);
@@ -396,7 +396,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
  *			structure. Only the data pointer within it will
  *			be passed into the internal queues.
  * @return		IA_CSS_INTERNAL_ERROR in case of unexpected errors,
- *			IA_CSS_SUCCESS otherwise.
+ *			0 otherwise.
  *
  * This function adds a buffer (which has a certain buffer type) to the queue
  * for this type. This queue is owned by the image pipe. After this function
@@ -406,7 +406,7 @@ ia_css_event_get_irq_mask(const struct ia_css_pipe *pipe,
  * host code via an interrupt. Buffers will be consumed in the same order they
  * get queued, but may be returned to the host out of order.
  */
-enum ia_css_err
+int
 ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 			   const struct ia_css_buffer *buffer);
 
@@ -418,7 +418,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
  *			 The resulting buffer pointer is written into the dta
  *			 field.
  * @return		 IA_CSS_ERR_NO_BUFFER if the queue is empty or
- *			 IA_CSS_SUCCESS otherwise.
+ *			 0 otherwise.
  *
  * This function dequeues a buffer from a buffer queue. The queue is indicated
  * by the buffer type argument. This function can be called after an interrupt
@@ -426,7 +426,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
  * be used in a polling-like situation where the NO_BUFFER return value is used
  * to determine whether a buffer was available or not.
  */
-enum ia_css_err
+int
 ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 			   struct ia_css_buffer *buffer);
 
@@ -437,9 +437,9 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
  * @param[in] enable       Enable Flag (1 to enable ; 0 to disable)
  *
  * @return
- * IA_CSS_SUCCESS			: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
- * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
+ * 0			: Success
+ * -EINVAL		: Invalid Parameters
+ * -EBUSY	: Inactive QOS Pipe
  *					(No active stream with this pipe)
  *
  * This function will request state change (enable or disable) for the Extension
@@ -452,7 +452,7 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
  *	4. State change cannot be guaranteed immediately OR on frame boundary
  *
  */
-enum ia_css_err
+int
 ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
 			      u32 fw_handle,
 			      bool  enable);
@@ -464,9 +464,9 @@ ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
  * @param[out] *enable     Enable Flag
  *
  * @return
- * IA_CSS_SUCCESS			: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
- * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
+ * 0			: Success
+ * -EINVAL		: Invalid Parameters
+ * -EBUSY	: Inactive QOS Pipe
  *					(No active stream with this pipe)
  *
  * This function will query the state of the Extension stage (firmware handle)
@@ -478,7 +478,7 @@ ia_css_pipe_set_qos_ext_state(struct ia_css_pipe *pipe,
  *	3. Initial(Default) state of QOS Extensions is Disabled.
  *
  */
-enum ia_css_err
+int
 ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
 			      u32 fw_handle,
 			      bool *enable);
@@ -491,16 +491,16 @@ ia_css_pipe_get_qos_ext_state(struct ia_css_pipe *pipe,
  * @param[in] isp_seg	Parameter memory descriptors for ISP segments.
  *
  * @return
- * IA_CSS_SUCCESS			: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
- * IA_CSS_ERR_RESOURCE_NOT_AVAILABLE	: Inactive QOS Pipe
+ * 0			: Success
+ * -EINVAL		: Invalid Parameters
+ * -EBUSY	: Inactive QOS Pipe
  *					(No active stream with this pipe)
  *
  * \deprecated{This interface is used to temporarily support a late-developed,
  * specific use-case on a specific IPU2 platform. It will not be supported or
  * maintained on IPU3 or further.}
  */
-enum ia_css_err
+int
 ia_css_pipe_update_qos_ext_mapped_arg(struct ia_css_pipe *pipe,
 				      u32 fw_handle,
 				      struct ia_css_isp_param_css_segments *css_seg,
@@ -521,8 +521,8 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  * @param[in]  lut         Look up tabel
  *
  * @return
- * IA_CSS_SUCCESS			: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS		: Invalid Parameters
+ * 0			: Success
+ * -EINVAL		: Invalid Parameters
  *
  * Note:
  * 1) Note that both GDC's are programmed with the same table.
@@ -531,7 +531,7 @@ ia_css_pipe_get_isp_config(struct ia_css_pipe *pipe,
  * 3) This function must be called before stream start
  *
  */
-enum ia_css_err
+int
 ia_css_pipe_set_bci_scaler_lut(struct ia_css_pipe *pipe,
 			       const void *lut);
 /* @brief Checking of DVS statistics ability
@@ -550,9 +550,9 @@ bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
  * @param[in]  format      Format to set
  *
  * @return
- * IA_CSS_SUCCESS		: Success
- * IA_CSS_ERR_INVALID_ARGUMENTS	: Invalid Parameters
- * IA_CSS_ERR_INTERNAL_ERROR	: Pipe misses binary info
+ * 0		: Success
+ * -EINVAL	: Invalid Parameters
+ * -EINVAL	: Pipe misses binary info
  *
  * Note:
  * 1) This is an optional function to override the formats set in the pipe.
@@ -561,7 +561,7 @@ bool ia_css_pipe_has_dvs_stats(struct ia_css_pipe_info *pipe_info);
  * 4) If this function is used, it MUST be called after ia_css_pipe_create.
  * 5) If this function is used, this function MUST be called before ia_css_stream_start.
  */
-enum ia_css_err
+int
 ia_css_pipe_override_frame_format(struct ia_css_pipe *pipe,
 				  int output_pin,
 				  enum ia_css_frame_format format);

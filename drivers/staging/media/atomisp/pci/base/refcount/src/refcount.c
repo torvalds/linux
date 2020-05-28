@@ -66,25 +66,25 @@ static struct ia_css_refcount_entry *refcount_find_entry(ia_css_ptr ptr,
 	return NULL;
 }
 
-enum ia_css_err ia_css_refcount_init(uint32_t size)
+int ia_css_refcount_init(uint32_t size)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	if (size == 0) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_refcount_init(): Size of 0 for Ref count init!\n");
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 	if (myrefcount.items) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 				    "ia_css_refcount_init(): Ref count is already initialized\n");
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 	myrefcount.items =
 	    kvmalloc(sizeof(struct ia_css_refcount_entry) * size, GFP_KERNEL);
 	if (!myrefcount.items)
-		err = IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY;
-	if (err == IA_CSS_SUCCESS) {
+		err = -ENOMEM;
+	if (!err) {
 		memset(myrefcount.items, 0,
 		       sizeof(struct ia_css_refcount_entry) * size);
 		myrefcount.size = size;

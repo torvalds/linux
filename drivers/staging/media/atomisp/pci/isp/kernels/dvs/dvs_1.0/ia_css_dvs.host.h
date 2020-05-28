@@ -50,7 +50,7 @@ convert_allocate_dvs_6axis_config(
     const struct ia_css_binary *binary,
     const struct ia_css_frame_info *dvs_in_frame_info);
 
-enum ia_css_err
+int
 store_dvs_6axis_config(
     const struct ia_css_dvs_6axis_config *dvs_6axis_config,
     const struct ia_css_binary *binary,
