@@ -561,8 +561,7 @@ int snd_soc_suspend(struct device *dev)
 		snd_pcm_suspend_all(rtd->pcm);
 	}
 
-	if (card->suspend_pre)
-		card->suspend_pre(card);
+	snd_soc_card_suspend_pre(card);
 
 	/* close any waiting streams */
 	snd_soc_flush_all_delayed_work(card);

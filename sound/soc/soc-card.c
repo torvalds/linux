@@ -79,3 +79,13 @@ end:
 	return soc_card_ret(card, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_card_jack_new);
+
+int snd_soc_card_suspend_pre(struct snd_soc_card *card)
+{
+	int ret = 0;
+
+	if (card->suspend_pre)
+		ret = card->suspend_pre(card);
+
+	return soc_card_ret(card, ret);
+}

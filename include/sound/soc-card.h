@@ -19,6 +19,8 @@ int snd_soc_card_jack_new(struct snd_soc_card *card, const char *id, int type,
 			  struct snd_soc_jack *jack,
 			  struct snd_soc_jack_pin *pins, unsigned int num_pins);
 
+int snd_soc_card_suspend_pre(struct snd_soc_card *card);
+
 /* device driver data */
 static inline void snd_soc_card_set_drvdata(struct snd_soc_card *card,
 					    void *data)
