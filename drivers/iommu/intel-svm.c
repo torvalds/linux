@@ -601,7 +601,7 @@ success:
 }
 
 /* Caller must hold pasid_mutex */
-int intel_svm_unbind_mm(struct device *dev, int pasid)
+static int intel_svm_unbind_mm(struct device *dev, int pasid)
 {
 	struct intel_svm_dev *sdev;
 	struct intel_iommu *iommu;
