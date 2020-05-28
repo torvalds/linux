@@ -631,8 +631,7 @@ int snd_soc_suspend(struct device *dev)
 		}
 	}
 
-	if (card->suspend_post)
-		card->suspend_post(card);
+	snd_soc_card_suspend_post(card);
 
 	return 0;
 }
