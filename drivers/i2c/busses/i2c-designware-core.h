@@ -183,6 +183,7 @@ struct reset_control;
  * struct dw_i2c_dev - private i2c-designware data
  * @dev: driver model device node
  * @map: IO registers map
+ * @sysmap: System controller registers map
  * @base: IO registers pointer
  * @ext: Extended IO registers pointer
  * @cmd_complete: tx completion indicator
@@ -235,6 +236,7 @@ struct reset_control;
 struct dw_i2c_dev {
 	struct device		*dev;
 	struct regmap		*map;
+	struct regmap		*sysmap;
 	void __iomem		*base;
 	void __iomem		*ext;
 	struct completion	cmd_complete;
@@ -290,6 +292,7 @@ struct dw_i2c_dev {
 #define ACCESS_NO_IRQ_SUSPEND	0x00000002
 
 #define MODEL_MSCC_OCELOT	0x00000100
+#define MODEL_BAIKAL_BT1	0x00000200
 #define MODEL_MASK		0x00000f00
 
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
