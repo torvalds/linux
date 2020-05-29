@@ -639,11 +639,11 @@ struct tgl_dkl_phy_ddi_buf_trans {
 static const struct tgl_dkl_phy_ddi_buf_trans tgl_dkl_phy_dp_ddi_trans[] = {
 				/* VS	pre-emp	Non-trans mV	Pre-emph dB */
 	{ 0x7, 0x0, 0x00 },	/* 0	0	400mV		0 dB */
-	{ 0x5, 0x0, 0x03 },	/* 0	1	400mV		3.5 dB */
-	{ 0x2, 0x0, 0x0b },	/* 0	2	400mV		6 dB */
+	{ 0x5, 0x0, 0x05 },	/* 0	1	400mV		3.5 dB */
+	{ 0x2, 0x0, 0x0B },	/* 0	2	400mV		6 dB */
 	{ 0x0, 0x0, 0x19 },	/* 0	3	400mV		9.5 dB */
 	{ 0x5, 0x0, 0x00 },	/* 1	0	600mV		0 dB */
-	{ 0x2, 0x0, 0x03 },	/* 1	1	600mV		3.5 dB */
+	{ 0x2, 0x0, 0x08 },	/* 1	1	600mV		3.5 dB */
 	{ 0x0, 0x0, 0x14 },	/* 1	2	600mV		6 dB */
 	{ 0x2, 0x0, 0x00 },	/* 2	0	800mV		0 dB */
 	{ 0x0, 0x0, 0x0B },	/* 2	1	800mV		3.5 dB */
