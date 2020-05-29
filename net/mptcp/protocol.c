@@ -1266,8 +1266,12 @@ static void mptcp_close(struct sock *sk, long timeout)
 	mptcp_token_destroy(msk->token);
 	inet_sk_state_store(sk, TCP_CLOSE);
 
-	__mptcp_flush_join_list(msk);
-
+	/* be sure to always acquire the join list lock, to sync vs
+	 * mptcp_finish_join().
+	 */
+	spin_lock_bh(&msk->join_list_lock);
+	list_splice_tail_init(&msk->join_list, &msk->conn_list);
+	spin_unlock_bh(&msk->join_list_lock);
 	list_splice_init(&msk->conn_list, &conn_list);
 
 	data_fin_tx_seq = msk->write_seq;
@@ -1623,22 +1627,30 @@ bool mptcp_finish_join(struct sock *sk)
 	if (!msk->pm.server_side)
 		return true;
 
-	/* passive connection, attach to msk socket */
+	if (!mptcp_pm_allow_new_subflow(msk))
+		return false;
+
+	/* active connections are already on conn_list, and we can't acquire
+	 * msk lock here.
+	 * use the join list lock as synchronization point and double-check
+	 * msk status to avoid racing with mptcp_close()
+	 */
+	spin_lock_bh(&msk->join_list_lock);
+	ret = inet_sk_state_load(parent) == TCP_ESTABLISHED;
+	if (ret && !WARN_ON_ONCE(!list_empty(&subflow->node)))
+		list_add_tail(&subflow->node, &msk->join_list);
+	spin_unlock_bh(&msk->join_list_lock);
+	if (!ret)
+		return false;
+
+	/* attach to msk socket only after we are sure he will deal with us
+	 * at close time
+	 */
 	parent_sock = READ_ONCE(parent->sk_socket);
 	if (parent_sock && !sk->sk_socket)
 		mptcp_sock_graft(sk, parent_sock);
-
-	ret = mptcp_pm_allow_new_subflow(msk);
-	if (ret) {
-		subflow->map_seq = msk->ack_seq;
-
-		/* active connections are already on conn_list */
-		spin_lock_bh(&msk->join_list_lock);
-		if (!WARN_ON_ONCE(!list_empty(&subflow->node)))
-			list_add_tail(&subflow->node, &msk->join_list);
-		spin_unlock_bh(&msk->join_list_lock);
-	}
-	return ret;
+	subflow->map_seq = msk->ack_seq;
+	return true;
 }
 
 bool mptcp_sk_is_subflow(const struct sock *sk)
