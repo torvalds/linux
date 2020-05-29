@@ -145,9 +145,14 @@ static const struct rockchip_grf_info rk3399_grf __initconst = {
 #define RV1126_GRF1_IOFUNC_CON3		0x1026C
 #define RV1126_JTAG_GROUP0		0x0      /* mux to sdmmc*/
 #define RV1126_JTAG_GROUP1		0x1      /* mux to uart2 */
+#define FORCE_JTAG_ENABLE		0x1
+#define FORCE_JTAG_DISABLE		0x0
 
 static const struct rockchip_grf_value rv1126_defaults[] __initconst = {
-	{ "jtag group1 force", RV1126_GRF1_IOFUNC_CON3, HIWORD_UPDATE(1, 1, 5) },
+	{ "jtag group0 force", RV1126_GRF1_IOFUNC_CON3,
+		HIWORD_UPDATE(FORCE_JTAG_DISABLE, 1, 4) },
+	{ "jtag group1 force", RV1126_GRF1_IOFUNC_CON3,
+		HIWORD_UPDATE(FORCE_JTAG_DISABLE, 1, 5) },
 	{ "jtag group1 tms low delay", RV1126_GRF1_UART2RX_LOW_CON, DELAY_ONE_SECOND },
 	{ "switch to jtag groupx", RV1126_GRF1_IOFUNC_CON1, HIWORD_UPDATE(RV1126_JTAG_GROUP0, 1, 15) },
 	{ "jtag group0 switching delay", RV1126_GRF1_SDDETFLT_CON, DELAY_ONE_SECOND * 5 },
