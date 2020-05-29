@@ -16,7 +16,6 @@
 #include "../../codecs/hdac_hdmi.h"
 #include "hda_dsp_common.h"
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
 static struct snd_soc_jack hdmi[MAX_HDMI_NUM];
 
 struct hdmi_pcm {
@@ -89,9 +88,3 @@ int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
 
 	return hdac_hdmi_jack_port_init(component, &card->dapm);
 }
-#else
-int sof_sdw_hdmi_card_late_probe(struct snd_soc_card *card)
-{
-	return 0;
-}
-#endif
