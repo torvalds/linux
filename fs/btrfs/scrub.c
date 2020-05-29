@@ -1816,12 +1816,12 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	const int num_pages = sctx->fs_info->nodesize >> PAGE_SHIFT;
 	int i;
-	struct page *page;
+	struct scrub_page *spage;
 	char *kaddr;
 
 	BUG_ON(sblock->page_count < 1);
-	page = sblock->pagev[0]->page;
-	kaddr = page_address(page);
+	spage = sblock->pagev[0];
+	kaddr = page_address(spage->page);
 	h = (struct btrfs_header *)kaddr;
 	memcpy(on_disk_csum, h->csum, sctx->csum_size);
 
@@ -1830,15 +1830,15 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	 * a) don't have an extent buffer and
 	 * b) the page is already kmapped
 	 */
-	if (sblock->pagev[0]->logical != btrfs_stack_header_bytenr(h))
+	if (spage->logical != btrfs_stack_header_bytenr(h))
 		sblock->header_error = 1;
 
-	if (sblock->pagev[0]->generation != btrfs_stack_header_generation(h)) {
+	if (spage->generation != btrfs_stack_header_generation(h)) {
 		sblock->header_error = 1;
 		sblock->generation_error = 1;
 	}
 
-	if (!scrub_check_fsid(h->fsid, sblock->pagev[0]))
+	if (!scrub_check_fsid(h->fsid, spage))
 		sblock->header_error = 1;
 
 	if (memcmp(h->chunk_tree_uuid, fs_info->chunk_tree_uuid,
