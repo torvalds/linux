@@ -246,7 +246,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		sorted_queues[i] = &wdev->tx_queue[i];
 		for (j = i; j > 0; j--)
-			if (atomic_read(&sorted_queues[j]->pending_frames) >
+			if (atomic_read(&sorted_queues[j]->pending_frames) <
 			    atomic_read(&sorted_queues[j - 1]->pending_frames))
 				swap(sorted_queues[j - 1], sorted_queues[j]);
 	}
