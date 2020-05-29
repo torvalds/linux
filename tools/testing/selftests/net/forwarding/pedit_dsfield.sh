@@ -132,7 +132,12 @@ do_test_pedit_dsfield_common()
 	local pkts
 	pkts=$(busywait "$TC_HIT_TIMEOUT" until_counter_is ">= 10" \
 			tc_rule_handle_stats_get "dev $h2 ingress" 101)
-	check_err $? "Expected to get 10 packets, but got $pkts."
+	check_err $? "Expected to get 10 packets on test probe, but got $pkts."
+
+	pkts=$(tc_rule_handle_stats_get "$pedit_locus" 101)
+	((pkts >= 10))
+	check_err $? "Expected to get 10 packets on pedit rule, but got $pkts."
+
 	log_test "$pedit_locus pedit $pedit_action"
 }
 
