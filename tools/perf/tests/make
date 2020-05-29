@@ -90,6 +90,7 @@ make_with_babeltrace:= LIBBABELTRACE=1
 make_no_sdt	    := NO_SDT=1
 make_no_syscall_tbl := NO_SYSCALL_TABLE=1
 make_with_clangllvm := LIBCLANGLLVM=1
+make_with_libpfm4   := LIBPFM4=1
 make_tags           := tags
 make_cscope         := cscope
 make_help           := help
@@ -152,6 +153,7 @@ run += make_no_sdt
 run += make_no_syscall_tbl
 run += make_with_babeltrace
 run += make_with_clangllvm
+run += make_with_libpfm4
 run += make_help
 run += make_doc
 run += make_perf_o
