@@ -55,6 +55,11 @@ struct linux_binprm {
 	struct file * file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
+	/*
+	 * bits to clear in current->personality
+	 * recalculated for each bprm->file.
+	 */
+	unsigned int pf_per_clear;
 	unsigned int per_clear;	/* bits to clear in current->personality */
 	int argc, envc;
 	const char * filename;	/* Name of binary as seen by procps */
