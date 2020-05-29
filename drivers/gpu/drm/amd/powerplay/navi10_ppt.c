@@ -1969,55 +1969,49 @@ static bool navi10_is_baco_supported(struct smu_context *smu)
 	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
 }
 
-static int navi10_set_default_od_settings(struct smu_context *smu, bool initialize) {
-	OverDriveTable_t *od_table, *boot_od_table;
+static int navi10_set_default_od_settings(struct smu_context *smu)
+{
+	OverDriveTable_t *od_table =
+		(OverDriveTable_t *)smu->smu_table.overdrive_table;
+	OverDriveTable_t *boot_od_table =
+		(OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
 	int ret = 0;
 
-	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
-	if (ret)
+	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
+	if (ret) {
+		pr_err("Failed to get overdrive table!\n");
 		return ret;
-
-	od_table = (OverDriveTable_t *)smu->smu_table.overdrive_table;
-	boot_od_table = (OverDriveTable_t *)smu->smu_table.boot_overdrive_table;
-	if (initialize) {
-		if (od_table) {
-			if (!od_table->GfxclkVolt1) {
-				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-										&od_table->GfxclkVolt1,
-										od_table->GfxclkFreq1);
-				if (ret)
-					od_table->GfxclkVolt1 = 0;
-				if (boot_od_table)
-					boot_od_table->GfxclkVolt1 = od_table->GfxclkVolt1;
-			}
-
-			if (!od_table->GfxclkVolt2) {
-				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-										&od_table->GfxclkVolt2,
-										od_table->GfxclkFreq2);
-				if (ret)
-					od_table->GfxclkVolt2 = 0;
-				if (boot_od_table)
-					boot_od_table->GfxclkVolt2 = od_table->GfxclkVolt2;
-			}
-
-			if (!od_table->GfxclkVolt3) {
-				ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
-										&od_table->GfxclkVolt3,
-										od_table->GfxclkFreq3);
-				if (ret)
-					od_table->GfxclkVolt3 = 0;
-				if (boot_od_table)
-					boot_od_table->GfxclkVolt3 = od_table->GfxclkVolt3;
-			}
-		}
 	}
 
-	if (od_table) {
-		navi10_dump_od_table(od_table);
+	if (!od_table->GfxclkVolt1) {
+		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+								&od_table->GfxclkVolt1,
+								od_table->GfxclkFreq1);
+		if (ret)
+			return ret;
 	}
 
-	return ret;
+	if (!od_table->GfxclkVolt2) {
+		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+								&od_table->GfxclkVolt2,
+								od_table->GfxclkFreq2);
+		if (ret)
+			return ret;
+	}
+
+	if (!od_table->GfxclkVolt3) {
+		ret = navi10_overdrive_get_gfx_clk_base_voltage(smu,
+								&od_table->GfxclkVolt3,
+								od_table->GfxclkFreq3);
+		if (ret)
+			return ret;
+	}
+
+	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
+
+	navi10_dump_od_table(od_table);
+
+	return 0;
 }
 
 static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABLE_COMMAND type, long input[], uint32_t size) {

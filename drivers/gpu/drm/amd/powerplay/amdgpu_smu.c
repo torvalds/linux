@@ -1197,7 +1197,7 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	ret = smu_set_default_od_settings(smu, initialize);
+	ret = smu_set_default_od_settings(smu);
 	if (ret)
 		return ret;
 
