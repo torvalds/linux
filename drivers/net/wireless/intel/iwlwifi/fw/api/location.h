@@ -550,13 +550,11 @@ struct iwl_tof_range_req_ap_entry_v4 {
 /**
  * enum iwl_location_cipher - location cipher selection
  * @IWL_LOCATION_CIPHER_CCMP_128: CCMP 128
- * @IWL_LOCATION_CIPHER_CCMP_256: CCMP 256
  * @IWL_LOCATION_CIPHER_GCMP_128: GCMP 128
  * @IWL_LOCATION_CIPHER_GCMP_256: GCMP 256
  */
 enum iwl_location_cipher {
 	IWL_LOCATION_CIPHER_CCMP_128,
-	IWL_LOCATION_CIPHER_CCMP_256,
 	IWL_LOCATION_CIPHER_GCMP_128,
 	IWL_LOCATION_CIPHER_GCMP_256,
 };
@@ -577,7 +575,8 @@ enum iwl_location_cipher {
  * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
  * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
  *	the number of measurement iterations (min 2^0 = 1, max 2^14)
- * @reserved: For alignment and future use
+ * @sta_id: the station id of the AP. Only relevant when associated to the AP,
+ *	otherwise should be set to &IWL_MVM_INVALID_STA.
  * @cipher: pairwise cipher suite for secured measurement.
  *          &enum iwl_location_cipher.
  * @hltk: HLTK to be used for secured 11az measurement
@@ -586,7 +585,8 @@ enum iwl_location_cipher {
  *         If &IWL_INITIATOR_AP_FLAGS_USE_CALIB is set, the fw will use the
  *         calibration value that corresponds to the rx bandwidth of the FTM
  *         frame.
- * @reserved2: For alignment and future use.
+ * @beacon_interval: beacon interval of the AP in TUs. Only required if
+ *	&IWL_INITIATOR_AP_FLAGS_TB is set.
  */
 struct iwl_tof_range_req_ap_entry {
 	__le32 initiator_ap_flags;
@@ -598,13 +598,13 @@ struct iwl_tof_range_req_ap_entry {
 	__le16 burst_period;
 	u8 samples_per_burst;
 	u8 num_of_bursts;
-	u8 reserved;
+	u8 sta_id;
 	u8 cipher;
 	u8 hltk[HLTK_11AZ_LEN];
 	u8 tk[TK_11AZ_LEN];
 	__le16 calib[IWL_TOF_BW_NUM];
-	__le16 reserved2;
-} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_5 */
+	__le16 beacon_interval;
+} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_6 */
 
 /**
  * enum iwl_tof_response_mode
