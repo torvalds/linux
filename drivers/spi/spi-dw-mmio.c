@@ -19,6 +19,7 @@
 #include <linux/acpi.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 
 #include "spi-dw.h"
 
@@ -29,6 +30,7 @@ struct dw_spi_mmio {
 	struct clk     *clk;
 	struct clk     *pclk;
 	void           *priv;
+	struct reset_control *rstc;
 };
 
 #define MSCC_CPU_SYSTEM_CTRL_GENERAL_CTRL	0x24
@@ -224,6 +226,14 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_clk;
 
+	/* find an optional reset controller */
+	dwsmmio->rstc = devm_reset_control_get_optional_exclusive(&pdev->dev, "spi");
+	if (IS_ERR(dwsmmio->rstc)) {
+		ret = PTR_ERR(dwsmmio->rstc);
+		goto out_clk;
+	}
+	reset_control_deassert(dwsmmio->rstc);
+
 	dws->bus_num = pdev->id;
 
 	dws->max_freq = clk_get_rate(dwsmmio->clk);
@@ -257,6 +267,8 @@ out:
 	clk_disable_unprepare(dwsmmio->pclk);
 out_clk:
 	clk_disable_unprepare(dwsmmio->clk);
+	reset_control_assert(dwsmmio->rstc);
+
 	return ret;
 }
 
@@ -268,6 +280,7 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	clk_disable_unprepare(dwsmmio->pclk);
 	clk_disable_unprepare(dwsmmio->clk);
+	reset_control_assert(dwsmmio->rstc);
 
 	return 0;
 }
