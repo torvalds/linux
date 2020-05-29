@@ -304,21 +304,41 @@ static void nft_indr_block_ing_cmd(struct net_device *dev,
 	nft_block_setup(chain, &bo, cmd);
 }
 
-static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
+static void nft_indr_block_cleanup(struct flow_block_cb *block_cb)
+{
+	struct nft_base_chain *basechain = block_cb->indr.data;
+	struct net_device *dev = block_cb->indr.dev;
+	struct netlink_ext_ack extack = {};
+	struct net *net = dev_net(dev);
+	struct flow_block_offload bo;
+
+	nft_flow_block_offload_init(&bo, dev_net(dev), FLOW_BLOCK_UNBIND,
+				    basechain, &extack);
+	mutex_lock(&net->nft.commit_mutex);
+	list_move(&block_cb->list, &bo.cb_list);
+	nft_flow_offload_unbind(&bo, basechain);
+	mutex_unlock(&net->nft.commit_mutex);
+}
+
+static int nft_indr_block_offload_cmd(struct nft_base_chain *basechain,
 				      struct net_device *dev,
 				      enum flow_block_command cmd)
 {
 	struct netlink_ext_ack extack = {};
 	struct flow_block_offload bo;
+	int err;
 
-	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, chain, &extack);
+	nft_flow_block_offload_init(&bo, dev_net(dev), cmd, basechain, &extack);
 
-	flow_indr_block_call(dev, &bo, cmd, TC_SETUP_BLOCK);
+	err = flow_indr_dev_setup_offload(dev, TC_SETUP_BLOCK, basechain, &bo,
+					  nft_indr_block_cleanup);
+	if (err < 0)
+		return err;
 
 	if (list_empty(&bo.cb_list))
 		return -EOPNOTSUPP;
 
-	return nft_block_setup(chain, &bo, cmd);
+	return nft_block_setup(basechain, &bo, cmd);
 }
 
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK

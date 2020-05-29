@@ -942,6 +942,18 @@ static void nf_flow_table_block_offload_init(struct flow_block_offload *bo,
 	INIT_LIST_HEAD(&bo->cb_list);
 }
 
+static void nf_flow_table_indr_cleanup(struct flow_block_cb *block_cb)
+{
+	struct nf_flowtable *flowtable = block_cb->indr.data;
+	struct net_device *dev = block_cb->indr.dev;
+
+	nf_flow_table_gc_cleanup(flowtable, dev);
+	down_write(&flowtable->flow_block_lock);
+	list_del(&block_cb->list);
+	flow_block_cb_free(block_cb);
+	up_write(&flowtable->flow_block_lock);
+}
+
 static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 					  struct nf_flowtable *flowtable,
 					  struct net_device *dev,
@@ -950,12 +962,9 @@ static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 {
 	nf_flow_table_block_offload_init(bo, dev_net(dev), cmd, flowtable,
 					 extack);
-	flow_indr_block_call(dev, bo, cmd, TC_SETUP_FT);
 
-	if (list_empty(&bo->cb_list))
-		return -EOPNOTSUPP;
-
-	return 0;
+	return flow_indr_dev_setup_offload(dev, TC_SETUP_FT, flowtable, bo,
+					   nf_flow_table_indr_cleanup);
 }
 
 static int nf_flow_table_offload_cmd(struct flow_block_offload *bo,
