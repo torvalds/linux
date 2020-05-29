@@ -391,9 +391,9 @@ iwl_mvm_ftm_put_target_v3(struct iwl_mvm *mvm,
 }
 
 static int
-iwl_mvm_ftm_put_target(struct iwl_mvm *mvm,
-		       struct cfg80211_pmsr_request_peer *peer,
-		       struct iwl_tof_range_req_ap_entry_v4 *target)
+iwl_mvm_ftm_put_target_v4(struct iwl_mvm *mvm,
+			  struct cfg80211_pmsr_request_peer *peer,
+			  struct iwl_tof_range_req_ap_entry_v4 *target)
 {
 	int ret;
 
@@ -405,6 +405,38 @@ iwl_mvm_ftm_put_target(struct iwl_mvm *mvm,
 
 	iwl_mvm_ftm_put_target_common(mvm, peer, (void *)target);
 
+	return 0;
+}
+
+static int
+iwl_mvm_ftm_put_target(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       struct cfg80211_pmsr_request_peer *peer,
+		       struct iwl_tof_range_req_ap_entry *target)
+{
+	int ret;
+
+	ret = iwl_mvm_ftm_target_chandef_v2(mvm, peer, &target->channel_num,
+					    &target->format_bw,
+					    &target->ctrl_ch_position);
+	if (ret)
+		return ret;
+
+	iwl_mvm_ftm_put_target_common(mvm, peer, (void *)target);
+
+	if (vif->bss_conf.assoc &&
+	    !memcmp(peer->addr, vif->bss_conf.bssid, ETH_ALEN)) {
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+		target->sta_id = mvmvif->ap_sta_id;
+	} else {
+		target->sta_id = IWL_MVM_INVALID_STA;
+	}
+
+	/*
+	 * TODO: Beacon interval is currently unknown, so use the common value
+	 * of 100 TUs.
+	 */
+	target->beacon_interval = cpu_to_le16(100);
 	return 0;
 }
 
@@ -496,7 +528,7 @@ static int iwl_mvm_ftm_start_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	for (i = 0; i < cmd.num_of_ap; i++) {
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
 
-		err = iwl_mvm_ftm_put_target(mvm, peer, &cmd.ap[i]);
+		err = iwl_mvm_ftm_put_target_v4(mvm, peer, &cmd.ap[i]);
 		if (err)
 			return err;
 	}
@@ -521,8 +553,9 @@ static int iwl_mvm_ftm_start_v9(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	for (i = 0; i < cmd.num_of_ap; i++) {
 		struct cfg80211_pmsr_request_peer *peer = &req->peers[i];
+		struct iwl_tof_range_req_ap_entry *target = &cmd.ap[i];
 
-		err = iwl_mvm_ftm_put_target(mvm, peer, (void *)&cmd.ap[i]);
+		err = iwl_mvm_ftm_put_target(mvm, vif, peer, target);
 		if (err)
 			return err;
 	}
@@ -548,6 +581,7 @@ int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 		switch (cmd_ver) {
 		case 9:
+		case 10:
 			err = iwl_mvm_ftm_start_v9(mvm, vif, req);
 			break;
 		case 8:
