@@ -510,7 +510,7 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 		if (!nv_connector || !nv_crtc || nv_encoder->or != port ||
 		    nv_crtc->index != dev_id)
 			continue;
-		*enabled = drm_detect_monitor_audio(nv_connector->edid);
+		*enabled = nv_encoder->audio;
 		if (*enabled) {
 			ret = drm_eld_size(nv_connector->base.eld);
 			memcpy(buf, nv_connector->base.eld,
@@ -600,6 +600,7 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 				(0x0100 << nv_crtc->index),
 	};
 
+	nv_encoder->audio = false;
 	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
@@ -636,6 +637,7 @@ nv50_audio_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 
 	nvif_mthd(&disp->disp->object, 0, &args,
 		  sizeof(args.base) + drm_eld_size(args.data));
+	nv_encoder->audio = true;
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
 					nv_crtc->index);
