@@ -61,10 +61,8 @@ static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 
 static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 {
-	struct dw_dma_slave slave = {
-		.src_id = 0,
-		.dst_id = 0
-	};
+	struct dw_dma_slave dma_tx = { .dst_id = 1 }, *tx = &dma_tx;
+	struct dw_dma_slave dma_rx = { .src_id = 0 }, *rx = &dma_rx;
 	struct pci_dev *dma_dev;
 	dma_cap_mask_t mask;
 
@@ -80,14 +78,14 @@ static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* 1. Init rx channel */
-	slave.dma_dev = &dma_dev->dev;
-	dws->rxchan = dma_request_channel(mask, dw_spi_dma_chan_filter, &slave);
+	rx->dma_dev = &dma_dev->dev;
+	dws->rxchan = dma_request_channel(mask, dw_spi_dma_chan_filter, rx);
 	if (!dws->rxchan)
 		goto err_exit;
 
 	/* 2. Init tx channel */
-	slave.dst_id = 1;
-	dws->txchan = dma_request_channel(mask, dw_spi_dma_chan_filter, &slave);
+	tx->dma_dev = &dma_dev->dev;
+	dws->txchan = dma_request_channel(mask, dw_spi_dma_chan_filter, tx);
 	if (!dws->txchan)
 		goto free_rxchan;
 
