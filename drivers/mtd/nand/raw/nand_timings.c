@@ -283,14 +283,14 @@ static const struct nand_data_interface onfi_sdr_timings[] = {
 int onfi_fill_data_interface(struct nand_chip *chip,
 			     struct nand_data_interface *iface,
 			     enum nand_data_interface_type type,
-			     int timing_mode)
+			     unsigned int timing_mode)
 {
 	struct onfi_params *onfi = chip->parameters.onfi;
 
 	if (type != NAND_SDR_IFACE)
 		return -EINVAL;
 
-	if (timing_mode < 0 || timing_mode >= ARRAY_SIZE(onfi_sdr_timings))
+	if (timing_mode >= ARRAY_SIZE(onfi_sdr_timings))
 		return -EINVAL;
 
 	*iface = onfi_sdr_timings[timing_mode];
