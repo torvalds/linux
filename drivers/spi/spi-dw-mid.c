@@ -19,6 +19,7 @@
 #include <linux/pci.h>
 #include <linux/platform_data/dma-dw.h>
 
+#define WAIT_RETRIES	5
 #define RX_BUSY		0
 #define TX_BUSY		1
 
@@ -166,6 +167,33 @@ static int dw_spi_dma_wait(struct dw_spi *dws, struct spi_transfer *xfer)
 		dev_err(&dws->master->cur_msg->spi->dev,
 			"DMA transaction timed out\n");
 		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static inline bool dw_spi_dma_tx_busy(struct dw_spi *dws)
+{
+	return !(dw_readl(dws, DW_SPI_SR) & SR_TF_EMPT);
+}
+
+static int dw_spi_dma_wait_tx_done(struct dw_spi *dws,
+				   struct spi_transfer *xfer)
+{
+	int retry = WAIT_RETRIES;
+	struct spi_delay delay;
+	u32 nents;
+
+	nents = dw_readl(dws, DW_SPI_TXFLR);
+	delay.unit = SPI_DELAY_UNIT_SCK;
+	delay.value = nents * dws->n_bytes * BITS_PER_BYTE;
+
+	while (dw_spi_dma_tx_busy(dws) && retry--)
+		spi_delay_exec(&delay, xfer);
+
+	if (retry < 0) {
+		dev_err(&dws->master->dev, "Tx hanged up\n");
+		return -EIO;
 	}
 
 	return 0;
@@ -323,6 +351,12 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 	ret = dw_spi_dma_wait(dws, xfer);
 	if (ret)
 		return ret;
+
+	if (txdesc && dws->master->cur_msg->status == -EINPROGRESS) {
+		ret = dw_spi_dma_wait_tx_done(dws, xfer);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
