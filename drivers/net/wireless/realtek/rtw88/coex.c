@@ -1354,11 +1354,14 @@ static void rtw_coex_action_bt_inquiry(struct rtw_dev *rtwdev)
 				tdma_case = 108;
 			else
 				tdma_case = 109;
+		} else if (coex_stat->wl_gl_busy) {
+			table_case = 114;
+			tdma_case = 121;
 		} else if (coex_stat->wl_connected) {
-			table_case = 101;
-			tdma_case = 110;
-		} else {
 			table_case = 100;
+			tdma_case = 100;
+		} else {
+			table_case = 101;
 			tdma_case = 100;
 		}
 	}
