@@ -84,15 +84,20 @@ Get a decent editor and don't leave whitespace at the end of lines.
 Coding style is all about readability and maintainability using commonly
 available tools.
 
-The limit on the length of lines is 80 columns and this is a strongly
-preferred limit.
+The preferred limit on the length of a single line is 80 columns.
 
-Statements longer than 80 columns will be broken into sensible chunks, unless
-exceeding 80 columns significantly increases readability and does not hide
-information. Descendants are always substantially shorter than the parent and
-are placed substantially to the right. The same applies to function headers
-with a long argument list. However, never break user-visible strings such as
-printk messages, because that breaks the ability to grep for them.
+Statements longer than 80 columns should be broken into sensible chunks,
+unless exceeding 80 columns significantly increases readability and does
+not hide information.
+
+Descendants are always substantially shorter than the parent and are
+are placed substantially to the right.  A very commonly used style
+is to align descendants to a function open parenthesis.
+
+These same rules are applied to function headers with a long argument list.
+
+However, never break user-visible strings such as printk messages because
+that breaks the ability to grep for them.
 
 
 3) Placing Braces and Spaces
