@@ -68,36 +68,30 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 
 	dev_data = pci_get_drvdata(dev);
 	if (!pci_is_enabled(dev) && is_enable_cmd(value)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev, "enable\n");
+		dev_dbg(&dev->dev, "enable\n");
 		err = pci_enable_device(dev);
 		if (err)
 			return err;
 		if (dev_data)
 			dev_data->enable_intx = 1;
 	} else if (pci_is_enabled(dev) && !is_enable_cmd(value)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev, "disable\n");
+		dev_dbg(&dev->dev, "disable\n");
 		pci_disable_device(dev);
 		if (dev_data)
 			dev_data->enable_intx = 0;
 	}
 
 	if (!dev->is_busmaster && is_master_cmd(value)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev, "set bus master\n");
+		dev_dbg(&dev->dev, "set bus master\n");
 		pci_set_master(dev);
 	} else if (dev->is_busmaster && !is_master_cmd(value)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev, "clear bus master\n");
+		dev_dbg(&dev->dev, "clear bus master\n");
 		pci_clear_master(dev);
 	}
 
 	if (!(cmd->val & PCI_COMMAND_INVALIDATE) &&
 	    (value & PCI_COMMAND_INVALIDATE)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev,
-				   "enable memory-write-invalidate\n");
+		dev_dbg(&dev->dev, "enable memory-write-invalidate\n");
 		err = pci_set_mwi(dev);
 		if (err) {
 			dev_warn(&dev->dev, "cannot enable memory-write-invalidate (%d)\n",
@@ -106,9 +100,7 @@ static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 		}
 	} else if ((cmd->val & PCI_COMMAND_INVALIDATE) &&
 		   !(value & PCI_COMMAND_INVALIDATE)) {
-		if (unlikely(verbose_request))
-			dev_printk(KERN_DEBUG, &dev->dev,
-				   "disable memory-write-invalidate\n");
+		dev_dbg(&dev->dev, "disable memory-write-invalidate\n");
 		pci_clear_mwi(dev);
 	}
 
