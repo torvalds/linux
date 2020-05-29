@@ -634,7 +634,7 @@ DEFINE_IDTENTRY_RAW(exc_int3)
 	} else {
 		nmi_enter();
 		instrumentation_begin();
-		trace_hardirqs_off_prepare();
+		trace_hardirqs_off_finish();
 		if (!do_int3(regs))
 			die("int3", regs, 0);
 		if (regs->flags & X86_EFLAGS_IF)
@@ -833,7 +833,7 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 {
 	nmi_enter();
 	instrumentation_begin();
-	trace_hardirqs_off_prepare();
+	trace_hardirqs_off_finish();
 	instrumentation_end();
 
 	/*

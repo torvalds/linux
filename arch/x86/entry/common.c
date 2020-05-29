@@ -65,7 +65,7 @@ static noinstr void enter_from_user_mode(void)
 
 	instrumentation_begin();
 	CT_WARN_ON(state != CONTEXT_USER);
-	trace_hardirqs_off_prepare();
+	trace_hardirqs_off_finish();
 	instrumentation_end();
 }
 #else
@@ -73,7 +73,7 @@ static __always_inline void enter_from_user_mode(void)
 {
 	lockdep_hardirqs_off(CALLER_ADDR0);
 	instrumentation_begin();
-	trace_hardirqs_off_prepare();
+	trace_hardirqs_off_finish();
 	instrumentation_end();
 }
 #endif
@@ -569,7 +569,7 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 		lockdep_hardirqs_off(CALLER_ADDR0);
 		rcu_irq_enter();
 		instrumentation_begin();
-		trace_hardirqs_off_prepare();
+		trace_hardirqs_off_finish();
 		instrumentation_end();
 
 		return true;

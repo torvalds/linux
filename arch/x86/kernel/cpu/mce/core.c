@@ -1922,7 +1922,7 @@ static __always_inline void exc_machine_check_kernel(struct pt_regs *regs)
 	 * that out because it's an indirect call. Annotate it.
 	 */
 	instrumentation_begin();
-	trace_hardirqs_off_prepare();
+	trace_hardirqs_off_finish();
 	machine_check_vector(regs);
 	if (regs->flags & X86_EFLAGS_IF)
 		trace_hardirqs_on_prepare();

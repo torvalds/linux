@@ -32,7 +32,7 @@
 
 #ifdef CONFIG_TRACE_IRQFLAGS
   extern void trace_hardirqs_on_prepare(void);
-  extern void trace_hardirqs_off_prepare(void);
+  extern void trace_hardirqs_off_finish(void);
   extern void trace_hardirqs_on(void);
   extern void trace_hardirqs_off(void);
 # define lockdep_hardirq_context(p)	((p)->hardirq_context)
@@ -101,7 +101,7 @@ do {						\
 
 #else
 # define trace_hardirqs_on_prepare()		do { } while (0)
-# define trace_hardirqs_off_prepare()		do { } while (0)
+# define trace_hardirqs_off_finish()		do { } while (0)
 # define trace_hardirqs_on()		do { } while (0)
 # define trace_hardirqs_off()		do { } while (0)
 # define lockdep_hardirq_context(p)	0
