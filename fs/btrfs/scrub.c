@@ -1904,7 +1904,6 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
-	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
 	char *kaddr;
 	int fail_gen = 0;
@@ -1914,7 +1913,6 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	page = sblock->pagev[0]->page;
 	kaddr = page_address(page);
 	s = (struct btrfs_super_block *)kaddr;
-	memcpy(on_disk_csum, s->csum, sctx->csum_size);
 
 	if (sblock->pagev[0]->logical != btrfs_super_bytenr(s))
 		++fail_cor;
@@ -1930,7 +1928,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	crypto_shash_digest(shash, kaddr + BTRFS_CSUM_SIZE,
 			BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE, calculated_csum);
 
-	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
+	if (memcmp(calculated_csum, s->csum, sctx->csum_size))
 		++fail_cor;
 
 	if (fail_cor + fail_gen) {
