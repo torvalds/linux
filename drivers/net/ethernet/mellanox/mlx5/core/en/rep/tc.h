@@ -33,7 +33,6 @@ void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
 
 int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		       void *type_data);
-void mlx5e_rep_indr_clean_block_privs(struct mlx5e_rep_priv *rpriv);
 
 bool mlx5e_rep_tc_update_skb(struct mlx5_cqe64 *cqe,
 			     struct sk_buff *skb,
@@ -64,9 +63,6 @@ mlx5e_rep_tc_event_port_affinity(struct mlx5e_priv *priv) { return NOTIFY_DONE; 
 static inline int
 mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		   void *type_data) { return -EOPNOTSUPP; }
-
-static inline void
-mlx5e_rep_indr_clean_block_privs(struct mlx5e_rep_priv *rpriv) {}
 
 struct mlx5e_tc_update_priv;
 static inline bool
