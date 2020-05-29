@@ -206,6 +206,20 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 	return 0;
 }
 
+static const char * const fw_type_name[] = {
+	[ia_css_sp_firmware]		= "SP",
+	[ia_css_isp_firmware]		= "ISP",
+	[ia_css_bootloader_firmware]	= "BootLoader",
+	[ia_css_acc_firmware]		= "accel",
+};
+
+static const char * const fw_acc_type_name[] = {
+	[IA_CSS_ACC_NONE] =		"Normal",
+	[IA_CSS_ACC_OUTPUT] =		"Accel for output",
+	[IA_CSS_ACC_VIEWFINDER] =	"Accel for viewfinder",
+	[IA_CSS_ACC_STANDALONE] =	"Stand-alone accel",
+};
+
 int
 sh_css_load_firmware(struct device *dev, const char *fw_data,
 		     unsigned int fw_size) {
@@ -276,13 +290,46 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 		if (bi->blob.offset + bi->blob.size > fw_size)
 			return -EINVAL;
 
+		switch (bd.header.type) {
+		case ia_css_isp_firmware:
+			if (bd.header.info.isp.type > IA_CSS_ACC_STANDALONE) {
+				dev_err(dev, "binary #%2d: invalid SP type\n",
+					i);
+				return -EINVAL;
+			}
+
+			dev_dbg(dev,
+				"binary #%-2d type %s (%s), binary id is %2d: %s\n",
+				i,
+				fw_type_name[bd.header.type],
+				fw_acc_type_name[bd.header.info.isp.type],
+				bd.header.info.isp.sp.id,
+				bd.name);
+			break;
+		case ia_css_sp_firmware:
+		case ia_css_bootloader_firmware:
+		case ia_css_acc_firmware:
+			dev_dbg(dev,
+				"binary #%-2d type %s: %s\n",
+				i, fw_type_name[bd.header.type],
+				bd.name);
+			break;
+		default:
+			if (bd.header.info.isp.type > IA_CSS_ACC_STANDALONE) {
+				dev_err(dev,
+					"binary #%2d: invalid firmware type\n",
+					i);
+				return -EINVAL;
+			}
+			break;
+		}
+
 		if (bi->type == ia_css_sp_firmware) {
 			if (i != SP_FIRMWARE)
 				return -EINVAL;
 			err = setup_binary(bi, fw_data, &sh_css_sp_fw, i);
 			if (err)
 				return err;
-			dev_dbg(dev, "firmware #%d (SP), name %s\n", i, bd.name);
 
 		} else {
 			/* All subsequent binaries (including bootloaders) (i>NUM_OF_SPS) are ISP firmware */
