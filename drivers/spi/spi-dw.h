@@ -257,8 +257,16 @@ extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 				    struct spi_device *spi,
 				    struct spi_transfer *transfer);
 
-/* platform related setup */
-extern int dw_spi_mid_init_mfld(struct dw_spi *dws);
-extern int dw_spi_mid_init_generic(struct dw_spi *dws);
+#ifdef CONFIG_SPI_DW_DMA
+
+extern void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws);
+extern void dw_spi_mid_setup_dma_generic(struct dw_spi *dws);
+
+#else
+
+static inline void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws) {}
+static inline void dw_spi_mid_setup_dma_generic(struct dw_spi *dws) {}
+
+#endif /* !CONFIG_SPI_DW_DMA */
 
 #endif /* DW_SPI_HEADER_H */

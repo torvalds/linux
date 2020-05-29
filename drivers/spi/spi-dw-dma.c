@@ -1,16 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Special handling for DW core on Intel MID platform
+ * Special handling for DW DMA core
  *
  * Copyright (c) 2009, 2014 Intel Corporation.
  */
 
-#include <linux/spi/spi.h>
-#include <linux/types.h>
-
-#include "spi-dw.h"
-
-#ifdef CONFIG_SPI_DW_MID_DMA
 #include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -18,6 +12,10 @@
 #include <linux/jiffies.h>
 #include <linux/pci.h>
 #include <linux/platform_data/dma-dw.h>
+#include <linux/spi/spi.h>
+#include <linux/types.h>
+
+#include "spi-dw.h"
 
 #define WAIT_RETRIES	5
 #define RX_BUSY		0
@@ -461,10 +459,11 @@ static const struct dw_spi_dma_ops mfld_dma_ops = {
 	.dma_stop	= mid_spi_dma_stop,
 };
 
-static void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws)
+void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws)
 {
 	dws->dma_ops = &mfld_dma_ops;
 }
+EXPORT_SYMBOL_GPL(dw_spi_mid_setup_dma_mfld);
 
 static const struct dw_spi_dma_ops generic_dma_ops = {
 	.dma_init	= mid_spi_dma_init_generic,
@@ -475,55 +474,8 @@ static const struct dw_spi_dma_ops generic_dma_ops = {
 	.dma_stop	= mid_spi_dma_stop,
 };
 
-static void dw_spi_mid_setup_dma_generic(struct dw_spi *dws)
+void dw_spi_mid_setup_dma_generic(struct dw_spi *dws)
 {
 	dws->dma_ops = &generic_dma_ops;
 }
-#else	/* CONFIG_SPI_DW_MID_DMA */
-static inline void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws) {}
-static inline void dw_spi_mid_setup_dma_generic(struct dw_spi *dws) {}
-#endif
-
-/* Some specific info for SPI0 controller on Intel MID */
-
-/* HW info for MRST Clk Control Unit, 32b reg per controller */
-#define MRST_SPI_CLK_BASE	100000000	/* 100m */
-#define MRST_CLK_SPI_REG	0xff11d86c
-#define CLK_SPI_BDIV_OFFSET	0
-#define CLK_SPI_BDIV_MASK	0x00000007
-#define CLK_SPI_CDIV_OFFSET	9
-#define CLK_SPI_CDIV_MASK	0x00000e00
-#define CLK_SPI_DISABLE_OFFSET	8
-
-int dw_spi_mid_init_mfld(struct dw_spi *dws)
-{
-	void __iomem *clk_reg;
-	u32 clk_cdiv;
-
-	clk_reg = ioremap(MRST_CLK_SPI_REG, 16);
-	if (!clk_reg)
-		return -ENOMEM;
-
-	/* Get SPI controller operating freq info */
-	clk_cdiv = readl(clk_reg + dws->bus_num * sizeof(u32));
-	clk_cdiv &= CLK_SPI_CDIV_MASK;
-	clk_cdiv >>= CLK_SPI_CDIV_OFFSET;
-	dws->max_freq = MRST_SPI_CLK_BASE / (clk_cdiv + 1);
-
-	iounmap(clk_reg);
-
-	/* Register hook to configure CTRLR0 */
-	dws->update_cr0 = dw_spi_update_cr0;
-
-	dw_spi_mid_setup_dma_mfld(dws);
-	return 0;
-}
-
-int dw_spi_mid_init_generic(struct dw_spi *dws)
-{
-	/* Register hook to configure CTRLR0 */
-	dws->update_cr0 = dw_spi_update_cr0;
-
-	dw_spi_mid_setup_dma_generic(dws);
-	return 0;
-}
+EXPORT_SYMBOL_GPL(dw_spi_mid_setup_dma_generic);
