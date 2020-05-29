@@ -86,6 +86,10 @@ static int rkispp_subdev_link_setup(struct media_entity *entity,
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
 
+	if (local->index != RKISPP_PAD_SINK &&
+	    local->index != RKISPP_PAD_SOURCE)
+		return 0;
+
 	if (!sd)
 		return -ENODEV;
 	ispp_sdev = v4l2_get_subdevdata(sd);
@@ -100,6 +104,9 @@ static int rkispp_subdev_link_setup(struct media_entity *entity,
 			dev->inp = INP_ISP;
 		else
 			dev->inp = INP_INVAL;
+		stream->linked = flags & MEDIA_LNK_FL_ENABLED;
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "input:%d\n", dev->inp);
 	} else if (!strcmp(remote->entity->name, MB_VDEV_NAME)) {
 		stream = &vdev->stream[STREAM_MB];
 	} else if (!strcmp(remote->entity->name, S0_VDEV_NAME)) {
@@ -109,10 +116,12 @@ static int rkispp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, S2_VDEV_NAME)) {
 		stream = &vdev->stream[STREAM_S2];
 	}
-	if (stream)
+	if (stream && dev->stream_sync) {
 		stream->linked = flags & MEDIA_LNK_FL_ENABLED;
-	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-		 "input:%d\n", dev->inp);
+		v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
+			 "stream:%d linked:%d\n",
+			 stream->id, stream->linked);
+	}
 	return 0;
 }
 

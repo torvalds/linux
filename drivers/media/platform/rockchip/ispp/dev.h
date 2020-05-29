@@ -56,5 +56,6 @@ struct rkispp_device {
 	enum rkispp_input inp;
 	u32 isp_mode;
 	wait_queue_head_t sync_onoff;
+	bool stream_sync;
 };
 #endif

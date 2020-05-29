@@ -1415,11 +1415,15 @@ static int start_isp(struct rkispp_device *dev)
 	if (dev->inp != INP_ISP || ispp_sdev->state)
 		return 0;
 
-	/* output stream enable then start isp*/
-	for (i = STREAM_MB; i < STREAM_MAX; i++) {
-		stream = &vdev->stream[i];
-		if (stream->linked && !stream->streaming)
-			return 0;
+	if (dev->stream_sync) {
+		/* output stream enable then start isp */
+		for (i = STREAM_MB; i < STREAM_MAX; i++) {
+			stream = &vdev->stream[i];
+			if (stream->linked && !stream->streaming)
+				return 0;
+		}
+	} else if (atomic_read(&vdev->refcnt) > 1) {
+		return 0;
 	}
 
 	mode.work_mode = dev->isp_mode;

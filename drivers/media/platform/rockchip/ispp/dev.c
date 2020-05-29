@@ -44,6 +44,10 @@ static int rkisp_ispp_mode = ISP_ISPP_422 | ISP_ISPP_FBC;
 module_param_named(mode, rkisp_ispp_mode, int, 0644);
 MODULE_PARM_DESC(mode, "isp->ispp mode: bit0 fbc, bit1 yuv422, bit2 quick");
 
+static bool rkispp_stream_sync;
+module_param_named(stream_sync, rkispp_stream_sync, bool, 0644);
+MODULE_PARM_DESC(stream_sync, "rkispp stream sync output");
+
 static char rkispp_version[RKISPP_VERNO_LEN];
 module_param_string(version, rkispp_version, RKISPP_VERNO_LEN, 0444);
 MODULE_PARM_DESC(version, "version number");
@@ -142,7 +146,7 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		return ret;
 
 	/* output stream links */
-	flags = 0;
+	flags = rkispp_stream_sync ? 0 : MEDIA_LNK_FL_ENABLED;
 	stream = &stream_vdev->stream[STREAM_MB];
 	stream->linked = flags;
 	source = &ispp_dev->ispp_sdev.sd.entity;
@@ -169,6 +173,7 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 		return ret;
 
 	stream = &stream_vdev->stream[STREAM_S2];
+	stream->linked = flags;
 	sink = &stream->vnode.vdev.entity;
 	ret = media_create_pad_link(source, RKISPP_PAD_SOURCE,
 				    sink, 0, flags);
@@ -229,6 +234,7 @@ static int rkispp_enable_sys_clk(struct rkispp_device *ispp_dev)
 	int i, ret = -EINVAL;
 
 	ispp_dev->isp_mode = rkisp_ispp_mode;
+	ispp_dev->stream_sync = rkispp_stream_sync;
 	for (i = 0; i < ispp_dev->clks_num; i++) {
 		ret = clk_prepare_enable(ispp_dev->clks[i]);
 		if (ret < 0)
