@@ -3,6 +3,7 @@
 #define DW_SPI_HEADER_H
 
 #include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/irqreturn.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
@@ -152,6 +153,7 @@ struct dw_spi {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
+	struct debugfs_regset32 regset;
 #endif
 };
 
