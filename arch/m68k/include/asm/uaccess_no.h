@@ -60,7 +60,7 @@ extern int __put_user_bad(void);
  * aliasing issues.
  */
 
-#define __ptr(x) ((unsigned long *)(x))
+#define __ptr(x) ((unsigned long __user *)(x))
 
 #define __put_user_asm(err,x,ptr,bwl)				\
 	__asm__ ("move" #bwl " %0,%1"				\
