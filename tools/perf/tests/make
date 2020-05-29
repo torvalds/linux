@@ -147,6 +147,7 @@ run += make_no_libbionic
 run += make_no_auxtrace
 run += make_no_libbpf
 run += make_no_libbpf_DEBUG
+run += make_no_libcrypto
 run += make_no_syscall_tbl
 run += make_with_babeltrace
 run += make_with_clangllvm
