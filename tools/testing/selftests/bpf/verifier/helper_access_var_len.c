@@ -318,7 +318,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_48b = { 4 },
-	.errstr = "R1 min value is outside of the array range",
+	.errstr = "R1 min value is outside of the allowed memory range",
 	.result = REJECT,
 	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 },
