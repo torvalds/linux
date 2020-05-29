@@ -2255,7 +2255,7 @@ static int snd_bbfpro_ctl_update(struct usb_mixer_interface *mixer, u8 reg,
 	err = snd_usb_ctl_msg(chip->dev,
 			      usb_sndctrlpipe(chip->dev, 0), usb_req,
 			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			      usb_val, usb_idx, 0, 0);
+			      usb_val, usb_idx, NULL, 0);
 
 	snd_usb_unlock_shutdown(chip);
 	return err;
@@ -2394,7 +2394,7 @@ static int snd_bbfpro_vol_update(struct usb_mixer_interface *mixer, u16 index,
 			      SND_BBFPRO_USBREQ_MIXER,
 			      USB_DIR_OUT | USB_TYPE_VENDOR |
 			      USB_RECIP_DEVICE,
-			      usb_val, usb_idx, 0, 0);
+			      usb_val, usb_idx, NULL, 0);
 
 	snd_usb_unlock_shutdown(chip);
 	return err;
