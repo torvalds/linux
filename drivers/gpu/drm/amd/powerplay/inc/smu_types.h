@@ -185,6 +185,8 @@ enum smu_clk_type {
 	SMU_GFXCLK,
 	SMU_VCLK,
 	SMU_DCLK,
+	SMU_VCLK1,
+	SMU_DCLK1,
 	SMU_ECLK,
 	SMU_SOCCLK,
 	SMU_UCLK,

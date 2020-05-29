@@ -31,6 +31,7 @@
 #include "atom.h"
 #include "arcturus_ppt.h"
 #include "navi10_ppt.h"
+#include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
 
 #undef __SMU_DUMMY_MAP
@@ -762,6 +763,9 @@ static int smu_set_funcs(struct amdgpu_device *adev)
 		/* OD is not supported on Arcturus */
 		smu->od_enabled =false;
 		break;
+	case CHIP_SIENNA_CICHLID:
+		sienna_cichlid_set_ppt_funcs(smu);
+		break;
 	case CHIP_RENOIR:
 		renoir_set_ppt_funcs(smu);
 		break;
@@ -1051,7 +1055,8 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return 0;
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS) {
+	if (adev->asic_type != CHIP_ARCTURUS &&
+	    adev->asic_type != CHIP_SIENNA_CICHLID) {
 		ret = smu_init_display_count(smu, 0);
 		if (ret)
 			return ret;
@@ -1157,7 +1162,8 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		}
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS) {
+	if (adev->asic_type != CHIP_ARCTURUS &&
+	    adev->asic_type != CHIP_SIENNA_CICHLID) {
 		ret = smu_notify_display_change(smu);
 		if (ret)
 			return ret;
