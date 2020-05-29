@@ -285,6 +285,8 @@ void hmm_free(ia_css_ptr virt)
 {
 	struct hmm_buffer_object *bo;
 
+	dev_dbg(atomisp_dev, "%s: free 0x%08x\n", __func__, virt);
+
 	WARN_ON(!virt);
 
 	bo = hmm_bo_device_search_start(&bo_device, (unsigned int)virt);
