@@ -3642,36 +3642,19 @@ finish:
 	return done;
 }
 
-static int regulator_balance_voltage(struct regulator_dev *rdev,
-				     suspend_state_t state)
+int regulator_do_balance_voltage(struct regulator_dev *rdev,
+				 suspend_state_t state, bool skip_coupled)
 {
 	struct regulator_dev **c_rdevs;
 	struct regulator_dev *best_rdev;
 	struct coupling_desc *c_desc = &rdev->coupling_desc;
-	struct regulator_coupler *coupler = c_desc->coupler;
 	int i, ret, n_coupled, best_min_uV, best_max_uV, best_c_rdev;
 	unsigned int delta, best_delta;
 	unsigned long c_rdev_done = 0;
 	bool best_c_rdev_done;
 
 	c_rdevs = c_desc->coupled_rdevs;
-	n_coupled = c_desc->n_coupled;
-
-	/*
-	 * If system is in a state other than PM_SUSPEND_ON, don't check
-	 * other coupled regulators.
-	 */
-	if (state != PM_SUSPEND_ON)
-		n_coupled = 1;
-
-	if (c_desc->n_resolved < n_coupled) {
-		rdev_err(rdev, "Not all coupled regulators registered\n");
-		return -EPERM;
-	}
-
-	/* Invoke custom balancer for customized couplers */
-	if (coupler && coupler->balance_voltage)
-		return coupler->balance_voltage(coupler, rdev, state);
+	n_coupled = skip_coupled ? 1 : c_desc->n_coupled;
 
 	/*
 	 * Find the best possible voltage change on each loop. Leave the loop
@@ -3740,6 +3723,32 @@ static int regulator_balance_voltage(struct regulator_dev *rdev,
 
 out:
 	return ret;
+}
+
+static int regulator_balance_voltage(struct regulator_dev *rdev,
+				     suspend_state_t state)
+{
+	struct coupling_desc *c_desc = &rdev->coupling_desc;
+	struct regulator_coupler *coupler = c_desc->coupler;
+	bool skip_coupled = false;
+
+	/*
+	 * If system is in a state other than PM_SUSPEND_ON, don't check
+	 * other coupled regulators.
+	 */
+	if (state != PM_SUSPEND_ON)
+		skip_coupled = true;
+
+	if (c_desc->n_resolved < c_desc->n_coupled) {
+		rdev_err(rdev, "Not all coupled regulators registered\n");
+		return -EPERM;
+	}
+
+	/* Invoke custom balancer for customized couplers */
+	if (coupler && coupler->balance_voltage)
+		return coupler->balance_voltage(coupler, rdev, state);
+
+	return regulator_do_balance_voltage(rdev, state, skip_coupled);
 }
 
 /**
