@@ -274,6 +274,53 @@ static const struct nand_data_interface onfi_sdr_timings[] = {
 };
 
 /**
+ * onfi_find_closest_sdr_mode - Derive the closest ONFI SDR timing mode given a
+ *                              set of timings
+ * @spec_timings: the timings to challenge
+ */
+unsigned int
+onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings)
+{
+	const struct nand_sdr_timings *onfi_timings;
+	int mode;
+
+	for (mode = ARRAY_SIZE(onfi_sdr_timings) - 1; mode > 0; mode--) {
+		onfi_timings = &onfi_sdr_timings[mode].timings.sdr;
+
+		if (spec_timings->tCCS_min <= onfi_timings->tCCS_min &&
+		    spec_timings->tADL_min <= onfi_timings->tADL_min &&
+		    spec_timings->tALH_min <= onfi_timings->tALH_min &&
+		    spec_timings->tALS_min <= onfi_timings->tALS_min &&
+		    spec_timings->tAR_min <= onfi_timings->tAR_min &&
+		    spec_timings->tCEH_min <= onfi_timings->tCEH_min &&
+		    spec_timings->tCH_min <= onfi_timings->tCH_min &&
+		    spec_timings->tCLH_min <= onfi_timings->tCLH_min &&
+		    spec_timings->tCLR_min <= onfi_timings->tCLR_min &&
+		    spec_timings->tCLS_min <= onfi_timings->tCLS_min &&
+		    spec_timings->tCOH_min <= onfi_timings->tCOH_min &&
+		    spec_timings->tCS_min <= onfi_timings->tCS_min &&
+		    spec_timings->tDH_min <= onfi_timings->tDH_min &&
+		    spec_timings->tDS_min <= onfi_timings->tDS_min &&
+		    spec_timings->tIR_min <= onfi_timings->tIR_min &&
+		    spec_timings->tRC_min <= onfi_timings->tRC_min &&
+		    spec_timings->tREH_min <= onfi_timings->tREH_min &&
+		    spec_timings->tRHOH_min <= onfi_timings->tRHOH_min &&
+		    spec_timings->tRHW_min <= onfi_timings->tRHW_min &&
+		    spec_timings->tRLOH_min <= onfi_timings->tRLOH_min &&
+		    spec_timings->tRP_min <= onfi_timings->tRP_min &&
+		    spec_timings->tRR_min <= onfi_timings->tRR_min &&
+		    spec_timings->tWC_min <= onfi_timings->tWC_min &&
+		    spec_timings->tWH_min <= onfi_timings->tWH_min &&
+		    spec_timings->tWHR_min <= onfi_timings->tWHR_min &&
+		    spec_timings->tWP_min <= onfi_timings->tWP_min &&
+		    spec_timings->tWW_min <= onfi_timings->tWW_min)
+			return mode;
+	}
+
+	return 0;
+}
+
+/**
  * onfi_fill_data_interface - Initialize a data interface from a given ONFI mode
  * @chip: The NAND chip
  * @iface: The data interface to fill
