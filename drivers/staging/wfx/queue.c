@@ -291,15 +291,12 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 
 	if (atomic_read(&wdev->tx_lock))
 		return NULL;
-
-	for (;;) {
-		skb = wfx_tx_queues_get_skb(wdev);
-		if (!skb)
-			return NULL;
-		skb_queue_tail(&wdev->tx_pending, skb);
-		wake_up(&wdev->tx_dequeue);
-		tx_priv = wfx_skb_tx_priv(skb);
-		tx_priv->xmit_timestamp = ktime_get();
-		return (struct hif_msg *)skb->data;
-	}
+	skb = wfx_tx_queues_get_skb(wdev);
+	if (!skb)
+		return NULL;
+	skb_queue_tail(&wdev->tx_pending, skb);
+	wake_up(&wdev->tx_dequeue);
+	tx_priv = wfx_skb_tx_priv(skb);
+	tx_priv->xmit_timestamp = ktime_get();
+	return (struct hif_msg *)skb->data;
 }
