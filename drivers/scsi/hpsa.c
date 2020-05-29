@@ -254,6 +254,10 @@ static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
 static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
 static int hpsa_ioctl(struct scsi_device *dev, unsigned int cmd,
 		      void __user *arg);
+static int hpsa_passthru_ioctl(struct ctlr_info *h,
+			       IOCTL_Command_struct *iocommand);
+static int hpsa_big_passthru_ioctl(struct ctlr_info *h,
+				   BIG_IOCTL_Command_struct *ioc);
 
 #ifdef CONFIG_COMPAT
 static int hpsa_compat_ioctl(struct scsi_device *dev, unsigned int cmd,
@@ -6217,75 +6221,63 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 static int hpsa_ioctl32_passthru(struct scsi_device *dev, unsigned int cmd,
 	void __user *arg)
 {
-	IOCTL32_Command_struct __user *arg32 =
-	    (IOCTL32_Command_struct __user *) arg;
+	struct ctlr_info *h = sdev_to_hba(dev);
+	IOCTL32_Command_struct __user *arg32 = arg;
 	IOCTL_Command_struct arg64;
-	IOCTL_Command_struct __user *p = compat_alloc_user_space(sizeof(arg64));
 	int err;
 	u32 cp;
 
+	if (!arg)
+		return -EINVAL;
+
 	memset(&arg64, 0, sizeof(arg64));
-	err = 0;
-	err |= copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
-			   sizeof(arg64.LUN_info));
-	err |= copy_from_user(&arg64.Request, &arg32->Request,
-			   sizeof(arg64.Request));
-	err |= copy_from_user(&arg64.error_info, &arg32->error_info,
-			   sizeof(arg64.error_info));
-	err |= get_user(arg64.buf_size, &arg32->buf_size);
-	err |= get_user(cp, &arg32->buf);
-	arg64.buf = compat_ptr(cp);
-	err |= copy_to_user(p, &arg64, sizeof(arg64));
-
-	if (err)
+	if (copy_from_user(&arg64, arg32, offsetof(IOCTL_Command_struct, buf)))
 		return -EFAULT;
+	if (get_user(cp, &arg32->buf))
+		return -EFAULT;
+	arg64.buf = compat_ptr(cp);
 
-	err = hpsa_ioctl(dev, CCISS_PASSTHRU, p);
+	if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
+		return -EAGAIN;
+	err = hpsa_passthru_ioctl(h, &arg64);
+	atomic_inc(&h->passthru_cmds_avail);
 	if (err)
 		return err;
-	err |= copy_in_user(&arg32->error_info, &p->error_info,
-			 sizeof(arg32->error_info));
-	if (err)
+	if (copy_to_user(&arg32->error_info, &arg64.error_info,
+			 sizeof(arg32->error_info)))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int hpsa_ioctl32_big_passthru(struct scsi_device *dev,
 	unsigned int cmd, void __user *arg)
 {
-	BIG_IOCTL32_Command_struct __user *arg32 =
-	    (BIG_IOCTL32_Command_struct __user *) arg;
+	struct ctlr_info *h = sdev_to_hba(dev);
+	BIG_IOCTL32_Command_struct __user *arg32 = arg;
 	BIG_IOCTL_Command_struct arg64;
-	BIG_IOCTL_Command_struct __user *p =
-	    compat_alloc_user_space(sizeof(arg64));
 	int err;
 	u32 cp;
 
+	if (!arg)
+		return -EINVAL;
 	memset(&arg64, 0, sizeof(arg64));
-	err = 0;
-	err |= copy_from_user(&arg64.LUN_info, &arg32->LUN_info,
-			   sizeof(arg64.LUN_info));
-	err |= copy_from_user(&arg64.Request, &arg32->Request,
-			   sizeof(arg64.Request));
-	err |= copy_from_user(&arg64.error_info, &arg32->error_info,
-			   sizeof(arg64.error_info));
-	err |= get_user(arg64.buf_size, &arg32->buf_size);
-	err |= get_user(arg64.malloc_size, &arg32->malloc_size);
-	err |= get_user(cp, &arg32->buf);
-	arg64.buf = compat_ptr(cp);
-	err |= copy_to_user(p, &arg64, sizeof(arg64));
-
-	if (err)
+	if (copy_from_user(&arg64, arg32,
+			   offsetof(BIG_IOCTL32_Command_struct, buf)))
 		return -EFAULT;
+	if (get_user(cp, &arg32->buf))
+		return -EFAULT;
+	arg64.buf = compat_ptr(cp);
 
-	err = hpsa_ioctl(dev, CCISS_BIG_PASSTHRU, p);
+	if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
+		return -EAGAIN;
+	err = hpsa_big_passthru_ioctl(h, &arg64);
+	atomic_inc(&h->passthru_cmds_avail);
 	if (err)
 		return err;
-	err |= copy_in_user(&arg32->error_info, &p->error_info,
-			 sizeof(arg32->error_info));
-	if (err)
+	if (copy_to_user(&arg32->error_info, &arg64.error_info,
+			 sizeof(arg32->error_info)))
 		return -EFAULT;
-	return err;
+	return 0;
 }
 
 static int hpsa_compat_ioctl(struct scsi_device *dev, unsigned int cmd,
