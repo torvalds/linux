@@ -8537,6 +8537,8 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(IPV6_ROUTER_ALERT, CONTROL),
 	DEVLINK_TRAP(PTP_EVENT, CONTROL),
 	DEVLINK_TRAP(PTP_GENERAL, CONTROL),
+	DEVLINK_TRAP(FLOW_ACTION_SAMPLE, CONTROL),
+	DEVLINK_TRAP(FLOW_ACTION_TRAP, CONTROL),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
@@ -8568,6 +8570,8 @@ static const struct devlink_trap_group devlink_trap_group_generic[] = {
 	DEVLINK_TRAP_GROUP(IPV6),
 	DEVLINK_TRAP_GROUP(PTP_EVENT),
 	DEVLINK_TRAP_GROUP(PTP_GENERAL),
+	DEVLINK_TRAP_GROUP(ACL_SAMPLE),
+	DEVLINK_TRAP_GROUP(ACL_TRAP),
 };
 
 static int devlink_trap_generic_verify(const struct devlink_trap *trap)

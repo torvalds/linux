@@ -397,6 +397,14 @@ be added to the following table:
      - ``control``
      - Traps PTP general messages (Announce, Follow_Up, Delay_Resp,
        Pdelay_Resp_Follow_Up, management and signaling)
+   * - ``flow_action_sample``
+     - ``control``
+     - Traps packets sampled during processing of flow action sample (e.g., via
+       tc's sample action)
+   * - ``flow_action_trap``
+     - ``control``
+     - Traps packets logged during processing of flow action trap (e.g., via
+       tc's trap action)
 
 Driver-specific Packet Traps
 ============================
@@ -487,6 +495,12 @@ narrow. The description of these groups must be added to the following table:
    * - ``ptp_general``
      - Contains packet traps for PTP general messages (Announce, Follow_Up,
        Delay_Resp, Pdelay_Resp_Follow_Up, management and signaling)
+   * - ``acl_sample``
+     - Contains packet traps for packets that were sampled by the device during
+       ACL processing
+   * - ``acl_trap``
+     - Contains packet traps for packets that were trapped (logged) by the
+       device during ACL processing
 
 Packet Trap Policers
 ====================
