@@ -366,25 +366,20 @@ static int exfat_read_root(struct inode *inode)
 	return 0;
 }
 
-static struct boot_sector *exfat_read_boot_with_logical_sector(
-		struct super_block *sb)
+static int exfat_calibrate_blocksize(struct super_block *sb, int logical_sect)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct boot_sector *p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
-	unsigned short logical_sect = 0;
-
-	logical_sect = 1 << p_boot->sect_size_bits;
 
 	if (!is_power_of_2(logical_sect) ||
 	    logical_sect < 512 || logical_sect > 4096) {
 		exfat_err(sb, "bogus logical sector size %u", logical_sect);
-		return NULL;
+		return -EIO;
 	}
 
 	if (logical_sect < sb->s_blocksize) {
 		exfat_err(sb, "logical sector size too small for device (logical sector size = %u)",
 			  logical_sect);
-		return NULL;
+		return -EIO;
 	}
 
 	if (logical_sect > sb->s_blocksize) {
@@ -394,24 +389,20 @@ static struct boot_sector *exfat_read_boot_with_logical_sector(
 		if (!sb_set_blocksize(sb, logical_sect)) {
 			exfat_err(sb, "unable to set blocksize %u",
 				  logical_sect);
-			return NULL;
+			return -EIO;
 		}
 		sbi->boot_bh = sb_bread(sb, 0);
 		if (!sbi->boot_bh) {
 			exfat_err(sb, "unable to read boot sector (logical sector size = %lu)",
 				  sb->s_blocksize);
-			return NULL;
+			return -EIO;
 		}
-
-		p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
 	}
-	return p_boot;
+	return 0;
 }
 
-/* mount the file system volume */
-static int __exfat_fill_super(struct super_block *sb)
+static int exfat_read_boot_sector(struct super_block *sb)
 {
-	int ret;
 	struct boot_sector *p_boot;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
@@ -424,51 +415,41 @@ static int __exfat_fill_super(struct super_block *sb)
 		exfat_err(sb, "unable to read boot sector");
 		return -EIO;
 	}
-
-	/* PRB is read */
 	p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
 
 	/* check the validity of BOOT */
 	if (le16_to_cpu((p_boot->signature)) != BOOT_SIGNATURE) {
 		exfat_err(sb, "invalid boot record signature");
-		ret = -EINVAL;
-		goto free_bh;
+		return -EINVAL;
 	}
 
-
-	/* check logical sector size */
-	p_boot = exfat_read_boot_with_logical_sector(sb);
-	if (!p_boot) {
-		ret = -EIO;
-		goto free_bh;
+	if (memcmp(p_boot->fs_name, STR_EXFAT, BOOTSEC_FS_NAME_LEN)) {
+		exfat_err(sb, "invalid fs_name"); /* fs_name may unprintable */
+		return -EINVAL;
 	}
 
 	/*
-	 * res_zero field must be filled with zero to prevent mounting
+	 * must_be_zero field must be filled with zero to prevent mounting
 	 * from FAT volume.
 	 */
-	if (memchr_inv(p_boot->must_be_zero, 0,
-			sizeof(p_boot->must_be_zero))) {
-		ret = -EINVAL;
-		goto free_bh;
-	}
+	if (memchr_inv(p_boot->must_be_zero, 0, sizeof(p_boot->must_be_zero)))
+		return -EINVAL;
 
-	p_boot = (struct boot_sector *)p_boot;
-	if (!p_boot->num_fats) {
+	if (p_boot->num_fats != 1 && p_boot->num_fats != 2) {
 		exfat_err(sb, "bogus number of FAT structure");
-		ret = -EINVAL;
-		goto free_bh;
+		return -EINVAL;
 	}
 
 	sbi->sect_per_clus = 1 << p_boot->sect_per_clus_bits;
 	sbi->sect_per_clus_bits = p_boot->sect_per_clus_bits;
-	sbi->cluster_size_bits = sbi->sect_per_clus_bits + sb->s_blocksize_bits;
+	sbi->cluster_size_bits = p_boot->sect_per_clus_bits +
+		p_boot->sect_size_bits;
 	sbi->cluster_size = 1 << sbi->cluster_size_bits;
 	sbi->num_FAT_sectors = le32_to_cpu(p_boot->fat_length);
 	sbi->FAT1_start_sector = le32_to_cpu(p_boot->fat_offset);
-	sbi->FAT2_start_sector = p_boot->num_fats == 1 ?
-		sbi->FAT1_start_sector :
-			sbi->FAT1_start_sector + sbi->num_FAT_sectors;
+	sbi->FAT2_start_sector = le32_to_cpu(p_boot->fat_offset);
+	if (p_boot->num_fats == 2)
+		sbi->FAT2_start_sector += sbi->num_FAT_sectors;
 	sbi->data_start_sector = le32_to_cpu(p_boot->clu_offset);
 	sbi->num_sectors = le64_to_cpu(p_boot->vol_length);
 	/* because the cluster index starts with 2 */
@@ -483,14 +464,44 @@ static int __exfat_fill_super(struct super_block *sb)
 	sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
 	sbi->used_clusters = EXFAT_CLUSTERS_UNTRACKED;
 
-	if (le16_to_cpu(p_boot->vol_flags) & VOL_DIRTY) {
-		sbi->vol_flag |= VOL_DIRTY;
-		exfat_warn(sb, "Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
+	/* check consistencies */
+	if (sbi->num_FAT_sectors << p_boot->sect_size_bits <
+	    sbi->num_clusters * 4) {
+		exfat_err(sb, "bogus fat length");
+		return -EINVAL;
 	}
+	if (sbi->data_start_sector <
+	    sbi->FAT1_start_sector + sbi->num_FAT_sectors * p_boot->num_fats) {
+		exfat_err(sb, "bogus data start sector");
+		return -EINVAL;
+	}
+	if (sbi->vol_flag & VOL_DIRTY)
+		exfat_warn(sb, "Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
+	if (sbi->vol_flag & ERR_MEDIUM)
+		exfat_warn(sb, "Medium has reported failures. Some data may be lost.");
 
 	/* exFAT file size is limited by a disk volume size */
 	sb->s_maxbytes = (u64)(sbi->num_clusters - EXFAT_RESERVED_CLUSTERS) <<
 		sbi->cluster_size_bits;
+
+	/* check logical sector size */
+	if (exfat_calibrate_blocksize(sb, 1 << p_boot->sect_size_bits))
+		return -EIO;
+
+	return 0;
+}
+
+/* mount the file system volume */
+static int __exfat_fill_super(struct super_block *sb)
+{
+	int ret;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	ret = exfat_read_boot_sector(sb);
+	if (ret) {
+		exfat_err(sb, "failed to read boot sector");
+		goto free_bh;
+	}
 
 	ret = exfat_create_upcase_table(sb);
 	if (ret) {

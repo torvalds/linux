@@ -10,11 +10,13 @@
 
 #define BOOT_SIGNATURE		0xAA55
 #define EXBOOT_SIGNATURE	0xAA550000
+#define STR_EXFAT		"EXFAT   "	/* size should be 8 */
 
 #define EXFAT_MAX_FILE_LEN	255
 
 #define VOL_CLEAN		0x0000
 #define VOL_DIRTY		0x0002
+#define ERR_MEDIUM		0x0004
 
 #define EXFAT_EOF_CLUSTER	0xFFFFFFFFu
 #define EXFAT_BAD_CLUSTER	0xFFFFFFF7u
