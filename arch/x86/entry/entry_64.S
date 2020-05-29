@@ -396,11 +396,6 @@ SYM_CODE_END(\asmsym)
 	idtentry \vector asm_\cfunc \cfunc has_error_code=0
 .endm
 
-/*
- * MCE and DB exceptions
- */
-#define CPU_TSS_IST(x) PER_CPU_VAR(cpu_tss_rw) + (TSS_ist + (x) * 8)
-
 /**
  * idtentry_mce_db - Macro to generate entry stubs for #MC and #DB
  * @vector:		Vector number
@@ -416,10 +411,6 @@ SYM_CODE_END(\asmsym)
  * If hits in kernel mode then it needs to go through the paranoid
  * entry as the exception can hit any random state. No preemption
  * check on exit to keep the paranoid path simple.
- *
- * If the trap is #DB then the interrupt stack entry in the IST is
- * moved to the second stack, so a potential recursion will have a
- * fresh IST.
  */
 .macro idtentry_mce_db vector asmsym cfunc
 SYM_CODE_START(\asmsym)
@@ -445,15 +436,7 @@ SYM_CODE_START(\asmsym)
 
 	movq	%rsp, %rdi		/* pt_regs pointer */
 
-	.if \vector == X86_TRAP_DB
-		subq	$DB_STACK_OFFSET, CPU_TSS_IST(IST_INDEX_DB)
-	.endif
-
 	call	\cfunc
-
-	.if \vector == X86_TRAP_DB
-		addq	$DB_STACK_OFFSET, CPU_TSS_IST(IST_INDEX_DB)
-	.endif
 
 	jmp	paranoid_exit
 
