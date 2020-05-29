@@ -125,8 +125,8 @@ static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u8 local_port,
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
-					   void *trap_ctx)
+static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+					  void *trap_ctx)
 {
 	struct devlink_port *in_devlink_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -139,7 +139,7 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 
 	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
 	if (err)
-		return;
+		return err;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
 	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
@@ -147,8 +147,27 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	skb_push(skb, ETH_HLEN);
 	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port, NULL);
 	skb_pull(skb, ETH_HLEN);
-	skb->offload_fwd_mark = 1;
+
+	return 0;
+}
+
+static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+					 void *trap_ctx)
+{
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
 	netif_receive_skb(skb);
+}
+
+static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u8 local_port,
+				      void *trap_ctx)
+{
+	skb->offload_fwd_mark = 1;
+	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
 }
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
@@ -183,7 +202,7 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 		      SET_FW_DEFAULT, SP_##_dis_group_id)
 
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
-	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
+	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
 
 #define MLXSW_SP_TRAP_POLICER(_id, _rate, _burst)			      \
