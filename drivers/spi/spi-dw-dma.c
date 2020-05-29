@@ -375,17 +375,17 @@ static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 	dw_writel(dws, DW_SPI_DMARDLR, dws->rxburst - 1);
 	dw_writel(dws, DW_SPI_DMATDLR, dws->fifo_len - dws->txburst);
 
-	if (xfer->tx_buf) {
+	if (xfer->tx_buf)
 		dma_ctrl |= SPI_DMA_TDMAE;
-		imr |= SPI_INT_TXOI;
-	}
-	if (xfer->rx_buf) {
+	if (xfer->rx_buf)
 		dma_ctrl |= SPI_DMA_RDMAE;
-		imr |= SPI_INT_RXUI | SPI_INT_RXOI;
-	}
 	dw_writel(dws, DW_SPI_DMACR, dma_ctrl);
 
 	/* Set the interrupt mask */
+	if (xfer->tx_buf)
+		imr |= SPI_INT_TXOI;
+	if (xfer->rx_buf)
+		imr |= SPI_INT_RXUI | SPI_INT_RXOI;
 	spi_umask_intr(dws, imr);
 
 	reinit_completion(&dws->dma_completion);
