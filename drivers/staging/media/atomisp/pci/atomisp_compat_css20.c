@@ -4310,6 +4310,20 @@ int atomisp_css_dump_sp_raw_copy_linecount(bool reduced)
 	return 0;
 }
 
+static const char * const fw_type_name[] = {
+	[ia_css_sp_firmware]		= "SP",
+	[ia_css_isp_firmware]		= "ISP",
+	[ia_css_bootloader_firmware]	= "BootLoader",
+	[ia_css_acc_firmware]		= "accel",
+};
+
+static const char * const fw_acc_type_name[] = {
+	[IA_CSS_ACC_NONE] =		"Normal",
+	[IA_CSS_ACC_OUTPUT] =		"Accel stage on output",
+	[IA_CSS_ACC_VIEWFINDER] =	"Accel stage on viewfinder",
+	[IA_CSS_ACC_STANDALONE] =	"Stand-alone acceleration",
+};
+
 int atomisp_css_dump_blob_infor(void)
 {
 	struct ia_css_blob_descr *bd = sh_css_blob_info;
@@ -4320,9 +4334,28 @@ int atomisp_css_dump_blob_infor(void)
 	if (!bd)
 		return -EPERM;
 
-	for (i = 1; i < sh_css_num_binaries; i++)
-		dev_dbg(atomisp_dev, "Num%d binary id is %d, name is %s\n", i,
-			bd[i - 1].header.info.isp.sp.id, bd[i - 1].name);
+	/*
+	 * The sh_css_load_firmware function discard the initial
+	 * "SPS" binaries
+	 */
+	for (i = 0; i < sh_css_num_binaries - NUM_OF_SPS; i++) {
+		switch (bd[i].header.type) {
+		case ia_css_isp_firmware:
+			dev_dbg(atomisp_dev,
+				"Num%2d type %s (%s), binary id is %2d, name is %s\n",
+				i + NUM_OF_SPS,
+				fw_type_name[bd[i].header.type],
+				fw_acc_type_name[bd[i].header.info.isp.type],
+				bd[i].header.info.isp.sp.id,
+				bd[i].name);
+			break;
+		default:
+			dev_dbg(atomisp_dev,
+				"Num%2d type %s, name is %s\n",
+				i + NUM_OF_SPS, fw_type_name[bd[i].header.type],
+				bd[i].name);
+		}
+	}
 
 	return 0;
 }

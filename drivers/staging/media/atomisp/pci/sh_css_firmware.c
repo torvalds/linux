@@ -282,6 +282,8 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 			err = setup_binary(bi, fw_data, &sh_css_sp_fw, i);
 			if (err)
 				return err;
+			dev_dbg(dev, "firmware #%d (SP), name %s\n", i, bd.name);
+
 		} else {
 			/* All subsequent binaries (including bootloaders) (i>NUM_OF_SPS) are ISP firmware */
 			if (i < NUM_OF_SPS)

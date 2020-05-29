@@ -62,8 +62,8 @@ enum ia_css_cell_type {
  */
 enum ia_css_fw_type {
 	ia_css_sp_firmware,		/** Firmware for the SP */
-	ia_css_isp_firmware,	/** Firmware for the ISP */
-	ia_css_bootloader_firmware, /** Firmware for the BootLoader */
+	ia_css_isp_firmware,		/** Firmware for the ISP */
+	ia_css_bootloader_firmware,	/** Firmware for the BootLoader */
 	ia_css_acc_firmware		/** Firmware for accelrations */
 };
 
