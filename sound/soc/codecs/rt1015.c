@@ -475,7 +475,7 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 			snd_soc_component_write(component,
 				RT1015_CLSD_INTERNAL9, 0x0140);
 			snd_soc_component_write(component,
-				RT1015_GAT_BOOST, 0x00fe);
+				RT1015_GAT_BOOST, 0x0efe);
 			snd_soc_component_write(component,
 				RT1015_PWR_STATE_CTRL, 0x000d);
 			msleep(500);
