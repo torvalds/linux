@@ -33,6 +33,7 @@
 #include <asm/debugreg.h>
 #include <asm/user.h>
 #include <asm/desc.h>
+#include <asm/tlbflush.h>
 
 /* Per cpu debug control register value */
 DEFINE_PER_CPU(unsigned long, cpu_dr7);
@@ -263,6 +264,16 @@ static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
 		if (within_area(addr, end,
 				(unsigned long)&per_cpu(cpu_tss_rw, cpu),
 				sizeof(struct tss_struct)))
+			return true;
+
+		/*
+		 * cpu_tlbstate.user_pcid_flush_mask is used for CPU entry.
+		 * If a data breakpoint on it, it will cause an unwanted #DB.
+		 * Protect the full cpu_tlbstate structure to be sure.
+		 */
+		if (within_area(addr, end,
+				(unsigned long)&per_cpu(cpu_tlbstate, cpu),
+				sizeof(struct tlb_state)))
 			return true;
 	}
 
