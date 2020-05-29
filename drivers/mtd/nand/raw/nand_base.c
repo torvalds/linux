@@ -1041,10 +1041,8 @@ static int nand_choose_interface_config(struct nand_chip *chip)
 	}
 
 	for (mode = fls(modes) - 1; mode >= 0; mode--) {
-		ret = onfi_fill_interface_config(chip, &chip->interface_config,
-						 NAND_SDR_IFACE, mode);
-		if (ret)
-			continue;
+		onfi_fill_interface_config(chip, &chip->interface_config,
+					   NAND_SDR_IFACE, mode);
 
 		/*
 		 * Pass NAND_DATA_IFACE_CHECK_ONLY to only check if the

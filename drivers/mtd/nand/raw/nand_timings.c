@@ -347,18 +347,18 @@ onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings)
  * @type: The interface type
  * @timing_mode: The ONFI timing mode
  */
-int onfi_fill_interface_config(struct nand_chip *chip,
-			       struct nand_interface_config *iface,
-			       enum nand_interface_type type,
-			       unsigned int timing_mode)
+void onfi_fill_interface_config(struct nand_chip *chip,
+				struct nand_interface_config *iface,
+				enum nand_interface_type type,
+				unsigned int timing_mode)
 {
 	struct onfi_params *onfi = chip->parameters.onfi;
 
-	if (type != NAND_SDR_IFACE)
-		return -EINVAL;
+	if (WARN_ON(type != NAND_SDR_IFACE))
+		return;
 
-	if (timing_mode >= ARRAY_SIZE(onfi_sdr_timings))
-		return -EINVAL;
+	if (WARN_ON(timing_mode >= ARRAY_SIZE(onfi_sdr_timings)))
+		return;
 
 	*iface = onfi_sdr_timings[timing_mode];
 
@@ -378,6 +378,4 @@ int onfi_fill_interface_config(struct nand_chip *chip,
 		/* nanoseconds -> picoseconds */
 		timings->tCCS_min = 1000UL * onfi->tCCS;
 	}
-
-	return 0;
 }
