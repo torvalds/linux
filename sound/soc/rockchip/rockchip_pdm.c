@@ -511,9 +511,10 @@ static bool rockchip_pdm_precious_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct reg_default rockchip_pdm_reg_defaults[] = {
-	{0x04, 0x78000017},
-	{0x08, 0x0bb8ea60},
-	{0x18, 0x0000001f},
+	{ PDM_CTRL0, 0x78000017 },
+	{ PDM_CTRL1, 0x0bb8ea60 },
+	{ PDM_CLK_CTRL, 0x0000e401 },
+	{ PDM_DMA_CTRL, 0x0000001f },
 };
 
 static const struct regmap_config rockchip_pdm_regmap_config = {
