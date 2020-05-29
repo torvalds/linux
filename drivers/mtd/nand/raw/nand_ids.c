@@ -166,7 +166,7 @@ struct nand_flash_dev nand_flash_ids[] = {
 };
 
 /* Manufacturer IDs */
-static const struct nand_manufacturer nand_manufacturers[] = {
+static const struct nand_manufacturer_desc nand_manufacturer_descs[] = {
 	{NAND_MFR_AMD, "AMD/Spansion", &amd_nand_manuf_ops},
 	{NAND_MFR_ATO, "ATO"},
 	{NAND_MFR_EON, "Eon"},
@@ -186,20 +186,20 @@ static const struct nand_manufacturer nand_manufacturers[] = {
 };
 
 /**
- * nand_get_manufacturer - Get manufacturer information from the manufacturer
- *			   ID
+ * nand_get_manufacturer_desc - Get manufacturer information from the
+ *                              manufacturer ID
  * @id: manufacturer ID
  *
- * Returns a pointer a nand_manufacturer object if the manufacturer is defined
+ * Returns a nand_manufacturer_desc object if the manufacturer is defined
  * in the NAND manufacturers database, NULL otherwise.
  */
-const struct nand_manufacturer *nand_get_manufacturer(u8 id)
+const struct nand_manufacturer_desc *nand_get_manufacturer_desc(u8 id)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(nand_manufacturers); i++)
-		if (nand_manufacturers[i].id == id)
-			return &nand_manufacturers[i];
+	for (i = 0; i < ARRAY_SIZE(nand_manufacturer_descs); i++)
+		if (nand_manufacturer_descs[i].id == id)
+			return &nand_manufacturer_descs[i];
 
 	return NULL;
 }

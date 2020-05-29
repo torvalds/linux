@@ -1163,7 +1163,7 @@ struct nand_chip {
 	void *priv;
 
 	struct {
-		const struct nand_manufacturer *desc;
+		const struct nand_manufacturer_desc *desc;
 		void *priv;
 	} manufacturer;
 };
