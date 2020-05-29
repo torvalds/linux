@@ -274,9 +274,10 @@ static const struct nand_data_interface onfi_sdr_timings[] = {
 };
 
 /**
- * onfi_fill_data_interface - [NAND Interface] Initialize a data interface from
- * given ONFI mode
- * @mode: The ONFI timing mode
+ * onfi_fill_data_interface - Initialize a data interface from a given ONFI mode
+ * @chip: The NAND chip
+ * @type: The data interface type
+ * @timing_mode: The ONFI timing mode
  */
 int onfi_fill_data_interface(struct nand_chip *chip,
 			     enum nand_data_interface_type type,
