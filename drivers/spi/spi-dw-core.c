@@ -29,66 +29,29 @@ struct chip_data {
 };
 
 #ifdef CONFIG_DEBUG_FS
-#define SPI_REGS_BUFSIZE	1024
-static ssize_t dw_spi_show_regs(struct file *file, char __user *user_buf,
-		size_t count, loff_t *ppos)
-{
-	struct dw_spi *dws = file->private_data;
-	char *buf;
-	u32 len = 0;
-	ssize_t ret;
 
-	buf = kzalloc(SPI_REGS_BUFSIZE, GFP_KERNEL);
-	if (!buf)
-		return 0;
-
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"%s registers:\n", dev_name(&dws->master->dev));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"=================================\n");
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"CTRLR0: \t0x%08x\n", dw_readl(dws, DW_SPI_CTRLR0));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"CTRLR1: \t0x%08x\n", dw_readl(dws, DW_SPI_CTRLR1));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"SSIENR: \t0x%08x\n", dw_readl(dws, DW_SPI_SSIENR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"SER: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SER));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"BAUDR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_BAUDR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"TXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_TXFTLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"RXFTLR: \t0x%08x\n", dw_readl(dws, DW_SPI_RXFTLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"TXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_TXFLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"RXFLR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_RXFLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"SR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_SR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"IMR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_IMR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"ISR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_ISR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"DMACR: \t\t0x%08x\n", dw_readl(dws, DW_SPI_DMACR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"DMATDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMATDLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"DMARDLR: \t0x%08x\n", dw_readl(dws, DW_SPI_DMARDLR));
-	len += scnprintf(buf + len, SPI_REGS_BUFSIZE - len,
-			"=================================\n");
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-	return ret;
+#define DW_SPI_DBGFS_REG(_name, _off)	\
+{					\
+	.name = _name,			\
+	.offset = _off,			\
 }
 
-static const struct file_operations dw_spi_regs_ops = {
-	.owner		= THIS_MODULE,
-	.open		= simple_open,
-	.read		= dw_spi_show_regs,
-	.llseek		= default_llseek,
+static const struct debugfs_reg32 dw_spi_dbgfs_regs[] = {
+	DW_SPI_DBGFS_REG("CTRLR0", DW_SPI_CTRLR0),
+	DW_SPI_DBGFS_REG("CTRLR1", DW_SPI_CTRLR1),
+	DW_SPI_DBGFS_REG("SSIENR", DW_SPI_SSIENR),
+	DW_SPI_DBGFS_REG("SER", DW_SPI_SER),
+	DW_SPI_DBGFS_REG("BAUDR", DW_SPI_BAUDR),
+	DW_SPI_DBGFS_REG("TXFTLR", DW_SPI_TXFTLR),
+	DW_SPI_DBGFS_REG("RXFTLR", DW_SPI_RXFTLR),
+	DW_SPI_DBGFS_REG("TXFLR", DW_SPI_TXFLR),
+	DW_SPI_DBGFS_REG("RXFLR", DW_SPI_RXFLR),
+	DW_SPI_DBGFS_REG("SR", DW_SPI_SR),
+	DW_SPI_DBGFS_REG("IMR", DW_SPI_IMR),
+	DW_SPI_DBGFS_REG("ISR", DW_SPI_ISR),
+	DW_SPI_DBGFS_REG("DMACR", DW_SPI_DMACR),
+	DW_SPI_DBGFS_REG("DMATDLR", DW_SPI_DMATDLR),
+	DW_SPI_DBGFS_REG("DMARDLR", DW_SPI_DMARDLR),
 };
 
 static int dw_spi_debugfs_init(struct dw_spi *dws)
@@ -100,8 +63,11 @@ static int dw_spi_debugfs_init(struct dw_spi *dws)
 	if (!dws->debugfs)
 		return -ENOMEM;
 
-	debugfs_create_file("registers", S_IFREG | S_IRUGO,
-		dws->debugfs, (void *)dws, &dw_spi_regs_ops);
+	dws->regset.regs = dw_spi_dbgfs_regs;
+	dws->regset.nregs = ARRAY_SIZE(dw_spi_dbgfs_regs);
+	dws->regset.base = dws->regs;
+	debugfs_create_regset32("registers", 0400, dws->debugfs, &dws->regset);
+
 	return 0;
 }
 
@@ -352,6 +318,7 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 		spi_set_clk(dws, chip->clk_div);
 	}
 
+	transfer->effective_speed_hz = dws->max_freq / chip->clk_div;
 	dws->n_bytes = DIV_ROUND_UP(transfer->bits_per_word, BITS_PER_BYTE);
 
 	cr0 = dws->update_cr0(master, spi, transfer);
@@ -388,11 +355,8 @@ static int dw_spi_transfer_one(struct spi_controller *master,
 
 	spi_enable_chip(dws, 1);
 
-	if (dws->dma_mapped) {
-		ret = dws->dma_ops->dma_transfer(dws, transfer);
-		if (ret < 0)
-			return ret;
-	}
+	if (dws->dma_mapped)
+		return dws->dma_ops->dma_transfer(dws, transfer);
 
 	return 1;
 }
@@ -517,6 +481,7 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 			dev_warn(dev, "DMA init failed\n");
 		} else {
 			master->can_dma = dws->dma_ops->can_dma;
+			master->flags |= SPI_CONTROLLER_MUST_TX;
 		}
 	}
 

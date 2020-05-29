@@ -151,6 +151,8 @@ static int dw_spi_dw_apb_init(struct platform_device *pdev,
 	/* Register hook to configure CTRLR0 */
 	dwsmmio->dws.update_cr0 = dw_spi_update_cr0;
 
+	dw_spi_dma_setup_generic(&dwsmmio->dws);
+
 	return 0;
 }
 
@@ -159,6 +161,8 @@ static int dw_spi_dwc_ssi_init(struct platform_device *pdev,
 {
 	/* Register hook to configure CTRLR0 */
 	dwsmmio->dws.update_cr0 = dw_spi_update_cr0_v1_01a;
+
+	dw_spi_dma_setup_generic(&dwsmmio->dws);
 
 	return 0;
 }

@@ -2,6 +2,8 @@
 #ifndef DW_SPI_HEADER_H
 #define DW_SPI_HEADER_H
 
+#include <linux/completion.h>
+#include <linux/debugfs.h>
 #include <linux/irqreturn.h>
 #include <linux/io.h>
 #include <linux/scatterlist.h>
@@ -141,13 +143,17 @@ struct dw_spi {
 
 	/* DMA info */
 	struct dma_chan		*txchan;
+	u32			txburst;
 	struct dma_chan		*rxchan;
+	u32			rxburst;
 	unsigned long		dma_chan_busy;
 	dma_addr_t		dma_addr; /* phy address of the Data register */
 	const struct dw_spi_dma_ops *dma_ops;
+	struct completion	dma_completion;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
+	struct debugfs_regset32 regset;
 #endif
 };
 
@@ -253,8 +259,16 @@ extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 				    struct spi_device *spi,
 				    struct spi_transfer *transfer);
 
-/* platform related setup */
-extern int dw_spi_mid_init_mfld(struct dw_spi *dws);
-extern int dw_spi_mid_init_generic(struct dw_spi *dws);
+#ifdef CONFIG_SPI_DW_DMA
+
+extern void dw_spi_dma_setup_mfld(struct dw_spi *dws);
+extern void dw_spi_dma_setup_generic(struct dw_spi *dws);
+
+#else
+
+static inline void dw_spi_dma_setup_mfld(struct dw_spi *dws) {}
+static inline void dw_spi_dma_setup_generic(struct dw_spi *dws) {}
+
+#endif /* !CONFIG_SPI_DW_DMA */
 
 #endif /* DW_SPI_HEADER_H */
