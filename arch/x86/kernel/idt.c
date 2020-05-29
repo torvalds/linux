@@ -158,14 +158,6 @@ static const __initconst struct idt_data apic_idts[] = {
 static const __initconst struct idt_data early_pf_idts[] = {
 	INTG(X86_TRAP_PF,		asm_exc_page_fault),
 };
-
-/*
- * Override for the debug_idt. Same as the default, but with interrupt
- * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
- */
-static const __initconst struct idt_data dbg_idts[] = {
-	INTG(X86_TRAP_DB,		asm_exc_debug),
-};
 #endif
 
 /* Must be page-aligned because the real IDT is used in a fixmap. */
@@ -177,9 +169,6 @@ struct desc_ptr idt_descr __ro_after_init = {
 };
 
 #ifdef CONFIG_X86_64
-/* No need to be aligned, but done to keep all IDTs defined the same way. */
-gate_desc debug_idt_table[IDT_ENTRIES] __page_aligned_bss;
-
 /*
  * The exceptions which use Interrupt stacks. They are setup after
  * cpu_init() when the TSS has been initialized.
@@ -191,15 +180,6 @@ static const __initconst struct idt_data ist_idts[] = {
 #ifdef CONFIG_X86_MCE
 	ISTG(X86_TRAP_MC,	asm_exc_machine_check,	IST_INDEX_MCE),
 #endif
-};
-
-/*
- * Override for the debug_idt. Same as the default, but with interrupt
- * stack set to DEFAULT_STACK (0). Required for NMI trap handling.
- */
-const struct desc_ptr debug_idt_descr = {
-	.size		= IDT_ENTRIES * 16 - 1,
-	.address	= (unsigned long) debug_idt_table,
 };
 #endif
 
@@ -291,16 +271,6 @@ void __init idt_setup_early_pf(void)
 void __init idt_setup_ist_traps(void)
 {
 	idt_setup_from_table(idt_table, ist_idts, ARRAY_SIZE(ist_idts), true);
-}
-
-/**
- * idt_setup_debugidt_traps - Initialize the debug idt table with debug traps
- */
-void __init idt_setup_debugidt_traps(void)
-{
-	memcpy(&debug_idt_table, &idt_table, IDT_ENTRIES * 16);
-
-	idt_setup_from_table(debug_idt_table, dbg_idts, ARRAY_SIZE(dbg_idts), false);
 }
 #endif
 

@@ -94,25 +94,6 @@ extern void aout_dump_debugregs(struct user *dump);
 
 extern void hw_breakpoint_restore(void);
 
-#ifdef CONFIG_X86_64
-DECLARE_PER_CPU(int, debug_stack_usage);
-static inline void debug_stack_usage_inc(void)
-{
-	__this_cpu_inc(debug_stack_usage);
-}
-static inline void debug_stack_usage_dec(void)
-{
-	__this_cpu_dec(debug_stack_usage);
-}
-void debug_stack_set_zero(void);
-void debug_stack_reset(void);
-#else /* !X86_64 */
-static inline void debug_stack_set_zero(void) { }
-static inline void debug_stack_reset(void) { }
-static inline void debug_stack_usage_inc(void) { }
-static inline void debug_stack_usage_dec(void) { }
-#endif /* X86_64 */
-
 static __always_inline unsigned long local_db_save(void)
 {
 	unsigned long dr7;

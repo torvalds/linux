@@ -798,12 +798,6 @@ static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
 		return;
 	}
 
-	/*
-	 * Let others (NMI) know that the debug stack is in use
-	 * as we may switch to the interrupt stack.
-	 */
-	debug_stack_usage_inc();
-
 	/* It's safe to allow irq's after DR6 has been saved */
 	cond_local_irq_enable(regs);
 
@@ -831,7 +825,6 @@ static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
 
 out:
 	cond_local_irq_disable(regs);
-	debug_stack_usage_dec();
 	instrumentation_end();
 }
 
@@ -1077,6 +1070,4 @@ void __init trap_init(void)
 	cpu_init();
 
 	idt_setup_ist_traps();
-
-	idt_setup_debugidt_traps();
 }
