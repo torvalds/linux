@@ -227,7 +227,7 @@ struct exfat_sb_info {
 	unsigned int root_dir; /* root dir cluster */
 	unsigned int dentries_per_clu; /* num of dentries per cluster */
 	unsigned int vol_flag; /* volume dirty flag */
-	struct buffer_head *pbr_bh; /* buffer_head of PBR sector */
+	struct buffer_head *boot_bh; /* buffer_head of BOOT sector */
 
 	unsigned int map_clu; /* allocation bitmap start cluster */
 	unsigned int map_sectors; /* num of allocation bitmap sectors */
