@@ -138,9 +138,17 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	case IWL_AMSDU_2K:
 		break;
 	case IWL_AMSDU_4K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		break;
 	case IWL_AMSDU_8K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		/* if firmware supports the ext size, tell it */
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K;
+		break;
 	case IWL_AMSDU_12K:
 		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		/* if firmware supports the ext size, tell it */
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K;
 		break;
 	}
 
