@@ -12,6 +12,8 @@
 
 #include <linux/mtd/mtd.h>
 
+struct nand_device;
+
 /**
  * struct nand_memory_organization - Memory organization structure
  * @bits_per_cell: number of bits per NAND cell
@@ -132,8 +134,6 @@ struct nand_ecc_req {
 struct nand_bbt {
 	unsigned long *cache;
 };
-
-struct nand_device;
 
 /**
  * struct nand_ops - NAND operations
