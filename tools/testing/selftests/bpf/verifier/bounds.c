@@ -20,7 +20,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT,
 },
 {
@@ -146,7 +146,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 min value is outside of the array range",
+	.errstr = "R0 min value is outside of the allowed memory range",
 	.result = REJECT
 },
 {
@@ -354,7 +354,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT
 },
 {
