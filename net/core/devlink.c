@@ -8505,6 +8505,7 @@ static const struct devlink_trap devlink_trap_generic[] = {
 static const struct devlink_trap_group devlink_trap_group_generic[] = {
 	DEVLINK_TRAP_GROUP(L2_DROPS),
 	DEVLINK_TRAP_GROUP(L3_DROPS),
+	DEVLINK_TRAP_GROUP(L3_EXCEPTIONS),
 	DEVLINK_TRAP_GROUP(BUFFER_DROPS),
 	DEVLINK_TRAP_GROUP(TUNNEL_DROPS),
 	DEVLINK_TRAP_GROUP(ACL_DROPS),

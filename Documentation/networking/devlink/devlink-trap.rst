@@ -277,8 +277,11 @@ narrow. The description of these groups must be added to the following table:
      - Contains packet traps for packets that were dropped by the device during
        layer 2 forwarding (i.e., bridge)
    * - ``l3_drops``
-     - Contains packet traps for packets that were dropped by the device or hit
-       an exception (e.g., TTL error) during layer 3 forwarding
+     - Contains packet traps for packets that were dropped by the device during
+       layer 3 forwarding
+   * - ``l3_exceptions``
+     - Contains packet traps for packets that hit an exception (e.g., TTL
+       error) during layer 3 forwarding
    * - ``buffer_drops``
      - Contains packet traps for packets that were dropped by the device due to
        an enqueue decision
