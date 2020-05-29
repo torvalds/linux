@@ -1786,23 +1786,21 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 csum[BTRFS_CSUM_SIZE];
-	u8 *on_disk_csum;
-	struct page *page;
+	struct scrub_page *spage;
 	char *kaddr;
 
 	BUG_ON(sblock->page_count < 1);
-	if (!sblock->pagev[0]->have_csum)
+	spage = sblock->pagev[0];
+	if (!spage->have_csum)
 		return 0;
 
-	on_disk_csum = sblock->pagev[0]->csum;
-	page = sblock->pagev[0]->page;
-	kaddr = page_address(page);
+	kaddr = page_address(spage->page);
 
 	shash->tfm = fs_info->csum_shash;
 	crypto_shash_init(shash);
 	crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 
-	if (memcmp(csum, on_disk_csum, sctx->csum_size))
+	if (memcmp(csum, spage->csum, sctx->csum_size))
 		sblock->checksum_error = 1;
 
 	return sblock->checksum_error;
