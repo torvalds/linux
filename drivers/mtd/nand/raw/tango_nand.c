@@ -515,7 +515,7 @@ static u32 to_ticks(int kHz, int ps)
 }
 
 static int tango_set_timings(struct nand_chip *chip, int csline,
-			     const struct nand_data_interface *conf)
+			     const struct nand_interface_config *conf)
 {
 	const struct nand_sdr_timings *sdr = nand_get_sdr_timings(conf);
 	struct tango_nfc *nfc = to_tango_nfc(chip->controller);
@@ -565,7 +565,7 @@ static int tango_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops tango_controller_ops = {
 	.attach_chip = tango_attach_chip,
-	.setup_data_interface = tango_set_timings,
+	.setup_interface = tango_set_timings,
 	.exec_op = tango_exec_op,
 };
 

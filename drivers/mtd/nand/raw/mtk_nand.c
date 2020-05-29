@@ -531,8 +531,8 @@ static int mtk_nfc_exec_op(struct nand_chip *chip,
 	return ret;
 }
 
-static int mtk_nfc_setup_data_interface(struct nand_chip *chip, int csline,
-					const struct nand_data_interface *conf)
+static int mtk_nfc_setup_interface(struct nand_chip *chip, int csline,
+				   const struct nand_interface_config *conf)
 {
 	struct mtk_nfc *nfc = nand_get_controller_data(chip);
 	const struct nand_sdr_timings *timings;
@@ -1357,7 +1357,7 @@ static int mtk_nfc_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops mtk_nfc_controller_ops = {
 	.attach_chip = mtk_nfc_attach_chip,
-	.setup_data_interface = mtk_nfc_setup_data_interface,
+	.setup_interface = mtk_nfc_setup_interface,
 	.exec_op = mtk_nfc_exec_op,
 };
 

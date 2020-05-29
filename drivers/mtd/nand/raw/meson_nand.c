@@ -1097,8 +1097,8 @@ static int meson_chip_buffer_init(struct nand_chip *nand)
 }
 
 static
-int meson_nfc_setup_data_interface(struct nand_chip *nand, int csline,
-				   const struct nand_data_interface *conf)
+int meson_nfc_setup_interface(struct nand_chip *nand, int csline,
+			      const struct nand_interface_config *conf)
 {
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	const struct nand_sdr_timings *timings;
@@ -1222,7 +1222,7 @@ static int meson_nand_attach_chip(struct nand_chip *nand)
 static const struct nand_controller_ops meson_nand_controller_ops = {
 	.attach_chip = meson_nand_attach_chip,
 	.detach_chip = meson_nand_detach_chip,
-	.setup_data_interface = meson_nfc_setup_data_interface,
+	.setup_interface = meson_nfc_setup_interface,
 	.exec_op = meson_nfc_exec_op,
 };
 

@@ -19,7 +19,7 @@
  *
  * These four values are tweaked to be more accurate in the case of ONFI chips.
  */
-static const struct nand_data_interface onfi_sdr_timings[] = {
+static const struct nand_interface_config onfi_sdr_timings[] = {
 	/* Mode 0 */
 	{
 		.type = NAND_SDR_IFACE,
@@ -340,16 +340,17 @@ onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings)
 }
 
 /**
- * onfi_fill_data_interface - Initialize a data interface from a given ONFI mode
+ * onfi_fill_interface_config - Initialize an interface config from a given
+ *                              ONFI mode
  * @chip: The NAND chip
- * @iface: The data interface to fill
- * @type: The data interface type
+ * @iface: The interface configuration to fill
+ * @type: The interface type
  * @timing_mode: The ONFI timing mode
  */
-int onfi_fill_data_interface(struct nand_chip *chip,
-			     struct nand_data_interface *iface,
-			     enum nand_data_interface_type type,
-			     unsigned int timing_mode)
+int onfi_fill_interface_config(struct nand_chip *chip,
+			       struct nand_interface_config *iface,
+			       enum nand_interface_type type,
+			       unsigned int timing_mode)
 {
 	struct onfi_params *onfi = chip->parameters.onfi;
 

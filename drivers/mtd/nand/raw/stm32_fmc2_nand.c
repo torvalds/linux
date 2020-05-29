@@ -1546,7 +1546,7 @@ static void stm32_fmc2_nfc_calc_timings(struct nand_chip *chip,
 }
 
 static int stm32_fmc2_nfc_setup_interface(struct nand_chip *chip, int chipnr,
-					  const struct nand_data_interface *conf)
+					  const struct nand_interface_config *conf)
 {
 	const struct nand_sdr_timings *sdrt;
 
@@ -1764,7 +1764,7 @@ static int stm32_fmc2_nfc_attach_chip(struct nand_chip *chip)
 static const struct nand_controller_ops stm32_fmc2_nfc_controller_ops = {
 	.attach_chip = stm32_fmc2_nfc_attach_chip,
 	.exec_op = stm32_fmc2_nfc_exec_op,
-	.setup_data_interface = stm32_fmc2_nfc_setup_interface,
+	.setup_interface = stm32_fmc2_nfc_setup_interface,
 };
 
 static int stm32_fmc2_nfc_parse_child(struct stm32_fmc2_nfc *nfc,

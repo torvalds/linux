@@ -84,10 +84,10 @@ int nand_bbm_get_next_page(struct nand_chip *chip, int page);
 int nand_markbad_bbm(struct nand_chip *chip, loff_t ofs);
 int nand_erase_nand(struct nand_chip *chip, struct erase_info *instr,
 		    int allowbbt);
-int onfi_fill_data_interface(struct nand_chip *chip,
-			     struct nand_data_interface *iface,
-			     enum nand_data_interface_type type,
-			     unsigned int timing_mode);
+int onfi_fill_interface_config(struct nand_chip *chip,
+			       struct nand_interface_config *iface,
+			       enum nand_interface_type type,
+			       unsigned int timing_mode);
 unsigned int
 onfi_find_closest_sdr_mode(const struct nand_sdr_timings *spec_timings);
 int nand_get_features(struct nand_chip *chip, int addr, u8 *subfeature_param);
@@ -133,10 +133,10 @@ static inline int nand_exec_op(struct nand_chip *chip,
 	return chip->controller->ops->exec_op(chip, op, false);
 }
 
-static inline bool nand_controller_can_setup_data_iface(struct nand_chip *chip)
+static inline bool nand_controller_can_setup_interface(struct nand_chip *chip)
 {
 	if (!chip->controller || !chip->controller->ops ||
-	    !chip->controller->ops->setup_data_interface)
+	    !chip->controller->ops->setup_interface)
 		return false;
 
 	if (chip->options & NAND_KEEP_TIMINGS)

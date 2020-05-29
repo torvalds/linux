@@ -368,7 +368,7 @@ static void nand_ccs_delay(struct nand_chip *chip)
 	 * Wait tCCS_min if it is correctly defined, otherwise wait 500ns
 	 * (which should be safe for all NANDs).
 	 */
-	if (nand_controller_can_setup_data_iface(chip))
+	if (nand_controller_can_setup_interface(chip))
 		ndelay(sdr->tCCS_min / 1000);
 	else
 		ndelay(500);

@@ -492,22 +492,22 @@ struct nand_sdr_timings {
 };
 
 /**
- * enum nand_data_interface_type - NAND interface timing type
+ * enum nand_interface_type - NAND interface type
  * @NAND_SDR_IFACE:	Single Data Rate interface
  */
-enum nand_data_interface_type {
+enum nand_interface_type {
 	NAND_SDR_IFACE,
 };
 
 /**
- * struct nand_data_interface - NAND interface timing
+ * struct nand_interface_config - NAND interface timing
  * @type:	 type of the timing
  * @timings:	 The timing information
  * @timings.mode: Timing mode as defined in the specification
  * @timings.sdr: Use it when @type is %NAND_SDR_IFACE.
  */
-struct nand_data_interface {
-	enum nand_data_interface_type type;
+struct nand_interface_config {
+	enum nand_interface_type type;
 	struct nand_timings {
 		unsigned int mode;
 		union {
@@ -521,7 +521,7 @@ struct nand_data_interface {
  * @conf:	The data interface
  */
 static inline const struct nand_sdr_timings *
-nand_get_sdr_timings(const struct nand_data_interface *conf)
+nand_get_sdr_timings(const struct nand_interface_config *conf)
 {
 	if (conf->type != NAND_SDR_IFACE)
 		return ERR_PTR(-EINVAL);
@@ -944,11 +944,10 @@ static inline void nand_op_trace(const char *prefix,
  *		 This method replaces chip->legacy.cmdfunc(),
  *		 chip->legacy.{read,write}_{buf,byte,word}(),
  *		 chip->legacy.dev_ready() and chip->legacy.waifunc().
- * @setup_data_interface: setup the data interface and timing. If
- *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
- *			  means the configuration should not be applied but
- *			  only checked.
- *			  This hook is optional.
+ * @setup_interface: setup the data interface and timing. If chipnr is set to
+ *		     %NAND_DATA_IFACE_CHECK_ONLY this means the configuration
+ *		     should not be applied but only checked.
+ *		     This hook is optional.
  */
 struct nand_controller_ops {
 	int (*attach_chip)(struct nand_chip *chip);
@@ -956,8 +955,8 @@ struct nand_controller_ops {
 	int (*exec_op)(struct nand_chip *chip,
 		       const struct nand_operation *op,
 		       bool check_only);
-	int (*setup_data_interface)(struct nand_chip *chip, int chipnr,
-				    const struct nand_data_interface *conf);
+	int (*setup_interface)(struct nand_chip *chip, int chipnr,
+			       const struct nand_interface_config *conf);
 };
 
 /**
@@ -1070,7 +1069,7 @@ struct nand_manufacturer {
  * @onfi_timing_mode_default: Default ONFI timing mode. This field is set to the
  *			      actually used ONFI mode if the chip is ONFI
  *			      compliant or deduced from the datasheet otherwise
- * @data_interface: NAND interface timing information
+ * @interface_config: NAND interface timing information
  * @bbt_erase_shift: Number of address bits in a bbt entry
  * @bbt_options: Bad block table specific options. All options used here must
  *               come from bbm.h. By default, these options will be copied to
@@ -1118,7 +1117,7 @@ struct nand_chip {
 
 	/* Data interface */
 	int onfi_timing_mode_default;
-	struct nand_data_interface data_interface;
+	struct nand_interface_config interface_config;
 
 	/* Bad block information */
 	unsigned int bbt_erase_shift;
@@ -1208,10 +1207,10 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
  *                             of a NAND chip
  * @chip: The NAND chip
  */
-static inline const struct nand_data_interface *
+static inline const struct nand_interface_config *
 nand_get_interface_config(struct nand_chip *chip)
 {
-	return &chip->data_interface;
+	return &chip->interface_config;
 }
 
 /*
