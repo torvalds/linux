@@ -85,7 +85,7 @@ static inline void hw_breakpoint_disable(void)
 	set_debugreg(0UL, 3);
 }
 
-static inline int hw_breakpoint_active(void)
+static inline bool hw_breakpoint_active(void)
 {
 	return __this_cpu_read(cpu_dr7) & DR_GLOBAL_ENABLE_MASK;
 }
@@ -116,6 +116,9 @@ static inline void debug_stack_usage_dec(void) { }
 static __always_inline unsigned long local_db_save(void)
 {
 	unsigned long dr7;
+
+	if (static_cpu_has(X86_FEATURE_HYPERVISOR) && !hw_breakpoint_active())
+		return 0;
 
 	get_debugreg(dr7, 7);
 	dr7 &= ~0x400; /* architecturally set bit */
