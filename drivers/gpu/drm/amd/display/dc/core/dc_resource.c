@@ -1162,19 +1162,32 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		/* May need to re-check lb size after this in some obscure scenario */
 		calculate_inits_and_adj_vp(pipe_ctx);
 
-	DC_LOG_SCALER(
-				"%s: Viewport:\nheight:%d width:%d x:%d "
-				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
-				"y:%d\n",
-				__func__,
-				pipe_ctx->plane_res.scl_data.viewport.height,
-				pipe_ctx->plane_res.scl_data.viewport.width,
-				pipe_ctx->plane_res.scl_data.viewport.x,
-				pipe_ctx->plane_res.scl_data.viewport.y,
-				plane_state->dst_rect.height,
-				plane_state->dst_rect.width,
-				plane_state->dst_rect.x,
-				plane_state->dst_rect.y);
+	DC_LOG_SCALER("%s pipe %d:\nViewport: height:%d width:%d x:%d y:%d  Recout: height:%d width:%d x:%d y:%d  HACTIVE:%d VACTIVE:%d\n"
+			"src_rect: height:%d width:%d x:%d y:%d  dst_rect: height:%d width:%d x:%d y:%d  clip_rect: height:%d width:%d x:%d y:%d\n",
+			__func__,
+			pipe_ctx->pipe_idx,
+			pipe_ctx->plane_res.scl_data.viewport.height,
+			pipe_ctx->plane_res.scl_data.viewport.width,
+			pipe_ctx->plane_res.scl_data.viewport.x,
+			pipe_ctx->plane_res.scl_data.viewport.y,
+			pipe_ctx->plane_res.scl_data.recout.height,
+			pipe_ctx->plane_res.scl_data.recout.width,
+			pipe_ctx->plane_res.scl_data.recout.x,
+			pipe_ctx->plane_res.scl_data.recout.y,
+			pipe_ctx->plane_res.scl_data.h_active,
+			pipe_ctx->plane_res.scl_data.v_active,
+			plane_state->src_rect.height,
+			plane_state->src_rect.width,
+			plane_state->src_rect.x,
+			plane_state->src_rect.y,
+			plane_state->dst_rect.height,
+			plane_state->dst_rect.width,
+			plane_state->dst_rect.x,
+			plane_state->dst_rect.y,
+			plane_state->clip_rect.height,
+			plane_state->clip_rect.width,
+			plane_state->clip_rect.x,
+			plane_state->clip_rect.y);
 
 	if (store_h_border_left)
 		restore_border_left_from_dst(pipe_ctx, store_h_border_left);

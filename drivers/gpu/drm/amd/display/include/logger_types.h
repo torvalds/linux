@@ -147,11 +147,11 @@ enum dc_log_type {
 		(1ULL << LOG_I2C_AUX) | \
 		(1ULL << LOG_IF_TRACE) | \
 		(1ULL << LOG_HDMI_FRL) | \
+		(1ULL << LOG_SCALER) | \
 		(1ULL << LOG_DTN) /* | \
 		(1ULL << LOG_DEBUG) | \
 		(1ULL << LOG_BIOS) | \
 		(1ULL << LOG_SURFACE) | \
-		(1ULL << LOG_SCALER) | \
 		(1ULL << LOG_DML) | \
 		(1ULL << LOG_HW_LINK_TRAINING) | \
 		(1ULL << LOG_HW_AUDIO)| \
