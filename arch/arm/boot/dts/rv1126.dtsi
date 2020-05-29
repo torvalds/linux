@@ -280,8 +280,8 @@
 
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
-		rockchip,taskqueue-count = <3>;
-		rockchip,resetgroup-count = <3>;
+		rockchip,taskqueue-count = <4>;
+		rockchip,resetgroup-count = <4>;
 		status = "disabled";
 	};
 
@@ -1578,6 +1578,36 @@
 		clocks = <&cru PCLK_CSIHOST>, <&cru SRST_CSIHOST_P>;
 		clock-names = "pclk_csi2host", "srst_csihost_p";
 		power-domains = <&power RV1126_PD_VI>;
+		status = "disabled";
+	};
+
+	iep: iep@ffb20000 {
+		compatible = "rockchip,rv1126-iep", "rockchip,iep-v2";
+		reg = <0xffb20000 0x500>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>, <&cru CLK_IEP_CORE>;
+		clock-names = "aclk", "hclk", "sclk";
+		resets = <&cru SRST_IEP_A>, <&cru SRST_IEP_H>,
+			<&cru SRST_IEP_CORE>;
+		reset-names = "rst_a", "rst_h", "rst_s";
+		power-domains = <&power RV1126_PD_VO>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <3>;
+		rockchip,resetgroup-node = <3>;
+		iommus = <&iep_mmu>;
+		status = "disabled";
+	};
+
+	iep_mmu: iommu@ffb20800 {
+		compatible = "rockchip,iommu";
+		reg = <0xffb20800 0x100>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "iep_mmu";
+		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
+		clock-names = "aclk", "iface";
+		#iommu-cells = <0>;
+		power-domains = <&power RV1126_PD_VO>;
+		//rockchip,disable-device-link-resume;
 		status = "disabled";
 	};
 
