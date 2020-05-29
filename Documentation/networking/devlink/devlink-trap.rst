@@ -252,6 +252,42 @@ be added to the following table:
    * - ``egress_flow_action_drop``
      - ``drop``
      - Traps packets dropped during processing of egress flow action drop
+   * - ``stp``
+     - ``control``
+     - Traps STP packets
+   * - ``lacp``
+     - ``control``
+     - Traps LACP packets
+   * - ``lldp``
+     - ``control``
+     - Traps LLDP packets
+   * - ``igmp_query``
+     - ``control``
+     - Traps IGMP Membership Query packets
+   * - ``igmp_v1_report``
+     - ``control``
+     - Traps IGMP Version 1 Membership Report packets
+   * - ``igmp_v2_report``
+     - ``control``
+     - Traps IGMP Version 2 Membership Report packets
+   * - ``igmp_v3_report``
+     - ``control``
+     - Traps IGMP Version 3 Membership Report packets
+   * - ``igmp_v2_leave``
+     - ``control``
+     - Traps IGMP Version 2 Leave Group packets
+   * - ``mld_query``
+     - ``control``
+     - Traps MLD Multicast Listener Query packets
+   * - ``mld_v1_report``
+     - ``control``
+     - Traps MLD Version 1 Multicast Listener Report packets
+   * - ``mld_v2_report``
+     - ``control``
+     - Traps MLD Version 2 Multicast Listener Report packets
+   * - ``mld_v1_done``
+     - ``control``
+     - Traps MLD Version 1 Multicast Listener Done packets
 
 Driver-specific Packet Traps
 ============================
@@ -299,6 +335,15 @@ narrow. The description of these groups must be added to the following table:
    * - ``acl_drops``
      - Contains packet traps for packets that were dropped by the device during
        ACL processing
+   * - ``stp``
+     - Contains packet traps for STP packets
+   * - ``lacp``
+     - Contains packet traps for LACP packets
+   * - ``lldp``
+     - Contains packet traps for LLDP packets
+   * - ``mc_snooping``
+     - Contains packet traps for IGMP and MLD packets required for multicast
+       snooping
 
 Packet Trap Policers
 ====================
