@@ -665,6 +665,8 @@ ERR:
 	return err;
 }
 
+static const struct ia_css_frame ia_css_default_frame = DEFAULT_FRAME;
+
 static void pipeline_init_defaults(
     struct ia_css_pipeline *pipeline,
     enum ia_css_pipe_id pipe_id,
@@ -677,10 +679,15 @@ static void pipeline_init_defaults(
 	pipeline->stages = NULL;
 	pipeline->stop_requested = false;
 	pipeline->current_stage = NULL;
-	pipeline->in_frame = DEFAULT_FRAME;
+
+	memcpy(&pipeline->in_frame, &ia_css_default_frame,
+	       sizeof(ia_css_default_frame));
+
 	for (i = 0; i < IA_CSS_PIPE_MAX_OUTPUT_STAGE; i++) {
-		pipeline->out_frame[i] = DEFAULT_FRAME;
-		pipeline->vf_frame[i] = DEFAULT_FRAME;
+		memcpy(&pipeline->out_frame[i], &ia_css_default_frame,
+		       sizeof(ia_css_default_frame));
+		memcpy(&pipeline->vf_frame[i], &ia_css_default_frame,
+		       sizeof(ia_css_default_frame));
 	}
 	pipeline->num_execs = -1;
 	pipeline->acquire_isp_each_stage = true;

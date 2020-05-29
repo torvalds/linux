@@ -392,8 +392,7 @@ struct ia_css_grid_info {
 };
 
 /* defaults for ia_css_grid_info structs */
-#define DEFAULT_GRID_INFO \
-(struct ia_css_grid_info) { \
+#define DEFAULT_GRID_INFO { \
 	.dvs_grid	= DEFAULT_DVS_GRID_INFO, \
 	.vamem_type	= IA_CSS_VAMEM_TYPE_1 \
 }
@@ -485,8 +484,7 @@ struct ia_css_capture_config {
 };
 
 /* default settings for ia_css_capture_config structs */
-#define DEFAULT_CAPTURE_CONFIG \
-(struct ia_css_capture_config) { \
+#define DEFAULT_CAPTURE_CONFIG { \
 	.mode	= IA_CSS_CAPTURE_MODE_PRIMARY, \
 }
 

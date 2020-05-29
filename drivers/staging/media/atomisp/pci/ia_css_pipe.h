@@ -40,8 +40,7 @@ struct ia_css_preview_settings {
 	struct ia_css_pipe *acc_pipe;
 };
 
-#define IA_CSS_DEFAULT_PREVIEW_SETTINGS \
-(struct ia_css_preview_settings) { \
+#define IA_CSS_DEFAULT_PREVIEW_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.preview_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -65,8 +64,7 @@ struct ia_css_capture_settings {
 	unsigned int num_yuv_scaler;
 };
 
-#define IA_CSS_DEFAULT_CAPTURE_SETTINGS \
-(struct ia_css_capture_settings) { \
+#define IA_CSS_DEFAULT_CAPTURE_SETTINGS { \
 	.copy_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.primary_binary		= {IA_CSS_BINARY_DEFAULT_SETTINGS}, \
 	.pre_isp_binary		= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -91,8 +89,7 @@ struct ia_css_video_settings {
 	unsigned int num_yuv_scaler;
 };
 
-#define IA_CSS_DEFAULT_VIDEO_SETTINGS \
-(struct ia_css_video_settings) { \
+#define IA_CSS_DEFAULT_VIDEO_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.video_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 	.vf_pp_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
@@ -108,8 +105,7 @@ struct ia_css_yuvpp_settings {
 	unsigned int num_output;
 };
 
-#define IA_CSS_DEFAULT_YUVPP_SETTINGS \
-(struct ia_css_yuvpp_settings) { \
+#define IA_CSS_DEFAULT_YUVPP_SETTINGS { \
 	.copy_binary	= IA_CSS_BINARY_DEFAULT_SETTINGS, \
 }
 
@@ -157,8 +153,7 @@ struct ia_css_pipe {
 	unsigned int pipe_num;
 };
 
-#define IA_CSS_DEFAULT_PIPE \
-(struct ia_css_pipe) { \
+#define IA_CSS_DEFAULT_PIPE { \
 	.config			= DEFAULT_PIPE_CONFIG, \
 	.info			= DEFAULT_PIPE_INFO, \
 	.mode			= IA_CSS_PIPE_ID_ACC, /* (pipe_id) */ \

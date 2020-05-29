@@ -57,8 +57,7 @@ struct ia_css_pipeline {
 	u32 pipe_qos_config;
 };
 
-#define DEFAULT_PIPELINE \
-(struct ia_css_pipeline) { \
+#define DEFAULT_PIPELINE { \
 	.pipe_id		= IA_CSS_PIPE_ID_PREVIEW, \
 	.in_frame		= DEFAULT_FRAME, \
 	.out_frame		= {DEFAULT_FRAME}, \

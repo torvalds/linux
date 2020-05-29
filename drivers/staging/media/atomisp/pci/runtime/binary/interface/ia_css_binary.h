@@ -144,8 +144,7 @@ struct ia_css_binary {
 	struct ia_css_isp_param_css_segments  css_params;
 };
 
-#define IA_CSS_BINARY_DEFAULT_SETTINGS \
-(struct ia_css_binary) { \
+#define IA_CSS_BINARY_DEFAULT_SETTINGS { \
 	.input_format		= ATOMISP_INPUT_FORMAT_YUV420_8_LEGACY, \
 	.in_frame_info		= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
 	.internal_frame_info	= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
