@@ -312,3 +312,18 @@ uint32_t dmub_dcn20_get_gpint_response(struct dmub_srv *dmub)
 {
 	return REG_READ(DMCUB_SCRATCH7);
 }
+
+union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub)
+{
+	union dmub_fw_boot_status status;
+
+	status.all = REG_READ(DMCUB_SCRATCH0);
+	return status;
+}
+
+void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub)
+{
+	union dmub_fw_boot_options boot_options = {0};
+
+	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
+}

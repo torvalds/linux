@@ -2681,6 +2681,7 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 	dal_irq_service_ack(dc->res_pool->irqs, src);
 }
 
+
 void dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
@@ -2691,9 +2692,6 @@ void dc_set_power_state(
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_resource_state_construct(dc, dc->current_state);
-
-		if (dc->ctx->dmub_srv)
-			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
 
 		dc->hwss.init_hw(dc);
 

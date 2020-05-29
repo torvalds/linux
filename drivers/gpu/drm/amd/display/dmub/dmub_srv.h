@@ -264,9 +264,10 @@ struct dmub_srv_hw_funcs {
 
 	bool (*is_hw_init)(struct dmub_srv *dmub);
 
-	bool (*is_phy_init)(struct dmub_srv *dmub);
+	void (*enable_dmub_boot_options)(struct dmub_srv *dmub);
 
-	bool (*is_auto_load_done)(struct dmub_srv *dmub);
+	union dmub_fw_boot_status (*get_fw_status)(struct dmub_srv *dmub);
+
 
 	void (*set_gpint)(struct dmub_srv *dmub,
 			  union dmub_gpint_data_register reg);

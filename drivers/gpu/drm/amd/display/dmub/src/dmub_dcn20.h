@@ -192,4 +192,8 @@ bool dmub_dcn20_is_gpint_acked(struct dmub_srv *dmub,
 
 uint32_t dmub_dcn20_get_gpint_response(struct dmub_srv *dmub);
 
+void dmub_dcn20_enable_dmub_boot_options(struct dmub_srv *dmub);
+
+union dmub_fw_boot_status dmub_dcn20_get_fw_boot_status(struct dmub_srv *dmub);
+
 #endif /* _DMUB_DCN20_H_ */

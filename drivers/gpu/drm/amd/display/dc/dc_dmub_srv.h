@@ -56,4 +56,6 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv);
 
 void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv);
 
+bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv);
+
 #endif /* _DMUB_DC_SRV_H_ */
