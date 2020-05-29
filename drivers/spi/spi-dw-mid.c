@@ -248,6 +248,49 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
 	return txdesc;
 }
 
+static inline bool dw_spi_dma_rx_busy(struct dw_spi *dws)
+{
+	return !!(dw_readl(dws, DW_SPI_SR) & SR_RF_NOT_EMPT);
+}
+
+static int dw_spi_dma_wait_rx_done(struct dw_spi *dws)
+{
+	int retry = WAIT_RETRIES;
+	struct spi_delay delay;
+	unsigned long ns, us;
+	u32 nents;
+
+	/*
+	 * It's unlikely that DMA engine is still doing the data fetching, but
+	 * if it's let's give it some reasonable time. The timeout calculation
+	 * is based on the synchronous APB/SSI reference clock rate, on a
+	 * number of data entries left in the Rx FIFO, times a number of clock
+	 * periods normally needed for a single APB read/write transaction
+	 * without PREADY signal utilized (which is true for the DW APB SSI
+	 * controller).
+	 */
+	nents = dw_readl(dws, DW_SPI_RXFLR);
+	ns = 4U * NSEC_PER_SEC / dws->max_freq * nents;
+	if (ns <= NSEC_PER_USEC) {
+		delay.unit = SPI_DELAY_UNIT_NSECS;
+		delay.value = ns;
+	} else {
+		us = DIV_ROUND_UP(ns, NSEC_PER_USEC);
+		delay.unit = SPI_DELAY_UNIT_USECS;
+		delay.value = clamp_val(us, 0, USHRT_MAX);
+	}
+
+	while (dw_spi_dma_rx_busy(dws) && retry--)
+		spi_delay_exec(&delay, NULL);
+
+	if (retry < 0) {
+		dev_err(&dws->master->dev, "Rx hanged up\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * dws->dma_chan_busy is set before the dma transfer starts, callback for rx
  * channel will clear a corresponding bit.
@@ -358,7 +401,10 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 			return ret;
 	}
 
-	return 0;
+	if (rxdesc && dws->master->cur_msg->status == -EINPROGRESS)
+		ret = dw_spi_dma_wait_rx_done(dws);
+
+	return ret;
 }
 
 static void mid_spi_dma_stop(struct dw_spi *dws)
