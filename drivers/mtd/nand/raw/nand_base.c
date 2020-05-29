@@ -2512,7 +2512,8 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 	 * nand_setup_data_interface() uses ->set/get_features() which would
 	 * fail anyway as the parameter page is not available yet.
 	 */
-	if (!chip->onfi_timing_mode_default)
+	if (!memcmp(&chip->data_interface, &saved_data_intf,
+		    sizeof(saved_data_intf)))
 		return 0;
 
 	chip->data_interface = saved_data_intf;
