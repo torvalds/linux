@@ -1616,13 +1616,9 @@ static int scrub_write_page_to_dev_replace(struct scrub_block *sblock,
 	struct scrub_page *spage = sblock->pagev[page_num];
 
 	BUG_ON(spage->page == NULL);
-	if (spage->io_error) {
-		void *mapped_buffer = kmap_atomic(spage->page);
+	if (spage->io_error)
+		clear_page(page_address(spage->page));
 
-		clear_page(mapped_buffer);
-		flush_dcache_page(spage->page);
-		kunmap_atomic(mapped_buffer);
-	}
 	return scrub_add_page_to_wr_bio(sblock->sctx, spage);
 }
 
@@ -1805,7 +1801,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 
 	on_disk_csum = sblock->pagev[0]->csum;
 	page = sblock->pagev[0]->page;
-	buffer = kmap_atomic(page);
+	buffer = page_address(page);
 
 	len = sctx->fs_info->sectorsize;
 	index = 0;
@@ -1813,7 +1809,6 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
 		crypto_shash_update(shash, buffer, l);
-		kunmap_atomic(buffer);
 		len -= l;
 		if (len == 0)
 			break;
@@ -1821,7 +1816,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		buffer = kmap_atomic(page);
+		buffer = page_address(page);
 	}
 
 	crypto_shash_final(shash, csum);
@@ -1851,7 +1846,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
-	mapped_buffer = kmap_atomic(page);
+	mapped_buffer = page_address(page);
 	h = (struct btrfs_header *)mapped_buffer;
 	memcpy(on_disk_csum, h->csum, sctx->csum_size);
 
@@ -1883,7 +1878,6 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		u64 l = min_t(u64, len, mapped_size);
 
 		crypto_shash_update(shash, p, l);
-		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
 			break;
@@ -1891,7 +1885,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		mapped_buffer = kmap_atomic(page);
+		mapped_buffer = page_address(page);
 		mapped_size = PAGE_SIZE;
 		p = mapped_buffer;
 	}
@@ -1925,7 +1919,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
-	mapped_buffer = kmap_atomic(page);
+	mapped_buffer = page_address(page);
 	s = (struct btrfs_super_block *)mapped_buffer;
 	memcpy(on_disk_csum, s->csum, sctx->csum_size);
 
@@ -1946,7 +1940,6 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		u64 l = min_t(u64, len, mapped_size);
 
 		crypto_shash_update(shash, p, l);
-		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
 			break;
@@ -1954,7 +1947,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		mapped_buffer = kmap_atomic(page);
+		mapped_buffer = page_address(page);
 		mapped_size = PAGE_SIZE;
 		p = mapped_buffer;
 	}
