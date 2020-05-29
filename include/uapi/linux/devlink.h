@@ -253,10 +253,16 @@ enum devlink_trap_action {
  *                               control plane for resolution. Trapped packets
  *                               are processed by devlink and injected to
  *                               the kernel's Rx path.
+ * @DEVLINK_TRAP_TYPE_CONTROL: Packet was trapped because it is required for
+ *                             the correct functioning of the control plane.
+ *                             For example, an ARP request packet. Trapped
+ *                             packets are injected to the kernel's Rx path,
+ *                             but not reported to drop monitor.
  */
 enum devlink_trap_type {
 	DEVLINK_TRAP_TYPE_DROP,
 	DEVLINK_TRAP_TYPE_EXCEPTION,
+	DEVLINK_TRAP_TYPE_CONTROL,
 };
 
 enum {

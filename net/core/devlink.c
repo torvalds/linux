@@ -8847,6 +8847,13 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 	devlink_trap_stats_update(trap_item->stats, skb->len);
 	devlink_trap_stats_update(trap_item->group_item->stats, skb->len);
 
+	/* Control packets were not dropped by the device or encountered an
+	 * exception during forwarding and therefore should not be reported to
+	 * the kernel's drop monitor.
+	 */
+	if (trap_item->trap->type == DEVLINK_TRAP_TYPE_CONTROL)
+		return;
+
 	devlink_trap_report_metadata_fill(&hw_metadata, trap_item,
 					  in_devlink_port, fa_cookie);
 	net_dm_hw_report(skb, &hw_metadata);

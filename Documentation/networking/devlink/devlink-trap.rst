@@ -55,7 +55,7 @@ The following diagram provides a general overview of ``devlink-trap``::
                           |                |
                           +-------^--------+
                                   |
-                                  |
+                                  | Non-control traps
                                   |
                              +----+----+
                              |         |      Kernel's Rx path
@@ -97,6 +97,12 @@ The ``devlink-trap`` mechanism supports the following packet trap types:
     processed by ``devlink`` and injected to the kernel's Rx path. Changing the
     action of such traps is not allowed, as it can easily break the control
     plane.
+  * ``control``: Trapped packets were trapped by the device because these are
+    control packets required for the correct functioning of the control plane.
+    For example, ARP request and IGMP query packets. Packets are injected to
+    the kernel's Rx path, but not reported to the kernel's drop monitor.
+    Changing the action of such traps is not allowed, as it can easily break
+    the control plane.
 
 .. _Trap-Actions:
 
