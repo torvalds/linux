@@ -1329,20 +1329,25 @@ static void rkispp_stream_stop(struct rkispp_stream *stream)
 {
 	struct rkispp_device *dev = stream->isppdev;
 	bool is_wait = true;
+	int ret;
 
 	stream->stopping = true;
 	if (dev->inp == INP_ISP &&
 	    atomic_read(&dev->stream_vdev.refcnt) == 1) {
-		rkispp_stop_3a_run(dev);
 		v4l2_subdev_call(&dev->ispp_sdev.sd,
 				 video, s_stream, false);
 		if (!(dev->isp_mode & ISP_ISPP_QUICK))
 			is_wait = false;
+		rkispp_stop_3a_run(dev);
 	}
-	if (is_wait)
-		wait_event_timeout(stream->done,
-				   !stream->streaming,
-				   msecs_to_jiffies(100));
+	if (is_wait) {
+		ret = wait_event_timeout(stream->done,
+					 !stream->streaming,
+					 msecs_to_jiffies(1000));
+		if (!ret)
+			v4l2_warn(&dev->v4l2_dev,
+				  "stream:%d stop timeout\n", stream->id);
+	}
 	stream->is_upd = false;
 	stream->streaming = false;
 	stream->stopping = false;
