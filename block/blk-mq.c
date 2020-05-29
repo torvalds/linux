@@ -386,7 +386,7 @@ static struct request *__blk_mq_alloc_request(struct blk_mq_alloc_data *data)
 	}
 
 	tag = blk_mq_get_tag(data);
-	if (tag == BLK_MQ_TAG_FAIL) {
+	if (tag == BLK_MQ_NO_TAG) {
 		if (clear_ctx_on_error)
 			data->ctx = NULL;
 		return NULL;

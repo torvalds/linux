@@ -44,9 +44,9 @@ static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 }
 
 enum {
-	BLK_MQ_TAG_FAIL		= -1U,
+	BLK_MQ_NO_TAG		= -1U,
 	BLK_MQ_TAG_MIN		= 1,
-	BLK_MQ_TAG_MAX		= BLK_MQ_TAG_FAIL - 1,
+	BLK_MQ_TAG_MAX		= BLK_MQ_NO_TAG - 1,
 };
 
 extern bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *);
