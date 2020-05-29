@@ -201,7 +201,10 @@ struct mt7615_phy {
 	struct sk_buff_head scan_event_list;
 	struct delayed_work scan_work;
 
-	struct work_struct ps_work;
+	struct work_struct roc_work;
+	struct timer_list roc_timer;
+	wait_queue_head_t roc_wait;
+	bool roc_grant;
 };
 
 #define mt7615_mcu_add_tx_ba(dev, ...)	(dev)->mcu_ops->add_tx_ba((dev), __VA_ARGS__)
@@ -411,12 +414,17 @@ static inline bool is_mt7622(struct mt76_dev *dev)
 
 static inline bool is_mt7615(struct mt76_dev *dev)
 {
-	return mt76_chip(dev) == 0x7615;
+	return mt76_chip(dev) == 0x7615 || mt76_chip(dev) == 0x7611;
 }
 
 static inline bool is_mt7663(struct mt76_dev *dev)
 {
 	return mt76_chip(dev) == 0x7663;
+}
+
+static inline bool is_mt7611(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7611;
 }
 
 static inline void mt7615_irq_enable(struct mt7615_dev *dev, u32 mask)
@@ -441,7 +449,8 @@ static inline u16 mt7615_wtbl_size(struct mt7615_dev *dev)
 
 void mt7615_dma_reset(struct mt7615_dev *dev);
 void mt7615_scan_work(struct work_struct *work);
-void mt7615_ps_work(struct work_struct *work);
+void mt7615_roc_work(struct work_struct *work);
+void mt7615_roc_timer(struct timer_list *timer);
 void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt7615_phy_init(struct mt7615_dev *dev);
@@ -527,11 +536,13 @@ int mt7615_mcu_set_radar_th(struct mt7615_dev *dev, int index,
 int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable);
 int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy);
 int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);
-void m7615_mcu_set_ps_iter(void *priv, u8 *mac, struct ieee80211_vif *vif);
+int mt7615_mcu_set_vif_ps(struct mt7615_dev *dev, struct ieee80211_vif *vif);
 int mt7615_dfs_init_radar_detector(struct mt7615_phy *phy);
 
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);
+int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration);
 int mt7615_firmware_own(struct mt7615_dev *dev);
 int mt7615_driver_own(struct mt7615_dev *dev);
 

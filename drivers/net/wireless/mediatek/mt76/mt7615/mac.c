@@ -61,7 +61,7 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 	struct mt7615_sta *sta;
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
+	if (idx >= MT7615_WTBL_SIZE)
 		return NULL;
 
 	wcid = rcu_dereference(dev->mt76.wcid[idx]);
@@ -175,7 +175,8 @@ mt7615_get_status_freq_info(struct mt7615_dev *dev, struct mt76_phy *mphy,
 			    struct mt76_rx_status *status, u8 chfreq)
 {
 	if (!test_bit(MT76_HW_SCANNING, &mphy->state) &&
-	    !test_bit(MT76_HW_SCHED_SCANNING, &mphy->state)) {
+	    !test_bit(MT76_HW_SCHED_SCANNING, &mphy->state) &&
+	    !test_bit(MT76_STATE_ROC, &mphy->state)) {
 		status->freq = mphy->chandef.chan->center_freq;
 		status->band = mphy->chandef.chan->band;
 		return;
@@ -1302,7 +1303,7 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	if (pid == MT_PACKET_ID_NO_ACK)
 		return;
 
-	if (wcidx >= ARRAY_SIZE(dev->mt76.wcid))
+	if (wcidx >= MT7615_WTBL_SIZE)
 		return;
 
 	rcu_read_lock();
@@ -1819,8 +1820,9 @@ void mt7615_dma_reset(struct mt7615_dev *dev)
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
+	}
 
 	mt76_set(dev, MT_WPDMA_GLO_CFG,
 		 MT_WPDMA_GLO_CFG_RX_DMA_EN | MT_WPDMA_GLO_CFG_TX_DMA_EN |
@@ -1849,8 +1851,13 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
 	cancel_delayed_work_sync(&dev->phy.mac_work);
-	if (phy2)
+	del_timer_sync(&dev->phy.roc_timer);
+	cancel_work_sync(&dev->phy.roc_work);
+	if (phy2) {
 		cancel_delayed_work_sync(&phy2->mac_work);
+		del_timer_sync(&phy2->roc_timer);
+		cancel_work_sync(&phy2->roc_work);
+	}
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);

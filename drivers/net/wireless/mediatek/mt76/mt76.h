@@ -288,8 +288,8 @@ enum {
 	MT76_REMOVED,
 	MT76_READING_STATS,
 	MT76_STATE_POWER_OFF,
-	MT76_STATE_PS,
 	MT76_STATE_SUSPEND,
+	MT76_STATE_ROC,
 };
 
 struct mt76_hw_cap {
@@ -537,8 +537,8 @@ struct mt76_dev {
 	wait_queue_head_t tx_wait;
 	struct sk_buff_head status_list;
 
-	unsigned long wcid_mask[MT76_N_WCIDS / BITS_PER_LONG];
-	unsigned long wcid_phy_mask[MT76_N_WCIDS / BITS_PER_LONG];
+	u32 wcid_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
+	u32 wcid_phy_mask[DIV_ROUND_UP(MT76_N_WCIDS, 32)];
 
 	struct mt76_wcid global_wcid;
 	struct mt76_wcid __rcu *wcid[MT76_N_WCIDS];
@@ -670,6 +670,10 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 #define mt76_queue_rx_reset(dev, ...)	(dev)->mt76.queue_ops->rx_reset(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_tx_cleanup(dev, ...)	(dev)->mt76.queue_ops->tx_cleanup(&((dev)->mt76), __VA_ARGS__)
 #define mt76_queue_kick(dev, ...)	(dev)->mt76.queue_ops->kick(&((dev)->mt76), __VA_ARGS__)
+
+#define mt76_for_each_q_rx(dev, i)	\
+	for (i = 0; i < ARRAY_SIZE((dev)->q_rx) && \
+		    (dev)->q_rx[i].ndesc; i++)
 
 struct mt76_dev *mt76_alloc_device(struct device *pdev, unsigned int size,
 				   const struct ieee80211_ops *ops,

@@ -473,7 +473,7 @@ mt7603_rx_get_wcid(struct mt7603_dev *dev, u8 idx, bool unicast)
 	struct mt7603_sta *sta;
 	struct mt76_wcid *wcid;
 
-	if (idx >= ARRAY_SIZE(dev->mt76.wcid))
+	if (idx >= MT7603_WTBL_SIZE)
 		return NULL;
 
 	wcid = rcu_dereference(dev->mt76.wcid[idx]);
@@ -1238,7 +1238,7 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	if (pid == MT_PACKET_ID_NO_ACK)
 		return;
 
-	if (wcidx >= ARRAY_SIZE(dev->mt76.wcid))
+	if (wcidx >= MT7603_WTBL_SIZE)
 		return;
 
 	rcu_read_lock();
@@ -1438,8 +1438,9 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, i, true);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.q_rx); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
+	}
 
 	mt7603_dma_sched_reset(dev);
 

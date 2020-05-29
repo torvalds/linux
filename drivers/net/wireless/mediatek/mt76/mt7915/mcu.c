@@ -220,7 +220,7 @@ static int __mt7915_mcu_msg_send(struct mt7915_dev *dev, struct sk_buff *skb,
 {
 	struct mt7915_mcu_txd *mcu_txd;
 	u8 seq, pkt_fmt, qidx;
-	enum mt7915_txq_id txq;
+	enum mt76_txq_id txq;
 	__le32 *txd;
 	u32 val;
 
@@ -815,8 +815,7 @@ static void mt7915_check_he_obss_narrow_bw_ru_iter(struct wiphy *wiphy,
 	struct mt7915_he_obss_narrow_bw_ru_data *data = _data;
 	const struct element *elem;
 
-	elem = cfg80211_find_elem(WLAN_EID_EXT_CAPABILITY, bss->ies->data,
-				  bss->ies->len);
+	elem = ieee80211_bss_get_elem(bss, WLAN_EID_EXT_CAPABILITY);
 
 	if (!elem || elem->datalen < 10 ||
 	    !(elem->data[10] &
@@ -1802,14 +1801,11 @@ static u8
 mt7915_mcu_sta_txbf_type(struct mt7915_phy *phy, struct ieee80211_vif *vif,
 			 struct ieee80211_sta *sta)
 {
-	struct mt7915_sta *msta;
 	u8 type = 0;
 
 	if (vif->type != NL80211_IFTYPE_STATION &&
 	    vif->type != NL80211_IFTYPE_AP)
 		return 0;
-
-	msta = (struct mt7915_sta *)sta->drv_priv;
 
 	if (sta->he_cap.has_he) {
 		struct ieee80211_he_cap_elem *pe;
@@ -1954,7 +1950,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 
 		ra->supp_ht_mcs = *(__le32 *)ra->ht_mcs;
 		ra->supp_mode |= MODE_HT;
-		mcs = hweight32(ra->supp_ht_mcs) - 1;
+		mcs = hweight32(le32_to_cpu(ra->supp_ht_mcs)) - 1;
 		ra->af = sta->ht_cap.ampdu_factor;
 		ra->ht_gf = !!(sta->ht_cap.cap & IEEE80211_HT_CAP_GRN_FLD);
 
@@ -1972,7 +1968,7 @@ mt7915_mcu_sta_rate_ctrl_tlv(struct sk_buff *skb, struct mt7915_dev *dev,
 	}
 
 	if (sta->vht_cap.vht_supported) {
-		__le16 mcs_map = sta->vht_cap.vht_mcs.rx_mcs_map;
+		u16 mcs_map = le16_to_cpu(sta->vht_cap.vht_mcs.rx_mcs_map);
 		u16 vht_mcs;
 		u8 af, mcs_prev;
 
@@ -2399,7 +2395,7 @@ static int mt7915_mcu_init_download(struct mt7915_dev *dev, u32 addr,
 	};
 	int attr;
 
-	if (req.addr == MCU_PATCH_ADDRESS)
+	if (req.addr == cpu_to_le32(MCU_PATCH_ADDRESS))
 		attr = -MCU_CMD_PATCH_START_REQ;
 	else
 		attr = -MCU_CMD_TARGET_ADDRESS_LEN_REQ;
@@ -2672,7 +2668,7 @@ int mt7915_mcu_fw_dbg_ctrl(struct mt7915_dev *dev, u32 module, u8 level)
 		u16 len;
 		u8 level;
 		u8 rsv[3];
-		u32 module_idx;
+		__le32 module_idx;
 	} data = {
 		.module_idx = cpu_to_le32(module),
 		.level = level,
@@ -3157,5 +3153,30 @@ int mt7915_mcu_set_txbf_sounding(struct mt7915_dev *dev)
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_TXBF_ACTION,
+				   &req, sizeof(req), true);
+}
+
+int mt7915_mcu_add_obss_spr(struct mt7915_dev *dev, struct ieee80211_vif *vif,
+			    bool enable)
+{
+#define MT_SPR_ENABLE		1
+	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
+	struct {
+		u8 action;
+		u8 arg_num;
+		u8 band_idx;
+		u8 status;
+		u8 drop_tx_idx;
+		u8 sta_idx;	/* 256 sta */
+		u8 rsv[2];
+		u32 val;
+	} __packed req = {
+		.action = MT_SPR_ENABLE,
+		.arg_num = 1,
+		.band_idx = mvif->band_idx,
+		.val = enable,
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_SET_SPR,
 				   &req, sizeof(req), true);
 }
