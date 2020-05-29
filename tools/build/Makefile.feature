@@ -40,7 +40,6 @@ FEATURE_TESTS_BASIC :=                  \
         glibc                           \
         gtk2                            \
         gtk2-infobar                    \
-        libaudit                        \
         libbfd                          \
         libcap                          \
         libelf                          \
@@ -112,7 +111,6 @@ FEATURE_DISPLAY ?=              \
          dwarf_getlocations     \
          glibc                  \
          gtk2                   \
-         libaudit               \
          libbfd                 \
          libcap                 \
          libelf                 \
