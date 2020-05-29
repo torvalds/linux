@@ -30,7 +30,7 @@
 
 static const struct hw_sequencer_funcs dcn30_funcs = {
 	.program_gamut_remap = dcn10_program_gamut_remap,
-	.init_hw = dcn10_init_hw,
+	.init_hw = dcn30_init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = NULL,
 	.program_front_end_for_ctx = dcn20_program_front_end_for_ctx,
@@ -136,12 +136,6 @@ void dcn30_hw_sequencer_construct(struct dc *dc)
 
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
 		dc->hwss.init_hw = dcn20_fpga_init_hw;
-		dc->hwseq->funcs.init_pipes = NULL;
-	}
-
-	// TODO: Use generic dcn10_init_hw and dcn10_init_pipes sequence
-	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		dc->hwss.init_hw = dcn30_init_hw;
 		dc->hwseq->funcs.init_pipes = NULL;
 	}
 }

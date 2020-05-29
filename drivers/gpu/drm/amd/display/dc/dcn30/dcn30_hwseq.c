@@ -47,6 +47,8 @@
 #include "mpc.h"
 #include "mcif_wb.h"
 #include "dc_dmub_srv.h"
+#include "link_hwss.h"
+#include "dpcd_defs.h"
 
 
 
@@ -427,7 +429,6 @@ void dcn30_init_hw(struct dc *dc)
 	struct dce_hwseq *hws = dc->hwseq;
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
-	struct dc_state  *context = dc->current_state;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -437,153 +438,155 @@ void dcn30_init_hw(struct dc *dc)
 	if (res_pool->dccg->funcs->dccg_init)
 		res_pool->dccg->funcs->dccg_init(res_pool->dccg);
 
-	//Enable ability to power gate / don't force power on permanently
-	hws->funcs.enable_power_gating_plane(dc->hwseq, true);
-
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-		REG_WRITE(RBBMIF_TIMEOUT_DIS, 0xFFFFFFFF);
-		REG_WRITE(RBBMIF_TIMEOUT_DIS_2, 0xFFFFFFFF);
 
-		hws->funcs.dccg_init(hws);
-
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_REFDIV, 2);
-		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
 		REG_WRITE(REFCLK_CNTL, 0);
-	} else {
-		if (!dcb->funcs->is_accelerated_mode(dcb)) {
-			hws->funcs.bios_golden_init(dc);
-			hws->funcs.disable_vga(dc->hwseq);
+		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
+		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
+
+		if (!dc->debug.disable_clock_gate) {
+			/* enable all DCN clock gating */
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
+
+			REG_WRITE(DCCG_GATE_DISABLE_CNTL2, 0);
+
+			REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 		}
 
-		if (dc->ctx->dc_bios->fw_info_valid) {
-			res_pool->ref_clocks.xtalin_clock_inKhz =
-					dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
+		//Enable ability to power gate / don't force power on permanently
+		if (hws->funcs.enable_power_gating_plane)
+			hws->funcs.enable_power_gating_plane(hws, true);
 
-			if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-				if (res_pool->dccg && res_pool->hubbub) {
+		return;
+	}
 
-					(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
-							dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
-							&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+	if (!dcb->funcs->is_accelerated_mode(dcb)) {
+		hws->funcs.bios_golden_init(dc);
+		hws->funcs.disable_vga(dc->hwseq);
+	}
 
-					(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
-							res_pool->ref_clocks.dccg_ref_clock_inKhz,
-							&res_pool->ref_clocks.dchub_ref_clock_inKhz);
-				} else {
-					// Not all ASICs have DCCG sw component
-					res_pool->ref_clocks.dccg_ref_clock_inKhz =
-							res_pool->ref_clocks.xtalin_clock_inKhz;
-					res_pool->ref_clocks.dchub_ref_clock_inKhz =
-							res_pool->ref_clocks.xtalin_clock_inKhz;
-				}
+	if (dc->ctx->dc_bios->fw_info_valid) {
+		res_pool->ref_clocks.xtalin_clock_inKhz =
+				dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency;
+
+		if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+			if (res_pool->dccg && res_pool->hubbub) {
+
+				(res_pool->dccg->funcs->get_dccg_ref_freq)(res_pool->dccg,
+						dc->ctx->dc_bios->fw_info.pll_info.crystal_frequency,
+						&res_pool->ref_clocks.dccg_ref_clock_inKhz);
+
+				(res_pool->hubbub->funcs->get_dchub_ref_freq)(res_pool->hubbub,
+						res_pool->ref_clocks.dccg_ref_clock_inKhz,
+						&res_pool->ref_clocks.dchub_ref_clock_inKhz);
+			} else {
+				// Not all ASICs have DCCG sw component
+				res_pool->ref_clocks.dccg_ref_clock_inKhz =
+						res_pool->ref_clocks.xtalin_clock_inKhz;
+				res_pool->ref_clocks.dchub_ref_clock_inKhz =
+						res_pool->ref_clocks.xtalin_clock_inKhz;
 			}
-		} else
-			ASSERT_CRITICAL(false);
-
-		for (i = 0; i < dc->link_count; i++) {
-			/* Power up AND update implementation according to the
-			 * required signal (which may be different from the
-			 * default signal on connector).
-			 */
-			struct dc_link *link = dc->links[i];
-
-			link->link_enc->funcs->hw_init(link->link_enc);
 		}
+	} else
+		ASSERT_CRITICAL(false);
+
+	for (i = 0; i < dc->link_count; i++) {
+		/* Power up AND update implementation according to the
+		 * required signal (which may be different from the
+		 * default signal on connector).
+		 */
+		struct dc_link *link = dc->links[i];
+
+		link->link_enc->funcs->hw_init(link->link_enc);
+
+		/* Check for enabled DIG to identify enabled display */
+		if (link->link_enc->funcs->is_dig_enabled &&
+			link->link_enc->funcs->is_dig_enabled(link->link_enc))
+			link->link_status.link_active = true;
 	}
 
 	/* Power gate DSCs */
 	for (i = 0; i < res_pool->res_cap->num_dsc; i++)
-		hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
+		if (hws->funcs.dsc_pg_control != NULL)
+			hws->funcs.dsc_pg_control(hws, res_pool->dscs[i]->inst, false);
 
-	/* Blank pixel data with OPP DPG */
-	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
+	/* we want to turn off all dp displays before doing detection */
+	if (dc->config.power_down_display_on_boot) {
+		uint8_t dpcd_power_state = '\0';
+		enum dc_status status = DC_ERROR_UNEXPECTED;
 
-		if (tg->funcs->is_tg_enabled(tg))
-			hws->funcs.init_blank(dc, tg);
+		for (i = 0; i < dc->link_count; i++) {
+			if (dc->links[i]->connector_signal != SIGNAL_TYPE_DISPLAY_PORT)
+				continue;
+
+			/* if any of the displays are lit up turn them off */
+			status = core_link_read_dpcd(dc->links[i], DP_SET_POWER,
+						     &dpcd_power_state, sizeof(dpcd_power_state));
+			if (status == DC_OK && dpcd_power_state == DP_POWER_STATE_D0) {
+				/* blank dp stream before power off receiver*/
+				if (dc->links[i]->link_enc->funcs->get_dig_frontend) {
+					unsigned int fe;
+
+					fe = dc->links[i]->link_enc->funcs->get_dig_frontend(
+										dc->links[i]->link_enc);
+
+					for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
+						if (fe == dc->res_pool->stream_enc[j]->id) {
+							dc->res_pool->stream_enc[j]->funcs->dp_blank(
+										dc->res_pool->stream_enc[j]);
+							break;
+						}
+					}
+				}
+				dp_receiver_power_ctrl(dc->links[i], false);
+			}
+		}
 	}
 
-	for (i = 0; i < res_pool->timing_generator_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
-		if (tg->funcs->is_tg_enabled(tg))
-			tg->funcs->lock(tg);
+	/* If taking control over from VBIOS, we may want to optimize our first
+	 * mode set, so we need to skip powering down pipes until we know which
+	 * pipes we want to use.
+	 * Otherwise, if taking control is not possible, we need to power
+	 * everything down.
+	 */
+	if (dcb->funcs->is_accelerated_mode(dcb) || dc->config.power_down_display_on_boot) {
+		hws->funcs.init_pipes(dc, dc->current_state);
+		if (dc->res_pool->hubbub->funcs->allow_self_refresh_control)
+			dc->res_pool->hubbub->funcs->allow_self_refresh_control(dc->res_pool->hubbub,
+					!dc->res_pool->hubbub->ctx->dc->debug.disable_stutter);
 	}
 
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dpp *dpp = res_pool->dpps[i];
+	/* In headless boot cases, DIG may be turned
+	 * on which causes HW/SW discrepancies.
+	 * To avoid this, power down hardware on boot
+	 * if DIG is turned on and seamless boot not enabled
+	 */
+	if (dc->config.power_down_display_on_boot) {
+		struct dc_link *edp_link = get_edp_link(dc);
 
-		dpp->funcs->dpp_reset(dpp);
+		if (edp_link &&
+				edp_link->link_enc->funcs->is_dig_enabled &&
+				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
+				dc->hwss.edp_backlight_control &&
+				dc->hwss.power_down &&
+				dc->hwss.edp_power_control) {
+			dc->hwss.edp_backlight_control(edp_link, false);
+			dc->hwss.power_down(dc);
+			dc->hwss.edp_power_control(edp_link, false);
+		} else {
+			for (i = 0; i < dc->link_count; i++) {
+				struct dc_link *link = dc->links[i];
+
+				if (link->link_enc->funcs->is_dig_enabled &&
+						link->link_enc->funcs->is_dig_enabled(link->link_enc) &&
+						dc->hwss.power_down) {
+					dc->hwss.power_down(dc);
+					break;
+				}
+
+			}
+		}
 	}
-
-	/* Reset all MPCC muxes */
-	res_pool->mpc->funcs->mpc_init(res_pool->mpc);
-
-	/* initialize OPP mpc_tree parameter */
-	for (i = 0; i < dc->res_pool->res_cap->num_opp; i++) {
-		res_pool->opps[i]->mpc_tree_params.opp_id = res_pool->opps[i]->inst;
-		res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
-		for (j = 0; j < MAX_PIPES; j++)
-			res_pool->opps[i]->mpcc_disconnect_pending[j] = false;
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-		struct hubp *hubp = dc->res_pool->hubps[i];
-		struct dpp *dpp = dc->res_pool->dpps[i];
-
-		pipe_ctx->stream_res.tg = tg;
-		pipe_ctx->pipe_idx = i;
-
-		pipe_ctx->plane_res.hubp = hubp;
-		pipe_ctx->plane_res.dpp = dpp;
-		pipe_ctx->plane_res.mpcc_inst = dpp->inst;
-		hubp->mpcc_id = dpp->inst;
-		hubp->opp_id = OPP_ID_INVALID;
-		hubp->power_gated = false;
-		pipe_ctx->stream_res.opp = NULL;
-
-		hubp->funcs->hubp_init(hubp);
-
-		//dc->res_pool->opps[i]->mpc_tree_params.opp_id = dc->res_pool->opps[i]->inst;
-		//dc->res_pool->opps[i]->mpc_tree_params.opp_list = NULL;
-		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
-		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
-		/*to do*/
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
-	}
-
-	/* initialize DWB pointer to MCIF_WB */
-	for (i = 0; i < res_pool->res_cap->num_dwb; i++)
-		res_pool->dwbc[i]->mcif = res_pool->mcif_wb[i];
-
-	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
-		if (tg->funcs->is_tg_enabled(tg))
-			tg->funcs->unlock(tg);
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
-
-		dc->hwss.disable_plane(dc, pipe_ctx);
-
-		pipe_ctx->stream_res.tg = NULL;
-		pipe_ctx->plane_res.hubp = NULL;
-	}
-
-	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
-		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-
-		tg->funcs->tg_init(tg);
-	}
-
-	/* end of FPGA. Below if real ASIC */
-	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
-		return;
-
 
 	for (i = 0; i < res_pool->audio_count; i++) {
 		struct audio *audio = res_pool->audios[i];
@@ -614,6 +617,8 @@ void dcn30_init_hw(struct dc *dc)
 
 		REG_UPDATE(DCFCLK_CNTL, DCFCLK_GATE_DIS, 0);
 	}
+	if (hws->funcs.enable_power_gating_plane)
+		hws->funcs.enable_power_gating_plane(dc->hwseq, true);
 
 	if (dc->clk_mgr->funcs->notify_wm_ranges)
 		dc->clk_mgr->funcs->notify_wm_ranges(dc->clk_mgr);
