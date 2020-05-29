@@ -2611,12 +2611,12 @@ hw_free:
 close:
 	dpcm_be_dai_shutdown(fe, stream);
 disconnect:
-	/* disconnect any non started BEs */
+	/* disconnect any closed BEs */
 	spin_lock_irqsave(&fe->card->dpcm_lock, flags);
 	for_each_dpcm_be(fe, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
-		if (be->dpcm[stream].state != SND_SOC_DPCM_STATE_START)
-				dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
+		if (be->dpcm[stream].state == SND_SOC_DPCM_STATE_CLOSE)
+			dpcm->state = SND_SOC_DPCM_LINK_STATE_FREE;
 	}
 	spin_unlock_irqrestore(&fe->card->dpcm_lock, flags);
 
