@@ -4030,6 +4030,7 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	port = (attr_mask & IB_QP_PORT) ? (attr->port_num - 1) : hr_qp->port;
 
 	smac = (u8 *)hr_dev->dev_addr[port];
+	dmac = (u8 *)attr->ah_attr.roce.dmac;
 	/* when dmac equals smac or loop_idc is 1, it should loopback */
 	if (ether_addr_equal_unaligned(dmac, smac) ||
 	    hr_dev->loop_idc == 0x1) {
@@ -4053,7 +4054,6 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	roce_set_field(qpc_mask->byte_20_smac_sgid_idx,
 		       V2_QPC_BYTE_20_SGID_IDX_M, V2_QPC_BYTE_20_SGID_IDX_S, 0);
 
-	dmac = (u8 *)attr->ah_attr.roce.dmac;
 	memcpy(&(context->dmac), dmac, sizeof(u32));
 	roce_set_field(context->byte_52_udpspn_dmac, V2_QPC_BYTE_52_DMAC_M,
 		       V2_QPC_BYTE_52_DMAC_S, *((u16 *)(&dmac[4])));
