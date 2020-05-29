@@ -432,42 +432,6 @@ static void byt_set_mach_params(const struct snd_soc_acpi_mach *mach,
 	mach_params->platform = dev_name(dev);
 }
 
-static void byt_reset_dsp_disable_int(struct snd_sof_dev *sdev)
-{
-	/* Disable Interrupt from both sides */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x3);
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x3);
-
-	/* Put DSP into reset, set reset vector */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_CSR,
-				  SHIM_BYT_CSR_RST | SHIM_BYT_CSR_VECTOR_SEL,
-				  SHIM_BYT_CSR_RST | SHIM_BYT_CSR_VECTOR_SEL);
-}
-
-static int byt_suspend(struct snd_sof_dev *sdev, u32 target_state)
-{
-	byt_reset_dsp_disable_int(sdev);
-
-	return 0;
-}
-
-static int byt_resume(struct snd_sof_dev *sdev)
-{
-	/* enable BUSY and disable DONE Interrupt by default */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX,
-				  SHIM_IMRX_BUSY | SHIM_IMRX_DONE,
-				  SHIM_IMRX_DONE);
-
-	return 0;
-}
-
-static int byt_remove(struct snd_sof_dev *sdev)
-{
-	byt_reset_dsp_disable_int(sdev);
-
-	return 0;
-}
-
 /* Baytrail DAIs */
 static struct snd_soc_dai_driver byt_dai[] = {
 {
@@ -694,6 +658,42 @@ EXPORT_SYMBOL_NS(tng_chip_info, SND_SOC_SOF_MERRIFIELD);
 #endif /* CONFIG_SND_SOC_SOF_MERRIFIELD */
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+
+static void byt_reset_dsp_disable_int(struct snd_sof_dev *sdev)
+{
+	/* Disable Interrupt from both sides */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x3);
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x3);
+
+	/* Put DSP into reset, set reset vector */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_CSR,
+				  SHIM_BYT_CSR_RST | SHIM_BYT_CSR_VECTOR_SEL,
+				  SHIM_BYT_CSR_RST | SHIM_BYT_CSR_VECTOR_SEL);
+}
+
+static int byt_suspend(struct snd_sof_dev *sdev, u32 target_state)
+{
+	byt_reset_dsp_disable_int(sdev);
+
+	return 0;
+}
+
+static int byt_resume(struct snd_sof_dev *sdev)
+{
+	/* enable BUSY and disable DONE Interrupt by default */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX,
+				  SHIM_IMRX_BUSY | SHIM_IMRX_DONE,
+				  SHIM_IMRX_DONE);
+
+	return 0;
+}
+
+static int byt_remove(struct snd_sof_dev *sdev)
+{
+	byt_reset_dsp_disable_int(sdev);
+
+	return 0;
+}
 
 static const struct snd_sof_debugfs_map cht_debugfs[] = {
 	{"dmac0", BYT_DSP_BAR, DMAC0_OFFSET, DMAC_SIZE,
