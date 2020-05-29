@@ -15,7 +15,7 @@
 #ifndef __IRQ_GLOBAL_H_INCLUDED__
 #define __IRQ_GLOBAL_H_INCLUDED__
 
-#include <system_types.h>
+#include <system_local.h>
 
 #define IS_IRQ_VERSION_2
 #define IS_IRQ_MAP_VERSION_2

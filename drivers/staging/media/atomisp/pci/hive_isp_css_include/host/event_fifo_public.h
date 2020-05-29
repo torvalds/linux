@@ -16,7 +16,7 @@
 #define __EVENT_FIFO_PUBLIC_H
 
 #include <type_support.h>
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Blocking read from an event source EVENT[ID]
 

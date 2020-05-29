@@ -15,7 +15,7 @@
 #ifndef __TIMED_CTRL_PUBLIC_H_INCLUDED__
 #define __TIMED_CTRL_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Write to a control register of TIMED_CTRL[ID]
 

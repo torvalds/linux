@@ -17,7 +17,7 @@
 
 #include <type_support.h>
 #include <ia_css_types.h>
-#include "system_types.h"
+#include "system_local.h"
 
 /*! brief
  *

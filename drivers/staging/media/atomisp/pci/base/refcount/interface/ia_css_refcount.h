@@ -16,7 +16,7 @@
 #define _IA_CSS_REFCOUNT_H_
 
 #include <type_support.h>
-#include <system_types.h>
+#include <system_local.h>
 #include <ia_css_err.h>
 #include <ia_css_types.h>
 

@@ -17,7 +17,7 @@
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
 
-#include "system_types.h"
+#include "system_local.h"
 #include "type_support.h"
 
 STORAGE_CLASS_ISYS2401_DMA_H void isys2401_dma_reg_store(

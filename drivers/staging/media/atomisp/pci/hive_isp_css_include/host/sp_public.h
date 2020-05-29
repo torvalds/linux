@@ -16,7 +16,7 @@
 #define __SP_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#include "system_types.h"
+#include "system_local.h"
 
 typedef struct sp_state_s		sp_state_t;
 typedef struct sp_stall_s		sp_stall_t;

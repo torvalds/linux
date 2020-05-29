@@ -39,7 +39,7 @@ more details.
  * User provided file that defines the system address types:
  *	- hrt_address	a type that can hold the (sub)system address range
  */
-#include "system_types.h"
+#include "system_local.h"
 /*
  * We cannot assume that the global system address size is the size of
  * a pointer because a (say) 64-bit host can be simulated in a 32-bit

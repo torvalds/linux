@@ -24,7 +24,7 @@
 */
 
 #include <type_support.h>
-#include <system_types.h>
+#include <system_local.h>
 #include "ia_css_pipeline.h"
 #include "ia_css_pipe_public.h"
 #include "ia_css_frame_public.h"

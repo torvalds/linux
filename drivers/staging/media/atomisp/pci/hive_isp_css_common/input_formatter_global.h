@@ -19,7 +19,7 @@
 #define IS_INPUT_SWITCH_VERSION2
 
 #include <type_support.h>
-#include <system_types.h>
+#include <system_local.h>
 #include "if_defs.h"
 #include "str2mem_defs.h"
 #include "input_switch_2400_defs.h"

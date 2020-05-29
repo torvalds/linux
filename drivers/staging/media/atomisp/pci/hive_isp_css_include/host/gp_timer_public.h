@@ -15,7 +15,7 @@
 #ifndef __GP_TIMER_PUBLIC_H_INCLUDED__
 #define __GP_TIMER_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 /*! initialize mentioned timer
 param ID		timer_id

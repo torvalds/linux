@@ -15,7 +15,7 @@
 #ifndef __FIFO_MONITOR_PUBLIC_H_INCLUDED__
 #define __FIFO_MONITOR_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 typedef struct fifo_channel_state_s		fifo_channel_state_t;
 typedef struct fifo_switch_state_s		fifo_switch_state_t;

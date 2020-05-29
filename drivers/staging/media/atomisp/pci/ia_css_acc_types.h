@@ -19,7 +19,7 @@
  * This file contains types used for acceleration
  */
 
-#include <system_types.h>	/* HAS_IRQ_MAP_VERSION_# */
+#include <system_local.h>	/* HAS_IRQ_MAP_VERSION_# */
 #include <type_support.h>
 #include <platform_support.h>
 #include <debug_global.h>

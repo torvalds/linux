@@ -16,7 +16,7 @@
 #define __INPUT_FORMATTER_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Reset INPUT_FORMATTER[ID]
 

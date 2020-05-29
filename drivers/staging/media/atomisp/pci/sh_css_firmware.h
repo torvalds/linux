@@ -15,7 +15,7 @@
 #ifndef _SH_CSS_FIRMWARE_H_
 #define _SH_CSS_FIRMWARE_H_
 
-#include <system_types.h>
+#include <system_local.h>
 
 #include <ia_css_err.h>
 #include <ia_css_acc_types.h>

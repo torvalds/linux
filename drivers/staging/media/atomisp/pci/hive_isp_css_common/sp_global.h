@@ -15,7 +15,7 @@
 #ifndef __SP_GLOBAL_H_INCLUDED__
 #define __SP_GLOBAL_H_INCLUDED__
 
-#include <system_types.h>
+#include <system_local.h>
 
 #if defined(HAS_SP_2401)
 #define IS_SP_2401

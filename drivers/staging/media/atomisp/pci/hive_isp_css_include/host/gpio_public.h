@@ -15,7 +15,7 @@
 #ifndef __GPIO_PUBLIC_H_INCLUDED__
 #define __GPIO_PUBLIC_H_INCLUDED__
 
-#include "system_types.h"
+#include "system_local.h"
 
 /*! Write to a control register of GPIO[ID]
 

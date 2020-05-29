@@ -18,7 +18,7 @@
 #include "type_support.h"
 #include "platform_support.h"
 #include "runtime/bufq/interface/ia_css_bufq_comm.h"
-#include <system_types.h>	 /* ia_css_ptr */
+#include <system_local.h>	 /* ia_css_ptr */
 
 /*
  * These structs are derived from structs defined in ia_css_types.h
