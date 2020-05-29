@@ -16,6 +16,7 @@
  *
  *
  */
+#include <linux/errno.h>
 #include <linux/firmware.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
@@ -58,7 +59,6 @@
 #include "ia_css_types.h"
 #include "ia_css_stream.h"
 #include "ia_css_debug.h"
-#include "error_support.h"
 #include "bits.h"
 
 /* We should never need to run the flash for more than 2 frames.

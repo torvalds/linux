@@ -15,8 +15,9 @@
 #ifndef __IA_CSS_UTIL_H__
 #define __IA_CSS_UTIL_H__
 
+#include <linux/errno.h>
+
 #include <ia_css_err.h>
-#include <error_support.h>
 #include <type_support.h>
 #include <ia_css_frame_public.h>
 #include <ia_css_stream_public.h>

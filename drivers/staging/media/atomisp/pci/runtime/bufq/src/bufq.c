@@ -22,7 +22,6 @@
 #include "ia_css_debug.h"		/* ia_css_debug_dtrace*/
 #include "sh_css_internal.h"		/* sh_css_queue_type */
 #include "sp_local.h"			/* sp_address_of */
-#include "ia_css_util.h"		/* ia_css_convert_errno()*/
 #include "sh_css_firmware.h"		/* sh_css_sp_fw*/
 
 #define BUFQ_DUMP_FILE_NAME_PREFIX_SIZE 256
@@ -334,7 +333,6 @@ int ia_css_bufq_enqueue_buffer(
     int queue_id,
     uint32_t item)
 {
-	int return_err = 0;
 	ia_css_queue_t *q;
 	int error;
 
@@ -349,22 +347,20 @@ int ia_css_bufq_enqueue_buffer(
 			     thread_index);
 	if (q) {
 		error = ia_css_queue_enqueue(q, item);
-		return_err = ia_css_convert_errno(error);
 	} else {
 		IA_CSS_ERROR("queue is not initialized");
-		return_err = -EBUSY;
+		error = -EBUSY;
 	}
 
-	IA_CSS_LEAVE_ERR_PRIVATE(return_err);
-	return return_err;
+	IA_CSS_LEAVE_ERR_PRIVATE(error);
+	return error;
 }
 
 int ia_css_bufq_dequeue_buffer(
     int queue_id,
     uint32_t *item)
 {
-	int return_err;
-	int error = 0;
+	int error;
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("queue_id=%d", queue_id);
@@ -379,14 +375,13 @@ int ia_css_bufq_dequeue_buffer(
 			     -1);
 	if (q) {
 		error = ia_css_queue_dequeue(q, item);
-		return_err = ia_css_convert_errno(error);
 	} else {
 		IA_CSS_ERROR("queue is not initialized");
-		return_err = -EBUSY;
+		error = -EBUSY;
 	}
 
-	IA_CSS_LEAVE_ERR_PRIVATE(return_err);
-	return return_err;
+	IA_CSS_LEAVE_ERR_PRIVATE(error);
+	return error;
 }
 
 int ia_css_bufq_enqueue_psys_event(
@@ -395,8 +390,8 @@ int ia_css_bufq_enqueue_psys_event(
     u8 evt_payload_1,
     uint8_t evt_payload_2)
 {
-	int return_err;
-	int error = 0;
+
+    int error = 0;
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("evt_id=%d", evt_id);
@@ -409,9 +404,8 @@ int ia_css_bufq_enqueue_psys_event(
 	error = ia_css_eventq_send(q,
 				   evt_id, evt_payload_0, evt_payload_1, evt_payload_2);
 
-	return_err = ia_css_convert_errno(error);
-	IA_CSS_LEAVE_ERR_PRIVATE(return_err);
-	return return_err;
+	IA_CSS_LEAVE_ERR_PRIVATE(error);
+	return error;
 }
 
 int ia_css_bufq_dequeue_psys_event(
@@ -433,7 +427,7 @@ int ia_css_bufq_dequeue_psys_event(
 	}
 	error = ia_css_eventq_recv(q, item);
 
-	return ia_css_convert_errno(error);
+	return error;
 }
 
 int ia_css_bufq_dequeue_isys_event(
@@ -455,7 +449,7 @@ int ia_css_bufq_dequeue_isys_event(
 		return -EBUSY;
 	}
 	error = ia_css_eventq_recv(q, item);
-	return ia_css_convert_errno(error);
+	return error;
 #else
 	(void)item;
 	return -EBUSY;
@@ -465,7 +459,6 @@ int ia_css_bufq_dequeue_isys_event(
 int ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 {
 #if !defined(HAS_NO_INPUT_SYSTEM)
-	int return_err;
 	int error = 0;
 	ia_css_queue_t *q;
 
@@ -477,9 +470,9 @@ int ia_css_bufq_enqueue_isys_event(uint8_t evt_id)
 	}
 
 	error = ia_css_eventq_send(q, evt_id, 0, 0, 0);
-	return_err = ia_css_convert_errno(error);
-	IA_CSS_LEAVE_ERR_PRIVATE(return_err);
-	return return_err;
+
+	IA_CSS_LEAVE_ERR_PRIVATE(error);
+	return error;
 #else
 	(void)evt_id;
 	return -EBUSY;
@@ -490,8 +483,7 @@ int ia_css_bufq_enqueue_tag_cmd(
     uint32_t item)
 {
 #if !defined(HAS_NO_INPUT_SYSTEM)
-	int return_err;
-	int error = 0;
+	int error;
 	ia_css_queue_t *q;
 
 	IA_CSS_ENTER_PRIVATE("item=%d", item);
@@ -502,9 +494,8 @@ int ia_css_bufq_enqueue_tag_cmd(
 	}
 	error = ia_css_queue_enqueue(q, item);
 
-	return_err = ia_css_convert_errno(error);
-	IA_CSS_LEAVE_ERR_PRIVATE(return_err);
-	return return_err;
+	IA_CSS_LEAVE_ERR_PRIVATE(error);
+	return error;
 #else
 	(void)item;
 	return -EBUSY;

@@ -20,35 +20,6 @@
 /* for ia_css_binary_max_vf_width() */
 #include "ia_css_binary.h"
 
-int ia_css_convert_errno(
-    int in_err)
-{
-	int out_err;
-
-	switch (in_err) {
-	case 0:
-		out_err = 0;
-		break;
-	case EINVAL:
-		out_err = -EINVAL;
-		break;
-	case ENODATA:
-		out_err = -ENODATA;
-		break;
-	case ENOSYS:
-	case ENOTSUP:
-		out_err = -EINVAL;
-		break;
-	case ENOBUFS:
-		out_err = -ENOBUFS;
-		break;
-	default:
-		out_err = -EINVAL;
-		break;
-	}
-	return out_err;
-}
-
 /* MW: Table look-up ??? */
 unsigned int ia_css_util_input_format_bpp(
     enum atomisp_input_format format,

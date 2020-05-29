@@ -28,7 +28,7 @@
  * @param[in]  src_buf. The source buffer
  * @param[in]  src_size. The size of the source buffer in bytes
  * @return     0 on success, error code on failure
- * @return     EINVAL on Invalid arguments
+ * @return     -EINVAL on Invalid arguments
  * @return     ERANGE on Destination size too small
  */
 static inline int memcpy_s(
@@ -39,7 +39,7 @@ static inline int memcpy_s(
 {
 	if ((!src_buf) || (!dest_buf)) {
 		/* Invalid arguments*/
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if ((dest_size < src_size) || (src_size == 0)) {
@@ -84,7 +84,7 @@ static size_t strnlen_s(
  * @param[in]  src_str. The source buffer
  * @param[in]  src_size. The size of the source buffer in bytes
  * @return     Returns 0 on success
- * @return     Returns EINVAL on invalid arguments
+ * @return     Returns -EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strncpy_s(
@@ -97,13 +97,13 @@ static inline int strncpy_s(
 
 	if (!dest_str) {
 		/* Invalid arguments*/
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if ((!src_str) || (dest_size == 0)) {
 		/* Invalid arguments*/
 		dest_str[0] = '\0';
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	len = strnlen_s(src_str, src_size);
@@ -126,7 +126,7 @@ static inline int strncpy_s(
  * @param[in]  dest_size. The size of the destination buffer in bytes
  * @param[in]  src_str. The source buffer
  * @return     Returns 0 on success
- * @return     Returns EINVAL on invalid arguments
+ * @return     Returns -EINVAL on invalid arguments
  * @return     Returns ERANGE on destination size too small
  */
 static inline int strcpy_s(
@@ -138,13 +138,13 @@ static inline int strcpy_s(
 
 	if (!dest_str) {
 		/* Invalid arguments*/
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	if ((!src_str) || (dest_size == 0)) {
 		/* Invalid arguments*/
 		dest_str[0] = '\0';
-		return EINVAL;
+		return -EINVAL;
 	}
 
 	len = strnlen_s(src_str, dest_size);
