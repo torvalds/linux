@@ -1069,9 +1069,6 @@ struct nand_manufacturer {
  * @options: Various chip options. They can partly be set to inform nand_scan
  *           about special functionality. See the defines for further
  *           explanation.
- * @onfi_timing_mode_default: Default ONFI timing mode. This field is set to the
- *			      actually used ONFI mode if the chip is ONFI
- *			      compliant or deduced from the datasheet otherwise
  * @interface_config: NAND interface timing information
  * @bbt_erase_shift: Number of address bits in a bbt entry
  * @bbt_options: Bad block table specific options. All options used here must
@@ -1119,7 +1116,6 @@ struct nand_chip {
 	unsigned int options;
 
 	/* Data interface */
-	int onfi_timing_mode_default;
 	struct nand_interface_config interface_config;
 
 	/* Bad block information */
@@ -1268,10 +1264,6 @@ nand_get_interface_config(struct nand_chip *chip)
  *               @ecc_step_ds in nand_chip{}, also from the datasheet.
  *               For example, the "4bit ECC for each 512Byte" can be set with
  *               NAND_ECC_INFO(4, 512).
- * @onfi_timing_mode_default: the default ONFI timing mode entered after a NAND
- *			      reset. Should be deduced from timings described
- *			      in the datasheet.
- *
  */
 struct nand_flash_dev {
 	char *name;
@@ -1292,7 +1284,6 @@ struct nand_flash_dev {
 		uint16_t strength_ds;
 		uint16_t step_ds;
 	} ecc;
-	int onfi_timing_mode_default;
 };
 
 int nand_create_bbt(struct nand_chip *chip);

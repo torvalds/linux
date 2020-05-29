@@ -1012,10 +1012,8 @@ err_reset_chip:
  * @iface: the interface configuration (can eventually be updated)
  * @spec_timings: specific timings, when not fitting the ONFI specification
  *
- * If specific timings are provided, use them. Otherwise, try to retrieve
- * supported timing modes from ONFI information. Finally, if the NAND chip does
- * not follow the ONFI specification, rely on the ->default_timing_mode
- * specified in the nand_ids table.
+ * If specific timings are provided, use them. Otherwise, retrieve supported
+ * timing modes from ONFI information.
  */
 int nand_choose_best_sdr_timings(struct nand_chip *chip,
 				 struct nand_interface_config *iface,
@@ -1038,15 +1036,8 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
 
 		/* Fallback to slower modes */
 		best_mode = iface->timings.mode;
-	} else {
-		if (chip->parameters.onfi) {
-			unsigned int onfi_modes;
-
-			onfi_modes = chip->parameters.onfi->async_timing_mode;
-			best_mode = fls(onfi_modes) - 1;
-		} else {
-			best_mode = chip->onfi_timing_mode_default;
-		}
+	} else if (chip->parameters.onfi) {
+		best_mode = fls(chip->parameters.onfi->async_timing_mode) - 1;
 	}
 
 	for (mode = best_mode; mode >= 0; mode--) {
@@ -4767,8 +4758,6 @@ static bool find_full_id_nand(struct nand_chip *chip,
 		chip->options |= type->options;
 		chip->base.eccreq.strength = NAND_ECC_STRENGTH(type);
 		chip->base.eccreq.step_size = NAND_ECC_STEP(type);
-		chip->onfi_timing_mode_default =
-					type->onfi_timing_mode_default;
 
 		chip->parameters.model = kstrdup(type->name, GFP_KERNEL);
 		if (!chip->parameters.model)
