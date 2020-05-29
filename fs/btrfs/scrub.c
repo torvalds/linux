@@ -1904,23 +1904,23 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
-	struct page *page;
+	struct scrub_page *spage;
 	char *kaddr;
 	int fail_gen = 0;
 	int fail_cor = 0;
 
 	BUG_ON(sblock->page_count < 1);
-	page = sblock->pagev[0]->page;
-	kaddr = page_address(page);
+	spage = sblock->pagev[0];
+	kaddr = page_address(spage->page);
 	s = (struct btrfs_super_block *)kaddr;
 
-	if (sblock->pagev[0]->logical != btrfs_super_bytenr(s))
+	if (spage->logical != btrfs_super_bytenr(s))
 		++fail_cor;
 
-	if (sblock->pagev[0]->generation != btrfs_super_generation(s))
+	if (spage->generation != btrfs_super_generation(s))
 		++fail_gen;
 
-	if (!scrub_check_fsid(s->fsid, sblock->pagev[0]))
+	if (!scrub_check_fsid(s->fsid, spage))
 		++fail_cor;
 
 	shash->tfm = fs_info->csum_shash;
@@ -1941,10 +1941,10 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		++sctx->stat.super_errors;
 		spin_unlock(&sctx->stat_lock);
 		if (fail_cor)
-			btrfs_dev_stat_inc_and_print(sblock->pagev[0]->dev,
+			btrfs_dev_stat_inc_and_print(spage->dev,
 				BTRFS_DEV_STAT_CORRUPTION_ERRS);
 		else
-			btrfs_dev_stat_inc_and_print(sblock->pagev[0]->dev,
+			btrfs_dev_stat_inc_and_print(spage->dev,
 				BTRFS_DEV_STAT_GENERATION_ERRS);
 	}
 
