@@ -269,13 +269,9 @@
 #define IGC_TXD_CMD_DEXT	0x20000000 /* Desc extension (0 = legacy) */
 #define IGC_TXD_CMD_VLE		0x40000000 /* Add VLAN tag */
 #define IGC_TXD_STAT_DD		0x00000001 /* Descriptor Done */
-#define IGC_TXD_STAT_EC		0x00000002 /* Excess Collisions */
-#define IGC_TXD_STAT_LC		0x00000004 /* Late Collisions */
-#define IGC_TXD_STAT_TU		0x00000008 /* Transmit underrun */
 #define IGC_TXD_CMD_TCP		0x01000000 /* TCP packet */
 #define IGC_TXD_CMD_IP		0x02000000 /* IP packet */
 #define IGC_TXD_CMD_TSE		0x04000000 /* TCP Seg enable */
-#define IGC_TXD_STAT_TC		0x00000004 /* Tx Underrun */
 #define IGC_TXD_EXTCMD_TSTAMP	0x00000010 /* IEEE1588 Timestamp packet */
 
 /* IPSec Encrypt Enable */

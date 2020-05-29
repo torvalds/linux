@@ -235,15 +235,14 @@ out:
 void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 {
 	rd32(IGC_CRCERRS);
-	rd32(IGC_SYMERRS);
 	rd32(IGC_MPC);
 	rd32(IGC_SCC);
 	rd32(IGC_ECOL);
 	rd32(IGC_MCC);
 	rd32(IGC_LATECOL);
 	rd32(IGC_COLC);
+	rd32(IGC_RERC);
 	rd32(IGC_DC);
-	rd32(IGC_SEC);
 	rd32(IGC_RLEC);
 	rd32(IGC_XONRXC);
 	rd32(IGC_XONTXC);
@@ -288,7 +287,7 @@ void igc_clear_hw_cntrs_base(struct igc_hw *hw)
 	rd32(IGC_ALGNERRC);
 	rd32(IGC_RXERRC);
 	rd32(IGC_TNCRS);
-	rd32(IGC_CEXTERR);
+	rd32(IGC_HTDPMC);
 	rd32(IGC_TSCTC);
 	rd32(IGC_TSCTFC);
 

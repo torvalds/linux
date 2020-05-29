@@ -3701,8 +3701,6 @@ void igc_update_stats(struct igc_adapter *adapter)
 	adapter->stats.prc511 += rd32(IGC_PRC511);
 	adapter->stats.prc1023 += rd32(IGC_PRC1023);
 	adapter->stats.prc1522 += rd32(IGC_PRC1522);
-	adapter->stats.symerrs += rd32(IGC_SYMERRS);
-	adapter->stats.sec += rd32(IGC_SEC);
 
 	mpc = rd32(IGC_MPC);
 	adapter->stats.mpc += mpc;
@@ -3741,6 +3739,7 @@ void igc_update_stats(struct igc_adapter *adapter)
 
 	adapter->stats.tpt += rd32(IGC_TPT);
 	adapter->stats.colc += rd32(IGC_COLC);
+	adapter->stats.colc += rd32(IGC_RERC);
 
 	adapter->stats.algnerrc += rd32(IGC_ALGNERRC);
 
