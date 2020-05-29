@@ -6,7 +6,6 @@
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/version.h>
-#include <crypto/pkcs7.h>
 
 #include "integrity.h"
 
