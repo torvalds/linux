@@ -3692,7 +3692,7 @@ static int __ath11k_set_antenna(struct ath11k *ar, u32 tx_ant, u32 rx_ant)
 int ath11k_mac_tx_mgmt_pending_free(int buf_id, void *skb, void *ctx)
 {
 	struct sk_buff *msdu = skb;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(msdu);
+	struct ieee80211_tx_info *info;
 	struct ath11k *ar = ctx;
 	struct ath11k_base *ab = ar->ab;
 

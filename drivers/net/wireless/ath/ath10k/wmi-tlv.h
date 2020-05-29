@@ -1637,7 +1637,7 @@ wmi_tlv_svc_map_ext(const __le32 *in, unsigned long *out, size_t len)
 struct wmi_tlv {
 	__le16 len;
 	__le16 tag;
-	u8 value[0];
+	u8 value[];
 } __packed;
 
 struct ath10k_mgmt_tx_pkt_addr {
@@ -2037,7 +2037,7 @@ struct wmi_tlv_bcn_tx_status_ev {
 struct wmi_tlv_bcn_prb_info {
 	__le32 caps;
 	__le32 erp;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 struct wmi_tlv_bcn_tmpl_cmd {
@@ -2068,7 +2068,7 @@ struct wmi_tlv_diag_item {
 	__le16 len;
 	__le32 timestamp;
 	__le32 code;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct wmi_tlv_diag_data_ev {
