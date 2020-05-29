@@ -195,6 +195,23 @@ static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u8 local_port,
 	mlxsw_sp_ptp_receive(mlxsw_sp, skb, local_port);
 }
 
+static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
+					void *trap_ctx)
+{
+	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
+	/* The sample handler expects skb->data to point to the start of the
+	 * Ethernet header.
+	 */
+	skb_push(skb, ETH_HLEN);
+	mlxsw_sp_sample_receive(mlxsw_sp, skb, local_port);
+}
+
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
 	DEVLINK_TRAP_GENERIC(DROP, DROP, _id,				      \
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
@@ -308,6 +325,9 @@ mlxsw_sp_trap_policer_items_arr[] = {
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(17, 19 * 1024, 4096),
 	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(18, 1024, 128),
+	},
 };
 
 static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
@@ -415,6 +435,16 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(PTP_GENERAL, 17),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
 		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
+		.priority = 0,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_TRAP, 18),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING,
+		.priority = 4,
 	},
 };
 
@@ -933,6 +963,21 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.trap = MLXSW_SP_TRAP_CONTROL(PTP_GENERAL, PTP_GENERAL, TRAP),
 		.listeners_arr = {
 			MLXSW_SP_RXL_NO_MARK(PTP1, PTP1, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_RXL(mlxsw_sp_rx_sample_listener, PKT_SAMPLE,
+				  MIRROR_TO_CPU, false, SP_PKT_SAMPLE, DISCARD),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_TRAP, ACL_TRAP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(ACL0, FLOW_LOGGING, TRAP_TO_CPU,
+					     false),
 		},
 	},
 };

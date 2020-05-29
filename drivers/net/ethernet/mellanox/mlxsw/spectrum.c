@@ -3987,10 +3987,15 @@ static void mlxsw_sp_rx_listener_l3_mark_func(struct sk_buff *skb,
 	return mlxsw_sp_rx_listener_no_mark_func(skb, local_port, priv);
 }
 
-static void mlxsw_sp_rx_listener_sample_func(struct sk_buff *skb, u8 local_port,
-					     void *priv)
+void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			  u8 local_port)
 {
-	struct mlxsw_sp *mlxsw_sp = priv;
+	mlxsw_sp->ptp_ops->receive(mlxsw_sp, skb, local_port);
+}
+
+void mlxsw_sp_sample_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			     u8 local_port)
+{
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	struct mlxsw_sp_port_sample *sample;
 	u32 size;
@@ -4012,12 +4017,6 @@ out_unlock:
 	rcu_read_unlock();
 out:
 	consume_skb(skb);
-}
-
-void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			  u8 local_port)
-{
-	mlxsw_sp->ptp_ops->receive(mlxsw_sp, skb, local_port);
 }
 
 #define MLXSW_SP_RXL_NO_MARK(_trap_id, _action, _trap_group, _is_ctrl)	\
@@ -4054,11 +4053,6 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 			     ROUTER_EXP, false),
 	MLXSW_SP_RXL_NO_MARK(DISCARD_ING_ROUTER_DIP_LINK_LOCAL, FORWARD,
 			     ROUTER_EXP, false),
-	/* PKT Sample trap */
-	MLXSW_RXL(mlxsw_sp_rx_listener_sample_func, PKT_SAMPLE, MIRROR_TO_CPU,
-		  false, SP_PKT_SAMPLE, DISCARD),
-	/* ACL trap */
-	MLXSW_SP_RXL_NO_MARK(ACL0, TRAP_TO_CPU, FLOW_LOGGING, false),
 	/* Multicast Router Traps */
 	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 	MLXSW_SP_RXL_L3_MARK(ACL2, TRAP_TO_CPU, MULTICAST, false),
@@ -4094,7 +4088,6 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 		switch (i) {
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FID_MISS:
 			rate = 1024;
 			burst_size = 7;
@@ -4133,19 +4126,11 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	for (i = 0; i < max_trap_groups; i++) {
 		policer_id = i;
 		switch (i) {
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING:
-			priority = 4;
-			tc = 4;
-			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FID_MISS:
 			priority = 1;
 			tc = 1;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE:
-			priority = 0;
-			tc = 0;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_EVENT:
 			priority = MLXSW_REG_HTGT_DEFAULT_PRIORITY;
