@@ -1203,6 +1203,17 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
 	return mtd_get_of_node(nand_to_mtd(chip));
 }
 
+/**
+ * nand_get_interface_config - Retrieve the current interface configuration
+ *                             of a NAND chip
+ * @chip: The NAND chip
+ */
+static inline const struct nand_data_interface *
+nand_get_interface_config(struct nand_chip *chip)
+{
+	return &chip->data_interface;
+}
+
 /*
  * A helper for defining older NAND chips where the second ID byte fully
  * defined the chip, including the geometry (chip size, eraseblock size, page

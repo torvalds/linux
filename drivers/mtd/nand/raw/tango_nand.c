@@ -336,7 +336,7 @@ static int tango_write_page(struct nand_chip *chip, const u8 *buf,
 	if (err)
 		return err;
 
-	timings = nand_get_sdr_timings(&chip->data_interface);
+	timings = nand_get_sdr_timings(nand_get_interface_config(chip));
 	err = tango_waitrdy(chip, PSEC_TO_MSEC(timings->tR_max));
 	if (err)
 		return err;

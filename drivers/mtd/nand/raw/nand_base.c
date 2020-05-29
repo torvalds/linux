@@ -773,7 +773,7 @@ int nand_soft_waitrdy(struct nand_chip *chip, unsigned long timeout_ms)
 		return -ENOTSUPP;
 
 	/* Wait tWB before polling the STATUS reg. */
-	timings = nand_get_sdr_timings(&chip->data_interface);
+	timings = nand_get_sdr_timings(nand_get_interface_config(chip));
 	ndelay(PSEC_TO_NSEC(timings->tWB_max));
 
 	ret = nand_status_op(chip, NULL);
@@ -1119,9 +1119,9 @@ static int nand_sp_exec_read_page_op(struct nand_chip *chip, unsigned int page,
 				     unsigned int offset_in_page, void *buf,
 				     unsigned int len)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&chip->data_interface);
+		nand_get_sdr_timings(nand_get_interface_config(chip));
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 addrs[4];
 	struct nand_op_instr instrs[] = {
 		NAND_OP_CMD(NAND_CMD_READ0, 0),
@@ -1163,7 +1163,7 @@ static int nand_lp_exec_read_page_op(struct nand_chip *chip, unsigned int page,
 				     unsigned int len)
 {
 	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&chip->data_interface);
+		nand_get_sdr_timings(nand_get_interface_config(chip));
 	u8 addrs[5];
 	struct nand_op_instr instrs[] = {
 		NAND_OP_CMD(NAND_CMD_READ0, 0),
@@ -1260,7 +1260,7 @@ int nand_read_param_page_op(struct nand_chip *chip, u8 page, void *buf,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_PARAM, 0),
 			NAND_OP_ADDR(1, &page, PSEC_TO_NSEC(sdr->tWB_max)),
@@ -1315,7 +1315,7 @@ int nand_change_read_column_op(struct nand_chip *chip,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		u8 addrs[2] = {};
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_RNDOUT, 0),
@@ -1389,9 +1389,9 @@ static int nand_exec_prog_page_op(struct nand_chip *chip, unsigned int page,
 				  unsigned int offset_in_page, const void *buf,
 				  unsigned int len, bool prog)
 {
-	struct mtd_info *mtd = nand_to_mtd(chip);
 	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&chip->data_interface);
+		nand_get_sdr_timings(nand_get_interface_config(chip));
+	struct mtd_info *mtd = nand_to_mtd(chip);
 	u8 addrs[5] = {};
 	struct nand_op_instr instrs[] = {
 		/*
@@ -1514,7 +1514,7 @@ int nand_prog_page_end_op(struct nand_chip *chip)
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_PAGEPROG,
 				    PSEC_TO_NSEC(sdr->tWB_max)),
@@ -1621,7 +1621,7 @@ int nand_change_write_column_op(struct nand_chip *chip,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		u8 addrs[2];
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_RNDIN, 0),
@@ -1676,7 +1676,7 @@ int nand_readid_op(struct nand_chip *chip, u8 addr, void *buf,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_READID, 0),
 			NAND_OP_ADDR(1, &addr, PSEC_TO_NSEC(sdr->tADL_min)),
@@ -1715,7 +1715,7 @@ int nand_status_op(struct nand_chip *chip, u8 *status)
 {
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_STATUS,
 				    PSEC_TO_NSEC(sdr->tADL_min)),
@@ -1784,7 +1784,7 @@ int nand_erase_op(struct nand_chip *chip, unsigned int eraseblock)
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		u8 addrs[3] = {	page, page >> 8, page >> 16 };
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_ERASE1, 0),
@@ -1843,7 +1843,7 @@ static int nand_set_features_op(struct nand_chip *chip, u8 feature,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_SET_FEATURES, 0),
 			NAND_OP_ADDR(1, &feature, PSEC_TO_NSEC(sdr->tADL_min)),
@@ -1890,7 +1890,7 @@ static int nand_get_features_op(struct nand_chip *chip, u8 feature,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_GET_FEATURES, 0),
 			NAND_OP_ADDR(1, &feature, PSEC_TO_NSEC(sdr->tWB_max)),
@@ -1947,7 +1947,7 @@ int nand_reset_op(struct nand_chip *chip)
 {
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(NAND_CMD_RESET, PSEC_TO_NSEC(sdr->tWB_max)),
 			NAND_OP_WAIT_RDY(PSEC_TO_MSEC(sdr->tRST_max), 0),
@@ -3226,7 +3226,7 @@ static void nand_wait_readrdy(struct nand_chip *chip)
 	if (!(chip->options & NAND_NEED_READRDY))
 		return;
 
-	sdr = nand_get_sdr_timings(&chip->data_interface);
+	sdr = nand_get_sdr_timings(nand_get_interface_config(chip));
 	WARN_ON(nand_wait_rdy_op(chip, PSEC_TO_MSEC(sdr->tR_max), 0));
 }
 

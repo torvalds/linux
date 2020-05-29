@@ -573,10 +573,10 @@ static int meson_nfc_write_buf(struct nand_chip *nand, u8 *buf, int len)
 static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 						int page, bool in)
 {
+	const struct nand_sdr_timings *sdr =
+		nand_get_sdr_timings(nand_get_interface_config(nand));
 	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
-	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&nand->data_interface);
 	u32 *addrs = nfc->cmdfifo.rw.addrs;
 	u32 cs = nfc->param.chip_select;
 	u32 cmd0, cmd_num, row_start;
@@ -626,9 +626,9 @@ static int meson_nfc_rw_cmd_prepare_and_execute(struct nand_chip *nand,
 static int meson_nfc_write_page_sub(struct nand_chip *nand,
 				    int page, int raw)
 {
-	struct mtd_info *mtd = nand_to_mtd(nand);
 	const struct nand_sdr_timings *sdr =
-		nand_get_sdr_timings(&nand->data_interface);
+		nand_get_sdr_timings(nand_get_interface_config(nand));
+	struct mtd_info *mtd = nand_to_mtd(nand);
 	struct meson_nfc_nand_chip *meson_chip = to_meson_nand(nand);
 	struct meson_nfc *nfc = nand_get_controller_data(nand);
 	int data_len, info_len;

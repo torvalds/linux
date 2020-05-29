@@ -33,7 +33,7 @@ static int toshiba_nand_benand_read_eccstatus_op(struct nand_chip *chip,
 
 	if (nand_has_exec_op(chip)) {
 		const struct nand_sdr_timings *sdr =
-			nand_get_sdr_timings(&chip->data_interface);
+			nand_get_sdr_timings(nand_get_interface_config(chip));
 		struct nand_op_instr instrs[] = {
 			NAND_OP_CMD(TOSHIBA_NAND_CMD_ECC_STATUS_READ,
 				    PSEC_TO_NSEC(sdr->tADL_min)),
