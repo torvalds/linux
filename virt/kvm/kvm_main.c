@@ -1831,6 +1831,8 @@ static int hva_to_pfn_remapped(struct vm_area_struct *vma,
 		r = fixup_user_fault(current, current->mm, addr,
 				     (write_fault ? FAULT_FLAG_WRITE : 0),
 				     &unlocked);
+		if (unlocked)
+			return -EAGAIN;
 		if (r)
 			return r;
 
@@ -1901,12 +1903,15 @@ static kvm_pfn_t hva_to_pfn(unsigned long addr, bool atomic, bool *async,
 		goto exit;
 	}
 
+retry:
 	vma = find_vma_intersection(current->mm, addr, addr + 1);
 
 	if (vma == NULL)
 		pfn = KVM_PFN_ERR_FAULT;
 	else if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
 		r = hva_to_pfn_remapped(vma, addr, async, write_fault, writable, &pfn);
+		if (r == -EAGAIN)
+			goto retry;
 		if (r < 0)
 			pfn = KVM_PFN_ERR_FAULT;
 	} else {
