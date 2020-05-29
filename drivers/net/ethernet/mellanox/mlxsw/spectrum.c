@@ -4014,14 +4014,6 @@ out:
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_listener_ptp(struct sk_buff *skb, u8 local_port,
-				     void *priv)
-{
-	struct mlxsw_sp *mlxsw_sp = priv;
-
-	mlxsw_sp->ptp_ops->receive(mlxsw_sp, skb, local_port);
-}
-
 void mlxsw_sp_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
 			  u8 local_port)
 {
@@ -4047,43 +4039,13 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* Events */
 	MLXSW_SP_EVENTL(mlxsw_sp_pude_event_func, PUDE),
 	/* L2 traps */
-	MLXSW_SP_RXL_MARK(ARPBC, MIRROR_TO_CPU, NEIGH_DISCOVERY, false),
-	MLXSW_SP_RXL_MARK(ARPUC, MIRROR_TO_CPU, NEIGH_DISCOVERY, false),
 	MLXSW_SP_RXL_NO_MARK(FID_MISS, TRAP_TO_CPU, FID_MISS, false),
 	/* L3 traps */
-	MLXSW_SP_RXL_L3_MARK(LBERROR, MIRROR_TO_CPU, LBERROR, false),
-	MLXSW_SP_RXL_MARK(IP2ME, TRAP_TO_CPU, IP2ME, false),
 	MLXSW_SP_RXL_MARK(IPV6_UNSPECIFIED_ADDRESS, TRAP_TO_CPU, ROUTER_EXP,
 			  false),
-	MLXSW_SP_RXL_MARK(IPV6_LINK_LOCAL_DEST, TRAP_TO_CPU, IP2ME, false),
 	MLXSW_SP_RXL_MARK(IPV6_LINK_LOCAL_SRC, TRAP_TO_CPU, ROUTER_EXP, false),
-	MLXSW_SP_RXL_MARK(IPV6_ALL_NODES_LINK, TRAP_TO_CPU, IPV6, false),
-	MLXSW_SP_RXL_MARK(IPV6_ALL_ROUTERS_LINK, TRAP_TO_CPU, IPV6,
-			  false),
-	MLXSW_SP_RXL_MARK(IPV4_OSPF, TRAP_TO_CPU, OSPF, false),
-	MLXSW_SP_RXL_MARK(IPV6_OSPF, TRAP_TO_CPU, OSPF, false),
-	MLXSW_SP_RXL_MARK(IPV4_DHCP, TRAP_TO_CPU, DHCP, false),
-	MLXSW_SP_RXL_MARK(IPV6_DHCP, TRAP_TO_CPU, DHCP, false),
-	MLXSW_SP_RXL_MARK(RTR_INGRESS0, TRAP_TO_CPU, REMOTE_ROUTE, false),
-	MLXSW_SP_RXL_MARK(IPV4_BGP, TRAP_TO_CPU, BGP, false),
-	MLXSW_SP_RXL_MARK(IPV6_BGP, TRAP_TO_CPU, BGP, false),
-	MLXSW_SP_RXL_MARK(L3_IPV6_ROUTER_SOLICITATION, TRAP_TO_CPU, IPV6,
-			  false),
-	MLXSW_SP_RXL_MARK(L3_IPV6_ROUTER_ADVERTISEMENT, TRAP_TO_CPU, IPV6,
-			  false),
-	MLXSW_SP_RXL_MARK(L3_IPV6_NEIGHBOR_SOLICITATION, TRAP_TO_CPU,
-			  NEIGH_DISCOVERY, false),
-	MLXSW_SP_RXL_MARK(L3_IPV6_NEIGHBOR_ADVERTISEMENT, TRAP_TO_CPU,
-			  NEIGH_DISCOVERY, false),
-	MLXSW_SP_RXL_MARK(L3_IPV6_REDIRECTION, TRAP_TO_CPU, IPV6, false),
 	MLXSW_SP_RXL_MARK(IPV6_MC_LINK_LOCAL_DEST, TRAP_TO_CPU, ROUTER_EXP,
 			  false),
-	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV4, TRAP_TO_CPU, IP2ME, false),
-	MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV6, TRAP_TO_CPU, IP2ME, false),
-	MLXSW_SP_RXL_MARK(IPV4_VRRP, TRAP_TO_CPU, VRRP, false),
-	MLXSW_SP_RXL_MARK(IPV6_VRRP, TRAP_TO_CPU, VRRP, false),
-	MLXSW_SP_RXL_MARK(IPV4_BFD, TRAP_TO_CPU, BFD, false),
-	MLXSW_SP_RXL_MARK(IPV6_BFD, TRAP_TO_CPU, BFD, false),
 	MLXSW_SP_RXL_NO_MARK(DISCARD_ING_ROUTER_SIP_CLASS_E, FORWARD,
 			     ROUTER_EXP, false),
 	MLXSW_SP_RXL_NO_MARK(DISCARD_ING_ROUTER_MC_DMAC, FORWARD,
@@ -4098,18 +4060,10 @@ static const struct mlxsw_listener mlxsw_sp_listener[] = {
 	/* ACL trap */
 	MLXSW_SP_RXL_NO_MARK(ACL0, TRAP_TO_CPU, FLOW_LOGGING, false),
 	/* Multicast Router Traps */
-	MLXSW_SP_RXL_MARK(IPV4_PIM, TRAP_TO_CPU, PIM, false),
-	MLXSW_SP_RXL_MARK(IPV6_PIM, TRAP_TO_CPU, PIM, false),
 	MLXSW_SP_RXL_MARK(ACL1, TRAP_TO_CPU, MULTICAST, false),
 	MLXSW_SP_RXL_L3_MARK(ACL2, TRAP_TO_CPU, MULTICAST, false),
 	/* NVE traps */
 	MLXSW_SP_RXL_MARK(NVE_ENCAP_ARP, TRAP_TO_CPU, NEIGH_DISCOVERY, false),
-	MLXSW_SP_RXL_NO_MARK(NVE_DECAP_ARP, TRAP_TO_CPU, NEIGH_DISCOVERY,
-			     false),
-	/* PTP traps */
-	MLXSW_RXL(mlxsw_sp_rx_listener_ptp, PTP0, TRAP_TO_CPU,
-		  false, SP_PTP0, DISCARD),
-	MLXSW_SP_RXL_NO_MARK(PTP1, TRAP_TO_CPU, PTP1, false),
 };
 
 static const struct mlxsw_listener mlxsw_sp1_listener[] = {
@@ -4138,40 +4092,12 @@ static int mlxsw_sp_cpu_policers_set(struct mlxsw_core *mlxsw_core)
 	for (i = 0; i < max_cpu_policers; i++) {
 		is_bytes = false;
 		switch (i) {
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP:
-			rate = 128;
-			burst_size = 7;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_NEIGH_DISCOVERY:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FID_MISS:
 			rate = 1024;
 			burst_size = 7;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0:
-			rate = 24 * 1024;
-			burst_size = 12;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1:
-			rate = 19 * 1024;
-			burst_size = 12;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP:
-			rate = 360;
-			burst_size = 7;
-			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD:
-			rate = 20 * 1024;
-			burst_size = 10;
 			break;
 		default:
 			continue;
@@ -4207,36 +4133,17 @@ static int mlxsw_sp_trap_groups_set(struct mlxsw_core *mlxsw_core)
 	for (i = 0; i < max_trap_groups; i++) {
 		policer_id = i;
 		switch (i) {
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD:
-			priority = 5;
-			tc = 5;
-			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP:
 			priority = 4;
 			tc = 4;
 			break;
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_NEIGH_DISCOVERY:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP:
-			priority = 2;
-			tc = 2;
-			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_ROUTER_EXP:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_REMOTE_ROUTE:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_MULTICAST:
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_FID_MISS:
 			priority = 1;
 			tc = 1;
 			break;
 		case MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE:
-		case MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR:
 			priority = 0;
 			tc = 0;
 			break;
