@@ -902,6 +902,25 @@ struct iwl_txq {
 
 	bool overflow_tx;
 };
+
+/**
+ * struct iwl_trans_txqs - transport tx queues data
+ *
+ * @queue_used - bit mask of used queues
+ * @queue_stopped - bit mask of stopped queues
+ */
+struct iwl_trans_txqs {
+	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
+	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
+	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
+	struct {
+		u8 fifo;
+		u8 q_id;
+		unsigned int wdg_timeout;
+	} cmd;
+
+};
+
 /**
  * struct iwl_trans - transport common data
  *
@@ -935,6 +954,7 @@ struct iwl_txq {
  * @system_pm_mode: the system-wide power management mode in use.
  *	This mode is set dynamically, depending on the WoWLAN values
  *	configured from the userspace at runtime.
+ * @iwl_trans_txqs: transport tx queues data.
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -982,6 +1002,7 @@ struct iwl_trans {
 	enum iwl_plat_pm_mode system_pm_mode;
 
 	const char *name;
+	struct iwl_trans_txqs txqs;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

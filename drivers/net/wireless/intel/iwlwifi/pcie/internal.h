@@ -454,9 +454,6 @@ struct iwl_trans_pcie {
 	struct dma_pool *bc_pool;
 
 	struct iwl_txq *txq_memory;
-	struct iwl_txq *txq[IWL_MAX_TVQM_QUEUES];
-	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
-	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
@@ -470,10 +467,7 @@ struct iwl_trans_pcie {
 
 	u8 page_offs, dev_cmd_offs;
 
-	u8 cmd_queue;
 	u8 def_rx_queue;
-	u8 cmd_fifo;
-	unsigned int cmd_q_wdg_timeout;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 max_tbs;
@@ -876,9 +870,7 @@ void iwl_pcie_handle_rfkill_irq(struct iwl_trans *trans);
 static inline void iwl_wake_queue(struct iwl_trans *trans,
 				  struct iwl_txq *txq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	if (test_and_clear_bit(txq->id, trans_pcie->queue_stopped)) {
+	if (test_and_clear_bit(txq->id, trans->txqs.queue_stopped)) {
 		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->id);
 		iwl_op_mode_queue_not_full(trans->op_mode, txq->id);
 	}
@@ -887,9 +879,7 @@ static inline void iwl_wake_queue(struct iwl_trans *trans,
 static inline void iwl_stop_queue(struct iwl_trans *trans,
 				  struct iwl_txq *txq)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-
-	if (!test_and_set_bit(txq->id, trans_pcie->queue_stopped)) {
+	if (!test_and_set_bit(txq->id, trans->txqs.queue_stopped)) {
 		iwl_op_mode_queue_full(trans->op_mode, txq->id);
 		IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d\n", txq->id);
 	} else
