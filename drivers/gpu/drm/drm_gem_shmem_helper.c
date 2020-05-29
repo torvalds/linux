@@ -35,22 +35,12 @@ static const struct drm_gem_object_funcs drm_gem_shmem_funcs = {
 	.mmap = drm_gem_shmem_mmap,
 };
 
-/**
- * drm_gem_shmem_create - Allocate an object with the given size
- * @dev: DRM device
- * @size: Size of the object to allocate
- *
- * This function creates a shmem GEM object.
- *
- * Returns:
- * A struct drm_gem_shmem_object * on success or an ERR_PTR()-encoded negative
- * error code on failure.
- */
-struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t size)
+static struct drm_gem_shmem_object *
+__drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private)
 {
 	struct drm_gem_shmem_object *shmem;
 	struct drm_gem_object *obj;
-	int ret;
+	int ret = 0;
 
 	size = PAGE_ALIGN(size);
 
@@ -64,7 +54,10 @@ struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t
 	if (!obj->funcs)
 		obj->funcs = &drm_gem_shmem_funcs;
 
-	ret = drm_gem_object_init(dev, obj, size);
+	if (private)
+		drm_gem_private_object_init(dev, obj, size);
+	else
+		ret = drm_gem_object_init(dev, obj, size);
 	if (ret)
 		goto err_free;
 
@@ -96,6 +89,21 @@ err_free:
 
 	return ERR_PTR(ret);
 }
+/**
+ * drm_gem_shmem_create - Allocate an object with the given size
+ * @dev: DRM device
+ * @size: Size of the object to allocate
+ *
+ * This function creates a shmem GEM object.
+ *
+ * Returns:
+ * A struct drm_gem_shmem_object * on success or an ERR_PTR()-encoded negative
+ * error code on failure.
+ */
+struct drm_gem_shmem_object *drm_gem_shmem_create(struct drm_device *dev, size_t size)
+{
+	return __drm_gem_shmem_create(dev, size, false);
+}
 EXPORT_SYMBOL_GPL(drm_gem_shmem_create);
 
 /**
@@ -113,9 +121,7 @@ void drm_gem_shmem_free_object(struct drm_gem_object *obj)
 	WARN_ON(shmem->vmap_use_count);
 
 	if (obj->import_attach) {
-		shmem->pages_use_count--;
 		drm_prime_gem_destroy(obj, shmem->sgt);
-		kvfree(shmem->pages);
 	} else {
 		if (shmem->sgt) {
 			dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
@@ -371,7 +377,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	struct drm_gem_shmem_object *shmem;
 	int ret;
 
-	shmem = drm_gem_shmem_create(dev, size);
+	shmem = __drm_gem_shmem_create(dev, size, true);
 	if (IS_ERR(shmem))
 		return shmem;
 
@@ -695,36 +701,16 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 				    struct sg_table *sgt)
 {
 	size_t size = PAGE_ALIGN(attach->dmabuf->size);
-	size_t npages = size >> PAGE_SHIFT;
 	struct drm_gem_shmem_object *shmem;
-	int ret;
 
 	shmem = drm_gem_shmem_create(dev, size);
 	if (IS_ERR(shmem))
 		return ERR_CAST(shmem);
 
-	shmem->pages = kvmalloc_array(npages, sizeof(struct page *), GFP_KERNEL);
-	if (!shmem->pages) {
-		ret = -ENOMEM;
-		goto err_free_gem;
-	}
-
-	ret = drm_prime_sg_to_page_addr_arrays(sgt, shmem->pages, NULL, npages);
-	if (ret < 0)
-		goto err_free_array;
-
 	shmem->sgt = sgt;
-	shmem->pages_use_count = 1; /* Permanently pinned from our point of view */
 
 	DRM_DEBUG_PRIME("size = %zu\n", size);
 
 	return &shmem->base;
-
-err_free_array:
-	kvfree(shmem->pages);
-err_free_gem:
-	drm_gem_object_put(&shmem->base);
-
-	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_shmem_prime_import_sg_table);
