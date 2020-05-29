@@ -15,10 +15,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - usb-a-connector
-      - usb-b-connector
-      - usb-c-connector
+    oneOf:
+      - enum:
+          - usb-a-connector
+          - usb-b-connector
+          - usb-c-connector
+
+      - items:
+          - const: gpio-usb-b-connector
+          - const: usb-b-connector
 
   label:
     description: Symbolic name for the connector.
@@ -140,6 +145,19 @@ properties:
 required:
   - compatible
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: gpio-usb-b-connector
+    then:
+      anyOf:
+        - required:
+            - vbus-gpios
+        - required:
+            - id-gpios
+
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
   - |
@@ -200,5 +218,18 @@ examples:
         sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)
                      PDO_VAR(5000, 12000, 2000)>;
         op-sink-microwatt = <10000000>;
+      };
+    };
+
+  # USB connector with GPIO control lines
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    usb {
+      connector {
+        compatible = "gpio-usb-b-connector", "usb-b-connector";
+        type = "micro";
+        id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
+        vbus-supply = <&usb_p0_vbus>;
       };
     };
