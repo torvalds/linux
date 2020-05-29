@@ -693,6 +693,22 @@ static void tc_indr_block_get_and_cmd(struct net_device *dev,
 	tc_indr_block_cmd(dev, block, cb, cb_priv, command, false);
 }
 
+static void tcf_block_offload_init(struct flow_block_offload *bo,
+				   struct net_device *dev,
+				   enum flow_block_command command,
+				   enum flow_block_binder_type binder_type,
+				   struct flow_block *flow_block,
+				   bool shared, struct netlink_ext_ack *extack)
+{
+	bo->net = dev_net(dev);
+	bo->command = command;
+	bo->binder_type = binder_type;
+	bo->block = flow_block;
+	bo->block_shared = shared;
+	bo->extack = extack;
+	INIT_LIST_HEAD(&bo->cb_list);
+}
+
 static void tc_indr_block_call(struct tcf_block *block,
 			       struct net_device *dev,
 			       struct tcf_block_ext_info *ei,
@@ -727,13 +743,9 @@ static int tcf_block_offload_cmd(struct tcf_block *block,
 	struct flow_block_offload bo = {};
 	int err;
 
-	bo.net = dev_net(dev);
-	bo.command = command;
-	bo.binder_type = ei->binder_type;
-	bo.block = &block->flow_block;
-	bo.block_shared = tcf_block_shared(block);
-	bo.extack = extack;
-	INIT_LIST_HEAD(&bo.cb_list);
+	tcf_block_offload_init(&bo, dev, command, ei->binder_type,
+			       &block->flow_block, tcf_block_shared(block),
+			       extack);
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_BLOCK, &bo);
 	if (err < 0) {
