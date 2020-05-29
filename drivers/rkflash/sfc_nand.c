@@ -121,16 +121,17 @@ static int sfc_nand_rw_preset(void)
 {
 	int ret;
 	struct rk_sfc_op op;
-	u8 status = 0xFF;
 
 	op.sfcmd.d32 = 0;
-	op.sfcmd.b.cmd = 0;
-	op.sfcmd.b.rw = SFC_WRITE;
+	op.sfcmd.b.cmd = 0xff;
+	op.sfcmd.b.cs = 2;
 
 	op.sfctrl.d32 = 0;
 	op.sfctrl.b.datalines = 2;
+	op.sfctrl.b.cmdlines = 2;
+	op.sfctrl.b.addrlines = 2;
 
-	ret = sfc_request(&op, 0, &status, 1);
+	ret = sfc_request(&op, 0, NULL, 0);
 	return ret;
 }
 
