@@ -612,19 +612,15 @@ static int update_qspi_trans_byte_count(struct bcm_qspi *qspi,
 		if (qt->trans->cs_change &&
 		    (flags & TRANS_STATUS_BREAK_CS_CHANGE))
 			ret |= TRANS_STATUS_BREAK_CS_CHANGE;
-		if (ret)
-			goto done;
 
-		dev_dbg(&qspi->pdev->dev, "advance msg exit\n");
 		if (bcm_qspi_mspi_transfer_is_last(qspi, qt))
-			ret = TRANS_STATUS_BREAK_EOM;
+			ret |= TRANS_STATUS_BREAK_EOM;
 		else
-			ret = TRANS_STATUS_BREAK_NO_BYTES;
+			ret |= TRANS_STATUS_BREAK_NO_BYTES;
 
 		qt->trans = NULL;
 	}
 
-done:
 	dev_dbg(&qspi->pdev->dev, "trans %p len %d byte %d ret %x\n",
 		qt->trans, qt->trans ? qt->trans->len : 0, qt->byte, ret);
 	return ret;
@@ -670,7 +666,7 @@ static void read_from_hw(struct bcm_qspi *qspi, int slots)
 			if (buf)
 				buf[tp.byte] = read_rxram_slot_u8(qspi, slot);
 			dev_dbg(&qspi->pdev->dev, "RD %02x\n",
-				buf ? buf[tp.byte] : 0xff);
+				buf ? buf[tp.byte] : 0x0);
 		} else {
 			u16 *buf = tp.trans->rx_buf;
 
@@ -678,7 +674,7 @@ static void read_from_hw(struct bcm_qspi *qspi, int slots)
 				buf[tp.byte / 2] = read_rxram_slot_u16(qspi,
 								      slot);
 			dev_dbg(&qspi->pdev->dev, "RD %04x\n",
-				buf ? buf[tp.byte] : 0xffff);
+				buf ? buf[tp.byte / 2] : 0x0);
 		}
 
 		update_qspi_trans_byte_count(qspi, &tp,
@@ -733,13 +729,13 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 	while (!tstatus && slot < MSPI_NUM_CDRAM) {
 		if (tp.trans->bits_per_word <= 8) {
 			const u8 *buf = tp.trans->tx_buf;
-			u8 val = buf ? buf[tp.byte] : 0xff;
+			u8 val = buf ? buf[tp.byte] : 0x00;
 
 			write_txram_slot_u8(qspi, slot, val);
 			dev_dbg(&qspi->pdev->dev, "WR %02x\n", val);
 		} else {
 			const u16 *buf = tp.trans->tx_buf;
-			u16 val = buf ? buf[tp.byte / 2] : 0xffff;
+			u16 val = buf ? buf[tp.byte / 2] : 0x0000;
 
 			write_txram_slot_u16(qspi, slot, val);
 			dev_dbg(&qspi->pdev->dev, "WR %04x\n", val);
@@ -771,7 +767,16 @@ static int write_to_hw(struct bcm_qspi *qspi, struct spi_device *spi)
 	bcm_qspi_write(qspi, MSPI, MSPI_NEWQP, 0);
 	bcm_qspi_write(qspi, MSPI, MSPI_ENDQP, slot - 1);
 
-	if (tstatus & TRANS_STATUS_BREAK_DESELECT) {
+	/*
+	 *  case 1) EOM =1, cs_change =0: SSb inactive
+	 *  case 2) EOM =1, cs_change =1: SSb stay active
+	 *  case 3) EOM =0, cs_change =0: SSb stay active
+	 *  case 4) EOM =0, cs_change =1: SSb inactive
+	 */
+	if (((tstatus & TRANS_STATUS_BREAK_DESELECT)
+	     == TRANS_STATUS_BREAK_CS_CHANGE) ||
+	    ((tstatus & TRANS_STATUS_BREAK_DESELECT)
+	     == TRANS_STATUS_BREAK_EOM)) {
 		mspi_cdram = read_cdram_slot(qspi, slot - 1) &
 			~MSPI_CDRAM_CONT_BIT;
 		write_cdram_slot(qspi, slot - 1, mspi_cdram);
@@ -1222,6 +1227,11 @@ int bcm_qspi_probe(struct platform_device *pdev,
 	}
 
 	qspi = spi_master_get_devdata(master);
+
+	qspi->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(qspi->clk))
+		return PTR_ERR(qspi->clk);
+
 	qspi->pdev = pdev;
 	qspi->trans_pos.trans = NULL;
 	qspi->trans_pos.byte = 0;
@@ -1335,13 +1345,6 @@ int bcm_qspi_probe(struct platform_device *pdev,
 		qspi->soc_intc = NULL;
 	}
 
-	qspi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(qspi->clk)) {
-		dev_warn(dev, "unable to get clock\n");
-		ret = PTR_ERR(qspi->clk);
-		goto qspi_probe_err;
-	}
-
 	ret = clk_prepare_enable(qspi->clk);
 	if (ret) {
 		dev_err(dev, "failed to prepare clock\n");
@@ -1406,7 +1409,7 @@ static int __maybe_unused bcm_qspi_suspend(struct device *dev)
 			bcm_qspi_read(qspi, BSPI, BSPI_STRAP_OVERRIDE_CTRL);
 
 	spi_master_suspend(qspi->master);
-	clk_disable(qspi->clk);
+	clk_disable_unprepare(qspi->clk);
 	bcm_qspi_hw_uninit(qspi);
 
 	return 0;
@@ -1424,7 +1427,7 @@ static int __maybe_unused bcm_qspi_resume(struct device *dev)
 		qspi->soc_intc->bcm_qspi_int_set(qspi->soc_intc, MSPI_DONE,
 						 true);
 
-	ret = clk_enable(qspi->clk);
+	ret = clk_prepare_enable(qspi->clk);
 	if (!ret)
 		spi_master_resume(qspi->master);
 

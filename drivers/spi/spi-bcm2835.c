@@ -1347,7 +1347,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		goto out_dma_release;
 	}
 
-	err = devm_spi_register_controller(&pdev->dev, ctlr);
+	err = spi_register_controller(ctlr);
 	if (err) {
 		dev_err(&pdev->dev, "could not register SPI controller: %d\n",
 			err);
@@ -1373,6 +1373,8 @@ static int bcm2835_spi_remove(struct platform_device *pdev)
 	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
 
 	bcm2835_debugfs_remove(bs);
+
+	spi_unregister_controller(ctlr);
 
 	/* Clear FIFOs, and disable the HW block */
 	bcm2835_wr(bs, BCM2835_SPI_CS,
