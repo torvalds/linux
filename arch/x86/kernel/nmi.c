@@ -474,40 +474,7 @@ enum nmi_states {
 };
 static DEFINE_PER_CPU(enum nmi_states, nmi_state);
 static DEFINE_PER_CPU(unsigned long, nmi_cr2);
-
-#ifdef CONFIG_X86_64
-/*
- * In x86_64, we need to handle breakpoint -> NMI -> breakpoint.  Without
- * some care, the inner breakpoint will clobber the outer breakpoint's
- * stack.
- *
- * If a breakpoint is being processed, and the debug stack is being
- * used, if an NMI comes in and also hits a breakpoint, the stack
- * pointer will be set to the same fixed address as the breakpoint that
- * was interrupted, causing that stack to be corrupted. To handle this
- * case, check if the stack that was interrupted is the debug stack, and
- * if so, change the IDT so that new breakpoints will use the current
- * stack and not switch to the fixed address. On return of the NMI,
- * switch back to the original IDT.
- */
-static DEFINE_PER_CPU(int, update_debug_stack);
-
-static noinstr bool is_debug_stack(unsigned long addr)
-{
-	struct cea_exception_stacks *cs = __this_cpu_read(cea_exception_stacks);
-	unsigned long top = CEA_ESTACK_TOP(cs, DB);
-	unsigned long bot = CEA_ESTACK_BOT(cs, DB1);
-
-	if (__this_cpu_read(debug_stack_usage))
-		return true;
-	/*
-	 * Note, this covers the guard page between DB and DB1 as well to
-	 * avoid two checks. But by all means @addr can never point into
-	 * the guard page.
-	 */
-	return addr >= bot && addr < top;
-}
-#endif
+static DEFINE_PER_CPU(unsigned long, nmi_dr7);
 
 DEFINE_IDTENTRY_NMI(exc_nmi)
 {
@@ -522,18 +489,7 @@ DEFINE_IDTENTRY_NMI(exc_nmi)
 	this_cpu_write(nmi_cr2, read_cr2());
 nmi_restart:
 
-#ifdef CONFIG_X86_64
-	/*
-	 * If we interrupted a breakpoint, it is possible that
-	 * the nmi handler will have breakpoints too. We need to
-	 * change the IDT such that breakpoints that happen here
-	 * continue to use the NMI stack.
-	 */
-	if (unlikely(is_debug_stack(regs->sp))) {
-		debug_stack_set_zero();
-		this_cpu_write(update_debug_stack, 1);
-	}
-#endif
+	this_cpu_write(nmi_dr7, local_db_save());
 
 	nmi_enter();
 
@@ -544,12 +500,7 @@ nmi_restart:
 
 	nmi_exit();
 
-#ifdef CONFIG_X86_64
-	if (unlikely(this_cpu_read(update_debug_stack))) {
-		debug_stack_reset();
-		this_cpu_write(update_debug_stack, 0);
-	}
-#endif
+	local_db_restore(this_cpu_read(nmi_dr7));
 
 	if (unlikely(this_cpu_read(nmi_cr2) != read_cr2()))
 		write_cr2(this_cpu_read(nmi_cr2));
