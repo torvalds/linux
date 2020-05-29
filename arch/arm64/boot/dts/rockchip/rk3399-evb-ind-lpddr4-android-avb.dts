@@ -308,6 +308,11 @@
 	status = "okay";
 };
 
+&route_hdmi {
+	status = "okay";
+	connect = <&vopl_out_hdmi>;
+};
+
 &i2s1 {
 	#sound-dai-cells = <0>;
 	status = "okay";

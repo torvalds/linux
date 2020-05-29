@@ -447,6 +447,11 @@
 	status = "okay";
 };
 
+&route_hdmi {
+	status = "okay";
+	connect = <&vopl_out_hdmi>;
+};
+
 &rt5651_sound {
 	status = "okay";
 };
