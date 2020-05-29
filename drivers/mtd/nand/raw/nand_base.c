@@ -1066,17 +1066,22 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
  * @chip: The NAND chip
  *
  * Find the best data interface and NAND timings supported by the chip
- * and the driver.
- * First tries to retrieve supported timing modes from ONFI information,
- * and if the NAND chip does not support ONFI, relies on the
- * ->onfi_timing_mode_default specified in the nand_ids table. After this
- * function nand_chip->interface_ is initialized with the best timing mode
- * available.
+ * and the driver. Eventually let the NAND manufacturer driver propose his own
+ * set of timings.
+ *
+ * After this function nand_chip->interface_config is initialized with the best
+ * timing mode available.
+ *
+ * Returns 0 for success or negative error code otherwise.
  */
 static int nand_choose_interface_config(struct nand_chip *chip)
 {
 	if (!nand_controller_can_setup_interface(chip))
 		return 0;
+
+	if (chip->ops.choose_interface_config)
+		return chip->ops.choose_interface_config(chip,
+							 &chip->interface_config);
 
 	return nand_choose_best_sdr_timings(chip, &chip->interface_config,
 					    NULL);
