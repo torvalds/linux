@@ -130,6 +130,13 @@ static const struct argp_option opts[] = {
 	{},
 };
 
+extern struct argp bench_ringbufs_argp;
+
+static const struct argp_child bench_parsers[] = {
+	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
+	{},
+};
+
 static error_t parse_arg(int key, char *arg, struct argp_state *state)
 {
 	static int pos_args;
@@ -208,6 +215,7 @@ static void parse_cmdline_args(int argc, char **argv)
 		.options = opts,
 		.parser = parse_arg,
 		.doc = argp_program_doc,
+		.children = bench_parsers,
 	};
 	if (argp_parse(&argp, argc, argv, 0, NULL, NULL))
 		exit(1);
@@ -310,6 +318,10 @@ extern const struct bench bench_trig_rawtp;
 extern const struct bench bench_trig_kprobe;
 extern const struct bench bench_trig_fentry;
 extern const struct bench bench_trig_fmodret;
+extern const struct bench bench_rb_libbpf;
+extern const struct bench bench_rb_custom;
+extern const struct bench bench_pb_libbpf;
+extern const struct bench bench_pb_custom;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -327,6 +339,10 @@ static const struct bench *benchs[] = {
 	&bench_trig_kprobe,
 	&bench_trig_fentry,
 	&bench_trig_fmodret,
+	&bench_rb_libbpf,
+	&bench_rb_custom,
+	&bench_pb_libbpf,
+	&bench_pb_custom,
 };
 
 static void setup_benchmark()
