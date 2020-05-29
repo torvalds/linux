@@ -228,26 +228,26 @@ struct symbol *find_symbol_by_name(const struct elf *elf, const char *name)
 	return NULL;
 }
 
-struct rela *find_rela_by_dest_range(const struct elf *elf, struct section *sec,
+struct reloc *find_reloc_by_dest_range(const struct elf *elf, struct section *sec,
 				     unsigned long offset, unsigned int len)
 {
-	struct rela *rela, *r = NULL;
+	struct reloc *reloc, *r = NULL;
 	unsigned long o;
 
-	if (!sec->rela)
+	if (!sec->reloc)
 		return NULL;
 
-	sec = sec->rela;
+	sec = sec->reloc;
 
 	for_offset_range(o, offset, offset + len) {
-		elf_hash_for_each_possible(elf->rela_hash, rela, hash,
+		elf_hash_for_each_possible(elf->reloc_hash, reloc, hash,
 				       sec_offset_hash(sec, o)) {
-			if (rela->sec != sec)
+			if (reloc->sec != sec)
 				continue;
 
-			if (rela->offset >= offset && rela->offset < offset + len) {
-				if (!r || rela->offset < r->offset)
-					r = rela;
+			if (reloc->offset >= offset && reloc->offset < offset + len) {
+				if (!r || reloc->offset < r->offset)
+					r = reloc;
 			}
 		}
 		if (r)
@@ -257,9 +257,9 @@ struct rela *find_rela_by_dest_range(const struct elf *elf, struct section *sec,
 	return NULL;
 }
 
-struct rela *find_rela_by_dest(const struct elf *elf, struct section *sec, unsigned long offset)
+struct reloc *find_reloc_by_dest(const struct elf *elf, struct section *sec, unsigned long offset)
 {
-	return find_rela_by_dest_range(elf, sec, offset, 1);
+	return find_reloc_by_dest_range(elf, sec, offset, 1);
 }
 
 static int read_sections(struct elf *elf)
@@ -288,7 +288,7 @@ static int read_sections(struct elf *elf)
 		memset(sec, 0, sizeof(*sec));
 
 		INIT_LIST_HEAD(&sec->symbol_list);
-		INIT_LIST_HEAD(&sec->rela_list);
+		INIT_LIST_HEAD(&sec->reloc_list);
 
 		s = elf_getscn(elf->elf, i);
 		if (!s) {
@@ -488,21 +488,21 @@ err:
 	return -1;
 }
 
-void elf_add_rela(struct elf *elf, struct rela *rela)
+void elf_add_reloc(struct elf *elf, struct reloc *reloc)
 {
-	struct section *sec = rela->sec;
+	struct section *sec = reloc->sec;
 
-	list_add_tail(&rela->list, &sec->rela_list);
-	elf_hash_add(elf->rela_hash, &rela->hash, rela_hash(rela));
+	list_add_tail(&reloc->list, &sec->reloc_list);
+	elf_hash_add(elf->reloc_hash, &reloc->hash, reloc_hash(reloc));
 }
 
-static int read_relas(struct elf *elf)
+static int read_relocs(struct elf *elf)
 {
 	struct section *sec;
-	struct rela *rela;
+	struct reloc *reloc;
 	int i;
 	unsigned int symndx;
-	unsigned long nr_rela, max_rela = 0, tot_rela = 0;
+	unsigned long nr_reloc, max_reloc = 0, tot_reloc = 0;
 
 	list_for_each_entry(sec, &elf->sections, list) {
 		if (sec->sh.sh_type != SHT_RELA)
@@ -510,49 +510,49 @@ static int read_relas(struct elf *elf)
 
 		sec->base = find_section_by_index(elf, sec->sh.sh_info);
 		if (!sec->base) {
-			WARN("can't find base section for rela section %s",
+			WARN("can't find base section for reloc section %s",
 			     sec->name);
 			return -1;
 		}
 
-		sec->base->rela = sec;
+		sec->base->reloc = sec;
 
-		nr_rela = 0;
+		nr_reloc = 0;
 		for (i = 0; i < sec->sh.sh_size / sec->sh.sh_entsize; i++) {
-			rela = malloc(sizeof(*rela));
-			if (!rela) {
+			reloc = malloc(sizeof(*reloc));
+			if (!reloc) {
 				perror("malloc");
 				return -1;
 			}
-			memset(rela, 0, sizeof(*rela));
+			memset(reloc, 0, sizeof(*reloc));
 
-			if (!gelf_getrela(sec->data, i, &rela->rela)) {
+			if (!gelf_getrela(sec->data, i, &reloc->rela)) {
 				WARN_ELF("gelf_getrela");
 				return -1;
 			}
 
-			rela->type = GELF_R_TYPE(rela->rela.r_info);
-			rela->addend = rela->rela.r_addend;
-			rela->offset = rela->rela.r_offset;
-			symndx = GELF_R_SYM(rela->rela.r_info);
-			rela->sym = find_symbol_by_index(elf, symndx);
-			rela->sec = sec;
-			if (!rela->sym) {
-				WARN("can't find rela entry symbol %d for %s",
+			reloc->type = GELF_R_TYPE(reloc->rela.r_info);
+			reloc->addend = reloc->rela.r_addend;
+			reloc->offset = reloc->rela.r_offset;
+			symndx = GELF_R_SYM(reloc->rela.r_info);
+			reloc->sym = find_symbol_by_index(elf, symndx);
+			reloc->sec = sec;
+			if (!reloc->sym) {
+				WARN("can't find reloc entry symbol %d for %s",
 				     symndx, sec->name);
 				return -1;
 			}
 
-			elf_add_rela(elf, rela);
-			nr_rela++;
+			elf_add_reloc(elf, reloc);
+			nr_reloc++;
 		}
-		max_rela = max(max_rela, nr_rela);
-		tot_rela += nr_rela;
+		max_reloc = max(max_reloc, nr_reloc);
+		tot_reloc += nr_reloc;
 	}
 
 	if (stats) {
-		printf("max_rela: %lu\n", max_rela);
-		printf("tot_rela: %lu\n", tot_rela);
+		printf("max_reloc: %lu\n", max_reloc);
+		printf("tot_reloc: %lu\n", tot_reloc);
 	}
 
 	return 0;
@@ -578,7 +578,7 @@ struct elf *elf_open_read(const char *name, int flags)
 	elf_hash_init(elf->symbol_name_hash);
 	elf_hash_init(elf->section_hash);
 	elf_hash_init(elf->section_name_hash);
-	elf_hash_init(elf->rela_hash);
+	elf_hash_init(elf->reloc_hash);
 
 	elf->fd = open(name, flags);
 	if (elf->fd == -1) {
@@ -611,7 +611,7 @@ struct elf *elf_open_read(const char *name, int flags)
 	if (read_symbols(elf))
 		goto err;
 
-	if (read_relas(elf))
+	if (read_relocs(elf))
 		goto err;
 
 	return elf;
@@ -637,7 +637,7 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	memset(sec, 0, sizeof(*sec));
 
 	INIT_LIST_HEAD(&sec->symbol_list);
-	INIT_LIST_HEAD(&sec->rela_list);
+	INIT_LIST_HEAD(&sec->reloc_list);
 
 	s = elf_newscn(elf->elf);
 	if (!s) {
@@ -722,25 +722,25 @@ struct section *elf_create_section(struct elf *elf, const char *name,
 	return sec;
 }
 
-struct section *elf_create_rela_section(struct elf *elf, struct section *base)
+struct section *elf_create_reloc_section(struct elf *elf, struct section *base)
 {
-	char *relaname;
+	char *relocname;
 	struct section *sec;
 
-	relaname = malloc(strlen(base->name) + strlen(".rela") + 1);
-	if (!relaname) {
+	relocname = malloc(strlen(base->name) + strlen(".rela") + 1);
+	if (!relocname) {
 		perror("malloc");
 		return NULL;
 	}
-	strcpy(relaname, ".rela");
-	strcat(relaname, base->name);
+	strcpy(relocname, ".rela");
+	strcat(relocname, base->name);
 
-	sec = elf_create_section(elf, relaname, sizeof(GElf_Rela), 0);
-	free(relaname);
+	sec = elf_create_section(elf, relocname, sizeof(GElf_Rela), 0);
+	free(relocname);
 	if (!sec)
 		return NULL;
 
-	base->rela = sec;
+	base->reloc = sec;
 	sec->base = base;
 
 	sec->sh.sh_type = SHT_RELA;
@@ -752,33 +752,33 @@ struct section *elf_create_rela_section(struct elf *elf, struct section *base)
 	return sec;
 }
 
-int elf_rebuild_rela_section(struct section *sec)
+int elf_rebuild_reloc_section(struct section *sec)
 {
-	struct rela *rela;
+	struct reloc *reloc;
 	int nr, idx = 0, size;
-	GElf_Rela *relas;
+	GElf_Rela *relocs;
 
 	nr = 0;
-	list_for_each_entry(rela, &sec->rela_list, list)
+	list_for_each_entry(reloc, &sec->reloc_list, list)
 		nr++;
 
-	size = nr * sizeof(*relas);
-	relas = malloc(size);
-	if (!relas) {
+	size = nr * sizeof(*relocs);
+	relocs = malloc(size);
+	if (!relocs) {
 		perror("malloc");
 		return -1;
 	}
 
-	sec->data->d_buf = relas;
+	sec->data->d_buf = relocs;
 	sec->data->d_size = size;
 
 	sec->sh.sh_size = size;
 
 	idx = 0;
-	list_for_each_entry(rela, &sec->rela_list, list) {
-		relas[idx].r_offset = rela->offset;
-		relas[idx].r_addend = rela->addend;
-		relas[idx].r_info = GELF_R_INFO(rela->sym->idx, rela->type);
+	list_for_each_entry(reloc, &sec->reloc_list, list) {
+		relocs[idx].r_offset = reloc->offset;
+		relocs[idx].r_addend = reloc->addend;
+		relocs[idx].r_info = GELF_R_INFO(reloc->sym->idx, reloc->type);
 		idx++;
 	}
 
@@ -821,7 +821,7 @@ void elf_close(struct elf *elf)
 {
 	struct section *sec, *tmpsec;
 	struct symbol *sym, *tmpsym;
-	struct rela *rela, *tmprela;
+	struct reloc *reloc, *tmpreloc;
 
 	if (elf->elf)
 		elf_end(elf->elf);
@@ -835,10 +835,10 @@ void elf_close(struct elf *elf)
 			hash_del(&sym->hash);
 			free(sym);
 		}
-		list_for_each_entry_safe(rela, tmprela, &sec->rela_list, list) {
-			list_del(&rela->list);
-			hash_del(&rela->hash);
-			free(rela);
+		list_for_each_entry_safe(reloc, tmpreloc, &sec->reloc_list, list) {
+			list_del(&reloc->list);
+			hash_del(&reloc->hash);
+			free(reloc);
 		}
 		list_del(&sec->list);
 		free(sec);
