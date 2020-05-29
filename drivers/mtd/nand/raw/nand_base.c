@@ -928,9 +928,9 @@ static int nand_reset_interface(struct nand_chip *chip, int chipnr)
 	 * timings to timing mode 0.
 	 */
 
-	onfi_fill_interface_config(chip, &chip->interface_config,
-				   NAND_SDR_IFACE, 0);
-	ret = ops->setup_interface(chip, chipnr, &chip->interface_config);
+	chip->current_interface_config = nand_get_reset_interface_config();
+	ret = ops->setup_interface(chip, chipnr,
+				   chip->current_interface_config);
 	if (ret)
 		pr_err("Failed to configure data interface to SDR timing mode 0\n");
 
@@ -949,12 +949,24 @@ static int nand_reset_interface(struct nand_chip *chip, int chipnr)
  */
 static int nand_setup_interface(struct nand_chip *chip, int chipnr)
 {
-	u8 mode = chip->interface_config.timings.mode;
-	u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = { mode, };
+	const struct nand_controller_ops *ops = chip->controller->ops;
+	u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = { };
 	int ret;
 
 	if (!nand_controller_can_setup_interface(chip))
 		return 0;
+
+	/*
+	 * A nand_reset_interface() put both the NAND chip and the NAND
+	 * controller in timings mode 0. If the default mode for this chip is
+	 * also 0, no need to proceed to the change again. Plus, at probe time,
+	 * nand_setup_interface() uses ->set/get_features() which would
+	 * fail anyway as the parameter page is not available yet.
+	 */
+	if (!chip->best_interface_config)
+		return 0;
+
+	tmode_param[0] = chip->best_interface_config->timings.mode;
 
 	/* Change the mode on the chip side (if supported by the NAND chip) */
 	if (nand_supports_set_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE)) {
@@ -967,14 +979,13 @@ static int nand_setup_interface(struct nand_chip *chip, int chipnr)
 	}
 
 	/* Change the mode on the controller side */
-	ret = chip->controller->ops->setup_interface(chip, chipnr,
-						     &chip->interface_config);
+	ret = ops->setup_interface(chip, chipnr, chip->best_interface_config);
 	if (ret)
 		return ret;
 
 	/* Check the mode has been accepted by the chip, if supported */
 	if (!nand_supports_get_features(chip, ONFI_FEATURE_ADDR_TIMING_MODE))
-		return 0;
+		goto update_interface_config;
 
 	memset(tmode_param, 0, ONFI_SUBFEATURE_PARAM_LEN);
 	nand_select_target(chip, chipnr);
@@ -984,11 +995,14 @@ static int nand_setup_interface(struct nand_chip *chip, int chipnr)
 	if (ret)
 		goto err_reset_chip;
 
-	if (tmode_param[0] != mode) {
+	if (tmode_param[0] != chip->best_interface_config->timings.mode) {
 		pr_warn("timing mode %d not acknowledged by the NAND chip\n",
-			mode);
+			chip->best_interface_config->timings.mode);
 		goto err_reset_chip;
 	}
+
+update_interface_config:
+	chip->current_interface_config = chip->best_interface_config;
 
 	return 0;
 
@@ -1031,8 +1045,10 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
 		/* Verify the controller supports the requested interface */
 		ret = ops->setup_interface(chip, NAND_DATA_IFACE_CHECK_ONLY,
 					   iface);
-		if (!ret)
+		if (!ret) {
+			chip->best_interface_config = iface;
 			return ret;
+		}
 
 		/* Fallback to slower modes */
 		best_mode = iface->timings.mode;
@@ -1046,8 +1062,10 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
 		ret = ops->setup_interface(chip, NAND_DATA_IFACE_CHECK_ONLY,
 					   iface);
 		if (!ret)
-			return 0;
+			break;
 	}
+
+	chip->best_interface_config = iface;
 
 	return 0;
 }
@@ -1067,15 +1085,25 @@ int nand_choose_best_sdr_timings(struct nand_chip *chip,
  */
 static int nand_choose_interface_config(struct nand_chip *chip)
 {
+	struct nand_interface_config *iface;
+	int ret;
+
 	if (!nand_controller_can_setup_interface(chip))
 		return 0;
 
-	if (chip->ops.choose_interface_config)
-		return chip->ops.choose_interface_config(chip,
-							 &chip->interface_config);
+	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
+	if (!iface)
+		return -ENOMEM;
 
-	return nand_choose_best_sdr_timings(chip, &chip->interface_config,
-					    NULL);
+	if (chip->ops.choose_interface_config)
+		ret = chip->ops.choose_interface_config(chip, iface);
+	else
+		ret = nand_choose_best_sdr_timings(chip, iface, NULL);
+
+	if (ret)
+		kfree(iface);
+
+	return ret;
 }
 
 /**
@@ -2501,7 +2529,6 @@ EXPORT_SYMBOL_GPL(nand_subop_get_data_len);
  */
 int nand_reset(struct nand_chip *chip, int chipnr)
 {
-	struct nand_interface_config saved_intf_config = chip->interface_config;
 	int ret;
 
 	ret = nand_reset_interface(chip, chipnr);
@@ -2519,18 +2546,6 @@ int nand_reset(struct nand_chip *chip, int chipnr)
 	if (ret)
 		return ret;
 
-	/*
-	 * A nand_reset_interface() put both the NAND chip and the NAND
-	 * controller in timings mode 0. If the default mode for this chip is
-	 * also 0, no need to proceed to the change again. Plus, at probe time,
-	 * nand_setup_interface() uses ->set/get_features() which would
-	 * fail anyway as the parameter page is not available yet.
-	 */
-	if (!memcmp(&chip->interface_config, &saved_intf_config,
-		    sizeof(saved_intf_config)))
-		return 0;
-
-	chip->interface_config = saved_intf_config;
 	ret = nand_setup_interface(chip, chipnr);
 	if (ret)
 		return ret;
@@ -5198,7 +5213,7 @@ static int nand_scan_ident(struct nand_chip *chip, unsigned int maxchips,
 	mutex_init(&chip->lock);
 
 	/* Enforce the right timings for reset/detection */
-	onfi_fill_interface_config(chip, &chip->interface_config, NAND_SDR_IFACE, 0);
+	chip->current_interface_config = nand_get_reset_interface_config();
 
 	ret = nand_dt_init(chip);
 	if (ret)
@@ -5994,7 +6009,7 @@ static int nand_scan_tail(struct nand_chip *chip)
 	for (i = 0; i < nanddev_ntargets(&chip->base); i++) {
 		ret = nand_setup_interface(chip, i);
 		if (ret)
-			goto err_nanddev_cleanup;
+			goto err_free_interface_config;
 	}
 
 	/* Check, if we should skip the bad block table scan */
@@ -6004,10 +6019,12 @@ static int nand_scan_tail(struct nand_chip *chip)
 	/* Build bad block table */
 	ret = nand_create_bbt(chip);
 	if (ret)
-		goto err_nanddev_cleanup;
+		goto err_free_interface_config;
 
 	return 0;
 
+err_free_interface_config:
+	kfree(chip->best_interface_config);
 
 err_nanddev_cleanup:
 	nanddev_cleanup(&chip->base);
@@ -6100,6 +6117,9 @@ void nand_cleanup(struct nand_chip *chip)
 	if (chip->badblock_pattern && chip->badblock_pattern->options
 			& NAND_BBT_DYNAMICSTRUCT)
 		kfree(chip->badblock_pattern);
+
+	/* Free the data interface */
+	kfree(chip->best_interface_config);
 
 	/* Free manufacturer priv data. */
 	nand_manufacturer_cleanup(chip);

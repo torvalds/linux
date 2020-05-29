@@ -1069,7 +1069,11 @@ struct nand_manufacturer {
  * @options: Various chip options. They can partly be set to inform nand_scan
  *           about special functionality. See the defines for further
  *           explanation.
- * @interface_config: NAND interface timing information
+ * @current_interface_config: The currently used NAND interface configuration
+ * @best_interface_config: The best NAND interface configuration which fits both
+ *                         the NAND chip and NAND controller constraints. If
+ *                         unset, the default reset interface configuration must
+ *                         be used.
  * @bbt_erase_shift: Number of address bits in a bbt entry
  * @bbt_options: Bad block table specific options. All options used here must
  *               come from bbm.h. By default, these options will be copied to
@@ -1116,7 +1120,8 @@ struct nand_chip {
 	unsigned int options;
 
 	/* Data interface */
-	struct nand_interface_config interface_config;
+	const struct nand_interface_config *current_interface_config;
+	struct nand_interface_config *best_interface_config;
 
 	/* Bad block information */
 	unsigned int bbt_erase_shift;
@@ -1209,7 +1214,7 @@ static inline struct device_node *nand_get_flash_node(struct nand_chip *chip)
 static inline const struct nand_interface_config *
 nand_get_interface_config(struct nand_chip *chip)
 {
-	return &chip->interface_config;
+	return chip->current_interface_config;
 }
 
 /*

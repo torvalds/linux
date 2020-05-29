@@ -292,6 +292,12 @@ static const struct nand_interface_config onfi_sdr_timings[] = {
 	},
 };
 
+/* All NAND chips share the same reset data interface: SDR mode 0 */
+const struct nand_interface_config *nand_get_reset_interface_config(void)
+{
+	return &onfi_sdr_timings[0];
+}
+
 /**
  * onfi_find_closest_sdr_mode - Derive the closest ONFI SDR timing mode given a
  *                              set of timings
