@@ -613,7 +613,7 @@ __acquires(&gl->gl_lockref.lock)
 				fs_err(sdp, "Error %d syncing glock \n", ret);
 				gfs2_dump_glock(NULL, gl, true);
 			}
-			return;
+			goto skip_inval;
 		}
 	}
 	if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags)) {
@@ -633,6 +633,7 @@ __acquires(&gl->gl_lockref.lock)
 		clear_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags);
 	}
 
+skip_inval:
 	gfs2_glock_hold(gl);
 	/*
 	 * Check for an error encountered since we called go_sync and go_inval.
@@ -721,9 +722,6 @@ __acquires(&gl->gl_lockref.lock)
 		if (find_first_holder(gl))
 			goto out_unlock;
 		if (nonblock)
-			goto out_sched;
-		smp_mb();
-		if (atomic_read(&gl->gl_revokes) != 0)
 			goto out_sched;
 		set_bit(GLF_DEMOTE_IN_PROGRESS, &gl->gl_flags);
 		GLOCK_BUG_ON(gl, gl->gl_demote_state == LM_ST_EXCLUSIVE);

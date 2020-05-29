@@ -344,8 +344,9 @@ _ENTRY(saved_ksp_limit)
 /* 0x0C00 - System Call Exception */
 	START_EXCEPTION(0x0C00,	SystemCall)
 	SYSCALL_ENTRY	0xc00
+/*	Trap_0D is commented out to get more space for system call exception */
 
-	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_STD)
+/*	EXCEPTION(0x0D00, Trap_0D, unknown_exception, EXC_XFER_STD) */
 	EXCEPTION(0x0E00, Trap_0E, unknown_exception, EXC_XFER_STD)
 	EXCEPTION(0x0F00, Trap_0F, unknown_exception, EXC_XFER_STD)
 

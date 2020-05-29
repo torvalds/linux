@@ -249,14 +249,12 @@
 	 */
 	hdmi@3d {
 		compatible = "adi,adv7513";
-		reg = <0x3d>, <0x2d>, <0x4d>, <0x5d>;
-		reg-names = "main", "cec", "edid", "packet";
+		reg = <0x3d>, <0x4d>, <0x2d>, <0x5d>;
+		reg-names = "main", "edid", "cec", "packet";
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
@@ -280,14 +278,12 @@
 
 	hdmi@39 {
 		compatible = "adi,adv7513";
-		reg = <0x39>, <0x29>, <0x49>, <0x59>;
-		reg-names = "main", "cec", "edid", "packet";
+		reg = <0x39>, <0x49>, <0x29>, <0x59>;
+		reg-names = "main", "edid", "cec", "packet";
 
 		adi,input-depth = <8>;
 		adi,input-colorspace = "rgb";
 		adi,input-clock = "1x";
-		adi,input-style = <1>;
-		adi,input-justification = "evenly";
 
 		ports {
 			#address-cells = <1>;
