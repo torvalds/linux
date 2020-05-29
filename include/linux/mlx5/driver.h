@@ -201,7 +201,7 @@ struct mlx5_rsc_debug {
 	void		       *object;
 	enum dbg_rsc_type	type;
 	struct dentry	       *root;
-	struct mlx5_field_desc	fields[0];
+	struct mlx5_field_desc	fields[];
 };
 
 enum mlx5_dev_event {
@@ -832,11 +832,6 @@ static inline u16 fw_rev_sub(struct mlx5_core_dev *dev)
 	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) & 0xffff;
 }
 
-static inline u16 cmdif_rev(struct mlx5_core_dev *dev)
-{
-	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
-}
-
 static inline u32 mlx5_base_mkey(const u32 key)
 {
 	return key & 0xffffff00u;
@@ -1027,11 +1022,6 @@ unsigned int mlx5_core_reserved_gids_count(struct mlx5_core_dev *dev);
 int mlx5_core_roce_gid_set(struct mlx5_core_dev *dev, unsigned int index,
 			   u8 roce_version, u8 roce_l3_type, const u8 *gid,
 			   const u8 *mac, bool vlan, u16 vlan_id, u8 port_num);
-
-static inline int fw_initializing(struct mlx5_core_dev *dev)
-{
-	return ioread32be(&dev->iseg->initializing) >> 31;
-}
 
 static inline u32 mlx5_mkey_to_idx(u32 mkey)
 {

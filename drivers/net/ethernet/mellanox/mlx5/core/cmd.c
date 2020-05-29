@@ -1936,6 +1936,11 @@ static void free_cmd_page(struct mlx5_core_dev *dev, struct mlx5_cmd *cmd)
 			  cmd->alloc_dma);
 }
 
+static u16 cmdif_rev(struct mlx5_core_dev *dev)
+{
+	return ioread32be(&dev->iseg->cmdif_rev_fw_sub) >> 16;
+}
+
 int mlx5_cmd_init(struct mlx5_core_dev *dev)
 {
 	int size = sizeof(struct mlx5_cmd_prot_block);
