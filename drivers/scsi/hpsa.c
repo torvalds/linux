@@ -6619,21 +6619,17 @@ static int hpsa_ioctl(struct scsi_device *dev, unsigned int cmd,
 		return rc;
 	}
 	case CCISS_BIG_PASSTHRU: {
-		BIG_IOCTL_Command_struct *ioc;
+		BIG_IOCTL_Command_struct ioc;
 		if (!argp)
 			return -EINVAL;
+		if (copy_from_user(&ioc, argp, sizeof(ioc)))
+			return -EFAULT;
 		if (atomic_dec_if_positive(&h->passthru_cmds_avail) < 0)
 			return -EAGAIN;
-		ioc = vmemdup_user(argp, sizeof(*ioc));
-		if (IS_ERR(ioc)) {
-			atomic_inc(&h->passthru_cmds_avail);
-			return PTR_ERR(ioc);
-		}
-		rc = hpsa_big_passthru_ioctl(h, ioc);
+		rc = hpsa_big_passthru_ioctl(h, &ioc);
 		atomic_inc(&h->passthru_cmds_avail);
-		if (!rc && copy_to_user(argp, ioc, sizeof(*ioc)))
+		if (!rc && copy_to_user(argp, &ioc, sizeof(ioc)))
 			rc = -EFAULT;
-		kvfree(ioc);
 		return rc;
 	}
 	default:
