@@ -233,10 +233,13 @@ enum {
  * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
  *                            sent to the CPU.
  * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
+ * @DEVLINK_TRAP_ACTION_MIRROR: Packet is forwarded by the device and a copy is
+ *                              sent to the CPU.
  */
 enum devlink_trap_action {
 	DEVLINK_TRAP_ACTION_DROP,
 	DEVLINK_TRAP_ACTION_TRAP,
+	DEVLINK_TRAP_ACTION_MIRROR,
 };
 
 /**

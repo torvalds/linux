@@ -108,6 +108,8 @@ The ``devlink-trap`` mechanism supports the following packet trap actions:
   * ``trap``: The sole copy of the packet is sent to the CPU.
   * ``drop``: The packet is dropped by the underlying device and a copy is not
     sent to the CPU.
+  * ``mirror``: The packet is forwarded by the underlying device and a copy is
+    sent to the CPU.
 
 Generic Packet Traps
 ====================
