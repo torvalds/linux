@@ -859,14 +859,29 @@ vmxnet3_parse_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 			 */
 			ctx->l4_offset = skb_checksum_start_offset(skb);
 
-			if (ctx->ipv4) {
-				const struct iphdr *iph = ip_hdr(skb);
+			if (VMXNET3_VERSION_GE_4(adapter) &&
+			    skb->encapsulation) {
+				struct iphdr *iph = inner_ip_hdr(skb);
 
-				protocol = iph->protocol;
-			} else if (ctx->ipv6) {
-				const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+				if (iph->version == 4) {
+					protocol = iph->protocol;
+				} else {
+					const struct ipv6hdr *ipv6h;
 
-				protocol = ipv6h->nexthdr;
+					ipv6h = inner_ipv6_hdr(skb);
+					protocol = ipv6h->nexthdr;
+				}
+			} else {
+				if (ctx->ipv4) {
+					const struct iphdr *iph = ip_hdr(skb);
+
+					protocol = iph->protocol;
+				} else if (ctx->ipv6) {
+					const struct ipv6hdr *ipv6h;
+
+					ipv6h = ipv6_hdr(skb);
+					protocol = ipv6h->nexthdr;
+				}
 			}
 
 			switch (protocol) {
@@ -946,11 +961,11 @@ vmxnet3_prepare_inner_tso(struct sk_buff *skb,
 	struct tcphdr *tcph = inner_tcp_hdr(skb);
 	struct iphdr *iph = inner_ip_hdr(skb);
 
-	if (ctx->ipv4) {
+	if (iph->version == 4) {
 		iph->check = 0;
 		tcph->check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, 0,
 						 IPPROTO_TCP, 0);
-	} else if (ctx->ipv6) {
+	} else {
 		struct ipv6hdr *iph = inner_ipv6_hdr(skb);
 
 		tcph->check = ~csum_ipv6_magic(&iph->saddr, &iph->daddr, 0,
