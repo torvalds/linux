@@ -23,7 +23,7 @@
 #define TX_BUSY		1
 #define TX_BURST_LEVEL	16
 
-static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
+static bool dw_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 {
 	struct dw_dma_slave *s = param;
 
@@ -34,7 +34,7 @@ static bool mid_spi_dma_chan_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
-static void mid_spi_maxburst_init(struct dw_spi *dws)
+static void dw_spi_dma_maxburst_init(struct dw_spi *dws)
 {
 	struct dma_slave_caps caps;
 	u32 max_burst, def_burst;
@@ -59,7 +59,7 @@ static void mid_spi_maxburst_init(struct dw_spi *dws)
 	dws->txburst = min(max_burst, def_burst);
 }
 
-static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
+static int dw_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 {
 	struct dw_dma_slave slave = {
 		.src_id = 0,
@@ -81,13 +81,13 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 
 	/* 1. Init rx channel */
 	slave.dma_dev = &dma_dev->dev;
-	dws->rxchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
+	dws->rxchan = dma_request_channel(mask, dw_spi_dma_chan_filter, &slave);
 	if (!dws->rxchan)
 		goto err_exit;
 
 	/* 2. Init tx channel */
 	slave.dst_id = 1;
-	dws->txchan = dma_request_channel(mask, mid_spi_dma_chan_filter, &slave);
+	dws->txchan = dma_request_channel(mask, dw_spi_dma_chan_filter, &slave);
 	if (!dws->txchan)
 		goto free_rxchan;
 
@@ -96,7 +96,7 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 
 	init_completion(&dws->dma_completion);
 
-	mid_spi_maxburst_init(dws);
+	dw_spi_dma_maxburst_init(dws);
 
 	return 0;
 
@@ -107,7 +107,7 @@ err_exit:
 	return -EBUSY;
 }
 
-static int mid_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
+static int dw_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 {
 	dws->rxchan = dma_request_slave_channel(dev, "rx");
 	if (!dws->rxchan)
@@ -125,12 +125,12 @@ static int mid_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 
 	init_completion(&dws->dma_completion);
 
-	mid_spi_maxburst_init(dws);
+	dw_spi_dma_maxburst_init(dws);
 
 	return 0;
 }
 
-static void mid_spi_dma_exit(struct dw_spi *dws)
+static void dw_spi_dma_exit(struct dw_spi *dws)
 {
 	if (dws->txchan) {
 		dmaengine_terminate_sync(dws->txchan);
@@ -145,7 +145,7 @@ static void mid_spi_dma_exit(struct dw_spi *dws)
 	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
-static irqreturn_t dma_transfer(struct dw_spi *dws)
+static irqreturn_t dw_spi_dma_transfer_handler(struct dw_spi *dws)
 {
 	u16 irq_status = dw_readl(dws, DW_SPI_ISR);
 
@@ -161,15 +161,16 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
-static bool mid_spi_can_dma(struct spi_controller *master,
-		struct spi_device *spi, struct spi_transfer *xfer)
+static bool dw_spi_can_dma(struct spi_controller *master,
+			   struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct dw_spi *dws = spi_controller_get_devdata(master);
 
 	return xfer->len > dws->fifo_len;
 }
 
-static enum dma_slave_buswidth convert_dma_width(u8 n_bytes) {
+static enum dma_slave_buswidth dw_spi_dma_convert_width(u8 n_bytes)
+{
 	if (n_bytes == 1)
 		return DMA_SLAVE_BUSWIDTH_1_BYTE;
 	else if (n_bytes == 2)
@@ -244,8 +245,8 @@ static void dw_spi_dma_tx_done(void *arg)
 	complete(&dws->dma_completion);
 }
 
-static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
-		struct spi_transfer *xfer)
+static struct dma_async_tx_descriptor *
+dw_spi_dma_prepare_tx(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_slave_config txconf;
 	struct dma_async_tx_descriptor *txdesc;
@@ -258,7 +259,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
 	txconf.dst_addr = dws->dma_addr;
 	txconf.dst_maxburst = dws->txburst;
 	txconf.src_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	txconf.dst_addr_width = convert_dma_width(dws->n_bytes);
+	txconf.dst_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	txconf.device_fc = false;
 
 	dmaengine_slave_config(dws->txchan, &txconf);
@@ -350,7 +351,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	rxconf.src_addr = dws->dma_addr;
 	rxconf.src_maxburst = dws->rxburst;
 	rxconf.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
-	rxconf.src_addr_width = convert_dma_width(dws->n_bytes);
+	rxconf.src_addr_width = dw_spi_dma_convert_width(dws->n_bytes);
 	rxconf.device_fc = false;
 
 	dmaengine_slave_config(dws->rxchan, &rxconf);
@@ -369,7 +370,7 @@ static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
 	return rxdesc;
 }
 
-static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	u16 imr = 0, dma_ctrl = 0;
 
@@ -391,12 +392,12 @@ static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 
 	reinit_completion(&dws->dma_completion);
 
-	dws->transfer_handler = dma_transfer;
+	dws->transfer_handler = dw_spi_dma_transfer_handler;
 
 	return 0;
 }
 
-static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
+static int dw_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
 	int ret;
@@ -436,7 +437,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 	return ret;
 }
 
-static void mid_spi_dma_stop(struct dw_spi *dws)
+static void dw_spi_dma_stop(struct dw_spi *dws)
 {
 	if (test_bit(TX_BUSY, &dws->dma_chan_busy)) {
 		dmaengine_terminate_sync(dws->txchan);
@@ -450,32 +451,32 @@ static void mid_spi_dma_stop(struct dw_spi *dws)
 	dw_writel(dws, DW_SPI_DMACR, 0);
 }
 
-static const struct dw_spi_dma_ops mfld_dma_ops = {
-	.dma_init	= mid_spi_dma_init_mfld,
-	.dma_exit	= mid_spi_dma_exit,
-	.dma_setup	= mid_spi_dma_setup,
-	.can_dma	= mid_spi_can_dma,
-	.dma_transfer	= mid_spi_dma_transfer,
-	.dma_stop	= mid_spi_dma_stop,
+static const struct dw_spi_dma_ops dw_spi_dma_mfld_ops = {
+	.dma_init	= dw_spi_dma_init_mfld,
+	.dma_exit	= dw_spi_dma_exit,
+	.dma_setup	= dw_spi_dma_setup,
+	.can_dma	= dw_spi_can_dma,
+	.dma_transfer	= dw_spi_dma_transfer,
+	.dma_stop	= dw_spi_dma_stop,
 };
 
-void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws)
+void dw_spi_dma_setup_mfld(struct dw_spi *dws)
 {
-	dws->dma_ops = &mfld_dma_ops;
+	dws->dma_ops = &dw_spi_dma_mfld_ops;
 }
-EXPORT_SYMBOL_GPL(dw_spi_mid_setup_dma_mfld);
+EXPORT_SYMBOL_GPL(dw_spi_dma_setup_mfld);
 
-static const struct dw_spi_dma_ops generic_dma_ops = {
-	.dma_init	= mid_spi_dma_init_generic,
-	.dma_exit	= mid_spi_dma_exit,
-	.dma_setup	= mid_spi_dma_setup,
-	.can_dma	= mid_spi_can_dma,
-	.dma_transfer	= mid_spi_dma_transfer,
-	.dma_stop	= mid_spi_dma_stop,
+static const struct dw_spi_dma_ops dw_spi_dma_generic_ops = {
+	.dma_init	= dw_spi_dma_init_generic,
+	.dma_exit	= dw_spi_dma_exit,
+	.dma_setup	= dw_spi_dma_setup,
+	.can_dma	= dw_spi_can_dma,
+	.dma_transfer	= dw_spi_dma_transfer,
+	.dma_stop	= dw_spi_dma_stop,
 };
 
-void dw_spi_mid_setup_dma_generic(struct dw_spi *dws)
+void dw_spi_dma_setup_generic(struct dw_spi *dws)
 {
-	dws->dma_ops = &generic_dma_ops;
+	dws->dma_ops = &dw_spi_dma_generic_ops;
 }
-EXPORT_SYMBOL_GPL(dw_spi_mid_setup_dma_generic);
+EXPORT_SYMBOL_GPL(dw_spi_dma_setup_generic);

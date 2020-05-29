@@ -259,13 +259,13 @@ extern u32 dw_spi_update_cr0_v1_01a(struct spi_controller *master,
 
 #ifdef CONFIG_SPI_DW_DMA
 
-extern void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws);
-extern void dw_spi_mid_setup_dma_generic(struct dw_spi *dws);
+extern void dw_spi_dma_setup_mfld(struct dw_spi *dws);
+extern void dw_spi_dma_setup_generic(struct dw_spi *dws);
 
 #else
 
-static inline void dw_spi_mid_setup_dma_mfld(struct dw_spi *dws) {}
-static inline void dw_spi_mid_setup_dma_generic(struct dw_spi *dws) {}
+static inline void dw_spi_dma_setup_mfld(struct dw_spi *dws) {}
+static inline void dw_spi_dma_setup_generic(struct dw_spi *dws) {}
 
 #endif /* !CONFIG_SPI_DW_DMA */
 
