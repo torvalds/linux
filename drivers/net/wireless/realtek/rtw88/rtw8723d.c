@@ -2068,6 +2068,10 @@ static const u8 wl_rssi_step_8723d[] = {60, 50, 44, 30};
 static const u8 bt_rssi_step_8723d[] = {30, 30, 30, 30};
 static const struct coex_5g_afh_map afh_5g_8723d[] = { {0, 0, 0} };
 
+static const struct rtw_hw_reg btg_reg_8723d = {
+	.addr = REG_BTG_SEL, .mask = BIT_MASK_BTG_WL,
+};
+
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8723d[] = {
 	{0, 0, false, 7},  /* for normal */
@@ -2734,6 +2738,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.bt_afh_span_bw40 = 0x30,
 	.afh_5g_num = ARRAY_SIZE(afh_5g_8723d),
 	.afh_5g = afh_5g_8723d,
+	.btg_reg = &btg_reg_8723d,
 
 	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8723d),
 	.coex_info_hw_regs = coex_info_hw_regs_8723d,
