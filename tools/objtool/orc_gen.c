@@ -181,7 +181,7 @@ int create_orc_sections(struct objtool_file *file)
 	if (!sec)
 		return -1;
 
-	ip_relocsec = elf_create_reloc_section(file->elf, sec);
+	ip_relocsec = elf_create_reloc_section(file->elf, sec, SHT_RELA);
 	if (!ip_relocsec)
 		return -1;
 
