@@ -137,7 +137,7 @@ struct exfat_dentry_namebuf {
 struct exfat_uni_name {
 	/* +3 for null and for converting */
 	unsigned short name[MAX_NAME_LENGTH + 3];
-	unsigned short name_hash;
+	u16 name_hash;
 	unsigned char name_len;
 };
 
@@ -512,8 +512,7 @@ void exfat_get_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 void exfat_truncate_atime(struct timespec64 *ts);
 void exfat_set_entry_time(struct exfat_sb_info *sbi, struct timespec64 *ts,
 		u8 *tz, __le16 *time, __le16 *date, u8 *time_cs);
-unsigned short exfat_calc_chksum_2byte(void *data, int len,
-		unsigned short chksum, int type);
+u16 exfat_calc_chksum16(void *data, int len, u16 chksum, int type);
 u32 exfat_calc_chksum32(void *data, int len, u32 chksum, int type);
 void exfat_update_bh(struct super_block *sb, struct buffer_head *bh, int sync);
 void exfat_chain_set(struct exfat_chain *ec, unsigned int dir,

@@ -136,17 +136,15 @@ void exfat_truncate_atime(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 }
 
-unsigned short exfat_calc_chksum_2byte(void *data, int len,
-		unsigned short chksum, int type)
+u16 exfat_calc_chksum16(void *data, int len, u16 chksum, int type)
 {
 	int i;
-	unsigned char *c = (unsigned char *)data;
+	u8 *c = (u8 *)data;
 
 	for (i = 0; i < len; i++, c++) {
-		if (((i == 2) || (i == 3)) && (type == CS_DIR_ENTRY))
+		if (unlikely(type == CS_DIR_ENTRY && (i == 2 || i == 3)))
 			continue;
-		chksum = (((chksum & 1) << 15) | ((chksum & 0xFFFE) >> 1)) +
-			(unsigned short)*c;
+		chksum = ((chksum << 15) | (chksum >> 1)) + *c;
 	}
 	return chksum;
 }

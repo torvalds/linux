@@ -491,7 +491,7 @@ int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
 	int ret = 0;
 	int i, num_entries;
 	sector_t sector;
-	unsigned short chksum;
+	u16 chksum;
 	struct exfat_dentry *ep, *fep;
 	struct buffer_head *fbh, *bh;
 
@@ -500,7 +500,7 @@ int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
 		return -EIO;
 
 	num_entries = fep->dentry.file.num_ext + 1;
-	chksum = exfat_calc_chksum_2byte(fep, DENTRY_SIZE, 0, CS_DIR_ENTRY);
+	chksum = exfat_calc_chksum16(fep, DENTRY_SIZE, 0, CS_DIR_ENTRY);
 
 	for (i = 1; i < num_entries; i++) {
 		ep = exfat_get_dentry(sb, p_dir, entry + i, &bh, NULL);
@@ -508,7 +508,7 @@ int exfat_update_dir_chksum(struct inode *inode, struct exfat_chain *p_dir,
 			ret = -EIO;
 			goto release_fbh;
 		}
-		chksum = exfat_calc_chksum_2byte(ep, DENTRY_SIZE, chksum,
+		chksum = exfat_calc_chksum16(ep, DENTRY_SIZE, chksum,
 				CS_DEFAULT);
 		brelse(bh);
 	}
@@ -593,8 +593,8 @@ void exfat_update_dir_chksum_with_entry_set(struct exfat_entry_set_cache *es)
 
 	for (i = 0; i < es->num_entries; i++) {
 		ep = exfat_get_dentry_cached(es, i);
-		chksum = exfat_calc_chksum_2byte(ep, DENTRY_SIZE, chksum,
-						 chksum_type);
+		chksum = exfat_calc_chksum16(ep, DENTRY_SIZE, chksum,
+					     chksum_type);
 		chksum_type = CS_DEFAULT;
 	}
 	ep = exfat_get_dentry_cached(es, 0);
@@ -1000,7 +1000,7 @@ rewind:
 			}
 
 			if (entry_type == TYPE_STREAM) {
-				unsigned short name_hash;
+				u16 name_hash;
 
 				if (step != DIRENT_STEP_STRM) {
 					step = DIRENT_STEP_FILE;
