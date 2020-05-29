@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pagemap.h>
+#include <linux/pm_wakeup.h>
 #include <linux/export.h>
 #include <linux/leds.h>
 #include <linux/slab.h>
@@ -36,6 +37,7 @@ static DEFINE_IDA(mmc_host_ida);
 static void mmc_host_classdev_release(struct device *dev)
 {
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
+	wakeup_source_unregister(host->ws);
 	ida_simple_remove(&mmc_host_ida, host->index);
 	kfree(host);
 }
@@ -400,6 +402,7 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 	host->index = err;
 
 	dev_set_name(&host->class_dev, "mmc%d", host->index);
+	host->ws = wakeup_source_register(NULL, dev_name(&host->class_dev));
 
 	host->parent = dev;
 	host->class_dev.parent = dev;
