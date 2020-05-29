@@ -1788,7 +1788,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	u8 csum[BTRFS_CSUM_SIZE];
 	u8 *on_disk_csum;
 	struct page *page;
-	void *buffer;
+	char *kaddr;
 	u64 len;
 	int index;
 
@@ -1801,14 +1801,14 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 
 	on_disk_csum = sblock->pagev[0]->csum;
 	page = sblock->pagev[0]->page;
-	buffer = page_address(page);
+	kaddr = page_address(page);
 
 	len = sctx->fs_info->sectorsize;
 	index = 0;
 	for (;;) {
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
-		crypto_shash_update(shash, buffer, l);
+		crypto_shash_update(shash, kaddr, l);
 		len -= l;
 		if (len == 0)
 			break;
@@ -1816,7 +1816,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		buffer = page_address(page);
+		kaddr = page_address(page);
 	}
 
 	crypto_shash_final(shash, csum);
@@ -1835,7 +1835,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
-	void *mapped_buffer;
+	char *kaddr;
 	u64 mapped_size;
 	void *p;
 	u64 len;
@@ -1846,8 +1846,8 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
-	mapped_buffer = page_address(page);
-	h = (struct btrfs_header *)mapped_buffer;
+	kaddr = page_address(page);
+	h = (struct btrfs_header *)kaddr;
 	memcpy(on_disk_csum, h->csum, sctx->csum_size);
 
 	/*
@@ -1872,7 +1872,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 
 	len = sctx->fs_info->nodesize - BTRFS_CSUM_SIZE;
 	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
-	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
+	p = kaddr + BTRFS_CSUM_SIZE;
 	index = 0;
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
@@ -1885,9 +1885,9 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		mapped_buffer = page_address(page);
+		kaddr = page_address(page);
 		mapped_size = PAGE_SIZE;
-		p = mapped_buffer;
+		p = kaddr;
 	}
 
 	crypto_shash_final(shash, calculated_csum);
@@ -1906,7 +1906,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
-	void *mapped_buffer;
+	char *kaddr;
 	u64 mapped_size;
 	void *p;
 	int fail_gen = 0;
@@ -1919,8 +1919,8 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
-	mapped_buffer = page_address(page);
-	s = (struct btrfs_super_block *)mapped_buffer;
+	kaddr = page_address(page);
+	s = (struct btrfs_super_block *)kaddr;
 	memcpy(on_disk_csum, s->csum, sctx->csum_size);
 
 	if (sblock->pagev[0]->logical != btrfs_super_bytenr(s))
@@ -1934,7 +1934,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 
 	len = BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE;
 	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
-	p = ((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE;
+	p = kaddr + BTRFS_CSUM_SIZE;
 	index = 0;
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
@@ -1947,9 +1947,9 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 		BUG_ON(index >= sblock->page_count);
 		BUG_ON(!sblock->pagev[index]->page);
 		page = sblock->pagev[index]->page;
-		mapped_buffer = page_address(page);
+		kaddr = page_address(page);
 		mapped_size = PAGE_SIZE;
-		p = mapped_buffer;
+		p = kaddr;
 	}
 
 	crypto_shash_final(shash, calculated_csum);
