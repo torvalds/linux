@@ -39,8 +39,6 @@
 #define INCREMENTER_DENUMERATOR_RELOAD_OFFSET		0x14
 #define NUMERATOR_DENUMERATOR_MASK			0xfffff000
 
-#ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
-
 static unsigned long arch_timer_freq;
 
 void set_cntfreq(void)
@@ -158,14 +156,6 @@ sysclk1_based:
 
 	iounmap(base);
 }
-
-#else
-
-static inline void realtime_counter_init(void)
-{
-}
-
-#endif	/* CONFIG_SOC_HAS_REALTIME_COUNTER */
 
 void __init omap5_realtime_timer_init(void)
 {
