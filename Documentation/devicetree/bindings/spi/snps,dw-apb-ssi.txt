@@ -25,6 +25,9 @@ Optional properties:
   device.  Supported values are 2 or 4 (the default).
 - dmas : Phandle + identifiers of Tx and Rx DMA channels.
 - dma-names : Contains the names of the DMA channels. Must be "tx" and "rx".
+- resets : contains an entry for each entry in reset-names.
+	   See ../reset/reset.txt for details.
+- reset-names : must contain "spi"
 
 Child nodes as per the generic SPI binding.
 
@@ -40,5 +43,7 @@ Example:
 		num-cs = <2>;
 		cs-gpios = <&gpio0 13 0>,
 			   <&gpio0 14 0>;
+		resets = <&rst SPIM0_RST>;
+		reset-names = "spi";
 	};
 
