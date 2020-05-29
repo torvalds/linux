@@ -642,7 +642,6 @@ enum igb_boards {
 };
 
 extern char igb_driver_name[];
-extern char igb_driver_version[];
 
 int igb_open(struct net_device *netdev);
 int igb_close(struct net_device *netdev);
