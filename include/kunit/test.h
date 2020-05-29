@@ -72,9 +72,15 @@ typedef void (*kunit_resource_free_t)(struct kunit_resource *);
  *		return kunit_alloc_resource(test, kunit_kmalloc_init,
  *			kunit_kmalloc_free, &params);
  *	}
+ *
+ * Resources can also be named, with lookup/removal done on a name
+ * basis also.  kunit_add_named_resource(), kunit_find_named_resource()
+ * and kunit_destroy_named_resource().  Resource names must be
+ * unique within the test instance.
  */
 struct kunit_resource {
 	void *data;
+	const char *name;		/* optional name */
 
 	/* private: internal use only. */
 	kunit_resource_free_t free;
@@ -344,6 +350,21 @@ int kunit_add_resource(struct kunit *test,
 		       kunit_resource_free_t free,
 		       struct kunit_resource *res,
 		       void *data);
+
+/**
+ * kunit_add_named_resource() - Add a named *test managed resource*.
+ * @test: The test context object.
+ * @init: a user-supplied function to initialize the resource data, if needed.
+ * @free: a user-supplied function to free the resource data, if needed.
+ * @name_data: name and data to be set for resource.
+ */
+int kunit_add_named_resource(struct kunit *test,
+			     kunit_resource_init_t init,
+			     kunit_resource_free_t free,
+			     struct kunit_resource *res,
+			     const char *name,
+			     void *data);
+
 /**
  * kunit_alloc_resource() - Allocates a *test managed resource*.
  * @test: The test context object.
@@ -399,6 +420,19 @@ static inline bool kunit_resource_instance_match(struct kunit *test,
 }
 
 /**
+ * kunit_resource_name_match() - Match a resource with the same name.
+ * @test: Test case to which the resource belongs.
+ * @res: The resource.
+ * @match_name: The name to match against.
+ */
+static inline bool kunit_resource_name_match(struct kunit *test,
+					     struct kunit_resource *res,
+					     void *match_name)
+{
+	return res->name && strcmp(res->name, match_name) == 0;
+}
+
+/**
  * kunit_find_resource() - Find a resource using match function/data.
  * @test: Test case to which the resource belongs.
  * @match: match function to be applied to resources/match data.
@@ -427,6 +461,19 @@ kunit_find_resource(struct kunit *test,
 }
 
 /**
+ * kunit_find_named_resource() - Find a resource using match name.
+ * @test: Test case to which the resource belongs.
+ * @name: match name.
+ */
+static inline struct kunit_resource *
+kunit_find_named_resource(struct kunit *test,
+			  const char *name)
+{
+	return kunit_find_resource(test, kunit_resource_name_match,
+				   (void *)name);
+}
+
+/**
  * kunit_destroy_resource() - Find a kunit_resource and destroy it.
  * @test: Test case to which the resource belongs.
  * @match: Match function. Returns whether a given resource matches @match_data.
@@ -438,6 +485,13 @@ kunit_find_resource(struct kunit *test,
 int kunit_destroy_resource(struct kunit *test,
 			   kunit_resource_match_t match,
 			   void *match_data);
+
+static inline int kunit_destroy_named_resource(struct kunit *test,
+					       const char *name)
+{
+	return kunit_destroy_resource(test, kunit_resource_name_match,
+				      (void *)name);
+}
 
 /**
  * kunit_remove_resource: remove resource from resource list associated with
