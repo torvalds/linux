@@ -363,6 +363,53 @@ static void __llist_add(struct llist_node *node, struct llist_head *head)
 	head->first = node;
 }
 
+static struct i915_request * const *
+__engine_active(struct intel_engine_cs *engine)
+{
+	return READ_ONCE(engine->execlists.active);
+}
+
+static bool __request_in_flight(const struct i915_request *signal)
+{
+	struct i915_request * const *port, *rq;
+	bool inflight = false;
+
+	if (!i915_request_is_ready(signal))
+		return false;
+
+	/*
+	 * Even if we have unwound the request, it may still be on
+	 * the GPU (preempt-to-busy). If that request is inside an
+	 * unpreemptible critical section, it will not be removed. Some
+	 * GPU functions may even be stuck waiting for the paired request
+	 * (__await_execution) to be submitted and cannot be preempted
+	 * until the bond is executing.
+	 *
+	 * As we know that there are always preemption points between
+	 * requests, we know that only the currently executing request
+	 * may be still active even though we have cleared the flag.
+	 * However, we can't rely on our tracking of ELSP[0] to known
+	 * which request is currently active and so maybe stuck, as
+	 * the tracking maybe an event behind. Instead assume that
+	 * if the context is still inflight, then it is still active
+	 * even if the active flag has been cleared.
+	 */
+	if (!intel_context_inflight(signal->context))
+		return false;
+
+	rcu_read_lock();
+	for (port = __engine_active(signal->engine); (rq = *port); port++) {
+		if (rq->context == signal->context) {
+			inflight = i915_seqno_passed(rq->fence.seqno,
+						     signal->fence.seqno);
+			break;
+		}
+	}
+	rcu_read_unlock();
+
+	return inflight;
+}
+
 static int
 __await_execution(struct i915_request *rq,
 		  struct i915_request *signal,
@@ -393,7 +440,7 @@ __await_execution(struct i915_request *rq,
 	}
 
 	spin_lock_irq(&signal->lock);
-	if (i915_request_is_active(signal)) {
+	if (i915_request_is_active(signal) || __request_in_flight(signal)) {
 		if (hook) {
 			hook(rq, &signal->fence);
 			i915_request_put(signal);
