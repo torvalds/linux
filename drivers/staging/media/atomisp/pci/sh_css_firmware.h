@@ -38,6 +38,7 @@ extern unsigned int sh_css_num_binaries;
 char
 *sh_css_get_fw_version(void);
 
+struct device;
 bool
 sh_css_check_firmware_version(struct device *dev, const char *fw_data);
 
