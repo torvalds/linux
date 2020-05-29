@@ -29,13 +29,14 @@
 #include "sh_css_defs.h"
 #include "sh_css_legacy.h"
 
+#include "atomisp_internal.h"
+
 #include "vf/vf_1.0/ia_css_vf.host.h"
 #include "sc/sc_1.0/ia_css_sc.host.h"
 #include "sdis/sdis_1.0/ia_css_sdis.host.h"
 #include "fixedbds/fixedbds_1.0/ia_css_fixedbds_param.h"	/* FRAC_ACC */
 
 #include "camera/pipe/interface/ia_css_pipe_binarydesc.h"
-
 
 #include "assert_support.h"
 
@@ -1375,9 +1376,8 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 	return 0;
 }
 
-int
-ia_css_binary_find(struct ia_css_binary_descr *descr,
-		   struct ia_css_binary *binary) {
+static int __ia_css_binary_find(struct ia_css_binary_descr *descr,
+				struct ia_css_binary *binary) {
 	int mode;
 	bool online;
 	bool two_ppc;
@@ -1793,7 +1793,30 @@ ia_css_binary_find(struct ia_css_binary_descr *descr,
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
 			    "ia_css_binary_find() leave: return_err=%d\n", err);
 
+	if (!err && xcandidate)
+		dev_dbg(atomisp_dev,
+			"Using binary %s (id %d), type %d, mode %d, continuous %s\n",
+			xcandidate->blob->name,
+			xcandidate->sp.id,
+			xcandidate->type,
+			xcandidate->sp.pipeline.mode,
+			xcandidate->sp.enable.continuous ? "true" : "false");
+
+
 	return err;
+}
+
+int ia_css_binary_find(struct ia_css_binary_descr *descr,
+		       struct ia_css_binary *binary)
+{
+	int ret = __ia_css_binary_find(descr, binary);
+
+	if (unlikely(ret)) {
+		dev_dbg(atomisp_dev, "Seeking for binary failed at:");
+		dump_stack();
+	}
+
+	return ret;
 }
 
 unsigned
