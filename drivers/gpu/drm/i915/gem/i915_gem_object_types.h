@@ -61,6 +61,8 @@ struct drm_i915_gem_object_ops {
 
 	int (*dmabuf_export)(struct drm_i915_gem_object *obj);
 	void (*release)(struct drm_i915_gem_object *obj);
+
+	const char *name; /* friendly name for debug, e.g. lockdep classes */
 };
 
 enum i915_mmap_type {

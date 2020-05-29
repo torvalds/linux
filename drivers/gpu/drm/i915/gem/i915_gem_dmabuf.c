@@ -217,6 +217,7 @@ static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {
+	.name = "i915_gem_object_dmabuf",
 	.get_pages = i915_gem_object_get_pages_dmabuf,
 	.put_pages = i915_gem_object_put_pages_dmabuf,
 };

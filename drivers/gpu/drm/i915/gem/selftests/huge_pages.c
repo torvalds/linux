@@ -139,6 +139,7 @@ static void put_huge_pages(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops huge_page_ops = {
+	.name = "huge-gem",
 	.flags = I915_GEM_OBJECT_HAS_STRUCT_PAGE |
 		 I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = get_huge_pages,
@@ -283,12 +284,14 @@ static void fake_put_huge_pages(struct drm_i915_gem_object *obj,
 }
 
 static const struct drm_i915_gem_object_ops fake_ops = {
+	.name = "fake-gem",
 	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = fake_get_huge_pages,
 	.put_pages = fake_put_huge_pages,
 };
 
 static const struct drm_i915_gem_object_ops fake_ops_single = {
+	.name = "fake-gem",
 	.flags = I915_GEM_OBJECT_IS_SHRINKABLE,
 	.get_pages = fake_get_huge_pages_single,
 	.put_pages = fake_put_huge_pages,
