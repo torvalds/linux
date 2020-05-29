@@ -11,9 +11,11 @@
 #include "spi-dw.h"
 
 #ifdef CONFIG_SPI_DW_MID_DMA
+#include <linux/completion.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
 #include <linux/irqreturn.h>
+#include <linux/jiffies.h>
 #include <linux/pci.h>
 #include <linux/platform_data/dma-dw.h>
 
@@ -66,6 +68,8 @@ static int mid_spi_dma_init_mfld(struct device *dev, struct dw_spi *dws)
 	dws->master->dma_rx = dws->rxchan;
 	dws->master->dma_tx = dws->txchan;
 
+	init_completion(&dws->dma_completion);
+
 	return 0;
 
 free_rxchan:
@@ -90,6 +94,8 @@ static int mid_spi_dma_init_generic(struct device *dev, struct dw_spi *dws)
 
 	dws->master->dma_rx = dws->rxchan;
 	dws->master->dma_tx = dws->txchan;
+
+	init_completion(&dws->dma_completion);
 
 	return 0;
 }
@@ -121,7 +127,7 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 
 	dev_err(&dws->master->dev, "%s: FIFO overrun/underrun\n", __func__);
 	dws->master->cur_msg->status = -EIO;
-	spi_finalize_current_transfer(dws->master);
+	complete(&dws->dma_completion);
 	return IRQ_HANDLED;
 }
 
@@ -142,6 +148,29 @@ static enum dma_slave_buswidth convert_dma_width(u8 n_bytes) {
 	return DMA_SLAVE_BUSWIDTH_UNDEFINED;
 }
 
+static int dw_spi_dma_wait(struct dw_spi *dws, struct spi_transfer *xfer)
+{
+	unsigned long long ms;
+
+	ms = xfer->len * MSEC_PER_SEC * BITS_PER_BYTE;
+	do_div(ms, xfer->effective_speed_hz);
+	ms += ms + 200;
+
+	if (ms > UINT_MAX)
+		ms = UINT_MAX;
+
+	ms = wait_for_completion_timeout(&dws->dma_completion,
+					 msecs_to_jiffies(ms));
+
+	if (ms == 0) {
+		dev_err(&dws->master->cur_msg->spi->dev,
+			"DMA transaction timed out\n");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 /*
  * dws->dma_chan_busy is set before the dma transfer starts, callback for tx
  * channel will clear a corresponding bit.
@@ -155,7 +184,7 @@ static void dw_spi_dma_tx_done(void *arg)
 		return;
 
 	dw_writel(dws, DW_SPI_DMACR, 0);
-	spi_finalize_current_transfer(dws->master);
+	complete(&dws->dma_completion);
 }
 
 static struct dma_async_tx_descriptor *dw_spi_dma_prepare_tx(struct dw_spi *dws,
@@ -204,7 +233,7 @@ static void dw_spi_dma_rx_done(void *arg)
 		return;
 
 	dw_writel(dws, DW_SPI_DMACR, 0);
-	spi_finalize_current_transfer(dws->master);
+	complete(&dws->dma_completion);
 }
 
 static struct dma_async_tx_descriptor *dw_spi_dma_prepare_rx(struct dw_spi *dws,
@@ -260,6 +289,8 @@ static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 	/* Set the interrupt mask */
 	spi_umask_intr(dws, imr);
 
+	reinit_completion(&dws->dma_completion);
+
 	dws->transfer_handler = dma_transfer;
 
 	return 0;
@@ -268,6 +299,7 @@ static int mid_spi_dma_setup(struct dw_spi *dws, struct spi_transfer *xfer)
 static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *txdesc, *rxdesc;
+	int ret;
 
 	/* Prepare the TX dma transfer */
 	txdesc = dw_spi_dma_prepare_tx(dws, xfer);
@@ -288,7 +320,11 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, struct spi_transfer *xfer)
 		dma_async_issue_pending(dws->txchan);
 	}
 
-	return 1;
+	ret = dw_spi_dma_wait(dws, xfer);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void mid_spi_dma_stop(struct dw_spi *dws)
