@@ -70,14 +70,6 @@ properties:
   resets:
     maxItems: 1
 
-  interconnects:
-    maxItems: 2
-
-  interconnect-names:
-    items:
-      - const: usb-ddr
-      - const: apps-usb
-
   interrupts:
     items:
       - description: The interrupt that is asserted
