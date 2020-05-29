@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/mm.h>
 #include <linux/iommu.h>
 #include <linux/uuid.h>
 #include <linux/vdpa.h>
@@ -739,12 +740,70 @@ static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+static vm_fault_t vhost_vdpa_fault(struct vm_fault *vmf)
+{
+	struct vhost_vdpa *v = vmf->vma->vm_file->private_data;
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+	struct vdpa_notification_area notify;
+	struct vm_area_struct *vma = vmf->vma;
+	u16 index = vma->vm_pgoff;
+
+	notify = ops->get_vq_notification(vdpa, index);
+
+	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	if (remap_pfn_range(vma, vmf->address & PAGE_MASK,
+			    notify.addr >> PAGE_SHIFT, PAGE_SIZE,
+			    vma->vm_page_prot))
+		return VM_FAULT_SIGBUS;
+
+	return VM_FAULT_NOPAGE;
+}
+
+static const struct vm_operations_struct vhost_vdpa_vm_ops = {
+	.fault = vhost_vdpa_fault,
+};
+
+static int vhost_vdpa_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct vhost_vdpa *v = vma->vm_file->private_data;
+	struct vdpa_device *vdpa = v->vdpa;
+	const struct vdpa_config_ops *ops = vdpa->config;
+	struct vdpa_notification_area notify;
+	int index = vma->vm_pgoff;
+
+	if (vma->vm_end - vma->vm_start != PAGE_SIZE)
+		return -EINVAL;
+	if ((vma->vm_flags & VM_SHARED) == 0)
+		return -EINVAL;
+	if (vma->vm_flags & VM_READ)
+		return -EINVAL;
+	if (index > 65535)
+		return -EINVAL;
+	if (!ops->get_vq_notification)
+		return -ENOTSUPP;
+
+	/* To be safe and easily modelled by userspace, We only
+	 * support the doorbell which sits on the page boundary and
+	 * does not share the page with other registers.
+	 */
+	notify = ops->get_vq_notification(vdpa, index);
+	if (notify.addr & (PAGE_SIZE - 1))
+		return -EINVAL;
+	if (vma->vm_end - vma->vm_start != notify.size)
+		return -ENOTSUPP;
+
+	vma->vm_ops = &vhost_vdpa_vm_ops;
+	return 0;
+}
+
 static const struct file_operations vhost_vdpa_fops = {
 	.owner		= THIS_MODULE,
 	.open		= vhost_vdpa_open,
 	.release	= vhost_vdpa_release,
 	.write_iter	= vhost_vdpa_chr_write_iter,
 	.unlocked_ioctl	= vhost_vdpa_unlocked_ioctl,
+	.mmap		= vhost_vdpa_mmap,
 	.compat_ioctl	= compat_ptr_ioctl,
 };
 
