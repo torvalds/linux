@@ -32,6 +32,7 @@
 #include <asm/processor.h>
 #include <asm/debugreg.h>
 #include <asm/user.h>
+#include <asm/desc.h>
 
 /* Per cpu debug control register value */
 DEFINE_PER_CPU(unsigned long, cpu_dr7);
@@ -237,13 +238,26 @@ static inline bool within_area(unsigned long addr, unsigned long end,
 }
 
 /*
- * Checks whether the range from addr to end, inclusive, overlaps the CPU
- * entry area range.
+ * Checks whether the range from addr to end, inclusive, overlaps the fixed
+ * mapped CPU entry area range or other ranges used for CPU entry.
  */
-static inline bool within_cpu_entry_area(unsigned long addr, unsigned long end)
+static inline bool within_cpu_entry(unsigned long addr, unsigned long end)
 {
-	return within_area(addr, end, CPU_ENTRY_AREA_BASE,
-			   CPU_ENTRY_AREA_TOTAL_SIZE);
+	int cpu;
+
+	/* CPU entry erea is always used for CPU entry */
+	if (within_area(addr, end, CPU_ENTRY_AREA_BASE,
+			CPU_ENTRY_AREA_TOTAL_SIZE))
+		return true;
+
+	for_each_possible_cpu(cpu) {
+		/* The original rw GDT is being used after load_direct_gdt() */
+		if (within_area(addr, end, (unsigned long)get_cpu_gdt_rw(cpu),
+				GDT_SIZE))
+			return true;
+	}
+
+	return false;
 }
 
 static int arch_build_bp_info(struct perf_event *bp,
@@ -257,12 +271,12 @@ static int arch_build_bp_info(struct perf_event *bp,
 		return -EINVAL;
 
 	/*
-	 * Prevent any breakpoint of any type that overlaps the
-	 * cpu_entry_area.  This protects the IST stacks and also
+	 * Prevent any breakpoint of any type that overlaps the CPU
+	 * entry area and data.  This protects the IST stacks and also
 	 * reduces the chance that we ever find out what happens if
 	 * there's a data breakpoint on the GDT, IDT, or TSS.
 	 */
-	if (within_cpu_entry_area(attr->bp_addr, bp_end))
+	if (within_cpu_entry(attr->bp_addr, bp_end))
 		return -EINVAL;
 
 	hw->address = attr->bp_addr;
