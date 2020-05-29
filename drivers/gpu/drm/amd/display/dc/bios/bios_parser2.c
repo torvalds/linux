@@ -1880,10 +1880,12 @@ static enum bp_result bios_get_board_layout_info(
 	return BP_RESULT_OK;
 }
 
+
 static uint16_t bios_parser_pack_data_tables(
 	struct dc_bios *dcb,
 	void *dst)
 {
+#ifdef PACK_BIOS_DATA
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	struct atom_rom_header_v2_2 *rom_header = NULL;
 	struct atom_rom_header_v2_2 *packed_rom_header = NULL;
@@ -1975,6 +1977,9 @@ static uint16_t bios_parser_pack_data_tables(
 		}
 	}
 	return packed_data_tbl_offset;
+#endif
+	// TODO: There is data bytes alignment issue, disable it for now.
+	return 0;
 }
 
 static const struct dc_vbios_funcs vbios_funcs = {
