@@ -1867,7 +1867,7 @@ static int marvell_vct5_amplitude_graph(struct phy_device *phydev)
 	 */
 	page = phy_select_page(phydev, MII_MARVELL_VCT5_PAGE);
 	if (page < 0)
-		return page;
+		goto restore_page;
 
 	for (distance = priv->first;
 	     distance <= priv->last;
