@@ -1005,7 +1005,7 @@ err_reset_chip:
 }
 
 /**
- * nand_init_data_interface - find the best data interface and timings
+ * nand_choose_data_interface - find the best data interface and timings
  * @chip: The NAND chip
  *
  * Find the best data interface and NAND timings supported by the chip
@@ -1018,7 +1018,7 @@ err_reset_chip:
  *
  * Returns 0 for success or negative error code otherwise.
  */
-static int nand_init_data_interface(struct nand_chip *chip)
+static int nand_choose_data_interface(struct nand_chip *chip)
 {
 	int modes, mode, ret;
 
@@ -5969,8 +5969,8 @@ static int nand_scan_tail(struct nand_chip *chip)
 	if (!mtd->bitflip_threshold)
 		mtd->bitflip_threshold = DIV_ROUND_UP(mtd->ecc_strength * 3, 4);
 
-	/* Initialize the ->data_interface field. */
-	ret = nand_init_data_interface(chip);
+	/* Find the fastest data interface for this chip */
+	ret = nand_choose_data_interface(chip);
 	if (ret)
 		goto err_nanddev_cleanup;
 
