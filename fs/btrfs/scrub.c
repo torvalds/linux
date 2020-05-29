@@ -1789,37 +1789,19 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	u8 *on_disk_csum;
 	struct page *page;
 	char *kaddr;
-	u64 len;
-	int index;
 
 	BUG_ON(sblock->page_count < 1);
 	if (!sblock->pagev[0]->have_csum)
 		return 0;
 
-	shash->tfm = fs_info->csum_shash;
-	crypto_shash_init(shash);
-
 	on_disk_csum = sblock->pagev[0]->csum;
 	page = sblock->pagev[0]->page;
 	kaddr = page_address(page);
 
-	len = sctx->fs_info->sectorsize;
-	index = 0;
-	for (;;) {
-		u64 l = min_t(u64, len, PAGE_SIZE);
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
+	crypto_shash_digest(shash, kaddr, PAGE_SIZE, csum);
 
-		crypto_shash_update(shash, kaddr, l);
-		len -= l;
-		if (len == 0)
-			break;
-		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
-		page = sblock->pagev[index]->page;
-		kaddr = page_address(page);
-	}
-
-	crypto_shash_final(shash, csum);
 	if (memcmp(csum, on_disk_csum, sctx->csum_size))
 		sblock->checksum_error = 1;
 
