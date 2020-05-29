@@ -1530,6 +1530,11 @@ static int smu_suspend(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
+	bool use_baco = !smu->is_apu &&
+		((adev->in_gpu_reset &&
+		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
+		 (adev->in_runpm && amdgpu_asic_supports_baco(adev)));
+
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1547,15 +1552,22 @@ static int smu_suspend(void *handle)
 		return ret;
 	}
 
-	ret = smu_disable_dpm(smu);
-	if (ret)
-		return ret;
+	/*
+	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
+	 * on BACO in. Driver involvement is unnecessary.
+	 */
+	if ((adev->asic_type != CHIP_SIENNA_CICHLID) || !use_baco) {
+		ret = smu_disable_dpm(smu);
+		if (ret)
+			return ret;
+
+		if (adev->asic_type >= CHIP_NAVI10 &&
+		    adev->gfx.rlc.funcs->stop)
+			adev->gfx.rlc.funcs->stop(adev);
+	}
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
-	if (adev->asic_type >= CHIP_NAVI10 &&
-	    adev->gfx.rlc.funcs->stop)
-		adev->gfx.rlc.funcs->stop(adev);
 	if (smu->is_apu)
 		smu_set_gfx_cgpg(&adev->smu, false);
 
