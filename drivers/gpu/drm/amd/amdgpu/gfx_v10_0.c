@@ -66,6 +66,33 @@
 #define GB_ADDR_CONFIG__NUM_PKRS__SHIFT                                                                       0x8
 #define GB_ADDR_CONFIG__NUM_PKRS_MASK                                                                         0x00000700L
 
+#define mmCP_MEC_CNTL_Sienna_Cichlid                      0x0f55
+#define mmCP_MEC_CNTL_Sienna_Cichlid_BASE_IDX             0
+#define mmRLC_SAFE_MODE_Sienna_Cichlid			0x4ca0
+#define mmRLC_SAFE_MODE_Sienna_Cichlid_BASE_IDX		1
+#define mmRLC_CP_SCHEDULERS_Sienna_Cichlid		0x4ca1
+#define mmRLC_CP_SCHEDULERS_Sienna_Cichlid_BASE_IDX	1
+#define mmSPI_CONFIG_CNTL_Sienna_Cichlid			0x11ec
+#define mmSPI_CONFIG_CNTL_Sienna_Cichlid_BASE_IDX		0
+#define mmVGT_ESGS_RING_SIZE_Sienna_Cichlid		0x0fc1
+#define mmVGT_ESGS_RING_SIZE_Sienna_Cichlid_BASE_IDX	0
+#define mmVGT_GSVS_RING_SIZE_Sienna_Cichlid		0x0fc2
+#define mmVGT_GSVS_RING_SIZE_Sienna_Cichlid_BASE_IDX	0
+#define mmVGT_TF_RING_SIZE_Sienna_Cichlid			0x0fc3
+#define mmVGT_TF_RING_SIZE_Sienna_Cichlid_BASE_IDX	0
+#define mmVGT_HS_OFFCHIP_PARAM_Sienna_Cichlid		0x0fc4
+#define mmVGT_HS_OFFCHIP_PARAM_Sienna_Cichlid_BASE_IDX	0
+#define mmVGT_TF_MEMORY_BASE_Sienna_Cichlid		0x0fc5
+#define mmVGT_TF_MEMORY_BASE_Sienna_Cichlid_BASE_IDX	0
+#define mmVGT_TF_MEMORY_BASE_HI_Sienna_Cichlid		0x0fc6
+#define mmVGT_TF_MEMORY_BASE_HI_Sienna_Cichlid_BASE_IDX	0
+#define GRBM_STATUS2__RLC_BUSY_Sienna_Cichlid__SHIFT	0x1a
+#define GRBM_STATUS2__RLC_BUSY_Sienna_Cichlid_MASK	0x04000000L
+#define CP_RB_DOORBELL_RANGE_LOWER__DOORBELL_RANGE_LOWER_Sienna_Cichlid_MASK	0x00000FFCL
+#define CP_RB_DOORBELL_RANGE_LOWER__DOORBELL_RANGE_LOWER_Sienna_Cichlid__SHIFT	0x2
+#define CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_Sienna_Cichlid_MASK	0x00000FFCL
+#define PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_Sienna_Cichlid_MASK	0x00300000L
+
 MODULE_FIRMWARE("amdgpu/navi10_ce.bin");
 MODULE_FIRMWARE("amdgpu/navi10_pfp.bin");
 MODULE_FIRMWARE("amdgpu/navi10_me.bin");
@@ -4396,9 +4423,18 @@ static u32 gfx_v10_0_init_pa_sc_tile_steering_override(struct amdgpu_device *ade
 	pa_sc_tile_steering_override |=
 		(order_base_2(num_rb_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SC__SHIFT) &
 		PA_SC_TILE_STEERING_OVERRIDE__NUM_RB_PER_SC_MASK;
-	pa_sc_tile_steering_override |=
-		(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
-		PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK;
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		pa_sc_tile_steering_override |=
+			(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
+			PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_Sienna_Cichlid_MASK;
+		break;
+	default:
+		pa_sc_tile_steering_override |=
+			(order_base_2(num_packer_per_sc) << PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC__SHIFT) &
+			PA_SC_TILE_STEERING_OVERRIDE__NUM_PACKER_PER_SC_MASK;
+		break;
+	}
 
 	return pa_sc_tile_steering_override;
 }
@@ -5578,12 +5614,24 @@ static void gfx_v10_0_cp_gfx_set_doorbell(struct amdgpu_device *adev,
 				    DOORBELL_EN, 0);
 	}
 	WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_CONTROL, tmp);
-	tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
-			    DOORBELL_RANGE_LOWER, ring->doorbell_index);
-	WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
+				    DOORBELL_RANGE_LOWER_Sienna_Cichlid, ring->doorbell_index);
+		WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
 
-	WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_UPPER,
-		     CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
+		WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_UPPER,
+			     CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_Sienna_Cichlid_MASK);
+		break;
+	default:
+		tmp = REG_SET_FIELD(0, CP_RB_DOORBELL_RANGE_LOWER,
+				    DOORBELL_RANGE_LOWER, ring->doorbell_index);
+		WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_LOWER, tmp);
+
+		WREG32_SOC15(GC, 0, mmCP_RB_DOORBELL_RANGE_UPPER,
+			     CP_RB_DOORBELL_RANGE_UPPER__DOORBELL_RANGE_UPPER_MASK);
+		break;
+	}
 }
 
 static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
@@ -5698,11 +5746,27 @@ static int gfx_v10_0_cp_gfx_resume(struct amdgpu_device *adev)
 static void gfx_v10_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 {
 	if (enable) {
-		WREG32_SOC15(GC, 0, mmCP_MEC_CNTL, 0);
+		switch (adev->asic_type) {
+		case CHIP_SIENNA_CICHLID:
+			WREG32_SOC15(GC, 0, mmCP_MEC_CNTL_Sienna_Cichlid, 0);
+			break;
+		default:
+			WREG32_SOC15(GC, 0, mmCP_MEC_CNTL, 0);
+			break;
+		}
 	} else {
-		WREG32_SOC15(GC, 0, mmCP_MEC_CNTL,
-			     (CP_MEC_CNTL__MEC_ME1_HALT_MASK |
-			      CP_MEC_CNTL__MEC_ME2_HALT_MASK));
+		switch (adev->asic_type) {
+		case CHIP_SIENNA_CICHLID:
+			WREG32_SOC15(GC, 0, mmCP_MEC_CNTL_Sienna_Cichlid,
+				     (CP_MEC_CNTL__MEC_ME1_HALT_MASK |
+				      CP_MEC_CNTL__MEC_ME2_HALT_MASK));
+			break;
+		default:
+			WREG32_SOC15(GC, 0, mmCP_MEC_CNTL,
+				     (CP_MEC_CNTL__MEC_ME1_HALT_MASK |
+				      CP_MEC_CNTL__MEC_ME2_HALT_MASK));
+			break;
+		}
 		adev->gfx.kiq.ring.sched.ready = false;
 	}
 	udelay(50);
@@ -5784,12 +5848,24 @@ static void gfx_v10_0_kiq_setting(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	/* tell RLC which is KIQ queue */
-	tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS);
-	tmp &= 0xffffff00;
-	tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
-	WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
-	tmp |= 0x80;
-	WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid);
+		tmp &= 0xffffff00;
+		tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid, tmp);
+		tmp |= 0x80;
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS_Sienna_Cichlid, tmp);
+		break;
+	default:
+		tmp = RREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS);
+		tmp &= 0xffffff00;
+		tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
+		tmp |= 0x80;
+		WREG32_SOC15(GC, 0, mmRLC_CP_SCHEDULERS, tmp);
+		break;
+	}
 }
 
 static int gfx_v10_0_gfx_mqd_init(struct amdgpu_ring *ring)
@@ -6475,18 +6551,33 @@ static bool gfx_v10_0_check_grbm_cam_remapping(struct amdgpu_device *adev)
 
 	/* check if mmVGT_ESGS_RING_SIZE_UMD
 	 * has been remapped to mmVGT_ESGS_RING_SIZE */
-	data = RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		data = RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid);
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid, 0);
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, pattern);
 
-	WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, 0);
+		if (RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid) == pattern) {
+			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD , data);
+			return true;
+		} else {
+			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid, data);
+			return false;
+		}
+		break;
+	default:
+		data = RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE);
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, 0);
+		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, pattern);
 
-	WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, pattern);
-
-	if (RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE) == pattern) {
-		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, data);
-		return true;
-	} else {
-		WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, data);
-		return false;
+		if (RREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE) == pattern) {
+			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE_UMD, data);
+			return true;
+		} else {
+			WREG32_SOC15(GC, 0, mmVGT_ESGS_RING_SIZE, data);
+			return false;
+		}
+		break;
 	}
 }
 
@@ -6498,59 +6589,119 @@ static void gfx_v10_0_setup_grbm_cam_remapping(struct amdgpu_device *adev)
 	 * index will auto-inc after each data writting */
 	WREG32_SOC15(GC, 0, mmGRBM_CAM_INDEX, 0);
 
-	/* mmVGT_TF_RING_SIZE_UMD -> mmVGT_TF_RING_SIZE */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		/* mmVGT_TF_RING_SIZE_UMD -> mmVGT_TF_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmVGT_TF_MEMORY_BASE_UMD -> mmVGT_TF_MEMORY_BASE */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+		/* mmVGT_TF_MEMORY_BASE_UMD -> mmVGT_TF_MEMORY_BASE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmVGT_TF_MEMORY_BASE_HI_UMD -> mmVGT_TF_MEMORY_BASE_HI */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+		/* mmVGT_TF_MEMORY_BASE_HI_UMD -> mmVGT_TF_MEMORY_BASE_HI */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmVGT_HS_OFFCHIP_PARAM_UMD -> mmVGT_HS_OFFCHIP_PARAM */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+		/* mmVGT_HS_OFFCHIP_PARAM_UMD -> mmVGT_HS_OFFCHIP_PARAM */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmVGT_ESGS_RING_SIZE_UMD -> mmVGT_ESGS_RING_SIZE */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+		/* mmVGT_ESGS_RING_SIZE_UMD -> mmVGT_ESGS_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmVGT_GSVS_RING_SIZE_UMD -> mmVGT_GSVS_RING_SIZE */
-	data = (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE_UMD) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
-	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+		/* mmVGT_GSVS_RING_SIZE_UMD -> mmVGT_GSVS_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 
-	/* mmSPI_CONFIG_CNTL_REMAP -> mmSPI_CONFIG_CNTL */
-	data = (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_REMAP) <<
-		GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
-	       (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL) <<
-		GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		/* mmSPI_CONFIG_CNTL_REMAP -> mmSPI_CONFIG_CNTL */
+		data = (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_REMAP) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_Sienna_Cichlid) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		break;
+	default:
+		/* mmVGT_TF_RING_SIZE_UMD -> mmVGT_TF_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_RING_SIZE) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmVGT_TF_MEMORY_BASE_UMD -> mmVGT_TF_MEMORY_BASE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmVGT_TF_MEMORY_BASE_HI_UMD -> mmVGT_TF_MEMORY_BASE_HI */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_TF_MEMORY_BASE_HI) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmVGT_HS_OFFCHIP_PARAM_UMD -> mmVGT_HS_OFFCHIP_PARAM */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_HS_OFFCHIP_PARAM) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmVGT_ESGS_RING_SIZE_UMD -> mmVGT_ESGS_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_ESGS_RING_SIZE) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmVGT_GSVS_RING_SIZE_UMD -> mmVGT_GSVS_RING_SIZE */
+		data = (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE_UMD) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmVGT_GSVS_RING_SIZE) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
+		WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
+
+		/* mmSPI_CONFIG_CNTL_REMAP -> mmSPI_CONFIG_CNTL */
+		data = (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL_REMAP) <<
+			GRBM_CAM_DATA__CAM_ADDR__SHIFT) |
+		       (SOC15_REG_OFFSET(GC, 0, mmSPI_CONFIG_CNTL) <<
+			GRBM_CAM_DATA__CAM_REMAPADDR__SHIFT);
+		break;
+	}
+
 	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA_UPPER, 0);
 	WREG32_SOC15(GC, 0, mmGRBM_CAM_DATA, data);
 }
@@ -6722,10 +6873,22 @@ static int gfx_v10_0_soft_reset(void *handle)
 
 	/* GRBM_STATUS2 */
 	tmp = RREG32_SOC15(GC, 0, mmGRBM_STATUS2);
-	if (REG_GET_FIELD(tmp, GRBM_STATUS2, RLC_BUSY))
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET, SOFT_RESET_RLC,
-						1);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		if (REG_GET_FIELD(tmp, GRBM_STATUS2, RLC_BUSY_Sienna_Cichlid))
+			grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
+							GRBM_SOFT_RESET,
+							SOFT_RESET_RLC,
+							1);
+		break;
+	default:
+		if (REG_GET_FIELD(tmp, GRBM_STATUS2, RLC_BUSY))
+			grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
+							GRBM_SOFT_RESET,
+							SOFT_RESET_RLC,
+							1);
+		break;
+	}
 
 	if (grbm_soft_reset) {
 		/* stop the rlc */
@@ -6848,13 +7011,30 @@ static void gfx_v10_0_set_safe_mode(struct amdgpu_device *adev)
 
 	data = RLC_SAFE_MODE__CMD_MASK;
 	data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
-	WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE, data);
 
-	/* wait for RLC_SAFE_MODE */
-	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!REG_GET_FIELD(RREG32_SOC15(GC, 0, mmRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
-			break;
-		udelay(1);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE_Sienna_Cichlid, data);
+
+		/* wait for RLC_SAFE_MODE */
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if (!REG_GET_FIELD(RREG32_SOC15(GC, 0, mmRLC_SAFE_MODE_Sienna_Cichlid),
+					   RLC_SAFE_MODE, CMD))
+				break;
+			udelay(1);
+		}
+		break;
+	default:
+		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE, data);
+
+		/* wait for RLC_SAFE_MODE */
+		for (i = 0; i < adev->usec_timeout; i++) {
+			if (!REG_GET_FIELD(RREG32_SOC15(GC, 0, mmRLC_SAFE_MODE),
+					   RLC_SAFE_MODE, CMD))
+				break;
+			udelay(1);
+		}
+		break;
 	}
 }
 
@@ -6863,7 +7043,14 @@ static void gfx_v10_0_unset_safe_mode(struct amdgpu_device *adev)
 	uint32_t data;
 
 	data = RLC_SAFE_MODE__CMD_MASK;
-	WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE, data);
+	switch (adev->asic_type) {
+	case CHIP_SIENNA_CICHLID:
+		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE_Sienna_Cichlid, data);
+		break;
+	default:
+		WREG32_SOC15(GC, 0, mmRLC_SAFE_MODE, data);
+		break;
+	}
 }
 
 static void gfx_v10_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
