@@ -47,9 +47,14 @@
 #define CY_4339_MES_WATERMARK	80
 #define CY_4339_MESBUSYCTRL	(CY_4339_MES_WATERMARK | \
 				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_43455_F2_WATERMARK	0x60
+#define CY_43455_MES_WATERMARK	0x50
+#define CY_43455_MESBUSYCTRL	(CY_43455_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
 #define CY_435X_F2_WATERMARK	0x40
 #define CY_435X_F1_MESBUSYCTRL	(CY_435X_F2_WATERMARK | \
 				 SBSDIO_MESBUSYCTRL_ENAB)
+
 #ifdef DEBUG
 
 #define BRCMF_TRAP_INFO_SIZE	80
@@ -4225,6 +4230,19 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 					   &err);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
 					   CY_4339_MESBUSYCTRL, &err);
+			break;
+		case SDIO_DEVICE_ID_BROADCOM_43455:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 43455\n",
+				  CY_43455_F2_WATERMARK);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
+					   CY_43455_F2_WATERMARK, &err);
+			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
+						   &err);
+			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
+			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
+					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_43455_MESBUSYCTRL, &err);
 			break;
 		case SDIO_DEVICE_ID_BROADCOM_4359:
 			/* fallthrough */
