@@ -1907,15 +1907,8 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	u8 on_disk_csum[BTRFS_CSUM_SIZE];
 	struct page *page;
 	char *kaddr;
-	u64 mapped_size;
-	void *p;
 	int fail_gen = 0;
 	int fail_cor = 0;
-	u64 len;
-	int index;
-
-	shash->tfm = fs_info->csum_shash;
-	crypto_shash_init(shash);
 
 	BUG_ON(sblock->page_count < 1);
 	page = sblock->pagev[0]->page;
@@ -1932,27 +1925,11 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	if (!scrub_check_fsid(s->fsid, sblock->pagev[0]))
 		++fail_cor;
 
-	len = BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE;
-	mapped_size = PAGE_SIZE - BTRFS_CSUM_SIZE;
-	p = kaddr + BTRFS_CSUM_SIZE;
-	index = 0;
-	for (;;) {
-		u64 l = min_t(u64, len, mapped_size);
+	shash->tfm = fs_info->csum_shash;
+	crypto_shash_init(shash);
+	crypto_shash_digest(shash, kaddr + BTRFS_CSUM_SIZE,
+			BTRFS_SUPER_INFO_SIZE - BTRFS_CSUM_SIZE, calculated_csum);
 
-		crypto_shash_update(shash, p, l);
-		len -= l;
-		if (len == 0)
-			break;
-		index++;
-		BUG_ON(index >= sblock->page_count);
-		BUG_ON(!sblock->pagev[index]->page);
-		page = sblock->pagev[index]->page;
-		kaddr = page_address(page);
-		mapped_size = PAGE_SIZE;
-		p = kaddr;
-	}
-
-	crypto_shash_final(shash, calculated_csum);
 	if (memcmp(calculated_csum, on_disk_csum, sctx->csum_size))
 		++fail_cor;
 
