@@ -206,7 +206,6 @@ __visible noinstr void func(struct pt_regs *regs,			\
 	kvm_set_cpu_l1tf_flush_l1d();					\
 	__##func (regs, (u8)error_code);				\
 	irq_exit_rcu();							\
-	lockdep_hardirq_exit();						\
 	instrumentation_end();						\
 	idtentry_exit_cond_rcu(regs, rcu_exit);				\
 }									\
@@ -249,7 +248,6 @@ __visible noinstr void func(struct pt_regs *regs)			\
 	kvm_set_cpu_l1tf_flush_l1d();					\
 	run_on_irqstack_cond(__##func, regs, regs);			\
 	irq_exit_rcu();							\
-	lockdep_hardirq_exit();						\
 	instrumentation_end();						\
 	idtentry_exit_cond_rcu(regs, rcu_exit);				\
 }									\
