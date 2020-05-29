@@ -12,10 +12,14 @@
 static inline int _soc_link_ret(struct snd_soc_pcm_runtime *rtd,
 				const char *func, int ret)
 {
+	/* Positive, Zero values are not errors */
+	if (ret >= 0)
+		return ret;
+
+	/* Negative values might be errors */
 	switch (ret) {
 	case -EPROBE_DEFER:
 	case -ENOTSUPP:
-	case 0:
 		break;
 	default:
 		dev_err(rtd->dev,
