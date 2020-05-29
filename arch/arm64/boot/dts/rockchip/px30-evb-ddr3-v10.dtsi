@@ -638,7 +638,7 @@
 };
 
 &i2c2 {
-	status = "disabled";
+	status = "okay";
 
 	clock-frequency = <100000>;
 
@@ -655,6 +655,10 @@
 		pwdn-gpios = <&gpio2 14 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&cif_clkout_m0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
 		port {
 			ucam_out: endpoint {
 				remote-endpoint = <&mipi_in_ucam>;
@@ -680,11 +684,11 @@
 };
 
 &isp_mmu {
-	status = "disabled";
+	status = "okay";
 };
 
 &mipi_dphy_rx0 {
-	status = "disabled";
+	status = "okay";
 
 	ports {
 		#address-cells = <1>;
@@ -771,7 +775,7 @@
 };
 
 &rkisp1 {
-	status = "disabled";
+	status = "okay";
 
 	port {
 		#address-cells = <1>;
