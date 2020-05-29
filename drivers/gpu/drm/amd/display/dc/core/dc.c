@@ -4267,9 +4267,6 @@ void dc_set_power_state(
 
 		dc_z10_restore(dc);
 
-		if (dc->ctx->dmub_srv)
-			dc_dmub_srv_wait_phy_init(dc->ctx->dmub_srv);
-
 		dc->hwss.init_hw(dc);
 
 		if (dc->hwss.init_sys_ctx != NULL &&

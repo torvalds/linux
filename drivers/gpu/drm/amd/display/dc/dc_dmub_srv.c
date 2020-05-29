@@ -179,31 +179,17 @@ bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int coun
 	return true;
 }
 
-void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
+bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_srv *dmub = dc_dmub_srv->dmub;
-	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
-	enum dmub_status status;
+	struct dmub_srv *dmub;
+	union dmub_fw_boot_status status;
 
-	for (;;) {
-		/* Wait up to a second for PHY init. */
-		status = dmub_srv_wait_for_phy_init(dmub, 1000000);
-		if (status == DMUB_STATUS_OK)
-			/* Initialization OK */
-			break;
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
 
-		DC_ERROR("DMCUB PHY init failed: status=%d\n", status);
-		ASSERT(0);
+	dmub = dc_dmub_srv->dmub;
 
-		if (status != DMUB_STATUS_TIMEOUT)
-			/*
-			 * Server likely initialized or we don't have
-			 * DMCUB HW support - this won't end.
-			 */
-			break;
-
-		/* Continue spinning so we don't hang the ASIC. */
-	}
+	return status.bits.optimized_init_done;
 }
 
 bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,

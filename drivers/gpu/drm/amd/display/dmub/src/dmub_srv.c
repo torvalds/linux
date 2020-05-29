@@ -190,11 +190,9 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 
 		funcs->get_diagnostic_data = dmub_dcn20_get_diagnostic_data;
 
-		if (asic == DMUB_ASIC_DCN21) {
+		if (asic == DMUB_ASIC_DCN21)
 			dmub->regs = &dmub_srv_dcn21_regs;
 
-			funcs->is_phy_init = dmub_dcn21_is_phy_init;
-		}
 		if (asic == DMUB_ASIC_DCN30) {
 			dmub->regs = &dmub_srv_dcn30_regs;
 
@@ -716,27 +714,6 @@ enum dmub_status dmub_srv_wait_for_auto_load(struct dmub_srv *dmub,
 			return DMUB_STATUS_OK;
 
 		udelay(100);
-	}
-
-	return DMUB_STATUS_TIMEOUT;
-}
-
-enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
-					    uint32_t timeout_us)
-{
-	uint32_t i = 0;
-
-	if (!dmub->hw_init)
-		return DMUB_STATUS_INVALID;
-
-	if (!dmub->hw_funcs.is_phy_init)
-		return DMUB_STATUS_OK;
-
-	for (i = 0; i <= timeout_us; i += 10) {
-		if (dmub->hw_funcs.is_phy_init(dmub))
-			return DMUB_STATUS_OK;
-
-		udelay(10);
 	}
 
 	return DMUB_STATUS_TIMEOUT;

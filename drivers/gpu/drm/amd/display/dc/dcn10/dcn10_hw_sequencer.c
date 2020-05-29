@@ -1524,7 +1524,9 @@ void dcn10_init_hw(struct dc *dc)
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		hws->funcs.disable_vga(dc->hwseq);
 
-	hws->funcs.bios_golden_init(dc);
+	if (!dc_dmub_srv_optimized_init_done(dc->ctx->dmub_srv))
+		hws->funcs.bios_golden_init(dc);
+
 
 	if (dc->ctx->dc_bios->fw_info_valid) {
 		res_pool->ref_clocks.xtalin_clock_inKhz =
