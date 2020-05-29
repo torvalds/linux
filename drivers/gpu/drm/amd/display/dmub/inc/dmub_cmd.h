@@ -298,6 +298,7 @@ enum dmub_cmd_type {
 	DMUB_CMD__REG_REG_WAIT = 4,
 	DMUB_CMD__PLAT_54186_WA = 5,
 	DMUB_CMD__PSR = 64,
+	DMUB_CMD__MALL = 65,
 	DMUB_CMD__ABM = 66,
 	DMUB_CMD__HW_LOCK = 69,
 	DMUB_CMD__DP_AUX_ACCESS = 70,
@@ -423,6 +424,18 @@ struct dmub_cmd_PLAT_54186_wa {
 struct dmub_rb_cmd_PLAT_54186_wa {
 	struct dmub_cmd_header header;
 	struct dmub_cmd_PLAT_54186_wa flip;
+};
+
+struct dmub_rb_cmd_mall {
+	struct dmub_cmd_header header;
+	union dmub_addr cursor_copy_src;
+	union dmub_addr cursor_copy_dst;
+	uint32_t tmr_delay;
+	uint32_t tmr_scale;
+	uint16_t cursor_width;
+	uint16_t cursor_pitch;
+	uint16_t cursor_height;
+	uint8_t cursor_bpp;
 };
 
 struct dmub_cmd_digx_encoder_control_data {
@@ -554,6 +567,12 @@ enum dmub_cmd_psr_type {
 enum psr_version {
 	PSR_VERSION_1				= 0,
 	PSR_VERSION_UNSUPPORTED			= 0xFFFFFFFF,
+};
+
+enum dmub_cmd_mall_type {
+	DMUB_CMD__MALL_ACTION_ALLOW = 0,
+	DMUB_CMD__MALL_ACTION_DISALLOW = 1,
+	DMUB_CMD__MALL_ACTION_COPY_CURSOR = 2,
 };
 
 struct dmub_cmd_psr_copy_settings_data {
@@ -761,6 +780,7 @@ union dmub_rb_cmd {
 	struct dmub_rb_cmd_psr_enable psr_enable;
 	struct dmub_rb_cmd_psr_set_level psr_set_level;
 	struct dmub_rb_cmd_PLAT_54186_wa PLAT_54186_wa;
+	struct dmub_rb_cmd_mall mall;
 	struct dmub_rb_cmd_abm_set_pipe abm_set_pipe;
 	struct dmub_rb_cmd_abm_set_backlight abm_set_backlight;
 	struct dmub_rb_cmd_abm_set_level abm_set_level;

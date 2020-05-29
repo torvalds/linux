@@ -53,6 +53,7 @@
 #define DALSMC_MSG_GetDcModeMaxDpmFreq            0xC
 #define DALSMC_MSG_SetMinDeepSleepDcefclk         0xD
 #define DALSMC_MSG_NumOfDisplays                  0xE
+#define DALSMC_MSG_SetDisplayRefreshFromMall      0xF
 #define DALSMC_MSG_SetExternalClientDfCstateAllow 0x10
 #define DALSMC_MSG_BacoAudioD3PME                 0x11
 #define DALSMC_Message_Count                      0x12
