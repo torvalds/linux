@@ -4816,15 +4816,13 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	pm_runtime_put_noidle(&pdev->dev);
 }
 
-static void rtl8169_net_suspend(struct net_device *dev)
+static void rtl8169_net_suspend(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	if (!netif_running(dev))
+	if (!netif_running(tp->dev))
 		return;
 
 	phy_stop(tp->phydev);
-	netif_device_detach(dev);
+	netif_device_detach(tp->dev);
 
 	rtl_lock_work(tp);
 	napi_disable(&tp->napi);
@@ -4840,20 +4838,17 @@ static void rtl8169_net_suspend(struct net_device *dev)
 
 static int rtl8169_suspend(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 	clk_disable_unprepare(tp->clk);
 
 	return 0;
 }
 
-static void __rtl8169_resume(struct net_device *dev)
+static void __rtl8169_resume(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	netif_device_attach(dev);
+	netif_device_attach(tp->dev);
 
 	rtl_pll_power_up(tp);
 	rtl8169_init_phy(tp);
@@ -4869,23 +4864,21 @@ static void __rtl8169_resume(struct net_device *dev)
 
 static int rtl8169_resume(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	clk_prepare_enable(tp->clk);
 
-	if (netif_running(dev))
-		__rtl8169_resume(dev);
+	if (netif_running(tp->dev))
+		__rtl8169_resume(tp);
 
 	return 0;
 }
 
 static int rtl8169_runtime_suspend(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	if (!tp->TxDescArray)
 		return 0;
@@ -4894,7 +4887,7 @@ static int rtl8169_runtime_suspend(struct device *device)
 	__rtl8169_set_wol(tp, WAKE_ANY);
 	rtl_unlock_work(tp);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 
 	/* Update counters before going runtime suspend */
 	rtl8169_update_counters(tp);
@@ -4904,10 +4897,9 @@ static int rtl8169_runtime_suspend(struct device *device)
 
 static int rtl8169_runtime_resume(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	if (!tp->TxDescArray)
 		return 0;
@@ -4916,16 +4908,16 @@ static int rtl8169_runtime_resume(struct device *device)
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 	rtl_unlock_work(tp);
 
-	__rtl8169_resume(dev);
+	__rtl8169_resume(tp);
 
 	return 0;
 }
 
 static int rtl8169_runtime_idle(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	if (!netif_running(dev) || !netif_carrier_ok(dev))
+	if (!netif_running(tp->dev) || !netif_carrier_ok(tp->dev))
 		pm_schedule_suspend(device, 10000);
 
 	return -EBUSY;
@@ -4970,13 +4962,12 @@ static void rtl_wol_shutdown_quirk(struct rtl8169_private *tp)
 
 static void rtl_shutdown(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 
 	/* Restore original MAC address */
-	rtl_rar_set(tp, dev->perm_addr);
+	rtl_rar_set(tp, tp->dev->perm_addr);
 
 	rtl8169_hw_reset(tp);
 
@@ -4993,13 +4984,12 @@ static void rtl_shutdown(struct pci_dev *pdev)
 
 static void rtl_remove_one(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
 
-	unregister_netdev(dev);
+	unregister_netdev(tp->dev);
 
 	if (r8168_check_dash(tp))
 		rtl8168_driver_stop(tp);
@@ -5007,7 +4997,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	rtl_release_firmware(tp);
 
 	/* restore original MAC address */
-	rtl_rar_set(tp, dev->perm_addr);
+	rtl_rar_set(tp, tp->dev->perm_addr);
 }
 
 static const struct net_device_ops rtl_netdev_ops = {
@@ -5446,7 +5436,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!tp->counters)
 		return -ENOMEM;
 
-	pci_set_drvdata(pdev, dev);
+	pci_set_drvdata(pdev, tp);
 
 	rc = r8169_mdio_register(tp);
 	if (rc)
