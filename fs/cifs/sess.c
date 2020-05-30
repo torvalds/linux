@@ -122,7 +122,7 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 
 		tries++;
 		if (tries > 3*ses->chan_max) {
-			cifs_dbg(FYI, "too many attempt at opening channels (%d channels left to open)\n",
+			cifs_dbg(FYI, "too many channel open attempts (%d channels left to open)\n",
 				 left);
 			break;
 		}
@@ -200,7 +200,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 	vol.UNC = unc;
 	vol.prepath = "";
 
-	/* Re-use same version as master connection */
+	/* Reuse same version as master connection */
 	vol.vals = ses->server->vals;
 	vol.ops = ses->server->ops;
 
@@ -263,7 +263,7 @@ cifs_ses_add_channel(struct cifs_ses *ses, struct cifs_server_iface *iface)
 		goto out;
 
 	/* success, put it on the list
-	 * XXX: sharing ses between 2 tcp server is not possible, the
+	 * XXX: sharing ses between 2 tcp servers is not possible, the
 	 * way "internal" linked lists works in linux makes element
 	 * only able to belong to one list
 	 *
@@ -972,7 +972,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 		/* Calculate hash with password and copy into bcc_ptr.
 		 * Encryption Key (stored as in cryptkey) gets used if the
-		 * security mode bit in Negottiate Protocol response states
+		 * security mode bit in Negotiate Protocol response states
 		 * to use challenge/response method (i.e. Password bit is 1).
 		 */
 		rc = calc_lanman_hash(ses->password, ses->server->cryptkey,
