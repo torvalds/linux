@@ -555,8 +555,9 @@ static const struct rtc_class_ops abx80x_rtc_ops = {
 	.ioctl		= abx80x_ioctl,
 };
 
-static int abx80x_dt_trickle_cfg(struct device_node *np)
+static int abx80x_dt_trickle_cfg(struct i2c_client *client)
 {
+	struct device_node *np = client->dev.of_node;
 	const char *diode;
 	int trickle_cfg = 0;
 	int i, ret;
@@ -566,12 +567,14 @@ static int abx80x_dt_trickle_cfg(struct device_node *np)
 	if (ret)
 		return ret;
 
-	if (!strcmp(diode, "standard"))
+	if (!strcmp(diode, "standard")) {
 		trickle_cfg |= ABX8XX_TRICKLE_STANDARD_DIODE;
-	else if (!strcmp(diode, "schottky"))
+	} else if (!strcmp(diode, "schottky")) {
 		trickle_cfg |= ABX8XX_TRICKLE_SCHOTTKY_DIODE;
-	else
+	} else {
+		dev_dbg(&client->dev, "Invalid tc-diode value: %s\n", diode);
 		return -EINVAL;
+	}
 
 	ret = of_property_read_u32(np, "abracon,tc-resistor", &tmp);
 	if (ret)
@@ -581,8 +584,10 @@ static int abx80x_dt_trickle_cfg(struct device_node *np)
 		if (trickle_resistors[i] == tmp)
 			break;
 
-	if (i == sizeof(trickle_resistors))
+	if (i == sizeof(trickle_resistors)) {
+		dev_dbg(&client->dev, "Invalid tc-resistor value: %u\n", tmp);
 		return -EINVAL;
+	}
 
 	return (trickle_cfg | i);
 }
@@ -794,7 +799,7 @@ static int abx80x_probe(struct i2c_client *client,
 	}
 
 	if (np && abx80x_caps[part].has_tc)
-		trickle_cfg = abx80x_dt_trickle_cfg(np);
+		trickle_cfg = abx80x_dt_trickle_cfg(client);
 
 	if (trickle_cfg > 0) {
 		dev_info(&client->dev, "Enabling trickle charger: %02x\n",
