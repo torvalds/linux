@@ -89,6 +89,7 @@
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
 #include <asm/inst.h>
+#include <asm/unaligned-emul.h>
 #include <asm/mmu_context.h>
 #include <linux/uaccess.h>
 

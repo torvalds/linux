@@ -23,6 +23,7 @@
 #include <asm/branch.h>
 #include <asm/current.h>
 #include <asm/mipsregs.h>
+#include <asm/unaligned-emul.h>
 
 static int loongson_cu2_call(struct notifier_block *nfb, unsigned long action,
 	void *data)
