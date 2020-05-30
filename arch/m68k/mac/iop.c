@@ -449,6 +449,7 @@ static void iop_handle_recv(uint iop_num, uint chan)
 		iop_pr_debug("unclaimed message on iop_num %d chan %d\n",
 		             iop_num, chan);
 		iop_pr_debug("%*ph\n", IOP_MSG_LEN, msg->message);
+		memset(msg->reply, 0, IOP_MSG_LEN);
 		iop_complete_message(msg);
 	}
 }
