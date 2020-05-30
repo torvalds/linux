@@ -347,8 +347,8 @@ void iop_complete_message(struct iop_msg *msg)
 	int chan = msg->channel;
 	int i,offset;
 
-	iop_pr_debug("msg %p iop_num %d channel %d\n", msg, msg->iop_num,
-	             msg->channel);
+	iop_pr_debug("iop_num %d chan %d reply %*ph\n",
+		     msg->iop_num, msg->channel, IOP_MSG_LEN, msg->reply);
 
 	offset = IOP_ADDR_RECV_MSG + (msg->channel * IOP_MSG_LEN);
 
@@ -372,6 +372,9 @@ static void iop_do_send(struct iop_msg *msg)
 	volatile struct mac_iop *iop = iop_base[msg->iop_num];
 	int i,offset;
 
+	iop_pr_debug("iop_num %d chan %d message %*ph\n",
+		     msg->iop_num, msg->channel, IOP_MSG_LEN, msg->message);
+
 	offset = IOP_ADDR_SEND_MSG + (msg->channel * IOP_MSG_LEN);
 
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
@@ -394,8 +397,6 @@ static void iop_handle_send(uint iop_num, uint chan)
 	struct iop_msg *msg;
 	int i,offset;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
-
 	iop_writeb(iop, IOP_ADDR_SEND_STATE + chan, IOP_MSG_IDLE);
 
 	if (!(msg = iop_send_queue[iop_num][chan])) return;
@@ -405,6 +406,9 @@ static void iop_handle_send(uint iop_num, uint chan)
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
 		msg->reply[i] = iop_readb(iop, offset);
 	}
+	iop_pr_debug("iop_num %d chan %d reply %*ph\n",
+		     iop_num, chan, IOP_MSG_LEN, msg->reply);
+
 	if (msg->handler) (*msg->handler)(msg);
 	msg->status = IOP_MSGSTATUS_UNUSED;
 	msg = msg->next;
@@ -424,8 +428,6 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	int i,offset;
 	struct iop_msg *msg;
 
-	iop_pr_debug("iop_num %d chan %d\n", iop_num, chan);
-
 	msg = iop_get_unused_msg();
 	msg->iop_num = iop_num;
 	msg->channel = chan;
@@ -437,6 +439,8 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	for (i = 0 ; i < IOP_MSG_LEN ; i++, offset++) {
 		msg->message[i] = iop_readb(iop, offset);
 	}
+	iop_pr_debug("iop_num %d chan %d message %*ph\n",
+		     iop_num, chan, IOP_MSG_LEN, msg->message);
 
 	iop_writeb(iop, IOP_ADDR_RECV_STATE + chan, IOP_MSG_RCVD);
 
@@ -446,9 +450,6 @@ static void iop_handle_recv(uint iop_num, uint chan)
 	if (msg->handler) {
 		(*msg->handler)(msg);
 	} else {
-		iop_pr_debug("unclaimed message on iop_num %d chan %d\n",
-		             iop_num, chan);
-		iop_pr_debug("%*ph\n", IOP_MSG_LEN, msg->message);
 		memset(msg->reply, 0, IOP_MSG_LEN);
 		iop_complete_message(msg);
 	}
@@ -559,35 +560,34 @@ irqreturn_t iop_ism_irq(int irq, void *dev_id)
 	int i,state;
 	u8 events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
 
-	iop_pr_debug("status %02X\n", iop->status_ctrl);
-
 	do {
+		iop_pr_debug("iop_num %d status %02X\n", iop_num,
+			     iop->status_ctrl);
+
 		/* INT0 indicates state change on an outgoing message channel */
 		if (events & IOP_INT0) {
 			iop->status_ctrl = IOP_INT0 | IOP_RUN | IOP_AUTOINC;
-			iop_pr_debug("new status %02X, send states",
-				     iop->status_ctrl);
 			for (i = 0; i < NUM_IOP_CHAN; i++) {
 				state = iop_readb(iop, IOP_ADDR_SEND_STATE + i);
-				iop_pr_cont(" %02X", state);
 				if (state == IOP_MSG_COMPLETE)
 					iop_handle_send(iop_num, i);
+				else if (state != IOP_MSG_IDLE)
+					iop_pr_debug("chan %d send state %02X\n",
+						     i, state);
 			}
-			iop_pr_cont("\n");
 		}
 
 		/* INT1 for incoming messages */
 		if (events & IOP_INT1) {
 			iop->status_ctrl = IOP_INT1 | IOP_RUN | IOP_AUTOINC;
-			iop_pr_debug("new status %02X, recv states",
-				     iop->status_ctrl);
 			for (i = 0; i < NUM_IOP_CHAN; i++) {
 				state = iop_readb(iop, IOP_ADDR_RECV_STATE + i);
-				iop_pr_cont(" %02X", state);
 				if (state == IOP_MSG_NEW)
 					iop_handle_recv(iop_num, i);
+				else if (state != IOP_MSG_IDLE)
+					iop_pr_debug("chan %d recv state %02X\n",
+						     i, state);
 			}
-			iop_pr_cont("\n");
 		}
 
 		events = iop->status_ctrl & (IOP_INT0 | IOP_INT1);
