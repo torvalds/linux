@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2013, 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2013, 2016-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -1332,7 +1332,7 @@ const struct clk_ops clk_rcg2_shared_ops = {
 EXPORT_SYMBOL_GPL(clk_rcg2_shared_ops);
 
 /* Common APIs to be used for DFS based RCGR */
-static void clk_rcg2_dfs_populate_freq(struct clk_hw *hw, unsigned int l,
+static int clk_rcg2_dfs_populate_freq(struct clk_hw *hw, unsigned int l,
 				       struct freq_tbl *f)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
@@ -1356,6 +1356,8 @@ static void clk_rcg2_dfs_populate_freq(struct clk_hw *hw, unsigned int l,
 		if (src == rcg->parent_map[i].cfg) {
 			f->src = rcg->parent_map[i].src;
 			p = clk_hw_get_parent_by_index(&rcg->clkr.hw, i);
+			if (!p)
+				return -EINVAL;
 			prate = clk_hw_get_rate(p);
 		}
 	}
@@ -1378,12 +1380,13 @@ static void clk_rcg2_dfs_populate_freq(struct clk_hw *hw, unsigned int l,
 	}
 
 	f->freq = calc_rate(prate, f->m, f->n, mode, f->pre_div);
+	return 0;
 }
 
 static int clk_rcg2_dfs_populate_freq_table(struct clk_rcg2 *rcg)
 {
 	struct freq_tbl *freq_tbl;
-	int i;
+	int i, ret;
 
 	/* Allocate space for 1 extra since table is NULL terminated */
 	freq_tbl = kcalloc(MAX_PERF_LEVEL + 1, sizeof(*freq_tbl), GFP_KERNEL);
@@ -1391,10 +1394,13 @@ static int clk_rcg2_dfs_populate_freq_table(struct clk_rcg2 *rcg)
 		return -ENOMEM;
 	rcg->freq_tbl = freq_tbl;
 
-	for (i = 0; i < MAX_PERF_LEVEL; i++)
+	for (i = 0; i < MAX_PERF_LEVEL; i++) {
+		ret =
 		clk_rcg2_dfs_populate_freq(&rcg->clkr.hw, i, freq_tbl + i);
-
-	return 0;
+		if (ret)
+			return ret;
+	}
+	return ret;
 }
 
 static int clk_rcg2_dfs_determine_rate(struct clk_hw *hw,
