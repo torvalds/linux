@@ -583,18 +583,16 @@ int bcm_phy_enable_jumbo(struct phy_device *phydev)
 }
 EXPORT_SYMBOL_GPL(bcm_phy_enable_jumbo);
 
-int __bcm_phy_enable_rdb_access(struct phy_device *phydev)
+static int __bcm_phy_enable_rdb_access(struct phy_device *phydev)
 {
 	return __bcm_phy_write_exp(phydev, BCM54XX_EXP_REG7E, 0);
 }
-EXPORT_SYMBOL_GPL(__bcm_phy_enable_rdb_access);
 
-int __bcm_phy_enable_legacy_access(struct phy_device *phydev)
+static int __bcm_phy_enable_legacy_access(struct phy_device *phydev)
 {
 	return __bcm_phy_write_rdb(phydev, BCM54XX_RDB_REG0087,
 				   BCM54XX_ACCESS_MODE_LEGACY_EN);
 }
-EXPORT_SYMBOL_GPL(__bcm_phy_enable_legacy_access);
 
 static int _bcm_phy_cable_test_start(struct phy_device *phydev, bool is_rdb)
 {
