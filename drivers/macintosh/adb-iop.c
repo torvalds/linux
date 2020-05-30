@@ -18,24 +18,16 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 
 #include <asm/macintosh.h>
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
-#include <asm/mac_oss.h>
 #include <asm/adb_iop.h>
 
 #include <linux/adb.h>
 
-/*#define DEBUG_ADB_IOP*/
-
 static struct adb_request *current_req;
 static struct adb_request *last_req;
-#if 0
-static unsigned char reply_buff[16];
-static unsigned char *reply_ptr;
-#endif
 
 static enum adb_iop_state {
 	idle,
@@ -104,21 +96,10 @@ static void adb_iop_listen(struct iop_msg *msg)
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
 	struct adb_request *req;
 	unsigned long flags;
-#ifdef DEBUG_ADB_IOP
-	int i;
-#endif
 
 	local_irq_save(flags);
 
 	req = current_req;
-
-#ifdef DEBUG_ADB_IOP
-	printk("adb_iop_listen %p: rcvd packet, %d bytes: %02X %02X", req,
-	       (uint)amsg->count + 2, (uint)amsg->flags, (uint)amsg->cmd);
-	for (i = 0; i < amsg->count; i++)
-		printk(" %02X", (uint)amsg->data[i]);
-	printk("\n");
-#endif
 
 	/* Handle a timeout. Timeout packets seem to occur even after */
 	/* we've gotten a valid reply to a TALK, so I'm assuming that */
@@ -163,9 +144,6 @@ static void adb_iop_start(void)
 	unsigned long flags;
 	struct adb_request *req;
 	struct adb_iopmsg amsg;
-#ifdef DEBUG_ADB_IOP
-	int i;
-#endif
 
 	/* get the packet to send */
 	req = current_req;
@@ -173,13 +151,6 @@ static void adb_iop_start(void)
 		return;
 
 	local_irq_save(flags);
-
-#ifdef DEBUG_ADB_IOP
-	printk("adb_iop_start %p: sending packet, %d bytes:", req, req->nbytes);
-	for (i = 0; i < req->nbytes; i++)
-		printk(" %02X", (uint)req->data[i]);
-	printk("\n");
-#endif
 
 	/* The IOP takes MacII-style packets, so */
 	/* strip the initial ADB_PACKET byte.    */
