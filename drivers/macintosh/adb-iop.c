@@ -137,7 +137,6 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 static void adb_iop_start(void)
 {
-	unsigned long flags;
 	struct adb_request *req;
 	struct adb_iopmsg amsg;
 
@@ -145,8 +144,6 @@ static void adb_iop_start(void)
 	req = current_req;
 	if (!req)
 		return;
-
-	local_irq_save(flags);
 
 	/* The IOP takes MacII-style packets, so strip the initial
 	 * ADB_PACKET byte.
@@ -161,7 +158,6 @@ static void adb_iop_start(void)
 
 	req->sent = 1;
 	adb_iop_state = sending;
-	local_irq_restore(flags);
 
 	/* Now send it. The IOP manager will call adb_iop_complete
 	 * when the message has been sent.
@@ -208,12 +204,12 @@ static int adb_iop_write(struct adb_request *req)
 		return -EINVAL;
 	}
 
-	local_irq_save(flags);
-
 	req->next = NULL;
 	req->sent = 0;
 	req->complete = 0;
 	req->reply_len = 0;
+
+	local_irq_save(flags);
 
 	if (current_req != 0) {
 		last_req->next = req;
@@ -223,10 +219,11 @@ static int adb_iop_write(struct adb_request *req)
 		last_req = req;
 	}
 
-	local_irq_restore(flags);
-
 	if (adb_iop_state == idle)
 		adb_iop_start();
+
+	local_irq_restore(flags);
+
 	return 0;
 }
 
