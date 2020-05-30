@@ -436,7 +436,8 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_drv_stats __percpu *percpu_extras;
 
 	u16 mc_token;
-	u8 rx_td_enabled;
+	u8 rx_fqtd_enabled;
+	u8 rx_cgtd_enabled;
 
 	struct dpni_link_state link_state;
 	bool do_link_poll;
@@ -448,6 +449,7 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	u8 vlan_cls_enabled;
+	u8 pfc_enabled;
 #ifdef CONFIG_FSL_DPAA2_ETH_DCB
 	u8 dcbx_mode;
 	struct ieee_pfc pfc;
@@ -583,6 +585,9 @@ int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
 int dpaa2_eth_cls_key_size(u64 key);
 int dpaa2_eth_cls_fld_off(int prot, int field);
 void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields);
+
+void dpaa2_eth_set_rx_taildrop(struct dpaa2_eth_priv *priv,
+			       bool tx_pause, bool pfc);
 
 extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
 

@@ -63,6 +63,7 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpni_link_cfg link_cfg = {0};
+	bool tx_pause;
 	int err;
 
 	if (pfc->mbc || pfc->delay)
@@ -75,8 +76,8 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 	/* We allow PFC configuration even if it won't have any effect until
 	 * general pause frames are enabled
 	 */
-	if (!dpaa2_eth_rx_pause_enabled(priv->link_state.options) ||
-	    !dpaa2_eth_tx_pause_enabled(priv->link_state.options))
+	tx_pause = dpaa2_eth_tx_pause_enabled(priv->link_state.options);
+	if (!dpaa2_eth_rx_pause_enabled(priv->link_state.options) || !tx_pause)
 		netdev_warn(net_dev, "Pause support must be enabled in order for PFC to work!\n");
 
 	link_cfg.rate = priv->link_state.rate;
@@ -97,6 +98,9 @@ static int dpaa2_eth_dcbnl_ieee_setpfc(struct net_device *net_dev,
 		return err;
 
 	memcpy(&priv->pfc, pfc, sizeof(priv->pfc));
+	priv->pfc_enabled = !!pfc->pfc_en;
+
+	dpaa2_eth_set_rx_taildrop(priv, tx_pause, priv->pfc_enabled);
 
 	return 0;
 }
