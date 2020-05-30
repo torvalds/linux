@@ -137,6 +137,22 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 
 	/* Add CPUCFG features non-discoverable otherwise. */
 	switch (c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) {
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_0:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_1:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_2:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_3:
+		decode_loongson_config6(c);
+		probe_uca(c);
+
+		c->loongson3_cpucfg_data[0] |= (LOONGSON_CFG1_LSLDR0 |
+			LOONGSON_CFG1_LSSYNCI | LOONGSON_CFG1_LLSYNC |
+			LOONGSON_CFG1_TGTSYNC);
+		c->loongson3_cpucfg_data[1] |= (LOONGSON_CFG2_LBT1 |
+			LOONGSON_CFG2_LBT2 | LOONGSON_CFG2_LPMP |
+			LOONGSON_CFG2_LPM_REV2);
+		c->loongson3_cpucfg_data[2] = 0;
+		break;
+
 	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R1:
 		c->loongson3_cpucfg_data[0] |= (LOONGSON_CFG1_LSLDR0 |
 			LOONGSON_CFG1_LSSYNCI | LOONGSON_CFG1_LSUCA |
@@ -162,22 +178,6 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 			LOONGSON_CFG3_LCAMNUM_REV1 |
 			LOONGSON_CFG3_LCAMKW_REV1 |
 			LOONGSON_CFG3_LCAMVW_REV1);
-		break;
-
-	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_0:
-	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_1:
-	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_2:
-	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_3:
-		decode_loongson_config6(c);
-		probe_uca(c);
-
-		c->loongson3_cpucfg_data[0] |= (LOONGSON_CFG1_LSLDR0 |
-			LOONGSON_CFG1_LSSYNCI | LOONGSON_CFG1_LLSYNC |
-			LOONGSON_CFG1_TGTSYNC);
-		c->loongson3_cpucfg_data[1] |= (LOONGSON_CFG2_LBT1 |
-			LOONGSON_CFG2_LBT2 | LOONGSON_CFG2_LPMP |
-			LOONGSON_CFG2_LPM_REV2);
-		c->loongson3_cpucfg_data[2] = 0;
 		break;
 
 	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0:
