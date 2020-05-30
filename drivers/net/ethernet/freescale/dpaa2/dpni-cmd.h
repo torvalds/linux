@@ -601,4 +601,29 @@ struct dpni_cmd_remove_qos_entry {
 	__le64 mask_iova;
 };
 
+#define DPNI_DEST_TYPE_SHIFT		0
+#define DPNI_DEST_TYPE_SIZE		4
+#define DPNI_CONG_UNITS_SHIFT		4
+#define DPNI_CONG_UNITS_SIZE		2
+
+struct dpni_cmd_set_congestion_notification {
+	/* cmd word 0 */
+	u8 qtype;
+	u8 tc;
+	u8 pad[6];
+	/* cmd word 1 */
+	__le32 dest_id;
+	__le16 notification_mode;
+	u8 dest_priority;
+	/* from LSB: dest_type: 4 units:2 */
+	u8 type_units;
+	/* cmd word 2 */
+	__le64 message_iova;
+	/* cmd word 3 */
+	__le64 message_ctx;
+	/* cmd word 4 */
+	__le32 threshold_entry;
+	__le32 threshold_exit;
+};
+
 #endif /* _FSL_DPNI_CMD_H */

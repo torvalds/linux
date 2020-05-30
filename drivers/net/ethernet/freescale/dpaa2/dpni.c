@@ -1355,6 +1355,52 @@ int dpni_set_rx_tc_dist(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpni_set_congestion_notification() - Set traffic class congestion
+ *					notification configuration
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPNI object
+ * @qtype:	Type of queue - Rx, Tx and Tx confirm types are supported
+ * @tc_id:	Traffic class selection (0-7)
+ * @cfg:	Congestion notification configuration
+ *
+ * Return:	'0' on Success; error code otherwise.
+ */
+int dpni_set_congestion_notification(
+			struct fsl_mc_io *mc_io,
+			u32 cmd_flags,
+			u16 token,
+			enum dpni_queue_type qtype,
+			u8 tc_id,
+			const struct dpni_congestion_notification_cfg *cfg)
+{
+	struct dpni_cmd_set_congestion_notification *cmd_params;
+	struct fsl_mc_command cmd = { 0 };
+
+	/* prepare command */
+	cmd.header =
+		mc_encode_cmd_header(DPNI_CMDID_SET_CONGESTION_NOTIFICATION,
+				     cmd_flags,
+				     token);
+	cmd_params = (struct dpni_cmd_set_congestion_notification *)cmd.params;
+	cmd_params->qtype = qtype;
+	cmd_params->tc = tc_id;
+	cmd_params->dest_id = cpu_to_le32(cfg->dest_cfg.dest_id);
+	cmd_params->notification_mode = cpu_to_le16(cfg->notification_mode);
+	cmd_params->dest_priority = cfg->dest_cfg.priority;
+	dpni_set_field(cmd_params->type_units, DEST_TYPE,
+		       cfg->dest_cfg.dest_type);
+	dpni_set_field(cmd_params->type_units, CONG_UNITS, cfg->units);
+	cmd_params->message_iova = cpu_to_le64(cfg->message_iova);
+	cmd_params->message_ctx = cpu_to_le64(cfg->message_ctx);
+	cmd_params->threshold_entry = cpu_to_le32(cfg->threshold_entry);
+	cmd_params->threshold_exit = cpu_to_le32(cfg->threshold_exit);
+
+	/* send command to mc*/
+	return mc_send_command(mc_io, &cmd);
+}
+
+/**
  * dpni_set_queue() - Set queue parameters
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'

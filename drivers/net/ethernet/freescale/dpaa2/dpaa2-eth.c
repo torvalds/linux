@@ -3844,6 +3844,15 @@ static int dpaa2_eth_probe(struct fsl_mc_device *dpni_dev)
 	if (err)
 		goto err_alloc_rings;
 
+#ifdef CONFIG_FSL_DPAA2_ETH_DCB
+	if (dpaa2_eth_has_pause_support(priv) && priv->vlan_cls_enabled) {
+		priv->dcbx_mode = DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
+		net_dev->dcbnl_ops = &dpaa2_eth_dcbnl_ops;
+	} else {
+		dev_dbg(dev, "PFC not supported\n");
+	}
+#endif
+
 	err = setup_irqs(dpni_dev);
 	if (err) {
 		netdev_warn(net_dev, "Failed to set link interrupt, fall back to polling\n");

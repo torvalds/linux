@@ -6,6 +6,7 @@
 #ifndef __DPAA2_ETH_H
 #define __DPAA2_ETH_H
 
+#include <linux/dcbnl.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
 #include <linux/fsl/mc.h>
@@ -64,6 +65,17 @@
  */
 #define DPAA2_ETH_CG_TAILDROP_THRESH(priv)				\
 	(1024 * dpaa2_eth_queue_count(priv) / dpaa2_eth_tc_count(priv))
+
+/* Congestion group notification threshold: when this many frames accumulate
+ * on the Rx queues belonging to the same TC, the MAC is instructed to send
+ * PFC frames for that TC.
+ * When number of pending frames drops below exit threshold transmission of
+ * PFC frames is stopped.
+ */
+#define DPAA2_ETH_CN_THRESH_ENTRY(priv) \
+	(DPAA2_ETH_CG_TAILDROP_THRESH(priv) / 2)
+#define DPAA2_ETH_CN_THRESH_EXIT(priv) \
+	(DPAA2_ETH_CN_THRESH_ENTRY(priv) * 3 / 4)
 
 /* Maximum number of buffers that can be acquired/released through a single
  * QBMan command
@@ -436,6 +448,10 @@ struct dpaa2_eth_priv {
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
 	u8 vlan_cls_enabled;
+#ifdef CONFIG_FSL_DPAA2_ETH_DCB
+	u8 dcbx_mode;
+	struct ieee_pfc pfc;
+#endif
 	struct bpf_prog *xdp_prog;
 #ifdef CONFIG_DEBUG_FS
 	struct dpaa2_debugfs dbg;
@@ -567,5 +583,7 @@ int dpaa2_eth_set_cls(struct net_device *net_dev, u64 key);
 int dpaa2_eth_cls_key_size(u64 key);
 int dpaa2_eth_cls_fld_off(int prot, int field);
 void dpaa2_eth_cls_trim_rule(void *key_mem, u64 fields);
+
+extern const struct dcbnl_rtnl_ops dpaa2_eth_dcbnl_ops;
 
 #endif	/* __DPAA2_H */
