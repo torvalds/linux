@@ -617,16 +617,19 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	}
 
 	val = FIELD_PREP(MT_TXD3_REM_TX_COUNT, tx_count);
-	if (ieee80211_is_data_qos(hdr->frame_control)) {
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
-		val |= MT_TXD3_SN_VALID;
-	} else if (ieee80211_is_back_req(hdr->frame_control)) {
-		struct ieee80211_bar *bar = (struct ieee80211_bar *)skb->data;
+	if (info->flags & IEEE80211_TX_CTL_INJECTED) {
+		seqno = le16_to_cpu(hdr->seq_ctrl);
 
-		seqno = IEEE80211_SEQ_TO_SN(le16_to_cpu(bar->start_seq_num));
-		val |= MT_TXD3_SN_VALID;
+		if (ieee80211_is_back_req(hdr->frame_control)) {
+			struct ieee80211_bar *bar;
+
+			bar = (struct ieee80211_bar *)skb->data;
+			seqno = le16_to_cpu(bar->start_seq_num);
+		}
+
+		val |= MT_TXD3_SN_VALID |
+		       FIELD_PREP(MT_TXD3_SEQ, IEEE80211_SEQ_TO_SN(seqno));
 	}
-	val |= FIELD_PREP(MT_TXD3_SEQ, seqno);
 
 	txwi[3] |= cpu_to_le32(val);
 
@@ -891,6 +894,29 @@ mt7615_mac_queue_rate_update(struct mt7615_phy *phy, struct mt7615_sta *sta,
 	queue_work(dev->mt76.usb.wq, &dev->wtbl_work);
 
 	return 0;
+}
+
+u32 mt7615_mac_get_sta_tid_sn(struct mt7615_dev *dev, int wcid, u8 tid)
+{
+	u32 addr, val, val2;
+	u8 offset;
+
+	addr = mt7615_mac_wtbl_addr(dev, wcid) + 11 * 4;
+
+	offset = tid * 12;
+	addr += 4 * (offset / 32);
+	offset %= 32;
+
+	val = mt76_rr(dev, addr);
+	val >>= (tid % 32);
+
+	if (offset > 20) {
+		addr += 4;
+		val2 = mt76_rr(dev, addr);
+		val |= val2 << (32 - offset);
+	}
+
+	return val & GENMASK(11, 0);
 }
 
 void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,

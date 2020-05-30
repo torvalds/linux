@@ -660,6 +660,9 @@ mt7615_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mtxq->aggr = true;
 		mtxq->send_bar = false;
 		mt7615_mcu_add_tx_ba(dev, params, true);
+		ssn = mt7615_mac_get_sta_tid_sn(dev, msta->wcid.idx, tid);
+		ieee80211_send_bar(vif, sta->addr, tid,
+				   IEEE80211_SN_TO_SEQ(ssn));
 		break;
 	case IEEE80211_AMPDU_TX_STOP_FLUSH:
 	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
@@ -667,6 +670,8 @@ mt7615_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		mt7615_mcu_add_tx_ba(dev, params, false);
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		ssn = mt7615_mac_get_sta_tid_sn(dev, msta->wcid.idx, tid);
+		params->ssn = ssn;
 		mtxq->agg_ssn = IEEE80211_SN_TO_SEQ(ssn);
 		ret = IEEE80211_AMPDU_TX_START_IMMEDIATE;
 		break;
