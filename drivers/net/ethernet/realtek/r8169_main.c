@@ -4627,20 +4627,21 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	return 0;
 }
 
-static void rtl8169_down(struct net_device *dev)
+static void rtl8169_down(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
+	rtl_lock_work(tp);
+
+	/* Clear all task flags */
+	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
 	phy_stop(tp->phydev);
-
 	napi_disable(&tp->napi);
-	netif_stop_queue(dev);
 
 	rtl8169_hw_reset(tp);
 
-	rtl8169_rx_clear(tp);
-
 	rtl_pll_power_down(tp);
+
+	rtl_unlock_work(tp);
 }
 
 static int rtl8169_close(struct net_device *dev)
@@ -4653,12 +4654,9 @@ static int rtl8169_close(struct net_device *dev)
 	/* Update counters before going down */
 	rtl8169_update_counters(tp);
 
-	rtl_lock_work(tp);
-	/* Clear all task flags */
-	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
-
-	rtl8169_down(dev);
-	rtl_unlock_work(tp);
+	netif_stop_queue(dev);
+	rtl8169_down(tp);
+	rtl8169_rx_clear(tp);
 
 	cancel_work_sync(&tp->wk.work);
 
@@ -4817,17 +4815,8 @@ static void rtl8169_net_suspend(struct rtl8169_private *tp)
 	if (!netif_running(tp->dev))
 		return;
 
-	phy_stop(tp->phydev);
 	netif_device_detach(tp->dev);
-
-	rtl_lock_work(tp);
-	napi_disable(&tp->napi);
-	/* Clear all task flags */
-	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
-
-	rtl_unlock_work(tp);
-
-	rtl_pll_power_down(tp);
+	rtl8169_down(tp);
 }
 
 #ifdef CONFIG_PM
