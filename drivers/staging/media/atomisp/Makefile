@@ -37,7 +37,6 @@ atomisp-objs += \
 	pci/sh_css_param_dvs.o \
 	pci/sh_css_param_shading.o \
 	pci/sh_css_params.o \
-	pci/sh_css_pipe.o \
 	pci/sh_css_properties.o \
 	pci/sh_css_shading.o \
 	pci/sh_css_sp.o \
