@@ -690,22 +690,23 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 	case ATOMISP_RUN_MODE_STILL_CAPTURE:
 		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE)
 			return true;
-		else
-			return false;
+
+		return false;
 	case ATOMISP_RUN_MODE_PREVIEW:
 		if (!asd->continuous_mode->val) {
 			if (pipe_id == IA_CSS_PIPE_ID_PREVIEW)
 				return true;
-			else
-				return false;
+
+			return false;
 		}
-	/* fall through to ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE */
+	/* fall-through */
 	case ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE:
 		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
 		    pipe_id == IA_CSS_PIPE_ID_PREVIEW)
 			return true;
-		else
-			return false;
+
+		return false;
+	/* fall-through */
 	case ATOMISP_RUN_MODE_VIDEO:
 		if (!asd->continuous_mode->val) {
 			if (pipe_id == IA_CSS_PIPE_ID_VIDEO ||
@@ -714,13 +715,13 @@ static bool is_pipe_valid_to_current_run_mode(struct atomisp_sub_device *asd,
 			else
 				return false;
 		}
-	/* fall through to ATOMISP_RUN_MODE_SDV */
+	/* fall through  */
 	case ATOMISP_RUN_MODE_SDV:
 		if (pipe_id == IA_CSS_PIPE_ID_CAPTURE ||
 		    pipe_id == IA_CSS_PIPE_ID_VIDEO)
 			return true;
-		else
-			return false;
+
+		return false;
 	}
 
 	return false;
@@ -2749,16 +2750,18 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO
 		    || asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER)
 			return IA_CSS_PIPE_ID_VIDEO;
-		else
-			return IA_CSS_PIPE_ID_CAPTURE;
+
+		return IA_CSS_PIPE_ID_CAPTURE;
 	case ATOMISP_SUBDEV_PAD_SOURCE_CAPTURE:
 		if (asd->copy_mode)
 			return IA_CSS_PIPE_ID_COPY;
+
 		return IA_CSS_PIPE_ID_CAPTURE;
 	case ATOMISP_SUBDEV_PAD_SOURCE_VF:
-		if (!atomisp_is_mbuscode_raw(
-			asd->fmt[asd->capture_pad].fmt.code))
+		if (!atomisp_is_mbuscode_raw(asd->fmt[asd->capture_pad].fmt.code)) {
 			return IA_CSS_PIPE_ID_CAPTURE;
+		}
+		/* fall through */
 	case ATOMISP_SUBDEV_PAD_SOURCE_PREVIEW:
 		if (asd->yuvpp_mode)
 			return IA_CSS_PIPE_ID_YUVPP;
@@ -2766,8 +2769,8 @@ static unsigned int atomisp_get_pipe_index(struct atomisp_sub_device *asd,
 			return IA_CSS_PIPE_ID_COPY;
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
 			return IA_CSS_PIPE_ID_VIDEO;
-		else
-			return IA_CSS_PIPE_ID_PREVIEW;
+
+		return IA_CSS_PIPE_ID_PREVIEW;
 	}
 	dev_warn(isp->dev,
 		 "invalid source pad:%d, return default preview pipe index.\n",
