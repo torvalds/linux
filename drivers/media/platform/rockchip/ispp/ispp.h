@@ -37,6 +37,8 @@ struct rkispp_subdev {
 	struct v4l2_mbus_framefmt in_fmt;
 	struct isppsd_fmt out_fmt;
 	atomic_t frm_sync_seq;
+	/* timestamp in ns */
+	u64 frame_timestamp;
 	enum rkispp_state state;
 };
 

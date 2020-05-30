@@ -299,7 +299,12 @@ static int rkispp_frame_end(struct rkispp_stream *stream)
 	int i = 0;
 
 	if (stream->curr_buf) {
-		u64 ns = ktime_get_ns();
+		u64 ns;
+
+		if (dev->isp_mode & ISP_ISPP_QUICK || dev->inp == INP_DDR)
+			ns = ktime_get_ns();
+		else
+			ns = dev->ispp_sdev.frame_timestamp;
 
 		for (i = 0; i < fmt->mplanes; i++) {
 			u32 payload_size =
@@ -1865,6 +1870,8 @@ static void fec_work_event(struct rkispp_device *dev,
 
 		if (vdev->fec.cur_rd && !is_quick) {
 			seq = vdev->fec.cur_rd->id;
+			dev->ispp_sdev.frame_timestamp =
+				vdev->fec.cur_rd->timestamp;
 			atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
 		}
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -2013,13 +2020,19 @@ static void nr_work_event(struct rkispp_device *dev,
 
 	if (is_start) {
 		u32 seq = 0;
+		u64 timestamp = 0;
 
 		if (vdev->nr.cur_rd) {
 			seq = vdev->nr.cur_rd->frame_id;
-			if (vdev->nr.cur_wr)
+			timestamp = vdev->nr.cur_rd->frame_timestamp;
+			if (vdev->nr.cur_wr) {
 				vdev->nr.cur_wr->id = seq;
-			if (!is_fec_en && !is_quick)
+				vdev->nr.cur_wr->timestamp = timestamp;
+			}
+			if (!is_fec_en && !is_quick) {
+				dev->ispp_sdev.frame_timestamp = timestamp;
 				atomic_set(&dev->ispp_sdev.frm_sync_seq, seq);
+			}
 		}
 
 		writel(OTHER_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
@@ -2188,8 +2201,11 @@ static void tnr_work_event(struct rkispp_device *dev,
 
 		if (vdev->tnr.cur_rd) {
 			seq = vdev->tnr.cur_rd->frame_id;
-			if (vdev->tnr.cur_wr)
+			if (vdev->tnr.cur_wr) {
 				vdev->tnr.cur_wr->frame_id = seq;
+				vdev->tnr.cur_wr->frame_timestamp =
+					vdev->tnr.cur_rd->frame_timestamp;
+			}
 		}
 
 		writel(TNR_FORCE_UPD, base + RKISPP_CTRL_UPDATE);

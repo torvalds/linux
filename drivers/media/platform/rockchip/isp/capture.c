@@ -1540,7 +1540,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		(!interlaced ||
 		(stream->u.sp.field_rec == RKISP_FIELD_ODD &&
 		stream->u.sp.field == RKISP_FIELD_EVEN))) {
-		u64 ns = ktime_get_ns();
+		u64 ns = 0;
 
 		/* Dequeue a filled buffer */
 		for (i = 0; i < isp_fmt->mplanes; i++) {
@@ -1552,11 +1552,14 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		}
 		if (stream->id == RKISP_STREAM_MP ||
 		    stream->id == RKISP_STREAM_SP)
-			stream->curr_buf->vb.sequence =
-				rkisp_dmarx_get_frame_id(isp_dev, false);
+			rkisp_dmarx_get_frame(isp_dev,
+					      &stream->curr_buf->vb.sequence,
+					      &ns, false);
 		else
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
+		if (!ns)
+			ns = ktime_get_ns();
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
 
 		if (!IS_HDR_RDBK(isp_dev->hdr.op_mode)) {

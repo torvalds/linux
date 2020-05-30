@@ -26,23 +26,29 @@ enum rkisp_dmarx_trigger {
 	T_MANUAL,
 };
 
+struct rkisp_dmarx_frame {
+	u64 timestamp;
+	u32 id;
+};
+
 /*
  * struct rkisp_dmarx_device
  * trigger: read back mode
- * cur_frame_id: current frame id
- * pre_frame_id: previous frame id
+ * cur_frame: current frame id and timestamp in ns
+ * pre_frame: previous frame id and timestamp in ns
  */
 struct rkisp_dmarx_device {
 	struct rkisp_device *ispdev;
 	struct rkisp_stream stream[RKISP_MAX_DMARX_STREAM];
 	enum rkisp_dmarx_trigger trigger;
-	u32 cur_frame_id;
-	u32 pre_frame_id;
+	struct rkisp_dmarx_frame cur_frame;
+	struct rkisp_dmarx_frame pre_frame;
 };
 
 void rkisp_dmarx_isr(u32 mis_val, struct rkisp_device *dev);
 void rkisp2_rawrd_isr(u32 mis_val, struct rkisp_device *dev);
-u32 rkisp_dmarx_get_frame_id(struct rkisp_device *dev, bool sync);
+void rkisp_dmarx_get_frame(struct rkisp_device *dev,
+			   u32 *id, u64 *timestamp, bool sync);
 void rkisp_unregister_dmarx_vdev(struct rkisp_device *dev);
 int rkisp_register_dmarx_vdev(struct rkisp_device *dev);
 #endif /* _RKISP_DMARX_H */

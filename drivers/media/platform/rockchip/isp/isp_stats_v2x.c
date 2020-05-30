@@ -1337,7 +1337,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	struct rkisp_device *dev = stats_vdev->dev;
 	u32 isp_mis_tmp = 0;
 	struct rkisp_isp_readout_work work;
-	u32 cur_frame_id = rkisp_dmarx_get_frame_id(stats_vdev->dev, true);
+	u32 cur_frame_id;
 	u32 iq_isr_mask = ISP2X_SIAWB_DONE | ISP2X_SIAF_FIN |
 		ISP2X_YUVAE_END | ISP2X_SIHST_RDY | ISP2X_AFM_SUM_OF | ISP2X_AFM_LUM_OF;
 	u32 iq_3a_mask = 0;
@@ -1345,6 +1345,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 	u32 wr_buf_idx;
 	u32 temp_isp_ris, temp_isp3a_ris;
 
+	rkisp_dmarx_get_frame(stats_vdev->dev, &cur_frame_id, NULL, true);
 #ifdef LOG_ISR_EXE_TIME
 	ktime_t in_t = ktime_get();
 #endif

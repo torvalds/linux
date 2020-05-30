@@ -32,6 +32,8 @@ struct rkisp_ispp_mode {
 struct rkisp_ispp_buf {
 	struct list_head list;
 	struct dma_buf *dbuf[GROUP_BUF_MAX];
+	/* timestamp in ns */
+	u64 frame_timestamp;
 	u32 frame_id;
 };
 

@@ -45,6 +45,8 @@ struct rkispp_dummy_buffer {
 	dma_addr_t dma_addr;
 	void *mem_priv;
 	void *vaddr;
+	/* timestamp in ns */
+	u64 timestamp;
 	u32 size;
 	u32 id;
 	bool is_need_vaddr;
