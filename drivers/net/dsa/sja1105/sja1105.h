@@ -323,24 +323,6 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
 			const unsigned char *addr, u16 vid);
 
-/* Common implementations for the static and dynamic configs */
-size_t sja1105_l2_forwarding_entry_packing(void *buf, void *entry_ptr,
-					   enum packing_op op);
-size_t sja1105pqrs_l2_lookup_entry_packing(void *buf, void *entry_ptr,
-					   enum packing_op op);
-size_t sja1105et_l2_lookup_entry_packing(void *buf, void *entry_ptr,
-					 enum packing_op op);
-size_t sja1105_vlan_lookup_entry_packing(void *buf, void *entry_ptr,
-					 enum packing_op op);
-size_t sja1105_retagging_entry_packing(void *buf, void *entry_ptr,
-				       enum packing_op op);
-size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
-					    enum packing_op op);
-size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
-					    enum packing_op op);
-size_t sja1105_vl_lookup_entry_packing(void *buf, void *entry_ptr,
-				       enum packing_op op);
-
 /* From sja1105_flower.c */
 int sja1105_cls_flower_del(struct dsa_switch *ds, int port,
 			   struct flow_cls_offload *cls, bool ingress);

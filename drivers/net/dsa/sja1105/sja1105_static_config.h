@@ -430,4 +430,22 @@ void sja1105_unpack(const void *buf, u64 *val, int start, int end, size_t len);
 void sja1105_packing(void *buf, u64 *val, int start, int end,
 		     size_t len, enum packing_op op);
 
+/* Common implementations for the static and dynamic configs */
+size_t sja1105_l2_forwarding_entry_packing(void *buf, void *entry_ptr,
+					   enum packing_op op);
+size_t sja1105pqrs_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+					   enum packing_op op);
+size_t sja1105et_l2_lookup_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1105_vlan_lookup_entry_packing(void *buf, void *entry_ptr,
+					 enum packing_op op);
+size_t sja1105_retagging_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
+size_t sja1105pqrs_mac_config_entry_packing(void *buf, void *entry_ptr,
+					    enum packing_op op);
+size_t sja1105pqrs_avb_params_entry_packing(void *buf, void *entry_ptr,
+					    enum packing_op op);
+size_t sja1105_vl_lookup_entry_packing(void *buf, void *entry_ptr,
+				       enum packing_op op);
+
 #endif
