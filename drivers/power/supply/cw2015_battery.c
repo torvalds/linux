@@ -734,6 +734,7 @@ MODULE_DEVICE_TABLE(of, cw2015_of_match);
 static struct i2c_driver cw_bat_driver = {
 	.driver = {
 		.name = "cw2015",
+		.of_match_table = cw2015_of_match,
 		.pm = &cw_bat_pm_ops,
 	},
 	.probe_new = cw_bat_probe,
