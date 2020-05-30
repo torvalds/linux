@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/elf.h>
 
 #include <loongson_regs.h>
 #include <cpucfg-emul.h>
@@ -128,7 +129,7 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 
 	/* CPUs with CPUCFG support don't need to synthesize anything. */
 	if (cpu_has_cfg())
-		return;
+		goto have_cpucfg_now;
 
 	c->loongson3_cpucfg_data[0] = 0;
 	c->loongson3_cpucfg_data[1] = 0;
@@ -217,4 +218,10 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 	patch_cpucfg_sel1(c);
 	patch_cpucfg_sel2(c);
 	patch_cpucfg_sel3(c);
+
+have_cpucfg_now:
+	/* We have usable CPUCFG now, emulated or not.
+	 * Announce CPUCFG availability to userspace via hwcap.
+	 */
+	elf_hwcap |= HWCAP_LOONGSON_CPUCFG;
 }
