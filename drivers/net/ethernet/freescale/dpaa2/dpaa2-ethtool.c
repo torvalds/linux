@@ -547,7 +547,7 @@ static int do_cls_rule(struct net_device *net_dev,
 	dma_addr_t key_iova;
 	u64 fields = 0;
 	void *key_buf;
-	int err;
+	int i, err;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC &&
 	    fs->ring_cookie >= dpaa2_eth_queue_count(priv))
@@ -607,11 +607,18 @@ static int do_cls_rule(struct net_device *net_dev,
 			fs_act.options |= DPNI_FS_OPT_DISCARD;
 		else
 			fs_act.flow_id = fs->ring_cookie;
-		err = dpni_add_fs_entry(priv->mc_io, 0, priv->mc_token, 0,
-					fs->location, &rule_cfg, &fs_act);
-	} else {
-		err = dpni_remove_fs_entry(priv->mc_io, 0, priv->mc_token, 0,
-					   &rule_cfg);
+	}
+	for (i = 0; i < dpaa2_eth_tc_count(priv); i++) {
+		if (add)
+			err = dpni_add_fs_entry(priv->mc_io, 0, priv->mc_token,
+						i, fs->location, &rule_cfg,
+						&fs_act);
+		else
+			err = dpni_remove_fs_entry(priv->mc_io, 0,
+						   priv->mc_token, i,
+						   &rule_cfg);
+		if (err)
+			break;
 	}
 
 	dma_unmap_single(dev, key_iova, rule_cfg.key_size * 2, DMA_TO_DEVICE);
