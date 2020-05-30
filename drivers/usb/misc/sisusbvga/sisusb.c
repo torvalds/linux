@@ -1283,7 +1283,7 @@ int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 *data)
 	return sisusb_read_memio_byte(sisusb, SISUSB_TYPE_MEM, adr, data);
 }
 
-int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
+int sisusb_copy_memory(struct sisusb_usb_data *sisusb, u8 *src,
 		u32 dest, int length)
 {
 	size_t dummy;
@@ -1307,7 +1307,7 @@ static int sisusb_read_memory(struct sisusb_usb_data *sisusb, char *dest,
 #ifdef SISUSBENDIANTEST
 static void sisusb_testreadwrite(struct sisusb_usb_data *sisusb)
 {
-	static char srcbuffer[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
+	static u8 srcbuffer[] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77 };
 	char destbuffer[10];
 	int i, j;
 
@@ -2340,7 +2340,7 @@ int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 		}
 
 	} else if (sisusb->scrbuf) {
-		ret |= sisusb_copy_memory(sisusb, (char *)sisusb->scrbuf,
+		ret |= sisusb_copy_memory(sisusb, (u8 *)sisusb->scrbuf,
 				sisusb->vrambase, sisusb->scrbuf_size);
 	}
 

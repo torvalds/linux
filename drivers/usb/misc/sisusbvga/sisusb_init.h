@@ -828,7 +828,7 @@ extern int sisusb_setidxregand(struct sisusb_usb_data *sisusb, u32 port,
 void sisusb_delete(struct kref *kref);
 int sisusb_writeb(struct sisusb_usb_data *sisusb, u32 adr, u8 data);
 int sisusb_readb(struct sisusb_usb_data *sisusb, u32 adr, u8 * data);
-int sisusb_copy_memory(struct sisusb_usb_data *sisusb, char *src,
+int sisusb_copy_memory(struct sisusb_usb_data *sisusb, u8 *src,
 		       u32 dest, int length);
 int sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init);
 int sisusbcon_do_font_op(struct sisusb_usb_data *sisusb, int set, int slot,

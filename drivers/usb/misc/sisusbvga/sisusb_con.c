@@ -509,7 +509,7 @@ sisusbcon_switch(struct vc_data *c)
 	/* Restore the screen contents */
 	memcpy((u16 *)c->vc_origin, (u16 *)c->vc_screenbuf, length);
 
-	sisusb_copy_memory(sisusb, (char *)c->vc_origin,
+	sisusb_copy_memory(sisusb, (u8 *)c->vc_origin,
 			sisusb_haddr(sisusb, c, 0, 0), length);
 
 	mutex_unlock(&sisusb->lock);
@@ -615,7 +615,7 @@ sisusbcon_blank(struct vc_data *c, int blank, int mode_switch)
 		sisusbcon_memsetw((u16 *)c->vc_origin,
 				c->vc_video_erase_char,
 				c->vc_screenbuf_size);
-		sisusb_copy_memory(sisusb, (char *)c->vc_origin,
+		sisusb_copy_memory(sisusb, (u8 *)c->vc_origin,
 				sisusb_haddr(sisusb, c, 0, 0),
 				c->vc_screenbuf_size);
 		sisusb->con_blanked = 1;
@@ -897,18 +897,18 @@ sisusbcon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
 
 	if (copyall)
 		sisusb_copy_memory(sisusb,
-			(char *)c->vc_origin,
+			(u8 *)c->vc_origin,
 			sisusb_haddr(sisusb, c, 0, 0),
 			c->vc_screenbuf_size);
 	else if (dir == SM_UP)
 		sisusb_copy_memory(sisusb,
-			(char *)c->vc_origin + c->vc_screenbuf_size - delta,
+			(u8 *)c->vc_origin + c->vc_screenbuf_size - delta,
 			sisusb_haddr(sisusb, c, 0, 0) +
 					c->vc_screenbuf_size - delta,
 			delta);
 	else
 		sisusb_copy_memory(sisusb,
-			(char *)c->vc_origin,
+			(u8 *)c->vc_origin,
 			sisusb_haddr(sisusb, c, 0, 0),
 			delta);
 
