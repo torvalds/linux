@@ -4884,7 +4884,7 @@ static int rtl8169_runtime_suspend(struct device *device)
 		return 0;
 
 	rtl_lock_work(tp);
-	__rtl8169_set_wol(tp, WAKE_ANY);
+	__rtl8169_set_wol(tp, WAKE_PHY);
 	rtl_unlock_work(tp);
 
 	rtl8169_net_suspend(tp);
