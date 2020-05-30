@@ -54,13 +54,19 @@ struct adb_driver adb_iop_driver = {
 	.reset_bus    = adb_iop_reset_bus
 };
 
-static void adb_iop_end_req(struct adb_request *req, int state)
+static void adb_iop_done(void)
 {
+	struct adb_request *req = current_req;
+
+	adb_iop_state = idle;
+
 	req->complete = 1;
 	current_req = req->next;
 	if (req->done)
 		(*req->done)(req);
-	adb_iop_state = state;
+
+	if (adb_iop_state == idle)
+		adb_iop_start();
 }
 
 /*
@@ -94,37 +100,36 @@ static void adb_iop_complete(struct iop_msg *msg)
 static void adb_iop_listen(struct iop_msg *msg)
 {
 	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
-	struct adb_request *req;
 	unsigned long flags;
+	bool req_done = false;
 
 	local_irq_save(flags);
-
-	req = current_req;
 
 	/* Handle a timeout. Timeout packets seem to occur even after
 	 * we've gotten a valid reply to a TALK, presumably because of
 	 * autopolling.
 	 */
 
-	if (amsg->flags & ADB_IOP_TIMEOUT) {
-		msg->reply[0] = ADB_IOP_TIMEOUT | ADB_IOP_AUTOPOLL;
-		msg->reply[1] = 0;
-		msg->reply[2] = 0;
-		if (req && (adb_iop_state != idle)) {
-			adb_iop_end_req(req, idle);
-		}
-	} else {
-		if ((adb_iop_state == awaiting_reply) &&
-		    (amsg->flags & ADB_IOP_EXPLICIT)) {
+	if (amsg->flags & ADB_IOP_EXPLICIT) {
+		if (adb_iop_state == awaiting_reply) {
+			struct adb_request *req = current_req;
+
 			req->reply_len = amsg->count + 1;
 			memcpy(req->reply, &amsg->cmd, req->reply_len);
-		} else {
-			adb_input(&amsg->cmd, amsg->count + 1,
-				  amsg->flags & ADB_IOP_AUTOPOLL);
+
+			req_done = true;
 		}
-		memcpy(msg->reply, msg->message, IOP_MSG_LEN);
+	} else if (!(amsg->flags & ADB_IOP_TIMEOUT)) {
+		adb_input(&amsg->cmd, amsg->count + 1,
+			  amsg->flags & ADB_IOP_AUTOPOLL);
 	}
+
+	msg->reply[0] = ADB_IOP_AUTOPOLL;
 	iop_complete_message(msg);
+
+	if (req_done)
+		adb_iop_done();
+
 	local_irq_restore(flags);
 }
 
