@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 config VIDEO_ATOMISP_OV5693
        tristate "Omnivision ov5693 sensor support"
 	depends on ACPI

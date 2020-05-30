@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for OmniVision OV2680 1080p HD camera sensor.
  *
