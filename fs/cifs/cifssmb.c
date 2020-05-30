@@ -177,7 +177,7 @@ static int __cifs_reconnect_tcon(const struct nls_table *nlsc,
 
 		if (dfs_host_len != tcp_host_len
 		    || strncasecmp(dfs_host, tcp_host, dfs_host_len) != 0) {
-			cifs_dbg(FYI, "%s: %.*s doesn't match %.*s",
+			cifs_dbg(FYI, "%s: %.*s doesn't match %.*s\n",
 				 __func__,
 				 (int)dfs_host_len, dfs_host,
 				 (int)tcp_host_len, tcp_host);
