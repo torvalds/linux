@@ -278,7 +278,7 @@ struct hclgevf_dev {
 	struct semaphore reset_sem;	/* protect reset process */
 
 	u32 fw_version;
-	u16 num_tqps;		/* num task queue pairs of this PF */
+	u16 num_tqps;		/* num task queue pairs of this VF */
 
 	u16 alloc_rss_size;	/* allocated RSS task queue */
 	u16 rss_size_max;	/* HW defined max RSS task queue */
