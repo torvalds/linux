@@ -15,6 +15,8 @@
 #define ARM_SPE_NEED_MORE_BYTES		-1
 #define ARM_SPE_BAD_PACKET		-2
 
+#define ARM_SPE_PKT_MAX_SZ		16
+
 enum arm_spe_pkt_type {
 	ARM_SPE_BAD,
 	ARM_SPE_PAD,
@@ -33,6 +35,20 @@ struct arm_spe_pkt {
 	unsigned char		index;
 	uint64_t		payload;
 };
+
+#define SPE_ADDR_PKT_HDR_INDEX_INS		(0x0)
+#define SPE_ADDR_PKT_HDR_INDEX_BRANCH		(0x1)
+#define SPE_ADDR_PKT_HDR_INDEX_DATA_VIRT	(0x2)
+#define SPE_ADDR_PKT_HDR_INDEX_DATA_PHYS	(0x3)
+
+#define SPE_ADDR_PKT_NS				BIT(7)
+#define SPE_ADDR_PKT_CH				BIT(6)
+#define SPE_ADDR_PKT_EL_OFFSET			(5)
+#define SPE_ADDR_PKT_EL_MASK			(0x3 << SPE_ADDR_PKT_EL_OFFSET)
+#define SPE_ADDR_PKT_EL0			(0)
+#define SPE_ADDR_PKT_EL1			(1)
+#define SPE_ADDR_PKT_EL2			(2)
+#define SPE_ADDR_PKT_EL3			(3)
 
 const char *arm_spe_pkt_name(enum arm_spe_pkt_type);
 
