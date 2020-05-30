@@ -28,6 +28,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/watchdog.h>
+#include <linux/debugfs.h>
 
 #define WDOG_CONTROL_REG_OFFSET		    0x00
 #define WDOG_CONTROL_REG_WDT_EN_MASK	    0x01
@@ -39,8 +40,14 @@
 #define WDOG_COUNTER_RESTART_KICK_VALUE	    0x76
 #define WDOG_INTERRUPT_STATUS_REG_OFFSET    0x10
 #define WDOG_INTERRUPT_CLEAR_REG_OFFSET     0x14
+#define WDOG_COMP_PARAMS_5_REG_OFFSET       0xe4
+#define WDOG_COMP_PARAMS_4_REG_OFFSET       0xe8
+#define WDOG_COMP_PARAMS_3_REG_OFFSET       0xec
+#define WDOG_COMP_PARAMS_2_REG_OFFSET       0xf0
 #define WDOG_COMP_PARAMS_1_REG_OFFSET       0xf4
 #define WDOG_COMP_PARAMS_1_USE_FIX_TOP      BIT(6)
+#define WDOG_COMP_VERSION_REG_OFFSET        0xf8
+#define WDOG_COMP_TYPE_REG_OFFSET           0xfc
 
 /* There are sixteen TOPs (timeout periods) that can be set in the watchdog. */
 #define DW_WDT_NUM_TOPS		16
@@ -85,6 +92,10 @@ struct dw_wdt {
 	/* Save/restore */
 	u32			control;
 	u32			timeout;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry		*dbgfs_dir;
+#endif
 };
 
 #define to_dw_wdt(wdd)	container_of(wdd, struct dw_wdt, wdd)
@@ -484,6 +495,59 @@ static int dw_wdt_init_timeouts(struct dw_wdt *dw_wdt, struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+#define DW_WDT_DBGFS_REG(_name, _off) \
+{				      \
+	.name = _name,		      \
+	.offset = _off		      \
+}
+
+static const struct debugfs_reg32 dw_wdt_dbgfs_regs[] = {
+	DW_WDT_DBGFS_REG("cr", WDOG_CONTROL_REG_OFFSET),
+	DW_WDT_DBGFS_REG("torr", WDOG_TIMEOUT_RANGE_REG_OFFSET),
+	DW_WDT_DBGFS_REG("ccvr", WDOG_CURRENT_COUNT_REG_OFFSET),
+	DW_WDT_DBGFS_REG("crr", WDOG_COUNTER_RESTART_REG_OFFSET),
+	DW_WDT_DBGFS_REG("stat", WDOG_INTERRUPT_STATUS_REG_OFFSET),
+	DW_WDT_DBGFS_REG("param5", WDOG_COMP_PARAMS_5_REG_OFFSET),
+	DW_WDT_DBGFS_REG("param4", WDOG_COMP_PARAMS_4_REG_OFFSET),
+	DW_WDT_DBGFS_REG("param3", WDOG_COMP_PARAMS_3_REG_OFFSET),
+	DW_WDT_DBGFS_REG("param2", WDOG_COMP_PARAMS_2_REG_OFFSET),
+	DW_WDT_DBGFS_REG("param1", WDOG_COMP_PARAMS_1_REG_OFFSET),
+	DW_WDT_DBGFS_REG("version", WDOG_COMP_VERSION_REG_OFFSET),
+	DW_WDT_DBGFS_REG("type", WDOG_COMP_TYPE_REG_OFFSET)
+};
+
+static void dw_wdt_dbgfs_init(struct dw_wdt *dw_wdt)
+{
+	struct device *dev = dw_wdt->wdd.parent;
+	struct debugfs_regset32 *regset;
+
+	regset = devm_kzalloc(dev, sizeof(*regset), GFP_KERNEL);
+	if (!regset)
+		return;
+
+	regset->regs = dw_wdt_dbgfs_regs;
+	regset->nregs = ARRAY_SIZE(dw_wdt_dbgfs_regs);
+	regset->base = dw_wdt->regs;
+
+	dw_wdt->dbgfs_dir = debugfs_create_dir(dev_name(dev), NULL);
+
+	debugfs_create_regset32("registers", 0444, dw_wdt->dbgfs_dir, regset);
+}
+
+static void dw_wdt_dbgfs_clear(struct dw_wdt *dw_wdt)
+{
+	debugfs_remove_recursive(dw_wdt->dbgfs_dir);
+}
+
+#else /* !CONFIG_DEBUG_FS */
+
+static void dw_wdt_dbgfs_init(struct dw_wdt *dw_wdt) {}
+static void dw_wdt_dbgfs_clear(struct dw_wdt *dw_wdt) {}
+
+#endif /* !CONFIG_DEBUG_FS */
+
 static int dw_wdt_drv_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -607,6 +671,8 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_disable_pclk;
 
+	dw_wdt_dbgfs_init(dw_wdt);
+
 	return 0;
 
 out_disable_pclk:
@@ -620,6 +686,8 @@ out_disable_clk:
 static int dw_wdt_drv_remove(struct platform_device *pdev)
 {
 	struct dw_wdt *dw_wdt = platform_get_drvdata(pdev);
+
+	dw_wdt_dbgfs_clear(dw_wdt);
 
 	watchdog_unregister_device(&dw_wdt->wdd);
 	reset_control_assert(dw_wdt->rst);
