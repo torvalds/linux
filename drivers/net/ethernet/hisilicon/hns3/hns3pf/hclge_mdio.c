@@ -155,7 +155,7 @@ int hclge_mac_mdio_config(struct hclge_dev *hdev)
 	ret = mdiobus_register(mdio_bus);
 	if (ret) {
 		dev_err(mdio_bus->parent,
-			"Failed to register MDIO bus ret = %#x\n", ret);
+			"failed to register MDIO bus, ret = %d\n", ret);
 		return ret;
 	}
 
