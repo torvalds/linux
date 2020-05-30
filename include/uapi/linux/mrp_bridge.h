@@ -55,30 +55,30 @@ struct br_mrp_end_hdr {
 };
 
 struct br_mrp_common_hdr {
-	__u16 seq_id;
+	__be16 seq_id;
 	__u8 domain[MRP_DOMAIN_UUID_LENGTH];
 };
 
 struct br_mrp_ring_test_hdr {
-	__u16 prio;
+	__be16 prio;
 	__u8 sa[ETH_ALEN];
-	__u16 port_role;
-	__u16 state;
-	__u16 transitions;
-	__u32 timestamp;
+	__be16 port_role;
+	__be16 state;
+	__be16 transitions;
+	__be32 timestamp;
 };
 
 struct br_mrp_ring_topo_hdr {
-	__u16 prio;
+	__be16 prio;
 	__u8 sa[ETH_ALEN];
-	__u16 interval;
+	__be16 interval;
 };
 
 struct br_mrp_ring_link_hdr {
 	__u8 sa[ETH_ALEN];
-	__u16 port_role;
-	__u16 interval;
-	__u16 blocked;
+	__be16 port_role;
+	__be16 interval;
+	__be16 blocked;
 };
 
 #endif
