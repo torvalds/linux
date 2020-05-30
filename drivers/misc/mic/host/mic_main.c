@@ -164,7 +164,6 @@ static int mic_probe(struct pci_dev *pdev,
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		rc = -ENOMEM;
-		dev_err(&pdev->dev, "mdev kmalloc failed rc %d\n", rc);
 		goto mdev_alloc_fail;
 	}
 	mdev->id = ida_simple_get(&g_mic_ida, 0, MIC_MAX_NUM_DEVS, GFP_KERNEL);
