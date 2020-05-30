@@ -483,7 +483,8 @@ static int smc_write_space(struct smc_connection *conn)
 	return space;
 }
 
-static int smc_switch_cursor(struct smc_sock *smc)
+static int smc_switch_cursor(struct smc_sock *smc, struct smc_cdc_tx_pend *pend,
+			     struct smc_wr_buf *wr_buf)
 {
 	struct smc_connection *conn = &smc->conn;
 	union smc_host_cursor cons, fin;
@@ -520,11 +521,14 @@ static int smc_switch_cursor(struct smc_sock *smc)
 
 	if (smc->sk.sk_state != SMC_INIT &&
 	    smc->sk.sk_state != SMC_CLOSED) {
-		rc = smcr_cdc_msg_send_validation(conn);
+		rc = smcr_cdc_msg_send_validation(conn, pend, wr_buf);
 		if (!rc) {
 			schedule_delayed_work(&conn->tx_work, 0);
 			smc->sk.sk_data_ready(&smc->sk);
 		}
+	} else {
+		smc_wr_tx_put_slot(conn->lnk,
+				   (struct smc_wr_tx_pend_priv *)pend);
 	}
 	return rc;
 }
@@ -533,7 +537,9 @@ struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 				  struct smc_link *from_lnk, bool is_dev_err)
 {
 	struct smc_link *to_lnk = NULL;
+	struct smc_cdc_tx_pend *pend;
 	struct smc_connection *conn;
+	struct smc_wr_buf *wr_buf;
 	struct smc_sock *smc;
 	struct rb_node *node;
 	int i, rc = 0;
@@ -582,10 +588,16 @@ again:
 		}
 		sock_hold(&smc->sk);
 		read_unlock_bh(&lgr->conns_lock);
+		/* pre-fetch buffer outside of send_lock, might sleep */
+		rc = smc_cdc_get_free_slot(conn, to_lnk, &wr_buf, NULL, &pend);
+		if (rc) {
+			smcr_link_down_cond_sched(to_lnk);
+			return NULL;
+		}
 		/* avoid race with smcr_tx_sndbuf_nonempty() */
 		spin_lock_bh(&conn->send_lock);
 		conn->lnk = to_lnk;
-		rc = smc_switch_cursor(smc);
+		rc = smc_switch_cursor(smc, pend, wr_buf);
 		spin_unlock_bh(&conn->send_lock);
 		sock_put(&smc->sk);
 		if (rc) {
