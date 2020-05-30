@@ -101,11 +101,10 @@ static void adb_iop_listen(struct iop_msg *msg)
 
 	req = current_req;
 
-	/* Handle a timeout. Timeout packets seem to occur even after */
-	/* we've gotten a valid reply to a TALK, so I'm assuming that */
-	/* a "timeout" is actually more like an "end-of-data" signal. */
-	/* We need to send back a timeout packet to the IOP to shut   */
-	/* it up, plus complete the current request, if any.          */
+	/* Handle a timeout. Timeout packets seem to occur even after
+	 * we've gotten a valid reply to a TALK, presumably because of
+	 * autopolling.
+	 */
 
 	if (amsg->flags & ADB_IOP_TIMEOUT) {
 		msg->reply[0] = ADB_IOP_TIMEOUT | ADB_IOP_AUTOPOLL;
@@ -115,9 +114,6 @@ static void adb_iop_listen(struct iop_msg *msg)
 			adb_iop_end_req(req, idle);
 		}
 	} else {
-		/* TODO: is it possible for more than one chunk of data  */
-		/*       to arrive before the timeout? If so we need to */
-		/*       use reply_ptr here like the other drivers do.  */
 		if ((adb_iop_state == awaiting_reply) &&
 		    (amsg->flags & ADB_IOP_EXPLICIT)) {
 			req->reply_len = amsg->count + 1;
@@ -152,23 +148,24 @@ static void adb_iop_start(void)
 
 	local_irq_save(flags);
 
-	/* The IOP takes MacII-style packets, so */
-	/* strip the initial ADB_PACKET byte.    */
-
+	/* The IOP takes MacII-style packets, so strip the initial
+	 * ADB_PACKET byte.
+	 */
 	amsg.flags = ADB_IOP_EXPLICIT;
 	amsg.count = req->nbytes - 2;
 
-	/* amsg.data immediately follows amsg.cmd, effectively making */
-	/* amsg.cmd a pointer to the beginning of a full ADB packet.  */
+	/* amsg.data immediately follows amsg.cmd, effectively making
+	 * &amsg.cmd a pointer to the beginning of a full ADB packet.
+	 */
 	memcpy(&amsg.cmd, req->data + 1, req->nbytes - 1);
 
 	req->sent = 1;
 	adb_iop_state = sending;
 	local_irq_restore(flags);
 
-	/* Now send it. The IOP manager will call adb_iop_complete */
-	/* when the packet has been sent.                          */
-
+	/* Now send it. The IOP manager will call adb_iop_complete
+	 * when the message has been sent.
+	 */
 	iop_send_message(ADB_IOP, ADB_CHAN, req, sizeof(amsg), (__u8 *)&amsg,
 			 adb_iop_complete);
 }
