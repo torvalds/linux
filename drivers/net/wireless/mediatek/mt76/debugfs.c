@@ -54,9 +54,6 @@ static int mt76_rx_queues_read(struct seq_file *s, void *data)
 	mt76_for_each_q_rx(dev, i) {
 		struct mt76_queue *q = &dev->q_rx[i];
 
-		if (!q->ndesc)
-			continue;
-
 		queued = mt76_is_usb(dev) ? q->ndesc - q->queued : q->queued;
 		seq_printf(s, "%d:	queued=%d head=%d tail=%d\n",
 			   i, queued, q->head, q->tail);

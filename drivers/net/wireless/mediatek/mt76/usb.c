@@ -672,17 +672,11 @@ mt76u_process_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 static void mt76u_rx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
-	struct mt76_queue *q;
 	int i;
 
 	rcu_read_lock();
-	for (i = 0; i < __MT_RXQ_MAX; i++) {
-		q = &dev->q_rx[i];
-		if (!q->ndesc)
-			continue;
-
-		mt76u_process_rx_queue(dev, q);
-	}
+	mt76_for_each_q_rx(dev, i)
+		mt76u_process_rx_queue(dev, &dev->q_rx[i]);
 	rcu_read_unlock();
 }
 
@@ -756,27 +750,19 @@ mt76u_free_rx_queue(struct mt76_dev *dev, struct mt76_queue *q)
 
 static void mt76u_free_rx(struct mt76_dev *dev)
 {
-	struct mt76_queue *q;
 	int i;
 
-	for (i = 0; i < __MT_RXQ_MAX; i++) {
-		q = &dev->q_rx[i];
-		if (!q->ndesc)
-			continue;
-
-		mt76u_free_rx_queue(dev, q);
-	}
+	mt76_for_each_q_rx(dev, i)
+		mt76u_free_rx_queue(dev, &dev->q_rx[i]);
 }
 
 void mt76u_stop_rx(struct mt76_dev *dev)
 {
-	struct mt76_queue *q;
-	int i, j;
+	int i;
 
-	for (i = 0; i < __MT_RXQ_MAX; i++) {
-		q = &dev->q_rx[i];
-		if (!q->ndesc)
-			continue;
+	mt76_for_each_q_rx(dev, i) {
+		struct mt76_queue *q = &dev->q_rx[i];
+		int j;
 
 		for (j = 0; j < q->ndesc; j++)
 			usb_poison_urb(q->entry[j].urb);
@@ -788,14 +774,11 @@ EXPORT_SYMBOL_GPL(mt76u_stop_rx);
 
 int mt76u_resume_rx(struct mt76_dev *dev)
 {
-	struct mt76_queue *q;
-	int i, j, err;
+	int i;
 
-	for (i = 0; i < __MT_RXQ_MAX; i++) {
-		q = &dev->q_rx[i];
-
-		if (!q->ndesc)
-			continue;
+	mt76_for_each_q_rx(dev, i) {
+		struct mt76_queue *q = &dev->q_rx[i];
+		int err, j;
 
 		for (j = 0; j < q->ndesc; j++)
 			usb_unpoison_urb(q->entry[j].urb);
