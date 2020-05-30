@@ -431,6 +431,10 @@ void sja1105_packing(void *buf, u64 *val, int start, int end,
 		     size_t len, enum packing_op op);
 
 /* Common implementations for the static and dynamic configs */
+size_t sja1105pqrs_general_params_entry_packing(void *buf, void *entry_ptr,
+						enum packing_op op);
+size_t sja1105pqrs_l2_lookup_params_entry_packing(void *buf, void *entry_ptr,
+						  enum packing_op op);
 size_t sja1105_l2_forwarding_entry_packing(void *buf, void *entry_ptr,
 					   enum packing_op op);
 size_t sja1105pqrs_l2_lookup_entry_packing(void *buf, void *entry_ptr,
