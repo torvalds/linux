@@ -215,7 +215,7 @@ drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&dev->master_mutex);
 
@@ -272,12 +272,15 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_unlock;
 
-	ret = -EINVAL;
-	if (!drm_is_current_master(file_priv))
+	if (!drm_is_current_master(file_priv)) {
+		ret = -EINVAL;
 		goto out_unlock;
+	}
 
-	if (!dev->master)
+	if (!dev->master) {
+		ret = -EINVAL;
 		goto out_unlock;
+	}
 
 	if (file_priv->master->lessor != NULL) {
 		DRM_DEBUG_LEASE("Attempt to drop lessee %d as master\n", file_priv->master->lessee_id);
@@ -285,7 +288,6 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ret = 0;
 	drm_drop_master(dev, file_priv);
 out_unlock:
 	mutex_unlock(&dev->master_mutex);
