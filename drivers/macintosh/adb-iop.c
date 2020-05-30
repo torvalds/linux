@@ -166,21 +166,21 @@ static void adb_iop_start(void)
 			 adb_iop_complete);
 }
 
-int adb_iop_probe(void)
+static int adb_iop_probe(void)
 {
 	if (!iop_ism_present)
 		return -ENODEV;
 	return 0;
 }
 
-int adb_iop_init(void)
+static int adb_iop_init(void)
 {
 	pr_info("adb: IOP ISM driver v0.4 for Unified ADB\n");
 	iop_listen(ADB_IOP, ADB_CHAN, adb_iop_listen, "ADB");
 	return 0;
 }
 
-int adb_iop_send_request(struct adb_request *req, int sync)
+static int adb_iop_send_request(struct adb_request *req, int sync)
 {
 	int err;
 
@@ -211,7 +211,7 @@ static int adb_iop_write(struct adb_request *req)
 
 	local_irq_save(flags);
 
-	if (current_req != 0) {
+	if (current_req) {
 		last_req->next = req;
 		last_req = req;
 	} else {
@@ -227,18 +227,18 @@ static int adb_iop_write(struct adb_request *req)
 	return 0;
 }
 
-int adb_iop_autopoll(int devs)
+static int adb_iop_autopoll(int devs)
 {
 	/* TODO: how do we enable/disable autopoll? */
 	return 0;
 }
 
-void adb_iop_poll(void)
+static void adb_iop_poll(void)
 {
 	iop_ism_irq_poll(ADB_IOP);
 }
 
-int adb_iop_reset_bus(void)
+static int adb_iop_reset_bus(void)
 {
 	struct adb_request req;
 
