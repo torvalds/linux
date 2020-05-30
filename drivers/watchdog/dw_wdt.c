@@ -68,6 +68,7 @@ struct dw_wdt_timeout {
 struct dw_wdt {
 	void __iomem		*regs;
 	struct clk		*clk;
+	struct clk		*pclk;
 	unsigned long		rate;
 	struct dw_wdt_timeout	timeouts[DW_WDT_NUM_TOPS];
 	struct watchdog_device	wdd;
@@ -274,6 +275,7 @@ static int dw_wdt_suspend(struct device *dev)
 	dw_wdt->control = readl(dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
 	dw_wdt->timeout = readl(dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
 
+	clk_disable_unprepare(dw_wdt->pclk);
 	clk_disable_unprepare(dw_wdt->clk);
 
 	return 0;
@@ -286,6 +288,12 @@ static int dw_wdt_resume(struct device *dev)
 
 	if (err)
 		return err;
+
+	err = clk_prepare_enable(dw_wdt->pclk);
+	if (err) {
+		clk_disable_unprepare(dw_wdt->clk);
+		return err;
+	}
 
 	writel(dw_wdt->timeout, dw_wdt->regs + WDOG_TIMEOUT_RANGE_REG_OFFSET);
 	writel(dw_wdt->control, dw_wdt->regs + WDOG_CONTROL_REG_OFFSET);
@@ -393,9 +401,18 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 	if (IS_ERR(dw_wdt->regs))
 		return PTR_ERR(dw_wdt->regs);
 
-	dw_wdt->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(dw_wdt->clk))
-		return PTR_ERR(dw_wdt->clk);
+	/*
+	 * Try to request the watchdog dedicated timer clock source. It must
+	 * be supplied if asynchronous mode is enabled. Otherwise fallback
+	 * to the common timer/bus clocks configuration, in which the very
+	 * first found clock supply both timer and APB signals.
+	 */
+	dw_wdt->clk = devm_clk_get(dev, "tclk");
+	if (IS_ERR(dw_wdt->clk)) {
+		dw_wdt->clk = devm_clk_get(dev, NULL);
+		if (IS_ERR(dw_wdt->clk))
+			return PTR_ERR(dw_wdt->clk);
+	}
 
 	ret = clk_prepare_enable(dw_wdt->clk);
 	if (ret)
@@ -407,10 +424,27 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 		goto out_disable_clk;
 	}
 
+	/*
+	 * Request APB clock if device is configured with async clocks mode.
+	 * In this case both tclk and pclk clocks are supposed to be specified.
+	 * Alas we can't know for sure whether async mode was really activated,
+	 * so the pclk phandle reference is left optional. If it couldn't be
+	 * found we consider the device configured in synchronous clocks mode.
+	 */
+	dw_wdt->pclk = devm_clk_get_optional(dev, "pclk");
+	if (IS_ERR(dw_wdt->pclk)) {
+		ret = PTR_ERR(dw_wdt->pclk);
+		goto out_disable_clk;
+	}
+
+	ret = clk_prepare_enable(dw_wdt->pclk);
+	if (ret)
+		goto out_disable_clk;
+
 	dw_wdt->rst = devm_reset_control_get_optional_shared(&pdev->dev, NULL);
 	if (IS_ERR(dw_wdt->rst)) {
 		ret = PTR_ERR(dw_wdt->rst);
-		goto out_disable_clk;
+		goto out_disable_pclk;
 	}
 
 	reset_control_deassert(dw_wdt->rst);
@@ -449,9 +483,12 @@ static int dw_wdt_drv_probe(struct platform_device *pdev)
 
 	ret = watchdog_register_device(wdd);
 	if (ret)
-		goto out_disable_clk;
+		goto out_disable_pclk;
 
 	return 0;
+
+out_disable_pclk:
+	clk_disable_unprepare(dw_wdt->pclk);
 
 out_disable_clk:
 	clk_disable_unprepare(dw_wdt->clk);
@@ -464,6 +501,7 @@ static int dw_wdt_drv_remove(struct platform_device *pdev)
 
 	watchdog_unregister_device(&dw_wdt->wdd);
 	reset_control_assert(dw_wdt->rst);
+	clk_disable_unprepare(dw_wdt->pclk);
 	clk_disable_unprepare(dw_wdt->clk);
 
 	return 0;
