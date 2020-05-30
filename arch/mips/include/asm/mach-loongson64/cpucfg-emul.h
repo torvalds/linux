@@ -12,6 +12,12 @@
 
 void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c);
 
+static inline bool loongson3_cpucfg_emulation_enabled(struct cpuinfo_mips *c)
+{
+	/* All supported cores have non-zero LOONGSON_CFG1 data. */
+	return c->loongson3_cpucfg_data[0] != 0;
+}
+
 static inline u32 loongson3_cpucfg_read_synthesized(struct cpuinfo_mips *c,
 	__u64 sel)
 {
@@ -51,6 +57,11 @@ static inline u32 loongson3_cpucfg_read_synthesized(struct cpuinfo_mips *c,
 #else
 static inline void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 {
+}
+
+static inline bool loongson3_cpucfg_emulation_enabled(struct cpuinfo_mips *c)
+{
+	return false;
 }
 
 static inline u32 loongson3_cpucfg_read_synthesized(struct cpuinfo_mips *c,

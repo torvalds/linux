@@ -134,13 +134,9 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 	c->loongson3_cpucfg_data[1] = 0;
 	c->loongson3_cpucfg_data[2] = 0;
 
-	/* Add CPUCFG features non-discoverable otherwise.
-	 *
-	 * All Loongson processors covered by CPUCFG emulation have distinct
-	 * PRID_REV, so take advantage of this.
-	 */
-	switch (c->processor_id & PRID_REV_MASK) {
-	case PRID_REV_LOONGSON3A_R1:
+	/* Add CPUCFG features non-discoverable otherwise. */
+	switch (c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) {
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R1:
 		c->loongson3_cpucfg_data[0] |= (LOONGSON_CFG1_LSLDR0 |
 			LOONGSON_CFG1_LSSYNCI | LOONGSON_CFG1_LSUCA |
 			LOONGSON_CFG1_LLSYNC | LOONGSON_CFG1_TGTSYNC);
@@ -153,8 +149,8 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 			LOONGSON_CFG3_LCAMVW_REV1);
 		break;
 
-	case PRID_REV_LOONGSON3B_R1:
-	case PRID_REV_LOONGSON3B_R2:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3B_R1:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3B_R2:
 		c->loongson3_cpucfg_data[0] |= (LOONGSON_CFG1_LSLDR0 |
 			LOONGSON_CFG1_LSSYNCI | LOONGSON_CFG1_LSUCA |
 			LOONGSON_CFG1_LLSYNC | LOONGSON_CFG1_TGTSYNC);
@@ -167,10 +163,10 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 			LOONGSON_CFG3_LCAMVW_REV1);
 		break;
 
-	case PRID_REV_LOONGSON2K_R1_0:
-	case PRID_REV_LOONGSON2K_R1_1:
-	case PRID_REV_LOONGSON2K_R1_2:
-	case PRID_REV_LOONGSON2K_R1_3:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_0:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_1:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_2:
+	case PRID_IMP_LOONGSON_64R | PRID_REV_LOONGSON2K_R1_3:
 		decode_loongson_config6(c);
 		probe_uca(c);
 
@@ -183,10 +179,10 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 		c->loongson3_cpucfg_data[2] = 0;
 		break;
 
-	case PRID_REV_LOONGSON3A_R2_0:
-	case PRID_REV_LOONGSON3A_R2_1:
-	case PRID_REV_LOONGSON3A_R3_0:
-	case PRID_REV_LOONGSON3A_R3_1:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_1:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R3_0:
+	case PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R3_1:
 		decode_loongson_config6(c);
 		probe_uca(c);
 
@@ -203,6 +199,13 @@ void loongson3_cpucfg_synthesize_data(struct cpuinfo_mips *c)
 			LOONGSON_CFG3_LCAMKW_REV1 |
 			LOONGSON_CFG3_LCAMVW_REV1);
 		break;
+
+	default:
+		/* It is possible that some future Loongson cores still do
+		 * not have CPUCFG, so do not emulate anything for these
+		 * cores.
+		 */
+		return;
 	}
 
 	/* This feature is set by firmware, but all known Loongson-64 systems
