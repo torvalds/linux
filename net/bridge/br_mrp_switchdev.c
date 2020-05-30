@@ -65,7 +65,8 @@ int br_mrp_switchdev_set_ring_role(struct net_bridge *br,
 
 int br_mrp_switchdev_send_ring_test(struct net_bridge *br,
 				    struct br_mrp *mrp, u32 interval,
-				    u8 max_miss, u32 period)
+				    u8 max_miss, u32 period,
+				    bool monitor)
 {
 	struct switchdev_obj_ring_test_mrp test = {
 		.obj.orig_dev = br->dev,
@@ -74,6 +75,7 @@ int br_mrp_switchdev_send_ring_test(struct net_bridge *br,
 		.max_miss = max_miss,
 		.ring_id = mrp->ring_id,
 		.period = period,
+		.monitor = monitor,
 	};
 	int err;
 

@@ -26,6 +26,7 @@ struct br_mrp {
 	unsigned long			test_end;
 	u32				test_count_miss;
 	u32				test_max_miss;
+	bool				test_monitor;
 
 	u32				seq_id;
 
@@ -52,7 +53,8 @@ int br_mrp_switchdev_set_ring_role(struct net_bridge *br, struct br_mrp *mrp,
 int br_mrp_switchdev_set_ring_state(struct net_bridge *br, struct br_mrp *mrp,
 				    enum br_mrp_ring_state_type state);
 int br_mrp_switchdev_send_ring_test(struct net_bridge *br, struct br_mrp *mrp,
-				    u32 interval, u8 max_miss, u32 period);
+				    u32 interval, u8 max_miss, u32 period,
+				    bool monitor);
 int br_mrp_port_switchdev_set_state(struct net_bridge_port *p,
 				    enum br_mrp_port_state_type state);
 int br_mrp_port_switchdev_set_role(struct net_bridge_port *p,

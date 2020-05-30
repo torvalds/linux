@@ -196,6 +196,7 @@ br_mrp_start_test_policy[IFLA_BRIDGE_MRP_START_TEST_MAX + 1] = {
 	[IFLA_BRIDGE_MRP_START_TEST_INTERVAL]	= { .type = NLA_U32 },
 	[IFLA_BRIDGE_MRP_START_TEST_MAX_MISS]	= { .type = NLA_U32 },
 	[IFLA_BRIDGE_MRP_START_TEST_PERIOD]	= { .type = NLA_U32 },
+	[IFLA_BRIDGE_MRP_START_TEST_MONITOR]	= { .type = NLA_U32 },
 };
 
 static int br_mrp_start_test_parse(struct net_bridge *br, struct nlattr *attr,
@@ -225,6 +226,11 @@ static int br_mrp_start_test_parse(struct net_bridge *br, struct nlattr *attr,
 	test.interval = nla_get_u32(tb[IFLA_BRIDGE_MRP_START_TEST_INTERVAL]);
 	test.max_miss = nla_get_u32(tb[IFLA_BRIDGE_MRP_START_TEST_MAX_MISS]);
 	test.period = nla_get_u32(tb[IFLA_BRIDGE_MRP_START_TEST_PERIOD]);
+	test.monitor = false;
+
+	if (tb[IFLA_BRIDGE_MRP_START_TEST_MONITOR])
+		test.monitor =
+			nla_get_u32(tb[IFLA_BRIDGE_MRP_START_TEST_MONITOR]);
 
 	return br_mrp_start_test(br, &test);
 }

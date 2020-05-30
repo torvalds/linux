@@ -222,6 +222,7 @@ enum {
 	IFLA_BRIDGE_MRP_START_TEST_INTERVAL,
 	IFLA_BRIDGE_MRP_START_TEST_MAX_MISS,
 	IFLA_BRIDGE_MRP_START_TEST_PERIOD,
+	IFLA_BRIDGE_MRP_START_TEST_MONITOR,
 	__IFLA_BRIDGE_MRP_START_TEST_MAX,
 };
 
@@ -249,6 +250,7 @@ struct br_mrp_start_test {
 	__u32 interval;
 	__u32 max_miss;
 	__u32 period;
+	__u32 monitor;
 };
 
 struct bridge_stp_xstats {
