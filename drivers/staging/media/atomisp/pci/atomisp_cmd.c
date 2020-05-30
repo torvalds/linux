@@ -5026,7 +5026,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 			 mipi_info->input_format);
 		if (!fc)
 			return -EINVAL;
-		input_format = fc->css_stream_fmt;
+		input_format = fc->atomisp_in_fmt;
 	} else {
 		struct v4l2_mbus_framefmt *sink;
 
@@ -5036,7 +5036,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		fc = atomisp_find_in_fmt_conv(sink->code);
 		if (!fc)
 			return -EINVAL;
-		input_format = fc->css_stream_fmt;
+		input_format = fc->atomisp_in_fmt;
 		bayer_order = fc->bayer_order;
 	}
 
@@ -5047,7 +5047,7 @@ static inline int atomisp_set_sensor_mipi_to_isp(
 		 mipi_info->metadata_format);
 	if (!fc)
 		return -EINVAL;
-	input_format = fc->css_stream_fmt;
+	input_format = fc->atomisp_in_fmt;
 	atomisp_css_input_configure_port(asd,
 					 __get_mipi_port(asd->isp, mipi_info->port),
 					 mipi_info->num_lanes,
@@ -5230,7 +5230,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 		if (!fc)
 			return -EINVAL;
 		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW &&
-		    raw_output_format_match_input(fc->css_stream_fmt,
+		    raw_output_format_match_input(fc->atomisp_in_fmt,
 						  pix->pixelformat))
 			return -EINVAL;
 	}

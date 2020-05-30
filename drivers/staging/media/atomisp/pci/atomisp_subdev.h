@@ -61,7 +61,6 @@ struct atomisp_in_fmt_conv {
 	u8 depth; /* uncompressed */
 	enum atomisp_input_format atomisp_in_fmt;
 	enum ia_css_bayer_order bayer_order;
-	enum atomisp_input_format css_stream_fmt;
 };
 
 struct atomisp_sub_device;
