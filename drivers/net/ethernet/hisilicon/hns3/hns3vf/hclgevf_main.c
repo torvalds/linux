@@ -669,8 +669,8 @@ static int hclgevf_set_rss_tc_mode(struct hclgevf_dev *hdev,  u16 rss_size)
 	u16 tc_size[HCLGEVF_MAX_TC_NUM];
 	struct hclgevf_desc desc;
 	u16 roundup_size;
-	int status;
 	unsigned int i;
+	int status;
 
 	req = (struct hclgevf_rss_tc_mode_cmd *)desc.data;
 
@@ -1143,7 +1143,6 @@ static int hclgevf_cmd_set_promisc_mode(struct hclgevf_dev *hdev,
 	send_msg.en_mc = en_mc_pmc ? 1 : 0;
 
 	ret = hclgevf_send_mbx_msg(hdev, &send_msg, false, NULL, 0);
-
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"Set promisc mode fail, status is %d.\n", ret);
