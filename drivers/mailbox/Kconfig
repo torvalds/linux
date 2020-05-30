@@ -244,4 +244,14 @@ config SPRD_MBOX
 	  to send message between application processors and MCU. Say Y here if
 	  you want to build the Spreatrum mailbox controller driver.
 
+config QCOM_IPCC
+	bool "Qualcomm Technologies, Inc. IPCC driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	help
+	  Qualcomm Technologies, Inc. Inter-Processor Communication Controller
+	  (IPCC) driver for MSM devices. The driver provides mailbox support for
+	  sending interrupts to the clients. On the other hand, the driver also
+	  acts as an interrupt controller for receiving interrupts from clients.
+	  Say Y here if you want to build this driver.
+
 endif
