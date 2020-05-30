@@ -3955,7 +3955,6 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 static void rtl8169_tx_clear(struct rtl8169_private *tp)
 {
 	rtl8169_tx_clear_range(tp, tp->dirty_tx, NUM_TX_DESC);
-	tp->cur_tx = tp->dirty_tx = 0;
 	netdev_reset_queue(tp->dev);
 }
 
