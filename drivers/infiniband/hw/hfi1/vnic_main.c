@@ -457,13 +457,19 @@ static int hfi1_vnic_up(struct hfi1_vnic_vport_info *vinfo)
 	if (rc < 0)
 		return rc;
 
-	hfi1_netdev_rx_init(dd);
+	rc = hfi1_netdev_rx_init(dd);
+	if (rc)
+		goto err_remove;
 
 	netif_carrier_on(netdev);
 	netif_tx_start_all_queues(netdev);
 	set_bit(HFI1_VNIC_UP, &vinfo->flags);
 
 	return 0;
+
+err_remove:
+	hfi1_netdev_remove_data(dd, VNIC_ID(vinfo->vesw_id));
+	return rc;
 }
 
 static void hfi1_vnic_down(struct hfi1_vnic_vport_info *vinfo)
@@ -512,7 +518,8 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 			goto txreq_fail;
 	}
 
-	if (hfi1_netdev_rx_init(dd)) {
+	rc = hfi1_netdev_rx_init(dd);
+	if (rc) {
 		dd_dev_err(dd, "Unable to initialize netdev contexts\n");
 		goto alloc_fail;
 	}
