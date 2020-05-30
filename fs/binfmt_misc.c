@@ -192,7 +192,7 @@ static int load_misc_binary(struct linux_binprm *bprm)
 
 	bprm->interpreter = interp_file;
 	if (fmt->flags & MISC_FMT_CREDENTIALS)
-		bprm->preserve_creds = 1;
+		bprm->execfd_creds = 1;
 
 	retval = 0;
 ret:

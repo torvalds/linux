@@ -72,6 +72,8 @@
 
 #include <trace/events/sched.h>
 
+static int bprm_creds_from_file(struct linux_binprm *bprm);
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
@@ -1304,6 +1306,11 @@ int begin_new_exec(struct linux_binprm * bprm)
 	struct task_struct *me = current;
 	int retval;
 
+	/* Once we are committed compute the creds */
+	retval = bprm_creds_from_file(bprm);
+	if (retval)
+		return retval;
+
 	/*
 	 * Ensure all future errors are fatal.
 	 */
@@ -1354,7 +1361,6 @@ int begin_new_exec(struct linux_binprm * bprm)
 	me->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD |
 					PF_NOFREEZE | PF_NO_SETAFFINITY);
 	flush_thread();
-	bprm->per_clear |= bprm->pf_per_clear;
 	me->personality &= ~bprm->per_clear;
 
 	/*
@@ -1364,13 +1370,6 @@ int begin_new_exec(struct linux_binprm * bprm)
 	 * undergoing exec(2).
 	 */
 	do_close_on_exec(me->files);
-
-	/*
-	 * Once here, prepare_binrpm() will not be called any more, so
-	 * the final state of setuid/setgid/fscaps can be merged into the
-	 * secureexec flag.
-	 */
-	bprm->secureexec |= bprm->active_secureexec;
 
 	if (bprm->secureexec) {
 		/* Make sure parent cannot signal privileged process. */
@@ -1587,29 +1586,21 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	spin_unlock(&p->fs->lock);
 }
 
-static void bprm_fill_uid(struct linux_binprm *bprm)
+static void bprm_fill_uid(struct linux_binprm *bprm, struct file *file)
 {
+	/* Handle suid and sgid on files */
 	struct inode *inode;
 	unsigned int mode;
 	kuid_t uid;
 	kgid_t gid;
 
-	/*
-	 * Since this can be called multiple times (via prepare_binprm),
-	 * we must clear any previous work done when setting set[ug]id
-	 * bits from any earlier bprm->file uses (for example when run
-	 * first for a setuid script then again for its interpreter).
-	 */
-	bprm->cred->euid = current_euid();
-	bprm->cred->egid = current_egid();
-
-	if (!mnt_may_suid(bprm->file->f_path.mnt))
+	if (!mnt_may_suid(file->f_path.mnt))
 		return;
 
 	if (task_no_new_privs(current))
 		return;
 
-	inode = bprm->file->f_path.dentry->d_inode;
+	inode = file->f_path.dentry->d_inode;
 	mode = READ_ONCE(inode->i_mode);
 	if (!(mode & (S_ISUID|S_ISGID)))
 		return;
@@ -1629,39 +1620,37 @@ static void bprm_fill_uid(struct linux_binprm *bprm)
 		return;
 
 	if (mode & S_ISUID) {
-		bprm->pf_per_clear |= PER_CLEAR_ON_SETID;
+		bprm->per_clear |= PER_CLEAR_ON_SETID;
 		bprm->cred->euid = uid;
 	}
 
 	if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP)) {
-		bprm->pf_per_clear |= PER_CLEAR_ON_SETID;
+		bprm->per_clear |= PER_CLEAR_ON_SETID;
 		bprm->cred->egid = gid;
 	}
 }
 
 /*
+ * Compute brpm->cred based upon the final binary.
+ */
+static int bprm_creds_from_file(struct linux_binprm *bprm)
+{
+	/* Compute creds based on which file? */
+	struct file *file = bprm->execfd_creds ? bprm->executable : bprm->file;
+
+	bprm_fill_uid(bprm, file);
+	return security_bprm_creds_from_file(bprm, file);
+}
+
+/*
  * Fill the binprm structure from the inode.
- * Check permissions, then read the first BINPRM_BUF_SIZE bytes
+ * Read the first BINPRM_BUF_SIZE bytes
  *
  * This may be called multiple times for binary chains (scripts for example).
  */
 static int prepare_binprm(struct linux_binprm *bprm)
 {
 	loff_t pos = 0;
-
-	/* Can the interpreter get to the executable without races? */
-	if (!bprm->preserve_creds) {
-		int retval;
-
-		/* Recompute parts of bprm->cred based on bprm->file */
-		bprm->active_secureexec = 0;
-		bprm->pf_per_clear = 0;
-		bprm_fill_uid(bprm);
-		retval = security_bprm_repopulate_creds(bprm);
-		if (retval)
-			return retval;
-	}
-	bprm->preserve_creds = 0;
 
 	memset(bprm->buf, 0, BINPRM_BUF_SIZE);
 	return kernel_read(bprm->file, bprm->buf, BINPRM_BUF_SIZE, &pos);

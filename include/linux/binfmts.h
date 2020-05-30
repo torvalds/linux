@@ -29,13 +29,8 @@ struct linux_binprm {
 		/* Should an execfd be passed to userspace? */
 		have_execfd:1,
 
-		/* It is safe to use the creds of a script (see binfmt_misc) */
-		preserve_creds:1,
-		/*
-		 * True if most recent call to security_bprm_set_creds
-		 * resulted in elevated privileges.
-		 */
-		active_secureexec:1,
+		/* Use the creds of a script (see binfmt_misc) */
+		execfd_creds:1,
 		/*
 		 * Set by bprm_creds_for_exec hook to indicate a
 		 * privilege-gaining exec has happened. Used to set
@@ -55,11 +50,6 @@ struct linux_binprm {
 	struct file * file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
-	/*
-	 * bits to clear in current->personality
-	 * recalculated for each bprm->file.
-	 */
-	unsigned int pf_per_clear;
 	unsigned int per_clear;	/* bits to clear in current->personality */
 	int argc, envc;
 	const char * filename;	/* Name of binary as seen by procps */

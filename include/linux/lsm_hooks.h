@@ -44,18 +44,18 @@
  *	request libc enable secure mode.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
- * @bprm_repopulate_creds:
- *	Assuming that the relevant bits of @bprm->cred->security have been
- *	previously set, examine @bprm->file and regenerate them.  This is
- *	so that the credentials derived from the interpreter the code is
- *	actually going to run are used rather than credentials derived
- *	from a script.  This done because the interpreter binary needs to
- *	reopen script, and may end up opening something completely different.
- *	This hook may also optionally check permissions (e.g. for
- *	transitions between security domains).
- *	The hook must set @bprm->active_secureexec to 1 if AT_SECURE should be set to
+ * @bprm_creds_from_file:
+ *	If @file is setpcap, suid, sgid or otherwise marked to change
+ *	privilege upon exec, update @bprm->cred to reflect that change.
+ *	This is called after finding the binary that will be executed.
+ *	without an interpreter.  This ensures that the credentials will not
+ *	be derived from a script that the binary will need to reopen, which
+ *	when reopend may end up being a completely different file.  This
+ *	hook may also optionally check permissions (e.g. for transitions
+ *	between security domains).
+ *	The hook must set @bprm->secureexec to 1 if AT_SECURE should be set to
  *	request libc enable secure mode.
- *	The hook must add to @bprm->pf_per_clear any personality flags that
+ *	The hook must add to @bprm->per_clear any personality flags that
  * 	should be cleared from current->personality.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
