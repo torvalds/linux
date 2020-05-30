@@ -7,10 +7,6 @@
  * 1999-07-01 (jmt) - First implementation for new driver architecture.
  *
  * 1999-07-31 (jmt) - First working version.
- *
- * TODO:
- *
- * o Implement SRQ handling.
  */
 
 #include <linux/types.h>
@@ -28,6 +24,7 @@
 
 static struct adb_request *current_req;
 static struct adb_request *last_req;
+static unsigned int autopoll_devs;
 
 static enum adb_iop_state {
 	idle,
@@ -123,7 +120,7 @@ static void adb_iop_listen(struct iop_msg *msg)
 			  amsg->flags & ADB_IOP_AUTOPOLL);
 	}
 
-	msg->reply[0] = ADB_IOP_AUTOPOLL;
+	msg->reply[0] = autopoll_devs ? ADB_IOP_AUTOPOLL : 0;
 	iop_complete_message(msg);
 
 	if (req_done)
@@ -231,9 +228,32 @@ static int adb_iop_write(struct adb_request *req)
 	return 0;
 }
 
+static void adb_iop_set_ap_complete(struct iop_msg *msg)
+{
+	struct adb_iopmsg *amsg = (struct adb_iopmsg *)msg->message;
+
+	autopoll_devs = (amsg->data[1] << 8) | amsg->data[0];
+}
+
 static int adb_iop_autopoll(int devs)
 {
-	/* TODO: how do we enable/disable autopoll? */
+	struct adb_iopmsg amsg;
+	unsigned long flags;
+	unsigned int mask = (unsigned int)devs & 0xFFFE;
+
+	local_irq_save(flags);
+
+	amsg.flags = ADB_IOP_SET_AUTOPOLL | (mask ? ADB_IOP_AUTOPOLL : 0);
+	amsg.count = 2;
+	amsg.cmd = 0;
+	amsg.data[0] = mask & 0xFF;
+	amsg.data[1] = (mask >> 8) & 0xFF;
+
+	iop_send_message(ADB_IOP, ADB_CHAN, NULL, sizeof(amsg), (__u8 *)&amsg,
+			 adb_iop_set_ap_complete);
+
+	local_irq_restore(flags);
+
 	return 0;
 }
 
