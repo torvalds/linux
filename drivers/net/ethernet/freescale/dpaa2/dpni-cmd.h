@@ -59,6 +59,10 @@
 
 #define DPNI_CMDID_SET_RX_TC_DIST			DPNI_CMD(0x235)
 
+#define DPNI_CMDID_SET_QOS_TBL				DPNI_CMD(0x240)
+#define DPNI_CMDID_ADD_QOS_ENT				DPNI_CMD(0x241)
+#define DPNI_CMDID_REMOVE_QOS_ENT			DPNI_CMD(0x242)
+#define DPNI_CMDID_CLR_QOS_TBL				DPNI_CMD(0x243)
 #define DPNI_CMDID_ADD_FS_ENT				DPNI_CMD(0x244)
 #define DPNI_CMDID_REMOVE_FS_ENT			DPNI_CMD(0x245)
 #define DPNI_CMDID_CLR_FS_ENT				DPNI_CMD(0x246)
@@ -564,6 +568,36 @@ struct dpni_cmd_remove_fs_entry {
 	/* cmd word 1 */
 	__le64 key_iova;
 	/* cmd word 2 */
+	__le64 mask_iova;
+};
+
+#define DPNI_DISCARD_ON_MISS_SHIFT	0
+#define DPNI_DISCARD_ON_MISS_SIZE	1
+
+struct dpni_cmd_set_qos_table {
+	__le32 pad;
+	u8 default_tc;
+	/* only the LSB */
+	u8 discard_on_miss;
+	__le16 pad1[21];
+	__le64 key_cfg_iova;
+};
+
+struct dpni_cmd_add_qos_entry {
+	__le16 pad;
+	u8 tc_id;
+	u8 key_size;
+	__le16 index;
+	__le16 pad1;
+	__le64 key_iova;
+	__le64 mask_iova;
+};
+
+struct dpni_cmd_remove_qos_entry {
+	u8 pad[3];
+	u8 key_size;
+	__le32 pad1;
+	__le64 key_iova;
 	__le64 mask_iova;
 };
 

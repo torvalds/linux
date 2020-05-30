@@ -2696,6 +2696,118 @@ out_err:
 	priv->enqueue = dpaa2_eth_enqueue_qd;
 }
 
+/* Configure ingress classification based on VLAN PCP */
+static int set_vlan_qos(struct dpaa2_eth_priv *priv)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	struct dpkg_profile_cfg kg_cfg = {0};
+	struct dpni_qos_tbl_cfg qos_cfg = {0};
+	struct dpni_rule_cfg key_params;
+	void *dma_mem, *key, *mask;
+	u8 key_size = 2;	/* VLAN TCI field */
+	int i, pcp, err;
+
+	/* VLAN-based classification only makes sense if we have multiple
+	 * traffic classes.
+	 * Also, we need to extract just the 3-bit PCP field from the VLAN
+	 * header and we can only do that by using a mask
+	 */
+	if (dpaa2_eth_tc_count(priv) == 1 || !dpaa2_eth_fs_mask_enabled(priv)) {
+		dev_dbg(dev, "VLAN-based QoS classification not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	dma_mem = kzalloc(DPAA2_CLASSIFIER_DMA_SIZE, GFP_KERNEL);
+	if (!dma_mem)
+		return -ENOMEM;
+
+	kg_cfg.num_extracts = 1;
+	kg_cfg.extracts[0].type = DPKG_EXTRACT_FROM_HDR;
+	kg_cfg.extracts[0].extract.from_hdr.prot = NET_PROT_VLAN;
+	kg_cfg.extracts[0].extract.from_hdr.type = DPKG_FULL_FIELD;
+	kg_cfg.extracts[0].extract.from_hdr.field = NH_FLD_VLAN_TCI;
+
+	err = dpni_prepare_key_cfg(&kg_cfg, dma_mem);
+	if (err) {
+		dev_err(dev, "dpni_prepare_key_cfg failed\n");
+		goto out_free_tbl;
+	}
+
+	/* set QoS table */
+	qos_cfg.default_tc = 0;
+	qos_cfg.discard_on_miss = 0;
+	qos_cfg.key_cfg_iova = dma_map_single(dev, dma_mem,
+					      DPAA2_CLASSIFIER_DMA_SIZE,
+					      DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, qos_cfg.key_cfg_iova)) {
+		dev_err(dev, "QoS table DMA mapping failed\n");
+		err = -ENOMEM;
+		goto out_free_tbl;
+	}
+
+	err = dpni_set_qos_table(priv->mc_io, 0, priv->mc_token, &qos_cfg);
+	if (err) {
+		dev_err(dev, "dpni_set_qos_table failed\n");
+		goto out_unmap_tbl;
+	}
+
+	/* Add QoS table entries */
+	key = kzalloc(key_size * 2, GFP_KERNEL);
+	if (!key) {
+		err = -ENOMEM;
+		goto out_unmap_tbl;
+	}
+	mask = key + key_size;
+	*(__be16 *)mask = cpu_to_be16(VLAN_PRIO_MASK);
+
+	key_params.key_iova = dma_map_single(dev, key, key_size * 2,
+					     DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, key_params.key_iova)) {
+		dev_err(dev, "Qos table entry DMA mapping failed\n");
+		err = -ENOMEM;
+		goto out_free_key;
+	}
+
+	key_params.mask_iova = key_params.key_iova + key_size;
+	key_params.key_size = key_size;
+
+	/* We add rules for PCP-based distribution starting with highest
+	 * priority (VLAN PCP = 7). If this DPNI doesn't have enough traffic
+	 * classes to accommodate all priority levels, the lowest ones end up
+	 * on TC 0 which was configured as default
+	 */
+	for (i = dpaa2_eth_tc_count(priv) - 1, pcp = 7; i >= 0; i--, pcp--) {
+		*(__be16 *)key = cpu_to_be16(pcp << VLAN_PRIO_SHIFT);
+		dma_sync_single_for_device(dev, key_params.key_iova,
+					   key_size * 2, DMA_TO_DEVICE);
+
+		err = dpni_add_qos_entry(priv->mc_io, 0, priv->mc_token,
+					 &key_params, i, i);
+		if (err) {
+			dev_err(dev, "dpni_add_qos_entry failed\n");
+			dpni_clear_qos_table(priv->mc_io, 0, priv->mc_token);
+			goto out_unmap_key;
+		}
+	}
+
+	priv->vlan_cls_enabled = true;
+
+	/* Table and key memory is not persistent, clean everything up after
+	 * configuration is finished
+	 */
+out_unmap_key:
+	dma_unmap_single(dev, key_params.key_iova, key_size * 2, DMA_TO_DEVICE);
+out_free_key:
+	kfree(key);
+out_unmap_tbl:
+	dma_unmap_single(dev, qos_cfg.key_cfg_iova, DPAA2_CLASSIFIER_DMA_SIZE,
+			 DMA_TO_DEVICE);
+out_free_tbl:
+	kfree(dma_mem);
+
+	return err;
+}
+
 /* Configure the DPNI object this interface is associated with */
 static int setup_dpni(struct fsl_mc_device *ls_dev)
 {
@@ -2757,6 +2869,10 @@ static int setup_dpni(struct fsl_mc_device *ls_dev)
 		if (err)
 			goto close;
 	}
+
+	err = set_vlan_qos(priv);
+	if (err && err != -EOPNOTSUPP)
+		goto close;
 
 	priv->cls_rules = devm_kzalloc(dev, sizeof(struct dpaa2_eth_cls_rule) *
 				       dpaa2_eth_fs_count(priv), GFP_KERNEL);
