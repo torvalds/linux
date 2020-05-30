@@ -37,6 +37,7 @@ static int init_live_machine(struct machine *machine)
 	union perf_event event;
 	pid_t pid = getpid();
 
+	memset(&event, 0, sizeof(event));
 	return perf_event__synthesize_mmap_events(NULL, &event, pid, pid,
 						  mmap_handler, machine, true);
 }
