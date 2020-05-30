@@ -199,6 +199,9 @@ static int tcf_ct_flow_table_add_action_nat(struct net *net,
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	struct nf_conntrack_tuple target;
 
+	if (!(ct->status & IPS_NAT_MASK))
+		return 0;
+
 	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
 
 	switch (tuple->src.l3num) {
