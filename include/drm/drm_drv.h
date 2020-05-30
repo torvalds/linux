@@ -311,8 +311,8 @@ struct drm_driver {
 	 *
 	 * Called whenever the minor master is set. Only used by vmwgfx.
 	 */
-	int (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
-			  bool from_open);
+	void (*master_set)(struct drm_device *dev, struct drm_file *file_priv,
+			   bool from_open);
 	/**
 	 * @master_drop:
 	 *
