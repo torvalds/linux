@@ -11,8 +11,6 @@
 #include "hnae3.h"
 #include "hclge_main.h"
 
-#define hclge_is_csq(ring) ((ring)->flag & HCLGE_TYPE_CSQ)
-
 #define cmq_ring_to_dev(ring)   (&(ring)->dev->pdev->dev)
 
 static int hclge_ring_space(struct hclge_cmq_ring *ring)
