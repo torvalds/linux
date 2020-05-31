@@ -1077,6 +1077,7 @@ static int intel_master_probe(struct platform_device *pdev)
 	struct sdw_cdns_stream_config config;
 	struct device *dev = &pdev->dev;
 	struct sdw_intel *sdw;
+	struct sdw_cdns *cdns;
 	struct sdw_bus *bus;
 	int ret;
 
@@ -1084,24 +1085,26 @@ static int intel_master_probe(struct platform_device *pdev)
 	if (!sdw)
 		return -ENOMEM;
 
-	bus = &sdw->cdns.bus;
+	cdns = &sdw->cdns;
+	bus = &cdns->bus;
 
 	sdw->instance = pdev->id;
 	sdw->link_res = dev_get_platdata(dev);
-	sdw->cdns.dev = dev;
-	sdw->cdns.registers = sdw->link_res->registers;
-	sdw->cdns.instance = sdw->instance;
-	sdw->cdns.msg_count = 0;
+	cdns->dev = dev;
+	cdns->registers = sdw->link_res->registers;
+	cdns->instance = sdw->instance;
+	cdns->msg_count = 0;
+
 	bus->link_id = pdev->id;
 
-	sdw_cdns_probe(&sdw->cdns);
+	sdw_cdns_probe(cdns);
 
 	/* Set property read ops */
 	sdw_intel_ops.read_prop = intel_prop_read;
 	bus->ops = &sdw_intel_ops;
 
 	/* set driver data, accessed by snd_soc_dai_get_drvdata() */
-	platform_set_drvdata(pdev, sdw);
+	dev_set_drvdata(dev, cdns);
 
 	ret = sdw_bus_master_add(bus, dev, dev->fwnode);
 	if (ret) {
@@ -1123,7 +1126,7 @@ static int intel_master_probe(struct platform_device *pdev)
 
 	/* Read the PDI config and initialize cadence PDI */
 	intel_pdi_init(sdw, &config);
-	ret = sdw_cdns_pdi_init(&sdw->cdns, config);
+	ret = sdw_cdns_pdi_init(cdns, config);
 	if (ret)
 		goto err_init;
 
@@ -1132,20 +1135,20 @@ static int intel_master_probe(struct platform_device *pdev)
 	/* Acquire IRQ */
 	ret = request_threaded_irq(sdw->link_res->irq,
 				   sdw_cdns_irq, sdw_cdns_thread,
-				   IRQF_SHARED, KBUILD_MODNAME, &sdw->cdns);
+				   IRQF_SHARED, KBUILD_MODNAME, cdns);
 	if (ret < 0) {
 		dev_err(dev, "unable to grab IRQ %d, disabling device\n",
 			sdw->link_res->irq);
 		goto err_init;
 	}
 
-	ret = sdw_cdns_enable_interrupt(&sdw->cdns, true);
+	ret = sdw_cdns_enable_interrupt(cdns, true);
 	if (ret < 0) {
 		dev_err(dev, "cannot enable interrupts\n");
 		goto err_init;
 	}
 
-	ret = sdw_cdns_exit_reset(&sdw->cdns);
+	ret = sdw_cdns_exit_reset(cdns);
 	if (ret < 0) {
 		dev_err(dev, "unable to exit bus reset sequence\n");
 		goto err_interrupt;
@@ -1164,7 +1167,7 @@ static int intel_master_probe(struct platform_device *pdev)
 	return 0;
 
 err_interrupt:
-	sdw_cdns_enable_interrupt(&sdw->cdns, false);
+	sdw_cdns_enable_interrupt(cdns, false);
 	free_irq(sdw->link_res->irq, sdw);
 err_init:
 	sdw_bus_master_delete(bus);
@@ -1174,16 +1177,13 @@ err_init:
 static int intel_master_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct sdw_intel *sdw;
-	struct sdw_bus *bus;
-
-	sdw = platform_get_drvdata(pdev);
-
-	bus = &sdw->cdns.bus;
+	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_bus *bus = &cdns->bus;
 
 	if (!bus->prop.hw_disabled) {
 		intel_debugfs_exit(sdw);
-		sdw_cdns_enable_interrupt(&sdw->cdns, false);
+		sdw_cdns_enable_interrupt(cdns, false);
 		free_irq(sdw->link_res->irq, sdw);
 		snd_soc_unregister_component(dev);
 	}
