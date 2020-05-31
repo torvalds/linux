@@ -2530,36 +2530,6 @@ static void rtl_enable_rxdvgate(struct rtl8169_private *tp)
 	rtl_wait_txrx_fifo_empty(tp);
 }
 
-static void rtl8169_hw_reset(struct rtl8169_private *tp)
-{
-	/* Disable interrupts */
-	rtl8169_irq_mask_and_ack(tp);
-
-	rtl_rx_close(tp);
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_27:
-	case RTL_GIGA_MAC_VER_28:
-	case RTL_GIGA_MAC_VER_31:
-		rtl_loop_wait_low(tp, &rtl_npq_cond, 20, 2000);
-		break;
-	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
-		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
-		rtl_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 666);
-		break;
-	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_61:
-		rtl_enable_rxdvgate(tp);
-		fsleep(2000);
-		break;
-	default:
-		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
-		udelay(100);
-		break;
-	}
-
-	rtl_hw_reset(tp);
-}
-
 static void rtl_set_tx_config_registers(struct rtl8169_private *tp)
 {
 	u32 val = TX_DMA_BURST << TxDMAShift |
@@ -3955,8 +3925,43 @@ static void rtl8169_tx_clear_range(struct rtl8169_private *tp, u32 start,
 static void rtl8169_tx_clear(struct rtl8169_private *tp)
 {
 	rtl8169_tx_clear_range(tp, tp->dirty_tx, NUM_TX_DESC);
-	tp->cur_tx = tp->dirty_tx = 0;
 	netdev_reset_queue(tp->dev);
+}
+
+static void rtl8169_hw_reset(struct rtl8169_private *tp)
+{
+	/* Give a racing hard_start_xmit a few cycles to complete. */
+	synchronize_rcu();
+
+	/* Disable interrupts */
+	rtl8169_irq_mask_and_ack(tp);
+
+	rtl_rx_close(tp);
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_27:
+	case RTL_GIGA_MAC_VER_28:
+	case RTL_GIGA_MAC_VER_31:
+		rtl_loop_wait_low(tp, &rtl_npq_cond, 20, 2000);
+		break;
+	case RTL_GIGA_MAC_VER_34 ... RTL_GIGA_MAC_VER_38:
+		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
+		rtl_loop_wait_high(tp, &rtl_txcfg_empty_cond, 100, 666);
+		break;
+	case RTL_GIGA_MAC_VER_40 ... RTL_GIGA_MAC_VER_61:
+		rtl_enable_rxdvgate(tp);
+		fsleep(2000);
+		break;
+	default:
+		RTL_W8(tp, ChipCmd, RTL_R8(tp, ChipCmd) | StopReq);
+		fsleep(100);
+		break;
+	}
+
+	rtl_hw_reset(tp);
+
+	rtl8169_tx_clear(tp);
+	rtl8169_init_ring_indexes(tp);
 }
 
 static void rtl_reset_work(struct rtl8169_private *tp)
@@ -3966,15 +3971,11 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 
 	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
-	synchronize_rcu();
 
 	rtl8169_hw_reset(tp);
 
 	for (i = 0; i < NUM_RX_DESC; i++)
 		rtl8169_mark_to_asic(tp->RxDescArray + i);
-
-	rtl8169_tx_clear(tp);
-	rtl8169_init_ring_indexes(tp);
 
 	napi_enable(&tp->napi);
 	rtl_hw_start(tp);
@@ -4626,25 +4627,21 @@ static int r8169_phy_connect(struct rtl8169_private *tp)
 	return 0;
 }
 
-static void rtl8169_down(struct net_device *dev)
+static void rtl8169_down(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
+	rtl_lock_work(tp);
+
+	/* Clear all task flags */
+	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
 	phy_stop(tp->phydev);
-
 	napi_disable(&tp->napi);
-	netif_stop_queue(dev);
 
 	rtl8169_hw_reset(tp);
 
-	/* Give a racing hard_start_xmit a few cycles to complete. */
-	synchronize_rcu();
-
-	rtl8169_tx_clear(tp);
-
-	rtl8169_rx_clear(tp);
-
 	rtl_pll_power_down(tp);
+
+	rtl_unlock_work(tp);
 }
 
 static int rtl8169_close(struct net_device *dev)
@@ -4657,12 +4654,9 @@ static int rtl8169_close(struct net_device *dev)
 	/* Update counters before going down */
 	rtl8169_update_counters(tp);
 
-	rtl_lock_work(tp);
-	/* Clear all task flags */
-	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
-
-	rtl8169_down(dev);
-	rtl_unlock_work(tp);
+	netif_stop_queue(dev);
+	rtl8169_down(tp);
+	rtl8169_rx_clear(tp);
 
 	cancel_work_sync(&tp->wk.work);
 
@@ -4816,44 +4810,30 @@ rtl8169_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	pm_runtime_put_noidle(&pdev->dev);
 }
 
-static void rtl8169_net_suspend(struct net_device *dev)
+static void rtl8169_net_suspend(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	if (!netif_running(dev))
+	if (!netif_running(tp->dev))
 		return;
 
-	phy_stop(tp->phydev);
-	netif_device_detach(dev);
-
-	rtl_lock_work(tp);
-	napi_disable(&tp->napi);
-	/* Clear all task flags */
-	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
-
-	rtl_unlock_work(tp);
-
-	rtl_pll_power_down(tp);
+	netif_device_detach(tp->dev);
+	rtl8169_down(tp);
 }
 
 #ifdef CONFIG_PM
 
-static int rtl8169_suspend(struct device *device)
+static int __maybe_unused rtl8169_suspend(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 	clk_disable_unprepare(tp->clk);
 
 	return 0;
 }
 
-static void __rtl8169_resume(struct net_device *dev)
+static void __rtl8169_resume(struct rtl8169_private *tp)
 {
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	netif_device_attach(dev);
+	netif_device_attach(tp->dev);
 
 	rtl_pll_power_up(tp);
 	rtl8169_init_phy(tp);
@@ -4867,34 +4847,32 @@ static void __rtl8169_resume(struct net_device *dev)
 	rtl_unlock_work(tp);
 }
 
-static int rtl8169_resume(struct device *device)
+static int __maybe_unused rtl8169_resume(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	clk_prepare_enable(tp->clk);
 
-	if (netif_running(dev))
-		__rtl8169_resume(dev);
+	if (netif_running(tp->dev))
+		__rtl8169_resume(tp);
 
 	return 0;
 }
 
 static int rtl8169_runtime_suspend(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	if (!tp->TxDescArray)
 		return 0;
 
 	rtl_lock_work(tp);
-	__rtl8169_set_wol(tp, WAKE_ANY);
+	__rtl8169_set_wol(tp, WAKE_PHY);
 	rtl_unlock_work(tp);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 
 	/* Update counters before going runtime suspend */
 	rtl8169_update_counters(tp);
@@ -4904,10 +4882,9 @@ static int rtl8169_runtime_suspend(struct device *device)
 
 static int rtl8169_runtime_resume(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl_rar_set(tp, dev->dev_addr);
+	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	if (!tp->TxDescArray)
 		return 0;
@@ -4916,40 +4893,28 @@ static int rtl8169_runtime_resume(struct device *device)
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 	rtl_unlock_work(tp);
 
-	__rtl8169_resume(dev);
+	__rtl8169_resume(tp);
 
 	return 0;
 }
 
 static int rtl8169_runtime_idle(struct device *device)
 {
-	struct net_device *dev = dev_get_drvdata(device);
+	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	if (!netif_running(dev) || !netif_carrier_ok(dev))
+	if (!netif_running(tp->dev) || !netif_carrier_ok(tp->dev))
 		pm_schedule_suspend(device, 10000);
 
 	return -EBUSY;
 }
 
 static const struct dev_pm_ops rtl8169_pm_ops = {
-	.suspend		= rtl8169_suspend,
-	.resume			= rtl8169_resume,
-	.freeze			= rtl8169_suspend,
-	.thaw			= rtl8169_resume,
-	.poweroff		= rtl8169_suspend,
-	.restore		= rtl8169_resume,
-	.runtime_suspend	= rtl8169_runtime_suspend,
-	.runtime_resume		= rtl8169_runtime_resume,
-	.runtime_idle		= rtl8169_runtime_idle,
+	SET_SYSTEM_SLEEP_PM_OPS(rtl8169_suspend, rtl8169_resume)
+	SET_RUNTIME_PM_OPS(rtl8169_runtime_suspend, rtl8169_runtime_resume,
+			   rtl8169_runtime_idle)
 };
 
-#define RTL8169_PM_OPS	(&rtl8169_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define RTL8169_PM_OPS	NULL
-
-#endif /* !CONFIG_PM */
+#endif /* CONFIG_PM */
 
 static void rtl_wol_shutdown_quirk(struct rtl8169_private *tp)
 {
@@ -4970,13 +4935,12 @@ static void rtl_wol_shutdown_quirk(struct rtl8169_private *tp)
 
 static void rtl_shutdown(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
-	rtl8169_net_suspend(dev);
+	rtl8169_net_suspend(tp);
 
 	/* Restore original MAC address */
-	rtl_rar_set(tp, dev->perm_addr);
+	rtl_rar_set(tp, tp->dev->perm_addr);
 
 	rtl8169_hw_reset(tp);
 
@@ -4993,13 +4957,12 @@ static void rtl_shutdown(struct pci_dev *pdev)
 
 static void rtl_remove_one(struct pci_dev *pdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct rtl8169_private *tp = netdev_priv(dev);
+	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
 
-	unregister_netdev(dev);
+	unregister_netdev(tp->dev);
 
 	if (r8168_check_dash(tp))
 		rtl8168_driver_stop(tp);
@@ -5007,7 +4970,7 @@ static void rtl_remove_one(struct pci_dev *pdev)
 	rtl_release_firmware(tp);
 
 	/* restore original MAC address */
-	rtl_rar_set(tp, dev->perm_addr);
+	rtl_rar_set(tp, tp->dev->perm_addr);
 }
 
 static const struct net_device_ops rtl_netdev_ops = {
@@ -5446,7 +5409,7 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!tp->counters)
 		return -ENOMEM;
 
-	pci_set_drvdata(pdev, dev);
+	pci_set_drvdata(pdev, tp);
 
 	rc = r8169_mdio_register(tp);
 	if (rc)
@@ -5483,7 +5446,9 @@ static struct pci_driver rtl8169_pci_driver = {
 	.probe		= rtl_init_one,
 	.remove		= rtl_remove_one,
 	.shutdown	= rtl_shutdown,
-	.driver.pm	= RTL8169_PM_OPS,
+#ifdef CONFIG_PM
+	.driver.pm	= &rtl8169_pm_ops,
+#endif
 };
 
 module_pci_driver(rtl8169_pci_driver);
