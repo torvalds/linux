@@ -460,7 +460,6 @@ void ia_css_debug_dump_isp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[2] dma_FIFO stalled",
 				    stall.fifo2);
-#if defined(HAS_ISP_2400_MAMOIADA) || defined(HAS_ISP_2401_MAMOIADA) || defined(IS_ISP_2500_SYSTEM)
 
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[3] gdc0_FIFO stalled",
 				    stall.fifo3);
@@ -472,9 +471,6 @@ void ia_css_debug_dump_isp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[6] sp_FIFO stalled",
 				    stall.fifo6);
-#else
-#error "ia_css_debug: ISP cell must be one of {2400_MAMOIADA,, 2401_MAMOIADA, 2500_SKYCAM}"
-#endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n",
 				    "status & control stalled",
 				    stall.stat_ctrl);
@@ -486,14 +482,12 @@ void ia_css_debug_dump_isp_state(void)
 				    stall.vamem1);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "vamem2 stalled",
 				    stall.vamem2);
-#if defined(HAS_ISP_2400_MAMOIADA) || defined(HAS_ISP_2401_MAMOIADA)
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "vamem3 stalled",
 				    stall.vamem3);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "hmem stalled",
 				    stall.hmem);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "pmem stalled",
 				    stall.pmem);
-#endif
 	}
 	return;
 }
@@ -506,7 +500,6 @@ void ia_css_debug_dump_sp_state(void)
 	sp_get_state(SP0_ID, &state, &stall);
 	debug_print_sp_state(&state, "SP");
 	if (state.is_stalling) {
-#if defined(HAS_SP_2400) || defined(IS_ISP_2500_SYSTEM)
 #if !defined(HAS_NO_INPUT_SYSTEM)
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "isys_FIFO stalled",
 				    stall.fifo0);
@@ -537,9 +530,6 @@ void ia_css_debug_dump_sp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "irq FIFO stalled",
 				    stall.fifoa);
-#else
-#error "ia_css_debug: SP cell must be one of {SP2400, SP2500}"
-#endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "dmem stalled",
 				    stall.dmem);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n",

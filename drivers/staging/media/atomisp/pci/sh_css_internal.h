@@ -76,11 +76,7 @@
 #define SH_CSS_REF_BIT_DEPTH 8
 
 /* keep next up to date with the definition for MAX_CB_ELEMS_FOR_TAGGER in tagger.sp.c */
-#if defined(HAS_SP_2400)
 #define NUM_CONTINUOUS_FRAMES	15
-#else
-#define NUM_CONTINUOUS_FRAMES	10
-#endif
 #define NUM_MIPI_FRAMES_PER_STREAM		2
 
 #define NUM_ONLINE_INIT_CONTINUOUS_FRAMES      2
@@ -729,15 +725,9 @@ struct sh_css_sp_output {
  * separate SP thread for this. */
 #define  IA_CSS_NUM_ELEMS_HOST2SP_ISYS_EVENT_QUEUE (2 * N_CSI_PORTS)
 
-#if defined(HAS_SP_2400)
 #define  IA_CSS_NUM_ELEMS_HOST2SP_PSYS_EVENT_QUEUE    13
 #define  IA_CSS_NUM_ELEMS_SP2HOST_BUFFER_QUEUE        19
 #define  IA_CSS_NUM_ELEMS_SP2HOST_PSYS_EVENT_QUEUE    26 /* holds events for all type of buffers, hence deeper */
-#else
-#define  IA_CSS_NUM_ELEMS_HOST2SP_PSYS_EVENT_QUEUE    6
-#define  IA_CSS_NUM_ELEMS_SP2HOST_BUFFER_QUEUE        6
-#define  IA_CSS_NUM_ELEMS_SP2HOST_PSYS_EVENT_QUEUE    6
-#endif
 
 struct sh_css_hmm_buffer {
 	union {

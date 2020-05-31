@@ -18,17 +18,7 @@
 
 #include <system_local.h>
 
-#if defined(HAS_SP_2401)
-#define IS_SP_2401
-/* 2401 uses 2400 */
 #include <scalar_processor_2400_params.h>
-#elif defined(HAS_SP_2400)
-#define IS_SP_2400
-
-#include <scalar_processor_2400_params.h>
-#else
-#error "sp_global.h: SP_2400 must be one of {2400, 2401 }"
-#endif
 
 #define SP_PMEM_WIDTH_LOG2		SP_PMEM_LOG_WIDTH_BITS
 #define SP_PMEM_SIZE			SP_PMEM_DEPTH

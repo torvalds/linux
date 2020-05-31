@@ -24,11 +24,7 @@
  *
  * Should be one less than NUM_CONTINUOUS_FRAMES in sh_css_internal.h
  */
-#if defined(HAS_SP_2400)
 #define MAX_CB_ELEMS_FOR_TAGGER 14
-#else
-#define MAX_CB_ELEMS_FOR_TAGGER 9
-#endif
 
 /**
  * @brief Data structure for the tagger buffer element.

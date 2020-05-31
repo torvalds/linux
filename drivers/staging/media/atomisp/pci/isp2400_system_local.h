@@ -82,7 +82,6 @@ static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
 };
 
 /* MMU */
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -91,9 +90,6 @@ static const hrt_address MMU_BASE[N_MMU_ID] = {
 	(hrt_address)0x0000000000070000ULL,
 	(hrt_address)0x00000000000A0000ULL
 };
-#else
-#error "system_local.h: SYSTEM must be one of {2400, 2401 }"
-#endif
 
 /* DMA */
 static const hrt_address DMA_BASE[N_DMA_ID] = {
@@ -225,7 +221,6 @@ static const hrt_address SP_PMEM_BASE[N_SP_ID] = {
 };
 
 /* MMU */
-#if defined(IS_ISP_2400_MAMOIADA_SYSTEM) || defined(IS_ISP_2401_MAMOIADA_SYSTEM)
 /*
  * MMU0_ID: The data MMU
  * MMU1_ID: The icache MMU
@@ -234,9 +229,6 @@ static const hrt_address MMU_BASE[N_MMU_ID] = {
 	(hrt_address)0x00070000UL,
 	(hrt_address)0x000A0000UL
 };
-#else
-#error "system_local.h: SYSTEM must be one of {2400, 2401 }"
-#endif
 
 /* DMA */
 static const hrt_address DMA_BASE[N_DMA_ID] = {
