@@ -3,7 +3,7 @@
  */
 #include <net/tc_act/tc_gate.h>
 #include <linux/dsa/8021q.h>
-#include "sja1105.h"
+#include "sja1105_vl.h"
 
 #define SJA1105_SIZE_VL_STATUS			8
 

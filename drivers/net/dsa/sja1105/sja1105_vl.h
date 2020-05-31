@@ -4,6 +4,8 @@
 #ifndef _SJA1105_VL_H
 #define _SJA1105_VL_H
 
+#include "sja1105.h"
+
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_VL)
 
 int sja1105_vl_redirect(struct sja1105_private *priv, int port,
