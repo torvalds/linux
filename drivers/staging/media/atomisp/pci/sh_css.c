@@ -1546,16 +1546,16 @@ enable_interrupts(enum ia_css_irq_type irq_type)
 
 	/* Enable SW interrupt 0, this is used to signal ISYS events */
 	cnd_virq_enable_channel(
-	    (virq_id_t)(IRQ_SW_CHANNEL0_ID + IRQ_SW_CHANNEL_OFFSET),
+	    (enum virq_id)(IRQ_SW_CHANNEL0_ID + IRQ_SW_CHANNEL_OFFSET),
 	    true);
 	/* Enable SW interrupt 1, this is used to signal PSYS events */
 	cnd_virq_enable_channel(
-	    (virq_id_t)(IRQ_SW_CHANNEL1_ID + IRQ_SW_CHANNEL_OFFSET),
+	    (enum virq_id)(IRQ_SW_CHANNEL1_ID + IRQ_SW_CHANNEL_OFFSET),
 	    true);
 #if !defined(HAS_IRQ_MAP_VERSION_2)
 	/* IRQ_SW_CHANNEL2_ID does not exist on 240x systems */
 	cnd_virq_enable_channel(
-	    (virq_id_t)(IRQ_SW_CHANNEL2_ID + IRQ_SW_CHANNEL_OFFSET),
+	    (enum virq_id)(IRQ_SW_CHANNEL2_ID + IRQ_SW_CHANNEL_OFFSET),
 	    true);
 	virq_clear_all();
 #endif
@@ -2549,7 +2549,7 @@ ia_css_uninit(void)
 int ia_css_irq_translate(
     unsigned int *irq_infos)
 {
-	virq_id_t	irq;
+	enum virq_id	irq;
 	enum hrt_isp_css_irq_status status = hrt_isp_css_irq_status_more_irqs;
 	unsigned int infos = 0;
 
@@ -2622,7 +2622,7 @@ int ia_css_irq_enable(
     enum ia_css_irq_info info,
     bool enable)
 {
-	virq_id_t	irq = N_virq_id;
+	enum virq_id	irq = N_virq_id;
 
 	IA_CSS_ENTER("info=%d, enable=%d", info, enable);
 

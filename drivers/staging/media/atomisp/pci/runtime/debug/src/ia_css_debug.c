@@ -2228,7 +2228,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 	ia_css_debug_dump_isys_state();
 
 	{
-		irq_controller_state_t state;
+		struct irq_controller_state state;
 
 		irq_controller_get_state(IRQ2_ID, &state);
 

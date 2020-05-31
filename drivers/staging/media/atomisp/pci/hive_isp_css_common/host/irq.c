@@ -29,9 +29,8 @@ static inline void irq_wait_for_write_complete(
 static inline bool any_irq_channel_enabled(
     const irq_ID_t				ID);
 
-static inline irq_ID_t virq_get_irq_id(
-    const virq_id_t		irq_ID,
-    unsigned int		*channel_ID);
+static inline irq_ID_t virq_get_irq_id(const enum virq_id irq_ID,
+				       unsigned int *channel_ID);
 
 #ifndef __INLINE_IRQ__
 #include "irq_private.h"
@@ -52,7 +51,7 @@ static unsigned short IRQ_N_ID_OFFSET[N_IRQ_ID + 1] = {
 	IRQ_END_OFFSET
 };
 
-static virq_id_t IRQ_NESTING_ID[N_IRQ_ID] = {
+static enum virq_id IRQ_NESTING_ID[N_IRQ_ID] = {
 	N_virq_id,
 	virq_ifmt,
 	virq_isys,
@@ -228,9 +227,8 @@ void irq_raise(
 	return;
 }
 
-void irq_controller_get_state(
-    const irq_ID_t				ID,
-    irq_controller_state_t		*state)
+void irq_controller_get_state(const irq_ID_t ID,
+			      struct irq_controller_state *state)
 {
 	assert(ID < N_IRQ_ID);
 	assert(state);
@@ -257,7 +255,7 @@ bool any_virq_signal(void)
 }
 
 void cnd_virq_enable_channel(
-    const virq_id_t				irq_ID,
+    const enum virq_id				irq_ID,
     const bool					en)
 {
 	irq_ID_t		i;
@@ -297,8 +295,8 @@ void virq_clear_all(void)
 	return;
 }
 
-enum hrt_isp_css_irq_status virq_get_channel_signals(
-    virq_info_t					*irq_info)
+enum hrt_isp_css_irq_status
+virq_get_channel_signals(struct virq_info *irq_info)
 {
 	enum hrt_isp_css_irq_status irq_status = hrt_isp_css_irq_status_error;
 	irq_ID_t ID;
@@ -327,8 +325,7 @@ enum hrt_isp_css_irq_status virq_get_channel_signals(
 	return irq_status;
 }
 
-void virq_clear_info(
-    virq_info_t					*irq_info)
+void virq_clear_info(struct virq_info *irq_info)
 {
 	irq_ID_t ID;
 
@@ -341,7 +338,7 @@ void virq_clear_info(
 }
 
 enum hrt_isp_css_irq_status virq_get_channel_id(
-    virq_id_t					*irq_id)
+    enum virq_id					*irq_id)
 {
 	unsigned int irq_status = irq_reg_load(IRQ0_ID,
 					       _HRT_IRQ_CONTROLLER_STATUS_REG_IDX);
@@ -368,7 +365,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 
 	/* Check whether we have an IRQ on one of the nested devices */
 	for (ID = N_IRQ_ID - 1 ; ID > (irq_ID_t)0; ID--) {
-		if (IRQ_NESTING_ID[ID] == (virq_id_t)idx) {
+		if (IRQ_NESTING_ID[ID] == (enum virq_id)idx) {
 			break;
 		}
 	}
@@ -405,7 +402,7 @@ enum hrt_isp_css_irq_status virq_get_channel_id(
 
 	idx += IRQ_N_ID_OFFSET[ID];
 	if (irq_id)
-		*irq_id = (virq_id_t)idx;
+		*irq_id = (enum virq_id)idx;
 
 	return status;
 }
@@ -433,7 +430,7 @@ static inline bool any_irq_channel_enabled(
 }
 
 static inline irq_ID_t virq_get_irq_id(
-    const virq_id_t		irq_ID,
+    const enum virq_id		irq_ID,
     unsigned int		*channel_ID)
 {
 	irq_ID_t ID;
