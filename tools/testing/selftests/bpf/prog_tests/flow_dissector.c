@@ -6,6 +6,8 @@
 #include <linux/if_tun.h>
 #include <sys/uio.h>
 
+#include "bpf_flow.skel.h"
+
 #ifndef IP_MF
 #define IP_MF 0x2000
 #endif
@@ -444,16 +446,53 @@ static int ifup(const char *ifname)
 	return 0;
 }
 
+static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
+{
+	int i, err, map_fd, prog_fd;
+	struct bpf_program *prog;
+	char prog_name[32];
+
+	map_fd = bpf_map__fd(prog_array);
+	if (map_fd < 0)
+		return -1;
+
+	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
+		snprintf(prog_name, sizeof(prog_name), "flow_dissector/%i", i);
+
+		prog = bpf_object__find_program_by_title(obj, prog_name);
+		if (!prog)
+			return -1;
+
+		prog_fd = bpf_program__fd(prog);
+		if (prog_fd < 0)
+			return -1;
+
+		err = bpf_map_update_elem(map_fd, &i, &prog_fd, BPF_ANY);
+		if (err)
+			return -1;
+	}
+	return 0;
+}
+
 void test_flow_dissector(void)
 {
 	int i, err, prog_fd, keys_fd = -1, tap_fd;
-	struct bpf_object *obj;
+	struct bpf_flow *skel;
 	__u32 duration = 0;
 
-	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
-			    "jmp_table", "last_dissection", &prog_fd, &keys_fd);
-	if (CHECK_FAIL(err))
+	skel = bpf_flow__open_and_load();
+	if (CHECK(!skel, "skel", "failed to open/load skeleton\n"))
 		return;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		goto out_destroy_skel;
+	keys_fd = bpf_map__fd(skel->maps.last_dissection);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		goto out_destroy_skel;
+	err = init_prog_array(skel->obj, skel->maps.jmp_table);
+	if (CHECK(err, "init_prog_array", "err %d\n", err))
+		goto out_destroy_skel;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_flow_keys flow_keys;
@@ -526,5 +565,6 @@ void test_flow_dissector(void)
 
 	close(tap_fd);
 	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
-	bpf_object__close(obj);
+out_destroy_skel:
+	bpf_flow__destroy(skel);
 }
