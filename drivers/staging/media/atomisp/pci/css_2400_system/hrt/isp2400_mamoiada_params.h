@@ -16,11 +16,6 @@
 /* Version */
 #define RTL_VERSION
 
-/* Cell name  */
-#define ISP_CELL_TYPE                          isp2400_mamoiada
-#define ISP_VMEM                               simd_vmem
-#define _HRT_ISP_VMEM                          isp2400_mamoiada_simd_vmem
-
 /* instruction pipeline depth */
 #define ISP_BRANCHDELAY                        5
 
@@ -154,12 +149,6 @@
 
 #define ISP_VEC_ALIGN                          ISP_VMEM_ALIGN
 
-/* HRT specific vector support */
-#define isp2400_mamoiada_vector_alignment         ISP_VEC_ALIGN
-#define isp2400_mamoiada_vector_elem_bits         ISP_VMEM_ELEMBITS
-#define isp2400_mamoiada_vector_elem_precision    ISP_VMEM_ELEM_PRECISION
-#define isp2400_mamoiada_vector_num_elems         ISP_VEC_NELEMS
-
 /* register file sizes */
 #define ISP_RF0_SIZE        64
 #define ISP_RF1_SIZE        16
@@ -173,14 +162,7 @@
 #define ISP_RF9_SIZE        16
 #define ISP_RF10_SIZE       16
 #define ISP_RF11_SIZE       16
-#define ISP_VRF1_SIZE       24
-#define ISP_VRF2_SIZE       24
-#define ISP_VRF3_SIZE       24
-#define ISP_VRF4_SIZE       24
-#define ISP_VRF5_SIZE       24
-#define ISP_VRF6_SIZE       24
-#define ISP_VRF7_SIZE       24
-#define ISP_VRF8_SIZE       24
+
 #define ISP_SRF1_SIZE       4
 #define ISP_SRF2_SIZE       64
 #define ISP_SRF3_SIZE       64
