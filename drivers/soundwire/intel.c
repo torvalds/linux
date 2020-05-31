@@ -1074,7 +1074,6 @@ static int intel_init(struct sdw_intel *sdw)
  */
 static int intel_master_probe(struct platform_device *pdev)
 {
-	struct sdw_cdns_stream_config config;
 	struct device *dev = &pdev->dev;
 	struct sdw_intel *sdw;
 	struct sdw_cdns *cdns;
@@ -1112,10 +1111,41 @@ static int intel_master_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (bus->prop.hw_disabled) {
+	if (bus->prop.hw_disabled)
 		dev_info(dev,
 			 "SoundWire master %d is disabled, will be ignored\n",
 			 bus->link_id);
+
+	/* Acquire IRQ */
+	ret = request_threaded_irq(sdw->link_res->irq,
+				   sdw_cdns_irq, sdw_cdns_thread,
+				   IRQF_SHARED, KBUILD_MODNAME, cdns);
+	if (ret < 0) {
+		dev_err(dev, "unable to grab IRQ %d, disabling device\n",
+			sdw->link_res->irq);
+		goto err_init;
+	}
+
+	return 0;
+
+err_init:
+	sdw_bus_master_delete(bus);
+	return ret;
+}
+
+int intel_master_startup(struct platform_device *pdev)
+{
+	struct sdw_cdns_stream_config config;
+	struct device *dev = &pdev->dev;
+	struct sdw_cdns *cdns = dev_get_drvdata(dev);
+	struct sdw_intel *sdw = cdns_to_intel(cdns);
+	struct sdw_bus *bus = &cdns->bus;
+	int ret;
+
+	if (bus->prop.hw_disabled) {
+		dev_info(dev,
+			 "SoundWire master %d is disabled, ignoring\n",
+			 sdw->instance);
 		return 0;
 	}
 
@@ -1131,16 +1161,6 @@ static int intel_master_probe(struct platform_device *pdev)
 		goto err_init;
 
 	intel_pdi_ch_update(sdw);
-
-	/* Acquire IRQ */
-	ret = request_threaded_irq(sdw->link_res->irq,
-				   sdw_cdns_irq, sdw_cdns_thread,
-				   IRQF_SHARED, KBUILD_MODNAME, cdns);
-	if (ret < 0) {
-		dev_err(dev, "unable to grab IRQ %d, disabling device\n",
-			sdw->link_res->irq);
-		goto err_init;
-	}
 
 	ret = sdw_cdns_enable_interrupt(cdns, true);
 	if (ret < 0) {
@@ -1168,9 +1188,7 @@ static int intel_master_probe(struct platform_device *pdev)
 
 err_interrupt:
 	sdw_cdns_enable_interrupt(cdns, false);
-	free_irq(sdw->link_res->irq, sdw);
 err_init:
-	sdw_bus_master_delete(bus);
 	return ret;
 }
 
@@ -1196,12 +1214,12 @@ static struct platform_driver sdw_intel_drv = {
 	.probe = intel_master_probe,
 	.remove = intel_master_remove,
 	.driver = {
-		.name = "int-sdw",
+		.name = "intel-sdw",
 	},
 };
 
 module_platform_driver(sdw_intel_drv);
 
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_ALIAS("platform:int-sdw");
+MODULE_ALIAS("platform:intel-sdw");
 MODULE_DESCRIPTION("Intel Soundwire Master Driver");
