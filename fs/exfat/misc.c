@@ -151,6 +151,20 @@ unsigned short exfat_calc_chksum_2byte(void *data, int len,
 	return chksum;
 }
 
+u32 exfat_calc_chksum32(void *data, int len, u32 chksum, int type)
+{
+	int i;
+	u8 *c = (u8 *)data;
+
+	for (i = 0; i < len; i++, c++) {
+		if (unlikely(type == CS_BOOT_SECTOR &&
+			     (i == 106 || i == 107 || i == 112)))
+			continue;
+		chksum = ((chksum << 31) | (chksum >> 1)) + *c;
+	}
+	return chksum;
+}
+
 void exfat_update_bh(struct super_block *sb, struct buffer_head *bh, int sync)
 {
 	set_bit(EXFAT_SB_DIRTY, &EXFAT_SB(sb)->s_state);
