@@ -18,11 +18,7 @@
 
 #include <system_local.h>
 
-#ifdef ISP2401
-#include "isp2401_mamoiada_params.h"
-#else
-#include "isp2400_mamoiada_params.h"
-#endif
+#include "mamoiada_params.h"
 
 #define ISP_PMEM_WIDTH_LOG2		ISP_LOG2_PMEM_WIDTH
 #define ISP_PMEM_SIZE			ISP_PMEM_DEPTH
