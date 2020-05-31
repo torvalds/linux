@@ -2012,11 +2012,12 @@ int bnxt_flash_package_from_file(struct net_device *dev, const char *filename,
 
 	bnxt_hwrm_fw_set_time(bp);
 
-	if (bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
-				 BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
-				 &index, &item_len, NULL) != 0) {
+	rc = bnxt_find_nvram_item(dev, BNX_DIR_TYPE_UPDATE,
+				  BNX_DIR_ORDINAL_FIRST, BNX_DIR_EXT_NONE,
+				  &index, &item_len, NULL);
+	if (rc) {
 		netdev_err(dev, "PKG update area not created in nvram\n");
-		return -ENOBUFS;
+		return rc;
 	}
 
 	rc = request_firmware(&fw, filename, &dev->dev);
