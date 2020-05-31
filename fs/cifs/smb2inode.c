@@ -74,6 +74,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_fid fid;
 	struct cifs_ses *ses = tcon->ses;
+	struct TCP_Server_Info *server;
 	int num_rqst = 0;
 	int resp_buftype[3];
 	struct smb2_query_info_rsp *qi_rsp = NULL;
@@ -88,6 +89,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		return -ENOMEM;
 	rqst = &vars->rqst[0];
 	rsp_iov = &vars->rsp_iov[0];
+
+	server = cifs_pick_channel(ses);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -115,7 +118,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 
 	rqst[num_rqst].rq_iov = &vars->open_iov[0];
 	rqst[num_rqst].rq_nvec = SMB2_CREATE_IOV_SIZE;
-	rc = SMB2_open_init(tcon, &rqst[num_rqst], &oplock, &vars->oparms,
+	rc = SMB2_open_init(tcon, server,
+			    &rqst[num_rqst], &oplock, &vars->oparms,
 			    utf16_path);
 	kfree(utf16_path);
 	if (rc)
@@ -133,7 +137,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		rqst[num_rqst].rq_nvec = 1;
 
 		if (cfile)
-			rc = SMB2_query_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_query_info_init(tcon, server,
+				&rqst[num_rqst],
 				cfile->fid.persistent_fid,
 				cfile->fid.volatile_fid,
 				FILE_ALL_INFORMATION,
@@ -141,10 +146,11 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 				sizeof(struct smb2_file_all_info) +
 					  PATH_MAX * 2, 0, NULL);
 		else {
-			rc = SMB2_query_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_query_info_init(tcon, server,
+				&rqst[num_rqst],
 				COMPOUND_FID,
 				COMPOUND_FID,
-				 FILE_ALL_INFORMATION,
+				FILE_ALL_INFORMATION,
 				SMB2_O_INFO_FILE, 0,
 				sizeof(struct smb2_file_all_info) +
 					  PATH_MAX * 2, 0, NULL);
@@ -177,7 +183,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		size[0] = 1; /* sizeof __u8 See MS-FSCC section 2.4.11 */
 		data[0] = &delete_pending[0];
 
-		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+		rc = SMB2_set_info_init(tcon, server,
+					&rqst[num_rqst], COMPOUND_FID,
 					COMPOUND_FID, current->tgid,
 					FILE_DISPOSITION_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
@@ -194,7 +201,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		size[0] = 8; /* sizeof __le64 */
 		data[0] = ptr;
 
-		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+		rc = SMB2_set_info_init(tcon, server,
+					&rqst[num_rqst], COMPOUND_FID,
 					COMPOUND_FID, current->tgid,
 					FILE_END_OF_FILE_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
@@ -213,13 +221,15 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		data[0] = ptr;
 
 		if (cfile)
-			rc = SMB2_set_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_set_info_init(tcon, server,
+				&rqst[num_rqst],
 				cfile->fid.persistent_fid,
 				cfile->fid.volatile_fid, current->tgid,
 				FILE_BASIC_INFORMATION,
 				SMB2_O_INFO_FILE, 0, data, size);
 		else {
-			rc = SMB2_set_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_set_info_init(tcon, server,
+				&rqst[num_rqst],
 				COMPOUND_FID,
 				COMPOUND_FID, current->tgid,
 				FILE_BASIC_INFORMATION,
@@ -253,13 +263,15 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		data[1] = (__le16 *)ptr;
 
 		if (cfile)
-			rc = SMB2_set_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_set_info_init(tcon, server,
+						&rqst[num_rqst],
 						cfile->fid.persistent_fid,
 						cfile->fid.volatile_fid,
 					current->tgid, FILE_RENAME_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
 		else {
-			rc = SMB2_set_info_init(tcon, &rqst[num_rqst],
+			rc = SMB2_set_info_init(tcon, server,
+					&rqst[num_rqst],
 					COMPOUND_FID, COMPOUND_FID,
 					current->tgid, FILE_RENAME_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
@@ -289,7 +301,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		size[1] = len + 2 /* null */;
 		data[1] = (__le16 *)ptr;
 
-		rc = SMB2_set_info_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+		rc = SMB2_set_info_init(tcon, server,
+					&rqst[num_rqst], COMPOUND_FID,
 					COMPOUND_FID, current->tgid,
 					FILE_LINK_INFORMATION,
 					SMB2_O_INFO_FILE, 0, data, size);
@@ -312,7 +325,8 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	/* Close */
 	rqst[num_rqst].rq_iov = &vars->close_iov[0];
 	rqst[num_rqst].rq_nvec = 1;
-	rc = SMB2_close_init(tcon, &rqst[num_rqst], COMPOUND_FID,
+	rc = SMB2_close_init(tcon, server,
+			     &rqst[num_rqst], COMPOUND_FID,
 			     COMPOUND_FID, false);
 	smb2_set_related(&rqst[num_rqst]);
 	if (rc)
@@ -323,11 +337,13 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	if (cfile) {
 		cifsFileInfo_put(cfile);
 		cfile = NULL;
-		rc = compound_send_recv(xid, ses, flags, num_rqst - 2,
+		rc = compound_send_recv(xid, ses, server,
+					flags, num_rqst - 2,
 					&rqst[1], &resp_buftype[1],
 					&rsp_iov[1]);
 	} else
-		rc = compound_send_recv(xid, ses, flags, num_rqst,
+		rc = compound_send_recv(xid, ses, server,
+					flags, num_rqst,
 					rqst, resp_buftype,
 					rsp_iov);
 

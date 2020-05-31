@@ -2292,8 +2292,6 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 		 struct address_space *mapping, struct writeback_control *wbc)
 {
 	int rc;
-	struct TCP_Server_Info *server =
-				tlink_tcon(wdata->cfile->tlink)->ses->server;
 
 	wdata->sync_mode = wbc->sync_mode;
 	wdata->nr_pages = nr_pages;
@@ -2305,14 +2303,15 @@ wdata_send_pages(struct cifs_writedata *wdata, unsigned int nr_pages,
 	wdata->bytes = ((nr_pages - 1) * PAGE_SIZE) + wdata->tailsz;
 	wdata->pid = wdata->cfile->pid;
 
-	rc = adjust_credits(server, &wdata->credits, wdata->bytes);
+	rc = adjust_credits(wdata->server, &wdata->credits, wdata->bytes);
 	if (rc)
 		return rc;
 
 	if (wdata->cfile->invalidHandle)
 		rc = -EAGAIN;
 	else
-		rc = server->ops->async_writev(wdata, cifs_writedata_release);
+		rc = wdata->server->ops->async_writev(wdata,
+						      cifs_writedata_release);
 
 	return rc;
 }
@@ -2349,7 +2348,8 @@ static int cifs_writepages(struct address_space *mapping,
 			range_whole = true;
 		scanned = true;
 	}
-	server = cifs_sb_master_tcon(cifs_sb)->ses->server;
+	server = cifs_pick_channel(cifs_sb_master_tcon(cifs_sb)->ses);
+
 retry:
 	while (!done && index <= end) {
 		unsigned int i, nr_pages, found_pages, wsize;
@@ -2403,6 +2403,7 @@ retry:
 
 		wdata->credits = credits_on_stack;
 		wdata->cfile = cfile;
+		wdata->server = server;
 		cfile = NULL;
 
 		if (!wdata->cfile) {
@@ -2806,8 +2807,7 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	unsigned int wsize;
 	struct cifs_credits credits;
 	int rc;
-	struct TCP_Server_Info *server =
-		tlink_tcon(wdata->cfile->tlink)->ses->server;
+	struct TCP_Server_Info *server = wdata->server;
 
 	do {
 		if (wdata->cfile->invalidHandle) {
@@ -2893,7 +2893,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 	else
 		pid = current->tgid;
 
-	server = tlink_tcon(open_file->tlink)->ses->server;
+	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 	xid = get_xid();
 
 	do {
@@ -2997,6 +2997,7 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		wdata->nr_pages = nr_pages;
 		wdata->offset = (__u64)offset;
 		wdata->cfile = cifsFileInfo_get(open_file);
+		wdata->server = server;
 		wdata->pid = pid;
 		wdata->bytes = cur_len;
 		wdata->pagesz = PAGE_SIZE;
@@ -3538,8 +3539,10 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 	unsigned int rsize;
 	struct cifs_credits credits;
 	int rc;
-	struct TCP_Server_Info *server =
-		tlink_tcon(rdata->cfile->tlink)->ses->server;
+	struct TCP_Server_Info *server;
+
+	/* XXX: should we pick a new channel here? */
+	server = rdata->server;
 
 	do {
 		if (rdata->cfile->invalidHandle) {
@@ -3618,7 +3621,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 	size_t start;
 	struct iov_iter direct_iov = ctx->iter;
 
-	server = tlink_tcon(open_file->tlink)->ses->server;
+	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;
@@ -3702,6 +3705,7 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 			rdata->tailsz = PAGE_SIZE;
 		}
 
+		rdata->server = server;
 		rdata->cfile = cifsFileInfo_get(open_file);
 		rdata->nr_pages = npages;
 		rdata->offset = offset;
@@ -4031,7 +4035,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 	}
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
-	server = tcon->ses->server;
+	server = cifs_pick_channel(tcon->ses);
 
 	if (!server->ops->sync_read) {
 		free_xid(xid);
@@ -4070,6 +4074,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 			io_parms.tcon = tcon;
 			io_parms.offset = *offset;
 			io_parms.length = current_read_size;
+			io_parms.server = server;
 			rc = server->ops->sync_read(xid, &open_file->fid, &io_parms,
 						    &bytes_read, &cur_offset,
 						    &buf_type);
@@ -4372,7 +4377,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		pid = current->tgid;
 
 	rc = 0;
-	server = tlink_tcon(open_file->tlink)->ses->server;
+	server = cifs_pick_channel(tlink_tcon(open_file->tlink)->ses);
 
 	cifs_dbg(FYI, "%s: file=%p mapping=%p num_pages=%u\n",
 		 __func__, file, mapping, num_pages);
@@ -4443,6 +4448,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		}
 
 		rdata->cfile = cifsFileInfo_get(open_file);
+		rdata->server = server;
 		rdata->mapping = mapping;
 		rdata->offset = offset;
 		rdata->bytes = bytes;

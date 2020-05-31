@@ -450,7 +450,7 @@ smb3_create_mf_symlink(unsigned int xid, struct cifs_tcon *tcon,
 	int rc;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	__le16 *utf16_path;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct kvec iov[2];

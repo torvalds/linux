@@ -98,9 +98,11 @@ extern int cifs_call_async(struct TCP_Server_Info *server,
 			const struct cifs_credits *exist_credits);
 extern struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses);
 extern int cifs_send_recv(const unsigned int xid, struct cifs_ses *ses,
+			  struct TCP_Server_Info *server,
 			  struct smb_rqst *rqst, int *resp_buf_type,
 			  const int flags, struct kvec *resp_iov);
 extern int compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
+			      struct TCP_Server_Info *server,
 			      const int flags, const int num_rqst,
 			      struct smb_rqst *rqst, int *resp_buf_type,
 			      struct kvec *resp_iov);
