@@ -368,6 +368,42 @@ static inline pid_t seccomp_can_sync_threads(void)
 	return 0;
 }
 
+static inline void seccomp_filter_free(struct seccomp_filter *filter)
+{
+	if (filter) {
+		bpf_prog_destroy(filter->prog);
+		kfree(filter);
+	}
+}
+
+static void __put_seccomp_filter(struct seccomp_filter *orig)
+{
+	/* Clean up single-reference branches iteratively. */
+	while (orig && refcount_dec_and_test(&orig->refs)) {
+		struct seccomp_filter *freeme = orig;
+		orig = orig->prev;
+		seccomp_filter_free(freeme);
+	}
+}
+
+/**
+ * seccomp_filter_release - Detach the task from its filter tree
+ *			    and drop its reference count during
+ *			    exit.
+ *
+ * This function should only be called when the task is exiting as
+ * it detaches it from its filter tree. As such, READ_ONCE() and
+ * barriers are not needed here, as would normally be needed.
+ */
+void seccomp_filter_release(struct task_struct *tsk)
+{
+	struct seccomp_filter *orig = tsk->seccomp.filter;
+
+	/* Detach task from its filter tree. */
+	tsk->seccomp.filter = NULL;
+	__put_seccomp_filter(orig);
+}
+
 /**
  * seccomp_sync_threads: sets all threads to use current's filter
  *
@@ -397,7 +433,7 @@ static inline void seccomp_sync_threads(unsigned long flags)
 		 * current's path will hold a reference.  (This also
 		 * allows a put before the assignment.)
 		 */
-		put_seccomp_filter(thread);
+		__put_seccomp_filter(thread->seccomp.filter);
 		smp_store_release(&thread->seccomp.filter,
 				  caller->seccomp.filter);
 		atomic_set(&thread->seccomp.filter_count,
@@ -569,30 +605,6 @@ void get_seccomp_filter(struct task_struct *tsk)
 	if (!orig)
 		return;
 	__get_seccomp_filter(orig);
-}
-
-static inline void seccomp_filter_free(struct seccomp_filter *filter)
-{
-	if (filter) {
-		bpf_prog_destroy(filter->prog);
-		kfree(filter);
-	}
-}
-
-static void __put_seccomp_filter(struct seccomp_filter *orig)
-{
-	/* Clean up single-reference branches iteratively. */
-	while (orig && refcount_dec_and_test(&orig->refs)) {
-		struct seccomp_filter *freeme = orig;
-		orig = orig->prev;
-		seccomp_filter_free(freeme);
-	}
-}
-
-/* put_seccomp_filter - decrements the ref count of tsk->seccomp.filter */
-void put_seccomp_filter(struct task_struct *tsk)
-{
-	__put_seccomp_filter(tsk->seccomp.filter);
 }
 
 static void seccomp_init_siginfo(kernel_siginfo_t *info, int syscall, int reason)
