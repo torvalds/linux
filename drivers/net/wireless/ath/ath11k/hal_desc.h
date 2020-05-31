@@ -2,6 +2,8 @@
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  */
+#include "core.h"
+
 #ifndef ATH11K_HAL_DESC_H
 #define ATH11K_HAL_DESC_H
 

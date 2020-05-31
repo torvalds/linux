@@ -99,6 +99,11 @@ enum ath11k_hw_rate_ofdm {
 	ATH11K_HW_RATE_OFDM_9M,
 };
 
+enum ath11k_bus {
+	ATH11K_BUS_AHB,
+	ATH11K_BUS_PCI,
+};
+
 struct ath11k_hw_params {
 	const char *name;
 	struct {

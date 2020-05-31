@@ -360,6 +360,33 @@ mt7615_mcu_scan_event(struct mt7615_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7615_mcu_roc_event(struct mt7615_dev *dev, struct sk_buff *skb)
+{
+	struct mt7615_roc_tlv *event;
+	struct mt7615_phy *phy;
+	struct mt76_phy *mphy;
+	int duration;
+
+	skb_pull(skb, sizeof(struct mt7615_mcu_rxd));
+	event = (struct mt7615_roc_tlv *)skb->data;
+
+	if (event->dbdc_band && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+	else
+		mphy = &dev->mt76.phy;
+
+	ieee80211_ready_on_channel(mphy->hw);
+
+	phy = (struct mt7615_phy *)mphy->priv;
+	phy->roc_grant = true;
+	wake_up(&phy->roc_wait);
+
+	duration = le32_to_cpu(event->max_interval);
+	mod_timer(&phy->roc_timer,
+		  round_jiffies_up(jiffies + msecs_to_jiffies(duration)));
+}
+
+static void
 mt7615_mcu_beacon_loss_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
@@ -426,6 +453,9 @@ mt7615_mcu_rx_unsolicited_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	case MCU_EVENT_BSS_BEACON_LOSS:
 		mt7615_mcu_beacon_loss_event(dev, skb);
 		break;
+	case MCU_EVENT_ROC:
+		mt7615_mcu_roc_event(dev, skb);
+		break;
 	case MCU_EVENT_SCHED_SCAN_DONE:
 	case MCU_EVENT_SCAN_DONE:
 		mt7615_mcu_scan_event(dev, skb);
@@ -451,6 +481,7 @@ void mt7615_mcu_rx_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	    rxd->eid == MCU_EVENT_SCHED_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_BSS_ABSENCE ||
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
+	    rxd->eid == MCU_EVENT_ROC ||
 	    !rxd->seq)
 		mt7615_mcu_rx_unsolicited_event(dev, skb);
 	else
@@ -2741,11 +2772,9 @@ int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable)
 				   sizeof(req), true);
 }
 
-void m7615_mcu_set_ps_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
+int mt7615_mcu_set_vif_ps(struct mt7615_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
-	struct mt7615_phy *phy = priv;
-	struct mt76_phy *mphy = phy->mt76;
 	struct {
 		u8 bss_idx;
 		u8 ps_state; /* 0: device awake
@@ -2754,12 +2783,14 @@ void m7615_mcu_set_ps_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 			      */
 	} req = {
 		.bss_idx = mvif->idx,
-		.ps_state = test_bit(MT76_STATE_PS, &mphy->state) ? 2 : 0,
+		.ps_state = vif->bss_conf.ps ? 2 : 0,
 	};
 
-	if (vif->type == NL80211_IFTYPE_STATION)
-		__mt76_mcu_send_msg(&phy->dev->mt76,  MCU_CMD_SET_PS_PROFILE,
-				    &req, sizeof(req), false);
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return -ENOTSUPP;
+
+	return __mt76_mcu_send_msg(&dev->mt76,  MCU_CMD_SET_PS_PROFILE,
+				   &req, sizeof(req), false);
 }
 
 int mt7615_mcu_set_channel_domain(struct mt7615_phy *phy)
@@ -2867,6 +2898,7 @@ int mt7615_mcu_hw_scan(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 		n_ssids++;
 	}
 	req->ssid_type = n_ssids ? BIT(2) : BIT(0);
+	req->ssid_type_ext = n_ssids ? BIT(0) : 0;
 	req->ssids_num = n_ssids;
 
 	/* increase channel time for passive scan */
@@ -3600,6 +3632,26 @@ int mt7615_mcu_update_gtk_rekey(struct ieee80211_hw *hw,
 				       MCU_UNI_CMD_OFFLOAD, true);
 }
 #endif /* CONFIG_PM */
+
+int mt7615_mcu_set_roc(struct mt7615_phy *phy, struct ieee80211_vif *vif,
+		       struct ieee80211_channel *chan, int duration)
+{
+	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
+	struct mt7615_dev *dev = phy->dev;
+	struct mt7615_roc_tlv req = {
+		.bss_idx = mvif->idx,
+		.active = !chan,
+		.max_interval = cpu_to_le32(duration),
+		.primary_chan = chan ? chan->hw_value : 0,
+		.band = chan ? chan->band : 0,
+		.req_type = 2,
+	};
+
+	phy->roc_grant = false;
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_CMD_SET_ROC, &req,
+				   sizeof(req), false);
+}
 
 int mt7615_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif)

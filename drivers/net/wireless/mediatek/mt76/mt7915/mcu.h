@@ -212,6 +212,7 @@ enum {
 	MCU_EXT_CMD_RATE_CTRL = 0x87,
 	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
 	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
+	MCU_EXT_CMD_SET_SPR = 0xa8,
 };
 
 enum {

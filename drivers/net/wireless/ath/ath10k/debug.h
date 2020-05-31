@@ -65,7 +65,7 @@ struct ath10k_pktlog_hdr {
 	__le16 log_type; /* Type of log information foll this header */
 	__le16 size; /* Size of variable length log information in bytes */
 	__le32 timestamp;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 /* FIXME: How to calculate the buffer size sanely? */

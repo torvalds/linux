@@ -1517,6 +1517,7 @@ struct htt_ext_stats_cfg_params {
  *       4 bytes.
  */
 
+#define HTT_T2H_EXT_STATS_INFO1_DONE	BIT(11)
 #define HTT_T2H_EXT_STATS_INFO1_LENGTH   GENMASK(31, 16)
 
 struct ath11k_htt_extd_stats_msg {

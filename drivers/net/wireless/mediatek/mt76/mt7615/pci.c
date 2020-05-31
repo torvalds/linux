@@ -14,6 +14,7 @@
 static const struct pci_device_id mt7615_pci_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7615) },
 	{ PCI_DEVICE(0x14c3, 0x7663) },
+	{ PCI_DEVICE(0x14c3, 0x7611) },
 	{ },
 };
 
@@ -85,8 +86,9 @@ static int mt7615_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	napi_disable(&mdev->tx_napi);
 	tasklet_kill(&mdev->tx_tasklet);
 
-	for (i = 0; i < ARRAY_SIZE(mdev->q_rx); i++)
+	mt76_for_each_q_rx(mdev, i) {
 		napi_disable(&mdev->napi[i]);
+	}
 	tasklet_kill(&dev->irq_tasklet);
 
 	mt7615_dma_reset(dev);
@@ -119,8 +121,9 @@ static int mt7615_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 
 restore:
-	for (i = 0; i < ARRAY_SIZE(mdev->q_rx); i++)
+	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
+	}
 	napi_enable(&mdev->tx_napi);
 	if (hif_suspend)
 		mt7615_mcu_set_hif_suspend(dev, false);
@@ -155,7 +158,7 @@ static int mt7615_pci_resume(struct pci_dev *pdev)
 	if (pdma_reset)
 		dev_err(mdev->dev, "PDMA engine must be reinitialized\n");
 
-	for (i = 0; i < ARRAY_SIZE(mdev->q_rx); i++) {
+	mt76_for_each_q_rx(mdev, i) {
 		napi_enable(&mdev->napi[i]);
 		napi_schedule(&mdev->napi[i]);
 	}

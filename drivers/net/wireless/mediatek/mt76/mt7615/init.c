@@ -139,8 +139,10 @@ void mt7615_check_offload_capability(struct mt7615_dev *dev)
 		ieee80211_hw_set(hw, SUPPORTS_PS);
 		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 
+		wiphy->max_remain_on_channel_duration = 5000;
 		wiphy->features |= NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
 				   NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR |
+				   WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
 				   NL80211_FEATURE_P2P_GO_CTWIN |
 				   NL80211_FEATURE_P2P_GO_OPPPS;
 	} else {
@@ -149,6 +151,8 @@ void mt7615_check_offload_capability(struct mt7615_dev *dev)
 		dev->ops->sched_scan_start = NULL;
 		dev->ops->sched_scan_stop = NULL;
 		dev->ops->set_rekey_data = NULL;
+		dev->ops->remain_on_channel = NULL;
+		dev->ops->cancel_remain_on_channel = NULL;
 
 		wiphy->max_sched_scan_plan_interval = 0;
 		wiphy->max_sched_scan_ie_len = 0;
@@ -368,12 +372,6 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	if (phy)
 		return 0;
 
-	INIT_DELAYED_WORK(&phy->mac_work, mt7615_mac_work);
-	INIT_DELAYED_WORK(&phy->scan_work, mt7615_scan_work);
-	skb_queue_head_init(&phy->scan_event_list);
-
-	INIT_WORK(&phy->ps_work, mt7615_ps_work);
-
 	mt7615_cap_dbdc_enable(dev);
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops);
 	if (!mphy)
@@ -385,6 +383,14 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 	phy->chainmask = dev->chainmask & ~dev->phy.chainmask;
 	mphy->antenna_mask = BIT(hweight8(phy->chainmask)) - 1;
 	mt7615_init_wiphy(mphy->hw);
+
+	INIT_DELAYED_WORK(&phy->mac_work, mt7615_mac_work);
+	INIT_DELAYED_WORK(&phy->scan_work, mt7615_scan_work);
+	skb_queue_head_init(&phy->scan_event_list);
+
+	INIT_WORK(&phy->roc_work, mt7615_roc_work);
+	timer_setup(&phy->roc_timer, mt7615_roc_timer, 0);
+	init_waitqueue_head(&phy->roc_wait);
 
 	mt7615_mac_set_scs(phy, true);
 
@@ -437,9 +443,11 @@ void mt7615_init_device(struct mt7615_dev *dev)
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);
 	init_waitqueue_head(&dev->reset_wait);
+	init_waitqueue_head(&dev->phy.roc_wait);
 
 	INIT_WORK(&dev->reset_work, mt7615_mac_reset_work);
-	INIT_WORK(&dev->phy.ps_work, mt7615_ps_work);
+	INIT_WORK(&dev->phy.roc_work, mt7615_roc_work);
+	timer_setup(&dev->phy.roc_timer, mt7615_roc_timer, 0);
 
 	mt7615_init_wiphy(hw);
 	dev->mphy.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;

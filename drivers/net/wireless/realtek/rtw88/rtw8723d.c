@@ -2040,7 +2040,7 @@ static const struct coex_tdma_para tdma_sant_8723d[] = {
 
 /* Non-Shared-Antenna TDMA */
 static const struct coex_tdma_para tdma_nsant_8723d[] = {
-	{ {0x00, 0x00, 0x00, 0x40, 0x00} }, /* case-100 */
+	{ {0x00, 0x00, 0x00, 0x40, 0x01} }, /* case-100 */
 	{ {0x61, 0x45, 0x03, 0x11, 0x11} }, /* case-101 */
 	{ {0x61, 0x3a, 0x03, 0x11, 0x11} },
 	{ {0x61, 0x30, 0x03, 0x11, 0x11} },
@@ -2060,13 +2060,18 @@ static const struct coex_tdma_para tdma_nsant_8723d[] = {
 	{ {0x51, 0x3a, 0x03, 0x10, 0x50} },
 	{ {0x51, 0x30, 0x03, 0x10, 0x50} },
 	{ {0x51, 0x20, 0x03, 0x10, 0x50} },
-	{ {0x51, 0x10, 0x03, 0x10, 0x50} }
+	{ {0x51, 0x10, 0x03, 0x10, 0x50} }, /* case-120 */
+	{ {0x51, 0x08, 0x03, 0x10, 0x50} },
 };
 
 /* rssi in percentage % (dbm = % - 100) */
 static const u8 wl_rssi_step_8723d[] = {60, 50, 44, 30};
 static const u8 bt_rssi_step_8723d[] = {30, 30, 30, 30};
 static const struct coex_5g_afh_map afh_5g_8723d[] = { {0, 0, 0} };
+
+static const struct rtw_hw_reg btg_reg_8723d = {
+	.addr = REG_BTG_SEL, .mask = BIT_MASK_BTG_WL,
+};
 
 /* wl_tx_dec_power, bt_tx_dec_power, wl_rx_gain, bt_rx_lna_constrain */
 static const struct coex_rf_para rf_para_tx_8723d[] = {
@@ -2093,6 +2098,16 @@ static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8723d[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(3) | BIT(7), 0},
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_WRITE, BIT(0), 0},
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_POLLING, BIT(1), BIT(1)},
 	{0x004A,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK,
@@ -2103,6 +2118,11 @@ static const struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8723d[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(3) | BIT(4), 0},
+	{0x0023,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(4), 0},
 	{0x0301,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_PCI_MSK,
@@ -2310,6 +2330,11 @@ static const struct rtw_pwr_seq_cmd trans_act_to_lps_8723d[] = {
 	 RTW_PWR_INTF_ALL_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(1), 0},
+	{0x0093,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, 0xFF, 0x00},
 	{0x0553,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -2389,6 +2414,11 @@ static const struct rtw_pwr_seq_cmd trans_act_to_cardemu_8723d[] = {
 };
 
 static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8723d[] = {
+	{0x0007,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, 0xFF, 0x20},
 	{0x0005,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_USB_MSK | RTW_PWR_INTF_SDIO_MSK,
@@ -2409,6 +2439,21 @@ static const struct rtw_pwr_seq_cmd trans_cardemu_to_carddis_8723d[] = {
 	 RTW_PWR_INTF_USB_MSK,
 	 RTW_PWR_ADDR_MAC,
 	 RTW_PWR_CMD_WRITE, BIT(0), 1},
+	{0x0023,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_MAC,
+	 RTW_PWR_CMD_WRITE, BIT(4), BIT(4)},
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_WRITE, BIT(0), BIT(0)},
+	{0x0086,
+	 RTW_PWR_CUT_ALL_MSK,
+	 RTW_PWR_INTF_SDIO_MSK,
+	 RTW_PWR_ADDR_SDIO,
+	 RTW_PWR_CMD_POLLING, BIT(1), 0},
 	{0xFFFF,
 	 RTW_PWR_CUT_ALL_MSK,
 	 RTW_PWR_INTF_ALL_MSK,
@@ -2694,6 +2739,7 @@ struct rtw_chip_info rtw8723d_hw_spec = {
 	.bt_afh_span_bw40 = 0x30,
 	.afh_5g_num = ARRAY_SIZE(afh_5g_8723d),
 	.afh_5g = afh_5g_8723d,
+	.btg_reg = &btg_reg_8723d,
 
 	.coex_info_hw_regs_num = ARRAY_SIZE(coex_info_hw_regs_8723d),
 	.coex_info_hw_regs = coex_info_hw_regs_8723d,
