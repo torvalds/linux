@@ -103,6 +103,7 @@ struct test {
 
 #define VLAN_HLEN	4
 
+static __u32 duration;
 struct test tests[] = {
 	{
 		.name = "ipv4",
@@ -474,11 +475,87 @@ static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
 	return 0;
 }
 
+static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
+{
+	int i, err, keys_fd;
+
+	keys_fd = bpf_map__fd(keys);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		/* Keep in sync with 'flags' from eth_get_headlen. */
+		__u32 eth_get_headlen_flags =
+			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
+		struct bpf_prog_test_run_attr tattr = {};
+		struct bpf_flow_keys flow_keys = {};
+		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
+			    tests[i].keys.dport;
+
+		/* For skb-less case we can't pass input flags; run
+		 * only the tests that have a matching set of flags.
+		 */
+
+		if (tests[i].flags != eth_get_headlen_flags)
+			continue;
+
+		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
+		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
+
+		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
+
+		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
+		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+
+		err = bpf_map_delete_elem(keys_fd, &key);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
+	}
+}
+
+static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
+{
+	int err, prog_fd;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		return;
+
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	if (CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno))
+		return;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
+	CHECK(err, "bpf_prog_detach", "err %d errno %d\n", err, errno);
+}
+
+static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
+{
+	struct bpf_link *link;
+	int err, net_fd;
+
+	net_fd = open("/proc/self/ns/net", O_RDONLY);
+	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", errno))
+		return;
+
+	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
+	if (CHECK(IS_ERR(link), "attach_netns", "err %ld\n", PTR_ERR(link)))
+		goto out_close;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_link__destroy(link);
+	CHECK(err, "bpf_link__destroy", "err %d\n", err);
+out_close:
+	close(net_fd);
+}
+
 void test_flow_dissector(void)
 {
 	int i, err, prog_fd, keys_fd = -1, tap_fd;
 	struct bpf_flow *skel;
-	__u32 duration = 0;
 
 	skel = bpf_flow__open_and_load();
 	if (CHECK(!skel, "skel", "failed to open/load skeleton\n"))
@@ -526,45 +603,17 @@ void test_flow_dissector(void)
 	 * via BPF map in this case.
 	 */
 
-	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno);
-
 	tap_fd = create_tap("tap0");
 	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
 	err = ifup("tap0");
 	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
 
-	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		/* Keep in sync with 'flags' from eth_get_headlen. */
-		__u32 eth_get_headlen_flags =
-			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
-		struct bpf_prog_test_run_attr tattr = {};
-		struct bpf_flow_keys flow_keys = {};
-		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
-			    tests[i].keys.dport;
-
-		/* For skb-less case we can't pass input flags; run
-		 * only the tests that have a matching set of flags.
-		 */
-
-		if (tests[i].flags != eth_get_headlen_flags)
-			continue;
-
-		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
-
-		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
-
-		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
-		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
-
-		err = bpf_map_delete_elem(keys_fd, &key);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
-	}
+	/* Test direct prog attachment */
+	test_skb_less_prog_attach(skel, tap_fd);
+	/* Test indirect prog attachment via link */
+	test_skb_less_link_create(skel, tap_fd);
 
 	close(tap_fd);
-	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
 out_destroy_skel:
 	bpf_flow__destroy(skel);
 }
