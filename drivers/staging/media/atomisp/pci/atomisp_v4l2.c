@@ -392,6 +392,13 @@ static const struct atomisp_freq_scaling_rule dfs_rules_byt_cr[] = {
 	},
 };
 
+#ifdef FIXME
+/*
+ * Disable this, as it is used only when this is true:
+ *	INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
+ *	INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2))
+ * However, the original code is commented
+ */
 static const struct atomisp_dfs_config dfs_config_byt_cr = {
 	.lowest_freq = ISP_FREQ_200MHZ,
 	.max_freq_at_vmin = ISP_FREQ_320MHZ,
@@ -399,6 +406,7 @@ static const struct atomisp_dfs_config dfs_config_byt_cr = {
 	.dfs_table = dfs_rules_byt_cr,
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_byt_cr),
 };
+#endif
 
 static const struct atomisp_freq_scaling_rule dfs_rules_cht[] = {
 	{
