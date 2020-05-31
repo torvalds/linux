@@ -1451,10 +1451,10 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 				goto RDBK_FRM_UNMATCH;
 			}
 
-			cap->rdbk_buf[RDBK_L]->vb.sequence =
-				cap->rdbk_buf[RDBK_S]->vb.sequence;
+			cap->rdbk_buf[RDBK_S]->vb.sequence =
+				cap->rdbk_buf[RDBK_L]->vb.sequence;
 			cap->rdbk_buf[RDBK_M]->vb.sequence =
-				cap->rdbk_buf[RDBK_S]->vb.sequence;
+				cap->rdbk_buf[RDBK_L]->vb.sequence;
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf,
@@ -1478,8 +1478,8 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 				goto RDBK_FRM_UNMATCH;
 			}
 
-			cap->rdbk_buf[RDBK_L]->vb.sequence =
-				cap->rdbk_buf[RDBK_S]->vb.sequence;
+			cap->rdbk_buf[RDBK_S]->vb.sequence =
+				cap->rdbk_buf[RDBK_L]->vb.sequence;
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
@@ -1526,7 +1526,9 @@ static int mi_frame_end(struct rkisp_stream *stream)
 	unsigned long lock_flags = 0;
 	int i = 0;
 
-	if (!stream->next_buf && IS_HDR_RDBK(isp_dev->hdr.op_mode) &&
+	if (!stream->next_buf &&
+	    IS_HDR_RDBK(isp_dev->hdr.op_mode) &&
+	    isp_dev->dmarx_dev.trigger == T_MANUAL &&
 	    (stream->id == RKISP_STREAM_DMATX0 ||
 	     stream->id == RKISP_STREAM_DMATX1 ||
 	     stream->id == RKISP_STREAM_DMATX2))
@@ -1637,7 +1639,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 
 static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 {
-	int i, j, max_dma, max_buf = 0;
+	int i, j, max_dma, max_buf = 1;
 	struct rkisp_dummy_buffer *buf;
 	struct rkisp_stream *stream;
 	u32 size;
@@ -1648,9 +1650,12 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 	/* hdr read back mode using base and shd address
 	 * this support multi-buffer
 	 */
-	if (IS_HDR_RDBK(dev->hdr.op_mode) &&
-	    !dev->dmarx_dev.trigger)
-		max_buf = HDR_MAX_DUMMY_BUF;
+	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
+		if (!dev->dmarx_dev.trigger)
+			max_buf = HDR_MAX_DUMMY_BUF;
+		else
+			max_buf = 0;
+	}
 	for (i = 0; i < max_dma; i++) {
 		for (j = 0; j < max_buf; j++) {
 			buf = &dev->hdr.dummy_buf[i][j];
@@ -1700,7 +1705,7 @@ static int rkisp_create_hdr_buf(struct rkisp_device *dev)
 
 void hdr_destroy_buf(struct rkisp_device *dev)
 {
-	int i, j, max_dma, max_buf = 0;
+	int i, j, max_dma, max_buf = 1;
 	struct rkisp_dummy_buffer *buf;
 
 	if (atomic_read(&dev->cap_dev.refcnt) > 1 ||
@@ -1711,9 +1716,12 @@ void hdr_destroy_buf(struct rkisp_device *dev)
 
 	atomic_set(&dev->hdr.refcnt, 0);
 	max_dma = hdr_dma_frame(dev);
-	if (IS_HDR_RDBK(dev->hdr.op_mode) &&
-	    !dev->dmarx_dev.trigger)
-		max_buf = HDR_MAX_DUMMY_BUF;
+	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
+		if (!dev->dmarx_dev.trigger)
+			max_buf = HDR_MAX_DUMMY_BUF;
+		else
+			max_buf = 0;
+	}
 	for (i = 0; i < max_dma; i++) {
 		buf = dev->hdr.rx_cur_buf[i];
 		if (buf) {
