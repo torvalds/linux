@@ -29,13 +29,8 @@ struct linux_binprm {
 		/* Should an execfd be passed to userspace? */
 		have_execfd:1,
 
-		/* It is safe to use the creds of a script (see binfmt_misc) */
-		preserve_creds:1,
-		/*
-		 * True if most recent call to security_bprm_set_creds
-		 * resulted in elevated privileges.
-		 */
-		active_secureexec:1,
+		/* Use the creds of a script (see binfmt_misc) */
+		execfd_creds:1,
 		/*
 		 * Set by bprm_creds_for_exec hook to indicate a
 		 * privilege-gaining exec has happened. Used to set
