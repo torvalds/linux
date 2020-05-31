@@ -1810,15 +1810,15 @@ start_sensor:
 		if (atomisp_streaming_count(isp) > 1) {
 			if (atomisp_freq_scaling(isp,
 						 ATOMISP_DFS_MODE_MAX, false) < 0)
-				dev_dbg(isp->dev, "dfs failed!\n");
+				dev_dbg(isp->dev, "DFS max mode failed!\n");
 		} else {
 			if (atomisp_freq_scaling(isp,
 						 ATOMISP_DFS_MODE_AUTO, false) < 0)
-				dev_dbg(isp->dev, "dfs failed!\n");
+				dev_dbg(isp->dev, "DFS auto mode failed!\n");
 		}
 	} else {
 		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, false) < 0)
-			dev_dbg(isp->dev, "dfs failed!\n");
+			dev_dbg(isp->dev, "DFS max mode failed!\n");
 	}
 
 	if (asd->depth_mode->val && atomisp_streaming_count(isp) ==

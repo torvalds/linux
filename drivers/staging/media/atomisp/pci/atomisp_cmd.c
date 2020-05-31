@@ -1407,10 +1407,10 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 				       atomisp_css_valid_sof(isp));
 
 		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_AUTO, true) < 0)
-			dev_dbg(isp->dev, "dfs failed!\n");
+			dev_dbg(isp->dev, "DFS auto failed while recovering!\n");
 	} else {
 		if (atomisp_freq_scaling(isp, ATOMISP_DFS_MODE_MAX, true) < 0)
-			dev_dbg(isp->dev, "dfs failed!\n");
+			dev_dbg(isp->dev, "DFS max failed while recovering!\n");
 	}
 
 	for (i = 0; i < isp->num_of_streams; i++) {
