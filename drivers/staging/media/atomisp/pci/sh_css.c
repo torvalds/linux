@@ -1863,14 +1863,6 @@ ia_css_enable_isys_event_queue(bool enable) {
 	return 0;
 }
 
-void sh_css_free(void *ptr)
-{
-	if (is_vmalloc_addr(ptr))
-		vfree(ptr);
-	else
-		kfree(ptr);
-}
-
 /* For Acceleration API: Flush FW (shared buffer pointer) arguments */
 void
 sh_css_flush(struct ia_css_acc_fw *fw)
