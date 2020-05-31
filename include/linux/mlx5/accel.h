@@ -76,7 +76,7 @@ struct aes_gcm_keymat {
 struct mlx5_accel_esp_xfrm_attrs {
 	enum mlx5_accel_esp_action action;
 	u32   esn;
-	u32   spi;
+	__be32 spi;
 	u32   seq;
 	u32   tfc_pad;
 	u32   flags;

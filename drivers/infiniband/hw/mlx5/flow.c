@@ -404,7 +404,10 @@ static bool mlx5_ib_modify_header_supported(struct mlx5_ib_dev *dev)
 {
 	return MLX5_CAP_FLOWTABLE_NIC_RX(dev->mdev,
 					 max_modify_header_actions) ||
-	       MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev, max_modify_header_actions);
+	       MLX5_CAP_FLOWTABLE_NIC_TX(dev->mdev,
+					 max_modify_header_actions) ||
+	       MLX5_CAP_FLOWTABLE_RDMA_TX(dev->mdev,
+					 max_modify_header_actions);
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(

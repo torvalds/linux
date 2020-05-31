@@ -408,7 +408,7 @@ struct mlx5_wqe_signature_seg {
 
 struct mlx5_wqe_inline_seg {
 	__be32	byte_count;
-	__be32	data[0];
+	__be32	data[];
 };
 
 enum mlx5_sig_type {

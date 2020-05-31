@@ -554,8 +554,7 @@ struct mlx5dr_match_misc2 {
 	u32 metadata_reg_c_1;			/* metadata_reg_c_1 */
 	u32 metadata_reg_c_0;			/* metadata_reg_c_0 */
 	u32 metadata_reg_a;			/* metadata_reg_a */
-	u32 metadata_reg_b;			/* metadata_reg_b */
-	u8 reserved_auto2[8];
+	u8 reserved_auto2[12];
 };
 
 struct mlx5dr_match_misc3 {
