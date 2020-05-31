@@ -881,13 +881,13 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 			goto err_inval;
 		}
 
-		if (!nh->is_group || !nh->nh_grp->mpath) {
+		nhg = rtnl_dereference(nh->nh_grp);
+		if (!nh->is_group || !nhg->mpath) {
 			NL_SET_ERR_MSG(extack, "Nexthop is not a multipath group");
 			goto err_inval;
 		}
 
 		/* check nexthop group family */
-		nhg = rtnl_dereference(nh->nh_grp);
 		switch (vxlan->default_dst.remote_ip.sa.sa_family) {
 		case AF_INET:
 			if (!nhg->has_v4) {
