@@ -339,7 +339,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			/* Check xattr value */
 			state = aa_dfa_match_len(profile->xmatch, state, value,
 						 size);
-			perm = dfa_user_allow(profile->xmatch, state);
+			perm = profile->xmatch_perms[state];
 			if (!(perm & MAY_EXEC)) {
 				ret = -EINVAL;
 				goto out;
@@ -419,7 +419,7 @@ restart:
 
 			state = aa_dfa_leftmatch(profile->xmatch, DFA_START,
 						 name, &count);
-			perm = dfa_user_allow(profile->xmatch, state);
+			perm = profile->xmatch_perms[state];
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
 				int ret = 0;

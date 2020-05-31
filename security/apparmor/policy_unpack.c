@@ -669,6 +669,23 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 	return strcmp(data->key, *key);
 }
 
+static u32 *aa_compute_xmatch_perms(struct aa_dfa *xmatch)
+{
+	u32 *perms_table;
+	int state;
+	int state_count = xmatch->tables[YYTD_ID_BASE]->td_lolen;
+
+	// DFAs are restricted from having a state_count of less than 2
+	perms_table = kvcalloc(state_count, sizeof(u32), GFP_KERNEL);
+
+	// Since perms_table is initialized with zeroes via kvcalloc(), we can
+	// skip the trap state (state == 0)
+	for (state = 1; state < state_count; state++)
+		perms_table[state] = dfa_user_allow(xmatch, state);
+
+	return perms_table;
+}
+
 /**
  * unpack_profile - unpack a serialized profile
  * @e: serialized data extent information (NOT NULL)
@@ -727,13 +744,16 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		info = "bad xmatch";
 		goto fail;
 	}
-	/* xmatch_len is not optional if xmatch is set */
+	/* neither xmatch_len not xmatch_perms are optional if xmatch is set */
 	if (profile->xmatch) {
 		if (!unpack_u32(e, &tmp, NULL)) {
 			info = "missing xmatch len";
 			goto fail;
 		}
 		profile->xmatch_len = tmp;
+
+		profile->xmatch_perms = aa_compute_xmatch_perms(
+			profile->xmatch);
 	}
 
 	/* disconnected attachment string is optional */

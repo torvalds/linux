@@ -104,6 +104,7 @@ struct aa_data {
  * @attach: human readable attachment string
  * @xmatch: optional extended matching for unconfined executables names
  * @xmatch_len: xmatch prefix len, used to determine xmatch priority
+ * @xmatch_perms: precomputed permissions for the xmatch DFA indexed by state
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @path_flags: flags controlling path generation behavior
@@ -140,6 +141,7 @@ struct aa_profile {
 	const char *attach;
 	struct aa_dfa *xmatch;
 	unsigned int xmatch_len;
+	u32 *xmatch_perms;
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;
