@@ -7,7 +7,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  */
 
 #ifndef MAC80211_H
@@ -230,7 +230,7 @@ struct ieee80211_chanctx_conf {
 
 	bool radar_enabled;
 
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 /**
@@ -1670,7 +1670,7 @@ struct ieee80211_vif {
 	bool txqs_stopped[IEEE80211_NUM_ACS];
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
@@ -1798,7 +1798,7 @@ struct ieee80211_key_conf {
 	s8 keyidx;
 	u16 flags;
 	u8 keylen;
-	u8 key[0];
+	u8 key[];
 };
 
 #define IEEE80211_MAX_PN_LEN	16
@@ -1977,6 +1977,7 @@ struct ieee80211_sta_txpwr {
  * @ht_cap: HT capabilities of this STA; restricted to our own capabilities
  * @vht_cap: VHT capabilities of this STA; restricted to our own capabilities
  * @he_cap: HE capabilities of this STA
+ * @he_6ghz_capa: on 6 GHz, holds the HE 6 GHz band capabilities
  * @max_rx_aggregation_subframes: maximal amount of frames in a single AMPDU
  *	that this station is allowed to transmit to us.
  *	Can be modified by driver.
@@ -2016,6 +2017,7 @@ struct ieee80211_sta {
 	struct ieee80211_sta_ht_cap ht_cap;
 	struct ieee80211_sta_vht_cap vht_cap;
 	struct ieee80211_sta_he_cap he_cap;
+	struct ieee80211_he_6ghz_capa he_6ghz_capa;
 	u16 max_rx_aggregation_subframes;
 	bool wme;
 	u8 uapsd_queues;
@@ -2053,7 +2055,7 @@ struct ieee80211_sta {
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 /**
@@ -2099,7 +2101,7 @@ struct ieee80211_txq {
 	u8 ac;
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 /**

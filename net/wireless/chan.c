@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018       Intel Corporation
+ * Copyright 2018-2020	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -919,7 +919,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		width = 10;
 		break;
 	case NL80211_CHAN_WIDTH_20:
-		if (!ht_cap->ht_supported)
+		if (!ht_cap->ht_supported &&
+		    chandef->chan->band != NL80211_BAND_6GHZ)
 			return false;
 		/* fall through */
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -928,6 +929,8 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		width = 40;
+		if (chandef->chan->band == NL80211_BAND_6GHZ)
+			break;
 		if (!ht_cap->ht_supported)
 			return false;
 		if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
@@ -942,24 +945,29 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
-		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
+		if (chandef->chan->band != NL80211_BAND_6GHZ &&
+		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
 			return false;
 		/* fall through */
 	case NL80211_CHAN_WIDTH_80:
-		if (!vht_cap->vht_supported)
-			return false;
 		prohibited_flags |= IEEE80211_CHAN_NO_80MHZ;
 		width = 80;
+		if (chandef->chan->band == NL80211_BAND_6GHZ)
+			break;
+		if (!vht_cap->vht_supported)
+			return false;
 		break;
 	case NL80211_CHAN_WIDTH_160:
+		prohibited_flags |= IEEE80211_CHAN_NO_160MHZ;
+		width = 160;
+		if (chandef->chan->band == NL80211_BAND_6GHZ)
+			break;
 		if (!vht_cap->vht_supported)
 			return false;
 		cap = vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 		if (cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ &&
 		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ)
 			return false;
-		prohibited_flags |= IEEE80211_CHAN_NO_160MHZ;
-		width = 160;
 		break;
 	default:
 		WARN_ON_ONCE(1);

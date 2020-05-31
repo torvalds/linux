@@ -5,7 +5,7 @@
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -791,6 +791,7 @@ int wiphy_register(struct wiphy *wiphy)
 	/* sanity check supported bands/channels */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		u16 types = 0;
+		bool have_he = false;
 
 		sband = wiphy->bands[band];
 		if (!sband)
@@ -805,6 +806,11 @@ int wiphy_register(struct wiphy *wiphy)
 		 */
 		if (WARN_ON(band != NL80211_BAND_60GHZ &&
 			    !sband->n_bitrates))
+			return -EINVAL;
+
+		if (WARN_ON(band == NL80211_BAND_6GHZ &&
+			    (sband->ht_cap.ht_supported ||
+			     sband->vht_cap.vht_supported)))
 			return -EINVAL;
 
 		/*
@@ -854,7 +860,16 @@ int wiphy_register(struct wiphy *wiphy)
 				return -EINVAL;
 
 			types |= iftd->types_mask;
+
+			if (i == 0)
+				have_he = iftd->he_cap.has_he;
+			else
+				have_he = have_he &&
+					  iftd->he_cap.has_he;
 		}
+
+		if (WARN_ON(!have_he && band == NL80211_BAND_6GHZ))
+			return -EINVAL;
 
 		have_band = true;
 	}

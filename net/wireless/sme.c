@@ -5,7 +5,7 @@
  * (for nl80211's connect() and wext)
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2009   Intel Corporation. All rights reserved.
+ * Copyright (C) 2009, 2020 Intel Corporation. All rights reserved.
  * Copyright 2017	Intel Deutschland GmbH
  */
 
@@ -1118,7 +1118,10 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 
 		if (wiphy_ext_feature_isset(
 			    wdev->wiphy,
-			    NL80211_EXT_FEATURE_BEACON_PROTECTION))
+			    NL80211_EXT_FEATURE_BEACON_PROTECTION) ||
+		    wiphy_ext_feature_isset(
+			    wdev->wiphy,
+			    NL80211_EXT_FEATURE_BEACON_PROTECTION_CLIENT))
 			max_key_idx = 7;
 		for (i = 0; i <= max_key_idx; i++)
 			rdev_del_key(rdev, dev, i, false, NULL);

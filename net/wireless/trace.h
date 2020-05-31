@@ -2840,11 +2840,28 @@ TRACE_EVENT(cfg80211_rx_mgmt,
 		__entry->freq = freq;
 		__entry->sig_dbm = sig_dbm;
 	),
-	TP_printk(WDEV_PR_FMT ", freq: %d, sig dbm: %d",
-		  WDEV_PR_ARG, __entry->freq, __entry->sig_dbm)
+	TP_printk(WDEV_PR_FMT ", freq: "KHZ_F", sig dbm: %d",
+		  WDEV_PR_ARG, PR_KHZ(__entry->freq), __entry->sig_dbm)
 );
 
 TRACE_EVENT(cfg80211_mgmt_tx_status,
+	TP_PROTO(struct wireless_dev *wdev, u64 cookie, bool ack),
+	TP_ARGS(wdev, cookie, ack),
+	TP_STRUCT__entry(
+		WDEV_ENTRY
+		__field(u64, cookie)
+		__field(bool, ack)
+	),
+	TP_fast_assign(
+		WDEV_ASSIGN;
+		__entry->cookie = cookie;
+		__entry->ack = ack;
+	),
+	TP_printk(WDEV_PR_FMT", cookie: %llu, ack: %s",
+		  WDEV_PR_ARG, __entry->cookie, BOOL_TO_STR(__entry->ack))
+);
+
+TRACE_EVENT(cfg80211_control_port_tx_status,
 	TP_PROTO(struct wireless_dev *wdev, u64 cookie, bool ack),
 	TP_ARGS(wdev, cookie, ack),
 	TP_STRUCT__entry(
@@ -3121,8 +3138,8 @@ TRACE_EVENT(cfg80211_report_obss_beacon,
 		__entry->freq = freq;
 		__entry->sig_dbm = sig_dbm;
 	),
-	TP_printk(WIPHY_PR_FMT ", freq: %d, sig_dbm: %d",
-		  WIPHY_PR_ARG, __entry->freq, __entry->sig_dbm)
+	TP_printk(WIPHY_PR_FMT ", freq: "KHZ_F", sig_dbm: %d",
+		  WIPHY_PR_ARG, PR_KHZ(__entry->freq), __entry->sig_dbm)
 );
 
 TRACE_EVENT(cfg80211_tdls_oper_request,

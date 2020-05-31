@@ -1520,7 +1520,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (params->he_capa)
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
 						  (void *)params->he_capa,
-						  params->he_capa_len, sta);
+						  params->he_capa_len,
+						  (void *)params->he_6ghz_capa,
+						  sta);
 
 	if (params->opmode_notif_used) {
 		/* returned value is only needed for rc update, but the
@@ -2196,7 +2198,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    sband->band == NL80211_BAND_5GHZ) {
+	    (sband->band == NL80211_BAND_5GHZ ||
+	     sband->band == NL80211_BAND_6GHZ)) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}
@@ -3957,7 +3960,7 @@ static int ieee80211_set_tid_config(struct wiphy *wiphy,
 
 static int ieee80211_reset_tid_config(struct wiphy *wiphy,
 				      struct net_device *dev,
-				      const u8 *peer, u8 tid)
+				      const u8 *peer, u8 tids)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sta_info *sta;
@@ -3967,7 +3970,7 @@ static int ieee80211_reset_tid_config(struct wiphy *wiphy,
 		return -EOPNOTSUPP;
 
 	if (!peer)
-		return drv_reset_tid_config(sdata->local, sdata, NULL, tid);
+		return drv_reset_tid_config(sdata->local, sdata, NULL, tids);
 
 	mutex_lock(&sdata->local->sta_mtx);
 	sta = sta_info_get_bss(sdata, peer);
@@ -3976,7 +3979,7 @@ static int ieee80211_reset_tid_config(struct wiphy *wiphy,
 		return -ENOENT;
 	}
 
-	ret = drv_reset_tid_config(sdata->local, sdata, &sta->sta, tid);
+	ret = drv_reset_tid_config(sdata->local, sdata, &sta->sta, tids);
 	mutex_unlock(&sdata->local->sta_mtx);
 
 	return ret;

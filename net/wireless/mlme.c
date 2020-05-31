@@ -729,8 +729,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
 }
 
-bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
-		      const u8 *buf, size_t len, u32 flags)
+bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
+			  const u8 *buf, size_t len, u32 flags)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
@@ -785,7 +785,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
 	trace_cfg80211_return_bool(result);
 	return result;
 }
-EXPORT_SYMBOL(cfg80211_rx_mgmt);
+EXPORT_SYMBOL(cfg80211_rx_mgmt_khz);
 
 void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev)
 {
