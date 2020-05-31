@@ -595,7 +595,7 @@ static int cgroup_bpf_replace(struct bpf_link *link, struct bpf_prog *new_prog,
 	mutex_lock(&cgroup_mutex);
 	/* link might have been auto-released by dying cgroup, so fail */
 	if (!cg_link->cgroup) {
-		ret = -EINVAL;
+		ret = -ENOLINK;
 		goto out_unlock;
 	}
 	if (old_prog && link->prog != old_prog) {
