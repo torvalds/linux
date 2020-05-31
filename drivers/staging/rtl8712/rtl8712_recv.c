@@ -1031,24 +1031,17 @@ static void recvbuf2recvframe(struct _adapter *padapter, struct sk_buff *pskb)
 		 */
 		alloc_sz += 6;
 		pkt_copy = netdev_alloc_skb(padapter->pnetdev, alloc_sz);
-		if (pkt_copy) {
-			precvframe->u.hdr.pkt = pkt_copy;
-			skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data)
-				    % 4));
-			skb_reserve(pkt_copy, shift_sz);
-			memcpy(pkt_copy->data, pbuf, tmp_len);
-			precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data =
-				 precvframe->u.hdr.rx_tail = pkt_copy->data;
-			precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
-		} else {
-			precvframe->u.hdr.pkt = skb_clone(pskb, GFP_ATOMIC);
-			if (!precvframe->u.hdr.pkt)
-				return;
-			precvframe->u.hdr.rx_head = pbuf;
-			precvframe->u.hdr.rx_data = pbuf;
-			precvframe->u.hdr.rx_tail = pbuf;
-			precvframe->u.hdr.rx_end = pbuf + alloc_sz;
-		}
+		if (!pkt_copy)
+			return;
+
+		precvframe->u.hdr.pkt = pkt_copy;
+		skb_reserve(pkt_copy, 4 - ((addr_t)(pkt_copy->data) % 4));
+		skb_reserve(pkt_copy, shift_sz);
+		memcpy(pkt_copy->data, pbuf, tmp_len);
+		precvframe->u.hdr.rx_head = precvframe->u.hdr.rx_data =
+			precvframe->u.hdr.rx_tail = pkt_copy->data;
+		precvframe->u.hdr.rx_end = pkt_copy->data + alloc_sz;
+
 		recvframe_put(precvframe, tmp_len);
 		recvframe_pull(precvframe, drvinfo_sz + RXDESC_SIZE);
 		/* because the endian issue, driver avoid reference to the
