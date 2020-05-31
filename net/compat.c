@@ -183,20 +183,21 @@ int cmsghdr_from_user_compat_to_kern(struct msghdr *kmsg, struct sock *sk,
 	memset(kcmsg, 0, kcmlen);
 	ucmsg = CMSG_COMPAT_FIRSTHDR(kmsg);
 	while (ucmsg != NULL) {
-		if (__get_user(ucmlen, &ucmsg->cmsg_len))
+		struct compat_cmsghdr cmsg;
+		if (copy_from_user(&cmsg, ucmsg, sizeof(cmsg)))
 			goto Efault;
-		if (!CMSG_COMPAT_OK(ucmlen, ucmsg, kmsg))
+		if (!CMSG_COMPAT_OK(cmsg.cmsg_len, ucmsg, kmsg))
 			goto Einval;
-		tmp = ((ucmlen - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
+		tmp = ((cmsg.cmsg_len - sizeof(*ucmsg)) + sizeof(struct cmsghdr));
 		if ((char *)kcmsg_base + kcmlen - (char *)kcmsg < CMSG_ALIGN(tmp))
 			goto Einval;
 		kcmsg->cmsg_len = tmp;
+		kcmsg->cmsg_level = cmsg.cmsg_level;
+		kcmsg->cmsg_type = cmsg.cmsg_type;
 		tmp = CMSG_ALIGN(tmp);
-		if (__get_user(kcmsg->cmsg_level, &ucmsg->cmsg_level) ||
-		    __get_user(kcmsg->cmsg_type, &ucmsg->cmsg_type) ||
-		    copy_from_user(CMSG_DATA(kcmsg),
+		if (copy_from_user(CMSG_DATA(kcmsg),
 				   CMSG_COMPAT_DATA(ucmsg),
-				   (ucmlen - sizeof(*ucmsg))))
+				   (cmsg.cmsg_len - sizeof(*ucmsg))))
 			goto Efault;
 
 		/* Advance. */
