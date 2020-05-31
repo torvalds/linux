@@ -2428,7 +2428,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	err = register_netdev(vsi->netdev);
 	if (err)
-		goto err_destroy_devlink_port;
+		goto err_free_netdev;
 
 	devlink_port_type_eth_set(&pf->devlink_port, vsi->netdev);
 
@@ -2439,9 +2439,11 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	return 0;
 
+err_free_netdev:
+	free_netdev(vsi->netdev);
+	vsi->netdev = NULL;
 err_destroy_devlink_port:
 	ice_devlink_destroy_port(pf);
-
 	return err;
 }
 
@@ -3086,6 +3088,9 @@ ice_log_pkg_init(struct ice_hw *hw, enum ice_status *status)
 		case ICE_AQ_RC_EBADMAN:
 		case ICE_AQ_RC_EBADBUF:
 			dev_err(dev, "An error occurred on the device while loading the DDP package.  The device will be reset.\n");
+			/* poll for reset to complete */
+			if (ice_check_reset(hw))
+				dev_err(dev, "Error resetting device. Please reload the driver\n");
 			return;
 		default:
 			break;
@@ -3415,7 +3420,7 @@ ice_probe(struct pci_dev *pdev, const struct pci_device_id __always_unused *ent)
 	if (err) {
 		dev_err(dev, "ice_init_interrupt_scheme failed: %d\n", err);
 		err = -EIO;
-		goto err_init_interrupt_unroll;
+		goto err_init_vsi_unroll;
 	}
 
 	/* In case of MSIX we are going to setup the misc vector right here
@@ -3508,6 +3513,7 @@ err_msix_misc_unroll:
 	ice_free_irq_msix_misc(pf);
 err_init_interrupt_unroll:
 	ice_clear_interrupt_scheme(pf);
+err_init_vsi_unroll:
 	devm_kfree(dev, pf->vsi);
 err_init_pf_unroll:
 	ice_deinit_pf(pf);
@@ -4891,6 +4897,11 @@ static void ice_update_pf_netdev_link(struct ice_pf *pf)
  * ice_rebuild - rebuild after reset
  * @pf: PF to rebuild
  * @reset_type: type of reset
+ *
+ * Do not rebuild VF VSI in this flow because that is already handled via
+ * ice_reset_all_vfs(). This is because requirements for resetting a VF after a
+ * PFR/CORER/GLOBER/etc. are different than the normal flow. Also, we don't want
+ * to reset/rebuild all the VF VSI twice.
  */
 static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 {
@@ -4986,14 +4997,6 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 	if (err) {
 		dev_err(dev, "PF VSI rebuild failed: %d\n", err);
 		goto err_vsi_rebuild;
-	}
-
-	if (test_bit(ICE_FLAG_SRIOV_ENA, pf->flags)) {
-		err = ice_vsi_rebuild_by_type(pf, ICE_VSI_VF);
-		if (err) {
-			dev_err(dev, "VF VSI rebuild failed: %d\n", err);
-			goto err_vsi_rebuild;
-		}
 	}
 
 	/* If Flow Director is active */
