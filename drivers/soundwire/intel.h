@@ -27,4 +27,15 @@ struct sdw_intel_link_res {
 	struct device *dev;
 };
 
+struct sdw_intel {
+	struct sdw_cdns cdns;
+	int instance;
+	struct sdw_intel_link_res *link_res;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs;
+#endif
+};
+
+#define SDW_INTEL_QUIRK_MASK_BUS_DISABLE      BIT(1)
+
 #endif /* __SDW_INTEL_LOCAL_H */
