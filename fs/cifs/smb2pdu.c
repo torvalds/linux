@@ -85,7 +85,7 @@ static const int smb2_req_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 
 int smb3_encryption_required(const struct cifs_tcon *tcon)
 {
-	if (!tcon)
+	if (!tcon || !tcon->ses)
 		return 0;
 	if ((tcon->ses->session_flags & SMB2_SESSION_FLAG_ENCRYPT_DATA) ||
 	    (tcon->share_flags & SHI1005_FLAGS_ENCRYPT_DATA))
