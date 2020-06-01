@@ -341,6 +341,12 @@ config COMMON_CLK_MMP2
 	help
 	  Support for Marvell MMP2 and MMP3 SoC clocks
 
+config COMMON_CLK_MMP2_AUDIO
+        tristate "Clock driver for MMP2 Audio subsystem"
+        depends on COMMON_CLK_MMP2 || COMPILE_TEST
+        help
+          This driver supports clocks for Audio subsystem on MMP2 SoC.
+
 config COMMON_CLK_BD718XX
 	tristate "Clock driver for 32K clk gates on ROHM PMICs"
 	depends on MFD_ROHM_BD718XX || MFD_ROHM_BD70528 || MFD_ROHM_BD71828
@@ -375,6 +381,7 @@ source "drivers/clk/sunxi-ng/Kconfig"
 source "drivers/clk/tegra/Kconfig"
 source "drivers/clk/ti/Kconfig"
 source "drivers/clk/uniphier/Kconfig"
+source "drivers/clk/x86/Kconfig"
 source "drivers/clk/zynqmp/Kconfig"
 
 endif
