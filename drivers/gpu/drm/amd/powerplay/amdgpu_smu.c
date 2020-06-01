@@ -1102,9 +1102,6 @@ static int smu_sw_fini(void *handle)
 	struct smu_context *smu = &adev->smu;
 	int ret;
 
-	kfree(smu->irq_source);
-	smu->irq_source = NULL;
-
 	ret = smu_smc_table_sw_fini(smu);
 	if (ret) {
 		pr_err("Failed to sw fini smc table!\n");

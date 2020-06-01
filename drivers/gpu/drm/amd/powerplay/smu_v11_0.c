@@ -1174,7 +1174,7 @@ int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 		if (ret)
 			return ret;
 
-		ret = amdgpu_irq_get(adev, smu->irq_source, 0);
+		ret = amdgpu_irq_get(adev, &smu->irq_source, 0);
 		if (ret)
 			return ret;
 
@@ -1198,7 +1198,7 @@ int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 
 int smu_v11_0_disable_thermal_alert(struct smu_context *smu)
 {
-	return amdgpu_irq_put(smu->adev, smu->irq_source, 0);
+	return amdgpu_irq_put(smu->adev, &smu->irq_source, 0);
 }
 
 static uint16_t convert_to_vddc(uint8_t vid)
@@ -1615,17 +1615,8 @@ static const struct amdgpu_irq_src_funcs smu_v11_0_irq_funcs =
 int smu_v11_0_register_irq_handler(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
-	struct amdgpu_irq_src *irq_src = smu->irq_source;
+	struct amdgpu_irq_src *irq_src = &smu->irq_source;
 	int ret = 0;
-
-	/* already register */
-	if (irq_src)
-		return 0;
-
-	irq_src = kzalloc(sizeof(struct amdgpu_irq_src), GFP_KERNEL);
-	if (!irq_src)
-		return -ENOMEM;
-	smu->irq_source = irq_src;
 
 	irq_src->num_types = 1;
 	irq_src->funcs = &smu_v11_0_irq_funcs;

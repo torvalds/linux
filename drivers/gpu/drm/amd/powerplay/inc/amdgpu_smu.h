@@ -356,7 +356,7 @@ struct smu_baco_context
 struct smu_context
 {
 	struct amdgpu_device            *adev;
-	struct amdgpu_irq_src		*irq_source;
+	struct amdgpu_irq_src		irq_source;
 
 	const struct pptable_funcs	*ppt_funcs;
 	struct mutex			mutex;
