@@ -621,6 +621,72 @@ static void dm_bow_dtr(struct dm_target *ti)
 	kfree(bc);
 }
 
+static void dm_bow_io_hints(struct dm_target *ti, struct queue_limits *limits)
+{
+	struct bow_context *bc = ti->private;
+	const unsigned int block_size = bc->block_size;
+
+	limits->logical_block_size =
+		max_t(unsigned short, limits->logical_block_size, block_size);
+	limits->physical_block_size =
+		max_t(unsigned int, limits->physical_block_size, block_size);
+	limits->io_min = max_t(unsigned int, limits->io_min, block_size);
+
+	if (limits->max_discard_sectors == 0) {
+		limits->discard_granularity = 1 << 12;
+		limits->max_hw_discard_sectors = 1 << 15;
+		limits->max_discard_sectors = 1 << 15;
+		bc->forward_trims = false;
+	} else {
+		limits->discard_granularity = 1 << 12;
+		bc->forward_trims = true;
+	}
+}
+
+static int dm_bow_ctr_optional(struct dm_target *ti, unsigned int argc,
+		char **argv)
+{
+	struct bow_context *bc = ti->private;
+	struct dm_arg_set as;
+	static const struct dm_arg _args[] = {
+		{0, 1, "Invalid number of feature args"},
+	};
+	unsigned int opt_params;
+	const char *opt_string;
+	int err;
+	char dummy;
+
+	as.argc = argc;
+	as.argv = argv;
+
+	err = dm_read_arg_group(_args, &as, &opt_params, &ti->error);
+	if (err)
+		return err;
+
+	while (opt_params--) {
+		opt_string = dm_shift_arg(&as);
+		if (!opt_string) {
+			ti->error = "Not enough feature arguments";
+			return -EINVAL;
+		}
+
+		if (sscanf(opt_string, "block_size:%u%c",
+					&bc->block_size, &dummy) == 1) {
+			if (bc->block_size < SECTOR_SIZE ||
+			    bc->block_size > 4096 ||
+			    !is_power_of_2(bc->block_size)) {
+				ti->error = "Invalid block_size";
+				return -EINVAL;
+			}
+		} else {
+			ti->error = "Invalid feature arguments";
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct bow_context *bc;
@@ -628,7 +694,7 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int ret;
 	struct mapped_device *md = dm_table_get_md(ti->table);
 
-	if (argc != 1) {
+	if (argc < 1) {
 		ti->error = "Invalid argument count";
 		return -EINVAL;
 	}
@@ -651,17 +717,13 @@ static int dm_bow_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	if (bc->dev->bdev->bd_queue->limits.max_discard_sectors == 0) {
-		bc->dev->bdev->bd_queue->limits.discard_granularity = 1 << 12;
-		bc->dev->bdev->bd_queue->limits.max_hw_discard_sectors = 1 << 15;
-		bc->dev->bdev->bd_queue->limits.max_discard_sectors = 1 << 15;
-		bc->forward_trims = false;
-	} else {
-		bc->dev->bdev->bd_queue->limits.discard_granularity = 1 << 12;
-		bc->forward_trims = true;
+	bc->block_size = bc->dev->bdev->bd_queue->limits.logical_block_size;
+	if (argc > 1) {
+		ret = dm_bow_ctr_optional(ti, argc - 1, &argv[1]);
+		if (ret)
+			goto bad;
 	}
 
-	bc->block_size = bc->dev->bdev->bd_queue->limits.logical_block_size;
 	bc->block_shift = ilog2(bc->block_size);
 	bc->log_sector = kzalloc(bc->block_size, GFP_KERNEL);
 	if (!bc->log_sector) {
@@ -1204,7 +1266,7 @@ static int dm_bow_iterate_devices(struct dm_target *ti,
 
 static struct target_type bow_target = {
 	.name   = "bow",
-	.version = {1, 1, 1},
+	.version = {1, 2, 0},
 	.module = THIS_MODULE,
 	.ctr    = dm_bow_ctr,
 	.dtr    = dm_bow_dtr,
@@ -1212,6 +1274,7 @@ static struct target_type bow_target = {
 	.status = dm_bow_status,
 	.prepare_ioctl  = dm_bow_prepare_ioctl,
 	.iterate_devices = dm_bow_iterate_devices,
+	.io_hints = dm_bow_io_hints,
 };
 
 int __init dm_bow_init(void)
