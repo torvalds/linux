@@ -120,6 +120,7 @@ struct module {
 	int gpl_compatible;
 	struct symbol *unres;
 	int from_dump;  /* 1 if module was loaded from *.symvers */
+	int is_vmlinux;
 	int seen;
 	int skip;
 	int has_init;
