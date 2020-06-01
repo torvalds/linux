@@ -3403,7 +3403,7 @@ static const struct attribute_group *amd64_edac_attr_groups[] = {
 static int hw_info_get(struct amd64_pvt *pvt)
 {
 	u16 pci_id1, pci_id2;
-	int ret = -EINVAL;
+	int ret;
 
 	if (pvt->fam >= 0x17) {
 		pvt->umc = kcalloc(fam_type->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
