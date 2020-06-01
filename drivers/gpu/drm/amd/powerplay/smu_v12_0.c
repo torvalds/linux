@@ -182,28 +182,6 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 		return smu_send_smc_msg(smu, SMU_MSG_PowerUpSdma, NULL);
 }
 
-int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	if (gate)
-		return smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn, NULL);
-	else
-		return smu_send_smc_msg(smu, SMU_MSG_PowerUpVcn, NULL);
-}
-
-int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	if (gate)
-		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0, NULL);
-	else
-		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0, NULL);
-}
-
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 {
 	if (!(smu->adev->pg_flags & AMD_PG_SUPPORT_GFX_PG))

@@ -2886,3 +2886,19 @@ uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
 
 	return ret;
 }
+
+int smu_powergate_vcn(struct smu_context *smu, bool gate)
+{
+	if (!smu->is_apu)
+		return 0;
+
+	return smu_dpm_set_uvd_enable(smu, !gate);
+}
+
+int smu_powergate_jpeg(struct smu_context *smu, bool gate)
+{
+	if (!smu->is_apu)
+		return 0;
+
+	return smu_dpm_set_jpeg_enable(smu, !gate);
+}
