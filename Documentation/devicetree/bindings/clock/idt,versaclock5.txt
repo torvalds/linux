@@ -12,6 +12,7 @@ Required properties:
 		"idt,5p49v5933"
 		"idt,5p49v5935"
 		"idt,5p49v6901"
+		"idt,5p49v6965"
 - reg:		i2c device address, shall be 0x68 or 0x6a.
 - #clock-cells:	from common clock binding; shall be set to 1.
 - clocks:	from common clock binding; list of parent clock handles,
