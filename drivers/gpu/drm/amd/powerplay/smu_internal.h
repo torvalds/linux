@@ -27,6 +27,8 @@
 
 #define smu_init_microcode(smu) \
 	((smu)->ppt_funcs->init_microcode ? (smu)->ppt_funcs->init_microcode((smu)) : 0)
+#define smu_fini_microcode(smu) \
+	((smu)->ppt_funcs->fini_microcode ? (smu)->ppt_funcs->fini_microcode((smu)) : 0)
 #define smu_init_smc_tables(smu) \
 	((smu)->ppt_funcs->init_smc_tables ? (smu)->ppt_funcs->init_smc_tables((smu)) : 0)
 #define smu_fini_smc_tables(smu) \

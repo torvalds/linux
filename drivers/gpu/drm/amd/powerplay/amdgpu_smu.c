@@ -1108,6 +1108,8 @@ static int smu_sw_fini(void *handle)
 		return ret;
 	}
 
+	smu_fini_microcode(smu);
+
 	return 0;
 }
 

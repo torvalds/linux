@@ -146,6 +146,8 @@ enum smu_v11_0_baco_seq {
 
 int smu_v11_0_init_microcode(struct smu_context *smu);
 
+void smu_v11_0_fini_microcode(struct smu_context *smu);
+
 int smu_v11_0_load_microcode(struct smu_context *smu);
 
 int smu_v11_0_init_smc_tables(struct smu_context *smu);

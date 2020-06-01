@@ -199,6 +199,15 @@ out:
 	return err;
 }
 
+void smu_v11_0_fini_microcode(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
+	adev->pm.fw_version = 0;
+}
+
 int smu_v11_0_load_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
