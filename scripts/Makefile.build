@@ -71,7 +71,7 @@ endif
 
 # subdir-builtin and subdir-modorder may contain duplications. Use $(sort ...)
 subdir-builtin := $(sort $(filter %/built-in.a, $(real-obj-y)))
-subdir-modorder := $(sort $(filter %/modules.order, $(modorder)))
+subdir-modorder := $(sort $(filter %/modules.order, $(obj-m)))
 
 targets-for-builtin := $(extra-y)
 
@@ -83,8 +83,7 @@ ifdef need-builtin
 targets-for-builtin += $(obj)/built-in.a
 endif
 
-targets-for-modules := $(obj-m)
-targets-for-modules += $(patsubst %.o, %.mod, $(obj-m))
+targets-for-modules := $(patsubst %.o, %.mod, $(filter %.o, $(obj-m)))
 
 ifdef need-modorder
 targets-for-modules += $(obj)/modules.order
@@ -361,8 +360,9 @@ endif
 $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
-targets += $(filter-out $(subdir-builtin), $(real-obj-y)) $(real-obj-m) $(lib-y)
-targets += $(always-y) $(MAKECMDGOALS)
+targets += $(filter-out $(subdir-builtin), $(real-obj-y))
+targets += $(filter-out $(subdir-modorder), $(real-obj-m))
+targets += $(lib-y) $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -404,10 +404,15 @@ $(obj)/built-in.a: $(real-obj-y) FORCE
 #
 # Create commands to either record .ko file or cat modules.order from
 # a subdirectory
-$(obj)/modules.order: $(subdir-modorder) FORCE
-	$(Q){ $(foreach m, $(modorder), \
-	$(if $(filter $^, $m), cat $m, echo $m);) :; } \
+# Add $(obj-m) as the prerequisite to avoid updating the timestamp of
+# modules.order unless contained modules are updated.
+
+cmd_modules_order = { $(foreach m, $(real-prereqs), \
+	$(if $(filter %/modules.order, $m), cat $m, echo $(patsubst %.o,%.ko,$m));) :; } \
 	| $(AWK) '!x[$$0]++' - > $@
+
+$(obj)/modules.order: $(obj-m) FORCE
+	$(call if_changed,modules_order)
 
 #
 # Rule to compile a set of .o files into one .a file (with symbol table)
