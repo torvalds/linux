@@ -8,7 +8,6 @@
 #define	__XFS_ATTR_LEAF_H__
 
 struct attrlist;
-struct attrlist_cursor_kern;
 struct xfs_attr_list_context;
 struct xfs_da_args;
 struct xfs_da_state;
@@ -38,15 +37,6 @@ struct xfs_attr3_icleaf_hdr {
 		uint16_t	size;
 	} freemap[XFS_ATTR_LEAF_MAPSIZE];
 };
-
-/*
- * Used to keep a list of "remote value" extents when unlinking an inode.
- */
-typedef struct xfs_attr_inactive_list {
-	xfs_dablk_t	valueblk;	/* block number of value bytes */
-	int		valuelen;	/* number of bytes in value */
-} xfs_attr_inactive_list_t;
-
 
 /*========================================================================
  * Function prototypes for the kernel.

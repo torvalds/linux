@@ -211,7 +211,7 @@ struct string
 	struct list_head update;
 	unsigned long size;
 	unsigned long len;
-	char string[0];
+	char string[];
 } __attribute__ ((aligned(8)));
 
 static inline struct string *

@@ -6,6 +6,7 @@
 
 #include <linux/prime_numbers.h>
 
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
 #include "gt/intel_ring.h"
@@ -200,7 +201,7 @@ static int gpu_set(struct context *ctx, unsigned long offset, u32 v)
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
-	rq = i915_request_create(ctx->engine->kernel_context);
+	rq = intel_engine_create_kernel_request(ctx->engine);
 	if (IS_ERR(rq)) {
 		i915_vma_unpin(vma);
 		return PTR_ERR(rq);
@@ -324,8 +325,12 @@ static int igt_gem_coherency(void *arg)
 	values = offsets + ncachelines;
 
 	ctx.engine = random_engine(i915, &prng);
-	GEM_BUG_ON(!ctx.engine);
+	if (!ctx.engine) {
+		err = -ENODEV;
+		goto out_free;
+	}
 	pr_info("%s: using %s\n", __func__, ctx.engine->name);
+	intel_engine_pm_get(ctx.engine);
 
 	for (over = igt_coherency_mode; over->name; over++) {
 		if (!over->set)
@@ -352,7 +357,7 @@ static int igt_gem_coherency(void *arg)
 					ctx.obj = i915_gem_object_create_internal(i915, PAGE_SIZE);
 					if (IS_ERR(ctx.obj)) {
 						err = PTR_ERR(ctx.obj);
-						goto free;
+						goto out_pm;
 					}
 
 					i915_random_reorder(offsets, ncachelines, &prng);
@@ -403,13 +408,15 @@ static int igt_gem_coherency(void *arg)
 			}
 		}
 	}
-free:
+out_pm:
+	intel_engine_pm_put(ctx.engine);
+out_free:
 	kfree(offsets);
 	return err;
 
 put_object:
 	i915_gem_object_put(ctx.obj);
-	goto free;
+	goto out_pm;
 }
 
 int i915_gem_coherency_live_selftests(struct drm_i915_private *i915)

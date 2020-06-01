@@ -25,7 +25,4 @@
 #define INVALID_MODULE		(moduleid_t)-1
 #define INVALID_PARTID		(partid_t)-1
 
-extern nasid_t get_nasid(void);
-extern int get_cpu_slice(cpuid_t);
-
 #endif /* _ASM_SN_ARCH_H */

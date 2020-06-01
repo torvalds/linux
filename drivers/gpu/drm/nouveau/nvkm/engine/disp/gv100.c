@@ -101,15 +101,26 @@ gv100_disp_exception(struct nv50_disp *disp, int chid)
 	u32 stat = nvkm_rd32(device, 0x611020 + (chid * 12));
 	u32 type = (stat & 0x00007000) >> 12;
 	u32 mthd = (stat & 0x00000fff) << 2;
-	u32 data = nvkm_rd32(device, 0x611024 + (chid * 12));
-	u32 code = nvkm_rd32(device, 0x611028 + (chid * 12));
 	const struct nvkm_enum *reason =
 		nvkm_enum_find(nv50_disp_intr_error_type, type);
 
-	nvkm_error(subdev, "chid %d stat %08x reason %d [%s] mthd %04x "
-			   "data %08x code %08x\n",
-		   chid, stat, type, reason ? reason->name : "",
-		   mthd, data, code);
+	/*TODO: Suspect 33->41 are for WRBK channel exceptions, but we
+	 *      don't support those currently.
+	 *
+	 *      CORE+WIN CHIDs map directly to the FE_EXCEPT() slots.
+	 */
+	if (chid <= 32) {
+		u32 data = nvkm_rd32(device, 0x611024 + (chid * 12));
+		u32 code = nvkm_rd32(device, 0x611028 + (chid * 12));
+		nvkm_error(subdev, "chid %d stat %08x reason %d [%s] "
+				   "mthd %04x data %08x code %08x\n",
+			   chid, stat, type, reason ? reason->name : "",
+			   mthd, data, code);
+	} else {
+		nvkm_error(subdev, "chid %d stat %08x reason %d [%s] "
+				   "mthd %04x\n",
+			   chid, stat, type, reason ? reason->name : "", mthd);
+	}
 
 	if (chid < ARRAY_SIZE(disp->chan) && disp->chan[chid]) {
 		switch (mthd) {
@@ -143,6 +154,12 @@ gv100_disp_intr_ctrl_disp(struct nv50_disp *disp)
 	 */
 	if (stat & 0x00000008)
 		stat &= ~0x00000008;
+
+	if (stat & 0x00000080) {
+		u32 error = nvkm_mask(device, 0x611848, 0x00000000, 0x00000000);
+		nvkm_warn(subdev, "error %08x\n", error);
+		stat &= ~0x00000080;
+	}
 
 	if (stat & 0x00000100) {
 		unsigned long wndws = nvkm_rd32(device, 0x611858);

@@ -22,11 +22,14 @@
  *
  */
 
+#include <linux/sched/mm.h>
+
 #include "display/intel_frontbuffer.h"
 #include "gt/intel_gt.h"
 #include "i915_drv.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_context.h"
+#include "i915_gem_mman.h"
 #include "i915_gem_object.h"
 #include "i915_globals.h"
 #include "i915_trace.h"
@@ -58,6 +61,9 @@ void i915_gem_object_init(struct drm_i915_gem_object *obj,
 	INIT_LIST_HEAD(&obj->mm.link);
 
 	INIT_LIST_HEAD(&obj->lut_list);
+
+	spin_lock_init(&obj->mmo.lock);
+	obj->mmo.offsets = RB_ROOT;
 
 	init_rcu_head(&obj->rcu);
 
@@ -94,6 +100,7 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem);
 	struct drm_i915_file_private *fpriv = file->driver_priv;
+	struct i915_mmap_offset *mmo, *mn;
 	struct i915_lut_handle *lut, *ln;
 	LIST_HEAD(close);
 
@@ -108,6 +115,11 @@ void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file)
 		list_move(&lut->obj_link, &close);
 	}
 	i915_gem_object_unlock(obj);
+
+	spin_lock(&obj->mmo.lock);
+	rbtree_postorder_for_each_entry_safe(mmo, mn, &obj->mmo.offsets, offset)
+		drm_vma_node_revoke(&mmo->vma_node, file);
+	spin_unlock(&obj->mmo.lock);
 
 	list_for_each_entry_safe(lut, ln, &close, obj_link) {
 		struct i915_gem_context *ctx = lut->ctx;
@@ -156,6 +168,8 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 	llist_for_each_entry_safe(obj, on, freed, freed) {
+		struct i915_mmap_offset *mmo, *mn;
+
 		trace_i915_gem_object_destroy(obj);
 
 		if (!list_empty(&obj->vma.list)) {
@@ -174,19 +188,30 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 				GEM_BUG_ON(vma->obj != obj);
 				spin_unlock(&obj->vma.lock);
 
-				i915_vma_destroy(vma);
+				__i915_vma_put(vma);
 
 				spin_lock(&obj->vma.lock);
 			}
 			spin_unlock(&obj->vma.lock);
 		}
 
+		i915_gem_object_release_mmap(obj);
+
+		rbtree_postorder_for_each_entry_safe(mmo, mn,
+						     &obj->mmo.offsets,
+						     offset) {
+			drm_vma_offset_remove(obj->base.dev->vma_offset_manager,
+					      &mmo->vma_node);
+			kfree(mmo);
+		}
+		obj->mmo.offsets = RB_ROOT;
+
 		GEM_BUG_ON(atomic_read(&obj->bind_count));
 		GEM_BUG_ON(obj->userfault_count);
 		GEM_BUG_ON(!list_empty(&obj->lut_list));
 
 		atomic_set(&obj->mm.pages_pin_count, 0);
-		__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+		__i915_gem_object_put_pages(obj);
 		GEM_BUG_ON(i915_gem_object_has_pages(obj));
 		bitmap_free(obj->bit_17);
 
@@ -200,6 +225,7 @@ static void __i915_gem_free_objects(struct drm_i915_private *i915,
 
 		/* But keep the pointer alive for RCU-protected lookups */
 		call_rcu(&obj->rcu, __i915_gem_free_object_rcu);
+		cond_resched();
 	}
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
@@ -277,18 +303,14 @@ i915_gem_object_flush_write_domain(struct drm_i915_gem_object *obj,
 
 	switch (obj->write_domain) {
 	case I915_GEM_DOMAIN_GTT:
-		for_each_ggtt_vma(vma, obj)
-			intel_gt_flush_ggtt_writes(vma->vm->gt);
+		spin_lock(&obj->vma.lock);
+		for_each_ggtt_vma(vma, obj) {
+			if (i915_vma_unset_ggtt_write(vma))
+				intel_gt_flush_ggtt_writes(vma->vm->gt);
+		}
+		spin_unlock(&obj->vma.lock);
 
 		i915_gem_object_flush_frontbuffer(obj, ORIGIN_CPU);
-
-		for_each_ggtt_vma(vma, obj) {
-			if (vma->iomap)
-				continue;
-
-			i915_vma_unset_ggtt_write(vma);
-		}
-
 		break;
 
 	case I915_GEM_DOMAIN_WC:

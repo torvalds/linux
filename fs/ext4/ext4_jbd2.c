@@ -7,6 +7,28 @@
 
 #include <trace/events/ext4.h>
 
+int ext4_inode_journal_mode(struct inode *inode)
+{
+	if (EXT4_JOURNAL(inode) == NULL)
+		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
+	/* We do not support data journalling with delayed allocation */
+	if (!S_ISREG(inode->i_mode) ||
+	    ext4_test_inode_flag(inode, EXT4_INODE_EA_INODE) ||
+	    test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA ||
+	    (ext4_test_inode_flag(inode, EXT4_INODE_JOURNAL_DATA) &&
+	    !test_opt(inode->i_sb, DELALLOC))) {
+		/* We do not support data journalling for encrypted data */
+		if (S_ISREG(inode->i_mode) && IS_ENCRYPTED(inode))
+			return EXT4_INODE_ORDERED_DATA_MODE;  /* ordered */
+		return EXT4_INODE_JOURNAL_DATA_MODE;	/* journal data */
+	}
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_ORDERED_DATA)
+		return EXT4_INODE_ORDERED_DATA_MODE;	/* ordered */
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)
+		return EXT4_INODE_WRITEBACK_DATA_MODE;	/* writeback */
+	BUG();
+}
+
 /* Just increment the non-pointer handle value */
 static handle_t *ext4_get_nojournal(void)
 {
@@ -58,7 +80,7 @@ static int ext4_journal_check_start(struct super_block *sb)
 	 * take the FS itself readonly cleanly.
 	 */
 	if (journal && is_journal_aborted(journal)) {
-		ext4_abort(sb, "Detected aborted journal");
+		ext4_abort(sb, -journal->j_errno, "Detected aborted journal");
 		return -EROFS;
 	}
 	return 0;
@@ -249,7 +271,7 @@ int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
 	if (err) {
 		ext4_journal_abort_handle(where, line, __func__,
 					  bh, handle, err);
-		__ext4_abort(inode->i_sb, where, line,
+		__ext4_abort(inode->i_sb, where, line, -err,
 			   "error %d when attempting revoke", err);
 	}
 	BUFFER_TRACE(bh, "exit");
@@ -308,6 +330,7 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 					 err);
 		}
 	} else {
+		set_buffer_uptodate(bh);
 		if (inode)
 			mark_buffer_dirty_inode(bh, inode);
 		else
@@ -318,10 +341,8 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 				struct ext4_super_block *es;
 
 				es = EXT4_SB(inode->i_sb)->s_es;
-				es->s_last_error_block =
-					cpu_to_le64(bh->b_blocknr);
-				ext4_error_inode(inode, where, line,
-						 bh->b_blocknr,
+				ext4_error_inode_err(inode, where, line,
+						     bh->b_blocknr, EIO,
 					"IO error syncing itable block");
 				err = -EIO;
 			}

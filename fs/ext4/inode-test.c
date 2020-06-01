@@ -269,4 +269,6 @@ static struct kunit_suite ext4_inode_test_suite = {
 	.test_cases = ext4_inode_test_cases,
 };
 
-kunit_test_suite(ext4_inode_test_suite);
+kunit_test_suites(&ext4_inode_test_suite);
+
+MODULE_LICENSE("GPL v2");

@@ -23,7 +23,7 @@ enum bpf_struct_ops_state {
 
 struct bpf_struct_ops_value {
 	BPF_STRUCT_OPS_COMMON_VALUE;
-	char data[0] ____cacheline_aligned_in_smp;
+	char data[] ____cacheline_aligned_in_smp;
 };
 
 struct bpf_struct_ops_map {
@@ -96,12 +96,11 @@ const struct bpf_prog_ops bpf_struct_ops_prog_ops = {
 
 static const struct btf_type *module_type;
 
-void bpf_struct_ops_init(struct btf *btf)
+void bpf_struct_ops_init(struct btf *btf, struct bpf_verifier_log *log)
 {
 	s32 type_id, value_id, module_id;
 	const struct btf_member *member;
 	struct bpf_struct_ops *st_ops;
-	struct bpf_verifier_log log = {};
 	const struct btf_type *t;
 	char value_name[128];
 	const char *mname;
@@ -172,7 +171,7 @@ void bpf_struct_ops_init(struct btf *btf)
 							       member->type,
 							       NULL);
 			if (func_proto &&
-			    btf_distill_func_proto(&log, btf,
+			    btf_distill_func_proto(log, btf,
 						   func_proto, mname,
 						   &st_ops->func_models[j])) {
 				pr_warn("Error in parsing func ptr %s in struct %s\n",
@@ -321,6 +320,7 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 	struct bpf_struct_ops_value *uvalue, *kvalue;
 	const struct btf_member *member;
 	const struct btf_type *t = st_ops->type;
+	struct bpf_tramp_progs *tprogs = NULL;
 	void *udata, *kdata;
 	int prog_fd, err = 0;
 	void *image;
@@ -343,6 +343,10 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 
 	if (uvalue->state || refcount_read(&uvalue->refcnt))
 		return -EINVAL;
+
+	tprogs = kcalloc(BPF_TRAMP_MAX, sizeof(*tprogs), GFP_KERNEL);
+	if (!tprogs)
+		return -ENOMEM;
 
 	uvalue = (struct bpf_struct_ops_value *)st_map->uvalue;
 	kvalue = (struct bpf_struct_ops_value *)&st_map->kvalue;
@@ -426,10 +430,12 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 			goto reset_unlock;
 		}
 
+		tprogs[BPF_TRAMP_FENTRY].progs[0] = prog;
+		tprogs[BPF_TRAMP_FENTRY].nr_progs = 1;
 		err = arch_prepare_bpf_trampoline(image,
 						  st_map->image + PAGE_SIZE,
 						  &st_ops->func_models[i], 0,
-						  &prog, 1, NULL, 0, NULL);
+						  tprogs, NULL);
 		if (err < 0)
 			goto reset_unlock;
 
@@ -470,6 +476,7 @@ reset_unlock:
 	memset(uvalue, 0, map->value_size);
 	memset(kvalue, 0, map->value_size);
 unlock:
+	kfree(tprogs);
 	mutex_unlock(&st_map->lock);
 	return err;
 }
@@ -483,13 +490,21 @@ static int bpf_struct_ops_map_delete_elem(struct bpf_map *map, void *key)
 	prev_state = cmpxchg(&st_map->kvalue.state,
 			     BPF_STRUCT_OPS_STATE_INUSE,
 			     BPF_STRUCT_OPS_STATE_TOBEFREE);
-	if (prev_state == BPF_STRUCT_OPS_STATE_INUSE) {
+	switch (prev_state) {
+	case BPF_STRUCT_OPS_STATE_INUSE:
 		st_map->st_ops->unreg(&st_map->kvalue.data);
 		if (refcount_dec_and_test(&st_map->kvalue.refcnt))
 			bpf_map_put(map);
+		return 0;
+	case BPF_STRUCT_OPS_STATE_TOBEFREE:
+		return -EINPROGRESS;
+	case BPF_STRUCT_OPS_STATE_INIT:
+		return -ENOENT;
+	default:
+		WARN_ON_ONCE(1);
+		/* Should never happen.  Treat it as not found. */
+		return -ENOENT;
 	}
-
-	return 0;
 }
 
 static void bpf_struct_ops_map_seq_show_elem(struct bpf_map *map, void *key,

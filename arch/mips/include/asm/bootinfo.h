@@ -81,6 +81,7 @@ enum loongson2ef_machine_type {
 #define  MACH_INGENIC_JZ4770	2	/* JZ4770 SOC		*/
 #define  MACH_INGENIC_JZ4780	3	/* JZ4780 SOC		*/
 #define  MACH_INGENIC_X1000		4	/* X1000 SOC		*/
+#define  MACH_INGENIC_X1830		5	/* X1830 SOC		*/
 
 extern char *system_type;
 const char *get_system_type(void);

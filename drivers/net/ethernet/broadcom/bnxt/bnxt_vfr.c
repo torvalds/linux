@@ -43,7 +43,7 @@ static int hwrm_cfa_vfr_alloc(struct bnxt *bp, u16 vf_idx,
 		netdev_dbg(bp->dev, "tx_cfa_action=0x%x, rx_cfa_code=0x%x",
 			   *tx_cfa_action, *rx_cfa_code);
 	} else {
-		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	}
 
 	mutex_unlock(&bp->hwrm_cmd_lock);
@@ -60,7 +60,7 @@ static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
 
 	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
 	if (rc)
-		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+		netdev_info(bp->dev, "%s error rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -219,7 +219,6 @@ static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
-	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
 
 static int bnxt_vf_rep_get_port_parent_id(struct net_device *dev,
@@ -465,7 +464,7 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 	return 0;
 
 err:
-	netdev_info(bp->dev, "%s error=%d", __func__, rc);
+	netdev_info(bp->dev, "%s error=%d\n", __func__, rc);
 	kfree(cfa_code_map);
 	__bnxt_vf_reps_destroy(bp);
 	return rc;
@@ -488,7 +487,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 
 	mutex_lock(&bp->sriov_lock);
 	if (bp->eswitch_mode == mode) {
-		netdev_info(bp->dev, "already in %s eswitch mode",
+		netdev_info(bp->dev, "already in %s eswitch mode\n",
 			    mode == DEVLINK_ESWITCH_MODE_LEGACY ?
 			    "legacy" : "switchdev");
 		rc = -EINVAL;
@@ -508,7 +507,7 @@ int bnxt_dl_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		}
 
 		if (pci_num_vf(bp->pdev) == 0) {
-			netdev_info(bp->dev, "Enable VFs before setting switchdev mode");
+			netdev_info(bp->dev, "Enable VFs before setting switchdev mode\n");
 			rc = -EPERM;
 			goto done;
 		}

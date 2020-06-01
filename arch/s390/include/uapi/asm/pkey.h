@@ -25,10 +25,11 @@
 #define MAXPROTKEYSIZE	64	/* a protected key blob may be up to 64 bytes */
 #define MAXCLRKEYSIZE	32	   /* a clear key value may be up to 32 bytes */
 #define MAXAESCIPHERKEYSIZE 136  /* our aes cipher keys have always 136 bytes */
+#define MINEP11AESKEYBLOBSIZE 256  /* min EP11 AES key blob size  */
+#define MAXEP11AESKEYBLOBSIZE 320  /* max EP11 AES key blob size */
 
-/* Minimum and maximum size of a key blob */
+/* Minimum size of a key blob */
 #define MINKEYBLOBSIZE	SECKEYBLOBSIZE
-#define MAXKEYBLOBSIZE	MAXAESCIPHERKEYSIZE
 
 /* defines for the type field within the pkey_protkey struct */
 #define PKEY_KEYTYPE_AES_128		      1
@@ -39,6 +40,7 @@
 enum pkey_key_type {
 	PKEY_TYPE_CCA_DATA   = (__u32) 1,
 	PKEY_TYPE_CCA_CIPHER = (__u32) 2,
+	PKEY_TYPE_EP11	     = (__u32) 3,
 };
 
 /* the newer ioctls use a pkey_key_size enum for key size information */
@@ -200,7 +202,7 @@ struct pkey_kblob2pkey {
 
 /*
  * Generate secure key, version 2.
- * Generate either a CCA AES secure key or a CCA AES cipher key.
+ * Generate CCA AES secure key, CCA AES cipher key or EP11 AES secure key.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
  * is not supported. The implementation walks through the list of apqns and
@@ -210,10 +212,13 @@ struct pkey_kblob2pkey {
  * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
- * individual for the key type and has a key type specific meaning. Currently
- * only CCA AES cipher keys react to this parameter: Use one or more of the
- * PKEY_KEYGEN_* flags to widen the export possibilities. By default a cipher
- * key is only exportable for CPACF (PKEY_KEYGEN_XPRT_CPAC).
+ * individual for the key type and has a key type specific meaning. When
+ * generating CCA cipher keys you can use one or more of the PKEY_KEYGEN_*
+ * flags to widen the export possibilities. By default a cipher key is
+ * only exportable for CPACF (PKEY_KEYGEN_XPRT_CPAC).
+ * The keygenflag argument for generating an EP11 AES key should either be 0
+ * to use the defaults which are XCP_BLOB_ENCRYPT, XCP_BLOB_DECRYPT and
+ * XCP_BLOB_PROTKEY_EXTRACTABLE or a valid combination of XCP_BLOB_* flags.
  */
 struct pkey_genseck2 {
 	struct pkey_apqn __user *apqns; /* in: ptr to list of apqn targets*/
@@ -229,8 +234,8 @@ struct pkey_genseck2 {
 
 /*
  * Generate secure key from clear key value, version 2.
- * Construct a CCA AES secure key or CCA AES cipher key from a given clear key
- * value.
+ * Construct an CCA AES secure key, CCA AES cipher key or EP11 AES secure
+ * key from a given clear key value.
  * There needs to be a list of apqns given with at least one entry in there.
  * All apqns in the list need to be exact apqns, 0xFFFF as ANY card or domain
  * is not supported. The implementation walks through the list of apqns and
@@ -240,10 +245,13 @@ struct pkey_genseck2 {
  * (return -1 with errno ENODEV). You may use the PKEY_APQNS4KT ioctl to
  * generate a list of apqns based on the key type to generate.
  * The keygenflags argument is passed to the low level generation functions
- * individual for the key type and has a key type specific meaning. Currently
- * only CCA AES cipher keys react to this parameter: Use one or more of the
- * PKEY_KEYGEN_* flags to widen the export possibilities. By default a cipher
- * key is only exportable for CPACF (PKEY_KEYGEN_XPRT_CPAC).
+ * individual for the key type and has a key type specific meaning. When
+ * generating CCA cipher keys you can use one or more of the PKEY_KEYGEN_*
+ * flags to widen the export possibilities. By default a cipher key is
+ * only exportable for CPACF (PKEY_KEYGEN_XPRT_CPAC).
+ * The keygenflag argument for generating an EP11 AES key should either be 0
+ * to use the defaults which are XCP_BLOB_ENCRYPT, XCP_BLOB_DECRYPT and
+ * XCP_BLOB_PROTKEY_EXTRACTABLE or a valid combination of XCP_BLOB_* flags.
  */
 struct pkey_clr2seck2 {
 	struct pkey_apqn __user *apqns; /* in: ptr to list of apqn targets */
@@ -266,14 +274,19 @@ struct pkey_clr2seck2 {
  * with one apqn able to handle this key.
  * The function also checks for the master key verification patterns
  * of the key matching to the current or alternate mkvp of the apqn.
- * Currently CCA AES secure keys and CCA AES cipher keys are supported.
- * The flags field is updated with some additional info about the apqn mkvp
+ * For CCA AES secure keys and CCA AES cipher keys this means to check
+ * the key's mkvp against the current or old mkvp of the apqns. The flags
+ * field is updated with some additional info about the apqn mkvp
  * match: If the current mkvp matches to the key's mkvp then the
  * PKEY_FLAGS_MATCH_CUR_MKVP bit is set, if the alternate mkvp matches to
  * the key's mkvp the PKEY_FLAGS_MATCH_ALT_MKVP is set. For CCA keys the
  * alternate mkvp is the old master key verification pattern.
  * CCA AES secure keys are also checked to have the CPACF export allowed
  * bit enabled (XPRTCPAC) in the kmf1 field.
+ * EP11 keys are also supported and the wkvp of the key is checked against
+ * the current wkvp of the apqns. There is no alternate for this type of
+ * key and so on a match the flag PKEY_FLAGS_MATCH_CUR_MKVP always is set.
+ * EP11 keys are also checked to have XCP_BLOB_PROTKEY_EXTRACTABLE set.
  * The ioctl returns 0 as long as the given or found apqn matches to
  * matches with the current or alternate mkvp to the key's mkvp. If the given
  * apqn does not match or there is no such apqn found, -1 with errno
@@ -313,16 +326,20 @@ struct pkey_kblob2pkey2 {
 /*
  * Build a list of APQNs based on a key blob given.
  * Is able to find out which type of secure key is given (CCA AES secure
- * key or CCA AES cipher key) and tries to find all matching crypto cards
- * based on the MKVP and maybe other criterias (like CCA AES cipher keys
- * need a CEX5C or higher). The list of APQNs is further filtered by the key's
- * mkvp which needs to match to either the current mkvp or the alternate mkvp
- * (which is the old mkvp on CCA adapters) of the apqns. The flags argument may
- * be used to limit the matching apqns. If the PKEY_FLAGS_MATCH_CUR_MKVP is
- * given, only the current mkvp of each apqn is compared. Likewise with the
- * PKEY_FLAGS_MATCH_ALT_MKVP. If both are given, it is assumed to
- * return apqns where either the current or the alternate mkvp
+ * key, CCA AES cipher key or EP11 AES key) and tries to find all matching
+ * crypto cards based on the MKVP and maybe other criterias (like CCA AES
+ * cipher keys need a CEX5C or higher, EP11 keys with BLOB_PKEY_EXTRACTABLE
+ * need a CEX7 and EP11 api version 4). The list of APQNs is further filtered
+ * by the key's mkvp which needs to match to either the current mkvp (CCA and
+ * EP11) or the alternate mkvp (old mkvp, CCA adapters only) of the apqns. The
+ * flags argument may be used to limit the matching apqns. If the
+ * PKEY_FLAGS_MATCH_CUR_MKVP is given, only the current mkvp of each apqn is
+ * compared. Likewise with the PKEY_FLAGS_MATCH_ALT_MKVP. If both are given, it
+ * is assumed to return apqns where either the current or the alternate mkvp
  * matches. At least one of the matching flags needs to be given.
+ * The flags argument for EP11 keys has no further action and is currently
+ * ignored (but needs to be given as PKEY_FLAGS_MATCH_CUR_MKVP) as there is only
+ * the wkvp from the key to match against the apqn's wkvp.
  * The list of matching apqns is stored into the space given by the apqns
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number
@@ -356,6 +373,10 @@ struct pkey_apqns4key {
  * If both are given, it is assumed to return apqns where either the
  * current or the alternate mkvp matches. If no match flag is given
  * (flags is 0) the mkvp values are ignored for the match process.
+ * For EP11 keys there is only the current wkvp. So if the apqns should also
+ * match to a given wkvp, then the PKEY_FLAGS_MATCH_CUR_MKVP flag should be
+ * set. The wkvp value is 32 bytes but only the leftmost 16 bytes are compared
+ * against the leftmost 16 byte of the wkvp of the apqn.
  * The list of matching apqns is stored into the space given by the apqns
  * argument and the number of stored entries goes into apqn_entries. If the list
  * is empty (apqn_entries is 0) the apqn_entries field is updated to the number

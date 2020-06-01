@@ -10,7 +10,7 @@
 
 #define RING_BUFFER_WRITABLE		0x01
 
-struct ring_buffer {
+struct perf_buffer {
 	refcount_t			refcount;
 	struct rcu_head			rcu_head;
 #ifdef CONFIG_PERF_USE_VMALLOC
@@ -58,17 +58,17 @@ struct ring_buffer {
 	void				*data_pages[0];
 };
 
-extern void rb_free(struct ring_buffer *rb);
+extern void rb_free(struct perf_buffer *rb);
 
 static inline void rb_free_rcu(struct rcu_head *rcu_head)
 {
-	struct ring_buffer *rb;
+	struct perf_buffer *rb;
 
-	rb = container_of(rcu_head, struct ring_buffer, rcu_head);
+	rb = container_of(rcu_head, struct perf_buffer, rcu_head);
 	rb_free(rb);
 }
 
-static inline void rb_toggle_paused(struct ring_buffer *rb, bool pause)
+static inline void rb_toggle_paused(struct perf_buffer *rb, bool pause)
 {
 	if (!pause && rb->nr_pages)
 		rb->paused = 0;
@@ -76,16 +76,16 @@ static inline void rb_toggle_paused(struct ring_buffer *rb, bool pause)
 		rb->paused = 1;
 }
 
-extern struct ring_buffer *
+extern struct perf_buffer *
 rb_alloc(int nr_pages, long watermark, int cpu, int flags);
 extern void perf_event_wakeup(struct perf_event *event);
-extern int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
+extern int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 			pgoff_t pgoff, int nr_pages, long watermark, int flags);
-extern void rb_free_aux(struct ring_buffer *rb);
-extern struct ring_buffer *ring_buffer_get(struct perf_event *event);
-extern void ring_buffer_put(struct ring_buffer *rb);
+extern void rb_free_aux(struct perf_buffer *rb);
+extern struct perf_buffer *ring_buffer_get(struct perf_event *event);
+extern void ring_buffer_put(struct perf_buffer *rb);
 
-static inline bool rb_has_aux(struct ring_buffer *rb)
+static inline bool rb_has_aux(struct perf_buffer *rb)
 {
 	return !!rb->aux_nr_pages;
 }
@@ -94,7 +94,7 @@ void perf_event_aux_event(struct perf_event *event, unsigned long head,
 			  unsigned long size, u64 flags);
 
 extern struct page *
-perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff);
+perf_mmap_to_page(struct perf_buffer *rb, unsigned long pgoff);
 
 #ifdef CONFIG_PERF_USE_VMALLOC
 /*
@@ -103,25 +103,25 @@ perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff);
  * Required for architectures that have d-cache aliasing issues.
  */
 
-static inline int page_order(struct ring_buffer *rb)
+static inline int page_order(struct perf_buffer *rb)
 {
 	return rb->page_order;
 }
 
 #else
 
-static inline int page_order(struct ring_buffer *rb)
+static inline int page_order(struct perf_buffer *rb)
 {
 	return 0;
 }
 #endif
 
-static inline unsigned long perf_data_size(struct ring_buffer *rb)
+static inline unsigned long perf_data_size(struct perf_buffer *rb)
 {
 	return rb->nr_pages << (PAGE_SHIFT + page_order(rb));
 }
 
-static inline unsigned long perf_aux_size(struct ring_buffer *rb)
+static inline unsigned long perf_aux_size(struct perf_buffer *rb)
 {
 	return rb->aux_nr_pages << PAGE_SHIFT;
 }
@@ -141,7 +141,7 @@ static inline unsigned long perf_aux_size(struct ring_buffer *rb)
 			buf += written;					\
 		handle->size -= written;				\
 		if (!handle->size) {					\
-			struct ring_buffer *rb = handle->rb;		\
+			struct perf_buffer *rb = handle->rb;	\
 									\
 			handle->page++;					\
 			handle->page &= rb->nr_pages - 1;		\

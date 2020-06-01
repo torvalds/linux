@@ -305,8 +305,8 @@ static inline bool hclgevf_is_reset_pending(struct hclgevf_dev *hdev)
 	return !!hdev->reset_pending;
 }
 
-int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
-			 const u8 *msg_data, u8 msg_len, bool need_resp,
+int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
+			 struct hclge_vf_to_pf_msg *send_msg, bool need_resp,
 			 u8 *resp_data, u16 resp_len);
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev);
 void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev);

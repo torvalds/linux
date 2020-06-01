@@ -65,6 +65,11 @@ struct config_field_entry {
 	void *data;
 };
 
+#define INTERRUPT_TYPE_NONE (0)
+#define INTERRUPT_TYPE_INTX (1<<0)
+#define INTERRUPT_TYPE_MSI  (1<<1)
+#define INTERRUPT_TYPE_MSIX (1<<2)
+
 extern bool xen_pcibk_permissive;
 
 #define OFFSET(cfg_entry) ((cfg_entry)->base_offset+(cfg_entry)->field->offset)
@@ -125,5 +130,7 @@ int xen_pcibk_config_capability_init(void);
 
 int xen_pcibk_config_header_add_fields(struct pci_dev *dev);
 int xen_pcibk_config_capability_add_fields(struct pci_dev *dev);
+
+int xen_pcibk_get_interrupt_type(struct pci_dev *dev);
 
 #endif				/* __XEN_PCIBACK_CONF_SPACE_H__ */

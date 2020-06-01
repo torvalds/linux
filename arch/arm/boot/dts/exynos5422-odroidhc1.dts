@@ -72,14 +72,14 @@
 				 */
 				map1 {
 					trip = <&cpu0_alert1>;
-					cooling-device = <&cpu0 3 7>,
-							 <&cpu1 3 7>,
-							 <&cpu2 3 7>,
-							 <&cpu3 3 7>,
-							 <&cpu4 3 12>,
-							 <&cpu5 3 12>,
-							 <&cpu6 3 12>,
-							 <&cpu7 3 12>;
+					cooling-device = <&cpu0 3 8>,
+							 <&cpu1 3 8>,
+							 <&cpu2 3 8>,
+							 <&cpu3 3 8>,
+							 <&cpu4 3 14>,
+							 <&cpu5 3 14>,
+							 <&cpu6 3 14>,
+							 <&cpu7 3 14>;
 				};
 			};
 		};
@@ -116,14 +116,14 @@
 				};
 				map1 {
 					trip = <&cpu1_alert1>;
-					cooling-device = <&cpu0 3 7>,
-							 <&cpu1 3 7>,
-							 <&cpu2 3 7>,
-							 <&cpu3 3 7>,
-							 <&cpu4 3 12>,
-							 <&cpu5 3 12>,
-							 <&cpu6 3 12>,
-							 <&cpu7 3 12>;
+					cooling-device = <&cpu0 3 8>,
+							 <&cpu1 3 8>,
+							 <&cpu2 3 8>,
+							 <&cpu3 3 8>,
+							 <&cpu4 3 14>,
+							 <&cpu5 3 14>,
+							 <&cpu6 3 14>,
+							 <&cpu7 3 14>;
 				};
 			};
 		};
@@ -160,14 +160,14 @@
 				};
 				map1 {
 					trip = <&cpu2_alert1>;
-					cooling-device = <&cpu0 3 7>,
-							 <&cpu1 3 7>,
-							 <&cpu2 3 7>,
-							 <&cpu3 3 7>,
-							 <&cpu4 3 12>,
-							 <&cpu5 3 12>,
-							 <&cpu6 3 12>,
-							 <&cpu7 3 12>;
+					cooling-device = <&cpu0 3 8>,
+							 <&cpu1 3 8>,
+							 <&cpu2 3 8>,
+							 <&cpu3 3 8>,
+							 <&cpu4 3 14>,
+							 <&cpu5 3 14>,
+							 <&cpu6 3 14>,
+							 <&cpu7 3 14>;
 				};
 			};
 		};
@@ -204,14 +204,44 @@
 				};
 				map1 {
 					trip = <&cpu3_alert1>;
-					cooling-device = <&cpu0 3 7>,
-							 <&cpu1 3 7>,
-							 <&cpu2 3 7>,
-							 <&cpu3 3 7>,
-							 <&cpu4 3 12>,
-							 <&cpu5 3 12>,
-							 <&cpu6 3 12>,
-							 <&cpu7 3 12>;
+					cooling-device = <&cpu0 3 8>,
+							 <&cpu1 3 8>,
+							 <&cpu2 3 8>,
+							 <&cpu3 3 8>,
+							 <&cpu4 3 14>,
+							 <&cpu5 3 14>,
+							 <&cpu6 3 14>,
+							 <&cpu7 3 14>;
+				};
+			};
+		};
+		gpu_thermal: gpu-thermal {
+			thermal-sensors = <&tmu_gpu 0>;
+			trips {
+				gpu_alert0: gpu-alert-0 {
+					temperature = <70000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				gpu_alert1: gpu-alert-1 {
+					temperature = <85000>;
+					hysteresis = <10000>;
+					type = "active";
+				};
+				gpu_crit0: gpu-crit-0 {
+					temperature = <120000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+			cooling-maps {
+				map0 {
+					trip = <&gpu_alert0>;
+					cooling-device = <&gpu 0 2>;
+				};
+				map1 {
+					trip = <&gpu_alert1>;
+					cooling-device = <&gpu 3 6>;
 				};
 			};
 		};

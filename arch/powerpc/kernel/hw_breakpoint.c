@@ -160,6 +160,9 @@ static int hw_breakpoint_validate_len(struct arch_hw_breakpoint *hw)
 		/* DAWR region can't cross 512 bytes boundary */
 		if ((start_addr >> 9) != (end_addr >> 9))
 			return -EINVAL;
+	} else if (IS_ENABLED(CONFIG_PPC_8xx)) {
+		/* 8xx can setup a range without limitation */
+		max_len = U16_MAX;
 	}
 
 	if (hw_len > max_len)
@@ -425,4 +428,20 @@ void flush_ptrace_hw_breakpoint(struct task_struct *tsk)
 void hw_breakpoint_pmu_read(struct perf_event *bp)
 {
 	/* TODO */
+}
+
+void ptrace_triggered(struct perf_event *bp,
+		      struct perf_sample_data *data, struct pt_regs *regs)
+{
+	struct perf_event_attr attr;
+
+	/*
+	 * Disable the breakpoint request here since ptrace has defined a
+	 * one-shot behaviour for breakpoint exceptions in PPC64.
+	 * The SIGTRAP signal is generated automatically for us in do_dabr().
+	 * We don't have to do anything about that here
+	 */
+	attr = bp->attr;
+	attr.disabled = true;
+	modify_user_hw_breakpoint(bp, &attr);
 }

@@ -320,6 +320,7 @@ TRACE_EVENT(io_uring_complete,
  * io_uring_submit_sqe - called before submitting one SQE
  *
  * @ctx:		pointer to a ring context structure
+ * @opcode:		opcode of request
  * @user_data:		user data associated with the request
  * @force_nonblock:	whether a context blocking or not
  * @sq_thread:		true if sq_thread has submitted this SQE
@@ -329,12 +330,14 @@ TRACE_EVENT(io_uring_complete,
  */
 TRACE_EVENT(io_uring_submit_sqe,
 
-	TP_PROTO(void *ctx, u64 user_data, bool force_nonblock, bool sq_thread),
+	TP_PROTO(void *ctx, u8 opcode, u64 user_data, bool force_nonblock,
+		 bool sq_thread),
 
-	TP_ARGS(ctx, user_data, force_nonblock, sq_thread),
+	TP_ARGS(ctx, opcode, user_data, force_nonblock, sq_thread),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
+		__field(  u8,		opcode		)
 		__field(  u64,		user_data	)
 		__field(  bool,		force_nonblock	)
 		__field(  bool,		sq_thread	)
@@ -342,14 +345,119 @@ TRACE_EVENT(io_uring_submit_sqe,
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
+		__entry->opcode		= opcode;
 		__entry->user_data	= user_data;
 		__entry->force_nonblock	= force_nonblock;
 		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, user data 0x%llx, non block %d, sq_thread %d",
-			  __entry->ctx, (unsigned long long) __entry->user_data,
+	TP_printk("ring %p, op %d, data 0x%llx, non block %d, sq_thread %d",
+			  __entry->ctx, __entry->opcode,
+			  (unsigned long long) __entry->user_data,
 			  __entry->force_nonblock, __entry->sq_thread)
+);
+
+TRACE_EVENT(io_uring_poll_arm,
+
+	TP_PROTO(void *ctx, u8 opcode, u64 user_data, int mask, int events),
+
+	TP_ARGS(ctx, opcode, user_data, mask, events),
+
+	TP_STRUCT__entry (
+		__field(  void *,	ctx		)
+		__field(  u8,		opcode		)
+		__field(  u64,		user_data	)
+		__field(  int,		mask		)
+		__field(  int,		events		)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->opcode		= opcode;
+		__entry->user_data	= user_data;
+		__entry->mask		= mask;
+		__entry->events		= events;
+	),
+
+	TP_printk("ring %p, op %d, data 0x%llx, mask 0x%x, events 0x%x",
+			  __entry->ctx, __entry->opcode,
+			  (unsigned long long) __entry->user_data,
+			  __entry->mask, __entry->events)
+);
+
+TRACE_EVENT(io_uring_poll_wake,
+
+	TP_PROTO(void *ctx, u8 opcode, u64 user_data, int mask),
+
+	TP_ARGS(ctx, opcode, user_data, mask),
+
+	TP_STRUCT__entry (
+		__field(  void *,	ctx		)
+		__field(  u8,		opcode		)
+		__field(  u64,		user_data	)
+		__field(  int,		mask		)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->opcode		= opcode;
+		__entry->user_data	= user_data;
+		__entry->mask		= mask;
+	),
+
+	TP_printk("ring %p, op %d, data 0x%llx, mask 0x%x",
+			  __entry->ctx, __entry->opcode,
+			  (unsigned long long) __entry->user_data,
+			  __entry->mask)
+);
+
+TRACE_EVENT(io_uring_task_add,
+
+	TP_PROTO(void *ctx, u8 opcode, u64 user_data, int mask),
+
+	TP_ARGS(ctx, opcode, user_data, mask),
+
+	TP_STRUCT__entry (
+		__field(  void *,	ctx		)
+		__field(  u8,		opcode		)
+		__field(  u64,		user_data	)
+		__field(  int,		mask		)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->opcode		= opcode;
+		__entry->user_data	= user_data;
+		__entry->mask		= mask;
+	),
+
+	TP_printk("ring %p, op %d, data 0x%llx, mask %x",
+			  __entry->ctx, __entry->opcode,
+			  (unsigned long long) __entry->user_data,
+			  __entry->mask)
+);
+
+TRACE_EVENT(io_uring_task_run,
+
+	TP_PROTO(void *ctx, u8 opcode, u64 user_data),
+
+	TP_ARGS(ctx, opcode, user_data),
+
+	TP_STRUCT__entry (
+		__field(  void *,	ctx		)
+		__field(  u8,		opcode		)
+		__field(  u64,		user_data	)
+	),
+
+	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->opcode		= opcode;
+		__entry->user_data	= user_data;
+	),
+
+	TP_printk("ring %p, op %d, data 0x%llx",
+			  __entry->ctx, __entry->opcode,
+			  (unsigned long long) __entry->user_data)
 );
 
 #endif /* _TRACE_IO_URING_H */

@@ -3,6 +3,8 @@
 #ifndef _NET_ETHTOOL_BITSET_H
 #define _NET_ETHTOOL_BITSET_H
 
+#define ETHNL_MAX_BITSET_SIZE S16_MAX
+
 typedef const char (*const ethnl_string_array_t)[ETH_GSTRING_LEN];
 
 int ethnl_bitset_is_compact(const struct nlattr *bitset, bool *compact);
@@ -24,5 +26,9 @@ int ethnl_update_bitset(unsigned long *bitmap, unsigned int nbits,
 int ethnl_update_bitset32(u32 *bitmap, unsigned int nbits,
 			  const struct nlattr *attr, ethnl_string_array_t names,
 			  struct netlink_ext_ack *extack, bool *mod);
+int ethnl_parse_bitset(unsigned long *val, unsigned long *mask,
+		       unsigned int nbits, const struct nlattr *attr,
+		       ethnl_string_array_t names,
+		       struct netlink_ext_ack *extack);
 
 #endif /* _NET_ETHTOOL_BITSET_H */

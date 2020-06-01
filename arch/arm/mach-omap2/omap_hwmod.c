@@ -1853,23 +1853,6 @@ static int _omap4_get_context_lost(struct omap_hwmod *oh)
 }
 
 /**
- * _enable_preprogram - Pre-program an IP block during the _enable() process
- * @oh: struct omap_hwmod *
- *
- * Some IP blocks (such as AESS) require some additional programming
- * after enable before they can enter idle.  If a function pointer to
- * do so is present in the hwmod data, then call it and pass along the
- * return value; otherwise, return 0.
- */
-static int _enable_preprogram(struct omap_hwmod *oh)
-{
-	if (!oh->class->enable_preprogram)
-		return 0;
-
-	return oh->class->enable_preprogram(oh);
-}
-
-/**
  * _enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
@@ -1952,7 +1935,6 @@ static int _enable(struct omap_hwmod *oh)
 				_update_sysc_cache(oh);
 			_enable_sysc(oh);
 		}
-		r = _enable_preprogram(oh);
 	} else {
 		if (soc_ops.disable_module)
 			soc_ops.disable_module(oh);
@@ -3166,15 +3148,14 @@ static int omap_hwmod_check_sysc(struct device *dev,
 /**
  * omap_hwmod_init_regbits - init sysconfig specific register bits
  * @dev: struct device
+ * @oh: module
  * @data: module data
  * @sysc_fields: new sysc configuration
  */
-static int omap_hwmod_init_regbits(struct device *dev,
+static int omap_hwmod_init_regbits(struct device *dev, struct omap_hwmod *oh,
 				   const struct ti_sysc_module_data *data,
 				   struct sysc_regbits **sysc_fields)
 {
-	*sysc_fields = NULL;
-
 	switch (data->cap->type) {
 	case TI_SYSC_OMAP2:
 	case TI_SYSC_OMAP2_TIMER:
@@ -3209,6 +3190,12 @@ static int omap_hwmod_init_regbits(struct device *dev,
 		*sysc_fields = &omap_hwmod_sysc_type_usb_host_fs;
 		break;
 	default:
+		*sysc_fields = NULL;
+		if (!oh->class->sysc->sysc_fields)
+			return 0;
+
+		dev_err(dev, "sysc_fields not found\n");
+
 		return -EINVAL;
 	}
 
@@ -3374,9 +3361,9 @@ static int omap_hwmod_check_module(struct device *dev,
 	if (!oh->class->sysc)
 		return -ENODEV;
 
-	if (sysc_fields != oh->class->sysc->sysc_fields)
-		dev_warn(dev, "sysc_fields %p != %p\n", sysc_fields,
-			 oh->class->sysc->sysc_fields);
+	if (oh->class->sysc->sysc_fields &&
+	    sysc_fields != oh->class->sysc->sysc_fields)
+		dev_warn(dev, "sysc_fields mismatch\n");
 
 	if (rev_offs != oh->class->sysc->rev_offs)
 		dev_warn(dev, "rev_offs %08x != %08x\n", rev_offs,
@@ -3592,7 +3579,7 @@ int omap_hwmod_init_module(struct device *dev,
 
 	cookie->data = oh;
 
-	error = omap_hwmod_init_regbits(dev, data, &sysc_fields);
+	error = omap_hwmod_init_regbits(dev, oh, data, &sysc_fields);
 	if (error)
 		return error;
 

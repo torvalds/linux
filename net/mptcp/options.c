@@ -4,6 +4,8 @@
  * Copyright (c) 2017 - 2019, Intel Corporation.
  */
 
+#define pr_fmt(fmt) "MPTCP: " fmt
+
 #include <linux/kernel.h>
 #include <net/tcp.h>
 #include <net/mptcp.h>
@@ -96,6 +98,38 @@ void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
 			 mp_opt->rcvr_key, mp_opt->data_len);
 		break;
 
+	case MPTCPOPT_MP_JOIN:
+		mp_opt->mp_join = 1;
+		if (opsize == TCPOLEN_MPTCP_MPJ_SYN) {
+			mp_opt->backup = *ptr++ & MPTCPOPT_BACKUP;
+			mp_opt->join_id = *ptr++;
+			mp_opt->token = get_unaligned_be32(ptr);
+			ptr += 4;
+			mp_opt->nonce = get_unaligned_be32(ptr);
+			ptr += 4;
+			pr_debug("MP_JOIN bkup=%u, id=%u, token=%u, nonce=%u",
+				 mp_opt->backup, mp_opt->join_id,
+				 mp_opt->token, mp_opt->nonce);
+		} else if (opsize == TCPOLEN_MPTCP_MPJ_SYNACK) {
+			mp_opt->backup = *ptr++ & MPTCPOPT_BACKUP;
+			mp_opt->join_id = *ptr++;
+			mp_opt->thmac = get_unaligned_be64(ptr);
+			ptr += 8;
+			mp_opt->nonce = get_unaligned_be32(ptr);
+			ptr += 4;
+			pr_debug("MP_JOIN bkup=%u, id=%u, thmac=%llu, nonce=%u",
+				 mp_opt->backup, mp_opt->join_id,
+				 mp_opt->thmac, mp_opt->nonce);
+		} else if (opsize == TCPOLEN_MPTCP_MPJ_ACK) {
+			ptr += 2;
+			memcpy(mp_opt->hmac, ptr, MPTCPOPT_HMAC_LEN);
+			pr_debug("MP_JOIN hmac");
+		} else {
+			pr_warn("MP_JOIN bad option size");
+			mp_opt->mp_join = 0;
+		}
+		break;
+
 	case MPTCPOPT_DSS:
 		pr_debug("DSS");
 		ptr++;
@@ -178,6 +212,71 @@ void mptcp_parse_option(const struct sk_buff *skb, const unsigned char *ptr,
 
 		break;
 
+	case MPTCPOPT_ADD_ADDR:
+		mp_opt->echo = (*ptr++) & MPTCP_ADDR_ECHO;
+		if (!mp_opt->echo) {
+			if (opsize == TCPOLEN_MPTCP_ADD_ADDR ||
+			    opsize == TCPOLEN_MPTCP_ADD_ADDR_PORT)
+				mp_opt->family = MPTCP_ADDR_IPVERSION_4;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+			else if (opsize == TCPOLEN_MPTCP_ADD_ADDR6 ||
+				 opsize == TCPOLEN_MPTCP_ADD_ADDR6_PORT)
+				mp_opt->family = MPTCP_ADDR_IPVERSION_6;
+#endif
+			else
+				break;
+		} else {
+			if (opsize == TCPOLEN_MPTCP_ADD_ADDR_BASE ||
+			    opsize == TCPOLEN_MPTCP_ADD_ADDR_BASE_PORT)
+				mp_opt->family = MPTCP_ADDR_IPVERSION_4;
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+			else if (opsize == TCPOLEN_MPTCP_ADD_ADDR6_BASE ||
+				 opsize == TCPOLEN_MPTCP_ADD_ADDR6_BASE_PORT)
+				mp_opt->family = MPTCP_ADDR_IPVERSION_6;
+#endif
+			else
+				break;
+		}
+
+		mp_opt->add_addr = 1;
+		mp_opt->port = 0;
+		mp_opt->addr_id = *ptr++;
+		pr_debug("ADD_ADDR: id=%d", mp_opt->addr_id);
+		if (mp_opt->family == MPTCP_ADDR_IPVERSION_4) {
+			memcpy((u8 *)&mp_opt->addr.s_addr, (u8 *)ptr, 4);
+			ptr += 4;
+			if (opsize == TCPOLEN_MPTCP_ADD_ADDR_PORT ||
+			    opsize == TCPOLEN_MPTCP_ADD_ADDR_BASE_PORT) {
+				mp_opt->port = get_unaligned_be16(ptr);
+				ptr += 2;
+			}
+		}
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+		else {
+			memcpy(mp_opt->addr6.s6_addr, (u8 *)ptr, 16);
+			ptr += 16;
+			if (opsize == TCPOLEN_MPTCP_ADD_ADDR6_PORT ||
+			    opsize == TCPOLEN_MPTCP_ADD_ADDR6_BASE_PORT) {
+				mp_opt->port = get_unaligned_be16(ptr);
+				ptr += 2;
+			}
+		}
+#endif
+		if (!mp_opt->echo) {
+			mp_opt->ahmac = get_unaligned_be64(ptr);
+			ptr += 8;
+		}
+		break;
+
+	case MPTCPOPT_RM_ADDR:
+		if (opsize != TCPOLEN_MPTCP_RM_ADDR_BASE)
+			break;
+
+		mp_opt->rm_addr = 1;
+		mp_opt->rm_id = *ptr++;
+		pr_debug("RM_ADDR: id=%d", mp_opt->rm_id);
+		break;
+
 	default:
 		break;
 	}
@@ -231,6 +330,16 @@ bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
 		opts->sndr_key = subflow->local_key;
 		*size = TCPOLEN_MPTCP_MPC_SYN;
 		return true;
+	} else if (subflow->request_join) {
+		pr_debug("remote_token=%u, nonce=%u", subflow->remote_token,
+			 subflow->local_nonce);
+		opts->suboptions = OPTION_MPTCP_MPJ_SYN;
+		opts->join_id = subflow->local_id;
+		opts->token = subflow->remote_token;
+		opts->nonce = subflow->local_nonce;
+		opts->backup = subflow->request_bkup;
+		*size = TCPOLEN_MPTCP_MPJ_SYN;
+		return true;
 	}
 	return false;
 }
@@ -240,14 +349,53 @@ void mptcp_rcv_synsent(struct sock *sk)
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	pr_debug("subflow=%p", subflow);
 	if (subflow->request_mptcp && tp->rx_opt.mptcp.mp_capable) {
 		subflow->mp_capable = 1;
 		subflow->can_ack = 1;
 		subflow->remote_key = tp->rx_opt.mptcp.sndr_key;
-	} else {
+		pr_debug("subflow=%p, remote_key=%llu", subflow,
+			 subflow->remote_key);
+	} else if (subflow->request_join && tp->rx_opt.mptcp.mp_join) {
+		subflow->mp_join = 1;
+		subflow->thmac = tp->rx_opt.mptcp.thmac;
+		subflow->remote_nonce = tp->rx_opt.mptcp.nonce;
+		pr_debug("subflow=%p, thmac=%llu, remote_nonce=%u", subflow,
+			 subflow->thmac, subflow->remote_nonce);
+	} else if (subflow->request_mptcp) {
 		tcp_sk(sk)->is_mptcp = 0;
 	}
+}
+
+/* MP_JOIN client subflow must wait for 4th ack before sending any data:
+ * TCP can't schedule delack timer before the subflow is fully established.
+ * MPTCP uses the delack timer to do 3rd ack retransmissions
+ */
+static void schedule_3rdack_retransmission(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned long timeout;
+
+	/* reschedule with a timeout above RTT, as we must look only for drop */
+	if (tp->srtt_us)
+		timeout = tp->srtt_us << 1;
+	else
+		timeout = TCP_TIMEOUT_INIT;
+
+	WARN_ON_ONCE(icsk->icsk_ack.pending & ICSK_ACK_TIMER);
+	icsk->icsk_ack.pending |= ICSK_ACK_SCHED | ICSK_ACK_TIMER;
+	icsk->icsk_ack.timeout = timeout;
+	sk_reset_timer(sk, &icsk->icsk_delack_timer, timeout);
+}
+
+static void clear_3rdack_retransmission(struct sock *sk)
+{
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	sk_stop_timer(sk, &icsk->icsk_delack_timer);
+	icsk->icsk_ack.timeout = 0;
+	icsk->icsk_ack.ato = 0;
+	icsk->icsk_ack.pending &= ~(ICSK_ACK_SCHED | ICSK_ACK_TIMER);
 }
 
 static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
@@ -259,17 +407,21 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 	struct mptcp_ext *mpext;
 	unsigned int data_len;
 
-	pr_debug("subflow=%p fourth_ack=%d seq=%x:%x remaining=%d", subflow,
-		 subflow->fourth_ack, subflow->snd_isn,
-		 skb ? TCP_SKB_CB(skb)->seq : 0, remaining);
+	/* When skb is not available, we better over-estimate the emitted
+	 * options len. A full DSS option (28 bytes) is longer than
+	 * TCPOLEN_MPTCP_MPC_ACK_DATA(22) or TCPOLEN_MPTCP_MPJ_ACK(24), so
+	 * tell the caller to defer the estimate to
+	 * mptcp_established_options_dss(), which will reserve enough space.
+	 */
+	if (!skb)
+		return false;
 
-	if (subflow->mp_capable && !subflow->fourth_ack && skb &&
-	    subflow->snd_isn == TCP_SKB_CB(skb)->seq) {
-		/* When skb is not available, we better over-estimate the
-		 * emitted options len. A full DSS option is longer than
-		 * TCPOLEN_MPTCP_MPC_ACK_DATA, so let's the caller try to fit
-		 * that.
-		 */
+	/* MPC/MPJ needed only on 3rd ack packet */
+	if (subflow->fully_established ||
+	    subflow->snd_isn != TCP_SKB_CB(skb)->seq)
+		return false;
+
+	if (subflow->mp_capable) {
 		mpext = mptcp_get_ext(skb);
 		data_len = mpext ? mpext->data_len : 0;
 
@@ -297,6 +449,14 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 			 data_len);
 
 		return true;
+	} else if (subflow->mp_join) {
+		opts->suboptions = OPTION_MPTCP_MPJ_ACK;
+		memcpy(opts->hmac, subflow->hmac, MPTCPOPT_HMAC_LEN);
+		*size = TCPOLEN_MPTCP_MPJ_ACK;
+		pr_debug("subflow=%p", subflow);
+
+		schedule_3rdack_retransmission(sk);
+		return true;
 	}
 	return false;
 }
@@ -304,21 +464,22 @@ static bool mptcp_established_options_mp(struct sock *sk, struct sk_buff *skb,
 static void mptcp_write_data_fin(struct mptcp_subflow_context *subflow,
 				 struct mptcp_ext *ext)
 {
-	ext->data_fin = 1;
-
 	if (!ext->use_map) {
 		/* RFC6824 requires a DSS mapping with specific values
 		 * if DATA_FIN is set but no data payload is mapped
 		 */
+		ext->data_fin = 1;
 		ext->use_map = 1;
 		ext->dsn64 = 1;
-		ext->data_seq = mptcp_sk(subflow->conn)->write_seq;
+		ext->data_seq = subflow->data_fin_tx_seq;
 		ext->subflow_seq = 0;
 		ext->data_len = 1;
-	} else {
-		/* If there's an existing DSS mapping, DATA_FIN consumes
-		 * 1 additional byte of mapping space.
+	} else if (ext->data_seq + ext->data_len == subflow->data_fin_tx_seq) {
+		/* If there's an existing DSS mapping and it is the
+		 * final mapping, DATA_FIN consumes 1 additional byte of
+		 * mapping space.
 		 */
+		ext->data_fin = 1;
 		ext->data_len++;
 	}
 }
@@ -354,15 +515,17 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		if (mpext)
 			opts->ext_copy = *mpext;
 
-		if (skb && tcp_fin &&
-		    subflow->conn->sk_state != TCP_ESTABLISHED)
+		if (skb && tcp_fin && subflow->data_fin_tx_enable)
 			mptcp_write_data_fin(subflow, &opts->ext_copy);
 		ret = true;
 	}
 
+	/* passive sockets msk will set the 'can_ack' after accept(), even
+	 * if the first subflow may have the already the remote key handy
+	 */
 	opts->ext_copy.use_ack = 0;
 	msk = mptcp_sk(subflow->conn);
-	if (!msk || !READ_ONCE(msk->can_ack)) {
+	if (!READ_ONCE(msk->can_ack)) {
 		*size = ALIGN(dss_size, 4);
 		return ret;
 	}
@@ -383,12 +546,91 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 	return true;
 }
 
+static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
+				  struct in_addr *addr)
+{
+	u8 hmac[MPTCP_ADDR_HMAC_LEN];
+	u8 msg[7];
+
+	msg[0] = addr_id;
+	memcpy(&msg[1], &addr->s_addr, 4);
+	msg[5] = 0;
+	msg[6] = 0;
+
+	mptcp_crypto_hmac_sha(key1, key2, msg, 7, hmac);
+
+	return get_unaligned_be64(hmac);
+}
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
+				   struct in6_addr *addr)
+{
+	u8 hmac[MPTCP_ADDR_HMAC_LEN];
+	u8 msg[19];
+
+	msg[0] = addr_id;
+	memcpy(&msg[1], &addr->s6_addr, 16);
+	msg[17] = 0;
+	msg[18] = 0;
+
+	mptcp_crypto_hmac_sha(key1, key2, msg, 19, hmac);
+
+	return get_unaligned_be64(hmac);
+}
+#endif
+
+static bool mptcp_established_options_addr(struct sock *sk,
+					   unsigned int *size,
+					   unsigned int remaining,
+					   struct mptcp_out_options *opts)
+{
+	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
+	struct mptcp_addr_info saddr;
+	int len;
+
+	if (!mptcp_pm_should_signal(msk) ||
+	    !(mptcp_pm_addr_signal(msk, remaining, &saddr)))
+		return false;
+
+	len = mptcp_add_addr_len(saddr.family);
+	if (remaining < len)
+		return false;
+
+	*size = len;
+	opts->addr_id = saddr.id;
+	if (saddr.family == AF_INET) {
+		opts->suboptions |= OPTION_MPTCP_ADD_ADDR;
+		opts->addr = saddr.addr;
+		opts->ahmac = add_addr_generate_hmac(msk->local_key,
+						     msk->remote_key,
+						     opts->addr_id,
+						     &opts->addr);
+	}
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	else if (saddr.family == AF_INET6) {
+		opts->suboptions |= OPTION_MPTCP_ADD_ADDR6;
+		opts->addr6 = saddr.addr6;
+		opts->ahmac = add_addr6_generate_hmac(msk->local_key,
+						      msk->remote_key,
+						      opts->addr_id,
+						      &opts->addr6);
+	}
+#endif
+	pr_debug("addr_id=%d, ahmac=%llu", opts->addr_id, opts->ahmac);
+
+	return true;
+}
+
 bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 			       unsigned int *size, unsigned int remaining,
 			       struct mptcp_out_options *opts)
 {
 	unsigned int opt_size = 0;
 	bool ret = false;
+
+	opts->suboptions = 0;
 
 	if (mptcp_established_options_mp(sk, skb, &opt_size, remaining, opts))
 		ret = true;
@@ -404,6 +646,11 @@ bool mptcp_established_options(struct sock *sk, struct sk_buff *skb,
 
 	*size += opt_size;
 	remaining -= opt_size;
+	if (mptcp_established_options_addr(sk, &opt_size, remaining, opts)) {
+		*size += opt_size;
+		remaining -= opt_size;
+		ret = true;
+	}
 
 	return ret;
 }
@@ -420,53 +667,193 @@ bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
 		pr_debug("subflow_req=%p, local_key=%llu",
 			 subflow_req, subflow_req->local_key);
 		return true;
+	} else if (subflow_req->mp_join) {
+		opts->suboptions = OPTION_MPTCP_MPJ_SYNACK;
+		opts->backup = subflow_req->backup;
+		opts->join_id = subflow_req->local_id;
+		opts->thmac = subflow_req->thmac;
+		opts->nonce = subflow_req->local_nonce;
+		pr_debug("req=%p, bkup=%u, id=%u, thmac=%llu, nonce=%u",
+			 subflow_req, opts->backup, opts->join_id,
+			 opts->thmac, opts->nonce);
+		*size = TCPOLEN_MPTCP_MPJ_SYNACK;
+		return true;
 	}
 	return false;
 }
 
-static bool check_fourth_ack(struct mptcp_subflow_context *subflow,
-			     struct sk_buff *skb,
-			     struct mptcp_options_received *mp_opt)
+static bool check_fully_established(struct mptcp_sock *msk, struct sock *sk,
+				    struct mptcp_subflow_context *subflow,
+				    struct sk_buff *skb,
+				    struct mptcp_options_received *mp_opt)
 {
 	/* here we can process OoO, in-window pkts, only in-sequence 4th ack
-	 * are relevant
+	 * will make the subflow fully established
 	 */
-	if (likely(subflow->fourth_ack ||
-		   TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1))
-		return true;
+	if (likely(subflow->fully_established)) {
+		/* on passive sockets, check for 3rd ack retransmission
+		 * note that msk is always set by subflow_syn_recv_sock()
+		 * for mp_join subflows
+		 */
+		if (TCP_SKB_CB(skb)->seq == subflow->ssn_offset + 1 &&
+		    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq &&
+		    subflow->mp_join && mp_opt->mp_join &&
+		    READ_ONCE(msk->pm.server_side))
+			tcp_send_ack(sk);
+		goto fully_established;
+	}
 
-	if (mp_opt->use_ack)
-		subflow->fourth_ack = 1;
+	/* we should process OoO packets before the first subflow is fully
+	 * established, but not expected for MP_JOIN subflows
+	 */
+	if (TCP_SKB_CB(skb)->seq != subflow->ssn_offset + 1)
+		return subflow->mp_capable;
 
-	if (subflow->can_ack)
-		return true;
+	if (mp_opt->use_ack) {
+		/* subflows are fully established as soon as we get any
+		 * additional ack.
+		 */
+		subflow->fully_established = 1;
+		goto fully_established;
+	}
+
+	WARN_ON_ONCE(subflow->can_ack);
 
 	/* If the first established packet does not contain MP_CAPABLE + data
 	 * then fallback to TCP
 	 */
 	if (!mp_opt->mp_capable) {
 		subflow->mp_capable = 0;
-		tcp_sk(mptcp_subflow_tcp_sock(subflow))->is_mptcp = 0;
+		tcp_sk(sk)->is_mptcp = 0;
 		return false;
 	}
+
+	subflow->fully_established = 1;
 	subflow->remote_key = mp_opt->sndr_key;
 	subflow->can_ack = 1;
+
+fully_established:
+	if (likely(subflow->pm_notified))
+		return true;
+
+	subflow->pm_notified = 1;
+	if (subflow->mp_join) {
+		clear_3rdack_retransmission(sk);
+		mptcp_pm_subflow_established(msk, subflow);
+	} else {
+		mptcp_pm_fully_established(msk);
+	}
 	return true;
+}
+
+static u64 expand_ack(u64 old_ack, u64 cur_ack, bool use_64bit)
+{
+	u32 old_ack32, cur_ack32;
+
+	if (use_64bit)
+		return cur_ack;
+
+	old_ack32 = (u32)old_ack;
+	cur_ack32 = (u32)cur_ack;
+	cur_ack = (old_ack & GENMASK_ULL(63, 32)) + cur_ack32;
+	if (unlikely(before(cur_ack32, old_ack32)))
+		return cur_ack + (1LL << 32);
+	return cur_ack;
+}
+
+static void update_una(struct mptcp_sock *msk,
+		       struct mptcp_options_received *mp_opt)
+{
+	u64 new_snd_una, snd_una, old_snd_una = atomic64_read(&msk->snd_una);
+	u64 write_seq = READ_ONCE(msk->write_seq);
+
+	/* avoid ack expansion on update conflict, to reduce the risk of
+	 * wrongly expanding to a future ack sequence number, which is way
+	 * more dangerous than missing an ack
+	 */
+	new_snd_una = expand_ack(old_snd_una, mp_opt->data_ack, mp_opt->ack64);
+
+	/* ACK for data not even sent yet? Ignore. */
+	if (after64(new_snd_una, write_seq))
+		new_snd_una = old_snd_una;
+
+	while (after64(new_snd_una, old_snd_una)) {
+		snd_una = old_snd_una;
+		old_snd_una = atomic64_cmpxchg(&msk->snd_una, snd_una,
+					       new_snd_una);
+		if (old_snd_una == snd_una) {
+			mptcp_data_acked((struct sock *)msk);
+			break;
+		}
+	}
+}
+
+static bool add_addr_hmac_valid(struct mptcp_sock *msk,
+				struct mptcp_options_received *mp_opt)
+{
+	u64 hmac = 0;
+
+	if (mp_opt->echo)
+		return true;
+
+	if (mp_opt->family == MPTCP_ADDR_IPVERSION_4)
+		hmac = add_addr_generate_hmac(msk->remote_key,
+					      msk->local_key,
+					      mp_opt->addr_id, &mp_opt->addr);
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	else
+		hmac = add_addr6_generate_hmac(msk->remote_key,
+					       msk->local_key,
+					       mp_opt->addr_id, &mp_opt->addr6);
+#endif
+
+	pr_debug("msk=%p, ahmac=%llu, mp_opt->ahmac=%llu\n",
+		 msk, (unsigned long long)hmac,
+		 (unsigned long long)mp_opt->ahmac);
+
+	return hmac == mp_opt->ahmac;
 }
 
 void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 			    struct tcp_options_received *opt_rx)
 {
 	struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(sk);
+	struct mptcp_sock *msk = mptcp_sk(subflow->conn);
 	struct mptcp_options_received *mp_opt;
 	struct mptcp_ext *mpext;
 
 	mp_opt = &opt_rx->mptcp;
-	if (!check_fourth_ack(subflow, skb, mp_opt))
+	if (!check_fully_established(msk, sk, subflow, skb, mp_opt))
 		return;
+
+	if (mp_opt->add_addr && add_addr_hmac_valid(msk, mp_opt)) {
+		struct mptcp_addr_info addr;
+
+		addr.port = htons(mp_opt->port);
+		addr.id = mp_opt->addr_id;
+		if (mp_opt->family == MPTCP_ADDR_IPVERSION_4) {
+			addr.family = AF_INET;
+			addr.addr = mp_opt->addr;
+		}
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+		else if (mp_opt->family == MPTCP_ADDR_IPVERSION_6) {
+			addr.family = AF_INET6;
+			addr.addr6 = mp_opt->addr6;
+		}
+#endif
+		if (!mp_opt->echo)
+			mptcp_pm_add_addr_received(msk, &addr);
+		mp_opt->add_addr = 0;
+	}
 
 	if (!mp_opt->dss)
 		return;
+
+	/* we can't wait for recvmsg() to update the ack_seq, otherwise
+	 * monodirectional flows will stuck
+	 */
+	if (mp_opt->use_ack)
+		update_una(msk, mp_opt);
 
 	mpext = skb_ext_add(skb, SKB_EXT_MPTCP);
 	if (!mpext)
@@ -494,12 +881,6 @@ void mptcp_incoming_options(struct sock *sk, struct sk_buff *skb,
 		mpext->use_map = 1;
 	}
 
-	if (mp_opt->use_ack) {
-		mpext->data_ack = mp_opt->data_ack;
-		mpext->use_ack = 1;
-		mpext->ack64 = mp_opt->ack64;
-	}
-
 	mpext->data_fin = mp_opt->data_fin;
 }
 
@@ -518,10 +899,9 @@ void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
 		else
 			len = TCPOLEN_MPTCP_MPC_ACK;
 
-		*ptr++ = htonl((TCPOPT_MPTCP << 24) | (len << 16) |
-			       (MPTCPOPT_MP_CAPABLE << 12) |
-			       (MPTCP_SUPPORTED_VERSION << 8) |
-			       MPTCP_CAP_HMAC_SHA256);
+		*ptr++ = mptcp_option(MPTCPOPT_MP_CAPABLE, len,
+				      MPTCP_SUPPORTED_VERSION,
+				      MPTCP_CAP_HMAC_SHA256);
 
 		if (!((OPTION_MPTCP_MPC_SYNACK | OPTION_MPTCP_MPC_ACK) &
 		    opts->suboptions))
@@ -543,6 +923,77 @@ void mptcp_write_options(__be32 *ptr, struct mptcp_out_options *opts)
 	}
 
 mp_capable_done:
+	if (OPTION_MPTCP_ADD_ADDR & opts->suboptions) {
+		if (opts->ahmac)
+			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+					      TCPOLEN_MPTCP_ADD_ADDR, 0,
+					      opts->addr_id);
+		else
+			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+					      TCPOLEN_MPTCP_ADD_ADDR_BASE,
+					      MPTCP_ADDR_ECHO,
+					      opts->addr_id);
+		memcpy((u8 *)ptr, (u8 *)&opts->addr.s_addr, 4);
+		ptr += 1;
+		if (opts->ahmac) {
+			put_unaligned_be64(opts->ahmac, ptr);
+			ptr += 2;
+		}
+	}
+
+#if IS_ENABLED(CONFIG_MPTCP_IPV6)
+	if (OPTION_MPTCP_ADD_ADDR6 & opts->suboptions) {
+		if (opts->ahmac)
+			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+					      TCPOLEN_MPTCP_ADD_ADDR6, 0,
+					      opts->addr_id);
+		else
+			*ptr++ = mptcp_option(MPTCPOPT_ADD_ADDR,
+					      TCPOLEN_MPTCP_ADD_ADDR6_BASE,
+					      MPTCP_ADDR_ECHO,
+					      opts->addr_id);
+		memcpy((u8 *)ptr, opts->addr6.s6_addr, 16);
+		ptr += 4;
+		if (opts->ahmac) {
+			put_unaligned_be64(opts->ahmac, ptr);
+			ptr += 2;
+		}
+	}
+#endif
+
+	if (OPTION_MPTCP_RM_ADDR & opts->suboptions) {
+		*ptr++ = mptcp_option(MPTCPOPT_RM_ADDR,
+				      TCPOLEN_MPTCP_RM_ADDR_BASE,
+				      0, opts->rm_id);
+	}
+
+	if (OPTION_MPTCP_MPJ_SYN & opts->suboptions) {
+		*ptr++ = mptcp_option(MPTCPOPT_MP_JOIN,
+				      TCPOLEN_MPTCP_MPJ_SYN,
+				      opts->backup, opts->join_id);
+		put_unaligned_be32(opts->token, ptr);
+		ptr += 1;
+		put_unaligned_be32(opts->nonce, ptr);
+		ptr += 1;
+	}
+
+	if (OPTION_MPTCP_MPJ_SYNACK & opts->suboptions) {
+		*ptr++ = mptcp_option(MPTCPOPT_MP_JOIN,
+				      TCPOLEN_MPTCP_MPJ_SYNACK,
+				      opts->backup, opts->join_id);
+		put_unaligned_be64(opts->thmac, ptr);
+		ptr += 2;
+		put_unaligned_be32(opts->nonce, ptr);
+		ptr += 1;
+	}
+
+	if (OPTION_MPTCP_MPJ_ACK & opts->suboptions) {
+		*ptr++ = mptcp_option(MPTCPOPT_MP_JOIN,
+				      TCPOLEN_MPTCP_MPJ_ACK, 0, 0);
+		memcpy(ptr, opts->hmac, MPTCPOPT_HMAC_LEN);
+		ptr += 5;
+	}
+
 	if (opts->ext_copy.use_ack || opts->ext_copy.use_map) {
 		struct mptcp_ext *mpext = &opts->ext_copy;
 		u8 len = TCPOLEN_MPTCP_DSS_BASE;
@@ -564,10 +1015,7 @@ mp_capable_done:
 				flags |= MPTCP_DSS_DATA_FIN;
 		}
 
-		*ptr++ = htonl((TCPOPT_MPTCP << 24) |
-			       (len  << 16) |
-			       (MPTCPOPT_DSS << 12) |
-			       (flags));
+		*ptr++ = mptcp_option(MPTCPOPT_DSS, len, 0, flags);
 
 		if (mpext->use_ack) {
 			put_unaligned_be64(mpext->data_ack, ptr);

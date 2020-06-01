@@ -290,12 +290,8 @@ void dpp1_cnv_setup (
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
 		struct dc_csc_transform input_csc_color_matrix,
-#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 		enum dc_color_space input_color_space,
 		struct cnv_alpha_2bit_lut *alpha_2bit_lut)
-#else
-		enum dc_color_space input_color_space)
-#endif
 {
 	uint32_t pixel_format;
 	uint32_t alpha_en;
@@ -542,11 +538,9 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 		.dpp_dppclk_control = dpp1_dppclk_control,
 		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		.dpp_program_blnd_lut = NULL,
 		.dpp_program_shaper_lut = NULL,
 		.dpp_program_3dlut = NULL
-#endif
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

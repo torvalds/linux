@@ -237,10 +237,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 	 v; \
 	 })
 
-#ifndef XCHAL_HAVE_EXTERN_REGS
-#define XCHAL_HAVE_EXTERN_REGS 0
-#endif
-
 #if XCHAL_HAVE_EXTERN_REGS
 
 static inline void set_er(unsigned long value, unsigned long addr)

@@ -82,7 +82,7 @@ struct sched_class {
 
 struct sched_table {      /* per port scheduling table */
 	u8 sched_size;
-	struct sched_class tab[0];
+	struct sched_class tab[];
 };
 
 static inline bool can_sched(struct net_device *dev)

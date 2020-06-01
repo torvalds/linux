@@ -931,8 +931,8 @@ static void __uprobe_trace_func(struct trace_uprobe *tu,
 				struct trace_event_file *trace_file)
 {
 	struct uprobe_trace_entry_head *entry;
+	struct trace_buffer *buffer;
 	struct ring_buffer_event *event;
-	struct ring_buffer *buffer;
 	void *data;
 	int size, esize;
 	struct trace_event_call *call = trace_probe_event_call(&tu->tp);
@@ -1333,8 +1333,15 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	int size, esize;
 	int rctx;
 
-	if (bpf_prog_array_valid(call) && !trace_call_bpf(call, regs))
-		return;
+	if (bpf_prog_array_valid(call)) {
+		u32 ret;
+
+		preempt_disable();
+		ret = trace_call_bpf(call, regs);
+		preempt_enable();
+		if (!ret)
+			return;
+	}
 
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 

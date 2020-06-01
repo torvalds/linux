@@ -2060,7 +2060,8 @@
 
 // addressBlock: gc_sqdec
 //SQ_CONFIG
-#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x0
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT__SHIFT                                                             0x0
+#define SQ_CONFIG__UNUSED__SHIFT                                                                              0x1
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY__SHIFT                                                                   0x7
 #define SQ_CONFIG__DEBUG_EN__SHIFT                                                                            0x8
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP__SHIFT                                                                  0x9
@@ -2079,7 +2080,8 @@
 #define SQ_CONFIG__DISABLE_SP_REDUNDANT_THREAD_GATING__SHIFT                                                  0x1d
 #define SQ_CONFIG__DISABLE_FLAT_SOFT_CLAUSE__SHIFT                                                            0x1e
 #define SQ_CONFIG__DISABLE_MIMG_SOFT_CLAUSE__SHIFT                                                            0x1f
-#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007FL
+#define SQ_CONFIG__DISABLE_BARRIER_WAITCNT_MASK                                                               0x00000001L
+#define SQ_CONFIG__UNUSED_MASK                                                                                0x0000007EL
 #define SQ_CONFIG__OVERRIDE_ALU_BUSY_MASK                                                                     0x00000080L
 #define SQ_CONFIG__DEBUG_EN_MASK                                                                              0x00000100L
 #define SQ_CONFIG__DEBUG_SINGLE_MEMOP_MASK                                                                    0x00000200L
@@ -8739,10 +8741,16 @@
 #define TCP_ADDR_CONFIG__NUM_BANKS__SHIFT                                                                     0x4
 #define TCP_ADDR_CONFIG__COLHI_WIDTH__SHIFT                                                                   0x6
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI__SHIFT                                                                0x9
+#define TCP_ADDR_CONFIG__ENABLE64KHASH__SHIFT                                                                 0xb
+#define TCP_ADDR_CONFIG__ENABLE2MHASH__SHIFT                                                                  0xc
+#define TCP_ADDR_CONFIG__ENABLE1GHASH__SHIFT                                                                  0xd
 #define TCP_ADDR_CONFIG__NUM_TCC_BANKS_MASK                                                                   0x0000000FL
 #define TCP_ADDR_CONFIG__NUM_BANKS_MASK                                                                       0x00000030L
 #define TCP_ADDR_CONFIG__COLHI_WIDTH_MASK                                                                     0x000001C0L
 #define TCP_ADDR_CONFIG__RB_SPLIT_COLHI_MASK                                                                  0x00000200L
+#define TCP_ADDR_CONFIG__ENABLE64KHASH_MASK                                                                   0x00000800L
+#define TCP_ADDR_CONFIG__ENABLE2MHASH_MASK                                                                    0x00001000L
+#define TCP_ADDR_CONFIG__ENABLE1GHASH_MASK                                                                    0x00002000L
 //TCP_CREDIT
 #define TCP_CREDIT__LFIFO_CREDIT__SHIFT                                                                       0x0
 #define TCP_CREDIT__REQ_FIFO_CREDIT__SHIFT                                                                    0x10

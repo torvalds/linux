@@ -7,9 +7,9 @@
 
 # $id is a unique identifier based on the filename. There may or may not be a
 # file present at the URL.
-$id: "http://devicetree.org/schemas/example-schema.yaml#"
+$id: http://devicetree.org/schemas/example-schema.yaml#
 # $schema is the meta-schema this schema should be validated with.
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: An example schema annotated with jsonschema details
 

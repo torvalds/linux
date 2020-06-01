@@ -183,8 +183,6 @@ int kdb_process_cpu(const struct task_struct *p)
 	return cpu;
 }
 
-/* kdb access to register set for stack dumping */
-extern struct pt_regs *kdb_current_regs;
 #ifdef CONFIG_KALLSYMS
 extern const char *kdb_walk_kallsyms(loff_t *pos);
 #else /* ! CONFIG_KALLSYMS */

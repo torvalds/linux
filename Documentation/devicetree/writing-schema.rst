@@ -121,7 +121,13 @@ Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
 installed. Ensure they are in your PATH (~/.local/bin by default).
 
 dtc must also be built with YAML output support enabled. This requires that
-libyaml and its headers be installed on the host system.
+libyaml and its headers be installed on the host system. For some distributions
+that involves installing the development package, such as:
+
+Debian:
+  apt-get install libyaml-dev
+Fedora:
+  dnf -y install libyaml-devel
 
 Running checks
 ~~~~~~~~~~~~~~
@@ -140,6 +146,10 @@ In order to perform validation of DT source files, use the ``dtbs_check`` target
 Note that ``dtbs_check`` will skip any binding schema files with errors. It is
 necessary to use ``dt_binding_check`` to get all the validation errors in the
 binding schema files.
+
+It is possible to run both in a single command::
+
+    make dt_binding_check dtbs_check
 
 It is also possible to run checks with a single schema file by setting the
 ``DT_SCHEMA_FILES`` variable to a specific schema file.

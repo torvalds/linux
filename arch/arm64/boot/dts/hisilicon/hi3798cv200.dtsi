@@ -564,7 +564,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
-			bus-range = <0 15>;
+			bus-range = <0x00 0xff>;
 			num-lanes = <1>;
 			ranges = <0x81000000 0x0 0x00000000 0x4f00000 0x0 0x100000
 				  0x82000000 0x0 0x3000000 0x3000000 0x0 0x01f00000>;

@@ -25,8 +25,8 @@
 #ifndef __DC_DWBC_H__
 #define __DC_DWBC_H__
 
+#include "dal_types.h"
 #include "dc_hw_types.h"
-
 
 #define DWB_SW_V2	1
 #define DWB_MCIF_BUF_COUNT 4
@@ -34,7 +34,6 @@
 /* forward declaration of mcif_wb struct */
 struct mcif_wb;
 
-enum dce_version;
 
 enum dwb_sw_version {
 	dwb_ver_1_0 = 1,
@@ -51,20 +50,15 @@ enum dwb_source {
 	dwb_src_otg3,		/* for DCN1.x/DCN2.x */
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 /* DCN1.x, DCN2.x support 2 pipes */
-#else
-/* DCN1.x supports 2 pipes */
-#endif
 enum dwb_pipe {
 	dwb_pipe0 = 0,
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	dwb_pipe1,
 #endif
 	dwb_pipe_max_num,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 enum dwb_frame_capture_enable {
 	DWB_FRAME_CAPTURE_DISABLE = 0,
 	DWB_FRAME_CAPTURE_ENABLE = 1,
@@ -77,9 +71,7 @@ enum wbscl_coef_filter_type_sel {
 	WBSCL_COEF_CHROMA_HORZ_FILTER = 3
 };
 
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 struct dwb_warmup_params {
 	bool	warmup_en;	/* false: normal mode, true: enable pattern generator */
 	bool	warmup_mode;	/* false: 420, true: 444 */
@@ -88,7 +80,6 @@ struct dwb_warmup_params {
 	int	warmup_width;	/* Pattern width (pixels) */
 	int	warmup_height;	/* Pattern height (lines) */
 };
-#endif
 
 struct dwb_caps {
 	enum dce_version hw_version;	/* DCN engine version. */
@@ -121,7 +112,8 @@ struct dwbc {
 	int wb_src_plane_inst;/*hubp, mpcc, inst*/
 	bool update_privacymask;
 	uint32_t mask_id;
-
+        int otg_inst;
+        bool mvc_cfg;
 };
 
 struct dwbc_funcs {
@@ -150,13 +142,11 @@ struct dwbc_funcs {
 		struct dwbc *dwbc,
 		bool is_new_content);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 
 	void (*set_warmup)(
 		struct dwbc *dwbc,
 		struct dwb_warmup_params *warmup_params);
 
-#endif
 
 	bool (*get_dwb_status)(
 		struct dwbc *dwbc);

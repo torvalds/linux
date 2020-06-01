@@ -9,6 +9,7 @@
  * Copyright (C) 2019 Micro Crystal AG
  * Author: Alexandre Belloni <alexandre.belloni@bootlin.com>
  */
+#include <linux/clk-provider.h>
 #include <linux/i2c.h>
 #include <linux/bcd.h>
 #include <linux/rtc.h>
@@ -44,6 +45,10 @@
 #define PCF85063_OFFSET_STEP0		4340
 #define PCF85063_OFFSET_STEP1		4069
 
+#define PCF85063_REG_CLKO_F_MASK	0x07 /* frequency mask */
+#define PCF85063_REG_CLKO_F_32768HZ	0x00
+#define PCF85063_REG_CLKO_F_OFF		0x07
+
 #define PCF85063_REG_RAM		0x03
 
 #define PCF85063_REG_SC			0x04 /* datetime */
@@ -61,6 +66,9 @@ struct pcf85063_config {
 struct pcf85063 {
 	struct rtc_device	*rtc;
 	struct regmap		*regmap;
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw		clkout_hw;
+#endif
 };
 
 static int pcf85063_rtc_read_time(struct device *dev, struct rtc_time *tm)
@@ -289,21 +297,9 @@ static int pcf85063_ioctl(struct device *dev, unsigned int cmd,
 		if (ret < 0)
 			return ret;
 
-		if (status & PCF85063_REG_SC_OS)
-			dev_warn(&pcf85063->rtc->dev, "Voltage low, data loss detected.\n");
+		status = status & PCF85063_REG_SC_OS ? RTC_VL_DATA_INVALID : 0;
 
-		status &= PCF85063_REG_SC_OS;
-
-		if (copy_to_user((void __user *)arg, &status, sizeof(int)))
-			return -EFAULT;
-
-		return 0;
-
-	case RTC_VL_CLR:
-		ret = regmap_update_bits(pcf85063->regmap, PCF85063_REG_SC,
-					 PCF85063_REG_SC_OS, 0);
-
-		return ret;
+		return put_user(status, (unsigned int __user *)arg);
 
 	default:
 		return -ENOIOCTLCMD;
@@ -368,6 +364,150 @@ static int pcf85063_load_capacitance(struct pcf85063 *pcf85063,
 	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL1,
 				  PCF85063_REG_CTRL1_CAP_SEL, reg);
 }
+
+#ifdef CONFIG_COMMON_CLK
+/*
+ * Handling of the clkout
+ */
+
+#define clkout_hw_to_pcf85063(_hw) container_of(_hw, struct pcf85063, clkout_hw)
+
+static int clkout_rates[] = {
+	32768,
+	16384,
+	8192,
+	4096,
+	2048,
+	1024,
+	1,
+	0
+};
+
+static unsigned long pcf85063_clkout_recalc_rate(struct clk_hw *hw,
+						 unsigned long parent_rate)
+{
+	struct pcf85063 *pcf85063 = clkout_hw_to_pcf85063(hw);
+	unsigned int buf;
+	int ret = regmap_read(pcf85063->regmap, PCF85063_REG_CTRL2, &buf);
+
+	if (ret < 0)
+		return 0;
+
+	buf &= PCF85063_REG_CLKO_F_MASK;
+	return clkout_rates[buf];
+}
+
+static long pcf85063_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
+				       unsigned long *prate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] <= rate)
+			return clkout_rates[i];
+
+	return 0;
+}
+
+static int pcf85063_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
+				    unsigned long parent_rate)
+{
+	struct pcf85063 *pcf85063 = clkout_hw_to_pcf85063(hw);
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] == rate)
+			return regmap_update_bits(pcf85063->regmap,
+				PCF85063_REG_CTRL2,
+				PCF85063_REG_CLKO_F_MASK, i);
+
+	return -EINVAL;
+}
+
+static int pcf85063_clkout_control(struct clk_hw *hw, bool enable)
+{
+	struct pcf85063 *pcf85063 = clkout_hw_to_pcf85063(hw);
+	unsigned int buf;
+	int ret;
+
+	ret = regmap_read(pcf85063->regmap, PCF85063_REG_OFFSET, &buf);
+	if (ret < 0)
+		return ret;
+	buf &= PCF85063_REG_CLKO_F_MASK;
+
+	if (enable) {
+		if (buf == PCF85063_REG_CLKO_F_OFF)
+			buf = PCF85063_REG_CLKO_F_32768HZ;
+		else
+			return 0;
+	} else {
+		if (buf != PCF85063_REG_CLKO_F_OFF)
+			buf = PCF85063_REG_CLKO_F_OFF;
+		else
+			return 0;
+	}
+
+	return regmap_update_bits(pcf85063->regmap, PCF85063_REG_CTRL2,
+					PCF85063_REG_CLKO_F_MASK, buf);
+}
+
+static int pcf85063_clkout_prepare(struct clk_hw *hw)
+{
+	return pcf85063_clkout_control(hw, 1);
+}
+
+static void pcf85063_clkout_unprepare(struct clk_hw *hw)
+{
+	pcf85063_clkout_control(hw, 0);
+}
+
+static int pcf85063_clkout_is_prepared(struct clk_hw *hw)
+{
+	struct pcf85063 *pcf85063 = clkout_hw_to_pcf85063(hw);
+	unsigned int buf;
+	int ret = regmap_read(pcf85063->regmap, PCF85063_REG_CTRL2, &buf);
+
+	if (ret < 0)
+		return 0;
+
+	return (buf & PCF85063_REG_CLKO_F_MASK) != PCF85063_REG_CLKO_F_OFF;
+}
+
+static const struct clk_ops pcf85063_clkout_ops = {
+	.prepare = pcf85063_clkout_prepare,
+	.unprepare = pcf85063_clkout_unprepare,
+	.is_prepared = pcf85063_clkout_is_prepared,
+	.recalc_rate = pcf85063_clkout_recalc_rate,
+	.round_rate = pcf85063_clkout_round_rate,
+	.set_rate = pcf85063_clkout_set_rate,
+};
+
+static struct clk *pcf85063_clkout_register_clk(struct pcf85063 *pcf85063)
+{
+	struct clk *clk;
+	struct clk_init_data init;
+
+	init.name = "pcf85063-clkout";
+	init.ops = &pcf85063_clkout_ops;
+	init.flags = 0;
+	init.parent_names = NULL;
+	init.num_parents = 0;
+	pcf85063->clkout_hw.init = &init;
+
+	/* optional override of the clockname */
+	of_property_read_string(pcf85063->rtc->dev.of_node,
+				"clock-output-names", &init.name);
+
+	/* register the clock */
+	clk = devm_clk_register(&pcf85063->rtc->dev, &pcf85063->clkout_hw);
+
+	if (!IS_ERR(clk))
+		of_clk_add_provider(pcf85063->rtc->dev.of_node,
+				    of_clk_src_simple_get, clk);
+
+	return clk;
+}
+#endif
 
 static const struct pcf85063_config pcf85063a_config = {
 	.regmap = {
@@ -468,6 +608,11 @@ static int pcf85063_probe(struct i2c_client *client)
 
 	nvmem_cfg.priv = pcf85063->regmap;
 	rtc_nvmem_register(pcf85063->rtc, &nvmem_cfg);
+
+#ifdef CONFIG_COMMON_CLK
+	/* register clk in common clk framework */
+	pcf85063_clkout_register_clk(pcf85063);
+#endif
 
 	return rtc_register_device(pcf85063->rtc);
 }

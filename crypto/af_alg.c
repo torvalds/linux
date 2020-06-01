@@ -171,7 +171,7 @@ static int alg_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	sa->salg_name[sizeof(sa->salg_name) + addr_len - sizeof(*sa) - 1] = 0;
 
 	type = alg_get_type(sa->salg_type);
-	if (IS_ERR(type) && PTR_ERR(type) == -ENOENT) {
+	if (PTR_ERR(type) == -ENOENT) {
 		request_module("algif-%s", sa->salg_type);
 		type = alg_get_type(sa->salg_type);
 	}
@@ -821,8 +821,8 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	struct af_alg_tsgl *sgl;
 	struct af_alg_control con = {};
 	long copied = 0;
-	bool enc = 0;
-	bool init = 0;
+	bool enc = false;
+	bool init = false;
 	int err = 0;
 
 	if (msg->msg_controllen) {
@@ -830,13 +830,13 @@ int af_alg_sendmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		if (err)
 			return err;
 
-		init = 1;
+		init = true;
 		switch (con.op) {
 		case ALG_OP_ENCRYPT:
-			enc = 1;
+			enc = true;
 			break;
 		case ALG_OP_DECRYPT:
-			enc = 0;
+			enc = false;
 			break;
 		default:
 			return -EINVAL;

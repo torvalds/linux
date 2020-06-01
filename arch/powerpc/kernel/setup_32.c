@@ -58,7 +58,6 @@ EXPORT_SYMBOL_GPL(boot_cpuid_phys);
 int smp_hw_index[NR_CPUS];
 EXPORT_SYMBOL(smp_hw_index);
 
-unsigned long ISA_DMA_THRESHOLD;
 unsigned int DMA_MODE_READ;
 unsigned int DMA_MODE_WRITE;
 
@@ -140,7 +139,7 @@ arch_initcall(ppc_init);
 
 static void *__init alloc_stack(void)
 {
-	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	void *ptr = memblock_alloc(THREAD_SIZE, THREAD_ALIGN);
 
 	if (!ptr)
 		panic("cannot allocate %d bytes for stack at %pS\n",
@@ -153,6 +152,9 @@ void __init irqstack_early_init(void)
 {
 	unsigned int i;
 
+	if (IS_ENABLED(CONFIG_VMAP_STACK))
+		return;
+
 	/* interrupt stacks must be in lowmem, we get that for free on ppc32
 	 * as the memblock is limited to lowmem by default */
 	for_each_possible_cpu(i) {
@@ -160,6 +162,18 @@ void __init irqstack_early_init(void)
 		hardirq_ctx[i] = alloc_stack();
 	}
 }
+
+#ifdef CONFIG_VMAP_STACK
+void *emergency_ctx[NR_CPUS] __ro_after_init;
+
+void __init emergency_stack_init(void)
+{
+	unsigned int i;
+
+	for_each_possible_cpu(i)
+		emergency_ctx[i] = alloc_stack();
+}
+#endif
 
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 void __init exc_lvl_early_init(void)

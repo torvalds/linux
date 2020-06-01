@@ -123,6 +123,13 @@ enum dp_test_pattern {
 	DP_TEST_PATTERN_UNSUPPORTED
 };
 
+enum dp_test_pattern_color_space {
+	DP_TEST_PATTERN_COLOR_SPACE_RGB,
+	DP_TEST_PATTERN_COLOR_SPACE_YCBCR601,
+	DP_TEST_PATTERN_COLOR_SPACE_YCBCR709,
+	DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED
+};
+
 enum dp_panel_mode {
 	/* not required */
 	DP_PANEL_MODE_DEFAULT,

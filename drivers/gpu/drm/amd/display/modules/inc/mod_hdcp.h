@@ -56,8 +56,10 @@ enum mod_hdcp_status {
 	MOD_HDCP_STATUS_HDCP1_NOT_CAPABLE,
 	MOD_HDCP_STATUS_HDCP1_R0_PRIME_PENDING,
 	MOD_HDCP_STATUS_HDCP1_VALIDATE_RX_FAILURE,
+	MOD_HDCP_STATUS_HDCP1_BKSV_REVOKED,
 	MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY,
 	MOD_HDCP_STATUS_HDCP1_VALIDATE_KSV_LIST_FAILURE,
+	MOD_HDCP_STATUS_HDCP1_KSV_LIST_REVOKED,
 	MOD_HDCP_STATUS_HDCP1_ENABLE_ENCRYPTION,
 	MOD_HDCP_STATUS_HDCP1_ENABLE_STREAM_ENCRYPTION_FAILURE,
 	MOD_HDCP_STATUS_HDCP1_MAX_CASCADE_EXCEEDED_FAILURE,
@@ -77,6 +79,7 @@ enum mod_hdcp_status {
 	MOD_HDCP_STATUS_HDCP2_H_PRIME_PENDING,
 	MOD_HDCP_STATUS_HDCP2_PAIRING_INFO_PENDING,
 	MOD_HDCP_STATUS_HDCP2_VALIDATE_AKE_CERT_FAILURE,
+	MOD_HDCP_STATUS_HDCP2_AKE_CERT_REVOKED,
 	MOD_HDCP_STATUS_HDCP2_VALIDATE_H_PRIME_FAILURE,
 	MOD_HDCP_STATUS_HDCP2_VALIDATE_PAIRING_INFO_FAILURE,
 	MOD_HDCP_STATUS_HDCP2_PREP_LC_INIT_FAILURE,
@@ -86,6 +89,7 @@ enum mod_hdcp_status {
 	MOD_HDCP_STATUS_HDCP2_ENABLE_ENCRYPTION_FAILURE,
 	MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_NOT_READY,
 	MOD_HDCP_STATUS_HDCP2_VALIDATE_RX_ID_LIST_FAILURE,
+	MOD_HDCP_STATUS_HDCP2_RX_ID_LIST_REVOKED,
 	MOD_HDCP_STATUS_HDCP2_ENABLE_STREAM_ENCRYPTION,
 	MOD_HDCP_STATUS_HDCP2_STREAM_READY_PENDING,
 	MOD_HDCP_STATUS_HDCP2_VALIDATE_STREAM_READY_FAILURE,
@@ -98,6 +102,7 @@ enum mod_hdcp_status {
 struct mod_hdcp_displayport {
 	uint8_t rev;
 	uint8_t assr_supported;
+	uint8_t mst_supported;
 };
 
 struct mod_hdcp_hdmi {
@@ -106,8 +111,7 @@ struct mod_hdcp_hdmi {
 enum mod_hdcp_operation_mode {
 	MOD_HDCP_MODE_OFF,
 	MOD_HDCP_MODE_DEFAULT,
-	MOD_HDCP_MODE_DP,
-	MOD_HDCP_MODE_DP_MST
+	MOD_HDCP_MODE_DP
 };
 
 enum mod_hdcp_display_state {
@@ -153,15 +157,22 @@ struct mod_hdcp_display_adjustment {
 struct mod_hdcp_link_adjustment_hdcp1 {
 	uint8_t disable			: 1;
 	uint8_t postpone_encryption	: 1;
-	uint8_t reserved		: 6;
+	uint8_t min_auth_retries_wa : 1;
+	uint8_t reserved		: 5;
+};
+
+enum mod_hdcp_force_hdcp_type {
+	MOD_HDCP_FORCE_TYPE_MAX = 0,
+	MOD_HDCP_FORCE_TYPE_0,
+	MOD_HDCP_FORCE_TYPE_1
 };
 
 struct mod_hdcp_link_adjustment_hdcp2 {
 	uint8_t disable			: 1;
-	uint8_t disable_type1		: 1;
+	uint8_t force_type		: 2;
 	uint8_t force_no_stored_km	: 1;
 	uint8_t increase_h_prime_timeout: 1;
-	uint8_t reserved		: 4;
+	uint8_t reserved		: 3;
 };
 
 struct mod_hdcp_link_adjustment {
@@ -184,7 +195,8 @@ enum mod_hdcp_encryption_status {
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP_OFF = 0,
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP1_ON,
 	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE0_ON,
-	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON
+	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_TYPE1_ON,
+	MOD_HDCP_ENCRYPTION_STATUS_HDCP2_ON
 };
 
 /* per link events dm has to notify to hdcp module */

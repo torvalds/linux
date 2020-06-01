@@ -7,6 +7,8 @@
 #ifndef _INTEL_GPU_COMMANDS_H_
 #define _INTEL_GPU_COMMANDS_H_
 
+#include <linux/bitops.h>
+
 /*
  * Target address alignments required for GPU access e.g.
  * MI_STORE_DWORD_IMM.
@@ -290,10 +292,21 @@
 #define MI_STORE_URB_MEM        MI_INSTR(0x2D, 0)
 #define MI_CONDITIONAL_BATCH_BUFFER_END MI_INSTR(0x36, 0)
 
-#define PIPELINE_SELECT                ((0x3<<29)|(0x1<<27)|(0x1<<24)|(0x4<<16))
-#define GFX_OP_3DSTATE_VF_STATISTICS   ((0x3<<29)|(0x1<<27)|(0x0<<24)|(0xB<<16))
-#define MEDIA_VFE_STATE                ((0x3<<29)|(0x2<<27)|(0x0<<24)|(0x0<<16))
+#define STATE_BASE_ADDRESS \
+	((0x3 << 29) | (0x0 << 27) | (0x1 << 24) | (0x1 << 16))
+#define BASE_ADDRESS_MODIFY		REG_BIT(0)
+#define PIPELINE_SELECT \
+	((0x3 << 29) | (0x1 << 27) | (0x1 << 24) | (0x4 << 16))
+#define PIPELINE_SELECT_MEDIA	       REG_BIT(0)
+#define GFX_OP_3DSTATE_VF_STATISTICS \
+	((0x3 << 29) | (0x1 << 27) | (0x0 << 24) | (0xB << 16))
+#define MEDIA_VFE_STATE \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x0 << 16))
 #define  MEDIA_VFE_STATE_MMIO_ACCESS_MASK (0x18)
+#define MEDIA_INTERFACE_DESCRIPTOR_LOAD \
+	((0x3 << 29) | (0x2 << 27) | (0x0 << 24) | (0x2 << 16))
+#define MEDIA_OBJECT \
+	((0x3 << 29) | (0x2 << 27) | (0x1 << 24) | (0x0 << 16))
 #define GPGPU_OBJECT                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x4<<16))
 #define GPGPU_WALKER                   ((0x3<<29)|(0x2<<27)|(0x1<<24)|(0x5<<16))
 #define GFX_OP_3DSTATE_DX9_CONSTANTF_VS \
@@ -318,5 +331,32 @@
 
 #define COLOR_BLT     ((0x2<<29)|(0x40<<22))
 #define SRC_COPY_BLT  ((0x2<<29)|(0x43<<22))
+
+/*
+ * Used to convert any address to canonical form.
+ * Starting from gen8, some commands (e.g. STATE_BASE_ADDRESS,
+ * MI_LOAD_REGISTER_MEM and others, see Broadwell PRM Vol2a) require the
+ * addresses to be in a canonical form:
+ * "GraphicsAddress[63:48] are ignored by the HW and assumed to be in correct
+ * canonical form [63:48] == [47]."
+ */
+#define GEN8_HIGH_ADDRESS_BIT 47
+static inline u64 gen8_canonical_addr(u64 address)
+{
+	return sign_extend64(address, GEN8_HIGH_ADDRESS_BIT);
+}
+
+static inline u64 gen8_noncanonical_addr(u64 address)
+{
+	return address & GENMASK_ULL(GEN8_HIGH_ADDRESS_BIT, 0);
+}
+
+static inline u32 *__gen6_emit_bb_start(u32 *cs, u32 addr, unsigned int flags)
+{
+	*cs++ = MI_BATCH_BUFFER_START | flags;
+	*cs++ = addr;
+
+	return cs;
+}
 
 #endif /* _INTEL_GPU_COMMANDS_H_ */

@@ -111,6 +111,13 @@ void unregister_mii_timestamper(struct mii_timestamper *mii_ts)
 	struct mii_timestamping_desc *desc;
 	struct list_head *this;
 
+	/* mii_timestamper statically registered by the PHY driver won't use the
+	 * register_mii_timestamper() and thus don't have ->device set. Don't
+	 * try to unregister these.
+	 */
+	if (!mii_ts->device)
+		return;
+
 	mutex_lock(&tstamping_devices_lock);
 	list_for_each(this, &mii_timestamping_devices) {
 		desc = list_entry(this, struct mii_timestamping_desc, list);

@@ -21,6 +21,11 @@
 #define SWITCHTEC_EVENT_FATAL    BIT(4)
 
 #define SWITCHTEC_DMA_MRPC_EN	BIT(0)
+
+#define MRPC_GAS_READ		0x29
+#define MRPC_GAS_WRITE		0x87
+#define MRPC_CMD_ID(x)		((x) & 0xffff)
+
 enum {
 	SWITCHTEC_GAS_MRPC_OFFSET       = 0x0000,
 	SWITCHTEC_GAS_TOP_CFG_OFFSET    = 0x1000,
@@ -30,6 +35,11 @@ enum {
 	SWITCHTEC_GAS_PART_CFG_OFFSET   = 0x4000,
 	SWITCHTEC_GAS_NTB_OFFSET        = 0x10000,
 	SWITCHTEC_GAS_PFF_CSR_OFFSET    = 0x134000,
+};
+
+enum switchtec_gen {
+	SWITCHTEC_GEN3,
+	SWITCHTEC_GEN4,
 };
 
 struct mrpc_regs {
@@ -98,16 +108,37 @@ struct sw_event_regs {
 } __packed;
 
 enum {
-	SWITCHTEC_CFG0_RUNNING = 0x04,
-	SWITCHTEC_CFG1_RUNNING = 0x05,
-	SWITCHTEC_IMG0_RUNNING = 0x03,
-	SWITCHTEC_IMG1_RUNNING = 0x07,
+	SWITCHTEC_GEN3_CFG0_RUNNING = 0x04,
+	SWITCHTEC_GEN3_CFG1_RUNNING = 0x05,
+	SWITCHTEC_GEN3_IMG0_RUNNING = 0x03,
+	SWITCHTEC_GEN3_IMG1_RUNNING = 0x07,
 };
 
-struct sys_info_regs {
-	u32 device_id;
-	u32 device_version;
-	u32 firmware_version;
+enum {
+	SWITCHTEC_GEN4_MAP0_RUNNING = 0x00,
+	SWITCHTEC_GEN4_MAP1_RUNNING = 0x01,
+	SWITCHTEC_GEN4_KEY0_RUNNING = 0x02,
+	SWITCHTEC_GEN4_KEY1_RUNNING = 0x03,
+	SWITCHTEC_GEN4_BL2_0_RUNNING = 0x04,
+	SWITCHTEC_GEN4_BL2_1_RUNNING = 0x05,
+	SWITCHTEC_GEN4_CFG0_RUNNING = 0x06,
+	SWITCHTEC_GEN4_CFG1_RUNNING = 0x07,
+	SWITCHTEC_GEN4_IMG0_RUNNING = 0x08,
+	SWITCHTEC_GEN4_IMG1_RUNNING = 0x09,
+};
+
+enum {
+	SWITCHTEC_GEN4_KEY0_ACTIVE = 0,
+	SWITCHTEC_GEN4_KEY1_ACTIVE = 1,
+	SWITCHTEC_GEN4_BL2_0_ACTIVE = 0,
+	SWITCHTEC_GEN4_BL2_1_ACTIVE = 1,
+	SWITCHTEC_GEN4_CFG0_ACTIVE = 0,
+	SWITCHTEC_GEN4_CFG1_ACTIVE = 1,
+	SWITCHTEC_GEN4_IMG0_ACTIVE = 0,
+	SWITCHTEC_GEN4_IMG1_ACTIVE = 1,
+};
+
+struct sys_info_regs_gen3 {
 	u32 reserved1;
 	u32 vendor_table_revision;
 	u32 table_format_version;
@@ -124,31 +155,117 @@ struct sys_info_regs {
 	u8 component_revision;
 } __packed;
 
-struct flash_info_regs {
+struct sys_info_regs_gen4 {
+	u16 gas_layout_ver;
+	u8 evlist_ver;
+	u8 reserved1;
+	u16 mgmt_cmd_set_ver;
+	u16 fabric_cmd_set_ver;
+	u32 reserved2[2];
+	u8 mrpc_uart_ver;
+	u8 mrpc_twi_ver;
+	u8 mrpc_eth_ver;
+	u8 mrpc_inband_ver;
+	u32 reserved3[7];
+	u32 fw_update_tmo;
+	u32 xml_version_cfg;
+	u32 xml_version_img;
+	u32 partition_id;
+	u16 bl2_running;
+	u16 cfg_running;
+	u16 img_running;
+	u16 key_running;
+	u32 reserved4[43];
+	u32 vendor_seeprom_twi;
+	u32 vendor_table_revision;
+	u32 vendor_specific_info[2];
+	u16 p2p_vendor_id;
+	u16 p2p_device_id;
+	u8 p2p_revision_id;
+	u8 reserved5[3];
+	u32 p2p_class_id;
+	u16 subsystem_vendor_id;
+	u16 subsystem_id;
+	u32 p2p_serial_number[2];
+	u8 mac_addr[6];
+	u8 reserved6[2];
+	u32 reserved7[3];
+	char vendor_id[8];
+	char product_id[24];
+	char  product_revision[2];
+	u16 reserved8;
+} __packed;
+
+struct sys_info_regs {
+	u32 device_id;
+	u32 device_version;
+	u32 firmware_version;
+	union {
+		struct sys_info_regs_gen3 gen3;
+		struct sys_info_regs_gen4 gen4;
+	};
+} __packed;
+
+struct partition_info {
+	u32 address;
+	u32 length;
+};
+
+struct flash_info_regs_gen3 {
 	u32 flash_part_map_upd_idx;
 
-	struct active_partition_info {
+	struct active_partition_info_gen3 {
 		u32 address;
 		u32 build_version;
 		u32 build_string;
 	} active_img;
 
-	struct active_partition_info active_cfg;
-	struct active_partition_info inactive_img;
-	struct active_partition_info inactive_cfg;
+	struct active_partition_info_gen3 active_cfg;
+	struct active_partition_info_gen3 inactive_img;
+	struct active_partition_info_gen3 inactive_cfg;
 
 	u32 flash_length;
 
-	struct partition_info {
-		u32 address;
-		u32 length;
-	} cfg0;
-
+	struct partition_info cfg0;
 	struct partition_info cfg1;
 	struct partition_info img0;
 	struct partition_info img1;
 	struct partition_info nvlog;
 	struct partition_info vendor[8];
+};
+
+struct flash_info_regs_gen4 {
+	u32 flash_address;
+	u32 flash_length;
+
+	struct active_partition_info_gen4 {
+		unsigned char bl2;
+		unsigned char cfg;
+		unsigned char img;
+		unsigned char key;
+	} active_flag;
+
+	u32 reserved[3];
+
+	struct partition_info map0;
+	struct partition_info map1;
+	struct partition_info key0;
+	struct partition_info key1;
+	struct partition_info bl2_0;
+	struct partition_info bl2_1;
+	struct partition_info cfg0;
+	struct partition_info cfg1;
+	struct partition_info img0;
+	struct partition_info img1;
+	struct partition_info nvlog;
+	struct partition_info vendor[8];
+};
+
+struct flash_info_regs {
+	union {
+		struct flash_info_regs_gen3 gen3;
+		struct flash_info_regs_gen4 gen4;
+	};
 };
 
 enum {
@@ -196,7 +313,9 @@ struct part_cfg_regs {
 	u32 mrpc_comp_async_data[5];
 	u32 dyn_binding_hdr;
 	u32 dyn_binding_data[5];
-	u32 reserved4[159];
+	u32 intercomm_notify_hdr;
+	u32 intercomm_notify_data[5];
+	u32 reserved4[153];
 } __packed;
 
 enum {
@@ -320,7 +439,8 @@ struct pff_csr_regs {
 	u32 dpc_data[5];
 	u32 cts_hdr;
 	u32 cts_data[5];
-	u32 reserved3[6];
+	u32 uec_hdr;
+	u32 uec_data[5];
 	u32 hotplug_hdr;
 	u32 hotplug_data[5];
 	u32 ier_hdr;
@@ -354,6 +474,8 @@ struct switchtec_dev {
 	struct pci_dev *pdev;
 	struct device dev;
 	struct cdev cdev;
+
+	enum switchtec_gen gen;
 
 	int partition;
 	int partition_count;

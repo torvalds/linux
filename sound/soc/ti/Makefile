@@ -3,9 +3,11 @@
 # Platform drivers
 snd-soc-ti-edma-objs := edma-pcm.o
 snd-soc-ti-sdma-objs := sdma-pcm.o
+snd-soc-ti-udma-objs := udma-pcm.o
 
 obj-$(CONFIG_SND_SOC_TI_EDMA_PCM) += snd-soc-ti-edma.o
 obj-$(CONFIG_SND_SOC_TI_SDMA_PCM) += snd-soc-ti-sdma.o
+obj-$(CONFIG_SND_SOC_TI_UDMA_PCM) += snd-soc-ti-udma.o
 
 # CPU DAI drivers
 snd-soc-davinci-asp-objs := davinci-i2s.o

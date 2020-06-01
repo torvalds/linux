@@ -93,8 +93,8 @@ struct mlx5_pagefault {
 
 static u64 mlx5_imr_ksm_entries;
 
-void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
-			   struct mlx5_ib_mr *imr, int flags)
+static void populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
+			struct mlx5_ib_mr *imr, int flags)
 {
 	struct mlx5_klm *end = pklm + nentries;
 
@@ -144,6 +144,44 @@ void mlx5_odp_populate_klm(struct mlx5_klm *pklm, size_t idx, size_t nentries,
 	}
 }
 
+static u64 umem_dma_to_mtt(dma_addr_t umem_dma)
+{
+	u64 mtt_entry = umem_dma & ODP_DMA_ADDR_MASK;
+
+	if (umem_dma & ODP_READ_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_READ;
+	if (umem_dma & ODP_WRITE_ALLOWED_BIT)
+		mtt_entry |= MLX5_IB_MTT_WRITE;
+
+	return mtt_entry;
+}
+
+static void populate_mtt(__be64 *pas, size_t idx, size_t nentries,
+			 struct mlx5_ib_mr *mr, int flags)
+{
+	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
+	dma_addr_t pa;
+	size_t i;
+
+	if (flags & MLX5_IB_UPD_XLT_ZAP)
+		return;
+
+	for (i = 0; i < nentries; i++) {
+		pa = odp->dma_list[idx + i];
+		pas[i] = cpu_to_be64(umem_dma_to_mtt(pa));
+	}
+}
+
+void mlx5_odp_populate_xlt(void *xlt, size_t idx, size_t nentries,
+			   struct mlx5_ib_mr *mr, int flags)
+{
+	if (flags & MLX5_IB_UPD_XLT_INDIRECT) {
+		populate_klm(xlt, idx, nentries, mr, flags);
+	} else {
+		populate_mtt(xlt, idx, nentries, mr, flags);
+	}
+}
+
 static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
 {
 	struct ib_umem_odp *odp = to_ib_umem_odp(mr->umem);
@@ -159,7 +197,7 @@ static void dma_fence_odp_mr(struct mlx5_ib_mr *mr)
 	odp->private = NULL;
 	mutex_unlock(&odp->umem_mutex);
 
-	if (!mr->allocated_from_cache) {
+	if (!mr->cache_ent) {
 		mlx5_core_destroy_mkey(mr->dev->mdev, &mr->mmkey);
 		WARN_ON(mr->descs);
 	}
@@ -197,7 +235,8 @@ static void free_implicit_child_mr(struct mlx5_ib_mr *mr, bool need_imr_xlt)
 	mr->parent = NULL;
 	mlx5_mr_cache_free(mr->dev, mr);
 	ib_umem_odp_release(odp);
-	atomic_dec(&imr->num_deferred_work);
+	if (atomic_dec_and_test(&imr->num_deferred_work))
+		wake_up(&imr->q_deferred_work);
 }
 
 static void free_implicit_child_mr_work(struct work_struct *work)
@@ -342,7 +381,7 @@ void mlx5_ib_internal_fill_odp_caps(struct mlx5_ib_dev *dev)
 	memset(caps, 0, sizeof(*caps));
 
 	if (!MLX5_CAP_GEN(dev->mdev, pg) ||
-	    !mlx5_ib_can_use_umr(dev, true))
+	    !mlx5_ib_can_use_umr(dev, true, 0))
 		return;
 
 	caps->general_caps = IB_ODP_SUPPORT;
@@ -516,6 +555,7 @@ struct mlx5_ib_mr *mlx5_ib_alloc_implicit_mr(struct mlx5_ib_pd *pd,
 	imr->umem = &umem_odp->umem;
 	imr->is_odp_implicit = true;
 	atomic_set(&imr->num_deferred_work, 0);
+	init_waitqueue_head(&imr->q_deferred_work);
 	xa_init(&imr->implicit_children);
 
 	err = mlx5_ib_update_xlt(imr, 0,
@@ -573,10 +613,7 @@ void mlx5_ib_free_implicit_mr(struct mlx5_ib_mr *imr)
 	 * under xa_lock while the child is in the xarray. Thus at this point
 	 * it is only decreasing, and all work holding it is now on the wq.
 	 */
-	if (atomic_read(&imr->num_deferred_work)) {
-		flush_workqueue(system_unbound_wq);
-		WARN_ON(atomic_read(&imr->num_deferred_work));
-	}
+	wait_event(imr->q_deferred_work, !atomic_read(&imr->num_deferred_work));
 
 	/*
 	 * Fence the imr before we destroy the children. This allows us to
@@ -607,10 +644,7 @@ void mlx5_ib_fence_odp_mr(struct mlx5_ib_mr *mr)
 	/* Wait for all running page-fault handlers to finish. */
 	synchronize_srcu(&mr->dev->odp_srcu);
 
-	if (atomic_read(&mr->num_deferred_work)) {
-		flush_workqueue(system_unbound_wq);
-		WARN_ON(atomic_read(&mr->num_deferred_work));
-	}
+	wait_event(mr->q_deferred_work, !atomic_read(&mr->num_deferred_work));
 
 	dma_fence_odp_mr(mr);
 }
@@ -1682,7 +1716,8 @@ static void destroy_prefetch_work(struct prefetch_mr_work *work)
 	u32 i;
 
 	for (i = 0; i < work->num_sge; ++i)
-		atomic_dec(&work->frags[i].mr->num_deferred_work);
+		if (atomic_dec_and_test(&work->frags[i].mr->num_deferred_work))
+			wake_up(&work->frags[i].mr->q_deferred_work);
 	kvfree(work);
 }
 

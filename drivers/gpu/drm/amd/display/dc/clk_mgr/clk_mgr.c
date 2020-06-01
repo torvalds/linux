@@ -37,9 +37,7 @@
 #include "dcn10/rv1_clk_mgr.h"
 #include "dcn10/rv2_clk_mgr.h"
 #include "dcn20/dcn20_clk_mgr.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 #include "dcn21/rn_clk_mgr.h"
-#endif
 
 
 int clk_mgr_helper_get_active_display_cnt(
@@ -63,6 +61,25 @@ int clk_mgr_helper_get_active_display_cnt(
 	}
 
 	return display_count;
+}
+
+int clk_mgr_helper_get_active_plane_cnt(
+		struct dc *dc,
+		struct dc_state *context)
+{
+	int i, total_plane_count;
+
+	total_plane_count = 0;
+	for (i = 0; i < context->stream_count; i++) {
+		const struct dc_stream_status stream_status = context->stream_status[i];
+
+		/*
+		 * Sum up plane_count for all streams ( active and virtual ).
+		 */
+		total_plane_count += stream_status.plane_count;
+	}
+
+	return total_plane_count;
 }
 
 void clk_mgr_exit_optimized_pwr_state(const struct dc *dc, struct clk_mgr *clk_mgr)
@@ -134,14 +151,12 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			dce120_clk_mgr_construct(ctx, clk_mgr);
 		break;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	case FAMILY_RV:
-#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 		if (ASICREV_IS_RENOIR(asic_id.hw_internal_rev)) {
 			rn_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 			break;
 		}
-#endif	/* DCN2_1 */
 		if (ASICREV_IS_RAVEN2(asic_id.hw_internal_rev)) {
 			rv2_clk_mgr_construct(ctx, clk_mgr, pp_smu);
 			break;
@@ -152,13 +167,11 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 			break;
 		}
 		break;
-#endif	/* Family RV */
 
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	case FAMILY_NV:
 		dcn20_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		break;
-#endif /* Family NV */
+#endif	/* Family RV and NV*/
 
 	default:
 		ASSERT(0); /* Unknown Asic */

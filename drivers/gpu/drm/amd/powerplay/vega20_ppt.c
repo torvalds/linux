@@ -21,7 +21,6 @@
  *
  */
 
-#include "pp_debug.h"
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
@@ -36,6 +35,7 @@
 #include "vega20_ppt.h"
 #include "vega20_pptable.h"
 #include "vega20_ppsmc.h"
+#include "nbio/nbio_7_4_offset.h"
 #include "nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -338,6 +338,10 @@ static int vega20_tables_init(struct smu_context *smu, struct smu_table *tables)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
+	smu_table->watermarks_table = kzalloc(sizeof(Watermarks_t), GFP_KERNEL);
+	if (!smu_table->watermarks_table)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -583,7 +587,7 @@ static int vega20_check_powerplay_table(struct smu_context *smu)
 
 static int vega20_run_btc_afll(struct smu_context *smu)
 {
-	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc);
+	return smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL);
 }
 
 #define FEATURE_MASK(feature) (1ULL << feature)
@@ -666,13 +670,13 @@ vega20_set_single_dpm_table(struct smu_context *smu,
 
 	ret = smu_send_smc_msg_with_param(smu,
 			SMU_MSG_GetDpmFreqByIndex,
-			(clk_id << 16 | 0xFF));
+			(clk_id << 16 | 0xFF),
+			&num_of_levels);
 	if (ret) {
 		pr_err("[GetNumOfDpmLevel] failed to get dpm levels!");
 		return ret;
 	}
 
-	smu_read_smc_arg(smu, &num_of_levels);
 	if (!num_of_levels) {
 		pr_err("[GetNumOfDpmLevel] number of clk levels is invalid!");
 		return -EINVAL;
@@ -683,12 +687,12 @@ vega20_set_single_dpm_table(struct smu_context *smu,
 	for (i = 0; i < num_of_levels; i++) {
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_GetDpmFreqByIndex,
-				(clk_id << 16 | i));
+				(clk_id << 16 | i),
+				&clk);
 		if (ret) {
 			pr_err("[GetDpmFreqByIndex] failed to get dpm freq by index!");
 			return ret;
 		}
-		smu_read_smc_arg(smu, &clk);
 		if (!clk) {
 			pr_err("[GetDpmFreqByIndex] clk value is invalid!");
 			return -EINVAL;
@@ -1196,7 +1200,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_GFXCLK << 16) | (freq & 0xffff));
+			(PPCLK_GFXCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s gfxclk !\n",
 						max ? "max" : "min");
@@ -1211,7 +1216,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_UCLK << 16) | (freq & 0xffff));
+			(PPCLK_UCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s memclk !\n",
 						max ? "max" : "min");
@@ -1226,7 +1232,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_SOCCLK << 16) | (freq & 0xffff));
+			(PPCLK_SOCCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s socclk !\n",
 						max ? "max" : "min");
@@ -1241,7 +1248,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 			single_dpm_table->dpm_state.soft_min_level;
 		ret = smu_send_smc_msg_with_param(smu,
 			(max ? SMU_MSG_SetSoftMaxByFreq : SMU_MSG_SetSoftMinByFreq),
-			(PPCLK_FCLK << 16) | (freq & 0xffff));
+			(PPCLK_FCLK << 16) | (freq & 0xffff),
+			NULL);
 		if (ret) {
 			pr_err("Failed to set soft %s fclk !\n",
 						max ? "max" : "min");
@@ -1256,7 +1264,8 @@ static int vega20_upload_dpm_level(struct smu_context *smu, bool max,
 		if (!max) {
 			ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetHardMinByFreq,
-				(PPCLK_DCEFCLK << 16) | (freq & 0xffff));
+				(PPCLK_DCEFCLK << 16) | (freq & 0xffff),
+				NULL);
 			if (ret) {
 				pr_err("Failed to set hard min dcefclk !\n");
 				return ret;
@@ -1417,7 +1426,9 @@ static int vega20_force_clk_levels(struct smu_context *smu,
 		}
 
 		ret = smu_send_smc_msg_with_param(smu,
-				SMU_MSG_SetMinLinkDpmByIndex, soft_min_level);
+				SMU_MSG_SetMinLinkDpmByIndex,
+				soft_min_level,
+				NULL);
 		if (ret)
 			pr_err("Failed to set min link dpm level!\n");
 
@@ -1473,13 +1484,13 @@ static int vega20_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
 
 	ret = smu_send_smc_msg_with_param(smu,
 			SMU_MSG_GetAVFSVoltageByDpm,
-			((AVFS_CURVE << 24) | (OD8_HOTCURVE_TEMPERATURE << 16) | freq));
+			((AVFS_CURVE << 24) | (OD8_HOTCURVE_TEMPERATURE << 16) | freq),
+			voltage);
 	if (ret) {
 		pr_err("[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
 		return ret;
 	}
 
-	smu_read_smc_arg(smu, voltage);
 	*voltage = *voltage / VOLTAGE_SCALE;
 
 	return 0;
@@ -1702,22 +1713,11 @@ static int vega20_set_default_od_settings(struct smu_context *smu,
 	struct smu_table_context *table_context = &smu->smu_table;
 	int ret;
 
+	ret = smu_v11_0_set_default_od_settings(smu, initialize, sizeof(OverDriveTable_t));
+	if (ret)
+		return ret;
+
 	if (initialize) {
-		if (table_context->overdrive_table)
-			return -EINVAL;
-
-		table_context->overdrive_table = kzalloc(sizeof(OverDriveTable_t), GFP_KERNEL);
-
-		if (!table_context->overdrive_table)
-			return -ENOMEM;
-
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0,
-				       table_context->overdrive_table, false);
-		if (ret) {
-			pr_err("Failed to export over drive table!\n");
-			return ret;
-		}
-
 		ret = vega20_set_default_od8_setttings(smu);
 		if (ret)
 			return ret;
@@ -1963,8 +1963,10 @@ static int vega20_set_power_profile_mode(struct smu_context *smu, long *input, u
 	workload_type = smu_workload_get_type(smu, smu->power_profile_mode);
 	if (workload_type < 0)
 		return -EINVAL;
-	smu_send_smc_msg_with_param(smu, SMU_MSG_SetWorkloadMask,
-				    1 << workload_type);
+	smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetWorkloadMask,
+			1 << workload_type,
+			NULL);
 
 	return ret;
 }
@@ -2036,7 +2038,8 @@ vega20_set_uclk_to_highest_dpm_level(struct smu_context *smu,
 		dpm_table->dpm_state.hard_min_level = dpm_table->dpm_levels[dpm_table->count - 1].value;
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetHardMinByFreq,
-				(PPCLK_UCLK << 16) | dpm_table->dpm_state.hard_min_level);
+				(PPCLK_UCLK << 16) | dpm_table->dpm_state.hard_min_level,
+				NULL);
 		if (ret) {
 			pr_err("[%s] Set hard min uclk failed!", __func__);
 				return ret;
@@ -2054,7 +2057,7 @@ static int vega20_pre_display_config_changed(struct smu_context *smu)
 	if (!smu->smu_dpm.dpm_context)
 		return -EINVAL;
 
-	smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0);
+	smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, 0, NULL);
 	ret = vega20_set_uclk_to_highest_dpm_level(smu,
 						   &dpm_table->mem_table);
 	if (ret)
@@ -2081,7 +2084,8 @@ static int vega20_display_config_changed(struct smu_context *smu)
 	    smu_feature_is_supported(smu, SMU_FEATURE_DPM_SOCCLK_BIT)) {
 		smu_send_smc_msg_with_param(smu,
 					    SMU_MSG_NumOfDisplays,
-					    smu->display_config->num_display);
+					    smu->display_config->num_display,
+					    NULL);
 	}
 
 	return ret;
@@ -2235,7 +2239,7 @@ static int vega20_apply_clocks_adjust_rules(struct smu_context *smu)
 }
 
 static int
-vega20_notify_smc_dispaly_config(struct smu_context *smu)
+vega20_notify_smc_display_config(struct smu_context *smu)
 {
 	struct vega20_dpm_table *dpm_table = smu->smu_dpm.dpm_context;
 	struct vega20_single_dpm_table *memtable = &dpm_table->mem_table;
@@ -2254,7 +2258,8 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,
-								  min_clocks.dcef_clock_in_sr/100);
+								  min_clocks.dcef_clock_in_sr/100,
+								  NULL);
 				if (ret) {
 					pr_err("Attempt to set divider for DCEFCLK Failed!");
 					return ret;
@@ -2269,7 +2274,8 @@ vega20_notify_smc_dispaly_config(struct smu_context *smu)
 		memtable->dpm_state.hard_min_level = min_clocks.memory_clock/100;
 		ret = smu_send_smc_msg_with_param(smu,
 						  SMU_MSG_SetHardMinByFreq,
-						  (PPCLK_UCLK << 16) | memtable->dpm_state.hard_min_level);
+						  (PPCLK_UCLK << 16) | memtable->dpm_state.hard_min_level,
+						  NULL);
 		if (ret) {
 			pr_err("[%s] Set hard min uclk failed!", __func__);
 			return ret;
@@ -2774,12 +2780,11 @@ static int vega20_odn_edit_dpm_table(struct smu_context *smu,
 		break;
 
 	case PP_OD_RESTORE_DEFAULT_TABLE:
-		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, false);
-		if (ret) {
-			pr_err("Failed to export over drive table!\n");
-			return ret;
+		if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
+			pr_err("Overdrive table was not initialized!\n");
+			return -EINVAL;
 		}
-
+		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
 		break;
 
 	case PP_OD_COMMIT_DPM_TABLE:
@@ -2861,8 +2866,10 @@ static int vega20_set_thermal_fan_table(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	PPTable_t *pptable = table_context->driver_pptable;
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetFanTemperatureTarget,
-			(uint32_t)pptable->FanTargetTemperature);
+	ret = smu_send_smc_msg_with_param(smu,
+			SMU_MSG_SetFanTemperatureTarget,
+			(uint32_t)pptable->FanTargetTemperature,
+			NULL);
 
 	return ret;
 }
@@ -2872,14 +2879,12 @@ static int vega20_get_fan_speed_rpm(struct smu_context *smu,
 {
 	int ret;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm);
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetCurrentRpm, speed);
 
 	if (ret) {
 		pr_err("Attempt to get current RPM from SMC Failed!\n");
 		return ret;
 	}
-
-	smu_read_smc_arg(smu, speed);
 
 	return 0;
 }
@@ -3145,7 +3150,7 @@ static int vega20_set_df_cstate(struct smu_context *smu,
 		return -EINVAL;
 	}
 
-	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state);
+	return smu_send_smc_msg_with_param(smu, SMU_MSG_DFCstateControl, state, NULL);
 }
 
 static int vega20_update_pcie_parameters(struct smu_context *smu,
@@ -3163,12 +3168,24 @@ static int vega20_update_pcie_parameters(struct smu_context *smu,
 					pptable->PcieLaneCount[i] : pcie_width_cap);
 		ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_OverridePcieParameters,
-					  smu_pcie_arg);
+					  smu_pcie_arg,
+					  NULL);
 	}
 
 	return ret;
 }
 
+static bool vega20_is_baco_supported(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t val;
+
+	if (!smu_v11_0_baco_is_support(smu))
+		return false;
+
+	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
+	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
+}
 
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.tables_init = vega20_tables_init,
@@ -3194,6 +3211,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.get_od_percentage = vega20_get_od_percentage,
 	.get_power_profile_mode = vega20_get_power_profile_mode,
 	.set_power_profile_mode = vega20_set_power_profile_mode,
+	.set_performance_level = smu_v11_0_set_performance_level,
 	.set_od_percentage = vega20_set_od_percentage,
 	.set_default_od_settings = vega20_set_default_od_settings,
 	.od_edit_dpm_table = vega20_odn_edit_dpm_table,
@@ -3203,7 +3221,7 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.pre_display_config_changed = vega20_pre_display_config_changed,
 	.display_config_changed = vega20_display_config_changed,
 	.apply_clocks_adjust_rules = vega20_apply_clocks_adjust_rules,
-	.notify_smc_dispaly_config = vega20_notify_smc_dispaly_config,
+	.notify_smc_display_config = vega20_notify_smc_display_config,
 	.force_dpm_limit_value = vega20_force_dpm_limit_value,
 	.unforce_dpm_levels = vega20_unforce_dpm_levels,
 	.get_profiling_clk_mask = vega20_get_profiling_clk_mask,
@@ -3231,11 +3249,11 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
+	.set_driver_table_location = smu_v11_0_set_driver_table_location,
 	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.system_features_control = smu_v11_0_system_features_control,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
-	.read_smc_arg = smu_v11_0_read_arg,
 	.init_display_count = smu_v11_0_init_display_count,
 	.set_allowed_mask = smu_v11_0_set_allowed_mask,
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
@@ -3256,10 +3274,11 @@ static const struct pptable_funcs vega20_ppt_funcs = {
 	.register_irq_handler = smu_v11_0_register_irq_handler,
 	.set_azalia_d3_pme = smu_v11_0_set_azalia_d3_pme,
 	.get_max_sustainable_clocks_by_dc = smu_v11_0_get_max_sustainable_clocks_by_dc,
-	.baco_is_support= smu_v11_0_baco_is_support,
+	.baco_is_support= vega20_is_baco_supported,
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
-	.baco_reset = smu_v11_0_baco_reset,
+	.baco_enter = smu_v11_0_baco_enter,
+	.baco_exit = smu_v11_0_baco_exit,
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,

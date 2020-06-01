@@ -20,6 +20,12 @@ config CLK_IMX8MN
 	help
 	    Build the driver for i.MX8MN CCM Clock Driver
 
+config CLK_IMX8MP
+	bool "IMX8MP CCM Clock Driver"
+	depends on ARCH_MXC && ARM64
+	help
+	    Build the driver for i.MX8MP CCM Clock Driver
+
 config CLK_IMX8MQ
 	bool "IMX8MQ CCM Clock Driver"
 	depends on ARCH_MXC && ARM64

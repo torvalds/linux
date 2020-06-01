@@ -8,6 +8,7 @@
 #include <linux/jhash.h>
 #include <linux/ktime.h>
 #include <linux/slab.h>
+#include <linux/proc_fs.h>
 #include <linux/nls.h>
 #include <linux/workqueue.h>
 #include "cifsglob.h"
@@ -211,12 +212,12 @@ static int dfscache_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, dfscache_proc_show, NULL);
 }
 
-const struct file_operations dfscache_proc_fops = {
-	.open		= dfscache_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= dfscache_proc_write,
+const struct proc_ops dfscache_proc_ops = {
+	.proc_open	= dfscache_proc_open,
+	.proc_read	= seq_read,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
+	.proc_write	= dfscache_proc_write,
 };
 
 #ifdef CONFIG_CIFS_DEBUG2
@@ -1257,6 +1258,44 @@ void dfs_cache_del_vol(const char *fullpath)
 	spin_unlock(&vol_list_lock);
 
 	kref_put(&vi->refcnt, vol_release);
+}
+
+/**
+ * dfs_cache_get_tgt_share - parse a DFS target
+ *
+ * @it: DFS target iterator.
+ * @share: tree name.
+ * @share_len: length of tree name.
+ * @prefix: prefix path.
+ * @prefix_len: length of prefix path.
+ *
+ * Return zero if target was parsed correctly, otherwise non-zero.
+ */
+int dfs_cache_get_tgt_share(const struct dfs_cache_tgt_iterator *it,
+			    const char **share, size_t *share_len,
+			    const char **prefix, size_t *prefix_len)
+{
+	char *s, sep;
+
+	if (!it || !share || !share_len || !prefix || !prefix_len)
+		return -EINVAL;
+
+	sep = it->it_name[0];
+	if (sep != '\\' && sep != '/')
+		return -EINVAL;
+
+	s = strchr(it->it_name + 1, sep);
+	if (!s)
+		return -EINVAL;
+
+	s = strchrnul(s + 1, sep);
+
+	*share = it->it_name;
+	*share_len = s - it->it_name;
+	*prefix = *s ? s + 1 : s;
+	*prefix_len = &it->it_name[strlen(it->it_name)] - *prefix;
+
+	return 0;
 }
 
 /* Get all tcons that are within a DFS namespace and can be refreshed */

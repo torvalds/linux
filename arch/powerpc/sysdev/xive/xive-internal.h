@@ -5,6 +5,13 @@
 #ifndef __XIVE_INTERNAL_H
 #define __XIVE_INTERNAL_H
 
+/*
+ * A "disabled" interrupt should never fire, to catch problems
+ * we set its logical number to this
+ */
+#define XIVE_BAD_IRQ		0x7fffffff
+#define XIVE_MAX_IRQ		(XIVE_BAD_IRQ - 1)
+
 /* Each CPU carry one of these with various per-CPU state */
 struct xive_cpu {
 #ifdef CONFIG_SMP
@@ -50,12 +57,14 @@ struct xive_ops {
 	int	(*get_ipi)(unsigned int cpu, struct xive_cpu *xc);
 	void	(*put_ipi)(unsigned int cpu, struct xive_cpu *xc);
 #endif
+	int	(*debug_show)(struct seq_file *m, void *private);
 	const char *name;
 };
 
 bool xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
 		    u8 max_prio);
 __be32 *xive_queue_page_alloc(unsigned int cpu, u32 queue_shift);
+int xive_core_debug_init(void);
 
 static inline u32 xive_alloc_order(u32 queue_shift)
 {

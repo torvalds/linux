@@ -96,14 +96,12 @@ int virtio_gpu_mode_dumb_mmap(struct drm_file *file_priv,
 			      uint32_t handle, uint64_t *offset_p)
 {
 	struct drm_gem_object *gobj;
-	struct virtio_gpu_object *obj;
 
 	BUG_ON(!offset_p);
 	gobj = drm_gem_object_lookup(file_priv, handle);
 	if (gobj == NULL)
 		return -ENOENT;
-	obj = gem_to_virtio_gpu_obj(gobj);
-	*offset_p = virtio_gpu_object_mmap_offset(obj);
+	*offset_p = drm_vma_node_offset_addr(&gobj->vma_node);
 	drm_gem_object_put_unlocked(gobj);
 	return 0;
 }
@@ -125,6 +123,7 @@ int virtio_gpu_gem_object_open(struct drm_gem_object *obj,
 
 	virtio_gpu_cmd_context_attach_resource(vgdev, vfpriv->ctx_id,
 					       objs);
+	virtio_gpu_notify(vgdev);
 	return 0;
 }
 
@@ -145,6 +144,7 @@ void virtio_gpu_gem_object_close(struct drm_gem_object *obj,
 
 	virtio_gpu_cmd_context_detach_resource(vgdev, vfpriv->ctx_id,
 					       objs);
+	virtio_gpu_notify(vgdev);
 }
 
 struct virtio_gpu_object_array *virtio_gpu_array_alloc(u32 nents)

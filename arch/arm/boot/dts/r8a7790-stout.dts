@@ -203,6 +203,7 @@
 		interrupt-parent = <&irqc0>;
 		interrupts = <1 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio3 31 GPIO_ACTIVE_LOW>;
 	};
 };
 

@@ -301,35 +301,8 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 	return connector;
 }
 
-static void radeon_dp_register_mst_connector(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	radeon_fb_add_connector(rdev, connector);
-
-	drm_connector_register(connector);
-}
-
-static void radeon_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
-					    struct drm_connector *connector)
-{
-	struct radeon_connector *master = container_of(mgr, struct radeon_connector, mst_mgr);
-	struct drm_device *dev = master->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	drm_connector_unregister(connector);
-	radeon_fb_remove_connector(rdev, connector);
-	drm_connector_cleanup(connector);
-
-	kfree(connector);
-	DRM_DEBUG_KMS("\n");
-}
-
 static const struct drm_dp_mst_topology_cbs mst_cbs = {
 	.add_connector = radeon_dp_add_mst_connector,
-	.register_connector = radeon_dp_register_mst_connector,
-	.destroy_connector = radeon_dp_destroy_mst_connector,
 };
 
 static struct
@@ -518,7 +491,7 @@ static bool radeon_mst_mode_fixup(struct drm_encoder *encoder,
 
 	mst_enc = radeon_encoder->enc_priv;
 
-	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp);
+	mst_enc->pbn = drm_dp_calc_pbn_mode(adjusted_mode->clock, bpp, false);
 
 	mst_enc->primary->active_device = mst_enc->primary->devices & mst_enc->connector->devices;
 	DRM_DEBUG_KMS("setting active device to %08x from %08x %08x for encoder %d\n",

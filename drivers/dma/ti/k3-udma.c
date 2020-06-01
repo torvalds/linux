@@ -5,6 +5,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
@@ -96,6 +97,24 @@ struct udma_match_data {
 	u32 level_start_idx[];
 };
 
+struct udma_hwdesc {
+	size_t cppi5_desc_size;
+	void *cppi5_desc_vaddr;
+	dma_addr_t cppi5_desc_paddr;
+
+	/* TR descriptor internal pointers */
+	void *tr_req_base;
+	struct cppi5_tr_resp_t *tr_resp_base;
+};
+
+struct udma_rx_flush {
+	struct udma_hwdesc hwdescs[2];
+
+	size_t buffer_size;
+	void *buffer_vaddr;
+	dma_addr_t buffer_paddr;
+};
+
 struct udma_dev {
 	struct dma_device ddev;
 	struct device *dev;
@@ -111,6 +130,8 @@ struct udma_dev {
 	struct work_struct purge_work;
 	struct list_head desc_to_purge;
 	spinlock_t lock;
+
+	struct udma_rx_flush rx_flush;
 
 	int tchan_cnt;
 	int echan_cnt;
@@ -128,16 +149,7 @@ struct udma_dev {
 
 	struct udma_chan *channels;
 	u32 psil_base;
-};
-
-struct udma_hwdesc {
-	size_t cppi5_desc_size;
-	void *cppi5_desc_vaddr;
-	dma_addr_t cppi5_desc_paddr;
-
-	/* TR descriptor internal pointers */
-	void *tr_req_base;
-	struct cppi5_tr_resp_t *tr_resp_base;
+	u32 atype;
 };
 
 struct udma_desc {
@@ -169,7 +181,7 @@ enum udma_chan_state {
 
 struct udma_tx_drain {
 	struct delayed_work work;
-	unsigned long jiffie;
+	ktime_t tstamp;
 	u32 residue;
 };
 
@@ -181,6 +193,7 @@ struct udma_chan_config {
 	u32 hdesc_size; /* Size of a packet descriptor in packet mode */
 	bool notdpkt; /* Suppress sending TDC packet */
 	int remote_thread_id;
+	u32 atype;
 	u32 src_thread;
 	u32 dst_thread;
 	enum psil_endpoint_type ep_type;
@@ -502,7 +515,7 @@ static bool udma_is_chan_paused(struct udma_chan *uc)
 {
 	u32 val, pause_mask;
 
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		val = udma_rchanrt_read(uc->rchan,
 					UDMA_RCHAN_RT_PEER_RT_EN_REG);
@@ -551,12 +564,17 @@ static void udma_sync_for_device(struct udma_chan *uc, int idx)
 	}
 }
 
+static inline dma_addr_t udma_get_rx_flush_hwdesc_paddr(struct udma_chan *uc)
+{
+	return uc->ud->rx_flush.hwdescs[uc->config.pkt_mode].cppi5_desc_paddr;
+}
+
 static int udma_push_to_ring(struct udma_chan *uc, int idx)
 {
 	struct udma_desc *d = uc->desc;
-
 	struct k3_ring *ring = NULL;
-	int ret = -EINVAL;
+	dma_addr_t paddr;
+	int ret;
 
 	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
@@ -567,19 +585,35 @@ static int udma_push_to_ring(struct udma_chan *uc, int idx)
 		ring = uc->tchan->t_ring;
 		break;
 	default:
-		break;
+		return -EINVAL;
 	}
 
-	if (ring) {
-		dma_addr_t desc_addr = udma_curr_cppi5_desc_paddr(d, idx);
+	/* RX flush packet: idx == -1 is only passed in case of DEV_TO_MEM */
+	if (idx == -1) {
+		paddr = udma_get_rx_flush_hwdesc_paddr(uc);
+	} else {
+		paddr = udma_curr_cppi5_desc_paddr(d, idx);
 
 		wmb(); /* Ensure that writes are not moved over this point */
 		udma_sync_for_device(uc, idx);
-		ret = k3_ringacc_ring_push(ring, &desc_addr);
-		uc->in_ring_cnt++;
 	}
 
+	ret = k3_ringacc_ring_push(ring, &paddr);
+	if (!ret)
+		uc->in_ring_cnt++;
+
 	return ret;
+}
+
+static bool udma_desc_is_rx_flush(struct udma_chan *uc, dma_addr_t addr)
+{
+	if (uc->config.dir != DMA_DEV_TO_MEM)
+		return false;
+
+	if (addr == udma_get_rx_flush_hwdesc_paddr(uc))
+		return true;
+
+	return false;
 }
 
 static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
@@ -609,6 +643,10 @@ static int udma_pop_from_ring(struct udma_chan *uc, dma_addr_t *addr)
 		/* Teardown completion */
 		if (cppi5_desc_is_tdcm(*addr))
 			return ret;
+
+		/* Check for flush descriptor */
+		if (udma_desc_is_rx_flush(uc, *addr))
+			return -ENOENT;
 
 		d = udma_udma_desc_from_paddr(uc, *addr);
 
@@ -890,6 +928,9 @@ static int udma_stop(struct udma_chan *uc)
 
 	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
+		if (!uc->cyclic && !uc->desc)
+			udma_push_to_ring(uc, -1);
+
 		udma_rchanrt_write(uc->rchan, UDMA_RCHAN_RT_PEER_RT_EN_REG,
 				   UDMA_PEER_RT_EN_ENABLE |
 				   UDMA_PEER_RT_EN_TEARDOWN);
@@ -946,9 +987,10 @@ static bool udma_is_desc_really_done(struct udma_chan *uc, struct udma_desc *d)
 	peer_bcnt = udma_tchanrt_read(uc->tchan, UDMA_TCHAN_RT_PEER_BCNT_REG);
 	bcnt = udma_tchanrt_read(uc->tchan, UDMA_TCHAN_RT_BCNT_REG);
 
+	/* Transfer is incomplete, store current residue and time stamp */
 	if (peer_bcnt < bcnt) {
 		uc->tx_drain.residue = bcnt - peer_bcnt;
-		uc->tx_drain.jiffie = jiffies;
+		uc->tx_drain.tstamp = ktime_get();
 		return false;
 	}
 
@@ -961,35 +1003,59 @@ static void udma_check_tx_completion(struct work_struct *work)
 					    tx_drain.work.work);
 	bool desc_done = true;
 	u32 residue_diff;
-	unsigned long jiffie_diff, delay;
+	ktime_t time_diff;
+	unsigned long delay;
 
-	if (uc->desc) {
-		residue_diff = uc->tx_drain.residue;
-		jiffie_diff = uc->tx_drain.jiffie;
-		desc_done = udma_is_desc_really_done(uc, uc->desc);
-	}
-
-	if (!desc_done) {
-		jiffie_diff = uc->tx_drain.jiffie - jiffie_diff;
-		residue_diff -= uc->tx_drain.residue;
-		if (residue_diff) {
-			/* Try to guess when we should check next time */
-			residue_diff /= jiffie_diff;
-			delay = uc->tx_drain.residue / residue_diff / 3;
-			if (jiffies_to_msecs(delay) < 5)
-				delay = 0;
-		} else {
-			/* No progress, check again in 1 second  */
-			delay = HZ;
+	while (1) {
+		if (uc->desc) {
+			/* Get previous residue and time stamp */
+			residue_diff = uc->tx_drain.residue;
+			time_diff = uc->tx_drain.tstamp;
+			/*
+			 * Get current residue and time stamp or see if
+			 * transfer is complete
+			 */
+			desc_done = udma_is_desc_really_done(uc, uc->desc);
 		}
 
-		schedule_delayed_work(&uc->tx_drain.work, delay);
-	} else if (uc->desc) {
-		struct udma_desc *d = uc->desc;
+		if (!desc_done) {
+			/*
+			 * Find the time delta and residue delta w.r.t
+			 * previous poll
+			 */
+			time_diff = ktime_sub(uc->tx_drain.tstamp,
+					      time_diff) + 1;
+			residue_diff -= uc->tx_drain.residue;
+			if (residue_diff) {
+				/*
+				 * Try to guess when we should check
+				 * next time by calculating rate at
+				 * which data is being drained at the
+				 * peer device
+				 */
+				delay = (time_diff / residue_diff) *
+					uc->tx_drain.residue;
+			} else {
+				/* No progress, check again in 1 second  */
+				schedule_delayed_work(&uc->tx_drain.work, HZ);
+				break;
+			}
 
-		uc->bcnt += d->residue;
-		udma_start(uc);
-		vchan_cookie_complete(&d->vd);
+			usleep_range(ktime_to_us(delay),
+				     ktime_to_us(delay) + 10);
+			continue;
+		}
+
+		if (uc->desc) {
+			struct udma_desc *d = uc->desc;
+
+			uc->bcnt += d->residue;
+			udma_start(uc);
+			vchan_cookie_complete(&d->vd);
+			break;
+		}
+
+		break;
 	}
 }
 
@@ -1033,29 +1099,27 @@ static irqreturn_t udma_ring_irq_handler(int irq, void *data)
 			goto out;
 		}
 
-		if (uc->cyclic) {
-			/* push the descriptor back to the ring */
-			if (d == uc->desc) {
+		if (d == uc->desc) {
+			/* active descriptor */
+			if (uc->cyclic) {
 				udma_cyclic_packet_elapsed(uc);
 				vchan_cyclic_callback(&d->vd);
-			}
-		} else {
-			bool desc_done = false;
-
-			if (d == uc->desc) {
-				desc_done = udma_is_desc_really_done(uc, d);
-
-				if (desc_done) {
+			} else {
+				if (udma_is_desc_really_done(uc, d)) {
 					uc->bcnt += d->residue;
 					udma_start(uc);
+					vchan_cookie_complete(&d->vd);
 				} else {
 					schedule_delayed_work(&uc->tx_drain.work,
 							      0);
 				}
 			}
-
-			if (desc_done)
-				vchan_cookie_complete(&d->vd);
+		} else {
+			/*
+			 * terminated descriptor, mark the descriptor as
+			 * completed to update the channel's cookie marker
+			 */
+			dma_cookie_complete(&d->vd.tx);
 		}
 	}
 out:
@@ -1507,7 +1571,8 @@ err_rflow:
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CHAN_TYPE_VALID |		\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_TX_SUPR_TDPKT_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_FETCH_SIZE_VALID |		\
-	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID)
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_CQ_QNUM_VALID |		\
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID)
 
 #define TISCI_RCHAN_VALID_PARAMS (				\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_PAUSE_ON_ERR_VALID |	\
@@ -1517,7 +1582,8 @@ err_rflow:
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_SHORT_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_IGNORE_LONG_VALID |	\
 	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_START_VALID |	\
-	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID)
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_RX_FLOWID_CNT_VALID |	\
+	TI_SCI_MSG_VALUE_RM_UDMAP_CH_ATYPE_VALID)
 
 static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 {
@@ -1539,6 +1605,7 @@ static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 	req_tx.tx_chan_type = TI_SCI_RM_UDMAP_CHAN_TYPE_3RDP_BCOPY_PBRR;
 	req_tx.tx_fetch_size = sizeof(struct cppi5_desc_hdr_t) >> 2;
 	req_tx.txcq_qnum = tc_ring;
+	req_tx.tx_atype = ud->atype;
 
 	ret = tisci_ops->tx_ch_cfg(tisci_rm->tisci, &req_tx);
 	if (ret) {
@@ -1552,6 +1619,7 @@ static int udma_tisci_m2m_channel_config(struct udma_chan *uc)
 	req_rx.rx_fetch_size = sizeof(struct cppi5_desc_hdr_t) >> 2;
 	req_rx.rxcq_qnum = tc_ring;
 	req_rx.rx_chan_type = TI_SCI_RM_UDMAP_CHAN_TYPE_3RDP_BCOPY_PBRR;
+	req_rx.rx_atype = ud->atype;
 
 	ret = tisci_ops->rx_ch_cfg(tisci_rm->tisci, &req_rx);
 	if (ret)
@@ -1587,6 +1655,7 @@ static int udma_tisci_tx_channel_config(struct udma_chan *uc)
 	req_tx.tx_supr_tdpkt = uc->config.notdpkt;
 	req_tx.tx_fetch_size = fetch_size >> 2;
 	req_tx.txcq_qnum = tc_ring;
+	req_tx.tx_atype = uc->config.atype;
 
 	ret = tisci_ops->tx_ch_cfg(tisci_rm->tisci, &req_tx);
 	if (ret)
@@ -1623,6 +1692,7 @@ static int udma_tisci_rx_channel_config(struct udma_chan *uc)
 	req_rx.rx_fetch_size =  fetch_size >> 2;
 	req_rx.rxcq_qnum = rx_ring;
 	req_rx.rx_chan_type = mode;
+	req_rx.rx_atype = uc->config.atype;
 
 	ret = tisci_ops->rx_ch_cfg(tisci_rm->tisci, &req_rx);
 	if (ret) {
@@ -1965,36 +2035,81 @@ static struct udma_desc *udma_alloc_tr_desc(struct udma_chan *uc,
 	return d;
 }
 
+/**
+ * udma_get_tr_counters - calculate TR counters for a given length
+ * @len: Length of the trasnfer
+ * @align_to: Preferred alignment
+ * @tr0_cnt0: First TR icnt0
+ * @tr0_cnt1: First TR icnt1
+ * @tr1_cnt0: Second (if used) TR icnt0
+ *
+ * For len < SZ_64K only one TR is enough, tr1_cnt0 is not updated
+ * For len >= SZ_64K two TRs are used in a simple way:
+ * First TR: SZ_64K-alignment blocks (tr0_cnt0, tr0_cnt1)
+ * Second TR: the remaining length (tr1_cnt0)
+ *
+ * Returns the number of TRs the length needs (1 or 2)
+ * -EINVAL if the length can not be supported
+ */
+static int udma_get_tr_counters(size_t len, unsigned long align_to,
+				u16 *tr0_cnt0, u16 *tr0_cnt1, u16 *tr1_cnt0)
+{
+	if (len < SZ_64K) {
+		*tr0_cnt0 = len;
+		*tr0_cnt1 = 1;
+
+		return 1;
+	}
+
+	if (align_to > 3)
+		align_to = 3;
+
+realign:
+	*tr0_cnt0 = SZ_64K - BIT(align_to);
+	if (len / *tr0_cnt0 >= SZ_64K) {
+		if (align_to) {
+			align_to--;
+			goto realign;
+		}
+		return -EINVAL;
+	}
+
+	*tr0_cnt1 = len / *tr0_cnt0;
+	*tr1_cnt0 = len % *tr0_cnt0;
+
+	return 2;
+}
+
 static struct udma_desc *
 udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 		      unsigned int sglen, enum dma_transfer_direction dir,
 		      unsigned long tx_flags, void *context)
 {
-	enum dma_slave_buswidth dev_width;
 	struct scatterlist *sgent;
 	struct udma_desc *d;
-	size_t tr_size;
 	struct cppi5_tr_type1_t *tr_req = NULL;
+	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
 	unsigned int i;
-	u32 burst;
+	size_t tr_size;
+	int num_tr = 0;
+	int tr_idx = 0;
 
-	if (dir == DMA_DEV_TO_MEM) {
-		dev_width = uc->cfg.src_addr_width;
-		burst = uc->cfg.src_maxburst;
-	} else if (dir == DMA_MEM_TO_DEV) {
-		dev_width = uc->cfg.dst_addr_width;
-		burst = uc->cfg.dst_maxburst;
-	} else {
-		dev_err(uc->ud->dev, "%s: bad direction?\n", __func__);
+	if (!is_slave_direction(dir)) {
+		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
 		return NULL;
 	}
 
-	if (!burst)
-		burst = 1;
+	/* estimate the number of TRs we will need */
+	for_each_sg(sgl, sgent, sglen, i) {
+		if (sg_dma_len(sgent) < SZ_64K)
+			num_tr++;
+		else
+			num_tr += 2;
+	}
 
 	/* Now allocate and setup the descriptor. */
 	tr_size = sizeof(struct cppi5_tr_type1_t);
-	d = udma_alloc_tr_desc(uc, tr_size, sglen, dir);
+	d = udma_alloc_tr_desc(uc, tr_size, num_tr, dir);
 	if (!d)
 		return NULL;
 
@@ -2002,19 +2117,46 @@ udma_prep_slave_sg_tr(struct udma_chan *uc, struct scatterlist *sgl,
 
 	tr_req = d->hwdesc[0].tr_req_base;
 	for_each_sg(sgl, sgent, sglen, i) {
-		d->residue += sg_dma_len(sgent);
+		dma_addr_t sg_addr = sg_dma_address(sgent);
+
+		num_tr = udma_get_tr_counters(sg_dma_len(sgent), __ffs(sg_addr),
+					      &tr0_cnt0, &tr0_cnt1, &tr1_cnt0);
+		if (num_tr < 0) {
+			dev_err(uc->ud->dev, "size %u is not supported\n",
+				sg_dma_len(sgent));
+			udma_free_hwdesc(uc, d);
+			kfree(d);
+			return NULL;
+		}
 
 		cppi5_tr_init(&tr_req[i].flags, CPPI5_TR_TYPE1, false, false,
 			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
 		cppi5_tr_csf_set(&tr_req[i].flags, CPPI5_TR_CSF_SUPR_EVT);
 
-		tr_req[i].addr = sg_dma_address(sgent);
-		tr_req[i].icnt0 = burst * dev_width;
-		tr_req[i].dim1 = burst * dev_width;
-		tr_req[i].icnt1 = sg_dma_len(sgent) / tr_req[i].icnt0;
+		tr_req[tr_idx].addr = sg_addr;
+		tr_req[tr_idx].icnt0 = tr0_cnt0;
+		tr_req[tr_idx].icnt1 = tr0_cnt1;
+		tr_req[tr_idx].dim1 = tr0_cnt0;
+		tr_idx++;
+
+		if (num_tr == 2) {
+			cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1,
+				      false, false,
+				      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
+					 CPPI5_TR_CSF_SUPR_EVT);
+
+			tr_req[tr_idx].addr = sg_addr + tr0_cnt1 * tr0_cnt0;
+			tr_req[tr_idx].icnt0 = tr1_cnt0;
+			tr_req[tr_idx].icnt1 = 1;
+			tr_req[tr_idx].dim1 = tr1_cnt0;
+			tr_idx++;
+		}
+
+		d->residue += sg_dma_len(sgent);
 	}
 
-	cppi5_tr_csf_set(&tr_req[i - 1].flags, CPPI5_TR_CSF_EOP);
+	cppi5_tr_csf_set(&tr_req[tr_idx - 1].flags, CPPI5_TR_CSF_EOP);
 
 	return d;
 }
@@ -2319,47 +2461,66 @@ udma_prep_dma_cyclic_tr(struct udma_chan *uc, dma_addr_t buf_addr,
 			size_t buf_len, size_t period_len,
 			enum dma_transfer_direction dir, unsigned long flags)
 {
-	enum dma_slave_buswidth dev_width;
 	struct udma_desc *d;
-	size_t tr_size;
+	size_t tr_size, period_addr;
 	struct cppi5_tr_type1_t *tr_req;
-	unsigned int i;
 	unsigned int periods = buf_len / period_len;
-	u32 burst;
+	u16 tr0_cnt0, tr0_cnt1, tr1_cnt0;
+	unsigned int i;
+	int num_tr;
 
-	if (dir == DMA_DEV_TO_MEM) {
-		dev_width = uc->cfg.src_addr_width;
-		burst = uc->cfg.src_maxburst;
-	} else if (dir == DMA_MEM_TO_DEV) {
-		dev_width = uc->cfg.dst_addr_width;
-		burst = uc->cfg.dst_maxburst;
-	} else {
-		dev_err(uc->ud->dev, "%s: bad direction?\n", __func__);
+	if (!is_slave_direction(dir)) {
+		dev_err(uc->ud->dev, "Only slave cyclic is supported\n");
 		return NULL;
 	}
 
-	if (!burst)
-		burst = 1;
+	num_tr = udma_get_tr_counters(period_len, __ffs(buf_addr), &tr0_cnt0,
+				      &tr0_cnt1, &tr1_cnt0);
+	if (num_tr < 0) {
+		dev_err(uc->ud->dev, "size %zu is not supported\n",
+			period_len);
+		return NULL;
+	}
 
 	/* Now allocate and setup the descriptor. */
 	tr_size = sizeof(struct cppi5_tr_type1_t);
-	d = udma_alloc_tr_desc(uc, tr_size, periods, dir);
+	d = udma_alloc_tr_desc(uc, tr_size, periods * num_tr, dir);
 	if (!d)
 		return NULL;
 
 	tr_req = d->hwdesc[0].tr_req_base;
+	period_addr = buf_addr;
 	for (i = 0; i < periods; i++) {
-		cppi5_tr_init(&tr_req[i].flags, CPPI5_TR_TYPE1, false, false,
-			      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+		int tr_idx = i * num_tr;
 
-		tr_req[i].addr = buf_addr + period_len * i;
-		tr_req[i].icnt0 = dev_width;
-		tr_req[i].icnt1 = period_len / dev_width;
-		tr_req[i].dim1 = dev_width;
+		cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1, false,
+			      false, CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+
+		tr_req[tr_idx].addr = period_addr;
+		tr_req[tr_idx].icnt0 = tr0_cnt0;
+		tr_req[tr_idx].icnt1 = tr0_cnt1;
+		tr_req[tr_idx].dim1 = tr0_cnt0;
+
+		if (num_tr == 2) {
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
+					 CPPI5_TR_CSF_SUPR_EVT);
+			tr_idx++;
+
+			cppi5_tr_init(&tr_req[tr_idx].flags, CPPI5_TR_TYPE1,
+				      false, false,
+				      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+
+			tr_req[tr_idx].addr = period_addr + tr0_cnt1 * tr0_cnt0;
+			tr_req[tr_idx].icnt0 = tr1_cnt0;
+			tr_req[tr_idx].icnt1 = 1;
+			tr_req[tr_idx].dim1 = tr1_cnt0;
+		}
 
 		if (!(flags & DMA_PREP_INTERRUPT))
-			cppi5_tr_csf_set(&tr_req[i].flags,
+			cppi5_tr_csf_set(&tr_req[tr_idx].flags,
 					 CPPI5_TR_CSF_SUPR_EVT);
+
+		period_addr += period_len;
 	}
 
 	return d;
@@ -2517,29 +2678,12 @@ udma_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		return NULL;
 	}
 
-	if (len < SZ_64K) {
-		num_tr = 1;
-		tr0_cnt0 = len;
-		tr0_cnt1 = 1;
-	} else {
-		unsigned long align_to = __ffs(src | dest);
-
-		if (align_to > 3)
-			align_to = 3;
-		/*
-		 * Keep simple: tr0: SZ_64K-alignment blocks,
-		 *		tr1: the remaining
-		 */
-		num_tr = 2;
-		tr0_cnt0 = (SZ_64K - BIT(align_to));
-		if (len / tr0_cnt0 >= SZ_64K) {
-			dev_err(uc->ud->dev, "size %zu is not supported\n",
-				len);
-			return NULL;
-		}
-
-		tr0_cnt1 = len / tr0_cnt0;
-		tr1_cnt0 = len % tr0_cnt0;
+	num_tr = udma_get_tr_counters(len, __ffs(src | dest), &tr0_cnt0,
+				      &tr0_cnt1, &tr1_cnt0);
+	if (num_tr < 0) {
+		dev_err(uc->ud->dev, "size %zu is not supported\n",
+			len);
+		return NULL;
 	}
 
 	d = udma_alloc_tr_desc(uc, tr_size, num_tr, DMA_MEM_TO_MEM);
@@ -2631,6 +2775,9 @@ static enum dma_status udma_tx_status(struct dma_chan *chan,
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 
+	if (!udma_is_chan_running(uc))
+		ret = DMA_COMPLETE;
+
 	if (ret == DMA_IN_PROGRESS && udma_is_chan_paused(uc))
 		ret = DMA_PAUSED;
 
@@ -2697,11 +2844,8 @@ static int udma_pause(struct dma_chan *chan)
 {
 	struct udma_chan *uc = to_udma_chan(chan);
 
-	if (!uc->desc)
-		return -EINVAL;
-
 	/* pause the channel */
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		udma_rchanrt_update_bits(uc->rchan,
 					 UDMA_RCHAN_RT_PEER_RT_EN_REG,
@@ -2730,11 +2874,8 @@ static int udma_resume(struct dma_chan *chan)
 {
 	struct udma_chan *uc = to_udma_chan(chan);
 
-	if (!uc->desc)
-		return -EINVAL;
-
 	/* resume the channel */
-	switch (uc->desc->dir) {
+	switch (uc->config.dir) {
 	case DMA_DEV_TO_MEM:
 		udma_rchanrt_update_bits(uc->rchan,
 					 UDMA_RCHAN_RT_PEER_RT_EN_REG,
@@ -2930,13 +3071,18 @@ static void udma_free_chan_resources(struct dma_chan *chan)
 
 static struct platform_driver udma_driver;
 
+struct udma_filter_param {
+	int remote_thread_id;
+	u32 atype;
+};
+
 static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 {
 	struct udma_chan_config *ucc;
 	struct psil_endpoint_config *ep_config;
+	struct udma_filter_param *filter_param;
 	struct udma_chan *uc;
 	struct udma_dev *ud;
-	u32 *args;
 
 	if (chan->device->dev->driver != &udma_driver.driver)
 		return false;
@@ -2944,9 +3090,16 @@ static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 	uc = to_udma_chan(chan);
 	ucc = &uc->config;
 	ud = uc->ud;
-	args = param;
+	filter_param = param;
 
-	ucc->remote_thread_id = args[0];
+	if (filter_param->atype > 2) {
+		dev_err(ud->dev, "Invalid channel atype: %u\n",
+			filter_param->atype);
+		return false;
+	}
+
+	ucc->remote_thread_id = filter_param->remote_thread_id;
+	ucc->atype = filter_param->atype;
 
 	if (ucc->remote_thread_id & K3_PSIL_DST_THREAD_ID_OFFSET)
 		ucc->dir = DMA_MEM_TO_DEV;
@@ -2959,6 +3112,7 @@ static bool udma_dma_filter_fn(struct dma_chan *chan, void *param)
 			ucc->remote_thread_id);
 		ucc->dir = DMA_MEM_TO_MEM;
 		ucc->remote_thread_id = -1;
+		ucc->atype = 0;
 		return false;
 	}
 
@@ -2997,13 +3151,20 @@ static struct dma_chan *udma_of_xlate(struct of_phandle_args *dma_spec,
 {
 	struct udma_dev *ud = ofdma->of_dma_data;
 	dma_cap_mask_t mask = ud->ddev.cap_mask;
+	struct udma_filter_param filter_param;
 	struct dma_chan *chan;
 
-	if (dma_spec->args_count != 1)
+	if (dma_spec->args_count != 1 && dma_spec->args_count != 2)
 		return NULL;
 
-	chan = __dma_request_channel(&mask, udma_dma_filter_fn,
-				     &dma_spec->args[0], ofdma->of_node);
+	filter_param.remote_thread_id = dma_spec->args[0];
+	if (dma_spec->args_count == 2)
+		filter_param.atype = dma_spec->args[1];
+	else
+		filter_param.atype = 0;
+
+	chan = __dma_request_channel(&mask, udma_dma_filter_fn, &filter_param,
+				     ofdma->of_node);
 	if (!chan) {
 		dev_err(ud->dev, "get channel fail in %s.\n", __func__);
 		return ERR_PTR(-EINVAL);
@@ -3248,6 +3409,158 @@ static int udma_setup_resources(struct udma_dev *ud)
 	return ch_count;
 }
 
+static int udma_setup_rx_flush(struct udma_dev *ud)
+{
+	struct udma_rx_flush *rx_flush = &ud->rx_flush;
+	struct cppi5_desc_hdr_t *tr_desc;
+	struct cppi5_tr_type1_t *tr_req;
+	struct cppi5_host_desc_t *desc;
+	struct device *dev = ud->dev;
+	struct udma_hwdesc *hwdesc;
+	size_t tr_size;
+
+	/* Allocate 1K buffer for discarded data on RX channel teardown */
+	rx_flush->buffer_size = SZ_1K;
+	rx_flush->buffer_vaddr = devm_kzalloc(dev, rx_flush->buffer_size,
+					      GFP_KERNEL);
+	if (!rx_flush->buffer_vaddr)
+		return -ENOMEM;
+
+	rx_flush->buffer_paddr = dma_map_single(dev, rx_flush->buffer_vaddr,
+						rx_flush->buffer_size,
+						DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, rx_flush->buffer_paddr))
+		return -ENOMEM;
+
+	/* Set up descriptor to be used for TR mode */
+	hwdesc = &rx_flush->hwdescs[0];
+	tr_size = sizeof(struct cppi5_tr_type1_t);
+	hwdesc->cppi5_desc_size = cppi5_trdesc_calc_size(tr_size, 1);
+	hwdesc->cppi5_desc_size = ALIGN(hwdesc->cppi5_desc_size,
+					ud->desc_align);
+
+	hwdesc->cppi5_desc_vaddr = devm_kzalloc(dev, hwdesc->cppi5_desc_size,
+						GFP_KERNEL);
+	if (!hwdesc->cppi5_desc_vaddr)
+		return -ENOMEM;
+
+	hwdesc->cppi5_desc_paddr = dma_map_single(dev, hwdesc->cppi5_desc_vaddr,
+						  hwdesc->cppi5_desc_size,
+						  DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, hwdesc->cppi5_desc_paddr))
+		return -ENOMEM;
+
+	/* Start of the TR req records */
+	hwdesc->tr_req_base = hwdesc->cppi5_desc_vaddr + tr_size;
+	/* Start address of the TR response array */
+	hwdesc->tr_resp_base = hwdesc->tr_req_base + tr_size;
+
+	tr_desc = hwdesc->cppi5_desc_vaddr;
+	cppi5_trdesc_init(tr_desc, 1, tr_size, 0, 0);
+	cppi5_desc_set_pktids(tr_desc, 0, CPPI5_INFO1_DESC_FLOWID_DEFAULT);
+	cppi5_desc_set_retpolicy(tr_desc, 0, 0);
+
+	tr_req = hwdesc->tr_req_base;
+	cppi5_tr_init(&tr_req->flags, CPPI5_TR_TYPE1, false, false,
+		      CPPI5_TR_EVENT_SIZE_COMPLETION, 0);
+	cppi5_tr_csf_set(&tr_req->flags, CPPI5_TR_CSF_SUPR_EVT);
+
+	tr_req->addr = rx_flush->buffer_paddr;
+	tr_req->icnt0 = rx_flush->buffer_size;
+	tr_req->icnt1 = 1;
+
+	/* Set up descriptor to be used for packet mode */
+	hwdesc = &rx_flush->hwdescs[1];
+	hwdesc->cppi5_desc_size = ALIGN(sizeof(struct cppi5_host_desc_t) +
+					CPPI5_INFO0_HDESC_EPIB_SIZE +
+					CPPI5_INFO0_HDESC_PSDATA_MAX_SIZE,
+					ud->desc_align);
+
+	hwdesc->cppi5_desc_vaddr = devm_kzalloc(dev, hwdesc->cppi5_desc_size,
+						GFP_KERNEL);
+	if (!hwdesc->cppi5_desc_vaddr)
+		return -ENOMEM;
+
+	hwdesc->cppi5_desc_paddr = dma_map_single(dev, hwdesc->cppi5_desc_vaddr,
+						  hwdesc->cppi5_desc_size,
+						  DMA_TO_DEVICE);
+	if (dma_mapping_error(dev, hwdesc->cppi5_desc_paddr))
+		return -ENOMEM;
+
+	desc = hwdesc->cppi5_desc_vaddr;
+	cppi5_hdesc_init(desc, 0, 0);
+	cppi5_desc_set_pktids(&desc->hdr, 0, CPPI5_INFO1_DESC_FLOWID_DEFAULT);
+	cppi5_desc_set_retpolicy(&desc->hdr, 0, 0);
+
+	cppi5_hdesc_attach_buf(desc,
+			       rx_flush->buffer_paddr, rx_flush->buffer_size,
+			       rx_flush->buffer_paddr, rx_flush->buffer_size);
+
+	dma_sync_single_for_device(dev, hwdesc->cppi5_desc_paddr,
+				   hwdesc->cppi5_desc_size, DMA_TO_DEVICE);
+	return 0;
+}
+
+#ifdef CONFIG_DEBUG_FS
+static void udma_dbg_summary_show_chan(struct seq_file *s,
+				       struct dma_chan *chan)
+{
+	struct udma_chan *uc = to_udma_chan(chan);
+	struct udma_chan_config *ucc = &uc->config;
+
+	seq_printf(s, " %-13s| %s", dma_chan_name(chan),
+		   chan->dbg_client_name ?: "in-use");
+	seq_printf(s, " (%s, ", dmaengine_get_direction_text(uc->config.dir));
+
+	switch (uc->config.dir) {
+	case DMA_MEM_TO_MEM:
+		seq_printf(s, "chan%d pair [0x%04x -> 0x%04x], ", uc->tchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	case DMA_DEV_TO_MEM:
+		seq_printf(s, "rchan%d [0x%04x -> 0x%04x], ", uc->rchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	case DMA_MEM_TO_DEV:
+		seq_printf(s, "tchan%d [0x%04x -> 0x%04x], ", uc->tchan->id,
+			   ucc->src_thread, ucc->dst_thread);
+		break;
+	default:
+		seq_printf(s, ")\n");
+		return;
+	}
+
+	if (ucc->ep_type == PSIL_EP_NATIVE) {
+		seq_printf(s, "PSI-L Native");
+		if (ucc->metadata_size) {
+			seq_printf(s, "[%s", ucc->needs_epib ? " EPIB" : "");
+			if (ucc->psd_size)
+				seq_printf(s, " PSDsize:%u", ucc->psd_size);
+			seq_printf(s, " ]");
+		}
+	} else {
+		seq_printf(s, "PDMA");
+		if (ucc->enable_acc32 || ucc->enable_burst)
+			seq_printf(s, "[%s%s ]",
+				   ucc->enable_acc32 ? " ACC32" : "",
+				   ucc->enable_burst ? " BURST" : "");
+	}
+
+	seq_printf(s, ", %s)\n", ucc->pkt_mode ? "Packet mode" : "TR mode");
+}
+
+static void udma_dbg_summary_show(struct seq_file *s,
+				  struct dma_device *dma_dev)
+{
+	struct dma_chan *chan;
+
+	list_for_each_entry(chan, &dma_dev->channels, device_node) {
+		if (chan->client_count)
+			udma_dbg_summary_show_chan(s, chan);
+	}
+}
+#endif /* CONFIG_DEBUG_FS */
+
 #define TI_UDMAC_BUSWIDTHS	(BIT(DMA_SLAVE_BUSWIDTH_1_BYTE) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				 BIT(DMA_SLAVE_BUSWIDTH_3_BYTES) | \
@@ -3294,6 +3607,12 @@ static int udma_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ret = of_property_read_u32(navss_node, "ti,udma-atype", &ud->atype);
+	if (!ret && ud->atype > 2) {
+		dev_err(dev, "Invalid atype: %u\n", ud->atype);
+		return -EINVAL;
+	}
+
 	ud->tisci_rm.tisci_udmap_ops = &ud->tisci_rm.tisci->ops.rm_udmap_ops;
 	ud->tisci_rm.tisci_psil_ops = &ud->tisci_rm.tisci->ops.rm_psil_ops;
 
@@ -3328,6 +3647,9 @@ static int udma_probe(struct platform_device *pdev)
 	ud->ddev.device_resume = udma_resume;
 	ud->ddev.device_terminate_all = udma_terminate_all;
 	ud->ddev.device_synchronize = udma_synchronize;
+#ifdef CONFIG_DEBUG_FS
+	ud->ddev.dbg_summary_show = udma_dbg_summary_show;
+#endif
 
 	ud->ddev.device_free_chan_resources = udma_free_chan_resources;
 	ud->ddev.src_addr_widths = TI_UDMAC_BUSWIDTHS;
@@ -3360,6 +3682,10 @@ static int udma_probe(struct platform_device *pdev)
 	ud->desc_align = 64;
 	if (ud->desc_align < dma_get_cache_alignment())
 		ud->desc_align = dma_get_cache_alignment();
+
+	ret = udma_setup_rx_flush(ud);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < ud->tchan_cnt; i++) {
 		struct udma_tchan *tchan = &ud->tchans[i];

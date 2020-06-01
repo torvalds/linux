@@ -18,7 +18,7 @@ description: |+
                 "amlogic,meson-gx-hhi-sysctrl", "simple-mfd", "syscon"
 
   Refer to the the bindings described in
-  Documentation/devicetree/bindings/mfd/syscon.txt
+  Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:
   compatible:
@@ -67,6 +67,8 @@ required:
   - reset-names
   - "#power-domain-cells"
   - amlogic,ao-sysctrl
+
+additionalProperties: false
 
 examples:
   - |

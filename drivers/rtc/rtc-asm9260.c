@@ -264,6 +264,9 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->iobase);
 
 	priv->clk = devm_clk_get(dev, "ahb");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
 	ret = clk_prepare_enable(priv->clk);
 	if (ret) {
 		dev_err(dev, "Failed to enable clk!\n");

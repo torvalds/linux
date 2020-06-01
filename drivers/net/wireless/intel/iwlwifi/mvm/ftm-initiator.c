@@ -8,6 +8,7 @@
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * Copyright (C) 2018 Intel Corporation
  * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * Copyright (C) 2018 Intel Corporation
  * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -276,6 +278,10 @@ iwl_mvm_ftm_target_chandef_v2(struct iwl_mvm *mvm,
 		return -EINVAL;
 	}
 
+	/* non EDCA based measurement must use HE preamble */
+	if (peer->ftm.trigger_based || peer->ftm.non_trigger_based)
+		*format_bw |= IWL_LOCATION_FRAME_FORMAT_HE;
+
 	*ctrl_ch_position = (peer->chandef.width > NL80211_CHAN_WIDTH_20) ?
 		iwl_mvm_get_ctrl_pos(&peer->chandef) : 0;
 
@@ -347,6 +353,11 @@ iwl_mvm_ftm_put_target_common(struct iwl_mvm *mvm,
 		FTM_PUT_FLAG(ALGO_LR);
 	else if (IWL_MVM_FTM_INITIATOR_ALGO == IWL_TOF_ALGO_TYPE_FFT)
 		FTM_PUT_FLAG(ALGO_FFT);
+
+	if (peer->ftm.trigger_based)
+		FTM_PUT_FLAG(TB);
+	else if (peer->ftm.non_trigger_based)
+		FTM_PUT_FLAG(NON_TB);
 }
 
 static int
@@ -528,6 +539,8 @@ void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req)
 	if (req != mvm->ftm_initiator.req)
 		return;
 
+	iwl_mvm_ftm_reset(mvm);
+
 	if (iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(TOF_RANGE_ABORT_CMD,
 						 LOCATION_GROUP, 0),
 				 0, sizeof(cmd), &cmd))
@@ -641,7 +654,6 @@ void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->ftm_initiator.req) {
-		IWL_ERR(mvm, "Got FTM response but have no request?\n");
 		return;
 	}
 

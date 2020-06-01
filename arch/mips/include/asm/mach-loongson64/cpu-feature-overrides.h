@@ -46,5 +46,7 @@
 #define cpu_has_wsbh		1
 #define cpu_has_ic_fills_f_dc	1
 #define cpu_hwrena_impl_bits	0xc0000000
+#define cpu_has_mac2008_only	1
+#define cpu_has_mips_r2_exec_hazard 0
 
 #endif /* __ASM_MACH_LOONGSON64_CPU_FEATURE_OVERRIDES_H */

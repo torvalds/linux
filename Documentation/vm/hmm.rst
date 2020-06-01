@@ -149,25 +149,23 @@ CPU page table into a device page table; HMM helps keep both synchronized. A
 device driver that wants to mirror a process address space must start with the
 registration of a mmu_interval_notifier::
 
- mni->ops = &driver_ops;
- int mmu_interval_notifier_insert(struct mmu_interval_notifier *mni,
-			          unsigned long start, unsigned long length,
-			          struct mm_struct *mm);
+ int mmu_interval_notifier_insert(struct mmu_interval_notifier *interval_sub,
+				  struct mm_struct *mm, unsigned long start,
+				  unsigned long length,
+				  const struct mmu_interval_notifier_ops *ops);
 
-During the driver_ops->invalidate() callback the device driver must perform
-the update action to the range (mark range read only, or fully unmap,
-etc.). The device must complete the update before the driver callback returns.
+During the ops->invalidate() callback the device driver must perform the
+update action to the range (mark range read only, or fully unmap, etc.). The
+device must complete the update before the driver callback returns.
 
 When the device driver wants to populate a range of virtual addresses, it can
 use::
 
-  long hmm_range_fault(struct hmm_range *range, unsigned int flags);
+  long hmm_range_fault(struct hmm_range *range);
 
-With the HMM_RANGE_SNAPSHOT flag, it will only fetch present CPU page table
-entries and will not trigger a page fault on missing or non-present entries.
-Without that flag, it does trigger a page fault on missing or read-only entries
-if write access is requested (see below). Page faults use the generic mm page
-fault code path just like a CPU page fault.
+It will trigger a page fault on missing or read-only entries if write access is
+requested (see below). Page faults use the generic mm page fault code path just
+like a CPU page fault.
 
 Both functions copy CPU page table entries into their pfns array argument. Each
 entry in that array corresponds to an address in the virtual range. HMM
@@ -183,7 +181,7 @@ The usage pattern is::
       struct hmm_range range;
       ...
 
-      range.notifier = &mni;
+      range.notifier = &interval_sub;
       range.start = ...;
       range.end = ...;
       range.pfns = ...;
@@ -191,13 +189,13 @@ The usage pattern is::
       range.values = ...;
       range.pfn_shift = ...;
 
-      if (!mmget_not_zero(mni->notifier.mm))
+      if (!mmget_not_zero(interval_sub->notifier.mm))
           return -EFAULT;
 
  again:
-      range.notifier_seq = mmu_interval_read_begin(&mni);
+      range.notifier_seq = mmu_interval_read_begin(&interval_sub);
       down_read(&mm->mmap_sem);
-      ret = hmm_range_fault(&range, HMM_RANGE_SNAPSHOT);
+      ret = hmm_range_fault(&range);
       if (ret) {
           up_read(&mm->mmap_sem);
           if (ret == -EBUSY)

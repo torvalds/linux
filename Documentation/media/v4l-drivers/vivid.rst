@@ -4,9 +4,9 @@ The Virtual Video Test Driver (vivid)
 =====================================
 
 This driver emulates video4linux hardware of various types: video capture, video
-output, vbi capture and output, radio receivers and transmitters and a software
-defined radio receiver. In addition a simple framebuffer device is available for
-testing capture and output overlays.
+output, vbi capture and output, metadata capture and output, radio receivers and
+transmitters, touch capture and a software defined radio receiver. In addition a
+simple framebuffer device is available for testing capture and output overlays.
 
 Up to 64 vivid instances can be created, each with up to 16 inputs and 16 outputs.
 
@@ -36,6 +36,8 @@ This document describes the features implemented by this driver:
 - Radio receiver and transmitter support, including RDS support
 - Software defined radio (SDR) support
 - Capture and output overlay support
+- Metadata capture and output support
+- Touch capture support
 
 These features will be described in more detail below.
 
@@ -69,6 +71,9 @@ all configurable using the following module options:
 		- bit 10-11: VBI Output node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both
 		- bit 12: Radio Transmitter node
 		- bit 16: Framebuffer for testing overlays
+		- bit 17: Metadata Capture node
+		- bit 18: Metadata Output node
+		- bit 19: Touch Capture node
 
 	So to create four instances, the first two with just one video capture
 	device, the second two with just one video output device you would pass
@@ -174,6 +179,21 @@ all configurable using the following module options:
 
 	give the desired swradioX start number for each SDR capture device.
 	The default is -1 which will just take the first free number.
+
+- meta_cap_nr:
+
+        give the desired videoX start number for each metadata capture device.
+        The default is -1 which will just take the first free number.
+
+- meta_out_nr:
+
+        give the desired videoX start number for each metadata output device.
+        The default is -1 which will just take the first free number.
+
+- touch_cap_nr:
+
+        give the desired v4l-touchX start number for each touch capture device.
+        The default is -1 which will just take the first free number.
 
 - ccs_cap_mode:
 
@@ -546,6 +566,33 @@ The RF tuner supports 50 MHz - 2000 MHz.
 The generated data contains the In-phase and Quadrature components of a
 1 kHz tone that has an amplitude of sqrt(2).
 
+
+Metadata Capture
+----------------
+
+The Metadata capture generates UVC format metadata. The PTS and SCR are
+transmitted based on the values set in vivid contols.
+
+The Metadata device will only work for the Webcam input, it will give
+back an error for all other inputs.
+
+
+Metadata Output
+---------------
+
+The Metadata output can be used to set brightness, contrast, saturation and hue.
+
+The Metadata device will only work for the Webcam output, it will give
+back an error for all other outputs.
+
+
+Touch Capture
+-------------
+
+The Touch capture generates touch patterns simulating single tap, double tap,
+triple tap, move from left to right, zoom in, zoom out, palm press (simulating
+a large area being pressed on a touchpad), and simulating 16 simultaneous
+touch points.
 
 Controls
 --------
@@ -1049,6 +1096,16 @@ FM Radio Modulator Controls
 	to pass the RDS blocks to the driver, or "Controls" where the RDS data
 	is Provided by the RDS controls mentioned above.
 
+Metadata Capture Controls
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- Generate PTS
+
+        if set, then the generated metadata stream contains Presentation timestamp.
+
+- Generate SCR
+
+        if set, then the generated metadata stream contains Source Clock information.
 
 Video, VBI and RDS Looping
 --------------------------

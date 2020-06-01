@@ -400,12 +400,12 @@ static int s6e63j0x03_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int s6e63j0x03_get_modes(struct drm_panel *panel)
+static int s6e63j0x03_get_modes(struct drm_panel *panel,
+				struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(panel->drm, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, &default_mode);
 	if (!mode) {
 		DRM_ERROR("failed to add mode %ux%ux@%u\n",
 			default_mode.hdisplay, default_mode.vdisplay,

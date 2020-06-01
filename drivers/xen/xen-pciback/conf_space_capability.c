@@ -189,6 +189,85 @@ static const struct config_field caplist_pm[] = {
 	{}
 };
 
+static struct msi_msix_field_config {
+	u16          enable_bit; /* bit for enabling MSI/MSI-X */
+	unsigned int int_type;   /* interrupt type for exclusiveness check */
+} msi_field_config = {
+	.enable_bit	= PCI_MSI_FLAGS_ENABLE,
+	.int_type	= INTERRUPT_TYPE_MSI,
+}, msix_field_config = {
+	.enable_bit	= PCI_MSIX_FLAGS_ENABLE,
+	.int_type	= INTERRUPT_TYPE_MSIX,
+};
+
+static void *msi_field_init(struct pci_dev *dev, int offset)
+{
+	return &msi_field_config;
+}
+
+static void *msix_field_init(struct pci_dev *dev, int offset)
+{
+	return &msix_field_config;
+}
+
+static int msi_msix_flags_write(struct pci_dev *dev, int offset, u16 new_value,
+				void *data)
+{
+	int err;
+	u16 old_value;
+	const struct msi_msix_field_config *field_config = data;
+	const struct xen_pcibk_dev_data *dev_data = pci_get_drvdata(dev);
+
+	if (xen_pcibk_permissive || dev_data->permissive)
+		goto write;
+
+	err = pci_read_config_word(dev, offset, &old_value);
+	if (err)
+		return err;
+
+	if (new_value == old_value)
+		return 0;
+
+	if (!dev_data->allow_interrupt_control ||
+	    (new_value ^ old_value) & ~field_config->enable_bit)
+		return PCIBIOS_SET_FAILED;
+
+	if (new_value & field_config->enable_bit) {
+		/* don't allow enabling together with other interrupt types */
+		int int_type = xen_pcibk_get_interrupt_type(dev);
+
+		if (int_type == INTERRUPT_TYPE_NONE ||
+		    int_type == field_config->int_type)
+			goto write;
+		return PCIBIOS_SET_FAILED;
+	}
+
+write:
+	return pci_write_config_word(dev, offset, new_value);
+}
+
+static const struct config_field caplist_msix[] = {
+	{
+		.offset    = PCI_MSIX_FLAGS,
+		.size      = 2,
+		.init      = msix_field_init,
+		.u.w.read  = xen_pcibk_read_config_word,
+		.u.w.write = msi_msix_flags_write,
+	},
+	{}
+};
+
+static const struct config_field caplist_msi[] = {
+	{
+		.offset    = PCI_MSI_FLAGS,
+		.size      = 2,
+		.init      = msi_field_init,
+		.u.w.read  = xen_pcibk_read_config_word,
+		.u.w.write = msi_msix_flags_write,
+	},
+	{}
+};
+
 static struct xen_pcibk_config_capability xen_pcibk_config_capability_pm = {
 	.capability = PCI_CAP_ID_PM,
 	.fields = caplist_pm,
@@ -197,11 +276,21 @@ static struct xen_pcibk_config_capability xen_pcibk_config_capability_vpd = {
 	.capability = PCI_CAP_ID_VPD,
 	.fields = caplist_vpd,
 };
+static struct xen_pcibk_config_capability xen_pcibk_config_capability_msi = {
+	.capability = PCI_CAP_ID_MSI,
+	.fields = caplist_msi,
+};
+static struct xen_pcibk_config_capability xen_pcibk_config_capability_msix = {
+	.capability = PCI_CAP_ID_MSIX,
+	.fields = caplist_msix,
+};
 
 int xen_pcibk_config_capability_init(void)
 {
 	register_capability(&xen_pcibk_config_capability_vpd);
 	register_capability(&xen_pcibk_config_capability_pm);
+	register_capability(&xen_pcibk_config_capability_msi);
+	register_capability(&xen_pcibk_config_capability_msix);
 
 	return 0;
 }

@@ -1,7 +1,5 @@
-// SPDX-License-Identifier: (GPL-2.0+ or MIT)
-/*
- * Copyright (C) 2019 Clément Péron <peron.clem@gmail.com>
- */
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (C) 2019 Clément Péron <peron.clem@gmail.com>
 
 /dts-v1/;
 
@@ -32,6 +30,13 @@
 				remote-endpoint = <&hdmi_out_con>;
 			};
 		};
+	};
+
+	ext_osc32k: ext_osc32k_clk {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <32768>;
+		clock-output-names = "ext_osc32k";
 	};
 
 	leds {
@@ -73,6 +78,10 @@
 };
 
 &de {
+	status = "okay";
+};
+
+&dwc3 {
 	status = "okay";
 };
 
@@ -273,6 +282,10 @@
 	vcc-pm-supply = <&reg_aldo1>;
 };
 
+&rtc {
+	clocks = <&ext_osc32k>;
+};
+
 &spdif {
 	status = "okay";
 };
@@ -290,5 +303,9 @@
 
 &usb2phy {
 	usb0_vbus-supply = <&reg_vcc5v>;
+	status = "okay";
+};
+
+&usb3phy {
 	status = "okay";
 };

@@ -44,12 +44,17 @@ struct intel_wakeref {
 	struct work_struct work;
 };
 
+struct intel_wakeref_lockclass {
+	struct lock_class_key mutex;
+	struct lock_class_key work;
+};
+
 void __intel_wakeref_init(struct intel_wakeref *wf,
 			  struct intel_runtime_pm *rpm,
 			  const struct intel_wakeref_ops *ops,
-			  struct lock_class_key *key);
+			  struct intel_wakeref_lockclass *key);
 #define intel_wakeref_init(wf, rpm, ops) do {				\
-	static struct lock_class_key __key;				\
+	static struct intel_wakeref_lockclass __key;			\
 									\
 	__intel_wakeref_init((wf), (rpm), (ops), &__key);		\
 } while (0)
@@ -59,9 +64,7 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags);
 
 /**
  * intel_wakeref_get: Acquire the wakeref
- * @i915: the drm_i915_private device
  * @wf: the wakeref
- * @fn: callback for acquired the wakeref, called only on first acquire.
  *
  * Acquire a hold on the wakeref. The first user to do so, will acquire
  * the runtime pm wakeref and then call the @fn underneath the wakeref
@@ -76,10 +79,27 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags);
 static inline int
 intel_wakeref_get(struct intel_wakeref *wf)
 {
+	might_sleep();
 	if (unlikely(!atomic_inc_not_zero(&wf->count)))
 		return __intel_wakeref_get_first(wf);
 
 	return 0;
+}
+
+/**
+ * __intel_wakeref_get: Acquire the wakeref, again
+ * @wf: the wakeref
+ *
+ * Increment the wakeref counter, only valid if it is already held by
+ * the caller.
+ *
+ * See intel_wakeref_get().
+ */
+static inline void
+__intel_wakeref_get(struct intel_wakeref *wf)
+{
+	INTEL_WAKEREF_BUG_ON(atomic_read(&wf->count) <= 0);
+	atomic_inc(&wf->count);
 }
 
 /**

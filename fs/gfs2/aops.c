@@ -183,14 +183,12 @@ static int gfs2_jdata_writepage(struct page *page, struct writeback_control *wbc
 	struct inode *inode = page->mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	int ret;
 
 	if (gfs2_assert_withdraw(sdp, gfs2_glock_is_held_excl(ip->i_gl)))
 		goto out;
 	if (PageChecked(page) || current->journal_info)
 		goto out_ignore;
-	ret = __gfs2_jdata_writepage(page, wbc);
-	return ret;
+	return __gfs2_jdata_writepage(page, wbc);
 
 out_ignore:
 	redirty_page_for_writepage(wbc, page);
@@ -807,11 +805,16 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
-			if (!list_empty(&bd->bd_list))
-				list_del_init(&bd->bd_list);
 			bd->bd_bh = NULL;
 			bh->b_private = NULL;
-			kmem_cache_free(gfs2_bufdata_cachep, bd);
+			/*
+			 * The bd may still be queued as a revoke, in which
+			 * case we must not dequeue nor free it.
+			 */
+			if (!bd->bd_blkno && !list_empty(&bd->bd_list))
+				list_del_init(&bd->bd_list);
+			if (list_empty(&bd->bd_list))
+				kmem_cache_free(gfs2_bufdata_cachep, bd);
 		}
 
 		bh = bh->b_this_page;

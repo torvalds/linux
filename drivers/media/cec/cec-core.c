@@ -183,24 +183,6 @@ static void cec_devnode_unregister(struct cec_adapter *adap)
 	put_device(&devnode->dev);
 }
 
-#ifdef CONFIG_CEC_NOTIFIER
-static void cec_cec_notify(struct cec_adapter *adap, u16 pa)
-{
-	cec_s_phys_addr(adap, pa, false);
-}
-
-void cec_register_cec_notifier(struct cec_adapter *adap,
-			       struct cec_notifier *notifier)
-{
-	if (WARN_ON(!cec_is_registered(adap)))
-		return;
-
-	adap->notifier = notifier;
-	cec_notifier_register(adap->notifier, adap, cec_cec_notify);
-}
-EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
-#endif
-
 #ifdef CONFIG_DEBUG_FS
 static ssize_t cec_error_inj_write(struct file *file,
 	const char __user *ubuf, size_t count, loff_t *ppos)
@@ -416,8 +398,7 @@ void cec_unregister_adapter(struct cec_adapter *adap)
 #endif
 	debugfs_remove_recursive(adap->cec_dir);
 #ifdef CONFIG_CEC_NOTIFIER
-	if (adap->notifier)
-		cec_notifier_unregister(adap->notifier);
+	cec_notifier_cec_adap_unregister(adap->notifier, adap);
 #endif
 	cec_devnode_unregister(adap);
 }

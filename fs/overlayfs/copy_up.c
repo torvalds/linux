@@ -24,7 +24,7 @@
 
 static int ovl_ccup_set(const char *buf, const struct kernel_param *param)
 {
-	pr_warn("overlayfs: \"check_copy_up\" module option is obsolete\n");
+	pr_warn("\"check_copy_up\" module option is obsolete\n");
 	return 0;
 }
 
@@ -35,6 +35,13 @@ static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 
 module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
 MODULE_PARM_DESC(check_copy_up, "Obsolete; does nothing");
+
+static bool ovl_must_copy_xattr(const char *name)
+{
+	return !strcmp(name, XATTR_POSIX_ACL_ACCESS) ||
+	       !strcmp(name, XATTR_POSIX_ACL_DEFAULT) ||
+	       !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN);
+}
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
@@ -107,8 +114,13 @@ retry:
 			continue; /* Discard */
 		}
 		error = vfs_setxattr(new, name, value, size, 0);
-		if (error)
-			break;
+		if (error) {
+			if (error != -EOPNOTSUPP || ovl_must_copy_xattr(name))
+				break;
+
+			/* Ignore failure to copy unknown xattrs */
+			error = 0;
+		}
 	}
 	kfree(value);
 out:
@@ -123,6 +135,9 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 	loff_t old_pos = 0;
 	loff_t new_pos = 0;
 	loff_t cloned;
+	loff_t data_pos = -1;
+	loff_t hole_len;
+	bool skip_hole = false;
 	int error = 0;
 
 	if (len == 0)
@@ -144,7 +159,11 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 		goto out;
 	/* Couldn't clone, so now we try to copy the data */
 
-	/* FIXME: copy up sparse files efficiently */
+	/* Check if lower fs supports seek operation */
+	if (old_file->f_mode & FMODE_LSEEK &&
+	    old_file->f_op->llseek)
+		skip_hole = true;
+
 	while (len) {
 		size_t this_len = OVL_COPY_UP_CHUNK_SIZE;
 		long bytes;
@@ -155,6 +174,36 @@ static int ovl_copy_up_data(struct path *old, struct path *new, loff_t len)
 		if (signal_pending_state(TASK_KILLABLE, current)) {
 			error = -EINTR;
 			break;
+		}
+
+		/*
+		 * Fill zero for hole will cost unnecessary disk space
+		 * and meanwhile slow down the copy-up speed, so we do
+		 * an optimization for hole during copy-up, it relies
+		 * on SEEK_DATA implementation in lower fs so if lower
+		 * fs does not support it, copy-up will behave as before.
+		 *
+		 * Detail logic of hole detection as below:
+		 * When we detect next data position is larger than current
+		 * position we will skip that hole, otherwise we copy
+		 * data in the size of OVL_COPY_UP_CHUNK_SIZE. Actually,
+		 * it may not recognize all kind of holes and sometimes
+		 * only skips partial of hole area. However, it will be
+		 * enough for most of the use cases.
+		 */
+
+		if (skip_hole && data_pos < old_pos) {
+			data_pos = vfs_llseek(old_file, old_pos, SEEK_DATA);
+			if (data_pos > old_pos) {
+				hole_len = data_pos - old_pos;
+				len -= hole_len;
+				old_pos = new_pos = data_pos;
+				continue;
+			} else if (data_pos == -ENXIO) {
+				break;
+			} else if (data_pos < 0) {
+				skip_hole = false;
+			}
 		}
 
 		bytes = do_splice_direct(old_file, &old_pos,
@@ -480,7 +529,7 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	}
 
 	inode_lock(temp->d_inode);
-	if (c->metacopy)
+	if (S_ISREG(c->stat.mode))
 		err = ovl_set_size(temp, &c->stat);
 	if (!err)
 		err = ovl_set_attr(temp, &c->stat);

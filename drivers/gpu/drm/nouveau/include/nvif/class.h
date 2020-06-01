@@ -166,6 +166,8 @@
 
 #define VOLTA_A                                       /* cl9097.h */ 0x0000c397
 
+#define TURING_A                                      /* cl9097.h */ 0x0000c597
+
 #define NV74_BSP                                                     0x000074b0
 
 #define GT212_MSVLD                                                  0x000085b1
@@ -207,6 +209,7 @@
 #define PASCAL_COMPUTE_A                                             0x0000c0c0
 #define PASCAL_COMPUTE_B                                             0x0000c1c0
 #define VOLTA_COMPUTE_A                                              0x0000c3c0
+#define TURING_COMPUTE_A                                             0x0000c5c0
 
 #define NV74_CIPHER                                                  0x000074c1
 #endif

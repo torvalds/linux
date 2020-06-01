@@ -99,9 +99,7 @@ void chcr_add_xfrmops(const struct cxgb4_lld_info *lld)
 		netdev->xfrmdev_ops = &chcr_xfrmdev_ops;
 		netdev->hw_enc_features |= NETIF_F_HW_ESP;
 		netdev->features |= NETIF_F_HW_ESP;
-		rtnl_lock();
 		netdev_change_features(netdev);
-		rtnl_unlock();
 	}
 }
 

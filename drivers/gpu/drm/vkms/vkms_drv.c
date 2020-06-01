@@ -3,10 +3,10 @@
 /**
  * DOC: vkms (Virtual Kernel Modesetting)
  *
- * vkms is a software-only model of a kms driver that is useful for testing,
- * or for running X (or similar) on headless machines and be able to still
- * use the GPU. vkms aims to enable a virtual display without the need for
- * a hardware display capability.
+ * VKMS is a software-only model of a KMS driver that is useful for testing
+ * and for running X (or similar) on headless machines. VKMS aims to enable
+ * a virtual display with no need of a hardware display capability, releasing
+ * the GPU in DRM API tests.
  */
 
 #include <linux/module.h>
@@ -103,7 +103,6 @@ static struct drm_driver vkms_driver = {
 	.dumb_create		= vkms_dumb_create,
 	.gem_vm_ops		= &vkms_gem_vm_ops,
 	.gem_free_object_unlocked = vkms_gem_free_object,
-	.get_vblank_timestamp	= vkms_get_vblank_timestamp,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = vkms_prime_import_sg_table,
 

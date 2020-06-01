@@ -23,7 +23,9 @@ obj-$(CONFIG_PERF_EVENTS)		+= perf_event.o
 obj-$(CONFIG_JUMP_LABEL)		+= jump_label.o
 
 obj-$(CONFIG_ARC_FPU_SAVE_RESTORE)	+= fpu.o
+ifdef CONFIG_ISA_ARCOMPACT
 CFLAGS_fpu.o   += -mdpfp
+endif
 
 ifdef CONFIG_ARC_DW2_UNWIND
 CFLAGS_ctx_sw.o += -fno-omit-frame-pointer

@@ -886,14 +886,14 @@ enum ieee80211_mfie {
 struct rtl_80211_hdr {
 	__le16 frame_ctl;
 	__le16 duration_id;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtl_80211_hdr_1addr {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtl_80211_hdr_2addr {
@@ -901,7 +901,7 @@ struct rtl_80211_hdr_2addr {
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtl_80211_hdr_3addr {
@@ -911,7 +911,7 @@ struct rtl_80211_hdr_3addr {
 	u8 addr2[ETH_ALEN];
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtl_80211_hdr_4addr {
@@ -922,7 +922,7 @@ struct rtl_80211_hdr_4addr {
 	u8 addr3[ETH_ALEN];
 	__le16 seq_ctl;
 	u8 addr4[ETH_ALEN];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 struct rtl_80211_hdr_3addrqos {
@@ -951,7 +951,7 @@ struct rtl_80211_hdr_4addrqos {
 struct ieee80211_info_element {
 	u8 id;
 	u8 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 struct ieee80211_authentication {
@@ -960,7 +960,7 @@ struct ieee80211_authentication {
 	__le16 transaction;
 	__le16 status;
 	/*challenge*/
-	struct ieee80211_info_element info_element[0];
+	struct ieee80211_info_element info_element[];
 } __packed;
 
 struct ieee80211_disassoc {
@@ -971,7 +971,7 @@ struct ieee80211_disassoc {
 struct ieee80211_probe_request {
 	struct rtl_80211_hdr_3addr header;
 	/* SSID, supported rates */
-	struct ieee80211_info_element info_element[0];
+	struct ieee80211_info_element info_element[];
 } __packed;
 
 struct ieee80211_probe_response {
@@ -982,7 +982,7 @@ struct ieee80211_probe_response {
 	/* SSID, supported rates, FH params, DS params,
 	 * CF params, IBSS params, TIM (if beacon), RSN
 	 */
-	struct ieee80211_info_element info_element[0];
+	struct ieee80211_info_element info_element[];
 } __packed;
 
 /* Alias beacon for probe_response */
@@ -993,7 +993,7 @@ struct ieee80211_assoc_request_frame {
 	__le16 capability;
 	__le16 listen_interval;
 	/* SSID, supported rates, RSN */
-	struct ieee80211_info_element info_element[0];
+	struct ieee80211_info_element info_element[];
 } __packed;
 
 struct ieee80211_reassoc_request_frame {
@@ -1002,7 +1002,7 @@ struct ieee80211_reassoc_request_frame {
 	__le16 listen_interval;
 	u8 current_ap[ETH_ALEN];
 	/* SSID, supported rates, RSN */
-	struct ieee80211_info_element info_element[0];
+	struct ieee80211_info_element info_element[];
 } __packed;
 
 struct ieee80211_assoc_response_frame {
@@ -1010,7 +1010,7 @@ struct ieee80211_assoc_response_frame {
 	__le16 capability;
 	__le16 status;
 	__le16 aid;
-	struct ieee80211_info_element info_element[0]; /* supported rates */
+	struct ieee80211_info_element info_element[]; /* supported rates */
 } __packed;
 
 struct ieee80211_txb {
@@ -1021,7 +1021,7 @@ struct ieee80211_txb {
 	u16 reserved;
 	__le16 frag_size;
 	__le16 payload_size;
-	struct sk_buff *fragments[0];
+	struct sk_buff *fragments[];
 };
 
 #define MAX_TX_AGG_COUNT		  16
@@ -2007,7 +2007,7 @@ struct ieee80211_device {
 	/* This must be the last item so that it points to the data
 	 * allocated beyond this structure by alloc_ieee80211
 	 */
-	u8 priv[0];
+	u8 priv[];
 };
 
 #define IEEE_A            (1<<0)

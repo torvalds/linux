@@ -107,18 +107,6 @@ asmlinkage void plat_irq_dispatch(void)
 		do_IRQ(MSP_INT_SW1);
 }
 
-static struct irqaction cic_cascade_msp = {
-	.handler = no_action,
-	.name	 = "MSP CIC cascade",
-	.flags	 = IRQF_NO_THREAD,
-};
-
-static struct irqaction per_cascade_msp = {
-	.handler = no_action,
-	.name	 = "MSP PER cascade",
-	.flags	 = IRQF_NO_THREAD,
-};
-
 void __init arch_init_irq(void)
 {
 	/* assume we'll be using vectored interrupt mode except in UP mode*/
@@ -142,8 +130,12 @@ void __init arch_init_irq(void)
 #endif	/* CONFIG_MIPS_MT_SMP */
 #endif	/* CONFIG_MIPS_MT */
 	/* setup the cascaded interrupts */
-	setup_irq(MSP_INT_CIC, &cic_cascade_msp);
-	setup_irq(MSP_INT_PER, &per_cascade_msp);
+	if (request_irq(MSP_INT_CIC, no_action, IRQF_NO_THREAD,
+			"MSP CIC cascade", NULL))
+		pr_err("Failed to register MSP CIC cascade interrupt\n");
+	if (request_irq(MSP_INT_PER, no_action, IRQF_NO_THREAD,
+			"MSP PER cascade", NULL))
+		pr_err("Failed to register MSP PER cascade interrupt\n");
 
 #else
 	/*
@@ -153,7 +145,11 @@ void __init arch_init_irq(void)
 	msp_slp_irq_init();
 
 	/* setup the cascaded SLP/PER interrupts */
-	setup_irq(MSP_INT_SLP, &cic_cascade_msp);
-	setup_irq(MSP_INT_PER, &per_cascade_msp);
+	if (request_irq(MSP_INT_SLP, no_action, IRQF_NO_THREAD,
+			"MSP CIC cascade", NULL))
+		pr_err("Failed to register MSP CIC cascade interrupt\n");
+	if (request_irq(MSP_INT_PER, no_action, IRQF_NO_THREAD,
+			"MSP PER cascade", NULL))
+		pr_err("Failed to register MSP PER cascade interrupt\n");
 #endif
 }

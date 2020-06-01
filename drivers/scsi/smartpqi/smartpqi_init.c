@@ -1614,28 +1614,28 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 		"%d:%d:", ctrl_info->scsi_host->host_no, device->bus);
 
 	if (device->target_lun_valid)
-		count += snprintf(buffer + count,
+		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			"%d:%d",
 			device->target,
 			device->lun);
 	else
-		count += snprintf(buffer + count,
+		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			"-:-");
 
 	if (pqi_is_logical_device(device))
-		count += snprintf(buffer + count,
+		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			" %08x%08x",
 			*((u32 *)&device->scsi3addr),
 			*((u32 *)&device->scsi3addr[4]));
 	else
-		count += snprintf(buffer + count,
+		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			" %016llx", device->sas_address);
 
-	count += snprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
+	count += scnprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
 		" %s %.8s %.16s ",
 		pqi_device_type(device),
 		device->vendor,
@@ -1643,19 +1643,19 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 
 	if (pqi_is_logical_device(device)) {
 		if (device->devtype == TYPE_DISK)
-			count += snprintf(buffer + count,
+			count += scnprintf(buffer + count,
 				PQI_DEV_INFO_BUFFER_LENGTH - count,
 				"SSDSmartPathCap%c En%c %-12s",
 				device->raid_bypass_configured ? '+' : '-',
 				device->raid_bypass_enabled ? '+' : '-',
 				pqi_raid_level_to_string(device->raid_level));
 	} else {
-		count += snprintf(buffer + count,
+		count += scnprintf(buffer + count,
 			PQI_DEV_INFO_BUFFER_LENGTH - count,
 			"AIO%c", device->aio_enabled ? '+' : '-');
 		if (device->devtype == TYPE_DISK ||
 			device->devtype == TYPE_ZBC)
-			count += snprintf(buffer + count,
+			count += scnprintf(buffer + count,
 				PQI_DEV_INFO_BUFFER_LENGTH - count,
 				" qd=%-6d", device->queue_depth);
 	}
@@ -6191,14 +6191,14 @@ static ssize_t pqi_lockup_action_show(struct device *dev,
 
 	for (i = 0; i < ARRAY_SIZE(pqi_lockup_actions); i++) {
 		if (pqi_lockup_actions[i].action == pqi_lockup_action)
-			count += snprintf(buffer + count, PAGE_SIZE - count,
+			count += scnprintf(buffer + count, PAGE_SIZE - count,
 				"[%s] ", pqi_lockup_actions[i].name);
 		else
-			count += snprintf(buffer + count, PAGE_SIZE - count,
+			count += scnprintf(buffer + count, PAGE_SIZE - count,
 				"%s ", pqi_lockup_actions[i].name);
 	}
 
-	count += snprintf(buffer + count, PAGE_SIZE - count, "\n");
+	count += scnprintf(buffer + count, PAGE_SIZE - count, "\n");
 
 	return count;
 }

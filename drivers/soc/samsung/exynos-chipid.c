@@ -3,7 +3,7 @@
  * Copyright (c) 2019 Samsung Electronics Co., Ltd.
  *	      http://www.samsung.com/
  *
- * EXYNOS - CHIP ID support
+ * Exynos - CHIP ID support
  * Author: Pankaj Dubey <pankaj.dubey@samsung.com>
  * Author: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
  */
@@ -59,7 +59,7 @@ static int __init exynos_chipid_early_init(void)
 	syscon = of_find_compatible_node(NULL, NULL,
 					 "samsung,exynos4210-chipid");
 	if (!syscon)
-		return ENODEV;
+		return -ENODEV;
 
 	regmap = device_node_to_regmap(syscon);
 	of_node_put(syscon);

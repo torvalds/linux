@@ -218,7 +218,7 @@ drm_gem_object_handle_put_unlocked(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	bool final = false;
 
-	if (WARN_ON(obj->handle_count == 0))
+	if (WARN_ON(READ_ONCE(obj->handle_count) == 0))
 		return;
 
 	/*
@@ -1114,9 +1114,6 @@ int drm_gem_mmap_obj(struct drm_gem_object *obj, unsigned long obj_size,
 	drm_gem_object_get(obj);
 
 	if (obj->funcs && obj->funcs->mmap) {
-		/* Remove the fake offset */
-		vma->vm_pgoff -= drm_vma_node_start(&obj->vma_node);
-
 		ret = obj->funcs->mmap(obj, vma);
 		if (ret) {
 			drm_gem_object_put_unlocked(obj);

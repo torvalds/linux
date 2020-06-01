@@ -773,7 +773,7 @@ static struct input_pixel_processor *dce80_ipp_create(
 	return &ipp->base;
 }
 
-static void destruct(struct dce110_resource_pool *pool)
+static void dce80_resource_destruct(struct dce110_resource_pool *pool)
 {
 	unsigned int i;
 
@@ -901,7 +901,7 @@ static void dce80_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
 
-	destruct(dce110_pool);
+	dce80_resource_destruct(dce110_pool);
 	kfree(dce110_pool);
 	*pool = NULL;
 }
@@ -1093,7 +1093,7 @@ static bool dce80_construct(
 	return true;
 
 res_create_fail:
-	destruct(pool);
+	dce80_resource_destruct(pool);
 	return false;
 }
 
@@ -1290,7 +1290,7 @@ static bool dce81_construct(
 	return true;
 
 res_create_fail:
-	destruct(pool);
+	dce80_resource_destruct(pool);
 	return false;
 }
 
@@ -1483,7 +1483,7 @@ static bool dce83_construct(
 	return true;
 
 res_create_fail:
-	destruct(pool);
+	dce80_resource_destruct(pool);
 	return false;
 }
 

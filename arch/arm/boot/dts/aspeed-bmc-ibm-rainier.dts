@@ -97,22 +97,22 @@
 	status = "okay";
 
 	power-supply@68 {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x68>;
 	};
 
 	power-supply@69 {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x69>;
 	};
 
 	power-supply@6a {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x6a>;
 	};
 
 	power-supply@6b {
-		compatible = "ibm,cffps2";
+		compatible = "ibm,cffps";
 		reg = <0x6b>;
 	};
 };
@@ -352,18 +352,8 @@
 &i2c8 {
 	status = "okay";
 
-	ucd90320@b {
-		compatible = "ti,ucd90160";
-		reg = <0x0b>;
-	};
-
-	ucd90320@c {
-		compatible = "ti,ucd90160";
-		reg = <0x0c>;
-	};
-
 	ucd90320@11 {
-		compatible = "ti,ucd90160";
+		compatible = "ti,ucd90320";
 		reg = <0x11>;
 	};
 

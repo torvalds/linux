@@ -14,6 +14,8 @@
 #include <linux/spi/spi.h>
 #include <uapi/linux/sched/types.h>
 
+#include "cros_ec.h"
+
 /* The header byte, which follows the preamble */
 #define EC_MSG_HEADER			0xec
 
@@ -125,7 +127,8 @@ static int terminate_request(struct cros_ec_device *ec_dev)
 	 */
 	spi_message_init(&msg);
 	memset(&trans, 0, sizeof(trans));
-	trans.delay_usecs = ec_spi->end_of_msg_delay;
+	trans.delay.value = ec_spi->end_of_msg_delay;
+	trans.delay.unit = SPI_DELAY_UNIT_USECS;
 	spi_message_add_tail(&trans, &msg);
 
 	ret = spi_sync_locked(ec_spi->spi, &msg);
@@ -414,7 +417,8 @@ static int do_cros_ec_pkt_xfer_spi(struct cros_ec_device *ec_dev,
 	spi_message_init(&msg);
 	if (ec_spi->start_of_msg_delay) {
 		memset(&trans_delay, 0, sizeof(trans_delay));
-		trans_delay.delay_usecs = ec_spi->start_of_msg_delay;
+		trans_delay.delay.value = ec_spi->start_of_msg_delay;
+		trans_delay.delay.unit = SPI_DELAY_UNIT_USECS;
 		spi_message_add_tail(&trans_delay, &msg);
 	}
 

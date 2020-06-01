@@ -26,6 +26,7 @@
 #ifndef MOD_INFO_PACKET_H_
 #define MOD_INFO_PACKET_H_
 
+#include "dm_services.h"
 #include "mod_shared.h"
 //Forward Declarations
 struct dc_stream_state;

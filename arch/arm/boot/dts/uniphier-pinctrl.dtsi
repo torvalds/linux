@@ -106,6 +106,16 @@
 		function = "i2c4";
 	};
 
+	pinctrl_i2c5: i2c5 {
+		groups = "i2c5";
+		function = "i2c5";
+	};
+
+	pinctrl_i2c6: i2c6 {
+		groups = "i2c6";
+		function = "i2c6";
+	};
+
 	pinctrl_nand: nand {
 		groups = "nand";
 		function = "nand";

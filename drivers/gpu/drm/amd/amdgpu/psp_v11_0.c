@@ -22,9 +22,11 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/vmalloc.h>
 
 #include "amdgpu.h"
 #include "amdgpu_psp.h"
+#include "amdgpu_ras.h"
 #include "amdgpu_ucode.h"
 #include "soc15_common.h"
 #include "psp_v11_0.h"
@@ -43,10 +45,13 @@ MODULE_FIRMWARE("amdgpu/vega20_asd.bin");
 MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi10_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi10_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi10_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi14_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi14_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi14_ta.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sos.bin");
 MODULE_FIRMWARE("amdgpu/navi12_asd.bin");
+MODULE_FIRMWARE("amdgpu/navi12_ta.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_sos.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_asd.bin");
 MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
@@ -60,6 +65,9 @@ MODULE_FIRMWARE("amdgpu/arcturus_ta.bin");
 #define mmSDMA0_UCODE_DATA_NV10		0x5881
 /* memory training timeout define */
 #define MEM_TRAIN_SEND_MSG_TIMEOUT_US	3000000
+
+/* For large FW files the time to complete can be very long */
+#define USBC_PD_POLLING_LIMIT_S 240
 
 static int psp_v11_0_init_microcode(struct psp_context *psp)
 {
@@ -186,6 +194,31 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
 	case CHIP_NAVI12:
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
+		err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
+		if (err) {
+			release_firmware(adev->psp.ta_fw);
+			adev->psp.ta_fw = NULL;
+			dev_info(adev->dev,
+				 "psp v11.0: Failed to load firmware \"%s\"\n", fw_name);
+		} else {
+			err = amdgpu_ucode_validate(adev->psp.ta_fw);
+			if (err)
+				goto out2;
+
+			ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
+			adev->psp.ta_hdcp_ucode_version = le32_to_cpu(ta_hdr->ta_hdcp_ucode_version);
+			adev->psp.ta_hdcp_ucode_size = le32_to_cpu(ta_hdr->ta_hdcp_size_bytes);
+			adev->psp.ta_hdcp_start_addr = (uint8_t *)ta_hdr +
+				le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
+			adev->psp.ta_fw_version = le32_to_cpu(ta_hdr->header.ucode_version);
+
+			adev->psp.ta_dtm_ucode_version = le32_to_cpu(ta_hdr->ta_dtm_ucode_version);
+			adev->psp.ta_dtm_ucode_size = le32_to_cpu(ta_hdr->ta_dtm_size_bytes);
+			adev->psp.ta_dtm_start_addr = (uint8_t *)adev->psp.ta_hdcp_start_addr +
+				le32_to_cpu(ta_hdr->ta_dtm_offset_bytes);
+		}
 		break;
 	default:
 		BUG();
@@ -206,6 +239,29 @@ out:
 	adev->psp.sos_fw = NULL;
 
 	return err;
+}
+
+int psp_v11_0_wait_for_bootloader(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	int ret;
+	int retry_loop;
+
+	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
+		/* Wait for bootloader to signify that is
+		    ready having bit 31 of C2PMSG_35 set to 1 */
+		ret = psp_wait_for(psp,
+				   SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+				   0x80000000,
+				   0x80000000,
+				   false);
+
+		if (ret == 0)
+			return 0;
+	}
+
+	return ret;
 }
 
 static bool psp_v11_0_is_sos_alive(struct psp_context *psp)
@@ -233,9 +289,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -251,9 +305,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35,
 	       psp_gfxdrv_command_reg);
 
-	/* Wait for bootloader to signify that is ready having  bit 31 of C2PMSG_35 set to 1*/
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -273,9 +325,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 		return 0;
 	}
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -294,8 +344,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 	/* there might be handshake issue with hardware which needs delay */
 	mdelay(20);
 
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 
 	return ret;
 }
@@ -312,9 +361,7 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	if (psp_v11_0_is_sos_alive(psp))
 		return 0;
 
-	/* Wait for bootloader to signify that is ready having bit 31 of C2PMSG_35 set to 1 */
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
-			   0x80000000, 0x80000000, false);
+	ret = psp_v11_0_wait_for_bootloader(psp);
 	if (ret)
 		return ret;
 
@@ -377,7 +424,8 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	struct psp_ring *ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	psp_v11_0_reroute_ih(psp);
+	if (!amdgpu_sriov_vf(adev))
+		psp_v11_0_reroute_ih(psp);
 
 	ring = &psp->km_ring;
 
@@ -517,63 +565,6 @@ static int psp_v11_0_ring_destroy(struct psp_context *psp,
 			      (void **)&ring->ring_mem);
 
 	return ret;
-}
-
-static int psp_v11_0_cmd_submit(struct psp_context *psp,
-			       uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
-			       int index)
-{
-	unsigned int psp_write_ptr_reg = 0;
-	struct psp_gfx_rb_frame *write_frame = psp->km_ring.ring_mem;
-	struct psp_ring *ring = &psp->km_ring;
-	struct psp_gfx_rb_frame *ring_buffer_start = ring->ring_mem;
-	struct psp_gfx_rb_frame *ring_buffer_end = ring_buffer_start +
-		ring->ring_size / sizeof(struct psp_gfx_rb_frame) - 1;
-	struct amdgpu_device *adev = psp->adev;
-	uint32_t ring_size_dw = ring->ring_size / 4;
-	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
-
-	/* KM (GPCOM) prepare write pointer */
-	if (psp_v11_0_support_vmr_ring(psp))
-		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
-	else
-		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
-
-	/* Update KM RB frame pointer to new frame */
-	/* write_frame ptr increments by size of rb_frame in bytes */
-	/* psp_write_ptr_reg increments by size of rb_frame in DWORDs */
-	if ((psp_write_ptr_reg % ring_size_dw) == 0)
-		write_frame = ring_buffer_start;
-	else
-		write_frame = ring_buffer_start + (psp_write_ptr_reg / rb_frame_size_dw);
-	/* Check invalid write_frame ptr address */
-	if ((write_frame < ring_buffer_start) || (ring_buffer_end < write_frame)) {
-		DRM_ERROR("ring_buffer_start = %p; ring_buffer_end = %p; write_frame = %p\n",
-			  ring_buffer_start, ring_buffer_end, write_frame);
-		DRM_ERROR("write_frame is pointing to address out of bounds\n");
-		return -EINVAL;
-	}
-
-	/* Initialize KM RB frame */
-	memset(write_frame, 0, sizeof(struct psp_gfx_rb_frame));
-
-	/* Update KM RB frame */
-	write_frame->cmd_buf_addr_hi = upper_32_bits(cmd_buf_mc_addr);
-	write_frame->cmd_buf_addr_lo = lower_32_bits(cmd_buf_mc_addr);
-	write_frame->fence_addr_hi = upper_32_bits(fence_mc_addr);
-	write_frame->fence_addr_lo = lower_32_bits(fence_mc_addr);
-	write_frame->fence_value = index;
-	amdgpu_asic_flush_hdp(adev, NULL);
-
-	/* Update the write Pointer in DWORDs */
-	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
-	if (psp_v11_0_support_vmr_ring(psp)) {
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_write_ptr_reg);
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
-	} else
-		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, psp_write_ptr_reg);
-
-	return 0;
 }
 
 static int
@@ -878,6 +869,11 @@ static int psp_v11_0_ras_trigger_error(struct psp_context *psp,
 	if (ret)
 		return -EINVAL;
 
+	/* If err_event_athub occurs error inject was successful, however
+	   return status from TA is no long reliable */
+	if (amdgpu_ras_intr_triggered())
+		return 0;
+
 	return ras_cmd->ras_status;
 }
 
@@ -986,10 +982,13 @@ Err_out:
  */
 static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 {
-	int ret;
-	uint32_t p2c_header[4];
 	struct psp_memory_training_context *ctx = &psp->mem_train_ctx;
 	uint32_t *pcache = (uint32_t*)ctx->sys_cache;
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t p2c_header[4];
+	uint32_t sz;
+	void *buf;
+	int ret;
 
 	if (ctx->init == PSP_MEM_TRAIN_NOT_SUPPORT) {
 		DRM_DEBUG("Memory training is not supported.\n");
@@ -1004,7 +1003,7 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 		return 0;
 	}
 
-	amdgpu_device_vram_access(psp->adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
+	amdgpu_device_vram_access(adev, ctx->p2c_train_data_offset, p2c_header, sizeof(p2c_header), false);
 	DRM_DEBUG("sys_cache[%08x,%08x,%08x,%08x] p2c_header[%08x,%08x,%08x,%08x]\n",
 		  pcache[0], pcache[1], pcache[2], pcache[3],
 		  p2c_header[0], p2c_header[1], p2c_header[2], p2c_header[3]);
@@ -1041,11 +1040,38 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 	DRM_DEBUG("Memory training ops:%x.\n", ops);
 
 	if (ops & PSP_MEM_TRAIN_SEND_LONG_MSG) {
+		/*
+		 * Long traing will encroach certain mount of bottom VRAM,
+		 * saving the content of this bottom VRAM to system memory
+		 * before training, and restoring it after training to avoid
+		 * VRAM corruption.
+		 */
+		sz = GDDR6_MEM_TRAINING_ENCROACHED_SIZE;
+
+		if (adev->gmc.visible_vram_size < sz || !adev->mman.aper_base_kaddr) {
+			DRM_ERROR("visible_vram_size %llx or aper_base_kaddr %p is not initialized.\n",
+				  adev->gmc.visible_vram_size,
+				  adev->mman.aper_base_kaddr);
+			return -EINVAL;
+		}
+
+		buf = vmalloc(sz);
+		if (!buf) {
+			DRM_ERROR("failed to allocate system memory.\n");
+			return -ENOMEM;
+		}
+
+		memcpy_fromio(buf, adev->mman.aper_base_kaddr, sz);
 		ret = psp_v11_0_memory_training_send_msg(psp, PSP_BL__DRAM_LONG_TRAIN);
 		if (ret) {
 			DRM_ERROR("Send long training msg failed.\n");
+			vfree(buf);
 			return ret;
 		}
+
+		memcpy_toio(adev->mman.aper_base_kaddr, buf, sz);
+		adev->nbio.funcs->hdp_flush(adev, NULL);
+		vfree(buf);
 	}
 
 	if (ops & PSP_MEM_TRAIN_SAVE) {
@@ -1068,6 +1094,106 @@ static int psp_v11_0_memory_training(struct psp_context *psp, uint32_t ops)
 	return 0;
 }
 
+static uint32_t psp_v11_0_ring_get_wptr(struct psp_context *psp)
+{
+	uint32_t data;
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v11_0_support_vmr_ring(psp))
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
+	else
+		data = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
+
+	return data;
+}
+
+static void psp_v11_0_ring_set_wptr(struct psp_context *psp, uint32_t value)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (psp_v11_0_support_vmr_ring(psp)) {
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, value);
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
+	} else
+		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67, value);
+}
+
+static int psp_v11_0_load_usbc_pd_fw(struct psp_context *psp, dma_addr_t dma_addr)
+{
+	struct amdgpu_device *adev = psp->adev;
+	uint32_t reg_status;
+	int ret, i = 0;
+
+	/* Write lower 32-bit address of the PD Controller FW */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, lower_32_bits(dma_addr));
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+			     0x80000000, 0x80000000, false);
+	if (ret)
+		return ret;
+
+	/* Fireup interrupt so PSP can pick up the lower address */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x800000);
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+			     0x80000000, 0x80000000, false);
+	if (ret)
+		return ret;
+
+	reg_status = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35);
+
+	if ((reg_status & 0xFFFF) != 0) {
+		DRM_ERROR("Lower address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = %02x...\n",
+				reg_status & 0xFFFF);
+		return -EIO;
+	}
+
+	/* Write upper 32-bit address of the PD Controller FW */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36, upper_32_bits(dma_addr));
+
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+			     0x80000000, 0x80000000, false);
+	if (ret)
+		return ret;
+
+	/* Fireup interrupt so PSP can pick up the upper address */
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, 0x4000000);
+
+	/* FW load takes very long time */
+	do {
+		msleep(1000);
+		reg_status = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35);
+
+		if (reg_status & 0x80000000)
+			goto done;
+
+	} while (++i < USBC_PD_POLLING_LIMIT_S);
+
+	return -ETIME;
+done:
+
+	if ((reg_status & 0xFFFF) != 0) {
+		DRM_ERROR("Upper address load failed - MP0_SMN_C2PMSG_35.Bits [15:0] = x%04x\n",
+				reg_status & 0xFFFF);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static int psp_v11_0_read_usbc_pd_fw(struct psp_context *psp, uint32_t *fw_ver)
+{
+	struct amdgpu_device *adev = psp->adev;
+	int ret;
+
+	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_35, C2PMSG_CMD_GFX_USB_PD_FW_VER);
+
+	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_35),
+				     0x80000000, 0x80000000, false);
+	if (!ret)
+		*fw_ver = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36);
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v11_0_funcs = {
 	.init_microcode = psp_v11_0_init_microcode,
 	.bootloader_load_kdb = psp_v11_0_bootloader_load_kdb,
@@ -1077,7 +1203,6 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.ring_create = psp_v11_0_ring_create,
 	.ring_stop = psp_v11_0_ring_stop,
 	.ring_destroy = psp_v11_0_ring_destroy,
-	.cmd_submit = psp_v11_0_cmd_submit,
 	.compare_sram_data = psp_v11_0_compare_sram_data,
 	.mode1_reset = psp_v11_0_mode1_reset,
 	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
@@ -1091,6 +1216,10 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.mem_training_init = psp_v11_0_memory_training_init,
 	.mem_training_fini = psp_v11_0_memory_training_fini,
 	.mem_training = psp_v11_0_memory_training,
+	.ring_get_wptr = psp_v11_0_ring_get_wptr,
+	.ring_set_wptr = psp_v11_0_ring_set_wptr,
+	.load_usbc_pd_fw = psp_v11_0_load_usbc_pd_fw,
+	.read_usbc_pd_fw = psp_v11_0_read_usbc_pd_fw
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)

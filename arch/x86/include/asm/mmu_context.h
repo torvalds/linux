@@ -12,7 +12,6 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/paravirt.h>
-#include <asm/mpx.h>
 #include <asm/debugreg.h>
 
 extern atomic64_t last_mm_ctx_id;
@@ -200,34 +199,9 @@ static inline bool is_64bit_mm(struct mm_struct *mm)
 }
 #endif
 
-static inline void arch_bprm_mm_init(struct mm_struct *mm,
-		struct vm_area_struct *vma)
-{
-	mpx_mm_init(mm);
-}
-
 static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
 			      unsigned long end)
 {
-	/*
-	 * mpx_notify_unmap() goes and reads a rarely-hot
-	 * cacheline in the mm_struct.  That can be expensive
-	 * enough to be seen in profiles.
-	 *
-	 * The mpx_notify_unmap() call and its contents have been
-	 * observed to affect munmap() performance on hardware
-	 * where MPX is not present.
-	 *
-	 * The unlikely() optimizes for the fast case: no MPX
-	 * in the CPU, or no MPX use in the process.  Even if
-	 * we get this wrong (in the unlikely event that MPX
-	 * is widely enabled on some system) the overhead of
-	 * MPX itself (reading bounds tables) is expected to
-	 * overwhelm the overhead of getting this unlikely()
-	 * consistently wrong.
-	 */
-	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
-		mpx_notify_unmap(mm, start, end);
 }
 
 /*
@@ -239,21 +213,6 @@ static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
  * So do not enforce things if the VMA is not from the current
  * mm, or if we are in a kernel thread.
  */
-static inline bool vma_is_foreign(struct vm_area_struct *vma)
-{
-	if (!current->mm)
-		return true;
-	/*
-	 * Should PKRU be enforced on the access to this VMA?  If
-	 * the VMA is from another process, then PKRU has no
-	 * relevance and should not be enforced.
-	 */
-	if (current->mm != vma->vm_mm)
-		return true;
-
-	return false;
-}
-
 static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 		bool write, bool execute, bool foreign)
 {

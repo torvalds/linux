@@ -32,6 +32,7 @@
 #include "soc15_common.h"
 #include "navi10_ih.h"
 
+#define MAX_REARM_RETRY 10
 
 static void navi10_ih_set_interrupt_funcs(struct amdgpu_device *adev);
 
@@ -110,7 +111,6 @@ static uint32_t navi10_ih_rb_cntl(struct amdgpu_ih_ring *ih, uint32_t ih_rb_cntl
 static int navi10_ih_irq_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ih_ring *ih = &adev->irq.ih;
-	int ret = 0;
 	u32 ih_rb_cntl, ih_doorbell_rtpr, ih_chicken;
 	u32 tmp;
 
@@ -179,7 +179,7 @@ static int navi10_ih_irq_init(struct amdgpu_device *adev)
 	/* enable interrupts */
 	navi10_ih_enable_interrupts(adev);
 
-	return ret;
+	return 0;
 }
 
 /**
@@ -285,6 +285,38 @@ static void navi10_ih_decode_iv(struct amdgpu_device *adev,
 }
 
 /**
+ * navi10_ih_irq_rearm - rearm IRQ if lost
+ *
+ * @adev: amdgpu_device pointer
+ *
+ */
+static void navi10_ih_irq_rearm(struct amdgpu_device *adev,
+			       struct amdgpu_ih_ring *ih)
+{
+	uint32_t reg_rptr = 0;
+	uint32_t v = 0;
+	uint32_t i = 0;
+
+	if (ih == &adev->irq.ih)
+		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR);
+	else if (ih == &adev->irq.ih1)
+		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING1);
+	else if (ih == &adev->irq.ih2)
+		reg_rptr = SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_RPTR_RING2);
+	else
+		return;
+
+	/* Rearm IRQ / re-write doorbell if doorbell write is lost */
+	for (i = 0; i < MAX_REARM_RETRY; i++) {
+		v = RREG32_NO_KIQ(reg_rptr);
+		if ((v < ih->ring_size) && (v != ih->rptr))
+			WDOORBELL32(ih->doorbell_index, ih->rptr);
+		else
+			break;
+	}
+}
+
+/**
  * navi10_ih_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
@@ -298,6 +330,9 @@ static void navi10_ih_set_rptr(struct amdgpu_device *adev,
 		/* XXX check if swapping is necessary on BE */
 		*ih->rptr_cpu = ih->rptr;
 		WDOORBELL32(ih->doorbell_index, ih->rptr);
+
+		if (amdgpu_sriov_vf(adev))
+			navi10_ih_irq_rearm(adev, ih);
 	} else
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_RPTR, ih->rptr);
 }
@@ -427,7 +462,7 @@ static int navi10_ih_set_clockgating_state(void *handle,
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	navi10_ih_update_clockgating_state(adev,
-				state == AMD_CG_STATE_GATE ? true : false);
+				state == AMD_CG_STATE_GATE);
 	return 0;
 }
 

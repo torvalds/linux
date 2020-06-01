@@ -74,7 +74,7 @@ static ssize_t create_store(struct kobject *kobj, struct device *dev,
 	return count;
 }
 
-MDEV_TYPE_ATTR_WO(create);
+static MDEV_TYPE_ATTR_WO(create);
 
 static void mdev_type_release(struct kobject *kobj)
 {

@@ -160,6 +160,7 @@ struct nsim_dev {
 	struct nsim_trap_data *trap_data;
 	struct dentry *ddir;
 	struct dentry *ports_ddir;
+	struct dentry *take_snapshot;
 	struct bpf_offload_dev *bpf_dev;
 	bool bpf_bind_accept;
 	u32 bpf_bind_verifier_delay;
@@ -177,6 +178,11 @@ struct nsim_dev {
 	bool fail_reload;
 	struct devlink_region *dummy_region;
 	struct nsim_dev_health health;
+	struct flow_action_cookie *fa_cookie;
+	spinlock_t fa_cookie_lock; /* protects fa_cookie */
+	bool fail_trap_group_set;
+	bool fail_trap_policer_set;
+	bool fail_trap_policer_counter_get;
 };
 
 static inline struct net *nsim_dev_net(struct nsim_dev *nsim_dev)
@@ -240,6 +246,9 @@ struct nsim_bus_dev {
 				  */
 	unsigned int num_vfs;
 	struct nsim_vf_config *vfconfigs;
+	/* Lock for devlink->reload_enabled in netdevsim module */
+	struct mutex nsim_bus_reload_lock;
+	bool init;
 };
 
 int nsim_bus_init(void);

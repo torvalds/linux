@@ -68,7 +68,7 @@ static int fsl_dcu_drm_connector_get_modes(struct drm_connector *connector)
 	struct fsl_dcu_drm_connector *fsl_connector;
 
 	fsl_connector = to_fsl_dcu_connector(connector);
-	return drm_panel_get_modes(fsl_connector->panel);
+	return drm_panel_get_modes(fsl_connector->panel, connector);
 }
 
 static int fsl_dcu_drm_connector_mode_valid(struct drm_connector *connector,
@@ -151,5 +151,5 @@ int fsl_dcu_create_outputs(struct fsl_dcu_drm_device *fsl_dev)
 		return fsl_dcu_attach_panel(fsl_dev, panel);
 	}
 
-	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL);
+	return drm_bridge_attach(&fsl_dev->encoder, bridge, NULL, 0);
 }

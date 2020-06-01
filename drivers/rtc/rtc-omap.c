@@ -9,7 +9,6 @@
  * Copyright (C) 2014 Johan Hovold <johan@kernel.org>
  */
 
-#include <dt-bindings/gpio/gpio.h>
 #include <linux/bcd.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -616,7 +615,7 @@ static int rtc_pinconf_get(struct pinctrl_dev *pctldev,
 		break;
 	default:
 		return -ENOTSUPP;
-	};
+	}
 
 	*config = pinconf_to_config_packed(param, arg);
 

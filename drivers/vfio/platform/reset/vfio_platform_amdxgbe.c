@@ -24,7 +24,7 @@
 #define MDIO_AN_INT		0x8002
 #define MDIO_AN_INTMASK		0x8001
 
-static unsigned int xmdio_read(void *ioaddr, unsigned int mmd,
+static unsigned int xmdio_read(void __iomem *ioaddr, unsigned int mmd,
 			       unsigned int reg)
 {
 	unsigned int mmd_address, value;
@@ -35,7 +35,7 @@ static unsigned int xmdio_read(void *ioaddr, unsigned int mmd,
 	return value;
 }
 
-static void xmdio_write(void *ioaddr, unsigned int mmd,
+static void xmdio_write(void __iomem *ioaddr, unsigned int mmd,
 			unsigned int reg, unsigned int value)
 {
 	unsigned int mmd_address;

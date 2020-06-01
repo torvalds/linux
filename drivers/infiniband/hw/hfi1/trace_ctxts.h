@@ -80,7 +80,7 @@ TRACE_EVENT(hfi1_uctxtdata,
 			   __entry->credits = uctxt->sc->credits;
 			   __entry->hw_free = le64_to_cpu(*uctxt->sc->hw_free);
 			   __entry->piobase = uctxt->sc->base_addr;
-			   __entry->rcvhdrq_cnt = uctxt->rcvhdrq_cnt;
+			   __entry->rcvhdrq_cnt = get_hdrq_cnt(uctxt);
 			   __entry->rcvhdrq_dma = uctxt->rcvhdrq_dma;
 			   __entry->eager_cnt = uctxt->egrbufs.alloced;
 			   __entry->rcvegr_dma = uctxt->egrbufs.rcvtids[0].dma;

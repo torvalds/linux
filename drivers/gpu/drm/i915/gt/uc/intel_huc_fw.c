@@ -20,7 +20,7 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 	struct drm_i915_private *i915 = gt->i915;
 
 	intel_uc_fw_init_early(&huc->fw, INTEL_UC_FW_TYPE_HUC,
-			       intel_uc_uses_guc(uc),
+			       intel_uc_wants_guc(uc),
 			       INTEL_INFO(i915)->platform, INTEL_REVID(i915));
 }
 
@@ -39,5 +39,5 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 int intel_huc_fw_upload(struct intel_huc *huc)
 {
 	/* HW doesn't look at destination address for HuC, so set it to 0 */
-	return intel_uc_fw_upload(&huc->fw, huc_to_gt(huc), 0, HUC_UKERNEL);
+	return intel_uc_fw_upload(&huc->fw, 0, HUC_UKERNEL);
 }

@@ -65,17 +65,13 @@ static inline void flush_dcache_range(unsigned long start, unsigned long stop)
 	unsigned long size = stop - (unsigned long)addr + (bytes - 1);
 	unsigned long i;
 
-	if (IS_ENABLED(CONFIG_PPC64)) {
+	if (IS_ENABLED(CONFIG_PPC64))
 		mb();	/* sync */
-		isync();
-	}
 
 	for (i = 0; i < size >> shift; i++, addr += bytes)
 		dcbf(addr);
 	mb();	/* sync */
 
-	if (IS_ENABLED(CONFIG_PPC64))
-		isync();
 }
 
 /*

@@ -41,7 +41,7 @@
  * Use EXPORT_SYMBOL_FOR_TESTS_ONLY() for functions that shall
  * only be visible for drmselftests.
  */
-#if defined(CONFIG_DRM_DEBUG_SELFTEST_MODULE)
+#if defined(CONFIG_DRM_EXPORT_FOR_TESTS)
 #define EXPORT_SYMBOL_FOR_TESTS_ONLY(x) EXPORT_SYMBOL(x)
 #else
 #define EXPORT_SYMBOL_FOR_TESTS_ONLY(x)

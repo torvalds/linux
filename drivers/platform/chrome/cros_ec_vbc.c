@@ -6,7 +6,6 @@
 
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/cros_ec.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
 #include <linux/platform_data/cros_ec_proto.h>
@@ -41,7 +40,7 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 	msg->outsize = para_sz;
 	msg->insize = resp_sz;
 
-	err = cros_ec_cmd_xfer(ecdev, msg);
+	err = cros_ec_cmd_xfer_status(ecdev, msg);
 	if (err < 0) {
 		dev_err(dev, "Error sending read request: %d\n", err);
 		kfree(msg);
@@ -84,7 +83,7 @@ static ssize_t vboot_context_write(struct file *filp, struct kobject *kobj,
 	msg->outsize = para_sz;
 	msg->insize = 0;
 
-	err = cros_ec_cmd_xfer(ecdev, msg);
+	err = cros_ec_cmd_xfer_status(ecdev, msg);
 	if (err < 0) {
 		dev_err(dev, "Error sending write request: %d\n", err);
 		kfree(msg);

@@ -26,7 +26,6 @@
 
 #define SMU_11_0_PARTIAL_PPTABLE
 
-#include "pp_debug.h"
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "smu_internal.h"
@@ -37,13 +36,12 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "amd_pcie.h"
+#include "amdgpu_ras.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
 #include "asic_reg/mp/mp_11_0_offset.h"
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
-#include "asic_reg/nbio/nbio_7_4_offset.h"
-#include "asic_reg/nbio/nbio_7_4_sh_mask.h"
 #include "asic_reg/smuio/smuio_11_0_0_offset.h"
 #include "asic_reg/smuio/smuio_11_0_0_sh_mask.h"
 
@@ -63,7 +61,7 @@ static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 	return 0;
 }
 
-int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
+static int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
 {
 	struct amdgpu_device *adev = smu->adev;
 
@@ -79,21 +77,20 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			break;
+			return cur_value == 0x1 ? 0 : -EIO;
+
 		udelay(1);
 	}
 
 	/* timeout means wrong logic */
-	if (i == timeout)
-		return -ETIME;
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return -ETIME;
 }
 
 int
 smu_v11_0_send_msg_with_param(struct smu_context *smu,
 			      enum smu_message_type msg,
-			      uint32_t param)
+			      uint32_t param,
+			      uint32_t *read_arg)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, index = 0;
@@ -102,10 +99,13 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 	if (index < 0)
 		return index;
 
+	mutex_lock(&smu->message_lock);
 	ret = smu_v11_0_wait_for_response(smu);
-	if (ret)
-		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
-		       smu_get_message_name(smu, msg), index, param, ret);
+	if (ret) {
+		pr_err("Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		goto out;
+	}
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
@@ -114,10 +114,21 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 	smu_v11_0_send_msg_without_waiting(smu, (uint16_t)index);
 
 	ret = smu_v11_0_wait_for_response(smu);
-	if (ret)
+	if (ret) {
 		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
 		       smu_get_message_name(smu, msg), index, param, ret);
-
+		goto out;
+	}
+	if (read_arg) {
+		ret = smu_v11_0_read_arg(smu, read_arg);
+		if (ret) {
+			pr_err("failed to read message arg: %10s (%d) \tparam: 0x%08x response %#x\n",
+			       smu_get_message_name(smu, msg), index, param, ret);
+			goto out;
+		}
+	}
+out:
+	mutex_unlock(&smu->message_lock);
 	return ret;
 }
 
@@ -260,6 +271,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		break;
 	case CHIP_NAVI10:
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV10;
+		break;
+	case CHIP_NAVI12:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV12;
 		break;
 	case CHIP_NAVI14:
 		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
@@ -449,8 +463,10 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 
 	kfree(smu_table->tables);
 	kfree(smu_table->metrics_table);
+	kfree(smu_table->watermarks_table);
 	smu_table->tables = NULL;
 	smu_table->metrics_table = NULL;
+	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
 
 	ret = smu_v11_0_fini_dpm_context(smu);
@@ -668,12 +684,14 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetSystemVirtualDramAddrHigh,
-					  address_high);
+					  address_high,
+					  NULL);
 	if (ret)
 		return ret;
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetSystemVirtualDramAddrLow,
-					  address_low);
+					  address_low,
+					  NULL);
 	if (ret)
 		return ret;
 
@@ -682,15 +700,15 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	address_low  = (uint32_t)lower_32_bits(address);
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrHigh,
-					  address_high);
+					  address_high, NULL);
 	if (ret)
 		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrLow,
-					  address_low);
+					  address_low, NULL);
 	if (ret)
 		return ret;
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramSize,
-					  (uint32_t)memory_pool->size);
+					  (uint32_t)memory_pool->size, NULL);
 	if (ret)
 		return ret;
 
@@ -754,7 +772,7 @@ int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 	int ret;
 
 	ret = smu_send_smc_msg_with_param(smu,
-					  SMU_MSG_SetMinDeepSleepDcefclk, clk);
+					  SMU_MSG_SetMinDeepSleepDcefclk, clk, NULL);
 	if (ret)
 		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
 
@@ -773,6 +791,26 @@ int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 	return smu_v11_0_set_deep_sleep_dcefclk(smu, table_context->boot_values.dcefclk / 100);
 }
 
+int smu_v11_0_set_driver_table_location(struct smu_context *smu)
+{
+	struct smu_table *driver_table = &smu->smu_table.driver_table;
+	int ret = 0;
+
+	if (driver_table->mc_address) {
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrHigh,
+				upper_32_bits(driver_table->mc_address),
+				NULL);
+		if (!ret)
+			ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrLow,
+				lower_32_bits(driver_table->mc_address),
+				NULL);
+	}
+
+	return ret;
+}
+
 int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 {
 	int ret = 0;
@@ -781,11 +819,13 @@ int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 	if (tool_table->mc_address) {
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetToolsDramAddrHigh,
-				upper_32_bits(tool_table->mc_address));
+				upper_32_bits(tool_table->mc_address),
+				NULL);
 		if (!ret)
 			ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetToolsDramAddrLow,
-				lower_32_bits(tool_table->mc_address));
+				lower_32_bits(tool_table->mc_address),
+				NULL);
 	}
 
 	return ret;
@@ -798,7 +838,7 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	if (!smu->pm_enabled)
 		return ret;
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_NumOfDisplays, count, NULL);
 	return ret;
 }
 
@@ -816,12 +856,12 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 	bitmap_copy((unsigned long *)feature_mask, feature->allowed, 64);
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
-					  feature_mask[1]);
+					  feature_mask[1], NULL);
 	if (ret)
 		goto failed;
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskLow,
-					  feature_mask[0]);
+					  feature_mask[0], NULL);
 	if (ret)
 		goto failed;
 
@@ -834,27 +874,27 @@ int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 				      uint32_t *feature_mask, uint32_t num)
 {
 	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
 
 	if (!feature_mask || num < 2)
 		return -EINVAL;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
-	if (ret)
-		return ret;
-	ret = smu_read_smc_arg(smu, &feature_mask_high);
-	if (ret)
-		return ret;
+	if (bitmap_empty(feature->enabled, feature->feature_num)) {
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh, &feature_mask_high);
+		if (ret)
+			return ret;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
-	if (ret)
-		return ret;
-	ret = smu_read_smc_arg(smu, &feature_mask_low);
-	if (ret)
-		return ret;
+		ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow, &feature_mask_low);
+		if (ret)
+			return ret;
 
-	feature_mask[0] = feature_mask_low;
-	feature_mask[1] = feature_mask_high;
+		feature_mask[0] = feature_mask_low;
+		feature_mask[1] = feature_mask_high;
+	} else {
+		bitmap_copy((unsigned long *)feature_mask, feature->enabled,
+			     feature->feature_num);
+	}
 
 	return ret;
 }
@@ -866,21 +906,24 @@ int smu_v11_0_system_features_control(struct smu_context *smu,
 	uint32_t feature_mask[2];
 	int ret = 0;
 
-	if (smu->pm_enabled) {
-		ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-					     SMU_MSG_DisableAllSmuFeatures));
-		if (ret)
-			return ret;
-	}
-
-	ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+	ret = smu_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+				     SMU_MSG_DisableAllSmuFeatures), NULL);
 	if (ret)
 		return ret;
 
-	bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-		    feature->feature_num);
-	bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
-		    feature->feature_num);
+	bitmap_zero(feature->enabled, feature->feature_num);
+	bitmap_zero(feature->supported, feature->feature_num);
+
+	if (en) {
+		ret = smu_feature_get_enabled_mask(smu, feature_mask, 2);
+		if (ret)
+			return ret;
+
+		bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
+			    feature->feature_num);
+		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
+			    feature->feature_num);
+	}
 
 	return ret;
 }
@@ -893,7 +936,7 @@ int smu_v11_0_notify_display_change(struct smu_context *smu)
 		return ret;
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1);
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
 
 	return ret;
 }
@@ -917,30 +960,24 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 		return -EINVAL;
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
-					  clk_id << 16);
+					  clk_id << 16, clock);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
 		return ret;
 	}
-
-	ret = smu_read_smc_arg(smu, clock);
-	if (ret)
-		return ret;
 
 	if (*clock != 0)
 		return 0;
 
 	/* if DC limit is zero, return AC limit */
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
-					  clk_id << 16);
+					  clk_id << 16, clock);
 	if (ret) {
 		pr_err("[GetMaxSustainableClock] failed to get max AC clock from SMC!");
 		return ret;
 	}
 
-	ret = smu_read_smc_arg(smu, clock);
-
-	return ret;
+	return 0;
 }
 
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
@@ -948,8 +985,12 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	struct smu_11_0_max_sustainable_clocks *max_sustainable_clocks;
 	int ret = 0;
 
-	max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
+	if (!smu->smu_table.max_sustainable_clocks)
+		max_sustainable_clocks = kzalloc(sizeof(struct smu_11_0_max_sustainable_clocks),
 					 GFP_KERNEL);
+	else
+		max_sustainable_clocks = smu->smu_table.max_sustainable_clocks;
+
 	smu->smu_table.max_sustainable_clocks = (void *)max_sustainable_clocks;
 
 	max_sustainable_clocks->uclock = smu->smu_table.boot_values.uclk / 100;
@@ -1072,7 +1113,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		return -EOPNOTSUPP;
 	}
 
-	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n);
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
 	if (ret) {
 		pr_err("[%s] Set power limit Failed!\n", __func__);
 		return ret;
@@ -1102,11 +1143,7 @@ int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 		ret =  smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
 	else {
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDpmClockFreq,
-						  (asic_clk_id << 16));
-		if (ret)
-			return ret;
-
-		ret = smu_read_smc_arg(smu, &freq);
+						  (asic_clk_id << 16), &freq);
 		if (ret)
 			return ret;
 	}
@@ -1124,11 +1161,12 @@ static int smu_v11_0_set_thermal_range(struct smu_context *smu,
 	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP;
 	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP;
 	uint32_t val;
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_powerplay_table *powerplay_table = table_context->power_play_table;
 
 	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
 			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
-	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP,
-			range.max / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
+	high = min((uint16_t)SMU_THERMAL_MAXIMUM_ALERT_TEMP, powerplay_table->software_shutdown_temp);
 
 	if (low > high)
 		return -EINVAL;
@@ -1340,9 +1378,9 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
-			ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
+			ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff, NULL);
 		else
-			ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
+			ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff, NULL);
 		break;
 	default:
 		break;
@@ -1480,8 +1518,16 @@ int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 	int ret = 0;
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetXgmiMode,
-					  pstate ? XGMI_MODE_PSTATE_D0 : XGMI_MODE_PSTATE_D3);
+					  pstate ? XGMI_MODE_PSTATE_D0 : XGMI_MODE_PSTATE_D3,
+					  NULL);
 	return ret;
+}
+
+static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
+{
+	return smu_send_smc_msg(smu,
+				SMU_MSG_ReenableAcDcInterrupt,
+				NULL);
 }
 
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
@@ -1517,6 +1563,9 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 		break;
 
 		}
+	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
+		if (src_id == 0xfe)
+			smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
 	}
 
 	return 0;
@@ -1552,6 +1601,12 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
 				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
+				0xfe,
 				irq_src);
 	if (ret)
 		return ret;
@@ -1593,21 +1648,19 @@ int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 {
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME);
+	ret = smu_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME, NULL);
 
 	return ret;
 }
 
 static int smu_v11_0_baco_set_armd3_sequence(struct smu_context *smu, enum smu_v11_0_baco_seq baco_seq)
 {
-	return smu_send_smc_msg_with_param(smu, SMU_MSG_ArmD3, baco_seq);
+	return smu_send_smc_msg_with_param(smu, SMU_MSG_ArmD3, baco_seq, NULL);
 }
 
 bool smu_v11_0_baco_is_support(struct smu_context *smu)
 {
-	struct amdgpu_device *adev = smu->adev;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	uint32_t val;
 	bool baco_support;
 
 	mutex_lock(&smu_baco->mutex);
@@ -1617,14 +1670,12 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 	if (!baco_support)
 		return false;
 
-	if (!smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
+	/* Arcturus does not support this bit mask */
+	if (smu_feature_is_supported(smu, SMU_FEATURE_BACO_BIT) &&
+	   !smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT))
 		return false;
 
-	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
-	if (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-		return true;
-
-	return false;
+	return true;
 }
 
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
@@ -1641,8 +1692,10 @@ enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 
 int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 {
-
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
+	struct amdgpu_device *adev = smu->adev;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+	uint32_t data;
 	int ret = 0;
 
 	if (smu_v11_0_baco_get_state(smu) == state)
@@ -1650,10 +1703,25 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 
 	mutex_lock(&smu_baco->mutex);
 
-	if (state == SMU_BACO_STATE_ENTER)
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, BACO_SEQ_BACO);
-	else
-		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco);
+	if (state == SMU_BACO_STATE_ENTER) {
+		if (!ras || !ras->supported) {
+			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
+			data |= 0x80000000;
+			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
+
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 0, NULL);
+		} else {
+			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnterBaco, 1, NULL);
+		}
+	} else {
+		ret = smu_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
+		if (ret)
+			goto out;
+
+		/* clear vbios scratch 6 and 7 for coming asic reinit */
+		WREG32(adev->bios_scratch_reg_offset + 6, 0);
+		WREG32(adev->bios_scratch_reg_offset + 7, 0);
+	}
 	if (ret)
 		goto out;
 
@@ -1663,19 +1731,30 @@ out:
 	return ret;
 }
 
-int smu_v11_0_baco_reset(struct smu_context *smu)
+int smu_v11_0_baco_enter(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 
-	ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
-	if (ret)
-		return ret;
+	/* Arcturus does not need this audio workaround */
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = smu_v11_0_baco_set_armd3_sequence(smu, BACO_SEQ_BACO);
+		if (ret)
+			return ret;
+	}
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_ENTER);
 	if (ret)
 		return ret;
 
 	msleep(10);
+
+	return ret;
+}
+
+int smu_v11_0_baco_exit(struct smu_context *smu)
+{
+	int ret = 0;
 
 	ret = smu_v11_0_baco_set_state(smu, SMU_BACO_STATE_EXIT);
 	if (ret)
@@ -1698,19 +1777,13 @@ int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 	param = (clk_id & 0xffff) << 16;
 
 	if (max) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, max);
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param, max);
 		if (ret)
 			goto failed;
 	}
 
 	if (min) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
-		if (ret)
-			goto failed;
-		ret = smu_read_smc_arg(smu, min);
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param, min);
 		if (ret)
 			goto failed;
 	}
@@ -1732,7 +1805,7 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	if (max > 0) {
 		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMaxByFreq,
-						  param);
+						  param, NULL);
 		if (ret)
 			return ret;
 	}
@@ -1740,7 +1813,7 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	if (min > 0) {
 		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
-						  param);
+						  param, NULL);
 		if (ret)
 			return ret;
 	}
@@ -1807,6 +1880,12 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 			pr_err("Failed to export overdrive table!\n");
 			return ret;
 		}
+		if (!table_context->boot_overdrive_table) {
+			table_context->boot_overdrive_table = kmemdup(table_context->overdrive_table, overdrive_table_size, GFP_KERNEL);
+			if (!table_context->boot_overdrive_table) {
+				return -ENOMEM;
+			}
+		}
 	}
 	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, table_context->overdrive_table, true);
 	if (ret) {
@@ -1815,3 +1894,57 @@ int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, 
 	}
 	return ret;
 }
+
+int smu_v11_0_set_performance_level(struct smu_context *smu,
+				    enum amd_dpm_forced_level level)
+{
+	int ret = 0;
+	uint32_t sclk_mask, mclk_mask, soc_mask;
+
+	switch (level) {
+	case AMD_DPM_FORCED_LEVEL_HIGH:
+		ret = smu_force_dpm_limit_value(smu, true);
+		break;
+	case AMD_DPM_FORCED_LEVEL_LOW:
+		ret = smu_force_dpm_limit_value(smu, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_AUTO:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_STANDARD:
+		ret = smu_unforce_dpm_levels(smu);
+		break;
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_SCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
+		ret = smu_get_profiling_clk_mask(smu, level,
+						 &sclk_mask,
+						 &mclk_mask,
+						 &soc_mask);
+		if (ret)
+			return ret;
+		smu_force_clk_levels(smu, SMU_SCLK, 1 << sclk_mask, false);
+		smu_force_clk_levels(smu, SMU_MCLK, 1 << mclk_mask, false);
+		smu_force_clk_levels(smu, SMU_SOCCLK, 1 << soc_mask, false);
+		break;
+	case AMD_DPM_FORCED_LEVEL_MANUAL:
+	case AMD_DPM_FORCED_LEVEL_PROFILE_EXIT:
+	default:
+		break;
+	}
+	return ret;
+}
+
+int smu_v11_0_set_power_source(struct smu_context *smu,
+			       enum smu_power_src_type power_src)
+{
+	int pwr_source;
+
+	pwr_source = smu_power_get_index(smu, (uint32_t)power_src);
+	if (pwr_source < 0)
+		return -EINVAL;
+
+	return smu_send_smc_msg_with_param(smu,
+					SMU_MSG_NotifyPowerSource,
+					pwr_source,
+					NULL);
+}
+

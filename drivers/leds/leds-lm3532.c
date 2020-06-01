@@ -140,7 +140,7 @@ struct lm3532_led {
 	int ctrl_brt_pointer;
 	int num_leds;
 	int full_scale_current;
-	int enabled:1;
+	unsigned int enabled:1;
 	u32 led_strings[LM3532_MAX_CONTROL_BANKS];
 	char label[LED_MAX_NAME_SIZE];
 };
@@ -578,6 +578,12 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		priv->runtime_ramp_down = lm3532_get_ramp_index(ramp_time);
 
 	device_for_each_child_node(priv->dev, child) {
+		struct led_init_data idata = {
+			.fwnode = child,
+			.default_label = ":",
+			.devicename = priv->client->name,
+		};
+
 		led = &priv->leds[i];
 
 		ret = fwnode_property_read_u32(child, "reg", &control_bank);
@@ -652,7 +658,7 @@ static int lm3532_parse_node(struct lm3532_data *priv)
 		led->led_dev.name = led->label;
 		led->led_dev.brightness_set_blocking = lm3532_brightness_set;
 
-		ret = devm_led_classdev_register(priv->dev, &led->led_dev);
+		ret = devm_led_classdev_register_ext(priv->dev, &led->led_dev, &idata);
 		if (ret) {
 			dev_err(&priv->client->dev, "led register err: %d\n",
 				ret);

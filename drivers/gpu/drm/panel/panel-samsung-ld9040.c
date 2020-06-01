@@ -261,9 +261,9 @@ static int ld9040_enable(struct drm_panel *panel)
 	return 0;
 }
 
-static int ld9040_get_modes(struct drm_panel *panel)
+static int ld9040_get_modes(struct drm_panel *panel,
+			    struct drm_connector *connector)
 {
-	struct drm_connector *connector = panel->connector;
 	struct ld9040 *ctx = panel_to_ld9040(panel);
 	struct drm_display_mode *mode;
 
@@ -372,6 +372,12 @@ static const struct of_device_id ld9040_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ld9040_of_match);
+
+static const struct spi_device_id ld9040_ids[] = {
+	{ "ld9040", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, ld9040_ids);
 
 static struct spi_driver ld9040_driver = {
 	.probe = ld9040_probe,

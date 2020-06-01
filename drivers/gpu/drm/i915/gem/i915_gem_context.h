@@ -13,7 +13,6 @@
 
 #include "i915_drv.h"
 #include "i915_gem.h"
-#include "i915_gem_gtt.h"
 #include "i915_scheduler.h"
 #include "intel_device_info.h"
 
@@ -91,26 +90,6 @@ static inline void i915_gem_context_clear_persistence(struct i915_gem_context *c
 	clear_bit(UCONTEXT_PERSISTENCE, &ctx->user_flags);
 }
 
-static inline bool i915_gem_context_is_banned(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_BANNED, &ctx->flags);
-}
-
-static inline void i915_gem_context_set_banned(struct i915_gem_context *ctx)
-{
-	set_bit(CONTEXT_BANNED, &ctx->flags);
-}
-
-static inline bool i915_gem_context_force_single_submission(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
-}
-
-static inline void i915_gem_context_set_force_single_submission(struct i915_gem_context *ctx)
-{
-	__set_bit(CONTEXT_FORCE_SINGLE_SUBMISSION, &ctx->flags);
-}
-
 static inline bool
 i915_gem_context_user_engines(const struct i915_gem_context *ctx)
 {
@@ -129,31 +108,8 @@ i915_gem_context_clear_user_engines(struct i915_gem_context *ctx)
 	clear_bit(CONTEXT_USER_ENGINES, &ctx->flags);
 }
 
-static inline bool
-i915_gem_context_nopreempt(const struct i915_gem_context *ctx)
-{
-	return test_bit(CONTEXT_NOPREEMPT, &ctx->flags);
-}
-
-static inline void
-i915_gem_context_set_nopreempt(struct i915_gem_context *ctx)
-{
-	set_bit(CONTEXT_NOPREEMPT, &ctx->flags);
-}
-
-static inline void
-i915_gem_context_clear_nopreempt(struct i915_gem_context *ctx)
-{
-	clear_bit(CONTEXT_NOPREEMPT, &ctx->flags);
-}
-
-static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
-{
-	return !ctx->file_priv;
-}
-
 /* i915_gem_context.c */
-int __must_check i915_gem_init_contexts(struct drm_i915_private *i915);
+void i915_gem_init__contexts(struct drm_i915_private *i915);
 void i915_gem_driver_release__contexts(struct drm_i915_private *i915);
 
 int i915_gem_context_open(struct drm_i915_private *i915,
@@ -177,9 +133,6 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 int i915_gem_context_reset_stats_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file);
-
-struct i915_gem_context *
-i915_gem_context_create_kernel(struct drm_i915_private *i915, int prio);
 
 static inline struct i915_gem_context *
 i915_gem_context_get(struct i915_gem_context *ctx)
@@ -239,12 +192,16 @@ i915_gem_context_unlock_engines(struct i915_gem_context *ctx)
 static inline struct intel_context *
 i915_gem_context_get_engine(struct i915_gem_context *ctx, unsigned int idx)
 {
-	struct intel_context *ce = ERR_PTR(-EINVAL);
+	struct intel_context *ce;
 
 	rcu_read_lock(); {
 		struct i915_gem_engines *e = rcu_dereference(ctx->engines);
-		if (likely(idx < e->num_engines && e->engines[idx]))
+		if (unlikely(!e)) /* context was closed! */
+			ce = ERR_PTR(-ENOENT);
+		else if (likely(idx < e->num_engines && e->engines[idx]))
 			ce = intel_context_get(e->engines[idx]);
+		else
+			ce = ERR_PTR(-EINVAL);
 	} rcu_read_unlock();
 
 	return ce;
@@ -254,7 +211,6 @@ static inline void
 i915_gem_engines_iter_init(struct i915_gem_engines_iter *it,
 			   struct i915_gem_engines *engines)
 {
-	GEM_BUG_ON(!engines);
 	it->engines = engines;
 	it->idx = 0;
 }

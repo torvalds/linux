@@ -262,8 +262,10 @@ void i915_buddy_free_list(struct i915_buddy_mm *mm, struct list_head *objects)
 {
 	struct i915_buddy_block *block, *on;
 
-	list_for_each_entry_safe(block, on, objects, link)
+	list_for_each_entry_safe(block, on, objects, link) {
 		i915_buddy_free(mm, block);
+		cond_resched();
+	}
 	INIT_LIST_HEAD(objects);
 }
 
@@ -310,7 +312,8 @@ i915_buddy_alloc(struct i915_buddy_mm *mm, unsigned int order)
 	return block;
 
 out_free:
-	__i915_buddy_free(mm, block);
+	if (i != order)
+		__i915_buddy_free(mm, block);
 	return ERR_PTR(err);
 }
 

@@ -159,9 +159,10 @@ int lima_sched_context_init(struct lima_sched_pipe *pipe,
 			    struct lima_sched_context *context,
 			    atomic_t *guilty)
 {
-	struct drm_sched_rq *rq = pipe->base.sched_rq + DRM_SCHED_PRIORITY_NORMAL;
+	struct drm_gpu_scheduler *sched = &pipe->base;
 
-	return drm_sched_entity_init(&context->base, &rq, 1, guilty);
+	return drm_sched_entity_init(&context->base, DRM_SCHED_PRIORITY_NORMAL,
+				     &sched, 1, guilty);
 }
 
 void lima_sched_context_fini(struct lima_sched_pipe *pipe,
@@ -255,13 +256,17 @@ static struct dma_fence *lima_sched_run_job(struct drm_sched_job *job)
 	return task->fence;
 }
 
-static void lima_sched_handle_error_task(struct lima_sched_pipe *pipe,
-					 struct lima_sched_task *task)
+static void lima_sched_timedout_job(struct drm_sched_job *job)
 {
+	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
+	struct lima_sched_task *task = to_lima_task(job);
+
+	if (!pipe->error)
+		DRM_ERROR("lima job timeout\n");
+
 	drm_sched_stop(&pipe->base, &task->base);
 
-	if (task)
-		drm_sched_increase_karma(&task->base);
+	drm_sched_increase_karma(&task->base);
 
 	pipe->task_error(pipe);
 
@@ -282,16 +287,6 @@ static void lima_sched_handle_error_task(struct lima_sched_pipe *pipe,
 
 	drm_sched_resubmit_jobs(&pipe->base);
 	drm_sched_start(&pipe->base, true);
-}
-
-static void lima_sched_timedout_job(struct drm_sched_job *job)
-{
-	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
-	struct lima_sched_task *task = to_lima_task(job);
-
-	DRM_ERROR("lima job timeout\n");
-
-	lima_sched_handle_error_task(pipe, task);
 }
 
 static void lima_sched_free_job(struct drm_sched_job *job)
@@ -318,13 +313,24 @@ static const struct drm_sched_backend_ops lima_sched_ops = {
 	.free_job = lima_sched_free_job,
 };
 
-static void lima_sched_error_work(struct work_struct *work)
+static void lima_sched_recover_work(struct work_struct *work)
 {
 	struct lima_sched_pipe *pipe =
-		container_of(work, struct lima_sched_pipe, error_work);
-	struct lima_sched_task *task = pipe->current_task;
+		container_of(work, struct lima_sched_pipe, recover_work);
+	int i;
 
-	lima_sched_handle_error_task(pipe, task);
+	for (i = 0; i < pipe->num_l2_cache; i++)
+		lima_l2_cache_flush(pipe->l2_cache[i]);
+
+	if (pipe->bcast_mmu) {
+		lima_mmu_flush_tlb(pipe->bcast_mmu);
+	} else {
+		for (i = 0; i < pipe->num_mmu; i++)
+			lima_mmu_flush_tlb(pipe->mmu[i]);
+	}
+
+	if (pipe->task_recover(pipe))
+		drm_sched_fault(&pipe->base);
 }
 
 int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
@@ -335,7 +341,7 @@ int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 	pipe->fence_context = dma_fence_context_alloc(1);
 	spin_lock_init(&pipe->fence_lock);
 
-	INIT_WORK(&pipe->error_work, lima_sched_error_work);
+	INIT_WORK(&pipe->recover_work, lima_sched_recover_work);
 
 	return drm_sched_init(&pipe->base, &lima_sched_ops, 1, 0,
 			      msecs_to_jiffies(timeout), name);
@@ -348,11 +354,14 @@ void lima_sched_pipe_fini(struct lima_sched_pipe *pipe)
 
 void lima_sched_pipe_task_done(struct lima_sched_pipe *pipe)
 {
-	if (pipe->error)
-		schedule_work(&pipe->error_work);
-	else {
-		struct lima_sched_task *task = pipe->current_task;
+	struct lima_sched_task *task = pipe->current_task;
 
+	if (pipe->error) {
+		if (task && task->recoverable)
+			schedule_work(&pipe->recover_work);
+		else
+			drm_sched_fault(&pipe->base);
+	} else {
 		pipe->task_fini(pipe);
 		dma_fence_signal(task->fence);
 	}

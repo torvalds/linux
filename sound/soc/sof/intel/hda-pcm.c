@@ -27,7 +27,7 @@
 #define SDnFMT_BITS(x)	((x) << 4)
 #define SDnFMT_CHAN(x)	((x) << 0)
 
-static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
+u32 hda_dsp_get_mult_div(struct snd_sof_dev *sdev, int rate)
 {
 	switch (rate) {
 	case 8000:
@@ -61,7 +61,7 @@ static inline u32 get_mult_div(struct snd_sof_dev *sdev, int rate)
 	}
 };
 
-static inline u32 get_bits(struct snd_sof_dev *sdev, int sample_bits)
+u32 hda_dsp_get_bits(struct snd_sof_dev *sdev, int sample_bits)
 {
 	switch (sample_bits) {
 	case 8:
@@ -95,8 +95,8 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	u32 size, rate, bits;
 
 	size = params_buffer_bytes(params);
-	rate = get_mult_div(sdev, params_rate(params));
-	bits = get_bits(sdev, params_width(params));
+	rate = hda_dsp_get_mult_div(sdev, params_rate(params));
+	bits = hda_dsp_get_bits(sdev, params_width(params));
 
 	hstream->substream = substream;
 

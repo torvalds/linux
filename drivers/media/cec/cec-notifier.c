@@ -23,9 +23,8 @@ struct cec_notifier {
 	struct kref kref;
 	struct device *hdmi_dev;
 	struct cec_connector_info conn_info;
-	const char *conn_name;
+	const char *port_name;
 	struct cec_adapter *cec_adap;
-	void (*callback)(struct cec_adapter *adap, u16 pa);
 
 	u16 phys_addr;
 };
@@ -33,16 +32,30 @@ struct cec_notifier {
 static LIST_HEAD(cec_notifiers);
 static DEFINE_MUTEX(cec_notifiers_lock);
 
-struct cec_notifier *
-cec_notifier_get_conn(struct device *hdmi_dev, const char *conn_name)
+/**
+ * cec_notifier_get_conn - find or create a new cec_notifier for the given
+ * device and connector tuple.
+ * @hdmi_dev: device that sends the events.
+ * @port_name: the connector name from which the event occurs
+ *
+ * If a notifier for device @dev already exists, then increase the refcount
+ * and return that notifier.
+ *
+ * If it doesn't exist, then allocate a new notifier struct and return a
+ * pointer to that new struct.
+ *
+ * Return NULL if the memory could not be allocated.
+ */
+static struct cec_notifier *
+cec_notifier_get_conn(struct device *hdmi_dev, const char *port_name)
 {
 	struct cec_notifier *n;
 
 	mutex_lock(&cec_notifiers_lock);
 	list_for_each_entry(n, &cec_notifiers, head) {
 		if (n->hdmi_dev == hdmi_dev &&
-		    (!conn_name ||
-		     (n->conn_name && !strcmp(n->conn_name, conn_name)))) {
+		    (!port_name ||
+		     (n->port_name && !strcmp(n->port_name, port_name)))) {
 			kref_get(&n->kref);
 			mutex_unlock(&cec_notifiers_lock);
 			return n;
@@ -52,9 +65,9 @@ cec_notifier_get_conn(struct device *hdmi_dev, const char *conn_name)
 	if (!n)
 		goto unlock;
 	n->hdmi_dev = hdmi_dev;
-	if (conn_name) {
-		n->conn_name = kstrdup(conn_name, GFP_KERNEL);
-		if (!n->conn_name) {
+	if (port_name) {
+		n->port_name = kstrdup(port_name, GFP_KERNEL);
+		if (!n->port_name) {
 			kfree(n);
 			n = NULL;
 			goto unlock;
@@ -69,7 +82,6 @@ unlock:
 	mutex_unlock(&cec_notifiers_lock);
 	return n;
 }
-EXPORT_SYMBOL_GPL(cec_notifier_get_conn);
 
 static void cec_notifier_release(struct kref *kref)
 {
@@ -77,23 +89,22 @@ static void cec_notifier_release(struct kref *kref)
 		container_of(kref, struct cec_notifier, kref);
 
 	list_del(&n->head);
-	kfree(n->conn_name);
+	kfree(n->port_name);
 	kfree(n);
 }
 
-void cec_notifier_put(struct cec_notifier *n)
+static void cec_notifier_put(struct cec_notifier *n)
 {
 	mutex_lock(&cec_notifiers_lock);
 	kref_put(&n->kref, cec_notifier_release);
 	mutex_unlock(&cec_notifiers_lock);
 }
-EXPORT_SYMBOL_GPL(cec_notifier_put);
 
 struct cec_notifier *
-cec_notifier_conn_register(struct device *hdmi_dev, const char *conn_name,
+cec_notifier_conn_register(struct device *hdmi_dev, const char *port_name,
 			   const struct cec_connector_info *conn_info)
 {
-	struct cec_notifier *n = cec_notifier_get_conn(hdmi_dev, conn_name);
+	struct cec_notifier *n = cec_notifier_get_conn(hdmi_dev, port_name);
 
 	if (!n)
 		return n;
@@ -131,7 +142,7 @@ void cec_notifier_conn_unregister(struct cec_notifier *n)
 EXPORT_SYMBOL_GPL(cec_notifier_conn_unregister);
 
 struct cec_notifier *
-cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
+cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *port_name,
 			       struct cec_adapter *adap)
 {
 	struct cec_notifier *n;
@@ -139,7 +150,7 @@ cec_notifier_cec_adap_register(struct device *hdmi_dev, const char *conn_name,
 	if (WARN_ON(!adap))
 		return NULL;
 
-	n = cec_notifier_get_conn(hdmi_dev, conn_name);
+	n = cec_notifier_get_conn(hdmi_dev, port_name);
 	if (!n)
 		return n;
 
@@ -162,7 +173,6 @@ void cec_notifier_cec_adap_unregister(struct cec_notifier *n,
 	mutex_lock(&n->lock);
 	adap->notifier = NULL;
 	n->cec_adap = NULL;
-	n->callback = NULL;
 	mutex_unlock(&n->lock);
 	cec_notifier_put(n);
 }
@@ -175,9 +185,7 @@ void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 
 	mutex_lock(&n->lock);
 	n->phys_addr = pa;
-	if (n->callback)
-		n->callback(n->cec_adap, n->phys_addr);
-	else if (n->cec_adap)
+	if (n->cec_adap)
 		cec_s_phys_addr(n->cec_adap, n->phys_addr, false);
 	mutex_unlock(&n->lock);
 }
@@ -197,34 +205,6 @@ void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 	cec_notifier_set_phys_addr(n, pa);
 }
 EXPORT_SYMBOL_GPL(cec_notifier_set_phys_addr_from_edid);
-
-void cec_notifier_register(struct cec_notifier *n,
-			   struct cec_adapter *adap,
-			   void (*callback)(struct cec_adapter *adap, u16 pa))
-{
-	kref_get(&n->kref);
-	mutex_lock(&n->lock);
-	n->cec_adap = adap;
-	n->callback = callback;
-	n->callback(adap, n->phys_addr);
-	mutex_unlock(&n->lock);
-}
-EXPORT_SYMBOL_GPL(cec_notifier_register);
-
-void cec_notifier_unregister(struct cec_notifier *n)
-{
-	/* Do nothing unless cec_notifier_register was called first */
-	if (!n->callback)
-		return;
-
-	mutex_lock(&n->lock);
-	n->callback = NULL;
-	n->cec_adap->notifier = NULL;
-	n->cec_adap = NULL;
-	mutex_unlock(&n->lock);
-	cec_notifier_put(n);
-}
-EXPORT_SYMBOL_GPL(cec_notifier_unregister);
 
 struct device *cec_notifier_parse_hdmi_phandle(struct device *dev)
 {

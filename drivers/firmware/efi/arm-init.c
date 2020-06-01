@@ -22,8 +22,6 @@
 
 #include <asm/efi.h>
 
-u64 efi_system_table;
-
 static int __init is_memory(efi_memory_desc_t *md)
 {
 	if (md->attribute & (EFI_MEMORY_WB|EFI_MEMORY_WT|EFI_MEMORY_WC))
@@ -36,7 +34,7 @@ static int __init is_memory(efi_memory_desc_t *md)
  * as some data members of the EFI system table are virtually remapped after
  * SetVirtualAddressMap() has been called.
  */
-static phys_addr_t efi_to_phys(unsigned long addr)
+static phys_addr_t __init efi_to_phys(unsigned long addr)
 {
 	efi_memory_desc_t *md;
 
@@ -55,7 +53,7 @@ static phys_addr_t efi_to_phys(unsigned long addr)
 
 static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
 
-static __initdata efi_config_table_type_t arch_tables[] = {
+static const efi_config_table_type_t arch_tables[] __initconst = {
 	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, NULL, &screen_info_table},
 	{NULL_GUID, NULL, NULL}
 };
@@ -83,17 +81,15 @@ static void __init init_screen_info(void)
 		memblock_mark_nomap(screen_info.lfb_base, screen_info.lfb_size);
 }
 
-static int __init uefi_init(void)
+static int __init uefi_init(u64 efi_system_table)
 {
-	efi_char16_t *c16;
-	void *config_tables;
+	efi_config_table_t *config_tables;
+	efi_system_table_t *systab;
 	size_t table_size;
-	char vendor[100] = "unknown";
-	int i, retval;
+	int retval;
 
-	efi.systab = early_memremap_ro(efi_system_table,
-				       sizeof(efi_system_table_t));
-	if (efi.systab == NULL) {
+	systab = early_memremap_ro(efi_system_table, sizeof(efi_system_table_t));
+	if (systab == NULL) {
 		pr_warn("Unable to map EFI system table.\n");
 		return -ENOMEM;
 	}
@@ -102,53 +98,29 @@ static int __init uefi_init(void)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_bit(EFI_64BIT, &efi.flags);
 
-	/*
-	 * Verify the EFI Table
-	 */
-	if (efi.systab->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
-		pr_err("System table signature incorrect\n");
-		retval = -EINVAL;
+	retval = efi_systab_check_header(&systab->hdr, 2);
+	if (retval)
 		goto out;
-	}
-	if ((efi.systab->hdr.revision >> 16) < 2)
-		pr_warn("Warning: EFI system table version %d.%02d, expected 2.00 or greater\n",
-			efi.systab->hdr.revision >> 16,
-			efi.systab->hdr.revision & 0xffff);
 
-	efi.runtime_version = efi.systab->hdr.revision;
+	efi.runtime = systab->runtime;
+	efi.runtime_version = systab->hdr.revision;
 
-	/* Show what we know for posterity */
-	c16 = early_memremap_ro(efi_to_phys(efi.systab->fw_vendor),
-				sizeof(vendor) * sizeof(efi_char16_t));
-	if (c16) {
-		for (i = 0; i < (int) sizeof(vendor) - 1 && *c16; ++i)
-			vendor[i] = c16[i];
-		vendor[i] = '\0';
-		early_memunmap(c16, sizeof(vendor) * sizeof(efi_char16_t));
-	}
+	efi_systab_report_header(&systab->hdr, efi_to_phys(systab->fw_vendor));
 
-	pr_info("EFI v%u.%.02u by %s\n",
-		efi.systab->hdr.revision >> 16,
-		efi.systab->hdr.revision & 0xffff, vendor);
-
-	table_size = sizeof(efi_config_table_64_t) * efi.systab->nr_tables;
-	config_tables = early_memremap_ro(efi_to_phys(efi.systab->tables),
+	table_size = sizeof(efi_config_table_t) * systab->nr_tables;
+	config_tables = early_memremap_ro(efi_to_phys(systab->tables),
 					  table_size);
 	if (config_tables == NULL) {
 		pr_warn("Unable to map EFI config table array.\n");
 		retval = -ENOMEM;
 		goto out;
 	}
-	retval = efi_config_parse_tables(config_tables, efi.systab->nr_tables,
-					 sizeof(efi_config_table_t),
+	retval = efi_config_parse_tables(config_tables, systab->nr_tables,
 					 arch_tables);
-
-	if (!retval)
-		efi.config_table = (unsigned long)efi.systab->tables;
 
 	early_memunmap(config_tables, table_size);
 out:
-	early_memunmap(efi.systab,  sizeof(efi_system_table_t));
+	early_memunmap(systab, sizeof(efi_system_table_t));
 	return retval;
 }
 
@@ -233,18 +205,12 @@ static __init void reserve_regions(void)
 void __init efi_init(void)
 {
 	struct efi_memory_map_data data;
-	struct efi_fdt_params params;
+	u64 efi_system_table;
 
 	/* Grab UEFI information placed in FDT by stub */
-	if (!efi_get_fdt_params(&params))
+	efi_system_table = efi_get_fdt_params(&data);
+	if (!efi_system_table)
 		return;
-
-	efi_system_table = params.system_table;
-
-	data.desc_version = params.desc_ver;
-	data.desc_size = params.desc_size;
-	data.size = params.mmap_size;
-	data.phys_map = params.mmap;
 
 	if (efi_memmap_init_early(&data) < 0) {
 		/*
@@ -259,7 +225,7 @@ void __init efi_init(void)
 	     "Unexpected EFI_MEMORY_DESCRIPTOR version %ld",
 	      efi.memmap.desc_version);
 
-	if (uefi_init() < 0) {
+	if (uefi_init(efi_system_table) < 0) {
 		efi_memmap_unmap();
 		return;
 	}
@@ -267,9 +233,8 @@ void __init efi_init(void)
 	reserve_regions();
 	efi_esrt_init();
 
-	memblock_reserve(params.mmap & PAGE_MASK,
-			 PAGE_ALIGN(params.mmap_size +
-				    (params.mmap & ~PAGE_MASK)));
+	memblock_reserve(data.phys_map & PAGE_MASK,
+			 PAGE_ALIGN(data.size + (data.phys_map & ~PAGE_MASK)));
 
 	init_screen_info();
 
@@ -349,7 +314,7 @@ static int efifb_add_links(const struct fwnode_handle *fwnode,
 	 * If this fails, retrying this function at a later point won't
 	 * change anything. So, don't return an error after this.
 	 */
-	if (!device_link_add(dev, sup_dev, 0))
+	if (!device_link_add(dev, sup_dev, fw_devlink_get_flags()))
 		dev_warn(dev, "device_link_add() failed\n");
 
 	put_device(sup_dev);

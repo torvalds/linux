@@ -197,10 +197,6 @@ static void _dpu_crtc_blend_setup(struct drm_crtc *crtc)
 	DPU_DEBUG("%s\n", dpu_crtc->name);
 
 	for (i = 0; i < cstate->num_mixers; i++) {
-		if (!mixer[i].hw_lm || !mixer[i].lm_ctl) {
-			DPU_ERROR("invalid lm or ctl assigned to mixer\n");
-			return;
-		}
 		mixer[i].mixer_op_mode = 0;
 		mixer[i].flush_mask = 0;
 		if (mixer[i].lm_ctl->ops.clear_all_blendstages)
@@ -1113,14 +1109,9 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 
 	for (i = 0; i < cstate->num_mixers; ++i) {
 		m = &cstate->mixers[i];
-		if (!m->hw_lm)
-			seq_printf(s, "\tmixer[%d] has no lm\n", i);
-		else if (!m->lm_ctl)
-			seq_printf(s, "\tmixer[%d] has no ctl\n", i);
-		else
-			seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
-				m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
-				out_width, mode->vdisplay);
+		seq_printf(s, "\tmixer:%d ctl:%d width:%d height:%d\n",
+			m->hw_lm->idx - LM_0, m->lm_ctl->idx - CTL_0,
+			out_width, mode->vdisplay);
 	}
 
 	seq_puts(s, "\n");
@@ -1281,6 +1272,8 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.late_register = dpu_crtc_late_register,
 	.early_unregister = dpu_crtc_early_unregister,
+	.enable_vblank  = msm_crtc_enable_vblank,
+	.disable_vblank = msm_crtc_disable_vblank,
 };
 
 static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {

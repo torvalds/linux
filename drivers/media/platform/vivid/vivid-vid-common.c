@@ -813,7 +813,7 @@ void fmt_sp2mp(const struct v4l2_format *sp_fmt, struct v4l2_format *mp_fmt)
 
 	memset(mp->reserved, 0, sizeof(mp->reserved));
 	mp_fmt->type = is_out ? V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE :
-			   V4L2_CAP_VIDEO_CAPTURE_MPLANE;
+			   V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	mp->width = pix->width;
 	mp->height = pix->height;
 	mp->pixelformat = pix->pixelformat;

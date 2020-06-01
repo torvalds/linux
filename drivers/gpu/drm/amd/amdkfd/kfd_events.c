@@ -187,7 +187,7 @@ static int create_signal_event(struct file *devkfd,
 	if (p->signal_mapped_size &&
 	    p->signal_event_count == p->signal_mapped_size / 8) {
 		if (!p->signal_event_limit_reached) {
-			pr_warn("Signal event wasn't created because limit was reached\n");
+			pr_debug("Signal event wasn't created because limit was reached\n");
 			p->signal_event_limit_reached = true;
 		}
 		return -ENOSPC;
@@ -346,7 +346,6 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		ret = create_signal_event(devkfd, p, ev);
 		if (!ret) {
 			*event_page_offset = KFD_MMAP_TYPE_EVENTS;
-			*event_page_offset <<= PAGE_SHIFT;
 			*event_slot_index = ev->event_id;
 		}
 		break;

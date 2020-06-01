@@ -47,7 +47,7 @@ static int sun4i_rgb_get_modes(struct drm_connector *connector)
 	struct sun4i_rgb *rgb =
 		drm_connector_to_sun4i_rgb(connector);
 
-	return drm_panel_get_modes(rgb->panel);
+	return drm_panel_get_modes(rgb->panel, connector);
 }
 
 /*
@@ -253,7 +253,7 @@ int sun4i_rgb_init(struct drm_device *drm, struct sun4i_tcon *tcon)
 	}
 
 	if (rgb->bridge) {
-		ret = drm_bridge_attach(encoder, rgb->bridge, NULL);
+		ret = drm_bridge_attach(encoder, rgb->bridge, NULL, 0);
 		if (ret) {
 			dev_err(drm->dev, "Couldn't attach our bridge\n");
 			goto err_cleanup_connector;

@@ -61,7 +61,7 @@ struct imx_sc_msg_req_set_resource_power_mode {
 	struct imx_sc_rpc_msg hdr;
 	u16 resource;
 	u8 mode;
-} __packed;
+} __packed __aligned(4);
 
 #define IMX_SCU_PD_NAME_SIZE 20
 struct imx_sc_pm_domain {
@@ -93,7 +93,7 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	{ "kpp", IMX_SC_R_KPP, 1, false, 0 },
 	{ "fspi", IMX_SC_R_FSPI_0, 2, true, 0 },
 	{ "mu_a", IMX_SC_R_MU_0A, 14, true, 0 },
-	{ "mu_b", IMX_SC_R_MU_13B, 1, true, 13 },
+	{ "mu_b", IMX_SC_R_MU_5B, 9, true, 5 },
 
 	/* CONN SS */
 	{ "usb", IMX_SC_R_USB_0, 2, true, 0 },
@@ -109,6 +109,7 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	{ "audio-pll0", IMX_SC_R_AUDIO_PLL_0, 1, false, 0 },
 	{ "audio-pll1", IMX_SC_R_AUDIO_PLL_1, 1, false, 0 },
 	{ "audio-clk-0", IMX_SC_R_AUDIO_CLK_0, 1, false, 0 },
+	{ "audio-clk-1", IMX_SC_R_AUDIO_CLK_1, 1, false, 0 },
 	{ "dma0-ch", IMX_SC_R_DMA_0_CH0, 16, true, 0 },
 	{ "dma1-ch", IMX_SC_R_DMA_1_CH0, 16, true, 0 },
 	{ "dma2-ch", IMX_SC_R_DMA_2_CH0, 5, true, 0 },
@@ -116,7 +117,13 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	{ "asrc1", IMX_SC_R_ASRC_1, 1, false, 0 },
 	{ "esai0", IMX_SC_R_ESAI_0, 1, false, 0 },
 	{ "spdif0", IMX_SC_R_SPDIF_0, 1, false, 0 },
+	{ "spdif1", IMX_SC_R_SPDIF_1, 1, false, 0 },
 	{ "sai", IMX_SC_R_SAI_0, 3, true, 0 },
+	{ "sai3", IMX_SC_R_SAI_3, 1, false, 0 },
+	{ "sai4", IMX_SC_R_SAI_4, 1, false, 0 },
+	{ "sai5", IMX_SC_R_SAI_5, 1, false, 0 },
+	{ "sai6", IMX_SC_R_SAI_6, 1, false, 0 },
+	{ "sai7", IMX_SC_R_SAI_7, 1, false, 0 },
 	{ "amix", IMX_SC_R_AMIX, 1, false, 0 },
 	{ "mqs0", IMX_SC_R_MQS_0, 1, false, 0 },
 	{ "dsp", IMX_SC_R_DSP, 1, false, 0 },
@@ -158,6 +165,10 @@ static const struct imx_sc_pd_range imx8qxp_scu_pd_ranges[] = {
 	/* DC SS */
 	{ "dc0", IMX_SC_R_DC_0, 1, false, 0 },
 	{ "dc0-pll", IMX_SC_R_DC_0_PLL_0, 2, true, 0 },
+
+	/* CM40 SS */
+	{ "cm40_i2c", IMX_SC_R_M4_0_I2C, 1, 0 },
+	{ "cm40_intmux", IMX_SC_R_M4_0_INTMUX, 1, 0 },
 };
 
 static const struct imx_sc_pd_soc imx8qxp_scu_pd = {

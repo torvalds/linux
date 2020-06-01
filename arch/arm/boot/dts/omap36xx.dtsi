@@ -223,6 +223,10 @@
 	};
 };
 
+&sdma {
+	compatible = "ti,omap3630-sdma", "ti,omap-sdma";
+};
+
 /* OMAP3630 needs dss_96m_fck for VENC */
 &venc {
 	clocks = <&dss_tv_fck>, <&dss_96m_fck>;

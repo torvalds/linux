@@ -503,7 +503,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	rc = 1;
 	if (pe->state & EEH_PE_ISOLATED) {
 		pe->check_count++;
-		if (pe->check_count % EEH_MAX_FAILS == 0) {
+		if (pe->check_count == EEH_MAX_FAILS) {
 			dn = pci_device_to_OF_node(dev);
 			if (dn)
 				location = of_get_property(dn, "ibm,loc-code",
@@ -1107,91 +1107,46 @@ static int eeh_init(void)
 core_initcall_sync(eeh_init);
 
 /**
- * eeh_add_device_early - Enable EEH for the indicated device node
- * @pdn: PCI device node for which to set up EEH
- *
- * This routine must be used to perform EEH initialization for PCI
- * devices that were added after system boot (e.g. hotplug, dlpar).
- * This routine must be called before any i/o is performed to the
- * adapter (inluding any config-space i/o).
- * Whether this actually enables EEH or not for this device depends
- * on the CEC architecture, type of the device, on earlier boot
- * command-line arguments & etc.
- */
-void eeh_add_device_early(struct pci_dn *pdn)
-{
-	struct pci_controller *phb = pdn ? pdn->phb : NULL;
-	struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
-
-	if (!edev)
-		return;
-
-	if (!eeh_has_flag(EEH_PROBE_MODE_DEVTREE))
-		return;
-
-	/* USB Bus children of PCI devices will not have BUID's */
-	if (NULL == phb ||
-	    (eeh_has_flag(EEH_PROBE_MODE_DEVTREE) && 0 == phb->buid))
-		return;
-
-	eeh_ops->probe(pdn, NULL);
-}
-
-/**
- * eeh_add_device_tree_early - Enable EEH for the indicated device
- * @pdn: PCI device node
- *
- * This routine must be used to perform EEH initialization for the
- * indicated PCI device that was added after system boot (e.g.
- * hotplug, dlpar).
- */
-void eeh_add_device_tree_early(struct pci_dn *pdn)
-{
-	struct pci_dn *n;
-
-	if (!pdn)
-		return;
-
-	list_for_each_entry(n, &pdn->child_list, list)
-		eeh_add_device_tree_early(n);
-	eeh_add_device_early(pdn);
-}
-EXPORT_SYMBOL_GPL(eeh_add_device_tree_early);
-
-/**
- * eeh_add_device_late - Perform EEH initialization for the indicated pci device
+ * eeh_probe_device() - Perform EEH initialization for the indicated pci device
  * @dev: pci device for which to set up EEH
  *
  * This routine must be used to complete EEH initialization for PCI
  * devices that were added after system boot (e.g. hotplug, dlpar).
  */
-void eeh_add_device_late(struct pci_dev *dev)
+void eeh_probe_device(struct pci_dev *dev)
 {
-	struct pci_dn *pdn;
 	struct eeh_dev *edev;
 
-	if (!dev)
-		return;
+	pr_debug("EEH: Adding device %s\n", pci_name(dev));
 
-	pdn = pci_get_pdn_by_devfn(dev->bus, dev->devfn);
-	edev = pdn_to_eeh_dev(pdn);
-	eeh_edev_dbg(edev, "Adding device\n");
-	if (edev->pdev == dev) {
-		eeh_edev_dbg(edev, "Device already referenced!\n");
+	/*
+	 * pci_dev_to_eeh_dev() can only work if eeh_probe_dev() was
+	 * already called for this device.
+	 */
+	if (WARN_ON_ONCE(pci_dev_to_eeh_dev(dev))) {
+		pci_dbg(dev, "Already bound to an eeh_dev!\n");
+		return;
+	}
+
+	edev = eeh_ops->probe(dev);
+	if (!edev) {
+		pr_debug("EEH: Adding device failed\n");
 		return;
 	}
 
 	/*
-	 * The EEH cache might not be removed correctly because of
-	 * unbalanced kref to the device during unplug time, which
-	 * relies on pcibios_release_device(). So we have to remove
-	 * that here explicitly.
+	 * FIXME: We rely on pcibios_release_device() to remove the
+	 * existing EEH state. The release function is only called if
+	 * the pci_dev's refcount drops to zero so if something is
+	 * keeping a ref to a device (e.g. a filesystem) we need to
+	 * remove the old EEH state.
+	 *
+	 * FIXME: HEY MA, LOOK AT ME, NO LOCKING!
 	 */
-	if (edev->pdev) {
+	if (edev->pdev && edev->pdev != dev) {
 		eeh_rmv_from_parent_pe(edev);
 		eeh_addr_cache_rmv_dev(edev->pdev);
 		eeh_sysfs_remove_device(edev->pdev);
-		edev->mode &= ~EEH_DEV_SYSFS;
 
 		/*
 		 * We definitely should have the PCI device removed
@@ -1199,67 +1154,14 @@ void eeh_add_device_late(struct pci_dev *dev)
 		 * into error handler afterwards.
 		 */
 		edev->mode |= EEH_DEV_NO_HANDLER;
-
-		edev->pdev = NULL;
-		dev->dev.archdata.edev = NULL;
 	}
 
-	if (eeh_has_flag(EEH_PROBE_MODE_DEV))
-		eeh_ops->probe(pdn, NULL);
-
+	/* bind the pdev and the edev together */
 	edev->pdev = dev;
 	dev->dev.archdata.edev = edev;
-
 	eeh_addr_cache_insert_dev(dev);
+	eeh_sysfs_add_device(dev);
 }
-
-/**
- * eeh_add_device_tree_late - Perform EEH initialization for the indicated PCI bus
- * @bus: PCI bus
- *
- * This routine must be used to perform EEH initialization for PCI
- * devices which are attached to the indicated PCI bus. The PCI bus
- * is added after system boot through hotplug or dlpar.
- */
-void eeh_add_device_tree_late(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	if (eeh_has_flag(EEH_FORCE_DISABLED))
-		return;
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		eeh_add_device_late(dev);
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-			struct pci_bus *subbus = dev->subordinate;
-			if (subbus)
-				eeh_add_device_tree_late(subbus);
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(eeh_add_device_tree_late);
-
-/**
- * eeh_add_sysfs_files - Add EEH sysfs files for the indicated PCI bus
- * @bus: PCI bus
- *
- * This routine must be used to add EEH sysfs files for PCI
- * devices which are attached to the indicated PCI bus. The PCI bus
- * is added after system boot through hotplug or dlpar.
- */
-void eeh_add_sysfs_files(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		eeh_sysfs_add_device(dev);
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-			struct pci_bus *subbus = dev->subordinate;
-			if (subbus)
-				eeh_add_sysfs_files(subbus);
-		}
-	}
-}
-EXPORT_SYMBOL_GPL(eeh_add_sysfs_files);
 
 /**
  * eeh_remove_device - Undo EEH setup for the indicated pci device
@@ -1296,6 +1198,23 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->pdev = NULL;
 
 	/*
+	 * eeh_sysfs_remove_device() uses pci_dev_to_eeh_dev() so we need to
+	 * remove the sysfs files before clearing dev.archdata.edev
+	 */
+	if (edev->mode & EEH_DEV_SYSFS)
+		eeh_sysfs_remove_device(dev);
+
+	/*
+	 * We're removing from the PCI subsystem, that means
+	 * the PCI device driver can't support EEH or not
+	 * well. So we rely on hotplug completely to do recovery
+	 * for the specific PCI device.
+	 */
+	edev->mode |= EEH_DEV_NO_HANDLER;
+
+	eeh_addr_cache_rmv_dev(dev);
+
+	/*
 	 * The flag "in_error" is used to trace EEH devices for VFs
 	 * in error state or not. It's set in eeh_report_error(). If
 	 * it's not set, eeh_report_{reset,resume}() won't be called
@@ -1307,18 +1226,6 @@ void eeh_remove_device(struct pci_dev *dev)
 		eeh_rmv_from_parent_pe(edev);
 	else
 		edev->mode |= EEH_DEV_DISCONNECTED;
-
-	/*
-	 * We're removing from the PCI subsystem, that means
-	 * the PCI device driver can't support EEH or not
-	 * well. So we rely on hotplug completely to do recovery
-	 * for the specific PCI device.
-	 */
-	edev->mode |= EEH_DEV_NO_HANDLER;
-
-	eeh_addr_cache_rmv_dev(dev);
-	eeh_sysfs_remove_device(dev);
-	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
 int eeh_unfreeze_pe(struct eeh_pe *pe)

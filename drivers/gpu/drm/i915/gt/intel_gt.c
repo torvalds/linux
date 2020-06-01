@@ -3,12 +3,15 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "debugfs_gt.h"
 #include "i915_drv.h"
+#include "intel_context.h"
 #include "intel_gt.h"
 #include "intel_gt_pm.h"
 #include "intel_gt_requests.h"
 #include "intel_mocs.h"
 #include "intel_rc6.h"
+#include "intel_renderstate.h"
 #include "intel_rps.h"
 #include "intel_uncore.h"
 #include "intel_pm.h"
@@ -25,6 +28,7 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 
 	intel_gt_init_reset(gt);
 	intel_gt_init_requests(gt);
+	intel_gt_init_timelines(gt);
 	intel_gt_pm_init_early(gt);
 
 	intel_rps_init_early(&gt->rps);
@@ -34,8 +38,6 @@ void intel_gt_init_early(struct intel_gt *gt, struct drm_i915_private *i915)
 void intel_gt_init_hw_early(struct intel_gt *gt, struct i915_ggtt *ggtt)
 {
 	gt->ggtt = ggtt;
-
-	intel_gt_sanitize(gt, false);
 }
 
 static void init_unused_ring(struct intel_gt *gt, u32 base)
@@ -72,11 +74,6 @@ int intel_gt_init_hw(struct intel_gt *gt)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
 	int ret;
-
-	BUG_ON(!i915->kernel_context);
-	ret = intel_gt_terminally_wedged(gt);
-	if (ret)
-		return ret;
 
 	gt->last_init_time = ktime_get();
 
@@ -201,16 +198,16 @@ static void gen6_check_faults(struct intel_gt *gt)
 	for_each_engine(engine, gt, id) {
 		fault = GEN6_RING_FAULT_REG_READ(engine);
 		if (fault & RING_FAULT_VALID) {
-			DRM_DEBUG_DRIVER("Unexpected fault\n"
-					 "\tAddr: 0x%08lx\n"
-					 "\tAddress space: %s\n"
-					 "\tSource ID: %d\n"
-					 "\tType: %d\n",
-					 fault & PAGE_MASK,
-					 fault & RING_FAULT_GTTSEL_MASK ?
-					 "GGTT" : "PPGTT",
-					 RING_FAULT_SRCID(fault),
-					 RING_FAULT_FAULT_TYPE(fault));
+			drm_dbg(&engine->i915->drm, "Unexpected fault\n"
+				"\tAddr: 0x%08lx\n"
+				"\tAddress space: %s\n"
+				"\tSource ID: %d\n"
+				"\tType: %d\n",
+				fault & PAGE_MASK,
+				fault & RING_FAULT_GTTSEL_MASK ?
+				"GGTT" : "PPGTT",
+				RING_FAULT_SRCID(fault),
+				RING_FAULT_FAULT_TYPE(fault));
 		}
 	}
 }
@@ -242,18 +239,17 @@ static void gen8_check_faults(struct intel_gt *gt)
 		fault_addr = ((u64)(fault_data1 & FAULT_VA_HIGH_BITS) << 44) |
 			     ((u64)fault_data0 << 12);
 
-		DRM_DEBUG_DRIVER("Unexpected fault\n"
-				 "\tAddr: 0x%08x_%08x\n"
-				 "\tAddress space: %s\n"
-				 "\tEngine ID: %d\n"
-				 "\tSource ID: %d\n"
-				 "\tType: %d\n",
-				 upper_32_bits(fault_addr),
-				 lower_32_bits(fault_addr),
-				 fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
-				 GEN8_RING_FAULT_ENGINE_ID(fault),
-				 RING_FAULT_SRCID(fault),
-				 RING_FAULT_FAULT_TYPE(fault));
+		drm_dbg(&uncore->i915->drm, "Unexpected fault\n"
+			"\tAddr: 0x%08x_%08x\n"
+			"\tAddress space: %s\n"
+			"\tEngine ID: %d\n"
+			"\tSource ID: %d\n"
+			"\tType: %d\n",
+			upper_32_bits(fault_addr), lower_32_bits(fault_addr),
+			fault_data1 & FAULT_GTT_SEL ? "GGTT" : "PPGTT",
+			GEN8_RING_FAULT_ENGINE_ID(fault),
+			RING_FAULT_SRCID(fault),
+			RING_FAULT_FAULT_TYPE(fault));
 	}
 }
 
@@ -303,7 +299,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 	intel_gt_chipset_flush(gt);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref) {
+	with_intel_runtime_pm_if_in_use(uncore->rpm, wakeref) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&uncore->lock, flags);
@@ -323,6 +319,8 @@ void intel_gt_chipset_flush(struct intel_gt *gt)
 void intel_gt_driver_register(struct intel_gt *gt)
 {
 	intel_rps_driver_register(&gt->rps);
+
+	debugfs_gt_register(gt);
 }
 
 static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
@@ -346,7 +344,7 @@ static int intel_gt_init_scratch(struct intel_gt *gt, unsigned int size)
 		goto err_unref;
 	}
 
-	ret = i915_vma_pin(vma, 0, 0, PIN_GLOBAL | PIN_HIGH);
+	ret = i915_ggtt_pin(vma, 0, PIN_HIGH);
 	if (ret)
 		goto err_unref;
 
@@ -364,37 +362,317 @@ static void intel_gt_fini_scratch(struct intel_gt *gt)
 	i915_vma_unpin_and_release(&gt->scratch, 0);
 }
 
+static struct i915_address_space *kernel_vm(struct intel_gt *gt)
+{
+	if (INTEL_PPGTT(gt->i915) > INTEL_PPGTT_ALIASING)
+		return &i915_ppgtt_create(gt)->vm;
+	else
+		return i915_vm_get(&gt->ggtt->vm);
+}
+
+static int __intel_context_flush_retire(struct intel_context *ce)
+{
+	struct intel_timeline *tl;
+
+	tl = intel_context_timeline_lock(ce);
+	if (IS_ERR(tl))
+		return PTR_ERR(tl);
+
+	intel_context_timeline_unlock(tl);
+	return 0;
+}
+
+static int __engines_record_defaults(struct intel_gt *gt)
+{
+	struct i915_request *requests[I915_NUM_ENGINES] = {};
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * As we reset the gpu during very early sanitisation, the current
+	 * register state on the GPU should reflect its defaults values.
+	 * We load a context onto the hw (with restore-inhibit), then switch
+	 * over to a second context to save that default register state. We
+	 * can then prime every new context with that state so they all start
+	 * from the same default HW values.
+	 */
+
+	for_each_engine(engine, gt, id) {
+		struct intel_renderstate so;
+		struct intel_context *ce;
+		struct i915_request *rq;
+
+		/* We must be able to switch to something! */
+		GEM_BUG_ON(!engine->kernel_context);
+
+		err = intel_renderstate_init(&so, engine);
+		if (err)
+			goto out;
+
+		ce = intel_context_create(engine);
+		if (IS_ERR(ce)) {
+			err = PTR_ERR(ce);
+			goto out;
+		}
+
+		rq = intel_context_create_request(ce);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			intel_context_put(ce);
+			goto out;
+		}
+
+		err = intel_engine_emit_ctx_wa(rq);
+		if (err)
+			goto err_rq;
+
+		err = intel_renderstate_emit(&so, rq);
+		if (err)
+			goto err_rq;
+
+err_rq:
+		requests[id] = i915_request_get(rq);
+		i915_request_add(rq);
+		intel_renderstate_fini(&so);
+		if (err)
+			goto out;
+	}
+
+	/* Flush the default context image to memory, and enable powersaving. */
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
+		err = -EIO;
+		goto out;
+	}
+
+	for (id = 0; id < ARRAY_SIZE(requests); id++) {
+		struct i915_request *rq;
+		struct i915_vma *state;
+		void *vaddr;
+
+		rq = requests[id];
+		if (!rq)
+			continue;
+
+		if (rq->fence.error) {
+			err = -EIO;
+			goto out;
+		}
+
+		GEM_BUG_ON(!test_bit(CONTEXT_ALLOC_BIT, &rq->context->flags));
+		state = rq->context->state;
+		if (!state)
+			continue;
+
+		/* Serialise with retirement on another CPU */
+		GEM_BUG_ON(!i915_request_completed(rq));
+		err = __intel_context_flush_retire(rq->context);
+		if (err)
+			goto out;
+
+		/* We want to be able to unbind the state from the GGTT */
+		GEM_BUG_ON(intel_context_is_pinned(rq->context));
+
+		/*
+		 * As we will hold a reference to the logical state, it will
+		 * not be torn down with the context, and importantly the
+		 * object will hold onto its vma (making it possible for a
+		 * stray GTT write to corrupt our defaults). Unmap the vma
+		 * from the GTT to prevent such accidents and reclaim the
+		 * space.
+		 */
+		err = i915_vma_unbind(state);
+		if (err)
+			goto out;
+
+		i915_gem_object_lock(state->obj);
+		err = i915_gem_object_set_to_cpu_domain(state->obj, false);
+		i915_gem_object_unlock(state->obj);
+		if (err)
+			goto out;
+
+		i915_gem_object_set_cache_coherency(state->obj, I915_CACHE_LLC);
+
+		/* Check we can acquire the image of the context state */
+		vaddr = i915_gem_object_pin_map(state->obj, I915_MAP_FORCE_WB);
+		if (IS_ERR(vaddr)) {
+			err = PTR_ERR(vaddr);
+			goto out;
+		}
+
+		rq->engine->default_state = i915_gem_object_get(state->obj);
+		i915_gem_object_unpin_map(state->obj);
+	}
+
+out:
+	/*
+	 * If we have to abandon now, we expect the engines to be idle
+	 * and ready to be torn-down. The quickest way we can accomplish
+	 * this is by declaring ourselves wedged.
+	 */
+	if (err)
+		intel_gt_set_wedged(gt);
+
+	for (id = 0; id < ARRAY_SIZE(requests); id++) {
+		struct intel_context *ce;
+		struct i915_request *rq;
+
+		rq = requests[id];
+		if (!rq)
+			continue;
+
+		ce = rq->context;
+		i915_request_put(rq);
+		intel_context_put(ce);
+	}
+	return err;
+}
+
+static int __engines_verify_workarounds(struct intel_gt *gt)
+{
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = 0;
+
+	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		return 0;
+
+	for_each_engine(engine, gt, id) {
+		if (intel_engine_verify_workarounds(engine, "load"))
+			err = -EIO;
+	}
+
+	/* Flush and restore the kernel context for safety */
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME)
+		err = -EIO;
+
+	return err;
+}
+
+static void __intel_gt_disable(struct intel_gt *gt)
+{
+	intel_gt_set_wedged_on_init(gt);
+
+	intel_gt_suspend_prepare(gt);
+	intel_gt_suspend_late(gt);
+
+	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
+}
+
 int intel_gt_init(struct intel_gt *gt)
 {
 	int err;
 
-	err = intel_gt_init_scratch(gt, IS_GEN(gt->i915, 2) ? SZ_256K : SZ_4K);
+	err = i915_inject_probe_error(gt->i915, -ENODEV);
 	if (err)
 		return err;
 
+	/*
+	 * This is just a security blanket to placate dragons.
+	 * On some systems, we very sporadically observe that the first TLBs
+	 * used by the CS may be stale, despite us poking the TLB reset. If
+	 * we hold the forcewake during initialisation these problems
+	 * just magically go away.
+	 */
+	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
+
+	err = intel_gt_init_scratch(gt, IS_GEN(gt->i915, 2) ? SZ_256K : SZ_4K);
+	if (err)
+		goto out_fw;
+
 	intel_gt_pm_init(gt);
 
-	return 0;
+	gt->vm = kernel_vm(gt);
+	if (!gt->vm) {
+		err = -ENOMEM;
+		goto err_pm;
+	}
+
+	err = intel_engines_init(gt);
+	if (err)
+		goto err_engines;
+
+	err = intel_uc_init(&gt->uc);
+	if (err)
+		goto err_engines;
+
+	err = intel_gt_resume(gt);
+	if (err)
+		goto err_uc_init;
+
+	err = __engines_record_defaults(gt);
+	if (err)
+		goto err_gt;
+
+	err = __engines_verify_workarounds(gt);
+	if (err)
+		goto err_gt;
+
+	err = i915_inject_probe_error(gt->i915, -EIO);
+	if (err)
+		goto err_gt;
+
+	goto out_fw;
+err_gt:
+	__intel_gt_disable(gt);
+	intel_uc_fini_hw(&gt->uc);
+err_uc_init:
+	intel_uc_fini(&gt->uc);
+err_engines:
+	intel_engines_release(gt);
+	i915_vm_put(fetch_and_zero(&gt->vm));
+err_pm:
+	intel_gt_pm_fini(gt);
+	intel_gt_fini_scratch(gt);
+out_fw:
+	if (err)
+		intel_gt_set_wedged_on_init(gt);
+	intel_uncore_forcewake_put(gt->uncore, FORCEWAKE_ALL);
+	return err;
 }
 
 void intel_gt_driver_remove(struct intel_gt *gt)
 {
-	GEM_BUG_ON(gt->awake);
+	__intel_gt_disable(gt);
+
+	intel_uc_fini_hw(&gt->uc);
+	intel_uc_fini(&gt->uc);
+
+	intel_engines_release(gt);
 }
 
 void intel_gt_driver_unregister(struct intel_gt *gt)
 {
 	intel_rps_driver_unregister(&gt->rps);
+
+	/*
+	 * Upon unregistering the device to prevent any new users, cancel
+	 * all in-flight requests so that we can quickly unbind the active
+	 * resources.
+	 */
+	intel_gt_set_wedged(gt);
 }
 
 void intel_gt_driver_release(struct intel_gt *gt)
 {
+	struct i915_address_space *vm;
+
+	vm = fetch_and_zero(&gt->vm);
+	if (vm) /* FIXME being called twice on error paths :( */
+		i915_vm_put(vm);
+
 	intel_gt_pm_fini(gt);
 	intel_gt_fini_scratch(gt);
 }
 
 void intel_gt_driver_late_release(struct intel_gt *gt)
 {
+	/* We need to wait for inflight RCU frees to release their grip */
+	rcu_barrier();
+
 	intel_uc_driver_late_release(&gt->uc);
+	intel_gt_fini_requests(gt);
 	intel_gt_fini_reset(gt);
+	intel_gt_fini_timelines(gt);
+	intel_engines_free(gt);
 }

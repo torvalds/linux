@@ -73,6 +73,16 @@
 	status = "okay";
 };
 
+&i2c1 {
+	touchscreen@26 {
+		compatible = "ilitek,ili2117";
+		reg = <0x26>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_touchscreen>;
+		interrupts-extended = <&gpio1 6 IRQ_TYPE_EDGE_RISING>;
+	};
+};
+
 &ldb {
 	status = "okay";
 

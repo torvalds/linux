@@ -14,7 +14,7 @@ menuconfig POWER_AVS
 
 config QCOM_CPR
 	tristate "QCOM Core Power Reduction (CPR) support"
-	depends on POWER_AVS
+	depends on POWER_AVS && HAS_IOMEM
 	select PM_OPP
 	select REGMAP
 	help

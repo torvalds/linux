@@ -257,8 +257,8 @@ static int create_user_cq(struct hns_roce_dev *hr_dev,
 		return ret;
 	}
 
-	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    (udata->outlen >= sizeof(*resp))) {
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB &&
+	    udata->outlen >= offsetofend(typeof(*resp), cap_flags)) {
 		ret = hns_roce_db_map_user(context, udata, ucmd.db_addr,
 					   &hr_cq->db);
 		if (ret) {
@@ -321,8 +321,8 @@ static void destroy_user_cq(struct hns_roce_dev *hr_dev,
 	struct hns_roce_ucontext *context = rdma_udata_to_drv_context(
 				   udata, struct hns_roce_ucontext, ibucontext);
 
-	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
-	    (udata->outlen >= sizeof(*resp)))
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB &&
+	    udata->outlen >= offsetofend(typeof(*resp), cap_flags))
 		hns_roce_db_unmap_user(context, &hr_cq->db);
 
 	hns_roce_mtt_cleanup(hr_dev, &hr_cq->mtt);
@@ -370,6 +370,8 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 	hr_cq->buf.size = hr_cq->cq_depth * hr_dev->caps.cq_entry_sz;
 	hr_cq->buf.page_shift = PAGE_SHIFT + hr_dev->caps.cqe_buf_pg_sz;
 	spin_lock_init(&hr_cq->lock);
+	INIT_LIST_HEAD(&hr_cq->sq_list);
+	INIT_LIST_HEAD(&hr_cq->rq_list);
 
 	if (udata) {
 		ret = create_user_cq(hr_dev, hr_cq, udata, &resp);

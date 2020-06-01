@@ -8,8 +8,8 @@ Protected Execution Facility
 .. contents::
     :depth: 3
 
-Protected Execution Facility
-############################
+Introduction
+############
 
     Protected Execution Facility (PEF) is an architectural change for
     POWER 9 that enables Secure Virtual Machines (SVMs). DD2.3 chips
@@ -947,6 +947,66 @@ Use cases
     Hypervisor about it. Hypervisor can use this call to finish setting
     up its internal state for this virtual machine.
 
+
+H_SVM_INIT_ABORT
+----------------
+
+    Abort the process of securing an SVM.
+
+Syntax
+~~~~~~
+
+.. code-block:: c
+
+	uint64_t hypercall(const uint64_t H_SVM_INIT_ABORT)
+
+Return values
+~~~~~~~~~~~~~
+
+    One of the following values:
+
+	* H_PARAMETER 		on successfully cleaning up the state,
+				Hypervisor will return this value to the
+				**guest**, to indicate that the underlying
+				UV_ESM ultracall failed.
+
+	* H_STATE		if called after a VM has gone secure (i.e
+				H_SVM_INIT_DONE hypercall was successful).
+
+	* H_UNSUPPORTED		if called from a wrong context (e.g. from a
+				normal VM).
+
+Description
+~~~~~~~~~~~
+
+    Abort the process of securing a virtual machine. This call must
+    be made after a prior call to ``H_SVM_INIT_START`` hypercall and
+    before a call to ``H_SVM_INIT_DONE``.
+
+    On entry into this hypercall the non-volatile GPRs and FPRs are
+    expected to contain the values they had at the time the VM issued
+    the UV_ESM ultracall. Further ``SRR0`` is expected to contain the
+    address of the instruction after the ``UV_ESM`` ultracall and ``SRR1``
+    the MSR value with which to return to the VM.
+
+    This hypercall will cleanup any partial state that was established for
+    the VM since the prior ``H_SVM_INIT_START`` hypercall, including paging
+    out pages that were paged-into secure memory, and issue the
+    ``UV_SVM_TERMINATE`` ultracall to terminate the VM.
+
+    After the partial state is cleaned up, control returns to the VM
+    (**not Ultravisor**), at the address specified in ``SRR0`` with the
+    MSR values set to the value in ``SRR1``.
+
+Use cases
+~~~~~~~~~
+
+    If after a successful call to ``H_SVM_INIT_START``, the Ultravisor
+    encounters an error while securing a virtual machine, either due
+    to lack of resources or because the VM's security information could
+    not be validated, Ultravisor informs the Hypervisor about it.
+    Hypervisor should use this call to clean up any internal state for
+    this virtual machine and return to the VM.
 
 H_SVM_PAGE_IN
 -------------

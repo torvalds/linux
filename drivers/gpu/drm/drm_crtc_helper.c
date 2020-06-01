@@ -48,6 +48,8 @@
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
 
+#include "drm_crtc_helper_internal.h"
+
 /**
  * DOC: overview
  *
@@ -241,10 +243,6 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 
 		/* Disable unused encoders */
 		if (encoder->crtc == NULL)
-			drm_encoder_disable(encoder);
-		/* Disable encoders whose CRTC is about to change */
-		if (encoder_funcs->get_crtc &&
-		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
 			drm_encoder_disable(encoder);
 	}
 }

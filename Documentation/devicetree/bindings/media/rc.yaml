@@ -123,6 +123,7 @@ properties:
           - rc-su3000
           - rc-tango
           - rc-tanix-tx3mini
+          - rc-tanix-tx5max
           - rc-tbs-nec
           - rc-technisat-ts35
           - rc-technisat-usb2
@@ -142,6 +143,7 @@ properties:
           - rc-videomate-k100
           - rc-videomate-s350
           - rc-videomate-tv-pvr
+          - rc-videostrong-kii-pro
           - rc-wetek-hub
           - rc-wetek-play2
           - rc-winfast

@@ -221,7 +221,7 @@ static int cppc_cpufreq_set_target(struct cpufreq_policy *policy,
 	return ret;
 }
 
-static int cppc_verify_policy(struct cpufreq_policy *policy)
+static int cppc_verify_policy(struct cpufreq_policy_data *policy)
 {
 	cpufreq_verify_within_cpu_limits(policy);
 	return 0;

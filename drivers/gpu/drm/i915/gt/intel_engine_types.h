@@ -7,6 +7,7 @@
 #ifndef __INTEL_ENGINE_TYPES__
 #define __INTEL_ENGINE_TYPES__
 
+#include <linux/average.h>
 #include <linux/hashtable.h>
 #include <linux/irq_work.h>
 #include <linux/kref.h>
@@ -74,6 +75,7 @@ struct intel_instdone {
 	u32 instdone;
 	/* The following exist only in the RCS engine */
 	u32 slice_common;
+	u32 slice_common_extra[2];
 	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
 };
@@ -119,10 +121,12 @@ enum intel_engine_id {
 #define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
 
+/* A simple estimator for the round-trip latency of an engine */
+DECLARE_EWMA(_engine_latency, 6, 4)
+
 struct st_preempt_hang {
 	struct completion completion;
 	unsigned int count;
-	bool inject_hang;
 };
 
 /**
@@ -151,6 +155,16 @@ struct intel_engine_execlists {
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
 	 */
 	struct i915_priolist default_priolist;
+
+	/**
+	 * @error_interrupt: CS Master EIR
+	 *
+	 * The CS generates an interrupt when it detects an error. We capture
+	 * the first error interrupt, record the EIR and schedule the tasklet.
+	 * In the tasklet, we process the pending CS events to ensure we have
+	 * the guilty request, and then reset the engine.
+	 */
+	u32 error_interrupt;
 
 	/**
 	 * @no_priolist: priority lists disabled
@@ -291,6 +305,7 @@ struct intel_engine_cs {
 	struct {
 		spinlock_t lock;
 		struct list_head requests;
+		struct list_head hold; /* ready requests, but on hold */
 	} active;
 
 	struct llist_head barrier_tasks;
@@ -315,6 +330,13 @@ struct intel_engine_cs {
 		struct intel_ring *ring;
 		struct intel_timeline *timeline;
 	} legacy;
+
+	/*
+	 * We track the average duration of the idle pulse on parking the
+	 * engine to keep an estimate of the how the fast the engine is
+	 * under ideal conditions.
+	 */
+	struct ewma__engine_latency latency;
 
 	/* Rather than have every client wait upon all user interrupts,
 	 * with the herd waking after every interrupt and each doing the
@@ -389,7 +411,10 @@ struct intel_engine_cs {
 
 	struct {
 		void (*prepare)(struct intel_engine_cs *engine);
-		void (*reset)(struct intel_engine_cs *engine, bool stalled);
+
+		void (*rewind)(struct intel_engine_cs *engine, bool stalled);
+		void (*cancel)(struct intel_engine_cs *engine);
+
 		void (*finish)(struct intel_engine_cs *engine);
 	} reset;
 
@@ -439,15 +464,7 @@ struct intel_engine_cs {
 	void		(*schedule)(struct i915_request *request,
 				    const struct i915_sched_attr *attr);
 
-	/*
-	 * Cancel all requests on the hardware, or queued for execution.
-	 * This should only cancel the ready requests that have been
-	 * submitted to the engine (via the engine->submit_request callback).
-	 * This is called when marking the device as wedged.
-	 */
-	void		(*cancel_requests)(struct intel_engine_cs *engine);
-
-	void		(*destroy)(struct intel_engine_cs *engine);
+	void		(*release)(struct intel_engine_cs *engine);
 
 	struct intel_engine_execlists execlists;
 
@@ -530,6 +547,7 @@ struct intel_engine_cs {
 
 	struct {
 		unsigned long heartbeat_interval_ms;
+		unsigned long max_busywait_duration_ns;
 		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
 		unsigned long timeslice_duration_ms;

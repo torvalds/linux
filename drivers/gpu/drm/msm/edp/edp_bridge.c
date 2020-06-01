@@ -55,8 +55,14 @@ static void edp_bridge_mode_set(struct drm_bridge *bridge,
 	DBG("set mode: " DRM_MODE_FMT, DRM_MODE_ARG(mode));
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if ((connector->encoder != NULL) &&
-			(connector->encoder->bridge == bridge)) {
+		struct drm_encoder *encoder = connector->encoder;
+		struct drm_bridge *first_bridge;
+
+		if (!connector->encoder)
+			continue;
+
+		first_bridge = drm_bridge_chain_get_first_bridge(encoder);
+		if (bridge == first_bridge) {
 			msm_edp_ctrl_timing_cfg(edp->ctrl,
 				adjusted_mode, &connector->display_info);
 			break;
@@ -91,7 +97,7 @@ struct drm_bridge *msm_edp_bridge_init(struct msm_edp *edp)
 	bridge = &edp_bridge->base;
 	bridge->funcs = &edp_bridge_funcs;
 
-	ret = drm_bridge_attach(edp->encoder, bridge, NULL);
+	ret = drm_bridge_attach(edp->encoder, bridge, NULL, 0);
 	if (ret)
 		goto fail;
 

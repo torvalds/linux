@@ -8,6 +8,7 @@
 #include <linux/types.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <vdso/jiffies.h>
 #include <asm/param.h>			/* for HZ */
 #include <generated/timeconst.h>
 
@@ -58,9 +59,6 @@
 #define LATCH ((CLOCK_TICK_RATE + HZ/2) / HZ)	/* For divider */
 
 extern int register_refined_jiffies(long clock_tick_rate);
-
-/* TICK_NSEC is the time between ticks in nsec assuming SHIFTED_HZ */
-#define TICK_NSEC ((NSEC_PER_SEC+HZ/2)/HZ)
 
 /* TICK_USEC is the time between ticks in usec assuming SHIFTED_HZ */
 #define TICK_USEC ((USEC_PER_SEC + HZ/2) / HZ)
@@ -422,26 +420,6 @@ static __always_inline unsigned long usecs_to_jiffies(const unsigned int u)
 extern unsigned long timespec64_to_jiffies(const struct timespec64 *value);
 extern void jiffies_to_timespec64(const unsigned long jiffies,
 				  struct timespec64 *value);
-static inline unsigned long timespec_to_jiffies(const struct timespec *value)
-{
-	struct timespec64 ts = timespec_to_timespec64(*value);
-
-	return timespec64_to_jiffies(&ts);
-}
-
-static inline void jiffies_to_timespec(const unsigned long jiffies,
-				       struct timespec *value)
-{
-	struct timespec64 ts;
-
-	jiffies_to_timespec64(jiffies, &ts);
-	*value = timespec64_to_timespec(ts);
-}
-
-extern unsigned long timeval_to_jiffies(const struct timeval *value);
-extern void jiffies_to_timeval(const unsigned long jiffies,
-			       struct timeval *value);
-
 extern clock_t jiffies_to_clock_t(unsigned long x);
 static inline clock_t jiffies_delta_to_clock_t(long delta)
 {

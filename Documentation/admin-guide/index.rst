@@ -64,6 +64,7 @@ configure specific aspects of kernel behavior to your liking.
    binderfs
    binfmt-misc
    blockdev/index
+   bootconfig
    braille-console
    btmrvl
    cgroup-v1/index
@@ -74,8 +75,10 @@ configure specific aspects of kernel behavior to your liking.
    cputopology
    dell_rbu
    device-mapper/index
+   edid
    efi-stub
    ext4
+   nfs/index
    gpio/index
    highuid
    hw_random

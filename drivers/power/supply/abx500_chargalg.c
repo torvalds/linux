@@ -1823,7 +1823,7 @@ static ssize_t abx500_chargalg_en_store(struct abx500_chargalg *di,
 			"Enter 0. Disable AC/USB Charging\n"
 			"1. Enable AC charging\n"
 			"2. Enable USB Charging\n");
-	};
+	}
 	return strlen(buf);
 }
 

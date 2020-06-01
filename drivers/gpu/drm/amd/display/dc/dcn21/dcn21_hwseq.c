@@ -28,7 +28,7 @@
 #include "core_types.h"
 #include "resource.h"
 #include "dce/dce_hwseq.h"
-#include "dcn20/dcn20_hwseq.h"
+#include "dcn21_hwseq.h"
 #include "vmid.h"
 #include "reg_helper.h"
 #include "hw/clk_mgr.h"
@@ -61,7 +61,7 @@ static void mmhub_update_page_table_config(struct dcn_hubbub_phys_addr_config *c
 
 }
 
-static int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
+int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_phy_addr_space_config *pa_config)
 {
 	struct dcn_hubbub_phys_addr_config config;
 
@@ -82,7 +82,7 @@ static int dcn21_init_sys_ctx(struct dce_hwseq *hws, struct dc *dc, struct dc_ph
 
 // work around for Renoir s0i3, if register is programmed, bypass golden init.
 
-static bool dcn21_s0i3_golden_init_wa(struct dc *dc)
+bool dcn21_s0i3_golden_init_wa(struct dc *dc)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	uint32_t value = 0;
@@ -112,11 +112,25 @@ void dcn21_optimize_pwr_state(
 			true);
 }
 
-void dcn21_hw_sequencer_construct(struct dc *dc)
+/* If user hotplug a HDMI monitor while in monitor off,
+ * OS will do a mode set (with output timing) but keep output off.
+ * In this case DAL will ask vbios to power up the pll in the PHY.
+ * If user unplug the monitor (while we are on monitor off) or
+ * system attempt to enter modern standby (which we will disable PLL),
+ * PHY will hang on the next mode set attempt.
+ * if enable PLL follow by disable PLL (without executing lane enable/disable),
+ * RDPCS_PHY_DP_MPLLB_STATE remains 1,
+ * which indicate that PLL disable attempt actually didn’t go through.
+ * As a workaround, insert PHY lane enable/disable before PLL disable.
+ */
+void dcn21_PLAT_58856_wa(struct dc_state *context, struct pipe_ctx *pipe_ctx)
 {
-	dcn20_hw_sequencer_construct(dc);
-	dc->hwss.init_sys_ctx = dcn21_init_sys_ctx;
-	dc->hwss.s0i3_golden_init_wa = dcn21_s0i3_golden_init_wa;
-	dc->hwss.optimize_pwr_state = dcn21_optimize_pwr_state;
-	dc->hwss.exit_optimized_pwr_state = dcn21_exit_optimized_pwr_state;
+	if (!pipe_ctx->stream->dpms_off)
+		return;
+
+	pipe_ctx->stream->dpms_off = false;
+	core_link_enable_stream(context, pipe_ctx);
+	core_link_disable_stream(pipe_ctx);
+	pipe_ctx->stream->dpms_off = true;
 }
+

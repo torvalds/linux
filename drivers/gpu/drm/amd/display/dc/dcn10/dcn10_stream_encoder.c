@@ -247,6 +247,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,
+	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting)
 {
 	uint32_t h_active_start;
@@ -312,10 +313,7 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	 * Pixel Encoding/Colorimetry Format and that a Sink device shall ignore MISC1, bit 7,
 	 * and MISC0, bits 7:1 (MISC1, bit 7, and MISC0, bits 7:1, become "don't care").
 	 */
-	if ((hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) ||
-			(output_color_space == COLOR_SPACE_2020_YCBCR) ||
-			(output_color_space == COLOR_SPACE_2020_RGB_FULLRANGE) ||
-			(output_color_space == COLOR_SPACE_2020_RGB_LIMITEDRANGE))
+	if (use_vsc_sdp_for_colorimetry)
 		misc1 = misc1 | 0x40;
 	else
 		misc1 = misc1 & ~0x40;
@@ -1669,5 +1667,6 @@ void dcn10_stream_encoder_construct(
 	enc1->regs = regs;
 	enc1->se_shift = se_shift;
 	enc1->se_mask = se_mask;
+	enc1->base.stream_enc_inst = eng_id - ENGINE_ID_DIGA;
 }
 

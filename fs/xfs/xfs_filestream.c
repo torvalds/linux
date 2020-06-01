@@ -159,15 +159,14 @@ xfs_filestream_pick_ag(
 
 		if (!pag->pagf_init) {
 			err = xfs_alloc_pagf_init(mp, NULL, ag, trylock);
-			if (err && !trylock) {
+			if (err) {
 				xfs_perag_put(pag);
-				return err;
+				if (err != -EAGAIN)
+					return err;
+				/* Couldn't lock the AGF, skip this AG. */
+				continue;
 			}
 		}
-
-		/* Might fail sometimes during the 1st pass with trylock set. */
-		if (!pag->pagf_init)
-			goto next_ag;
 
 		/* Keep track of the AG with the most free blocks. */
 		if (pag->pagf_freeblks > maxfree) {

@@ -182,14 +182,19 @@
 			/* compatible gets set in SoC specific dtsi file */
 			reg = <0x01c0c000 0x1000>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 12>;
 			clocks = <&ccu CLK_BUS_LCD>,
-				 <&ccu CLK_LCD_CH0>;
+				 <&ccu CLK_LCD_CH0>,
+				 <&ccu 13>;
 			clock-names = "ahb",
-				      "tcon-ch0";
+				      "tcon-ch0",
+				      "lvds-alt";
 			clock-output-names = "tcon-pixel-clock";
 			#clock-cells = <0>;
-			resets = <&ccu RST_BUS_LCD>;
-			reset-names = "lcd";
+			resets = <&ccu RST_BUS_LCD>,
+				 <&ccu RST_BUS_LVDS>;
+			reset-names = "lcd",
+				      "lvds";
 			status = "disabled";
 
 			ports {
@@ -678,9 +683,6 @@
 				 <&ccu CLK_DRAM_DRC>;
 			clock-names = "ahb", "mod", "ram";
 			resets = <&ccu RST_BUS_DRC>;
-
-			assigned-clocks = <&ccu CLK_DRC>;
-			assigned-clock-rates = <300000000>;
 
 			ports {
 				#address-cells = <1>;

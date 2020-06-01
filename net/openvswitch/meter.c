@@ -61,7 +61,8 @@ static struct dp_meter *lookup_meter(const struct datapath *dp,
 	struct hlist_head *head;
 
 	head = meter_hash_bucket(dp, meter_id);
-	hlist_for_each_entry_rcu(meter, head, dp_hash_node) {
+	hlist_for_each_entry_rcu(meter, head, dp_hash_node,
+				lockdep_ovsl_is_held()) {
 		if (meter->id == meter_id)
 			return meter;
 	}

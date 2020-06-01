@@ -393,8 +393,7 @@ static void dispc_get_reg_field(struct dispc_device *dispc,
 				enum dispc_feat_reg_field id,
 				u8 *start, u8 *end)
 {
-	if (id >= dispc->feat->num_reg_fields)
-		BUG();
+	BUG_ON(id >= dispc->feat->num_reg_fields);
 
 	*start = dispc->feat->reg_fields[id].start;
 	*end = dispc->feat->reg_fields[id].end;

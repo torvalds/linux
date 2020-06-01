@@ -40,7 +40,7 @@ static inline bool is_dsb_busy(struct intel_dsb *dsb)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum pipe pipe = crtc->pipe;
 
-	return DSB_STATUS & I915_READ(DSB_CTRL(pipe, dsb->id));
+	return DSB_STATUS & intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 }
 
 static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
@@ -50,16 +50,16 @@ static inline bool intel_dsb_enable_engine(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 dsb_ctrl;
 
-	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	dsb_ctrl = intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	if (DSB_STATUS & dsb_ctrl) {
-		DRM_DEBUG_KMS("DSB engine is busy.\n");
+		drm_dbg_kms(&dev_priv->drm, "DSB engine is busy.\n");
 		return false;
 	}
 
 	dsb_ctrl |= DSB_ENABLE;
-	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), dsb_ctrl);
 
-	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	intel_de_posting_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	return true;
 }
 
@@ -70,16 +70,16 @@ static inline bool intel_dsb_disable_engine(struct intel_dsb *dsb)
 	enum pipe pipe = crtc->pipe;
 	u32 dsb_ctrl;
 
-	dsb_ctrl = I915_READ(DSB_CTRL(pipe, dsb->id));
+	dsb_ctrl = intel_de_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	if (DSB_STATUS & dsb_ctrl) {
-		DRM_DEBUG_KMS("DSB engine is busy.\n");
+		drm_dbg_kms(&dev_priv->drm, "DSB engine is busy.\n");
 		return false;
 	}
 
 	dsb_ctrl &= ~DSB_ENABLE;
-	I915_WRITE(DSB_CTRL(pipe, dsb->id), dsb_ctrl);
+	intel_de_write(dev_priv, DSB_CTRL(pipe, dsb->id), dsb_ctrl);
 
-	POSTING_READ(DSB_CTRL(pipe, dsb->id));
+	intel_de_posting_read(dev_priv, DSB_CTRL(pipe, dsb->id));
 	return true;
 }
 
@@ -102,43 +102,50 @@ intel_dsb_get(struct intel_crtc *crtc)
 	struct intel_dsb *dsb = &crtc->dsb;
 	struct drm_i915_gem_object *obj;
 	struct i915_vma *vma;
+	u32 *buf;
 	intel_wakeref_t wakeref;
 
 	if (!HAS_DSB(i915))
 		return dsb;
 
-	if (atomic_add_return(1, &dsb->refcount) != 1)
+	if (dsb->refcount++ != 0)
 		return dsb;
 
-	dsb->id = DSB1;
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	obj = i915_gem_object_create_internal(i915, DSB_BUF_SIZE);
 	if (IS_ERR(obj)) {
-		DRM_ERROR("Gem object creation failed\n");
-		goto err;
+		drm_err(&i915->drm, "Gem object creation failed\n");
+		goto out;
 	}
 
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
-		DRM_ERROR("Vma creation failed\n");
+		drm_err(&i915->drm, "Vma creation failed\n");
 		i915_gem_object_put(obj);
-		atomic_dec(&dsb->refcount);
-		goto err;
+		goto out;
 	}
 
-	dsb->cmd_buf = i915_gem_object_pin_map(vma->obj, I915_MAP_WC);
-	if (IS_ERR(dsb->cmd_buf)) {
-		DRM_ERROR("Command buffer creation failed\n");
-		i915_vma_unpin_and_release(&vma, 0);
-		dsb->cmd_buf = NULL;
-		atomic_dec(&dsb->refcount);
-		goto err;
+	buf = i915_gem_object_pin_map(vma->obj, I915_MAP_WC);
+	if (IS_ERR(buf)) {
+		drm_err(&i915->drm, "Command buffer creation failed\n");
+		goto out;
 	}
+
+	dsb->id = DSB1;
 	dsb->vma = vma;
+	dsb->cmd_buf = buf;
 
-err:
+out:
+	/*
+	 * On error dsb->cmd_buf will continue to be NULL, making the writes
+	 * pass-through. Leave the dangling ref to be removed later by the
+	 * corresponding intel_dsb_put(): the important error message will
+	 * already be logged above.
+	 */
+
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
+
 	return dsb;
 }
 
@@ -158,10 +165,10 @@ void intel_dsb_put(struct intel_dsb *dsb)
 	if (!HAS_DSB(i915))
 		return;
 
-	if (WARN_ON(atomic_read(&dsb->refcount) == 0))
+	if (drm_WARN_ON(&i915->drm, dsb->refcount == 0))
 		return;
 
-	if (atomic_dec_and_test(&dsb->refcount)) {
+	if (--dsb->refcount == 0) {
 		i915_vma_unpin_and_release(&dsb->vma, I915_VMA_RELEASE_MAP);
 		dsb->cmd_buf = NULL;
 		dsb->free_pos = 0;
@@ -191,12 +198,12 @@ void intel_dsb_indexed_reg_write(struct intel_dsb *dsb, i915_reg_t reg,
 	u32 reg_val;
 
 	if (!buf) {
-		I915_WRITE(reg, val);
+		intel_de_write(dev_priv, reg, val);
 		return;
 	}
 
-	if (WARN_ON(dsb->free_pos >= DSB_BUF_SIZE)) {
-		DRM_DEBUG_KMS("DSB buffer overflow\n");
+	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
+		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
 	}
 
@@ -265,12 +272,12 @@ void intel_dsb_reg_write(struct intel_dsb *dsb, i915_reg_t reg, u32 val)
 	u32 *buf = dsb->cmd_buf;
 
 	if (!buf) {
-		I915_WRITE(reg, val);
+		intel_de_write(dev_priv, reg, val);
 		return;
 	}
 
-	if (WARN_ON(dsb->free_pos >= DSB_BUF_SIZE)) {
-		DRM_DEBUG_KMS("DSB buffer overflow\n");
+	if (drm_WARN_ON(&dev_priv->drm, dsb->free_pos >= DSB_BUF_SIZE)) {
+		drm_dbg_kms(&dev_priv->drm, "DSB buffer overflow\n");
 		return;
 	}
 
@@ -303,10 +310,12 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 		goto reset;
 
 	if (is_dsb_busy(dsb)) {
-		DRM_ERROR("HEAD_PTR write failed - dsb engine is busy.\n");
+		drm_err(&dev_priv->drm,
+			"HEAD_PTR write failed - dsb engine is busy.\n");
 		goto reset;
 	}
-	I915_WRITE(DSB_HEAD(pipe, dsb->id), i915_ggtt_offset(dsb->vma));
+	intel_de_write(dev_priv, DSB_HEAD(pipe, dsb->id),
+		       i915_ggtt_offset(dsb->vma));
 
 	tail = ALIGN(dsb->free_pos * 4, CACHELINE_BYTES);
 	if (tail > dsb->free_pos * 4)
@@ -314,14 +323,18 @@ void intel_dsb_commit(struct intel_dsb *dsb)
 		       (tail - dsb->free_pos * 4));
 
 	if (is_dsb_busy(dsb)) {
-		DRM_ERROR("TAIL_PTR write failed - dsb engine is busy.\n");
+		drm_err(&dev_priv->drm,
+			"TAIL_PTR write failed - dsb engine is busy.\n");
 		goto reset;
 	}
-	DRM_DEBUG_KMS("DSB execution started - head 0x%x, tail 0x%x\n",
-		      i915_ggtt_offset(dsb->vma), tail);
-	I915_WRITE(DSB_TAIL(pipe, dsb->id), i915_ggtt_offset(dsb->vma) + tail);
+	drm_dbg_kms(&dev_priv->drm,
+		    "DSB execution started - head 0x%x, tail 0x%x\n",
+		    i915_ggtt_offset(dsb->vma), tail);
+	intel_de_write(dev_priv, DSB_TAIL(pipe, dsb->id),
+		       i915_ggtt_offset(dsb->vma) + tail);
 	if (wait_for(!is_dsb_busy(dsb), 1)) {
-		DRM_ERROR("Timed out waiting for DSB workload completion.\n");
+		drm_err(&dev_priv->drm,
+			"Timed out waiting for DSB workload completion.\n");
 		goto reset;
 	}
 

@@ -312,7 +312,18 @@ int qedr_alloc_ucontext(struct ib_ucontext *uctx, struct ib_udata *udata)
 	}
 	ctx->db_mmap_entry = &entry->rdma_entry;
 
-	uresp.dpm_enabled = dev->user_dpm_enabled;
+	if (!dev->user_dpm_enabled)
+		uresp.dpm_flags = 0;
+	else if (rdma_protocol_iwarp(&dev->ibdev, 1))
+		uresp.dpm_flags = QEDR_DPM_TYPE_IWARP_LEGACY;
+	else
+		uresp.dpm_flags = QEDR_DPM_TYPE_ROCE_ENHANCED |
+				  QEDR_DPM_TYPE_ROCE_LEGACY;
+
+	uresp.dpm_flags |= QEDR_DPM_SIZES_SET;
+	uresp.ldpm_limit_size = QEDR_LDPM_MAX_SIZE;
+	uresp.edpm_trans_size = QEDR_EDPM_TRANS_SIZE;
+
 	uresp.wids_enabled = 1;
 	uresp.wid_count = oparams.wid_count;
 	uresp.db_pa = rdma_user_mmap_get_offset(ctx->db_mmap_entry);
@@ -1175,7 +1186,7 @@ static int qedr_check_qp_attrs(struct ib_pd *ibpd, struct qedr_dev *dev,
 		DP_DEBUG(dev, QEDR_MSG_QP,
 			 "create qp: unsupported qp type=0x%x requested\n",
 			 attrs->qp_type);
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (attrs->cap.max_send_wr > qattr->max_sqe) {

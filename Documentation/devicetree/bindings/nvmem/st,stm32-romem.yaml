@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/st,stm32-romem.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STMicroelectronics STM32 Factory-programmed data bindings
+
+description: |
+  This represents STM32 Factory-programmed read only non-volatile area: locked
+  flash, OTP, read-only HW regs... This contains various information such as:
+  analog calibration data for temperature sensor (e.g. TS_CAL1, TS_CAL2),
+  internal vref (VREFIN_CAL), unique device ID...
+
+maintainers:
+  - Fabrice Gasnier <fabrice.gasnier@st.com>
+
+allOf:
+  - $ref: "nvmem.yaml#"
+
+properties:
+  compatible:
+    enum:
+      - st,stm32f4-otp
+      - st,stm32mp15-bsec
+
+required:
+  - "#address-cells"
+  - "#size-cells"
+  - compatible
+  - reg
+
+examples:
+  - |
+    efuse@1fff7800 {
+      compatible = "st,stm32f4-otp";
+      reg = <0x1fff7800 0x400>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+
+      calib@22c {
+        reg = <0x22c 0x2>;
+      };
+    };
+
+...

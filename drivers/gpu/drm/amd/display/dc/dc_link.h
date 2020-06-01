@@ -26,16 +26,15 @@
 #ifndef DC_LINK_H_
 #define DC_LINK_H_
 
+#include "dc.h"
 #include "dc_types.h"
 #include "grph_object_defs.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 enum dc_link_fec_state {
 	dc_link_fec_not_ready,
 	dc_link_fec_ready,
 	dc_link_fec_enabled
 };
-#endif
 struct dc_link_status {
 	bool link_active;
 	struct dpcd_caps *dpcd_caps;
@@ -85,6 +84,7 @@ struct dc_link {
 	bool link_state_valid;
 	bool aux_access_disabled;
 	bool sync_lt_in_progress;
+	bool is_lttpr_mode_transparent;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -95,6 +95,7 @@ struct dc_link {
 	struct dc_lane_settings cur_lane_setting;
 	struct dc_link_settings preferred_link_setting;
 	struct dc_link_training_overrides preferred_training_settings;
+	struct dp_audio_test_data audio_test_data;
 
 	uint8_t ddc_hw_inst;
 
@@ -128,11 +129,13 @@ struct dc_link {
 	enum edp_revision edp_revision;
 	bool psr_feature_enabled;
 	bool psr_allow_active;
+	union dpcd_sink_ext_caps dpcd_sink_ext_caps;
 
 	/* MST record stream using this link */
 	struct link_flags {
 		bool dp_keep_receiver_powered;
 		bool dp_skip_DID2;
+		bool dp_skip_reset_segment;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
@@ -140,9 +143,7 @@ struct dc_link {
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	enum dc_link_fec_state fec_state;
-#endif
 };
 
 const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
@@ -179,6 +180,21 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link,
 		uint32_t backlight_pwm_u16_16,
 		uint32_t frame_ramp);
 
+/* Set/get nits-based backlight level of an embedded panel (eDP, LVDS). */
+bool dc_link_set_backlight_level_nits(struct dc_link *link,
+		bool isHDR,
+		uint32_t backlight_millinits,
+		uint32_t transition_time_in_ms);
+
+bool dc_link_get_backlight_level_nits(struct dc_link *link,
+		uint32_t *backlight_millinits,
+		uint32_t *backlight_millinits_peak);
+
+bool dc_link_backlight_enable_aux(struct dc_link *link, bool enable);
+
+bool dc_link_read_default_bl_aux(struct dc_link *link, uint32_t *backlight_millinits);
+bool dc_link_set_default_brightness_aux(struct dc_link *link);
+
 int dc_link_get_backlight_level(const struct dc_link *dc_link);
 
 bool dc_link_set_abm_disable(const struct dc_link *dc_link);
@@ -206,6 +222,7 @@ enum dc_detect_reason {
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
 enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
+enum dc_status dc_link_reallocate_mst_payload(struct dc_link *link);
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -259,6 +276,7 @@ void dc_link_dp_disable_hpd(const struct dc_link *link);
 bool dc_link_dp_set_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
 	const struct link_training_settings *p_link_settings,
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size);
@@ -290,6 +308,7 @@ void dc_link_enable_hpd(const struct dc_link *link);
 void dc_link_disable_hpd(const struct dc_link *link);
 void dc_link_set_test_pattern(struct dc_link *link,
 			enum dp_test_pattern test_pattern,
+			enum dp_test_pattern_color_space test_pattern_color_space,
 			const struct link_training_settings *p_link_settings,
 			const unsigned char *p_custom_pattern,
 			unsigned int cust_pattern_size);
@@ -300,11 +319,21 @@ uint32_t dc_link_bandwidth_kbps(
 const struct dc_link_settings *dc_link_get_link_cap(
 		const struct dc_link *link);
 
+void dc_link_overwrite_extended_receiver_cap(
+		struct dc_link *link);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
 		struct i2c_command *cmd);
 
+bool dc_submit_i2c_oem(
+		struct dc *dc,
+		struct i2c_command *cmd);
+
 uint32_t dc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing);
+
+bool dc_link_is_fec_supported(const struct dc_link *link);
+
 #endif /* DC_LINK_H_ */

@@ -1,0 +1,6 @@
+The main reason for keeping this in staging is because the only driver
+that uses this is rkisp1, which is also in staging. It should be moved together
+with rkisp1.
+
+Please CC patches to Linux Media <linux-media@vger.kernel.org> and
+Helen Koike <helen.koike@collabora.com>.

@@ -25,20 +25,31 @@
 #define TEMP_MINOR		131	/* Temperature Sensor */
 #define APM_MINOR_DEV		134
 #define RTC_MINOR		135
-#define EFI_RTC_MINOR		136	/* EFI Time services */
+/*#define EFI_RTC_MINOR		136	was EFI Time services */
 #define VHCI_MINOR		137
 #define SUN_OPENPROM_MINOR	139
 #define DMAPI_MINOR		140	/* unused */
 #define NVRAM_MINOR		144
+#define SBUS_FLASH_MINOR	152
 #define SGI_MMTIMER		153
+#define PMU_MINOR		154
 #define STORE_QUEUE_MINOR	155	/* unused */
+#define LCD_MINOR		156
+#define AC_MINOR		157
+#define BUTTON_MINOR		158	/* Major 10, Minor 158, /dev/nwbutton */
+#define NWFLASH_MINOR		160	/* MAJOR is 10 - miscdevice */
+#define ENVCTRL_MINOR		162
 #define I2O_MINOR		166
+#define UCTRL_MINOR		174
 #define AGPGART_MINOR		175
+#define TOSH_MINOR_DEV		181
 #define HWRNG_MINOR		183
 #define MICROCODE_MINOR		184
+#define KEYPAD_MINOR		185
 #define IRNET_MINOR		187
 #define D7S_MINOR		193
 #define VFIO_MINOR		196
+#define PXA3XX_GCU_MINOR	197
 #define TUN_MINOR		200
 #define CUSE_MINOR		203
 #define MWAVE_MINOR		219	/* ACP/Mwave Modem */
@@ -49,6 +60,7 @@
 #define MISC_MCELOG_MINOR	227
 #define HPET_MINOR		228
 #define FUSE_MINOR		229
+#define SNAPSHOT_MINOR		231
 #define KVM_MINOR		232
 #define BTRFS_MINOR		234
 #define AUTOFS_MINOR		235

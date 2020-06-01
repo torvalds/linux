@@ -27,6 +27,7 @@
 #include <linux/iommu.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <linux/mmu_context.h>
 #include <linux/rbtree.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/mm.h>
@@ -309,9 +310,8 @@ static int put_pfn(unsigned long pfn, int prot)
 {
 	if (!is_invalid_reserved_pfn(pfn)) {
 		struct page *page = pfn_to_page(pfn);
-		if (prot & IOMMU_WRITE)
-			SetPageDirty(page);
-		put_page(page);
+
+		unpin_user_pages_dirty_lock(&page, 1, prot & IOMMU_WRITE);
 		return 1;
 	}
 	return 0;
@@ -322,7 +322,6 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 {
 	struct page *page[1];
 	struct vm_area_struct *vma;
-	struct vm_area_struct *vmas[1];
 	unsigned int flags = 0;
 	int ret;
 
@@ -330,32 +329,13 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 		flags |= FOLL_WRITE;
 
 	down_read(&mm->mmap_sem);
-	if (mm == current->mm) {
-		ret = get_user_pages(vaddr, 1, flags | FOLL_LONGTERM, page,
-				     vmas);
-	} else {
-		ret = get_user_pages_remote(NULL, mm, vaddr, 1, flags, page,
-					    vmas, NULL);
-		/*
-		 * The lifetime of a vaddr_get_pfn() page pin is
-		 * userspace-controlled. In the fs-dax case this could
-		 * lead to indefinite stalls in filesystem operations.
-		 * Disallow attempts to pin fs-dax pages via this
-		 * interface.
-		 */
-		if (ret > 0 && vma_is_fsdax(vmas[0])) {
-			ret = -EOPNOTSUPP;
-			put_page(page[0]);
-		}
-	}
-	up_read(&mm->mmap_sem);
-
+	ret = pin_user_pages_remote(NULL, mm, vaddr, 1, flags | FOLL_LONGTERM,
+				    page, NULL, NULL);
 	if (ret == 1) {
 		*pfn = page_to_pfn(page[0]);
-		return 0;
+		ret = 0;
+		goto done;
 	}
-
-	down_read(&mm->mmap_sem);
 
 	vaddr = untagged_addr(vaddr);
 
@@ -366,7 +346,7 @@ static int vaddr_get_pfn(struct mm_struct *mm, unsigned long vaddr,
 		if (is_invalid_reserved_pfn(*pfn))
 			ret = 0;
 	}
-
+done:
 	up_read(&mm->mmap_sem);
 	return ret;
 }
@@ -1807,7 +1787,7 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 
 	if (resv_msi) {
 		ret = iommu_get_msi_cookie(domain->domain, resv_msi_base);
-		if (ret)
+		if (ret && ret != -ENODEV)
 			goto out_detach;
 	}
 
@@ -2326,6 +2306,80 @@ static int vfio_iommu_type1_unregister_notifier(void *iommu_data,
 	return blocking_notifier_chain_unregister(&iommu->notifier, nb);
 }
 
+static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
+					 dma_addr_t user_iova, void *data,
+					 size_t count, bool write,
+					 size_t *copied)
+{
+	struct mm_struct *mm;
+	unsigned long vaddr;
+	struct vfio_dma *dma;
+	bool kthread = current->mm == NULL;
+	size_t offset;
+
+	*copied = 0;
+
+	dma = vfio_find_dma(iommu, user_iova, 1);
+	if (!dma)
+		return -EINVAL;
+
+	if ((write && !(dma->prot & IOMMU_WRITE)) ||
+			!(dma->prot & IOMMU_READ))
+		return -EPERM;
+
+	mm = get_task_mm(dma->task);
+
+	if (!mm)
+		return -EPERM;
+
+	if (kthread)
+		use_mm(mm);
+	else if (current->mm != mm)
+		goto out;
+
+	offset = user_iova - dma->iova;
+
+	if (count > dma->size - offset)
+		count = dma->size - offset;
+
+	vaddr = dma->vaddr + offset;
+
+	if (write)
+		*copied = __copy_to_user((void __user *)vaddr, data,
+					 count) ? 0 : count;
+	else
+		*copied = __copy_from_user(data, (void __user *)vaddr,
+					   count) ? 0 : count;
+	if (kthread)
+		unuse_mm(mm);
+out:
+	mmput(mm);
+	return *copied ? 0 : -EFAULT;
+}
+
+static int vfio_iommu_type1_dma_rw(void *iommu_data, dma_addr_t user_iova,
+				   void *data, size_t count, bool write)
+{
+	struct vfio_iommu *iommu = iommu_data;
+	int ret = 0;
+	size_t done;
+
+	mutex_lock(&iommu->lock);
+	while (count > 0) {
+		ret = vfio_iommu_type1_dma_rw_chunk(iommu, user_iova, data,
+						    count, write, &done);
+		if (ret)
+			break;
+
+		count -= done;
+		data += done;
+		user_iova += done;
+	}
+
+	mutex_unlock(&iommu->lock);
+	return ret;
+}
+
 static const struct vfio_iommu_driver_ops vfio_iommu_driver_ops_type1 = {
 	.name			= "vfio-iommu-type1",
 	.owner			= THIS_MODULE,
@@ -2338,6 +2392,7 @@ static const struct vfio_iommu_driver_ops vfio_iommu_driver_ops_type1 = {
 	.unpin_pages		= vfio_iommu_type1_unpin_pages,
 	.register_notifier	= vfio_iommu_type1_register_notifier,
 	.unregister_notifier	= vfio_iommu_type1_unregister_notifier,
+	.dma_rw			= vfio_iommu_type1_dma_rw,
 };
 
 static int __init vfio_iommu_type1_init(void)

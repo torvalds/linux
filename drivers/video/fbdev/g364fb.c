@@ -108,10 +108,9 @@ static int g364fb_pan_display(struct fb_var_screeninfo *var,
 static int g364fb_setcolreg(u_int regno, u_int red, u_int green,
 			    u_int blue, u_int transp,
 			    struct fb_info *info);
-static int g364fb_cursor(struct fb_info *info, struct fb_cursor *cursor);
 static int g364fb_blank(int blank, struct fb_info *info);
 
-static struct fb_ops g364fb_ops = {
+static const struct fb_ops g364fb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_setcolreg	= g364fb_setcolreg,
 	.fb_pan_display	= g364fb_pan_display,
@@ -119,27 +118,7 @@ static struct fb_ops g364fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= g364fb_cursor,
 };
-
-int g364fb_cursor(struct fb_info *info, struct fb_cursor *cursor)
-{
-	
-	switch (cursor->enable) {
-	case CM_ERASE:
-		*(unsigned int *) CTLA_REG |= CURS_TOGGLE;
-		break;
-
-	case CM_MOVE:
-	case CM_DRAW:
-		*(unsigned int *) CTLA_REG &= ~CURS_TOGGLE;
-		*(unsigned int *) CURS_POS_REG =
-		    ((x * fontwidth(p)) << 12) | ((y * fontheight(p)) -
-						  info->var.yoffset);
-		break;
-	}
-	return 0;
-}
 
 /*
  *  Pan or Wrap the Display
@@ -194,11 +173,9 @@ static int g364fb_setcolreg(u_int regno, u_int red, u_int green,
  */
 int __init g364fb_init(void)
 {
-	volatile unsigned int *pal_ptr =
-	    (volatile unsigned int *) CLR_PAL_REG;
 	volatile unsigned int *curs_pal_ptr =
 	    (volatile unsigned int *) CURS_PAL_REG;
-	int mem, i, j;
+	int mem, i;
 
 	if (fb_get_options("g364fb", NULL))
 		return -ENODEV;
@@ -230,8 +207,8 @@ int __init g364fb_init(void)
 	 */
 	*(unsigned short *) (CURS_PAT_REG + 14 * 64) = 0xffff;
 	*(unsigned short *) (CURS_PAT_REG + 15 * 64) = 0xffff;
-	fb_var.xres_virtual = fbvar.xres;
-	fb_fix.line_length = (xres / 8) * fb_var.bits_per_pixel;
+	fb_var.xres_virtual = fb_var.xres;
+	fb_fix.line_length = fb_var.xres_virtual * fb_var.bits_per_pixel / 8;
 	fb_fix.smem_start = 0x40000000;	/* physical address */
 	/* get size of video memory; this is special for the JAZZ hardware */
 	mem = (r4030_read_reg32(JAZZ_R4030_CONFIG) >> 8) & 3;

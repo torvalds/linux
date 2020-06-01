@@ -6,6 +6,7 @@
 #include "tx.h"
 #include "fw.h"
 #include "ps.h"
+#include "debug.h"
 
 static
 void rtw_tx_stats(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
@@ -57,6 +58,9 @@ void rtw_tx_fill_tx_desc(struct rtw_tx_pkt_info *pkt_info, struct sk_buff *skb)
 	SET_TX_DESC_SPE_RPT(txdesc, pkt_info->report);
 	SET_TX_DESC_SW_DEFINE(txdesc, pkt_info->sn);
 	SET_TX_DESC_USE_RTS(txdesc, pkt_info->rts);
+	SET_TX_DESC_DISQSELSEQ(txdesc, pkt_info->dis_qselseq);
+	SET_TX_DESC_EN_HWSEQ(txdesc, pkt_info->en_hwseq);
+	SET_TX_DESC_HW_SSN_SEL(txdesc, pkt_info->hw_ssn_sel);
 }
 EXPORT_SYMBOL(rtw_tx_fill_tx_desc);
 
@@ -220,20 +224,22 @@ void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 
 static void rtw_tx_mgmt_pkt_info_update(struct rtw_dev *rtwdev,
 					struct rtw_tx_pkt_info *pkt_info,
-					struct ieee80211_tx_control *control,
+					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
 	pkt_info->use_rate = true;
 	pkt_info->rate_id = 6;
 	pkt_info->dis_rate_fallback = true;
+	pkt_info->dis_qselseq = true;
+	pkt_info->en_hwseq = true;
+	pkt_info->hw_ssn_sel = 0;
 }
 
 static void rtw_tx_data_pkt_info_update(struct rtw_dev *rtwdev,
 					struct rtw_tx_pkt_info *pkt_info,
-					struct ieee80211_tx_control *control,
+					struct ieee80211_sta *sta,
 					struct sk_buff *skb)
 {
-	struct ieee80211_sta *sta = control->sta;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct rtw_sta_info *si;
@@ -292,7 +298,7 @@ out:
 
 void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 			    struct rtw_tx_pkt_info *pkt_info,
-			    struct ieee80211_tx_control *control,
+			    struct ieee80211_sta *sta,
 			    struct sk_buff *skb)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -304,15 +310,15 @@ void rtw_tx_pkt_info_update(struct rtw_dev *rtwdev,
 	u8 sec_type = 0;
 	bool bmc;
 
-	if (control->sta) {
-		si = (struct rtw_sta_info *)control->sta->drv_priv;
+	if (sta) {
+		si = (struct rtw_sta_info *)sta->drv_priv;
 		vif = si->vif;
 	}
 
 	if (ieee80211_is_mgmt(fc) || ieee80211_is_nullfunc(fc))
-		rtw_tx_mgmt_pkt_info_update(rtwdev, pkt_info, control, skb);
+		rtw_tx_mgmt_pkt_info_update(rtwdev, pkt_info, sta, skb);
 	else if (ieee80211_is_data(fc))
-		rtw_tx_data_pkt_info_update(rtwdev, pkt_info, control, skb);
+		rtw_tx_data_pkt_info_update(rtwdev, pkt_info, sta, skb);
 
 	if (info->control.hw_key) {
 		struct ieee80211_key_conf *key = info->control.hw_key;
@@ -368,15 +374,74 @@ void rtw_rsvd_page_pkt_info_update(struct rtw_dev *rtwdev,
 	pkt_info->ls = true;
 }
 
+struct sk_buff *
+rtw_tx_write_data_rsvd_page_get(struct rtw_dev *rtwdev,
+				struct rtw_tx_pkt_info *pkt_info,
+				u8 *buf, u32 size)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct sk_buff *skb;
+	u32 tx_pkt_desc_sz;
+	u32 length;
+
+	tx_pkt_desc_sz = chip->tx_pkt_desc_sz;
+	length = size + tx_pkt_desc_sz;
+	skb = dev_alloc_skb(length);
+	if (!skb) {
+		rtw_err(rtwdev, "failed to alloc write data rsvd page skb\n");
+		return NULL;
+	}
+
+	skb_reserve(skb, tx_pkt_desc_sz);
+	skb_put_data(skb, buf, size);
+	pkt_info->tx_pkt_size = size;
+	pkt_info->offset = tx_pkt_desc_sz;
+
+	return skb;
+}
+EXPORT_SYMBOL(rtw_tx_write_data_rsvd_page_get);
+
+struct sk_buff *
+rtw_tx_write_data_h2c_get(struct rtw_dev *rtwdev,
+			  struct rtw_tx_pkt_info *pkt_info,
+			  u8 *buf, u32 size)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+	struct sk_buff *skb;
+	u32 tx_pkt_desc_sz;
+	u32 length;
+
+	tx_pkt_desc_sz = chip->tx_pkt_desc_sz;
+	length = size + tx_pkt_desc_sz;
+	skb = dev_alloc_skb(length);
+	if (!skb) {
+		rtw_err(rtwdev, "failed to alloc write data h2c skb\n");
+		return NULL;
+	}
+
+	skb_reserve(skb, tx_pkt_desc_sz);
+	skb_put_data(skb, buf, size);
+	pkt_info->tx_pkt_size = size;
+
+	return skb;
+}
+EXPORT_SYMBOL(rtw_tx_write_data_h2c_get);
+
 void rtw_tx(struct rtw_dev *rtwdev,
 	    struct ieee80211_tx_control *control,
 	    struct sk_buff *skb)
 {
 	struct rtw_tx_pkt_info pkt_info = {0};
+	int ret;
 
-	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control, skb);
-	if (rtw_hci_tx(rtwdev, &pkt_info, skb))
+	rtw_tx_pkt_info_update(rtwdev, &pkt_info, control->sta, skb);
+	ret = rtw_hci_tx_write(rtwdev, &pkt_info, skb);
+	if (ret) {
+		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
 		goto out;
+	}
+
+	rtw_hci_tx_kick_off(rtwdev);
 
 	return;
 
@@ -416,37 +481,61 @@ static void rtw_txq_check_agg(struct rtw_dev *rtwdev,
 	ieee80211_queue_work(rtwdev->hw, &rtwdev->ba_work);
 }
 
-static bool rtw_txq_dequeue(struct rtw_dev *rtwdev,
-			    struct rtw_txq *rtwtxq)
+static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
+			    struct rtw_txq *rtwtxq,
+			    struct sk_buff *skb)
 {
 	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
-	struct ieee80211_tx_control control;
+	struct rtw_tx_pkt_info pkt_info = {0};
+	int ret;
+
+	rtw_txq_check_agg(rtwdev, rtwtxq, skb);
+
+	rtw_tx_pkt_info_update(rtwdev, &pkt_info, txq->sta, skb);
+	ret = rtw_hci_tx_write(rtwdev, &pkt_info, skb);
+	if (ret) {
+		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
+		return ret;
+	}
+	rtwtxq->last_push = jiffies;
+
+	return 0;
+}
+
+static struct sk_buff *rtw_txq_dequeue(struct rtw_dev *rtwdev,
+				       struct rtw_txq *rtwtxq)
+{
+	struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
 	struct sk_buff *skb;
 
 	skb = ieee80211_tx_dequeue(rtwdev->hw, txq);
 	if (!skb)
-		return false;
+		return NULL;
 
-	rtw_txq_check_agg(rtwdev, rtwtxq, skb);
-
-	control.sta = txq->sta;
-	rtw_tx(rtwdev, &control, skb);
-	rtwtxq->last_push = jiffies;
-
-	return true;
+	return skb;
 }
 
 static void rtw_txq_push(struct rtw_dev *rtwdev,
 			 struct rtw_txq *rtwtxq,
 			 unsigned long frames)
 {
+	struct sk_buff *skb;
+	int ret;
 	int i;
 
 	rcu_read_lock();
 
-	for (i = 0; i < frames; i++)
-		if (!rtw_txq_dequeue(rtwdev, rtwtxq))
+	for (i = 0; i < frames; i++) {
+		skb = rtw_txq_dequeue(rtwdev, rtwtxq);
+		if (!skb)
 			break;
+
+		ret = rtw_txq_push_skb(rtwdev, rtwtxq, skb);
+		if (ret) {
+			rtw_err(rtwdev, "failed to pusk skb, ret %d\n", ret);
+			break;
+		}
+	}
 
 	rcu_read_unlock();
 }
@@ -468,6 +557,8 @@ void rtw_tx_tasklet(unsigned long data)
 
 		list_del_init(&rtwtxq->list);
 	}
+
+	rtw_hci_tx_kick_off(rtwdev);
 
 	spin_unlock_bh(&rtwdev->txq_lock);
 }

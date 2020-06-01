@@ -587,6 +587,11 @@ void radix__local_flush_all_mm(struct mm_struct *mm)
 	preempt_enable();
 }
 EXPORT_SYMBOL(radix__local_flush_all_mm);
+
+static void __flush_all_mm(struct mm_struct *mm, bool fullmm)
+{
+	radix__local_flush_all_mm(mm);
+}
 #endif /* CONFIG_SMP */
 
 void radix__local_flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
@@ -777,7 +782,7 @@ void radix__flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 EXPORT_SYMBOL(radix__flush_tlb_page);
 
 #else /* CONFIG_SMP */
-#define radix__flush_all_mm radix__local_flush_all_mm
+static inline void exit_flush_lazy_tlbs(struct mm_struct *mm) { }
 #endif /* CONFIG_SMP */
 
 static void do_tlbiel_kernel(void *info)
@@ -1159,6 +1164,9 @@ extern void radix_kvm_prefetch_workaround(struct mm_struct *mm)
 	unsigned long pid = mm->context.id;
 
 	if (unlikely(pid == MMU_NO_CONTEXT))
+		return;
+
+	if (!cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG))
 		return;
 
 	/*

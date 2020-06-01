@@ -243,7 +243,7 @@ int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
 	/* Allocate MTT entry */
 	ret = hns_roce_alloc_mtt_range(hr_dev, mtt->order, &mtt->first_seg,
 				       mtt->mtt_type);
-	if (ret == -1)
+	if (ret)
 		return -ENOMEM;
 
 	return 0;
@@ -1064,8 +1064,8 @@ int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 		if (!(npage % (1 << (mtt->page_shift - PAGE_SHIFT)))) {
 			if (page_addr & ((1 << mtt->page_shift) - 1)) {
 				dev_err(dev,
-					"page_addr 0x%llx is not page_shift %d alignment!\n",
-					page_addr, mtt->page_shift);
+					"page_addr is not page_shift %d alignment!\n",
+					mtt->page_shift);
 				ret = -EINVAL;
 				goto out;
 			}

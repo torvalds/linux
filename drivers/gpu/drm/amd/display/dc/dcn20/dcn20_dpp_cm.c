@@ -36,15 +36,15 @@
 #define REG(reg)\
 	dpp->tf_regs->reg
 
+#define IND_REG(index) \
+	(index)
+
 #define CTX \
 	dpp->base.ctx
 
 #undef FN
 #define FN(reg_name, field_name) \
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
-
-
-
 
 
 static void dpp2_enable_cm_block(
@@ -149,10 +149,162 @@ void dpp2_set_degamma(
 	case IPP_DEGAMMA_MODE_HW_xvYCC:
 		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 2);
 			break;
+	case IPP_DEGAMMA_MODE_USER_PWL:
+		REG_UPDATE(CM_DGAM_CONTROL, CM_DGAM_LUT_MODE, 3);
+		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		break;
 	}
+}
+
+static void program_gamut_remap(
+		struct dcn20_dpp *dpp,
+		const uint16_t *regval,
+		enum dcn20_gamut_remap_select select)
+{
+	uint32_t cur_select = 0;
+	struct color_matrices_reg gam_regs;
+
+	if (regval == NULL || select == DCN2_GAMUT_REMAP_BYPASS) {
+		REG_SET(CM_GAMUT_REMAP_CONTROL, 0,
+				CM_GAMUT_REMAP_MODE, 0);
+		return;
+	}
+
+	/* determine which gamut_remap coefficients (A or B) we are using
+	 * currently. select the alternate set to double buffer
+	 * the update so gamut_remap is updated on frame boundary
+	 */
+	IX_REG_GET(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX,
+					CM_TEST_DEBUG_DATA_GAMUT_REMAP_MODE, &cur_select);
+
+	/* value stored in dbg reg will be 1 greater than mode we want */
+	if (cur_select != DCN2_GAMUT_REMAP_COEF_A)
+		select = DCN2_GAMUT_REMAP_COEF_A;
+	else
+		select = DCN2_GAMUT_REMAP_COEF_B;
+
+	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_GAMUT_REMAP_C11;
+	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_GAMUT_REMAP_C11;
+	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_GAMUT_REMAP_C12;
+	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_GAMUT_REMAP_C12;
+
+	if (select == DCN2_GAMUT_REMAP_COEF_A) {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_C33_C34);
+	} else {
+		gam_regs.csc_c11_c12 = REG(CM_GAMUT_REMAP_B_C11_C12);
+		gam_regs.csc_c33_c34 = REG(CM_GAMUT_REMAP_B_C33_C34);
+	}
+
+	cm_helper_program_color_matrices(
+				dpp->base.ctx,
+				regval,
+				&gam_regs);
+
+	REG_SET(
+			CM_GAMUT_REMAP_CONTROL, 0,
+			CM_GAMUT_REMAP_MODE, select);
+
+}
+
+void dpp2_cm_set_gamut_remap(
+	struct dpp *dpp_base,
+	const struct dpp_grph_csc_adjustment *adjust)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	int i = 0;
+
+	if (adjust->gamut_adjust_type != GRAPHICS_GAMUT_ADJUST_TYPE_SW)
+		/* Bypass if type is bypass or hw */
+		program_gamut_remap(dpp, NULL, DCN2_GAMUT_REMAP_BYPASS);
+	else {
+		struct fixed31_32 arr_matrix[12];
+		uint16_t arr_reg_val[12];
+
+		for (i = 0; i < 12; i++)
+			arr_matrix[i] = adjust->temperature_matrix[i];
+
+		convert_float_matrix(
+			arr_reg_val, arr_matrix, 12);
+
+		program_gamut_remap(dpp, arr_reg_val, DCN2_GAMUT_REMAP_COEF_A);
+	}
+}
+
+void dpp2_program_input_csc(
+		struct dpp *dpp_base,
+		enum dc_color_space color_space,
+		enum dcn20_input_csc_select input_select,
+		const struct out_csc_color_matrix *tbl_entry)
+{
+	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	int i;
+	int arr_size = sizeof(dpp_input_csc_matrix)/sizeof(struct dpp_input_csc_matrix);
+	const uint16_t *regval = NULL;
+	uint32_t cur_select = 0;
+	enum dcn20_input_csc_select select;
+	struct color_matrices_reg icsc_regs;
+
+	if (input_select == DCN2_ICSC_SELECT_BYPASS) {
+		REG_SET(CM_ICSC_CONTROL, 0, CM_ICSC_MODE, 0);
+		return;
+	}
+
+	if (tbl_entry == NULL) {
+		for (i = 0; i < arr_size; i++)
+			if (dpp_input_csc_matrix[i].color_space == color_space) {
+				regval = dpp_input_csc_matrix[i].regval;
+				break;
+			}
+
+		if (regval == NULL) {
+			BREAK_TO_DEBUGGER();
+			return;
+		}
+	} else {
+		regval = tbl_entry->regval;
+	}
+
+	/* determine which CSC coefficients (A or B) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	IX_REG_GET(CM_TEST_DEBUG_INDEX, CM_TEST_DEBUG_DATA,
+					CM_TEST_DEBUG_DATA_STATUS_IDX,
+					CM_TEST_DEBUG_DATA_ICSC_MODE, &cur_select);
+
+	if (cur_select != DCN2_ICSC_SELECT_ICSC_A)
+		select = DCN2_ICSC_SELECT_ICSC_A;
+	else
+		select = DCN2_ICSC_SELECT_ICSC_B;
+
+	icsc_regs.shifts.csc_c11 = dpp->tf_shift->CM_ICSC_C11;
+	icsc_regs.masks.csc_c11  = dpp->tf_mask->CM_ICSC_C11;
+	icsc_regs.shifts.csc_c12 = dpp->tf_shift->CM_ICSC_C12;
+	icsc_regs.masks.csc_c12 = dpp->tf_mask->CM_ICSC_C12;
+
+	if (select == DCN2_ICSC_SELECT_ICSC_A) {
+
+		icsc_regs.csc_c11_c12 = REG(CM_ICSC_C11_C12);
+		icsc_regs.csc_c33_c34 = REG(CM_ICSC_C33_C34);
+
+	} else {
+
+		icsc_regs.csc_c11_c12 = REG(CM_ICSC_B_C11_C12);
+		icsc_regs.csc_c33_c34 = REG(CM_ICSC_B_C33_C34);
+
+	}
+
+	cm_helper_program_color_matrices(
+			dpp->base.ctx,
+			regval,
+			&icsc_regs);
+
+	REG_SET(CM_ICSC_CONTROL, 0,
+				CM_ICSC_MODE, select);
 }
 
 static void dpp20_power_on_blnd_lut(

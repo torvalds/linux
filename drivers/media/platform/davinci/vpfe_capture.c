@@ -168,21 +168,22 @@ int vpfe_register_ccdc_device(const struct ccdc_hw_device *dev)
 	int ret = 0;
 	printk(KERN_NOTICE "vpfe_register_ccdc_device: %s\n", dev->name);
 
-	BUG_ON(!dev->hw_ops.open);
-	BUG_ON(!dev->hw_ops.enable);
-	BUG_ON(!dev->hw_ops.set_hw_if_params);
-	BUG_ON(!dev->hw_ops.configure);
-	BUG_ON(!dev->hw_ops.set_buftype);
-	BUG_ON(!dev->hw_ops.get_buftype);
-	BUG_ON(!dev->hw_ops.enum_pix);
-	BUG_ON(!dev->hw_ops.set_frame_format);
-	BUG_ON(!dev->hw_ops.get_frame_format);
-	BUG_ON(!dev->hw_ops.get_pixel_format);
-	BUG_ON(!dev->hw_ops.set_pixel_format);
-	BUG_ON(!dev->hw_ops.set_image_window);
-	BUG_ON(!dev->hw_ops.get_image_window);
-	BUG_ON(!dev->hw_ops.get_line_length);
-	BUG_ON(!dev->hw_ops.getfid);
+	if (!dev->hw_ops.open ||
+	    !dev->hw_ops.enable ||
+	    !dev->hw_ops.set_hw_if_params ||
+	    !dev->hw_ops.configure ||
+	    !dev->hw_ops.set_buftype ||
+	    !dev->hw_ops.get_buftype ||
+	    !dev->hw_ops.enum_pix ||
+	    !dev->hw_ops.set_frame_format ||
+	    !dev->hw_ops.get_frame_format ||
+	    !dev->hw_ops.get_pixel_format ||
+	    !dev->hw_ops.set_pixel_format ||
+	    !dev->hw_ops.set_image_window ||
+	    !dev->hw_ops.get_image_window ||
+	    !dev->hw_ops.get_line_length ||
+	    !dev->hw_ops.getfid)
+		return -EINVAL;
 
 	mutex_lock(&ccdc_lock);
 	if (!ccdc_cfg) {
@@ -879,7 +880,7 @@ static int vpfe_enum_fmt_vid_cap(struct file *file, void  *priv,
 	/* Fill in the information about format */
 	pix_fmt = vpfe_lookup_pix_format(pix);
 	if (pix_fmt) {
-		fmt->pixelformat = fmt->pixelformat;
+		fmt->pixelformat = pix_fmt->pixelformat;
 		return 0;
 	}
 	return -EINVAL;
@@ -1779,7 +1780,7 @@ static int vpfe_probe(struct platform_device *pdev)
 		"video_dev=%p\n", &vpfe_dev->video_dev);
 	vpfe_dev->fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	ret = video_register_device(&vpfe_dev->video_dev,
-				    VFL_TYPE_GRABBER, -1);
+				    VFL_TYPE_VIDEO, -1);
 
 	if (ret) {
 		v4l2_err(pdev->dev.driver,

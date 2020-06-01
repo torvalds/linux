@@ -41,15 +41,10 @@ enum proc_param {
 	Opt_hidepid,
 };
 
-static const struct fs_parameter_spec proc_param_specs[] = {
+static const struct fs_parameter_spec proc_fs_parameters[] = {
 	fsparam_u32("gid",	Opt_gid),
 	fsparam_u32("hidepid",	Opt_hidepid),
 	{}
-};
-
-static const struct fs_parameter_description proc_fs_parameters = {
-	.name		= "proc",
-	.specs		= proc_param_specs,
 };
 
 static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
@@ -58,7 +53,7 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 	struct fs_parse_result result;
 	int opt;
 
-	opt = fs_parse(fc, &proc_fs_parameters, param, &result);
+	opt = fs_parse(fc, proc_fs_parameters, param, &result);
 	if (opt < 0)
 		return opt;
 
@@ -71,7 +66,7 @@ static int proc_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		ctx->hidepid = result.uint_32;
 		if (ctx->hidepid < HIDEPID_OFF ||
 		    ctx->hidepid > HIDEPID_INVISIBLE)
-			return invalf(fc, "proc: hidepid value must be between 0 and 2.\n");
+			return invalfc(fc, "hidepid value must be between 0 and 2.\n");
 		break;
 
 	default:
@@ -207,7 +202,7 @@ static void proc_kill_sb(struct super_block *sb)
 static struct file_system_type proc_fs_type = {
 	.name			= "proc",
 	.init_fs_context	= proc_init_fs_context,
-	.parameters		= &proc_fs_parameters,
+	.parameters		= proc_fs_parameters,
 	.kill_sb		= proc_kill_sb,
 	.fs_flags		= FS_USERNS_MOUNT | FS_DISALLOW_NOTIFY_PERM,
 };
@@ -292,44 +287,8 @@ struct proc_dir_entry proc_root = {
 	.nlink		= 2, 
 	.refcnt		= REFCOUNT_INIT(1),
 	.proc_iops	= &proc_root_inode_operations, 
-	.proc_fops	= &proc_root_operations,
+	.proc_dir_ops	= &proc_root_operations,
 	.parent		= &proc_root,
 	.subdir		= RB_ROOT,
 	.name		= "/proc",
 };
-
-int pid_ns_prepare_proc(struct pid_namespace *ns)
-{
-	struct proc_fs_context *ctx;
-	struct fs_context *fc;
-	struct vfsmount *mnt;
-
-	fc = fs_context_for_mount(&proc_fs_type, SB_KERNMOUNT);
-	if (IS_ERR(fc))
-		return PTR_ERR(fc);
-
-	if (fc->user_ns != ns->user_ns) {
-		put_user_ns(fc->user_ns);
-		fc->user_ns = get_user_ns(ns->user_ns);
-	}
-
-	ctx = fc->fs_private;
-	if (ctx->pid_ns != ns) {
-		put_pid_ns(ctx->pid_ns);
-		get_pid_ns(ns);
-		ctx->pid_ns = ns;
-	}
-
-	mnt = fc_mount(fc);
-	put_fs_context(fc);
-	if (IS_ERR(mnt))
-		return PTR_ERR(mnt);
-
-	ns->proc_mnt = mnt;
-	return 0;
-}
-
-void pid_ns_release_proc(struct pid_namespace *ns)
-{
-	kern_unmount(ns->proc_mnt);
-}

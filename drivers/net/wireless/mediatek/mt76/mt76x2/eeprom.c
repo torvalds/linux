@@ -248,7 +248,7 @@ mt76x2_get_5g_rx_gain(struct mt76x02_dev *dev, u8 channel)
 
 void mt76x2_read_rx_gain(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	int channel = chan->hw_value;
 	s8 lna_5g[3], lna_2g;
 	u8 lna;
@@ -455,7 +455,7 @@ EXPORT_SYMBOL_GPL(mt76x2_get_power_info);
 
 int mt76x2_get_temp_comp(struct mt76x02_dev *dev, struct mt76x2_temp_comp *t)
 {
-	enum nl80211_band band = dev->mt76.chandef.chan->band;
+	enum nl80211_band band = dev->mphy.chandef.chan->band;
 	u16 val, slope;
 	u8 bounds;
 

@@ -117,4 +117,36 @@ int dyn_event_release(int argc, char **argv, struct dyn_event_operations *type);
 #define for_each_dyn_event_safe(pos, n)	\
 	list_for_each_entry_safe(pos, n, &dyn_event_list, list)
 
+extern void dynevent_cmd_init(struct dynevent_cmd *cmd, char *buf, int maxlen,
+			      enum dynevent_type type,
+			      dynevent_create_fn_t run_command);
+
+typedef int (*dynevent_check_arg_fn_t)(void *data);
+
+struct dynevent_arg {
+	const char		*str;
+	char			separator; /* e.g. ';', ',', or nothing */
+};
+
+extern void dynevent_arg_init(struct dynevent_arg *arg,
+			      char separator);
+extern int dynevent_arg_add(struct dynevent_cmd *cmd,
+			    struct dynevent_arg *arg,
+			    dynevent_check_arg_fn_t check_arg);
+
+struct dynevent_arg_pair {
+	const char		*lhs;
+	const char		*rhs;
+	char			operator; /* e.g. '=' or nothing */
+	char			separator; /* e.g. ';', ',', or nothing */
+};
+
+extern void dynevent_arg_pair_init(struct dynevent_arg_pair *arg_pair,
+				   char operator, char separator);
+
+extern int dynevent_arg_pair_add(struct dynevent_cmd *cmd,
+				 struct dynevent_arg_pair *arg_pair,
+				 dynevent_check_arg_fn_t check_arg);
+extern int dynevent_str_add(struct dynevent_cmd *cmd, const char *str);
+
 #endif
