@@ -437,6 +437,7 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int max_bw = 0;
 	int slice_id;
+	enum pipe pipe;
 	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
@@ -447,9 +448,14 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 		if (IS_ERR(new_bw_state))
 			return PTR_ERR(new_bw_state);
 
+		old_bw_state = intel_atomic_get_old_bw_state(state);
+
 		crtc_bw = &new_bw_state->dbuf_bw[crtc->pipe];
 
 		memset(&crtc_bw->used_bw, 0, sizeof(crtc_bw->used_bw));
+
+		if (!crtc_state->hw.active)
+			continue;
 
 		for_each_plane_id_on_crtc(crtc, plane_id) {
 			const struct skl_ddb_entry *plane_alloc =
@@ -478,6 +484,15 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			for_each_dbuf_slice_in_mask(slice_id, dbuf_mask)
 				crtc_bw->used_bw[slice_id] += data_rate;
 		}
+	}
+
+	if (!old_bw_state)
+		return 0;
+
+	for_each_pipe(dev_priv, pipe) {
+		struct intel_dbuf_bw *crtc_bw;
+
+		crtc_bw = &new_bw_state->dbuf_bw[pipe];
 
 		for_each_dbuf_slice(slice_id) {
 			/*
@@ -490,14 +505,9 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 			 */
 			max_bw += crtc_bw->used_bw[slice_id];
 		}
-
-		new_bw_state->min_cdclk = max_bw / 64;
-
-		old_bw_state = intel_atomic_get_old_bw_state(state);
 	}
 
-	if (!old_bw_state)
-		return 0;
+	new_bw_state->min_cdclk = max_bw / 64;
 
 	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);
@@ -511,33 +521,37 @@ int skl_bw_calc_min_cdclk(struct intel_atomic_state *state)
 
 int intel_bw_calc_min_cdclk(struct intel_atomic_state *state)
 {
-	int i;
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_bw_state *new_bw_state = NULL;
+	struct intel_bw_state *old_bw_state = NULL;
 	const struct intel_crtc_state *crtc_state;
 	struct intel_crtc *crtc;
 	int min_cdclk = 0;
-	struct intel_bw_state *new_bw_state = NULL;
-	struct intel_bw_state *old_bw_state = NULL;
+	enum pipe pipe;
+	int i;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
-		struct intel_cdclk_state *cdclk_state;
-
 		new_bw_state = intel_atomic_get_bw_state(state);
 		if (IS_ERR(new_bw_state))
 			return PTR_ERR(new_bw_state);
-
-		cdclk_state = intel_atomic_get_cdclk_state(state);
-		if (IS_ERR(cdclk_state))
-			return PTR_ERR(cdclk_state);
-
-		min_cdclk = max(cdclk_state->min_cdclk[crtc->pipe], min_cdclk);
-
-		new_bw_state->min_cdclk = min_cdclk;
 
 		old_bw_state = intel_atomic_get_old_bw_state(state);
 	}
 
 	if (!old_bw_state)
 		return 0;
+
+	for_each_pipe(dev_priv, pipe) {
+		struct intel_cdclk_state *cdclk_state;
+
+		cdclk_state = intel_atomic_get_new_cdclk_state(state);
+		if (!cdclk_state)
+			return 0;
+
+		min_cdclk = max(cdclk_state->min_cdclk[pipe], min_cdclk);
+	}
+
+	new_bw_state->min_cdclk = min_cdclk;
 
 	if (new_bw_state->min_cdclk != old_bw_state->min_cdclk) {
 		int ret = intel_atomic_lock_global_state(&new_bw_state->base);

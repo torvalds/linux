@@ -14716,13 +14716,14 @@ static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
 				    bool *need_cdclk_calc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int i;
-	struct intel_plane_state *plane_state;
-	struct intel_plane *plane;
-	int ret;
 	struct intel_cdclk_state *new_cdclk_state;
-	struct intel_crtc_state *new_crtc_state;
-	struct intel_crtc *crtc;
+	struct intel_plane_state *plane_state;
+	struct intel_bw_state *new_bw_state;
+	struct intel_plane *plane;
+	int min_cdclk = 0;
+	enum pipe pipe;
+	int ret;
+	int i;
 	/*
 	 * active_planes bitmask has been updated, and potentially
 	 * affected planes are part of the state. We can now
@@ -14743,23 +14744,18 @@ static int intel_atomic_check_cdclk(struct intel_atomic_state *state,
 	if (ret)
 		return ret;
 
-	if (!new_cdclk_state)
+	new_bw_state = intel_atomic_get_new_bw_state(state);
+
+	if (!new_cdclk_state || !new_bw_state)
 		return 0;
 
-	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
-		struct intel_bw_state *bw_state;
-		int min_cdclk = 0;
-
-		min_cdclk = max(new_cdclk_state->min_cdclk[crtc->pipe], min_cdclk);
-
-		bw_state = intel_atomic_get_bw_state(state);
-		if (IS_ERR(bw_state))
-			return PTR_ERR(bw_state);
+	for_each_pipe(dev_priv, pipe) {
+		min_cdclk = max(new_cdclk_state->min_cdclk[pipe], min_cdclk);
 
 		/*
 		 * Currently do this change only if we need to increase
 		 */
-		if (bw_state->min_cdclk > min_cdclk)
+		if (new_bw_state->min_cdclk > min_cdclk)
 			*need_cdclk_calc = true;
 	}
 
