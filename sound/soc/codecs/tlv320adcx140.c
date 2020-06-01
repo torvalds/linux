@@ -180,6 +180,17 @@ static const struct snd_kcontrol_new decimation_filter_controls[] = {
 	SOC_DAPM_ENUM("Decimation Filter", decimation_filter_enum),
 };
 
+static const char * const pdmclk_text[] = {
+	"2.8224 MHz", "1.4112 MHz", "705.6 kHz", "5.6448 MHz"
+};
+
+static SOC_ENUM_SINGLE_DECL(pdmclk_select_enum, ADCX140_PDMCLK_CFG, 0,
+			    pdmclk_text);
+
+static const struct snd_kcontrol_new pdmclk_div_controls[] = {
+	SOC_DAPM_ENUM("PDM Clk Divider Select", pdmclk_select_enum),
+};
+
 static const char * const resistor_text[] = {
 	"2.5 kOhm", "10 kOhm", "20 kOhm"
 };
@@ -416,6 +427,9 @@ static const struct snd_soc_dapm_widget adcx140_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX("IN4 Analog Mic Resistor", SND_SOC_NOPM, 0, 0,
 			in4_resistor_controls),
 
+	SND_SOC_DAPM_MUX("PDM Clk Div Select", SND_SOC_NOPM, 0, 0,
+			pdmclk_div_controls),
+
 	SND_SOC_DAPM_MUX("Decimation Filter", SND_SOC_NOPM, 0, 0,
 			decimation_filter_controls),
 };
@@ -493,6 +507,11 @@ static const struct snd_soc_dapm_route adcx140_audio_map[] = {
 	{"IN4 Analog Mic Resistor", "10 kOhm", "MIC4M Input Mux"},
 	{"IN4 Analog Mic Resistor", "20 kOhm", "MIC4M Input Mux"},
 
+	{"PDM Clk Div Select", "2.8224 MHz", "MIC1P Input Mux"},
+	{"PDM Clk Div Select", "1.4112 MHz", "MIC1P Input Mux"},
+	{"PDM Clk Div Select", "705.6 kHz", "MIC1P Input Mux"},
+	{"PDM Clk Div Select", "5.6448 MHz", "MIC1P Input Mux"},
+
 	{"MIC1 Analog Mux", "Line In", "MIC1P"},
 	{"MIC2 Analog Mux", "Line In", "MIC2P"},
 	{"MIC3 Analog Mux", "Line In", "MIC3P"},
@@ -563,7 +582,7 @@ static int adcx140_reset(struct adcx140_priv *adcx140)
 	/* 8.4.2: wait >= 10 ms after entering sleep mode. */
 	usleep_range(10000, 100000);
 
-	return 0;
+	return ret;
 }
 
 static int adcx140_hw_params(struct snd_pcm_substream *substream,
@@ -742,6 +761,13 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	u32 bias_source;
 	u32 vref_source;
 	u8 bias_cfg;
+	int pdm_count;
+	u32 pdm_edges[ADCX140_NUM_PDM_EDGES];
+	u32 pdm_edge_val = 0;
+	int gpi_count;
+	u32 gpi_inputs[ADCX140_NUM_GPI_PINS];
+	u32 gpi_input_val = 0;
+	int i;
 	int ret;
 
 	ret = device_property_read_u32(adcx140->dev, "ti,mic-bias-source",
@@ -749,8 +775,7 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		bias_source = ADCX140_MIC_BIAS_VAL_VREF;
 
-	if (bias_source < ADCX140_MIC_BIAS_VAL_VREF ||
-	    bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
+	if (bias_source > ADCX140_MIC_BIAS_VAL_AVDD) {
 		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
 		return -EINVAL;
 	}
@@ -760,13 +785,55 @@ static int adcx140_codec_probe(struct snd_soc_component *component)
 	if (ret)
 		vref_source = ADCX140_MIC_BIAS_VREF_275V;
 
-	if (vref_source < ADCX140_MIC_BIAS_VREF_275V ||
-	    vref_source > ADCX140_MIC_BIAS_VREF_1375V) {
+	if (vref_source > ADCX140_MIC_BIAS_VREF_1375V) {
 		dev_err(adcx140->dev, "Mic Bias source value is invalid\n");
 		return -EINVAL;
 	}
 
 	bias_cfg = bias_source << ADCX140_MIC_BIAS_SHIFT | vref_source;
+
+	pdm_count = device_property_count_u32(adcx140->dev,
+					      "ti,pdm-edge-select");
+	if (pdm_count <= ADCX140_NUM_PDM_EDGES && pdm_count > 0) {
+		ret = device_property_read_u32_array(adcx140->dev,
+						     "ti,pdm-edge-select",
+						     pdm_edges, pdm_count);
+		if (ret)
+			return ret;
+
+		for (i = 0; i < pdm_count; i++)
+			pdm_edge_val |= pdm_edges[i] << (ADCX140_PDM_EDGE_SHIFT - i);
+
+		ret = regmap_write(adcx140->regmap, ADCX140_PDM_CFG,
+				   pdm_edge_val);
+		if (ret)
+			return ret;
+	}
+
+	gpi_count = device_property_count_u32(adcx140->dev, "ti,gpi-config");
+	if (gpi_count <= ADCX140_NUM_GPI_PINS && gpi_count > 0) {
+		ret = device_property_read_u32_array(adcx140->dev,
+						     "ti,gpi-config",
+						     gpi_inputs, gpi_count);
+		if (ret)
+			return ret;
+
+		gpi_input_val = gpi_inputs[ADCX140_GPI1_INDEX] << ADCX140_GPI_SHIFT |
+				gpi_inputs[ADCX140_GPI2_INDEX];
+
+		ret = regmap_write(adcx140->regmap, ADCX140_GPI_CFG0,
+				   gpi_input_val);
+		if (ret)
+			return ret;
+
+		gpi_input_val = gpi_inputs[ADCX140_GPI3_INDEX] << ADCX140_GPI_SHIFT |
+				gpi_inputs[ADCX140_GPI4_INDEX];
+
+		ret = regmap_write(adcx140->regmap, ADCX140_GPI_CFG1,
+				   gpi_input_val);
+		if (ret)
+			return ret;
+	}
 
 	ret = adcx140_reset(adcx140);
 	if (ret)

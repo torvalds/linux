@@ -725,8 +725,7 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 
 	trace_snd_soc_bias_level_start(card, level);
 
-	if (card && card->set_bias_level)
-		ret = card->set_bias_level(card, dapm, level);
+	ret = snd_soc_card_set_bias_level(card, dapm, level);
 	if (ret != 0)
 		goto out;
 
@@ -736,8 +735,7 @@ static int snd_soc_dapm_set_bias_level(struct snd_soc_dapm_context *dapm,
 	if (ret != 0)
 		goto out;
 
-	if (card && card->set_bias_level_post)
-		ret = card->set_bias_level_post(card, dapm, level);
+	ret = snd_soc_card_set_bias_level_post(card, dapm, level);
 out:
 	trace_snd_soc_bias_level_done(card, level);
 
@@ -3835,7 +3833,7 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 				"ASoC: startup() failed: %d\n", ret);
 			goto out;
 		}
-		source->active++;
+		snd_soc_dai_activate(source, substream->stream);
 	}
 
 	substream->stream = SNDRV_PCM_STREAM_PLAYBACK;
@@ -3848,7 +3846,7 @@ snd_soc_dai_link_event_pre_pmu(struct snd_soc_dapm_widget *w,
 				"ASoC: startup() failed: %d\n", ret);
 			goto out;
 		}
-		sink->active++;
+		snd_soc_dai_activate(sink, substream->stream);
 	}
 
 	substream->hw_opened = 1;
@@ -3978,14 +3976,14 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 		substream->stream = SNDRV_PCM_STREAM_CAPTURE;
 		snd_soc_dapm_widget_for_each_source_path(w, path) {
 			source = path->source->priv;
-			source->active--;
+			snd_soc_dai_deactivate(source, substream->stream);
 			snd_soc_dai_shutdown(source, substream);
 		}
 
 		substream->stream = SNDRV_PCM_STREAM_PLAYBACK;
 		snd_soc_dapm_widget_for_each_sink_path(w, path) {
 			sink = path->sink->priv;
-			sink->active--;
+			snd_soc_dai_deactivate(sink, substream->stream);
 			snd_soc_dai_shutdown(sink, substream);
 		}
 		break;
@@ -4427,11 +4425,11 @@ void snd_soc_dapm_connect_dai_link_widgets(struct snd_soc_card *card)
 		if (rtd->num_cpus == 1) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
-						      rtd->cpu_dais[0]);
+						      asoc_rtd_to_cpu(rtd, 0));
 		} else if (rtd->num_codecs == rtd->num_cpus) {
 			for_each_rtd_codec_dais(rtd, i, codec_dai)
 				dapm_connect_dai_pair(card, rtd, codec_dai,
-						      rtd->cpu_dais[i]);
+						      asoc_rtd_to_cpu(rtd, i));
 		} else {
 			dev_err(card->dev,
 				"N cpus to M codecs link is not supported yet\n");
