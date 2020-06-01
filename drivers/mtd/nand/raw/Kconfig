@@ -213,10 +213,6 @@ config MTD_NAND_MLC_LPC32XX
 	  Please check the actual NAND chip connected and its support
 	  by the MLC NAND controller.
 
-config MTD_NAND_CM_X270
-	tristate "CM-X270 modules NAND controller"
-	depends on MACH_ARMCORE
-
 config MTD_NAND_PASEMI
 	tristate "PA Semi PWRficient NAND controller"
 	depends on PPC_PASEMI
@@ -456,6 +452,14 @@ config MTD_NAND_CADENCE
 	help
 	  Enable the driver for NAND flash on platforms using a Cadence NAND
 	  controller.
+
+config MTD_NAND_ARASAN
+	tristate "Support for Arasan NAND flash controller"
+	depends on HAS_IOMEM && HAS_DMA
+	select BCH
+	help
+	  Enables the driver for the Arasan NAND flash controller on
+	  Zynq Ultrascale+ MPSoC.
 
 comment "Misc"
 
