@@ -69,13 +69,8 @@ struct mlx5_rep_uplink_priv {
 	 * tc_indr_block_cb_priv_list is used to lookup indirect callback
 	 * private data
 	 *
-	 * netdevice_nb is the netdev events notifier - used to register
-	 * tunnel devices for block events
-	 *
 	 */
 	struct list_head	    tc_indr_block_priv_list;
-	struct notifier_block	    netdevice_nb;
-	struct netdev_net_notifier  netdevice_nn;
 
 	struct mlx5_tun_entropy tun_entropy;
 
