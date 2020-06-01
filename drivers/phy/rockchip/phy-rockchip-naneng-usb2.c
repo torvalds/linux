@@ -569,23 +569,15 @@ static int rockchip_usb2phy_power_on(struct phy *phy)
 		goto unlock;
 	}
 
-	ret = clk_bulk_enable(rphy->num_clks, rphy->clks);
-	if (ret)
-		goto unlock;
-
 	ret = property_enable(rphy->grf, &rport->port_cfg->phy_sus, false);
 	if (ret)
-		goto disable_clks;
+		goto unlock;
 
 	/* waiting for the utmi_clk to become stable */
 	usleep_range(2500, 3000);
 
 	rport->suspended = false;
 
-	goto unlock;
-
-disable_clks:
-	clk_bulk_disable(rphy->num_clks, rphy->clks);
 unlock:
 	mutex_unlock(&rport->mutex);
 
@@ -610,8 +602,6 @@ static int rockchip_usb2phy_power_off(struct phy *phy)
 	ret = property_enable(rphy->grf, &rport->port_cfg->phy_sus, true);
 	if (ret)
 		goto unlock;
-
-	clk_bulk_disable(rphy->num_clks, rphy->clks);
 
 	rport->suspended = true;
 
@@ -759,6 +749,9 @@ static void rockchip_chg_detect(struct rockchip_usb2phy *rphy,
 
 	usleep_range(1000, 1100);
 	reset_control_deassert(rphy->reset);
+	/* waiting for the utmi_clk to become stable */
+	usleep_range(2500, 3000);
+
 	/* disable the chg detection module */
 	property_enable(rphy->grf, &rphy->phy_cfg->chg_det.chg_rst, true);
 	property_enable(rphy->grf, &rphy->phy_cfg->chg_det.chg_en, false);
@@ -846,15 +839,7 @@ static void rockchip_usb2phy_otg_sm_work(struct work_struct *work)
 		if (rport->perip_connected)
 			return;
 
-		if (clk_bulk_enable(rphy->num_clks, rphy->clks))
-			return;
-
-		/* waiting for the utmi_clk to become stable */
-		usleep_range(2500, 3000);
-
 		rockchip_chg_detect(rphy, rport);
-
-		clk_bulk_disable(rphy->num_clks, rphy->clks);
 
 		switch (rphy->chg_type) {
 		case POWER_SUPPLY_TYPE_USB:
@@ -1351,11 +1336,6 @@ next_child:
 	else
 		device_init_wakeup(rphy->dev, false);
 
-	/*
-	 * Let us disable clks here for saving power consumption, and usb
-	 * controller will resume it during probe time if needed.
-	 */
-	clk_bulk_disable(rphy->num_clks, rphy->clks);
 	return 0;
 
 put_child:
