@@ -79,10 +79,17 @@ struct {
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
-	__uint(max_entries, 1);
+	__uint(max_entries, 2);
 	__type(key, int);
 	__type(value, int);
 } sock_skb_opts SEC(".maps");
+
+struct {
+	__uint(type, TEST_MAP_TYPE);
+	__uint(max_entries, 20);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(int));
+} tls_sock_map SEC(".maps");
 
 SEC("sk_skb1")
 int bpf_prog1(struct __sk_buff *skb)
@@ -116,6 +123,43 @@ int bpf_prog2(struct __sk_buff *skb)
 	return bpf_sk_redirect_hash(skb, &sock_map, &ret, flags);
 #endif
 
+}
+
+SEC("sk_skb3")
+int bpf_prog3(struct __sk_buff *skb)
+{
+	const int one = 1;
+	int err, *f, ret = SK_PASS;
+	void *data_end;
+	char *c;
+
+	err = bpf_skb_pull_data(skb, 19);
+	if (err)
+		goto tls_out;
+
+	c = (char *)(long)skb->data;
+	data_end = (void *)(long)skb->data_end;
+
+	if (c + 18 < data_end)
+		memcpy(&c[13], "PASS", 4);
+	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
+	if (f && *f) {
+		__u64 flags = 0;
+
+		ret = 0;
+		flags = *f;
+#ifdef SOCKMAP
+		return bpf_sk_redirect_map(skb, &tls_sock_map, ret, flags);
+#else
+		return bpf_sk_redirect_hash(skb, &tls_sock_map, &ret, flags);
+#endif
+	}
+
+	f = bpf_map_lookup_elem(&sock_skb_opts, &one);
+	if (f && *f)
+		ret = SK_DROP;
+tls_out:
+	return ret;
 }
 
 SEC("sockops")

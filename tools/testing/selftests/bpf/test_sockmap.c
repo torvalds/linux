@@ -63,8 +63,8 @@ int s1, s2, c1, c2, p1, p2;
 int test_cnt;
 int passed;
 int failed;
-int map_fd[8];
-struct bpf_map *maps[8];
+int map_fd[9];
+struct bpf_map *maps[9];
 int prog_fd[11];
 
 int txmsg_pass;
@@ -79,7 +79,10 @@ int txmsg_end_push;
 int txmsg_start_pop;
 int txmsg_pop;
 int txmsg_ingress;
-int txmsg_skb;
+int txmsg_redir_skb;
+int txmsg_ktls_skb;
+int txmsg_ktls_skb_drop;
+int txmsg_ktls_skb_redir;
 int ktls;
 int peek_flag;
 
@@ -104,7 +107,7 @@ static const struct option long_options[] = {
 	{"txmsg_start_pop",  required_argument,	NULL, 'w'},
 	{"txmsg_pop",	     required_argument,	NULL, 'x'},
 	{"txmsg_ingress", no_argument,		&txmsg_ingress, 1 },
-	{"txmsg_skb", no_argument,		&txmsg_skb, 1 },
+	{"txmsg_redir_skb", no_argument,	&txmsg_redir_skb, 1 },
 	{"ktls", no_argument,			&ktls, 1 },
 	{"peek", no_argument,			&peek_flag, 1 },
 	{"whitelist", required_argument,	NULL, 'n' },
@@ -169,7 +172,8 @@ static void test_reset(void)
 	txmsg_start_push = txmsg_end_push = 0;
 	txmsg_pass = txmsg_drop = txmsg_redir = 0;
 	txmsg_apply = txmsg_cork = 0;
-	txmsg_ingress = txmsg_skb = 0;
+	txmsg_ingress = txmsg_redir_skb = 0;
+	txmsg_ktls_skb = txmsg_ktls_skb_drop = txmsg_ktls_skb_redir = 0;
 }
 
 static int test_start_subtest(const struct _test *t, struct sockmap_options *o)
@@ -502,14 +506,41 @@ unwind_iov:
 
 static int msg_verify_data(struct msghdr *msg, int size, int chunk_sz)
 {
-	int i, j, bytes_cnt = 0;
+	int i, j = 0, bytes_cnt = 0;
 	unsigned char k = 0;
 
 	for (i = 0; i < msg->msg_iovlen; i++) {
 		unsigned char *d = msg->msg_iov[i].iov_base;
 
-		for (j = 0;
-		     j < msg->msg_iov[i].iov_len && size; j++) {
+		/* Special case test for skb ingress + ktls */
+		if (i == 0 && txmsg_ktls_skb) {
+			if (msg->msg_iov[i].iov_len < 4)
+				return -EIO;
+			if (txmsg_ktls_skb_redir) {
+				if (memcmp(&d[13], "PASS", 4) != 0) {
+					fprintf(stderr,
+						"detected redirect ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[13], d[14], d[15], d[16]);
+					return -EIO;
+				}
+				d[13] = 0;
+				d[14] = 1;
+				d[15] = 2;
+				d[16] = 3;
+				j = 13;
+			} else if (txmsg_ktls_skb) {
+				if (memcmp(d, "PASS", 4) != 0) {
+					fprintf(stderr,
+						"detected ktls_skb data error with skb ingress update @iov[%i]:%i \"%02x %02x %02x %02x\" != \"PASS\"\n", i, 0, d[0], d[1], d[2], d[3]);
+					return -EIO;
+				}
+				d[0] = 0;
+				d[1] = 1;
+				d[2] = 2;
+				d[3] = 3;
+			}
+		}
+
+		for (; j < msg->msg_iov[i].iov_len && size; j++) {
 			if (d[j] != k++) {
 				fprintf(stderr,
 					"detected data corruption @iov[%i]:%i %02x != %02x, %02x ?= %02x\n",
@@ -724,7 +755,7 @@ static int sendmsg_test(struct sockmap_options *opt)
 	rxpid = fork();
 	if (rxpid == 0) {
 		iov_buf -= (txmsg_pop - txmsg_start_pop + 1);
-		if (opt->drop_expected)
+		if (opt->drop_expected || txmsg_ktls_skb_drop)
 			_exit(0);
 
 		if (!iov_buf) /* zero bytes sent case */
@@ -911,8 +942,28 @@ static int run_options(struct sockmap_options *options, int cg_fd,  int test)
 		return err;
 	}
 
+	/* Attach programs to TLS sockmap */
+	if (txmsg_ktls_skb) {
+		err = bpf_prog_attach(prog_fd[0], map_fd[8],
+					BPF_SK_SKB_STREAM_PARSER, 0);
+		if (err) {
+			fprintf(stderr,
+				"ERROR: bpf_prog_attach (TLS sockmap %i->%i): %d (%s)\n",
+				prog_fd[0], map_fd[8], err, strerror(errno));
+			return err;
+		}
+
+		err = bpf_prog_attach(prog_fd[2], map_fd[8],
+				      BPF_SK_SKB_STREAM_VERDICT, 0);
+		if (err) {
+			fprintf(stderr, "ERROR: bpf_prog_attach (TLS sockmap): %d (%s)\n",
+				err, strerror(errno));
+			return err;
+		}
+	}
+
 	/* Attach to cgroups */
-	err = bpf_prog_attach(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
+	err = bpf_prog_attach(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS, 0);
 	if (err) {
 		fprintf(stderr, "ERROR: bpf_prog_attach (groups): %d (%s)\n",
 			err, strerror(errno));
@@ -928,15 +979,15 @@ run:
 
 	/* Attach txmsg program to sockmap */
 	if (txmsg_pass)
-		tx_prog_fd = prog_fd[3];
-	else if (txmsg_redir)
 		tx_prog_fd = prog_fd[4];
-	else if (txmsg_apply)
+	else if (txmsg_redir)
 		tx_prog_fd = prog_fd[5];
-	else if (txmsg_cork)
+	else if (txmsg_apply)
 		tx_prog_fd = prog_fd[6];
-	else if (txmsg_drop)
+	else if (txmsg_cork)
 		tx_prog_fd = prog_fd[7];
+	else if (txmsg_drop)
+		tx_prog_fd = prog_fd[8];
 	else
 		tx_prog_fd = 0;
 
@@ -1108,7 +1159,35 @@ run:
 			}
 		}
 
-		if (txmsg_skb) {
+		if (txmsg_ktls_skb) {
+			int ingress = BPF_F_INGRESS;
+
+			i = 0;
+			err = bpf_map_update_elem(map_fd[8], &i, &p2, BPF_ANY);
+			if (err) {
+				fprintf(stderr,
+					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
+					err, strerror(errno));
+			}
+
+			if (txmsg_ktls_skb_redir) {
+				i = 1;
+				err = bpf_map_update_elem(map_fd[7],
+							  &i, &ingress, BPF_ANY);
+				if (err) {
+					fprintf(stderr,
+						"ERROR: bpf_map_update_elem (txmsg_ingress): %d (%s)\n",
+						err, strerror(errno));
+				}
+			}
+
+			if (txmsg_ktls_skb_drop) {
+				i = 1;
+				err = bpf_map_update_elem(map_fd[7], &i, &i, BPF_ANY);
+			}
+		}
+
+		if (txmsg_redir_skb) {
 			int skb_fd = (test == SENDMSG || test == SENDPAGE) ?
 					p2 : p1;
 			int ingress = BPF_F_INGRESS;
@@ -1123,8 +1202,7 @@ run:
 			}
 
 			i = 3;
-			err = bpf_map_update_elem(map_fd[0],
-						  &i, &skb_fd, BPF_ANY);
+			err = bpf_map_update_elem(map_fd[0], &i, &skb_fd, BPF_ANY);
 			if (err) {
 				fprintf(stderr,
 					"ERROR: bpf_map_update_elem (c1 sockmap): %d (%s)\n",
@@ -1158,9 +1236,12 @@ run:
 		fprintf(stderr, "unknown test\n");
 out:
 	/* Detatch and zero all the maps */
-	bpf_prog_detach2(prog_fd[2], cg_fd, BPF_CGROUP_SOCK_OPS);
+	bpf_prog_detach2(prog_fd[3], cg_fd, BPF_CGROUP_SOCK_OPS);
 	bpf_prog_detach2(prog_fd[0], map_fd[0], BPF_SK_SKB_STREAM_PARSER);
 	bpf_prog_detach2(prog_fd[1], map_fd[0], BPF_SK_SKB_STREAM_VERDICT);
+	bpf_prog_detach2(prog_fd[0], map_fd[8], BPF_SK_SKB_STREAM_PARSER);
+	bpf_prog_detach2(prog_fd[2], map_fd[8], BPF_SK_SKB_STREAM_VERDICT);
+
 	if (tx_prog_fd >= 0)
 		bpf_prog_detach2(tx_prog_fd, map_fd[1], BPF_SK_MSG_VERDICT);
 
@@ -1229,8 +1310,10 @@ static void test_options(char *options)
 	}
 	if (txmsg_ingress)
 		strncat(options, "ingress,", OPTSTRING);
-	if (txmsg_skb)
-		strncat(options, "skb,", OPTSTRING);
+	if (txmsg_redir_skb)
+		strncat(options, "redir_skb,", OPTSTRING);
+	if (txmsg_ktls_skb)
+		strncat(options, "ktls_skb,", OPTSTRING);
 	if (ktls)
 		strncat(options, "ktls,", OPTSTRING);
 	if (peek_flag)
@@ -1361,6 +1444,40 @@ static void test_txmsg_ingress_redir(int cgrp, struct sockmap_options *opt)
 	txmsg_ingress = txmsg_redir = 1;
 	test_send(opt, cgrp);
 }
+
+static void test_txmsg_skb(int cgrp, struct sockmap_options *opt)
+{
+	bool data = opt->data_test;
+	int k = ktls;
+
+	opt->data_test = true;
+	ktls = 1;
+
+	txmsg_pass = txmsg_drop = 0;
+	txmsg_ingress = txmsg_redir = 0;
+	txmsg_ktls_skb = 1;
+	txmsg_pass = 1;
+
+	/* Using data verification so ensure iov layout is
+	 * expected from test receiver side. e.g. has enough
+	 * bytes to write test code.
+	 */
+	opt->iov_length = 100;
+	opt->iov_count = 1;
+	opt->rate = 1;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 1;
+	test_exec(cgrp, opt);
+
+	txmsg_ktls_skb_drop = 0;
+	txmsg_ktls_skb_redir = 1;
+	test_exec(cgrp, opt);
+
+	opt->data_test = data;
+	ktls = k;
+}
+
 
 /* Test cork with hung data. This tests poor usage patterns where
  * cork can leave data on the ring if user program is buggy and
@@ -1542,10 +1659,12 @@ char *map_names[] = {
 	"sock_bytes",
 	"sock_redir_flags",
 	"sock_skb_opts",
+	"tls_sock_map",
 };
 
 int prog_attach_type[] = {
 	BPF_SK_SKB_STREAM_PARSER,
+	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_SK_SKB_STREAM_VERDICT,
 	BPF_CGROUP_SOCK_OPS,
 	BPF_SK_MSG_VERDICT,
@@ -1558,6 +1677,7 @@ int prog_attach_type[] = {
 };
 
 int prog_type[] = {
+	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SK_SKB,
 	BPF_PROG_TYPE_SOCK_OPS,
@@ -1620,6 +1740,7 @@ struct _test test[] = {
 	{"txmsg test redirect", test_txmsg_redir},
 	{"txmsg test drop", test_txmsg_drop},
 	{"txmsg test ingress redirect", test_txmsg_ingress_redir},
+	{"txmsg test skb", test_txmsg_skb},
 	{"txmsg test apply", test_txmsg_apply},
 	{"txmsg test cork", test_txmsg_cork},
 	{"txmsg test hanging corks", test_txmsg_cork_hangs},
