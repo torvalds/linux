@@ -1653,10 +1653,12 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		 * resolution accordingly.
 		 */
 		isp->dfs = &dfs_config_byt;
-		isp->hpll_freq = HPLL_FREQ_1600MHZ;
-		/* HPLL frequency is known to be device-specific, but we don't
+
+		/*
+		 * HPLL frequency is known to be device-specific, but we don't
 		 * have specs yet for exactly how it varies.  Default to
-		 * BYT-CR but let provisioning set it via EFI variable */
+		 * BYT-CR but let provisioning set it via EFI variable
+		 */
 		isp->hpll_freq = gmin_get_var_int(&dev->dev, false, "HpllFreq",
 						  HPLL_FREQ_2000MHZ);
 
@@ -1708,7 +1710,7 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		default:
 			isp->hpll_freq = HPLL_FREQ_1600MHZ;
 			dev_warn(isp->dev,
-				 "read HPLL from cck failed.default 1600MHz.\n");
+				 "read HPLL from cck failed. Default to 1600 MHz.\n");
 		}
 		break;
 	default:
