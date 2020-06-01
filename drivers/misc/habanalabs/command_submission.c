@@ -789,7 +789,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		size_to_copy = chunk->num_signal_seq_arr *
 				sizeof(*signal_seq_arr);
 		if (copy_from_user(signal_seq_arr,
-					(void __user *) chunk->signal_seq_arr,
+					u64_to_user_ptr(chunk->signal_seq_arr),
 					size_to_copy)) {
 			dev_err(hdev->dev,
 				"Failed to copy signal seq array from user\n");
