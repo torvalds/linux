@@ -43,13 +43,9 @@ __modpost:
 include include/config/auto.conf
 include scripts/Kbuild.include
 
-kernelsymfile := $(objtree)/Module.symvers
-
 MODPOST = scripts/mod/modpost								\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
-	$(if $(KBUILD_EXTMOD),-i $(kernelsymfile))					\
-	$(if $(KBUILD_EXTMOD),$(addprefix -i ,$(KBUILD_EXTRA_SYMBOLS)))			\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
 	$(if $(KBUILD_MODPOST_WARN),-w) \
 	-o $@
@@ -86,12 +82,14 @@ include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
 # modpost option for external modules
 MODPOST += -e
 
+input-symdump := Module.symvers $(KBUILD_EXTRA_SYMBOLS)
 output-symdump := $(KBUILD_EXTMOD)/Module.symvers
 
 endif
 
 # modpost options for modules (both in-kernel and external)
 MODPOST += \
+	$(addprefix -i ,$(input-symdump)) \
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)
 
 # 'make -i -k' ignores compile errors, and builds as many modules as possible.
