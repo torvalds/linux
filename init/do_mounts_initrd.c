@@ -28,7 +28,7 @@ static int __init no_initrd(char *str)
 
 __setup("noinitrd", no_initrd);
 
-static int __init early_initrd(char *p)
+static int __init early_initrdmem(char *p)
 {
 	phys_addr_t start;
 	unsigned long size;
@@ -42,6 +42,17 @@ static int __init early_initrd(char *p)
 		phys_initrd_size = size;
 	}
 	return 0;
+}
+early_param("initrdmem", early_initrdmem);
+
+/*
+ * This is here as the initrd keyword has been in use since 11/2018
+ * on ARM, PowerPC, and MIPS.
+ * It should not be; it is reserved for bootloaders.
+ */
+static int __init early_initrd(char *p)
+{
+	return early_initrdmem(p);
 }
 early_param("initrd", early_initrd);
 
