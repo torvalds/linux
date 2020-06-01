@@ -69,7 +69,8 @@ FILES=                                          \
          test-libaio.bin			\
          test-libzstd.bin			\
          test-clang-bpf-global-var.bin		\
-         test-file-handle.bin
+         test-file-handle.bin			\
+         test-libpfm4.bin
 
 FILES := $(addprefix $(OUTPUT),$(FILES))
 
@@ -330,6 +331,9 @@ $(OUTPUT)test-clang-bpf-global-var.bin:
 
 $(OUTPUT)test-file-handle.bin:
 	$(BUILD)
+
+$(OUTPUT)test-libpfm4.bin:
+	$(BUILD) -lpfm
 
 ###############################
 

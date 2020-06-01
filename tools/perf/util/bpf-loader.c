@@ -1430,7 +1430,7 @@ apply_config_evsel_for_key(const char *name, int map_fd, void *pkey,
 		return -BPF_LOADER_ERRNO__OBJCONF_MAP_EVTINH;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel))
+	if (evsel__is_bpf_output(evsel))
 		check_pass = true;
 	if (attr->type == PERF_TYPE_RAW)
 		check_pass = true;

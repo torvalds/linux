@@ -835,7 +835,7 @@ static int process_sample_event(struct perf_tool *tool,
 			return -1;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_values(event_class, event, sample);
 		if (ret)
 			return -1;
@@ -1155,7 +1155,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 {
 	struct bt_ctf_event_class *event_class;
 	struct evsel_priv *priv;
-	const char *name = perf_evsel__name(evsel);
+	const char *name = evsel__name(evsel);
 	int ret;
 
 	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
@@ -1174,7 +1174,7 @@ static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 			goto err;
 	}
 
-	if (perf_evsel__is_bpf_output(evsel)) {
+	if (evsel__is_bpf_output(evsel)) {
 		ret = add_bpf_output_types(cw, event_class);
 		if (ret)
 			goto err;

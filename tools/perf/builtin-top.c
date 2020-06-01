@@ -33,6 +33,7 @@
 #include "util/map.h"
 #include "util/mmap.h"
 #include "util/session.h"
+#include "util/thread.h"
 #include "util/symbol.h"
 #include "util/synthetic-events.h"
 #include "util/top.h"
@@ -254,7 +255,7 @@ static void perf_top__show_details(struct perf_top *top)
 	if (notes->src == NULL)
 		goto out_unlock;
 
-	printf("Showing %s for %s\n", perf_evsel__name(top->sym_evsel), symbol->name);
+	printf("Showing %s for %s\n", evsel__name(top->sym_evsel), symbol->name);
 	printf("  Events  Pcnt (>=%d%%)\n", top->annotation_opts.min_pcnt);
 
 	more = symbol__annotate_printf(&he->ms, top->sym_evsel, &top->annotation_opts);
@@ -297,8 +298,7 @@ static void perf_top__resort_hists(struct perf_top *t)
 		hists__collapse_resort(hists, NULL);
 
 		/* Non-group events are considered as leader */
-		if (symbol_conf.event_group &&
-		    !perf_evsel__is_group_leader(pos)) {
+		if (symbol_conf.event_group && !evsel__is_group_leader(pos)) {
 			struct hists *leader_hists = evsel__hists(pos->leader);
 
 			hists__match(leader_hists, hists);
@@ -441,7 +441,7 @@ static void perf_top__print_mapped_keys(struct perf_top *top)
 	fprintf(stdout, "\t[e]     display entries (lines).           \t(%d)\n", top->print_entries);
 
 	if (top->evlist->core.nr_entries > 1)
-		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", perf_evsel__name(top->sym_evsel));
+		fprintf(stdout, "\t[E]     active event counter.              \t(%s)\n", evsel__name(top->sym_evsel));
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", top->count_filter);
 
@@ -528,13 +528,13 @@ static bool perf_top__handle_keypress(struct perf_top *top, int c)
 				fprintf(stderr, "\nAvailable events:");
 
 				evlist__for_each_entry(top->evlist, top->sym_evsel)
-					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, perf_evsel__name(top->sym_evsel));
+					fprintf(stderr, "\n\t%d %s", top->sym_evsel->idx, evsel__name(top->sym_evsel));
 
 				prompt_integer(&counter, "Enter details event counter");
 
 				if (counter >= top->evlist->core.nr_entries) {
 					top->sym_evsel = evlist__first(top->evlist);
-					fprintf(stderr, "Sorry, no such event, using %s.\n", perf_evsel__name(top->sym_evsel));
+					fprintf(stderr, "Sorry, no such event, using %s.\n", evsel__name(top->sym_evsel));
 					sleep(1);
 					break;
 				}
@@ -774,6 +774,9 @@ static void perf_event__process_sample(struct perf_tool *tool,
 
 	if (machine__resolve(machine, &al, sample) < 0)
 		return;
+
+	if (top->stitch_lbr)
+		al.thread->lbr_stitch_enable = true;
 
 	if (!machine->kptr_restrict_warned &&
 	    symbol_conf.kptr_restrict &&
@@ -1042,14 +1045,13 @@ try_again:
 			    perf_top_overwrite_fallback(top, counter))
 				goto try_again;
 
-			if (perf_evsel__fallback(counter, errno, msg, sizeof(msg))) {
+			if (evsel__fallback(counter, errno, msg, sizeof(msg))) {
 				if (verbose > 0)
 					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 
-			perf_evsel__open_strerror(counter, &opts->target,
-						  errno, msg, sizeof(msg));
+			evsel__open_strerror(counter, &opts->target, errno, msg, sizeof(msg));
 			ui__error("%s\n", msg);
 			goto out_err;
 		}
@@ -1571,10 +1573,11 @@ int cmd_top(int argc, const char **argv)
 		    "Sort the output by the event at the index n in group. "
 		    "If n is invalid, sort by the first event. "
 		    "WARNING: should be used on grouped events."),
+	OPT_BOOLEAN(0, "stitch-lbr", &top.stitch_lbr,
+		    "Enable LBR callgraph stitching approach"),
 	OPTS_EVSWITCH(&top.evswitch),
 	OPT_END()
 	};
-	struct evlist *sb_evlist = NULL;
 	const char * const top_usage[] = {
 		"perf top [<options>]",
 		NULL
@@ -1638,6 +1641,11 @@ int cmd_top(int argc, const char **argv)
 			parse_options_usage(NULL, options, "hierarchy", 0);
 			goto out_delete_evlist;
 		}
+	}
+
+	if (top.stitch_lbr && !(callchain_param.record_mode == CALLCHAIN_LBR)) {
+		pr_err("Error: --stitch-lbr must be used with --call-graph lbr\n");
+		goto out_delete_evlist;
 	}
 
 	if (opts->branch_stack && callchain_param.enabled)
@@ -1732,10 +1740,21 @@ int cmd_top(int argc, const char **argv)
 		goto out_delete_evlist;
 	}
 
-	if (!top.record_opts.no_bpf_event)
-		bpf_event__add_sb_event(&sb_evlist, &perf_env);
+	if (!top.record_opts.no_bpf_event) {
+		top.sb_evlist = evlist__new();
 
-	if (perf_evlist__start_sb_thread(sb_evlist, target)) {
+		if (top.sb_evlist == NULL) {
+			pr_err("Couldn't create side band evlist.\n.");
+			goto out_delete_evlist;
+		}
+
+		if (evlist__add_bpf_sb_event(top.sb_evlist, &perf_env)) {
+			pr_err("Couldn't ask for PERF_RECORD_BPF_EVENT side band events.\n.");
+			goto out_delete_evlist;
+		}
+	}
+
+	if (perf_evlist__start_sb_thread(top.sb_evlist, target)) {
 		pr_debug("Couldn't start the BPF side band thread:\nBPF programs starting from now on won't be annotatable\n");
 		opts->no_bpf_event = true;
 	}
@@ -1743,7 +1762,7 @@ int cmd_top(int argc, const char **argv)
 	status = __cmd_top(&top);
 
 	if (!opts->no_bpf_event)
-		perf_evlist__stop_sb_thread(sb_evlist);
+		perf_evlist__stop_sb_thread(top.sb_evlist);
 
 out_delete_evlist:
 	evlist__delete(top.evlist);

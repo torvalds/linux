@@ -25,6 +25,7 @@
 #include "../../../util/pmu.h"
 #include "../../../util/debug.h"
 #include "../../../util/auxtrace.h"
+#include "../../../util/perf_api_probe.h"
 #include "../../../util/record.h"
 #include "../../../util/target.h"
 #include "../../../util/tsc.h"
@@ -420,8 +421,8 @@ static int intel_pt_track_switches(struct evlist *evlist)
 
 	evsel = evlist__last(evlist);
 
-	perf_evsel__set_sample_bit(evsel, CPU);
-	perf_evsel__set_sample_bit(evsel, TIME);
+	evsel__set_sample_bit(evsel, CPU);
+	evsel__set_sample_bit(evsel, TIME);
 
 	evsel->core.system_wide = true;
 	evsel->no_aux_samples = true;
@@ -801,10 +802,10 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 				switch_evsel->no_aux_samples = true;
 				switch_evsel->immediate = true;
 
-				perf_evsel__set_sample_bit(switch_evsel, TID);
-				perf_evsel__set_sample_bit(switch_evsel, TIME);
-				perf_evsel__set_sample_bit(switch_evsel, CPU);
-				perf_evsel__reset_sample_bit(switch_evsel, BRANCH_STACK);
+				evsel__set_sample_bit(switch_evsel, TID);
+				evsel__set_sample_bit(switch_evsel, TIME);
+				evsel__set_sample_bit(switch_evsel, CPU);
+				evsel__reset_sample_bit(switch_evsel, BRANCH_STACK);
 
 				opts->record_switch_events = false;
 				ptr->have_sched_switch = 3;
@@ -838,7 +839,7 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 		 * AUX event.
 		 */
 		if (!perf_cpu_map__empty(cpus))
-			perf_evsel__set_sample_bit(intel_pt_evsel, CPU);
+			evsel__set_sample_bit(intel_pt_evsel, CPU);
 	}
 
 	/* Add dummy event to keep tracking */
@@ -862,11 +863,11 @@ static int intel_pt_recording_options(struct auxtrace_record *itr,
 
 		/* In per-cpu case, always need the time of mmap events etc */
 		if (!perf_cpu_map__empty(cpus)) {
-			perf_evsel__set_sample_bit(tracking_evsel, TIME);
+			evsel__set_sample_bit(tracking_evsel, TIME);
 			/* And the CPU for switch events */
-			perf_evsel__set_sample_bit(tracking_evsel, CPU);
+			evsel__set_sample_bit(tracking_evsel, CPU);
 		}
-		perf_evsel__reset_sample_bit(tracking_evsel, BRANCH_STACK);
+		evsel__reset_sample_bit(tracking_evsel, BRANCH_STACK);
 	}
 
 	/*

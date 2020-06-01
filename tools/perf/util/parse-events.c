@@ -461,7 +461,7 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 			cache_op = parse_aliases(str, perf_evsel__hw_cache_op,
 						 PERF_COUNT_HW_CACHE_OP_MAX);
 			if (cache_op >= 0) {
-				if (!perf_evsel__is_cache_op_valid(cache_type, cache_op))
+				if (!evsel__is_cache_op_valid(cache_type, cache_op))
 					return -EINVAL;
 				continue;
 			}
@@ -1482,6 +1482,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 
 		list_for_each_entry_safe(pos, tmp, &config_terms, list) {
 			list_del_init(&pos->list);
+			zfree(&pos->val.str);
 			free(pos);
 		}
 		return -EINVAL;
@@ -1870,7 +1871,7 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 		evsel->precise_max         = mod.precise_max;
 		evsel->weak_group	   = mod.weak;
 
-		if (perf_evsel__is_group_leader(evsel))
+		if (evsel__is_group_leader(evsel))
 			evsel->core.attr.pinned = mod.pinned;
 	}
 
@@ -2190,6 +2191,29 @@ int parse_events_option(const struct option *opt, const char *str,
 	return ret;
 }
 
+int parse_events_option_new_evlist(const struct option *opt, const char *str, int unset)
+{
+	struct evlist **evlistp = opt->value;
+	int ret;
+
+	if (*evlistp == NULL) {
+		*evlistp = evlist__new();
+
+		if (*evlistp == NULL) {
+			fprintf(stderr, "Not enough memory to create evlist\n");
+			return -1;
+		}
+	}
+
+	ret = parse_events_option(opt, str, unset);
+	if (ret) {
+		evlist__delete(*evlistp);
+		*evlistp = NULL;
+	}
+
+	return ret;
+}
+
 static int
 foreach_evsel_in_last_glob(struct evlist *evlist,
 			   int (*func)(struct evsel *evsel,
@@ -2237,7 +2261,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 	}
 
 	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
-		if (perf_evsel__append_tp_filter(evsel, str) < 0) {
+		if (evsel__append_tp_filter(evsel, str) < 0) {
 			fprintf(stderr,
 				"not enough memory to hold filter string\n");
 			return -1;
@@ -2262,7 +2286,7 @@ static int set_filter(struct evsel *evsel, const void *arg)
 		return -1;
 	}
 
-	if (perf_evsel__append_addr_filter(evsel, str) < 0) {
+	if (evsel__append_addr_filter(evsel, str) < 0) {
 		fprintf(stderr,
 			"not enough memory to hold filter string\n");
 		return -1;
@@ -2293,7 +2317,7 @@ static int add_exclude_perf_filter(struct evsel *evsel,
 
 	snprintf(new_filter, sizeof(new_filter), "common_pid != %d", getpid());
 
-	if (perf_evsel__append_tp_filter(evsel, new_filter) < 0) {
+	if (evsel__append_tp_filter(evsel, new_filter) < 0) {
 		fprintf(stderr,
 			"not enough memory to hold filter string\n");
 		return -1;
@@ -2603,12 +2627,11 @@ restart:
 	for (type = 0; type < PERF_COUNT_HW_CACHE_MAX; type++) {
 		for (op = 0; op < PERF_COUNT_HW_CACHE_OP_MAX; op++) {
 			/* skip invalid cache type */
-			if (!perf_evsel__is_cache_op_valid(type, op))
+			if (!evsel__is_cache_op_valid(type, op))
 				continue;
 
 			for (i = 0; i < PERF_COUNT_HW_CACHE_RESULT_MAX; i++) {
-				__perf_evsel__hw_cache_type_op_res_name(type, op, i,
-									name, sizeof(name));
+				__evsel__hw_cache_type_op_res_name(type, op, i, name, sizeof(name));
 				if (event_glob != NULL && !strglobmatch(name, event_glob))
 					continue;
 
