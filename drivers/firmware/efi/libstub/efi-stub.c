@@ -36,14 +36,9 @@
 #endif
 
 static u64 virtmap_base = EFI_RT_VIRTUAL_BASE;
-static bool __efistub_global flat_va_mapping;
+static bool flat_va_mapping;
 
-static efi_system_table_t *__efistub_global sys_table;
-
-__pure efi_system_table_t *efi_system_table(void)
-{
-	return sys_table;
-}
+const efi_system_table_t *efi_system_table;
 
 static struct screen_info *setup_graphics(void)
 {
@@ -69,7 +64,7 @@ static struct screen_info *setup_graphics(void)
 	return si;
 }
 
-void install_memreserve_table(void)
+static void install_memreserve_table(void)
 {
 	struct linux_efi_memreserve *rsv;
 	efi_guid_t memreserve_table_guid = LINUX_EFI_MEMRESERVE_TABLE_GUID;
@@ -78,7 +73,7 @@ void install_memreserve_table(void)
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, sizeof(*rsv),
 			     (void **)&rsv);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to allocate memreserve entry!\n");
+		efi_err("Failed to allocate memreserve entry!\n");
 		return;
 	}
 
@@ -89,7 +84,7 @@ void install_memreserve_table(void)
 	status = efi_bs_call(install_configuration_table,
 			     &memreserve_table_guid, rsv);
 	if (status != EFI_SUCCESS)
-		pr_efi_err("Failed to install memreserve config table!\n");
+		efi_err("Failed to install memreserve config table!\n");
 }
 
 static unsigned long get_dram_base(void)
@@ -149,7 +144,8 @@ asmlinkage void __noreturn efi_enter_kernel(unsigned long entrypoint,
  * for both archictectures, with the arch-specific code provided in the
  * handle_kernel_image() function.
  */
-efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
+efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
+				   efi_system_table_t *sys_table_arg)
 {
 	efi_loaded_image_t *image;
 	efi_status_t status;
@@ -171,10 +167,10 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	efi_properties_table_t *prop_tbl;
 	unsigned long max_addr;
 
-	sys_table = sys_table_arg;
+	efi_system_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
+	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE) {
 		status = EFI_INVALID_PARAMETER;
 		goto fail;
 	}
@@ -188,16 +184,16 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	 * information about the running image, such as size and the command
 	 * line.
 	 */
-	status = sys_table->boottime->handle_protocol(handle,
+	status = efi_system_table->boottime->handle_protocol(handle,
 					&loaded_image_proto, (void *)&image);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to get loaded image protocol\n");
+		efi_err("Failed to get loaded image protocol\n");
 		goto fail;
 	}
 
 	dram_base = get_dram_base();
 	if (dram_base == EFI_ERROR) {
-		pr_efi_err("Failed to find DRAM base\n");
+		efi_err("Failed to find DRAM base\n");
 		status = EFI_LOAD_ERROR;
 		goto fail;
 	}
@@ -207,22 +203,32 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	 * protocol. We are going to copy the command line into the
 	 * device tree, so this can be allocated anywhere.
 	 */
-	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size, ULONG_MAX);
+	cmdline_ptr = efi_convert_cmdline(image, &cmdline_size);
 	if (!cmdline_ptr) {
-		pr_efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
+		efi_err("getting command line via LOADED_IMAGE_PROTOCOL\n");
 		status = EFI_OUT_OF_RESOURCES;
 		goto fail;
 	}
 
 	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) ||
 	    IS_ENABLED(CONFIG_CMDLINE_FORCE) ||
-	    cmdline_size == 0)
-		efi_parse_options(CONFIG_CMDLINE);
+	    cmdline_size == 0) {
+		status = efi_parse_options(CONFIG_CMDLINE);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse options\n");
+			goto fail_free_cmdline;
+		}
+	}
 
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0)
-		efi_parse_options(cmdline_ptr);
+	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && cmdline_size > 0) {
+		status = efi_parse_options(cmdline_ptr);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse options\n");
+			goto fail_free_cmdline;
+		}
+	}
 
-	pr_efi("Booting Linux Kernel...\n");
+	efi_info("Booting Linux Kernel...\n");
 
 	si = setup_graphics();
 
@@ -231,8 +237,8 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 				     &reserve_size,
 				     dram_base, image);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Failed to relocate kernel\n");
-		goto fail_free_cmdline;
+		efi_err("Failed to relocate kernel\n");
+		goto fail_free_screeninfo;
 	}
 
 	efi_retrieve_tpm2_eventlog();
@@ -250,42 +256,34 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	if (!IS_ENABLED(CONFIG_EFI_ARMSTUB_DTB_LOADER) ||
 	     secure_boot != efi_secureboot_mode_disabled) {
 		if (strstr(cmdline_ptr, "dtb="))
-			pr_efi("Ignoring DTB from command line.\n");
+			efi_err("Ignoring DTB from command line.\n");
 	} else {
 		status = efi_load_dtb(image, &fdt_addr, &fdt_size);
 
 		if (status != EFI_SUCCESS) {
-			pr_efi_err("Failed to load device tree!\n");
+			efi_err("Failed to load device tree!\n");
 			goto fail_free_image;
 		}
 	}
 
 	if (fdt_addr) {
-		pr_efi("Using DTB from command line\n");
+		efi_info("Using DTB from command line\n");
 	} else {
 		/* Look for a device tree configuration table entry. */
 		fdt_addr = (uintptr_t)get_fdt(&fdt_size);
 		if (fdt_addr)
-			pr_efi("Using DTB from configuration table\n");
+			efi_info("Using DTB from configuration table\n");
 	}
 
 	if (!fdt_addr)
-		pr_efi("Generating empty DTB\n");
+		efi_info("Generating empty DTB\n");
 
-	if (!noinitrd()) {
+	if (!efi_noinitrd) {
 		max_addr = efi_get_max_initrd_addr(dram_base, image_addr);
-		status = efi_load_initrd_dev_path(&initrd_addr, &initrd_size,
-						  max_addr);
-		if (status == EFI_SUCCESS) {
-			pr_efi("Loaded initrd from LINUX_EFI_INITRD_MEDIA_GUID device path\n");
-		} else if (status == EFI_NOT_FOUND) {
-			status = efi_load_initrd(image, &initrd_addr, &initrd_size,
-						 ULONG_MAX, max_addr);
-			if (status == EFI_SUCCESS && initrd_size > 0)
-				pr_efi("Loaded initrd from command line option\n");
-		}
+		status = efi_load_initrd(image, &initrd_addr, &initrd_size,
+					 ULONG_MAX, max_addr);
 		if (status != EFI_SUCCESS)
-			pr_efi_err("Failed to load initrd!\n");
+			efi_err("Failed to load initrd!\n");
 	}
 
 	efi_random_get_seed();
@@ -303,7 +301,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 			   EFI_PROPERTIES_RUNTIME_MEMORY_PROTECTION_NON_EXECUTABLE_PE_DATA);
 
 	/* hibernation expects the runtime regions to stay in the same place */
-	if (!IS_ENABLED(CONFIG_HIBERNATION) && !nokaslr() && !flat_va_mapping) {
+	if (!IS_ENABLED(CONFIG_HIBERNATION) && !efi_nokaslr && !flat_va_mapping) {
 		/*
 		 * Randomize the base of the UEFI runtime services region.
 		 * Preserve the 2 MB alignment of the region by taking a
@@ -335,7 +333,7 @@ efi_status_t efi_entry(efi_handle_t handle, efi_system_table_t *sys_table_arg)
 	/* not reached */
 
 fail_free_initrd:
-	pr_efi_err("Failed to update FDT and exit boot services\n");
+	efi_err("Failed to update FDT and exit boot services\n");
 
 	efi_free(initrd_size, initrd_addr);
 	efi_free(fdt_size, fdt_addr);
@@ -343,9 +341,10 @@ fail_free_initrd:
 fail_free_image:
 	efi_free(image_size, image_addr);
 	efi_free(reserve_size, reserve_addr);
-fail_free_cmdline:
+fail_free_screeninfo:
 	free_screen_info(si);
-	efi_free(cmdline_size, (unsigned long)cmdline_ptr);
+fail_free_cmdline:
+	efi_bs_call(free_pool, cmdline_ptr);
 fail:
 	return status;
 }
@@ -376,7 +375,7 @@ void efi_get_virtmap(efi_memory_desc_t *memory_map, unsigned long map_size,
 		size = in->num_pages * EFI_PAGE_SIZE;
 
 		in->virt_addr = in->phys_addr;
-		if (novamap()) {
+		if (efi_novamap) {
 			continue;
 		}
 

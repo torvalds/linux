@@ -27,7 +27,7 @@ optional_header:
 	.long	__initdata_begin - efi_header_end	// SizeOfCode
 	.long	__pecoff_data_size			// SizeOfInitializedData
 	.long	0					// SizeOfUninitializedData
-	.long	__efistub_efi_entry - _head		// AddressOfEntryPoint
+	.long	__efistub_efi_pe_entry - _head		// AddressOfEntryPoint
 	.long	efi_header_end - _head			// BaseOfCode
 
 extra_header_fields:

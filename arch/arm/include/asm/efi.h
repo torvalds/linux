@@ -50,14 +50,6 @@ void efi_virtmap_unload(void);
 
 /* arch specific definitions used by the stub code */
 
-#define efi_bs_call(func, ...)	efi_system_table()->boottime->func(__VA_ARGS__)
-#define efi_rt_call(func, ...)	efi_system_table()->runtime->func(__VA_ARGS__)
-#define efi_is_native()		(true)
-
-#define efi_table_attr(inst, attr)	(inst->attr)
-
-#define efi_call_proto(inst, func, ...) inst->func(inst, ##__VA_ARGS__)
-
 struct screen_info *alloc_screen_info(void);
 void free_screen_info(struct screen_info *si);
 
