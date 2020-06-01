@@ -326,6 +326,10 @@ struct usb_device_descriptor {
 #define USB_CLASS_CONTENT_SEC		0x0d	/* content security */
 #define USB_CLASS_VIDEO			0x0e
 #define USB_CLASS_WIRELESS_CONTROLLER	0xe0
+#define USB_CLASS_PERSONAL_HEALTHCARE	0x0f
+#define USB_CLASS_AUDIO_VIDEO		0x10
+#define USB_CLASS_BILLBOARD		0x11
+#define USB_CLASS_USB_TYPE_C_BRIDGE	0x12
 #define USB_CLASS_MISC			0xef
 #define USB_CLASS_APP_SPEC		0xfe
 #define USB_CLASS_VENDOR_SPEC		0xff
