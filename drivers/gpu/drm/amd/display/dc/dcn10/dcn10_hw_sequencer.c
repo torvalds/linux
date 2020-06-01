@@ -1394,10 +1394,10 @@ void dcn10_init_hw(struct dc *dc)
 		if (edp_link &&
 				edp_link->link_enc->funcs->is_dig_enabled &&
 				edp_link->link_enc->funcs->is_dig_enabled(edp_link->link_enc) &&
-				dc->hwss.edp_backlight_control &&
+				dc->hwseq->funcs.edp_backlight_control &&
 				dc->hwss.power_down &&
 				dc->hwss.edp_power_control) {
-			dc->hwss.edp_backlight_control(edp_link, false);
+			dc->hwseq->funcs.edp_backlight_control(edp_link, false);
 			dc->hwss.power_down(dc);
 			dc->hwss.edp_power_control(edp_link, false);
 		} else {
