@@ -116,7 +116,7 @@ irqfd_shutdown(struct work_struct *work)
 	struct kvm *kvm = irqfd->kvm;
 	u64 cnt;
 
-	/* Make sure irqfd has been initalized in assign path. */
+	/* Make sure irqfd has been initialized in assign path. */
 	synchronize_srcu(&kvm->irq_srcu);
 
 	/*
