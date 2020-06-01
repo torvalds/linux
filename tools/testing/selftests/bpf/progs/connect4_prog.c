@@ -9,6 +9,8 @@
 #include <linux/in6.h>
 #include <sys/socket.h>
 #include <netinet/tcp.h>
+#include <linux/if.h>
+#include <errno.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
@@ -19,6 +21,10 @@
 
 #ifndef TCP_CA_NAME_MAX
 #define TCP_CA_NAME_MAX 16
+#endif
+
+#ifndef IFNAMSIZ
+#define IFNAMSIZ 16
 #endif
 
 int _version SEC("version") = 1;
@@ -75,6 +81,29 @@ static __inline int set_cc(struct bpf_sock_addr *ctx)
 	return 0;
 }
 
+static __inline int bind_to_device(struct bpf_sock_addr *ctx)
+{
+	char veth1[IFNAMSIZ] = "test_sock_addr1";
+	char veth2[IFNAMSIZ] = "test_sock_addr2";
+	char missing[IFNAMSIZ] = "nonexistent_dev";
+	char del_bind[IFNAMSIZ] = "";
+
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth1, sizeof(veth1)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&veth2, sizeof(veth2)))
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&missing, sizeof(missing)) != -ENODEV)
+		return 1;
+	if (bpf_setsockopt(ctx, SOL_SOCKET, SO_BINDTODEVICE,
+				&del_bind, sizeof(del_bind)))
+		return 1;
+
+	return 0;
+}
+
 SEC("cgroup/connect4")
 int connect_v4_prog(struct bpf_sock_addr *ctx)
 {
@@ -87,6 +116,10 @@ int connect_v4_prog(struct bpf_sock_addr *ctx)
 
 	tuple.ipv4.daddr = bpf_htonl(DST_REWRITE_IP4);
 	tuple.ipv4.dport = bpf_htons(DST_REWRITE_PORT4);
+
+	/* Bind to device and unbind it. */
+	if (bind_to_device(ctx))
+		return 0;
 
 	if (ctx->type != SOCK_STREAM && ctx->type != SOCK_DGRAM)
 		return 0;

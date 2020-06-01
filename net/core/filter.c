@@ -4248,6 +4248,9 @@ static const struct bpf_func_proto bpf_get_socket_uid_proto = {
 static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 			   char *optval, int optlen, u32 flags)
 {
+	char devname[IFNAMSIZ];
+	struct net *net;
+	int ifindex;
 	int ret = 0;
 	int val;
 
@@ -4257,7 +4260,7 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 	sock_owned_by_me(sk);
 
 	if (level == SOL_SOCKET) {
-		if (optlen != sizeof(int))
+		if (optlen != sizeof(int) && optname != SO_BINDTODEVICE)
 			return -EINVAL;
 		val = *((int *)optval);
 
@@ -4297,6 +4300,29 @@ static int _bpf_setsockopt(struct sock *sk, int level, int optname,
 				sk->sk_mark = val;
 				sk_dst_reset(sk);
 			}
+			break;
+		case SO_BINDTODEVICE:
+			ret = -ENOPROTOOPT;
+#ifdef CONFIG_NETDEVICES
+			optlen = min_t(long, optlen, IFNAMSIZ - 1);
+			strncpy(devname, optval, optlen);
+			devname[optlen] = 0;
+
+			ifindex = 0;
+			if (devname[0] != '\0') {
+				struct net_device *dev;
+
+				ret = -ENODEV;
+
+				net = sock_net(sk);
+				dev = dev_get_by_name(net, devname);
+				if (!dev)
+					break;
+				ifindex = dev->ifindex;
+				dev_put(dev);
+			}
+			ret = sock_bindtoindex(sk, ifindex, false);
+#endif
 			break;
 		default:
 			ret = -EINVAL;
