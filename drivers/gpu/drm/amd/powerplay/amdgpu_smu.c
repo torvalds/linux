@@ -110,28 +110,32 @@ static int smu_feature_update_enable_state(struct smu_context *smu,
 					   bool enabled)
 {
 	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_low = 0, feature_high = 0;
 	int ret = 0;
 
-	feature_low = (feature_mask >> 0 ) & 0xffffffff;
-	feature_high = (feature_mask >> 32) & 0xffffffff;
-
 	if (enabled) {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesLow,
-						  feature_low, NULL);
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_EnableSmuFeaturesLow,
+						  lower_32_bits(feature_mask),
+						  NULL);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_EnableSmuFeaturesHigh,
-						  feature_high, NULL);
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_EnableSmuFeaturesHigh,
+						  upper_32_bits(feature_mask),
+						  NULL);
 		if (ret)
 			return ret;
 	} else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesLow,
-						  feature_low, NULL);
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_DisableSmuFeaturesLow,
+						  lower_32_bits(feature_mask),
+						  NULL);
 		if (ret)
 			return ret;
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DisableSmuFeaturesHigh,
-						  feature_high, NULL);
+		ret = smu_send_smc_msg_with_param(smu,
+						  SMU_MSG_DisableSmuFeaturesHigh,
+						  upper_32_bits(feature_mask),
+						  NULL);
 		if (ret)
 			return ret;
 	}
@@ -1305,6 +1309,7 @@ failed:
 static int smu_disable_dpms(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	uint64_t features_to_disable;
 	int ret = 0;
 	bool use_baco = !smu->is_apu &&
 		((adev->in_gpu_reset &&
@@ -1336,36 +1341,21 @@ static int smu_disable_dpms(struct smu_context *smu)
 		return 0;
 
 	/*
-	 * Disable all enabled SMU features.
-	 * This should be handled in SMU FW, as a backup
-	 * driver can issue call to SMU FW until sequence
-	 * in SMU FW is operational.
+	 * For gpu reset, runpm and hibernation through BACO,
+	 * BACO feature has to be kept enabled.
 	 */
-	ret = smu_system_features_control(smu, false);
-	if (ret) {
-		pr_err("Failed to disable smu features.\n");
-		return ret;
-	}
-
-	/*
-	 * For baco, need to leave BACO feature enabled
-	 *
-	 * Correct the way for checking whether SMU_FEATURE_BACO_BIT
-	 * is supported.
-	 *
-	 * Since 'smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)' will
-	 * always return false as the 'smu_system_features_control(smu, false)'
-	 * was just issued above which disabled all SMU features.
-	 *
-	 * Thus 'smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT)' is used
-	 * now for the checking.
-	 */
-	if (use_baco && (smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT) >= 0)) {
-		ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
-		if (ret) {
-			pr_warn("set BACO feature enabled failed, return %d\n", ret);
-			return ret;
-		}
+	if (use_baco && smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)) {
+		features_to_disable = U64_MAX &
+			~(1ULL << smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT));
+		ret = smu_feature_update_enable_state(smu,
+						      features_to_disable,
+						      0);
+		if (ret)
+			pr_err("Failed to disable smu features except BACO.\n");
+	} else {
+		ret = smu_system_features_control(smu, false);
+		if (ret)
+			pr_err("Failed to disable smu features.\n");
 	}
 
 	if (adev->asic_type >= CHIP_NAVI10 &&
