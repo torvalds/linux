@@ -690,7 +690,6 @@ static bool detect_dp(struct dc_link *link,
 
 	if (sink_caps->transaction_type == DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
 		sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
-		dpcd_set_source_specific_data(link);
 		if (!detect_dp_sink_caps(link))
 			return false;
 		if (is_mst_supported(link)) {
@@ -855,6 +854,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 	bool same_dpcd = true;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	bool perform_dp_seamless_boot = false;
+	const uint32_t post_oui_delay = 30; // 30ms
 
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -867,6 +867,7 @@ static bool dc_link_detect_helper(struct dc_link *link,
 		// need to re-write OUI and brightness in resume case
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
 			dpcd_set_source_specific_data(link);
+			msleep(post_oui_delay);
 			dc_link_set_default_brightness_aux(link);
 			//TODO: use cached
 		}
@@ -921,8 +922,6 @@ static bool dc_link_detect_helper(struct dc_link *link,
 
 		case SIGNAL_TYPE_EDP: {
 			read_current_link_settings_on_detect(link);
-
-			dpcd_set_source_specific_data(link);
 
 			detect_edp_sink_caps(link);
 			read_current_link_settings_on_detect(link);
@@ -1633,6 +1632,7 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 	int i;
 	bool apply_seamless_boot_optimization = false;
 	uint32_t bl_oled_enable_delay = 50; // in ms
+	const uint32_t post_oui_delay = 30; // 30ms
 
 	// check for seamless boot
 	for (i = 0; i < state->stream_count; i++) {
@@ -1659,6 +1659,8 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 
 	// during mode switch we do DP_SET_POWER off then on, and OUI is lost
 	dpcd_set_source_specific_data(link);
+	if (link->dpcd_sink_ext_caps.raw != 0)
+		msleep(post_oui_delay);
 
 	skip_video_pattern = true;
 
