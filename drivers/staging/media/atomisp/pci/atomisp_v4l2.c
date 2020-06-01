@@ -354,60 +354,6 @@ static const struct atomisp_dfs_config dfs_config_byt = {
 	.dfs_table_size = ARRAY_SIZE(dfs_rules_byt),
 };
 
-static const struct atomisp_freq_scaling_rule dfs_rules_byt_cr[] = {
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_VIDEO,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_STILL_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_CONTINUOUS_CAPTURE,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_PREVIEW,
-	},
-	{
-		.width = ISP_FREQ_RULE_ANY,
-		.height = ISP_FREQ_RULE_ANY,
-		.fps = ISP_FREQ_RULE_ANY,
-		.isp_freq = ISP_FREQ_320MHZ,
-		.run_mode = ATOMISP_RUN_MODE_SDV,
-	},
-};
-
-#ifdef FIXME
-/*
- * Disable this, as it is used only when this is true:
- *	INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
- *	INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2))
- * However, the original code is commented
- */
-static const struct atomisp_dfs_config dfs_config_byt_cr = {
-	.lowest_freq = ISP_FREQ_200MHZ,
-	.max_freq_at_vmin = ISP_FREQ_320MHZ,
-	.highest_freq = ISP_FREQ_320MHZ,
-	.dfs_table = dfs_rules_byt_cr,
-	.dfs_table_size = ARRAY_SIZE(dfs_rules_byt_cr),
-};
-#endif
-
 static const struct atomisp_freq_scaling_rule dfs_rules_cht[] = {
 	{
 		.width = ISP_FREQ_RULE_ANY,
@@ -1690,17 +1636,24 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 		    (ATOMISP_HW_REVISION_ISP2400
 		     << ATOMISP_HW_REVISION_SHIFT) |
 		    ATOMISP_HW_STEPPING_B0;
-#ifdef FIXME
-		if (INTEL_MID_BOARD(3, TABLET, BYT, BLK, PRO, CRV2) ||
-		    INTEL_MID_BOARD(3, TABLET, BYT, BLK, ENG, CRV2)) {
-			isp->dfs = &dfs_config_byt_cr;
-			isp->hpll_freq = HPLL_FREQ_2000MHZ;
-		} else
-#endif
-		{
-			isp->dfs = &dfs_config_byt;
-			isp->hpll_freq = HPLL_FREQ_1600MHZ;
-		}
+
+		/*
+		 * Note: some Intel-based tablets with Android use a different
+		 * DFS table. Based on the comments at the Yocto Aero meta
+		 * version of this driver (at the ssid.h header), they're
+		 * identified via a "spid" var:
+		 *
+		 *	androidboot.spid=vend:cust:manu:plat:prod:hard
+		 *
+		 * As we don't have this upstream, nor we know enough details
+		 * to use a DMI or PCI match table, the old code was just
+		 * removed, but let's keep a note here as a reminder that,
+		 * for certain devices, we may need to limit the max DFS
+		 * frequency to be below certain values, adjusting the
+		 * resolution accordingly.
+		 */
+		isp->dfs = &dfs_config_byt;
+		isp->hpll_freq = HPLL_FREQ_1600MHZ;
 		/* HPLL frequency is known to be device-specific, but we don't
 		 * have specs yet for exactly how it varies.  Default to
 		 * BYT-CR but let provisioning set it via EFI variable */
