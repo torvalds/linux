@@ -9748,6 +9748,13 @@ F:	drivers/lightnvm/
 F:	include/linux/lightnvm.h
 F:	include/uapi/linux/lightnvm.h
 
+LINEAR RANGES HELPERS
+M:	Mark Brown <broonie@kernel.org>
+R:	Matti Vaittinen <matti.vaittinen@fi.rohmeurope.com>
+F:	lib/linear_ranges.c
+F:	lib/test_linear_ranges.c
+F:	include/linux/linear_range.h
+
 LINUX FOR POWER MACINTOSH
 M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 L:	linuxppc-dev@lists.ozlabs.org
