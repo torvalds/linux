@@ -62,9 +62,6 @@ __modpost: vmlinux.symvers
 
 else
 
-MODPOST += \
-	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))
-
 ifeq ($(KBUILD_EXTMOD),)
 
 input-symdump := vmlinux.symvers
@@ -91,6 +88,7 @@ endif
 # modpost options for modules (both in-kernel and external)
 MODPOST += \
 	$(addprefix -i ,$(wildcard $(input-symdump))) \
+	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS)) \
 	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)
 
 # 'make -i -k' ignores compile errors, and builds as many modules as possible.
