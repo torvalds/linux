@@ -846,10 +846,12 @@ static int uncore_pmu_register(struct intel_uncore_pmu *pmu)
 			.read		= uncore_pmu_event_read,
 			.module		= THIS_MODULE,
 			.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
+			.attr_update	= pmu->type->attr_update,
 		};
 	} else {
 		pmu->pmu = *pmu->type->pmu;
 		pmu->pmu.attr_groups = pmu->type->attr_groups;
+		pmu->pmu.attr_update = pmu->type->attr_update;
 	}
 
 	if (pmu->type->num_boxes == 1) {
@@ -889,6 +891,9 @@ static void uncore_type_exit(struct intel_uncore_type *type)
 {
 	struct intel_uncore_pmu *pmu = type->pmus;
 	int i;
+
+	if (type->cleanup_mapping)
+		type->cleanup_mapping(type);
 
 	if (pmu) {
 		for (i = 0; i < type->num_boxes; i++, pmu++) {
@@ -956,6 +961,9 @@ static int __init uncore_type_init(struct intel_uncore_type *type, bool setid)
 	}
 
 	type->pmu_group = &uncore_pmu_attr_group;
+
+	if (type->set_mapping)
+		type->set_mapping(type);
 
 	return 0;
 
