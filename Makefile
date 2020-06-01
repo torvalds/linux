@@ -646,9 +646,8 @@ ifeq ($(KBUILD_EXTMOD),)
 core-y		:= init/ usr/
 drivers-y	:= drivers/ sound/
 drivers-$(CONFIG_SAMPLES) += samples/
-net-y		:= net/
+drivers-y	+= net/ virt/
 libs-y		:= lib/
-virt-y		:= virt/
 endif # KBUILD_EXTMOD
 
 # The all: target is the default when no target is given on the
@@ -1061,18 +1060,17 @@ core-y		+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ block/
 
 vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
 		     $(core-y) $(core-m) $(drivers-y) $(drivers-m) \
-		     $(net-y) $(net-m) $(libs-y) $(libs-m) $(virt-y)))
+		     $(libs-y) $(libs-m)))
 
 vmlinux-alldirs	:= $(sort $(vmlinux-dirs) Documentation \
 		     $(patsubst %/,%,$(filter %/, $(core-) \
-			$(drivers-) $(net-) $(libs-) $(virt-))))
+			$(drivers-) $(libs-))))
 
 build-dirs	:= $(vmlinux-dirs)
 clean-dirs	:= $(vmlinux-alldirs)
 
 core-y		:= $(patsubst %/, %/built-in.a, $(core-y))
 drivers-y	:= $(patsubst %/, %/built-in.a, $(drivers-y))
-net-y		:= $(patsubst %/, %/built-in.a, $(net-y))
 libs-y2		:= $(patsubst %/, %/built-in.a, $(filter %/, $(libs-y)))
 ifdef CONFIG_MODULES
 libs-y1		:= $(filter-out %/, $(libs-y))
@@ -1080,11 +1078,9 @@ libs-y2		+= $(patsubst %/, %/lib.a, $(filter %/, $(libs-y)))
 else
 libs-y1		:= $(patsubst %/, %/lib.a, $(libs-y))
 endif
-virt-y		:= $(patsubst %/, %/built-in.a, $(virt-y))
 
 # Externally visible symbols (used by link-vmlinux.sh)
-export KBUILD_VMLINUX_OBJS := $(head-y) $(core-y) $(libs-y2) \
-			      $(drivers-y) $(net-y) $(virt-y)
+export KBUILD_VMLINUX_OBJS := $(head-y) $(core-y) $(libs-y2) $(drivers-y)
 export KBUILD_VMLINUX_LIBS := $(libs-y1)
 export KBUILD_LDS          := arch/$(SRCARCH)/kernel/vmlinux.lds
 export LDFLAGS_vmlinux
