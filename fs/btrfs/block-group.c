@@ -1111,7 +1111,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 
-	mutex_lock(&fs_info->chunk_mutex);
 	spin_lock(&block_group->lock);
 	block_group->removed = 1;
 	/*
@@ -1142,8 +1141,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	 */
 	remove_em = (atomic_read(&block_group->frozen) == 0);
 	spin_unlock(&block_group->lock);
-
-	mutex_unlock(&fs_info->chunk_mutex);
 
 	if (remove_em) {
 		struct extent_map_tree *em_tree;
@@ -3437,7 +3434,6 @@ void btrfs_unfreeze_block_group(struct btrfs_block_group *block_group)
 	spin_unlock(&block_group->lock);
 
 	if (cleanup) {
-		mutex_lock(&fs_info->chunk_mutex);
 		em_tree = &fs_info->mapping_tree;
 		write_lock(&em_tree->lock);
 		em = lookup_extent_mapping(em_tree, block_group->start,
@@ -3445,7 +3441,6 @@ void btrfs_unfreeze_block_group(struct btrfs_block_group *block_group)
 		BUG_ON(!em); /* logic error, can't happen */
 		remove_extent_mapping(em_tree, em);
 		write_unlock(&em_tree->lock);
-		mutex_unlock(&fs_info->chunk_mutex);
 
 		/* once for us and once for the tree */
 		free_extent_map(em);
