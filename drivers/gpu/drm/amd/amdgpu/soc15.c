@@ -1452,7 +1452,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 	uint32_t def, data;
 
 	if (adev->asic_type == CHIP_VEGA20 ||
-		adev->asic_type == CHIP_ARCTURUS) {
+		adev->asic_type == CHIP_ARCTURUS ||
+		adev->asic_type == CHIP_RENOIR) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
