@@ -994,25 +994,30 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		}
 		stack = origin_path;
 		ctr = 1;
+		origin = origin_path->dentry;
 		origin_path = NULL;
 	}
 
 	/*
-	 * Lookup index by lower inode and verify it matches upper inode.
-	 * We only trust dir index if we verified that lower dir matches
-	 * origin, otherwise dir index entries may be inconsistent and we
-	 * ignore them.
+	 * Always lookup index if there is no-upperdentry.
 	 *
-	 * For non-dir upper metacopy dentry, we already set "origin" if we
-	 * verified that lower matched upper origin. If upper origin was
-	 * not present (because lower layer did not support fh encode/decode),
-	 * or indexing is not enabled, do not set "origin" and skip looking up
-	 * index. This case should be handled in same way as a non-dir upper
-	 * without ORIGIN is handled.
+	 * For the case of upperdentry, we have set origin by now if it
+	 * needed to be set. There are basically three cases.
 	 *
-	 * Always lookup index of non-dir non-metacopy and non-upper.
+	 * For directories, lookup index by lower inode and verify it matches
+	 * upper inode. We only trust dir index if we verified that lower dir
+	 * matches origin, otherwise dir index entries may be inconsistent
+	 * and we ignore them.
+	 *
+	 * For regular upper, we already set origin if upper had ORIGIN
+	 * xattr. There is no verification though as there is no path
+	 * based dentry lookup in lower in this case.
+	 *
+	 * For metacopy upper, we set a verified origin already if index
+	 * is enabled and if upper had an ORIGIN xattr.
+	 *
 	 */
-	if (ctr && (!upperdentry || (!d.is_dir && !metacopy)))
+	if (!upperdentry && ctr)
 		origin = stack[0].dentry;
 
 	if (origin && ovl_indexdir(dentry->d_sb) &&
