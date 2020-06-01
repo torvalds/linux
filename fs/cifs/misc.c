@@ -1025,50 +1025,98 @@ int copy_path_name(char *dst, const char *src)
 }
 
 struct super_cb_data {
-	struct TCP_Server_Info *server;
+	void *data;
 	struct super_block *sb;
 };
 
-static void super_cb(struct super_block *sb, void *arg)
+static void tcp_super_cb(struct super_block *sb, void *arg)
 {
-	struct super_cb_data *d = arg;
+	struct super_cb_data *sd = arg;
+	struct TCP_Server_Info *server = sd->data;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
 
-	if (d->sb)
+	if (sd->sb)
 		return;
 
 	cifs_sb = CIFS_SB(sb);
 	tcon = cifs_sb_master_tcon(cifs_sb);
-	if (tcon->ses->server == d->server)
-		d->sb = sb;
+	if (tcon->ses->server == server)
+		sd->sb = sb;
 }
 
-struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server)
+static struct super_block *__cifs_get_super(void (*f)(struct super_block *, void *),
+					    void *data)
 {
-	struct super_cb_data d = {
-		.server = server,
+	struct super_cb_data sd = {
+		.data = data,
 		.sb = NULL,
 	};
 
-	iterate_supers_type(&cifs_fs_type, super_cb, &d);
+	iterate_supers_type(&cifs_fs_type, f, &sd);
 
-	if (unlikely(!d.sb))
-		return ERR_PTR(-ENOENT);
+	if (!sd.sb)
+		return ERR_PTR(-EINVAL);
 	/*
 	 * Grab an active reference in order to prevent automounts (DFS links)
 	 * of expiring and then freeing up our cifs superblock pointer while
 	 * we're doing failover.
 	 */
-	cifs_sb_active(d.sb);
-	return d.sb;
+	cifs_sb_active(sd.sb);
+	return sd.sb;
 }
 
-void cifs_put_tcp_super(struct super_block *sb)
+static void __cifs_put_super(struct super_block *sb)
 {
 	if (!IS_ERR_OR_NULL(sb))
 		cifs_sb_deactive(sb);
 }
+
+struct super_block *cifs_get_tcp_super(struct TCP_Server_Info *server)
+{
+	return __cifs_get_super(tcp_super_cb, server);
+}
+
+void cifs_put_tcp_super(struct super_block *sb)
+{
+	__cifs_put_super(sb);
+}
+
+#ifdef CONFIG_CIFS_DFS_UPCALL
+static void tcon_super_cb(struct super_block *sb, void *arg)
+{
+	struct super_cb_data *sd = arg;
+	struct cifs_tcon *tcon = sd->data;
+	struct cifs_sb_info *cifs_sb;
+
+	if (sd->sb)
+		return;
+
+	cifs_sb = CIFS_SB(sb);
+	if (tcon->dfs_path && cifs_sb->origin_fullpath &&
+	    !strcasecmp(tcon->dfs_path, cifs_sb->origin_fullpath))
+		sd->sb = sb;
+}
+
+static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
+{
+	return __cifs_get_super(tcon_super_cb, tcon);
+}
+
+static inline void cifs_put_tcon_super(struct super_block *sb)
+{
+	__cifs_put_super(sb);
+}
+#else
+static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
+{
+	return ERR_PTR(-EOPNOTSUPP);
+}
+
+static inline void cifs_put_tcon_super(struct super_block *sb)
+{
+}
+#endif
 
 int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
 			 size_t prefix_len)
@@ -1077,7 +1125,7 @@ int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
 	struct cifs_sb_info *cifs_sb;
 	int rc = 0;
 
-	sb = cifs_get_tcp_super(tcon->ses->server);
+	sb = cifs_get_tcon_super(tcon);
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 
@@ -1099,6 +1147,6 @@ int update_super_prepath(struct cifs_tcon *tcon, const char *prefix,
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
 
 out:
-	cifs_put_tcp_super(sb);
+	cifs_put_tcon_super(sb);
 	return rc;
 }
