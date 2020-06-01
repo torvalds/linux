@@ -83,13 +83,8 @@ static int fscrypt_do_sha256(const u8 *data, unsigned int data_len, u8 *result)
 			tfm = prev_tfm;
 		}
 	}
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
 
-		desc->tfm = tfm;
-
-		return crypto_shash_digest(desc, data, data_len, result);
-	}
+	return crypto_shash_tfm_digest(tfm, data, data_len, result);
 }
 
 static inline bool fscrypt_is_dot_dotdot(const struct qstr *str)

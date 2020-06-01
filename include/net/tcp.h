@@ -23,7 +23,6 @@
 #include <linux/cache.h>
 #include <linux/percpu.h>
 #include <linux/skbuff.h>
-#include <linux/cryptohash.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
 

@@ -170,7 +170,6 @@ static int aes_cmac(struct crypto_shash *tfm, const u8 k[16], const u8 *m,
 		    size_t len, u8 mac[16])
 {
 	uint8_t tmp[16], mac_msb[16], msg_msb[CMAC_MSG_MAX];
-	SHASH_DESC_ON_STACK(desc, tfm);
 	int err;
 
 	if (len > CMAC_MSG_MAX)
@@ -180,8 +179,6 @@ static int aes_cmac(struct crypto_shash *tfm, const u8 k[16], const u8 *m,
 		BT_ERR("tfm %p", tfm);
 		return -EINVAL;
 	}
-
-	desc->tfm = tfm;
 
 	/* Swap key and message from LSB to MSB */
 	swap_buf(k, tmp, 16);
@@ -196,8 +193,7 @@ static int aes_cmac(struct crypto_shash *tfm, const u8 k[16], const u8 *m,
 		return err;
 	}
 
-	err = crypto_shash_digest(desc, msg_msb, len, mac_msb);
-	shash_desc_zero(desc);
+	err = crypto_shash_tfm_digest(tfm, msg_msb, len, mac_msb);
 	if (err) {
 		BT_ERR("Hash computation error %d", err);
 		return err;

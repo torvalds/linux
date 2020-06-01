@@ -33,7 +33,6 @@
 #include <linux/of_irq.h>
 #include <linux/delay.h>
 #include <linux/crypto.h>
-#include <linux/cryptohash.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/algapi.h>
 #include <crypto/sha.h>
@@ -1245,16 +1244,6 @@ static int omap_sham_update(struct ahash_request *req)
 	return omap_sham_enqueue(req, OP_UPDATE);
 }
 
-static int omap_sham_shash_digest(struct crypto_shash *tfm, u32 flags,
-				  const u8 *data, unsigned int len, u8 *out)
-{
-	SHASH_DESC_ON_STACK(shash, tfm);
-
-	shash->tfm = tfm;
-
-	return crypto_shash_digest(shash, data, len, out);
-}
-
 static int omap_sham_final_shash(struct ahash_request *req)
 {
 	struct omap_sham_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
@@ -1270,9 +1259,8 @@ static int omap_sham_final_shash(struct ahash_request *req)
 	    !test_bit(FLAGS_AUTO_XOR, &ctx->dd->flags))
 		offset = get_block_size(ctx);
 
-	return omap_sham_shash_digest(tctx->fallback, req->base.flags,
-				      ctx->buffer + offset,
-				      ctx->bufcnt - offset, req->result);
+	return crypto_shash_tfm_digest(tctx->fallback, ctx->buffer + offset,
+				       ctx->bufcnt - offset, req->result);
 }
 
 static int omap_sham_final(struct ahash_request *req)
@@ -1351,9 +1339,8 @@ static int omap_sham_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return err;
 
 	if (keylen > bs) {
-		err = omap_sham_shash_digest(bctx->shash,
-				crypto_shash_get_flags(bctx->shash),
-				key, keylen, bctx->ipad);
+		err = crypto_shash_tfm_digest(bctx->shash, key, keylen,
+					      bctx->ipad);
 		if (err)
 			return err;
 		keylen = ds;
