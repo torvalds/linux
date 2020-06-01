@@ -373,9 +373,9 @@ static int chcr_ktls_mark_tcb_close(struct chcr_ktls_info *tx_info)
  * @tls_cts - tls context.
  * @direction - TX/RX crypto direction
  */
-static void chcr_ktls_dev_del(struct net_device *netdev,
-			      struct tls_context *tls_ctx,
-			      enum tls_offload_ctx_dir direction)
+void chcr_ktls_dev_del(struct net_device *netdev,
+		       struct tls_context *tls_ctx,
+		       enum tls_offload_ctx_dir direction)
 {
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx =
 				chcr_get_ktls_tx_context(tls_ctx);
@@ -411,6 +411,8 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 	atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_connection_close);
 	kvfree(tx_info);
 	tx_ctx->chcr_info = NULL;
+	/* release module refcount */
+	module_put(THIS_MODULE);
 }
 
 /*
@@ -422,10 +424,10 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
  * @direction - TX/RX crypto direction
  * return: SUCCESS/FAILURE.
  */
-static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
-			     enum tls_offload_ctx_dir direction,
-			     struct tls_crypto_info *crypto_info,
-			     u32 start_offload_tcp_sn)
+int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
+		      enum tls_offload_ctx_dir direction,
+		      struct tls_crypto_info *crypto_info,
+		      u32 start_offload_tcp_sn)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
@@ -528,6 +530,12 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	if (ret)
 		goto out2;
 
+	/* Driver shouldn't be removed until any single connection exists */
+	if (!try_module_get(THIS_MODULE)) {
+		ret = -EINVAL;
+		goto out2;
+	}
+
 	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_open);
 	return 0;
 out2:
@@ -535,43 +543,6 @@ out2:
 out:
 	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_fail);
 	return ret;
-}
-
-static const struct tlsdev_ops chcr_ktls_ops = {
-	.tls_dev_add = chcr_ktls_dev_add,
-	.tls_dev_del = chcr_ktls_dev_del,
-};
-
-/*
- * chcr_enable_ktls:  add NETIF_F_HW_TLS_TX flag in all the ports.
- */
-void chcr_enable_ktls(struct adapter *adap)
-{
-	struct net_device *netdev;
-	int i;
-
-	for_each_port(adap, i) {
-		netdev = adap->port[i];
-		netdev->features |= NETIF_F_HW_TLS_TX;
-		netdev->hw_features |= NETIF_F_HW_TLS_TX;
-		netdev->tlsdev_ops = &chcr_ktls_ops;
-	}
-}
-
-/*
- * chcr_disable_ktls:  remove NETIF_F_HW_TLS_TX flag from all the ports.
- */
-void chcr_disable_ktls(struct adapter *adap)
-{
-	struct net_device *netdev;
-	int i;
-
-	for_each_port(adap, i) {
-		netdev = adap->port[i];
-		netdev->features &= ~NETIF_F_HW_TLS_TX;
-		netdev->hw_features &= ~NETIF_F_HW_TLS_TX;
-		netdev->tlsdev_ops = NULL;
-	}
 }
 
 /*

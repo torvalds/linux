@@ -268,6 +268,10 @@ struct filter_ctx {
 	u32 tid;			/* to store tid */
 };
 
+struct chcr_ktls {
+	refcount_t ktls_refcount;
+};
+
 struct ch_filter_specification;
 
 int cxgb4_get_free_ftid(struct net_device *dev, u8 family, bool hash_en,
@@ -464,6 +468,9 @@ struct cxgb4_uld_info {
 			      struct napi_struct *napi);
 	void (*lro_flush)(struct t4_lro_mgr *);
 	int (*tx_handler)(struct sk_buff *skb, struct net_device *dev);
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+	const struct tlsdev_ops *tlsdev_ops;
+#endif
 };
 
 void cxgb4_uld_enable(struct adapter *adap);

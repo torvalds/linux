@@ -663,22 +663,64 @@ static int uld_attach(struct adapter *adap, unsigned int uld)
 	return 0;
 }
 
+static bool cxgb4_uld_in_use(struct adapter *adap)
+{
+	const struct tid_info *t = &adap->tids;
+
+	return (atomic_read(&t->conns_in_use) || t->stids_in_use);
+}
+
 #ifdef CONFIG_CHELSIO_TLS_DEVICE
 /* cxgb4_set_ktls_feature: request FW to enable/disable ktls settings.
  * @adap: adapter info
  * @enable: 1 to enable / 0 to disable ktls settings.
  */
-static void cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
+int cxgb4_set_ktls_feature(struct adapter *adap, bool enable)
 {
-	u32 params = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
-		      FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_KTLS_TX_HW) |
-		      FW_PARAMS_PARAM_Y_V(enable));
 	int ret = 0;
+	u32 params =
+		FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_KTLS_HW) |
+		FW_PARAMS_PARAM_Y_V(enable) |
+		FW_PARAMS_PARAM_Z_V(FW_PARAMS_PARAM_DEV_KTLS_HW_USER_ENABLE);
 
-	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &params, &params);
-	/* if fw returns failure, clear the ktls flag */
-	if (ret)
-		adap->params.crypto &= ~ULP_CRYPTO_KTLS_INLINE;
+	if (enable) {
+		if (!refcount_read(&adap->chcr_ktls.ktls_refcount)) {
+			/* At this moment if ULD connection are up means, other
+			 * ULD is/are already active, return failure.
+			 */
+			if (cxgb4_uld_in_use(adap)) {
+				dev_warn(adap->pdev_dev,
+					 "ULD connections (tid/stid) active. Can't enable kTLS\n");
+				return -EINVAL;
+			}
+			ret = t4_set_params(adap, adap->mbox, adap->pf,
+					    0, 1, &params, &params);
+			if (ret)
+				return ret;
+			refcount_set(&adap->chcr_ktls.ktls_refcount, 1);
+			pr_info("kTLS has been enabled. Restrictions placed on ULD support\n");
+		} else {
+			/* ktls settings already up, just increment refcount. */
+			refcount_inc(&adap->chcr_ktls.ktls_refcount);
+		}
+	} else {
+		/* return failure if refcount is already 0. */
+		if (!refcount_read(&adap->chcr_ktls.ktls_refcount))
+			return -EINVAL;
+		/* decrement refcount and test, if 0, disable ktls feature,
+		 * else return command success.
+		 */
+		if (refcount_dec_and_test(&adap->chcr_ktls.ktls_refcount)) {
+			ret = t4_set_params(adap, adap->mbox, adap->pf,
+					    0, 1, &params, &params);
+			if (ret)
+				return ret;
+			pr_info("kTLS is disabled. Restrictions on ULD support removed\n");
+		}
+	}
+
+	return ret;
 }
 #endif
 
@@ -706,12 +748,6 @@ static void cxgb4_uld_alloc_resources(struct adapter *adap,
 	}
 	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		enable_rx_uld(adap, type);
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-	/* send mbox to enable ktls related settings. */
-	if (type == CXGB4_ULD_CRYPTO &&
-	    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
-		cxgb4_set_ktls_feature(adap, 1);
-#endif
 	if (adap->uld[type].add)
 		goto free_irq;
 	ret = setup_sge_txq_uld(adap, type, p);
@@ -805,13 +841,6 @@ int cxgb4_unregister_uld(enum cxgb4_uld type)
 			continue;
 
 		cxgb4_shutdown_uld_adapter(adap, type);
-
-#ifdef CONFIG_CHELSIO_TLS_DEVICE
-		/* send mbox to disable ktls related settings. */
-		if (type == CXGB4_ULD_CRYPTO &&
-		    (adap->params.crypto & FW_CAPS_CONFIG_TX_TLS_HW))
-			cxgb4_set_ktls_feature(adap, 0);
-#endif
 	}
 
 	list_for_each_entry_safe(uld_entry, tmp, &uld_list, list_node) {
