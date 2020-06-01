@@ -514,8 +514,6 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 		return -ENAMETOOLONG;
 	}
 
-	p_uniname->name_len = unilen & 0xFF;
-
 	for (i = 0; i < unilen; i++) {
 		if (*uniname < 0x0020 ||
 		    exfat_wstrchr(bad_uni_chars, *uniname))
