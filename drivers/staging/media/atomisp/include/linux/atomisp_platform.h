@@ -18,6 +18,8 @@
 #ifndef ATOMISP_PLATFORM_H_
 #define ATOMISP_PLATFORM_H_
 
+#include <asm/intel-family.h>
+
 #include <linux/i2c.h>
 #include <linux/sfi.h>
 #include <media/v4l2-subdev.h>
@@ -240,9 +242,9 @@ const struct atomisp_camera_caps *atomisp_get_default_camera_caps(void);
 		     boot_cpu_data.x86 == 6 &&                       \
 		     boot_cpu_data.x86_model == x)
 
-#define IS_MFLD	__IS_SOC(0x27)
-#define IS_BYT	__IS_SOC(0x37)
-#define IS_CHT	__IS_SOC(0x4C)
-#define IS_MOFD	__IS_SOC(0x5A)
+#define IS_MFLD	__IS_SOC(INTEL_FAM6_ATOM_SALTWELL_MID)
+#define IS_BYT	__IS_SOC(INTEL_FAM6_ATOM_SILVERMONT)
+#define IS_CHT	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT)
+#define IS_MOFD	__IS_SOC(INTEL_FAM6_ATOM_AIRMONT_MID)
 
 #endif /* ATOMISP_PLATFORM_H_ */
