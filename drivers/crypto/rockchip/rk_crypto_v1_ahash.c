@@ -292,7 +292,6 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct rk_crypto_tmp *algt;
 	struct ahash_alg *alg = __crypto_ahash_alg(tfm->__crt_alg);
-	struct rk_hw_crypto_v1_info *hw_info;
 
 	const char *alg_name = crypto_tfm_alg_name(tfm);
 
@@ -315,12 +314,7 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 				 sizeof(struct rk_ahash_rctx) +
 				 crypto_ahash_reqsize(ctx->fallback_tfm));
 
-	hw_info = (struct rk_hw_crypto_v1_info *)ctx->dev->hw_info;
-
-	if (hw_info->clk_enable == 0)
-		ctx->dev->enable_clk(ctx->dev);
-
-	hw_info->clk_enable++;
+	ctx->dev->enable_clk(ctx->dev);
 
 	return 0;
 }
@@ -328,101 +322,14 @@ static int rk_cra_hash_init(struct crypto_tfm *tfm)
 static void rk_cra_hash_exit(struct crypto_tfm *tfm)
 {
 	struct rk_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
-	struct rk_hw_crypto_v1_info *hw_info =
-		(struct rk_hw_crypto_v1_info *)ctx->dev->hw_info;
 
-	hw_info->clk_enable--;
+	ctx->dev->disable_clk(ctx->dev);
 
-	if (hw_info->clk_enable == 0)
-		ctx->dev->disable_clk(ctx->dev);
+	if (ctx->fallback_tfm)
+		crypto_free_ahash(ctx->fallback_tfm);
 }
 
-struct rk_crypto_tmp rk_v1_ahash_sha1 = {
-	.type = ALG_TYPE_HASH,
-	.alg.hash = {
-		.init = rk_ahash_init,
-		.update = rk_ahash_update,
-		.final = rk_ahash_final,
-		.finup = rk_ahash_finup,
-		.export = rk_ahash_export,
-		.import = rk_ahash_import,
-		.digest = rk_ahash_digest,
-		.halg = {
-			 .digestsize = SHA1_DIGEST_SIZE,
-			 .statesize = sizeof(struct sha1_state),
-			 .base = {
-				  .cra_name = "sha1",
-				  .cra_driver_name = "rk-sha1",
-				  .cra_priority = 300,
-				  .cra_flags = CRYPTO_ALG_ASYNC |
-					       CRYPTO_ALG_NEED_FALLBACK,
-				  .cra_blocksize = SHA1_BLOCK_SIZE,
-				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
-				  .cra_module = THIS_MODULE,
-				  }
-			 }
-	}
-};
+struct rk_crypto_tmp rk_v1_ahash_sha1 = RK_HASH_ALGO_INIT(SHA1, sha1);
+struct rk_crypto_tmp rk_v1_ahash_sha256 = RK_HASH_ALGO_INIT(SHA256, sha256);
+struct rk_crypto_tmp rk_v1_ahash_md5 = RK_HASH_ALGO_INIT(MD5, md5);
 
-struct rk_crypto_tmp rk_v1_ahash_sha256 = {
-	.type = ALG_TYPE_HASH,
-	.alg.hash = {
-		.init = rk_ahash_init,
-		.update = rk_ahash_update,
-		.final = rk_ahash_final,
-		.finup = rk_ahash_finup,
-		.export = rk_ahash_export,
-		.import = rk_ahash_import,
-		.digest = rk_ahash_digest,
-		.halg = {
-			 .digestsize = SHA256_DIGEST_SIZE,
-			 .statesize = sizeof(struct sha256_state),
-			 .base = {
-				  .cra_name = "sha256",
-				  .cra_driver_name = "rk-sha256",
-				  .cra_priority = 300,
-				  .cra_flags = CRYPTO_ALG_ASYNC |
-					       CRYPTO_ALG_NEED_FALLBACK,
-				  .cra_blocksize = SHA256_BLOCK_SIZE,
-				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
-				  .cra_module = THIS_MODULE,
-				  }
-			 }
-	}
-};
-
-struct rk_crypto_tmp rk_v1_ahash_md5 = {
-	.type = ALG_TYPE_HASH,
-	.alg.hash = {
-		.init = rk_ahash_init,
-		.update = rk_ahash_update,
-		.final = rk_ahash_final,
-		.finup = rk_ahash_finup,
-		.export = rk_ahash_export,
-		.import = rk_ahash_import,
-		.digest = rk_ahash_digest,
-		.halg = {
-			 .digestsize = MD5_DIGEST_SIZE,
-			 .statesize = sizeof(struct md5_state),
-			 .base = {
-				  .cra_name = "md5",
-				  .cra_driver_name = "rk-md5",
-				  .cra_priority = 300,
-				  .cra_flags = CRYPTO_ALG_ASYNC |
-					       CRYPTO_ALG_NEED_FALLBACK,
-				  .cra_blocksize = SHA1_BLOCK_SIZE,
-				  .cra_ctxsize = sizeof(struct rk_ahash_ctx),
-				  .cra_alignmask = 3,
-				  .cra_init = rk_cra_hash_init,
-				  .cra_exit = rk_cra_hash_exit,
-				  .cra_module = THIS_MODULE,
-				  }
-			}
-	}
-};

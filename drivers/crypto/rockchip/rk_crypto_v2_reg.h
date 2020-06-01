@@ -220,10 +220,25 @@
 #define CRYPTO_CH6_IV_LEN_0     0x0318
 #define CRYPTO_CH7_IV_LEN_0     0x031c
 
-#define CRYPTO_READ(dev, offset)		  \
-		readl_relaxed(((dev)->reg + (offset)))
-#define CRYPTO_WRITE(dev, offset, val)	  \
-		writel_relaxed((val), ((dev)->reg + (offset)))
+#define CRYPTO_HASH_DOUT_0      0x03a0
+#define CRYPTO_HASH_DOUT_1      0x03a4
+#define CRYPTO_HASH_DOUT_2      0x03a8
+#define CRYPTO_HASH_DOUT_3      0x03ac
+#define CRYPTO_HASH_DOUT_4      0x03b0
+#define CRYPTO_HASH_DOUT_5      0x03b4
+#define CRYPTO_HASH_DOUT_6      0x03b8
+#define CRYPTO_HASH_DOUT_7      0x03bc
+#define CRYPTO_HASH_DOUT_8      0x03c0
+#define CRYPTO_HASH_DOUT_9      0x03c4
+#define CRYPTO_HASH_DOUT_10     0x03c8
+#define CRYPTO_HASH_DOUT_11     0x03cc
+#define CRYPTO_HASH_DOUT_12     0x03d0
+#define CRYPTO_HASH_DOUT_13     0x03d4
+#define CRYPTO_HASH_DOUT_14     0x03d8
+#define CRYPTO_HASH_DOUT_15     0x03dc
+
+#define CRYPTO_HASH_VALID       0x03e4
+#define CRYPTO_HASH_IS_VALID	_BIT(0)
 
 #define CRYPTO_CLK_NUM	(4)
 

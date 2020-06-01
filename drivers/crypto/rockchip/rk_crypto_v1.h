@@ -8,13 +8,15 @@
 #include <linux/platform_device.h>
 
 struct rk_hw_crypto_v1_info {
-	int	clk_enable;
+	int	reserved;
 };
 
 extern struct rk_crypto_tmp rk_v1_ecb_aes_alg;
 extern struct rk_crypto_tmp rk_v1_cbc_aes_alg;
+
 extern struct rk_crypto_tmp rk_v1_ecb_des_alg;
 extern struct rk_crypto_tmp rk_v1_cbc_des_alg;
+
 extern struct rk_crypto_tmp rk_v1_ecb_des3_ede_alg;
 extern struct rk_crypto_tmp rk_v1_cbc_des3_ede_alg;
 

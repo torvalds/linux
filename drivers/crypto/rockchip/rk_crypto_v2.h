@@ -21,14 +21,15 @@ struct crypto_lli_desc {
 struct rk_hw_crypto_v2_info {
 	struct crypto_lli_desc		*desc;
 	dma_addr_t			desc_dma;
-	int				clk_enable;
 };
 
 extern struct rk_crypto_tmp rk_v2_ecb_aes_alg;
 extern struct rk_crypto_tmp rk_v2_cbc_aes_alg;
-extern struct rk_crypto_tmp rk_v2_ecb_des_alg;
 extern struct rk_crypto_tmp rk_v2_xts_aes_alg;
+
+extern struct rk_crypto_tmp rk_v2_ecb_des_alg;
 extern struct rk_crypto_tmp rk_v2_cbc_des_alg;
+
 extern struct rk_crypto_tmp rk_v2_ecb_des3_ede_alg;
 extern struct rk_crypto_tmp rk_v2_cbc_des3_ede_alg;
 
