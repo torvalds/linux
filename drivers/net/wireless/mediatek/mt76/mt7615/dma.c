@@ -100,6 +100,7 @@ mt7615_tx_cleanup(struct mt7615_dev *dev)
 	int i;
 
 	mt76_queue_tx_cleanup(dev, MT_TXQ_MCU, false);
+	mt76_queue_tx_cleanup(dev, MT_TXQ_PSD, false);
 	if (is_mt7615(&dev->mt76)) {
 		mt76_queue_tx_cleanup(dev, MT_TXQ_BE, false);
 	} else {
