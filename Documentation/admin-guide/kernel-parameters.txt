@@ -4210,11 +4210,23 @@
 			Duration of CPU stall (s) to test RCU CPU stall
 			warnings, zero to disable.
 
+	rcutorture.stall_cpu_block= [KNL]
+			Sleep while stalling if set.  This will result
+			in warnings from preemptible RCU in addition
+			to any other stall-related activity.
+
 	rcutorture.stall_cpu_holdoff= [KNL]
 			Time to wait (s) after boot before inducing stall.
 
 	rcutorture.stall_cpu_irqsoff= [KNL]
 			Disable interrupts while stalling if set.
+
+	rcutorture.stall_gp_kthread= [KNL]
+			Duration (s) of forced sleep within RCU
+			grace-period kthread to test RCU CPU stall
+			warnings, zero to disable.  If both stall_cpu
+			and stall_gp_kthread are specified, the
+			kthread is starved first, then the CPU.
 
 	rcutorture.stat_interval= [KNL]
 			Time (s) between statistics printk()s.
@@ -4285,6 +4297,13 @@
 			rcu_end_inkernel_boot() has been invoked), use
 			only normal grace-period primitives.  No effect
 			on CONFIG_TINY_RCU kernels.
+
+	rcupdate.rcu_task_ipi_delay= [KNL]
+			Set time in jiffies during which RCU tasks will
+			avoid sending IPIs, starting with the beginning
+			of a given grace period.  Setting a large
+			number avoids disturbing real-time workloads,
+			but lengthens grace periods.
 
 	rcupdate.rcu_task_stall_timeout= [KNL]
 			Set timeout in jiffies for RCU task stall warning
