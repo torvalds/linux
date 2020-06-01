@@ -62,7 +62,7 @@ __modpost: vmlinux.symvers
 
 else
 
-MODPOST += -s \
+MODPOST += \
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))
 
 ifeq ($(KBUILD_EXTMOD),)
