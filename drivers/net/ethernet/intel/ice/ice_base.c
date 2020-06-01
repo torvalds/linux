@@ -3,6 +3,7 @@
 
 #include <net/xdp_sock_drv.h>
 #include "ice_base.h"
+#include "ice_lib.h"
 #include "ice_dcb_lib.h"
 
 /**
@@ -288,7 +289,6 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	u32 rxdid = ICE_RXDID_FLEX_NIC;
 	struct ice_rlan_ctx rlan_ctx;
 	struct ice_hw *hw;
-	u32 regval;
 	u16 pf_q;
 	int err;
 
@@ -385,27 +385,16 @@ int ice_setup_rx_ctx(struct ice_ring *ring)
 	/* Rx queue threshold in units of 64 */
 	rlan_ctx.lrxqthresh = 1;
 
-	 /* Enable Flexible Descriptors in the queue context which
-	  * allows this driver to select a specific receive descriptor format
-	  */
-	regval = rd32(hw, QRXFLXP_CNTXT(pf_q));
-	if (vsi->type != ICE_VSI_VF) {
-		regval |= (rxdid << QRXFLXP_CNTXT_RXDID_IDX_S) &
-			QRXFLXP_CNTXT_RXDID_IDX_M;
-
-		/* increasing context priority to pick up profile ID;
-		 * default is 0x01; setting to 0x03 to ensure profile
-		 * is programming if prev context is of same priority
-		 */
-		regval |= (0x03 << QRXFLXP_CNTXT_RXDID_PRIO_S) &
-			QRXFLXP_CNTXT_RXDID_PRIO_M;
-
-	} else {
-		regval &= ~(QRXFLXP_CNTXT_RXDID_IDX_M |
-			    QRXFLXP_CNTXT_RXDID_PRIO_M |
-			    QRXFLXP_CNTXT_TS_M);
-	}
-	wr32(hw, QRXFLXP_CNTXT(pf_q), regval);
+	/* Enable Flexible Descriptors in the queue context which
+	 * allows this driver to select a specific receive descriptor format
+	 * increasing context priority to pick up profile ID; default is 0x01;
+	 * setting to 0x03 to ensure profile is programming if prev context is
+	 * of same priority
+	 */
+	if (vsi->type != ICE_VSI_VF)
+		ice_write_qrxflxp_cntxt(hw, pf_q, rxdid, 0x3);
+	else
+		ice_write_qrxflxp_cntxt(hw, pf_q, ICE_RXDID_LEGACY_1, 0x3);
 
 	/* Absolute queue number out of 2K needs to be passed */
 	err = ice_write_rxq_ctx(hw, &rlan_ctx, pf_q);

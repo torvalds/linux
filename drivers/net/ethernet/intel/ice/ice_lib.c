@@ -1596,6 +1596,32 @@ void ice_vsi_cfg_frame_size(struct ice_vsi *vsi)
 }
 
 /**
+ * ice_write_qrxflxp_cntxt - write/configure QRXFLXP_CNTXT register
+ * @hw: HW pointer
+ * @pf_q: index of the Rx queue in the PF's queue space
+ * @rxdid: flexible descriptor RXDID
+ * @prio: priority for the RXDID for this queue
+ */
+void
+ice_write_qrxflxp_cntxt(struct ice_hw *hw, u16 pf_q, u32 rxdid, u32 prio)
+{
+	int regval = rd32(hw, QRXFLXP_CNTXT(pf_q));
+
+	/* clear any previous values */
+	regval &= ~(QRXFLXP_CNTXT_RXDID_IDX_M |
+		    QRXFLXP_CNTXT_RXDID_PRIO_M |
+		    QRXFLXP_CNTXT_TS_M);
+
+	regval |= (rxdid << QRXFLXP_CNTXT_RXDID_IDX_S) &
+		QRXFLXP_CNTXT_RXDID_IDX_M;
+
+	regval |= (prio << QRXFLXP_CNTXT_RXDID_PRIO_S) &
+		QRXFLXP_CNTXT_RXDID_PRIO_M;
+
+	wr32(hw, QRXFLXP_CNTXT(pf_q), regval);
+}
+
+/**
  * ice_vsi_cfg_rxqs - Configure the VSI for Rx
  * @vsi: the VSI being configured
  *
@@ -2681,15 +2707,13 @@ ice_vsi_rebuild_set_coalesce(struct ice_vsi *vsi,
 		ice_vsi_rebuild_update_coalesce(vsi->q_vectors[i],
 						&coalesce[i]);
 
-	for (; i < vsi->num_q_vectors; i++) {
-		struct ice_coalesce_stored coalesce_dflt = {
-			.itr_tx = ICE_DFLT_TX_ITR,
-			.itr_rx = ICE_DFLT_RX_ITR,
-			.intrl = 0
-		};
+	/* number of q_vectors increased, so assume coalesce settings were
+	 * changed globally (i.e. ethtool -C eth0 instead of per-queue) and use
+	 * the previous settings from q_vector 0 for all of the new q_vectors
+	 */
+	for (; i < vsi->num_q_vectors; i++)
 		ice_vsi_rebuild_update_coalesce(vsi->q_vectors[i],
-						&coalesce_dflt);
-	}
+						&coalesce[0]);
 }
 
 /**

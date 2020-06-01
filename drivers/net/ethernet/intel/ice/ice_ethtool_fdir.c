@@ -1364,6 +1364,31 @@ release_lock:
 }
 
 /**
+ * ice_fdir_do_rem_flow - delete flow and possibly add perfect flow
+ * @pf: PF structure
+ * @flow_type: FDir flow type to release
+ */
+static void
+ice_fdir_do_rem_flow(struct ice_pf *pf, enum ice_fltr_ptype flow_type)
+{
+	struct ice_hw *hw = &pf->hw;
+	bool need_perfect = false;
+
+	if (flow_type == ICE_FLTR_PTYPE_NONF_IPV4_TCP ||
+	    flow_type == ICE_FLTR_PTYPE_NONF_IPV4_UDP ||
+	    flow_type == ICE_FLTR_PTYPE_NONF_IPV6_TCP ||
+	    flow_type == ICE_FLTR_PTYPE_NONF_IPV6_UDP)
+		need_perfect = true;
+
+	if (need_perfect && test_bit(flow_type, hw->fdir_perfect_fltr))
+		return;
+
+	ice_fdir_rem_flow(hw, ICE_BLK_FD, flow_type);
+	if (need_perfect)
+		ice_create_init_fdir_rule(pf, flow_type);
+}
+
+/**
  * ice_fdir_update_list_entry - add or delete a filter from the filter list
  * @pf: PF structure
  * @input: filter structure
@@ -1393,7 +1418,7 @@ ice_fdir_update_list_entry(struct ice_pf *pf, struct ice_fdir_fltr *input,
 			/* we just deleted the last filter of flow_type so we
 			 * should also delete the HW filter info.
 			 */
-			ice_fdir_rem_flow(hw, ICE_BLK_FD, old_fltr->flow_type);
+			ice_fdir_do_rem_flow(pf, old_fltr->flow_type);
 		list_del(&old_fltr->fltr_node);
 		devm_kfree(ice_hw_to_dev(hw), old_fltr);
 	}
