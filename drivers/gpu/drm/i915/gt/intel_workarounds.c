@@ -199,6 +199,18 @@ wa_masked_dis(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 #define WA_SET_FIELD_MASKED(addr, mask, value) \
 	wa_write_masked_or(wal, (addr), 0, _MASKED_FIELD((mask), (value)))
 
+static void gen6_ctx_workarounds_init(struct intel_engine_cs *engine,
+				      struct i915_wa_list *wal)
+{
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+}
+
+static void gen7_ctx_workarounds_init(struct intel_engine_cs *engine,
+				      struct i915_wa_list *wal)
+{
+	WA_SET_BIT_MASKED(INSTPM, INSTPM_FORCE_ORDERING);
+}
+
 static void gen8_ctx_workarounds_init(struct intel_engine_cs *engine,
 				      struct i915_wa_list *wal)
 {
@@ -638,6 +650,10 @@ __intel_engine_init_ctx_wa(struct intel_engine_cs *engine,
 		chv_ctx_workarounds_init(engine, wal);
 	else if (IS_BROADWELL(i915))
 		bdw_ctx_workarounds_init(engine, wal);
+	else if (IS_GEN(i915, 7))
+		gen7_ctx_workarounds_init(engine, wal);
+	else if (IS_GEN(i915, 6))
+		gen6_ctx_workarounds_init(engine, wal);
 	else if (INTEL_GEN(i915) < 8)
 		return;
 	else
@@ -1583,6 +1599,21 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		       0, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH),
 		       /* XXX bit doesn't stick on Broadwater */
 		       IS_I965G(i915) ? 0 : VS_TIMER_DISPATCH);
+
+	if (IS_GEN(i915, 4))
+		/*
+		 * Disable CONSTANT_BUFFER before it is loaded from the context
+		 * image. For as it is loaded, it is executed and the stored
+		 * address may no longer be valid, leading to a GPU hang.
+		 *
+		 * This imposes the requirement that userspace reload their
+		 * CONSTANT_BUFFER on every batch, fortunately a requirement
+		 * they are already accustomed to from before contexts were
+		 * enabled.
+		 */
+		wa_add(wal, ECOSKPD,
+		       0, _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE),
+		       0 /* XXX bit doesn't stick on Broadwater */);
 }
 
 static void

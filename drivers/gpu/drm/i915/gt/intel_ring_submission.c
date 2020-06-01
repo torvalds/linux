@@ -429,32 +429,6 @@ static void reset_finish(struct intel_engine_cs *engine)
 {
 }
 
-static int rcs_resume(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *i915 = engine->i915;
-	struct intel_uncore *uncore = engine->uncore;
-
-	/*
-	 * Disable CONSTANT_BUFFER before it is loaded from the context
-	 * image. For as it is loaded, it is executed and the stored
-	 * address may no longer be valid, leading to a GPU hang.
-	 *
-	 * This imposes the requirement that userspace reload their
-	 * CONSTANT_BUFFER on every batch, fortunately a requirement
-	 * they are already accustomed to from before contexts were
-	 * enabled.
-	 */
-	if (IS_GEN(i915, 4))
-		intel_uncore_write(uncore, ECOSKPD,
-			   _MASKED_BIT_ENABLE(ECO_CONSTANT_BUFFER_SR_DISABLE));
-
-	if (IS_GEN_RANGE(i915, 6, 7))
-		intel_uncore_write(uncore, INSTPM,
-				   _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
-
-	return xcs_resume(engine);
-}
-
 static void reset_cancel(struct intel_engine_cs *engine)
 {
 	struct i915_request *request;
@@ -1139,8 +1113,6 @@ static void setup_rcs(struct intel_engine_cs *engine)
 
 	if (IS_HASWELL(i915))
 		engine->emit_bb_start = hsw_emit_bb_start;
-
-	engine->resume = rcs_resume;
 }
 
 static void setup_vcs(struct intel_engine_cs *engine)
