@@ -21,6 +21,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iommu.h>
 #include <linux/seq_file.h>
+#include <linux/bitfield.h>
 
 /*
  * Gaudi security scheme:
@@ -6322,16 +6323,17 @@ static void gaudi_gen_signal_cb(struct hl_device *hdev, void *data, u16 sob_id)
 	pkt = (struct packet_msg_short *) (uintptr_t) cb->kernel_address;
 	memset(pkt, 0, sizeof(*pkt));
 
-	value = 1 << GAUDI_PKT_SHORT_VAL_SOB_SYNC_VAL_SHIFT; /* inc by 1 */
-	value |= 1 << GAUDI_PKT_SHORT_VAL_SOB_MOD_SHIFT; /* add mode */
+	/* Inc by 1, Mode ADD */
+	value = FIELD_PREP(GAUDI_PKT_SHORT_VAL_SOB_SYNC_VAL_MASK, 1);
+	value |= FIELD_PREP(GAUDI_PKT_SHORT_VAL_SOB_MOD_MASK, 1);
 
-	ctl = (sob_id * 4) << GAUDI_PKT_SHORT_CTL_ADDR_SHIFT; /* SOB id */
-	ctl |= 0 << GAUDI_PKT_SHORT_CTL_OP_SHIFT; /* write the value */
-	ctl |= 3 << GAUDI_PKT_SHORT_CTL_BASE_SHIFT; /* W_S SOB base */
-	ctl |= PACKET_MSG_SHORT << GAUDI_PKT_SHORT_CTL_OPCODE_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_EB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_RB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_MB_SHIFT;
+	ctl = FIELD_PREP(GAUDI_PKT_SHORT_CTL_ADDR_MASK, sob_id * 4);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OP_MASK, 0); /* write the value */
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_BASE_MASK, 3); /* W_S SOB base */
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OPCODE_MASK, PACKET_MSG_SHORT);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_RB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_MB_MASK, 1);
 
 	pkt->value = cpu_to_le32(value);
 	pkt->ctl = cpu_to_le32(ctl);
@@ -6344,12 +6346,12 @@ static u32 gaudi_add_mon_msg_short(struct packet_msg_short *pkt, u32 value,
 
 	memset(pkt, 0, pkt_size);
 
-	ctl = addr << GAUDI_PKT_SHORT_CTL_ADDR_SHIFT;
-	ctl |= 2 << GAUDI_PKT_SHORT_CTL_BASE_SHIFT; /* W_S MON base */
-	ctl |= PACKET_MSG_SHORT << GAUDI_PKT_SHORT_CTL_OPCODE_SHIFT;
-	ctl |= 0 << GAUDI_PKT_SHORT_CTL_EB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_RB_SHIFT;
-	ctl |= 0 << GAUDI_PKT_SHORT_CTL_MB_SHIFT; /* only last pkt needs MB */
+	ctl = FIELD_PREP(GAUDI_PKT_SHORT_CTL_ADDR_MASK, addr);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_BASE_MASK, 2);  /* W_S MON base */
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OPCODE_MASK, PACKET_MSG_SHORT);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, 0);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_RB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_MB_MASK, 0); /* last pkt MB */
 
 	pkt->value = cpu_to_le32(value);
 	pkt->ctl = cpu_to_le32(ctl);
@@ -6365,18 +6367,19 @@ static u32 gaudi_add_arm_monitor_pkt(struct packet_msg_short *pkt, u16 sob_id,
 
 	memset(pkt, 0, pkt_size);
 
-	value = (sob_id / 8) << GAUDI_PKT_SHORT_VAL_MON_SYNC_GID_SHIFT;
-	value |= sob_val << GAUDI_PKT_SHORT_VAL_MON_SYNC_VAL_SHIFT;
-	value |= 0 << GAUDI_PKT_SHORT_VAL_MON_MODE_SHIFT; /* GREATER_OR_EQUAL */
-	value |= mask << GAUDI_PKT_SHORT_VAL_MON_MASK_SHIFT;
+	value = FIELD_PREP(GAUDI_PKT_SHORT_VAL_MON_SYNC_GID_MASK, sob_id / 8);
+	value |= FIELD_PREP(GAUDI_PKT_SHORT_VAL_MON_SYNC_VAL_MASK, sob_val);
+	value |= FIELD_PREP(GAUDI_PKT_SHORT_VAL_MON_MODE_MASK,
+			0); /* GREATER OR EQUAL*/
+	value |= FIELD_PREP(GAUDI_PKT_SHORT_VAL_MON_MASK_MASK, mask);
 
-	ctl = addr << GAUDI_PKT_SHORT_CTL_ADDR_SHIFT;
-	ctl |= 0 << GAUDI_PKT_SHORT_CTL_OP_SHIFT; /* write the value */
-	ctl |= 2 << GAUDI_PKT_SHORT_CTL_BASE_SHIFT; /* W_S MON base */
-	ctl |= PACKET_MSG_SHORT << GAUDI_PKT_SHORT_CTL_OPCODE_SHIFT;
-	ctl |= 0 << GAUDI_PKT_SHORT_CTL_EB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_RB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_SHORT_CTL_MB_SHIFT;
+	ctl = FIELD_PREP(GAUDI_PKT_SHORT_CTL_ADDR_MASK, addr);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OP_MASK, 0); /* write the value */
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_BASE_MASK, 2); /* W_S MON base */
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_OPCODE_MASK, PACKET_MSG_SHORT);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, 0);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_RB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_MB_MASK, 1);
 
 	pkt->value = cpu_to_le32(value);
 	pkt->ctl = cpu_to_le32(ctl);
@@ -6390,15 +6393,14 @@ static u32 gaudi_add_fence_pkt(struct packet_fence *pkt)
 
 	memset(pkt, 0, pkt_size);
 
-	cfg = 1 << GAUDI_PKT_FENCE_CFG_DEC_VAL_SHIFT;
-	cfg |= 1 << GAUDI_PKT_FENCE_CFG_TARGET_VAL_SHIFT;
-	cfg |= 2 << GAUDI_PKT_FENCE_CFG_ID_SHIFT;
+	cfg = FIELD_PREP(GAUDI_PKT_FENCE_CFG_DEC_VAL_MASK, 1);
+	cfg |= FIELD_PREP(GAUDI_PKT_FENCE_CFG_TARGET_VAL_MASK, 1);
+	cfg |= FIELD_PREP(GAUDI_PKT_FENCE_CFG_ID_MASK, 2);
 
-	ctl = 0 << GAUDI_PKT_FENCE_CTL_PRED_SHIFT;
-	ctl |= PACKET_FENCE << GAUDI_PKT_FENCE_CTL_OPCODE_SHIFT;
-	ctl |= 0 << GAUDI_PKT_FENCE_CTL_EB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_FENCE_CTL_RB_SHIFT;
-	ctl |= 1 << GAUDI_PKT_FENCE_CTL_MB_SHIFT;
+	ctl = FIELD_PREP(GAUDI_PKT_FENCE_CTL_OPCODE_MASK, PACKET_FENCE);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_EB_MASK, 0);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_RB_MASK, 1);
+	ctl |= FIELD_PREP(GAUDI_PKT_SHORT_CTL_MB_MASK, 1);
 
 	pkt->cfg = cpu_to_le32(cfg);
 	pkt->ctl = cpu_to_le32(ctl);
