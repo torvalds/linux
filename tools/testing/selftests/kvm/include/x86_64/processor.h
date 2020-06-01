@@ -79,7 +79,7 @@ static inline uint64_t get_desc64_base(const struct desc64 *desc)
 static inline uint64_t rdtsc(void)
 {
 	uint32_t eax, edx;
-	uint32_t tsc_val;
+	uint64_t tsc_val;
 	/*
 	 * The lfence is to wait (on Intel CPUs) until all previous
 	 * instructions have been executed. If software requires RDTSC to be
