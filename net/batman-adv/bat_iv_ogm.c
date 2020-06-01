@@ -134,7 +134,7 @@ static u8 batadv_ring_buffer_avg(const u8 lq_recv[])
  *
  * Return: the originator object corresponding to the passed mac address or NULL
  * on failure.
- * If the object does not exists it is created an initialised.
+ * If the object does not exist, it is created and initialised.
  */
 static struct batadv_orig_node *
 batadv_iv_ogm_orig_get(struct batadv_priv *bat_priv, const u8 *addr)
@@ -871,7 +871,7 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 }
 
 /**
- * batadv_iv_orig_ifinfo_sum() - Get bcast_own sum for originator over iterface
+ * batadv_iv_orig_ifinfo_sum() - Get bcast_own sum for originator over interface
  * @orig_node: originator which reproadcasted the OGMs directly
  * @if_outgoing: interface which transmitted the original OGM and received the
  *  direct rebroadcast
@@ -1554,7 +1554,7 @@ static void batadv_iv_ogm_process_reply(struct batadv_ogm_packet *ogm_packet,
  * batadv_iv_ogm_process() - process an incoming batman iv OGM
  * @skb: the skb containing the OGM
  * @ogm_offset: offset to the OGM which should be processed (for aggregates)
- * @if_incoming: the interface where this packet was receved
+ * @if_incoming: the interface where this packet was received
  */
 static void batadv_iv_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				  struct batadv_hard_iface *if_incoming)
@@ -2288,7 +2288,7 @@ batadv_iv_ogm_neigh_dump_hardif(struct sk_buff *msg, u32 portid, u32 seq,
  * @msg: Netlink message to dump into
  * @cb: Control block containing additional options
  * @bat_priv: The bat priv with all the soft interface information
- * @single_hardif: Limit dump to this hard interfaace
+ * @single_hardif: Limit dump to this hard interface
  */
 static void
 batadv_iv_ogm_neigh_dump(struct sk_buff *msg, struct netlink_callback *cb,

@@ -60,7 +60,7 @@ static void batadv_v_elp_start_timer(struct batadv_hard_iface *hard_iface)
  * @neigh: the neighbour for which the throughput has to be obtained
  *
  * Return: The throughput towards the given neighbour in multiples of 100kpbs
- *         (a value of '1' equals to 0.1Mbps, '10' equals 1Mbps, etc).
+ *         (a value of '1' equals 0.1Mbps, '10' equals 1Mbps, etc).
  */
 static u32 batadv_v_elp_get_throughput(struct batadv_hardif_neigh_node *neigh)
 {
@@ -183,8 +183,8 @@ void batadv_v_elp_throughput_metric_update(struct work_struct *work)
  *
  * Sends a predefined number of unicast wifi packets to a given neighbour in
  * order to trigger the throughput estimation on this link by the RC algorithm.
- * Packets are sent only if there there is not enough payload unicast traffic
- * towards this neighbour..
+ * Packets are sent only if there is not enough payload unicast traffic towards
+ * this neighbour..
  *
  * Return: True on success and false in case of error during skb preparation.
  */
@@ -244,7 +244,7 @@ batadv_v_elp_wifi_neigh_probe(struct batadv_hardif_neigh_node *neigh)
  * batadv_v_elp_periodic_work() - ELP periodic task per interface
  * @work: work queue item
  *
- * Emits broadcast ELP message in regular intervals.
+ * Emits broadcast ELP messages in regular intervals.
  */
 static void batadv_v_elp_periodic_work(struct work_struct *work)
 {
@@ -499,7 +499,7 @@ orig_free:
  * @skb: the received packet
  * @if_incoming: the interface this packet was received through
  *
- * Return: NET_RX_SUCCESS and consumes the skb if the packet was peoperly
+ * Return: NET_RX_SUCCESS and consumes the skb if the packet was properly
  * processed or NET_RX_DROP in case of failure.
  */
 int batadv_v_elp_packet_recv(struct sk_buff *skb,

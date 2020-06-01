@@ -455,8 +455,8 @@ struct batadv_orig_node {
 	spinlock_t tt_buff_lock;
 
 	/**
-	 * @tt_lock: prevents from updating the table while reading it. Table
-	 *  update is made up by two operations (data structure update and
+	 * @tt_lock: avoids concurrent read from and write to the table. Table
+	 *  update is made up of two operations (data structure update and
 	 *  metadata -CRC/TTVN-recalculation) and they have to be executed
 	 *  atomically in order to avoid another thread to read the
 	 *  table/metadata between those.
@@ -748,7 +748,7 @@ struct batadv_neigh_ifinfo {
  * struct batadv_bcast_duplist_entry - structure for LAN broadcast suppression
  */
 struct batadv_bcast_duplist_entry {
-	/** @orig: mac address of orig node orginating the broadcast */
+	/** @orig: mac address of orig node originating the broadcast */
 	u8 orig[ETH_ALEN];
 
 	/** @crc: crc32 checksum of broadcast payload */
@@ -1010,7 +1010,7 @@ struct batadv_priv_tt {
 
 	/**
 	 * @commit_lock: prevents from executing a local TT commit while reading
-	 *  the local table. The local TT commit is made up by two operations
+	 *  the local table. The local TT commit is made up of two operations
 	 *  (data structure update and metadata -CRC/TTVN- recalculation) and
 	 *  they have to be executed atomically in order to avoid another thread
 	 *  to read the table/metadata between those.
@@ -1024,7 +1024,7 @@ struct batadv_priv_tt {
 #ifdef CONFIG_BATMAN_ADV_BLA
 
 /**
- * struct batadv_priv_bla - per mesh interface bridge loope avoidance data
+ * struct batadv_priv_bla - per mesh interface bridge loop avoidance data
  */
 struct batadv_priv_bla {
 	/** @num_requests: number of bla requests in flight */
@@ -1718,7 +1718,7 @@ struct batadv_priv {
 	spinlock_t softif_vlan_list_lock;
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-	/** @bla: bridge loope avoidance data */
+	/** @bla: bridge loop avoidance data */
 	struct batadv_priv_bla bla;
 #endif
 

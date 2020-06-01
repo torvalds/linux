@@ -73,7 +73,7 @@ lower value. This will make the mesh more responsive to topology changes, but
 will also increase the overhead.
 
 Information about the current state can be accessed via the batadv generic
-netlink family. batctl provides human readable version via its debug tables
+netlink family. batctl provides a human readable version via its debug tables
 subcommands.
 
 
@@ -115,8 +115,8 @@ are prefixed with "batman-adv:" So to see just these messages try::
   $ dmesg | grep batman-adv
 
 When investigating problems with your mesh network, it is sometimes necessary to
-see more detail debug messages. This must be enabled when compiling the
-batman-adv module. When building batman-adv as part of kernel, use "make
+see more detailed debug messages. This must be enabled when compiling the
+batman-adv module. When building batman-adv as part of the kernel, use "make
 menuconfig" and enable the option ``B.A.T.M.A.N. debugging``
 (``CONFIG_BATMAN_ADV_DEBUG=y``).
 

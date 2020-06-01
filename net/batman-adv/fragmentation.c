@@ -102,8 +102,8 @@ static int batadv_frag_size_limit(void)
  *
  * Caller must hold chain->lock.
  *
- * Return: true if chain is empty and caller can just insert the new fragment
- * without searching for the right position.
+ * Return: true if chain is empty and the caller can just insert the new
+ * fragment without searching for the right position.
  */
 static bool batadv_frag_init_chain(struct batadv_frag_table_entry *chain,
 				   u16 seqno)
@@ -306,7 +306,7 @@ free:
  * set *skb to merged packet; 2) Packet is buffered: Return true and set *skb
  * to NULL; 3) Error: Return false and free skb.
  *
- * Return: true when packet is merged or buffered, false when skb is not not
+ * Return: true when the packet is merged or buffered, false when skb is not not
  * used.
  */
 bool batadv_frag_skb_buffer(struct sk_buff **skb,

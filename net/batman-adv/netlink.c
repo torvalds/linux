@@ -640,7 +640,7 @@ batadv_netlink_tp_meter_put(struct sk_buff *msg, u32 cookie)
  * @bat_priv: the bat priv with all the soft interface information
  * @dst: destination of tp_meter session
  * @result: reason for tp meter session stop
- * @test_time: total time ot the tp_meter session
+ * @test_time: total time of the tp_meter session
  * @total_bytes: bytes acked to the receiver
  * @cookie: cookie of tp_meter session
  *

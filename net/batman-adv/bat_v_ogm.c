@@ -47,9 +47,9 @@
  * @bat_priv: the bat priv with all the soft interface information
  * @addr: the address of the originator
  *
- * Return: the orig_node corresponding to the specified address. If such object
- * does not exist it is allocated here. In case of allocation failure returns
- * NULL.
+ * Return: the orig_node corresponding to the specified address. If such an
+ * object does not exist, it is allocated here. In case of allocation failure
+ * returns NULL.
  */
 struct batadv_orig_node *batadv_v_ogm_orig_get(struct batadv_priv *bat_priv,
 					       const u8 *addr)
@@ -172,7 +172,7 @@ static bool batadv_v_ogm_queue_left(struct sk_buff *skb,
  * batadv_v_ogm_aggr_list_free - free all elements in an aggregation queue
  * @hard_iface: the interface holding the aggregation queue
  *
- * Empties the OGMv2 aggregation queue and frees all the skbs it contained.
+ * Empties the OGMv2 aggregation queue and frees all the skbs it contains.
  *
  * Caller needs to hold the hard_iface->bat_v.aggr_list.lock.
  */
@@ -378,7 +378,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
  * batadv_v_ogm_aggr_work() - OGM queue periodic task per interface
  * @work: work queue item
  *
- * Emits aggregated OGM message in regular intervals.
+ * Emits aggregated OGM messages in regular intervals.
  */
 void batadv_v_ogm_aggr_work(struct work_struct *work)
 {
@@ -399,7 +399,7 @@ void batadv_v_ogm_aggr_work(struct work_struct *work)
  * batadv_v_ogm_iface_enable() - prepare an interface for B.A.T.M.A.N. V
  * @hard_iface: the interface to prepare
  *
- * Takes care of scheduling own OGM sending routine for this interface.
+ * Takes care of scheduling its own OGM sending routine for this interface.
  *
  * Return: 0 on success or a negative error code otherwise
  */
@@ -847,7 +847,7 @@ batadv_v_ogm_aggr_packet(int buff_pos, int packet_len,
  * batadv_v_ogm_process() - process an incoming batman v OGM
  * @skb: the skb containing the OGM
  * @ogm_offset: offset to the OGM which should be processed (for aggregates)
- * @if_incoming: the interface where this packet was receved
+ * @if_incoming: the interface where this packet was received
  */
 static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				 struct batadv_hard_iface *if_incoming)

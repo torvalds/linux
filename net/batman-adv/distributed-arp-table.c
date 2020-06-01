@@ -666,7 +666,7 @@ batadv_dat_select_candidates(struct batadv_priv *bat_priv, __be32 ip_dst,
  * @vid: VLAN identifier
  * @packet_subtype: unicast4addr packet subtype to use
  *
- * This function copies the skb with pskb_copy() and is sent as unicast packet
+ * This function copies the skb with pskb_copy() and is sent as a unicast packet
  * to each of the selected candidates.
  *
  * Return: true if the packet is sent to at least one candidate, false
