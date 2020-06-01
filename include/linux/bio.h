@@ -417,6 +417,7 @@ static inline void bio_io_error(struct bio *bio)
 
 static inline void bio_wouldblock_error(struct bio *bio)
 {
+	bio_set_flag(bio, BIO_QUIET);
 	bio->bi_status = BLK_STS_AGAIN;
 	bio_endio(bio);
 }
