@@ -139,7 +139,6 @@ struct nfsd_net {
 	 * Duplicate reply cache
 	 */
 	struct nfsd_drc_bucket   *drc_hashtbl;
-	struct kmem_cache        *drc_slab;
 
 	/* max number of entries allowed in the cache */
 	unsigned int             max_drc_entries;
