@@ -243,8 +243,8 @@ void __init acpi_hest_init(void)
 	} else if (ACPI_FAILURE(status)) {
 		const char *msg = acpi_format_exception(status);
 		pr_err(HEST_PFX "Failed to get table, %s\n", msg);
-		rc = -EINVAL;
-		goto err;
+		hest_disable = HEST_DISABLED;
+		return;
 	}
 
 	rc = apei_hest_parse(hest_parse_cmc, NULL);
@@ -266,4 +266,5 @@ void __init acpi_hest_init(void)
 	return;
 err:
 	hest_disable = HEST_DISABLED;
+	acpi_put_table((struct acpi_table_header *)hest_tab);
 }
