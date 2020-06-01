@@ -17,6 +17,7 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_TRACING]			= "tracing",
 	[BPF_LINK_TYPE_CGROUP]			= "cgroup",
 	[BPF_LINK_TYPE_ITER]			= "iter",
+	[BPF_LINK_TYPE_NETNS]			= "netns",
 };
 
 static int link_parse_fd(int *argc, char ***argv)
@@ -62,6 +63,15 @@ show_link_header_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_uint_field(json_wtr, "prog_id", info->prog_id);
 }
 
+static void show_link_attach_type_json(__u32 attach_type, json_writer_t *wtr)
+{
+	if (attach_type < ARRAY_SIZE(attach_type_name))
+		jsonw_string_field(wtr, "attach_type",
+				   attach_type_name[attach_type]);
+	else
+		jsonw_uint_field(wtr, "attach_type", attach_type);
+}
+
 static int get_prog_info(int prog_id, struct bpf_prog_info *info)
 {
 	__u32 len = sizeof(*info);
@@ -105,22 +115,18 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 			jsonw_uint_field(json_wtr, "prog_type",
 					 prog_info.type);
 
-		if (info->tracing.attach_type < ARRAY_SIZE(attach_type_name))
-			jsonw_string_field(json_wtr, "attach_type",
-			       attach_type_name[info->tracing.attach_type]);
-		else
-			jsonw_uint_field(json_wtr, "attach_type",
-					 info->tracing.attach_type);
+		show_link_attach_type_json(info->tracing.attach_type,
+					   json_wtr);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		jsonw_lluint_field(json_wtr, "cgroup_id",
 				   info->cgroup.cgroup_id);
-		if (info->cgroup.attach_type < ARRAY_SIZE(attach_type_name))
-			jsonw_string_field(json_wtr, "attach_type",
-			       attach_type_name[info->cgroup.attach_type]);
-		else
-			jsonw_uint_field(json_wtr, "attach_type",
-					 info->cgroup.attach_type);
+		show_link_attach_type_json(info->cgroup.attach_type, json_wtr);
+		break;
+	case BPF_LINK_TYPE_NETNS:
+		jsonw_uint_field(json_wtr, "netns_ino",
+				 info->netns.netns_ino);
+		show_link_attach_type_json(info->netns.attach_type, json_wtr);
 		break;
 	default:
 		break;
@@ -153,6 +159,14 @@ static void show_link_header_plain(struct bpf_link_info *info)
 	printf("prog %u  ", info->prog_id);
 }
 
+static void show_link_attach_type_plain(__u32 attach_type)
+{
+	if (attach_type < ARRAY_SIZE(attach_type_name))
+		printf("attach_type %s  ", attach_type_name[attach_type]);
+	else
+		printf("attach_type %u  ", attach_type);
+}
+
 static int show_link_close_plain(int fd, struct bpf_link_info *info)
 {
 	struct bpf_prog_info prog_info;
@@ -176,19 +190,15 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 		else
 			printf("\n\tprog_type %u  ", prog_info.type);
 
-		if (info->tracing.attach_type < ARRAY_SIZE(attach_type_name))
-			printf("attach_type %s  ",
-			       attach_type_name[info->tracing.attach_type]);
-		else
-			printf("attach_type %u  ", info->tracing.attach_type);
+		show_link_attach_type_plain(info->tracing.attach_type);
 		break;
 	case BPF_LINK_TYPE_CGROUP:
 		printf("\n\tcgroup_id %zu  ", (size_t)info->cgroup.cgroup_id);
-		if (info->cgroup.attach_type < ARRAY_SIZE(attach_type_name))
-			printf("attach_type %s  ",
-			       attach_type_name[info->cgroup.attach_type]);
-		else
-			printf("attach_type %u  ", info->cgroup.attach_type);
+		show_link_attach_type_plain(info->cgroup.attach_type);
+		break;
+	case BPF_LINK_TYPE_NETNS:
+		printf("\n\tnetns_ino %u  ", info->netns.netns_ino);
+		show_link_attach_type_plain(info->netns.attach_type);
 		break;
 	default:
 		break;
@@ -312,7 +322,6 @@ static int do_help(int argc, char **argv)
 		"       %1$s %2$s help\n"
 		"\n"
 		"       " HELP_SPEC_LINK "\n"
-		"       " HELP_SPEC_PROGRAM "\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2]);

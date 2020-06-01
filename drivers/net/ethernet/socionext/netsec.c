@@ -867,7 +867,7 @@ static u32 netsec_xdp_queue_one(struct netsec_priv *priv,
 static u32 netsec_xdp_xmit_back(struct netsec_priv *priv, struct xdp_buff *xdp)
 {
 	struct netsec_desc_ring *tx_ring = &priv->desc_ring[NETSEC_RING_TX];
-	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 	u32 ret;
 
 	if (unlikely(!xdpf))

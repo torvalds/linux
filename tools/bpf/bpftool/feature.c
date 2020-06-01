@@ -758,11 +758,29 @@ static void section_misc(const char *define_prefix, __u32 ifindex)
 	print_end_section();
 }
 
+#ifdef USE_LIBCAP
+#define capability(c) { c, false, #c }
+#define capability_msg(a, i) a[i].set ? "" : a[i].name, a[i].set ? "" : ", "
+#endif
+
 static int handle_perms(void)
 {
 #ifdef USE_LIBCAP
-	cap_value_t cap_list[1] = { CAP_SYS_ADMIN };
-	bool has_sys_admin_cap = false;
+	struct {
+		cap_value_t cap;
+		bool set;
+		char name[14];	/* strlen("CAP_SYS_ADMIN") */
+	} bpf_caps[] = {
+		capability(CAP_SYS_ADMIN),
+#ifdef CAP_BPF
+		capability(CAP_BPF),
+		capability(CAP_NET_ADMIN),
+		capability(CAP_PERFMON),
+#endif
+	};
+	cap_value_t cap_list[ARRAY_SIZE(bpf_caps)];
+	unsigned int i, nb_bpf_caps = 0;
+	bool cap_sys_admin_only = true;
 	cap_flag_value_t val;
 	int res = -1;
 	cap_t caps;
@@ -774,35 +792,64 @@ static int handle_perms(void)
 		return -1;
 	}
 
-	if (cap_get_flag(caps, CAP_SYS_ADMIN, CAP_EFFECTIVE, &val)) {
-		p_err("bug: failed to retrieve CAP_SYS_ADMIN status");
-		goto exit_free;
-	}
-	if (val == CAP_SET)
-		has_sys_admin_cap = true;
+#ifdef CAP_BPF
+	if (CAP_IS_SUPPORTED(CAP_BPF))
+		cap_sys_admin_only = false;
+#endif
 
-	if (!run_as_unprivileged && !has_sys_admin_cap) {
-		p_err("full feature probing requires CAP_SYS_ADMIN, run as root or use 'unprivileged'");
-		goto exit_free;
+	for (i = 0; i < ARRAY_SIZE(bpf_caps); i++) {
+		const char *cap_name = bpf_caps[i].name;
+		cap_value_t cap = bpf_caps[i].cap;
+
+		if (cap_get_flag(caps, cap, CAP_EFFECTIVE, &val)) {
+			p_err("bug: failed to retrieve %s status: %s", cap_name,
+			      strerror(errno));
+			goto exit_free;
+		}
+
+		if (val == CAP_SET) {
+			bpf_caps[i].set = true;
+			cap_list[nb_bpf_caps++] = cap;
+		}
+
+		if (cap_sys_admin_only)
+			/* System does not know about CAP_BPF, meaning that
+			 * CAP_SYS_ADMIN is the only capability required. We
+			 * just checked it, break.
+			 */
+			break;
 	}
 
-	if ((run_as_unprivileged && !has_sys_admin_cap) ||
-	    (!run_as_unprivileged && has_sys_admin_cap)) {
+	if ((run_as_unprivileged && !nb_bpf_caps) ||
+	    (!run_as_unprivileged && nb_bpf_caps == ARRAY_SIZE(bpf_caps)) ||
+	    (!run_as_unprivileged && cap_sys_admin_only && nb_bpf_caps)) {
 		/* We are all good, exit now */
 		res = 0;
 		goto exit_free;
 	}
 
-	/* if (run_as_unprivileged && has_sys_admin_cap), drop CAP_SYS_ADMIN */
+	if (!run_as_unprivileged) {
+		if (cap_sys_admin_only)
+			p_err("missing %s, required for full feature probing; run as root or use 'unprivileged'",
+			      bpf_caps[0].name);
+		else
+			p_err("missing %s%s%s%s%s%s%s%srequired for full feature probing; run as root or use 'unprivileged'",
+			      capability_msg(bpf_caps, 0),
+			      capability_msg(bpf_caps, 1),
+			      capability_msg(bpf_caps, 2),
+			      capability_msg(bpf_caps, 3));
+		goto exit_free;
+	}
 
-	if (cap_set_flag(caps, CAP_EFFECTIVE, ARRAY_SIZE(cap_list), cap_list,
+	/* if (run_as_unprivileged && nb_bpf_caps > 0), drop capabilities. */
+	if (cap_set_flag(caps, CAP_EFFECTIVE, nb_bpf_caps, cap_list,
 			 CAP_CLEAR)) {
-		p_err("bug: failed to clear CAP_SYS_ADMIN from capabilities");
+		p_err("bug: failed to clear capabilities: %s", strerror(errno));
 		goto exit_free;
 	}
 
 	if (cap_set_proc(caps)) {
-		p_err("failed to drop CAP_SYS_ADMIN: %s", strerror(errno));
+		p_err("failed to drop capabilities: %s", strerror(errno));
 		goto exit_free;
 	}
 
@@ -817,7 +864,7 @@ exit_free:
 
 	return res;
 #else
-	/* Detection assumes user has sufficient privileges (CAP_SYS_ADMIN).
+	/* Detection assumes user has specific privileges.
 	 * We do not use libpcap so let's approximate, and restrict usage to
 	 * root user only.
 	 */
@@ -901,7 +948,7 @@ static int do_probe(int argc, char **argv)
 		}
 	}
 
-	/* Full feature detection requires CAP_SYS_ADMIN privilege.
+	/* Full feature detection requires specific privileges.
 	 * Let's approximate, and warn if user is not root.
 	 */
 	if (handle_perms())
@@ -937,12 +984,12 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
 		"",
-		bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2]);
 
 	return 0;
 }

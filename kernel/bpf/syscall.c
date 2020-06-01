@@ -26,6 +26,8 @@
 #include <linux/audit.h>
 #include <uapi/linux/btf.h>
 #include <linux/bpf_lsm.h>
+#include <linux/poll.h>
+#include <linux/bpf-netns.h>
 
 #define IS_FD_ARRAY(map) ((map)->map_type == BPF_MAP_TYPE_PERF_EVENT_ARRAY || \
 			  (map)->map_type == BPF_MAP_TYPE_CGROUP_ARRAY || \
@@ -662,6 +664,16 @@ out:
 	return err;
 }
 
+static __poll_t bpf_map_poll(struct file *filp, struct poll_table_struct *pts)
+{
+	struct bpf_map *map = filp->private_data;
+
+	if (map->ops->map_poll)
+		return map->ops->map_poll(map, filp, pts);
+
+	return EPOLLERR;
+}
+
 const struct file_operations bpf_map_fops = {
 #ifdef CONFIG_PROC_FS
 	.show_fdinfo	= bpf_map_show_fdinfo,
@@ -670,6 +682,7 @@ const struct file_operations bpf_map_fops = {
 	.read		= bpf_dummy_read,
 	.write		= bpf_dummy_write,
 	.mmap		= bpf_map_mmap,
+	.poll		= bpf_map_poll,
 };
 
 int bpf_map_new_fd(struct bpf_map *map, int flags)
@@ -1387,7 +1400,7 @@ int generic_map_lookup_batch(struct bpf_map *map,
 
 	buf = kmalloc(map->key_size + value_size, GFP_USER | __GFP_NOWARN);
 	if (!buf) {
-		kvfree(buf_prevkey);
+		kfree(buf_prevkey);
 		return -ENOMEM;
 	}
 
@@ -1472,7 +1485,8 @@ static int map_lookup_and_delete_elem(union bpf_attr *attr)
 	map = __bpf_map_get(f);
 	if (IS_ERR(map))
 		return PTR_ERR(map);
-	if (!(map_get_sys_perms(map, f) & FMODE_CAN_WRITE)) {
+	if (!(map_get_sys_perms(map, f) & FMODE_CAN_READ) ||
+	    !(map_get_sys_perms(map, f) & FMODE_CAN_WRITE)) {
 		err = -EPERM;
 		goto err_put;
 	}
@@ -2855,7 +2869,7 @@ static int bpf_prog_attach(const union bpf_attr *attr)
 		ret = lirc_prog_attach(attr, prog);
 		break;
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
-		ret = skb_flow_dissector_bpf_prog_attach(attr, prog);
+		ret = netns_bpf_prog_attach(attr, prog);
 		break;
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SKB:
@@ -2895,7 +2909,7 @@ static int bpf_prog_detach(const union bpf_attr *attr)
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-		return skb_flow_dissector_bpf_prog_detach(attr);
+		return netns_bpf_prog_detach(attr);
 	case BPF_PROG_TYPE_CGROUP_DEVICE:
 	case BPF_PROG_TYPE_CGROUP_SKB:
 	case BPF_PROG_TYPE_CGROUP_SOCK:
@@ -2948,7 +2962,7 @@ static int bpf_prog_query(const union bpf_attr *attr,
 	case BPF_LIRC_MODE2:
 		return lirc_prog_query(attr, uattr);
 	case BPF_FLOW_DISSECTOR:
-		return skb_flow_dissector_prog_query(attr, uattr);
+		return netns_bpf_prog_query(attr, uattr);
 	default:
 		return -EINVAL;
 	}
@@ -3873,6 +3887,9 @@ static int link_create(union bpf_attr *attr)
 	case BPF_PROG_TYPE_TRACING:
 		ret = tracing_bpf_link_attach(attr, prog);
 		break;
+	case BPF_PROG_TYPE_FLOW_DISSECTOR:
+		ret = netns_bpf_link_create(attr, prog);
+		break;
 	default:
 		ret = -EINVAL;
 	}
@@ -3924,7 +3941,7 @@ static int link_update(union bpf_attr *attr)
 	if (link->ops->update_prog)
 		ret = link->ops->update_prog(link, new_prog, old_prog);
 	else
-		ret = EINVAL;
+		ret = -EINVAL;
 
 out_put_progs:
 	if (old_prog)

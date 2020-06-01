@@ -64,7 +64,7 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 	struct xdp_frame *xdpf;
 	dma_addr_t dma_addr;
 
-	xdpf = convert_to_xdp_frame(xdp);
+	xdpf = xdp_convert_buff_to_frame(xdp);
 	if (unlikely(!xdpf))
 		return false;
 
@@ -97,10 +97,10 @@ mlx5e_xmit_xdp_buff(struct mlx5e_xdpsq *sq, struct mlx5e_rq *rq,
 		xdpi.frame.xdpf     = xdpf;
 		xdpi.frame.dma_addr = dma_addr;
 	} else {
-		/* Driver assumes that convert_to_xdp_frame returns an xdp_frame
-		 * that points to the same memory region as the original
-		 * xdp_buff. It allows to map the memory only once and to use
-		 * the DMA_BIDIRECTIONAL mode.
+		/* Driver assumes that xdp_convert_buff_to_frame returns
+		 * an xdp_frame that points to the same memory region as
+		 * the original xdp_buff. It allows to map the memory only
+		 * once and to use the DMA_BIDIRECTIONAL mode.
 		 */
 
 		xdpi.mode = MLX5E_XDP_XMIT_MODE_PAGE;

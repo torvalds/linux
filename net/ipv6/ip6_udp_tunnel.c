@@ -30,7 +30,7 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 			goto error;
 	}
 	if (cfg->bind_ifindex) {
-		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex);
+		err = sock_bindtoindex(sock->sk, cfg->bind_ifindex, true);
 		if (err < 0)
 			goto error;
 	}
