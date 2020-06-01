@@ -281,7 +281,7 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 	struct ispsd_in_fmt *in_fmt;
 	struct ispsd_out_fmt *out_fmt;
 	struct v4l2_mbus_framefmt *in_frm;
-	struct v4l2_rect *out_crop, *in_crop;
+	struct v4l2_rect *in_crop;
 	struct rkisp1_sensor_info *sensor;
 	void __iomem *base = dev->base_addr;
 	u32 isp_ctrl = 0;
@@ -294,7 +294,6 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 	in_frm = &dev->isp_sdev.in_frm;
 	in_fmt = &dev->isp_sdev.in_fmt;
 	out_fmt = &dev->isp_sdev.out_fmt;
-	out_crop = &dev->isp_sdev.out_crop;
 	in_crop = &dev->isp_sdev.in_crop;
 
 	if (in_fmt->fmt_type == FMT_BAYER) {
@@ -335,7 +334,6 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 				isp_ctrl = CIF_ISP_CTRL_ISP_MODE_ITU656;
 			else
 				isp_ctrl = CIF_ISP_CTRL_ISP_MODE_ITU601;
-
 		}
 
 		irq_mask |= CIF_ISP_DATA_LOSS;
@@ -1132,17 +1130,21 @@ static int rkisp1_isp_sd_get_fmt(struct v4l2_subdev *sd,
 				 struct v4l2_subdev_pad_config *cfg,
 				 struct v4l2_subdev_format *fmt)
 {
-	struct v4l2_mbus_framefmt *mf = &fmt->format;
 	struct rkisp1_isp_subdev *isp_sd = sd_to_isp_sd(sd);
+	struct v4l2_mbus_framefmt *mf;
 
-	if ((fmt->pad != RKISP1_ISP_PAD_SINK) &&
-	    (fmt->pad != RKISP1_ISP_PAD_SOURCE_PATH))
-		return -EINVAL;
+	if (!fmt)
+		goto err;
 
+	if (fmt->pad != RKISP1_ISP_PAD_SINK &&
+	    fmt->pad != RKISP1_ISP_PAD_SOURCE_PATH)
+		goto err;
+
+	mf = &fmt->format;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
+		if (!cfg)
+			goto err;
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-		fmt->format = *mf;
-		return 0;
 	}
 
 	if (fmt->pad == RKISP1_ISP_PAD_SINK) {
@@ -1158,6 +1160,8 @@ static int rkisp1_isp_sd_get_fmt(struct v4l2_subdev *sd,
 	mf->field = V4L2_FIELD_NONE;
 
 	return 0;
+err:
+	return -EINVAL;
 }
 
 static void rkisp1_isp_sd_try_fmt(struct v4l2_subdev *sd,
@@ -1224,20 +1228,22 @@ static int rkisp1_isp_sd_set_fmt(struct v4l2_subdev *sd,
 {
 	struct rkisp1_device *isp_dev = sd_to_isp_dev(sd);
 	struct rkisp1_isp_subdev *isp_sd = &isp_dev->isp_sdev;
-	struct v4l2_mbus_framefmt *mf = &fmt->format;
+	struct v4l2_mbus_framefmt *mf;
 
-	if ((fmt->pad != RKISP1_ISP_PAD_SINK) &&
-	    (fmt->pad != RKISP1_ISP_PAD_SOURCE_PATH))
-		return -EINVAL;
+	if (!fmt)
+		goto err;
 
+	if (fmt->pad != RKISP1_ISP_PAD_SINK &&
+	    fmt->pad != RKISP1_ISP_PAD_SOURCE_PATH)
+		goto err;
+
+	mf = &fmt->format;
 	rkisp1_isp_sd_try_fmt(sd, fmt->pad, mf);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_mbus_framefmt *try_mf;
-
+		if (!cfg)
+			goto err;
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
-		*try_mf = *mf;
-		return 0;
 	}
 
 	if (fmt->pad == RKISP1_ISP_PAD_SINK) {
@@ -1260,6 +1266,8 @@ static int rkisp1_isp_sd_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	return 0;
+err:
+	return -EINVAL;
 }
 
 static void rkisp1_isp_sd_try_crop(struct v4l2_subdev *sd,
@@ -1302,41 +1310,46 @@ static int rkisp1_isp_sd_get_selection(struct v4l2_subdev *sd,
 				       struct v4l2_subdev_selection *sel)
 {
 	struct rkisp1_isp_subdev *isp_sd = sd_to_isp_sd(sd);
+	struct v4l2_rect *crop;
+
+	if (!sel)
+		goto err;
 
 	if (sel->pad != RKISP1_ISP_PAD_SOURCE_PATH &&
 	    sel->pad != RKISP1_ISP_PAD_SINK)
-		return -EINVAL;
+		goto err;
 
+	crop = &sel->r;
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_rect *try_sel;
-
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-		sel->r = *try_sel;
-		return 0;
+		if (!cfg)
+			goto err;
+		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
 	}
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 		if (sel->pad == RKISP1_ISP_PAD_SINK) {
-			sel->r.height = isp_sd->in_frm.height;
-			sel->r.width = isp_sd->in_frm.width;
-			sel->r.left = 0;
-			sel->r.top = 0;
+			crop->height = isp_sd->in_frm.height;
+			crop->width = isp_sd->in_frm.width;
+			crop->left = 0;
+			crop->top = 0;
 		} else {
-			sel->r = isp_sd->in_crop;
+			*crop = isp_sd->in_crop;
 		}
 		break;
 	case V4L2_SEL_TGT_CROP:
 		if (sel->pad == RKISP1_ISP_PAD_SINK)
-			sel->r = isp_sd->in_crop;
+			*crop = isp_sd->in_crop;
 		else
-			sel->r = isp_sd->out_crop;
+			*crop = isp_sd->out_crop;
 		break;
 	default:
-		return -EINVAL;
+		goto err;
 	}
 
 	return 0;
+err:
+	return -EINVAL;
 }
 
 static int rkisp1_isp_sd_set_selection(struct v4l2_subdev *sd,
@@ -1345,32 +1358,37 @@ static int rkisp1_isp_sd_set_selection(struct v4l2_subdev *sd,
 {
 	struct rkisp1_isp_subdev *isp_sd = sd_to_isp_sd(sd);
 	struct rkisp1_device *dev = sd_to_isp_dev(sd);
+	struct v4l2_rect *crop;
+
+	if (!sel)
+		goto err;
 
 	if (sel->pad != RKISP1_ISP_PAD_SOURCE_PATH &&
 	    sel->pad != RKISP1_ISP_PAD_SINK)
-		return -EINVAL;
+		goto err;
 	if (sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
+		goto err;
 
 	v4l2_dbg(1, rkisp1_debug, &dev->v4l2_dev,
 		 "%s: pad: %d sel(%d,%d)/%dx%d\n", __func__, sel->pad,
 		 sel->r.left, sel->r.top, sel->r.width, sel->r.height);
 	rkisp1_isp_sd_try_crop(sd, cfg, sel);
 
+	crop = &sel->r;
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		struct v4l2_rect *try_sel;
-
-		try_sel = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-		*try_sel = sel->r;
-		return 0;
+		if (!cfg)
+			goto err;
+		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
 	}
 
 	if (sel->pad == RKISP1_ISP_PAD_SINK)
-		isp_sd->in_crop = sel->r;
+		isp_sd->in_crop = *crop;
 	else
-		isp_sd->out_crop = sel->r;
+		isp_sd->out_crop = *crop;
 
 	return 0;
+err:
+	goto err;
 }
 
 static void rkisp1_isp_read_add_fifo_data(struct rkisp1_device *dev)
@@ -1472,7 +1490,13 @@ static int rkisp1_subdev_link_setup(struct media_entity *entity,
 				    u32 flags)
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
-	struct rkisp1_device *dev = sd_to_isp_dev(sd);
+	struct rkisp1_device *dev;
+
+	if (!sd)
+		return -ENODEV;
+	dev = sd_to_isp_dev(sd);
+	if (!dev)
+		return -ENODEV;
 
 	if (!strcmp(remote->entity->name, DMA_VDEV_NAME)) {
 		if (flags & MEDIA_LNK_FL_ENABLED)

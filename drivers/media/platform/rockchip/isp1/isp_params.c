@@ -2566,10 +2566,6 @@ static int
 rkisp1_params_init_vb2_queue(struct vb2_queue *q,
 			     struct rkisp1_isp_params_vdev *params_vdev)
 {
-	struct rkisp1_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = V4L2_BUF_TYPE_META_OUTPUT;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = params_vdev;

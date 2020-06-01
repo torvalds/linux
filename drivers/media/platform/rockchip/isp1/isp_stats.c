@@ -200,10 +200,6 @@ static struct vb2_ops rkisp1_stats_vb2_ops = {
 static int rkisp1_stats_init_vb2_queue(struct vb2_queue *q,
 				       struct rkisp1_isp_stats_vdev *stats_vdev)
 {
-	struct rkisp1_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = V4L2_BUF_TYPE_META_CAPTURE;
 	q->io_modes = VB2_MMAP | VB2_USERPTR;
 	q->drv_priv = stats_vdev;

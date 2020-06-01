@@ -383,10 +383,6 @@ static int rkisp_init_vb2_queue(struct vb2_queue *q,
 				struct rkisp1_stream *stream,
 				enum v4l2_buf_type buf_type)
 {
-	struct rkisp1_vdev_node *node;
-
-	node = queue_to_node(q);
-
 	q->type = buf_type;
 	q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_USERPTR;
 	q->drv_priv = stream;
