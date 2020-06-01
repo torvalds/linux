@@ -353,6 +353,15 @@ static inline int user_regset_copyin_ignore(unsigned int *pos,
 	return 0;
 }
 
+extern int regset_get(struct task_struct *target,
+		      const struct user_regset *regset,
+		      unsigned int size, void *data);
+
+extern int regset_get_alloc(struct task_struct *target,
+			    const struct user_regset *regset,
+			    unsigned int size,
+			    void **data);
+
 /**
  * copy_regset_to_user - fetch a thread's user_regset data into user memory
  * @target:	thread to be examined
