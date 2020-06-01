@@ -3055,6 +3055,7 @@ static int init_skl_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(_MMIO(0x72380), D_SKL_PLUS);
 	MMIO_D(_MMIO(0x7239c), D_SKL_PLUS);
 	MMIO_D(_MMIO(_PLANE_SURF_3_A), D_SKL_PLUS);
+	MMIO_D(_MMIO(_PLANE_SURF_3_B), D_SKL_PLUS);
 
 	MMIO_D(CSR_SSP_BASE, D_SKL_PLUS);
 	MMIO_D(CSR_HTP_SKL, D_SKL_PLUS);
