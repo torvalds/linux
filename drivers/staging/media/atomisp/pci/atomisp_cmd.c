@@ -243,8 +243,12 @@ int atomisp_freq_scaling(struct atomisp_device *isp,
 	}
 
 	fps = atomisp_get_sensor_fps(asd);
-	if (fps == 0)
-		return -EINVAL;
+	if (fps == 0) {
+		dev_info(isp->dev,
+			 "Sensor didn't report FPS. Using DFS max mode.\n");
+		new_freq = dfs->highest_freq;
+		goto done;
+	}
 
 	curr_rules.width = asd->fmt[asd->capture_pad].fmt.width;
 	curr_rules.height = asd->fmt[asd->capture_pad].fmt.height;
