@@ -79,6 +79,10 @@ src := $(obj)
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
 include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
              $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)
+
+# modpost option for external modules
+MODPOST += -e
+
 endif
 
 # modpost options for modules (both in-kernel and external)
