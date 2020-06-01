@@ -429,7 +429,6 @@ int sdei_event_enable(u32 event_num)
 
 	return err;
 }
-EXPORT_SYMBOL(sdei_event_enable);
 
 static int sdei_api_event_disable(u32 event_num)
 {
@@ -471,7 +470,6 @@ int sdei_event_disable(u32 event_num)
 
 	return err;
 }
-EXPORT_SYMBOL(sdei_event_disable);
 
 static int sdei_api_event_unregister(u32 event_num)
 {
@@ -533,7 +531,6 @@ int sdei_event_unregister(u32 event_num)
 
 	return err;
 }
-EXPORT_SYMBOL(sdei_event_unregister);
 
 /*
  * unregister events, but don't destroy them as they are re-registered by
@@ -643,7 +640,6 @@ int sdei_event_register(u32 event_num, sdei_event_callback *cb, void *arg)
 
 	return err;
 }
-EXPORT_SYMBOL(sdei_event_register);
 
 static int sdei_reregister_event_llocked(struct sdei_event *event)
 {
@@ -1079,26 +1075,9 @@ static struct platform_driver sdei_driver = {
 	.probe		= sdei_probe,
 };
 
-static bool __init sdei_present_dt(void)
-{
-	struct device_node *np, *fw_np;
-
-	fw_np = of_find_node_by_name(NULL, "firmware");
-	if (!fw_np)
-		return false;
-
-	np = of_find_matching_node(fw_np, sdei_of_match);
-	if (!np)
-		return false;
-	of_node_put(np);
-
-	return true;
-}
-
 static bool __init sdei_present_acpi(void)
 {
 	acpi_status status;
-	struct platform_device *pdev;
 	struct acpi_table_header *sdei_table_header;
 
 	if (acpi_disabled)
@@ -1113,20 +1092,26 @@ static bool __init sdei_present_acpi(void)
 	if (ACPI_FAILURE(status))
 		return false;
 
-	pdev = platform_device_register_simple(sdei_driver.driver.name, 0, NULL,
-					       0);
-	if (IS_ERR(pdev))
-		return false;
+	acpi_put_table(sdei_table_header);
 
 	return true;
 }
 
 static int __init sdei_init(void)
 {
-	if (sdei_present_dt() || sdei_present_acpi())
-		platform_driver_register(&sdei_driver);
+	int ret = platform_driver_register(&sdei_driver);
 
-	return 0;
+	if (!ret && sdei_present_acpi()) {
+		struct platform_device *pdev;
+
+		pdev = platform_device_register_simple(sdei_driver.driver.name,
+						       0, NULL, 0);
+		if (IS_ERR(pdev))
+			pr_info("Failed to register ACPI:SDEI platform device %ld\n",
+				PTR_ERR(pdev));
+	}
+
+	return ret;
 }
 
 /*
@@ -1143,6 +1128,14 @@ int sdei_event_handler(struct pt_regs *regs,
 	mm_segment_t orig_addr_limit;
 	u32 event_num = arg->event_num;
 
+	/*
+	 * Save restore 'fs'.
+	 * The architecture's entry code save/restores 'fs' when taking an
+	 * exception from the kernel. This ensures addr_limit isn't inherited
+	 * if you interrupted something that allowed the uaccess routines to
+	 * access kernel memory.
+	 * Do the same here because this doesn't come via the same entry code.
+	*/
 	orig_addr_limit = get_fs();
 	set_fs(USER_DS);
 

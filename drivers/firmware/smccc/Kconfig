@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HAVE_ARM_SMCCC
+	bool
+	help
+	  Include support for the Secure Monitor Call (SMC) and Hypervisor
+	  Call (HVC) instructions on Armv7 and above architectures.
+
+config HAVE_ARM_SMCCC_DISCOVERY
+	bool
+	depends on ARM_PSCI_FW
+	default y
+	help
+	 SMCCC v1.0 lacked discoverability and hence PSCI v1.0 was updated
+	 to add SMCCC discovery mechanism though the PSCI firmware
+	 implementation of PSCI_FEATURES(SMCCC_VERSION) which returns
+	 success on firmware compliant to SMCCC v1.1 and above.

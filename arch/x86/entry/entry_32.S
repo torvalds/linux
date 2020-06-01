@@ -1536,7 +1536,6 @@ SYM_CODE_START(debug)
 	jmp	common_exception
 SYM_CODE_END(debug)
 
-#ifdef CONFIG_DOUBLEFAULT
 SYM_CODE_START(double_fault)
 1:
 	/*
@@ -1576,7 +1575,6 @@ SYM_CODE_START(double_fault)
 	hlt
 	jmp 1b
 SYM_CODE_END(double_fault)
-#endif
 
 /*
  * NMI is doubly nasty.  It can happen on the first instruction of

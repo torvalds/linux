@@ -95,19 +95,7 @@ static bool on_sdei_normal_stack(unsigned long sp, struct stack_info *info)
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_normal_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
-	if (!low)
-		return false;
-
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_SDEI_NORMAL;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_SDEI_NORMAL, info);
 }
 
 static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
@@ -115,19 +103,7 @@ static bool on_sdei_critical_stack(unsigned long sp, struct stack_info *info)
 	unsigned long low = (unsigned long)raw_cpu_read(sdei_stack_critical_ptr);
 	unsigned long high = low + SDEI_STACK_SIZE;
 
-	if (!low)
-		return false;
-
-	if (sp < low || sp >= high)
-		return false;
-
-	if (info) {
-		info->low = low;
-		info->high = high;
-		info->type = STACK_TYPE_SDEI_CRITICAL;
-	}
-
-	return true;
+	return on_stack(sp, low, high, STACK_TYPE_SDEI_CRITICAL, info);
 }
 
 bool _on_sdei_stack(unsigned long sp, struct stack_info *info)

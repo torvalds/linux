@@ -146,6 +146,11 @@ static const struct prot_bits pte_bits[] = {
 		.set	= "UXN",
 		.clear	= "   ",
 	}, {
+		.mask	= PTE_GP,
+		.val	= PTE_GP,
+		.set	= "GP",
+		.clear	= "  ",
+	}, {
 		.mask	= PTE_ATTRINDX_MASK,
 		.val	= PTE_ATTRINDX(MT_DEVICE_nGnRnE),
 		.set	= "DEVICE/nGnRnE",

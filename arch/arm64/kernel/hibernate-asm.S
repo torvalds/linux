@@ -65,7 +65,7 @@
  * x5: physical address of a  zero page that remains zero after resume
  */
 .pushsection    ".hibernate_exit.text", "ax"
-ENTRY(swsusp_arch_suspend_exit)
+SYM_CODE_START(swsusp_arch_suspend_exit)
 	/*
 	 * We execute from ttbr0, change ttbr1 to our copied linear map tables
 	 * with a break-before-make via the zero page
@@ -110,7 +110,7 @@ ENTRY(swsusp_arch_suspend_exit)
 	cbz	x24, 3f		/* Do we need to re-initialise EL2? */
 	hvc	#0
 3:	ret
-ENDPROC(swsusp_arch_suspend_exit)
+SYM_CODE_END(swsusp_arch_suspend_exit)
 
 /*
  * Restore the hyp stub.
@@ -119,15 +119,15 @@ ENDPROC(swsusp_arch_suspend_exit)
  *
  * x24: The physical address of __hyp_stub_vectors
  */
-el1_sync:
+SYM_CODE_START_LOCAL(el1_sync)
 	msr	vbar_el2, x24
 	eret
-ENDPROC(el1_sync)
+SYM_CODE_END(el1_sync)
 
 .macro invalid_vector	label
-\label:
+SYM_CODE_START_LOCAL(\label)
 	b \label
-ENDPROC(\label)
+SYM_CODE_END(\label)
 .endm
 
 	invalid_vector	el2_sync_invalid
@@ -141,7 +141,7 @@ ENDPROC(\label)
 
 /* el2 vectors - switch el2 here while we restore the memory image. */
 	.align 11
-ENTRY(hibernate_el2_vectors)
+SYM_CODE_START(hibernate_el2_vectors)
 	ventry	el2_sync_invalid		// Synchronous EL2t
 	ventry	el2_irq_invalid			// IRQ EL2t
 	ventry	el2_fiq_invalid			// FIQ EL2t
@@ -161,6 +161,6 @@ ENTRY(hibernate_el2_vectors)
 	ventry	el1_irq_invalid			// IRQ 32-bit EL1
 	ventry	el1_fiq_invalid			// FIQ 32-bit EL1
 	ventry	el1_error_invalid		// Error 32-bit EL1
-END(hibernate_el2_vectors)
+SYM_CODE_END(hibernate_el2_vectors)
 
 .popsection

@@ -26,7 +26,7 @@
  * control_code_page, a special page which has been set up to be preserved
  * during the copy operation.
  */
-ENTRY(arm64_relocate_new_kernel)
+SYM_CODE_START(arm64_relocate_new_kernel)
 
 	/* Setup the list loop variables. */
 	mov	x18, x2				/* x18 = dtb address */
@@ -111,7 +111,7 @@ ENTRY(arm64_relocate_new_kernel)
 	mov	x3, xzr
 	br	x17
 
-ENDPROC(arm64_relocate_new_kernel)
+SYM_CODE_END(arm64_relocate_new_kernel)
 
 .align 3	/* To keep the 64-bit values below naturally aligned. */
 
