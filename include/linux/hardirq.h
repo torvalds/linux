@@ -2,30 +2,27 @@
 #ifndef LINUX_HARDIRQ_H
 #define LINUX_HARDIRQ_H
 
+#include <linux/context_tracking_state.h>
 #include <linux/preempt.h>
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
 #include <linux/vtime.h>
 #include <asm/hardirq.h>
 
-
 extern void synchronize_irq(unsigned int irq);
 extern bool synchronize_hardirq(unsigned int irq);
 
-#if defined(CONFIG_TINY_RCU)
-
-static inline void rcu_nmi_enter(void)
-{
-}
-
-static inline void rcu_nmi_exit(void)
-{
-}
-
+#ifdef CONFIG_NO_HZ_FULL
+void __rcu_irq_enter_check_tick(void);
 #else
-extern void rcu_nmi_enter(void);
-extern void rcu_nmi_exit(void);
+static inline void __rcu_irq_enter_check_tick(void) { }
 #endif
+
+static __always_inline void rcu_irq_enter_check_tick(void)
+{
+	if (context_tracking_enabled())
+		__rcu_irq_enter_check_tick();
+}
 
 /*
  * It is safe to do non-atomic ops on ->hardirq_context,
@@ -63,6 +60,14 @@ extern void irq_exit(void);
 #ifndef arch_nmi_enter
 #define arch_nmi_enter()	do { } while (0)
 #define arch_nmi_exit()		do { } while (0)
+#endif
+
+#ifdef CONFIG_TINY_RCU
+static inline void rcu_nmi_enter(void) { }
+static inline void rcu_nmi_exit(void) { }
+#else
+extern void rcu_nmi_enter(void);
+extern void rcu_nmi_exit(void);
 #endif
 
 /*

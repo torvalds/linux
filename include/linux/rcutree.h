@@ -51,6 +51,12 @@ void rcu_irq_exit_preempt(void);
 void rcu_irq_enter_irqson(void);
 void rcu_irq_exit_irqson(void);
 
+#ifdef CONFIG_PROVE_RCU
+void rcu_irq_exit_check_preempt(void);
+#else
+static inline void rcu_irq_exit_check_preempt(void) { }
+#endif
+
 void exit_rcu(void);
 
 void rcu_scheduler_starting(void);
