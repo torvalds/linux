@@ -4,6 +4,9 @@
  *
  * Copyright (C) 2020 Facebook, Inc.
  */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
