@@ -125,8 +125,8 @@ static void mlxsw_sp_rx_acl_drop_listener(struct sk_buff *skb, u8 local_port,
 	consume_skb(skb);
 }
 
-static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
-					   void *trap_ctx)
+static int __mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+					  void *trap_ctx)
 {
 	struct devlink_port *in_devlink_port;
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -139,7 +139,7 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 
 	err = mlxsw_sp_rx_listener(mlxsw_sp, skb, local_port, mlxsw_sp_port);
 	if (err)
-		return;
+		return err;
 
 	devlink = priv_to_devlink(mlxsw_sp->core);
 	in_devlink_port = mlxsw_core_port_devlink_port_get(mlxsw_sp->core,
@@ -147,8 +147,69 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 	skb_push(skb, ETH_HLEN);
 	devlink_trap_report(devlink, skb, trap_ctx, in_devlink_port, NULL);
 	skb_pull(skb, ETH_HLEN);
-	skb->offload_fwd_mark = 1;
+
+	return 0;
+}
+
+static void mlxsw_sp_rx_no_mark_listener(struct sk_buff *skb, u8 local_port,
+					 void *trap_ctx)
+{
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
 	netif_receive_skb(skb);
+}
+
+static void mlxsw_sp_rx_mark_listener(struct sk_buff *skb, u8 local_port,
+				      void *trap_ctx)
+{
+	skb->offload_fwd_mark = 1;
+	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+}
+
+static void mlxsw_sp_rx_l3_mark_listener(struct sk_buff *skb, u8 local_port,
+					 void *trap_ctx)
+{
+	skb->offload_l3_fwd_mark = 1;
+	skb->offload_fwd_mark = 1;
+	mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+}
+
+static void mlxsw_sp_rx_ptp_listener(struct sk_buff *skb, u8 local_port,
+				     void *trap_ctx)
+{
+	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
+	/* The PTP handler expects skb->data to point to the start of the
+	 * Ethernet header.
+	 */
+	skb_push(skb, ETH_HLEN);
+	mlxsw_sp_ptp_receive(mlxsw_sp, skb, local_port);
+}
+
+static void mlxsw_sp_rx_sample_listener(struct sk_buff *skb, u8 local_port,
+					void *trap_ctx)
+{
+	struct mlxsw_sp *mlxsw_sp = devlink_trap_ctx_priv(trap_ctx);
+	int err;
+
+	err = __mlxsw_sp_rx_no_mark_listener(skb, local_port, trap_ctx);
+	if (err)
+		return;
+
+	/* The sample handler expects skb->data to point to the start of the
+	 * Ethernet header.
+	 */
+	skb_push(skb, ETH_HLEN);
+	mlxsw_sp_sample_receive(mlxsw_sp, skb, local_port);
 }
 
 #define MLXSW_SP_TRAP_DROP(_id, _group_id)				      \
@@ -172,6 +233,11 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
 			     MLXSW_SP_TRAP_METADATA)
 
+#define MLXSW_SP_TRAP_CONTROL(_id, _group_id, _action)			      \
+	DEVLINK_TRAP_GENERIC(CONTROL, _action, _id,			      \
+			     DEVLINK_TRAP_GROUP_GENERIC_ID_##_group_id,	      \
+			     MLXSW_SP_TRAP_METADATA)
+
 #define MLXSW_SP_RXL_DISCARD(_id, _group_id)				      \
 	MLXSW_RXL_DIS(mlxsw_sp_rx_drop_listener, DISCARD_##_id,		      \
 		      TRAP_EXCEPTION_TO_CPU, false, SP_##_group_id,	      \
@@ -183,8 +249,20 @@ static void mlxsw_sp_rx_exception_listener(struct sk_buff *skb, u8 local_port,
 		      SET_FW_DEFAULT, SP_##_dis_group_id)
 
 #define MLXSW_SP_RXL_EXCEPTION(_id, _group_id, _action)			      \
-	MLXSW_RXL(mlxsw_sp_rx_exception_listener, _id,			      \
+	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id,			      \
 		   _action, false, SP_##_group_id, SET_FW_DEFAULT)
+
+#define MLXSW_SP_RXL_NO_MARK(_id, _group_id, _action, _is_ctrl)		      \
+	MLXSW_RXL(mlxsw_sp_rx_no_mark_listener, _id, _action,		      \
+		  _is_ctrl, SP_##_group_id, DISCARD)
+
+#define MLXSW_SP_RXL_MARK(_id, _group_id, _action, _is_ctrl)		      \
+	MLXSW_RXL(mlxsw_sp_rx_mark_listener, _id, _action, _is_ctrl,	      \
+		  SP_##_group_id, DISCARD)
+
+#define MLXSW_SP_RXL_L3_MARK(_id, _group_id, _action, _is_ctrl)		      \
+	MLXSW_RXL(mlxsw_sp_rx_l3_mark_listener, _id, _action, _is_ctrl,	      \
+		  SP_##_group_id, DISCARD)
 
 #define MLXSW_SP_TRAP_POLICER(_id, _rate, _burst)			      \
 	DEVLINK_TRAP_POLICER(_id, _rate, _burst,			      \
@@ -198,6 +276,57 @@ static const struct mlxsw_sp_trap_policer_item
 mlxsw_sp_trap_policer_items_arr[] = {
 	{
 		.policer = MLXSW_SP_TRAP_POLICER(1, 10 * 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(2, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(3, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(4, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(5, 16 * 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(6, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(7, 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(8, 20 * 1024, 1024),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(9, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(10, 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(11, 360, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(12, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(13, 128, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(14, 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(15, 1024, 128),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(16, 24 * 1024, 4096),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(17, 19 * 1024, 4096),
+	},
+	{
+		.policer = MLXSW_SP_TRAP_POLICER(18, 1024, 128),
 	},
 };
 
@@ -213,6 +342,11 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.priority = 0,
 	},
 	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(L3_EXCEPTIONS, 1),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_L3_EXCEPTIONS,
+		.priority = 2,
+	},
+	{
 		.group = DEVLINK_TRAP_GROUP_GENERIC(TUNNEL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_TUNNEL_DISCARDS,
 		.priority = 0,
@@ -221,6 +355,96 @@ static const struct mlxsw_sp_trap_group_item mlxsw_sp_trap_group_items_arr[] = {
 		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_DROPS, 1),
 		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_ACL_DISCARDS,
 		.priority = 0,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(STP, 2),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_STP,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(LACP, 3),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_LACP,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(LLDP, 4),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_LLDP,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(MC_SNOOPING, 5),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_MC_SNOOPING,
+		.priority = 3,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(DHCP, 6),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_DHCP,
+		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(NEIGH_DISCOVERY, 7),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_NEIGH_DISCOVERY,
+		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(BFD, 8),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_BFD,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(OSPF, 9),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_OSPF,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(BGP, 10),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_BGP,
+		.priority = 4,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(VRRP, 11),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_VRRP,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(PIM, 12),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PIM,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(UC_LB, 13),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_LBERROR,
+		.priority = 0,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(LOCAL_DELIVERY, 14),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_IP2ME,
+		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(IPV6, 15),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_IPV6,
+		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(PTP_EVENT, 16),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP0,
+		.priority = 5,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(PTP_GENERAL, 17),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PTP1,
+		.priority = 2,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_SAMPLE, 0),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_PKT_SAMPLE,
+		.priority = 0,
+	},
+	{
+		.group = DEVLINK_TRAP_GROUP_GENERIC(ACL_TRAP, 18),
+		.hw_group_id = MLXSW_REG_HTGT_TRAP_GROUP_SP_FLOW_LOGGING,
+		.priority = 4,
 	},
 };
 
@@ -332,56 +556,59 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_EXCEPTION(MTU_ERROR, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_EXCEPTION(MTU_ERROR, L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(MTUERROR, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(MTUERROR, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_EXCEPTION(TTL_ERROR, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_EXCEPTION(TTL_ERROR, L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(TTLERROR, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(TTLERROR, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_EXCEPTION(RPF, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_EXCEPTION(RPF, L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(RPF, L3_DISCARDS, TRAP_TO_CPU),
+			MLXSW_SP_RXL_EXCEPTION(RPF, L3_EXCEPTIONS, TRAP_TO_CPU),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_EXCEPTION(REJECT_ROUTE, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_EXCEPTION(REJECT_ROUTE, L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(RTR_INGRESS1, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(RTR_INGRESS1, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
 		},
 	},
 	{
-		.trap = MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH, L3_DROPS),
+		.trap = MLXSW_SP_TRAP_EXCEPTION(UNRESOLVED_NEIGH,
+						L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV4, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV4, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
-			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(HOST_MISS_IPV6, L3_EXCEPTIONS,
 					       TRAP_TO_CPU),
-			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER3, L3_EXCEPTIONS,
 					       TRAP_EXCEPTION_TO_CPU),
 		},
 	},
 	{
 		.trap = MLXSW_SP_TRAP_EXCEPTION(IPV4_LPM_UNICAST_MISS,
-						L3_DROPS),
+						L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM4, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM4,
+					       L3_EXCEPTIONS,
 					       TRAP_EXCEPTION_TO_CPU),
 		},
 	},
 	{
 		.trap = MLXSW_SP_TRAP_EXCEPTION(IPV6_LPM_UNICAST_MISS,
-						L3_DROPS),
+						L3_EXCEPTIONS),
 		.listeners_arr = {
-			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6, L3_DISCARDS,
+			MLXSW_SP_RXL_EXCEPTION(DISCARD_ROUTER_LPM6,
+					       L3_EXCEPTIONS,
 					       TRAP_EXCEPTION_TO_CPU),
 		},
 	},
@@ -437,6 +664,320 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.listeners_arr = {
 			MLXSW_SP_RXL_ACL_DISCARD(EGRESS_ACL, ACL_DISCARDS,
 						 DUMMY),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(STP, STP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(STP, STP, TRAP_TO_CPU, true),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(LACP, LACP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(LACP, LACP, TRAP_TO_CPU, true),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(LLDP, LLDP, TRAP),
+		.listeners_arr = {
+			MLXSW_RXL(mlxsw_sp_rx_ptp_listener, LLDP, TRAP_TO_CPU,
+				  false, SP_LLDP, DISCARD),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_QUERY, MC_SNOOPING, MIRROR),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IGMP_QUERY, MC_SNOOPING,
+					  MIRROR_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V1_REPORT, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IGMP_V1_REPORT, MC_SNOOPING,
+					     TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_REPORT, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IGMP_V2_REPORT, MC_SNOOPING,
+					     TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V3_REPORT, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IGMP_V3_REPORT, MC_SNOOPING,
+					     TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IGMP_V2_LEAVE, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IGMP_V2_LEAVE, MC_SNOOPING,
+					     TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_QUERY, MC_SNOOPING, MIRROR),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_MLDV12_LISTENER_QUERY,
+					  MC_SNOOPING, MIRROR_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_REPORT, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV1_LISTENER_REPORT,
+					     MC_SNOOPING, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V2_REPORT, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV2_LISTENER_REPORT,
+					     MC_SNOOPING, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(MLD_V1_DONE, MC_SNOOPING,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(IPV6_MLDV1_LISTENER_DONE,
+					     MC_SNOOPING, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_DHCP, DHCP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_DHCP, DHCP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_DHCP, DHCP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_DHCP, DHCP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(ARP_REQUEST, NEIGH_DISCOVERY,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(ARPBC, NEIGH_DISCOVERY, MIRROR_TO_CPU,
+					  false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(ARP_RESPONSE, NEIGH_DISCOVERY,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(ARPUC, NEIGH_DISCOVERY, MIRROR_TO_CPU,
+					  false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(ARP_OVERLAY, NEIGH_DISCOVERY,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(NVE_DECAP_ARP, NEIGH_DISCOVERY,
+					     TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_NEIGH_SOLICIT,
+					      NEIGH_DISCOVERY, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(L3_IPV6_NEIGHBOR_SOLICITATION,
+					  NEIGH_DISCOVERY, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_NEIGH_ADVERT,
+					      NEIGH_DISCOVERY, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(L3_IPV6_NEIGHBOR_ADVERTISEMENT,
+					  NEIGH_DISCOVERY, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_BFD, BFD, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_BFD, BFD, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_BFD, BFD, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_BFD, BFD, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_OSPF, OSPF, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_OSPF, OSPF, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_OSPF, OSPF, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_OSPF, OSPF, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_BGP, BGP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_BGP, BGP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_BGP, BGP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_BGP, BGP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_VRRP, VRRP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_VRRP, VRRP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_VRRP, VRRP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_VRRP, VRRP, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_PIM, PIM, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV4_PIM, PIM, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_PIM, PIM, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_PIM, PIM, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(UC_LB, UC_LB, MIRROR),
+		.listeners_arr = {
+			MLXSW_SP_RXL_L3_MARK(LBERROR, LBERROR, MIRROR_TO_CPU,
+					     false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(LOCAL_ROUTE, LOCAL_DELIVERY,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IP2ME, IP2ME, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(EXTERNAL_ROUTE, LOCAL_DELIVERY,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(RTR_INGRESS0, IP2ME, TRAP_TO_CPU,
+					  false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_UC_DIP_LINK_LOCAL_SCOPE,
+					      LOCAL_DELIVERY, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_LINK_LOCAL_DEST, IP2ME,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV4_ROUTER_ALERT, LOCAL_DELIVERY,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV4, IP2ME, TRAP_TO_CPU,
+					  false),
+		},
+	},
+	{
+		/* IPV6_ROUTER_ALERT is defined in uAPI as 22, but it is not
+		 * used in this file, so undefine it.
+		 */
+		#undef IPV6_ROUTER_ALERT
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_ROUTER_ALERT, LOCAL_DELIVERY,
+					      TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(ROUTER_ALERT_IPV6, IP2ME, TRAP_TO_CPU,
+					  false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_DIP_ALL_NODES, IPV6, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_ALL_NODES_LINK, IPV6,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_DIP_ALL_ROUTERS, IPV6, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(IPV6_ALL_ROUTERS_LINK, IPV6,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_ROUTER_SOLICIT, IPV6, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(L3_IPV6_ROUTER_SOLICITATION, IPV6,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_ROUTER_ADVERT, IPV6, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(L3_IPV6_ROUTER_ADVERTISEMENT, IPV6,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(IPV6_REDIRECT, IPV6, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_MARK(L3_IPV6_REDIRECTION, IPV6,
+					  TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(PTP_EVENT, PTP_EVENT, TRAP),
+		.listeners_arr = {
+			MLXSW_RXL(mlxsw_sp_rx_ptp_listener, PTP0, TRAP_TO_CPU,
+				  false, SP_PTP0, DISCARD),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(PTP_GENERAL, PTP_GENERAL, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(PTP1, PTP1, TRAP_TO_CPU, false),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_SAMPLE, ACL_SAMPLE,
+					      MIRROR),
+		.listeners_arr = {
+			MLXSW_RXL(mlxsw_sp_rx_sample_listener, PKT_SAMPLE,
+				  MIRROR_TO_CPU, false, SP_PKT_SAMPLE, DISCARD),
+		},
+	},
+	{
+		.trap = MLXSW_SP_TRAP_CONTROL(FLOW_ACTION_TRAP, ACL_TRAP, TRAP),
+		.listeners_arr = {
+			MLXSW_SP_RXL_NO_MARK(ACL0, FLOW_LOGGING, TRAP_TO_CPU,
+					     false),
 		},
 	},
 };
