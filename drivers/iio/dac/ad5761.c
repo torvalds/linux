@@ -3,7 +3,7 @@
  * AD5721, AD5721R, AD5761, AD5761R, Voltage Output Digital to Analog Converter
  *
  * Copyright 2016 Qtechnology A/S
- * 2016 Ricardo Ribalda <ricardo.ribalda@gmail.com>
+ * 2016 Ricardo Ribalda <ribalda@kernel.org>
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -423,6 +423,6 @@ static struct spi_driver ad5761_driver = {
 };
 module_spi_driver(ad5761_driver);
 
-MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
+MODULE_AUTHOR("Ricardo Ribalda <ribalda@kernel.org>");
 MODULE_DESCRIPTION("Analog Devices AD5721, AD5721R, AD5761, AD5761R driver");
 MODULE_LICENSE("GPL v2");

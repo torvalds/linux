@@ -102,6 +102,30 @@ See the ``type_of_loader`` and ``ext_loader_ver`` fields in
 :doc:`/x86/boot` for additional information.
 
 
+bpf_stats_enabled
+=================
+
+Controls whether the kernel should collect statistics on BPF programs
+(total time spent running, number of times run...). Enabling
+statistics causes a slight reduction in performance on each program
+run. The statistics can be seen using ``bpftool``.
+
+= ===================================
+0 Don't collect statistics (default).
+1 Collect statistics.
+= ===================================
+
+
+cad_pid
+=======
+
+This is the pid which will be signalled on reboot (notably, by
+Ctrl-Alt-Delete). Writing a value to this file which doesn't
+correspond to a running process will result in ``-ESRCH``.
+
+See also `ctrl-alt-del`_.
+
+
 cap_last_cap
 ============
 
@@ -241,6 +265,40 @@ domain names are in general different. For a detailed discussion
 see the ``hostname(1)`` man page.
 
 
+firmware_config
+===============
+
+See :doc:`/driver-api/firmware/fallback-mechanisms`.
+
+The entries in this directory allow the firmware loader helper
+fallback to be controlled:
+
+* ``force_sysfs_fallback``, when set to 1, forces the use of the
+  fallback;
+* ``ignore_sysfs_fallback``, when set to 1, ignores any fallback.
+
+
+ftrace_dump_on_oops
+===================
+
+Determines whether ``ftrace_dump()`` should be called on an oops (or
+kernel panic). This will output the contents of the ftrace buffers to
+the console.  This is very useful for capturing traces that lead to
+crashes and outputting them to a serial console.
+
+= ===================================================
+0 Disabled (default).
+1 Dump buffers of all CPUs.
+2 Dump the buffer of the CPU that triggered the oops.
+= ===================================================
+
+
+ftrace_enabled, stack_tracer_enabled
+====================================
+
+See :doc:`/trace/ftrace`.
+
+
 hardlockup_all_cpu_backtrace
 ============================
 
@@ -342,6 +400,25 @@ Controls whether the panic kmsg data should be reported to Hyper-V.
 0 Do not report panic kmsg data.
 1 Report the panic kmsg data. This is the default behavior.
 = =========================================================
+
+
+ignore-unaligned-usertrap
+=========================
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_NO_WARN``;
+currently, ``arc`` and ``ia64``), controls whether all unaligned traps
+are logged.
+
+= =============================================================
+0 Log all unaligned accesses.
+1 Only warn the first time a process traps. This is the default
+  setting.
+= =============================================================
+
+See also `unaligned-trap`_ and `unaligned-dump-stack`_. On ``ia64``,
+this allows system administrators to override the
+``IA64_THREAD_UAC_NOPRINT`` ``prctl`` and avoid logs being flooded.
 
 
 kexec_load_disabled
@@ -458,6 +535,15 @@ Notes:
   2) Toggle with non-default value will be set back to -1 by kernel after
      successful IPC object allocation. If an IPC object allocation syscall
      fails, it is undefined if the value remains unmodified or is reset to -1.
+
+
+ngroups_max
+===========
+
+Maximum number of supplementary groups, _i.e._ the maximum size which
+``setgroups`` will accept. Exports ``NGROUPS_MAX`` from the kernel.
+
+
 
 nmi_watchdog
 ============
@@ -877,7 +963,7 @@ this sysctl interface anymore.
 pty
 ===
 
-See Documentation/filesystems/devpts.txt.
+See Documentation/filesystems/devpts.rst.
 
 
 randomize_va_space
@@ -1173,6 +1259,65 @@ If a value outside of this range is written to ``threads-max`` an
 ``EINVAL`` error occurs.
 
 
+traceoff_on_warning
+===================
+
+When set, disables tracing (see :doc:`/trace/ftrace`) when a
+``WARN()`` is hit.
+
+
+tracepoint_printk
+=================
+
+When tracepoints are sent to printk() (enabled by the ``tp_printk``
+boot parameter), this entry provides runtime control::
+
+    echo 0 > /proc/sys/kernel/tracepoint_printk
+
+will stop tracepoints from being sent to printk(), and::
+
+    echo 1 > /proc/sys/kernel/tracepoint_printk
+
+will send them to printk() again.
+
+This only works if the kernel was booted with ``tp_printk`` enabled.
+
+See :doc:`/admin-guide/kernel-parameters` and
+:doc:`/trace/boottime-trace`.
+
+
+.. _unaligned-dump-stack:
+
+unaligned-dump-stack (ia64)
+===========================
+
+When logging unaligned accesses, controls whether the stack is
+dumped.
+
+= ===================================================
+0 Do not dump the stack. This is the default setting.
+1 Dump the stack.
+= ===================================================
+
+See also `ignore-unaligned-usertrap`_.
+
+
+unaligned-trap
+==============
+
+On architectures where unaligned accesses cause traps, and where this
+feature is supported (``CONFIG_SYSCTL_ARCH_UNALIGN_ALLOW``; currently,
+``arc`` and ``parisc``), controls whether unaligned traps are caught
+and emulated (instead of failing).
+
+= ========================================================
+0 Do not emulate unaligned accesses.
+1 Emulate unaligned accesses. This is the default setting.
+= ========================================================
+
+See also `ignore-unaligned-usertrap`_.
+
+
 unknown_nmi_panic
 =================
 
@@ -1182,6 +1327,16 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+
+unprivileged_bpf_disabled
+=========================
+
+Writing 1 to this entry will disable unprivileged calls to ``bpf()``;
+once disabled, calling ``bpf()`` without ``CAP_SYS_ADMIN`` will return
+``-EPERM``.
+
+Once set, this can't be cleared.
 
 
 watchdog

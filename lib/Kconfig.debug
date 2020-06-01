@@ -1515,7 +1515,7 @@ config PROVIDE_OHCI1394_DMA_INIT
 	  This code (~1k) is freed after boot. By then, the firewire stack
 	  in charge of the OHCI-1394 controllers should be used instead.
 
-	  See Documentation/debugging-via-ohci1394.txt for more information.
+	  See Documentation/core-api/debugging-via-ohci1394.rst for more information.
 
 source "samples/Kconfig"
 

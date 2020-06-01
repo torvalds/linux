@@ -1226,7 +1226,7 @@ void unpin_user_pages(struct page **pages, unsigned long npages);
  * used to track the pincount (instead using of the GUP_PIN_COUNTING_BIAS
  * scheme).
  *
- * For more information, please see Documentation/vm/pin_user_pages.rst.
+ * For more information, please see Documentation/core-api/pin_user_pages.rst.
  *
  * @page:	pointer to page to be queried.
  * @Return:	True, if it is likely that the page has been "dma-pinned".
@@ -2841,7 +2841,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
  * releasing pages: get_user_pages*() pages must be released via put_page(),
  * while pin_user_pages*() pages must be released via unpin_user_page().
  *
- * Please see Documentation/vm/pin_user_pages.rst for more information.
+ * Please see Documentation/core-api/pin_user_pages.rst for more information.
  */
 
 static inline int vm_fault_to_errno(vm_fault_t vm_fault, int foll_flags)

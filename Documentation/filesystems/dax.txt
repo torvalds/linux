@@ -74,7 +74,7 @@ are zeroed out and converted to written extents before being returned to avoid
 exposure of uninitialized data through mmap.
 
 These filesystems may be used for inspiration:
-- ext2: see Documentation/filesystems/ext2.txt
+- ext2: see Documentation/filesystems/ext2.rst
 - ext4: see Documentation/filesystems/ext4/
 - xfs:  see Documentation/admin-guide/xfs.rst
 

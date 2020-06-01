@@ -3742,7 +3742,7 @@ CACHEFILES: FS-CACHE BACKEND FOR CACHING ON MOUNTED FILESYSTEMS
 M:	David Howells <dhowells@redhat.com>
 L:	linux-cachefs@redhat.com (moderated for non-subscribers)
 S:	Supported
-F:	Documentation/filesystems/caching/cachefiles.txt
+F:	Documentation/filesystems/caching/cachefiles.rst
 F:	fs/cachefiles/
 
 CADENCE MIPI-CSI2 BRIDGES
@@ -4219,7 +4219,7 @@ M:	coda@cs.cmu.edu
 L:	codalist@coda.cs.cmu.edu
 S:	Maintained
 W:	http://www.coda.cs.cmu.edu/
-F:	Documentation/filesystems/coda.txt
+F:	Documentation/filesystems/coda.rst
 F:	fs/coda/
 F:	include/linux/coda*.h
 F:	include/uapi/linux/coda*.h
@@ -5012,7 +5012,7 @@ M:	Jan Kara <jack@suse.cz>
 R:	Amir Goldstein <amir73il@gmail.com>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
-F:	Documentation/filesystems/dnotify.txt
+F:	Documentation/filesystems/dnotify.rst
 F:	fs/notify/dnotify/
 F:	include/linux/dnotify.h
 
@@ -5026,7 +5026,7 @@ W:	http://www.win.tue.nl/~aeb/partitions/partition_types-1.html
 DISKQUOTA
 M:	Jan Kara <jack@suse.com>
 S:	Maintained
-F:	Documentation/filesystems/quota.txt
+F:	Documentation/filesystems/quota.rst
 F:	fs/quota/
 F:	include/linux/quota*.h
 F:	include/uapi/linux/quota*.h
@@ -7040,13 +7040,13 @@ R:	Darren Hart <dvhart@infradead.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git locking/core
-F:	Documentation/*futex*
+F:	Documentation/locking/*futex*
 F:	include/asm-generic/futex.h
 F:	include/linux/futex.h
 F:	include/uapi/linux/futex.h
 F:	kernel/futex.c
 F:	tools/perf/bench/futex*
-F:	tools/testing/selftests/futex/
+F:	Documentation/locking/*futex*
 
 GATEWORKS SYSTEM CONTROLLER (GSC) DRIVER
 M:	Tim Harvey <tharvey@gateworks.com>
@@ -7527,7 +7527,7 @@ L:	linux-remoteproc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andersson/remoteproc.git hwspinlock-next
 F:	Documentation/devicetree/bindings/hwlock/
-F:	Documentation/hwspinlock.txt
+F:	Documentation/locking/hwspinlock.rst
 F:	drivers/hwspinlock/
 F:	include/linux/hwspinlock.h
 
@@ -8934,7 +8934,7 @@ M:	Corey Minyard <minyard@acm.org>
 L:	openipmi-developer@lists.sourceforge.net (moderated for non-subscribers)
 S:	Supported
 W:	http://openipmi.sourceforge.net/
-F:	Documentation/IPMI.txt
+F:	Documentation/driver-api/ipmi.rst
 F:	Documentation/devicetree/bindings/ipmi/
 F:	drivers/char/ipmi/
 F:	include/linux/ipmi*
@@ -8976,7 +8976,7 @@ IRQ DOMAINS (IRQ NUMBER MAPPING LIBRARY)
 M:	Marc Zyngier <maz@kernel.org>
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git irq/core
-F:	Documentation/IRQ-domain.txt
+F:	Documentation/core-api/irq/irq-domain.rst
 F:	include/linux/irqdomain.h
 F:	kernel/irq/irqdomain.c
 F:	kernel/irq/msi.c
@@ -15703,7 +15703,7 @@ F:	drivers/ssb/
 F:	include/linux/ssb/
 
 SONY IMX214 SENSOR DRIVER
-M:	Ricardo Ribalda <ricardo.ribalda@gmail.com>
+M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
@@ -15943,7 +15943,7 @@ M:	Jeremy Kerr <jk@ozlabs.org>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 W:	http://www.ibm.com/developerworks/power/cell/
-F:	Documentation/filesystems/spufs.txt
+F:	Documentation/filesystems/spufs/spufs.rst
 F:	arch/powerpc/platforms/cell/spufs/
 
 SQUASHFS FILE SYSTEM
@@ -16690,7 +16690,7 @@ S:	Maintained
 F:	sound/soc/ti/
 
 TEXAS INSTRUMENTS' DAC7612 DAC DRIVER
-M:	Ricardo Ribalda <ricardo@ribalda.com>
+M:	Ricardo Ribalda <ribalda@kernel.org>
 L:	linux-iio@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/iio/dac/ti,dac7612.txt
@@ -18594,8 +18594,8 @@ W:	http://xfs.org/
 T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 F:	Documentation/ABI/testing/sysfs-fs-xfs
 F:	Documentation/admin-guide/xfs.rst
-F:	Documentation/filesystems/xfs-delayed-logging-design.txt
-F:	Documentation/filesystems/xfs-self-describing-metadata.txt
+F:	Documentation/filesystems/xfs-delayed-logging-design.rst
+F:	Documentation/filesystems/xfs-self-describing-metadata.rst
 F:	fs/xfs/
 F:	include/uapi/linux/dqblk_xfs.h
 F:	include/uapi/linux/fsmap.h

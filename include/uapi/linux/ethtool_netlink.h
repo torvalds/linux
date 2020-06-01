@@ -2,7 +2,7 @@
 /*
  * include/uapi/linux/ethtool_netlink.h - netlink interface for ethtool
  *
- * See Documentation/networking/ethtool-netlink.txt in kernel source tree for
+ * See Documentation/networking/ethtool-netlink.rst in kernel source tree for
  * doucumentation of the interface.
  */
 

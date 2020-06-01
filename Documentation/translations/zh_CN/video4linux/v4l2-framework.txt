@@ -488,7 +488,7 @@ struct v4l2_subdev *sd = v4l2_i2c_new_subdev(v4l2_dev, adapter,
 
 这个函数会加载给定的模块（如果没有模块需要加载，可以为 NULL），
 并用给定的 i2c 适配器结构体指针（i2c_adapter）和 器件地址（chip/address）
-作为参数调用 i2c_new_device()。如果一切顺利，则就在 v4l2_device
+作为参数调用 i2c_new_client_device()。如果一切顺利，则就在 v4l2_device
 中注册了子设备。
 
 你也可以利用 v4l2_i2c_new_subdev()的最后一个参数，传递一个可能的

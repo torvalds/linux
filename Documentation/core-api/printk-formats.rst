@@ -2,6 +2,8 @@
 How to get printk format specifiers right
 =========================================
 
+.. _printk-specifiers:
+
 :Author: Randy Dunlap <rdunlap@infradead.org>
 :Author: Andrew Murray <amurray@mpc-data.co.uk>
 

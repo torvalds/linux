@@ -32,12 +32,13 @@ interrupt goes unhandled over time, they are tracked by the Linux kernel as
 Spurious Interrupts. The IRQ will be disabled by the Linux kernel after it
 reaches a specific count with the error "nobody cared". This disabled IRQ
 now prevents valid usage by an existing interrupt which may happen to share
-the IRQ line.
+the IRQ line::
 
   irq 19: nobody cared (try booting with the "irqpoll" option)
   CPU: 0 PID: 2988 Comm: irq/34-nipalk Tainted: 4.14.87-rt49-02410-g4a640ec-dirty #1
   Hardware name: National Instruments NI PXIe-8880/NI PXIe-8880, BIOS 2.1.5f1 01/09/2020
   Call Trace:
+
   <IRQ>
    ? dump_stack+0x46/0x5e
    ? __report_bad_irq+0x2e/0xb0
@@ -85,15 +86,18 @@ Mitigations
 The mitigations take the form of PCI quirks. The preference has been to
 first identify and make use of a means to disable the routing to the PCH.
 In such a case a quirk to disable boot interrupt generation can be
-added.[1]
+added. [1]_
 
-  Intel® 6300ESB I/O Controller Hub
+Intel® 6300ESB I/O Controller Hub
   Alternate Base Address Register:
    BIE: Boot Interrupt Enable
-	  0 = Boot interrupt is enabled.
-	  1 = Boot interrupt is disabled.
 
-  Intel® Sandy Bridge through Sky Lake based Xeon servers:
+	  ==  ===========================
+	  0   Boot interrupt is enabled.
+	  1   Boot interrupt is disabled.
+	  ==  ===========================
+
+Intel® Sandy Bridge through Sky Lake based Xeon servers:
   Coherent Interface Protocol Interrupt Control
    dis_intx_route2pch/dis_intx_route2ich/dis_intx_route2dmi2:
 	  When this bit is set. Local INTx messages received from the
@@ -109,12 +113,12 @@ line by default.  Therefore, on chipsets where this INTx routing cannot be
 disabled, the Linux kernel will reroute the valid interrupt to its legacy
 interrupt. This redirection of the handler will prevent the occurrence of
 the spurious interrupt detection which would ordinarily disable the IRQ
-line due to excessive unhandled counts.[2]
+line due to excessive unhandled counts. [2]_
 
 The config option X86_REROUTE_FOR_BROKEN_BOOT_IRQS exists to enable (or
 disable) the redirection of the interrupt handler to the PCH interrupt
 line. The option can be overridden by either pci=ioapicreroute or
-pci=noioapicreroute.[3]
+pci=noioapicreroute. [3]_
 
 
 More Documentation
@@ -127,19 +131,19 @@ into the evolution of its handling with chipsets.
 Example of disabling of the boot interrupt
 ------------------------------------------
 
-Intel® 6300ESB I/O Controller Hub (Document # 300641-004US)
+      - Intel® 6300ESB I/O Controller Hub (Document # 300641-004US)
 	5.7.3 Boot Interrupt
 	https://www.intel.com/content/dam/doc/datasheet/6300esb-io-controller-hub-datasheet.pdf
 
-Intel® Xeon® Processor E5-1600/2400/2600/4600 v3 Product Families
-Datasheet - Volume 2: Registers (Document # 330784-003)
+      - Intel® Xeon® Processor E5-1600/2400/2600/4600 v3 Product Families
+	Datasheet - Volume 2: Registers (Document # 330784-003)
 	6.6.41 cipintrc Coherent Interface Protocol Interrupt Control
 	https://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e5-v3-datasheet-vol-2.pdf
 
 Example of handler rerouting
 ----------------------------
 
-Intel® 6700PXH 64-bit PCI Hub (Document # 302628)
+      - Intel® 6700PXH 64-bit PCI Hub (Document # 302628)
 	2.15.2 PCI Express Legacy INTx Support and Boot Interrupt
 	https://www.intel.com/content/dam/doc/datasheet/6700pxh-64-bit-pci-hub-datasheet.pdf
 
@@ -150,6 +154,6 @@ Cheers,
     Sean V Kelley
     sean.v.kelley@linux.intel.com
 
-[1] https://lore.kernel.org/r/12131949181903-git-send-email-sassmann@suse.de/
-[2] https://lore.kernel.org/r/12131949182094-git-send-email-sassmann@suse.de/
-[3] https://lore.kernel.org/r/487C8EA7.6020205@suse.de/
+.. [1] https://lore.kernel.org/r/12131949181903-git-send-email-sassmann@suse.de/
+.. [2] https://lore.kernel.org/r/12131949182094-git-send-email-sassmann@suse.de/
+.. [3] https://lore.kernel.org/r/487C8EA7.6020205@suse.de/
