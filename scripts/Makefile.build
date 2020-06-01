@@ -73,19 +73,24 @@ endif
 subdir-builtin := $(sort $(filter %/built-in.a, $(real-obj-y)))
 subdir-modorder := $(sort $(filter %/modules.order, $(modorder)))
 
+targets-for-builtin := $(extra-y)
+
 ifneq ($(strip $(lib-y) $(lib-m) $(lib-)),)
-lib-target := $(obj)/lib.a
+targets-for-builtin += $(obj)/lib.a
 endif
 
 ifdef need-builtin
-builtin-target := $(obj)/built-in.a
+targets-for-builtin += $(obj)/built-in.a
 endif
+
+targets-for-modules := $(obj-m)
+targets-for-modules += $(patsubst %.o, %.mod, $(obj-m))
 
 ifdef need-modorder
-modorder-target := $(obj)/modules.order
+targets-for-modules += $(obj)/modules.order
 endif
 
-mod-targets := $(patsubst %.o, %.mod, $(obj-m))
+targets += $(targets-for-builtin) $(targets-for-modules)
 
 # Linus' kernel sanity checking tool
 ifeq ($(KBUILD_CHECKSRC),1)
@@ -284,8 +289,6 @@ cmd_mod = { \
 $(obj)/%.mod: $(obj)/%.o FORCE
 	$(call if_changed,mod)
 
-targets += $(mod-targets)
-
 quiet_cmd_cc_lst_c = MKLST   $@
       cmd_cc_lst_c = $(CC) $(c_flags) -g -c -o $*.o $< && \
 		     $(CONFIG_SHELL) $(srctree)/scripts/makelst $*.o \
@@ -359,7 +362,7 @@ $(obj)/%.o: $(src)/%.S $(objtool_dep) FORCE
 	$(call if_changed_rule,as_o_S)
 
 targets += $(filter-out $(subdir-builtin), $(real-obj-y)) $(real-obj-m) $(lib-y)
-targets += $(extra-y) $(always-y) $(MAKECMDGOALS)
+targets += $(always-y) $(MAKECMDGOALS)
 
 # Linker scripts preprocessor (.lds.S -> .lds)
 # ---------------------------------------------------------------------------
@@ -396,8 +399,6 @@ quiet_cmd_ar_builtin = AR      $@
 $(obj)/built-in.a: $(real-obj-y) FORCE
 	$(call if_changed,ar_builtin)
 
-targets += $(builtin-target)
-
 #
 # Rule to create modules.order file
 #
@@ -413,8 +414,6 @@ $(obj)/modules.order: $(subdir-modorder) FORCE
 #
 $(obj)/lib.a: $(lib-y) FORCE
 	$(call if_changed,ar)
-
-targets += $(lib-target)
 
 # NOTE:
 # Do not replace $(filter %.o,^) with $(real-prereqs). When a single object
@@ -478,8 +477,8 @@ endif
 
 else
 
-__build: $(if $(KBUILD_BUILTIN),$(builtin-target) $(lib-target) $(extra-y)) \
-	 $(if $(KBUILD_MODULES),$(obj-m) $(mod-targets) $(modorder-target)) \
+__build: $(if $(KBUILD_BUILTIN), $(targets-for-builtin)) \
+	 $(if $(KBUILD_MODULES), $(targets-for-modules)) \
 	 $(subdir-ym) $(always-y)
 	@:
 
