@@ -910,7 +910,7 @@ When kbuild executes, the following steps are followed (roughly):
 7.1 Set variables to tweak the build to the architecture
 --------------------------------------------------------
 
-    LDFLAGS
+    KBUILD_LDFLAGS
 	Generic $(LD) options
 
 	Flags used for all invocations of the linker.
@@ -919,7 +919,7 @@ When kbuild executes, the following steps are followed (roughly):
 	Example::
 
 		#arch/s390/Makefile
-		LDFLAGS         := -m elf_s390
+		KBUILD_LDFLAGS         := -m elf_s390
 
 	Note: ldflags-y can be used to further customise
 	the flags used. See chapter 3.7.
