@@ -730,6 +730,10 @@ static u8 check_enc_key_size(struct l2cap_conn *conn, __u8 max_key_size)
 	struct hci_dev *hdev = conn->hcon->hdev;
 	struct smp_chan *smp = chan->data;
 
+	if (conn->hcon->pending_sec_level == BT_SECURITY_FIPS &&
+	    max_key_size != SMP_MAX_ENC_KEY_SIZE)
+		return SMP_ENC_KEY_SIZE;
+
 	if (max_key_size > hdev->le_max_key_size ||
 	    max_key_size < SMP_MIN_ENC_KEY_SIZE)
 		return SMP_ENC_KEY_SIZE;
