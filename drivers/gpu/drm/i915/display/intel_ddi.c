@@ -3141,9 +3141,6 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
 
-	intel_dp->regs.dp_tp_ctl = DP_TP_CTL(port);
-	intel_dp->regs.dp_tp_status = DP_TP_STATUS(port);
-
 	intel_edp_panel_on(intel_dp);
 
 	intel_ddi_clk_select(encoder, crtc_state);
@@ -3848,11 +3845,17 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	enum transcoder cpu_transcoder = pipe_config->cpu_transcoder;
+	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	u32 temp, flags = 0;
 
 	/* XXX: DSI transcoder paranoia */
 	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
 		return;
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		intel_dp->regs.dp_tp_ctl = TGL_DP_TP_CTL(cpu_transcoder);
+		intel_dp->regs.dp_tp_status = TGL_DP_TP_STATUS(cpu_transcoder);
+	}
 
 	intel_dsc_get_config(encoder, pipe_config);
 
@@ -4173,6 +4176,7 @@ static const struct drm_encoder_funcs intel_ddi_funcs = {
 static struct intel_connector *
 intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dig_port->base.base.dev);
 	struct intel_connector *connector;
 	enum port port = intel_dig_port->base.port;
 
@@ -4183,6 +4187,10 @@ intel_ddi_init_dp_connector(struct intel_digital_port *intel_dig_port)
 	intel_dig_port->dp.output_reg = DDI_BUF_CTL(port);
 	intel_dig_port->dp.prepare_link_retrain =
 		intel_ddi_prepare_link_retrain;
+	if (INTEL_GEN(dev_priv) < 12) {
+		intel_dig_port->dp.regs.dp_tp_ctl = DP_TP_CTL(port);
+		intel_dig_port->dp.regs.dp_tp_status = DP_TP_STATUS(port);
+	}
 
 	if (!intel_dp_init_connector(intel_dig_port, connector)) {
 		kfree(connector);

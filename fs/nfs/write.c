@@ -1695,7 +1695,7 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_CRED_NOREF | flags,
+		.flags = RPC_TASK_ASYNC | flags,
 		.priority = priority,
 	};
 	/* Set up the initial task struct.  */
@@ -1813,7 +1813,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	nfs_init_commit(data, head, NULL, cinfo);
 	atomic_inc(&cinfo->mds->rpcs_out);
 	return nfs_initiate_commit(NFS_CLIENT(inode), data, NFS_PROTO(inode),
-				   data->mds_ops, how, 0);
+				   data->mds_ops, how, RPC_TASK_CRED_NOREF);
 }
 
 /*

@@ -937,7 +937,7 @@ static struct platform_driver jz4770_codec_driver = {
 	.probe			= jz4770_codec_probe,
 	.driver			= {
 		.name		= "jz4770-codec",
-		.of_match_table = of_match_ptr(jz4770_codec_of_matches),
+		.of_match_table = jz4770_codec_of_matches,
 	},
 };
 module_platform_driver(jz4770_codec_driver);

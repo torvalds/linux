@@ -22,6 +22,17 @@
 				SNDRV_PCM_FMTBIT_S24_LE)
 
 /**
+ * fsl_esai_soc_data: soc specific data
+ *
+ * @imx: for imx platform
+ * @reset_at_xrun: flags for enable reset operaton
+ */
+struct fsl_esai_soc_data {
+	bool imx;
+	bool reset_at_xrun;
+};
+
+/**
  * fsl_esai: ESAI private data
  *
  * @dma_params_rx: DMA parameters for receive channel
@@ -33,6 +44,7 @@
  * @fsysclk: system clock source to derive HCK, SCK and FS
  * @spbaclk: SPBA clock (optional, depending on SoC design)
  * @task: tasklet to handle the reset operation
+ * @soc: soc specific data
  * @lock: spin lock between hw_reset() and trigger()
  * @fifo_depth: depth of tx/rx FIFO
  * @slot_width: width of each DAI slot
@@ -44,7 +56,6 @@
  * @sck_div: if using PSR/PM dividers for SCKx clock
  * @slave_mode: if fully using DAI slave mode
  * @synchronous: if using tx/rx synchronous mode
- * @reset_at_xrun: flags for enable reset operaton
  * @name: driver name
  */
 struct fsl_esai {
@@ -57,6 +68,7 @@ struct fsl_esai {
 	struct clk *fsysclk;
 	struct clk *spbaclk;
 	struct tasklet_struct task;
+	const struct fsl_esai_soc_data *soc;
 	spinlock_t lock; /* Protect hw_reset and trigger */
 	u32 fifo_depth;
 	u32 slot_width;
@@ -70,8 +82,22 @@ struct fsl_esai {
 	bool sck_div[2];
 	bool slave_mode;
 	bool synchronous;
-	bool reset_at_xrun;
 	char name[32];
+};
+
+static struct fsl_esai_soc_data fsl_esai_vf610 = {
+	.imx = false,
+	.reset_at_xrun = true,
+};
+
+static struct fsl_esai_soc_data fsl_esai_imx35 = {
+	.imx = true,
+	.reset_at_xrun = true,
+};
+
+static struct fsl_esai_soc_data fsl_esai_imx6ull = {
+	.imx = true,
+	.reset_at_xrun = false,
 };
 
 static irqreturn_t esai_isr(int irq, void *devid)
@@ -85,8 +111,12 @@ static irqreturn_t esai_isr(int irq, void *devid)
 	regmap_read(esai_priv->regmap, REG_ESAI_SAISR, &saisr);
 
 	if ((saisr & (ESAI_SAISR_TUE | ESAI_SAISR_ROE)) &&
-	    esai_priv->reset_at_xrun) {
+	    esai_priv->soc->reset_at_xrun) {
 		dev_dbg(&pdev->dev, "reset module for xrun\n");
+		regmap_update_bits(esai_priv->regmap, REG_ESAI_TCR,
+				   ESAI_xCR_xEIE_MASK, 0);
+		regmap_update_bits(esai_priv->regmap, REG_ESAI_RCR,
+				   ESAI_xCR_xEIE_MASK, 0);
 		tasklet_schedule(&esai_priv->task);
 	}
 
@@ -484,7 +514,7 @@ static int fsl_esai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsl_esai *esai_priv = snd_soc_dai_get_drvdata(dai);
 
-	if (!dai->active) {
+	if (!snd_soc_dai_active(dai)) {
 		/* Set synchronous mode */
 		regmap_update_bits(esai_priv->regmap, REG_ESAI_SAICR,
 				   ESAI_SAICR_SYNC, esai_priv->synchronous ?
@@ -932,9 +962,11 @@ static int fsl_esai_probe(struct platform_device *pdev)
 	esai_priv->pdev = pdev;
 	snprintf(esai_priv->name, sizeof(esai_priv->name), "%pOFn", np);
 
-	if (of_device_is_compatible(np, "fsl,vf610-esai") ||
-	    of_device_is_compatible(np, "fsl,imx35-esai"))
-		esai_priv->reset_at_xrun = true;
+	esai_priv->soc = of_device_get_match_data(&pdev->dev);
+	if (!esai_priv->soc) {
+		dev_err(&pdev->dev, "failed to get soc data\n");
+		return -ENODEV;
+	}
 
 	/* Get the addresses and IRQ */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1059,9 +1091,9 @@ static int fsl_esai_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id fsl_esai_dt_ids[] = {
-	{ .compatible = "fsl,imx35-esai", },
-	{ .compatible = "fsl,vf610-esai", },
-	{ .compatible = "fsl,imx6ull-esai", },
+	{ .compatible = "fsl,imx35-esai", .data = &fsl_esai_imx35 },
+	{ .compatible = "fsl,vf610-esai", .data = &fsl_esai_vf610 },
+	{ .compatible = "fsl,imx6ull-esai", .data = &fsl_esai_imx6ull },
 	{}
 };
 MODULE_DEVICE_TABLE(of, fsl_esai_dt_ids);

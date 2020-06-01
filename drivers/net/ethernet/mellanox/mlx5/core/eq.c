@@ -611,11 +611,13 @@ static int create_async_eqs(struct mlx5_core_dev *dev)
 		.nent = MLX5_NUM_CMD_EQE,
 		.mask[0] = 1ull << MLX5_EVENT_TYPE_CMD,
 	};
+	mlx5_cmd_allowed_opcode(dev, MLX5_CMD_OP_CREATE_EQ);
 	err = setup_async_eq(dev, &table->cmd_eq, &param, "cmd");
 	if (err)
 		goto err1;
 
 	mlx5_cmd_use_events(dev);
+	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 
 	param = (struct mlx5_eq_param) {
 		.irq_index = 0,
@@ -645,6 +647,7 @@ err2:
 	mlx5_cmd_use_polling(dev);
 	cleanup_async_eq(dev, &table->cmd_eq, "cmd");
 err1:
+	mlx5_cmd_allowed_opcode(dev, CMD_ALLOWED_OPCODE_ALL);
 	mlx5_eq_notifier_unregister(dev, &table->cq_err_nb);
 	return err;
 }

@@ -1316,11 +1316,12 @@ static void mptcp_copy_inaddrs(struct sock *msk, const struct sock *ssk)
 
 static int mptcp_disconnect(struct sock *sk, int flags)
 {
-	lock_sock(sk);
-	__mptcp_clear_xmit(sk);
-	release_sock(sk);
-	mptcp_cancel_work(sk);
-	return tcp_disconnect(sk, flags);
+	/* Should never be called.
+	 * inet_stream_connect() calls ->disconnect, but that
+	 * refers to the subflow socket, not the mptcp one.
+	 */
+	WARN_ON_ONCE(1);
+	return 0;
 }
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
@@ -1332,7 +1333,9 @@ static struct ipv6_pinfo *mptcp_inet6_sk(const struct sock *sk)
 }
 #endif
 
-struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
+struct sock *mptcp_sk_clone(const struct sock *sk,
+			    const struct mptcp_options_received *mp_opt,
+			    struct request_sock *req)
 {
 	struct mptcp_subflow_request_sock *subflow_req = mptcp_subflow_rsk(req);
 	struct sock *nsk = sk_clone_lock(sk, GFP_ATOMIC);
@@ -1355,26 +1358,30 @@ struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req)
 	msk->subflow = NULL;
 
 	if (unlikely(mptcp_token_new_accept(subflow_req->token, nsk))) {
+		nsk->sk_state = TCP_CLOSE;
 		bh_unlock_sock(nsk);
 
 		/* we can't call into mptcp_close() here - possible BH context
-		 * free the sock directly
+		 * free the sock directly.
+		 * sk_clone_lock() sets nsk refcnt to two, hence call sk_free()
+		 * too.
 		 */
-		nsk->sk_prot->destroy(nsk);
+		sk_common_release(nsk);
 		sk_free(nsk);
 		return NULL;
 	}
 
 	msk->write_seq = subflow_req->idsn + 1;
 	atomic64_set(&msk->snd_una, msk->write_seq);
-	if (subflow_req->remote_key_valid) {
+	if (mp_opt->mp_capable) {
 		msk->can_ack = true;
-		msk->remote_key = subflow_req->remote_key;
+		msk->remote_key = mp_opt->sndr_key;
 		mptcp_crypto_key_sha(msk->remote_key, NULL, &ack_seq);
 		ack_seq++;
 		msk->ack_seq = ack_seq;
 	}
 
+	sock_reset_flag(nsk, SOCK_RCU_FREE);
 	/* will be fully established after successful MPC subflow creation */
 	inet_sk_state_store(nsk, TCP_SYN_RECV);
 	bh_unlock_sock(nsk);
@@ -1431,6 +1438,7 @@ static struct sock *mptcp_accept(struct sock *sk, int flags, int *err,
 		newsk = new_mptcp_sock;
 		mptcp_copy_inaddrs(newsk, ssk);
 		list_add(&subflow->node, &msk->conn_list);
+		inet_sk_state_store(newsk, TCP_ESTABLISHED);
 
 		bh_unlock_sock(new_mptcp_sock);
 
@@ -1621,6 +1629,8 @@ bool mptcp_finish_join(struct sock *sk)
 
 	ret = mptcp_pm_allow_new_subflow(msk);
 	if (ret) {
+		subflow->map_seq = msk->ack_seq;
+
 		/* active connections are already on conn_list */
 		spin_lock_bh(&msk->join_list_lock);
 		if (!WARN_ON_ONCE(!list_empty(&subflow->node)))
@@ -1774,6 +1784,8 @@ static int mptcp_listen(struct socket *sock, int backlog)
 		err = PTR_ERR(ssock);
 		goto unlock;
 	}
+
+	sock_set_flag(sock->sk, SOCK_RCU_FREE);
 
 	err = ssock->ops->listen(ssock, backlog);
 	inet_sk_state_store(sock->sk, inet_sk_state_load(ssock->sk));
