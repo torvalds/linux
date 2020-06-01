@@ -59,7 +59,6 @@ extern void iop_preinit(void);
 extern void iop_init(void);
 extern void via_init(void);
 extern void via_init_clock(irq_handler_t func);
-extern void via_flush_cache(void);
 extern void oss_init(void);
 extern void psc_init(void);
 extern void baboon_init(void);
@@ -130,21 +129,6 @@ int __init mac_parse_bootinfo(const struct bi_record *record)
 	return unknown;
 }
 
-/*
- * Flip into 24bit mode for an instant - flushes the L2 cache card. We
- * have to disable interrupts for this. Our IRQ handlers will crap
- * themselves if they take an IRQ in 24bit mode!
- */
-
-static void mac_cache_card_flush(int writeback)
-{
-	unsigned long flags;
-
-	local_irq_save(flags);
-	via_flush_cache();
-	local_irq_restore(flags);
-}
-
 void __init config_mac(void)
 {
 	if (!MACH_IS_MAC)
@@ -175,9 +159,8 @@ void __init config_mac(void)
 	 * not.
 	 */
 
-	if (macintosh_config->ident == MAC_MODEL_IICI
-	    || macintosh_config->ident == MAC_MODEL_IIFX)
-		mach_l2_flush = mac_cache_card_flush;
+	if (macintosh_config->ident == MAC_MODEL_IICI)
+		mach_l2_flush = via_l2_flush;
 }
 
 
