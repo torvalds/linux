@@ -665,6 +665,7 @@ bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe)
 void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		  unsigned int size)
 {
+	u32 __iomem *io_virt_addr;
 	unsigned int data = 0;
 	unsigned int size32 = DIV_ROUND_UP(size, sizeof(u32));
 
@@ -677,11 +678,11 @@ void dump_sp_dmem(struct atomisp_device *isp, unsigned int addr,
 		return;
 	}
 	addr += SP_DMEM_BASE;
+	io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	do {
-		data = _hrt_master_port_uload_32(addr);
-
+		data = *io_virt_addr;
 		dev_dbg(isp->dev, "%s, \t [0x%x]:0x%x\n", __func__, addr, data);
-		addr += sizeof(unsigned int);
+		io_virt_addr += sizeof(u32);
 		size32 -= 1;
 	} while (size32 > 0);
 }

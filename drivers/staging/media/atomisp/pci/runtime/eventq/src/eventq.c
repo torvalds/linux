@@ -20,8 +20,6 @@
 #include "ia_css_event.h"	/* ia_css_event_encode()
 				ia_css_event_decode()
 				*/
-#include "platform_support.h" /* hrt_sleep() */
-
 int ia_css_eventq_recv(
     ia_css_queue_t *eventq_handle,
     uint8_t *payload)
@@ -72,7 +70,7 @@ int ia_css_eventq_send(
 			break;
 		}
 		/* Wait for the queue to be not full and try again*/
-		hrt_sleep();
+		udelay(1);
 	}
 	return error;
 }

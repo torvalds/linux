@@ -48,7 +48,6 @@
 
 
 #include "assert_support.h"
-#include "platform_support.h"	/* hrt_sleep() */
 
 #include "sw_event_global.h"			/* Event IDs.*/
 #include "ia_css_event.h"

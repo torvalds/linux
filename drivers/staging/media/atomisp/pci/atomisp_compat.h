@@ -29,6 +29,8 @@ struct atomisp_sub_device;
 struct video_device;
 enum atomisp_input_stream_id;
 
+extern void __iomem *atomisp_io_base;
+
 struct atomisp_metadata_buf {
 	struct ia_css_metadata *metadata;
 	void *md_vptr;

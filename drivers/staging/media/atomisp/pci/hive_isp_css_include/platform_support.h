@@ -25,9 +25,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 
-/* For definition of hrt_sleep() */
-#include "hive_isp_css_custom_host_hrt.h"
-
 #define UINT16_MAX USHRT_MAX
 #define UINT32_MAX UINT_MAX
 #define UCHAR_MAX  (255)

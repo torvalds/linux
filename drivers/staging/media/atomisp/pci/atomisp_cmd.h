@@ -65,16 +65,6 @@ bool atomisp_buffers_queued(struct atomisp_sub_device *asd);
 /* ISP2401 */
 bool atomisp_buffers_queued_pipe(struct atomisp_video_pipe *pipe);
 
-/* TODO:should be here instead of atomisp_helper.h
-extern void __iomem *atomisp_io_base;
-
-static inline void __iomem *atomisp_get_io_virt_addr(unsigned int address)
-{
-	void __iomem *ret = atomisp_io_base + (address & 0x003FFFFF);
-	return ret;
-}
-*/
-
 /*
  * Interrupt functions
  */

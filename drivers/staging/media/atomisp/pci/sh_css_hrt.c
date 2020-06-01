@@ -79,7 +79,7 @@ int sh_css_hrt_sp_wait(void)
 	       ((irq_reg_load(IRQ0_ID,
 			      _HRT_IRQ_CONTROLLER_STATUS_REG_IDX) &
 		 (1U << (irq_id + IRQ_SW_CHANNEL_OFFSET))) == 0)) {
-		hrt_sleep();
+		udelay(1);
 	}
 
 	return 0;

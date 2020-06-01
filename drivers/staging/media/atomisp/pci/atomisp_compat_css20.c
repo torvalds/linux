@@ -69,60 +69,66 @@ struct bayer_ds_factor {
 
 static void atomisp_css2_hw_store_8(hrt_address addr, uint8_t data)
 {
+	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	_hrt_master_port_store_8(addr, data);
+	*io_virt_addr = data;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_store_16(hrt_address addr, uint16_t data)
 {
+	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	_hrt_master_port_store_16(addr, data);
+	*io_virt_addr = data;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 void atomisp_css2_hw_store_32(hrt_address addr, uint32_t data)
 {
+	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	_hrt_master_port_store_32(addr, data);
+	*io_virt_addr = data;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static uint8_t atomisp_css2_hw_load_8(hrt_address addr)
 {
+	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 	u8 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = _hrt_master_port_load_8(addr);
+	ret = *io_virt_addr;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint16_t atomisp_css2_hw_load_16(hrt_address addr)
 {
+	s16 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 	u16 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = _hrt_master_port_load_16(addr);
+	ret = *io_virt_addr;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
 
 static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 {
+	s32 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 	u32 ret;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	ret = _hrt_master_port_load_32(addr);
+	ret = *io_virt_addr;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 	return ret;
 }
@@ -130,27 +136,25 @@ static uint32_t atomisp_css2_hw_load_32(hrt_address addr)
 static void atomisp_css2_hw_store(hrt_address addr,
 				  const void *from, uint32_t n)
 {
+	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 	unsigned int i;
-	unsigned int _to = (unsigned int)addr;
-	const char *_from = (const char *)from;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, _to++, _from++)
-		_hrt_master_port_store_8(_to, *_from);
+	for (i = 0; i < n; i++, io_virt_addr++, from++)
+		*io_virt_addr = *(s8 *)from;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
 static void atomisp_css2_hw_load(hrt_address addr, void *to, uint32_t n)
 {
+	s8 __iomem *io_virt_addr = atomisp_io_base + (addr & 0x003FFFFF);
 	unsigned long flags;
 	unsigned int i;
-	char *_to = (char *)to;
-	unsigned int _from = (unsigned int)addr;
 
 	spin_lock_irqsave(&mmio_lock, flags);
-	for (i = 0; i < n; i++, _to++, _from++)
-		*_to = _hrt_master_port_load_8(_from);
+	for (i = 0; i < n; i++, to++, io_virt_addr++)
+		*(s8 *)to = *io_virt_addr;
 	spin_unlock_irqrestore(&mmio_lock, flags);
 }
 
@@ -992,9 +996,9 @@ void atomisp_css_rx_clear_irq_info(enum mipi_port_id port,
 int atomisp_css_irq_enable(struct atomisp_device *isp,
 			   enum ia_css_irq_info info, bool enable)
 {
-	dev_dbg(isp->dev, "%s: css irq info 0x%08x: %s.\n",
+	dev_dbg(isp->dev, "%s: css irq info 0x%08x: %s (%d).\n",
 		__func__, info,
-		enable ? "enable" : "disable");
+		enable ? "enable" : "disable", enable);
 	if (ia_css_irq_enable(info, enable)) {
 		dev_warn(isp->dev, "%s:Invalid irq info: 0x%08x when %s.\n",
 			 __func__, info,
@@ -4292,8 +4296,13 @@ bool atomisp_css_valid_sof(struct atomisp_device *isp)
 		struct atomisp_sub_device *asd = &isp->asd[i];
 		/* Loop for each css vc stream */
 		for (j = 0; j < ATOMISP_INPUT_STREAM_NUM; j++) {
-			if (asd->stream_env[j].stream &&
-			    asd->stream_env[j].stream_config.mode ==
+			if (!asd->stream_env[j].stream)
+				continue;
+
+			dev_dbg(isp->dev,
+				"stream #%d: mode: %d\n", j,
+				asd->stream_env[j].stream_config.mode);
+			if (asd->stream_env[j].stream_config.mode ==
 			    IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 				return false;
 		}

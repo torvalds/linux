@@ -21,8 +21,6 @@
 #endif
 #include "gp_device.h"	/* _REG_GP_IRQ_REQUEST_ADDR */
 
-#include "platform_support.h"			/* hrt_sleep() */
-
 static inline void irq_wait_for_write_complete(
     const irq_ID_t		ID);
 

@@ -13,6 +13,8 @@
  * more details.
  */
 
+#include <linux/delay.h>
+
 #include <system_global.h>
 #include "isp.h"
 
@@ -21,7 +23,6 @@
 #endif /* __INLINE_ISP__ */
 
 #include "assert_support.h"
-#include "platform_support.h"			/* hrt_sleep() */
 
 void cnd_isp_irq_enable(
     const isp_ID_t		ID,
@@ -125,5 +126,5 @@ void isp_wake(isp_ID_t ID)
 {
 	assert(ID < N_ISP_ID);
 	isp_ctrl_setbit(ID, ISP_SC_REG, ISP_START_BIT);
-	hrt_sleep();
+	udelay(1);
 }

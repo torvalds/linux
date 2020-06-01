@@ -76,7 +76,6 @@
 #define __INLINE_GPIO__
 #include "gpio.h"
 #include "timed_ctrl.h"
-#include "platform_support.h" /* hrt_sleep(), inline */
 #include "ia_css_inputfifo.h"
 #define WITH_PC_MONITORING  0
 
@@ -10379,7 +10378,7 @@ ia_css_start_sp(void) {
 	while ((ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_INITIALIZED) && timeout)
 	{
 		timeout--;
-		hrt_sleep();
+		udelay(1);
 	}
 	if (timeout == 0)
 	{
@@ -10443,7 +10442,7 @@ ia_css_stop_sp(void) {
 	while (!ia_css_spctrl_is_idle(SP0_ID) && timeout)
 	{
 		timeout--;
-		hrt_sleep();
+		udelay(1);
 	}
 	if ((ia_css_spctrl_get_state(SP0_ID) != IA_CSS_SP_SW_TERMINATED))
 		IA_CSS_WARNING("SP has not terminated (SW)");
@@ -10457,7 +10456,7 @@ ia_css_stop_sp(void) {
 	while (!isp_ctrl_getbit(ISP0_ID, ISP_SC_REG, ISP_IDLE_BIT) && timeout)
 	{
 		timeout--;
-		hrt_sleep();
+		udelay(1);
 	}
 	if (timeout == 0)
 	{

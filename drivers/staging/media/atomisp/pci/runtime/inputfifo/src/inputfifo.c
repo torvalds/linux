@@ -104,7 +104,7 @@ static inline void
 _sh_css_fifo_snd(unsigned int token)
 {
 	while (!can_event_send_token(STR2MIPI_EVENT_ID))
-		hrt_sleep();
+		udelay(1);
 	event_send_token(STR2MIPI_EVENT_ID, token);
 	return;
 }
