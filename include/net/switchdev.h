@@ -116,6 +116,7 @@ struct switchdev_obj_mrp {
 	struct net_device *p_port;
 	struct net_device *s_port;
 	u32 ring_id;
+	u16 prio;
 };
 
 #define SWITCHDEV_OBJ_MRP(OBJ) \
@@ -129,6 +130,7 @@ struct switchdev_obj_ring_test_mrp {
 	u8 max_miss;
 	u32 ring_id;
 	u32 period;
+	bool monitor;
 };
 
 #define SWITCHDEV_OBJ_RING_TEST_MRP(OBJ) \

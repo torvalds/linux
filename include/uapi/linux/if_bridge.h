@@ -176,6 +176,7 @@ enum {
 	IFLA_BRIDGE_MRP_INSTANCE_RING_ID,
 	IFLA_BRIDGE_MRP_INSTANCE_P_IFINDEX,
 	IFLA_BRIDGE_MRP_INSTANCE_S_IFINDEX,
+	IFLA_BRIDGE_MRP_INSTANCE_PRIO,
 	__IFLA_BRIDGE_MRP_INSTANCE_MAX,
 };
 
@@ -221,6 +222,7 @@ enum {
 	IFLA_BRIDGE_MRP_START_TEST_INTERVAL,
 	IFLA_BRIDGE_MRP_START_TEST_MAX_MISS,
 	IFLA_BRIDGE_MRP_START_TEST_PERIOD,
+	IFLA_BRIDGE_MRP_START_TEST_MONITOR,
 	__IFLA_BRIDGE_MRP_START_TEST_MAX,
 };
 
@@ -230,6 +232,7 @@ struct br_mrp_instance {
 	__u32 ring_id;
 	__u32 p_ifindex;
 	__u32 s_ifindex;
+	__u16 prio;
 };
 
 struct br_mrp_ring_state {
@@ -247,6 +250,7 @@ struct br_mrp_start_test {
 	__u32 interval;
 	__u32 max_miss;
 	__u32 period;
+	__u32 monitor;
 };
 
 struct bridge_stp_xstats {
