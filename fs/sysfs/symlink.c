@@ -133,6 +133,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 	spin_unlock(&sysfs_symlink_target_lock);
 	kernfs_remove_by_name_ns(kobj->sd, name, ns);
 }
+EXPORT_SYMBOL_GPL(sysfs_delete_link);
 
 /**
  *	sysfs_remove_link - remove symlink in object's directory.
