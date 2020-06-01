@@ -55,10 +55,10 @@ ifdef MODPOST_VMLINUX
 quiet_cmd_modpost = MODPOST $@
       cmd_modpost = $(MODPOST) $<
 
-Module.symvers: vmlinux.o
+vmlinux.symvers: vmlinux.o
 	$(call cmd,modpost)
 
-__modpost: Module.symvers
+__modpost: vmlinux.symvers
 
 else
 
@@ -66,7 +66,8 @@ MODPOST += -s \
 	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))
 
 ifeq ($(KBUILD_EXTMOD),)
-MODPOST += $(wildcard vmlinux)
+
+input-symdump := vmlinux.symvers
 output-symdump := Module.symvers
 
 else
