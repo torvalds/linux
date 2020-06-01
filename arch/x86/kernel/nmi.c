@@ -25,10 +25,6 @@
 #include <linux/atomic.h>
 #include <linux/sched/clock.h>
 
-#if defined(CONFIG_EDAC)
-#include <linux/edac.h>
-#endif
-
 #include <asm/cpu_entry_area.h>
 #include <asm/traps.h>
 #include <asm/mach_traps.h>
