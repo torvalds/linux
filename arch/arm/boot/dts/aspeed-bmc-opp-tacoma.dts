@@ -40,12 +40,6 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		checkstop {
-			label = "checkstop";
-			gpios = <&gpio0 ASPEED_GPIO(E, 3) GPIO_ACTIVE_LOW>;
-			linux,code = <ASPEED_GPIO(E, 3)>;
-		};
-
 		ps0-presence {
 			label = "ps0-presence";
 			gpios = <&gpio0 ASPEED_GPIO(H, 3) GPIO_ACTIVE_LOW>;
