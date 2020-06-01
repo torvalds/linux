@@ -256,7 +256,7 @@ static void get_aes_decrypt_key(unsigned char *dec_key,
 		return;
 	}
 	for (i = 0; i < nk; i++)
-		w_ring[i] = be32_to_cpu(*(u32 *)&key[4 * i]);
+		w_ring[i] = get_unaligned_be32(&key[i * 4]);
 
 	i = 0;
 	temp = w_ring[nk - 1];
@@ -275,7 +275,7 @@ static void get_aes_decrypt_key(unsigned char *dec_key,
 	}
 	i--;
 	for (k = 0, j = i % nk; k < nk; k++) {
-		*((u32 *)dec_key + k) = htonl(w_ring[j]);
+		put_unaligned_be32(w_ring[j], &dec_key[k * 4]);
 		j--;
 		if (j < 0)
 			j += nk;
@@ -2926,8 +2926,7 @@ static int ccm_format_packet(struct aead_request *req,
 		memcpy(ivptr, req->iv, 16);
 	}
 	if (assoclen)
-		*((unsigned short *)(reqctx->scratch_pad + 16)) =
-				htons(assoclen);
+		put_unaligned_be16(assoclen, &reqctx->scratch_pad[16]);
 
 	rc = generate_b0(req, ivptr, op_type);
 	/* zero the ctr value */
@@ -3201,8 +3200,7 @@ static struct sk_buff *create_gcm_wr(struct aead_request *req,
 	} else {
 		memcpy(ivptr, req->iv, GCM_AES_IV_SIZE);
 	}
-	*((unsigned int *)(ivptr + 12)) = htonl(0x01);
-
+	put_unaligned_be32(0x01, &ivptr[12]);
 	ulptx = (struct ulptx_sgl *)(ivptr + 16);
 
 	chcr_add_aead_dst_ent(req, phys_cpl, qid);

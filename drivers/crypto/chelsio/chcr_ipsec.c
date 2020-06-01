@@ -403,7 +403,7 @@ inline void *copy_esn_pktxt(struct sk_buff *skb,
 	xo = xfrm_offload(skb);
 
 	aadiv->spi = (esphdr->spi);
-	seqlo = htonl(esphdr->seq_no);
+	seqlo = ntohl(esphdr->seq_no);
 	seqno = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
 	memcpy(aadiv->seq_no, &seqno, 8);
 	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
