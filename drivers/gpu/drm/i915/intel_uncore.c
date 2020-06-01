@@ -709,7 +709,7 @@ static void __intel_uncore_forcewake_put(struct intel_uncore *uncore,
 			continue;
 		}
 
-		fw_domain_arm_timer(domain);
+		uncore->funcs.force_wake_put(uncore, domain->mask);
 	}
 }
 
