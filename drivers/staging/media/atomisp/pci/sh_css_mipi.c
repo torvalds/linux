@@ -391,7 +391,7 @@ calculate_mipi_buff_size(
 
 static bool buffers_needed(struct ia_css_pipe *pipe)
 {
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 			return false;
 		else
@@ -445,7 +445,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		return 0; /* AM TODO: Check  */
 	}
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		port = (unsigned int)pipe->stream->config.source.port.port;
 	else
 		err = ia_css_mipi_is_source_port_valid(pipe, &port);
@@ -594,7 +594,7 @@ free_mipi_frames(struct ia_css_pipe *pipe) {
 			return err;
 		}
 
-		if (!atomisp_hw_is_isp2401)
+		if (!IS_ISP2401)
 			port = (unsigned int)pipe->stream->config.source.port.port;
 		else
 			err = ia_css_mipi_is_source_port_valid(pipe, &port);
@@ -710,7 +710,7 @@ send_mipi_frames(struct ia_css_pipe *pipe) {
 		/* TODO: AM: maybe this should be returning an error. */
 	}
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		port = (unsigned int)pipe->stream->config.source.port.port;
 	else
 		err = ia_css_mipi_is_source_port_valid(pipe, &port);

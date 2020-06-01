@@ -124,11 +124,6 @@ MODULE_PARM_DESC(pad_h, "extra data for ISP processing");
  * be to replace this to something stored inside atomisp allocated
  * structures.
  */
-bool atomisp_hw_is_isp2401;
-
-/* Types of atomisp hardware */
-#define HW_IS_ISP2400 0
-#define HW_IS_ISP2401 1
 
 struct device *atomisp_dev;
 
@@ -1459,21 +1454,17 @@ static bool is_valid_device(struct pci_dev *dev,
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
 		a0_max_id = ATOMISP_PCI_REV_MRFLD_A0_MAX;
-		atomisp_hw_is_isp2401 = false;
 		name = "Merrifield";
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_BYT:
 		a0_max_id = ATOMISP_PCI_REV_BYT_A0_MAX;
-		atomisp_hw_is_isp2401 = false;
 		name = "Baytrail";
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_ANN:
 		name = "Anniedale";
-		atomisp_hw_is_isp2401 = true;
 		break;
 	case ATOMISP_PCI_DEVICE_SOC_CHT:
 		name = "Cherrytrail";
-		atomisp_hw_is_isp2401 = true;
 		break;
 	default:
 		dev_err(&dev->dev, "%s: unknown device ID %x04:%x04\n",
@@ -1493,13 +1484,13 @@ static bool is_valid_device(struct pci_dev *dev,
 	 */
 
 #if defined(ISP2400)
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		dev_err(&dev->dev, "Support for %s (ISP2401) was disabled at compile time\n",
 			name);
 		return false;
 	}
 #else
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		dev_err(&dev->dev, "Support for %s (ISP2400) was disabled at compile time\n",
 			name);
 		return false;
@@ -1508,7 +1499,7 @@ static bool is_valid_device(struct pci_dev *dev,
 
 	dev_info(&dev->dev, "Detected %s version %d (ISP240%c) on %s\n",
 		name, dev->revision,
-		atomisp_hw_is_isp2401 ? '1' : '0',
+		IS_ISP2401 ? '1' : '0',
 		product);
 
 	return true;
@@ -1530,7 +1521,7 @@ static int init_atomisp_wdts(struct atomisp_device *isp)
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
 
-		if (!atomisp_hw_is_isp2401)
+		if (!IS_ISP2401)
 			timer_setup(&asd->wdt, atomisp_wdt, 0);
 		else {
 			timer_setup(&asd->video_out_capture.wdt,

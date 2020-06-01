@@ -1342,7 +1342,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 
 	if (info->enable.sc)
 	{
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			binary->sctbl_width_per_color = _ISP2400_SCTBL_WIDTH_PER_COLOR(sc_3a_dis_padded_width, s3a_log_deci);
 			binary->sctbl_aligned_width_per_color = ISP2400_SH_CSS_MAX_SCTBL_ALIGNED_WIDTH_PER_COLOR;
 			binary->sctbl_height = _ISP2400_SCTBL_HEIGHT(sc_3a_dis_height, s3a_log_deci);
@@ -1358,7 +1358,7 @@ ia_css_binary_fill_info(const struct ia_css_binary_xinfo *xinfo,
 		binary->sctbl_width_per_color         = 0;
 		binary->sctbl_aligned_width_per_color = 0;
 		binary->sctbl_height                  = 0;
-		if (atomisp_hw_is_isp2401) {
+		if (IS_ISP2401) {
 			binary->sctbl_legacy_width_per_color  = 0;
 			binary->sctbl_legacy_height	      = 0;
 		}

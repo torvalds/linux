@@ -70,9 +70,6 @@
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
 #endif
 
-/* FIXME: for now, let's use a boolean to identify the type of atomisp chipset */
-extern bool atomisp_hw_is_isp2401;
-
 /* Configuration used by Bayer noise reduction and YCC noise reduction */
 struct atomisp_nr_config {
 	/* [gain] Strength of noise reduction for Bayer NR (Used by Bayer NR) */

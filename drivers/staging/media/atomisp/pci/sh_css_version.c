@@ -14,6 +14,7 @@
  */
 
 #include "../../include/linux/atomisp.h"
+#include "../../include/linux/atomisp_platform.h"
 #include "ia_css_version.h"
 #include "ia_css_version_data.h"
 #include "ia_css_err.h"
@@ -23,7 +24,7 @@ int
 ia_css_get_version(char *version, int max_size) {
 	char *css_version;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		css_version = ISP2400_CSS_VERSION_STRING;
 	else
 		css_version = ISP2401_CSS_VERSION_STRING;

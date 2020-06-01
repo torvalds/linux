@@ -582,7 +582,7 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	 * ioctl is the only way to enum inputs + possible external actuators
 	 * for 3A tuning purpose.
 	 */
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[index].motor;
 	else
 		motor = isp->motor;
@@ -732,7 +732,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		goto error;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		motor = isp->inputs[input].motor;
 	} else {
 		motor = isp->motor;
@@ -1264,7 +1264,7 @@ done:
 		} else {
 			atomisp_qbuffers_to_css(asd);
 
-			if (!atomisp_hw_is_isp2401) {
+			if (!IS_ISP2401) {
 				if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
 					atomisp_wdt_start(asd);
 			} else {
@@ -1288,7 +1288,7 @@ done:
 	    pipe->capq.streaming &&
 	    !asd->enable_raw_buffer_lock->val &&
 	    asd->params.offline_parm.num_captures == 1) {
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			asd->pending_capture_request++;
 			dev_dbg(isp->dev, "Add one pending capture request.\n");
 		} else {
@@ -1687,7 +1687,7 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	/* Reset pending capture request count. */
 	asd->pending_capture_request = 0;
-	if (atomisp_hw_is_isp2401)
+	if (IS_ISP2401)
 		asd->re_trigger_capture = false;
 
 	if ((atomisp_subdev_streaming_count(asd) > sensor_start_stream) &&
@@ -1828,7 +1828,7 @@ start_sensor:
 			dev_err(isp->dev, "master slave sensor stream on failed!\n");
 			goto out;
 		}
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			__wdt_on_master_slave_sensor(isp, wdt_duration);
 		} else {
 			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, true);
@@ -1836,7 +1836,7 @@ start_sensor:
 		goto start_delay_wq;
 	} else if (asd->depth_mode->val && (atomisp_streaming_count(isp) <
 					    ATOMISP_DEPTH_SENSOR_STREAMON_COUNT)) {
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			__wdt_on_master_slave_sensor_pipe(pipe, wdt_duration, false);
 		goto start_delay_wq;
 	}
@@ -1858,7 +1858,7 @@ start_sensor:
 		goto out;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (atomisp_buffers_queued(asd))
 			atomisp_wdt_refresh(asd, wdt_duration);
 	} else {
@@ -2317,7 +2317,7 @@ static int atomisp_queryctl(struct file *file, void *fh,
 	case V4L2_CID_FOCUS_ABSOLUTE:
 	case V4L2_CID_FOCUS_RELATIVE:
 	case V4L2_CID_FOCUS_STATUS:
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			return v4l2_queryctrl(isp->inputs[asd->input_curr].camera->
 					    ctrl_handler, qc);
 		}
@@ -2358,7 +2358,7 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	int i;
 	int ret = 0;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2467,7 +2467,7 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	int i;
 	int ret = 0;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2696,7 +2696,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	else
 		asd = atomisp_to_video_pipe(vdev)->asd;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		motor = isp->inputs[asd->input_curr].motor;
 	else
 		motor = isp->motor;
@@ -2721,7 +2721,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 	}
 	switch (cmd) {
 	case ATOMISP_IOC_S_SENSOR_RUNMODE:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			err = atomisp_set_sensor_runmode(asd, arg);
 		else
 			err = -EINVAL;
@@ -2896,7 +2896,7 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 				       core, ioctl, cmd, arg);
 		break;
 	case ATOMISP_IOC_G_UPDATE_EXPOSURE:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			err = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 					       core, ioctl, cmd, arg);
 		else

@@ -989,7 +989,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		break;
 	case IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME:
 	case IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			reset_wdt_timer = true;
 
 		pipe->buffers_in_css--;
@@ -1038,18 +1038,18 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 
 			asd->pending_capture_request--;
 
-			if (atomisp_hw_is_isp2401)
+			if (IS_ISP2401)
 				asd->re_trigger_capture = false;
 
 			dev_dbg(isp->dev, "Trigger capture again for new buffer. err=%d\n",
 				err);
-		} else if (atomisp_hw_is_isp2401) {
+		} else if (IS_ISP2401) {
 			asd->re_trigger_capture = true;
 		}
 		break;
 	case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
 	case IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME:
-		if (atomisp_hw_is_isp2401)
+		if (IS_ISP2401)
 			reset_wdt_timer = true;
 
 		pipe->buffers_in_css--;
@@ -1219,7 +1219,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		 */
 		wake_up(&vb->done);
 	}
-	if (atomisp_hw_is_isp2401)
+	if (IS_ISP2401)
 		atomic_set(&pipe->wdt_count, 0);
 
 	/*
@@ -1239,7 +1239,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	if (!error && q_buffers)
 		atomisp_qbuffers_to_css(asd);
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		/* If there are no buffers queued then
 		* delete wdt timer. */
 		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED)
@@ -1475,7 +1475,7 @@ void atomisp_wdt_work(struct work_struct *work)
 		return;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		dev_err(isp->dev, "timeout %d of %d\n",
 			atomic_read(&isp->wdt_count) + 1,
 			ATOMISP_ISP_MAX_TIMEOUT_COUNT);
@@ -1598,11 +1598,11 @@ void atomisp_wdt_work(struct work_struct *work)
 				atomisp_flush_bufs_and_wakeup(asd);
 				complete(&asd->init_done);
 			}
-			if (atomisp_hw_is_isp2401)
+			if (IS_ISP2401)
 				atomisp_wdt_stop(asd, false);
 		}
 
-		if (!atomisp_hw_is_isp2401) {
+		if (!IS_ISP2401) {
 			atomic_set(&isp->wdt_count, 0);
 		} else {
 			isp->isp_fatal_error = true;
@@ -1614,7 +1614,7 @@ void atomisp_wdt_work(struct work_struct *work)
 	}
 
 	__atomisp_css_recover(isp, true);
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		for (i = 0; i < isp->num_of_streams; i++) {
 			struct atomisp_sub_device *asd = &isp->asd[i];
 
@@ -1671,7 +1671,7 @@ void atomisp_wdt(struct timer_list *t)
 	struct atomisp_sub_device *asd;
 	struct atomisp_device *isp;
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		asd = from_timer(asd, t, wdt);
 		isp = asd->isp;
 	} else {
@@ -1730,7 +1730,7 @@ void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,
 
 void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay)
 {
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		unsigned long next;
 
 		if (delay != ATOMISP_WDT_KEEP_CURRENT_DELAY)
@@ -1793,7 +1793,7 @@ void atomisp_wdt_stop(struct atomisp_sub_device *asd, bool sync)
 {
 	dev_dbg(asd->isp->dev, "WDT stop:\n");
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (sync) {
 			del_timer_sync(&asd->wdt);
 			cancel_work_sync(&asd->isp->wdt_work);
@@ -3014,7 +3014,7 @@ int atomisp_calculate_real_zoom_region(struct atomisp_sub_device *asd,
 	 * map real crop region base on above calculating base max crop region.
 	 */
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		dz_config->zoom_region.origin.x = dz_config->zoom_region.origin.x
 						  * eff_res.width
 						  / asd->sensor_array_res.width;
@@ -3584,7 +3584,7 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 	if (!from_user && css_param->update_flag.shading_table)
 		return 0;
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		if (copy_from_compatible(&dest_st, source_st,
 					sizeof(struct atomisp_shading_table),
 					from_user)) {
@@ -3617,7 +3617,7 @@ int atomisp_cp_lsc_table(struct atomisp_sub_device *asd,
 	}
 
 	/* Shading table size per color */
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (st->width > ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
 		    st->height > ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR) {
 			dev_err(asd->isp->dev, "shading table w/h validate failed!");
@@ -3700,7 +3700,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 	if (!from_user && css_param->update_flag.dvs2_coefs)
 		return 0;
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (sizeof(*cur) != sizeof(coefs->grid) ||
 		    memcmp(&coefs->grid, cur, sizeof(coefs->grid))) {
 			dev_err(asd->isp->dev, "dvs grid mis-match!\n");
@@ -3843,7 +3843,7 @@ int atomisp_cp_dvs_6axis_config(struct atomisp_sub_device *asd,
 	old_6axis_config = css_param->dvs_6axis;
 	dvs_6axis_config = old_6axis_config;
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		struct ia_css_dvs_6axis_config t_6axis_config;
 
 		if (copy_from_compatible(&t_6axis_config, source_6axis_config,
@@ -3978,7 +3978,7 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 
 	old_morph_table = css_param->morph_table;
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		struct ia_css_morph_table mtbl;
 
 		if (copy_from_compatible(&mtbl, source_morph_table,
@@ -4168,7 +4168,7 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 
 	atomisp_qbuffers_to_css(asd);
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (!atomisp_is_wdt_running(asd) && atomisp_buffers_queued(asd))
 			atomisp_wdt_start(asd);
 	} else {
@@ -4204,7 +4204,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		__func__, arg->per_frame_setting, asd->index,
 		arg->isp_config_id, vdev->name);
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		if (atomisp_is_vf_pipe(pipe) && arg->per_frame_setting) {
 			dev_err(asd->isp->dev, "%s: vf pipe not support per_frame_setting",
 				__func__);
@@ -5070,7 +5070,7 @@ static int __enable_continuous_mode(struct atomisp_sub_device *asd,
 		enable, asd->continuous_raw_buffer_size->val,
 		!asd->continuous_viewfinder->val);
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_PRIMARY);
 	else
 		atomisp_update_capture_mode(asd);
@@ -5961,7 +5961,7 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 		 * which appears to be related by a hardware
 		 * performance limitation.  It's unclear why this
 		 * particular code triggers the issue. */
-		if (!atomisp_hw_is_isp2401 || crop_needs_override) {
+		if (!IS_ISP2401 || crop_needs_override) {
 			if (isp_sink_crop.width * main_compose.height >
 			    isp_sink_crop.height * main_compose.width) {
 				sink_crop.height = isp_sink_crop.height;
@@ -6107,7 +6107,7 @@ int atomisp_set_shading_table(struct atomisp_sub_device *asd,
 	}
 
 	/* Shading table size per color */
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (user_shading_table->width > ISP2400_SH_CSS_MAX_SCTBL_WIDTH_PER_COLOR ||
 		    user_shading_table->height > ISP2400_SH_CSS_MAX_SCTBL_HEIGHT_PER_COLOR)
 			return -EINVAL;

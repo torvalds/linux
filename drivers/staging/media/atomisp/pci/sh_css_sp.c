@@ -1343,7 +1343,7 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 	}
 #endif
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		/* For the shading correction type 1 (the legacy shading table conversion in css is not used),
 		* the parameters are passed to the isp for the shading table centering.
 		*/

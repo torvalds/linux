@@ -612,7 +612,7 @@ static void __apply_additional_pipe_config(
 		    default_capture_config.mode == IA_CSS_CAPTURE_MODE_RAW)
 			stream_env->pipe_configs[pipe_id].enable_dz = false;
 
-		if (atomisp_hw_is_isp2401) {
+		if (IS_ISP2401) {
 			/* the isp default to use ISP2.2 and the camera hal will
 			* control whether use isp2.7 */
 			if (asd->select_isp_version->val == ATOMISP_CSS_ISP_PIPE_VERSION_2_7)
@@ -4159,7 +4159,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			for (i = 0; i < isp->num_of_streams; i++)
 				atomisp_wdt_stop(&isp->asd[i], 0);
 
-			if (!atomisp_hw_is_isp2401)
+			if (!IS_ISP2401)
 				atomisp_wdt(&isp->asd[0].wdt);
 			else
 				queue_work(isp->wdt_work_queue, &isp->wdt_work);
@@ -4193,7 +4193,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			atomisp_buf_done(asd, 0, IA_CSS_BUFFER_TYPE_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 
-			if (!atomisp_hw_is_isp2401)
+			if (!IS_ISP2401)
 				reset_wdt_timer[asd->index] = true; /* ISP running */
 
 			break;
@@ -4203,7 +4203,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			atomisp_buf_done(asd, 0, IA_CSS_BUFFER_TYPE_SEC_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 
-			if (!atomisp_hw_is_isp2401)
+			if (!IS_ISP2401)
 				reset_wdt_timer[asd->index] = true; /* ISP running */
 
 			break;
@@ -4227,7 +4227,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 					 IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
 
-			if (!atomisp_hw_is_isp2401)
+			if (!IS_ISP2401)
 				reset_wdt_timer[asd->index] = true; /* ISP running */
 
 			break;
@@ -4236,7 +4236,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			atomisp_buf_done(asd, 0,
 					 IA_CSS_BUFFER_TYPE_SEC_VF_OUTPUT_FRAME,
 					 current_event.pipe, true, stream_id);
-			if (!atomisp_hw_is_isp2401)
+			if (!IS_ISP2401)
 				reset_wdt_timer[asd->index] = true; /* ISP running */
 
 			break;
@@ -4262,7 +4262,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 		}
 	}
 
-	if (atomisp_hw_is_isp2401)
+	if (IS_ISP2401)
 		return 0;
 
 	/* ISP2400: If there are no buffers queued then delete wdt timer. */

@@ -3087,7 +3087,7 @@ ia_css_debug_dump_pipe_config(
 				     "capt_pp_in_res");
 	ia_css_debug_dump_resolution(&config->vf_pp_in_res, "vf_pp_in_res");
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		ia_css_debug_dump_resolution(&config->output_system_in_res,
 					    "output_system_in_res");
 	}
@@ -3315,7 +3315,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		return;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		tmp = ia_css_device_load_uint32(start_addr);
 		point_num = (tmp >> 16) & 0xFFFF;
 
@@ -3349,7 +3349,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		if ((limit == (-1)) && (trace_read_buf[i] == 0))
 			limit = i;
 	}
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "Status:\n");
 		for (i = 0; i < SH_CSS_MAX_SP_THREADS; i++)
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -3382,7 +3382,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 	for (i = 0; i < point_num; i++) {
 		j = (limit + i) % point_num;
 		if (trace_read_buf[j]) {
-			if (!atomisp_hw_is_isp2401) {
+			if (!IS_ISP2401) {
 				TRACE_DUMP_FORMAT dump_format = FIELD_FORMAT_UNPACK(trace_read_buf[j]);
 			} else {
 				tid_val = FIELD_TID_UNPACK(trace_read_buf[j]);

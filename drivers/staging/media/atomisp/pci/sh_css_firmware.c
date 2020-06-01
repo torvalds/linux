@@ -189,7 +189,7 @@ sh_css_check_firmware_version(struct device *dev, const char *fw_data)
 
 	const char *release_version;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		release_version = isp2400_release_version;
 	else
 		release_version = isp2401_release_version;
@@ -230,7 +230,7 @@ sh_css_load_firmware(struct device *dev, const char *fw_data,
 	int ret;
 	const char *release_version;
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		release_version = isp2400_release_version;
 	else
 		release_version = isp2401_release_version;

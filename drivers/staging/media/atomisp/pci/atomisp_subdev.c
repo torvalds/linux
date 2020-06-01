@@ -1222,7 +1222,7 @@ static int isp_subdev_init_entities(struct atomisp_sub_device *asd)
 	    v4l2_ctrl_new_custom(&asd->ctrl_handler,
 				 &ctrl_disable_dz,
 				 NULL);
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		asd->select_isp_version = v4l2_ctrl_new_custom(&asd->ctrl_handler,
 							       &ctrl_select_isp_version,
 							       NULL);
