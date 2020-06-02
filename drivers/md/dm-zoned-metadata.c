@@ -1525,7 +1525,20 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 		 */
 		zmd->sb[0].zone = dmz_get(zmd, 0);
 
-		zoned_dev = &zmd->dev[1];
+		for (i = 1; i < zmd->nr_devs; i++) {
+			zoned_dev = &zmd->dev[i];
+
+			ret = blkdev_report_zones(zoned_dev->bdev, 0,
+						  BLK_ALL_ZONES,
+						  dmz_init_zone, zoned_dev);
+			if (ret < 0) {
+				DMDEBUG("(%s): Failed to report zones, error %d",
+					zmd->devname, ret);
+				dmz_drop_zones(zmd);
+				return ret;
+			}
+		}
+		return 0;
 	}
 
 	/*
