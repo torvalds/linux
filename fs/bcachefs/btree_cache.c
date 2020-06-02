@@ -851,6 +851,18 @@ struct btree *bch2_btree_node_get_sibling(struct bch_fs *c,
 	if (!parent)
 		return NULL;
 
+	/*
+	 * There's a corner case where a btree_iter might have a node locked
+	 * that is just outside its current pos - when
+	 * bch2_btree_iter_set_pos_same_leaf() gets to the end of the node.
+	 *
+	 * But the lock ordering checks in __bch2_btree_node_lock() go off of
+	 * iter->pos, not the node's key: so if the iterator is marked as
+	 * needing to be traversed, we risk deadlock if we don't bail out here:
+	 */
+	if (iter->uptodate >= BTREE_ITER_NEED_TRAVERSE)
+		return ERR_PTR(-EINTR);
+
 	if (!bch2_btree_node_relock(iter, level + 1)) {
 		ret = ERR_PTR(-EINTR);
 		goto out;

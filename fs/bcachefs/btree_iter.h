@@ -172,17 +172,10 @@ void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *, struct bpos);
 void __bch2_btree_iter_set_pos(struct btree_iter *, struct bpos, bool);
 void bch2_btree_iter_set_pos(struct btree_iter *, struct bpos);
 
-static inline int __btree_iter_cmp(enum btree_id id,
-				   struct bpos pos,
-				   const struct btree_iter *r)
-{
-	return cmp_int(id, r->btree_id) ?: bkey_cmp(pos, r->pos);
-}
-
 static inline int btree_iter_cmp(const struct btree_iter *l,
 				 const struct btree_iter *r)
 {
-	return __btree_iter_cmp(l->btree_id, l->pos, r);
+	return cmp_int(l->btree_id, r->btree_id) ?: bkey_cmp(l->pos, r->pos);
 }
 
 /*

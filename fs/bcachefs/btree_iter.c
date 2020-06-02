@@ -205,8 +205,9 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		if (!linked->nodes_locked)
 			continue;
 
-		/* * Must lock btree nodes in key order: */
-		if (__btree_iter_cmp(iter->btree_id, pos, linked) < 0)
+		/* Must lock btree nodes in key order: */
+		if ((cmp_int(iter->btree_id, linked->btree_id) ?:
+		     bkey_cmp(pos, linked->pos)) < 0)
 			ret = false;
 
 		/*
@@ -1320,6 +1321,16 @@ void bch2_btree_iter_set_pos_same_leaf(struct btree_iter *iter, struct bpos new_
 
 	btree_iter_advance_to_pos(iter, l, -1);
 
+	/*
+	 * XXX:
+	 * keeping a node locked that's outside (even just outside) iter->pos
+	 * breaks __bch2_btree_node_lock(). This seems to only affect
+	 * bch2_btree_node_get_sibling so for now it's fixed there, but we
+	 * should try to get rid of this corner case.
+	 *
+	 * (this behaviour is currently needed for BTREE_INSERT_NOUNLOCK)
+	 */
+
 	if (bch2_btree_node_iter_end(&l->iter) &&
 	    btree_iter_pos_after_node(iter, l->b))
 		btree_iter_set_dirty(iter, BTREE_ITER_NEED_TRAVERSE);
@@ -2195,6 +2206,7 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 		bch2_trans_preload_mem(trans, expected_mem_bytes);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
+	trans->pid = current->pid;
 	mutex_lock(&c->btree_trans_lock);
 	list_add(&trans->list, &c->btree_trans_list);
 	mutex_unlock(&c->btree_trans_lock);
@@ -2233,7 +2245,7 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		pr_buf(out, "%ps\n", (void *) trans->ip);
+		pr_buf(out, "%i %ps\n", trans->pid, (void *) trans->ip);
 
 		trans_for_each_iter(trans, iter) {
 			if (!iter->nodes_locked)
