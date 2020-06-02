@@ -316,7 +316,7 @@ static struct ccu_div_data *ccu_div_create_data(struct device_node *np)
 		data->rst_num = ARRAY_SIZE(sys_rst_map);
 		data->rst_map = sys_rst_map;
 	} else {
-		pr_err("Uncompatible DT node '%s' specified\n",
+		pr_err("Incompatible DT node '%s' specified\n",
 			of_node_full_name(np));
 		ret = -EINVAL;
 		goto err_kfree_data;
