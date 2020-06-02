@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
 #include <net/netevent.h>
+#include <net/arp.h>
 #include "neigh.h"
 #include "tc.h"
 #include "en_rep.h"
