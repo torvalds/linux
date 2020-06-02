@@ -173,7 +173,7 @@
 			reg = <0x50000000 0x100000>;
 			ranges;
 
-			sdhci1: sdhci@50004000 {
+			sdhci1: mmc@50004000 {
 				compatible = "fsl,imx31-mmc";
 				reg = <0x50004000 0x4000>;
 				interrupts = <9>;
@@ -184,7 +184,7 @@
 				status = "disabled";
 			};
 
-			sdhci2: sdhci@50008000 {
+			sdhci2: mmc@50008000 {
 				compatible = "fsl,imx31-mmc";
 				reg = <0x50008000 0x4000>;
 				interrupts = <8>;
