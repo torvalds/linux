@@ -4305,12 +4305,8 @@ int mlx5_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 	/* resp.response_length is set in ECE supported flows only */
 	if (!err && resp.response_length &&
 	    udata->outlen >= resp.response_length)
-		/*
-		 * We don't check return value of the function below
-		 * on purpose, because it is unclear how to unwind the
-		 * error flow after QP was modified to the new state.
-		 */
-		ib_copy_to_udata(udata, &resp, resp.response_length);
+		/* Return -EFAULT to the user and expect him to destroy QP. */
+		err = ib_copy_to_udata(udata, &resp, resp.response_length);
 
 out:
 	mutex_unlock(&qp->mutex);
