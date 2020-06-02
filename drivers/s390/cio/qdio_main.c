@@ -503,15 +503,18 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 			account_sbals_error(q, count);
 		return count;
 	case SLSB_CU_INPUT_EMPTY:
-	case SLSB_P_INPUT_NOT_INIT:
-	case SLSB_P_INPUT_ACK:
 		if (q->irq_ptr->perf_stat_enabled)
 			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop:%1d %#02x",
 			      q->nr, start);
 		return 0;
+	case SLSB_P_INPUT_NOT_INIT:
+	case SLSB_P_INPUT_ACK:
+		/* We should never see this state, throw a WARN: */
 	default:
-		WARN_ON_ONCE(1);
+		dev_WARN_ONCE(&q->irq_ptr->cdev->dev, 1,
+			      "found state %#x at index %u on queue %u\n",
+			      state, start, q->nr);
 		return 0;
 	}
 }
@@ -716,11 +719,14 @@ static int get_outbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out primed:%1d",
 			      q->nr);
 		return 0;
-	case SLSB_P_OUTPUT_NOT_INIT:
 	case SLSB_P_OUTPUT_HALTED:
 		return 0;
+	case SLSB_P_OUTPUT_NOT_INIT:
+		/* We should never see this state, throw a WARN: */
 	default:
-		WARN_ON_ONCE(1);
+		dev_WARN_ONCE(&q->irq_ptr->cdev->dev, 1,
+			      "found state %#x at index %u on queue %u\n",
+			      state, start, q->nr);
 		return 0;
 	}
 }
