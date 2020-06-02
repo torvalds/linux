@@ -372,10 +372,9 @@ static int exfat_readpage(struct file *file, struct page *page)
 	return mpage_readpage(page, exfat_get_block);
 }
 
-static int exfat_readpages(struct file *file, struct address_space *mapping,
-		struct list_head *pages, unsigned int nr_pages)
+static void exfat_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, exfat_get_block);
+	mpage_readahead(rac, exfat_get_block);
 }
 
 static int exfat_writepage(struct page *page, struct writeback_control *wbc)
@@ -502,7 +501,7 @@ int exfat_block_truncate_page(struct inode *inode, loff_t from)
 
 static const struct address_space_operations exfat_aops = {
 	.readpage	= exfat_readpage,
-	.readpages	= exfat_readpages,
+	.readahead	= exfat_readahead,
 	.writepage	= exfat_writepage,
 	.writepages	= exfat_writepages,
 	.write_begin	= exfat_write_begin,
