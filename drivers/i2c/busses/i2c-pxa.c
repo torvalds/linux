@@ -1348,6 +1348,8 @@ static int i2c_pxa_init_recovery(struct pxa_i2c *i2c)
 		return 0;
 
 	i2c->pinctrl = devm_pinctrl_get(dev);
+	if (PTR_ERR(i2c->pinctrl) == -ENODEV)
+		i2c->pinctrl = NULL;
 	if (IS_ERR(i2c->pinctrl))
 		return PTR_ERR(i2c->pinctrl);
 
