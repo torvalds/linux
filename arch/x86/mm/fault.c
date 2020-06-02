@@ -190,16 +190,13 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 	return pmd_k;
 }
 
-static void vmalloc_sync(void)
+void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
 {
-	unsigned long address;
+	unsigned long addr;
 
-	if (SHARED_KERNEL_PMD)
-		return;
-
-	for (address = VMALLOC_START & PMD_MASK;
-	     address >= TASK_SIZE_MAX && address < VMALLOC_END;
-	     address += PMD_SIZE) {
+	for (addr = start & PMD_MASK;
+	     addr >= TASK_SIZE_MAX && addr < VMALLOC_END;
+	     addr += PMD_SIZE) {
 		struct page *page;
 
 		spin_lock(&pgd_lock);
@@ -210,60 +207,12 @@ static void vmalloc_sync(void)
 			pgt_lock = &pgd_page_get_mm(page)->page_table_lock;
 
 			spin_lock(pgt_lock);
-			vmalloc_sync_one(page_address(page), address);
+			vmalloc_sync_one(page_address(page), addr);
 			spin_unlock(pgt_lock);
 		}
 		spin_unlock(&pgd_lock);
 	}
 }
-
-void vmalloc_sync_mappings(void)
-{
-	vmalloc_sync();
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	vmalloc_sync();
-}
-
-/*
- * 32-bit:
- *
- *   Handle a fault on the vmalloc or module mapping area
- */
-static noinline int vmalloc_fault(unsigned long address)
-{
-	unsigned long pgd_paddr;
-	pmd_t *pmd_k;
-	pte_t *pte_k;
-
-	/* Make sure we are in vmalloc area: */
-	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-		return -1;
-
-	/*
-	 * Synchronize this task's top level page-table
-	 * with the 'reference' page table.
-	 *
-	 * Do _not_ use "current" here. We might be inside
-	 * an interrupt in the middle of a task switch..
-	 */
-	pgd_paddr = read_cr3_pa();
-	pmd_k = vmalloc_sync_one(__va(pgd_paddr), address);
-	if (!pmd_k)
-		return -1;
-
-	if (pmd_large(*pmd_k))
-		return 0;
-
-	pte_k = pte_offset_kernel(pmd_k, address);
-	if (!pte_present(*pte_k))
-		return -1;
-
-	return 0;
-}
-NOKPROBE_SYMBOL(vmalloc_fault);
 
 /*
  * Did it hit the DOS screen memory VA from vm86 mode?
@@ -328,96 +277,6 @@ out:
 }
 
 #else /* CONFIG_X86_64: */
-
-void vmalloc_sync_mappings(void)
-{
-	/*
-	 * 64-bit mappings might allocate new p4d/pud pages
-	 * that need to be propagated to all tasks' PGDs.
-	 */
-	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	/*
-	 * Unmappings never allocate or free p4d/pud pages.
-	 * No work is required here.
-	 */
-}
-
-/*
- * 64-bit:
- *
- *   Handle a fault on the vmalloc area
- */
-static noinline int vmalloc_fault(unsigned long address)
-{
-	pgd_t *pgd, *pgd_k;
-	p4d_t *p4d, *p4d_k;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-
-	/* Make sure we are in vmalloc area: */
-	if (!(address >= VMALLOC_START && address < VMALLOC_END))
-		return -1;
-
-	/*
-	 * Copy kernel mappings over when needed. This can also
-	 * happen within a race in page table update. In the later
-	 * case just flush:
-	 */
-	pgd = (pgd_t *)__va(read_cr3_pa()) + pgd_index(address);
-	pgd_k = pgd_offset_k(address);
-	if (pgd_none(*pgd_k))
-		return -1;
-
-	if (pgtable_l5_enabled()) {
-		if (pgd_none(*pgd)) {
-			set_pgd(pgd, *pgd_k);
-			arch_flush_lazy_mmu_mode();
-		} else {
-			BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_k));
-		}
-	}
-
-	/* With 4-level paging, copying happens on the p4d level. */
-	p4d = p4d_offset(pgd, address);
-	p4d_k = p4d_offset(pgd_k, address);
-	if (p4d_none(*p4d_k))
-		return -1;
-
-	if (p4d_none(*p4d) && !pgtable_l5_enabled()) {
-		set_p4d(p4d, *p4d_k);
-		arch_flush_lazy_mmu_mode();
-	} else {
-		BUG_ON(p4d_pfn(*p4d) != p4d_pfn(*p4d_k));
-	}
-
-	BUILD_BUG_ON(CONFIG_PGTABLE_LEVELS < 4);
-
-	pud = pud_offset(p4d, address);
-	if (pud_none(*pud))
-		return -1;
-
-	if (pud_large(*pud))
-		return 0;
-
-	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd))
-		return -1;
-
-	if (pmd_large(*pmd))
-		return 0;
-
-	pte = pte_offset_kernel(pmd, address);
-	if (!pte_present(*pte))
-		return -1;
-
-	return 0;
-}
-NOKPROBE_SYMBOL(vmalloc_fault);
 
 #ifdef CONFIG_CPU_SUP_AMD
 static const char errata93_warning[] =
@@ -1256,29 +1115,6 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
 	 * space, so do not expect them here.
 	 */
 	WARN_ON_ONCE(hw_error_code & X86_PF_PK);
-
-	/*
-	 * We can fault-in kernel-space virtual memory on-demand. The
-	 * 'reference' page table is init_mm.pgd.
-	 *
-	 * NOTE! We MUST NOT take any locks for this case. We may
-	 * be in an interrupt or a critical region, and should
-	 * only copy the information from the master page table,
-	 * nothing more.
-	 *
-	 * Before doing this on-demand faulting, ensure that the
-	 * fault is not any of the following:
-	 * 1. A fault on a PTE with a reserved bit set.
-	 * 2. A fault caused by a user-mode access.  (Do not demand-
-	 *    fault kernel memory due to user-mode accesses).
-	 * 3. A fault caused by a page-level protection violation.
-	 *    (A demand fault would be on a non-present page which
-	 *     would have X86_PF_PROT==0).
-	 */
-	if (!(hw_error_code & (X86_PF_RSVD | X86_PF_USER | X86_PF_PROT))) {
-		if (vmalloc_fault(address) >= 0)
-			return;
-	}
 
 	/* Was the fault spurious, caused by lazy TLB invalidation? */
 	if (spurious_kernel_fault(hw_error_code, address))

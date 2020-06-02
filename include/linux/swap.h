@@ -183,12 +183,17 @@ enum {
 #define SWAP_CLUSTER_MAX 32UL
 #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
 
-#define SWAP_MAP_MAX	0x3e	/* Max duplication count, in first swap_map */
-#define SWAP_MAP_BAD	0x3f	/* Note pageblock is bad, in first swap_map */
+/* Bit flag in swap_map */
 #define SWAP_HAS_CACHE	0x40	/* Flag page is cached, in first swap_map */
-#define SWAP_CONT_MAX	0x7f	/* Max count, in each swap_map continuation */
-#define COUNT_CONTINUED	0x80	/* See swap_map continuation for full count */
-#define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs, in first swap_map */
+#define COUNT_CONTINUED	0x80	/* Flag swap_map continuation for full count */
+
+/* Special value in first swap_map */
+#define SWAP_MAP_MAX	0x3e	/* Max count */
+#define SWAP_MAP_BAD	0x3f	/* Note page is bad */
+#define SWAP_MAP_SHMEM	0xbf	/* Owned by shmem/tmpfs */
+
+/* Special value in each swap_map continuation */
+#define SWAP_CONT_MAX	0x7f	/* Max count */
 
 /*
  * We use this to track usage of a cluster. A cluster is a block of swap disk
@@ -247,6 +252,7 @@ struct swap_info_struct {
 	unsigned int inuse_pages;	/* number of those currently in use */
 	unsigned int cluster_next;	/* likely index for next allocation */
 	unsigned int cluster_nr;	/* countdown to next cluster search */
+	unsigned int __percpu *cluster_next_cpu; /*percpu index for next allocation */
 	struct percpu_cluster __percpu *percpu_cluster; /* per cpu's swap location */
 	struct rb_root swap_extent_root;/* root of the swap extent rbtree */
 	struct block_device *bdev;	/* swap device or bdev of swap file */
@@ -409,7 +415,6 @@ extern unsigned long total_swapcache_pages(void);
 extern void show_swap_cache_info(void);
 extern int add_to_swap(struct page *page);
 extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
-extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
 extern void __delete_from_swap_cache(struct page *, swp_entry_t entry);
 extern void delete_from_swap_cache(struct page *);
 extern void free_page_and_swap_cache(struct page *);

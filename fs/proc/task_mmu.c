@@ -546,10 +546,17 @@ static void smaps_pmd_entry(pmd_t *pmd, unsigned long addr,
 	struct mem_size_stats *mss = walk->private;
 	struct vm_area_struct *vma = walk->vma;
 	bool locked = !!(vma->vm_flags & VM_LOCKED);
-	struct page *page;
+	struct page *page = NULL;
 
-	/* FOLL_DUMP will return -EFAULT on huge zero page */
-	page = follow_trans_huge_pmd(vma, addr, pmd, FOLL_DUMP);
+	if (pmd_present(*pmd)) {
+		/* FOLL_DUMP will return -EFAULT on huge zero page */
+		page = follow_trans_huge_pmd(vma, addr, pmd, FOLL_DUMP);
+	} else if (unlikely(thp_migration_supported() && is_swap_pmd(*pmd))) {
+		swp_entry_t entry = pmd_to_swp_entry(*pmd);
+
+		if (is_migration_entry(entry))
+			page = migration_entry_to_page(entry);
+	}
 	if (IS_ERR_OR_NULL(page))
 		return;
 	if (PageAnon(page))
@@ -578,8 +585,7 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (ptl) {
-		if (pmd_present(*pmd))
-			smaps_pmd_entry(pmd, addr, walk);
+		smaps_pmd_entry(pmd, addr, walk);
 		spin_unlock(ptl);
 		goto out;
 	}

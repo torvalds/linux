@@ -1043,8 +1043,8 @@ PageTables
               amount of memory dedicated to the lowest level of page
               tables.
 NFS_Unstable
-              NFS pages sent to the server, but not yet committed to stable
-	      storage
+              Always zero. Previous counted pages which had been written to
+              the server, but has not been committed to stable storage.
 Bounce
               Memory used for block device "bounce buffers"
 WritebackTmp

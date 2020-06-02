@@ -1108,7 +1108,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
 					TEXT_FOR_HIGHMEM(xx) xx "_movable",
 
 const char * const vmstat_text[] = {
-	/* enum zone_stat_item countes */
+	/* enum zone_stat_item counters */
 	"nr_free_pages",
 	"nr_zone_inactive_anon",
 	"nr_zone_active_anon",
@@ -1165,7 +1165,6 @@ const char * const vmstat_text[] = {
 	"nr_file_hugepages",
 	"nr_file_pmdmapped",
 	"nr_anon_transparent_hugepages",
-	"nr_unstable",
 	"nr_vmscan_write",
 	"nr_vmscan_immediate_reclaim",
 	"nr_dirtied",
@@ -1726,6 +1725,14 @@ static int vmstat_show(struct seq_file *m, void *arg)
 	seq_puts(m, vmstat_text[off]);
 	seq_put_decimal_ull(m, " ", *l);
 	seq_putc(m, '\n');
+
+	if (off == NR_VMSTAT_ITEMS - 1) {
+		/*
+		 * We've come to the end - add any deprecated counters to avoid
+		 * breaking userspace which might depend on them being present.
+		 */
+		seq_puts(m, "nr_unstable 0\n");
+	}
 	return 0;
 }
 

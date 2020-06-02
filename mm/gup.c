@@ -1183,7 +1183,7 @@ static bool vma_permits_fault(struct vm_area_struct *vma,
 	return true;
 }
 
-/*
+/**
  * fixup_user_fault() - manually resolve a user page fault
  * @tsk:	the task_struct to use for page fault accounting, or
  *		NULL if faults are not to be recorded.
@@ -1191,7 +1191,8 @@ static bool vma_permits_fault(struct vm_area_struct *vma,
  * @address:	user address
  * @fault_flags:flags to pass down to handle_mm_fault()
  * @unlocked:	did we unlock the mmap_sem while retrying, maybe NULL if caller
- *		does not allow retry
+ *		does not allow retry. If NULL, the caller must guarantee
+ *		that fault_flags does not contain FAULT_FLAG_ALLOW_RETRY.
  *
  * This is meant to be called in the specific scenario where for locking reasons
  * we try to access user memory in atomic context (within a pagefault_disable()
@@ -1854,7 +1855,7 @@ static long __get_user_pages_remote(struct task_struct *tsk,
 				       gup_flags | FOLL_TOUCH | FOLL_REMOTE);
 }
 
-/*
+/**
  * get_user_pages_remote() - pin user pages in memory
  * @tsk:	the task_struct to use for page fault accounting, or
  *		NULL if faults are not to be recorded.
@@ -1885,13 +1886,13 @@ static long __get_user_pages_remote(struct task_struct *tsk,
  *
  * Must be called with mmap_sem held for read or write.
  *
- * get_user_pages walks a process's page tables and takes a reference to
- * each struct page that each user address corresponds to at a given
+ * get_user_pages_remote walks a process's page tables and takes a reference
+ * to each struct page that each user address corresponds to at a given
  * instant. That is, it takes the page that would be accessed if a user
  * thread accesses the given user virtual address at that instant.
  *
  * This does not guarantee that the page exists in the user mappings when
- * get_user_pages returns, and there may even be a completely different
+ * get_user_pages_remote returns, and there may even be a completely different
  * page there in some cases (eg. if mmapped pagecache has been invalidated
  * and subsequently re faulted). However it does guarantee that the page
  * won't be freed completely. And mostly callers simply care that the page
@@ -1903,17 +1904,17 @@ static long __get_user_pages_remote(struct task_struct *tsk,
  * is written to, set_page_dirty (or set_page_dirty_lock, as appropriate) must
  * be called after the page is finished with, and before put_page is called.
  *
- * get_user_pages is typically used for fewer-copy IO operations, to get a
- * handle on the memory by some means other than accesses via the user virtual
- * addresses. The pages may be submitted for DMA to devices or accessed via
- * their kernel linear mapping (via the kmap APIs). Care should be taken to
- * use the correct cache flushing APIs.
+ * get_user_pages_remote is typically used for fewer-copy IO operations,
+ * to get a handle on the memory by some means other than accesses
+ * via the user virtual addresses. The pages may be submitted for
+ * DMA to devices or accessed via their kernel linear mapping (via the
+ * kmap APIs). Care should be taken to use the correct cache flushing APIs.
  *
  * See also get_user_pages_fast, for performance critical applications.
  *
- * get_user_pages should be phased out in favor of
+ * get_user_pages_remote should be phased out in favor of
  * get_user_pages_locked|unlocked or get_user_pages_fast. Nothing
- * should use get_user_pages because it cannot pass
+ * should use get_user_pages_remote because it cannot pass
  * FAULT_FLAG_ALLOW_RETRY to handle_mm_fault.
  */
 long get_user_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
@@ -1952,7 +1953,17 @@ static long __get_user_pages_remote(struct task_struct *tsk,
 }
 #endif /* !CONFIG_MMU */
 
-/*
+/**
+ * get_user_pages() - pin user pages in memory
+ * @start:      starting user address
+ * @nr_pages:   number of pages from start to pin
+ * @gup_flags:  flags modifying lookup behaviour
+ * @pages:      array that receives pointers to the pages pinned.
+ *              Should be at least nr_pages long. Or NULL, if caller
+ *              only intends to ensure the pages are faulted in.
+ * @vmas:       array of pointers to vmas corresponding to each page.
+ *              Or NULL if the caller does not require them.
+ *
  * This is the same as get_user_pages_remote(), just with a
  * less-flexible calling convention where we assume that the task
  * and mm being operated on are the current task's and don't allow
@@ -1975,11 +1986,7 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
 }
 EXPORT_SYMBOL(get_user_pages);
 
-/*
- * We can leverage the VM_FAULT_RETRY functionality in the page fault
- * paths better by using either get_user_pages_locked() or
- * get_user_pages_unlocked().
- *
+/**
  * get_user_pages_locked() is suitable to replace the form:
  *
  *      down_read(&mm->mmap_sem);
@@ -1995,6 +2002,21 @@ EXPORT_SYMBOL(get_user_pages);
  *      get_user_pages_locked(tsk, mm, ..., pages, &locked);
  *      if (locked)
  *          up_read(&mm->mmap_sem);
+ *
+ * @start:      starting user address
+ * @nr_pages:   number of pages from start to pin
+ * @gup_flags:  flags modifying lookup behaviour
+ * @pages:      array that receives pointers to the pages pinned.
+ *              Should be at least nr_pages long. Or NULL, if caller
+ *              only intends to ensure the pages are faulted in.
+ * @locked:     pointer to lock flag indicating whether lock is held and
+ *              subsequently whether VM_FAULT_RETRY functionality can be
+ *              utilised. Lock must initially be held.
+ *
+ * We can leverage the VM_FAULT_RETRY functionality in the page fault
+ * paths better by using either get_user_pages_locked() or
+ * get_user_pages_unlocked().
+ *
  */
 long get_user_pages_locked(unsigned long start, unsigned long nr_pages,
 			   unsigned int gup_flags, struct page **pages,
@@ -2971,3 +2993,20 @@ long pin_user_pages(unsigned long start, unsigned long nr_pages,
 				     pages, vmas, gup_flags);
 }
 EXPORT_SYMBOL(pin_user_pages);
+
+/*
+ * pin_user_pages_unlocked() is the FOLL_PIN variant of
+ * get_user_pages_unlocked(). Behavior is the same, except that this one sets
+ * FOLL_PIN and rejects FOLL_GET.
+ */
+long pin_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+			     struct page **pages, unsigned int gup_flags)
+{
+	/* FOLL_GET and FOLL_PIN are mutually exclusive. */
+	if (WARN_ON_ONCE(gup_flags & FOLL_GET))
+		return -EINVAL;
+
+	gup_flags |= FOLL_PIN;
+	return get_user_pages_unlocked(start, nr_pages, pages, gup_flags);
+}
+EXPORT_SYMBOL(pin_user_pages_unlocked);

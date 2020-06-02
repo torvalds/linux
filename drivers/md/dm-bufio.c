@@ -400,13 +400,13 @@ static void *alloc_buffer_data(struct dm_bufio_client *c, gfp_t gfp_mask,
 	 */
 	if (gfp_mask & __GFP_NORETRY) {
 		unsigned noio_flag = memalloc_noio_save();
-		void *ptr = __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+		void *ptr = __vmalloc(c->block_size, gfp_mask);
 
 		memalloc_noio_restore(noio_flag);
 		return ptr;
 	}
 
-	return __vmalloc(c->block_size, gfp_mask, PAGE_KERNEL);
+	return __vmalloc(c->block_size, gfp_mask);
 }
 
 /*
