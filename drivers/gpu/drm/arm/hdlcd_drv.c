@@ -347,9 +347,8 @@ static void hdlcd_drm_unbind(struct device *dev)
 	of_node_put(hdlcd->crtc.port);
 	hdlcd->crtc.port = NULL;
 	pm_runtime_get_sync(dev);
-	drm_crtc_vblank_off(&hdlcd->crtc);
-	drm_irq_uninstall(drm);
 	drm_atomic_helper_shutdown(drm);
+	drm_irq_uninstall(drm);
 	pm_runtime_put(dev);
 	if (pm_runtime_enabled(dev))
 		pm_runtime_disable(dev);
