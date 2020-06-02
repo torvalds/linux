@@ -214,26 +214,6 @@ void arch_sync_kernel_mappings(unsigned long start, unsigned long end)
 	}
 }
 
-static void vmalloc_sync(void)
-{
-	unsigned long address;
-
-	if (SHARED_KERNEL_PMD)
-		return;
-
-	arch_sync_kernel_mappings(VMALLOC_START, VMALLOC_END);
-}
-
-void vmalloc_sync_mappings(void)
-{
-	vmalloc_sync();
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	vmalloc_sync();
-}
-
 /*
  * 32-bit:
  *
@@ -335,23 +315,6 @@ out:
 }
 
 #else /* CONFIG_X86_64: */
-
-void vmalloc_sync_mappings(void)
-{
-	/*
-	 * 64-bit mappings might allocate new p4d/pud pages
-	 * that need to be propagated to all tasks' PGDs.
-	 */
-	sync_global_pgds(VMALLOC_START & PGDIR_MASK, VMALLOC_END);
-}
-
-void vmalloc_sync_unmappings(void)
-{
-	/*
-	 * Unmappings never allocate or free p4d/pud pages.
-	 * No work is required here.
-	 */
-}
 
 /*
  * 64-bit:

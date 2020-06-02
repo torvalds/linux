@@ -1354,12 +1354,6 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 		return false;
 
 	/*
-	 * First make sure the mappings are removed from all page-tables
-	 * before they are freed.
-	 */
-	vmalloc_sync_unmappings();
-
-	/*
 	 * TODO: to calculate a flush range without looping.
 	 * The list can be up to lazy_max_pages() elements.
 	 */
@@ -3088,21 +3082,6 @@ int remap_vmalloc_range(struct vm_area_struct *vma, void *addr,
 					   vma->vm_end - vma->vm_start);
 }
 EXPORT_SYMBOL(remap_vmalloc_range);
-
-/*
- * Implement stubs for vmalloc_sync_[un]mappings () if the architecture chose
- * not to have one.
- *
- * The purpose of this function is to make sure the vmalloc area
- * mappings are identical in all page-tables in the system.
- */
-void __weak vmalloc_sync_mappings(void)
-{
-}
-
-void __weak vmalloc_sync_unmappings(void)
-{
-}
 
 static int f(pte_t *pte, unsigned long addr, void *data)
 {

@@ -371,18 +371,6 @@ void vm_unmap_aliases(void)
 }
 EXPORT_SYMBOL_GPL(vm_unmap_aliases);
 
-/*
- * Implement a stub for vmalloc_sync_[un]mapping() if the architecture
- * chose not to have one.
- */
-void __weak vmalloc_sync_mappings(void)
-{
-}
-
-void __weak vmalloc_sync_unmappings(void)
-{
-}
-
 struct vm_struct *alloc_vm_area(size_t size, pte_t **ptes)
 {
 	BUG();
