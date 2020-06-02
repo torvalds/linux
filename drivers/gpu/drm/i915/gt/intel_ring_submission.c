@@ -645,8 +645,8 @@ static inline int mi_set_context(struct i915_request *rq,
 				 struct intel_context *ce,
 				 u32 flags)
 {
-	struct drm_i915_private *i915 = rq->i915;
 	struct intel_engine_cs *engine = rq->engine;
+	struct drm_i915_private *i915 = engine->i915;
 	enum intel_engine_id id;
 	const int num_engines =
 		IS_HASWELL(i915) ? RUNTIME_INFO(i915)->num_engines - 1 : 0;
@@ -760,7 +760,7 @@ static inline int mi_set_context(struct i915_request *rq,
 
 static int remap_l3_slice(struct i915_request *rq, int slice)
 {
-	u32 *cs, *remap_info = rq->i915->l3_parity.remap_info[slice];
+	u32 *cs, *remap_info = rq->engine->i915->l3_parity.remap_info[slice];
 	int i;
 
 	if (!remap_info)
@@ -871,7 +871,7 @@ static int switch_context(struct i915_request *rq)
 	void **residuals = NULL;
 	int ret;
 
-	GEM_BUG_ON(HAS_EXECLISTS(rq->i915));
+	GEM_BUG_ON(HAS_EXECLISTS(engine->i915));
 
 	if (engine->wa_ctx.vma && ce != engine->kernel_context) {
 		if (engine->wa_ctx.vma->private != ce) {

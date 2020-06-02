@@ -426,12 +426,12 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (INTEL_GEN(rq->i915) >= 8) {
+	if (INTEL_GEN(rq->engine->i915) >= 8) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = addr;
 		*cs++ = 0;
 		*cs++ = value;
-	} else if (INTEL_GEN(rq->i915) >= 4) {
+	} else if (INTEL_GEN(rq->engine->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = addr;

@@ -3533,7 +3533,7 @@ static int emit_pdps(struct i915_request *rq)
 	int err, i;
 	u32 *cs;
 
-	GEM_BUG_ON(intel_vgpu_active(rq->i915));
+	GEM_BUG_ON(intel_vgpu_active(rq->engine->i915));
 
 	/*
 	 * Beware ye of the dragons, this sequence is magic!
@@ -4512,11 +4512,11 @@ static int gen8_emit_flush_render(struct i915_request *request,
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
 		 * pipe control.
 		 */
-		if (IS_GEN(request->i915, 9))
+		if (IS_GEN(request->engine->i915, 9))
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */
-		if (IS_KBL_REVID(request->i915, 0, KBL_REVID_B0))
+		if (IS_KBL_REVID(request->engine->i915, 0, KBL_REVID_B0))
 			dc_flush_wa = true;
 	}
 
