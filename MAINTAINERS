@@ -6733,6 +6733,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/fsl-sec4.txt
 F:	drivers/crypto/caam/
 
+FREESCALE COLDFIRE M5441X MMC DRIVER
+M:	Angelo Dureghello <angelo.dureghello@timesys.com>
+L:	linux-mmc@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/sdhci-esdhc-mcf.c
+F:	include/linux/platform_data/mmc-esdhc-mcf.h
+
 FREESCALE DIU FRAMEBUFFER DRIVER
 M:	Timur Tabi <timur@kernel.org>
 L:	linux-fbdev@vger.kernel.org
