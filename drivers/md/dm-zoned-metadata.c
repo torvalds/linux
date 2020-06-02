@@ -172,7 +172,7 @@ struct dmz_metadata {
 	unsigned int		nr_chunks;
 
 	/* Zone information array */
-	struct dm_zone		*zones;
+	struct xarray		zones;
 
 	struct dmz_sb		sb[3];
 	unsigned int		mblk_primary;
@@ -325,6 +325,32 @@ unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd)
 unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd)
 {
 	return atomic_read(&zmd->unmap_nr_seq);
+}
+
+static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
+{
+	return xa_load(&zmd->zones, zone_id);
+}
+
+static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
+				  unsigned int zone_id)
+{
+	struct dm_zone *zone = kzalloc(sizeof(struct dm_zone), GFP_KERNEL);
+
+	if (!zone)
+		return ERR_PTR(-ENOMEM);
+
+	if (xa_insert(&zmd->zones, zone_id, zone, GFP_KERNEL)) {
+		kfree(zone);
+		return ERR_PTR(-EBUSY);
+	}
+
+	INIT_LIST_HEAD(&zone->link);
+	atomic_set(&zone->refcount, 0);
+	zone->id = zone_id;
+	zone->chunk = DMZ_MAP_UNMAPPED;
+
+	return zone;
 }
 
 const char *dmz_metadata_label(struct dmz_metadata *zmd)
@@ -1122,6 +1148,7 @@ static int dmz_lookup_secondary_sb(struct dmz_metadata *zmd)
 {
 	unsigned int zone_nr_blocks = zmd->zone_nr_blocks;
 	struct dmz_mblock *mblk;
+	unsigned int zone_id = zmd->sb[0].zone->id;
 	int i;
 
 	/* Allocate a block */
@@ -1134,16 +1161,15 @@ static int dmz_lookup_secondary_sb(struct dmz_metadata *zmd)
 
 	/* Bad first super block: search for the second one */
 	zmd->sb[1].block = zmd->sb[0].block + zone_nr_blocks;
-	zmd->sb[1].zone = zmd->sb[0].zone + 1;
+	zmd->sb[1].zone = dmz_get(zmd, zone_id + 1);
 	zmd->sb[1].dev = zmd->sb[0].dev;
-	for (i = 0; i < zmd->nr_rnd_zones - 1; i++) {
+	for (i = 1; i < zmd->nr_rnd_zones; i++) {
 		if (dmz_read_sb(zmd, 1) != 0)
 			break;
-		if (le32_to_cpu(zmd->sb[1].sb->magic) == DMZ_MAGIC) {
-			zmd->sb[1].zone += i;
+		if (le32_to_cpu(zmd->sb[1].sb->magic) == DMZ_MAGIC)
 			return 0;
-		}
 		zmd->sb[1].block += zone_nr_blocks;
+		zmd->sb[1].zone = dmz_get(zmd, zone_id + i);
 	}
 
 	dmz_free_mblock(zmd, mblk);
@@ -1259,8 +1285,12 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 	/* Read and check secondary super block */
 	if (ret == 0) {
 		sb_good[0] = true;
-		if (!zmd->sb[1].zone)
-			zmd->sb[1].zone = zmd->sb[0].zone + zmd->nr_meta_zones;
+		if (!zmd->sb[1].zone) {
+			unsigned int zone_id =
+				zmd->sb[0].zone->id + zmd->nr_meta_zones;
+
+			zmd->sb[1].zone = dmz_get(zmd, zone_id);
+		}
 		zmd->sb[1].block = dmz_start_block(zmd, zmd->sb[1].zone);
 		zmd->sb[1].dev = zmd->sb[0].dev;
 		ret = dmz_get_sb(zmd, 1);
@@ -1341,7 +1371,11 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 	struct dmz_metadata *zmd = data;
 	struct dmz_dev *dev = zmd->nr_devs > 1 ? &zmd->dev[1] : &zmd->dev[0];
 	int idx = num + dev->zone_offset;
-	struct dm_zone *zone = &zmd->zones[idx];
+	struct dm_zone *zone;
+
+	zone = dmz_insert(zmd, idx);
+	if (IS_ERR(zone))
+		return PTR_ERR(zone);
 
 	if (blkz->len != zmd->zone_nr_sectors) {
 		if (zmd->sb_version > 1) {
@@ -1352,11 +1386,6 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 			return 0;
 		return -ENXIO;
 	}
-
-	INIT_LIST_HEAD(&zone->link);
-	atomic_set(&zone->refcount, 0);
-	zone->id = idx;
-	zone->chunk = DMZ_MAP_UNMAPPED;
 
 	switch (blkz->type) {
 	case BLK_ZONE_TYPE_CONVENTIONAL:
@@ -1397,18 +1426,17 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 	return 0;
 }
 
-static void dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
+static int dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
 {
 	int idx;
 	sector_t zone_offset = 0;
 
 	for(idx = 0; idx < dev->nr_zones; idx++) {
-		struct dm_zone *zone = &zmd->zones[idx];
+		struct dm_zone *zone;
 
-		INIT_LIST_HEAD(&zone->link);
-		atomic_set(&zone->refcount, 0);
-		zone->id = idx;
-		zone->chunk = DMZ_MAP_UNMAPPED;
+		zone = dmz_insert(zmd, idx);
+		if (IS_ERR(zone))
+			return PTR_ERR(zone);
 		set_bit(DMZ_CACHE, &zone->flags);
 		zone->wp_block = 0;
 		zmd->nr_cache_zones++;
@@ -1420,6 +1448,7 @@ static void dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
 		}
 		zone_offset += zmd->zone_nr_sectors;
 	}
+	return 0;
 }
 
 /*
@@ -1427,8 +1456,15 @@ static void dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
  */
 static void dmz_drop_zones(struct dmz_metadata *zmd)
 {
-	kfree(zmd->zones);
-	zmd->zones = NULL;
+	int idx;
+
+	for(idx = 0; idx < zmd->nr_zones; idx++) {
+		struct dm_zone *zone = xa_load(&zmd->zones, idx);
+
+		kfree(zone);
+		xa_erase(&zmd->zones, idx);
+	}
+	xa_destroy(&zmd->zones);
 }
 
 /*
@@ -1460,20 +1496,25 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 		DMERR("(%s): No zones found", zmd->devname);
 		return -ENXIO;
 	}
-	zmd->zones = kcalloc(zmd->nr_zones, sizeof(struct dm_zone), GFP_KERNEL);
-	if (!zmd->zones)
-		return -ENOMEM;
+	xa_init(&zmd->zones);
 
 	DMDEBUG("(%s): Using %zu B for zone information",
 		zmd->devname, sizeof(struct dm_zone) * zmd->nr_zones);
 
 	if (zmd->nr_devs > 1) {
-		dmz_emulate_zones(zmd, &zmd->dev[0]);
+		ret = dmz_emulate_zones(zmd, &zmd->dev[0]);
+		if (ret < 0) {
+			DMDEBUG("(%s): Failed to emulate zones, error %d",
+				zmd->devname, ret);
+			dmz_drop_zones(zmd);
+			return ret;
+		}
+
 		/*
 		 * Primary superblock zone is always at zone 0 when multiple
 		 * drives are present.
 		 */
-		zmd->sb[0].zone = &zmd->zones[0];
+		zmd->sb[0].zone = dmz_get(zmd, 0);
 
 		zoned_dev = &zmd->dev[1];
 	}
@@ -1576,11 +1617,6 @@ static int dmz_handle_seq_write_err(struct dmz_metadata *zmd,
 	return 0;
 }
 
-static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
-{
-	return &zmd->zones[zone_id];
-}
-
 /*
  * Reset a zone write pointer.
  */
@@ -1662,6 +1698,11 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 		}
 
 		dzone = dmz_get(zmd, dzone_id);
+		if (!dzone) {
+			dmz_zmd_err(zmd, "Chunk %u mapping: data zone %u not present",
+				    chunk, dzone_id);
+			return -EIO;
+		}
 		set_bit(DMZ_DATA, &dzone->flags);
 		dzone->chunk = chunk;
 		dmz_get_zone_weight(zmd, dzone);
@@ -1685,6 +1726,11 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 		}
 
 		bzone = dmz_get(zmd, bzone_id);
+		if (!bzone) {
+			dmz_zmd_err(zmd, "Chunk %u mapping: buffer zone %u not present",
+				    chunk, bzone_id);
+			return -EIO;
+		}
 		if (!dmz_is_rnd(bzone) && !dmz_is_cache(bzone)) {
 			dmz_zmd_err(zmd, "Chunk %u mapping: invalid buffer zone %u",
 				    chunk, bzone_id);
@@ -1715,6 +1761,8 @@ next:
 	 */
 	for (i = 0; i < zmd->nr_zones; i++) {
 		dzone = dmz_get(zmd, i);
+		if (!dzone)
+			continue;
 		if (dmz_is_meta(dzone))
 			continue;
 		if (dmz_is_offline(dzone))
@@ -1978,6 +2026,10 @@ again:
 	} else {
 		/* The chunk is already mapped: get the mapping zone */
 		dzone = dmz_get(zmd, dzone_id);
+		if (!dzone) {
+			dzone = ERR_PTR(-EIO);
+			goto out;
+		}
 		if (dzone->chunk != chunk) {
 			dzone = ERR_PTR(-EIO);
 			goto out;
@@ -2794,6 +2846,12 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	/* Set metadata zones starting from sb_zone */
 	for (i = 0; i < zmd->nr_meta_zones << 1; i++) {
 		zone = dmz_get(zmd, zmd->sb[0].zone->id + i);
+		if (!zone) {
+			dmz_zmd_err(zmd,
+				    "metadata zone %u not present", i);
+			ret = -ENXIO;
+			goto err;
+		}
 		if (!dmz_is_rnd(zone) && !dmz_is_cache(zone)) {
 			dmz_zmd_err(zmd,
 				    "metadata zone %d is not random", i);
