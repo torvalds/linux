@@ -1532,21 +1532,70 @@ void btrfs_mark_bg_unused(struct btrfs_block_group *bg)
 	spin_unlock(&fs_info->unused_bgs_lock);
 }
 
+static int read_bg_from_eb(struct btrfs_fs_info *fs_info, struct btrfs_key *key,
+			   struct btrfs_path *path)
+{
+	struct extent_map_tree *em_tree;
+	struct extent_map *em;
+	struct btrfs_block_group_item bg;
+	struct extent_buffer *leaf;
+	int slot;
+	u64 flags;
+	int ret = 0;
+
+	slot = path->slots[0];
+	leaf = path->nodes[0];
+
+	em_tree = &fs_info->mapping_tree;
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, key->objectid, key->offset);
+	read_unlock(&em_tree->lock);
+	if (!em) {
+		btrfs_err(fs_info,
+			  "logical %llu len %llu found bg but no related chunk",
+			  key->objectid, key->offset);
+		return -ENOENT;
+	}
+
+	if (em->start != key->objectid || em->len != key->offset) {
+		btrfs_err(fs_info,
+			"block group %llu len %llu mismatch with chunk %llu len %llu",
+			key->objectid, key->offset, em->start, em->len);
+		ret = -EUCLEAN;
+		goto out_free_em;
+	}
+
+	read_extent_buffer(leaf, &bg, btrfs_item_ptr_offset(leaf, slot),
+			   sizeof(bg));
+	flags = btrfs_stack_block_group_flags(&bg) &
+		BTRFS_BLOCK_GROUP_TYPE_MASK;
+
+	if (flags != (em->map_lookup->type & BTRFS_BLOCK_GROUP_TYPE_MASK)) {
+		btrfs_err(fs_info,
+"block group %llu len %llu type flags 0x%llx mismatch with chunk type flags 0x%llx",
+			  key->objectid, key->offset, flags,
+			  (BTRFS_BLOCK_GROUP_TYPE_MASK & em->map_lookup->type));
+		ret = -EUCLEAN;
+	}
+
+out_free_em:
+	free_extent_map(em);
+	return ret;
+}
+
 static int find_first_block_group(struct btrfs_fs_info *fs_info,
 				  struct btrfs_path *path,
 				  struct btrfs_key *key)
 {
 	struct btrfs_root *root = fs_info->extent_root;
-	int ret = 0;
+	int ret;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
-	struct btrfs_block_group_item bg;
-	u64 flags;
 	int slot;
 
 	ret = btrfs_search_slot(NULL, root, key, path, 0, 0);
 	if (ret < 0)
-		goto out;
+		return ret;
 
 	while (1) {
 		slot = path->slots[0];
@@ -1563,49 +1612,10 @@ static int find_first_block_group(struct btrfs_fs_info *fs_info,
 
 		if (found_key.objectid >= key->objectid &&
 		    found_key.type == BTRFS_BLOCK_GROUP_ITEM_KEY) {
-			struct extent_map_tree *em_tree;
-			struct extent_map *em;
-
-			em_tree = &fs_info->mapping_tree;
-			read_lock(&em_tree->lock);
-			em = lookup_extent_mapping(em_tree, found_key.objectid,
-						   found_key.offset);
-			read_unlock(&em_tree->lock);
-			if (!em) {
-				btrfs_err(fs_info,
-			"logical %llu len %llu found bg but no related chunk",
-					  found_key.objectid, found_key.offset);
-				ret = -ENOENT;
-			} else if (em->start != found_key.objectid ||
-				   em->len != found_key.offset) {
-				btrfs_err(fs_info,
-		"block group %llu len %llu mismatch with chunk %llu len %llu",
-					  found_key.objectid, found_key.offset,
-					  em->start, em->len);
-				ret = -EUCLEAN;
-			} else {
-				read_extent_buffer(leaf, &bg,
-					btrfs_item_ptr_offset(leaf, slot),
-					sizeof(bg));
-				flags = btrfs_stack_block_group_flags(&bg) &
-					BTRFS_BLOCK_GROUP_TYPE_MASK;
-
-				if (flags != (em->map_lookup->type &
-					      BTRFS_BLOCK_GROUP_TYPE_MASK)) {
-					btrfs_err(fs_info,
-"block group %llu len %llu type flags 0x%llx mismatch with chunk type flags 0x%llx",
-						found_key.objectid,
-						found_key.offset, flags,
-						(BTRFS_BLOCK_GROUP_TYPE_MASK &
-						 em->map_lookup->type));
-					ret = -EUCLEAN;
-				} else {
-					ret = 0;
-				}
-			}
-			free_extent_map(em);
-			goto out;
+			ret = read_bg_from_eb(fs_info, &found_key, path);
+			break;
 		}
+
 		path->slots[0]++;
 	}
 out:
