@@ -50,8 +50,6 @@
 #include <scsi/scsi_tcq.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -61,7 +59,6 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
@@ -1032,7 +1029,7 @@ static int
 lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_io_buf *psb, *psb_next;
-	struct lpfc_nvmet_rcv_ctx *ctxp, *ctxp_next;
+	struct lpfc_async_xchg_ctx *ctxp, *ctxp_next;
 	struct lpfc_sli4_hdw_queue *qp;
 	LIST_HEAD(aborts);
 	LIST_HEAD(nvme_aborts);
@@ -1099,7 +1096,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 				 &nvmet_aborts);
 		spin_unlock_irq(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_for_each_entry_safe(ctxp, ctxp_next, &nvmet_aborts, list) {
-			ctxp->flag &= ~(LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP);
+			ctxp->flag &= ~(LPFC_NVME_XBUSY | LPFC_NVME_ABORT_OP);
 			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 		}
 	}

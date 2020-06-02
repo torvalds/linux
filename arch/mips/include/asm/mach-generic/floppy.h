@@ -26,14 +26,14 @@
 /*
  * How to access the FDC's registers.
  */
-static inline unsigned char fd_inb(unsigned int port)
+static inline unsigned char fd_inb(unsigned int base, unsigned int reg)
 {
-	return inb_p(port);
+	return inb_p(base + reg);
 }
 
-static inline void fd_outb(unsigned char value, unsigned int port)
+static inline void fd_outb(unsigned char value, unsigned int base, unsigned int reg)
 {
-	outb_p(value, port);
+	outb_p(value, base + reg);
 }
 
 /*
