@@ -1126,7 +1126,7 @@
 				reg = <0x30b30200 0x200>;
 			};
 
-			usdhc1: usdhc@30b40000 {
+			usdhc1: mmc@30b40000 {
 				compatible = "fsl,imx7d-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x30b40000 0x10000>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -1138,7 +1138,7 @@
 				status = "disabled";
 			};
 
-			usdhc2: usdhc@30b50000 {
+			usdhc2: mmc@30b50000 {
 				compatible = "fsl,imx7d-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x30b50000 0x10000>;
 				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -1150,7 +1150,7 @@
 				status = "disabled";
 			};
 
-			usdhc3: usdhc@30b60000 {
+			usdhc3: mmc@30b60000 {
 				compatible = "fsl,imx7d-usdhc", "fsl,imx6sl-usdhc";
 				reg = <0x30b60000 0x10000>;
 				interrupts = <GIC_SPI 24 IRQ_TYPE_LEVEL_HIGH>;
