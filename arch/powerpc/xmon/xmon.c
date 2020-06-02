@@ -2977,7 +2977,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf(REG"  %.8x", adr, ppc_inst_val(inst));
+			printf(REG"  %s", adr, ppc_inst_as_str(inst));
 		printf("\t");
 		dump_func(ppc_inst_val(inst), adr);
 		printf("\n");

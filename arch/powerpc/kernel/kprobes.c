@@ -244,7 +244,7 @@ static int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
 		 * So, we should never get here... but, its still
 		 * good to catch them, just in case...
 		 */
-		printk("Can't step on instruction %x\n", ppc_inst_val(insn));
+		printk("Can't step on instruction %s\n", ppc_inst_as_str(insn));
 		BUG();
 	} else {
 		/*
