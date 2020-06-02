@@ -538,7 +538,8 @@ static int __init kgdboc_earlycon_init(char *opt)
 
 	if (!con) {
 		/*
-		 * Both earlycon and kgdboc_earlycon are initialized during			 * early parameter parsing. We cannot guarantee earlycon gets
+		 * Both earlycon and kgdboc_earlycon are initialized during
+		 * early parameter parsing. We cannot guarantee earlycon gets
 		 * in first and, in any case, on ACPI systems earlycon may
 		 * defer its own initialization (usually to somewhere within
 		 * setup_arch() ). To cope with either of these situations
