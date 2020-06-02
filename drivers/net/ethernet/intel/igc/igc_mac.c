@@ -417,6 +417,11 @@ s32 igc_check_for_copper_link(struct igc_hw *hw)
 		hw_dbg("Error configuring flow control\n");
 
 out:
+	/* Now that we are aware of our link settings, we can set the LTR
+	 * thresholds.
+	 */
+	ret_val = igc_set_ltr_i225(hw, link);
+
 	return ret_val;
 }
 

@@ -11,5 +11,6 @@ s32 igc_init_nvm_params_i225(struct igc_hw *hw);
 bool igc_get_flash_presence_i225(struct igc_hw *hw);
 s32 igc_set_eee_i225(struct igc_hw *hw, bool adv2p5G, bool adv1G,
 		     bool adv100M);
+s32 igc_set_ltr_i225(struct igc_hw *hw, bool link);
 
 #endif

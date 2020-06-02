@@ -544,3 +544,103 @@ s32 igc_set_eee_i225(struct igc_hw *hw, bool adv2p5G, bool adv1G,
 
 	return IGC_SUCCESS;
 }
+
+/* igc_set_ltr_i225 - Set Latency Tolerance Reporting thresholds
+ * @hw: pointer to the HW structure
+ * @link: bool indicating link status
+ *
+ * Set the LTR thresholds based on the link speed (Mbps), EEE, and DMAC
+ * settings, otherwise specify that there is no LTR requirement.
+ */
+s32 igc_set_ltr_i225(struct igc_hw *hw, bool link)
+{
+	u32 tw_system, ltrc, ltrv, ltr_min, ltr_max, scale_min, scale_max;
+	u16 speed, duplex;
+	s32 size;
+
+	/* If we do not have link, LTR thresholds are zero. */
+	if (link) {
+		hw->mac.ops.get_speed_and_duplex(hw, &speed, &duplex);
+
+		/* Check if using copper interface with EEE enabled or if the
+		 * link speed is 10 Mbps.
+		 */
+		if (hw->dev_spec._base.eee_enable &&
+		    speed != SPEED_10) {
+			/* EEE enabled, so send LTRMAX threshold. */
+			ltrc = rd32(IGC_LTRC) |
+			       IGC_LTRC_EEEMS_EN;
+			wr32(IGC_LTRC, ltrc);
+
+			/* Calculate tw_system (nsec). */
+			if (speed == SPEED_100) {
+				tw_system = ((rd32(IGC_EEE_SU) &
+					     IGC_TW_SYSTEM_100_MASK) >>
+					     IGC_TW_SYSTEM_100_SHIFT) * 500;
+			} else {
+				tw_system = (rd32(IGC_EEE_SU) &
+					     IGC_TW_SYSTEM_1000_MASK) * 500;
+			}
+		} else {
+			tw_system = 0;
+		}
+
+		/* Get the Rx packet buffer size. */
+		size = rd32(IGC_RXPBS) &
+		       IGC_RXPBS_SIZE_I225_MASK;
+
+		/* Calculations vary based on DMAC settings. */
+		if (rd32(IGC_DMACR) & IGC_DMACR_DMAC_EN) {
+			size -= (rd32(IGC_DMACR) &
+				 IGC_DMACR_DMACTHR_MASK) >>
+				 IGC_DMACR_DMACTHR_SHIFT;
+			/* Convert size to bits. */
+			size *= 1024 * 8;
+		} else {
+			/* Convert size to bytes, subtract the MTU, and then
+			 * convert the size to bits.
+			 */
+			size *= 1024;
+			size *= 8;
+		}
+
+		if (size < 0) {
+			hw_dbg("Invalid effective Rx buffer size %d\n",
+			       size);
+			return -IGC_ERR_CONFIG;
+		}
+
+		/* Calculate the thresholds. Since speed is in Mbps, simplify
+		 * the calculation by multiplying size/speed by 1000 for result
+		 * to be in nsec before dividing by the scale in nsec. Set the
+		 * scale such that the LTR threshold fits in the register.
+		 */
+		ltr_min = (1000 * size) / speed;
+		ltr_max = ltr_min + tw_system;
+		scale_min = (ltr_min / 1024) < 1024 ? IGC_LTRMINV_SCALE_1024 :
+			    IGC_LTRMINV_SCALE_32768;
+		scale_max = (ltr_max / 1024) < 1024 ? IGC_LTRMAXV_SCALE_1024 :
+			    IGC_LTRMAXV_SCALE_32768;
+		ltr_min /= scale_min == IGC_LTRMINV_SCALE_1024 ? 1024 : 32768;
+		ltr_min -= 1;
+		ltr_max /= scale_max == IGC_LTRMAXV_SCALE_1024 ? 1024 : 32768;
+		ltr_max -= 1;
+
+		/* Only write the LTR thresholds if they differ from before. */
+		ltrv = rd32(IGC_LTRMINV);
+		if (ltr_min != (ltrv & IGC_LTRMINV_LTRV_MASK)) {
+			ltrv = IGC_LTRMINV_LSNP_REQ | ltr_min |
+			       (scale_min << IGC_LTRMINV_SCALE_SHIFT);
+			wr32(IGC_LTRMINV, ltrv);
+		}
+
+		ltrv = rd32(IGC_LTRMAXV);
+		if (ltr_max != (ltrv & IGC_LTRMAXV_LTRV_MASK)) {
+			ltrv = IGC_LTRMAXV_LSNP_REQ | ltr_max |
+			       (scale_min << IGC_LTRMAXV_SCALE_SHIFT);
+			wr32(IGC_LTRMAXV, ltrv);
+		}
+	}
+
+	return IGC_SUCCESS;
+}

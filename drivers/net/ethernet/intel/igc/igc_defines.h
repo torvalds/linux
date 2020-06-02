@@ -521,4 +521,31 @@
 #define IGC_EEER_LPI_FC			0x00040000 /* EEER Ena on Flow Cntrl */
 #define IGC_EEE_SU_LPI_CLK_STP		0x00800000 /* EEE LPI Clock Stop */
 
+/* LTR defines */
+#define IGC_LTRC_EEEMS_EN		0x00000020 /* Enable EEE LTR max send */
+#define IGC_RXPBS_SIZE_I225_MASK	0x0000003F /* Rx packet buffer size */
+#define IGC_TW_SYSTEM_1000_MASK		0x000000FF
+/* Minimum time for 100BASE-T where no data will be transmit following move out
+ * of EEE LPI Tx state
+ */
+#define IGC_TW_SYSTEM_100_MASK		0x0000FF00
+#define IGC_TW_SYSTEM_100_SHIFT		8
+#define IGC_DMACR_DMAC_EN		0x80000000 /* Enable DMA Coalescing */
+#define IGC_DMACR_DMACTHR_MASK		0x00FF0000
+#define IGC_DMACR_DMACTHR_SHIFT		16
+/* Reg val to set scale to 1024 nsec */
+#define IGC_LTRMINV_SCALE_1024		2
+/* Reg val to set scale to 32768 nsec */
+#define IGC_LTRMINV_SCALE_32768		3
+/* Reg val to set scale to 1024 nsec */
+#define IGC_LTRMAXV_SCALE_1024		2
+/* Reg val to set scale to 32768 nsec */
+#define IGC_LTRMAXV_SCALE_32768		3
+#define IGC_LTRMINV_LTRV_MASK		0x000003FF /* LTR minimum value */
+#define IGC_LTRMAXV_LTRV_MASK		0x000003FF /* LTR maximum value */
+#define IGC_LTRMINV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMINV_SCALE_SHIFT		10
+#define IGC_LTRMAXV_LSNP_REQ		0x00008000 /* LTR Snoop Requirement */
+#define IGC_LTRMAXV_SCALE_SHIFT		10
+
 #endif /* _IGC_DEFINES_H_ */
