@@ -41,6 +41,7 @@ struct dm_chunk_work {
  */
 struct dmz_target {
 	struct dm_dev		*ddev[DMZ_MAX_DEVS];
+	unsigned int		nr_ddevs;
 
 	unsigned long		flags;
 
@@ -49,9 +50,6 @@ struct dmz_target {
 
 	/* For metadata handling */
 	struct dmz_metadata     *metadata;
-
-	/* For reclaim */
-	struct dmz_reclaim	*reclaim;
 
 	/* For chunk work */
 	struct radix_tree_root	chunk_rxtree;
@@ -404,14 +402,15 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 		dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
 	struct dmz_metadata *zmd = dmz->metadata;
 	struct dm_zone *zone;
-	int ret;
+	int i, ret;
 
 	/*
 	 * Write may trigger a zone allocation. So make sure the
 	 * allocation can succeed.
 	 */
 	if (bio_op(bio) == REQ_OP_WRITE)
-		dmz_schedule_reclaim(dmz->reclaim);
+		for (i = 0; i < dmz->nr_ddevs; i++)
+			dmz_schedule_reclaim(dmz->dev[i].reclaim);
 
 	dmz_lock_metadata(zmd);
 
@@ -431,6 +430,7 @@ static void dmz_handle_bio(struct dmz_target *dmz, struct dm_chunk_work *cw,
 	if (zone) {
 		dmz_activate_zone(zone);
 		bioctx->zone = zone;
+		dmz_reclaim_bio_acc(zone->dev->reclaim);
 	}
 
 	switch (bio_op(bio)) {
@@ -577,7 +577,6 @@ static int dmz_queue_chunk_work(struct dmz_target *dmz, struct bio *bio)
 
 	bio_list_add(&cw->bio_list, bio);
 
-	dmz_reclaim_bio_acc(dmz->reclaim);
 	if (queue_work(dmz->chunk_wq, &cw->work))
 		dmz_get_chunk_work(cw);
 out:
@@ -822,7 +821,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct dmz_target *dmz;
-	int ret;
+	int ret, i;
 
 	/* Check arguments */
 	if (argc < 1 || argc > 2) {
@@ -842,6 +841,7 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		kfree(dmz);
 		return -ENOMEM;
 	}
+	dmz->nr_ddevs = argc;
 	ti->private = dmz;
 
 	/* Get the target zoned block device */
@@ -916,10 +916,12 @@ static int dmz_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	mod_delayed_work(dmz->flush_wq, &dmz->flush_work, DMZ_FLUSH_PERIOD);
 
 	/* Initialize reclaim */
-	ret = dmz_ctr_reclaim(dmz->metadata, &dmz->reclaim);
-	if (ret) {
-		ti->error = "Zone reclaim initialization failed";
-		goto err_fwq;
+	for (i = 0; i < dmz->nr_ddevs; i++) {
+		ret = dmz_ctr_reclaim(dmz->metadata, &dmz->dev[i].reclaim, i);
+		if (ret) {
+			ti->error = "Zone reclaim initialization failed";
+			goto err_fwq;
+		}
 	}
 
 	DMINFO("(%s): Target device: %llu 512-byte logical sectors (%llu blocks)",
@@ -952,11 +954,13 @@ err:
 static void dmz_dtr(struct dm_target *ti)
 {
 	struct dmz_target *dmz = ti->private;
+	int i;
 
 	flush_workqueue(dmz->chunk_wq);
 	destroy_workqueue(dmz->chunk_wq);
 
-	dmz_dtr_reclaim(dmz->reclaim);
+	for (i = 0; i < dmz->nr_ddevs; i++)
+		dmz_dtr_reclaim(dmz->dev[i].reclaim);
 
 	cancel_delayed_work_sync(&dmz->flush_work);
 	destroy_workqueue(dmz->flush_wq);
@@ -1025,9 +1029,11 @@ static int dmz_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 static void dmz_suspend(struct dm_target *ti)
 {
 	struct dmz_target *dmz = ti->private;
+	int i;
 
 	flush_workqueue(dmz->chunk_wq);
-	dmz_suspend_reclaim(dmz->reclaim);
+	for (i = 0; i < dmz->nr_ddevs; i++)
+		dmz_suspend_reclaim(dmz->dev[i].reclaim);
 	cancel_delayed_work_sync(&dmz->flush_work);
 }
 
@@ -1037,9 +1043,11 @@ static void dmz_suspend(struct dm_target *ti)
 static void dmz_resume(struct dm_target *ti)
 {
 	struct dmz_target *dmz = ti->private;
+	int i;
 
 	queue_delayed_work(dmz->flush_wq, &dmz->flush_work, DMZ_FLUSH_PERIOD);
-	dmz_resume_reclaim(dmz->reclaim);
+	for (i = 0; i < dmz->nr_ddevs; i++)
+		dmz_resume_reclaim(dmz->dev[i].reclaim);
 }
 
 static int dmz_iterate_devices(struct dm_target *ti,
@@ -1100,7 +1108,10 @@ static int dmz_message(struct dm_target *ti, unsigned int argc, char **argv,
 	int r = -EINVAL;
 
 	if (!strcasecmp(argv[0], "reclaim")) {
-		dmz_schedule_reclaim(dmz->reclaim);
+		int i;
+
+		for (i = 0; i < dmz->nr_ddevs; i++)
+			dmz_schedule_reclaim(dmz->dev[i].reclaim);
 		r = 0;
 	} else
 		DMERR("unrecognized message %s", argv[0]);

@@ -21,6 +21,8 @@ struct dmz_reclaim {
 	struct dm_kcopyd_throttle kc_throttle;
 	int			kc_err;
 
+	int			dev_idx;
+
 	unsigned long		flags;
 
 	/* Last target access time */
@@ -198,8 +200,8 @@ static int dmz_reclaim_buf(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret;
 
-	DMDEBUG("(%s): Chunk %u, move buf zone %u (weight %u) to data zone %u (weight %u)",
-		dmz_metadata_label(zmd),
+	DMDEBUG("(%s/%u): Chunk %u, move buf zone %u (weight %u) to data zone %u (weight %u)",
+		dmz_metadata_label(zmd), zrc->dev_idx,
 		dzone->chunk, bzone->id, dmz_weight(bzone),
 		dzone->id, dmz_weight(dzone));
 
@@ -237,8 +239,8 @@ static int dmz_reclaim_seq_data(struct dmz_reclaim *zrc, struct dm_zone *dzone)
 	struct dmz_metadata *zmd = zrc->metadata;
 	int ret = 0;
 
-	DMDEBUG("(%s): Chunk %u, move data zone %u (weight %u) to buf zone %u (weight %u)",
-		dmz_metadata_label(zmd),
+	DMDEBUG("(%s/%u): Chunk %u, move data zone %u (weight %u) to buf zone %u (weight %u)",
+		dmz_metadata_label(zmd), zrc->dev_idx,
 		chunk, dzone->id, dmz_weight(dzone),
 		bzone->id, dmz_weight(bzone));
 
@@ -295,8 +297,8 @@ again:
 	if (!szone)
 		return -ENOSPC;
 
-	DMDEBUG("(%s): Chunk %u, move %s zone %u (weight %u) to %s zone %u",
-		dmz_metadata_label(zmd), chunk,
+	DMDEBUG("(%s/%u): Chunk %u, move %s zone %u (weight %u) to %s zone %u",
+		dmz_metadata_label(zmd), zrc->dev_idx, chunk,
 		dmz_is_cache(dzone) ? "cache" : "rnd",
 		dzone->id, dmz_weight(dzone),
 		dmz_is_rnd(szone) ? "rnd" : "seq", szone->id);
@@ -369,8 +371,8 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 	/* Get a data zone */
 	dzone = dmz_get_zone_for_reclaim(zmd, dmz_target_idle(zrc));
 	if (!dzone) {
-		DMDEBUG("(%s): No zone found to reclaim",
-			dmz_metadata_label(zmd));
+		DMDEBUG("(%s/%u): No zone found to reclaim",
+			dmz_metadata_label(zmd), zrc->dev_idx);
 		return -EBUSY;
 	}
 
@@ -417,24 +419,26 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 out:
 	if (ret) {
 		if (ret == -EINTR)
-			DMDEBUG("(%s): reclaim zone %u interrupted",
-				dmz_metadata_label(zmd), rzone->id);
+			DMDEBUG("(%s/%u): reclaim zone %u interrupted",
+				dmz_metadata_label(zmd), zrc->dev_idx,
+				rzone->id);
 		else
-			DMDEBUG("(%s): Failed to reclaim zone %u, err %d",
-				dmz_metadata_label(zmd), rzone->id, ret);
+			DMDEBUG("(%s/%u): Failed to reclaim zone %u, err %d",
+				dmz_metadata_label(zmd), zrc->dev_idx,
+				rzone->id, ret);
 		dmz_unlock_zone_reclaim(dzone);
 		return ret;
 	}
 
 	ret = dmz_flush_metadata(zrc->metadata);
 	if (ret) {
-		DMDEBUG("(%s): Metadata flush for zone %u failed, err %d",
-			dmz_metadata_label(zmd), rzone->id, ret);
+		DMDEBUG("(%s/%u): Metadata flush for zone %u failed, err %d",
+			dmz_metadata_label(zmd), zrc->dev_idx, rzone->id, ret);
 		return ret;
 	}
 
-	DMDEBUG("(%s): Reclaimed zone %u in %u ms",
-		dmz_metadata_label(zmd),
+	DMDEBUG("(%s/%u): Reclaimed zone %u in %u ms",
+		dmz_metadata_label(zmd), zrc->dev_idx,
 		rzone->id, jiffies_to_msecs(jiffies - start));
 	return 0;
 }
@@ -461,10 +465,20 @@ static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
  */
 static bool dmz_should_reclaim(struct dmz_reclaim *zrc, unsigned int p_unmap)
 {
-	unsigned int nr_reclaim = dmz_nr_rnd_zones(zrc->metadata);
+	unsigned int nr_reclaim;
 
-	if (dmz_nr_cache_zones(zrc->metadata))
+	nr_reclaim = dmz_nr_rnd_zones(zrc->metadata);
+
+	if (dmz_nr_cache_zones(zrc->metadata)) {
+		/*
+		 * The first device in a multi-device
+		 * setup only contains cache zones, so
+		 * never start reclaim there.
+		 */
+		if (zrc->dev_idx == 0)
+			return false;
 		nr_reclaim += dmz_nr_cache_zones(zrc->metadata);
+	}
 
 	/* Reclaim when idle */
 	if (dmz_target_idle(zrc) && nr_reclaim)
@@ -488,7 +502,7 @@ static void dmz_reclaim_work(struct work_struct *work)
 {
 	struct dmz_reclaim *zrc = container_of(work, struct dmz_reclaim, work.work);
 	struct dmz_metadata *zmd = zrc->metadata;
-	unsigned int p_unmap;
+	unsigned int p_unmap, nr_unmap_rnd = 0, nr_rnd = 0;
 	int ret;
 
 	if (dmz_dev_is_dying(zmd))
@@ -514,8 +528,11 @@ static void dmz_reclaim_work(struct work_struct *work)
 		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap / 2);
 	}
 
-	DMDEBUG("(%s): Reclaim (%u): %s, %u%% free zones (%u/%u cache %u/%u random)",
-		dmz_metadata_label(zmd),
+	nr_unmap_rnd = dmz_nr_unmap_rnd_zones(zmd);
+	nr_rnd = dmz_nr_rnd_zones(zmd);
+
+	DMDEBUG("(%s/%u): Reclaim (%u): %s, %u%% free zones (%u/%u cache %u/%u random)",
+		dmz_metadata_label(zmd), zrc->dev_idx,
 		zrc->kc_throttle.throttle,
 		(dmz_target_idle(zrc) ? "Idle" : "Busy"),
 		p_unmap, dmz_nr_unmap_cache_zones(zmd),
@@ -536,7 +553,7 @@ static void dmz_reclaim_work(struct work_struct *work)
  * Initialize reclaim.
  */
 int dmz_ctr_reclaim(struct dmz_metadata *zmd,
-		    struct dmz_reclaim **reclaim)
+		    struct dmz_reclaim **reclaim, int idx)
 {
 	struct dmz_reclaim *zrc;
 	int ret;
@@ -547,6 +564,7 @@ int dmz_ctr_reclaim(struct dmz_metadata *zmd,
 
 	zrc->metadata = zmd;
 	zrc->atime = jiffies;
+	zrc->dev_idx = idx;
 
 	/* Reclaim kcopyd client */
 	zrc->kc = dm_kcopyd_client_create(&zrc->kc_throttle);
@@ -558,8 +576,8 @@ int dmz_ctr_reclaim(struct dmz_metadata *zmd,
 
 	/* Reclaim work */
 	INIT_DELAYED_WORK(&zrc->work, dmz_reclaim_work);
-	zrc->wq = alloc_ordered_workqueue("dmz_rwq_%s", WQ_MEM_RECLAIM,
-					  dmz_metadata_label(zmd));
+	zrc->wq = alloc_ordered_workqueue("dmz_rwq_%s_%d", WQ_MEM_RECLAIM,
+					  dmz_metadata_label(zmd), idx);
 	if (!zrc->wq) {
 		ret = -ENOMEM;
 		goto err;

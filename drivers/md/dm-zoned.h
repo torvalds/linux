@@ -54,6 +54,7 @@ struct dmz_reclaim;
 struct dmz_dev {
 	struct block_device	*bdev;
 	struct dmz_metadata	*metadata;
+	struct dmz_reclaim	*reclaim;
 
 	char			name[BDEVNAME_SIZE];
 	uuid_t			uuid;
@@ -229,23 +230,6 @@ static inline void dmz_activate_zone(struct dm_zone *zone)
 	atomic_inc(&zone->refcount);
 }
 
-/*
- * Deactivate a zone. This decrement the zone reference counter
- * indicating that all BIOs to the zone have completed when the count is 0.
- */
-static inline void dmz_deactivate_zone(struct dm_zone *zone)
-{
-	atomic_dec(&zone->refcount);
-}
-
-/*
- * Test if a zone is active, that is, has a refcount > 0.
- */
-static inline bool dmz_is_active(struct dm_zone *zone)
-{
-	return atomic_read(&zone->refcount);
-}
-
 int dmz_lock_zone_reclaim(struct dm_zone *zone);
 void dmz_unlock_zone_reclaim(struct dm_zone *zone);
 struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd, bool idle);
@@ -272,7 +256,7 @@ int dmz_merge_valid_blocks(struct dmz_metadata *zmd, struct dm_zone *from_zone,
 /*
  * Functions defined in dm-zoned-reclaim.c
  */
-int dmz_ctr_reclaim(struct dmz_metadata *zmd, struct dmz_reclaim **zrc);
+int dmz_ctr_reclaim(struct dmz_metadata *zmd, struct dmz_reclaim **zrc, int idx);
 void dmz_dtr_reclaim(struct dmz_reclaim *zrc);
 void dmz_suspend_reclaim(struct dmz_reclaim *zrc);
 void dmz_resume_reclaim(struct dmz_reclaim *zrc);
@@ -284,5 +268,23 @@ void dmz_schedule_reclaim(struct dmz_reclaim *zrc);
  */
 bool dmz_bdev_is_dying(struct dmz_dev *dmz_dev);
 bool dmz_check_bdev(struct dmz_dev *dmz_dev);
+
+/*
+ * Deactivate a zone. This decrement the zone reference counter
+ * indicating that all BIOs to the zone have completed when the count is 0.
+ */
+static inline void dmz_deactivate_zone(struct dm_zone *zone)
+{
+	dmz_reclaim_bio_acc(zone->dev->reclaim);
+	atomic_dec(&zone->refcount);
+}
+
+/*
+ * Test if a zone is active, that is, has a refcount > 0.
+ */
+static inline bool dmz_is_active(struct dm_zone *zone)
+{
+	return atomic_read(&zone->refcount);
+}
 
 #endif /* DM_ZONED_H */
