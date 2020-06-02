@@ -3690,7 +3690,8 @@ struct mlx5_ifc_dctc_bits {
 	u8         ecn[0x2];
 	u8         dscp[0x6];
 
-	u8         reserved_at_1c0[0x40];
+	u8         reserved_at_1c0[0x20];
+	u8         ece[0x20];
 };
 
 enum {
@@ -7940,7 +7941,7 @@ struct mlx5_ifc_create_dct_out_bits {
 	u8         reserved_at_40[0x8];
 	u8         dctn[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_create_dct_in_bits {
