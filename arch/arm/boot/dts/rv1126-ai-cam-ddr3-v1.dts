@@ -14,6 +14,15 @@
 	chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff570000 console=ttyFIQ0 root=PARTUUID=614e0000-0000 rootfstype=ext4 rootwait snd_aloop.index=7";
 	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		work-led {
+			gpios = <&gpio2 RK_PD1 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "timer";
+		};
+	};
 };
 
 &csi_dphy0 {
