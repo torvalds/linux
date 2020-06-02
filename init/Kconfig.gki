@@ -165,6 +165,14 @@ config GKI_HIDDEN_IRQ_CONFIGS
 	  config, required by various SoC platforms. This is usually
 	  selected by ARCH_*.
 
+config GKI_HIDDEN_HYPERVISOR_CONFIGS
+	bool "Hidden hypervisor configuration needed for GKI"
+	select SYS_HYPERVISOR
+	help
+	  Dummy config option used to enable the SYS_HYPERVISOR hidden
+	  config, required by various SoC platforms. This is usually
+	  selected by XEN or S390.
+
 # Atrocities needed for
 # a) building GKI modules in separate tree, or
 # b) building drivers that are not modularizable
@@ -190,6 +198,7 @@ config GKI_HACKS_TO_FIX
 	select GKI_HIDDEN_RPMSG_CONFIGS
 	select GKI_HIDDEN_GPU_CONFIGS
 	select GKI_HIDDEN_IRQ_CONFIGS
+	select GKI_HIDDEN_HYPERVISOR_CONFIGS
 	help
 	  Dummy config option used to enable core functionality used by
 	  modules that may not be selectable in this config.
