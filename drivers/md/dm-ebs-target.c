@@ -167,8 +167,8 @@ static void __ebs_forget_bio(struct ebs_c *ec, struct bio *bio)
 	sector_t blocks, sector = bio->bi_iter.bi_sector;
 
 	blocks = __nr_blocks(ec, bio);
-	for (; blocks--; sector += ec->u_bs)
-		dm_bufio_forget(ec->bufio, __sector_to_block(ec, sector));
+
+	dm_bufio_forget_buffers(ec->bufio, __sector_to_block(ec, sector), blocks);
 }
 
 /* Worker funtion to process incoming bios. */
