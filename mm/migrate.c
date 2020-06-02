@@ -798,7 +798,6 @@ recheck_buffers:
 		goto unlock_buffers;
 
 	attach_page_private(newpage, detach_page_private(page));
-	get_page(newpage);
 
 	bh = head;
 	do {
