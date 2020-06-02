@@ -336,7 +336,7 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
  * @no_output_qs: number of output queues
  * @input_handler: handler to be called for input queues
  * @output_handler: handler to be called for output queues
- * @irq_poll: Data IRQ polling handler (NULL when not supported)
+ * @irq_poll: Data IRQ polling handler
  * @scan_threshold: # of in-use buffers that triggers scan on output queue
  * @int_parm: interruption parameter
  * @input_sbal_addr_array:  per-queue array, each element points to 128 SBALs

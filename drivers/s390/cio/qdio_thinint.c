@@ -106,32 +106,6 @@ static inline u32 clear_shared_ind(void)
 	return xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 0);
 }
 
-static inline void tiqdio_call_inq_handlers(struct qdio_irq *irq)
-{
-	struct qdio_q *q;
-	int i;
-
-	if (!references_shared_dsci(irq))
-		xchg(irq->dsci, 0);
-
-	if (irq->irq_poll) {
-		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq->poll_state))
-			irq->irq_poll(irq->cdev, irq->int_parm);
-		else
-			QDIO_PERF_STAT_INC(irq, int_discarded);
-
-		return;
-	}
-
-	for_each_input_queue(irq, q, i) {
-		/*
-		 * Call inbound processing but not directly
-		 * since that could starve other thinint queues.
-		 */
-		tasklet_schedule(&q->tasklet);
-	}
-}
-
 /**
  * tiqdio_thinint_handler - thin interrupt handler for qdio
  * @airq: pointer to adapter interrupt descriptor
@@ -153,10 +127,14 @@ static void tiqdio_thinint_handler(struct airq_struct *airq, bool floating)
 		if (unlikely(references_shared_dsci(irq))) {
 			if (!si_used)
 				continue;
-		} else if (!*irq->dsci)
-			continue;
+		} else {
+			if (!*irq->dsci)
+				continue;
 
-		tiqdio_call_inq_handlers(irq);
+			xchg(irq->dsci, 0);
+		}
+
+		qdio_deliver_irq(irq);
 
 		QDIO_PERF_STAT_INC(irq, adapter_int);
 	}

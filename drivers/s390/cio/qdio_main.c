@@ -575,49 +575,10 @@ static void qdio_kick_handler(struct qdio_q *q, unsigned int start,
 static inline int qdio_tasklet_schedule(struct qdio_q *q)
 {
 	if (likely(q->irq_ptr->state == QDIO_IRQ_STATE_ACTIVE)) {
-		tasklet_schedule(&q->tasklet);
+		tasklet_schedule(&q->u.out.tasklet);
 		return 0;
 	}
 	return -EPERM;
-}
-
-static void __qdio_inbound_processing(struct qdio_q *q)
-{
-	unsigned int start = q->first_to_check;
-	int count;
-
-	qperf_inc(q, tasklet_inbound);
-
-	count = qdio_inbound_q_moved(q, start);
-	if (count == 0)
-		return;
-
-	qdio_kick_handler(q, start, count);
-	start = add_buf(start, count);
-	q->first_to_check = start;
-
-	if (!qdio_inbound_q_done(q, start)) {
-		/* means poll time is not yet over */
-		qperf_inc(q, tasklet_inbound_resched);
-		if (!qdio_tasklet_schedule(q))
-			return;
-	}
-
-	qdio_stop_polling(q);
-	/*
-	 * We need to check again to not lose initiative after
-	 * resetting the ACK state.
-	 */
-	if (!qdio_inbound_q_done(q, start)) {
-		qperf_inc(q, tasklet_inbound_resched2);
-		qdio_tasklet_schedule(q);
-	}
-}
-
-void qdio_inbound_processing(unsigned long data)
-{
-	struct qdio_q *q = (struct qdio_q *)data;
-	__qdio_inbound_processing(q);
 }
 
 static void qdio_check_pending(struct qdio_q *q, unsigned int index)
@@ -825,19 +786,6 @@ static inline void qdio_check_outbound_pci_queues(struct qdio_irq *irq)
 			qdio_tasklet_schedule(out);
 }
 
-void tiqdio_inbound_processing(unsigned long data)
-{
-	struct qdio_q *q = (struct qdio_q *)data;
-
-	if (need_siga_sync(q) && need_siga_sync_after_ai(q))
-		qdio_sync_queues(q);
-
-	/* The interrupt could be caused by a PCI request: */
-	qdio_check_outbound_pci_queues(q->irq_ptr);
-
-	__qdio_inbound_processing(q);
-}
-
 static inline void qdio_set_state(struct qdio_irq *irq_ptr,
 				  enum qdio_irq_states state)
 {
@@ -865,15 +813,7 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 	if (unlikely(irq_ptr->state != QDIO_IRQ_STATE_ACTIVE))
 		return;
 
-	if (irq_ptr->irq_poll) {
-		if (!test_and_set_bit(QDIO_IRQ_DISABLED, &irq_ptr->poll_state))
-			irq_ptr->irq_poll(irq_ptr->cdev, irq_ptr->int_parm);
-		else
-			QDIO_PERF_STAT_INC(irq_ptr, int_discarded);
-	} else {
-		for_each_input_queue(irq_ptr, q, i)
-			tasklet_schedule(&q->tasklet);
-	}
+	qdio_deliver_irq(irq_ptr);
 
 	if (!pci_out_supported(irq_ptr) || !irq_ptr->scan_threshold)
 		return;
@@ -1016,12 +956,9 @@ static void qdio_shutdown_queues(struct qdio_irq *irq_ptr)
 	struct qdio_q *q;
 	int i;
 
-	for_each_input_queue(irq_ptr, q, i)
-		tasklet_kill(&q->tasklet);
-
 	for_each_output_queue(irq_ptr, q, i) {
 		del_timer_sync(&q->u.out.timer);
-		tasklet_kill(&q->tasklet);
+		tasklet_kill(&q->u.out.tasklet);
 	}
 }
 
@@ -1261,6 +1198,9 @@ int qdio_establish(struct ccw_device *cdev,
 
 	if (!init_data->input_sbal_addr_array ||
 	    !init_data->output_sbal_addr_array)
+		return -EINVAL;
+
+	if (!init_data->irq_poll)
 		return -EINVAL;
 
 	mutex_lock(&irq_ptr->setup_mutex);
