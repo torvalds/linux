@@ -70,6 +70,12 @@ struct nouveau_svm {
 #define SVM_DBG(s,f,a...) NV_DEBUG((s)->drm, "svm: "f"\n", ##a)
 #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
 
+struct nouveau_pfnmap_args {
+	struct nvif_ioctl_v0 i;
+	struct nvif_ioctl_mthd_v0 m;
+	struct nvif_vmm_pfnmap_v0 p;
+};
+
 struct nouveau_ivmm {
 	struct nouveau_svmm *svmm;
 	u64 inst;
@@ -187,7 +193,8 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 		addr = max(addr, vma->vm_start);
 		next = min(vma->vm_end, end);
 		/* This is a best effort so we ignore errors */
-		nouveau_dmem_migrate_vma(cli->drm, vma, addr, next);
+		nouveau_dmem_migrate_vma(cli->drm, cli->svm.svmm, vma, addr,
+					 next);
 		addr = next;
 	}
 
@@ -812,6 +819,56 @@ nouveau_svm_fault(struct nvif_notify *notify)
 	if (replay)
 		nouveau_svm_fault_replay(svm);
 	return NVIF_NOTIFY_KEEP;
+}
+
+static struct nouveau_pfnmap_args *
+nouveau_pfns_to_args(void *pfns)
+{
+	return container_of(pfns, struct nouveau_pfnmap_args, p.phys);
+}
+
+u64 *
+nouveau_pfns_alloc(unsigned long npages)
+{
+	struct nouveau_pfnmap_args *args;
+
+	args = kzalloc(struct_size(args, p.phys, npages), GFP_KERNEL);
+	if (!args)
+		return NULL;
+
+	args->i.type = NVIF_IOCTL_V0_MTHD;
+	args->m.method = NVIF_VMM_V0_PFNMAP;
+	args->p.page = PAGE_SHIFT;
+
+	return args->p.phys;
+}
+
+void
+nouveau_pfns_free(u64 *pfns)
+{
+	struct nouveau_pfnmap_args *args = nouveau_pfns_to_args(pfns);
+
+	kfree(args);
+}
+
+void
+nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
+		 unsigned long addr, u64 *pfns, unsigned long npages)
+{
+	struct nouveau_pfnmap_args *args = nouveau_pfns_to_args(pfns);
+	int ret;
+
+	args->p.addr = addr;
+	args->p.size = npages << PAGE_SHIFT;
+
+	mutex_lock(&svmm->mutex);
+
+	svmm->vmm->vmm.object.client->super = true;
+	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args, sizeof(*args) +
+				npages * sizeof(args->p.phys[0]), NULL);
+	svmm->vmm->vmm.object.client->super = false;
+
+	mutex_unlock(&svmm->mutex);
 }
 
 static void

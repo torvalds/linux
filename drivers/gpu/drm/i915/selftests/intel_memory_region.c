@@ -594,8 +594,11 @@ create_region_for_mapping(struct intel_memory_region *mr, u64 size, u32 type,
 	void *addr;
 
 	obj = i915_gem_object_create_region(mr, size, 0);
-	if (IS_ERR(obj))
+	if (IS_ERR(obj)) {
+		if (PTR_ERR(obj) == -ENOSPC) /* Stolen memory */
+			return ERR_PTR(-ENODEV);
 		return obj;
+	}
 
 	addr = i915_gem_object_pin_map(obj, type);
 	if (IS_ERR(addr)) {

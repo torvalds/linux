@@ -64,13 +64,14 @@ static void assert_global_state_read_locked(struct intel_atomic_state *state)
 			return;
 	}
 
-	WARN(1, "Global state not read locked\n");
+	drm_WARN(&dev_priv->drm, 1, "Global state not read locked\n");
 }
 
 struct intel_global_state *
 intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 				  struct intel_global_obj *obj)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	int index, num_objs, i;
 	size_t size;
 	struct __intel_global_objs_state *arr;
@@ -106,8 +107,8 @@ intel_atomic_get_global_obj_state(struct intel_atomic_state *state,
 
 	state->num_global_objs = num_objs;
 
-	DRM_DEBUG_ATOMIC("Added new global object %p state %p to %p\n",
-			 obj, obj_state, state);
+	drm_dbg_atomic(&i915->drm, "Added new global object %p state %p to %p\n",
+		       obj, obj_state, state);
 
 	return obj_state;
 }
@@ -147,7 +148,7 @@ void intel_atomic_swap_global_state(struct intel_atomic_state *state)
 
 	for_each_oldnew_global_obj_in_state(state, obj, old_obj_state,
 					    new_obj_state, i) {
-		WARN_ON(obj->state != old_obj_state);
+		drm_WARN_ON(&dev_priv->drm, obj->state != old_obj_state);
 
 		/*
 		 * If the new state wasn't modified (and properly

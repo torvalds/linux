@@ -33,6 +33,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/nospec.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -43,7 +44,6 @@
 #include <drm/drm_device.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_print.h>
 
 #include "drm_legacy.h"

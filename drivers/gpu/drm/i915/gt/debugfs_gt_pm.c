@@ -10,6 +10,7 @@
 #include "debugfs_gt_pm.h"
 #include "i915_drv.h"
 #include "intel_gt.h"
+#include "intel_gt_clock_utils.h"
 #include "intel_llc.h"
 #include "intel_rc6.h"
 #include "intel_rps.h"
@@ -268,7 +269,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 			   yesno(rpmodectl & GEN6_RP_ENABLE));
 		seq_printf(m, "SW control enabled: %s\n",
 			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				  GEN6_RP_MEDIA_SW_MODE));
+				 GEN6_RP_MEDIA_SW_MODE));
 
 		vlv_punit_get(i915);
 		freq_sts = vlv_punit_read(i915, PUNIT_REG_GPU_FREQ_STS);
@@ -300,8 +301,9 @@ static int frequency_show(struct seq_file *m, void *unused)
 		u32 rp_state_cap;
 		u32 rpmodectl, rpinclimit, rpdeclimit;
 		u32 rpstat, cagf, reqf;
-		u32 rpupei, rpcurup, rpprevup;
-		u32 rpdownei, rpcurdown, rpprevdown;
+		u32 rpcurupei, rpcurup, rpprevup;
+		u32 rpcurdownei, rpcurdown, rpprevdown;
+		u32 rpupei, rpupt, rpdownei, rpdownt;
 		u32 pm_ier, pm_imr, pm_isr, pm_iir, pm_mask;
 		int max_freq;
 
@@ -334,12 +336,19 @@ static int frequency_show(struct seq_file *m, void *unused)
 		rpdeclimit = intel_uncore_read(uncore, GEN6_RP_DOWN_THRESHOLD);
 
 		rpstat = intel_uncore_read(uncore, GEN6_RPSTAT1);
-		rpupei = intel_uncore_read(uncore, GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
+		rpcurupei = intel_uncore_read(uncore, GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
 		rpcurup = intel_uncore_read(uncore, GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
 		rpprevup = intel_uncore_read(uncore, GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
-		rpdownei = intel_uncore_read(uncore, GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
+		rpcurdownei = intel_uncore_read(uncore, GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
 		rpcurdown = intel_uncore_read(uncore, GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
 		rpprevdown = intel_uncore_read(uncore, GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
+
+		rpupei = intel_uncore_read(uncore, GEN6_RP_UP_EI);
+		rpupt = intel_uncore_read(uncore, GEN6_RP_UP_THRESHOLD);
+
+		rpdownei = intel_uncore_read(uncore, GEN6_RP_DOWN_EI);
+		rpdownt = intel_uncore_read(uncore, GEN6_RP_DOWN_THRESHOLD);
+
 		cagf = intel_rps_read_actual_frequency(rps);
 
 		intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
@@ -372,7 +381,7 @@ static int frequency_show(struct seq_file *m, void *unused)
 			   yesno(rpmodectl & GEN6_RP_ENABLE));
 		seq_printf(m, "SW control enabled: %s\n",
 			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				  GEN6_RP_MEDIA_SW_MODE));
+				 GEN6_RP_MEDIA_SW_MODE));
 
 		seq_printf(m, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
 			   pm_ier, pm_imr, pm_mask);
@@ -394,23 +403,35 @@ static int frequency_show(struct seq_file *m, void *unused)
 		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
 		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
 		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%dus)\n",
-			   rpupei, GT_PM_INTERVAL_TO_US(i915, rpupei));
-		seq_printf(m, "RP CUR UP: %d (%dus)\n",
-			   rpcurup, GT_PM_INTERVAL_TO_US(i915, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%dus)\n",
-			   rpprevup, GT_PM_INTERVAL_TO_US(i915, rpprevup));
+		seq_printf(m, "RP CUR UP EI: %d (%dns)\n",
+			   rpcurupei,
+			   intel_gt_pm_interval_to_ns(gt, rpcurupei));
+		seq_printf(m, "RP CUR UP: %d (%dns)\n",
+			   rpcurup, intel_gt_pm_interval_to_ns(gt, rpcurup));
+		seq_printf(m, "RP PREV UP: %d (%dns)\n",
+			   rpprevup, intel_gt_pm_interval_to_ns(gt, rpprevup));
 		seq_printf(m, "Up threshold: %d%%\n",
 			   rps->power.up_threshold);
+		seq_printf(m, "RP UP EI: %d (%dns)\n",
+			   rpupei, intel_gt_pm_interval_to_ns(gt, rpupei));
+		seq_printf(m, "RP UP THRESHOLD: %d (%dns)\n",
+			   rpupt, intel_gt_pm_interval_to_ns(gt, rpupt));
 
-		seq_printf(m, "RP CUR DOWN EI: %d (%dus)\n",
-			   rpdownei, GT_PM_INTERVAL_TO_US(i915, rpdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%dus)\n",
-			   rpcurdown, GT_PM_INTERVAL_TO_US(i915, rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%dus)\n",
-			   rpprevdown, GT_PM_INTERVAL_TO_US(i915, rpprevdown));
+		seq_printf(m, "RP CUR DOWN EI: %d (%dns)\n",
+			   rpcurdownei,
+			   intel_gt_pm_interval_to_ns(gt, rpcurdownei));
+		seq_printf(m, "RP CUR DOWN: %d (%dns)\n",
+			   rpcurdown,
+			   intel_gt_pm_interval_to_ns(gt, rpcurdown));
+		seq_printf(m, "RP PREV DOWN: %d (%dns)\n",
+			   rpprevdown,
+			   intel_gt_pm_interval_to_ns(gt, rpprevdown));
 		seq_printf(m, "Down threshold: %d%%\n",
 			   rps->power.down_threshold);
+		seq_printf(m, "RP DOWN EI: %d (%dns)\n",
+			   rpdownei, intel_gt_pm_interval_to_ns(gt, rpdownei));
+		seq_printf(m, "RP DOWN THRESHOLD: %d (%dns)\n",
+			   rpdownt, intel_gt_pm_interval_to_ns(gt, rpdownt));
 
 		max_freq = (IS_GEN9_LP(i915) ? rp_state_cap >> 0 :
 			    rp_state_cap >> 16) & 0xff;
@@ -506,8 +527,10 @@ static int llc_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static bool llc_eval(const struct intel_gt *gt)
+static bool llc_eval(void *data)
 {
+	struct intel_gt *gt = data;
+
 	return HAS_LLC(gt->i915);
 }
 
@@ -533,7 +556,8 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_rps *rps = &gt->rps;
 
-	seq_printf(m, "RPS enabled? %d\n", rps->enabled);
+	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
+	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
 	seq_printf(m, "GPU busy? %s\n", yesno(gt->awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
@@ -553,7 +577,7 @@ static int rps_boost_show(struct seq_file *m, void *data)
 
 	seq_printf(m, "Wait boosts: %d\n", atomic_read(&rps->boosts));
 
-	if (INTEL_GEN(i915) >= 6 && rps->enabled && gt->awake) {
+	if (INTEL_GEN(i915) >= 6 && intel_rps_is_active(rps)) {
 		struct intel_uncore *uncore = gt->uncore;
 		u32 rpup, rpupei;
 		u32 rpdown, rpdownei;
@@ -580,8 +604,10 @@ static int rps_boost_show(struct seq_file *m, void *data)
 	return 0;
 }
 
-static bool rps_eval(const struct intel_gt *gt)
+static bool rps_eval(void *data)
 {
+	struct intel_gt *gt = data;
+
 	return HAS_RPS(gt->i915);
 }
 
@@ -597,5 +623,5 @@ void debugfs_gt_pm_register(struct intel_gt *gt, struct dentry *root)
 		{ "rps_boost", &rps_boost_fops, rps_eval },
 	};
 
-	debugfs_gt_register_files(gt, root, files, ARRAY_SIZE(files));
+	intel_gt_debugfs_register_files(root, files, ARRAY_SIZE(files), gt);
 }

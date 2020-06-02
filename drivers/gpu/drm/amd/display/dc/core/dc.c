@@ -66,6 +66,8 @@
 
 #include "dce/dce_i2c.h"
 
+#include "dmub/dmub_srv.h"
+
 #define CTX \
 	dc->ctx
 
@@ -348,7 +350,7 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
-		if (pipe->stream == stream)
+		if (pipe->stream == stream && !pipe->top_pipe && !pipe->prev_odm_pipe)
 			break;
 	}
 	/* Stream not found */
@@ -364,6 +366,9 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	param.windowb_y_start = 0;
 	param.windowb_x_end = pipe->stream->timing.h_addressable;
 	param.windowb_y_end = pipe->stream->timing.v_addressable;
+
+	param.dsc_mode = pipe->stream->timing.flags.DSC ? 1:0;
+	param.odm_mode = pipe->next_odm_pipe ? 1:0;
 
 	/* Default to the union of both windows */
 	param.selection = UNION_WINDOW_A_B;
@@ -2204,7 +2209,7 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 				if (should_program_abm) {
 					if (*stream_update->abm_level == ABM_LEVEL_IMMEDIATE_DISABLE) {
-						pipe_ctx->stream_res.abm->funcs->set_abm_immediate_disable(pipe_ctx->stream_res.abm);
+						dc->hwss.set_abm_immediate_disable(pipe_ctx);
 					} else {
 						pipe_ctx->stream_res.abm->funcs->set_abm_level(
 							pipe_ctx->stream_res.abm, stream->abm_level);
@@ -2640,31 +2645,10 @@ void dc_set_power_state(
 
 void dc_resume(struct dc *dc)
 {
-
 	uint32_t i;
 
 	for (i = 0; i < dc->link_count; i++)
 		core_link_resume(dc->links[i]);
-}
-
-unsigned int dc_get_current_backlight_pwm(struct dc *dc)
-{
-	struct abm *abm = dc->res_pool->abm;
-
-	if (abm)
-		return abm->funcs->get_current_backlight(abm);
-
-	return 0;
-}
-
-unsigned int dc_get_target_backlight_pwm(struct dc *dc)
-{
-	struct abm *abm = dc->res_pool->abm;
-
-	if (abm)
-		return abm->funcs->get_target_backlight(abm);
-
-	return 0;
 }
 
 bool dc_is_dmcu_initialized(struct dc *dc)

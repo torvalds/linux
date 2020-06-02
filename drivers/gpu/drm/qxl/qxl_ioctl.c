@@ -36,7 +36,7 @@
 static int qxl_alloc_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_alloc *qxl_alloc = data;
 	int ret;
 	struct qxl_bo *qobj;
@@ -64,7 +64,7 @@ static int qxl_alloc_ioctl(struct drm_device *dev, void *data,
 static int qxl_map_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_map *qxl_map = data;
 
 	return qxl_mode_dumb_mmap(file_priv, &qdev->ddev, qxl_map->handle,
@@ -276,7 +276,7 @@ out_free_reloc:
 static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_execbuffer *execbuffer = data;
 	struct drm_qxl_command user_cmd;
 	int cmd_num;
@@ -301,7 +301,7 @@ static int qxl_execbuffer_ioctl(struct drm_device *dev, void *data,
 static int qxl_update_area_ioctl(struct drm_device *dev, void *data,
 				 struct drm_file *file)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_update_area *update_area = data;
 	struct qxl_rect area = {.left = update_area->left,
 				.top = update_area->top,
@@ -351,7 +351,7 @@ out:
 static int qxl_getparam_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_getparam *param = data;
 
 	switch (param->param) {
@@ -370,7 +370,7 @@ static int qxl_getparam_ioctl(struct drm_device *dev, void *data,
 static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_clientcap *param = data;
 	int byte, idx;
 
@@ -391,7 +391,7 @@ static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 static int qxl_alloc_surf_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct drm_qxl_alloc_surf *param = data;
 	struct qxl_bo *qobj;
 	int handle;

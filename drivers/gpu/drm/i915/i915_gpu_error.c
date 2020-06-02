@@ -467,14 +467,14 @@ static void error_print_request(struct drm_i915_error_state_buf *m,
 	if (!erq->seqno)
 		return;
 
-	err_printf(m, "%s pid %d, seqno %8x:%08x%s%s, prio %d, start %08x, head %08x, tail %08x\n",
+	err_printf(m, "%s pid %d, seqno %8x:%08x%s%s, prio %d, head %08x, tail %08x\n",
 		   prefix, erq->pid, erq->context, erq->seqno,
 		   test_bit(DMA_FENCE_FLAG_SIGNALED_BIT,
 			    &erq->flags) ? "!" : "",
 		   test_bit(DMA_FENCE_FLAG_ENABLE_SIGNAL_BIT,
 			    &erq->flags) ? "+" : "",
 		   erq->sched_attr.priority,
-		   erq->start, erq->head, erq->tail);
+		   erq->head, erq->tail);
 }
 
 static void error_print_context(struct drm_i915_error_state_buf *m,
@@ -1211,7 +1211,6 @@ static void record_request(const struct i915_request *request,
 	erq->context = request->fence.context;
 	erq->seqno = request->fence.seqno;
 	erq->sched_attr = request->sched.attr;
-	erq->start = i915_ggtt_offset(request->ring->vma);
 	erq->head = request->head;
 	erq->tail = request->tail;
 
@@ -1321,26 +1320,6 @@ capture_user(struct intel_engine_capture_vma *capture,
 	return capture;
 }
 
-static struct i915_vma_coredump *
-capture_object(const struct intel_gt *gt,
-	       struct drm_i915_gem_object *obj,
-	       const char *name,
-	       struct i915_vma_compress *compress)
-{
-	if (obj && i915_gem_object_has_pages(obj)) {
-		struct i915_vma fake = {
-			.node = { .start = U64_MAX, .size = obj->base.size },
-			.size = obj->base.size,
-			.pages = obj->mm.pages,
-			.obj = obj,
-		};
-
-		return i915_vma_coredump_create(gt, &fake, name, compress);
-	} else {
-		return NULL;
-	}
-}
-
 static void add_vma(struct intel_engine_coredump *ee,
 		    struct i915_vma_coredump *vma)
 {
@@ -1429,12 +1408,6 @@ intel_engine_coredump_add_vma(struct intel_engine_coredump *ee,
 					 engine->wa_ctx.vma,
 					 "WA context",
 					 compress));
-
-	add_vma(ee,
-		capture_object(engine->gt,
-			       engine->default_state,
-			       "NULL context",
-			       compress));
 }
 
 static struct intel_engine_coredump *
@@ -1860,7 +1833,7 @@ void i915_error_state_store(struct i915_gpu_coredump *error)
 		return;
 
 	i915 = error->i915;
-	dev_info(i915->drm.dev, "%s\n", error_msg(error));
+	drm_info(&i915->drm, "%s\n", error_msg(error));
 
 	if (error->simulated ||
 	    cmpxchg(&i915->gpu_error.first_error, NULL, error))

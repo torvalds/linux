@@ -35,7 +35,7 @@
 #define AMDGPU_JOB_GET_TIMELINE_NAME(job) \
 	 job->base.s_fence->finished.ops->get_timeline_name(&job->base.s_fence->finished)
 
-TRACE_EVENT(amdgpu_mm_rreg,
+TRACE_EVENT(amdgpu_device_rreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
 	    TP_ARGS(did, reg, value),
 	    TP_STRUCT__entry(
@@ -54,7 +54,7 @@ TRACE_EVENT(amdgpu_mm_rreg,
 		      (unsigned long)__entry->value)
 );
 
-TRACE_EVENT(amdgpu_mm_wreg,
+TRACE_EVENT(amdgpu_device_wreg,
 	    TP_PROTO(unsigned did, uint32_t reg, uint32_t value),
 	    TP_ARGS(did, reg, value),
 	    TP_STRUCT__entry(

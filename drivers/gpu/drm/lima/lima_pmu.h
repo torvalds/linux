@@ -6,6 +6,8 @@
 
 struct lima_ip;
 
+int lima_pmu_resume(struct lima_ip *ip);
+void lima_pmu_suspend(struct lima_ip *ip);
 int lima_pmu_init(struct lima_ip *ip);
 void lima_pmu_fini(struct lima_ip *ip);
 

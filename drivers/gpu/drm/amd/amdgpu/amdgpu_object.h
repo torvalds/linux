@@ -229,6 +229,17 @@ static inline bool amdgpu_bo_explicit_sync(struct amdgpu_bo *bo)
 	return bo->flags & AMDGPU_GEM_CREATE_EXPLICIT_SYNC;
 }
 
+/**
+ * amdgpu_bo_encrypted - test if the BO is encrypted
+ * @bo: pointer to a buffer object
+ *
+ * Return true if the buffer object is encrypted, false otherwise.
+ */
+static inline bool amdgpu_bo_encrypted(struct amdgpu_bo *bo)
+{
+	return bo->flags & AMDGPU_GEM_CREATE_ENCRYPTED;
+}
+
 bool amdgpu_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);
 void amdgpu_bo_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 
