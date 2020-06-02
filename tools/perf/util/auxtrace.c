@@ -55,7 +55,6 @@
 #include "util/mmap.h"
 
 #include <linux/ctype.h>
-#include <linux/kernel.h>
 #include "symbol/kallsyms.h"
 #include <internal/lib.h>
 
