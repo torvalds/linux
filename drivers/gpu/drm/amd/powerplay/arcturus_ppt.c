@@ -908,17 +908,23 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
-static int arcturus_get_metrics_table(struct smu_context *smu,
-				      SmuMetrics_t *metrics_table)
+static int arcturus_get_smu_metrics_data(struct smu_context *smu,
+					 MetricsMember_t member,
+					 uint32_t *value)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
+
 	if (!smu_table->metrics_time ||
-	     time_after(jiffies, smu_table->metrics_time + HZ / 1000)) {
-		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
-				(void *)smu_table->metrics_table, false);
+	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
+		ret = smu_update_table(smu,
+				       SMU_TABLE_SMU_METRICS,
+				       0,
+				       smu_table->metrics_table,
+				       false);
 		if (ret) {
 			pr_info("Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
@@ -927,7 +933,87 @@ static int arcturus_get_metrics_table(struct smu_context *smu,
 		smu_table->metrics_time = jiffies;
 	}
 
-	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK];
+		break;
+	case METRICS_CURR_FCLK:
+		*value = metrics->CurrClock[PPCLK_FCLK];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		*value = metrics->AverageGfxclkFrequency;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequency;
+		break;
+	case METRICS_AVERAGE_VCLK:
+		*value = metrics->AverageVclkFrequency;
+		break;
+	case METRICS_AVERAGE_DCLK:
+		*value = metrics->AverageDclkFrequency;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_VCNACTIVITY:
+		*value = metrics->VcnActivityPercentage;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureHBM *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRMEM:
+		*value = metrics->TemperatureVrMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
 	mutex_unlock(&smu->metrics_lock);
 
 	return ret;
@@ -937,81 +1023,71 @@ static int arcturus_get_current_activity_percent(struct smu_context *smu,
 						 enum amd_pp_sensors sensor,
 						 uint32_t *value)
 {
-	SmuMetrics_t metrics;
 	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
 
-	ret = arcturus_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		*value = metrics.AverageGfxActivity;
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_AVERAGE_GFXACTIVITY,
+						    value);
 		break;
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		*value = metrics.AverageUclkActivity;
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_AVERAGE_MEMACTIVITY,
+						    value);
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int arcturus_get_gpu_power(struct smu_context *smu, uint32_t *value)
 {
-	SmuMetrics_t metrics;
-	int ret = 0;
-
 	if (!value)
 		return -EINVAL;
 
-	ret = arcturus_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	*value = metrics.AverageSocketPower << 8;
-
-	return 0;
+	return arcturus_get_smu_metrics_data(smu,
+					     METRICS_AVERAGE_SOCKETPOWER,
+					     value);
 }
 
 static int arcturus_thermal_get_temperature(struct smu_context *smu,
 					    enum amd_pp_sensors sensor,
 					    uint32_t *value)
 {
-	SmuMetrics_t metrics;
 	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
 
-	ret = arcturus_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		*value = metrics.TemperatureHotspot *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_HOTSPOT,
+						    value);
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		*value = metrics.TemperatureEdge *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_EDGE,
+						    value);
 		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		*value = metrics.TemperatureHBM *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = arcturus_get_smu_metrics_data(smu,
+						    METRICS_TEMPERATURE_MEM,
+						    value);
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving temp\n");
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int arcturus_read_sensor(struct smu_context *smu,
@@ -1063,19 +1139,12 @@ static int arcturus_read_sensor(struct smu_context *smu,
 static int arcturus_get_fan_speed_rpm(struct smu_context *smu,
 				      uint32_t *speed)
 {
-	SmuMetrics_t metrics;
-	int ret = 0;
-
 	if (!speed)
 		return -EINVAL;
 
-	ret = arcturus_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	*speed = metrics.CurrFanSpeed;
-
-	return ret;
+	return arcturus_get_smu_metrics_data(smu,
+					     METRICS_CURR_FANSPEED,
+					     speed);
 }
 
 static int arcturus_get_fan_speed_percent(struct smu_context *smu,
@@ -1102,8 +1171,8 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       uint32_t *value)
 {
-	static SmuMetrics_t metrics;
-	int ret = 0, clk_id = 0;
+	MetricsMember_t member_type;
+	int clk_id = 0;
 
 	if (!value)
 		return -EINVAL;
@@ -1112,41 +1181,53 @@ static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
 	if (clk_id < 0)
 		return -EINVAL;
 
-	ret = arcturus_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
 	switch (clk_id) {
 	case PPCLK_GFXCLK:
 		/*
 		 * CurrClock[clk_id] can provide accurate
 		 *   output only when the dpm feature is enabled.
 		 * We can use Average_* for dpm disabled case.
-		 *   But this is available for gfxclk/uclk/socclk.
+		 *   But this is available for gfxclk/uclk/socclk/vclk/dclk.
 		 */
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
-			*value = metrics.CurrClock[PPCLK_GFXCLK];
+			member_type = METRICS_CURR_GFXCLK;
 		else
-			*value = metrics.AverageGfxclkFrequency;
+			member_type = METRICS_AVERAGE_GFXCLK;
 		break;
 	case PPCLK_UCLK:
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
-			*value = metrics.CurrClock[PPCLK_UCLK];
+			member_type = METRICS_CURR_UCLK;
 		else
-			*value = metrics.AverageUclkFrequency;
+			member_type = METRICS_AVERAGE_UCLK;
 		break;
 	case PPCLK_SOCCLK:
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
-			*value = metrics.CurrClock[PPCLK_SOCCLK];
+			member_type = METRICS_CURR_SOCCLK;
 		else
-			*value = metrics.AverageSocclkFrequency;
+			member_type = METRICS_AVERAGE_SOCCLK;
+		break;
+	case PPCLK_VCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+			member_type = METRICS_CURR_VCLK;
+		else
+			member_type = METRICS_AVERAGE_VCLK;
+		break;
+	case PPCLK_DCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+			member_type = METRICS_CURR_DCLK;
+		else
+			member_type = METRICS_AVERAGE_DCLK;
+		break;
+	case PPCLK_FCLK:
+		member_type = METRICS_CURR_FCLK;
 		break;
 	default:
-		*value = metrics.CurrClock[clk_id];
-		break;
+		return -EINVAL;
 	}
 
-	return ret;
+	return arcturus_get_smu_metrics_data(smu,
+					     member_type,
+					     value);
 }
 
 static uint32_t arcturus_find_lowest_dpm_level(struct arcturus_single_dpm_table *table)
@@ -2403,15 +2484,17 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 {
 	int throttler_idx, throtting_events = 0, buf_idx = 0;
 	struct amdgpu_device *adev = smu->adev;
-	SmuMetrics_t metrics;
+	uint32_t throttler_status;
 	char log_buf[256];
 
-	arcturus_get_metrics_table(smu, &metrics);
+	arcturus_get_smu_metrics_data(smu,
+				      METRICS_THROTTLER_STATUS,
+				      &throttler_status);
 
 	memset(log_buf, 0, sizeof(log_buf));
 	for (throttler_idx = 0; throttler_idx < ARRAY_SIZE(logging_label);
 	     throttler_idx++) {
-		if (metrics.ThrottlerStatus & logging_label[throttler_idx].feature_mask) {
+		if (throttler_status & logging_label[throttler_idx].feature_mask) {
 			throtting_events++;
 			buf_idx += snprintf(log_buf + buf_idx,
 					    sizeof(log_buf) - buf_idx,
