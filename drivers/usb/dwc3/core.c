@@ -787,11 +787,7 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 	phy_power_off(dwc->usb3_generic_phy);
 	clk_bulk_disable(dwc->num_clks, dwc->clks);
 	clk_bulk_unprepare(dwc->num_clks, dwc->clks);
-	/*
-	 * We're resetting only the device side, it can avoid to reset the DWC3
-	 * controller when resume from PM suspend which may cause the usb
-	 * device to be reenumerated.
-	 */
+
 	if (!dwc->drd_connected && dwc->dr_mode == USB_DR_MODE_OTG)
 		reset_control_assert(dwc->reset);
 }
@@ -1437,6 +1433,8 @@ static void dwc3_get_properties(struct dwc3 *dwc)
 				"snps,dis_metastability_quirk");
 	dwc->needs_fifo_resize = device_property_read_bool(dev,
 				"snps,tx-fifo-resize");
+	dwc->xhci_warm_reset_on_suspend_quirk = device_property_read_bool(dev,
+				"snps,xhci-warm-reset-on-suspend-quirk");
 
 	dwc->lpm_nyet_threshold = lpm_nyet_threshold;
 	dwc->tx_de_emphasis = tx_de_emphasis;
@@ -1706,11 +1704,6 @@ static int dwc3_core_init_for_resume(struct dwc3 *dwc)
 {
 	int ret;
 
-	/*
-	 * We're resetting only the device side, it can avoid to reset the DWC3
-	 * controller when resume from PM suspend which may cause the usb
-	 * device to be reenumerated.
-	 */
 	if (!dwc->drd_connected && dwc->dr_mode == USB_DR_MODE_OTG) {
 		ret = reset_control_deassert(dwc->reset);
 		if (ret)
@@ -1979,10 +1972,8 @@ static int dwc3_suspend(struct device *dev)
 	 */
 	dwc->link_state = dwc3_gadget_get_link_state(dwc);
 	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST &&
-	    dwc->link_state == DWC3_LINK_STATE_RX_DET) {
+	    dwc->link_state == DWC3_LINK_STATE_RX_DET)
 		phy_power_off(dwc->usb3_generic_phy);
-		reset_control_assert(dwc->reset);
-	}
 
 	pinctrl_pm_select_sleep_state(dev);
 
@@ -2000,10 +1991,8 @@ static int dwc3_resume(struct device *dev)
 	pinctrl_pm_select_default_state(dev);
 
 	if (dwc->current_dr_role == DWC3_GCTL_PRTCAP_HOST &&
-	    dwc->link_state == DWC3_LINK_STATE_RX_DET) {
-		reset_control_deassert(dwc->reset);
+	    dwc->link_state == DWC3_LINK_STATE_RX_DET)
 		phy_power_on(dwc->usb3_generic_phy);
-	}
 
 	ret = dwc3_resume_common(dwc, PMSG_RESUME);
 	if (ret)

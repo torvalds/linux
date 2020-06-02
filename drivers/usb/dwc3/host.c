@@ -46,7 +46,7 @@ out:
 
 int dwc3_host_init(struct dwc3 *dwc)
 {
-	struct property_entry	props[6];
+	struct property_entry	props[7];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	struct resource		*res;
@@ -115,6 +115,9 @@ int dwc3_host_init(struct dwc3 *dwc)
 	 */
 	if (dwc->revision <= DWC3_REVISION_300A)
 		props[prop_idx++].name = "quirk-broken-port-ped";
+
+	if (dwc->xhci_warm_reset_on_suspend_quirk)
+		props[prop_idx++].name = "xhci-warm-reset-on-suspend";
 
 	if (prop_idx) {
 		ret = platform_device_add_properties(xhci, props);

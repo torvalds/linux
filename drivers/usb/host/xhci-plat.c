@@ -297,6 +297,10 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		if (device_property_read_bool(tmpdev, "usb3-dis-autosuspend"))
 			xhci->quirks |= XHCI_DIS_AUTOSUSPEND;
 
+		if (device_property_read_bool(tmpdev,
+					      "xhci-warm-reset-on-suspend"))
+			xhci->quirks |= XHCI_WARM_RESET_ON_SUSPEND;
+
 		device_property_read_u32(tmpdev, "imod-interval-ns",
 					 &xhci->imod_interval);
 	}
