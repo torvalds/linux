@@ -248,7 +248,7 @@ static int ccu_div_var_set_rate_fast(struct clk_hw *hw, unsigned long rate,
 				     unsigned long parent_rate)
 {
 	struct ccu_div *div = to_ccu_div(hw);
-	unsigned long flags, divider = 1;
+	unsigned long flags, divider;
 	u32 val;
 
 	divider = ccu_div_var_calc_divider(rate, parent_rate, div->mask);
