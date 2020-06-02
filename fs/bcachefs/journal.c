@@ -1237,14 +1237,14 @@ ssize_t bch2_journal_print_pins(struct journal *j, char *buf)
 		       i, atomic_read(&pin_list->count));
 
 		list_for_each_entry(pin, &pin_list->list, list)
-			pr_buf(&out, "\t%p %pf\n",
+			pr_buf(&out, "\t%px %ps\n",
 			       pin, pin->flush);
 
 		if (!list_empty(&pin_list->flushed))
 			pr_buf(&out, "flushed:\n");
 
 		list_for_each_entry(pin, &pin_list->flushed, list)
-			pr_buf(&out, "\t%p %pf\n",
+			pr_buf(&out, "\t%px %ps\n",
 			       pin, pin->flush);
 	}
 	spin_unlock(&j->lock);

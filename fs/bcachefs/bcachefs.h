@@ -628,6 +628,9 @@ struct bch_fs {
 	struct workqueue_struct	*btree_interior_update_worker;
 	struct work_struct	btree_interior_update_work;
 
+	/* btree_iter.c: */
+	struct mutex		btree_trans_lock;
+	struct list_head	btree_trans_list;
 	mempool_t		btree_iters_pool;
 
 	struct workqueue_struct	*wq;

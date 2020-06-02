@@ -181,11 +181,21 @@ static inline bool btree_node_lock(struct btree *b, struct bpos pos,
 				   struct btree_iter *iter,
 				   enum six_lock_type type)
 {
-	EBUG_ON(level >= BTREE_MAX_DEPTH);
+	bool ret;
 
-	return likely(six_trylock_type(&b->c.lock, type)) ||
+	EBUG_ON(level >= BTREE_MAX_DEPTH);
+#ifdef CONFIG_BCACHEFS_DEBUG
+	iter->trans->locking = b;
+#endif
+
+	ret = likely(six_trylock_type(&b->c.lock, type)) ||
 		btree_node_lock_increment(iter, b, level, type) ||
 		__bch2_btree_node_lock(b, pos, level, iter, type);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	iter->trans->locking = NULL;
+#endif
+	return ret;
 }
 
 bool __bch2_btree_node_relock(struct btree_iter *, unsigned);

@@ -166,6 +166,7 @@ read_attribute(journal_debug);
 read_attribute(journal_pins);
 read_attribute(btree_updates);
 read_attribute(dirty_btree_nodes);
+read_attribute(btree_transactions);
 
 read_attribute(internal_uuid);
 
@@ -401,6 +402,12 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_dirty_btree_nodes)
 		return bch2_dirty_btree_nodes_print(c, buf);
+	if (attr == &sysfs_btree_transactions) {
+		struct printbuf out = _PBUF(buf, PAGE_SIZE);
+
+		bch2_btree_trans_to_text(&out, c);
+		return out.pos - buf;
+	}
 
 	if (attr == &sysfs_compression_stats)
 		return bch2_compression_stats(c, buf);
@@ -571,6 +578,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_journal_pins,
 	&sysfs_btree_updates,
 	&sysfs_dirty_btree_nodes,
+	&sysfs_btree_transactions,
 
 	&sysfs_read_realloc_races,
 	&sysfs_extent_migrate_done,

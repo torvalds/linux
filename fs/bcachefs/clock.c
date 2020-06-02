@@ -162,7 +162,7 @@ ssize_t bch2_io_timers_show(struct io_clock *clock, char *buf)
 	now = atomic_long_read(&clock->now);
 
 	for (i = 0; i < clock->timers.used; i++)
-		pr_buf(&out, "%pf:\t%li\n",
+		pr_buf(&out, "%ps:\t%li\n",
 		       clock->timers.data[i]->fn,
 		       clock->timers.data[i]->expire - now);
 	spin_unlock(&clock->timer_lock);

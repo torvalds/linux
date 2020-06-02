@@ -1912,7 +1912,7 @@ static struct btree_iter *btree_trans_iter_alloc(struct btree_trans *trans)
 			struct btree_iter *iter;
 
 			trans_for_each_iter(trans, iter) {
-				pr_err("iter: btree %s pos %llu:%llu%s%s%s %pf",
+				pr_err("iter: btree %s pos %llu:%llu%s%s%s %ps",
 				       bch2_btree_ids[iter->btree_id],
 				       iter->pos.inode,
 				       iter->pos.offset,
@@ -2193,11 +2193,23 @@ void bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 
 	if (expected_mem_bytes)
 		bch2_trans_preload_mem(trans, expected_mem_bytes);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	mutex_lock(&c->btree_trans_lock);
+	list_add(&trans->list, &c->btree_trans_list);
+	mutex_unlock(&c->btree_trans_lock);
+#endif
 }
 
 int bch2_trans_exit(struct btree_trans *trans)
 {
 	bch2_trans_unlock(trans);
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+	mutex_lock(&trans->c->btree_trans_lock);
+	list_del(&trans->list);
+	mutex_unlock(&trans->c->btree_trans_lock);
+#endif
 
 	kfree(trans->fs_usage_deltas);
 	kfree(trans->mem);
@@ -2211,6 +2223,51 @@ int bch2_trans_exit(struct btree_trans *trans)
 	return trans->error ? -EIO : 0;
 }
 
+void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
+{
+#ifdef CONFIG_BCACHEFS_DEBUG
+	struct btree_trans *trans;
+	struct btree_iter *iter;
+	struct btree *b;
+	unsigned l;
+
+	mutex_lock(&c->btree_trans_lock);
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		pr_buf(out, "%ps\n", (void *) trans->ip);
+
+		trans_for_each_iter(trans, iter) {
+			if (!iter->nodes_locked)
+				continue;
+
+			pr_buf(out, "  iter %s:", bch2_btree_ids[iter->btree_id]);
+			bch2_bpos_to_text(out, iter->pos);
+			pr_buf(out, "\n");
+
+			for (l = 0; l < BTREE_MAX_DEPTH; l++) {
+				if (btree_node_locked(iter, l)) {
+					b = iter->l[l].b;
+
+					pr_buf(out, "    %p l=%u %s ",
+					       b, l, btree_node_intent_locked(iter, l) ? "i" : "r");
+					bch2_bpos_to_text(out, b->key.k.p);
+					pr_buf(out, "\n");
+				}
+			}
+		}
+
+		b = READ_ONCE(trans->locking);
+		if (b) {
+			pr_buf(out, "  locking %px l=%u %s:",
+			       b, b->c.level,
+			       bch2_btree_ids[b->c.btree_id]);
+			bch2_bpos_to_text(out, b->key.k.p);
+			pr_buf(out, "\n");
+		}
+	}
+	mutex_unlock(&c->btree_trans_lock);
+#endif
+}
+
 void bch2_fs_btree_iter_exit(struct bch_fs *c)
 {
 	mempool_exit(&c->btree_iters_pool);
@@ -2219,6 +2276,9 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 int bch2_fs_btree_iter_init(struct bch_fs *c)
 {
 	unsigned nr = BTREE_ITER_MAX;
+
+	INIT_LIST_HEAD(&c->btree_trans_list);
+	mutex_init(&c->btree_trans_lock);
 
 	return mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
 			sizeof(struct btree_iter) * nr +

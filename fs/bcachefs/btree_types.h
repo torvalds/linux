@@ -284,6 +284,10 @@ struct btree_insert_entry {
 
 struct btree_trans {
 	struct bch_fs		*c;
+#ifdef CONFIG_BCACHEFS_DEBUG
+	struct list_head	list;
+	struct btree		*locking;
+#endif
 	unsigned long		ip;
 
 	u64			iters_linked;

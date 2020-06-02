@@ -303,6 +303,8 @@ void *bch2_trans_kmalloc(struct btree_trans *, size_t);
 void bch2_trans_init(struct btree_trans *, struct bch_fs *, unsigned, size_t);
 int bch2_trans_exit(struct btree_trans *);
 
+void bch2_btree_trans_to_text(struct printbuf *, struct bch_fs *);
+
 void bch2_fs_btree_iter_exit(struct bch_fs *);
 int bch2_fs_btree_iter_init(struct bch_fs *);
 
