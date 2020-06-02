@@ -575,6 +575,12 @@ static u_short maxfmode, chipset;
 #define downx(x, v)	((v) & -(x))
 #define modx(x, v)	((v) & ((x) - 1))
 
+/*
+ * FIXME: Use C variants of the code marked with #ifdef __mc68000__
+ * in the driver. It shouldn't negatively affect the performance and
+ * is required for APUS support (once it is re-added to the kernel).
+ * Needs to be tested on the hardware though..
+ */
 /* if x1 is not a constant, this macro won't make real sense :-) */
 #ifdef __mc68000__
 #define DIVUL(x1, x2) ({int res; asm("divul %1,%2,%3": "=d" (res): \
