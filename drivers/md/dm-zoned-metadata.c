@@ -229,16 +229,10 @@ struct dmz_metadata {
  */
 static unsigned int dmz_dev_zone_id(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	unsigned int zone_id;
-
 	if (WARN_ON(!zone))
 		return 0;
 
-	zone_id = zone->id;
-	if (zmd->nr_devs > 1 &&
-	    (zone_id >= zmd->dev[1].zone_offset))
-		zone_id -= zmd->dev[1].zone_offset;
-	return zone_id;
+	return zone->id - zone->dev->zone_offset;
 }
 
 sector_t dmz_start_sect(struct dmz_metadata *zmd, struct dm_zone *zone)
@@ -253,18 +247,6 @@ sector_t dmz_start_block(struct dmz_metadata *zmd, struct dm_zone *zone)
 	unsigned int zone_id = dmz_dev_zone_id(zmd, zone);
 
 	return (sector_t)zone_id << zmd->zone_nr_blocks_shift;
-}
-
-struct dmz_dev *dmz_zone_to_dev(struct dmz_metadata *zmd, struct dm_zone *zone)
-{
-	if (WARN_ON(!zone))
-		return &zmd->dev[0];
-
-	if (zmd->nr_devs > 1 &&
-	    zone->id >= zmd->dev[1].zone_offset)
-		return &zmd->dev[1];
-
-	return &zmd->dev[0];
 }
 
 unsigned int dmz_zone_nr_blocks(struct dmz_metadata *zmd)
@@ -333,7 +315,7 @@ static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
 }
 
 static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
-				  unsigned int zone_id)
+				  unsigned int zone_id, struct dmz_dev *dev)
 {
 	struct dm_zone *zone = kzalloc(sizeof(struct dm_zone), GFP_KERNEL);
 
@@ -349,6 +331,7 @@ static struct dm_zone *dmz_insert(struct dmz_metadata *zmd,
 	atomic_set(&zone->refcount, 0);
 	zone->id = zone_id;
 	zone->chunk = DMZ_MAP_UNMAPPED;
+	zone->dev = dev;
 
 	return zone;
 }
@@ -1273,7 +1256,7 @@ static int dmz_load_sb(struct dmz_metadata *zmd)
 
 	/* Read and check the primary super block */
 	zmd->sb[0].block = dmz_start_block(zmd, zmd->sb[0].zone);
-	zmd->sb[0].dev = dmz_zone_to_dev(zmd, zmd->sb[0].zone);
+	zmd->sb[0].dev = zmd->sb[0].zone->dev;
 	ret = dmz_get_sb(zmd, &zmd->sb[0], 0);
 	if (ret) {
 		dmz_dev_err(zmd->sb[0].dev, "Read primary super block failed");
@@ -1393,7 +1376,7 @@ static int dmz_init_zone(struct blk_zone *blkz, unsigned int num, void *data)
 	int idx = num + dev->zone_offset;
 	struct dm_zone *zone;
 
-	zone = dmz_insert(zmd, idx);
+	zone = dmz_insert(zmd, idx, dev);
 	if (IS_ERR(zone))
 		return PTR_ERR(zone);
 
@@ -1457,7 +1440,7 @@ static int dmz_emulate_zones(struct dmz_metadata *zmd, struct dmz_dev *dev)
 	for(idx = 0; idx < dev->nr_zones; idx++) {
 		struct dm_zone *zone;
 
-		zone = dmz_insert(zmd, idx);
+		zone = dmz_insert(zmd, idx, dev);
 		if (IS_ERR(zone))
 			return PTR_ERR(zone);
 		set_bit(DMZ_CACHE, &zone->flags);
@@ -1583,7 +1566,7 @@ static int dmz_update_zone_cb(struct blk_zone *blkz, unsigned int idx,
  */
 static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 {
-	struct dmz_dev *dev = dmz_zone_to_dev(zmd, zone);
+	struct dmz_dev *dev = zone->dev;
 	unsigned int noio_flag;
 	int ret;
 
@@ -1620,7 +1603,7 @@ static int dmz_update_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 static int dmz_handle_seq_write_err(struct dmz_metadata *zmd,
 				    struct dm_zone *zone)
 {
-	struct dmz_dev *dev = dmz_zone_to_dev(zmd, zone);
+	struct dmz_dev *dev = zone->dev;
 	unsigned int wp = 0;
 	int ret;
 
@@ -1657,7 +1640,7 @@ static int dmz_reset_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 		return 0;
 
 	if (!dmz_is_empty(zone) || dmz_seq_write_err(zone)) {
-		struct dmz_dev *dev = dmz_zone_to_dev(zmd, zone);
+		struct dmz_dev *dev = zone->dev;
 
 		ret = blkdev_zone_mgmt(dev->bdev, REQ_OP_ZONE_RESET,
 				       dmz_start_sect(zmd, zone),
@@ -2218,9 +2201,7 @@ again:
 		goto again;
 	}
 	if (dmz_is_meta(zone)) {
-		struct dmz_dev *dev = dmz_zone_to_dev(zmd, zone);
-
-		dmz_dev_warn(dev, "Zone %u has metadata", zone->id);
+		dmz_zmd_warn(zmd, "Zone %u has metadata", zone->id);
 		zone = NULL;
 		goto again;
 	}

@@ -80,6 +80,9 @@ struct dm_zone {
 	/* For listing the zone depending on its state */
 	struct list_head	link;
 
+	/* Device containing this zone */
+	struct dmz_dev		*dev;
+
 	/* Zone type and state */
 	unsigned long		flags;
 
@@ -190,7 +193,6 @@ const char *dmz_metadata_label(struct dmz_metadata *zmd);
 sector_t dmz_start_sect(struct dmz_metadata *zmd, struct dm_zone *zone);
 sector_t dmz_start_block(struct dmz_metadata *zmd, struct dm_zone *zone);
 unsigned int dmz_nr_chunks(struct dmz_metadata *zmd);
-struct dmz_dev *dmz_zone_to_dev(struct dmz_metadata *zmd, struct dm_zone *zone);
 
 bool dmz_check_dev(struct dmz_metadata *zmd);
 bool dmz_dev_is_dying(struct dmz_metadata *zmd);

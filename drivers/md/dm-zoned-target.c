@@ -123,7 +123,7 @@ static int dmz_submit_bio(struct dmz_target *dmz, struct dm_zone *zone,
 {
 	struct dmz_bioctx *bioctx =
 		dm_per_bio_data(bio, sizeof(struct dmz_bioctx));
-	struct dmz_dev *dev = dmz_zone_to_dev(dmz->metadata, zone);
+	struct dmz_dev *dev = zone->dev;
 	struct bio *clone;
 
 	if (dev->flags & DMZ_BDEV_DYING)
