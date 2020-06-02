@@ -369,6 +369,13 @@
 		#clock-cells = <0>;
 	};
 
+	dummy_cpll: dummy_cpll {
+		compatible = "fixed-clock";
+		clock-frequency = <0>;
+		clock-output-names = "dummy_cpll";
+		#clock-cells = <0>;
+	};
+
 	gmac_clkin_m0: external-gmac-clockm0 {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
