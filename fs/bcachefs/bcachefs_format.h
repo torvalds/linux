@@ -1266,6 +1266,8 @@ LE64_BITMASK(BCH_SB_PRJQUOTA,		struct bch_sb, flags[0], 59, 60);
 
 LE64_BITMASK(BCH_SB_HAS_ERRORS,		struct bch_sb, flags[0], 60, 61);
 
+LE64_BITMASK(BCH_SB_REFLINK,		struct bch_sb, flags[0], 61, 62);
+
 /* 61-64 unused */
 
 LE64_BITMASK(BCH_SB_STR_HASH_TYPE,	struct bch_sb, flags[1],  0,  4);

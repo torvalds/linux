@@ -167,6 +167,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 	u64 src_done, dst_done;
 	int ret = 0, ret2 = 0;
 
+	if (!c->opts.reflink)
+		return -EOPNOTSUPP;
+
 	if (!percpu_ref_tryget(&c->writes))
 		return -EROFS;
 

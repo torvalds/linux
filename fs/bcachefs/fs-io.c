@@ -2812,6 +2812,9 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	u64 aligned_len;
 	loff_t ret = 0;
 
+	if (!c->opts.reflink)
+		return -EOPNOTSUPP;
+
 	if (remap_flags & ~(REMAP_FILE_DEDUP|REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
