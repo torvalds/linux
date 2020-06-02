@@ -994,11 +994,7 @@ int get_swap_pages(int n_goal, swp_entry_t swp_entries[], int entry_size)
 	if (avail_pgs <= 0)
 		goto noswap;
 
-	if (n_goal > SWAP_BATCH)
-		n_goal = SWAP_BATCH;
-
-	if (n_goal > avail_pgs)
-		n_goal = avail_pgs;
+	n_goal = min3((long)n_goal, (long)SWAP_BATCH, avail_pgs);
 
 	atomic_long_sub(n_goal * size, &nr_swap_pages);
 
