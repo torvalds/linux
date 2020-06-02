@@ -2307,6 +2307,7 @@ out:
 
 	evlist__delete(evsel_list);
 
+	metricgroup__rblist_exit(&stat_config.metric_events);
 	runtime_stat_delete(&stat_config);
 
 	return status;

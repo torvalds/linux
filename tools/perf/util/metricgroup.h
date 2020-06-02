@@ -47,4 +47,5 @@ void metricgroup__print(bool metrics, bool groups, char *filter,
 			bool raw, bool details);
 bool metricgroup__has_metric(const char *metric);
 int arch_get_runtimeparam(void);
+void metricgroup__rblist_exit(struct rblist *metric_events);
 #endif

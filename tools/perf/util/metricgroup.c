@@ -76,11 +76,30 @@ static struct rb_node *metric_event_new(struct rblist *rblist __maybe_unused,
 	return &me->nd;
 }
 
+static void metric_event_delete(struct rblist *rblist __maybe_unused,
+				struct rb_node *rb_node)
+{
+	struct metric_event *me = container_of(rb_node, struct metric_event, nd);
+	struct metric_expr *expr, *tmp;
+
+	list_for_each_entry_safe(expr, tmp, &me->head, nd) {
+		free(expr);
+	}
+
+	free(me);
+}
+
 static void metricgroup__rblist_init(struct rblist *metric_events)
 {
 	rblist__init(metric_events);
 	metric_events->node_cmp = metric_event_cmp;
 	metric_events->node_new = metric_event_new;
+	metric_events->node_delete = metric_event_delete;
+}
+
+void metricgroup__rblist_exit(struct rblist *metric_events)
+{
+	rblist__exit(metric_events);
 }
 
 struct egroup {
