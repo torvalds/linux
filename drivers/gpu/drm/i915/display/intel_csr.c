@@ -707,7 +707,9 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->fw_path = GLK_CSR_PATH;
 		csr->required_version = GLK_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = GLK_CSR_MAX_FW_SIZE;
-	} else if (IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv)) {
+	} else if (IS_KABYLAKE(dev_priv) ||
+		   IS_COFFEELAKE(dev_priv) ||
+		   IS_COMETLAKE(dev_priv)) {
 		csr->fw_path = KBL_CSR_PATH;
 		csr->required_version = KBL_CSR_VERSION_REQUIRED;
 		csr->max_fw_size = KBL_CSR_MAX_FW_SIZE;

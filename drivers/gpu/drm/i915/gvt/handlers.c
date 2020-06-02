@@ -59,7 +59,7 @@ unsigned long intel_gvt_get_device_type(struct intel_gvt *gvt)
 		return D_KBL;
 	else if (IS_BROXTON(i915))
 		return D_BXT;
-	else if (IS_COFFEELAKE(i915))
+	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
 		return D_CFL;
 
 	return 0;
@@ -1435,7 +1435,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case GEN9_PCODE_READ_MEM_LATENCY:
 		if (IS_SKYLAKE(vgpu->gvt->gt->i915) ||
 		    IS_KABYLAKE(vgpu->gvt->gt->i915) ||
-		    IS_COFFEELAKE(vgpu->gvt->gt->i915)) {
+		    IS_COFFEELAKE(vgpu->gvt->gt->i915) ||
+		    IS_COMETLAKE(vgpu->gvt->gt->i915)) {
 			/**
 			 * "Read memory latency" command on gen9.
 			 * Below memory latency values are read
@@ -1460,7 +1461,8 @@ static int mailbox_write(struct intel_vgpu *vgpu, unsigned int offset,
 	case SKL_PCODE_CDCLK_CONTROL:
 		if (IS_SKYLAKE(vgpu->gvt->gt->i915) ||
 		    IS_KABYLAKE(vgpu->gvt->gt->i915) ||
-		    IS_COFFEELAKE(vgpu->gvt->gt->i915))
+		    IS_COFFEELAKE(vgpu->gvt->gt->i915) ||
+		    IS_COMETLAKE(vgpu->gvt->gt->i915))
 			*data0 = SKL_CDCLK_READY_FOR_CHANGE;
 		break;
 	case GEN6_PCODE_READ_RC6VIDS:
@@ -1722,7 +1724,8 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 	int ret;
 
 	(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(1);
-	if (IS_COFFEELAKE(vgpu->gvt->gt->i915))
+	if (IS_COFFEELAKE(vgpu->gvt->gt->i915) ||
+	    IS_COMETLAKE(vgpu->gvt->gt->i915))
 		(*(u32 *)p_data) &= ~_MASKED_BIT_ENABLE(2);
 	write_vreg(vgpu, offset, p_data, bytes);
 
@@ -1731,7 +1734,8 @@ static int ring_mode_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 		return 0;
 	}
 
-	if (IS_COFFEELAKE(vgpu->gvt->gt->i915) &&
+	if ((IS_COFFEELAKE(vgpu->gvt->gt->i915) ||
+	     IS_COMETLAKE(vgpu->gvt->gt->i915)) &&
 	    data & _MASKED_BIT_ENABLE(2)) {
 		enter_failsafe_mode(vgpu, GVT_FAILSAFE_UNSUPPORTED_GUEST);
 		return 0;
@@ -3393,7 +3397,8 @@ int intel_gvt_setup_mmio_info(struct intel_gvt *gvt)
 			goto err;
 	} else if (IS_SKYLAKE(i915) ||
 		   IS_KABYLAKE(i915) ||
-		   IS_COFFEELAKE(i915)) {
+		   IS_COFFEELAKE(i915) ||
+		   IS_COMETLAKE(i915)) {
 		ret = init_bdw_mmio_info(gvt);
 		if (ret)
 			goto err;
