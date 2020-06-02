@@ -137,6 +137,13 @@ void dm_bufio_release_move(struct dm_buffer *b, sector_t new_block);
 void dm_bufio_forget(struct dm_bufio_client *c, sector_t block);
 
 /*
+ * Free the given range of buffers.
+ * This is just a hint, if the buffer is in use or dirty, this function
+ * does nothing.
+ */
+void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t n_blocks);
+
+/*
  * Set the minimum number of buffers before cleanup happens.
  */
 void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n);

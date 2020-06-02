@@ -262,6 +262,29 @@ static struct dm_buffer *__find(struct dm_bufio_client *c, sector_t block)
 	return NULL;
 }
 
+static struct dm_buffer *__find_next(struct dm_bufio_client *c, sector_t block)
+{
+	struct rb_node *n = c->buffer_tree.rb_node;
+	struct dm_buffer *b;
+	struct dm_buffer *best = NULL;
+
+	while (n) {
+		b = container_of(n, struct dm_buffer, node);
+
+		if (b->block == block)
+			return b;
+
+		if (block <= b->block) {
+			n = n->rb_left;
+			best = b;
+		} else {
+			n = n->rb_right;
+		}
+	}
+
+	return best;
+}
+
 static void __insert(struct dm_bufio_client *c, struct dm_buffer *b)
 {
 	struct rb_node **new = &c->buffer_tree.rb_node, *parent = NULL;
@@ -1434,6 +1457,14 @@ retry:
 }
 EXPORT_SYMBOL_GPL(dm_bufio_release_move);
 
+static void forget_buffer_locked(struct dm_buffer *b)
+{
+	if (likely(!b->hold_count) && likely(!b->state)) {
+		__unlink_buffer(b);
+		__free_buffer_wake(b);
+	}
+}
+
 /*
  * Free the given buffer.
  *
@@ -1447,14 +1478,35 @@ void dm_bufio_forget(struct dm_bufio_client *c, sector_t block)
 	dm_bufio_lock(c);
 
 	b = __find(c, block);
-	if (b && likely(!b->hold_count) && likely(!b->state)) {
-		__unlink_buffer(b);
-		__free_buffer_wake(b);
-	}
+	if (b)
+		forget_buffer_locked(b);
 
 	dm_bufio_unlock(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_forget);
+
+void dm_bufio_forget_buffers(struct dm_bufio_client *c, sector_t block, sector_t n_blocks)
+{
+	struct dm_buffer *b;
+	sector_t end_block = block + n_blocks;
+
+	while (block < end_block) {
+		dm_bufio_lock(c);
+
+		b = __find_next(c, block);
+		if (b) {
+			block = b->block + 1;
+			forget_buffer_locked(b);
+		}
+
+		dm_bufio_unlock(c);
+
+		if (!b)
+			break;
+	}
+
+}
+EXPORT_SYMBOL_GPL(dm_bufio_forget_buffers);
 
 void dm_bufio_set_minimum_buffers(struct dm_bufio_client *c, unsigned n)
 {
