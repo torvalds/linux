@@ -10242,7 +10242,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	 *
 	 * FIXME: const-ify all uses of struct kvm_memory_slot.
 	 */
-	if (change != KVM_MR_DELETE)
+	if (change == KVM_MR_FLAGS_ONLY)
 		kvm_mmu_slot_apply_flags(kvm, (struct kvm_memory_slot *) new);
 
 	/* Free the arrays associated with the old memslot. */
