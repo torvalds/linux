@@ -1938,8 +1938,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 			goto err_out;
 	}
 
-	amdgpu_ras_mask &= AMDGPU_RAS_BLOCK_MASK;
-
 	if (amdgpu_ras_fs_init(adev)) {
 		r = -EINVAL;
 		goto err_out;
