@@ -1064,19 +1064,10 @@ static ssize_t qm_cmd_read(struct file *filp, char __user *buffer,
 	char buf[QM_DBG_READ_LEN];
 	int len;
 
-	if (*pos)
-		return 0;
+	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n",
+			"Please echo help to cmd to get help information");
 
-	if (count < QM_DBG_READ_LEN)
-		return -ENOSPC;
-
-	len = snprintf(buf, QM_DBG_READ_LEN, "%s\n",
-		       "Please echo help to cmd to get help information");
-
-	if (copy_to_user(buffer, buf, len))
-		return -EFAULT;
-
-	return (*pos = len);
+	return simple_read_from_buffer(buffer, count, pos, buf, len);
 }
 
 static void *qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
@@ -2691,24 +2682,12 @@ static ssize_t qm_status_read(struct file *filp, char __user *buffer,
 {
 	struct hisi_qm *qm = filp->private_data;
 	char buf[QM_DBG_READ_LEN];
-	int val, cp_len, len;
-
-	if (*pos)
-		return 0;
-
-	if (count < QM_DBG_READ_LEN)
-		return -ENOSPC;
+	int val, len;
 
 	val = atomic_read(&qm->status.flags);
-	len = snprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
-	if (!len)
-		return -EFAULT;
+	len = scnprintf(buf, QM_DBG_READ_LEN, "%s\n", qm_s[val]);
 
-	cp_len = copy_to_user(buffer, buf, len);
-	if (cp_len)
-		return -EFAULT;
-
-	return (*pos = len);
+	return simple_read_from_buffer(buffer, count, pos, buf, len);
 }
 
 static const struct file_operations qm_status_fops = {
