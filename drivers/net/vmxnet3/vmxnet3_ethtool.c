@@ -899,6 +899,12 @@ vmxnet3_get_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info,
 			err = -EOPNOTSUPP;
 			break;
 		}
+#ifdef VMXNET3_RSS
+		if (!adapter->rss) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+#endif
 		err = vmxnet3_get_rss_hash_opts(adapter, info);
 		break;
 	default:
@@ -919,6 +925,12 @@ vmxnet3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *info)
 		err = -EOPNOTSUPP;
 		goto done;
 	}
+#ifdef VMXNET3_RSS
+	if (!adapter->rss) {
+		err = -EOPNOTSUPP;
+		goto done;
+	}
+#endif
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXFH:
