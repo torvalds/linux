@@ -1105,6 +1105,10 @@ static int dmz_check_sb(struct dmz_metadata *zmd, unsigned int set)
  */
 static int dmz_read_sb(struct dmz_metadata *zmd, unsigned int set)
 {
+	dmz_zmd_debug(zmd, "read superblock set %d dev %s block %llu",
+		      set, zmd->sb[set].dev->name,
+		      zmd->sb[set].block);
+
 	return dmz_rdwr_block(zmd->sb[set].dev, REQ_OP_READ,
 			      zmd->sb[set].block, zmd->sb[set].mblk->page);
 }
