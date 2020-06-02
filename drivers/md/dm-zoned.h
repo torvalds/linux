@@ -214,7 +214,8 @@ bool dmz_dev_is_dying(struct dmz_metadata *zmd);
 #define DMZ_ALLOC_SEQ		0x04
 #define DMZ_ALLOC_RECLAIM	0x10
 
-struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned long flags);
+struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd,
+			       unsigned int dev_idx, unsigned long flags);
 void dmz_free_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
 
 void dmz_map_zone(struct dmz_metadata *zmd, struct dm_zone *zone,

@@ -2050,7 +2050,7 @@ again:
 			goto out;
 
 		/* Allocate a random zone */
-		dzone = dmz_alloc_zone(zmd, alloc_flags);
+		dzone = dmz_alloc_zone(zmd, 0, alloc_flags);
 		if (!dzone) {
 			if (dmz_dev_is_dying(zmd)) {
 				dzone = ERR_PTR(-EIO);
@@ -2156,7 +2156,7 @@ again:
 		goto out;
 
 	/* Allocate a random zone */
-	bzone = dmz_alloc_zone(zmd, alloc_flags);
+	bzone = dmz_alloc_zone(zmd, 0, alloc_flags);
 	if (!bzone) {
 		if (dmz_dev_is_dying(zmd)) {
 			bzone = ERR_PTR(-EIO);
@@ -2187,11 +2187,12 @@ out:
  * Get an unmapped (free) zone.
  * This must be called with the mapping lock held.
  */
-struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned long flags)
+struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned int dev_idx,
+			       unsigned long flags)
 {
 	struct list_head *list;
 	struct dm_zone *zone;
-	unsigned int dev_idx = 0;
+	int i = 0;
 
 again:
 	if (flags & DMZ_ALLOC_CACHE)
@@ -2207,8 +2208,12 @@ again:
 		 */
 		if (!(flags & DMZ_ALLOC_RECLAIM))
 			return NULL;
-		if (dev_idx < zmd->nr_devs) {
-			dev_idx++;
+		/*
+		 * Try to allocate from other devices
+		 */
+		if (i < zmd->nr_devs) {
+			dev_idx = (dev_idx + 1) % zmd->nr_devs;
+			i++;
 			goto again;
 		}
 
