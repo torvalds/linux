@@ -698,6 +698,8 @@ struct io_op_def {
 	unsigned		needs_mm : 1;
 	/* needs req->file assigned */
 	unsigned		needs_file : 1;
+	/* don't fail if file grab fails */
+	unsigned		needs_file_no_error : 1;
 	/* hash wq insertion if file is a regular file */
 	unsigned		hash_reg_file : 1;
 	/* unbound wq insertion if file is a non-regular file */
@@ -804,6 +806,8 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_fs		= 1,
 	},
 	[IORING_OP_CLOSE] = {
+		.needs_file		= 1,
+		.needs_file_no_error	= 1,
 		.file_table		= 1,
 	},
 	[IORING_OP_FILES_UPDATE] = {
@@ -3421,6 +3425,10 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
+	if ((req->file && req->file->f_op == &io_uring_fops) ||
+	    req->close.fd == req->ctx->ring_fd)
+		return -EBADF;
+
 	return 0;
 }
 
@@ -5438,19 +5446,20 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 			return -EBADF;
 		fd = array_index_nospec(fd, ctx->nr_user_files);
 		file = io_file_from_index(ctx, fd);
-		if (!file)
-			return -EBADF;
-		req->fixed_file_refs = ctx->file_data->cur_refs;
-		percpu_ref_get(req->fixed_file_refs);
+		if (file) {
+			req->fixed_file_refs = ctx->file_data->cur_refs;
+			percpu_ref_get(req->fixed_file_refs);
+		}
 	} else {
 		trace_io_uring_file_get(ctx, fd);
 		file = __io_file_get(state, fd);
-		if (unlikely(!file))
-			return -EBADF;
 	}
 
-	*out_file = file;
-	return 0;
+	if (file || io_op_defs[req->opcode].needs_file_no_error) {
+		*out_file = file;
+		return 0;
+	}
+	return -EBADF;
 }
 
 static int io_req_set_file(struct io_submit_state *state, struct io_kiocb *req,
