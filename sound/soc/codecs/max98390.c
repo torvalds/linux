@@ -778,7 +778,7 @@ static int max98390_dsm_init(struct snd_soc_component *component)
 	}
 
 	dev_dbg(component->dev,
-		"max98390: param fw size %ld\n",
+		"max98390: param fw size %zd\n",
 		fw->size);
 	dsm_param = (char *)fw->data;
 	dsm_param += MAX98390_DSM_PAYLOAD_OFFSET;
