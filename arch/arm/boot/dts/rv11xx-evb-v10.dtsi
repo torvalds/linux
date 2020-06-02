@@ -142,7 +142,6 @@
 	vcc18_lcd_n: vcc18-lcd-n {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc18_lcd_n";
-		regulator-boot-on;
 		gpio = <&gpio3 RK_PA7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
