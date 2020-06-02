@@ -2801,20 +2801,24 @@ static int swap_show(struct seq_file *swap, void *v)
 	struct swap_info_struct *si = v;
 	struct file *file;
 	int len;
+	unsigned int bytes, inuse;
 
 	if (si == SEQ_START_TOKEN) {
-		seq_puts(swap,"Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+		seq_puts(swap,"Filename\t\t\t\tType\t\tSize\t\tUsed\t\tPriority\n");
 		return 0;
 	}
 
+	bytes = si->pages << (PAGE_SHIFT - 10);
+	inuse = si->inuse_pages << (PAGE_SHIFT - 10);
+
 	file = si->swap_file;
 	len = seq_file_path(swap, file, " \t\n\\");
-	seq_printf(swap, "%*s%s\t%u\t%u\t%d\n",
+	seq_printf(swap, "%*s%s\t%u\t%s%u\t%s%d\n",
 			len < 40 ? 40 - len : 1, " ",
 			S_ISBLK(file_inode(file)->i_mode) ?
 				"partition" : "file\t",
-			si->pages << (PAGE_SHIFT - 10),
-			si->inuse_pages << (PAGE_SHIFT - 10),
+			bytes, bytes < 10000000 ? "\t" : "",
+			inuse, inuse < 10000000 ? "\t" : "",
 			si->prio);
 	return 0;
 }
