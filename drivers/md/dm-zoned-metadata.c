@@ -192,20 +192,11 @@ struct dmz_metadata {
 	/* Zone allocation management */
 	struct mutex		map_lock;
 	struct dmz_mblock	**map_mblk;
-	unsigned int		nr_rnd;
-	atomic_t		unmap_nr_rnd;
-	struct list_head	unmap_rnd_list;
-	struct list_head	map_rnd_list;
 
 	unsigned int		nr_cache;
 	atomic_t		unmap_nr_cache;
 	struct list_head	unmap_cache_list;
 	struct list_head	map_cache_list;
-
-	unsigned int		nr_seq;
-	atomic_t		unmap_nr_seq;
-	struct list_head	unmap_seq_list;
-	struct list_head	map_seq_list;
 
 	atomic_t		nr_reserved_seq_zones;
 	struct list_head	reserved_seq_zones_list;
@@ -279,14 +270,14 @@ unsigned int dmz_nr_chunks(struct dmz_metadata *zmd)
 	return zmd->nr_chunks;
 }
 
-unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd)
+unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd, int idx)
 {
-	return zmd->nr_rnd;
+	return zmd->dev[idx].nr_rnd;
 }
 
-unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd)
+unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd, int idx)
 {
-	return atomic_read(&zmd->unmap_nr_rnd);
+	return atomic_read(&zmd->dev[idx].unmap_nr_rnd);
 }
 
 unsigned int dmz_nr_cache_zones(struct dmz_metadata *zmd)
@@ -299,14 +290,14 @@ unsigned int dmz_nr_unmap_cache_zones(struct dmz_metadata *zmd)
 	return atomic_read(&zmd->unmap_nr_cache);
 }
 
-unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd)
+unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd, int idx)
 {
-	return zmd->nr_seq;
+	return zmd->dev[idx].nr_seq;
 }
 
-unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd)
+unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd, int idx)
 {
-	return atomic_read(&zmd->unmap_nr_seq);
+	return atomic_read(&zmd->dev[idx].unmap_nr_seq);
 }
 
 static struct dm_zone *dmz_get(struct dmz_metadata *zmd, unsigned int zone_id)
@@ -1500,6 +1491,14 @@ static int dmz_init_zones(struct dmz_metadata *zmd)
 
 		dev->metadata = zmd;
 		zmd->nr_zones += dev->nr_zones;
+
+		atomic_set(&dev->unmap_nr_rnd, 0);
+		INIT_LIST_HEAD(&dev->unmap_rnd_list);
+		INIT_LIST_HEAD(&dev->map_rnd_list);
+
+		atomic_set(&dev->unmap_nr_seq, 0);
+		INIT_LIST_HEAD(&dev->unmap_seq_list);
+		INIT_LIST_HEAD(&dev->map_seq_list);
 	}
 
 	if (!zmd->nr_zones) {
@@ -1720,9 +1719,9 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 		if (dmz_is_cache(dzone))
 			list_add_tail(&dzone->link, &zmd->map_cache_list);
 		else if (dmz_is_rnd(dzone))
-			list_add_tail(&dzone->link, &zmd->map_rnd_list);
+			list_add_tail(&dzone->link, &dzone->dev->map_rnd_list);
 		else
-			list_add_tail(&dzone->link, &zmd->map_seq_list);
+			list_add_tail(&dzone->link, &dzone->dev->map_seq_list);
 
 		/* Check buffer zone */
 		bzone_id = le32_to_cpu(dmap[e].bzone_id);
@@ -1756,7 +1755,7 @@ static int dmz_load_mapping(struct dmz_metadata *zmd)
 		if (dmz_is_cache(bzone))
 			list_add_tail(&bzone->link, &zmd->map_cache_list);
 		else
-			list_add_tail(&bzone->link, &zmd->map_rnd_list);
+			list_add_tail(&bzone->link, &bzone->dev->map_rnd_list);
 next:
 		chunk++;
 		e++;
@@ -1781,9 +1780,9 @@ next:
 		if (dmz_is_cache(dzone))
 			zmd->nr_cache++;
 		else if (dmz_is_rnd(dzone))
-			zmd->nr_rnd++;
+			dzone->dev->nr_rnd++;
 		else
-			zmd->nr_seq++;
+			dzone->dev->nr_seq++;
 
 		if (dmz_is_data(dzone)) {
 			/* Already initialized */
@@ -1797,16 +1796,18 @@ next:
 			list_add_tail(&dzone->link, &zmd->unmap_cache_list);
 			atomic_inc(&zmd->unmap_nr_cache);
 		} else if (dmz_is_rnd(dzone)) {
-			list_add_tail(&dzone->link, &zmd->unmap_rnd_list);
-			atomic_inc(&zmd->unmap_nr_rnd);
+			list_add_tail(&dzone->link,
+				      &dzone->dev->unmap_rnd_list);
+			atomic_inc(&dzone->dev->unmap_nr_rnd);
 		} else if (atomic_read(&zmd->nr_reserved_seq_zones) < zmd->nr_reserved_seq) {
 			list_add_tail(&dzone->link, &zmd->reserved_seq_zones_list);
 			set_bit(DMZ_RESERVED, &dzone->flags);
 			atomic_inc(&zmd->nr_reserved_seq_zones);
-			zmd->nr_seq--;
+			dzone->dev->nr_seq--;
 		} else {
-			list_add_tail(&dzone->link, &zmd->unmap_seq_list);
-			atomic_inc(&zmd->unmap_nr_seq);
+			list_add_tail(&dzone->link,
+				      &dzone->dev->unmap_seq_list);
+			atomic_inc(&dzone->dev->unmap_nr_seq);
 		}
 	}
 
@@ -1840,13 +1841,13 @@ static void __dmz_lru_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 	list_del_init(&zone->link);
 	if (dmz_is_seq(zone)) {
 		/* LRU rotate sequential zone */
-		list_add_tail(&zone->link, &zmd->map_seq_list);
+		list_add_tail(&zone->link, &zone->dev->map_seq_list);
 	} else if (dmz_is_cache(zone)) {
 		/* LRU rotate cache zone */
 		list_add_tail(&zone->link, &zmd->map_cache_list);
 	} else {
 		/* LRU rotate random zone */
-		list_add_tail(&zone->link, &zmd->map_rnd_list);
+		list_add_tail(&zone->link, &zone->dev->map_rnd_list);
 	}
 }
 
@@ -1928,14 +1929,24 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 {
 	struct dm_zone *dzone = NULL;
 	struct dm_zone *zone;
-	struct list_head *zone_list = &zmd->map_rnd_list;
+	struct list_head *zone_list;
 
 	/* If we have cache zones select from the cache zone list */
 	if (zmd->nr_cache) {
 		zone_list = &zmd->map_cache_list;
 		/* Try to relaim random zones, too, when idle */
-		if (idle && list_empty(zone_list))
-			zone_list = &zmd->map_rnd_list;
+		if (idle && list_empty(zone_list)) {
+			int i;
+
+			for (i = 1; i < zmd->nr_devs; i++) {
+				zone_list = &zmd->dev[i].map_rnd_list;
+				if (!list_empty(zone_list))
+					break;
+			}
+		}
+	} else {
+		/* Otherwise the random zones are on the first disk */
+		zone_list = &zmd->dev[0].map_rnd_list;
 	}
 
 	list_for_each_entry(zone, zone_list, link) {
@@ -1956,12 +1967,17 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
 {
 	struct dm_zone *zone;
+	int i;
 
-	list_for_each_entry(zone, &zmd->map_seq_list, link) {
-		if (!zone->bzone)
-			continue;
-		if (dmz_lock_zone_reclaim(zone))
-			return zone;
+	for (i = 0; i < zmd->nr_devs; i++) {
+		struct dmz_dev *dev = &zmd->dev[i];
+
+		list_for_each_entry(zone, &dev->map_seq_list, link) {
+			if (!zone->bzone)
+				continue;
+			if (dmz_lock_zone_reclaim(zone))
+				return zone;
+		}
 	}
 
 	return NULL;
@@ -2147,7 +2163,7 @@ again:
 	if (dmz_is_cache(bzone))
 		list_add_tail(&bzone->link, &zmd->map_cache_list);
 	else
-		list_add_tail(&bzone->link, &zmd->map_rnd_list);
+		list_add_tail(&bzone->link, &bzone->dev->map_rnd_list);
 out:
 	dmz_unlock_map(zmd);
 
@@ -2162,21 +2178,27 @@ struct dm_zone *dmz_alloc_zone(struct dmz_metadata *zmd, unsigned long flags)
 {
 	struct list_head *list;
 	struct dm_zone *zone;
+	unsigned int dev_idx = 0;
 
+again:
 	if (flags & DMZ_ALLOC_CACHE)
 		list = &zmd->unmap_cache_list;
 	else if (flags & DMZ_ALLOC_RND)
-		list = &zmd->unmap_rnd_list;
+		list = &zmd->dev[dev_idx].unmap_rnd_list;
 	else
-		list = &zmd->unmap_seq_list;
+		list = &zmd->dev[dev_idx].unmap_seq_list;
 
-again:
 	if (list_empty(list)) {
 		/*
 		 * No free zone: return NULL if this is for not reclaim.
 		 */
 		if (!(flags & DMZ_ALLOC_RECLAIM))
 			return NULL;
+		if (dev_idx < zmd->nr_devs) {
+			dev_idx++;
+			goto again;
+		}
+
 		/*
 		 * Fallback to the reserved sequential zones
 		 */
@@ -2195,9 +2217,9 @@ again:
 	if (dmz_is_cache(zone))
 		atomic_dec(&zmd->unmap_nr_cache);
 	else if (dmz_is_rnd(zone))
-		atomic_dec(&zmd->unmap_nr_rnd);
+		atomic_dec(&zone->dev->unmap_nr_rnd);
 	else
-		atomic_dec(&zmd->unmap_nr_seq);
+		atomic_dec(&zone->dev->unmap_nr_seq);
 
 	if (dmz_is_offline(zone)) {
 		dmz_zmd_warn(zmd, "Zone %u is offline", zone->id);
@@ -2227,14 +2249,14 @@ void dmz_free_zone(struct dmz_metadata *zmd, struct dm_zone *zone)
 		list_add_tail(&zone->link, &zmd->unmap_cache_list);
 		atomic_inc(&zmd->unmap_nr_cache);
 	} else if (dmz_is_rnd(zone)) {
-		list_add_tail(&zone->link, &zmd->unmap_rnd_list);
-		atomic_inc(&zmd->unmap_nr_rnd);
+		list_add_tail(&zone->link, &zone->dev->unmap_rnd_list);
+		atomic_inc(&zone->dev->unmap_nr_rnd);
 	} else if (dmz_is_reserved(zone)) {
 		list_add_tail(&zone->link, &zmd->reserved_seq_zones_list);
 		atomic_inc(&zmd->nr_reserved_seq_zones);
 	} else {
-		list_add_tail(&zone->link, &zmd->unmap_seq_list);
-		atomic_inc(&zmd->unmap_nr_seq);
+		list_add_tail(&zone->link, &zone->dev->unmap_seq_list);
+		atomic_inc(&zone->dev->unmap_nr_seq);
 	}
 
 	wake_up_all(&zmd->free_wq);
@@ -2254,9 +2276,9 @@ void dmz_map_zone(struct dmz_metadata *zmd, struct dm_zone *dzone,
 	if (dmz_is_cache(dzone))
 		list_add_tail(&dzone->link, &zmd->map_cache_list);
 	else if (dmz_is_rnd(dzone))
-		list_add_tail(&dzone->link, &zmd->map_rnd_list);
+		list_add_tail(&dzone->link, &dzone->dev->map_rnd_list);
 	else
-		list_add_tail(&dzone->link, &zmd->map_seq_list);
+		list_add_tail(&dzone->link, &dzone->dev->map_seq_list);
 }
 
 /*
@@ -2824,17 +2846,10 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 	INIT_LIST_HEAD(&zmd->mblk_dirty_list);
 
 	mutex_init(&zmd->map_lock);
-	atomic_set(&zmd->unmap_nr_rnd, 0);
-	INIT_LIST_HEAD(&zmd->unmap_rnd_list);
-	INIT_LIST_HEAD(&zmd->map_rnd_list);
 
 	atomic_set(&zmd->unmap_nr_cache, 0);
 	INIT_LIST_HEAD(&zmd->unmap_cache_list);
 	INIT_LIST_HEAD(&zmd->map_cache_list);
-
-	atomic_set(&zmd->unmap_nr_seq, 0);
-	INIT_LIST_HEAD(&zmd->unmap_seq_list);
-	INIT_LIST_HEAD(&zmd->map_seq_list);
 
 	atomic_set(&zmd->nr_reserved_seq_zones, 0);
 	INIT_LIST_HEAD(&zmd->reserved_seq_zones_list);
@@ -2904,10 +2919,14 @@ int dmz_ctr_metadata(struct dmz_dev *dev, int num_dev,
 		      zmd->nr_data_zones, zmd->nr_chunks);
 	dmz_zmd_debug(zmd, "    %u cache zones (%u unmapped)",
 		      zmd->nr_cache, atomic_read(&zmd->unmap_nr_cache));
-	dmz_zmd_debug(zmd, "    %u random zones (%u unmapped)",
-		      zmd->nr_rnd, atomic_read(&zmd->unmap_nr_rnd));
-	dmz_zmd_debug(zmd, "    %u sequential zones (%u unmapped)",
-		      zmd->nr_seq, atomic_read(&zmd->unmap_nr_seq));
+	for (i = 0; i < zmd->nr_devs; i++) {
+		dmz_zmd_debug(zmd, "    %u random zones (%u unmapped)",
+			      dmz_nr_rnd_zones(zmd, i),
+			      dmz_nr_unmap_rnd_zones(zmd, i));
+		dmz_zmd_debug(zmd, "    %u sequential zones (%u unmapped)",
+			      dmz_nr_seq_zones(zmd, i),
+			      dmz_nr_unmap_seq_zones(zmd, i));
+	}
 	dmz_zmd_debug(zmd, "  %u reserved sequential data zones",
 		      zmd->nr_reserved_seq);
 	dmz_zmd_debug(zmd, "Format:");

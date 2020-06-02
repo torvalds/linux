@@ -67,6 +67,16 @@ struct dmz_dev {
 	unsigned int		flags;
 
 	sector_t		zone_nr_sectors;
+
+	unsigned int		nr_rnd;
+	atomic_t		unmap_nr_rnd;
+	struct list_head	unmap_rnd_list;
+	struct list_head	map_rnd_list;
+
+	unsigned int		nr_seq;
+	atomic_t		unmap_nr_seq;
+	struct list_head	unmap_seq_list;
+	struct list_head	map_seq_list;
 };
 
 #define dmz_bio_chunk(zmd, bio)	((bio)->bi_iter.bi_sector >> \
@@ -213,10 +223,10 @@ void dmz_unmap_zone(struct dmz_metadata *zmd, struct dm_zone *zone);
 unsigned int dmz_nr_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_cache_zones(struct dmz_metadata *zmd);
 unsigned int dmz_nr_unmap_cache_zones(struct dmz_metadata *zmd);
-unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd);
-unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd);
-unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd);
-unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd);
+unsigned int dmz_nr_rnd_zones(struct dmz_metadata *zmd, int idx);
+unsigned int dmz_nr_unmap_rnd_zones(struct dmz_metadata *zmd, int idx);
+unsigned int dmz_nr_seq_zones(struct dmz_metadata *zmd, int idx);
+unsigned int dmz_nr_unmap_seq_zones(struct dmz_metadata *zmd, int idx);
 unsigned int dmz_zone_nr_blocks(struct dmz_metadata *zmd);
 unsigned int dmz_zone_nr_blocks_shift(struct dmz_metadata *zmd);
 unsigned int dmz_zone_nr_sectors(struct dmz_metadata *zmd);

@@ -1075,17 +1075,30 @@ static void dmz_status(struct dm_target *ti, status_type_t type,
 	ssize_t sz = 0;
 	char buf[BDEVNAME_SIZE];
 	struct dmz_dev *dev;
+	int i;
 
 	switch (type) {
 	case STATUSTYPE_INFO:
-		DMEMIT("%u zones %u/%u cache %u/%u random %u/%u sequential",
+		DMEMIT("%u zones %u/%u cache",
 		       dmz_nr_zones(dmz->metadata),
 		       dmz_nr_unmap_cache_zones(dmz->metadata),
-		       dmz_nr_cache_zones(dmz->metadata),
-		       dmz_nr_unmap_rnd_zones(dmz->metadata),
-		       dmz_nr_rnd_zones(dmz->metadata),
-		       dmz_nr_unmap_seq_zones(dmz->metadata),
-		       dmz_nr_seq_zones(dmz->metadata));
+		       dmz_nr_cache_zones(dmz->metadata));
+		for (i = 0; i < DMZ_MAX_DEVS; i++) {
+			if (!dmz->ddev[i])
+				continue;
+			/*
+			 * For a multi-device setup the first device
+			 * contains only cache zones.
+			 */
+			if ((i == 0) &&
+			    (dmz_nr_cache_zones(dmz->metadata) > 0))
+				continue;
+			DMEMIT(" %u/%u random %u/%u sequential",
+			       dmz_nr_unmap_rnd_zones(dmz->metadata, i),
+			       dmz_nr_rnd_zones(dmz->metadata, i),
+			       dmz_nr_unmap_seq_zones(dmz->metadata, i),
+			       dmz_nr_seq_zones(dmz->metadata, i));
+		}
 		break;
 	case STATUSTYPE_TABLE:
 		dev = &dmz->dev[0];

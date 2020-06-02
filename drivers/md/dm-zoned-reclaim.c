@@ -447,15 +447,14 @@ static unsigned int dmz_reclaim_percentage(struct dmz_reclaim *zrc)
 {
 	struct dmz_metadata *zmd = zrc->metadata;
 	unsigned int nr_cache = dmz_nr_cache_zones(zmd);
-	unsigned int nr_rnd = dmz_nr_rnd_zones(zmd);
 	unsigned int nr_unmap, nr_zones;
 
 	if (nr_cache) {
 		nr_zones = nr_cache;
 		nr_unmap = dmz_nr_unmap_cache_zones(zmd);
 	} else {
-		nr_zones = nr_rnd;
-		nr_unmap = dmz_nr_unmap_rnd_zones(zmd);
+		nr_zones = dmz_nr_rnd_zones(zmd, zrc->dev_idx);
+		nr_unmap = dmz_nr_unmap_rnd_zones(zmd, zrc->dev_idx);
 	}
 	return nr_unmap * 100 / nr_zones;
 }
@@ -467,7 +466,7 @@ static bool dmz_should_reclaim(struct dmz_reclaim *zrc, unsigned int p_unmap)
 {
 	unsigned int nr_reclaim;
 
-	nr_reclaim = dmz_nr_rnd_zones(zrc->metadata);
+	nr_reclaim = dmz_nr_rnd_zones(zrc->metadata, zrc->dev_idx);
 
 	if (dmz_nr_cache_zones(zrc->metadata)) {
 		/*
@@ -528,8 +527,8 @@ static void dmz_reclaim_work(struct work_struct *work)
 		zrc->kc_throttle.throttle = min(75U, 100U - p_unmap / 2);
 	}
 
-	nr_unmap_rnd = dmz_nr_unmap_rnd_zones(zmd);
-	nr_rnd = dmz_nr_rnd_zones(zmd);
+	nr_unmap_rnd = dmz_nr_unmap_rnd_zones(zmd, zrc->dev_idx);
+	nr_rnd = dmz_nr_rnd_zones(zmd, zrc->dev_idx);
 
 	DMDEBUG("(%s/%u): Reclaim (%u): %s, %u%% free zones (%u/%u cache %u/%u random)",
 		dmz_metadata_label(zmd), zrc->dev_idx,
@@ -537,8 +536,8 @@ static void dmz_reclaim_work(struct work_struct *work)
 		(dmz_target_idle(zrc) ? "Idle" : "Busy"),
 		p_unmap, dmz_nr_unmap_cache_zones(zmd),
 		dmz_nr_cache_zones(zmd),
-		dmz_nr_unmap_rnd_zones(zmd),
-		dmz_nr_rnd_zones(zmd));
+		dmz_nr_unmap_rnd_zones(zmd, zrc->dev_idx),
+		dmz_nr_rnd_zones(zmd, zrc->dev_idx));
 
 	ret = dmz_do_reclaim(zrc);
 	if (ret && ret != -EINTR) {
