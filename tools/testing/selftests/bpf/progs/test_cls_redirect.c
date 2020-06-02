@@ -380,9 +380,10 @@ static ret_t accept_locally(struct __sk_buff *skb, encap_headers_t *encap)
 	}
 
 	if (bpf_skb_adjust_room(skb, -encap_overhead, BPF_ADJ_ROOM_MAC,
-				BPF_F_ADJ_ROOM_FIXED_GSO)) {
+				BPF_F_ADJ_ROOM_FIXED_GSO |
+				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+	    bpf_csum_level(skb, BPF_CSUM_LEVEL_DEC))
 		return TC_ACT_SHOT;
-	}
 
 	return bpf_redirect(skb->ifindex, BPF_F_INGRESS);
 }
@@ -472,7 +473,9 @@ static ret_t forward_with_gre(struct __sk_buff *skb, encap_headers_t *encap,
 	}
 
 	if (bpf_skb_adjust_room(skb, delta, BPF_ADJ_ROOM_NET,
-				BPF_F_ADJ_ROOM_FIXED_GSO)) {
+				BPF_F_ADJ_ROOM_FIXED_GSO |
+				BPF_F_ADJ_ROOM_NO_CSUM_RESET) ||
+	    bpf_csum_level(skb, BPF_CSUM_LEVEL_INC)) {
 		metrics->errors_total_encap_adjust_failed++;
 		return TC_ACT_SHOT;
 	}
