@@ -916,10 +916,10 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 	}
 }
 
-static void qdio_handle_activate_check(struct ccw_device *cdev,
-				unsigned long intparm, int cstat, int dstat)
+static void qdio_handle_activate_check(struct qdio_irq *irq_ptr,
+				       unsigned long intparm, int cstat,
+				       int dstat)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	struct qdio_q *q;
 
 	DBF_ERROR("%4x ACT CHECK", irq_ptr->schid.sch_no);
@@ -946,11 +946,9 @@ no_handler:
 	lgr_info_log();
 }
 
-static void qdio_establish_handle_irq(struct ccw_device *cdev, int cstat,
+static void qdio_establish_handle_irq(struct qdio_irq *irq_ptr, int cstat,
 				      int dstat)
 {
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-
 	DBF_DEV_EVENT(DBF_INFO, irq_ptr, "qest irq");
 
 	if (cstat)
@@ -997,7 +995,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 
 	switch (irq_ptr->state) {
 	case QDIO_IRQ_STATE_INACTIVE:
-		qdio_establish_handle_irq(cdev, cstat, dstat);
+		qdio_establish_handle_irq(irq_ptr, cstat, dstat);
 		break;
 	case QDIO_IRQ_STATE_CLEANUP:
 		qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
@@ -1009,7 +1007,7 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 			return;
 		}
 		if (cstat || dstat)
-			qdio_handle_activate_check(cdev, intparm, cstat,
+			qdio_handle_activate_check(irq_ptr, intparm, cstat,
 						   dstat);
 		break;
 	case QDIO_IRQ_STATE_STOPPED:
@@ -1513,12 +1511,11 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 	    int q_nr, unsigned int bufnr, unsigned int count)
 {
-	struct qdio_irq *irq_ptr;
+	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 
 	if (bufnr >= QDIO_MAX_BUFFERS_PER_Q || count > QDIO_MAX_BUFFERS_PER_Q)
 		return -EINVAL;
 
-	irq_ptr = cdev->private->qdio_data;
 	if (!irq_ptr)
 		return -ENODEV;
 
