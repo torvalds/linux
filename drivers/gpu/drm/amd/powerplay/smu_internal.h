@@ -194,6 +194,11 @@ static inline int smu_send_smc_msg(struct smu_context *smu, enum smu_message_typ
 #define smu_update_pcie_parameters(smu, pcie_gen_cap, pcie_width_cap) \
 		((smu)->ppt_funcs->update_pcie_parameters ? (smu)->ppt_funcs->update_pcie_parameters((smu), (pcie_gen_cap), (pcie_width_cap)) : 0)
 
+#define smu_set_thermal_range(smu, range) \
+		((smu)->ppt_funcs->set_thermal_range ? (smu)->ppt_funcs->set_thermal_range((smu), (range)) : 0)
+#define smu_get_max_power_limit(smu) \
+		((smu)->ppt_funcs->get_max_power_limit ? (smu)->ppt_funcs->get_max_power_limit((smu)) : 0)
+
 #define smu_disable_umc_cdr_12gbps_workaround(smu) \
 	((smu)->ppt_funcs->disable_umc_cdr_12gbps_workaround ? (smu)->ppt_funcs->disable_umc_cdr_12gbps_workaround((smu)) : 0)
 

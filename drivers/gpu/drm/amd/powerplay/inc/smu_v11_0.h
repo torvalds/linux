@@ -261,8 +261,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 
 int smu_v11_0_override_pcie_parameters(struct smu_context *smu);
 
-uint32_t smu_v11_0_get_max_power_limit(struct smu_context *smu);
-
 int smu_v11_0_set_performance_level(struct smu_context *smu,
 				    enum amd_dpm_forced_level level);
 

@@ -572,6 +572,8 @@ struct pptable_funcs {
 	int (*disable_umc_cdr_12gbps_workaround)(struct smu_context *smu);
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
+	int (*set_thermal_range)(struct smu_context *smu, struct smu_temperature_range range);
+	uint32_t (*get_max_power_limit)(struct smu_context *smu);
 };
 
 int smu_load_microcode(struct smu_context *smu);
