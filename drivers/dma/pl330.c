@@ -37,6 +37,16 @@
 
 #define PL330_QUIRK_BROKEN_NO_FLUSHP BIT(0)
 
+#ifdef CONFIG_CPU_RV1126
+#undef writel
+#define writel(v, c)			\
+	do {				\
+		readl_relaxed(c);	\
+		__iowmb();		\
+		writel_relaxed(v, c);	\
+	} while (0)
+#endif
+
 enum pl330_cachectrl {
 	CCTRL0,		/* Noncacheable and nonbufferable */
 	CCTRL1,		/* Bufferable only */
