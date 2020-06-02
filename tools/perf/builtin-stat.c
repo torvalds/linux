@@ -190,6 +190,59 @@ static struct perf_stat_config stat_config = {
 	.big_num		= true,
 };
 
+static bool cpus_map_matched(struct evsel *a, struct evsel *b)
+{
+	if (!a->core.cpus && !b->core.cpus)
+		return true;
+
+	if (!a->core.cpus || !b->core.cpus)
+		return false;
+
+	if (a->core.cpus->nr != b->core.cpus->nr)
+		return false;
+
+	for (int i = 0; i < a->core.cpus->nr; i++) {
+		if (a->core.cpus->map[i] != b->core.cpus->map[i])
+			return false;
+	}
+
+	return true;
+}
+
+static void evlist__check_cpu_maps(struct evlist *evlist)
+{
+	struct evsel *evsel, *pos, *leader;
+	char buf[1024];
+
+	evlist__for_each_entry(evlist, evsel) {
+		leader = evsel->leader;
+
+		/* Check that leader matches cpus with each member. */
+		if (leader == evsel)
+			continue;
+		if (cpus_map_matched(leader, evsel))
+			continue;
+
+		/* If there's mismatch disable the group and warn user. */
+		WARN_ONCE(1, "WARNING: grouped events cpus do not match, disabling group:\n");
+		evsel__group_desc(leader, buf, sizeof(buf));
+		pr_warning("  %s\n", buf);
+
+		if (verbose) {
+			cpu_map__snprint(leader->core.cpus, buf, sizeof(buf));
+			pr_warning("     %s: %s\n", leader->name, buf);
+			cpu_map__snprint(evsel->core.cpus, buf, sizeof(buf));
+			pr_warning("     %s: %s\n", evsel->name, buf);
+		}
+
+		for_each_group_evsel(pos, leader) {
+			pos->leader = pos;
+			pos->core.nr_members = 0;
+		}
+		evsel->leader->core.nr_members = 0;
+	}
+}
+
 static inline void diff_timespec(struct timespec *r, struct timespec *a,
 				 struct timespec *b)
 {
@@ -2112,6 +2165,8 @@ int cmd_stat(int argc, const char **argv)
 		}
 		goto out;
 	}
+
+	evlist__check_cpu_maps(evsel_list);
 
 	/*
 	 * Initialize thread_map with comm names,
