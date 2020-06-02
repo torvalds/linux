@@ -1890,6 +1890,7 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var,
 				 | ((datawords >> 15) & 1));
 			datawords <<= 1;
 #endif
+			/* FIXME: check the return value + test the change */
 			put_user(color, data++);
 		}
 		if (bits > 0) {
@@ -1958,6 +1959,7 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var,
 		bits = 16; words = delta; datawords = 0;
 		for (width = (short)var->width - 1; width >= 0; width--) {
 			unsigned long tdata = 0;
+			/* FIXME: check the return value + test the change */
 			get_user(tdata, data);
 			data++;
 #ifdef __mc68000__
