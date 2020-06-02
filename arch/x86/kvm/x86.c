@@ -10140,41 +10140,65 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 }
 
 static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
-				     struct kvm_memory_slot *new)
+				     struct kvm_memory_slot *old,
+				     struct kvm_memory_slot *new,
+				     enum kvm_mr_change change)
 {
-	/* Nothing to do for RO slots */
-	if (new->flags & KVM_MEM_READONLY)
+	/*
+	 * Nothing to do for RO slots or CREATE/MOVE/DELETE of a slot.
+	 * See comments below.
+	 */
+	if ((change != KVM_MR_FLAGS_ONLY) || (new->flags & KVM_MEM_READONLY))
 		return;
 
 	/*
-	 * Call kvm_x86_ops dirty logging hooks when they are valid.
+	 * Dirty logging tracks sptes in 4k granularity, meaning that large
+	 * sptes have to be split.  If live migration is successful, the guest
+	 * in the source machine will be destroyed and large sptes will be
+	 * created in the destination. However, if the guest continues to run
+	 * in the source machine (for example if live migration fails), small
+	 * sptes will remain around and cause bad performance.
 	 *
-	 * kvm_x86_ops.slot_disable_log_dirty is called when:
+	 * Scan sptes if dirty logging has been stopped, dropping those
+	 * which can be collapsed into a single large-page spte.  Later
+	 * page faults will create the large-page sptes.
 	 *
-	 *  - KVM_MR_CREATE with dirty logging is disabled
-	 *  - KVM_MR_FLAGS_ONLY with dirty logging is disabled in new flag
+	 * There is no need to do this in any of the following cases:
+	 * CREATE:      No dirty mappings will already exist.
+	 * MOVE/DELETE: The old mappings will already have been cleaned up by
+	 *		kvm_arch_flush_shadow_memslot()
+	 */
+	if ((old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
+	    !(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
+		kvm_mmu_zap_collapsible_sptes(kvm, new);
+
+	/*
+	 * Enable or disable dirty logging for the slot.
 	 *
-	 * The reason is, in case of PML, we need to set D-bit for any slots
-	 * with dirty logging disabled in order to eliminate unnecessary GPA
-	 * logging in PML buffer (and potential PML buffer full VMEXIT). This
-	 * guarantees leaving PML enabled during guest's lifetime won't have
-	 * any additional overhead from PML when guest is running with dirty
-	 * logging disabled for memory slots.
+	 * For KVM_MR_DELETE and KVM_MR_MOVE, the shadow pages of the old
+	 * slot have been zapped so no dirty logging updates are needed for
+	 * the old slot.
+	 * For KVM_MR_CREATE and KVM_MR_MOVE, once the new slot is visible
+	 * any mappings that might be created in it will consume the
+	 * properties of the new slot and do not need to be updated here.
 	 *
-	 * kvm_x86_ops.slot_enable_log_dirty is called when switching new slot
-	 * to dirty logging mode.
+	 * When PML is enabled, the kvm_x86_ops dirty logging hooks are
+	 * called to enable/disable dirty logging.
 	 *
-	 * If kvm_x86_ops dirty logging hooks are invalid, use write protect.
+	 * When disabling dirty logging with PML enabled, the D-bit is set
+	 * for sptes in the slot in order to prevent unnecessary GPA
+	 * logging in the PML buffer (and potential PML buffer full VMEXIT).
+	 * This guarantees leaving PML enabled for the guest's lifetime
+	 * won't have any additional overhead from PML when the guest is
+	 * running with dirty logging disabled.
 	 *
-	 * In case of write protect:
-	 *
-	 * Write protect all pages for dirty logging.
-	 *
-	 * All the sptes including the large sptes which point to this
-	 * slot are set to readonly. We can not create any new large
-	 * spte on this slot until the end of the logging.
-	 *
+	 * When enabling dirty logging, large sptes are write-protected
+	 * so they can be split on first write.  New large sptes cannot
+	 * be created for this slot until the end of the logging.
 	 * See the comments in fast_page_fault().
+	 * For small sptes, nothing is done if the dirty log is in the
+	 * initial-all-set state.  Otherwise, depending on whether pml
+	 * is enabled the D-bit or the W-bit will be cleared.
 	 */
 	if (new->flags & KVM_MEM_LOG_DIRTY_PAGES) {
 		if (kvm_x86_ops.slot_enable_log_dirty) {
@@ -10211,39 +10235,9 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 				kvm_mmu_calculate_default_mmu_pages(kvm));
 
 	/*
-	 * Dirty logging tracks sptes in 4k granularity, meaning that large
-	 * sptes have to be split.  If live migration is successful, the guest
-	 * in the source machine will be destroyed and large sptes will be
-	 * created in the destination. However, if the guest continues to run
-	 * in the source machine (for example if live migration fails), small
-	 * sptes will remain around and cause bad performance.
-	 *
-	 * Scan sptes if dirty logging has been stopped, dropping those
-	 * which can be collapsed into a single large-page spte.  Later
-	 * page faults will create the large-page sptes.
-	 *
-	 * There is no need to do this in any of the following cases:
-	 * CREATE:	No dirty mappings will already exist.
-	 * MOVE/DELETE:	The old mappings will already have been cleaned up by
-	 *		kvm_arch_flush_shadow_memslot()
-	 */
-	if (change == KVM_MR_FLAGS_ONLY &&
-		(old->flags & KVM_MEM_LOG_DIRTY_PAGES) &&
-		!(new->flags & KVM_MEM_LOG_DIRTY_PAGES))
-		kvm_mmu_zap_collapsible_sptes(kvm, new);
-
-	/*
-	 * Set up write protection and/or dirty logging for the new slot.
-	 *
-	 * For KVM_MR_DELETE and KVM_MR_MOVE, the shadow pages of old slot have
-	 * been zapped so no dirty logging staff is needed for old slot. For
-	 * KVM_MR_FLAGS_ONLY, the old slot is essentially the same one as the
-	 * new and it's also covered when dealing with the new slot.
-	 *
 	 * FIXME: const-ify all uses of struct kvm_memory_slot.
 	 */
-	if (change == KVM_MR_FLAGS_ONLY)
-		kvm_mmu_slot_apply_flags(kvm, (struct kvm_memory_slot *) new);
+	kvm_mmu_slot_apply_flags(kvm, old, (struct kvm_memory_slot *) new, change);
 
 	/* Free the arrays associated with the old memslot. */
 	if (change == KVM_MR_MOVE)
