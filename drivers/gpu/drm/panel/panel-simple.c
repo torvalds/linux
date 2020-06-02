@@ -4001,6 +4001,7 @@ static const struct panel_desc_dsi auo_b080uan01 = {
 			.width = 108,
 			.height = 272,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -4028,6 +4029,7 @@ static const struct panel_desc_dsi boe_tv080wum_nl0 = {
 			.width = 107,
 			.height = 172,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO |
 		 MIPI_DSI_MODE_VIDEO_BURST |
@@ -4057,6 +4059,7 @@ static const struct panel_desc_dsi lg_ld070wx3_sl01 = {
 			.width = 94,
 			.height = 151,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -4084,6 +4087,7 @@ static const struct panel_desc_dsi lg_lh500wx1_sd03 = {
 			.width = 62,
 			.height = 110,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -4111,6 +4115,7 @@ static const struct panel_desc_dsi panasonic_vvx10f004b00 = {
 			.width = 217,
 			.height = 136,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
 		 MIPI_DSI_CLOCK_NON_CONTINUOUS,
@@ -4139,6 +4144,7 @@ static const struct panel_desc_dsi lg_acx467akm_7 = {
 			.width = 62,
 			.height = 110,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = 0,
 	.format = MIPI_DSI_FMT_RGB888,
@@ -4167,6 +4173,7 @@ static const struct panel_desc_dsi osd101t2045_53ts = {
 			.width = 217,
 			.height = 136,
 		},
+		.connector_type = DRM_MODE_CONNECTOR_DSI,
 	},
 	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
 		 MIPI_DSI_MODE_VIDEO_SYNC_PULSE |
