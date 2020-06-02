@@ -227,11 +227,12 @@ static void vfio_dma_bitmap_free(struct vfio_dma *dma)
 static void vfio_dma_populate_bitmap(struct vfio_dma *dma, size_t pgsize)
 {
 	struct rb_node *p;
+	unsigned long pgshift = __ffs(pgsize);
 
 	for (p = rb_first(&dma->pfn_list); p; p = rb_next(p)) {
 		struct vfio_pfn *vpfn = rb_entry(p, struct vfio_pfn, node);
 
-		bitmap_set(dma->bitmap, (vpfn->iova - dma->iova) / pgsize, 1);
+		bitmap_set(dma->bitmap, (vpfn->iova - dma->iova) >> pgshift, 1);
 	}
 }
 
