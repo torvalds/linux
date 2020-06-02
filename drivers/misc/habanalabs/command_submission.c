@@ -418,7 +418,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	spin_lock(&ctx->cs_lock);
 
 	cs_cmpl->cs_seq = ctx->cs_sequence;
-	other = ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)];
+	other = ctx->cs_pending[cs_cmpl->cs_seq &
+				(hdev->asic_prop.max_pending_cs - 1)];
 	if ((other) && (!dma_fence_is_signaled(other))) {
 		spin_unlock(&ctx->cs_lock);
 		dev_dbg(hdev->dev,
@@ -432,7 +433,8 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	cs->sequence = cs_cmpl->cs_seq;
 
-	ctx->cs_pending[cs_cmpl->cs_seq & (HL_MAX_PENDING_CS - 1)] =
+	ctx->cs_pending[cs_cmpl->cs_seq &
+			(hdev->asic_prop.max_pending_cs - 1)] =
 							&cs_cmpl->base_fence;
 	ctx->cs_sequence++;
 

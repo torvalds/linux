@@ -57,6 +57,12 @@
 
 #define GOYA_DEFAULT_CARD_NAME		"HL1000"
 
+#define GOYA_MAX_PENDING_CS		64
+
+#if !IS_MAX_PENDING_CS_VALID(GOYA_MAX_PENDING_CS)
+#error "GOYA_MAX_PENDING_CS must be power of 2 and greater than 1"
+#endif
+
 /* DRAM Memory Map */
 
 #define CPU_FW_IMAGE_SIZE		0x10000000	/* 256MB */

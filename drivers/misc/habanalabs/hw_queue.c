@@ -376,7 +376,7 @@ static void hw_queue_schedule_job(struct hl_cs_job *job)
 	 * write address offset in the SM block (QMAN LBW message).
 	 * The write address offset is calculated as "COMP_OFFSET << 2".
 	 */
-	offset = job->cs->sequence & (HL_MAX_PENDING_CS - 1);
+	offset = job->cs->sequence & (hdev->asic_prop.max_pending_cs - 1);
 	ctl = ((offset << BD_CTL_COMP_OFFSET_SHIFT) & BD_CTL_COMP_OFFSET_MASK) |
 		((q->pi << BD_CTL_COMP_DATA_SHIFT) & BD_CTL_COMP_DATA_MASK);
 

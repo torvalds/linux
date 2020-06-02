@@ -42,9 +42,6 @@
 
 #define HL_MAX_QUEUES			128
 
-/* MUST BE POWER OF 2 and larger than 1 */
-#define HL_MAX_PENDING_CS		64
-
 #define HL_IDLE_BUSY_TS_ARR_SIZE	4096
 
 /* Memory */
@@ -60,6 +57,9 @@
 #define HL_RSVD_MONS_IN_USE		1
 
 #define HL_MAX_SOB_VAL			(1 << 15)
+
+#define IS_POWER_OF_2(n)		(n != 0 && ((n & (n - 1)) == 0))
+#define IS_MAX_PENDING_CS_VALID(n)	(IS_POWER_OF_2(n) && (n > 1))
 
 /**
  * struct pgt_info - MMU hop page info.
@@ -285,6 +285,7 @@ struct asic_fixed_properties {
 	u32				high_pll;
 	u32				cb_pool_cb_cnt;
 	u32				cb_pool_cb_size;
+	u32				max_pending_cs;
 	u8				tpc_enabled_mask;
 	u8				completion_queues_count;
 };
@@ -782,7 +783,7 @@ struct hl_ctx {
 	struct hl_fpriv		*hpriv;
 	struct hl_device	*hdev;
 	struct kref		refcount;
-	struct dma_fence	*cs_pending[HL_MAX_PENDING_CS];
+	struct dma_fence	**cs_pending;
 	struct hl_va_range	*host_va_range;
 	struct hl_va_range	*host_huge_va_range;
 	struct hl_va_range	*dram_va_range;

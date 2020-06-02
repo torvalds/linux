@@ -429,6 +429,8 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 	strncpy(prop->armcp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 					CARD_NAME_MAX_LEN);
 
+	prop->max_pending_cs = GAUDI_MAX_PENDING_CS;
+
 	return 0;
 }
 
