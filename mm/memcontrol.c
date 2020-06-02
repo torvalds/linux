@@ -4330,7 +4330,6 @@ void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
 
 	*pdirty = memcg_exact_page_state(memcg, NR_FILE_DIRTY);
 
-	/* this should eventually include NR_UNSTABLE_NFS */
 	*pwriteback = memcg_exact_page_state(memcg, NR_WRITEBACK);
 	*pfilepages = memcg_exact_page_state(memcg, NR_INACTIVE_FILE) +
 			memcg_exact_page_state(memcg, NR_ACTIVE_FILE);
