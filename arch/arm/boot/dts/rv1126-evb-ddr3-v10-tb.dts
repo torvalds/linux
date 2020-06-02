@@ -62,6 +62,30 @@
 		ramdisk_c: ramdisk@5800000 {
 			reg = <0x05800000 (20 * 0x00100000)>;
 		};
+
+		rkisp_thunderboot: rkisp@10000000 {
+			reg = <0x10000000 (144 * 0x00100000)>;
+		};
+	};
+
+	thunder-boot-rkisp {
+		compatible = "rockchip,thunder-boot-rkisp";
+		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
+			 <&cru CLK_ISP>, <&cru CLK_MIPICSI_OUT>,
+			 <&cru CLK_I2C1>, <&cru PCLK_I2C1>,
+			 <&cru CLK_SCR1>, <&cru CLK_SCR1_CORE>,
+			 <&cru CLK_SCR1_RTC>, <&cru CLK_SCR1_JTAG>;
+		clock-names = "aclk_isp", "hclk_isp", "clk_isp",
+			      "xvclk", "i2c", "pclk",
+			      "clk_scr1", "clk_scr1_core",
+			      "clk_scr1_rtc", "clk_scr1_jtag";
+		assigned-clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>, <&cru CLK_MIPICSI_OUT>;
+		assigned-clock-rates = <500000000>, <250000000>, <24000000>;
+		power-domains = <&power RV1126_PD_VI>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&mipicsi_clk0>;
+		status = "okay";
 	};
 
 	rockchip_tb {
@@ -111,3 +135,8 @@
 &ramoops {
 	status = "disabled";
 };
+
+&rkisp {
+	memory-region-thunderboot = <&rkisp_thunderboot>;
+};
+
