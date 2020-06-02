@@ -503,7 +503,8 @@ static void bpf_jit_prologue(struct bpf_jit *jit, u32 stack_depth)
 	} else {
 		/* j tail_call_start: NOP if no tail calls are used */
 		EMIT4_PCREL(0xa7f40000, 6);
-		_EMIT2(0);
+		/* bcr 0,%0 */
+		EMIT2(0x0700, 0, REG_0);
 	}
 	/* Tail calls have to skip above initialization */
 	jit->tail_call_start = jit->prg;
