@@ -390,9 +390,8 @@ static bool is_number(const char *str)
 	return errno == 0 && end_ptr != str;
 }
 
-static int check_parse_id(const char *id, bool same_cpu, struct pmu_event *pe)
+static int check_parse_id(const char *id, struct parse_events_error *error)
 {
-	struct parse_events_error error;
 	struct evlist *evlist;
 	int ret;
 
@@ -401,8 +400,18 @@ static int check_parse_id(const char *id, bool same_cpu, struct pmu_event *pe)
 		return 0;
 
 	evlist = evlist__new();
-	memset(&error, 0, sizeof(error));
-	ret = parse_events(evlist, id, &error);
+	if (!evlist)
+		return -ENOMEM;
+	ret = parse_events(evlist, id, error);
+	evlist__delete(evlist);
+	return ret;
+}
+
+static int check_parse_cpu(const char *id, bool same_cpu, struct pmu_event *pe)
+{
+	struct parse_events_error error = { .idx = 0, };
+
+	int ret = check_parse_id(id, &error);
 	if (ret && same_cpu) {
 		pr_warning("Parse event failed metric '%s' id '%s' expr '%s'\n",
 			pe->metric_name, id, pe->metric_expr);
@@ -413,7 +422,6 @@ static int check_parse_id(const char *id, bool same_cpu, struct pmu_event *pe)
 			  id, pe->metric_name, pe->metric_expr);
 		ret = 0;
 	}
-	evlist__delete(evlist);
 	free(error.str);
 	free(error.help);
 	free(error.first_str);
@@ -474,7 +482,7 @@ static int test_parsing(void)
 				expr__add_id(&ctx, strdup(cur->key), k++);
 
 			hashmap__for_each_entry((&ctx.ids), cur, bkt) {
-				if (check_parse_id(cur->key, map == cpus_map,
+				if (check_parse_cpu(cur->key, map == cpus_map,
 						   pe))
 					ret++;
 			}
