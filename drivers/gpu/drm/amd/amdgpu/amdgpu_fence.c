@@ -469,9 +469,8 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	if (!ring->fence_drv.fences)
 		return -ENOMEM;
 
-	/* No need to setup the GPU scheduler for KIQ and MES ring */
-	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ &&
-	    ring->funcs->type != AMDGPU_RING_TYPE_MES) {
+	/* No need to setup the GPU scheduler for rings that don't need it */
+	if (!ring->no_scheduler) {
 		switch (ring->funcs->type) {
 		case AMDGPU_RING_TYPE_GFX:
 			timeout = adev->gfx_timeout;
@@ -543,7 +542,8 @@ void amdgpu_fence_driver_fini(struct amdgpu_device *adev)
 		if (ring->fence_drv.irq_src)
 			amdgpu_irq_put(adev, ring->fence_drv.irq_src,
 				       ring->fence_drv.irq_type);
-		drm_sched_fini(&ring->sched);
+		if (!ring->no_scheduler)
+			drm_sched_fini(&ring->sched);
 		del_timer_sync(&ring->fence_drv.fallback_timer);
 		for (j = 0; j <= ring->fence_drv.num_fences_mask; ++j)
 			dma_fence_put(ring->fence_drv.fences[j]);
