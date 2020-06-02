@@ -10142,11 +10142,9 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 static void kvm_mmu_slot_apply_flags(struct kvm *kvm,
 				     struct kvm_memory_slot *new)
 {
-	/* Still write protect RO slot */
-	if (new->flags & KVM_MEM_READONLY) {
-		kvm_mmu_slot_remove_write_access(kvm, new, PG_LEVEL_4K);
+	/* Nothing to do for RO slots */
+	if (new->flags & KVM_MEM_READONLY)
 		return;
-	}
 
 	/*
 	 * Call kvm_x86_ops dirty logging hooks when they are valid.
