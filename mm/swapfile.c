@@ -874,11 +874,9 @@ checks:
 		else
 			goto done;
 	}
-	/* non-ssd case */
-	++offset;
 
 	/* non-ssd case, still more slots in cluster? */
-	if (si->cluster_nr && !si->swap_map[offset]) {
+	if (si->cluster_nr && !si->swap_map[++offset]) {
 		--si->cluster_nr;
 		goto checks;
 	}
