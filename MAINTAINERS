@@ -7768,7 +7768,9 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	Documentation/vm/hmm.rst
 F:	include/linux/hmm*
+F:	lib/test_hmm*
 F:	mm/hmm*
+F:	tools/testing/selftests/vm/*hmm*
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>

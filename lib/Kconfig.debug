@@ -2218,6 +2218,19 @@ config TEST_MEMINIT
 
 	  If unsure, say N.
 
+config TEST_HMM
+	tristate "Test HMM (Heterogeneous Memory Management)"
+	depends on TRANSPARENT_HUGEPAGE
+	depends on DEVICE_PRIVATE
+	select HMM_MIRROR
+	select MMU_NOTIFIER
+	help
+	  This is a pseudo device driver solely for testing HMM.
+	  Say M here if you want to build the HMM test module.
+	  Doing so will allow you to run tools/testing/selftest/vm/hmm-tests.
+
+	  If unsure, say N.
+
 endif # RUNTIME_TESTING_MENU
 
 config MEMTEST
