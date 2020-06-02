@@ -65,7 +65,7 @@ i915_param_named_unsafe(vbt_sdvo_panel_type, int, 0400,
 	"Override/Ignore selection of SDVO panel mode in the VBT "
 	"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
 
-i915_param_named_unsafe(reset, int, 0600,
+i915_param_named_unsafe(reset, uint, 0600,
 	"Attempt GPU resets (0=disabled, 1=full gpu reset, 2=engine reset [default])");
 
 i915_param_named_unsafe(vbt_firmware, charp, 0400,
