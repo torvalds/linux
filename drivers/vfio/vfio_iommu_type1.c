@@ -998,14 +998,14 @@ static int update_user_bitmap(u64 __user *bitmap, struct vfio_iommu *iommu,
 				  nbits + shift);
 
 		if (copy_from_user(&leftover,
-				   (const void *)(bitmap + copy_offset),
+				   (void __user *)(bitmap + copy_offset),
 				   sizeof(leftover)))
 			return -EFAULT;
 
 		bitmap_or(dma->bitmap, dma->bitmap, &leftover, shift);
 	}
 
-	if (copy_to_user((void *)(bitmap + copy_offset), dma->bitmap,
+	if (copy_to_user((void __user *)(bitmap + copy_offset), dma->bitmap,
 			 DIRTY_BITMAP_BYTES(nbits + shift)))
 		return -EFAULT;
 
