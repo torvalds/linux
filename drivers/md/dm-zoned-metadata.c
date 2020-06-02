@@ -1938,7 +1938,7 @@ static void dmz_wait_for_reclaim(struct dmz_metadata *zmd, struct dm_zone *zone)
  * Select a cache or random write zone for reclaim.
  */
 static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
-						    bool idle)
+						    unsigned int idx, bool idle)
 {
 	struct dm_zone *dzone = NULL;
 	struct dm_zone *zone;
@@ -1948,24 +1948,17 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 	if (zmd->nr_cache) {
 		zone_list = &zmd->map_cache_list;
 		/* Try to relaim random zones, too, when idle */
-		if (idle && list_empty(zone_list)) {
-			int i;
-
-			for (i = 1; i < zmd->nr_devs; i++) {
-				zone_list = &zmd->dev[i].map_rnd_list;
-				if (!list_empty(zone_list))
-					break;
-			}
-		}
-	} else {
-		/* Otherwise the random zones are on the first disk */
-		zone_list = &zmd->dev[0].map_rnd_list;
-	}
+		if (idle && list_empty(zone_list))
+			zone_list = &zmd->dev[idx].map_rnd_list;
+	} else
+		zone_list = &zmd->dev[idx].map_rnd_list;
 
 	list_for_each_entry(zone, zone_list, link) {
-		if (dmz_is_buf(zone))
+		if (dmz_is_buf(zone)) {
 			dzone = zone->bzone;
-		else
+			if (dzone->dev->dev_idx != idx)
+				continue;
+		} else
 			dzone = zone;
 		if (dmz_lock_zone_reclaim(dzone))
 			return dzone;
@@ -1977,20 +1970,16 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 /*
  * Select a buffered sequential zone for reclaim.
  */
-static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
+static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd,
+						    unsigned int idx)
 {
 	struct dm_zone *zone;
-	int i;
 
-	for (i = 0; i < zmd->nr_devs; i++) {
-		struct dmz_dev *dev = &zmd->dev[i];
-
-		list_for_each_entry(zone, &dev->map_seq_list, link) {
-			if (!zone->bzone)
-				continue;
-			if (dmz_lock_zone_reclaim(zone))
-				return zone;
-		}
+	list_for_each_entry(zone, &zmd->dev[idx].map_seq_list, link) {
+		if (!zone->bzone)
+			continue;
+		if (dmz_lock_zone_reclaim(zone))
+			return zone;
 	}
 
 	return NULL;
@@ -1999,7 +1988,8 @@ static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd)
 /*
  * Select a zone for reclaim.
  */
-struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd, bool idle)
+struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
+					 unsigned int dev_idx, bool idle)
 {
 	struct dm_zone *zone;
 
@@ -2013,9 +2003,9 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd, bool idle)
 	 */
 	dmz_lock_map(zmd);
 	if (list_empty(&zmd->reserved_seq_zones_list))
-		zone = dmz_get_seq_zone_for_reclaim(zmd);
+		zone = dmz_get_seq_zone_for_reclaim(zmd, dev_idx);
 	else
-		zone = dmz_get_rnd_zone_for_reclaim(zmd, idle);
+		zone = dmz_get_rnd_zone_for_reclaim(zmd, dev_idx, idle);
 	dmz_unlock_map(zmd);
 
 	return zone;

@@ -370,7 +370,8 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 	int ret;
 
 	/* Get a data zone */
-	dzone = dmz_get_zone_for_reclaim(zmd, dmz_target_idle(zrc));
+	dzone = dmz_get_zone_for_reclaim(zmd, zrc->dev_idx,
+					 dmz_target_idle(zrc));
 	if (!dzone) {
 		DMDEBUG("(%s/%u): No zone found to reclaim",
 			dmz_metadata_label(zmd), zrc->dev_idx);

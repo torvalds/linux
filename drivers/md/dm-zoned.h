@@ -61,6 +61,8 @@ struct dmz_dev {
 
 	sector_t		capacity;
 
+	unsigned int		dev_idx;
+
 	unsigned int		nr_zones;
 	unsigned int		zone_offset;
 
@@ -243,7 +245,8 @@ static inline void dmz_activate_zone(struct dm_zone *zone)
 
 int dmz_lock_zone_reclaim(struct dm_zone *zone);
 void dmz_unlock_zone_reclaim(struct dm_zone *zone);
-struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd, bool idle);
+struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
+					 unsigned int dev_idx, bool idle);
 
 struct dm_zone *dmz_get_chunk_mapping(struct dmz_metadata *zmd,
 				      unsigned int chunk, int op);

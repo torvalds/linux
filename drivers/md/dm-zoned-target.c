@@ -738,6 +738,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path,
 		dev = &dmz->dev[idx];
 	}
 	dev->bdev = bdev;
+	dev->dev_idx = idx;
 	(void)bdevname(dev->bdev, dev->name);
 
 	dev->capacity = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
