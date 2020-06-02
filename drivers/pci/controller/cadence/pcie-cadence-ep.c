@@ -408,8 +408,7 @@ int cdns_pcie_ep_setup(struct cdns_pcie_ep *ep)
 
 	pcie->is_rc = false;
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "reg");
-	pcie->reg_base = devm_ioremap_resource(dev, res);
+	pcie->reg_base = devm_platform_ioremap_resource_byname(pdev, "reg");
 	if (IS_ERR(pcie->reg_base)) {
 		dev_err(dev, "missing \"reg\"\n");
 		return PTR_ERR(pcie->reg_base);
