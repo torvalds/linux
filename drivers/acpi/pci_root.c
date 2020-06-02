@@ -353,7 +353,7 @@ EXPORT_SYMBOL_GPL(acpi_get_pci_dev);
  * _OSC bits the BIOS has granted control of, but its contents are meaningless
  * on failure.
  **/
-acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
+static acpi_status acpi_pci_osc_control_set(acpi_handle handle, u32 *mask, u32 req)
 {
 	struct acpi_pci_root *root;
 	acpi_status status = AE_OK;
@@ -406,7 +406,6 @@ out:
 	mutex_unlock(&osc_lock);
 	return status;
 }
-EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
 static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm,
 				 bool is_pcie)
