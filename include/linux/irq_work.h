@@ -58,9 +58,11 @@ void irq_work_sync(struct irq_work *work);
 
 void irq_work_run(void);
 bool irq_work_needs_cpu(void);
+void irq_work_single(void *arg);
 #else
 static inline bool irq_work_needs_cpu(void) { return false; }
 static inline void irq_work_run(void) { }
+static inline void irq_work_single(void *arg) { }
 #endif
 
 #endif /* _LINUX_IRQ_WORK_H */

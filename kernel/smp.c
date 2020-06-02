@@ -194,8 +194,6 @@ void generic_smp_call_function_single_interrupt(void)
 	flush_smp_call_function_queue(true);
 }
 
-extern void irq_work_single(void *);
-
 /**
  * flush_smp_call_function_queue - Flush pending smp-call-function callbacks
  *
