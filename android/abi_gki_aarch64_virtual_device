@@ -393,34 +393,6 @@
   cpufreq_register_driver
   cpufreq_unregister_driver
 
-# required by dummy_hcd.ko
-  device_create_file
-  device_remove_file
-  platform_device_add_data
-  sg_miter_next
-  sg_miter_start
-  sg_miter_stop
-  usb_add_gadget_udc
-  usb_add_hcd
-  usb_create_hcd
-  usb_create_shared_hcd
-  usb_del_gadget_udc
-  usb_disabled
-  usb_ep_set_maxpacket_limit
-  usb_gadget_giveback_request
-  usb_gadget_udc_reset
-  usb_get_dev
-  usb_hcd_check_unlink_urb
-  usb_hcd_giveback_urb
-  usb_hcd_is_primary_hcd
-  usb_hcd_link_urb_to_ep
-  usb_hcd_poll_rh_status
-  usb_hcd_resume_root_hub
-  usb_hcd_unlink_urb_from_ep
-  usb_put_dev
-  usb_put_hcd
-  usb_remove_hcd
-
 # required by failover.ko
   netdev_master_upper_dev_link
   rtnl_is_locked
