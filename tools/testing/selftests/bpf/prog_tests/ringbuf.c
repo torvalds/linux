@@ -25,7 +25,7 @@ struct sample {
 	char comm[16];
 };
 
-static int sample_cnt;
+static volatile int sample_cnt;
 
 static int process_sample(void *ctx, void *data, size_t len)
 {
