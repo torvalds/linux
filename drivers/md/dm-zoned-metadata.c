@@ -997,7 +997,7 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 	struct dmz_dev *dev = dsb->dev;
 	unsigned int nr_meta_zones, nr_data_zones;
 	u32 crc, stored_crc;
-	u64 gen;
+	u64 gen, sb_block;
 
 	if (le32_to_cpu(sb->magic) != DMZ_MAGIC) {
 		dmz_dev_err(dev, "Invalid meta magic (needed 0x%08x, got 0x%08x)",
@@ -1026,6 +1026,14 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 		return -ENXIO;
 	}
 
+	sb_block = le64_to_cpu(sb->sb_block);
+	if (sb_block != (u64)dsb->zone->id << zmd->zone_nr_blocks_shift ) {
+		dmz_dev_err(dev, "Invalid superblock position "
+			    "(is %llu expected %llu)",
+			    sb_block,
+			    (u64)dsb->zone->id << zmd->zone_nr_blocks_shift);
+		return -EINVAL;
+	}
 	if (zmd->sb_version > 1) {
 		uuid_t sb_uuid;
 
