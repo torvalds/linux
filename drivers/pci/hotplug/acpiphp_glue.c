@@ -385,19 +385,12 @@ static unsigned char acpiphp_max_busnr(struct pci_bus *bus)
 static void acpiphp_set_acpi_region(struct acpiphp_slot *slot)
 {
 	struct acpiphp_func *func;
-	union acpi_object params[2];
-	struct acpi_object_list arg_list;
 
 	list_for_each_entry(func, &slot->funcs, sibling) {
-		arg_list.count = 2;
-		arg_list.pointer = params;
-		params[0].type = ACPI_TYPE_INTEGER;
-		params[0].integer.value = ACPI_ADR_SPACE_PCI_CONFIG;
-		params[1].type = ACPI_TYPE_INTEGER;
-		params[1].integer.value = 1;
 		/* _REG is optional, we don't care about if there is failure */
-		acpi_evaluate_object(func_to_handle(func), "_REG", &arg_list,
-				     NULL);
+		acpi_evaluate_reg(func_to_handle(func),
+				  ACPI_ADR_SPACE_PCI_CONFIG,
+				  ACPI_REG_CONNECT);
 	}
 }
 
