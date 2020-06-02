@@ -1329,6 +1329,10 @@ PAGE_SIZE multiple when read back.
 	  workingset_activate
 		Number of refaulted pages that were immediately activated
 
+	  workingset_restore
+		Number of restored pages which have been detected as an active
+		workingset before they got reclaimed.
+
 	  workingset_nodereclaim
 		Number of times a shadow node has been reclaimed
 
