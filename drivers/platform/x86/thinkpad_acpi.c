@@ -318,6 +318,7 @@ static struct {
 	u32 uwb:1;
 	u32 fan_ctrl_status_undef:1;
 	u32 second_fan:1;
+	u32 second_fan_ctl:1;
 	u32 beep_needs_two_args:1;
 	u32 mixer_no_level_control:1;
 	u32 battery_force_primary:1;
@@ -884,20 +885,11 @@ static ssize_t dispatch_proc_write(struct file *file,
 
 	if (!ibm || !ibm->write)
 		return -EINVAL;
-	if (count > PAGE_SIZE - 2)
-		return -EINVAL;
 
-	kernbuf = kmalloc(count + 2, GFP_KERNEL);
-	if (!kernbuf)
-		return -ENOMEM;
+	kernbuf = strndup_user(userbuf, PAGE_SIZE);
+	if (IS_ERR(kernbuf))
+		return PTR_ERR(kernbuf);
 
-	if (copy_from_user(kernbuf, userbuf, count)) {
-		kfree(kernbuf);
-		return -EFAULT;
-	}
-
-	kernbuf[count] = 0;
-	strcat(kernbuf, ",");
 	ret = ibm->write(kernbuf);
 	if (ret == 0)
 		ret = count;
@@ -914,23 +906,6 @@ static const struct proc_ops dispatch_proc_ops = {
 	.proc_release	= single_release,
 	.proc_write	= dispatch_proc_write,
 };
-
-static char *next_cmd(char **cmds)
-{
-	char *start = *cmds;
-	char *end;
-
-	while ((end = strchr(start, ',')) && end == start)
-		start = end + 1;
-
-	if (!end)
-		return NULL;
-
-	*end = 0;
-	*cmds = end + 1;
-	return start;
-}
-
 
 /****************************************************************************
  ****************************************************************************
@@ -1422,7 +1397,7 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 	if (id >= TPACPI_RFK_SW_MAX)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "enable") == 0)
 			status = TPACPI_RFK_RADIO_ON;
 		else if (strlencmp(cmd, "disable") == 0)
@@ -4305,7 +4280,7 @@ static int hotkey_write(char *buf)
 	mask = hotkey_user_mask;
 
 	res = 0;
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "enable") == 0) {
 			hotkey_enabledisable_warn(1);
 		} else if (strlencmp(cmd, "disable") == 0) {
@@ -5232,7 +5207,7 @@ static int video_write(char *buf)
 	enable = 0;
 	disable = 0;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "lcd_enable") == 0) {
 			enable |= TP_ACPI_VIDEO_S_LCD;
 		} else if (strlencmp(cmd, "lcd_disable") == 0) {
@@ -5433,8 +5408,7 @@ static int __init kbdlight_init(struct ibm_init_struct *iibm)
 
 static void kbdlight_exit(void)
 {
-	if (tp_features.kbdlight)
-		led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
+	led_classdev_unregister(&tpacpi_led_kbdlight.led_classdev);
 }
 
 static int kbdlight_set_level_and_update(int level)
@@ -5472,23 +5446,18 @@ static int kbdlight_read(struct seq_file *m)
 static int kbdlight_write(char *buf)
 {
 	char *cmd;
-	int level = -1;
+	int res, level = -EINVAL;
 
 	if (!tp_features.kbdlight)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
-		if (strlencmp(cmd, "0") == 0)
-			level = 0;
-		else if (strlencmp(cmd, "1") == 0)
-			level = 1;
-		else if (strlencmp(cmd, "2") == 0)
-			level = 2;
-		else
-			return -EINVAL;
+	while ((cmd = strsep(&buf, ","))) {
+		res = kstrtoint(cmd, 10, &level);
+		if (res < 0)
+			return res;
 	}
 
-	if (level == -1)
+	if (level >= 3 || level < 0)
 		return -EINVAL;
 
 	return kbdlight_set_level_and_update(level);
@@ -5657,7 +5626,7 @@ static int light_write(char *buf)
 	if (!tp_features.light)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "on") == 0) {
 			newstatus = 1;
 		} else if (strlencmp(cmd, "off") == 0) {
@@ -5742,7 +5711,7 @@ static int cmos_write(char *buf)
 	char *cmd;
 	int cmos_cmd, res;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%u", &cmos_cmd) == 1 &&
 		    cmos_cmd >= 0 && cmos_cmd <= 21) {
 			/* cmos_cmd set */
@@ -5948,20 +5917,14 @@ static void led_exit(void)
 {
 	unsigned int i;
 
-	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
-		if (tpacpi_leds[i].led_classdev.name)
-			led_classdev_unregister(&tpacpi_leds[i].led_classdev);
-	}
+	for (i = 0; i < TPACPI_LED_NUMLEDS; i++)
+		led_classdev_unregister(&tpacpi_leds[i].led_classdev);
 
 	kfree(tpacpi_leds);
 }
 
 static int __init tpacpi_init_led(unsigned int led)
 {
-	int rc;
-
-	tpacpi_leds[led].led = led;
-
 	/* LEDs with no name don't get registered */
 	if (!tpacpi_led_names[led])
 		return 0;
@@ -5969,17 +5932,12 @@ static int __init tpacpi_init_led(unsigned int led)
 	tpacpi_leds[led].led_classdev.brightness_set_blocking = &led_sysfs_set;
 	tpacpi_leds[led].led_classdev.blink_set = &led_sysfs_blink_set;
 	if (led_supported == TPACPI_LED_570)
-		tpacpi_leds[led].led_classdev.brightness_get =
-						&led_sysfs_get;
+		tpacpi_leds[led].led_classdev.brightness_get = &led_sysfs_get;
 
 	tpacpi_leds[led].led_classdev.name = tpacpi_led_names[led];
+	tpacpi_leds[led].led = led;
 
-	rc = led_classdev_register(&tpacpi_pdev->dev,
-				&tpacpi_leds[led].led_classdev);
-	if (rc < 0)
-		tpacpi_leds[led].led_classdev.name = NULL;
-
-	return rc;
+	return led_classdev_register(&tpacpi_pdev->dev, &tpacpi_leds[led].led_classdev);
 }
 
 static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
@@ -6089,8 +6047,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	for (i = 0; i < TPACPI_LED_NUMLEDS; i++) {
 		tpacpi_leds[i].led = -1;
 
-		if (!tpacpi_is_led_restricted(i) &&
-		    test_bit(i, &useful_leds)) {
+		if (!tpacpi_is_led_restricted(i) && test_bit(i, &useful_leds)) {
 			rc = tpacpi_init_led(i);
 			if (rc < 0) {
 				led_exit();
@@ -6143,12 +6100,14 @@ static int led_write(char *buf)
 	if (!led_supported)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%d", &led) != 1)
 			return -EINVAL;
 
-		if (led < 0 || led > (TPACPI_LED_NUMLEDS - 1) ||
-				tpacpi_leds[led].led < 0)
+		if (led < 0 || led > (TPACPI_LED_NUMLEDS - 1))
+			return -ENODEV;
+
+		if (tpacpi_leds[led].led < 0)
 			return -ENODEV;
 
 		if (strstr(cmd, "off")) {
@@ -6228,7 +6187,7 @@ static int beep_write(char *buf)
 	if (!beep_handle)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (sscanf(cmd, "%u", &beep_cmd) == 1 &&
 		    beep_cmd >= 0 && beep_cmd <= 17) {
 			/* beep_cmd set */
@@ -7116,7 +7075,7 @@ static int brightness_write(char *buf)
 	if (level < 0)
 		return level;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (strlencmp(cmd, "up") == 0) {
 			if (level < bright_maxlvl)
 				level++;
@@ -7868,7 +7827,7 @@ static int volume_write(char *buf)
 	new_level = s & TP_EC_AUDIO_LVL_MSK;
 	new_mute  = s & TP_EC_AUDIO_MUTESW_MSK;
 
-	while ((cmd = next_cmd(&buf))) {
+	while ((cmd = strsep(&buf, ","))) {
 		if (!tp_features.mixer_no_level_control) {
 			if (strlencmp(cmd, "up") == 0) {
 				if (new_mute)
@@ -8324,11 +8283,19 @@ static int fan_set_level(int level)
 
 	switch (fan_control_access_mode) {
 	case TPACPI_FAN_WR_ACPI_SFAN:
-		if (level >= 0 && level <= 7) {
-			if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
-				return -EIO;
-		} else
+		if ((level < 0) || (level > 7))
 			return -EINVAL;
+
+		if (tp_features.second_fan_ctl) {
+			if (!fan_select_fan2() ||
+			    !acpi_evalf(sfan_handle, NULL, NULL, "vd", level)) {
+				pr_warn("Couldn't set 2nd fan level, disabling support\n");
+				tp_features.second_fan_ctl = 0;
+			}
+			fan_select_fan1();
+		}
+		if (!acpi_evalf(sfan_handle, NULL, NULL, "vd", level))
+			return -EIO;
 		break;
 
 	case TPACPI_FAN_WR_ACPI_FANS:
@@ -8345,6 +8312,15 @@ static int fan_set_level(int level)
 		else if (level & TP_EC_FAN_AUTO)
 			level |= 4;	/* safety min speed 4 */
 
+		if (tp_features.second_fan_ctl) {
+			if (!fan_select_fan2() ||
+			    !acpi_ec_write(fan_status_offset, level)) {
+				pr_warn("Couldn't set 2nd fan level, disabling support\n");
+				tp_features.second_fan_ctl = 0;
+			}
+			fan_select_fan1();
+
+		}
 		if (!acpi_ec_write(fan_status_offset, level))
 			return -EIO;
 		else
@@ -8763,6 +8739,7 @@ static const struct attribute_group fan_attr_group = {
 
 #define TPACPI_FAN_Q1	0x0001		/* Unitialized HFSP */
 #define TPACPI_FAN_2FAN	0x0002		/* EC 0x31 bit 0 selects fan2 */
+#define TPACPI_FAN_2CTL	0x0004		/* selects fan2 control */
 
 static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_QEC_IBM('1', 'Y', TPACPI_FAN_Q1),
@@ -8771,6 +8748,13 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_QEC_IBM('7', '0', TPACPI_FAN_Q1),
 	TPACPI_QEC_LNV('7', 'M', TPACPI_FAN_2FAN),
 	TPACPI_Q_LNV('N', '1', TPACPI_FAN_2FAN),
+	TPACPI_Q_LNV3('N', '1', 'D', TPACPI_FAN_2CTL),	/* P70 */
+	TPACPI_Q_LNV3('N', '1', 'E', TPACPI_FAN_2CTL),	/* P50 */
+	TPACPI_Q_LNV3('N', '1', 'T', TPACPI_FAN_2CTL),	/* P71 */
+	TPACPI_Q_LNV3('N', '1', 'U', TPACPI_FAN_2CTL),	/* P51 */
+	TPACPI_Q_LNV3('N', '2', 'C', TPACPI_FAN_2CTL),	/* P52 / P72 */
+	TPACPI_Q_LNV3('N', '2', 'E', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (1st gen) */
+	TPACPI_Q_LNV3('N', '2', 'O', TPACPI_FAN_2CTL),	/* P1 / X1 Extreme (2nd gen) */
 };
 
 static int __init fan_init(struct ibm_init_struct *iibm)
@@ -8788,6 +8772,7 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	fan_watchdog_maxinterval = 0;
 	tp_features.fan_ctrl_status_undef = 0;
 	tp_features.second_fan = 0;
+	tp_features.second_fan_ctl = 0;
 	fan_control_desired_level = 7;
 
 	if (tpacpi_is_ibm()) {
@@ -8812,8 +8797,12 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 				fan_quirk1_setup();
 			if (quirks & TPACPI_FAN_2FAN) {
 				tp_features.second_fan = 1;
-				dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_FAN,
-					"secondary fan support enabled\n");
+				pr_info("secondary fan support enabled\n");
+			}
+			if (quirks & TPACPI_FAN_2CTL) {
+				tp_features.second_fan = 1;
+				tp_features.second_fan_ctl = 1;
+				pr_info("secondary fan control enabled\n");
 			}
 		} else {
 			pr_err("ThinkPad ACPI EC access misbehaving, fan status and control unavailable\n");
@@ -9148,7 +9137,7 @@ static int fan_write(char *buf)
 	char *cmd;
 	int rc = 0;
 
-	while (!rc && (cmd = next_cmd(&buf))) {
+	while (!rc && (cmd = strsep(&buf, ","))) {
 		if (!((fan_control_commands & TPACPI_FAN_CMD_LEVEL) &&
 		      fan_write_cmd_level(cmd, &rc)) &&
 		    !((fan_control_commands & TPACPI_FAN_CMD_ENABLE) &&
@@ -9271,10 +9260,8 @@ static int mute_led_init(struct ibm_init_struct *iibm)
 		mute_led_cdev[i].brightness = ledtrig_audio_get(i);
 		err = led_classdev_register(&tpacpi_pdev->dev, &mute_led_cdev[i]);
 		if (err < 0) {
-			while (i--) {
-				if (led_tables[i].state >= 0)
-					led_classdev_unregister(&mute_led_cdev[i]);
-			}
+			while (i--)
+				led_classdev_unregister(&mute_led_cdev[i]);
 			return err;
 		}
 	}
@@ -9286,10 +9273,8 @@ static void mute_led_exit(void)
 	int i;
 
 	for (i = 0; i < TPACPI_LED_MAX; i++) {
-		if (led_tables[i].state >= 0) {
-			led_classdev_unregister(&mute_led_cdev[i]);
-			tpacpi_led_set(i, false);
-		}
+		led_classdev_unregister(&mute_led_cdev[i]);
+		tpacpi_led_set(i, false);
 	}
 }
 
@@ -9786,19 +9771,18 @@ static int lcdshadow_read(struct seq_file *m)
 static int lcdshadow_write(char *buf)
 {
 	char *cmd;
-	int state = -1;
+	int res, state = -EINVAL;
 
 	if (lcdshadow_state < 0)
 		return -ENODEV;
 
-	while ((cmd = next_cmd(&buf))) {
-		if (strlencmp(cmd, "0") == 0)
-			state = 0;
-		else if (strlencmp(cmd, "1") == 0)
-			state = 1;
+	while ((cmd = strsep(&buf, ","))) {
+		res = kstrtoint(cmd, 10, &state);
+		if (res < 0)
+			return res;
 	}
 
-	if (state == -1)
+	if (state >= 2 || state < 0)
 		return -EINVAL;
 
 	return lcdshadow_set(state);
@@ -10314,10 +10298,9 @@ static int __init set_ibm_param(const char *val, const struct kernel_param *kp)
 			continue;
 
 		if (strcmp(ibm->name, kp->name) == 0 && ibm->write) {
-			if (strlen(val) > sizeof(ibms_init[i].param) - 2)
+			if (strlen(val) > sizeof(ibms_init[i].param) - 1)
 				return -ENOSPC;
 			strcpy(ibms_init[i].param, val);
-			strcat(ibms_init[i].param, ",");
 			return 0;
 		}
 	}

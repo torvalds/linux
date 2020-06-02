@@ -1217,6 +1217,7 @@ config ITCO_WDT
 	depends on (X86 || IA64) && PCI
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
+	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT
 	select LPC_ICH if !EXPERT
 	select I2C_I801 if !EXPERT && I2C
 	---help---
