@@ -537,19 +537,6 @@ static void vop_disable_allwin(struct vop *vop)
 	}
 }
 
-static bool vop_fs_irq_is_active(struct vop *vop)
-{
-	if (VOP_MAJOR(vop->version) == 3 && VOP_MINOR(vop->version) >= 7)
-		return VOP_INTR_GET_TYPE(vop, status, FS_FIELD_INTR);
-	else
-		return VOP_INTR_GET_TYPE(vop, status, FS_INTR);
-}
-
-static bool vop_line_flag_is_active(struct vop *vop)
-{
-	return VOP_INTR_GET_TYPE(vop, status, LINE_FLAG_INTR);
-}
-
 static inline void vop_write_lut(struct vop *vop, uint32_t offset, uint32_t v)
 {
 	writel(v, vop->lut_regs + offset);
@@ -3564,41 +3551,11 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 	vop_cfg_update(crtc, old_crtc_state);
 
 	if (!vop->is_iommu_enabled && vop->is_iommu_needed) {
-		bool need_wait_vblank = false;
 		int ret;
 
 		if (s->mode_update)
 			VOP_CTRL_SET(vop, dma_stop, 1);
 
-		need_wait_vblank = !vop_is_allwin_disabled(vop);
-		if (s->mode_update && need_wait_vblank)
-			dev_warn(vop->dev, "mode_update:%d, need wait blk:%d\n",
-				 s->mode_update, need_wait_vblank);
-
-		if (need_wait_vblank) {
-			bool active;
-
-			disable_irq(vop->irq);
-			drm_crtc_vblank_get(crtc);
-			VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 1);
-
-			ret = readx_poll_timeout_atomic(vop_fs_irq_is_active,
-							vop, active, active,
-							0, 50 * 1000);
-			if (ret)
-				dev_err(vop->dev, "wait fs irq timeout\n");
-
-			VOP_INTR_SET_TYPE(vop, clear, LINE_FLAG_INTR, 1);
-			vop_cfg_done(vop);
-
-			ret = readx_poll_timeout_atomic(vop_line_flag_is_active,
-							vop, active, active,
-							0, 50 * 1000);
-			if (ret)
-				dev_err(vop->dev, "wait line flag timeout\n");
-
-			enable_irq(vop->irq);
-		}
 		ret = rockchip_drm_dma_attach_device(vop->drm_dev, vop->dev);
 		if (ret) {
 			vop->is_iommu_enabled = false;
@@ -3608,11 +3565,6 @@ static void vop_crtc_atomic_flush(struct drm_crtc *crtc,
 		} else {
 			vop->is_iommu_enabled = true;
 			VOP_CTRL_SET(vop, dma_stop, 0);
-		}
-
-		if (need_wait_vblank) {
-			VOP_INTR_SET_TYPE(vop, enable, LINE_FLAG_INTR, 0);
-			drm_crtc_vblank_put(crtc);
 		}
 	}
 
