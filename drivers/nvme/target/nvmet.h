@@ -286,8 +286,9 @@ struct nvmet_fabrics_ops {
 	struct module *owner;
 	unsigned int type;
 	unsigned int msdbd;
-	bool has_keyed_sgls : 1;
-	bool metadata_support : 1;
+	unsigned int flags;
+#define NVMF_KEYED_SGLS			(1 << 0)
+#define NVMF_METADATA_SUPPORTED		(1 << 1)
 	void (*queue_response)(struct nvmet_req *req);
 	int (*add_port)(struct nvmet_port *port);
 	void (*remove_port)(struct nvmet_port *port);
