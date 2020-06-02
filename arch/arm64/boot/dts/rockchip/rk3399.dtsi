@@ -466,7 +466,7 @@
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,xhci-slow-suspend-quirk;
 			snps,xhci-trb-ent-quirk;
-			snps,usb3-warm-reset-on-resume-quirk;
+			snps,xhci-warm-reset-on-suspend-quirk;
 			status = "disabled";
 		};
 	};
@@ -500,7 +500,7 @@
 			snps,dis-tx-ipgap-linecheck-quirk;
 			snps,xhci-slow-suspend-quirk;
 			snps,xhci-trb-ent-quirk;
-			snps,usb3-warm-reset-on-resume-quirk;
+			snps,xhci-warm-reset-on-suspend-quirk;
 			status = "disabled";
 		};
 	};
