@@ -29,73 +29,6 @@ enum dpu_perf_mode {
 	DPU_PERF_MODE_MAX
 };
 
-/**
- * @_dpu_core_perf_calc_bw() - to calculate BW per crtc
- * @kms -  pointer to the dpu_kms
- * @crtc - pointer to a crtc
- * Return: returns aggregated BW for all planes in crtc.
- */
-static u64 _dpu_core_perf_calc_bw(struct dpu_kms *kms,
-		struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	struct dpu_plane_state *pstate;
-	u64 crtc_plane_bw = 0;
-	u32 bw_factor;
-
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		pstate = to_dpu_plane_state(plane->state);
-
-		if (!pstate)
-			continue;
-
-		crtc_plane_bw += pstate->plane_fetch_bw;
-	}
-
-	bw_factor = kms->catalog->perf.bw_inefficiency_factor;
-	if (bw_factor)
-		crtc_plane_bw = mult_frac(crtc_plane_bw, bw_factor, 100);
-
-	return crtc_plane_bw;
-}
-
-/**
- * _dpu_core_perf_calc_clk() - to calculate clock per crtc
- * @kms -  pointer to the dpu_kms
- * @crtc - pointer to a crtc
- * @state - pointer to a crtc state
- * Return: returns max clk for all planes in crtc.
- */
-static u64 _dpu_core_perf_calc_clk(struct dpu_kms *kms,
-		struct drm_crtc *crtc, struct drm_crtc_state *state)
-{
-	struct drm_plane *plane;
-	struct dpu_plane_state *pstate;
-	struct drm_display_mode *mode;
-	u64 crtc_clk;
-	u32 clk_factor;
-
-	mode = &state->adjusted_mode;
-
-	crtc_clk = mode->vtotal * mode->hdisplay * drm_mode_vrefresh(mode);
-
-	drm_atomic_crtc_for_each_plane(plane, crtc) {
-		pstate = to_dpu_plane_state(plane->state);
-
-		if (!pstate)
-			continue;
-
-		crtc_clk = max(pstate->plane_clk, crtc_clk);
-	}
-
-	clk_factor = kms->catalog->perf.clk_inefficiency_factor;
-	if (clk_factor)
-		crtc_clk = mult_frac(crtc_clk, clk_factor, 100);
-
-	return crtc_clk;
-}
-
-
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv;
@@ -118,7 +51,12 @@ static void _dpu_core_perf_calc_crtc(struct dpu_kms *kms,
 	dpu_cstate = to_dpu_crtc_state(state);
 	memset(perf, 0, sizeof(struct dpu_core_perf_params));
 
-	if (kms->perf.perf_tune.mode == DPU_PERF_MODE_MINIMUM) {
+	if (!dpu_cstate->bw_control) {
+		perf->bw_ctl = kms->catalog->perf.max_bw_high *
+					1000ULL;
+		perf->max_per_pipe_ib = perf->bw_ctl;
+		perf->core_clk_rate = kms->perf.max_core_clk_rate;
+	} else if (kms->perf.perf_tune.mode == DPU_PERF_MODE_MINIMUM) {
 		perf->bw_ctl = 0;
 		perf->max_per_pipe_ib = 0;
 		perf->core_clk_rate = 0;
@@ -126,10 +64,6 @@ static void _dpu_core_perf_calc_crtc(struct dpu_kms *kms,
 		perf->bw_ctl = kms->perf.fix_core_ab_vote;
 		perf->max_per_pipe_ib = kms->perf.fix_core_ib_vote;
 		perf->core_clk_rate = kms->perf.fix_core_clk_rate;
-	} else {
-		perf->bw_ctl = _dpu_core_perf_calc_bw(kms, crtc);
-		perf->max_per_pipe_ib = kms->catalog->perf.min_dram_ib;
-		perf->core_clk_rate = _dpu_core_perf_calc_clk(kms, crtc, state);
 	}
 
 	DPU_DEBUG(
@@ -181,7 +115,11 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 			DPU_DEBUG("crtc:%d bw:%llu ctrl:%d\n",
 				tmp_crtc->base.id, tmp_cstate->new_perf.bw_ctl,
 				tmp_cstate->bw_control);
-
+			/*
+			 * For bw check only use the bw if the
+			 * atomic property has been already set
+			 */
+			if (tmp_cstate->bw_control)
 				bw_sum_of_intfs += tmp_cstate->new_perf.bw_ctl;
 		}
 
@@ -193,7 +131,9 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 
 		DPU_DEBUG("final threshold bw limit = %d\n", threshold);
 
-		if (!threshold) {
+		if (!dpu_cstate->bw_control) {
+			DPU_DEBUG("bypass bandwidth check\n");
+		} else if (!threshold) {
 			DPU_ERROR("no bandwidth limits specified\n");
 			return -E2BIG;
 		} else if (bw > threshold) {
@@ -214,8 +154,7 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 					= dpu_crtc_get_client_type(crtc);
 	struct drm_crtc *tmp_crtc;
 	struct dpu_crtc_state *dpu_cstate;
-	int i, ret = 0;
-	u64 avg_bw;
+	int ret = 0;
 
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
 		if (tmp_crtc->enabled &&
@@ -226,21 +165,10 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 			perf.max_per_pipe_ib = max(perf.max_per_pipe_ib,
 					dpu_cstate->new_perf.max_per_pipe_ib);
 
-			perf.bw_ctl += dpu_cstate->new_perf.bw_ctl;
-
-			DPU_DEBUG("crtc=%d bw=%llu paths:%d\n",
-				  tmp_crtc->base.id,
-				  dpu_cstate->new_perf.bw_ctl, kms->num_paths);
+			DPU_DEBUG("crtc=%d bw=%llu\n", tmp_crtc->base.id,
+					dpu_cstate->new_perf.bw_ctl);
 		}
 	}
-
-	avg_bw = kms->num_paths ?
-			perf.bw_ctl / kms->num_paths : 0;
-
-	for (i = 0; i < kms->num_paths; i++)
-		icc_set_bw(kms->path[i],
-			Bps_to_icc(avg_bw), (perf.max_per_pipe_ib));
-
 	return ret;
 }
 

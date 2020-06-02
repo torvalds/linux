@@ -541,8 +541,7 @@ static const struct dpu_perf_cfg sc7180_perf_data = {
 	.max_bw_high = 6800000,
 	.min_core_ib = 2400000,
 	.min_llcc_ib = 800000,
-	.min_dram_ib = 1600000,
-	.min_prefill_lines = 24,
+	.min_dram_ib = 800000,
 	.danger_lut_tbl = {0xff, 0xffff, 0x0},
 	.qos_lut_tbl = {
 		{.nentry = ARRAY_SIZE(sc7180_qos_linear),
@@ -559,8 +558,6 @@ static const struct dpu_perf_cfg sc7180_perf_data = {
 		{.rd_enable = 1, .wr_enable = 1},
 		{.rd_enable = 1, .wr_enable = 0}
 	},
-	.clk_inefficiency_factor = 105,
-	.bw_inefficiency_factor = 120,
 };
 
 /*************************************************************
