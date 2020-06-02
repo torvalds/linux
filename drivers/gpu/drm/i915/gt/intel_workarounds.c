@@ -1206,6 +1206,18 @@ static void cfl_whitelist_build(struct intel_engine_cs *engine)
 			  RING_FORCE_TO_NONPRIV_RANGE_4);
 }
 
+static void cml_whitelist_build(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *w = &engine->whitelist;
+
+	if (engine->class != RENDER_CLASS)
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+
+	cfl_whitelist_build(engine);
+}
+
 static void cnl_whitelist_build(struct intel_engine_cs *engine)
 {
 	struct i915_wa_list *w = &engine->whitelist;
@@ -1256,9 +1268,15 @@ static void icl_whitelist_build(struct intel_engine_cs *engine)
 		/* hucStatus2RegOffset */
 		whitelist_reg_ext(w, _MMIO(0x23B0 + engine->mmio_base),
 				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 
 	default:
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1290,6 +1308,9 @@ static void tgl_whitelist_build(struct intel_engine_cs *engine)
 		whitelist_reg(w, HIZ_CHICKEN);
 		break;
 	default:
+		whitelist_reg_ext(w,
+				  RING_CTX_TIMESTAMP(engine->mmio_base),
+				  RING_FORCE_TO_NONPRIV_ACCESS_RD);
 		break;
 	}
 }
@@ -1307,7 +1328,9 @@ void intel_engine_init_whitelist(struct intel_engine_cs *engine)
 		icl_whitelist_build(engine);
 	else if (IS_CANNONLAKE(i915))
 		cnl_whitelist_build(engine);
-	else if (IS_COFFEELAKE(i915) || IS_COMETLAKE(i915))
+	else if (IS_COMETLAKE(i915))
+		cml_whitelist_build(engine);
+	else if (IS_COFFEELAKE(i915))
 		cfl_whitelist_build(engine);
 	else if (IS_GEMINILAKE(i915))
 		glk_whitelist_build(engine);
