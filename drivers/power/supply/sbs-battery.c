@@ -51,14 +51,6 @@ enum {
 	REG_CHARGE_VOLTAGE,
 };
 
-#define REG_ADDR_SPEC_INFO		0x1A
-#define SPEC_INFO_VERSION_MASK		GENMASK(7, 4)
-#define SPEC_INFO_VERSION_SHIFT		4
-
-#define SBS_VERSION_1_0			1
-#define SBS_VERSION_1_1			2
-#define SBS_VERSION_1_1_WITH_PEC	3
-
 #define REG_ADDR_MANUFACTURE_DATE	0x1B
 
 /* Battery Mode defines */
@@ -232,56 +224,13 @@ exit:
 
 static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 {
-	struct i2c_client *client = chip->client;
-	int retries = chip->i2c_retry_count;
-	s32 ret = 0;
-	u8 version;
-
 	if (chip->is_present == is_present)
 		return 0;
 
 	if (!is_present) {
 		chip->is_present = false;
-		/* Disable PEC when no device is present */
-		client->flags &= ~I2C_CLIENT_PEC;
 		return 0;
 	}
-
-	/* Check if device supports packet error checking and use it */
-	while (retries > 0) {
-		ret = i2c_smbus_read_word_data(client, REG_ADDR_SPEC_INFO);
-		if (ret >= 0)
-			break;
-
-		/*
-		 * Some batteries trigger the detection pin before the
-		 * I2C bus is properly connected. This works around the
-		 * issue.
-		 */
-		msleep(100);
-
-		retries--;
-	}
-
-	if (ret < 0) {
-		dev_dbg(&client->dev, "failed to read spec info: %d\n", ret);
-
-		/* fallback to old behaviour */
-		client->flags &= ~I2C_CLIENT_PEC;
-		chip->is_present = true;
-
-		return ret;
-	}
-
-	version = (ret & SPEC_INFO_VERSION_MASK) >> SPEC_INFO_VERSION_SHIFT;
-
-	if (version == SBS_VERSION_1_1_WITH_PEC)
-		client->flags |= I2C_CLIENT_PEC;
-	else
-		client->flags &= ~I2C_CLIENT_PEC;
-
-	dev_dbg(&client->dev, "PEC: %s\n", (client->flags & I2C_CLIENT_PEC) ?
-		"enabled" : "disabled");
 
 	if (!chip->is_present && is_present && !chip->charger_broadcasts)
 		sbs_disable_charger_broadcasts(chip);
