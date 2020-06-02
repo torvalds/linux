@@ -2022,8 +2022,7 @@ ssize_t blkdev_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (bdev_read_only(I_BDEV(bd_inode)))
 		return -EPERM;
 
-	/* uswsusp needs write permission to the swap */
-	if (IS_SWAPFILE(bd_inode) && !hibernation_available())
+	if (IS_SWAPFILE(bd_inode) && !is_hibernate_resume_dev(bd_inode))
 		return -ETXTBSY;
 
 	if (!iov_iter_count(from))

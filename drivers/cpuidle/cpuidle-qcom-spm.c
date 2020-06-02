@@ -19,9 +19,10 @@
 #include <linux/cpu_pm.h>
 #include <linux/qcom_scm.h>
 
-#include <asm/cpuidle.h>
 #include <asm/proc-fns.h>
 #include <asm/suspend.h>
+
+#include "dt_idle_states.h"
 
 #define MAX_PMIC_DATA		2
 #define MAX_SEQ_DATA		64
@@ -62,6 +63,7 @@ struct spm_reg_data {
 };
 
 struct spm_driver_data {
+	struct cpuidle_driver cpuidle_driver;
 	void __iomem *reg_base;
 	const struct spm_reg_data *reg_data;
 };
@@ -106,11 +108,6 @@ static const struct spm_reg_data spm_reg_8064_cpu = {
 	.start_index[PM_SLEEP_MODE_STBY] = 0,
 	.start_index[PM_SLEEP_MODE_SPC] = 2,
 };
-
-static DEFINE_PER_CPU(struct spm_driver_data *, cpu_spm_drv);
-
-typedef int (*idle_fn)(void);
-static DEFINE_PER_CPU(idle_fn*, qcom_idle_ops);
 
 static inline void spm_register_write(struct spm_driver_data *drv,
 					enum spm_reg reg, u32 val)
@@ -172,10 +169,9 @@ static int qcom_pm_collapse(unsigned long int unused)
 	return -1;
 }
 
-static int qcom_cpu_spc(void)
+static int qcom_cpu_spc(struct spm_driver_data *drv)
 {
 	int ret;
-	struct spm_driver_data *drv = __this_cpu_read(cpu_spm_drv);
 
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_SPC);
 	ret = cpu_suspend(0, qcom_pm_collapse);
@@ -190,93 +186,48 @@ static int qcom_cpu_spc(void)
 	return ret;
 }
 
-static int qcom_idle_enter(unsigned long index)
+static int spm_enter_idle_state(struct cpuidle_device *dev,
+				struct cpuidle_driver *drv, int idx)
 {
-	return __this_cpu_read(qcom_idle_ops)[index]();
+	struct spm_driver_data *data = container_of(drv, struct spm_driver_data,
+						    cpuidle_driver);
+
+	return CPU_PM_CPU_IDLE_ENTER_PARAM(qcom_cpu_spc, idx, data);
 }
 
-static const struct of_device_id qcom_idle_state_match[] __initconst = {
-	{ .compatible = "qcom,idle-state-spc", .data = qcom_cpu_spc },
+static struct cpuidle_driver qcom_spm_idle_driver = {
+	.name = "qcom_spm",
+	.owner = THIS_MODULE,
+	.states[0] = {
+		.enter			= spm_enter_idle_state,
+		.exit_latency		= 1,
+		.target_residency	= 1,
+		.power_usage		= UINT_MAX,
+		.name			= "WFI",
+		.desc			= "ARM WFI",
+	}
+};
+
+static const struct of_device_id qcom_idle_state_match[] = {
+	{ .compatible = "qcom,idle-state-spc", .data = spm_enter_idle_state },
 	{ },
 };
 
-static int __init qcom_cpuidle_init(struct device_node *cpu_node, int cpu)
+static int spm_cpuidle_init(struct cpuidle_driver *drv, int cpu)
 {
-	const struct of_device_id *match_id;
-	struct device_node *state_node;
-	int i;
-	int state_count = 1;
-	idle_fn idle_fns[CPUIDLE_STATE_MAX];
-	idle_fn *fns;
-	cpumask_t mask;
-	bool use_scm_power_down = false;
+	int ret;
 
-	if (!qcom_scm_is_available())
-		return -EPROBE_DEFER;
+	memcpy(drv, &qcom_spm_idle_driver, sizeof(*drv));
+	drv->cpumask = (struct cpumask *)cpumask_of(cpu);
 
-	for (i = 0; ; i++) {
-		state_node = of_parse_phandle(cpu_node, "cpu-idle-states", i);
-		if (!state_node)
-			break;
+	/* Parse idle states from device tree */
+	ret = dt_init_idle_driver(drv, qcom_idle_state_match, 1);
+	if (ret <= 0)
+		return ret ? : -ENODEV;
 
-		if (!of_device_is_available(state_node))
-			continue;
-
-		if (i == CPUIDLE_STATE_MAX) {
-			pr_warn("%s: cpuidle states reached max possible\n",
-					__func__);
-			break;
-		}
-
-		match_id = of_match_node(qcom_idle_state_match, state_node);
-		if (!match_id)
-			return -ENODEV;
-
-		idle_fns[state_count] = match_id->data;
-
-		/* Check if any of the states allow power down */
-		if (match_id->data == qcom_cpu_spc)
-			use_scm_power_down = true;
-
-		state_count++;
-	}
-
-	if (state_count == 1)
-		goto check_spm;
-
-	fns = devm_kcalloc(get_cpu_device(cpu), state_count, sizeof(*fns),
-			GFP_KERNEL);
-	if (!fns)
-		return -ENOMEM;
-
-	for (i = 1; i < state_count; i++)
-		fns[i] = idle_fns[i];
-
-	if (use_scm_power_down) {
-		/* We have atleast one power down mode */
-		cpumask_clear(&mask);
-		cpumask_set_cpu(cpu, &mask);
-		qcom_scm_set_warm_boot_addr(cpu_resume_arm, &mask);
-	}
-
-	per_cpu(qcom_idle_ops, cpu) = fns;
-
-	/*
-	 * SPM probe for the cpu should have happened by now, if the
-	 * SPM device does not exist, return -ENXIO to indicate that the
-	 * cpu does not support idle states.
-	 */
-check_spm:
-	return per_cpu(cpu_spm_drv, cpu) ? 0 : -ENXIO;
+	/* We have atleast one power down mode */
+	return qcom_scm_set_warm_boot_addr(cpu_resume_arm, drv->cpumask);
 }
-
-static const struct cpuidle_ops qcom_cpuidle_ops __initconst = {
-	.suspend = qcom_idle_enter,
-	.init = qcom_cpuidle_init,
-};
-
-CPUIDLE_METHOD_OF_DECLARE(qcom_idle_v1, "qcom,kpss-acc-v1", &qcom_cpuidle_ops);
-CPUIDLE_METHOD_OF_DECLARE(qcom_idle_v2, "qcom,kpss-acc-v2", &qcom_cpuidle_ops);
 
 static struct spm_driver_data *spm_get_drv(struct platform_device *pdev,
 		int *spm_cpu)
@@ -323,11 +274,15 @@ static int spm_dev_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct of_device_id *match_id;
 	void __iomem *addr;
-	int cpu;
+	int cpu, ret;
+
+	if (!qcom_scm_is_available())
+		return -EPROBE_DEFER;
 
 	drv = spm_get_drv(pdev, &cpu);
 	if (!drv)
 		return -EINVAL;
+	platform_set_drvdata(pdev, drv);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	drv->reg_base = devm_ioremap_resource(&pdev->dev, res);
@@ -339,6 +294,10 @@ static int spm_dev_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	drv->reg_data = match_id->data;
+
+	ret = spm_cpuidle_init(&drv->cpuidle_driver, cpu);
+	if (ret)
+		return ret;
 
 	/* Write the SPM sequences first.. */
 	addr = drv->reg_base + drv->reg_data->reg_offset[SPM_REG_SEQ_ENTRY];
@@ -362,13 +321,20 @@ static int spm_dev_probe(struct platform_device *pdev)
 	/* Set up Standby as the default low power mode */
 	spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
 
-	per_cpu(cpu_spm_drv, cpu) = drv;
+	return cpuidle_register(&drv->cpuidle_driver, NULL);
+}
 
+static int spm_dev_remove(struct platform_device *pdev)
+{
+	struct spm_driver_data *drv = platform_get_drvdata(pdev);
+
+	cpuidle_unregister(&drv->cpuidle_driver);
 	return 0;
 }
 
 static struct platform_driver spm_driver = {
 	.probe = spm_dev_probe,
+	.remove = spm_dev_remove,
 	.driver = {
 		.name = "saw",
 		.of_match_table = spm_match_table,
