@@ -33,10 +33,12 @@
 #include "soc15_common.h"
 #include "atom.h"
 #include "sienna_cichlid_ppt.h"
-#include "smu_v11_0_pptable.h"
+#include "smu_v11_0_7_pptable.h"
 #include "smu_v11_0_7_ppsmc.h"
 #include "nbio/nbio_2_3_offset.h"
 #include "nbio/nbio_2_3_sh_mask.h"
+#include "thm/thm_11_0_2_offset.h"
+#include "thm/thm_11_0_2_sh_mask.h"
 
 #include "asic_reg/mp/mp_11_0_sh_mask.h"
 
@@ -360,13 +362,13 @@ sienna_cichlid_get_allowed_feature_mask(struct smu_context *smu,
 static int sienna_cichlid_check_powerplay_table(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_11_0_powerplay_table *powerplay_table =
+	struct smu_11_0_7_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
 
 	mutex_lock(&smu_baco->mutex);
-	if (powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_BACO ||
-	    powerplay_table->platform_caps & SMU_11_0_PP_PLATFORM_CAP_MACO)
+	if (powerplay_table->platform_caps & SMU_11_0_7_PP_PLATFORM_CAP_BACO ||
+	    powerplay_table->platform_caps & SMU_11_0_7_PP_PLATFORM_CAP_MACO)
 		smu_baco->platform_support = true;
 	mutex_unlock(&smu_baco->mutex);
 
@@ -485,7 +487,7 @@ static int sienna_cichlid_append_powerplay_table(struct smu_context *smu)
 static int sienna_cichlid_store_powerplay_table(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_11_0_powerplay_table *powerplay_table =
+	struct smu_11_0_7_powerplay_table *powerplay_table =
 		table_context->power_play_table;
 
 	memcpy(table_context->driver_pptable, &powerplay_table->smc_pptable,
@@ -1601,7 +1603,7 @@ static int sienna_cichlid_get_thermal_temperature_range(struct smu_context *smu,
 						struct smu_temperature_range *range)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
-	struct smu_11_0_powerplay_table *powerplay_table = table_context->power_play_table;
+	struct smu_11_0_7_powerplay_table *powerplay_table = table_context->power_play_table;
 
 	if (!range || !powerplay_table)
 		return -EINVAL;
@@ -1677,7 +1679,7 @@ static int sienna_cichlid_get_power_limit(struct smu_context *smu,
 	}
 
 	if (cap)
-		*limit = smu_v11_0_get_max_power_limit(smu);
+		*limit = smu_get_max_power_limit(smu);
 	else
 		*limit = smu->power_limit;
 
@@ -1763,6 +1765,64 @@ static bool sienna_cichlid_is_baco_supported(struct smu_context *smu)
 
 	val = RREG32_SOC15(NBIO, 0, mmRCC_BIF_STRAP0);
 	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
+}
+
+static int sienna_cichlid_set_thermal_range(struct smu_context *smu,
+				       struct smu_temperature_range range)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP;
+	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP;
+	uint32_t val;
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_11_0_7_powerplay_table *powerplay_table = table_context->power_play_table;
+
+	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
+			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
+	high = min((uint16_t)SMU_THERMAL_MAXIMUM_ALERT_TEMP, powerplay_table->software_shutdown_temp);
+
+	if (low > high)
+		return -EINVAL;
+
+	val = RREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, MAX_IH_CREDIT, 5);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTH_MASK, 0);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_INTL_MASK, 0);
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high & 0xff));
+	val = REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low & 0xff));
+	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+
+	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
+
+	return 0;
+}
+
+static uint32_t sienna_cichlid_get_max_power_limit(struct smu_context *smu) {
+	uint32_t od_limit, max_power_limit;
+	struct smu_11_0_7_powerplay_table *powerplay_table = NULL;
+	struct smu_table_context *table_context = &smu->smu_table;
+	powerplay_table = table_context->power_play_table;
+
+	max_power_limit = smu_get_pptable_power_limit(smu);
+
+	if (!max_power_limit) {
+		// If we couldn't get the table limit, fall back on first-read value
+		if (!smu->default_power_limit)
+			smu->default_power_limit = smu->power_limit;
+		max_power_limit = smu->default_power_limit;
+	}
+
+	if (smu->od_enabled) {
+		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
+
+		pr_debug("ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
+
+		max_power_limit *= (100 + od_limit);
+		max_power_limit /= 100;
+	}
+
+	return max_power_limit;
 }
 
 static void sienna_cichlid_dump_pptable(struct smu_context *smu)
@@ -2516,6 +2576,8 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_soft_freq_limited_range = sienna_cichlid_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.get_pptable_power_limit = sienna_cichlid_get_pptable_power_limit,
+	.set_thermal_range = sienna_cichlid_set_thermal_range,
+	.get_max_power_limit = sienna_cichlid_get_max_power_limit,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)
