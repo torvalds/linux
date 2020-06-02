@@ -93,10 +93,8 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 
 #define set_pte_at(mm, addr, ptep, pteval)			\
 	do {							\
-		pte_t old_pte;					\
 		unsigned long flags;				\
 		spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);\
-		old_pte = *ptep;				\
 		set_pte(ptep, pteval);				\
 		purge_tlb_entries(mm, addr);			\
 		spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);\
