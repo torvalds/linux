@@ -2566,7 +2566,6 @@ page_not_uptodate:
 	if (!error || error == AOP_TRUNCATED_PAGE)
 		goto retry_find;
 
-	/* Things didn't work out. Return zero to tell the mm layer so. */
 	shrink_readahead_size_eio(ra);
 	return VM_FAULT_SIGBUS;
 
