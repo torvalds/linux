@@ -222,7 +222,7 @@
 	BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 2),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
-	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_0, offsetofend(struct bpf_sock, state)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_0, offsetofend(struct bpf_sock, rx_queue_mapping)),
 	BPF_MOV64_IMM(BPF_REG_0, 0),
 	BPF_EXIT_INSN(),
 	},
