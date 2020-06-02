@@ -231,7 +231,7 @@
 				#interrupt-cells = <2>;
 			};
 
-			esdhc1: esdhc@53fb4000 {
+			esdhc1: mmc@53fb4000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fb4000 0x4000>;
 				interrupts = <7>;
@@ -240,7 +240,7 @@
 				status = "disabled";
 			};
 
-			esdhc2: esdhc@53fb8000 {
+			esdhc2: mmc@53fb8000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fb8000 0x4000>;
 				interrupts = <8>;
@@ -249,7 +249,7 @@
 				status = "disabled";
 			};
 
-			esdhc3: esdhc@53fbc000 {
+			esdhc3: mmc@53fbc000 {
 				compatible = "fsl,imx35-esdhc";
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <9>;

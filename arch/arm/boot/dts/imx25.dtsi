@@ -453,7 +453,7 @@
 				interrupts = <22>;
 			};
 
-			esdhc1: esdhc@53fb4000 {
+			esdhc1: mmc@53fb4000 {
 				compatible = "fsl,imx25-esdhc";
 				reg = <0x53fb4000 0x4000>;
 				interrupts = <9>;
@@ -462,7 +462,7 @@
 				status = "disabled";
 			};
 
-			esdhc2: esdhc@53fb8000 {
+			esdhc2: mmc@53fb8000 {
 				compatible = "fsl,imx25-esdhc";
 				reg = <0x53fb8000 0x4000>;
 				interrupts = <8>;

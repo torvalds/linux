@@ -185,7 +185,7 @@
 				reg = <0x70000000 0x40000>;
 				ranges;
 
-				esdhc1: esdhc@70004000 {
+				esdhc1: mmc@70004000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70004000 0x4000>;
 					interrupts = <1>;
@@ -196,7 +196,7 @@
 					status = "disabled";
 				};
 
-				esdhc2: esdhc@70008000 {
+				esdhc2: mmc@70008000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70008000 0x4000>;
 					interrupts = <2>;
@@ -245,7 +245,7 @@
 					status = "disabled";
 				};
 
-				esdhc3: esdhc@70020000 {
+				esdhc3: mmc@70020000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
 					interrupts = <3>;
@@ -257,7 +257,7 @@
 					status = "disabled";
 				};
 
-				esdhc4: esdhc@70024000 {
+				esdhc4: mmc@70024000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70024000 0x4000>;
 					interrupts = <4>;
