@@ -371,8 +371,11 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 
 	/* Get a data zone */
 	dzone = dmz_get_zone_for_reclaim(zmd, dmz_target_idle(zrc));
-	if (!dzone)
+	if (!dzone) {
+		DMDEBUG("(%s): No zone found to reclaim",
+			dmz_metadata_label(zmd));
 		return -EBUSY;
+	}
 
 	start = jiffies;
 	if (dmz_is_cache(dzone) || dmz_is_rnd(dzone)) {
@@ -416,6 +419,12 @@ static int dmz_do_reclaim(struct dmz_reclaim *zrc)
 	}
 out:
 	if (ret) {
+		if (ret == -EINTR)
+			DMDEBUG("(%s): reclaim zone %u interrupted",
+				dmz_metadata_label(zmd), rzone->id);
+		else
+			DMDEBUG("(%s): Failed to reclaim zone %u, err %d",
+				dmz_metadata_label(zmd), rzone->id, ret);
 		dmz_unlock_zone_reclaim(dzone);
 		return ret;
 	}
@@ -519,8 +528,6 @@ static void dmz_reclaim_work(struct work_struct *work)
 
 	ret = dmz_do_reclaim(zrc);
 	if (ret && ret != -EINTR) {
-		DMDEBUG("(%s): Reclaim error %d",
-			dmz_metadata_label(zmd), ret);
 		if (!dmz_check_dev(zmd))
 			return;
 	}
