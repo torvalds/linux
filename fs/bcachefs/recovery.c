@@ -1154,6 +1154,15 @@ int bch2_fs_initialize(struct bch_fs *c)
 		bch2_mark_dev_superblock(c, ca, 0);
 	mutex_unlock(&c->sb_lock);
 
+	mutex_lock(&c->sb_lock);
+	c->disk_sb.sb->version = c->disk_sb.sb->version_min =
+		le16_to_cpu(bcachefs_metadata_version_current);
+	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
+	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 	set_bit(BCH_FS_INITIAL_GC_DONE, &c->flags);
 
@@ -1212,11 +1221,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 
 	mutex_lock(&c->sb_lock);
-	c->disk_sb.sb->version = c->disk_sb.sb->version_min =
-		le16_to_cpu(bcachefs_metadata_version_current);
-	c->disk_sb.sb->features[0] |= 1ULL << BCH_FEATURE_atomic_nlink;
-	c->disk_sb.sb->features[0] |= BCH_SB_FEATURES_ALL;
-
 	SET_BCH_SB_INITIALIZED(c->disk_sb.sb, true);
 	SET_BCH_SB_CLEAN(c->disk_sb.sb, false);
 
