@@ -2080,9 +2080,7 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 		if (root->root_key.objectid != BTRFS_DATA_RELOC_TREE_OBJECTID &&
 		    do_list && !(state->state & EXTENT_NORESERVE) &&
 		    (*bits & EXTENT_CLEAR_DATA_RESV))
-			btrfs_free_reserved_data_space_noquota(
-					&inode->vfs_inode,
-					len);
+			btrfs_free_reserved_data_space_noquota(fs_info, len);
 
 		percpu_counter_add_batch(&fs_info->delalloc_bytes, -len,
 					 fs_info->delalloc_batch);
@@ -7312,7 +7310,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 			 * use the existing or preallocated extent, so does not
 			 * need to adjust btrfs_space_info's bytes_may_use.
 			 */
-			btrfs_free_reserved_data_space_noquota(inode, len);
+			btrfs_free_reserved_data_space_noquota(fs_info, len);
 			goto skip_cow;
 		}
 	}

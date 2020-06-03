@@ -2613,7 +2613,7 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	inode_unlock(inode);
 
 	if (cur_offset < prealloc_end)
-		btrfs_free_reserved_data_space_noquota(inode,
+		btrfs_free_reserved_data_space_noquota(btrfs_sb(inode->i_sb),
 					       prealloc_end + 1 - cur_offset);
 	return ret;
 }
