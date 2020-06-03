@@ -2100,7 +2100,7 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
 	INIT_LIST_HEAD(&cc->freepages);
 	INIT_LIST_HEAD(&cc->migratepages);
 
-	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+	cc->migratetype = gfp_migratetype(cc->gfp_mask);
 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
 							cc->highest_zoneidx);
 	/* Compaction is likely to fail */
