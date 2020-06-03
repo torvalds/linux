@@ -989,12 +989,12 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 	vht_cap->vht_supported = true;
 	vht_cap->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 		       IEEE80211_VHT_CAP_SHORT_GI_80 |
-		       IEEE80211_VHT_CAP_TXSTBC |
 		       IEEE80211_VHT_CAP_RXSTBC_1 |
 		       IEEE80211_VHT_CAP_HTC_VHT |
 		       IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
 		       0;
-
+	if (rtwdev->hal.rf_path_num > 1)
+		vht_cap->cap |= IEEE80211_VHT_CAP_TXSTBC;
 	vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
 			IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
 	vht_cap->cap |= (rtwdev->hal.bfee_sts_cap <<
