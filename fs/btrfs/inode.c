@@ -424,29 +424,30 @@ static inline bool inode_can_compress(struct btrfs_inode *inode)
  * Check if the inode needs to be submitted to compression, based on mount
  * options, defragmentation, properties or heuristics.
  */
-static inline int inode_need_compress(struct inode *inode, u64 start, u64 end)
+static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
+				      u64 end)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
-	if (!inode_can_compress(BTRFS_I(inode))) {
+	if (!inode_can_compress(inode)) {
 		WARN(IS_ENABLED(CONFIG_BTRFS_DEBUG),
 			KERN_ERR "BTRFS: unexpected compression for ino %llu\n",
-			btrfs_ino(BTRFS_I(inode)));
+			btrfs_ino(inode));
 		return 0;
 	}
 	/* force compress */
 	if (btrfs_test_opt(fs_info, FORCE_COMPRESS))
 		return 1;
 	/* defrag ioctl */
-	if (BTRFS_I(inode)->defrag_compress)
+	if (inode->defrag_compress)
 		return 1;
 	/* bad compression ratios */
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS)
+	if (inode->flags & BTRFS_INODE_NOCOMPRESS)
 		return 0;
 	if (btrfs_test_opt(fs_info, COMPRESS) ||
-	    BTRFS_I(inode)->flags & BTRFS_INODE_COMPRESS ||
-	    BTRFS_I(inode)->prop_compress)
-		return btrfs_compress_heuristic(inode, start, end);
+	    inode->flags & BTRFS_INODE_COMPRESS ||
+	    inode->prop_compress)
+		return btrfs_compress_heuristic(&inode->vfs_inode, start, end);
 	return 0;
 }
 
@@ -552,7 +553,7 @@ again:
 	 * inode has not been flagged as nocompress.  This flag can
 	 * change at any time if we discover bad compression ratios.
 	 */
-	if (inode_need_compress(inode, start, end)) {
+	if (inode_need_compress(BTRFS_I(inode), start, end)) {
 		WARN_ON(pages);
 		pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
 		if (!pages) {
@@ -1827,7 +1828,7 @@ int btrfs_run_delalloc_range(struct inode *inode, struct page *locked_page,
 		ret = run_delalloc_nocow(BTRFS_I(inode), locked_page, start, end,
 					 page_started, 0, nr_written);
 	} else if (!inode_can_compress(BTRFS_I(inode)) ||
-		   !inode_need_compress(inode, start, end)) {
+		   !inode_need_compress(BTRFS_I(inode), start, end)) {
 		ret = cow_file_range(BTRFS_I(inode), locked_page, start, end,
 				      page_started, nr_written, 1);
 	} else {
