@@ -24,6 +24,7 @@
 #define FSL_UPM_WAIT_WRITE_BUFFER 0x4
 
 struct fsl_upm_nand {
+	struct nand_controller base;
 	struct device *dev;
 	struct nand_chip chip;
 	int last_ctrl;
@@ -167,6 +168,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	if (!fun->rnb_gpio[0])
 		fun->chip.legacy.dev_ready = fun_chip_ready;
 
+	fun->chip.controller = &fun->base;
 	mtd->dev.parent = fun->dev;
 
 	flash_np = of_get_next_child(upm_np, NULL);
@@ -268,6 +270,7 @@ static int fun_probe(struct platform_device *ofdev)
 		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
+	nand_controller_init(&fun->base);
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
