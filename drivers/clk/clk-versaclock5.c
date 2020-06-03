@@ -24,6 +24,8 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
+#include <dt-bindings/clk/versaclock.h>
+
 /* VersaClock5 registers */
 #define VC5_OTP_CONTROL				0x00
 
@@ -89,6 +91,28 @@
 
 /* Clock control register for clock 1,2 */
 #define VC5_CLK_OUTPUT_CFG(idx, n)	(0x60 + ((idx) * 0x2) + (n))
+#define VC5_CLK_OUTPUT_CFG0_CFG_SHIFT	5
+#define VC5_CLK_OUTPUT_CFG0_CFG_MASK GENMASK(7, VC5_CLK_OUTPUT_CFG0_CFG_SHIFT)
+
+#define VC5_CLK_OUTPUT_CFG0_CFG_LVPECL	(VC5_LVPECL)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOS		(VC5_CMOS)
+#define VC5_CLK_OUTPUT_CFG0_CFG_HCSL33	(VC5_HCSL33)
+#define VC5_CLK_OUTPUT_CFG0_CFG_LVDS		(VC5_LVDS)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOS2		(VC5_CMOS2)
+#define VC5_CLK_OUTPUT_CFG0_CFG_CMOSD		(VC5_CMOSD)
+#define VC5_CLK_OUTPUT_CFG0_CFG_HCSL25	(VC5_HCSL25)
+
+#define VC5_CLK_OUTPUT_CFG0_PWR_SHIFT	3
+#define VC5_CLK_OUTPUT_CFG0_PWR_MASK GENMASK(4, VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_18	(0<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_25	(2<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_PWR_33	(3<<VC5_CLK_OUTPUT_CFG0_PWR_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT	0
+#define VC5_CLK_OUTPUT_CFG0_SLEW_MASK GENMASK(1, VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_80	(0<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_85	(1<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_90	(2<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
+#define VC5_CLK_OUTPUT_CFG0_SLEW_100	(3<<VC5_CLK_OUTPUT_CFG0_SLEW_SHIFT)
 #define VC5_CLK_OUTPUT_CFG1_EN_CLKBUF	BIT(0)
 
 #define VC5_CLK_OE_SHDN				0x68
@@ -143,6 +167,8 @@ struct vc5_hw_data {
 	u32			div_int;
 	u32			div_frc;
 	unsigned int		num;
+	unsigned int		clk_output_cfg0;
+	unsigned int		clk_output_cfg0_mask;
 };
 
 struct vc5_driver_data {
@@ -567,6 +593,17 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 	regmap_update_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
 			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF,
 			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF);
+	if (hwdata->clk_output_cfg0_mask) {
+		dev_dbg(&vc5->client->dev, "Update output %d mask 0x%0X val 0x%0X\n",
+			hwdata->num, hwdata->clk_output_cfg0_mask,
+			hwdata->clk_output_cfg0);
+
+		regmap_update_bits(vc5->regmap,
+			VC5_CLK_OUTPUT_CFG(hwdata->num, 0),
+			hwdata->clk_output_cfg0_mask,
+			hwdata->clk_output_cfg0);
+	}
+
 	return 0;
 }
 
@@ -664,6 +701,120 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 	default:
 		return n;
 	}
+}
+
+static int vc5_update_mode(struct device_node *np_output,
+			   struct vc5_hw_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output, "idt,mode", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_CFG_MASK;
+		switch (value) {
+		case VC5_CLK_OUTPUT_CFG0_CFG_LVPECL:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOS:
+		case VC5_CLK_OUTPUT_CFG0_CFG_HCSL33:
+		case VC5_CLK_OUTPUT_CFG0_CFG_LVDS:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOS2:
+		case VC5_CLK_OUTPUT_CFG0_CFG_CMOSD:
+		case VC5_CLK_OUTPUT_CFG0_CFG_HCSL25:
+			clk_out->clk_output_cfg0 |=
+			    value << VC5_CLK_OUTPUT_CFG0_CFG_SHIFT;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_update_power(struct device_node *np_output,
+			    struct vc5_hw_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output,
+				  "idt,voltage-microvolts", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_PWR_MASK;
+		switch (value) {
+		case 1800000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_18;
+			break;
+		case 2500000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_25;
+			break;
+		case 3300000:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_PWR_33;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_update_slew(struct device_node *np_output,
+			   struct vc5_hw_data *clk_out)
+{
+	u32 value;
+
+	if (!of_property_read_u32(np_output, "idt,slew-percent", &value)) {
+		clk_out->clk_output_cfg0_mask |= VC5_CLK_OUTPUT_CFG0_SLEW_MASK;
+		switch (value) {
+		case 80:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_80;
+			break;
+		case 85:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_85;
+			break;
+		case 90:
+			clk_out->clk_output_cfg0 |= VC5_CLK_OUTPUT_CFG0_SLEW_90;
+			break;
+		case 100:
+			clk_out->clk_output_cfg0 |=
+			    VC5_CLK_OUTPUT_CFG0_SLEW_100;
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
+static int vc5_get_output_config(struct i2c_client *client,
+				 struct vc5_hw_data *clk_out)
+{
+	struct device_node *np_output;
+	char *child_name;
+	int ret = 0;
+
+	child_name = kasprintf(GFP_KERNEL, "OUT%d", clk_out->num + 1);
+	np_output = of_get_child_by_name(client->dev.of_node, child_name);
+	kfree(child_name);
+	if (!np_output)
+		goto output_done;
+
+	ret = vc5_update_mode(np_output, clk_out);
+	if (ret)
+		goto output_error;
+
+	ret = vc5_update_power(np_output, clk_out);
+	if (ret)
+		goto output_error;
+
+	ret = vc5_update_slew(np_output, clk_out);
+
+output_error:
+	if (ret) {
+		dev_err(&client->dev,
+			"Invalid clock output configuration OUT%d\n",
+			clk_out->num + 1);
+	}
+
+	of_node_put(np_output);
+
+output_done:
+	return ret;
 }
 
 static const struct of_device_id clk_vc5_of_match[];
@@ -863,6 +1014,11 @@ static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				init.name);
 			goto err_clk;
 		}
+
+		/* Fetch Clock Output configuration from DT (if specified) */
+		ret = vc5_get_output_config(client, &vc5->clk_out[n]);
+		if (ret)
+			goto err_clk;
 	}
 
 	ret = of_clk_add_hw_provider(client->dev.of_node, vc5_of_clk_get, vc5);
