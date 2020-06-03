@@ -4151,7 +4151,7 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		return ret;
 
-	ret = __btrfs_drop_extents(trans, log, &inode->vfs_inode, path, em->start,
+	ret = __btrfs_drop_extents(trans, log, inode, path, em->start,
 				   em->start + em->len, NULL, 0, 1,
 				   sizeof(*fi), &extent_inserted);
 	if (ret)

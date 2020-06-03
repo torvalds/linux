@@ -323,7 +323,7 @@ static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 		extent_item_size = btrfs_file_extent_calc_inline_size(
 		    inline_len);
 
-	ret = __btrfs_drop_extents(trans, root, inode, path,
+	ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path,
 				   start, aligned_end, NULL,
 				   1, 1, extent_item_size, &extent_inserted);
 	if (ret) {
@@ -2498,7 +2498,7 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * the caller is expected to unpin it and allow it to be merged
 	 * with the others.
 	 */
-	ret = __btrfs_drop_extents(trans, root, inode, path, file_pos,
+	ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path, file_pos,
 				   file_pos + num_bytes, NULL, 0,
 				   1, sizeof(*stack_fi), &extent_inserted);
 	if (ret)

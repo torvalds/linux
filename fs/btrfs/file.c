@@ -731,7 +731,7 @@ next:
  * is deleted from the tree.
  */
 int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
-			 struct btrfs_root *root, struct inode *inode,
+			 struct btrfs_root *root, struct btrfs_inode *inode,
 			 struct btrfs_path *path, u64 start, u64 end,
 			 u64 *drop_end, int drop_cache,
 			 int replace_extent,
@@ -744,7 +744,8 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	struct btrfs_ref ref = { 0 };
 	struct btrfs_key key;
 	struct btrfs_key new_key;
-	u64 ino = btrfs_ino(BTRFS_I(inode));
+	struct inode *vfs_inode = &inode->vfs_inode;
+	u64 ino = btrfs_ino(inode);
 	u64 search_start = start;
 	u64 disk_bytenr = 0;
 	u64 num_bytes = 0;
@@ -762,9 +763,9 @@ int __btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	int leafs_visited = 0;
 
 	if (drop_cache)
-		btrfs_drop_extent_cache(BTRFS_I(inode), start, end - 1, 0);
+		btrfs_drop_extent_cache(inode, start, end - 1, 0);
 
-	if (start >= BTRFS_I(inode)->disk_i_size && !replace_extent)
+	if (start >= inode->disk_i_size && !replace_extent)
 		modify_tree = 0;
 
 	update_refs = (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) ||
@@ -935,7 +936,7 @@ next_slot:
 							extent_end - end);
 			btrfs_mark_buffer_dirty(leaf);
 			if (update_refs && disk_bytenr > 0)
-				inode_sub_bytes(inode, end - key.offset);
+				inode_sub_bytes(vfs_inode, end - key.offset);
 			break;
 		}
 
@@ -955,7 +956,7 @@ next_slot:
 							start - key.offset);
 			btrfs_mark_buffer_dirty(leaf);
 			if (update_refs && disk_bytenr > 0)
-				inode_sub_bytes(inode, extent_end - start);
+				inode_sub_bytes(vfs_inode, extent_end - start);
 			if (end == extent_end)
 				break;
 
@@ -979,7 +980,7 @@ delete_extent_item:
 
 			if (update_refs &&
 			    extent_type == BTRFS_FILE_EXTENT_INLINE) {
-				inode_sub_bytes(inode,
+				inode_sub_bytes(vfs_inode,
 						extent_end - key.offset);
 				extent_end = ALIGN(extent_end,
 						   fs_info->sectorsize);
@@ -993,7 +994,7 @@ delete_extent_item:
 						key.offset - extent_offset);
 				ret = btrfs_free_extent(trans, &ref);
 				BUG_ON(ret); /* -ENOMEM */
-				inode_sub_bytes(inode,
+				inode_sub_bytes(vfs_inode,
 						extent_end - key.offset);
 			}
 
@@ -1082,8 +1083,8 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
-	ret = __btrfs_drop_extents(trans, root, inode, path, start, end, NULL,
-				   drop_cache, 0, 0, NULL);
+	ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path, start,
+				   end, NULL, drop_cache, 0, 0, NULL);
 	btrfs_free_path(path);
 	return ret;
 }
@@ -2596,7 +2597,7 @@ int btrfs_punch_hole_range(struct inode *inode, struct btrfs_path *path,
 
 	cur_offset = start;
 	while (cur_offset < end) {
-		ret = __btrfs_drop_extents(trans, root, inode, path,
+		ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path,
 					   cur_offset, end + 1, &drop_end,
 					   1, 0, 0, NULL);
 		if (ret != -ENOSPC) {
