@@ -282,11 +282,33 @@ void lru_note_cost(struct page *page)
 {
 	struct lruvec *lruvec = mem_cgroup_page_lruvec(page, page_pgdat(page));
 
-	/* Record new data point */
-	if (page_is_file_lru(page))
-		lruvec->file_cost++;
-	else
-		lruvec->anon_cost++;
+	do {
+		unsigned long lrusize;
+
+		/* Record cost event */
+		if (page_is_file_lru(page))
+			lruvec->file_cost++;
+		else
+			lruvec->anon_cost++;
+
+		/*
+		 * Decay previous events
+		 *
+		 * Because workloads change over time (and to avoid
+		 * overflow) we keep these statistics as a floating
+		 * average, which ends up weighing recent refaults
+		 * more than old ones.
+		 */
+		lrusize = lruvec_page_state(lruvec, NR_INACTIVE_ANON) +
+			  lruvec_page_state(lruvec, NR_ACTIVE_ANON) +
+			  lruvec_page_state(lruvec, NR_INACTIVE_FILE) +
+			  lruvec_page_state(lruvec, NR_ACTIVE_FILE);
+
+		if (lruvec->file_cost + lruvec->anon_cost > lrusize / 4) {
+			lruvec->file_cost /= 2;
+			lruvec->anon_cost /= 2;
+		}
+	} while ((lruvec = parent_lruvec(lruvec)));
 }
 
 static void __activate_page(struct page *page, struct lruvec *lruvec,

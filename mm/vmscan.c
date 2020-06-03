@@ -79,6 +79,12 @@ struct scan_control {
 	 */
 	struct mem_cgroup *target_mem_cgroup;
 
+	/*
+	 * Scan pressure balancing between anon and file LRUs
+	 */
+	unsigned long	anon_cost;
+	unsigned long	file_cost;
+
 	/* Can active pages be deactivated as part of reclaim? */
 #define DEACTIVATE_ANON 1
 #define DEACTIVATE_FILE 2
@@ -2231,10 +2237,8 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	int swappiness = mem_cgroup_swappiness(memcg);
 	u64 fraction[2];
 	u64 denominator = 0;	/* gcc */
-	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 	unsigned long anon_prio, file_prio;
 	enum scan_balance scan_balance;
-	unsigned long anon, file;
 	unsigned long totalcost;
 	unsigned long ap, fp;
 	enum lru_list lru;
@@ -2285,7 +2289,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	}
 
 	scan_balance = SCAN_FRACT;
-
 	/*
 	 * Calculate the pressure balance between anon and file pages.
 	 *
@@ -2300,30 +2303,12 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	anon_prio = swappiness;
 	file_prio = 200 - anon_prio;
 
-	/*
-	 * Because workloads change over time (and to avoid overflow)
-	 * we keep these statistics as a floating average, which ends
-	 * up weighing recent refaults more than old ones.
-	 */
-
-	anon  = lruvec_lru_size(lruvec, LRU_ACTIVE_ANON, MAX_NR_ZONES) +
-		lruvec_lru_size(lruvec, LRU_INACTIVE_ANON, MAX_NR_ZONES);
-	file  = lruvec_lru_size(lruvec, LRU_ACTIVE_FILE, MAX_NR_ZONES) +
-		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES);
-
-	spin_lock_irq(&pgdat->lru_lock);
-	totalcost = lruvec->anon_cost + lruvec->file_cost;
-	if (unlikely(totalcost > (anon + file) / 4)) {
-		lruvec->anon_cost /= 2;
-		lruvec->file_cost /= 2;
-		totalcost /= 2;
-	}
+	totalcost = sc->anon_cost + sc->file_cost;
 	ap = anon_prio * (totalcost + 1);
-	ap /= lruvec->anon_cost + 1;
+	ap /= sc->anon_cost + 1;
 
 	fp = file_prio * (totalcost + 1);
-	fp /= lruvec->file_cost + 1;
-	spin_unlock_irq(&pgdat->lru_lock);
+	fp /= sc->file_cost + 1;
 
 	fraction[0] = ap;
 	fraction[1] = fp;
@@ -2686,6 +2671,14 @@ again:
 
 	nr_reclaimed = sc->nr_reclaimed;
 	nr_scanned = sc->nr_scanned;
+
+	/*
+	 * Determine the scan balance between anon and file LRUs.
+	 */
+	spin_lock_irq(&pgdat->lru_lock);
+	sc->anon_cost = target_lruvec->anon_cost;
+	sc->file_cost = target_lruvec->file_cost;
+	spin_unlock_irq(&pgdat->lru_lock);
 
 	/*
 	 * Target desirable inactive:active list ratios for the anon
