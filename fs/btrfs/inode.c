@@ -6890,7 +6890,7 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 		if (IS_ERR(em))
 			goto out;
 	}
-	ret = btrfs_add_ordered_extent_dio(inode, start, block_start,
+	ret = btrfs_add_ordered_extent_dio(BTRFS_I(inode), start, block_start,
 					   len, block_len, type);
 	if (ret) {
 		if (em) {
