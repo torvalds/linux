@@ -12841,7 +12841,7 @@ M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 M:	Helge Deller <deller@gmx.de>
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
-W:	http://www.parisc-linux.org/
+W:	https://parisc.wiki.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-parisc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/parisc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git
