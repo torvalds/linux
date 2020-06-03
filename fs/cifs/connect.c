@@ -1964,9 +1964,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_multichannel:
 			vol->multichannel = true;
+			/* if number of channels not specified, default to 2 */
+			if (vol->max_channels < 2)
+				vol->max_channels = 2;
 			break;
 		case Opt_nomultichannel:
 			vol->multichannel = false;
+			vol->max_channels = 1;
 			break;
 		case Opt_compress:
 			vol->compression = UNKNOWN_TYPE;
