@@ -104,7 +104,7 @@ static void __endio_write_update_ordered(struct btrfs_inode *inode,
  * to be released, which we want to happen only when finishing the ordered
  * extent (btrfs_finish_ordered_io()).
  */
-static inline void btrfs_cleanup_ordered_extents(struct inode *inode,
+static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 						 struct page *locked_page,
 						 u64 offset, u64 bytes)
 {
@@ -116,7 +116,7 @@ static inline void btrfs_cleanup_ordered_extents(struct inode *inode,
 	struct page *page;
 
 	while (index <= end_index) {
-		page = find_get_page(inode->i_mapping, index);
+		page = find_get_page(inode->vfs_inode.i_mapping, index);
 		index++;
 		if (!page)
 			continue;
@@ -134,8 +134,7 @@ static inline void btrfs_cleanup_ordered_extents(struct inode *inode,
 		bytes -= PAGE_SIZE;
 	}
 
-	return __endio_write_update_ordered(BTRFS_I(inode), offset, bytes,
-					    false);
+	return __endio_write_update_ordered(inode, offset, bytes, false);
 }
 
 static int btrfs_dirty_inode(struct inode *inode);
@@ -1838,7 +1837,7 @@ int btrfs_run_delalloc_range(struct inode *inode, struct page *locked_page,
 					   page_started, nr_written);
 	}
 	if (ret)
-		btrfs_cleanup_ordered_extents(inode, locked_page, start,
+		btrfs_cleanup_ordered_extents(BTRFS_I(inode), locked_page, start,
 					      end - start + 1);
 	return ret;
 }
