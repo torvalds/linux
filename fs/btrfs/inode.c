@@ -862,7 +862,7 @@ retry:
 			goto out_free_reserve;
 		free_extent_map(em);
 
-		ret = btrfs_add_ordered_extent_compress(inode,
+		ret = btrfs_add_ordered_extent_compress(BTRFS_I(inode),
 						async_extent->start,
 						ins.objectid,
 						async_extent->ram_size,
