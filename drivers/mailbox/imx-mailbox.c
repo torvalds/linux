@@ -292,6 +292,7 @@ static int imx_mu_startup(struct mbox_chan *chan)
 {
 	struct imx_mu_priv *priv = to_imx_mu_priv(chan->mbox);
 	struct imx_mu_con_priv *cp = chan->con_priv;
+	unsigned long irq_flag = IRQF_SHARED;
 	int ret;
 
 	pm_runtime_get_sync(priv->dev);
@@ -302,8 +303,12 @@ static int imx_mu_startup(struct mbox_chan *chan)
 		return 0;
 	}
 
-	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED |
-			  IRQF_NO_SUSPEND, cp->irq_desc, chan);
+	/* IPC MU should be with IRQF_NO_SUSPEND set */
+	if (!priv->dev->pm_domain)
+		irq_flag |= IRQF_NO_SUSPEND;
+
+	ret = request_irq(priv->irq, imx_mu_isr, irq_flag,
+			  cp->irq_desc, chan);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to acquire IRQ %d\n", priv->irq);
