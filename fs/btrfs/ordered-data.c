@@ -159,21 +159,21 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
  * The tree is given a single reference on the ordered extent that was
  * inserted.
  */
-static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
+static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 				      u64 disk_bytenr, u64 num_bytes,
 				      u64 disk_num_bytes, int type, int dio,
 				      int compress_type)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct btrfs_ordered_inode_tree *tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry;
 	int ret;
 
 	if (type == BTRFS_ORDERED_NOCOW || type == BTRFS_ORDERED_PREALLOC) {
 		/* For nocow write, we can release the qgroup rsv right now */
-		ret = btrfs_qgroup_free_data(inode, NULL, file_offset,
+		ret = btrfs_qgroup_free_data(&inode->vfs_inode, NULL, file_offset,
 					     num_bytes);
 		if (ret < 0)
 			return ret;
@@ -183,11 +183,11 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 		 * The ordered extent has reserved qgroup space, release now
 		 * and pass the reserved number for qgroup_record to free.
 		 */
-		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
+		ret = btrfs_qgroup_release_data(&inode->vfs_inode, file_offset,
+						num_bytes);
 		if (ret < 0)
 			return ret;
 	}
-	tree = &BTRFS_I(inode)->ordered_tree;
 	entry = kmem_cache_zalloc(btrfs_ordered_extent_cache, GFP_NOFS);
 	if (!entry)
 		return -ENOMEM;
@@ -197,7 +197,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->num_bytes = num_bytes;
 	entry->disk_num_bytes = disk_num_bytes;
 	entry->bytes_left = num_bytes;
-	entry->inode = igrab(inode);
+	entry->inode = igrab(&inode->vfs_inode);
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
 	entry->qgroup_rsv = ret;
@@ -218,7 +218,7 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	INIT_LIST_HEAD(&entry->work_list);
 	init_completion(&entry->completion);
 
-	trace_btrfs_ordered_extent_add(inode, entry);
+	trace_btrfs_ordered_extent_add(&inode->vfs_inode, entry);
 
 	spin_lock_irq(&tree->lock);
 	node = tree_insert(&tree->tree, file_offset,
@@ -246,9 +246,9 @@ static int __btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	 * that work has been done at higher layers, so this is truly the
 	 * smallest the extent is going to get.
 	 */
-	spin_lock(&BTRFS_I(inode)->lock);
-	btrfs_mod_outstanding_extents(BTRFS_I(inode), 1);
-	spin_unlock(&BTRFS_I(inode)->lock);
+	spin_lock(&inode->lock);
+	btrfs_mod_outstanding_extents(inode, 1);
+	spin_unlock(&inode->lock);
 
 	return 0;
 }
@@ -257,7 +257,7 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 			     u64 disk_bytenr, u64 num_bytes, u64 disk_num_bytes,
 			     int type)
 {
-	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
+	return __btrfs_add_ordered_extent(BTRFS_I(inode), file_offset, disk_bytenr,
 					  num_bytes, disk_num_bytes, type, 0,
 					  BTRFS_COMPRESS_NONE);
 }
@@ -266,7 +266,7 @@ int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
 				 u64 disk_bytenr, u64 num_bytes,
 				 u64 disk_num_bytes, int type)
 {
-	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
+	return __btrfs_add_ordered_extent(BTRFS_I(inode), file_offset, disk_bytenr,
 					  num_bytes, disk_num_bytes, type, 1,
 					  BTRFS_COMPRESS_NONE);
 }
@@ -276,7 +276,7 @@ int btrfs_add_ordered_extent_compress(struct inode *inode, u64 file_offset,
 				      u64 disk_num_bytes, int type,
 				      int compress_type)
 {
-	return __btrfs_add_ordered_extent(inode, file_offset, disk_bytenr,
+	return __btrfs_add_ordered_extent(BTRFS_I(inode), file_offset, disk_bytenr,
 					  num_bytes, disk_num_bytes, type, 0,
 					  compress_type);
 }
