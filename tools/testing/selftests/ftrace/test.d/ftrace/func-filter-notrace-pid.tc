@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function pid notrace filters
-# requires: set_ftrace_notrace_pid
+# requires: set_ftrace_notrace_pid set_ftrace_filter
 # flags: instance
 
 # Make sure that function pid matching filter with notrace works.
@@ -10,8 +10,6 @@ if ! grep -q function available_tracers; then
     echo "no function tracer configured"
     exit_unsupported
 fi
-
-check_filter_file set_ftrace_filter
 
 do_function_fork=1
 

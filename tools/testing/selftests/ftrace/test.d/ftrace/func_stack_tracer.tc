@@ -1,10 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - Max stack tracer
-# requires: stack_trace
+# requires: stack_trace stack_trace_filter
 # Test the basic function of max-stack usage tracing
-
-check_filter_file stack_trace_filter
 
 echo > stack_trace_filter
 echo 0 > stack_max_size
