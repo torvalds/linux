@@ -234,6 +234,27 @@ static bool ehl_vbt_ddi_d_present(struct drm_i915_private *i915)
 	return false;
 }
 
+static bool phy_is_master(struct drm_i915_private *dev_priv, enum phy phy)
+{
+	/*
+	 * Certain PHYs are connected to compensation resistors and act
+	 * as masters to other PHYs.
+	 *
+	 * ICL,TGL:
+	 *   A(master) -> B(slave), C(slave)
+	 * RKL:
+	 *   A(master) -> B(slave)
+	 *   C(master) -> D(slave)
+	 *
+	 * We must set the IREFGEN bit for any PHY acting as a master
+	 * to another PHY.
+	 */
+	if (IS_ROCKETLAKE(dev_priv) && phy == PHY_C)
+		return true;
+
+	return phy == PHY_A;
+}
+
 static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 				       enum phy phy)
 {
@@ -245,7 +266,7 @@ static bool icl_combo_phy_verify_state(struct drm_i915_private *dev_priv,
 
 	ret = cnl_verify_procmon_ref_values(dev_priv, phy);
 
-	if (phy == PHY_A) {
+	if (phy_is_master(dev_priv, phy)) {
 		ret &= check_phy_reg(dev_priv, phy, ICL_PORT_COMP_DW8(phy),
 				     IREFGEN, IREFGEN);
 
@@ -356,7 +377,7 @@ static void icl_combo_phys_init(struct drm_i915_private *dev_priv)
 skip_phy_misc:
 		cnl_set_procmon_ref_values(dev_priv, phy);
 
-		if (phy == PHY_A) {
+		if (phy_is_master(dev_priv, phy)) {
 			val = intel_de_read(dev_priv, ICL_PORT_COMP_DW8(phy));
 			val |= IREFGEN;
 			intel_de_write(dev_priv, ICL_PORT_COMP_DW8(phy), val);
