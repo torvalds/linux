@@ -644,8 +644,8 @@ static int do_req_filebacked(struct loop_device *lo, struct request *rq)
 
 static inline void loop_update_dio(struct loop_device *lo)
 {
-	__loop_update_dio(lo, io_is_direct(lo->lo_backing_file) |
-			lo->use_dio);
+	__loop_update_dio(lo, (lo->lo_backing_file->f_flags & O_DIRECT) |
+				lo->use_dio);
 }
 
 static void loop_reread_partitions(struct loop_device *lo,
@@ -1149,7 +1149,7 @@ static int loop_configure(struct loop_device *lo, fmode_t mode,
 
 	if (config->block_size)
 		bsize = config->block_size;
-	else if (io_is_direct(lo->lo_backing_file) && inode->i_sb->s_bdev)
+	else if ((lo->lo_backing_file->f_flags & O_DIRECT) && inode->i_sb->s_bdev)
 		/* In case of direct I/O, match underlying block size */
 		bsize = bdev_logical_block_size(inode->i_sb->s_bdev);
 	else
