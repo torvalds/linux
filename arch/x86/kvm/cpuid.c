@@ -181,17 +181,14 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	r = -E2BIG;
 	if (cpuid->nent > KVM_MAX_CPUID_ENTRIES)
 		goto out;
-	r = -ENOMEM;
 	if (cpuid->nent) {
-		cpuid_entries =
-			vmalloc(array_size(sizeof(struct kvm_cpuid_entry),
-					   cpuid->nent));
-		if (!cpuid_entries)
+		cpuid_entries = vmemdup_user(entries,
+					     array_size(sizeof(struct kvm_cpuid_entry),
+							cpuid->nent));
+		if (IS_ERR(cpuid_entries)) {
+			r = PTR_ERR(cpuid_entries);
 			goto out;
-		r = -EFAULT;
-		if (copy_from_user(cpuid_entries, entries,
-				   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
-			goto out;
+		}
 	}
 	for (i = 0; i < cpuid->nent; i++) {
 		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
@@ -211,8 +208,8 @@ int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	kvm_x86_ops.cpuid_update(vcpu);
 	r = kvm_update_cpuid(vcpu);
 
+	kvfree(cpuid_entries);
 out:
-	vfree(cpuid_entries);
 	return r;
 }
 

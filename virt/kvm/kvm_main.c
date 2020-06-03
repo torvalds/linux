@@ -3746,21 +3746,18 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (routing.flags)
 			goto out;
 		if (routing.nr) {
-			r = -ENOMEM;
-			entries = vmalloc(array_size(sizeof(*entries),
-						     routing.nr));
-			if (!entries)
-				goto out;
-			r = -EFAULT;
 			urouting = argp;
-			if (copy_from_user(entries, urouting->entries,
-					   routing.nr * sizeof(*entries)))
-				goto out_free_irq_routing;
+			entries = vmemdup_user(urouting->entries,
+					       array_size(sizeof(*entries),
+							  routing.nr));
+			if (IS_ERR(entries)) {
+				r = PTR_ERR(entries);
+				goto out;
+			}
 		}
 		r = kvm_set_irq_routing(kvm, entries, routing.nr,
 					routing.flags);
-out_free_irq_routing:
-		vfree(entries);
+		kvfree(entries);
 		break;
 	}
 #endif /* CONFIG_HAVE_KVM_IRQ_ROUTING */
