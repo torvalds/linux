@@ -161,30 +161,6 @@ struct vc5_driver_data {
 	struct vc5_hw_data	clk_out[VC5_MAX_CLK_OUT_NUM];
 };
 
-static const char * const vc5_mux_names[] = {
-	"mux"
-};
-
-static const char * const vc5_dbl_names[] = {
-	"dbl"
-};
-
-static const char * const vc5_pfd_names[] = {
-	"pfd"
-};
-
-static const char * const vc5_pll_names[] = {
-	"pll"
-};
-
-static const char * const vc5_fod_names[] = {
-	"fod0", "fod1", "fod2", "fod3",
-};
-
-static const char * const vc5_clk_out_names[] = {
-	"out0_sel_i2cb", "out1", "out2", "out3", "out4",
-};
-
 /*
  * VersaClock5 i2c regmap
  */
@@ -692,8 +668,7 @@ static int vc5_map_index_to_output(const enum vc5_model model,
 
 static const struct of_device_id clk_vc5_of_match[];
 
-static int vc5_probe(struct i2c_client *client,
-		     const struct i2c_device_id *id)
+static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct vc5_driver_data *vc5;
 	struct clk_init_data init;
@@ -742,7 +717,7 @@ static int vc5_probe(struct i2c_client *client,
 	if (!IS_ERR(vc5->pin_clkin)) {
 		vc5->clk_mux_ins |= VC5_MUX_IN_CLKIN;
 		parent_names[init.num_parents++] =
-			__clk_get_name(vc5->pin_clkin);
+		    __clk_get_name(vc5->pin_clkin);
 	}
 
 	if (!init.num_parents) {
@@ -750,12 +725,13 @@ static int vc5_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	init.name = vc5_mux_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.mux", client->dev.of_node);
 	init.ops = &vc5_mux_ops;
 	init.flags = 0;
 	init.parent_names = parent_names;
 	vc5->clk_mux.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_mux);
+	kfree(init.name);	/* clock framework made a copy of the name */
 	if (ret) {
 		dev_err(&client->dev, "unable to register %s\n", init.name);
 		goto err_clk;
@@ -764,13 +740,16 @@ static int vc5_probe(struct i2c_client *client,
 	if (vc5->chip_info->flags & VC5_HAS_PFD_FREQ_DBL) {
 		/* Register frequency doubler */
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_dbl_names[0];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.dbl",
+				      client->dev.of_node);
 		init.ops = &vc5_dbl_ops;
 		init.flags = CLK_SET_RATE_PARENT;
-		init.parent_names = vc5_mux_names;
+		init.parent_names = parent_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 		init.num_parents = 1;
 		vc5->clk_mul.init = &init;
 		ret = devm_clk_hw_register(&client->dev, &vc5->clk_mul);
+		kfree(init.name); /* clock framework made a copy of the name */
 		if (ret) {
 			dev_err(&client->dev, "unable to register %s\n",
 				init.name);
@@ -780,16 +759,18 @@ static int vc5_probe(struct i2c_client *client,
 
 	/* Register PFD */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_pfd_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pfd", client->dev.of_node);
 	init.ops = &vc5_pfd_ops;
 	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = parent_names;
 	if (vc5->chip_info->flags & VC5_HAS_PFD_FREQ_DBL)
-		init.parent_names = vc5_dbl_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mul);
 	else
-		init.parent_names = vc5_mux_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 	init.num_parents = 1;
 	vc5->clk_pfd.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_pfd);
+	kfree(init.name);	/* clock framework made a copy of the name */
 	if (ret) {
 		dev_err(&client->dev, "unable to register %s\n", init.name);
 		goto err_clk;
@@ -797,15 +778,17 @@ static int vc5_probe(struct i2c_client *client,
 
 	/* Register PLL */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_pll_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.pll", client->dev.of_node);
 	init.ops = &vc5_pll_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = vc5_pfd_names;
+	init.parent_names = parent_names;
+	parent_names[0] = clk_hw_get_name(&vc5->clk_pfd);
 	init.num_parents = 1;
 	vc5->clk_pll.num = 0;
 	vc5->clk_pll.vc5 = vc5;
 	vc5->clk_pll.hw.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_pll.hw);
+	kfree(init.name); /* clock framework made a copy of the name */
 	if (ret) {
 		dev_err(&client->dev, "unable to register %s\n", init.name);
 		goto err_clk;
@@ -815,15 +798,18 @@ static int vc5_probe(struct i2c_client *client,
 	for (n = 0; n < vc5->chip_info->clk_fod_cnt; n++) {
 		idx = vc5_map_index_to_output(vc5->chip_info->model, n);
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_fod_names[idx];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.fod%d",
+				      client->dev.of_node, idx);
 		init.ops = &vc5_fod_ops;
 		init.flags = CLK_SET_RATE_PARENT;
-		init.parent_names = vc5_pll_names;
+		init.parent_names = parent_names;
+		parent_names[0] = clk_hw_get_name(&vc5->clk_pll.hw);
 		init.num_parents = 1;
 		vc5->clk_fod[n].num = idx;
 		vc5->clk_fod[n].vc5 = vc5;
 		vc5->clk_fod[n].hw.init = &init;
 		ret = devm_clk_hw_register(&client->dev, &vc5->clk_fod[n].hw);
+		kfree(init.name); /* clock framework made a copy of the name */
 		if (ret) {
 			dev_err(&client->dev, "unable to register %s\n",
 				init.name);
@@ -833,32 +819,36 @@ static int vc5_probe(struct i2c_client *client,
 
 	/* Register MUX-connected OUT0_I2C_SELB output */
 	memset(&init, 0, sizeof(init));
-	init.name = vc5_clk_out_names[0];
+	init.name = kasprintf(GFP_KERNEL, "%pOFn.out0_sel_i2cb",
+			      client->dev.of_node);
 	init.ops = &vc5_clk_out_ops;
 	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = vc5_mux_names;
+	init.parent_names = parent_names;
+	parent_names[0] = clk_hw_get_name(&vc5->clk_mux);
 	init.num_parents = 1;
 	vc5->clk_out[0].num = idx;
 	vc5->clk_out[0].vc5 = vc5;
 	vc5->clk_out[0].hw.init = &init;
 	ret = devm_clk_hw_register(&client->dev, &vc5->clk_out[0].hw);
+	kfree(init.name);	/* clock framework made a copy of the name */
 	if (ret) {
-		dev_err(&client->dev, "unable to register %s\n",
-			init.name);
+		dev_err(&client->dev, "unable to register %s\n", init.name);
 		goto err_clk;
 	}
 
 	/* Register FOD-connected OUTx outputs */
 	for (n = 1; n < vc5->chip_info->clk_out_cnt; n++) {
 		idx = vc5_map_index_to_output(vc5->chip_info->model, n - 1);
-		parent_names[0] = vc5_fod_names[idx];
+		parent_names[0] = clk_hw_get_name(&vc5->clk_fod[idx].hw);
 		if (n == 1)
-			parent_names[1] = vc5_mux_names[0];
+			parent_names[1] = clk_hw_get_name(&vc5->clk_mux);
 		else
-			parent_names[1] = vc5_clk_out_names[n - 1];
+			parent_names[1] =
+			    clk_hw_get_name(&vc5->clk_out[n - 1].hw);
 
 		memset(&init, 0, sizeof(init));
-		init.name = vc5_clk_out_names[idx + 1];
+		init.name = kasprintf(GFP_KERNEL, "%pOFn.out%d",
+				      client->dev.of_node, idx + 1);
 		init.ops = &vc5_clk_out_ops;
 		init.flags = CLK_SET_RATE_PARENT;
 		init.parent_names = parent_names;
@@ -866,8 +856,8 @@ static int vc5_probe(struct i2c_client *client,
 		vc5->clk_out[n].num = idx;
 		vc5->clk_out[n].vc5 = vc5;
 		vc5->clk_out[n].hw.init = &init;
-		ret = devm_clk_hw_register(&client->dev,
-					   &vc5->clk_out[n].hw);
+		ret = devm_clk_hw_register(&client->dev, &vc5->clk_out[n].hw);
+		kfree(init.name); /* clock framework made a copy of the name */
 		if (ret) {
 			dev_err(&client->dev, "unable to register %s\n",
 				init.name);
