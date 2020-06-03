@@ -1085,7 +1085,7 @@ static noinline int cow_file_range(struct inode *inode,
 
 		if (root->root_key.objectid ==
 		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
-			ret = btrfs_reloc_clone_csums(inode, start,
+			ret = btrfs_reloc_clone_csums(BTRFS_I(inode), start,
 						      cur_alloc_size);
 			/*
 			 * Only drop cache here, and process as normal.
@@ -1743,7 +1743,7 @@ out_check:
 			 * extent_clear_unlock_delalloc() in error handler
 			 * from freeing metadata of created ordered extent.
 			 */
-			ret = btrfs_reloc_clone_csums(inode, cur_offset,
+			ret = btrfs_reloc_clone_csums(BTRFS_I(inode), cur_offset,
 						      num_bytes);
 
 		extent_clear_unlock_delalloc(inode, cur_offset,

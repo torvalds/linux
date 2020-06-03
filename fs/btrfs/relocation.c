@@ -3870,9 +3870,9 @@ out:
  * cloning checksum properly handles the nodatasum extents.
  * it also saves CPU time to re-calculate the checksum.
  */
-int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
+int btrfs_reloc_clone_csums(struct btrfs_inode *inode, u64 file_pos, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_ordered_extent *ordered;
 	int ret;
@@ -3880,10 +3880,10 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	u64 new_bytenr;
 	LIST_HEAD(list);
 
-	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), file_pos);
+	ordered = btrfs_lookup_ordered_extent(inode, file_pos);
 	BUG_ON(ordered->file_offset != file_pos || ordered->num_bytes != len);
 
-	disk_bytenr = file_pos + BTRFS_I(inode)->index_cnt;
+	disk_bytenr = file_pos + inode->index_cnt;
 	ret = btrfs_lookup_csums_range(fs_info->csum_root, disk_bytenr,
 				       disk_bytenr + len - 1, &list, 0);
 	if (ret)
