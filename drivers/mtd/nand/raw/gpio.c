@@ -25,9 +25,11 @@
 #include <linux/mtd/nand-gpio.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/delay.h>
 
 struct gpiomtd {
 	struct nand_controller	base;
+	void __iomem		*io;
 	void __iomem		*io_sync;
 	struct nand_chip	nand_chip;
 	struct gpio_nand_platdata plat;
@@ -97,6 +99,99 @@ static int gpio_nand_devready(struct nand_chip *chip)
 
 	return gpiod_get_value(gpiomtd->rdy);
 }
+
+static int gpio_nand_exec_instr(struct nand_chip *chip,
+				const struct nand_op_instr *instr)
+{
+	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
+	unsigned int i;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		gpio_nand_dosync(gpiomtd);
+		gpiod_set_value(gpiomtd->cle, 1);
+		gpio_nand_dosync(gpiomtd);
+		writeb(instr->ctx.cmd.opcode, gpiomtd->io);
+		gpio_nand_dosync(gpiomtd);
+		gpiod_set_value(gpiomtd->cle, 0);
+		return 0;
+
+	case NAND_OP_ADDR_INSTR:
+		gpio_nand_dosync(gpiomtd);
+		gpiod_set_value(gpiomtd->ale, 1);
+		gpio_nand_dosync(gpiomtd);
+		for (i = 0; i < instr->ctx.addr.naddrs; i++)
+			writeb(instr->ctx.addr.addrs[i], gpiomtd->io);
+		gpio_nand_dosync(gpiomtd);
+		gpiod_set_value(gpiomtd->ale, 0);
+		return 0;
+
+	case NAND_OP_DATA_IN_INSTR:
+		gpio_nand_dosync(gpiomtd);
+		if ((chip->options & NAND_BUSWIDTH_16) &&
+		    !instr->ctx.data.force_8bit)
+			ioread16_rep(gpiomtd->io, instr->ctx.data.buf.in,
+				     instr->ctx.data.len / 2);
+		else
+			ioread8_rep(gpiomtd->io, instr->ctx.data.buf.in,
+				    instr->ctx.data.len);
+		return 0;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		gpio_nand_dosync(gpiomtd);
+		if ((chip->options & NAND_BUSWIDTH_16) &&
+		    !instr->ctx.data.force_8bit)
+			iowrite16_rep(gpiomtd->io, instr->ctx.data.buf.out,
+				      instr->ctx.data.len / 2);
+		else
+			iowrite8_rep(gpiomtd->io, instr->ctx.data.buf.out,
+				     instr->ctx.data.len);
+		return 0;
+
+	case NAND_OP_WAITRDY_INSTR:
+		if (!gpiomtd->rdy)
+			return nand_soft_waitrdy(chip, instr->ctx.waitrdy.timeout_ms);
+
+		return nand_gpio_waitrdy(chip, gpiomtd->rdy,
+					 instr->ctx.waitrdy.timeout_ms);
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int gpio_nand_exec_op(struct nand_chip *chip,
+			     const struct nand_operation *op,
+			     bool check_only)
+{
+	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
+	unsigned int i;
+	int ret = 0;
+
+	if (check_only)
+		return 0;
+
+	gpio_nand_dosync(gpiomtd);
+	gpiod_set_value(gpiomtd->nce, 0);
+	for (i = 0; i < op->ninstrs; i++) {
+		ret = gpio_nand_exec_instr(chip, &op->instrs[i]);
+		if (ret)
+			break;
+
+		if (op->instrs[i].delay_ns)
+			ndelay(op->instrs[i].delay_ns);
+	}
+	gpio_nand_dosync(gpiomtd);
+	gpiod_set_value(gpiomtd->nce, 1);
+
+	return ret;
+}
+
+static const struct nand_controller_ops gpio_nand_ops = {
+	.exec_op = gpio_nand_exec_op,
+};
 
 #ifdef CONFIG_OF
 static const struct of_device_id gpio_nand_id_table[] = {
@@ -226,9 +321,9 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip = &gpiomtd->nand_chip;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	chip->legacy.IO_ADDR_R = devm_ioremap_resource(dev, res);
-	if (IS_ERR(chip->legacy.IO_ADDR_R))
-		return PTR_ERR(chip->legacy.IO_ADDR_R);
+	gpiomtd->io = devm_ioremap_resource(dev, res);
+	if (IS_ERR(gpiomtd->io))
+		return PTR_ERR(gpiomtd->io);
 
 	res = gpio_nand_get_io_sync(pdev);
 	if (res) {
@@ -275,7 +370,10 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		chip->legacy.dev_ready = gpio_nand_devready;
 
 	nand_controller_init(&gpiomtd->base);
+	gpiomtd->base.ops = &gpio_nand_ops;
+
 	nand_set_flash_node(chip, pdev->dev.of_node);
+	chip->legacy.IO_ADDR_R	= gpiomtd->io;
 	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;
