@@ -2260,13 +2260,13 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
+int btrfs_set_extent_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 			      unsigned int extra_bits,
 			      struct extent_state **cached_state)
 {
 	WARN_ON(PAGE_ALIGNED(end));
-	return set_extent_delalloc(&BTRFS_I(inode)->io_tree, start, end,
-				   extra_bits, cached_state);
+	return set_extent_delalloc(&inode->io_tree, start, end, extra_bits,
+				   cached_state);
 }
 
 /* see btrfs_writepage_start_hook for details on why this is required */
@@ -2363,7 +2363,7 @@ again:
 		goto again;
 	}
 
-	ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start, page_end, 0,
 					&cached_state);
 	if (ret)
 		goto out_reserved;
@@ -4581,7 +4581,7 @@ again:
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 0, 0, &cached_state);
 
-	ret = btrfs_set_extent_delalloc(inode, block_start, block_end, 0,
+	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), block_start, block_end, 0,
 					&cached_state);
 	if (ret) {
 		unlock_extent_cached(io_tree, block_start, block_end,
@@ -8296,7 +8296,7 @@ again:
 			  EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING |
 			  EXTENT_DEFRAG, 0, 0, &cached_state);
 
-	ret2 = btrfs_set_extent_delalloc(inode, page_start, end, 0,
+	ret2 = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start, end, 0,
 					&cached_state);
 	if (ret2) {
 		unlock_extent_cached(io_tree, page_start, page_end,

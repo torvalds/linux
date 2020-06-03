@@ -2754,8 +2754,8 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			nr++;
 		}
 
-		ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
-						NULL);
+		ret = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start,
+						page_end, 0, NULL);
 		if (ret) {
 			unlock_page(page);
 			put_page(page);
