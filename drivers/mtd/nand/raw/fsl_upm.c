@@ -176,8 +176,9 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 		return -ENODEV;
 
 	nand_set_flash_node(&fun->chip, flash_np);
-	mtd->name = kasprintf(GFP_KERNEL, "0x%llx.%pOFn", (u64)io_res->start,
-			      flash_np);
+	mtd->name = devm_kasprintf(fun->dev, GFP_KERNEL, "0x%llx.%pOFn",
+				   (u64)io_res->start,
+				   flash_np);
 	if (!mtd->name) {
 		ret = -ENOMEM;
 		goto err;
@@ -190,8 +191,6 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	ret = mtd_device_register(mtd, NULL, 0);
 err:
 	of_node_put(flash_np);
-	if (ret)
-		kfree(mtd->name);
 	return ret;
 }
 
@@ -318,7 +317,6 @@ static int fun_remove(struct platform_device *ofdev)
 	ret = mtd_device_unregister(mtd);
 	WARN_ON(ret);
 	nand_cleanup(chip);
-	kfree(mtd->name);
 
 	for (i = 0; i < fun->mchip_count; i++) {
 		if (fun->rnb_gpio[i] < 0)
