@@ -93,6 +93,30 @@
 			0x00f0f0f0 0x00f1f1f1 0x00f2f2f2 0x00f3f3f3 0x00f4f4f4 0x00f5f5f5 0x00f6f6f6 0x00f7f7f7
 			0x00f8f8f8 0x00f9f9f9 0x00fafafa 0x00fbfbfb 0x00fcfcfc 0x00fdfdfd 0x00fefefe 0x00ffffff>;
 		};
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				panel_in_dsi: endpoint {
+					remote-endpoint = <&dsi_out_panel>;
+				};
+			};
+		};
+	};
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@1 {
+			reg = <1>;
+			dsi_out_panel: endpoint {
+				remote-endpoint = <&panel_in_dsi>;
+			};
+		};
 	};
 };
 
