@@ -2947,7 +2947,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 		kvm_run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		kvm_run->fail_entry.hardware_entry_failure_reason
 			= svm->vmcb->control.exit_code;
-		kvm_run->fail_entry.cpu = svm->last_cpu;
+		kvm_run->fail_entry.cpu = vcpu->arch.last_vmentry_cpu;
 		dump_vmcb(vcpu);
 		return 0;
 	}
@@ -2973,7 +2973,7 @@ static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 			KVM_INTERNAL_ERROR_UNEXPECTED_EXIT_REASON;
 		vcpu->run->internal.ndata = 2;
 		vcpu->run->internal.data[0] = exit_code;
-		vcpu->run->internal.data[1] = svm->last_cpu;
+		vcpu->run->internal.data[1] = vcpu->arch.last_vmentry_cpu;
 		return 0;
 	}
 
@@ -3398,7 +3398,7 @@ static __no_kcsan fastpath_t svm_vcpu_run(struct kvm_vcpu *vcpu)
 	 */
 	x86_spec_ctrl_set_guest(svm->spec_ctrl, svm->virt_spec_ctrl);
 
-	svm->last_cpu = vcpu->cpu;
+	vcpu->arch.last_vmentry_cpu = vcpu->cpu;
 	__svm_vcpu_run(svm->vmcb_pa, (unsigned long *)&svm->vcpu.arch.regs);
 
 #ifdef CONFIG_X86_64

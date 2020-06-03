@@ -1186,7 +1186,7 @@ void pre_sev_run(struct vcpu_svm *svm, int cpu)
 	 * 2) or this VMCB was executed on different host CPU in previous VMRUNs.
 	 */
 	if (sd->sev_vmcbs[asid] == svm->vmcb &&
-	    svm->last_cpu == cpu)
+	    svm->vcpu.arch.last_vmentry_cpu == cpu)
 		return;
 
 	sd->sev_vmcbs[asid] = svm->vmcb;

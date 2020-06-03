@@ -300,9 +300,6 @@ struct vcpu_vmx {
 	u64 ept_pointer;
 
 	struct pt_desc pt_desc;
-
-	/* which host CPU was used for running this vcpu */
-	unsigned int last_cpu;
 };
 
 enum ept_pointers_status {

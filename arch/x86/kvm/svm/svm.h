@@ -158,9 +158,6 @@ struct vcpu_svm {
 	 */
 	struct list_head ir_list;
 	spinlock_t ir_list_lock;
-
-	/* which host CPU was used for running this vcpu */
-	unsigned int last_cpu;
 };
 
 struct svm_cpu_data {
