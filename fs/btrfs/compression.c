@@ -405,7 +405,7 @@ out:
  * This also checksums the file bytes and gets things ready for
  * the end io hooks.
  */
-blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
+blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				 unsigned long len, u64 disk_start,
 				 unsigned long compressed_len,
 				 struct page **compressed_pages,
@@ -413,7 +413,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 				 unsigned int write_flags,
 				 struct cgroup_subsys_state *blkcg_css)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct bio *bio = NULL;
 	struct compressed_bio *cb;
 	unsigned long bytes_left;
@@ -421,7 +421,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	struct page *page;
 	u64 first_byte = disk_start;
 	blk_status_t ret;
-	int skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
+	int skip_sum = inode->flags & BTRFS_INODE_NODATASUM;
 
 	WARN_ON(!PAGE_ALIGNED(start));
 	cb = kmalloc(compressed_bio_size(fs_info, compressed_len), GFP_NOFS);
@@ -429,7 +429,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		return BLK_STS_RESOURCE;
 	refcount_set(&cb->pending_bios, 0);
 	cb->errors = 0;
-	cb->inode = inode;
+	cb->inode = &inode->vfs_inode;
 	cb->start = start;
 	cb->len = len;
 	cb->mirror_num = 0;
@@ -455,7 +455,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		int submit = 0;
 
 		page = compressed_pages[pg_index];
-		page->mapping = inode->i_mapping;
+		page->mapping = inode->vfs_inode.i_mapping;
 		if (bio->bi_iter.bi_size)
 			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE, bio,
 							  0);
@@ -475,8 +475,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			BUG_ON(ret); /* -ENOMEM */
 
 			if (!skip_sum) {
-				ret = btrfs_csum_one_bio(BTRFS_I(inode), bio,
-							 start, 1);
+				ret = btrfs_csum_one_bio(inode, bio, start, 1);
 				BUG_ON(ret); /* -ENOMEM */
 			}
 
@@ -508,7 +507,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	BUG_ON(ret); /* -ENOMEM */
 
 	if (!skip_sum) {
-		ret = btrfs_csum_one_bio(BTRFS_I(inode), bio, start, 1);
+		ret = btrfs_csum_one_bio(inode, bio, start, 1);
 		BUG_ON(ret); /* -ENOMEM */
 	}
 

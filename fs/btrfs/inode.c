@@ -887,7 +887,7 @@ retry:
 				NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 				PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
 				PAGE_SET_WRITEBACK);
-		if (btrfs_submit_compressed_write(inode,
+		if (btrfs_submit_compressed_write(BTRFS_I(inode),
 				    async_extent->start,
 				    async_extent->ram_size,
 				    ins.objectid,
