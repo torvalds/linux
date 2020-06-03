@@ -15,32 +15,31 @@ struct adf_etr_ring_debug_entry {
 struct adf_etr_ring_data {
 	void *base_addr;
 	atomic_t *inflights;
-	spinlock_t lock;	/* protects ring data struct */
 	adf_callback_fn callback;
 	struct adf_etr_bank_data *bank;
 	dma_addr_t dma_addr;
+	struct adf_etr_ring_debug_entry *ring_debug;
+	spinlock_t lock;	/* protects ring data struct */
 	u16 head;
 	u16 tail;
 	u8 ring_number;
 	u8 ring_size;
 	u8 msg_size;
-	u8 reserved;
-	struct adf_etr_ring_debug_entry *ring_debug;
-} __packed;
+};
 
 struct adf_etr_bank_data {
 	struct adf_etr_ring_data rings[ADF_ETR_MAX_RINGS_PER_BANK];
 	struct tasklet_struct resp_handler;
 	void __iomem *csr_addr;
-	struct adf_accel_dev *accel_dev;
 	u32 irq_coalesc_timer;
+	u32 bank_number;
 	u16 ring_mask;
 	u16 irq_mask;
 	spinlock_t lock;	/* protects bank data struct */
+	struct adf_accel_dev *accel_dev;
 	struct dentry *bank_debug_dir;
 	struct dentry *bank_debug_cfg;
-	u32 bank_number;
-} __packed;
+};
 
 struct adf_etr_data {
 	struct adf_etr_bank_data *banks;
