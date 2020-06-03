@@ -205,36 +205,34 @@ static int fun_probe(struct platform_device *ofdev)
 	int size;
 	int i;
 
-	fun = kzalloc(sizeof(*fun), GFP_KERNEL);
+	fun = devm_kzalloc(&ofdev->dev, sizeof(*fun), GFP_KERNEL);
 	if (!fun)
 		return -ENOMEM;
 
 	ret = of_address_to_resource(ofdev->dev.of_node, 0, &io_res);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't get IO base\n");
-		goto err1;
+		return ret;
 	}
 
 	ret = fsl_upm_find(io_res.start, &fun->upm);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't find UPM\n");
-		goto err1;
+		return ret;
 	}
 
 	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-addr-offset",
 			       &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM address offset\n");
-		ret = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 	fun->upm_addr_offset = *prop;
 
 	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-cmd-offset", &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM command offset\n");
-		ret = -EINVAL;
-		goto err1;
+		return -EINVAL;
 	}
 	fun->upm_cmd_offset = *prop;
 
@@ -244,7 +242,7 @@ static int fun_probe(struct platform_device *ofdev)
 		fun->mchip_count = size / sizeof(uint32_t);
 		if (fun->mchip_count >= NAND_MAX_CHIPS) {
 			dev_err(&ofdev->dev, "too much multiple chips\n");
-			goto err1;
+			return -EINVAL;
 		}
 		for (i = 0; i < fun->mchip_count; i++)
 			fun->mchip_offsets[i] = be32_to_cpu(prop[i]);
@@ -306,8 +304,6 @@ err2:
 			break;
 		gpio_free(fun->rnb_gpio[i]);
 	}
-err1:
-	kfree(fun);
 
 	return ret;
 }
@@ -329,8 +325,6 @@ static int fun_remove(struct platform_device *ofdev)
 			break;
 		gpio_free(fun->rnb_gpio[i]);
 	}
-
-	kfree(fun);
 
 	return 0;
 }
