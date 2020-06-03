@@ -80,13 +80,13 @@ bool kvm_trace_guest_mode_change;
 
 int kvm_guest_mode_change_trace_reg(void)
 {
-	kvm_trace_guest_mode_change = 1;
+	kvm_trace_guest_mode_change = true;
 	return 0;
 }
 
 void kvm_guest_mode_change_trace_unreg(void)
 {
-	kvm_trace_guest_mode_change = 0;
+	kvm_trace_guest_mode_change = false;
 }
 
 /*

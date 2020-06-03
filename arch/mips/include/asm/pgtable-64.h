@@ -172,6 +172,8 @@
 
 extern pte_t invalid_pte_table[PTRS_PER_PTE];
 
+#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+
 #ifndef __PAGETABLE_PUD_FOLDED
 /*
  * For 4-level pagetables we defines these ourselves, for 3-level the
@@ -209,8 +211,6 @@ static inline void p4d_clear(p4d_t *p4dp)
 {
 	p4d_val(*p4dp) = (unsigned long)invalid_pud_table;
 }
-
-#define pud_index(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
 
 static inline unsigned long p4d_page_vaddr(p4d_t p4d)
 {

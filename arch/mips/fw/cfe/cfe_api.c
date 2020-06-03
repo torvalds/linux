@@ -243,11 +243,6 @@ int cfe_getfwinfo(cfe_fwinfo_t * info)
 	info->fwi_bootarea_pa = xiocb.plist.xiocb_fwinfo.fwi_bootarea_pa;
 	info->fwi_bootarea_size =
 	    xiocb.plist.xiocb_fwinfo.fwi_bootarea_size;
-#if 0
-	info->fwi_reserved1 = xiocb.plist.xiocb_fwinfo.fwi_reserved1;
-	info->fwi_reserved2 = xiocb.plist.xiocb_fwinfo.fwi_reserved2;
-	info->fwi_reserved3 = xiocb.plist.xiocb_fwinfo.fwi_reserved3;
-#endif
 
 	return 0;
 }

@@ -1049,7 +1049,7 @@ static inline void rm7k_erratum31(void)
 			"cache\t%1, 0x3000(%0)\n\t"
 			".set pop\n"
 			:
-			: "r" (addr), "i" (Index_Store_Tag_I), "i" (Fill));
+			: "r" (addr), "i" (Index_Store_Tag_I), "i" (Fill_I));
 	}
 }
 
@@ -1073,12 +1073,12 @@ static inline int alias_74k_erratum(struct cpuinfo_mips *c)
 		if (rev <= PRID_REV_ENCODE_332(2, 4, 0))
 			present = 1;
 		if (rev == PRID_REV_ENCODE_332(2, 4, 0))
-			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_MTI_SYND);
 		break;
 	case PRID_IMP_1074K:
 		if (rev <= PRID_REV_ENCODE_332(1, 1, 0)) {
 			present = 1;
-			write_c0_config6(read_c0_config6() | MIPS_CONF6_SYND);
+			write_c0_config6(read_c0_config6() | MIPS_CONF6_MTI_SYND);
 		}
 		break;
 	default:
@@ -1200,7 +1200,7 @@ static void probe_pcache(void)
 
 	case CPU_VR4133:
 		write_c0_config(config & ~VR41_CONF_P4K);
-		/* fall through */
+		fallthrough;
 	case CPU_VR4131:
 		/* Workaround for cache instruction bug of VR4131 */
 		if (c->processor_id == 0x0c80U || c->processor_id == 0x0c81U ||
@@ -1303,7 +1303,8 @@ static void probe_pcache(void)
 					  c->dcache.linesz;
 		c->dcache.waybit = 0;
 		if ((c->processor_id & (PRID_IMP_MASK | PRID_REV_MASK)) >=
-				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0))
+				(PRID_IMP_LOONGSON_64C | PRID_REV_LOONGSON3A_R2_0) ||
+				(c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
 			c->options |= MIPS_CPU_PREFETCH;
 		break;
 
@@ -1425,7 +1426,7 @@ static void probe_pcache(void)
 	case CPU_74K:
 	case CPU_1074K:
 		has_74k_erratum = alias_74k_erratum(c);
-		/* Fall through. */
+		fallthrough;
 	case CPU_M14KC:
 	case CPU_M14KEC:
 	case CPU_24K:
@@ -1449,7 +1450,7 @@ static void probe_pcache(void)
 			c->dcache.flags |= MIPS_CACHE_PINDEX;
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		if (has_74k_erratum || c->dcache.waysize > PAGE_SIZE)
 			c->dcache.flags |= MIPS_CACHE_ALIASES;
@@ -1629,8 +1630,13 @@ static void __init loongson3_sc_init(void)
 	scache_size = c->scache.sets *
 				  c->scache.ways *
 				  c->scache.linesz;
-	/* Loongson-3 has 4 cores, 1MB scache for each. scaches are shared */
-	scache_size *= 4;
+
+	/* Loongson-3 has 4-Scache banks, while Loongson-2K have only 2 banks */
+	if ((c->processor_id & PRID_IMP_MASK) == PRID_IMP_LOONGSON_64R)
+		scache_size *= 2;
+	else
+		scache_size *= 4;
+
 	c->scache.waybit = 0;
 	c->scache.waysize = scache_size / c->scache.ways;
 	pr_info("Unified secondary cache %ldkB %s, linesize %d bytes.\n",
@@ -1703,9 +1709,10 @@ static void setup_scache(void)
 		return;
 
 	default:
-		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M32R2 |
-				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R1 |
-				    MIPS_CPU_ISA_M64R2 | MIPS_CPU_ISA_M64R6)) {
+		if (c->isa_level & (MIPS_CPU_ISA_M32R1 | MIPS_CPU_ISA_M64R1 |
+				    MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M64R2 |
+				    MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M64R5 |
+				    MIPS_CPU_ISA_M32R6 | MIPS_CPU_ISA_M64R6)) {
 #ifdef CONFIG_MIPS_CPU_SCACHE
 			if (mips_sc_init ()) {
 				scache_size = c->scache.ways * c->scache.sets * c->scache.linesz;

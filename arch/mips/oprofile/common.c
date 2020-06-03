@@ -110,7 +110,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	case CPU_LOONGSON64:
 		lmodel = &op_model_loongson3_ops;
 		break;
-	};
+	}
 
 	/*
 	 * Always set the backtrace. This allows unsupported CPU types to still
