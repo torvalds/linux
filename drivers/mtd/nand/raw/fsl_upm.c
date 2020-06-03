@@ -29,7 +29,6 @@ struct fsl_upm_nand {
 	struct device *dev;
 	struct nand_chip chip;
 	int last_ctrl;
-	struct mtd_partition *parts;
 	struct fsl_upm upm;
 	uint8_t upm_addr_offset;
 	uint8_t upm_cmd_offset;
