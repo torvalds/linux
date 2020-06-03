@@ -3496,7 +3496,7 @@ done:
  * 0 if all went well (page still locked)
  * < 0 if there were errors (page still locked)
  */
-static noinline_for_stack int __extent_writepage_io(struct inode *inode,
+static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 				 struct page *page,
 				 struct writeback_control *wbc,
 				 struct extent_page_data *epd,
@@ -3504,7 +3504,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 				 unsigned long nr_written,
 				 int *nr_ret)
 {
-	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
+	struct extent_io_tree *tree = &inode->io_tree;
 	u64 start = page_offset(page);
 	u64 page_end = start + PAGE_SIZE - 1;
 	u64 end;
@@ -3536,7 +3536,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 	update_nr_written(wbc, nr_written + 1);
 
 	end = page_end;
-	blocksize = inode->i_sb->s_blocksize;
+	blocksize = inode->vfs_inode.i_sb->s_blocksize;
 
 	while (cur <= end) {
 		u64 em_end;
@@ -3547,8 +3547,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 							     page_end, 1);
 			break;
 		}
-		em = btrfs_get_extent(BTRFS_I(inode), NULL, 0, cur,
-				      end - cur + 1);
+		em = btrfs_get_extent(inode, NULL, 0, cur, end - cur + 1);
 		if (IS_ERR_OR_NULL(em)) {
 			SetPageError(page);
 			ret = PTR_ERR_OR_ZERO(em);
@@ -3585,7 +3584,7 @@ static noinline_for_stack int __extent_writepage_io(struct inode *inode,
 
 		btrfs_set_range_writeback(tree, cur, cur + iosize - 1);
 		if (!PageWriteback(page)) {
-			btrfs_err(BTRFS_I(inode)->root->fs_info,
+			btrfs_err(inode->root->fs_info,
 				   "page %lu not writeback, cur %llu end %llu",
 			       page->index, cur, end);
 		}
@@ -3665,8 +3664,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 			goto done;
 	}
 
-	ret = __extent_writepage_io(inode, page, wbc, epd,
-				    i_size, nr_written, &nr);
+	ret = __extent_writepage_io(BTRFS_I(inode), page, wbc, epd, i_size,
+				    nr_written, &nr);
 	if (ret == 1)
 		return 0;
 
