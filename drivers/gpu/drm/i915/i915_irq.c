@@ -2872,13 +2872,15 @@ static void gen11_display_irq_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_uncore *uncore = &dev_priv->uncore;
 	enum pipe pipe;
+	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 
 	intel_uncore_write(uncore, GEN11_DISPLAY_INT_CTL, 0);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum transcoder trans;
 
-		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+		for_each_cpu_transcoder_masked(dev_priv, trans, trans_mask) {
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);
@@ -3400,6 +3402,8 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	u32 de_port_masked = gen8_de_port_aux_mask(dev_priv);
 	u32 de_port_enables;
 	u32 de_misc_masked = GEN8_DE_EDP_PSR;
+	u32 trans_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) |
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D);
 	enum pipe pipe;
 
 	if (INTEL_GEN(dev_priv) <= 10)
@@ -3420,7 +3424,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		enum transcoder trans;
 
-		for (trans = TRANSCODER_A; trans <= TRANSCODER_D; trans++) {
+		for_each_cpu_transcoder_masked(dev_priv, trans, trans_mask) {
 			enum intel_display_power_domain domain;
 
 			domain = POWER_DOMAIN_TRANSCODER(trans);
