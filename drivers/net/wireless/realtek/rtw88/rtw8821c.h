@@ -186,11 +186,14 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_FAS		0x9a4
 #define REG_RXSB	0xa00
 #define REG_ADCINI	0xa04
+#define REG_PWRTH	0xa08
 #define REG_TXSF2	0xa24
 #define REG_TXSF6	0xa28
 #define REG_FA_CCK	0xa5c
 #define REG_RXDESC	0xa2c
 #define REG_ENTXCCK	0xa80
+#define REG_PWRTH2	0xaa8
+#define REG_CSRATIO	0xaaa
 #define REG_TXFILTER	0xaac
 #define REG_CNTRST	0xb58
 #define REG_AGCTR_A	0xc08

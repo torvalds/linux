@@ -102,6 +102,7 @@ static void rtw8821c_phy_set_param(struct rtw_dev *rtwdev)
 	rtwdev->chip->ch_param[2] = rtw_read32_mask(rtwdev, REG_TXFILTER, MASKDWORD);
 
 	rtw_phy_init(rtwdev);
+	rtwdev->dm_info.cck_pd_default = rtw_read8(rtwdev, REG_CSRATIO) & 0x1f;
 }
 
 static int rtw8821c_mac_init(struct rtw_dev *rtwdev)
@@ -596,6 +597,29 @@ static void rtw8821c_phy_calibration(struct rtw_dev *rtwdev)
 	rtw8821c_do_iqk(rtwdev);
 }
 
+static void rtw8821c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 pd[CCK_PD_LV_MAX] = {3, 7, 13, 13, 13};
+
+	if (dm_info->min_rssi > 60) {
+		new_lvl = 4;
+		pd[4] = 0x1d;
+		goto set_cck_pd;
+	}
+
+	if (dm_info->cck_pd_lv[RTW_CHANNEL_WIDTH_20][RF_PATH_A] == new_lvl)
+		return;
+
+	dm_info->cck_fa_avg = CCK_FA_AVG_RESET;
+
+set_cck_pd:
+	dm_info->cck_pd_lv[RTW_CHANNEL_WIDTH_20][RF_PATH_A] = new_lvl;
+	rtw_write32_mask(rtwdev, REG_PWRTH, 0x3f0000, pd[new_lvl]);
+	rtw_write32_mask(rtwdev, REG_PWRTH2, 0x1f0000,
+			 dm_info->cck_pd_default + new_lvl * 2);
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8821c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -1035,6 +1059,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
 	.cfg_ldo25		= rtw8821c_cfg_ldo25,
 	.false_alarm_statistics	= rtw8821c_false_alarm_statistics,
 	.phy_calibration	= rtw8821c_phy_calibration,
+	.cck_pd_set		= rtw8821c_phy_cck_pd_set,
 };
 
 struct rtw_chip_info rtw8821c_hw_spec = {
