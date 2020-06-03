@@ -1466,6 +1466,7 @@ struct rtw_dm_info {
 	u8 thermal_avg[RTW_RF_PATH_MAX];
 	u8 thermal_meter_k;
 	s8 delta_power_index[RTW_RF_PATH_MAX];
+	s8 delta_power_index_last[RTW_RF_PATH_MAX];
 	u8 default_ofdm_index;
 	bool pwr_trk_triggered;
 	bool pwr_trk_init_trigger;

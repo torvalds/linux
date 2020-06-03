@@ -200,6 +200,7 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_TXSCALE_A	0xc1c
 #define REG_TXDFIR	0xc20
 #define REG_RXIGI_A	0xc50
+#define REG_TXAGCIDX	0xc94
 #define REG_TRSW	0xca0
 #define REG_RFESEL0	0xcb0
 #define REG_RFESEL8	0xcb4
