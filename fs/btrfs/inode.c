@@ -90,7 +90,7 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 				       u64 ram_bytes, int compress_type,
 				       int type);
 
-static void __endio_write_update_ordered(struct inode *inode,
+static void __endio_write_update_ordered(struct btrfs_inode *inode,
 					 const u64 offset, const u64 bytes,
 					 const bool uptodate);
 
@@ -134,7 +134,8 @@ static inline void btrfs_cleanup_ordered_extents(struct inode *inode,
 		bytes -= PAGE_SIZE;
 	}
 
-	return __endio_write_update_ordered(inode, offset, bytes, false);
+	return __endio_write_update_ordered(BTRFS_I(inode), offset, bytes,
+					    false);
 }
 
 static int btrfs_dirty_inode(struct inode *inode);
@@ -7474,7 +7475,8 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 		return;
 
 	if (bio_op(dip->dio_bio) == REQ_OP_WRITE) {
-		__endio_write_update_ordered(dip->inode, dip->logical_offset,
+		__endio_write_update_ordered(BTRFS_I(dip->inode),
+					     dip->logical_offset,
 					     dip->bytes,
 					     !dip->dio_bio->bi_status);
 	} else {
@@ -7560,25 +7562,25 @@ static blk_status_t btrfs_check_read_dio_bio(struct inode *inode,
 	return err;
 }
 
-static void __endio_write_update_ordered(struct inode *inode,
+static void __endio_write_update_ordered(struct btrfs_inode *inode,
 					 const u64 offset, const u64 bytes,
 					 const bool uptodate)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_ordered_extent *ordered = NULL;
 	struct btrfs_workqueue *wq;
 	u64 ordered_offset = offset;
 	u64 ordered_bytes = bytes;
 	u64 last_offset;
 
-	if (btrfs_is_free_space_inode(BTRFS_I(inode)))
+	if (btrfs_is_free_space_inode(inode))
 		wq = fs_info->endio_freespace_worker;
 	else
 		wq = fs_info->endio_write_workers;
 
 	while (ordered_offset < offset + bytes) {
 		last_offset = ordered_offset;
-		if (btrfs_dec_test_first_ordered_pending(BTRFS_I(inode), &ordered,
+		if (btrfs_dec_test_first_ordered_pending(inode, &ordered,
 							 &ordered_offset,
 							 ordered_bytes,
 							 uptodate)) {
@@ -7961,7 +7963,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 			 */
 			if (dio_data.unsubmitted_oe_range_start <
 			    dio_data.unsubmitted_oe_range_end)
-				__endio_write_update_ordered(inode,
+				__endio_write_update_ordered(BTRFS_I(inode),
 					dio_data.unsubmitted_oe_range_start,
 					dio_data.unsubmitted_oe_range_end -
 					dio_data.unsubmitted_oe_range_start,
