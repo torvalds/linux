@@ -3213,7 +3213,7 @@ reserve_space:
 						  &cached_state);
 		if (ret)
 			goto out;
-		ret = btrfs_qgroup_reserve_data(inode, &data_reserved,
+		ret = btrfs_qgroup_reserve_data(BTRFS_I(inode), &data_reserved,
 						alloc_start, bytes_to_reserve);
 		if (ret)
 			goto out;
@@ -3383,8 +3383,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 				free_extent_map(em);
 				break;
 			}
-			ret = btrfs_qgroup_reserve_data(inode, &data_reserved,
-					cur_offset, last_byte - cur_offset);
+			ret = btrfs_qgroup_reserve_data(BTRFS_I(inode),
+					&data_reserved, cur_offset,
+					last_byte - cur_offset);
 			if (ret < 0) {
 				cur_offset = last_byte;
 				free_extent_map(em);
