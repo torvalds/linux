@@ -115,43 +115,28 @@ static int imx_scu_soc_probe(struct platform_device *pdev)
 
 	/* format soc_id value passed from SCU firmware */
 	val = id & 0x1f;
-	soc_dev_attr->soc_id = kasprintf(GFP_KERNEL, "0x%x", val);
+	soc_dev_attr->soc_id = devm_kasprintf(&pdev->dev, GFP_KERNEL, "0x%x", val);
 	if (!soc_dev_attr->soc_id)
 		return -ENOMEM;
 
 	/* format revision value passed from SCU firmware */
 	val = (id >> 5) & 0xf;
 	val = (((val >> 2) + 1) << 4) | (val & 0x3);
-	soc_dev_attr->revision = kasprintf(GFP_KERNEL,
-					   "%d.%d",
-					   (val >> 4) & 0xf,
-					   val & 0xf);
-	if (!soc_dev_attr->revision) {
-		ret = -ENOMEM;
-		goto free_soc_id;
-	}
+	soc_dev_attr->revision = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%d.%d",
+						(val >> 4) & 0xf, val & 0xf);
+	if (!soc_dev_attr->revision)
+		return -ENOMEM;
 
-	soc_dev_attr->serial_number = kasprintf(GFP_KERNEL, "%016llX", uid);
-	if (!soc_dev_attr->serial_number) {
-		ret = -ENOMEM;
-		goto free_revision;
-	}
+	soc_dev_attr->serial_number = devm_kasprintf(&pdev->dev, GFP_KERNEL,
+						     "%016llX", uid);
+	if (!soc_dev_attr->serial_number)
+		return -ENOMEM;
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR(soc_dev)) {
-		ret = PTR_ERR(soc_dev);
-		goto free_serial_number;
-	}
+	if (IS_ERR(soc_dev))
+		return PTR_ERR(soc_dev);
 
 	return 0;
-
-free_serial_number:
-	kfree(soc_dev_attr->serial_number);
-free_revision:
-	kfree(soc_dev_attr->revision);
-free_soc_id:
-	kfree(soc_dev_attr->soc_id);
-	return ret;
 }
 
 static struct platform_driver imx_scu_soc_driver = {
