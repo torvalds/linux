@@ -171,11 +171,11 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 
 		/* File size should be zero if there is no cluster allocated */
 		if (ei->start_clu == EXFAT_EOF_CLUSTER) {
-			ep->dentry.stream.valid_size = 0;
-			ep->dentry.stream.size = 0;
+			ep2->dentry.stream.valid_size = 0;
+			ep2->dentry.stream.size = 0;
 		} else {
-			ep->dentry.stream.valid_size = cpu_to_le64(new_size);
-			ep->dentry.stream.size = ep->dentry.stream.valid_size;
+			ep2->dentry.stream.valid_size = cpu_to_le64(new_size);
+			ep2->dentry.stream.size = ep->dentry.stream.valid_size;
 		}
 
 		if (new_size == 0) {
