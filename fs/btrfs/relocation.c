@@ -3880,7 +3880,7 @@ int btrfs_reloc_clone_csums(struct inode *inode, u64 file_pos, u64 len)
 	u64 new_bytenr;
 	LIST_HEAD(list);
 
-	ordered = btrfs_lookup_ordered_extent(inode, file_pos);
+	ordered = btrfs_lookup_ordered_extent(BTRFS_I(inode), file_pos);
 	BUG_ON(ordered->file_offset != file_pos || ordered->num_bytes != len);
 
 	disk_bytenr = file_pos + BTRFS_I(inode)->index_cnt;
