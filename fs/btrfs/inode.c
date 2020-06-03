@@ -929,10 +929,10 @@ out_free:
 	goto again;
 }
 
-static u64 get_extent_allocation_hint(struct inode *inode, u64 start,
+static u64 get_extent_allocation_hint(struct btrfs_inode *inode, u64 start,
 				      u64 num_bytes)
 {
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	u64 alloc_hint = 0;
 
@@ -1032,7 +1032,8 @@ static noinline int cow_file_range(struct inode *inode,
 		}
 	}
 
-	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
+	alloc_hint = get_extent_allocation_hint(BTRFS_I(inode), start,
+						num_bytes);
 	btrfs_drop_extent_cache(BTRFS_I(inode), start,
 			start + num_bytes - 1, 0);
 
@@ -6893,7 +6894,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	u64 alloc_hint;
 	int ret;
 
-	alloc_hint = get_extent_allocation_hint(inode, start, len);
+	alloc_hint = get_extent_allocation_hint(BTRFS_I(inode), start, len);
 	ret = btrfs_reserve_extent(root, len, len, fs_info->sectorsize,
 				   0, alloc_hint, &ins, 1, 1);
 	if (ret)
