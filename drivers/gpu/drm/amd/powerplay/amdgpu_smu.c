@@ -720,30 +720,6 @@ int smu_feature_is_supported(struct smu_context *smu, enum smu_feature_mask mask
 	return ret;
 }
 
-int smu_feature_set_supported(struct smu_context *smu,
-			      enum smu_feature_mask mask,
-			      bool enable)
-{
-	struct smu_feature *feature = &smu->smu_feature;
-	int feature_id;
-	int ret = 0;
-
-	feature_id = smu_feature_get_index(smu, mask);
-	if (feature_id < 0)
-		return -EINVAL;
-
-	WARN_ON(feature_id > feature->feature_num);
-
-	mutex_lock(&feature->mutex);
-	if (enable)
-		test_and_set_bit(feature_id, feature->supported);
-	else
-		test_and_clear_bit(feature_id, feature->supported);
-	mutex_unlock(&feature->mutex);
-
-	return ret;
-}
-
 static int smu_set_funcs(struct amdgpu_device *adev)
 {
 	struct smu_context *smu = &adev->smu;
@@ -823,21 +799,9 @@ int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 	return 0;
 }
 
-static int smu_initialize_pptable(struct smu_context *smu)
-{
-	/* TODO */
-	return 0;
-}
-
 static int smu_smc_table_sw_init(struct smu_context *smu)
 {
 	int ret;
-
-	ret = smu_initialize_pptable(smu);
-	if (ret) {
-		pr_err("Failed to init smu_initialize_pptable!\n");
-		return ret;
-	}
 
 	/**
 	 * Create smu_table structure, and init smc tables such as
@@ -1137,19 +1101,16 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return ret;
 	}
 
-	if (smu->ppt_funcs->set_power_source) {
-		/*
-		 * For Navi1X, manually switch it to AC mode as PMFW
-		 * may boot it with DC mode.
-		 */
-		if (adev->pm.ac_power)
-			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
-		else
-			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
-		if (ret) {
-			pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
-			return ret;
-		}
+	/*
+	 * For Navi1X, manually switch it to AC mode as PMFW
+	 * may boot it with DC mode.
+	 */
+	ret = smu_set_power_source(smu,
+				   adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
+				   SMU_POWER_SOURCE_DC);
+	if (ret) {
+		pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
+		return ret;
 	}
 
 	ret = smu_notify_display_change(smu);
@@ -2138,15 +2099,12 @@ int smu_set_ac_dc(struct smu_context *smu)
 		return 0;
 
 	mutex_lock(&smu->mutex);
-	if (smu->ppt_funcs->set_power_source) {
-		if (smu->adev->pm.ac_power)
-			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_AC);
-		else
-			ret = smu_set_power_source(smu, SMU_POWER_SOURCE_DC);
-		if (ret)
-			pr_err("Failed to switch to %s mode!\n",
-			       smu->adev->pm.ac_power ? "AC" : "DC");
-	}
+	ret = smu_set_power_source(smu,
+				   smu->adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
+				   SMU_POWER_SOURCE_DC);
+	if (ret)
+		pr_err("Failed to switch to %s mode!\n",
+		       smu->adev->pm.ac_power ? "AC" : "DC");
 	mutex_unlock(&smu->mutex);
 
 	return ret;

@@ -668,8 +668,6 @@ extern int smu_feature_set_enabled(struct smu_context *smu,
 				   enum smu_feature_mask mask, bool enable);
 extern int smu_feature_is_supported(struct smu_context *smu,
 				    enum smu_feature_mask mask);
-extern int smu_feature_set_supported(struct smu_context *smu,
-				     enum smu_feature_mask mask, bool enable);
 
 int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
 		     void *table_data, bool drv2smu);
