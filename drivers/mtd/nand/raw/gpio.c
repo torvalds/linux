@@ -72,34 +72,6 @@ static void gpio_nand_dosync(struct gpiomtd *gpiomtd)
 static inline void gpio_nand_dosync(struct gpiomtd *gpiomtd) {}
 #endif
 
-static void gpio_nand_cmd_ctrl(struct nand_chip *chip, int cmd,
-			       unsigned int ctrl)
-{
-	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
-
-	gpio_nand_dosync(gpiomtd);
-
-	if (ctrl & NAND_CTRL_CHANGE) {
-		if (gpiomtd->nce)
-			gpiod_set_value(gpiomtd->nce, !(ctrl & NAND_NCE));
-		gpiod_set_value(gpiomtd->cle, !!(ctrl & NAND_CLE));
-		gpiod_set_value(gpiomtd->ale, !!(ctrl & NAND_ALE));
-		gpio_nand_dosync(gpiomtd);
-	}
-	if (cmd == NAND_CMD_NONE)
-		return;
-
-	writeb(cmd, gpiomtd->nand_chip.legacy.IO_ADDR_W);
-	gpio_nand_dosync(gpiomtd);
-}
-
-static int gpio_nand_devready(struct nand_chip *chip)
-{
-	struct gpiomtd *gpiomtd = gpio_nand_getpriv(nand_to_mtd(chip));
-
-	return gpiod_get_value(gpiomtd->rdy);
-}
-
 static int gpio_nand_exec_instr(struct nand_chip *chip,
 				const struct nand_op_instr *instr)
 {
@@ -365,21 +337,14 @@ static int gpio_nand_probe(struct platform_device *pdev)
 		ret = PTR_ERR(gpiomtd->rdy);
 		goto out_ce;
 	}
-	/* Using RDY pin */
-	if (gpiomtd->rdy)
-		chip->legacy.dev_ready = gpio_nand_devready;
 
 	nand_controller_init(&gpiomtd->base);
 	gpiomtd->base.ops = &gpio_nand_ops;
 
 	nand_set_flash_node(chip, pdev->dev.of_node);
-	chip->legacy.IO_ADDR_R	= gpiomtd->io;
-	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
 	chip->ecc.algo		= NAND_ECC_HAMMING;
 	chip->options		= gpiomtd->plat.options;
-	chip->legacy.chip_delay	= gpiomtd->plat.chip_delay;
-	chip->legacy.cmd_ctrl	= gpio_nand_cmd_ctrl;
 	chip->controller	= &gpiomtd->base;
 
 	mtd			= nand_to_mtd(chip);
