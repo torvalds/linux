@@ -2464,11 +2464,11 @@ int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end)
 }
 
 static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
-				       struct inode *inode, u64 file_pos,
+				       struct btrfs_inode *inode, u64 file_pos,
 				       struct btrfs_file_extent_item *stack_fi,
 				       u64 qgroup_reserved)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
 	struct btrfs_key ins;
@@ -2492,14 +2492,14 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	 * the caller is expected to unpin it and allow it to be merged
 	 * with the others.
 	 */
-	ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path, file_pos,
+	ret = __btrfs_drop_extents(trans, root, inode, path, file_pos,
 				   file_pos + num_bytes, NULL, 0,
 				   1, sizeof(*stack_fi), &extent_inserted);
 	if (ret)
 		goto out;
 
 	if (!extent_inserted) {
-		ins.objectid = btrfs_ino(BTRFS_I(inode));
+		ins.objectid = btrfs_ino(inode);
 		ins.offset = file_pos;
 		ins.type = BTRFS_EXTENT_DATA_KEY;
 
@@ -2518,19 +2518,17 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(leaf);
 	btrfs_release_path(path);
 
-	inode_add_bytes(inode, num_bytes);
+	inode_add_bytes(&inode->vfs_inode, num_bytes);
 
 	ins.objectid = disk_bytenr;
 	ins.offset = disk_num_bytes;
 	ins.type = BTRFS_EXTENT_ITEM_KEY;
 
-	ret = btrfs_inode_set_file_extent_range(BTRFS_I(inode), file_pos,
-						ram_bytes);
+	ret = btrfs_inode_set_file_extent_range(inode, file_pos, ram_bytes);
 	if (ret)
 		goto out;
 
-	ret = btrfs_alloc_reserved_file_extent(trans, root,
-					       btrfs_ino(BTRFS_I(inode)),
+	ret = btrfs_alloc_reserved_file_extent(trans, root, btrfs_ino(inode),
 					       file_pos, qgroup_reserved, &ins);
 out:
 	btrfs_free_path(path);
@@ -2574,7 +2572,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_compression(&stack_fi, oe->compress_type);
 	/* Encryption and other encoding is reserved and all 0 */
 
-	return insert_reserved_file_extent(trans, inode, oe->file_offset,
+	return insert_reserved_file_extent(trans, BTRFS_I(inode), oe->file_offset,
 					   &stack_fi, oe->qgroup_rsv);
 }
 
@@ -9646,7 +9644,7 @@ static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
 	ret = btrfs_qgroup_release_data(BTRFS_I(inode), file_offset, len);
 	if (ret < 0)
 		return ret;
-	return insert_reserved_file_extent(trans, inode, file_offset,
+	return insert_reserved_file_extent(trans, BTRFS_I(inode), file_offset,
 					   &stack_fi, ret);
 }
 static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
@@ -9707,8 +9705,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 
 		last_alloc = ins.offset;
-		ret = insert_prealloc_file_extent(trans, inode, &ins,
-						  cur_offset);
+		ret = insert_prealloc_file_extent(trans, inode, &ins, cur_offset);
 		if (ret) {
 			btrfs_free_reserved_extent(fs_info, ins.objectid,
 						   ins.offset, 0);
