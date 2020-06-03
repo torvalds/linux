@@ -1790,11 +1790,11 @@ error:
 	return ret;
 }
 
-static inline int need_force_cow(struct inode *inode, u64 start, u64 end)
+static inline int need_force_cow(struct btrfs_inode *inode, u64 start, u64 end)
 {
 
-	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW) &&
-	    !(BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC))
+	if (!(inode->flags & BTRFS_INODE_NODATACOW) &&
+	    !(inode->flags & BTRFS_INODE_PREALLOC))
 		return 0;
 
 	/*
@@ -1802,9 +1802,8 @@ static inline int need_force_cow(struct inode *inode, u64 start, u64 end)
 	 * if is not zero, it means the file is defragging.
 	 * Force cow if given extent needs to be defragged.
 	 */
-	if (BTRFS_I(inode)->defrag_bytes &&
-	    test_range_bit(&BTRFS_I(inode)->io_tree, start, end,
-			   EXTENT_DEFRAG, 0, NULL))
+	if (inode->defrag_bytes &&
+	    test_range_bit(&inode->io_tree, start, end, EXTENT_DEFRAG, 0, NULL))
 		return 1;
 
 	return 0;
@@ -1819,7 +1818,7 @@ int btrfs_run_delalloc_range(struct inode *inode, struct page *locked_page,
 		struct writeback_control *wbc)
 {
 	int ret;
-	int force_cow = need_force_cow(inode, start, end);
+	int force_cow = need_force_cow(BTRFS_I(inode), start, end);
 
 	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW && !force_cow) {
 		ret = run_delalloc_nocow(BTRFS_I(inode), locked_page, start, end,
