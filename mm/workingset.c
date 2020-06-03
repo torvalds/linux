@@ -365,6 +365,10 @@ void workingset_refault(struct page *page, void *shadow)
 	/* Page was active prior to eviction */
 	if (workingset) {
 		SetPageWorkingset(page);
+		/* XXX: Move to lru_cache_add() when it supports new vs putback */
+		spin_lock_irq(&page_pgdat(page)->lru_lock);
+		lru_note_cost(page);
+		spin_unlock_irq(&page_pgdat(page)->lru_lock);
 		inc_lruvec_state(lruvec, WORKINGSET_RESTORE);
 	}
 out:

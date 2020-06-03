@@ -278,12 +278,15 @@ void rotate_reclaimable_page(struct page *page)
 	}
 }
 
-void lru_note_cost(struct lruvec *lruvec, bool file, unsigned int nr_pages)
+void lru_note_cost(struct page *page)
 {
-	if (file)
-		lruvec->file_cost += nr_pages;
+	struct lruvec *lruvec = mem_cgroup_page_lruvec(page, page_pgdat(page));
+
+	/* Record new data point */
+	if (page_is_file_lru(page))
+		lruvec->file_cost++;
 	else
-		lruvec->anon_cost += nr_pages;
+		lruvec->anon_cost++;
 }
 
 static void __activate_page(struct page *page, struct lruvec *lruvec,

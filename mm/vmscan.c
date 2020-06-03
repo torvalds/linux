@@ -1958,12 +1958,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	move_pages_to_lru(lruvec, &page_list);
 
 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
-	/*
-	 * Rotating pages costs CPU without actually
-	 * progressing toward the reclaim goal.
-	 */
-	lru_note_cost(lruvec, 0, stat.nr_activate[0]);
-	lru_note_cost(lruvec, 1, stat.nr_activate[1]);
 	item = current_is_kswapd() ? PGSTEAL_KSWAPD : PGSTEAL_DIRECT;
 	if (!cgroup_reclaim(sc))
 		__count_vm_events(item, nr_reclaimed);
@@ -2079,11 +2073,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	 * Move pages back to the lru list.
 	 */
 	spin_lock_irq(&pgdat->lru_lock);
-	/*
-	 * Rotating pages costs CPU without actually
-	 * progressing toward the reclaim goal.
-	 */
-	lru_note_cost(lruvec, file, nr_rotated);
 
 	nr_activate = move_pages_to_lru(lruvec, &l_active);
 	nr_deactivate = move_pages_to_lru(lruvec, &l_inactive);
@@ -2298,22 +2287,23 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	scan_balance = SCAN_FRACT;
 
 	/*
-	 * With swappiness at 100, anonymous and file have the same priority.
-	 * This scanning priority is essentially the inverse of IO cost.
+	 * Calculate the pressure balance between anon and file pages.
+	 *
+	 * The amount of pressure we put on each LRU is inversely
+	 * proportional to the cost of reclaiming each list, as
+	 * determined by the share of pages that are refaulting, times
+	 * the relative IO cost of bringing back a swapped out
+	 * anonymous page vs reloading a filesystem page (swappiness).
+	 *
+	 * With swappiness at 100, anon and file have equal IO cost.
 	 */
 	anon_prio = swappiness;
 	file_prio = 200 - anon_prio;
 
 	/*
-	 * OK, so we have swap space and a fair amount of page cache
-	 * pages.  We use the recently rotated / recently scanned
-	 * ratios to determine how valuable each cache is.
-	 *
 	 * Because workloads change over time (and to avoid overflow)
 	 * we keep these statistics as a floating average, which ends
-	 * up weighing recent references more than old ones.
-	 *
-	 * anon in [0], file in [1]
+	 * up weighing recent refaults more than old ones.
 	 */
 
 	anon  = lruvec_lru_size(lruvec, LRU_ACTIVE_ANON, MAX_NR_ZONES) +
@@ -2328,15 +2318,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 		lruvec->file_cost /= 2;
 		totalcost /= 2;
 	}
-
-	/*
-	 * The amount of pressure on anon vs file pages is inversely
-	 * proportional to the assumed cost of reclaiming each list,
-	 * as determined by the share of pages that are likely going
-	 * to refault or rotate on each list (recently referenced),
-	 * times the relative IO cost of bringing back a swapped out
-	 * anonymous page vs reloading a filesystem page (swappiness).
-	 */
 	ap = anon_prio * (totalcost + 1);
 	ap /= lruvec->anon_cost + 1;
 

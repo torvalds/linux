@@ -440,6 +440,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 		goto fail_unlock;
 	}
 
+	/* XXX: Move to lru_cache_add() when it supports new vs putback */
+	spin_lock_irq(&page_pgdat(page)->lru_lock);
+	lru_note_cost(page);
+	spin_unlock_irq(&page_pgdat(page)->lru_lock);
+
 	/* Caller will initiate read into locked page */
 	SetPageWorkingset(page);
 	lru_cache_add(page);
