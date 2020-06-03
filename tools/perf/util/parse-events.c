@@ -2088,15 +2088,16 @@ int parse_events_terms(struct list_head *terms, const char *str)
 	return ret;
 }
 
-int parse_events(struct evlist *evlist, const char *str,
-		 struct parse_events_error *err)
+int __parse_events(struct evlist *evlist, const char *str,
+		   struct parse_events_error *err, struct perf_pmu *fake_pmu)
 {
 	struct parse_events_state parse_state = {
-		.list   = LIST_HEAD_INIT(parse_state.list),
-		.idx    = evlist->core.nr_entries,
-		.error  = err,
-		.evlist = evlist,
-		.stoken = PE_START_EVENTS,
+		.list	  = LIST_HEAD_INIT(parse_state.list),
+		.idx	  = evlist->core.nr_entries,
+		.error	  = err,
+		.evlist	  = evlist,
+		.stoken	  = PE_START_EVENTS,
+		.fake_pmu = fake_pmu,
 	};
 	int ret;
 
