@@ -106,9 +106,15 @@ initialize_ftrace() { # Reset ftrace to initial-state
     enable_tracing
 }
 
-check_requires() { # Check required files
+check_requires() { # Check required files and tracers
     for i in $* ; do
-        if [ ! -e $i ]; then
+        t=${i%:tracer}
+        if [ $t != $i ]; then
+            if ! grep -wq $t available_tracers ; then
+                echo "Required tracer $t is not configured."
+                exit_unsupported
+            fi
+        elif [ ! -e $i ]; then
             echo "Required feature interface $i doesn't exist."
             exit_unsupported
         fi

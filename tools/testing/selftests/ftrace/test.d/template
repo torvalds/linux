@@ -1,7 +1,8 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: %HERE DESCRIBE WHAT THIS DOES%
-# requires: %HERE LIST THE REQUIRED FILES%
+# requires: %HERE LIST THE REQUIRED FILES OR TRACERS%
+# The required tracer needs :tracer suffix, e.g. function:tracer
 # you have to add ".tc" extention for your testcase file
 # Note that all tests are run with "errexit" option.
 

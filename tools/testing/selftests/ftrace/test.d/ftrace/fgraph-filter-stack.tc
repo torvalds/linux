@@ -1,15 +1,10 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: ftrace - function graph filters with stack tracer
-# requires: stack_trace set_ftrace_filter
+# requires: stack_trace set_ftrace_filter function_graph:tracer
 
 # Make sure that function graph filtering works, and is not
 # affected by other tracers enabled (like stack tracer)
-
-if ! grep -q function_graph available_tracers; then
-    echo "no function graph tracer configured"
-    exit_unsupported
-fi
 
 do_reset() {
     if [ -e /proc/sys/kernel/stack_tracer_enabled ]; then
