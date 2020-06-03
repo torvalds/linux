@@ -6868,7 +6868,7 @@ out:
 	return em;
 }
 
-static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
+static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 						  const u64 start,
 						  const u64 len,
 						  const u64 orig_start,
@@ -6882,21 +6882,19 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 	int ret;
 
 	if (type != BTRFS_ORDERED_NOCOW) {
-		em = create_io_em(BTRFS_I(inode), start, len, orig_start,
-				  block_start, block_len, orig_block_len,
-				  ram_bytes,
+		em = create_io_em(inode, start, len, orig_start, block_start,
+				  block_len, orig_block_len, ram_bytes,
 				  BTRFS_COMPRESS_NONE, /* compress_type */
 				  type);
 		if (IS_ERR(em))
 			goto out;
 	}
-	ret = btrfs_add_ordered_extent_dio(BTRFS_I(inode), start, block_start,
-					   len, block_len, type);
+	ret = btrfs_add_ordered_extent_dio(inode, start, block_start, len,
+					   block_len, type);
 	if (ret) {
 		if (em) {
 			free_extent_map(em);
-			btrfs_drop_extent_cache(BTRFS_I(inode), start,
-						start + len - 1, 0);
+			btrfs_drop_extent_cache(inode, start, start + len - 1, 0);
 		}
 		em = ERR_PTR(ret);
 	}
@@ -6921,7 +6919,7 @@ static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
 	if (ret)
 		return ERR_PTR(ret);
 
-	em = btrfs_create_dio_extent(inode, start, ins.offset, start,
+	em = btrfs_create_dio_extent(BTRFS_I(inode), start, ins.offset, start,
 				     ins.objectid, ins.offset, ins.offset,
 				     ins.offset, BTRFS_ORDERED_REGULAR);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
@@ -7295,7 +7293,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		    btrfs_inc_nocow_writers(fs_info, block_start)) {
 			struct extent_map *em2;
 
-			em2 = btrfs_create_dio_extent(inode, start, len,
+			em2 = btrfs_create_dio_extent(BTRFS_I(inode), start, len,
 						      orig_start, block_start,
 						      len, orig_block_len,
 						      ram_bytes, type);
