@@ -500,18 +500,18 @@ next:
  * this also makes the decision about creating an inline extent vs
  * doing real data extents, marking pages dirty and delalloc as required.
  */
-int btrfs_dirty_pages(struct inode *inode, struct page **pages,
+int btrfs_dirty_pages(struct btrfs_inode *inode, struct page **pages,
 		      size_t num_pages, loff_t pos, size_t write_bytes,
 		      struct extent_state **cached)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int err = 0;
 	int i;
 	u64 num_bytes;
 	u64 start_pos;
 	u64 end_of_last_block;
 	u64 end_pos = pos + write_bytes;
-	loff_t isize = i_size_read(inode);
+	loff_t isize = i_size_read(&inode->vfs_inode);
 	unsigned int extra_bits = 0;
 
 	start_pos = pos & ~((u64) fs_info->sectorsize - 1);
@@ -524,13 +524,13 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
 	 * The pages may have already been dirty, clear out old accounting so
 	 * we can set things up properly
 	 */
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, start_pos, end_of_last_block,
+	clear_extent_bit(&inode->io_tree, start_pos, end_of_last_block,
 			 EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING | EXTENT_DEFRAG,
 			 0, 0, cached);
 
-	if (!btrfs_is_free_space_inode(BTRFS_I(inode))) {
+	if (!btrfs_is_free_space_inode(inode)) {
 		if (start_pos >= isize &&
-		    !(BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC)) {
+		    !(inode->flags & BTRFS_INODE_PREALLOC)) {
 			/*
 			 * There can't be any extents following eof in this case
 			 * so just set the delalloc new bit for the range
@@ -538,15 +538,14 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
 			 */
 			extra_bits |= EXTENT_DELALLOC_NEW;
 		} else {
-			err = btrfs_find_new_delalloc_bytes(BTRFS_I(inode),
-							    start_pos,
+			err = btrfs_find_new_delalloc_bytes(inode, start_pos,
 							    num_bytes, cached);
 			if (err)
 				return err;
 		}
 	}
 
-	err = btrfs_set_extent_delalloc(BTRFS_I(inode), start_pos, end_of_last_block,
+	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
 					extra_bits, cached);
 	if (err)
 		return err;
@@ -564,7 +563,7 @@ int btrfs_dirty_pages(struct inode *inode, struct page **pages,
 	 * at this time.
 	 */
 	if (end_pos > isize)
-		i_size_write(inode, end_pos);
+		i_size_write(&inode->vfs_inode, end_pos);
 	return 0;
 }
 
@@ -1795,8 +1794,9 @@ again:
 					fs_info->sectorsize);
 
 		if (copied > 0)
-			ret = btrfs_dirty_pages(inode, pages, dirty_pages,
-						pos, copied, &cached_state);
+			ret = btrfs_dirty_pages(BTRFS_I(inode), pages,
+						dirty_pages, pos, copied,
+						&cached_state);
 
 		/*
 		 * If we have not locked the extent range, because the range's
