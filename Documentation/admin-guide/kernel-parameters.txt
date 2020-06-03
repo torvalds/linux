@@ -5093,6 +5093,12 @@
 			interruptions from clocksource watchdog are not
 			acceptable).
 
+	tsc_early_khz=  [X86] Skip early TSC calibration and use the given
+			value instead. Useful when the early TSC frequency discovery
+			procedure is not reliable, such as on overclocked systems
+			with CPUID.16h support and partial CPUID.15h support.
+			Format: <unsigned int>
+
 	tsx=		[X86] Control Transactional Synchronization
 			Extensions (TSX) feature in Intel processors that
 			support TSX control.
