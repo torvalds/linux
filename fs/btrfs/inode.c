@@ -274,15 +274,15 @@ fail:
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
  */
-static noinline int cow_file_range_inline(struct inode *inode, u64 start,
+static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 start,
 					  u64 end, size_t compressed_size,
 					  int compress_type,
 					  struct page **compressed_pages)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_trans_handle *trans;
-	u64 isize = i_size_read(inode);
+	u64 isize = i_size_read(&inode->vfs_inode);
 	u64 actual_end = min(end + 1, isize);
 	u64 inline_len = actual_end - start;
 	u64 aligned_end = ALIGN(end, fs_info->sectorsize);
@@ -314,7 +314,7 @@ static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 		btrfs_free_path(path);
 		return PTR_ERR(trans);
 	}
-	trans->block_rsv = &BTRFS_I(inode)->block_rsv;
+	trans->block_rsv = &inode->block_rsv;
 
 	if (compressed_size && compressed_pages)
 		extent_item_size = btrfs_file_extent_calc_inline_size(
@@ -323,9 +323,9 @@ static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 		extent_item_size = btrfs_file_extent_calc_inline_size(
 		    inline_len);
 
-	ret = __btrfs_drop_extents(trans, root, BTRFS_I(inode), path,
-				   start, aligned_end, NULL,
-				   1, 1, extent_item_size, &extent_inserted);
+	ret = __btrfs_drop_extents(trans, root, inode, path, start, aligned_end,
+				   NULL, 1, 1, extent_item_size,
+				   &extent_inserted);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -334,7 +334,7 @@ static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 	if (isize > actual_end)
 		inline_len = min_t(u64, isize, actual_end);
 	ret = insert_inline_extent(trans, path, extent_inserted,
-				   root, inode, start,
+				   root, &inode->vfs_inode, start,
 				   inline_len, compressed_size,
 				   compress_type, compressed_pages);
 	if (ret && ret != -ENOSPC) {
@@ -345,8 +345,8 @@ static noinline int cow_file_range_inline(struct inode *inode, u64 start,
 		goto out;
 	}
 
-	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &BTRFS_I(inode)->runtime_flags);
-	btrfs_drop_extent_cache(BTRFS_I(inode), start, aligned_end - 1, 0);
+	set_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags);
+	btrfs_drop_extent_cache(inode, start, aligned_end - 1, 0);
 out:
 	/*
 	 * Don't forget to free the reserved space, as for inlined extent
@@ -354,7 +354,7 @@ out:
 	 * And at reserve time, it's always aligned to page size, so
 	 * just free one page here.
 	 */
-	btrfs_qgroup_free_data(BTRFS_I(inode), NULL, 0, PAGE_SIZE);
+	btrfs_qgroup_free_data(inode, NULL, 0, PAGE_SIZE);
 	btrfs_free_path(path);
 	btrfs_end_transaction(trans);
 	return ret;
@@ -616,11 +616,12 @@ cont:
 			/* we didn't compress the entire range, try
 			 * to make an uncompressed inline extent.
 			 */
-			ret = cow_file_range_inline(inode, start, end, 0,
-						    BTRFS_COMPRESS_NONE, NULL);
+			ret = cow_file_range_inline(BTRFS_I(inode), start, end,
+						    0, BTRFS_COMPRESS_NONE,
+						    NULL);
 		} else {
 			/* try making a compressed inline extent */
-			ret = cow_file_range_inline(inode, start, end,
+			ret = cow_file_range_inline(BTRFS_I(inode), start, end,
 						    total_compressed,
 						    compress_type, pages);
 		}
@@ -1009,7 +1010,7 @@ static noinline int cow_file_range(struct inode *inode,
 
 	if (start == 0) {
 		/* lets try to make an inline extent */
-		ret = cow_file_range_inline(inode, start, end, 0,
+		ret = cow_file_range_inline(BTRFS_I(inode), start, end, 0,
 					    BTRFS_COMPRESS_NONE, NULL);
 		if (ret == 0) {
 			/*
