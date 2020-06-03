@@ -3592,10 +3592,10 @@ out:
  *
  * NOTE: This function may sleep for memory allocation.
  */
-int btrfs_qgroup_free_data(struct inode *inode,
+int btrfs_qgroup_free_data(struct btrfs_inode *inode,
 			struct extent_changeset *reserved, u64 start, u64 len)
 {
-	return __btrfs_qgroup_release_data(BTRFS_I(inode), reserved, start, len, 1);
+	return __btrfs_qgroup_release_data(inode, reserved, start, len, 1);
 }
 
 /*
