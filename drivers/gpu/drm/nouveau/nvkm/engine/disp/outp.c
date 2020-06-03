@@ -121,14 +121,14 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 	 * on HW, if any, in order to prevent unnecessary switching.
 	 */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity &&
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
 		    !ior->asy.outp && ior->arm.outp == outp)
 			return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
 	/* Failing that, a completely unused OR is the next best thing. */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity &&
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
 		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
@@ -138,7 +138,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 	 * but will be released during the next modeset.
 	 */
 	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity &&
+		if (!ior->identity && !!ior->func->hda.hpd == hda &&
 		    !ior->asy.outp && ior->type == type &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
@@ -173,7 +173,25 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 		return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
-	return nvkm_outp_acquire_hda(outp, type, user, true);
+	/* If we don't need HDA, first try to acquire an OR that doesn't
+	 * support it to leave free the ones that do.
+	 */
+	if (!hda) {
+		if (!nvkm_outp_acquire_hda(outp, type, user, false))
+			return 0;
+
+		/* Use a HDA-supporting SOR anyway. */
+		return nvkm_outp_acquire_hda(outp, type, user, true);
+	}
+
+	/* We want HDA, try to acquire an OR that supports it. */
+	if (!nvkm_outp_acquire_hda(outp, type, user, true))
+		return 0;
+
+	/* There weren't any free ORs that support HDA, grab one that
+	 * doesn't and at least allow display to work still.
+	 */
+	return nvkm_outp_acquire_hda(outp, type, user, false);
 }
 
 void
