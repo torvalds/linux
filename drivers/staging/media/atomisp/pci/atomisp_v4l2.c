@@ -1206,7 +1206,7 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 
 	isp->media_dev.dev = isp->dev;
 
-	strlcpy(isp->media_dev.model, "Intel Atom ISP",
+	strscpy(isp->media_dev.model, "Intel Atom ISP",
 		sizeof(isp->media_dev.model));
 
 	media_device_init(&isp->media_dev);

@@ -219,7 +219,7 @@ int atomisp_file_input_init(struct atomisp_device *isp)
 
 	v4l2_subdev_init(sd, &file_input_ops);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strcpy(sd->name, "file_input_subdev");
+	strscpy(sd->name, "file_input_subdev", sizeof(sd->name));
 	v4l2_set_subdevdata(sd, file_dev);
 
 	pads[0].flags = MEDIA_PAD_FL_SINK;

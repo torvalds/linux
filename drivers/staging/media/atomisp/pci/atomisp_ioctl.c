@@ -547,8 +547,8 @@ static int atomisp_querycap(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 
-	strscpy(cap->driver, DRIVER, sizeof(cap->driver) - 1);
-	strscpy(cap->card, CARD, sizeof(cap->card) - 1);
+	strscpy(cap->driver, DRIVER, sizeof(cap->driver));
+	strscpy(cap->card, CARD, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
 		 pci_name(isp->pdev));
 
@@ -573,8 +573,8 @@ static int atomisp_enum_input(struct file *file, void *fh,
 		return -EINVAL;
 
 	memset(input, 0, sizeof(struct v4l2_input));
-	strncpy(input->name, isp->inputs[index].camera->name,
-		sizeof(input->name) - 1);
+	strscpy(input->name, isp->inputs[index].camera->name,
+		sizeof(input->name));
 
 	/*
 	 * HACK: append actuator's name to sensor's
@@ -593,8 +593,8 @@ static int atomisp_enum_input(struct file *file, void *fh,
 
 		if (max_size > 1) {
 			input->name[cur_len] = '+';
-			strncpy(&input->name[cur_len + 1],
-				motor->name, max_size - 1);
+			strscpy(&input->name[cur_len + 1],
+				motor->name, max_size);
 		}
 	}
 

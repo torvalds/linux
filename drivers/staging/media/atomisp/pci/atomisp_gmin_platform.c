@@ -936,7 +936,7 @@ static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
 		if (vl > *out_len - 1)
 			return -ENOSPC;
 
-		strcpy(out, gv->val);
+		strscpy(out, gv->val, *out_len);
 		*out_len = vl;
 		return 0;
 	}

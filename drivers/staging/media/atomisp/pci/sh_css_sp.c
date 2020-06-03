@@ -991,8 +991,7 @@ sh_css_sp_init_stage(struct ia_css_binary *binary,
 
 	/* Make sure binary name is smaller than allowed string size */
 	assert(strlen(binary_name) < SH_CSS_MAX_BINARY_NAME - 1);
-	strncpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME - 1);
-	sh_css_isp_stage.binary_name[SH_CSS_MAX_BINARY_NAME - 1] = 0;
+	strscpy(sh_css_isp_stage.binary_name, binary_name, SH_CSS_MAX_BINARY_NAME);
 	sh_css_isp_stage.mem_initializers = *isp_mem_if;
 
 	/*

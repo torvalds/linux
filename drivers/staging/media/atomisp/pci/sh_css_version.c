@@ -31,7 +31,7 @@ ia_css_get_version(char *version, int max_size) {
 
 	if (max_size <= (int)strlen(css_version) + (int)strlen(sh_css_get_fw_version()) + 5)
 		return -EINVAL;
-	strcpy(version, css_version);
+	strscpy(version, css_version, max_size);
 	strcat(version, "FW:");
 	strcat(version, sh_css_get_fw_version());
 	strcat(version, "; ");
