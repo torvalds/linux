@@ -220,11 +220,12 @@ static void __init create_pid_file(void)
 	char pid[sizeof("nnnnn\0")], *file;
 	int fd, n;
 
-	file = malloc(strlen(uml_dir) + UMID_LEN + sizeof("/pid\0"));
+	n = strlen(uml_dir) + UMID_LEN + sizeof("/pid\0");
+	file = malloc(n);
 	if (!file)
 		return;
 
-	if (umid_file_name("pid", file, sizeof(file)))
+	if (umid_file_name("pid", file, n))
 		goto out;
 
 	fd = open(file, O_RDWR | O_CREAT | O_EXCL, 0644);

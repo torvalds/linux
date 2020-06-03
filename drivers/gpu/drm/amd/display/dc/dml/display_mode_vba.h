@@ -389,7 +389,6 @@ struct vba_vars_st {
 
 	/* vba mode support */
 	/*inputs*/
-	bool EmbeddedPanel[DC__NUM_DPP__MAX];
 	bool SupportGFX7CompatibleTilingIn32bppAnd64bpp;
 	double MaxHSCLRatio;
 	double MaxVSCLRatio;
@@ -842,8 +841,6 @@ struct vba_vars_st {
 	double DCCRateChroma[DC__NUM_DPP__MAX];
 
 	double PHYCLKD18PerState[DC__VOLTAGE_STATES + 1];
-	int MinVoltageLevel;
-	int MaxVoltageLevel;
 
 	bool WritebackSupportInterleaveAndUsingWholeBufferForASingleStream;
 	bool NumberOfHDMIFRLSupport;
@@ -880,7 +877,6 @@ struct vba_vars_st {
 	double TotalMetaRowBandwidth[DC__VOLTAGE_STATES + 1][2];
 	double TotalVActiveCursorBandwidth[DC__VOLTAGE_STATES + 1][2];
 	double TotalVActivePixelBandwidth[DC__VOLTAGE_STATES + 1][2];
-	bool UseMinimumRequiredDCFCLK;
 	double WritebackDelayTime[DC__NUM_DPP__MAX];
 	unsigned int DCCYIndependentBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCIndependentBlock[DC__NUM_DPP__MAX];

@@ -5,7 +5,12 @@
 #include <linux/clk-provider.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
+#include "dwmac-intel.h"
 #include "stmmac.h"
+
+struct intel_priv_data {
+	int mdio_adhoc_addr;	/* mdio address for serdes & etc */
+};
 
 /* This struct is used to associate PCI Function of MAC controller on a board,
  * discovered via DMI, with the address of PHY connected to the MAC. The
@@ -47,6 +52,172 @@ static int stmmac_pci_find_phy_addr(struct pci_dev *pdev,
 			return func_data->phy_addr;
 
 	return -ENODEV;
+}
+
+static int serdes_status_poll(struct stmmac_priv *priv, int phyaddr,
+			      int phyreg, u32 mask, u32 val)
+{
+	unsigned int retries = 10;
+	int val_rd;
+
+	do {
+		val_rd = mdiobus_read(priv->mii, phyaddr, phyreg);
+		if ((val_rd & mask) == (val & mask))
+			return 0;
+		udelay(POLL_DELAY_US);
+	} while (--retries);
+
+	return -ETIMEDOUT;
+}
+
+static int intel_serdes_powerup(struct net_device *ndev, void *priv_data)
+{
+	struct intel_priv_data *intel_priv = priv_data;
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int serdes_phy_addr = 0;
+	u32 data = 0;
+
+	if (!intel_priv->mdio_adhoc_addr)
+		return 0;
+
+	serdes_phy_addr = intel_priv->mdio_adhoc_addr;
+
+	/* assert clk_req */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data |= SERDES_PLL_CLK;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* check for clk_ack assertion */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_PLL_CLK,
+				  SERDES_PLL_CLK);
+
+	if (data) {
+		dev_err(priv->device, "Serdes PLL clk request timeout\n");
+		return data;
+	}
+
+	/* assert lane reset */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data |= SERDES_RST;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* check for assert lane reset reflection */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_RST,
+				  SERDES_RST);
+
+	if (data) {
+		dev_err(priv->device, "Serdes assert lane reset timeout\n");
+		return data;
+	}
+
+	/*  move power state to P0 */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data &= ~SERDES_PWR_ST_MASK;
+	data |= SERDES_PWR_ST_P0 << SERDES_PWR_ST_SHIFT;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* Check for P0 state */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_PWR_ST_MASK,
+				  SERDES_PWR_ST_P0 << SERDES_PWR_ST_SHIFT);
+
+	if (data) {
+		dev_err(priv->device, "Serdes power state P0 timeout.\n");
+		return data;
+	}
+
+	return 0;
+}
+
+static void intel_serdes_powerdown(struct net_device *ndev, void *intel_data)
+{
+	struct intel_priv_data *intel_priv = intel_data;
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	int serdes_phy_addr = 0;
+	u32 data = 0;
+
+	if (!intel_priv->mdio_adhoc_addr)
+		return;
+
+	serdes_phy_addr = intel_priv->mdio_adhoc_addr;
+
+	/*  move power state to P3 */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data &= ~SERDES_PWR_ST_MASK;
+	data |= SERDES_PWR_ST_P3 << SERDES_PWR_ST_SHIFT;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* Check for P3 state */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_PWR_ST_MASK,
+				  SERDES_PWR_ST_P3 << SERDES_PWR_ST_SHIFT);
+
+	if (data) {
+		dev_err(priv->device, "Serdes power state P3 timeout\n");
+		return;
+	}
+
+	/* de-assert clk_req */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data &= ~SERDES_PLL_CLK;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* check for clk_ack de-assert */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_PLL_CLK,
+				  (u32)~SERDES_PLL_CLK);
+
+	if (data) {
+		dev_err(priv->device, "Serdes PLL clk de-assert timeout\n");
+		return;
+	}
+
+	/* de-assert lane reset */
+	data = mdiobus_read(priv->mii, serdes_phy_addr,
+			    SERDES_GCR0);
+
+	data &= ~SERDES_RST;
+
+	mdiobus_write(priv->mii, serdes_phy_addr,
+		      SERDES_GCR0, data);
+
+	/* check for de-assert lane reset reflection */
+	data = serdes_status_poll(priv, serdes_phy_addr,
+				  SERDES_GSR0,
+				  SERDES_RST,
+				  (u32)~SERDES_RST);
+
+	if (data) {
+		dev_err(priv->device, "Serdes de-assert lane reset timeout\n");
+		return;
+	}
 }
 
 static void common_default_data(struct plat_stmmacenet_data *plat)
@@ -189,6 +360,9 @@ static int ehl_sgmii_data(struct pci_dev *pdev,
 	plat->phy_addr = 0;
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
 
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
+
 	return ehl_common_data(pdev, plat);
 }
 
@@ -233,6 +407,8 @@ static int ehl_pse0_sgmii1g_data(struct pci_dev *pdev,
 				 struct plat_stmmacenet_data *plat)
 {
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
 	return ehl_pse0_common_data(pdev, plat);
 }
 
@@ -263,6 +439,8 @@ static int ehl_pse1_sgmii1g_data(struct pci_dev *pdev,
 				 struct plat_stmmacenet_data *plat)
 {
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
 	return ehl_pse1_common_data(pdev, plat);
 }
 
@@ -291,6 +469,8 @@ static int tgl_sgmii_data(struct pci_dev *pdev,
 	plat->bus_id = 1;
 	plat->phy_addr = 0;
 	plat->phy_interface = PHY_INTERFACE_MODE_SGMII;
+	plat->serdes_powerup = intel_serdes_powerup;
+	plat->serdes_powerdown = intel_serdes_powerdown;
 	return tgl_common_data(pdev, plat);
 }
 
@@ -417,10 +597,16 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *id)
 {
 	struct stmmac_pci_info *info = (struct stmmac_pci_info *)id->driver_data;
+	struct intel_priv_data *intel_priv;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_resources res;
 	int i;
 	int ret;
+
+	intel_priv = devm_kzalloc(&pdev->dev, sizeof(*intel_priv),
+				  GFP_KERNEL);
+	if (!intel_priv)
+		return -ENOMEM;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
@@ -456,6 +642,9 @@ static int intel_eth_pci_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_master(pdev);
+
+	plat->bsp_priv = intel_priv;
+	intel_priv->mdio_adhoc_addr = 0x15;
 
 	ret = info->setup(pdev, plat);
 	if (ret)

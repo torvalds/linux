@@ -14,6 +14,14 @@ menuconfig KUNIT
 
 if KUNIT
 
+config KUNIT_DEBUGFS
+	bool "KUnit - Enable /sys/kernel/debug/kunit debugfs representation"
+	help
+	  Enable debugfs representation for kunit.  Currently this consists
+	  of /sys/kernel/debug/kunit/<test_suite>/results files for each
+	  test suite, which allow users to see results of the last test suite
+	  run that occurred.
+
 config KUNIT_TEST
 	tristate "KUnit test for KUnit"
 	help

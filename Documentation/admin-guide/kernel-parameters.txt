@@ -22,11 +22,13 @@
 			default: 0
 
 	acpi_backlight=	[HW,ACPI]
-			acpi_backlight=vendor
-			acpi_backlight=video
-			If set to vendor, prefer vendor specific driver
+			{ vendor | video | native | none }
+			If set to vendor, prefer vendor-specific driver
 			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
 			of the ACPI video.ko driver.
+			If set to video, use the ACPI video.ko driver.
+			If set to native, use the device's native backlight mode.
+			If set to none, disable the ACPI backlight interface.
 
 	acpi_force_32bit_fadt_addr
 			force FADT to use 32 bit addresses rather than the
@@ -683,7 +685,7 @@
 	coredump_filter=
 			[KNL] Change the default value for
 			/proc/<pid>/coredump_filter.
-			See also Documentation/filesystems/proc.txt.
+			See also Documentation/filesystems/proc.rst.
 
 	coresight_cpu_debug.enable
 			[ARM,ARM64]
@@ -960,7 +962,7 @@
 			edid/1680x1050.bin, or edid/1920x1080.bin is given
 			and no file with the same name exists. Details and
 			instructions how to build your own EDID data are
-			available in Documentation/driver-api/edid.rst. An EDID
+			available in Documentation/admin-guide/edid.rst. An EDID
 			data set will only be used for a particular connector,
 			if its name and a colon are prepended to the EDID
 			name. Each connector may use a unique EDID data
@@ -989,10 +991,6 @@
 			Enable debug messages at boot time.  See
 			Documentation/admin-guide/dynamic-debug-howto.rst
 			for details.
-
-	nompx		[X86] Disables Intel Memory Protection Extensions.
-			See Documentation/x86/intel_mpx.rst for more
-			information about the feature.
 
 	nopku		[X86] Disable Memory Protection Keys CPU feature found
 			in some Intel CPUs.
@@ -1472,6 +1470,14 @@
 
 	hpet_mmap=	[X86, HPET_MMAP] Allow userspace to mmap HPET
 			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
+
+	hugetlb_cma=	[HW] The size of a cma area used for allocation
+			of gigantic hugepages.
+			Format: nn[KMGTPE]
+
+			Reserve a cma area of given size and allocate gigantic
+			hugepages using the cma allocator. If enabled, the
+			boot-time allocation of gigantic hugepages is skipped.
 
 	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
 	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
@@ -2571,12 +2577,21 @@
 			For details see: Documentation/admin-guide/hw-vuln/mds.rst
 
 	mem=nn[KMG]	[KNL,BOOT] Force usage of a specific amount of memory
-			Amount of memory to be used when the kernel is not able
-			to see the whole system memory or for test.
+			Amount of memory to be used in cases as follows:
+
+			1 for test;
+			2 when the kernel is not able to see the whole system memory;
+			3 memory that lies after 'mem=' boundary is excluded from
+			 the hypervisor, then assigned to KVM guests.
+
 			[X86] Work as limiting max address. Use together
 			with memmap= to avoid physical address space collisions.
 			Without memmap= PCI devices could be placed at addresses
 			belonging to unused RAM.
+
+			Note that this only takes effects during boot time since
+			in above case 3, memory may need be hot added after boot
+			if system memory of hypervisor is not sufficient.
 
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
@@ -3720,6 +3735,9 @@
 			Override pmtimer IOPort with a hex value.
 			e.g. pmtmr=0x508
 
+	pm_debug_messages	[SUSPEND,KNL]
+			Enable suspend/resume debug messages during boot up.
+
 	pnp.debug=1	[PNP]
 			Enable PNP debug messages (depends on the
 			CONFIG_PNP_DEBUG_MESSAGES option).  Change at run-time
@@ -3820,6 +3838,11 @@
 	prompt_ramdisk=	[RAM] List of RAM disks to prompt for floppy disk
 			before loading.
 			See Documentation/admin-guide/blockdev/ramdisk.rst.
+
+	prot_virt=	[S390] enable hosting protected virtual machines
+			isolated from the hypervisor (if hardware supports
+			that).
+			Format: <bool>
 
 	psi=		[KNL] Enable or disable pressure stall information
 			tracking.
@@ -5164,8 +5187,7 @@
 
 	usbcore.old_scheme_first=
 			[USB] Start with the old device initialization
-			scheme,  applies only to low and full-speed devices
-			 (default 0 = off).
+			scheme (default 0 = off).
 
 	usbcore.usbfs_memory_mb=
 			[USB] Memory limit (in MB) for buffers allocated by

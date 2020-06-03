@@ -436,33 +436,33 @@ static ssize_t pdc_debugfs_read(struct file *filp, char __user *ubuf,
 
 	pdcs = filp->private_data;
 	out_offset = 0;
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "SPU %u stats:\n", pdcs->pdc_idx);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "PDC requests....................%u\n",
 			       pdcs->pdc_requests);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "PDC responses...................%u\n",
 			       pdcs->pdc_replies);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Tx not done.....................%u\n",
 			       pdcs->last_tx_not_done);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Tx ring full....................%u\n",
 			       pdcs->tx_ring_full);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Rx ring full....................%u\n",
 			       pdcs->rx_ring_full);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Tx desc write fail. Ring full...%u\n",
 			       pdcs->txnobuf);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Rx desc write fail. Ring full...%u\n",
 			       pdcs->rxnobuf);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Receive overflow................%u\n",
 			       pdcs->rx_oflow);
-	out_offset += snprintf(buf + out_offset, out_count - out_offset,
+	out_offset += scnprintf(buf + out_offset, out_count - out_offset,
 			       "Num frags in rx ring............%u\n",
 			       NRXDACTIVE(pdcs->rxin, pdcs->last_rx_curr,
 					  pdcs->nrxpost));

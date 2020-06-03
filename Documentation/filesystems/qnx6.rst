@@ -185,7 +185,7 @@ tree structures are treated as system blocks.
 
 The rational behind that is that a write request can work on a new snapshot
 (system area of the inactive - resp. lower serial numbered superblock) while
-at the same time there is still a complete stable filesystem structer in the
+at the same time there is still a complete stable filesystem structure in the
 other half of the system area.
 
 When finished with writing (a sync write is completed, the maximum sync leap

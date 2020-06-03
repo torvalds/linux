@@ -237,27 +237,6 @@ enum ssb_mitigation {
 extern char __indirect_thunk_start[];
 extern char __indirect_thunk_end[];
 
-/*
- * On VMEXIT we must ensure that no RSB predictions learned in the guest
- * can be followed in the host, by overwriting the RSB completely. Both
- * retpoline and IBRS mitigations for Spectre v2 need this; only on future
- * CPUs with IBRS_ALL *might* it be avoided.
- */
-static inline void vmexit_fill_RSB(void)
-{
-#ifdef CONFIG_RETPOLINE
-	unsigned long loops;
-
-	asm volatile (ANNOTATE_NOSPEC_ALTERNATIVE
-		      ALTERNATIVE("jmp 910f",
-				  __stringify(__FILL_RETURN_BUFFER(%0, RSB_CLEAR_LOOPS, %1)),
-				  X86_FEATURE_RETPOLINE)
-		      "910:"
-		      : "=r" (loops), ASM_CALL_CONSTRAINT
-		      : : "memory" );
-#endif
-}
-
 static __always_inline
 void alternative_msr_write(unsigned int msr, u64 val, unsigned int feature)
 {

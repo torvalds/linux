@@ -58,6 +58,87 @@ static DEFINE_IDA(dma_ida);
 static LIST_HEAD(dma_device_list);
 static long dmaengine_ref_count;
 
+/* --- debugfs implementation --- */
+#ifdef CONFIG_DEBUG_FS
+#include <linux/debugfs.h>
+
+static struct dentry *rootdir;
+
+static void dmaengine_debug_register(struct dma_device *dma_dev)
+{
+	dma_dev->dbg_dev_root = debugfs_create_dir(dev_name(dma_dev->dev),
+						   rootdir);
+	if (IS_ERR(dma_dev->dbg_dev_root))
+		dma_dev->dbg_dev_root = NULL;
+}
+
+static void dmaengine_debug_unregister(struct dma_device *dma_dev)
+{
+	debugfs_remove_recursive(dma_dev->dbg_dev_root);
+	dma_dev->dbg_dev_root = NULL;
+}
+
+static void dmaengine_dbg_summary_show(struct seq_file *s,
+				       struct dma_device *dma_dev)
+{
+	struct dma_chan *chan;
+
+	list_for_each_entry(chan, &dma_dev->channels, device_node) {
+		if (chan->client_count) {
+			seq_printf(s, " %-13s| %s", dma_chan_name(chan),
+				   chan->dbg_client_name ?: "in-use");
+
+			if (chan->router)
+				seq_printf(s, " (via router: %s)\n",
+					dev_name(chan->router->dev));
+			else
+				seq_puts(s, "\n");
+		}
+	}
+}
+
+static int dmaengine_summary_show(struct seq_file *s, void *data)
+{
+	struct dma_device *dma_dev = NULL;
+
+	mutex_lock(&dma_list_mutex);
+	list_for_each_entry(dma_dev, &dma_device_list, global_node) {
+		seq_printf(s, "dma%d (%s): number of channels: %u\n",
+			   dma_dev->dev_id, dev_name(dma_dev->dev),
+			   dma_dev->chancnt);
+
+		if (dma_dev->dbg_summary_show)
+			dma_dev->dbg_summary_show(s, dma_dev);
+		else
+			dmaengine_dbg_summary_show(s, dma_dev);
+
+		if (!list_is_last(&dma_dev->global_node, &dma_device_list))
+			seq_puts(s, "\n");
+	}
+	mutex_unlock(&dma_list_mutex);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(dmaengine_summary);
+
+static void __init dmaengine_debugfs_init(void)
+{
+	rootdir = debugfs_create_dir("dmaengine", NULL);
+
+	/* /sys/kernel/debug/dmaengine/summary */
+	debugfs_create_file("summary", 0444, rootdir, NULL,
+			    &dmaengine_summary_fops);
+}
+#else
+static inline void dmaengine_debugfs_init(void) { }
+static inline int dmaengine_debug_register(struct dma_device *dma_dev)
+{
+	return 0;
+}
+
+static inline void dmaengine_debug_unregister(struct dma_device *dma_dev) { }
+#endif	/* DEBUG_FS */
+
 /* --- sysfs implementation --- */
 
 #define DMA_SLAVE_NAME	"slave"
@@ -151,10 +232,6 @@ static void chan_dev_release(struct device *dev)
 	struct dma_chan_dev *chan_dev;
 
 	chan_dev = container_of(dev, typeof(*chan_dev), device);
-	if (atomic_dec_and_test(chan_dev->idr_ref)) {
-		ida_free(&dma_ida, chan_dev->dev_id);
-		kfree(chan_dev->idr_ref);
-	}
 	kfree(chan_dev);
 }
 
@@ -760,6 +837,11 @@ struct dma_chan *dma_request_chan(struct device *dev, const char *name)
 		return chan ? chan : ERR_PTR(-EPROBE_DEFER);
 
 found:
+#ifdef CONFIG_DEBUG_FS
+	chan->dbg_client_name = kasprintf(GFP_KERNEL, "%s:%s", dev_name(dev),
+					  name);
+#endif
+
 	chan->name = kasprintf(GFP_KERNEL, "dma:%s", name);
 	if (!chan->name)
 		return chan;
@@ -837,6 +919,11 @@ void dma_release_channel(struct dma_chan *chan)
 		chan->name = NULL;
 		chan->slave = NULL;
 	}
+
+#ifdef CONFIG_DEBUG_FS
+	kfree(chan->dbg_client_name);
+	chan->dbg_client_name = NULL;
+#endif
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_release_channel);
@@ -952,27 +1039,9 @@ static int get_dma_id(struct dma_device *device)
 }
 
 static int __dma_async_device_channel_register(struct dma_device *device,
-					       struct dma_chan *chan,
-					       int chan_id)
+					       struct dma_chan *chan)
 {
 	int rc = 0;
-	int chancnt = device->chancnt;
-	atomic_t *idr_ref;
-	struct dma_chan *tchan;
-
-	tchan = list_first_entry_or_null(&device->channels,
-					 struct dma_chan, device_node);
-	if (!tchan)
-		return -ENODEV;
-
-	if (tchan->dev) {
-		idr_ref = tchan->dev->idr_ref;
-	} else {
-		idr_ref = kmalloc(sizeof(*idr_ref), GFP_KERNEL);
-		if (!idr_ref)
-			return -ENOMEM;
-		atomic_set(idr_ref, 0);
-	}
 
 	chan->local = alloc_percpu(typeof(*chan->local));
 	if (!chan->local)
@@ -988,29 +1057,36 @@ static int __dma_async_device_channel_register(struct dma_device *device,
 	 * When the chan_id is a negative value, we are dynamically adding
 	 * the channel. Otherwise we are static enumerating.
 	 */
-	chan->chan_id = chan_id < 0 ? chancnt : chan_id;
+	mutex_lock(&device->chan_mutex);
+	chan->chan_id = ida_alloc(&device->chan_ida, GFP_KERNEL);
+	mutex_unlock(&device->chan_mutex);
+	if (chan->chan_id < 0) {
+		pr_err("%s: unable to alloc ida for chan: %d\n",
+		       __func__, chan->chan_id);
+		goto err_out;
+	}
+
 	chan->dev->device.class = &dma_devclass;
 	chan->dev->device.parent = device->dev;
 	chan->dev->chan = chan;
-	chan->dev->idr_ref = idr_ref;
 	chan->dev->dev_id = device->dev_id;
-	atomic_inc(idr_ref);
 	dev_set_name(&chan->dev->device, "dma%dchan%d",
 		     device->dev_id, chan->chan_id);
-
 	rc = device_register(&chan->dev->device);
 	if (rc)
-		goto err_out;
+		goto err_out_ida;
 	chan->client_count = 0;
-	device->chancnt = chan->chan_id + 1;
+	device->chancnt++;
 
 	return 0;
 
+ err_out_ida:
+	mutex_lock(&device->chan_mutex);
+	ida_free(&device->chan_ida, chan->chan_id);
+	mutex_unlock(&device->chan_mutex);
  err_out:
 	free_percpu(chan->local);
 	kfree(chan->dev);
-	if (atomic_dec_return(idr_ref) == 0)
-		kfree(idr_ref);
 	return rc;
 }
 
@@ -1019,7 +1095,7 @@ int dma_async_device_channel_register(struct dma_device *device,
 {
 	int rc;
 
-	rc = __dma_async_device_channel_register(device, chan, -1);
+	rc = __dma_async_device_channel_register(device, chan);
 	if (rc < 0)
 		return rc;
 
@@ -1039,6 +1115,9 @@ static void __dma_async_device_channel_unregister(struct dma_device *device,
 	device->chancnt--;
 	chan->dev->chan = NULL;
 	mutex_unlock(&dma_list_mutex);
+	mutex_lock(&device->chan_mutex);
+	ida_free(&device->chan_ida, chan->chan_id);
+	mutex_unlock(&device->chan_mutex);
 	device_unregister(&chan->dev->device);
 	free_percpu(chan->local);
 }
@@ -1061,7 +1140,7 @@ EXPORT_SYMBOL_GPL(dma_async_device_channel_unregister);
  */
 int dma_async_device_register(struct dma_device *device)
 {
-	int rc, i = 0;
+	int rc;
 	struct dma_chan* chan;
 
 	if (!device)
@@ -1166,9 +1245,12 @@ int dma_async_device_register(struct dma_device *device)
 	if (rc != 0)
 		return rc;
 
+	mutex_init(&device->chan_mutex);
+	ida_init(&device->chan_ida);
+
 	/* represent channels in sysfs. Probably want devs too */
 	list_for_each_entry(chan, &device->channels, device_node) {
-		rc = __dma_async_device_channel_register(device, chan, i++);
+		rc = __dma_async_device_channel_register(device, chan);
 		if (rc < 0)
 			goto err_out;
 	}
@@ -1195,6 +1277,8 @@ int dma_async_device_register(struct dma_device *device)
 		device->privatecnt++;	/* Always private */
 	dma_channel_rebalance();
 	mutex_unlock(&dma_list_mutex);
+
+	dmaengine_debug_register(device);
 
 	return 0;
 
@@ -1229,6 +1313,8 @@ void dma_async_device_unregister(struct dma_device *device)
 {
 	struct dma_chan *chan, *n;
 
+	dmaengine_debug_unregister(device);
+
 	list_for_each_entry_safe(chan, n, &device->channels, device_node)
 		__dma_async_device_channel_unregister(device, chan);
 
@@ -1239,6 +1325,7 @@ void dma_async_device_unregister(struct dma_device *device)
 	 */
 	dma_cap_set(DMA_PRIVATE, device->cap_mask);
 	dma_channel_rebalance();
+	ida_free(&dma_ida, device->dev_id);
 	dma_device_put(device);
 	mutex_unlock(&dma_list_mutex);
 }
@@ -1559,6 +1646,11 @@ static int __init dma_bus_init(void)
 
 	if (err)
 		return err;
-	return class_register(&dma_devclass);
+
+	err = class_register(&dma_devclass);
+	if (!err)
+		dmaengine_debugfs_init();
+
+	return err;
 }
 arch_initcall(dma_bus_init);

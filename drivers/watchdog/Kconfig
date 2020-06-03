@@ -584,6 +584,14 @@ config DAVINCI_WATCHDOG
 	  NOTE: once enabled, this timer cannot be disabled.
 	  Say N if you are unsure.
 
+config K3_RTI_WATCHDOG
+	tristate "Texas Instruments K3 RTI watchdog"
+	depends on ARCH_K3 || COMPILE_TEST
+	select WATCHDOG_CORE
+	help
+	  Say Y here if you want to include support for the K3 watchdog
+	  timer (RTI module) available in the K3 generation of processors.
+
 config ORION_WATCHDOG
 	tristate "Orion watchdog"
 	depends on ARCH_ORION5X || ARCH_DOVE || MACH_DOVE || ARCH_MVEBU || (COMPILE_TEST && !ARCH_EBSA110)

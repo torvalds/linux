@@ -24,21 +24,36 @@
 #include "head.h"
 
 #include <nvif/cl507a.h>
+#include <nvif/timer.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
+bool
+curs507a_space(struct nv50_wndw *wndw)
+{
+	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 2,
+		if (nvif_rd32(&wndw->wimm.base.user, 0x0008) >= 4)
+			return true;
+	);
+	WARN_ON(1);
+	return false;
+}
+
 static void
 curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
+	if (curs507a_space(wndw))
+		nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
 }
 
 static void
 curs507a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	nvif_wr32(&wndw->wimm.base.user, 0x0084, asyw->point.y << 16 |
-						 asyw->point.x);
+	if (curs507a_space(wndw)) {
+		nvif_wr32(&wndw->wimm.base.user, 0x0084, asyw->point.y << 16 |
+							 asyw->point.x);
+	}
 }
 
 const struct nv50_wimm_func

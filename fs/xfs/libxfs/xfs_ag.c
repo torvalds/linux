@@ -231,7 +231,7 @@ xfs_sbblock_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_dsb		*dsb = XFS_BUF_TO_SBP(bp);
+	struct xfs_dsb		*dsb = bp->b_addr;
 
 	xfs_sb_to_disk(dsb, &mp->m_sb);
 	dsb->sb_inprogress = 1;
@@ -243,7 +243,7 @@ xfs_agfblock_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_agf		*agf = XFS_BUF_TO_AGF(bp);
+	struct xfs_agf		*agf = bp->b_addr;
 	xfs_extlen_t		tmpsize;
 
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
@@ -301,7 +301,7 @@ xfs_agflblock_init(
 		uuid_copy(&agfl->agfl_uuid, &mp->m_sb.sb_meta_uuid);
 	}
 
-	agfl_bno = XFS_BUF_TO_AGFL_BNO(mp, bp);
+	agfl_bno = xfs_buf_to_agfl_bno(bp);
 	for (bucket = 0; bucket < xfs_agfl_size(mp); bucket++)
 		agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
 }
@@ -312,7 +312,7 @@ xfs_agiblock_init(
 	struct xfs_buf		*bp,
 	struct aghdr_init_data	*id)
 {
-	struct xfs_agi		*agi = XFS_BUF_TO_AGI(bp);
+	struct xfs_agi		*agi = bp->b_addr;
 	int			bucket;
 
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
@@ -502,7 +502,7 @@ xfs_ag_extend_space(
 	if (error)
 		return error;
 
-	agi = XFS_BUF_TO_AGI(bp);
+	agi = bp->b_addr;
 	be32_add_cpu(&agi->agi_length, len);
 	ASSERT(id->agno == mp->m_sb.sb_agcount - 1 ||
 	       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
@@ -515,7 +515,7 @@ xfs_ag_extend_space(
 	if (error)
 		return error;
 
-	agf = XFS_BUF_TO_AGF(bp);
+	agf = bp->b_addr;
 	be32_add_cpu(&agf->agf_length, len);
 	ASSERT(agf->agf_length == agi->agi_length);
 	xfs_alloc_log_agf(tp, bp, XFS_AGF_LENGTH);
@@ -569,11 +569,11 @@ xfs_ag_get_geometry(
 	memset(ageo, 0, sizeof(*ageo));
 	ageo->ag_number = agno;
 
-	agi = XFS_BUF_TO_AGI(agi_bp);
+	agi = agi_bp->b_addr;
 	ageo->ag_icount = be32_to_cpu(agi->agi_count);
 	ageo->ag_ifree = be32_to_cpu(agi->agi_freecount);
 
-	agf = XFS_BUF_TO_AGF(agf_bp);
+	agf = agf_bp->b_addr;
 	ageo->ag_length = be32_to_cpu(agf->agf_length);
 	freeblks = pag->pagf_freeblks +
 		   pag->pagf_flcount +

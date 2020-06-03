@@ -266,8 +266,6 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.MaxDispclk[i] = soc->clock_limits[i].dispclk_mhz;
 		mode_lib->vba.DTBCLKPerState[i] = soc->clock_limits[i].dtbclk_mhz;
 	}
-	mode_lib->vba.MinVoltageLevel = 0;
-	mode_lib->vba.MaxVoltageLevel = mode_lib->vba.soc.num_states;
 
 	mode_lib->vba.DoUrgentLatencyAdjustment =
 		soc->do_urgent_latency_adjustment;
@@ -379,7 +377,6 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 		mode_lib->vba.pipe_plane[j] = mode_lib->vba.NumberOfActivePlanes;
 
-		mode_lib->vba.EmbeddedPanel[mode_lib->vba.NumberOfActivePlanes] = dst->embedded;
 		mode_lib->vba.DPPPerPlane[mode_lib->vba.NumberOfActivePlanes] = 1;
 		mode_lib->vba.SourceScan[mode_lib->vba.NumberOfActivePlanes] =
 				(enum scan_direction_class) (src->source_scan);
@@ -396,11 +393,11 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.ViewportYStartC[mode_lib->vba.NumberOfActivePlanes] =
 				src->viewport_y_c;
 		mode_lib->vba.PitchY[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch;
-		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height;
-		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width;
+		mode_lib->vba.SurfaceWidthY[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_y;
+		mode_lib->vba.SurfaceHeightY[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_y;
 		mode_lib->vba.PitchC[mode_lib->vba.NumberOfActivePlanes] = src->data_pitch_c;
-		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_height_c;
-		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->viewport_width_c;
+		mode_lib->vba.SurfaceHeightC[mode_lib->vba.NumberOfActivePlanes] = src->surface_height_c;
+		mode_lib->vba.SurfaceWidthC[mode_lib->vba.NumberOfActivePlanes] = src->surface_width_c;
 		mode_lib->vba.DCCMetaPitchY[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch;
 		mode_lib->vba.DCCMetaPitchC[mode_lib->vba.NumberOfActivePlanes] = src->meta_pitch_c;
 		mode_lib->vba.HRatio[mode_lib->vba.NumberOfActivePlanes] = scl->hscl_ratio;

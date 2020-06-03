@@ -6,7 +6,6 @@
 
 #include <linux/string.h>
 #include <linux/bitops.h>
-#include <drm/i915_drm.h>
 
 #include "i915_drv.h"
 #include "i915_gem.h"
@@ -183,21 +182,35 @@ i915_gem_object_fence_prepare(struct drm_i915_gem_object *obj,
 			      int tiling_mode, unsigned int stride)
 {
 	struct i915_ggtt *ggtt = &to_i915(obj->base.dev)->ggtt;
-	struct i915_vma *vma;
+	struct i915_vma *vma, *vn;
+	LIST_HEAD(unbind);
 	int ret = 0;
 
 	if (tiling_mode == I915_TILING_NONE)
 		return 0;
 
 	mutex_lock(&ggtt->vm.mutex);
+
+	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
+		GEM_BUG_ON(vma->vm != &ggtt->vm);
+
 		if (i915_vma_fence_prepare(vma, tiling_mode, stride))
 			continue;
 
-		ret = __i915_vma_unbind(vma);
-		if (ret)
-			break;
+		list_move(&vma->vm_link, &unbind);
 	}
+	spin_unlock(&obj->vma.lock);
+
+	list_for_each_entry_safe(vma, vn, &unbind, vm_link) {
+		ret = __i915_vma_unbind(vma);
+		if (ret) {
+			/* Restore the remaining vma on an error */
+			list_splice(&unbind, &ggtt->vm.bound_list);
+			break;
+		}
+	}
+
 	mutex_unlock(&ggtt->vm.mutex);
 
 	return ret;
@@ -269,6 +282,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 	}
 	mutex_unlock(&obj->mm.lock);
 
+	spin_lock(&obj->vma.lock);
 	for_each_ggtt_vma(vma, obj) {
 		vma->fence_size =
 			i915_gem_fence_size(i915, vma->size, tiling, stride);
@@ -279,6 +293,7 @@ i915_gem_object_set_tiling(struct drm_i915_gem_object *obj,
 		if (vma->fence)
 			vma->fence->dirty = true;
 	}
+	spin_unlock(&obj->vma.lock);
 
 	obj->tiling_and_stride = tiling | stride;
 	i915_gem_object_unlock(obj);

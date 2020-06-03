@@ -38,28 +38,27 @@ required:
 examples:
   - |
     /* USB host controller */
-    &usb1 {
-            mvusb: mdio@1 {
+    usb {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            mdio@1 {
                     compatible = "usb1286,1fa4";
                     reg = <1>;
                     #address-cells = <1>;
                     #size-cells = <0>;
-            };
-    };
 
-    /* MV88E6390X devboard */
-    &mvusb {
-            switch@0 {
-                    compatible = "marvell,mv88e6190";
-                    status = "ok";
-                    reg = <0x0>;
+                    switch@0 {
+                            compatible = "marvell,mv88e6190";
+                            reg = <0x0>;
 
-                    ports {
-                            /* Port definitions */
-                    };
+                            ports {
+                                    /* Port definitions */
+                            };
 
-                    mdio {
-                            /* PHY definitions */
+                            mdio {
+                                    /* PHY definitions */
+                            };
                     };
             };
     };

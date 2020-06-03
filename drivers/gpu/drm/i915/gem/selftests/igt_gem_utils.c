@@ -159,7 +159,7 @@ int igt_gpu_fill_dw(struct intel_context *ce,
 	return 0;
 
 skip_request:
-	i915_request_skip(rq, err);
+	i915_request_set_error_once(rq, err);
 err_request:
 	i915_request_add(rq);
 err_batch:

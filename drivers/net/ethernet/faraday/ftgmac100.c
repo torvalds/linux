@@ -1731,7 +1731,7 @@ static int ftgmac100_setup_clk(struct ftgmac100 *priv)
 	if (rc)
 		goto cleanup_clk;
 
-	/* RCLK is for RMII, typically used for NCSI. Optional because its not
+	/* RCLK is for RMII, typically used for NCSI. Optional because it's not
 	 * necessary if it's the AST2400 MAC, or the MAC is configured for
 	 * RGMII, or the controller is not an ASPEED-based controller.
 	 */

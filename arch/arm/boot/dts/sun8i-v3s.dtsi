@@ -105,7 +105,7 @@
 
 		display_clocks: clock@1000000 {
 			compatible = "allwinner,sun8i-v3s-de2-clk";
-			reg = <0x01000000 0x100000>;
+			reg = <0x01000000 0x10000>;
 			clocks = <&ccu CLK_BUS_DE>,
 				 <&ccu CLK_DE>;
 			clock-names = "bus",

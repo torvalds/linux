@@ -107,17 +107,17 @@ Mount Options
 	address its connection to the monitor originates from.
 
   wsize=X
-	Specify the maximum write size in bytes.  Default: 16 MB.
+	Specify the maximum write size in bytes.  Default: 64 MB.
 
   rsize=X
-	Specify the maximum read size in bytes.  Default: 16 MB.
+	Specify the maximum read size in bytes.  Default: 64 MB.
 
   rasize=X
 	Specify the maximum readahead size in bytes.  Default: 8 MB.
 
   mount_timeout=X
 	Specify the timeout value for mount (in seconds), in the case
-	of a non-responsive Ceph file system.  The default is 30
+	of a non-responsive Ceph file system.  The default is 60
 	seconds.
 
   caps_max=X

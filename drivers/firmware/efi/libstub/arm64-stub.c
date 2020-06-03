@@ -75,14 +75,12 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 
 	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE) && phys_seed != 0) {
 		/*
-		 * If CONFIG_DEBUG_ALIGN_RODATA is not set, produce a
-		 * displacement in the interval [0, MIN_KIMG_ALIGN) that
-		 * doesn't violate this kernel's de-facto alignment
+		 * Produce a displacement in the interval [0, MIN_KIMG_ALIGN)
+		 * that doesn't violate this kernel's de-facto alignment
 		 * constraints.
 		 */
 		u32 mask = (MIN_KIMG_ALIGN - 1) & ~(EFI_KIMG_ALIGN - 1);
-		u32 offset = !IS_ENABLED(CONFIG_DEBUG_ALIGN_RODATA) ?
-			     (phys_seed >> 32) & mask : TEXT_OFFSET;
+		u32 offset = (phys_seed >> 32) & mask;
 
 		/*
 		 * With CONFIG_RANDOMIZE_TEXT_OFFSET=y, TEXT_OFFSET may not

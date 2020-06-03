@@ -94,7 +94,7 @@ static int cma_configfs_params_get(struct config_item *item,
 
 static void cma_configfs_params_put(struct cma_device *cma_dev)
 {
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 }
 
 static ssize_t default_roce_mode_show(struct config_item *item,
@@ -312,12 +312,12 @@ static struct config_group *make_cma_dev(struct config_group *group,
 	configfs_add_default_group(&cma_dev_group->ports_group,
 			&cma_dev_group->device_group);
 
-	cma_deref_dev(cma_dev);
+	cma_dev_put(cma_dev);
 	return &cma_dev_group->device_group;
 
 fail:
 	if (cma_dev)
-		cma_deref_dev(cma_dev);
+		cma_dev_put(cma_dev);
 	kfree(cma_dev_group);
 	return ERR_PTR(err);
 }

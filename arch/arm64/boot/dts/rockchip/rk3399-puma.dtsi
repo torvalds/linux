@@ -480,7 +480,7 @@
 };
 
 &sdmmc {
-	vqmmc = <&vcc_sd>;
+	vqmmc-supply = <&vcc_sd>;
 };
 
 &spi1 {

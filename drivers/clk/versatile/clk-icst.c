@@ -34,18 +34,6 @@
 #define INTEGRATOR_AP_PCI_25_33_MHZ BIT(8)
 
 /**
- * enum icst_control_type - the type of ICST control register
- */
-enum icst_control_type {
-	ICST_VERSATILE, /* The standard type, all control bits available */
-	ICST_INTEGRATOR_AP_CM, /* Only 8 bits of VDW available */
-	ICST_INTEGRATOR_AP_SYS, /* Only 8 bits of VDW available */
-	ICST_INTEGRATOR_AP_PCI, /* Odd bit pattern storage */
-	ICST_INTEGRATOR_CP_CM_CORE, /* Only 8 bits of VDW and 3 bits of OD */
-	ICST_INTEGRATOR_CP_CM_MEM, /* Only 8 bits of VDW and 3 bits of OD */
-};
-
-/**
  * struct clk_icst - ICST VCO clock wrapper
  * @hw: corresponding clock hardware entry
  * @vcoreg: VCO register address
@@ -344,12 +332,12 @@ static const struct clk_ops icst_ops = {
 	.set_rate = icst_set_rate,
 };
 
-static struct clk *icst_clk_setup(struct device *dev,
-				  const struct clk_icst_desc *desc,
-				  const char *name,
-				  const char *parent_name,
-				  struct regmap *map,
-				  enum icst_control_type ctype)
+struct clk *icst_clk_setup(struct device *dev,
+			   const struct clk_icst_desc *desc,
+			   const char *name,
+			   const char *parent_name,
+			   struct regmap *map,
+			   enum icst_control_type ctype)
 {
 	struct clk *clk;
 	struct clk_icst *icst;
@@ -386,6 +374,7 @@ static struct clk *icst_clk_setup(struct device *dev,
 
 	return clk;
 }
+EXPORT_SYMBOL_GPL(icst_clk_setup);
 
 struct clk *icst_clk_register(struct device *dev,
 			const struct clk_icst_desc *desc,

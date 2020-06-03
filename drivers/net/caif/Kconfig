@@ -50,16 +50,12 @@ config CAIF_HSI
 
 config CAIF_VIRTIO
 	tristate "CAIF virtio transport driver"
-	depends on CAIF && HAS_DMA
+	depends on CAIF && HAS_DMA && VHOST_DPN
 	select VHOST_RING
 	select VIRTIO
 	select GENERIC_ALLOCATOR
 	default n
 	---help---
 	  The CAIF driver for CAIF over Virtio.
-
-if CAIF_VIRTIO
-source "drivers/vhost/Kconfig.vringh"
-endif
 
 endif # CAIF_DRIVERS

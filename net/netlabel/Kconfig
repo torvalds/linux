@@ -14,6 +14,6 @@ config NETLABEL
 	  Documentation/netlabel as well as the NetLabel SourceForge project
 	  for configuration tools and additional documentation.
 
-	   * http://netlabel.sf.net
+	   * https://github.com/netlabel/netlabel_tools
 
 	  If you are unsure, say N.

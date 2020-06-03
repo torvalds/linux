@@ -697,6 +697,9 @@ static int alloc_bfreg(struct mlx5_ib_dev *dev,
 {
 	int bfregn = -ENOMEM;
 
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
+
 	mutex_lock(&bfregi->lock);
 	if (bfregi->ver >= 2) {
 		bfregn = alloc_high_class_bfreg(dev, bfregi);
@@ -767,6 +770,9 @@ int bfregn_to_uar_index(struct mlx5_ib_dev *dev,
 	unsigned int bfregs_per_sys_page;
 	u32 index_of_sys_page;
 	u32 offset;
+
+	if (bfregi->lib_uar_dyn)
+		return -EINVAL;
 
 	bfregs_per_sys_page = get_uars_per_sys_page(dev, bfregi->lib_uar_4k) *
 				MLX5_NON_FP_BFREGS_PER_UAR;
@@ -919,6 +925,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	void *qpc;
 	int err;
 	u16 uid;
+	u32 uar_flags;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
 	if (err) {
@@ -928,24 +935,29 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	context = rdma_udata_to_drv_context(udata, struct mlx5_ib_ucontext,
 					    ibucontext);
-	if (ucmd.flags & MLX5_QP_FLAG_BFREG_INDEX) {
+	uar_flags = ucmd.flags & (MLX5_QP_FLAG_UAR_PAGE_INDEX |
+				  MLX5_QP_FLAG_BFREG_INDEX);
+	switch (uar_flags) {
+	case MLX5_QP_FLAG_UAR_PAGE_INDEX:
+		uar_index = ucmd.bfreg_index;
+		bfregn = MLX5_IB_INVALID_BFREG;
+		break;
+	case MLX5_QP_FLAG_BFREG_INDEX:
 		uar_index = bfregn_to_uar_index(dev, &context->bfregi,
 						ucmd.bfreg_index, true);
 		if (uar_index < 0)
 			return uar_index;
-
 		bfregn = MLX5_IB_INVALID_BFREG;
-	} else if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL) {
-		/*
-		 * TBD: should come from the verbs when we have the API
-		 */
-		/* In CROSS_CHANNEL CQ and QP must use the same UAR */
-		bfregn = MLX5_CROSS_CHANNEL_BFREG;
-	}
-	else {
+		break;
+	case 0:
+		if (qp->flags & MLX5_IB_QP_CROSS_CHANNEL)
+			return -EINVAL;
 		bfregn = alloc_bfreg(dev, &context->bfregi);
 		if (bfregn < 0)
 			return bfregn;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	mlx5_ib_dbg(dev, "bfregn 0x%x, uar_index 0x%x\n", bfregn, uar_index);
@@ -2100,6 +2112,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC |
 				      MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC |
 				      MLX5_QP_FLAG_TUNNEL_OFFLOADS |
+				      MLX5_QP_FLAG_UAR_PAGE_INDEX |
 				      MLX5_QP_FLAG_TYPE_DCI |
 				      MLX5_QP_FLAG_TYPE_DCT))
 			return -EINVAL;
@@ -2789,7 +2802,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		mlx5_ib_dbg(dev, "unsupported qp type %d\n",
 			    init_attr->qp_type);
 		/* Don't support raw QPs */
-		return ERR_PTR(-EINVAL);
+		return ERR_PTR(-EOPNOTSUPP);
 	}
 
 	if (verbs_init_attr->qp_type == IB_QPT_DRIVER)
@@ -5545,7 +5558,9 @@ static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
 	rdma_ah_set_path_bits(ah_attr, path->grh_mlid & 0x7f);
 	rdma_ah_set_static_rate(ah_attr,
 				path->static_rate ? path->static_rate - 5 : 0);
-	if (path->grh_mlid & (1 << 7)) {
+
+	if (path->grh_mlid & (1 << 7) ||
+	    ah_attr->type == RDMA_AH_ATTR_TYPE_ROCE) {
 		u32 tc_fl = be32_to_cpu(path->tclass_flowlabel);
 
 		rdma_ah_set_grh(ah_attr, NULL,

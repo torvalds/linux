@@ -534,8 +534,8 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 
 	/*
 	 * We are about to drop our additional submission reference, which
-	 * might be the last reference to the dio.  There are three three
-	 * different ways we can progress here:
+	 * might be the last reference to the dio.  There are three different
+	 * ways we can progress here:
 	 *
 	 *  (a) If this is the last reference we will always complete and free
 	 *	the dio ourselves.

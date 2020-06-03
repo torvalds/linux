@@ -3132,7 +3132,6 @@ static int cxgb_set_mac_addr(struct net_device *dev, void *p)
 		return ret;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
-	pi->xact_addr_filt = ret;
 	return 0;
 }
 
@@ -6671,6 +6670,10 @@ static void shutdown_one(struct pci_dev *pdev)
 		for_each_port(adapter, i)
 			if (adapter->port[i]->reg_state == NETREG_REGISTERED)
 				cxgb_close(adapter->port[i]);
+
+		rtnl_lock();
+		cxgb4_mqprio_stop_offload(adapter);
+		rtnl_unlock();
 
 		if (is_uld(adapter)) {
 			detach_ulds(adapter);

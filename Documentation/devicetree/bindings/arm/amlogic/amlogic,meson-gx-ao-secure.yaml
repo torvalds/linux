@@ -43,6 +43,8 @@ required:
   - compatible
   - reg
 
+additionalProperties: false
+
 examples:
   - |
     ao-secure@140 {

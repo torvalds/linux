@@ -208,6 +208,7 @@ properties:
       - description: R-Car M3-W+ (R8A77961)
         items:
           - enum:
+              - renesas,m3ulcb # M3ULCB (R-Car Starter Kit Pro, RTP8J77961ASKB0SK0SA05A (M3 ES3.0))
               - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7796SIPB0012SA5A)
           - const: renesas,r8a77961
 

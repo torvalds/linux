@@ -4,7 +4,7 @@
  *
  *  Copyright (c) Red Hat <mjg@redhat.com>
  *  Copyright (c) 2014 Gabriele Mazzotta <gabriele.mzt@gmail.com>
- *  Copyright (c) 2014 Pali Rohár <pali.rohar@gmail.com>
+ *  Copyright (c) 2014 Pali Rohár <pali@kernel.org>
  *  Copyright (c) 2017 Dell Inc.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

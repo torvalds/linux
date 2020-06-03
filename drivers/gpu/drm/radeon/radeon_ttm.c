@@ -66,11 +66,6 @@ static struct radeon_device *radeon_get_rdev(struct ttm_bo_device *bdev)
 	return rdev;
 }
 
-static int radeon_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
-{
-	return 0;
-}
-
 static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 				struct ttm_mem_type_manager *man)
 {
@@ -774,7 +769,6 @@ static struct ttm_bo_driver radeon_bo_driver = {
 	.ttm_tt_create = &radeon_ttm_tt_create,
 	.ttm_tt_populate = &radeon_ttm_tt_populate,
 	.ttm_tt_unpopulate = &radeon_ttm_tt_unpopulate,
-	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = &radeon_evict_flags,

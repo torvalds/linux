@@ -85,5 +85,9 @@ void dce110_edp_wait_for_hpd_ready(
 		struct dc_link *link,
 		bool power_up);
 
+bool dce110_is_panel_backlight_on(struct dc_link *link);
+
+bool dce110_is_panel_powered_on(struct dc_link *link);
+
 #endif /* __DC_HWSS_DCE110_H__ */
 

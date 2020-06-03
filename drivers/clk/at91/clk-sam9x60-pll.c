@@ -14,27 +14,8 @@
 
 #include "pmc.h"
 
-#define PMC_PLL_CTRL0	0xc
-#define		PMC_PLL_CTRL0_DIV_MSK		GENMASK(7, 0)
-#define		PMC_PLL_CTRL0_ENPLL		BIT(28)
-#define		PMC_PLL_CTRL0_ENPLLCK		BIT(29)
-#define		PMC_PLL_CTRL0_ENLOCK		BIT(31)
-
-#define PMC_PLL_CTRL1	0x10
-#define		PMC_PLL_CTRL1_FRACR_MSK		GENMASK(21, 0)
-#define		PMC_PLL_CTRL1_MUL_MSK		GENMASK(30, 24)
-
-#define PMC_PLL_ACR	0x18
-#define		PMC_PLL_ACR_DEFAULT_UPLL	0x12020010UL
-#define		PMC_PLL_ACR_DEFAULT_PLLA	0x00020010UL
-#define		PMC_PLL_ACR_UTMIVR		BIT(12)
-#define		PMC_PLL_ACR_UTMIBG		BIT(13)
-#define		PMC_PLL_ACR_LOOP_FILTER_MSK	GENMASK(31, 24)
-
-#define PMC_PLL_UPDT	0x1c
-#define		PMC_PLL_UPDT_UPDATE		BIT(8)
-
-#define PMC_PLL_ISR0	0xec
+#define	PMC_PLL_CTRL0_DIV_MSK	GENMASK(7, 0)
+#define	PMC_PLL_CTRL1_MUL_MSK	GENMASK(30, 24)
 
 #define PLL_DIV_MAX		(FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, UINT_MAX) + 1)
 #define UPLL_DIV		2
@@ -59,7 +40,7 @@ static inline bool sam9x60_pll_ready(struct regmap *regmap, int id)
 {
 	unsigned int status;
 
-	regmap_read(regmap, PMC_PLL_ISR0, &status);
+	regmap_read(regmap, AT91_PMC_PLL_ISR0, &status);
 
 	return !!(status & BIT(id));
 }
@@ -74,12 +55,12 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 	u32 val;
 
 	spin_lock_irqsave(pll->lock, flags);
-	regmap_write(regmap, PMC_PLL_UPDT, pll->id);
+	regmap_write(regmap, AT91_PMC_PLL_UPDT, pll->id);
 
-	regmap_read(regmap, PMC_PLL_CTRL0, &val);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &val);
 	div = FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, val);
 
-	regmap_read(regmap, PMC_PLL_CTRL1, &val);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL1, &val);
 	mul = FIELD_GET(PMC_PLL_CTRL1_MUL_MSK, val);
 
 	if (sam9x60_pll_ready(regmap, pll->id) &&
@@ -88,39 +69,39 @@ static int sam9x60_pll_prepare(struct clk_hw *hw)
 		return 0;
 	}
 
-	/* Recommended value for PMC_PLL_ACR */
+	/* Recommended value for AT91_PMC_PLL_ACR */
 	if (pll->characteristics->upll)
-		val = PMC_PLL_ACR_DEFAULT_UPLL;
+		val = AT91_PMC_PLL_ACR_DEFAULT_UPLL;
 	else
-		val = PMC_PLL_ACR_DEFAULT_PLLA;
-	regmap_write(regmap, PMC_PLL_ACR, val);
+		val = AT91_PMC_PLL_ACR_DEFAULT_PLLA;
+	regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
-	regmap_write(regmap, PMC_PLL_CTRL1,
+	regmap_write(regmap, AT91_PMC_PLL_CTRL1,
 		     FIELD_PREP(PMC_PLL_CTRL1_MUL_MSK, pll->mul));
 
 	if (pll->characteristics->upll) {
 		/* Enable the UTMI internal bandgap */
-		val |= PMC_PLL_ACR_UTMIBG;
-		regmap_write(regmap, PMC_PLL_ACR, val);
+		val |= AT91_PMC_PLL_ACR_UTMIBG;
+		regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
 		udelay(10);
 
 		/* Enable the UTMI internal regulator */
-		val |= PMC_PLL_ACR_UTMIVR;
-		regmap_write(regmap, PMC_PLL_ACR, val);
+		val |= AT91_PMC_PLL_ACR_UTMIVR;
+		regmap_write(regmap, AT91_PMC_PLL_ACR, val);
 
 		udelay(10);
 	}
 
-	regmap_update_bits(regmap, PMC_PLL_UPDT,
-			   PMC_PLL_UPDT_UPDATE, PMC_PLL_UPDT_UPDATE);
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE, AT91_PMC_PLL_UPDT_UPDATE);
 
-	regmap_write(regmap, PMC_PLL_CTRL0,
-		     PMC_PLL_CTRL0_ENLOCK | PMC_PLL_CTRL0_ENPLL |
-		     PMC_PLL_CTRL0_ENPLLCK | pll->div);
+	regmap_write(regmap, AT91_PMC_PLL_CTRL0,
+		     AT91_PMC_PLL_CTRL0_ENLOCK | AT91_PMC_PLL_CTRL0_ENPLL |
+		     AT91_PMC_PLL_CTRL0_ENPLLCK | pll->div);
 
-	regmap_update_bits(regmap, PMC_PLL_UPDT,
-			   PMC_PLL_UPDT_UPDATE, PMC_PLL_UPDT_UPDATE);
+	regmap_update_bits(regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE, AT91_PMC_PLL_UPDT_UPDATE);
 
 	while (!sam9x60_pll_ready(regmap, pll->id))
 		cpu_relax();
@@ -144,22 +125,24 @@ static void sam9x60_pll_unprepare(struct clk_hw *hw)
 
 	spin_lock_irqsave(pll->lock, flags);
 
-	regmap_write(pll->regmap, PMC_PLL_UPDT, pll->id);
+	regmap_write(pll->regmap, AT91_PMC_PLL_UPDT, pll->id);
 
-	regmap_update_bits(pll->regmap, PMC_PLL_CTRL0,
-			   PMC_PLL_CTRL0_ENPLLCK, 0);
+	regmap_update_bits(pll->regmap, AT91_PMC_PLL_CTRL0,
+			   AT91_PMC_PLL_CTRL0_ENPLLCK, 0);
 
-	regmap_update_bits(pll->regmap, PMC_PLL_UPDT,
-			   PMC_PLL_UPDT_UPDATE, PMC_PLL_UPDT_UPDATE);
+	regmap_update_bits(pll->regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE, AT91_PMC_PLL_UPDT_UPDATE);
 
-	regmap_update_bits(pll->regmap, PMC_PLL_CTRL0, PMC_PLL_CTRL0_ENPLL, 0);
+	regmap_update_bits(pll->regmap, AT91_PMC_PLL_CTRL0,
+			   AT91_PMC_PLL_CTRL0_ENPLL, 0);
 
 	if (pll->characteristics->upll)
-		regmap_update_bits(pll->regmap, PMC_PLL_ACR,
-				   PMC_PLL_ACR_UTMIBG | PMC_PLL_ACR_UTMIVR, 0);
+		regmap_update_bits(pll->regmap, AT91_PMC_PLL_ACR,
+				   AT91_PMC_PLL_ACR_UTMIBG |
+				   AT91_PMC_PLL_ACR_UTMIVR, 0);
 
-	regmap_update_bits(pll->regmap, PMC_PLL_UPDT,
-			   PMC_PLL_UPDT_UPDATE, PMC_PLL_UPDT_UPDATE);
+	regmap_update_bits(pll->regmap, AT91_PMC_PLL_UPDT,
+			   AT91_PMC_PLL_UPDT_UPDATE, AT91_PMC_PLL_UPDT_UPDATE);
 
 	spin_unlock_irqrestore(pll->lock, flags);
 }
@@ -316,10 +299,10 @@ sam9x60_clk_register_pll(struct regmap *regmap, spinlock_t *lock,
 	pll->regmap = regmap;
 	pll->lock = lock;
 
-	regmap_write(regmap, PMC_PLL_UPDT, id);
-	regmap_read(regmap, PMC_PLL_CTRL0, &pllr);
+	regmap_write(regmap, AT91_PMC_PLL_UPDT, id);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL0, &pllr);
 	pll->div = FIELD_GET(PMC_PLL_CTRL0_DIV_MSK, pllr);
-	regmap_read(regmap, PMC_PLL_CTRL1, &pllr);
+	regmap_read(regmap, AT91_PMC_PLL_CTRL1, &pllr);
 	pll->mul = FIELD_GET(PMC_PLL_CTRL1_MUL_MSK, pllr);
 
 	hw = &pll->hw;

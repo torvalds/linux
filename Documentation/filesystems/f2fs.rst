@@ -243,8 +243,8 @@ checkpoint=%s[:%u[%]]  Set to "disable" to turn off checkpointing. Set to "enabl
                        hide up to all remaining free space. The actual space that
                        would be unusable can be viewed at /sys/fs/f2fs/<disk>/unusable
                        This space is reclaimed once checkpoint=enable.
-compress_algorithm=%s  Control compress algorithm, currently f2fs supports "lzo"
-                       and "lz4" algorithm.
+compress_algorithm=%s  Control compress algorithm, currently f2fs supports "lzo",
+                       "lz4" and "zstd" algorithm.
 compress_log_size=%u   Support configuring compress cluster size, the size will
                        be 4KB * (1 << %u), 16KB is minimum size, also it's
                        default size.

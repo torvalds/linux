@@ -89,6 +89,7 @@
 #define MPTCP_DATA_READY	0
 #define MPTCP_SEND_SPACE	1
 #define MPTCP_WORK_RTX		2
+#define MPTCP_WORK_EOF		3
 
 static inline __be32 mptcp_option(u8 subopt, u8 len, u8 nib, u8 field)
 {
@@ -205,12 +206,10 @@ struct mptcp_subflow_request_sock {
 	struct	tcp_request_sock sk;
 	u16	mp_capable : 1,
 		mp_join : 1,
-		backup : 1,
-		remote_key_valid : 1;
+		backup : 1;
 	u8	local_id;
 	u8	remote_id;
 	u64	local_key;
-	u64	remote_key;
 	u64	idsn;
 	u32	token;
 	u32	ssn_offset;
@@ -331,7 +330,9 @@ void mptcp_proto_init(void);
 int mptcp_proto_v6_init(void);
 #endif
 
-struct sock *mptcp_sk_clone(const struct sock *sk, struct request_sock *req);
+struct sock *mptcp_sk_clone(const struct sock *sk,
+			    const struct tcp_options_received *opt_rx,
+			    struct request_sock *req);
 void mptcp_get_options(const struct sk_buff *skb,
 		       struct tcp_options_received *opt_rx);
 
@@ -339,6 +340,7 @@ void mptcp_finish_connect(struct sock *sk);
 void mptcp_data_ready(struct sock *sk, struct sock *ssk);
 bool mptcp_finish_join(struct sock *sk);
 void mptcp_data_acked(struct sock *sk);
+void mptcp_subflow_eof(struct sock *sk);
 
 int mptcp_token_new_request(struct request_sock *req);
 void mptcp_token_destroy_request(u32 token);

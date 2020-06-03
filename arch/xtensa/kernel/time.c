@@ -128,12 +128,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static struct irqaction timer_irqaction = {
-	.handler =	timer_interrupt,
-	.flags =	IRQF_TIMER,
-	.name =		"timer",
-};
-
 void local_timer_setup(unsigned cpu)
 {
 	struct ccount_timer *timer = &per_cpu(ccount_timer, cpu);
@@ -184,6 +178,8 @@ static inline void calibrate_ccount(void)
 
 void __init time_init(void)
 {
+	int irq;
+
 	of_clk_init(NULL);
 #ifdef CONFIG_XTENSA_CALIBRATE_CCOUNT
 	pr_info("Calibrating CPU frequency ");
@@ -199,7 +195,9 @@ void __init time_init(void)
 	     __func__);
 	clocksource_register_hz(&ccount_clocksource, ccount_freq);
 	local_timer_setup(0);
-	setup_irq(this_cpu_ptr(&ccount_timer)->evt.irq, &timer_irqaction);
+	irq = this_cpu_ptr(&ccount_timer)->evt.irq;
+	if (request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL))
+		pr_err("Failed to request irq %d (timer)\n", irq);
 	sched_clock_register(ccount_sched_clock_read, 32, ccount_freq);
 	timer_probe();
 }

@@ -20,6 +20,9 @@ struct lima_sched_task {
 	struct lima_bo **bos;
 	int num_bos;
 
+	bool recoverable;
+	struct lima_bo *heap;
+
 	/* pipe fence */
 	struct dma_fence *fence;
 };
@@ -68,6 +71,9 @@ struct lima_sched_pipe {
 	void (*task_fini)(struct lima_sched_pipe *pipe);
 	void (*task_error)(struct lima_sched_pipe *pipe);
 	void (*task_mmu_error)(struct lima_sched_pipe *pipe);
+	int (*task_recover)(struct lima_sched_pipe *pipe);
+
+	struct work_struct recover_work;
 };
 
 int lima_sched_task_init(struct lima_sched_task *task,

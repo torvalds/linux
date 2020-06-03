@@ -142,14 +142,6 @@ static void nvme_rdma_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static const struct blk_mq_ops nvme_rdma_mq_ops;
 static const struct blk_mq_ops nvme_rdma_admin_mq_ops;
 
-/* XXX: really should move to a generic header sooner or later.. */
-static inline void put_unaligned_le24(u32 val, u8 *p)
-{
-	*p++ = val;
-	*p++ = val >> 8;
-	*p++ = val >> 16;
-}
-
 static inline int nvme_rdma_queue_idx(struct nvme_rdma_queue *queue)
 {
 	return queue - queue->ctrl->queues;
@@ -1350,7 +1342,7 @@ static int nvme_rdma_post_send(struct nvme_rdma_queue *queue,
 	int ret;
 
 	sge->addr   = qe->dma;
-	sge->length = sizeof(struct nvme_command),
+	sge->length = sizeof(struct nvme_command);
 	sge->lkey   = queue->device->pd->local_dma_lkey;
 
 	wr.next       = NULL;

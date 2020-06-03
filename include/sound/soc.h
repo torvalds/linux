@@ -471,6 +471,9 @@ bool snd_soc_runtime_ignore_pmdown_time(struct snd_soc_pcm_runtime *rtd);
 void snd_soc_runtime_activate(struct snd_soc_pcm_runtime *rtd, int stream);
 void snd_soc_runtime_deactivate(struct snd_soc_pcm_runtime *rtd, int stream);
 
+int snd_soc_runtime_calc_hw(struct snd_soc_pcm_runtime *rtd,
+			    struct snd_pcm_hardware *hw, int stream);
+
 int snd_soc_runtime_set_dai_fmt(struct snd_soc_pcm_runtime *rtd,
 	unsigned int dai_fmt);
 
@@ -787,6 +790,9 @@ struct snd_soc_dai_link {
 	const struct snd_soc_pcm_stream *params;
 	unsigned int num_params;
 
+	struct snd_soc_dapm_widget *playback_widget;
+	struct snd_soc_dapm_widget *capture_widget;
+
 	unsigned int dai_fmt;           /* format to set on init */
 
 	enum snd_soc_dpcm_trigger trigger[2]; /* trigger type for DPCM */
@@ -853,6 +859,11 @@ struct snd_soc_dai_link {
 	for ((i) = 0;							\
 	     ((i) < link->num_platforms) &&				\
 	     ((platform) = &link->platforms[i]);			\
+	     (i)++)
+
+#define for_each_link_cpus(link, i, cpu)				\
+	for ((i) = 0;							\
+	     ((i) < link->num_cpus) && ((cpu) = &link->cpus[i]);	\
 	     (i)++)
 
 /*
@@ -1058,6 +1069,7 @@ struct snd_soc_card {
 	const struct snd_soc_dapm_route *of_dapm_routes;
 	int num_of_dapm_routes;
 	bool fully_routed;
+	bool disable_route_checks;
 
 	/* lists of probed devices belonging to this card */
 	struct list_head component_dev_list;
@@ -1109,6 +1121,14 @@ struct snd_soc_card {
 #define for_each_card_components(card, component)			\
 	list_for_each_entry(component, &(card)->component_dev_list, card_list)
 
+#define for_each_card_dapms(card, dapm)					\
+	list_for_each_entry(dapm, &card->dapm_list, list)
+
+#define for_each_card_widgets(card, w)\
+	list_for_each_entry(w, &card->widgets, list)
+#define for_each_card_widgets_safe(card, w, _w)	\
+	list_for_each_entry_safe(w, _w, &card->widgets, list)
+
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
 struct snd_soc_pcm_runtime {
 	struct device *dev;
@@ -1128,9 +1148,13 @@ struct snd_soc_pcm_runtime {
 	struct snd_compr *compr;
 	struct snd_soc_dai *codec_dai;
 	struct snd_soc_dai *cpu_dai;
+	struct snd_soc_dai **dais;
 
 	struct snd_soc_dai **codec_dais;
 	unsigned int num_codecs;
+
+	struct snd_soc_dai **cpu_dais;
+	unsigned int num_cpus;
 
 	struct delayed_work delayed_work;
 	void (*close_delayed_work_func)(struct snd_soc_pcm_runtime *rtd);
@@ -1148,16 +1172,31 @@ struct snd_soc_pcm_runtime {
 	int num_components;
 	struct snd_soc_component *components[0]; /* CPU/Codec/Platform */
 };
+/* see soc_new_pcm_runtime()  */
+#define asoc_rtd_to_cpu(rtd, n)   (rtd)->dais[n]
+#define asoc_rtd_to_codec(rtd, n) (rtd)->dais[n + (rtd)->num_cpus]
+
 #define for_each_rtd_components(rtd, i, component)			\
 	for ((i) = 0;							\
 	     ((i) < rtd->num_components) && ((component) = rtd->components[i]);\
 	     (i)++)
-#define for_each_rtd_codec_dai(rtd, i, dai)\
-	for ((i) = 0;						       \
-	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]); \
+#define for_each_rtd_cpu_dais(rtd, i, dai)				\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_cpus) && ((dai) = rtd->cpu_dais[i]);	\
 	     (i)++)
-#define for_each_rtd_codec_dai_rollback(rtd, i, dai)		\
+#define for_each_rtd_cpu_dais_rollback(rtd, i, dai)		\
+	for (; (--(i) >= 0) && ((dai) = rtd->cpu_dais[i]);)
+#define for_each_rtd_codec_dais(rtd, i, dai)				\
+	for ((i) = 0;							\
+	     ((i) < rtd->num_codecs) && ((dai) = rtd->codec_dais[i]);	\
+	     (i)++)
+#define for_each_rtd_codec_dais_rollback(rtd, i, dai)		\
 	for (; (--(i) >= 0) && ((dai) = rtd->codec_dais[i]);)
+#define for_each_rtd_dais(rtd, i, dai)					\
+	for ((i) = 0;							\
+	     ((i) < (rtd)->num_cpus + (rtd)->num_codecs) &&		\
+		     ((dai) = (rtd)->dais[i]);				\
+	     (i)++)
 
 void snd_soc_close_delayed_work(struct snd_soc_pcm_runtime *rtd);
 

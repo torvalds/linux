@@ -115,11 +115,11 @@ static void aggr_printout(struct perf_stat_config *config,
 			fprintf(config->output, "S%d-D%d-C%*d%s",
 				cpu_map__id_to_socket(id),
 				cpu_map__id_to_die(id),
-				config->csv_output ? 0 : -5,
+				config->csv_output ? 0 : -3,
 				cpu_map__id_to_cpu(id), config->csv_sep);
 		} else {
-			fprintf(config->output, "CPU%*d%s ",
-				config->csv_output ? 0 : -5,
+			fprintf(config->output, "CPU%*d%s",
+				config->csv_output ? 0 : -7,
 				evsel__cpus(evsel)->map[id],
 				config->csv_sep);
 		}

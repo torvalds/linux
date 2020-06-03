@@ -6,8 +6,6 @@
 #ifndef __INTEL_DDI_H__
 #define __INTEL_DDI_H__
 
-#include <drm/i915_drm.h>
-
 #include "intel_display.h"
 
 struct drm_connector_state;
@@ -47,7 +45,5 @@ u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder,
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
-int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			struct intel_dpll_hw_state *state);
 
 #endif /* __INTEL_DDI_H__ */

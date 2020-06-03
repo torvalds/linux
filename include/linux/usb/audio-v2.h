@@ -156,6 +156,18 @@ struct uac2_feature_unit_descriptor {
 	__u8 bmaControls[]; /* variable length */
 } __attribute__((packed));
 
+/* 4.7.2.10 Effect Unit Descriptor */
+
+struct uac2_effect_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__le16 wEffectType;
+	__u8 bSourceID;
+	__u8 bmaControls[]; /* variable length */
+} __attribute__((packed));
+
 /* 4.9.2 Class-Specific AS Interface Descriptor */
 
 struct uac2_as_header_descriptor {

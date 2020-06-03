@@ -1121,7 +1121,9 @@
 			clock-names = "du.0";
 			power-domains = <&sysc R8A77970_PD_ALWAYS_ON>;
 			resets = <&cpg 724>;
-			vsps = <&vspd0 0>;
+			reset-names = "du.0";
+			renesas,vsps = <&vspd0 0>;
+
 			status = "disabled";
 
 			ports {

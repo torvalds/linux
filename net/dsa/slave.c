@@ -1338,7 +1338,7 @@ static void dsa_hw_port_list_free(struct list_head *hw_port_list)
 }
 
 /* Make the hardware datapath to/from @dev limited to a common MTU */
-void dsa_bridge_mtu_normalization(struct dsa_port *dp)
+static void dsa_bridge_mtu_normalization(struct dsa_port *dp)
 {
 	struct list_head hw_port_list;
 	struct dsa_switch_tree *dst;
@@ -1770,11 +1770,9 @@ int dsa_slave_create(struct dsa_port *port)
 	rtnl_lock();
 	ret = dsa_slave_change_mtu(slave_dev, ETH_DATA_LEN);
 	rtnl_unlock();
-	if (ret && ret != -EOPNOTSUPP) {
-		dev_err(ds->dev, "error %d setting MTU on port %d\n",
-			ret, port->index);
-		goto out_free;
-	}
+	if (ret)
+		dev_warn(ds->dev, "nonfatal error %d setting MTU on port %d\n",
+			 ret, port->index);
 
 	netif_carrier_off(slave_dev);
 

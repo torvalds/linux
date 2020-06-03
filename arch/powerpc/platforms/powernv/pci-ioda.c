@@ -3174,11 +3174,6 @@ static void pnv_pci_ioda_create_dbgfs(void)
 
 		sprintf(name, "PCI%04x", hose->global_number);
 		phb->dbgfs = debugfs_create_dir(name, powerpc_debugfs_root);
-		if (!phb->dbgfs) {
-			pr_warn("%s: Error on creating debugfs on PHB#%x\n",
-				__func__, hose->global_number);
-			continue;
-		}
 
 		debugfs_create_file_unsafe("dump_diag_regs", 0200, phb->dbgfs,
 					   phb, &pnv_pci_diag_data_fops);

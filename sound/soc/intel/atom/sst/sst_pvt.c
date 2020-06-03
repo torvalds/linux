@@ -223,9 +223,9 @@ int sst_prepare_and_post_msg(struct intel_sst_drv *sst,
 		size_t mbox_data_len, const void *mbox_data, void **data,
 		bool large, bool fill_dsp, bool sync, bool response)
 {
+	struct sst_block *block = NULL;
 	struct ipc_post *msg = NULL;
 	struct ipc_dsp_hdr dsp_hdr;
-	struct sst_block *block;
 	int ret = 0, pvt_id;
 
 	pvt_id = sst_assign_pvt_id(sst);
