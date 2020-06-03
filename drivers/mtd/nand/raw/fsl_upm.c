@@ -15,7 +15,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <asm/fsl_lbc.h>
@@ -32,7 +31,7 @@ struct fsl_upm_nand {
 	uint8_t upm_addr_offset;
 	uint8_t upm_cmd_offset;
 	void __iomem *io_base;
-	int rnb_gpio[NAND_MAX_CHIPS];
+	struct gpio_desc *rnb_gpio[NAND_MAX_CHIPS];
 	uint32_t mchip_offsets[NAND_MAX_CHIPS];
 	uint32_t mchip_count;
 	uint32_t mchip_number;
@@ -50,7 +49,7 @@ static int fun_chip_ready(struct nand_chip *chip)
 {
 	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
 
-	if (gpio_get_value(fun->rnb_gpio[fun->mchip_number]))
+	if (gpiod_get_value(fun->rnb_gpio[fun->mchip_number]))
 		return 1;
 
 	dev_vdbg(fun->dev, "busy\n");
@@ -165,7 +164,7 @@ static int fun_chip_init(struct fsl_upm_nand *fun,
 	if (fun->mchip_count > 1)
 		fun->chip.legacy.select_chip = fun_select_chip;
 
-	if (fun->rnb_gpio[0] >= 0)
+	if (!fun->rnb_gpio[0])
 		fun->chip.legacy.dev_ready = fun_chip_ready;
 
 	mtd->dev.parent = fun->dev;
@@ -198,7 +197,6 @@ static int fun_probe(struct platform_device *ofdev)
 	struct fsl_upm_nand *fun;
 	struct resource *io_res;
 	const __be32 *prop;
-	int rnb_gpio;
 	int ret;
 	int size;
 	int i;
@@ -248,20 +246,12 @@ static int fun_probe(struct platform_device *ofdev)
 	}
 
 	for (i = 0; i < fun->mchip_count; i++) {
-		fun->rnb_gpio[i] = -1;
-		rnb_gpio = of_get_gpio(ofdev->dev.of_node, i);
-		if (rnb_gpio >= 0) {
-			ret = gpio_request(rnb_gpio, dev_name(&ofdev->dev));
-			if (ret) {
-				dev_err(&ofdev->dev,
-					"can't request RNB gpio #%d\n", i);
-				goto err2;
-			}
-			gpio_direction_input(rnb_gpio);
-			fun->rnb_gpio[i] = rnb_gpio;
-		} else if (rnb_gpio == -EINVAL) {
+		fun->rnb_gpio[i] = devm_gpiod_get_index_optional(&ofdev->dev,
+								 NULL, i,
+								 GPIOD_IN);
+		if (IS_ERR(fun->rnb_gpio[i])) {
 			dev_err(&ofdev->dev, "RNB gpio #%d is invalid\n", i);
-			goto err2;
+			return PTR_ERR(fun->rnb_gpio[i]);
 		}
 	}
 
@@ -283,19 +273,11 @@ static int fun_probe(struct platform_device *ofdev)
 
 	ret = fun_chip_init(fun, ofdev->dev.of_node, io_res);
 	if (ret)
-		goto err2;
+		return ret;
 
 	dev_set_drvdata(&ofdev->dev, fun);
 
 	return 0;
-err2:
-	for (i = 0; i < fun->mchip_count; i++) {
-		if (fun->rnb_gpio[i] < 0)
-			break;
-		gpio_free(fun->rnb_gpio[i]);
-	}
-
-	return ret;
 }
 
 static int fun_remove(struct platform_device *ofdev)
@@ -303,17 +285,11 @@ static int fun_remove(struct platform_device *ofdev)
 	struct fsl_upm_nand *fun = dev_get_drvdata(&ofdev->dev);
 	struct nand_chip *chip = &fun->chip;
 	struct mtd_info *mtd = nand_to_mtd(chip);
-	int ret, i;
+	int ret;
 
 	ret = mtd_device_unregister(mtd);
 	WARN_ON(ret);
 	nand_cleanup(chip);
-
-	for (i = 0; i < fun->mchip_count; i++) {
-		if (fun->rnb_gpio[i] < 0)
-			break;
-		gpio_free(fun->rnb_gpio[i]);
-	}
 
 	return 0;
 }
