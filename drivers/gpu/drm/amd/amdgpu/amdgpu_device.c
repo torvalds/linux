@@ -1537,7 +1537,14 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 
 	if (adev->discovery_bin) {
 		amdgpu_discovery_get_gfx_info(adev);
-		return 0;
+
+		/*
+		 * FIXME: The bounding box is still needed by Navi12, so
+		 * temporarily read it from gpu_info firmware. Should be droped
+		 * when DAL no longer needs it.
+		 */
+		if (adev->asic_type != CHIP_NAVI12)
+			return 0;
 	}
 
 	switch (adev->asic_type) {
@@ -1627,6 +1634,12 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 			(const struct gpu_info_firmware_v1_0 *)(adev->firmware.gpu_info_fw->data +
 								le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
+		/*
+		 * Should be droped when DAL no longer needs it.
+		 */
+		if (adev->asic_type == CHIP_NAVI12)
+			goto parse_soc_bounding_box;
+
 		adev->gfx.config.max_shader_engines = le32_to_cpu(gpu_info_fw->gc_num_se);
 		adev->gfx.config.max_cu_per_sh = le32_to_cpu(gpu_info_fw->gc_num_cu_per_sh);
 		adev->gfx.config.max_sh_per_se = le32_to_cpu(gpu_info_fw->gc_num_sh_per_se);
@@ -1655,6 +1668,7 @@ static int amdgpu_device_parse_gpu_info_fw(struct amdgpu_device *adev)
 				le32_to_cpu(gpu_info_fw->num_packer_per_sc);
 		}
 
+parse_soc_bounding_box:
 		/*
 		 * soc bounding box info is not integrated in disocovery table,
 		 * we always need to parse it from gpu info firmware if needed.
