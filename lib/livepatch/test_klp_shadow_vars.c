@@ -109,8 +109,7 @@ static void shadow_free(void *obj, unsigned long id, klp_shadow_dtor_t dtor)
 static void shadow_free_all(unsigned long id, klp_shadow_dtor_t dtor)
 {
 	klp_shadow_free_all(id, dtor);
-	pr_info("klp_%s(id=0x%lx, dtor=PTR%d)\n",
-		__func__, id, ptr_id(dtor));
+	pr_info("klp_%s(id=0x%lx, dtor=PTR%d)\n", __func__, id, ptr_id(dtor));
 }
 
 
@@ -124,8 +123,7 @@ static int shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
 		return -EINVAL;
 
 	*sv = *var;
-	pr_info("%s: PTR%d -> PTR%d\n",
-		__func__, ptr_id(sv), ptr_id(*var));
+	pr_info("%s: PTR%d -> PTR%d\n", __func__, ptr_id(sv), ptr_id(*var));
 
 	return 0;
 }
@@ -138,49 +136,63 @@ static void shadow_dtor(void *obj, void *shadow_data)
 		__func__, ptr_id(obj), ptr_id(sv));
 }
 
+/* dynamically created obj fields have the following shadow var id values */
+#define SV_ID1 0x1234
+#define SV_ID2 0x1235
+
+/*
+ * The main test case adds/removes new fields (shadow var) to each of these
+ * test structure instances. The last group of fields in the struct represent
+ * the idea that shadow variables may be added and removed to and from the
+ * struct during execution.
+ */
+struct test_object {
+	 /* add anything here below and avoid to define an empty struct */
+	struct shadow_ptr sp;
+
+	/* these represent shadow vars added and removed with SV_ID{1,2} */
+	/* char nfield1; */
+	/* int  nfield2; */
+};
+
 static int test_klp_shadow_vars_init(void)
 {
-	void *obj			= THIS_MODULE;
-	int id			= 0x1234;
-	gfp_t gfp_flags		= GFP_KERNEL;
+	struct test_object obj1, obj2, obj3;
+	char nfield1, nfield2, *pnfield1, *pnfield2, **sv1, **sv2;
+	int  nfield3, nfield4, *pnfield3, *pnfield4, **sv3, **sv4;
+	void **sv;
 
-	int var1, var2, var3, var4;
-	int *pv1, *pv2, *pv3, *pv4;
-	int **sv1, **sv2, **sv3, **sv4;
-
-	int **sv;
-
-	pv1 = &var1;
-	pv2 = &var2;
-	pv3 = &var3;
-	pv4 = &var4;
+	pnfield1 = &nfield1;
+	pnfield2 = &nfield2;
+	pnfield3 = &nfield3;
+	pnfield4 = &nfield4;
 
 	ptr_id(NULL);
-	ptr_id(pv1);
-	ptr_id(pv2);
-	ptr_id(pv3);
-	ptr_id(pv4);
+	ptr_id(pnfield1);
+	ptr_id(pnfield2);
+	ptr_id(pnfield3);
+	ptr_id(pnfield4);
 
 	/*
 	 * With an empty shadow variable hash table, expect not to find
 	 * any matches.
 	 */
-	sv = shadow_get(obj, id);
+	sv = shadow_get(&obj1, SV_ID1);
 	if (!sv)
 		pr_info("  got expected NULL result\n");
 
 	/*
 	 * Allocate a few shadow variables with different <obj> and <id>.
 	 */
-	sv1 = shadow_alloc(obj, id, sizeof(pv1), gfp_flags, shadow_ctor, &pv1);
+	sv1 = shadow_alloc(&obj1, SV_ID1, sizeof(pnfield1), GFP_KERNEL, shadow_ctor, &pnfield1);
 	if (!sv1)
 		return -ENOMEM;
 
-	sv2 = shadow_alloc(obj + 1, id, sizeof(pv2), gfp_flags, shadow_ctor, &pv2);
+	sv2 = shadow_alloc(&obj2, SV_ID1, sizeof(pnfield2), GFP_KERNEL, shadow_ctor, &pnfield2);
 	if (!sv2)
 		return -ENOMEM;
 
-	sv3 = shadow_alloc(obj, id + 1, sizeof(pv3), gfp_flags, shadow_ctor, &pv3);
+	sv3 = shadow_alloc(&obj1, SV_ID2, sizeof(pnfield3), GFP_KERNEL, shadow_ctor, &pnfield3);
 	if (!sv3)
 		return -ENOMEM;
 
@@ -188,23 +200,24 @@ static int test_klp_shadow_vars_init(void)
 	 * Verify we can find our new shadow variables and that they point
 	 * to expected data.
 	 */
-	sv = shadow_get(obj, id);
+	sv = shadow_get(&obj1, SV_ID1);
 	if (!sv)
 		return -EINVAL;
-	if (sv == sv1 && *sv1 == pv1)
+	if ((char **)sv == sv1 && *sv1 == pnfield1)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv1), ptr_id(*sv1));
 
-	sv = shadow_get(obj + 1, id);
+	sv = shadow_get(&obj2, SV_ID1);
 	if (!sv)
 		return -EINVAL;
-	if (sv == sv2 && *sv2 == pv2)
+	if ((char **)sv == sv2 && *sv2 == pnfield2)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv2), ptr_id(*sv2));
-	sv = shadow_get(obj, id + 1);
+
+	sv = shadow_get(&obj1, SV_ID2);
 	if (!sv)
 		return -EINVAL;
-	if (sv == sv3 && *sv3 == pv3)
+	if ((int **)sv == sv3 && *sv3 == pnfield3)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv3), ptr_id(*sv3));
 
@@ -212,14 +225,14 @@ static int test_klp_shadow_vars_init(void)
 	 * Allocate or get a few more, this time with the same <obj>, <id>.
 	 * The second invocation should return the same shadow var.
 	 */
-	sv4 = shadow_get_or_alloc(obj + 2, id, sizeof(pv4), gfp_flags, shadow_ctor, &pv4);
+	sv4 = shadow_get_or_alloc(&obj3, SV_ID1, sizeof(pnfield4), GFP_KERNEL, shadow_ctor, &pnfield4);
 	if (!sv4)
 		return -ENOMEM;
 
-	sv = shadow_get_or_alloc(obj + 2, id, sizeof(pv4), gfp_flags, shadow_ctor, &pv4);
+	sv = shadow_get_or_alloc(&obj3, SV_ID1, sizeof(pnfield4), GFP_KERNEL, shadow_ctor, &pnfield4);
 	if (!sv)
 		return -EINVAL;
-	if (sv == sv4 && *sv4 == pv4)
+	if ((int **)sv == sv4 && *sv4 == pnfield4)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv4), ptr_id(*sv4));
 
@@ -227,36 +240,36 @@ static int test_klp_shadow_vars_init(void)
 	 * Free the <obj=*, id> shadow variables and check that we can no
 	 * longer find them.
 	 */
-	shadow_free(obj, id, shadow_dtor);			/* sv1 */
-	sv = shadow_get(obj, id);
+	shadow_free(&obj1, SV_ID1, shadow_dtor);		/* sv1 */
+	sv = shadow_get(&obj1, SV_ID1);
 	if (!sv)
 		pr_info("  got expected NULL result\n");
 
-	shadow_free(obj + 1, id, shadow_dtor);			/* sv2 */
-	sv = shadow_get(obj + 1, id);
+	shadow_free(&obj2, SV_ID1, shadow_dtor);		/* sv2 */
+	sv = shadow_get(&obj2, SV_ID1);
 	if (!sv)
 		pr_info("  got expected NULL result\n");
 
-	shadow_free(obj + 2, id, shadow_dtor);			/* sv4 */
-	sv = shadow_get(obj + 2, id);
+	shadow_free(&obj3, SV_ID1, shadow_dtor);		/* sv4 */
+	sv = shadow_get(&obj3, SV_ID1);
 	if (!sv)
 		pr_info("  got expected NULL result\n");
 
 	/*
 	 * We should still find an <id+1> variable.
 	 */
-	sv = shadow_get(obj, id + 1);
+	sv = shadow_get(&obj1, SV_ID2);
 	if (!sv)
 		return -EINVAL;
-	if (sv == sv3 && *sv3 == pv3)
+	if ((int **)sv == sv3 && *sv3 == pnfield3)
 		pr_info("  got expected PTR%d -> PTR%d result\n",
 			ptr_id(sv3), ptr_id(*sv3));
 
 	/*
 	 * Free all the <id+1> variables, too.
 	 */
-	shadow_free_all(id + 1, shadow_dtor);			/* sv3 */
-	sv = shadow_get(obj, id);
+	shadow_free_all(SV_ID2, shadow_dtor);			/* sv3 */
+	sv = shadow_get(&obj1, SV_ID1);
 	if (!sv)
 		pr_info("  shadow_get() got expected NULL result\n");
 
