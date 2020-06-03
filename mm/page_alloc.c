@@ -7704,8 +7704,10 @@ static void setup_per_zone_lowmem_reserve(void)
 				idx--;
 				lower_zone = pgdat->node_zones + idx;
 
-				if (!sysctl_lowmem_reserve_ratio[idx]) {
+				if (!sysctl_lowmem_reserve_ratio[idx] ||
+				    !zone_managed_pages(lower_zone)) {
 					lower_zone->lowmem_reserve[j] = 0;
+					continue;
 				} else {
 					lower_zone->lowmem_reserve[j] =
 						managed_pages / sysctl_lowmem_reserve_ratio[idx];
