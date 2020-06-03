@@ -277,7 +277,6 @@ static int ad8366_probe(struct spi_device *spi)
 	}
 
 	st->info = &ad8366_infos[st->type];
-	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
 	indio_dev->info = &ad8366_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;

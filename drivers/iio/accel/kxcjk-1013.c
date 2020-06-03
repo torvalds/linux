@@ -1311,7 +1311,6 @@ static int kxcjk1013_probe(struct i2c_client *client,
 
 	mutex_init(&data->mutex);
 
-	indio_dev->dev.parent = &client->dev;
 	indio_dev->channels = kxcjk1013_channels;
 	indio_dev->num_channels = ARRAY_SIZE(kxcjk1013_channels);
 	indio_dev->available_scan_masks = kxcjk1013_scan_masks;

@@ -281,7 +281,6 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 	state->msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 	state->msg->outsize = sizeof(struct ec_params_motion_sense);
 
-	indio_dev->dev.parent = &pdev->dev;
 	indio_dev->name = pdev->name;
 
 	if (physical_device) {
