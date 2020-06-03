@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/string.h>
 
-#include <linux/uaccess.h>
+#include <net/checksum.h>
 
 /*
  * XXX Fixme: those 2 inlines are meant for debugging and will go away
