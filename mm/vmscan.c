@@ -2237,12 +2237,11 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 			   unsigned long *nr)
 {
 	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
+	unsigned long anon_cost, file_cost, total_cost;
 	int swappiness = mem_cgroup_swappiness(memcg);
 	u64 fraction[2];
 	u64 denominator = 0;	/* gcc */
-	unsigned long anon_prio, file_prio;
 	enum scan_balance scan_balance;
-	unsigned long totalcost;
 	unsigned long ap, fp;
 	enum lru_list lru;
 
@@ -2301,17 +2300,22 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 	 * the relative IO cost of bringing back a swapped out
 	 * anonymous page vs reloading a filesystem page (swappiness).
 	 *
+	 * Although we limit that influence to ensure no list gets
+	 * left behind completely: at least a third of the pressure is
+	 * applied, before swappiness.
+	 *
 	 * With swappiness at 100, anon and file have equal IO cost.
 	 */
-	anon_prio = swappiness;
-	file_prio = 200 - anon_prio;
+	total_cost = sc->anon_cost + sc->file_cost;
+	anon_cost = total_cost + sc->anon_cost;
+	file_cost = total_cost + sc->file_cost;
+	total_cost = anon_cost + file_cost;
 
-	totalcost = sc->anon_cost + sc->file_cost;
-	ap = anon_prio * (totalcost + 1);
-	ap /= sc->anon_cost + 1;
+	ap = swappiness * (total_cost + 1);
+	ap /= anon_cost + 1;
 
-	fp = file_prio * (totalcost + 1);
-	fp /= sc->file_cost + 1;
+	fp = (200 - swappiness) * (total_cost + 1);
+	fp /= file_cost + 1;
 
 	fraction[0] = ap;
 	fraction[1] = fp;
