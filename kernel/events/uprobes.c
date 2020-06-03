@@ -169,7 +169,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	if (new_page) {
 		err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL,
-					    &memcg, false);
+					    &memcg);
 		if (err)
 			return err;
 	}
@@ -181,7 +181,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	err = -EAGAIN;
 	if (!page_vma_mapped_walk(&pvmw)) {
 		if (new_page)
-			mem_cgroup_cancel_charge(new_page, memcg, false);
+			mem_cgroup_cancel_charge(new_page, memcg);
 		goto unlock;
 	}
 	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
@@ -189,7 +189,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	if (new_page) {
 		get_page(new_page);
 		page_add_new_anon_rmap(new_page, vma, addr, false);
-		mem_cgroup_commit_charge(new_page, memcg, false, false);
+		mem_cgroup_commit_charge(new_page, memcg, false);
 		lru_cache_add_active_or_unevictable(new_page, vma);
 	} else
 		/* no new page, just dec_mm_counter for old_page */
