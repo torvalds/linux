@@ -1034,6 +1034,14 @@ static int smu_smc_table_sw_fini(struct smu_context *smu)
 	return 0;
 }
 
+static void smu_throttling_logging_work_fn(struct work_struct *work)
+{
+	struct smu_context *smu = container_of(work, struct smu_context,
+					       throttling_logging_work);
+
+	smu_log_thermal_throttling(smu);
+}
+
 static int smu_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1055,6 +1063,7 @@ static int smu_sw_init(void *handle)
 	mutex_init(&smu->metrics_lock);
 	mutex_init(&smu->message_lock);
 
+	INIT_WORK(&smu->throttling_logging_work, smu_throttling_logging_work_fn);
 	smu->watermarks_bitmap = 0;
 	smu->power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
 	smu->default_power_profile_mode = PP_SMC_POWER_PROFILE_BOOTUP_DEFAULT;
@@ -1371,6 +1380,8 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 	int ret = 0;
 
 	smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
+
+	cancel_work_sync(&smu->throttling_logging_work);
 
 	ret = smu_disable_thermal_alert(smu);
 	if (ret) {

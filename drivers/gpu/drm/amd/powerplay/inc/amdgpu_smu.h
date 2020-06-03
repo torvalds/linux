@@ -411,6 +411,8 @@ struct smu_context
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
+
+	struct work_struct throttling_logging_work;
 };
 
 struct i2c_adapter;

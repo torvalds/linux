@@ -1605,7 +1605,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 					return 0;
 
 				if (__ratelimit(&adev->throttling_logging_rs))
-					smu_log_thermal_throttling(smu);
+					schedule_work(&smu->throttling_logging_work);
 
 				break;
 			}
