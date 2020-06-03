@@ -192,6 +192,31 @@ static struct ref_perf_ops srcu_ops = {
 	.name		= "srcu"
 };
 
+// Definitions for RCU Tasks ref perf testing: Empty read markers.
+// These definitions also work for RCU Rude readers.
+static void rcu_tasks_ref_perf_read_section(const int nloops)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--)
+		continue;
+}
+
+static void rcu_tasks_ref_perf_delay_section(const int nloops, const int udl, const int ndl)
+{
+	int i;
+
+	for (i = nloops; i >= 0; i--)
+		un_delay(udl, ndl);
+}
+
+static struct ref_perf_ops rcu_tasks_ops = {
+	.init		= rcu_sync_perf_init,
+	.readsection	= rcu_tasks_ref_perf_read_section,
+	.delaysection	= rcu_tasks_ref_perf_delay_section,
+	.name		= "rcu-tasks"
+};
+
 // Definitions for RCU Tasks Trace ref perf testing.
 static void rcu_trace_ref_perf_read_section(const int nloops)
 {
@@ -613,7 +638,8 @@ ref_perf_init(void)
 	long i;
 	int firsterr = 0;
 	static struct ref_perf_ops *perf_ops[] = {
-		&rcu_ops, &srcu_ops, &rcu_trace_ops, &refcnt_ops, &rwlock_ops, &rwsem_ops,
+		&rcu_ops, &srcu_ops, &rcu_trace_ops, &rcu_tasks_ops,
+		&refcnt_ops, &rwlock_ops, &rwsem_ops,
 	};
 
 	if (!torture_init_begin(perf_type, verbose))
