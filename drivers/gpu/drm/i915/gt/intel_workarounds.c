@@ -609,11 +609,14 @@ static void tgl_ctx_workarounds_init(struct intel_engine_cs *engine,
 	 * Wa_1604555607:gen12 and Wa_1608008084:gen12
 	 * FF_MODE2 register will return the wrong value when read. The default
 	 * value for this register is zero for all fields and there are no bit
-	 * masks. So instead of doing a RMW we should just write the TDS timer
-	 * value for Wa_1604555607.
+	 * masks. So instead of doing a RMW we should just write the GS Timer
+	 * and TDS timer values for Wa_1604555607 and Wa_16011163337.
 	 */
-	wa_add(wal, FF_MODE2, FF_MODE2_TDS_TIMER_MASK,
-	       FF_MODE2_TDS_TIMER_128, 0);
+	wa_add(wal,
+	       FF_MODE2,
+	       FF_MODE2_GS_TIMER_MASK | FF_MODE2_TDS_TIMER_MASK,
+	       FF_MODE2_GS_TIMER_224  | FF_MODE2_TDS_TIMER_128,
+	       0);
 
 	/* WaDisableGPGPUMidThreadPreemption:tgl */
 	WA_SET_FIELD_MASKED(GEN8_CS_CHICKEN1,
