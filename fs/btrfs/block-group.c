@@ -2508,7 +2508,8 @@ again:
 	num_pages *= 16;
 	num_pages *= PAGE_SIZE;
 
-	ret = btrfs_check_data_free_space(inode, &data_reserved, 0, num_pages);
+	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved, 0,
+					  num_pages);
 	if (ret)
 		goto out_put;
 

@@ -237,10 +237,10 @@ commit_trans:
 	return 0;
 }
 
-int btrfs_check_data_free_space(struct inode *inode,
+int btrfs_check_data_free_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	int ret;
 
 	/* align the range */
@@ -248,12 +248,12 @@ int btrfs_check_data_free_space(struct inode *inode,
 	      round_down(start, fs_info->sectorsize);
 	start = round_down(start, fs_info->sectorsize);
 
-	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode), len);
+	ret = btrfs_alloc_data_chunk_ondemand(inode, len);
 	if (ret < 0)
 		return ret;
 
 	/* Use new btrfs_qgroup_reserve_data to reserve precious data space. */
-	ret = btrfs_qgroup_reserve_data(BTRFS_I(inode), reserved, start, len);
+	ret = btrfs_qgroup_reserve_data(inode, reserved, start, len);
 	if (ret < 0)
 		btrfs_free_reserved_data_space_noquota(fs_info, len);
 	else
@@ -558,7 +558,7 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
 {
 	int ret;
 
-	ret = btrfs_check_data_free_space(inode, reserved, start, len);
+	ret = btrfs_check_data_free_space(BTRFS_I(inode), reserved, start, len);
 	if (ret < 0)
 		return ret;
 	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), len);

@@ -1681,7 +1681,8 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 				fs_info->sectorsize);
 
 		extent_changeset_release(data_reserved);
-		ret = btrfs_check_data_free_space(inode, &data_reserved, pos,
+		ret = btrfs_check_data_free_space(BTRFS_I(inode),
+						  &data_reserved, pos,
 						  write_bytes);
 		if (ret < 0) {
 			if (btrfs_check_nocow_lock(BTRFS_I(inode), pos,

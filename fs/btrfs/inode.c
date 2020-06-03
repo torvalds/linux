@@ -4519,8 +4519,8 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	block_end = block_start + blocksize - 1;
 
 
-	ret = btrfs_check_data_free_space(inode, &data_reserved, block_start,
-					  blocksize);
+	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved,
+					  block_start, blocksize);
 	if (ret < 0) {
 		if (btrfs_check_nocow_lock(BTRFS_I(inode), block_start,
 					   &write_bytes) > 0) {
