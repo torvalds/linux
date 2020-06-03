@@ -5469,8 +5469,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
  * huge_pte_offset() - Walk the page table to resolve the hugepage
  * entry at address @addr
  *
- * Return: Pointer to page table or swap entry (PUD or PMD) for
- * address @addr, or NULL if a p*d_none() entry is encountered and the
+ * Return: Pointer to page table entry (PUD or PMD) for
+ * address @addr, or NULL if a !p*d_present() entry is encountered and the
  * size @sz doesn't match the hugepage size at this level of the page
  * table.
  */
@@ -5479,8 +5479,8 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
-	pud_t *pud, pud_entry;
-	pmd_t *pmd, pmd_entry;
+	pud_t *pud;
+	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
 	if (!pgd_present(*pgd))
@@ -5490,22 +5490,16 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 		return NULL;
 
 	pud = pud_offset(p4d, addr);
-	pud_entry = READ_ONCE(*pud);
-	if (sz != PUD_SIZE && pud_none(pud_entry))
-		return NULL;
-	/* hugepage or swap? */
-	if (pud_huge(pud_entry) || !pud_present(pud_entry))
+	if (sz == PUD_SIZE)
+		/* must be pud huge, non-present or none */
 		return (pte_t *)pud;
+	if (!pud_present(*pud))
+		return NULL;
+	/* must have a valid entry and size to go further */
 
 	pmd = pmd_offset(pud, addr);
-	pmd_entry = READ_ONCE(*pmd);
-	if (sz != PMD_SIZE && pmd_none(pmd_entry))
-		return NULL;
-	/* hugepage or swap? */
-	if (pmd_huge(pmd_entry) || !pmd_present(pmd_entry))
-		return (pte_t *)pmd;
-
-	return NULL;
+	/* must be pmd huge, non-present or none */
+	return (pte_t *)pmd;
 }
 
 #endif /* CONFIG_ARCH_WANT_GENERAL_HUGETLB */
