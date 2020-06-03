@@ -332,6 +332,8 @@ struct vfs_ns_cap_data {
 
 #define CAP_AUDIT_CONTROL    30
 
+/* Set or remove capabilities on files */
+
 #define CAP_SETFCAP	     31
 
 /* Override MAC access.
