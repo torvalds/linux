@@ -113,6 +113,15 @@ initialize_ftrace() { # Reset ftrace to initial-state
     enable_tracing
 }
 
+check_requires() { # Check required files
+    for i in $* ; do
+        if [ ! -e $i ]; then
+            echo "Required feature interface $i doesn't exist."
+            exit_unsupported
+        fi
+    done
+}
+
 LOCALHOST=127.0.0.1
 
 yield() {
