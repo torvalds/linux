@@ -34,15 +34,15 @@ static DEFINE_MUTEX(algs_lock);
 static unsigned int active_devs;
 
 struct qat_alg_buf {
-	uint32_t len;
-	uint32_t resrvd;
-	uint64_t addr;
+	u32 len;
+	u32 resrvd;
+	u64 addr;
 } __packed;
 
 struct qat_alg_buf_list {
-	uint64_t resrvd;
-	uint32_t num_bufs;
-	uint32_t num_mapped_bufs;
+	u64 resrvd;
+	u32 num_bufs;
+	u32 num_mapped_bufs;
 	struct qat_alg_buf bufers[];
 } __packed __aligned(64);
 
@@ -107,7 +107,7 @@ static int qat_get_inter_state_size(enum icp_qat_hw_auth_algo qat_hash_alg)
 
 static int qat_alg_do_precomputes(struct icp_qat_hw_auth_algo_blk *hash,
 				  struct qat_alg_aead_ctx *ctx,
-				  const uint8_t *auth_key,
+				  const u8 *auth_key,
 				  unsigned int auth_keylen)
 {
 	SHASH_DESC_ON_STACK(shash, ctx->hash_tfm);
@@ -423,7 +423,7 @@ static int qat_alg_aead_init_dec_session(struct crypto_aead *aead_tfm,
 static void qat_alg_skcipher_init_com(struct qat_alg_skcipher_ctx *ctx,
 				      struct icp_qat_fw_la_bulk_req *req,
 				      struct icp_qat_hw_cipher_algo_blk *cd,
-				      const uint8_t *key, unsigned int keylen)
+				      const u8 *key, unsigned int keylen)
 {
 	struct icp_qat_fw_comn_req_hdr_cd_pars *cd_pars = &req->cd_pars;
 	struct icp_qat_fw_comn_req_hdr *header = &req->comn_hdr;
@@ -443,7 +443,7 @@ static void qat_alg_skcipher_init_com(struct qat_alg_skcipher_ctx *ctx,
 }
 
 static void qat_alg_skcipher_init_enc(struct qat_alg_skcipher_ctx *ctx,
-				      int alg, const uint8_t *key,
+				      int alg, const u8 *key,
 				      unsigned int keylen, int mode)
 {
 	struct icp_qat_hw_cipher_algo_blk *enc_cd = ctx->enc_cd;
@@ -456,7 +456,7 @@ static void qat_alg_skcipher_init_enc(struct qat_alg_skcipher_ctx *ctx,
 }
 
 static void qat_alg_skcipher_init_dec(struct qat_alg_skcipher_ctx *ctx,
-				      int alg, const uint8_t *key,
+				      int alg, const u8 *key,
 				      unsigned int keylen, int mode)
 {
 	struct icp_qat_hw_cipher_algo_blk *dec_cd = ctx->dec_cd;
@@ -534,7 +534,7 @@ error:
 }
 
 static int qat_alg_skcipher_init_sessions(struct qat_alg_skcipher_ctx *ctx,
-					  const uint8_t *key,
+					  const u8 *key,
 					  unsigned int keylen,
 					  int mode)
 {
@@ -548,7 +548,7 @@ static int qat_alg_skcipher_init_sessions(struct qat_alg_skcipher_ctx *ctx,
 	return 0;
 }
 
-static int qat_alg_aead_rekey(struct crypto_aead *tfm, const uint8_t *key,
+static int qat_alg_aead_rekey(struct crypto_aead *tfm, const u8 *key,
 			      unsigned int keylen)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
@@ -562,7 +562,7 @@ static int qat_alg_aead_rekey(struct crypto_aead *tfm, const uint8_t *key,
 					  ICP_QAT_HW_CIPHER_CBC_MODE);
 }
 
-static int qat_alg_aead_newkey(struct crypto_aead *tfm, const uint8_t *key,
+static int qat_alg_aead_newkey(struct crypto_aead *tfm, const u8 *key,
 			       unsigned int keylen)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
@@ -614,7 +614,7 @@ out_free_inst:
 	return ret;
 }
 
-static int qat_alg_aead_setkey(struct crypto_aead *tfm, const uint8_t *key,
+static int qat_alg_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 			       unsigned int keylen)
 {
 	struct qat_alg_aead_ctx *ctx = crypto_aead_ctx(tfm);
@@ -776,7 +776,7 @@ static void qat_aead_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	struct qat_alg_aead_ctx *ctx = qat_req->aead_ctx;
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct aead_request *areq = qat_req->aead_req;
-	uint8_t stat_filed = qat_resp->comn_resp.comn_status;
+	u8 stat_filed = qat_resp->comn_resp.comn_status;
 	int res = 0, qat_res = ICP_QAT_FW_COMN_RESP_CRYPTO_STAT_GET(stat_filed);
 
 	qat_alg_free_bufl(inst, qat_req);
@@ -791,7 +791,7 @@ static void qat_skcipher_alg_callback(struct icp_qat_fw_la_resp *qat_resp,
 	struct qat_alg_skcipher_ctx *ctx = qat_req->skcipher_ctx;
 	struct qat_crypto_instance *inst = ctx->inst;
 	struct skcipher_request *sreq = qat_req->skcipher_req;
-	uint8_t stat_filed = qat_resp->comn_resp.comn_status;
+	u8 stat_filed = qat_resp->comn_resp.comn_status;
 	struct device *dev = &GET_DEV(ctx->inst->accel_dev);
 	int res = 0, qat_res = ICP_QAT_FW_COMN_RESP_CRYPTO_STAT_GET(stat_filed);
 
@@ -836,18 +836,18 @@ static int qat_alg_aead_dec(struct aead_request *areq)
 	qat_req->aead_ctx = ctx;
 	qat_req->aead_req = areq;
 	qat_req->cb = qat_aead_alg_callback;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
+	qat_req->req.comn_mid.opaque_data = (u64)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
 	cipher_param->cipher_length = areq->cryptlen - digst_size;
 	cipher_param->cipher_offset = areq->assoclen;
 	memcpy(cipher_param->u.cipher_IV_array, areq->iv, AES_BLOCK_SIZE);
-	auth_param = (void *)((uint8_t *)cipher_param + sizeof(*cipher_param));
+	auth_param = (void *)((u8 *)cipher_param + sizeof(*cipher_param));
 	auth_param->auth_off = 0;
 	auth_param->auth_len = areq->assoclen + cipher_param->cipher_length;
 	do {
-		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->sym_tx, (u32 *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {
@@ -866,7 +866,7 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	struct icp_qat_fw_la_cipher_req_params *cipher_param;
 	struct icp_qat_fw_la_auth_req_params *auth_param;
 	struct icp_qat_fw_la_bulk_req *msg;
-	uint8_t *iv = areq->iv;
+	u8 *iv = areq->iv;
 	int ret, ctr = 0;
 
 	ret = qat_alg_sgl_to_bufl(ctx->inst, areq->src, areq->dst, qat_req);
@@ -878,11 +878,11 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	qat_req->aead_ctx = ctx;
 	qat_req->aead_req = areq;
 	qat_req->cb = qat_aead_alg_callback;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
+	qat_req->req.comn_mid.opaque_data = (u64)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
-	auth_param = (void *)((uint8_t *)cipher_param + sizeof(*cipher_param));
+	auth_param = (void *)((u8 *)cipher_param + sizeof(*cipher_param));
 
 	memcpy(cipher_param->u.cipher_IV_array, iv, AES_BLOCK_SIZE);
 	cipher_param->cipher_length = areq->cryptlen;
@@ -892,7 +892,7 @@ static int qat_alg_aead_enc(struct aead_request *areq)
 	auth_param->auth_len = areq->assoclen + areq->cryptlen;
 
 	do {
-		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->sym_tx, (u32 *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {
@@ -1029,7 +1029,7 @@ static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
 	qat_req->skcipher_ctx = ctx;
 	qat_req->skcipher_req = req;
 	qat_req->cb = qat_skcipher_alg_callback;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
+	qat_req->req.comn_mid.opaque_data = (u64)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
@@ -1038,7 +1038,7 @@ static int qat_alg_skcipher_encrypt(struct skcipher_request *req)
 	cipher_param->u.s.cipher_IV_ptr = qat_req->iv_paddr;
 	memcpy(qat_req->iv, req->iv, AES_BLOCK_SIZE);
 	do {
-		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->sym_tx, (u32 *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {
@@ -1089,7 +1089,7 @@ static int qat_alg_skcipher_decrypt(struct skcipher_request *req)
 	qat_req->skcipher_ctx = ctx;
 	qat_req->skcipher_req = req;
 	qat_req->cb = qat_skcipher_alg_callback;
-	qat_req->req.comn_mid.opaque_data = (uint64_t)(__force long)qat_req;
+	qat_req->req.comn_mid.opaque_data = (u64)(__force long)qat_req;
 	qat_req->req.comn_mid.src_data_addr = qat_req->buf.blp;
 	qat_req->req.comn_mid.dest_data_addr = qat_req->buf.bloutp;
 	cipher_param = (void *)&qat_req->req.serv_specif_rqpars;
@@ -1098,7 +1098,7 @@ static int qat_alg_skcipher_decrypt(struct skcipher_request *req)
 	cipher_param->u.s.cipher_IV_ptr = qat_req->iv_paddr;
 	memcpy(qat_req->iv, req->iv, AES_BLOCK_SIZE);
 	do {
-		ret = adf_send_message(ctx->inst->sym_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->sym_tx, (u32 *)msg);
 	} while (ret == -EAGAIN && ctr++ < 10);
 
 	if (ret == -EAGAIN) {

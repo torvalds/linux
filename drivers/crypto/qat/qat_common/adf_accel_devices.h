@@ -59,8 +59,8 @@ struct adf_accel_pci {
 	struct pci_dev *pci_dev;
 	struct adf_accel_msix msix_entries;
 	struct adf_bar pci_bars[ADF_PCI_MAX_BARS];
-	uint8_t revid;
-	uint8_t sku;
+	u8 revid;
+	u8 sku;
 } __packed;
 
 enum dev_state {
@@ -100,7 +100,7 @@ static inline const char *get_sku_info(enum dev_sku_info info)
 struct adf_hw_device_class {
 	const char *name;
 	const enum adf_device_type type;
-	uint32_t instances;
+	u32 instances;
 } __packed;
 
 struct adf_cfg_device_data;
@@ -110,15 +110,15 @@ struct adf_etr_ring_data;
 
 struct adf_hw_device_data {
 	struct adf_hw_device_class *dev_class;
-	uint32_t (*get_accel_mask)(uint32_t fuse);
-	uint32_t (*get_ae_mask)(uint32_t fuse);
-	uint32_t (*get_sram_bar_id)(struct adf_hw_device_data *self);
-	uint32_t (*get_misc_bar_id)(struct adf_hw_device_data *self);
-	uint32_t (*get_etr_bar_id)(struct adf_hw_device_data *self);
-	uint32_t (*get_num_aes)(struct adf_hw_device_data *self);
-	uint32_t (*get_num_accels)(struct adf_hw_device_data *self);
-	uint32_t (*get_pf2vf_offset)(uint32_t i);
-	uint32_t (*get_vintmsk_offset)(uint32_t i);
+	u32 (*get_accel_mask)(u32 fuse);
+	u32 (*get_ae_mask)(u32 fuse);
+	u32 (*get_sram_bar_id)(struct adf_hw_device_data *self);
+	u32 (*get_misc_bar_id)(struct adf_hw_device_data *self);
+	u32 (*get_etr_bar_id)(struct adf_hw_device_data *self);
+	u32 (*get_num_aes)(struct adf_hw_device_data *self);
+	u32 (*get_num_accels)(struct adf_hw_device_data *self);
+	u32 (*get_pf2vf_offset)(u32 i);
+	u32 (*get_vintmsk_offset)(u32 i);
 	enum dev_sku_info (*get_sku)(struct adf_hw_device_data *self);
 	int (*alloc_irq)(struct adf_accel_dev *accel_dev);
 	void (*free_irq)(struct adf_accel_dev *accel_dev);
@@ -129,25 +129,25 @@ struct adf_hw_device_data {
 	int (*init_arb)(struct adf_accel_dev *accel_dev);
 	void (*exit_arb)(struct adf_accel_dev *accel_dev);
 	void (*get_arb_mapping)(struct adf_accel_dev *accel_dev,
-				const uint32_t **cfg);
+				const u32 **cfg);
 	void (*disable_iov)(struct adf_accel_dev *accel_dev);
 	void (*enable_ints)(struct adf_accel_dev *accel_dev);
 	int (*enable_vf2pf_comms)(struct adf_accel_dev *accel_dev);
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	const char *fw_name;
 	const char *fw_mmp_name;
-	uint32_t fuses;
-	uint32_t accel_capabilities_mask;
-	uint32_t instance_id;
-	uint16_t accel_mask;
-	uint16_t ae_mask;
-	uint16_t tx_rings_mask;
-	uint8_t tx_rx_gap;
-	uint8_t num_banks;
-	uint8_t num_accel;
-	uint8_t num_logical_accel;
-	uint8_t num_engines;
-	uint8_t min_iov_compat_ver;
+	u32 fuses;
+	u32 accel_capabilities_mask;
+	u32 instance_id;
+	u16 accel_mask;
+	u16 ae_mask;
+	u16 tx_rings_mask;
+	u8 tx_rx_gap;
+	u8 num_banks;
+	u8 num_accel;
+	u8 num_logical_accel;
+	u8 num_engines;
+	u8 min_iov_compat_ver;
 } __packed;
 
 /* CSR write macro */
@@ -204,8 +204,8 @@ struct adf_accel_dev {
 			struct tasklet_struct pf2vf_bh_tasklet;
 			struct mutex vf2pf_lock; /* protect CSR access */
 			struct completion iov_msg_completion;
-			uint8_t compatible;
-			uint8_t pf_version;
+			u8 compatible;
+			u8 pf_version;
 		} vf;
 	};
 	bool is_vf;

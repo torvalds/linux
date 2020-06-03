@@ -88,9 +88,9 @@
 		ADF_RING_CSR_RING_CONFIG + (ring << 2), value)
 #define WRITE_CSR_RING_BASE(csr_base_addr, bank, ring, value) \
 do { \
-	uint32_t l_base = 0, u_base = 0; \
-	l_base = (uint32_t)(value & 0xFFFFFFFF); \
-	u_base = (uint32_t)((value & 0xFFFFFFFF00000000ULL) >> 32); \
+	u32 l_base = 0, u_base = 0; \
+	l_base = (u32)(value & 0xFFFFFFFF); \
+	u_base = (u32)((value & 0xFFFFFFFF00000000ULL) >> 32); \
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \
 		ADF_RING_CSR_RING_LBASE + (ring << 2), l_base);	\
 	ADF_CSR_WR(csr_base_addr, (ADF_RING_BUNDLE_SIZE * bank) + \

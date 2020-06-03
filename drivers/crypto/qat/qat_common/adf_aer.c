@@ -42,7 +42,7 @@ void adf_reset_sbr(struct adf_accel_dev *accel_dev)
 {
 	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
 	struct pci_dev *parent = pdev->bus->self;
-	uint16_t bridge_ctl = 0;
+	u16 bridge_ctl = 0;
 
 	if (!parent)
 		parent = pdev;

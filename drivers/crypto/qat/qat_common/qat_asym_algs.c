@@ -339,12 +339,12 @@ static int qat_dh_compute_value(struct kpp_request *req)
 
 	msg->pke_mid.src_data_addr = qat_req->phy_in;
 	msg->pke_mid.dest_data_addr = qat_req->phy_out;
-	msg->pke_mid.opaque = (uint64_t)(__force long)qat_req;
+	msg->pke_mid.opaque = (u64)(__force long)qat_req;
 	msg->input_param_count = n_input_params;
 	msg->output_param_count = 1;
 
 	do {
-		ret = adf_send_message(ctx->inst->pke_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->pke_tx, (u32 *)msg);
 	} while (ret == -EBUSY && ctr++ < 100);
 
 	if (!ret)
@@ -734,11 +734,11 @@ static int qat_rsa_enc(struct akcipher_request *req)
 
 	msg->pke_mid.src_data_addr = qat_req->phy_in;
 	msg->pke_mid.dest_data_addr = qat_req->phy_out;
-	msg->pke_mid.opaque = (uint64_t)(__force long)qat_req;
+	msg->pke_mid.opaque = (u64)(__force long)qat_req;
 	msg->input_param_count = 3;
 	msg->output_param_count = 1;
 	do {
-		ret = adf_send_message(ctx->inst->pke_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->pke_tx, (u32 *)msg);
 	} while (ret == -EBUSY && ctr++ < 100);
 
 	if (!ret)
@@ -882,7 +882,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 
 	msg->pke_mid.src_data_addr = qat_req->phy_in;
 	msg->pke_mid.dest_data_addr = qat_req->phy_out;
-	msg->pke_mid.opaque = (uint64_t)(__force long)qat_req;
+	msg->pke_mid.opaque = (u64)(__force long)qat_req;
 	if (ctx->crt_mode)
 		msg->input_param_count = 6;
 	else
@@ -890,7 +890,7 @@ static int qat_rsa_dec(struct akcipher_request *req)
 
 	msg->output_param_count = 1;
 	do {
-		ret = adf_send_message(ctx->inst->pke_tx, (uint32_t *)msg);
+		ret = adf_send_message(ctx->inst->pke_tx, (u32 *)msg);
 	} while (ret == -EBUSY && ctr++ < 100);
 
 	if (!ret)

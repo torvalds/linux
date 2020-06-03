@@ -367,16 +367,16 @@ static int qat_uclo_init_ustore(struct icp_qat_fw_loader_handle *handle,
 	unsigned int ustore_size;
 	unsigned int patt_pos;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
-	uint64_t *fill_data;
+	u64 *fill_data;
 
 	uof_image = image->img_ptr;
-	fill_data = kcalloc(ICP_QAT_UCLO_MAX_USTORE, sizeof(uint64_t),
+	fill_data = kcalloc(ICP_QAT_UCLO_MAX_USTORE, sizeof(u64),
 			    GFP_KERNEL);
 	if (!fill_data)
 		return -ENOMEM;
 	for (i = 0; i < ICP_QAT_UCLO_MAX_USTORE; i++)
 		memcpy(&fill_data[i], &uof_image->fill_pattern,
-		       sizeof(uint64_t));
+		       sizeof(u64));
 	page = image->page;
 
 	for (ae = 0; ae < handle->hal_handle->ae_max_num; ae++) {
@@ -937,7 +937,7 @@ static int qat_uclo_parse_uof_obj(struct icp_qat_fw_loader_handle *handle)
 		pr_err("QAT: UOF incompatible\n");
 		return -EINVAL;
 	}
-	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(uint64_t),
+	obj_handle->uword_buf = kcalloc(UWORD_CPYBUF_SIZE, sizeof(u64),
 					GFP_KERNEL);
 	if (!obj_handle->uword_buf)
 		return -ENOMEM;
@@ -1141,7 +1141,7 @@ static int qat_uclo_map_suof(struct icp_qat_fw_loader_handle *handle,
 	return 0;
 }
 
-#define ADD_ADDR(high, low)  ((((uint64_t)high) << 32) + low)
+#define ADD_ADDR(high, low)  ((((u64)high) << 32) + low)
 #define BITS_IN_DWORD 32
 
 static int qat_uclo_auth_fw(struct icp_qat_fw_loader_handle *handle,
@@ -1470,10 +1470,10 @@ void qat_uclo_del_uof_obj(struct icp_qat_fw_loader_handle *handle)
 
 static void qat_uclo_fill_uwords(struct icp_qat_uclo_objhandle *obj_handle,
 				 struct icp_qat_uclo_encap_page *encap_page,
-				 uint64_t *uword, unsigned int addr_p,
-				 unsigned int raddr, uint64_t fill)
+				 u64 *uword, unsigned int addr_p,
+				 unsigned int raddr, u64 fill)
 {
-	uint64_t uwrd = 0;
+	u64 uwrd = 0;
 	unsigned int i;
 
 	if (!encap_page) {
@@ -1503,12 +1503,12 @@ static void qat_uclo_wr_uimage_raw_page(struct icp_qat_fw_loader_handle *handle,
 {
 	unsigned int uw_physical_addr, uw_relative_addr, i, words_num, cpylen;
 	struct icp_qat_uclo_objhandle *obj_handle = handle->obj_handle;
-	uint64_t fill_pat;
+	u64 fill_pat;
 
 	/* load the page starting at appropriate ustore address */
 	/* get fill-pattern from an image -- they are all the same */
 	memcpy(&fill_pat, obj_handle->ae_uimage[0].img_ptr->fill_pattern,
-	       sizeof(uint64_t));
+	       sizeof(u64));
 	uw_physical_addr = encap_page->beg_addr_p;
 	uw_relative_addr = 0;
 	words_num = encap_page->micro_words_num;

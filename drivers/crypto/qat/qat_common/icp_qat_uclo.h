@@ -132,7 +132,7 @@ struct icp_qat_uof_encap_obj {
 struct icp_qat_uclo_encap_uwblock {
 	unsigned int start_addr;
 	unsigned int words_num;
-	uint64_t micro_words;
+	u64 micro_words;
 };
 
 struct icp_qat_uclo_encap_page {
@@ -171,7 +171,7 @@ struct icp_qat_uclo_objhdr {
 struct icp_qat_uof_strtable {
 	unsigned int table_len;
 	unsigned int reserved;
-	uint64_t strings;
+	u64 strings;
 };
 
 struct icp_qat_uclo_objhandle {
@@ -191,7 +191,7 @@ struct icp_qat_uclo_objhandle {
 	unsigned int ae_num;
 	unsigned int ustore_phy_size;
 	void *obj_buf;
-	uint64_t *uword_buf;
+	u64 *uword_buf;
 };
 
 struct icp_qat_uof_uword_block {

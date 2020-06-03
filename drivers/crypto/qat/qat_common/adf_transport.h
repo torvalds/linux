@@ -10,10 +10,10 @@ struct adf_etr_ring_data;
 typedef void (*adf_callback_fn)(void *resp_msg);
 
 int adf_create_ring(struct adf_accel_dev *accel_dev, const char *section,
-		    uint32_t bank_num, uint32_t num_mgs, uint32_t msg_size,
+		    u32 bank_num, u32 num_mgs, u32 msg_size,
 		    const char *ring_name, adf_callback_fn callback,
 		    int poll_mode, struct adf_etr_ring_data **ring_ptr);
 
-int adf_send_message(struct adf_etr_ring_data *ring, uint32_t *msg);
+int adf_send_message(struct adf_etr_ring_data *ring, u32 *msg);
 void adf_remove_ring(struct adf_etr_ring_data *ring);
 #endif

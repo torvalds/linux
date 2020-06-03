@@ -8,7 +8,7 @@
 static LIST_HEAD(accel_table);
 static LIST_HEAD(vfs_table);
 static DEFINE_MUTEX(table_lock);
-static uint32_t num_devices;
+static u32 num_devices;
 static u8 id_map[ADF_MAX_DEVICES];
 
 struct vf_id_map {
@@ -311,7 +311,7 @@ struct adf_accel_dev *adf_devmgr_pci_to_accel_dev(struct pci_dev *pci_dev)
 }
 EXPORT_SYMBOL_GPL(adf_devmgr_pci_to_accel_dev);
 
-struct adf_accel_dev *adf_devmgr_get_dev_by_id(uint32_t id)
+struct adf_accel_dev *adf_devmgr_get_dev_by_id(u32 id)
 {
 	struct list_head *itr;
 	int real_id;
@@ -336,7 +336,7 @@ unlock:
 	return NULL;
 }
 
-int adf_devmgr_verify_id(uint32_t id)
+int adf_devmgr_verify_id(u32 id)
 {
 	if (id == ADF_CFG_ALL_DEVICES)
 		return 0;
@@ -363,7 +363,7 @@ static int adf_get_num_dettached_vfs(void)
 	return vfs;
 }
 
-void adf_devmgr_get_num_dev(uint32_t *num)
+void adf_devmgr_get_num_dev(u32 *num)
 {
 	*num = num_devices - adf_get_num_dettached_vfs();
 }

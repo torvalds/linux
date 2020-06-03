@@ -6,13 +6,13 @@
 #include "adf_dh895xcc_hw_data.h"
 
 /* Worker thread to service arbiter mappings based on dev SKUs */
-static const uint32_t thrd_to_arb_map_sku4[] = {
+static const u32 thrd_to_arb_map_sku4[] = {
 	0x12222AAA, 0x11666666, 0x12222AAA, 0x11666666,
 	0x12222AAA, 0x11222222, 0x12222AAA, 0x11222222,
 	0x00000000, 0x00000000, 0x00000000, 0x00000000
 };
 
-static const uint32_t thrd_to_arb_map_sku6[] = {
+static const u32 thrd_to_arb_map_sku6[] = {
 	0x12222AAA, 0x11666666, 0x12222AAA, 0x11666666,
 	0x12222AAA, 0x11222222, 0x12222AAA, 0x11222222,
 	0x12222AAA, 0x11222222, 0x12222AAA, 0x11222222
@@ -24,20 +24,20 @@ static struct adf_hw_device_class dh895xcc_class = {
 	.instances = 0
 };
 
-static uint32_t get_accel_mask(uint32_t fuse)
+static u32 get_accel_mask(u32 fuse)
 {
 	return (~fuse) >> ADF_DH895XCC_ACCELERATORS_REG_OFFSET &
 			  ADF_DH895XCC_ACCELERATORS_MASK;
 }
 
-static uint32_t get_ae_mask(uint32_t fuse)
+static u32 get_ae_mask(u32 fuse)
 {
 	return (~fuse) & ADF_DH895XCC_ACCELENGINES_MASK;
 }
 
-static uint32_t get_num_accels(struct adf_hw_device_data *self)
+static u32 get_num_accels(struct adf_hw_device_data *self)
 {
-	uint32_t i, ctr = 0;
+	u32 i, ctr = 0;
 
 	if (!self || !self->accel_mask)
 		return 0;
@@ -49,9 +49,9 @@ static uint32_t get_num_accels(struct adf_hw_device_data *self)
 	return ctr;
 }
 
-static uint32_t get_num_aes(struct adf_hw_device_data *self)
+static u32 get_num_aes(struct adf_hw_device_data *self)
 {
-	uint32_t i, ctr = 0;
+	u32 i, ctr = 0;
 
 	if (!self || !self->ae_mask)
 		return 0;
@@ -63,17 +63,17 @@ static uint32_t get_num_aes(struct adf_hw_device_data *self)
 	return ctr;
 }
 
-static uint32_t get_misc_bar_id(struct adf_hw_device_data *self)
+static u32 get_misc_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_PMISC_BAR;
 }
 
-static uint32_t get_etr_bar_id(struct adf_hw_device_data *self)
+static u32 get_etr_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_ETR_BAR;
 }
 
-static uint32_t get_sram_bar_id(struct adf_hw_device_data *self)
+static u32 get_sram_bar_id(struct adf_hw_device_data *self)
 {
 	return ADF_DH895XCC_SRAM_BAR;
 }
@@ -117,12 +117,12 @@ static void adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev,
 	}
 }
 
-static uint32_t get_pf2vf_offset(uint32_t i)
+static u32 get_pf2vf_offset(u32 i)
 {
 	return ADF_DH895XCC_PF2VF_OFFSET(i);
 }
 
-static uint32_t get_vintmsk_offset(uint32_t i)
+static u32 get_vintmsk_offset(u32 i)
 {
 	return ADF_DH895XCC_VINTMSK_OFFSET(i);
 }

@@ -74,7 +74,7 @@ int adf_ae_start(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	uint32_t ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
+	u32 ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
 
 	if (!hw_data->fw_name)
 		return 0;
@@ -95,7 +95,7 @@ int adf_ae_stop(struct adf_accel_dev *accel_dev)
 {
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	uint32_t ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
+	u32 ae_ctr, ae, max_aes = GET_MAX_ACCELENGINES(accel_dev);
 
 	if (!hw_data->fw_name)
 		return 0;

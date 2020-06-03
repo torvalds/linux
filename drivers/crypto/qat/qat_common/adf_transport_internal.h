@@ -19,12 +19,12 @@ struct adf_etr_ring_data {
 	adf_callback_fn callback;
 	struct adf_etr_bank_data *bank;
 	dma_addr_t dma_addr;
-	uint16_t head;
-	uint16_t tail;
-	uint8_t ring_number;
-	uint8_t ring_size;
-	uint8_t msg_size;
-	uint8_t reserved;
+	u16 head;
+	u16 tail;
+	u8 ring_number;
+	u8 ring_size;
+	u8 msg_size;
+	u8 reserved;
 	struct adf_etr_ring_debug_entry *ring_debug;
 } __packed;
 
@@ -33,13 +33,13 @@ struct adf_etr_bank_data {
 	struct tasklet_struct resp_handler;
 	void __iomem *csr_addr;
 	struct adf_accel_dev *accel_dev;
-	uint32_t irq_coalesc_timer;
-	uint16_t ring_mask;
-	uint16_t irq_mask;
+	u32 irq_coalesc_timer;
+	u16 ring_mask;
+	u16 irq_mask;
 	spinlock_t lock;	/* protects bank data struct */
 	struct dentry *bank_debug_dir;
 	struct dentry *bank_debug_cfg;
-	uint32_t bank_number;
+	u32 bank_number;
 } __packed;
 
 struct adf_etr_data {
