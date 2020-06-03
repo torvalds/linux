@@ -128,6 +128,11 @@ static int shadow_ctor(void *obj, void *shadow_data, void *ctor_data)
 	return 0;
 }
 
+/*
+ * With more than one item to free in the list, order is not determined and
+ * shadow_dtor will not be passed to shadow_free_all() which would make the
+ * test fail. (see pass 6)
+ */
 static void shadow_dtor(void *obj, void *shadow_data)
 {
 	int **sv = shadow_data;
@@ -135,6 +140,9 @@ static void shadow_dtor(void *obj, void *shadow_data)
 	pr_info("%s(obj=PTR%d, shadow_data=PTR%d)\n",
 		__func__, ptr_id(obj), ptr_id(sv));
 }
+
+/* number of objects we simulate that need shadow vars */
+#define NUM_OBJS 3
 
 /* dynamically created obj fields have the following shadow var id values */
 #define SV_ID1 0x1234
@@ -157,122 +165,106 @@ struct test_object {
 
 static int test_klp_shadow_vars_init(void)
 {
-	struct test_object obj1, obj2, obj3;
-	char nfield1, nfield2, *pnfield1, *pnfield2, **sv1, **sv2;
-	int  nfield3, nfield4, *pnfield3, *pnfield4, **sv3, **sv4;
+	struct test_object objs[NUM_OBJS];
+	char nfields1[NUM_OBJS], *pnfields1[NUM_OBJS], **sv1[NUM_OBJS];
+	char *pndup[NUM_OBJS];
+	int nfields2[NUM_OBJS], *pnfields2[NUM_OBJS], **sv2[NUM_OBJS];
 	void **sv;
-
-	pnfield1 = &nfield1;
-	pnfield2 = &nfield2;
-	pnfield3 = &nfield3;
-	pnfield4 = &nfield4;
+	int i;
 
 	ptr_id(NULL);
-	ptr_id(pnfield1);
-	ptr_id(pnfield2);
-	ptr_id(pnfield3);
-	ptr_id(pnfield4);
 
 	/*
 	 * With an empty shadow variable hash table, expect not to find
 	 * any matches.
 	 */
-	sv = shadow_get(&obj1, SV_ID1);
+	sv = shadow_get(&objs[0], SV_ID1);
 	if (!sv)
 		pr_info("  got expected NULL result\n");
 
-	/*
-	 * Allocate a few shadow variables with different <obj> and <id>.
-	 */
-	sv1 = shadow_alloc(&obj1, SV_ID1, sizeof(pnfield1), GFP_KERNEL, shadow_ctor, &pnfield1);
-	if (!sv1)
-		return -ENOMEM;
+	/* pass 1: init & alloc a char+int pair of svars for each objs */
+	for (i = 0; i < NUM_OBJS; i++) {
+		pnfields1[i] = &nfields1[i];
+		ptr_id(pnfields1[i]);
 
-	sv2 = shadow_alloc(&obj2, SV_ID1, sizeof(pnfield2), GFP_KERNEL, shadow_ctor, &pnfield2);
-	if (!sv2)
-		return -ENOMEM;
+		if (i % 2) {
+			sv1[i] = shadow_alloc(&objs[i], SV_ID1,
+					sizeof(pnfields1[i]), GFP_KERNEL,
+					shadow_ctor, &pnfields1[i]);
+		} else {
+			sv1[i] = shadow_get_or_alloc(&objs[i], SV_ID1,
+					sizeof(pnfields1[i]), GFP_KERNEL,
+					shadow_ctor, &pnfields1[i]);
+		}
+		if (!sv1[i])
+			return -ENOMEM;
 
-	sv3 = shadow_alloc(&obj1, SV_ID2, sizeof(pnfield3), GFP_KERNEL, shadow_ctor, &pnfield3);
-	if (!sv3)
-		return -ENOMEM;
+		pnfields2[i] = &nfields2[i];
+		ptr_id(pnfields2[i]);
+		sv2[i] = shadow_alloc(&objs[i], SV_ID2, sizeof(pnfields2[i]),
+					GFP_KERNEL, shadow_ctor, &pnfields2[i]);
+		if (!sv2[i])
+			return -ENOMEM;
+	}
 
-	/*
-	 * Verify we can find our new shadow variables and that they point
-	 * to expected data.
-	 */
-	sv = shadow_get(&obj1, SV_ID1);
-	if (!sv)
-		return -EINVAL;
-	if ((char **)sv == sv1 && *sv1 == pnfield1)
-		pr_info("  got expected PTR%d -> PTR%d result\n",
-			ptr_id(sv1), ptr_id(*sv1));
+	/* pass 2: verify we find allocated svars and where they point to */
+	for (i = 0; i < NUM_OBJS; i++) {
+		/* check the "char" svar for all objects */
+		sv = shadow_get(&objs[i], SV_ID1);
+		if (!sv)
+			return -EINVAL;
+		if ((char **)sv == sv1[i] && *sv1[i] == pnfields1[i])
+			pr_info("  got expected PTR%d -> PTR%d result\n",
+				ptr_id(sv1[i]), ptr_id(*sv1[i]));
 
-	sv = shadow_get(&obj2, SV_ID1);
-	if (!sv)
-		return -EINVAL;
-	if ((char **)sv == sv2 && *sv2 == pnfield2)
-		pr_info("  got expected PTR%d -> PTR%d result\n",
-			ptr_id(sv2), ptr_id(*sv2));
+		/* check the "int" svar for all objects */
+		sv = shadow_get(&objs[i], SV_ID2);
+		if (!sv)
+			return -EINVAL;
+		if ((int **)sv == sv2[i] && *sv2[i] == pnfields2[i])
+			pr_info("  got expected PTR%d -> PTR%d result\n",
+				ptr_id(sv2[i]), ptr_id(*sv2[i]));
+	}
 
-	sv = shadow_get(&obj1, SV_ID2);
-	if (!sv)
-		return -EINVAL;
-	if ((int **)sv == sv3 && *sv3 == pnfield3)
-		pr_info("  got expected PTR%d -> PTR%d result\n",
-			ptr_id(sv3), ptr_id(*sv3));
+	/* pass 3: verify that 'get_or_alloc' returns already allocated svars */
+	for (i = 0; i < NUM_OBJS; i++) {
+		pndup[i] = &nfields1[i];
+		ptr_id(pndup[i]);
 
-	/*
-	 * Allocate or get a few more, this time with the same <obj>, <id>.
-	 * The second invocation should return the same shadow var.
-	 */
-	sv4 = shadow_get_or_alloc(&obj3, SV_ID1, sizeof(pnfield4), GFP_KERNEL, shadow_ctor, &pnfield4);
-	if (!sv4)
-		return -ENOMEM;
+		sv = shadow_get_or_alloc(&objs[i], SV_ID1, sizeof(pndup[i]),
+					GFP_KERNEL, shadow_ctor, &pndup[i]);
+		if (!sv)
+			return -EINVAL;
+		if ((char **)sv == sv1[i] && *sv1[i] == pnfields1[i])
+			pr_info("  got expected PTR%d -> PTR%d result\n",
+					ptr_id(sv1[i]), ptr_id(*sv1[i]));
+	}
 
-	sv = shadow_get_or_alloc(&obj3, SV_ID1, sizeof(pnfield4), GFP_KERNEL, shadow_ctor, &pnfield4);
-	if (!sv)
-		return -EINVAL;
-	if ((int **)sv == sv4 && *sv4 == pnfield4)
-		pr_info("  got expected PTR%d -> PTR%d result\n",
-			ptr_id(sv4), ptr_id(*sv4));
+	/* pass 4: free <objs[*], SV_ID1> pairs of svars, verify removal */
+	for (i = 0; i < NUM_OBJS; i++) {
+		shadow_free(&objs[i], SV_ID1, shadow_dtor); /* 'char' pairs */
+		sv = shadow_get(&objs[i], SV_ID1);
+		if (!sv)
+			pr_info("  got expected NULL result\n");
+	}
 
-	/*
-	 * Free the <obj=*, id> shadow variables and check that we can no
-	 * longer find them.
-	 */
-	shadow_free(&obj1, SV_ID1, shadow_dtor);		/* sv1 */
-	sv = shadow_get(&obj1, SV_ID1);
-	if (!sv)
-		pr_info("  got expected NULL result\n");
+	/* pass 5: check we still find <objs[*], SV_ID2> svar pairs */
+	for (i = 0; i < NUM_OBJS; i++) {
+		sv = shadow_get(&objs[i], SV_ID2);	/* 'int' pairs */
+		if (!sv)
+			return -EINVAL;
+		if ((int **)sv == sv2[i] && *sv2[i] == pnfields2[i])
+			pr_info("  got expected PTR%d -> PTR%d result\n",
+					ptr_id(sv2[i]), ptr_id(*sv2[i]));
+	}
 
-	shadow_free(&obj2, SV_ID1, shadow_dtor);		/* sv2 */
-	sv = shadow_get(&obj2, SV_ID1);
-	if (!sv)
-		pr_info("  got expected NULL result\n");
-
-	shadow_free(&obj3, SV_ID1, shadow_dtor);		/* sv4 */
-	sv = shadow_get(&obj3, SV_ID1);
-	if (!sv)
-		pr_info("  got expected NULL result\n");
-
-	/*
-	 * We should still find an <id+1> variable.
-	 */
-	sv = shadow_get(&obj1, SV_ID2);
-	if (!sv)
-		return -EINVAL;
-	if ((int **)sv == sv3 && *sv3 == pnfield3)
-		pr_info("  got expected PTR%d -> PTR%d result\n",
-			ptr_id(sv3), ptr_id(*sv3));
-
-	/*
-	 * Free all the <id+1> variables, too.
-	 */
-	shadow_free_all(SV_ID2, shadow_dtor);			/* sv3 */
-	sv = shadow_get(&obj1, SV_ID1);
-	if (!sv)
-		pr_info("  shadow_get() got expected NULL result\n");
-
+	/* pass 6: free all the <objs[*], SV_ID2> svar pairs too. */
+	shadow_free_all(SV_ID2, NULL);		/* 'int' pairs */
+	for (i = 0; i < NUM_OBJS; i++) {
+		sv = shadow_get(&objs[i], SV_ID2);
+		if (!sv)
+			pr_info("  got expected NULL result\n");
+	}
 
 	free_ptr_list();
 
