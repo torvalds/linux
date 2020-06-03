@@ -13,6 +13,7 @@
  * more details.
  */
 
+#include <linux/string.h> /* for memcpy() */
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 
@@ -28,7 +29,6 @@
 #include "ia_css_isp_param.h"
 
 #include "assert_support.h"
-#include "string_support.h"
 
 #include "isp.h"				/* PMEM_WIDTH_LOG2 */
 

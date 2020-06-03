@@ -31,6 +31,8 @@
 #define __INLINE_STREAM2MMIO__
 #endif
 
+#include <linux/string.h> /* for strscpy() */
+
 #include "ia_css_debug.h"
 #include "ia_css_debug_pipe.h"
 #include "ia_css_irq.h"
@@ -47,7 +49,6 @@
 #include "system_local.h"
 #include "assert_support.h"
 #include "print_support.h"
-#include "string_support.h"
 
 #include "fifo_monitor.h"
 
@@ -2769,8 +2770,9 @@ ia_css_debug_pipe_graph_dump_stage(
 				 stage->binary->info->blob->name, stage->stage_num);
 	} else if (stage->firmware) {
 		bin_type = "firmware";
-		strncpy_s(blob_name, sizeof(blob_name),
-			  IA_CSS_EXT_ISP_PROG_NAME(stage->firmware), sizeof(blob_name));
+
+		strscpy(blob_name, IA_CSS_EXT_ISP_PROG_NAME(stage->firmware),
+			sizeof(blob_name));
 	}
 
 	/* Guard in case of binaries that don't have any binary_info */
@@ -2836,10 +2838,8 @@ ia_css_debug_pipe_graph_dump_stage(
 				while (ei[p] != ',')
 					p--;
 				/* Last comma found, copy till that comma */
-				strncpy_s(enable_info1,
-					  sizeof(enable_info1),
-					  ei, p);
-				enable_info1[p] = '\0';
+				strscpy(enable_info1, ei,
+                                        p > sizeof(enable_info1) ? sizeof(enable_info1) : p);
 
 				ei += p + 1;
 				l = strlen(ei);
@@ -2849,10 +2849,10 @@ ia_css_debug_pipe_graph_dump_stage(
 					/* we cannot use ei as argument because
 					 * it is not guaranteed dword aligned
 					 */
-					strncpy_s(enable_info2,
-						  sizeof(enable_info2),
-						  ei, l);
-					enable_info2[l] = '\0';
+
+					strscpy(enable_info2, ei,
+						l > sizeof(enable_info2) ? sizeof(enable_info2) : l);
+
 					snprintf(enable_info, sizeof(enable_info), "%s\\n%s",
 						 enable_info1, enable_info2);
 
@@ -2861,10 +2861,10 @@ ia_css_debug_pipe_graph_dump_stage(
 					p = ENABLE_LINE_MAX_LENGTH;
 					while (ei[p] != ',')
 						p--;
-					strncpy_s(enable_info2,
-						  sizeof(enable_info2),
-						  ei, p);
-					enable_info2[p] = '\0';
+
+					strscpy(enable_info2, ei,
+						p > sizeof(enable_info2) ? sizeof(enable_info2) : p);
+
 					ei += p + 1;
 					l = strlen(ei);
 
@@ -2873,9 +2873,8 @@ ia_css_debug_pipe_graph_dump_stage(
 						/* we cannot use ei as argument because
 						* it is not guaranteed dword aligned
 						*/
-						strcpy_s(enable_info3,
-							 sizeof(enable_info3), ei);
-						enable_info3[l] = '\0';
+						strscpy(enable_info3, ei,
+							sizeof(enable_info3));
 						snprintf(enable_info, sizeof(enable_info),
 							 "%s\\n%s\\n%s",
 							 enable_info1, enable_info2,
@@ -2885,13 +2884,11 @@ ia_css_debug_pipe_graph_dump_stage(
 						p = ENABLE_LINE_MAX_LENGTH;
 						while (ei[p] != ',')
 							p--;
-						strncpy_s(enable_info3,
-							  sizeof(enable_info3),
-							  ei, p);
-						enable_info3[p] = '\0';
+						strscpy(enable_info3, ei,
+							p > sizeof(enable_info3) ? sizeof(enable_info3) : p);
 						ei += p + 1;
-						strcpy_s(enable_info3,
-							 sizeof(enable_info3), ei);
+						strscpy(enable_info3, ei,
+							sizeof(enable_info3));
 						snprintf(enable_info, sizeof(enable_info),
 							 "%s\\n%s\\n%s",
 							 enable_info1, enable_info2,
