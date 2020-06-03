@@ -2992,21 +2992,18 @@ static int handle_exit(struct kvm_vcpu *vcpu, fastpath_t exit_fastpath)
 
 static void reload_tss(struct kvm_vcpu *vcpu)
 {
-	int cpu = raw_smp_processor_id();
+	struct svm_cpu_data *sd = per_cpu(svm_data, vcpu->cpu);
 
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
 	sd->tss_desc->type = 9; /* available 32/64-bit TSS */
 	load_TR_desc();
 }
 
 static void pre_svm_run(struct vcpu_svm *svm)
 {
-	int cpu = raw_smp_processor_id();
-
-	struct svm_cpu_data *sd = per_cpu(svm_data, cpu);
+	struct svm_cpu_data *sd = per_cpu(svm_data, svm->vcpu.cpu);
 
 	if (sev_guest(svm->vcpu.kvm))
-		return pre_sev_run(svm, cpu);
+		return pre_sev_run(svm, svm->vcpu.cpu);
 
 	/* FIXME: handle wraparound of asid_generation */
 	if (svm->asid_generation != sd->asid_generation)
