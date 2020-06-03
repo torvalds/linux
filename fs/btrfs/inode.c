@@ -2297,8 +2297,8 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	 * This is similar to page_mkwrite, we need to reserve the space before
 	 * we take the page lock.
 	 */
-	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, page_start,
-					   PAGE_SIZE);
+	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
+					   page_start, PAGE_SIZE);
 again:
 	lock_page(page);
 
@@ -4517,7 +4517,6 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 
 	block_start = round_down(from, blocksize);
 	block_end = block_start + blocksize - 1;
-
 
 	ret = btrfs_check_data_free_space(BTRFS_I(inode), &data_reserved,
 					  block_start, blocksize);
@@ -7916,7 +7915,7 @@ static ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 			inode_unlock(inode);
 			relock = true;
 		}
-		ret = btrfs_delalloc_reserve_space(inode, &data_reserved,
+		ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
 						   offset, count);
 		if (ret)
 			goto out;
@@ -8231,8 +8230,8 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	 * end up waiting indefinitely to get a lock on the page currently
 	 * being processed by btrfs_page_mkwrite() function.
 	 */
-	ret2 = btrfs_delalloc_reserve_space(inode, &data_reserved, page_start,
-					   reserved_space);
+	ret2 = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
+					    page_start, reserved_space);
 	if (!ret2) {
 		ret2 = file_update_time(vmf->vma->vm_file);
 		reserved = 1;

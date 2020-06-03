@@ -68,8 +68,8 @@ static int copy_inline_to_page(struct inode *inode,
 	 * reservation here. Also we must not do the reservation while holding
 	 * a transaction open, otherwise we would deadlock.
 	 */
-	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, file_offset,
-					   block_size);
+	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
+					   file_offset, block_size);
 	if (ret)
 		goto out;
 

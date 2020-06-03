@@ -17,7 +17,7 @@ void btrfs_free_reserved_data_space_noquota(struct btrfs_fs_info *fs_info,
 					    u64 len);
 void btrfs_delalloc_release_metadata(struct btrfs_inode *inode, u64 num_bytes,
 				     bool qgroup_free);
-int btrfs_delalloc_reserve_space(struct inode *inode,
+int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 			struct extent_changeset **reserved, u64 start, u64 len);
 
 #endif /* BTRFS_DELALLOC_SPACE_H */
