@@ -3439,7 +3439,7 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 			delalloc_start = delalloc_end + 1;
 			continue;
 		}
-		ret = btrfs_run_delalloc_range(inode, page, delalloc_start,
+		ret = btrfs_run_delalloc_range(BTRFS_I(inode), page, delalloc_start,
 				delalloc_end, &page_started, nr_written, wbc);
 		if (ret) {
 			SetPageError(page);

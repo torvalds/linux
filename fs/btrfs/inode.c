@@ -1813,31 +1813,30 @@ static inline int need_force_cow(struct btrfs_inode *inode, u64 start, u64 end)
  * Function to process delayed allocation (create CoW) for ranges which are
  * being touched for the first time.
  */
-int btrfs_run_delalloc_range(struct inode *inode, struct page *locked_page,
+int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page,
 		u64 start, u64 end, int *page_started, unsigned long *nr_written,
 		struct writeback_control *wbc)
 {
 	int ret;
-	int force_cow = need_force_cow(BTRFS_I(inode), start, end);
+	int force_cow = need_force_cow(inode, start, end);
 
-	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW && !force_cow) {
-		ret = run_delalloc_nocow(BTRFS_I(inode), locked_page, start, end,
+	if (inode->flags & BTRFS_INODE_NODATACOW && !force_cow) {
+		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 1, nr_written);
-	} else if (BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC && !force_cow) {
-		ret = run_delalloc_nocow(BTRFS_I(inode), locked_page, start, end,
+	} else if (inode->flags & BTRFS_INODE_PREALLOC && !force_cow) {
+		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
-	} else if (!inode_can_compress(BTRFS_I(inode)) ||
-		   !inode_need_compress(BTRFS_I(inode), start, end)) {
-		ret = cow_file_range(BTRFS_I(inode), locked_page, start, end,
-				      page_started, nr_written, 1);
+	} else if (!inode_can_compress(inode) ||
+		   !inode_need_compress(inode, start, end)) {
+		ret = cow_file_range(inode, locked_page, start, end,
+				     page_started, nr_written, 1);
 	} else {
-		set_bit(BTRFS_INODE_HAS_ASYNC_EXTENT,
-			&BTRFS_I(inode)->runtime_flags);
-		ret = cow_file_range_async(BTRFS_I(inode), wbc, locked_page, start, end,
+		set_bit(BTRFS_INODE_HAS_ASYNC_EXTENT, &inode->runtime_flags);
+		ret = cow_file_range_async(inode, wbc, locked_page, start, end,
 					   page_started, nr_written);
 	}
 	if (ret)
-		btrfs_cleanup_ordered_extents(BTRFS_I(inode), locked_page, start,
+		btrfs_cleanup_ordered_extents(inode, locked_page, start,
 					      end - start + 1);
 	return ret;
 }
