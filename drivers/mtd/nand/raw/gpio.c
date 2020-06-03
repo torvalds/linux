@@ -27,6 +27,7 @@
 #include <linux/of_address.h>
 
 struct gpiomtd {
+	struct nand_controller	base;
 	void __iomem		*io_sync;
 	struct nand_chip	nand_chip;
 	struct gpio_nand_platdata plat;
@@ -273,6 +274,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	if (gpiomtd->rdy)
 		chip->legacy.dev_ready = gpio_nand_devready;
 
+	nand_controller_init(&gpiomtd->base);
 	nand_set_flash_node(chip, pdev->dev.of_node);
 	chip->legacy.IO_ADDR_W	= chip->legacy.IO_ADDR_R;
 	chip->ecc.mode		= NAND_ECC_SOFT;
@@ -280,6 +282,7 @@ static int gpio_nand_probe(struct platform_device *pdev)
 	chip->options		= gpiomtd->plat.options;
 	chip->legacy.chip_delay	= gpiomtd->plat.chip_delay;
 	chip->legacy.cmd_ctrl	= gpio_nand_cmd_ctrl;
+	chip->controller	= &gpiomtd->base;
 
 	mtd			= nand_to_mtd(chip);
 	mtd->dev.parent		= dev;
