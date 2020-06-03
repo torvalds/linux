@@ -182,8 +182,7 @@ static int __btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset
 		 * The ordered extent has reserved qgroup space, release now
 		 * and pass the reserved number for qgroup_record to free.
 		 */
-		ret = btrfs_qgroup_release_data(&inode->vfs_inode, file_offset,
-						num_bytes);
+		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
 		if (ret < 0)
 			return ret;
 	}

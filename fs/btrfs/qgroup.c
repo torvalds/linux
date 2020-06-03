@@ -3613,9 +3613,9 @@ int btrfs_qgroup_free_data(struct btrfs_inode *inode,
  *
  * NOTE: This function may sleep for memory allocation.
  */
-int btrfs_qgroup_release_data(struct inode *inode, u64 start, u64 len)
+int btrfs_qgroup_release_data(struct btrfs_inode *inode, u64 start, u64 len)
 {
-	return __btrfs_qgroup_release_data(BTRFS_I(inode), NULL, start, len, 0);
+	return __btrfs_qgroup_release_data(inode, NULL, start, len, 0);
 }
 
 static void add_root_meta_rsv(struct btrfs_root *root, int num_bytes,

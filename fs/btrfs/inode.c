@@ -9643,7 +9643,7 @@ static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_compression(&stack_fi, BTRFS_COMPRESS_NONE);
 	/* Encryption and other encoding is reserved and all 0 */
 
-	ret = btrfs_qgroup_release_data(inode, file_offset, len);
+	ret = btrfs_qgroup_release_data(BTRFS_I(inode), file_offset, len);
 	if (ret < 0)
 		return ret;
 	return insert_reserved_file_extent(trans, inode, file_offset,
