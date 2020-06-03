@@ -24,7 +24,6 @@
  * @list: List entry, to attach to the padata lists.
  * @pd: Pointer to the internal control structure.
  * @cb_cpu: Callback cpu for serializatioon.
- * @cpu: Cpu for parallelization.
  * @seq_nr: Sequence number of the parallelized data object.
  * @info: Used to pass information from the parallel to the serial function.
  * @parallel: Parallel execution function.
@@ -34,7 +33,6 @@ struct padata_priv {
 	struct list_head	list;
 	struct parallel_data	*pd;
 	int			cb_cpu;
-	int			cpu;
 	unsigned int		seq_nr;
 	int			info;
 	void                    (*parallel)(struct padata_priv *padata);
@@ -68,15 +66,11 @@ struct padata_serial_queue {
 /**
  * struct padata_parallel_queue - The percpu padata parallel queue
  *
- * @parallel: List to wait for parallelization.
  * @reorder: List to wait for reordering after parallel processing.
- * @work: work struct for parallelization.
  * @num_obj: Number of objects that are processed by this cpu.
  */
 struct padata_parallel_queue {
-       struct padata_list    parallel;
        struct padata_list    reorder;
-       struct work_struct    work;
        atomic_t              num_obj;
 };
 
@@ -111,7 +105,7 @@ struct parallel_data {
 	struct padata_parallel_queue	__percpu *pqueue;
 	struct padata_serial_queue	__percpu *squeue;
 	atomic_t			refcnt;
-	atomic_t			seq_nr;
+	unsigned int			seq_nr;
 	unsigned int			processed;
 	int				cpu;
 	struct padata_cpumask		cpumask;
