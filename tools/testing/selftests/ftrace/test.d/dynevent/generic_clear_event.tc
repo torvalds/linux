@@ -1,8 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: Generic dynamic event - generic clear event
-
-[ -f dynamic_events ] || exit_unsupported
+# requires: dynamic_events
 
 grep -q "place: \[<module>:\]<symbol>" README || exit_unsupported
 grep -q "place (kretprobe): \[<module>:\]<symbol>" README || exit_unsupported
