@@ -253,6 +253,7 @@ struct mipi_dphy {
 struct dw_mipi_dsi {
 	struct drm_encoder encoder;
 	struct drm_connector connector;
+	struct drm_bridge *bridge;
 	struct mipi_dsi_host host;
 	struct drm_panel *panel;
 	struct drm_display_mode mode;
@@ -1075,9 +1076,11 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
 
-	drm_panel_disable(dsi->panel);
+	if (dsi->panel)
+		drm_panel_disable(dsi->panel);
 	dw_mipi_dsi_disable(dsi);
-	drm_panel_unprepare(dsi->panel);
+	if (dsi->panel)
+		drm_panel_unprepare(dsi->panel);
 	dw_mipi_dsi_post_disable(dsi);
 }
 
@@ -1310,9 +1313,11 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	dw_mipi_dsi_vop_routing(dsi);
 	dw_mipi_dsi_pre_enable(dsi);
-	drm_panel_prepare(dsi->panel);
+	if (dsi->panel)
+		drm_panel_prepare(dsi->panel);
 	dw_mipi_dsi_enable(dsi);
-	drm_panel_enable(dsi->panel);
+	if (dsi->panel)
+		drm_panel_enable(dsi->panel);
 }
 
 static int
@@ -1475,9 +1480,12 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->master)
 		return 0;
 
-	dsi->panel = of_drm_find_panel(dsi->client);
-	if (IS_ERR(dsi->panel))
-		return -EPROBE_DEFER;
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1,
+					  &dsi->panel, &dsi->bridge);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Failed to find panel or bridge: %d\n", ret);
+		return ret;
+	}
 
 	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm,
@@ -1494,24 +1502,43 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	ret = drm_encoder_init(drm, encoder, &dw_mipi_dsi_encoder_funcs,
 			       DRM_MODE_ENCODER_DSI, NULL);
 	if (ret) {
-		DRM_DEV_ERROR(dev, "Failed to initialize encoder with drm\n");
+		DRM_DEV_ERROR(dev, "Failed to initialize encoder\n");
 		return ret;
 	}
 
 	drm_encoder_helper_add(encoder, &dw_mipi_dsi_encoder_helper_funcs);
 
-	connector->port = dev->of_node;
+	if (dsi->panel) {
+		ret = drm_connector_init(drm, connector, &dw_mipi_dsi_atomic_connector_funcs,
+				   DRM_MODE_CONNECTOR_DSI);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "Failed to initialize connector\n");
+			goto encoder_cleanup;
+		}
+		drm_connector_helper_add(connector,
+					 &dw_mipi_dsi_connector_helper_funcs);
+		drm_connector_attach_encoder(connector, encoder);
+		if (ret < 0) {
+			DRM_DEV_ERROR(dev, "Failed to attach encoder: %d\n", ret);
+			goto connector_cleanup;
+		}
 
-	drm_connector_init(drm, connector, &dw_mipi_dsi_atomic_connector_funcs,
-			   DRM_MODE_CONNECTOR_DSI);
-	drm_connector_helper_add(connector,
-				 &dw_mipi_dsi_connector_helper_funcs);
-	drm_connector_attach_encoder(connector, encoder);
+		ret = drm_panel_attach(dsi->panel, connector);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "Failed to attach panel: %d\n", ret);
+			goto connector_cleanup;
+		}
+		connector->port = dev->of_node;
+	} else {
+		dsi->bridge->driver_private = &dsi->host;
+		dsi->bridge->encoder = encoder;
 
-	ret = drm_panel_attach(dsi->panel, connector);
-	if (ret) {
-		DRM_DEV_ERROR(dsi->dev, "Failed to attach panel: %d\n", ret);
-		goto err_cleanup;
+		ret = drm_bridge_attach(encoder, dsi->bridge, NULL);
+		if (ret) {
+			DRM_DEV_ERROR(dev, "Failed to attach bridge: %d\n", ret);
+			goto encoder_cleanup;
+		}
+		encoder->bridge = dsi->bridge;
 	}
 
 	pm_runtime_enable(dsi->dev);
@@ -1520,8 +1547,9 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 
 	return 0;
 
-err_cleanup:
+connector_cleanup:
 	connector->funcs->destroy(connector);
+encoder_cleanup:
 	encoder->funcs->destroy(encoder);
 	return ret;
 }
@@ -1535,7 +1563,8 @@ static void dw_mipi_dsi_unbind(struct device *dev, struct device *master,
 	if (dsi->slave)
 		pm_runtime_disable(dsi->slave->dev);
 
-	drm_panel_detach(dsi->panel);
+	if (dsi->panel)
+		drm_panel_detach(dsi->panel);
 
 	dsi->connector.funcs->destroy(&dsi->connector);
 	dsi->encoder.funcs->destroy(&dsi->encoder);
