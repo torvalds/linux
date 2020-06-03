@@ -148,6 +148,7 @@ enum intel_ppgtt_type {
 	func(has_modular_fia); \
 	func(has_overlay); \
 	func(has_psr); \
+	func(has_psr_hw_tracking); \
 	func(overlay_needs_physical); \
 	func(supports_tv);
 

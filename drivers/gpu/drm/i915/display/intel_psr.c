@@ -647,6 +647,21 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	}
 
 	/*
+	 * Some platforms lack PSR2 HW tracking and instead require manual
+	 * tracking by software.  In this case, the driver is required to track
+	 * the areas that need updates and program hardware to send selective
+	 * updates.
+	 *
+	 * So until the software tracking is implemented, PSR2 needs to be
+	 * disabled for platforms without PSR2 HW tracking.
+	 */
+	if (!HAS_PSR_HW_TRACKING(dev_priv)) {
+		drm_dbg_kms(&dev_priv->drm,
+			    "No PSR2 HW tracking in the platform\n");
+		return false;
+	}
+
+	/*
 	 * DSC and PSR2 cannot be enabled simultaneously. If a requested
 	 * resolution requires DSC to be enabled, priority is given to DSC
 	 * over PSR2.
