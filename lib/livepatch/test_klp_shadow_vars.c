@@ -170,6 +170,7 @@ static int test_klp_shadow_vars_init(void)
 	char *pndup[NUM_OBJS];
 	int nfields2[NUM_OBJS], *pnfields2[NUM_OBJS], **sv2[NUM_OBJS];
 	void **sv;
+	int ret;
 	int i;
 
 	ptr_id(NULL);
@@ -196,31 +197,39 @@ static int test_klp_shadow_vars_init(void)
 					sizeof(pnfields1[i]), GFP_KERNEL,
 					shadow_ctor, &pnfields1[i]);
 		}
-		if (!sv1[i])
-			return -ENOMEM;
+		if (!sv1[i]) {
+			ret = -ENOMEM;
+			goto out;
+		}
 
 		pnfields2[i] = &nfields2[i];
 		ptr_id(pnfields2[i]);
 		sv2[i] = shadow_alloc(&objs[i], SV_ID2, sizeof(pnfields2[i]),
 					GFP_KERNEL, shadow_ctor, &pnfields2[i]);
-		if (!sv2[i])
-			return -ENOMEM;
+		if (!sv2[i]) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
 
 	/* pass 2: verify we find allocated svars and where they point to */
 	for (i = 0; i < NUM_OBJS; i++) {
 		/* check the "char" svar for all objects */
 		sv = shadow_get(&objs[i], SV_ID1);
-		if (!sv)
-			return -EINVAL;
+		if (!sv) {
+			ret = -EINVAL;
+			goto out;
+		}
 		if ((char **)sv == sv1[i] && *sv1[i] == pnfields1[i])
 			pr_info("  got expected PTR%d -> PTR%d result\n",
 				ptr_id(sv1[i]), ptr_id(*sv1[i]));
 
 		/* check the "int" svar for all objects */
 		sv = shadow_get(&objs[i], SV_ID2);
-		if (!sv)
-			return -EINVAL;
+		if (!sv) {
+			ret = -EINVAL;
+			goto out;
+		}
 		if ((int **)sv == sv2[i] && *sv2[i] == pnfields2[i])
 			pr_info("  got expected PTR%d -> PTR%d result\n",
 				ptr_id(sv2[i]), ptr_id(*sv2[i]));
@@ -233,8 +242,10 @@ static int test_klp_shadow_vars_init(void)
 
 		sv = shadow_get_or_alloc(&objs[i], SV_ID1, sizeof(pndup[i]),
 					GFP_KERNEL, shadow_ctor, &pndup[i]);
-		if (!sv)
-			return -EINVAL;
+		if (!sv) {
+			ret = -EINVAL;
+			goto out;
+		}
 		if ((char **)sv == sv1[i] && *sv1[i] == pnfields1[i])
 			pr_info("  got expected PTR%d -> PTR%d result\n",
 					ptr_id(sv1[i]), ptr_id(*sv1[i]));
@@ -251,8 +262,10 @@ static int test_klp_shadow_vars_init(void)
 	/* pass 5: check we still find <objs[*], SV_ID2> svar pairs */
 	for (i = 0; i < NUM_OBJS; i++) {
 		sv = shadow_get(&objs[i], SV_ID2);	/* 'int' pairs */
-		if (!sv)
-			return -EINVAL;
+		if (!sv) {
+			ret = -EINVAL;
+			goto out;
+		}
 		if ((int **)sv == sv2[i] && *sv2[i] == pnfields2[i])
 			pr_info("  got expected PTR%d -> PTR%d result\n",
 					ptr_id(sv2[i]), ptr_id(*sv2[i]));
@@ -269,6 +282,12 @@ static int test_klp_shadow_vars_init(void)
 	free_ptr_list();
 
 	return 0;
+out:
+	shadow_free_all(SV_ID1, NULL);		/* 'char' pairs */
+	shadow_free_all(SV_ID2, NULL);		/* 'int' pairs */
+	free_ptr_list();
+
+	return ret;
 }
 
 static void test_klp_shadow_vars_exit(void)
