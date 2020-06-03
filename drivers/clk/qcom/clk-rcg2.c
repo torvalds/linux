@@ -451,36 +451,47 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 static void clk_rcg2_list_registers(struct seq_file *f, struct clk_hw *hw)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
-	int i = 0, size = 0, val;
-
-	static struct clk_register_data data[] = {
-		{"CMD_RCGR", 0x0},
-		{"CFG_RCGR", 0x4},
-	};
+	static struct clk_register_data *data;
+	int i, val;
 
 	static struct clk_register_data data1[] = {
+		{"CMD_RCGR", 0x0},
+		{"CFG_RCGR", 0x4},
+		{ },
+	};
+
+	static struct clk_register_data data2[] = {
 		{"CMD_RCGR", 0x0},
 		{"CFG_RCGR", 0x4},
 		{"M_VAL", 0x8},
 		{"N_VAL", 0xC},
 		{"D_VAL", 0x10},
+		{ },
 	};
 
-	if (rcg->mnd_width) {
-		size = ARRAY_SIZE(data1);
-		for (i = 0; i < size; i++) {
-			regmap_read(rcg->clkr.regmap, (rcg->cmd_rcgr +
-					data1[i].offset), &val);
-			seq_printf(f, "%20s: 0x%.8x\n",	data1[i].name, val);
-		}
-	} else {
-		size = ARRAY_SIZE(data);
-		for (i = 0; i < size; i++) {
-			regmap_read(rcg->clkr.regmap, (rcg->cmd_rcgr +
+	static struct clk_register_data data3[] = {
+		{"CMD_RCGR", 0x0},
+		{"CFG_RCGR", 0x4},
+		{"M_VAL", 0x8},
+		{"N_VAL", 0xC},
+		{"D_VAL", 0x10},
+		{"CMD_DFSR", 0x14},
+		{ },
+	};
+
+	if (rcg->flags & DFS_SUPPORT)
+		data = data3;
+	else if (rcg->mnd_width)
+		data = data2;
+	else
+		data = data1;
+
+	for (i = 0; data[i].name != NULL; i++) {
+		regmap_read(rcg->clkr.regmap, (rcg->cmd_rcgr +
 				data[i].offset), &val);
-			seq_printf(f, "%20s: 0x%.8x\n",	data[i].name, val);
-		}
+		seq_printf(f, "%20s: 0x%.8x\n", data[i].name, val);
 	}
+
 }
 
 /* Return the nth supported frequency for a given clock. */
@@ -1579,6 +1590,8 @@ static int clk_rcg2_enable_dfs(const struct clk_rcg_dfs_data *data,
 	struct clk_init_data *init = data->init;
 	u32 val;
 	int ret;
+
+	rcg->flags |= DFS_SUPPORT;
 
 	ret = regmap_read(regmap, rcg->cmd_rcgr + SE_CMD_DFSR_OFFSET, &val);
 	if (ret)
