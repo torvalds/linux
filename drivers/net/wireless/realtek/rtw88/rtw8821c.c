@@ -101,6 +101,13 @@ static void rtw8821c_pwrtrack_init(struct rtw_dev *rtwdev)
 	dm_info->thermal_meter_k = rtwdev->efuse.thermal_meter_k;
 }
 
+static void rtw8821c_phy_bf_init(struct rtw_dev *rtwdev)
+{
+	rtw_bf_phy_init(rtwdev);
+	/* Grouping bitmap parameters */
+	rtw_write32(rtwdev, 0x1C94, 0xAFFFAFFF);
+}
+
 static void rtw8821c_phy_set_param(struct rtw_dev *rtwdev)
 {
 	u8 crystal_cap, val;
@@ -145,6 +152,8 @@ static void rtw8821c_phy_set_param(struct rtw_dev *rtwdev)
 	rtwdev->dm_info.cck_pd_default = rtw_read8(rtwdev, REG_CSRATIO) & 0x1f;
 
 	rtw8821c_pwrtrack_init(rtwdev);
+
+	rtw8821c_phy_bf_init(rtwdev);
 }
 
 static int rtw8821c_mac_init(struct rtw_dev *rtwdev)
@@ -786,6 +795,37 @@ static void rtw8821c_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
+static void rtw8821c_bf_config_bfee_su(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw_bf_enable_bfee_su(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_su(rtwdev, bfee);
+}
+
+static void rtw8821c_bf_config_bfee_mu(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw_bf_enable_bfee_mu(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_mu(rtwdev, bfee);
+}
+
+static void rtw8821c_bf_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
+				    struct rtw_bfee *bfee, bool enable)
+{
+	if (bfee->role == RTW_BFEE_SU)
+		rtw8821c_bf_config_bfee_su(rtwdev, vif, bfee, enable);
+	else if (bfee->role == RTW_BFEE_MU)
+		rtw8821c_bf_config_bfee_mu(rtwdev, vif, bfee, enable);
+	else
+		rtw_warn(rtwdev, "wrong bfee role\n");
+}
+
 static void rtw8821c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
@@ -1250,6 +1290,9 @@ static struct rtw_chip_ops rtw8821c_ops = {
 	.phy_calibration	= rtw8821c_phy_calibration,
 	.cck_pd_set		= rtw8821c_phy_cck_pd_set,
 	.pwr_track		= rtw8821c_pwr_track,
+	.config_bfee		= rtw8821c_bf_config_bfee,
+	.set_gid_table		= rtw_bf_set_gid_table,
+	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 };
 
 static const u8 rtw8821c_pwrtrk_5gb_n[][RTW_PWR_TRK_TBL_SZ] = {
@@ -1395,6 +1438,8 @@ struct rtw_chip_info rtw8821c_hw_spec = {
 	.rx_ldpc = false,
 	.pwr_track_tbl = &rtw8821c_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
+	.bfer_su_max_num = 2,
+	.bfer_mu_max_num = 1,
 };
 EXPORT_SYMBOL(rtw8821c_hw_spec);
 
