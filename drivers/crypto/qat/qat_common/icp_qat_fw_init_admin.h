@@ -23,35 +23,35 @@ enum icp_qat_fw_init_admin_resp_status {
 };
 
 struct icp_qat_fw_init_admin_req {
-	uint16_t init_cfg_sz;
-	uint8_t resrvd1;
-	uint8_t init_admin_cmd_id;
-	uint32_t resrvd2;
-	uint64_t opaque_data;
-	uint64_t init_cfg_ptr;
-	uint64_t resrvd3;
+	__u16 init_cfg_sz;
+	__u8 resrvd1;
+	__u8 init_admin_cmd_id;
+	__u32 resrvd2;
+	__u64 opaque_data;
+	__u64 init_cfg_ptr;
+	__u64 resrvd3;
 };
 
 struct icp_qat_fw_init_admin_resp_hdr {
-	uint8_t flags;
-	uint8_t resrvd1;
-	uint8_t status;
-	uint8_t init_admin_cmd_id;
+	__u8 flags;
+	__u8 resrvd1;
+	__u8 status;
+	__u8 init_admin_cmd_id;
 };
 
 struct icp_qat_fw_init_admin_resp_pars {
 	union {
-		uint32_t resrvd1[ICP_QAT_FW_NUM_LONGWORDS_4];
+		__u32 resrvd1[ICP_QAT_FW_NUM_LONGWORDS_4];
 		struct {
-			uint32_t version_patch_num;
-			uint8_t context_id;
-			uint8_t ae_id;
-			uint16_t resrvd1;
-			uint64_t resrvd2;
+			__u32 version_patch_num;
+			__u8 context_id;
+			__u8 ae_id;
+			__u16 resrvd1;
+			__u64 resrvd2;
 		} s1;
 		struct {
-			uint64_t req_rec_count;
-			uint64_t resp_sent_count;
+			__u64 req_rec_count;
+			__u64 resp_sent_count;
 		} s2;
 	} u;
 };
@@ -59,13 +59,13 @@ struct icp_qat_fw_init_admin_resp_pars {
 struct icp_qat_fw_init_admin_resp {
 	struct icp_qat_fw_init_admin_resp_hdr init_resp_hdr;
 	union {
-		uint32_t resrvd2;
+		__u32 resrvd2;
 		struct {
-			uint16_t version_minor_num;
-			uint16_t version_major_num;
+			__u16 version_minor_num;
+			__u16 version_major_num;
 		} s;
 	} u;
-	uint64_t opaque_data;
+	__u64 opaque_data;
 	struct icp_qat_fw_init_admin_resp_pars init_resp_pars;
 };
 

@@ -61,8 +61,8 @@ enum icp_qat_hw_auth_mode {
 };
 
 struct icp_qat_hw_auth_config {
-	uint32_t config;
-	uint32_t reserved;
+	__u32 config;
+	__u32 reserved;
 };
 
 #define QAT_AUTH_MODE_BITPOS 4
@@ -87,7 +87,7 @@ struct icp_qat_hw_auth_config {
 
 struct icp_qat_hw_auth_counter {
 	__be32 counter;
-	uint32_t reserved;
+	__u32 reserved;
 };
 
 #define QAT_AUTH_COUNT_MASK 0xFFFFFFFF
@@ -147,9 +147,9 @@ struct icp_qat_hw_auth_setup {
 
 struct icp_qat_hw_auth_sha512 {
 	struct icp_qat_hw_auth_setup inner_setup;
-	uint8_t state1[ICP_QAT_HW_SHA512_STATE1_SZ];
+	__u8 state1[ICP_QAT_HW_SHA512_STATE1_SZ];
 	struct icp_qat_hw_auth_setup outer_setup;
-	uint8_t state2[ICP_QAT_HW_SHA512_STATE2_SZ];
+	__u8 state2[ICP_QAT_HW_SHA512_STATE2_SZ];
 };
 
 struct icp_qat_hw_auth_algo_blk {
@@ -183,8 +183,8 @@ enum icp_qat_hw_cipher_mode {
 };
 
 struct icp_qat_hw_cipher_config {
-	uint32_t val;
-	uint32_t reserved;
+	__u32 val;
+	__u32 reserved;
 };
 
 enum icp_qat_hw_cipher_dir {
@@ -252,7 +252,7 @@ enum icp_qat_hw_cipher_convert {
 
 struct icp_qat_hw_cipher_aes256_f8 {
 	struct icp_qat_hw_cipher_config cipher_config;
-	uint8_t key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
+	__u8 key[ICP_QAT_HW_AES_256_F8_KEY_SZ];
 };
 
 struct icp_qat_hw_cipher_algo_blk {

@@ -37,16 +37,16 @@ enum adf_device_type {
 
 struct adf_dev_status_info {
 	enum adf_device_type type;
-	u32 accel_id;
-	u32 instance_id;
-	uint8_t num_ae;
-	uint8_t num_accel;
-	uint8_t num_logical_accel;
-	uint8_t banks_per_accel;
-	uint8_t state;
-	uint8_t bus;
-	uint8_t dev;
-	uint8_t fun;
+	__u32 accel_id;
+	__u32 instance_id;
+	__u8 num_ae;
+	__u8 num_accel;
+	__u8 num_logical_accel;
+	__u8 banks_per_accel;
+	__u8 state;
+	__u8 bus;
+	__u8 dev;
+	__u8 fun;
 	char name[MAX_DEVICE_NAME_SIZE];
 };
 
@@ -57,6 +57,6 @@ struct adf_dev_status_info {
 		struct adf_user_cfg_ctl_data)
 #define IOCTL_START_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 2, \
 		struct adf_user_cfg_ctl_data)
-#define IOCTL_STATUS_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 3, uint32_t)
-#define IOCTL_GET_NUM_DEVICES _IOW(ADF_CTL_IOC_MAGIC, 4, int32_t)
+#define IOCTL_STATUS_ACCEL_DEV _IOW(ADF_CTL_IOC_MAGIC, 3, __u32)
+#define IOCTL_GET_NUM_DEVICES _IOW(ADF_CTL_IOC_MAGIC, 4, __s32)
 #endif

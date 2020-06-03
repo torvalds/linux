@@ -45,41 +45,41 @@ enum icp_qat_fw_comn_request_id {
 struct icp_qat_fw_comn_req_hdr_cd_pars {
 	union {
 		struct {
-			uint64_t content_desc_addr;
-			uint16_t content_desc_resrvd1;
-			uint8_t content_desc_params_sz;
-			uint8_t content_desc_hdr_resrvd2;
-			uint32_t content_desc_resrvd3;
+			__u64 content_desc_addr;
+			__u16 content_desc_resrvd1;
+			__u8 content_desc_params_sz;
+			__u8 content_desc_hdr_resrvd2;
+			__u32 content_desc_resrvd3;
 		} s;
 		struct {
-			uint32_t serv_specif_fields[4];
+			__u32 serv_specif_fields[4];
 		} s1;
 	} u;
 };
 
 struct icp_qat_fw_comn_req_mid {
-	uint64_t opaque_data;
-	uint64_t src_data_addr;
-	uint64_t dest_data_addr;
-	uint32_t src_length;
-	uint32_t dst_length;
+	__u64 opaque_data;
+	__u64 src_data_addr;
+	__u64 dest_data_addr;
+	__u32 src_length;
+	__u32 dst_length;
 };
 
 struct icp_qat_fw_comn_req_cd_ctrl {
-	uint32_t content_desc_ctrl_lw[ICP_QAT_FW_NUM_LONGWORDS_5];
+	__u32 content_desc_ctrl_lw[ICP_QAT_FW_NUM_LONGWORDS_5];
 };
 
 struct icp_qat_fw_comn_req_hdr {
-	uint8_t resrvd1;
-	uint8_t service_cmd_id;
-	uint8_t service_type;
-	uint8_t hdr_flags;
-	uint16_t serv_specif_flags;
-	uint16_t comn_req_flags;
+	__u8 resrvd1;
+	__u8 service_cmd_id;
+	__u8 service_type;
+	__u8 hdr_flags;
+	__u16 serv_specif_flags;
+	__u16 comn_req_flags;
 };
 
 struct icp_qat_fw_comn_req_rqpars {
-	uint32_t serv_specif_rqpars_lw[ICP_QAT_FW_NUM_LONGWORDS_13];
+	__u32 serv_specif_rqpars_lw[ICP_QAT_FW_NUM_LONGWORDS_13];
 };
 
 struct icp_qat_fw_comn_req {
@@ -91,24 +91,24 @@ struct icp_qat_fw_comn_req {
 };
 
 struct icp_qat_fw_comn_error {
-	uint8_t xlat_err_code;
-	uint8_t cmp_err_code;
+	__u8 xlat_err_code;
+	__u8 cmp_err_code;
 };
 
 struct icp_qat_fw_comn_resp_hdr {
-	uint8_t resrvd1;
-	uint8_t service_id;
-	uint8_t response_type;
-	uint8_t hdr_flags;
+	__u8 resrvd1;
+	__u8 service_id;
+	__u8 response_type;
+	__u8 hdr_flags;
 	struct icp_qat_fw_comn_error comn_error;
-	uint8_t comn_status;
-	uint8_t cmd_id;
+	__u8 comn_status;
+	__u8 cmd_id;
 };
 
 struct icp_qat_fw_comn_resp {
 	struct icp_qat_fw_comn_resp_hdr comn_hdr;
-	uint64_t opaque_data;
-	uint32_t resrvd[ICP_QAT_FW_NUM_LONGWORDS_4];
+	__u64 opaque_data;
+	__u32 resrvd[ICP_QAT_FW_NUM_LONGWORDS_4];
 };
 
 #define ICP_QAT_FW_COMN_REQ_FLAG_SET 1
