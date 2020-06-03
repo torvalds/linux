@@ -194,6 +194,91 @@ err:
 	return ret;
 }
 
+static int func_exec_instr(struct nand_chip *chip,
+			   const struct nand_op_instr *instr)
+{
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
+	u32 mar, reg_offs = fun->mchip_offsets[fun->mchip_number];
+	unsigned int i;
+	const u8 *out;
+	u8 *in;
+
+	switch (instr->type) {
+	case NAND_OP_CMD_INSTR:
+		fsl_upm_start_pattern(&fun->upm, fun->upm_cmd_offset);
+		mar = (instr->ctx.cmd.opcode << (32 - fun->upm.width)) |
+		      reg_offs;
+		fsl_upm_run_pattern(&fun->upm, fun->io_base + reg_offs, mar);
+		fsl_upm_end_pattern(&fun->upm);
+		return 0;
+
+	case NAND_OP_ADDR_INSTR:
+		fsl_upm_start_pattern(&fun->upm, fun->upm_addr_offset);
+		for (i = 0; i < instr->ctx.addr.naddrs; i++) {
+			mar = (instr->ctx.addr.addrs[i] << (32 - fun->upm.width)) |
+			      reg_offs;
+			fsl_upm_run_pattern(&fun->upm, fun->io_base + reg_offs, mar);
+		}
+		fsl_upm_end_pattern(&fun->upm);
+		return 0;
+
+	case NAND_OP_DATA_IN_INSTR:
+		in = instr->ctx.data.buf.in;
+		for (i = 0; i < instr->ctx.data.len; i++)
+			in[i] = in_8(fun->io_base + reg_offs);
+		return 0;
+
+	case NAND_OP_DATA_OUT_INSTR:
+		out = instr->ctx.data.buf.out;
+		for (i = 0; i < instr->ctx.data.len; i++)
+			out_8(fun->io_base + reg_offs, out[i]);
+		return 0;
+
+	case NAND_OP_WAITRDY_INSTR:
+		if (!fun->rnb_gpio[fun->mchip_number])
+			return nand_soft_waitrdy(chip, instr->ctx.waitrdy.timeout_ms);
+
+		return nand_gpio_waitrdy(chip, fun->rnb_gpio[fun->mchip_number],
+					 instr->ctx.waitrdy.timeout_ms);
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int fun_exec_op(struct nand_chip *chip, const struct nand_operation *op,
+		       bool check_only)
+{
+	struct fsl_upm_nand *fun = to_fsl_upm_nand(nand_to_mtd(chip));
+	unsigned int i;
+	int ret;
+
+	if (op->cs > NAND_MAX_CHIPS)
+		return -EINVAL;
+
+	if (check_only)
+		return 0;
+
+	fun->mchip_number = op->cs;
+
+	for (i = 0; i < op->ninstrs; i++) {
+		ret = func_exec_instr(chip, &op->instrs[i]);
+		if (ret)
+			return ret;
+
+		if (op->instrs[i].delay_ns)
+			ndelay(op->instrs[i].delay_ns);
+	}
+
+	return 0;
+}
+
+static const struct nand_controller_ops fun_ops = {
+	.exec_op = fun_exec_op,
+};
+
 static int fun_probe(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun;
@@ -271,6 +356,7 @@ static int fun_probe(struct platform_device *ofdev)
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
 	nand_controller_init(&fun->base);
+	fun->base.ops = &fun_ops;
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
