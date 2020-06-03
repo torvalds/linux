@@ -2725,6 +2725,12 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	WREG32(mmSTLB_HOP_CONFIGURATION,
 			hdev->mmu_huge_page_opt ? 0x30440 : 0x40440);
 
+	/*
+	 * The H/W expects the first PI after init to be 1. After wraparound
+	 * we'll write 0.
+	 */
+	gaudi->mmu_cache_inv_pi = 1;
+
 	gaudi->hw_cap_initialized |= HW_CAP_MMU;
 
 	return 0;
@@ -6017,6 +6023,8 @@ static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
 	mutex_lock(&hdev->mmu_cache_lock);
 
 	/* L0 & L1 invalidation */
+	WREG32(mmSTLB_INV_PS, 3);
+	WREG32(mmSTLB_CACHE_INV, gaudi->mmu_cache_inv_pi++);
 	WREG32(mmSTLB_INV_PS, 2);
 
 	rc = hl_poll_timeout(
