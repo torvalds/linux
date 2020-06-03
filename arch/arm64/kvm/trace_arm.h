@@ -1,10 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#if !defined(_TRACE_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
-#define _TRACE_KVM_H
+#if !defined(_TRACE_ARM_ARM64_KVM_H) || defined(TRACE_HEADER_MULTI_READ)
+#define _TRACE_ARM_ARM64_KVM_H
 
 #include <kvm/arm_arch_timer.h>
 #include <linux/tracepoint.h>
-#include <asm/kvm_arm.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
@@ -368,12 +367,12 @@ TRACE_EVENT(kvm_timer_emulate,
 		  __entry->timer_idx, __entry->should_fire)
 );
 
-#endif /* _TRACE_KVM_H */
+#endif /* _TRACE_ARM_ARM64_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../virt/kvm/arm
+#define TRACE_INCLUDE_PATH .
 #undef TRACE_INCLUDE_FILE
-#define TRACE_INCLUDE_FILE trace
+#define TRACE_INCLUDE_FILE trace_arm
 
 /* This part must be outside protection */
 #include <trace/define_trace.h>
