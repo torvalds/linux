@@ -269,7 +269,8 @@ testcase() { # testfile
 
 checkreq() { # testfile
   requires=`grep "^#[ \t]*requires:" $1 | cut -f2- -d:`
-  check_requires $requires
+  # Use eval to pass quoted-patterns correctly.
+  eval check_requires "$requires"
 }
 
 test_on_instance() { # testfile

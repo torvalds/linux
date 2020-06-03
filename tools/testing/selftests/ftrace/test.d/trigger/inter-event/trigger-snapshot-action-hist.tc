@@ -1,16 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 # description: event trigger - test inter-event histogram trigger snapshot action
-# requires: set_event snapshot events/sched/sched_process_fork/hist
+# requires: set_event snapshot events/sched/sched_process_fork/hist "onchange(var)":README "snapshot()":README
 
 fail() { #msg
     echo $1
     exit_fail
 }
-
-grep -q "onchange(var)" README || exit_unsupported # version issue
-
-grep -q "snapshot()" README || exit_unsupported # version issue
 
 echo "Test snapshot action"
 

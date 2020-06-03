@@ -107,11 +107,17 @@ initialize_ftrace() { # Reset ftrace to initial-state
 }
 
 check_requires() { # Check required files and tracers
-    for i in $* ; do
+    for i in "$@" ; do
+        r=${i%:README}
         t=${i%:tracer}
         if [ $t != $i ]; then
             if ! grep -wq $t available_tracers ; then
                 echo "Required tracer $t is not configured."
+                exit_unsupported
+            fi
+        elif [ $r != $i ]; then
+            if ! grep -Fq "$r" README ; then
+                echo "Required feature pattern \"$r\" is not in README."
                 exit_unsupported
             fi
         elif [ ! -e $i ]; then
