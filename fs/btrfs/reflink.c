@@ -134,8 +134,8 @@ out_unlock:
 		put_page(page);
 	}
 	if (ret)
-		btrfs_delalloc_release_space(inode, data_reserved, file_offset,
-					     block_size, true);
+		btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
+					     file_offset, block_size, true);
 	btrfs_delalloc_release_extents(BTRFS_I(inode), block_size);
 out:
 	extent_changeset_free(data_reserved);

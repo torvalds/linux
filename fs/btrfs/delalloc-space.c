@@ -579,10 +579,10 @@ int btrfs_delalloc_reserve_space(struct inode *inode,
  * list if there are no delalloc bytes left.
  * Also it will handle the qgroup reserved space.
  */
-void btrfs_delalloc_release_space(struct inode *inode,
+void btrfs_delalloc_release_space(struct btrfs_inode *inode,
 				  struct extent_changeset *reserved,
 				  u64 start, u64 len, bool qgroup_free)
 {
-	btrfs_delalloc_release_metadata(BTRFS_I(inode), len, qgroup_free);
-	btrfs_free_reserved_data_space(BTRFS_I(inode), reserved, start, len);
+	btrfs_delalloc_release_metadata(inode, len, qgroup_free);
+	btrfs_free_reserved_data_space(inode, reserved, start, len);
 }

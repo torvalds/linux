@@ -1784,7 +1784,7 @@ again:
 				__pos = round_down(pos,
 						   fs_info->sectorsize) +
 					(dirty_pages << PAGE_SHIFT);
-				btrfs_delalloc_release_space(inode,
+				btrfs_delalloc_release_space(BTRFS_I(inode),
 						data_reserved, __pos,
 						release_bytes, true);
 			}
@@ -1850,7 +1850,8 @@ again:
 			btrfs_delalloc_release_metadata(BTRFS_I(inode),
 					release_bytes, true);
 		} else {
-			btrfs_delalloc_release_space(inode, data_reserved,
+			btrfs_delalloc_release_space(BTRFS_I(inode),
+					data_reserved,
 					round_down(pos, fs_info->sectorsize),
 					release_bytes, true);
 		}
