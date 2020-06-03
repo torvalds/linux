@@ -288,13 +288,16 @@ void optc1_program_timing(
 	if (optc1_is_two_pixels_per_containter(&patched_crtc_timing) || optc1->opp_count == 2)
 		h_div = H_TIMING_DIV_BY2;
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0)
 	if (optc1->tg_mask->OTG_H_TIMING_DIV_MODE != 0) {
 		if (optc1->opp_count == 4)
 			h_div = H_TIMING_DIV_BY4;
 
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_MODE, h_div);
-	} else {
+	} else
+#endif
+	{
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 		OTG_H_TIMING_DIV_BY2, h_div);
 	}
