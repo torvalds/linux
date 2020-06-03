@@ -1318,9 +1318,77 @@ failed:
 	return ret;
 }
 
-static int smu_stop_dpms(struct smu_context *smu)
+static int smu_disable_dpms(struct smu_context *smu)
 {
-	return smu_system_features_control(smu, false);
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+	bool use_baco = !smu->is_apu &&
+		((adev->in_gpu_reset &&
+		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
+		 ((adev->in_runpm || adev->in_hibernate) && amdgpu_asic_supports_baco(adev)));
+
+	/*
+	 * For custom pptable uploading, skip the DPM features
+	 * disable process on Navi1x ASICs.
+	 *   - As the gfx related features are under control of
+	 *     RLC on those ASICs. RLC reinitialization will be
+	 *     needed to reenable them. That will cost much more
+	 *     efforts.
+	 *
+	 *   - SMU firmware can handle the DPM reenablement
+	 *     properly.
+	 */
+	if (smu->uploading_custom_pp_table &&
+	    (adev->asic_type >= CHIP_NAVI10) &&
+	    (adev->asic_type <= CHIP_NAVI12))
+		return 0;
+
+	/*
+	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
+	 * on BACO in. Driver involvement is unnecessary.
+	 */
+	if ((adev->asic_type == CHIP_SIENNA_CICHLID) &&
+	     use_baco)
+		return 0;
+
+	/*
+	 * Disable all enabled SMU features.
+	 * This should be handled in SMU FW, as a backup
+	 * driver can issue call to SMU FW until sequence
+	 * in SMU FW is operational.
+	 */
+	ret = smu_system_features_control(smu, false);
+	if (ret) {
+		pr_err("Failed to disable smu features.\n");
+		return ret;
+	}
+
+	/*
+	 * For baco, need to leave BACO feature enabled
+	 *
+	 * Correct the way for checking whether SMU_FEATURE_BACO_BIT
+	 * is supported.
+	 *
+	 * Since 'smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)' will
+	 * always return false as the 'smu_system_features_control(smu, false)'
+	 * was just issued above which disabled all SMU features.
+	 *
+	 * Thus 'smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT)' is used
+	 * now for the checking.
+	 */
+	if (use_baco && (smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT) >= 0)) {
+		ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
+		if (ret) {
+			pr_warn("set BACO feature enabled failed, return %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (adev->asic_type >= CHIP_NAVI10 &&
+	    adev->gfx.rlc.funcs->stop)
+		adev->gfx.rlc.funcs->stop(adev);
+
+	return ret;
 }
 
 static int smu_hw_fini(void *handle)
@@ -1352,25 +1420,10 @@ static int smu_hw_fini(void *handle)
 		return ret;
 	}
 
-	/*
-	 * For custom pptable uploading, skip the DPM features
-	 * disable process on Navi1x ASICs.
-	 *   - As the gfx related features are under control of
-	 *     RLC on those ASICs. RLC reinitialization will be
-	 *     needed to reenable them. That will cost much more
-	 *     efforts.
-	 *
-	 *   - SMU firmware can handle the DPM reenablement
-	 *     properly.
-	 */
-	if (!smu->uploading_custom_pp_table ||
-			!((adev->asic_type >= CHIP_NAVI10) &&
-				(adev->asic_type <= CHIP_NAVI12))) {
-		ret = smu_stop_dpms(smu);
-		if (ret) {
-			pr_warn("Fail to stop Dpms!\n");
-			return ret;
-		}
+	ret = smu_disable_dpms(smu);
+	if (ret) {
+		pr_warn("Fail to stop Dpms!\n");
+		return ret;
 	}
 
 	kfree(table_context->driver_pptable);
@@ -1409,78 +1462,11 @@ int smu_reset(struct smu_context *smu)
 	return ret;
 }
 
-static int smu_disable_dpm(struct smu_context *smu)
-{
-	struct amdgpu_device *adev = smu->adev;
-	uint32_t smu_version;
-	int ret = 0;
-	bool use_baco = !smu->is_apu &&
-		((adev->in_gpu_reset &&
-		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
-		 ((adev->in_runpm || adev->in_hibernate) && amdgpu_asic_supports_baco(adev)));
-
-	ret = smu_get_smc_version(smu, NULL, &smu_version);
-	if (ret) {
-		pr_err("Failed to get smu version.\n");
-		return ret;
-	}
-
-	/*
-	 * Disable all enabled SMU features.
-	 * This should be handled in SMU FW, as a backup
-	 * driver can issue call to SMU FW until sequence
-	 * in SMU FW is operational.
-	 */
-	ret = smu_system_features_control(smu, false);
-	if (ret) {
-		pr_err("Failed to disable smu features.\n");
-		return ret;
-	}
-
-	/*
-	 * Arcturus does not have BACO bit in disable feature mask.
-	 * Enablement of BACO bit on Arcturus should be skipped.
-	 */
-	if (adev->asic_type == CHIP_ARCTURUS) {
-		if (use_baco && (smu_version > 0x360e00))
-			return 0;
-	}
-
-	/* For baco, need to leave BACO feature enabled */
-	if (use_baco) {
-		/*
-		 * Correct the way for checking whether SMU_FEATURE_BACO_BIT
-		 * is supported.
-		 *
-		 * Since 'smu_feature_is_enabled(smu, SMU_FEATURE_BACO_BIT)' will
-		 * always return false as the 'smu_system_features_control(smu, false)'
-		 * was just issued above which disabled all SMU features.
-		 *
-		 * Thus 'smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT)' is used
-		 * now for the checking.
-		 */
-		if (smu_feature_get_index(smu, SMU_FEATURE_BACO_BIT) >= 0) {
-			ret = smu_feature_set_enabled(smu, SMU_FEATURE_BACO_BIT, true);
-			if (ret) {
-				pr_warn("set BACO feature enabled failed, return %d\n", ret);
-				return ret;
-			}
-		}
-	}
-
-	return ret;
-}
-
 static int smu_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
 	int ret;
-	bool use_baco = !smu->is_apu &&
-		((adev->in_gpu_reset &&
-		  (amdgpu_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)) ||
-		 (adev->in_runpm && amdgpu_asic_supports_baco(adev)));
-
 
 	if (amdgpu_sriov_vf(adev)&& !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1498,19 +1484,9 @@ static int smu_suspend(void *handle)
 		return ret;
 	}
 
-	/*
-	 * For Sienna_Cichlid, PMFW will handle the features disablement properly
-	 * on BACO in. Driver involvement is unnecessary.
-	 */
-	if ((adev->asic_type != CHIP_SIENNA_CICHLID) || !use_baco) {
-		ret = smu_disable_dpm(smu);
-		if (ret)
-			return ret;
-
-		if (adev->asic_type >= CHIP_NAVI10 &&
-		    adev->gfx.rlc.funcs->stop)
-			adev->gfx.rlc.funcs->stop(adev);
-	}
+	ret = smu_disable_dpms(smu);
+	if (ret)
+		return ret;
 
 	smu->watermarks_bitmap &= ~(WATERMARKS_LOADED);
 
