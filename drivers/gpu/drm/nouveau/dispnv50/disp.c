@@ -277,7 +277,7 @@ nv50_outp_release(struct nouveau_encoder *nv_encoder)
 }
 
 static int
-nv50_outp_acquire(struct nouveau_encoder *nv_encoder)
+nv50_outp_acquire(struct nouveau_encoder *nv_encoder, bool hda)
 {
 	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
@@ -289,6 +289,7 @@ nv50_outp_acquire(struct nouveau_encoder *nv_encoder)
 		.base.method = NV50_DISP_MTHD_V1_ACQUIRE,
 		.base.hasht  = nv_encoder->dcb->hasht,
 		.base.hashm  = nv_encoder->dcb->hashm,
+		.info.hda = hda,
 	};
 	int ret;
 
@@ -393,7 +394,7 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 
-	nv50_outp_acquire(nv_encoder);
+	nv50_outp_acquire(nv_encoder, false);
 
 	core->func->dac->ctrl(core, nv_encoder->or, 1 << nv_crtc->index, asyh);
 	asyh->or.depth = 0;
@@ -968,7 +969,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
-		nv50_outp_acquire(mstm->outp);
+		nv50_outp_acquire(mstm->outp, false /*XXX: MST audio.*/);
 
 	if (mstm->outp->link & 1)
 		proto = 0x8;
@@ -1562,12 +1563,18 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
+	bool hda = false;
 	u8 proto = 0xf;
 	u8 depth = 0x0;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	nv_encoder->crtc = encoder->crtc;
-	nv50_outp_acquire(nv_encoder);
+
+	if ((disp->disp->object.oclass == GT214_DISP ||
+	     disp->disp->object.oclass >= GF110_DISP) &&
+	    drm_detect_monitor_audio(nv_connector->edid))
+		hda = true;
+	nv50_outp_acquire(nv_encoder, hda);
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
@@ -1777,7 +1784,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto;
 
-	nv50_outp_acquire(nv_encoder);
+	nv50_outp_acquire(nv_encoder, false);
 
 	switch (asyh->or.bpc) {
 	case 10: asyh->or.depth = 0x6; break;

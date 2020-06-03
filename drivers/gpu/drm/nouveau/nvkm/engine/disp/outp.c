@@ -112,7 +112,7 @@ nvkm_outp_acquire_ior(struct nvkm_outp *outp, u8 user, struct nvkm_ior *ior)
 }
 
 int
-nvkm_outp_acquire(struct nvkm_outp *outp, u8 user)
+nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 {
 	struct nvkm_ior *ior = outp->ior;
 	enum nvkm_ior_proto proto;
