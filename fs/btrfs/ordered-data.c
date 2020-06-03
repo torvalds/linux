@@ -307,12 +307,12 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
  * file_offset is updated to one byte past the range that is recorded as
  * complete.  This allows you to walk forward in the file.
  */
-int btrfs_dec_test_first_ordered_pending(struct inode *inode,
+int btrfs_dec_test_first_ordered_pending(struct btrfs_inode *inode,
 				   struct btrfs_ordered_extent **cached,
 				   u64 *file_offset, u64 io_size, int uptodate)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_ordered_inode_tree *tree;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry = NULL;
 	int ret;
@@ -321,7 +321,6 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 	u64 dec_start;
 	u64 to_dec;
 
-	tree = &BTRFS_I(inode)->ordered_tree;
 	spin_lock_irqsave(&tree->lock, flags);
 	node = tree_search(tree, *file_offset);
 	if (!node) {

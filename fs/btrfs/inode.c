@@ -7578,10 +7578,10 @@ static void __endio_write_update_ordered(struct inode *inode,
 
 	while (ordered_offset < offset + bytes) {
 		last_offset = ordered_offset;
-		if (btrfs_dec_test_first_ordered_pending(inode, &ordered,
-							   &ordered_offset,
-							   ordered_bytes,
-							   uptodate)) {
+		if (btrfs_dec_test_first_ordered_pending(BTRFS_I(inode), &ordered,
+							 &ordered_offset,
+							 ordered_bytes,
+							 uptodate)) {
 			btrfs_init_work(&ordered->work, finish_ordered_fn, NULL,
 					NULL);
 			btrfs_queue_work(wq, &ordered->work);
