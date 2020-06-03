@@ -764,14 +764,14 @@ static void free_async_extent_pages(struct async_extent *async_extent)
  */
 static noinline void submit_compressed_extents(struct async_chunk *async_chunk)
 {
-	struct inode *inode = async_chunk->inode;
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_inode *inode = BTRFS_I(async_chunk->inode);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct async_extent *async_extent;
 	u64 alloc_hint = 0;
 	struct btrfs_key ins;
 	struct extent_map *em;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_root *root = inode->root;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	int ret = 0;
 
 again:
@@ -789,8 +789,7 @@ retry:
 			unsigned long nr_written = 0;
 
 			/* allocate blocks */
-			ret = cow_file_range(BTRFS_I(inode),
-					     async_chunk->locked_page,
+			ret = cow_file_range(inode, async_chunk->locked_page,
 					     async_extent->start,
 					     async_extent->start +
 					     async_extent->ram_size - 1,
@@ -805,7 +804,7 @@ retry:
 			 * all those pages down to the drive.
 			 */
 			if (!page_started && !ret)
-				extent_write_locked_range(inode,
+				extent_write_locked_range(&inode->vfs_inode,
 						  async_extent->start,
 						  async_extent->start +
 						  async_extent->ram_size - 1,
@@ -835,7 +834,7 @@ retry:
 				 * will not submit these pages down to lower
 				 * layers.
 				 */
-				extent_range_redirty_for_io(inode,
+				extent_range_redirty_for_io(&inode->vfs_inode,
 						async_extent->start,
 						async_extent->start +
 						async_extent->ram_size - 1);
@@ -848,7 +847,7 @@ retry:
 		 * here we're doing allocation and writeback of the
 		 * compressed pages
 		 */
-		em = create_io_em(BTRFS_I(inode), async_extent->start,
+		em = create_io_em(inode, async_extent->start,
 				  async_extent->ram_size, /* len */
 				  async_extent->start, /* orig_start */
 				  ins.objectid, /* block_start */
@@ -862,7 +861,7 @@ retry:
 			goto out_free_reserve;
 		free_extent_map(em);
 
-		ret = btrfs_add_ordered_extent_compress(BTRFS_I(inode),
+		ret = btrfs_add_ordered_extent_compress(inode,
 						async_extent->start,
 						ins.objectid,
 						async_extent->ram_size,
@@ -870,8 +869,7 @@ retry:
 						BTRFS_ORDERED_COMPRESSED,
 						async_extent->compress_type);
 		if (ret) {
-			btrfs_drop_extent_cache(BTRFS_I(inode),
-						async_extent->start,
+			btrfs_drop_extent_cache(inode, async_extent->start,
 						async_extent->start +
 						async_extent->ram_size - 1, 0);
 			goto out_free_reserve;
@@ -881,14 +879,13 @@ retry:
 		/*
 		 * clear dirty, set writeback and unlock the pages.
 		 */
-		extent_clear_unlock_delalloc(BTRFS_I(inode), async_extent->start,
+		extent_clear_unlock_delalloc(inode, async_extent->start,
 				async_extent->start +
 				async_extent->ram_size - 1,
 				NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 				PAGE_UNLOCK | PAGE_CLEAR_DIRTY |
 				PAGE_SET_WRITEBACK);
-		if (btrfs_submit_compressed_write(BTRFS_I(inode),
-				    async_extent->start,
+		if (btrfs_submit_compressed_write(inode, async_extent->start,
 				    async_extent->ram_size,
 				    ins.objectid,
 				    ins.offset, async_extent->pages,
@@ -899,12 +896,11 @@ retry:
 			const u64 start = async_extent->start;
 			const u64 end = start + async_extent->ram_size - 1;
 
-			p->mapping = inode->i_mapping;
+			p->mapping = inode->vfs_inode.i_mapping;
 			btrfs_writepage_endio_finish_ordered(p, start, end, 0);
 
 			p->mapping = NULL;
-			extent_clear_unlock_delalloc(BTRFS_I(inode), start, end,
-						     NULL, 0,
+			extent_clear_unlock_delalloc(inode, start, end, NULL, 0,
 						     PAGE_END_WRITEBACK |
 						     PAGE_SET_ERROR);
 			free_async_extent_pages(async_extent);
@@ -918,7 +914,7 @@ out_free_reserve:
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
 out_free:
-	extent_clear_unlock_delalloc(BTRFS_I(inode), async_extent->start,
+	extent_clear_unlock_delalloc(inode, async_extent->start,
 				     async_extent->start +
 				     async_extent->ram_size - 1,
 				     NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
