@@ -353,17 +353,18 @@ xfrm_inner_mode_encap_remove(struct xfrm_state *x,
 static int xfrm_prepare_input(struct xfrm_state *x, struct sk_buff *skb)
 {
 	const struct xfrm_mode *inner_mode = &x->inner_mode;
-	const struct xfrm_state_afinfo *afinfo;
-	int err = -EAFNOSUPPORT;
 
-	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(x->outer_mode.family);
-	if (likely(afinfo))
-		err = afinfo->extract_input(x, skb);
-	rcu_read_unlock();
-
-	if (err)
-		return err;
+	switch (x->outer_mode.family) {
+	case AF_INET:
+		xfrm4_extract_header(skb);
+		break;
+	case AF_INET6:
+		xfrm6_extract_header(skb);
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EAFNOSUPPORT;
+	}
 
 	if (x->sel.family == AF_UNSPEC) {
 		inner_mode = xfrm_ip2inner_mode(x, XFRM_MODE_SKB_CB(skb)->protocol);

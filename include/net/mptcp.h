@@ -16,7 +16,10 @@ struct seq_file;
 
 /* MPTCP sk_buff extension data */
 struct mptcp_ext {
-	u64		data_ack;
+	union {
+		u64	data_ack;
+		u32	data_ack32;
+	};
 	u64		data_seq;
 	u32		subflow_seq;
 	u16		data_len;
@@ -68,6 +71,12 @@ static inline bool rsk_is_mptcp(const struct request_sock *req)
 	return tcp_rsk(req)->is_mptcp;
 }
 
+static inline bool rsk_drop_req(const struct request_sock *req)
+{
+	return tcp_rsk(req)->is_mptcp && tcp_rsk(req)->drop_req;
+}
+
+void mptcp_space(const struct sock *ssk, int *space, int *full_space);
 bool mptcp_syn_options(struct sock *sk, const struct sk_buff *skb,
 		       unsigned int *size, struct mptcp_out_options *opts);
 bool mptcp_synack_options(const struct request_sock *req, unsigned int *size,
@@ -120,8 +129,6 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 				 skb_ext_find(from, SKB_EXT_MPTCP));
 }
 
-bool mptcp_sk_is_subflow(const struct sock *sk);
-
 void mptcp_seq_show(struct seq_file *seq);
 #else
 
@@ -135,6 +142,11 @@ static inline bool sk_is_mptcp(const struct sock *sk)
 }
 
 static inline bool rsk_is_mptcp(const struct request_sock *req)
+{
+	return false;
+}
+
+static inline bool rsk_drop_req(const struct request_sock *req)
 {
 	return false;
 }
@@ -189,11 +201,7 @@ static inline bool mptcp_skb_can_collapse(const struct sk_buff *to,
 	return true;
 }
 
-static inline bool mptcp_sk_is_subflow(const struct sock *sk)
-{
-	return false;
-}
-
+static inline void mptcp_space(const struct sock *ssk, int *s, int *fs) { }
 static inline void mptcp_seq_show(struct seq_file *seq) { }
 #endif /* CONFIG_MPTCP */
 

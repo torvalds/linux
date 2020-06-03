@@ -5,6 +5,7 @@
 #define _MSCC_FELIX_H
 
 #define ocelot_to_felix(o)		container_of((o), struct felix, ocelot)
+#define FELIX_NUM_TC			8
 
 /* Platform-specific information */
 struct felix_info {
@@ -19,6 +20,7 @@ struct felix_info {
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
+	int                             num_tx_queues;
 	struct vcap_field		*vcap_is2_keys;
 	struct vcap_field		*vcap_is2_actions;
 	const struct vcap_props		*vcap;
@@ -34,6 +36,10 @@ struct felix_info {
 				  struct phylink_link_state *state);
 	int	(*prevalidate_phy_mode)(struct ocelot *ocelot, int port,
 					phy_interface_t phy_mode);
+	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
+				 enum tc_setup_type type, void *type_data);
+	void	(*port_sched_speed_set)(struct ocelot *ocelot, int port,
+					u32 speed);
 };
 
 extern struct felix_info		felix_info_vsc9959;

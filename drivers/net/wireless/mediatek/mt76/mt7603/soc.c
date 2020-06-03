@@ -20,10 +20,8 @@ mt76_wmac_probe(struct platform_device *pdev)
 		return irq;
 
 	mem_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(mem_base)) {
-		dev_err(&pdev->dev, "Failed to get memory resource\n");
+	if (IS_ERR(mem_base))
 		return PTR_ERR(mem_base);
-	}
 
 	mdev = mt76_alloc_device(&pdev->dev, sizeof(*dev), &mt7603_ops,
 				 &mt7603_drv_ops);

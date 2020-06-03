@@ -168,9 +168,17 @@
 
 #define __TEST_IMPL(test_name, _signal) \
 	static void test_name(struct __test_metadata *_metadata); \
+	static inline void wrapper_##test_name( \
+		struct __test_metadata *_metadata, \
+		struct __fixture_variant_metadata *variant) \
+	{ \
+		test_name(_metadata); \
+	} \
 	static struct __test_metadata _##test_name##_object = \
-		{ .name = "global." #test_name, \
-		  .fn = &test_name, .termsig = _signal, \
+		{ .name = #test_name, \
+		  .fn = &wrapper_##test_name, \
+		  .fixture = &_fixture_global, \
+		  .termsig = _signal, \
 		  .timeout = TEST_TIMEOUT_DEFAULT, }; \
 	static void __attribute__((constructor)) _register_##test_name(void) \
 	{ \
@@ -212,10 +220,13 @@
  * populated and cleaned up using FIXTURE_SETUP() and FIXTURE_TEARDOWN().
  */
 #define FIXTURE(fixture_name) \
+	FIXTURE_VARIANT(fixture_name); \
+	static struct __fixture_metadata _##fixture_name##_fixture_object = \
+		{ .name =  #fixture_name, }; \
 	static void __attribute__((constructor)) \
 	_register_##fixture_name##_data(void) \
 	{ \
-		__fixture_count++; \
+		__register_fixture(&_##fixture_name##_fixture_object); \
 	} \
 	FIXTURE_DATA(fixture_name)
 
@@ -241,7 +252,10 @@
 #define FIXTURE_SETUP(fixture_name) \
 	void fixture_name##_setup( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
-		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
+		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
+		const FIXTURE_VARIANT(fixture_name) \
+			__attribute__((unused)) *variant)
+
 /**
  * FIXTURE_TEARDOWN(fixture_name)
  * *_metadata* is included so that EXPECT_* and ASSERT_* work correctly.
@@ -262,6 +276,59 @@
 	void fixture_name##_teardown( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
+
+/**
+ * FIXTURE_VARIANT(fixture_name) - Optionally called once per fixture
+ * to declare fixture variant
+ *
+ * @fixture_name: fixture name
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_VARIANT(datatype name) {
+ *       type property1;
+ *       ...
+ *     };
+ *
+ * Defines type of constant parameters provided to FIXTURE_SETUP() and TEST_F()
+ * as *variant*. Variants allow the same tests to be run with different
+ * arguments.
+ */
+#define FIXTURE_VARIANT(fixture_name) struct _fixture_variant_##fixture_name
+
+/**
+ * FIXTURE_VARIANT_ADD(fixture_name, variant_name) - Called once per fixture
+ * variant to setup and register the data
+ *
+ * @fixture_name: fixture name
+ * @variant_name: name of the parameter set
+ *
+ * .. code-block:: c
+ *
+ *     FIXTURE_ADD(datatype name) {
+ *       .property1 = val1;
+ *       ...
+ *     };
+ *
+ * Defines a variant of the test fixture, provided to FIXTURE_SETUP() and
+ * TEST_F() as *variant*. Tests of each fixture will be run once for each
+ * variant.
+ */
+#define FIXTURE_VARIANT_ADD(fixture_name, variant_name) \
+	extern FIXTURE_VARIANT(fixture_name) \
+		_##fixture_name##_##variant_name##_variant; \
+	static struct __fixture_variant_metadata \
+		_##fixture_name##_##variant_name##_object = \
+		{ .name = #variant_name, \
+		  .data = &_##fixture_name##_##variant_name##_variant}; \
+	static void __attribute__((constructor)) \
+		_register_##fixture_name##_##variant_name(void) \
+	{ \
+		__register_fixture_variant(&_##fixture_name##_fixture_object, \
+			&_##fixture_name##_##variant_name##_object);	\
+	} \
+	FIXTURE_VARIANT(fixture_name) \
+		_##fixture_name##_##variant_name##_variant =
 
 /**
  * TEST_F(fixture_name, test_name) - Emits test registration and helpers for
@@ -293,24 +360,27 @@
 #define __TEST_F_IMPL(fixture_name, test_name, signal, tmout) \
 	static void fixture_name##_##test_name( \
 		struct __test_metadata *_metadata, \
-		FIXTURE_DATA(fixture_name) *self); \
+		FIXTURE_DATA(fixture_name) *self, \
+		const FIXTURE_VARIANT(fixture_name) *variant); \
 	static inline void wrapper_##fixture_name##_##test_name( \
-		struct __test_metadata *_metadata) \
+		struct __test_metadata *_metadata, \
+		struct __fixture_variant_metadata *variant) \
 	{ \
 		/* fixture data is alloced, setup, and torn down per call. */ \
 		FIXTURE_DATA(fixture_name) self; \
 		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
-		fixture_name##_setup(_metadata, &self); \
+		fixture_name##_setup(_metadata, &self, variant->data); \
 		/* Let setup failure terminate early. */ \
 		if (!_metadata->passed) \
 			return; \
-		fixture_name##_##test_name(_metadata, &self); \
+		fixture_name##_##test_name(_metadata, &self, variant->data); \
 		fixture_name##_teardown(_metadata, &self); \
 	} \
 	static struct __test_metadata \
 		      _##fixture_name##_##test_name##_object = { \
-		.name = #fixture_name "." #test_name, \
+		.name = #test_name, \
 		.fn = &wrapper_##fixture_name##_##test_name, \
+		.fixture = &_##fixture_name##_fixture_object, \
 		.termsig = signal, \
 		.timeout = tmout, \
 	 }; \
@@ -321,7 +391,9 @@
 	} \
 	static void fixture_name##_##test_name( \
 		struct __test_metadata __attribute__((unused)) *_metadata, \
-		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self)
+		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
+		const FIXTURE_VARIANT(fixture_name) \
+			__attribute__((unused)) *variant)
 
 /**
  * TEST_HARNESS_MAIN - Simple wrapper to run the test harness
@@ -631,11 +703,74 @@
 	} \
 } while (0); OPTIONAL_HANDLER(_assert)
 
+/* List helpers */
+#define __LIST_APPEND(head, item) \
+{ \
+	/* Circular linked list where only prev is circular. */ \
+	if (head == NULL) { \
+		head = item; \
+		item->next = NULL; \
+		item->prev = item; \
+		return;	\
+	} \
+	if (__constructor_order == _CONSTRUCTOR_ORDER_FORWARD) { \
+		item->next = NULL; \
+		item->prev = head->prev; \
+		item->prev->next = item; \
+		head->prev = item; \
+	} else { \
+		item->next = head; \
+		item->next->prev = item; \
+		item->prev = item; \
+		head = item; \
+	} \
+}
+
+struct __test_metadata;
+struct __fixture_variant_metadata;
+
+/* Contains all the information about a fixture. */
+struct __fixture_metadata {
+	const char *name;
+	struct __test_metadata *tests;
+	struct __fixture_variant_metadata *variant;
+	struct __fixture_metadata *prev, *next;
+} _fixture_global __attribute__((unused)) = {
+	.name = "global",
+	.prev = &_fixture_global,
+};
+
+static struct __fixture_metadata *__fixture_list = &_fixture_global;
+static int __constructor_order;
+
+#define _CONSTRUCTOR_ORDER_FORWARD   1
+#define _CONSTRUCTOR_ORDER_BACKWARD -1
+
+static inline void __register_fixture(struct __fixture_metadata *f)
+{
+	__LIST_APPEND(__fixture_list, f);
+}
+
+struct __fixture_variant_metadata {
+	const char *name;
+	const void *data;
+	struct __fixture_variant_metadata *prev, *next;
+};
+
+static inline void
+__register_fixture_variant(struct __fixture_metadata *f,
+			   struct __fixture_variant_metadata *variant)
+{
+	__LIST_APPEND(f->variant, variant);
+}
+
 /* Contains all the information for test execution and status checking. */
 struct __test_metadata {
 	const char *name;
-	void (*fn)(struct __test_metadata *);
+	void (*fn)(struct __test_metadata *,
+		   struct __fixture_variant_metadata *);
 	pid_t pid;	/* pid of test when being run */
+	struct __fixture_metadata *fixture;
 	int termsig;
 	int passed;
 	int trigger; /* extra handler after the evaluation */
@@ -645,15 +780,6 @@ struct __test_metadata {
 	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
 	struct __test_metadata *prev, *next;
 };
-
-/* Storage for the (global) tests to be run. */
-static struct __test_metadata *__test_list;
-static unsigned int __test_count;
-static unsigned int __fixture_count;
-static int __constructor_order;
-
-#define _CONSTRUCTOR_ORDER_FORWARD   1
-#define _CONSTRUCTOR_ORDER_BACKWARD -1
 
 /*
  * Since constructors are called in reverse order, reverse the test
@@ -666,25 +792,7 @@ static int __constructor_order;
  */
 static inline void __register_test(struct __test_metadata *t)
 {
-	__test_count++;
-	/* Circular linked list where only prev is circular. */
-	if (__test_list == NULL) {
-		__test_list = t;
-		t->next = NULL;
-		t->prev = t;
-		return;
-	}
-	if (__constructor_order == _CONSTRUCTOR_ORDER_FORWARD) {
-		t->next = NULL;
-		t->prev = __test_list->prev;
-		t->prev->next = t;
-		__test_list->prev = t;
-	} else {
-		t->next = __test_list;
-		t->next->prev = t;
-		t->prev = t;
-		__test_list = t;
-	}
+	__LIST_APPEND(t->fixture->tests, t);
 }
 
 static inline int __bail(int for_realz, bool no_print, __u8 step)
@@ -790,43 +898,67 @@ void __wait_for_test(struct __test_metadata *t)
 	}
 }
 
-void __run_test(struct __test_metadata *t)
+void __run_test(struct __fixture_metadata *f,
+		struct __fixture_variant_metadata *variant,
+		struct __test_metadata *t)
 {
+	/* reset test struct */
 	t->passed = 1;
 	t->trigger = 0;
-	printf("[ RUN      ] %s\n", t->name);
+	t->step = 0;
+	t->no_print = 0;
+
+	printf("[ RUN      ] %s%s%s.%s\n",
+	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
 	t->pid = fork();
 	if (t->pid < 0) {
 		printf("ERROR SPAWNING TEST CHILD\n");
 		t->passed = 0;
 	} else if (t->pid == 0) {
-		t->fn(t);
+		t->fn(t, variant);
 		/* return the step that failed or 0 */
 		_exit(t->passed ? 0 : t->step);
 	} else {
 		__wait_for_test(t);
 	}
-	printf("[     %4s ] %s\n", (t->passed ? "OK" : "FAIL"), t->name);
+	printf("[     %4s ] %s%s%s.%s\n", (t->passed ? "OK" : "FAIL"),
+	       f->name, variant->name[0] ? "." : "", variant->name, t->name);
 }
 
 static int test_harness_run(int __attribute__((unused)) argc,
 			    char __attribute__((unused)) **argv)
 {
+	struct __fixture_variant_metadata no_variant = { .name = "", };
+	struct __fixture_variant_metadata *v;
+	struct __fixture_metadata *f;
 	struct __test_metadata *t;
 	int ret = 0;
+	unsigned int case_count = 0, test_count = 0;
 	unsigned int count = 0;
 	unsigned int pass_count = 0;
 
+	for (f = __fixture_list; f; f = f->next) {
+		for (v = f->variant ?: &no_variant; v; v = v->next) {
+			case_count++;
+			for (t = f->tests; t; t = t->next)
+				test_count++;
+		}
+	}
+
 	/* TODO(wad) add optional arguments similar to gtest. */
 	printf("[==========] Running %u tests from %u test cases.\n",
-	       __test_count, __fixture_count + 1);
-	for (t = __test_list; t; t = t->next) {
-		count++;
-		__run_test(t);
-		if (t->passed)
-			pass_count++;
-		else
-			ret = 1;
+	       test_count, case_count);
+	for (f = __fixture_list; f; f = f->next) {
+		for (v = f->variant ?: &no_variant; v; v = v->next) {
+			for (t = f->tests; t; t = t->next) {
+				count++;
+				__run_test(f, v, t);
+				if (t->passed)
+					pass_count++;
+				else
+					ret = 1;
+			}
+		}
 	}
 	printf("[==========] %u / %u tests passed.\n", pass_count, count);
 	printf("[  %s  ]\n", (ret ? "FAILED" : "PASSED"));

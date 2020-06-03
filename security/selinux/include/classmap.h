@@ -27,9 +27,9 @@
 	    "audit_control", "setfcap"
 
 #define COMMON_CAP2_PERMS  "mac_override", "mac_admin", "syslog", \
-		"wake_alarm", "block_suspend", "audit_read", "perfmon"
+		"wake_alarm", "block_suspend", "audit_read", "perfmon", "bpf"
 
-#if CAP_LAST_CAP > CAP_PERFMON
+#if CAP_LAST_CAP > CAP_BPF
 #error New capability defined, please update COMMON_CAP2_PERMS.
 #endif
 

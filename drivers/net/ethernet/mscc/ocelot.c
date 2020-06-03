@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/phy.h>
-#include <linux/ptp_clock_kernel.h>
 #include <linux/skbuff.h>
 #include <linux/iopoll.h>
 #include <net/arp.h>
@@ -1205,18 +1204,19 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	struct ocelot *ocelot = priv->port.ocelot;
 	int port = priv->chip_port;
 
-	/* The function is only used for PTP operations for now */
-	if (!ocelot->ptp)
-		return -EOPNOTSUPP;
-
-	switch (cmd) {
-	case SIOCSHWTSTAMP:
-		return ocelot_hwstamp_set(ocelot, port, ifr);
-	case SIOCGHWTSTAMP:
-		return ocelot_hwstamp_get(ocelot, port, ifr);
-	default:
-		return -EOPNOTSUPP;
+	/* If the attached PHY device isn't capable of timestamping operations,
+	 * use our own (when possible).
+	 */
+	if (!phy_has_hwtstamp(dev->phydev) && ocelot->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return ocelot_hwstamp_set(ocelot, port, ifr);
+		case SIOCGHWTSTAMP:
+			return ocelot_hwstamp_get(ocelot, port, ifr);
+		}
 	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
 static const struct net_device_ops ocelot_port_netdev_ops = {
@@ -1348,6 +1348,12 @@ int ocelot_get_ts_info(struct ocelot *ocelot, int port,
 {
 	info->phc_index = ocelot->ptp_clock ?
 			  ptp_clock_index(ocelot->ptp_clock) : -1;
+	if (info->phc_index == -1) {
+		info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
+					 SOF_TIMESTAMPING_RX_SOFTWARE |
+					 SOF_TIMESTAMPING_SOFTWARE;
+		return 0;
+	}
 	info->so_timestamping |= SOF_TIMESTAMPING_TX_SOFTWARE |
 				 SOF_TIMESTAMPING_RX_SOFTWARE |
 				 SOF_TIMESTAMPING_SOFTWARE |
@@ -1996,200 +2002,6 @@ struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
 };
 EXPORT_SYMBOL(ocelot_switchdev_blocking_nb);
 
-int ocelot_ptp_gettime64(struct ptp_clock_info *ptp, struct timespec64 *ts)
-{
-	struct ocelot *ocelot = container_of(ptp, struct ocelot, ptp_info);
-	unsigned long flags;
-	time64_t s;
-	u32 val;
-	s64 ns;
-
-	spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-
-	val = ocelot_read_rix(ocelot, PTP_PIN_CFG, TOD_ACC_PIN);
-	val &= ~(PTP_PIN_CFG_SYNC | PTP_PIN_CFG_ACTION_MASK | PTP_PIN_CFG_DOM);
-	val |= PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_SAVE);
-	ocelot_write_rix(ocelot, val, PTP_PIN_CFG, TOD_ACC_PIN);
-
-	s = ocelot_read_rix(ocelot, PTP_PIN_TOD_SEC_MSB, TOD_ACC_PIN) & 0xffff;
-	s <<= 32;
-	s += ocelot_read_rix(ocelot, PTP_PIN_TOD_SEC_LSB, TOD_ACC_PIN);
-	ns = ocelot_read_rix(ocelot, PTP_PIN_TOD_NSEC, TOD_ACC_PIN);
-
-	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
-
-	/* Deal with negative values */
-	if (ns >= 0x3ffffff0 && ns <= 0x3fffffff) {
-		s--;
-		ns &= 0xf;
-		ns += 999999984;
-	}
-
-	set_normalized_timespec64(ts, s, ns);
-	return 0;
-}
-EXPORT_SYMBOL(ocelot_ptp_gettime64);
-
-static int ocelot_ptp_settime64(struct ptp_clock_info *ptp,
-				const struct timespec64 *ts)
-{
-	struct ocelot *ocelot = container_of(ptp, struct ocelot, ptp_info);
-	unsigned long flags;
-	u32 val;
-
-	spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-
-	val = ocelot_read_rix(ocelot, PTP_PIN_CFG, TOD_ACC_PIN);
-	val &= ~(PTP_PIN_CFG_SYNC | PTP_PIN_CFG_ACTION_MASK | PTP_PIN_CFG_DOM);
-	val |= PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_IDLE);
-
-	ocelot_write_rix(ocelot, val, PTP_PIN_CFG, TOD_ACC_PIN);
-
-	ocelot_write_rix(ocelot, lower_32_bits(ts->tv_sec), PTP_PIN_TOD_SEC_LSB,
-			 TOD_ACC_PIN);
-	ocelot_write_rix(ocelot, upper_32_bits(ts->tv_sec), PTP_PIN_TOD_SEC_MSB,
-			 TOD_ACC_PIN);
-	ocelot_write_rix(ocelot, ts->tv_nsec, PTP_PIN_TOD_NSEC, TOD_ACC_PIN);
-
-	val = ocelot_read_rix(ocelot, PTP_PIN_CFG, TOD_ACC_PIN);
-	val &= ~(PTP_PIN_CFG_SYNC | PTP_PIN_CFG_ACTION_MASK | PTP_PIN_CFG_DOM);
-	val |= PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_LOAD);
-
-	ocelot_write_rix(ocelot, val, PTP_PIN_CFG, TOD_ACC_PIN);
-
-	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
-	return 0;
-}
-
-static int ocelot_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
-{
-	if (delta > -(NSEC_PER_SEC / 2) && delta < (NSEC_PER_SEC / 2)) {
-		struct ocelot *ocelot = container_of(ptp, struct ocelot, ptp_info);
-		unsigned long flags;
-		u32 val;
-
-		spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-
-		val = ocelot_read_rix(ocelot, PTP_PIN_CFG, TOD_ACC_PIN);
-		val &= ~(PTP_PIN_CFG_SYNC | PTP_PIN_CFG_ACTION_MASK | PTP_PIN_CFG_DOM);
-		val |= PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_IDLE);
-
-		ocelot_write_rix(ocelot, val, PTP_PIN_CFG, TOD_ACC_PIN);
-
-		ocelot_write_rix(ocelot, 0, PTP_PIN_TOD_SEC_LSB, TOD_ACC_PIN);
-		ocelot_write_rix(ocelot, 0, PTP_PIN_TOD_SEC_MSB, TOD_ACC_PIN);
-		ocelot_write_rix(ocelot, delta, PTP_PIN_TOD_NSEC, TOD_ACC_PIN);
-
-		val = ocelot_read_rix(ocelot, PTP_PIN_CFG, TOD_ACC_PIN);
-		val &= ~(PTP_PIN_CFG_SYNC | PTP_PIN_CFG_ACTION_MASK | PTP_PIN_CFG_DOM);
-		val |= PTP_PIN_CFG_ACTION(PTP_PIN_ACTION_DELTA);
-
-		ocelot_write_rix(ocelot, val, PTP_PIN_CFG, TOD_ACC_PIN);
-
-		spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
-	} else {
-		/* Fall back using ocelot_ptp_settime64 which is not exact. */
-		struct timespec64 ts;
-		u64 now;
-
-		ocelot_ptp_gettime64(ptp, &ts);
-
-		now = ktime_to_ns(timespec64_to_ktime(ts));
-		ts = ns_to_timespec64(now + delta);
-
-		ocelot_ptp_settime64(ptp, &ts);
-	}
-	return 0;
-}
-
-static int ocelot_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
-{
-	struct ocelot *ocelot = container_of(ptp, struct ocelot, ptp_info);
-	u32 unit = 0, direction = 0;
-	unsigned long flags;
-	u64 adj = 0;
-
-	spin_lock_irqsave(&ocelot->ptp_clock_lock, flags);
-
-	if (!scaled_ppm)
-		goto disable_adj;
-
-	if (scaled_ppm < 0) {
-		direction = PTP_CFG_CLK_ADJ_CFG_DIR;
-		scaled_ppm = -scaled_ppm;
-	}
-
-	adj = PSEC_PER_SEC << 16;
-	do_div(adj, scaled_ppm);
-	do_div(adj, 1000);
-
-	/* If the adjustment value is too large, use ns instead */
-	if (adj >= (1L << 30)) {
-		unit = PTP_CFG_CLK_ADJ_FREQ_NS;
-		do_div(adj, 1000);
-	}
-
-	/* Still too big */
-	if (adj >= (1L << 30))
-		goto disable_adj;
-
-	ocelot_write(ocelot, unit | adj, PTP_CLK_CFG_ADJ_FREQ);
-	ocelot_write(ocelot, PTP_CFG_CLK_ADJ_CFG_ENA | direction,
-		     PTP_CLK_CFG_ADJ_CFG);
-
-	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
-	return 0;
-
-disable_adj:
-	ocelot_write(ocelot, 0, PTP_CLK_CFG_ADJ_CFG);
-
-	spin_unlock_irqrestore(&ocelot->ptp_clock_lock, flags);
-	return 0;
-}
-
-static struct ptp_clock_info ocelot_ptp_clock_info = {
-	.owner		= THIS_MODULE,
-	.name		= "ocelot ptp",
-	.max_adj	= 0x7fffffff,
-	.n_alarm	= 0,
-	.n_ext_ts	= 0,
-	.n_per_out	= 0,
-	.n_pins		= 0,
-	.pps		= 0,
-	.gettime64	= ocelot_ptp_gettime64,
-	.settime64	= ocelot_ptp_settime64,
-	.adjtime	= ocelot_ptp_adjtime,
-	.adjfine	= ocelot_ptp_adjfine,
-};
-
-static int ocelot_init_timestamp(struct ocelot *ocelot)
-{
-	struct ptp_clock *ptp_clock;
-
-	ocelot->ptp_info = ocelot_ptp_clock_info;
-	ptp_clock = ptp_clock_register(&ocelot->ptp_info, ocelot->dev);
-	if (IS_ERR(ptp_clock))
-		return PTR_ERR(ptp_clock);
-	/* Check if PHC support is missing at the configuration level */
-	if (!ptp_clock)
-		return 0;
-
-	ocelot->ptp_clock = ptp_clock;
-
-	ocelot_write(ocelot, SYS_PTP_CFG_PTP_STAMP_WID(30), SYS_PTP_CFG);
-	ocelot_write(ocelot, 0xffffffff, ANA_TABLES_PTP_ID_LOW);
-	ocelot_write(ocelot, 0xffffffff, ANA_TABLES_PTP_ID_HIGH);
-
-	ocelot_write(ocelot, PTP_CFG_MISC_PTP_EN, PTP_CFG_MISC);
-
-	/* There is no device reconfiguration, PTP Rx stamping is always
-	 * enabled.
-	 */
-	ocelot->hwtstamp_config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-
-	return 0;
-}
-
 /* Configure the maximum SDU (L2 payload) on RX to the value specified in @sdu.
  * The length of VLAN tags is accounted for automatically via DEV_MAC_TAGS_CFG.
  * In the special case that it's the NPI port that we're configuring, the
@@ -2535,15 +2347,6 @@ int ocelot_init(struct ocelot *ocelot)
 	queue_delayed_work(ocelot->stats_queue, &ocelot->stats_work,
 			   OCELOT_STATS_CHECK_DELAY);
 
-	if (ocelot->ptp) {
-		ret = ocelot_init_timestamp(ocelot);
-		if (ret) {
-			dev_err(ocelot->dev,
-				"Timestamp initialization failed\n");
-			return ret;
-		}
-	}
-
 	return 0;
 }
 EXPORT_SYMBOL(ocelot_init);
@@ -2556,8 +2359,6 @@ void ocelot_deinit(struct ocelot *ocelot)
 	cancel_delayed_work(&ocelot->stats_work);
 	destroy_workqueue(ocelot->stats_queue);
 	mutex_destroy(&ocelot->stats_lock);
-	if (ocelot->ptp_clock)
-		ptp_clock_unregister(ocelot->ptp_clock);
 
 	for (i = 0; i < ocelot->num_phys_ports; i++) {
 		port = ocelot->ports[i];

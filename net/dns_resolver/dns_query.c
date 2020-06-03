@@ -1,7 +1,7 @@
 /* Upcall routine, designed to work as a key type and working through
  * /sbin/request-key to contact userspace when handling DNS queries.
  *
- * See Documentation/networking/dns_resolver.txt
+ * See Documentation/networking/dns_resolver.rst
  *
  *   Copyright (c) 2007 Igor Mammedov
  *   Author(s): Igor Mammedov (niallain@gmail.com)

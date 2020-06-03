@@ -33,14 +33,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
-#include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
 int mlx5_core_create_mkey(struct mlx5_core_dev *dev,
 			  struct mlx5_core_mkey *mkey,
 			  u32 *in, int inlen)
 {
-	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {0};
+	u32 lout[MLX5_ST_SZ_DW(create_mkey_out)] = {};
 	u32 mkey_index;
 	void *mkc;
 	int err;
@@ -66,19 +65,18 @@ EXPORT_SYMBOL(mlx5_core_create_mkey);
 int mlx5_core_destroy_mkey(struct mlx5_core_dev *dev,
 			   struct mlx5_core_mkey *mkey)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_mkey_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_mkey_in)] = {};
 
 	MLX5_SET(destroy_mkey_in, in, opcode, MLX5_CMD_OP_DESTROY_MKEY);
 	MLX5_SET(destroy_mkey_in, in, mkey_index, mlx5_mkey_to_idx(mkey->key));
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_mkey, in);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_mkey);
 
 int mlx5_core_query_mkey(struct mlx5_core_dev *dev, struct mlx5_core_mkey *mkey,
 			 u32 *out, int outlen)
 {
-	u32 in[MLX5_ST_SZ_DW(query_mkey_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_mkey_in)] = {};
 
 	memset(out, 0, outlen);
 	MLX5_SET(query_mkey_in, in, opcode, MLX5_CMD_OP_QUERY_MKEY);
@@ -100,8 +98,8 @@ static inline u32 mlx5_get_psv(u32 *out, int psv_index)
 int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 			 int npsvs, u32 *sig_index)
 {
-	u32 out[MLX5_ST_SZ_DW(create_psv_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(create_psv_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(create_psv_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(create_psv_in)] = {};
 	int i, err;
 
 	if (npsvs > MLX5_MAX_PSVS)
@@ -111,7 +109,7 @@ int mlx5_core_create_psv(struct mlx5_core_dev *dev, u32 pdn,
 	MLX5_SET(create_psv_in, in, pd, pdn);
 	MLX5_SET(create_psv_in, in, num_psv, npsvs);
 
-	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	err = mlx5_cmd_exec_inout(dev, create_psv, in, out);
 	if (err)
 		return err;
 
@@ -124,11 +122,10 @@ EXPORT_SYMBOL(mlx5_core_create_psv);
 
 int mlx5_core_destroy_psv(struct mlx5_core_dev *dev, int psv_num)
 {
-	u32 out[MLX5_ST_SZ_DW(destroy_psv_out)] = {0};
-	u32 in[MLX5_ST_SZ_DW(destroy_psv_in)]   = {0};
+	u32 in[MLX5_ST_SZ_DW(destroy_psv_in)] = {};
 
 	MLX5_SET(destroy_psv_in, in, opcode, MLX5_CMD_OP_DESTROY_PSV);
 	MLX5_SET(destroy_psv_in, in, psvn, psv_num);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	return mlx5_cmd_exec_in(dev, destroy_psv, in);
 }
 EXPORT_SYMBOL(mlx5_core_destroy_psv);

@@ -23,6 +23,7 @@
 #include "p2p.h"
 #include "btcoex.h"
 #include "pno.h"
+#include "fwsignal.h"
 #include "cfg80211.h"
 #include "feature.h"
 #include "fwil.h"
@@ -1819,6 +1820,10 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 		switch (sme->crypto.akm_suites[0]) {
 		case WLAN_AKM_SUITE_SAE:
 			val = WPA3_AUTH_SAE_PSK;
+			if (sme->crypto.sae_pwd) {
+				brcmf_dbg(INFO, "using SAE offload\n");
+				profile->use_fwsup = BRCMF_PROFILE_FWSUP_SAE;
+			}
 			break;
 		default:
 			bphy_err(drvr, "invalid cipher group (%d)\n",
@@ -2102,11 +2107,6 @@ brcmf_cfg80211_connect(struct wiphy *wiphy, struct net_device *ndev,
 	if (err) {
 		bphy_err(drvr, "brcmf_set_sharedkey failed (%d)\n", err);
 		goto done;
-	}
-
-	if (sme->crypto.sae_pwd) {
-		brcmf_dbg(INFO, "using SAE offload\n");
-		profile->use_fwsup = BRCMF_PROFILE_FWSUP_SAE;
 	}
 
 	if (sme->crypto.psk &&
@@ -2467,6 +2467,17 @@ brcmf_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 	memcpy(key->data, params->key, key->len);
 	if (!ext_key)
 		key->flags = BRCMF_PRIMARY_KEY;
+
+	if (params->seq && params->seq_len == 6) {
+		/* rx iv */
+		u8 *ivptr;
+
+		ivptr = (u8 *)params->seq;
+		key->rxiv.hi = (ivptr[5] << 24) | (ivptr[4] << 16) |
+			(ivptr[3] << 8) | ivptr[2];
+		key->rxiv.lo = (ivptr[1] << 8) | ivptr[0];
+		key->iv_initialized = true;
+	}
 
 	switch (params->cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
@@ -4449,6 +4460,11 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 		mgmt_ie_len = &saved_ie->assoc_req_ie_len;
 		mgmt_ie_buf_len = sizeof(saved_ie->assoc_req_ie);
 		break;
+	case BRCMF_VNDR_IE_ASSOCRSP_FLAG:
+		mgmt_ie_buf = saved_ie->assoc_res_ie;
+		mgmt_ie_len = &saved_ie->assoc_res_ie_len;
+		mgmt_ie_buf_len = sizeof(saved_ie->assoc_res_ie);
+		break;
 	default:
 		err = -EPERM;
 		bphy_err(drvr, "not suitable type\n");
@@ -4595,6 +4611,57 @@ brcmf_config_ap_mgmt_ie(struct brcmf_cfg80211_vif *vif,
 	else
 		brcmf_dbg(TRACE, "Applied Vndr IEs for Probe Resp\n");
 
+	/* Set Assoc Response IEs to FW */
+	err = brcmf_vif_set_mgmt_ie(vif, BRCMF_VNDR_IE_ASSOCRSP_FLAG,
+				    beacon->assocresp_ies,
+				    beacon->assocresp_ies_len);
+	if (err)
+		brcmf_err("Set Assoc Resp IE Failed\n");
+	else
+		brcmf_dbg(TRACE, "Applied Vndr IEs for Assoc Resp\n");
+
+	return err;
+}
+
+static s32
+brcmf_parse_configure_security(struct brcmf_if *ifp,
+			       struct cfg80211_ap_settings *settings,
+			       enum nl80211_iftype dev_role)
+{
+	const struct brcmf_tlv *rsn_ie;
+	const struct brcmf_vs_tlv *wpa_ie;
+	s32 err = 0;
+
+	/* find the RSN_IE */
+	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
+				  settings->beacon.tail_len, WLAN_EID_RSN);
+
+	/* find the WPA_IE */
+	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
+				  settings->beacon.tail_len);
+
+	if (wpa_ie || rsn_ie) {
+		brcmf_dbg(TRACE, "WPA(2) IE is found\n");
+		if (wpa_ie) {
+			/* WPA IE */
+			err = brcmf_configure_wpaie(ifp, wpa_ie, false);
+			if (err < 0)
+				return err;
+		} else {
+			struct brcmf_vs_tlv *tmp_ie;
+
+			tmp_ie = (struct brcmf_vs_tlv *)rsn_ie;
+
+			/* RSN IE */
+			err = brcmf_configure_wpaie(ifp, tmp_ie, true);
+			if (err < 0)
+				return err;
+		}
+	} else {
+		brcmf_dbg(TRACE, "No WPA(2) IEs found\n");
+		brcmf_configure_opensecurity(ifp);
+	}
+
 	return err;
 }
 
@@ -4610,8 +4677,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	const struct brcmf_tlv *country_ie;
 	struct brcmf_ssid_le ssid_le;
 	s32 err = -EPERM;
-	const struct brcmf_tlv *rsn_ie;
-	const struct brcmf_vs_tlv *wpa_ie;
 	struct brcmf_join_params join_params;
 	enum nl80211_iftype dev_role;
 	struct brcmf_fil_bss_enable_le bss_enable;
@@ -4665,36 +4730,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_configure_arp_nd_offload(ifp, false);
 	}
 
-	/* find the RSN_IE */
-	rsn_ie = brcmf_parse_tlvs((u8 *)settings->beacon.tail,
-				  settings->beacon.tail_len, WLAN_EID_RSN);
-
-	/* find the WPA_IE */
-	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
-				  settings->beacon.tail_len);
-
-	if ((wpa_ie != NULL || rsn_ie != NULL)) {
-		brcmf_dbg(TRACE, "WPA(2) IE is found\n");
-		if (wpa_ie != NULL) {
-			/* WPA IE */
-			err = brcmf_configure_wpaie(ifp, wpa_ie, false);
-			if (err < 0)
-				goto exit;
-		} else {
-			struct brcmf_vs_tlv *tmp_ie;
-
-			tmp_ie = (struct brcmf_vs_tlv *)rsn_ie;
-
-			/* RSN IE */
-			err = brcmf_configure_wpaie(ifp, tmp_ie, true);
-			if (err < 0)
-				goto exit;
-		}
-	} else {
-		brcmf_dbg(TRACE, "No WPA(2) IEs found\n");
-		brcmf_configure_opensecurity(ifp);
-	}
-
 	/* Parameters shared by all radio interfaces */
 	if (!mbss) {
 		if ((supports_11d) && (is_11d != ifp->vif->is_11d)) {
@@ -4727,7 +4762,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 
 		if ((dev_role == NL80211_IFTYPE_AP) &&
 		    ((ifp->ifidx == 0) ||
-		     !brcmf_feat_is_enabled(ifp, BRCMF_FEAT_RSDB))) {
+		     (!brcmf_feat_is_enabled(ifp, BRCMF_FEAT_RSDB) &&
+		      !brcmf_feat_is_enabled(ifp, BRCMF_FEAT_MCHAN)))) {
 			err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_DOWN, 1);
 			if (err < 0) {
 				bphy_err(drvr, "BRCMF_C_DOWN error %d\n",
@@ -4775,6 +4811,14 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			bphy_err(drvr, "BRCMF_C_UP error (%d)\n", err);
 			goto exit;
 		}
+
+		err = brcmf_parse_configure_security(ifp, settings,
+						     NL80211_IFTYPE_AP);
+		if (err < 0) {
+			bphy_err(drvr, "brcmf_parse_configure_security error\n");
+			goto exit;
+		}
+
 		/* On DOWN the firmware removes the WEP keys, reconfigure
 		 * them if they were set.
 		 */
@@ -4807,6 +4851,14 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 				 chanspec, err);
 			goto exit;
 		}
+
+		err = brcmf_parse_configure_security(ifp, settings,
+						     NL80211_IFTYPE_P2P_GO);
+		if (err < 0) {
+			brcmf_err("brcmf_parse_configure_security error\n");
+			goto exit;
+		}
+
 		err = brcmf_fil_bsscfg_data_set(ifp, "ssid", &ssid_le,
 						sizeof(ssid_le));
 		if (err < 0) {
@@ -4979,21 +5031,15 @@ brcmf_cfg80211_change_station(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static void
-brcmf_cfg80211_mgmt_frame_register(struct wiphy *wiphy,
-				   struct wireless_dev *wdev,
-				   u16 frame_type, bool reg)
+brcmf_cfg80211_update_mgmt_frame_registrations(struct wiphy *wiphy,
+					       struct wireless_dev *wdev,
+					       struct mgmt_frame_regs *upd)
 {
 	struct brcmf_cfg80211_vif *vif;
-	u16 mgmt_type;
 
-	brcmf_dbg(TRACE, "Enter, frame_type %04x, reg=%d\n", frame_type, reg);
-
-	mgmt_type = (frame_type & IEEE80211_FCTL_STYPE) >> 4;
 	vif = container_of(wdev, struct brcmf_cfg80211_vif, wdev);
-	if (reg)
-		vif->mgmt_rx_reg |= BIT(mgmt_type);
-	else
-		vif->mgmt_rx_reg &= ~BIT(mgmt_type);
+
+	vif->mgmt_rx_reg = upd->interface_stypes;
 }
 
 
@@ -5408,7 +5454,8 @@ static struct cfg80211_ops brcmf_cfg80211_ops = {
 	.change_station = brcmf_cfg80211_change_station,
 	.sched_scan_start = brcmf_cfg80211_sched_scan_start,
 	.sched_scan_stop = brcmf_cfg80211_sched_scan_stop,
-	.mgmt_frame_register = brcmf_cfg80211_mgmt_frame_register,
+	.update_mgmt_frame_registrations =
+		brcmf_cfg80211_update_mgmt_frame_registrations,
 	.mgmt_tx = brcmf_cfg80211_mgmt_tx,
 	.remain_on_channel = brcmf_p2p_remain_on_channel,
 	.cancel_remain_on_channel = brcmf_cfg80211_cancel_remain_on_channel,
@@ -5495,7 +5542,8 @@ static bool brcmf_is_linkup(struct brcmf_cfg80211_vif *vif,
 	u32 event = e->event_code;
 	u32 status = e->status;
 
-	if (vif->profile.use_fwsup == BRCMF_PROFILE_FWSUP_PSK &&
+	if ((vif->profile.use_fwsup == BRCMF_PROFILE_FWSUP_PSK ||
+	     vif->profile.use_fwsup == BRCMF_PROFILE_FWSUP_SAE) &&
 	    event == BRCMF_E_PSK_SUP &&
 	    status == BRCMF_E_STATUS_FWSUP_COMPLETED)
 		set_bit(BRCMF_VIF_STATUS_EAP_SUCCESS, &vif->sme_state);
@@ -5571,12 +5619,151 @@ static void brcmf_clear_assoc_ies(struct brcmf_cfg80211_info *cfg)
 	conn_info->resp_ie_len = 0;
 }
 
+u8 brcmf_map_prio_to_prec(void *config, u8 prio)
+{
+	struct brcmf_cfg80211_info *cfg = (struct brcmf_cfg80211_info *)config;
+
+	if (!cfg)
+		return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
+		       (prio ^ 2) : prio;
+
+	/* For those AC(s) with ACM flag set to 1, convert its 4-level priority
+	 * to an 8-level precedence which is the same as BE's
+	 */
+	if (prio > PRIO_8021D_EE &&
+	    cfg->ac_priority[prio] == cfg->ac_priority[PRIO_8021D_BE])
+		return cfg->ac_priority[prio] * 2;
+
+	/* Conversion of 4-level priority to 8-level precedence */
+	if (prio == PRIO_8021D_BE || prio == PRIO_8021D_BK ||
+	    prio == PRIO_8021D_CL || prio == PRIO_8021D_VO)
+		return cfg->ac_priority[prio] * 2;
+	else
+		return cfg->ac_priority[prio] * 2 + 1;
+}
+
+u8 brcmf_map_prio_to_aci(void *config, u8 prio)
+{
+	/* Prio here refers to the 802.1d priority in range of 0 to 7.
+	 * ACI here refers to the WLAN AC Index in range of 0 to 3.
+	 * This function will return ACI corresponding to input prio.
+	 */
+	struct brcmf_cfg80211_info *cfg = (struct brcmf_cfg80211_info *)config;
+
+	if (cfg)
+		return cfg->ac_priority[prio];
+
+	return prio;
+}
+
+static void brcmf_init_wmm_prio(u8 *priority)
+{
+	/* Initialize AC priority array to default
+	 * 802.1d priority as per following table:
+	 * 802.1d prio 0,3 maps to BE
+	 * 802.1d prio 1,2 maps to BK
+	 * 802.1d prio 4,5 maps to VI
+	 * 802.1d prio 6,7 maps to VO
+	 */
+	priority[0] = BRCMF_FWS_FIFO_AC_BE;
+	priority[3] = BRCMF_FWS_FIFO_AC_BE;
+	priority[1] = BRCMF_FWS_FIFO_AC_BK;
+	priority[2] = BRCMF_FWS_FIFO_AC_BK;
+	priority[4] = BRCMF_FWS_FIFO_AC_VI;
+	priority[5] = BRCMF_FWS_FIFO_AC_VI;
+	priority[6] = BRCMF_FWS_FIFO_AC_VO;
+	priority[7] = BRCMF_FWS_FIFO_AC_VO;
+}
+
+static void brcmf_wifi_prioritize_acparams(const
+	struct brcmf_cfg80211_edcf_acparam *acp, u8 *priority)
+{
+	u8 aci;
+	u8 aifsn;
+	u8 ecwmin;
+	u8 ecwmax;
+	u8 acm;
+	u8 ranking_basis[EDCF_AC_COUNT];
+	u8 aci_prio[EDCF_AC_COUNT]; /* AC_BE, AC_BK, AC_VI, AC_VO */
+	u8 index;
+
+	for (aci = 0; aci < EDCF_AC_COUNT; aci++, acp++) {
+		aifsn  = acp->ACI & EDCF_AIFSN_MASK;
+		acm = (acp->ACI & EDCF_ACM_MASK) ? 1 : 0;
+		ecwmin = acp->ECW & EDCF_ECWMIN_MASK;
+		ecwmax = (acp->ECW & EDCF_ECWMAX_MASK) >> EDCF_ECWMAX_SHIFT;
+		brcmf_dbg(CONN, "ACI %d aifsn %d acm %d ecwmin %d ecwmax %d\n",
+			  aci, aifsn, acm, ecwmin, ecwmax);
+		/* Default AC_VO will be the lowest ranking value */
+		ranking_basis[aci] = aifsn + ecwmin + ecwmax;
+		/* Initialise priority starting at 0 (AC_BE) */
+		aci_prio[aci] = 0;
+
+		/* If ACM is set, STA can't use this AC as per 802.11.
+		 * Change the ranking to BE
+		 */
+		if (aci != AC_BE && aci != AC_BK && acm == 1)
+			ranking_basis[aci] = ranking_basis[AC_BE];
+	}
+
+	/* Ranking method which works for AC priority
+	 * swapping when values for cwmin, cwmax and aifsn are varied
+	 * Compare each aci_prio against each other aci_prio
+	 */
+	for (aci = 0; aci < EDCF_AC_COUNT; aci++) {
+		for (index = 0; index < EDCF_AC_COUNT; index++) {
+			if (index != aci) {
+				/* Smaller ranking value has higher priority,
+				 * so increment priority for each ACI which has
+				 * a higher ranking value
+				 */
+				if (ranking_basis[aci] < ranking_basis[index])
+					aci_prio[aci]++;
+			}
+		}
+	}
+
+	/* By now, aci_prio[] will be in range of 0 to 3.
+	 * Use ACI prio to get the new priority value for
+	 * each 802.1d traffic type, in this range.
+	 */
+	if (!(aci_prio[AC_BE] == aci_prio[AC_BK] &&
+	      aci_prio[AC_BK] == aci_prio[AC_VI] &&
+	      aci_prio[AC_VI] == aci_prio[AC_VO])) {
+		/* 802.1d 0,3 maps to BE */
+		priority[0] = aci_prio[AC_BE];
+		priority[3] = aci_prio[AC_BE];
+
+		/* 802.1d 1,2 maps to BK */
+		priority[1] = aci_prio[AC_BK];
+		priority[2] = aci_prio[AC_BK];
+
+		/* 802.1d 4,5 maps to VO */
+		priority[4] = aci_prio[AC_VI];
+		priority[5] = aci_prio[AC_VI];
+
+		/* 802.1d 6,7 maps to VO */
+		priority[6] = aci_prio[AC_VO];
+		priority[7] = aci_prio[AC_VO];
+	} else {
+		/* Initialize to default priority */
+		brcmf_init_wmm_prio(priority);
+	}
+
+	brcmf_dbg(CONN, "Adj prio BE 0->%d, BK 1->%d, BK 2->%d, BE 3->%d\n",
+		  priority[0], priority[1], priority[2], priority[3]);
+
+	brcmf_dbg(CONN, "Adj prio VI 4->%d, VI 5->%d, VO 6->%d, VO 7->%d\n",
+		  priority[4], priority[5], priority[6], priority[7]);
+}
+
 static s32 brcmf_get_assoc_ies(struct brcmf_cfg80211_info *cfg,
 			       struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = cfg->pub;
 	struct brcmf_cfg80211_assoc_ielen_le *assoc_info;
 	struct brcmf_cfg80211_connect_info *conn_info = cfg_to_conn(cfg);
+	struct brcmf_cfg80211_edcf_acparam edcf_acparam_info[EDCF_AC_COUNT];
 	u32 req_len;
 	u32 resp_len;
 	s32 err = 0;
@@ -5625,6 +5812,17 @@ static s32 brcmf_get_assoc_ies(struct brcmf_cfg80211_info *cfg,
 			    GFP_KERNEL);
 		if (!conn_info->resp_ie)
 			conn_info->resp_ie_len = 0;
+
+		err = brcmf_fil_iovar_data_get(ifp, "wme_ac_sta",
+					       edcf_acparam_info,
+					       sizeof(edcf_acparam_info));
+		if (err) {
+			brcmf_err("could not get wme_ac_sta (%d)\n", err);
+			return err;
+		}
+
+		brcmf_wifi_prioritize_acparams(edcf_acparam_info,
+					       cfg->ac_priority);
 	} else {
 		conn_info->resp_ie_len = 0;
 		conn_info->resp_ie = NULL;
@@ -6041,6 +6239,7 @@ static s32 wl_init_priv(struct brcmf_cfg80211_info *cfg)
 	mutex_init(&cfg->usr_sync);
 	brcmf_init_escan(cfg);
 	brcmf_init_conf(cfg->conf);
+	brcmf_init_wmm_prio(cfg->ac_priority);
 	init_completion(&cfg->vif_disabled);
 	return err;
 }

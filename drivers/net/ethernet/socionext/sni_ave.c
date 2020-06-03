@@ -1394,7 +1394,7 @@ static int ave_stop(struct net_device *ndev)
 	return 0;
 }
 
-static int ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+static netdev_tx_t ave_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct ave_private *priv = netdev_priv(ndev);
 	u32 proc_idx, done_idx, ndesc, cmdsts;

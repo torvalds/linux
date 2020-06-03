@@ -43,6 +43,7 @@ Hardware Monitoring Kernel Drivers
    asb100
    asc7621
    aspeed-pwm-tacho
+   bcm54140
    bel-pfe
    bt1-pvt
    coretemp

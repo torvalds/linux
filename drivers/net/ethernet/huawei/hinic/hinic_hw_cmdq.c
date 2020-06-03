@@ -64,7 +64,7 @@
 #define CMDQ_WQE_SIZE                   64
 #define CMDQ_DEPTH                      SZ_4K
 
-#define CMDQ_WQ_PAGE_SIZE               SZ_4K
+#define CMDQ_WQ_PAGE_SIZE               SZ_256K
 
 #define WQE_LCMD_SIZE                   64
 #define WQE_SCMD_SIZE                   64
@@ -705,7 +705,7 @@ static void cmdq_init_queue_ctxt(struct hinic_cmdq_ctxt *cmdq_ctxt,
 	/* The data in the HW is in Big Endian Format */
 	wq_first_page_paddr = be64_to_cpu(*wq->block_vaddr);
 
-	pfn = CMDQ_PFN(wq_first_page_paddr, wq->wq_page_size);
+	pfn = CMDQ_PFN(wq_first_page_paddr, SZ_4K);
 
 	ctxt_info->curr_wqe_page_pfn =
 		HINIC_CMDQ_CTXT_PAGE_INFO_SET(pfn, CURR_WQE_PAGE_PFN)   |
@@ -714,16 +714,19 @@ static void cmdq_init_queue_ctxt(struct hinic_cmdq_ctxt *cmdq_ctxt,
 		HINIC_CMDQ_CTXT_PAGE_INFO_SET(1, CEQ_EN)                |
 		HINIC_CMDQ_CTXT_PAGE_INFO_SET(cmdq->wrapped, WRAPPED);
 
-	/* block PFN - Read Modify Write */
-	cmdq_first_block_paddr = cmdq_pages->page_paddr;
+	if (wq->num_q_pages != 1) {
+		/* block PFN - Read Modify Write */
+		cmdq_first_block_paddr = cmdq_pages->page_paddr;
 
-	pfn = CMDQ_PFN(cmdq_first_block_paddr, wq->wq_page_size);
+		pfn = CMDQ_PFN(cmdq_first_block_paddr, wq->wq_page_size);
+	}
 
 	ctxt_info->wq_block_pfn =
 		HINIC_CMDQ_CTXT_BLOCK_INFO_SET(pfn, WQ_BLOCK_PFN) |
 		HINIC_CMDQ_CTXT_BLOCK_INFO_SET(atomic_read(&wq->cons_idx), CI);
 
 	cmdq_ctxt->func_idx = HINIC_HWIF_FUNC_IDX(cmdqs->hwif);
+	cmdq_ctxt->ppf_idx = HINIC_HWIF_PPF_IDX(cmdqs->hwif);
 	cmdq_ctxt->cmdq_type  = cmdq->cmdq_type;
 }
 
@@ -795,11 +798,6 @@ static int init_cmdqs_ctxt(struct hinic_hwdev *hwdev,
 	size_t cmdq_ctxts_size;
 	int err;
 
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI function type\n");
-		return -EINVAL;
-	}
-
 	cmdq_ctxts_size = HINIC_MAX_CMDQ_TYPES * sizeof(*cmdq_ctxts);
 	cmdq_ctxts = devm_kzalloc(&pdev->dev, cmdq_ctxts_size, GFP_KERNEL);
 	if (!cmdq_ctxts)
@@ -849,6 +847,25 @@ err_init_cmdq:
 
 	devm_kfree(&pdev->dev, cmdq_ctxts);
 	return err;
+}
+
+static int hinic_set_cmdq_depth(struct hinic_hwdev *hwdev, u16 cmdq_depth)
+{
+	struct hinic_cmd_hw_ioctxt hw_ioctxt = { 0 };
+	struct hinic_pfhwdev *pfhwdev;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	hw_ioctxt.func_idx = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	hw_ioctxt.ppf_idx = HINIC_HWIF_PPF_IDX(hwdev->hwif);
+
+	hw_ioctxt.set_cmdq_depth = HW_IOCTXT_SET_CMDQ_DEPTH_ENABLE;
+	hw_ioctxt.cmdq_depth = (u8)ilog2(cmdq_depth);
+
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				 HINIC_COMM_CMD_HWCTXT_SET,
+				 &hw_ioctxt, sizeof(hw_ioctxt), NULL,
+				 NULL, HINIC_MGMT_MSG_SYNC);
 }
 
 /**
@@ -901,7 +918,17 @@ int hinic_init_cmdqs(struct hinic_cmdqs *cmdqs, struct hinic_hwif *hwif,
 
 	hinic_ceq_register_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ, cmdqs,
 			      cmdq_ceq_handler);
+
+	err = hinic_set_cmdq_depth(hwdev, CMDQ_DEPTH);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to set cmdq depth\n");
+		goto err_set_cmdq_depth;
+	}
+
 	return 0;
+
+err_set_cmdq_depth:
+	hinic_ceq_unregister_cb(&func_to_io->ceqs, HINIC_CEQ_CMDQ);
 
 err_cmdq_ctxt:
 	hinic_wqs_cmdq_free(&cmdqs->cmdq_pages, cmdqs->saved_wqs,

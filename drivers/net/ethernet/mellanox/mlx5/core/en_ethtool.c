@@ -432,7 +432,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		*cur_params = new_channels.params;
-		mlx5e_num_channels_changed(priv);
+		err = mlx5e_num_channels_changed(priv);
 		goto out;
 	}
 
@@ -1219,7 +1219,7 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	}
 
 	if (hash_changed)
-		mlx5e_modify_tirs_hash(priv, in, inlen);
+		mlx5e_modify_tirs_hash(priv, in);
 
 	mutex_unlock(&priv->state_lock);
 

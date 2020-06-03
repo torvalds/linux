@@ -1217,33 +1217,31 @@ static int mgmt_tx_cancel_wait(struct wiphy *wiphy,
 	return 0;
 }
 
-void wilc_mgmt_frame_register(struct wiphy *wiphy, struct wireless_dev *wdev,
-			      u16 frame_type, bool reg)
+void wilc_update_mgmt_frame_registrations(struct wiphy *wiphy,
+					  struct wireless_dev *wdev,
+					  struct mgmt_frame_regs *upd)
 {
 	struct wilc *wl = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
+	u32 presp_bit = BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
+	u32 action_bit = BIT(IEEE80211_STYPE_ACTION >> 4);
 
-	if (!frame_type)
-		return;
+	if (wl->initialized) {
+		bool prev = vif->mgmt_reg_stypes & presp_bit;
+		bool now = upd->interface_stypes & presp_bit;
 
-	switch (frame_type) {
-	case IEEE80211_STYPE_PROBE_REQ:
-		vif->frame_reg[0].type = frame_type;
-		vif->frame_reg[0].reg = reg;
-		break;
+		if (now != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_PROBE_REQ, now);
 
-	case IEEE80211_STYPE_ACTION:
-		vif->frame_reg[1].type = frame_type;
-		vif->frame_reg[1].reg = reg;
-		break;
+		prev = vif->mgmt_reg_stypes & action_bit;
+		now = upd->interface_stypes & action_bit;
 
-	default:
-		break;
+		if (now != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_ACTION, now);
 	}
 
-	if (!wl->initialized)
-		return;
-	wilc_frame_register(vif, frame_type, reg);
+	vif->mgmt_reg_stypes =
+		upd->interface_stypes & (presp_bit | action_bit);
 }
 
 static int set_cqm_rssi_config(struct wiphy *wiphy, struct net_device *dev,
@@ -1665,7 +1663,7 @@ static const struct cfg80211_ops wilc_cfg80211_ops = {
 	.cancel_remain_on_channel = cancel_remain_on_channel,
 	.mgmt_tx_cancel_wait = mgmt_tx_cancel_wait,
 	.mgmt_tx = mgmt_tx,
-	.mgmt_frame_register = wilc_mgmt_frame_register,
+	.update_mgmt_frame_registrations = wilc_update_mgmt_frame_registrations,
 	.set_power_mgmt = set_power_mgmt,
 	.set_cqm_rssi_config = set_cqm_rssi_config,
 

@@ -3,9 +3,12 @@
  * Copyright 2018-2019 NXP Semiconductors
  */
 #include <linux/fsl/enetc_mdio.h>
+#include <soc/mscc/ocelot_qsys.h>
 #include <soc/mscc/ocelot_vcap.h>
+#include <soc/mscc/ocelot_ptp.h>
 #include <soc/mscc/ocelot_sys.h>
 #include <soc/mscc/ocelot.h>
+#include <net/pkt_sched.h>
 #include <linux/iopoll.h>
 #include <linux/pci.h>
 #include "felix.h"
@@ -26,6 +29,8 @@
 #define USXGMII_LPA_LNKS(lpa)		((lpa) >> 15)
 #define USXGMII_LPA_DUPLEX(lpa)		(((lpa) & GENMASK(12, 12)) >> 12)
 #define USXGMII_LPA_SPEED(lpa)		(((lpa) & GENMASK(11, 9)) >> 9)
+
+#define VSC9959_TAS_GCL_ENTRY_MAX	63
 
 enum usxgmii_speed {
 	USXGMII_SPEED_10	= 0,
@@ -202,7 +207,7 @@ static const u32 vsc9959_qsys_regmap[] = {
 	REG(QSYS_QMAXSDU_CFG_6,			0x00f62c),
 	REG(QSYS_QMAXSDU_CFG_7,			0x00f648),
 	REG(QSYS_PREEMPTION_CFG,		0x00f664),
-	REG_RESERVED(QSYS_CIR_CFG),
+	REG(QSYS_CIR_CFG,			0x000000),
 	REG(QSYS_EIR_CFG,			0x000004),
 	REG(QSYS_SE_CFG,			0x000008),
 	REG(QSYS_SE_DWRR_CFG,			0x00000c),
@@ -313,6 +318,8 @@ static const u32 vsc9959_ptp_regmap[] = {
 	REG(PTP_PIN_TOD_SEC_MSB,           0x000004),
 	REG(PTP_PIN_TOD_SEC_LSB,           0x000008),
 	REG(PTP_PIN_TOD_NSEC,              0x00000c),
+	REG(PTP_PIN_WF_HIGH_PERIOD,        0x000014),
+	REG(PTP_PIN_WF_LOW_PERIOD,         0x000018),
 	REG(PTP_CFG_MISC,                  0x0000a0),
 	REG(PTP_CLK_CFG_ADJ_CFG,           0x0000a4),
 	REG(PTP_CLK_CFG_ADJ_FREQ,          0x0000a8),
@@ -1205,6 +1212,186 @@ static void vsc9959_mdio_bus_free(struct ocelot *ocelot)
 	mdiobus_unregister(felix->imdio);
 }
 
+static void vsc9959_sched_speed_set(struct ocelot *ocelot, int port,
+				    u32 speed)
+{
+	ocelot_rmw_rix(ocelot,
+		       QSYS_TAG_CONFIG_LINK_SPEED(speed),
+		       QSYS_TAG_CONFIG_LINK_SPEED_M,
+		       QSYS_TAG_CONFIG, port);
+}
+
+static void vsc9959_new_base_time(struct ocelot *ocelot, ktime_t base_time,
+				  u64 cycle_time,
+				  struct timespec64 *new_base_ts)
+{
+	struct timespec64 ts;
+	ktime_t new_base_time;
+	ktime_t current_time;
+
+	ocelot_ptp_gettime64(&ocelot->ptp_info, &ts);
+	current_time = timespec64_to_ktime(ts);
+	new_base_time = base_time;
+
+	if (base_time < current_time) {
+		u64 nr_of_cycles = current_time - base_time;
+
+		do_div(nr_of_cycles, cycle_time);
+		new_base_time += cycle_time * (nr_of_cycles + 1);
+	}
+
+	*new_base_ts = ktime_to_timespec64(new_base_time);
+}
+
+static u32 vsc9959_tas_read_cfg_status(struct ocelot *ocelot)
+{
+	return ocelot_read(ocelot, QSYS_TAS_PARAM_CFG_CTRL);
+}
+
+static void vsc9959_tas_gcl_set(struct ocelot *ocelot, const u32 gcl_ix,
+				struct tc_taprio_sched_entry *entry)
+{
+	ocelot_write(ocelot,
+		     QSYS_GCL_CFG_REG_1_GCL_ENTRY_NUM(gcl_ix) |
+		     QSYS_GCL_CFG_REG_1_GATE_STATE(entry->gate_mask),
+		     QSYS_GCL_CFG_REG_1);
+	ocelot_write(ocelot, entry->interval, QSYS_GCL_CFG_REG_2);
+}
+
+static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
+				    struct tc_taprio_qopt_offload *taprio)
+{
+	struct timespec64 base_ts;
+	int ret, i;
+	u32 val;
+
+	if (!taprio->enable) {
+		ocelot_rmw_rix(ocelot,
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF),
+			       QSYS_TAG_CONFIG_ENABLE |
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+			       QSYS_TAG_CONFIG, port);
+
+		return 0;
+	}
+
+	if (taprio->cycle_time > NSEC_PER_SEC ||
+	    taprio->cycle_time_extension >= NSEC_PER_SEC)
+		return -EINVAL;
+
+	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX)
+		return -ERANGE;
+
+	ocelot_rmw(ocelot, QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM(port) |
+		   QSYS_TAS_PARAM_CFG_CTRL_ALWAYS_GUARD_BAND_SCH_Q,
+		   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM_M |
+		   QSYS_TAS_PARAM_CFG_CTRL_ALWAYS_GUARD_BAND_SCH_Q,
+		   QSYS_TAS_PARAM_CFG_CTRL);
+
+	/* Hardware errata -  Admin config could not be overwritten if
+	 * config is pending, need reset the TAS module
+	 */
+	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
+	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING)
+		return  -EBUSY;
+
+	ocelot_rmw_rix(ocelot,
+		       QSYS_TAG_CONFIG_ENABLE |
+		       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF) |
+		       QSYS_TAG_CONFIG_SCH_TRAFFIC_QUEUES(0xFF),
+		       QSYS_TAG_CONFIG_ENABLE |
+		       QSYS_TAG_CONFIG_INIT_GATE_STATE_M |
+		       QSYS_TAG_CONFIG_SCH_TRAFFIC_QUEUES_M,
+		       QSYS_TAG_CONFIG, port);
+
+	vsc9959_new_base_time(ocelot, taprio->base_time,
+			      taprio->cycle_time, &base_ts);
+	ocelot_write(ocelot, base_ts.tv_nsec, QSYS_PARAM_CFG_REG_1);
+	ocelot_write(ocelot, lower_32_bits(base_ts.tv_sec), QSYS_PARAM_CFG_REG_2);
+	val = upper_32_bits(base_ts.tv_sec);
+	ocelot_write(ocelot,
+		     QSYS_PARAM_CFG_REG_3_BASE_TIME_SEC_MSB(val) |
+		     QSYS_PARAM_CFG_REG_3_LIST_LENGTH(taprio->num_entries),
+		     QSYS_PARAM_CFG_REG_3);
+	ocelot_write(ocelot, taprio->cycle_time, QSYS_PARAM_CFG_REG_4);
+	ocelot_write(ocelot, taprio->cycle_time_extension, QSYS_PARAM_CFG_REG_5);
+
+	for (i = 0; i < taprio->num_entries; i++)
+		vsc9959_tas_gcl_set(ocelot, i, &taprio->entries[i]);
+
+	ocelot_rmw(ocelot, QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+		   QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+		   QSYS_TAS_PARAM_CFG_CTRL);
+
+	ret = readx_poll_timeout(vsc9959_tas_read_cfg_status, ocelot, val,
+				 !(val & QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE),
+				 10, 100000);
+
+	return ret;
+}
+
+static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
+				    struct tc_cbs_qopt_offload *cbs_qopt)
+{
+	struct ocelot *ocelot = ds->priv;
+	int port_ix = port * 8 + cbs_qopt->queue;
+	u32 rate, burst;
+
+	if (cbs_qopt->queue >= ds->num_tx_queues)
+		return -EINVAL;
+
+	if (!cbs_qopt->enable) {
+		ocelot_write_gix(ocelot, QSYS_CIR_CFG_CIR_RATE(0) |
+				 QSYS_CIR_CFG_CIR_BURST(0),
+				 QSYS_CIR_CFG, port_ix);
+
+		ocelot_rmw_gix(ocelot, 0, QSYS_SE_CFG_SE_AVB_ENA,
+			       QSYS_SE_CFG, port_ix);
+
+		return 0;
+	}
+
+	/* Rate unit is 100 kbps */
+	rate = DIV_ROUND_UP(cbs_qopt->idleslope, 100);
+	/* Avoid using zero rate */
+	rate = clamp_t(u32, rate, 1, GENMASK(14, 0));
+	/* Burst unit is 4kB */
+	burst = DIV_ROUND_UP(cbs_qopt->hicredit, 4096);
+	/* Avoid using zero burst size */
+	burst = clamp_t(u32, burst, 1, GENMASK(5, 0));
+	ocelot_write_gix(ocelot,
+			 QSYS_CIR_CFG_CIR_RATE(rate) |
+			 QSYS_CIR_CFG_CIR_BURST(burst),
+			 QSYS_CIR_CFG,
+			 port_ix);
+
+	ocelot_rmw_gix(ocelot,
+		       QSYS_SE_CFG_SE_FRM_MODE(0) |
+		       QSYS_SE_CFG_SE_AVB_ENA,
+		       QSYS_SE_CFG_SE_AVB_ENA |
+		       QSYS_SE_CFG_SE_FRM_MODE_M,
+		       QSYS_SE_CFG,
+		       port_ix);
+
+	return 0;
+}
+
+static int vsc9959_port_setup_tc(struct dsa_switch *ds, int port,
+				 enum tc_setup_type type,
+				 void *type_data)
+{
+	struct ocelot *ocelot = ds->priv;
+
+	switch (type) {
+	case TC_SETUP_QDISC_TAPRIO:
+		return vsc9959_qos_port_tas_set(ocelot, port, type_data);
+	case TC_SETUP_QDISC_CBS:
+		return vsc9959_qos_port_cbs_set(ds, port, type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 struct felix_info felix_info_vsc9959 = {
 	.target_io_res		= vsc9959_target_io_res,
 	.port_io_res		= vsc9959_port_io_res,
@@ -1220,6 +1407,7 @@ struct felix_info felix_info_vsc9959 = {
 	.shared_queue_sz	= 128 * 1024,
 	.num_mact_rows		= 2048,
 	.num_ports		= 6,
+	.num_tx_queues		= FELIX_NUM_TC,
 	.switch_pci_bar		= 4,
 	.imdio_pci_bar		= 0,
 	.mdio_bus_alloc		= vsc9959_mdio_bus_alloc,
@@ -1228,4 +1416,6 @@ struct felix_info felix_info_vsc9959 = {
 	.pcs_an_restart		= vsc9959_pcs_an_restart,
 	.pcs_link_state		= vsc9959_pcs_link_state,
 	.prevalidate_phy_mode	= vsc9959_prevalidate_phy_mode,
+	.port_setup_tc          = vsc9959_port_setup_tc,
+	.port_sched_speed_set   = vsc9959_sched_speed_set,
 };

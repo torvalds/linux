@@ -2251,6 +2251,7 @@ static void add_header(struct buffer *b, struct module *mod)
 	 * Include build-salt.h after module.h in order to
 	 * inherit the definitions.
 	 */
+	buf_printf(b, "#define INCLUDE_VERMAGIC\n");
 	buf_printf(b, "#include <linux/build-salt.h>\n");
 	buf_printf(b, "#include <linux/vermagic.h>\n");
 	buf_printf(b, "#include <linux/compiler.h>\n");

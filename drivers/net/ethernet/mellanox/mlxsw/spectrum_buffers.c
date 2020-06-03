@@ -614,7 +614,7 @@ static const struct mlxsw_sp_sb_cm mlxsw_sp2_sb_cms_egress[] = {
 #define MLXSW_SP_CPU_PORT_SB_CM MLXSW_SP_SB_CM(0, 0, MLXSW_SP_SB_POOL_EGR_CPU)
 
 static const struct mlxsw_sp_sb_cm mlxsw_sp_cpu_port_sb_cms[] = {
-	MLXSW_SP_CPU_PORT_SB_CM,
+	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),
 	MLXSW_SP_SB_CM(1000, 8, MLXSW_SP_SB_POOL_EGR_CPU),

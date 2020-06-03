@@ -765,7 +765,7 @@ void b43_pio_rx(struct b43_pio_rxqueue *q)
 	bool stop;
 
 	while (1) {
-		stop = (pio_rx_frame(q) == 0);
+		stop = !pio_rx_frame(q);
 		if (stop)
 			break;
 		cond_resched();

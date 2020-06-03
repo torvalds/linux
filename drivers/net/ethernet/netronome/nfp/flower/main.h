@@ -44,8 +44,20 @@ struct nfp_app;
 #define NFP_FL_FEATS_FLOW_MOD		BIT(5)
 #define NFP_FL_FEATS_PRE_TUN_RULES	BIT(6)
 #define NFP_FL_FEATS_IPV6_TUN		BIT(7)
-#define NFP_FL_FEATS_FLOW_MERGE		BIT(30)
-#define NFP_FL_FEATS_LAG		BIT(31)
+#define NFP_FL_FEATS_HOST_ACK		BIT(31)
+
+#define NFP_FL_ENABLE_FLOW_MERGE	BIT(0)
+#define NFP_FL_ENABLE_LAG		BIT(1)
+
+#define NFP_FL_FEATS_HOST \
+	(NFP_FL_FEATS_GENEVE | \
+	NFP_FL_NBI_MTU_SETTING | \
+	NFP_FL_FEATS_GENEVE_OPT | \
+	NFP_FL_FEATS_VLAN_PCP | \
+	NFP_FL_FEATS_VF_RLIM | \
+	NFP_FL_FEATS_FLOW_MOD | \
+	NFP_FL_FEATS_PRE_TUN_RULES | \
+	NFP_FL_FEATS_IPV6_TUN)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
@@ -145,6 +157,7 @@ struct nfp_fl_internal_ports {
  * @mask_id_seed:	Seed used for mask hash table
  * @flower_version:	HW version of flower
  * @flower_ext_feats:	Bitmap of extra features the HW supports
+ * @flower_en_feats:	Bitmap of features enabled by HW
  * @stats_ids:		List of free stats ids
  * @mask_ids:		List of free mask ids
  * @mask_table:		Hash table used to store masks
@@ -180,6 +193,7 @@ struct nfp_flower_priv {
 	u32 mask_id_seed;
 	u64 flower_version;
 	u64 flower_ext_feats;
+	u8 flower_en_feats;
 	struct nfp_fl_stats_id stats_ids;
 	struct nfp_fl_mask_id mask_ids;
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
@@ -346,7 +360,7 @@ nfp_flower_internal_port_can_offload(struct nfp_app *app,
 {
 	struct nfp_flower_priv *app_priv = app->priv;
 
-	if (!(app_priv->flower_ext_feats & NFP_FL_FEATS_FLOW_MERGE))
+	if (!(app_priv->flower_en_feats & NFP_FL_ENABLE_FLOW_MERGE))
 		return false;
 	if (!netdev->rtnl_link_ops)
 		return false;
@@ -444,9 +458,10 @@ void nfp_flower_qos_cleanup(struct nfp_app *app);
 int nfp_flower_setup_qos_offload(struct nfp_app *app, struct net_device *netdev,
 				 struct tc_cls_matchall_offload *flow);
 void nfp_flower_stats_rlim_reply(struct nfp_app *app, struct sk_buff *skb);
-int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
-				       struct net_device *netdev,
-				       unsigned long event);
+int nfp_flower_indr_setup_tc_cb(struct net_device *netdev, void *cb_priv,
+				enum tc_setup_type type, void *type_data);
+int nfp_flower_setup_indr_block_cb(enum tc_setup_type type, void *type_data,
+				   void *cb_priv);
 
 void
 __nfp_flower_non_repr_priv_get(struct nfp_flower_non_repr_priv *non_repr_priv);

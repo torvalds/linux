@@ -719,7 +719,7 @@ static int qmi_wwan_change_dtr(struct usbnet *dev, bool on)
 
 static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 {
-	int status = -1;
+	int status;
 	u8 *buf = intf->cur_altsetting->extra;
 	int len = intf->cur_altsetting->extralen;
 	struct usb_interface_descriptor *desc = &intf->cur_altsetting->desc;

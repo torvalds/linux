@@ -12,6 +12,7 @@ do {								\
 	(qinfo)->sq.bal = prefix##_ATQBAL;			\
 	(qinfo)->sq.len_mask = prefix##_ATQLEN_ATQLEN_M;	\
 	(qinfo)->sq.len_ena_mask = prefix##_ATQLEN_ATQENABLE_M;	\
+	(qinfo)->sq.len_crit_mask = prefix##_ATQLEN_ATQCRIT_M;	\
 	(qinfo)->sq.head_mask = prefix##_ATQH_ATQH_M;		\
 	(qinfo)->rq.head = prefix##_ARQH;			\
 	(qinfo)->rq.tail = prefix##_ARQT;			\
@@ -20,6 +21,7 @@ do {								\
 	(qinfo)->rq.bal = prefix##_ARQBAL;			\
 	(qinfo)->rq.len_mask = prefix##_ARQLEN_ARQLEN_M;	\
 	(qinfo)->rq.len_ena_mask = prefix##_ARQLEN_ARQENABLE_M;	\
+	(qinfo)->rq.len_crit_mask = prefix##_ARQLEN_ARQCRIT_M;	\
 	(qinfo)->rq.head_mask = prefix##_ARQH_ARQH_M;		\
 } while (0)
 
@@ -199,7 +201,9 @@ unwind_alloc_rq_bufs:
 		cq->rq.r.rq_bi[i].pa = 0;
 		cq->rq.r.rq_bi[i].size = 0;
 	}
+	cq->rq.r.rq_bi = NULL;
 	devm_kfree(ice_hw_to_dev(hw), cq->rq.dma_head);
+	cq->rq.dma_head = NULL;
 
 	return ICE_ERR_NO_MEMORY;
 }
@@ -245,7 +249,9 @@ unwind_alloc_sq_bufs:
 		cq->sq.r.sq_bi[i].pa = 0;
 		cq->sq.r.sq_bi[i].size = 0;
 	}
+	cq->sq.r.sq_bi = NULL;
 	devm_kfree(ice_hw_to_dev(hw), cq->sq.dma_head);
+	cq->sq.dma_head = NULL;
 
 	return ICE_ERR_NO_MEMORY;
 }
@@ -304,6 +310,28 @@ ice_cfg_rq_regs(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	return 0;
 }
 
+#define ICE_FREE_CQ_BUFS(hw, qi, ring)					\
+do {									\
+	int i;								\
+	/* free descriptors */						\
+	if ((qi)->ring.r.ring##_bi)					\
+		for (i = 0; i < (qi)->num_##ring##_entries; i++)	\
+			if ((qi)->ring.r.ring##_bi[i].pa) {		\
+				dmam_free_coherent(ice_hw_to_dev(hw),	\
+					(qi)->ring.r.ring##_bi[i].size,	\
+					(qi)->ring.r.ring##_bi[i].va,	\
+					(qi)->ring.r.ring##_bi[i].pa);	\
+					(qi)->ring.r.ring##_bi[i].va = NULL;\
+					(qi)->ring.r.ring##_bi[i].pa = 0;\
+					(qi)->ring.r.ring##_bi[i].size = 0;\
+		}							\
+	/* free the buffer info list */					\
+	if ((qi)->ring.cmd_buf)						\
+		devm_kfree(ice_hw_to_dev(hw), (qi)->ring.cmd_buf);	\
+	/* free DMA head */						\
+	devm_kfree(ice_hw_to_dev(hw), (qi)->ring.dma_head);		\
+} while (0)
+
 /**
  * ice_init_sq - main initialization routine for Control ATQ
  * @hw: pointer to the hardware structure
@@ -357,6 +385,7 @@ static enum ice_status ice_init_sq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	goto init_ctrlq_exit;
 
 init_ctrlq_free_rings:
+	ICE_FREE_CQ_BUFS(hw, cq, sq);
 	ice_free_cq_ring(hw, &cq->sq);
 
 init_ctrlq_exit:
@@ -416,32 +445,12 @@ static enum ice_status ice_init_rq(struct ice_hw *hw, struct ice_ctl_q_info *cq)
 	goto init_ctrlq_exit;
 
 init_ctrlq_free_rings:
+	ICE_FREE_CQ_BUFS(hw, cq, rq);
 	ice_free_cq_ring(hw, &cq->rq);
 
 init_ctrlq_exit:
 	return ret_code;
 }
-
-#define ICE_FREE_CQ_BUFS(hw, qi, ring)					\
-do {									\
-	int i;								\
-	/* free descriptors */						\
-	for (i = 0; i < (qi)->num_##ring##_entries; i++)		\
-		if ((qi)->ring.r.ring##_bi[i].pa) {			\
-			dmam_free_coherent(ice_hw_to_dev(hw),		\
-					   (qi)->ring.r.ring##_bi[i].size,\
-					   (qi)->ring.r.ring##_bi[i].va,\
-					   (qi)->ring.r.ring##_bi[i].pa);\
-			(qi)->ring.r.ring##_bi[i].va = NULL;		\
-			(qi)->ring.r.ring##_bi[i].pa = 0;		\
-			(qi)->ring.r.ring##_bi[i].size = 0;		\
-		}							\
-	/* free the buffer info list */					\
-	if ((qi)->ring.cmd_buf)						\
-		devm_kfree(ice_hw_to_dev(hw), (qi)->ring.cmd_buf);	\
-	/* free DMA head */						\
-	devm_kfree(ice_hw_to_dev(hw), (qi)->ring.dma_head);		\
-} while (0)
 
 /**
  * ice_shutdown_sq - shutdown the Control ATQ
@@ -635,72 +644,6 @@ init_ctrlq_free_sq:
 }
 
 /**
- * ice_init_all_ctrlq - main initialization routine for all control queues
- * @hw: pointer to the hardware structure
- *
- * Prior to calling this function, the driver MUST* set the following fields
- * in the cq->structure for all control queues:
- *     - cq->num_sq_entries
- *     - cq->num_rq_entries
- *     - cq->rq_buf_size
- *     - cq->sq_buf_size
- *
- * NOTE: this function does not initialize the controlq locks.
- */
-enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
-{
-	enum ice_status ret_code;
-
-	/* Init FW admin queue */
-	ret_code = ice_init_ctrlq(hw, ICE_CTL_Q_ADMIN);
-	if (ret_code)
-		return ret_code;
-
-	ret_code = ice_init_check_adminq(hw);
-	if (ret_code)
-		return ret_code;
-
-	/* Init Mailbox queue */
-	return ice_init_ctrlq(hw, ICE_CTL_Q_MAILBOX);
-}
-
-/**
- * ice_init_ctrlq_locks - Initialize locks for a control queue
- * @cq: pointer to the control queue
- *
- * Initializes the send and receive queue locks for a given control queue.
- */
-static void ice_init_ctrlq_locks(struct ice_ctl_q_info *cq)
-{
-	mutex_init(&cq->sq_lock);
-	mutex_init(&cq->rq_lock);
-}
-
-/**
- * ice_create_all_ctrlq - main initialization routine for all control queues
- * @hw: pointer to the hardware structure
- *
- * Prior to calling this function, the driver *MUST* set the following fields
- * in the cq->structure for all control queues:
- *     - cq->num_sq_entries
- *     - cq->num_rq_entries
- *     - cq->rq_buf_size
- *     - cq->sq_buf_size
- *
- * This function creates all the control queue locks and then calls
- * ice_init_all_ctrlq. It should be called once during driver load. If the
- * driver needs to re-initialize control queues at run time it should call
- * ice_init_all_ctrlq instead.
- */
-enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
-{
-	ice_init_ctrlq_locks(&hw->adminq);
-	ice_init_ctrlq_locks(&hw->mailboxq);
-
-	return ice_init_all_ctrlq(hw);
-}
-
-/**
  * ice_shutdown_ctrlq - shutdown routine for any control queue
  * @hw: pointer to the hardware structure
  * @q_type: specific Control queue type
@@ -745,13 +688,88 @@ void ice_shutdown_all_ctrlq(struct ice_hw *hw)
 }
 
 /**
+ * ice_init_all_ctrlq - main initialization routine for all control queues
+ * @hw: pointer to the hardware structure
+ *
+ * Prior to calling this function, the driver MUST* set the following fields
+ * in the cq->structure for all control queues:
+ *     - cq->num_sq_entries
+ *     - cq->num_rq_entries
+ *     - cq->rq_buf_size
+ *     - cq->sq_buf_size
+ *
+ * NOTE: this function does not initialize the controlq locks.
+ */
+enum ice_status ice_init_all_ctrlq(struct ice_hw *hw)
+{
+	enum ice_status status;
+	u32 retry = 0;
+
+	/* Init FW admin queue */
+	do {
+		status = ice_init_ctrlq(hw, ICE_CTL_Q_ADMIN);
+		if (status)
+			return status;
+
+		status = ice_init_check_adminq(hw);
+		if (status != ICE_ERR_AQ_FW_CRITICAL)
+			break;
+
+		ice_debug(hw, ICE_DBG_AQ_MSG,
+			  "Retry Admin Queue init due to FW critical error\n");
+		ice_shutdown_ctrlq(hw, ICE_CTL_Q_ADMIN);
+		msleep(ICE_CTL_Q_ADMIN_INIT_MSEC);
+	} while (retry++ < ICE_CTL_Q_ADMIN_INIT_TIMEOUT);
+
+	if (status)
+		return status;
+	/* Init Mailbox queue */
+	return ice_init_ctrlq(hw, ICE_CTL_Q_MAILBOX);
+}
+
+/**
+ * ice_init_ctrlq_locks - Initialize locks for a control queue
+ * @cq: pointer to the control queue
+ *
+ * Initializes the send and receive queue locks for a given control queue.
+ */
+static void ice_init_ctrlq_locks(struct ice_ctl_q_info *cq)
+{
+	mutex_init(&cq->sq_lock);
+	mutex_init(&cq->rq_lock);
+}
+
+/**
+ * ice_create_all_ctrlq - main initialization routine for all control queues
+ * @hw: pointer to the hardware structure
+ *
+ * Prior to calling this function, the driver *MUST* set the following fields
+ * in the cq->structure for all control queues:
+ *     - cq->num_sq_entries
+ *     - cq->num_rq_entries
+ *     - cq->rq_buf_size
+ *     - cq->sq_buf_size
+ *
+ * This function creates all the control queue locks and then calls
+ * ice_init_all_ctrlq. It should be called once during driver load. If the
+ * driver needs to re-initialize control queues at run time it should call
+ * ice_init_all_ctrlq instead.
+ */
+enum ice_status ice_create_all_ctrlq(struct ice_hw *hw)
+{
+	ice_init_ctrlq_locks(&hw->adminq);
+	ice_init_ctrlq_locks(&hw->mailboxq);
+
+	return ice_init_all_ctrlq(hw);
+}
+
+/**
  * ice_destroy_ctrlq_locks - Destroy locks for a control queue
  * @cq: pointer to the control queue
  *
  * Destroys the send and receive queue locks for a given control queue.
  */
-static void
-ice_destroy_ctrlq_locks(struct ice_ctl_q_info *cq)
+static void ice_destroy_ctrlq_locks(struct ice_ctl_q_info *cq)
 {
 	mutex_destroy(&cq->sq_lock);
 	mutex_destroy(&cq->rq_lock);
@@ -1042,9 +1060,15 @@ ice_sq_send_cmd(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 
 	/* update the error if time out occurred */
 	if (!cmd_completed) {
-		ice_debug(hw, ICE_DBG_AQ_MSG,
-			  "Control Send Queue Writeback timeout.\n");
-		status = ICE_ERR_AQ_TIMEOUT;
+		if (rd32(hw, cq->rq.len) & cq->rq.len_crit_mask ||
+		    rd32(hw, cq->sq.len) & cq->sq.len_crit_mask) {
+			ice_debug(hw, ICE_DBG_AQ_MSG, "Critical FW error.\n");
+			status = ICE_ERR_AQ_FW_CRITICAL;
+		} else {
+			ice_debug(hw, ICE_DBG_AQ_MSG,
+				  "Control Send Queue Writeback timeout.\n");
+			status = ICE_ERR_AQ_TIMEOUT;
+		}
 	}
 
 sq_send_command_error:
@@ -1128,7 +1152,7 @@ ice_clean_rq_elem(struct ice_hw *hw, struct ice_ctl_q_info *cq,
 	}
 	memcpy(&e->desc, desc, sizeof(e->desc));
 	datalen = le16_to_cpu(desc->datalen);
-	e->msg_len = min(datalen, e->buf_len);
+	e->msg_len = min_t(u16, datalen, e->buf_len);
 	if (e->msg_buf && e->msg_len)
 		memcpy(e->msg_buf, cq->rq.r.rq_bi[desc_idx].va, e->msg_len);
 

@@ -189,7 +189,7 @@ extern int printk_delay_msec;
 extern int dmesg_restrict;
 
 extern int
-devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write, void __user *buf,
+devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write, void *buf,
 			  size_t *lenp, loff_t *ppos);
 
 extern void wake_up_klogd(void);

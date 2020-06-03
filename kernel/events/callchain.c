@@ -236,7 +236,7 @@ exit_put:
  * sysctl_perf_event_max_contexts_per_stack.
  */
 int perf_event_max_stack_handler(struct ctl_table *table, int write,
-				 void __user *buffer, size_t *lenp, loff_t *ppos)
+				 void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int *value = table->data;
 	int new_value = *value, ret;

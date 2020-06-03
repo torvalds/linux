@@ -50,21 +50,6 @@ static void enetc_set_vlan_promisc(struct enetc_hw *hw, char si_map)
 	enetc_port_wr(hw, ENETC_PSIPVMR, ENETC_PSIPVMR_SET_VP(si_map) | val);
 }
 
-static bool enetc_si_vlan_promisc_is_on(struct enetc_pf *pf, int si_idx)
-{
-	return pf->vlan_promisc_simap & BIT(si_idx);
-}
-
-static bool enetc_vlan_filter_is_on(struct enetc_pf *pf)
-{
-	int i;
-
-	for_each_set_bit(i, pf->active_vlans, VLAN_N_VID)
-		return true;
-
-	return false;
-}
-
 static void enetc_enable_si_vlan_promisc(struct enetc_pf *pf, int si_idx)
 {
 	pf->vlan_promisc_simap |= BIT(si_idx);
@@ -204,6 +189,7 @@ static void enetc_pf_set_rx_mode(struct net_device *ndev)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
+	char vlan_promisc_simap = pf->vlan_promisc_simap;
 	struct enetc_hw *hw = &priv->si->hw;
 	bool uprom = false, mprom = false;
 	struct enetc_mac_filter *filter;
@@ -216,15 +202,15 @@ static void enetc_pf_set_rx_mode(struct net_device *ndev)
 		psipmr = ENETC_PSIPMR_SET_UP(0) | ENETC_PSIPMR_SET_MP(0);
 		uprom = true;
 		mprom = true;
-		/* enable VLAN promisc mode for SI0 */
-		if (!enetc_si_vlan_promisc_is_on(pf, 0))
-			enetc_enable_si_vlan_promisc(pf, 0);
-
+		/* Enable VLAN promiscuous mode for SI0 (PF) */
+		vlan_promisc_simap |= BIT(0);
 	} else if (ndev->flags & IFF_ALLMULTI) {
 		/* enable multi cast promisc mode for SI0 (PF) */
 		psipmr = ENETC_PSIPMR_SET_MP(0);
 		mprom = true;
 	}
+
+	enetc_set_vlan_promisc(&pf->si->hw, vlan_promisc_simap);
 
 	/* first 2 filter entries belong to PF */
 	if (!uprom) {
@@ -306,9 +292,6 @@ static int enetc_vlan_rx_add_vid(struct net_device *ndev, __be16 prot, u16 vid)
 	struct enetc_pf *pf = enetc_si_priv(priv->si);
 	int idx;
 
-	if (enetc_si_vlan_promisc_is_on(pf, 0))
-		enetc_disable_si_vlan_promisc(pf, 0);
-
 	__set_bit(vid, pf->active_vlans);
 
 	idx = enetc_vid_hash_idx(vid);
@@ -325,9 +308,6 @@ static int enetc_vlan_rx_del_vid(struct net_device *ndev, __be16 prot, u16 vid)
 
 	__clear_bit(vid, pf->active_vlans);
 	enetc_sync_vlan_ht_filter(pf, true);
-
-	if (!enetc_vlan_filter_is_on(pf))
-		enetc_enable_si_vlan_promisc(pf, 0);
 
 	return 0;
 }
@@ -677,6 +657,15 @@ static int enetc_pf_set_features(struct net_device *ndev,
 		enetc_enable_txvlan(&priv->si->hw, 0,
 				    !!(features & NETIF_F_HW_VLAN_CTAG_TX));
 
+	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		struct enetc_pf *pf = enetc_si_priv(priv->si);
+
+		if (!!(features & NETIF_F_HW_VLAN_CTAG_FILTER))
+			enetc_disable_si_vlan_promisc(pf, 0);
+		else
+			enetc_enable_si_vlan_promisc(pf, 0);
+	}
+
 	if (changed & NETIF_F_LOOPBACK)
 		enetc_set_loopback(ndev, !!(features & NETIF_F_LOOPBACK));
 
@@ -719,12 +708,11 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 
 	ndev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 			    NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-			    NETIF_F_LOOPBACK;
+			    NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_LOOPBACK;
 	ndev->features = NETIF_F_HIGHDMA | NETIF_F_SG |
 			 NETIF_F_RXCSUM | NETIF_F_HW_CSUM |
 			 NETIF_F_HW_VLAN_CTAG_TX |
-			 NETIF_F_HW_VLAN_CTAG_RX |
-			 NETIF_F_HW_VLAN_CTAG_FILTER;
+			 NETIF_F_HW_VLAN_CTAG_RX;
 
 	if (si->num_rss)
 		ndev->hw_features |= NETIF_F_RXHASH;
@@ -738,6 +726,12 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 
 	if (si->hw_features & ENETC_SI_F_QBV)
 		priv->active_offloads |= ENETC_F_QBV;
+
+	if (si->hw_features & ENETC_SI_F_PSFP && !enetc_psfp_enable(priv)) {
+		priv->active_offloads |= ENETC_F_QCI;
+		ndev->features |= NETIF_F_HW_TC;
+		ndev->hw_features |= NETIF_F_HW_TC;
+	}
 
 	/* pick up primary MAC address from SI */
 	enetc_get_primary_mac_addr(&si->hw, ndev->dev_addr);
