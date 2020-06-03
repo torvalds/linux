@@ -73,6 +73,7 @@ bool __rxrpc_set_call_completion(struct rxrpc_call *call,
 		call->state = RXRPC_CALL_COMPLETE;
 		trace_rxrpc_call_complete(call);
 		wake_up(&call->waitq);
+		rxrpc_notify_socket(call);
 		return true;
 	}
 	return false;
@@ -83,11 +84,13 @@ bool rxrpc_set_call_completion(struct rxrpc_call *call,
 			       u32 abort_code,
 			       int error)
 {
-	bool ret;
+	bool ret = false;
 
-	write_lock_bh(&call->state_lock);
-	ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
-	write_unlock_bh(&call->state_lock);
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		write_lock_bh(&call->state_lock);
+		ret = __rxrpc_set_call_completion(call, compl, abort_code, error);
+		write_unlock_bh(&call->state_lock);
+	}
 	return ret;
 }
 
@@ -101,11 +104,13 @@ bool __rxrpc_call_completed(struct rxrpc_call *call)
 
 bool rxrpc_call_completed(struct rxrpc_call *call)
 {
-	bool ret;
+	bool ret = false;
 
-	write_lock_bh(&call->state_lock);
-	ret = __rxrpc_call_completed(call);
-	write_unlock_bh(&call->state_lock);
+	if (call->state < RXRPC_CALL_COMPLETE) {
+		write_lock_bh(&call->state_lock);
+		ret = __rxrpc_call_completed(call);
+		write_unlock_bh(&call->state_lock);
+	}
 	return ret;
 }
 
