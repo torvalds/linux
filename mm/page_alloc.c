@@ -7704,8 +7704,7 @@ static void setup_per_zone_lowmem_reserve(void)
 				idx--;
 				lower_zone = pgdat->node_zones + idx;
 
-				if (sysctl_lowmem_reserve_ratio[idx] < 1) {
-					sysctl_lowmem_reserve_ratio[idx] = 0;
+				if (!sysctl_lowmem_reserve_ratio[idx]) {
 					lower_zone->lowmem_reserve[j] = 0;
 				} else {
 					lower_zone->lowmem_reserve[j] =
@@ -7970,7 +7969,15 @@ int sysctl_min_slab_ratio_sysctl_handler(struct ctl_table *table, int write,
 int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *table, int write,
 	void __user *buffer, size_t *length, loff_t *ppos)
 {
+	int i;
+
 	proc_dointvec_minmax(table, write, buffer, length, ppos);
+
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		if (sysctl_lowmem_reserve_ratio[i] < 1)
+			sysctl_lowmem_reserve_ratio[i] = 0;
+	}
+
 	setup_per_zone_lowmem_reserve();
 	return 0;
 }
