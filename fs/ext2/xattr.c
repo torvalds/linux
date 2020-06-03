@@ -588,7 +588,6 @@ bad_block:
 			/* Remove the old value. */
 			memmove(first_val + size, first_val, val - first_val);
 			memset(first_val, 0, size);
-			here->e_value_offs = 0;
 			min_offs += size;
 
 			/* Adjust all value offsets. */
@@ -600,6 +599,8 @@ bad_block:
 						cpu_to_le16(o + size);
 				last = EXT2_XATTR_NEXT(last);
 			}
+
+			here->e_value_offs = 0;
 		}
 		if (value == NULL) {
 			/* Remove the old name. */
