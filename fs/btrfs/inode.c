@@ -1081,8 +1081,9 @@ static noinline int cow_file_range(struct inode *inode,
 		}
 		free_extent_map(em);
 
-		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
-					       ram_size, cur_alloc_size, 0);
+		ret = btrfs_add_ordered_extent(BTRFS_I(inode), start,
+					       ins.objectid, ram_size,
+					       cur_alloc_size, 0);
 		if (ret)
 			goto out_drop_extent_cache;
 
@@ -1716,7 +1717,7 @@ out_check:
 				goto error;
 			}
 			free_extent_map(em);
-			ret = btrfs_add_ordered_extent(inode, cur_offset,
+			ret = btrfs_add_ordered_extent(BTRFS_I(inode), cur_offset,
 						       disk_bytenr, num_bytes,
 						       num_bytes,
 						       BTRFS_ORDERED_PREALLOC);
@@ -1728,7 +1729,7 @@ out_check:
 				goto error;
 			}
 		} else {
-			ret = btrfs_add_ordered_extent(inode, cur_offset,
+			ret = btrfs_add_ordered_extent(BTRFS_I(inode), cur_offset,
 						       disk_bytenr, num_bytes,
 						       num_bytes,
 						       BTRFS_ORDERED_NOCOW);

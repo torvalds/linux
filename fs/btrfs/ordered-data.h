@@ -151,7 +151,7 @@ int btrfs_dec_test_first_ordered_pending(struct inode *inode,
 				   struct btrfs_ordered_extent **cached,
 				   u64 *file_offset, u64 io_size,
 				   int uptodate);
-int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
+int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 			     u64 disk_bytenr, u64 num_bytes, u64 disk_num_bytes,
 			     int type);
 int btrfs_add_ordered_extent_dio(struct inode *inode, u64 file_offset,
