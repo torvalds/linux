@@ -2571,14 +2571,14 @@ out_free_blocks:
 	return err;
 }
 
-static noinline_for_stack
-int prealloc_file_extent_cluster(struct inode *inode,
-				 struct file_extent_cluster *cluster)
+static noinline_for_stack int prealloc_file_extent_cluster(
+				struct btrfs_inode *inode,
+				struct file_extent_cluster *cluster)
 {
 	u64 alloc_hint = 0;
 	u64 start;
 	u64 end;
-	u64 offset = BTRFS_I(inode)->index_cnt;
+	u64 offset = inode->index_cnt;
 	u64 num_bytes;
 	int nr;
 	int ret = 0;
@@ -2587,12 +2587,12 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	u64 cur_offset = prealloc_start;
 
 	BUG_ON(cluster->start != cluster->boundary[0]);
-	ret = btrfs_alloc_data_chunk_ondemand(BTRFS_I(inode),
+	ret = btrfs_alloc_data_chunk_ondemand(inode,
 					      prealloc_end + 1 - prealloc_start);
 	if (ret)
 		return ret;
 
-	inode_lock(inode);
+	inode_lock(&inode->vfs_inode);
 	for (nr = 0; nr < cluster->nr; nr++) {
 		start = cluster->boundary[nr] - offset;
 		if (nr + 1 < cluster->nr)
@@ -2600,20 +2600,20 @@ int prealloc_file_extent_cluster(struct inode *inode,
 		else
 			end = cluster->end - offset;
 
-		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
+		lock_extent(&inode->io_tree, start, end);
 		num_bytes = end + 1 - start;
-		ret = btrfs_prealloc_file_range(inode, 0, start,
+		ret = btrfs_prealloc_file_range(&inode->vfs_inode, 0, start,
 						num_bytes, num_bytes,
 						end + 1, &alloc_hint);
 		cur_offset = end + 1;
-		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
+		unlock_extent(&inode->io_tree, start, end);
 		if (ret)
 			break;
 	}
-	inode_unlock(inode);
+	inode_unlock(&inode->vfs_inode);
 
 	if (cur_offset < prealloc_end)
-		btrfs_free_reserved_data_space_noquota(btrfs_sb(inode->i_sb),
+		btrfs_free_reserved_data_space_noquota(inode->root->fs_info,
 					       prealloc_end + 1 - cur_offset);
 	return ret;
 }
@@ -2682,7 +2682,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	if (!ra)
 		return -ENOMEM;
 
-	ret = prealloc_file_extent_cluster(inode, cluster);
+	ret = prealloc_file_extent_cluster(BTRFS_I(inode), cluster);
 	if (ret)
 		goto out;
 
