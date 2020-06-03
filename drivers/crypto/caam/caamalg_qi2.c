@@ -4697,6 +4697,13 @@ static void dpaa2_dpseci_free(struct dpaa2_caam_priv *priv)
 {
 	struct device *dev = priv->dev;
 	struct fsl_mc_device *ls_dev = to_fsl_mc_device(dev);
+	int err;
+
+	if (DPSECI_VER(priv->major_ver, priv->minor_ver) > DPSECI_VER(5, 3)) {
+		err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+		if (err)
+			dev_err(dev, "dpseci_reset() failed\n");
+	}
 
 	dpaa2_dpseci_congestion_free(priv);
 	dpseci_close(priv->mc_io, 0, ls_dev->mc_handle);
@@ -4893,6 +4900,14 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 	}
 
 	dev_info(dev, "dpseci v%d.%d\n", priv->major_ver, priv->minor_ver);
+
+	if (DPSECI_VER(priv->major_ver, priv->minor_ver) > DPSECI_VER(5, 3)) {
+		err = dpseci_reset(priv->mc_io, 0, ls_dev->mc_handle);
+		if (err) {
+			dev_err(dev, "dpseci_reset() failed\n");
+			goto err_get_vers;
+		}
+	}
 
 	err = dpseci_get_attributes(priv->mc_io, 0, ls_dev->mc_handle,
 				    &priv->dpseci_attr);
