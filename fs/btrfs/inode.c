@@ -84,8 +84,8 @@ static noinline int cow_file_range(struct inode *inode,
 				   struct page *locked_page,
 				   u64 start, u64 end, int *page_started,
 				   unsigned long *nr_written, int unlock);
-static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
-				       u64 orig_start, u64 block_start,
+static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
+				       u64 len, u64 orig_start, u64 block_start,
 				       u64 block_len, u64 orig_block_len,
 				       u64 ram_bytes, int compress_type,
 				       int type);
@@ -845,7 +845,7 @@ retry:
 		 * here we're doing allocation and writeback of the
 		 * compressed pages
 		 */
-		em = create_io_em(inode, async_extent->start,
+		em = create_io_em(BTRFS_I(inode), async_extent->start,
 				  async_extent->ram_size, /* len */
 				  async_extent->start, /* orig_start */
 				  ins.objectid, /* block_start */
@@ -1064,7 +1064,7 @@ static noinline int cow_file_range(struct inode *inode,
 		extent_reserved = true;
 
 		ram_size = ins.offset;
-		em = create_io_em(inode, start, ins.offset, /* len */
+		em = create_io_em(BTRFS_I(inode), start, ins.offset, /* len */
 				  start, /* orig_start */
 				  ins.objectid, /* block_start */
 				  ins.offset, /* block_len */
@@ -1700,7 +1700,7 @@ out_check:
 			u64 orig_start = found_key.offset - extent_offset;
 			struct extent_map *em;
 
-			em = create_io_em(inode, cur_offset, num_bytes,
+			em = create_io_em(BTRFS_I(inode), cur_offset, num_bytes,
 					  orig_start,
 					  disk_bytenr, /* block_start */
 					  num_bytes, /* block_len */
@@ -6861,7 +6861,7 @@ static struct extent_map *btrfs_create_dio_extent(struct inode *inode,
 	int ret;
 
 	if (type != BTRFS_ORDERED_NOCOW) {
-		em = create_io_em(inode, start, len, orig_start,
+		em = create_io_em(BTRFS_I(inode), start, len, orig_start,
 				  block_start, block_len, orig_block_len,
 				  ram_bytes,
 				  BTRFS_COMPRESS_NONE, /* compress_type */
@@ -7140,8 +7140,8 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 }
 
 /* The callers of this must take lock_extent() */
-static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
-				       u64 orig_start, u64 block_start,
+static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
+				       u64 len, u64 orig_start, u64 block_start,
 				       u64 block_len, u64 orig_block_len,
 				       u64 ram_bytes, int compress_type,
 				       int type)
@@ -7155,7 +7155,7 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 	       type == BTRFS_ORDERED_NOCOW ||
 	       type == BTRFS_ORDERED_REGULAR);
 
-	em_tree = &BTRFS_I(inode)->extent_tree;
+	em_tree = &inode->extent_tree;
 	em = alloc_extent_map();
 	if (!em)
 		return ERR_PTR(-ENOMEM);
@@ -7177,8 +7177,8 @@ static struct extent_map *create_io_em(struct inode *inode, u64 start, u64 len,
 	}
 
 	do {
-		btrfs_drop_extent_cache(BTRFS_I(inode), em->start,
-				em->start + em->len - 1, 0);
+		btrfs_drop_extent_cache(inode, em->start,
+					em->start + em->len - 1, 0);
 		write_lock(&em_tree->lock);
 		ret = add_extent_mapping(em_tree, em, 1);
 		write_unlock(&em_tree->lock);
