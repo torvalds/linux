@@ -620,7 +620,7 @@ repeat:
 		 * area, insert that portion.
 		 */
 		if (rbase > base) {
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 			WARN_ON(nid != memblock_get_region_node(rgn));
 #endif
 			WARN_ON(flags != rgn->flags);
@@ -1197,7 +1197,6 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 	*idx = ULLONG_MAX;
 }
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /*
  * Common iterator interface used to define for_each_mem_pfn_range().
  */
@@ -1247,6 +1246,7 @@ void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 				      struct memblock_type *type, int nid)
 {
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	int start_rgn, end_rgn;
 	int i, ret;
 
@@ -1258,9 +1258,10 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
 		memblock_set_region_node(&type->regions[i], nid);
 
 	memblock_merge_regions(type);
+#endif
 	return 0;
 }
-#endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+
 #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
 /**
  * __next_mem_pfn_range_in_zone - iterator for for_each_*_range_in_zone()
@@ -1799,7 +1800,6 @@ bool __init_memblock memblock_is_map_memory(phys_addr_t addr)
 	return !memblock_is_nomap(&memblock.memory.regions[i]);
 }
 
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 			 unsigned long *start_pfn, unsigned long *end_pfn)
 {
@@ -1814,7 +1814,6 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 
 	return memblock_get_region_node(&type->regions[mid]);
 }
-#endif
 
 /**
  * memblock_is_region_memory - check if a region is a subset of memory
@@ -1905,7 +1904,7 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
 		size = rgn->size;
 		end = base + size - 1;
 		flags = rgn->flags;
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 		if (memblock_get_region_node(rgn) != MAX_NUMNODES)
 			snprintf(nid_buf, sizeof(nid_buf), " on node %d",
 				 memblock_get_region_node(rgn));

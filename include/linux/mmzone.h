@@ -876,7 +876,7 @@ extern int movable_zone;
 #ifdef CONFIG_HIGHMEM
 static inline int zone_movable_is_highmem(void)
 {
-#ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+#ifdef CONFIG_NEED_MULTIPLE_NODES
 	return movable_zone == ZONE_HIGHMEM;
 #else
 	return (ZONE_MOVABLE - 1) == ZONE_HIGHMEM;
