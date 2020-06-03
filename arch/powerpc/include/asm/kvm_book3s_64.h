@@ -635,6 +635,16 @@ extern void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
 				unsigned long gpa, unsigned long hpa,
 				unsigned long nbytes);
 
+static inline pte_t *
+find_kvm_secondary_pte_unlocked(struct kvm *kvm, unsigned long ea,
+				unsigned *hshift)
+{
+	pte_t *pte;
+
+	pte = __find_linux_pte(kvm->arch.pgtable, ea, NULL, hshift);
+	return pte;
+}
+
 static inline pte_t *find_kvm_secondary_pte(struct kvm *kvm, unsigned long ea,
 					    unsigned *hshift)
 {
