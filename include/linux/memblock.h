@@ -41,7 +41,7 @@ enum memblock_flags {
 
 /**
  * struct memblock_region - represents a memory region
- * @base: physical address of the region
+ * @base: base address of the region
  * @size: size of the region
  * @flags: memory region attributes
  * @nid: NUMA node id
@@ -75,7 +75,7 @@ struct memblock_type {
  * struct memblock - memblock allocator metadata
  * @bottom_up: is bottom up direction?
  * @current_limit: physical address of the current allocation limit
- * @memory: usabe memory regions
+ * @memory: usable memory regions
  * @reserved: reserved memory regions
  * @physmem: all physical memory
  */
