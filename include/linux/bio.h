@@ -169,6 +169,14 @@ static inline void bio_advance_iter(const struct bio *bio,
 #define bio_for_each_bvec(bvl, bio, iter)			\
 	__bio_for_each_bvec(bvl, bio, iter, (bio)->bi_iter)
 
+/*
+ * Iterate over all multi-page bvecs. Drivers shouldn't use this version for the
+ * same reasons as bio_for_each_segment_all().
+ */
+#define bio_for_each_bvec_all(bvl, bio, i)		\
+	for (i = 0, bvl = bio_first_bvec_all(bio);	\
+	     i < (bio)->bi_vcnt; i++, bvl++)		\
+
 #define bio_iter_last(bvec, iter) ((iter).bi_size == (bvec).bv_len)
 
 static inline unsigned bio_segments(struct bio *bio)
