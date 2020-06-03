@@ -787,7 +787,7 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	struct path upperpath, datapath;
 	int err;
 	char *capability = NULL;
-	ssize_t uninitialized_var(cap_size);
+	ssize_t cap_size;
 
 	ovl_path_upper(c->dentry, &upperpath);
 	if (WARN_ON(upperpath.dentry == NULL))

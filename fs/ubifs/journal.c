@@ -1222,7 +1222,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 	int aligned_dlen1, aligned_dlen2, plen = UBIFS_INO_NODE_SZ;
 	int last_reference = !!(new_inode && new_inode->i_nlink == 0);
 	int move = (old_dir != new_dir);
-	struct ubifs_inode *uninitialized_var(new_ui);
+	struct ubifs_inode *new_ui;
 	u8 hash_old_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_dir[UBIFS_HASH_ARR_SZ];
 	u8 hash_new_inode[UBIFS_HASH_ARR_SZ];
@@ -1507,7 +1507,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	union ubifs_key key, to_key;
 	struct ubifs_ino_node *ino;
 	struct ubifs_trun_node *trun;
-	struct ubifs_data_node *uninitialized_var(dn);
+	struct ubifs_data_node *dn;
 	int err, dlen, len, lnum, offs, bit, sz, sync = IS_SYNC(inode);
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	ino_t inum = inode->i_ino;

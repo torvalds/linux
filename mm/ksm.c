@@ -2387,7 +2387,7 @@ next_mm:
 static void ksm_do_scan(unsigned int scan_npages)
 {
 	struct rmap_item *rmap_item;
-	struct page *uninitialized_var(page);
+	struct page *page;
 
 	while (scan_npages-- && likely(!freezing(current))) {
 		cond_resched();

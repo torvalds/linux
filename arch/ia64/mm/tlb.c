@@ -369,7 +369,7 @@ EXPORT_SYMBOL(flush_tlb_range);
 
 void ia64_tlb_init(void)
 {
-	ia64_ptce_info_t uninitialized_var(ptce_info); /* GCC be quiet */
+	ia64_ptce_info_t ptce_info;
 	u64 tr_pgbits;
 	long status;
 	pal_vm_info_1_u_t vm_info_1;

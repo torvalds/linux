@@ -415,7 +415,7 @@ static void rk3x_i2c_handle_read(struct rk3x_i2c *i2c, unsigned int ipd)
 {
 	unsigned int i;
 	unsigned int len = i2c->msg->len - i2c->processed;
-	u32 uninitialized_var(val);
+	u32 val;
 	u8 byte;
 
 	/* we only care for MBRF here. */

@@ -1723,7 +1723,7 @@ static int noop_count(struct lock_list *entry, void *data)
 static unsigned long __lockdep_count_forward_deps(struct lock_list *this)
 {
 	unsigned long  count = 0;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 
 	__bfs_forwards(this, (void *)&count, noop_count, &target_entry);
 
@@ -1749,7 +1749,7 @@ unsigned long lockdep_count_forward_deps(struct lock_class *class)
 static unsigned long __lockdep_count_backward_deps(struct lock_list *this)
 {
 	unsigned long  count = 0;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 
 	__bfs_backwards(this, (void *)&count, noop_count, &target_entry);
 
@@ -1804,7 +1804,7 @@ check_noncircular(struct held_lock *src, struct held_lock *target,
 		  struct lock_trace **const trace)
 {
 	int ret;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 	struct lock_list src_entry = {
 		.class = hlock_class(src),
 		.parent = NULL,
@@ -1842,7 +1842,7 @@ static noinline int
 check_redundant(struct held_lock *src, struct held_lock *target)
 {
 	int ret;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 	struct lock_list src_entry = {
 		.class = hlock_class(src),
 		.parent = NULL,
@@ -2244,8 +2244,8 @@ static int check_irq_usage(struct task_struct *curr, struct held_lock *prev,
 {
 	unsigned long usage_mask = 0, forward_mask, backward_mask;
 	enum lock_usage_bit forward_bit = 0, backward_bit = 0;
-	struct lock_list *uninitialized_var(target_entry1);
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry1;
+	struct lock_list *target_entry;
 	struct lock_list this, that;
 	int ret;
 
@@ -3438,7 +3438,7 @@ check_usage_forwards(struct task_struct *curr, struct held_lock *this,
 {
 	int ret;
 	struct lock_list root;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 
 	root.parent = NULL;
 	root.class = hlock_class(this);
@@ -3465,7 +3465,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 {
 	int ret;
 	struct lock_list root;
-	struct lock_list *uninitialized_var(target_entry);
+	struct lock_list *target_entry;
 
 	root.parent = NULL;
 	root.class = hlock_class(this);

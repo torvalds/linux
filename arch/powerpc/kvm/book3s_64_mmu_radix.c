@@ -33,7 +33,7 @@ unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 					      gva_t eaddr, void *to, void *from,
 					      unsigned long n)
 {
-	int uninitialized_var(old_pid), old_lpid;
+	int old_pid, old_lpid;
 	unsigned long quadrant, ret = n;
 	bool is_load = !!to;
 

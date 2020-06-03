@@ -1110,7 +1110,7 @@ static inline u32 dp_to_sp(u64 fprd)
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
-	u64 uninitialized_var(gpr);
+	u64 gpr;
 
 	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);

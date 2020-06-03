@@ -547,9 +547,9 @@ static unsigned long exynos_dsi_pll_find_pms(struct exynos_dsi *dsi,
 	unsigned long best_freq = 0;
 	u32 min_delta = 0xffffffff;
 	u8 p_min, p_max;
-	u8 _p, uninitialized_var(best_p);
-	u16 _m, uninitialized_var(best_m);
-	u8 _s, uninitialized_var(best_s);
+	u8 _p, best_p;
+	u16 _m, best_m;
+	u8 _s, best_s;
 
 	p_min = DIV_ROUND_UP(fin, (12 * MHZ));
 	p_max = fin / (6 * MHZ);

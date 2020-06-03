@@ -2536,7 +2536,7 @@ static ssize_t devx_async_event_read(struct file *filp, char __user *buf,
 {
 	struct devx_async_event_file *ev_file = filp->private_data;
 	struct devx_event_subscription *event_sub;
-	struct devx_async_event_data *uninitialized_var(event);
+	struct devx_async_event_data *event;
 	int ret = 0;
 	size_t eventsz;
 	bool omit_data;

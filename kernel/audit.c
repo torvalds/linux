@@ -1800,7 +1800,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 {
 	struct audit_buffer *ab;
 	struct timespec64 t;
-	unsigned int uninitialized_var(serial);
+	unsigned int serial;
 
 	if (audit_initialized != AUDIT_INITIALIZED)
 		return NULL;

@@ -4707,7 +4707,7 @@ int ocfs2_insert_extent(handle_t *handle,
 			struct ocfs2_alloc_context *meta_ac)
 {
 	int status;
-	int uninitialized_var(free_records);
+	int free_records;
 	struct buffer_head *last_eb_bh = NULL;
 	struct ocfs2_insert_type insert = {0, };
 	struct ocfs2_extent_rec rec;
@@ -7051,7 +7051,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 	int need_free = 0;
 	u32 bit_off, num;
 	handle_t *handle;
-	u64 uninitialized_var(block);
+	u64 block;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;

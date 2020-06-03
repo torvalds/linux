@@ -640,7 +640,7 @@ static int rtl2832_read_status(struct dvb_frontend *fe, enum fe_status *status)
 	struct i2c_client *client = dev->client;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
-	u32 uninitialized_var(tmp);
+	u32 tmp;
 	u8 u8tmp, buf[2];
 	u16 u16tmp;
 

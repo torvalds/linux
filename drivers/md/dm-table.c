@@ -642,7 +642,7 @@ static int validate_hardware_logical_block_alignment(struct dm_table *table,
 	 */
 	unsigned short remaining = 0;
 
-	struct dm_target *uninitialized_var(ti);
+	struct dm_target *ti;
 	struct queue_limits ti_limits;
 	unsigned i;
 

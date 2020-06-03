@@ -517,8 +517,8 @@ dw_mipi_dsi_get_lane_mbps(void *priv_data, const struct drm_display_mode *mode,
 	unsigned long best_freq = 0;
 	unsigned long fvco_min, fvco_max, fin, fout;
 	unsigned int min_prediv, max_prediv;
-	unsigned int _prediv, uninitialized_var(best_prediv);
-	unsigned long _fbdiv, uninitialized_var(best_fbdiv);
+	unsigned int _prediv, best_prediv;
+	unsigned long _fbdiv, best_fbdiv;
 	unsigned long min_delta = ULONG_MAX;
 
 	dsi->format = format;

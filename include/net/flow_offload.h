@@ -305,7 +305,7 @@ flow_action_mixed_hw_stats_check(const struct flow_action *action,
 				 struct netlink_ext_ack *extack)
 {
 	const struct flow_action_entry *action_entry;
-	u8 uninitialized_var(last_hw_stats);
+	u8 last_hw_stats;
 	int i;
 
 	if (flow_offload_has_one_action(action))

@@ -1752,7 +1752,7 @@ static void writecache_writeback(struct work_struct *work)
 {
 	struct dm_writecache *wc = container_of(work, struct dm_writecache, writeback_work);
 	struct blk_plug plug;
-	struct wc_entry *f, *uninitialized_var(g), *e = NULL;
+	struct wc_entry *f, *g, *e = NULL;
 	struct rb_node *node, *next_node;
 	struct list_head skipped;
 	struct writeback_list wbl;

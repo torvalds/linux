@@ -670,7 +670,7 @@ static int tls_push_record(struct sock *sk, int flags,
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
 	struct tls_rec *rec = ctx->open_rec, *tmp = NULL;
-	u32 i, split_point, uninitialized_var(orig_end);
+	u32 i, split_point, orig_end;
 	struct sk_msg *msg_pl, *msg_en;
 	struct aead_request *req;
 	bool split;
