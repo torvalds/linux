@@ -6903,29 +6903,29 @@ static struct extent_map *btrfs_create_dio_extent(struct btrfs_inode *inode,
 	return em;
 }
 
-static struct extent_map *btrfs_new_extent_direct(struct inode *inode,
+static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
 						  u64 start, u64 len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_map *em;
 	struct btrfs_key ins;
 	u64 alloc_hint;
 	int ret;
 
-	alloc_hint = get_extent_allocation_hint(BTRFS_I(inode), start, len);
+	alloc_hint = get_extent_allocation_hint(inode, start, len);
 	ret = btrfs_reserve_extent(root, len, len, fs_info->sectorsize,
 				   0, alloc_hint, &ins, 1, 1);
 	if (ret)
 		return ERR_PTR(ret);
 
-	em = btrfs_create_dio_extent(BTRFS_I(inode), start, ins.offset, start,
+	em = btrfs_create_dio_extent(inode, start, ins.offset, start,
 				     ins.objectid, ins.offset, ins.offset,
 				     ins.offset, BTRFS_ORDERED_REGULAR);
 	btrfs_dec_block_group_reservations(fs_info, ins.objectid);
 	if (IS_ERR(em))
-		btrfs_free_reserved_extent(fs_info, ins.objectid,
-					   ins.offset, 1);
+		btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset,
+					   1);
 
 	return em;
 }
@@ -7320,7 +7320,7 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 	/* this will cow the extent */
 	len = bh_result->b_size;
 	free_extent_map(em);
-	*map = em = btrfs_new_extent_direct(inode, start, len);
+	*map = em = btrfs_new_extent_direct(BTRFS_I(inode), start, len);
 	if (IS_ERR(em)) {
 		ret = PTR_ERR(em);
 		goto out;
