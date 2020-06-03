@@ -2348,7 +2348,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 
 	fraction[0] = ap;
 	fraction[1] = fp;
-	denominator = ap + fp + 1;
+	denominator = ap + fp;
 out:
 	for_each_evictable_lru(lru) {
 		int file = is_file_lru(lru);
