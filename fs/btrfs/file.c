@@ -1710,7 +1710,7 @@ static noinline ssize_t btrfs_buffered_write(struct kiocb *iocb,
 				reserve_bytes);
 		if (ret) {
 			if (!only_release_metadata)
-				btrfs_free_reserved_data_space(inode,
+				btrfs_free_reserved_data_space(BTRFS_I(inode),
 						data_reserved, pos,
 						write_bytes);
 			else
@@ -3232,7 +3232,7 @@ reserve_space:
 	ret = btrfs_fallocate_update_isize(inode, offset + len, mode);
  out:
 	if (ret && space_reserved)
-		btrfs_free_reserved_data_space(inode, data_reserved,
+		btrfs_free_reserved_data_space(BTRFS_I(inode), data_reserved,
 					       alloc_start, bytes_to_reserve);
 	extent_changeset_free(data_reserved);
 
@@ -3397,8 +3397,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 			 * range, free reserved data space first, otherwise
 			 * it'll result in false ENOSPC error.
 			 */
-			btrfs_free_reserved_data_space(inode, data_reserved,
-					cur_offset, last_byte - cur_offset);
+			btrfs_free_reserved_data_space(BTRFS_I(inode),
+				data_reserved, cur_offset,
+				last_byte - cur_offset);
 		}
 		free_extent_map(em);
 		cur_offset = last_byte;
@@ -3415,7 +3416,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 					range->len, i_blocksize(inode),
 					offset + len, &alloc_hint);
 		else
-			btrfs_free_reserved_data_space(inode,
+			btrfs_free_reserved_data_space(BTRFS_I(inode),
 					data_reserved, range->start,
 					range->len);
 		list_del(&range->list);
@@ -3436,7 +3437,7 @@ out:
 	inode_unlock(inode);
 	/* Let go of our reservation. */
 	if (ret != 0 && !(mode & FALLOC_FL_ZERO_RANGE))
-		btrfs_free_reserved_data_space(inode, data_reserved,
+		btrfs_free_reserved_data_space(BTRFS_I(inode), data_reserved,
 				cur_offset, alloc_end - cur_offset);
 	extent_changeset_free(data_reserved);
 	return ret;

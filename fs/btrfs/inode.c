@@ -4532,8 +4532,8 @@ int btrfs_truncate_block(struct inode *inode, loff_t from, loff_t len,
 	ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode), blocksize);
 	if (ret < 0) {
 		if (!only_release_metadata)
-			btrfs_free_reserved_data_space(inode, data_reserved,
-					block_start, blocksize);
+			btrfs_free_reserved_data_space(BTRFS_I(inode),
+					data_reserved, block_start, blocksize);
 		goto out;
 	}
 again:
@@ -9772,7 +9772,7 @@ next:
 			btrfs_end_transaction(trans);
 	}
 	if (clear_offset < end)
-		btrfs_free_reserved_data_space(inode, NULL, clear_offset,
+		btrfs_free_reserved_data_space(BTRFS_I(inode), NULL, clear_offset,
 			end - clear_offset + 1);
 	return ret;
 }
