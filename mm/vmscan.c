@@ -1066,17 +1066,17 @@ static void page_check_dirty_writeback(struct page *page,
 /*
  * shrink_page_list() returns the number of reclaimed pages
  */
-static unsigned long shrink_page_list(struct list_head *page_list,
-				      struct pglist_data *pgdat,
-				      struct scan_control *sc,
-				      enum ttu_flags ttu_flags,
-				      struct reclaim_stat *stat,
-				      bool ignore_references)
+static unsigned int shrink_page_list(struct list_head *page_list,
+				     struct pglist_data *pgdat,
+				     struct scan_control *sc,
+				     enum ttu_flags ttu_flags,
+				     struct reclaim_stat *stat,
+				     bool ignore_references)
 {
 	LIST_HEAD(ret_pages);
 	LIST_HEAD(free_pages);
-	unsigned nr_reclaimed = 0;
-	unsigned pgactivate = 0;
+	unsigned int nr_reclaimed = 0;
+	unsigned int pgactivate = 0;
 
 	memset(stat, 0, sizeof(*stat));
 	cond_resched();
@@ -1487,7 +1487,7 @@ keep:
 	return nr_reclaimed;
 }
 
-unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 					    struct list_head *page_list)
 {
 	struct scan_control sc = {
@@ -1496,7 +1496,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 		.may_unmap = 1,
 	};
 	struct reclaim_stat stat;
-	unsigned long nr_reclaimed;
+	unsigned int nr_reclaimed;
 	struct page *page, *next;
 	LIST_HEAD(clean_pages);
 
@@ -1910,7 +1910,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 {
 	LIST_HEAD(page_list);
 	unsigned long nr_scanned;
-	unsigned long nr_reclaimed = 0;
+	unsigned int nr_reclaimed = 0;
 	unsigned long nr_taken;
 	struct reclaim_stat stat;
 	int file = is_file_lru(lru);
@@ -2106,7 +2106,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 unsigned long reclaim_pages(struct list_head *page_list)
 {
 	int nid = NUMA_NO_NODE;
-	unsigned long nr_reclaimed = 0;
+	unsigned int nr_reclaimed = 0;
 	LIST_HEAD(node_page_list);
 	struct reclaim_stat dummy_stat;
 	struct page *page;
