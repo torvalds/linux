@@ -207,6 +207,17 @@ struct hl_outbound_pci_region {
 };
 
 /*
+ * enum queue_cb_alloc_flags - Indicates queue support for CBs that
+ * allocated by Kernel or by User
+ * @CB_ALLOC_KERNEL: support only CBs that allocated by Kernel
+ * @CB_ALLOC_USER: support only CBs that allocated by User
+ */
+enum queue_cb_alloc_flags {
+	CB_ALLOC_KERNEL = 0x1,
+	CB_ALLOC_USER   = 0x2
+};
+
+/*
  * struct hl_hw_sob - H/W SOB info.
  * @hdev: habanalabs device structure.
  * @kref: refcount of this SOB. The SOB will reset once the refcount is zero.
@@ -223,16 +234,18 @@ struct hl_hw_sob {
 /**
  * struct hw_queue_properties - queue information.
  * @type: queue type.
+ * @queue_cb_alloc_flags: bitmap which indicates if the hw queue supports CB
+ *                        that allocated by the Kernel driver and therefore,
+ *                        a CB handle can be provided for jobs on this queue.
+ *                        Otherwise, a CB address must be provided.
  * @driver_only: true if only the driver is allowed to send a job to this queue,
  *               false otherwise.
- * @requires_kernel_cb: true if a CB handle must be provided for jobs on this
- *                      queue, false otherwise (a CB address must be provided).
  * @supports_sync_stream: True if queue supports sync stream
  */
 struct hw_queue_properties {
 	enum hl_queue_type	type;
+	enum queue_cb_alloc_flags cb_alloc_flags;
 	u8			driver_only;
-	u8			requires_kernel_cb;
 	u8			supports_sync_stream;
 };
 

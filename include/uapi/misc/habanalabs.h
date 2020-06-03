@@ -490,6 +490,22 @@ union hl_cb_args {
 	struct hl_cb_out out;
 };
 
+/* HL_CS_CHUNK_FLAGS_ values
+ *
+ * HL_CS_CHUNK_FLAGS_USER_ALLOC_CB:
+ *      Indicates if the CB was allocated and mapped by userspace.
+ *      User allocated CB is a command buffer allocated by the user, via malloc
+ *      (or similar). After allocating the CB, the user invokes “memory ioctl”
+ *      to map the user memory into a device virtual address. The user provides
+ *      this address via the cb_handle field. The interface provides the
+ *      ability to create a large CBs, Which aren’t limited to
+ *      “HL_MAX_CB_SIZE”. Therefore, it increases the PCI-DMA queues
+ *      throughput. This CB allocation method also reduces the use of Linux
+ *      DMA-able memory pool. Which are limited and used by other Linux
+ *      sub-systems.
+ */
+#define HL_CS_CHUNK_FLAGS_USER_ALLOC_CB 0x1
+
 /*
  * This structure size must always be fixed to 64-bytes for backward
  * compatibility

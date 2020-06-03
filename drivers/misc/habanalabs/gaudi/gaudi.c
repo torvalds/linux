@@ -381,23 +381,28 @@ static int gaudi_get_fixed_properties(struct hl_device *hdev)
 		if (gaudi_queue_type[i] == QUEUE_TYPE_EXT) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
 			prop->hw_queues_props[i].driver_only = 0;
-			prop->hw_queues_props[i].requires_kernel_cb = 1;
 			prop->hw_queues_props[i].supports_sync_stream = 1;
+			prop->hw_queues_props[i].cb_alloc_flags =
+				CB_ALLOC_KERNEL;
 			num_sync_stream_queues++;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_CPU) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
 			prop->hw_queues_props[i].driver_only = 1;
-			prop->hw_queues_props[i].requires_kernel_cb = 0;
 			prop->hw_queues_props[i].supports_sync_stream = 0;
+			prop->hw_queues_props[i].cb_alloc_flags =
+				CB_ALLOC_KERNEL;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_INT) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_INT;
 			prop->hw_queues_props[i].driver_only = 0;
-			prop->hw_queues_props[i].requires_kernel_cb = 0;
+			prop->hw_queues_props[i].supports_sync_stream = 0;
+			prop->hw_queues_props[i].cb_alloc_flags =
+				CB_ALLOC_USER;
 		} else if (gaudi_queue_type[i] == QUEUE_TYPE_NA) {
 			prop->hw_queues_props[i].type = QUEUE_TYPE_NA;
 			prop->hw_queues_props[i].driver_only = 0;
-			prop->hw_queues_props[i].requires_kernel_cb = 0;
 			prop->hw_queues_props[i].supports_sync_stream = 0;
+			prop->hw_queues_props[i].cb_alloc_flags =
+				CB_ALLOC_USER;
 		}
 	}
 

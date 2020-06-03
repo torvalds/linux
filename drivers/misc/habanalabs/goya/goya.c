@@ -373,20 +373,20 @@ int goya_get_fixed_properties(struct hl_device *hdev)
 	for (i = 0 ; i < NUMBER_OF_EXT_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_EXT;
 		prop->hw_queues_props[i].driver_only = 0;
-		prop->hw_queues_props[i].requires_kernel_cb = 1;
+		prop->hw_queues_props[i].cb_alloc_flags = CB_ALLOC_KERNEL;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES ; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_CPU;
 		prop->hw_queues_props[i].driver_only = 1;
-		prop->hw_queues_props[i].requires_kernel_cb = 0;
+		prop->hw_queues_props[i].cb_alloc_flags = CB_ALLOC_KERNEL;
 	}
 
 	for (; i < NUMBER_OF_EXT_HW_QUEUES + NUMBER_OF_CPU_HW_QUEUES +
 			NUMBER_OF_INT_HW_QUEUES; i++) {
 		prop->hw_queues_props[i].type = QUEUE_TYPE_INT;
 		prop->hw_queues_props[i].driver_only = 0;
-		prop->hw_queues_props[i].requires_kernel_cb = 0;
+		prop->hw_queues_props[i].cb_alloc_flags = CB_ALLOC_USER;
 	}
 
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;

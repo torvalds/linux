@@ -568,9 +568,36 @@ static int validate_queue_index(struct hl_device *hdev,
 		return -EINVAL;
 	}
 
-	*queue_type = hw_queue_prop->type;
-	*is_kernel_allocated_cb = !!hw_queue_prop->requires_kernel_cb;
+	/* When hw queue type isn't QUEUE_TYPE_HW,
+	 * USER_ALLOC_CB flag shall be referred as "don't care".
+	 */
+	if (hw_queue_prop->type == QUEUE_TYPE_HW) {
+		if (chunk->cs_chunk_flags & HL_CS_CHUNK_FLAGS_USER_ALLOC_CB) {
+			if (!(hw_queue_prop->cb_alloc_flags & CB_ALLOC_USER)) {
+				dev_err(hdev->dev,
+					"Queue index %d doesn't support user CB\n",
+					chunk->queue_index);
+				return -EINVAL;
+			}
 
+			*is_kernel_allocated_cb = false;
+		} else {
+			if (!(hw_queue_prop->cb_alloc_flags &
+					CB_ALLOC_KERNEL)) {
+				dev_err(hdev->dev,
+					"Queue index %d doesn't support kernel CB\n",
+					chunk->queue_index);
+				return -EINVAL;
+			}
+
+			*is_kernel_allocated_cb = true;
+		}
+	} else {
+		*is_kernel_allocated_cb = !!(hw_queue_prop->cb_alloc_flags
+						& CB_ALLOC_KERNEL);
+	}
+
+	*queue_type = hw_queue_prop->type;
 	return 0;
 }
 
