@@ -372,6 +372,38 @@ Contact: Laurent Pinchart, respective driver maintainers
 
 Level: Intermediate
 
+Consolidate custom driver modeset properties
+--------------------------------------------
+
+Before atomic modeset took place, many drivers where creating their own
+properties. Among other things, atomic brought the requirement that custom,
+driver specific properties should not be used.
+
+For this task, we aim to introduce core helpers or reuse the existing ones
+if available:
+
+A quick, unconfirmed, examples list.
+
+Introduce core helpers:
+- audio (amdgpu, intel, gma500, radeon)
+- brightness, contrast, etc (armada, nouveau) - overlay only (?)
+- broadcast rgb (gma500, intel)
+- colorkey (armada, nouveau, rcar) - overlay only (?)
+- dither (amdgpu, nouveau, radeon) - varies across drivers
+- underscan family (amdgpu, radeon, nouveau)
+
+Already in core:
+- colorspace (sti)
+- tv format names, enhancements (gma500, intel)
+- tv overscan, margins, etc. (gma500, intel)
+- zorder (omapdrm) - same as zpos (?)
+
+
+Contact: Emil Velikov, respective driver maintainers
+
+Level: Intermediate
+
+
 Core refactorings
 =================
 
