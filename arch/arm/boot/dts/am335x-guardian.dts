@@ -105,6 +105,7 @@
 		ti,timers = <&timer7>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dmtimer7_pins>;
+		ti,clock-source = <0x01>;
 	};
 
 	vmmcsd_fixed: regulator-3v3 {
