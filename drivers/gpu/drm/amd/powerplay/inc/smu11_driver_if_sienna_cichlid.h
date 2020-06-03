@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if 
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x30
+#define SMU11_DRIVER_IF_VERSION 0x31
 
 #define PPTABLE_Sienna_Cichlid_SMU_VERSION 4
 
@@ -914,12 +914,14 @@ typedef struct {
   uint16_t     GfxActivityLpfTau;
   uint16_t     UclkActivityLpfTau;
   uint16_t     SocketPowerLpfTau;  
+  uint16_t     VcnClkAverageLpfTau;
+  uint16_t     padding16; 
 } DriverSmuConfig_t;
 
 typedef struct {
   DriverSmuConfig_t DriverSmuConfig;
 
-  uint32_t     Spare[8];  
+  uint32_t     Spare[7];  
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
 } DriverSmuConfigExternal_t;
@@ -984,11 +986,20 @@ typedef struct {
   uint8_t D3HotEntryCountPerMode[D3HOT_SEQUENCE_COUNT];
   uint8_t D3HotExitCountPerMode[D3HOT_SEQUENCE_COUNT];
   uint8_t ArmMsgReceivedCountPerMode[D3HOT_SEQUENCE_COUNT];
+
+  //PMFW-4362
+  uint32_t EnergyAccumulator;
+  uint16_t AverageVclk0Frequency  ;
+  uint16_t AverageDclk0Frequency  ;  
+  uint16_t AverageVclk1Frequency  ;
+  uint16_t AverageDclk1Frequency  ;  
+  uint16_t VcnActivityPercentage ; //place holder, David N. to provide full sequence
+  uint16_t padding16_2;
 } SmuMetrics_t;
 
 typedef struct {
   SmuMetrics_t SmuMetrics;
-  uint32_t Spare[5];
+  uint32_t Spare[1];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use  
