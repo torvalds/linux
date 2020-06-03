@@ -989,6 +989,7 @@ static int check_vma_flags(struct vm_area_struct *vma, unsigned long gup_flags)
  * -- If nr_pages is >0, but no pages were pinned, returns -errno.
  * -- If nr_pages is >0, and some pages were pinned, returns the number of
  *    pages pinned. Again, this may be less than nr_pages.
+ * -- 0 return value is possible when the fault would need to be retried.
  *
  * The caller is responsible for releasing returned @pages, via put_page().
  *
@@ -1265,6 +1266,10 @@ retry:
 }
 EXPORT_SYMBOL_GPL(fixup_user_fault);
 
+/*
+ * Please note that this function, unlike __get_user_pages will not
+ * return 0 for nr_pages > 0 without FOLL_NOWAIT
+ */
 static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
 						struct mm_struct *mm,
 						unsigned long start,
