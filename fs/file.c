@@ -19,6 +19,7 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/rcupdate.h>
+#include <linux/close_range.h>
 
 unsigned int sysctl_nr_open __read_mostly = 1024*1024;
 unsigned int sysctl_nr_open_min = BITS_PER_LONG;
@@ -265,12 +266,22 @@ static unsigned int count_open_files(struct fdtable *fdt)
 	return i;
 }
 
+static unsigned int sane_fdtable_size(struct fdtable *fdt, unsigned int max_fds)
+{
+	unsigned int count;
+
+	count = count_open_files(fdt);
+	if (max_fds < NR_OPEN_DEFAULT)
+		max_fds = NR_OPEN_DEFAULT;
+	return min(count, max_fds);
+}
+
 /*
  * Allocate a new files structure and copy contents from the
  * passed in files structure.
  * errorp will be valid only when the returned files_struct is NULL.
  */
-struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
+struct files_struct *dup_fd(struct files_struct *oldf, unsigned int max_fds, int *errorp)
 {
 	struct files_struct *newf;
 	struct file **old_fds, **new_fds;
@@ -297,7 +308,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 
 	spin_lock(&oldf->file_lock);
 	old_fdt = files_fdtable(oldf);
-	open_files = count_open_files(old_fdt);
+	open_files = sane_fdtable_size(old_fdt, max_fds);
 
 	/*
 	 * Check whether we need to allocate a larger fd array and fd set.
@@ -328,7 +339,7 @@ struct files_struct *dup_fd(struct files_struct *oldf, int *errorp)
 		 */
 		spin_lock(&oldf->file_lock);
 		old_fdt = files_fdtable(oldf);
-		open_files = count_open_files(old_fdt);
+		open_files = sane_fdtable_size(old_fdt, max_fds);
 	}
 
 	copy_fd_bitmaps(new_fdt, old_fdt, open_files);
@@ -665,30 +676,70 @@ EXPORT_SYMBOL(__close_fd); /* for ksys_close() */
  * This closes a range of file descriptors. All file descriptors
  * from @fd up to and including @max_fd are closed.
  */
-int __close_range(struct files_struct *files, unsigned fd, unsigned max_fd)
+int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 {
 	unsigned int cur_max;
+	struct task_struct *me = current;
+	struct files_struct *cur_fds = me->files, *fds = NULL;
+
+	if (flags & ~CLOSE_RANGE_UNSHARE)
+		return -EINVAL;
 
 	if (fd > max_fd)
 		return -EINVAL;
 
 	rcu_read_lock();
-	cur_max = files_fdtable(files)->max_fds;
+	cur_max = files_fdtable(cur_fds)->max_fds;
 	rcu_read_unlock();
 
 	/* cap to last valid index into fdtable */
 	cur_max--;
 
+	if (flags & CLOSE_RANGE_UNSHARE) {
+		int ret;
+		unsigned int max_unshare_fds = NR_OPEN_MAX;
+
+		/*
+		 * If the requested range is greater than the current maximum,
+		 * we're closing everything so only copy all file descriptors
+		 * beneath the lowest file descriptor.
+		 */
+		if (max_fd >= cur_max)
+			max_unshare_fds = fd;
+
+		ret = unshare_fd(CLONE_FILES, max_unshare_fds, &fds);
+		if (ret)
+			return ret;
+
+		/*
+		 * We used to share our file descriptor table, and have now
+		 * created a private one, make sure we're using it below.
+		 */
+		if (fds)
+			swap(cur_fds, fds);
+	}
+
 	max_fd = min(max_fd, cur_max);
 	while (fd <= max_fd) {
 		struct file *file;
 
-		file = pick_file(files, fd++);
+		file = pick_file(cur_fds, fd++);
 		if (!file)
 			continue;
 
-		filp_close(file, files);
+		filp_close(file, cur_fds);
 		cond_resched();
+	}
+
+	if (fds) {
+		/*
+		 * We're done closing the files we were supposed to. Time to install
+		 * the new file descriptor table and drop the old one.
+		 */
+		task_lock(me);
+		me->files = cur_fds;
+		task_unlock(me);
+		put_files_struct(fds);
 	}
 
 	return 0;
