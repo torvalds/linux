@@ -1916,7 +1916,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	bool file = is_file_lru(lru);
 	enum vm_event_item item;
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
-	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 	bool stalled = false;
 
 	while (unlikely(too_many_isolated(pgdat, file, sc))) {
@@ -1940,7 +1939,6 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 				     &nr_scanned, sc, lru);
 
 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
-	reclaim_stat->recent_scanned[file] += nr_taken;
 	item = current_is_kswapd() ? PGSCAN_KSWAPD : PGSCAN_DIRECT;
 	if (!cgroup_reclaim(sc))
 		__count_vm_events(item, nr_scanned);
@@ -1960,8 +1958,12 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	move_pages_to_lru(lruvec, &page_list);
 
 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, -nr_taken);
-	reclaim_stat->recent_rotated[0] += stat.nr_activate[0];
-	reclaim_stat->recent_rotated[1] += stat.nr_activate[1];
+	/*
+	 * Rotating pages costs CPU without actually
+	 * progressing toward the reclaim goal.
+	 */
+	lru_note_cost(lruvec, 0, stat.nr_activate[0]);
+	lru_note_cost(lruvec, 1, stat.nr_activate[1]);
 	item = current_is_kswapd() ? PGSTEAL_KSWAPD : PGSTEAL_DIRECT;
 	if (!cgroup_reclaim(sc))
 		__count_vm_events(item, nr_reclaimed);
@@ -2013,7 +2015,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	LIST_HEAD(l_active);
 	LIST_HEAD(l_inactive);
 	struct page *page;
-	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 	unsigned nr_deactivate, nr_activate;
 	unsigned nr_rotated = 0;
 	int file = is_file_lru(lru);
@@ -2027,7 +2028,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 				     &nr_scanned, sc, lru);
 
 	__mod_node_page_state(pgdat, NR_ISOLATED_ANON + file, nr_taken);
-	reclaim_stat->recent_scanned[file] += nr_taken;
 
 	__count_vm_events(PGREFILL, nr_scanned);
 	__count_memcg_events(lruvec_memcg(lruvec), PGREFILL, nr_scanned);
@@ -2085,7 +2085,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	 * helps balance scan pressure between file and anonymous pages in
 	 * get_scan_count.
 	 */
-	reclaim_stat->recent_rotated[file] += nr_rotated;
+	lru_note_cost(lruvec, file, nr_rotated);
 
 	nr_activate = move_pages_to_lru(lruvec, &l_active);
 	nr_deactivate = move_pages_to_lru(lruvec, &l_inactive);
@@ -2242,13 +2242,13 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 {
 	struct mem_cgroup *memcg = lruvec_memcg(lruvec);
 	int swappiness = mem_cgroup_swappiness(memcg);
-	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
 	u64 fraction[2];
 	u64 denominator = 0;	/* gcc */
 	struct pglist_data *pgdat = lruvec_pgdat(lruvec);
 	unsigned long anon_prio, file_prio;
 	enum scan_balance scan_balance;
 	unsigned long anon, file;
+	unsigned long totalcost;
 	unsigned long ap, fp;
 	enum lru_list lru;
 
@@ -2324,26 +2324,26 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
 		lruvec_lru_size(lruvec, LRU_INACTIVE_FILE, MAX_NR_ZONES);
 
 	spin_lock_irq(&pgdat->lru_lock);
-	if (unlikely(reclaim_stat->recent_scanned[0] > anon / 4)) {
-		reclaim_stat->recent_scanned[0] /= 2;
-		reclaim_stat->recent_rotated[0] /= 2;
-	}
-
-	if (unlikely(reclaim_stat->recent_scanned[1] > file / 4)) {
-		reclaim_stat->recent_scanned[1] /= 2;
-		reclaim_stat->recent_rotated[1] /= 2;
+	totalcost = lruvec->anon_cost + lruvec->file_cost;
+	if (unlikely(totalcost > (anon + file) / 4)) {
+		lruvec->anon_cost /= 2;
+		lruvec->file_cost /= 2;
+		totalcost /= 2;
 	}
 
 	/*
 	 * The amount of pressure on anon vs file pages is inversely
-	 * proportional to the fraction of recently scanned pages on
-	 * each list that were recently referenced and in active use.
+	 * proportional to the assumed cost of reclaiming each list,
+	 * as determined by the share of pages that are likely going
+	 * to refault or rotate on each list (recently referenced),
+	 * times the relative IO cost of bringing back a swapped out
+	 * anonymous page vs reloading a filesystem page (swappiness).
 	 */
-	ap = anon_prio * (reclaim_stat->recent_scanned[0] + 1);
-	ap /= reclaim_stat->recent_rotated[0] + 1;
+	ap = anon_prio * (totalcost + 1);
+	ap /= lruvec->anon_cost + 1;
 
-	fp = file_prio * (reclaim_stat->recent_scanned[1] + 1);
-	fp /= reclaim_stat->recent_rotated[1] + 1;
+	fp = file_prio * (totalcost + 1);
+	fp /= lruvec->file_cost + 1;
 	spin_unlock_irq(&pgdat->lru_lock);
 
 	fraction[0] = ap;

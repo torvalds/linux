@@ -242,19 +242,6 @@ static inline bool is_active_lru(enum lru_list lru)
 	return (lru == LRU_ACTIVE_ANON || lru == LRU_ACTIVE_FILE);
 }
 
-struct zone_reclaim_stat {
-	/*
-	 * The pageout code in vmscan.c keeps track of how many of the
-	 * mem/swap backed and file backed pages are referenced.
-	 * The higher the rotated/scanned ratio, the more valuable
-	 * that cache is.
-	 *
-	 * The anon LRU stats live in [0], file LRU stats in [1]
-	 */
-	unsigned long		recent_rotated[2];
-	unsigned long		recent_scanned[2];
-};
-
 enum lruvec_flags {
 	LRUVEC_CONGESTED,		/* lruvec has many dirty pages
 					 * backed by a congested BDI
@@ -263,7 +250,13 @@ enum lruvec_flags {
 
 struct lruvec {
 	struct list_head		lists[NR_LRU_LISTS];
-	struct zone_reclaim_stat	reclaim_stat;
+	/*
+	 * These track the cost of reclaiming one LRU - file or anon -
+	 * over the other. As the observed cost of reclaiming one LRU
+	 * increases, the reclaim scan balance tips toward the other.
+	 */
+	unsigned long			anon_cost;
+	unsigned long			file_cost;
 	/* Evictions & activations on the inactive file list */
 	atomic_long_t			inactive_age;
 	/* Refaults at the time of last reclaim cycle */
