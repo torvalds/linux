@@ -29,8 +29,7 @@ struct kmem_cache;
 
 /* Cgroup-specific page state, on top of universal node page state */
 enum memcg_stat_item {
-	MEMCG_RSS = NR_VM_NODE_STAT_ITEMS,
-	MEMCG_RSS_HUGE,
+	MEMCG_RSS_HUGE = NR_VM_NODE_STAT_ITEMS,
 	MEMCG_SWAP,
 	MEMCG_SOCK,
 	/* XXX: why are these zone and not node counters? */
