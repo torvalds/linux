@@ -536,10 +536,13 @@ static int imx_mu_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto disable_runtime_pm;
 
+	clk_disable_unprepare(priv->clk);
+
 	return 0;
 
 disable_runtime_pm:
 	pm_runtime_disable(dev);
+	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -547,7 +550,6 @@ static int imx_mu_remove(struct platform_device *pdev)
 {
 	struct imx_mu_priv *priv = platform_get_drvdata(pdev);
 
-	clk_disable_unprepare(priv->clk);
 	pm_runtime_disable(priv->dev);
 
 	return 0;
@@ -595,7 +597,8 @@ static int imx_mu_suspend_noirq(struct device *dev)
 {
 	struct imx_mu_priv *priv = dev_get_drvdata(dev);
 
-	priv->xcr = imx_mu_read(priv, priv->dcfg->xCR);
+	if (!priv->clk)
+		priv->xcr = imx_mu_read(priv, priv->dcfg->xCR);
 
 	return 0;
 }
@@ -612,15 +615,38 @@ static int imx_mu_resume_noirq(struct device *dev)
 	 * send failed, may lead to system freeze. This issue
 	 * is observed by testing freeze mode suspend.
 	 */
-	if (!imx_mu_read(priv, priv->dcfg->xCR))
+	if (!imx_mu_read(priv, priv->dcfg->xCR) && !priv->clk)
 		imx_mu_write(priv, priv->xcr, priv->dcfg->xCR);
 
 	return 0;
 }
 
+static int imx_mu_runtime_suspend(struct device *dev)
+{
+	struct imx_mu_priv *priv = dev_get_drvdata(dev);
+
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
+
+static int imx_mu_runtime_resume(struct device *dev)
+{
+	struct imx_mu_priv *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		dev_err(dev, "failed to enable clock\n");
+
+	return ret;
+}
+
 static const struct dev_pm_ops imx_mu_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(imx_mu_suspend_noirq,
 				      imx_mu_resume_noirq)
+	SET_RUNTIME_PM_OPS(imx_mu_runtime_suspend,
+			   imx_mu_runtime_resume, NULL)
 };
 
 static struct platform_driver imx_mu_driver = {
