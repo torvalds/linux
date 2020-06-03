@@ -1169,7 +1169,7 @@ static int check_inode_nlink(struct bch_fs *c,
 	}
 
 	if (!S_ISDIR(u->bi_mode) && link->dir_count) {
-		need_fsck_err(c, "non directory with subdirectories",
+		need_fsck_err(c, "non directory with subdirectories (inum %llu)",
 			      u->bi_inum);
 		return 0;
 	}

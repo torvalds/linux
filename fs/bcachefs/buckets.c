@@ -918,61 +918,117 @@ static void bucket_set_stripe(struct bch_fs *c,
 	}
 }
 
-static bool bch2_mark_pointer(struct bch_fs *c,
-			      struct extent_ptr_decoded p,
-			      s64 sectors, enum bch_data_type data_type,
-			      struct bch_fs_usage *fs_usage,
-			      u64 journal_seq, unsigned flags)
+static int __mark_pointer(struct bch_fs *c, struct bkey_s_c k,
+			  struct extent_ptr_decoded p,
+			  s64 sectors, enum bch_data_type ptr_data_type,
+			  u8 bucket_gen, u8 *bucket_data_type,
+			  u16 *dirty_sectors, u16 *cached_sectors)
+{
+	u16 *dst_sectors = !p.ptr.cached
+		? dirty_sectors
+		: cached_sectors;
+	u16 orig_sectors = *dst_sectors;
+	char buf[200];
+
+	if (gen_after(p.ptr.gen, bucket_gen)) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
+			"while marking %s",
+			p.ptr.dev, PTR_BUCKET_NR(bch_dev_bkey_exists(c, p.ptr.dev), &p.ptr),
+			bucket_gen,
+			bch2_data_types[*bucket_data_type ?: ptr_data_type],
+			p.ptr.gen,
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EIO;
+	}
+
+	if (gen_cmp(bucket_gen, p.ptr.gen) >= 96U) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
+			"while marking %s",
+			p.ptr.dev, PTR_BUCKET_NR(bch_dev_bkey_exists(c, p.ptr.dev), &p.ptr),
+			bucket_gen,
+			bch2_data_types[*bucket_data_type ?: ptr_data_type],
+			p.ptr.gen,
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EIO;
+	}
+
+	if (bucket_gen != p.ptr.gen && !p.ptr.cached) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u data type %s: stale dirty ptr (gen %u)\n"
+			"while marking %s",
+			p.ptr.dev, PTR_BUCKET_NR(bch_dev_bkey_exists(c, p.ptr.dev), &p.ptr),
+			bucket_gen,
+			bch2_data_types[*bucket_data_type ?: ptr_data_type],
+			p.ptr.gen,
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EIO;
+	}
+
+	if (bucket_gen != p.ptr.gen)
+		return 1;
+
+	if (*bucket_data_type && *bucket_data_type != ptr_data_type) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
+			"while marking %s",
+			p.ptr.dev, PTR_BUCKET_NR(bch_dev_bkey_exists(c, p.ptr.dev), &p.ptr),
+			bucket_gen,
+			bch2_data_types[*bucket_data_type],
+			bch2_data_types[ptr_data_type],
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EIO;
+	}
+
+	if (checked_add(*dst_sectors, sectors)) {
+		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U16_MAX\n"
+			"while marking %s",
+			p.ptr.dev, PTR_BUCKET_NR(bch_dev_bkey_exists(c, p.ptr.dev), &p.ptr),
+			bucket_gen,
+			bch2_data_types[*bucket_data_type ?: ptr_data_type],
+			orig_sectors, sectors,
+			(bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+		return -EIO;
+	}
+
+	*bucket_data_type = *dirty_sectors || *cached_sectors
+		? ptr_data_type : 0;
+	return 0;
+}
+
+static int bch2_mark_pointer(struct bch_fs *c, struct bkey_s_c k,
+			     struct extent_ptr_decoded p,
+			     s64 sectors, enum bch_data_type data_type,
+			     struct bch_fs_usage *fs_usage,
+			     u64 journal_seq, unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
 	struct bucket_mark old, new;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct bucket *g = PTR_BUCKET(ca, &p.ptr, gc);
-	u16 *dst_sectors, orig_sectors;
-	bool overflow;
+	u8 bucket_data_type;
 	u64 v;
+	int ret;
 
 	v = atomic64_read(&g->_mark.v);
 	do {
 		new.v.counter = old.v.counter = v;
+		bucket_data_type = new.data_type;
 
-		/*
-		 * Check this after reading bucket mark to guard against
-		 * the allocator invalidating a bucket after we've already
-		 * checked the gen
-		 */
-		if (gen_after(p.ptr.gen, new.gen)) {
-			bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-				      "pointer gen in the future");
-			return true;
-		}
+		ret = __mark_pointer(c, k, p, sectors, data_type, new.gen,
+				     &bucket_data_type,
+				     &new.dirty_sectors,
+				     &new.cached_sectors);
+		if (ret)
+			return ret;
 
-		if (new.gen != p.ptr.gen) {
-			/* XXX write repair code for this */
-			if (!p.ptr.cached &&
-			    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
-				bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-					      "stale dirty pointer");
-			return true;
-		}
+		new.data_type = bucket_data_type;
 
-		dst_sectors = !p.ptr.cached
-			? &new.dirty_sectors
-			: &new.cached_sectors;
-		orig_sectors = *dst_sectors;
-
-		overflow = checked_add(*dst_sectors, sectors);
-
-		if (!new.dirty_sectors &&
-		    !new.cached_sectors) {
-			new.data_type	= 0;
-
-			if (journal_seq) {
-				new.journal_seq_valid = 1;
-				new.journal_seq = journal_seq;
-			}
-		} else {
-			new.data_type = data_type;
+		if (journal_seq) {
+			new.journal_seq_valid = 1;
+			new.journal_seq = journal_seq;
 		}
 
 		if (flags & BTREE_TRIGGER_NOATOMIC) {
@@ -983,25 +1039,11 @@ static bool bch2_mark_pointer(struct bch_fs *c,
 			      old.v.counter,
 			      new.v.counter)) != old.v.counter);
 
-	if (old.data_type && old.data_type != data_type)
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s",
-			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-			new.gen,
-			bch2_data_types[old.data_type],
-			bch2_data_types[data_type]);
-
-	bch2_fs_inconsistent_on(overflow, c,
-		"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U16_MAX",
-		p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), new.gen,
-		bch2_data_types[old.data_type ?: data_type],
-		orig_sectors, sectors);
-
 	bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 
 	BUG_ON(!gc && bucket_became_unavailable(old, new));
 
-	return false;
+	return 0;
 }
 
 static int bch2_mark_stripe_ptr(struct bch_fs *c,
@@ -1065,6 +1107,7 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	struct extent_ptr_decoded p;
 	struct bch_replicas_padded r;
 	s64 dirty_sectors = 0;
+	bool stale;
 	int ret;
 
 	r.e.data_type	= data_type;
@@ -1077,8 +1120,13 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		s64 disk_sectors = data_type == BCH_DATA_BTREE
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
-		bool stale = bch2_mark_pointer(c, p, disk_sectors, data_type,
-					       fs_usage, journal_seq, flags);
+
+		ret = bch2_mark_pointer(c, k, p, disk_sectors, data_type,
+					fs_usage, journal_seq, flags);
+		if (ret < 0)
+			return ret;
+
+		stale = ret > 0;
 
 		if (p.ptr.cached) {
 			if (!stale)
@@ -1439,25 +1487,24 @@ static int trans_get_key(struct btree_trans *trans,
 }
 
 static int bch2_trans_mark_pointer(struct btree_trans *trans,
-			struct extent_ptr_decoded p,
+			struct bkey_s_c k, struct extent_ptr_decoded p,
 			s64 sectors, enum bch_data_type data_type)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 	struct btree_iter *iter;
-	struct bkey_s_c k;
+	struct bkey_s_c k_a;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
-	u16 *dst_sectors, orig_sectors;
 	int ret;
 
 	ret = trans_get_key(trans, BTREE_ID_ALLOC,
 			    POS(p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr)),
-			    &iter, &k);
+			    &iter, &k_a);
 	if (ret < 0)
 		return ret;
 
-	if (k.k->type != KEY_TYPE_alloc ||
+	if (k_a.k->type != KEY_TYPE_alloc ||
 	    (!ret && unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags)))) {
 		/*
 		 * During journal replay, and if gc repairs alloc info at
@@ -1474,71 +1521,13 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 		u	= alloc_mem_to_key(g, m);
 		percpu_up_read(&c->mark_lock);
 	} else {
-		u = bch2_alloc_unpack(k);
+		u = bch2_alloc_unpack(k_a);
 	}
 
-	if (u.gen != p.ptr.gen) {
-		ret = 1;
-
-		if (gen_after(p.ptr.gen, u.gen)) {
-			bch2_fs_inconsistent(c,
-				      "bucket %llu:%llu gen %u data type %s: ptr gen %u newer than bucket gen",
-				      iter->pos.inode, iter->pos.offset, u.gen,
-				      bch2_data_types[u.data_type ?: data_type],
-				      p.ptr.gen);
-			ret = -EIO;
-		}
-
-		if (gen_cmp(u.gen, p.ptr.gen) >= 96U) {
-			bch2_fs_inconsistent(c,
-				      "bucket %llu:%llu gen %u data type %s: ptr gen %u too stale",
-				      iter->pos.inode, iter->pos.offset, u.gen,
-				      bch2_data_types[u.data_type ?: data_type],
-				      p.ptr.gen);
-			ret = -EIO;
-		}
-
-		if (!p.ptr.cached) {
-			bch2_fs_inconsistent(c,
-				      "bucket %llu:%llu gen %u data type %s: stale dirty ptr (gen %u)",
-				      iter->pos.inode, iter->pos.offset, u.gen,
-				      bch2_data_types[u.data_type ?: data_type],
-				      p.ptr.gen);
-			ret = -EIO;
-		}
-
+	ret = __mark_pointer(c, k, p, sectors, data_type, u.gen, &u.data_type,
+			     &u.dirty_sectors, &u.cached_sectors);
+	if (ret)
 		goto out;
-	}
-
-	if (u.data_type && u.data_type != data_type) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s",
-			iter->pos.inode, iter->pos.offset,
-			u.gen,
-			bch2_data_types[u.data_type],
-			bch2_data_types[data_type]);
-		ret = -1;
-		goto out;
-	}
-
-	dst_sectors = !p.ptr.cached
-		? &u.dirty_sectors
-		: &u.cached_sectors;
-	orig_sectors = *dst_sectors;
-
-	if (checked_add(*dst_sectors, sectors)) {
-		bch2_fs_inconsistent(c,
-			"bucket %llu:%llu gen %u data type %s sector count overflow: %u + %lli > U16_MAX",
-			iter->pos.inode, iter->pos.offset, u.gen,
-			bch2_data_types[u.data_type ?: data_type],
-			orig_sectors, sectors);
-		/* return an error indicating that we need full fsck */
-		ret = -EIO;
-		goto out;
-	}
-
-	u.data_type = u.dirty_sectors || u.cached_sectors
-		? data_type : 0;
 
 	a = bch2_trans_kmalloc(trans, BKEY_ALLOC_U64s_MAX * 8);
 	ret = PTR_ERR_OR_ZERO(a);
@@ -1623,7 +1612,7 @@ static int bch2_trans_mark_extent(struct btree_trans *trans,
 			? sectors
 			: ptr_disk_sectors_delta(p, offset, sectors, flags);
 
-		ret = bch2_trans_mark_pointer(trans, p, disk_sectors,
+		ret = bch2_trans_mark_pointer(trans, k, p, disk_sectors,
 					      data_type);
 		if (ret < 0)
 			return ret;

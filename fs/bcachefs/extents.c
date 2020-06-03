@@ -219,7 +219,7 @@ void bch2_btree_ptr_v2_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 
-	pr_buf(out, "seq %llu sectors %u written %u min_key ",
+	pr_buf(out, "seq %llx sectors %u written %u min_key ",
 	       le64_to_cpu(bp.v->seq),
 	       le16_to_cpu(bp.v->sectors),
 	       le16_to_cpu(bp.v->sectors_written));

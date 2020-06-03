@@ -102,6 +102,7 @@ struct fsck_err_state {
 #define FSCK_CAN_IGNORE		(1 << 1)
 #define FSCK_NEED_FSCK		(1 << 2)
 
+__printf(3, 4) __cold
 enum fsck_err_ret bch2_fsck_err(struct bch_fs *,
 				unsigned, const char *, ...);
 void bch2_flush_fsck_errs(struct bch_fs *);

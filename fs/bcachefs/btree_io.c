@@ -631,14 +631,14 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 			  struct btree *b, struct bset *i,
 			  unsigned offset, int write)
 {
-	pr_buf(out, "error validating btree node %s"
-	       "at btree %u level %u/%u\n"
-	       "pos %llu:%llu node offset %u",
+	pr_buf(out, "error validating btree node %sat btree %u level %u/%u\n"
+	       "pos ",
 	       write ? "before write " : "",
 	       b->c.btree_id, b->c.level,
-	       c->btree_roots[b->c.btree_id].level,
-	       b->key.k.p.inode, b->key.k.p.offset,
-	       b->written);
+	       c->btree_roots[b->c.btree_id].level);
+	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
+
+	pr_buf(out, " node offset %u", b->written);
 	if (i)
 		pr_buf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 }
@@ -944,7 +944,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct btree *b, bool have_retry
 
 		btree_err_on(b->data->keys.seq != bp->seq,
 			     BTREE_ERR_MUST_RETRY, c, b, NULL,
-			     "got wrong btree node");
+			     "got wrong btree node (seq %llx want %llx)",
+			     b->data->keys.seq, bp->seq);
 	}
 
 	while (b->written < c->opts.btree_node_size) {
