@@ -1370,15 +1370,15 @@ static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
 	return 1;
 }
 
-static int fallback_to_cow(struct inode *inode, struct page *locked_page,
+static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 			   const u64 start, const u64 end,
 			   int *page_started, unsigned long *nr_written)
 {
-	const bool is_space_ino = btrfs_is_free_space_inode(BTRFS_I(inode));
-	const bool is_reloc_ino = (BTRFS_I(inode)->root->root_key.objectid ==
+	const bool is_space_ino = btrfs_is_free_space_inode(inode);
+	const bool is_reloc_ino = (inode->root->root_key.objectid ==
 				   BTRFS_DATA_RELOC_TREE_OBJECTID);
 	const u64 range_bytes = end + 1 - start;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_io_tree *io_tree = &inode->io_tree;
 	u64 range_start = start;
 	u64 count;
 
@@ -1418,7 +1418,7 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 				 EXTENT_NORESERVE, 0);
 	if (count > 0 || is_space_ino || is_reloc_ino) {
 		u64 bytes = count;
-		struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
+		struct btrfs_fs_info *fs_info = inode->root->fs_info;
 		struct btrfs_space_info *sinfo = fs_info->data_sinfo;
 
 		if (is_space_ino || is_reloc_ino)
@@ -1433,8 +1433,8 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 					 0, 0, NULL);
 	}
 
-	return cow_file_range(BTRFS_I(inode), locked_page, start, end,
-			      page_started, nr_written, 1);
+	return cow_file_range(inode, locked_page, start, end, page_started,
+			      nr_written, 1);
 }
 
 /*
@@ -1685,8 +1685,8 @@ out_check:
 		 * NOCOW, following one which needs to be COW'ed
 		 */
 		if (cow_start != (u64)-1) {
-			ret = fallback_to_cow(inode, locked_page, cow_start,
-					      found_key.offset - 1,
+			ret = fallback_to_cow(BTRFS_I(inode), locked_page,
+					      cow_start, found_key.offset - 1,
 					      page_started, nr_written);
 			if (ret)
 				goto error;
@@ -1769,8 +1769,8 @@ out_check:
 
 	if (cow_start != (u64)-1) {
 		cur_offset = end;
-		ret = fallback_to_cow(inode, locked_page, cow_start, end,
-				      page_started, nr_written);
+		ret = fallback_to_cow(BTRFS_I(inode), locked_page, cow_start,
+				      end, page_started, nr_written);
 		if (ret)
 			goto error;
 	}
