@@ -2993,6 +2993,7 @@ static int io_fallocate(struct io_kiocb *req, bool force_nonblock)
 static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	const char __user *fname;
+	u64 flags, mode;
 	int ret;
 
 	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
@@ -3004,13 +3005,14 @@ static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (req->flags & REQ_F_NEED_CLEANUP)
 		return 0;
 
-	req->open.dfd = READ_ONCE(sqe->fd);
-	req->open.how.mode = READ_ONCE(sqe->len);
-	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	req->open.how.flags = READ_ONCE(sqe->open_flags);
+	mode = READ_ONCE(sqe->len);
+	flags = READ_ONCE(sqe->open_flags);
 	if (force_o_largefile())
-		req->open.how.flags |= O_LARGEFILE;
+		flags |= O_LARGEFILE;
+	req->open.how = build_open_how(flags, mode);
 
+	req->open.dfd = READ_ONCE(sqe->fd);
+	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	req->open.filename = getname(fname);
 	if (IS_ERR(req->open.filename)) {
 		ret = PTR_ERR(req->open.filename);
@@ -3104,7 +3106,6 @@ err:
 
 static int io_openat(struct io_kiocb *req, bool force_nonblock)
 {
-	req->open.how = build_open_how(req->open.how.flags, req->open.how.mode);
 	return io_openat2(req, force_nonblock);
 }
 
