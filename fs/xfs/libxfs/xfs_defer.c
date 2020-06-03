@@ -178,6 +178,18 @@ static const struct xfs_defer_op_type *defer_op_types[] = {
 	[XFS_DEFER_OPS_TYPE_AGFL_FREE]	= &xfs_agfl_free_defer_type,
 };
 
+static void
+xfs_defer_create_intent(
+	struct xfs_trans		*tp,
+	struct xfs_defer_pending	*dfp,
+	bool				sort)
+{
+	const struct xfs_defer_op_type	*ops = defer_op_types[dfp->dfp_type];
+
+	dfp->dfp_intent = ops->create_intent(tp, &dfp->dfp_work,
+			dfp->dfp_count, sort);
+}
+
 /*
  * For each pending item in the intake list, log its intent item and the
  * associated extents, then add the entire intake list to the end of
@@ -187,17 +199,11 @@ STATIC void
 xfs_defer_create_intents(
 	struct xfs_trans		*tp)
 {
-	struct list_head		*li;
 	struct xfs_defer_pending	*dfp;
-	const struct xfs_defer_op_type	*ops;
 
 	list_for_each_entry(dfp, &tp->t_dfops, dfp_list) {
-		ops = defer_op_types[dfp->dfp_type];
-		dfp->dfp_intent = ops->create_intent(tp, dfp->dfp_count);
 		trace_xfs_defer_create_intent(tp->t_mountp, dfp);
-		list_sort(tp->t_mountp, &dfp->dfp_work, ops->diff_items);
-		list_for_each(li, &dfp->dfp_work)
-			ops->log_item(tp, dfp->dfp_intent, li);
+		xfs_defer_create_intent(tp, dfp, true);
 	}
 }
 
@@ -234,9 +240,12 @@ xfs_defer_trans_roll(
 	struct xfs_log_item		*lip;
 	struct xfs_buf			*bplist[XFS_DEFER_OPS_NR_BUFS];
 	struct xfs_inode		*iplist[XFS_DEFER_OPS_NR_INODES];
+	unsigned int			ordered = 0; /* bitmap */
 	int				bpcount = 0, ipcount = 0;
 	int				i;
 	int				error;
+
+	BUILD_BUG_ON(NBBY * sizeof(ordered) < XFS_DEFER_OPS_NR_BUFS);
 
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		switch (lip->li_type) {
@@ -248,7 +257,10 @@ xfs_defer_trans_roll(
 					ASSERT(0);
 					return -EFSCORRUPTED;
 				}
-				xfs_trans_dirty_buf(tp, bli->bli_buf);
+				if (bli->bli_flags & XFS_BLI_ORDERED)
+					ordered |= (1U << bpcount);
+				else
+					xfs_trans_dirty_buf(tp, bli->bli_buf);
 				bplist[bpcount++] = bli->bli_buf;
 			}
 			break;
@@ -289,6 +301,8 @@ xfs_defer_trans_roll(
 	/* Rejoin the buffers and dirty them so the log moves forward. */
 	for (i = 0; i < bpcount; i++) {
 		xfs_trans_bjoin(tp, bplist[i]);
+		if (ordered & (1U << i))
+			xfs_trans_ordered_buf(tp, bplist[i]);
 		xfs_trans_bhold(tp, bplist[i]);
 	}
 
@@ -346,6 +360,53 @@ xfs_defer_cancel_list(
 }
 
 /*
+ * Log an intent-done item for the first pending intent, and finish the work
+ * items.
+ */
+static int
+xfs_defer_finish_one(
+	struct xfs_trans		*tp,
+	struct xfs_defer_pending	*dfp)
+{
+	const struct xfs_defer_op_type	*ops = defer_op_types[dfp->dfp_type];
+	struct xfs_btree_cur		*state = NULL;
+	struct list_head		*li, *n;
+	int				error;
+
+	trace_xfs_defer_pending_finish(tp->t_mountp, dfp);
+
+	dfp->dfp_done = ops->create_done(tp, dfp->dfp_intent, dfp->dfp_count);
+	list_for_each_safe(li, n, &dfp->dfp_work) {
+		list_del(li);
+		dfp->dfp_count--;
+		error = ops->finish_item(tp, dfp->dfp_done, li, &state);
+		if (error == -EAGAIN) {
+			/*
+			 * Caller wants a fresh transaction; put the work item
+			 * back on the list and log a new log intent item to
+			 * replace the old one.  See "Requesting a Fresh
+			 * Transaction while Finishing Deferred Work" above.
+			 */
+			list_add(li, &dfp->dfp_work);
+			dfp->dfp_count++;
+			dfp->dfp_done = NULL;
+			xfs_defer_create_intent(tp, dfp, false);
+		}
+
+		if (error)
+			goto out;
+	}
+
+	/* Done with the dfp, free it. */
+	list_del(&dfp->dfp_list);
+	kmem_free(dfp);
+out:
+	if (ops->finish_cleanup)
+		ops->finish_cleanup(tp, state, error);
+	return error;
+}
+
+/*
  * Finish all the pending work.  This involves logging intent items for
  * any work items that wandered in since the last transaction roll (if
  * one has even happened), rolling the transaction, and finishing the
@@ -358,11 +419,7 @@ xfs_defer_finish_noroll(
 	struct xfs_trans		**tp)
 {
 	struct xfs_defer_pending	*dfp;
-	struct list_head		*li;
-	struct list_head		*n;
-	void				*state;
 	int				error = 0;
-	const struct xfs_defer_op_type	*ops;
 	LIST_HEAD(dop_pending);
 
 	ASSERT((*tp)->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -371,87 +428,30 @@ xfs_defer_finish_noroll(
 
 	/* Until we run out of pending work to finish... */
 	while (!list_empty(&dop_pending) || !list_empty(&(*tp)->t_dfops)) {
-		/* log intents and pull in intake items */
 		xfs_defer_create_intents(*tp);
 		list_splice_tail_init(&(*tp)->t_dfops, &dop_pending);
 
-		/*
-		 * Roll the transaction.
-		 */
 		error = xfs_defer_trans_roll(tp);
 		if (error)
-			goto out;
+			goto out_shutdown;
 
-		/* Log an intent-done item for the first pending item. */
 		dfp = list_first_entry(&dop_pending, struct xfs_defer_pending,
 				       dfp_list);
-		ops = defer_op_types[dfp->dfp_type];
-		trace_xfs_defer_pending_finish((*tp)->t_mountp, dfp);
-		dfp->dfp_done = ops->create_done(*tp, dfp->dfp_intent,
-				dfp->dfp_count);
-
-		/* Finish the work items. */
-		state = NULL;
-		list_for_each_safe(li, n, &dfp->dfp_work) {
-			list_del(li);
-			dfp->dfp_count--;
-			error = ops->finish_item(*tp, li, dfp->dfp_done,
-					&state);
-			if (error == -EAGAIN) {
-				/*
-				 * Caller wants a fresh transaction;
-				 * put the work item back on the list
-				 * and jump out.
-				 */
-				list_add(li, &dfp->dfp_work);
-				dfp->dfp_count++;
-				break;
-			} else if (error) {
-				/*
-				 * Clean up after ourselves and jump out.
-				 * xfs_defer_cancel will take care of freeing
-				 * all these lists and stuff.
-				 */
-				if (ops->finish_cleanup)
-					ops->finish_cleanup(*tp, state, error);
-				goto out;
-			}
-		}
-		if (error == -EAGAIN) {
-			/*
-			 * Caller wants a fresh transaction, so log a
-			 * new log intent item to replace the old one
-			 * and roll the transaction.  See "Requesting
-			 * a Fresh Transaction while Finishing
-			 * Deferred Work" above.
-			 */
-			dfp->dfp_intent = ops->create_intent(*tp,
-					dfp->dfp_count);
-			dfp->dfp_done = NULL;
-			list_for_each(li, &dfp->dfp_work)
-				ops->log_item(*tp, dfp->dfp_intent, li);
-		} else {
-			/* Done with the dfp, free it. */
-			list_del(&dfp->dfp_list);
-			kmem_free(dfp);
-		}
-
-		if (ops->finish_cleanup)
-			ops->finish_cleanup(*tp, state, error);
-	}
-
-out:
-	if (error) {
-		xfs_defer_trans_abort(*tp, &dop_pending);
-		xfs_force_shutdown((*tp)->t_mountp, SHUTDOWN_CORRUPT_INCORE);
-		trace_xfs_defer_finish_error(*tp, error);
-		xfs_defer_cancel_list((*tp)->t_mountp, &dop_pending);
-		xfs_defer_cancel(*tp);
-		return error;
+		error = xfs_defer_finish_one(*tp, dfp);
+		if (error && error != -EAGAIN)
+			goto out_shutdown;
 	}
 
 	trace_xfs_defer_finish_done(*tp, _RET_IP_);
 	return 0;
+
+out_shutdown:
+	xfs_defer_trans_abort(*tp, &dop_pending);
+	xfs_force_shutdown((*tp)->t_mountp, SHUTDOWN_CORRUPT_INCORE);
+	trace_xfs_defer_finish_error(*tp, error);
+	xfs_defer_cancel_list((*tp)->t_mountp, &dop_pending);
+	xfs_defer_cancel(*tp);
+	return error;
 }
 
 int

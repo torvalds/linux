@@ -302,7 +302,7 @@ xfs_qm_scall_trunc_qfile(
 		goto out_unlock;
 	}
 
-	ASSERT(ip->i_d.di_nextents == 0);
+	ASSERT(ip->i_df.if_nextents == 0);
 
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	error = xfs_trans_commit(tp);
@@ -357,11 +357,11 @@ xfs_qm_scall_quotaon(
 	int		error;
 	uint		qf;
 
-	flags &= (XFS_ALL_QUOTA_ACCT | XFS_ALL_QUOTA_ENFD);
 	/*
-	 * Switching on quota accounting must be done at mount time.
+	 * Switching on quota accounting must be done at mount time,
+	 * only consider quota enforcement stuff here.
 	 */
-	flags &= ~(XFS_ALL_QUOTA_ACCT);
+	flags &= XFS_ALL_QUOTA_ENFD;
 
 	if (flags == 0) {
 		xfs_debug(mp, "%s: zero flags, m_qflags=%x",
@@ -479,7 +479,7 @@ xfs_qm_scall_setqlim(
 		goto out_unlock;
 	}
 
-	defq = xfs_get_defquota(dqp, q);
+	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
 	xfs_dqunlock(dqp);
 
 	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_qm_setqlim, 0, 0, 0, &tp);
@@ -555,32 +555,40 @@ xfs_qm_scall_setqlim(
 		ddq->d_rtbwarns = cpu_to_be16(newlim->d_rt_spc_warns);
 
 	if (id == 0) {
-		/*
-		 * Timelimits for the super user set the relative time
-		 * the other users can be over quota for this file system.
-		 * If it is zero a default is used.  Ditto for the default
-		 * soft and hard limit values (already done, above), and
-		 * for warnings.
-		 */
-		if (newlim->d_fieldmask & QC_SPC_TIMER) {
-			q->qi_btimelimit = newlim->d_spc_timer;
-			ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
-		}
-		if (newlim->d_fieldmask & QC_INO_TIMER) {
-			q->qi_itimelimit = newlim->d_ino_timer;
-			ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
-		}
-		if (newlim->d_fieldmask & QC_RT_SPC_TIMER) {
-			q->qi_rtbtimelimit = newlim->d_rt_spc_timer;
-			ddq->d_rtbtimer = cpu_to_be32(newlim->d_rt_spc_timer);
-		}
 		if (newlim->d_fieldmask & QC_SPC_WARNS)
-			q->qi_bwarnlimit = newlim->d_spc_warns;
+			defq->bwarnlimit = newlim->d_spc_warns;
 		if (newlim->d_fieldmask & QC_INO_WARNS)
-			q->qi_iwarnlimit = newlim->d_ino_warns;
+			defq->iwarnlimit = newlim->d_ino_warns;
 		if (newlim->d_fieldmask & QC_RT_SPC_WARNS)
-			q->qi_rtbwarnlimit = newlim->d_rt_spc_warns;
-	} else {
+			defq->rtbwarnlimit = newlim->d_rt_spc_warns;
+	}
+
+	/*
+	 * Timelimits for the super user set the relative time the other users
+	 * can be over quota for this file system. If it is zero a default is
+	 * used.  Ditto for the default soft and hard limit values (already
+	 * done, above), and for warnings.
+	 *
+	 * For other IDs, userspace can bump out the grace period if over
+	 * the soft limit.
+	 */
+	if (newlim->d_fieldmask & QC_SPC_TIMER)
+		ddq->d_btimer = cpu_to_be32(newlim->d_spc_timer);
+	if (newlim->d_fieldmask & QC_INO_TIMER)
+		ddq->d_itimer = cpu_to_be32(newlim->d_ino_timer);
+	if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
+		ddq->d_rtbtimer = cpu_to_be32(newlim->d_rt_spc_timer);
+
+	if (id == 0) {
+		if (newlim->d_fieldmask & QC_SPC_TIMER)
+			defq->btimelimit = newlim->d_spc_timer;
+		if (newlim->d_fieldmask & QC_INO_TIMER)
+			defq->itimelimit = newlim->d_ino_timer;
+		if (newlim->d_fieldmask & QC_RT_SPC_TIMER)
+			defq->rtbtimelimit = newlim->d_rt_spc_timer;
+	}
+
+	if (id != 0) {
 		/*
 		 * If the user is now over quota, start the timelimit.
 		 * The user will not be 'warned'.
@@ -588,7 +596,7 @@ xfs_qm_scall_setqlim(
 		 * is on or off. We don't really want to bother with iterating
 		 * over all ondisk dquots and turning the timers on/off.
 		 */
-		xfs_qm_adjust_dqtimers(mp, ddq);
+		xfs_qm_adjust_dqtimers(mp, dqp);
 	}
 	dqp->dq_flags |= XFS_DQ_DIRTY;
 	xfs_trans_log_dquot(tp, dqp);
@@ -729,9 +737,10 @@ xfs_qm_scall_getquota_next(
 STATIC int
 xfs_dqrele_inode(
 	struct xfs_inode	*ip,
-	int			flags,
 	void			*args)
 {
+	uint			*flags = args;
+
 	/* skip quota inodes */
 	if (ip == ip->i_mount->m_quotainfo->qi_uquotaip ||
 	    ip == ip->i_mount->m_quotainfo->qi_gquotaip ||
@@ -743,15 +752,15 @@ xfs_dqrele_inode(
 	}
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	if ((flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
+	if ((*flags & XFS_UQUOTA_ACCT) && ip->i_udquot) {
 		xfs_qm_dqrele(ip->i_udquot);
 		ip->i_udquot = NULL;
 	}
-	if ((flags & XFS_GQUOTA_ACCT) && ip->i_gdquot) {
+	if ((*flags & XFS_GQUOTA_ACCT) && ip->i_gdquot) {
 		xfs_qm_dqrele(ip->i_gdquot);
 		ip->i_gdquot = NULL;
 	}
-	if ((flags & XFS_PQUOTA_ACCT) && ip->i_pdquot) {
+	if ((*flags & XFS_PQUOTA_ACCT) && ip->i_pdquot) {
 		xfs_qm_dqrele(ip->i_pdquot);
 		ip->i_pdquot = NULL;
 	}
@@ -768,10 +777,10 @@ xfs_dqrele_inode(
  */
 void
 xfs_qm_dqrele_all_inodes(
-	struct xfs_mount *mp,
-	uint		 flags)
+	struct xfs_mount	*mp,
+	uint			flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator_flags(mp, xfs_dqrele_inode, flags, NULL,
-				    XFS_AGITER_INEW_WAIT);
+	xfs_inode_walk(mp, XFS_INODE_WALK_INEW_WAIT, xfs_dqrele_inode,
+			&flags, XFS_ICI_NO_TAG);
 }

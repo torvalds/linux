@@ -382,7 +382,7 @@ xfs_map_blocks(
 	 */
 retry:
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
+	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_BTREE ||
 	       (ip->i_df.if_flags & XFS_IFEXTENTS));
 
 	/*

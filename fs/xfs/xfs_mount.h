@@ -55,61 +55,25 @@ struct xfs_error_cfg {
 	long		retry_timeout;	/* in jiffies, -1 = infinite */
 };
 
+/*
+ * The struct xfsmount layout is optimised to separate read-mostly variables
+ * from variables that are frequently modified. We put the read-mostly variables
+ * first, then place all the other variables at the end.
+ *
+ * Typically, read-mostly variables are those that are set at mount time and
+ * never changed again, or only change rarely as a result of things like sysfs
+ * knobs being tweaked.
+ */
 typedef struct xfs_mount {
-	struct super_block	*m_super;
-
-	/*
-	 * Bitsets of per-fs metadata that have been checked and/or are sick.
-	 * Callers must hold m_sb_lock to access these two fields.
-	 */
-	uint8_t			m_fs_checked;
-	uint8_t			m_fs_sick;
-	/*
-	 * Bitsets of rt metadata that have been checked and/or are sick.
-	 * Callers must hold m_sb_lock to access this field.
-	 */
-	uint8_t			m_rt_checked;
-	uint8_t			m_rt_sick;
-
-	struct xfs_ail		*m_ail;		/* fs active log item list */
-
 	struct xfs_sb		m_sb;		/* copy of fs superblock */
-	spinlock_t		m_sb_lock;	/* sb counter lock */
-	struct percpu_counter	m_icount;	/* allocated inodes counter */
-	struct percpu_counter	m_ifree;	/* free inodes counter */
-	struct percpu_counter	m_fdblocks;	/* free block counter */
-	/*
-	 * Count of data device blocks reserved for delayed allocations,
-	 * including indlen blocks.  Does not include allocated CoW staging
-	 * extents or anything related to the rt device.
-	 */
-	struct percpu_counter	m_delalloc_blks;
-
+	struct super_block	*m_super;
+	struct xfs_ail		*m_ail;		/* fs active log item list */
 	struct xfs_buf		*m_sb_bp;	/* buffer for superblock */
 	char			*m_rtname;	/* realtime device name */
 	char			*m_logname;	/* external log device name */
-	int			m_bsize;	/* fs logical block size */
-	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
-	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
-	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
-	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
-	uint			m_allocsize_log;/* min write size log bytes */
-	uint			m_allocsize_blocks; /* min write size blocks */
 	struct xfs_da_geometry	*m_dir_geo;	/* directory block geometry */
 	struct xfs_da_geometry	*m_attr_geo;	/* attribute block geometry */
 	struct xlog		*m_log;		/* log specific stuff */
-	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
-	int			m_logbufs;	/* number of log buffers */
-	int			m_logbsize;	/* size of each log buffer */
-	uint			m_rsumlevels;	/* rt summary levels */
-	uint			m_rsumsize;	/* size of rt summary, bytes */
-	/*
-	 * Optional cache of rt summary level per bitmap block with the
-	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
-	 * rsum[i][bbno] != 0. Reads and writes are serialized by the rsumip
-	 * inode lock.
-	 */
-	uint8_t			*m_rsum_cache;
 	struct xfs_inode	*m_rbmip;	/* pointer to bitmap inode */
 	struct xfs_inode	*m_rsumip;	/* pointer to summary inode */
 	struct xfs_inode	*m_rootip;	/* pointer to root directory */
@@ -117,9 +81,26 @@ typedef struct xfs_mount {
 	xfs_buftarg_t		*m_ddev_targp;	/* saves taking the address */
 	xfs_buftarg_t		*m_logdev_targp;/* ptr to log device */
 	xfs_buftarg_t		*m_rtdev_targp;	/* ptr to rt device */
+	/*
+	 * Optional cache of rt summary level per bitmap block with the
+	 * invariant that m_rsum_cache[bbno] <= the minimum i for which
+	 * rsum[i][bbno] != 0. Reads and writes are serialized by the rsumip
+	 * inode lock.
+	 */
+	uint8_t			*m_rsum_cache;
+	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
+	struct workqueue_struct *m_buf_workqueue;
+	struct workqueue_struct	*m_unwritten_workqueue;
+	struct workqueue_struct	*m_cil_workqueue;
+	struct workqueue_struct	*m_reclaim_workqueue;
+	struct workqueue_struct *m_eofblocks_workqueue;
+	struct workqueue_struct	*m_sync_workqueue;
+
+	int			m_bsize;	/* fs logical block size */
 	uint8_t			m_blkbit_log;	/* blocklog + NBBY */
 	uint8_t			m_blkbb_log;	/* blocklog - BBSHIFT */
 	uint8_t			m_agno_log;	/* log #ag's */
+	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */
@@ -138,47 +119,82 @@ typedef struct xfs_mount {
 	xfs_extlen_t		m_ag_prealloc_blocks; /* reserved ag blocks */
 	uint			m_alloc_set_aside; /* space we can't use */
 	uint			m_ag_max_usable; /* max space per AG */
+	int			m_dalign;	/* stripe unit */
+	int			m_swidth;	/* stripe width */
+	xfs_agnumber_t		m_maxagi;	/* highest inode alloc group */
+	uint			m_allocsize_log;/* min write size log bytes */
+	uint			m_allocsize_blocks; /* min write size blocks */
+	int			m_logbufs;	/* number of log buffers */
+	int			m_logbsize;	/* size of each log buffer */
+	uint			m_rsumlevels;	/* rt summary levels */
+	uint			m_rsumsize;	/* size of rt summary, bytes */
+	int			m_fixedfsid[2];	/* unchanged for life of FS */
+	uint			m_qflags;	/* quota status flags */
+	uint64_t		m_flags;	/* global mount flags */
+	int64_t			m_low_space[XFS_LOWSP_MAX];
+	struct xfs_ino_geometry	m_ino_geo;	/* inode geometry */
+	struct xfs_trans_resv	m_resv;		/* precomputed res values */
+						/* low free space thresholds */
+	bool			m_always_cow;
+	bool			m_fail_unmount;
+	bool			m_finobt_nores; /* no per-AG finobt resv. */
+	bool			m_update_sb;	/* sb needs update in mount */
+
+	/*
+	 * Bitsets of per-fs metadata that have been checked and/or are sick.
+	 * Callers must hold m_sb_lock to access these two fields.
+	 */
+	uint8_t			m_fs_checked;
+	uint8_t			m_fs_sick;
+	/*
+	 * Bitsets of rt metadata that have been checked and/or are sick.
+	 * Callers must hold m_sb_lock to access this field.
+	 */
+	uint8_t			m_rt_checked;
+	uint8_t			m_rt_sick;
+
+	/*
+	 * End of read-mostly variables. Frequently written variables and locks
+	 * should be placed below this comment from now on. The first variable
+	 * here is marked as cacheline aligned so they it is separated from
+	 * the read-mostly variables.
+	 */
+
+	spinlock_t ____cacheline_aligned m_sb_lock; /* sb counter lock */
+	struct percpu_counter	m_icount;	/* allocated inodes counter */
+	struct percpu_counter	m_ifree;	/* free inodes counter */
+	struct percpu_counter	m_fdblocks;	/* free block counter */
+	/*
+	 * Count of data device blocks reserved for delayed allocations,
+	 * including indlen blocks.  Does not include allocated CoW staging
+	 * extents or anything related to the rt device.
+	 */
+	struct percpu_counter	m_delalloc_blks;
+
 	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
 	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
-	struct mutex		m_growlock;	/* growfs mutex */
-	int			m_fixedfsid[2];	/* unchanged for life of FS */
-	uint64_t		m_flags;	/* global mount flags */
-	bool			m_finobt_nores; /* no per-AG finobt resv. */
-	uint			m_qflags;	/* quota status flags */
-	struct xfs_trans_resv	m_resv;		/* precomputed res values */
 	uint64_t		m_resblks;	/* total reserved blocks */
 	uint64_t		m_resblks_avail;/* available reserved blocks */
 	uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
-	int			m_dalign;	/* stripe unit */
-	int			m_swidth;	/* stripe width */
-	uint8_t			m_sectbb_log;	/* sectlog - BBSHIFT */
-	atomic_t		m_active_trans;	/* number trans frozen */
-	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
 	struct delayed_work	m_eofblocks_work; /* background eof blocks
 						     trimming */
 	struct delayed_work	m_cowblocks_work; /* background cow blocks
 						     trimming */
-	bool			m_update_sb;	/* sb needs update in mount */
-	int64_t			m_low_space[XFS_LOWSP_MAX];
-						/* low free space thresholds */
 	struct xfs_kobj		m_kobj;
 	struct xfs_kobj		m_error_kobj;
 	struct xfs_kobj		m_error_meta_kobj;
 	struct xfs_error_cfg	m_error_cfg[XFS_ERR_CLASS_MAX][XFS_ERR_ERRNO_MAX];
 	struct xstats		m_stats;	/* per-fs stats */
+	xfs_agnumber_t		m_agfrotor;	/* last ag where space found */
+	xfs_agnumber_t		m_agirotor;	/* last ag dir inode alloced */
+	spinlock_t		m_agirotor_lock;/* .. and lock protecting it */
 
 	/*
 	 * Workqueue item so that we can coalesce multiple inode flush attempts
 	 * into a single flush.
 	 */
 	struct work_struct	m_flush_inodes_work;
-	struct workqueue_struct *m_buf_workqueue;
-	struct workqueue_struct	*m_unwritten_workqueue;
-	struct workqueue_struct	*m_cil_workqueue;
-	struct workqueue_struct	*m_reclaim_workqueue;
-	struct workqueue_struct *m_eofblocks_workqueue;
-	struct workqueue_struct	*m_sync_workqueue;
 
 	/*
 	 * Generation of the filesysyem layout.  This is incremented by each
@@ -190,9 +206,8 @@ typedef struct xfs_mount {
 	 * to various other kinds of pain inflicted on the pNFS server.
 	 */
 	uint32_t		m_generation;
+	struct mutex		m_growlock;	/* growfs mutex */
 
-	bool			m_always_cow;
-	bool			m_fail_unmount;
 #ifdef DEBUG
 	/*
 	 * Frequency with which errors are injected.  Replaces xfs_etest; the
@@ -237,8 +252,8 @@ typedef struct xfs_mount {
 #define XFS_MOUNT_FILESTREAMS	(1ULL << 24)	/* enable the filestreams
 						   allocator */
 #define XFS_MOUNT_NOATTR2	(1ULL << 25)	/* disable use of attr2 format */
-
-#define XFS_MOUNT_DAX		(1ULL << 62)	/* TEST ONLY! */
+#define XFS_MOUNT_DAX_ALWAYS	(1ULL << 26)
+#define XFS_MOUNT_DAX_NEVER	(1ULL << 27)
 
 /*
  * Max and min values for mount-option defined I/O
@@ -259,8 +274,6 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 #define SHUTDOWN_LOG_IO_ERROR	0x0002	/* write attempt to the log failed */
 #define SHUTDOWN_FORCE_UMOUNT	0x0004	/* shutdown from a forced unmount */
 #define SHUTDOWN_CORRUPT_INCORE	0x0008	/* corrupt in-memory data structures */
-#define SHUTDOWN_REMOTE_REQ	0x0010	/* shutdown came from remote cell */
-#define SHUTDOWN_DEVICE_REQ	0x0020	/* failed all paths to the device */
 
 /*
  * Flags for xfs_mountfs
@@ -394,8 +407,6 @@ extern int	xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount,
 				     xfs_agnumber_t *maxagi);
 extern void	xfs_unmountfs(xfs_mount_t *);
 
-extern int	xfs_mod_icount(struct xfs_mount *mp, int64_t delta);
-extern int	xfs_mod_ifree(struct xfs_mount *mp, int64_t delta);
 extern int	xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta,
 				 bool reserved);
 extern int	xfs_mod_frextents(struct xfs_mount *mp, int64_t delta);

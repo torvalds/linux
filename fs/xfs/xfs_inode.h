@@ -57,9 +57,6 @@ typedef struct xfs_inode {
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
-	xfs_extnum_t		i_cnextents;	/* # of extents in cow fork */
-	unsigned int		i_cformat;	/* format of cow fork */
-
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 
@@ -467,6 +464,7 @@ int	xfs_break_layouts(struct inode *inode, uint *iolock,
 /* from xfs_iops.c */
 extern void xfs_setup_inode(struct xfs_inode *ip);
 extern void xfs_setup_iops(struct xfs_inode *ip);
+extern void xfs_diflags_to_iflags(struct xfs_inode *ip, bool init);
 
 /*
  * When setting up a newly allocated inode, we need to call
@@ -496,8 +494,6 @@ extern struct kmem_zone	*xfs_inode_zone;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
-
-bool xfs_inode_verify_forks(struct xfs_inode *ip);
 
 int xfs_iunlink_init(struct xfs_perag *pag);
 void xfs_iunlink_destroy(struct xfs_perag *pag);
