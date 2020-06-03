@@ -95,7 +95,7 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
-	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
+	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_DESTROY);
 }
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
