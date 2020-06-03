@@ -775,26 +775,44 @@ static __always_inline void debug_exit(unsigned long dr7)
  *
  * May run on IST stack.
  */
-static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
-				 bool user_icebp)
+static void handle_debug(struct pt_regs *regs, unsigned long dr6, bool user)
 {
 	struct task_struct *tsk = current;
+	bool user_icebp;
 	int si_code;
+
+	/*
+	 * The SDM says "The processor clears the BTF flag when it
+	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
+	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
+	 */
+	clear_thread_flag(TIF_BLOCKSTEP);
+
+	/*
+	 * If DR6 is zero, no point in trying to handle it. The kernel is
+	 * not using INT1.
+	 */
+	if (!user && !dr6)
+		return;
+
+	/*
+	 * If dr6 has no reason to give us about the origin of this trap,
+	 * then it's very likely the result of an icebp/int01 trap.
+	 * User wants a sigtrap for that.
+	 */
+	user_icebp = user && !dr6;
 
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
 
-	instrumentation_begin();
 #ifdef CONFIG_KPROBES
 	if (kprobe_debug_handler(regs)) {
-		instrumentation_end();
 		return;
 	}
 #endif
 
 	if (notify_die(DIE_DEBUG, "debug", regs, (long)&dr6, 0,
 		       SIGTRAP) == NOTIFY_STOP) {
-		instrumentation_end();
 		return;
 	}
 
@@ -825,7 +843,6 @@ static void noinstr handle_debug(struct pt_regs *regs, unsigned long dr6,
 
 out:
 	cond_local_irq_disable(regs);
-	instrumentation_end();
 }
 
 static __always_inline void exc_debug_kernel(struct pt_regs *regs,
@@ -834,14 +851,6 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	nmi_enter();
 	instrumentation_begin();
 	trace_hardirqs_off_finish();
-	instrumentation_end();
-
-	/*
-	 * The SDM says "The processor clears the BTF flag when it
-	 * generates a debug exception."  Clear TIF_BLOCKSTEP to keep
-	 * TIF_BLOCKSTEP in sync with the hardware BTF flag.
-	 */
-	clear_thread_flag(TIF_BLOCKSTEP);
 
 	/*
 	 * Catch SYSENTER with TF set and clear DR_STEP. If this hit a
@@ -850,14 +859,8 @@ static __always_inline void exc_debug_kernel(struct pt_regs *regs,
 	if ((dr6 & DR_STEP) && is_sysenter_singlestep(regs))
 		dr6 &= ~DR_STEP;
 
-	/*
-	 * If DR6 is zero, no point in trying to handle it. The kernel is
-	 * not using INT1.
-	 */
-	if (dr6)
-		handle_debug(regs, dr6, false);
+	handle_debug(regs, dr6, false);
 
-	instrumentation_begin();
 	if (regs->flags & X86_EFLAGS_IF)
 		trace_hardirqs_on_prepare();
 	instrumentation_end();
@@ -868,14 +871,10 @@ static __always_inline void exc_debug_user(struct pt_regs *regs,
 					   unsigned long dr6)
 {
 	idtentry_enter_user(regs);
-	clear_thread_flag(TIF_BLOCKSTEP);
+	instrumentation_begin();
 
-	/*
-	 * If dr6 has no reason to give us about the origin of this trap,
-	 * then it's very likely the result of an icebp/int01 trap.
-	 * User wants a sigtrap for that.
-	 */
-	handle_debug(regs, dr6, !dr6);
+	handle_debug(regs, dr6, true);
+	instrumentation_end();
 	idtentry_exit_user(regs);
 }
 
