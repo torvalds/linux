@@ -416,7 +416,7 @@ static ssize_t reboot_image_store(struct device *dev,
 	unsigned long address;
 	int ret;
 
-	if (priv == 0)
+	if (!priv)
 		return -ENODEV;
 
 	ret = kstrtoul(buf, 0, &address);
@@ -441,7 +441,7 @@ static ssize_t notify_store(struct device *dev,
 	unsigned long status;
 	int ret;
 
-	if (priv == 0)
+	if (!priv)
 		return -ENODEV;
 
 	ret = kstrtoul(buf, 0, &status);
