@@ -111,6 +111,42 @@ nvkm_outp_acquire_ior(struct nvkm_outp *outp, u8 user, struct nvkm_ior *ior)
 	return 0;
 }
 
+static inline int
+nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
+		      u8 user, bool hda)
+{
+	struct nvkm_ior *ior;
+
+	/* First preference is to reuse the OR that is currently armed
+	 * on HW, if any, in order to prevent unnecessary switching.
+	 */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity &&
+		    !ior->asy.outp && ior->arm.outp == outp)
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	/* Failing that, a completely unused OR is the next best thing. */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity &&
+		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	/* Last resort is to assign an OR that's already active on HW,
+	 * but will be released during the next modeset.
+	 */
+	list_for_each_entry(ior, &outp->disp->ior, head) {
+		if (!ior->identity &&
+		    !ior->asy.outp && ior->type == type &&
+		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
+			return nvkm_outp_acquire_ior(outp, user, ior);
+	}
+
+	return -ENOSPC;
+}
+
 int
 nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 {
@@ -137,32 +173,7 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 		return nvkm_outp_acquire_ior(outp, user, ior);
 	}
 
-	/* First preference is to reuse the OR that is currently armed
-	 * on HW, if any, in order to prevent unnecessary switching.
-	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity && !ior->asy.outp && ior->arm.outp == outp)
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
-
-	/* Failing that, a completely unused OR is the next best thing. */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity &&
-		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
-		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
-
-	/* Last resort is to assign an OR that's already active on HW,
-	 * but will be released during the next modeset.
-	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
-		if (!ior->identity && !ior->asy.outp && ior->type == type &&
-		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
-			return nvkm_outp_acquire_ior(outp, user, ior);
-	}
-
-	return -ENOSPC;
+	return nvkm_outp_acquire_hda(outp, type, user, true);
 }
 
 void
