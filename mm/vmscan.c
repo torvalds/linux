@@ -1438,7 +1438,7 @@ free_it:
 		 * appear not as the counts should be low
 		 */
 		if (unlikely(PageTransHuge(page)))
-			(*get_compound_page_dtor(page))(page);
+			destroy_compound_page(page);
 		else
 			list_add(&page->lru, &free_pages);
 		continue;
@@ -1859,7 +1859,7 @@ static unsigned noinline_for_stack move_pages_to_lru(struct lruvec *lruvec,
 
 			if (unlikely(PageCompound(page))) {
 				spin_unlock_irq(&pgdat->lru_lock);
-				(*get_compound_page_dtor(page))(page);
+				destroy_compound_page(page);
 				spin_lock_irq(&pgdat->lru_lock);
 			} else
 				list_add(&page->lru, &pages_to_free);
