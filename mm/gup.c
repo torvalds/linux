@@ -2739,6 +2739,9 @@ static int internal_get_user_pages_fast(unsigned long start, int nr_pages,
 				       FOLL_FAST_ONLY)))
 		return -EINVAL;
 
+	if (!(gup_flags & FOLL_FAST_ONLY))
+		might_lock_read(&current->mm->mmap_sem);
+
 	start = untagged_addr(start) & PAGE_MASK;
 	addr = start;
 	len = (unsigned long) nr_pages << PAGE_SHIFT;
