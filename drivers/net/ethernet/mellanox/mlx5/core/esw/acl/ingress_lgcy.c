@@ -162,10 +162,12 @@ int esw_acl_ingress_lgcy_setup(struct mlx5_eswitch *esw,
 
 	if (MLX5_CAP_ESW_INGRESS_ACL(esw->dev, flow_counter)) {
 		counter = mlx5_fc_create(esw->dev, false);
-		if (IS_ERR(counter))
+		if (IS_ERR(counter)) {
 			esw_warn(esw->dev,
 				 "vport[%d] configure ingress drop rule counter failed\n",
 				 vport->vport);
+			counter = NULL;
+		}
 		vport->ingress.legacy.drop_counter = counter;
 	}
 
@@ -272,7 +274,7 @@ void esw_acl_ingress_lgcy_cleanup(struct mlx5_eswitch *esw,
 	esw_acl_ingress_table_destroy(vport);
 
 clean_drop_counter:
-	if (!IS_ERR_OR_NULL(vport->ingress.legacy.drop_counter)) {
+	if (vport->ingress.legacy.drop_counter) {
 		mlx5_fc_destroy(esw->dev, vport->ingress.legacy.drop_counter);
 		vport->ingress.legacy.drop_counter = NULL;
 	}
