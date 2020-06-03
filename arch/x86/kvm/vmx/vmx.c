@@ -6740,7 +6740,6 @@ reenter_guest:
 	if (vcpu->arch.cr2 != read_cr2())
 		write_cr2(vcpu->arch.cr2);
 
-	vcpu->arch.last_vmentry_cpu = vcpu->cpu;
 	vmx->fail = __vmx_vcpu_run(vmx, (unsigned long *)&vcpu->arch.regs,
 				   vmx->loaded_vmcs->launched);
 
