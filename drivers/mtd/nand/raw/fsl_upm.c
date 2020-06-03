@@ -14,7 +14,6 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/mtd.h>
-#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>
@@ -197,7 +196,7 @@ err:
 static int fun_probe(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun;
-	struct resource io_res;
+	struct resource *io_res;
 	const __be32 *prop;
 	int rnb_gpio;
 	int ret;
@@ -208,13 +207,12 @@ static int fun_probe(struct platform_device *ofdev)
 	if (!fun)
 		return -ENOMEM;
 
-	ret = of_address_to_resource(ofdev->dev.of_node, 0, &io_res);
-	if (ret) {
-		dev_err(&ofdev->dev, "can't get IO base\n");
-		return ret;
-	}
+	io_res = platform_get_resource(ofdev, IORESOURCE_MEM, 0);
+	fun->io_base = devm_ioremap_resource(&ofdev->dev, io_res);
+	if (IS_ERR(fun->io_base))
+		return PTR_ERR(fun->io_base);
 
-	ret = fsl_upm_find(io_res.start, &fun->upm);
+	ret = fsl_upm_find(io_res->start, &fun->upm);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't find UPM\n");
 		return ret;
@@ -280,17 +278,10 @@ static int fun_probe(struct platform_device *ofdev)
 		fun->wait_flags = FSL_UPM_WAIT_RUN_PATTERN |
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
-	fun->io_base = devm_ioremap(&ofdev->dev, io_res.start,
-					    resource_size(&io_res));
-	if (!fun->io_base) {
-		ret = -ENOMEM;
-		goto err2;
-	}
-
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
-	ret = fun_chip_init(fun, ofdev->dev.of_node, &io_res);
+	ret = fun_chip_init(fun, ofdev->dev.of_node, io_res);
 	if (ret)
 		goto err2;
 
