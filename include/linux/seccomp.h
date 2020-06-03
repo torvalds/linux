@@ -10,6 +10,10 @@
 					 SECCOMP_FILTER_FLAG_NEW_LISTENER | \
 					 SECCOMP_FILTER_FLAG_TSYNC_ESRCH)
 
+/* sizeof() the first published struct seccomp_notif_addfd */
+#define SECCOMP_NOTIFY_ADDFD_SIZE_VER0 24
+#define SECCOMP_NOTIFY_ADDFD_SIZE_LATEST SECCOMP_NOTIFY_ADDFD_SIZE_VER0
+
 #ifdef CONFIG_SECCOMP
 
 #include <linux/thread_info.h>
