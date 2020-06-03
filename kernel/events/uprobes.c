@@ -162,14 +162,13 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 	};
 	int err;
 	struct mmu_notifier_range range;
-	struct mem_cgroup *memcg;
 
 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,
 				addr + PAGE_SIZE);
 
 	if (new_page) {
-		err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL,
-					    &memcg);
+		err = mem_cgroup_charge(new_page, vma->vm_mm, GFP_KERNEL,
+					false);
 		if (err)
 			return err;
 	}
@@ -179,16 +178,12 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	mmu_notifier_invalidate_range_start(&range);
 	err = -EAGAIN;
-	if (!page_vma_mapped_walk(&pvmw)) {
-		if (new_page)
-			mem_cgroup_cancel_charge(new_page, memcg);
+	if (!page_vma_mapped_walk(&pvmw))
 		goto unlock;
-	}
 	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
 
 	if (new_page) {
 		get_page(new_page);
-		mem_cgroup_commit_charge(new_page, memcg, false);
 		page_add_new_anon_rmap(new_page, vma, addr, false);
 		lru_cache_add_active_or_unevictable(new_page, vma);
 	} else
