@@ -216,7 +216,7 @@ a non-disclosure agreement.  The Linux Foundation operates an NDA program
 designed to help with this sort of situation; more information can be found
 at:
 
-    http://www.linuxfoundation.org/en/NDA_program
+    https://www.linuxfoundation.org/nda/
 
 This kind of review is often enough to avoid serious problems later on
 without requiring public disclosure of the project.
