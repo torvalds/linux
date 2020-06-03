@@ -618,7 +618,7 @@ static int calc_mpc_flow_ctrl_cnt(const struct dc_stream_state *stream,
 	bool hblank_halved = optc2_is_two_pixels_per_containter(&stream->timing);
 	int flow_ctrl_cnt;
 
-	if (opp_cnt == 2)
+	if (opp_cnt >= 2)
 		hblank_halved = true;
 
 	flow_ctrl_cnt = stream->timing.h_total - stream->timing.h_addressable -
