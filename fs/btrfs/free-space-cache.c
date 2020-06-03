@@ -2703,8 +2703,7 @@ void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group)
  * pointed to by the cluster, someone else raced in and freed the
  * cluster already.  In that case, we just return without changing anything
  */
-static int
-__btrfs_return_cluster_to_free_space(
+static void __btrfs_return_cluster_to_free_space(
 			     struct btrfs_block_group *block_group,
 			     struct btrfs_free_cluster *cluster)
 {
@@ -2756,7 +2755,6 @@ __btrfs_return_cluster_to_free_space(
 out:
 	spin_unlock(&cluster->lock);
 	btrfs_put_block_group(block_group);
-	return 0;
 }
 
 static void __btrfs_remove_free_space_cache_locked(
@@ -2907,12 +2905,11 @@ out:
  * Otherwise, it'll get a reference on the block group pointed to by the
  * cluster and remove the cluster from it.
  */
-int btrfs_return_cluster_to_free_space(
+void btrfs_return_cluster_to_free_space(
 			       struct btrfs_block_group *block_group,
 			       struct btrfs_free_cluster *cluster)
 {
 	struct btrfs_free_space_ctl *ctl;
-	int ret;
 
 	/* first, get a safe pointer to the block group */
 	spin_lock(&cluster->lock);
@@ -2920,12 +2917,12 @@ int btrfs_return_cluster_to_free_space(
 		block_group = cluster->block_group;
 		if (!block_group) {
 			spin_unlock(&cluster->lock);
-			return 0;
+			return;
 		}
 	} else if (cluster->block_group != block_group) {
 		/* someone else has already freed it don't redo their work */
 		spin_unlock(&cluster->lock);
-		return 0;
+		return;
 	}
 	atomic_inc(&block_group->count);
 	spin_unlock(&cluster->lock);
@@ -2934,14 +2931,13 @@ int btrfs_return_cluster_to_free_space(
 
 	/* now return any extents the cluster had on it */
 	spin_lock(&ctl->tree_lock);
-	ret = __btrfs_return_cluster_to_free_space(block_group, cluster);
+	__btrfs_return_cluster_to_free_space(block_group, cluster);
 	spin_unlock(&ctl->tree_lock);
 
 	btrfs_discard_queue_work(&block_group->fs_info->discard_ctl, block_group);
 
 	/* finally drop our ref */
 	btrfs_put_block_group(block_group);
-	return ret;
 }
 
 static u64 btrfs_alloc_from_bitmap(struct btrfs_block_group *block_group,
