@@ -2018,15 +2018,14 @@ out:
 	return err;
 }
 
-void extent_clear_unlock_delalloc(struct inode *inode, u64 start, u64 end,
+void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
 				  unsigned clear_bits,
 				  unsigned long page_ops)
 {
-	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, end, clear_bits, 1, 0,
-			 NULL);
+	clear_extent_bit(&inode->io_tree, start, end, clear_bits, 1, 0, NULL);
 
-	__process_pages_contig(inode->i_mapping, locked_page,
+	__process_pages_contig(inode->vfs_inode.i_mapping, locked_page,
 			       start >> PAGE_SHIFT, end >> PAGE_SHIFT,
 			       page_ops, NULL);
 }
