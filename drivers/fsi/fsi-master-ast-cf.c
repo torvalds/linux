@@ -838,7 +838,7 @@ static int load_copro_firmware(struct fsi_master_acf *master)
 	rc = request_firmware(&fw, FW_FILE_NAME, master->dev);
 	if (rc) {
 		dev_err(
-			master->dev, "Error %d to load firwmare '%s' !\n",
+			master->dev, "Error %d to load firmware '%s' !\n",
 			rc, FW_FILE_NAME);
 		return rc;
 	}
