@@ -133,6 +133,9 @@ config HAVE_FAST_GUP
 	depends on MMU
 	bool
 
+# Don't discard allocated memory used to track "memory" and "reserved" memblocks
+# after early boot, so it can still be used to test for validity of memory.
+# Also, memblocks are updated with memory hot(un)plug.
 config ARCH_KEEP_MEMBLOCK
 	bool
 

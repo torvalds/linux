@@ -1021,13 +1021,8 @@ int __ref add_memory_resource(int nid, struct resource *res)
 
 	mem_hotplug_begin();
 
-	/*
-	 * Add new range to memblock so that when hotadd_new_pgdat() is called
-	 * to allocate new pgdat, get_pfn_range_for_nid() will be able to find
-	 * this new range and calculate total pages correctly.  The range will
-	 * be removed at hot-remove time.
-	 */
-	memblock_add_node(start, size, nid);
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_add_node(start, size, nid);
 
 	ret = __try_online_node(nid, false);
 	if (ret < 0)
@@ -1076,7 +1071,8 @@ error:
 	/* rollback pgdat allocation and others */
 	if (new_node)
 		rollback_node_hotadd(nid);
-	memblock_remove(start, size);
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_remove(start, size);
 	mem_hotplug_done();
 	return ret;
 }
@@ -1673,8 +1669,12 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 	mem_hotplug_begin();
 
 	arch_remove_memory(nid, start, size, NULL);
-	memblock_free(start, size);
-	memblock_remove(start, size);
+
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
+		memblock_free(start, size);
+		memblock_remove(start, size);
+	}
+
 	__release_memory_resource(start, size);
 
 	try_offline_node(nid);
