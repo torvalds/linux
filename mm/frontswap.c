@@ -87,7 +87,7 @@ static inline void inc_frontswap_invalidates(void) { }
  *
  * This would not guards us against the user deciding to call swapoff right as
  * we are calling the backend to initialize (so swapon is in action).
- * Fortunatly for us, the swapon_mutex has been taked by the callee so we are
+ * Fortunately for us, the swapon_mutex has been taken by the callee so we are
  * OK. The other scenario where calls to frontswap_store (called via
  * swap_writepage) is racing with frontswap_invalidate_area (called via
  * swapoff) is again guarded by the swap subsystem.
@@ -413,8 +413,8 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
 }
 
 /*
- * Used to check if it's necessory and feasible to unuse pages.
- * Return 1 when nothing to do, 0 when need to shink pages,
+ * Used to check if it's necessary and feasible to unuse pages.
+ * Return 1 when nothing to do, 0 when need to shrink pages,
  * error code when there is an error.
  */
 static int __frontswap_shrink(unsigned long target_pages,
