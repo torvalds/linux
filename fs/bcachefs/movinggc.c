@@ -78,7 +78,17 @@ static bool __copygc_pred(struct bch_dev *ca,
 		ssize_t i = eytzinger0_find_le(h->data, h->used,
 					       sizeof(h->data[0]),
 					       bucket_offset_cmp, &search);
+#if 0
+		/* eytzinger search verify code: */
+		ssize_t j = -1, k;
 
+		for (k = 0; k < h->used; k++)
+			if (h->data[k].offset <= ptr->offset &&
+			    (j < 0 || h->data[k].offset > h->data[j].offset))
+				j = k;
+
+		BUG_ON(i != j);
+#endif
 		return (i >= 0 &&
 			ptr->offset < h->data[i].offset + ca->mi.bucket_size &&
 			ptr->gen == h->data[i].gen);
@@ -203,9 +213,12 @@ static void bch2_copygc(struct bch_fs *c, struct bch_dev *ca)
 
 	if (sectors_not_moved && !ret)
 		bch_warn_ratelimited(c,
-			"copygc finished but %llu/%llu sectors, %llu/%llu buckets not moved",
+			"copygc finished but %llu/%llu sectors, %llu/%llu buckets not moved (move stats: moved %llu sectors, raced %llu keys, %llu sectors)",
 			 sectors_not_moved, sectors_to_move,
-			 buckets_not_moved, buckets_to_move);
+			 buckets_not_moved, buckets_to_move,
+			 atomic64_read(&move_stats.sectors_moved),
+			 atomic64_read(&move_stats.keys_raced),
+			 atomic64_read(&move_stats.sectors_raced));
 
 	trace_copygc(ca,
 		     atomic64_read(&move_stats.sectors_moved), sectors_not_moved,

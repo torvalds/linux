@@ -8,6 +8,7 @@ struct bch_move_stats {
 	struct bpos		pos;
 
 	atomic64_t		keys_moved;
+	atomic64_t		keys_raced;
 	atomic64_t		sectors_moved;
 	atomic64_t		sectors_seen;
 	atomic64_t		sectors_raced;

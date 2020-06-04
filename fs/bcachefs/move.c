@@ -177,9 +177,12 @@ next:
 		}
 		continue;
 nomatch:
-		if (m->ctxt)
+		if (m->ctxt) {
+			BUG_ON(k.k->p.offset <= iter->pos.offset);
+			atomic64_inc(&m->ctxt->stats->keys_raced);
 			atomic64_add(k.k->p.offset - iter->pos.offset,
 				     &m->ctxt->stats->sectors_raced);
+		}
 		atomic_long_inc(&c->extent_migrate_raced);
 		trace_move_race(&new->k);
 		bch2_btree_iter_next_slot(iter);
