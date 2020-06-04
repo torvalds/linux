@@ -2398,56 +2398,6 @@ static int snd_soc_component_initialize(struct snd_soc_component *component,
 	return 0;
 }
 
-static void snd_soc_component_setup_regmap(struct snd_soc_component *component)
-{
-	int val_bytes = regmap_get_val_bytes(component->regmap);
-
-	/* Errors are legitimate for non-integer byte multiples */
-	if (val_bytes > 0)
-		component->val_bytes = val_bytes;
-}
-
-#ifdef CONFIG_REGMAP
-
-/**
- * snd_soc_component_init_regmap() - Initialize regmap instance for the
- *                                   component
- * @component: The component for which to initialize the regmap instance
- * @regmap: The regmap instance that should be used by the component
- *
- * This function allows deferred assignment of the regmap instance that is
- * associated with the component. Only use this if the regmap instance is not
- * yet ready when the component is registered. The function must also be called
- * before the first IO attempt of the component.
- */
-void snd_soc_component_init_regmap(struct snd_soc_component *component,
-	struct regmap *regmap)
-{
-	component->regmap = regmap;
-	snd_soc_component_setup_regmap(component);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_init_regmap);
-
-/**
- * snd_soc_component_exit_regmap() - De-initialize regmap instance for the
- *                                   component
- * @component: The component for which to de-initialize the regmap instance
- *
- * Calls regmap_exit() on the regmap instance associated to the component and
- * removes the regmap instance from the component.
- *
- * This function should only be used if snd_soc_component_init_regmap() was used
- * to initialize the regmap instance.
- */
-void snd_soc_component_exit_regmap(struct snd_soc_component *component)
-{
-	regmap_exit(component->regmap);
-	component->regmap = NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
-
-#endif
-
 #define ENDIANNESS_MAP(name) \
 	(SNDRV_PCM_FMTBIT_##name##LE | SNDRV_PCM_FMTBIT_##name##BE)
 static u64 endianness_format_map[] = {
