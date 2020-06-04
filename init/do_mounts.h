@@ -9,7 +9,6 @@
 #include <linux/major.h>
 #include <linux/root_dev.h>
 
-void  change_floppy(char *fmt, ...);
 void  mount_block_root(char *name, int flags);
 void  mount_root(void);
 extern int root_mountflags;

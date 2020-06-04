@@ -15,11 +15,9 @@
 #include <linux/decompress/generic.h>
 
 
-int __initdata rd_prompt = 1;/* 1 = prompt for RAM disk, 0 = don't prompt */
-
 static int __init prompt_ramdisk(char *str)
 {
-	rd_prompt = simple_strtol(str,NULL,0) & 1;
+	pr_warn("ignoring the deprecated prompt_ramdisk= option\n");
 	return 1;
 }
 __setup("prompt_ramdisk=", prompt_ramdisk);
@@ -178,7 +176,7 @@ int __init rd_load_image(char *from)
 	int res = 0;
 	int in_fd, out_fd;
 	unsigned long rd_blocks, devblocks;
-	int nblocks, i, disk;
+	int nblocks, i;
 	char *buf = NULL;
 	unsigned short rotate = 0;
 	decompress_fn decompressor = NULL;
@@ -243,21 +241,15 @@ int __init rd_load_image(char *from)
 
 	printk(KERN_NOTICE "RAMDISK: Loading %dKiB [%ld disk%s] into ram disk... ",
 		nblocks, ((nblocks-1)/devblocks)+1, nblocks>devblocks ? "s" : "");
-	for (i = 0, disk = 1; i < nblocks; i++) {
+	for (i = 0; i < nblocks; i++) {
 		if (i && (i % devblocks == 0)) {
-			pr_cont("done disk #%d.\n", disk++);
+			pr_cont("done disk #1.\n");
 			rotate = 0;
 			if (ksys_close(in_fd)) {
 				printk("Error closing the disk.\n");
 				goto noclose_input;
 			}
-			change_floppy("disk #%d", disk);
-			in_fd = ksys_open(from, O_RDONLY, 0);
-			if (in_fd < 0)  {
-				printk("Error opening disk.\n");
-				goto noclose_input;
-			}
-			printk("Loading disk #%d... ", disk);
+			break;
 		}
 		ksys_read(in_fd, buf, BLOCK_SIZE);
 		ksys_write(out_fd, buf, BLOCK_SIZE);
@@ -284,8 +276,6 @@ out:
 
 int __init rd_load_disk(int n)
 {
-	if (rd_prompt)
-		change_floppy("root floppy disk to be loaded into RAM disk");
 	create_dev("/dev/root", ROOT_DEV);
 	create_dev("/dev/ram", MKDEV(RAMDISK_MAJOR, n));
 	return rd_load_image("/dev/root");
