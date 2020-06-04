@@ -133,7 +133,7 @@ int sdio_disable_func(struct sdio_func *func)
 
 err:
 	pr_debug("SDIO: Failed to disable device %s\n", sdio_func_id(func));
-	return -EIO;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(sdio_disable_func);
 
