@@ -1140,9 +1140,17 @@ static struct i915_request *nop_request(struct intel_engine_cs *engine)
 	return rq;
 }
 
-static long timeslice_threshold(const struct intel_engine_cs *engine)
+static long slice_timeout(struct intel_engine_cs *engine)
 {
-	return 2 * msecs_to_jiffies_timeout(timeslice(engine)) + 1;
+	long timeout;
+
+	/* Enough time for a timeslice to kick in, and kick out */
+	timeout = 2 * msecs_to_jiffies_timeout(timeslice(engine));
+
+	/* Enough time for the nop request to complete */
+	timeout += HZ / 5;
+
+	return timeout + 1;
 }
 
 static int live_timeslice_queue(void *arg)
@@ -1260,7 +1268,7 @@ static int live_timeslice_queue(void *arg)
 		}
 
 		/* Timeslice every jiffy, so within 2 we should signal */
-		if (i915_request_wait(rq, 0, timeslice_threshold(engine)) < 0) {
+		if (i915_request_wait(rq, 0, slice_timeout(engine)) < 0) {
 			struct drm_printer p =
 				drm_info_printer(gt->i915->drm.dev);
 
@@ -1379,7 +1387,7 @@ static int live_timeslice_nopreempt(void *arg)
 		 * allow the maximum priority barrier through. Wait long
 		 * enough to see if it is timesliced in by mistake.
 		 */
-		if (i915_request_wait(rq, 0, timeslice_threshold(engine)) >= 0) {
+		if (i915_request_wait(rq, 0, slice_timeout(engine)) >= 0) {
 			pr_err("%s: I915_PRIORITY_BARRIER request completed, bypassing no-preempt request\n",
 			       engine->name);
 			err = -EINVAL;
@@ -3888,19 +3896,6 @@ static int live_virtual_mask(void *arg)
 	}
 
 	return 0;
-}
-
-static long slice_timeout(struct intel_engine_cs *engine)
-{
-	long timeout;
-
-	/* Enough time for a timeslice to kick in, and kick out */
-	timeout = 2 * msecs_to_jiffies_timeout(timeslice(engine));
-
-	/* Enough time for the nop request to complete */
-	timeout += HZ / 5;
-
-	return timeout;
 }
 
 static int slicein_virtual_engine(struct intel_gt *gt,
