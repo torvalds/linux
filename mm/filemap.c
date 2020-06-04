@@ -1256,7 +1256,7 @@ EXPORT_SYMBOL_GPL(add_page_wait_queue);
  * instead.
  *
  * The read of PG_waiters has to be after (or concurrently with) PG_locked
- * being cleared, but a memory barrier should be unneccssary since it is
+ * being cleared, but a memory barrier should be unnecessary since it is
  * in the same byte as PG_locked.
  */
 static inline bool clear_bit_unlock_is_negative_byte(long nr, volatile void *mem)
