@@ -46,6 +46,22 @@ int snd_soc_component_initialize(struct snd_soc_component *component,
 	return 0;
 }
 
+void snd_soc_component_set_aux(struct snd_soc_component *component,
+			       struct snd_soc_aux_dev *aux)
+{
+	component->init = (aux) ? aux->init : NULL;
+}
+
+int snd_soc_component_init(struct snd_soc_component *component)
+{
+	int ret = 0;
+
+	if (component->init)
+		ret = component->init(component);
+
+	return soc_component_ret(component, ret);
+}
+
 /**
  * snd_soc_component_set_sysclk - configure COMPONENT system or master clock.
  * @component: COMPONENT

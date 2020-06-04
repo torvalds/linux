@@ -1208,15 +1208,14 @@ static int soc_probe_component(struct snd_soc_card *card,
 	     component->name);
 	probed = 1;
 
-	/* machine specific init */
-	if (component->init) {
-		ret = component->init(component);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Failed to do machine specific init %d\n", ret);
-			goto err_probe;
-		}
-	}
+	/*
+	 * machine specific init
+	 * see
+	 *	snd_soc_component_set_aux()
+	 */
+	ret = snd_soc_component_init(component);
+	if (ret < 0)
+		goto err_probe;
 
 	ret = snd_soc_add_component_controls(component,
 					     component->driver->controls,
@@ -1330,7 +1329,8 @@ static void soc_unbind_aux_dev(struct snd_soc_card *card)
 	struct snd_soc_component *component, *_component;
 
 	for_each_card_auxs_safe(card, component, _component) {
-		component->init = NULL;
+		/* for snd_soc_component_init() */
+		snd_soc_component_set_aux(component, NULL);
 		list_del(&component->card_aux_list);
 	}
 }
@@ -1347,7 +1347,8 @@ static int soc_bind_aux_dev(struct snd_soc_card *card)
 		if (!component)
 			return -EPROBE_DEFER;
 
-		component->init = aux->init;
+		/* for snd_soc_component_init() */
+		snd_soc_component_set_aux(component, aux);
 		/* see for_each_card_auxs */
 		list_add(&component->card_aux_list, &card->aux_comp_list);
 	}

@@ -327,6 +327,9 @@ static inline int snd_soc_component_cache_sync(
 int snd_soc_component_initialize(struct snd_soc_component *component,
 				 const struct snd_soc_component_driver *driver,
 				 struct device *dev, const char *name);
+void snd_soc_component_set_aux(struct snd_soc_component *component,
+			       struct snd_soc_aux_dev *aux);
+int snd_soc_component_init(struct snd_soc_component *component);
 
 /* component IO */
 int snd_soc_component_read(struct snd_soc_component *component,
