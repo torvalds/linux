@@ -63,9 +63,9 @@ static inline void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 }
 extern void __kunmap_atomic(void *kvaddr);
 
-static inline void *kmap_atomic(struct page *page)
+static inline void *kmap_atomic_high(struct page *page)
 {
-	return kmap_atomic_prot(page, kmap_prot);
+	return kmap_atomic_high_prot(page, kmap_prot);
 }
 
 #define flush_cache_kmaps()	{ flush_icache(); flush_dcache(); }

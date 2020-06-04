@@ -68,7 +68,6 @@ static inline void flush_cache_kmaps(void)
 	flush_cache_all();
 }
 
-void *kmap_atomic(struct page *page);
 void __kunmap_atomic(void *kvaddr);
 
 void kmap_init(void);

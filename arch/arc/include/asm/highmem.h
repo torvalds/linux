@@ -30,7 +30,6 @@
 
 #include <asm/cacheflush.h>
 
-extern void *kmap_atomic(struct page *page);
 extern void __kunmap_atomic(void *kvaddr);
 
 extern void kmap_init(void);
