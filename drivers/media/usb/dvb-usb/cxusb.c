@@ -18,7 +18,7 @@
  * Copyright (C) 2006, 2007 Chris Pascoe (c.pascoe@itee.uq.edu.au)
  * Copyright (C) 2011, 2017 Maciej S. Szmigiero (mail@maciej.szmigiero.name)
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include <media/tuner.h>
 #include <linux/delay.h>
@@ -1358,8 +1358,8 @@ static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)
  * not, and forget a match if it turns out we selected the wrong device.
  */
 static int bluebird_fx2_identify_state(struct usb_device *udev,
-				       struct dvb_usb_device_properties *props,
-				       struct dvb_usb_device_description **desc,
+				       const struct dvb_usb_device_properties *props,
+				       const struct dvb_usb_device_description **desc,
 				       int *cold)
 {
 	int wascold = *cold;

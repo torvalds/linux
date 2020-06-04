@@ -3682,7 +3682,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/bttv*
+F:	Documentation/driver-api/media/drivers/bttv*
 F:	drivers/media/pci/bt8xx/bttv*
 
 BUS FREQUENCY DRIVER FOR SAMSUNG EXYNOS
@@ -3773,7 +3773,7 @@ M:	Jonathan Corbet <corbet@lwn.net>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/cafe_ccic*
+F:	Documentation/admin-guide/media/cafe_ccic*
 F:	drivers/media/platform/marvell-ccic/
 
 CAIF NETWORK LAYER
@@ -3926,8 +3926,8 @@ W:	http://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/ABI/testing/debugfs-cec-error-inj
 F:	Documentation/devicetree/bindings/media/cec.txt
-F:	Documentation/media/kapi/cec-core.rst
-F:	Documentation/media/uapi/cec
+F:	Documentation/driver-api/media/cec-core.rst
+F:	Documentation/userspace-api/media/cec
 F:	drivers/media/cec/
 F:	drivers/media/rc/keymaps/rc-cec.c
 F:	include/media/cec-notifier.h
@@ -4559,7 +4559,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/cx88*
+F:	Documentation/driver-api/media/drivers/cx88*
 F:	drivers/media/pci/cx88/
 
 CXD2820R MEDIA DRIVER
@@ -5142,12 +5142,14 @@ F:	scripts/documentation-file-ref-check
 F:	scripts/kernel-doc
 F:	scripts/sphinx-pre-install
 X:	Documentation/ABI/
+X:	Documentation/admin-guide/media/
 X:	Documentation/devicetree/
+X:	Documentation/driver-api/media/
 X:	Documentation/firmware-guide/acpi/
 X:	Documentation/i2c/
-X:	Documentation/media/
 X:	Documentation/power/
 X:	Documentation/spi/
+X:	Documentation/userspace-api/media/
 
 DOCUMENTATION SCRIPTS
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -6261,7 +6263,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/em28xx*
+F:	Documentation/admin-guide/media/em28xx*
 F:	drivers/media/usb/em28xx/
 
 EMBEDDED LINUX
@@ -7502,7 +7504,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-rockchip@lists.infradead.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/nxp,imx8mq-vpu.yaml
-F:	Documentation/devicetree/bindings/media/rockchip-vpu.txt
+F:	Documentation/devicetree/bindings/media/rockchip-vpu.yaml
 F:	drivers/staging/media/hantro/
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
@@ -8694,16 +8696,18 @@ M:	Bingbu Cao <bingbu.cao@intel.com>
 R:	Tian Shu Qiu <tian.shu.qiu@intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	Documentation/media/uapi/v4l/pixfmt-srggb10-ipu3.rst
+F:	Documentation/userspace-api/media/v4l/pixfmt-srggb10-ipu3.rst
 F:	drivers/media/pci/intel/ipu3/
 
 INTEL IPU3 CSI-2 IMGU DRIVER
 M:	Sakari Ailus <sakari.ailus@linux.intel.com>
+R:	Bingbu Cao <bingbu.cao@intel.com>
+R:	Tian Shu Qiu <tian.shu.qiu@intel.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
-F:	Documentation/media/uapi/v4l/pixfmt-meta-intel-ipu3.rst
-F:	Documentation/media/v4l-drivers/ipu3.rst
-F:	Documentation/media/v4l-drivers/ipu3_rcb.svg
+F:	Documentation/admin-guide/media/ipu3.rst
+F:	Documentation/admin-guide/media/ipu3_rcb.svg
+F:	Documentation/userspace-api/media/v4l/pixfmt-meta-intel-ipu3.rst
 F:	drivers/staging/media/ipu3/
 
 INTEL IXP4XX QMGR, NPE, ETHERNET and HSS SUPPORT
@@ -9138,7 +9142,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/ivtv*
+F:	Documentation/admin-guide/media/ivtv*
 F:	drivers/media/pci/ivtv/
 F:	include/uapi/linux/ivtv*
 
@@ -10330,7 +10334,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/i2c/max2175.txt
-F:	Documentation/media/v4l-drivers/max2175.rst
+F:	Documentation/userspace-api/media/drivers/max2175.rst
 F:	drivers/media/i2c/max2175*
 F:	include/uapi/linux/max2175.h
 
@@ -10530,8 +10534,8 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/admin-guide/media/imx.rst
 F:	Documentation/devicetree/bindings/media/imx.txt
-F:	Documentation/media/v4l-drivers/imx.rst
 F:	drivers/staging/media/imx/
 F:	include/linux/imx-media.h
 F:	include/media/imx.h
@@ -10541,9 +10545,9 @@ M:	Rui Miguel Silva <rmfrfs@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/admin-guide/media/imx7.rst
 F:	Documentation/devicetree/bindings/media/imx7-csi.txt
 F:	Documentation/devicetree/bindings/media/imx7-mipi-csi2.txt
-F:	Documentation/media/v4l-drivers/imx7.rst
 F:	drivers/staging/media/imx/imx7-media-csi.c
 F:	drivers/staging/media/imx/imx7-mipi-csis.c
 
@@ -10689,8 +10693,10 @@ S:	Maintained
 W:	https://linuxtv.org
 Q:	http://patchwork.kernel.org/project/linux-media/list/
 T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/admin-guide/media/
 F:	Documentation/devicetree/bindings/media/
-F:	Documentation/media/
+F:	Documentation/driver-api/media/
+F:	Documentation/userspace-api/media/
 F:	drivers/media/
 F:	drivers/staging/media/
 F:	include/linux/platform_data/media/
@@ -11090,10 +11096,12 @@ F:	drivers/mtd/nand/raw/meson_*
 
 MESON VIDEO DECODER DRIVER FOR AMLOGIC SOCS
 M:	Maxime Jourdan <mjourdan@baylibre.com>
+M:	Neil Armstrong <narmstrong@baylibre.com>
 L:	linux-media@vger.kernel.org
 L:	linux-amlogic@lists.infradead.org
 S:	Supported
 T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/devicetree/bindings/media/amlogic,gx-vdec.yaml
 F:	drivers/staging/media/meson/vdec/
 
 METHODE UDPU SUPPORT
@@ -11474,7 +11482,7 @@ F:	drivers/regulator/mpq7920.h
 MOTION EYE VAIO PICTUREBOOK CAMERA DRIVER
 S:	Orphan
 W:	http://popies.net/meye/
-F:	Documentation/media/v4l-drivers/meye*
+F:	Documentation/userspace-api/media/drivers/meye*
 F:	drivers/media/pci/meye/
 F:	include/uapi/linux/meye.h
 
@@ -12501,6 +12509,15 @@ S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/ov2685.c
 
+OMNIVISION OV2740 SENSOR DRIVER
+M:	Tianshu Qiu <tian.shu.qiua@intel.com>
+R:	Shawn Tu <shawnx.tu@intel.com>
+R:	Bingbu Cao <bingbu.cao@intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	drivers/media/i2c/ov2740.c
+
 OMNIVISION OV5640 SENSOR DRIVER
 M:	Steve Longerbeam <slongerbeam@gmail.com>
 L:	linux-media@vger.kernel.org
@@ -12563,10 +12580,11 @@ F:	Documentation/devicetree/bindings/media/i2c/ov7740.txt
 F:	drivers/media/i2c/ov7740.c
 
 OMNIVISION OV8856 SENSOR DRIVER
-M:	Ben Kao <ben.kao@intel.com>
+M:	Dongchun Zhu <dongchun.zhu@mediatek.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/devicetree/bindings/media/i2c/ov8856.yaml
 F:	drivers/media/i2c/ov8856.c
 
 OMNIVISION OV9640 SENSOR DRIVER
@@ -13788,8 +13806,8 @@ M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/cec-drivers/pulse8-cec.rst
-F:	drivers/media/usb/pulse8-cec/*
+F:	Documentation/admin-guide/media/pulse8-cec.rst
+F:	drivers/media/cec/usb/pulse8/
 
 PVRUSB2 VIDEO4LINUX DRIVER
 M:	Mike Isely <isely@pobox.com>
@@ -13798,7 +13816,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://www.isely.net/pvrusb2/
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/pvrusb2*
+F:	Documentation/driver-api/media/drivers/pvrusb2*
 F:	drivers/media/usb/pvrusb2/
 
 PWC WEBCAM DRIVER
@@ -14045,8 +14063,8 @@ QUALCOMM CAMERA SUBSYSTEM DRIVER
 M:	Todor Tomov <todor.too@gmail.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
+F:	Documentation/admin-guide/media/qcom_camss.rst
 F:	Documentation/devicetree/bindings/media/qcom,camss.txt
-F:	Documentation/media/v4l-drivers/qcom_camss.rst
 F:	drivers/media/platform/qcom/camss/
 
 QUALCOMM CORE POWER REDUCTION (CPR) AVS DRIVER
@@ -14201,7 +14219,7 @@ M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/usb/rainshadow-cec/*
+F:	drivers/media/cec/usb/rainshadow/
 
 RALINK MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
@@ -14554,9 +14572,18 @@ ROCKCHIP RASTER 2D GRAPHIC ACCELERATION UNIT DRIVER
 M:	Jacob Chen <jacob-chen@iotwrt.com>
 M:	Ezequiel Garcia <ezequiel@collabora.com>
 L:	linux-media@vger.kernel.org
+L:	linux-rockchip@lists.infradead.org
 S:	Maintained
-F:	Documentation/devicetree/bindings/media/rockchip-rga.txt
+F:	Documentation/devicetree/bindings/media/rockchip-rga.yaml
 F:	drivers/media/platform/rockchip/rga/
+
+ROCKCHIP VIDEO DECODER DRIVER
+M:	Ezequiel Garcia <ezequiel@collabora.com>
+L:	linux-media@vger.kernel.org
+L:	linux-rockchip@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/rockchip,vdec.yaml
+F:	drivers/staging/media/rkvdec/
 
 ROCKER DRIVER
 M:	Jiri Pirko <jiri@resnulli.us>
@@ -14807,7 +14834,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/saa7134*
+F:	Documentation/driver-api/media/drivers/saa7134*
 F:	drivers/media/pci/saa7134/
 
 SAA7146 VIDEO4LINUX-2 DRIVER
@@ -15304,11 +15331,6 @@ S:	Odd fixes
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/rj54n1cb0c.c
 F:	include/media/i2c/rj54n1cb0c.h
-
-SH_VEU V4L2 MEM2MEM DRIVER
-L:	linux-media@vger.kernel.org
-S:	Orphan
-F:	drivers/media/platform/sh_veu.c
 
 SH_VOU V4L2 OUTPUT DRIVER
 L:	linux-media@vger.kernel.org
@@ -16031,6 +16053,13 @@ M:	Sasha Levin <sashal@kernel.org>
 L:	stable@vger.kernel.org
 S:	Supported
 F:	Documentation/process/stable-kernel-rules.rst
+
+STAGING - ATOMISP DRIVER
+M:	Mauro Carvalho Chehab <mchehab@kernel.org>
+R:	Sakari Ailus <sakari.ailus@linux.intel.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/staging/media/atomisp/
 
 STAGING - COMEDI
 M:	Ian Abbott <abbotti@mev.co.uk>
@@ -17068,7 +17097,7 @@ L:	linux-media@vger.kernel.org
 S:	Odd fixes
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/tm6000*
+F:	Documentation/admin-guide/media/tm6000*
 F:	drivers/media/usb/tm6000/
 
 TMIO/SDHI MMC DRIVER
@@ -17749,7 +17778,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://royale.zerezo.com/zr364xx/
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/media/v4l-drivers/zr364xx*
+F:	Documentation/admin-guide/media/zr364xx*
 F:	drivers/media/usb/zr364xx/
 
 USER-MODE LINUX (UML)
@@ -17898,7 +17927,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/vicodec/*
+F:	drivers/media/test-drivers/vicodec/*
 
 VIDEO I2C POLLING DRIVER
 M:	Matt Ranostay <matt.ranostay@konsulko.com>
@@ -17929,7 +17958,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/vimc/*
+F:	drivers/media/test-drivers/vimc/*
 
 VIRT LIB
 M:	Alex Williamson <alex.williamson@redhat.com>
@@ -18096,7 +18125,7 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-F:	drivers/media/platform/vivid/*
+F:	drivers/media/test-drivers/vivid/*
 
 VLYNQ BUS
 M:	Florian Fainelli <f.fainelli@gmail.com>

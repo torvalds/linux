@@ -50,7 +50,7 @@
 #include "stv6111.h"
 #include "lnbh25.h"
 #include "cxd2099.h"
-#include "dvb_dummy_fe.h"
+#include "ddbridge-dummy-fe.h"
 
 /****************************************************************************/
 
@@ -1265,7 +1265,7 @@ static int demod_attach_dummy(struct ddb_input *input)
 	struct ddb_dvb *dvb = &input->port->dvb[input->nr & 1];
 	struct device *dev = input->port->dev->dev;
 
-	dvb->fe = dvb_attach(dvb_dummy_fe_qam_attach);
+	dvb->fe = dvb_attach(ddbridge_dummy_fe_qam_attach);
 	if (!dvb->fe) {
 		dev_err(dev, "QAM dummy attach failed!\n");
 		return -ENODEV;
