@@ -12,19 +12,11 @@ static pte_t *kmap_pte;
 
 unsigned long highstart_pfn, highend_pfn;
 
-void *kmap(struct page *page)
+void kmap_flush_tlb(unsigned long addr)
 {
-	void *addr;
-
-	might_sleep();
-	if (!PageHighMem(page))
-		return page_address(page);
-	addr = kmap_high(page);
-	flush_tlb_one((unsigned long)addr);
-
-	return addr;
+	flush_tlb_one(addr);
 }
-EXPORT_SYMBOL(kmap);
+EXPORT_SYMBOL(kmap_flush_tlb);
 
 void kunmap(struct page *page)
 {

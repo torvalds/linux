@@ -30,10 +30,10 @@ extern pte_t *pkmap_page_table;
 #define PKMAP_NR(virt)  ((virt-PKMAP_BASE) >> PAGE_SHIFT)
 #define PKMAP_ADDR(nr)  (PKMAP_BASE + ((nr) << PAGE_SHIFT))
 
-extern void *kmap_high(struct page *page);
 extern void kunmap_high(struct page *page);
 
-extern void *kmap(struct page *page);
+#define ARCH_HAS_KMAP_FLUSH_TLB
+extern void kmap_flush_tlb(unsigned long addr);
 extern void kunmap(struct page *page);
 extern void *kmap_atomic(struct page *page);
 extern void __kunmap_atomic(void *kvaddr);
