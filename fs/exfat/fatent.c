@@ -169,7 +169,7 @@ int exfat_free_cluster(struct inode *inode, struct exfat_chain *p_chain)
 		return 0;
 
 	/* check cluster validation */
-	if (p_chain->dir < 2 && p_chain->dir >= sbi->num_clusters) {
+	if (!is_valid_cluster(sbi, p_chain->dir)) {
 		exfat_err(sb, "invalid start cluster (%u)", p_chain->dir);
 		return -EIO;
 	}
@@ -346,7 +346,7 @@ int exfat_alloc_cluster(struct inode *inode, unsigned int num_alloc,
 	}
 
 	/* check cluster validation */
-	if (hint_clu < EXFAT_FIRST_CLUSTER && hint_clu >= sbi->num_clusters) {
+	if (!is_valid_cluster(sbi, hint_clu)) {
 		exfat_err(sb, "hint_cluster is invalid (%u)",
 			hint_clu);
 		hint_clu = EXFAT_FIRST_CLUSTER;
