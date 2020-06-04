@@ -1072,57 +1072,37 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int soc_pcm_trigger_start(struct snd_pcm_substream *substream, int cmd)
-{
-	int ret;
-
-	ret = snd_soc_link_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_pcm_component_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	return snd_soc_pcm_dai_trigger(substream, cmd);
-}
-
-static int soc_pcm_trigger_stop(struct snd_pcm_substream *substream, int cmd)
-{
-	int ret;
-
-	ret = snd_soc_pcm_dai_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_pcm_component_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_link_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	int ret;
+	int ret = -EINVAL;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = soc_pcm_trigger_start(substream, cmd);
+		ret = snd_soc_link_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_component_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_dai_trigger(substream, cmd);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = soc_pcm_trigger_stop(substream, cmd);
+		ret = snd_soc_pcm_dai_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_component_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_link_trigger(substream, cmd);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	return ret;
