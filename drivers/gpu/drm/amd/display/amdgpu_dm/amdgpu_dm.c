@@ -5693,6 +5693,17 @@ static void dm_plane_helper_cleanup_fb(struct drm_plane *plane,
 	amdgpu_bo_unref(&rbo);
 }
 
+static int dm_plane_helper_check_state(struct drm_plane_state *state,
+				       struct drm_crtc_state *new_crtc_state)
+{
+	int max_downscale = 0;
+	int max_upscale = INT_MAX;
+
+	/* TODO: These should be checked against DC plane caps */
+	return drm_atomic_helper_check_plane_state(
+		state, new_crtc_state, max_downscale, max_upscale, true, true);
+}
+
 static int dm_plane_atomic_check(struct drm_plane *plane,
 				 struct drm_plane_state *state)
 {
@@ -5700,12 +5711,22 @@ static int dm_plane_atomic_check(struct drm_plane *plane,
 	struct dc *dc = adev->dm.dc;
 	struct dm_plane_state *dm_plane_state;
 	struct dc_scaling_info scaling_info;
+	struct drm_crtc_state *new_crtc_state;
 	int ret;
 
 	dm_plane_state = to_dm_plane_state(state);
 
 	if (!dm_plane_state->dc_state)
 		return 0;
+
+	new_crtc_state =
+		drm_atomic_get_new_crtc_state(state->state, state->crtc);
+	if (!new_crtc_state)
+		return -EINVAL;
+
+	ret = dm_plane_helper_check_state(state, new_crtc_state);
+	if (ret)
+		return ret;
 
 	ret = fill_dc_scaling_info(state, &scaling_info);
 	if (ret)
@@ -8222,6 +8243,10 @@ static int dm_update_plane_state(struct dc *dc,
 
 		if (!needs_reset)
 			return 0;
+
+		ret = dm_plane_helper_check_state(new_plane_state, new_crtc_state);
+		if (ret)
+			return ret;
 
 		WARN_ON(dm_new_plane_state->dc_state);
 
