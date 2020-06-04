@@ -2248,7 +2248,7 @@ static int npcm_i2c_probe_bus(struct platform_device *pdev)
 
 	bus->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bus->reg))
-		return PTR_ERR((bus)->reg);
+		return PTR_ERR(bus->reg);
 
 	spin_lock_init(&bus->lock);
 	init_completion(&bus->cmd_complete);
