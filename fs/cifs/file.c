@@ -1853,7 +1853,7 @@ cifs_write(struct cifsFileInfo *open_file, __u32 pid, const char *write_data,
 	unsigned int xid;
 	struct dentry *dentry = open_file->dentry;
 	struct cifsInodeInfo *cifsi = CIFS_I(d_inode(dentry));
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 
 	cifs_dbg(FYI, "write %zd bytes to offset %lld of %pd\n",
 		 write_size, *offset, dentry);
@@ -4014,7 +4014,7 @@ cifs_read(struct file *file, char *read_data, size_t read_size, loff_t *offset)
 	unsigned int xid;
 	char *cur_offset;
 	struct cifsFileInfo *open_file;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	int buf_type = CIFS_NO_BUFFER;
 	__u32 pid;
 

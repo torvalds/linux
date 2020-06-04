@@ -447,7 +447,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	struct cifs_tcon *tcon;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;

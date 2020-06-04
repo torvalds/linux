@@ -4584,7 +4584,7 @@ smb2_make_node(unsigned int xid, struct inode *inode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	int rc = -EPERM;
 	FILE_ALL_INFO *buf = NULL;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	__u32 oplock = 0;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
