@@ -1193,9 +1193,27 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
 	 */
 	ret = smu_set_tool_table_location(smu);
+	if (ret)
+		return ret;
 
 	if (!smu_is_dpm_running(smu))
 		pr_info("dpm has been disabled\n");
+
+	/*
+	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
+	 * pool location.
+	 */
+	ret = smu_notify_memory_pool_location(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_enable_thermal_alert(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
+	if (ret)
+		return ret;
 
 	return ret;
 }
@@ -1273,22 +1291,6 @@ static int smu_hw_init(void *handle)
 		goto failed;
 
 	ret = smu_smc_table_hw_init(smu, true);
-	if (ret)
-		goto failed;
-
-	/*
-	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
-	 * pool location.
-	 */
-	ret = smu_notify_memory_pool_location(smu);
-	if (ret)
-		goto failed;
-
-	ret = smu_enable_thermal_alert(smu);
-	if (ret)
-		goto failed;
-
-	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
 	if (ret)
 		goto failed;
 
@@ -1485,14 +1487,6 @@ static int smu_resume(void *handle)
 	}
 
 	ret = smu_smc_table_hw_init(smu, false);
-	if (ret)
-		goto failed;
-
-	ret = smu_enable_thermal_alert(smu);
-	if (ret)
-		goto failed;
-
-	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
 	if (ret)
 		goto failed;
 
