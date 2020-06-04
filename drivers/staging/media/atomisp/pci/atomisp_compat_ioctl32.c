@@ -863,6 +863,8 @@ static long atomisp_do_compat_ioctl(struct file *file,
 				 sizeof(struct atomisp_morph_table) +
 				 sizeof(struct atomisp_dis_coefficients) +
 				 sizeof(struct atomisp_dvs_6axis_config) : 0));
+	if (!karg)
+		return -ENOMEM;
 
 	/* First, convert the command. */
 	switch (cmd) {
