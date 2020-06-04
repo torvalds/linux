@@ -850,7 +850,6 @@ static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
 	int i, ret = 0;
 
@@ -860,14 +859,9 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		goto out;
 
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_prepare(component, substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: platform prepare error: %d\n", ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_pcm_component_prepare(substream);
+	if (ret < 0)
+		goto out;
 
 	ret = snd_soc_pcm_dai_prepare(substream);
 	if (ret < 0) {
