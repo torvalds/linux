@@ -638,7 +638,7 @@ failed:
 	return ret;
 }
 
-int smu_feature_init_dpm(struct smu_context *smu)
+static int smu_get_driver_allowed_feature_mask(struct smu_context *smu)
 {
 	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
@@ -661,7 +661,6 @@ int smu_feature_init_dpm(struct smu_context *smu)
 
 	return ret;
 }
-
 
 int smu_feature_is_enabled(struct smu_context *smu, enum smu_feature_mask mask)
 {
@@ -1115,8 +1114,7 @@ static int smu_sw_fini(void *handle)
 	return 0;
 }
 
-static int smu_smc_table_hw_init(struct smu_context *smu,
-				 bool initialize)
+static int smu_smc_hw_setup(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret;
@@ -1287,11 +1285,11 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		return ret;
 
-	ret = smu_feature_init_dpm(smu);
+	ret = smu_get_driver_allowed_feature_mask(smu);
 	if (ret)
 		goto failed;
 
-	ret = smu_smc_table_hw_init(smu, true);
+	ret = smu_smc_hw_setup(smu);
 	if (ret)
 		goto failed;
 
@@ -1487,7 +1485,7 @@ static int smu_resume(void *handle)
 		goto failed;
 	}
 
-	ret = smu_smc_table_hw_init(smu, false);
+	ret = smu_smc_hw_setup(smu);
 	if (ret)
 		goto failed;
 
