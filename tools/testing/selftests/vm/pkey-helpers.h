@@ -14,7 +14,7 @@
 #include <sys/mman.h>
 
 #define NR_PKEYS 16
-#define PKRU_BITS_PER_PKEY 2
+#define PKEY_BITS_PER_PKEY 2
 
 #ifndef DEBUG_LEVEL
 #define DEBUG_LEVEL 0
@@ -53,85 +53,88 @@ static inline void sigsafe_printf(const char *format, ...)
 #define dprintf3(args...) dprintf_level(3, args)
 #define dprintf4(args...) dprintf_level(4, args)
 
-extern unsigned int shadow_pkru;
-static inline unsigned int __rdpkru(void)
+extern unsigned int shadow_pkey_reg;
+static inline unsigned int __read_pkey_reg(void)
 {
 	unsigned int eax, edx;
 	unsigned int ecx = 0;
-	unsigned int pkru;
+	unsigned int pkey_reg;
 
 	asm volatile(".byte 0x0f,0x01,0xee\n\t"
 		     : "=a" (eax), "=d" (edx)
 		     : "c" (ecx));
-	pkru = eax;
-	return pkru;
+	pkey_reg = eax;
+	return pkey_reg;
 }
 
-static inline unsigned int _rdpkru(int line)
+static inline unsigned int _read_pkey_reg(int line)
 {
-	unsigned int pkru = __rdpkru();
+	unsigned int pkey_reg = __read_pkey_reg();
 
-	dprintf4("rdpkru(line=%d) pkru: %x shadow: %x\n",
-			line, pkru, shadow_pkru);
-	assert(pkru == shadow_pkru);
+	dprintf4("read_pkey_reg(line=%d) pkey_reg: %x shadow: %x\n",
+			line, pkey_reg, shadow_pkey_reg);
+	assert(pkey_reg == shadow_pkey_reg);
 
-	return pkru;
+	return pkey_reg;
 }
 
-#define rdpkru() _rdpkru(__LINE__)
+#define read_pkey_reg() _read_pkey_reg(__LINE__)
 
-static inline void __wrpkru(unsigned int pkru)
+static inline void __write_pkey_reg(unsigned int pkey_reg)
 {
-	unsigned int eax = pkru;
+	unsigned int eax = pkey_reg;
 	unsigned int ecx = 0;
 	unsigned int edx = 0;
 
-	dprintf4("%s() changing %08x to %08x\n", __func__, __rdpkru(), pkru);
+	dprintf4("%s() changing %08x to %08x\n", __func__,
+			__read_pkey_reg(), pkey_reg);
 	asm volatile(".byte 0x0f,0x01,0xef\n\t"
 		     : : "a" (eax), "c" (ecx), "d" (edx));
-	assert(pkru == __rdpkru());
+	assert(pkey_reg == __read_pkey_reg());
 }
 
-static inline void wrpkru(unsigned int pkru)
+static inline void write_pkey_reg(unsigned int pkey_reg)
 {
-	dprintf4("%s() changing %08x to %08x\n", __func__, __rdpkru(), pkru);
+	dprintf4("%s() changing %08x to %08x\n", __func__,
+			__read_pkey_reg(), pkey_reg);
 	/* will do the shadow check for us: */
-	rdpkru();
-	__wrpkru(pkru);
-	shadow_pkru = pkru;
-	dprintf4("%s(%08x) pkru: %08x\n", __func__, pkru, __rdpkru());
+	read_pkey_reg();
+	__write_pkey_reg(pkey_reg);
+	shadow_pkey_reg = pkey_reg;
+	dprintf4("%s(%08x) pkey_reg: %08x\n", __func__,
+			pkey_reg, __read_pkey_reg());
 }
 
 /*
  * These are technically racy. since something could
- * change PKRU between the read and the write.
+ * change PKEY register between the read and the write.
  */
 static inline void __pkey_access_allow(int pkey, int do_allow)
 {
-	unsigned int pkru = rdpkru();
+	unsigned int pkey_reg = read_pkey_reg();
 	int bit = pkey * 2;
 
 	if (do_allow)
-		pkru &= (1<<bit);
+		pkey_reg &= (1<<bit);
 	else
-		pkru |= (1<<bit);
+		pkey_reg |= (1<<bit);
 
-	dprintf4("pkru now: %08x\n", rdpkru());
-	wrpkru(pkru);
+	dprintf4("pkey_reg now: %08x\n", read_pkey_reg());
+	write_pkey_reg(pkey_reg);
 }
 
 static inline void __pkey_write_allow(int pkey, int do_allow_write)
 {
-	long pkru = rdpkru();
+	long pkey_reg = read_pkey_reg();
 	int bit = pkey * 2 + 1;
 
 	if (do_allow_write)
-		pkru &= (1<<bit);
+		pkey_reg &= (1<<bit);
 	else
-		pkru |= (1<<bit);
+		pkey_reg |= (1<<bit);
 
-	wrpkru(pkru);
-	dprintf4("pkru now: %08x\n", rdpkru());
+	write_pkey_reg(pkey_reg);
+	dprintf4("pkey_reg now: %08x\n", read_pkey_reg());
 }
 
 #define PROT_PKEY0     0x10            /* protection key value (bit 0) */
@@ -181,10 +184,10 @@ static inline int cpu_has_pku(void)
 	return 1;
 }
 
-#define XSTATE_PKRU_BIT	(9)
-#define XSTATE_PKRU	0x200
+#define XSTATE_PKEY_BIT	(9)
+#define XSTATE_PKEY	0x200
 
-int pkru_xstate_offset(void)
+int pkey_reg_xstate_offset(void)
 {
 	unsigned int eax;
 	unsigned int ebx;
@@ -195,21 +198,21 @@ int pkru_xstate_offset(void)
 	unsigned long XSTATE_CPUID = 0xd;
 	int leaf;
 
-	/* assume that XSTATE_PKRU is set in XCR0 */
-	leaf = XSTATE_PKRU_BIT;
+	/* assume that XSTATE_PKEY is set in XCR0 */
+	leaf = XSTATE_PKEY_BIT;
 	{
 		eax = XSTATE_CPUID;
 		ecx = leaf;
 		__cpuid(&eax, &ebx, &ecx, &edx);
 
-		if (leaf == XSTATE_PKRU_BIT) {
+		if (leaf == XSTATE_PKEY_BIT) {
 			xstate_offset = ebx;
 			xstate_size = eax;
 		}
 	}
 
 	if (xstate_size == 0) {
-		printf("could not find size/offset of PKRU in xsave state\n");
+		printf("could not find size/offset of PKEY in xsave state\n");
 		return 0;
 	}
 
