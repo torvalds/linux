@@ -260,6 +260,16 @@ config KERNEL_UNCOMPRESSED
 
 endchoice
 
+config DEFAULT_INIT
+	string "Default init path"
+	default ""
+	help
+	  This option determines the default init for the system if no init=
+	  option is passed on the kernel command line. If the requested path is
+	  not present, we will still then move on to attempting further
+	  locations (e.g. /sbin/init, etc). If this is empty, we will just use
+	  the fallback list when init= is not passed.
+
 config DEFAULT_HOSTNAME
 	string "Default hostname"
 	default "(none)"
