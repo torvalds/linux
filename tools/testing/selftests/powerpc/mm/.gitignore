@@ -8,3 +8,4 @@ wild_bctr
 large_vm_fork_separation
 bad_accesses
 tlbie_test
+pkey_exec_prot
