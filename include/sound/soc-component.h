@@ -2,7 +2,8 @@
  *
  * soc-component.h
  *
- * Copyright (c) 2019 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2019 Renesas Electronics Corp.
+ * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
  */
 #ifndef __SOC_COMPONENT_H
 #define __SOC_COMPONENT_H
