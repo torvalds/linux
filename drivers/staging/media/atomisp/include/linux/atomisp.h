@@ -509,7 +509,7 @@ struct atomisp_parameters {
 	struct atomisp_shading_table *shading_table;
 	struct atomisp_morph_table   *morph_table;
 	struct atomisp_dvs_coefficients *dvs_coefs; /* DVS 1.0 coefficients */
-	struct atomisp_dvs2_coefficients *dvs2_coefs; /* DVS 2.0 coefficients */
+	struct atomisp_dis_coefficients *dvs2_coefs; /* DVS 2.0 coefficients */
 	struct atomisp_capture_config   *capture_config;
 	struct atomisp_anr_thres   *anr_thres;
 

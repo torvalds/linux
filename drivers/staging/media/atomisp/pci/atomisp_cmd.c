@@ -3806,7 +3806,7 @@ int atomisp_css_cp_dvs2_coefs(struct atomisp_sub_device *asd,
 	}
 
 	css_param->update_flag.dvs2_coefs =
-	    (struct atomisp_dvs2_coefficients *)css_param->dvs2_coeff;
+	    (struct atomisp_dis_coefficients *)css_param->dvs2_coeff;
 	return 0;
 }
 
