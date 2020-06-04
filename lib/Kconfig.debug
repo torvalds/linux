@@ -1774,6 +1774,15 @@ config KCOV_INSTRUMENT_ALL
 	  filesystem fuzzing with AFL) then you will want to enable coverage
 	  for more specific subsets of files, and should say n here.
 
+config KCOV_IRQ_AREA_SIZE
+	hex "Size of interrupt coverage collection area in words"
+	depends on KCOV
+	default 0x40000
+	help
+	  KCOV uses preallocated per-cpu areas to collect coverage from
+	  soft interrupts. This specifies the size of those areas in the
+	  number of unsigned long words.
+
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
 	def_bool y
