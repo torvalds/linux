@@ -386,11 +386,23 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	return 0;
 }
 
+static void igc_ptp_tx_timeout(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	dev_kfree_skb_any(adapter->ptp_tx_skb);
+	adapter->ptp_tx_skb = NULL;
+	adapter->tx_hwtstamp_timeouts++;
+	clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
+	/* Clear the tx valid bit in TSYNCTXCTL register to enable interrupt. */
+	rd32(IGC_TXSTMPH);
+	netdev_warn(adapter->netdev, "Tx timestamp timeout\n");
+}
+
 void igc_ptp_tx_hang(struct igc_adapter *adapter)
 {
 	bool timeout = time_is_before_jiffies(adapter->ptp_tx_start +
 					      IGC_PTP_TX_TIMEOUT);
-	struct igc_hw *hw = &adapter->hw;
 
 	if (!adapter->ptp_tx_skb)
 		return;
@@ -404,15 +416,7 @@ void igc_ptp_tx_hang(struct igc_adapter *adapter)
 	 */
 	if (timeout) {
 		cancel_work_sync(&adapter->ptp_tx_work);
-		dev_kfree_skb_any(adapter->ptp_tx_skb);
-		adapter->ptp_tx_skb = NULL;
-		clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
-		adapter->tx_hwtstamp_timeouts++;
-		/* Clear the Tx valid bit in TSYNCTXCTL register to enable
-		 * interrupt
-		 */
-		rd32(IGC_TXSTMPH);
-		netdev_warn(adapter->netdev, "Clearing Tx timestamp hang\n");
+		igc_ptp_tx_timeout(adapter);
 	}
 }
 
@@ -467,15 +471,7 @@ static void igc_ptp_tx_work(struct work_struct *work)
 
 	if (time_is_before_jiffies(adapter->ptp_tx_start +
 				   IGC_PTP_TX_TIMEOUT)) {
-		dev_kfree_skb_any(adapter->ptp_tx_skb);
-		adapter->ptp_tx_skb = NULL;
-		clear_bit_unlock(__IGC_PTP_TX_IN_PROGRESS, &adapter->state);
-		adapter->tx_hwtstamp_timeouts++;
-		/* Clear the tx valid bit in TSYNCTXCTL register to enable
-		 * interrupt
-		 */
-		rd32(IGC_TXSTMPH);
-		netdev_warn(adapter->netdev, "Clearing Tx timestamp hang\n");
+		igc_ptp_tx_timeout(adapter);
 		return;
 	}
 
