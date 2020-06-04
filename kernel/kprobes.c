@@ -2475,24 +2475,14 @@ static int show_kprobe_addr(struct seq_file *pi, void *v)
 	return 0;
 }
 
-static const struct seq_operations kprobes_seq_ops = {
+static const struct seq_operations kprobes_sops = {
 	.start = kprobe_seq_start,
 	.next  = kprobe_seq_next,
 	.stop  = kprobe_seq_stop,
 	.show  = show_kprobe_addr
 };
 
-static int kprobes_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &kprobes_seq_ops);
-}
-
-static const struct file_operations debugfs_kprobes_operations = {
-	.open           = kprobes_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(kprobes);
 
 /* kprobes/blacklist -- shows which functions can not be probed */
 static void *kprobe_blacklist_seq_start(struct seq_file *m, loff_t *pos)
@@ -2529,24 +2519,13 @@ static void kprobe_blacklist_seq_stop(struct seq_file *f, void *v)
 	mutex_unlock(&kprobe_mutex);
 }
 
-static const struct seq_operations kprobe_blacklist_seq_ops = {
+static const struct seq_operations kprobe_blacklist_sops = {
 	.start = kprobe_blacklist_seq_start,
 	.next  = kprobe_blacklist_seq_next,
 	.stop  = kprobe_blacklist_seq_stop,
 	.show  = kprobe_blacklist_seq_show,
 };
-
-static int kprobe_blacklist_open(struct inode *inode, struct file *filp)
-{
-	return seq_open(filp, &kprobe_blacklist_seq_ops);
-}
-
-static const struct file_operations debugfs_kprobe_blacklist_ops = {
-	.open           = kprobe_blacklist_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = seq_release,
-};
+DEFINE_SEQ_ATTRIBUTE(kprobe_blacklist);
 
 static int arm_all_kprobes(void)
 {
@@ -2705,13 +2684,12 @@ static int __init debugfs_kprobe_init(void)
 
 	dir = debugfs_create_dir("kprobes", NULL);
 
-	debugfs_create_file("list", 0400, dir, NULL,
-			    &debugfs_kprobes_operations);
+	debugfs_create_file("list", 0400, dir, NULL, &kprobes_fops);
 
 	debugfs_create_file("enabled", 0600, dir, &value, &fops_kp);
 
 	debugfs_create_file("blacklist", 0400, dir, NULL,
-			    &debugfs_kprobe_blacklist_ops);
+			    &kprobe_blacklist_fops);
 
 	return 0;
 }
