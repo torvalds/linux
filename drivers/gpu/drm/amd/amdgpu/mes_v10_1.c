@@ -473,6 +473,7 @@ static void mes_v10_1_enable(struct amdgpu_device *adev, bool enable)
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE,
 				     adev->enable_mes_kiq ? 1 : 0);
 		WREG32_SOC15(GC, 0, mmCP_MES_CNTL, data);
+		udelay(50);
 	} else {
 		data = RREG32_SOC15(GC, 0, mmCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_ACTIVE, 0);
