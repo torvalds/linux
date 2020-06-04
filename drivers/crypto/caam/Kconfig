@@ -147,7 +147,7 @@ config CRYPTO_DEV_FSL_CAAM_RNG_API
 	select HW_RANDOM
 	help
 	  Selecting this will register the SEC4 hardware rng to
-	  the hw_random API for suppying the kernel entropy pool.
+	  the hw_random API for supplying the kernel entropy pool.
 
 endif # CRYPTO_DEV_FSL_CAAM_JR
 
