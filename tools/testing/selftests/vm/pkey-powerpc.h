@@ -64,8 +64,9 @@ static inline void __write_pkey_reg(u64 pkey_reg)
 			__func__, __read_pkey_reg(), pkey_reg);
 }
 
-static inline int cpu_has_pku(void)
+static inline int cpu_has_pkeys(void)
 {
+	/* No simple way to determine this */
 	return 1;
 }
 
