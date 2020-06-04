@@ -211,6 +211,7 @@ static void ovl_destroy_inode(struct inode *inode)
 
 static void ovl_free_fs(struct ovl_fs *ofs)
 {
+	struct vfsmount **mounts;
 	unsigned i;
 
 	iput(ofs->workbasedir_trap);
@@ -224,10 +225,14 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 	dput(ofs->workbasedir);
 	if (ofs->upperdir_locked)
 		ovl_inuse_unlock(ovl_upper_mnt(ofs)->mnt_root);
+
+	/* Hack!  Reuse ofs->layers as a vfsmount array before freeing it */
+	mounts = (struct vfsmount **) ofs->layers;
 	for (i = 0; i < ofs->numlayer; i++) {
 		iput(ofs->layers[i].trap);
-		mntput(ofs->layers[i].mnt);
+		mounts[i] = ofs->layers[i].mnt;
 	}
+	kern_unmount_array(mounts, ofs->numlayer);
 	kfree(ofs->layers);
 	for (i = 0; i < ofs->numfs; i++)
 		free_anon_bdev(ofs->fs[i].pseudo_dev);
