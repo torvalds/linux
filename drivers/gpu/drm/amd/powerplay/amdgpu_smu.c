@@ -1134,6 +1134,21 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
+	/*
+	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
+	 */
+	ret = smu_set_tool_table_location(smu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
+	 * pool location.
+	 */
+	ret = smu_notify_memory_pool_location(smu);
+	if (ret)
+		return ret;
+
 	/* smu_dump_pptable(smu); */
 	/*
 	 * Copy pptable bo in the vram to smc with SMU MSGs such as
@@ -1147,11 +1162,27 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	ret = smu_run_btc(smu);
 	if (ret)
 		return ret;
+
 	ret = smu_feature_set_allowed_mask(smu);
 	if (ret)
 		return ret;
 
 	ret = smu_system_features_control(smu, true);
+	if (ret)
+		return ret;
+
+	if (!smu_is_dpm_running(smu))
+		pr_info("dpm has been disabled\n");
+
+	ret = smu_override_pcie_parameters(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_enable_thermal_alert(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
 	if (ret)
 		return ret;
 
@@ -1182,36 +1213,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	 * SetMinDeepSleepDcefclk MSG.
 	 */
 	ret = smu_set_min_dcef_deep_sleep(smu);
-	if (ret)
-		return ret;
-
-	ret = smu_override_pcie_parameters(smu);
-	if (ret)
-		return ret;
-
-	/*
-	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
-	 */
-	ret = smu_set_tool_table_location(smu);
-	if (ret)
-		return ret;
-
-	if (!smu_is_dpm_running(smu))
-		pr_info("dpm has been disabled\n");
-
-	/*
-	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
-	 * pool location.
-	 */
-	ret = smu_notify_memory_pool_location(smu);
-	if (ret)
-		return ret;
-
-	ret = smu_enable_thermal_alert(smu);
-	if (ret)
-		return ret;
-
-	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
 	if (ret)
 		return ret;
 
