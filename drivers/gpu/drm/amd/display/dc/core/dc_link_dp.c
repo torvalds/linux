@@ -3376,7 +3376,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 	link->dpcd_caps.dpcd_rev.raw =
 			dpcd_data[DP_DPCD_REV - DP_DPCD_REV];
 
-	if (link->dpcd_caps.dpcd_rev.raw >= 0x14) {
+	if (link->dpcd_caps.ext_receiver_cap_field_present) {
 		for (i = 0; i < read_dpcd_retry_cnt; i++) {
 			status = core_link_read_dpcd(
 					link,

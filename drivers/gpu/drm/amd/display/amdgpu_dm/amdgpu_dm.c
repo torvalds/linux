@@ -4573,10 +4573,8 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 				stream->use_vsc_sdp_for_colorimetry =
 					aconnector->dc_sink->is_vsc_sdp_colorimetry_supported;
 			} else {
-				if (stream->link->dpcd_caps.dpcd_rev.raw >= 0x14 &&
-					stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED) {
+				if (stream->link->dpcd_caps.dprx_feature.bits.VSC_SDP_COLORIMETRY_SUPPORTED)
 					stream->use_vsc_sdp_for_colorimetry = true;
-				}
 			}
 			mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
 		}
