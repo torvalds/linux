@@ -224,7 +224,7 @@ static void ovl_free_fs(struct ovl_fs *ofs)
 		ovl_inuse_unlock(ofs->workbasedir);
 	dput(ofs->workbasedir);
 	if (ofs->upperdir_locked)
-		ovl_inuse_unlock(ofs->upper_mnt->mnt_root);
+		ovl_inuse_unlock(ovl_upper_mnt(ofs)->mnt_root);
 	mntput(ofs->upper_mnt);
 	for (i = 1; i < ofs->numlayer; i++) {
 		iput(ofs->layers[i].trap);
@@ -258,7 +258,7 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
 	struct super_block *upper_sb;
 	int ret;
 
-	if (!ofs->upper_mnt)
+	if (!ovl_upper_mnt(ofs))
 		return 0;
 
 	/*
@@ -272,7 +272,7 @@ static int ovl_sync_fs(struct super_block *sb, int wait)
 	if (!wait)
 		return 0;
 
-	upper_sb = ofs->upper_mnt->mnt_sb;
+	upper_sb = ovl_upper_mnt(ofs)->mnt_sb;
 
 	down_read(&upper_sb->s_umount);
 	ret = sync_filesystem(upper_sb);
@@ -310,7 +310,7 @@ static int ovl_statfs(struct dentry *dentry, struct kstatfs *buf)
 /* Will this overlay be forced to mount/remount ro? */
 static bool ovl_force_readonly(struct ovl_fs *ofs)
 {
-	return (!ofs->upper_mnt || !ofs->workdir);
+	return (!ovl_upper_mnt(ofs) || !ofs->workdir);
 }
 
 static const char *ovl_redirect_mode_def(void)
@@ -372,7 +372,7 @@ static int ovl_remount(struct super_block *sb, int *flags, char *data)
 		return -EROFS;
 
 	if (*flags & SB_RDONLY && !sb_rdonly(sb)) {
-		upper_sb = ofs->upper_mnt->mnt_sb;
+		upper_sb = ovl_upper_mnt(ofs)->mnt_sb;
 		down_read(&upper_sb->s_umount);
 		ret = sync_filesystem(upper_sb);
 		up_read(&upper_sb->s_umount);
@@ -669,7 +669,7 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 					 const char *name, bool persist)
 {
 	struct inode *dir =  ofs->workbasedir->d_inode;
-	struct vfsmount *mnt = ofs->upper_mnt;
+	struct vfsmount *mnt = ovl_upper_mnt(ofs);
 	struct dentry *work;
 	int err;
 	bool retried = false;
@@ -1122,7 +1122,7 @@ static int ovl_get_upper(struct super_block *sb, struct ovl_fs *ofs,
 	if (upper_mnt->mnt_sb->s_flags & SB_NOSEC)
 		sb->s_flags |= SB_NOSEC;
 
-	if (ovl_inuse_trylock(ofs->upper_mnt->mnt_root)) {
+	if (ovl_inuse_trylock(ovl_upper_mnt(ofs)->mnt_root)) {
 		ofs->upperdir_locked = true;
 	} else {
 		err = ovl_report_in_use(ofs, "upperdir");
@@ -1198,7 +1198,7 @@ out_unlock:
 static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 			    struct path *workpath)
 {
-	struct vfsmount *mnt = ofs->upper_mnt;
+	struct vfsmount *mnt = ovl_upper_mnt(ofs);
 	struct dentry *temp;
 	bool rename_whiteout;
 	bool d_type;
@@ -1342,7 +1342,7 @@ out:
 static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 			    struct ovl_entry *oe, struct path *upperpath)
 {
-	struct vfsmount *mnt = ofs->upper_mnt;
+	struct vfsmount *mnt = ovl_upper_mnt(ofs);
 	int err;
 
 	err = mnt_want_write(mnt);
@@ -1398,7 +1398,7 @@ static bool ovl_lower_uuid_ok(struct ovl_fs *ofs, const uuid_t *uuid)
 {
 	unsigned int i;
 
-	if (!ofs->config.nfs_export && !ofs->upper_mnt)
+	if (!ofs->config.nfs_export && !ovl_upper_mnt(ofs))
 		return true;
 
 	for (i = 0; i < ofs->numfs; i++) {
@@ -1477,7 +1477,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	/* idx/fsid 0 are reserved for upper fs even with lower only overlay */
 	ofs->numfs++;
 
-	layers[0].mnt = ofs->upper_mnt;
+	layers[0].mnt = ovl_upper_mnt(ofs);
 	layers[0].idx = 0;
 	layers[0].fsid = 0;
 	ofs->numlayer = 1;
@@ -1494,8 +1494,8 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 		goto out;
 	}
 
-	if (ofs->upper_mnt) {
-		ofs->fs[0].sb = ofs->upper_mnt->mnt_sb;
+	if (ovl_upper_mnt(ofs)) {
+		ofs->fs[0].sb = ovl_upper_mnt(ofs)->mnt_sb;
 		ofs->fs[0].is_lower = false;
 	}
 
@@ -1550,7 +1550,7 @@ static int ovl_get_layers(struct super_block *sb, struct ovl_fs *ofs,
 	 * inode number or a non persistent inode number allocated from a
 	 * dedicated range.
 	 */
-	if (ofs->numfs - !ofs->upper_mnt == 1) {
+	if (ofs->numfs - !ovl_upper_mnt(ofs) == 1) {
 		if (ofs->config.xino == OVL_XINO_ON)
 			pr_info("\"xino=on\" is useless with all layers on same fs, ignore.\n");
 		ofs->xino_mode = 0;
@@ -1699,8 +1699,8 @@ static int ovl_check_overlapping_layers(struct super_block *sb,
 {
 	int i, err;
 
-	if (ofs->upper_mnt) {
-		err = ovl_check_layer(sb, ofs, ofs->upper_mnt->mnt_root,
+	if (ovl_upper_mnt(ofs)) {
+		err = ovl_check_layer(sb, ofs, ovl_upper_mnt(ofs)->mnt_root,
 				      "upperdir");
 		if (err)
 			return err;
@@ -1836,8 +1836,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (!ofs->workdir)
 			sb->s_flags |= SB_RDONLY;
 
-		sb->s_stack_depth = ofs->upper_mnt->mnt_sb->s_stack_depth;
-		sb->s_time_gran = ofs->upper_mnt->mnt_sb->s_time_gran;
+		sb->s_stack_depth = ovl_upper_mnt(ofs)->mnt_sb->s_stack_depth;
+		sb->s_time_gran = ovl_upper_mnt(ofs)->mnt_sb->s_time_gran;
 
 	}
 	oe = ovl_get_lowerstack(sb, ofs);
@@ -1846,7 +1846,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_err;
 
 	/* If the upper fs is nonexistent, we mark overlayfs r/o too */
-	if (!ofs->upper_mnt)
+	if (!ovl_upper_mnt(ofs))
 		sb->s_flags |= SB_RDONLY;
 
 	if (!(ovl_force_readonly(ofs)) && ofs->config.index) {
@@ -1874,7 +1874,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	/* Show index=off in /proc/mounts for forced r/o mount */
 	if (!ofs->indexdir) {
 		ofs->config.index = false;
-		if (ofs->upper_mnt && ofs->config.nfs_export) {
+		if (ovl_upper_mnt(ofs) && ofs->config.nfs_export) {
 			pr_warn("NFS export requires an index dir, falling back to nfs_export=off.\n");
 			ofs->config.nfs_export = false;
 		}

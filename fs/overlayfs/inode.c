@@ -456,7 +456,7 @@ int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
 	if (flags & S_ATIME) {
 		struct ovl_fs *ofs = inode->i_sb->s_fs_info;
 		struct path upperpath = {
-			.mnt = ofs->upper_mnt,
+			.mnt = ovl_upper_mnt(ofs),
 			.dentry = ovl_upperdentry_dereference(OVL_I(inode)),
 		};
 
@@ -921,7 +921,7 @@ static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
 		return true;
 
 	/* Yes, if won't be copied up */
-	if (!ofs->upper_mnt)
+	if (!ovl_upper_mnt(ofs))
 		return true;
 
 	/* No, if lower hardlink is or will be broken on copy up */

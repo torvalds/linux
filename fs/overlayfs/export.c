@@ -204,7 +204,7 @@ static int ovl_check_encode_origin(struct dentry *dentry)
 	 * ovl_connect_layer() will try to make origin's layer "connected" by
 	 * copying up a "connectable" ancestor.
 	 */
-	if (d_is_dir(dentry) && ofs->upper_mnt)
+	if (d_is_dir(dentry) && ovl_upper_mnt(ofs))
 		return ovl_connect_layer(dentry);
 
 	/* Lower file handle for indexed and non-upper dir/non-dir */
@@ -677,10 +677,10 @@ static struct dentry *ovl_upper_fh_to_d(struct super_block *sb,
 	struct dentry *dentry;
 	struct dentry *upper;
 
-	if (!ofs->upper_mnt)
+	if (!ovl_upper_mnt(ofs))
 		return ERR_PTR(-EACCES);
 
-	upper = ovl_decode_real_fh(fh, ofs->upper_mnt, true);
+	upper = ovl_decode_real_fh(fh, ovl_upper_mnt(ofs), true);
 	if (IS_ERR_OR_NULL(upper))
 		return upper;
 

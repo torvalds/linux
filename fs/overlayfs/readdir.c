@@ -1120,7 +1120,7 @@ int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 	struct dentry *indexdir = ofs->indexdir;
 	struct dentry *index = NULL;
 	struct inode *dir = indexdir->d_inode;
-	struct path path = { .mnt = ofs->upper_mnt, .dentry = indexdir };
+	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };
 	LIST_HEAD(list);
 	struct rb_root root = RB_ROOT;
 	struct ovl_cache_entry *p;

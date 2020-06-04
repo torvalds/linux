@@ -82,6 +82,11 @@ struct ovl_fs {
 	struct dentry *whiteout;
 };
 
+static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
+{
+	return ofs->upper_mnt;
+}
+
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
 {
 	return (struct ovl_fs *)sb->s_fs_info;
