@@ -1337,7 +1337,7 @@ offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
 }
 
 /*
- * Check all pages in range, recoreded as memory resource, are isolated.
+ * Check all pages in range, recorded as memory resource, are isolated.
  */
 static int
 check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
