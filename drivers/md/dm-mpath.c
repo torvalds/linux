@@ -1285,7 +1285,9 @@ static int fail_path(struct pgpath *pgpath)
 	if (!pgpath->is_active)
 		goto out;
 
-	DMWARN("Failing path %s.", pgpath->path.dev->name);
+	DMWARN("%s: Failing path %s.",
+	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       pgpath->path.dev->name);
 
 	pgpath->pg->ps.type->fail_path(&pgpath->pg->ps, &pgpath->path);
 	pgpath->is_active = false;
@@ -1324,7 +1326,9 @@ static int reinstate_path(struct pgpath *pgpath)
 	if (pgpath->is_active)
 		goto out;
 
-	DMWARN("Reinstating path %s.", pgpath->path.dev->name);
+	DMWARN("%s: Reinstating path %s.",
+	       dm_device_name(dm_table_get_md(m->ti->table)),
+	       pgpath->path.dev->name);
 
 	r = pgpath->pg->ps.type->reinstate_path(&pgpath->pg->ps, &pgpath->path);
 	if (r)
