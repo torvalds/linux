@@ -187,6 +187,9 @@ static int pci_epf_test_init_dma_chan(struct pci_epf_test *epf_test)
  */
 static void pci_epf_test_clean_dma_chan(struct pci_epf_test *epf_test)
 {
+	if (!epf_test->dma_supported)
+		return;
+
 	dma_release_channel(epf_test->dma_chan);
 	epf_test->dma_chan = NULL;
 }
