@@ -1261,6 +1261,11 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 	     (engine__); \
 	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
 
+#define for_each_uabi_class_engine(engine__, class__, i915__) \
+	for ((engine__) = intel_engine_lookup_user((i915__), (class__), 0); \
+	     (engine__) && (engine__)->uabi_class == (class__); \
+	     (engine__) = rb_to_uabi_engine(rb_next(&(engine__)->uabi_node)))
+
 #define I915_GTT_OFFSET_NONE ((u32)-1)
 
 /*
