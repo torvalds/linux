@@ -46,6 +46,9 @@
 #define AUTO_RES_ERROR_BIT			BIT(1)
 #define HPRW_RDY_FAULT_BIT			BIT(0)
 
+#define HAP_CFG_INT_RT_STS_REG			0x10
+#define FIFO_EMPTY_BIT				BIT(1)
+
 /* config register definitions in HAPTICS_CFG module */
 #define HAP_CFG_DRV_CTRL_REG			0x47
 #define PSTG_DLY_MASK				GENMASK(7, 6)
@@ -1919,8 +1922,19 @@ static irqreturn_t fifo_empty_irq_handler(int irq, void *data)
 	struct fifo_cfg *fifo = chip->play.effect->fifo;
 	struct fifo_play_status *status = &chip->play.fifo_status;
 	u32 samples_left;
-	u8 *samples;
+	u8 *samples, val;
 	int rc, num;
+
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_INT_RT_STS_REG, &val, 1);
+	if (rc < 0)
+		return IRQ_HANDLED;
+
+	if (!(val & FIFO_EMPTY_BIT)) {
+		dev_dbg(chip->dev, "Ignore spurious/falling IRQ, INT_RT_STS = %#x\n",
+				val);
+		return IRQ_HANDLED;
+	}
 
 	if (atomic_read(&chip->play.fifo_status.written_done) == 1) {
 		/*
