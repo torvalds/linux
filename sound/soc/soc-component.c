@@ -8,6 +8,28 @@
 #include <linux/module.h>
 #include <sound/soc.h>
 
+#define soc_component_ret(dai, ret) _soc_component_ret(dai, __func__, ret)
+static inline int _soc_component_ret(struct snd_soc_component *component,
+				     const char *func, int ret)
+{
+	/* Positive/Zero values are not errors */
+	if (ret >= 0)
+		return ret;
+
+	/* Negative values might be errors */
+	switch (ret) {
+	case -EPROBE_DEFER:
+	case -ENOTSUPP:
+		break;
+	default:
+		dev_err(component->dev,
+			"ASoC: error at %s on %s: %d\n",
+			func, component->name, ret);
+	}
+
+	return ret;
+}
+
 int snd_soc_component_initialize(struct snd_soc_component *component,
 				 const struct snd_soc_component_driver *driver,
 				 struct device *dev, const char *name)
@@ -38,11 +60,13 @@ int snd_soc_component_set_sysclk(struct snd_soc_component *component,
 				 int clk_id, int source, unsigned int freq,
 				 int dir)
 {
+	int ret = -ENOTSUPP;
+
 	if (component->driver->set_sysclk)
-		return component->driver->set_sysclk(component, clk_id, source,
+		ret = component->driver->set_sysclk(component, clk_id, source,
 						     freq, dir);
 
-	return -ENOTSUPP;
+	return soc_component_ret(component, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_sysclk);
 
@@ -60,11 +84,13 @@ int snd_soc_component_set_pll(struct snd_soc_component *component, int pll_id,
 			      int source, unsigned int freq_in,
 			      unsigned int freq_out)
 {
+	int ret = -EINVAL;
+
 	if (component->driver->set_pll)
-		return component->driver->set_pll(component, pll_id, source,
+		ret = component->driver->set_pll(component, pll_id, source,
 						  freq_in, freq_out);
 
-	return -EINVAL;
+	return soc_component_ret(component, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_pll);
 
@@ -78,19 +104,23 @@ void snd_soc_component_seq_notifier(struct snd_soc_component *component,
 int snd_soc_component_stream_event(struct snd_soc_component *component,
 				   int event)
 {
-	if (component->driver->stream_event)
-		return component->driver->stream_event(component, event);
+	int ret = 0;
 
-	return 0;
+	if (component->driver->stream_event)
+		ret = component->driver->stream_event(component, event);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level)
 {
-	if (component->driver->set_bias_level)
-		return component->driver->set_bias_level(component, level);
+	int ret = 0;
 
-	return 0;
+	if (component->driver->set_bias_level)
+		ret = component->driver->set_bias_level(component, level);
+
+	return soc_component_ret(component, ret);
 }
 
 static int soc_component_pin(struct snd_soc_component *component,
@@ -103,17 +133,21 @@ static int soc_component_pin(struct snd_soc_component *component,
 	char *full_name;
 	int ret;
 
-	if (!component->name_prefix)
-		return pin_func(dapm, pin);
+	if (!component->name_prefix) {
+		ret = pin_func(dapm, pin);
+		goto end;
+	}
 
 	full_name = kasprintf(GFP_KERNEL, "%s %s", component->name_prefix, pin);
-	if (!full_name)
-		return -ENOMEM;
+	if (!full_name) {
+		ret = -ENOMEM;
+		goto end;
+	}
 
 	ret = pin_func(dapm, full_name);
 	kfree(full_name);
-
-	return ret;
+end:
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_enable_pin(struct snd_soc_component *component,
@@ -191,21 +225,25 @@ EXPORT_SYMBOL_GPL(snd_soc_component_force_enable_pin_unlocked);
 int snd_soc_component_set_jack(struct snd_soc_component *component,
 			       struct snd_soc_jack *jack, void *data)
 {
-	if (component->driver->set_jack)
-		return component->driver->set_jack(component, jack, data);
+	int ret = -ENOTSUPP;
 
-	return -ENOTSUPP;
+	if (component->driver->set_jack)
+		ret = component->driver->set_jack(component, jack, data);
+
+	return soc_component_ret(component, ret);
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_set_jack);
 
 int snd_soc_component_module_get(struct snd_soc_component *component,
 				 int upon_open)
 {
+	int ret = 0;
+
 	if (component->driver->module_get_upon_open == !!upon_open &&
 	    !try_module_get(component->dev->driver->owner))
-		return -ENODEV;
+		ret = -ENODEV;
 
-	return 0;
+	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_module_put(struct snd_soc_component *component,
@@ -218,52 +256,70 @@ void snd_soc_component_module_put(struct snd_soc_component *component,
 int snd_soc_component_open(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
+	int ret = 0;
+
 	if (component->driver->open)
-		return component->driver->open(component, substream);
-	return 0;
+		ret = component->driver->open(component, substream);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_close(struct snd_soc_component *component,
 			    struct snd_pcm_substream *substream)
 {
+	int ret = 0;
+
 	if (component->driver->close)
-		return component->driver->close(component, substream);
-	return 0;
+		ret = component->driver->close(component, substream);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_prepare(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream)
 {
+	int ret = 0;
+
 	if (component->driver->prepare)
-		return component->driver->prepare(component, substream);
-	return 0;
+		ret = component->driver->prepare(component, substream);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_hw_params(struct snd_soc_component *component,
 				struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params)
 {
+	int ret = 0;
+
 	if (component->driver->hw_params)
-		return component->driver->hw_params(component,
-						    substream, params);
-	return 0;
+		ret = component->driver->hw_params(component,
+						   substream, params);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_hw_free(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream)
 {
+	int ret = 0;
+
 	if (component->driver->hw_free)
-		return component->driver->hw_free(component, substream);
-	return 0;
+		ret = component->driver->hw_free(component, substream);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_trigger(struct snd_soc_component *component,
 			      struct snd_pcm_substream *substream,
 			      int cmd)
 {
+	int ret = 0;
+
 	if (component->driver->trigger)
-		return component->driver->trigger(component, substream, cmd);
-	return 0;
+		ret = component->driver->trigger(component, substream, cmd);
+
+	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_suspend(struct snd_soc_component *component)
@@ -287,10 +343,12 @@ int snd_soc_component_is_suspended(struct snd_soc_component *component)
 
 int snd_soc_component_probe(struct snd_soc_component *component)
 {
-	if (component->driver->probe)
-		return component->driver->probe(component);
+	int ret = 0;
 
-	return 0;
+	if (component->driver->probe)
+		ret = component->driver->probe(component);
+
+	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_remove(struct snd_soc_component *component)
@@ -302,20 +360,25 @@ void snd_soc_component_remove(struct snd_soc_component *component)
 int snd_soc_component_of_xlate_dai_id(struct snd_soc_component *component,
 				      struct device_node *ep)
 {
-	if (component->driver->of_xlate_dai_id)
-		return component->driver->of_xlate_dai_id(component, ep);
+	int ret = -ENOTSUPP;
 
-	return -ENOTSUPP;
+	if (component->driver->of_xlate_dai_id)
+		ret = component->driver->of_xlate_dai_id(component, ep);
+
+	return soc_component_ret(component, ret);
 }
 
 int snd_soc_component_of_xlate_dai_name(struct snd_soc_component *component,
 					struct of_phandle_args *args,
 					const char **dai_name)
 {
+	int ret = -ENOTSUPP;
+
 	if (component->driver->of_xlate_dai_name)
-		return component->driver->of_xlate_dai_name(component,
-						     args, dai_name);
-	return -ENOTSUPP;
+		ret = component->driver->of_xlate_dai_name(component,
+							   args, dai_name);
+
+	return soc_component_ret(component, ret);
 }
 
 void snd_soc_component_setup_regmap(struct snd_soc_component *component)
@@ -392,8 +455,10 @@ int snd_soc_pcm_component_ioctl(struct snd_pcm_substream *substream,
 	/* FIXME: use 1st ioctl */
 	for_each_rtd_components(rtd, i, component)
 		if (component->driver->ioctl)
-			return component->driver->ioctl(component, substream,
-							cmd, arg);
+			return soc_component_ret(
+				component,
+				component->driver->ioctl(component,
+							 substream, cmd, arg));
 
 	return snd_pcm_lib_ioctl(substream, cmd, arg);
 }
@@ -409,7 +474,7 @@ int snd_soc_pcm_component_sync_stop(struct snd_pcm_substream *substream)
 			ret = component->driver->sync_stop(component,
 							   substream);
 			if (ret < 0)
-				return ret;
+				soc_component_ret(component, ret);
 		}
 	}
 
@@ -427,8 +492,11 @@ int snd_soc_pcm_component_copy_user(struct snd_pcm_substream *substream,
 	/* FIXME. it returns 1st copy now */
 	for_each_rtd_components(rtd, i, component)
 		if (component->driver->copy_user)
-			return component->driver->copy_user(
-				component, substream, channel, pos, buf, bytes);
+			return soc_component_ret(
+				component,
+				component->driver->copy_user(
+					component, substream, channel,
+					pos, buf, bytes));
 
 	return -EINVAL;
 }
@@ -464,8 +532,10 @@ int snd_soc_pcm_component_mmap(struct snd_pcm_substream *substream,
 	/* FIXME. it returns 1st mmap now */
 	for_each_rtd_components(rtd, i, component)
 		if (component->driver->mmap)
-			return component->driver->mmap(component,
-						       substream, vma);
+			soc_component_ret(
+				component,
+				component->driver->mmap(component,
+							substream, vma));
 
 	return -EINVAL;
 }
@@ -480,7 +550,7 @@ int snd_soc_pcm_component_new(struct snd_soc_pcm_runtime *rtd)
 		if (component->driver->pcm_construct) {
 			ret = component->driver->pcm_construct(component, rtd);
 			if (ret < 0)
-				return ret;
+				soc_component_ret(component, ret);
 		}
 	}
 
