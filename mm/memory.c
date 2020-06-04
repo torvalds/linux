@@ -2467,7 +2467,7 @@ static inline bool cow_user_page(struct page *dst, struct page *src,
 		}
 
 		/*
-		 * The same page can be mapped back since last copy attampt.
+		 * The same page can be mapped back since last copy attempt.
 		 * Try to copy again under PTL.
 		 */
 		if (__copy_from_user_inatomic(kaddr, uaddr, PAGE_SIZE)) {
