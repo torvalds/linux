@@ -483,9 +483,10 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	hdmi-bridge@3b {
-		compatible = "lt,lt9611";
+	lt9611_codec: hdmi-bridge@3b {
+		compatible = "lontium,lt9611";
 		reg = <0x3b>;
+		#sound-dai-cells = <1>;
 
 		interrupts-extended = <&tlmm 84 IRQ_TYPE_EDGE_FALLING>;
 
@@ -777,6 +778,21 @@
 		link-name = "MultiMedia4";
 		cpu {
 			sound-dai = <&q6asmdai  MSM_FRONTEND_DAI_MULTIMEDIA4>;
+		};
+	};
+
+	hdmi-dai-link {
+		link-name = "HDMI Playback";
+		cpu {
+			sound-dai = <&q6afedai QUATERNARY_MI2S_RX>;
+		};
+
+		platform {
+			sound-dai = <&q6routing>;
+		};
+
+		codec {
+			sound-dai =  <&lt9611_codec 0>;
 		};
 	};
 
