@@ -126,7 +126,7 @@ static int child(struct shared_info *info)
 	printf("%-30s AMR: %016lx pkey1: %d pkey2: %d pkey3: %d\n",
 	       user_write, info->amr1, pkey1, pkey2, pkey3);
 
-	mtspr(SPRN_AMR, info->amr1);
+	set_amr(info->amr1);
 
 	/* Wait for parent to read our AMR value and write a new one. */
 	ret = prod_parent(&info->child_sync);
