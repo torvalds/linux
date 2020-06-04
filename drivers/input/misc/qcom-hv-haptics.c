@@ -1687,6 +1687,7 @@ static void haptics_fifo_empty_irq_config(struct haptics_chip *chip,
 static int haptics_stop_fifo_play(struct haptics_chip *chip)
 {
 	int rc;
+	u8 val;
 
 	if (atomic_read(&chip->play.fifo_status.is_busy) == 0) {
 		dev_dbg(chip->dev, "FIFO playing is not in progress\n");
@@ -1707,6 +1708,18 @@ static int haptics_stop_fifo_play(struct haptics_chip *chip)
 	chip->custom_effect->fifo->samples = NULL;
 
 	atomic_set(&chip->play.fifo_status.is_busy, 0);
+
+	/*
+	 * All other playing modes would use AUTO mode RC
+	 * calibration except FIFO streaming mode, so restore
+	 * back to AUTO RC calibration after FIFO playing.
+	 */
+	val = CAL_RC_CLK_AUTO_VAL << CAL_RC_CLK_SHIFT;
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_CAL_EN_REG, CAL_RC_CLK_MASK, val);
+	if (rc < 0)
+		return rc;
+
 	dev_dbg(chip->dev, "stopped FIFO playing successfully\n");
 	return 0;
 }
