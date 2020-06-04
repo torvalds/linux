@@ -740,6 +740,7 @@ static int vhost_vdpa_release(struct inode *inode, struct file *filep)
 	return 0;
 }
 
+#ifdef CONFIG_MMU
 static vm_fault_t vhost_vdpa_fault(struct vm_fault *vmf)
 {
 	struct vhost_vdpa *v = vmf->vma->vm_file->private_data;
@@ -796,6 +797,7 @@ static int vhost_vdpa_mmap(struct file *file, struct vm_area_struct *vma)
 	vma->vm_ops = &vhost_vdpa_vm_ops;
 	return 0;
 }
+#endif /* CONFIG_MMU */
 
 static const struct file_operations vhost_vdpa_fops = {
 	.owner		= THIS_MODULE,
@@ -803,7 +805,9 @@ static const struct file_operations vhost_vdpa_fops = {
 	.release	= vhost_vdpa_release,
 	.write_iter	= vhost_vdpa_chr_write_iter,
 	.unlocked_ioctl	= vhost_vdpa_unlocked_ioctl,
+#ifdef CONFIG_MMU
 	.mmap		= vhost_vdpa_mmap,
+#endif /* CONFIG_MMU */
 	.compat_ioctl	= compat_ptr_ioctl,
 };
 
