@@ -70,8 +70,7 @@ static inline void bch2_wake_allocator(struct bch_dev *ca)
 static inline void verify_not_on_freelist(struct bch_fs *c, struct bch_dev *ca,
 					  size_t bucket)
 {
-	if (expensive_debug_checks(c) &&
-	    test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags)) {
+	if (expensive_debug_checks(c)) {
 		size_t iter;
 		long i;
 		unsigned j;
@@ -94,7 +93,6 @@ void bch2_dev_allocator_stop(struct bch_dev *);
 int bch2_dev_allocator_start(struct bch_dev *);
 
 int bch2_alloc_write(struct bch_fs *, unsigned, bool *);
-int bch2_fs_allocator_start(struct bch_fs *);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

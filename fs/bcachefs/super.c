@@ -423,16 +423,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		bch2_dev_allocator_add(c, ca);
 	bch2_recalc_capacity(c);
 
-	if (!test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags)) {
-		ret = bch2_fs_allocator_start(c);
-		if (ret) {
-			bch_err(c, "error initializing allocator");
-			goto err;
-		}
-
-		set_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags);
-	}
-
 	for_each_rw_member(ca, c, i) {
 		ret = bch2_dev_allocator_start(ca);
 		if (ret) {

@@ -28,16 +28,8 @@ unsigned bch2_journal_dev_buckets_available(struct journal *j,
 					    struct journal_device *ja,
 					    enum journal_space_from from)
 {
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	unsigned available = (journal_space_from(ja, from) -
 			      ja->cur_idx - 1 + ja->nr) % ja->nr;
-
-	/*
-	 * Allocator startup needs some journal space before we can do journal
-	 * replay:
-	 */
-	if (available && test_bit(BCH_FS_ALLOCATOR_STARTED, &c->flags))
-		--available;
 
 	/*
 	 * Don't use the last bucket unless writing the new last_seq
