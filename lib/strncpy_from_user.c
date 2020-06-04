@@ -98,6 +98,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	unsigned long max_addr, src_addr;
 
+	might_fault();
 	if (unlikely(count <= 0))
 		return 0;
 
