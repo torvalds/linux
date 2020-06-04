@@ -559,7 +559,7 @@ static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
 
 	mutex_lock(&smu->metrics_lock);
 	if (!smu_table->metrics_time ||
-	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
+	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
 		ret = smu_update_table(smu,
 				       SMU_TABLE_SMU_METRICS,
 				       0,
