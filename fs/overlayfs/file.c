@@ -232,9 +232,8 @@ static void ovl_file_accessed(struct file *file)
 	touch_atime(&file->f_path);
 }
 
-static rwf_t ovl_iocb_to_rwf(struct kiocb *iocb)
+static rwf_t ovl_iocb_to_rwf(int ifl)
 {
-	int ifl = iocb->ki_flags;
 	rwf_t flags = 0;
 
 	if (ifl & IOCB_NOWAIT)
@@ -296,7 +295,7 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	if (is_sync_kiocb(iocb)) {
 		ret = vfs_iter_read(real.file, iter, &iocb->ki_pos,
-				    ovl_iocb_to_rwf(iocb));
+				    ovl_iocb_to_rwf(iocb->ki_flags));
 	} else {
 		struct ovl_aio_req *aio_req;
 
@@ -349,7 +348,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (is_sync_kiocb(iocb)) {
 		file_start_write(real.file);
 		ret = vfs_iter_write(real.file, iter, &iocb->ki_pos,
-				     ovl_iocb_to_rwf(iocb));
+				     ovl_iocb_to_rwf(iocb->ki_flags));
 		file_end_write(real.file);
 		/* Update size */
 		ovl_copyattr(ovl_inode_real(inode), inode);
