@@ -19,5 +19,7 @@ TEST_GEN_PROGS += self
 TEST_GEN_PROGS += setns-dcache
 TEST_GEN_PROGS += setns-sysvipc
 TEST_GEN_PROGS += thread-self
+TEST_GEN_PROGS += proc-multiple-procfs
+TEST_GEN_PROGS += proc-fsconfig-hidepid
 
 include ../lib.mk
