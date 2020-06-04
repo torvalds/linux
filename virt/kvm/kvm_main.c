@@ -2973,7 +2973,6 @@ static int kvm_vcpu_release(struct inode *inode, struct file *filp)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 
-	debugfs_remove_recursive(vcpu->debugfs_dentry);
 	kvm_put_kvm(vcpu->kvm);
 	return 0;
 }
@@ -3000,16 +2999,17 @@ static int create_vcpu_fd(struct kvm_vcpu *vcpu)
 static void kvm_create_vcpu_debugfs(struct kvm_vcpu *vcpu)
 {
 #ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
+	struct dentry *debugfs_dentry;
 	char dir_name[ITOA_MAX_LEN * 2];
 
 	if (!debugfs_initialized())
 		return;
 
 	snprintf(dir_name, sizeof(dir_name), "vcpu%d", vcpu->vcpu_id);
-	vcpu->debugfs_dentry = debugfs_create_dir(dir_name,
-						  vcpu->kvm->debugfs_dentry);
+	debugfs_dentry = debugfs_create_dir(dir_name,
+					    vcpu->kvm->debugfs_dentry);
 
-	kvm_arch_create_vcpu_debugfs(vcpu);
+	kvm_arch_create_vcpu_debugfs(vcpu, debugfs_dentry);
 #endif
 }
 
