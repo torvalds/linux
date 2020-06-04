@@ -71,7 +71,7 @@ static void afs_schedule_lock_extension(struct afs_vnode *vnode)
 void afs_lock_op_done(struct afs_call *call)
 {
 	struct afs_operation *op = call->op;
-	struct afs_vnode *vnode = op->lock.lvnode;
+	struct afs_vnode *vnode = op->file[0].vnode;
 
 	if (call->error == 0) {
 		spin_lock(&vnode->lock);

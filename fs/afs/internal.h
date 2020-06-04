@@ -795,7 +795,6 @@ struct afs_operation {
 			struct afs_read *req;
 		} fetch;
 		struct {
-			struct afs_vnode *lvnode;	/* vnode being locked */
 			afs_lock_type_t type;
 		} lock;
 		struct {
