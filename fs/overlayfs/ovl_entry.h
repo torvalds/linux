@@ -46,7 +46,6 @@ struct ovl_path {
 
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
-	struct vfsmount *upper_mnt;
 	unsigned int numlayer;
 	/* Number of unique fs among layers including upper fs */
 	unsigned int numfs;
@@ -70,7 +69,6 @@ struct ovl_fs {
 	bool workdir_locked;
 	bool share_whiteout;
 	/* Traps in ovl inode cache */
-	struct inode *upperdir_trap;
 	struct inode *workbasedir_trap;
 	struct inode *workdir_trap;
 	struct inode *indexdir_trap;
@@ -84,7 +82,7 @@ struct ovl_fs {
 
 static inline struct vfsmount *ovl_upper_mnt(struct ovl_fs *ofs)
 {
-	return ofs->upper_mnt;
+	return ofs->layers[0].mnt;
 }
 
 static inline struct ovl_fs *OVL_FS(struct super_block *sb)
