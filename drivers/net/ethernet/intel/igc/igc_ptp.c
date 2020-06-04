@@ -205,46 +205,19 @@ void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
 		ktime_sub_ns(skb_hwtstamps(skb)->hwtstamp, adjust);
 }
 
-/**
- * igc_ptp_enable_tstamp_rxqueue - Enable RX timestamp for a queue
- * @rx_ring: Pointer to RX queue
- * @timer: Index for timer
- *
- * This function enables RX timestamping for a queue, and selects
- * which 1588 timer will provide the timestamp.
- */
-static void igc_ptp_enable_tstamp_rxqueue(struct igc_adapter *adapter,
-					  struct igc_ring *rx_ring, u8 timer)
-{
-	struct igc_hw *hw = &adapter->hw;
-	int reg_idx = rx_ring->reg_idx;
-	u32 srrctl = rd32(IGC_SRRCTL(reg_idx));
-
-	srrctl |= IGC_SRRCTL_TIMESTAMP;
-	srrctl |= IGC_SRRCTL_TIMER1SEL(timer);
-	srrctl |= IGC_SRRCTL_TIMER0SEL(timer);
-
-	wr32(IGC_SRRCTL(reg_idx), srrctl);
-}
-
-static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
-					       u8 timer)
-{
-	int i;
-
-	for (i = 0; i < adapter->num_rx_queues; i++) {
-		struct igc_ring *ring = adapter->rx_ring[i];
-
-		igc_ptp_enable_tstamp_rxqueue(adapter, ring, timer);
-	}
-}
-
 static void igc_ptp_disable_rx_timestamp(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
 	u32 val;
+	int i;
 
 	wr32(IGC_TSYNCRXCTL, 0);
+
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		val = rd32(IGC_SRRCTL(i));
+		val &= ~IGC_SRRCTL_TIMESTAMP;
+		wr32(IGC_SRRCTL(i), val);
+	}
 
 	val = rd32(IGC_RXPBS);
 	val &= ~IGC_RXPBS_CFG_TS_EN;
@@ -255,14 +228,21 @@ static void igc_ptp_enable_rx_timestamp(struct igc_adapter *adapter)
 {
 	struct igc_hw *hw = &adapter->hw;
 	u32 val;
+	int i;
 
 	val = rd32(IGC_RXPBS);
 	val |= IGC_RXPBS_CFG_TS_EN;
 	wr32(IGC_RXPBS, val);
 
-	/* FIXME: For now, only support retrieving RX timestamps from timer 0
-	 */
-	igc_ptp_enable_tstamp_all_rxqueues(adapter, 0);
+	for (i = 0; i < adapter->num_rx_queues; i++) {
+		val = rd32(IGC_SRRCTL(i));
+		/* FIXME: For now, only support retrieving RX timestamps from
+		 * timer 0.
+		 */
+		val |= IGC_SRRCTL_TIMER1SEL(0) | IGC_SRRCTL_TIMER0SEL(0) |
+		       IGC_SRRCTL_TIMESTAMP;
+		wr32(IGC_SRRCTL(i), val);
+	}
 
 	val = IGC_TSYNCRXCTL_ENABLED | IGC_TSYNCRXCTL_TYPE_ALL |
 	      IGC_TSYNCRXCTL_RXSYNSIG;
