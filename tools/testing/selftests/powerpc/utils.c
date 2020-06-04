@@ -293,3 +293,31 @@ void set_dscr(unsigned long val)
 
 	asm volatile("mtspr %1,%0" : : "r" (val), "i" (SPRN_DSCR));
 }
+
+int using_hash_mmu(bool *using_hash)
+{
+	char line[128];
+	FILE *f;
+	int rc;
+
+	f = fopen("/proc/cpuinfo", "r");
+	FAIL_IF(!f);
+
+	rc = 0;
+	while (fgets(line, sizeof(line), f) != NULL) {
+		if (strcmp(line, "MMU		: Hash\n") == 0) {
+			*using_hash = true;
+			goto out;
+		}
+
+		if (strcmp(line, "MMU		: Radix\n") == 0) {
+			*using_hash = false;
+			goto out;
+		}
+	}
+
+	rc = -1;
+out:
+	fclose(f);
+	return rc;
+}

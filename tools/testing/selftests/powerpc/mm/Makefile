@@ -10,7 +10,7 @@ TEST_GEN_FILES := tempfile
 top_srcdir = ../../../../..
 include ../../lib.mk
 
-$(TEST_GEN_PROGS): ../harness.c
+$(TEST_GEN_PROGS): ../harness.c ../utils.c
 
 $(OUTPUT)/prot_sao: ../utils.c
 
