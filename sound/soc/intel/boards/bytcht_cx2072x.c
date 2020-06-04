@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 //
 // ASoC DPCM Machine driver for Baytrail / Cherrytrail platforms with
 // CX2072X codec
@@ -261,6 +261,9 @@ static int snd_byt_cht_cx2072x_probe(struct platform_device *pdev)
 static struct platform_driver snd_byt_cht_cx2072x_driver = {
 	.driver = {
 		.name = "bytcht_cx2072x",
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+		.pm = &snd_soc_pm_ops,
+#endif
 	},
 	.probe = snd_byt_cht_cx2072x_probe,
 };

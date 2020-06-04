@@ -669,11 +669,11 @@ static int sdw_stream_setup(struct snd_pcm_substream *substream,
 
 	/* Set stream pointer on all CODEC DAIs */
 	for (i = 0; i < rtd->num_codecs; i++) {
-		ret = snd_soc_dai_set_sdw_stream(rtd->codec_dais[i], sdw_stream,
+		ret = snd_soc_dai_set_sdw_stream(asoc_rtd_to_codec(rtd, i), sdw_stream,
 						 substream->stream);
 		if (ret < 0) {
 			dev_err(dai->dev, "failed to set stream pointer on codec dai %s",
-				rtd->codec_dais[i]->name);
+				asoc_rtd_to_codec(rtd, i)->name);
 			goto release_stream;
 		}
 	}

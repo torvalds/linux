@@ -19,6 +19,16 @@
 #include "lpass-lpaif-reg.h"
 #include "lpass.h"
 
+#define LPASS_CPU_MAX_MI2S_LINES	4
+#define LPASS_CPU_I2S_SD0_MASK		BIT(0)
+#define LPASS_CPU_I2S_SD1_MASK		BIT(1)
+#define LPASS_CPU_I2S_SD2_MASK		BIT(2)
+#define LPASS_CPU_I2S_SD3_MASK		BIT(3)
+#define LPASS_CPU_I2S_SD0_1_MASK	GENMASK(1, 0)
+#define LPASS_CPU_I2S_SD2_3_MASK	GENMASK(3, 2)
+#define LPASS_CPU_I2S_SD0_1_2_MASK	GENMASK(2, 0)
+#define LPASS_CPU_I2S_SD0_1_2_3_MASK	GENMASK(3, 0)
+
 static int lpass_cpu_daiops_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 		unsigned int freq, int dir)
 {
@@ -72,6 +82,7 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t format = params_format(params);
 	unsigned int channels = params_channels(params);
 	unsigned int rate = params_rate(params);
+	unsigned int mode;
 	unsigned int regval;
 	int bitwidth, ret;
 
@@ -99,60 +110,84 @@ static int lpass_cpu_daiops_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		mode = drvdata->mi2s_playback_sd_mode[dai->driver->id];
+	else
+		mode = drvdata->mi2s_capture_sd_mode[dai->driver->id];
+
+	if (!mode) {
+		dev_err(dai->dev, "no line is assigned\n");
+		return -EINVAL;
+	}
+
+	switch (channels) {
+	case 1:
+	case 2:
+		switch (mode) {
+		case LPAIF_I2SCTL_MODE_QUAD01:
+		case LPAIF_I2SCTL_MODE_6CH:
+		case LPAIF_I2SCTL_MODE_8CH:
+			mode = LPAIF_I2SCTL_MODE_SD0;
+			break;
+		case LPAIF_I2SCTL_MODE_QUAD23:
+			mode = LPAIF_I2SCTL_MODE_SD2;
+			break;
+		}
+
+		break;
+	case 4:
+		if (mode < LPAIF_I2SCTL_MODE_QUAD01) {
+			dev_err(dai->dev, "cannot configure 4 channels with mode %d\n",
+				mode);
+			return -EINVAL;
+		}
+
+		switch (mode) {
+		case LPAIF_I2SCTL_MODE_6CH:
+		case LPAIF_I2SCTL_MODE_8CH:
+			mode = LPAIF_I2SCTL_MODE_QUAD01;
+			break;
+		}
+		break;
+	case 6:
+		if (mode < LPAIF_I2SCTL_MODE_6CH) {
+			dev_err(dai->dev, "cannot configure 6 channels with mode %d\n",
+				mode);
+			return -EINVAL;
+		}
+
+		switch (mode) {
+		case LPAIF_I2SCTL_MODE_8CH:
+			mode = LPAIF_I2SCTL_MODE_6CH;
+			break;
+		}
+		break;
+	case 8:
+		if (mode < LPAIF_I2SCTL_MODE_8CH) {
+			dev_err(dai->dev, "cannot configure 8 channels with mode %d\n",
+				mode);
+			return -EINVAL;
+		}
+		break;
+	default:
+		dev_err(dai->dev, "invalid channels given: %u\n", channels);
+		return -EINVAL;
+	}
+
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		switch (channels) {
-		case 1:
-			regval |= LPAIF_I2SCTL_SPKMODE_SD0;
+		regval |= LPAIF_I2SCTL_SPKMODE(mode);
+
+		if (channels >= 2)
+			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
+		else
 			regval |= LPAIF_I2SCTL_SPKMONO_MONO;
-			break;
-		case 2:
-			regval |= LPAIF_I2SCTL_SPKMODE_SD0;
-			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-			break;
-		case 4:
-			regval |= LPAIF_I2SCTL_SPKMODE_QUAD01;
-			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-			break;
-		case 6:
-			regval |= LPAIF_I2SCTL_SPKMODE_6CH;
-			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-			break;
-		case 8:
-			regval |= LPAIF_I2SCTL_SPKMODE_8CH;
-			regval |= LPAIF_I2SCTL_SPKMONO_STEREO;
-			break;
-		default:
-			dev_err(dai->dev, "invalid channels given: %u\n",
-				channels);
-			return -EINVAL;
-		}
 	} else {
-		switch (channels) {
-		case 1:
-			regval |= LPAIF_I2SCTL_MICMODE_SD0;
+		regval |= LPAIF_I2SCTL_MICMODE(mode);
+
+		if (channels >= 2)
+			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
+		else
 			regval |= LPAIF_I2SCTL_MICMONO_MONO;
-			break;
-		case 2:
-			regval |= LPAIF_I2SCTL_MICMODE_SD0;
-			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
-			break;
-		case 4:
-			regval |= LPAIF_I2SCTL_MICMODE_QUAD01;
-			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
-			break;
-		case 6:
-			regval |= LPAIF_I2SCTL_MICMODE_6CH;
-			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
-			break;
-		case 8:
-			regval |= LPAIF_I2SCTL_MICMODE_8CH;
-			regval |= LPAIF_I2SCTL_MICMONO_STEREO;
-			break;
-		default:
-			dev_err(dai->dev, "invalid channels given: %u\n",
-				channels);
-			return -EINVAL;
-		}
 	}
 
 	ret = regmap_write(drvdata->lpaif_map,
@@ -413,6 +448,73 @@ static struct regmap_config lpass_cpu_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static unsigned int of_lpass_cpu_parse_sd_lines(struct device *dev,
+						struct device_node *node,
+						const char *name)
+{
+	unsigned int lines[LPASS_CPU_MAX_MI2S_LINES];
+	unsigned int sd_line_mask = 0;
+	int num_lines, i;
+
+	num_lines = of_property_read_variable_u32_array(node, name, lines, 0,
+							LPASS_CPU_MAX_MI2S_LINES);
+	if (num_lines < 0)
+		return LPAIF_I2SCTL_MODE_NONE;
+
+	for (i = 0; i < num_lines; i++)
+		sd_line_mask |= BIT(lines[i]);
+
+	switch (sd_line_mask) {
+	case LPASS_CPU_I2S_SD0_MASK:
+		return LPAIF_I2SCTL_MODE_SD0;
+	case LPASS_CPU_I2S_SD1_MASK:
+		return LPAIF_I2SCTL_MODE_SD1;
+	case LPASS_CPU_I2S_SD2_MASK:
+		return LPAIF_I2SCTL_MODE_SD2;
+	case LPASS_CPU_I2S_SD3_MASK:
+		return LPAIF_I2SCTL_MODE_SD3;
+	case LPASS_CPU_I2S_SD0_1_MASK:
+		return LPAIF_I2SCTL_MODE_QUAD01;
+	case LPASS_CPU_I2S_SD2_3_MASK:
+		return LPAIF_I2SCTL_MODE_QUAD23;
+	case LPASS_CPU_I2S_SD0_1_2_MASK:
+		return LPAIF_I2SCTL_MODE_6CH;
+	case LPASS_CPU_I2S_SD0_1_2_3_MASK:
+		return LPAIF_I2SCTL_MODE_8CH;
+	default:
+		dev_err(dev, "Unsupported SD line mask: %#x\n", sd_line_mask);
+		return LPAIF_I2SCTL_MODE_NONE;
+	}
+}
+
+static void of_lpass_cpu_parse_dai_data(struct device *dev,
+					struct lpass_data *data)
+{
+	struct device_node *node;
+	int ret, id;
+
+	/* Allow all channels by default for backwards compatibility */
+	for (id = 0; id < data->variant->num_dai; id++) {
+		data->mi2s_playback_sd_mode[id] = LPAIF_I2SCTL_MODE_8CH;
+		data->mi2s_capture_sd_mode[id] = LPAIF_I2SCTL_MODE_8CH;
+	}
+
+	for_each_child_of_node(dev->of_node, node) {
+		ret = of_property_read_u32(node, "reg", &id);
+		if (ret || id < 0 || id >= data->variant->num_dai) {
+			dev_err(dev, "valid dai id not found: %d\n", ret);
+			continue;
+		}
+
+		data->mi2s_playback_sd_mode[id] =
+			of_lpass_cpu_parse_sd_lines(dev, node,
+						    "qcom,playback-sd-lines");
+		data->mi2s_capture_sd_mode[id] =
+			of_lpass_cpu_parse_sd_lines(dev, node,
+						    "qcom,capture-sd-lines");
+	}
+}
+
 int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata;
@@ -425,12 +527,11 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 
 	dsp_of_node = of_parse_phandle(pdev->dev.of_node, "qcom,adsp", 0);
 	if (dsp_of_node) {
-		dev_err(&pdev->dev, "DSP exists and holds audio resources\n");
+		dev_err(dev, "DSP exists and holds audio resources\n");
 		return -EBUSY;
 	}
 
-	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct lpass_data),
-			GFP_KERNEL);
+	drvdata = devm_kzalloc(dev, sizeof(struct lpass_data), GFP_KERNEL);
 	if (!drvdata)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, drvdata);
@@ -442,11 +543,13 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 	drvdata->variant = (struct lpass_variant *)match->data;
 	variant = drvdata->variant;
 
+	of_lpass_cpu_parse_dai_data(dev, drvdata);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpass-lpaif");
 
-	drvdata->lpaif = devm_ioremap_resource(&pdev->dev, res);
+	drvdata->lpaif = devm_ioremap_resource(dev, res);
 	if (IS_ERR((void const __force *)drvdata->lpaif)) {
-		dev_err(&pdev->dev, "error mapping reg resource: %ld\n",
+		dev_err(dev, "error mapping reg resource: %ld\n",
 				PTR_ERR((void const __force *)drvdata->lpaif));
 		return PTR_ERR((void const __force *)drvdata->lpaif);
 	}
@@ -455,10 +558,10 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 						variant->wrdma_channels +
 						variant->wrdma_channel_start);
 
-	drvdata->lpaif_map = devm_regmap_init_mmio(&pdev->dev, drvdata->lpaif,
+	drvdata->lpaif_map = devm_regmap_init_mmio(dev, drvdata->lpaif,
 			&lpass_cpu_regmap_config);
 	if (IS_ERR(drvdata->lpaif_map)) {
-		dev_err(&pdev->dev, "error initializing regmap: %ld\n",
+		dev_err(dev, "error initializing regmap: %ld\n",
 			PTR_ERR(drvdata->lpaif_map));
 		return PTR_ERR(drvdata->lpaif_map);
 	}
@@ -468,10 +571,10 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 
 	for (i = 0; i < variant->num_dai; i++) {
 		dai_id = variant->dai_driver[i].id;
-		drvdata->mi2s_osr_clk[dai_id] = devm_clk_get(&pdev->dev,
+		drvdata->mi2s_osr_clk[dai_id] = devm_clk_get(dev,
 					     variant->dai_osr_clk_names[i]);
 		if (IS_ERR(drvdata->mi2s_osr_clk[dai_id])) {
-			dev_warn(&pdev->dev,
+			dev_warn(dev,
 				"%s() error getting optional %s: %ld\n",
 				__func__,
 				variant->dai_osr_clk_names[i],
@@ -480,10 +583,10 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 			drvdata->mi2s_osr_clk[dai_id] = NULL;
 		}
 
-		drvdata->mi2s_bit_clk[dai_id] = devm_clk_get(&pdev->dev,
+		drvdata->mi2s_bit_clk[dai_id] = devm_clk_get(dev,
 						variant->dai_bit_clk_names[i]);
 		if (IS_ERR(drvdata->mi2s_bit_clk[dai_id])) {
-			dev_err(&pdev->dev,
+			dev_err(dev,
 				"error getting %s: %ld\n",
 				variant->dai_bit_clk_names[i],
 				PTR_ERR(drvdata->mi2s_bit_clk[dai_id]));
@@ -491,41 +594,39 @@ int asoc_qcom_lpass_cpu_platform_probe(struct platform_device *pdev)
 		}
 	}
 
-	drvdata->ahbix_clk = devm_clk_get(&pdev->dev, "ahbix-clk");
+	drvdata->ahbix_clk = devm_clk_get(dev, "ahbix-clk");
 	if (IS_ERR(drvdata->ahbix_clk)) {
-		dev_err(&pdev->dev, "error getting ahbix-clk: %ld\n",
+		dev_err(dev, "error getting ahbix-clk: %ld\n",
 			PTR_ERR(drvdata->ahbix_clk));
 		return PTR_ERR(drvdata->ahbix_clk);
 	}
 
 	ret = clk_set_rate(drvdata->ahbix_clk, LPASS_AHBIX_CLOCK_FREQUENCY);
 	if (ret) {
-		dev_err(&pdev->dev, "error setting rate on ahbix_clk: %d\n",
-			ret);
+		dev_err(dev, "error setting rate on ahbix_clk: %d\n", ret);
 		return ret;
 	}
-	dev_dbg(&pdev->dev, "set ahbix_clk rate to %lu\n",
+	dev_dbg(dev, "set ahbix_clk rate to %lu\n",
 		clk_get_rate(drvdata->ahbix_clk));
 
 	ret = clk_prepare_enable(drvdata->ahbix_clk);
 	if (ret) {
-		dev_err(&pdev->dev, "error enabling ahbix_clk: %d\n", ret);
+		dev_err(dev, "error enabling ahbix_clk: %d\n", ret);
 		return ret;
 	}
 
-	ret = devm_snd_soc_register_component(&pdev->dev,
+	ret = devm_snd_soc_register_component(dev,
 					      &lpass_cpu_comp_driver,
 					      variant->dai_driver,
 					      variant->num_dai);
 	if (ret) {
-		dev_err(&pdev->dev, "error registering cpu driver: %d\n", ret);
+		dev_err(dev, "error registering cpu driver: %d\n", ret);
 		goto err_clk;
 	}
 
 	ret = asoc_qcom_lpass_platform_register(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "error registering platform driver: %d\n",
-			ret);
+		dev_err(dev, "error registering platform driver: %d\n", ret);
 		goto err_clk;
 	}
 

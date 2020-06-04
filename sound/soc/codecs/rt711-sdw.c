@@ -450,9 +450,6 @@ static int rt711_sdw_probe(struct sdw_slave *slave,
 {
 	struct regmap *sdw_regmap, *regmap;
 
-	/* Assign ops */
-	slave->ops = &rt711_slave_ops;
-
 	/* Regmap Initialization */
 	sdw_regmap = devm_regmap_init_sdw(slave, &rt711_sdw_regmap);
 	if (!sdw_regmap)

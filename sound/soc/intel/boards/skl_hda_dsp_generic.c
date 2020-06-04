@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 // Copyright(c) 2015-18 Intel Corporation.
 
 /*
@@ -113,6 +113,8 @@ static char hda_soc_components[30];
 #define IDISP_ROUTE_COUNT	(IDISP_DAI_COUNT * 2)
 #define IDISP_CODEC_MASK	0x4
 
+#define HDA_CODEC_AUTOSUSPEND_DELAY_MS 1000
+
 static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 {
 	struct snd_soc_card *card = &hda_soc_card;
@@ -168,6 +170,29 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 	return 0;
 }
 
+static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
+{
+	struct snd_soc_pcm_runtime *rtd;
+	struct hdac_hda_priv *hda_pvt;
+	struct snd_soc_dai *dai;
+
+	for_each_card_rtds(card, rtd) {
+		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio"))
+			continue;
+		dai = asoc_rtd_to_codec(rtd, 0);
+		hda_pvt = snd_soc_component_get_drvdata(dai->component);
+		if (hda_pvt) {
+			/*
+			 * all codecs are on the same bus, so it's sufficient
+			 * to look up only the first one
+			 */
+			snd_hda_set_power_save(hda_pvt->codec.bus,
+					       HDA_CODEC_AUTOSUSPEND_DELAY_MS);
+			break;
+		}
+	}
+}
+
 static int skl_hda_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
@@ -206,7 +231,11 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		hda_soc_card.components = hda_soc_components;
 	}
 
-	return devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	ret = devm_snd_soc_register_card(&pdev->dev, &hda_soc_card);
+	if (!ret)
+		skl_set_hda_codec_autosuspend_delay(&hda_soc_card);
+
+	return ret;
 }
 
 static struct platform_driver skl_hda_audio = {
