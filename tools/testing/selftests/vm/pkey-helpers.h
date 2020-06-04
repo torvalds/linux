@@ -74,6 +74,9 @@ extern void abort_hooks(void);
 	}					\
 } while (0)
 
+__attribute__((noinline)) int read_ptr(int *ptr);
+void expected_pkey_fault(int pkey);
+
 #if defined(__i386__) || defined(__x86_64__) /* arch */
 #include "pkey-x86.h"
 #else /* arch */
@@ -171,5 +174,14 @@ static inline void __pkey_write_allow(int pkey, int do_allow_write)
 	((typeof(p))ALIGN_DOWN((unsigned long)(p), ptr_align_to))
 #define __stringify_1(x...)     #x
 #define __stringify(x...)       __stringify_1(x)
+
+static inline u32 *siginfo_get_pkey_ptr(siginfo_t *si)
+{
+#ifdef si_pkey
+	return &si->si_pkey;
+#else
+	return (u32 *)(((u8 *)si) + si_pkey_offset);
+#endif
+}
 
 #endif /* _PKEYS_HELPER_H */
