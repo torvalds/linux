@@ -399,7 +399,8 @@ static int get_atomisp_overlay32(struct atomisp_overlay *kp,
 	    get_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
 	    get_user(kp->blend_overlay_perc_v, &up->blend_overlay_perc_v) ||
 	    get_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
-	    get_user(kp->overlay_start_x, &up->overlay_start_y))
+	    get_user(kp->overlay_start_x, &up->overlay_start_x) ||
+	    get_user(kp->overlay_start_y, &up->overlay_start_y))
 		return -EFAULT;
 
 	kp->frame = (void __force *)compat_ptr(frame);
@@ -423,7 +424,8 @@ static int put_atomisp_overlay32(struct atomisp_overlay *kp,
 	    put_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
 	    put_user(kp->blend_overlay_perc_v, &up->blend_overlay_perc_v) ||
 	    put_user(kp->blend_overlay_perc_u, &up->blend_overlay_perc_u) ||
-	    put_user(kp->overlay_start_x, &up->overlay_start_y))
+	    put_user(kp->overlay_start_x, &up->overlay_start_x)
+	    put_user(kp->overlay_start_y, &up->overlay_start_y))
 		return -EFAULT;
 
 	return 0;
