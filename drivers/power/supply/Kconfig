@@ -541,6 +541,16 @@ config CHARGER_MAX8998
 	  Say Y to enable support for the battery charger control sysfs and
 	  platform data of MAX8998/LP3974 PMICs.
 
+config CHARGER_MP2629
+	tristate "Monolithic power system MP2629 Battery charger"
+	depends on MFD_MP2629
+	depends on MP2629_ADC
+	depends on IIO
+	help
+	  Select this option to enable support for Monolithic power system
+	  Battery charger. This driver provides Battery charger power management
+	  functions on the systems.
+
 config CHARGER_QCOM_SMBB
 	tristate "Qualcomm Switch-Mode Battery Charger and Boost"
 	depends on MFD_SPMI_PMIC || COMPILE_TEST
