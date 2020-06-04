@@ -263,7 +263,7 @@ static void nvm_authenticate_start_dma_port(struct tb_switch *sw)
 	 * itself. To be on the safe side keep the root port in D0 during
 	 * the whole upgrade process.
 	 */
-	root_port = pci_find_pcie_root_port(sw->tb->nhi->pdev);
+	root_port = pcie_find_root_port(sw->tb->nhi->pdev);
 	if (root_port)
 		pm_runtime_get_noresume(&root_port->dev);
 }
@@ -272,7 +272,7 @@ static void nvm_authenticate_complete_dma_port(struct tb_switch *sw)
 {
 	struct pci_dev *root_port;
 
-	root_port = pci_find_pcie_root_port(sw->tb->nhi->pdev);
+	root_port = pcie_find_root_port(sw->tb->nhi->pdev);
 	if (root_port)
 		pm_runtime_put(&root_port->dev);
 }

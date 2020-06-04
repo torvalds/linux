@@ -4319,7 +4319,7 @@ DECLARE_PCI_FIXUP_CLASS_EARLY(PCI_VENDOR_ID_AMD, 0x1a02, PCI_CLASS_NOT_DEFINED, 
  */
 static void quirk_disable_root_port_attributes(struct pci_dev *pdev)
 {
-	struct pci_dev *root_port = pci_find_pcie_root_port(pdev);
+	struct pci_dev *root_port = pcie_find_root_port(pdev);
 
 	if (!root_port) {
 		pci_warn(pdev, "PCIe Completion erratum may cause device errors\n");

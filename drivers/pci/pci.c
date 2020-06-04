@@ -752,30 +752,6 @@ struct resource *pci_find_resource(struct pci_dev *dev, struct resource *res)
 EXPORT_SYMBOL(pci_find_resource);
 
 /**
- * pci_find_pcie_root_port - return PCIe Root Port
- * @dev: PCI device to query
- *
- * Traverse up the parent chain and return the PCIe Root Port PCI Device
- * for a given PCI Device.
- */
-struct pci_dev *pci_find_pcie_root_port(struct pci_dev *dev)
-{
-	struct pci_dev *bridge, *highest_pcie_bridge = dev;
-
-	bridge = pci_upstream_bridge(dev);
-	while (bridge && pci_is_pcie(bridge)) {
-		highest_pcie_bridge = bridge;
-		bridge = pci_upstream_bridge(bridge);
-	}
-
-	if (pci_pcie_type(highest_pcie_bridge) != PCI_EXP_TYPE_ROOT_PORT)
-		return NULL;
-
-	return highest_pcie_bridge;
-}
-EXPORT_SYMBOL(pci_find_pcie_root_port);
-
-/**
  * pci_wait_for_pending - wait for @mask bit(s) to clear in status word @pos
  * @dev: the PCI device to operate on
  * @pos: config space offset of status word
@@ -1578,7 +1554,7 @@ EXPORT_SYMBOL(pci_restore_state);
 
 struct pci_saved_state {
 	u32 config_space[16];
-	struct pci_cap_saved_data cap[0];
+	struct pci_cap_saved_data cap[];
 };
 
 /**

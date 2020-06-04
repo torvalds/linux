@@ -933,7 +933,7 @@ struct pci_bus *acpi_pci_root_create(struct acpi_pci_root *root,
 	 * assignments made by firmware for this host bridge.
 	 */
 	obj = acpi_evaluate_dsm(ACPI_HANDLE(bus->bridge), &pci_acpi_dsm_guid, 1,
-	                        IGNORE_PCI_BOOT_CONFIG_DSM, NULL);
+				DSM_PCI_PRESERVE_BOOT_CONFIG, NULL);
 	if (obj && obj->type == ACPI_TYPE_INTEGER && obj->integer.value == 0)
 		host_bridge->preserve_config = 1;
 	ACPI_FREE(obj);

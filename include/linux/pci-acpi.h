@@ -107,10 +107,12 @@ static inline void acpiphp_check_host_bridge(struct acpi_device *adev) { }
 #endif
 
 extern const guid_t pci_acpi_dsm_guid;
-#define IGNORE_PCI_BOOT_CONFIG_DSM	0x05
-#define DEVICE_LABEL_DSM		0x07
-#define RESET_DELAY_DSM			0x08
-#define FUNCTION_DELAY_DSM		0x09
+
+/* _DSM Definitions for PCI */
+#define DSM_PCI_PRESERVE_BOOT_CONFIG		0x05
+#define DSM_PCI_DEVICE_NAME			0x07
+#define DSM_PCI_POWER_ON_RESET_DELAY		0x08
+#define DSM_PCI_DEVICE_READINESS_DURATIONS	0x09
 
 #ifdef CONFIG_PCIE_EDR
 void pci_acpi_add_edr_notifier(struct pci_dev *pdev);

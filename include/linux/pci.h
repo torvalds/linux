@@ -291,7 +291,7 @@ struct pci_cap_saved_data {
 	u16		cap_nr;
 	bool		cap_extended;
 	unsigned int	size;
-	u32		data[0];
+	u32		data[];
 };
 
 struct pci_cap_saved_state {
@@ -542,7 +542,7 @@ struct pci_host_bridge {
 			resource_size_t start,
 			resource_size_t size,
 			resource_size_t align);
-	unsigned long	private[0] ____cacheline_aligned;
+	unsigned long	private[] ____cacheline_aligned;
 };
 
 #define	to_pci_host_bridge(n) container_of(n, struct pci_host_bridge, dev)
@@ -1035,7 +1035,6 @@ void pci_bus_add_device(struct pci_dev *dev);
 void pci_read_bridge_bases(struct pci_bus *child);
 struct resource *pci_find_parent_resource(const struct pci_dev *dev,
 					  struct resource *res);
-struct pci_dev *pci_find_pcie_root_port(struct pci_dev *dev);
 u8 pci_swizzle_interrupt_pin(const struct pci_dev *dev, u8 pin);
 int pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge);
 u8 pci_common_swizzle(struct pci_dev *dev, u8 *pinp);
@@ -2153,17 +2152,23 @@ static inline int pci_pcie_type(const struct pci_dev *dev)
 	return (pcie_caps_reg(dev) & PCI_EXP_FLAGS_TYPE) >> 4;
 }
 
+/**
+ * pcie_find_root_port - Get the PCIe root port device
+ * @dev: PCI device
+ *
+ * Traverse up the parent chain and return the PCIe Root Port PCI Device
+ * for a given PCI/PCIe Device.
+ */
 static inline struct pci_dev *pcie_find_root_port(struct pci_dev *dev)
 {
-	while (1) {
-		if (!pci_is_pcie(dev))
-			break;
-		if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
-			return dev;
-		if (!dev->bus->self)
-			break;
-		dev = dev->bus->self;
+	struct pci_dev *bridge = pci_upstream_bridge(dev);
+
+	while (bridge) {
+		if (pci_pcie_type(bridge) == PCI_EXP_TYPE_ROOT_PORT)
+			return bridge;
+		bridge = pci_upstream_bridge(bridge);
 	}
+
 	return NULL;
 }
 

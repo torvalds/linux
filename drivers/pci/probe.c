@@ -2079,7 +2079,7 @@ static void pci_configure_relaxed_ordering(struct pci_dev *dev)
 	 * For now, we only deal with Relaxed Ordering issues with Root
 	 * Ports. Peer-to-Peer DMA is another can of worms.
 	 */
-	root = pci_find_pcie_root_port(dev);
+	root = pcie_find_root_port(dev);
 	if (!root)
 		return;
 
