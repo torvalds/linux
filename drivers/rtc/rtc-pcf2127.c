@@ -448,6 +448,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	pcf2127->wdd.max_timeout = PCF2127_WD_VAL_MAX;
 	pcf2127->wdd.timeout = PCF2127_WD_VAL_DEFAULT;
 	pcf2127->wdd.min_hw_heartbeat_ms = 500;
+	pcf2127->wdd.status = WATCHDOG_NOWAYOUT_INIT_STATUS;
 
 	watchdog_set_drvdata(&pcf2127->wdd, pcf2127);
 
