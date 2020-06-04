@@ -244,18 +244,7 @@ static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
  * @adapter: networking device structure
  * @config: hwtstamp configuration
  *
- * Outgoing time stamping can be enabled and disabled. Play nice and
- * disable it when requested, although it shouldn't case any overhead
- * when no packet needs it. At most one packet in the queue may be
- * marked for time stamping, otherwise it would be impossible to tell
- * for sure to which packet the hardware time stamp belongs.
- *
- * Incoming time stamping has to be configured via the hardware
- * filters. Not all combinations are supported, in particular event
- * type has to be specified. Matching the kind of event packet is
- * not supported, with the exception of "all V2 events regardless of
- * level 2 or 4".
- *
+ * Return: 0 in case of success, negative errno code otherwise.
  */
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 				      struct hwtstamp_config *config)
@@ -263,8 +252,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	u32 tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
 	struct igc_hw *hw = &adapter->hw;
-	u32 tsync_rx_cfg = 0;
-	bool is_l4 = false;
 	u32 regval;
 
 	/* reserved for future extensions */
@@ -285,15 +272,7 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 		tsync_rx_ctl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_cfg = IGC_TSYNCRXCFG_PTP_V1_SYNC_MESSAGE;
-		is_l4 = true;
-		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_cfg = IGC_TSYNCRXCFG_PTP_V1_DELAY_REQ_MESSAGE;
-		is_l4 = true;
-		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
@@ -303,32 +282,22 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_EVENT_V2;
-		config->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
-		is_l4 = true;
-		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
-		/* fall through */
 	default:
 		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
 
-	/* Per-packet timestamping only works if all packets are
-	 * timestamped, so enable timestamping in all packets as long
-	 * as one Rx filter was configured.
-	 */
 	if (tsync_rx_ctl) {
 		tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
 		tsync_rx_ctl |= IGC_TSYNCRXCTL_RXSYNSIG;
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
-		is_l4 = true;
 
 		if (hw->mac.type == igc_i225) {
 			regval = rd32(IGC_RXPBS);
@@ -359,24 +328,6 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	regval |= tsync_rx_ctl;
 	wr32(IGC_TSYNCRXCTL, regval);
 
-	/* define which PTP packets are time stamped */
-	wr32(IGC_TSYNCRXCFG, tsync_rx_cfg);
-
-	/* L4 Queue Filter[3]: filter by destination port and protocol */
-	if (is_l4) {
-		u32 ftqf = (IPPROTO_UDP /* UDP */
-			    | IGC_FTQF_VF_BP /* VF not compared */
-			    | IGC_FTQF_1588_TIME_STAMP /* Enable Timestamp */
-			    | IGC_FTQF_MASK); /* mask all inputs */
-		ftqf &= ~IGC_FTQF_MASK_PROTO_BP; /* enable protocol check */
-
-		wr32(IGC_IMIR(3), htons(PTP_EV_PORT));
-		wr32(IGC_IMIREXT(3),
-		     (IGC_IMIREXT_SIZE_BP | IGC_IMIREXT_CTRL_BP));
-		wr32(IGC_FTQF(3), ftqf);
-	} else {
-		wr32(IGC_FTQF(3), IGC_FTQF_MASK);
-	}
 	wrfl();
 
 	/* clear TX time stamp registers, just to be sure */
