@@ -239,6 +239,54 @@ static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
 	}
 }
 
+static void igc_ptp_disable_rx_timestamp(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 val;
+
+	wr32(IGC_TSYNCRXCTL, 0);
+
+	val = rd32(IGC_RXPBS);
+	val &= ~IGC_RXPBS_CFG_TS_EN;
+	wr32(IGC_RXPBS, val);
+}
+
+static void igc_ptp_enable_rx_timestamp(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+	u32 val;
+
+	val = rd32(IGC_RXPBS);
+	val |= IGC_RXPBS_CFG_TS_EN;
+	wr32(IGC_RXPBS, val);
+
+	/* FIXME: For now, only support retrieving RX timestamps from timer 0
+	 */
+	igc_ptp_enable_tstamp_all_rxqueues(adapter, 0);
+
+	val = IGC_TSYNCRXCTL_ENABLED | IGC_TSYNCRXCTL_TYPE_ALL |
+	      IGC_TSYNCRXCTL_RXSYNSIG;
+	wr32(IGC_TSYNCRXCTL, val);
+}
+
+static void igc_ptp_disable_tx_timestamp(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	wr32(IGC_TSYNCTXCTL, 0);
+}
+
+static void igc_ptp_enable_tx_timestamp(struct igc_adapter *adapter)
+{
+	struct igc_hw *hw = &adapter->hw;
+
+	wr32(IGC_TSYNCTXCTL, IGC_TSYNCTXCTL_ENABLED | IGC_TSYNCTXCTL_TXSYNSIG);
+
+	/* Read TXSTMP registers to discard any timestamp previously stored. */
+	rd32(IGC_TXSTMPL);
+	rd32(IGC_TXSTMPH);
+}
+
 /**
  * igc_ptp_set_timestamp_mode - setup hardware for timestamping
  * @adapter: networking device structure
@@ -249,19 +297,16 @@ static void igc_ptp_enable_tstamp_all_rxqueues(struct igc_adapter *adapter,
 static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 				      struct hwtstamp_config *config)
 {
-	u32 tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
-	u32 tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
-	struct igc_hw *hw = &adapter->hw;
-	u32 regval;
-
 	/* reserved for future extensions */
 	if (config->flags)
 		return -EINVAL;
 
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_OFF:
-		tsync_tx_ctl = 0;
+		igc_ptp_disable_tx_timestamp(adapter);
+		break;
 	case HWTSTAMP_TX_ON:
+		igc_ptp_enable_tx_timestamp(adapter);
 		break;
 	default:
 		return -ERANGE;
@@ -269,7 +314,7 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 
 	switch (config->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		tsync_rx_ctl = 0;
+		igc_ptp_disable_rx_timestamp(adapter);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
@@ -285,54 +330,12 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 	case HWTSTAMP_FILTER_NTP_ALL:
 	case HWTSTAMP_FILTER_ALL:
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
+		igc_ptp_enable_rx_timestamp(adapter);
 		config->rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	default:
-		config->rx_filter = HWTSTAMP_FILTER_NONE;
 		return -ERANGE;
 	}
-
-	if (tsync_rx_ctl) {
-		tsync_rx_ctl = IGC_TSYNCRXCTL_ENABLED;
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_TYPE_ALL;
-		tsync_rx_ctl |= IGC_TSYNCRXCTL_RXSYNSIG;
-		config->rx_filter = HWTSTAMP_FILTER_ALL;
-
-		if (hw->mac.type == igc_i225) {
-			regval = rd32(IGC_RXPBS);
-			regval |= IGC_RXPBS_CFG_TS_EN;
-			wr32(IGC_RXPBS, regval);
-
-			/* FIXME: For now, only support retrieving RX
-			 * timestamps from timer 0
-			 */
-			igc_ptp_enable_tstamp_all_rxqueues(adapter, 0);
-		}
-	}
-
-	if (tsync_tx_ctl) {
-		tsync_tx_ctl = IGC_TSYNCTXCTL_ENABLED;
-		tsync_tx_ctl |= IGC_TSYNCTXCTL_TXSYNSIG;
-	}
-
-	/* enable/disable TX */
-	regval = rd32(IGC_TSYNCTXCTL);
-	regval &= ~IGC_TSYNCTXCTL_ENABLED;
-	regval |= tsync_tx_ctl;
-	wr32(IGC_TSYNCTXCTL, regval);
-
-	/* enable/disable RX */
-	regval = rd32(IGC_TSYNCRXCTL);
-	regval &= ~(IGC_TSYNCRXCTL_ENABLED | IGC_TSYNCRXCTL_TYPE_MASK);
-	regval |= tsync_rx_ctl;
-	wr32(IGC_TSYNCRXCTL, regval);
-
-	wrfl();
-
-	/* clear TX time stamp registers, just to be sure */
-	regval = rd32(IGC_TXSTMPL);
-	regval = rd32(IGC_TXSTMPH);
 
 	return 0;
 }
