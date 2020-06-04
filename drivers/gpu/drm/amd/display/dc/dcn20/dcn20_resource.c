@@ -2257,6 +2257,14 @@ int dcn20_populate_dml_pipes_from_context(
 			pipes[pipe_cnt].pipe.src.is_hsplit = (res_ctx->pipe_ctx[i].bottom_pipe && res_ctx->pipe_ctx[i].bottom_pipe->plane_state == pln)
 					|| (res_ctx->pipe_ctx[i].top_pipe && res_ctx->pipe_ctx[i].top_pipe->plane_state == pln)
 					|| pipes[pipe_cnt].pipe.dest.odm_combine != dm_odm_combine_mode_disabled;
+
+			/* stereo is never split, nor odm combine */
+			if (pln->stereo_format == PLANE_STEREO_FORMAT_SIDE_BY_SIDE ||
+			    pln->stereo_format == PLANE_STEREO_FORMAT_TOP_AND_BOTTOM) {
+				pipes[pipe_cnt].pipe.src.is_hsplit = false;
+				pipes[pipe_cnt].pipe.src.hsplit_grp = res_ctx->pipe_ctx[i].pipe_idx;
+			}
+
 			pipes[pipe_cnt].pipe.src.source_scan = pln->rotation == ROTATION_ANGLE_90
 					|| pln->rotation == ROTATION_ANGLE_270 ? dm_vert : dm_horz;
 			pipes[pipe_cnt].pipe.src.viewport_y_y = scl->viewport_unadjusted.y;
