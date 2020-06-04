@@ -1376,6 +1376,26 @@ static int smu_disable_dpms(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_smc_hw_cleanup(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
+
+	ret = smu_disable_thermal_alert(smu);
+	if (ret) {
+		pr_warn("Fail to stop thermal control!\n");
+		return ret;
+	}
+
+	ret = smu_disable_dpms(smu);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -1396,19 +1416,9 @@ static int smu_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
-
-	ret = smu_disable_thermal_alert(smu);
-	if (ret) {
-		pr_warn("Fail to stop thermal control!\n");
+	ret = smu_smc_hw_cleanup(smu);
+	if (ret)
 		return ret;
-	}
-
-	ret = smu_disable_dpms(smu);
-	if (ret) {
-		pr_warn("Fail to stop Dpms!\n");
-		return ret;
-	}
 
 	return 0;
 }
@@ -1445,15 +1455,7 @@ static int smu_suspend(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	smu_i2c_eeprom_fini(smu, &adev->pm.smu_i2c);
-
-	ret = smu_disable_thermal_alert(smu);
-	if (ret) {
-		pr_warn("Fail to stop thermal control!\n");
-		return ret;
-	}
-
-	ret = smu_disable_dpms(smu);
+	ret = smu_smc_hw_cleanup(smu);
 	if (ret)
 		return ret;
 
