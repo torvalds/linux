@@ -275,19 +275,6 @@ int snd_soc_component_close(struct snd_soc_component *component,
 	return soc_component_ret(component, ret);
 }
 
-int snd_soc_component_hw_params(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
-{
-	int ret = 0;
-
-	if (component->driver->hw_params)
-		ret = component->driver->hw_params(component,
-						   substream, params);
-
-	return soc_component_ret(component, ret);
-}
-
 int snd_soc_component_hw_free(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream)
 {
@@ -573,5 +560,28 @@ int snd_soc_pcm_component_prepare(struct snd_pcm_substream *substream)
 		}
 	}
 
+	return 0;
+}
+
+int snd_soc_pcm_component_hw_params(struct snd_pcm_substream *substream,
+				    struct snd_pcm_hw_params *params,
+				    struct snd_soc_component **last)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_component *component;
+	int i, ret;
+
+	for_each_rtd_components(rtd, i, component) {
+		if (component->driver->hw_params) {
+			ret = component->driver->hw_params(component,
+							   substream, params);
+			if (ret < 0) {
+				*last = component;
+				return soc_component_ret(component, ret);
+			}
+		}
+	}
+
+	*last = NULL;
 	return 0;
 }

@@ -1009,16 +1009,9 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dapm_update_dai(substream, params, cpu_dai);
 	}
 
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_hw_params(component, substream, params);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: %s hw params failed: %d\n",
-				component->name, ret);
-			goto component_err;
-		}
-	}
-	component = NULL;
+	ret = snd_soc_pcm_component_hw_params(substream, params, &component);
+	if (ret < 0)
+		goto component_err;
 
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
