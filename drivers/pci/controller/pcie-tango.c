@@ -207,7 +207,7 @@ static int smp8759_config_write(struct pci_bus *bus, unsigned int devfn,
 	return ret;
 }
 
-static struct pci_ecam_ops smp8759_ecam_ops = {
+static const struct pci_ecam_ops smp8759_ecam_ops = {
 	.bus_shift	= 20,
 	.pci_ops	= {
 		.map_bus	= pci_ecam_map_bus,
@@ -295,11 +295,14 @@ static int tango_pcie_probe(struct platform_device *pdev)
 	spin_lock_init(&pcie->used_msi_lock);
 	irq_set_chained_handler_and_data(virq, tango_msi_isr, pcie);
 
-	return pci_host_common_probe(pdev, &smp8759_ecam_ops);
+	return pci_host_common_probe(pdev);
 }
 
 static const struct of_device_id tango_pcie_ids[] = {
-	{ .compatible = "sigma,smp8759-pcie" },
+	{
+		.compatible = "sigma,smp8759-pcie",
+		.data = &smp8759_ecam_ops,
+	},
 	{ },
 };
 
