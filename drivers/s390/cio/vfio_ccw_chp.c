@@ -59,7 +59,7 @@ static void vfio_ccw_schib_region_release(struct vfio_ccw_private *private,
 
 }
 
-const struct vfio_ccw_regops vfio_ccw_schib_region_ops = {
+static const struct vfio_ccw_regops vfio_ccw_schib_region_ops = {
 	.read = vfio_ccw_schib_region_read,
 	.write = vfio_ccw_schib_region_write,
 	.release = vfio_ccw_schib_region_release,
@@ -131,7 +131,7 @@ static void vfio_ccw_crw_region_release(struct vfio_ccw_private *private,
 
 }
 
-const struct vfio_ccw_regops vfio_ccw_crw_region_ops = {
+static const struct vfio_ccw_regops vfio_ccw_crw_region_ops = {
 	.read = vfio_ccw_crw_region_read,
 	.write = vfio_ccw_crw_region_write,
 	.release = vfio_ccw_crw_region_release,
