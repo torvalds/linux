@@ -54,7 +54,7 @@ void __init fdt_reserved_mem_save_node(unsigned long node, const char *uname,
 	struct reserved_mem *rmem = &reserved_mem[reserved_mem_count];
 
 	if (reserved_mem_count == ARRAY_SIZE(reserved_mem)) {
-		pr_err("not enough space all defined regions.\n");
+		pr_err("not enough space for all defined regions.\n");
 		return;
 	}
 
