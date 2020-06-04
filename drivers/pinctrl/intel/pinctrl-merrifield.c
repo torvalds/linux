@@ -340,6 +340,7 @@ static const struct pinctrl_pin_desc mrfld_pins[] = {
 };
 
 static const unsigned int mrfld_sdio_pins[] = { 50, 51, 52, 53, 54, 55, 56 };
+static const unsigned int mrfld_i2s2_pins[] = { 75, 76, 77, 78 };
 static const unsigned int mrfld_spi5_pins[] = { 90, 91, 92, 93, 94, 95, 96 };
 static const unsigned int mrfld_uart0_pins[] = { 115, 116, 117, 118 };
 static const unsigned int mrfld_uart1_pins[] = { 119, 120, 121, 122 };
@@ -351,6 +352,7 @@ static const unsigned int mrfld_pwm3_pins[] = { 133 };
 
 static const struct intel_pingroup mrfld_groups[] = {
 	PIN_GROUP("sdio_grp", mrfld_sdio_pins, 1),
+	PIN_GROUP("i2s2_grp", mrfld_i2s2_pins, 1),
 	PIN_GROUP("spi5_grp", mrfld_spi5_pins, 1),
 	PIN_GROUP("uart0_grp", mrfld_uart0_pins, 1),
 	PIN_GROUP("uart1_grp", mrfld_uart1_pins, 1),
@@ -362,6 +364,7 @@ static const struct intel_pingroup mrfld_groups[] = {
 };
 
 static const char * const mrfld_sdio_groups[] = { "sdio_grp" };
+static const char * const mrfld_i2s2_groups[] = { "i2s2_grp" };
 static const char * const mrfld_spi5_groups[] = { "spi5_grp" };
 static const char * const mrfld_uart0_groups[] = { "uart0_grp" };
 static const char * const mrfld_uart1_groups[] = { "uart1_grp" };
@@ -373,6 +376,7 @@ static const char * const mrfld_pwm3_groups[] = { "pwm3_grp" };
 
 static const struct intel_function mrfld_functions[] = {
 	FUNCTION("sdio", mrfld_sdio_groups),
+	FUNCTION("i2s2", mrfld_i2s2_groups),
 	FUNCTION("spi5", mrfld_spi5_groups),
 	FUNCTION("uart0", mrfld_uart0_groups),
 	FUNCTION("uart1", mrfld_uart1_groups),
