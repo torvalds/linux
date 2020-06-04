@@ -26,7 +26,7 @@ config PCI_DRA7XX_HOST
 	depends on OF && HAS_IOMEM && TI_PIPE3
 	select PCIE_DW_HOST
 	select PCI_DRA7XX
-	default y
+	default y if SOC_DRA7XX
 	help
 	  Enables support for the PCIe controller in the DRA7xx SoC to work in
 	  host mode. There are two instances of PCIe controller in DRA7xx.
@@ -111,7 +111,6 @@ config PCI_KEYSTONE_HOST
 	depends on PCI_MSI_IRQ_DOMAIN
 	select PCIE_DW_HOST
 	select PCI_KEYSTONE
-	default y
 	help
 	  Enables support for the PCIe controller in the Keystone SoC to
 	  work in host mode. The PCI controller on Keystone is based on
