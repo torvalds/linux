@@ -40,7 +40,7 @@ RECORD OPTIONS
 --------------
 -e::
 --event=::
-	Select the PMU event. Use 'perf mem record -e list'
+	Select the PMU event. Use 'perf c2c record -e list'
 	to list available events.
 
 -v::

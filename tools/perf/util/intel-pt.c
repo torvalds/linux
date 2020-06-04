@@ -913,11 +913,11 @@ static void intel_pt_add_callchain(struct intel_pt *pt,
 	sample->callchain = pt->chain;
 }
 
-static struct branch_stack *intel_pt_alloc_br_stack(struct intel_pt *pt)
+static struct branch_stack *intel_pt_alloc_br_stack(unsigned int entry_cnt)
 {
 	size_t sz = sizeof(struct branch_stack);
 
-	sz += pt->br_stack_sz * sizeof(struct branch_entry);
+	sz += entry_cnt * sizeof(struct branch_entry);
 	return zalloc(sz);
 }
 
@@ -930,7 +930,7 @@ static int intel_pt_br_stack_init(struct intel_pt *pt)
 			evsel->synth_sample_type |= PERF_SAMPLE_BRANCH_STACK;
 	}
 
-	pt->br_stack = intel_pt_alloc_br_stack(pt);
+	pt->br_stack = intel_pt_alloc_br_stack(pt->br_stack_sz);
 	if (!pt->br_stack)
 		return -ENOMEM;
 
@@ -951,6 +951,9 @@ static void intel_pt_add_br_stack(struct intel_pt *pt,
 	sample->branch_stack = pt->br_stack;
 }
 
+/* INTEL_PT_LBR_0, INTEL_PT_LBR_1 and INTEL_PT_LBR_2 */
+#define LBRS_MAX (INTEL_PT_BLK_ITEM_ID_CNT * 3U)
+
 static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 						   unsigned int queue_nr)
 {
@@ -968,8 +971,10 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 			goto out_free;
 	}
 
-	if (pt->synth_opts.last_branch) {
-		ptq->last_branch = intel_pt_alloc_br_stack(pt);
+	if (pt->synth_opts.last_branch || pt->synth_opts.other_events) {
+		unsigned int entry_cnt = max(LBRS_MAX, pt->br_stack_sz);
+
+		ptq->last_branch = intel_pt_alloc_br_stack(entry_cnt);
 		if (!ptq->last_branch)
 			goto out_free;
 	}
@@ -1720,9 +1725,6 @@ static void intel_pt_add_lbrs(struct branch_stack *br_stack,
 	}
 }
 
-/* INTEL_PT_LBR_0, INTEL_PT_LBR_1 and INTEL_PT_LBR_2 */
-#define LBRS_MAX (INTEL_PT_BLK_ITEM_ID_CNT * 3)
-
 static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 {
 	const struct intel_pt_blk_items *items = &ptq->state->items;
@@ -1798,25 +1800,18 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	}
 
 	if (sample_type & PERF_SAMPLE_BRANCH_STACK) {
-		struct {
-			struct branch_stack br_stack;
-			struct branch_entry entries[LBRS_MAX];
-		} br;
-
 		if (items->mask[INTEL_PT_LBR_0_POS] ||
 		    items->mask[INTEL_PT_LBR_1_POS] ||
 		    items->mask[INTEL_PT_LBR_2_POS]) {
-			intel_pt_add_lbrs(&br.br_stack, items);
-			sample.branch_stack = &br.br_stack;
+			intel_pt_add_lbrs(ptq->last_branch, items);
 		} else if (pt->synth_opts.last_branch) {
 			thread_stack__br_sample(ptq->thread, ptq->cpu,
 						ptq->last_branch,
 						pt->br_stack_sz);
-			sample.branch_stack = ptq->last_branch;
 		} else {
-			br.br_stack.nr = 0;
-			sample.branch_stack = &br.br_stack;
+			ptq->last_branch->nr = 0;
 		}
+		sample.branch_stack = ptq->last_branch;
 	}
 
 	if (sample_type & PERF_SAMPLE_ADDR && items->has_mem_access_address)

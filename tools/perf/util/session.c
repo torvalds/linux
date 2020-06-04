@@ -33,7 +33,6 @@
 #include "../perf.h"
 #include "arch/common.h"
 #include <internal/lib.h>
-#include <linux/err.h>
 
 #ifdef HAVE_ZSTD_SUPPORT
 static int perf_session__process_compressed_event(struct perf_session *session,
@@ -1104,7 +1103,7 @@ static void regs_dump__printf(u64 mask, u64 *regs)
 	for_each_set_bit(rid, (unsigned long *) &mask, sizeof(mask) * 8) {
 		u64 val = regs[i++];
 
-		printf(".... %-5s 0x%" PRIx64 "\n",
+		printf(".... %-5s 0x%016" PRIx64 "\n",
 		       perf_reg_name(rid), val);
 	}
 }
@@ -1542,8 +1541,13 @@ static s64 perf_session__process_user_event(struct perf_session *session,
 		 */
 		return 0;
 	case PERF_RECORD_HEADER_TRACING_DATA:
-		/* setup for reading amidst mmap */
-		lseek(fd, file_offset, SEEK_SET);
+		/*
+		 * Setup for reading amidst mmap, but only when we
+		 * are in 'file' mode. The 'pipe' fd is in proper
+		 * place already.
+		 */
+		if (!perf_data__is_pipe(session->data))
+			lseek(fd, file_offset, SEEK_SET);
 		return tool->tracing_data(session, event);
 	case PERF_RECORD_HEADER_BUILD_ID:
 		return tool->build_id(session, event);

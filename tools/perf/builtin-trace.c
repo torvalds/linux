@@ -461,11 +461,11 @@ static int evsel__init_raw_syscall_tp(struct evsel *evsel, void *handler)
 
 static struct evsel *perf_evsel__raw_syscall_newtp(const char *direction, void *handler)
 {
-	struct evsel *evsel = perf_evsel__newtp("raw_syscalls", direction);
+	struct evsel *evsel = evsel__newtp("raw_syscalls", direction);
 
 	/* older kernel (e.g., RHEL6) use syscalls:{enter,exit} */
 	if (IS_ERR(evsel))
-		evsel = perf_evsel__newtp("syscalls", direction);
+		evsel = evsel__newtp("syscalls", direction);
 
 	if (IS_ERR(evsel))
 		return NULL;
@@ -1748,12 +1748,26 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 	struct syscall *sc;
 	const char *name = syscalltbl__name(trace->sctbl, id);
 
+#ifdef HAVE_SYSCALL_TABLE_SUPPORT
 	if (trace->syscalls.table == NULL) {
 		trace->syscalls.table = calloc(trace->sctbl->syscalls.max_id + 1, sizeof(*sc));
 		if (trace->syscalls.table == NULL)
 			return -ENOMEM;
 	}
+#else
+	if (id > trace->sctbl->syscalls.max_id || (id == 0 && trace->syscalls.table == NULL)) {
+		// When using libaudit we don't know beforehand what is the max syscall id
+		struct syscall *table = realloc(trace->syscalls.table, (id + 1) * sizeof(*sc));
 
+		if (table == NULL)
+			return -ENOMEM;
+
+		memset(table + trace->sctbl->syscalls.max_id, 0, (id - trace->sctbl->syscalls.max_id) * sizeof(*sc));
+
+		trace->syscalls.table	      = table;
+		trace->sctbl->syscalls.max_id = id;
+	}
+#endif
 	sc = trace->syscalls.table + id;
 	if (sc->nonexistent)
 		return 0;
@@ -2077,8 +2091,20 @@ static struct syscall *trace__syscall_info(struct trace *trace,
 
 	err = -EINVAL;
 
-	if (id > trace->sctbl->syscalls.max_id)
+#ifdef HAVE_SYSCALL_TABLE_SUPPORT
+	if (id > trace->sctbl->syscalls.max_id) {
+#else
+	if (id >= trace->sctbl->syscalls.max_id) {
+		/*
+		 * With libaudit we don't know beforehand what is the max_id,
+		 * so we let trace__read_syscall_info() figure that out as we
+		 * go on reading syscalls.
+		 */
+		err = trace__read_syscall_info(trace, id);
+		if (err)
+#endif
 		goto out_cant_read;
+	}
 
 	if ((trace->syscalls.table == NULL || trace->syscalls.table[id].name == NULL) &&
 	    (err = trace__read_syscall_info(trace, id)) != 0)
@@ -3045,7 +3071,7 @@ static bool evlist__add_vfs_getname(struct evlist *evlist)
 	return found;
 }
 
-static struct evsel *perf_evsel__new_pgfault(u64 config)
+static struct evsel *evsel__new_pgfault(u64 config)
 {
 	struct evsel *evsel;
 	struct perf_event_attr attr = {
@@ -3174,6 +3200,26 @@ out_enomem:
 }
 
 #ifdef HAVE_LIBBPF_SUPPORT
+static struct bpf_map *trace__find_bpf_map_by_name(struct trace *trace, const char *name)
+{
+	if (trace->bpf_obj == NULL)
+		return NULL;
+
+	return bpf_object__find_map_by_name(trace->bpf_obj, name);
+}
+
+static void trace__set_bpf_map_filtered_pids(struct trace *trace)
+{
+	trace->filter_pids.map = trace__find_bpf_map_by_name(trace, "pids_filtered");
+}
+
+static void trace__set_bpf_map_syscalls(struct trace *trace)
+{
+	trace->syscalls.map = trace__find_bpf_map_by_name(trace, "syscalls");
+	trace->syscalls.prog_array.sys_enter = trace__find_bpf_map_by_name(trace, "syscalls_sys_enter");
+	trace->syscalls.prog_array.sys_exit  = trace__find_bpf_map_by_name(trace, "syscalls_sys_exit");
+}
+
 static struct bpf_program *trace__find_bpf_program_by_title(struct trace *trace, const char *name)
 {
 	if (trace->bpf_obj == NULL)
@@ -3512,6 +3558,20 @@ static void trace__delete_augmented_syscalls(struct trace *trace)
 	trace->bpf_obj = NULL;
 }
 #else // HAVE_LIBBPF_SUPPORT
+static struct bpf_map *trace__find_bpf_map_by_name(struct trace *trace __maybe_unused,
+						   const char *name __maybe_unused)
+{
+	return NULL;
+}
+
+static void trace__set_bpf_map_filtered_pids(struct trace *trace __maybe_unused)
+{
+}
+
+static void trace__set_bpf_map_syscalls(struct trace *trace __maybe_unused)
+{
+}
+
 static int trace__set_ev_qualifier_bpf_filter(struct trace *trace __maybe_unused)
 {
 	return 0;
@@ -3841,7 +3901,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMAJ)) {
-		pgfault_maj = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
+		pgfault_maj = evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MAJ);
 		if (pgfault_maj == NULL)
 			goto out_error_mem;
 		evsel__config_callchain(pgfault_maj, &trace->opts, &callchain_param);
@@ -3849,7 +3909,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	}
 
 	if ((trace->trace_pgfaults & TRACE_PFMIN)) {
-		pgfault_min = perf_evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
+		pgfault_min = evsel__new_pgfault(PERF_COUNT_SW_PAGE_FAULTS_MIN);
 		if (pgfault_min == NULL)
 			goto out_error_mem;
 		evsel__config_callchain(pgfault_min, &trace->opts, &callchain_param);
@@ -4598,26 +4658,6 @@ static int trace__parse_cgroups(const struct option *opt, const char *str, int u
 	trace->cgroup = evlist__findnew_cgroup(trace->evlist, str);
 
 	return 0;
-}
-
-static struct bpf_map *trace__find_bpf_map_by_name(struct trace *trace, const char *name)
-{
-	if (trace->bpf_obj == NULL)
-		return NULL;
-
-	return bpf_object__find_map_by_name(trace->bpf_obj, name);
-}
-
-static void trace__set_bpf_map_filtered_pids(struct trace *trace)
-{
-	trace->filter_pids.map = trace__find_bpf_map_by_name(trace, "pids_filtered");
-}
-
-static void trace__set_bpf_map_syscalls(struct trace *trace)
-{
-	trace->syscalls.map = trace__find_bpf_map_by_name(trace, "syscalls");
-	trace->syscalls.prog_array.sys_enter = trace__find_bpf_map_by_name(trace, "syscalls_sys_enter");
-	trace->syscalls.prog_array.sys_exit  = trace__find_bpf_map_by_name(trace, "syscalls_sys_exit");
 }
 
 static int trace__config(const char *var, const char *value, void *arg)

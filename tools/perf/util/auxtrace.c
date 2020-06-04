@@ -55,7 +55,6 @@
 #include "util/mmap.h"
 
 #include <linux/ctype.h>
-#include <linux/kernel.h>
 #include "symbol/kallsyms.h"
 #include <internal/lib.h>
 
@@ -729,7 +728,7 @@ int auxtrace_parse_sample_options(struct auxtrace_record *itr,
 				  struct evlist *evlist,
 				  struct record_opts *opts, const char *str)
 {
-	struct perf_evsel_config_term *term;
+	struct evsel_config_term *term;
 	struct evsel *aux_evsel;
 	bool has_aux_sample_size = false;
 	bool has_aux_leader = false;
@@ -771,7 +770,7 @@ no_opt:
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel__is_aux_event(evsel))
 			aux_evsel = evsel;
-		term = perf_evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
+		term = evsel__get_config_term(evsel, AUX_SAMPLE_SIZE);
 		if (term) {
 			has_aux_sample_size = true;
 			evsel->core.attr.aux_sample_size = term->val.aux_sample_size;
@@ -1331,6 +1330,11 @@ void itrace_synth_opts__set_default(struct itrace_synth_opts *synth_opts,
 	synth_opts->pwr_events = true;
 	synth_opts->other_events = true;
 	synth_opts->errors = true;
+	synth_opts->flc = true;
+	synth_opts->llc = true;
+	synth_opts->tlb = true;
+	synth_opts->remote_access = true;
+
 	if (no_sample) {
 		synth_opts->period_type = PERF_ITRACE_PERIOD_INSTRUCTIONS;
 		synth_opts->period = 1;
@@ -1490,6 +1494,18 @@ int itrace_parse_synth_opts(const struct option *opt, const char *str,
 			if (p == endptr)
 				goto out_err;
 			p = endptr;
+			break;
+		case 'f':
+			synth_opts->flc = true;
+			break;
+		case 'm':
+			synth_opts->llc = true;
+			break;
+		case 't':
+			synth_opts->tlb = true;
+			break;
+		case 'a':
+			synth_opts->remote_access = true;
 			break;
 		case ' ':
 		case ',':

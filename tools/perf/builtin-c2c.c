@@ -2887,8 +2887,15 @@ static int parse_record_events(const struct option *opt,
 {
 	bool *event_set = (bool *) opt->value;
 
+	if (!strcmp(str, "list")) {
+		perf_mem_events__list();
+		exit(0);
+	}
+	if (perf_mem_events__parse(str))
+		exit(-1);
+
 	*event_set = true;
-	return perf_mem_events__parse(str);
+	return 0;
 }
 
 
