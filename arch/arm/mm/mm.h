@@ -38,7 +38,7 @@ static inline pte_t get_top_pte(unsigned long va)
 
 static inline pmd_t *pmd_off_k(unsigned long virt)
 {
-	return pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
+	return pmd_offset(pud_offset(p4d_offset(pgd_offset_k(virt), virt), virt), virt);
 }
 
 struct mem_type {
