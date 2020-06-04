@@ -769,9 +769,35 @@ static int smu_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
+	int ret = 0;
 
 	if (!smu->pm_enabled)
 		return 0;
+
+	ret = smu_set_default_od_settings(smu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Set initialized values (get from vbios) to dpm tables context such as
+	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
+	 * type of clks.
+	 */
+	ret = smu_populate_smc_tables(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_init_max_sustainable_clocks(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_populate_umd_state_clk(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
+	if (ret)
+		return ret;
 
 	smu_get_unique_id(smu);
 
@@ -1178,38 +1204,9 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	/*
-	 * Set initialized values (get from vbios) to dpm tables context such as
-	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
-	 * type of clks.
-	 */
-	if (initialize) {
-		ret = smu_populate_smc_tables(smu);
-		if (ret)
-			return ret;
-
-		ret = smu_init_max_sustainable_clocks(smu);
-		if (ret)
-			return ret;
-	}
-
 	ret = smu_override_pcie_parameters(smu);
 	if (ret)
 		return ret;
-
-	ret = smu_set_default_od_settings(smu);
-	if (ret)
-		return ret;
-
-	if (initialize) {
-		ret = smu_populate_umd_state_clk(smu);
-		if (ret)
-			return ret;
-
-		ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
-		if (ret)
-			return ret;
-	}
 
 	/*
 	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
@@ -1427,6 +1424,8 @@ int smu_reset(struct smu_context *smu)
 	ret = smu_hw_init(adev);
 	if (ret)
 		return ret;
+
+	ret = smu_late_init(adev);
 
 	return ret;
 }
