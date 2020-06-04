@@ -908,7 +908,7 @@ struct inode *ovl_get_trap_inode(struct super_block *sb, struct dentry *dir)
  * Does overlay inode need to be hashed by lower inode?
  */
 static bool ovl_hash_bylower(struct super_block *sb, struct dentry *upper,
-			     struct dentry *lower, struct dentry *index)
+			     struct dentry *lower, bool index)
 {
 	struct ovl_fs *ofs = sb->s_fs_info;
 

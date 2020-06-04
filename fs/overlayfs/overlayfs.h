@@ -424,7 +424,7 @@ struct ovl_inode_params {
 	struct inode *newinode;
 	struct dentry *upperdentry;
 	struct ovl_path *lowerpath;
-	struct dentry *index;
+	bool index;
 	unsigned int numlower;
 	char *redirect;
 	struct dentry *lowerdata;
