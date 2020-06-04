@@ -900,6 +900,13 @@ static int io_file_get(struct io_submit_state *state, struct io_kiocb *req,
 static void __io_queue_sqe(struct io_kiocb *req,
 			   const struct io_uring_sqe *sqe);
 
+static ssize_t io_import_iovec(int rw, struct io_kiocb *req,
+			       struct iovec **iovec, struct iov_iter *iter,
+			       bool needs_lock);
+static int io_setup_async_rw(struct io_kiocb *req, ssize_t io_size,
+			     struct iovec *iovec, struct iovec *fast_iov,
+			     struct iov_iter *iter);
+
 static struct kmem_cache *req_cachep;
 
 static const struct file_operations io_uring_fops;
@@ -1978,12 +1985,115 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res)
 	__io_cqring_add_event(req, res, cflags);
 }
 
+static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
+{
+	struct mm_struct *mm = current->mm;
+
+	if (mm) {
+		kthread_unuse_mm(mm);
+		mmput(mm);
+	}
+}
+
+static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
+				   struct io_kiocb *req)
+{
+	if (io_op_defs[req->opcode].needs_mm && !current->mm) {
+		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
+			return -EFAULT;
+		kthread_use_mm(ctx->sqo_mm);
+	}
+
+	return 0;
+}
+
+#ifdef CONFIG_BLOCK
+static bool io_resubmit_prep(struct io_kiocb *req, int error)
+{
+	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
+	ssize_t ret = -ECANCELED;
+	struct iov_iter iter;
+	int rw;
+
+	if (error) {
+		ret = error;
+		goto end_req;
+	}
+
+	switch (req->opcode) {
+	case IORING_OP_READV:
+	case IORING_OP_READ_FIXED:
+	case IORING_OP_READ:
+		rw = READ;
+		break;
+	case IORING_OP_WRITEV:
+	case IORING_OP_WRITE_FIXED:
+	case IORING_OP_WRITE:
+		rw = WRITE;
+		break;
+	default:
+		printk_once(KERN_WARNING "io_uring: bad opcode in resubmit %d\n",
+				req->opcode);
+		goto end_req;
+	}
+
+	ret = io_import_iovec(rw, req, &iovec, &iter, false);
+	if (ret < 0)
+		goto end_req;
+	ret = io_setup_async_rw(req, ret, iovec, inline_vecs, &iter);
+	if (!ret)
+		return true;
+	kfree(iovec);
+end_req:
+	io_cqring_add_event(req, ret);
+	req_set_fail_links(req);
+	io_put_req(req);
+	return false;
+}
+
+static void io_rw_resubmit(struct callback_head *cb)
+{
+	struct io_kiocb *req = container_of(cb, struct io_kiocb, task_work);
+	struct io_ring_ctx *ctx = req->ctx;
+	int err;
+
+	__set_current_state(TASK_RUNNING);
+
+	err = io_sq_thread_acquire_mm(ctx, req);
+
+	if (io_resubmit_prep(req, err)) {
+		refcount_inc(&req->refs);
+		io_queue_async_work(req);
+	}
+}
+#endif
+
+static bool io_rw_reissue(struct io_kiocb *req, long res)
+{
+#ifdef CONFIG_BLOCK
+	struct task_struct *tsk;
+	int ret;
+
+	if ((res != -EAGAIN && res != -EOPNOTSUPP) || io_wq_current_is_worker())
+		return false;
+
+	tsk = req->task;
+	init_task_work(&req->task_work, io_rw_resubmit);
+	ret = task_work_add(tsk, &req->task_work, true);
+	if (!ret)
+		return true;
+#endif
+	return false;
+}
+
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
-	io_complete_rw_common(kiocb, res);
-	io_put_req(req);
+	if (!io_rw_reissue(req, res)) {
+		io_complete_rw_common(kiocb, res);
+		io_put_req(req);
+	}
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
@@ -2168,6 +2278,9 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	/* don't allow async punt if RWF_NOWAIT was requested */
 	if (kiocb->ki_flags & IOCB_NOWAIT)
 		req->flags |= REQ_F_NOWAIT;
+
+	if (kiocb->ki_flags & IOCB_DIRECT)
+		io_get_req_task(req);
 
 	if (force_nonblock)
 		kiocb->ki_flags |= IOCB_NOWAIT;
@@ -2668,6 +2781,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock)
 	iov_count = iov_iter_count(&iter);
 	ret = rw_verify_area(READ, req->file, &kiocb->ki_pos, iov_count);
 	if (!ret) {
+		unsigned long nr_segs = iter.nr_segs;
 		ssize_t ret2 = 0;
 
 		if (req->file->f_op->read_iter)
@@ -2679,6 +2793,8 @@ static int io_read(struct io_kiocb *req, bool force_nonblock)
 		if (!force_nonblock || (ret2 != -EAGAIN && ret2 != -EIO)) {
 			kiocb_done(kiocb, ret2);
 		} else {
+			iter.count = iov_count;
+			iter.nr_segs = nr_segs;
 copy_iov:
 			ret = io_setup_async_rw(req, io_size, iovec,
 						inline_vecs, &iter);
@@ -2765,6 +2881,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 	iov_count = iov_iter_count(&iter);
 	ret = rw_verify_area(WRITE, req->file, &kiocb->ki_pos, iov_count);
 	if (!ret) {
+		unsigned long nr_segs = iter.nr_segs;
 		ssize_t ret2;
 
 		/*
@@ -2802,6 +2919,8 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 		if (!force_nonblock || ret2 != -EAGAIN) {
 			kiocb_done(kiocb, ret2);
 		} else {
+			iter.count = iov_count;
+			iter.nr_segs = nr_segs;
 copy_iov:
 			ret = io_setup_async_rw(req, io_size, iovec,
 						inline_vecs, &iter);
@@ -4280,28 +4399,6 @@ static void io_async_queue_proc(struct file *file, struct wait_queue_head *head,
 	struct io_poll_table *pt = container_of(p, struct io_poll_table, pt);
 
 	__io_queue_proc(&pt->req->apoll->poll, pt, head);
-}
-
-static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
-{
-	struct mm_struct *mm = current->mm;
-
-	if (mm) {
-		kthread_unuse_mm(mm);
-		mmput(mm);
-	}
-}
-
-static int io_sq_thread_acquire_mm(struct io_ring_ctx *ctx,
-				   struct io_kiocb *req)
-{
-	if (io_op_defs[req->opcode].needs_mm && !current->mm) {
-		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
-			return -EFAULT;
-		kthread_use_mm(ctx->sqo_mm);
-	}
-
-	return 0;
 }
 
 static void io_async_task_func(struct callback_head *cb)
@@ -5814,6 +5911,9 @@ static void io_submit_state_start(struct io_submit_state *state,
 				  unsigned int max_ios)
 {
 	blk_start_plug(&state->plug);
+#ifdef CONFIG_BLOCK
+	state->plug.nowait = true;
+#endif
 	state->free_reqs = 0;
 	state->file = NULL;
 	state->ios_left = max_ios;
