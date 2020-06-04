@@ -1496,6 +1496,8 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	struct bkey_s_c k_a;
 	struct bkey_alloc_unpacked u;
 	struct bkey_i_alloc *a;
+	struct bucket *g;
+	struct bucket_mark m;
 	int ret;
 
 	ret = trans_get_key(trans, BTREE_ID_ALLOC,
@@ -1504,25 +1506,31 @@ static int bch2_trans_mark_pointer(struct btree_trans *trans,
 	if (ret < 0)
 		return ret;
 
-	if (k_a.k->type != KEY_TYPE_alloc ||
-	    (!ret && unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags)))) {
+	percpu_down_read(&c->mark_lock);
+	g = bucket(ca, iter->pos.offset);
+	m = READ_ONCE(g->mark);
+
+	if (unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags) && !ret)) {
 		/*
 		 * During journal replay, and if gc repairs alloc info at
 		 * runtime, the alloc info in the btree might not be up to date
 		 * yet - so, trust the in memory mark - unless we're already
 		 * updating that key:
 		 */
-		struct bucket *g;
-		struct bucket_mark m;
-
-		percpu_down_read(&c->mark_lock);
-		g	= bucket(ca, iter->pos.offset);
-		m	= READ_ONCE(g->mark);
-		u	= alloc_mem_to_key(g, m);
-		percpu_up_read(&c->mark_lock);
+		u		= alloc_mem_to_key(g, m);
 	} else {
-		u = bch2_alloc_unpack(k_a);
+		u		= bch2_alloc_unpack(k_a);
+		u.read_time	= g->io_time[READ];
+		u.write_time	= g->io_time[WRITE];
 	}
+
+	percpu_up_read(&c->mark_lock);
+
+	/*
+	 * Incrementing the bucket gen can be done lazily:
+	 */
+	if (gen_after(m.gen, u.gen) && !u.data_type)
+		u.gen = m.gen;
 
 	ret = __mark_pointer(c, k, p, sectors, data_type, u.gen, &u.data_type,
 			     &u.dirty_sectors, &u.cached_sectors);

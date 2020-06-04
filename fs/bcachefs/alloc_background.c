@@ -860,12 +860,22 @@ static int bch2_invalidate_one_bucket2(struct btree_trans *trans,
 	g = bucket(ca, b);
 	m = READ_ONCE(g->mark);
 
-	bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
+	invalidating_cached_data = m.cached_sectors != 0;
+
+	/*
+	 * If we're not invalidating cached data, we only increment the bucket
+	 * gen in memory here, the incremented gen will be updated in the btree
+	 * by bch2_trans_mark_pointer():
+	 */
+
+	if (!invalidating_cached_data)
+		bch2_invalidate_bucket(c, ca, b, &m);
+	else
+		bch2_mark_alloc_bucket(c, ca, b, true, gc_pos_alloc(c, NULL), 0);
 
 	spin_unlock(&c->freelist_lock);
 	percpu_up_read(&c->mark_lock);
 
-	invalidating_cached_data = m.cached_sectors != 0;
 	if (!invalidating_cached_data)
 		goto out;
 
@@ -887,18 +897,26 @@ retry:
 	if (ret)
 		return ret;
 
-	/*
-	 * The allocator has to start before journal replay is finished - thus,
-	 * we have to trust the in memory bucket @m, not the version in the
-	 * btree:
-	 */
 	percpu_down_read(&c->mark_lock);
-	g = bucket(ca, b);
+	g = bucket(ca, iter->pos.offset);
 	m = READ_ONCE(g->mark);
-	u = alloc_mem_to_key(g, m);
+
+	if (unlikely(!test_bit(BCH_FS_ALLOC_WRITTEN, &c->flags))) {
+		/*
+		 * During journal replay, and if gc repairs alloc info at
+		 * runtime, the alloc info in the btree might not be up to date
+		 * yet - so, trust the in memory mark:
+		 */
+		u		= alloc_mem_to_key(g, m);
+	} else {
+		u		= bch2_alloc_unpack(k);
+		u.read_time	= g->io_time[READ];
+		u.write_time	= g->io_time[WRITE];
+	}
+
 	percpu_up_read(&c->mark_lock);
 
-	invalidating_cached_data = m.cached_sectors != 0;
+	invalidating_cached_data = u.cached_sectors != 0;
 
 	u.gen++;
 	u.data_type	= 0;
