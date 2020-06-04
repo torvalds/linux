@@ -549,7 +549,7 @@ static void kdb_msg_write(const char *msg, int msg_len)
 	if (msg_len == 0)
 		return;
 
-	if (dbg_io_ops && !dbg_io_ops->is_console) {
+	if (dbg_io_ops) {
 		const char *cp = msg;
 		int len = msg_len;
 
@@ -561,6 +561,8 @@ static void kdb_msg_write(const char *msg, int msg_len)
 
 	for_each_console(c) {
 		if (!(c->flags & CON_ENABLED))
+			continue;
+		if (c == dbg_io_ops->cons)
 			continue;
 		/*
 		 * Set oops_in_progress to encourage the console drivers to
