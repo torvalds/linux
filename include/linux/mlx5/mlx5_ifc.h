@@ -1240,7 +1240,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 
 	u8         max_sgl_for_optimized_performance[0x8];
 	u8         log_max_cq_sz[0x8];
-	u8         reserved_at_d0[0x9];
+	u8         relaxed_ordering_write_umr[0x1];
+	u8         relaxed_ordering_read_umr[0x1];
+	u8         reserved_at_d2[0x7];
 	u8         virtio_net_device_emualtion_manager[0x1];
 	u8         virtio_blk_device_emualtion_manager[0x1];
 	u8         log_max_cq[0x5];
