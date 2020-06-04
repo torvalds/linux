@@ -180,7 +180,8 @@ struct data_file *incfs_open_data_file(struct mount_info *mi, struct file *bf)
 out:
 	if (error) {
 		incfs_free_bfc(bfc);
-		df->df_backing_file_context = NULL;
+		if (df)
+			df->df_backing_file_context = NULL;
 		incfs_free_data_file(df);
 		return ERR_PTR(error);
 	}
@@ -1094,11 +1095,12 @@ int incfs_process_new_hash_block(struct data_file *df,
 	}
 
 	error = mutex_lock_interruptible(&bfc->bc_mutex);
-	if (!error)
+	if (!error) {
 		error = incfs_write_hash_block_to_backing_file(
 			bfc, range(data, block->data_len), block->block_index,
 			hash_area_base, df->df_blockmap_off, df->df_size);
-	mutex_unlock(&bfc->bc_mutex);
+		mutex_unlock(&bfc->bc_mutex);
+	}
 	return error;
 }
 
@@ -1150,6 +1152,9 @@ static int process_file_signature_md(struct incfs_file_signature *sg,
 		kzalloc(sizeof(*signature), GFP_NOFS);
 	void *buf = NULL;
 	ssize_t read;
+
+	if (!signature)
+		return -ENOMEM;
 
 	if (!df || !df->df_backing_file_context ||
 	    !df->df_backing_file_context->bc_file) {

@@ -315,7 +315,7 @@ static inline struct inode_info *get_incfs_node(struct inode *inode)
 	if (!inode)
 		return NULL;
 
-	if (inode->i_sb->s_magic != INCFS_MAGIC_NUMBER) {
+	if (inode->i_sb->s_magic != (long) INCFS_MAGIC_NUMBER) {
 		/* This inode doesn't belong to us. */
 		pr_warn_once("incfs: %s on an alien inode.", __func__);
 		return NULL;
