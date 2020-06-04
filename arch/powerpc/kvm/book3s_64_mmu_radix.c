@@ -499,13 +499,14 @@ void kvmppc_free_pgtable_radix(struct kvm *kvm, pgd_t *pgd, unsigned int lpid)
 	unsigned long ig;
 
 	for (ig = 0; ig < PTRS_PER_PGD; ++ig, ++pgd) {
+		p4d_t *p4d = p4d_offset(pgd, 0);
 		pud_t *pud;
 
-		if (!pgd_present(*pgd))
+		if (!p4d_present(*p4d))
 			continue;
-		pud = pud_offset(pgd, 0);
+		pud = pud_offset(p4d, 0);
 		kvmppc_unmap_free_pud(kvm, pud, lpid);
-		pgd_clear(pgd);
+		p4d_clear(p4d);
 	}
 }
 
@@ -566,6 +567,7 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 		      unsigned long *rmapp, struct rmap_nested **n_rmap)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud, *new_pud = NULL;
 	pmd_t *pmd, *new_pmd = NULL;
 	pte_t *ptep, *new_ptep = NULL;
@@ -573,9 +575,11 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 
 	/* Traverse the guest's 2nd-level tree, allocate new levels needed */
 	pgd = pgtable + pgd_index(gpa);
+	p4d = p4d_offset(pgd, gpa);
+
 	pud = NULL;
-	if (pgd_present(*pgd))
-		pud = pud_offset(pgd, gpa);
+	if (p4d_present(*p4d))
+		pud = pud_offset(p4d, gpa);
 	else
 		new_pud = pud_alloc_one(kvm->mm, gpa);
 
@@ -596,13 +600,13 @@ int kvmppc_create_pte(struct kvm *kvm, pgd_t *pgtable, pte_t pte,
 
 	/* Now traverse again under the lock and change the tree */
 	ret = -ENOMEM;
-	if (pgd_none(*pgd)) {
+	if (p4d_none(*p4d)) {
 		if (!new_pud)
 			goto out_unlock;
-		pgd_populate(kvm->mm, pgd, new_pud);
+		p4d_populate(kvm->mm, p4d, new_pud);
 		new_pud = NULL;
 	}
-	pud = pud_offset(pgd, gpa);
+	pud = pud_offset(p4d, gpa);
 	if (pud_is_leaf(*pud)) {
 		unsigned long hgpa = gpa & PUD_MASK;
 
@@ -1220,7 +1224,8 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 	unsigned long gpa;
 	pgd_t *pgt;
 	struct kvm_nested_guest *nested;
-	pgd_t pgd, *pgdp;
+	pgd_t *pgdp;
+	p4d_t p4d, *p4dp;
 	pud_t pud, *pudp;
 	pmd_t pmd, *pmdp;
 	pte_t *ptep;
@@ -1293,13 +1298,14 @@ static ssize_t debugfs_radix_read(struct file *file, char __user *buf,
 		}
 
 		pgdp = pgt + pgd_index(gpa);
-		pgd = READ_ONCE(*pgdp);
-		if (!(pgd_val(pgd) & _PAGE_PRESENT)) {
-			gpa = (gpa & PGDIR_MASK) + PGDIR_SIZE;
+		p4dp = p4d_offset(pgdp, gpa);
+		p4d = READ_ONCE(*p4dp);
+		if (!(p4d_val(p4d) & _PAGE_PRESENT)) {
+			gpa = (gpa & P4D_MASK) + P4D_SIZE;
 			continue;
 		}
 
-		pudp = pud_offset(&pgd, gpa);
+		pudp = pud_offset(&p4d, gpa);
 		pud = READ_ONCE(*pudp);
 		if (!(pud_val(pud) & _PAGE_PRESENT)) {
 			gpa = (gpa & PUD_MASK) + PUD_SIZE;
