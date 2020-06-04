@@ -1130,25 +1130,6 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	if (initialize) {
-		/* get boot_values from vbios to set revision, gfxclk, and etc. */
-		ret = smu_get_vbios_bootup_values(smu);
-		if (ret)
-			return ret;
-
-		ret = smu_setup_pptable(smu);
-		if (ret)
-			return ret;
-
-		/*
-		 * Send msg GetDriverIfVersion to check if the return value is equal
-		 * with DRIVER_IF_VERSION of smc header.
-		 */
-		ret = smu_check_fw_version(smu);
-		if (ret)
-			return ret;
-	}
-
 	ret = smu_set_driver_table_location(smu);
 	if (ret)
 		return ret;
@@ -1236,9 +1217,19 @@ static int smu_start_smc_engine(struct smu_context *smu)
 
 	if (smu->ppt_funcs->check_fw_status) {
 		ret = smu->ppt_funcs->check_fw_status(smu);
-		if (ret)
+		if (ret) {
 			pr_err("SMC is not ready\n");
+			return ret;
+		}
 	}
+
+	/*
+	 * Send msg GetDriverIfVersion to check if the return value is equal
+	 * with DRIVER_IF_VERSION of smc header.
+	 */
+	ret = smu_check_fw_version(smu);
+	if (ret)
+		return ret;
 
 	return ret;
 }
@@ -1267,6 +1258,15 @@ static int smu_hw_init(void *handle)
 
 	if (!smu->pm_enabled)
 		return 0;
+
+	/* get boot_values from vbios to set revision, gfxclk, and etc. */
+	ret = smu_get_vbios_bootup_values(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_setup_pptable(smu);
+	if (ret)
+		return ret;
 
 	ret = smu_feature_init_dpm(smu);
 	if (ret)
