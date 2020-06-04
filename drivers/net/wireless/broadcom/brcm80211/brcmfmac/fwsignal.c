@@ -1843,6 +1843,9 @@ void brcmf_fws_hdrpull(struct brcmf_if *ifp, s16 siglen, struct sk_buff *skb)
 
 	WARN_ON(siglen > skb->len);
 
+	if (siglen > skb->len)
+		siglen = skb->len;
+
 	if (!siglen)
 		return;
 	/* if flow control disabled, skip to packet data and leave */
