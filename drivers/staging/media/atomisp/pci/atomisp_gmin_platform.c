@@ -922,7 +922,8 @@ int atomisp_gmin_register_vcm_control(struct camera_vcm_control *vcmCtrl)
 }
 EXPORT_SYMBOL_GPL(atomisp_gmin_register_vcm_control);
 
-static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
+static int gmin_get_hardcoded_var(struct device *dev,
+				  struct gmin_cfg_var *varlist,
 				  const char *var8, char *out, size_t *out_len)
 {
 	struct gmin_cfg_var *gv;
@@ -932,6 +933,8 @@ static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
 
 		if (strcmp(var8, gv->name))
 			continue;
+
+		dev_info(dev, "Found DMI entry for '%s'\n", var8);
 
 		vl = strlen(gv->val);
 		if (vl > *out_len - 1)
@@ -1056,9 +1059,10 @@ static int gmin_get_config_var(struct device *maindev,
 	 */
 	id = dmi_first_match(gmin_vars);
 	if (id) {
-		dev_info(maindev, "Found DMI entry for '%s'\n", var8);
-		return gmin_get_hardcoded_var(id->driver_data, var8, out,
-					      out_len);
+		ret = gmin_get_hardcoded_var(maindev, id->driver_data, var8,
+					     out, out_len);
+		if (!ret)
+			return 0;
 	}
 
 	/* Our variable names are ASCII by construction, but EFI names
@@ -1088,9 +1092,9 @@ static int gmin_get_config_var(struct device *maindev,
 		*out_len = ev->var.DataSize;
 		dev_info(maindev, "found EFI entry for '%s'\n", var8);
 	} else if (is_gmin) {
-		dev_warn(maindev, "Failed to find gmin variable %s\n", var8);
+		dev_info(maindev, "Failed to find EFI gmin variable %s\n", var8);
 	} else {
-		dev_warn(maindev, "Failed to find variable %s\n", var8);
+		dev_info(maindev, "Failed to find EFI variable %s\n", var8);
 	}
 
 	kfree(ev);
@@ -1109,6 +1113,8 @@ int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 	if (!ret) {
 		val[len] = 0;
 		ret = kstrtol(val, 0, &result);
+	} else {
+		dev_info(dev, "%s: using default (%d)\n", var, def);
 	}
 
 	return ret ? def : result;
