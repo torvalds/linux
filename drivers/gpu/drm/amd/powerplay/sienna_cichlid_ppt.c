@@ -549,16 +549,22 @@ static int sienna_cichlid_tables_init(struct smu_context *smu, struct smu_table 
 	return 0;
 }
 
-static int sienna_cichlid_get_metrics_table(struct smu_context *smu,
-				    SmuMetrics_t *metrics_table)
+static int sienna_cichlid_get_smu_metrics_data(struct smu_context *smu,
+					       MetricsMember_t member,
+					       uint32_t *value)
 {
 	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
 	int ret = 0;
 
 	mutex_lock(&smu->metrics_lock);
-	if (!smu_table->metrics_time || time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
-		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
-				(void *)smu_table->metrics_table, false);
+	if (!smu_table->metrics_time ||
+	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(100))) {
+		ret = smu_update_table(smu,
+				       SMU_TABLE_SMU_METRICS,
+				       0,
+				       smu_table->metrics_table,
+				       false);
 		if (ret) {
 			pr_info("Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
@@ -567,10 +573,81 @@ static int sienna_cichlid_get_metrics_table(struct smu_context *smu,
 		smu_table->metrics_time = jiffies;
 	}
 
-	memcpy(metrics_table, smu_table->metrics_table, sizeof(SmuMetrics_t));
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK_0];
+		break;
+	case METRICS_CURR_VCLK1:
+		*value = metrics->CurrClock[PPCLK_VCLK_1];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK_0];
+		break;
+	case METRICS_CURR_DCLK1:
+		*value = metrics->CurrClock[PPCLK_DCLK_1];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		*value = metrics->AverageGfxclkFrequency;
+		break;
+	case METRICS_AVERAGE_FCLK:
+		*value = metrics->AverageFclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequency;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
 	mutex_unlock(&smu->metrics_lock);
 
 	return ret;
+
 }
 
 static int sienna_cichlid_allocate_dpm_context(struct smu_context *smu)
@@ -696,20 +773,49 @@ static int sienna_cichlid_get_current_clk_freq_by_table(struct smu_context *smu,
 				       enum smu_clk_type clk_type,
 				       uint32_t *value)
 {
-	int ret = 0, clk_id = 0;
-	SmuMetrics_t metrics;
-
-	ret = sienna_cichlid_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
+	MetricsMember_t member_type;
+	int clk_id = 0;
 
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0)
 		return clk_id;
 
-	*value = metrics.CurrClock[clk_id];
+	switch (clk_id) {
+	case PPCLK_GFXCLK:
+		member_type = METRICS_CURR_GFXCLK;
+		break;
+	case PPCLK_UCLK:
+		member_type = METRICS_CURR_UCLK;
+		break;
+	case PPCLK_SOCCLK:
+		member_type = METRICS_CURR_SOCCLK;
+		break;
+	case PPCLK_FCLK:
+		member_type = METRICS_CURR_FCLK;
+		break;
+	case PPCLK_VCLK_0:
+		member_type = METRICS_CURR_VCLK;
+		break;
+	case PPCLK_VCLK_1:
+		member_type = METRICS_CURR_VCLK1;
+		break;
+	case PPCLK_DCLK_0:
+		member_type = METRICS_CURR_DCLK;
+		break;
+	case PPCLK_DCLK_1:
+		member_type = METRICS_CURR_DCLK1;
+		break;
+	case PPCLK_DCEFCLK:
+		member_type = METRICS_CURR_DCEFCLK;
+		break;
+	default:
+		return -EINVAL;
+	}
 
-	return ret;
+	return sienna_cichlid_get_smu_metrics_data(smu,
+						   member_type,
+						   value);
+
 }
 
 static bool sienna_cichlid_is_support_fine_grained_dpm(struct smu_context *smu, enum smu_clk_type clk_type)
@@ -996,19 +1102,12 @@ static int sienna_cichlid_unforce_dpm_levels(struct smu_context *smu)
 
 static int sienna_cichlid_get_gpu_power(struct smu_context *smu, uint32_t *value)
 {
-	int ret = 0;
-	SmuMetrics_t metrics;
-
 	if (!value)
 		return -EINVAL;
 
-	ret = sienna_cichlid_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	*value = metrics.AverageSocketPower << 8;
-
-	return 0;
+	return sienna_cichlid_get_smu_metrics_data(smu,
+						   METRICS_AVERAGE_SOCKETPOWER,
+						   value);
 }
 
 static int sienna_cichlid_get_current_activity_percent(struct smu_context *smu,
@@ -1016,28 +1115,27 @@ static int sienna_cichlid_get_current_activity_percent(struct smu_context *smu,
 					       uint32_t *value)
 {
 	int ret = 0;
-	SmuMetrics_t metrics;
 
 	if (!value)
 		return -EINVAL;
 
-	ret = sienna_cichlid_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GPU_LOAD:
-		*value = metrics.AverageGfxActivity;
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_AVERAGE_GFXACTIVITY,
+							  value);
 		break;
 	case AMDGPU_PP_SENSOR_MEM_LOAD:
-		*value = metrics.AverageUclkActivity;
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_AVERAGE_MEMACTIVITY,
+							  value);
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
@@ -1054,19 +1152,12 @@ static bool sienna_cichlid_is_dpm_running(struct smu_context *smu)
 static int sienna_cichlid_get_fan_speed_rpm(struct smu_context *smu,
 				    uint32_t *speed)
 {
-	SmuMetrics_t metrics;
-	int ret = 0;
-
 	if (!speed)
 		return -EINVAL;
 
-	ret = sienna_cichlid_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
-	*speed = metrics.CurrFanSpeed;
-
-	return ret;
+	return sienna_cichlid_get_smu_metrics_data(smu,
+						   METRICS_CURR_FANSPEED,
+						   speed);
 }
 
 static int sienna_cichlid_get_fan_speed_percent(struct smu_context *smu,
@@ -1423,35 +1514,33 @@ static int sienna_cichlid_thermal_get_temperature(struct smu_context *smu,
 					     enum amd_pp_sensors sensor,
 					     uint32_t *value)
 {
-	SmuMetrics_t metrics;
 	int ret = 0;
 
 	if (!value)
 		return -EINVAL;
 
-	ret = sienna_cichlid_get_metrics_table(smu, &metrics);
-	if (ret)
-		return ret;
-
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_HOTSPOT_TEMP:
-		*value = metrics.TemperatureHotspot *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_HOTSPOT,
+							  value);
 		break;
 	case AMDGPU_PP_SENSOR_EDGE_TEMP:
-		*value = metrics.TemperatureEdge *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_EDGE,
+							  value);
 		break;
 	case AMDGPU_PP_SENSOR_MEM_TEMP:
-		*value = metrics.TemperatureMem *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		ret = sienna_cichlid_get_smu_metrics_data(smu,
+							  METRICS_TEMPERATURE_MEM,
+							  value);
 		break;
 	default:
 		pr_err("Invalid sensor for retrieving temp\n");
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 static int sienna_cichlid_read_sensor(struct smu_context *smu,
