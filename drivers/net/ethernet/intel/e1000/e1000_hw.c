@@ -4526,7 +4526,7 @@ s32 e1000_setup_led(struct e1000_hw *hw)
 						     ~IGP01E1000_GMII_SPD));
 		if (ret_val)
 			return ret_val;
-		/* Fall Through */
+		fallthrough;
 	default:
 		if (hw->media_type == e1000_media_type_fiber) {
 			ledctl = er32(LEDCTL);
@@ -4571,7 +4571,7 @@ s32 e1000_cleanup_led(struct e1000_hw *hw)
 					      hw->phy_spd_default);
 		if (ret_val)
 			return ret_val;
-		/* Fall Through */
+		fallthrough;
 	default:
 		/* Restore LEDCTL settings */
 		ew32(LEDCTL, hw->ledctl_default);
