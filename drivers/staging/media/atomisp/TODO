@@ -18,48 +18,7 @@ TODO
    This should be converted to the usual way, using V4L2 async subdev
    framework to wait for cameras to be probed;
 
-2. Support for newer board-specific data (like Asus T101HA support) uses a
-   DMI match table to retrieve sensor's data, using hard-coded values.
-   It sounds feasible to retrieve those data directly from ACPI via _DSM
-   tables (like this one, associated with CAM1 at the above mentioned
-   hardware):
-
-            Name (C1CD, Buffer (0x0220){})
-            Method (_DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
-            {
-                If ((Arg0 == ToUUID ("dc2f6c4f-045b-4f1d-97b9-882a6860a4be")))
-                {
-                    Local0 = Package (0x12)
-                        {
-                            "CamId",
-                            "ov2680",
-                            "CamType",
-                            "1",
-                            "CsiPort",
-                            "0",
-                            "CsiLanes",
-                            "1",
-                            "CsiFmt",
-                            "15",
-                            "CsiBayer",
-                            "0",
-                            "CamClk",
-                            "1",
-                            "Regulator1p8v",
-                            "0",
-                            "Regulator2p8v",
-                            "0"
-                        }
-                    Return (Local0)
-                }
-
-   The code there at atomisp_gmin_platform has an EFI parser, but it
-   assumes that the information would be stored on a different way.
-
-   As the Kernel has support for reading data from _DSM, via
-   acpi_evaluate_dsm(), it sounds doable to use such infra and remove the
-   DMI match, at least for some devices. This will likely allow covering
-   more devices that could also be using the same EFI UUID.
+2. Use ACPI _DSM table - DONE!
 
 3. Switch the driver to use pm_runtime stuff. Right now, it probes the
    existing PMIC code and sensors call it directly.

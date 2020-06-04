@@ -388,6 +388,10 @@ static const struct dmi_system_id gmin_vars[] = {
 				       0xa9, 0x71, 0xe8, 0x77,	   \
 				       0x75, 0x60, 0x68, 0xf7)
 
+static const guid_t atomisp_dsm_guid = GUID_INIT(0xdc2f6c4f, 0x045b, 0x4f1d,
+						 0x97, 0xb9, 0x88, 0x2a,
+						 0x68, 0x60, 0xa4, 0xbe);
+
 #define CFG_VAR_NAME_MAX 64
 
 #define GMIN_PMC_CLK_NAME 14 /* "pmc_plt_clk_[0..5]" */
@@ -455,14 +459,27 @@ static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
 
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
-	int i, ret;
-	struct device *dev;
 	struct i2c_client *power = NULL, *client = v4l2_get_subdevdata(subdev);
+	struct acpi_device *adev;
+	acpi_handle handle;
+	struct device *dev;
+	int i, ret;
 
 	if (!client)
 		return NULL;
 
 	dev = &client->dev;
+
+	handle = ACPI_HANDLE(dev);
+
+	// FIXME: may need to release resources allocated by acpi_bus_get_device()
+	if (!handle || acpi_bus_get_device(handle, &adev)) {
+		dev_err(dev, "Error could not get ACPI device\n");
+		return NULL;
+	}
+
+	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
+		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
 
 	if (!pmic_id) {
 		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
@@ -944,6 +961,75 @@ static int gmin_get_hardcoded_var(struct gmin_cfg_var *varlist,
 	return -EINVAL;
 }
 
+
+static int gmin_get_config_dsm_var(struct device *dev,
+				   const char *var,
+				   char *out, size_t *out_len)
+{
+	acpi_handle handle = ACPI_HANDLE(dev);
+	union acpi_object *obj, *cur = NULL;
+	int i;
+
+	obj = acpi_evaluate_dsm(handle, &atomisp_dsm_guid, 0, 0, NULL);
+	if (!obj) {
+		dev_info_once(dev, "Didn't find ACPI _DSM table.\n");
+		return -EINVAL;
+	}
+
+#if 0 /* Just for debugging purposes */
+	for (i = 0; i < obj->package.count; i++) {
+		union acpi_object *cur = &obj->package.elements[i];
+
+		if (cur->type == ACPI_TYPE_INTEGER)
+			dev_info(dev, "object #%d, type %d, value: %lld\n",
+				 i, cur->type, cur->integer.value);
+		else if (cur->type == ACPI_TYPE_STRING)
+			dev_info(dev, "object #%d, type %d, string: %s\n",
+				 i, cur->type, cur->string.pointer);
+		else
+			dev_info(dev, "object #%d, type %d\n",
+				 i, cur->type);
+	}
+#endif
+
+	/* Seek for the desired var */
+	for (i = 0; i < obj->package.count - 1; i += 2) {
+		if (obj->package.elements[i].type == ACPI_TYPE_STRING &&
+		    !strcmp(obj->package.elements[i].string.pointer, var)) {
+			/* Next element should be the required value */
+			cur = &obj->package.elements[i + 1];
+			break;
+		}
+	}
+
+	if (!cur) {
+		dev_info(dev, "didn't found _DSM entry for '%s'\n", var);
+		ACPI_FREE(obj);
+		return -EINVAL;
+	}
+
+	/*
+	 * While it could be possible to have an ACPI_TYPE_INTEGER,
+	 * and read the value from cur->integer.value, the table
+	 * seen so far uses the string type. So, produce a warning
+	 * if it founds something different than string, letting it
+	 * to fall back to the old code.
+	 */
+	if (cur && cur->type != ACPI_TYPE_STRING) {
+		dev_info(dev, "found non-string _DSM entry for '%s'\n", var);
+		ACPI_FREE(obj);
+		return -EINVAL;
+	}
+
+	dev_info(dev, "found _DSM entry for '%s': %s\n", var,
+		 cur->string.pointer);
+	strscpy(out, cur->string.pointer, *out_len);
+	*out_len = strlen(cur->string.pointer);
+
+	ACPI_FREE(obj);
+	return 0;
+}
+
 /* Retrieves a device-specific configuration variable.  The dev
  * argument should be a device with an ACPI companion, as all
  * configuration is based on firmware ID.
@@ -953,12 +1039,21 @@ static int gmin_get_config_var(struct device *maindev,
 			       const char *var,
 			       char *out, size_t *out_len)
 {
-	char var8[CFG_VAR_NAME_MAX];
 	efi_char16_t var16[CFG_VAR_NAME_MAX];
-	struct efivar_entry *ev;
 	const struct dmi_system_id *id;
-	int i, ret;
 	struct device *dev = maindev;
+	char var8[CFG_VAR_NAME_MAX];
+	struct efivar_entry *ev;
+	int i, ret;
+
+	/* For sensors, try first to use the _DSM table */
+	if (!is_gmin) {
+		ret = gmin_get_config_dsm_var(maindev, var, out, out_len);
+		if (!ret)
+			return 0;
+	}
+
+	/* Fall-back to other approaches */
 
 	if (!is_gmin && ACPI_COMPANION(dev))
 		dev = &ACPI_COMPANION(dev)->dev;
