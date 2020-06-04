@@ -52,6 +52,16 @@ static inline void *kmap(struct page *page)
 	return addr;
 }
 
+void kunmap_high(struct page *page);
+
+static inline void kunmap(struct page *page)
+{
+	might_sleep();
+	if (!PageHighMem(page))
+		return;
+	kunmap_high(page);
+}
+
 /* declarations for linux/mm/highmem.c */
 unsigned int nr_free_highpages(void);
 extern atomic_long_t _totalhigh_pages;
@@ -100,6 +110,10 @@ static inline void *kmap(struct page *page)
 {
 	might_sleep();
 	return page_address(page);
+}
+
+static inline void kunmap_high(struct page *page)
+{
 }
 
 static inline void kunmap(struct page *page)
