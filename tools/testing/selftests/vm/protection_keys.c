@@ -169,170 +169,6 @@ void dump_mem(void *dumpme, int len_bytes)
 	}
 }
 
-/* Failed address bound checks: */
-#ifndef SEGV_BNDERR
-# define SEGV_BNDERR		3
-#endif
-
-#ifndef SEGV_PKUERR
-# define SEGV_PKUERR		4
-#endif
-
-static char *si_code_str(int si_code)
-{
-	if (si_code == SEGV_MAPERR)
-		return "SEGV_MAPERR";
-	if (si_code == SEGV_ACCERR)
-		return "SEGV_ACCERR";
-	if (si_code == SEGV_BNDERR)
-		return "SEGV_BNDERR";
-	if (si_code == SEGV_PKUERR)
-		return "SEGV_PKUERR";
-	return "UNKNOWN";
-}
-
-int pkey_faults;
-int last_si_pkey = -1;
-void signal_handler(int signum, siginfo_t *si, void *vucontext)
-{
-	ucontext_t *uctxt = vucontext;
-	int trapno;
-	unsigned long ip;
-	char *fpregs;
-	u32 *pkey_reg_ptr;
-	u64 siginfo_pkey;
-	u32 *si_pkey_ptr;
-	int pkey_reg_offset;
-	fpregset_t fpregset;
-
-	dprint_in_signal = 1;
-	dprintf1(">>>>===============SIGSEGV============================\n");
-	dprintf1("%s()::%d, pkey_reg: 0x%016llx shadow: %016llx\n",
-			__func__, __LINE__,
-			__read_pkey_reg(), shadow_pkey_reg);
-
-	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
-	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
-	fpregset = uctxt->uc_mcontext.fpregs;
-	fpregs = (void *)fpregset;
-
-	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
-			__func__, trapno, ip, si_code_str(si->si_code),
-			si->si_code);
-#ifdef __i386__
-	/*
-	 * 32-bit has some extra padding so that userspace can tell whether
-	 * the XSTATE header is present in addition to the "legacy" FPU
-	 * state.  We just assume that it is here.
-	 */
-	fpregs += 0x70;
-#endif
-	pkey_reg_offset = pkey_reg_xstate_offset();
-	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_offset]);
-
-	dprintf1("siginfo: %p\n", si);
-	dprintf1(" fpregs: %p\n", fpregs);
-	/*
-	 * If we got a PKEY fault, we *HAVE* to have at least one bit set in
-	 * here.
-	 */
-	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
-	if (DEBUG_LEVEL > 4)
-		dump_mem(pkey_reg_ptr - 128, 256);
-	pkey_assert(*pkey_reg_ptr);
-
-	if ((si->si_code == SEGV_MAPERR) ||
-	    (si->si_code == SEGV_ACCERR) ||
-	    (si->si_code == SEGV_BNDERR)) {
-		printf("non-PK si_code, exiting...\n");
-		exit(4);
-	}
-
-	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
-	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
-	dump_mem((u8 *)si_pkey_ptr - 8, 24);
-	siginfo_pkey = *si_pkey_ptr;
-	pkey_assert(siginfo_pkey < NR_PKEYS);
-	last_si_pkey = siginfo_pkey;
-
-	dprintf1("signal pkey_reg from xsave: %08x\n", *pkey_reg_ptr);
-	/*
-	 * need __read_pkey_reg() version so we do not do shadow_pkey_reg
-	 * checking
-	 */
-	dprintf1("signal pkey_reg from  pkey_reg: %016llx\n",
-			__read_pkey_reg());
-	dprintf1("pkey from siginfo: %016llx\n", siginfo_pkey);
-	*(u64 *)pkey_reg_ptr = 0x00000000;
-	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction to continue\n");
-	pkey_faults++;
-	dprintf1("<<<<==================================================\n");
-	dprint_in_signal = 0;
-}
-
-int wait_all_children(void)
-{
-	int status;
-	return waitpid(-1, &status, 0);
-}
-
-void sig_chld(int x)
-{
-	dprint_in_signal = 1;
-	dprintf2("[%d] SIGCHLD: %d\n", getpid(), x);
-	dprint_in_signal = 0;
-}
-
-void setup_sigsegv_handler(void)
-{
-	int r, rs;
-	struct sigaction newact;
-	struct sigaction oldact;
-
-	/* #PF is mapped to sigsegv */
-	int signum  = SIGSEGV;
-
-	newact.sa_handler = 0;
-	newact.sa_sigaction = signal_handler;
-
-	/*sigset_t - signals to block while in the handler */
-	/* get the old signal mask. */
-	rs = sigprocmask(SIG_SETMASK, 0, &newact.sa_mask);
-	pkey_assert(rs == 0);
-
-	/* call sa_sigaction, not sa_handler*/
-	newact.sa_flags = SA_SIGINFO;
-
-	newact.sa_restorer = 0;  /* void(*)(), obsolete */
-	r = sigaction(signum, &newact, &oldact);
-	r = sigaction(SIGALRM, &newact, &oldact);
-	pkey_assert(r == 0);
-}
-
-void setup_handlers(void)
-{
-	signal(SIGCHLD, &sig_chld);
-	setup_sigsegv_handler();
-}
-
-pid_t fork_lazy_child(void)
-{
-	pid_t forkret;
-
-	forkret = fork();
-	pkey_assert(forkret >= 0);
-	dprintf3("[%d] fork() ret: %d\n", getpid(), forkret);
-
-	if (!forkret) {
-		/* in the child */
-		while (1) {
-			dprintf1("child sleeping...\n");
-			sleep(30);
-		}
-	}
-	return forkret;
-}
-
 static u32 hw_pkey_get(int pkey, unsigned long flags)
 {
 	u64 pkey_reg = __read_pkey_reg();
@@ -450,6 +286,179 @@ void pkey_access_allow(int pkey)
 void pkey_access_deny(int pkey)
 {
 	pkey_disable_set(pkey, PKEY_DISABLE_ACCESS);
+}
+
+/* Failed address bound checks: */
+#ifndef SEGV_BNDERR
+# define SEGV_BNDERR		3
+#endif
+
+#ifndef SEGV_PKUERR
+# define SEGV_PKUERR		4
+#endif
+
+static char *si_code_str(int si_code)
+{
+	if (si_code == SEGV_MAPERR)
+		return "SEGV_MAPERR";
+	if (si_code == SEGV_ACCERR)
+		return "SEGV_ACCERR";
+	if (si_code == SEGV_BNDERR)
+		return "SEGV_BNDERR";
+	if (si_code == SEGV_PKUERR)
+		return "SEGV_PKUERR";
+	return "UNKNOWN";
+}
+
+int pkey_faults;
+int last_si_pkey = -1;
+void signal_handler(int signum, siginfo_t *si, void *vucontext)
+{
+	ucontext_t *uctxt = vucontext;
+	int trapno;
+	unsigned long ip;
+	char *fpregs;
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+	u32 *pkey_reg_ptr;
+	int pkey_reg_offset;
+#endif /* arch */
+	u64 siginfo_pkey;
+	u32 *si_pkey_ptr;
+
+	dprint_in_signal = 1;
+	dprintf1(">>>>===============SIGSEGV============================\n");
+	dprintf1("%s()::%d, pkey_reg: 0x%016llx shadow: %016llx\n",
+			__func__, __LINE__,
+			__read_pkey_reg(), shadow_pkey_reg);
+
+	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
+	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
+	fpregs = (char *) uctxt->uc_mcontext.fpregs;
+
+	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
+			__func__, trapno, ip, si_code_str(si->si_code),
+			si->si_code);
+
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+#ifdef __i386__
+	/*
+	 * 32-bit has some extra padding so that userspace can tell whether
+	 * the XSTATE header is present in addition to the "legacy" FPU
+	 * state.  We just assume that it is here.
+	 */
+	fpregs += 0x70;
+#endif /* i386 */
+	pkey_reg_offset = pkey_reg_xstate_offset();
+	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_offset]);
+
+	/*
+	 * If we got a PKEY fault, we *HAVE* to have at least one bit set in
+	 * here.
+	 */
+	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
+	if (DEBUG_LEVEL > 4)
+		dump_mem(pkey_reg_ptr - 128, 256);
+	pkey_assert(*pkey_reg_ptr);
+#endif /* arch */
+
+	dprintf1("siginfo: %p\n", si);
+	dprintf1(" fpregs: %p\n", fpregs);
+
+	if ((si->si_code == SEGV_MAPERR) ||
+	    (si->si_code == SEGV_ACCERR) ||
+	    (si->si_code == SEGV_BNDERR)) {
+		printf("non-PK si_code, exiting...\n");
+		exit(4);
+	}
+
+	si_pkey_ptr = siginfo_get_pkey_ptr(si);
+	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
+	dump_mem((u8 *)si_pkey_ptr - 8, 24);
+	siginfo_pkey = *si_pkey_ptr;
+	pkey_assert(siginfo_pkey < NR_PKEYS);
+	last_si_pkey = siginfo_pkey;
+
+	/*
+	 * need __read_pkey_reg() version so we do not do shadow_pkey_reg
+	 * checking
+	 */
+	dprintf1("signal pkey_reg from  pkey_reg: %016llx\n",
+			__read_pkey_reg());
+	dprintf1("pkey from siginfo: %016llx\n", siginfo_pkey);
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+	dprintf1("signal pkey_reg from xsave: %08x\n", *pkey_reg_ptr);
+	*(u64 *)pkey_reg_ptr = 0x00000000;
+	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction to continue\n");
+#elif defined(__powerpc64__) /* arch */
+	/* restore access and let the faulting instruction continue */
+	pkey_access_allow(siginfo_pkey);
+#endif /* arch */
+	pkey_faults++;
+	dprintf1("<<<<==================================================\n");
+	dprint_in_signal = 0;
+}
+
+int wait_all_children(void)
+{
+	int status;
+	return waitpid(-1, &status, 0);
+}
+
+void sig_chld(int x)
+{
+	dprint_in_signal = 1;
+	dprintf2("[%d] SIGCHLD: %d\n", getpid(), x);
+	dprint_in_signal = 0;
+}
+
+void setup_sigsegv_handler(void)
+{
+	int r, rs;
+	struct sigaction newact;
+	struct sigaction oldact;
+
+	/* #PF is mapped to sigsegv */
+	int signum  = SIGSEGV;
+
+	newact.sa_handler = 0;
+	newact.sa_sigaction = signal_handler;
+
+	/*sigset_t - signals to block while in the handler */
+	/* get the old signal mask. */
+	rs = sigprocmask(SIG_SETMASK, 0, &newact.sa_mask);
+	pkey_assert(rs == 0);
+
+	/* call sa_sigaction, not sa_handler*/
+	newact.sa_flags = SA_SIGINFO;
+
+	newact.sa_restorer = 0;  /* void(*)(), obsolete */
+	r = sigaction(signum, &newact, &oldact);
+	r = sigaction(SIGALRM, &newact, &oldact);
+	pkey_assert(r == 0);
+}
+
+void setup_handlers(void)
+{
+	signal(SIGCHLD, &sig_chld);
+	setup_sigsegv_handler();
+}
+
+pid_t fork_lazy_child(void)
+{
+	pid_t forkret;
+
+	forkret = fork();
+	pkey_assert(forkret >= 0);
+	dprintf3("[%d] fork() ret: %d\n", getpid(), forkret);
+
+	if (!forkret) {
+		/* in the child */
+		while (1) {
+			dprintf1("child sleeping...\n");
+			sleep(30);
+		}
+	}
+	return forkret;
 }
 
 int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
@@ -890,11 +899,15 @@ void expected_pkey_fault(int pkey)
 	if (pkey != UNKNOWN_PKEY)
 		pkey_assert(last_si_pkey == pkey);
 
+#if defined(__i386__) || defined(__x86_64__) /* arch */
 	/*
 	 * The signal handler shold have cleared out PKEY register to let the
 	 * test program continue.  We now have to restore it.
 	 */
 	if (__read_pkey_reg() != 0)
+#else /* arch */
+	if (__read_pkey_reg() != shadow_pkey_reg)
+#endif /* arch */
 		pkey_assert(0);
 
 	__write_pkey_reg(shadow_pkey_reg);
