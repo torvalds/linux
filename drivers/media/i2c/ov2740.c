@@ -988,20 +988,18 @@ static const struct dev_pm_ops ov2740_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(ov2740_suspend, ov2740_resume)
 };
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id ov2740_acpi_ids[] = {
 	{"INT3474"},
 	{}
 };
 
 MODULE_DEVICE_TABLE(acpi, ov2740_acpi_ids);
-#endif
 
 static struct i2c_driver ov2740_i2c_driver = {
 	.driver = {
 		.name = "ov2740",
 		.pm = &ov2740_pm_ops,
-		.acpi_match_table = ACPI_PTR(ov2740_acpi_ids),
+		.acpi_match_table = ov2740_acpi_ids,
 	},
 	.probe_new = ov2740_probe,
 	.remove = ov2740_remove,
