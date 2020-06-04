@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Red Hat Inc.
+ * Copyright 2020 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,29 +18,42 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-#include "nv50.h"
-#include "head.h"
 #include "ior.h"
-#include "rootnv50.h"
 
-static const struct nv50_disp_func
-gp100_disp = {
-	.init = gf119_disp_init,
-	.fini = gf119_disp_fini,
-	.intr = gf119_disp_intr,
-	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
-	.super = gf119_disp_super,
-	.root = &gp100_disp_root_oclass,
-	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
-	.sor = { .cnt = gf119_sor_cnt, .new = gp100_sor_new },
+static const struct nvkm_ior_func
+gp100_sor = {
+	.route = {
+		.get = gm200_sor_route_get,
+		.set = gm200_sor_route_set,
+	},
+	.state = gf119_sor_state,
+	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
+	.hdmi = {
+		.ctrl = gk104_hdmi_ctrl,
+		.scdc = gm200_hdmi_scdc,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gm200_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
+		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gf119_hda_hpd,
+		.eld = gf119_hda_eld,
+		.device_entry = gf119_hda_device_entry,
+	},
 };
 
 int
-gp100_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
+gp100_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nv50_disp_new_(&gp100_disp, device, index, pdisp);
+	return nvkm_ior_new_(&gp100_sor, disp, SOR, id);
 }
