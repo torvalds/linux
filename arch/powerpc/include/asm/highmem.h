@@ -69,7 +69,6 @@ static inline void *kmap_atomic_prot(struct page *page, pgprot_t prot)
 
 	return kmap_atomic_high_prot(page, prot);
 }
-extern void __kunmap_atomic(void *kvaddr);
 
 static inline void *kmap_atomic_high(struct page *page)
 {

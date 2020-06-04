@@ -30,8 +30,6 @@
 
 #include <asm/cacheflush.h>
 
-extern void __kunmap_atomic(void *kvaddr);
-
 extern void kmap_init(void);
 
 static inline void flush_cache_kmaps(void)
