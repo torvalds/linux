@@ -323,7 +323,6 @@
 
 /* Advanced Receive Descriptor bit definitions */
 #define IGC_RXDADV_STAT_TSIP	0x08000 /* timestamp in packet */
-#define IGC_RXDADV_STAT_TS	0x10000 /* Pkt was time stamped */
 
 #define IGC_RXDEXT_STATERR_CE		0x01000000
 #define IGC_RXDEXT_STATERR_SE		0x02000000
@@ -384,7 +383,6 @@
 #define IGC_FTQF_MASK_PROTO_BP	0x10000000
 
 /* Time Sync Receive Control bit definitions */
-#define IGC_TSYNCRXCTL_VALID		0x00000001  /* Rx timestamp valid */
 #define IGC_TSYNCRXCTL_TYPE_MASK	0x0000000E  /* Rx type mask */
 #define IGC_TSYNCRXCTL_TYPE_L2_V2	0x00
 #define IGC_TSYNCRXCTL_TYPE_L4_V1	0x02

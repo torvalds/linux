@@ -228,8 +228,6 @@
 #define IGC_SYSTIMR	0x0B6F8  /* System time register Residue */
 #define IGC_TIMINCA	0x0B608  /* Increment attributes register - RW */
 
-#define IGC_RXSTMPL	0x0B624  /* Rx timestamp Low - RO */
-#define IGC_RXSTMPH	0x0B628  /* Rx timestamp High - RO */
 #define IGC_TXSTMPL	0x0B618  /* Tx timestamp value Low - RO */
 #define IGC_TXSTMPH	0x0B61C  /* Tx timestamp value High - RO */
 

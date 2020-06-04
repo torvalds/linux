@@ -206,46 +206,6 @@ void igc_ptp_rx_pktstamp(struct igc_q_vector *q_vector, void *va,
 }
 
 /**
- * igc_ptp_rx_rgtstamp - retrieve Rx timestamp stored in register
- * @q_vector: Pointer to interrupt specific structure
- * @skb: Buffer containing timestamp and packet
- *
- * This function is meant to retrieve a timestamp from the internal registers
- * of the adapter and store it in the skb.
- */
-void igc_ptp_rx_rgtstamp(struct igc_q_vector *q_vector,
-			 struct sk_buff *skb)
-{
-	struct igc_adapter *adapter = q_vector->adapter;
-	struct igc_hw *hw = &adapter->hw;
-	u64 regval;
-
-	/* If this bit is set, then the RX registers contain the time
-	 * stamp. No other packet will be time stamped until we read
-	 * these registers, so read the registers to make them
-	 * available again. Because only one packet can be time
-	 * stamped at a time, we know that the register values must
-	 * belong to this one here and therefore we don't need to
-	 * compare any of the additional attributes stored for it.
-	 *
-	 * If nothing went wrong, then it should have a shared
-	 * tx_flags that we can turn into a skb_shared_hwtstamps.
-	 */
-	if (!(rd32(IGC_TSYNCRXCTL) & IGC_TSYNCRXCTL_VALID))
-		return;
-
-	regval = rd32(IGC_RXSTMPL);
-	regval |= (u64)rd32(IGC_RXSTMPH) << 32;
-
-	igc_ptp_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
-
-	/* Update the last_rx_timestamp timer in order to enable watchdog check
-	 * for error case of latched timestamp on a dropped packet.
-	 */
-	adapter->last_rx_timestamp = jiffies;
-}
-
-/**
  * igc_ptp_enable_tstamp_rxqueue - Enable RX timestamp for a queue
  * @rx_ring: Pointer to RX queue
  * @timer: Index for timer
@@ -419,11 +379,9 @@ static int igc_ptp_set_timestamp_mode(struct igc_adapter *adapter,
 	}
 	wrfl();
 
-	/* clear TX/RX time stamp registers, just to be sure */
+	/* clear TX time stamp registers, just to be sure */
 	regval = rd32(IGC_TXSTMPL);
 	regval = rd32(IGC_TXSTMPH);
-	regval = rd32(IGC_RXSTMPL);
-	regval = rd32(IGC_RXSTMPH);
 
 	return 0;
 }

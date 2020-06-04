@@ -1479,9 +1479,9 @@ static inline void igc_rx_hash(struct igc_ring *ring,
  * @rx_desc: pointer to the EOP Rx descriptor
  * @skb: pointer to current skb being populated
  *
- * This function checks the ring, descriptor, and packet information in
- * order to populate the hash, checksum, VLAN, timestamp, protocol, and
- * other fields within the skb.
+ * This function checks the ring, descriptor, and packet information in order
+ * to populate the hash, checksum, VLAN, protocol, and other fields within the
+ * skb.
  */
 static void igc_process_skb_fields(struct igc_ring *rx_ring,
 				   union igc_adv_rx_desc *rx_desc,
@@ -1490,10 +1490,6 @@ static void igc_process_skb_fields(struct igc_ring *rx_ring,
 	igc_rx_hash(rx_ring, rx_desc, skb);
 
 	igc_rx_checksum(rx_ring, rx_desc, skb);
-
-	if (igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TS) &&
-	    !igc_test_staterr(rx_desc, IGC_RXDADV_STAT_TSIP))
-		igc_ptp_rx_rgtstamp(rx_ring->q_vector, skb);
 
 	skb_record_rx_queue(skb, rx_ring->queue_index);
 
@@ -1975,7 +1971,7 @@ static int igc_clean_rx_irq(struct igc_q_vector *q_vector, const int budget)
 		/* probably a little skewed due to removing CRC */
 		total_bytes += skb->len;
 
-		/* populate checksum, timestamp, VLAN, and protocol */
+		/* populate checksum, VLAN, and protocol */
 		igc_process_skb_fields(rx_ring, rx_desc, skb);
 
 		napi_gro_receive(&q_vector->napi, skb);
