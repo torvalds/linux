@@ -1052,6 +1052,39 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 		goto out;
 	}
 
+	/* Request otg iddig interrupt only if there is no extcon property */
+	if (rphy->edev_self) {
+		rport->id_irq = of_irq_get_byname(child_np, "otg-id");
+		if (rport->id_irq <= 0) {
+			dev_err(rphy->dev, "no otg id irq provided\n");
+			return -EINVAL;
+		}
+
+		ret = devm_request_threaded_irq(rphy->dev,
+						rport->id_irq, NULL,
+						rockchip_usb2phy_id_irq,
+						IRQF_ONESHOT,
+						"rockchip_usb2phy_id",
+						rport);
+		if (ret) {
+			dev_err(rphy->dev,
+				"failed to request otg-id irq handle\n");
+			return ret;
+		}
+
+		iddig = property_enabled(rphy->grf,
+					 &rport->port_cfg->utmi_iddig);
+		if (!iddig) {
+			extcon_set_state(rphy->edev, EXTCON_USB, false);
+			extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
+			extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
+			/* Enable VBUS supply */
+			ret = rockchip_set_vbus_power(rport, true);
+			if (ret)
+				return ret;
+		}
+	}
+
 	if (rport->vbus_always_on)
 		goto out;
 
@@ -1075,40 +1108,6 @@ static int rockchip_usb2phy_otg_port_init(struct rockchip_usb2phy *rphy,
 	}
 
 	INIT_DELAYED_WORK(&rport->otg_sm_work, rockchip_usb2phy_otg_sm_work);
-
-	if (!rphy->edev_self)
-		goto out;
-
-	/* Request otg iddig interrupt only if there is no extcon property */
-	rport->id_irq = of_irq_get_byname(child_np, "otg-id");
-	if (rport->id_irq <= 0) {
-		dev_err(rphy->dev, "no otg id irq provided\n");
-		return -EINVAL;
-	}
-
-	ret = devm_request_threaded_irq(rphy->dev,
-					rport->id_irq, NULL,
-					rockchip_usb2phy_id_irq,
-					IRQF_ONESHOT,
-					"rockchip_usb2phy_id",
-					rport);
-	if (ret) {
-		dev_err(rphy->dev,
-			"failed to request otg-id irq handle\n");
-		return ret;
-	}
-
-	iddig = property_enabled(rphy->grf,
-				 &rport->port_cfg->utmi_iddig);
-	if (!iddig) {
-		extcon_set_state(rphy->edev, EXTCON_USB, false);
-		extcon_set_state(rphy->edev, EXTCON_USB_HOST, true);
-		extcon_set_state(rphy->edev, EXTCON_USB_VBUS_EN, true);
-		/* Enable VBUS supply */
-		ret = rockchip_set_vbus_power(rport, true);
-		if (ret)
-			return ret;
-	}
 
 out:
 	/*
