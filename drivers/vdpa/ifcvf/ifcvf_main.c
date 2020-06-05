@@ -179,6 +179,9 @@ static void ifcvf_vdpa_set_status(struct vdpa_device *vdpa_dev, u8 status)
 	adapter = dev_get_drvdata(vdpa_dev->dev.parent);
 	status_old = ifcvf_get_status(vf);
 
+	if (status_old == status)
+		return;
+
 	if ((status_old & VIRTIO_CONFIG_S_DRIVER_OK) &&
 	    !(status & VIRTIO_CONFIG_S_DRIVER_OK)) {
 		ifcvf_stop_datapath(adapter);
