@@ -384,8 +384,7 @@ extern int kptr_restrict;
 	printk_once(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_once(fmt, ...)					\
 	printk_once(KERN_INFO pr_fmt(fmt), ##__VA_ARGS__)
-#define pr_cont_once(fmt, ...)					\
-	printk_once(KERN_CONT pr_fmt(fmt), ##__VA_ARGS__)
+/* no pr_cont_once, don't do that... */
 
 #if defined(DEBUG)
 #define pr_devel_once(fmt, ...)					\

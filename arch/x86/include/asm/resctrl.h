@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_X86_RESCTRL_SCHED_H
-#define _ASM_X86_RESCTRL_SCHED_H
+#ifndef _ASM_X86_RESCTRL_H
+#define _ASM_X86_RESCTRL_H
 
 #ifdef CONFIG_X86_CPU_RESCTRL
 
@@ -84,10 +84,13 @@ static inline void resctrl_sched_in(void)
 		__resctrl_sched_in();
 }
 
+void resctrl_cpu_detect(struct cpuinfo_x86 *c);
+
 #else
 
 static inline void resctrl_sched_in(void) {}
+static inline void resctrl_cpu_detect(struct cpuinfo_x86 *c) {}
 
 #endif /* CONFIG_X86_CPU_RESCTRL */
 
-#endif /* _ASM_X86_RESCTRL_SCHED_H */
+#endif /* _ASM_X86_RESCTRL_H */
