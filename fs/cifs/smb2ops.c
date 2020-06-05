@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/sort.h>
 #include <crypto/aead.h>
+#include <linux/fiemap.h>
 #include "cifsfs.h"
 #include "cifsglob.h"
 #include "smb2pdu.h"
@@ -3407,8 +3408,9 @@ static int smb3_fiemap(struct cifs_tcon *tcon,
 	int i, num, rc, flags, last_blob;
 	u64 next;
 
-	if (fiemap_check_flags(fei, FIEMAP_FLAG_SYNC))
-		return -EBADR;
+	rc = fiemap_prep(d_inode(cfile->dentry), fei, start, &len, 0);
+	if (rc)
+		return rc;
 
 	xid = get_xid();
  again:
