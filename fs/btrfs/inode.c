@@ -3481,7 +3481,7 @@ static noinline int btrfs_update_inode_item(struct btrfs_trans_handle *trans,
 
 	fill_inode_item(trans, leaf, inode_item, inode);
 	btrfs_mark_buffer_dirty(leaf);
-	btrfs_set_inode_last_trans(trans, inode);
+	btrfs_set_inode_last_trans(trans, BTRFS_I(inode));
 	ret = 0;
 failed:
 	btrfs_free_path(path);
@@ -3511,7 +3511,7 @@ noinline int btrfs_update_inode(struct btrfs_trans_handle *trans,
 
 		ret = btrfs_delayed_update_inode(trans, root, inode);
 		if (!ret)
-			btrfs_set_inode_last_trans(trans, inode);
+			btrfs_set_inode_last_trans(trans, BTRFS_I(inode));
 		return ret;
 	}
 
@@ -6053,7 +6053,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	inode_tree_add(inode);
 
 	trace_btrfs_inode_new(inode);
-	btrfs_set_inode_last_trans(trans, inode);
+	btrfs_set_inode_last_trans(trans, BTRFS_I(inode));
 
 	btrfs_update_root_times(trans, root);
 
