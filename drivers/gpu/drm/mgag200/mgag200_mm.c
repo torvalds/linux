@@ -33,16 +33,18 @@
 int mgag200_mm_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
+	resource_size_t start, len;
 	int ret;
 
-	arch_io_reserve_memtype_wc(pci_resource_start(dev->pdev, 0),
-				   pci_resource_len(dev->pdev, 0));
+	/* BAR 0 is VRAM */
+	start = pci_resource_start(dev->pdev, 0);
+	len = pci_resource_len(dev->pdev, 0);
 
-	mdev->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
-					 pci_resource_len(dev->pdev, 0));
+	arch_io_reserve_memtype_wc(start, len);
 
-	mdev->vram = ioremap(pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0));
+	mdev->fb_mtrr = arch_phys_wc_add(start, len);
+
+	mdev->vram = ioremap(start, len);
 	if (!mdev->vram) {
 		ret = -ENOMEM;
 		goto err_arch_phys_wc_del;
@@ -54,8 +56,7 @@ int mgag200_mm_init(struct mga_device *mdev)
 
 err_arch_phys_wc_del:
 	arch_phys_wc_del(mdev->fb_mtrr);
-	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
-				pci_resource_len(dev->pdev, 0));
+	arch_io_free_memtype_wc(start, len);
 	return ret;
 }
 
