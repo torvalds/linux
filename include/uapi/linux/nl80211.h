@@ -794,7 +794,7 @@
  *	various triggers. These triggers can be configured through this
  *	command with the %NL80211_ATTR_WOWLAN_TRIGGERS attribute. For
  *	more background information, see
- *	http://wireless.kernel.org/en/users/Documentation/WoWLAN.
+ *	https://wireless.wiki.kernel.org/en/users/Documentation/WoWLAN.
  *	The @NL80211_CMD_SET_WOWLAN command can also be used as a notification
  *	from the driver reporting the wakeup reason. In this case, the
  *	@NL80211_ATTR_WOWLAN_TRIGGERS attribute will contain the reason
