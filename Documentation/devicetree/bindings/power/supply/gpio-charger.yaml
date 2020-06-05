@@ -41,7 +41,12 @@ properties:
 
 required:
   - compatible
-  - gpios
+
+anyOf:
+  - required:
+    - gpios
+  - required:
+    - charge-status-gpios
 
 additionalProperties: false
 
