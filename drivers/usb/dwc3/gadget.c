@@ -2894,6 +2894,10 @@ static void dwc3_gadget_reset_interrupt(struct dwc3 *dwc)
 {
 	u32			reg;
 
+	if (of_device_is_compatible(dwc->dev->parent->of_node,
+				    "rockchip,rk3399-dwc3"))
+		phy_calibrate(dwc->usb2_generic_phy);
+
 	/*
 	 * WORKAROUND: DWC3 revisions <1.88a have an issue which
 	 * would cause a missing Disconnect Event if there's a
