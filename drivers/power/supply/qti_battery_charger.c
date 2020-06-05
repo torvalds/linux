@@ -6,7 +6,9 @@
 #define pr_fmt(fmt)	"BATTERY_CHG: %s: " fmt, __func__
 
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -29,11 +31,19 @@
 #define BC_USB_STATUS_SET		0x33
 #define BC_WLS_STATUS_GET		0x34
 #define BC_WLS_STATUS_SET		0x35
+#define BC_WLS_FW_CHECK_UPDATE		0x40
+#define BC_WLS_FW_PUSH_BUF_REQ		0x41
+#define BC_WLS_FW_UPDATE_STATUS_RESP	0x42
+#define BC_WLS_FW_PUSH_BUF_RESP		0x43
+#define BC_WLS_FW_GET_VERSION		0x44
 #define BC_GENERIC_NOTIFY		0x80
 
 /* Generic definitions */
 #define MAX_STR_LEN			128
 #define BC_WAIT_TIME_MS			1000
+#define WLS_FW_PREPARE_TIME_MS		300
+#define WLS_FW_WAIT_TIME_MS		500
+#define WLS_FW_BUF_SIZE			128
 
 enum psy_type {
 	PSY_TYPE_BATTERY,
@@ -129,6 +139,42 @@ struct battery_model_resp_msg {
 	char			model[MAX_STR_LEN];
 };
 
+struct wireless_fw_check_req {
+	struct pmic_glink_hdr	hdr;
+	u32			fw_version;
+	u32			fw_size;
+};
+
+struct wireless_fw_check_resp {
+	struct pmic_glink_hdr	hdr;
+	u32			ret_code;
+};
+
+struct wireless_fw_push_buf_req {
+	struct pmic_glink_hdr	hdr;
+	u8			buf[WLS_FW_BUF_SIZE];
+	u32			fw_chunk_id;
+};
+
+struct wireless_fw_push_buf_resp {
+	struct pmic_glink_hdr	hdr;
+	u32			fw_update_status;
+};
+
+struct wireless_fw_update_status {
+	struct pmic_glink_hdr	hdr;
+	u32			fw_update_done;
+};
+
+struct wireless_fw_get_version_req {
+	struct pmic_glink_hdr	hdr;
+};
+
+struct wireless_fw_get_version_resp {
+	struct pmic_glink_hdr	hdr;
+	u32			fw_version;
+};
+
 struct psy_state {
 	struct power_supply	*psy;
 	char			*model;
@@ -145,9 +191,12 @@ struct battery_chg_dev {
 	struct pmic_glink_client	*client;
 	struct mutex			rw_lock;
 	struct completion		ack;
+	struct completion		fw_buf_ack;
+	struct completion		fw_update_ack;
 	struct psy_state		psy_list[PSY_TYPE_MAX];
 	struct dentry			*debugfs_dir;
 	u32				*thermal_levels;
+	const char			*wls_fw_name;
 	int				curr_thermal_level;
 	int				num_thermal_levels;
 	atomic_t			state;
@@ -155,6 +204,8 @@ struct battery_chg_dev {
 	int				fake_soc;
 	bool				block_tx;
 	bool				debug_battery_detected;
+	bool				wls_fw_update_reqd;
+	u32				wls_fw_version;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -199,6 +250,32 @@ static const int wls_prop_map[WLS_PROP_MAX] = {
 	[WLS_CURR_NOW]		= POWER_SUPPLY_PROP_CURRENT_NOW,
 	[WLS_CURR_MAX]		= POWER_SUPPLY_PROP_CURRENT_MAX,
 };
+
+static int battery_chg_fw_write(struct battery_chg_dev *bcdev, void *data,
+				int len)
+{
+	int rc;
+
+	if (atomic_read(&bcdev->state) == PMIC_GLINK_STATE_DOWN) {
+		pr_debug("glink state is down\n");
+		return -ENOTCONN;
+	}
+
+	reinit_completion(&bcdev->fw_buf_ack);
+	rc = pmic_glink_write(bcdev->client, data, len);
+	if (!rc) {
+		rc = wait_for_completion_timeout(&bcdev->fw_buf_ack,
+					msecs_to_jiffies(WLS_FW_WAIT_TIME_MS));
+		if (!rc) {
+			pr_err("Error, timed out sending message\n");
+			return -ETIMEDOUT;
+		}
+
+		rc = 0;
+	}
+
+	return rc;
+}
 
 static int battery_chg_write(struct battery_chg_dev *bcdev, void *data,
 				int len)
@@ -396,6 +473,10 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 {
 	struct battery_charger_resp_msg *resp_msg = data;
 	struct battery_model_resp_msg *model_resp_msg = data;
+	struct wireless_fw_check_resp *fw_check_msg;
+	struct wireless_fw_push_buf_resp *fw_resp_msg;
+	struct wireless_fw_update_status *fw_update_msg;
+	struct wireless_fw_get_version_resp *fw_ver_msg;
 	struct psy_state *pst;
 	bool ack_set = false;
 
@@ -448,6 +529,47 @@ static void handle_message(struct battery_chg_dev *bcdev, void *data,
 	case BC_SET_NOTIFY_REQ:
 		/* Always ACK response for notify request */
 		ack_set = true;
+		break;
+	case BC_WLS_FW_CHECK_UPDATE:
+		if (len == sizeof(*fw_check_msg)) {
+			fw_check_msg = data;
+			if (fw_check_msg->ret_code == 1)
+				bcdev->wls_fw_update_reqd = true;
+			ack_set = true;
+		} else {
+			pr_err("Incorrect response length %zu for wls_fw_check_update\n",
+				len);
+		}
+		break;
+	case BC_WLS_FW_PUSH_BUF_RESP:
+		if (len == sizeof(*fw_resp_msg)) {
+			fw_resp_msg = data;
+			if (fw_resp_msg->fw_update_status == 1)
+				complete(&bcdev->fw_buf_ack);
+		} else {
+			pr_err("Incorrect response length %zu for wls_fw_push_buf_resp\n",
+				len);
+		}
+		break;
+	case BC_WLS_FW_UPDATE_STATUS_RESP:
+		if (len == sizeof(*fw_update_msg)) {
+			fw_update_msg = data;
+			if (fw_update_msg->fw_update_done == 1)
+				complete(&bcdev->fw_update_ack);
+		} else {
+			pr_err("Incorrect response length %zu for wls_fw_update_status_resp\n",
+				len);
+		}
+		break;
+	case BC_WLS_FW_GET_VERSION:
+		if (len == sizeof(*fw_ver_msg)) {
+			fw_ver_msg = data;
+			bcdev->wls_fw_version = fw_ver_msg->fw_version;
+			ack_set = true;
+		} else {
+			pr_err("Incorrect response length %zu for wls_fw_get_version\n",
+				len);
+		}
 		break;
 	default:
 		pr_err("Unknown opcode: %u\n", resp_msg->hdr.opcode);
@@ -859,6 +981,232 @@ static int battery_chg_init_psy(struct battery_chg_dev *bcdev)
 	return 0;
 }
 
+static int wireless_fw_send_firmware(struct battery_chg_dev *bcdev,
+					const struct firmware *fw)
+{
+	struct wireless_fw_push_buf_req msg = {};
+	const u8 *ptr;
+	u32 i, num_chunks, partial_chunk_size;
+	int rc;
+
+	num_chunks = fw->size / WLS_FW_BUF_SIZE;
+	partial_chunk_size = fw->size % WLS_FW_BUF_SIZE;
+
+	if (!num_chunks)
+		return -EINVAL;
+
+	pr_debug("Updating FW...\n");
+
+	ptr = fw->data;
+	msg.hdr.owner = MSG_OWNER_BC;
+	msg.hdr.type = MSG_TYPE_REQ_RESP;
+	msg.hdr.opcode = BC_WLS_FW_PUSH_BUF_REQ;
+
+	for (i = 0; i < num_chunks; i++, ptr += WLS_FW_BUF_SIZE) {
+		msg.fw_chunk_id = i + 1;
+		memcpy(msg.buf, ptr, WLS_FW_BUF_SIZE);
+
+		pr_debug("sending FW chunk %u\n", i + 1);
+		rc = battery_chg_fw_write(bcdev, &msg, sizeof(msg));
+		if (rc < 0)
+			return rc;
+	}
+
+	if (partial_chunk_size) {
+		msg.fw_chunk_id = i + 1;
+		memset(msg.buf, 0, WLS_FW_BUF_SIZE);
+		memcpy(msg.buf, ptr, partial_chunk_size);
+
+		pr_debug("sending partial FW chunk %u\n", i + 1);
+		rc = battery_chg_fw_write(bcdev, &msg, sizeof(msg));
+		if (rc < 0)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int wireless_fw_check_for_update(struct battery_chg_dev *bcdev,
+					u32 version, size_t size)
+{
+	struct wireless_fw_check_req req_msg = {};
+
+	bcdev->wls_fw_update_reqd = false;
+
+	req_msg.hdr.owner = MSG_OWNER_BC;
+	req_msg.hdr.type = MSG_TYPE_REQ_RESP;
+	req_msg.hdr.opcode = BC_WLS_FW_CHECK_UPDATE;
+	req_msg.fw_version = version;
+	req_msg.fw_size = size;
+
+	return battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
+}
+
+#define IDT_FW_MAJOR_VER_OFFSET		0x94
+#define IDT_FW_MINOR_VER_OFFSET		0x96
+static int wireless_fw_update(struct battery_chg_dev *bcdev, bool force)
+{
+	const struct firmware *fw;
+	struct psy_state *pst;
+	u32 version;
+	u16 maj_ver, min_ver;
+	int rc;
+
+	pm_stay_awake(bcdev->dev);
+
+	/*
+	 * Check for USB presence. If nothing is connected, check whether
+	 * battery SOC is at least 50% before allowing FW update.
+	 */
+	pst = &bcdev->psy_list[PSY_TYPE_USB];
+	rc = read_property_id(bcdev, pst, USB_ONLINE);
+	if (rc < 0)
+		goto out;
+
+	if (!pst->prop[USB_ONLINE]) {
+		pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
+		rc = read_property_id(bcdev, pst, BATT_CAPACITY);
+		if (rc < 0)
+			goto out;
+
+		if ((pst->prop[BATT_CAPACITY] / 100) < 50) {
+			pr_err("Battery SOC should be at least 50%% or connect charger\n");
+			rc = -EINVAL;
+			goto out;
+		}
+	}
+
+	rc = firmware_request_nowarn(&fw, bcdev->wls_fw_name, bcdev->dev);
+	if (rc) {
+		pr_err("Couldn't get firmware rc=%d\n", rc);
+		goto out;
+	}
+
+	if (!fw || !fw->data || !fw->size) {
+		pr_err("Invalid firmware\n");
+		rc = -EINVAL;
+		goto release_fw;
+	}
+
+	if (fw->size < SZ_16K) {
+		pr_err("Invalid firmware size %zu\n", fw->size);
+		rc = -EINVAL;
+		goto release_fw;
+	}
+
+	maj_ver = le16_to_cpu(*(__le16 *)(fw->data + IDT_FW_MAJOR_VER_OFFSET));
+	min_ver = le16_to_cpu(*(__le16 *)(fw->data + IDT_FW_MINOR_VER_OFFSET));
+	version = maj_ver << 16 | min_ver;
+
+	if (force)
+		version = UINT_MAX;
+
+	pr_debug("FW size: %zu version: %#x\n", fw->size, version);
+
+	rc = wireless_fw_check_for_update(bcdev, version, fw->size);
+	if (rc < 0) {
+		pr_err("Wireless FW update not needed, rc=%d\n", rc);
+		goto release_fw;
+	}
+
+	if (!bcdev->wls_fw_update_reqd) {
+		pr_warn("Wireless FW update not required\n");
+		goto release_fw;
+	}
+
+	/* Wait for IDT to be setup by charger firmware */
+	msleep(WLS_FW_PREPARE_TIME_MS);
+
+	reinit_completion(&bcdev->fw_update_ack);
+	rc = wireless_fw_send_firmware(bcdev, fw);
+	if (rc < 0) {
+		pr_err("Failed to send FW chunk, rc=%d\n", rc);
+		goto release_fw;
+	}
+
+	rc = wait_for_completion_timeout(&bcdev->fw_update_ack,
+				msecs_to_jiffies(WLS_FW_WAIT_TIME_MS));
+	if (!rc) {
+		pr_err("Error, timed out updating firmware\n");
+		rc = -ETIMEDOUT;
+		goto release_fw;
+	} else {
+		rc = 0;
+	}
+
+	pr_info("Wireless FW update done\n");
+
+release_fw:
+	release_firmware(fw);
+out:
+	pm_relax(bcdev->dev);
+
+	return rc;
+}
+
+static ssize_t wireless_fw_version_show(struct class *c,
+					struct class_attribute *attr,
+					char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	struct wireless_fw_get_version_req req_msg = {};
+	int rc;
+
+	req_msg.hdr.owner = MSG_OWNER_BC;
+	req_msg.hdr.type = MSG_TYPE_REQ_RESP;
+	req_msg.hdr.opcode = BC_WLS_FW_GET_VERSION;
+
+	rc = battery_chg_write(bcdev, &req_msg, sizeof(req_msg));
+	if (rc < 0) {
+		pr_err("Failed to get FW version rc=%d\n", rc);
+		return rc;
+	}
+
+	return scnprintf(buf, PAGE_SIZE, "%#x\n", bcdev->wls_fw_version);
+}
+static CLASS_ATTR_RO(wireless_fw_version);
+
+static ssize_t wireless_fw_force_update_store(struct class *c,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	bool val;
+	int rc;
+
+	if (kstrtobool(buf, &val) || !val)
+		return -EINVAL;
+
+	rc = wireless_fw_update(bcdev, true);
+	if (rc < 0)
+		return rc;
+
+	return count;
+}
+static CLASS_ATTR_WO(wireless_fw_force_update);
+
+static ssize_t wireless_fw_update_store(struct class *c,
+					struct class_attribute *attr,
+					const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+	bool val;
+	int rc;
+
+	if (kstrtobool(buf, &val) || !val)
+		return -EINVAL;
+
+	rc = wireless_fw_update(bcdev, false);
+	if (rc < 0)
+		return rc;
+
+	return count;
+}
+static CLASS_ATTR_WO(wireless_fw_update);
+
 static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
 				const char *buf, size_t count)
 {
@@ -1018,6 +1366,9 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_moisture_detection_en.attr,
 	&class_attr_wireless_boost_en.attr,
 	&class_attr_fake_soc.attr,
+	&class_attr_wireless_fw_update.attr,
+	&class_attr_wireless_fw_force_update.attr,
+	&class_attr_wireless_fw_version.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
@@ -1060,6 +1411,9 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
 	int i, rc, len;
 	u32 prev, val;
+
+	of_property_read_string(node, "qcom,wireless-fw-name",
+				&bcdev->wls_fw_name);
 
 	rc = of_property_count_elems_of_size(node, "qcom,thermal-mitigation",
 						sizeof(u32));
@@ -1153,6 +1507,8 @@ static int battery_chg_probe(struct platform_device *pdev)
 
 	mutex_init(&bcdev->rw_lock);
 	init_completion(&bcdev->ack);
+	init_completion(&bcdev->fw_buf_ack);
+	init_completion(&bcdev->fw_update_ack);
 	INIT_WORK(&bcdev->subsys_up_work, battery_chg_subsys_up_work);
 	atomic_set(&bcdev->state, PMIC_GLINK_STATE_UP);
 	bcdev->dev = dev;
@@ -1192,6 +1548,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 
 	battery_chg_add_debugfs(bcdev);
 	battery_chg_notify_enable(bcdev);
+	device_init_wakeup(bcdev->dev, true);
 
 	return 0;
 error:
@@ -1204,6 +1561,7 @@ static int battery_chg_remove(struct platform_device *pdev)
 	struct battery_chg_dev *bcdev = platform_get_drvdata(pdev);
 	int rc;
 
+	device_init_wakeup(bcdev->dev, false);
 	debugfs_remove_recursive(bcdev->debugfs_dir);
 	class_unregister(&bcdev->battery_class);
 	rc = pmic_glink_unregister_client(bcdev->client);
