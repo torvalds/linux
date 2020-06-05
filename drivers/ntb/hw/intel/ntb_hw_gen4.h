@@ -5,6 +5,10 @@
 
 #include "ntb_hw_intel.h"
 
+/* Supported PCI device revision range for ICX */
+#define PCI_DEVICE_REVISION_ICX_MIN	0x2
+#define PCI_DEVICE_REVISION_ICX_MAX	0xF
+
 /* Intel Gen4 NTB hardware */
 /* PCIe config space */
 #define GEN4_IMBAR23SZ_OFFSET		0x00c4
@@ -83,5 +87,14 @@ ssize_t ndev_ntb4_debugfs_read(struct file *filp, char __user *ubuf,
 				      size_t count, loff_t *offp);
 
 extern const struct ntb_dev_ops intel_ntb4_ops;
+
+static inline int pdev_is_ICX(struct pci_dev *pdev)
+{
+	if (pdev_is_gen4(pdev) &&
+	    pdev->revision >= PCI_DEVICE_REVISION_ICX_MIN &&
+	    pdev->revision <= PCI_DEVICE_REVISION_ICX_MAX)
+		return 1;
+	return 0;
+}
 
 #endif

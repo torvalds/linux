@@ -177,6 +177,9 @@ int gen4_init_dev(struct intel_ntb_dev *ndev)
 
 	ndev->reg = &gen4_reg;
 
+	if (pdev_is_ICX(pdev))
+		ndev->hwerr_flags |= NTB_HWERR_BAR_ALIGN;
+
 	ppd1 = ioread32(ndev->self_mmio + GEN4_PPD1_OFFSET);
 	ndev->ntb.topo = gen4_ppd_topo(ndev, ppd1);
 	dev_dbg(&pdev->dev, "ppd %#x topo %s\n", ppd1,
@@ -342,9 +345,14 @@ static int intel_ntb4_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	else
 		mw_size = bar_size;
 
-	/* hardware requires that addr is aligned to bar size */
-	if (addr & (bar_size - 1))
-		return -EINVAL;
+	if (ndev->hwerr_flags & NTB_HWERR_BAR_ALIGN) {
+		/* hardware requires that addr is aligned to bar size */
+		if (addr & (bar_size - 1))
+			return -EINVAL;
+	} else {
+		if (addr & (PAGE_SIZE - 1))
+			return -EINVAL;
+	}
 
 	/* make sure the range fits in the usable mw size */
 	if (size > mw_size)
@@ -353,7 +361,6 @@ static int intel_ntb4_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 	mmio = ndev->self_mmio;
 	xlat_reg = ndev->xlat_reg->bar2_xlat + (idx * 0x10);
 	limit_reg = ndev->xlat_reg->bar2_limit + (idx * 0x10);
-	idx_reg = ndev->xlat_reg->bar2_idx + (idx * 0x2);
 	base = pci_resource_start(ndev->ntb.pdev, bar);
 
 	/* Set the limit if supported, if size is not mw_size */
@@ -387,16 +394,19 @@ static int intel_ntb4_mw_set_trans(struct ntb_dev *ntb, int pidx, int idx,
 
 	dev_dbg(&ntb->pdev->dev, "BAR %d IMXLMT: %#Lx\n", bar, reg_val);
 
-	iowrite16(base_idx, mmio + idx_reg);
-	reg_val16 = ioread16(mmio + idx_reg);
-	if (reg_val16 != base_idx) {
-		iowrite64(base, mmio + limit_reg);
-		iowrite64(0, mmio + xlat_reg);
-		iowrite16(0, mmio + idx_reg);
-		return -EIO;
+	if (ndev->hwerr_flags & NTB_HWERR_BAR_ALIGN) {
+		idx_reg = ndev->xlat_reg->bar2_idx + (idx * 0x2);
+		iowrite16(base_idx, mmio + idx_reg);
+		reg_val16 = ioread16(mmio + idx_reg);
+		if (reg_val16 != base_idx) {
+			iowrite64(base, mmio + limit_reg);
+			iowrite64(0, mmio + xlat_reg);
+			iowrite16(0, mmio + idx_reg);
+			return -EIO;
+		}
+		dev_dbg(&ntb->pdev->dev, "BAR %d IMBASEIDX: %#x\n", bar, reg_val16);
 	}
 
-	dev_dbg(&ntb->pdev->dev, "BAR %d IMBASEIDX: %#x\n", bar, reg_val16);
 
 	return 0;
 }
@@ -471,9 +481,51 @@ int intel_ntb4_link_disable(struct ntb_dev *ntb)
 	return 0;
 }
 
+static int intel_ntb4_mw_get_align(struct ntb_dev *ntb, int pidx, int idx,
+				   resource_size_t *addr_align,
+				   resource_size_t *size_align,
+				   resource_size_t *size_max)
+{
+	struct intel_ntb_dev *ndev = ntb_ndev(ntb);
+	resource_size_t bar_size, mw_size;
+	int bar;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	if (idx >= ndev->b2b_idx && !ndev->b2b_off)
+		idx += 1;
+
+	bar = ndev_mw_to_bar(ndev, idx);
+	if (bar < 0)
+		return bar;
+
+	bar_size = pci_resource_len(ndev->ntb.pdev, bar);
+
+	if (idx == ndev->b2b_idx)
+		mw_size = bar_size - ndev->b2b_off;
+	else
+		mw_size = bar_size;
+
+	if (addr_align) {
+		if (ndev->hwerr_flags & NTB_HWERR_BAR_ALIGN)
+			*addr_align = pci_resource_len(ndev->ntb.pdev, bar);
+		else
+			*addr_align = PAGE_SIZE;
+	}
+
+	if (size_align)
+		*size_align = 1;
+
+	if (size_max)
+		*size_max = mw_size;
+
+	return 0;
+}
+
 const struct ntb_dev_ops intel_ntb4_ops = {
 	.mw_count		= intel_ntb_mw_count,
-	.mw_get_align		= intel_ntb_mw_get_align,
+	.mw_get_align		= intel_ntb4_mw_get_align,
 	.mw_set_trans		= intel_ntb4_mw_set_trans,
 	.peer_mw_count		= intel_ntb_peer_mw_count,
 	.peer_mw_get_addr	= intel_ntb_peer_mw_get_addr,
