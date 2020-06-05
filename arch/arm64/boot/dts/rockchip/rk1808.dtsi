@@ -976,7 +976,7 @@
 		clocks = <&cru ACLK_DMAC>;
 		clock-names = "apb_pclk";
 		#dma-cells = <1>;
-		peripherals-req-type-burst;
+		arm,pl330-periph-burst;
 	};
 
 	uart0: serial@ff430000 {
