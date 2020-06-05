@@ -27,6 +27,7 @@
 		((1ULL << VIRTIO_NET_F_MAC)			| \
 		 (1ULL << VIRTIO_F_ANY_LAYOUT)			| \
 		 (1ULL << VIRTIO_F_VERSION_1)			| \
+		 (1ULL << VIRTIO_NET_F_STATUS)			| \
 		 (1ULL << VIRTIO_F_ORDER_PLATFORM)		| \
 		 (1ULL << VIRTIO_F_IOMMU_PLATFORM)		| \
 		 (1ULL << VIRTIO_NET_F_MRG_RXBUF))
@@ -81,6 +82,9 @@ struct ifcvf_hw {
 	void __iomem *net_cfg;
 	struct vring_info vring[IFCVF_MAX_QUEUE_PAIRS * 2];
 	void __iomem * const *base;
+	char config_msix_name[256];
+	struct vdpa_callback config_cb;
+
 };
 
 struct ifcvf_adapter {

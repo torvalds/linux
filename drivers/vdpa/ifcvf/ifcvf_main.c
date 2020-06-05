@@ -18,6 +18,16 @@
 #define DRIVER_AUTHOR   "Intel Corporation"
 #define IFCVF_DRIVER_NAME       "ifcvf"
 
+static irqreturn_t ifcvf_config_changed(int irq, void *arg)
+{
+	struct ifcvf_hw *vf = arg;
+
+	if (vf->config_cb.callback)
+		return vf->config_cb.callback(vf->config_cb.private);
+
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t ifcvf_intr_handler(int irq, void *arg)
 {
 	struct vring_info *vring = arg;
@@ -58,6 +68,14 @@ static int ifcvf_request_irq(struct ifcvf_adapter *adapter)
 		IFCVF_ERR(pdev, "Failed to alloc IRQ vectors\n");
 		return ret;
 	}
+
+	snprintf(vf->config_msix_name, 256, "ifcvf[%s]-config\n",
+		 pci_name(pdev));
+	vector = 0;
+	irq = pci_irq_vector(pdev, vector);
+	ret = devm_request_irq(&pdev->dev, irq,
+			       ifcvf_config_changed, 0,
+			       vf->config_msix_name, vf);
 
 	for (i = 0; i < IFCVF_MAX_QUEUE_PAIRS * 2; i++) {
 		snprintf(vf->vring[i].msix_name, 256, "ifcvf[%s]-%d\n",
@@ -328,7 +346,10 @@ static void ifcvf_vdpa_set_config(struct vdpa_device *vdpa_dev,
 static void ifcvf_vdpa_set_config_cb(struct vdpa_device *vdpa_dev,
 				     struct vdpa_callback *cb)
 {
-	/* We don't support config interrupt */
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	vf->config_cb.callback = cb->callback;
+	vf->config_cb.private = cb->private;
 }
 
 /*
