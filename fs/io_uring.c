@@ -3183,7 +3183,7 @@ static int io_provide_buffers_prep(struct io_kiocb *req,
 	p->addr = READ_ONCE(sqe->addr);
 	p->len = READ_ONCE(sqe->len);
 
-	if (!access_ok(u64_to_user_ptr(p->addr), p->len))
+	if (!access_ok(u64_to_user_ptr(p->addr), (p->len * p->nbufs)))
 		return -EFAULT;
 
 	p->bgid = READ_ONCE(sqe->buf_group);
