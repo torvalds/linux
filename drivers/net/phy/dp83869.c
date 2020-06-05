@@ -176,7 +176,7 @@ static int dp83869_set_strapped_mode(struct phy_device *phydev)
 	return 0;
 }
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 static int dp83869_of_init(struct phy_device *phydev)
 {
 	struct dp83869_private *dp83869 = phydev->priv;
