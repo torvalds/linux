@@ -20,6 +20,15 @@ config ARM_CCI400_PORT_CTRL
 	  Low level power management driver for CCI400 cache coherent
 	  interconnect for ARM platforms.
 
+config ARM_INTEGRATOR_LM
+	bool "ARM Integrator Logic Module bus"
+	depends on HAS_IOMEM
+	depends on ARCH_INTEGRATOR || COMPILE_TEST
+	default ARCH_INTEGRATOR
+	help
+	  Say y here to enable support for the ARM Logic Module bus
+	  found on the ARM Integrator AP (Application Platform)
+
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
 	depends on ARM || ARM64 || MIPS
@@ -183,7 +192,7 @@ config UNIPHIER_SYSTEM_BUS
 	  needed to use on-board devices connected to UniPhier SoCs.
 
 config VEXPRESS_CONFIG
-	bool "Versatile Express configuration bus"
+	tristate "Versatile Express configuration bus"
 	default y if ARCH_VEXPRESS
 	depends on ARM || ARM64
 	depends on OF
