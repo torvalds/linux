@@ -930,25 +930,6 @@ static void reloc_cache_init(struct reloc_cache *cache,
 	cache->target = NULL;
 }
 
-static inline void *unmask_page(unsigned long p)
-{
-	return (void *)(uintptr_t)(p & PAGE_MASK);
-}
-
-static inline unsigned int unmask_flags(unsigned long p)
-{
-	return p & ~PAGE_MASK;
-}
-
-#define KMAP 0x4 /* after CLFLUSH_FLAGS */
-
-static inline struct i915_ggtt *cache_to_ggtt(struct reloc_cache *cache)
-{
-	struct drm_i915_private *i915 =
-		container_of(cache, struct i915_execbuffer, reloc_cache)->i915;
-	return &i915->ggtt;
-}
-
 #define RELOC_TAIL 4
 
 static int reloc_gpu_chain(struct reloc_cache *cache)
