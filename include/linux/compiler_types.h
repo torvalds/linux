@@ -220,9 +220,14 @@ struct ftrace_likely_data {
 #define __pick_scalar_type(x, type, otherwise)					\
 	__builtin_choose_expr(__same_type(x, type), (type)0, otherwise)
 
+/*
+ * 'char' is not type-compatible with either 'signed char' or 'unsigned char',
+ * so we include the naked type here as well as the signed/unsigned variants.
+ */
 #define __pick_integer_type(x, type, otherwise)					\
-	__pick_scalar_type(x, unsigned type,					\
-		__pick_scalar_type(x, signed type, otherwise))
+	__pick_scalar_type(x, type,						\
+		__pick_scalar_type(x, unsigned type,				\
+			__pick_scalar_type(x, signed type, otherwise)))
 
 #define __unqual_scalar_typeof(x) typeof(					\
 	__pick_integer_type(x, char,						\
