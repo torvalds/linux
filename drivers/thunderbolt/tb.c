@@ -9,6 +9,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 #include "tb.h"
 #include "tb_regs.h"
@@ -22,12 +23,20 @@
  *		    events and exit if this is not set (it needs to
  *		    acquire the lock one more time). Used to drain wq
  *		    after cfg has been paused.
+ * @remove_work: Work used to remove any unplugged routers after
+ *		 runtime resume
  */
 struct tb_cm {
 	struct list_head tunnel_list;
 	struct list_head dp_resources;
 	bool hotplug_active;
+	struct delayed_work remove_work;
 };
+
+static inline struct tb *tcm_to_tb(struct tb_cm *tcm)
+{
+	return ((void *)tcm - sizeof(struct tb));
+}
 
 struct tb_hotplug_event {
 	struct work_struct work;
@@ -526,8 +535,13 @@ static void tb_scan_switch(struct tb_switch *sw)
 {
 	struct tb_port *port;
 
+	pm_runtime_get_sync(&sw->dev);
+
 	tb_switch_for_each_port(sw, port)
 		tb_scan_port(port);
+
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
 }
 
 /**
@@ -602,6 +616,12 @@ static void tb_scan_port(struct tb_port *port)
 	if (!tcm->hotplug_active)
 		dev_set_uevent_suppress(&sw->dev, true);
 
+	/*
+	 * At the moment Thunderbolt 2 and beyond (devices with LC) we
+	 * can support runtime PM.
+	 */
+	sw->rpm = sw->generation > 1;
+
 	if (tb_switch_add(sw)) {
 		tb_switch_put(sw);
 		return;
@@ -662,6 +682,11 @@ static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
 		 * deallocated properly.
 		 */
 		tb_switch_dealloc_dp_resource(src_port->sw, src_port);
+		/* Now we can allow the domain to runtime suspend again */
+		pm_runtime_mark_last_busy(&dst_port->sw->dev);
+		pm_runtime_put_autosuspend(&dst_port->sw->dev);
+		pm_runtime_mark_last_busy(&src_port->sw->dev);
+		pm_runtime_put_autosuspend(&src_port->sw->dev);
 		fallthrough;
 
 	case TB_TUNNEL_USB3:
@@ -848,9 +873,20 @@ static void tb_tunnel_dp(struct tb *tb)
 		return;
 	}
 
+	/*
+	 * DP stream needs the domain to be active so runtime resume
+	 * both ends of the tunnel.
+	 *
+	 * This should bring the routers in the middle active as well
+	 * and keeps the domain from runtime suspending while the DP
+	 * tunnel is active.
+	 */
+	pm_runtime_get_sync(&in->sw->dev);
+	pm_runtime_get_sync(&out->sw->dev);
+
 	if (tb_switch_alloc_dp_resource(in->sw, in)) {
 		tb_port_dbg(in, "no resource available for DP IN, not tunneling\n");
-		return;
+		goto err_rpm_put;
 	}
 
 	/* Make all unused USB3 bandwidth available for the new DP tunnel */
@@ -889,6 +925,11 @@ err_reclaim:
 	tb_reclaim_usb3_bandwidth(tb, in, out);
 err_dealloc_dp:
 	tb_switch_dealloc_dp_resource(in->sw, in);
+err_rpm_put:
+	pm_runtime_mark_last_busy(&out->sw->dev);
+	pm_runtime_put_autosuspend(&out->sw->dev);
+	pm_runtime_mark_last_busy(&in->sw->dev);
+	pm_runtime_put_autosuspend(&in->sw->dev);
 }
 
 static void tb_dp_resource_unavailable(struct tb *tb, struct tb_port *port)
@@ -1073,6 +1114,9 @@ static void tb_handle_hotplug(struct work_struct *work)
 	struct tb_switch *sw;
 	struct tb_port *port;
 
+	/* Bring the domain back from sleep if it was suspended */
+	pm_runtime_get_sync(&tb->dev);
+
 	mutex_lock(&tb->lock);
 	if (!tcm->hotplug_active)
 		goto out; /* during init, suspend or shutdown */
@@ -1096,6 +1140,9 @@ static void tb_handle_hotplug(struct work_struct *work)
 		       ev->route, ev->port, ev->unplug);
 		goto put_sw;
 	}
+
+	pm_runtime_get_sync(&sw->dev);
+
 	if (ev->unplug) {
 		tb_retimer_remove_all(port);
 
@@ -1149,10 +1196,17 @@ static void tb_handle_hotplug(struct work_struct *work)
 		}
 	}
 
+	pm_runtime_mark_last_busy(&sw->dev);
+	pm_runtime_put_autosuspend(&sw->dev);
+
 put_sw:
 	tb_switch_put(sw);
 out:
 	mutex_unlock(&tb->lock);
+
+	pm_runtime_mark_last_busy(&tb->dev);
+	pm_runtime_put_autosuspend(&tb->dev);
+
 	kfree(ev);
 }
 
@@ -1188,6 +1242,7 @@ static void tb_stop(struct tb *tb)
 	struct tb_tunnel *tunnel;
 	struct tb_tunnel *n;
 
+	cancel_delayed_work(&tcm->remove_work);
 	/* tunnels are only present after everything has been initialized */
 	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list) {
 		/*
@@ -1239,6 +1294,8 @@ static int tb_start(struct tb *tb)
 	 * root switch.
 	 */
 	tb->root_switch->no_nvm_upgrade = true;
+	/* All USB4 routers support runtime PM */
+	tb->root_switch->rpm = tb_switch_is_usb4(tb->root_switch);
 
 	ret = tb_switch_configure(tb->root_switch);
 	if (ret) {
@@ -1281,7 +1338,7 @@ static int tb_suspend_noirq(struct tb *tb)
 
 	tb_dbg(tb, "suspending...\n");
 	tb_disconnect_and_release_dp(tb);
-	tb_switch_suspend(tb->root_switch);
+	tb_switch_suspend(tb->root_switch, false);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
 	tb_dbg(tb, "suspend finished\n");
 
@@ -1291,6 +1348,10 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
+
+	/* No need to restore if the router is already unplugged */
+	if (sw->is_unplugged)
+		return;
 
 	if (tb_enable_tmu(sw))
 		tb_sw_warn(sw, "failed to restore TMU configuration\n");
@@ -1376,12 +1437,62 @@ static void tb_complete(struct tb *tb)
 	mutex_unlock(&tb->lock);
 }
 
+static int tb_runtime_suspend(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+
+	mutex_lock(&tb->lock);
+	tb_switch_suspend(tb->root_switch, true);
+	tcm->hotplug_active = false;
+	mutex_unlock(&tb->lock);
+
+	return 0;
+}
+
+static void tb_remove_work(struct work_struct *work)
+{
+	struct tb_cm *tcm = container_of(work, struct tb_cm, remove_work.work);
+	struct tb *tb = tcm_to_tb(tcm);
+
+	mutex_lock(&tb->lock);
+	if (tb->root_switch) {
+		tb_free_unplugged_children(tb->root_switch);
+		tb_free_unplugged_xdomains(tb->root_switch);
+	}
+	mutex_unlock(&tb->lock);
+}
+
+static int tb_runtime_resume(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel, *n;
+
+	mutex_lock(&tb->lock);
+	tb_switch_resume(tb->root_switch);
+	tb_free_invalid_tunnels(tb);
+	tb_restore_children(tb->root_switch);
+	list_for_each_entry_safe(tunnel, n, &tcm->tunnel_list, list)
+		tb_tunnel_restart(tunnel);
+	tcm->hotplug_active = true;
+	mutex_unlock(&tb->lock);
+
+	/*
+	 * Schedule cleanup of any unplugged devices. Run this in a
+	 * separate thread to avoid possible deadlock if the device
+	 * removal runtime resumes the unplugged device.
+	 */
+	queue_delayed_work(tb->wq, &tcm->remove_work, msecs_to_jiffies(50));
+	return 0;
+}
+
 static const struct tb_cm_ops tb_cm_ops = {
 	.start = tb_start,
 	.stop = tb_stop,
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
 	.complete = tb_complete,
+	.runtime_suspend = tb_runtime_suspend,
+	.runtime_resume = tb_runtime_resume,
 	.handle_event = tb_handle_event,
 	.approve_switch = tb_tunnel_pci,
 	.approve_xdomain_paths = tb_approve_xdomain_paths,
@@ -1403,6 +1514,7 @@ struct tb *tb_probe(struct tb_nhi *nhi)
 	tcm = tb_priv(tb);
 	INIT_LIST_HEAD(&tcm->tunnel_list);
 	INIT_LIST_HEAD(&tcm->dp_resources);
+	INIT_DELAYED_WORK(&tcm->remove_work, tb_remove_work);
 
 	return tb;
 }
