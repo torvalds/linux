@@ -59,6 +59,7 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/clock/marvell,mmp2-audio.h>
+    #include <dt-bindings/clock/marvell,mmp2.h>
     #include <dt-bindings/power/marvell,mmp2.h>
 
     clock-controller@d42a0c30 {
