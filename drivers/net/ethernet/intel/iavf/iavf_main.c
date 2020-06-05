@@ -1756,17 +1756,17 @@ static int iavf_init_get_resources(struct iavf_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
 	struct iavf_hw *hw = &adapter->hw;
-	int err = 0, bufsz;
+	int err;
 
 	WARN_ON(adapter->state != __IAVF_INIT_GET_RESOURCES);
 	/* aq msg sent, awaiting reply */
 	if (!adapter->vf_res) {
-		bufsz = sizeof(struct virtchnl_vf_resource) +
-			(IAVF_MAX_VF_VSI *
-			sizeof(struct virtchnl_vsi_resource));
-		adapter->vf_res = kzalloc(bufsz, GFP_KERNEL);
-		if (!adapter->vf_res)
+		adapter->vf_res = kzalloc(IAVF_VIRTCHNL_VF_RESOURCE_SIZE,
+					  GFP_KERNEL);
+		if (!adapter->vf_res) {
+			err = -ENOMEM;
 			goto err;
+		}
 	}
 	err = iavf_get_vf_config(adapter);
 	if (err == IAVF_ERR_ADMIN_QUEUE_NO_WORK) {
@@ -2036,7 +2036,7 @@ static void iavf_disable_vf(struct iavf_adapter *adapter)
 	iavf_reset_interrupt_capability(adapter);
 	iavf_free_queues(adapter);
 	iavf_free_q_vectors(adapter);
-	kfree(adapter->vf_res);
+	memset(adapter->vf_res, 0, IAVF_VIRTCHNL_VF_RESOURCE_SIZE);
 	iavf_shutdown_adminq(&adapter->hw);
 	adapter->netdev->flags &= ~IFF_UP;
 	clear_bit(__IAVF_IN_CRITICAL_TASK, &adapter->crit_section);
@@ -2487,6 +2487,16 @@ static int iavf_validate_tx_bandwidth(struct iavf_adapter *adapter,
 {
 	int speed = 0, ret = 0;
 
+	if (ADV_LINK_SUPPORT(adapter)) {
+		if (adapter->link_speed_mbps < U32_MAX) {
+			speed = adapter->link_speed_mbps;
+			goto validate_bw;
+		} else {
+			dev_err(&adapter->pdev->dev, "Unknown link speed\n");
+			return -EINVAL;
+		}
+	}
+
 	switch (adapter->link_speed) {
 	case IAVF_LINK_SPEED_40GB:
 		speed = 40000;
@@ -2510,6 +2520,7 @@ static int iavf_validate_tx_bandwidth(struct iavf_adapter *adapter,
 		break;
 	}
 
+validate_bw:
 	if (max_tx_rate > speed) {
 		dev_err(&adapter->pdev->dev,
 			"Invalid tx rate specified\n");

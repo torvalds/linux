@@ -87,6 +87,10 @@ struct iavf_vsi {
 #define IAVF_HLUT_ARRAY_SIZE ((IAVF_VFQF_HLUT_MAX_INDEX + 1) * 4)
 #define IAVF_MBPS_DIVISOR	125000 /* divisor to convert to Mbps */
 
+#define IAVF_VIRTCHNL_VF_RESOURCE_SIZE (sizeof(struct virtchnl_vf_resource) + \
+					(IAVF_MAX_VF_VSI * \
+					 sizeof(struct virtchnl_vsi_resource)))
+
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */
@@ -306,6 +310,14 @@ struct iavf_adapter {
 	bool netdev_registered;
 	bool link_up;
 	enum virtchnl_link_speed link_speed;
+	/* This is only populated if the VIRTCHNL_VF_CAP_ADV_LINK_SPEED is set
+	 * in vf_res->vf_cap_flags. Use ADV_LINK_SUPPORT macro to determine if
+	 * this field is valid. This field should be used going forward and the
+	 * enum virtchnl_link_speed above should be considered the legacy way of
+	 * storing/communicating link speeds.
+	 */
+	u32 link_speed_mbps;
+
 	enum virtchnl_ops current_op;
 #define CLIENT_ALLOWED(_a) ((_a)->vf_res ? \
 			    (_a)->vf_res->vf_cap_flags & \
@@ -322,6 +334,8 @@ struct iavf_adapter {
 			VIRTCHNL_VF_OFFLOAD_RSS_PF)))
 #define VLAN_ALLOWED(_a) ((_a)->vf_res->vf_cap_flags & \
 			  VIRTCHNL_VF_OFFLOAD_VLAN)
+#define ADV_LINK_SUPPORT(_a) ((_a)->vf_res->vf_cap_flags & \
+			      VIRTCHNL_VF_CAP_ADV_LINK_SPEED)
 	struct virtchnl_vf_resource *vf_res; /* incl. all VSIs */
 	struct virtchnl_vsi_resource *vsi_res; /* our LAN VSI */
 	struct virtchnl_version_info pf_version;
