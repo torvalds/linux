@@ -2107,18 +2107,16 @@ static int __maybe_unused qca_suspend(struct device *dev)
 	/* Wait for HCI_IBS_SLEEP_IND sent by device to indicate its Tx is going
 	 * to sleep, so that the packet does not wake the system later.
 	 */
-
 	ret = wait_event_interruptible_timeout(qca->suspend_wait_q,
 			qca->rx_ibs_state == HCI_IBS_RX_ASLEEP,
 			msecs_to_jiffies(IBS_BTSOC_TX_IDLE_TIMEOUT_MS));
-
-	if (ret > 0) {
-		qca_wq_serial_tx_clock_vote_off(&qca->ws_tx_vote_off);
-		return 0;
+	if (ret == 0) {
+		ret = -ETIMEDOUT;
+		goto error;
 	}
 
-	if (ret == 0)
-		ret = -ETIMEDOUT;
+	qca_wq_serial_tx_clock_vote_off(&qca->ws_tx_vote_off);
+	return 0;
 
 error:
 	clear_bit(QCA_SUSPENDING, &qca->flags);
