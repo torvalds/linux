@@ -1199,8 +1199,6 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 
 	if (obj->funcs && obj->funcs->print_info)
 		obj->funcs->print_info(p, indent, obj);
-	else if (obj->dev->driver->gem_print_info)
-		obj->dev->driver->gem_print_info(p, indent, obj);
 }
 
 int drm_gem_pin(struct drm_gem_object *obj)
