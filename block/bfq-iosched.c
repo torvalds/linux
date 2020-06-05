@@ -5278,8 +5278,16 @@ static void bfq_update_io_thinktime(struct bfq_data *bfqd,
 				    struct bfq_queue *bfqq)
 {
 	struct bfq_ttime *ttime = &bfqq->ttime;
-	u64 elapsed = ktime_get_ns() - bfqq->ttime.last_end_request;
+	u64 elapsed;
 
+	/*
+	 * We are really interested in how long it takes for the queue to
+	 * become busy when there is no outstanding IO for this queue. So
+	 * ignore cases when the bfq queue has already IO queued.
+	 */
+	if (bfqq->dispatched || bfq_bfqq_busy(bfqq))
+		return;
+	elapsed = ktime_get_ns() - bfqq->ttime.last_end_request;
 	elapsed = min_t(u64, elapsed, 2ULL * bfqd->bfq_slice_idle);
 
 	ttime->ttime_samples = (7*ttime->ttime_samples + 256) / 8;
