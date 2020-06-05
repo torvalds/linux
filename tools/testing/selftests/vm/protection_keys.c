@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Tests x86 Memory Protection Keys (see Documentation/core-api/protection-keys.rst)
+ * Tests Memory Protection Keys (see Documentation/vm/protection-keys.txt)
  *
  * There are examples in here of:
  *  * how to set protection keys on memory
- *  * how to set/clear bits in PKRU (the rights register)
- *  * how to handle SEGV_PKRU signals and extract pkey-relevant
+ *  * how to set/clear bits in pkey registers (the rights register)
+ *  * how to handle SEGV_PKUERR signals and extract pkey-relevant
  *    information from the siginfo
  *
  * Things to add:
@@ -22,8 +22,10 @@
  *	gcc -m32 -o protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall protection_keys.c -lrt -ldl -lm
  */
 #define _GNU_SOURCE
+#define __SANE_USERSPACE_TYPES__
 #include <errno.h>
 #include <linux/futex.h>
+#include <time.h>
 #include <sys/time.h>
 #include <sys/syscall.h>
 #include <string.h>
@@ -48,33 +50,9 @@
 int iteration_nr = 1;
 int test_nr;
 
-unsigned int shadow_pkru;
-
-#define HPAGE_SIZE	(1UL<<21)
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
-#define ALIGN_UP(x, align_to)	(((x) + ((align_to)-1)) & ~((align_to)-1))
-#define ALIGN_DOWN(x, align_to) ((x) & ~((align_to)-1))
-#define ALIGN_PTR_UP(p, ptr_align_to)	((typeof(p))ALIGN_UP((unsigned long)(p),	ptr_align_to))
-#define ALIGN_PTR_DOWN(p, ptr_align_to)	((typeof(p))ALIGN_DOWN((unsigned long)(p),	ptr_align_to))
-#define __stringify_1(x...)     #x
-#define __stringify(x...)       __stringify_1(x)
-
-#define PTR_ERR_ENOTSUP ((void *)-ENOTSUP)
-
+u64 shadow_pkey_reg;
 int dprint_in_signal;
 char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
-
-extern void abort_hooks(void);
-#define pkey_assert(condition) do {		\
-	if (!(condition)) {			\
-		dprintf0("assert() at %s::%d test_nr: %d iteration: %d\n", \
-				__FILE__, __LINE__,	\
-				test_nr, iteration_nr);	\
-		dprintf0("errno at assert: %d", errno);	\
-		abort_hooks();			\
-		exit(__LINE__);			\
-	}					\
-} while (0)
 
 void cat_into_file(char *str, char *file)
 {
@@ -158,12 +136,6 @@ void abort_hooks(void)
 #endif
 }
 
-static inline void __page_o_noops(void)
-{
-	/* 8-bytes of instruction * 512 bytes = 1 page */
-	asm(".rept 512 ; nopl 0x7eeeeeee(%eax) ; .endr");
-}
-
 /*
  * This attempts to have roughly a page of instructions followed by a few
  * instructions that do a write, and another page of instructions.  That
@@ -174,7 +146,12 @@ static inline void __page_o_noops(void)
  * will then fault, which makes sure that the fault code handles
  * execute-only memory properly.
  */
+#ifdef __powerpc64__
+/* This way, both 4K and 64K alignment are maintained */
+__attribute__((__aligned__(65536)))
+#else
 __attribute__((__aligned__(PAGE_SIZE)))
+#endif
 void lots_o_noops_around_write(int *write_to_me)
 {
 	dprintf3("running %s()\n", __func__);
@@ -186,42 +163,6 @@ void lots_o_noops_around_write(int *write_to_me)
 	dprintf3("%s() done\n", __func__);
 }
 
-/* Define some kernel-like types */
-#define  u8 uint8_t
-#define u16 uint16_t
-#define u32 uint32_t
-#define u64 uint64_t
-
-#ifdef __i386__
-
-#ifndef SYS_mprotect_key
-# define SYS_mprotect_key	380
-#endif
-
-#ifndef SYS_pkey_alloc
-# define SYS_pkey_alloc		381
-# define SYS_pkey_free		382
-#endif
-
-#define REG_IP_IDX		REG_EIP
-#define si_pkey_offset		0x14
-
-#else
-
-#ifndef SYS_mprotect_key
-# define SYS_mprotect_key	329
-#endif
-
-#ifndef SYS_pkey_alloc
-# define SYS_pkey_alloc		330
-# define SYS_pkey_free		331
-#endif
-
-#define REG_IP_IDX		REG_RIP
-#define si_pkey_offset		0x20
-
-#endif
-
 void dump_mem(void *dumpme, int len_bytes)
 {
 	char *c = (void *)dumpme;
@@ -229,8 +170,127 @@ void dump_mem(void *dumpme, int len_bytes)
 
 	for (i = 0; i < len_bytes; i += sizeof(u64)) {
 		u64 *ptr = (u64 *)(c + i);
-		dprintf1("dump[%03d][@%p]: %016jx\n", i, ptr, *ptr);
+		dprintf1("dump[%03d][@%p]: %016llx\n", i, ptr, *ptr);
 	}
+}
+
+static u32 hw_pkey_get(int pkey, unsigned long flags)
+{
+	u64 pkey_reg = __read_pkey_reg();
+
+	dprintf1("%s(pkey=%d, flags=%lx) = %x / %d\n",
+			__func__, pkey, flags, 0, 0);
+	dprintf2("%s() raw pkey_reg: %016llx\n", __func__, pkey_reg);
+
+	return (u32) get_pkey_bits(pkey_reg, pkey);
+}
+
+static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
+{
+	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
+	u64 old_pkey_reg = __read_pkey_reg();
+	u64 new_pkey_reg;
+
+	/* make sure that 'rights' only contains the bits we expect: */
+	assert(!(rights & ~mask));
+
+	/* modify bits accordingly in old pkey_reg and assign it */
+	new_pkey_reg = set_pkey_bits(old_pkey_reg, pkey, rights);
+
+	__write_pkey_reg(new_pkey_reg);
+
+	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x"
+		" pkey_reg now: %016llx old_pkey_reg: %016llx\n",
+		__func__, pkey, rights, flags, 0, __read_pkey_reg(),
+		old_pkey_reg);
+	return 0;
+}
+
+void pkey_disable_set(int pkey, int flags)
+{
+	unsigned long syscall_flags = 0;
+	int ret;
+	int pkey_rights;
+	u64 orig_pkey_reg = read_pkey_reg();
+
+	dprintf1("START->%s(%d, 0x%x)\n", __func__,
+		pkey, flags);
+	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+
+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
+
+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+			pkey, pkey, pkey_rights);
+
+	pkey_assert(pkey_rights >= 0);
+
+	pkey_rights |= flags;
+
+	ret = hw_pkey_set(pkey, pkey_rights, syscall_flags);
+	assert(!ret);
+	/* pkey_reg and flags have the same format */
+	shadow_pkey_reg = set_pkey_bits(shadow_pkey_reg, pkey, pkey_rights);
+	dprintf1("%s(%d) shadow: 0x%016llx\n",
+		__func__, pkey, shadow_pkey_reg);
+
+	pkey_assert(ret >= 0);
+
+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+			pkey, pkey, pkey_rights);
+
+	dprintf1("%s(%d) pkey_reg: 0x%016llx\n",
+		__func__, pkey, read_pkey_reg());
+	if (flags)
+		pkey_assert(read_pkey_reg() >= orig_pkey_reg);
+	dprintf1("END<---%s(%d, 0x%x)\n", __func__,
+		pkey, flags);
+}
+
+void pkey_disable_clear(int pkey, int flags)
+{
+	unsigned long syscall_flags = 0;
+	int ret;
+	int pkey_rights = hw_pkey_get(pkey, syscall_flags);
+	u64 orig_pkey_reg = read_pkey_reg();
+
+	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
+
+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+			pkey, pkey, pkey_rights);
+	pkey_assert(pkey_rights >= 0);
+
+	pkey_rights &= ~flags;
+
+	ret = hw_pkey_set(pkey, pkey_rights, 0);
+	shadow_pkey_reg = set_pkey_bits(shadow_pkey_reg, pkey, pkey_rights);
+	pkey_assert(ret >= 0);
+
+	pkey_rights = hw_pkey_get(pkey, syscall_flags);
+	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
+			pkey, pkey, pkey_rights);
+
+	dprintf1("%s(%d) pkey_reg: 0x%016llx\n", __func__,
+			pkey, read_pkey_reg());
+	if (flags)
+		assert(read_pkey_reg() <= orig_pkey_reg);
+}
+
+void pkey_write_allow(int pkey)
+{
+	pkey_disable_clear(pkey, PKEY_DISABLE_WRITE);
+}
+void pkey_write_deny(int pkey)
+{
+	pkey_disable_set(pkey, PKEY_DISABLE_WRITE);
+}
+void pkey_access_allow(int pkey)
+{
+	pkey_disable_clear(pkey, PKEY_DISABLE_ACCESS);
+}
+void pkey_access_deny(int pkey)
+{
+	pkey_disable_set(pkey, PKEY_DISABLE_ACCESS);
 }
 
 /* Failed address bound checks: */
@@ -255,7 +315,7 @@ static char *si_code_str(int si_code)
 	return "UNKNOWN";
 }
 
-int pkru_faults;
+int pkey_faults;
 int last_si_pkey = -1;
 void signal_handler(int signum, siginfo_t *si, void *vucontext)
 {
@@ -263,24 +323,28 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	int trapno;
 	unsigned long ip;
 	char *fpregs;
-	u32 *pkru_ptr;
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+	u32 *pkey_reg_ptr;
+	int pkey_reg_offset;
+#endif /* arch */
 	u64 siginfo_pkey;
 	u32 *si_pkey_ptr;
-	int pkru_offset;
-	fpregset_t fpregset;
 
 	dprint_in_signal = 1;
 	dprintf1(">>>>===============SIGSEGV============================\n");
-	dprintf1("%s()::%d, pkru: 0x%x shadow: %x\n", __func__, __LINE__,
-			__rdpkru(), shadow_pkru);
+	dprintf1("%s()::%d, pkey_reg: 0x%016llx shadow: %016llx\n",
+			__func__, __LINE__,
+			__read_pkey_reg(), shadow_pkey_reg);
 
 	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
 	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
-	fpregset = uctxt->uc_mcontext.fpregs;
-	fpregs = (void *)fpregset;
+	fpregs = (char *) uctxt->uc_mcontext.fpregs;
 
-	dprintf2("%s() trapno: %d ip: 0x%lx info->si_code: %s/%d\n", __func__,
-			trapno, ip, si_code_str(si->si_code), si->si_code);
+	dprintf2("%s() trapno: %d ip: 0x%016lx info->si_code: %s/%d\n",
+			__func__, trapno, ip, si_code_str(si->si_code),
+			si->si_code);
+
+#if defined(__i386__) || defined(__x86_64__) /* arch */
 #ifdef __i386__
 	/*
 	 * 32-bit has some extra padding so that userspace can tell whether
@@ -288,20 +352,22 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 	 * state.  We just assume that it is here.
 	 */
 	fpregs += 0x70;
-#endif
-	pkru_offset = pkru_xstate_offset();
-	pkru_ptr = (void *)(&fpregs[pkru_offset]);
+#endif /* i386 */
+	pkey_reg_offset = pkey_reg_xstate_offset();
+	pkey_reg_ptr = (void *)(&fpregs[pkey_reg_offset]);
+
+	/*
+	 * If we got a PKEY fault, we *HAVE* to have at least one bit set in
+	 * here.
+	 */
+	dprintf1("pkey_reg_xstate_offset: %d\n", pkey_reg_xstate_offset());
+	if (DEBUG_LEVEL > 4)
+		dump_mem(pkey_reg_ptr - 128, 256);
+	pkey_assert(*pkey_reg_ptr);
+#endif /* arch */
 
 	dprintf1("siginfo: %p\n", si);
 	dprintf1(" fpregs: %p\n", fpregs);
-	/*
-	 * If we got a PKRU fault, we *HAVE* to have at least one bit set in
-	 * here.
-	 */
-	dprintf1("pkru_xstate_offset: %d\n", pkru_xstate_offset());
-	if (DEBUG_LEVEL > 4)
-		dump_mem(pkru_ptr - 128, 256);
-	pkey_assert(*pkru_ptr);
 
 	if ((si->si_code == SEGV_MAPERR) ||
 	    (si->si_code == SEGV_ACCERR) ||
@@ -310,20 +376,29 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
 		exit(4);
 	}
 
-	si_pkey_ptr = (u32 *)(((u8 *)si) + si_pkey_offset);
+	si_pkey_ptr = siginfo_get_pkey_ptr(si);
 	dprintf1("si_pkey_ptr: %p\n", si_pkey_ptr);
 	dump_mem((u8 *)si_pkey_ptr - 8, 24);
 	siginfo_pkey = *si_pkey_ptr;
 	pkey_assert(siginfo_pkey < NR_PKEYS);
 	last_si_pkey = siginfo_pkey;
 
-	dprintf1("signal pkru from xsave: %08x\n", *pkru_ptr);
-	/* need __rdpkru() version so we do not do shadow_pkru checking */
-	dprintf1("signal pkru from  pkru: %08x\n", __rdpkru());
-	dprintf1("pkey from siginfo: %jx\n", siginfo_pkey);
-	*(u64 *)pkru_ptr = 0x00000000;
-	dprintf1("WARNING: set PRKU=0 to allow faulting instruction to continue\n");
-	pkru_faults++;
+	/*
+	 * need __read_pkey_reg() version so we do not do shadow_pkey_reg
+	 * checking
+	 */
+	dprintf1("signal pkey_reg from  pkey_reg: %016llx\n",
+			__read_pkey_reg());
+	dprintf1("pkey from siginfo: %016llx\n", siginfo_pkey);
+#if defined(__i386__) || defined(__x86_64__) /* arch */
+	dprintf1("signal pkey_reg from xsave: %08x\n", *pkey_reg_ptr);
+	*(u64 *)pkey_reg_ptr = 0x00000000;
+	dprintf1("WARNING: set PKEY_REG=0 to allow faulting instruction to continue\n");
+#elif defined(__powerpc64__) /* arch */
+	/* restore access and let the faulting instruction continue */
+	pkey_access_allow(siginfo_pkey);
+#endif /* arch */
+	pkey_faults++;
 	dprintf1("<<<<==================================================\n");
 	dprint_in_signal = 0;
 }
@@ -391,143 +466,6 @@ pid_t fork_lazy_child(void)
 	return forkret;
 }
 
-#ifndef PKEY_DISABLE_ACCESS
-# define PKEY_DISABLE_ACCESS	0x1
-#endif
-
-#ifndef PKEY_DISABLE_WRITE
-# define PKEY_DISABLE_WRITE	0x2
-#endif
-
-static u32 hw_pkey_get(int pkey, unsigned long flags)
-{
-	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
-	u32 pkru = __rdpkru();
-	u32 shifted_pkru;
-	u32 masked_pkru;
-
-	dprintf1("%s(pkey=%d, flags=%lx) = %x / %d\n",
-			__func__, pkey, flags, 0, 0);
-	dprintf2("%s() raw pkru: %x\n", __func__, pkru);
-
-	shifted_pkru = (pkru >> (pkey * PKRU_BITS_PER_PKEY));
-	dprintf2("%s() shifted_pkru: %x\n", __func__, shifted_pkru);
-	masked_pkru = shifted_pkru & mask;
-	dprintf2("%s() masked  pkru: %x\n", __func__, masked_pkru);
-	/*
-	 * shift down the relevant bits to the lowest two, then
-	 * mask off all the other high bits.
-	 */
-	return masked_pkru;
-}
-
-static int hw_pkey_set(int pkey, unsigned long rights, unsigned long flags)
-{
-	u32 mask = (PKEY_DISABLE_ACCESS|PKEY_DISABLE_WRITE);
-	u32 old_pkru = __rdpkru();
-	u32 new_pkru;
-
-	/* make sure that 'rights' only contains the bits we expect: */
-	assert(!(rights & ~mask));
-
-	/* copy old pkru */
-	new_pkru = old_pkru;
-	/* mask out bits from pkey in old value: */
-	new_pkru &= ~(mask << (pkey * PKRU_BITS_PER_PKEY));
-	/* OR in new bits for pkey: */
-	new_pkru |= (rights << (pkey * PKRU_BITS_PER_PKEY));
-
-	__wrpkru(new_pkru);
-
-	dprintf3("%s(pkey=%d, rights=%lx, flags=%lx) = %x pkru now: %x old_pkru: %x\n",
-			__func__, pkey, rights, flags, 0, __rdpkru(), old_pkru);
-	return 0;
-}
-
-void pkey_disable_set(int pkey, int flags)
-{
-	unsigned long syscall_flags = 0;
-	int ret;
-	int pkey_rights;
-	u32 orig_pkru = rdpkru();
-
-	dprintf1("START->%s(%d, 0x%x)\n", __func__,
-		pkey, flags);
-	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
-
-	pkey_rights = hw_pkey_get(pkey, syscall_flags);
-
-	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
-			pkey, pkey, pkey_rights);
-	pkey_assert(pkey_rights >= 0);
-
-	pkey_rights |= flags;
-
-	ret = hw_pkey_set(pkey, pkey_rights, syscall_flags);
-	assert(!ret);
-	/*pkru and flags have the same format */
-	shadow_pkru |= flags << (pkey * 2);
-	dprintf1("%s(%d) shadow: 0x%x\n", __func__, pkey, shadow_pkru);
-
-	pkey_assert(ret >= 0);
-
-	pkey_rights = hw_pkey_get(pkey, syscall_flags);
-	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
-			pkey, pkey, pkey_rights);
-
-	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
-	if (flags)
-		pkey_assert(rdpkru() > orig_pkru);
-	dprintf1("END<---%s(%d, 0x%x)\n", __func__,
-		pkey, flags);
-}
-
-void pkey_disable_clear(int pkey, int flags)
-{
-	unsigned long syscall_flags = 0;
-	int ret;
-	int pkey_rights = hw_pkey_get(pkey, syscall_flags);
-	u32 orig_pkru = rdpkru();
-
-	pkey_assert(flags & (PKEY_DISABLE_ACCESS | PKEY_DISABLE_WRITE));
-
-	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
-			pkey, pkey, pkey_rights);
-	pkey_assert(pkey_rights >= 0);
-
-	pkey_rights |= flags;
-
-	ret = hw_pkey_set(pkey, pkey_rights, 0);
-	/* pkru and flags have the same format */
-	shadow_pkru &= ~(flags << (pkey * 2));
-	pkey_assert(ret >= 0);
-
-	pkey_rights = hw_pkey_get(pkey, syscall_flags);
-	dprintf1("%s(%d) hw_pkey_get(%d): %x\n", __func__,
-			pkey, pkey, pkey_rights);
-
-	dprintf1("%s(%d) pkru: 0x%x\n", __func__, pkey, rdpkru());
-	if (flags)
-		assert(rdpkru() > orig_pkru);
-}
-
-void pkey_write_allow(int pkey)
-{
-	pkey_disable_clear(pkey, PKEY_DISABLE_WRITE);
-}
-void pkey_write_deny(int pkey)
-{
-	pkey_disable_set(pkey, PKEY_DISABLE_WRITE);
-}
-void pkey_access_allow(int pkey)
-{
-	pkey_disable_clear(pkey, PKEY_DISABLE_ACCESS);
-}
-void pkey_access_deny(int pkey)
-{
-	pkey_disable_set(pkey, PKEY_DISABLE_ACCESS);
-}
-
 int sys_mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 		unsigned long pkey)
 {
@@ -561,33 +499,44 @@ int alloc_pkey(void)
 	int ret;
 	unsigned long init_val = 0x0;
 
-	dprintf1("alloc_pkey()::%d, pkru: 0x%x shadow: %x\n",
-			__LINE__, __rdpkru(), shadow_pkru);
+	dprintf1("%s()::%d, pkey_reg: 0x%016llx shadow: %016llx\n",
+			__func__, __LINE__, __read_pkey_reg(), shadow_pkey_reg);
 	ret = sys_pkey_alloc(0, init_val);
 	/*
-	 * pkey_alloc() sets PKRU, so we need to reflect it in
-	 * shadow_pkru:
+	 * pkey_alloc() sets PKEY register, so we need to reflect it in
+	 * shadow_pkey_reg:
 	 */
-	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			" shadow: 0x%016llx\n",
+			__func__, __LINE__, ret, __read_pkey_reg(),
+			shadow_pkey_reg);
 	if (ret) {
 		/* clear both the bits: */
-		shadow_pkru &= ~(0x3      << (ret * 2));
-		dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-				__LINE__, ret, __rdpkru(), shadow_pkru);
+		shadow_pkey_reg = set_pkey_bits(shadow_pkey_reg, ret,
+						~PKEY_MASK);
+		dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+				" shadow: 0x%016llx\n",
+				__func__,
+				__LINE__, ret, __read_pkey_reg(),
+				shadow_pkey_reg);
 		/*
 		 * move the new state in from init_val
-		 * (remember, we cheated and init_val == pkru format)
+		 * (remember, we cheated and init_val == pkey_reg format)
 		 */
-		shadow_pkru |=  (init_val << (ret * 2));
+		shadow_pkey_reg = set_pkey_bits(shadow_pkey_reg, ret,
+						init_val);
 	}
-	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-			__LINE__, ret, __rdpkru(), shadow_pkru);
-	dprintf1("alloc_pkey()::%d errno: %d\n", __LINE__, errno);
+	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			" shadow: 0x%016llx\n",
+			__func__, __LINE__, ret, __read_pkey_reg(),
+			shadow_pkey_reg);
+	dprintf1("%s()::%d errno: %d\n", __func__, __LINE__, errno);
 	/* for shadow checking: */
-	rdpkru();
-	dprintf4("alloc_pkey()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n",
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+	read_pkey_reg();
+	dprintf4("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+		 " shadow: 0x%016llx\n",
+		__func__, __LINE__, ret, __read_pkey_reg(),
+		shadow_pkey_reg);
 	return ret;
 }
 
@@ -612,10 +561,10 @@ int alloc_random_pkey(void)
 	int nr_alloced = 0;
 	int random_index;
 	memset(alloced_pkeys, 0, sizeof(alloced_pkeys));
+	srand((unsigned int)time(NULL));
 
 	/* allocate every possible key and make a note of which ones we got */
 	max_nr_pkey_allocs = NR_PKEYS;
-	max_nr_pkey_allocs = 1;
 	for (i = 0; i < max_nr_pkey_allocs; i++) {
 		int new_pkey = alloc_pkey();
 		if (new_pkey < 0)
@@ -638,8 +587,9 @@ int alloc_random_pkey(void)
 		free_ret = sys_pkey_free(alloced_pkeys[i]);
 		pkey_assert(!free_ret);
 	}
-	dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+	dprintf1("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			 " shadow: 0x%016llx\n", __func__,
+			__LINE__, ret, __read_pkey_reg(), shadow_pkey_reg);
 	return ret;
 }
 
@@ -657,11 +607,15 @@ int mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 		if (nr_iterations-- < 0)
 			break;
 
-		dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+		dprintf1("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			" shadow: 0x%016llx\n",
+			__func__, __LINE__, ret, __read_pkey_reg(),
+			shadow_pkey_reg);
 		sys_pkey_free(rpkey);
-		dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+		dprintf1("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			" shadow: 0x%016llx\n",
+			__func__, __LINE__, ret, __read_pkey_reg(),
+			shadow_pkey_reg);
 	}
 	pkey_assert(pkey < NR_PKEYS);
 
@@ -669,8 +623,9 @@ int mprotect_pkey(void *ptr, size_t size, unsigned long orig_prot,
 	dprintf1("mprotect_pkey(%p, %zx, prot=0x%lx, pkey=%ld) ret: %d\n",
 			ptr, size, orig_prot, pkey, ret);
 	pkey_assert(!ret);
-	dprintf1("%s()::%d, ret: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-			__LINE__, ret, __rdpkru(), shadow_pkru);
+	dprintf1("%s()::%d, ret: %d pkey_reg: 0x%016llx"
+			" shadow: 0x%016llx\n", __func__,
+			__LINE__, ret, __read_pkey_reg(), shadow_pkey_reg);
 	return ret;
 }
 
@@ -752,7 +707,7 @@ void *malloc_pkey_with_mprotect(long size, int prot, u16 pkey)
 	void *ptr;
 	int ret;
 
-	rdpkru();
+	read_pkey_reg();
 	dprintf1("doing %s(size=%ld, prot=0x%x, pkey=%d)\n", __func__,
 			size, prot, pkey);
 	pkey_assert(pkey < NR_PKEYS);
@@ -761,7 +716,7 @@ void *malloc_pkey_with_mprotect(long size, int prot, u16 pkey)
 	ret = mprotect_pkey((void *)ptr, PAGE_SIZE, prot, pkey);
 	pkey_assert(!ret);
 	record_pkey_malloc(ptr, size, prot);
-	rdpkru();
+	read_pkey_reg();
 
 	dprintf1("%s() for pkey %d @ %p\n", __func__, pkey, ptr);
 	return ptr;
@@ -798,12 +753,15 @@ void *malloc_pkey_anon_huge(long size, int prot, u16 pkey)
 }
 
 int hugetlb_setup_ok;
+#define SYSFS_FMT_NR_HUGE_PAGES "/sys/kernel/mm/hugepages/hugepages-%ldkB/nr_hugepages"
 #define GET_NR_HUGE_PAGES 10
 void setup_hugetlbfs(void)
 {
 	int err;
 	int fd;
-	char buf[] = "123";
+	char buf[256];
+	long hpagesz_kb;
+	long hpagesz_mb;
 
 	if (geteuid() != 0) {
 		fprintf(stderr, "WARNING: not run as root, can not do hugetlb test\n");
@@ -814,11 +772,16 @@ void setup_hugetlbfs(void)
 
 	/*
 	 * Now go make sure that we got the pages and that they
-	 * are 2M pages.  Someone might have made 1G the default.
+	 * are PMD-level pages. Someone might have made PUD-level
+	 * pages the default.
 	 */
-	fd = open("/sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages", O_RDONLY);
+	hpagesz_kb = HPAGE_SIZE / 1024;
+	hpagesz_mb = hpagesz_kb / 1024;
+	sprintf(buf, SYSFS_FMT_NR_HUGE_PAGES, hpagesz_kb);
+	fd = open(buf, O_RDONLY);
 	if (fd < 0) {
-		perror("opening sysfs 2M hugetlb config");
+		fprintf(stderr, "opening sysfs %ldM hugetlb config: %s\n",
+			hpagesz_mb, strerror(errno));
 		return;
 	}
 
@@ -826,13 +789,14 @@ void setup_hugetlbfs(void)
 	err = read(fd, buf, sizeof(buf)-1);
 	close(fd);
 	if (err <= 0) {
-		perror("reading sysfs 2M hugetlb config");
+		fprintf(stderr, "reading sysfs %ldM hugetlb config: %s\n",
+			hpagesz_mb, strerror(errno));
 		return;
 	}
 
 	if (atoi(buf) != GET_NR_HUGE_PAGES) {
-		fprintf(stderr, "could not confirm 2M pages, got: '%s' expected %d\n",
-			buf, GET_NR_HUGE_PAGES);
+		fprintf(stderr, "could not confirm %ldM pages, got: '%s' expected %d\n",
+			hpagesz_mb, buf, GET_NR_HUGE_PAGES);
 		return;
 	}
 
@@ -886,6 +850,7 @@ void *malloc_pkey_mmap_dax(long size, int prot, u16 pkey)
 void *(*pkey_malloc[])(long size, int prot, u16 pkey) = {
 
 	malloc_pkey_with_mprotect,
+	malloc_pkey_with_mprotect_subpage,
 	malloc_pkey_anon_huge,
 	malloc_pkey_hugetlb
 /* can not do direct with the pkey_mprotect() API:
@@ -924,14 +889,14 @@ void *malloc_pkey(long size, int prot, u16 pkey)
 	return ret;
 }
 
-int last_pkru_faults;
+int last_pkey_faults;
 #define UNKNOWN_PKEY -2
-void expected_pk_fault(int pkey)
+void expected_pkey_fault(int pkey)
 {
-	dprintf2("%s(): last_pkru_faults: %d pkru_faults: %d\n",
-			__func__, last_pkru_faults, pkru_faults);
+	dprintf2("%s(): last_pkey_faults: %d pkey_faults: %d\n",
+			__func__, last_pkey_faults, pkey_faults);
 	dprintf2("%s(%d): last_si_pkey: %d\n", __func__, pkey, last_si_pkey);
-	pkey_assert(last_pkru_faults + 1 == pkru_faults);
+	pkey_assert(last_pkey_faults + 1 == pkey_faults);
 
        /*
 	* For exec-only memory, we do not know the pkey in
@@ -940,24 +905,28 @@ void expected_pk_fault(int pkey)
 	if (pkey != UNKNOWN_PKEY)
 		pkey_assert(last_si_pkey == pkey);
 
+#if defined(__i386__) || defined(__x86_64__) /* arch */
 	/*
-	 * The signal handler shold have cleared out PKRU to let the
+	 * The signal handler shold have cleared out PKEY register to let the
 	 * test program continue.  We now have to restore it.
 	 */
-	if (__rdpkru() != 0)
+	if (__read_pkey_reg() != 0)
+#else /* arch */
+	if (__read_pkey_reg() != shadow_pkey_reg)
+#endif /* arch */
 		pkey_assert(0);
 
-	__wrpkru(shadow_pkru);
-	dprintf1("%s() set PKRU=%x to restore state after signal nuked it\n",
-			__func__, shadow_pkru);
-	last_pkru_faults = pkru_faults;
+	__write_pkey_reg(shadow_pkey_reg);
+	dprintf1("%s() set pkey_reg=%016llx to restore state after signal "
+		       "nuked it\n", __func__, shadow_pkey_reg);
+	last_pkey_faults = pkey_faults;
 	last_si_pkey = -1;
 }
 
-#define do_not_expect_pk_fault(msg)	do {			\
-	if (last_pkru_faults != pkru_faults)			\
-		dprintf0("unexpected PK fault: %s\n", msg);	\
-	pkey_assert(last_pkru_faults == pkru_faults);		\
+#define do_not_expect_pkey_fault(msg)	do {			\
+	if (last_pkey_faults != pkey_faults)			\
+		dprintf0("unexpected PKey fault: %s\n", msg);	\
+	pkey_assert(last_pkey_faults == pkey_faults);		\
 } while (0)
 
 int test_fds[10] = { -1 };
@@ -1000,6 +969,58 @@ __attribute__((noinline)) int read_ptr(int *ptr)
 	return *ptr;
 }
 
+void test_pkey_alloc_free_attach_pkey0(int *ptr, u16 pkey)
+{
+	int i, err;
+	int max_nr_pkey_allocs;
+	int alloced_pkeys[NR_PKEYS];
+	int nr_alloced = 0;
+	long size;
+
+	pkey_assert(pkey_last_malloc_record);
+	size = pkey_last_malloc_record->size;
+	/*
+	 * This is a bit of a hack.  But mprotect() requires
+	 * huge-page-aligned sizes when operating on hugetlbfs.
+	 * So, make sure that we use something that's a multiple
+	 * of a huge page when we can.
+	 */
+	if (size >= HPAGE_SIZE)
+		size = HPAGE_SIZE;
+
+	/* allocate every possible key and make sure key-0 never got allocated */
+	max_nr_pkey_allocs = NR_PKEYS;
+	for (i = 0; i < max_nr_pkey_allocs; i++) {
+		int new_pkey = alloc_pkey();
+		pkey_assert(new_pkey != 0);
+
+		if (new_pkey < 0)
+			break;
+		alloced_pkeys[nr_alloced++] = new_pkey;
+	}
+	/* free all the allocated keys */
+	for (i = 0; i < nr_alloced; i++) {
+		int free_ret;
+
+		if (!alloced_pkeys[i])
+			continue;
+		free_ret = sys_pkey_free(alloced_pkeys[i]);
+		pkey_assert(!free_ret);
+	}
+
+	/* attach key-0 in various modes */
+	err = sys_mprotect_pkey(ptr, size, PROT_READ, 0);
+	pkey_assert(!err);
+	err = sys_mprotect_pkey(ptr, size, PROT_WRITE, 0);
+	pkey_assert(!err);
+	err = sys_mprotect_pkey(ptr, size, PROT_EXEC, 0);
+	pkey_assert(!err);
+	err = sys_mprotect_pkey(ptr, size, PROT_READ|PROT_WRITE, 0);
+	pkey_assert(!err);
+	err = sys_mprotect_pkey(ptr, size, PROT_READ|PROT_WRITE|PROT_EXEC, 0);
+	pkey_assert(!err);
+}
+
 void test_read_of_write_disabled_region(int *ptr, u16 pkey)
 {
 	int ptr_contents;
@@ -1015,26 +1036,67 @@ void test_read_of_access_disabled_region(int *ptr, u16 pkey)
 	int ptr_contents;
 
 	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n", pkey, ptr);
-	rdpkru();
+	read_pkey_reg();
 	pkey_access_deny(pkey);
 	ptr_contents = read_ptr(ptr);
 	dprintf1("*ptr: %d\n", ptr_contents);
-	expected_pk_fault(pkey);
+	expected_pkey_fault(pkey);
 }
+
+void test_read_of_access_disabled_region_with_page_already_mapped(int *ptr,
+		u16 pkey)
+{
+	int ptr_contents;
+
+	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n",
+				pkey, ptr);
+	ptr_contents = read_ptr(ptr);
+	dprintf1("reading ptr before disabling the read : %d\n",
+			ptr_contents);
+	read_pkey_reg();
+	pkey_access_deny(pkey);
+	ptr_contents = read_ptr(ptr);
+	dprintf1("*ptr: %d\n", ptr_contents);
+	expected_pkey_fault(pkey);
+}
+
+void test_write_of_write_disabled_region_with_page_already_mapped(int *ptr,
+		u16 pkey)
+{
+	*ptr = __LINE__;
+	dprintf1("disabling write access; after accessing the page, "
+		"to PKEY[%02d], doing write\n", pkey);
+	pkey_write_deny(pkey);
+	*ptr = __LINE__;
+	expected_pkey_fault(pkey);
+}
+
 void test_write_of_write_disabled_region(int *ptr, u16 pkey)
 {
 	dprintf1("disabling write access to PKEY[%02d], doing write\n", pkey);
 	pkey_write_deny(pkey);
 	*ptr = __LINE__;
-	expected_pk_fault(pkey);
+	expected_pkey_fault(pkey);
 }
 void test_write_of_access_disabled_region(int *ptr, u16 pkey)
 {
 	dprintf1("disabling access to PKEY[%02d], doing write\n", pkey);
 	pkey_access_deny(pkey);
 	*ptr = __LINE__;
-	expected_pk_fault(pkey);
+	expected_pkey_fault(pkey);
 }
+
+void test_write_of_access_disabled_region_with_page_already_mapped(int *ptr,
+			u16 pkey)
+{
+	*ptr = __LINE__;
+	dprintf1("disabling access; after accessing the page, "
+		" to PKEY[%02d], doing write\n", pkey);
+	pkey_access_deny(pkey);
+	*ptr = __LINE__;
+	expected_pkey_fault(pkey);
+}
+
 void test_kernel_write_of_access_disabled_region(int *ptr, u16 pkey)
 {
 	int ret;
@@ -1160,9 +1222,11 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 		int new_pkey;
 		dprintf1("%s() alloc loop: %d\n", __func__, i);
 		new_pkey = alloc_pkey();
-		dprintf4("%s()::%d, err: %d pkru: 0x%x shadow: 0x%x\n", __func__,
-				__LINE__, err, __rdpkru(), shadow_pkru);
-		rdpkru(); /* for shadow checking */
+		dprintf4("%s()::%d, err: %d pkey_reg: 0x%016llx"
+				" shadow: 0x%016llx\n",
+				__func__, __LINE__, err, __read_pkey_reg(),
+				shadow_pkey_reg);
+		read_pkey_reg(); /* for shadow checking */
 		dprintf2("%s() errno: %d ENOSPC: %d\n", __func__, errno, ENOSPC);
 		if ((new_pkey == -1) && (errno == ENOSPC)) {
 			dprintf2("%s() failed to allocate pkey after %d tries\n",
@@ -1188,6 +1252,7 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 	dprintf3("%s()::%d\n", __func__, __LINE__);
 
 	/*
+	 * On x86:
 	 * There are 16 pkeys supported in hardware.  Three are
 	 * allocated by the time we get here:
 	 *   1. The default key (0)
@@ -1195,13 +1260,21 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
 	 *   3. One allocated by the test code and passed in via
 	 *      'pkey' to this function.
 	 * Ensure that we can allocate at least another 13 (16-3).
+	 *
+	 * On powerpc:
+	 * There are either 5, 28, 29 or 32 pkeys supported in
+	 * hardware depending on the page size (4K or 64K) and
+	 * platform (powernv or powervm). Four are allocated by
+	 * the time we get here. These include pkey-0, pkey-1,
+	 * exec-only pkey and the one allocated by the test code.
+	 * Ensure that we can allocate the remaining.
 	 */
-	pkey_assert(i >= NR_PKEYS-3);
+	pkey_assert(i >= (NR_PKEYS - get_arch_reserved_keys() - 1));
 
 	for (i = 0; i < nr_allocated_pkeys; i++) {
 		err = sys_pkey_free(allocated_pkeys[i]);
 		pkey_assert(!err);
-		rdpkru(); /* for shadow checking */
+		read_pkey_reg(); /* for shadow checking */
 	}
 }
 
@@ -1287,7 +1360,7 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 	pkey_assert(ret != -1);
 	/* Now access from the current task, and expect an exception: */
 	peek_result = read_ptr(ptr);
-	expected_pk_fault(pkey);
+	expected_pkey_fault(pkey);
 
 	/*
 	 * Try to access the NON-pkey-protected "plain_ptr" via ptrace:
@@ -1297,7 +1370,7 @@ void test_ptrace_of_child(int *ptr, u16 pkey)
 	pkey_assert(ret != -1);
 	/* Now access from the current task, and expect NO exception: */
 	peek_result = read_ptr(plain_ptr);
-	do_not_expect_pk_fault("read plain pointer after ptrace");
+	do_not_expect_pkey_fault("read plain pointer after ptrace");
 
 	ret = ptrace(PTRACE_DETACH, child_pid, ignored, 0);
 	pkey_assert(ret != -1);
@@ -1347,17 +1420,15 @@ void test_executing_on_unreadable_memory(int *ptr, u16 pkey)
 	pkey_assert(!ret);
 	pkey_access_deny(pkey);
 
-	dprintf2("pkru: %x\n", rdpkru());
+	dprintf2("pkey_reg: %016llx\n", read_pkey_reg());
 
 	/*
 	 * Make sure this is an *instruction* fault
 	 */
 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
 	lots_o_noops_around_write(&scratch);
-	do_not_expect_pk_fault("executing on PROT_EXEC memory");
-	ptr_contents = read_ptr(p1);
-	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-	expected_pk_fault(pkey);
+	do_not_expect_pkey_fault("executing on PROT_EXEC memory");
+	expect_fault_on_read_execonly_key(p1, pkey);
 }
 
 void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
@@ -1378,15 +1449,13 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	ret = mprotect(p1, PAGE_SIZE, PROT_EXEC);
 	pkey_assert(!ret);
 
-	dprintf2("pkru: %x\n", rdpkru());
+	dprintf2("pkey_reg: %016llx\n", read_pkey_reg());
 
 	/* Make sure this is an *instruction* fault */
 	madvise(p1, PAGE_SIZE, MADV_DONTNEED);
 	lots_o_noops_around_write(&scratch);
-	do_not_expect_pk_fault("executing on PROT_EXEC memory");
-	ptr_contents = read_ptr(p1);
-	dprintf2("ptr (%p) contents@%d: %x\n", p1, __LINE__, ptr_contents);
-	expected_pk_fault(UNKNOWN_PKEY);
+	do_not_expect_pkey_fault("executing on PROT_EXEC memory");
+	expect_fault_on_read_execonly_key(p1, UNKNOWN_PKEY);
 
 	/*
 	 * Put the memory back to non-PROT_EXEC.  Should clear the
@@ -1400,7 +1469,7 @@ void test_implicit_mprotect_exec_only_memory(int *ptr, u16 pkey)
 	ret = mprotect(p1, PAGE_SIZE, PROT_READ|PROT_EXEC);
 	pkey_assert(!ret);
 	ptr_contents = read_ptr(p1);
-	do_not_expect_pk_fault("plain read on recently PROT_EXEC area");
+	do_not_expect_pkey_fault("plain read on recently PROT_EXEC area");
 }
 
 void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
@@ -1408,7 +1477,7 @@ void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
 	int size = PAGE_SIZE;
 	int sret;
 
-	if (cpu_has_pku()) {
+	if (cpu_has_pkeys()) {
 		dprintf1("SKIP: %s: no CPU support\n", __func__);
 		return;
 	}
@@ -1420,8 +1489,11 @@ void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
 void (*pkey_tests[])(int *ptr, u16 pkey) = {
 	test_read_of_write_disabled_region,
 	test_read_of_access_disabled_region,
+	test_read_of_access_disabled_region_with_page_already_mapped,
 	test_write_of_write_disabled_region,
+	test_write_of_write_disabled_region_with_page_already_mapped,
 	test_write_of_access_disabled_region,
+	test_write_of_access_disabled_region_with_page_already_mapped,
 	test_kernel_write_of_access_disabled_region,
 	test_kernel_write_of_write_disabled_region,
 	test_kernel_gup_of_access_disabled_region,
@@ -1433,6 +1505,7 @@ void (*pkey_tests[])(int *ptr, u16 pkey) = {
 	test_pkey_syscalls_on_non_allocated_pkey,
 	test_pkey_syscalls_bad_args,
 	test_pkey_alloc_exhaust,
+	test_pkey_alloc_free_attach_pkey0,
 };
 
 void run_tests_once(void)
@@ -1442,7 +1515,7 @@ void run_tests_once(void)
 
 	for (test_nr = 0; test_nr < ARRAY_SIZE(pkey_tests); test_nr++) {
 		int pkey;
-		int orig_pkru_faults = pkru_faults;
+		int orig_pkey_faults = pkey_faults;
 
 		dprintf1("======================\n");
 		dprintf1("test %d preparing...\n", test_nr);
@@ -1457,8 +1530,8 @@ void run_tests_once(void)
 		free_pkey_malloc(ptr);
 		sys_pkey_free(pkey);
 
-		dprintf1("pkru_faults: %d\n", pkru_faults);
-		dprintf1("orig_pkru_faults: %d\n", orig_pkru_faults);
+		dprintf1("pkey_faults: %d\n", pkey_faults);
+		dprintf1("orig_pkey_faults: %d\n", orig_pkey_faults);
 
 		tracing_off();
 		close_test_fds();
@@ -1471,18 +1544,19 @@ void run_tests_once(void)
 
 void pkey_setup_shadow(void)
 {
-	shadow_pkru = __rdpkru();
+	shadow_pkey_reg = __read_pkey_reg();
 }
 
 int main(void)
 {
 	int nr_iterations = 22;
+	int pkeys_supported = is_pkeys_supported();
 
 	setup_handlers();
 
-	printf("has pku: %d\n", cpu_has_pku());
+	printf("has pkeys: %d\n", pkeys_supported);
 
-	if (!cpu_has_pku()) {
+	if (!pkeys_supported) {
 		int size = PAGE_SIZE;
 		int *ptr;
 
@@ -1495,7 +1569,7 @@ int main(void)
 	}
 
 	pkey_setup_shadow();
-	printf("startup pkru: %x\n", rdpkru());
+	printf("startup pkey_reg: %016llx\n", read_pkey_reg());
 	setup_hugetlbfs();
 
 	while (nr_iterations-- > 0)

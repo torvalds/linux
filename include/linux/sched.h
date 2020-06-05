@@ -1247,6 +1247,9 @@ struct task_struct {
 
 	/* KCOV sequence number: */
 	int				kcov_sequence;
+
+	/* Collect coverage from softirq context: */
+	unsigned int			kcov_softirq;
 #endif
 
 #ifdef CONFIG_MEMCG

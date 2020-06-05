@@ -44,12 +44,12 @@ struct mm_struct;
 #ifdef CONFIG_PPC32
 static inline pmd_t *pmd_ptr(struct mm_struct *mm, unsigned long va)
 {
-	return pmd_offset(pud_offset(pgd_offset(mm, va), va), va);
+	return pmd_offset(pud_offset(p4d_offset(pgd_offset(mm, va), va), va), va);
 }
 
 static inline pmd_t *pmd_ptr_k(unsigned long va)
 {
-	return pmd_offset(pud_offset(pgd_offset_k(va), va), va);
+	return pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va);
 }
 
 static inline pte_t *virt_to_kpte(unsigned long vaddr)
@@ -158,9 +158,9 @@ static inline bool pud_is_leaf(pud_t pud)
 }
 #endif
 
-#ifndef pgd_is_leaf
-#define pgd_is_leaf pgd_is_leaf
-static inline bool pgd_is_leaf(pgd_t pgd)
+#ifndef p4d_is_leaf
+#define p4d_is_leaf p4d_is_leaf
+static inline bool p4d_is_leaf(p4d_t p4d)
 {
 	return false;
 }

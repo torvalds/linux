@@ -98,11 +98,14 @@ void mem_hotplug_done(void)
 u64 max_mem_size = U64_MAX;
 
 /* add this memory to iomem resource */
-static struct resource *register_memory_resource(u64 start, u64 size)
+static struct resource *register_memory_resource(u64 start, u64 size,
+						 const char *resource_name)
 {
 	struct resource *res;
 	unsigned long flags =  IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY;
-	char *resource_name = "System RAM";
+
+	if (strcmp(resource_name, "System RAM"))
+		flags |= IORESOURCE_MEM_DRIVER_MANAGED;
 
 	/*
 	 * Make sure value parsed from 'mem=' only restricts memory adding
@@ -862,10 +865,9 @@ static void reset_node_present_pages(pg_data_t *pgdat)
 }
 
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
-static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
+static pg_data_t __ref *hotadd_new_pgdat(int nid)
 {
 	struct pglist_data *pgdat;
-	unsigned long start_pfn = PFN_DOWN(start);
 
 	pgdat = NODE_DATA(nid);
 	if (!pgdat) {
@@ -895,9 +897,8 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
 	}
 
 	/* we can use NODE_DATA(nid) from here */
-
 	pgdat->node_id = nid;
-	pgdat->node_start_pfn = start_pfn;
+	pgdat->node_start_pfn = 0;
 
 	/* init node's zones as empty zones, we don't have any present pages.*/
 	free_area_init_core_hotplug(nid);
@@ -932,7 +933,6 @@ static void rollback_node_hotadd(int nid)
 /**
  * try_online_node - online a node if offlined
  * @nid: the node ID
- * @start: start addr of the node
  * @set_node_online: Whether we want to online the node
  * called by cpu_up() to online a node without onlined memory.
  *
@@ -941,7 +941,7 @@ static void rollback_node_hotadd(int nid)
  * 0 -> the node is already online
  * -ENOMEM -> the node could not be allocated
  */
-static int __try_online_node(int nid, u64 start, bool set_node_online)
+static int __try_online_node(int nid, bool set_node_online)
 {
 	pg_data_t *pgdat;
 	int ret = 1;
@@ -949,7 +949,7 @@ static int __try_online_node(int nid, u64 start, bool set_node_online)
 	if (node_online(nid))
 		return 0;
 
-	pgdat = hotadd_new_pgdat(nid, start);
+	pgdat = hotadd_new_pgdat(nid);
 	if (!pgdat) {
 		pr_err("Cannot online node %d due to NULL pgdat\n", nid);
 		ret = -ENOMEM;
@@ -973,7 +973,7 @@ int try_online_node(int nid)
 	int ret;
 
 	mem_hotplug_begin();
-	ret =  __try_online_node(nid, 0, true);
+	ret =  __try_online_node(nid, true);
 	mem_hotplug_done();
 	return ret;
 }
@@ -1017,17 +1017,17 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	if (ret)
 		return ret;
 
+	if (!node_possible(nid)) {
+		WARN(1, "node %d was absent from the node_possible_map\n", nid);
+		return -EINVAL;
+	}
+
 	mem_hotplug_begin();
 
-	/*
-	 * Add new range to memblock so that when hotadd_new_pgdat() is called
-	 * to allocate new pgdat, get_pfn_range_for_nid() will be able to find
-	 * this new range and calculate total pages correctly.  The range will
-	 * be removed at hot-remove time.
-	 */
-	memblock_add_node(start, size, nid);
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_add_node(start, size, nid);
 
-	ret = __try_online_node(nid, start, false);
+	ret = __try_online_node(nid, false);
 	if (ret < 0)
 		goto error;
 	new_node = ret;
@@ -1060,7 +1060,8 @@ int __ref add_memory_resource(int nid, struct resource *res)
 	BUG_ON(ret);
 
 	/* create new memmap entry */
-	firmware_map_add_hotplug(start, start + size, "System RAM");
+	if (!strcmp(res->name, "System RAM"))
+		firmware_map_add_hotplug(start, start + size, "System RAM");
 
 	/* device_online() will take the lock when calling online_pages() */
 	mem_hotplug_done();
@@ -1074,7 +1075,8 @@ error:
 	/* rollback pgdat allocation and others */
 	if (new_node)
 		rollback_node_hotadd(nid);
-	memblock_remove(start, size);
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK))
+		memblock_remove(start, size);
 	mem_hotplug_done();
 	return ret;
 }
@@ -1085,7 +1087,7 @@ int __ref __add_memory(int nid, u64 start, u64 size)
 	struct resource *res;
 	int ret;
 
-	res = register_memory_resource(start, size);
+	res = register_memory_resource(start, size, "System RAM");
 	if (IS_ERR(res))
 		return PTR_ERR(res);
 
@@ -1107,82 +1109,57 @@ int add_memory(int nid, u64 start, u64 size)
 }
 EXPORT_SYMBOL_GPL(add_memory);
 
-#ifdef CONFIG_MEMORY_HOTREMOVE
 /*
- * A free page on the buddy free lists (not the per-cpu lists) has PageBuddy
- * set and the size of the free page is given by page_order(). Using this,
- * the function determines if the pageblock contains only free pages.
- * Due to buddy contraints, a free page at least the size of a pageblock will
- * be located at the start of the pageblock
+ * Add special, driver-managed memory to the system as system RAM. Such
+ * memory is not exposed via the raw firmware-provided memmap as system
+ * RAM, instead, it is detected and added by a driver - during cold boot,
+ * after a reboot, and after kexec.
+ *
+ * Reasons why this memory should not be used for the initial memmap of a
+ * kexec kernel or for placing kexec images:
+ * - The booting kernel is in charge of determining how this memory will be
+ *   used (e.g., use persistent memory as system RAM)
+ * - Coordination with a hypervisor is required before this memory
+ *   can be used (e.g., inaccessible parts).
+ *
+ * For this memory, no entries in /sys/firmware/memmap ("raw firmware-provided
+ * memory map") are created. Also, the created memory resource is flagged
+ * with IORESOURCE_MEM_DRIVER_MANAGED, so in-kernel users can special-case
+ * this memory as well (esp., not place kexec images onto it).
+ *
+ * The resource_name (visible via /proc/iomem) has to have the format
+ * "System RAM ($DRIVER)".
  */
-static inline int pageblock_free(struct page *page)
+int add_memory_driver_managed(int nid, u64 start, u64 size,
+			      const char *resource_name)
 {
-	return PageBuddy(page) && page_order(page) >= pageblock_order;
-}
+	struct resource *res;
+	int rc;
 
-/* Return the pfn of the start of the next active pageblock after a given pfn */
-static unsigned long next_active_pageblock(unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
+	if (!resource_name ||
+	    strstr(resource_name, "System RAM (") != resource_name ||
+	    resource_name[strlen(resource_name) - 1] != ')')
+		return -EINVAL;
 
-	/* Ensure the starting page is pageblock-aligned */
-	BUG_ON(pfn & (pageblock_nr_pages - 1));
+	lock_device_hotplug();
 
-	/* If the entire pageblock is free, move to the end of free page */
-	if (pageblock_free(page)) {
-		int order;
-		/* be careful. we don't have locks, page_order can be changed.*/
-		order = page_order(page);
-		if ((order < MAX_ORDER) && (order >= pageblock_order))
-			return pfn + (1 << order);
+	res = register_memory_resource(start, size, resource_name);
+	if (IS_ERR(res)) {
+		rc = PTR_ERR(res);
+		goto out_unlock;
 	}
 
-	return pfn + pageblock_nr_pages;
+	rc = add_memory_resource(nid, res);
+	if (rc < 0)
+		release_memory_resource(res);
+
+out_unlock:
+	unlock_device_hotplug();
+	return rc;
 }
+EXPORT_SYMBOL_GPL(add_memory_driver_managed);
 
-static bool is_pageblock_removable_nolock(unsigned long pfn)
-{
-	struct page *page = pfn_to_page(pfn);
-	struct zone *zone;
-
-	/*
-	 * We have to be careful here because we are iterating over memory
-	 * sections which are not zone aware so we might end up outside of
-	 * the zone but still within the section.
-	 * We have to take care about the node as well. If the node is offline
-	 * its NODE_DATA will be NULL - see page_zone.
-	 */
-	if (!node_online(page_to_nid(page)))
-		return false;
-
-	zone = page_zone(page);
-	pfn = page_to_pfn(page);
-	if (!zone_spans_pfn(zone, pfn))
-		return false;
-
-	return !has_unmovable_pages(zone, page, MIGRATE_MOVABLE,
-				    MEMORY_OFFLINE);
-}
-
-/* Checks if this range of memory is likely to be hot-removable. */
-bool is_mem_section_removable(unsigned long start_pfn, unsigned long nr_pages)
-{
-	unsigned long end_pfn, pfn;
-
-	end_pfn = min(start_pfn + nr_pages,
-			zone_end_pfn(page_zone(pfn_to_page(start_pfn))));
-
-	/* Check the starting page of each pageblock within the range */
-	for (pfn = start_pfn; pfn < end_pfn; pfn = next_active_pageblock(pfn)) {
-		if (!is_pageblock_removable_nolock(pfn))
-			return false;
-		cond_resched();
-	}
-
-	/* All pageblocks in the memory block are likely to be hot-removable */
-	return true;
-}
-
+#ifdef CONFIG_MEMORY_HOTREMOVE
 /*
  * Confirm all pages in a range [start, end) belong to the same zone (skipping
  * memory holes). When true, return the zone.
@@ -1360,7 +1337,7 @@ offline_isolated_pages_cb(unsigned long start, unsigned long nr_pages,
 }
 
 /*
- * Check all pages in range, recoreded as memory resource, are isolated.
+ * Check all pages in range, recorded as memory resource, are isolated.
  */
 static int
 check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
@@ -1746,8 +1723,12 @@ static int __ref try_remove_memory(int nid, u64 start, u64 size)
 	mem_hotplug_begin();
 
 	arch_remove_memory(nid, start, size, NULL);
-	memblock_free(start, size);
-	memblock_remove(start, size);
+
+	if (IS_ENABLED(CONFIG_ARCH_KEEP_MEMBLOCK)) {
+		memblock_free(start, size);
+		memblock_remove(start, size);
+	}
+
 	__release_memory_resource(start, size);
 
 	try_offline_node(nid);
