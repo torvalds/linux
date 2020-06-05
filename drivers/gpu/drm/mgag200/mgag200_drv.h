@@ -196,6 +196,7 @@ void mgag200_driver_unload(struct drm_device *dev);
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
 
+				/* mgag200_mm.c */
 int mgag200_mm_init(struct mga_device *mdev);
 void mgag200_mm_fini(struct mga_device *mdev);
 
