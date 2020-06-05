@@ -12,77 +12,6 @@
 
 #include "mgag200_drv.h"
 
-static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
-{
-	int offset;
-	int orig;
-	int test1, test2;
-	int orig1, orig2;
-	unsigned int vram_size;
-
-	/* Probe */
-	orig = ioread16(mem);
-	iowrite16(0, mem);
-
-	vram_size = mdev->mc.vram_window;
-
-	if ((mdev->type == G200_EW3) && (vram_size >= 0x1000000)) {
-		vram_size = vram_size - 0x400000;
-	}
-
-	for (offset = 0x100000; offset < vram_size; offset += 0x4000) {
-		orig1 = ioread8(mem + offset);
-		orig2 = ioread8(mem + offset + 0x100);
-
-		iowrite16(0xaa55, mem + offset);
-		iowrite16(0xaa55, mem + offset + 0x100);
-
-		test1 = ioread16(mem + offset);
-		test2 = ioread16(mem);
-
-		iowrite16(orig1, mem + offset);
-		iowrite16(orig2, mem + offset + 0x100);
-
-		if (test1 != 0xaa55) {
-			break;
-		}
-
-		if (test2) {
-			break;
-		}
-	}
-
-	iowrite16(orig, mem);
-	return offset - 65536;
-}
-
-/* Map the framebuffer from the card and configure the core */
-static int mga_vram_init(struct mga_device *mdev)
-{
-	struct drm_device *dev = mdev->dev;
-	void __iomem *mem;
-
-	/* BAR 0 is VRAM */
-	mdev->mc.vram_base = pci_resource_start(dev->pdev, 0);
-	mdev->mc.vram_window = pci_resource_len(dev->pdev, 0);
-
-	if (!devm_request_mem_region(dev->dev, mdev->mc.vram_base,
-				     mdev->mc.vram_window, "mgadrmfb_vram")) {
-		DRM_ERROR("can't reserve VRAM\n");
-		return -ENXIO;
-	}
-
-	mem = pci_iomap(dev->pdev, 0, 0);
-	if (!mem)
-		return -ENOMEM;
-
-	mdev->mc.vram_size = mga_probe_vram(mdev, mem);
-
-	pci_iounmap(dev->pdev, mem);
-
-	return 0;
-}
-
 int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct mga_device *mdev;
@@ -120,10 +49,6 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 		drm_dbg(dev, "G200 SE unique revision id is 0x%x\n",
 			mdev->unique_rev_id);
 	}
-
-	ret = mga_vram_init(mdev);
-	if (ret)
-		return ret;
 
 	ret = mgag200_mm_init(mdev);
 	if (ret)
