@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the iWave-RZ/G1H Qseven board
+ *
+ * Copyright (C) 2020 Renesas Electronics Corp.
+ */
+
+/dts-v1/;
+#include "r8a7742-iwg21m.dtsi"
+
+/ {
+	model = "iWave Systems RainboW-G21D-Qseven board based on RZ/G1H";
+	compatible = "iwave,g21d", "iwave,g21m", "renesas,r8a7742";
+
+	aliases {
+		serial2 = &scifa2;
+	};
+
+	chosen {
+		bootargs = "ignore_loglevel root=/dev/mmcblk0p1 rw rootwait";
+		stdout-path = "serial2:115200n8";
+	};
+};
+
+&pfc {
+	scifa2_pins: scifa2 {
+		groups = "scifa2_data_c";
+		function = "scifa2";
+	};
+};
+
+&scifa2 {
+	pinctrl-0 = <&scifa2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};

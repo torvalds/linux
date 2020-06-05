@@ -183,14 +183,14 @@
 				mrvl,intc-nr-irqs = <5>;
 			};
 
-			usb_otg_phy0: usb-otg-phy@d4207000 {
+			usb_otg_phy0: usb-phy@d4207000 {
 				compatible = "marvell,mmp3-usb-phy";
 				reg = <0xd4207000 0x40>;
 				#phy-cells = <0>;
 				status = "disabled";
 			};
 
-			usb_otg0: usb-otg@d4208000 {
+			usb_otg0: usb@d4208000 {
 				compatible = "marvell,pxau2o-ehci";
 				reg = <0xd4208000 0x200>;
 				interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
@@ -201,14 +201,14 @@
 				status = "disabled";
 			};
 
-			hsic_phy0: hsic-phy@f0001800 {
+			hsic_phy0: usb-phy@f0001800 {
 				compatible = "marvell,mmp3-hsic-phy";
 				reg = <0xf0001800 0x40>;
 				#phy-cells = <0>;
 				status = "disabled";
 			};
 
-			hsic0: hsic@f0001000 {
+			hsic0: usb@f0001000 {
 				compatible = "marvell,pxau2o-ehci";
 				reg = <0xf0001000 0x200>;
 				interrupts = <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
@@ -222,14 +222,14 @@
 				status = "disabled";
 			};
 
-			hsic_phy1: hsic-phy@f0002800 {
+			hsic_phy1: usb-phy@f0002800 {
 				compatible = "marvell,mmp3-hsic-phy";
 				reg = <0xf0002800 0x40>;
 				#phy-cells = <0>;
 				status = "disabled";
 			};
 
-			hsic1: hsic@f0002000 {
+			hsic1: usb@f0002000 {
 				compatible = "marvell,pxau2o-ehci";
 				reg = <0xf0002000 0x200>;
 				interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
@@ -276,6 +276,16 @@
 				clocks = <&soc_clocks MMP2_CLK_SDH3>;
 				clock-names = "io";
 				interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+				status = "disabled";
+			};
+
+			mmc5: mmc@d4217000 {
+				compatible = "mrvl,pxav3-mmc";
+				reg = <0xd4217000 0x120>;
+				clocks = <&soc_clocks MMP3_CLK_SDH4>;
+				clock-names = "io";
+				interrupt-parent = <&hsi1_mux>;
+				interrupts = <0>;
 				status = "disabled";
 			};
 
@@ -472,7 +482,7 @@
 			rtc: rtc@d4010000 {
 				compatible = "mrvl,mmp-rtc";
 				reg = <0xd4010000 0x1000>;
-				interrupts = <1 0>;
+				interrupts = <1>, <0>;
 				interrupt-names = "rtc 1Hz", "rtc alarm";
 				interrupt-parent = <&rtc_mux>;
 				clocks = <&soc_clocks MMP2_CLK_RTC>;
@@ -521,7 +531,7 @@
 			};
 		};
 
-		l2: l2-cache-controller@d0020000 {
+		l2: cache-controller@d0020000 {
 			compatible = "marvell,tauros3-cache", "arm,pl310-cache";
 			reg = <0xd0020000 0x1000>;
 			cache-unified;
