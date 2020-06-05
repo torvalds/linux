@@ -734,14 +734,16 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 	struct gpio_chip *gc = &chip->gpio_chip;
 	DECLARE_BITMAP(pending, MAX_LINE);
 	int level;
+	bool ret;
 
-	if (!pca953x_irq_pending(chip, pending))
-		return IRQ_NONE;
+	mutex_lock(&chip->i2c_lock);
+	ret = pca953x_irq_pending(chip, pending);
+	mutex_unlock(&chip->i2c_lock);
 
 	for_each_set_bit(level, pending, gc->ngpio)
 		handle_nested_irq(irq_find_mapping(gc->irq.domain, level));
 
-	return IRQ_HANDLED;
+	return IRQ_RETVAL(ret);
 }
 
 static int pca953x_irq_setup(struct pca953x_chip *chip, int irq_base)
