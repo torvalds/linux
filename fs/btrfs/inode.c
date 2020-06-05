@@ -2281,7 +2281,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	struct extent_state *cached_state = NULL;
 	struct extent_changeset *data_reserved = NULL;
 	struct page *page;
-	struct inode *inode;
+	struct btrfs_inode *inode;
 	u64 page_start;
 	u64 page_end;
 	int ret = 0;
@@ -2289,7 +2289,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 
 	fixup = container_of(work, struct btrfs_writepage_fixup, work);
 	page = fixup->page;
-	inode = fixup->inode;
+	inode = BTRFS_I(fixup->inode);
 	page_start = page_offset(page);
 	page_end = page_offset(page) + PAGE_SIZE - 1;
 
@@ -2297,8 +2297,8 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	 * This is similar to page_mkwrite, we need to reserve the space before
 	 * we take the page lock.
 	 */
-	ret = btrfs_delalloc_reserve_space(BTRFS_I(inode), &data_reserved,
-					   page_start, PAGE_SIZE);
+	ret = btrfs_delalloc_reserve_space(inode, &data_reserved, page_start,
+					   PAGE_SIZE);
 again:
 	lock_page(page);
 
@@ -2326,10 +2326,8 @@ again:
 		 *    when the page was already properly dealt with.
 		 */
 		if (!ret) {
-			btrfs_delalloc_release_extents(BTRFS_I(inode),
-						       PAGE_SIZE);
-			btrfs_delalloc_release_space(BTRFS_I(inode),
-						     data_reserved,
+			btrfs_delalloc_release_extents(inode, PAGE_SIZE);
+			btrfs_delalloc_release_space(inode, data_reserved,
 						     page_start, PAGE_SIZE,
 						     true);
 		}
@@ -2344,25 +2342,23 @@ again:
 	if (ret)
 		goto out_page;
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			 &cached_state);
+	lock_extent_bits(&inode->io_tree, page_start, page_end, &cached_state);
 
 	/* already ordered? We're done */
 	if (PagePrivate2(page))
 		goto out_reserved;
 
-	ordered = btrfs_lookup_ordered_range(BTRFS_I(inode), page_start,
-					PAGE_SIZE);
+	ordered = btrfs_lookup_ordered_range(inode, page_start, PAGE_SIZE);
 	if (ordered) {
-		unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start,
-				     page_end, &cached_state);
+		unlock_extent_cached(&inode->io_tree, page_start, page_end,
+				     &cached_state);
 		unlock_page(page);
-		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_start_ordered_extent(&inode->vfs_inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
 
-	ret = btrfs_set_extent_delalloc(BTRFS_I(inode), page_start, page_end, 0,
+	ret = btrfs_set_extent_delalloc(inode, page_start, page_end, 0,
 					&cached_state);
 	if (ret)
 		goto out_reserved;
@@ -2377,11 +2373,11 @@ again:
 	BUG_ON(!PageDirty(page));
 	free_delalloc_space = false;
 out_reserved:
-	btrfs_delalloc_release_extents(BTRFS_I(inode), PAGE_SIZE);
+	btrfs_delalloc_release_extents(inode, PAGE_SIZE);
 	if (free_delalloc_space)
-		btrfs_delalloc_release_space(BTRFS_I(inode), data_reserved,
-					     page_start, PAGE_SIZE, true);
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start, page_end,
+		btrfs_delalloc_release_space(inode, data_reserved, page_start,
+					     PAGE_SIZE, true);
+	unlock_extent_cached(&inode->io_tree, page_start, page_end,
 			     &cached_state);
 out_page:
 	if (ret) {
@@ -2404,7 +2400,7 @@ out_page:
 	 * that could need flushing space. Recursing back to fixup worker would
 	 * deadlock.
 	 */
-	btrfs_add_delayed_iput(inode);
+	btrfs_add_delayed_iput(&inode->vfs_inode);
 }
 
 /*
