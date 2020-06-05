@@ -631,17 +631,20 @@ int efa_com_cmd_exec(struct efa_com_admin_queue *aq,
 			cmd->aq_common_descriptor.opcode, PTR_ERR(comp_ctx));
 
 		up(&aq->avail_cmds);
+		atomic64_inc(&aq->stats.cmd_err);
 		return PTR_ERR(comp_ctx);
 	}
 
 	err = efa_com_wait_and_process_admin_cq(comp_ctx, aq);
-	if (err)
+	if (err) {
 		ibdev_err_ratelimited(
 			aq->efa_dev,
 			"Failed to process command %s (opcode %u) comp_status %d err %d\n",
 			efa_com_cmd_str(cmd->aq_common_descriptor.opcode),
 			cmd->aq_common_descriptor.opcode, comp_ctx->comp_status,
 			err);
+		atomic64_inc(&aq->stats.cmd_err);
+	}
 
 	up(&aq->avail_cmds);
 

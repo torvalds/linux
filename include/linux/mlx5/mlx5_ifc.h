@@ -1321,7 +1321,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         stat_rate_support[0x10];
 	u8         reserved_at_1f0[0x1];
 	u8         pci_sync_for_fw_update_event[0x1];
-	u8         reserved_at_1f2[0xa];
+	u8         reserved_at_1f2[0x6];
+	u8         init2_lag_tx_port_affinity[0x1];
+	u8         reserved_at_1fa[0x3];
 	u8         cqe_version[0x4];
 
 	u8         compact_address_vector[0x1];
@@ -3688,7 +3690,8 @@ struct mlx5_ifc_dctc_bits {
 	u8         ecn[0x2];
 	u8         dscp[0x6];
 
-	u8         reserved_at_1c0[0x40];
+	u8         reserved_at_1c0[0x20];
+	u8         ece[0x20];
 };
 
 enum {
@@ -7938,7 +7941,7 @@ struct mlx5_ifc_create_dct_out_bits {
 	u8         reserved_at_40[0x8];
 	u8         dctn[0x18];
 
-	u8         reserved_at_60[0x20];
+	u8         ece[0x20];
 };
 
 struct mlx5_ifc_create_dct_in_bits {
