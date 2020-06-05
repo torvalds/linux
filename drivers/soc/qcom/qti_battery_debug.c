@@ -615,6 +615,8 @@ static int battery_dbg_create_votables(struct battery_dbg_dev *bd,
 
 	bd->votable = devm_kcalloc(bd->dev, num_votables,
 				   sizeof(struct votable), GFP_KERNEL);
+	if (!bd->votable)
+		return -ENOMEM;
 
 	for (id = 0; id < num_votables; id++) {
 		bd->votable[id].bd = bd;
