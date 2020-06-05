@@ -89,7 +89,7 @@ static void mgag200_mm_release(struct drm_device *dev, void *ptr)
 
 int mgag200_mm_init(struct mga_device *mdev)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	resource_size_t start, len;
 	int ret;
 

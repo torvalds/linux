@@ -142,7 +142,7 @@ enum mga_type {
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
 struct mga_device {
-	struct drm_device		*dev;
+	struct drm_device		base;
 	unsigned long			flags;
 
 	resource_size_t			rmmio_base;
@@ -170,7 +170,7 @@ struct mga_device {
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
 {
-	return dev->dev_private;
+	return container_of(dev, struct mga_device, base);
 }
 
 static inline enum mga_type

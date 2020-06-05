@@ -854,7 +854,7 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
 static void mgag200_set_startadd(struct mga_device *mdev,
 				 unsigned long offset)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	u32 startadd;
 	u8 crtcc, crtcd, crtcext0;
 
@@ -882,7 +882,7 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 static void mgag200_set_pci_regs(struct mga_device *mdev)
 {
 	uint32_t option = 0, option2 = 0;
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 
 	switch (mdev->type) {
 	case G200_SE_A:
@@ -1153,7 +1153,7 @@ static void mgag200_set_offset(struct mga_device *mdev,
 static void mgag200_set_format_regs(struct mga_device *mdev,
 				    const struct drm_framebuffer *fb)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	const struct drm_format_info *format = fb->format;
 	unsigned int bpp, bppshift, scale;
 	u8 crtcext3, xmulctrl;
@@ -1537,7 +1537,7 @@ static const struct drm_connector_funcs mga_vga_connector_funcs = {
 
 static int mgag200_vga_connector_init(struct mga_device *mdev)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	struct mga_connector *mconnector = &mdev->connector;
 	struct drm_connector *connector = &mconnector->base;
 	struct mga_i2c_chan *i2c;
@@ -1579,7 +1579,7 @@ static void
 mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
 		      struct drm_rect *clip)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	void *vmap;
 
 	vmap = drm_gem_shmem_vmap(fb->obj[0]);
@@ -1718,7 +1718,7 @@ static unsigned int mgag200_preferred_depth(struct mga_device *mdev)
 
 int mgag200_modeset_init(struct mga_device *mdev)
 {
-	struct drm_device *dev = mdev->dev;
+	struct drm_device *dev = &mdev->base;
 	struct drm_connector *connector = &mdev->connector.base;
 	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
 	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
