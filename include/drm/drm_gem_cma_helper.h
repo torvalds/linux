@@ -107,7 +107,7 @@ void *drm_gem_cma_prime_vmap(struct drm_gem_object *obj);
 void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr);
 
 struct drm_gem_object *
-drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size);
+drm_gem_cma_create_object_default_funcs(struct drm_device *dev, size_t size);
 
 /**
  * DRM_GEM_CMA_VMAP_DRIVER_OPS - CMA GEM driver operations ensuring a virtual
@@ -118,7 +118,7 @@ drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size);
  * imported buffers.
  */
 #define DRM_GEM_CMA_VMAP_DRIVER_OPS \
-	.gem_create_object	= drm_cma_gem_create_object_default_funcs, \
+	.gem_create_object	= drm_gem_cma_create_object_default_funcs, \
 	.dumb_create		= drm_gem_cma_dumb_create, \
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd, \
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle, \

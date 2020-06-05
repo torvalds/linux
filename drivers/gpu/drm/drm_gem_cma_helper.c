@@ -572,7 +572,7 @@ void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vunmap);
 
-static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
+static const struct drm_gem_object_funcs drm_gem_cma_default_funcs = {
 	.free = drm_gem_cma_free_object,
 	.print_info = drm_gem_cma_print_info,
 	.get_sg_table = drm_gem_cma_prime_get_sg_table,
@@ -581,7 +581,7 @@ static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
 };
 
 /**
- * drm_cma_gem_create_object_default_funcs - Create a CMA GEM object with a
+ * drm_gem_cma_create_object_default_funcs - Create a CMA GEM object with a
  *                                           default function table
  * @dev: DRM device
  * @size: Size of the object to allocate
@@ -593,7 +593,7 @@ static const struct drm_gem_object_funcs drm_cma_gem_default_funcs = {
  * A pointer to a allocated GEM object or an error pointer on failure.
  */
 struct drm_gem_object *
-drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
+drm_gem_cma_create_object_default_funcs(struct drm_device *dev, size_t size)
 {
 	struct drm_gem_cma_object *cma_obj;
 
@@ -601,11 +601,11 @@ drm_cma_gem_create_object_default_funcs(struct drm_device *dev, size_t size)
 	if (!cma_obj)
 		return NULL;
 
-	cma_obj->base.funcs = &drm_cma_gem_default_funcs;
+	cma_obj->base.funcs = &drm_gem_cma_default_funcs;
 
 	return &cma_obj->base;
 }
-EXPORT_SYMBOL(drm_cma_gem_create_object_default_funcs);
+EXPORT_SYMBOL(drm_gem_cma_create_object_default_funcs);
 
 /**
  * drm_gem_cma_prime_import_sg_table_vmap - PRIME import another driver's
