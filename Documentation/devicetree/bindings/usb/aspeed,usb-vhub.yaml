@@ -38,19 +38,17 @@ properties:
 
   aspeed,vhub-downstream-ports:
     description: Number of downstream ports supported by the Virtual Hub
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 5
-        minimum: 1
-        maximum: 7
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 5
+    minimum: 1
+    maximum: 7
 
   aspeed,vhub-generic-endpoints:
     description: Number of generic endpoints supported by the Virtual Hub
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 15
-        minimum: 1
-        maximum: 21
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 15
+    minimum: 1
+    maximum: 21
 
 required:
   - compatible

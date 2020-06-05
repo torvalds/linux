@@ -2713,8 +2713,8 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 W:	http://wiki.xilinx.com
 T:	git https://github.com/Xilinx/linux-xlnx.git
-F:	Documentation/devicetree/bindings/i2c/i2c-cadence.txt
-F:	Documentation/devicetree/bindings/i2c/i2c-xiic.txt
+F:	Documentation/devicetree/bindings/i2c/cdns,i2c-r1p10.yaml
+F:	Documentation/devicetree/bindings/i2c/xlnx,xps-iic-2.00.a.yaml
 F:	arch/arm/mach-zynq/
 F:	drivers/block/xsysace.c
 F:	drivers/clocksource/timer-cadence-ttc.c
@@ -4088,12 +4088,11 @@ M:	Charles Keepax <ckeepax@opensource.cirrus.com>
 M:	Richard Fitzgerald <rf@opensource.cirrus.com>
 L:	patches@opensource.cirrus.com
 S:	Supported
-F:	Documentation/devicetree/bindings/clock/cirrus,lochnagar.txt
-F:	Documentation/devicetree/bindings/hwmon/cirrus,lochnagar.txt
-F:	Documentation/devicetree/bindings/mfd/cirrus,lochnagar.txt
-F:	Documentation/devicetree/bindings/pinctrl/cirrus,lochnagar.txt
-F:	Documentation/devicetree/bindings/regulator/cirrus,lochnagar.txt
-F:	Documentation/devicetree/bindings/sound/cirrus,lochnagar.txt
+F:	Documentation/devicetree/bindings/clock/cirrus,lochnagar.yaml
+F:	Documentation/devicetree/bindings/hwmon/cirrus,lochnagar.yaml
+F:	Documentation/devicetree/bindings/mfd/cirrus,lochnagar.yaml
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,lochnagar.yaml
+F:	Documentation/devicetree/bindings/sound/cirrus,lochnagar.yaml
 F:	Documentation/hwmon/lochnagar.rst
 F:	drivers/clk/clk-lochnagar.c
 F:	drivers/hwmon/lochnagar-hwmon.c
@@ -4113,9 +4112,9 @@ L:	patches@opensource.cirrus.com
 S:	Supported
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 T:	git https://github.com/CirrusLogic/linux-drivers.git
-F:	Documentation/devicetree/bindings/mfd/madera.txt
-F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera-pinctrl.txt
-F:	Documentation/devicetree/bindings/sound/madera.txt
+F:	Documentation/devicetree/bindings/mfd/cirrus,madera.yaml
+F:	Documentation/devicetree/bindings/pinctrl/cirrus,madera.yaml
+F:	Documentation/devicetree/bindings/sound/cirrus,madera.yaml
 F:	drivers/gpio/gpio-madera*
 F:	drivers/irqchip/irq-madera*
 F:	drivers/mfd/cs47l*
@@ -12653,8 +12652,8 @@ M:	Pantelis Antoniou <pantelis.antoniou@konsulko.com>
 M:	Frank Rowand <frowand.list@gmail.com>
 L:	devicetree@vger.kernel.org
 S:	Maintained
-F:	Documentation/devicetree/dynamic-resolution-notes.txt
-F:	Documentation/devicetree/overlay-notes.txt
+F:	Documentation/devicetree/dynamic-resolution-notes.rst
+F:	Documentation/devicetree/overlay-notes.rst
 F:	drivers/of/overlay.c
 F:	drivers/of/resolver.c
 K:	of_overlay_notifier_
@@ -18410,11 +18409,11 @@ L:	patches@opensource.cirrus.com
 S:	Supported
 W:	https://github.com/CirrusLogic/linux-drivers/wiki
 T:	git https://github.com/CirrusLogic/linux-drivers.git
-F:	Documentation/devicetree/bindings/extcon/extcon-arizona.txt
-F:	Documentation/devicetree/bindings/mfd/arizona.txt
+F:	Documentation/devicetree/bindings/extcon/wlf,arizona.yaml
+F:	Documentation/devicetree/bindings/mfd/wlf,arizona.yaml
 F:	Documentation/devicetree/bindings/mfd/wm831x.txt
-F:	Documentation/devicetree/bindings/regulator/arizona-regulator.txt
-F:	Documentation/devicetree/bindings/sound/wlf,arizona.txt
+F:	Documentation/devicetree/bindings/regulator/wlf,arizona.yaml
+F:	Documentation/devicetree/bindings/sound/wlf,arizona.yaml
 F:	Documentation/hwmon/wm83??.rst
 F:	arch/arm/mach-s3c64xx/mach-crag6410*
 F:	drivers/clk/clk-wm83*.c

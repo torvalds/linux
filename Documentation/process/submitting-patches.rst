@@ -16,7 +16,7 @@ for a list of items to check before
 submitting code.  If you are submitting a driver, also read
 :ref:`Documentation/process/submitting-drivers.rst <submittingdrivers>`;
 for device tree binding patches, read
-Documentation/devicetree/bindings/submitting-patches.txt.
+Documentation/devicetree/bindings/submitting-patches.rst.
 
 Many of these steps describe the default behavior of the ``git`` version
 control system; if you use ``git`` to prepare your patches, you'll find much

@@ -44,7 +44,7 @@ examples:
     #include <dt-bindings/phy/phy.h>
     pcie_phy: pcie-phy@ff644000 {
           compatible = "amlogic,axg-pcie-phy";
-          reg = <0x0 0xff644000 0x0 0x1c>;
+          reg = <0xff644000 0x1c>;
           resets = <&reset RESET_PCIE_PHY>;
           phys = <&mipi_analog_phy PHY_TYPE_PCIE>;
           phy-names = "analog";

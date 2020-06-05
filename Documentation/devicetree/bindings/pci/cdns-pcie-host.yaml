@@ -18,8 +18,7 @@ properties:
     description:
       Set into the no BAR match register to configure the number of least
       significant bits kept during inbound (PCIe -> AXI) address translations
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 64
     default: 32

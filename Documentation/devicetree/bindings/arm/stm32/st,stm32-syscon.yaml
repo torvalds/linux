@@ -14,9 +14,9 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - st,stm32mp157-syscfg
-        - const: syscon
+          - enum:
+              - st,stm32mp157-syscfg
+          - const: syscon
 
   reg:
     maxItems: 1
