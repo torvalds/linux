@@ -1257,8 +1257,6 @@ int incfs_scan_metadata_chain(struct data_file *df)
 	handler->handle_file_attr = process_file_attr_md;
 	handler->handle_signature = process_file_signature_md;
 
-	pr_debug("incfs: Starting reading incfs-metadata records at offset %lld\n",
-		 handler->md_record_offset);
 	while (handler->md_record_offset > 0) {
 		error = incfs_read_next_metadata_record(bfc, handler);
 		if (error) {
@@ -1270,14 +1268,11 @@ int incfs_scan_metadata_chain(struct data_file *df)
 		records_count++;
 	}
 	if (error) {
-		pr_debug("incfs: Error %d after reading %d incfs-metadata records.\n",
+		pr_warn("incfs: Error %d after reading %d incfs-metadata records.\n",
 			 -error, records_count);
 		result = error;
-	} else {
-		pr_debug("incfs: Finished reading %d incfs-metadata records.\n",
-			 records_count);
+	} else
 		result = records_count;
-	}
 	mutex_unlock(&bfc->bc_mutex);
 
 	if (df->df_hash_tree) {
