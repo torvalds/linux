@@ -17,17 +17,31 @@
 
 #include "mgag200_drv.h"
 
-/*
- * This is the generic driver code. This binds the driver to the drm core,
- * which then performs further device association and calls our graphics init
- * functions
- */
-
 int mgag200_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, mgag200_modeset, int, 0400);
 
-static struct drm_driver driver;
+/*
+ * DRM driver
+ */
+
+DEFINE_DRM_GEM_FOPS(mgag200_driver_fops);
+
+static struct drm_driver driver = {
+	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
+	.fops = &mgag200_driver_fops,
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
+	DRM_GEM_SHMEM_DRIVER_OPS,
+};
+
+/*
+ * PCI driver
+ */
 
 static const struct pci_device_id pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
@@ -90,20 +104,6 @@ static void mga_pci_remove(struct pci_dev *pdev)
 	mgag200_driver_unload(dev);
 	drm_dev_put(dev);
 }
-
-DEFINE_DRM_GEM_FOPS(mgag200_driver_fops);
-
-static struct drm_driver driver = {
-	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
-	.fops = &mgag200_driver_fops,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCHLEVEL,
-	DRM_GEM_SHMEM_DRIVER_OPS,
-};
 
 static struct pci_driver mgag200_pci_driver = {
 	.name = DRIVER_NAME,
