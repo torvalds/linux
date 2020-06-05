@@ -28,6 +28,8 @@
 
 #include <linux/pci.h>
 
+#include <drm/drm_managed.h>
+
 #include "mgag200_drv.h"
 
 static size_t mgag200_probe_vram(struct mga_device *mdev, void __iomem *mem,
@@ -73,6 +75,18 @@ static size_t mgag200_probe_vram(struct mga_device *mdev, void __iomem *mem,
 	return offset - 65536;
 }
 
+static void mgag200_mm_release(struct drm_device *dev, void *ptr)
+{
+	struct mga_device *mdev = to_mga_device(dev);
+
+	mdev->vram_fb_available = 0;
+	iounmap(mdev->vram);
+	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
+				pci_resource_len(dev->pdev, 0));
+	arch_phys_wc_del(mdev->fb_mtrr);
+	mdev->fb_mtrr = 0;
+}
+
 int mgag200_mm_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = mdev->dev;
@@ -104,22 +118,10 @@ int mgag200_mm_init(struct mga_device *mdev)
 
 	mdev->vram_fb_available = mdev->mc.vram_size;
 
-	return 0;
+	return drmm_add_action_or_reset(dev, mgag200_mm_release, NULL);
 
 err_arch_phys_wc_del:
 	arch_phys_wc_del(mdev->fb_mtrr);
 	arch_io_free_memtype_wc(start, len);
 	return ret;
-}
-
-void mgag200_mm_fini(struct mga_device *mdev)
-{
-	struct drm_device *dev = mdev->dev;
-
-	mdev->vram_fb_available = 0;
-	iounmap(mdev->vram);
-	arch_io_free_memtype_wc(pci_resource_start(dev->pdev, 0),
-				pci_resource_len(dev->pdev, 0));
-	arch_phys_wc_del(mdev->fb_mtrr);
-	mdev->fb_mtrr = 0;
 }

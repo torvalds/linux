@@ -57,13 +57,11 @@ int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = mgag200_modeset_init(mdev);
 	if (ret) {
 		drm_err(dev, "Fatal error during modeset init: %d\n", ret);
-		goto err_mgag200_mm_fini;
+		goto err_mm;
 	}
 
 	return 0;
 
-err_mgag200_mm_fini:
-	mgag200_mm_fini(mdev);
 err_mm:
 	dev->dev_private = NULL;
 	return ret;
@@ -75,6 +73,5 @@ void mgag200_driver_unload(struct drm_device *dev)
 
 	if (mdev == NULL)
 		return;
-	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;
 }
