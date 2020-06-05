@@ -2362,10 +2362,8 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				if (last->context == rq->context)
 					goto done;
 
-				if (i915_request_has_sentinel(last)) {
-					start_timeslice(engine, rq_prio(rq));
+				if (i915_request_has_sentinel(last))
 					goto done;
-				}
 
 				/*
 				 * If GVT overrides us we only ever submit
@@ -2446,6 +2444,7 @@ done:
 		set_preempt_timeout(engine, *active);
 		execlists_submit_ports(engine);
 	} else {
+		start_timeslice(engine, execlists->queue_priority_hint);
 skip_submit:
 		ring_set_paused(engine, 0);
 	}
