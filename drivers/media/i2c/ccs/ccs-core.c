@@ -367,67 +367,70 @@ static int ccs_pll_configure(struct ccs_sensor *sensor)
 	struct ccs_pll *pll = &sensor->pll;
 	int rval;
 
-	rval = ccs_write(sensor, VT_PIX_CLK_DIV, pll->vt.pix_clk_div);
+	rval = ccs_write(sensor, VT_PIX_CLK_DIV, pll->vt_bk.pix_clk_div);
 	if (rval < 0)
 		return rval;
 
-	rval = ccs_write(sensor, VT_SYS_CLK_DIV, pll->vt.sys_clk_div);
+	rval = ccs_write(sensor, VT_SYS_CLK_DIV, pll->vt_bk.sys_clk_div);
 	if (rval < 0)
 		return rval;
 
-	rval = ccs_write(sensor, PRE_PLL_CLK_DIV, pll->pre_pll_clk_div);
+	rval = ccs_write(sensor, PRE_PLL_CLK_DIV, pll->vt_fr.pre_pll_clk_div);
 	if (rval < 0)
 		return rval;
 
-	rval = ccs_write(sensor, PLL_MULTIPLIER, pll->pll_multiplier);
+	rval = ccs_write(sensor, PLL_MULTIPLIER, pll->vt_fr.pll_multiplier);
 	if (rval < 0)
 		return rval;
 
 	/* Lane op clock ratio does not apply here. */
 	rval = ccs_write(sensor, REQUESTED_LINK_RATE,
-			 DIV_ROUND_UP(pll->op.sys_clk_freq_hz,
+			 DIV_ROUND_UP(pll->op_bk.sys_clk_freq_hz,
 				      1000000 / 256 / 256));
 	if (rval < 0 || sensor->pll.flags & CCS_PLL_FLAG_NO_OP_CLOCKS)
 		return rval;
 
-	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op.pix_clk_div);
+	rval = ccs_write(sensor, OP_PIX_CLK_DIV, pll->op_bk.pix_clk_div);
 	if (rval < 0)
 		return rval;
 
-	return ccs_write(sensor, OP_SYS_CLK_DIV, pll->op.sys_clk_div);
+	return ccs_write(sensor, OP_SYS_CLK_DIV, pll->op_bk.sys_clk_div);
 }
 
 static int ccs_pll_try(struct ccs_sensor *sensor, struct ccs_pll *pll)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct ccs_pll_limits lim = {
-		.min_pre_pll_clk_div = CCS_LIM(sensor, MIN_PRE_PLL_CLK_DIV),
-		.max_pre_pll_clk_div = CCS_LIM(sensor, MAX_PRE_PLL_CLK_DIV),
-		.min_pll_ip_freq_hz = CCS_LIM(sensor, MIN_PLL_IP_CLK_FREQ_MHZ),
-		.max_pll_ip_freq_hz = CCS_LIM(sensor, MAX_PLL_IP_CLK_FREQ_MHZ),
-		.min_pll_multiplier = CCS_LIM(sensor, MIN_PLL_MULTIPLIER),
-		.max_pll_multiplier = CCS_LIM(sensor, MAX_PLL_MULTIPLIER),
-		.min_pll_op_freq_hz = CCS_LIM(sensor, MIN_PLL_OP_CLK_FREQ_MHZ),
-		.max_pll_op_freq_hz = CCS_LIM(sensor, MAX_PLL_OP_CLK_FREQ_MHZ),
-
-		.op.min_sys_clk_div = CCS_LIM(sensor, MIN_OP_SYS_CLK_DIV),
-		.op.max_sys_clk_div = CCS_LIM(sensor, MAX_OP_SYS_CLK_DIV),
-		.op.min_pix_clk_div = CCS_LIM(sensor, MIN_OP_PIX_CLK_DIV),
-		.op.max_pix_clk_div = CCS_LIM(sensor, MAX_OP_PIX_CLK_DIV),
-		.op.min_sys_clk_freq_hz = CCS_LIM(sensor, MIN_OP_SYS_CLK_FREQ_MHZ),
-		.op.max_sys_clk_freq_hz = CCS_LIM(sensor, MAX_OP_SYS_CLK_FREQ_MHZ),
-		.op.min_pix_clk_freq_hz = CCS_LIM(sensor, MIN_OP_PIX_CLK_FREQ_MHZ),
-		.op.max_pix_clk_freq_hz = CCS_LIM(sensor, MAX_OP_PIX_CLK_FREQ_MHZ),
-
-		.vt.min_sys_clk_div = CCS_LIM(sensor, MIN_VT_SYS_CLK_DIV),
-		.vt.max_sys_clk_div = CCS_LIM(sensor, MAX_VT_SYS_CLK_DIV),
-		.vt.min_pix_clk_div = CCS_LIM(sensor, MIN_VT_PIX_CLK_DIV),
-		.vt.max_pix_clk_div = CCS_LIM(sensor, MAX_VT_PIX_CLK_DIV),
-		.vt.min_sys_clk_freq_hz = CCS_LIM(sensor, MIN_VT_SYS_CLK_FREQ_MHZ),
-		.vt.max_sys_clk_freq_hz = CCS_LIM(sensor, MAX_VT_SYS_CLK_FREQ_MHZ),
-		.vt.min_pix_clk_freq_hz = CCS_LIM(sensor, MIN_VT_PIX_CLK_FREQ_MHZ),
-		.vt.max_pix_clk_freq_hz = CCS_LIM(sensor, MAX_VT_PIX_CLK_FREQ_MHZ),
-
+		.vt_fr = {
+			.min_pre_pll_clk_div = CCS_LIM(sensor, MIN_PRE_PLL_CLK_DIV),
+			.max_pre_pll_clk_div = CCS_LIM(sensor, MAX_PRE_PLL_CLK_DIV),
+			.min_pll_ip_clk_freq_hz = CCS_LIM(sensor, MIN_PLL_IP_CLK_FREQ_MHZ),
+			.max_pll_ip_clk_freq_hz = CCS_LIM(sensor, MAX_PLL_IP_CLK_FREQ_MHZ),
+			.min_pll_multiplier = CCS_LIM(sensor, MIN_PLL_MULTIPLIER),
+			.max_pll_multiplier = CCS_LIM(sensor, MAX_PLL_MULTIPLIER),
+			.min_pll_op_clk_freq_hz = CCS_LIM(sensor, MIN_PLL_OP_CLK_FREQ_MHZ),
+			.max_pll_op_clk_freq_hz = CCS_LIM(sensor, MAX_PLL_OP_CLK_FREQ_MHZ),
+		},
+		.op_bk = {
+			 .min_sys_clk_div = CCS_LIM(sensor, MIN_OP_SYS_CLK_DIV),
+			 .max_sys_clk_div = CCS_LIM(sensor, MAX_OP_SYS_CLK_DIV),
+			 .min_pix_clk_div = CCS_LIM(sensor, MIN_OP_PIX_CLK_DIV),
+			 .max_pix_clk_div = CCS_LIM(sensor, MAX_OP_PIX_CLK_DIV),
+			 .min_sys_clk_freq_hz = CCS_LIM(sensor, MIN_OP_SYS_CLK_FREQ_MHZ),
+			 .max_sys_clk_freq_hz = CCS_LIM(sensor, MAX_OP_SYS_CLK_FREQ_MHZ),
+			 .min_pix_clk_freq_hz = CCS_LIM(sensor, MIN_OP_PIX_CLK_FREQ_MHZ),
+			 .max_pix_clk_freq_hz = CCS_LIM(sensor, MAX_OP_PIX_CLK_FREQ_MHZ),
+		 },
+		.vt_bk = {
+			 .min_sys_clk_div = CCS_LIM(sensor, MIN_VT_SYS_CLK_DIV),
+			 .max_sys_clk_div = CCS_LIM(sensor, MAX_VT_SYS_CLK_DIV),
+			 .min_pix_clk_div = CCS_LIM(sensor, MIN_VT_PIX_CLK_DIV),
+			 .max_pix_clk_div = CCS_LIM(sensor, MAX_VT_PIX_CLK_DIV),
+			 .min_sys_clk_freq_hz = CCS_LIM(sensor, MIN_VT_SYS_CLK_FREQ_MHZ),
+			 .max_sys_clk_freq_hz = CCS_LIM(sensor, MAX_VT_SYS_CLK_FREQ_MHZ),
+			 .min_pix_clk_freq_hz = CCS_LIM(sensor, MIN_VT_PIX_CLK_FREQ_MHZ),
+			 .max_pix_clk_freq_hz = CCS_LIM(sensor, MAX_VT_PIX_CLK_FREQ_MHZ),
+		 },
 		.min_line_length_pck_bin = CCS_LIM(sensor, MIN_LINE_LENGTH_PCK_BIN),
 		.min_line_length_pck = CCS_LIM(sensor, MIN_LINE_LENGTH_PCK),
 	};
