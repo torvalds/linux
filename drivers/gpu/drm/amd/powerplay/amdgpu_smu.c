@@ -461,9 +461,6 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 			dev_err(smu->adev->dev, "Failed to power %s UVD!\n",
 				gate ? "gate" : "ungate");
 		break;
-	case AMD_IP_BLOCK_TYPE_VCE:
-		ret = smu_dpm_set_vce_enable(smu, !gate);
-		break;
 	case AMD_IP_BLOCK_TYPE_GFX:
 		ret = smu_gfx_off_control(smu, gate);
 		if (ret)
@@ -483,7 +480,8 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 				gate ? "gate" : "ungate");
 		break;
 	default:
-		break;
+		dev_err(smu->adev->dev, "Unsupported block type!\n");
+		return -EINVAL;
 	}
 
 	return ret;
