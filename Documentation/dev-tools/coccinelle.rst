@@ -14,7 +14,7 @@ many uses in kernel development, including the application of complex,
 tree-wide patches and detection of problematic programming patterns.
 
 Getting Coccinelle
--------------------
+------------------
 
 The semantic patches included in the kernel use features and options
 which are provided by Coccinelle version 1.0.0-rc11 and above.
@@ -56,7 +56,7 @@ found at:
 https://github.com/coccinelle/coccinelle/blob/master/install.txt
 
 Supplemental documentation
----------------------------
+--------------------------
 
 For supplemental documentation refer to the wiki:
 
@@ -128,7 +128,7 @@ To enable verbose messages set the V= variable, for example::
    make coccicheck MODE=report V=1
 
 Coccinelle parallelization
----------------------------
+--------------------------
 
 By default, coccicheck tries to run as parallel as possible. To change
 the parallelism, set the J= variable. For example, to run across 4 CPUs::
@@ -333,7 +333,7 @@ as an example if requiring at least Coccinelle >= 1.0.5::
 	// Requires: 1.0.5
 
 Proposing new semantic patches
--------------------------------
+------------------------------
 
 New semantic patches can be proposed and submitted by kernel
 developers. For sake of clarity, they should be organized in the
