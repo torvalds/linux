@@ -27,7 +27,7 @@ module_param_named(modeset, mgag200_modeset, int, 0400);
 
 DEFINE_DRM_GEM_FOPS(mgag200_driver_fops);
 
-static struct drm_driver driver = {
+static struct drm_driver mgag200_driver = {
 	.driver_features = DRIVER_ATOMIC | DRIVER_GEM | DRIVER_MODESET,
 	.fops = &mgag200_driver_fops,
 	.name = DRIVER_NAME,
@@ -43,7 +43,7 @@ static struct drm_driver driver = {
  * PCI driver
  */
 
-static const struct pci_device_id pciidlist[] = {
+static const struct pci_device_id mgag200_pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		G200_SE_A | MGAG200_FLAG_HW_BUG_NO_STARTADD},
 	{ PCI_VENDOR_ID_MATROX, 0x524, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_B },
@@ -56,10 +56,10 @@ static const struct pci_device_id pciidlist[] = {
 	{0,}
 };
 
-MODULE_DEVICE_TABLE(pci, pciidlist);
+MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);
 
-
-static int mga_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int
+mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct drm_device *dev;
 	int ret;
@@ -70,7 +70,7 @@ static int mga_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&driver, &pdev->dev);
+	dev = drm_dev_alloc(&mgag200_driver, &pdev->dev);
 	if (IS_ERR(dev))
 		return PTR_ERR(dev);
 
@@ -96,7 +96,7 @@ err_drm_dev_put:
 	return ret;
 }
 
-static void mga_pci_remove(struct pci_dev *pdev)
+static void mgag200_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
@@ -107,9 +107,9 @@ static void mga_pci_remove(struct pci_dev *pdev)
 
 static struct pci_driver mgag200_pci_driver = {
 	.name = DRIVER_NAME,
-	.id_table = pciidlist,
-	.probe = mga_pci_probe,
-	.remove = mga_pci_remove,
+	.id_table = mgag200_pciidlist,
+	.probe = mgag200_pci_probe,
+	.remove = mgag200_pci_remove,
 };
 
 static int __init mgag200_init(void)
