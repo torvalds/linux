@@ -395,6 +395,7 @@ static const struct regmap_config pca953x_ai_i2c_regmap = {
 	.writeable_reg = pca953x_writeable_register,
 	.volatile_reg = pca953x_volatile_register,
 
+	.disable_locking = true,
 	.cache_type = REGCACHE_RBTREE,
 	.max_register = 0x7f,
 };
