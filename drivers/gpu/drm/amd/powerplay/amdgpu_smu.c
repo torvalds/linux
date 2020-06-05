@@ -34,6 +34,16 @@
 #include "sienna_cichlid_ppt.h"
 #include "renoir_ppt.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
+
 #undef __SMU_DUMMY_MAP
 #define __SMU_DUMMY_MAP(type)	#type
 static const char* __smu_message_names[] = {

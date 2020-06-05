@@ -35,6 +35,16 @@
 #include "asic_reg/smuio/smuio_12_0_0_offset.h"
 #include "asic_reg/smuio/smuio_12_0_0_sh_mask.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
+
 // because some SMU12 based ASICs use older ip offset tables
 // we should undefine this register from the smuio12 header
 // to prevent confusion down the road

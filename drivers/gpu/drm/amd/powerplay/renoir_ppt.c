@@ -29,6 +29,15 @@
 #include "smu_v12_0.h"
 #include "renoir_ppt.h"
 
+/*
+ * DO NOT use these for err/warn/info/debug messages.
+ * Use dev_err, dev_warn, dev_info and dev_dbg instead.
+ * They are more MGPU friendly.
+ */
+#undef pr_err
+#undef pr_warn
+#undef pr_info
+#undef pr_debug
 
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = {1, (index)}
