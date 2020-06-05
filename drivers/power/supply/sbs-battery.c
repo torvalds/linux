@@ -263,8 +263,7 @@ static int sbs_read_word_data(struct i2c_client *client, u8 address)
 	return ret;
 }
 
-static int sbs_read_string_data(struct i2c_client *client, u8 address,
-				char *values)
+static int sbs_read_string_data_fallback(struct i2c_client *client, u8 address, char *values)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 	s32 ret = 0, block_length = 0;
@@ -273,6 +272,8 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 
 	retries_length = chip->i2c_retry_count;
 	retries_block = chip->i2c_retry_count;
+
+	dev_warn_once(&client->dev, "I2C adapter does not support I2C_FUNC_SMBUS_READ_BLOCK_DATA.\n");
 
 	/* Adapter needs to support these two functions */
 	if (!i2c_check_functionality(client->adapter,
@@ -326,6 +327,32 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address,
 	memcpy(values, block_buffer + 1, block_length);
 	values[block_length] = '\0';
 
+	return ret;
+}
+
+static int sbs_read_string_data(struct i2c_client *client, u8 address, char *values)
+{
+	struct sbs_info *chip = i2c_get_clientdata(client);
+	int retries = chip->i2c_retry_count;
+	int ret = 0;
+
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA))
+		return sbs_read_string_data_fallback(client, address, values);
+
+	while (retries > 0) {
+		ret = i2c_smbus_read_block_data(client, address, values);
+		if (ret >= 0)
+			break;
+		retries--;
+	}
+
+	if (ret < 0) {
+		dev_dbg(&client->dev, "failed to read block 0x%x: %d\n", address, ret);
+		return ret;
+	}
+
+	/* add string termination */
+	values[ret] = '\0';
 	return ret;
 }
 
