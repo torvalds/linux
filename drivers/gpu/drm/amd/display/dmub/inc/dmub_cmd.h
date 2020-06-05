@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x6d5deb31c
+#define DMUB_FW_VERSION_GIT_HASH 0x67e8928df
 #define DMUB_FW_VERSION_MAJOR 1
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 17
+#define DMUB_FW_VERSION_REVISION 18
 #define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
 #endif
 
@@ -146,10 +146,8 @@ union dmub_fw_meta {
  * DMCUB scratch registers can be used to determine firmware status.
  * Current scratch register usage is as follows:
  *
- * SCRATCH0: Legacy status register
- * SCRATCH1: Firmware version
- * SCRATCH2: Firmware status bits defined by dmub_fw_status_bit
- * SCRATCH3: Reserved firmware status bits
+ * SCRATCH0: FW Boot Status register
+ * SCRATCH15: FW Boot Options register
  */
 
 /**
@@ -158,6 +156,41 @@ union dmub_fw_meta {
 enum dmub_fw_status_bit {
 	DMUB_FW_STATUS_BIT_DAL_FIRMWARE = (1 << 0),
 	DMUB_FW_STATUS_BIT_COMMAND_TABLE_READY = (1 << 1),
+};
+
+
+/* Register bit definition for SCRATCH0 */
+union dmub_fw_boot_status {
+	struct {
+		uint32_t dal_fw : 1;
+		uint32_t mailbox_rdy : 1;
+		uint32_t optimized_init_done : 1;
+		uint32_t reserved : 29;
+	} bits;
+	uint32_t all;
+};
+
+enum dmub_fw_boot_status_bit {
+	DMUB_FW_BOOT_STATUS_BIT_DAL_FIRMWARE = (1 << 0),
+	DMUB_FW_BOOT_STATUS_BIT_MAILBOX_READY = (1 << 1),
+	DMUB_FW_BOOT_STATUS_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
+};
+
+/* Register bit definition for SCRATCH15 */
+union dmub_fw_boot_options {
+	struct {
+		uint32_t pemu_env : 1;
+		uint32_t fpga_env : 1;
+		uint32_t optimized_init : 1;
+		uint32_t reserved : 29;
+	} bits;
+	uint32_t all;
+};
+
+enum dmub_fw_boot_options_bit {
+	DMUB_FW_BOOT_OPTION_BIT_PEMU_ENV = (1 << 0),
+	DMUB_FW_BOOT_OPTION_BIT_FPGA_ENV = (1 << 1),
+	DMUB_FW_BOOT_OPTION_BIT_OPTIMIZED_INIT_DONE = (1 << 2),
 };
 
 //==============================================================================
