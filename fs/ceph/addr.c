@@ -1306,104 +1306,84 @@ ceph_find_incompatible(struct page *page)
 /*
  * We are only allowed to write into/dirty the page if the page is
  * clean, or already dirty within the same snap context.
- *
- * called with page locked.
- * return success with page locked,
- * or any failure (incl -EAGAIN) with page unlocked.
- */
-static int ceph_update_writeable_page(struct file *file,
-			    loff_t pos, unsigned len,
-			    struct page *page)
-{
-	struct inode *inode = file_inode(file);
-	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_snap_context *snapc;
-	loff_t page_off = pos & PAGE_MASK;
-	int pos_in_page = pos & ~PAGE_MASK;
-	int end_in_page = pos_in_page + len;
-	loff_t i_size;
-	int r;
-
-retry_locked:
-	snapc = ceph_find_incompatible(page);
-	if (snapc) {
-		if (IS_ERR(snapc)) {
-			r = PTR_ERR(snapc);
-			goto fail_unlock;
-		}
-		unlock_page(page);
-		ceph_queue_writeback(inode);
-		r = wait_event_killable(ci->i_cap_wq,
-					context_is_writeable_or_written(inode, snapc));
-		ceph_put_snap_context(snapc);
-		return -EAGAIN;
-	}
-
-	if (PageUptodate(page)) {
-		dout(" page %p already uptodate\n", page);
-		return 0;
-	}
-
-	/* full page? */
-	if (pos_in_page == 0 && len == PAGE_SIZE)
-		return 0;
-
-	/* past end of file? */
-	i_size = i_size_read(inode);
-
-	if (page_off >= i_size ||
-	    (pos_in_page == 0 && (pos+len) >= i_size &&
-	     end_in_page - pos_in_page != PAGE_SIZE)) {
-		dout(" zeroing %p 0 - %d and %d - %d\n",
-		     page, pos_in_page, end_in_page, (int)PAGE_SIZE);
-		zero_user_segments(page,
-				   0, pos_in_page,
-				   end_in_page, PAGE_SIZE);
-		return 0;
-	}
-
-	/* we need to read it. */
-	r = ceph_do_readpage(file, page);
-	if (r < 0) {
-		if (r == -EINPROGRESS)
-			return -EAGAIN;
-		goto fail_unlock;
-	}
-	goto retry_locked;
-fail_unlock:
-	unlock_page(page);
-	return r;
-}
-
-/*
- * We are only allowed to write into/dirty the page if the page is
- * clean, or already dirty within the same snap context.
  */
 static int ceph_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned flags,
 			    struct page **pagep, void **fsdata)
 {
 	struct inode *inode = file_inode(file);
-	struct page *page;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_snap_context *snapc;
+	struct page *page = NULL;
 	pgoff_t index = pos >> PAGE_SHIFT;
-	int r;
+	int pos_in_page = pos & ~PAGE_MASK;
+	int r = 0;
 
-	do {
-		/* get a page */
+	dout("write_begin file %p inode %p page %p %d~%d\n", file, inode, page, (int)pos, (int)len);
+
+	for (;;) {
 		page = grab_cache_page_write_begin(mapping, index, 0);
-		if (!page)
-			return -ENOMEM;
+		if (!page) {
+			r = -ENOMEM;
+			break;
+		}
 
-		dout("write_begin file %p inode %p page %p %d~%d\n", file,
-		     inode, page, (int)pos, (int)len);
-
-		r = ceph_update_writeable_page(file, pos, len, page);
-		if (r < 0)
+		snapc = ceph_find_incompatible(page);
+		if (snapc) {
+			if (IS_ERR(snapc)) {
+				r = PTR_ERR(snapc);
+				break;
+			}
+			unlock_page(page);
 			put_page(page);
-		else
-			*pagep = page;
-	} while (r == -EAGAIN);
+			page = NULL;
+			ceph_queue_writeback(inode);
+			r = wait_event_killable(ci->i_cap_wq,
+						context_is_writeable_or_written(inode, snapc));
+			ceph_put_snap_context(snapc);
+			if (r != 0)
+				break;
+			continue;
+		}
 
+		if (PageUptodate(page)) {
+			dout(" page %p already uptodate\n", page);
+			break;
+		}
+
+		/*
+		 * In some cases we don't need to read at all:
+		 * - full page write
+		 * - write that lies completely beyond EOF
+		 * - write that covers the the page from start to EOF or beyond it
+		 */
+		if ((pos_in_page == 0 && len == PAGE_SIZE) ||
+		    (pos >= i_size_read(inode)) ||
+		    (pos_in_page == 0 && (pos + len) >= i_size_read(inode))) {
+			zero_user_segments(page, 0, pos_in_page,
+					   pos_in_page + len, PAGE_SIZE);
+			break;
+		}
+
+		/*
+		 * We need to read it. If we get back -EINPROGRESS, then the page was
+		 * handed off to fscache and it will be unlocked when the read completes.
+		 * Refind the page in that case so we can reacquire the page lock. Otherwise
+		 * we got a hard error or the read was completed synchronously.
+		 */
+		r = ceph_do_readpage(file, page);
+		if (r != -EINPROGRESS)
+			break;
+	}
+
+	if (r < 0) {
+		if (page) {
+			unlock_page(page);
+			put_page(page);
+		}
+	} else {
+		*pagep = page;
+	}
 	return r;
 }
 
