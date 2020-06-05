@@ -96,15 +96,8 @@ static struct drm_driver meson_driver = {
 	/* IRQ */
 	.irq_handler		= meson_irq,
 
-	/* PRIME Ops */
-	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
-
-	/* GEM Ops */
-	.gem_create_object	= drm_gem_cma_create_object_default_funcs,
-	.dumb_create		= meson_dumb_create,
+	/* CMA Ops */
+	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(meson_dumb_create),
 
 	/* Misc */
 	.fops			= &fops,
