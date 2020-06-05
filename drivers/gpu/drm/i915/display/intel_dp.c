@@ -5556,35 +5556,46 @@ update_status:
 			    "Could not write test response to sink\n");
 }
 
-static int
+/**
+ * intel_dp_check_mst_status - service any pending MST interrupts, check link status
+ * @intel_dp: Intel DP struct
+ *
+ * Read any pending MST interrupts, call MST core to handle these and ack the
+ * interrupts. Check if the main and AUX link state is ok.
+ *
+ * Returns:
+ * - %true if pending interrupts were serviced (or no interrupts were
+ *   pending) w/o detecting an error condition.
+ * - %false if an error condition - like AUX failure or a loss of link - is
+ *   detected, which needs servicing from the hotplug work.
+ */
+static bool
 intel_dp_check_mst_status(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
-	bool need_retrain = false;
-
-	if (!intel_dp->is_mst)
-		return -EINVAL;
+	bool link_ok = true;
 
 	drm_WARN_ON_ONCE(&i915->drm, intel_dp->active_mst_links < 0);
 
 	for (;;) {
 		u8 esi[DP_DPRX_ESI_LEN] = {};
-		bool bret, handled;
+		bool handled;
 		int retry;
 
-		bret = intel_dp_get_sink_irq_esi(intel_dp, esi);
-		if (!bret) {
+		if (!intel_dp_get_sink_irq_esi(intel_dp, esi)) {
 			drm_dbg_kms(&i915->drm,
 				    "failed to get ESI - device may have failed\n");
-			return -EINVAL;
+			link_ok = false;
+
+			break;
 		}
 
 		/* check link status - esi[10] = 0x200c */
-		if (intel_dp->active_mst_links > 0 && !need_retrain &&
+		if (intel_dp->active_mst_links > 0 && link_ok &&
 		    !drm_dp_channel_eq_ok(&esi[10], intel_dp->lane_count)) {
 			drm_dbg_kms(&i915->drm,
 				    "channel EQ not ok, retraining\n");
-			need_retrain = true;
+			link_ok = false;
 		}
 
 		drm_dbg_kms(&i915->drm, "got esi %3ph\n", esi);
@@ -5604,7 +5615,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 		}
 	}
 
-	return need_retrain;
+	return link_ok;
 }
 
 static bool
@@ -7255,35 +7266,10 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 	}
 
 	if (intel_dp->is_mst) {
-		switch (intel_dp_check_mst_status(intel_dp)) {
-		case -EINVAL:
-			/*
-			 * If we were in MST mode, and device is not
-			 * there, get out of MST mode
-			 */
-			drm_dbg_kms(&i915->drm,
-				    "MST device may have disappeared %d vs %d\n",
-				    intel_dp->is_mst,
-				    intel_dp->mst_mgr.mst_state);
-			intel_dp->is_mst = false;
-			drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
-							intel_dp->is_mst);
-
+		if (!intel_dp_check_mst_status(intel_dp))
 			return IRQ_NONE;
-		case 1:
-			return IRQ_NONE;
-		default:
-			break;
-		}
-	}
-
-	if (!intel_dp->is_mst) {
-		bool handled;
-
-		handled = intel_dp_short_pulse(intel_dp);
-
-		if (!handled)
-			return IRQ_NONE;
+	} else if (!intel_dp_short_pulse(intel_dp)) {
+		return IRQ_NONE;
 	}
 
 	return IRQ_HANDLED;
