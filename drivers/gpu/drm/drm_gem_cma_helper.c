@@ -620,7 +620,7 @@ EXPORT_SYMBOL(drm_gem_cma_create_object_default_funcs);
  * address set. This address is released when the object is freed.
  *
  * This function can be used as the &drm_driver.gem_prime_import_sg_table
- * callback. The DRM_GEM_CMA_VMAP_DRIVER_OPS() macro provides a shortcut to set
+ * callback. The &DRM_GEM_CMA_DRIVER_OPS_VMAP macro provides a shortcut to set
  * the necessary DRM driver operations.
  *
  * Returns:
