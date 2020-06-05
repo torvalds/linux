@@ -291,27 +291,22 @@ static int iavf_get_link_ksettings(struct net_device *netdev,
 	}
 
 	switch (adapter->link_speed) {
-	case IAVF_LINK_SPEED_40GB:
+	case VIRTCHNL_LINK_SPEED_40GB:
 		cmd->base.speed = SPEED_40000;
 		break;
-	case IAVF_LINK_SPEED_25GB:
-#ifdef SPEED_25000
+	case VIRTCHNL_LINK_SPEED_25GB:
 		cmd->base.speed = SPEED_25000;
-#else
-		netdev_info(netdev,
-			    "Speed is 25G, display not supported by this version of ethtool.\n");
-#endif
 		break;
-	case IAVF_LINK_SPEED_20GB:
+	case VIRTCHNL_LINK_SPEED_20GB:
 		cmd->base.speed = SPEED_20000;
 		break;
-	case IAVF_LINK_SPEED_10GB:
+	case VIRTCHNL_LINK_SPEED_10GB:
 		cmd->base.speed = SPEED_10000;
 		break;
-	case IAVF_LINK_SPEED_1GB:
+	case VIRTCHNL_LINK_SPEED_1GB:
 		cmd->base.speed = SPEED_1000;
 		break;
-	case IAVF_LINK_SPEED_100MB:
+	case VIRTCHNL_LINK_SPEED_100MB:
 		cmd->base.speed = SPEED_100;
 		break;
 	default:

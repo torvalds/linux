@@ -2498,22 +2498,22 @@ static int iavf_validate_tx_bandwidth(struct iavf_adapter *adapter,
 	}
 
 	switch (adapter->link_speed) {
-	case IAVF_LINK_SPEED_40GB:
+	case VIRTCHNL_LINK_SPEED_40GB:
 		speed = 40000;
 		break;
-	case IAVF_LINK_SPEED_25GB:
+	case VIRTCHNL_LINK_SPEED_25GB:
 		speed = 25000;
 		break;
-	case IAVF_LINK_SPEED_20GB:
+	case VIRTCHNL_LINK_SPEED_20GB:
 		speed = 20000;
 		break;
-	case IAVF_LINK_SPEED_10GB:
+	case VIRTCHNL_LINK_SPEED_10GB:
 		speed = 10000;
 		break;
-	case IAVF_LINK_SPEED_1GB:
+	case VIRTCHNL_LINK_SPEED_1GB:
 		speed = 1000;
 		break;
-	case IAVF_LINK_SPEED_100MB:
+	case VIRTCHNL_LINK_SPEED_100MB:
 		speed = 100;
 		break;
 	default:

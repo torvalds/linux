@@ -921,22 +921,22 @@ static void iavf_print_link_message(struct iavf_adapter *adapter)
 	}
 
 	switch (adapter->link_speed) {
-	case IAVF_LINK_SPEED_40GB:
+	case VIRTCHNL_LINK_SPEED_40GB:
 		link_speed_mbps = SPEED_40000;
 		break;
-	case IAVF_LINK_SPEED_25GB:
+	case VIRTCHNL_LINK_SPEED_25GB:
 		link_speed_mbps = SPEED_25000;
 		break;
-	case IAVF_LINK_SPEED_20GB:
+	case VIRTCHNL_LINK_SPEED_20GB:
 		link_speed_mbps = SPEED_20000;
 		break;
-	case IAVF_LINK_SPEED_10GB:
+	case VIRTCHNL_LINK_SPEED_10GB:
 		link_speed_mbps = SPEED_10000;
 		break;
-	case IAVF_LINK_SPEED_1GB:
+	case VIRTCHNL_LINK_SPEED_1GB:
 		link_speed_mbps = SPEED_1000;
 		break;
-	case IAVF_LINK_SPEED_100MB:
+	case VIRTCHNL_LINK_SPEED_100MB:
 		link_speed_mbps = SPEED_100;
 		break;
 	default:
