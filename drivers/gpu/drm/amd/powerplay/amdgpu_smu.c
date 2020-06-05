@@ -455,10 +455,15 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 		return -EOPNOTSUPP;
 
 	switch (block_type) {
+	/*
+	 * Some legacy code of amdgpu_vcn.c and vcn_v2*.c still uses
+	 * AMD_IP_BLOCK_TYPE_UVD for VCN. So, here both of them are kept.
+	 */
 	case AMD_IP_BLOCK_TYPE_UVD:
-		ret = smu_dpm_set_uvd_enable(smu, !gate);
+	case AMD_IP_BLOCK_TYPE_VCN:
+		ret = smu_dpm_set_vcn_enable(smu, !gate);
 		if (ret)
-			dev_err(smu->adev->dev, "Failed to power %s UVD!\n",
+			dev_err(smu->adev->dev, "Failed to power %s VCN!\n",
 				gate ? "gate" : "ungate");
 		break;
 	case AMD_IP_BLOCK_TYPE_GFX:
@@ -1328,7 +1333,7 @@ static int smu_hw_init(void *handle)
 
 	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, false);
-		smu_dpm_set_uvd_enable(smu, true);
+		smu_dpm_set_vcn_enable(smu, true);
 		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(&adev->smu, true);
 	}
@@ -1460,7 +1465,7 @@ static int smu_hw_fini(void *handle)
 
 	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, true);
-		smu_dpm_set_uvd_enable(smu, false);
+		smu_dpm_set_vcn_enable(smu, false);
 		smu_dpm_set_jpeg_enable(smu, false);
 	}
 
