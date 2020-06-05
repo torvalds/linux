@@ -700,6 +700,9 @@
 			interrupt-names = "lpass-irq-lpaif";
 			reg = <0x07708000 0x10000>;
 			reg-names = "lpass-lpaif";
+
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
                 lpass_codec: codec{
