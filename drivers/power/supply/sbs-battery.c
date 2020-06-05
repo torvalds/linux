@@ -51,6 +51,14 @@ enum {
 	REG_CHARGE_VOLTAGE,
 };
 
+#define REG_ADDR_SPEC_INFO		0x1A
+#define SPEC_INFO_VERSION_MASK		GENMASK(7, 4)
+#define SPEC_INFO_VERSION_SHIFT		4
+
+#define SBS_VERSION_1_0			1
+#define SBS_VERSION_1_1			2
+#define SBS_VERSION_1_1_WITH_PEC	3
+
 #define REG_ADDR_MANUFACTURE_DATE	0x1B
 
 /* Battery Mode defines */
@@ -224,13 +232,56 @@ exit:
 
 static int sbs_update_presence(struct sbs_info *chip, bool is_present)
 {
+	struct i2c_client *client = chip->client;
+	int retries = chip->i2c_retry_count;
+	s32 ret = 0;
+	u8 version;
+
 	if (chip->is_present == is_present)
 		return 0;
 
 	if (!is_present) {
 		chip->is_present = false;
+		/* Disable PEC when no device is present */
+		client->flags &= ~I2C_CLIENT_PEC;
 		return 0;
 	}
+
+	/* Check if device supports packet error checking and use it */
+	while (retries > 0) {
+		ret = i2c_smbus_read_word_data(client, REG_ADDR_SPEC_INFO);
+		if (ret >= 0)
+			break;
+
+		/*
+		 * Some batteries trigger the detection pin before the
+		 * I2C bus is properly connected. This works around the
+		 * issue.
+		 */
+		msleep(100);
+
+		retries--;
+	}
+
+	if (ret < 0) {
+		dev_dbg(&client->dev, "failed to read spec info: %d\n", ret);
+
+		/* fallback to old behaviour */
+		client->flags &= ~I2C_CLIENT_PEC;
+		chip->is_present = true;
+
+		return ret;
+	}
+
+	version = (ret & SPEC_INFO_VERSION_MASK) >> SPEC_INFO_VERSION_SHIFT;
+
+	if (version == SBS_VERSION_1_1_WITH_PEC)
+		client->flags |= I2C_CLIENT_PEC;
+	else
+		client->flags &= ~I2C_CLIENT_PEC;
+
+	dev_dbg(&client->dev, "PEC: %s\n", (client->flags & I2C_CLIENT_PEC) ?
+		"enabled" : "disabled");
 
 	if (!chip->is_present && is_present && !chip->charger_broadcasts)
 		sbs_disable_charger_broadcasts(chip);
@@ -273,7 +324,8 @@ static int sbs_read_string_data_fallback(struct i2c_client *client, u8 address, 
 	retries_length = chip->i2c_retry_count;
 	retries_block = chip->i2c_retry_count;
 
-	dev_warn_once(&client->dev, "I2C adapter does not support I2C_FUNC_SMBUS_READ_BLOCK_DATA.\n");
+	dev_warn_once(&client->dev, "I2C adapter does not support I2C_FUNC_SMBUS_READ_BLOCK_DATA.\n"
+				    "Fallback method does not support PEC.\n");
 
 	/* Adapter needs to support these two functions */
 	if (!i2c_check_functionality(client->adapter,
@@ -336,8 +388,14 @@ static int sbs_read_string_data(struct i2c_client *client, u8 address, char *val
 	int retries = chip->i2c_retry_count;
 	int ret = 0;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA))
-		return sbs_read_string_data_fallback(client, address, values);
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_BLOCK_DATA)) {
+		bool pec = client->flags & I2C_CLIENT_PEC;
+		client->flags &= ~I2C_CLIENT_PEC;
+		ret = sbs_read_string_data_fallback(client, address, values);
+		if (pec)
+			client->flags |= I2C_CLIENT_PEC;
+		return ret;
+	}
 
 	while (retries > 0) {
 		ret = i2c_smbus_read_block_data(client, address, values);
