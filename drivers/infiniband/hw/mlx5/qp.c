@@ -2907,7 +2907,7 @@ static int check_ucmd_data(struct mlx5_ib_dev *dev,
 	if (!ret)
 		mlx5_ib_dbg(
 			dev,
-			"udata is not cleared, inlen = %lu, ucmd = %lu, last = %lu, size = %lu\n",
+			"udata is not cleared, inlen = %zu, ucmd = %zu, last = %zu, size = %zu\n",
 			udata->inlen, params->ucmd_size, last, size);
 	return ret ? 0 : -EINVAL;
 }
