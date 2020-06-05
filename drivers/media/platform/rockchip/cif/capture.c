@@ -2543,7 +2543,7 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 			stream->frame_idx++;
 		}
 	} else {
-		u32 lastline, lastpix, ctl, cif_frmst;
+		u32 lastline, lastpix, ctl, cif_frmst, frmid;
 		struct rkcif_stream *stream;
 
 		intstat = rkcif_read_register(cif_dev, CIF_REG_DVP_INTSTAT);
@@ -2588,6 +2588,14 @@ void rkcif_irq_pingpong(struct rkcif_device *cif_dev)
 				stream->stopping = false;
 				wake_up(&stream->wq_stopped);
 				return;
+			}
+
+			frmid = CIF_GET_FRAME_ID(cif_frmst);
+			if ((cif_frmst == 0xfffd0002) || (cif_frmst == 0xfffe0002)) {
+				v4l2_info(&cif_dev->v4l2_dev, "frmid:%d, frmstat:0x%x\n",
+					  frmid, cif_frmst);
+				rkcif_write_register(cif_dev, CIF_REG_DVP_FRAME_STATUS,
+						     FRAME_STAT_CLS);
 			}
 
 			if (lastline != stream->pixm.height ||
