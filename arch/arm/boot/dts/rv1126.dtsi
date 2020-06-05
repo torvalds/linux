@@ -238,6 +238,7 @@
 		compatible = "rockchip,display-subsystem";
 		ports = <&vop_out>;
 		status = "disabled";
+		logo-memory-region = <&drm_logo>;
 
 		route {
 			route_dsi: route-dsi {
@@ -294,6 +295,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
+
+		drm_logo: drm-logo@00000000 {
+			compatible = "rockchip,drm-logo";
+			reg = <0x0 0x0>;
+		};
 
 		isp_reserved: isp {
 			compatible = "shared-dma-pool";
