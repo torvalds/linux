@@ -629,9 +629,6 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 	if (edid_caps->max_tmds_clk_mhz != 0 &&
 			adjusted_pix_clk_100hz > edid_caps->max_tmds_clk_mhz * 10000)
 		return false;
-	if (edid_caps->max_forum_tmds_clk_mhz != 0 &&
-			adjusted_pix_clk_100hz > edid_caps->max_forum_tmds_clk_mhz * 10000)
-		return false;
 
 	if (max_deep_color < crtc_timing->display_color_depth)
 		return false;

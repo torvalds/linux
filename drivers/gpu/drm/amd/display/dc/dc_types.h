@@ -255,14 +255,13 @@ struct dc_edid_caps {
 	uint8_t qs_bit;
 	uint8_t qy_bit;
 
+	uint32_t max_tmds_clk_mhz;
+
 	/*HDMI 2.0 caps*/
 	bool lte_340mcsc_scramble;
 
 	bool edid_hdmi;
 	bool hdr_supported;
-
-	uint32_t max_tmds_clk_mhz;
-	uint32_t max_forum_tmds_clk_mhz;
 
 	struct dc_panel_patch panel_patch;
 };
