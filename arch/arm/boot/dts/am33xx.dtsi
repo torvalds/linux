@@ -347,7 +347,7 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x47400000 0x5000>;
+			ranges = <0x0 0x47400000 0x8000>;
 
 			usb0_phy: usb-phy@1300 {
 				compatible = "ti,am335x-usb-phy";
