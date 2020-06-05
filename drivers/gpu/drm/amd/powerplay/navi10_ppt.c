@@ -462,12 +462,12 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	pr_info("smc_dpm_info table revision(format.content): %d.%d\n",
+	dev_info(adev->dev, "smc_dpm_info table revision(format.content): %d.%d\n",
 			smc_dpm_table->table_header.format_revision,
 			smc_dpm_table->table_header.content_revision);
 
 	if (smc_dpm_table->table_header.format_revision != 4) {
-		pr_err("smc_dpm_info table format revision is not 4!\n");
+		dev_err(adev->dev, "smc_dpm_info table format revision is not 4!\n");
 		return -EINVAL;
 	}
 
@@ -485,7 +485,7 @@ static int navi10_append_powerplay_table(struct smu_context *smu)
 			sizeof(*smc_dpm_table_v4_7) - sizeof(smc_dpm_table_v4_7->table_header));
 		break;
 	default:
-		pr_err("smc_dpm_info with unsupported content revision %d!\n",
+		dev_err(smu->adev->dev, "smc_dpm_info with unsupported content revision %d!\n",
 				smc_dpm_table->table_header.content_revision);
 		return -EINVAL;
 	}
@@ -580,7 +580,7 @@ static int navi10_get_smu_metrics_data(struct smu_context *smu,
 				       smu_table->metrics_table,
 				       false);
 		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
 			return ret;
 		}
@@ -1245,7 +1245,7 @@ static int navi10_get_current_activity_percent(struct smu_context *smu,
 						  value);
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
@@ -1336,7 +1336,7 @@ static int navi10_get_power_profile_mode(struct smu_context *smu, char *buf)
 					  SMU_TABLE_ACTIVITY_MONITOR_COEFF, workload_type,
 					  (void *)(&activity_monitor), false);
 		if (result) {
-			pr_err("[%s] Failed to get activity monitor!", __func__);
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return result;
 		}
 
@@ -1397,7 +1397,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 	smu->power_profile_mode = input[size];
 
 	if (smu->power_profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
 	}
 
@@ -1407,7 +1407,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), false);
 		if (ret) {
-			pr_err("[%s] Failed to get activity monitor!", __func__);
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return ret;
 		}
 
@@ -1451,7 +1451,7 @@ static int navi10_set_power_profile_mode(struct smu_context *smu, long *input, u
 				       SMU_TABLE_ACTIVITY_MONITOR_COEFF, WORKLOAD_PPLIB_CUSTOM_BIT,
 				       (void *)(&activity_monitor), true);
 		if (ret) {
-			pr_err("[%s] Failed to set activity monitor!", __func__);
+			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
 			return ret;
 		}
 	}
@@ -1529,19 +1529,19 @@ static int navi10_notify_smc_display_config(struct smu_context *smu)
 								  min_clocks.dcef_clock_in_sr/100,
 								  NULL);
 				if (ret) {
-					pr_err("Attempt to set divider for DCEFCLK Failed!");
+					dev_err(smu->adev->dev, "Attempt to set divider for DCEFCLK Failed!");
 					return ret;
 				}
 			}
 		} else {
-			pr_info("Attempt to set Hard Min for DCEFCLK Failed!");
+			dev_info(smu->adev->dev, "Attempt to set Hard Min for DCEFCLK Failed!");
 		}
 	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
 		ret = smu_set_hard_freq_range(smu, SMU_UCLK, min_clocks.memory_clock/100, 0);
 		if (ret) {
-			pr_err("[%s] Set hard min uclk failed!", __func__);
+			dev_err(smu->adev->dev, "[%s] Set hard min uclk failed!", __func__);
 			return ret;
 		}
 	}
@@ -1613,7 +1613,7 @@ static int navi10_set_watermarks_table(struct smu_context *smu,
 	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
 		ret = smu_write_watermarks_table(smu);
 		if (ret) {
-			pr_err("Failed to update WMTABLE!");
+			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
 		}
 		smu->watermarks_bitmap |= WATERMARKS_LOADED;
@@ -1648,7 +1648,7 @@ static int navi10_thermal_get_temperature(struct smu_context *smu,
 						  value);
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving temp\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
 		return -EINVAL;
 	}
 
@@ -1930,13 +1930,13 @@ static int navi10_get_power_limit(struct smu_context *smu,
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
 				power_src << 16, &asic_default_power_limit);
 			if (ret) {
-				pr_err("[%s] get PPT limit failed!", __func__);
+				dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
 				return ret;
 			}
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
-				pr_err("Cannot get PPT limit due to pptable missing!");
+				dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
 				return -EINVAL;
 			}
 			asic_default_power_limit =
@@ -1987,23 +1987,28 @@ static int navi10_update_pcie_parameters(struct smu_context *smu,
 	return 0;
 }
 
-static inline void navi10_dump_od_table(OverDriveTable_t *od_table) {
-	pr_debug("OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
-	pr_debug("OD: Gfx1: (%d, %d)\n", od_table->GfxclkFreq1, od_table->GfxclkVolt1);
-	pr_debug("OD: Gfx2: (%d, %d)\n", od_table->GfxclkFreq2, od_table->GfxclkVolt2);
-	pr_debug("OD: Gfx3: (%d, %d)\n", od_table->GfxclkFreq3, od_table->GfxclkVolt3);
-	pr_debug("OD: UclkFmax: %d\n", od_table->UclkFmax);
-	pr_debug("OD: OverDrivePct: %d\n", od_table->OverDrivePct);
+static inline void navi10_dump_od_table(struct smu_context *smu,
+					OverDriveTable_t *od_table)
+{
+	dev_dbg(smu->adev->dev, "OD: Gfxclk: (%d, %d)\n", od_table->GfxclkFmin, od_table->GfxclkFmax);
+	dev_dbg(smu->adev->dev, "OD: Gfx1: (%d, %d)\n", od_table->GfxclkFreq1, od_table->GfxclkVolt1);
+	dev_dbg(smu->adev->dev, "OD: Gfx2: (%d, %d)\n", od_table->GfxclkFreq2, od_table->GfxclkVolt2);
+	dev_dbg(smu->adev->dev, "OD: Gfx3: (%d, %d)\n", od_table->GfxclkFreq3, od_table->GfxclkVolt3);
+	dev_dbg(smu->adev->dev, "OD: UclkFmax: %d\n", od_table->UclkFmax);
+	dev_dbg(smu->adev->dev, "OD: OverDrivePct: %d\n", od_table->OverDrivePct);
 }
 
-static int navi10_od_setting_check_range(struct smu_11_0_overdrive_table *od_table, enum SMU_11_0_ODSETTING_ID setting, uint32_t value)
+static int navi10_od_setting_check_range(struct smu_context *smu,
+					 struct smu_11_0_overdrive_table *od_table,
+					 enum SMU_11_0_ODSETTING_ID setting,
+					 uint32_t value)
 {
 	if (value < od_table->min[setting]) {
-		pr_warn("OD setting (%d, %d) is less than the minimum allowed (%d)\n", setting, value, od_table->min[setting]);
+		dev_warn(smu->adev->dev, "OD setting (%d, %d) is less than the minimum allowed (%d)\n", setting, value, od_table->min[setting]);
 		return -EINVAL;
 	}
 	if (value > od_table->max[setting]) {
-		pr_warn("OD setting (%d, %d) is greater than the maximum allowed (%d)\n", setting, value, od_table->max[setting]);
+		dev_warn(smu->adev->dev, "OD setting (%d, %d) is greater than the maximum allowed (%d)\n", setting, value, od_table->max[setting]);
 		return -EINVAL;
 	}
 	return 0;
@@ -2022,7 +2027,7 @@ static int navi10_overdrive_get_gfx_clk_base_voltage(struct smu_context *smu,
 					  param,
 					  &value);
 	if (ret) {
-		pr_err("[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
+		dev_err(smu->adev->dev, "[GetBaseVoltage] failed to get GFXCLK AVFS voltage from SMU!");
 		return ret;
 	}
 
@@ -2053,7 +2058,7 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 
 	ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, false);
 	if (ret) {
-		pr_err("Failed to get overdrive table!\n");
+		dev_err(smu->adev->dev, "Failed to get overdrive table!\n");
 		return ret;
 	}
 
@@ -2083,7 +2088,7 @@ static int navi10_set_default_od_settings(struct smu_context *smu)
 
 	memcpy(boot_od_table, od_table, sizeof(OverDriveTable_t));
 
-	navi10_dump_od_table(od_table);
+	navi10_dump_od_table(smu, od_table);
 
 	return 0;
 }
@@ -2099,12 +2104,12 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	od_table = (OverDriveTable_t *)table_context->overdrive_table;
 
 	if (!smu->od_enabled) {
-		pr_warn("OverDrive is not enabled!\n");
+		dev_warn(smu->adev->dev, "OverDrive is not enabled!\n");
 		return -EINVAL;
 	}
 
 	if (!smu->od_settings) {
-		pr_err("OD board limits are not set!\n");
+		dev_err(smu->adev->dev, "OD board limits are not set!\n");
 		return -ENOENT;
 	}
 
@@ -2113,16 +2118,16 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 	switch (type) {
 	case PP_OD_EDIT_SCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_LIMITS)) {
-			pr_warn("GFXCLK_LIMITS not supported!\n");
+			dev_warn(smu->adev->dev, "GFXCLK_LIMITS not supported!\n");
 			return -ENOTSUPP;
 		}
 		if (!table_context->overdrive_table) {
-			pr_err("Overdrive is not initialized\n");
+			dev_err(smu->adev->dev, "Overdrive is not initialized\n");
 			return -EINVAL;
 		}
 		for (i = 0; i < size; i += 2) {
 			if (i + 2 > size) {
-				pr_info("invalid number of input parameters %d\n", size);
+				dev_info(smu->adev->dev, "invalid number of input parameters %d\n", size);
 				return -EINVAL;
 			}
 			switch (input[i]) {
@@ -2130,7 +2135,7 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMIN;
 				freq_ptr = &od_table->GfxclkFmin;
 				if (input[i + 1] > od_table->GfxclkFmax) {
-					pr_info("GfxclkFmin (%ld) must be <= GfxclkFmax (%u)!\n",
+					dev_info(smu->adev->dev, "GfxclkFmin (%ld) must be <= GfxclkFmax (%u)!\n",
 						input[i + 1],
 						od_table->GfxclkFmin);
 					return -EINVAL;
@@ -2140,18 +2145,18 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 				freq_setting = SMU_11_0_ODSETTING_GFXCLKFMAX;
 				freq_ptr = &od_table->GfxclkFmax;
 				if (input[i + 1] < od_table->GfxclkFmin) {
-					pr_info("GfxclkFmax (%ld) must be >= GfxclkFmin (%u)!\n",
+					dev_info(smu->adev->dev, "GfxclkFmax (%ld) must be >= GfxclkFmin (%u)!\n",
 						input[i + 1],
 						od_table->GfxclkFmax);
 					return -EINVAL;
 				}
 				break;
 			default:
-				pr_info("Invalid SCLK_VDDC_TABLE index: %ld\n", input[i]);
-				pr_info("Supported indices: [0:min,1:max]\n");
+				dev_info(smu->adev->dev, "Invalid SCLK_VDDC_TABLE index: %ld\n", input[i]);
+				dev_info(smu->adev->dev, "Supported indices: [0:min,1:max]\n");
 				return -EINVAL;
 			}
-			ret = navi10_od_setting_check_range(od_settings, freq_setting, input[i + 1]);
+			ret = navi10_od_setting_check_range(smu, od_settings, freq_setting, input[i + 1]);
 			if (ret)
 				return ret;
 			*freq_ptr = input[i + 1];
@@ -2159,35 +2164,35 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_MCLK_VDDC_TABLE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_UCLK_MAX)) {
-			pr_warn("UCLK_MAX not supported!\n");
+			dev_warn(smu->adev->dev, "UCLK_MAX not supported!\n");
 			return -ENOTSUPP;
 		}
 		if (size < 2) {
-			pr_info("invalid number of parameters: %d\n", size);
+			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
 			return -EINVAL;
 		}
 		if (input[0] != 1) {
-			pr_info("Invalid MCLK_VDDC_TABLE index: %ld\n", input[0]);
-			pr_info("Supported indices: [1:max]\n");
+			dev_info(smu->adev->dev, "Invalid MCLK_VDDC_TABLE index: %ld\n", input[0]);
+			dev_info(smu->adev->dev, "Supported indices: [1:max]\n");
 			return -EINVAL;
 		}
-		ret = navi10_od_setting_check_range(od_settings, SMU_11_0_ODSETTING_UCLKFMAX, input[1]);
+		ret = navi10_od_setting_check_range(smu, od_settings, SMU_11_0_ODSETTING_UCLKFMAX, input[1]);
 		if (ret)
 			return ret;
 		od_table->UclkFmax = input[1];
 		break;
 	case PP_OD_RESTORE_DEFAULT_TABLE:
 		if (!(table_context->overdrive_table && table_context->boot_overdrive_table)) {
-			pr_err("Overdrive table was not initialized!\n");
+			dev_err(smu->adev->dev, "Overdrive table was not initialized!\n");
 			return -EINVAL;
 		}
 		memcpy(table_context->overdrive_table, table_context->boot_overdrive_table, sizeof(OverDriveTable_t));
 		break;
 	case PP_OD_COMMIT_DPM_TABLE:
-		navi10_dump_od_table(od_table);
+		navi10_dump_od_table(smu, od_table);
 		ret = smu_update_table(smu, SMU_TABLE_OVERDRIVE, 0, (void *)od_table, true);
 		if (ret) {
-			pr_err("Failed to import overdrive table!\n");
+			dev_err(smu->adev->dev, "Failed to import overdrive table!\n");
 			return ret;
 		}
 		// no lock needed because smu_od_edit_dpm_table has it
@@ -2200,15 +2205,15 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 		break;
 	case PP_OD_EDIT_VDDC_CURVE:
 		if (!navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_GFXCLK_CURVE)) {
-			pr_warn("GFXCLK_CURVE not supported!\n");
+			dev_warn(smu->adev->dev, "GFXCLK_CURVE not supported!\n");
 			return -ENOTSUPP;
 		}
 		if (size < 3) {
-			pr_info("invalid number of parameters: %d\n", size);
+			dev_info(smu->adev->dev, "invalid number of parameters: %d\n", size);
 			return -EINVAL;
 		}
 		if (!od_table) {
-			pr_info("Overdrive is not initialized\n");
+			dev_info(smu->adev->dev, "Overdrive is not initialized\n");
 			return -EINVAL;
 		}
 
@@ -2232,28 +2237,28 @@ static int navi10_od_edit_dpm_table(struct smu_context *smu, enum PP_OD_DPM_TABL
 			voltage_ptr = &od_table->GfxclkVolt3;
 			break;
 		default:
-			pr_info("Invalid VDDC_CURVE index: %ld\n", input[0]);
-			pr_info("Supported indices: [0, 1, 2]\n");
+			dev_info(smu->adev->dev, "Invalid VDDC_CURVE index: %ld\n", input[0]);
+			dev_info(smu->adev->dev, "Supported indices: [0, 1, 2]\n");
 			return -EINVAL;
 		}
-		ret = navi10_od_setting_check_range(od_settings, freq_setting, input[1]);
+		ret = navi10_od_setting_check_range(smu, od_settings, freq_setting, input[1]);
 		if (ret)
 			return ret;
 		// Allow setting zero to disable the OverDrive VDDC curve
 		if (input[2] != 0) {
-			ret = navi10_od_setting_check_range(od_settings, voltage_setting, input[2]);
+			ret = navi10_od_setting_check_range(smu, od_settings, voltage_setting, input[2]);
 			if (ret)
 				return ret;
 			*freq_ptr = input[1];
 			*voltage_ptr = ((uint16_t)input[2]) * NAVI10_VOLTAGE_SCALE;
-			pr_debug("OD: set curve %ld: (%d, %d)\n", input[0], *freq_ptr, *voltage_ptr);
+			dev_dbg(smu->adev->dev, "OD: set curve %ld: (%d, %d)\n", input[0], *freq_ptr, *voltage_ptr);
 		} else {
 			// If setting 0, disable all voltage curve settings
 			od_table->GfxclkVolt1 = 0;
 			od_table->GfxclkVolt2 = 0;
 			od_table->GfxclkVolt3 = 0;
 		}
-		navi10_dump_od_table(od_table);
+		navi10_dump_od_table(smu, od_table);
 		break;
 	default:
 		return -ENOSYS;
@@ -2267,7 +2272,7 @@ static int navi10_run_btc(struct smu_context *smu)
 
 	ret = smu_send_smc_msg(smu, SMU_MSG_RunBtc, NULL);
 	if (ret)
-		pr_err("RunBtc failed!\n");
+		dev_err(smu->adev->dev, "RunBtc failed!\n");
 
 	return ret;
 }
@@ -2394,7 +2399,7 @@ static uint32_t navi10_get_max_power_limit(struct smu_context *smu) {
 	if (smu->od_enabled) {
 		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
 
-		pr_debug("ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
+		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
 
 		max_power_limit *= (100 + od_limit);
 		max_power_limit /= 100;

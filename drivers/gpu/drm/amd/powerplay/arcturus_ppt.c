@@ -227,7 +227,7 @@ static int arcturus_get_smu_clk_index(struct smu_context *smc, uint32_t index)
 
 	mapping = arcturus_clk_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU clk: %d\n", index);
+		dev_warn(smc->adev->dev, "Unsupported SMU clk: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -258,7 +258,7 @@ static int arcturus_get_smu_table_index(struct smu_context *smc, uint32_t index)
 
 	mapping = arcturus_table_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU table: %d\n", index);
+		dev_warn(smc->adev->dev, "Unsupported SMU table: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -274,7 +274,7 @@ static int arcturus_get_pwr_src_index(struct smu_context *smc, uint32_t index)
 
 	mapping = arcturus_pwr_src_map[index];
 	if (!(mapping.valid_mapping)) {
-		pr_warn("Unsupported SMU power source: %d\n", index);
+		dev_warn(smc->adev->dev, "Unsupported SMU power source: %d\n", index);
 		return -EINVAL;
 	}
 
@@ -385,7 +385,7 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 			(clk_id << 16 | 0xFF),
 			&num_of_levels);
 	if (ret) {
-		pr_err("[%s] failed to get dpm levels!\n", __func__);
+		dev_err(smu->adev->dev, "[%s] failed to get dpm levels!\n", __func__);
 		return ret;
 	}
 
@@ -396,7 +396,7 @@ arcturus_set_single_dpm_table(struct smu_context *smu,
 				(clk_id << 16 | i),
 				&clk);
 		if (ret) {
-			pr_err("[%s] failed to get dpm freq by index!\n", __func__);
+			dev_err(smu->adev->dev, "[%s] failed to get dpm freq by index!\n", __func__);
 			return ret;
 		}
 		single_dpm_table->dpm_levels[i].value = clk;
@@ -429,7 +429,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_SOCCLK);
 		if (ret) {
-			pr_err("[%s] failed to get socclk dpm levels!\n", __func__);
+			dev_err(smu->adev->dev, "[%s] failed to get socclk dpm levels!\n", __func__);
 			return ret;
 		}
 	} else {
@@ -444,7 +444,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_GFXCLK);
 		if (ret) {
-			pr_err("[SetupDefaultDpmTable] failed to get gfxclk dpm levels!");
+			dev_err(smu->adev->dev, "[SetupDefaultDpmTable] failed to get gfxclk dpm levels!");
 			return ret;
 		}
 	} else {
@@ -459,7 +459,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_UCLK);
 		if (ret) {
-			pr_err("[SetupDefaultDpmTable] failed to get memclk dpm levels!");
+			dev_err(smu->adev->dev, "[SetupDefaultDpmTable] failed to get memclk dpm levels!");
 			return ret;
 		}
 	} else {
@@ -474,7 +474,7 @@ static int arcturus_set_default_dpm_table(struct smu_context *smu)
 		ret = arcturus_set_single_dpm_table(smu, single_dpm_table,
 						  PPCLK_FCLK);
 		if (ret) {
-			pr_err("[SetupDefaultDpmTable] failed to get fclk dpm levels!");
+			dev_err(smu->adev->dev, "[SetupDefaultDpmTable] failed to get fclk dpm levels!");
 			return ret;
 		}
 	} else {
@@ -535,7 +535,7 @@ static int arcturus_append_powerplay_table(struct smu_context *smu)
 	if (ret)
 		return ret;
 
-	pr_info("smc_dpm_info table revision(format.content): %d.%d\n",
+	dev_info(smu->adev->dev, "smc_dpm_info table revision(format.content): %d.%d\n",
 			smc_dpm_table->table_header.format_revision,
 			smc_dpm_table->table_header.content_revision);
 
@@ -577,7 +577,7 @@ static int arcturus_run_btc(struct smu_context *smu)
 
 	ret = smu_send_smc_msg(smu, SMU_MSG_RunAfllBtc, NULL);
 	if (ret) {
-		pr_err("RunAfllBtc failed!\n");
+		dev_err(smu->adev->dev, "RunAfllBtc failed!\n");
 		return ret;
 	}
 
@@ -653,14 +653,14 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	case SMU_SCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
 		if (ret) {
-			pr_err("Attempt to get current gfx clk Failed!");
+			dev_err(smu->adev->dev, "Attempt to get current gfx clk Failed!");
 			return ret;
 		}
 
 		single_dpm_table = &(dpm_table->gfx_table);
 		ret = arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 		if (ret) {
-			pr_err("Attempt to get gfx clk levels Failed!");
+			dev_err(smu->adev->dev, "Attempt to get gfx clk levels Failed!");
 			return ret;
 		}
 
@@ -680,14 +680,14 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	case SMU_MCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
 		if (ret) {
-			pr_err("Attempt to get current mclk Failed!");
+			dev_err(smu->adev->dev, "Attempt to get current mclk Failed!");
 			return ret;
 		}
 
 		single_dpm_table = &(dpm_table->mem_table);
 		ret = arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 		if (ret) {
-			pr_err("Attempt to get memory clk levels Failed!");
+			dev_err(smu->adev->dev, "Attempt to get memory clk levels Failed!");
 			return ret;
 		}
 
@@ -703,14 +703,14 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	case SMU_SOCCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
 		if (ret) {
-			pr_err("Attempt to get current socclk Failed!");
+			dev_err(smu->adev->dev, "Attempt to get current socclk Failed!");
 			return ret;
 		}
 
 		single_dpm_table = &(dpm_table->soc_table);
 		ret = arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 		if (ret) {
-			pr_err("Attempt to get socclk levels Failed!");
+			dev_err(smu->adev->dev, "Attempt to get socclk levels Failed!");
 			return ret;
 		}
 
@@ -726,14 +726,14 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 	case SMU_FCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
 		if (ret) {
-			pr_err("Attempt to get current fclk Failed!");
+			dev_err(smu->adev->dev, "Attempt to get current fclk Failed!");
 			return ret;
 		}
 
 		single_dpm_table = &(dpm_table->fclk_table);
 		ret = arcturus_get_clk_table(smu, &clocks, single_dpm_table);
 		if (ret) {
-			pr_err("Attempt to get fclk levels Failed!");
+			dev_err(smu->adev->dev, "Attempt to get fclk levels Failed!");
 			return ret;
 		}
 
@@ -772,7 +772,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			(PPCLK_GFXCLK << 16) | (freq & 0xffff),
 			NULL);
 		if (ret) {
-			pr_err("Failed to set soft %s gfxclk !\n",
+			dev_err(smu->adev->dev, "Failed to set soft %s gfxclk !\n",
 						max ? "max" : "min");
 			return ret;
 		}
@@ -788,7 +788,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			(PPCLK_UCLK << 16) | (freq & 0xffff),
 			NULL);
 		if (ret) {
-			pr_err("Failed to set soft %s memclk !\n",
+			dev_err(smu->adev->dev, "Failed to set soft %s memclk !\n",
 						max ? "max" : "min");
 			return ret;
 		}
@@ -804,7 +804,7 @@ static int arcturus_upload_dpm_level(struct smu_context *smu, bool max,
 			(PPCLK_SOCCLK << 16) | (freq & 0xffff),
 			NULL);
 		if (ret) {
-			pr_err("Failed to set soft %s socclk !\n",
+			dev_err(smu->adev->dev, "Failed to set soft %s socclk !\n",
 						max ? "max" : "min");
 			return ret;
 		}
@@ -824,12 +824,12 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
-		pr_err("Failed to get smu version!\n");
+		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
 	}
 
 	if (smu_version >= 0x361200) {
-		pr_err("Forcing clock level is not supported with "
+		dev_err(smu->adev->dev, "Forcing clock level is not supported with "
 		       "54.18 and onwards SMU firmwares\n");
 		return -EOPNOTSUPP;
 	}
@@ -844,7 +844,7 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 		single_dpm_table = &(dpm_table->gfx_table);
 
 		if (soft_max_level >= single_dpm_table->count) {
-			pr_err("Clock level specified %d is over max allowed %d\n",
+			dev_err(smu->adev->dev, "Clock level specified %d is over max allowed %d\n",
 					soft_max_level, single_dpm_table->count - 1);
 			ret = -EINVAL;
 			break;
@@ -857,13 +857,13 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 
 		ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 		if (ret) {
-			pr_err("Failed to upload boot level to lowest!\n");
+			dev_err(smu->adev->dev, "Failed to upload boot level to lowest!\n");
 			break;
 		}
 
 		ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 		if (ret)
-			pr_err("Failed to upload dpm max level to highest!\n");
+			dev_err(smu->adev->dev, "Failed to upload dpm max level to highest!\n");
 
 		break;
 
@@ -926,7 +926,7 @@ static int arcturus_get_smu_metrics_data(struct smu_context *smu,
 				       smu_table->metrics_table,
 				       false);
 		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
 			return ret;
 		}
@@ -1040,7 +1040,7 @@ static int arcturus_get_current_activity_percent(struct smu_context *smu,
 						    value);
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
@@ -1083,7 +1083,7 @@ static int arcturus_thermal_get_temperature(struct smu_context *smu,
 						    value);
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving temp\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving temp\n");
 		return -EINVAL;
 	}
 
@@ -1246,16 +1246,17 @@ static uint32_t arcturus_find_lowest_dpm_level(struct arcturus_single_dpm_table 
 	return i;
 }
 
-static uint32_t arcturus_find_highest_dpm_level(struct arcturus_single_dpm_table *table)
+static uint32_t arcturus_find_highest_dpm_level(struct smu_context *smu,
+						struct arcturus_single_dpm_table *table)
 {
 	int i = 0;
 
 	if (table->count <= 0) {
-		pr_err("[%s] DPM Table has no entry!", __func__);
+		dev_err(smu->adev->dev, "[%s] DPM Table has no entry!", __func__);
 		return 0;
 	}
 	if (table->count > MAX_DPM_NUMBER) {
-		pr_err("[%s] DPM Table has too many entries!", __func__);
+		dev_err(smu->adev->dev, "[%s] DPM Table has too many entries!", __func__);
 		return MAX_DPM_NUMBER - 1;
 	}
 
@@ -1283,7 +1284,7 @@ static int arcturus_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	/* gfxclk */
 	if (highest)
-		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->gfx_table));
+		soft_level = arcturus_find_highest_dpm_level(smu, &(dpm_table->gfx_table));
 	else
 		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->gfx_table));
 
@@ -1293,14 +1294,14 @@ static int arcturus_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
-		pr_err("Failed to upload boot level to %s!\n",
+		dev_err(smu->adev->dev, "Failed to upload boot level to %s!\n",
 				highest ? "highest" : "lowest");
 		return ret;
 	}
 
 	ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
-		pr_err("Failed to upload dpm max level to %s!\n!",
+		dev_err(smu->adev->dev, "Failed to upload dpm max level to %s!\n!",
 				highest ? "highest" : "lowest");
 		return ret;
 	}
@@ -1325,7 +1326,7 @@ static int arcturus_unforce_dpm_levels(struct smu_context *smu)
 
 	/* gfxclk */
 	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->gfx_table));
-	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->gfx_table));
+	soft_max_level = arcturus_find_highest_dpm_level(smu, &(dpm_table->gfx_table));
 	dpm_table->gfx_table.dpm_state.soft_min_level =
 		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
 	dpm_table->gfx_table.dpm_state.soft_max_level =
@@ -1333,13 +1334,13 @@ static int arcturus_unforce_dpm_levels(struct smu_context *smu)
 
 	ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
-		pr_err("Failed to upload DPM Bootup Levels!");
+		dev_err(smu->adev->dev, "Failed to upload DPM Bootup Levels!");
 		return ret;
 	}
 
 	ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
-		pr_err("Failed to upload DPM Max Levels!");
+		dev_err(smu->adev->dev, "Failed to upload DPM Max Levels!");
 		return ret;
 	}
 
@@ -1416,13 +1417,13 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
 				power_src << 16, &asic_default_power_limit);
 			if (ret) {
-				pr_err("[%s] get PPT limit failed!", __func__);
+				dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
 				return ret;
 			}
 		} else {
 			/* the last hope to figure out the ppt limit */
 			if (!pptable) {
-				pr_err("Cannot get PPT limit due to pptable missing!");
+				dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
 				return -EINVAL;
 			}
 			asic_default_power_limit =
@@ -1500,7 +1501,7 @@ static int arcturus_get_power_profile_mode(struct smu_context *smu,
 						  (void *)(&activity_monitor),
 						  false);
 			if (result) {
-				pr_err("[%s] Failed to get activity monitor!", __func__);
+				dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 				return result;
 			}
 		}
@@ -1553,7 +1554,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 	uint32_t smu_version;
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", profile_mode);
 		return -EINVAL;
 	}
 
@@ -1569,7 +1570,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 				       (void *)(&activity_monitor),
 				       false);
 		if (ret) {
-			pr_err("[%s] Failed to get activity monitor!", __func__);
+			dev_err(smu->adev->dev, "[%s] Failed to get activity monitor!", __func__);
 			return ret;
 		}
 
@@ -1604,7 +1605,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 				       (void *)(&activity_monitor),
 				       true);
 		if (ret) {
-			pr_err("[%s] Failed to set activity monitor!", __func__);
+			dev_err(smu->adev->dev, "[%s] Failed to set activity monitor!", __func__);
 			return ret;
 		}
 	}
@@ -1615,7 +1616,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 	 */
 	workload_type = smu_workload_get_type(smu, profile_mode);
 	if (workload_type < 0) {
-		pr_err("Unsupported power profile mode %d on arcturus\n", profile_mode);
+		dev_err(smu->adev->dev, "Unsupported power profile mode %d on arcturus\n", profile_mode);
 		return -EINVAL;
 	}
 
@@ -1624,7 +1625,7 @@ static int arcturus_set_power_profile_mode(struct smu_context *smu,
 					  1 << workload_type,
 					  NULL);
 	if (ret) {
-		pr_err("Fail to set workload type %d\n", workload_type);
+		dev_err(smu->adev->dev, "Fail to set workload type %d\n", workload_type);
 		return ret;
 	}
 
@@ -1641,7 +1642,7 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
-		pr_err("Failed to get smu version!\n");
+		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
 	}
 
@@ -1653,7 +1654,7 @@ static int arcturus_set_performance_level(struct smu_context *smu,
 	case AMD_DPM_FORCED_LEVEL_PROFILE_MIN_MCLK:
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:
 		if (smu_version >= 0x361200) {
-			pr_err("Forcing clock level is not supported with "
+			dev_err(smu->adev->dev, "Forcing clock level is not supported with "
 			       "54.18 and onwards SMU firmwares\n");
 			return -EOPNOTSUPP;
 		}
@@ -1671,53 +1672,53 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 	PPTable_t *pptable = table_context->driver_pptable;
 	int i;
 
-	pr_info("Dumped PPTable:\n");
+	dev_info(smu->adev->dev, "Dumped PPTable:\n");
 
-	pr_info("Version = 0x%08x\n", pptable->Version);
+	dev_info(smu->adev->dev, "Version = 0x%08x\n", pptable->Version);
 
-	pr_info("FeaturesToRun[0] = 0x%08x\n", pptable->FeaturesToRun[0]);
-	pr_info("FeaturesToRun[1] = 0x%08x\n", pptable->FeaturesToRun[1]);
+	dev_info(smu->adev->dev, "FeaturesToRun[0] = 0x%08x\n", pptable->FeaturesToRun[0]);
+	dev_info(smu->adev->dev, "FeaturesToRun[1] = 0x%08x\n", pptable->FeaturesToRun[1]);
 
 	for (i = 0; i < PPT_THROTTLER_COUNT; i++) {
-		pr_info("SocketPowerLimitAc[%d] = %d\n", i, pptable->SocketPowerLimitAc[i]);
-		pr_info("SocketPowerLimitAcTau[%d] = %d\n", i, pptable->SocketPowerLimitAcTau[i]);
+		dev_info(smu->adev->dev, "SocketPowerLimitAc[%d] = %d\n", i, pptable->SocketPowerLimitAc[i]);
+		dev_info(smu->adev->dev, "SocketPowerLimitAcTau[%d] = %d\n", i, pptable->SocketPowerLimitAcTau[i]);
 	}
 
-	pr_info("TdcLimitSoc = %d\n", pptable->TdcLimitSoc);
-	pr_info("TdcLimitSocTau = %d\n", pptable->TdcLimitSocTau);
-	pr_info("TdcLimitGfx = %d\n", pptable->TdcLimitGfx);
-	pr_info("TdcLimitGfxTau = %d\n", pptable->TdcLimitGfxTau);
+	dev_info(smu->adev->dev, "TdcLimitSoc = %d\n", pptable->TdcLimitSoc);
+	dev_info(smu->adev->dev, "TdcLimitSocTau = %d\n", pptable->TdcLimitSocTau);
+	dev_info(smu->adev->dev, "TdcLimitGfx = %d\n", pptable->TdcLimitGfx);
+	dev_info(smu->adev->dev, "TdcLimitGfxTau = %d\n", pptable->TdcLimitGfxTau);
 
-	pr_info("TedgeLimit = %d\n", pptable->TedgeLimit);
-	pr_info("ThotspotLimit = %d\n", pptable->ThotspotLimit);
-	pr_info("TmemLimit = %d\n", pptable->TmemLimit);
-	pr_info("Tvr_gfxLimit = %d\n", pptable->Tvr_gfxLimit);
-	pr_info("Tvr_memLimit = %d\n", pptable->Tvr_memLimit);
-	pr_info("Tvr_socLimit = %d\n", pptable->Tvr_socLimit);
-	pr_info("FitLimit = %d\n", pptable->FitLimit);
+	dev_info(smu->adev->dev, "TedgeLimit = %d\n", pptable->TedgeLimit);
+	dev_info(smu->adev->dev, "ThotspotLimit = %d\n", pptable->ThotspotLimit);
+	dev_info(smu->adev->dev, "TmemLimit = %d\n", pptable->TmemLimit);
+	dev_info(smu->adev->dev, "Tvr_gfxLimit = %d\n", pptable->Tvr_gfxLimit);
+	dev_info(smu->adev->dev, "Tvr_memLimit = %d\n", pptable->Tvr_memLimit);
+	dev_info(smu->adev->dev, "Tvr_socLimit = %d\n", pptable->Tvr_socLimit);
+	dev_info(smu->adev->dev, "FitLimit = %d\n", pptable->FitLimit);
 
-	pr_info("PpmPowerLimit = %d\n", pptable->PpmPowerLimit);
-	pr_info("PpmTemperatureThreshold = %d\n", pptable->PpmTemperatureThreshold);
+	dev_info(smu->adev->dev, "PpmPowerLimit = %d\n", pptable->PpmPowerLimit);
+	dev_info(smu->adev->dev, "PpmTemperatureThreshold = %d\n", pptable->PpmTemperatureThreshold);
 
-	pr_info("ThrottlerControlMask = %d\n", pptable->ThrottlerControlMask);
+	dev_info(smu->adev->dev, "ThrottlerControlMask = %d\n", pptable->ThrottlerControlMask);
 
-	pr_info("UlvVoltageOffsetGfx = %d\n", pptable->UlvVoltageOffsetGfx);
-	pr_info("UlvPadding = 0x%08x\n", pptable->UlvPadding);
+	dev_info(smu->adev->dev, "UlvVoltageOffsetGfx = %d\n", pptable->UlvVoltageOffsetGfx);
+	dev_info(smu->adev->dev, "UlvPadding = 0x%08x\n", pptable->UlvPadding);
 
-	pr_info("UlvGfxclkBypass = %d\n", pptable->UlvGfxclkBypass);
-	pr_info("Padding234[0] = 0x%02x\n", pptable->Padding234[0]);
-	pr_info("Padding234[1] = 0x%02x\n", pptable->Padding234[1]);
-	pr_info("Padding234[2] = 0x%02x\n", pptable->Padding234[2]);
+	dev_info(smu->adev->dev, "UlvGfxclkBypass = %d\n", pptable->UlvGfxclkBypass);
+	dev_info(smu->adev->dev, "Padding234[0] = 0x%02x\n", pptable->Padding234[0]);
+	dev_info(smu->adev->dev, "Padding234[1] = 0x%02x\n", pptable->Padding234[1]);
+	dev_info(smu->adev->dev, "Padding234[2] = 0x%02x\n", pptable->Padding234[2]);
 
-	pr_info("MinVoltageGfx = %d\n", pptable->MinVoltageGfx);
-	pr_info("MinVoltageSoc = %d\n", pptable->MinVoltageSoc);
-	pr_info("MaxVoltageGfx = %d\n", pptable->MaxVoltageGfx);
-	pr_info("MaxVoltageSoc = %d\n", pptable->MaxVoltageSoc);
+	dev_info(smu->adev->dev, "MinVoltageGfx = %d\n", pptable->MinVoltageGfx);
+	dev_info(smu->adev->dev, "MinVoltageSoc = %d\n", pptable->MinVoltageSoc);
+	dev_info(smu->adev->dev, "MaxVoltageGfx = %d\n", pptable->MaxVoltageGfx);
+	dev_info(smu->adev->dev, "MaxVoltageSoc = %d\n", pptable->MaxVoltageSoc);
 
-	pr_info("LoadLineResistanceGfx = %d\n", pptable->LoadLineResistanceGfx);
-	pr_info("LoadLineResistanceSoc = %d\n", pptable->LoadLineResistanceSoc);
+	dev_info(smu->adev->dev, "LoadLineResistanceGfx = %d\n", pptable->LoadLineResistanceGfx);
+	dev_info(smu->adev->dev, "LoadLineResistanceSoc = %d\n", pptable->LoadLineResistanceSoc);
 
-	pr_info("[PPCLK_GFXCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_GFXCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1738,7 +1739,7 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_GFXCLK].SsFmin,
 			pptable->DpmDescriptor[PPCLK_GFXCLK].Padding16);
 
-	pr_info("[PPCLK_VCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_VCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1759,7 +1760,7 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_VCLK].SsFmin,
 			pptable->DpmDescriptor[PPCLK_VCLK].Padding16);
 
-	pr_info("[PPCLK_DCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_DCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1780,7 +1781,7 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_DCLK].SsFmin,
 			pptable->DpmDescriptor[PPCLK_DCLK].Padding16);
 
-	pr_info("[PPCLK_SOCCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_SOCCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1801,7 +1802,7 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_SOCCLK].SsFmin,
 			pptable->DpmDescriptor[PPCLK_SOCCLK].Padding16);
 
-	pr_info("[PPCLK_UCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_UCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1822,7 +1823,7 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_UCLK].SsFmin,
 			pptable->DpmDescriptor[PPCLK_UCLK].Padding16);
 
-	pr_info("[PPCLK_FCLK]\n"
+	dev_info(smu->adev->dev, "[PPCLK_FCLK]\n"
 			"  .VoltageMode          = 0x%02x\n"
 			"  .SnapToDiscrete       = 0x%02x\n"
 			"  .NumDiscreteLevels    = 0x%02x\n"
@@ -1844,255 +1845,255 @@ static void arcturus_dump_pptable(struct smu_context *smu)
 			pptable->DpmDescriptor[PPCLK_FCLK].Padding16);
 
 
-	pr_info("FreqTableGfx\n");
+	dev_info(smu->adev->dev, "FreqTableGfx\n");
 	for (i = 0; i < NUM_GFXCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableGfx[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableGfx[i]);
 
-	pr_info("FreqTableVclk\n");
+	dev_info(smu->adev->dev, "FreqTableVclk\n");
 	for (i = 0; i < NUM_VCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableVclk[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableVclk[i]);
 
-	pr_info("FreqTableDclk\n");
+	dev_info(smu->adev->dev, "FreqTableDclk\n");
 	for (i = 0; i < NUM_DCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableDclk[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableDclk[i]);
 
-	pr_info("FreqTableSocclk\n");
+	dev_info(smu->adev->dev, "FreqTableSocclk\n");
 	for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableSocclk[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableSocclk[i]);
 
-	pr_info("FreqTableUclk\n");
+	dev_info(smu->adev->dev, "FreqTableUclk\n");
 	for (i = 0; i < NUM_UCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableUclk[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableUclk[i]);
 
-	pr_info("FreqTableFclk\n");
+	dev_info(smu->adev->dev, "FreqTableFclk\n");
 	for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++)
-		pr_info("  .[%02d] = %d\n", i, pptable->FreqTableFclk[i]);
+		dev_info(smu->adev->dev, "  .[%02d] = %d\n", i, pptable->FreqTableFclk[i]);
 
-	pr_info("Mp0clkFreq\n");
+	dev_info(smu->adev->dev, "Mp0clkFreq\n");
 	for (i = 0; i < NUM_MP0CLK_DPM_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->Mp0clkFreq[i]);
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->Mp0clkFreq[i]);
 
-	pr_info("Mp0DpmVoltage\n");
+	dev_info(smu->adev->dev, "Mp0DpmVoltage\n");
 	for (i = 0; i < NUM_MP0CLK_DPM_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->Mp0DpmVoltage[i]);
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->Mp0DpmVoltage[i]);
 
-	pr_info("GfxclkFidle = 0x%x\n", pptable->GfxclkFidle);
-	pr_info("GfxclkSlewRate = 0x%x\n", pptable->GfxclkSlewRate);
-	pr_info("Padding567[0] = 0x%x\n", pptable->Padding567[0]);
-	pr_info("Padding567[1] = 0x%x\n", pptable->Padding567[1]);
-	pr_info("Padding567[2] = 0x%x\n", pptable->Padding567[2]);
-	pr_info("Padding567[3] = 0x%x\n", pptable->Padding567[3]);
-	pr_info("GfxclkDsMaxFreq = %d\n", pptable->GfxclkDsMaxFreq);
-	pr_info("GfxclkSource = 0x%x\n", pptable->GfxclkSource);
-	pr_info("Padding456 = 0x%x\n", pptable->Padding456);
+	dev_info(smu->adev->dev, "GfxclkFidle = 0x%x\n", pptable->GfxclkFidle);
+	dev_info(smu->adev->dev, "GfxclkSlewRate = 0x%x\n", pptable->GfxclkSlewRate);
+	dev_info(smu->adev->dev, "Padding567[0] = 0x%x\n", pptable->Padding567[0]);
+	dev_info(smu->adev->dev, "Padding567[1] = 0x%x\n", pptable->Padding567[1]);
+	dev_info(smu->adev->dev, "Padding567[2] = 0x%x\n", pptable->Padding567[2]);
+	dev_info(smu->adev->dev, "Padding567[3] = 0x%x\n", pptable->Padding567[3]);
+	dev_info(smu->adev->dev, "GfxclkDsMaxFreq = %d\n", pptable->GfxclkDsMaxFreq);
+	dev_info(smu->adev->dev, "GfxclkSource = 0x%x\n", pptable->GfxclkSource);
+	dev_info(smu->adev->dev, "Padding456 = 0x%x\n", pptable->Padding456);
 
-	pr_info("EnableTdpm = %d\n", pptable->EnableTdpm);
-	pr_info("TdpmHighHystTemperature = %d\n", pptable->TdpmHighHystTemperature);
-	pr_info("TdpmLowHystTemperature = %d\n", pptable->TdpmLowHystTemperature);
-	pr_info("GfxclkFreqHighTempLimit = %d\n", pptable->GfxclkFreqHighTempLimit);
+	dev_info(smu->adev->dev, "EnableTdpm = %d\n", pptable->EnableTdpm);
+	dev_info(smu->adev->dev, "TdpmHighHystTemperature = %d\n", pptable->TdpmHighHystTemperature);
+	dev_info(smu->adev->dev, "TdpmLowHystTemperature = %d\n", pptable->TdpmLowHystTemperature);
+	dev_info(smu->adev->dev, "GfxclkFreqHighTempLimit = %d\n", pptable->GfxclkFreqHighTempLimit);
 
-	pr_info("FanStopTemp = %d\n", pptable->FanStopTemp);
-	pr_info("FanStartTemp = %d\n", pptable->FanStartTemp);
+	dev_info(smu->adev->dev, "FanStopTemp = %d\n", pptable->FanStopTemp);
+	dev_info(smu->adev->dev, "FanStartTemp = %d\n", pptable->FanStartTemp);
 
-	pr_info("FanGainEdge = %d\n", pptable->FanGainEdge);
-	pr_info("FanGainHotspot = %d\n", pptable->FanGainHotspot);
-	pr_info("FanGainVrGfx = %d\n", pptable->FanGainVrGfx);
-	pr_info("FanGainVrSoc = %d\n", pptable->FanGainVrSoc);
-	pr_info("FanGainVrMem = %d\n", pptable->FanGainVrMem);
-	pr_info("FanGainHbm = %d\n", pptable->FanGainHbm);
+	dev_info(smu->adev->dev, "FanGainEdge = %d\n", pptable->FanGainEdge);
+	dev_info(smu->adev->dev, "FanGainHotspot = %d\n", pptable->FanGainHotspot);
+	dev_info(smu->adev->dev, "FanGainVrGfx = %d\n", pptable->FanGainVrGfx);
+	dev_info(smu->adev->dev, "FanGainVrSoc = %d\n", pptable->FanGainVrSoc);
+	dev_info(smu->adev->dev, "FanGainVrMem = %d\n", pptable->FanGainVrMem);
+	dev_info(smu->adev->dev, "FanGainHbm = %d\n", pptable->FanGainHbm);
 
-	pr_info("FanPwmMin = %d\n", pptable->FanPwmMin);
-	pr_info("FanAcousticLimitRpm = %d\n", pptable->FanAcousticLimitRpm);
-	pr_info("FanThrottlingRpm = %d\n", pptable->FanThrottlingRpm);
-	pr_info("FanMaximumRpm = %d\n", pptable->FanMaximumRpm);
-	pr_info("FanTargetTemperature = %d\n", pptable->FanTargetTemperature);
-	pr_info("FanTargetGfxclk = %d\n", pptable->FanTargetGfxclk);
-	pr_info("FanZeroRpmEnable = %d\n", pptable->FanZeroRpmEnable);
-	pr_info("FanTachEdgePerRev = %d\n", pptable->FanTachEdgePerRev);
-	pr_info("FanTempInputSelect = %d\n", pptable->FanTempInputSelect);
+	dev_info(smu->adev->dev, "FanPwmMin = %d\n", pptable->FanPwmMin);
+	dev_info(smu->adev->dev, "FanAcousticLimitRpm = %d\n", pptable->FanAcousticLimitRpm);
+	dev_info(smu->adev->dev, "FanThrottlingRpm = %d\n", pptable->FanThrottlingRpm);
+	dev_info(smu->adev->dev, "FanMaximumRpm = %d\n", pptable->FanMaximumRpm);
+	dev_info(smu->adev->dev, "FanTargetTemperature = %d\n", pptable->FanTargetTemperature);
+	dev_info(smu->adev->dev, "FanTargetGfxclk = %d\n", pptable->FanTargetGfxclk);
+	dev_info(smu->adev->dev, "FanZeroRpmEnable = %d\n", pptable->FanZeroRpmEnable);
+	dev_info(smu->adev->dev, "FanTachEdgePerRev = %d\n", pptable->FanTachEdgePerRev);
+	dev_info(smu->adev->dev, "FanTempInputSelect = %d\n", pptable->FanTempInputSelect);
 
-	pr_info("FuzzyFan_ErrorSetDelta = %d\n", pptable->FuzzyFan_ErrorSetDelta);
-	pr_info("FuzzyFan_ErrorRateSetDelta = %d\n", pptable->FuzzyFan_ErrorRateSetDelta);
-	pr_info("FuzzyFan_PwmSetDelta = %d\n", pptable->FuzzyFan_PwmSetDelta);
-	pr_info("FuzzyFan_Reserved = %d\n", pptable->FuzzyFan_Reserved);
+	dev_info(smu->adev->dev, "FuzzyFan_ErrorSetDelta = %d\n", pptable->FuzzyFan_ErrorSetDelta);
+	dev_info(smu->adev->dev, "FuzzyFan_ErrorRateSetDelta = %d\n", pptable->FuzzyFan_ErrorRateSetDelta);
+	dev_info(smu->adev->dev, "FuzzyFan_PwmSetDelta = %d\n", pptable->FuzzyFan_PwmSetDelta);
+	dev_info(smu->adev->dev, "FuzzyFan_Reserved = %d\n", pptable->FuzzyFan_Reserved);
 
-	pr_info("OverrideAvfsGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->OverrideAvfsGb[AVFS_VOLTAGE_GFX]);
-	pr_info("OverrideAvfsGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->OverrideAvfsGb[AVFS_VOLTAGE_SOC]);
-	pr_info("Padding8_Avfs[0] = %d\n", pptable->Padding8_Avfs[0]);
-	pr_info("Padding8_Avfs[1] = %d\n", pptable->Padding8_Avfs[1]);
+	dev_info(smu->adev->dev, "OverrideAvfsGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->OverrideAvfsGb[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "OverrideAvfsGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->OverrideAvfsGb[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "Padding8_Avfs[0] = %d\n", pptable->Padding8_Avfs[0]);
+	dev_info(smu->adev->dev, "Padding8_Avfs[1] = %d\n", pptable->Padding8_Avfs[1]);
 
-	pr_info("dBtcGbGfxPll{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "dBtcGbGfxPll{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->dBtcGbGfxPll.a,
 			pptable->dBtcGbGfxPll.b,
 			pptable->dBtcGbGfxPll.c);
-	pr_info("dBtcGbGfxAfll{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "dBtcGbGfxAfll{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->dBtcGbGfxAfll.a,
 			pptable->dBtcGbGfxAfll.b,
 			pptable->dBtcGbGfxAfll.c);
-	pr_info("dBtcGbSoc{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "dBtcGbSoc{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->dBtcGbSoc.a,
 			pptable->dBtcGbSoc.b,
 			pptable->dBtcGbSoc.c);
 
-	pr_info("qAgingGb[AVFS_VOLTAGE_GFX]{m = 0x%x b = 0x%x}\n",
+	dev_info(smu->adev->dev, "qAgingGb[AVFS_VOLTAGE_GFX]{m = 0x%x b = 0x%x}\n",
 			pptable->qAgingGb[AVFS_VOLTAGE_GFX].m,
 			pptable->qAgingGb[AVFS_VOLTAGE_GFX].b);
-	pr_info("qAgingGb[AVFS_VOLTAGE_SOC]{m = 0x%x b = 0x%x}\n",
+	dev_info(smu->adev->dev, "qAgingGb[AVFS_VOLTAGE_SOC]{m = 0x%x b = 0x%x}\n",
 			pptable->qAgingGb[AVFS_VOLTAGE_SOC].m,
 			pptable->qAgingGb[AVFS_VOLTAGE_SOC].b);
 
-	pr_info("qStaticVoltageOffset[AVFS_VOLTAGE_GFX]{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "qStaticVoltageOffset[AVFS_VOLTAGE_GFX]{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_GFX].a,
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_GFX].b,
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_GFX].c);
-	pr_info("qStaticVoltageOffset[AVFS_VOLTAGE_SOC]{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "qStaticVoltageOffset[AVFS_VOLTAGE_SOC]{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_SOC].a,
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_SOC].b,
 			pptable->qStaticVoltageOffset[AVFS_VOLTAGE_SOC].c);
 
-	pr_info("DcTol[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcTol[AVFS_VOLTAGE_GFX]);
-	pr_info("DcTol[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcTol[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "DcTol[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcTol[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "DcTol[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcTol[AVFS_VOLTAGE_SOC]);
 
-	pr_info("DcBtcEnabled[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcEnabled[AVFS_VOLTAGE_GFX]);
-	pr_info("DcBtcEnabled[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcEnabled[AVFS_VOLTAGE_SOC]);
-	pr_info("Padding8_GfxBtc[0] = 0x%x\n", pptable->Padding8_GfxBtc[0]);
-	pr_info("Padding8_GfxBtc[1] = 0x%x\n", pptable->Padding8_GfxBtc[1]);
+	dev_info(smu->adev->dev, "DcBtcEnabled[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcEnabled[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "DcBtcEnabled[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcEnabled[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "Padding8_GfxBtc[0] = 0x%x\n", pptable->Padding8_GfxBtc[0]);
+	dev_info(smu->adev->dev, "Padding8_GfxBtc[1] = 0x%x\n", pptable->Padding8_GfxBtc[1]);
 
-	pr_info("DcBtcMin[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcMin[AVFS_VOLTAGE_GFX]);
-	pr_info("DcBtcMin[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcMin[AVFS_VOLTAGE_SOC]);
-	pr_info("DcBtcMax[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcMax[AVFS_VOLTAGE_GFX]);
-	pr_info("DcBtcMax[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcMax[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "DcBtcMin[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcMin[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "DcBtcMin[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcMin[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "DcBtcMax[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcMax[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "DcBtcMax[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcMax[AVFS_VOLTAGE_SOC]);
 
-	pr_info("DcBtcGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_GFX]);
-	pr_info("DcBtcGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_SOC]);
+	dev_info(smu->adev->dev, "DcBtcGb[AVFS_VOLTAGE_GFX] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_GFX]);
+	dev_info(smu->adev->dev, "DcBtcGb[AVFS_VOLTAGE_SOC] = 0x%x\n", pptable->DcBtcGb[AVFS_VOLTAGE_SOC]);
 
-	pr_info("XgmiDpmPstates\n");
+	dev_info(smu->adev->dev, "XgmiDpmPstates\n");
 	for (i = 0; i < NUM_XGMI_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->XgmiDpmPstates[i]);
-	pr_info("XgmiDpmSpare[0] = 0x%02x\n", pptable->XgmiDpmSpare[0]);
-	pr_info("XgmiDpmSpare[1] = 0x%02x\n", pptable->XgmiDpmSpare[1]);
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->XgmiDpmPstates[i]);
+	dev_info(smu->adev->dev, "XgmiDpmSpare[0] = 0x%02x\n", pptable->XgmiDpmSpare[0]);
+	dev_info(smu->adev->dev, "XgmiDpmSpare[1] = 0x%02x\n", pptable->XgmiDpmSpare[1]);
 
-	pr_info("VDDGFX_TVmin = %d\n", pptable->VDDGFX_TVmin);
-	pr_info("VDDSOC_TVmin = %d\n", pptable->VDDSOC_TVmin);
-	pr_info("VDDGFX_Vmin_HiTemp = %d\n", pptable->VDDGFX_Vmin_HiTemp);
-	pr_info("VDDGFX_Vmin_LoTemp = %d\n", pptable->VDDGFX_Vmin_LoTemp);
-	pr_info("VDDSOC_Vmin_HiTemp = %d\n", pptable->VDDSOC_Vmin_HiTemp);
-	pr_info("VDDSOC_Vmin_LoTemp = %d\n", pptable->VDDSOC_Vmin_LoTemp);
-	pr_info("VDDGFX_TVminHystersis = %d\n", pptable->VDDGFX_TVminHystersis);
-	pr_info("VDDSOC_TVminHystersis = %d\n", pptable->VDDSOC_TVminHystersis);
+	dev_info(smu->adev->dev, "VDDGFX_TVmin = %d\n", pptable->VDDGFX_TVmin);
+	dev_info(smu->adev->dev, "VDDSOC_TVmin = %d\n", pptable->VDDSOC_TVmin);
+	dev_info(smu->adev->dev, "VDDGFX_Vmin_HiTemp = %d\n", pptable->VDDGFX_Vmin_HiTemp);
+	dev_info(smu->adev->dev, "VDDGFX_Vmin_LoTemp = %d\n", pptable->VDDGFX_Vmin_LoTemp);
+	dev_info(smu->adev->dev, "VDDSOC_Vmin_HiTemp = %d\n", pptable->VDDSOC_Vmin_HiTemp);
+	dev_info(smu->adev->dev, "VDDSOC_Vmin_LoTemp = %d\n", pptable->VDDSOC_Vmin_LoTemp);
+	dev_info(smu->adev->dev, "VDDGFX_TVminHystersis = %d\n", pptable->VDDGFX_TVminHystersis);
+	dev_info(smu->adev->dev, "VDDSOC_TVminHystersis = %d\n", pptable->VDDSOC_TVminHystersis);
 
-	pr_info("DebugOverrides = 0x%x\n", pptable->DebugOverrides);
-	pr_info("ReservedEquation0{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "DebugOverrides = 0x%x\n", pptable->DebugOverrides);
+	dev_info(smu->adev->dev, "ReservedEquation0{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->ReservedEquation0.a,
 			pptable->ReservedEquation0.b,
 			pptable->ReservedEquation0.c);
-	pr_info("ReservedEquation1{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "ReservedEquation1{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->ReservedEquation1.a,
 			pptable->ReservedEquation1.b,
 			pptable->ReservedEquation1.c);
-	pr_info("ReservedEquation2{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "ReservedEquation2{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->ReservedEquation2.a,
 			pptable->ReservedEquation2.b,
 			pptable->ReservedEquation2.c);
-	pr_info("ReservedEquation3{a = 0x%x b = 0x%x c = 0x%x}\n",
+	dev_info(smu->adev->dev, "ReservedEquation3{a = 0x%x b = 0x%x c = 0x%x}\n",
 			pptable->ReservedEquation3.a,
 			pptable->ReservedEquation3.b,
 			pptable->ReservedEquation3.c);
 
-	pr_info("MinVoltageUlvGfx = %d\n", pptable->MinVoltageUlvGfx);
-	pr_info("PaddingUlv = %d\n", pptable->PaddingUlv);
+	dev_info(smu->adev->dev, "MinVoltageUlvGfx = %d\n", pptable->MinVoltageUlvGfx);
+	dev_info(smu->adev->dev, "PaddingUlv = %d\n", pptable->PaddingUlv);
 
-	pr_info("TotalPowerConfig = %d\n", pptable->TotalPowerConfig);
-	pr_info("TotalPowerSpare1 = %d\n", pptable->TotalPowerSpare1);
-	pr_info("TotalPowerSpare2 = %d\n", pptable->TotalPowerSpare2);
+	dev_info(smu->adev->dev, "TotalPowerConfig = %d\n", pptable->TotalPowerConfig);
+	dev_info(smu->adev->dev, "TotalPowerSpare1 = %d\n", pptable->TotalPowerSpare1);
+	dev_info(smu->adev->dev, "TotalPowerSpare2 = %d\n", pptable->TotalPowerSpare2);
 
-	pr_info("PccThresholdLow = %d\n", pptable->PccThresholdLow);
-	pr_info("PccThresholdHigh = %d\n", pptable->PccThresholdHigh);
+	dev_info(smu->adev->dev, "PccThresholdLow = %d\n", pptable->PccThresholdLow);
+	dev_info(smu->adev->dev, "PccThresholdHigh = %d\n", pptable->PccThresholdHigh);
 
-	pr_info("Board Parameters:\n");
-	pr_info("MaxVoltageStepGfx = 0x%x\n", pptable->MaxVoltageStepGfx);
-	pr_info("MaxVoltageStepSoc = 0x%x\n", pptable->MaxVoltageStepSoc);
+	dev_info(smu->adev->dev, "Board Parameters:\n");
+	dev_info(smu->adev->dev, "MaxVoltageStepGfx = 0x%x\n", pptable->MaxVoltageStepGfx);
+	dev_info(smu->adev->dev, "MaxVoltageStepSoc = 0x%x\n", pptable->MaxVoltageStepSoc);
 
-	pr_info("VddGfxVrMapping = 0x%x\n", pptable->VddGfxVrMapping);
-	pr_info("VddSocVrMapping = 0x%x\n", pptable->VddSocVrMapping);
-	pr_info("VddMemVrMapping = 0x%x\n", pptable->VddMemVrMapping);
-	pr_info("BoardVrMapping = 0x%x\n", pptable->BoardVrMapping);
+	dev_info(smu->adev->dev, "VddGfxVrMapping = 0x%x\n", pptable->VddGfxVrMapping);
+	dev_info(smu->adev->dev, "VddSocVrMapping = 0x%x\n", pptable->VddSocVrMapping);
+	dev_info(smu->adev->dev, "VddMemVrMapping = 0x%x\n", pptable->VddMemVrMapping);
+	dev_info(smu->adev->dev, "BoardVrMapping = 0x%x\n", pptable->BoardVrMapping);
 
-	pr_info("GfxUlvPhaseSheddingMask = 0x%x\n", pptable->GfxUlvPhaseSheddingMask);
-	pr_info("ExternalSensorPresent = 0x%x\n", pptable->ExternalSensorPresent);
+	dev_info(smu->adev->dev, "GfxUlvPhaseSheddingMask = 0x%x\n", pptable->GfxUlvPhaseSheddingMask);
+	dev_info(smu->adev->dev, "ExternalSensorPresent = 0x%x\n", pptable->ExternalSensorPresent);
 
-	pr_info("GfxMaxCurrent = 0x%x\n", pptable->GfxMaxCurrent);
-	pr_info("GfxOffset = 0x%x\n", pptable->GfxOffset);
-	pr_info("Padding_TelemetryGfx = 0x%x\n", pptable->Padding_TelemetryGfx);
+	dev_info(smu->adev->dev, "GfxMaxCurrent = 0x%x\n", pptable->GfxMaxCurrent);
+	dev_info(smu->adev->dev, "GfxOffset = 0x%x\n", pptable->GfxOffset);
+	dev_info(smu->adev->dev, "Padding_TelemetryGfx = 0x%x\n", pptable->Padding_TelemetryGfx);
 
-	pr_info("SocMaxCurrent = 0x%x\n", pptable->SocMaxCurrent);
-	pr_info("SocOffset = 0x%x\n", pptable->SocOffset);
-	pr_info("Padding_TelemetrySoc = 0x%x\n", pptable->Padding_TelemetrySoc);
+	dev_info(smu->adev->dev, "SocMaxCurrent = 0x%x\n", pptable->SocMaxCurrent);
+	dev_info(smu->adev->dev, "SocOffset = 0x%x\n", pptable->SocOffset);
+	dev_info(smu->adev->dev, "Padding_TelemetrySoc = 0x%x\n", pptable->Padding_TelemetrySoc);
 
-	pr_info("MemMaxCurrent = 0x%x\n", pptable->MemMaxCurrent);
-	pr_info("MemOffset = 0x%x\n", pptable->MemOffset);
-	pr_info("Padding_TelemetryMem = 0x%x\n", pptable->Padding_TelemetryMem);
+	dev_info(smu->adev->dev, "MemMaxCurrent = 0x%x\n", pptable->MemMaxCurrent);
+	dev_info(smu->adev->dev, "MemOffset = 0x%x\n", pptable->MemOffset);
+	dev_info(smu->adev->dev, "Padding_TelemetryMem = 0x%x\n", pptable->Padding_TelemetryMem);
 
-	pr_info("BoardMaxCurrent = 0x%x\n", pptable->BoardMaxCurrent);
-	pr_info("BoardOffset = 0x%x\n", pptable->BoardOffset);
-	pr_info("Padding_TelemetryBoardInput = 0x%x\n", pptable->Padding_TelemetryBoardInput);
+	dev_info(smu->adev->dev, "BoardMaxCurrent = 0x%x\n", pptable->BoardMaxCurrent);
+	dev_info(smu->adev->dev, "BoardOffset = 0x%x\n", pptable->BoardOffset);
+	dev_info(smu->adev->dev, "Padding_TelemetryBoardInput = 0x%x\n", pptable->Padding_TelemetryBoardInput);
 
-	pr_info("VR0HotGpio = %d\n", pptable->VR0HotGpio);
-	pr_info("VR0HotPolarity = %d\n", pptable->VR0HotPolarity);
-	pr_info("VR1HotGpio = %d\n", pptable->VR1HotGpio);
-	pr_info("VR1HotPolarity = %d\n", pptable->VR1HotPolarity);
+	dev_info(smu->adev->dev, "VR0HotGpio = %d\n", pptable->VR0HotGpio);
+	dev_info(smu->adev->dev, "VR0HotPolarity = %d\n", pptable->VR0HotPolarity);
+	dev_info(smu->adev->dev, "VR1HotGpio = %d\n", pptable->VR1HotGpio);
+	dev_info(smu->adev->dev, "VR1HotPolarity = %d\n", pptable->VR1HotPolarity);
 
-	pr_info("PllGfxclkSpreadEnabled = %d\n", pptable->PllGfxclkSpreadEnabled);
-	pr_info("PllGfxclkSpreadPercent = %d\n", pptable->PllGfxclkSpreadPercent);
-	pr_info("PllGfxclkSpreadFreq = %d\n", pptable->PllGfxclkSpreadFreq);
+	dev_info(smu->adev->dev, "PllGfxclkSpreadEnabled = %d\n", pptable->PllGfxclkSpreadEnabled);
+	dev_info(smu->adev->dev, "PllGfxclkSpreadPercent = %d\n", pptable->PllGfxclkSpreadPercent);
+	dev_info(smu->adev->dev, "PllGfxclkSpreadFreq = %d\n", pptable->PllGfxclkSpreadFreq);
 
-	pr_info("UclkSpreadEnabled = %d\n", pptable->UclkSpreadEnabled);
-	pr_info("UclkSpreadPercent = %d\n", pptable->UclkSpreadPercent);
-	pr_info("UclkSpreadFreq = %d\n", pptable->UclkSpreadFreq);
+	dev_info(smu->adev->dev, "UclkSpreadEnabled = %d\n", pptable->UclkSpreadEnabled);
+	dev_info(smu->adev->dev, "UclkSpreadPercent = %d\n", pptable->UclkSpreadPercent);
+	dev_info(smu->adev->dev, "UclkSpreadFreq = %d\n", pptable->UclkSpreadFreq);
 
-	pr_info("FclkSpreadEnabled = %d\n", pptable->FclkSpreadEnabled);
-	pr_info("FclkSpreadPercent = %d\n", pptable->FclkSpreadPercent);
-	pr_info("FclkSpreadFreq = %d\n", pptable->FclkSpreadFreq);
+	dev_info(smu->adev->dev, "FclkSpreadEnabled = %d\n", pptable->FclkSpreadEnabled);
+	dev_info(smu->adev->dev, "FclkSpreadPercent = %d\n", pptable->FclkSpreadPercent);
+	dev_info(smu->adev->dev, "FclkSpreadFreq = %d\n", pptable->FclkSpreadFreq);
 
-	pr_info("FllGfxclkSpreadEnabled = %d\n", pptable->FllGfxclkSpreadEnabled);
-	pr_info("FllGfxclkSpreadPercent = %d\n", pptable->FllGfxclkSpreadPercent);
-	pr_info("FllGfxclkSpreadFreq = %d\n", pptable->FllGfxclkSpreadFreq);
+	dev_info(smu->adev->dev, "FllGfxclkSpreadEnabled = %d\n", pptable->FllGfxclkSpreadEnabled);
+	dev_info(smu->adev->dev, "FllGfxclkSpreadPercent = %d\n", pptable->FllGfxclkSpreadPercent);
+	dev_info(smu->adev->dev, "FllGfxclkSpreadFreq = %d\n", pptable->FllGfxclkSpreadFreq);
 
 	for (i = 0; i < NUM_I2C_CONTROLLERS; i++) {
-		pr_info("I2cControllers[%d]:\n", i);
-		pr_info("                   .Enabled = %d\n",
+		dev_info(smu->adev->dev, "I2cControllers[%d]:\n", i);
+		dev_info(smu->adev->dev, "                   .Enabled = %d\n",
 				pptable->I2cControllers[i].Enabled);
-		pr_info("                   .SlaveAddress = 0x%x\n",
+		dev_info(smu->adev->dev, "                   .SlaveAddress = 0x%x\n",
 				pptable->I2cControllers[i].SlaveAddress);
-		pr_info("                   .ControllerPort = %d\n",
+		dev_info(smu->adev->dev, "                   .ControllerPort = %d\n",
 				pptable->I2cControllers[i].ControllerPort);
-		pr_info("                   .ControllerName = %d\n",
+		dev_info(smu->adev->dev, "                   .ControllerName = %d\n",
 				pptable->I2cControllers[i].ControllerName);
-		pr_info("                   .ThermalThrottler = %d\n",
+		dev_info(smu->adev->dev, "                   .ThermalThrottler = %d\n",
 				pptable->I2cControllers[i].ThermalThrotter);
-		pr_info("                   .I2cProtocol = %d\n",
+		dev_info(smu->adev->dev, "                   .I2cProtocol = %d\n",
 				pptable->I2cControllers[i].I2cProtocol);
-		pr_info("                   .Speed = %d\n",
+		dev_info(smu->adev->dev, "                   .Speed = %d\n",
 				pptable->I2cControllers[i].Speed);
 	}
 
-	pr_info("MemoryChannelEnabled = %d\n", pptable->MemoryChannelEnabled);
-	pr_info("DramBitWidth = %d\n", pptable->DramBitWidth);
+	dev_info(smu->adev->dev, "MemoryChannelEnabled = %d\n", pptable->MemoryChannelEnabled);
+	dev_info(smu->adev->dev, "DramBitWidth = %d\n", pptable->DramBitWidth);
 
-	pr_info("TotalBoardPower = %d\n", pptable->TotalBoardPower);
+	dev_info(smu->adev->dev, "TotalBoardPower = %d\n", pptable->TotalBoardPower);
 
-	pr_info("XgmiLinkSpeed\n");
+	dev_info(smu->adev->dev, "XgmiLinkSpeed\n");
 	for (i = 0; i < NUM_XGMI_PSTATE_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->XgmiLinkSpeed[i]);
-	pr_info("XgmiLinkWidth\n");
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->XgmiLinkSpeed[i]);
+	dev_info(smu->adev->dev, "XgmiLinkWidth\n");
 	for (i = 0; i < NUM_XGMI_PSTATE_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->XgmiLinkWidth[i]);
-	pr_info("XgmiFclkFreq\n");
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->XgmiLinkWidth[i]);
+	dev_info(smu->adev->dev, "XgmiFclkFreq\n");
 	for (i = 0; i < NUM_XGMI_PSTATE_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->XgmiFclkFreq[i]);
-	pr_info("XgmiSocVoltage\n");
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->XgmiFclkFreq[i]);
+	dev_info(smu->adev->dev, "XgmiSocVoltage\n");
 	for (i = 0; i < NUM_XGMI_PSTATE_LEVELS; i++)
-		pr_info("  .[%d] = %d\n", i, pptable->XgmiSocVoltage[i]);
+		dev_info(smu->adev->dev, "  .[%d] = %d\n", i, pptable->XgmiSocVoltage[i]);
 
 }
 
@@ -2117,7 +2118,7 @@ static int arcturus_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 		if (!smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 1);
 			if (ret) {
-				pr_err("[EnableVCNDPM] failed!\n");
+				dev_err(smu->adev->dev, "[EnableVCNDPM] failed!\n");
 				return ret;
 			}
 		}
@@ -2126,7 +2127,7 @@ static int arcturus_dpm_set_uvd_enable(struct smu_context *smu, bool enable)
 		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT)) {
 			ret = smu_feature_set_enabled(smu, SMU_FEATURE_VCN_PG_BIT, 0);
 			if (ret) {
-				pr_err("[DisableVCNDPM] failed!\n");
+				dev_err(smu->adev->dev, "[DisableVCNDPM] failed!\n");
 				return ret;
 			}
 		}
@@ -2198,13 +2199,13 @@ static int arcturus_i2c_eeprom_read_data(struct i2c_adapter *control,
 		for (i = 0; i < numbytes; i++)
 			data[i] = res->SwI2cCmds[i].Data;
 
-		pr_debug("arcturus_i2c_eeprom_read_data, address = %x, bytes = %d, data :",
+		dev_dbg(adev->dev, "arcturus_i2c_eeprom_read_data, address = %x, bytes = %d, data :",
 				  (uint16_t)address, numbytes);
 
 		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
 			       8, 1, data, numbytes, false);
 	} else
-		pr_err("arcturus_i2c_eeprom_read_data - error occurred :%x", ret);
+		dev_err(adev->dev, "arcturus_i2c_eeprom_read_data - error occurred :%x", ret);
 
 	return ret;
 }
@@ -2226,7 +2227,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 	mutex_unlock(&adev->smu.mutex);
 
 	if (!ret) {
-		pr_debug("arcturus_i2c_write(), address = %x, bytes = %d , data: ",
+		dev_dbg(adev->dev, "arcturus_i2c_write(), address = %x, bytes = %d , data: ",
 					 (uint16_t)address, numbytes);
 
 		print_hex_dump(KERN_DEBUG, "data: ", DUMP_PREFIX_NONE,
@@ -2240,7 +2241,7 @@ static int arcturus_i2c_eeprom_write_data(struct i2c_adapter *control,
 		msleep(10);
 
 	} else
-		pr_err("arcturus_i2c_write- error occurred :%x", ret);
+		dev_err(adev->dev, "arcturus_i2c_write- error occurred :%x", ret);
 
 	return ret;
 }
@@ -2376,13 +2377,13 @@ static void arcturus_get_unique_id(struct smu_context *smu)
 	uint64_t id;
 
 	if (smu_get_smc_version(smu, NULL, &smu_version)) {
-		pr_warn("Failed to get smu version, cannot get unique_id or serial_number\n");
+		dev_warn(adev->dev, "Failed to get smu version, cannot get unique_id or serial_number\n");
 		return;
 	}
 
 	/* PPSMC_MSG_ReadSerial* is supported by 54.23.0 and onwards */
 	if (smu_version < 0x361700) {
-		pr_warn("ReadSerial is only supported by PMFW 54.23.0 and onwards\n");
+		dev_warn(adev->dev, "ReadSerial is only supported by PMFW 54.23.0 and onwards\n");
 		return;
 	}
 
@@ -2426,13 +2427,13 @@ static int arcturus_set_df_cstate(struct smu_context *smu,
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
-		pr_err("Failed to get smu version!\n");
+		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
 	}
 
 	/* PPSMC_MSG_DFCstateControl is supported by 54.15.0 and onwards */
 	if (smu_version < 0x360F00) {
-		pr_err("DFCstateControl is only supported by PMFW 54.15.0 and onwards\n");
+		dev_err(smu->adev->dev, "DFCstateControl is only supported by PMFW 54.15.0 and onwards\n");
 		return -EINVAL;
 	}
 
@@ -2446,13 +2447,13 @@ static int arcturus_allow_xgmi_power_down(struct smu_context *smu, bool en)
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret) {
-		pr_err("Failed to get smu version!\n");
+		dev_err(smu->adev->dev, "Failed to get smu version!\n");
 		return ret;
 	}
 
 	/* PPSMC_MSG_GmiPwrDnControl is supported by 54.23.0 and onwards */
 	if (smu_version < 0x00361700) {
-		pr_err("XGMI power down control is only supported by PMFW 54.23.0 and onwards\n");
+		dev_err(smu->adev->dev, "XGMI power down control is only supported by PMFW 54.23.0 and onwards\n");
 		return -EINVAL;
 	}
 
@@ -2502,7 +2503,7 @@ static void arcturus_log_thermal_throttling_event(struct smu_context *smu)
 					    throtting_events > 1 ? " and " : "",
 					    logging_label[throttler_idx].label);
 			if (buf_idx >= sizeof(log_buf)) {
-				pr_err("buffer overflow!\n");
+				dev_err(adev->dev, "buffer overflow!\n");
 				log_buf[sizeof(log_buf) - 1] = '\0';
 				break;
 			}
@@ -2562,7 +2563,7 @@ static uint32_t atcturus_get_max_power_limit(struct smu_context *smu) {
 	if (smu->od_enabled) {
 		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
 
-		pr_debug("ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
+		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
 
 		max_power_limit *= (100 + od_limit);
 		max_power_limit /= 100;

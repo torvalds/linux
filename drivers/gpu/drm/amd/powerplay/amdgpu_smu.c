@@ -609,7 +609,7 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 		return -EOPNOTSUPP;
 
 	if (header->usStructureSize != size) {
-		pr_err("pp table size not matched !\n");
+		dev_err(smu->adev->dev, "pp table size not matched !\n");
 		return -EIO;
 	}
 
@@ -633,7 +633,7 @@ int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size)
 
 	ret = smu_reset(smu);
 	if (ret)
-		pr_info("smu reset failed, ret = %d\n", ret);
+		dev_info(smu->adev->dev, "smu reset failed, ret = %d\n", ret);
 
 	smu->uploading_custom_pp_table = false;
 
@@ -847,7 +847,7 @@ static int smu_init_fb_allocations(struct smu_context *smu)
 					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
 					      &tables[SMU_TABLE_PMSTATUSLOG].cpu_addr);
 		if (ret) {
-			pr_err("VRAM allocation for tool table failed!\n");
+			dev_err(adev->dev, "VRAM allocation for tool table failed!\n");
 			return ret;
 		}
 	}
@@ -876,7 +876,7 @@ static int smu_init_fb_allocations(struct smu_context *smu)
 				      &driver_table->mc_address,
 				      &driver_table->cpu_addr);
 	if (ret) {
-		pr_err("VRAM allocation for driver table failed!\n");
+		dev_err(adev->dev, "VRAM allocation for driver table failed!\n");
 		if (tables[SMU_TABLE_PMSTATUSLOG].mc_address)
 			amdgpu_bo_free_kernel(&tables[SMU_TABLE_PMSTATUSLOG].bo,
 					      &tables[SMU_TABLE_PMSTATUSLOG].mc_address,
@@ -979,7 +979,7 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	 */
 	ret = smu_init_smc_tables(smu);
 	if (ret) {
-		pr_err("Failed to init smc tables!\n");
+		dev_err(smu->adev->dev, "Failed to init smc tables!\n");
 		return ret;
 	}
 
@@ -989,7 +989,7 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	 */
 	ret = smu_init_power(smu);
 	if (ret) {
-		pr_err("Failed to init smu_init_power!\n");
+		dev_err(smu->adev->dev, "Failed to init smu_init_power!\n");
 		return ret;
 	}
 
@@ -1021,13 +1021,13 @@ static int smu_smc_table_sw_fini(struct smu_context *smu)
 
 	ret = smu_fini_power(smu);
 	if (ret) {
-		pr_err("Failed to init smu_fini_power!\n");
+		dev_err(smu->adev->dev, "Failed to init smu_fini_power!\n");
 		return ret;
 	}
 
 	ret = smu_fini_smc_tables(smu);
 	if (ret) {
-		pr_err("Failed to smu_fini_smc_tables!\n");
+		dev_err(smu->adev->dev, "Failed to smu_fini_smc_tables!\n");
 		return ret;
 	}
 
@@ -1090,19 +1090,19 @@ static int smu_sw_init(void *handle)
 	smu->smu_dpm.requested_dpm_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	ret = smu_init_microcode(smu);
 	if (ret) {
-		pr_err("Failed to load smu firmware!\n");
+		dev_err(adev->dev, "Failed to load smu firmware!\n");
 		return ret;
 	}
 
 	ret = smu_smc_table_sw_init(smu);
 	if (ret) {
-		pr_err("Failed to sw init smc table!\n");
+		dev_err(adev->dev, "Failed to sw init smc table!\n");
 		return ret;
 	}
 
 	ret = smu_register_irq_handler(smu);
 	if (ret) {
-		pr_err("Failed to register smc irq handler!\n");
+		dev_err(adev->dev, "Failed to register smc irq handler!\n");
 		return ret;
 	}
 
@@ -1117,7 +1117,7 @@ static int smu_sw_fini(void *handle)
 
 	ret = smu_smc_table_sw_fini(smu);
 	if (ret) {
-		pr_err("Failed to sw fini smc table!\n");
+		dev_err(adev->dev, "Failed to sw fini smc table!\n");
 		return ret;
 	}
 
@@ -1132,7 +1132,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	int ret;
 
 	if (smu_is_dpm_running(smu) && adev->in_suspend) {
-		pr_info("dpm has been enabled\n");
+		dev_info(adev->dev, "dpm has been enabled\n");
 		return 0;
 	}
 
@@ -1182,7 +1182,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 
 	if (!smu_is_dpm_running(smu))
-		pr_info("dpm has been disabled\n");
+		dev_info(adev->dev, "dpm has been disabled\n");
 
 	ret = smu_override_pcie_parameters(smu);
 	if (ret)
@@ -1198,7 +1198,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 
 	ret = smu_disable_umc_cdr_12gbps_workaround(smu);
 	if (ret) {
-		pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
+		dev_err(adev->dev, "Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
 		return ret;
 	}
 
@@ -1210,7 +1210,7 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 				   adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
 				   SMU_POWER_SOURCE_DC);
 	if (ret) {
-		pr_err("Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
+		dev_err(adev->dev, "Failed to switch to %s mode!\n", adev->pm.ac_power ? "AC" : "DC");
 		return ret;
 	}
 
@@ -1247,7 +1247,7 @@ static int smu_start_smc_engine(struct smu_context *smu)
 	if (smu->ppt_funcs->check_fw_status) {
 		ret = smu->ppt_funcs->check_fw_status(smu);
 		if (ret) {
-			pr_err("SMC is not ready\n");
+			dev_err(adev->dev, "SMC is not ready\n");
 			return ret;
 		}
 	}
@@ -1274,7 +1274,7 @@ static int smu_hw_init(void *handle)
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		pr_err("SMU is not ready yet!\n");
+		dev_err(adev->dev, "SMU is not ready yet!\n");
 		return ret;
 	}
 
@@ -1307,7 +1307,7 @@ static int smu_hw_init(void *handle)
 
 	adev->pm.dpm_enabled = true;
 
-	pr_info("SMU is initialized successfully!\n");
+	dev_info(adev->dev, "SMU is initialized successfully!\n");
 
 	return 0;
 
@@ -1360,11 +1360,11 @@ static int smu_disable_dpms(struct smu_context *smu)
 						      features_to_disable,
 						      0);
 		if (ret)
-			pr_err("Failed to disable smu features except BACO.\n");
+			dev_err(adev->dev, "Failed to disable smu features except BACO.\n");
 	} else {
 		ret = smu_system_features_control(smu, false);
 		if (ret)
-			pr_err("Failed to disable smu features.\n");
+			dev_err(adev->dev, "Failed to disable smu features.\n");
 	}
 
 	if (adev->asic_type >= CHIP_NAVI10 &&
@@ -1385,7 +1385,7 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 
 	ret = smu_disable_thermal_alert(smu);
 	if (ret) {
-		pr_warn("Fail to stop thermal control!\n");
+		dev_warn(adev->dev, "Fail to stop thermal control!\n");
 		return ret;
 	}
 
@@ -1479,11 +1479,11 @@ static int smu_resume(void *handle)
 	if (!smu->pm_enabled)
 		return 0;
 
-	pr_info("SMU is resuming...\n");
+	dev_info(adev->dev, "SMU is resuming...\n");
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		pr_err("SMU is not ready yet!\n");
+		dev_err(adev->dev, "SMU is not ready yet!\n");
 		goto failed;
 	}
 
@@ -1498,7 +1498,7 @@ static int smu_resume(void *handle)
 
 	adev->pm.dpm_enabled = true;
 
-	pr_info("SMU is resumed successfully!\n");
+	dev_info(adev->dev, "SMU is resumed successfully!\n");
 
 	return 0;
 
@@ -1591,7 +1591,7 @@ int smu_get_current_clocks(struct smu_context *smu,
 		ret = smu_get_clock_info(smu, &hw_clocks, PERF_LEVEL_ACTIVITY);
 
 	if (ret) {
-		pr_err("Error in smu_get_clock_info\n");
+		dev_err(smu->adev->dev, "Error in smu_get_clock_info\n");
 		goto failed;
 	}
 
@@ -1687,21 +1687,21 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	if (!skip_display_settings) {
 		ret = smu_display_config_changed(smu);
 		if (ret) {
-			pr_err("Failed to change display config!");
+			dev_err(smu->adev->dev, "Failed to change display config!");
 			return ret;
 		}
 	}
 
 	ret = smu_apply_clocks_adjust_rules(smu);
 	if (ret) {
-		pr_err("Failed to apply clocks adjust rules!");
+		dev_err(smu->adev->dev, "Failed to apply clocks adjust rules!");
 		return ret;
 	}
 
 	if (!skip_display_settings) {
 		ret = smu_notify_smc_display_config(smu);
 		if (ret) {
-			pr_err("Failed to notify smc display config!");
+			dev_err(smu->adev->dev, "Failed to notify smc display config!");
 			return ret;
 		}
 	}
@@ -1709,7 +1709,7 @@ int smu_adjust_power_state_dynamic(struct smu_context *smu,
 	if (smu_dpm_ctx->dpm_level != level) {
 		ret = smu_asic_set_performance_level(smu, level);
 		if (ret) {
-			pr_err("Failed to set performance level!");
+			dev_err(smu->adev->dev, "Failed to set performance level!");
 			return ret;
 		}
 
@@ -1875,7 +1875,7 @@ int smu_force_clk_levels(struct smu_context *smu,
 		return -EOPNOTSUPP;
 
 	if (smu_dpm_ctx->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_debug("force clock level is for dpm manual mode only.\n");
+		dev_dbg(smu->adev->dev, "force clock level is for dpm manual mode only.\n");
 		return -EINVAL;
 	}
 
@@ -1933,7 +1933,7 @@ int smu_set_mp1_state(struct smu_context *smu,
 
 	ret = smu_send_smc_msg(smu, msg, NULL);
 	if (ret)
-		pr_err("[PrepareMp1] Failed!\n");
+		dev_err(smu->adev->dev, "[PrepareMp1] Failed!\n");
 
 	mutex_unlock(&smu->mutex);
 
@@ -1955,7 +1955,7 @@ int smu_set_df_cstate(struct smu_context *smu,
 
 	ret = smu->ppt_funcs->set_df_cstate(smu, state);
 	if (ret)
-		pr_err("[SetDfCstate] failed!\n");
+		dev_err(smu->adev->dev, "[SetDfCstate] failed!\n");
 
 	mutex_unlock(&smu->mutex);
 
@@ -1976,7 +1976,7 @@ int smu_allow_xgmi_power_down(struct smu_context *smu, bool en)
 
 	ret = smu->ppt_funcs->allow_xgmi_power_down(smu, en);
 	if (ret)
-		pr_err("[AllowXgmiPowerDown] failed!\n");
+		dev_err(smu->adev->dev, "[AllowXgmiPowerDown] failed!\n");
 
 	mutex_unlock(&smu->mutex);
 
@@ -2042,7 +2042,7 @@ int smu_set_ac_dc(struct smu_context *smu)
 				   smu->adev->pm.ac_power ? SMU_POWER_SOURCE_AC :
 				   SMU_POWER_SOURCE_DC);
 	if (ret)
-		pr_err("Failed to switch to %s mode!\n",
+		dev_err(smu->adev->dev, "Failed to switch to %s mode!\n",
 		       smu->adev->pm.ac_power ? "AC" : "DC");
 	mutex_unlock(&smu->mutex);
 

@@ -175,7 +175,7 @@ static int renoir_get_metrics_table(struct smu_context *smu,
 		ret = smu_update_table(smu, SMU_TABLE_SMU_METRICS, 0,
 				(void *)smu_table->metrics_table, false);
 		if (ret) {
-			pr_info("Failed to export SMU metrics table!\n");
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
 			mutex_unlock(&smu->metrics_lock);
 			return ret;
 		}
@@ -508,7 +508,7 @@ static int renoir_get_current_activity_percent(struct smu_context *smu,
 		*value = metrics.AverageGfxActivity / 100;
 		break;
 	default:
-		pr_err("Invalid sensor for retrieving clock activity\n");
+		dev_err(smu->adev->dev, "Invalid sensor for retrieving clock activity\n");
 		return -EINVAL;
 	}
 
@@ -620,7 +620,7 @@ static int renoir_force_clk_levels(struct smu_context *smu,
 	case SMU_GFXCLK:
 	case SMU_SCLK:
 		if (soft_min_level > 2 || soft_max_level > 2) {
-			pr_info("Currently sclk only support 3 levels on APU\n");
+			dev_info(smu->adev->dev, "Currently sclk only support 3 levels on APU\n");
 			return -EINVAL;
 		}
 
@@ -674,7 +674,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 	uint32_t profile_mode = input[size];
 
 	if (profile_mode > PP_SMC_POWER_PROFILE_CUSTOM) {
-		pr_err("Invalid power profile mode %d\n", smu->power_profile_mode);
+		dev_err(smu->adev->dev, "Invalid power profile mode %d\n", smu->power_profile_mode);
 		return -EINVAL;
 	}
 
@@ -685,7 +685,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 		 * TODO: If some case need switch to powersave/default power mode
 		 * then can consider enter WORKLOAD_COMPUTE/WORKLOAD_CUSTOM for power saving.
 		 */
-		pr_err_once("Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
+		dev_err_once(smu->adev->dev, "Unsupported power profile mode %d on RENOIR\n",smu->power_profile_mode);
 		return -EINVAL;
 	}
 
@@ -693,7 +693,7 @@ static int renoir_set_power_profile_mode(struct smu_context *smu, long *input, u
 				    1 << workload_type,
 				    NULL);
 	if (ret) {
-		pr_err_once("Fail to set workload type %d\n", workload_type);
+		dev_err_once(smu->adev->dev, "Fail to set workload type %d\n", workload_type);
 		return ret;
 	}
 
@@ -826,7 +826,7 @@ static int renoir_set_watermarks_table(
 	if (!(smu->watermarks_bitmap & WATERMARKS_LOADED)) {
 		ret = smu_write_watermarks_table(smu);
 		if (ret) {
-			pr_err("Failed to update WMTABLE!");
+			dev_err(smu->adev->dev, "Failed to update WMTABLE!");
 			return ret;
 		}
 		smu->watermarks_bitmap |= WATERMARKS_LOADED;

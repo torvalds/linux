@@ -92,7 +92,7 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 	mutex_lock(&smu->message_lock);
 	ret = smu_v12_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("Msg issuing pre-check failed and "
+		dev_err(adev->dev, "Msg issuing pre-check failed and "
 		       "SMU may be not in the right state!\n");
 		goto out;
 	}
@@ -105,14 +105,14 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 
 	ret = smu_v12_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("Failed to send message 0x%x, response 0x%x param 0x%x\n",
+		dev_err(adev->dev, "Failed to send message 0x%x, response 0x%x param 0x%x\n",
 		       index, ret, param);
 		goto out;
 	}
 	if (read_arg) {
 		ret = smu_v12_0_read_arg(smu, read_arg);
 		if (ret) {
-			pr_err("Failed to read message arg 0x%x, response 0x%x param 0x%x\n",
+			dev_err(adev->dev, "Failed to read message arg 0x%x, response 0x%x param 0x%x\n",
 			       index, ret, param);
 			goto out;
 		}
@@ -161,11 +161,11 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 	 * of halt driver loading.
 	 */
 	if (if_version != smu->smc_driver_if_version) {
-		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
-		pr_warn("SMU driver if version not matched\n");
+		dev_warn(smu->adev->dev, "SMU driver if version not matched\n");
 	}
 
 	return ret;
@@ -378,7 +378,7 @@ int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 		case SMU_SCLK:
 			ret = smu_send_smc_msg(smu, SMU_MSG_GetMaxGfxclkFrequency, max);
 			if (ret) {
-				pr_err("Attempt to get max GX frequency from SMC Failed !\n");
+				dev_err(smu->adev->dev, "Attempt to get max GX frequency from SMC Failed !\n");
 				goto failed;
 			}
 			break;
@@ -406,7 +406,7 @@ int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type c
 		case SMU_SCLK:
 			ret = smu_send_smc_msg(smu, SMU_MSG_GetMinGfxclkFrequency, min);
 			if (ret) {
-				pr_err("Attempt to get min GX frequency from SMC Failed !\n");
+				dev_err(smu->adev->dev, "Attempt to get min GX frequency from SMC Failed !\n");
 				goto failed;
 			}
 			break;

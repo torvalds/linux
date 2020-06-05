@@ -105,7 +105,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 	mutex_lock(&smu->message_lock);
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("Msg issuing pre-check failed and "
+		dev_err(adev->dev, "Msg issuing pre-check failed and "
 		       "SMU may be not in the right state!\n");
 		goto out;
 	}
@@ -118,7 +118,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret) {
-		pr_err("failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
+		dev_err(adev->dev, "failed send message: %10s (%d) \tparam: 0x%08x response %#x\n",
 		       smu_get_message_name(smu, msg), index, param, ret);
 		goto out;
 	}
@@ -126,7 +126,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 	if (read_arg) {
 		ret = smu_v11_0_read_arg(smu, read_arg);
 		if (ret) {
-			pr_err("failed to read message arg: %10s (%d) \tparam: 0x%08x response %#x\n",
+			dev_err(adev->dev, "failed to read message arg: %10s (%d) \tparam: 0x%08x response %#x\n",
 			       smu_get_message_name(smu, msg), index, param, ret);
 			goto out;
 		}
@@ -294,7 +294,7 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Sienna_Cichlid;
 		break;
 	default:
-		pr_err("smu unsupported asic type:%d.\n", smu->adev->asic_type);
+		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
 		break;
 	}
@@ -308,11 +308,11 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	 * of halt driver loading.
 	 */
 	if (if_version != smu->smc_driver_if_version) {
-		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
+		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
-		pr_warn("SMU driver if version not matched\n");
+		dev_warn(smu->adev->dev, "SMU driver if version not matched\n");
 	}
 
 	return ret;
@@ -375,7 +375,7 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 	version_major = le16_to_cpu(hdr->header.header_version_major);
 	version_minor = le16_to_cpu(hdr->header.header_version_minor);
 	if (version_major == 2 && smu->smu_table.boot_values.pp_table_id > 0) {
-		pr_info("use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
+		dev_info(adev->dev, "use driver provided pptable %d\n", smu->smu_table.boot_values.pp_table_id);
 		switch (version_minor) {
 		case 0:
 			ret = smu_v11_0_set_pptable_v2_0(smu, &table, &size);
@@ -392,7 +392,7 @@ int smu_v11_0_setup_pptable(struct smu_context *smu)
 			return ret;
 
 	} else {
-		pr_info("use vbios provided pptable\n");
+		dev_info(adev->dev, "use vbios provided pptable\n");
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    powerplayinfo);
 
@@ -617,7 +617,7 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		return ret;
 
 	if (header->format_revision != 3) {
-		pr_err("unknown atom_firmware_info version! for smu11\n");
+		dev_err(smu->adev->dev, "unknown atom_firmware_info version! for smu11\n");
 		return -EINVAL;
 	}
 
@@ -767,7 +767,7 @@ int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetMinDeepSleepDcefclk, clk, NULL);
 	if (ret)
-		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
+		dev_err(smu->adev->dev, "SMU11 attempt to set divider for DCEFCLK Failed!");
 
 	return ret;
 }
@@ -951,7 +951,7 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDcModeMaxDpmFreq,
 					  clk_id << 16, clock);
 	if (ret) {
-		pr_err("[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
+		dev_err(smu->adev->dev, "[GetMaxSustainableClock] Failed to get max DC clock from SMC!");
 		return ret;
 	}
 
@@ -962,7 +962,7 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq,
 					  clk_id << 16, clock);
 	if (ret) {
-		pr_err("[GetMaxSustainableClock] failed to get max AC clock from SMC!");
+		dev_err(smu->adev->dev, "[GetMaxSustainableClock] failed to get max AC clock from SMC!");
 		return ret;
 	}
 
@@ -987,7 +987,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->uclock),
 							  SMU_UCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max UCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max UCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -998,7 +998,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->soc_clock),
 							  SMU_SOCCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max SOCCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max SOCCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -1009,7 +1009,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->dcef_clock),
 							  SMU_DCEFCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max DCEFCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max DCEFCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -1018,7 +1018,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->display_clock),
 							  SMU_DISPCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max DISPCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max DISPCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -1026,7 +1026,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->phy_clock),
 							  SMU_PHYCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max PHYCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max PHYCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -1034,7 +1034,7 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 							  &(max_sustainable_clocks->pixel_clock),
 							  SMU_PIXCLK);
 		if (ret) {
-			pr_err("[%s] failed to get max PIXCLK from SMC!",
+			dev_err(smu->adev->dev, "[%s] failed to get max PIXCLK from SMC!",
 			       __func__);
 			return ret;
 		}
@@ -1054,7 +1054,7 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	max_power_limit = smu_get_max_power_limit(smu);
 
 	if (n > max_power_limit) {
-		pr_err("New power limit (%d) is over the max allowed %d\n",
+		dev_err(smu->adev->dev, "New power limit (%d) is over the max allowed %d\n",
 				n,
 				max_power_limit);
 		return -EINVAL;
@@ -1064,13 +1064,13 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		n = smu->default_power_limit;
 
 	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-		pr_err("Setting new power limit is not supported!\n");
+		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
 		return -EOPNOTSUPP;
 	}
 
 	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
 	if (ret) {
-		pr_err("[%s] Set power limit Failed!\n", __func__);
+		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
 	smu->power_limit = n;
@@ -1243,7 +1243,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 			clk_select = SMU_UCLK;
 			break;
 		default:
-			pr_info("[%s] Invalid Clock Type!", __func__);
+			dev_info(smu->adev->dev, "[%s] Invalid Clock Type!", __func__);
 			ret = -EINVAL;
 			break;
 		}
@@ -1307,7 +1307,7 @@ smu_v11_0_auto_fan_control(struct smu_context *smu, bool auto_fan_control)
 
 	ret = smu_feature_set_enabled(smu, SMU_FEATURE_FAN_CONTROL_BIT, auto_fan_control);
 	if (ret)
-		pr_err("[%s]%s smc FAN CONTROL feature failed!",
+		dev_err(smu->adev->dev, "[%s]%s smc FAN CONTROL feature failed!",
 		       __func__, (auto_fan_control ? "Start" : "Stop"));
 
 	return ret;
@@ -1378,7 +1378,7 @@ smu_v11_0_set_fan_control_mode(struct smu_context *smu,
 	}
 
 	if (ret) {
-		pr_err("[%s]Set fan control mode failed!", __func__);
+		dev_err(smu->adev->dev, "[%s]Set fan control mode failed!", __func__);
 		return -EINVAL;
 	}
 
@@ -1849,7 +1849,7 @@ int smu_v11_0_override_pcie_parameters(struct smu_context *smu)
 	ret = smu_update_pcie_parameters(smu, pcie_gen, pcie_width);
 
 	if (ret)
-		pr_err("[%s] Attempt to override pcie params failed!\n", __func__);
+		dev_err(adev->dev, "[%s] Attempt to override pcie params failed!\n", __func__);
 
 	return ret;
 
