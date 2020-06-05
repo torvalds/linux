@@ -242,7 +242,7 @@ static unsigned long bch2_btree_cache_scan(struct shrinker *shrink,
 		return SHRINK_STOP;
 
 	/* Return -1 if we can't do anything right now */
-	if (sc->gfp_mask & __GFP_IO)
+	if (sc->gfp_mask & __GFP_FS)
 		mutex_lock(&bc->lock);
 	else if (!mutex_trylock(&bc->lock))
 		return -1;
