@@ -188,10 +188,6 @@ mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);
 
-				/* mgag200_main.c */
-int mgag200_driver_load(struct drm_device *dev, unsigned long flags);
-void mgag200_driver_unload(struct drm_device *dev);
-
 				/* mgag200_i2c.c */
 struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev);
 void mgag200_i2c_destroy(struct mga_i2c_chan *i2c);
