@@ -17,7 +17,13 @@
 
 #include <linux/power/gpio-charger.h>
 
+struct gpio_mapping {
+	u32 limit_ua;
+	u32 gpiodata;
+} __packed;
+
 struct gpio_charger {
+	struct device *dev;
 	unsigned int irq;
 	unsigned int charge_status_irq;
 	bool wakeup_enabled;
@@ -26,6 +32,11 @@ struct gpio_charger {
 	struct power_supply_desc charger_desc;
 	struct gpio_desc *gpiod;
 	struct gpio_desc *charge_status;
+
+	struct gpio_descs *current_limit_gpios;
+	struct gpio_mapping *current_limit_map;
+	u32 current_limit_map_size;
+	u32 charge_current_limit;
 };
 
 static irqreturn_t gpio_charger_irq(int irq, void *devid)
@@ -40,6 +51,35 @@ static irqreturn_t gpio_charger_irq(int irq, void *devid)
 static inline struct gpio_charger *psy_to_gpio_charger(struct power_supply *psy)
 {
 	return power_supply_get_drvdata(psy);
+}
+
+static int set_charge_current_limit(struct gpio_charger *gpio_charger, int val)
+{
+	struct gpio_mapping mapping;
+	int ndescs = gpio_charger->current_limit_gpios->ndescs;
+	struct gpio_desc **gpios = gpio_charger->current_limit_gpios->desc;
+	int i;
+
+	if (!gpio_charger->current_limit_map_size)
+		return -EINVAL;
+
+	for (i = 0; i < gpio_charger->current_limit_map_size; i++) {
+		if (gpio_charger->current_limit_map[i].limit_ua <= val)
+			break;
+	}
+	mapping = gpio_charger->current_limit_map[i];
+
+	for (i = 0; i < ndescs; i++) {
+		bool val = (mapping.gpiodata >> i) & 1;
+		gpiod_set_value_cansleep(gpios[ndescs-i-1], val);
+	}
+
+	gpio_charger->charge_current_limit = mapping.limit_ua;
+
+	dev_dbg(gpio_charger->dev, "set charge current limit to %d (requested: %d)\n",
+		gpio_charger->charge_current_limit, val);
+
+	return 0;
 }
 
 static int gpio_charger_get_property(struct power_supply *psy,
@@ -57,8 +97,39 @@ static int gpio_charger_get_property(struct power_supply *psy,
 		else
 			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+		val->intval = gpio_charger->charge_current_limit;
+		break;
 	default:
 		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int gpio_charger_set_property(struct power_supply *psy,
+	enum power_supply_property psp, const union power_supply_propval *val)
+{
+	struct gpio_charger *gpio_charger = psy_to_gpio_charger(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+		return set_charge_current_limit(gpio_charger, val->intval);
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int gpio_charger_property_is_writeable(struct power_supply *psy,
+					      enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+		return 1;
+	default:
+		break;
 	}
 
 	return 0;
@@ -111,6 +182,61 @@ static int gpio_charger_get_irq(struct device *dev, void *dev_id,
 	return irq;
 }
 
+static int init_charge_current_limit(struct device *dev,
+				    struct gpio_charger *gpio_charger)
+{
+	int i, len;
+	u32 cur_limit = U32_MAX;
+
+	gpio_charger->current_limit_gpios = devm_gpiod_get_array_optional(dev,
+		"charge-current-limit", GPIOD_OUT_LOW);
+	if (IS_ERR(gpio_charger->current_limit_gpios)) {
+		dev_err(dev, "error getting current-limit GPIOs\n");
+		return PTR_ERR(gpio_charger->current_limit_gpios);
+	}
+
+	if (!gpio_charger->current_limit_gpios)
+		return 0;
+
+	len = device_property_read_u32_array(dev, "charge-current-limit-mapping",
+		NULL, 0);
+	if (len < 0)
+		return len;
+
+	if (len == 0 || len % 2) {
+		dev_err(dev, "invalid charge-current-limit-mapping length\n");
+		return -EINVAL;
+	}
+
+	gpio_charger->current_limit_map = devm_kmalloc_array(dev,
+		len / 2, sizeof(*gpio_charger->current_limit_map), GFP_KERNEL);
+	if (!gpio_charger->current_limit_map)
+		return -ENOMEM;
+
+	gpio_charger->current_limit_map_size = len / 2;
+
+	len = device_property_read_u32_array(dev, "charge-current-limit-mapping",
+		(u32*) gpio_charger->current_limit_map, len);
+	if (len < 0)
+		return len;
+
+	for (i=0; i < gpio_charger->current_limit_map_size; i++) {
+		if (gpio_charger->current_limit_map[i].limit_ua > cur_limit) {
+			dev_err(dev, "charge-current-limit-mapping not sorted by current in descending order\n");
+			return -EINVAL;
+		}
+
+		cur_limit = gpio_charger->current_limit_map[i].limit_ua;
+	}
+
+	/* default to smallest current limitation for safety reasons */
+	len = gpio_charger->current_limit_map_size - 1;
+	set_charge_current_limit(gpio_charger,
+		gpio_charger->current_limit_map[len].limit_ua);
+
+	return 0;
+}
+
 /*
  * The entries will be overwritten by driver's probe routine depending
  * on the available features. This list ensures, that the array is big
@@ -119,6 +245,7 @@ static int gpio_charger_get_irq(struct device *dev, void *dev_id,
 static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX,
 };
 
 static int gpio_charger_probe(struct platform_device *pdev)
@@ -141,6 +268,7 @@ static int gpio_charger_probe(struct platform_device *pdev)
 	gpio_charger = devm_kzalloc(dev, sizeof(*gpio_charger), GFP_KERNEL);
 	if (!gpio_charger)
 		return -ENOMEM;
+	gpio_charger->dev = dev;
 
 	/*
 	 * This will fetch a GPIO descriptor from device tree, ACPI or
@@ -167,10 +295,22 @@ static int gpio_charger_probe(struct platform_device *pdev)
 		num_props++;
 	}
 
+	ret = init_charge_current_limit(dev, gpio_charger);
+	if (ret < 0)
+		return ret;
+	if (gpio_charger->current_limit_map) {
+		gpio_charger_properties[num_props] =
+			POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX;
+		num_props++;
+	}
+
 	charger_desc = &gpio_charger->charger_desc;
 	charger_desc->properties = gpio_charger_properties;
 	charger_desc->num_properties = num_props;
 	charger_desc->get_property = gpio_charger_get_property;
+	charger_desc->set_property = gpio_charger_set_property;
+	charger_desc->property_is_writeable =
+					gpio_charger_property_is_writeable;
 
 	psy_cfg.of_node = dev->of_node;
 	psy_cfg.drv_data = gpio_charger;
