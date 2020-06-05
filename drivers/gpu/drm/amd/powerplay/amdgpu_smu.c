@@ -1328,8 +1328,8 @@ static int smu_hw_init(void *handle)
 
 	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, false);
-		smu_powergate_vcn(&adev->smu, false);
-		smu_powergate_jpeg(&adev->smu, false);
+		smu_dpm_set_uvd_enable(smu, true);
+		smu_dpm_set_jpeg_enable(smu, true);
 		smu_set_gfx_cgpg(&adev->smu, true);
 	}
 
@@ -1460,8 +1460,8 @@ static int smu_hw_fini(void *handle)
 
 	if (smu->is_apu) {
 		smu_powergate_sdma(&adev->smu, true);
-		smu_powergate_vcn(&adev->smu, true);
-		smu_powergate_jpeg(&adev->smu, true);
+		smu_dpm_set_uvd_enable(smu, false);
+		smu_dpm_set_jpeg_enable(smu, false);
 	}
 
 	if (!smu->pm_enabled)
@@ -2831,20 +2831,4 @@ uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
 		ret = smu->ppt_funcs->get_pptable_power_limit(smu);
 
 	return ret;
-}
-
-int smu_powergate_vcn(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	return smu_dpm_set_uvd_enable(smu, !gate);
-}
-
-int smu_powergate_jpeg(struct smu_context *smu, bool gate)
-{
-	if (!smu->is_apu)
-		return 0;
-
-	return smu_dpm_set_jpeg_enable(smu, !gate);
 }

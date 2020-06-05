@@ -213,7 +213,4 @@ static inline int smu_send_smc_msg(struct smu_context *smu, enum smu_message_typ
 #define smu_log_thermal_throttling(smu) \
 		((smu)->ppt_funcs->log_thermal_throttling_event ? (smu)->ppt_funcs->log_thermal_throttling_event((smu)) : 0)
 
-int smu_powergate_vcn(struct smu_context *smu, bool gate);
-int smu_powergate_jpeg(struct smu_context *smu, bool gate);
-
 #endif
