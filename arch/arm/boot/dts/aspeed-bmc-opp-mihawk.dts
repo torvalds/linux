@@ -834,6 +834,11 @@
 					line-name = "smbus0";
 				};
 			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
+			};
 		};
 
 		bus9_mux232: i2c@1 {
@@ -853,6 +858,11 @@
 					output-high;
 					line-name = "smbus1";
 				};
+			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
 			};
 		};
 
@@ -897,6 +907,11 @@
 					line-name = "smbus2";
 				};
 			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
+			};
 		};
 
 		bus9_mux236: i2c@1 {
@@ -916,6 +931,11 @@
 					output-high;
 					line-name = "smbus3";
 				};
+			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
 			};
 		};
 
@@ -979,6 +999,11 @@
 					line-name = "smbus4";
 				};
 			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
+			};
 		};
 
 		bus10_mux240: i2c@1 {
@@ -998,6 +1023,11 @@
 					output-high;
 					line-name = "smbus5";
 				};
+			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
 			};
 		};
 
@@ -1042,6 +1072,11 @@
 					line-name = "smbus6";
 				};
 			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
+			};
 		};
 
 		bus10_mux244: i2c@1 {
@@ -1061,6 +1096,11 @@
 					output-high;
 					line-name = "smbus7";
 				};
+			};
+
+			tmp431@4c {
+				compatible = "ti,tmp401";
+				reg = <0x4c>;
 			};
 		};
 
