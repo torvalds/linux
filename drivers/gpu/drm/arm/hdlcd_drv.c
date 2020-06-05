@@ -240,12 +240,7 @@ static struct drm_driver hdlcd_driver = {
 	.irq_preinstall = hdlcd_irq_preinstall,
 	.irq_postinstall = hdlcd_irq_postinstall,
 	.irq_uninstall = hdlcd_irq_uninstall,
-	.gem_create_object = drm_gem_cma_create_object_default_funcs,
-	.dumb_create = drm_gem_cma_dumb_create,
-	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
-	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
-	.gem_prime_mmap = drm_gem_cma_prime_mmap,
+	DRM_GEM_CMA_DRIVER_OPS,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init = hdlcd_debugfs_init,
 #endif
