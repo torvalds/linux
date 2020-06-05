@@ -43,16 +43,10 @@ static struct drm_driver mgag200_driver = {
  * DRM device
  */
 
-static int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
+static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 {
-	struct mga_device *mdev;
+	struct drm_device *dev = mdev->dev;
 	int ret, option;
-
-	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
-	if (mdev == NULL)
-		return -ENOMEM;
-	dev->dev_private = (void *)mdev;
-	mdev->dev = dev;
 
 	mdev->flags = mgag200_flags_from_driver_data(flags);
 	mdev->type = mgag200_type_from_driver_data(flags);
@@ -83,13 +77,31 @@ static int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 
 	ret = mgag200_mm_init(mdev);
 	if (ret)
-		goto err_mm;
+		return ret;
 
 	ret = mgag200_modeset_init(mdev);
 	if (ret) {
 		drm_err(dev, "Fatal error during modeset init: %d\n", ret);
-		goto err_mm;
+		return ret;
 	}
+
+	return 0;
+}
+
+static int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
+{
+	struct mga_device *mdev;
+	int ret;
+
+	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
+	if (mdev == NULL)
+		return -ENOMEM;
+	dev->dev_private = (void *)mdev;
+	mdev->dev = dev;
+
+	ret = mgag200_device_init(mdev, flags);
+	if (ret)
+		goto err_mm;
 
 	return 0;
 
