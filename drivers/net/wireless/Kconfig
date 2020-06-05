@@ -14,7 +14,7 @@ menuconfig WLAN
 	  device drivers. For a complete list of drivers and documentation
 	  on them refer to the wireless wiki:
 
-	  http://wireless.kernel.org/en/users/Drivers
+	  https://wireless.wiki.kernel.org/en/users/Drivers
 
 if WLAN
 
