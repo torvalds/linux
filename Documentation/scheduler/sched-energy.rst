@@ -405,7 +405,7 @@ Consequently, the only sane governor to use together with EAS is schedutil,
 because it is the only one providing some degree of consistency between
 frequency requests and energy predictions.
 
-Using EAS with any other governor than schedutil is not supported.
+Using EAS with any other governor than schedutil is not recommended.
 
 
 6.5 Scale-invariant utilization signals
