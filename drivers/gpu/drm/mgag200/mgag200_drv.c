@@ -88,26 +88,36 @@ static int mgag200_device_init(struct mga_device *mdev, unsigned long flags)
 	return 0;
 }
 
-static int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
+static struct mga_device *
+mgag200_driver_load(struct pci_dev *pdev, unsigned long flags)
 {
+	struct drm_device *dev;
 	struct mga_device *mdev;
 	int ret;
 
+	dev = drm_dev_alloc(&mgag200_driver, &pdev->dev);
+	if (IS_ERR(dev))
+		return ERR_CAST(dev);
+
+	dev->pdev = pdev;
+	pci_set_drvdata(pdev, dev);
+
 	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
 	if (mdev == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	dev->dev_private = (void *)mdev;
 	mdev->dev = dev;
 
 	ret = mgag200_device_init(mdev, flags);
 	if (ret)
-		goto err_mm;
+		goto err_drm_dev_put;
 
-	return 0;
+	return mdev;
 
-err_mm:
+err_drm_dev_put:
+	drm_dev_put(dev);
 	dev->dev_private = NULL;
-	return ret;
+	return ERR_PTR(ret);
 }
 
 static void mgag200_driver_unload(struct drm_device *dev)
@@ -141,6 +151,7 @@ MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);
 static int
 mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct mga_device *mdev;
 	struct drm_device *dev;
 	int ret;
 
@@ -150,16 +161,10 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		return ret;
 
-	dev = drm_dev_alloc(&mgag200_driver, &pdev->dev);
-	if (IS_ERR(dev))
-		return PTR_ERR(dev);
-
-	dev->pdev = pdev;
-	pci_set_drvdata(pdev, dev);
-
-	ret = mgag200_driver_load(dev, ent->driver_data);
-	if (ret)
-		goto err_drm_dev_put;
+	mdev = mgag200_driver_load(pdev, ent->driver_data);
+	if (IS_ERR(mdev))
+		return PTR_ERR(mdev);
+	dev = mdev->dev;
 
 	ret = drm_dev_register(dev, ent->driver_data);
 	if (ret)
@@ -171,7 +176,6 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 err_mgag200_driver_unload:
 	mgag200_driver_unload(dev);
-err_drm_dev_put:
 	drm_dev_put(dev);
 	return ret;
 }
