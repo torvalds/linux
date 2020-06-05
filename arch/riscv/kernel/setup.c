@@ -75,7 +75,11 @@ void __init setup_arch(char **cmdline_p)
 
 	setup_bootmem();
 	paging_init();
+#if IS_ENABLED(CONFIG_BUILTIN_DTB)
+	unflatten_and_copy_device_tree();
+#else
 	unflatten_device_tree();
+#endif
 	clint_init_boot_cpu();
 
 #ifdef CONFIG_SWIOTLB
