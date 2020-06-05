@@ -275,9 +275,6 @@ static int get_qbg_context_write(void *data, u64 val)
 	return battery_dbg_write(bd, &req_msg, sizeof(req_msg));
 }
 
-DEFINE_DEBUGFS_ATTRIBUTE(get_qbg_context_debugfs_ops, NULL,
-			get_qbg_context_write, "%llu\n");
-
 #ifdef CONFIG_DEBUG_FS
 static int battery_dbg_request_read_votable(struct battery_dbg_dev *bd,
 					    u32 id)
@@ -629,34 +626,16 @@ static int battery_dbg_create_votables(struct battery_dbg_dev *bd,
 	return 0;
 }
 
-static int battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
+static void battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
 {
 	int rc;
-	struct dentry *bd_dir, *file;
+	struct dentry *bd_dir;
 
 	bd_dir = debugfs_create_dir("battery_debug", NULL);
 	if (IS_ERR(bd_dir)) {
 		rc = PTR_ERR(bd_dir);
 		pr_err("Failed to create battery debugfs directory: %d\n", rc);
-		return rc;
-	}
-
-	file = debugfs_create_file_unsafe("get_qbg_context", 0200, bd_dir, bd,
-				&get_qbg_context_debugfs_ops);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		pr_err("Failed to create get_qbg_context debugfs file: %d\n",
-				rc);
-		goto error;
-	}
-
-	bd->qbg_blob.data = bd->qbg_dump.buf;
-	bd->qbg_blob.size = 0;
-	file = debugfs_create_blob("qbg_context", 0444, bd_dir, &bd->qbg_blob);
-	if (IS_ERR(file)) {
-		rc = PTR_ERR(file);
-		pr_err("Failed to create qbg_context debugfs file: %d\n", rc);
-		goto error;
+		return;
 	}
 
 	rc = battery_dbg_create_votables(bd, bd_dir);
@@ -667,17 +646,67 @@ static int battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
 
 	bd->debugfs_dir = bd_dir;
 
-	return 0;
+	return;
 error:
 	debugfs_remove_recursive(bd_dir);
-	return rc;
+	return;
 }
 #else
-static int battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
+static void battery_dbg_add_debugfs(struct battery_dbg_dev *bd)
 {
-	return 0;
+	return;
 }
 #endif
+
+static ssize_t qbg_blob_write(struct file *filp, struct kobject *kobj,
+				    struct bin_attribute *attr, char *buf,
+				    loff_t pos, size_t count)
+{
+	int rc;
+	struct device *dev = kobj_to_dev(kobj);
+	struct battery_dbg_dev *bd = dev_get_drvdata(dev);
+
+	rc = get_qbg_context_write(bd, 0); /* second arg is ignored */
+	if (rc < 0)
+		return rc;
+
+	return count;
+}
+
+static ssize_t qbg_blob_read(struct file *filp, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t pos, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct battery_dbg_dev *bd = dev_get_drvdata(dev);
+
+	return memory_read_from_buffer(buf, count, &pos, bd->qbg_blob.data,
+				       bd->qbg_blob.size);
+}
+
+static struct bin_attribute qbg_blob = {
+	.attr = {
+		.name = "qbg_context",
+		.mode = 0600,
+	},
+	.read = qbg_blob_read,
+	.write = qbg_blob_write,
+};
+
+static int battery_dbg_add_dev_attr(struct battery_dbg_dev *bd)
+{
+	int rc;
+
+	bd->qbg_blob.data = bd->qbg_dump.buf;
+	bd->qbg_blob.size = 0;
+
+	rc = device_create_bin_file(bd->dev, &qbg_blob);
+	if (rc)
+		dev_err(bd->dev, "Failed to create qbg_context bin file: %d\n",
+				rc);
+
+	return rc;
+}
 
 static int battery_dbg_probe(struct platform_device *pdev)
 {
@@ -708,9 +737,11 @@ static int battery_dbg_probe(struct platform_device *pdev)
 	init_completion(&bd->ack);
 	platform_set_drvdata(pdev, bd);
 
-	rc = battery_dbg_add_debugfs(bd);
+	rc = battery_dbg_add_dev_attr(bd);
 	if (rc < 0)
 		goto out;
+
+	battery_dbg_add_debugfs(bd);
 
 	return 0;
 out:
