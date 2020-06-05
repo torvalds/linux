@@ -457,18 +457,30 @@ int smu_dpm_set_power_gate(struct smu_context *smu, uint32_t block_type,
 	switch (block_type) {
 	case AMD_IP_BLOCK_TYPE_UVD:
 		ret = smu_dpm_set_uvd_enable(smu, !gate);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to power %s UVD!\n",
+				gate ? "gate" : "ungate");
 		break;
 	case AMD_IP_BLOCK_TYPE_VCE:
 		ret = smu_dpm_set_vce_enable(smu, !gate);
 		break;
 	case AMD_IP_BLOCK_TYPE_GFX:
 		ret = smu_gfx_off_control(smu, gate);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to %s gfxoff!\n",
+				gate ? "enable" : "disable");
 		break;
 	case AMD_IP_BLOCK_TYPE_SDMA:
 		ret = smu_powergate_sdma(smu, gate);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to power %s SDMA!\n",
+				gate ? "gate" : "ungate");
 		break;
 	case AMD_IP_BLOCK_TYPE_JPEG:
 		ret = smu_dpm_set_jpeg_enable(smu, !gate);
+		if (ret)
+			dev_err(smu->adev->dev, "Failed to power %s JPEG!\n",
+				gate ? "gate" : "ungate");
 		break;
 	default:
 		break;
@@ -788,8 +800,10 @@ static int smu_late_init(void *handle)
 		return 0;
 
 	ret = smu_set_default_od_settings(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup default OD settings!\n");
 		return ret;
+	}
 
 	/*
 	 * Set initialized values (get from vbios) to dpm tables context such as
@@ -797,20 +811,28 @@ static int smu_late_init(void *handle)
 	 * type of clks.
 	 */
 	ret = smu_populate_smc_tables(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
 		return ret;
+	}
 
 	ret = smu_init_max_sustainable_clocks(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to init max sustainable clocks!\n");
 		return ret;
+	}
 
 	ret = smu_populate_umd_state_clk(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to populate UMD state clocks!\n");
 		return ret;
+	}
 
 	ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to get default power limit!\n");
 		return ret;
+	}
 
 	smu_get_unique_id(smu);
 
@@ -954,6 +976,8 @@ static int smu_alloc_memory_pool(struct smu_context *smu)
 					      &memory_pool->bo,
 					      &memory_pool->mc_address,
 					      &memory_pool->cpu_addr);
+		if (ret)
+			dev_err(adev->dev, "VRAM allocation for dramlog failed!\n");
 		break;
 	default:
 		break;
@@ -1147,27 +1171,35 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	}
 
 	ret = smu_init_display_count(smu, 0);
-	if (ret)
+	if (ret) {
+		dev_info(adev->dev, "Failed to pre-set display count as 0!\n");
 		return ret;
+	}
 
 	ret = smu_set_driver_table_location(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to SetDriverDramAddr!\n");
 		return ret;
+	}
 
 	/*
 	 * Set PMSTATUSLOG table bo address with SetToolsDramAddr MSG for tools.
 	 */
 	ret = smu_set_tool_table_location(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to SetToolsDramAddr!\n");
 		return ret;
+	}
 
 	/*
 	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
 	 * pool location.
 	 */
 	ret = smu_notify_memory_pool_location(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to SetDramLogDramAddr!\n");
 		return ret;
+	}
 
 	/* smu_dump_pptable(smu); */
 	/*
@@ -1175,8 +1207,10 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	 * SetDriverDramAddr and TransferTableDram2Smu.
 	 */
 	ret = smu_write_pptable(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to transfer pptable to SMC!\n");
 		return ret;
+	}
 
 	/* issue Run*Btc msg */
 	ret = smu_run_btc(smu);
@@ -1184,12 +1218,16 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 
 	ret = smu_feature_set_allowed_mask(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to set driver allowed features mask!\n");
 		return ret;
+	}
 
 	ret = smu_system_features_control(smu, true);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to enable requested dpm features!\n");
 		return ret;
+	}
 
 	if (!smu_is_dpm_running(smu))
 		dev_info(adev->dev, "dpm has been disabled\n");
@@ -1199,8 +1237,10 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 		return ret;
 
 	ret = smu_enable_thermal_alert(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to enable thermal alert!\n");
 		return ret;
+	}
 
 	ret = smu_i2c_eeprom_init(smu, &adev->pm.smu_i2c);
 	if (ret)
@@ -1284,7 +1324,7 @@ static int smu_hw_init(void *handle)
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		dev_err(adev->dev, "SMU is not ready yet!\n");
+		dev_err(adev->dev, "SMC engine is not correctly up!\n");
 		return ret;
 	}
 
@@ -1300,29 +1340,32 @@ static int smu_hw_init(void *handle)
 
 	/* get boot_values from vbios to set revision, gfxclk, and etc. */
 	ret = smu_get_vbios_bootup_values(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to get VBIOS boot clock values!\n");
 		return ret;
+	}
 
 	ret = smu_setup_pptable(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup pptable!\n");
 		return ret;
+	}
 
 	ret = smu_get_driver_allowed_feature_mask(smu);
 	if (ret)
-		goto failed;
+		return ret;
 
 	ret = smu_smc_hw_setup(smu);
-	if (ret)
-		goto failed;
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup smc hw!\n");
+		return ret;
+	}
 
 	adev->pm.dpm_enabled = true;
 
 	dev_info(adev->dev, "SMU is initialized successfully!\n");
 
 	return 0;
-
-failed:
-	return ret;
 }
 
 static int smu_disable_dpms(struct smu_context *smu)
@@ -1395,13 +1438,15 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 
 	ret = smu_disable_thermal_alert(smu);
 	if (ret) {
-		dev_warn(adev->dev, "Fail to stop thermal control!\n");
+		dev_err(adev->dev, "Fail to disable thermal alert!\n");
 		return ret;
 	}
 
 	ret = smu_disable_dpms(smu);
-	if (ret)
+	if (ret) {
+		dev_err(adev->dev, "Fail to disable dpm features!\n");
 		return ret;
+	}
 
 	return 0;
 }
@@ -1493,13 +1538,15 @@ static int smu_resume(void *handle)
 
 	ret = smu_start_smc_engine(smu);
 	if (ret) {
-		dev_err(adev->dev, "SMU is not ready yet!\n");
-		goto failed;
+		dev_err(adev->dev, "SMC engine is not correctly up!\n");
+		return ret;
 	}
 
 	ret = smu_smc_hw_setup(smu);
-	if (ret)
-		goto failed;
+	if (ret) {
+		dev_err(adev->dev, "Failed to setup smc hw!\n");
+		return ret;
+	}
 
 	if (smu->is_apu)
 		smu_set_gfx_cgpg(&adev->smu, true);
@@ -1511,9 +1558,6 @@ static int smu_resume(void *handle)
 	dev_info(adev->dev, "SMU is resumed successfully!\n");
 
 	return 0;
-
-failed:
-	return ret;
 }
 
 int smu_display_configuration_change(struct smu_context *smu,
@@ -2589,6 +2633,9 @@ int smu_set_xgmi_pstate(struct smu_context *smu,
 
 	mutex_unlock(&smu->mutex);
 
+	if(ret)
+		dev_err(smu->adev->dev, "Failed to set XGMI pstate!\n");
+
 	return ret;
 }
 
@@ -2660,6 +2707,9 @@ int smu_baco_enter(struct smu_context *smu)
 
 	mutex_unlock(&smu->mutex);
 
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to enter BACO state!\n");
+
 	return ret;
 }
 
@@ -2677,6 +2727,9 @@ int smu_baco_exit(struct smu_context *smu)
 
 	mutex_unlock(&smu->mutex);
 
+	if (ret)
+		dev_err(smu->adev->dev, "Failed to exit BACO state!\n");
+
 	return ret;
 }
 
@@ -2693,6 +2746,9 @@ int smu_mode2_reset(struct smu_context *smu)
 		ret = smu->ppt_funcs->mode2_reset(smu);
 
 	mutex_unlock(&smu->mutex);
+
+	if (ret)
+		dev_err(smu->adev->dev, "Mode2 reset failed!\n");
 
 	return ret;
 }
