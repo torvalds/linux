@@ -247,7 +247,7 @@ check2ndT2(char *buf)
 	/* check for plausible wct, bcc and t2 data and parm sizes */
 	/* check for parm and data offset going beyond end of smb */
 	if (pSMB->WordCount != 10) { /* coalesce_t2 depends on this */
-		cifs_dbg(FYI, "invalid transact2 word count\n");
+		cifs_dbg(FYI, "Invalid transact2 word count\n");
 		return -EINVAL;
 	}
 

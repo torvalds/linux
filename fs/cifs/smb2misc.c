@@ -110,14 +110,14 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 	/* Make sure that negotiate contexts start after gss security blob */
 	nc_offset = le32_to_cpu(pneg_rsp->NegotiateContextOffset);
 	if (nc_offset < non_ctxlen) {
-		printk_once(KERN_WARNING "invalid negotiate context offset\n");
+		pr_warn_once("Invalid negotiate context offset\n");
 		return 0;
 	}
 	size_of_pad_before_neg_ctxts = nc_offset - non_ctxlen;
 
 	/* Verify that at least minimal negotiate contexts fit within frame */
 	if (len < nc_offset + (neg_count * sizeof(struct smb2_neg_context))) {
-		printk_once(KERN_WARNING "negotiate context goes beyond end\n");
+		pr_warn_once("negotiate context goes beyond end\n");
 		return 0;
 	}
 
@@ -190,14 +190,14 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		return 1;
 
 	if (shdr->StructureSize != SMB2_HEADER_STRUCTURE_SIZE) {
-		cifs_dbg(VFS, "Illegal structure size %u\n",
+		cifs_dbg(VFS, "Invalid structure size %u\n",
 			 le16_to_cpu(shdr->StructureSize));
 		return 1;
 	}
 
 	command = le16_to_cpu(shdr->Command);
 	if (command >= NUMBER_OF_SMB2_COMMANDS) {
-		cifs_dbg(VFS, "Illegal SMB2 command %d\n", command);
+		cifs_dbg(VFS, "Invalid SMB2 command %d\n", command);
 		return 1;
 	}
 
@@ -205,7 +205,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		if (command != SMB2_OPLOCK_BREAK_HE && (shdr->Status == 0 ||
 		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2)) {
 			/* error packets have 9 byte structure size */
-			cifs_dbg(VFS, "Illegal response size %u for command %d\n",
+			cifs_dbg(VFS, "Invalid response size %u for command %d\n",
 				 le16_to_cpu(pdu->StructureSize2), command);
 			return 1;
 		} else if (command == SMB2_OPLOCK_BREAK_HE
@@ -213,7 +213,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 			   && (le16_to_cpu(pdu->StructureSize2) != 44)
 			   && (le16_to_cpu(pdu->StructureSize2) != 36)) {
 			/* special case for SMB2.1 lease break message */
-			cifs_dbg(VFS, "Illegal response size %d for oplock break\n",
+			cifs_dbg(VFS, "Invalid response size %d for oplock break\n",
 				 le16_to_cpu(pdu->StructureSize2));
 			return 1;
 		}
@@ -864,14 +864,14 @@ ok:
 	d = server->secmech.sdescsha512;
 	rc = crypto_shash_init(&d->shash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: could not init sha512 shash\n", __func__);
+		cifs_dbg(VFS, "%s: Could not init sha512 shash\n", __func__);
 		return rc;
 	}
 
 	rc = crypto_shash_update(&d->shash, ses->preauth_sha_hash,
 				 SMB2_PREAUTH_HASH_SIZE);
 	if (rc) {
-		cifs_dbg(VFS, "%s: could not update sha512 shash\n", __func__);
+		cifs_dbg(VFS, "%s: Could not update sha512 shash\n", __func__);
 		return rc;
 	}
 
@@ -879,7 +879,7 @@ ok:
 		rc = crypto_shash_update(&d->shash,
 					 iov[i].iov_base, iov[i].iov_len);
 		if (rc) {
-			cifs_dbg(VFS, "%s: could not update sha512 shash\n",
+			cifs_dbg(VFS, "%s: Could not update sha512 shash\n",
 				 __func__);
 			return rc;
 		}
@@ -887,7 +887,7 @@ ok:
 
 	rc = crypto_shash_final(&d->shash, ses->preauth_sha_hash);
 	if (rc) {
-		cifs_dbg(VFS, "%s: could not finalize sha512 shash\n",
+		cifs_dbg(VFS, "%s: Could not finalize sha512 shash\n",
 			 __func__);
 		return rc;
 	}

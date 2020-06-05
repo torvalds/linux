@@ -448,7 +448,7 @@ cifs_sfu_type(struct cifs_fattr *fattr, const char *path,
 	struct cifs_tcon *tcon;
 	struct cifs_fid fid;
 	struct cifs_open_parms oparms;
-	struct cifs_io_parms io_parms;
+	struct cifs_io_parms io_parms = {0};
 	char buf[24];
 	unsigned int bytes_read;
 	char *pbuf;
@@ -1156,7 +1156,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 		/* some servers mistakenly claim POSIX support */
 		if (rc != -EOPNOTSUPP)
 			goto iget_no_retry;
-		cifs_dbg(VFS, "server does not support POSIX extensions");
+		cifs_dbg(VFS, "server does not support POSIX extensions\n");
 		tcon->unix_ext = false;
 	}
 
@@ -1418,6 +1418,11 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	server = tcon->ses->server;
 
 	xid = get_xid();
+
+	if (tcon->nodelete) {
+		rc = -EACCES;
+		goto unlink_out;
+	}
 
 	/* Unlink can be called from rename so we can not take the
 	 * sb->s_vfs_rename_mutex here */
@@ -1747,6 +1752,12 @@ int cifs_rmdir(struct inode *inode, struct dentry *direntry)
 		goto rmdir_exit;
 	}
 
+	if (tcon->nodelete) {
+		rc = -EACCES;
+		cifs_put_tlink(tlink);
+		goto rmdir_exit;
+	}
+
 	rc = server->ops->rmdir(xid, tcon, full_path, cifs_sb);
 	cifs_put_tlink(tlink);
 
@@ -2000,7 +2011,7 @@ cifs_invalidate_mapping(struct inode *inode)
 	if (inode->i_mapping && inode->i_mapping->nrpages != 0) {
 		rc = invalidate_inode_pages2(inode->i_mapping);
 		if (rc)
-			cifs_dbg(VFS, "%s: could not invalidate inode %p\n",
+			cifs_dbg(VFS, "%s: Could not invalidate inode %p\n",
 				 __func__, inode);
 	}
 
