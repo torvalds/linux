@@ -74,6 +74,7 @@ static const struct kfd2kgd_calls *kfd2kgd_funcs[] = {
 	[CHIP_NAVI12] = &gfx_v10_kfd2kgd,
 	[CHIP_NAVI14] = &gfx_v10_kfd2kgd,
 	[CHIP_SIENNA_CICHLID] = &gfx_v10_3_kfd2kgd,
+	[CHIP_NAVY_FLOUNDER] = &gfx_v10_3_kfd2kgd,
 };
 
 #ifdef KFD_SUPPORT_IOMMU_V2
