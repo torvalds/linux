@@ -12,6 +12,7 @@
 #include <asm/cacheflush.h>
 #include <linux/delay.h>
 #include <linux/devfreq.h>
+#include <linux/devfreq_cooling.h>
 #include <linux/iopoll.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -23,6 +24,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/debugfs.h>
 #include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_ipa.h>
 #include <soc/rockchip/rockchip_opp_select.h>
 
 #ifdef CONFIG_PM_DEVFREQ
@@ -141,8 +143,8 @@ struct rkvenc_task {
 	/* register offset info */
 	struct reg_offset_info off_inf;
 
-	unsigned long aclk_freq;
-	unsigned long clk_core_freq;
+	unsigned long aclk_freq_mhz;
+	unsigned long clk_core_freq_mhz;
 	u32 irq_status;
 	/* req for current task */
 	u32 w_req_cnt;
@@ -160,8 +162,8 @@ struct rkvenc_dev {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
 #endif
-	u32 aclk_debug;
-	u32 clk_core_debug;
+	u32 aclk_debug_mhz;
+	u32 clk_core_debug_mhz;
 	u32 session_max_buffers_debug;
 
 	struct reset_control *rst_a;
@@ -172,7 +174,10 @@ struct rkvenc_dev {
 	struct regulator *vdd;
 	struct devfreq *devfreq;
 	unsigned long volt;
-	unsigned long core_freq;
+	unsigned long core_freq_mhz;
+	unsigned long core_last_freq_hz;
+	struct ipa_power_model_data *model_data;
+	struct thermal_cooling_device *devfreq_cooling;
 #endif
 };
 
@@ -598,8 +603,8 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 
-	enc->aclk_debug = 0;
-	enc->clk_core_debug = 0;
+	enc->aclk_debug_mhz = 0;
+	enc->clk_core_debug_mhz = 0;
 	enc->session_max_buffers_debug = 0;
 #ifdef CONFIG_DEBUG_FS
 	enc->debugfs = debugfs_create_dir(mpp->dev->of_node->name,
@@ -610,9 +615,9 @@ static int rkvenc_debugfs_init(struct mpp_dev *mpp)
 		return -EIO;
 	}
 	debugfs_create_u32("aclk", 0644,
-			   enc->debugfs, &enc->aclk_debug);
+			   enc->debugfs, &enc->aclk_debug_mhz);
 	debugfs_create_u32("clk_core", 0644,
-			   enc->debugfs, &enc->clk_core_debug);
+			   enc->debugfs, &enc->clk_core_debug_mhz);
 	debugfs_create_u32("session_buffers", 0644,
 			   enc->debugfs, &enc->session_max_buffers_debug);
 #endif
@@ -645,6 +650,7 @@ static int rkvenc_devfreq_target(struct device *dev,
 	dev_pm_opp_put(opp);
 
 	if (old_clk_rate == target_freq) {
+		enc->core_last_freq_hz = target_freq;
 		if (enc->volt == target_volt)
 			return ret;
 		ret = regulator_set_voltage(enc->vdd, target_volt, INT_MAX);
@@ -668,6 +674,7 @@ static int rkvenc_devfreq_target(struct device *dev,
 	dev_dbg(dev, "%lu-->%lu\n", old_clk_rate, target_freq);
 	clk_set_rate(enc->clk_core, target_freq);
 	stat->current_frequency = target_freq;
+	enc->core_last_freq_hz = target_freq;
 
 	if (old_clk_rate > target_freq) {
 		ret = regulator_set_voltage(enc->vdd, target_volt, INT_MAX);
@@ -692,7 +699,7 @@ static int rkvenc_devfreq_get_cur_freq(struct device *dev,
 {
 	struct rkvenc_dev *enc = dev_get_drvdata(dev);
 
-	*freq = clk_get_rate(enc->clk_core);
+	*freq = enc->core_last_freq_hz;
 
 	return 0;
 }
@@ -708,7 +715,7 @@ static int devfreq_venc_ondemand_func(struct devfreq *df, unsigned long *freq)
 	struct rkvenc_dev *enc = df->data;
 
 	if (enc)
-		*freq = enc->core_freq * MHZ;
+		*freq = enc->core_freq_mhz * MHZ;
 	else
 		*freq = df->previous_freq;
 
@@ -727,9 +734,26 @@ static struct devfreq_governor devfreq_venc_ondemand = {
 	.event_handler = devfreq_venc_ondemand_handler,
 };
 
+static unsigned long rkvenc_get_static_power(struct devfreq *devfreq,
+					     unsigned long voltage)
+{
+	struct rkvenc_dev *enc = devfreq->data;
+
+	if (!enc->model_data)
+		return 0;
+	else
+		return rockchip_ipa_get_static_power(enc->model_data,
+						     voltage);
+}
+
+static struct devfreq_cooling_power venc_cooling_power_data = {
+	.get_static_power = rkvenc_get_static_power,
+};
+
 static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 {
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
+	struct devfreq_cooling_power *venc_dcp = &venc_cooling_power_data;
 	int ret = 0;
 
 	if (!enc->clk_core)
@@ -756,7 +780,7 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 
 	ret = devfreq_add_governor(&devfreq_venc_ondemand);
 	if (ret) {
-		mpp_err("failed to add venc_ondemand governor\n");
+		dev_err(mpp->dev, "failed to add venc_ondemand governor\n");
 		goto governor_err;
 	}
 
@@ -774,6 +798,29 @@ static int rkvenc_devfreq_init(struct mpp_dev *mpp)
 	enc->devfreq->last_status.busy_time = 1;
 
 	devfreq_register_opp_notifier(mpp->dev, enc->devfreq);
+
+	of_property_read_u32(mpp->dev->of_node, "dynamic-power-coefficient",
+			     (u32 *)&venc_dcp->dyn_power_coeff);
+	enc->model_data = rockchip_ipa_power_model_init(mpp->dev,
+							"venc_leakage");
+	if (IS_ERR_OR_NULL(enc->model_data)) {
+		enc->model_data = NULL;
+		dev_err(mpp->dev, "failed to initialize power model\n");
+	} else if (enc->model_data->dynamic_coefficient) {
+		venc_dcp->dyn_power_coeff =
+			enc->model_data->dynamic_coefficient;
+	}
+	if (!venc_dcp->dyn_power_coeff) {
+		dev_err(mpp->dev, "failed to get dynamic-coefficient\n");
+		goto out;
+	}
+
+	enc->devfreq_cooling =
+		of_devfreq_cooling_register_power(mpp->dev->of_node,
+						  enc->devfreq, venc_dcp);
+	if (IS_ERR_OR_NULL(enc->devfreq_cooling))
+		dev_err(mpp->dev, "failed to register cooling device\n");
+out:
 
 	return 0;
 
@@ -863,6 +910,15 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 
 	mpp_debug_enter();
 
+#ifdef CONFIG_PM_DEVFREQ
+	if (enc->devfreq)
+		mutex_lock(&enc->devfreq->lock);
+#endif
+	if (enc->aclk)
+		clk_set_rate(enc->aclk, 50 * MHZ);
+	if (enc->clk_core)
+		clk_set_rate(enc->clk_core, 50 * MHZ);
+
 	mpp_write(mpp, RKVENC_INT_EN_BASE, RKVENC_SAFE_CLR_BIT);
 	mpp_write(mpp, RKVENC_CLR_BASE, RKVENC_SAFE_CLR_BIT);
 	if (enc->rst_a && enc->rst_h && enc->rst_core) {
@@ -876,6 +932,10 @@ static int rkvenc_reset(struct mpp_dev *mpp)
 		mpp_safe_unreset(enc->rst_core);
 		rockchip_pmu_idle_request(mpp->dev, false);
 	}
+#ifdef CONFIG_PM_DEVFREQ
+	if (enc->devfreq)
+		mutex_unlock(&enc->devfreq->lock);
+#endif
 
 	mpp_debug_leave();
 
@@ -915,8 +975,8 @@ static int rkvenc_get_freq(struct mpp_dev *mpp,
 {
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 
-	task->aclk_freq = 300;
-	task->clk_core_freq = 600;
+	task->aclk_freq_mhz = 300;
+	task->clk_core_freq_mhz = 600;
 
 	return 0;
 }
@@ -927,41 +987,35 @@ static int rkvenc_set_freq(struct mpp_dev *mpp,
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
 
-	task->aclk_freq = enc->aclk_debug ? enc->aclk_debug : task->aclk_freq;
-	task->clk_core_freq = enc->clk_core_debug ?
-		enc->clk_core_debug : task->clk_core_freq;
+	task->aclk_freq_mhz = enc->aclk_debug_mhz ?
+		enc->aclk_debug_mhz : task->aclk_freq_mhz;
+	task->clk_core_freq_mhz = enc->clk_core_debug_mhz ?
+		enc->clk_core_debug_mhz : task->clk_core_freq_mhz;
 
 	if (enc->aclk)
-		clk_set_rate(enc->aclk, task->aclk_freq * MHZ);
+		clk_set_rate(enc->aclk, task->aclk_freq_mhz * MHZ);
 
 #ifdef CONFIG_PM_DEVFREQ
-	if (enc->devfreq && enc->core_freq != task->clk_core_freq) {
+	if (enc->devfreq) {
 		mutex_lock(&enc->devfreq->lock);
-		enc->core_freq = task->clk_core_freq;
-		update_devfreq(enc->devfreq);
+		if (enc->core_freq_mhz != task->clk_core_freq_mhz) {
+			enc->core_freq_mhz = task->clk_core_freq_mhz;
+			update_devfreq(enc->devfreq);
+		} else {
+			/*
+			 * Restore frequency when frequency is changed by
+			 * rkvenc_reduce_freq()
+			 */
+			clk_set_rate(enc->clk_core, enc->core_last_freq_hz);
+		}
 		mutex_unlock(&enc->devfreq->lock);
 		return 0;
 	}
+#else
+	if (enc->clk_core)
+		clk_set_rate(enc->clk_core, task->clk_core_freq_mhz * MHZ);
+
 #endif
-	/*
-	 * Update frequency when the requset frequency of task is changed.
-	 * Restore frequency when frequency is changed by rkvenc_reduce_freq().
-	 */
-	if (enc->clk_core)
-		clk_set_rate(enc->clk_core, task->clk_core_freq * MHZ);
-
-	return 0;
-}
-
-static int rkvenc_reduce_freq(struct mpp_dev *mpp)
-{
-	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
-
-	if (enc->aclk)
-		clk_set_rate(enc->aclk, 50 * MHZ);
-	if (enc->clk_core)
-		clk_set_rate(enc->clk_core, 50 * MHZ);
-
 	return 0;
 }
 
@@ -972,7 +1026,6 @@ static struct mpp_hw_ops rkvenc_hw_ops = {
 	.power_off = rkvenc_power_off,
 	.get_freq = rkvenc_get_freq,
 	.set_freq = rkvenc_set_freq,
-	.reduce_freq = rkvenc_reduce_freq,
 	.reset = rkvenc_reset,
 };
 
