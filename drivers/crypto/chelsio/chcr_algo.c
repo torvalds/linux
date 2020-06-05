@@ -44,7 +44,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
-#include <linux/cryptohash.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/highmem.h>
@@ -1757,7 +1756,7 @@ static int chcr_ahash_final(struct ahash_request *req)
 	struct uld_ctx *u_ctx = ULD_CTX(h_ctx(rtfm));
 	struct chcr_context *ctx = h_ctx(rtfm);
 	u8 bs = crypto_tfm_alg_blocksize(crypto_ahash_tfm(rtfm));
-	int error = -EINVAL;
+	int error;
 	unsigned int cpu;
 
 	cpu = get_cpu();

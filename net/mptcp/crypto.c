@@ -59,7 +59,7 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 	put_unaligned_be64(key2, key2be);
 
 	/* Generate key xored with ipad */
-	memset(input, 0x36, SHA_MESSAGE_BYTES);
+	memset(input, 0x36, SHA256_BLOCK_SIZE);
 	for (i = 0; i < 8; i++)
 		input[i] ^= key1be[i];
 	for (i = 0; i < 8; i++)
@@ -76,7 +76,7 @@ void mptcp_crypto_hmac_sha(u64 key1, u64 key2, u8 *msg, int len, void *hmac)
 	sha256_final(&state, &input[SHA256_BLOCK_SIZE]);
 
 	/* Prepare second part of hmac */
-	memset(input, 0x5C, SHA_MESSAGE_BYTES);
+	memset(input, 0x5C, SHA256_BLOCK_SIZE);
 	for (i = 0; i < 8; i++)
 		input[i] ^= key1be[i];
 	for (i = 0; i < 8; i++)

@@ -40,7 +40,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
-#include <linux/cryptohash.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/highmem.h>
