@@ -2856,8 +2856,8 @@ static void gfx_v9_0_init_gfx_power_gating(struct amdgpu_device *adev)
 		/* program GRBM_REG_SAVE_GFX_IDLE_THRESHOLD to 0x55f0 */
 		data |= (0x55f0 << RLC_AUTO_PG_CTRL__GRBM_REG_SAVE_GFX_IDLE_THRESHOLD__SHIFT);
 		WREG32(SOC15_REG_OFFSET(GC, 0, mmRLC_AUTO_PG_CTRL), data);
-
-		pwr_10_0_gfxip_control_over_cgpg(adev, true);
+		if (adev->asic_type != CHIP_RENOIR)
+			pwr_10_0_gfxip_control_over_cgpg(adev, true);
 	}
 }
 
