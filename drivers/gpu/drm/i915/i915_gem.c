@@ -947,7 +947,8 @@ discard_ggtt_vma(struct i915_vma *vma, const struct i915_ggtt_view *view)
 
 		rb_erase(&vma->obj_node, &obj->vma.tree);
 		vma->ggtt_view = discard;
-		GEM_BUG_ON(i915_vma_compare(vma, vma->vm, view));
+		GEM_BUG_ON(i915_vma_compare(vma, vma->vm, &discard));
+		GEM_BUG_ON(i915_vma_compare(vma, vma->vm, view) == 0);
 
 		rb = NULL;
 		p = &obj->vma.tree.rb_node;
