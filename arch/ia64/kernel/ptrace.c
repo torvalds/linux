@@ -1936,15 +1936,14 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	}
 
 	if (pos != -1) {
-		if (write_access)
-			ret = gpregs_set(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		else
-			ret = gpregs_get(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		if (ret != 0)
-			return -1;
-		return 0;
+		struct unw_frame_info info;
+
+		memset(&info, 0, sizeof(info));
+		unw_init_from_blocked_task(&info, child);
+		if (unw_unwind_to_user(&info) < 0)
+			return 0;
+
+		return access_elf_reg(child, &info, pos, data, write_access);
 	}
 
 	/* access debug registers */
