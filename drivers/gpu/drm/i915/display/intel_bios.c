@@ -1650,7 +1650,7 @@ static enum port dvo_port_to_port(struct drm_i915_private *dev_priv,
 		[PORT_B] = { DVO_PORT_HDMIB, DVO_PORT_DPB, -1 },
 		[PORT_C] = { DVO_PORT_HDMIC, DVO_PORT_DPC, -1 },
 		[PORT_D] = { DVO_PORT_HDMID, DVO_PORT_DPD, -1 },
-		[PORT_E] = { DVO_PORT_CRT, DVO_PORT_HDMIE, -1 },
+		[PORT_E] = { DVO_PORT_HDMIE, DVO_PORT_DPE, DVO_PORT_CRT },
 		[PORT_F] = { DVO_PORT_HDMIF, DVO_PORT_DPF, -1 },
 		[PORT_G] = { DVO_PORT_HDMIG, DVO_PORT_DPG, -1 },
 	};
