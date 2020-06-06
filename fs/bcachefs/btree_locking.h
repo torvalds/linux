@@ -101,7 +101,7 @@ static inline void __btree_node_unlock(struct btree_iter *iter, unsigned level)
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
 	if (lock_type != BTREE_NODE_UNLOCKED)
-		six_unlock_type(&iter->l[level].b->lock, lock_type);
+		six_unlock_type(&iter->l[level].b->c.lock, lock_type);
 	mark_btree_node_unlocked(iter, level);
 }
 
@@ -142,14 +142,14 @@ static inline void __btree_node_lock_type(struct bch_fs *c, struct btree *b,
 {
 	u64 start_time = local_clock();
 
-	six_lock_type(&b->lock, type, NULL, NULL);
+	six_lock_type(&b->c.lock, type, NULL, NULL);
 	bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
 }
 
 static inline void btree_node_lock_type(struct bch_fs *c, struct btree *b,
 					enum six_lock_type type)
 {
-	if (!six_trylock_type(&b->lock, type))
+	if (!six_trylock_type(&b->c.lock, type))
 		__btree_node_lock_type(c, b, type);
 }
 
@@ -167,7 +167,7 @@ static inline bool btree_node_lock_increment(struct btree_iter *iter,
 		if (linked != iter &&
 		    linked->l[level].b == b &&
 		    btree_node_locked_type(linked, level) >= want) {
-			six_lock_increment(&b->lock, want);
+			six_lock_increment(&b->c.lock, want);
 			return true;
 		}
 
@@ -185,7 +185,7 @@ static inline bool btree_node_lock(struct btree *b, struct bpos pos,
 {
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
-	return likely(six_trylock_type(&b->lock, type)) ||
+	return likely(six_trylock_type(&b->c.lock, type)) ||
 		btree_node_lock_increment(iter, b, level, type) ||
 		__bch2_btree_node_lock(b, pos, level, iter,
 				       type, may_drop_locks);
@@ -210,10 +210,10 @@ void __bch2_btree_node_lock_write(struct btree *, struct btree_iter *);
 
 static inline void bch2_btree_node_lock_write(struct btree *b, struct btree_iter *iter)
 {
-	EBUG_ON(iter->l[b->level].b != b);
-	EBUG_ON(iter->l[b->level].lock_seq != b->lock.state.seq);
+	EBUG_ON(iter->l[b->c.level].b != b);
+	EBUG_ON(iter->l[b->c.level].lock_seq != b->c.lock.state.seq);
 
-	if (!six_trylock_write(&b->lock))
+	if (!six_trylock_write(&b->c.lock))
 		__bch2_btree_node_lock_write(b, iter);
 }
 

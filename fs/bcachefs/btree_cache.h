@@ -83,7 +83,7 @@ static inline unsigned btree_blocks(struct bch_fs *c)
 	(BTREE_FOREGROUND_MERGE_THRESHOLD(c) +			\
 	 (BTREE_FOREGROUND_MERGE_THRESHOLD(c) << 2))
 
-#define btree_node_root(_c, _b)	((_c)->btree_roots[(_b)->btree_id].b)
+#define btree_node_root(_c, _b)	((_c)->btree_roots[(_b)->c.btree_id].b)
 
 void bch2_btree_node_to_text(struct printbuf *, struct bch_fs *,
 			     struct btree *);

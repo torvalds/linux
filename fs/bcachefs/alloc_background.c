@@ -1529,7 +1529,7 @@ again:
 				rcu_read_unlock();
 				btree_node_lock_type(c, b, SIX_LOCK_read);
 				bch2_btree_node_write(c, b, SIX_LOCK_read);
-				six_unlock_read(&b->lock);
+				six_unlock_read(&b->c.lock);
 				goto again;
 			} else {
 				nodes_unwritten = true;

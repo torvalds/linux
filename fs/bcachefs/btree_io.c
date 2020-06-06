@@ -473,8 +473,8 @@ void bch2_btree_init_next(struct bch_fs *c, struct btree *b,
 	struct btree_node_entry *bne;
 	bool did_sort;
 
-	EBUG_ON(!(b->lock.state.seq & 1));
-	EBUG_ON(iter && iter->l[b->level].b != b);
+	EBUG_ON(!(b->c.lock.state.seq & 1));
+	EBUG_ON(iter && iter->l[b->c.level].b != b);
 
 	did_sort = btree_node_compact(c, b, iter);
 
@@ -524,8 +524,8 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	       "at btree %u level %u/%u\n"
 	       "pos %llu:%llu node offset %u",
 	       write ? "before write " : "",
-	       b->btree_id, b->level,
-	       c->btree_roots[b->btree_id].level,
+	       b->c.btree_id, b->c.level,
+	       c->btree_roots[b->c.btree_id].level,
 	       b->key.k.p.inode, b->key.k.p.offset,
 	       b->written);
 	if (i)
@@ -610,11 +610,11 @@ static int validate_bset(struct bch_fs *c, struct btree *b,
 
 	if (i == &b->data->keys) {
 		/* These indicate that we read the wrong btree node: */
-		btree_err_on(BTREE_NODE_ID(b->data) != b->btree_id,
+		btree_err_on(BTREE_NODE_ID(b->data) != b->c.btree_id,
 			     BTREE_ERR_MUST_RETRY, c, b, i,
 			     "incorrect btree id");
 
-		btree_err_on(BTREE_NODE_LEVEL(b->data) != b->level,
+		btree_err_on(BTREE_NODE_LEVEL(b->data) != b->c.level,
 			     BTREE_ERR_MUST_RETRY, c, b, i,
 			     "incorrect level");
 
@@ -1105,8 +1105,8 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 
 	bch2_btree_set_root_for_read(c, b);
 err:
-	six_unlock_write(&b->lock);
-	six_unlock_intent(&b->lock);
+	six_unlock_write(&b->c.lock);
+	six_unlock_intent(&b->c.lock);
 
 	return ret;
 }
@@ -1153,15 +1153,15 @@ static void bch2_btree_node_write_error(struct bch_fs *c,
 
 	bch2_trans_init(&trans, c);
 
-	iter = bch2_trans_get_node_iter(&trans, b->btree_id, b->key.k.p,
-					BTREE_MAX_DEPTH, b->level, 0);
+	iter = bch2_trans_get_node_iter(&trans, b->c.btree_id, b->key.k.p,
+					BTREE_MAX_DEPTH, b->c.level, 0);
 retry:
 	ret = bch2_btree_iter_traverse(iter);
 	if (ret)
 		goto err;
 
 	/* has node been freed? */
-	if (iter->l[b->level].b != b) {
+	if (iter->l[b->c.level].b != b) {
 		/* node has been freed: */
 		BUG_ON(!btree_node_dying(b));
 		goto out;
@@ -1359,9 +1359,9 @@ void __bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	 * doing btree writes:
 	 */
 	if (lock_type_held == SIX_LOCK_intent &&
-	    six_trylock_write(&b->lock)) {
+	    six_trylock_write(&b->c.lock)) {
 		__bch2_compact_whiteouts(c, b, COMPACT_WRITTEN);
-		six_unlock_write(&b->lock);
+		six_unlock_write(&b->c.lock);
 	} else {
 		__bch2_compact_whiteouts(c, b, COMPACT_WRITTEN_NO_WRITE_LOCK);
 	}
@@ -1606,18 +1606,18 @@ void bch2_btree_node_write(struct bch_fs *c, struct btree *b,
 	BUG_ON(lock_type_held == SIX_LOCK_write);
 
 	if (lock_type_held == SIX_LOCK_intent ||
-	    six_lock_tryupgrade(&b->lock)) {
+	    six_lock_tryupgrade(&b->c.lock)) {
 		__bch2_btree_node_write(c, b, SIX_LOCK_intent);
 
 		/* don't cycle lock unnecessarily: */
 		if (btree_node_just_written(b) &&
-		    six_trylock_write(&b->lock)) {
+		    six_trylock_write(&b->c.lock)) {
 			bch2_btree_post_write_cleanup(c, b);
-			six_unlock_write(&b->lock);
+			six_unlock_write(&b->c.lock);
 		}
 
 		if (lock_type_held == SIX_LOCK_read)
-			six_lock_downgrade(&b->lock);
+			six_lock_downgrade(&b->c.lock);
 	} else {
 		__bch2_btree_node_write(c, b, SIX_LOCK_read);
 	}
@@ -1688,7 +1688,7 @@ ssize_t bch2_dirty_btree_nodes_print(struct bch_fs *c, char *buf)
 		       b,
 		       (flags & (1 << BTREE_NODE_dirty)) != 0,
 		       (flags & (1 << BTREE_NODE_need_write)) != 0,
-		       b->level,
+		       b->c.level,
 		       b->written,
 		       !list_empty_careful(&b->write_blocked),
 		       b->will_make_reachable != 0,

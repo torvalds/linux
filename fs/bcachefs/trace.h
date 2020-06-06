@@ -144,8 +144,8 @@ DECLARE_EVENT_CLASS(btree_node,
 
 	TP_fast_assign(
 		memcpy(__entry->uuid, c->sb.user_uuid.b, 16);
-		__entry->level		= b->level;
-		__entry->id		= b->btree_id;
+		__entry->level		= b->c.level;
+		__entry->id		= b->c.btree_id;
 		__entry->inode		= b->key.k.p.inode;
 		__entry->offset		= b->key.k.p.offset;
 	),
@@ -262,7 +262,7 @@ TRACE_EVENT(btree_insert_key,
 	),
 
 	TP_fast_assign(
-		__entry->id		= b->btree_id;
+		__entry->id		= b->c.btree_id;
 		__entry->inode		= k->k.p.inode;
 		__entry->offset		= k->k.p.offset;
 		__entry->size		= k->k.size;

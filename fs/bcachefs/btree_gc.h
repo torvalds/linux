@@ -81,7 +81,7 @@ static inline struct gc_pos gc_pos_btree(enum btree_id id,
  */
 static inline struct gc_pos gc_pos_btree_node(struct btree *b)
 {
-	return gc_pos_btree(b->btree_id, b->key.k.p, b->level);
+	return gc_pos_btree(b->c.btree_id, b->key.k.p, b->c.level);
 }
 
 /*

@@ -71,10 +71,10 @@ static void btree_node_range_checks_init(struct range_checks *r, unsigned depth)
 static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 				    struct range_checks *r)
 {
-	struct range_level *l = &r->l[b->level];
+	struct range_level *l = &r->l[b->c.level];
 
 	struct bpos expected_min = bkey_cmp(l->min, l->max)
-		? btree_type_successor(b->btree_id, l->max)
+		? btree_type_successor(b->c.btree_id, l->max)
 		: l->max;
 
 	bch2_fs_inconsistent_on(bkey_cmp(b->data->min_key, expected_min), c,
@@ -86,8 +86,8 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 
 	l->max = b->data->max_key;
 
-	if (b->level > r->depth) {
-		l = &r->l[b->level - 1];
+	if (b->c.level > r->depth) {
+		l = &r->l[b->c.level - 1];
 
 		bch2_fs_inconsistent_on(bkey_cmp(b->data->min_key, l->min), c,
 			"btree node min doesn't match min of child nodes: %llu:%llu != %llu:%llu",
@@ -105,7 +105,7 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 
 		if (bkey_cmp(b->data->max_key, POS_MAX))
 			l->min = l->max =
-				btree_type_successor(b->btree_id,
+				btree_type_successor(b->c.btree_id,
 						     b->data->max_key);
 	}
 }
@@ -261,7 +261,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	if (!btree_node_fake(b))
 		ret = bch2_gc_mark_key(c, bkey_i_to_s_c(&b->key),
 				       &max_stale, initial);
-	gc_pos_set(c, gc_pos_btree_root(b->btree_id));
+	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
 	mutex_unlock(&c->btree_root_lock);
 
 	return ret;
@@ -932,9 +932,9 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 
 			set_btree_bset_end(n1, n1->set);
 
-			six_unlock_write(&n2->lock);
+			six_unlock_write(&n2->c.lock);
 			bch2_btree_node_free_never_inserted(c, n2);
-			six_unlock_intent(&n2->lock);
+			six_unlock_intent(&n2->c.lock);
 
 			memmove(new_nodes + i - 1,
 				new_nodes + i,
@@ -970,7 +970,7 @@ static void bch2_coalesce_nodes(struct bch_fs *c, struct btree_iter *iter,
 		btree_node_reset_sib_u64s(n);
 
 		bch2_btree_build_aux_trees(n);
-		six_unlock_write(&n->lock);
+		six_unlock_write(&n->c.lock);
 
 		bch2_btree_node_write(c, n, SIX_LOCK_intent);
 	}
@@ -1013,7 +1013,7 @@ next:
 
 	BUG_ON(!bch2_keylist_empty(&keylist));
 
-	BUG_ON(iter->l[old_nodes[0]->level].b != old_nodes[0]);
+	BUG_ON(iter->l[old_nodes[0]->c.level].b != old_nodes[0]);
 
 	bch2_btree_iter_node_replace(iter, new_nodes[0]);
 
@@ -1035,7 +1035,7 @@ next:
 		} else {
 			old_nodes[i] = NULL;
 			if (new_nodes[i])
-				six_unlock_intent(&new_nodes[i]->lock);
+				six_unlock_intent(&new_nodes[i]->c.lock);
 		}
 	}
 
@@ -1078,11 +1078,11 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 
 		for (i = 1; i < GC_MERGE_NODES; i++) {
 			if (!merge[i] ||
-			    !six_relock_intent(&merge[i]->lock, lock_seq[i]))
+			    !six_relock_intent(&merge[i]->c.lock, lock_seq[i]))
 				break;
 
-			if (merge[i]->level != merge[0]->level) {
-				six_unlock_intent(&merge[i]->lock);
+			if (merge[i]->c.level != merge[0]->c.level) {
+				six_unlock_intent(&merge[i]->c.lock);
 				break;
 			}
 		}
@@ -1091,11 +1091,11 @@ static int bch2_coalesce_btree(struct bch_fs *c, enum btree_id btree_id)
 		bch2_coalesce_nodes(c, iter, merge);
 
 		for (i = 1; i < GC_MERGE_NODES && merge[i]; i++) {
-			lock_seq[i] = merge[i]->lock.state.seq;
-			six_unlock_intent(&merge[i]->lock);
+			lock_seq[i] = merge[i]->c.lock.state.seq;
+			six_unlock_intent(&merge[i]->c.lock);
 		}
 
-		lock_seq[0] = merge[0]->lock.state.seq;
+		lock_seq[0] = merge[0]->c.lock.state.seq;
 
 		if (kthread && kthread_should_stop()) {
 			bch2_trans_exit(&trans);

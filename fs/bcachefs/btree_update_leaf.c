@@ -155,7 +155,7 @@ static void __btree_node_flush(struct journal *j, struct journal_entry_pin *pin,
 	btree_node_lock_type(c, b, SIX_LOCK_read);
 	bch2_btree_node_write_cond(c, b,
 		(btree_current_write(b) == w && w->journal.seq == seq));
-	six_unlock_read(&b->lock);
+	six_unlock_read(&b->c.lock);
 }
 
 static void btree_node_flush0(struct journal *j, struct journal_entry_pin *pin, u64 seq)
@@ -198,7 +198,7 @@ void bch2_btree_journal_key(struct btree_trans *trans,
 	struct btree *b = iter->l[0].b;
 	struct btree_write *w = btree_current_write(b);
 
-	EBUG_ON(iter->level || b->level);
+	EBUG_ON(iter->level || b->c.level);
 	EBUG_ON(trans->journal_res.ref !=
 		!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY));
 

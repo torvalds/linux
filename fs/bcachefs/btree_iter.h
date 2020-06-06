@@ -17,10 +17,23 @@ static inline struct btree *btree_iter_node(struct btree_iter *iter,
 	return level < BTREE_MAX_DEPTH ? iter->l[level].b : NULL;
 }
 
+static inline bool btree_node_lock_seq_matches(const struct btree_iter *iter,
+					const struct btree *b, unsigned level)
+{
+	/*
+	 * We don't compare the low bits of the lock sequence numbers because
+	 * @iter might have taken a write lock on @b, and we don't want to skip
+	 * the linked iterator if the sequence numbers were equal before taking
+	 * that write lock. The lock sequence number is incremented by taking
+	 * and releasing write locks and is even when unlocked:
+	 */
+	return iter->l[level].lock_seq >> 1 == b->c.lock.state.seq >> 1;
+}
+
 static inline struct btree *btree_node_parent(struct btree_iter *iter,
 					      struct btree *b)
 {
-	return btree_iter_node(iter, b->level + 1);
+	return btree_iter_node(iter, b->c.level + 1);
 }
 
 static inline bool btree_trans_has_multiple_iters(const struct btree_trans *trans)
@@ -55,16 +68,8 @@ __trans_next_iter(struct btree_trans *trans, unsigned idx)
 static inline bool __iter_has_node(const struct btree_iter *iter,
 				   const struct btree *b)
 {
-	/*
-	 * We don't compare the low bits of the lock sequence numbers because
-	 * @iter might have taken a write lock on @b, and we don't want to skip
-	 * the linked iterator if the sequence numbers were equal before taking
-	 * that write lock. The lock sequence number is incremented by taking
-	 * and releasing write locks and is even when unlocked:
-	 */
-
-	return iter->l[b->level].b == b &&
-		iter->l[b->level].lock_seq >> 1 == b->lock.state.seq >> 1;
+	return iter->l[b->c.level].b == b &&
+		btree_node_lock_seq_matches(iter, b, b->c.level);
 }
 
 static inline struct btree_iter *
