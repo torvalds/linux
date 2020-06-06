@@ -1273,12 +1273,14 @@ struct regset_getset {
 	int ret;
 };
 
-static const ptrdiff_t pt_offsets[16] =
+static const ptrdiff_t pt_offsets[32] =
 {
 #define R(n) offsetof(struct pt_regs, r##n)
 	[0] = -1, R(1), R(2), R(3),
 	[4] = -1, [5] = -1, [6] = -1, [7] = -1,
 	R(8), R(9), R(10), R(11), R(12), R(13), R(14), R(15),
+	R(16), R(17), R(18), R(19), R(20), R(21), R(22), R(23),
+	R(24), R(25), R(26), R(27), R(28), R(29), R(30), R(31),
 #undef R
 };
 
@@ -1479,7 +1481,7 @@ static int
 access_elf_reg(struct task_struct *target, struct unw_frame_info *info,
 		unsigned long addr, unsigned long *data, int write_access)
 {
-	if (addr >= ELF_GR_OFFSET(1) && addr <= ELF_GR_OFFSET(15))
+	if (addr >= ELF_GR_OFFSET(1) && addr <= ELF_GR_OFFSET(31))
 		return access_elf_gpreg(target, info, addr, data, write_access);
 	else if (addr >= ELF_BR_OFFSET(0) && addr <= ELF_BR_OFFSET(7))
 		return access_elf_breg(target, info, addr, data, write_access);
