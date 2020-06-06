@@ -142,6 +142,10 @@ static void clk_branch2_disable(struct clk_hw *hw)
 }
 
 const struct clk_ops clk_branch2_ops = {
+	.prepare = clk_prepare_regmap,
+	.unprepare = clk_unprepare_regmap,
+	.pre_rate_change = clk_pre_change_regmap,
+	.post_rate_change = clk_post_change_regmap,
 	.enable = clk_branch2_enable,
 	.disable = clk_branch2_disable,
 	.is_enabled = clk_is_enabled_regmap,
