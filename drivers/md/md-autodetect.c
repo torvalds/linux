@@ -9,6 +9,7 @@
 #include <linux/raid/detect.h>
 #include <linux/raid/md_u.h>
 #include <linux/raid/md_p.h>
+#include "md.h"
 
 /*
  * When md (and any require personalities) are compiled into the kernel
@@ -285,8 +286,6 @@ __setup("md=", md_setup);
 
 static void __init autodetect_raid(void)
 {
-	int fd;
-
 	/*
 	 * Since we don't want to detect and use half a raid array, we need to
 	 * wait for the known devices to complete their probing
@@ -295,12 +294,7 @@ static void __init autodetect_raid(void)
 	printk(KERN_INFO "md: If you don't use raid, use raid=noautodetect\n");
 
 	wait_for_device_probe();
-
-	fd = ksys_open("/dev/md0", 0, 0);
-	if (fd >= 0) {
-		ksys_ioctl(fd, RAID_AUTORUN, raid_autopart);
-		ksys_close(fd);
-	}
+	md_autostart_arrays(raid_autopart);
 }
 
 void __init md_run_setup(void)
