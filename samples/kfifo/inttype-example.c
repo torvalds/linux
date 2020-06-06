@@ -135,11 +135,10 @@ static ssize_t fifo_read(struct file *file, char __user *buf,
 	return ret ? ret : copied;
 }
 
-static const struct file_operations fifo_fops = {
-	.owner		= THIS_MODULE,
-	.read		= fifo_read,
-	.write		= fifo_write,
-	.llseek		= noop_llseek,
+static const struct proc_ops fifo_proc_ops = {
+	.proc_read	= fifo_read,
+	.proc_write	= fifo_write,
+	.proc_lseek	= noop_llseek,
 };
 
 static int __init example_init(void)
@@ -160,7 +159,7 @@ static int __init example_init(void)
 		return -EIO;
 	}
 
-	if (proc_create(PROC_FIFO, 0, NULL, &fifo_fops) == NULL) {
+	if (proc_create(PROC_FIFO, 0, NULL, &fifo_proc_ops) == NULL) {
 #ifdef DYNAMIC
 		kfifo_free(&test);
 #endif

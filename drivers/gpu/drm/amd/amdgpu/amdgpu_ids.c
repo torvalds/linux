@@ -206,7 +206,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 	int r;
 
 	if (ring->vmid_wait && !dma_fence_is_signaled(ring->vmid_wait))
-		return amdgpu_sync_fence(adev, sync, ring->vmid_wait, false);
+		return amdgpu_sync_fence(sync, ring->vmid_wait, false);
 
 	fences = kmalloc_array(sizeof(void *), id_mgr->num_ids, GFP_KERNEL);
 	if (!fences)
@@ -241,7 +241,7 @@ static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
 			return -ENOMEM;
 		}
 
-		r = amdgpu_sync_fence(adev, sync, &array->base, false);
+		r = amdgpu_sync_fence(sync, &array->base, false);
 		dma_fence_put(ring->vmid_wait);
 		ring->vmid_wait = &array->base;
 		return r;
@@ -294,7 +294,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 		tmp = amdgpu_sync_peek_fence(&(*id)->active, ring);
 		if (tmp) {
 			*id = NULL;
-			r = amdgpu_sync_fence(adev, sync, tmp, false);
+			r = amdgpu_sync_fence(sync, tmp, false);
 			return r;
 		}
 		needs_flush = true;
@@ -303,7 +303,7 @@ static int amdgpu_vmid_grab_reserved(struct amdgpu_vm *vm,
 	/* Good we can use this VMID. Remember this submission as
 	* user of the VMID.
 	*/
-	r = amdgpu_sync_fence(ring->adev, &(*id)->active, fence, false);
+	r = amdgpu_sync_fence(&(*id)->active, fence, false);
 	if (r)
 		return r;
 
@@ -375,7 +375,7 @@ static int amdgpu_vmid_grab_used(struct amdgpu_vm *vm,
 		/* Good, we can use this VMID. Remember this submission as
 		 * user of the VMID.
 		 */
-		r = amdgpu_sync_fence(ring->adev, &(*id)->active, fence, false);
+		r = amdgpu_sync_fence(&(*id)->active, fence, false);
 		if (r)
 			return r;
 
@@ -435,8 +435,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 			id = idle;
 
 			/* Remember this submission as user of the VMID */
-			r = amdgpu_sync_fence(ring->adev, &id->active,
-					      fence, false);
+			r = amdgpu_sync_fence(&id->active, fence, false);
 			if (r)
 				goto error;
 

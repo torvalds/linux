@@ -10,14 +10,15 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/rcupdate.h>
 #include <linux/types.h>
 
 #include "i915_active_types.h"
 
-struct drm_i915_private;
 struct i915_vma;
-struct intel_timeline_cacheline;
 struct i915_syncmap;
+struct intel_gt;
+struct intel_timeline_hwsp;
 
 struct intel_timeline {
 	u64 fence_context;
@@ -84,6 +85,15 @@ struct intel_timeline {
 	struct intel_gt *gt;
 
 	struct kref kref;
+	struct rcu_head rcu;
+};
+
+struct intel_timeline_cacheline {
+	struct i915_active active;
+
+	struct intel_timeline_hwsp *hwsp;
+	void *vaddr;
+
 	struct rcu_head rcu;
 };
 

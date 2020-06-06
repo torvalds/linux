@@ -1321,7 +1321,7 @@ static void smc_poll_controller(struct net_device *dev)
 #endif
 
 /* Our watchdog timed out. Called by the networking layer */
-static void smc_timeout(struct net_device *dev)
+static void smc_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct smc_local *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;

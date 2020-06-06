@@ -51,14 +51,8 @@ static int txx9aclc_pcm_hw_params(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct txx9aclc_dmadata *dmadata = runtime->private_data;
-	int ret;
-
-	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
-	if (ret < 0)
-		return ret;
 
 	dev_dbg(component->dev,
 		"runtime->dma_area = %#lx dma_addr = %#lx dma_bytes = %zd "
@@ -74,12 +68,6 @@ static int txx9aclc_pcm_hw_params(struct snd_soc_component *component,
 	dmadata->substream = substream;
 	dmadata->pos = 0;
 	return 0;
-}
-
-static int txx9aclc_pcm_hw_free(struct snd_soc_component *component,
-				struct snd_pcm_substream *substream)
-{
-	return snd_pcm_lib_free_pages(substream);
 }
 
 static int txx9aclc_pcm_prepare(struct snd_soc_component *component,
@@ -306,7 +294,7 @@ static int txx9aclc_pcm_new(struct snd_soc_component *component,
 			goto exit;
 	}
 
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV,
 		card->dev, 64 * 1024, 4 * 1024 * 1024);
 	return 0;
 
@@ -406,9 +394,7 @@ static const struct snd_soc_component_driver txx9aclc_soc_component = {
 	.remove		= txx9aclc_pcm_remove,
 	.open		= txx9aclc_pcm_open,
 	.close		= txx9aclc_pcm_close,
-	.ioctl		= snd_soc_pcm_lib_ioctl,
 	.hw_params	= txx9aclc_pcm_hw_params,
-	.hw_free	= txx9aclc_pcm_hw_free,
 	.prepare	= txx9aclc_pcm_prepare,
 	.trigger	= txx9aclc_pcm_trigger,
 	.pointer	= txx9aclc_pcm_pointer,

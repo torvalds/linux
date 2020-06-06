@@ -792,7 +792,7 @@ static int pti_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	unsigned int a;
-	int retval = -EINVAL;
+	int retval;
 	int pci_bar = 1;
 
 	dev_dbg(&pdev->dev, "%s %s(%d): PTI PCI ID %04x:%04x\n", __FILE__,
@@ -834,7 +834,7 @@ static int pti_pci_probe(struct pci_dev *pdev,
 	}
 	drv_data->aperture_base = drv_data->pti_addr+APERTURE_14;
 	drv_data->pti_ioaddr =
-		ioremap_nocache((u32)drv_data->aperture_base,
+		ioremap((u32)drv_data->aperture_base,
 		APERTURE_LEN);
 	if (!drv_data->pti_ioaddr) {
 		retval = -ENOMEM;
@@ -910,7 +910,7 @@ static struct pci_driver pti_pci_driver = {
  */
 static int __init pti_init(void)
 {
-	int retval = -EINVAL;
+	int retval;
 
 	/* First register module as tty device */
 

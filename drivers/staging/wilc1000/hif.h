@@ -17,14 +17,11 @@ enum {
 	WILC_CLIENT_MODE = 0x4
 };
 
-#define WILC_MAX_NUM_STA			9
-#define WILC_MAX_NUM_SCANNED_CH			14
 #define WILC_MAX_NUM_PROBED_SSID		10
 
 #define WILC_TX_MIC_KEY_LEN			8
 #define WILC_RX_MIC_KEY_LEN			8
 
-#define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
 #define WILC_NUM_CONCURRENT_IFC			2
 
@@ -34,12 +31,6 @@ enum {
 };
 
 #define WILC_MAX_ASSOC_RESP_FRAME_SIZE   256
-
-struct assoc_resp {
-	__le16 capab_info;
-	__le16 status_code;
-	__le16 aid;
-} __packed;
 
 struct rf_info {
 	u8 link_speed;
@@ -58,16 +49,6 @@ enum host_if_state {
 	HOST_IF_P2P_LISTEN		= 5,
 	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
 };
-
-struct wilc_pmkid {
-	u8 bssid[ETH_ALEN];
-	u8 pmkid[WLAN_PMKID_LEN];
-} __packed;
-
-struct wilc_pmkid_attr {
-	u8 numpmkid;
-	struct wilc_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
-} __packed;
 
 struct cfg_param_attr {
 	u32 flag;

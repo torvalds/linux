@@ -117,19 +117,26 @@ typedef __u64 __bitwise __addrpair;
  *	struct sock_common - minimal network layer representation of sockets
  *	@skc_daddr: Foreign IPv4 addr
  *	@skc_rcv_saddr: Bound local IPv4 addr
+ *	@skc_addrpair: 8-byte-aligned __u64 union of @skc_daddr & @skc_rcv_saddr
  *	@skc_hash: hash value used with various protocol lookup tables
  *	@skc_u16hashes: two u16 hash values used by UDP lookup tables
  *	@skc_dport: placeholder for inet_dport/tw_dport
  *	@skc_num: placeholder for inet_num/tw_num
+ *	@skc_portpair: __u32 union of @skc_dport & @skc_num
  *	@skc_family: network address family
  *	@skc_state: Connection state
  *	@skc_reuse: %SO_REUSEADDR setting
  *	@skc_reuseport: %SO_REUSEPORT setting
+ *	@skc_ipv6only: socket is IPV6 only
+ *	@skc_net_refcnt: socket is using net ref counting
  *	@skc_bound_dev_if: bound device index if != 0
  *	@skc_bind_node: bind hash linkage for various protocol lookup tables
  *	@skc_portaddr_node: second hash linkage for UDP/UDP-Lite protocol
  *	@skc_prot: protocol handlers inside a network family
  *	@skc_net: reference to the network namespace of this socket
+ *	@skc_v6_daddr: IPV6 destination address
+ *	@skc_v6_rcv_saddr: IPV6 source address
+ *	@skc_cookie: socket's cookie value
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
  *	@skc_tx_queue_mapping: tx queue number for this connection
@@ -137,7 +144,15 @@ typedef __u64 __bitwise __addrpair;
  *	@skc_flags: place holder for sk_flags
  *		%SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
  *		%SO_OOBINLINE settings, %SO_TIMESTAMPING settings
+ *	@skc_listener: connection request listener socket (aka rsk_listener)
+ *		[union with @skc_flags]
+ *	@skc_tw_dr: (aka tw_dr) ptr to &struct inet_timewait_death_row
+ *		[union with @skc_flags]
  *	@skc_incoming_cpu: record/match cpu processing incoming packets
+ *	@skc_rcv_wnd: (aka rsk_rcv_wnd) TCP receive window size (possibly scaled)
+ *		[union with @skc_incoming_cpu]
+ *	@skc_tw_rcv_nxt: (aka tw_rcv_nxt) TCP window next expected seq number
+ *		[union with @skc_incoming_cpu]
  *	@skc_refcnt: reference count
  *
  *	This is the minimal network layer representation of sockets, the header
@@ -245,6 +260,7 @@ struct bpf_sk_storage;
   *	@sk_dst_cache: destination cache
   *	@sk_dst_pending_confirm: need to confirm neighbour
   *	@sk_policy: flow policy
+  *	@sk_rx_skb_cache: cache copy of recently accessed RX skb
   *	@sk_receive_queue: incoming packets
   *	@sk_wmem_alloc: transmit queue bytes committed
   *	@sk_tsq_flags: TCP Small Queues flags
@@ -265,6 +281,8 @@ struct bpf_sk_storage;
   *	@sk_no_check_rx: allow zero checksum in RX packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
   *	@sk_route_nocaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
+  *	@sk_route_forced_caps: static, forced route capabilities
+  *		(set in tcp_init_sock())
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_gso_max_segs: Maximum number of GSO segments
@@ -303,6 +321,8 @@ struct bpf_sk_storage;
   *	@sk_frag: cached page frag
   *	@sk_peek_off: current peek_offset value
   *	@sk_send_head: front of stuff to transmit
+  *	@tcp_rtx_queue: TCP re-transmit queue [union with @sk_send_head]
+  *	@sk_tx_skb_cache: cache copy of recently accessed TX skb
   *	@sk_security: used by security modules
   *	@sk_mark: generic packet mark
   *	@sk_cgrp_data: cgroup data for this cgroup
@@ -313,11 +333,14 @@ struct bpf_sk_storage;
   *	@sk_write_space: callback to indicate there is bf sending space available
   *	@sk_error_report: callback to indicate errors (e.g. %MSG_ERRQUEUE)
   *	@sk_backlog_rcv: callback to process the backlog
+  *	@sk_validate_xmit_skb: ptr to an optional validate function
   *	@sk_destruct: called at sock freeing time, i.e. when all refcnt == 0
   *	@sk_reuseport_cb: reuseport group container
+  *	@sk_bpf_storage: ptr to cache and control for bpf_sk_storage
   *	@sk_rcu: used during RCU grace period
   *	@sk_clockid: clockid used by time-based scheduling (SO_TXTIME)
   *	@sk_txtime_deadline_mode: set deadline mode for SO_TXTIME
+  *	@sk_txtime_report_errors: set report errors mode for SO_TXTIME
   *	@sk_txtime_unused: unused txtime flags
   */
 struct sock {
@@ -393,7 +416,9 @@ struct sock {
 	struct sk_filter __rcu	*sk_filter;
 	union {
 		struct socket_wq __rcu	*sk_wq;
+		/* private: */
 		struct socket_wq	*sk_wq_raw;
+		/* public: */
 	};
 #ifdef CONFIG_XFRM
 	struct xfrm_policy __rcu *sk_policy[2];
@@ -436,31 +461,15 @@ struct sock {
 	 * Because of non atomicity rules, all
 	 * changes are protected by socket lock.
 	 */
-	unsigned int		__sk_flags_offset[0];
-#ifdef __BIG_ENDIAN_BITFIELD
-#define SK_FL_PROTO_SHIFT  16
-#define SK_FL_PROTO_MASK   0x00ff0000
-
-#define SK_FL_TYPE_SHIFT   0
-#define SK_FL_TYPE_MASK    0x0000ffff
-#else
-#define SK_FL_PROTO_SHIFT  8
-#define SK_FL_PROTO_MASK   0x0000ff00
-
-#define SK_FL_TYPE_SHIFT   16
-#define SK_FL_TYPE_MASK    0xffff0000
-#endif
-
-	unsigned int		sk_padding : 1,
+	u8			sk_padding : 1,
 				sk_kern_sock : 1,
 				sk_no_check_tx : 1,
 				sk_no_check_rx : 1,
-				sk_userlocks : 4,
-				sk_protocol  : 8,
-				sk_type      : 16;
-#define SK_PROTOCOL_MAX U8_MAX
-	u16			sk_gso_max_segs;
+				sk_userlocks : 4;
 	u8			sk_pacing_shift;
+	u16			sk_type;
+	u16			sk_protocol;
+	u16			sk_gso_max_segs;
 	unsigned long	        sk_lingertime;
 	struct proto		*sk_prot_creator;
 	rwlock_t		sk_callback_lock;
@@ -1480,6 +1489,7 @@ static inline void sk_wmem_free_skb(struct sock *sk, struct sk_buff *skb)
 	sk_mem_uncharge(sk, skb->truesize);
 	if (static_branch_unlikely(&tcp_tx_skb_cache_key) &&
 	    !sk->sk_tx_skb_cache && !skb_cloned(skb)) {
+		skb_ext_reset(skb);
 		skb_zcopy_clear(skb, true);
 		sk->sk_tx_skb_cache = skb;
 		return;
@@ -2032,7 +2042,7 @@ static inline int skb_copy_to_page_nocache(struct sock *sk, struct iov_iter *fro
  * sk_wmem_alloc_get - returns write allocations
  * @sk: socket
  *
- * Returns sk_wmem_alloc minus initial offset of one
+ * Return: sk_wmem_alloc minus initial offset of one
  */
 static inline int sk_wmem_alloc_get(const struct sock *sk)
 {
@@ -2043,7 +2053,7 @@ static inline int sk_wmem_alloc_get(const struct sock *sk)
  * sk_rmem_alloc_get - returns read allocations
  * @sk: socket
  *
- * Returns sk_rmem_alloc
+ * Return: sk_rmem_alloc
  */
 static inline int sk_rmem_alloc_get(const struct sock *sk)
 {
@@ -2054,7 +2064,7 @@ static inline int sk_rmem_alloc_get(const struct sock *sk)
  * sk_has_allocations - check if allocations are outstanding
  * @sk: socket
  *
- * Returns true if socket has write or read allocations
+ * Return: true if socket has write or read allocations
  */
 static inline bool sk_has_allocations(const struct sock *sk)
 {
@@ -2065,7 +2075,7 @@ static inline bool sk_has_allocations(const struct sock *sk)
  * skwq_has_sleeper - check if there are any waiting processes
  * @wq: struct socket_wq
  *
- * Returns true if socket_wq has waiting processes
+ * Return: true if socket_wq has waiting processes
  *
  * The purpose of the skwq_has_sleeper and sock_poll_wait is to wrap the memory
  * barrier call. They were added due to the race found within the tcp code.
@@ -2253,6 +2263,9 @@ struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp,
  * gfpflags_allow_blocking() isn't enough here as direct reclaim may nest
  * inside other socket operations and end up recursing into sk_page_frag()
  * while it's already in use.
+ *
+ * Return: a per task page_frag if context allows that,
+ * otherwise a per socket one.
  */
 static inline struct page_frag *sk_page_frag(struct sock *sk)
 {
@@ -2447,6 +2460,7 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
 			   &skb_shinfo(skb)->tskey);
 }
 
+DECLARE_STATIC_KEY_FALSE(tcp_rx_skb_cache_key);
 /**
  * sk_eat_skb - Release a skb if it is no longer needed
  * @sk: socket to eat this skb from
@@ -2455,7 +2469,6 @@ static inline void skb_setup_tx_timestamp(struct sk_buff *skb, __u16 tsflags)
  * This routine must be called with interrupts disabled or with the socket
  * locked so that the sk_buff queue operation is ok.
 */
-DECLARE_STATIC_KEY_FALSE(tcp_rx_skb_cache_key);
 static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb)
 {
 	__skb_unlink(skb, &sk->sk_receive_queue);
@@ -2611,5 +2624,7 @@ static inline bool sk_dev_equal_l3scope(struct sock *sk, int dif)
 
 	return false;
 }
+
+void sock_def_readable(struct sock *sk);
 
 #endif	/* _SOCK_H */

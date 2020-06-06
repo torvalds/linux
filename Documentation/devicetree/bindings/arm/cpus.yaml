@@ -216,7 +216,7 @@ properties:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
     description: |
       List of phandles to idle state nodes supported
-      by this cpu (see ./idle-states.txt).
+      by this cpu (see ./idle-states.yaml).
 
   capacity-dmips-mhz:
     $ref: '/schemas/types.yaml#/definitions/uint32'
@@ -241,6 +241,21 @@ properties:
       Pdyn = dynamic-power-coefficient * V^2 * f
 
       where voltage is in V, frequency is in MHz.
+
+  power-domains:
+    $ref: '/schemas/types.yaml#/definitions/phandle-array'
+    description:
+      List of phandles and PM domain specifiers, as defined by bindings of the
+      PM domain provider (see also ../power_domain.txt).
+
+  power-domain-names:
+    $ref: '/schemas/types.yaml#/definitions/string-array'
+    description:
+      A list of power domain name strings sorted in the same order as the
+      power-domains property.
+
+      For PSCI based platforms, the name corresponding to the index of the PSCI
+      PM domain provider, must be "psci".
 
   qcom,saw:
     $ref: '/schemas/types.yaml#/definitions/phandle'

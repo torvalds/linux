@@ -131,8 +131,10 @@ retry:
 	bne-	retry			/* retry if someone got there first */
 
 	mfsrin	r3,r4			/* get segment reg for segment */
+#ifndef CONFIG_VMAP_STACK
 	mfctr	r0
 	stw	r0,_CTR(r11)
+#endif
 	bl	create_hpte		/* add the hash table entry */
 
 #ifdef CONFIG_SMP
@@ -142,12 +144,16 @@ retry:
 	stw	r0, (mmu_hash_lock - PAGE_OFFSET)@l(r8)
 #endif
 
+#ifdef CONFIG_VMAP_STACK
+	b	fast_hash_page_return
+#else
 	/* Return from the exception */
 	lwz	r5,_CTR(r11)
 	mtctr	r5
 	lwz	r0,GPR0(r11)
 	lwz	r8,GPR8(r11)
 	b	fast_exception_return
+#endif
 
 #ifdef CONFIG_SMP
 hash_page_out:

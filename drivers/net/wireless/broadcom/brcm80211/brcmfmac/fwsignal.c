@@ -908,7 +908,7 @@ static u8 brcmf_fws_hdrpush(struct brcmf_fws_info *fws, struct sk_buff *skb)
 	wlh += wlh[1] + 2;
 
 	if (entry->send_tim_signal) {
-		entry->send_tim_signal = 0;
+		entry->send_tim_signal = false;
 		wlh[0] = BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP;
 		wlh[1] = BRCMF_FWS_TYPE_PENDING_TRAFFIC_BMP_LEN;
 		wlh[2] = entry->mac_handle;

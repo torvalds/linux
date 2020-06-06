@@ -1,0 +1,105 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/allwinner,sun50i-h6-usb-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner H6 USB PHY Device Tree Bindings
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  "#phy-cells":
+    const: 1
+
+  compatible:
+    const: allwinner,sun50i-h6-usb-phy
+
+  reg:
+    items:
+      - description: PHY Control registers
+      - description: PHY PMU0 registers
+      - description: PHY PMU3 registers
+
+  reg-names:
+    items:
+      - const: phy_ctrl
+      - const: pmu0
+      - const: pmu3
+
+  clocks:
+    items:
+      - description: USB OTG PHY bus clock
+      - description: USB Host PHY bus clock
+
+  clock-names:
+    items:
+      - const: usb0_phy
+      - const: usb3_phy
+
+  resets:
+    items:
+      - description: USB OTG reset
+      - description: USB Host Controller reset
+
+  reset-names:
+    items:
+      - const: usb0_reset
+      - const: usb3_reset
+
+  usb0_id_det-gpios:
+    description: GPIO to the USB OTG ID pin
+
+  usb0_vbus_det-gpios:
+    description: GPIO to the USB OTG VBUS detect pin
+
+  usb0_vbus_power-supply:
+    description: Power supply to detect the USB OTG VBUS
+
+  usb0_vbus-supply:
+    description: Regulator controlling USB OTG VBUS
+
+  usb3_vbus-supply:
+    description: Regulator controlling USB3 Host controller
+
+required:
+  - "#phy-cells"
+  - compatible
+  - clocks
+  - clock-names
+  - reg
+  - reg-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/clock/sun50i-h6-ccu.h>
+    #include <dt-bindings/reset/sun50i-h6-ccu.h>
+
+    phy@5100400 {
+        #phy-cells = <1>;
+        compatible = "allwinner,sun50i-h6-usb-phy";
+        reg = <0x05100400 0x24>,
+              <0x05101800 0x4>,
+              <0x05311800 0x4>;
+        reg-names = "phy_ctrl",
+                    "pmu0",
+                    "pmu3";
+        clocks = <&ccu CLK_USB_PHY0>,
+                 <&ccu CLK_USB_PHY3>;
+        clock-names = "usb0_phy",
+                      "usb3_phy";
+        resets = <&ccu RST_USB_PHY0>,
+                 <&ccu RST_USB_PHY3>;
+        reset-names = "usb0_reset",
+                      "usb3_reset";
+        usb0_id_det-gpios = <&pio 2 6 GPIO_ACTIVE_HIGH>; /* PC6 */
+        usb0_vbus-supply = <&reg_vcc5v>;
+        usb3_vbus-supply = <&reg_vcc5v>;
+    };

@@ -2239,7 +2239,7 @@ fst_attach(struct net_device *dev, unsigned short encoding, unsigned short parit
 }
 
 static void
-fst_tx_timeout(struct net_device *dev)
+fst_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct fst_port_info *port;
 	struct fst_card_info *card;

@@ -354,7 +354,7 @@ static ssize_t tboot_log_read(struct file *file, char __user *user_buf, size_t c
 	void *kbuf;
 	int ret = -EFAULT;
 
-	log_base = ioremap_nocache(TBOOT_SERIAL_LOG_ADDR, TBOOT_SERIAL_LOG_SIZE);
+	log_base = ioremap(TBOOT_SERIAL_LOG_ADDR, TBOOT_SERIAL_LOG_SIZE);
 	if (!log_base)
 		return ret;
 

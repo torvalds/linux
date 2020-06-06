@@ -39,7 +39,10 @@ struct proc_dir_entry {
 	spinlock_t pde_unload_lock;
 	struct completion *pde_unload_completion;
 	const struct inode_operations *proc_iops;
-	const struct file_operations *proc_fops;
+	union {
+		const struct proc_ops *proc_ops;
+		const struct file_operations *proc_dir_ops;
+	};
 	const struct dentry_operations *proc_dops;
 	union {
 		const struct seq_operations *seq_ops;

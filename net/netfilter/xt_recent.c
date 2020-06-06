@@ -103,7 +103,7 @@ static DEFINE_SPINLOCK(recent_lock);
 static DEFINE_MUTEX(recent_mutex);
 
 #ifdef CONFIG_PROC_FS
-static const struct file_operations recent_mt_fops;
+static const struct proc_ops recent_mt_proc_ops;
 #endif
 
 static u_int32_t hash_rnd __read_mostly;
@@ -405,7 +405,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
-		  &recent_mt_fops, t);
+			       &recent_mt_proc_ops, t);
 	if (pde == NULL) {
 		recent_table_free(t);
 		ret = -ENOMEM;
@@ -492,12 +492,12 @@ static void *recent_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	const struct recent_entry *e = v;
 	const struct list_head *head = e->list.next;
 
+	(*pos)++;
 	while (head == &t->iphash[st->bucket]) {
 		if (++st->bucket >= ip_list_hash_size)
 			return NULL;
 		head = t->iphash[st->bucket].next;
 	}
-	(*pos)++;
 	return list_entry(head, struct recent_entry, list);
 }
 
@@ -616,13 +616,12 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	return size + 1;
 }
 
-static const struct file_operations recent_mt_fops = {
-	.open    = recent_seq_open,
-	.read    = seq_read,
-	.write   = recent_mt_proc_write,
-	.release = seq_release_private,
-	.owner   = THIS_MODULE,
-	.llseek = seq_lseek,
+static const struct proc_ops recent_mt_proc_ops = {
+	.proc_open	= recent_seq_open,
+	.proc_read	= seq_read,
+	.proc_write	= recent_mt_proc_write,
+	.proc_release	= seq_release_private,
+	.proc_lseek	= seq_lseek,
 };
 
 static int __net_init recent_proc_net_init(struct net *net)

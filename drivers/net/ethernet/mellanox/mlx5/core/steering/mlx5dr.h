@@ -33,6 +33,11 @@ struct mlx5dr_match_parameters {
 	u64 *match_buf; /* Device spec format */
 };
 
+struct mlx5dr_action_dest {
+	struct mlx5dr_action *dest;
+	struct mlx5dr_action *reformat;
+};
+
 #ifdef CONFIG_MLX5_SW_STEERING
 
 struct mlx5dr_domain *
@@ -46,7 +51,7 @@ void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 			    struct mlx5dr_domain *peer_dmn);
 
 struct mlx5dr_table *
-mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level);
+mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags);
 
 int mlx5dr_table_destroy(struct mlx5dr_table *table);
 
@@ -75,13 +80,18 @@ struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table);
 
 struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev);
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
+					struct mlx5_flow_table *ft);
 
 struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
 				u32 vport, u8 vhca_id_valid,
 				u16 vhca_id);
+
+struct mlx5dr_action *
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests);
 
 struct mlx5dr_action *mlx5dr_action_create_drop(void);
 
@@ -131,7 +141,7 @@ mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 		       struct mlx5dr_domain *peer_dmn) { }
 
 static inline struct mlx5dr_table *
-mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level) { return NULL; }
+mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags) { return NULL; }
 
 static inline int
 mlx5dr_table_destroy(struct mlx5dr_table *table) { return 0; }
@@ -165,13 +175,18 @@ static inline struct mlx5dr_action *
 mlx5dr_action_create_dest_table(struct mlx5dr_table *table) { return NULL; }
 
 static inline struct mlx5dr_action *
-mlx5dr_create_action_dest_flow_fw_table(struct mlx5_flow_table *ft,
-					struct mlx5_core_dev *mdev) { return NULL; }
+mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
+					struct mlx5_flow_table *ft) { return NULL; }
 
 static inline struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
 				u32 vport, u8 vhca_id_valid,
 				u16 vhca_id) { return NULL; }
+
+static inline struct mlx5dr_action *
+mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
+				   struct mlx5dr_action_dest *dests,
+				   u32 num_of_dests)  { return NULL; }
 
 static inline struct mlx5dr_action *
 mlx5dr_action_create_drop(void) { return NULL; }

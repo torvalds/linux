@@ -260,18 +260,31 @@ static int start_endpoints(struct snd_usb_substream *subs)
 	return 0;
 }
 
-static void stop_endpoints(struct snd_usb_substream *subs, bool wait)
+static void sync_pending_stops(struct snd_usb_substream *subs)
+{
+	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
+	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
+}
+
+static void stop_endpoints(struct snd_usb_substream *subs)
 {
 	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags))
 		snd_usb_endpoint_stop(subs->sync_endpoint);
 
 	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags))
 		snd_usb_endpoint_stop(subs->data_endpoint);
+}
 
-	if (wait) {
-		snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
-		snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
+/* PCM sync_stop callback */
+static int snd_usb_pcm_sync_stop(struct snd_pcm_substream *substream)
+{
+	struct snd_usb_substream *subs = substream->runtime->private_data;
+
+	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
+		sync_pending_stops(subs);
+		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
+	return 0;
 }
 
 static int search_roland_implicit_fb(struct usb_device *dev, int ifnum,
@@ -348,6 +361,10 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 		ep = 0x84;
 		ifnum = 0;
 		goto add_sync_ep_from_ifnum;
+	case USB_ID(0x07fd, 0x0008): /* MOTU M Series */
+		ep = 0x81;
+		ifnum = 2;
+		goto add_sync_ep_from_ifnum;
 	case USB_ID(0x0582, 0x01d8): /* BOSS Katana */
 		/* BOSS Katana amplifiers do not need quirks */
 		return 0;
@@ -370,7 +387,7 @@ static int set_sync_ep_implicit_fb_quirk(struct snd_usb_substream *subs,
 add_sync_ep_from_ifnum:
 	iface = usb_ifnum_to_if(dev, ifnum);
 
-	if (!iface || iface->num_altsetting == 0)
+	if (!iface || iface->num_altsetting < 2)
 		return -EINVAL;
 
 	alts = &iface->altsetting[1];
@@ -700,7 +717,8 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 	int ret;
 
 	/* format changed */
-	stop_endpoints(subs, true);
+	stop_endpoints(subs);
+	sync_pending_stops(subs);
 	ret = snd_usb_endpoint_set_params(subs->data_endpoint,
 					  subs->pcm_format,
 					  subs->channels,
@@ -788,11 +806,6 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	if (ret)
 		return ret;
 
-	ret = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (ret < 0)
-		goto stop_pipeline;
-
 	subs->pcm_format = params_format(hw_params);
 	subs->period_bytes = params_period_bytes(hw_params);
 	subs->period_frames = params_period_size(hw_params);
@@ -850,13 +863,14 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
 	if (!snd_usb_lock_shutdown(subs->stream->chip)) {
-		stop_endpoints(subs, true);
+		stop_endpoints(subs);
+		sync_pending_stops(subs);
 		snd_usb_endpoint_deactivate(subs->sync_endpoint);
 		snd_usb_endpoint_deactivate(subs->data_endpoint);
 		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
 
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /*
@@ -884,9 +898,6 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		ret = -EIO;
 		goto unlock;
 	}
-
-	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
-	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
 
 	ret = snd_usb_pcm_change_state(subs, UAC3_PD_STATE_D0);
 	if (ret < 0)
@@ -1345,7 +1356,6 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream)
 	struct snd_usb_substream *subs = &as->substream[direction];
 	int ret;
 
-	stop_endpoints(subs, true);
 	snd_media_stop_pipeline(subs);
 
 	if (!as->chip->keep_iface &&
@@ -1722,7 +1732,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		stop_endpoints(subs, false);
+		stop_endpoints(subs);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -1733,7 +1743,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		return 0;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (subs->stream->chip->setup_fmt_after_resume_quirk) {
-			stop_endpoints(subs, true);
+			stop_endpoints(subs);
 			subs->need_setup_fmt = true;
 			return 0;
 		}
@@ -1759,7 +1769,7 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		stop_endpoints(subs, false);
+		stop_endpoints(subs);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -1772,7 +1782,7 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 		return 0;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (subs->stream->chip->setup_fmt_after_resume_quirk) {
-			stop_endpoints(subs, true);
+			stop_endpoints(subs);
 			subs->need_setup_fmt = true;
 			return 0;
 		}
@@ -1785,22 +1795,22 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 static const struct snd_pcm_ops snd_usb_playback_ops = {
 	.open =		snd_usb_pcm_open,
 	.close =	snd_usb_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_substream_playback_trigger,
+	.sync_stop =	snd_usb_pcm_sync_stop,
 	.pointer =	snd_usb_pcm_pointer,
 };
 
 static const struct snd_pcm_ops snd_usb_capture_ops = {
 	.open =		snd_usb_pcm_open,
 	.close =	snd_usb_pcm_close,
-	.ioctl =	snd_pcm_lib_ioctl,
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
 	.prepare =	snd_usb_pcm_prepare,
 	.trigger =	snd_usb_substream_capture_trigger,
+	.sync_stop =	snd_usb_pcm_sync_stop,
 	.pointer =	snd_usb_pcm_pointer,
 };
 
@@ -1820,9 +1830,9 @@ void snd_usb_preallocate_buffer(struct snd_usb_substream *subs)
 	struct device *dev = subs->dev->bus->controller;
 
 	if (snd_usb_use_vmalloc)
-		snd_pcm_lib_preallocate_pages(s, SNDRV_DMA_TYPE_VMALLOC,
-					      NULL, 0, 0);
+		snd_pcm_set_managed_buffer(s, SNDRV_DMA_TYPE_VMALLOC,
+					   NULL, 0, 0);
 	else
-		snd_pcm_lib_preallocate_pages(s, SNDRV_DMA_TYPE_DEV_SG,
-					      dev, 64*1024, 512*1024);
+		snd_pcm_set_managed_buffer(s, SNDRV_DMA_TYPE_DEV_SG,
+					   dev, 64*1024, 512*1024);
 }

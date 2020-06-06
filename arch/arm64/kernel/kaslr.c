@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/types.h>
 
+#include <asm/archrandom.h>
 #include <asm/cacheflush.h>
 #include <asm/fixmap.h>
 #include <asm/kernel-pgtable.h>
@@ -118,6 +119,17 @@ u64 __init kaslr_early_init(u64 dt_phys)
 	if (str == cmdline || (str > cmdline && *(str - 1) == ' ')) {
 		kaslr_status = KASLR_DISABLED_CMDLINE;
 		return 0;
+	}
+
+	/*
+	 * Mix in any entropy obtainable architecturally, open coded
+	 * since this runs extremely early.
+	 */
+	if (__early_cpu_has_rndr()) {
+		unsigned long raw;
+
+		if (__arm64_rndr(&raw))
+			seed ^= raw;
 	}
 
 	if (!seed) {

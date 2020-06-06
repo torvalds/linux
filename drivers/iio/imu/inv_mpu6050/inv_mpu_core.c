@@ -104,6 +104,7 @@ static const struct inv_mpu6050_chip_config chip_config_6050 = {
 	.divider = INV_MPU6050_FIFO_RATE_TO_DIVIDER(INV_MPU6050_INIT_FIFO_RATE),
 	.gyro_fifo_enable = false,
 	.accl_fifo_enable = false,
+	.temp_fifo_enable = false,
 	.magn_fifo_enable = false,
 	.accl_fs = INV_MPU6050_FS_02G,
 	.user_ctrl = 0,
@@ -856,19 +857,27 @@ static const struct iio_chan_spec_ext_info inv_ext_info[] = {
 		.ext_info = inv_ext_info,                             \
 	}
 
+#define INV_MPU6050_TEMP_CHAN(_index)				\
+	{							\
+		.type = IIO_TEMP,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)	\
+				| BIT(IIO_CHAN_INFO_OFFSET)	\
+				| BIT(IIO_CHAN_INFO_SCALE),	\
+		.scan_index = _index,				\
+		.scan_type = {					\
+			.sign = 's',				\
+			.realbits = 16,				\
+			.storagebits = 16,			\
+			.shift = 0,				\
+			.endianness = IIO_BE,			\
+		},						\
+	}
+
 static const struct iio_chan_spec inv_mpu_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU6050_SCAN_TIMESTAMP),
-	/*
-	 * Note that temperature should only be via polled reading only,
-	 * not the final scan elements output.
-	 */
-	{
-		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
-				| BIT(IIO_CHAN_INFO_OFFSET)
-				| BIT(IIO_CHAN_INFO_SCALE),
-		.scan_index = -1,
-	},
+
+	INV_MPU6050_TEMP_CHAN(INV_MPU6050_SCAN_TEMP),
+
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
@@ -878,22 +887,29 @@ static const struct iio_chan_spec inv_mpu_channels[] = {
 	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
 };
 
+#define INV_MPU6050_SCAN_MASK_3AXIS_ACCEL	\
+	(BIT(INV_MPU6050_SCAN_ACCL_X)		\
+	| BIT(INV_MPU6050_SCAN_ACCL_Y)		\
+	| BIT(INV_MPU6050_SCAN_ACCL_Z))
+
+#define INV_MPU6050_SCAN_MASK_3AXIS_GYRO	\
+	(BIT(INV_MPU6050_SCAN_GYRO_X)		\
+	| BIT(INV_MPU6050_SCAN_GYRO_Y)		\
+	| BIT(INV_MPU6050_SCAN_GYRO_Z))
+
+#define INV_MPU6050_SCAN_MASK_TEMP		(BIT(INV_MPU6050_SCAN_TEMP))
+
 static const unsigned long inv_mpu_scan_masks[] = {
 	/* 3-axis accel */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 3-axis gyro */
-	BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO,
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 6-axis accel + gyro */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z)
-		| BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	0,
 };
 
@@ -915,19 +931,30 @@ static const unsigned long inv_mpu_scan_masks[] = {
 		.ext_info = inv_ext_info,				\
 	}
 
+static const struct iio_chan_spec inv_mpu9150_channels[] = {
+	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU9X50_SCAN_TIMESTAMP),
+
+	INV_MPU6050_TEMP_CHAN(INV_MPU6050_SCAN_TEMP),
+
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
+	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
+
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_X, INV_MPU6050_SCAN_ACCL_X),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_MPU6050_SCAN_ACCL_Y),
+	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_MPU6050_SCAN_ACCL_Z),
+
+	/* Magnetometer resolution is 13 bits */
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_X, 13, INV_MPU9X50_SCAN_MAGN_X),
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_Y, 13, INV_MPU9X50_SCAN_MAGN_Y),
+	INV_MPU9X50_MAGN_CHAN(IIO_MOD_Z, 13, INV_MPU9X50_SCAN_MAGN_Z),
+};
+
 static const struct iio_chan_spec inv_mpu9250_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(INV_MPU9X50_SCAN_TIMESTAMP),
-	/*
-	 * Note that temperature should only be via polled reading only,
-	 * not the final scan elements output.
-	 */
-	{
-		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
-				| BIT(IIO_CHAN_INFO_OFFSET)
-				| BIT(IIO_CHAN_INFO_SCALE),
-		.scan_index = -1,
-	},
+
+	INV_MPU6050_TEMP_CHAN(INV_MPU6050_SCAN_TEMP),
+
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_MPU6050_SCAN_GYRO_X),
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_MPU6050_SCAN_GYRO_Y),
 	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_MPU6050_SCAN_GYRO_Z),
@@ -942,98 +969,50 @@ static const struct iio_chan_spec inv_mpu9250_channels[] = {
 	INV_MPU9X50_MAGN_CHAN(IIO_MOD_Z, 16, INV_MPU9X50_SCAN_MAGN_Z),
 };
 
+#define INV_MPU9X50_SCAN_MASK_3AXIS_MAGN	\
+	(BIT(INV_MPU9X50_SCAN_MAGN_X)		\
+	| BIT(INV_MPU9X50_SCAN_MAGN_Y)		\
+	| BIT(INV_MPU9X50_SCAN_MAGN_Z))
+
 static const unsigned long inv_mpu9x50_scan_masks[] = {
 	/* 3-axis accel */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 3-axis gyro */
-	BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO,
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 3-axis magn */
-	BIT(INV_MPU9X50_SCAN_MAGN_X)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Y)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Z),
+	INV_MPU9X50_SCAN_MASK_3AXIS_MAGN,
+	INV_MPU9X50_SCAN_MASK_3AXIS_MAGN | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 6-axis accel + gyro */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z)
-		| BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	/* 6-axis accel + magn */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z)
-		| BIT(INV_MPU9X50_SCAN_MAGN_X)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Y)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU9X50_SCAN_MASK_3AXIS_MAGN,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU9X50_SCAN_MASK_3AXIS_MAGN
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	/* 6-axis gyro + magn */
-	BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z)
-		| BIT(INV_MPU9X50_SCAN_MAGN_X)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Y)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO | INV_MPU9X50_SCAN_MASK_3AXIS_MAGN,
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO | INV_MPU9X50_SCAN_MASK_3AXIS_MAGN
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	/* 9-axis accel + gyro + magn */
-	BIT(INV_MPU6050_SCAN_ACCL_X)
-		| BIT(INV_MPU6050_SCAN_ACCL_Y)
-		| BIT(INV_MPU6050_SCAN_ACCL_Z)
-		| BIT(INV_MPU6050_SCAN_GYRO_X)
-		| BIT(INV_MPU6050_SCAN_GYRO_Y)
-		| BIT(INV_MPU6050_SCAN_GYRO_Z)
-		| BIT(INV_MPU9X50_SCAN_MAGN_X)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Y)
-		| BIT(INV_MPU9X50_SCAN_MAGN_Z),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO
+		| INV_MPU9X50_SCAN_MASK_3AXIS_MAGN,
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO
+		| INV_MPU9X50_SCAN_MASK_3AXIS_MAGN
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	0,
-};
-
-static const struct iio_chan_spec inv_icm20602_channels[] = {
-	IIO_CHAN_SOFT_TIMESTAMP(INV_ICM20602_SCAN_TIMESTAMP),
-	{
-		.type = IIO_TEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW)
-				| BIT(IIO_CHAN_INFO_OFFSET)
-				| BIT(IIO_CHAN_INFO_SCALE),
-		.scan_index = INV_ICM20602_SCAN_TEMP,
-		.scan_type = {
-				.sign = 's',
-				.realbits = 16,
-				.storagebits = 16,
-				.shift = 0,
-				.endianness = IIO_BE,
-			     },
-	},
-
-	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_X, INV_ICM20602_SCAN_GYRO_X),
-	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Y, INV_ICM20602_SCAN_GYRO_Y),
-	INV_MPU6050_CHAN(IIO_ANGL_VEL, IIO_MOD_Z, INV_ICM20602_SCAN_GYRO_Z),
-
-	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Y, INV_ICM20602_SCAN_ACCL_Y),
-	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_X, INV_ICM20602_SCAN_ACCL_X),
-	INV_MPU6050_CHAN(IIO_ACCEL, IIO_MOD_Z, INV_ICM20602_SCAN_ACCL_Z),
 };
 
 static const unsigned long inv_icm20602_scan_masks[] = {
 	/* 3-axis accel + temp (mandatory) */
-	BIT(INV_ICM20602_SCAN_ACCL_X)
-		| BIT(INV_ICM20602_SCAN_ACCL_Y)
-		| BIT(INV_ICM20602_SCAN_ACCL_Z)
-		| BIT(INV_ICM20602_SCAN_TEMP),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 3-axis gyro + temp (mandatory) */
-	BIT(INV_ICM20602_SCAN_GYRO_X)
-		| BIT(INV_ICM20602_SCAN_GYRO_Y)
-		| BIT(INV_ICM20602_SCAN_GYRO_Z)
-		| BIT(INV_ICM20602_SCAN_TEMP),
+	INV_MPU6050_SCAN_MASK_3AXIS_GYRO | INV_MPU6050_SCAN_MASK_TEMP,
 	/* 6-axis accel + gyro + temp (mandatory) */
-	BIT(INV_ICM20602_SCAN_ACCL_X)
-		| BIT(INV_ICM20602_SCAN_ACCL_Y)
-		| BIT(INV_ICM20602_SCAN_ACCL_Z)
-		| BIT(INV_ICM20602_SCAN_GYRO_X)
-		| BIT(INV_ICM20602_SCAN_GYRO_Y)
-		| BIT(INV_ICM20602_SCAN_GYRO_Z)
-		| BIT(INV_ICM20602_SCAN_TEMP),
+	INV_MPU6050_SCAN_MASK_3AXIS_ACCEL | INV_MPU6050_SCAN_MASK_3AXIS_GYRO
+		| INV_MPU6050_SCAN_MASK_TEMP,
 	0,
 };
 
@@ -1241,7 +1220,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 	irq_type = irqd_get_trigger_type(desc);
 	if (!irq_type)
 		irq_type = IRQF_TRIGGER_RISING;
-	if (irq_type == IRQF_TRIGGER_RISING)
+	if (irq_type & IRQF_TRIGGER_RISING)	// rising or both-edge
 		st->irq_mask = INV_MPU6050_ACTIVE_HIGH;
 	else if (irq_type == IRQF_TRIGGER_FALLING)
 		st->irq_mask = INV_MPU6050_ACTIVE_LOW;
@@ -1324,25 +1303,20 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		inv_mpu_bus_setup(indio_dev);
 
 	switch (chip_type) {
+	case INV_MPU9150:
+		indio_dev->channels = inv_mpu9150_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9150_channels);
+		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
+		break;
 	case INV_MPU9250:
 	case INV_MPU9255:
-		/*
-		 * Use magnetometer inside the chip only if there is no i2c
-		 * auxiliary device in use.
-		 */
-		if (!st->magn_disabled) {
-			indio_dev->channels = inv_mpu9250_channels;
-			indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
-			indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
-		} else {
-			indio_dev->channels = inv_mpu_channels;
-			indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
-			indio_dev->available_scan_masks = inv_mpu_scan_masks;
-		}
+		indio_dev->channels = inv_mpu9250_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu9250_channels);
+		indio_dev->available_scan_masks = inv_mpu9x50_scan_masks;
 		break;
 	case INV_ICM20602:
-		indio_dev->channels = inv_icm20602_channels;
-		indio_dev->num_channels = ARRAY_SIZE(inv_icm20602_channels);
+		indio_dev->channels = inv_mpu_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
 		indio_dev->available_scan_masks = inv_icm20602_scan_masks;
 		break;
 	default:
@@ -1350,6 +1324,15 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
 		indio_dev->available_scan_masks = inv_mpu_scan_masks;
 		break;
+	}
+	/*
+	 * Use magnetometer inside the chip only if there is no i2c
+	 * auxiliary device in use. Otherwise Going back to 6-axis only.
+	 */
+	if (st->magn_disabled) {
+		indio_dev->channels = inv_mpu_channels;
+		indio_dev->num_channels = ARRAY_SIZE(inv_mpu_channels);
+		indio_dev->available_scan_masks = inv_mpu_scan_masks;
 	}
 
 	indio_dev->info = &mpu_info;

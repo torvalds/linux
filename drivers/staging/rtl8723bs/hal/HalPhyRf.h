@@ -44,12 +44,4 @@ void ODM_ClearTxPowerTrackingState(PDM_ODM_T pDM_Odm);
 
 void ODM_TXPowerTrackingCallback_ThermalMeter(struct adapter *Adapter);
 
-
-
-#define ODM_TARGET_CHNL_NUM_2G_5G 59
-
-
-u8 ODM_GetRightChnlPlaceforIQK(u8 chnl);
-
-
 #endif	/*  #ifndef __HAL_PHY_RF_H__ */

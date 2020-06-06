@@ -45,7 +45,7 @@ void mlx5_ktls_destroy_key(struct mlx5_core_dev *mdev, u32 key_id);
 
 static inline bool mlx5_accel_is_ktls_device(struct mlx5_core_dev *mdev)
 {
-	if (!MLX5_CAP_GEN(mdev, tls))
+	if (!MLX5_CAP_GEN(mdev, tls_tx))
 		return false;
 
 	if (!MLX5_CAP_GEN(mdev, log_max_dek))

@@ -114,4 +114,4 @@ static struct kunit_suite pm_qos_test_module = {
 	.name = "qos-kunit-test",
 	.test_cases = pm_qos_test_cases,
 };
-kunit_test_suite(pm_qos_test_module);
+kunit_test_suites(&pm_qos_test_module);

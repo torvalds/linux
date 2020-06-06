@@ -1,7 +1,0 @@
-ATU_hash		[DEVICE, DRIVER-SPECIFIC]
-			Select one of four possible hashing algorithms for
-			MAC addresses in the Address Translation Unit.
-			A value of 3 seems to work better than the default of
-			1 when many MAC addresses have the same OUI.
-			Configuration mode: runtime
-			Type: u8. 0-3 valid.

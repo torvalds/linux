@@ -33,7 +33,8 @@ Those tests need to be passed before the patches go upstream, but not
 necessarily before initial posting. Contact the list if you need help
 getting the test environment set up.
 
-### ACPI Device Specific Methods (_DSM)
+ACPI Device Specific Methods (_DSM)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Before patches enabling for a new _DSM family will be considered it must
 be assigned a format-interface-code from the NVDIMM Sub-team of the ACPI
 Specification Working Group. In general, the stance of the subsystem is

@@ -823,7 +823,16 @@ static const struct rpc_program cb_program = {
 static int max_cb_time(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
+
+	/*
+	 * nfsd4_lease is set to at most one hour in __nfsd4_write_time,
+	 * so we can use 32-bit math on it. Warn if that assumption
+	 * ever stops being true.
+	 */
+	if (WARN_ON_ONCE(nn->nfsd4_lease > 3600))
+		return 360 * HZ;
+
+	return max(((u32)nn->nfsd4_lease)/10, 1u) * HZ;
 }
 
 static struct workqueue_struct *callback_wq;

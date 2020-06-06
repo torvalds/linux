@@ -150,7 +150,7 @@ struct snd_bt87x_board {
 	unsigned no_digital:1;	/* No digital input */
 };
 
-static struct snd_bt87x_board snd_bt87x_boards[] = {
+static const struct snd_bt87x_board snd_bt87x_boards[] = {
 	[SND_BT87X_BOARD_UNKNOWN] = {
 		.dig_rate = 32000, /* just a guess */
 	},
@@ -452,12 +452,7 @@ static int snd_bt87x_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
-	int err;
 
-	err = snd_pcm_lib_malloc_pages(substream,
-				       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
 	return snd_bt87x_create_risc(chip, substream,
 				     params_periods(hw_params),
 				     params_period_bytes(hw_params));
@@ -468,7 +463,6 @@ static int snd_bt87x_hw_free(struct snd_pcm_substream *substream)
 	struct snd_bt87x *chip = snd_pcm_substream_chip(substream);
 
 	snd_bt87x_free_risc(chip);
-	snd_pcm_lib_free_pages(substream);
 	return 0;
 }
 
@@ -539,7 +533,6 @@ static snd_pcm_uframes_t snd_bt87x_pointer(struct snd_pcm_substream *substream)
 static const struct snd_pcm_ops snd_bt87x_pcm_ops = {
 	.open = snd_bt87x_pcm_open,
 	.close = snd_bt87x_close,
-	.ioctl = snd_pcm_lib_ioctl,
 	.hw_params = snd_bt87x_hw_params,
 	.hw_free = snd_bt87x_hw_free,
 	.prepare = snd_bt87x_prepare,
@@ -699,10 +692,10 @@ static int snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *name)
 	pcm->private_data = chip;
 	strcpy(pcm->name, name);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_bt87x_pcm_ops);
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
-					      &chip->pci->dev,
-					      128 * 1024,
-					      ALIGN(255 * 4092, 1024));
+	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+				       &chip->pci->dev,
+				       128 * 1024,
+				       ALIGN(255 * 4092, 1024));
 	return 0;
 }
 
@@ -712,7 +705,7 @@ static int snd_bt87x_create(struct snd_card *card,
 {
 	struct snd_bt87x *chip;
 	int err;
-	static struct snd_device_ops ops = {
+	static const struct snd_device_ops ops = {
 		.dev_free = snd_bt87x_dev_free
 	};
 
@@ -758,8 +751,8 @@ static int snd_bt87x_create(struct snd_card *card,
 		goto fail;
 	}
 	chip->irq = pci->irq;
+	card->sync_irq = chip->irq;
 	pci_set_master(pci);
-	synchronize_irq(chip->irq);
 
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0)

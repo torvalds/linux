@@ -27,7 +27,7 @@
 
 #define SMU11_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU11_DRIVER_IF_VERSION_VG20 0x13
-#define SMU11_DRIVER_IF_VERSION_ARCT 0x10
+#define SMU11_DRIVER_IF_VERSION_ARCT 0x12
 #define SMU11_DRIVER_IF_VERSION_NV10 0x33
 #define SMU11_DRIVER_IF_VERSION_NV14 0x34
 
@@ -170,6 +170,8 @@ int smu_v11_0_write_pptable(struct smu_context *smu);
 
 int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu);
 
+int smu_v11_0_set_driver_table_location(struct smu_context *smu);
+
 int smu_v11_0_set_tool_table_location(struct smu_context *smu);
 
 int smu_v11_0_notify_memory_pool_location(struct smu_context *smu);
@@ -247,7 +249,8 @@ enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu);
 
 int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state);
 
-int smu_v11_0_baco_reset(struct smu_context *smu);
+int smu_v11_0_baco_enter(struct smu_context *smu);
+int smu_v11_0_baco_exit(struct smu_context *smu);
 
 int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
 						 uint32_t *min, uint32_t *max);
@@ -260,5 +263,8 @@ int smu_v11_0_override_pcie_parameters(struct smu_context *smu);
 int smu_v11_0_set_default_od_settings(struct smu_context *smu, bool initialize, size_t overdrive_table_size);
 
 uint32_t smu_v11_0_get_max_power_limit(struct smu_context *smu);
+
+int smu_v11_0_set_performance_level(struct smu_context *smu,
+				    enum amd_dpm_forced_level level);
 
 #endif

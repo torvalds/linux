@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2019 Facebook */
+#include <linux/stddef.h>
+#include <linux/ipv6.h>
 #include <linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 #include "bpf_trace_helpers.h"
 
 struct sk_buff {
@@ -9,8 +12,8 @@ struct sk_buff {
 };
 
 __u64 test_result = 0;
-BPF_TRACE_2("fexit/test_pkt_access", test_main,
-	    struct sk_buff *, skb, int, ret)
+SEC("fexit/test_pkt_access")
+int BPF_PROG(test_main, struct sk_buff *skb, int ret)
 {
 	int len;
 
@@ -24,8 +27,8 @@ BPF_TRACE_2("fexit/test_pkt_access", test_main,
 }
 
 __u64 test_result_subprog1 = 0;
-BPF_TRACE_2("fexit/test_pkt_access_subprog1", test_subprog1,
-	    struct sk_buff *, skb, int, ret)
+SEC("fexit/test_pkt_access_subprog1")
+int BPF_PROG(test_subprog1, struct sk_buff *skb, int ret)
 {
 	int len;
 
@@ -78,5 +81,74 @@ int test_subprog2(struct args_subprog2 *ctx)
 		return 0;
 	test_result_subprog2 = 1;
 	return 0;
+}
+
+__u64 test_result_subprog3 = 0;
+SEC("fexit/test_pkt_access_subprog3")
+int BPF_PROG(test_subprog3, int val, struct sk_buff *skb, int ret)
+{
+	int len;
+
+	__builtin_preserve_access_index(({
+		len = skb->len;
+	}));
+	if (len != 74 || ret != 74 * val || val != 3)
+		return 0;
+	test_result_subprog3 = 1;
+	return 0;
+}
+
+__u64 test_get_skb_len = 0;
+SEC("freplace/get_skb_len")
+int new_get_skb_len(struct __sk_buff *skb)
+{
+	int len = skb->len;
+
+	if (len != 74)
+		return 0;
+	test_get_skb_len = 1;
+	return 74; /* original get_skb_len() returns skb->len */
+}
+
+__u64 test_get_skb_ifindex = 0;
+SEC("freplace/get_skb_ifindex")
+int new_get_skb_ifindex(int val, struct __sk_buff *skb, int var)
+{
+	void *data_end = (void *)(long)skb->data_end;
+	void *data = (void *)(long)skb->data;
+	struct ipv6hdr ip6, *ip6p;
+	int ifindex = skb->ifindex;
+	__u32 eth_proto;
+	__u32 nh_off;
+
+	/* check that BPF extension can read packet via direct packet access */
+	if (data + 14 + sizeof(ip6) > data_end)
+		return 0;
+	ip6p = data + 14;
+
+	if (ip6p->nexthdr != 6 || ip6p->payload_len != __bpf_constant_htons(123))
+		return 0;
+
+	/* check that legacy packet access helper works too */
+	if (bpf_skb_load_bytes(skb, 14, &ip6, sizeof(ip6)) < 0)
+		return 0;
+	ip6p = &ip6;
+	if (ip6p->nexthdr != 6 || ip6p->payload_len != __bpf_constant_htons(123))
+		return 0;
+
+	if (ifindex != 1 || val != 3 || var != 1)
+		return 0;
+	test_get_skb_ifindex = 1;
+	return 3; /* original get_skb_ifindex() returns val * ifindex * var */
+}
+
+volatile __u64 test_get_constant = 0;
+SEC("freplace/get_constant")
+int new_get_constant(long val)
+{
+	if (val != 123)
+		return 0;
+	test_get_constant = 1;
+	return test_get_constant; /* original get_constant() returns val - 122 */
 }
 char _license[] SEC("license") = "GPL";

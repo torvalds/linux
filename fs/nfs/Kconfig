@@ -90,7 +90,7 @@ config NFS_V4
 config NFS_SWAP
 	bool "Provide swap over NFS support"
 	default n
-	depends on NFS_FS
+	depends on NFS_FS && SWAP
 	select SUNRPC_SWAP
 	help
 	  This option enables swapon to work on files located on NFS mounts.
@@ -196,3 +196,12 @@ config NFS_DEBUG
 	depends on NFS_FS && SUNRPC_DEBUG
 	select CRC32
 	default y
+
+config NFS_DISABLE_UDP_SUPPORT
+       bool "NFS: Disable NFS UDP protocol support"
+       depends on NFS_FS
+       default y
+       help
+	 Choose Y here to disable the use of NFS over UDP. NFS over UDP
+	 on modern networks (1Gb+) can lead to data corruption caused by
+	 fragmentation during high loads.

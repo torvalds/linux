@@ -22,9 +22,9 @@
 #include <asm/reboot.h>
 #include <asm/sgialib.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/agent.h>
 #include <asm/sn/arch.h>
 #include <asm/sn/gda.h>
-#include <asm/sn/sn0/hub.h>
 
 #include "ip27-common.h"
 

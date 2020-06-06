@@ -15,7 +15,7 @@
 #include <dt-bindings/clock/samsung,s2mps11.h>
 
 / {
-	model = "Insignal Arndale Octa evaluation board based on EXYNOS5420";
+	model = "Insignal Arndale Octa evaluation board based on Exynos5420";
 	compatible = "insignal,arndale-octa", "samsung,exynos5420", "samsung,exynos5";
 
 	memory@20000000 {

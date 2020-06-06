@@ -648,7 +648,7 @@ static int tegra_pinctrl_suspend(struct device *dev)
 {
 	struct tegra_pmx *pmx = dev_get_drvdata(dev);
 	u32 *backup_regs = pmx->backup_regs;
-	u32 *regs;
+	u32 __iomem *regs;
 	size_t bank_size;
 	unsigned int i, k;
 
@@ -666,7 +666,7 @@ static int tegra_pinctrl_resume(struct device *dev)
 {
 	struct tegra_pmx *pmx = dev_get_drvdata(dev);
 	u32 *backup_regs = pmx->backup_regs;
-	u32 *regs;
+	u32 __iomem *regs;
 	size_t bank_size;
 	unsigned int i, k;
 

@@ -18,6 +18,8 @@ static const size_t size_limit_mb = 64; /* total dmabuf size, in megabytes  */
 struct udmabuf {
 	pgoff_t pagecount;
 	struct page **pages;
+	struct sg_table *sg;
+	struct miscdevice *device;
 };
 
 static vm_fault_t udmabuf_vm_fault(struct vm_fault *vmf)
@@ -46,10 +48,10 @@ static int mmap_udmabuf(struct dma_buf *buf, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
-				    enum dma_data_direction direction)
+static struct sg_table *get_sg_table(struct device *dev, struct dma_buf *buf,
+				     enum dma_data_direction direction)
 {
-	struct udmabuf *ubuf = at->dmabuf->priv;
+	struct udmabuf *ubuf = buf->priv;
 	struct sg_table *sg;
 	int ret;
 
@@ -61,7 +63,7 @@ static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
 					GFP_KERNEL);
 	if (ret < 0)
 		goto err;
-	if (!dma_map_sg(at->dev, sg->sgl, sg->nents, direction)) {
+	if (!dma_map_sg(dev, sg->sgl, sg->nents, direction)) {
 		ret = -EINVAL;
 		goto err;
 	}
@@ -73,19 +75,35 @@ err:
 	return ERR_PTR(ret);
 }
 
+static void put_sg_table(struct device *dev, struct sg_table *sg,
+			 enum dma_data_direction direction)
+{
+	dma_unmap_sg(dev, sg->sgl, sg->nents, direction);
+	sg_free_table(sg);
+	kfree(sg);
+}
+
+static struct sg_table *map_udmabuf(struct dma_buf_attachment *at,
+				    enum dma_data_direction direction)
+{
+	return get_sg_table(at->dev, at->dmabuf, direction);
+}
+
 static void unmap_udmabuf(struct dma_buf_attachment *at,
 			  struct sg_table *sg,
 			  enum dma_data_direction direction)
 {
-	dma_unmap_sg(at->dev, sg->sgl, sg->nents, direction);
-	sg_free_table(sg);
-	kfree(sg);
+	return put_sg_table(at->dev, sg, direction);
 }
 
 static void release_udmabuf(struct dma_buf *buf)
 {
 	struct udmabuf *ubuf = buf->priv;
+	struct device *dev = ubuf->device->this_device;
 	pgoff_t pg;
+
+	if (ubuf->sg)
+		put_sg_table(dev, ubuf->sg, DMA_BIDIRECTIONAL);
 
 	for (pg = 0; pg < ubuf->pagecount; pg++)
 		put_page(ubuf->pages[pg]);
@@ -93,34 +111,53 @@ static void release_udmabuf(struct dma_buf *buf)
 	kfree(ubuf);
 }
 
-static void *kmap_udmabuf(struct dma_buf *buf, unsigned long page_num)
+static int begin_cpu_udmabuf(struct dma_buf *buf,
+			     enum dma_data_direction direction)
 {
 	struct udmabuf *ubuf = buf->priv;
-	struct page *page = ubuf->pages[page_num];
+	struct device *dev = ubuf->device->this_device;
 
-	return kmap(page);
+	if (!ubuf->sg) {
+		ubuf->sg = get_sg_table(dev, buf, direction);
+		if (IS_ERR(ubuf->sg))
+			return PTR_ERR(ubuf->sg);
+	} else {
+		dma_sync_sg_for_cpu(dev, ubuf->sg->sgl, ubuf->sg->nents,
+				    direction);
+	}
+
+	return 0;
 }
 
-static void kunmap_udmabuf(struct dma_buf *buf, unsigned long page_num,
-			   void *vaddr)
+static int end_cpu_udmabuf(struct dma_buf *buf,
+			   enum dma_data_direction direction)
 {
-	kunmap(vaddr);
+	struct udmabuf *ubuf = buf->priv;
+	struct device *dev = ubuf->device->this_device;
+
+	if (!ubuf->sg)
+		return -EINVAL;
+
+	dma_sync_sg_for_device(dev, ubuf->sg->sgl, ubuf->sg->nents, direction);
+	return 0;
 }
 
 static const struct dma_buf_ops udmabuf_ops = {
-	.map_dma_buf	  = map_udmabuf,
-	.unmap_dma_buf	  = unmap_udmabuf,
-	.release	  = release_udmabuf,
-	.map		  = kmap_udmabuf,
-	.unmap		  = kunmap_udmabuf,
-	.mmap		  = mmap_udmabuf,
+	.cache_sgt_mapping = true,
+	.map_dma_buf	   = map_udmabuf,
+	.unmap_dma_buf	   = unmap_udmabuf,
+	.release	   = release_udmabuf,
+	.mmap		   = mmap_udmabuf,
+	.begin_cpu_access  = begin_cpu_udmabuf,
+	.end_cpu_access    = end_cpu_udmabuf,
 };
 
 #define SEALS_WANTED (F_SEAL_SHRINK)
 #define SEALS_DENIED (F_SEAL_WRITE)
 
-static long udmabuf_create(const struct udmabuf_create_list *head,
-			   const struct udmabuf_create_item *list)
+static long udmabuf_create(struct miscdevice *device,
+			   struct udmabuf_create_list *head,
+			   struct udmabuf_create_item *list)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct file *memfd = NULL;
@@ -187,6 +224,7 @@ static long udmabuf_create(const struct udmabuf_create_list *head,
 	exp_info.priv = ubuf;
 	exp_info.flags = O_RDWR;
 
+	ubuf->device = device;
 	buf = dma_buf_export(&exp_info);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
@@ -224,7 +262,7 @@ static long udmabuf_ioctl_create(struct file *filp, unsigned long arg)
 	list.offset = create.offset;
 	list.size   = create.size;
 
-	return udmabuf_create(&head, &list);
+	return udmabuf_create(filp->private_data, &head, &list);
 }
 
 static long udmabuf_ioctl_create_list(struct file *filp, unsigned long arg)
@@ -243,7 +281,7 @@ static long udmabuf_ioctl_create_list(struct file *filp, unsigned long arg)
 	if (IS_ERR(list))
 		return PTR_ERR(list);
 
-	ret = udmabuf_create(&head, list);
+	ret = udmabuf_create(filp->private_data, &head, list);
 	kfree(list);
 	return ret;
 }

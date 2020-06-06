@@ -22,7 +22,7 @@ static int littlemill_set_bias_level(struct snd_soc_card *card,
 	struct snd_soc_dai *aif1_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
@@ -69,7 +69,7 @@ static int littlemill_set_bias_level_post(struct snd_soc_card *card,
 	struct snd_soc_dai *aif1_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	aif1_dai = rtd->codec_dai;
 
 	if (dapm->dev != aif1_dai->dev)
@@ -180,7 +180,7 @@ static int bbclk_ev(struct snd_soc_dapm_widget *w,
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
 	aif2_dai = rtd->cpu_dai;
 
 	switch (event) {
@@ -263,11 +263,11 @@ static int littlemill_late_probe(struct snd_soc_card *card)
 	struct snd_soc_dai *aif2_dai;
 	int ret;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	component = rtd->codec_dai->component;
 	aif1_dai = rtd->codec_dai;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[1].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[1]);
 	aif2_dai = rtd->cpu_dai;
 
 	ret = snd_soc_dai_set_sysclk(aif1_dai, WM8994_SYSCLK_MCLK2,

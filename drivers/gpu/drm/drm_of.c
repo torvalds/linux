@@ -274,3 +274,119 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_of_find_panel_or_bridge);
+
+enum drm_of_lvds_pixels {
+	DRM_OF_LVDS_EVEN = BIT(0),
+	DRM_OF_LVDS_ODD = BIT(1),
+};
+
+static int drm_of_lvds_get_port_pixels_type(struct device_node *port_node)
+{
+	bool even_pixels =
+		of_property_read_bool(port_node, "dual-lvds-even-pixels");
+	bool odd_pixels =
+		of_property_read_bool(port_node, "dual-lvds-odd-pixels");
+
+	return (even_pixels ? DRM_OF_LVDS_EVEN : 0) |
+	       (odd_pixels ? DRM_OF_LVDS_ODD : 0);
+}
+
+static int drm_of_lvds_get_remote_pixels_type(
+			const struct device_node *port_node)
+{
+	struct device_node *endpoint = NULL;
+	int pixels_type = -EPIPE;
+
+	for_each_child_of_node(port_node, endpoint) {
+		struct device_node *remote_port;
+		int current_pt;
+
+		if (!of_node_name_eq(endpoint, "endpoint"))
+			continue;
+
+		remote_port = of_graph_get_remote_port(endpoint);
+		if (!remote_port) {
+			of_node_put(remote_port);
+			return -EPIPE;
+		}
+
+		current_pt = drm_of_lvds_get_port_pixels_type(remote_port);
+		of_node_put(remote_port);
+		if (pixels_type < 0)
+			pixels_type = current_pt;
+
+		/*
+		 * Sanity check, ensure that all remote endpoints have the same
+		 * pixel type. We may lift this restriction later if we need to
+		 * support multiple sinks with different dual-link
+		 * configurations by passing the endpoints explicitly to
+		 * drm_of_lvds_get_dual_link_pixel_order().
+		 */
+		if (!current_pt || pixels_type != current_pt) {
+			of_node_put(remote_port);
+			return -EINVAL;
+		}
+	}
+
+	return pixels_type;
+}
+
+/**
+ * drm_of_lvds_get_dual_link_pixel_order - Get LVDS dual-link pixel order
+ * @port1: First DT port node of the Dual-link LVDS source
+ * @port2: Second DT port node of the Dual-link LVDS source
+ *
+ * An LVDS dual-link connection is made of two links, with even pixels
+ * transitting on one link, and odd pixels on the other link. This function
+ * returns, for two ports of an LVDS dual-link source, which port shall transmit
+ * the even and odd pixels, based on the requirements of the connected sink.
+ *
+ * The pixel order is determined from the dual-lvds-even-pixels and
+ * dual-lvds-odd-pixels properties in the sink's DT port nodes. If those
+ * properties are not present, or if their usage is not valid, this function
+ * returns -EINVAL.
+ *
+ * If either port is not connected, this function returns -EPIPE.
+ *
+ * @port1 and @port2 are typically DT sibling nodes, but may have different
+ * parents when, for instance, two separate LVDS encoders carry the even and odd
+ * pixels.
+ *
+ * Return:
+ * * DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS - @port1 carries even pixels and @port2
+ *   carries odd pixels
+ * * DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS - @port1 carries odd pixels and @port2
+ *   carries even pixels
+ * * -EINVAL - @port1 and @port2 are not connected to a dual-link LVDS sink, or
+ *   the sink configuration is invalid
+ * * -EPIPE - when @port1 or @port2 are not connected
+ */
+int drm_of_lvds_get_dual_link_pixel_order(const struct device_node *port1,
+					  const struct device_node *port2)
+{
+	int remote_p1_pt, remote_p2_pt;
+
+	if (!port1 || !port2)
+		return -EINVAL;
+
+	remote_p1_pt = drm_of_lvds_get_remote_pixels_type(port1);
+	if (remote_p1_pt < 0)
+		return remote_p1_pt;
+
+	remote_p2_pt = drm_of_lvds_get_remote_pixels_type(port2);
+	if (remote_p2_pt < 0)
+		return remote_p2_pt;
+
+	/*
+	 * A valid dual-lVDS bus is found when one remote port is marked with
+	 * "dual-lvds-even-pixels", and the other remote port is marked with
+	 * "dual-lvds-odd-pixels", bail out if the markers are not right.
+	 */
+	if (remote_p1_pt + remote_p2_pt != DRM_OF_LVDS_EVEN + DRM_OF_LVDS_ODD)
+		return -EINVAL;
+
+	return remote_p1_pt == DRM_OF_LVDS_EVEN ?
+		DRM_LVDS_DUAL_LINK_EVEN_ODD_PIXELS :
+		DRM_LVDS_DUAL_LINK_ODD_EVEN_PIXELS;
+}
+EXPORT_SYMBOL_GPL(drm_of_lvds_get_dual_link_pixel_order);

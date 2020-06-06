@@ -1637,7 +1637,7 @@ static int savagefb_release(struct fb_info *info, int user)
 	return 0;
 }
 
-static struct fb_ops savagefb_ops = {
+static const struct fb_ops savagefb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = savagefb_open,
 	.fb_release     = savagefb_release,

@@ -96,7 +96,7 @@ static int heartbeat_drv_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
-	hd->base = ioremap_nocache(res->start, resource_size(res));
+	hd->base = ioremap(res->start, resource_size(res));
 	if (unlikely(!hd->base)) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 

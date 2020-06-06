@@ -72,9 +72,9 @@ static void xsk_map_sock_delete(struct xdp_sock *xs,
 static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_map_memory mem;
-	int cpu, err, numa_node;
+	int err, numa_node;
 	struct xsk_map *m;
-	u64 cost, size;
+	u64 size;
 
 	if (!capable(CAP_NET_ADMIN))
 		return ERR_PTR(-EPERM);
@@ -86,9 +86,8 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 
 	numa_node = bpf_map_attr_numa_node(attr);
 	size = struct_size(m, xsk_map, attr->max_entries);
-	cost = size + array_size(sizeof(*m->flush_list), num_possible_cpus());
 
-	err = bpf_map_charge_init(&mem, cost);
+	err = bpf_map_charge_init(&mem, size);
 	if (err < 0)
 		return ERR_PTR(err);
 
@@ -102,16 +101,6 @@ static struct bpf_map *xsk_map_alloc(union bpf_attr *attr)
 	bpf_map_charge_move(&m->map.memory, &mem);
 	spin_lock_init(&m->lock);
 
-	m->flush_list = alloc_percpu(struct list_head);
-	if (!m->flush_list) {
-		bpf_map_charge_finish(&m->map.memory);
-		bpf_map_area_free(m);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	for_each_possible_cpu(cpu)
-		INIT_LIST_HEAD(per_cpu_ptr(m->flush_list, cpu));
-
 	return &m->map;
 }
 
@@ -121,7 +110,6 @@ static void xsk_map_free(struct bpf_map *map)
 
 	bpf_clear_redirect_map(map);
 	synchronize_net();
-	free_percpu(m->flush_list);
 	bpf_map_area_free(m);
 }
 

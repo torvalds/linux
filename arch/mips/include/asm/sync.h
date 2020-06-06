@@ -155,9 +155,11 @@
  * effective barrier as noted by commit 6b07d38aaa52 ("MIPS: Octeon: Use
  * optimized memory barrier primitives."). Here we specify that the affected
  * sync instructions should be emitted twice.
+ * Note that this expression is evaluated by the assembler (not the compiler),
+ * and that the assembler evaluates '==' as 0 or -1, not 0 or 1.
  */
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
-# define __SYNC_rpt(type)	(1 + (type == __SYNC_wmb))
+# define __SYNC_rpt(type)	(1 - (type == __SYNC_wmb))
 #else
 # define __SYNC_rpt(type)	1
 #endif

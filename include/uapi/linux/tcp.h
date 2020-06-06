@@ -311,20 +311,22 @@ enum {
 	TCP_NLA_DSACK_DUPS,	/* DSACK blocks received */
 	TCP_NLA_REORD_SEEN,	/* reordering events seen */
 	TCP_NLA_SRTT,		/* smoothed RTT in usecs */
+	TCP_NLA_TIMEOUT_REHASH, /* Timeout-triggered rehash attempts */
 };
 
 /* for TCP_MD5SIG socket option */
 #define TCP_MD5SIG_MAXKEYLEN	80
 
 /* tcp_md5sig extension flags for TCP_MD5SIG_EXT */
-#define TCP_MD5SIG_FLAG_PREFIX		1	/* address prefix length */
+#define TCP_MD5SIG_FLAG_PREFIX		0x1	/* address prefix length */
+#define TCP_MD5SIG_FLAG_IFINDEX		0x2	/* ifindex set */
 
 struct tcp_md5sig {
 	struct __kernel_sockaddr_storage tcpm_addr;	/* address associated */
 	__u8	tcpm_flags;				/* extension flags */
 	__u8	tcpm_prefixlen;				/* address prefix */
 	__u16	tcpm_keylen;				/* key length */
-	__u32	__tcpm_pad;				/* zero */
+	int	tcpm_ifindex;				/* device index for scope */
 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];		/* key (binary) */
 };
 

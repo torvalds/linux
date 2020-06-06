@@ -16,14 +16,11 @@ struct rdonly_map_subtest {
 
 void test_rdonly_maps(void)
 {
-	const char *prog_name_skip_loop = "raw_tracepoint/sys_enter:skip_loop";
-	const char *prog_name_part_loop = "raw_tracepoint/sys_enter:part_loop";
-	const char *prog_name_full_loop = "raw_tracepoint/sys_enter:full_loop";
 	const char *file = "test_rdonly_maps.o";
 	struct rdonly_map_subtest subtests[] = {
-		{ "skip loop", prog_name_skip_loop, 0, 0 },
-		{ "part loop", prog_name_part_loop, 3, 2 + 3 + 4 },
-		{ "full loop", prog_name_full_loop, 4, 2 + 3 + 4 + 5 },
+		{ "skip loop", "skip_loop", 0, 0 },
+		{ "part loop", "part_loop", 3, 2 + 3 + 4 },
+		{ "full loop", "full_loop", 4, 2 + 3 + 4 + 5 },
 	};
 	int i, err, zero = 0, duration = 0;
 	struct bpf_link *link = NULL;
@@ -50,7 +47,7 @@ void test_rdonly_maps(void)
 		if (!test__start_subtest(t->subtest_name))
 			continue;
 
-		prog = bpf_object__find_program_by_title(obj, t->prog_name);
+		prog = bpf_object__find_program_by_name(obj, t->prog_name);
 		if (CHECK(!prog, "find_prog", "prog '%s' not found\n",
 			  t->prog_name))
 			goto cleanup;

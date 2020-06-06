@@ -677,7 +677,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 
 	bnxt_qplib_get_guid(rdev->netdev->dev_addr, (u8 *)&ibdev->node_guid);
 
-	ibdev->num_comp_vectors	= 1;
+	ibdev->num_comp_vectors	= rdev->num_msix - 1;
 	ibdev->dev.parent = &rdev->en_dev->pdev->dev;
 	ibdev->local_dma_lkey = BNXT_QPLIB_RSVD_LKEY;
 

@@ -538,6 +538,16 @@ void zero_fill_bio_iter(struct bio *bio, struct bvec_iter start)
 }
 EXPORT_SYMBOL(zero_fill_bio_iter);
 
+/**
+ * bio_truncate - truncate the bio to small size of @new_size
+ * @bio:	the bio to be truncated
+ * @new_size:	new size for truncating the bio
+ *
+ * Description:
+ *   Truncate the bio to new size of @new_size. If bio_op(bio) is
+ *   REQ_OP_READ, zero the truncated part. This function should only
+ *   be used for handling corner cases, such as bio eod.
+ */
 void bio_truncate(struct bio *bio, unsigned new_size)
 {
 	struct bio_vec bv;
@@ -548,7 +558,7 @@ void bio_truncate(struct bio *bio, unsigned new_size)
 	if (new_size >= bio->bi_iter.bi_size)
 		return;
 
-	if (bio_data_dir(bio) != READ)
+	if (bio_op(bio) != REQ_OP_READ)
 		goto exit;
 
 	bio_for_each_segment(bv, bio, iter) {

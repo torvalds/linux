@@ -52,6 +52,9 @@ config NET_INGRESS
 config NET_EGRESS
 	bool
 
+config NET_REDIRECT
+	bool
+
 config SKB_EXTENSIONS
 	bool
 
@@ -91,6 +94,7 @@ if INET
 source "net/ipv4/Kconfig"
 source "net/ipv6/Kconfig"
 source "net/netlabel/Kconfig"
+source "net/mptcp/Kconfig"
 
 endif # if INET
 
@@ -108,9 +112,10 @@ config NETWORK_PHY_TIMESTAMPING
 	bool "Timestamping in PHY devices"
 	select NET_PTP_CLASSIFY
 	help
-	  This allows timestamping of network packets by PHYs with
-	  hardware timestamping capabilities. This option adds some
-	  overhead in the transmit and receive paths.
+	  This allows timestamping of network packets by PHYs (or
+	  other MII bus snooping devices) with hardware timestamping
+	  capabilities. This option adds some overhead in the transmit
+	  and receive paths.
 
 	  If you are unsure how to answer this question, answer N.
 
@@ -187,7 +192,6 @@ config BRIDGE_NETFILTER
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_FAMILY_BRIDGE
 	select SKB_EXTENSIONS
-	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
 	  ARP resp. IP traffic. If you want a bridging firewall, you probably
@@ -447,6 +451,14 @@ config FAILOVER
 	  VF as an accelerated low latency datapath. It also allows live
 	  migration of VMs with direct attached VFs by failing over to the
 	  paravirtual datapath when the VF is unplugged.
+
+config ETHTOOL_NETLINK
+	bool "Netlink interface for ethtool"
+	default y
+	help
+	  An alternative userspace interface for ethtool based on generic
+	  netlink. It provides better extensibility and some new features,
+	  e.g. notification messages.
 
 endif   # if NET
 

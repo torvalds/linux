@@ -119,7 +119,7 @@ int arm_mmu500_reset(struct arm_smmu_device *smmu)
 	 * Secure has also cleared SACR.CACHE_LOCK for this to take effect...
 	 */
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_ID7);
-	major = FIELD_GET(ID7_MAJOR, reg);
+	major = FIELD_GET(ARM_SMMU_ID7_MAJOR, reg);
 	reg = arm_smmu_gr0_read(smmu, ARM_SMMU_GR0_sACR);
 	if (major >= 2)
 		reg &= ~ARM_MMU500_ACR_CACHE_LOCK;

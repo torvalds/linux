@@ -6,6 +6,44 @@
 
 #include "isst.h"
 
+int isst_write_pm_config(int cpu, int cp_state)
+{
+	unsigned int req, resp;
+	int ret;
+
+	if (cp_state)
+		req = BIT(16);
+	else
+		req = 0;
+
+	ret = isst_send_mbox_command(cpu, WRITE_PM_CONFIG, PM_FEATURE, 0, req,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d WRITE_PM_CONFIG resp:%x\n", cpu, resp);
+
+	return 0;
+}
+
+int isst_read_pm_config(int cpu, int *cp_state, int *cp_cap)
+{
+	unsigned int resp;
+	int ret;
+
+	ret = isst_send_mbox_command(cpu, READ_PM_CONFIG, PM_FEATURE, 0, 0,
+				     &resp);
+	if (ret)
+		return ret;
+
+	debug_printf("cpu:%d READ_PM_CONFIG resp:%x\n", cpu, resp);
+
+	*cp_state = resp & BIT(16);
+	*cp_cap = resp & BIT(0) ? 1 : 0;
+
+	return 0;
+}
+
 int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev)
 {
 	unsigned int resp;
@@ -36,6 +74,7 @@ int isst_get_ctdp_levels(int cpu, struct isst_pkg_ctdp *pkg_dev)
 int isst_get_ctdp_control(int cpu, int config_index,
 			  struct isst_pkg_ctdp_level_info *ctdp_level)
 {
+	int cp_state, cp_cap;
 	unsigned int resp;
 	int ret;
 
@@ -49,6 +88,15 @@ int isst_get_ctdp_control(int cpu, int config_index,
 	ctdp_level->pbf_support = !!(resp & BIT(1));
 	ctdp_level->fact_enabled = !!(resp & BIT(16));
 	ctdp_level->pbf_enabled = !!(resp & BIT(17));
+
+	ret = isst_read_pm_config(cpu, &cp_state, &cp_cap);
+	if (ret) {
+		debug_printf("cpu:%d pm_config is not supported \n", cpu);
+	} else {
+		debug_printf("cpu:%d pm_config SST-CP state:%d cap:%d \n", cpu, cp_state, cp_cap);
+		ctdp_level->sst_cp_support = cp_cap;
+		ctdp_level->sst_cp_enabled = cp_state;
+	}
 
 	debug_printf(
 		"cpu:%d CONFIG_TDP_GET_TDP_CONTROL resp:%x fact_support:%d pbf_support: %d fact_enabled:%d pbf_enabled:%d\n",
@@ -779,6 +827,13 @@ int isst_pm_qos_config(int cpu, int enable_clos, int priority_type)
 			debug_printf("Turbo-freq feature must be disabled first\n");
 			return -EINVAL;
 		}
+		ret = isst_write_pm_config(cpu, 0);
+		if (ret)
+			perror("isst_write_pm_config\n");
+	} else {
+		ret = isst_write_pm_config(cpu, 1);
+		if (ret)
+			perror("isst_write_pm_config\n");
 	}
 
 	ret = isst_send_mbox_command(cpu, CONFIG_CLOS, CLOS_PM_QOS_CONFIG, 0, 0,

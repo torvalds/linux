@@ -61,7 +61,7 @@
 #define DCA_TIMEOUT  50 // milliseconds
 #define WAKEUP_TIMEOUT 200 // milliseconds
 
-static const char * const fwio_error_strings[] = {
+static const char * const fwio_errors[] = {
 	[ERR_INVALID_SEC_TYPE] = "Invalid section type or wrong encryption",
 	[ERR_SIG_VERIF_FAILED] = "Signature verification failed",
 	[ERR_AES_CTRL_KEY] = "AES control key not initialized",
@@ -220,22 +220,16 @@ static int upload_firmware(struct wfx_dev *wdev, const u8 *data, size_t len)
 
 static void print_boot_status(struct wfx_dev *wdev)
 {
-	u32 val32;
+	u32 reg;
 
-	sram_reg_read(wdev, WFX_STATUS_INFO, &val32);
-	if (val32 == 0x12345678) {
-		dev_info(wdev->dev, "no error reported by secure boot\n");
-	} else {
-		sram_reg_read(wdev, WFX_ERR_INFO, &val32);
-		if (val32 < ARRAY_SIZE(fwio_error_strings) &&
-		    fwio_error_strings[val32])
-			dev_info(wdev->dev, "secure boot error: %s\n",
-				 fwio_error_strings[val32]);
-		else
-			dev_info(wdev->dev,
-				 "secure boot error: Unknown (0x%02x)\n",
-				 val32);
-	}
+	sram_reg_read(wdev, WFX_STATUS_INFO, &reg);
+	if (reg == 0x12345678)
+		return;
+	sram_reg_read(wdev, WFX_ERR_INFO, &reg);
+	if (reg < ARRAY_SIZE(fwio_errors) && fwio_errors[reg])
+		dev_info(wdev->dev, "secure boot: %s\n", fwio_errors[reg]);
+	else
+		dev_info(wdev->dev, "secure boot: Error %#02x\n", reg);
 }
 
 static int load_firmware_secure(struct wfx_dev *wdev)
@@ -345,7 +339,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	ktime_t now, start;
 	u32 reg;
 
-	reg = CFG_DIRECT_ACCESS_MODE | CFG_CPU_RESET | CFG_WORD_MODE2;
+	reg = CFG_DIRECT_ACCESS_MODE | CFG_CPU_RESET | CFG_BYTE_ORDER_ABCD;
 	if (wdev->pdata.use_rising_clk)
 		reg |= CFG_CLK_RISE_EDGE;
 	ret = config_reg_write(wdev, reg);

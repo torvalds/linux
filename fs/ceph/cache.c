@@ -67,7 +67,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc)
 		if (uniq_len && memcmp(ent->uniquifier, fscache_uniq, uniq_len))
 			continue;
 
-		errorf(fc, "ceph: fscache cookie already registered for fsid %pU, use fsc=<uniquifier> option",
+		errorfc(fc, "fscache cookie already registered for fsid %pU, use fsc=<uniquifier> option",
 		       fsid);
 		err = -EBUSY;
 		goto out_unlock;
@@ -96,7 +96,7 @@ int ceph_fscache_register_fs(struct ceph_fs_client* fsc, struct fs_context *fc)
 		list_add_tail(&ent->list, &ceph_fscache_list);
 	} else {
 		kfree(ent);
-		errorf(fc, "ceph: unable to register fscache cookie for fsid %pU",
+		errorfc(fc, "unable to register fscache cookie for fsid %pU",
 		       fsid);
 		/* all other fs ignore this error */
 	}

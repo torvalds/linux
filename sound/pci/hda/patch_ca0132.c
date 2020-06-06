@@ -1923,6 +1923,7 @@ static int dspio_send_scp_message(struct hda_codec *codec,
  * Prepare and send the SCP message to DSP
  * @codec: the HDA codec
  * @mod_id: ID of the DSP module to send the command
+ * @src_id: ID of the source
  * @req: ID of request to send to the DSP module
  * @dir: SET or GET
  * @data: pointer to the data to send with the request, request specific
@@ -3768,7 +3769,7 @@ static const unsigned int float_xbass_xover_lookup[] = {
 /* The following are for tuning of products */
 #ifdef ENABLE_TUNING_CONTROLS
 
-static unsigned int voice_focus_vals_lookup[] = {
+static const unsigned int voice_focus_vals_lookup[] = {
 0x41A00000, 0x41A80000, 0x41B00000, 0x41B80000, 0x41C00000, 0x41C80000,
 0x41D00000, 0x41D80000, 0x41E00000, 0x41E80000, 0x41F00000, 0x41F80000,
 0x42000000, 0x42040000, 0x42080000, 0x420C0000, 0x42100000, 0x42140000,
@@ -3798,7 +3799,7 @@ static unsigned int voice_focus_vals_lookup[] = {
 0x43300000, 0x43310000, 0x43320000, 0x43330000, 0x43340000
 };
 
-static unsigned int mic_svm_vals_lookup[] = {
+static const unsigned int mic_svm_vals_lookup[] = {
 0x00000000, 0x3C23D70A, 0x3CA3D70A, 0x3CF5C28F, 0x3D23D70A, 0x3D4CCCCD,
 0x3D75C28F, 0x3D8F5C29, 0x3DA3D70A, 0x3DB851EC, 0x3DCCCCCD, 0x3DE147AE,
 0x3DF5C28F, 0x3E051EB8, 0x3E0F5C29, 0x3E19999A, 0x3E23D70A, 0x3E2E147B,
@@ -3818,7 +3819,7 @@ static unsigned int mic_svm_vals_lookup[] = {
 0x3F75C28F, 0x3F7851EC, 0x3F7AE148, 0x3F7D70A4, 0x3F800000
 };
 
-static unsigned int equalizer_vals_lookup[] = {
+static const unsigned int equalizer_vals_lookup[] = {
 0xC1C00000, 0xC1B80000, 0xC1B00000, 0xC1A80000, 0xC1A00000, 0xC1980000,
 0xC1900000, 0xC1880000, 0xC1800000, 0xC1700000, 0xC1600000, 0xC1500000,
 0xC1400000, 0xC1300000, 0xC1200000, 0xC1100000, 0xC1000000, 0xC0E00000,
@@ -3831,7 +3832,7 @@ static unsigned int equalizer_vals_lookup[] = {
 };
 
 static int tuning_ctl_set(struct hda_codec *codec, hda_nid_t nid,
-			  unsigned int *lookup, int idx)
+			  const unsigned int *lookup, int idx)
 {
 	int i = 0;
 
@@ -7642,14 +7643,14 @@ static void ca0132_init_unsol(struct hda_codec *codec)
  */
 
 /* Sends before DSP download. */
-static struct hda_verb ca0132_base_init_verbs[] = {
+static const struct hda_verb ca0132_base_init_verbs[] = {
 	/*enable ct extension*/
 	{0x15, VENDOR_CHIPIO_CT_EXTENSIONS_ENABLE, 0x1},
 	{}
 };
 
 /* Send at exit. */
-static struct hda_verb ca0132_base_exit_verbs[] = {
+static const struct hda_verb ca0132_base_exit_verbs[] = {
 	/*set afg to D3*/
 	{0x01, AC_VERB_SET_POWER_STATE, 0x03},
 	/*disable ct extension*/
@@ -7659,7 +7660,7 @@ static struct hda_verb ca0132_base_exit_verbs[] = {
 
 /* Other verbs tables. Sends after DSP download. */
 
-static struct hda_verb ca0132_init_verbs0[] = {
+static const struct hda_verb ca0132_init_verbs0[] = {
 	/* chip init verbs */
 	{0x15, 0x70D, 0xF0},
 	{0x15, 0x70E, 0xFE},
@@ -7692,7 +7693,7 @@ static struct hda_verb ca0132_init_verbs0[] = {
 };
 
 /* Extra init verbs for desktop cards. */
-static struct hda_verb ca0132_init_verbs1[] = {
+static const struct hda_verb ca0132_init_verbs1[] = {
 	{0x15, 0x70D, 0x20},
 	{0x15, 0x70E, 0x19},
 	{0x15, 0x707, 0x00},
@@ -7802,23 +7803,23 @@ static void sbz_region2_exit(struct hda_codec *codec)
 
 static void sbz_set_pin_ctl_default(struct hda_codec *codec)
 {
-	hda_nid_t pins[5] = {0x0B, 0x0C, 0x0E, 0x12, 0x13};
+	static const hda_nid_t pins[] = {0x0B, 0x0C, 0x0E, 0x12, 0x13};
 	unsigned int i;
 
 	snd_hda_codec_write(codec, 0x11, 0,
 			AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40);
 
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < ARRAY_SIZE(pins); i++)
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_PIN_WIDGET_CONTROL, 0x00);
 }
 
 static void ca0132_clear_unsolicited(struct hda_codec *codec)
 {
-	hda_nid_t pins[7] = {0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
+	static const hda_nid_t pins[] = {0x0B, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13};
 	unsigned int i;
 
-	for (i = 0; i < 7; i++) {
+	for (i = 0; i < ARRAY_SIZE(pins); i++) {
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_UNSOLICITED_ENABLE, 0x00);
 	}
@@ -7842,10 +7843,10 @@ static void sbz_gpio_shutdown_commands(struct hda_codec *codec, int dir,
 
 static void zxr_dbpro_power_state_shutdown(struct hda_codec *codec)
 {
-	hda_nid_t pins[7] = {0x05, 0x0c, 0x09, 0x0e, 0x08, 0x11, 0x01};
+	static const hda_nid_t pins[] = {0x05, 0x0c, 0x09, 0x0e, 0x08, 0x11, 0x01};
 	unsigned int i;
 
-	for (i = 0; i < 7; i++)
+	for (i = 0; i < ARRAY_SIZE(pins); i++)
 		snd_hda_codec_write(codec, pins[i], 0,
 				AC_VERB_SET_POWER_STATE, 0x03);
 }
@@ -8869,7 +8870,7 @@ static int patch_ca0132(struct hda_codec *codec)
 /*
  * patch entries
  */
-static struct hda_device_id snd_hda_id_ca0132[] = {
+static const struct hda_device_id snd_hda_id_ca0132[] = {
 	HDA_CODEC_ENTRY(0x11020011, "CA0132", patch_ca0132),
 	{} /* terminator */
 };

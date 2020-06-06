@@ -830,7 +830,7 @@ static int mtk_dsi_connector_get_modes(struct drm_connector *connector)
 {
 	struct mtk_dsi *dsi = connector_to_dsi(connector);
 
-	return drm_panel_get_modes(dsi->panel);
+	return drm_panel_get_modes(dsi->panel, connector);
 }
 
 static const struct drm_encoder_helper_funcs mtk_dsi_encoder_helper_funcs = {

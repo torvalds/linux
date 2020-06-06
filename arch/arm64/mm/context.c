@@ -29,15 +29,9 @@ static cpumask_t tlb_flush_pending;
 #define ASID_MASK		(~GENMASK(asid_bits - 1, 0))
 #define ASID_FIRST_VERSION	(1UL << asid_bits)
 
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
-#define NUM_USER_ASIDS		(ASID_FIRST_VERSION >> 1)
-#define asid2idx(asid)		(((asid) & ~ASID_MASK) >> 1)
-#define idx2asid(idx)		(((idx) << 1) & ~ASID_MASK)
-#else
-#define NUM_USER_ASIDS		(ASID_FIRST_VERSION)
+#define NUM_USER_ASIDS		ASID_FIRST_VERSION
 #define asid2idx(asid)		((asid) & ~ASID_MASK)
 #define idx2asid(idx)		asid2idx(idx)
-#endif
 
 /* Get the ASIDBits supported by the current CPU */
 static u32 get_cpu_asid_bits(void)
@@ -77,13 +71,33 @@ void verify_cpu_asid_bits(void)
 	}
 }
 
+static void set_kpti_asid_bits(void)
+{
+	unsigned int len = BITS_TO_LONGS(NUM_USER_ASIDS) * sizeof(unsigned long);
+	/*
+	 * In case of KPTI kernel/user ASIDs are allocated in
+	 * pairs, the bottom bit distinguishes the two: if it
+	 * is set, then the ASID will map only userspace. Thus
+	 * mark even as reserved for kernel.
+	 */
+	memset(asid_map, 0xaa, len);
+}
+
+static void set_reserved_asid_bits(void)
+{
+	if (arm64_kernel_unmapped_at_el0())
+		set_kpti_asid_bits();
+	else
+		bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
+}
+
 static void flush_context(void)
 {
 	int i;
 	u64 asid;
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
-	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
+	set_reserved_asid_bits();
 
 	for_each_possible_cpu(i) {
 		asid = atomic64_xchg_relaxed(&per_cpu(active_asids, i), 0);
@@ -246,14 +260,26 @@ asmlinkage void post_ttbr_update_workaround(void)
 			CONFIG_CAVIUM_ERRATUM_27456));
 }
 
-static int asids_init(void)
+static int asids_update_limit(void)
 {
-	asid_bits = get_cpu_asid_bits();
+	unsigned long num_available_asids = NUM_USER_ASIDS;
+
+	if (arm64_kernel_unmapped_at_el0())
+		num_available_asids /= 2;
 	/*
 	 * Expect allocation after rollover to fail if we don't have at least
 	 * one more ASID than CPUs. ASID #0 is reserved for init_mm.
 	 */
-	WARN_ON(NUM_USER_ASIDS - 1 <= num_possible_cpus());
+	WARN_ON(num_available_asids - 1 <= num_possible_cpus());
+	pr_info("ASID allocator initialised with %lu entries\n",
+		num_available_asids);
+	return 0;
+}
+arch_initcall(asids_update_limit);
+
+static int asids_init(void)
+{
+	asid_bits = get_cpu_asid_bits();
 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
 	asid_map = kcalloc(BITS_TO_LONGS(NUM_USER_ASIDS), sizeof(*asid_map),
 			   GFP_KERNEL);
@@ -261,7 +287,13 @@ static int asids_init(void)
 		panic("Failed to allocate bitmap for %lu ASIDs\n",
 		      NUM_USER_ASIDS);
 
-	pr_info("ASID allocator initialised with %lu entries\n", NUM_USER_ASIDS);
+	/*
+	 * We cannot call set_reserved_asid_bits() here because CPU
+	 * caps are not finalized yet, so it is safer to assume KPTI
+	 * and reserve kernel ASID's from beginning.
+	 */
+	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0))
+		set_kpti_asid_bits();
 	return 0;
 }
 early_initcall(asids_init);

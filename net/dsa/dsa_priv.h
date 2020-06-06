@@ -117,7 +117,9 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
 		       struct switchdev_trans *trans);
+int dsa_port_enable_rt(struct dsa_port *dp, struct phy_device *phy);
 int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy);
+void dsa_port_disable_rt(struct dsa_port *dp);
 void dsa_port_disable(struct dsa_port *dp);
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br);
 void dsa_port_bridge_leave(struct dsa_port *dp, struct net_device *br);
@@ -150,22 +152,6 @@ int dsa_port_vid_add(struct dsa_port *dp, u16 vid, u16 flags);
 int dsa_port_vid_del(struct dsa_port *dp, u16 vid);
 int dsa_port_link_register_of(struct dsa_port *dp);
 void dsa_port_link_unregister_of(struct dsa_port *dp);
-void dsa_port_phylink_validate(struct phylink_config *config,
-			       unsigned long *supported,
-			       struct phylink_link_state *state);
-void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
-					struct phylink_link_state *state);
-void dsa_port_phylink_mac_config(struct phylink_config *config,
-				 unsigned int mode,
-				 const struct phylink_link_state *state);
-void dsa_port_phylink_mac_an_restart(struct phylink_config *config);
-void dsa_port_phylink_mac_link_down(struct phylink_config *config,
-				    unsigned int mode,
-				    phy_interface_t interface);
-void dsa_port_phylink_mac_link_up(struct phylink_config *config,
-				  unsigned int mode,
-				  phy_interface_t interface,
-				  struct phy_device *phydev);
 extern const struct phylink_mac_ops dsa_port_phylink_mac_ops;
 
 /* slave.c */
@@ -173,12 +159,11 @@ extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
 int dsa_slave_create(struct dsa_port *dp);
 void dsa_slave_destroy(struct net_device *slave_dev);
+bool dsa_slave_dev_check(const struct net_device *dev);
 int dsa_slave_suspend(struct net_device *slave_dev);
 int dsa_slave_resume(struct net_device *slave_dev);
 int dsa_slave_register_notifier(void);
 void dsa_slave_unregister_notifier(void);
-
-void *dsa_defer_xmit(struct sk_buff *skb, struct net_device *dev);
 
 static inline struct dsa_port *dsa_slave_to_port(const struct net_device *dev)
 {

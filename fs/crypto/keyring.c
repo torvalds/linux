@@ -465,6 +465,109 @@ out_unlock:
 	return err;
 }
 
+static int fscrypt_provisioning_key_preparse(struct key_preparsed_payload *prep)
+{
+	const struct fscrypt_provisioning_key_payload *payload = prep->data;
+
+	if (prep->datalen < sizeof(*payload) + FSCRYPT_MIN_KEY_SIZE ||
+	    prep->datalen > sizeof(*payload) + FSCRYPT_MAX_KEY_SIZE)
+		return -EINVAL;
+
+	if (payload->type != FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR &&
+	    payload->type != FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER)
+		return -EINVAL;
+
+	if (payload->__reserved)
+		return -EINVAL;
+
+	prep->payload.data[0] = kmemdup(payload, prep->datalen, GFP_KERNEL);
+	if (!prep->payload.data[0])
+		return -ENOMEM;
+
+	prep->quotalen = prep->datalen;
+	return 0;
+}
+
+static void fscrypt_provisioning_key_free_preparse(
+					struct key_preparsed_payload *prep)
+{
+	kzfree(prep->payload.data[0]);
+}
+
+static void fscrypt_provisioning_key_describe(const struct key *key,
+					      struct seq_file *m)
+{
+	seq_puts(m, key->description);
+	if (key_is_positive(key)) {
+		const struct fscrypt_provisioning_key_payload *payload =
+			key->payload.data[0];
+
+		seq_printf(m, ": %u [%u]", key->datalen, payload->type);
+	}
+}
+
+static void fscrypt_provisioning_key_destroy(struct key *key)
+{
+	kzfree(key->payload.data[0]);
+}
+
+static struct key_type key_type_fscrypt_provisioning = {
+	.name			= "fscrypt-provisioning",
+	.preparse		= fscrypt_provisioning_key_preparse,
+	.free_preparse		= fscrypt_provisioning_key_free_preparse,
+	.instantiate		= generic_key_instantiate,
+	.describe		= fscrypt_provisioning_key_describe,
+	.destroy		= fscrypt_provisioning_key_destroy,
+};
+
+/*
+ * Retrieve the raw key from the Linux keyring key specified by 'key_id', and
+ * store it into 'secret'.
+ *
+ * The key must be of type "fscrypt-provisioning" and must have the field
+ * fscrypt_provisioning_key_payload::type set to 'type', indicating that it's
+ * only usable with fscrypt with the particular KDF version identified by
+ * 'type'.  We don't use the "logon" key type because there's no way to
+ * completely restrict the use of such keys; they can be used by any kernel API
+ * that accepts "logon" keys and doesn't require a specific service prefix.
+ *
+ * The ability to specify the key via Linux keyring key is intended for cases
+ * where userspace needs to re-add keys after the filesystem is unmounted and
+ * re-mounted.  Most users should just provide the raw key directly instead.
+ */
+static int get_keyring_key(u32 key_id, u32 type,
+			   struct fscrypt_master_key_secret *secret)
+{
+	key_ref_t ref;
+	struct key *key;
+	const struct fscrypt_provisioning_key_payload *payload;
+	int err;
+
+	ref = lookup_user_key(key_id, 0, KEY_NEED_SEARCH);
+	if (IS_ERR(ref))
+		return PTR_ERR(ref);
+	key = key_ref_to_ptr(ref);
+
+	if (key->type != &key_type_fscrypt_provisioning)
+		goto bad_key;
+	payload = key->payload.data[0];
+
+	/* Don't allow fscrypt v1 keys to be used as v2 keys and vice versa. */
+	if (payload->type != type)
+		goto bad_key;
+
+	secret->size = key->datalen - sizeof(*payload);
+	memcpy(secret->raw, payload->raw, secret->size);
+	err = 0;
+	goto out_put;
+
+bad_key:
+	err = -EKEYREJECTED;
+out_put:
+	key_ref_put(ref);
+	return err;
+}
+
 /*
  * Add a master encryption key to the filesystem, causing all files which were
  * encrypted with it to appear "unlocked" (decrypted) when accessed.
@@ -503,18 +606,25 @@ int fscrypt_ioctl_add_key(struct file *filp, void __user *_uarg)
 	if (!valid_key_spec(&arg.key_spec))
 		return -EINVAL;
 
-	if (arg.raw_size < FSCRYPT_MIN_KEY_SIZE ||
-	    arg.raw_size > FSCRYPT_MAX_KEY_SIZE)
-		return -EINVAL;
-
 	if (memchr_inv(arg.__reserved, 0, sizeof(arg.__reserved)))
 		return -EINVAL;
 
 	memset(&secret, 0, sizeof(secret));
-	secret.size = arg.raw_size;
-	err = -EFAULT;
-	if (copy_from_user(secret.raw, uarg->raw, secret.size))
-		goto out_wipe_secret;
+	if (arg.key_id) {
+		if (arg.raw_size != 0)
+			return -EINVAL;
+		err = get_keyring_key(arg.key_id, arg.key_spec.type, &secret);
+		if (err)
+			goto out_wipe_secret;
+	} else {
+		if (arg.raw_size < FSCRYPT_MIN_KEY_SIZE ||
+		    arg.raw_size > FSCRYPT_MAX_KEY_SIZE)
+			return -EINVAL;
+		secret.size = arg.raw_size;
+		err = -EFAULT;
+		if (copy_from_user(secret.raw, uarg->raw, secret.size))
+			goto out_wipe_secret;
+	}
 
 	switch (arg.key_spec.type) {
 	case FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR:
@@ -666,9 +776,6 @@ static int check_for_busy_inodes(struct super_block *sb,
 	struct list_head *pos;
 	size_t busy_count = 0;
 	unsigned long ino;
-	struct dentry *dentry;
-	char _path[256];
-	char *path = NULL;
 
 	spin_lock(&mk->mk_decrypted_inodes_lock);
 
@@ -687,22 +794,14 @@ static int check_for_busy_inodes(struct super_block *sb,
 					 struct fscrypt_info,
 					 ci_master_key_link)->ci_inode;
 		ino = inode->i_ino;
-		dentry = d_find_alias(inode);
 	}
 	spin_unlock(&mk->mk_decrypted_inodes_lock);
 
-	if (dentry) {
-		path = dentry_path(dentry, _path, sizeof(_path));
-		dput(dentry);
-	}
-	if (IS_ERR_OR_NULL(path))
-		path = "(unknown)";
-
 	fscrypt_warn(NULL,
-		     "%s: %zu inode(s) still busy after removing key with %s %*phN, including ino %lu (%s)",
+		     "%s: %zu inode(s) still busy after removing key with %s %*phN, including ino %lu",
 		     sb->s_id, busy_count, master_key_spec_type(&mk->mk_spec),
 		     master_key_spec_len(&mk->mk_spec), (u8 *)&mk->mk_spec.u,
-		     ino, path);
+		     ino);
 	return -EBUSY;
 }
 
@@ -978,8 +1077,14 @@ int __init fscrypt_init_keyring(void)
 	if (err)
 		goto err_unregister_fscrypt;
 
+	err = register_key_type(&key_type_fscrypt_provisioning);
+	if (err)
+		goto err_unregister_fscrypt_user;
+
 	return 0;
 
+err_unregister_fscrypt_user:
+	unregister_key_type(&key_type_fscrypt_user);
 err_unregister_fscrypt:
 	unregister_key_type(&key_type_fscrypt);
 	return err;

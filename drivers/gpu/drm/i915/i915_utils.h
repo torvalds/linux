@@ -69,7 +69,7 @@ bool i915_error_injected(void);
 
 #else
 
-#define i915_inject_probe_error(_i915, _err) 0
+#define i915_inject_probe_error(i915, e) ({ BUILD_BUG_ON_INVALID(i915); 0; })
 #define i915_error_injected() false
 
 #endif
@@ -233,6 +233,11 @@ static inline u64 ptr_to_u64(const void *ptr)
 	mask &= ~BIT(__idx);						\
 	__idx;								\
 })
+
+static inline bool is_power_of_2_u64(u64 n)
+{
+	return (n != 0 && ((n & (n - 1)) == 0));
+}
 
 static inline void __list_del_many(struct list_head *head,
 				   struct list_head *first)

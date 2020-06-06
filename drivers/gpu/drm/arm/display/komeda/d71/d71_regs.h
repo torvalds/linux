@@ -72,6 +72,19 @@
 #define GCU_CONTROL_MODE(x)	((x) & 0x7)
 #define GCU_CONTROL_SRST	BIT(16)
 
+/* GCU_CONFIGURATION registers */
+#define GCU_CONFIGURATION_ID0	0x100
+#define GCU_CONFIGURATION_ID1	0x104
+
+/* GCU configuration */
+#define GCU_MAX_LINE_SIZE(x)	((x) & 0xFFFF)
+#define GCU_MAX_NUM_LINES(x)	((x) >> 16)
+#define GCU_NUM_RICH_LAYERS(x)	((x) & 0x7)
+#define GCU_NUM_PIPELINES(x)	(((x) >> 3) & 0x7)
+#define GCU_NUM_SCALERS(x)	(((x) >> 6) & 0x7)
+#define GCU_DISPLAY_SPLIT_EN(x)	(((x) >> 16) & 0x1)
+#define GCU_DISPLAY_TBU_EN(x)	(((x) >> 17) & 0x1)
+
 /* GCU opmode */
 #define INACTIVE_MODE		0
 #define TBU_CONNECT_MODE	1
@@ -162,6 +175,7 @@
 #define TBU_DOUTSTDCAPB_MASK	0x3F
 
 /* LPU_IRQ_BITS */
+#define LPU_IRQ_OVR		BIT(9)
 #define LPU_IRQ_IBSY		BIT(10)
 #define LPU_IRQ_ERR		BIT(11)
 #define LPU_IRQ_EOW		BIT(12)
@@ -172,6 +186,8 @@
 #define LPU_STATUS_AXIE		BIT(4)
 #define LPU_STATUS_AXIRP	BIT(5)
 #define LPU_STATUS_AXIWP	BIT(6)
+#define LPU_STATUS_FEMPTY	BIT(11)
+#define LPU_STATUS_FFULL	BIT(14)
 #define LPU_STATUS_ACE0		BIT(16)
 #define LPU_STATUS_ACE1		BIT(17)
 #define LPU_STATUS_ACE2		BIT(18)

@@ -15,8 +15,8 @@
 #include <uapi/linux/ipv6.h>
 #include <uapi/linux/in.h>
 #include <linux/socket.h>
-#include "bpf_helpers.h"
-#include "bpf_endian.h"
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_endian.h>
 
 #define DEBUG 1
 

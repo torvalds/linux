@@ -3,8 +3,7 @@
 
 void test_probe_user(void)
 {
-#define kprobe_name "__sys_connect"
-	const char *prog_name = "kprobe/" kprobe_name;
+	const char *prog_name = "kprobe/__sys_connect";
 	const char *obj_file = "./test_probe_user.o";
 	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts, );
 	int err, results_map_fd, sock_fd, duration = 0;
@@ -33,8 +32,7 @@ void test_probe_user(void)
 		  "err %d\n", results_map_fd))
 		goto cleanup;
 
-	kprobe_link = bpf_program__attach_kprobe(kprobe_prog, false,
-						 kprobe_name);
+	kprobe_link = bpf_program__attach(kprobe_prog);
 	if (CHECK(IS_ERR(kprobe_link), "attach_kprobe",
 		  "err %ld\n", PTR_ERR(kprobe_link))) {
 		kprobe_link = NULL;

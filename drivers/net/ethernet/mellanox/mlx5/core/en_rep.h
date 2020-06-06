@@ -73,6 +73,7 @@ struct mlx5_rep_uplink_priv {
 	 */
 	struct list_head	    tc_indr_block_priv_list;
 	struct notifier_block	    netdevice_nb;
+	struct netdev_net_notifier  netdevice_nn;
 
 	struct mlx5_tun_entropy tun_entropy;
 

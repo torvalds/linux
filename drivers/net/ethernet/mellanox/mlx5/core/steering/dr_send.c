@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies. */
 
+#include <linux/smp.h>
 #include "dr_types.h"
 
 #define QUEUE_SIZE 128
@@ -557,7 +558,8 @@ int mlx5dr_send_postsend_action(struct mlx5dr_domain *dmn,
 	int ret;
 
 	send_info.write.addr = (uintptr_t)action->rewrite.data;
-	send_info.write.length = action->rewrite.chunk->byte_size;
+	send_info.write.length = action->rewrite.num_of_actions *
+				 DR_MODIFY_ACTION_SIZE;
 	send_info.write.lkey = 0;
 	send_info.remote_addr = action->rewrite.chunk->mr_addr;
 	send_info.rkey = action->rewrite.chunk->rkey;
@@ -729,7 +731,7 @@ static struct mlx5dr_cq *dr_create_cq(struct mlx5_core_dev *mdev,
 	if (!in)
 		goto err_cqwq;
 
-	vector = smp_processor_id() % mlx5_comp_vectors_count(mdev);
+	vector = raw_smp_processor_id() % mlx5_comp_vectors_count(mdev);
 	err = mlx5_vector2eqn(mdev, vector, &eqn, &irqn);
 	if (err) {
 		kvfree(in);

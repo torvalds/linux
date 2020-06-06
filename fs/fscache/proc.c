@@ -35,7 +35,7 @@ int __init fscache_proc_init(void)
 
 #ifdef CONFIG_FSCACHE_OBJECT_LIST
 	if (!proc_create("fs/fscache/objects", S_IFREG | 0444, NULL,
-			 &fscache_objlist_fops))
+			 &fscache_objlist_proc_ops))
 		goto error_objects;
 #endif
 

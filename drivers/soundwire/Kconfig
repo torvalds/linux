@@ -31,4 +31,13 @@ config SOUNDWIRE_INTEL
 	  enable this config option to get the SoundWire support for that
 	  device.
 
+config SOUNDWIRE_QCOM
+	tristate "Qualcomm SoundWire Master driver"
+	depends on SLIMBUS
+	depends on SND_SOC
+	help
+	  SoundWire Qualcomm Master driver.
+	  If you have an Qualcomm platform which has a SoundWire Master then
+	  enable this config option to get the SoundWire support for that
+	  device
 endif

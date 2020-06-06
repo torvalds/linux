@@ -537,6 +537,9 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	}
 
 	ife = to_ife(*a);
+	if (ret == ACT_P_CREATED)
+		INIT_LIST_HEAD(&ife->metalist);
+
 	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
 	if (err < 0)
 		goto release_idr;
@@ -565,10 +568,6 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 
 		p->eth_type = ife_type;
 	}
-
-
-	if (ret == ACT_P_CREATED)
-		INIT_LIST_HEAD(&ife->metalist);
 
 	if (tb[TCA_IFE_METALST]) {
 		err = nla_parse_nested_deprecated(tb2, IFE_META_MAX,

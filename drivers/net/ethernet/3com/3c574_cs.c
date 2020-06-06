@@ -234,7 +234,7 @@ static void update_stats(struct net_device *dev);
 static struct net_device_stats *el3_get_stats(struct net_device *dev);
 static int el3_rx(struct net_device *dev, int worklimit);
 static int el3_close(struct net_device *dev);
-static void el3_tx_timeout(struct net_device *dev);
+static void el3_tx_timeout(struct net_device *dev, unsigned int txqueue);
 static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static void set_rx_mode(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
@@ -690,7 +690,7 @@ static int el3_open(struct net_device *dev)
 	return 0;
 }
 
-static void el3_tx_timeout(struct net_device *dev)
+static void el3_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	unsigned int ioaddr = dev->base_addr;
 	

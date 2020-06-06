@@ -1374,7 +1374,6 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct exynos5_dmc *dmc;
-	struct resource *res;
 	int irq[2];
 
 	dmc = devm_kzalloc(dev, sizeof(*dmc), GFP_KERNEL);
@@ -1386,13 +1385,11 @@ static int exynos5_dmc_probe(struct platform_device *pdev)
 	dmc->dev = dev;
 	platform_set_drvdata(pdev, dmc);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dmc->base_drexi0 = devm_ioremap_resource(dev, res);
+	dmc->base_drexi0 = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dmc->base_drexi0))
 		return PTR_ERR(dmc->base_drexi0);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dmc->base_drexi1 = devm_ioremap_resource(dev, res);
+	dmc->base_drexi1 = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dmc->base_drexi1))
 		return PTR_ERR(dmc->base_drexi1);
 

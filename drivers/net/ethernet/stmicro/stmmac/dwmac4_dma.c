@@ -404,6 +404,11 @@ static void dwmac4_get_hw_feature(void __iomem *ioaddr,
 
 	/* 5.10 Features */
 	dma_cap->asp = (hw_cap & GMAC_HW_FEAT_ASP) >> 28;
+	dma_cap->tbssel = (hw_cap & GMAC_HW_FEAT_TBSSEL) >> 27;
+	dma_cap->fpesel = (hw_cap & GMAC_HW_FEAT_FPESEL) >> 26;
+	dma_cap->estwid = (hw_cap & GMAC_HW_FEAT_ESTWID) >> 20;
+	dma_cap->estdep = (hw_cap & GMAC_HW_FEAT_ESTDEP) >> 17;
+	dma_cap->estsel = (hw_cap & GMAC_HW_FEAT_ESTSEL) >> 16;
 	dma_cap->frpes = (hw_cap & GMAC_HW_FEAT_FRPES) >> 13;
 	dma_cap->frpbs = (hw_cap & GMAC_HW_FEAT_FRPBS) >> 11;
 	dma_cap->frpsel = (hw_cap & GMAC_HW_FEAT_FRPSEL) >> 10;
@@ -467,6 +472,25 @@ static void dwmac4_enable_sph(void __iomem *ioaddr, bool en, u32 chan)
 	writel(value, ioaddr + DMA_CHAN_CONTROL(chan));
 }
 
+static int dwmac4_enable_tbs(void __iomem *ioaddr, bool en, u32 chan)
+{
+	u32 value = readl(ioaddr + DMA_CHAN_TX_CONTROL(chan));
+
+	if (en)
+		value |= DMA_CONTROL_EDSE;
+	else
+		value &= ~DMA_CONTROL_EDSE;
+
+	writel(value, ioaddr + DMA_CHAN_TX_CONTROL(chan));
+
+	value = readl(ioaddr + DMA_CHAN_TX_CONTROL(chan)) & DMA_CONTROL_EDSE;
+	if (en && !value)
+		return -EIO;
+
+	writel(DMA_TBS_DEF_FTOS, ioaddr + DMA_TBS_CTRL);
+	return 0;
+}
+
 const struct stmmac_dma_ops dwmac4_dma_ops = {
 	.reset = dwmac4_dma_reset,
 	.init = dwmac4_dma_init,
@@ -523,4 +547,5 @@ const struct stmmac_dma_ops dwmac410_dma_ops = {
 	.qmode = dwmac4_qmode,
 	.set_bfsize = dwmac4_set_bfsize,
 	.enable_sph = dwmac4_enable_sph,
+	.enable_tbs = dwmac4_enable_tbs,
 };

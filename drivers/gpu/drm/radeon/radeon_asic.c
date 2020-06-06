@@ -27,10 +27,10 @@
  */
 
 #include <linux/console.h>
+#include <linux/pci.h>
 #include <linux/vgaarb.h>
 
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
 
 #include "atom.h"

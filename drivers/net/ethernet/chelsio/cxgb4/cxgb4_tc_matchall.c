@@ -15,6 +15,8 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 	struct flow_action *actions = &cls->rule->action;
 	struct port_info *pi = netdev2pinfo(dev);
 	struct flow_action_entry *entry;
+	struct ch_sched_queue qe;
+	struct sched_class *e;
 	u64 max_link_rate;
 	u32 i, speed;
 	int ret;
@@ -60,7 +62,59 @@ static int cxgb4_matchall_egress_validate(struct net_device *dev,
 		}
 	}
 
+	for (i = 0; i < pi->nqsets; i++) {
+		memset(&qe, 0, sizeof(qe));
+		qe.queue = i;
+
+		e = cxgb4_sched_queue_lookup(dev, &qe);
+		if (e && e->info.u.params.level != SCHED_CLASS_LEVEL_CH_RL) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Some queues are already bound to different class");
+			return -EBUSY;
+		}
+	}
+
 	return 0;
+}
+
+static int cxgb4_matchall_tc_bind_queues(struct net_device *dev, u32 tc)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct ch_sched_queue qe;
+	int ret;
+	u32 i;
+
+	for (i = 0; i < pi->nqsets; i++) {
+		qe.queue = i;
+		qe.class = tc;
+		ret = cxgb4_sched_class_bind(dev, &qe, SCHED_QUEUE);
+		if (ret)
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+	while (i--) {
+		qe.queue = i;
+		qe.class = SCHED_CLS_NONE;
+		cxgb4_sched_class_unbind(dev, &qe, SCHED_QUEUE);
+	}
+
+	return ret;
+}
+
+static void cxgb4_matchall_tc_unbind_queues(struct net_device *dev)
+{
+	struct port_info *pi = netdev2pinfo(dev);
+	struct ch_sched_queue qe;
+	u32 i;
+
+	for (i = 0; i < pi->nqsets; i++) {
+		qe.queue = i;
+		qe.class = SCHED_CLS_NONE;
+		cxgb4_sched_class_unbind(dev, &qe, SCHED_QUEUE);
+	}
 }
 
 static int cxgb4_matchall_alloc_tc(struct net_device *dev,
@@ -83,6 +137,7 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 	struct adapter *adap = netdev2adap(dev);
 	struct flow_action_entry *entry;
 	struct sched_class *e;
+	int ret;
 	u32 i;
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
@@ -101,10 +156,21 @@ static int cxgb4_matchall_alloc_tc(struct net_device *dev,
 		return -ENOMEM;
 	}
 
+	ret = cxgb4_matchall_tc_bind_queues(dev, e->idx);
+	if (ret) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Could not bind queues to traffic class");
+		goto out_free;
+	}
+
 	tc_port_matchall->egress.hwtc = e->idx;
 	tc_port_matchall->egress.cookie = cls->cookie;
 	tc_port_matchall->egress.state = CXGB4_MATCHALL_STATE_ENABLED;
 	return 0;
+
+out_free:
+	cxgb4_sched_class_free(dev, e->idx);
+	return ret;
 }
 
 static void cxgb4_matchall_free_tc(struct net_device *dev)
@@ -114,6 +180,7 @@ static void cxgb4_matchall_free_tc(struct net_device *dev)
 	struct adapter *adap = netdev2adap(dev);
 
 	tc_port_matchall = &adap->tc_matchall->port_matchall[pi->port_id];
+	cxgb4_matchall_tc_unbind_queues(dev);
 	cxgb4_sched_class_free(dev, tc_port_matchall->egress.hwtc);
 
 	tc_port_matchall->egress.hwtc = SCHED_CLS_NONE;
@@ -137,7 +204,7 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	 * -1 here. 1 slot is enough to create a wildcard matchall
 	 * VIID rule.
 	 */
-	if (cls->common.prio <= adap->tids.nftids)
+	if (cls->common.prio <= (adap->tids.nftids + adap->tids.nhpftids))
 		fidx = cls->common.prio - 1;
 	else
 		fidx = cxgb4_get_free_ftid(dev, PF_INET);
@@ -156,6 +223,8 @@ static int cxgb4_matchall_alloc_filter(struct net_device *dev,
 	fs = &tc_port_matchall->ingress.fs;
 	memset(fs, 0, sizeof(*fs));
 
+	if (fidx < adap->tids.nhpftids)
+		fs->prio = 1;
 	fs->tc_prio = cls->common.prio;
 	fs->tc_cookie = cls->cookie;
 	fs->hitcnts = 1;

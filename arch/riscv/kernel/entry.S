@@ -155,7 +155,7 @@ _save_context:
 	REG_L x2,  PT_SP(sp)
 	.endm
 
-#if !IS_ENABLED(CONFIG_PREEMPT)
+#if !IS_ENABLED(CONFIG_PREEMPTION)
 .set resume_kernel, restore_all
 #endif
 
@@ -229,19 +229,12 @@ check_syscall_nr:
 	li t0, __NR_syscalls
 	la s0, sys_ni_syscall
 	/*
-	 * The tracer can change syscall number to valid/invalid value.
-	 * We use syscall_set_nr helper in syscall_trace_enter thus we
-	 * cannot trust the current value in a7 and have to reload from
-	 * the current task pt_regs.
-	 */
-	REG_L a7, PT_A7(sp)
-	/*
 	 * Syscall number held in a7.
 	 * If syscall number is above allowed value, redirect to ni_syscall.
 	 */
 	bge a7, t0, 1f
 	/*
-	 * Check if syscall is rejected by tracer or seccomp, i.e., a7 == -1.
+	 * Check if syscall is rejected by tracer, i.e., a7 == -1.
 	 * If yes, we pretend it was executed.
 	 */
 	li t1, -1
@@ -305,7 +298,7 @@ restore_all:
 	sret
 #endif
 
-#if IS_ENABLED(CONFIG_PREEMPT)
+#if IS_ENABLED(CONFIG_PREEMPTION)
 resume_kernel:
 	REG_L s0, TASK_TI_PREEMPT_COUNT(tp)
 	bnez s0, restore_all
@@ -334,6 +327,7 @@ work_resched:
 handle_syscall_trace_enter:
 	move a0, sp
 	call do_syscall_trace_enter
+	move t0, a0
 	REG_L a0, PT_A0(sp)
 	REG_L a1, PT_A1(sp)
 	REG_L a2, PT_A2(sp)
@@ -342,6 +336,7 @@ handle_syscall_trace_enter:
 	REG_L a5, PT_A5(sp)
 	REG_L a6, PT_A6(sp)
 	REG_L a7, PT_A7(sp)
+	bnez t0, ret_from_syscall_rejected
 	j check_syscall_nr
 handle_syscall_trace_exit:
 	move a0, sp

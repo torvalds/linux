@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Dummy driver for Intel's Image Signal Processor found on Bay and Cherry
- * Trail devices. The sole purpose of this driver is to allow the ISP to
- * be put in D3.
+ * Dummy driver for Intel's Image Signal Processor found on Bay Trail
+ * and Cherry Trail devices. The sole purpose of this driver is to allow
+ * the ISP to be put in D3.
  *
  * Copyright (C) 2018 Hans de Goede <hdegoede@redhat.com>
  *
@@ -36,8 +36,7 @@
 static int isp_set_power(struct pci_dev *dev, bool enable)
 {
 	unsigned long timeout;
-	u32 val = enable ? ISPSSPM0_IUNIT_POWER_ON :
-		ISPSSPM0_IUNIT_POWER_OFF;
+	u32 val = enable ? ISPSSPM0_IUNIT_POWER_ON : ISPSSPM0_IUNIT_POWER_OFF;
 
 	/* Write to ISPSSPM0 bit[1:0] to power on/off the IUNIT */
 	iosf_mbi_modify(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM0,
@@ -45,29 +44,25 @@ static int isp_set_power(struct pci_dev *dev, bool enable)
 
 	/*
 	 * There should be no IUNIT access while power-down is
-	 * in progress HW sighting: 4567865
+	 * in progress. HW sighting: 4567865.
 	 * Wait up to 50 ms for the IUNIT to shut down.
 	 * And we do the same for power on.
 	 */
 	timeout = jiffies + msecs_to_jiffies(50);
-	while (1) {
+	do {
 		u32 tmp;
 
 		/* Wait until ISPSSPM0 bit[25:24] shows the right value */
 		iosf_mbi_read(BT_MBI_UNIT_PMC, MBI_REG_READ, ISPSSPM0, &tmp);
 		tmp = (tmp & ISPSSPM0_ISPSSS_MASK) >> ISPSSPM0_ISPSSS_OFFSET;
 		if (tmp == val)
-			break;
+			return 0;
 
-		if (time_after(jiffies, timeout)) {
-			dev_err(&dev->dev, "IUNIT power-%s timeout.\n",
-				enable ? "on" : "off");
-			return -EBUSY;
-		}
 		usleep_range(1000, 2000);
-	}
+	} while (time_before(jiffies, timeout));
 
-	return 0;
+	dev_err(&dev->dev, "IUNIT power-%s timeout.\n", enable ? "on" : "off");
+	return -EBUSY;
 }
 
 static int isp_probe(struct pci_dev *dev, const struct pci_device_id *id)

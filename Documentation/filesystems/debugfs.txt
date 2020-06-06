@@ -164,9 +164,9 @@ file.
 	void __iomem *base;
     };
 
-    struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
-				     struct dentry *parent,
-				     struct debugfs_regset32 *regset);
+    debugfs_create_regset32(const char *name, umode_t mode,
+			    struct dentry *parent,
+			    struct debugfs_regset32 *regset);
 
     void debugfs_print_regs32(struct seq_file *s, struct debugfs_reg32 *regs,
 			 int nregs, void __iomem *base, char *prefix);

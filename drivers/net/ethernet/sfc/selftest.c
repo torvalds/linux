@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "efx_common.h"
+#include "efx_channels.h"
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
@@ -783,7 +785,7 @@ void efx_selftest_async_cancel(struct efx_nic *efx)
 	cancel_delayed_work_sync(&efx->selftest_work);
 }
 
-void efx_selftest_async_work(struct work_struct *data)
+static void efx_selftest_async_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic,
 					   selftest_work.work);
@@ -801,4 +803,9 @@ void efx_selftest_async_work(struct work_struct *data)
 				  "channel %d triggered interrupt on CPU %d\n",
 				  channel->channel, cpu);
 	}
+}
+
+void efx_selftest_async_init(struct efx_nic *efx)
+{
+	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 }

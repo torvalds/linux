@@ -215,7 +215,7 @@ bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 void xen_efi_runtime_setup(void);
 
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 
 static inline void xen_preemptible_hcall_begin(void)
 {
@@ -239,6 +239,6 @@ static inline void xen_preemptible_hcall_end(void)
 	__this_cpu_write(xen_in_preemptible_hcall, false);
 }
 
-#endif /* CONFIG_PREEMPT */
+#endif /* CONFIG_PREEMPTION */
 
 #endif /* INCLUDE_XEN_OPS_H */

@@ -13,7 +13,7 @@ void test_fexit_test(void)
 	int err, pkt_fd, kfree_skb_fd, i;
 	struct bpf_link *link[6] = {};
 	struct bpf_program *prog[6];
-	__u32 duration, retval;
+	__u32 duration = 0, retval;
 	struct bpf_map *data_map;
 	const int zero = 0;
 	u64 result[6];

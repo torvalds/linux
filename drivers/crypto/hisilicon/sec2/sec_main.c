@@ -32,6 +32,7 @@
 #define SEC_PF_DEF_Q_NUM		64
 #define SEC_PF_DEF_Q_BASE		0
 #define SEC_CTX_Q_NUM_DEF		24
+#define SEC_CTX_Q_NUM_MAX		32
 
 #define SEC_CTRL_CNT_CLR_CE		0x301120
 #define SEC_CTRL_CNT_CLR_CE_BIT		BIT(0)
@@ -221,7 +222,7 @@ static int sec_ctx_q_num_set(const char *val, const struct kernel_param *kp)
 	if (ret)
 		return -EINVAL;
 
-	if (!ctx_q_num || ctx_q_num > QM_Q_DEPTH || ctx_q_num & 0x1) {
+	if (!ctx_q_num || ctx_q_num > SEC_CTX_Q_NUM_MAX || ctx_q_num & 0x1) {
 		pr_err("ctx queue num[%u] is invalid!\n", ctx_q_num);
 		return -EINVAL;
 	}
@@ -235,7 +236,7 @@ static const struct kernel_param_ops sec_ctx_q_num_ops = {
 };
 static u32 ctx_q_num = SEC_CTX_Q_NUM_DEF;
 module_param_cb(ctx_q_num, &sec_ctx_q_num_ops, &ctx_q_num, 0444);
-MODULE_PARM_DESC(ctx_q_num, "Number of queue in ctx (2, 4, 6, ..., 1024)");
+MODULE_PARM_DESC(ctx_q_num, "Queue num in ctx (24 default, 2, 4, ..., 32)");
 
 static const struct pci_device_id sec_dev_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, SEC_PF_PCI_DEVICE_ID) },
@@ -608,6 +609,14 @@ static const struct file_operations sec_dbg_fops = {
 	.write = sec_debug_write,
 };
 
+static int sec_debugfs_atomic64_get(void *data, u64 *val)
+{
+	*val = atomic64_read((atomic64_t *)data);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(sec_atomic64_ops, sec_debugfs_atomic64_get,
+			 NULL, "%lld\n");
+
 static int sec_core_debug_init(struct sec_dev *sec)
 {
 	struct hisi_qm *qm = &sec->qm;
@@ -628,9 +637,11 @@ static int sec_core_debug_init(struct sec_dev *sec)
 
 	debugfs_create_regset32("regs", 0444, tmp_d, regset);
 
-	debugfs_create_u64("send_cnt", 0444, tmp_d, &dfx->send_cnt);
+	debugfs_create_file("send_cnt", 0444, tmp_d,
+			    &dfx->send_cnt, &sec_atomic64_ops);
 
-	debugfs_create_u64("recv_cnt", 0444, tmp_d, &dfx->recv_cnt);
+	debugfs_create_file("recv_cnt", 0444, tmp_d,
+			    &dfx->recv_cnt, &sec_atomic64_ops);
 
 	return 0;
 }

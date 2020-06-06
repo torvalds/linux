@@ -7,6 +7,7 @@ tools/lib/traceevent
 tools/lib/api
 tools/lib/bpf
 tools/lib/subcmd
+tools/lib/perf
 tools/lib/argv_split.c
 tools/lib/ctype.c
 tools/lib/hweight.c

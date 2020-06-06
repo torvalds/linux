@@ -21,6 +21,13 @@ config AD_SIGMA_DELTA
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 
+config AD7091R5
+	tristate "Analog Devices AD7091R5 ADC Driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say yes here to build support for Analog Devices AD7091R-5 ADC.
+
 config AD7124
 	tristate "Analog Devices AD7124 and similar sigma-delta ADCs driver"
 	depends on SPI_MASTER
@@ -522,6 +529,16 @@ config LTC2485
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called ltc2485.
+
+config LTC2496
+	tristate "Linear Technology LTC2496 ADC driver"
+	depends on SPI
+	help
+	  Say yes here to build support for Linear Technology LTC2496
+	  16-Bit 8-/16-Channel Delta Sigma ADC.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ltc2496.
 
 config LTC2497
 	tristate "Linear Technology LTC2497 ADC driver"

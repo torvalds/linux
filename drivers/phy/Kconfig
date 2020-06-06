@@ -69,5 +69,6 @@ source "drivers/phy/socionext/Kconfig"
 source "drivers/phy/st/Kconfig"
 source "drivers/phy/tegra/Kconfig"
 source "drivers/phy/ti/Kconfig"
+source "drivers/phy/intel/Kconfig"
 
 endmenu

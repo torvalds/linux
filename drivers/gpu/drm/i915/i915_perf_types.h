@@ -339,7 +339,8 @@ struct i915_oa_ops {
 	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
-	int (*enable_metric_set)(struct i915_perf_stream *stream);
+	struct i915_request *
+		(*enable_metric_set)(struct i915_perf_stream *stream);
 
 	/**
 	 * @disable_metric_set: Remove system constraints associated with using
@@ -380,7 +381,6 @@ struct i915_perf {
 	struct drm_i915_private *i915;
 
 	struct kobject *metrics_kobj;
-	struct ctl_table_header *sysctl_header;
 
 	/*
 	 * Lock associated with adding/modifying/removing OA configs

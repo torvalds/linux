@@ -39,5 +39,5 @@ void intel_huc_fw_init_early(struct intel_huc *huc)
 int intel_huc_fw_upload(struct intel_huc *huc)
 {
 	/* HW doesn't look at destination address for HuC, so set it to 0 */
-	return intel_uc_fw_upload(&huc->fw, huc_to_gt(huc), 0, HUC_UKERNEL);
+	return intel_uc_fw_upload(&huc->fw, 0, HUC_UKERNEL);
 }

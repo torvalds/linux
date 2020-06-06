@@ -56,20 +56,6 @@ config PTP_1588_CLOCK_QORIQ
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp-qoriq.
 
-config PTP_1588_CLOCK_IXP46X
-	tristate "Intel IXP46x as PTP clock"
-	depends on IXP4XX_ETH
-	depends on PTP_1588_CLOCK
-	default y
-	help
-	  This driver adds support for using the IXP46X as a PTP
-	  clock. This clock is only useful if your PTP programs are
-	  getting hardware time stamps on the PTP Ethernet packets
-	  using the SO_TIMESTAMPING API.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called ptp_ixp46x.
-
 comment "Enable PHYLIB and NETWORK_PHY_TIMESTAMPING to see the additional clocks."
 	depends on PHYLIB=n || NETWORK_PHY_TIMESTAMPING=n
 
@@ -88,6 +74,16 @@ config DP83640_PHY
 
 	  In order for this to work, your MAC driver must also
 	  implement the skb_tx_timestamp() function.
+
+config PTP_1588_CLOCK_INES
+	tristate "ZHAW InES PTP time stamping IP core"
+	depends on NETWORK_PHY_TIMESTAMPING
+	depends on PHYLIB
+	depends on PTP_1588_CLOCK
+	help
+	  This driver adds support for using the ZHAW InES 1588 IP
+	  core.  This clock is only useful if the MII bus of your MAC
+	  is wired up to the core.
 
 config PTP_1588_CLOCK_PCH
 	tristate "Intel PCH EG20T as PTP clock"

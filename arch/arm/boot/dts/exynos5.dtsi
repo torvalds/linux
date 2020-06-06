@@ -36,7 +36,7 @@
 		ranges;
 
 		chipid: chipid@10000000 {
-			compatible = "samsung,exynos4210-chipid", "syscon";
+			compatible = "samsung,exynos4210-chipid";
 			reg = <0x10000000 0x100>;
 		};
 

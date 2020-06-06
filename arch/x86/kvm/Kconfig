@@ -59,14 +59,25 @@ config KVM
 
 	  If unsure, say N.
 
+config KVM_WERROR
+	bool "Compile KVM with -Werror"
+	# KASAN may cause the build to fail due to larger frames
+	default y if X86_64 && !KASAN
+	# We use the dependency on !COMPILE_TEST to not be enabled
+	# blindly in allmodconfig or allyesconfig configurations
+	depends on (X86_64 && !KASAN) || !COMPILE_TEST
+	depends on EXPERT
+	help
+	  Add -Werror to the build flags for KVM.
+
+	  If in doubt, say "N".
+
 config KVM_INTEL
-	tristate "KVM for Intel processors support"
-	depends on KVM
-	# for perf_guest_get_msrs():
-	depends on CPU_SUP_INTEL
+	tristate "KVM for Intel (and compatible) processors support"
+	depends on KVM && IA32_FEAT_CTL
 	---help---
-	  Provides support for KVM on Intel processors equipped with the VT
-	  extensions.
+	  Provides support for KVM on processors equipped with Intel's VT
+	  extensions, a.k.a. Virtual Machine Extensions (VMX).
 
 	  To compile this as a module, choose M here: the module
 	  will be called kvm-intel.

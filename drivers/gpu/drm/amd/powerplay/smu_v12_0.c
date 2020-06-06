@@ -66,15 +66,13 @@ int smu_v12_0_wait_for_response(struct smu_context *smu)
 	for (i = 0; i < adev->usec_timeout; i++) {
 		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
-			break;
+			return cur_value == 0x1 ? 0 : -EIO;
+
 		udelay(1);
 	}
 
 	/* timeout means wrong logic */
-	if (i == adev->usec_timeout)
-		return -ETIME;
-
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
+	return -ETIME;
 }
 
 int
@@ -90,9 +88,11 @@ smu_v12_0_send_msg_with_param(struct smu_context *smu,
 		return index;
 
 	ret = smu_v12_0_wait_for_response(smu);
-	if (ret)
-		pr_err("Failed to send message 0x%x, response 0x%x, param 0x%x\n",
-		       index, ret, param);
+	if (ret) {
+		pr_err("Msg issuing pre-check failed and "
+		       "SMU may be not in the right state!\n");
+		return ret;
+	}
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
@@ -159,7 +159,7 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 
 int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
@@ -170,13 +170,24 @@ int smu_v12_0_powergate_sdma(struct smu_context *smu, bool gate)
 
 int smu_v12_0_powergate_vcn(struct smu_context *smu, bool gate)
 {
-	if (!(smu->adev->flags & AMD_IS_APU))
+	if (!smu->is_apu)
 		return 0;
 
 	if (gate)
 		return smu_send_smc_msg(smu, SMU_MSG_PowerDownVcn);
 	else
 		return smu_send_smc_msg(smu, SMU_MSG_PowerUpVcn);
+}
+
+int smu_v12_0_powergate_jpeg(struct smu_context *smu, bool gate)
+{
+	if (!smu->is_apu)
+		return 0;
+
+	if (gate)
+		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerDownJpeg, 0);
+	else
+		return smu_send_smc_msg_with_param(smu, SMU_MSG_PowerUpJpeg, 0);
 }
 
 int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
@@ -186,6 +197,39 @@ int smu_v12_0_set_gfx_cgpg(struct smu_context *smu, bool enable)
 
 	return smu_v12_0_send_msg_with_param(smu,
 		SMU_MSG_SetGfxCGPG, enable ? 1 : 0);
+}
+
+int smu_v12_0_read_sensor(struct smu_context *smu,
+				 enum amd_pp_sensors sensor,
+				 void *data, uint32_t *size)
+{
+	int ret = 0;
+
+	if(!data || !size)
+		return -EINVAL;
+
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
+		*(uint32_t *)data = 0;
+		*size = 4;
+		break;
+	default:
+		ret = smu_common_read_sensor(smu, sensor, data, size);
+		break;
+	}
+
+	if (ret)
+		*size = 0;
+
+	return ret;
 }
 
 /**
@@ -274,16 +318,57 @@ int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 int smu_v12_0_populate_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct smu_table *table = NULL;
-
-	table = &smu_table->tables[SMU_TABLE_DPMCLOCKS];
-	if (!table)
-		return -EINVAL;
-
-	if (!table->cpu_addr)
-		return -EINVAL;
 
 	return smu_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
+}
+
+int smu_v12_0_get_enabled_mask(struct smu_context *smu,
+				      uint32_t *feature_mask, uint32_t num)
+{
+	uint32_t feature_mask_high = 0, feature_mask_low = 0;
+	int ret = 0;
+
+	if (!feature_mask || num < 2)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesHigh);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_high);
+	if (ret)
+		return ret;
+
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetEnabledSmuFeaturesLow);
+	if (ret)
+		return ret;
+	ret = smu_read_smc_arg(smu, &feature_mask_low);
+	if (ret)
+		return ret;
+
+	feature_mask[0] = feature_mask_low;
+	feature_mask[1] = feature_mask_high;
+
+	return ret;
+}
+
+int smu_v12_0_get_current_clk_freq(struct smu_context *smu,
+					  enum smu_clk_type clk_id,
+					  uint32_t *value)
+{
+	int ret = 0;
+	uint32_t freq = 0;
+
+	if (clk_id >= SMU_CLK_COUNT || !value)
+		return -EINVAL;
+
+	ret = smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
+	if (ret)
+		return ret;
+
+	freq *= 100;
+	*value = freq;
+
+	return ret;
 }
 
 int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
@@ -373,9 +458,6 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 {
 	int ret = 0;
 
-	if (max < min)
-		return -EINVAL;
-
 	switch (clk_type) {
 	case SMU_GFXCLK:
 	case SMU_SCLK:
@@ -417,6 +499,24 @@ int smu_v12_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	break;
 	default:
 		return -EINVAL;
+	}
+
+	return ret;
+}
+
+int smu_v12_0_set_driver_table_location(struct smu_context *smu)
+{
+	struct smu_table *driver_table = &smu->smu_table.driver_table;
+	int ret = 0;
+
+	if (driver_table->mc_address) {
+		ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrHigh,
+				upper_32_bits(driver_table->mc_address));
+		if (!ret)
+			ret = smu_send_smc_msg_with_param(smu,
+				SMU_MSG_SetDriverDramAddrLow,
+				lower_32_bits(driver_table->mc_address));
 	}
 
 	return ret;

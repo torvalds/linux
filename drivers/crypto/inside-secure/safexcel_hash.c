@@ -87,12 +87,14 @@ static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 
 	input_length &= 15;
 	if (unlikely(cbcmac && input_length)) {
+		token[0].stat =  0;
 		token[1].opcode = EIP197_TOKEN_OPCODE_INSERT;
 		token[1].packet_length = 16 - input_length;
 		token[1].stat = EIP197_TOKEN_STAT_LAST_HASH;
 		token[1].instructions = EIP197_TOKEN_INS_TYPE_HASH;
 	} else {
 		token[0].stat = EIP197_TOKEN_STAT_LAST_HASH;
+		eip197_noop_token(&token[1]);
 	}
 
 	token[2].opcode = EIP197_TOKEN_OPCODE_INSERT;
@@ -101,6 +103,8 @@ static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 	token[2].packet_length = result_length;
 	token[2].instructions = EIP197_TOKEN_INS_TYPE_OUTPUT |
 				EIP197_TOKEN_INS_INSERT_HASH_DIGEST;
+
+	eip197_noop_token(&token[3]);
 }
 
 static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
@@ -111,6 +115,7 @@ static void safexcel_context_control(struct safexcel_ahash_ctx *ctx,
 	u64 count = 0;
 
 	cdesc->control_data.control0 = ctx->alg;
+	cdesc->control_data.control1 = 0;
 
 	/*
 	 * Copy the input digest if needed, and setup the context
@@ -277,7 +282,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 			sreq->processed = sreq->block_sz;
 			sreq->hmac = 0;
 
-			ctx->base.needs_inv = true;
+			if (priv->flags & EIP197_TRC_CACHE)
+				ctx->base.needs_inv = true;
 			areq->nbytes = 0;
 			safexcel_ahash_enqueue(areq);
 
@@ -314,6 +320,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 	struct safexcel_command_desc *cdesc, *first_cdesc = NULL;
 	struct safexcel_result_desc *rdesc;
 	struct scatterlist *sg;
+	struct safexcel_token *dmmy;
 	int i, extra = 0, n_cdesc = 0, ret = 0, cache_len, skip = 0;
 	u64 queued, len;
 
@@ -397,7 +404,8 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		first_cdesc = safexcel_add_cdesc(priv, ring, 1,
 						 (cache_len == len),
 						 req->cache_dma, cache_len,
-						 len, ctx->base.ctxr_dma);
+						 len, ctx->base.ctxr_dma,
+						 &dmmy);
 		if (IS_ERR(first_cdesc)) {
 			ret = PTR_ERR(first_cdesc);
 			goto unmap_cache;
@@ -436,7 +444,7 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 		cdesc = safexcel_add_cdesc(priv, ring, !n_cdesc,
 					   !(queued - sglen),
 					   sg_dma_address(sg) + skip, sglen,
-					   len, ctx->base.ctxr_dma);
+					   len, ctx->base.ctxr_dma, &dmmy);
 		if (IS_ERR(cdesc)) {
 			ret = PTR_ERR(cdesc);
 			goto unmap_sg;
@@ -1911,10 +1919,8 @@ static int safexcel_crc32_setkey(struct crypto_ahash *tfm, const u8 *key,
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(crypto_ahash_tfm(tfm));
 
-	if (keylen != sizeof(u32)) {
-		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen != sizeof(u32))
 		return -EINVAL;
-	}
 
 	memcpy(ctx->ipad, key, sizeof(u32));
 	return 0;
@@ -1987,10 +1993,8 @@ static int safexcel_cbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	int ret, i;
 
 	ret = aes_expandkey(&aes, key, len);
-	if (ret) {
-		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	memset(ctx->ipad, 0, 2 * AES_BLOCK_SIZE);
 	for (i = 0; i < len / sizeof(u32); i++)
@@ -2057,18 +2061,14 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	int ret, i;
 
 	ret = aes_expandkey(&aes, key, len);
-	if (ret) {
-		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	/* precompute the XCBC key material */
 	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
 	ret = crypto_cipher_setkey(ctx->kaes, key, len);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 
@@ -2088,8 +2088,6 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	ret = crypto_cipher_setkey(ctx->kaes,
 				   (u8 *)key_tmp + 2 * AES_BLOCK_SIZE,
 				   AES_MIN_KEY_SIZE);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 
@@ -2160,10 +2158,8 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	int ret, i;
 
 	ret = aes_expandkey(&aes, key, len);
-	if (ret) {
-		crypto_ahash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (ret)
 		return ret;
-	}
 
 	for (i = 0; i < len / sizeof(u32); i++)
 		ctx->ipad[i + 8] =
@@ -2174,8 +2170,6 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
 				CRYPTO_TFM_REQ_MASK);
 	ret = crypto_cipher_setkey(ctx->kaes, key, len);
-	crypto_ahash_set_flags(tfm, crypto_cipher_get_flags(ctx->kaes) &
-			       CRYPTO_TFM_RES_MASK);
 	if (ret)
 		return ret;
 

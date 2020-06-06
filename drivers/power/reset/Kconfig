@@ -26,7 +26,7 @@ config POWER_RESET_AT91_POWEROFF
 config POWER_RESET_AT91_RESET
 	tristate "Atmel AT91 reset driver"
 	depends on ARCH_AT91
-	default SOC_AT91SAM9 || SOC_SAMA5
+	default SOC_AT91SAM9 || SOC_SAM9X60 || SOC_SAMA5
 	help
 	  This driver supports restart for Atmel AT91SAM9 and SAMA5
 	  SoCs
@@ -34,7 +34,7 @@ config POWER_RESET_AT91_RESET
 config POWER_RESET_AT91_SAMA5D2_SHDWC
 	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
 	depends on ARCH_AT91
-	default SOC_SAMA5
+	default SOC_SAM9X60 || SOC_SAMA5
 	help
 	  This driver supports the alternate shutdown controller for some Atmel
 	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
@@ -141,14 +141,14 @@ config POWER_RESET_LTC2952
 	  down via the LTC2952. Bindings are made in the device tree.
 
 config POWER_RESET_MT6323
-       bool "MediaTek MT6323 power-off driver"
-       depends on MFD_MT6397
-       help
-         The power-off driver is responsible for externally shutdown down
-         the power of a remote MediaTek SoC MT6323 is connected to through
-         controlling a tiny circuit BBPU inside MT6323 RTC.
+	bool "MediaTek MT6323 power-off driver"
+	depends on MFD_MT6397
+	help
+	  The power-off driver is responsible for externally shutdown down
+	  the power of a remote MediaTek SoC MT6323 is connected to through
+	  controlling a tiny circuit BBPU inside MT6323 RTC.
 
-         Say Y if you have a board where MT6323 could be found.
+	  Say Y if you have a board where MT6323 could be found.
 
 config POWER_RESET_QNAP
 	bool "QNAP power-off driver"

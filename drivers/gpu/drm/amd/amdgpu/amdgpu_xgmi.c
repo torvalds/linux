@@ -146,16 +146,16 @@ static ssize_t amdgpu_xgmi_show_error(struct device *dev,
 	ficaa_pie_ctl_in = AMDGPU_XGMI_SET_FICAA(0x200);
 	ficaa_pie_status_in = AMDGPU_XGMI_SET_FICAA(0x208);
 
-	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_ctl_in);
+	fica_out = adev->df.funcs->get_fica(adev, ficaa_pie_ctl_in);
 	if (fica_out != 0x1f)
 		pr_err("xGMI error counters not enabled!\n");
 
-	fica_out = adev->df_funcs->get_fica(adev, ficaa_pie_status_in);
+	fica_out = adev->df.funcs->get_fica(adev, ficaa_pie_status_in);
 
 	if ((fica_out & 0xffff) == 2)
 		error_count = ((fica_out >> 62) & 0x1) + (fica_out >> 63);
 
-	adev->df_funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
+	adev->df.funcs->set_fica(adev, ficaa_pie_status_in, 0, 0);
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", error_count);
 }
@@ -261,6 +261,7 @@ struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lo
 	INIT_LIST_HEAD(&tmp->device_list);
 	mutex_init(&tmp->hive_lock);
 	mutex_init(&tmp->reset_lock);
+	task_barrier_init(&tmp->tb);
 
 	if (lock)
 		mutex_lock(&tmp->hive_lock);
@@ -290,13 +291,7 @@ int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate)
 
 	dev_dbg(adev->dev, "Set xgmi pstate %d.\n", pstate);
 
-	if (is_support_sw_smu_xgmi(adev))
-		ret = smu_set_xgmi_pstate(&adev->smu, pstate);
-	else if (adev->powerplay.pp_funcs &&
-		 adev->powerplay.pp_funcs->set_xgmi_pstate)
-		ret = adev->powerplay.pp_funcs->set_xgmi_pstate(adev->powerplay.pp_handle,
-								pstate);
-
+	ret = amdgpu_dpm_set_xgmi_pstate(adev, pstate);
 	if (ret) {
 		dev_err(adev->dev,
 			"XGMI: Set pstate failure on device %llx, hive %llx, ret %d",
@@ -408,6 +403,8 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 	top_info->num_nodes = count;
 	hive->number_devices = count;
 
+	task_barrier_add_task(&hive->tb);
+
 	if (amdgpu_device_ip_get_ip_block(adev, AMD_IP_BLOCK_TYPE_PSP)) {
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 			/* update node list for other device in the hive */
@@ -470,6 +467,7 @@ void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 		mutex_destroy(&hive->hive_lock);
 		mutex_destroy(&hive->reset_lock);
 	} else {
+		task_barrier_rem_task(&hive->tb);
 		amdgpu_xgmi_sysfs_rem_dev_info(adev, hive);
 		mutex_unlock(&hive->hive_lock);
 	}

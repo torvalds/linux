@@ -42,20 +42,27 @@ void mpc1_set_bg_color(struct mpc *mpc,
 		int mpcc_id)
 {
 	struct dcn10_mpc *mpc10 = TO_DCN10_MPC(mpc);
+	struct mpcc *bottommost_mpcc = mpc1_get_mpcc(mpc, mpcc_id);
+	uint32_t bg_r_cr, bg_g_y, bg_b_cb;
+
+	/* find bottommost mpcc. */
+	while (bottommost_mpcc->mpcc_bot) {
+		bottommost_mpcc = bottommost_mpcc->mpcc_bot;
+	}
 
 	/* mpc color is 12 bit.  tg_color is 10 bit */
 	/* todo: might want to use 16 bit to represent color and have each
 	 * hw block translate to correct color depth.
 	 */
-	uint32_t bg_r_cr = bg_color->color_r_cr << 2;
-	uint32_t bg_g_y = bg_color->color_g_y << 2;
-	uint32_t bg_b_cb = bg_color->color_b_cb << 2;
+	bg_r_cr = bg_color->color_r_cr << 2;
+	bg_g_y = bg_color->color_g_y << 2;
+	bg_b_cb = bg_color->color_b_cb << 2;
 
-	REG_SET(MPCC_BG_R_CR[mpcc_id], 0,
+	REG_SET(MPCC_BG_R_CR[bottommost_mpcc->mpcc_id], 0,
 			MPCC_BG_R_CR, bg_r_cr);
-	REG_SET(MPCC_BG_G_Y[mpcc_id], 0,
+	REG_SET(MPCC_BG_G_Y[bottommost_mpcc->mpcc_id], 0,
 			MPCC_BG_G_Y, bg_g_y);
-	REG_SET(MPCC_BG_B_CB[mpcc_id], 0,
+	REG_SET(MPCC_BG_B_CB[bottommost_mpcc->mpcc_id], 0,
 			MPCC_BG_B_CB, bg_b_cb);
 }
 
@@ -457,12 +464,10 @@ static const struct mpc_funcs dcn10_mpc_funcs = {
 	.assert_mpcc_idle_before_connect = mpc1_assert_mpcc_idle_before_connect,
 	.init_mpcc_list_from_hw = mpc1_init_mpcc_list_from_hw,
 	.update_blending = mpc1_update_blending,
-#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	.set_denorm = NULL,
 	.set_denorm_clamp = NULL,
 	.set_output_csc = NULL,
 	.set_output_gamma = NULL,
-#endif
 };
 
 void dcn10_mpc_construct(struct dcn10_mpc *mpc10,

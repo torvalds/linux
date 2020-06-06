@@ -91,7 +91,7 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	kfd->doorbell_base = kfd->shared_resources.doorbell_physical_address +
 				doorbell_start_offset;
 
-	kfd->doorbell_id_offset = doorbell_start_offset / sizeof(u32);
+	kfd->doorbell_base_dw_offset = doorbell_start_offset / sizeof(u32);
 
 	kfd->doorbell_kernel_ptr = ioremap(kfd->doorbell_base,
 					   kfd_doorbell_process_slice(kfd));
@@ -103,8 +103,8 @@ int kfd_doorbell_init(struct kfd_dev *kfd)
 	pr_debug("doorbell base           == 0x%08lX\n",
 			(uintptr_t)kfd->doorbell_base);
 
-	pr_debug("doorbell_id_offset      == 0x%08lX\n",
-			kfd->doorbell_id_offset);
+	pr_debug("doorbell_base_dw_offset      == 0x%08lX\n",
+			kfd->doorbell_base_dw_offset);
 
 	pr_debug("doorbell_process_limit  == 0x%08lX\n",
 			doorbell_process_limit);
@@ -185,7 +185,7 @@ void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 	 * Calculating the kernel doorbell offset using the first
 	 * doorbell page.
 	 */
-	*doorbell_off = kfd->doorbell_id_offset + inx;
+	*doorbell_off = kfd->doorbell_base_dw_offset + inx;
 
 	pr_debug("Get kernel queue doorbell\n"
 			"     doorbell offset   == 0x%08X\n"
@@ -225,17 +225,17 @@ void write_kernel_doorbell64(void __iomem *db, u64 value)
 	}
 }
 
-unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
+unsigned int kfd_get_doorbell_dw_offset_in_bar(struct kfd_dev *kfd,
 					struct kfd_process *process,
 					unsigned int doorbell_id)
 {
 	/*
-	 * doorbell_id_offset accounts for doorbells taken by KGD.
+	 * doorbell_base_dw_offset accounts for doorbells taken by KGD.
 	 * index * kfd_doorbell_process_slice/sizeof(u32) adjusts to
 	 * the process's doorbells. The offset returned is in dword
 	 * units regardless of the ASIC-dependent doorbell size.
 	 */
-	return kfd->doorbell_id_offset +
+	return kfd->doorbell_base_dw_offset +
 		process->doorbell_index
 		* kfd_doorbell_process_slice(kfd) / sizeof(u32) +
 		doorbell_id * kfd->device_info->doorbell_size / sizeof(u32);

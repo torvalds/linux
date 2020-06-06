@@ -567,6 +567,11 @@ D: Original author of Amiga FFS filesystem
 S: Orlando, Florida
 S: USA
 
+N: Paul Burton
+E: paulburton@kernel.org
+W: https://pburton.com
+D: MIPS maintainer 2018-2020
+
 N: Lennert Buytenhek
 E: kernel@wantstofly.org
 D: Original (2.4) rewrite of the ethernet bridging code
@@ -3302,7 +3307,9 @@ S: France
 N: Aleksa Sarai
 E: cyphar@cyphar.com
 W: https://www.cyphar.com/
-D: `pids` cgroup subsystem
+D: /sys/fs/cgroup/pids
+D: openat2(2)
+S: Sydney, Australia
 
 N: Dipankar Sarma
 E: dipankar@in.ibm.com

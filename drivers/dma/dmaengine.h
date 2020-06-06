@@ -77,6 +77,7 @@ static inline enum dma_status dma_cookie_status(struct dma_chan *chan,
 		state->last = complete;
 		state->used = used;
 		state->residue = 0;
+		state->in_flight_bytes = 0;
 	}
 	return dma_async_is_complete(cookie, complete, used);
 }
@@ -85,6 +86,13 @@ static inline void dma_set_residue(struct dma_tx_state *state, u32 residue)
 {
 	if (state)
 		state->residue = residue;
+}
+
+static inline void dma_set_in_flight_bytes(struct dma_tx_state *state,
+					   u32 in_flight_bytes)
+{
+	if (state)
+		state->in_flight_bytes = in_flight_bytes;
 }
 
 struct dmaengine_desc_callback {
@@ -170,5 +178,8 @@ dmaengine_desc_callback_valid(struct dmaengine_desc_callback *cb)
 {
 	return (cb->callback) ? true : false;
 }
+
+struct dma_chan *dma_get_slave_channel(struct dma_chan *chan);
+struct dma_chan *dma_get_any_slave_channel(struct dma_device *device);
 
 #endif

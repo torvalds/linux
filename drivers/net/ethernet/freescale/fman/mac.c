@@ -692,7 +692,7 @@ static int mac_probe(struct platform_device *_of_dev)
 
 	mac_dev->res = __devm_request_region(dev,
 					     fman_get_mem_region(priv->fman),
-					     res.start, res.end + 1 - res.start,
+					     res.start, resource_size(&res),
 					     "mac");
 	if (!mac_dev->res) {
 		dev_err(dev, "__devm_request_mem_region(mac) failed\n");
@@ -701,7 +701,7 @@ static int mac_probe(struct platform_device *_of_dev)
 	}
 
 	priv->vaddr = devm_ioremap(dev, mac_dev->res->start,
-				   mac_dev->res->end + 1 - mac_dev->res->start);
+				   resource_size(mac_dev->res));
 	if (!priv->vaddr) {
 		dev_err(dev, "devm_ioremap() failed\n");
 		err = -EIO;

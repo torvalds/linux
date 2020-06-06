@@ -22,29 +22,15 @@
  * Author: AMD
  */
 
-#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 #include "dc_hw_types.h"
 #include "dsc.h"
 #include <drm/drm_dp_helper.h>
-
-struct dc_dsc_policy {
-	bool use_min_slices_h;
-	int max_slices_h; // Maximum available if 0
-	int min_sice_height; // Must not be less than 8
-	int max_target_bpp;
-	int min_target_bpp; // Minimum target bits per pixel
-};
-
-const struct dc_dsc_policy dsc_policy = {
-	.use_min_slices_h = true, // DSC Policy: Use minimum number of slices that fits the pixel clock
-	.max_slices_h = 0, // DSC Policy: Use max available slices (in our case 4 for or 8, depending on the mode)
-	.min_sice_height = 108, // DSC Policy: Use slice height recommended by VESA DSC Spreadsheet user guide
-	.max_target_bpp = 16,
-	.min_target_bpp = 8,
-};
-
+#include "dc.h"
 
 /* This module's internal functions */
+
+/* default DSC policy target bitrate limit is 16bpp */
+static uint32_t dsc_policy_max_target_bpp_limit = 16;
 
 static uint32_t dc_dsc_bandwidth_in_kbps_from_timing(
 	const struct dc_crtc_timing *timing)
@@ -237,8 +223,12 @@ static void get_dsc_enc_caps(
 	// This is a static HW query, so we can use any DSC
 
 	memset(dsc_enc_caps, 0, sizeof(struct dsc_enc_caps));
-	if (dsc)
-		dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
+	if (dsc) {
+		if (!dsc->ctx->dc->debug.disable_dsc)
+			dsc->funcs->dsc_get_enc_caps(dsc_enc_caps, pixel_clock_100Hz);
+		if (dsc->ctx->dc->debug.native422_support)
+			dsc_enc_caps->color_formats.bits.YCBCR_NATIVE_422 = 1;
+	}
 }
 
 /* Returns 'false' if no intersection was found for at least one capablity.
@@ -578,9 +568,11 @@ static bool setup_dsc_config(
 	bool is_dsc_possible = false;
 	int pic_height;
 	int slice_height;
+	struct dc_dsc_policy policy;
 
 	memset(dsc_cfg, 0, sizeof(struct dc_dsc_config));
 
+	dc_dsc_get_policy_for_timing(timing, &policy);
 	pic_width = timing->h_addressable + timing->h_border_left + timing->h_border_right;
 	pic_height = timing->v_addressable + timing->v_border_top + timing->v_border_bottom;
 
@@ -596,7 +588,12 @@ static bool setup_dsc_config(
 		goto done;
 
 	if (target_bandwidth_kbps > 0) {
-		is_dsc_possible = decide_dsc_target_bpp_x16(&dsc_policy, &dsc_common_caps, target_bandwidth_kbps, timing, &target_bpp);
+		is_dsc_possible = decide_dsc_target_bpp_x16(
+				&policy,
+				&dsc_common_caps,
+				target_bandwidth_kbps,
+				timing,
+				&target_bpp);
 		dsc_cfg->bits_per_pixel = target_bpp;
 	}
 	if (!is_dsc_possible)
@@ -698,20 +695,20 @@ static bool setup_dsc_config(
 	if (!is_dsc_possible)
 		goto done;
 
-	if (dsc_policy.use_min_slices_h) {
+	if (policy.use_min_slices_h) {
 		if (min_slices_h > 0)
 			num_slices_h = min_slices_h;
 		else if (max_slices_h > 0) { // Fall back to max slices if min slices is not working out
-			if (dsc_policy.max_slices_h)
-				num_slices_h = min(dsc_policy.max_slices_h, max_slices_h);
+			if (policy.max_slices_h)
+				num_slices_h = min(policy.max_slices_h, max_slices_h);
 			else
 				num_slices_h = max_slices_h;
 		} else
 			is_dsc_possible = false;
 	} else {
 		if (max_slices_h > 0) {
-			if (dsc_policy.max_slices_h)
-				num_slices_h = min(dsc_policy.max_slices_h, max_slices_h);
+			if (policy.max_slices_h)
+				num_slices_h = min(policy.max_slices_h, max_slices_h);
 			else
 				num_slices_h = max_slices_h;
 		} else if (min_slices_h > 0) // Fall back to min slices if max slices is not possible
@@ -733,7 +730,7 @@ static bool setup_dsc_config(
 	// Slice height (i.e. number of slices per column): start with policy and pick the first one that height is divisible by.
 	// For 4:2:0 make sure the slice height is divisible by 2 as well.
 	if (min_slice_height_override == 0)
-		slice_height = min(dsc_policy.min_sice_height, pic_height);
+		slice_height = min(policy.min_slice_height, pic_height);
 	else
 		slice_height = min(min_slice_height_override, pic_height);
 
@@ -764,7 +761,7 @@ done:
 	return is_dsc_possible;
 }
 
-bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
+bool dc_dsc_parse_dsc_dpcd(const struct dc *dc, const uint8_t *dpcd_dsc_basic_data, const uint8_t *dpcd_dsc_ext_data, struct dsc_dec_dpcd_caps *dsc_sink_caps)
 {
 	if (!dpcd_dsc_basic_data)
 		return false;
@@ -816,6 +813,23 @@ bool dc_dsc_parse_dsc_dpcd(const uint8_t *dpcd_dsc_basic_data, const uint8_t *dp
 
 	if (!dsc_bpp_increment_div_from_dpcd(dpcd_dsc_basic_data[DP_DSC_BITS_PER_PIXEL_INC - DP_DSC_SUPPORT], &dsc_sink_caps->bpp_increment_div))
 		return false;
+
+	if (dc->debug.dsc_bpp_increment_div) {
+		/* dsc_bpp_increment_div should onl be 1, 2, 4, 8 or 16, but rather than rejecting invalid values,
+		 * we'll accept all and get it into range. This also makes the above check against 0 redundant,
+		 * but that one stresses out the override will be only used if it's not 0.
+		 */
+		if (dc->debug.dsc_bpp_increment_div >= 1)
+			dsc_sink_caps->bpp_increment_div = 1;
+		if (dc->debug.dsc_bpp_increment_div >= 2)
+			dsc_sink_caps->bpp_increment_div = 2;
+		if (dc->debug.dsc_bpp_increment_div >= 4)
+			dsc_sink_caps->bpp_increment_div = 4;
+		if (dc->debug.dsc_bpp_increment_div >= 8)
+			dsc_sink_caps->bpp_increment_div = 8;
+		if (dc->debug.dsc_bpp_increment_div >= 16)
+			dsc_sink_caps->bpp_increment_div = 16;
+	}
 
 	/* Extended caps */
 	if (dpcd_dsc_ext_data == NULL) { // Extended DPCD DSC data can be null, e.g. because it doesn't apply to SST
@@ -903,4 +917,67 @@ bool dc_dsc_compute_config(
 			timing, dsc_min_slice_height_override, dsc_cfg);
 	return is_dsc_possible;
 }
-#endif /* CONFIG_DRM_AMD_DC_DSC_SUPPORT */
+
+void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing, struct dc_dsc_policy *policy)
+{
+	uint32_t bpc = 0;
+
+	policy->min_target_bpp = 0;
+	policy->max_target_bpp = 0;
+
+	/* DSC Policy: Use minimum number of slices that fits the pixel clock */
+	policy->use_min_slices_h = true;
+
+	/* DSC Policy: Use max available slices
+	 * (in our case 4 for or 8, depending on the mode)
+	 */
+	policy->max_slices_h = 0;
+
+	/* DSC Policy: Use slice height recommended
+	 * by VESA DSC Spreadsheet user guide
+	 */
+	policy->min_slice_height = 108;
+
+	/* DSC Policy: follow DP specs with an internal upper limit to 16 bpp
+	 * for better interoperability
+	 */
+	switch (timing->display_color_depth) {
+	case COLOR_DEPTH_888:
+		bpc = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bpc = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bpc = 12;
+		break;
+	default:
+		return;
+	}
+	switch (timing->pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+	case PIXEL_ENCODING_YCBCR444:
+	case PIXEL_ENCODING_YCBCR422: /* assume no YCbCr422 native support */
+		/* DP specs limits to 8 */
+		policy->min_target_bpp = 8;
+		/* DP specs limits to 3 x bpc */
+		policy->max_target_bpp = 3 * bpc;
+		break;
+	case PIXEL_ENCODING_YCBCR420:
+		/* DP specs limits to 6 */
+		policy->min_target_bpp = 6;
+		/* DP specs limits to 1.5 x bpc assume bpc is an even number */
+		policy->max_target_bpp = bpc * 3 / 2;
+		break;
+	default:
+		return;
+	}
+	/* internal upper limit, default 16 bpp */
+	if (policy->max_target_bpp > dsc_policy_max_target_bpp_limit)
+		policy->max_target_bpp = dsc_policy_max_target_bpp_limit;
+}
+
+void dc_dsc_policy_set_max_target_bpp_limit(uint32_t limit)
+{
+	dsc_policy_max_target_bpp_limit = limit;
+}

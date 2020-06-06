@@ -1512,7 +1512,7 @@ static int rtsx_pci_probe(struct pci_dev *pcidev,
 		bar = 1;
 	len = pci_resource_len(pcidev, bar);
 	base = pci_resource_start(pcidev, bar);
-	pcr->remap_addr = ioremap_nocache(base, len);
+	pcr->remap_addr = ioremap(base, len);
 	if (!pcr->remap_addr) {
 		ret = -ENOMEM;
 		goto free_handle;

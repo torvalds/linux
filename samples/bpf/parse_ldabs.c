@@ -11,7 +11,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <uapi/linux/bpf.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 #include "bpf_legacy.h"
 
 #define DEFAULT_PKTGEN_UDP_PORT	9

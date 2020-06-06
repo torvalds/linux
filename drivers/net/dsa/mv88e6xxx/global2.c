@@ -948,10 +948,13 @@ static int mv88e6xxx_g2_watchdog_setup(struct mv88e6xxx_chip *chip)
 	if (chip->watchdog_irq < 0)
 		return chip->watchdog_irq;
 
+	snprintf(chip->watchdog_irq_name, sizeof(chip->watchdog_irq_name),
+		 "mv88e6xxx-%s-watchdog", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->watchdog_irq, NULL,
 				   mv88e6xxx_g2_watchdog_thread_fn,
 				   IRQF_ONESHOT | IRQF_TRIGGER_FALLING,
-				   "mv88e6xxx-watchdog", chip);
+				   chip->watchdog_irq_name, chip);
 	if (err)
 		return err;
 
@@ -1096,6 +1099,13 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 {
 	int err, irq, virq;
 
+	chip->g2_irq.masked = ~0;
+	mv88e6xxx_reg_lock(chip);
+	err = mv88e6xxx_g2_int_mask(chip, ~chip->g2_irq.masked);
+	mv88e6xxx_reg_unlock(chip);
+	if (err)
+		return err;
+
 	chip->g2_irq.domain = irq_domain_add_simple(
 		chip->dev->of_node, 16, 0, &mv88e6xxx_g2_irq_domain_ops, chip);
 	if (!chip->g2_irq.domain)
@@ -1105,7 +1115,6 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 		irq_create_mapping(chip->g2_irq.domain, irq);
 
 	chip->g2_irq.chip = mv88e6xxx_g2_irq_chip;
-	chip->g2_irq.masked = ~0;
 
 	chip->device_irq = irq_find_mapping(chip->g1_irq.domain,
 					    MV88E6XXX_G1_STS_IRQ_DEVICE);
@@ -1114,9 +1123,12 @@ int mv88e6xxx_g2_irq_setup(struct mv88e6xxx_chip *chip)
 		goto out;
 	}
 
+	snprintf(chip->device_irq_name, sizeof(chip->device_irq_name),
+		 "mv88e6xxx-%s-g2", dev_name(chip->dev));
+
 	err = request_threaded_irq(chip->device_irq, NULL,
 				   mv88e6xxx_g2_irq_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-g2", chip);
+				   IRQF_ONESHOT, chip->device_irq_name, chip);
 	if (err)
 		goto out;
 

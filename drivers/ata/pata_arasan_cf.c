@@ -526,9 +526,10 @@ static void data_xfer(struct work_struct *work)
 
 	/* request dma channels */
 	/* dma_request_channel may sleep, so calling from process context */
-	acdev->dma_chan = dma_request_slave_channel(acdev->host->dev, "data");
-	if (!acdev->dma_chan) {
+	acdev->dma_chan = dma_request_chan(acdev->host->dev, "data");
+	if (IS_ERR(acdev->dma_chan)) {
 		dev_err(acdev->host->dev, "Unable to get dma_chan\n");
+		acdev->dma_chan = NULL;
 		goto chan_request_fail;
 	}
 
@@ -539,6 +540,7 @@ static void data_xfer(struct work_struct *work)
 	}
 
 	dma_release_channel(acdev->dma_chan);
+	acdev->dma_chan = NULL;
 
 	/* data xferred successfully */
 	if (!ret) {
@@ -824,7 +826,7 @@ static int arasan_cf_probe(struct platform_device *pdev)
 		quirk |= CF_BROKEN_MWDMA | CF_BROKEN_UDMA;
 
 	acdev->pbase = res->start;
-	acdev->vbase = devm_ioremap_nocache(&pdev->dev, res->start,
+	acdev->vbase = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
 	if (!acdev->vbase) {
 		dev_warn(&pdev->dev, "ioremap fail\n");

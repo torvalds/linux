@@ -198,7 +198,7 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		if (!mvmvif->queue_params[ac].uapsd)
 			continue;
 
-		if (mvm->fwrt.cur_fw_img != IWL_UCODE_WOWLAN)
+		if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
 			cmd->flags |=
 				cpu_to_le16(POWER_FLAGS_ADVANCE_PM_ENA_MSK);
 
@@ -233,15 +233,15 @@ static void iwl_mvm_power_configure_uapsd(struct iwl_mvm *mvm,
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK);
 		cmd->snooze_interval = cpu_to_le16(IWL_MVM_PS_SNOOZE_INTERVAL);
 		cmd->snooze_window =
-			(mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
+			test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status) ?
 				cpu_to_le16(IWL_MVM_WOWLAN_PS_SNOOZE_WINDOW) :
 				cpu_to_le16(IWL_MVM_PS_SNOOZE_WINDOW);
 	}
 
 	cmd->uapsd_max_sp = mvm->hw->uapsd_max_sp_len;
 
-	if (mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN || cmd->flags &
-	    cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
+	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status) ||
+	    cmd->flags & cpu_to_le16(POWER_FLAGS_SNOOZE_ENA_MSK)) {
 		cmd->rx_data_timeout_uapsd =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout_uapsd =
@@ -354,8 +354,7 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 
 static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif,
-					   struct iwl_mac_power_cmd *cmd,
-					   bool host_awake)
+					   struct iwl_mac_power_cmd *cmd)
 {
 	int dtimper = vif->bss_conf.dtim_period ?: 1;
 	int skip;
@@ -370,7 +369,7 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 	if (dtimper >= 10)
 		return;
 
-	if (host_awake) {
+	if (!test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status)) {
 		if (iwlmvm_mod_params.power_scheme != IWL_POWER_SCHEME_LP)
 			return;
 		skip = 2;
@@ -390,8 +389,7 @@ static void iwl_mvm_power_config_skip_dtim(struct iwl_mvm *mvm,
 
 static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
-				    struct iwl_mac_power_cmd *cmd,
-				    bool host_awake)
+				    struct iwl_mac_power_cmd *cmd)
 {
 	int dtimper, bi;
 	int keep_alive;
@@ -437,9 +435,9 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 		cmd->lprx_rssi_threshold = POWER_LPRX_RSSI_THRESHOLD;
 	}
 
-	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd, host_awake);
+	iwl_mvm_power_config_skip_dtim(mvm, vif, cmd);
 
-	if (!host_awake) {
+	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status)) {
 		cmd->rx_data_timeout =
 			cpu_to_le32(IWL_MVM_WOWLAN_PS_RX_DATA_TIMEOUT);
 		cmd->tx_data_timeout =
@@ -512,8 +510,7 @@ static int iwl_mvm_power_send_cmd(struct iwl_mvm *mvm,
 {
 	struct iwl_mac_power_cmd cmd = {};
 
-	iwl_mvm_power_build_cmd(mvm, vif, &cmd,
-				mvm->fwrt.cur_fw_img != IWL_UCODE_WOWLAN);
+	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	memcpy(&iwl_mvm_vif_from_mac80211(vif)->mac_pwr_cmd, &cmd, sizeof(cmd));
@@ -536,7 +533,7 @@ int iwl_mvm_power_update_device(struct iwl_mvm *mvm)
 		cmd.flags |= cpu_to_le16(DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-	if ((mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN) ?
+	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status) ?
 			mvm->disable_power_off_d3 : mvm->disable_power_off)
 		cmd.flags &=
 			cpu_to_le16(~DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK);
@@ -943,7 +940,7 @@ static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
 	if (!mvmvif->bf_data.bf_enabled)
 		return 0;
 
-	if (mvm->fwrt.cur_fw_img == IWL_UCODE_WOWLAN)
+	if (test_bit(IWL_MVM_STATUS_IN_D3, &mvm->status))
 		cmd.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_D3);
 
 	mvmvif->bf_data.ba_enabled = !(!mvmvif->pm_enabled ||

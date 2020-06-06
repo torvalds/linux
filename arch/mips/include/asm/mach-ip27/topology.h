@@ -2,12 +2,12 @@
 #ifndef _ASM_MACH_TOPOLOGY_H
 #define _ASM_MACH_TOPOLOGY_H	1
 
-#include <asm/sn/hub.h>
 #include <asm/sn/types.h>
 #include <asm/mmzone.h>
 
 struct cpuinfo_ip27 {
 	nasid_t		p_nasid;	/* my node ID in numa-as-id-space */
+	unsigned short	p_speed;	/* cpu speed in MHz */
 	unsigned char	p_slice;	/* Physical position on node board */
 };
 

@@ -103,10 +103,6 @@ bool mod_color_calculate_regamma_params(struct dc_transfer_func *output_tf,
 bool mod_color_calculate_degamma_params(struct dc_transfer_func *output_tf,
 		const struct dc_gamma *ramp, bool mapUserRamp);
 
-bool mod_color_calculate_curve(enum dc_transfer_func_predefined  trans,
-		struct dc_transfer_func_distributed_points *points,
-		uint32_t sdr_ref_white_level);
-
 bool mod_color_calculate_degamma_curve(enum dc_transfer_func_predefined trans,
 				struct dc_transfer_func_distributed_points *points);
 

@@ -129,9 +129,6 @@ void mic_create_debug_dir(struct mic_device *mdev)
  */
 void mic_delete_debug_dir(struct mic_device *mdev)
 {
-	if (!mdev->dbg_dir)
-		return;
-
 	debugfs_remove_recursive(mdev->dbg_dir);
 }
 

@@ -26,6 +26,7 @@
 #include "display/intel_dp.h"
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_display_types.h"
 #include "intel_psr.h"
 #include "intel_sprite.h"
@@ -401,7 +402,9 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	/* Enable ALPM at sink for psr2 */
 	if (dev_priv->psr.psr2_enabled) {
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG,
-				   DP_ALPM_ENABLE);
+				   DP_ALPM_ENABLE |
+				   DP_ALPM_LOCK_ERROR_IRQ_HPD_ENABLE);
+
 		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
 	} else {
 		if (dev_priv->psr.link_standby)
@@ -536,11 +539,11 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 
 static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
 {
-	if (!cstate || !cstate->base.active)
+	if (!cstate || !cstate->hw.active)
 		return 0;
 
 	return DIV_ROUND_UP(1000 * 1000,
-			    drm_mode_vrefresh(&cstate->base.adjusted_mode));
+			    drm_mode_vrefresh(&cstate->hw.adjusted_mode));
 }
 
 static void psr2_program_idle_frames(struct drm_i915_private *dev_priv,
@@ -605,9 +608,9 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
-	int crtc_hdisplay = crtc_state->base.adjusted_mode.crtc_hdisplay;
-	int crtc_vdisplay = crtc_state->base.adjusted_mode.crtc_vdisplay;
-	int psr_max_h = 0, psr_max_v = 0;
+	int crtc_hdisplay = crtc_state->hw.adjusted_mode.crtc_hdisplay;
+	int crtc_vdisplay = crtc_state->hw.adjusted_mode.crtc_vdisplay;
+	int psr_max_h = 0, psr_max_v = 0, max_bpp = 0;
 
 	if (!dev_priv->psr.sink_psr2_support)
 		return false;
@@ -631,18 +634,27 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (INTEL_GEN(dev_priv) >= 12) {
 		psr_max_h = 5120;
 		psr_max_v = 3200;
+		max_bpp = 30;
 	} else if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
+		max_bpp = 24;
 	} else if (IS_GEN(dev_priv, 9)) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
+		max_bpp = 24;
 	}
 
 	if (crtc_hdisplay > psr_max_h || crtc_vdisplay > psr_max_v) {
 		DRM_DEBUG_KMS("PSR2 not enabled, resolution %dx%d > max supported %dx%d\n",
 			      crtc_hdisplay, crtc_vdisplay,
 			      psr_max_h, psr_max_v);
+		return false;
+	}
+
+	if (crtc_state->pipe_bpp > max_bpp) {
+		DRM_DEBUG_KMS("PSR2 not enabled, pipe bpp %d > max supported %d\n",
+			      crtc_state->pipe_bpp, max_bpp);
 		return false;
 	}
 
@@ -672,7 +684,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
+		&crtc_state->hw.adjusted_mode;
 	int psr_setup_time;
 
 	if (!CAN_PSR(dev_priv))
@@ -792,7 +804,7 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 
 	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 	dev_priv->psr.busy_frontbuffer_bits = 0;
-	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	dev_priv->psr.pipe = to_intel_crtc(crtc_state->uapi.crtc)->pipe;
 	dev_priv->psr.dc3co_enabled = !!crtc_state->dc3co_exitline;
 	dev_priv->psr.dc3co_exit_delay = intel_get_frame_time_us(crtc_state);
 	dev_priv->psr.transcoder = crtc_state->cpu_transcoder;
@@ -840,10 +852,12 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	if (!crtc_state->has_psr)
+	if (!CAN_PSR(dev_priv) || dev_priv->psr.dp != intel_dp)
 		return;
 
-	if (WARN_ON(!CAN_PSR(dev_priv)))
+	dev_priv->psr.force_mode_changed = false;
+
+	if (!crtc_state->has_psr)
 		return;
 
 	WARN_ON(dev_priv->drrs.dp);
@@ -924,6 +938,9 @@ static void intel_psr_disable_locked(struct intel_dp *intel_dp)
 	/* Disable PSR on Sink */
 	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_EN_CFG, 0);
 
+	if (dev_priv->psr.psr2_enabled)
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG, 0);
+
 	dev_priv->psr.enabled = false;
 }
 
@@ -994,6 +1011,8 @@ void intel_psr_update(struct intel_dp *intel_dp,
 	if (!CAN_PSR(dev_priv) || READ_ONCE(psr->dp) != intel_dp)
 		return;
 
+	dev_priv->psr.force_mode_changed = false;
+
 	mutex_lock(&dev_priv->psr.lock);
 
 	enable = crtc_state->has_psr && psr_global_enabled(psr->debug);
@@ -1039,7 +1058,7 @@ unlock:
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value)
 {
-	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	if (!dev_priv->psr.enabled || !new_crtc_state->has_psr)
@@ -1096,7 +1115,7 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_atomic_state *state;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 	int err;
 
 	state = drm_atomic_state_alloc(dev);
@@ -1107,21 +1126,18 @@ static int intel_psr_fastset_force(struct drm_i915_private *dev_priv)
 	state->acquire_ctx = &ctx;
 
 retry:
-	drm_for_each_crtc(crtc, dev) {
-		struct drm_crtc_state *crtc_state;
-		struct intel_crtc_state *intel_crtc_state;
+	for_each_intel_crtc(dev, crtc) {
+		struct intel_crtc_state *crtc_state =
+			intel_atomic_get_crtc_state(state, crtc);
 
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (IS_ERR(crtc_state)) {
 			err = PTR_ERR(crtc_state);
 			goto error;
 		}
 
-		intel_crtc_state = to_intel_crtc_state(crtc_state);
-
-		if (crtc_state->active && intel_crtc_state->has_psr) {
+		if (crtc_state->hw.active && crtc_state->has_psr) {
 			/* Mark mode as changed to trigger a pipe->update() */
-			crtc_state->mode_changed = true;
+			crtc_state->uapi.mode_changed = true;
 			break;
 		}
 	}
@@ -1379,11 +1395,80 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 	mutex_init(&dev_priv->psr.lock);
 }
 
-void intel_psr_short_pulse(struct intel_dp *intel_dp)
+static int psr_get_status_and_error_status(struct intel_dp *intel_dp,
+					   u8 *status, u8 *error_status)
+{
+	struct drm_dp_aux *aux = &intel_dp->aux;
+	int ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PSR_STATUS, status);
+	if (ret != 1)
+		return ret;
+
+	ret = drm_dp_dpcd_readb(aux, DP_PSR_ERROR_STATUS, error_status);
+	if (ret != 1)
+		return ret;
+
+	*status = *status & DP_PSR_SINK_STATE_MASK;
+
+	return 0;
+}
+
+static void psr_alpm_check(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_dp_aux *aux = &intel_dp->aux;
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 val;
+	int r;
+
+	if (!psr->psr2_enabled)
+		return;
+
+	r = drm_dp_dpcd_readb(aux, DP_RECEIVER_ALPM_STATUS, &val);
+	if (r != 1) {
+		DRM_ERROR("Error reading ALPM status\n");
+		return;
+	}
+
+	if (val & DP_ALPM_LOCK_TIMEOUT_ERROR) {
+		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
+		DRM_DEBUG_KMS("ALPM lock timeout error, disabling PSR\n");
+
+		/* Clearing error */
+		drm_dp_dpcd_writeb(aux, DP_RECEIVER_ALPM_STATUS, val);
+	}
+}
+
+static void psr_capability_changed_check(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct i915_psr *psr = &dev_priv->psr;
 	u8 val;
+	int r;
+
+	r = drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ESI, &val);
+	if (r != 1) {
+		DRM_ERROR("Error reading DP_PSR_ESI\n");
+		return;
+	}
+
+	if (val & DP_PSR_CAPS_CHANGE) {
+		intel_psr_disable_locked(intel_dp);
+		psr->sink_not_reliable = true;
+		DRM_DEBUG_KMS("Sink PSR capability changed, disabling PSR\n");
+
+		/* Clearing it */
+		drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ESI, val);
+	}
+}
+
+void intel_psr_short_pulse(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct i915_psr *psr = &dev_priv->psr;
+	u8 status, error_status;
 	const u8 errors = DP_PSR_RFB_STORAGE_ERROR |
 			  DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR |
 			  DP_PSR_LINK_CRC_ERROR;
@@ -1396,38 +1481,34 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 	if (!psr->enabled || psr->dp != intel_dp)
 		goto exit;
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_STATUS, &val) != 1) {
-		DRM_ERROR("PSR_STATUS dpcd read failed\n");
+	if (psr_get_status_and_error_status(intel_dp, &status, &error_status)) {
+		DRM_ERROR("Error reading PSR status or error status\n");
 		goto exit;
 	}
 
-	if ((val & DP_PSR_SINK_STATE_MASK) == DP_PSR_SINK_INTERNAL_ERROR) {
-		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+	if (status == DP_PSR_SINK_INTERNAL_ERROR || (error_status & errors)) {
 		intel_psr_disable_locked(intel_dp);
 		psr->sink_not_reliable = true;
 	}
 
-	if (drm_dp_dpcd_readb(&intel_dp->aux, DP_PSR_ERROR_STATUS, &val) != 1) {
-		DRM_ERROR("PSR_ERROR_STATUS dpcd read failed\n");
-		goto exit;
-	}
-
-	if (val & DP_PSR_RFB_STORAGE_ERROR)
+	if (status == DP_PSR_SINK_INTERNAL_ERROR && !error_status)
+		DRM_DEBUG_KMS("PSR sink internal error, disabling PSR\n");
+	if (error_status & DP_PSR_RFB_STORAGE_ERROR)
 		DRM_DEBUG_KMS("PSR RFB storage error, disabling PSR\n");
-	if (val & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
+	if (error_status & DP_PSR_VSC_SDP_UNCORRECTABLE_ERROR)
 		DRM_DEBUG_KMS("PSR VSC SDP uncorrectable error, disabling PSR\n");
-	if (val & DP_PSR_LINK_CRC_ERROR)
+	if (error_status & DP_PSR_LINK_CRC_ERROR)
 		DRM_DEBUG_KMS("PSR Link CRC error, disabling PSR\n");
 
-	if (val & ~errors)
+	if (error_status & ~errors)
 		DRM_ERROR("PSR_ERROR_STATUS unhandled errors %x\n",
-			  val & ~errors);
-	if (val & errors) {
-		intel_psr_disable_locked(intel_dp);
-		psr->sink_not_reliable = true;
-	}
+			  error_status & ~errors);
 	/* clear status register */
-	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, val);
+	drm_dp_dpcd_writeb(&intel_dp->aux, DP_PSR_ERROR_STATUS, error_status);
+
+	psr_alpm_check(intel_dp);
+	psr_capability_changed_check(intel_dp);
+
 exit:
 	mutex_unlock(&psr->lock);
 }
@@ -1445,4 +1526,41 @@ bool intel_psr_enabled(struct intel_dp *intel_dp)
 	mutex_unlock(&dev_priv->psr.lock);
 
 	return ret;
+}
+
+void intel_psr_atomic_check(struct drm_connector *connector,
+			    struct drm_connector_state *old_state,
+			    struct drm_connector_state *new_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(connector->dev);
+	struct intel_connector *intel_connector;
+	struct intel_digital_port *dig_port;
+	struct drm_crtc_state *crtc_state;
+
+	if (!CAN_PSR(dev_priv) || !new_state->crtc ||
+	    !dev_priv->psr.force_mode_changed)
+		return;
+
+	intel_connector = to_intel_connector(connector);
+	dig_port = enc_to_dig_port(intel_connector->encoder);
+	if (dev_priv->psr.dp != &dig_port->dp)
+		return;
+
+	crtc_state = drm_atomic_get_new_crtc_state(new_state->state,
+						   new_state->crtc);
+	crtc_state->mode_changed = true;
+}
+
+void intel_psr_set_force_mode_changed(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv;
+
+	if (!intel_dp)
+		return;
+
+	dev_priv = dp_to_i915(intel_dp);
+	if (!CAN_PSR(dev_priv) || intel_dp != dev_priv->psr.dp)
+		return;
+
+	dev_priv->psr.force_mode_changed = true;
 }

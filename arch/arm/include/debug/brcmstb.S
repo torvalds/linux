@@ -31,6 +31,7 @@
 #define UARTA_7268		UARTA_7255
 #define UARTA_7271		UARTA_7268
 #define UARTA_7278		REG_PHYS_ADDR_V7(0x40c000)
+#define UARTA_7216		UARTA_7278
 #define UARTA_7364		REG_PHYS_ADDR(0x40b000)
 #define UARTA_7366		UARTA_7364
 #define UARTA_74371		REG_PHYS_ADDR(0x406b00)
@@ -82,17 +83,18 @@ ARM_BE8(	rev	\rv, \rv )
 
 		/* Chip specific detection starts here */
 20:		checkuart(\rp, \rv, 0x33900000, 3390)
-21:		checkuart(\rp, \rv, 0x72500000, 7250)
-22:		checkuart(\rp, \rv, 0x72550000, 7255)
-23:		checkuart(\rp, \rv, 0x72600000, 7260)
-24:		checkuart(\rp, \rv, 0x72680000, 7268)
-25:		checkuart(\rp, \rv, 0x72710000, 7271)
-26:		checkuart(\rp, \rv, 0x72780000, 7278)
-27:		checkuart(\rp, \rv, 0x73640000, 7364)
-28:		checkuart(\rp, \rv, 0x73660000, 7366)
-29:		checkuart(\rp, \rv, 0x07437100, 74371)
-30:		checkuart(\rp, \rv, 0x74390000, 7439)
-31:		checkuart(\rp, \rv, 0x74450000, 7445)
+21:		checkuart(\rp, \rv, 0x72160000, 7216)
+22:		checkuart(\rp, \rv, 0x72500000, 7250)
+23:		checkuart(\rp, \rv, 0x72550000, 7255)
+24:		checkuart(\rp, \rv, 0x72600000, 7260)
+25:		checkuart(\rp, \rv, 0x72680000, 7268)
+26:		checkuart(\rp, \rv, 0x72710000, 7271)
+27:		checkuart(\rp, \rv, 0x72780000, 7278)
+28:		checkuart(\rp, \rv, 0x73640000, 7364)
+29:		checkuart(\rp, \rv, 0x73660000, 7366)
+30:		checkuart(\rp, \rv, 0x07437100, 74371)
+31:		checkuart(\rp, \rv, 0x74390000, 7439)
+32:		checkuart(\rp, \rv, 0x74450000, 7445)
 
 		/* No valid UART found */
 90:		mov	\rp, #0

@@ -558,11 +558,11 @@ static const struct scarlett2_config
 
 /* proprietary request/response format */
 struct scarlett2_usb_packet {
-	u32 cmd;
-	u16 size;
-	u16 seq;
-	u32 error;
-	u32 pad;
+	__le32 cmd;
+	__le16 size;
+	__le16 seq;
+	__le32 error;
+	__le32 pad;
 	u8 data[];
 };
 
@@ -664,11 +664,11 @@ static int scarlett2_usb(
 			"Scarlett Gen 2 USB invalid response; "
 			   "cmd tx/rx %d/%d seq %d/%d size %d/%d "
 			   "error %d pad %d\n",
-			le16_to_cpu(req->cmd), le16_to_cpu(resp->cmd),
+			le32_to_cpu(req->cmd), le32_to_cpu(resp->cmd),
 			le16_to_cpu(req->seq), le16_to_cpu(resp->seq),
 			resp_size, le16_to_cpu(resp->size),
-			le16_to_cpu(resp->error),
-			le16_to_cpu(resp->pad));
+			le32_to_cpu(resp->error),
+			le32_to_cpu(resp->pad));
 		err = -EINVAL;
 		goto unlock;
 	}
@@ -687,7 +687,7 @@ error:
 /* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
 static void scarlett2_config_save(struct usb_mixer_interface *mixer)
 {
-	u32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
+	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
 
 	scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
 		      &req, sizeof(u32),
@@ -713,11 +713,11 @@ static int scarlett2_usb_set_config(
 	const struct scarlett2_config config_item =
 	       scarlett2_config_items[config_item_num];
 	struct {
-		u32 offset;
-		u32 bytes;
-		s32 value;
+		__le32 offset;
+		__le32 bytes;
+		__le32 value;
 	} __packed req;
-	u32 req2;
+	__le32 req2;
 	int err;
 	struct scarlett2_mixer_data *private = mixer->private_data;
 
@@ -753,8 +753,8 @@ static int scarlett2_usb_get(
 	int offset, void *buf, int size)
 {
 	struct {
-		u32 offset;
-		u32 size;
+		__le32 offset;
+		__le32 size;
 	} __packed req;
 
 	req.offset = cpu_to_le32(offset);
@@ -794,8 +794,8 @@ static int scarlett2_usb_set_mix(struct usb_mixer_interface *mixer,
 	const struct scarlett2_device_info *info = private->info;
 
 	struct {
-		u16 mix_num;
-		u16 data[SCARLETT2_INPUT_MIX_MAX];
+		__le16 mix_num;
+		__le16 data[SCARLETT2_INPUT_MIX_MAX];
 	} __packed req;
 
 	int i, j;
@@ -850,9 +850,9 @@ static int scarlett2_usb_set_mux(struct usb_mixer_interface *mixer)
 	};
 
 	struct {
-		u16 pad;
-		u16 num;
-		u32 data[SCARLETT2_MUX_MAX];
+		__le16 pad;
+		__le16 num;
+		__le32 data[SCARLETT2_MUX_MAX];
 	} __packed req;
 
 	req.pad = 0;
@@ -911,9 +911,9 @@ static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
 					  u16 *levels)
 {
 	struct {
-		u16 pad;
-		u16 num_meters;
-		u32 magic;
+		__le16 pad;
+		__le16 num_meters;
+		__le32 magic;
 	} __packed req;
 	u32 resp[SCARLETT2_NUM_METERS];
 	int i, err;

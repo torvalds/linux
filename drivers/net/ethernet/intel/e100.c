@@ -2316,7 +2316,7 @@ static void e100_down(struct nic *nic)
 	e100_rx_clean_list(nic);
 }
 
-static void e100_tx_timeout(struct net_device *netdev)
+static void e100_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 {
 	struct nic *nic = netdev_priv(netdev);
 

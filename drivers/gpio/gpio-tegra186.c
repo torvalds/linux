@@ -448,17 +448,24 @@ static int tegra186_gpio_irq_domain_translate(struct irq_domain *domain,
 	return 0;
 }
 
-static void tegra186_gpio_populate_parent_fwspec(struct gpio_chip *chip,
-						 struct irq_fwspec *fwspec,
+static void *tegra186_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 						 unsigned int parent_hwirq,
 						 unsigned int parent_type)
 {
 	struct tegra_gpio *gpio = gpiochip_get_data(chip);
+	struct irq_fwspec *fwspec;
 
+	fwspec = kmalloc(sizeof(*fwspec), GFP_KERNEL);
+	if (!fwspec)
+		return NULL;
+
+	fwspec->fwnode = chip->irq.parent_domain->fwnode;
 	fwspec->param_count = 3;
 	fwspec->param[0] = gpio->soc->instance;
 	fwspec->param[1] = parent_hwirq;
 	fwspec->param[2] = parent_type;
+
+	return fwspec;
 }
 
 static int tegra186_gpio_child_to_parent_hwirq(struct gpio_chip *chip,
@@ -621,7 +628,7 @@ static int tegra186_gpio_probe(struct platform_device *pdev)
 	irq->chip = &gpio->intc;
 	irq->fwnode = of_node_to_fwnode(pdev->dev.of_node);
 	irq->child_to_parent_hwirq = tegra186_gpio_child_to_parent_hwirq;
-	irq->populate_parent_fwspec = tegra186_gpio_populate_parent_fwspec;
+	irq->populate_parent_alloc_arg = tegra186_gpio_populate_parent_fwspec;
 	irq->child_offset_to_irq = tegra186_gpio_child_offset_to_irq;
 	irq->child_irq_domain_ops.translate = tegra186_gpio_irq_domain_translate;
 	irq->handler = handle_simple_irq;

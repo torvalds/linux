@@ -257,9 +257,6 @@ static char *tipc_key_change_dump(struct tipc_key old, struct tipc_key new,
 #define tipc_aead_rcu_ptr(rcu_ptr, lock)				\
 	rcu_dereference_protected((rcu_ptr), lockdep_is_held(lock))
 
-#define tipc_aead_rcu_swap(rcu_ptr, ptr, lock)				\
-	rcu_swap_protected((rcu_ptr), (ptr), lockdep_is_held(lock))
-
 #define tipc_aead_rcu_replace(rcu_ptr, ptr, lock)			\
 do {									\
 	typeof(rcu_ptr) __tmp = rcu_dereference_protected((rcu_ptr),	\
@@ -1189,7 +1186,7 @@ static bool tipc_crypto_key_try_align(struct tipc_crypto *rx, u8 new_pending)
 
 	/* Move passive key if any */
 	if (key.passive) {
-		tipc_aead_rcu_swap(rx->aead[key.passive], tmp2, &rx->lock);
+		tmp2 = rcu_replace_pointer(rx->aead[key.passive], tmp2, lockdep_is_held(&rx->lock));
 		x = (key.passive - key.pending + new_pending) % KEY_MAX;
 		new_passive = (x <= 0) ? x + KEY_MAX : x;
 	}

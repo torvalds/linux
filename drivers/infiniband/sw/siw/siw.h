@@ -7,6 +7,7 @@
 #define _SIW_H
 
 #include <rdma/ib_verbs.h>
+#include <rdma/restrack.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
 #include <crypto/hash.h>
@@ -209,7 +210,6 @@ struct siw_cq {
 	u32 cq_put;
 	u32 cq_get;
 	u32 num_cqe;
-	bool kernel_verbs;
 	struct rdma_user_mmap_entry *cq_entry; /* mmap info for CQE array */
 	u32 id; /* For debugging only */
 };
@@ -254,8 +254,8 @@ struct siw_srq {
 	u32 rq_get;
 	u32 num_rqe; /* max # of wqe's allowed */
 	struct rdma_user_mmap_entry *srq_entry; /* mmap info for SRQ array */
-	char armed; /* inform user if limit hit */
-	char kernel_verbs; /* '1' if kernel client */
+	bool armed:1; /* inform user if limit hit */
+	bool is_kernel_res:1; /* true if kernel client */
 };
 
 struct siw_qp_attrs {
@@ -418,13 +418,11 @@ struct siw_iwarp_tx {
 };
 
 struct siw_qp {
+	struct ib_qp base_qp;
 	struct siw_device *sdev;
-	struct ib_qp *ib_qp;
 	struct kref ref;
-	u32 qp_num;
 	struct list_head devq;
 	int tx_cpu;
-	bool kernel_verbs;
 	struct siw_qp_attrs attrs;
 
 	struct siw_cep *cep;
@@ -470,11 +468,6 @@ struct siw_qp {
 	struct rdma_user_mmap_entry *sq_entry; /* mmap info for SQE array */
 	struct rdma_user_mmap_entry *rq_entry; /* mmap info for RQE array */
 	struct rcu_head rcu;
-};
-
-struct siw_base_qp {
-	struct ib_qp base_qp;
-	struct siw_qp *qp;
 };
 
 /* helper macros */
@@ -572,14 +565,9 @@ static inline struct siw_ucontext *to_siw_ctx(struct ib_ucontext *base_ctx)
 	return container_of(base_ctx, struct siw_ucontext, base_ucontext);
 }
 
-static inline struct siw_base_qp *to_siw_base_qp(struct ib_qp *base_qp)
-{
-	return container_of(base_qp, struct siw_base_qp, base_qp);
-}
-
 static inline struct siw_qp *to_siw_qp(struct ib_qp *base_qp)
 {
-	return to_siw_base_qp(base_qp)->qp;
+	return container_of(base_qp, struct siw_qp, base_qp);
 }
 
 static inline struct siw_cq *to_siw_cq(struct ib_cq *base_cq)
@@ -624,7 +612,7 @@ static inline struct siw_qp *siw_qp_id2obj(struct siw_device *sdev, int id)
 
 static inline u32 qp_id(struct siw_qp *qp)
 {
-	return qp->qp_num;
+	return qp->base_qp.qp_num;
 }
 
 static inline void siw_qp_get(struct siw_qp *qp)
@@ -735,7 +723,7 @@ static inline void siw_crc_skb(struct siw_rx_stream *srx, unsigned int len)
 		  "MEM[0x%08x] %s: " fmt, mem->stag, __func__, ##__VA_ARGS__)
 
 #define siw_dbg_cep(cep, fmt, ...)                                             \
-	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                  \
+	ibdev_dbg(&cep->sdev->base_dev, "CEP[0x%pK] %s: " fmt,                 \
 		  cep, __func__, ##__VA_ARGS__)
 
 void siw_cq_flush(struct siw_cq *cq);

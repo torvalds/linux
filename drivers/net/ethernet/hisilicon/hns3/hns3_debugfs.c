@@ -176,7 +176,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 		return -EINVAL;
 	}
 
-	ring  = &priv->ring[q_num];
+	ring = &priv->ring[q_num];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 	tx_index = (cnt == 1) ? value : tx_index;
 
@@ -209,10 +209,10 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 		 le16_to_cpu(tx_desc->tx.bdtp_fe_sc_vld_ra_ri));
 	dev_info(dev, "(TX)mss: %u\n", le16_to_cpu(tx_desc->tx.mss));
 
-	ring  = &priv->ring[q_num + h->kinfo.num_tqps];
+	ring = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
 	rx_index = (cnt == 1) ? value : tx_index;
-	rx_desc	 = &ring->desc[rx_index];
+	rx_desc = &ring->desc[rx_index];
 
 	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
@@ -297,8 +297,8 @@ static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
 	if (!buf)
 		return -ENOMEM;
 
-	len = snprintf(buf, HNS3_DBG_READ_LEN, "%s\n",
-		       "Please echo help to cmd to get help information");
+	len = scnprintf(buf, HNS3_DBG_READ_LEN, "%s\n",
+			"Please echo help to cmd to get help information");
 	uncopy_bytes = copy_to_user(buffer, buf, len);
 
 	kfree(buf);

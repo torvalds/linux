@@ -136,7 +136,7 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
  */
 void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 
@@ -163,7 +163,7 @@ void intel_prepare_shared_dpll(const struct intel_crtc_state *crtc_state)
  */
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
@@ -208,7 +208,7 @@ out:
  */
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
 	unsigned int crtc_mask = drm_crtc_mask(&crtc->base);
@@ -842,7 +842,7 @@ hsw_ddi_hdmi_get_dpll(struct intel_atomic_state *state,
 static struct intel_shared_dpll *
 hsw_ddi_dp_get_dpll(struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	struct intel_shared_dpll *pll;
 	enum intel_dpll_id pll_id;
 	int clock = crtc_state->port_clock;
@@ -1751,7 +1751,7 @@ static bool
 bxt_ddi_hdmi_pll_dividers(struct intel_crtc_state *crtc_state,
 			  struct bxt_clk_div *clk_div)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct dpll best_clock;
 
 	/* Calculate HDMI div */
@@ -2274,7 +2274,7 @@ static bool
 cnl_ddi_calculate_wrpll(struct intel_crtc_state *crtc_state,
 			struct skl_wrpll_params *wrpll_params)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 afe_clock = crtc_state->port_clock * 5;
 	u32 ref_clock;
 	u32 dco_min = 7998000;
@@ -2553,7 +2553,7 @@ static const struct skl_wrpll_params tgl_tbt_pll_24MHz_values = {
 static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 				  struct skl_wrpll_params *pll_params)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	const struct icl_combo_pll_params *params =
 		dev_priv->cdclk.hw.ref == 24000 ?
 		icl_dp_combo_pll_24MHz_values :
@@ -2575,7 +2575,7 @@ static bool icl_calc_dp_combo_pll(struct intel_crtc_state *crtc_state,
 static bool icl_calc_tbt_pll(struct intel_crtc_state *crtc_state,
 			     struct skl_wrpll_params *pll_params)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 
 	if (INTEL_GEN(dev_priv) >= 12) {
 		switch (dev_priv->cdclk.hw.ref) {
@@ -2612,7 +2612,7 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 				struct intel_encoder *encoder,
 				struct intel_dpll_hw_state *pll_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	u32 cfgcr0, cfgcr1;
 	struct skl_wrpll_params pll_params = { 0 };
 	bool ret;
@@ -2744,7 +2744,7 @@ static bool icl_mg_pll_find_divisors(int clock_khz, bool is_dp, bool use_ssc,
 static bool icl_calc_mg_pll_state(struct intel_crtc_state *crtc_state,
 				  struct intel_dpll_hw_state *pll_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
 	int refclk_khz = dev_priv->cdclk.hw.ref;
 	int clock = crtc_state->port_clock;
 	u32 dco_khz, m1div, m2div_int, m2div_rem, m2div_frac;
@@ -2972,8 +2972,8 @@ static void icl_update_active_dpll(struct intel_atomic_state *state,
 	enum icl_port_dpll_id port_dpll_id = ICL_PORT_DPLL_DEFAULT;
 
 	primary_port = encoder->type == INTEL_OUTPUT_DP_MST ?
-		enc_to_mst(&encoder->base)->primary :
-		enc_to_dig_port(&encoder->base);
+		enc_to_mst(encoder)->primary :
+		enc_to_dig_port(encoder);
 
 	if (primary_port &&
 	    (primary_port->tc_mode == TC_PORT_DP_ALT ||

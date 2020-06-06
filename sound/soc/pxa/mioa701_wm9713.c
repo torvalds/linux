@@ -72,7 +72,7 @@ static int rear_amp_event(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_component *component;
 
-	rtd = snd_soc_get_pcm_runtime(card, card->dai_link[0].name);
+	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	component = rtd->codec_dai->component;
 	return rear_amp_power(component, SND_SOC_DAPM_EVENT_ON(event));
 }

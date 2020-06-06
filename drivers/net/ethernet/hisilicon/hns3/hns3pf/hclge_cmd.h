@@ -6,6 +6,7 @@
 #include <linux/types.h>
 #include <linux/io.h>
 #include <linux/etherdevice.h>
+#include "hnae3.h"
 
 #define HCLGE_CMDQ_TX_TIMEOUT		30000
 #define HCLGE_DESC_DATA_LEN		6
@@ -63,6 +64,7 @@ enum hclge_cmd_status {
 struct hclge_misc_vector {
 	u8 __iomem *addr;
 	int vector_irq;
+	char name[HNAE3_INT_NAME_LEN];
 };
 
 struct hclge_cmq {

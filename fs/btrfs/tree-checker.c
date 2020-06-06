@@ -373,6 +373,104 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	return 0;
 }
 
+/* Inode item error output has the same format as dir_item_err() */
+#define inode_item_err(eb, slot, fmt, ...)			\
+	dir_item_err(eb, slot, fmt, __VA_ARGS__)
+
+static int check_inode_key(struct extent_buffer *leaf, struct btrfs_key *key,
+			   int slot)
+{
+	struct btrfs_key item_key;
+	bool is_inode_item;
+
+	btrfs_item_key_to_cpu(leaf, &item_key, slot);
+	is_inode_item = (item_key.type == BTRFS_INODE_ITEM_KEY);
+
+	/* For XATTR_ITEM, location key should be all 0 */
+	if (item_key.type == BTRFS_XATTR_ITEM_KEY) {
+		if (key->type != 0 || key->objectid != 0 || key->offset != 0)
+			return -EUCLEAN;
+		return 0;
+	}
+
+	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
+	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
+	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
+	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
+		if (is_inode_item) {
+			generic_err(leaf, slot,
+	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+				key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+				BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID,
+				BTRFS_FREE_INO_OBJECTID);
+		} else {
+			dir_item_err(leaf, slot,
+"invalid location key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
+				key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
+				BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID,
+				BTRFS_FREE_INO_OBJECTID);
+		}
+		return -EUCLEAN;
+	}
+	if (key->offset != 0) {
+		if (is_inode_item)
+			inode_item_err(leaf, slot,
+				       "invalid key offset: has %llu expect 0",
+				       key->offset);
+		else
+			dir_item_err(leaf, slot,
+				"invalid location key offset:has %llu expect 0",
+				key->offset);
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
+static int check_root_key(struct extent_buffer *leaf, struct btrfs_key *key,
+			  int slot)
+{
+	struct btrfs_key item_key;
+	bool is_root_item;
+
+	btrfs_item_key_to_cpu(leaf, &item_key, slot);
+	is_root_item = (item_key.type == BTRFS_ROOT_ITEM_KEY);
+
+	/* No such tree id */
+	if (key->objectid == 0) {
+		if (is_root_item)
+			generic_err(leaf, slot, "invalid root id 0");
+		else
+			dir_item_err(leaf, slot,
+				     "invalid location key root id 0");
+		return -EUCLEAN;
+	}
+
+	/* DIR_ITEM/INDEX/INODE_REF is not allowed to point to non-fs trees */
+	if (!is_fstree(key->objectid) && !is_root_item) {
+		dir_item_err(leaf, slot,
+		"invalid location key objectid, have %llu expect [%llu, %llu]",
+				key->objectid, BTRFS_FIRST_FREE_OBJECTID,
+				BTRFS_LAST_FREE_OBJECTID);
+		return -EUCLEAN;
+	}
+
+	/*
+	 * ROOT_ITEM with non-zero offset means this is a snapshot, created at
+	 * @offset transid.
+	 * Furthermore, for location key in DIR_ITEM, its offset is always -1.
+	 *
+	 * So here we only check offset for reloc tree whose key->offset must
+	 * be a valid tree.
+	 */
+	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID && key->offset == 0) {
+		generic_err(leaf, slot, "invalid root id 0 for reloc tree");
+		return -EUCLEAN;
+	}
+	return 0;
+}
+
 static int check_dir_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, struct btrfs_key *prev_key,
 			  int slot)
@@ -386,18 +484,39 @@ static int check_dir_item(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 	while (cur < item_size) {
+		struct btrfs_key location_key;
 		u32 name_len;
 		u32 data_len;
 		u32 max_name_len;
 		u32 total_size;
 		u32 name_hash;
 		u8 dir_type;
+		int ret;
 
 		/* header itself should not cross item boundary */
 		if (cur + sizeof(*di) > item_size) {
 			dir_item_err(leaf, slot,
 		"dir item header crosses item boundary, have %zu boundary %u",
 				cur + sizeof(*di), item_size);
+			return -EUCLEAN;
+		}
+
+		/* Location key check */
+		btrfs_dir_item_key_to_cpu(leaf, di, &location_key);
+		if (location_key.type == BTRFS_ROOT_ITEM_KEY) {
+			ret = check_root_key(leaf, &location_key, slot);
+			if (ret < 0)
+				return ret;
+		} else if (location_key.type == BTRFS_INODE_ITEM_KEY ||
+			   location_key.type == 0) {
+			ret = check_inode_key(leaf, &location_key, slot);
+			if (ret < 0)
+				return ret;
+		} else {
+			dir_item_err(leaf, slot,
+			"invalid location key type, have %u, expect %u or %u",
+				     location_key.type, BTRFS_ROOT_ITEM_KEY,
+				     BTRFS_INODE_ITEM_KEY);
 			return -EUCLEAN;
 		}
 
@@ -738,6 +857,44 @@ int btrfs_check_chunk_valid(struct extent_buffer *leaf,
 	return 0;
 }
 
+/*
+ * Enhanced version of chunk item checker.
+ *
+ * The common btrfs_check_chunk_valid() doesn't check item size since it needs
+ * to work on super block sys_chunk_array which doesn't have full item ptr.
+ */
+static int check_leaf_chunk_item(struct extent_buffer *leaf,
+				 struct btrfs_chunk *chunk,
+				 struct btrfs_key *key, int slot)
+{
+	int num_stripes;
+
+	if (btrfs_item_size_nr(leaf, slot) < sizeof(struct btrfs_chunk)) {
+		chunk_err(leaf, chunk, key->offset,
+			"invalid chunk item size: have %u expect [%zu, %u)",
+			btrfs_item_size_nr(leaf, slot),
+			sizeof(struct btrfs_chunk),
+			BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
+		return -EUCLEAN;
+	}
+
+	num_stripes = btrfs_chunk_num_stripes(leaf, chunk);
+	/* Let btrfs_check_chunk_valid() handle this error type */
+	if (num_stripes == 0)
+		goto out;
+
+	if (btrfs_chunk_item_size(num_stripes) !=
+	    btrfs_item_size_nr(leaf, slot)) {
+		chunk_err(leaf, chunk, key->offset,
+			"invalid chunk item size: have %u expect %lu",
+			btrfs_item_size_nr(leaf, slot),
+			btrfs_chunk_item_size(num_stripes));
+		return -EUCLEAN;
+	}
+out:
+	return btrfs_check_chunk_valid(leaf, chunk, key->offset);
+}
+
 __printf(3, 4)
 __cold
 static void dev_item_err(const struct extent_buffer *eb, int slot,
@@ -801,7 +958,7 @@ static int check_dev_item(struct extent_buffer *leaf,
 }
 
 /* Inode item error output has the same format as dir_item_err() */
-#define inode_item_err(fs_info, eb, slot, fmt, ...)			\
+#define inode_item_err(eb, slot, fmt, ...)			\
 	dir_item_err(eb, slot, fmt, __VA_ARGS__)
 
 static int check_inode_item(struct extent_buffer *leaf,
@@ -812,30 +969,17 @@ static int check_inode_item(struct extent_buffer *leaf,
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
 	u32 mode;
+	int ret;
 
-	if ((key->objectid < BTRFS_FIRST_FREE_OBJECTID ||
-	     key->objectid > BTRFS_LAST_FREE_OBJECTID) &&
-	    key->objectid != BTRFS_ROOT_TREE_DIR_OBJECTID &&
-	    key->objectid != BTRFS_FREE_INO_OBJECTID) {
-		generic_err(leaf, slot,
-	"invalid key objectid: has %llu expect %llu or [%llu, %llu] or %llu",
-			    key->objectid, BTRFS_ROOT_TREE_DIR_OBJECTID,
-			    BTRFS_FIRST_FREE_OBJECTID,
-			    BTRFS_LAST_FREE_OBJECTID,
-			    BTRFS_FREE_INO_OBJECTID);
-		return -EUCLEAN;
-	}
-	if (key->offset != 0) {
-		inode_item_err(fs_info, leaf, slot,
-			"invalid key offset: has %llu expect 0",
-			key->offset);
-		return -EUCLEAN;
-	}
+	ret = check_inode_key(leaf, key, slot);
+	if (ret < 0)
+		return ret;
+
 	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
 
 	/* Here we use super block generation + 1 to handle log tree */
 	if (btrfs_inode_generation(leaf, iitem) > super_gen + 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			"invalid inode generation: has %llu expect (0, %llu]",
 			       btrfs_inode_generation(leaf, iitem),
 			       super_gen + 1);
@@ -843,7 +987,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	}
 	/* Note for ROOT_TREE_DIR_ITEM, mkfs could set its transid 0 */
 	if (btrfs_inode_transid(leaf, iitem) > super_gen + 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			"invalid inode generation: has %llu expect [0, %llu]",
 			       btrfs_inode_transid(leaf, iitem), super_gen + 1);
 		return -EUCLEAN;
@@ -856,7 +1000,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	 */
 	mode = btrfs_inode_mode(leaf, iitem);
 	if (mode & ~valid_mask) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			       "unknown mode bit detected: 0x%x",
 			       mode & ~valid_mask);
 		return -EUCLEAN;
@@ -869,20 +1013,20 @@ static int check_inode_item(struct extent_buffer *leaf,
 	 */
 	if (!has_single_bit_set(mode & S_IFMT)) {
 		if (!S_ISLNK(mode) && !S_ISBLK(mode) && !S_ISSOCK(mode)) {
-			inode_item_err(fs_info, leaf, slot,
+			inode_item_err(leaf, slot,
 			"invalid mode: has 0%o expect valid S_IF* bit(s)",
 				       mode & S_IFMT);
 			return -EUCLEAN;
 		}
 	}
 	if (S_ISDIR(mode) && btrfs_inode_nlink(leaf, iitem) > 1) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 		       "invalid nlink: has %u expect no more than 1 for dir",
 			btrfs_inode_nlink(leaf, iitem));
 		return -EUCLEAN;
 	}
 	if (btrfs_inode_flags(leaf, iitem) & ~BTRFS_INODE_FLAG_MASK) {
-		inode_item_err(fs_info, leaf, slot,
+		inode_item_err(leaf, slot,
 			       "unknown flags detected: 0x%llx",
 			       btrfs_inode_flags(leaf, iitem) &
 			       ~BTRFS_INODE_FLAG_MASK);
@@ -898,22 +1042,11 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	struct btrfs_root_item ri;
 	const u64 valid_root_flags = BTRFS_ROOT_SUBVOL_RDONLY |
 				     BTRFS_ROOT_SUBVOL_DEAD;
+	int ret;
 
-	/* No such tree id */
-	if (key->objectid == 0) {
-		generic_err(leaf, slot, "invalid root id 0");
-		return -EUCLEAN;
-	}
-
-	/*
-	 * Some older kernel may create ROOT_ITEM with non-zero offset, so here
-	 * we only check offset for reloc tree whose key->offset must be a
-	 * valid tree.
-	 */
-	if (key->objectid == BTRFS_TREE_RELOC_OBJECTID && key->offset == 0) {
-		generic_err(leaf, slot, "invalid root id 0 for reloc tree");
-		return -EUCLEAN;
-	}
+	ret = check_root_key(leaf, key, slot);
+	if (ret < 0)
+		return ret;
 
 	if (btrfs_item_size_nr(leaf, slot) != sizeof(ri)) {
 		generic_err(leaf, slot,
@@ -1302,8 +1435,8 @@ static int check_extent_data_ref(struct extent_buffer *leaf,
 	return 0;
 }
 
-#define inode_ref_err(fs_info, eb, slot, fmt, args...)			\
-	inode_item_err(fs_info, eb, slot, fmt, ##args)
+#define inode_ref_err(eb, slot, fmt, args...)			\
+	inode_item_err(eb, slot, fmt, ##args)
 static int check_inode_ref(struct extent_buffer *leaf,
 			   struct btrfs_key *key, struct btrfs_key *prev_key,
 			   int slot)
@@ -1316,7 +1449,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		return -EUCLEAN;
 	/* namelen can't be 0, so item_size == sizeof() is also invalid */
 	if (btrfs_item_size_nr(leaf, slot) <= sizeof(*iref)) {
-		inode_ref_err(fs_info, leaf, slot,
+		inode_ref_err(leaf, slot,
 			"invalid item size, have %u expect (%zu, %u)",
 			btrfs_item_size_nr(leaf, slot),
 			sizeof(*iref), BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
@@ -1329,7 +1462,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		u16 namelen;
 
 		if (ptr + sizeof(iref) > end) {
-			inode_ref_err(fs_info, leaf, slot,
+			inode_ref_err(leaf, slot,
 			"inode ref overflow, ptr %lu end %lu inode_ref_size %zu",
 				ptr, end, sizeof(iref));
 			return -EUCLEAN;
@@ -1338,7 +1471,7 @@ static int check_inode_ref(struct extent_buffer *leaf,
 		iref = (struct btrfs_inode_ref *)ptr;
 		namelen = btrfs_inode_ref_name_len(leaf, iref);
 		if (ptr + sizeof(*iref) + namelen > end) {
-			inode_ref_err(fs_info, leaf, slot,
+			inode_ref_err(leaf, slot,
 				"inode ref overflow, ptr %lu end %lu namelen %u",
 				ptr, end, namelen);
 			return -EUCLEAN;
@@ -1384,7 +1517,7 @@ static int check_leaf_item(struct extent_buffer *leaf,
 		break;
 	case BTRFS_CHUNK_ITEM_KEY:
 		chunk = btrfs_item_ptr(leaf, slot, struct btrfs_chunk);
-		ret = btrfs_check_chunk_valid(leaf, chunk, key->offset);
+		ret = check_leaf_chunk_item(leaf, chunk, key, slot);
 		break;
 	case BTRFS_DEV_ITEM_KEY:
 		ret = check_dev_item(leaf, key, slot);

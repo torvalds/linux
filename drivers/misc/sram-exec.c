@@ -85,6 +85,7 @@ void *sram_exec_copy(struct gen_pool *pool, void *dst, void *src,
 	unsigned long base;
 	int pages;
 	void *dst_cpy;
+	int ret;
 
 	mutex_lock(&exec_pool_list_mutex);
 	list_for_each_entry(p, &exec_pool_list, list) {
@@ -104,16 +105,28 @@ void *sram_exec_copy(struct gen_pool *pool, void *dst, void *src,
 
 	mutex_lock(&part->lock);
 
-	set_memory_nx((unsigned long)base, pages);
-	set_memory_rw((unsigned long)base, pages);
+	ret = set_memory_nx((unsigned long)base, pages);
+	if (ret)
+		goto error_out;
+	ret = set_memory_rw((unsigned long)base, pages);
+	if (ret)
+		goto error_out;
 
 	dst_cpy = fncpy(dst, src, size);
 
-	set_memory_ro((unsigned long)base, pages);
-	set_memory_x((unsigned long)base, pages);
+	ret = set_memory_ro((unsigned long)base, pages);
+	if (ret)
+		goto error_out;
+	ret = set_memory_x((unsigned long)base, pages);
+	if (ret)
+		goto error_out;
 
 	mutex_unlock(&part->lock);
 
 	return dst_cpy;
+
+error_out:
+	mutex_unlock(&part->lock);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(sram_exec_copy);

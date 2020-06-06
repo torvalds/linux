@@ -14,15 +14,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>
-
-#ifdef CONFIG_ARC_FPU_SAVE_RESTORE
-/* These DPFP regs need to be saved/restored across ctx-sw */
-struct arc_fpu {
-	struct {
-		unsigned int l, h;
-	} aux_dpfp[2];
-};
-#endif
+#include <asm/fpu.h>
 
 #ifdef CONFIG_ARC_PLAT_EZNPS
 struct eznps_dp {

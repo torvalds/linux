@@ -1445,7 +1445,7 @@ nfsd4_cld_grace_done_v0(struct nfsd_net *nn)
 	}
 
 	cup->cu_u.cu_msg.cm_cmd = Cld_GraceDone;
-	cup->cu_u.cu_msg.cm_u.cm_gracetime = (int64_t)nn->boot_time;
+	cup->cu_u.cu_msg.cm_u.cm_gracetime = nn->boot_time;
 	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
 	if (!ret)
 		ret = cup->cu_u.cu_msg.cm_status;
@@ -1782,7 +1782,7 @@ nfsd4_cltrack_client_has_session(struct nfs4_client *clp)
 }
 
 static char *
-nfsd4_cltrack_grace_start(time_t grace_start)
+nfsd4_cltrack_grace_start(time64_t grace_start)
 {
 	int copied;
 	size_t len;
@@ -1795,7 +1795,7 @@ nfsd4_cltrack_grace_start(time_t grace_start)
 	if (!result)
 		return result;
 
-	copied = snprintf(result, len, GRACE_START_ENV_PREFIX "%ld",
+	copied = snprintf(result, len, GRACE_START_ENV_PREFIX "%lld",
 				grace_start);
 	if (copied >= len) {
 		/* just return nothing if output was truncated */
@@ -2004,7 +2004,7 @@ nfsd4_umh_cltrack_grace_done(struct nfsd_net *nn)
 	char *legacy;
 	char timestr[22]; /* FIXME: better way to determine max size? */
 
-	sprintf(timestr, "%ld", nn->boot_time);
+	sprintf(timestr, "%lld", nn->boot_time);
 	legacy = nfsd4_cltrack_legacy_topdir();
 	nfsd4_umh_cltrack_upcall("gracedone", timestr, legacy, NULL);
 	kfree(legacy);

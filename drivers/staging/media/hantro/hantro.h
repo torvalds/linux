@@ -60,6 +60,8 @@ struct hantro_irq {
  * @num_enc_fmts:		Number of encoder formats.
  * @dec_fmts:			Decoder formats.
  * @num_dec_fmts:		Number of decoder formats.
+ * @postproc_fmts:		Post-processor formats.
+ * @num_postproc_fmts:		Number of post-processor formats.
  * @codec:			Supported codecs
  * @codec_ops:			Codec ops.
  * @init:			Initialize hardware.
@@ -70,6 +72,7 @@ struct hantro_irq {
  * @num_clocks:			number of clocks in the array
  * @reg_names:			array of register range names
  * @num_regs:			number of register range names in the array
+ * @postproc_regs:		&struct hantro_postproc_regs pointer
  */
 struct hantro_variant {
 	unsigned int enc_offset;
@@ -78,6 +81,8 @@ struct hantro_variant {
 	unsigned int num_enc_fmts;
 	const struct hantro_fmt *dec_fmts;
 	unsigned int num_dec_fmts;
+	const struct hantro_fmt *postproc_fmts;
+	unsigned int num_postproc_fmts;
 	unsigned int codec;
 	const struct hantro_codec_ops *codec_ops;
 	int (*init)(struct hantro_dev *vpu);
@@ -88,6 +93,7 @@ struct hantro_variant {
 	int num_clocks;
 	const char * const *reg_names;
 	int num_regs;
+	const struct hantro_postproc_regs *postproc_regs;
 };
 
 /**
@@ -213,6 +219,7 @@ struct hantro_dev {
  *			context, and it's called right before
  *			calling v4l2_m2m_job_finish.
  * @codec_ops:		Set of operations related to codec mode.
+ * @postproc:		Post-processing context.
  * @jpeg_enc:		JPEG-encoding context.
  * @mpeg2_dec:		MPEG-2-decoding context.
  * @vp8_dec:		VP8-decoding context.
@@ -237,6 +244,7 @@ struct hantro_ctx {
 			  unsigned int bytesused);
 
 	const struct hantro_codec_ops *codec_ops;
+	struct hantro_postproc_ctx postproc;
 
 	/* Specific for particular codec modes. */
 	union {
@@ -272,6 +280,23 @@ struct hantro_reg {
 	u32 base;
 	u32 shift;
 	u32 mask;
+};
+
+struct hantro_postproc_regs {
+	struct hantro_reg pipeline_en;
+	struct hantro_reg max_burst;
+	struct hantro_reg clk_gate;
+	struct hantro_reg out_swap32;
+	struct hantro_reg out_endian;
+	struct hantro_reg out_luma_base;
+	struct hantro_reg input_width;
+	struct hantro_reg input_height;
+	struct hantro_reg output_width;
+	struct hantro_reg output_height;
+	struct hantro_reg input_fmt;
+	struct hantro_reg output_fmt;
+	struct hantro_reg orig_width;
+	struct hantro_reg display_width;
 };
 
 /* Logging helpers */
@@ -352,16 +377,30 @@ static inline u32 vdpu_read(struct hantro_dev *vpu, u32 reg)
 	return val;
 }
 
-static inline void hantro_reg_write(struct hantro_dev *vpu,
-				    const struct hantro_reg *reg,
-				    u32 val)
+static inline u32 vdpu_read_mask(struct hantro_dev *vpu,
+				 const struct hantro_reg *reg,
+				 u32 val)
 {
 	u32 v;
 
 	v = vdpu_read(vpu, reg->base);
 	v &= ~(reg->mask << reg->shift);
 	v |= ((val & reg->mask) << reg->shift);
-	vdpu_write_relaxed(vpu, v, reg->base);
+	return v;
+}
+
+static inline void hantro_reg_write(struct hantro_dev *vpu,
+				    const struct hantro_reg *reg,
+				    u32 val)
+{
+	vdpu_write_relaxed(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
+}
+
+static inline void hantro_reg_write_s(struct hantro_dev *vpu,
+				      const struct hantro_reg *reg,
+				      u32 val)
+{
+	vdpu_write(vpu, vdpu_read_mask(vpu, reg, val), reg->base);
 }
 
 bool hantro_is_encoder_ctx(const struct hantro_ctx *ctx);
@@ -380,5 +419,24 @@ hantro_get_dst_buf(struct hantro_ctx *ctx)
 {
 	return v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 }
+
+static inline bool
+hantro_needs_postproc(struct hantro_ctx *ctx, const struct hantro_fmt *fmt)
+{
+	return fmt->fourcc != V4L2_PIX_FMT_NV12;
+}
+
+static inline dma_addr_t
+hantro_get_dec_buf_addr(struct hantro_ctx *ctx, struct vb2_buffer *vb)
+{
+	if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
+		return ctx->postproc.dec_q[vb->index].dma;
+	return vb2_dma_contig_plane_dma_addr(vb, 0);
+}
+
+void hantro_postproc_disable(struct hantro_ctx *ctx);
+void hantro_postproc_enable(struct hantro_ctx *ctx);
+void hantro_postproc_free(struct hantro_ctx *ctx);
+int hantro_postproc_alloc(struct hantro_ctx *ctx);
 
 #endif /* HANTRO_H_ */

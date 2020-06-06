@@ -19,6 +19,9 @@
 
 /**
  * st_sensors_new_samples_available() - check if more samples came in
+ * @indio_dev: IIO device reference.
+ * @sdata: Sensor data.
+ *
  * returns:
  * 0 - no new samples available
  * 1 - new samples available

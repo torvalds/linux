@@ -96,21 +96,18 @@ void wilc_mac_indicate(struct wilc *wilc)
 
 static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 {
-	u8 *bssid, *bssid1;
 	struct net_device *ndev = NULL;
 	struct wilc_vif *vif;
-
-	bssid = mac_header + 10;
-	bssid1 = mac_header + 4;
+	struct ieee80211_hdr *h = (struct ieee80211_hdr *)mac_header;
 
 	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
 		if (vif->mode == WILC_STATION_MODE)
-			if (ether_addr_equal_unaligned(bssid, vif->bssid)) {
+			if (ether_addr_equal_unaligned(h->addr2, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
 			}
 		if (vif->mode == WILC_AP_MODE)
-			if (ether_addr_equal_unaligned(bssid1, vif->bssid)) {
+			if (ether_addr_equal_unaligned(h->addr1, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
 			}
@@ -177,7 +174,7 @@ static int wilc_txq_task(void *vp)
 				}
 				srcu_read_unlock(&wl->srcu, srcu_idx);
 			}
-		} while (ret == -ENOBUFS && !wl->close);
+		} while (ret == WILC_VMM_ENTRY_FULL_RETRY && !wl->close);
 	}
 	return 0;
 }
@@ -186,7 +183,7 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
-	int chip_id, ret = 0;
+	int chip_id;
 	const struct firmware *wilc_firmware;
 	char *firmware;
 
@@ -201,14 +198,11 @@ static int wilc_wlan_get_firmware(struct net_device *dev)
 
 	if (request_firmware(&wilc_firmware, firmware, wilc->dev) != 0) {
 		netdev_err(dev, "%s - firmware not available\n", firmware);
-		ret = -1;
-		goto fail;
+		return -EINVAL;
 	}
 	wilc->firmware = wilc_firmware;
 
-fail:
-
-	return ret;
+	return 0;
 }
 
 static int wilc_start_firmware(struct net_device *dev)
@@ -218,7 +212,7 @@ static int wilc_start_firmware(struct net_device *dev)
 	int ret = 0;
 
 	ret = wilc_wlan_start(wilc);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	if (!wait_for_completion_timeout(&wilc->sync_event,
@@ -241,7 +235,7 @@ static int wilc1000_firmware_download(struct net_device *dev)
 
 	ret = wilc_wlan_firmware_download(wilc, wilc->firmware->data,
 					  wilc->firmware->size);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	release_firmware(wilc->firmware);
@@ -420,7 +414,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 	return 0;
 
 fail:
-	return -1;
+	return -EINVAL;
 }
 
 static void wlan_deinitialize_threads(struct net_device *dev)
@@ -500,14 +494,12 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 		wl->close = 0;
 
 		ret = wilc_wlan_init(dev);
-		if (ret < 0)
-			return -EIO;
+		if (ret)
+			return ret;
 
 		ret = wlan_initialize_threads(dev);
-		if (ret < 0) {
-			ret = -EIO;
+		if (ret)
 			goto fail_wilc_wlan;
-		}
 
 		if (wl->gpio_irq && init_irq(dev)) {
 			ret = -EIO;
@@ -521,22 +513,17 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			goto fail_irq_init;
 		}
 
-		if (wilc_wlan_get_firmware(dev)) {
-			ret = -EIO;
+		ret = wilc_wlan_get_firmware(dev);
+		if (ret)
 			goto fail_irq_enable;
-		}
 
 		ret = wilc1000_firmware_download(dev);
-		if (ret < 0) {
-			ret = -EIO;
+		if (ret)
 			goto fail_irq_enable;
-		}
 
 		ret = wilc_start_firmware(dev);
-		if (ret < 0) {
-			ret = -EIO;
+		if (ret)
 			goto fail_irq_enable;
-		}
 
 		if (wilc_wlan_cfg_get(vif, 1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;
@@ -548,11 +535,10 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			firmware_ver[size] = '\0';
 			netdev_dbg(dev, "Firmware Ver = %s\n", firmware_ver);
 		}
-		ret = wilc_init_fw_config(dev, vif);
 
-		if (ret < 0) {
+		ret = wilc_init_fw_config(dev, vif);
+		if (ret) {
 			netdev_err(dev, "Failed to configure firmware\n");
-			ret = -EIO;
 			goto fail_fw_start;
 		}
 		wl->initialized = true;
@@ -603,11 +589,11 @@ static int wilc_mac_open(struct net_device *ndev)
 	netdev_dbg(ndev, "MAC OPEN[%p]\n", ndev);
 
 	ret = wilc_init_host_int(ndev);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	ret = wilc_wlan_initialize(ndev, vif);
-	if (ret < 0) {
+	if (ret) {
 		wilc_deinit_host_int(ndev);
 		return ret;
 	}
@@ -840,7 +826,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 void wilc_netdev_cleanup(struct wilc *wilc)
 {
 	struct wilc_vif *vif;
-	int srcu_idx;
+	int srcu_idx, ifc_cnt = 0;
 
 	if (!wilc)
 		return;
@@ -861,7 +847,7 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 	flush_workqueue(wilc->hif_workqueue);
 	destroy_workqueue(wilc->hif_workqueue);
 
-	do {
+	while (ifc_cnt < WILC_NUM_CONCURRENT_IFC) {
 		mutex_lock(&wilc->vif_mutex);
 		if (wilc->vif_num <= 0) {
 			mutex_unlock(&wilc->vif_mutex);
@@ -874,7 +860,8 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		wilc->vif_num--;
 		mutex_unlock(&wilc->vif_mutex);
 		synchronize_srcu(&wilc->srcu);
-	} while (1);
+		ifc_cnt++;
+	}
 
 	wilc_wlan_cfg_deinit(wilc);
 	wlan_deinit_locks(wilc);

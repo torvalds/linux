@@ -500,11 +500,8 @@ static int btrfs_dev_replace_start(struct btrfs_fs_info *fs_info,
 			      &dev_replace->scrub_progress, 0, 1);
 
 	ret = btrfs_dev_replace_finishing(fs_info, ret);
-	if (ret == -EINPROGRESS) {
+	if (ret == -EINPROGRESS)
 		ret = BTRFS_IOCTL_DEV_REPLACE_RESULT_SCRUB_INPROGRESS;
-	} else if (ret != -ECANCELED) {
-		WARN_ON(ret);
-	}
 
 	return ret;
 
@@ -707,6 +704,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 
 	/* replace the sysfs entry */
 	btrfs_sysfs_rm_device_link(fs_info->fs_devices, src_device);
+	btrfs_sysfs_update_devid(tgt_device);
 	btrfs_rm_dev_replace_free_srcdev(src_device);
 
 	/* write back the superblocks */

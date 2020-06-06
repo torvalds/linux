@@ -250,8 +250,8 @@ int snd_sof_init_trace(struct snd_sof_dev *sdev)
 	}
 
 	/* create compressed page table for audio firmware */
-	ret = snd_sof_create_page_table(sdev, &sdev->dmatb, sdev->dmatp.area,
-					sdev->dmatb.bytes);
+	ret = snd_sof_create_page_table(sdev->dev, &sdev->dmatb,
+					sdev->dmatp.area, sdev->dmatb.bytes);
 	if (ret < 0)
 		goto table_err;
 
@@ -343,7 +343,10 @@ void snd_sof_free_trace(struct snd_sof_dev *sdev)
 
 	snd_sof_release_trace(sdev);
 
-	snd_dma_free_pages(&sdev->dmatb);
-	snd_dma_free_pages(&sdev->dmatp);
+	if (sdev->dma_trace_pages) {
+		snd_dma_free_pages(&sdev->dmatb);
+		snd_dma_free_pages(&sdev->dmatp);
+		sdev->dma_trace_pages = 0;
+	}
 }
 EXPORT_SYMBOL(snd_sof_free_trace);

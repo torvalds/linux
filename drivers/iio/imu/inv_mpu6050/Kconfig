@@ -10,11 +10,12 @@ config INV_MPU6050_IIO
 
 config INV_MPU6050_I2C
 	tristate "Invensense MPU6050 devices (I2C)"
-	depends on I2C_MUX
+	depends on I2C
+	select I2C_MUX
 	select INV_MPU6050_IIO
 	select REGMAP_I2C
 	help
-	  This driver supports the Invensense MPU6000/6050/6500/6515,
+	  This driver supports the Invensense MPU6050/6500/6515,
 	  MPU9150/9250/9255 and ICM20608/20602 motion tracking devices
 	  over I2C.
 	  This driver can be built as a module. The module will be called
@@ -26,8 +27,8 @@ config INV_MPU6050_SPI
 	select INV_MPU6050_IIO
 	select REGMAP_SPI
 	help
-	  This driver supports the Invensense MPU6000/6050/6500/6515,
-	  MPU9150/9250/9255 and ICM20608/20602 motion tracking devices
+	  This driver supports the Invensense MPU6000/6500/6515,
+	  MPU9250/9255 and ICM20608/20602 motion tracking devices
 	  over SPI.
 	  This driver can be built as a module. The module will be called
 	  inv-mpu6050-spi.

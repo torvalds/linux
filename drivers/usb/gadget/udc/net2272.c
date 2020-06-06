@@ -2323,7 +2323,7 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 			goto err;
 		}
 
-		mem_mapped_addr[i] = ioremap_nocache(resource, len);
+		mem_mapped_addr[i] = ioremap(resource, len);
 		if (mem_mapped_addr[i] == NULL) {
 			release_mem_region(resource, len);
 			dev_dbg(dev->dev, "can't map memory\n");
@@ -2401,7 +2401,7 @@ net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 			goto err;
 		}
 
-		mem_mapped_addr[i] = ioremap_nocache(resource, len);
+		mem_mapped_addr[i] = ioremap(resource, len);
 		if (mem_mapped_addr[i] == NULL) {
 			release_mem_region(resource, len);
 			dev_dbg(dev->dev, "can't map memory\n");
@@ -2625,7 +2625,7 @@ net2272_plat_probe(struct platform_device *pdev)
 		ret = -EBUSY;
 		goto err;
 	}
-	dev->base_addr = ioremap_nocache(base, len);
+	dev->base_addr = ioremap(base, len);
 	if (!dev->base_addr) {
 		dev_dbg(dev->dev, "can't map memory\n");
 		ret = -EFAULT;

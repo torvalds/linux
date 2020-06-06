@@ -60,7 +60,7 @@ void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
 static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
 {
 	struct audioformat *fp;
-	static char *sync_types[4] = {
+	static const char * const sync_types[4] = {
 		"NONE", "ASYNC", "ADAPTIVE", "SYNC"
 	};
 

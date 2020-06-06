@@ -307,7 +307,7 @@ struct policydb {
 
 	u16 process_class;
 	u32 process_trans_perms;
-};
+} __randomize_layout;
 
 extern void policydb_destroy(struct policydb *p);
 extern int policydb_load_isids(struct policydb *p, struct sidtab *s);

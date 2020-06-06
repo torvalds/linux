@@ -37,11 +37,11 @@
 #include <drm/drm_print.h>
 
 /*
- * drm_debug: Enable debug output.
+ * __drm_debug: Enable debug output.
  * Bitmask of DRM_UT_x. See include/drm/drm_print.h for details.
  */
-unsigned int drm_debug;
-EXPORT_SYMBOL(drm_debug);
+unsigned int __drm_debug;
+EXPORT_SYMBOL(__drm_debug);
 
 MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug category.\n"
 "\t\tBit 0 (0x01)  will enable CORE messages (drm core code)\n"
@@ -52,7 +52,7 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
 "\t\tBit 5 (0x20)  will enable VBL messages (vblank code)\n"
 "\t\tBit 7 (0x80)  will enable LEASE messages (leasing code)\n"
 "\t\tBit 8 (0x100) will enable DP messages (displayport code)");
-module_param_named(debug, drm_debug, int, 0600);
+module_param_named(debug, __drm_debug, int, 0600);
 
 void __drm_puts_coredump(struct drm_printer *p, const char *str)
 {
@@ -256,7 +256,7 @@ void drm_dev_printk(const struct device *dev, const char *level,
 }
 EXPORT_SYMBOL(drm_dev_printk);
 
-void drm_dev_dbg(const struct device *dev, unsigned int category,
+void drm_dev_dbg(const struct device *dev, enum drm_debug_category category,
 		 const char *format, ...)
 {
 	struct va_format vaf;
@@ -280,7 +280,7 @@ void drm_dev_dbg(const struct device *dev, unsigned int category,
 }
 EXPORT_SYMBOL(drm_dev_dbg);
 
-void drm_dbg(unsigned int category, const char *format, ...)
+void __drm_dbg(enum drm_debug_category category, const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -297,9 +297,9 @@ void drm_dbg(unsigned int category, const char *format, ...)
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_dbg);
+EXPORT_SYMBOL(__drm_dbg);
 
-void drm_err(const char *format, ...)
+void __drm_err(const char *format, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -313,7 +313,7 @@ void drm_err(const char *format, ...)
 
 	va_end(args);
 }
-EXPORT_SYMBOL(drm_err);
+EXPORT_SYMBOL(__drm_err);
 
 /**
  * drm_print_regset32 - print the contents of registers to a

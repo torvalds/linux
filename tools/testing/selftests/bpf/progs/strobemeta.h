@@ -8,7 +8,7 @@
 #include <linux/ptrace.h>
 #include <linux/sched.h>
 #include <linux/types.h>
-#include "bpf_helpers.h"
+#include <bpf/bpf_helpers.h>
 
 typedef uint32_t pid_t;
 struct task_struct {};

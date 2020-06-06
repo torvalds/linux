@@ -147,10 +147,8 @@ static int blake2b_setkey(struct crypto_shash *tfm, const u8 *key,
 {
 	struct blake2b_tfm_ctx *tctx = crypto_shash_ctx(tfm);
 
-	if (keylen == 0 || keylen > BLAKE2B_KEYBYTES) {
-		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
+	if (keylen == 0 || keylen > BLAKE2B_KEYBYTES)
 		return -EINVAL;
-	}
 
 	memcpy(tctx->key, key, keylen);
 	tctx->keylen = keylen;

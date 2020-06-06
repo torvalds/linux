@@ -504,7 +504,7 @@ static int __init sh_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc->res))
 		return -EBUSY;
 
-	rtc->regbase = devm_ioremap_nocache(&pdev->dev, rtc->res->start,
+	rtc->regbase = devm_ioremap(&pdev->dev, rtc->res->start,
 					rtc->regsize);
 	if (unlikely(!rtc->regbase))
 		return -EINVAL;

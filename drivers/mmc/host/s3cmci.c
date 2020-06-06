@@ -1505,14 +1505,14 @@ static int s3cmci_probe_pdata(struct s3cmci_host *host)
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
 	/* If we get -ENOENT we have no card detect GPIO line */
-	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0);
 	if (ret != -ENOENT) {
 		dev_err(&pdev->dev, "error requesting GPIO for CD %d\n",
 			ret);
 		return ret;
 	}
 
-	ret = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0, NULL);
+	ret = mmc_gpiod_request_ro(host->mmc, "wp", 0, 0);
 	if (ret != -ENOENT) {
 		dev_err(&pdev->dev, "error requesting GPIO for WP %d\n",
 			ret);

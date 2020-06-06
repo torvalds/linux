@@ -225,7 +225,7 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
-	if (!i2c_new_device(adapter, info)) {
+	if (IS_ERR(i2c_new_client_device(adapter, info))) {
 		adev->power.flags.ignore_parent = false;
 		dev_err(&adapter->dev,
 			"failed to add I2C device %s from ACPI\n",
@@ -394,9 +394,17 @@ EXPORT_SYMBOL_GPL(i2c_acpi_find_adapter_by_handle);
 static struct i2c_client *i2c_acpi_find_client_by_adev(struct acpi_device *adev)
 {
 	struct device *dev;
+	struct i2c_client *client;
 
 	dev = bus_find_device_by_acpi_dev(&i2c_bus_type, adev);
-	return dev ? i2c_verify_client(dev) : NULL;
+	if (!dev)
+		return NULL;
+
+	client = i2c_verify_client(dev);
+	if (!client)
+		put_device(dev);
+
+	return client;
 }
 
 static int i2c_acpi_notify(struct notifier_block *nb, unsigned long value,
@@ -451,7 +459,8 @@ struct notifier_block i2c_acpi_notifier = {
  * resources, in that case this function can be used to create an i2c-client
  * for other I2cSerialBus resources in the Current Resource Settings table.
  *
- * Also see i2c_new_device, which this function calls to create the i2c-client.
+ * Also see i2c_new_client_device, which this function calls to create the
+ * i2c-client.
  *
  * Returns a pointer to the new i2c-client, or error pointer in case of failure.
  * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
@@ -461,7 +470,6 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 {
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
-	struct i2c_client *client;
 	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
@@ -489,11 +497,7 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 	if (!adapter)
 		return ERR_PTR(-EPROBE_DEFER);
 
-	client = i2c_new_device(adapter, info);
-	if (!client)
-		return ERR_PTR(-ENODEV);
-
-	return client;
+	return i2c_new_client_device(adapter, info);
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 

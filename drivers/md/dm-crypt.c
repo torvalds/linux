@@ -1,8 +1,8 @@
 /*
  * Copyright (C) 2003 Jana Saout <jana@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006-2017 Red Hat, Inc. All rights reserved.
- * Copyright (C) 2013-2017 Milan Broz <gmazyland@gmail.com>
+ * Copyright (C) 2006-2020 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2013-2020 Milan Broz <gmazyland@gmail.com>
  *
  * This file is released under the GPL.
  */
@@ -115,6 +115,11 @@ struct iv_tcw_private {
 	u8 *whitening;
 };
 
+#define ELEPHANT_MAX_KEY_SIZE 32
+struct iv_elephant_private {
+	struct crypto_skcipher *tfm;
+};
+
 /*
  * Crypt: maps a linear range of a block device
  * and encrypts / decrypts at the same time.
@@ -125,6 +130,7 @@ enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cihper */
 	CRYPT_IV_LARGE_SECTORS,		/* Calculate IV from sector_size, not 512B sectors */
+	CRYPT_ENCRYPT_PREPROCESS,	/* Must preprocess data for encryption (elephant) */
 };
 
 /*
@@ -152,6 +158,7 @@ struct crypt_config {
 		struct iv_benbi_private benbi;
 		struct iv_lmk_private lmk;
 		struct iv_tcw_private tcw;
+		struct iv_elephant_private elephant;
 	} iv_gen_private;
 	u64 iv_offset;
 	unsigned int iv_size;
@@ -285,6 +292,11 @@ static struct crypto_aead *any_tfm_aead(struct crypt_config *cc)
  * eboiv: Encrypted byte-offset IV (used in Bitlocker in CBC mode)
  *        The IV is encrypted little-endian byte-offset (with the same key
  *        and cipher as the volume).
+ *
+ * elephant: The extended version of eboiv with additional Elephant diffuser
+ *           used with Bitlocker CBC mode.
+ *           This mode was used in older Windows systems
+ *           http://download.microsoft.com/download/0/2/3/0238acaf-d3bf-4a6d-b3d6-0a0be4bbb36e/bitlockercipher200608.pdf
  */
 
 static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv,
@@ -331,8 +343,14 @@ static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv,
 static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 			      const char *opts)
 {
-	unsigned bs = crypto_skcipher_blocksize(any_tfm(cc));
-	int log = ilog2(bs);
+	unsigned bs;
+	int log;
+
+	if (test_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags))
+		bs = crypto_aead_blocksize(any_tfm_aead(cc));
+	else
+		bs = crypto_skcipher_blocksize(any_tfm(cc));
+	log = ilog2(bs);
 
 	/* we need to calculate how far we must shift the sector count
 	 * to get the cipher block count, we use this shift in _gen */
@@ -717,7 +735,7 @@ static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 	struct crypto_wait wait;
 	int err;
 
-	req = skcipher_request_alloc(any_tfm(cc), GFP_KERNEL | GFP_NOFS);
+	req = skcipher_request_alloc(any_tfm(cc), GFP_NOIO);
 	if (!req)
 		return -ENOMEM;
 
@@ -732,6 +750,290 @@ static int crypt_iv_eboiv_gen(struct crypt_config *cc, u8 *iv,
 	skcipher_request_free(req);
 
 	return err;
+}
+
+static void crypt_iv_elephant_dtr(struct crypt_config *cc)
+{
+	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
+
+	crypto_free_skcipher(elephant->tfm);
+	elephant->tfm = NULL;
+}
+
+static int crypt_iv_elephant_ctr(struct crypt_config *cc, struct dm_target *ti,
+			    const char *opts)
+{
+	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
+	int r;
+
+	elephant->tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
+	if (IS_ERR(elephant->tfm)) {
+		r = PTR_ERR(elephant->tfm);
+		elephant->tfm = NULL;
+		return r;
+	}
+
+	r = crypt_iv_eboiv_ctr(cc, ti, NULL);
+	if (r)
+		crypt_iv_elephant_dtr(cc);
+	return r;
+}
+
+static void diffuser_disk_to_cpu(u32 *d, size_t n)
+{
+#ifndef __LITTLE_ENDIAN
+	int i;
+
+	for (i = 0; i < n; i++)
+		d[i] = le32_to_cpu((__le32)d[i]);
+#endif
+}
+
+static void diffuser_cpu_to_disk(__le32 *d, size_t n)
+{
+#ifndef __LITTLE_ENDIAN
+	int i;
+
+	for (i = 0; i < n; i++)
+		d[i] = cpu_to_le32((u32)d[i]);
+#endif
+}
+
+static void diffuser_a_decrypt(u32 *d, size_t n)
+{
+	int i, i1, i2, i3;
+
+	for (i = 0; i < 5; i++) {
+		i1 = 0;
+		i2 = n - 2;
+		i3 = n - 5;
+
+		while (i1 < (n - 1)) {
+			d[i1] += d[i2] ^ (d[i3] << 9 | d[i3] >> 23);
+			i1++; i2++; i3++;
+
+			if (i3 >= n)
+				i3 -= n;
+
+			d[i1] += d[i2] ^ d[i3];
+			i1++; i2++; i3++;
+
+			if (i2 >= n)
+				i2 -= n;
+
+			d[i1] += d[i2] ^ (d[i3] << 13 | d[i3] >> 19);
+			i1++; i2++; i3++;
+
+			d[i1] += d[i2] ^ d[i3];
+			i1++; i2++; i3++;
+		}
+	}
+}
+
+static void diffuser_a_encrypt(u32 *d, size_t n)
+{
+	int i, i1, i2, i3;
+
+	for (i = 0; i < 5; i++) {
+		i1 = n - 1;
+		i2 = n - 2 - 1;
+		i3 = n - 5 - 1;
+
+		while (i1 > 0) {
+			d[i1] -= d[i2] ^ d[i3];
+			i1--; i2--; i3--;
+
+			d[i1] -= d[i2] ^ (d[i3] << 13 | d[i3] >> 19);
+			i1--; i2--; i3--;
+
+			if (i2 < 0)
+				i2 += n;
+
+			d[i1] -= d[i2] ^ d[i3];
+			i1--; i2--; i3--;
+
+			if (i3 < 0)
+				i3 += n;
+
+			d[i1] -= d[i2] ^ (d[i3] << 9 | d[i3] >> 23);
+			i1--; i2--; i3--;
+		}
+	}
+}
+
+static void diffuser_b_decrypt(u32 *d, size_t n)
+{
+	int i, i1, i2, i3;
+
+	for (i = 0; i < 3; i++) {
+		i1 = 0;
+		i2 = 2;
+		i3 = 5;
+
+		while (i1 < (n - 1)) {
+			d[i1] += d[i2] ^ d[i3];
+			i1++; i2++; i3++;
+
+			d[i1] += d[i2] ^ (d[i3] << 10 | d[i3] >> 22);
+			i1++; i2++; i3++;
+
+			if (i2 >= n)
+				i2 -= n;
+
+			d[i1] += d[i2] ^ d[i3];
+			i1++; i2++; i3++;
+
+			if (i3 >= n)
+				i3 -= n;
+
+			d[i1] += d[i2] ^ (d[i3] << 25 | d[i3] >> 7);
+			i1++; i2++; i3++;
+		}
+	}
+}
+
+static void diffuser_b_encrypt(u32 *d, size_t n)
+{
+	int i, i1, i2, i3;
+
+	for (i = 0; i < 3; i++) {
+		i1 = n - 1;
+		i2 = 2 - 1;
+		i3 = 5 - 1;
+
+		while (i1 > 0) {
+			d[i1] -= d[i2] ^ (d[i3] << 25 | d[i3] >> 7);
+			i1--; i2--; i3--;
+
+			if (i3 < 0)
+				i3 += n;
+
+			d[i1] -= d[i2] ^ d[i3];
+			i1--; i2--; i3--;
+
+			if (i2 < 0)
+				i2 += n;
+
+			d[i1] -= d[i2] ^ (d[i3] << 10 | d[i3] >> 22);
+			i1--; i2--; i3--;
+
+			d[i1] -= d[i2] ^ d[i3];
+			i1--; i2--; i3--;
+		}
+	}
+}
+
+static int crypt_iv_elephant(struct crypt_config *cc, struct dm_crypt_request *dmreq)
+{
+	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
+	u8 *es, *ks, *data, *data2, *data_offset;
+	struct skcipher_request *req;
+	struct scatterlist *sg, *sg2, src, dst;
+	struct crypto_wait wait;
+	int i, r;
+
+	req = skcipher_request_alloc(elephant->tfm, GFP_NOIO);
+	es = kzalloc(16, GFP_NOIO); /* Key for AES */
+	ks = kzalloc(32, GFP_NOIO); /* Elephant sector key */
+
+	if (!req || !es || !ks) {
+		r = -ENOMEM;
+		goto out;
+	}
+
+	*(__le64 *)es = cpu_to_le64(dmreq->iv_sector * cc->sector_size);
+
+	/* E(Ks, e(s)) */
+	sg_init_one(&src, es, 16);
+	sg_init_one(&dst, ks, 16);
+	skcipher_request_set_crypt(req, &src, &dst, 16, NULL);
+	skcipher_request_set_callback(req, 0, crypto_req_done, &wait);
+	r = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
+	if (r)
+		goto out;
+
+	/* E(Ks, e'(s)) */
+	es[15] = 0x80;
+	sg_init_one(&dst, &ks[16], 16);
+	r = crypto_wait_req(crypto_skcipher_encrypt(req), &wait);
+	if (r)
+		goto out;
+
+	sg = crypt_get_sg_data(cc, dmreq->sg_out);
+	data = kmap_atomic(sg_page(sg));
+	data_offset = data + sg->offset;
+
+	/* Cannot modify original bio, copy to sg_out and apply Elephant to it */
+	if (bio_data_dir(dmreq->ctx->bio_in) == WRITE) {
+		sg2 = crypt_get_sg_data(cc, dmreq->sg_in);
+		data2 = kmap_atomic(sg_page(sg2));
+		memcpy(data_offset, data2 + sg2->offset, cc->sector_size);
+		kunmap_atomic(data2);
+	}
+
+	if (bio_data_dir(dmreq->ctx->bio_in) != WRITE) {
+		diffuser_disk_to_cpu((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_b_decrypt((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_a_decrypt((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_cpu_to_disk((__le32*)data_offset, cc->sector_size / sizeof(u32));
+	}
+
+	for (i = 0; i < (cc->sector_size / 32); i++)
+		crypto_xor(data_offset + i * 32, ks, 32);
+
+	if (bio_data_dir(dmreq->ctx->bio_in) == WRITE) {
+		diffuser_disk_to_cpu((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_a_encrypt((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_b_encrypt((u32*)data_offset, cc->sector_size / sizeof(u32));
+		diffuser_cpu_to_disk((__le32*)data_offset, cc->sector_size / sizeof(u32));
+	}
+
+	kunmap_atomic(data);
+out:
+	kzfree(ks);
+	kzfree(es);
+	skcipher_request_free(req);
+	return r;
+}
+
+static int crypt_iv_elephant_gen(struct crypt_config *cc, u8 *iv,
+			    struct dm_crypt_request *dmreq)
+{
+	int r;
+
+	if (bio_data_dir(dmreq->ctx->bio_in) == WRITE) {
+		r = crypt_iv_elephant(cc, dmreq);
+		if (r)
+			return r;
+	}
+
+	return crypt_iv_eboiv_gen(cc, iv, dmreq);
+}
+
+static int crypt_iv_elephant_post(struct crypt_config *cc, u8 *iv,
+				  struct dm_crypt_request *dmreq)
+{
+	if (bio_data_dir(dmreq->ctx->bio_in) != WRITE)
+		return crypt_iv_elephant(cc, dmreq);
+
+	return 0;
+}
+
+static int crypt_iv_elephant_init(struct crypt_config *cc)
+{
+	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
+	int key_offset = cc->key_size - cc->key_extra_size;
+
+	return crypto_skcipher_setkey(elephant->tfm, &cc->key[key_offset], cc->key_extra_size);
+}
+
+static int crypt_iv_elephant_wipe(struct crypt_config *cc)
+{
+	struct iv_elephant_private *elephant = &cc->iv_gen_private.elephant;
+	u8 key[ELEPHANT_MAX_KEY_SIZE];
+
+	memset(key, 0, cc->key_extra_size);
+	return crypto_skcipher_setkey(elephant->tfm, key, cc->key_extra_size);
 }
 
 static const struct crypt_iv_operations crypt_iv_plain_ops = {
@@ -785,6 +1087,15 @@ static struct crypt_iv_operations crypt_iv_random_ops = {
 static struct crypt_iv_operations crypt_iv_eboiv_ops = {
 	.ctr	   = crypt_iv_eboiv_ctr,
 	.generator = crypt_iv_eboiv_gen
+};
+
+static struct crypt_iv_operations crypt_iv_elephant_ops = {
+	.ctr	   = crypt_iv_elephant_ctr,
+	.dtr	   = crypt_iv_elephant_dtr,
+	.init	   = crypt_iv_elephant_init,
+	.wipe	   = crypt_iv_elephant_wipe,
+	.generator = crypt_iv_elephant_gen,
+	.post	   = crypt_iv_elephant_post
 };
 
 /*
@@ -1103,6 +1414,9 @@ static int crypt_convert_block_skcipher(struct crypt_config *cc,
 			r = cc->iv_gen_ops->generator(cc, org_iv, dmreq);
 			if (r < 0)
 				return r;
+			/* Data can be already preprocessed in generator */
+			if (test_bit(CRYPT_ENCRYPT_PREPROCESS, &cc->cipher_flags))
+				sg_in = sg_out;
 			/* Store generated IV in integrity metadata */
 			if (cc->integrity_iv_size)
 				memcpy(tag_iv, org_iv, cc->integrity_iv_size);
@@ -2191,7 +2505,14 @@ static int crypt_ctr_ivmode(struct dm_target *ti, const char *ivmode)
 		cc->iv_gen_ops = &crypt_iv_null_ops;
 	else if (strcmp(ivmode, "eboiv") == 0)
 		cc->iv_gen_ops = &crypt_iv_eboiv_ops;
-	else if (strcmp(ivmode, "lmk") == 0) {
+	else if (strcmp(ivmode, "elephant") == 0) {
+		cc->iv_gen_ops = &crypt_iv_elephant_ops;
+		cc->key_parts = 2;
+		cc->key_extra_size = cc->key_size / 2;
+		if (cc->key_extra_size > ELEPHANT_MAX_KEY_SIZE)
+			return -EINVAL;
+		set_bit(CRYPT_ENCRYPT_PREPROCESS, &cc->cipher_flags);
+	} else if (strcmp(ivmode, "lmk") == 0) {
 		cc->iv_gen_ops = &crypt_iv_lmk_ops;
 		/*
 		 * Version 2 and 3 is recognised according
@@ -2959,7 +3280,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 19, 0},
+	.version = {1, 20, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

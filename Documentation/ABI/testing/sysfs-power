@@ -407,3 +407,16 @@ Contact:	Kalesh Singh <kaleshsingh96@gmail.com>
 Description:
 		The /sys/power/suspend_stats/last_failed_step file contains
 		the last failed step in the suspend/resume path.
+
+What:		/sys/power/sync_on_suspend
+Date:		October 2019
+Contact:	Jonas Meurer <jonas@freesources.org>
+Description:
+		This file controls whether or not the kernel will sync()
+		filesystems during system suspend (after freezing user space
+		and before suspending devices).
+
+		Writing a "1" to this file enables the sync() and writing a "0"
+		disables it.  Reads from the file return the current value.
+		The default is "1" if the build-time "SUSPEND_SKIP_SYNC" config
+		flag is unset, or "0" otherwise.

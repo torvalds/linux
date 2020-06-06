@@ -144,11 +144,6 @@ static int sun8i_ce_cipher(struct skcipher_request *areq)
 	cet->t_sym_ctl = cpu_to_le32(sym);
 	cet->t_asym_ctl = 0;
 
-	chan->op_mode = ce->variant->op_mode[algt->ce_blockmode];
-	chan->op_dir = rctx->op_dir;
-	chan->method = ce->variant->alg_cipher[algt->ce_algo_id];
-	chan->keylen = op->keylen;
-
 	addr_key = dma_map_single(ce->dev, op->key, op->keylen, DMA_TO_DEVICE);
 	cet->t_key = cpu_to_le32(addr_key);
 	if (dma_mapping_error(ce->dev, addr_key)) {
@@ -394,7 +389,6 @@ int sun8i_ce_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 		break;
 	default:
 		dev_dbg(ce->dev, "ERROR: Invalid keylen %u\n", keylen);
-		crypto_skcipher_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 	if (op->key) {

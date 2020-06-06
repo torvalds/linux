@@ -63,7 +63,7 @@ static void dsa_port_set_state_now(struct dsa_port *dp, u8 state)
 		pr_err("DSA: failed to set STP state %u (%d)\n", state, err);
 }
 
-int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
+int dsa_port_enable_rt(struct dsa_port *dp, struct phy_device *phy)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
@@ -78,19 +78,43 @@ int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
 	if (!dp->bridge_dev)
 		dsa_port_set_state_now(dp, BR_STATE_FORWARDING);
 
+	if (dp->pl)
+		phylink_start(dp->pl);
+
 	return 0;
 }
 
-void dsa_port_disable(struct dsa_port *dp)
+int dsa_port_enable(struct dsa_port *dp, struct phy_device *phy)
+{
+	int err;
+
+	rtnl_lock();
+	err = dsa_port_enable_rt(dp, phy);
+	rtnl_unlock();
+
+	return err;
+}
+
+void dsa_port_disable_rt(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 	int port = dp->index;
+
+	if (dp->pl)
+		phylink_stop(dp->pl);
 
 	if (!dp->bridge_dev)
 		dsa_port_set_state_now(dp, BR_STATE_DISABLED);
 
 	if (ds->ops->port_disable)
 		ds->ops->port_disable(ds, port);
+}
+
+void dsa_port_disable(struct dsa_port *dp)
+{
+	rtnl_lock();
+	dsa_port_disable_rt(dp);
+	rtnl_unlock();
 }
 
 int dsa_port_bridge_join(struct dsa_port *dp, struct net_device *br)
@@ -415,9 +439,9 @@ static struct phy_device *dsa_port_get_phy_device(struct dsa_port *dp)
 	return phydev;
 }
 
-void dsa_port_phylink_validate(struct phylink_config *config,
-			       unsigned long *supported,
-			       struct phylink_link_state *state)
+static void dsa_port_phylink_validate(struct phylink_config *config,
+				      unsigned long *supported,
+				      struct phylink_link_state *state)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -427,10 +451,9 @@ void dsa_port_phylink_validate(struct phylink_config *config,
 
 	ds->ops->phylink_validate(ds, dp->index, supported, state);
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_validate);
 
-void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
-					struct phylink_link_state *state)
+static void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
+					       struct phylink_link_state *state)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -444,11 +467,10 @@ void dsa_port_phylink_mac_pcs_get_state(struct phylink_config *config,
 	if (ds->ops->phylink_mac_link_state(ds, dp->index, state) < 0)
 		state->link = 0;
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_pcs_get_state);
 
-void dsa_port_phylink_mac_config(struct phylink_config *config,
-				 unsigned int mode,
-				 const struct phylink_link_state *state)
+static void dsa_port_phylink_mac_config(struct phylink_config *config,
+					unsigned int mode,
+					const struct phylink_link_state *state)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -458,9 +480,8 @@ void dsa_port_phylink_mac_config(struct phylink_config *config,
 
 	ds->ops->phylink_mac_config(ds, dp->index, mode, state);
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_config);
 
-void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
+static void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -470,11 +491,10 @@ void dsa_port_phylink_mac_an_restart(struct phylink_config *config)
 
 	ds->ops->phylink_mac_an_restart(ds, dp->index);
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_an_restart);
 
-void dsa_port_phylink_mac_link_down(struct phylink_config *config,
-				    unsigned int mode,
-				    phy_interface_t interface)
+static void dsa_port_phylink_mac_link_down(struct phylink_config *config,
+					   unsigned int mode,
+					   phy_interface_t interface)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct phy_device *phydev = NULL;
@@ -491,12 +511,11 @@ void dsa_port_phylink_mac_link_down(struct phylink_config *config,
 
 	ds->ops->phylink_mac_link_down(ds, dp->index, mode, interface);
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_down);
 
-void dsa_port_phylink_mac_link_up(struct phylink_config *config,
-				  unsigned int mode,
-				  phy_interface_t interface,
-				  struct phy_device *phydev)
+static void dsa_port_phylink_mac_link_up(struct phylink_config *config,
+					 unsigned int mode,
+					 phy_interface_t interface,
+					 struct phy_device *phydev)
 {
 	struct dsa_port *dp = container_of(config, struct dsa_port, pl_config);
 	struct dsa_switch *ds = dp->ds;
@@ -509,7 +528,6 @@ void dsa_port_phylink_mac_link_up(struct phylink_config *config,
 
 	ds->ops->phylink_mac_link_up(ds, dp->index, mode, interface, phydev);
 }
-EXPORT_SYMBOL_GPL(dsa_port_phylink_mac_link_up);
 
 const struct phylink_mac_ops dsa_port_phylink_mac_ops = {
 	.validate = dsa_port_phylink_validate,
@@ -605,6 +623,7 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 
 	dp->pl_config.dev = ds->dev;
 	dp->pl_config.type = PHYLINK_DEV;
+	dp->pl_config.pcs_poll = ds->pcs_poll;
 
 	dp->pl = phylink_create(&dp->pl_config, of_fwnode_handle(port_dn),
 				mode, &dsa_port_phylink_mac_ops);
@@ -619,10 +638,6 @@ static int dsa_port_phylink_register(struct dsa_port *dp)
 		goto err_phy_connect;
 	}
 
-	rtnl_lock();
-	phylink_start(dp->pl);
-	rtnl_unlock();
-
 	return 0;
 
 err_phy_connect:
@@ -633,9 +648,14 @@ err_phy_connect:
 int dsa_port_link_register_of(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
+	struct device_node *phy_np;
 
-	if (!ds->ops->adjust_link)
-		return dsa_port_phylink_register(dp);
+	if (!ds->ops->adjust_link) {
+		phy_np = of_parse_phandle(dp->dn, "phy-handle", 0);
+		if (of_phy_is_fixed_link(dp->dn) || phy_np)
+			return dsa_port_phylink_register(dp);
+		return 0;
+	}
 
 	dev_warn(ds->dev,
 		 "Using legacy PHYLIB callbacks. Please migrate to PHYLINK!\n");
@@ -650,11 +670,12 @@ void dsa_port_link_unregister_of(struct dsa_port *dp)
 {
 	struct dsa_switch *ds = dp->ds;
 
-	if (!ds->ops->adjust_link) {
+	if (!ds->ops->adjust_link && dp->pl) {
 		rtnl_lock();
 		phylink_disconnect_phy(dp->pl);
 		rtnl_unlock();
 		phylink_destroy(dp->pl);
+		dp->pl = NULL;
 		return;
 	}
 

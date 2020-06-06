@@ -180,7 +180,7 @@ mlx5e_ktls_tx_post_param_wqes(struct mlx5e_txqsq *sq,
 
 struct tx_sync_info {
 	u64 rcd_sn;
-	s32 sync_len;
+	u32 sync_len;
 	int nr_frags;
 	skb_frag_t frags[MAX_SKB_FRAGS];
 };
@@ -193,13 +193,14 @@ enum mlx5e_ktls_sync_retval {
 
 static enum mlx5e_ktls_sync_retval
 tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
-		 u32 tcp_seq, struct tx_sync_info *info)
+		 u32 tcp_seq, int datalen, struct tx_sync_info *info)
 {
 	struct tls_offload_context_tx *tx_ctx = priv_tx->tx_ctx;
 	enum mlx5e_ktls_sync_retval ret = MLX5E_KTLS_SYNC_DONE;
 	struct tls_record_info *record;
 	int remaining, i = 0;
 	unsigned long flags;
+	bool ends_before;
 
 	spin_lock_irqsave(&tx_ctx->lock, flags);
 	record = tls_get_record(tx_ctx, tcp_seq, &info->rcd_sn);
@@ -209,9 +210,21 @@ tx_sync_info_get(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		goto out;
 	}
 
-	if (unlikely(tcp_seq < tls_record_start_seq(record))) {
-		ret = tls_record_is_start_marker(record) ?
-			MLX5E_KTLS_SYNC_SKIP_NO_DATA : MLX5E_KTLS_SYNC_FAIL;
+	/* There are the following cases:
+	 * 1. packet ends before start marker: bypass offload.
+	 * 2. packet starts before start marker and ends after it: drop,
+	 *    not supported, breaks contract with kernel.
+	 * 3. packet ends before tls record info starts: drop,
+	 *    this packet was already acknowledged and its record info
+	 *    was released.
+	 */
+	ends_before = before(tcp_seq + datalen - 1, tls_record_start_seq(record));
+
+	if (unlikely(tls_record_is_start_marker(record))) {
+		ret = ends_before ? MLX5E_KTLS_SYNC_SKIP_NO_DATA : MLX5E_KTLS_SYNC_FAIL;
+		goto out;
+	} else if (ends_before) {
+		ret = MLX5E_KTLS_SYNC_FAIL;
 		goto out;
 	}
 
@@ -337,7 +350,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 	u8 num_wqebbs;
 	int i = 0;
 
-	ret = tx_sync_info_get(priv_tx, seq, &info);
+	ret = tx_sync_info_get(priv_tx, seq, datalen, &info);
 	if (unlikely(ret != MLX5E_KTLS_SYNC_DONE)) {
 		if (ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA) {
 			stats->tls_skip_no_sync_data++;
@@ -348,14 +361,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		 * It should be safe to drop the packet in this case
 		 */
 		stats->tls_drop_no_sync_data++;
-		goto err_out;
-	}
-
-	if (unlikely(info.sync_len < 0)) {
-		if (likely(datalen <= -info.sync_len))
-			return MLX5E_KTLS_SYNC_DONE;
-
-		stats->tls_drop_bypass_req++;
 		goto err_out;
 	}
 
@@ -377,8 +382,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 
 	if (unlikely(contig_wqebbs_room < num_wqebbs))
 		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
-
-	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
 	for (; i < info.nr_frags; i++) {
 		unsigned int orig_fsz, frag_offset = 0, n = 0;
@@ -455,12 +458,18 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 		enum mlx5e_ktls_sync_retval ret =
 			mlx5e_ktls_tx_handle_ooo(priv_tx, sq, datalen, seq);
 
-		if (likely(ret == MLX5E_KTLS_SYNC_DONE))
+		switch (ret) {
+		case MLX5E_KTLS_SYNC_DONE:
 			*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
-		else if (ret == MLX5E_KTLS_SYNC_FAIL)
+			break;
+		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
+			if (likely(!skb->decrypted))
+				goto out;
+			WARN_ON_ONCE(1);
+			/* fall-through */
+		default: /* MLX5E_KTLS_SYNC_FAIL */
 			goto err_out;
-		else /* ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA */
-			goto out;
+		}
 	}
 
 	priv_tx->expected_seq = seq + datalen;

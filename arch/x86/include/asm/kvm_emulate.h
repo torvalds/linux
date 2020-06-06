@@ -222,6 +222,10 @@ struct x86_emulate_ops {
 
 	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt, u32 *eax, u32 *ebx,
 			  u32 *ecx, u32 *edx, bool check_limit);
+	bool (*guest_has_long_mode)(struct x86_emulate_ctxt *ctxt);
+	bool (*guest_has_movbe)(struct x86_emulate_ctxt *ctxt);
+	bool (*guest_has_fxsr)(struct x86_emulate_ctxt *ctxt);
+
 	void (*set_nmi_mask)(struct x86_emulate_ctxt *ctxt, bool masked);
 
 	unsigned (*get_hflags)(struct x86_emulate_ctxt *ctxt);
@@ -288,6 +292,14 @@ enum x86emul_mode {
 #define X86EMUL_SMM_MASK             (1 << 6)
 #define X86EMUL_SMM_INSIDE_NMI_MASK  (1 << 7)
 
+/*
+ * fastop functions are declared as taking a never-defined fastop parameter,
+ * so they can't be called from C directly.
+ */
+struct fastop;
+
+typedef void (*fastop_t)(struct fastop *);
+
 struct x86_emulate_ctxt {
 	const struct x86_emulate_ops *ops;
 
@@ -320,7 +332,10 @@ struct x86_emulate_ctxt {
 	struct operand src;
 	struct operand src2;
 	struct operand dst;
-	int (*execute)(struct x86_emulate_ctxt *ctxt);
+	union {
+		int (*execute)(struct x86_emulate_ctxt *ctxt);
+		fastop_t fop;
+	};
 	int (*check_perm)(struct x86_emulate_ctxt *ctxt);
 	/*
 	 * The following six fields are cleared together,
@@ -345,7 +360,6 @@ struct x86_emulate_ctxt {
 	u64 d;
 	unsigned long _eip;
 	struct operand memop;
-	/* Fields above regs are cleared together. */
 	unsigned long _regs[NR_VCPU_REGS];
 	struct operand *memopp;
 	struct fetch_cache fetch;

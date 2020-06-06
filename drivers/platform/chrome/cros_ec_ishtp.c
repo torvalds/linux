@@ -14,6 +14,8 @@
 #include <linux/platform_data/cros_ec_proto.h>
 #include <linux/intel-ish-client-if.h>
 
+#include "cros_ec.h"
+
 /*
  * ISH TX/RX ring buffer pool size
  *
@@ -76,7 +78,7 @@ struct cros_ish_in_msg {
  *
  * The writers are .reset() and .probe() function.
  */
-DECLARE_RWSEM(init_lock);
+static DECLARE_RWSEM(init_lock);
 
 /**
  * struct response_info - Encapsulate firmware response related

@@ -324,12 +324,12 @@ static int jz4740_i2s_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 	return ret;
 }
 
-static int jz4740_i2s_suspend(struct snd_soc_dai *dai)
+static int jz4740_i2s_suspend(struct snd_soc_component *component)
 {
-	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct jz4740_i2s *i2s = snd_soc_component_get_drvdata(component);
 	uint32_t conf;
 
-	if (dai->active) {
+	if (component->active) {
 		conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 		conf &= ~JZ_AIC_CONF_ENABLE;
 		jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
@@ -342,9 +342,9 @@ static int jz4740_i2s_suspend(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int jz4740_i2s_resume(struct snd_soc_dai *dai)
+static int jz4740_i2s_resume(struct snd_soc_component *component)
 {
-	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct jz4740_i2s *i2s = snd_soc_component_get_drvdata(component);
 	uint32_t conf;
 	int ret;
 
@@ -352,7 +352,7 @@ static int jz4740_i2s_resume(struct snd_soc_dai *dai)
 	if (ret)
 		return ret;
 
-	if (dai->active) {
+	if (component->active) {
 		ret = clk_prepare_enable(i2s->clk_i2s);
 		if (ret) {
 			clk_disable_unprepare(i2s->clk_aic);
@@ -455,8 +455,6 @@ static struct snd_soc_dai_driver jz4740_i2s_dai = {
 	},
 	.symmetric_rates = 1,
 	.ops = &jz4740_i2s_dai_ops,
-	.suspend = jz4740_i2s_suspend,
-	.resume = jz4740_i2s_resume,
 };
 
 static struct snd_soc_dai_driver jz4780_i2s_dai = {
@@ -475,12 +473,12 @@ static struct snd_soc_dai_driver jz4780_i2s_dai = {
 		.formats = JZ4740_I2S_FMTS,
 	},
 	.ops = &jz4740_i2s_dai_ops,
-	.suspend = jz4740_i2s_suspend,
-	.resume = jz4740_i2s_resume,
 };
 
 static const struct snd_soc_component_driver jz4740_i2s_component = {
 	.name		= "jz4740-i2s",
+	.suspend	= jz4740_i2s_suspend,
+	.resume		= jz4740_i2s_resume,
 };
 
 #ifdef CONFIG_OF

@@ -136,18 +136,17 @@ acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
 			   PDE_DATA(inode));
 }
 
-static const struct file_operations acpi_system_wakeup_device_fops = {
-	.owner = THIS_MODULE,
-	.open = acpi_system_wakeup_device_open_fs,
-	.read = seq_read,
-	.write = acpi_system_write_wakeup_device,
-	.llseek = seq_lseek,
-	.release = single_release,
+static const struct proc_ops acpi_system_wakeup_device_proc_ops = {
+	.proc_open	= acpi_system_wakeup_device_open_fs,
+	.proc_read	= seq_read,
+	.proc_write	= acpi_system_write_wakeup_device,
+	.proc_lseek	= seq_lseek,
+	.proc_release	= single_release,
 };
 
 void __init acpi_sleep_proc_init(void)
 {
 	/* 'wakeup device' [R/W] */
 	proc_create("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
-		    acpi_root_dir, &acpi_system_wakeup_device_fops);
+		    acpi_root_dir, &acpi_system_wakeup_device_proc_ops);
 }

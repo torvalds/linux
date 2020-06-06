@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 #include <sys/mman.h>
+#include "test_mmap.skel.h"
 
 struct map_data {
 	__u64 val[512 * 4];
-};
-
-struct bss_data {
-	__u64 in_val;
-	__u64 out_val;
 };
 
 static size_t roundup_page(size_t sz)
@@ -19,41 +15,25 @@ static size_t roundup_page(size_t sz)
 
 void test_mmap(void)
 {
-	const char *file = "test_mmap.o";
-	const char *probe_name = "raw_tracepoint/sys_enter";
-	const char *tp_name = "sys_enter";
-	const size_t bss_sz = roundup_page(sizeof(struct bss_data));
+	const size_t bss_sz = roundup_page(sizeof(struct test_mmap__bss));
 	const size_t map_sz = roundup_page(sizeof(struct map_data));
 	const int zero = 0, one = 1, two = 2, far = 1500;
 	const long page_size = sysconf(_SC_PAGE_SIZE);
 	int err, duration = 0, i, data_map_fd;
-	struct bpf_program *prog;
-	struct bpf_object *obj;
-	struct bpf_link *link = NULL;
 	struct bpf_map *data_map, *bss_map;
 	void *bss_mmaped = NULL, *map_mmaped = NULL, *tmp1, *tmp2;
-	volatile struct bss_data *bss_data;
-	volatile struct map_data *map_data;
+	struct test_mmap__bss *bss_data;
+	struct map_data *map_data;
+	struct test_mmap *skel;
 	__u64 val = 0;
 
-	obj = bpf_object__open_file("test_mmap.o", NULL);
-	if (CHECK(IS_ERR(obj), "obj_open", "failed to open '%s': %ld\n",
-		  file, PTR_ERR(obj)))
-		return;
-	prog = bpf_object__find_program_by_title(obj, probe_name);
-	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", probe_name))
-		goto cleanup;
-	err = bpf_object__load(obj);
-	if (CHECK(err, "obj_load", "failed to load prog '%s': %d\n",
-		  probe_name, err))
-		goto cleanup;
 
-	bss_map = bpf_object__find_map_by_name(obj, "test_mma.bss");
-	if (CHECK(!bss_map, "find_bss_map", ".bss map not found\n"))
-		goto cleanup;
-	data_map = bpf_object__find_map_by_name(obj, "data_map");
-	if (CHECK(!data_map, "find_data_map", "data_map map not found\n"))
-		goto cleanup;
+	skel = test_mmap__open_and_load();
+	if (CHECK(!skel, "skel_open_and_load", "skeleton open/load failed\n"))
+		return;
+
+	bss_map = skel->maps.bss;
+	data_map = skel->maps.data_map;
 	data_map_fd = bpf_map__fd(data_map);
 
 	bss_mmaped = mmap(NULL, bss_sz, PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -77,13 +57,15 @@ void test_mmap(void)
 
 	CHECK_FAIL(bss_data->in_val);
 	CHECK_FAIL(bss_data->out_val);
+	CHECK_FAIL(skel->bss->in_val);
+	CHECK_FAIL(skel->bss->out_val);
 	CHECK_FAIL(map_data->val[0]);
 	CHECK_FAIL(map_data->val[1]);
 	CHECK_FAIL(map_data->val[2]);
 	CHECK_FAIL(map_data->val[far]);
 
-	link = bpf_program__attach_raw_tracepoint(prog, tp_name);
-	if (CHECK(IS_ERR(link), "attach_raw_tp", "err %ld\n", PTR_ERR(link)))
+	err = test_mmap__attach(skel);
+	if (CHECK(err, "attach_raw_tp", "err %d\n", err))
 		goto cleanup;
 
 	bss_data->in_val = 123;
@@ -94,6 +76,8 @@ void test_mmap(void)
 
 	CHECK_FAIL(bss_data->in_val != 123);
 	CHECK_FAIL(bss_data->out_val != 123);
+	CHECK_FAIL(skel->bss->in_val != 123);
+	CHECK_FAIL(skel->bss->out_val != 123);
 	CHECK_FAIL(map_data->val[0] != 111);
 	CHECK_FAIL(map_data->val[1] != 222);
 	CHECK_FAIL(map_data->val[2] != 123);
@@ -160,6 +144,8 @@ void test_mmap(void)
 	usleep(1);
 	CHECK_FAIL(bss_data->in_val != 321);
 	CHECK_FAIL(bss_data->out_val != 321);
+	CHECK_FAIL(skel->bss->in_val != 321);
+	CHECK_FAIL(skel->bss->out_val != 321);
 	CHECK_FAIL(map_data->val[0] != 111);
 	CHECK_FAIL(map_data->val[1] != 222);
 	CHECK_FAIL(map_data->val[2] != 321);
@@ -203,6 +189,8 @@ void test_mmap(void)
 	map_data = tmp2;
 	CHECK_FAIL(bss_data->in_val != 321);
 	CHECK_FAIL(bss_data->out_val != 321);
+	CHECK_FAIL(skel->bss->in_val != 321);
+	CHECK_FAIL(skel->bss->out_val != 321);
 	CHECK_FAIL(map_data->val[0] != 111);
 	CHECK_FAIL(map_data->val[1] != 222);
 	CHECK_FAIL(map_data->val[2] != 321);
@@ -214,7 +202,5 @@ cleanup:
 		CHECK_FAIL(munmap(bss_mmaped, bss_sz));
 	if (map_mmaped)
 		CHECK_FAIL(munmap(map_mmaped, map_sz));
-	if (!IS_ERR_OR_NULL(link))
-		bpf_link__destroy(link);
-	bpf_object__close(obj);
+	test_mmap__destroy(skel);
 }

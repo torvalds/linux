@@ -10,6 +10,28 @@ approach. This means that GPIO consumers, drivers and machine descriptions
 ideally have no use or idea of the global GPIO numberspace that has/was
 used in the inception of the GPIO subsystem.
 
+The numberspace issue is the same as to why irq is moving away from irq
+numbers to IRQ descriptors.
+
+The underlying motivation for this is that the GPIO numberspace has become
+unmanageable: machine board files tend to become full of macros trying to
+establish the numberspace at compile-time, making it hard to add any numbers
+in the middle (such as if you missed a pin on a chip) without the numberspace
+breaking.
+
+Machine descriptions such as device tree or ACPI does not have a concept of the
+Linux GPIO number as those descriptions are external to the Linux kernel
+and treat GPIO lines as abstract entities.
+
+The runtime-assigned GPIO numberspace (what you get if you assign the GPIO
+base as -1 in struct gpio_chip) has also became unpredictable due to factors
+such as probe ordering and the introduction of -EPROBE_DEFER making probe
+ordering of independent GPIO chips essentially unpredictable, as their base
+number will be assigned on a first come first serve basis.
+
+The best way to get out of the problem is to make the global GPIO numbers
+unimportant by simply not using them. GPIO descriptors deal with this.
+
 Work items:
 
 - Convert all GPIO device drivers to only #include <linux/gpio/driver.h>
@@ -33,7 +55,7 @@ This header and helpers appeared at one point when there was no proper
 driver infrastructure for doing simpler MMIO GPIO devices and there was
 no core support for parsing device tree GPIOs from the core library with
 the [devm_]gpiod_get() calls we have today that will implicitly go into
-the device tree back-end.
+the device tree back-end. It is legacy and should not be used in new code.
 
 Work items:
 
@@ -57,6 +79,15 @@ Work items:
 
 - Delete <linux/of_gpio.h> when all the above is complete and everything
   uses <linux/gpio/consumer.h> or <linux/gpio/driver.h> instead.
+
+
+Get rid of <linux/gpio.h>
+
+This legacy header is a one stop shop for anything GPIO is closely tied
+to the global GPIO numberspace. The endgame of the above refactorings will
+be the removal of <linux/gpio.h> and from that point only the specialized
+headers under <linux/gpio/*.h> will be used. This requires all the above to
+be completed and is expected to take a long time.
 
 
 Collect drivers
@@ -109,7 +140,7 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
 
   int irq; /* from platform etc */
   struct my_gpio *g;
-  struct gpio_irq_chip *girq
+  struct gpio_irq_chip *girq;
 
   /* Set up the irqchip dynamically */
   g->irq.name = "my_gpio_irq";
@@ -137,9 +168,14 @@ try to cover any generic kind of irqchip cascaded from a GPIO.
 - Look over and identify any remaining easily converted drivers and
   dry-code conversions to gpiolib irqchip for maintainers to test
 
-- Support generic hierarchical GPIO interrupts: these are for the
-  non-cascading case where there is one IRQ per GPIO line, there is
-  currently no common infrastructure for this.
+- Drop gpiochip_set_chained_irqchip() when all the chained irqchips
+  have been converted to the above infrastructure.
+
+- Add more infrastructure to make it possible to also pass a threaded
+  irqchip in struct gpio_irq_chip.
+
+- Drop gpiochip_irqchip_add_nested() when all the chained irqchips
+  have been converted to the above infrastructure.
 
 
 Increase integration with pin control

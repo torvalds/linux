@@ -841,7 +841,8 @@ static int gswip_setup(struct dsa_switch *ds)
 }
 
 static enum dsa_tag_protocol gswip_get_tag_protocol(struct dsa_switch *ds,
-						    int port)
+						    int port,
+						    enum dsa_tag_protocol mp)
 {
 	return DSA_TAG_PROTO_GSWIP;
 }

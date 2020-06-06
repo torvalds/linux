@@ -307,13 +307,15 @@ endif
 ifeq ($(CONFIG_STACKPROTECTOR_PER_TASK),y)
 prepare: stack_protector_prepare
 stack_protector_prepare: prepare0
-	$(eval KBUILD_CFLAGS += \
+	$(eval SSP_PLUGIN_CFLAGS := \
 		-fplugin-arg-arm_ssp_per_task_plugin-tso=$(shell	\
 			awk '{if ($$2 == "THREAD_SZ_ORDER") print $$3;}'\
 				include/generated/asm-offsets.h)	\
 		-fplugin-arg-arm_ssp_per_task_plugin-offset=$(shell	\
 			awk '{if ($$2 == "TI_STACK_CANARY") print $$3;}'\
 				include/generated/asm-offsets.h))
+	$(eval KBUILD_CFLAGS += $(SSP_PLUGIN_CFLAGS))
+	$(eval GCC_PLUGINS_CFLAGS += $(SSP_PLUGIN_CFLAGS))
 endif
 
 all:	$(notdir $(KBUILD_IMAGE))

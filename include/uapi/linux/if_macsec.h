@@ -45,6 +45,7 @@ enum macsec_attrs {
 	MACSEC_ATTR_RXSC_LIST,   /* dump, nested, macsec_rxsc_attrs for each RXSC */
 	MACSEC_ATTR_TXSC_STATS,  /* dump, nested, macsec_txsc_stats_attr */
 	MACSEC_ATTR_SECY_STATS,  /* dump, nested, macsec_secy_stats_attr */
+	MACSEC_ATTR_OFFLOAD,     /* config, nested, macsec_offload_attrs */
 	__MACSEC_ATTR_END,
 	NUM_MACSEC_ATTR = __MACSEC_ATTR_END,
 	MACSEC_ATTR_MAX = __MACSEC_ATTR_END - 1,
@@ -97,6 +98,15 @@ enum macsec_sa_attrs {
 	MACSEC_SA_ATTR_MAX = __MACSEC_SA_ATTR_END - 1,
 };
 
+enum macsec_offload_attrs {
+	MACSEC_OFFLOAD_ATTR_UNSPEC,
+	MACSEC_OFFLOAD_ATTR_TYPE, /* config/dump, u8 0..2 */
+	MACSEC_OFFLOAD_ATTR_PAD,
+	__MACSEC_OFFLOAD_ATTR_END,
+	NUM_MACSEC_OFFLOAD_ATTR = __MACSEC_OFFLOAD_ATTR_END,
+	MACSEC_OFFLOAD_ATTR_MAX = __MACSEC_OFFLOAD_ATTR_END - 1,
+};
+
 enum macsec_nl_commands {
 	MACSEC_CMD_GET_TXSC,
 	MACSEC_CMD_ADD_RXSC,
@@ -108,6 +118,7 @@ enum macsec_nl_commands {
 	MACSEC_CMD_ADD_RXSA,
 	MACSEC_CMD_DEL_RXSA,
 	MACSEC_CMD_UPD_RXSA,
+	MACSEC_CMD_UPD_OFFLOAD,
 };
 
 /* u64 per-RXSC stats */

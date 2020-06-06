@@ -76,7 +76,6 @@
 
 #define FW_ASSERT_GENERAL_ATTN_IDX		32
 
-#define MAX_PINNED_CCFC				32
 
 /* Queue Zone sizes in bytes */
 #define TSTORM_QZONE_SIZE	8
@@ -105,12 +104,19 @@
 
 #define CORE_SPQE_PAGE_SIZE_BYTES	4096
 
-#define MAX_NUM_LL2_RX_QUEUES		48
-#define MAX_NUM_LL2_TX_STATS_COUNTERS	48
+/* Number of LL2 RAM based queues */
+#define MAX_NUM_LL2_RX_RAM_QUEUES 32
+
+/* Number of LL2 context based queues */
+#define MAX_NUM_LL2_RX_CTX_QUEUES 208
+#define MAX_NUM_LL2_RX_QUEUES \
+	(MAX_NUM_LL2_RX_RAM_QUEUES + MAX_NUM_LL2_RX_CTX_QUEUES)
+
+#define MAX_NUM_LL2_TX_STATS_COUNTERS  48
 
 #define FW_MAJOR_VERSION	8
-#define FW_MINOR_VERSION        37
-#define FW_REVISION_VERSION     7
+#define FW_MINOR_VERSION	42
+#define FW_REVISION_VERSION	2
 #define FW_ENGINEERING_VERSION	0
 
 /***********************/
@@ -132,10 +138,10 @@
 #define MAX_NUM_VFS	(MAX_NUM_VFS_K2)
 
 #define MAX_NUM_FUNCTIONS_BB	(MAX_NUM_PFS_BB + MAX_NUM_VFS_BB)
-#define MAX_NUM_FUNCTIONS	(MAX_NUM_PFS + MAX_NUM_VFS)
 
 #define MAX_FUNCTION_NUMBER_BB	(MAX_NUM_PFS + MAX_NUM_VFS_BB)
-#define MAX_FUNCTION_NUMBER	(MAX_NUM_PFS + MAX_NUM_VFS)
+#define MAX_FUNCTION_NUMBER_K2  (MAX_NUM_PFS + MAX_NUM_VFS_K2)
+#define MAX_NUM_FUNCTIONS	(MAX_FUNCTION_NUMBER_K2)
 
 #define MAX_NUM_VPORTS_K2	(208)
 #define MAX_NUM_VPORTS_BB	(160)
@@ -222,6 +228,7 @@
 #define DQ_XCM_TOE_TX_BD_PROD_CMD		DQ_XCM_AGG_VAL_SEL_WORD4
 #define DQ_XCM_TOE_MORE_TO_SEND_SEQ_CMD		DQ_XCM_AGG_VAL_SEL_REG3
 #define DQ_XCM_TOE_LOCAL_ADV_WND_SEQ_CMD	DQ_XCM_AGG_VAL_SEL_REG4
+#define DQ_XCM_ROCE_ACK_EDPM_DORQ_SEQ_CMD	DQ_XCM_AGG_VAL_SEL_WORD5
 
 /* UCM agg val selection (HW) */
 #define	DQ_UCM_AGG_VAL_SEL_WORD0	0
@@ -340,6 +347,10 @@
 #define DQ_PWM_OFFSET_TCM_ROCE_RQ_PROD		(DQ_PWM_OFFSET_TCM16_BASE + 1)
 #define DQ_PWM_OFFSET_TCM_IWARP_RQ_PROD		(DQ_PWM_OFFSET_TCM16_BASE + 3)
 
+/* DQ_DEMS_AGG_VAL_BASE */
+#define DQ_PWM_OFFSET_TCM_LL2_PROD_UPDATE \
+	(DQ_PWM_OFFSET_TCM32_BASE + DQ_TCM_AGG_VAL_SEL_REG9 - 4)
+
 #define	DQ_REGION_SHIFT			(12)
 
 /* DPM */
@@ -395,6 +406,7 @@
 
 /* Number of Protocol Indices per Status Block */
 #define PIS_PER_SB_E4	12
+#define MAX_PIS_PER_SB	PIS_PER_SB
 
 #define CAU_HC_STOPPED_STATE	3
 #define CAU_HC_DISABLE_STATE	4
@@ -425,8 +437,6 @@
 #define IGU_MEM_PBA_MSIX_RESERVED_UPPER	0x03ff
 
 #define IGU_CMD_INT_ACK_BASE		0x0400
-#define IGU_CMD_INT_ACK_UPPER		(IGU_CMD_INT_ACK_BASE +	\
-					 MAX_TOT_SB_PER_PATH - 1)
 #define IGU_CMD_INT_ACK_RESERVED_UPPER	0x05ff
 
 #define IGU_CMD_ATTN_BIT_UPD_UPPER	0x05f0
@@ -439,8 +449,6 @@
 #define IGU_REG_SISR_MDPC_WOMASK_UPPER		0x05f6
 
 #define IGU_CMD_PROD_UPD_BASE			0x0600
-#define IGU_CMD_PROD_UPD_UPPER			(IGU_CMD_PROD_UPD_BASE +\
-						 MAX_TOT_SB_PER_PATH - 1)
 #define IGU_CMD_PROD_UPD_RESERVED_UPPER		0x07ff
 
 /*****************/
@@ -652,8 +660,8 @@
 #define PBF_MAX_CMD_LINES	3328
 
 /* Number of BTB blocks. Each block is 256B. */
-#define BTB_MAX_BLOCKS		1440
-
+#define BTB_MAX_BLOCKS_BB 1440
+#define BTB_MAX_BLOCKS_K2 1840
 /*****************/
 /* PRS CONSTANTS */
 /*****************/
@@ -730,6 +738,8 @@ enum protocol_type {
 	PROTOCOLID_PREROCE,
 	PROTOCOLID_COMMON,
 	PROTOCOLID_RESERVED1,
+	PROTOCOLID_RDMA,
+	PROTOCOLID_SCSI,
 	MAX_PROTOCOL_TYPE
 };
 
@@ -748,6 +758,10 @@ struct rdma_eqe_destroy_qp {
 union rdma_eqe_data {
 	struct regpair async_handle;
 	struct rdma_eqe_destroy_qp rdma_destroy_qp_data;
+};
+
+struct tstorm_queue_zone {
+	__le32 reserved[2];
 };
 
 /* Ustorm Queue Zone */
@@ -872,8 +886,8 @@ struct db_l2_dpm_data {
 #define DB_L2_DPM_DATA_RESERVED0_SHIFT 27
 #define DB_L2_DPM_DATA_SGE_NUM_MASK	0x7
 #define DB_L2_DPM_DATA_SGE_NUM_SHIFT	28
-#define DB_L2_DPM_DATA_GFS_SRC_EN_MASK	0x1
-#define DB_L2_DPM_DATA_GFS_SRC_EN_SHIFT	31
+#define DB_L2_DPM_DATA_TGFS_SRC_EN_MASK  0x1
+#define DB_L2_DPM_DATA_TGFS_SRC_EN_SHIFT 31
 };
 
 /* Structure for SGE in a DPM doorbell of type DPM_L2_BD */

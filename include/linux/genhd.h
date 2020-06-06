@@ -286,6 +286,7 @@ extern void disk_part_iter_exit(struct disk_part_iter *piter);
 
 extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 					     sector_t sector);
+bool disk_has_partitions(struct gendisk *disk);
 
 /*
  * Macros to operate on percpu disk statistics:
@@ -718,7 +719,7 @@ static inline void hd_free_part(struct hd_struct *part)
  * accessor function.
  *
  * Code written along the lines of i_size_read() and i_size_write().
- * CONFIG_PREEMPT case optimizes the case of UP kernel with preemption
+ * CONFIG_PREEMPTION case optimizes the case of UP kernel with preemption
  * on.
  */
 static inline sector_t part_nr_sects_read(struct hd_struct *part)
@@ -731,7 +732,7 @@ static inline sector_t part_nr_sects_read(struct hd_struct *part)
 		nr_sects = part->nr_sects;
 	} while (read_seqcount_retry(&part->nr_sects_seq, seq));
 	return nr_sects;
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	sector_t nr_sects;
 
 	preempt_disable();
@@ -754,7 +755,7 @@ static inline void part_nr_sects_write(struct hd_struct *part, sector_t size)
 	write_seqcount_begin(&part->nr_sects_seq);
 	part->nr_sects = size;
 	write_seqcount_end(&part->nr_sects_seq);
-#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPT)
+#elif BITS_PER_LONG==32 && defined(CONFIG_PREEMPTION)
 	preempt_disable();
 	part->nr_sects = size;
 	preempt_enable();

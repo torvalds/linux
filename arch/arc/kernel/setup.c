@@ -8,11 +8,11 @@
 #include <linux/delay.h>
 #include <linux/root_dev.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
 #include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/module.h>
 #include <linux/cpu.h>
+#include <linux/of_clk.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
 #include <linux/cache.h>
@@ -571,10 +571,6 @@ void __init setup_arch(char **cmdline_p)
 	 * But that is unlikely so keeping it as it is
 	 */
 	root_mountflags &= ~MS_RDONLY;
-
-#if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;
-#endif
 
 	arc_unwind_init();
 }

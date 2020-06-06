@@ -351,7 +351,7 @@ static int tegra_cec_probe(struct platform_device *pdev)
 	if (cec->tegra_cec_irq <= 0)
 		return -EBUSY;
 
-	cec->cec_base = devm_ioremap_nocache(&pdev->dev, res->start,
+	cec->cec_base = devm_ioremap(&pdev->dev, res->start,
 					     resource_size(res));
 
 	if (!cec->cec_base) {

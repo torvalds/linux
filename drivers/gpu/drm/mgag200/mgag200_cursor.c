@@ -5,7 +5,7 @@
  * Author: Christopher Harvey <charvey@matrox.com>
  */
 
-#include <drm/drm_pci.h>
+#include <linux/pci.h>
 
 #include "mgag200_drv.h"
 
@@ -208,8 +208,7 @@ int mgag200_cursor_init(struct mga_device *mdev)
 		return -ENOMEM;
 
 	for (i = 0; i < ncursors; ++i) {
-		gbo = drm_gem_vram_create(dev, &dev->vram_mm->bdev,
-					  size, 0, false);
+		gbo = drm_gem_vram_create(dev, size, 0);
 		if (IS_ERR(gbo)) {
 			ret = PTR_ERR(gbo);
 			goto err_drm_gem_vram_put;

@@ -23,7 +23,7 @@ static void snd_opl3_note_off_unsafe(void *p, int note, int vel,
  * it saves a lot of log() calculations. (Rob Hooft <hooft@chem.ruu.nl>)
  */
 
-static char opl3_volume_table[128] =
+static const char opl3_volume_table[128] =
 {
 	-63, -48, -40, -35, -32, -29, -27, -26,
 	-24, -23, -21, -20, -19, -18, -18, -17,
@@ -69,7 +69,7 @@ void snd_opl3_calc_volume(unsigned char *volbyte, int vel,
 /*
  * Converts the note frequency to block and fnum values for the FM chip
  */
-static short opl3_note_table[16] =
+static const short opl3_note_table[16] =
 {
 	305, 323,	/* for pitch bending, -2 semitones */
 	343, 363, 385, 408, 432, 458, 485, 514, 544, 577, 611, 647,
@@ -266,7 +266,7 @@ static void snd_opl3_start_timer(struct snd_opl3 *opl3)
 /* ------------------------------ */
 
 
-static int snd_opl3_oss_map[MAX_OPL3_VOICES] = {
+static const int snd_opl3_oss_map[MAX_OPL3_VOICES] = {
 	0, 1, 2, 9, 10, 11, 6, 7, 8, 15, 16, 17, 3, 4 ,5, 12, 13, 14
 };
 

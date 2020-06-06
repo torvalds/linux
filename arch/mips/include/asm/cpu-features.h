@@ -555,6 +555,10 @@
 # define cpu_has_perf		__opt(MIPS_CPU_PERF)
 #endif
 
+#ifndef cpu_has_mac2008_only
+# define cpu_has_mac2008_only	__opt(MIPS_CPU_MAC_2008_ONLY)
+#endif
+
 #ifdef CONFIG_SMP
 /*
  * Some systems share FTLB RAMs between threads within a core (siblings in

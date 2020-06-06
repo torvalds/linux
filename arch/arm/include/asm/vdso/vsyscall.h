@@ -34,9 +34,9 @@ struct vdso_data *__arm_get_k_vdso_data(void)
 #define __arch_get_k_vdso_data __arm_get_k_vdso_data
 
 static __always_inline
-int __arm_update_vdso_data(void)
+bool __arm_update_vdso_data(void)
 {
-	return !cntvct_ok;
+	return cntvct_ok;
 }
 #define __arch_update_vdso_data __arm_update_vdso_data
 

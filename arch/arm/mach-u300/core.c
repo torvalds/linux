@@ -201,7 +201,7 @@ static unsigned long pin_highz_conf[] = {
 };
 
 /* Pin control settings */
-static struct pinctrl_map __initdata u300_pinmux_map[] = {
+static const struct pinctrl_map u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "power"),
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "emif0"),

@@ -182,6 +182,14 @@
 		pwm-names = "enable", "direction";
 		direction-duty-cycle-ns = <10000000>;
 	};
+
+	backlight: backlight {
+		compatible = "led-backlight";
+
+		leds = <&backlight_led>;
+		brightness-levels = <31 63 95 127 159 191 223 255>;
+		default-brightness-level = <6>;
+	};
 };
 
 &dss {
@@ -204,6 +212,8 @@
 		label = "lcd0";
 		vddi-supply = <&lcd_regulator>;
 		reset-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;	/* gpio101 */
+
+		backlight = <&backlight>;
 
 		width-mm = <50>;
 		height-mm = <89>;
@@ -247,6 +257,13 @@
 			lanes = <1 0 3 2 5 4 7 6>;
 		};
 	};
+};
+
+/* Battery NVRAM on 1-wire handled by w1_ds250x driver */
+&hdqw1w {
+	pinctrl-0 = <&hdq_pins>;
+	pinctrl-names = "default";
+	ti,mode = "1w";
 };
 
 &i2c1 {
@@ -386,12 +403,11 @@
 		ramp-up-us = <1024>;
 		ramp-down-us = <8193>;
 
-		led@0 {
+		backlight_led: led@0 {
 			reg = <0>;
 			led-sources = <2>;
 			ti,led-mode = <0>;
 			label = ":backlight";
-			linux,default-trigger = "backlight";
 		};
 
 		led@1 {
@@ -413,7 +429,7 @@
 		reset-gpios = <&gpio6 13 GPIO_ACTIVE_HIGH>; /* gpio173 */
 
 		/* gpio_183 with sys_nirq2 pad as wakeup */
-		interrupts-extended = <&gpio6 23 IRQ_TYPE_EDGE_FALLING>,
+		interrupts-extended = <&gpio6 23 IRQ_TYPE_LEVEL_LOW>,
 				      <&omap4_pmx_core 0x160>;
 		interrupt-names = "irq", "wakeup";
 		wakeup-source;
@@ -437,6 +453,13 @@
 	hdmi_hpd_gpio: pinmux_hdmi_hpd_pins {
 		pinctrl-single,pins = <
 		OMAP4_IOPAD(0x098, PIN_INPUT | MUX_MODE3)
+		>;
+	};
+
+	hdq_pins: pinmux_hdq_pins {
+		pinctrl-single,pins = <
+		/* 0x4a100120 hdq_sio.hdq_sio aa27 */
+		OMAP4_IOPAD(0x120, PIN_INPUT | MUX_MODE0)
 		>;
 	};
 
@@ -648,6 +671,11 @@
 		OMAP4_IOPAD(0x040, PIN_OUTPUT_PULLDOWN | MUX_MODE3)
 		>;
 	};
+};
+
+/* RNG is used by secure mode and not accessible */
+&rng_target {
+	status = "disabled";
 };
 
 /* Configure pwm clock source for timers 8 & 9 */

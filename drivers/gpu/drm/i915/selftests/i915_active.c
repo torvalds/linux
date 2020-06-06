@@ -99,7 +99,7 @@ __live_active_setup(struct drm_i915_private *i915)
 	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 
-		rq = i915_request_create(engine->kernel_context);
+		rq = intel_engine_create_kernel_request(engine);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
 			break;
@@ -155,7 +155,11 @@ static int live_active_wait(void *arg)
 
 	i915_active_wait(&active->base);
 	if (!READ_ONCE(active->retired)) {
+		struct drm_printer p = drm_err_printer(__func__);
+
 		pr_err("i915_active not retired after waiting!\n");
+		i915_active_print(&active->base, &p);
+
 		err = -EINVAL;
 	}
 
@@ -184,7 +188,11 @@ static int live_active_retire(void *arg)
 		err = -EIO;
 
 	if (!READ_ONCE(active->retired)) {
+		struct drm_printer p = drm_err_printer(__func__);
+
 		pr_err("i915_active not retired after flushing!\n");
+		i915_active_print(&active->base, &p);
+
 		err = -EINVAL;
 	}
 
@@ -249,4 +257,37 @@ void i915_active_print(struct i915_active *ref, struct drm_printer *m)
 
 		i915_active_release(ref);
 	}
+}
+
+static void spin_unlock_wait(spinlock_t *lock)
+{
+	spin_lock_irq(lock);
+	spin_unlock_irq(lock);
+}
+
+void i915_active_unlock_wait(struct i915_active *ref)
+{
+	if (i915_active_acquire_if_busy(ref)) {
+		struct active_node *it, *n;
+
+		rcu_read_lock();
+		rbtree_postorder_for_each_entry_safe(it, n, &ref->tree, node) {
+			struct dma_fence *f;
+
+			/* Wait for all active callbacks */
+			f = rcu_dereference(it->base.fence);
+			if (f)
+				spin_unlock_wait(f->lock);
+		}
+		rcu_read_unlock();
+
+		i915_active_release(ref);
+	}
+
+	/* And wait for the retire callback */
+	spin_lock_irq(&ref->tree_lock);
+	spin_unlock_irq(&ref->tree_lock);
+
+	/* ... which may have been on a thread instead */
+	flush_work(&ref->work);
 }

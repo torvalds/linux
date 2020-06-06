@@ -936,10 +936,21 @@ static void flush_scrollback(struct vc_data *vc)
 	WARN_CONSOLE_UNLOCKED();
 
 	set_origin(vc);
-	if (vc->vc_sw->con_flush_scrollback)
+	if (vc->vc_sw->con_flush_scrollback) {
 		vc->vc_sw->con_flush_scrollback(vc);
-	else
+	} else if (con_is_visible(vc)) {
+		/*
+		 * When no con_flush_scrollback method is provided then the
+		 * legacy way for flushing the scrollback buffer is to use
+		 * a side effect of the con_switch method. We do it only on
+		 * the foreground console as background consoles have no
+		 * scrollback buffers in that case and we obviously don't
+		 * want to switch to them.
+		 */
+		hide_cursor(vc);
 		vc->vc_sw->con_switch(vc);
+		set_cursor(vc);
+	}
 }
 
 /*
@@ -3035,10 +3046,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	switch (type)
 	{
 		case TIOCL_SETSEL:
-			console_lock();
 			ret = set_selection_user((struct tiocl_selection
 						 __user *)(p+1), tty);
-			console_unlock();
 			break;
 		case TIOCL_PASTESEL:
 			ret = paste_selection(tty);
@@ -3326,8 +3335,9 @@ static int __init con_init(void)
 
 	console_lock();
 
-	if (conswitchp)
-		display_desc = conswitchp->con_startup();
+	if (!conswitchp)
+		conswitchp = &dummy_con;
+	display_desc = conswitchp->con_startup();
 	if (!display_desc) {
 		fg_console = 0;
 		console_unlock();
@@ -3567,7 +3577,6 @@ err:
 
 
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
-/* unlocked version of unbind_con_driver() */
 int do_unbind_con_driver(const struct consw *csw, int first, int last, int deflt)
 {
 	struct module *owner = csw->owner;
@@ -4095,7 +4104,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
  *	when a driver wants to take over some existing consoles
  *	and become default driver for newly opened ones.
  *
- *	do_take_over_console is basically a register followed by unbind
+ *	do_take_over_console is basically a register followed by bind
  */
 int do_take_over_console(const struct consw *csw, int first, int last, int deflt)
 {

@@ -7,7 +7,7 @@
 #define _NHPOLY1305_H
 
 #include <crypto/hash.h>
-#include <crypto/poly1305.h>
+#include <crypto/internal/poly1305.h>
 
 /* NH parameterization: */
 
@@ -33,7 +33,7 @@
 #define NHPOLY1305_KEY_SIZE	(POLY1305_BLOCK_SIZE + NH_KEY_BYTES)
 
 struct nhpoly1305_key {
-	struct poly1305_key poly_key;
+	struct poly1305_core_key poly_key;
 	u32 nh_key[NH_KEY_WORDS];
 };
 

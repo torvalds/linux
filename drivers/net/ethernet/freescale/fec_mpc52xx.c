@@ -84,7 +84,7 @@ static int debug = -1;	/* the above default */
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "debugging messages level");
 
-static void mpc52xx_fec_tx_timeout(struct net_device *dev)
+static void mpc52xx_fec_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct mpc52xx_fec_priv *priv = netdev_priv(dev);
 	unsigned long flags;
@@ -785,16 +785,6 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 };
 
 
-static int mpc52xx_fec_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
-{
-	struct phy_device *phydev = dev->phydev;
-
-	if (!phydev)
-		return -ENOTSUPP;
-
-	return phy_mii_ioctl(phydev, rq, cmd);
-}
-
 static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_open = mpc52xx_fec_open,
 	.ndo_stop = mpc52xx_fec_close,
@@ -802,7 +792,7 @@ static const struct net_device_ops mpc52xx_fec_netdev_ops = {
 	.ndo_set_rx_mode = mpc52xx_fec_set_multicast_list,
 	.ndo_set_mac_address = mpc52xx_fec_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
-	.ndo_do_ioctl = mpc52xx_fec_ioctl,
+	.ndo_do_ioctl = phy_do_ioctl,
 	.ndo_tx_timeout = mpc52xx_fec_tx_timeout,
 	.ndo_get_stats = mpc52xx_fec_get_stats,
 #ifdef CONFIG_NET_POLL_CONTROLLER

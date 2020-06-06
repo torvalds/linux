@@ -834,11 +834,8 @@ static int deinterlace_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(dev->base)) {
-		dev_err(dev->dev, "Failed to map registers\n");
-
+	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);
-	}
 
 	dev->bus_clk = devm_clk_get(dev->dev, "bus");
 	if (IS_ERR(dev->bus_clk)) {

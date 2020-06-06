@@ -210,6 +210,36 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
 }
 
 /**
+ * percpu_ref_tryget_many - try to increment a percpu refcount
+ * @ref: percpu_ref to try-get
+ * @nr: number of references to get
+ *
+ * Increment a percpu refcount  by @nr unless its count already reached zero.
+ * Returns %true on success; %false on failure.
+ *
+ * This function is safe to call as long as @ref is between init and exit.
+ */
+static inline bool percpu_ref_tryget_many(struct percpu_ref *ref,
+					  unsigned long nr)
+{
+	unsigned long __percpu *percpu_count;
+	bool ret;
+
+	rcu_read_lock();
+
+	if (__ref_is_percpu(ref, &percpu_count)) {
+		this_cpu_add(*percpu_count, nr);
+		ret = true;
+	} else {
+		ret = atomic_long_add_unless(&ref->count, nr, 0);
+	}
+
+	rcu_read_unlock();
+
+	return ret;
+}
+
+/**
  * percpu_ref_tryget - try to increment a percpu refcount
  * @ref: percpu_ref to try-get
  *
@@ -220,21 +250,7 @@ static inline void percpu_ref_get(struct percpu_ref *ref)
  */
 static inline bool percpu_ref_tryget(struct percpu_ref *ref)
 {
-	unsigned long __percpu *percpu_count;
-	bool ret;
-
-	rcu_read_lock();
-
-	if (__ref_is_percpu(ref, &percpu_count)) {
-		this_cpu_inc(*percpu_count);
-		ret = true;
-	} else {
-		ret = atomic_long_inc_not_zero(&ref->count);
-	}
-
-	rcu_read_unlock();
-
-	return ret;
+	return percpu_ref_tryget_many(ref, 1);
 }
 
 /**

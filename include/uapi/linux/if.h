@@ -213,6 +213,7 @@ struct if_settings {
 		fr_proto		__user *fr;
 		fr_proto_pvc		__user *fr_pvc;
 		fr_proto_pvc_info	__user *fr_pvc_info;
+		x25_hdlc_proto		__user *x25;
 
 		/* interface settings */
 		sync_serial_settings	__user *sync;

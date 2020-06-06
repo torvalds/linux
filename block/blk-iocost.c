@@ -1318,7 +1318,7 @@ static bool iocg_is_idle(struct ioc_gq *iocg)
 		return false;
 
 	/* is something in flight? */
-	if (atomic64_read(&iocg->done_vtime) < atomic64_read(&iocg->vtime))
+	if (atomic64_read(&iocg->done_vtime) != atomic64_read(&iocg->vtime))
 		return false;
 
 	return true;

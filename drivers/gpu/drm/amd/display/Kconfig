@@ -6,43 +6,16 @@ config DRM_AMD_DC
 	bool "AMD DC - Enable new display engine"
 	default y
 	select SND_HDA_COMPONENT if SND_HDA_CORE
-	select DRM_AMD_DC_DCN1_0 if X86 && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
+	select DRM_AMD_DC_DCN if (X86 || PPC64) && !(KCOV_INSTRUMENT_ALL && KCOV_ENABLE_COMPARISONS)
 	help
 	  Choose this option if you want to use the new display engine
 	  support for AMDGPU. This adds required support for Vega and
 	  Raven ASICs.
 
-config DRM_AMD_DC_DCN1_0
+config DRM_AMD_DC_DCN
 	def_bool n
 	help
-	  RV family support for display engine
-
-config DRM_AMD_DC_DCN2_0
-	bool "DCN 2.0 family"
-	default y
-	depends on DRM_AMD_DC && X86
-	depends on DRM_AMD_DC_DCN1_0
-	help
-	  Choose this option if you want to have
-	  Navi support for display engine
-
-config DRM_AMD_DC_DCN2_1
-	bool "DCN 2.1 family"
-	depends on DRM_AMD_DC && X86
-	depends on DRM_AMD_DC_DCN2_0
-	help
-	  Choose this option if you want to have
-	  Renoir support for display engine
-
-config DRM_AMD_DC_DSC_SUPPORT
-	bool "DSC support"
-	default y
-	depends on DRM_AMD_DC && X86
-	depends on DRM_AMD_DC_DCN1_0
-	depends on DRM_AMD_DC_DCN2_0
-	help
-	  Choose this option if you want to have
-	  Dynamic Stream Compression support
+	  Raven, Navi and Renoir family support for display engine
 
 config DRM_AMD_DC_HDCP
 	bool "Enable HDCP support in DC"

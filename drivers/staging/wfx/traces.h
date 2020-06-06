@@ -153,7 +153,7 @@ hif_mib_list_enum
 #define hif_mib_list hif_mib_list_enum { -1, NULL }
 
 DECLARE_EVENT_CLASS(hif_data,
-	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv),
 	TP_STRUCT__entry(
 		__field(int, tx_fill_level)
@@ -203,12 +203,12 @@ DECLARE_EVENT_CLASS(hif_data,
 	)
 );
 DEFINE_EVENT(hif_data, hif_send,
-	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
 #define _trace_hif_send(hif, tx_fill_level)\
 	trace_hif_send(hif, tx_fill_level, false)
 DEFINE_EVENT(hif_data, hif_recv,
-	TP_PROTO(struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
 #define _trace_hif_recv(hif, tx_fill_level)\
 	trace_hif_recv(hif, tx_fill_level, true)
@@ -359,7 +359,8 @@ TRACE_EVENT(bh_stats,
 	trace_bh_stats(ind, req, cnf, busy, release)
 
 TRACE_EVENT(tx_stats,
-	TP_PROTO(struct hif_cnf_tx *tx_cnf, struct sk_buff *skb, int delay),
+	TP_PROTO(const struct hif_cnf_tx *tx_cnf, const struct sk_buff *skb,
+		 int delay),
 	TP_ARGS(tx_cnf, skb, delay),
 	TP_STRUCT__entry(
 		__field(int, pkt_id)
@@ -375,8 +376,9 @@ TRACE_EVENT(tx_stats,
 		// Keep sync with wfx_rates definition in main.c
 		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9,
 					       10, 11, 12, 13 };
-		struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-		struct ieee80211_tx_rate *rates = tx_info->driver_rates;
+		const struct ieee80211_tx_info *tx_info =
+			(const struct ieee80211_tx_info *)skb->cb;
+		const struct ieee80211_tx_rate *rates = tx_info->driver_rates;
 		int i;
 
 		__entry->pkt_id = tx_cnf->packet_id;

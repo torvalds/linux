@@ -118,6 +118,7 @@ static const struct of_device_id qcom_aoss_reset_of_match[] = {
 	{ .compatible = "qcom,sdm845-aoss-cc", .data = &sdm845_aoss_desc },
 	{}
 };
+MODULE_DEVICE_TABLE(of, qcom_aoss_reset_of_match);
 
 static struct platform_driver qcom_aoss_reset_driver = {
 	.probe = qcom_aoss_reset_probe,
@@ -127,7 +128,7 @@ static struct platform_driver qcom_aoss_reset_driver = {
 	},
 };
 
-builtin_platform_driver(qcom_aoss_reset_driver);
+module_platform_driver(qcom_aoss_reset_driver);
 
 MODULE_DESCRIPTION("Qualcomm AOSS Reset Driver");
 MODULE_LICENSE("GPL v2");
