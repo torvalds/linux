@@ -1273,52 +1273,41 @@ struct regset_getset {
 	int ret;
 };
 
+static const ptrdiff_t pt_offsets[16] =
+{
+#define R(n) offsetof(struct pt_regs, r##n)
+	[0] = -1, R(1), R(2), R(3),
+	[4] = -1, [5] = -1, [6] = -1, [7] = -1,
+	R(8), R(9), R(10), R(11), R(12), R(13), R(14), R(15),
+#undef R
+};
+
 static int
 access_elf_gpreg(struct task_struct *target, struct unw_frame_info *info,
 		unsigned long addr, unsigned long *data, int write_access)
 {
-	struct pt_regs *pt;
-	unsigned long *ptr = NULL;
-	int ret;
-	char nat = 0;
+	struct pt_regs *pt = task_pt_regs(target);
+	unsigned reg = addr / sizeof(unsigned long);
+	ptrdiff_t d = pt_offsets[reg];
 
-	pt = task_pt_regs(target);
-	switch (addr) {
-	case ELF_GR_OFFSET(1):
-		ptr = &pt->r1;
-		break;
-	case ELF_GR_OFFSET(2):
-	case ELF_GR_OFFSET(3):
-		ptr = (void *)&pt->r2 + (addr - ELF_GR_OFFSET(2));
-		break;
-	case ELF_GR_OFFSET(4) ... ELF_GR_OFFSET(7):
+	if (d >= 0) {
+		unsigned long *ptr = (void *)pt + d;
+		if (write_access)
+			*ptr = *data;
+		else
+			*data = *ptr;
+		return 0;
+	} else {
+		char nat = 0;
 		if (write_access) {
 			/* read NaT bit first: */
 			unsigned long dummy;
-
-			ret = unw_get_gr(info, addr/8, &dummy, &nat);
+			int ret = unw_get_gr(info, reg, &dummy, &nat);
 			if (ret < 0)
 				return ret;
 		}
-		return unw_access_gr(info, addr/8, data, &nat, write_access);
-	case ELF_GR_OFFSET(8) ... ELF_GR_OFFSET(11):
-		ptr = (void *)&pt->r8 + addr - ELF_GR_OFFSET(8);
-		break;
-	case ELF_GR_OFFSET(12):
-	case ELF_GR_OFFSET(13):
-		ptr = (void *)&pt->r12 + addr - ELF_GR_OFFSET(12);
-		break;
-	case ELF_GR_OFFSET(14):
-		ptr = &pt->r14;
-		break;
-	case ELF_GR_OFFSET(15):
-		ptr = &pt->r15;
+		return unw_access_gr(info, reg, data, &nat, write_access);
 	}
-	if (write_access)
-		*ptr = *data;
-	else
-		*data = *ptr;
-	return 0;
 }
 
 static int
