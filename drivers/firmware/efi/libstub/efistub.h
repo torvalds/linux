@@ -777,4 +777,6 @@ efi_status_t efi_load_initrd(efi_loaded_image_t *image,
 			     unsigned long soft_limit,
 			     unsigned long hard_limit);
 
+void efi_handle_post_ebs_state(void);
+
 #endif

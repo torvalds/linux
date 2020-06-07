@@ -52,9 +52,11 @@ static phys_addr_t __init efi_to_phys(unsigned long addr)
 }
 
 static __initdata unsigned long screen_info_table = EFI_INVALID_TABLE_ADDR;
+static __initdata unsigned long cpu_state_table = EFI_INVALID_TABLE_ADDR;
 
 static const efi_config_table_type_t arch_tables[] __initconst = {
 	{LINUX_EFI_ARM_SCREEN_INFO_TABLE_GUID, &screen_info_table},
+	{LINUX_EFI_ARM_CPU_STATE_TABLE_GUID, &cpu_state_table},
 	{}
 };
 
@@ -240,9 +242,37 @@ void __init efi_init(void)
 
 	init_screen_info();
 
+#ifdef CONFIG_ARM
 	/* ARM does not permit early mappings to persist across paging_init() */
-	if (IS_ENABLED(CONFIG_ARM))
-		efi_memmap_unmap();
+	efi_memmap_unmap();
+
+	if (cpu_state_table != EFI_INVALID_TABLE_ADDR) {
+		struct efi_arm_entry_state *state;
+		bool dump_state = true;
+
+		state = early_memremap_ro(cpu_state_table,
+					  sizeof(struct efi_arm_entry_state));
+		if (state == NULL) {
+			pr_warn("Unable to map CPU entry state table.\n");
+			return;
+		}
+
+		if ((state->sctlr_before_ebs & 1) == 0)
+			pr_warn(FW_BUG "EFI stub was entered with MMU and Dcache disabled, please fix your firmware!\n");
+		else if ((state->sctlr_after_ebs & 1) == 0)
+			pr_warn(FW_BUG "ExitBootServices() returned with MMU and Dcache disabled, please fix your firmware!\n");
+		else
+			dump_state = false;
+
+		if (dump_state || efi_enabled(EFI_DBG)) {
+			pr_info("CPSR at EFI stub entry        : 0x%08x\n", state->cpsr_before_ebs);
+			pr_info("SCTLR at EFI stub entry       : 0x%08x\n", state->sctlr_before_ebs);
+			pr_info("CPSR after ExitBootServices() : 0x%08x\n", state->cpsr_after_ebs);
+			pr_info("SCTLR after ExitBootServices(): 0x%08x\n", state->sctlr_after_ebs);
+		}
+		early_memunmap(state, sizeof(struct efi_arm_entry_state));
+	}
+#endif
 }
 
 static bool efifb_overlaps_pci_range(const struct of_pci_range *range)
