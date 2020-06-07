@@ -23,7 +23,7 @@ Required properties:
 The svc node has the following mandatory properties, must be located under
 the firmware node.
 
-- compatible: "intel,stratix10-svc"
+- compatible: "intel,stratix10-svc" or "intel,agilex-svc"
 - method: smc or hvc
         smc - Secure Monitor Call
         hvc - Hypervisor Call

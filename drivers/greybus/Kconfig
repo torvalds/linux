@@ -3,7 +3,7 @@ menuconfig GREYBUS
 	tristate "Greybus support"
 	depends on SYSFS
 	---help---
-	  This option enables the Greybus driver core.  Greybus is an
+	  This option enables the Greybus driver core.  Greybus is a
 	  hardware protocol that was designed to provide Unipro with a
 	  sane application layer.  It was originally designed for the
 	  ARA project, a module phone system, but has shown up in other
@@ -12,7 +12,7 @@ menuconfig GREYBUS
 
 	  Say Y here to enable support for these types of drivers.
 
-	  To compile this code as a module, chose M here: the module
+	  To compile this code as a module, choose M here: the module
 	  will be called greybus.ko
 
 if GREYBUS
@@ -25,7 +25,7 @@ config GREYBUS_ES2
 	  acts as a Greybus "host controller".  This device is a bridge
 	  from a USB device to a Unipro network.
 
-	  To compile this code as a module, chose M here: the module
+	  To compile this code as a module, choose M here: the module
 	  will be called gb-es2.ko
 
 endif	# GREYBUS

@@ -2,11 +2,17 @@
 /*
  * Copyright (c) 2019, The Linaro Limited. All rights reserved.
  */
+#include <linux/coresight.h>
+#include <linux/device.h>
+#include <linux/err.h>
+#include <linux/of.h>
+#include <linux/property.h>
+#include <linux/slab.h>
 
 #include <dt-bindings/arm/coresight-cti-dt.h>
-#include <linux/of.h>
 
 #include "coresight-cti.h"
+#include "coresight-priv.h"
 
 /* Number of CTI signals in the v8 architecturally defined connection */
 #define NR_V8PE_IN_SIGS		2
@@ -429,8 +435,7 @@ static int cti_plat_create_impdef_connections(struct device *dev,
 }
 
 /* get the hardware configuration & connection data. */
-int cti_plat_get_hw_data(struct device *dev,
-			 struct cti_drvdata *drvdata)
+static int cti_plat_get_hw_data(struct device *dev, struct cti_drvdata *drvdata)
 {
 	int rc = 0;
 	struct cti_device *cti_dev = &drvdata->ctidev;
