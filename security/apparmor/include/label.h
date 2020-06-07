@@ -275,6 +275,7 @@ void aa_labelset_destroy(struct aa_labelset *ls);
 void aa_labelset_init(struct aa_labelset *ls);
 void __aa_labelset_update_subtree(struct aa_ns *ns);
 
+void aa_label_destroy(struct aa_label *label);
 void aa_label_free(struct aa_label *label);
 void aa_label_kref(struct kref *kref);
 bool aa_label_init(struct aa_label *label, int size, gfp_t gfp);
