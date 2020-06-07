@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Definitions for TUSB6010 USB 2.0 OTG Dual Role controller
  *
