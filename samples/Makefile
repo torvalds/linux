@@ -2,7 +2,7 @@
 # Makefile for Linux samples code
 
 subdir-$(CONFIG_SAMPLE_AUXDISPLAY)	+= auxdisplay
-obj-$(CONFIG_SAMPLE_ANDROID_BINDERFS)	+= binderfs/
+subdir-$(CONFIG_SAMPLE_ANDROID_BINDERFS) += binderfs
 obj-$(CONFIG_SAMPLE_CONFIGFS)		+= configfs/
 obj-$(CONFIG_SAMPLE_CONNECTOR)		+= connector/
 subdir-$(CONFIG_SAMPLE_HIDRAW)		+= hidraw
