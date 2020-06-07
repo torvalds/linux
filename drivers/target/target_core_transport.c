@@ -1413,6 +1413,9 @@ transport_check_alloc_task_attr(struct se_cmd *cmd)
 sense_reason_t
 target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
 {
+	sense_reason_t ret;
+
+	cmd->t_task_cdb = &cmd->__t_task_cdb[0];
 	/*
 	 * Ensure that the received CDB is less than the max (252 + 8) bytes
 	 * for VARIABLE_LENGTH_CMD
@@ -1421,7 +1424,8 @@ target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
 		pr_err("Received SCSI CDB with command_size: %d that"
 			" exceeds SCSI_MAX_VARLEN_CDB_SIZE: %d\n",
 			scsi_command_size(cdb), SCSI_MAX_VARLEN_CDB_SIZE);
-		return TCM_INVALID_CDB_FIELD;
+		ret = TCM_INVALID_CDB_FIELD;
+		goto err;
 	}
 	/*
 	 * If the received CDB is larger than TCM_MAX_COMMAND_SIZE,
@@ -1436,10 +1440,10 @@ target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
 				" %u > sizeof(cmd->__t_task_cdb): %lu ops\n",
 				scsi_command_size(cdb),
 				(unsigned long)sizeof(cmd->__t_task_cdb));
-			return TCM_OUT_OF_RESOURCES;
+			ret = TCM_OUT_OF_RESOURCES;
+			goto err;
 		}
-	} else
-		cmd->t_task_cdb = &cmd->__t_task_cdb[0];
+	}
 	/*
 	 * Copy the original CDB into cmd->
 	 */
@@ -1447,6 +1451,15 @@ target_cmd_init_cdb(struct se_cmd *cmd, unsigned char *cdb)
 
 	trace_target_sequencer_start(cmd);
 	return 0;
+
+err:
+	/*
+	 * Copy the CDB here to allow trace_target_cmd_complete() to
+	 * print the cdb to the trace buffers.
+	 */
+	memcpy(cmd->t_task_cdb, cdb, min(scsi_command_size(cdb),
+					 (unsigned int)TCM_MAX_COMMAND_SIZE));
+	return ret;
 }
 EXPORT_SYMBOL(target_cmd_init_cdb);
 
@@ -1455,8 +1468,6 @@ target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
 	sense_reason_t ret;
-
-	target_cmd_init_cdb(cmd, cdb);
 
 	ret = dev->transport->parse_cdb(cmd);
 	if (ret == TCM_UNSUPPORTED_SCSI_OPCODE)
@@ -1621,6 +1632,14 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	 */
 	if (flags & TARGET_SCF_BIDI_OP)
 		se_cmd->se_cmd_flags |= SCF_BIDI;
+
+	rc = target_cmd_init_cdb(se_cmd, cdb);
+	if (rc) {
+		transport_send_check_condition_and_sense(se_cmd, rc, 0);
+		target_put_sess_cmd(se_cmd);
+		return 0;
+	}
+
 	/*
 	 * Locate se_lun pointer and attach it to struct se_cmd
 	 */
