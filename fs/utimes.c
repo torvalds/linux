@@ -70,6 +70,57 @@ out:
 	return error;
 }
 
+static int do_utimes_path(int dfd, const char __user *filename,
+		struct timespec64 *times, int flags)
+{
+	struct path path;
+	int lookup_flags = 0, error;
+
+	if (times &&
+	    (!nsec_valid(times[0].tv_nsec) || !nsec_valid(times[1].tv_nsec)))
+		return -EINVAL;
+	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
+		return -EINVAL;
+
+	if (!(flags & AT_SYMLINK_NOFOLLOW))
+		lookup_flags |= LOOKUP_FOLLOW;
+	if (flags & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
+retry:
+	error = user_path_at(dfd, filename, lookup_flags, &path);
+	if (error)
+		return error;
+
+	error = utimes_common(&path, times);
+	path_put(&path);
+	if (retry_estale(error, lookup_flags)) {
+		lookup_flags |= LOOKUP_REVAL;
+		goto retry;
+	}
+
+	return error;
+}
+
+static int do_utimes_fd(int fd, struct timespec64 *times, int flags)
+{
+	struct fd f;
+	int error;
+
+	if (times &&
+	    (!nsec_valid(times[0].tv_nsec) || !nsec_valid(times[1].tv_nsec)))
+		return -EINVAL;
+	if (flags)
+		return -EINVAL;
+
+	f = fdget(fd);
+	if (!f.file)
+		return -EBADF;
+	error = utimes_common(&f.file->f_path, times);
+	fdput(f);
+	return error;
+}
+
 /*
  * do_utimes - change times on filename or file descriptor
  * @dfd: open file descriptor, -1 or AT_FDCWD
@@ -88,52 +139,9 @@ out:
 long do_utimes(int dfd, const char __user *filename, struct timespec64 *times,
 	       int flags)
 {
-	int error = -EINVAL;
-
-	if (times && (!nsec_valid(times[0].tv_nsec) ||
-		      !nsec_valid(times[1].tv_nsec))) {
-		goto out;
-	}
-
-	if (flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH))
-		goto out;
-
-	if (filename == NULL && dfd != AT_FDCWD) {
-		struct fd f;
-
-		if (flags)
-			goto out;
-
-		f = fdget(dfd);
-		error = -EBADF;
-		if (!f.file)
-			goto out;
-
-		error = utimes_common(&f.file->f_path, times);
-		fdput(f);
-	} else {
-		struct path path;
-		int lookup_flags = 0;
-
-		if (!(flags & AT_SYMLINK_NOFOLLOW))
-			lookup_flags |= LOOKUP_FOLLOW;
-		if (flags & AT_EMPTY_PATH)
-			lookup_flags |= LOOKUP_EMPTY;
-retry:
-		error = user_path_at(dfd, filename, lookup_flags, &path);
-		if (error)
-			goto out;
-
-		error = utimes_common(&path, times);
-		path_put(&path);
-		if (retry_estale(error, lookup_flags)) {
-			lookup_flags |= LOOKUP_REVAL;
-			goto retry;
-		}
-	}
-
-out:
-	return error;
+	if (filename == NULL && dfd != AT_FDCWD)
+		return do_utimes_fd(dfd, times, flags);
+	return do_utimes_path(dfd, filename, times, flags);
 }
 
 SYSCALL_DEFINE4(utimensat, int, dfd, const char __user *, filename,
