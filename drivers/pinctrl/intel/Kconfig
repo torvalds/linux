@@ -111,6 +111,14 @@ config PINCTRL_ICELAKE
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Ice Lake PCH pins and using them as GPIOs.
 
+config PINCTRL_JASPERLAKE
+	tristate "Intel Jasper Lake PCH pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Jasper Lake PCH pins and using them as GPIOs.
+
 config PINCTRL_LEWISBURG
 	tristate "Intel Lewisburg pinctrl and GPIO driver"
 	depends on ACPI
