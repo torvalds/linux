@@ -1,53 +1,21 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
 
-  - All structures defined in hif_api_*.h are intended to sent/received to/from
-    hardware. All their members whould be declared __le32 or __le16.
-    See:
-       https://lore.kernel.org/lkml/20191111202852.GX26530@ZenIV.linux.org.uk
+  - The HIF API is not yet clean enough.
 
-  - Once previous item done, it will be possible to audit the driver with
-    `sparse'. It will probably find tons of problems with big endian
-    architectures.
-
-  - hif_api_*.h whave been imported from firmware code. Some of the structures
-    are never used in driver.
-
-  - Driver try to maintains power save status of the stations. However, this
-    work is already done by mac80211. sta_asleep_mask and pspoll_mask should be
-    dropped.
-
-  - wfx_tx_queues_get() should be reworked. It currently try compute itself the
-    QoS policy. However, firmware already do the job. Firmware would prefer to
-    have a few packets in each queue and be able to choose itself which queue to
-    use.
+  - The code that check the corectness of received message (in rx_helper()) can
+    be improved. See:
+       https://lore.kernel.org/driverdev-devel/2302785.6C7ODC2LYm@pc-42/
 
   - As suggested by Felix, rate control could be improved following this idea:
         https://lore.kernel.org/lkml/3099559.gv3Q75KnN1@pc-42/
 
-  - When driver is about to loose BSS, it forge its own Null Func request (see
-    wfx_cqm_bssloss_sm()). It should use mechanism provided by mac80211.
-
-  - AP is actually is setup after a call to wfx_bss_info_changed(). Yet,
-    ieee80211_ops provide callback start_ap().
-
-  - The current process for joining a network is incredibly complex. Should be
-    reworked.
-
-  - Monitoring mode is not implemented despite being mandatory by mac80211.
-
-  - "compatible" value are not correct. They should be "vendor,chip". See:
-       https://lore.kernel.org/driverdev-devel/5226570.CMH5hVlZcI@pc-42
-
-  - The "state" field from wfx_vif should be replaced by "vif->type".
-
-  - It seems that wfx_upload_keys() is useless.
-
-  - "event_queue" from wfx_vif seems overkill. These event are rare and they
-     probably could be handled in a simpler fashion.
-
   - Feature called "secure link" should be either developed (using kernel
     crypto API) or dropped.
+
+  - The device allows to filter multicast traffic. The code to support these
+    filters exists in the driver but it is disabled because it has never been
+    tested.
 
   - In wfx_cmd_send(), "async" allow to send command without waiting the reply.
     It may help in some situation, but it is not yet used. In add, it may cause
@@ -55,6 +23,3 @@ staging directory.
       https://lore.kernel.org/driverdev-devel/alpine.DEB.2.21.1910041317381.2992@hadrien/
     So, fix it (by replacing the mutex with a semaphore) or drop it.
 
-  - Chip support P2P, but driver does not implement it.
-
-  - Chip support kind of Mesh, but driver does not implement it.

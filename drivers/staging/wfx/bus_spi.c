@@ -12,6 +12,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/of.h>
 
 #include "bus.h"
@@ -39,7 +40,6 @@ struct wfx_spi_priv {
 	struct spi_device *func;
 	struct wfx_dev *core;
 	struct gpio_desc *gpio_reset;
-	struct work_struct request_rx;
 	bool need_swab;
 };
 
@@ -140,25 +140,30 @@ static irqreturn_t wfx_spi_irq_handler(int irq, void *priv)
 {
 	struct wfx_spi_priv *bus = priv;
 
-	if (!bus->core) {
-		WARN(!bus->core, "race condition in driver init/deinit");
-		return IRQ_NONE;
-	}
-	queue_work(system_highpri_wq, &bus->request_rx);
+	wfx_bh_request_rx(bus->core);
 	return IRQ_HANDLED;
 }
 
-static void wfx_spi_request_rx(struct work_struct *work)
+static int wfx_spi_irq_subscribe(void *priv)
 {
-	struct wfx_spi_priv *bus =
-		container_of(work, struct wfx_spi_priv, request_rx);
+	struct wfx_spi_priv *bus = priv;
+	u32 flags;
 
-	wfx_bh_request_rx(bus->core);
+	flags = irq_get_trigger_type(bus->func->irq);
+	if (!flags)
+		flags = IRQF_TRIGGER_HIGH;
+	flags |= IRQF_ONESHOT;
+	return devm_request_threaded_irq(&bus->func->dev, bus->func->irq, NULL,
+					 wfx_spi_irq_handler, IRQF_ONESHOT,
+					 "wfx", bus);
 }
 
-static void wfx_flush_irq_work(void *w)
+static int wfx_spi_irq_unsubscribe(void *priv)
 {
-	flush_work(w);
+	struct wfx_spi_priv *bus = priv;
+
+	devm_free_irq(&bus->func->dev, bus->func->irq, bus);
+	return 0;
 }
 
 static size_t wfx_spi_align_size(void *priv, size_t size)
@@ -170,6 +175,8 @@ static size_t wfx_spi_align_size(void *priv, size_t size)
 static const struct hwbus_ops wfx_spi_hwbus_ops = {
 	.copy_from_io = wfx_spi_copy_from_io,
 	.copy_to_io = wfx_spi_copy_to_io,
+	.irq_subscribe = wfx_spi_irq_subscribe,
+	.irq_unsubscribe = wfx_spi_irq_unsubscribe,
 	.lock			= wfx_spi_lock,
 	.unlock			= wfx_spi_unlock,
 	.align_size		= wfx_spi_align_size,
@@ -216,21 +223,10 @@ static int wfx_spi_probe(struct spi_device *func)
 		usleep_range(2000, 2500);
 	}
 
-	INIT_WORK(&bus->request_rx, wfx_spi_request_rx);
 	bus->core = wfx_init_common(&func->dev, &wfx_spi_pdata,
 				    &wfx_spi_hwbus_ops, bus);
 	if (!bus->core)
 		return -EIO;
-
-	ret = devm_add_action_or_reset(&func->dev, wfx_flush_irq_work,
-				       &bus->request_rx);
-	if (ret)
-		return ret;
-
-	ret = devm_request_irq(&func->dev, func->irq, wfx_spi_irq_handler,
-			       IRQF_TRIGGER_RISING, "wfx", bus);
-	if (ret)
-		return ret;
 
 	return wfx_probe(bus->core);
 }
