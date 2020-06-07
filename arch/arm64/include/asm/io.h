@@ -9,6 +9,7 @@
 #define __ASM_IO_H
 
 #include <linux/types.h>
+#include <linux/log_mmiorw.h>
 #include <linux/pgtable.h>
 
 #include <asm/byteorder.h>
@@ -24,24 +25,28 @@
 #define __raw_writeb __raw_writeb
 static inline void __raw_writeb(u8 val, volatile void __iomem *addr)
 {
+	log_write_mmio(val, 8,  addr);
 	asm volatile("strb %w0, [%1]" : : "rZ" (val), "r" (addr));
 }
 
 #define __raw_writew __raw_writew
 static inline void __raw_writew(u16 val, volatile void __iomem *addr)
 {
+	log_write_mmio(val, 16, addr);
 	asm volatile("strh %w0, [%1]" : : "rZ" (val), "r" (addr));
 }
 
 #define __raw_writel __raw_writel
 static __always_inline void __raw_writel(u32 val, volatile void __iomem *addr)
 {
+	log_write_mmio(val, 32, addr);
 	asm volatile("str %w0, [%1]" : : "rZ" (val), "r" (addr));
 }
 
 #define __raw_writeq __raw_writeq
 static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
 {
+	log_write_mmio(val, 64, addr);
 	asm volatile("str %x0, [%1]" : : "rZ" (val), "r" (addr));
 }
 
@@ -49,10 +54,13 @@ static inline void __raw_writeq(u64 val, volatile void __iomem *addr)
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
 	u8 val;
+
+	log_read_mmio(8, addr);
 	asm volatile(ALTERNATIVE("ldrb %w0, [%1]",
 				 "ldarb %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
+	log_post_read_mmio(val, 8, addr);
 	return val;
 }
 
@@ -61,10 +69,12 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	u16 val;
 
+	log_read_mmio(16, addr);
 	asm volatile(ALTERNATIVE("ldrh %w0, [%1]",
 				 "ldarh %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
+	log_post_read_mmio(val, 16,  addr);
 	return val;
 }
 
@@ -72,10 +82,13 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 static __always_inline u32 __raw_readl(const volatile void __iomem *addr)
 {
 	u32 val;
+
+	log_read_mmio(32, addr);
 	asm volatile(ALTERNATIVE("ldr %w0, [%1]",
 				 "ldar %w0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
+	log_post_read_mmio(val, 32, addr);
 	return val;
 }
 
@@ -83,10 +96,13 @@ static __always_inline u32 __raw_readl(const volatile void __iomem *addr)
 static inline u64 __raw_readq(const volatile void __iomem *addr)
 {
 	u64 val;
+
+	log_read_mmio(64, addr);
 	asm volatile(ALTERNATIVE("ldr %0, [%1]",
 				 "ldar %0, [%1]",
 				 ARM64_WORKAROUND_DEVICE_LOAD_ACQUIRE)
 		     : "=r" (val) : "r" (addr));
+	log_post_read_mmio(val, 64, addr);
 	return val;
 }
 
