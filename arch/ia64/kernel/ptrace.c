@@ -1491,7 +1491,7 @@ struct regset_membuf {
 	int ret;
 };
 
-void do_gpregs_get(struct unw_frame_info *info, void *arg)
+static void do_gpregs_get(struct unw_frame_info *info, void *arg)
 {
 	struct regset_membuf *dst = arg;
 	struct membuf to = dst->to;
@@ -1524,7 +1524,7 @@ void do_gpregs_get(struct unw_frame_info *info, void *arg)
 	}
 }
 
-void do_gpregs_set(struct unw_frame_info *info, void *arg)
+static void do_gpregs_set(struct unw_frame_info *info, void *arg)
 {
 	struct regset_getset *dst = arg;
 
@@ -1569,7 +1569,7 @@ void do_gpregs_set(struct unw_frame_info *info, void *arg)
 
 #define ELF_FP_OFFSET(i)	(i * sizeof(elf_fpreg_t))
 
-void do_fpregs_get(struct unw_frame_info *info, void *arg)
+static void do_fpregs_get(struct unw_frame_info *info, void *arg)
 {
 	struct task_struct *task = info->task;
 	struct regset_membuf *dst = arg;
@@ -1603,7 +1603,7 @@ void do_fpregs_get(struct unw_frame_info *info, void *arg)
 		membuf_zero(&to, 96 * sizeof(reg));
 }
 
-void do_fpregs_set(struct unw_frame_info *info, void *arg)
+static void do_fpregs_set(struct unw_frame_info *info, void *arg)
 {
 	struct regset_getset *dst = arg;
 	elf_fpreg_t fpreg, tmp[30];
