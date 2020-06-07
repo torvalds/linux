@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/kernel.h>
+#include <linux/blkdev.h>
+#include <linux/init.h>
+#include <linux/syscalls.h>
+#include <linux/mount.h>
+#include <linux/major.h>
 #include <linux/delay.h>
+#include <linux/raid/detect.h>
 #include <linux/raid/md_u.h>
 #include <linux/raid/md_p.h>
-
-#include "do_mounts.h"
 
 /*
  * When md (and any require personalities) are compiled into the kernel
@@ -112,6 +117,12 @@ static int __init md_setup(char *str)
 	md_setup_args[ent].minor = minor;
 
 	return 1;
+}
+
+static inline int create_dev(char *name, dev_t dev)
+{
+	ksys_unlink(name);
+	return ksys_mknod(name, S_IFBLK|0600, new_encode_dev(dev));
 }
 
 static void __init md_setup_drive(void)
