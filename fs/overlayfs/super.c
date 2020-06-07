@@ -676,11 +676,8 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 	struct dentry *work;
 	int err;
 	bool retried = false;
-	bool locked = false;
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
-	locked = true;
-
 retry:
 	work = lookup_one_len(name, ofs->workbasedir, strlen(name));
 
@@ -741,9 +738,7 @@ retry:
 		goto out_err;
 	}
 out_unlock:
-	if (locked)
-		inode_unlock(dir);
-
+	inode_unlock(dir);
 	return work;
 
 out_dput:
