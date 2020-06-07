@@ -491,6 +491,9 @@ static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_PS)
 		mt7615_mcu_set_vif_ps(dev, vif);
 
+	if (changed & BSS_CHANGED_ARP_FILTER)
+		mt7615_mcu_update_arp_filter(hw, vif, info);
+
 	mutex_unlock(&dev->mt76.mutex);
 }
 
