@@ -1635,9 +1635,9 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 		ccid = ce->lrc.ccid;
 
 		/*
-		 * Sentinels are supposed to be lonely so they flush the
-		 * current exection off the HW. Check that they are the
-		 * only request in the pending submission.
+		 * Sentinels are supposed to be the last request so they flush
+		 * the current execution off the HW. Check that they are the only
+		 * request in the pending submission.
 		 */
 		if (sentinel) {
 			GEM_TRACE_ERR("%s: context:%llx after sentinel in pending[%zd]\n",
@@ -1646,15 +1646,7 @@ assert_pending_valid(const struct intel_engine_execlists *execlists,
 				      port - execlists->pending);
 			return false;
 		}
-
 		sentinel = i915_request_has_sentinel(rq);
-		if (sentinel && port != execlists->pending) {
-			GEM_TRACE_ERR("%s: sentinel context:%llx not in prime position[%zd]\n",
-				      engine->name,
-				      ce->timeline->fence_context,
-				      port - execlists->pending);
-			return false;
-		}
 
 		/* Hold tightly onto the lock to prevent concurrent retires! */
 		if (!spin_trylock_irqsave(&rq->lock, flags))
