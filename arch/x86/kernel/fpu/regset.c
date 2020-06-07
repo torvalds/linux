@@ -356,20 +356,4 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	return ret;
 }
 
-/*
- * FPU state for core dumps.
- * This is only used for a.out dumps now.
- * It is declared generically using elf_fpregset_t (which is
- * struct user_i387_struct) but is in fact only used for 32-bit
- * dumps, so on 64-bit it is really struct user_i387_ia32_struct.
- */
-int dump_fpu(struct pt_regs *regs, struct user_i387_struct *ufpu)
-{
-	struct task_struct *tsk = current;
-
-	return !fpregs_get(tsk, NULL, 0, sizeof(struct user_i387_ia32_struct),
-			   ufpu, NULL);
-}
-EXPORT_SYMBOL(dump_fpu);
-
 #endif	/* CONFIG_X86_32 || CONFIG_IA32_EMULATION */
