@@ -124,6 +124,7 @@ static int jz4740_nand_cs1_pins[] = { 0x39, };
 static int jz4740_nand_cs2_pins[] = { 0x3a, };
 static int jz4740_nand_cs3_pins[] = { 0x3b, };
 static int jz4740_nand_cs4_pins[] = { 0x3c, };
+static int jz4740_nand_fre_fwe_pins[] = { 0x5c, 0x5d, };
 static int jz4740_pwm_pwm0_pins[] = { 0x77, };
 static int jz4740_pwm_pwm1_pins[] = { 0x78, };
 static int jz4740_pwm_pwm2_pins[] = { 0x79, };
@@ -146,6 +147,7 @@ static int jz4740_nand_cs1_funcs[] = { 0, };
 static int jz4740_nand_cs2_funcs[] = { 0, };
 static int jz4740_nand_cs3_funcs[] = { 0, };
 static int jz4740_nand_cs4_funcs[] = { 0, };
+static int jz4740_nand_fre_fwe_funcs[] = { 0, 0, };
 static int jz4740_pwm_pwm0_funcs[] = { 0, };
 static int jz4740_pwm_pwm1_funcs[] = { 0, };
 static int jz4740_pwm_pwm2_funcs[] = { 0, };
@@ -178,6 +180,7 @@ static const struct group_desc jz4740_groups[] = {
 	INGENIC_PIN_GROUP("nand-cs2", jz4740_nand_cs2),
 	INGENIC_PIN_GROUP("nand-cs3", jz4740_nand_cs3),
 	INGENIC_PIN_GROUP("nand-cs4", jz4740_nand_cs4),
+	INGENIC_PIN_GROUP("nand-fre-fwe", jz4740_nand_fre_fwe),
 	INGENIC_PIN_GROUP("pwm0", jz4740_pwm_pwm0),
 	INGENIC_PIN_GROUP("pwm1", jz4740_pwm_pwm1),
 	INGENIC_PIN_GROUP("pwm2", jz4740_pwm_pwm2),
@@ -195,7 +198,7 @@ static const char *jz4740_lcd_groups[] = {
 	"lcd-8bit", "lcd-16bit", "lcd-18bit", "lcd-18bit-tft", "lcd-no-pins",
 };
 static const char *jz4740_nand_groups[] = {
-	"nand-cs1", "nand-cs2", "nand-cs3", "nand-cs4",
+	"nand-cs1", "nand-cs2", "nand-cs3", "nand-cs4", "nand-fre-fwe",
 };
 static const char *jz4740_pwm0_groups[] = { "pwm0", };
 static const char *jz4740_pwm1_groups[] = { "pwm1", };
