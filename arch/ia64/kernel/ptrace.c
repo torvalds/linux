@@ -1811,7 +1811,6 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	      unsigned long *data, int write_access)
 {
 	unsigned int pos = -1; /* an invalid value */
-	int ret;
 	unsigned long *ptr, regnum;
 
 	if ((addr & 0x7) != 0) {
@@ -1843,14 +1842,39 @@ access_uarea(struct task_struct *child, unsigned long addr,
 	}
 
 	if (pos != -1) {
-		if (write_access)
-			ret = fpregs_set(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		else
-			ret = fpregs_get(child, NULL, pos,
-				sizeof(unsigned long), data, NULL);
-		if (ret != 0)
-			return -1;
+		unsigned reg = pos / sizeof(elf_fpreg_t);
+		int which_half = (pos / sizeof(unsigned long)) & 1;
+
+		if (reg < 32) { /* fr2-fr31 */
+			struct unw_frame_info info;
+			elf_fpreg_t fpreg;
+
+			memset(&info, 0, sizeof(info));
+			unw_init_from_blocked_task(&info, child);
+			if (unw_unwind_to_user(&info) < 0)
+				return 0;
+
+			if (unw_get_fr(&info, reg, &fpreg))
+				return -1;
+			if (write_access) {
+				fpreg.u.bits[which_half] = *data;
+				if (unw_set_fr(&info, reg, fpreg))
+					return -1;
+			} else {
+				*data = fpreg.u.bits[which_half];
+			}
+		} else { /* fph */
+			elf_fpreg_t *p = &child->thread.fph[reg - 32];
+			unsigned long *bits = &p->u.bits[which_half];
+
+			ia64_sync_fph(child);
+			if (write_access)
+				*bits = *data;
+			else if (child->thread.flags & IA64_THREAD_FPH_VALID)
+				*data = *bits;
+			else
+				*data = 0;
+		}
 		return 0;
 	}
 
