@@ -2936,8 +2936,9 @@ EXPORT_SYMBOL_GPL(regmap_update_bits_base);
  * @reg: Register to read from
  * @bits: Bits to test
  *
- * Returns -1 if the underlying regmap_read() fails, 0 if at least one of the
- * tested bits is not set and 1 if all tested bits are set.
+ * Returns 0 if at least one of the tested bits is not set, 1 if all tested
+ * bits are set and a negative error number if the underlying regmap_read()
+ * fails.
  */
 int regmap_test_bits(struct regmap *map, unsigned int reg, unsigned int bits)
 {
