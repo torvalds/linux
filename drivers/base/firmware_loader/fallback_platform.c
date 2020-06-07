@@ -8,7 +8,7 @@
 #include "fallback.h"
 #include "firmware.h"
 
-int firmware_fallback_platform(struct fw_priv *fw_priv, enum fw_opt opt_flags)
+int firmware_fallback_platform(struct fw_priv *fw_priv, u32 opt_flags)
 {
 	const u8 *data;
 	size_t size;
