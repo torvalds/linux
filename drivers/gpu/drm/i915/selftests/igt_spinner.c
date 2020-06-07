@@ -221,8 +221,8 @@ bool igt_wait_for_spinner(struct igt_spinner *spin, struct i915_request *rq)
 {
 	return !(wait_for_us(i915_seqno_passed(hws_seqno(spin, rq),
 					       rq->fence.seqno),
-			     10) &&
+			     100) &&
 		 wait_for(i915_seqno_passed(hws_seqno(spin, rq),
 					    rq->fence.seqno),
-			  1000));
+			  50));
 }

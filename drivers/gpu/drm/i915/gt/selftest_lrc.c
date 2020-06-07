@@ -845,10 +845,11 @@ static int live_timeslice_preempt(void *arg)
 {
 	struct intel_gt *gt = arg;
 	struct drm_i915_gem_object *obj;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
 	struct i915_vma *vma;
 	void *vaddr;
 	int err = 0;
-	int count;
 
 	/*
 	 * If a request takes too long, we would like to give other users
@@ -885,26 +886,21 @@ static int live_timeslice_preempt(void *arg)
 	if (err)
 		goto err_pin;
 
-	for_each_prime_number_from(count, 1, 16) {
-		struct intel_engine_cs *engine;
-		enum intel_engine_id id;
+	for_each_engine(engine, gt, id) {
+		if (!intel_engine_has_preemption(engine))
+			continue;
 
-		for_each_engine(engine, gt, id) {
-			if (!intel_engine_has_preemption(engine))
-				continue;
+		memset(vaddr, 0, PAGE_SIZE);
 
-			memset(vaddr, 0, PAGE_SIZE);
+		engine_heartbeat_disable(engine);
+		err = slice_semaphore_queue(engine, vma, 5);
+		engine_heartbeat_enable(engine);
+		if (err)
+			goto err_pin;
 
-			engine_heartbeat_disable(engine);
-			err = slice_semaphore_queue(engine, vma, count);
-			engine_heartbeat_enable(engine);
-			if (err)
-				goto err_pin;
-
-			if (igt_flush_test(gt->i915)) {
-				err = -EIO;
-				goto err_pin;
-			}
+		if (igt_flush_test(gt->i915)) {
+			err = -EIO;
+			goto err_pin;
 		}
 	}
 
@@ -1250,22 +1246,6 @@ static int live_timeslice_queue(void *arg)
 			cond_resched();
 			intel_engine_flush_submission(engine);
 		} while (READ_ONCE(engine->execlists.pending[0]));
-
-		if (!READ_ONCE(engine->execlists.timer.expires) &&
-		    execlists_active(&engine->execlists) == rq &&
-		    !i915_request_completed(rq)) {
-			struct drm_printer p =
-				drm_info_printer(gt->i915->drm.dev);
-
-			GEM_TRACE_ERR("%s: Failed to enable timeslicing!\n",
-				      engine->name);
-			intel_engine_dump(engine, &p,
-					  "%s\n", engine->name);
-			GEM_TRACE_DUMP();
-
-			memset(vaddr, 0xff, PAGE_SIZE);
-			err = -EINVAL;
-		}
 
 		/* Timeslice every jiffy, so within 2 we should signal */
 		if (i915_request_wait(rq, 0, slice_timeout(engine)) < 0) {
@@ -2671,16 +2651,8 @@ static int live_preempt_gang(void *arg)
 
 			/* Submit each spinner at increasing priority */
 			engine->schedule(rq, &attr);
-
-			if (prio < attr.priority)
-				break;
-
-			if (prio <= I915_PRIORITY_MAX)
-				continue;
-
-			if (__igt_timeout(end_time, NULL))
-				break;
-		} while (1);
+		} while (prio <= I915_PRIORITY_MAX &&
+			 !__igt_timeout(end_time, NULL));
 		pr_debug("%s: Preempt chain of %d requests\n",
 			 engine->name, prio);
 
@@ -3248,7 +3220,7 @@ static int smoke_crescendo_thread(void *arg)
 			return err;
 
 		count++;
-	} while (!__igt_timeout(end_time, NULL));
+	} while (count < smoke->ncontext && !__igt_timeout(end_time, NULL));
 
 	smoke->count = count;
 	return 0;
@@ -3324,7 +3296,7 @@ static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 
 			count++;
 		}
-	} while (!__igt_timeout(end_time, NULL));
+	} while (count < smoke->ncontext && !__igt_timeout(end_time, NULL));
 
 	pr_info("Submitted %lu random:%x requests across %d engines and %d contexts\n",
 		count, flags,
@@ -3337,7 +3309,7 @@ static int live_preempt_smoke(void *arg)
 	struct preempt_smoke smoke = {
 		.gt = arg,
 		.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed),
-		.ncontext = 1024,
+		.ncontext = 256,
 	};
 	const unsigned int phase[] = { 0, BATCH };
 	struct igt_live_test t;
