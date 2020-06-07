@@ -96,7 +96,7 @@
 
 #define GAUDI_NUM_OF_QM_ARB_ERR_CAUSE	3
 
-#define GAUDI_ARB_WDT_TIMEOUT		0x400000
+#define GAUDI_ARB_WDT_TIMEOUT		0x1000000
 
 static const char gaudi_irq_name[GAUDI_MSI_ENTRIES][GAUDI_MAX_STRING_LEN] = {
 		"gaudi cq 0_0", "gaudi cq 0_1", "gaudi cq 0_2", "gaudi cq 0_3",
