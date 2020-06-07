@@ -490,8 +490,8 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 					   fsn_mark);
 
 	/* Queue ignore event for the watch */
-	inotify_handle_event(group, NULL, FS_IN_IGNORED, NULL,
-			     FSNOTIFY_EVENT_NONE, NULL, 0, &iter_info);
+	inotify_handle_event(group, FS_IN_IGNORED, NULL, FSNOTIFY_EVENT_NONE,
+			     NULL, NULL, 0, &iter_info);
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 	/* remove this mark from the idr */

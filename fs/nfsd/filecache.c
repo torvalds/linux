@@ -598,9 +598,9 @@ static struct notifier_block nfsd_file_lease_notifier = {
 };
 
 static int
-nfsd_file_fsnotify_handle_event(struct fsnotify_group *group,
-				struct inode *to_tell,
-				u32 mask, const void *data, int data_type,
+nfsd_file_fsnotify_handle_event(struct fsnotify_group *group, u32 mask,
+				const void *data, int data_type,
+				struct inode *dir,
 				const struct qstr *file_name, u32 cookie,
 				struct fsnotify_iter_info *iter_info)
 {

@@ -464,9 +464,9 @@ void audit_remove_watch_rule(struct audit_krule *krule)
 }
 
 /* Update watch data in audit rules based on fsnotify events. */
-static int audit_watch_handle_event(struct fsnotify_group *group,
-				    struct inode *to_tell,
-				    u32 mask, const void *data, int data_type,
+static int audit_watch_handle_event(struct fsnotify_group *group, u32 mask,
+				    const void *data, int data_type,
+				    struct inode *dir,
 				    const struct qstr *dname, u32 cookie,
 				    struct fsnotify_iter_info *iter_info)
 {

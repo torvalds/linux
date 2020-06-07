@@ -335,11 +335,11 @@ out:
  * FS_ATTRIB reports the child inode even if reported on a watched parent.
  * FS_CREATE reports the modified dir inode and not the created inode.
  */
-static struct inode *fanotify_fid_inode(struct inode *to_tell, u32 event_mask,
-					const void *data, int data_type)
+static struct inode *fanotify_fid_inode(u32 event_mask, const void *data,
+					int data_type, struct inode *dir)
 {
 	if (event_mask & ALL_FSNOTIFY_DIRENT_EVENTS)
-		return to_tell;
+		return dir;
 
 	return fsnotify_data_inode(data, data_type);
 }
@@ -416,14 +416,14 @@ static struct fanotify_event *fanotify_alloc_name_event(struct inode *id,
 }
 
 static struct fanotify_event *fanotify_alloc_event(struct fsnotify_group *group,
-						   struct inode *inode, u32 mask,
-						   const void *data, int data_type,
+						   u32 mask, const void *data,
+						   int data_type, struct inode *dir,
 						   const struct qstr *file_name,
 						   __kernel_fsid_t *fsid)
 {
 	struct fanotify_event *event = NULL;
 	gfp_t gfp = GFP_KERNEL_ACCOUNT;
-	struct inode *id = fanotify_fid_inode(inode, mask, data, data_type);
+	struct inode *id = fanotify_fid_inode(mask, data, data_type, dir);
 	const struct path *path = fsnotify_data_path(data, data_type);
 
 	/*
@@ -507,9 +507,9 @@ static __kernel_fsid_t fanotify_get_fsid(struct fsnotify_iter_info *iter_info)
 	return fsid;
 }
 
-static int fanotify_handle_event(struct fsnotify_group *group,
-				 struct inode *inode,
-				 u32 mask, const void *data, int data_type,
+static int fanotify_handle_event(struct fsnotify_group *group, u32 mask,
+				 const void *data, int data_type,
+				 struct inode *dir,
 				 const struct qstr *file_name, u32 cookie,
 				 struct fsnotify_iter_info *iter_info)
 {
@@ -546,8 +546,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 	if (!mask)
 		return 0;
 
-	pr_debug("%s: group=%p inode=%p mask=%x\n", __func__, group, inode,
-		 mask);
+	pr_debug("%s: group=%p mask=%x\n", __func__, group, mask);
 
 	if (fanotify_is_perm_event(mask)) {
 		/*
@@ -565,7 +564,7 @@ static int fanotify_handle_event(struct fsnotify_group *group,
 			return 0;
 	}
 
-	event = fanotify_alloc_event(group, inode, mask, data, data_type,
+	event = fanotify_alloc_event(group, mask, data, data_type, dir,
 				     file_name, &fsid);
 	ret = -ENOMEM;
 	if (unlikely(!event)) {

@@ -1037,9 +1037,9 @@ static void evict_chunk(struct audit_chunk *chunk)
 		audit_schedule_prune();
 }
 
-static int audit_tree_handle_event(struct fsnotify_group *group,
-				   struct inode *to_tell,
-				   u32 mask, const void *data, int data_type,
+static int audit_tree_handle_event(struct fsnotify_group *group, u32 mask,
+				   const void *data, int data_type,
+				   struct inode *dir,
 				   const struct qstr *file_name, u32 cookie,
 				   struct fsnotify_iter_info *iter_info)
 {
