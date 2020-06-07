@@ -1553,8 +1553,8 @@ static int compat_ptrace_read_user(struct task_struct *tsk, compat_ulong_t off,
 static int compat_ptrace_write_user(struct task_struct *tsk, compat_ulong_t off,
 				    compat_ulong_t val)
 {
-	int ret;
-	mm_segment_t old_fs = get_fs();
+	struct pt_regs newregs = *task_pt_regs(tsk);
+	unsigned int idx = off / 4;
 
 	if (off & 3 || off >= COMPAT_USER_SZ)
 		return -EIO;
@@ -1562,14 +1562,25 @@ static int compat_ptrace_write_user(struct task_struct *tsk, compat_ulong_t off,
 	if (off >= sizeof(compat_elf_gregset_t))
 		return 0;
 
-	set_fs(KERNEL_DS);
-	ret = copy_regset_from_user(tsk, &user_aarch32_view,
-				    REGSET_COMPAT_GPR, off,
-				    sizeof(compat_ulong_t),
-				    &val);
-	set_fs(old_fs);
+	switch (idx) {
+	case 15:
+		newregs.pc = val;
+		break;
+	case 16:
+		newregs.pstate = compat_psr_to_pstate(val);
+		break;
+	case 17:
+		newregs.orig_x0 = val;
+		break;
+	default:
+		newregs.regs[idx] = val;
+	}
 
-	return ret;
+	if (!valid_user_regs(&newregs.user_regs, tsk))
+		return -EINVAL;
+
+	*task_pt_regs(tsk) = newregs;
+	return 0;
 }
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
