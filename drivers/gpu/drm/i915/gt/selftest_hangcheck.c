@@ -805,10 +805,10 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			threads[tmp].resets =
 				i915_reset_engine_count(global, other);
 
-			if (!(flags & TEST_OTHERS))
+			if (other == engine && !(flags & TEST_SELF))
 				continue;
 
-			if (other == engine && !(flags & TEST_SELF))
+			if (other != engine && !(flags & TEST_OTHERS))
 				continue;
 
 			threads[tmp].engine = other;
@@ -999,7 +999,7 @@ static int igt_reset_engines(void *arg)
 		},
 		{
 			"self-priority",
-			TEST_OTHERS | TEST_ACTIVE | TEST_PRIORITY | TEST_SELF,
+			TEST_ACTIVE | TEST_PRIORITY | TEST_SELF,
 		},
 		{ }
 	};
