@@ -2267,6 +2267,7 @@ static int btusb_setup_intel_new(struct hci_dev *hdev)
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	struct intel_version ver;
 	struct intel_boot_params params;
+	struct intel_debug_features features;
 	const struct firmware *fw;
 	u32 boot_param;
 	char fwname[64];
@@ -2541,6 +2542,11 @@ done:
 	 * to load the file, no need to fail the setup.
 	 */
 	btintel_load_ddc_config(hdev, fwname);
+
+	/* Read the Intel supported features and if new exception formats
+	 * supported, need to load the additional DDC config to enable.
+	 */
+	btintel_read_debug_features(hdev, &features);
 
 	/* Read the Intel version information after loading the FW  */
 	err = btintel_read_version(hdev, &ver);
