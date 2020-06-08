@@ -819,12 +819,6 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	ret = smu_init_max_sustainable_clocks(smu);
-	if (ret) {
-		dev_err(adev->dev, "Failed to init max sustainable clocks!\n");
-		return ret;
-	}
-
 	ret = smu_populate_umd_state_clk(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to populate UMD state clocks!\n");
@@ -1361,6 +1355,19 @@ static int smu_hw_init(void *handle)
 	ret = smu_smc_hw_setup(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to setup smc hw!\n");
+		return ret;
+	}
+
+	/*
+	 * Move maximum sustainable clock retrieving here considering
+	 * 1. It is not needed on resume(from S3).
+	 * 2. DAL settings come between .hw_init and .late_init of SMU.
+	 *    And DAL needs to know the maximum sustainable clocks. Thus
+	 *    it cannot be put in .late_init().
+	 */
+	ret = smu_init_max_sustainable_clocks(smu);
+	if (ret) {
+		dev_err(adev->dev, "Failed to init max sustainable clocks!\n");
 		return ret;
 	}
 
