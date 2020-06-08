@@ -349,31 +349,20 @@ bool __bch2_btree_iter_upgrade_nounlock(struct btree_iter *iter,
 void __bch2_btree_iter_downgrade(struct btree_iter *iter,
 				 unsigned downgrade_to)
 {
-	struct btree_iter *linked;
-	unsigned l;
+	unsigned l, new_locks_want = downgrade_to ?:
+		(iter->flags & BTREE_ITER_INTENT ? 1 : 0);
 
-	/*
-	 * We downgrade linked iterators as well because btree_iter_upgrade
-	 * might have had to modify locks_want on linked iterators due to lock
-	 * ordering:
-	 */
-	trans_for_each_iter(iter->trans, linked) {
-		unsigned new_locks_want = downgrade_to ?:
-			(linked->flags & BTREE_ITER_INTENT ? 1 : 0);
+	if (iter->locks_want < downgrade_to) {
+		iter->locks_want = new_locks_want;
 
-		if (linked->locks_want <= new_locks_want)
-			continue;
-
-		linked->locks_want = new_locks_want;
-
-		while (linked->nodes_locked &&
-		       (l = __fls(linked->nodes_locked)) >= linked->locks_want) {
-			if (l > linked->level) {
-				btree_node_unlock(linked, l);
+		while (iter->nodes_locked &&
+		       (l = __fls(iter->nodes_locked)) >= iter->locks_want) {
+			if (l > iter->level) {
+				btree_node_unlock(iter, l);
 			} else {
-				if (btree_node_intent_locked(linked, l)) {
-					six_lock_downgrade(&linked->l[l].b->c.lock);
-					linked->nodes_intent_locked ^= 1 << l;
+				if (btree_node_intent_locked(iter, l)) {
+					six_lock_downgrade(&iter->l[l].b->c.lock);
+					iter->nodes_intent_locked ^= 1 << l;
 				}
 				break;
 			}
@@ -381,6 +370,14 @@ void __bch2_btree_iter_downgrade(struct btree_iter *iter,
 	}
 
 	bch2_btree_trans_verify_locks(iter->trans);
+}
+
+void bch2_trans_downgrade(struct btree_trans *trans)
+{
+	struct btree_iter *iter;
+
+	trans_for_each_iter(trans, iter)
+		bch2_btree_iter_downgrade(iter);
 }
 
 /* Btree transaction locking: */

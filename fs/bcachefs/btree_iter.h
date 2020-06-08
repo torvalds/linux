@@ -136,6 +136,8 @@ static inline void bch2_btree_iter_downgrade(struct btree_iter *iter)
 		__bch2_btree_iter_downgrade(iter, 0);
 }
 
+void bch2_trans_downgrade(struct btree_trans *);
+
 void bch2_btree_iter_node_replace(struct btree_iter *, struct btree *);
 void bch2_btree_iter_node_drop(struct btree_iter *, struct btree *);
 

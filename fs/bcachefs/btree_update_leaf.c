@@ -543,8 +543,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 
 	trans->nounlock = false;
 
-	trans_for_each_update2(trans, i)
-		bch2_btree_iter_downgrade(i->iter);
+	bch2_trans_downgrade(trans);
 
 	return 0;
 }
