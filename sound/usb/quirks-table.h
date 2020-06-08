@@ -43,22 +43,14 @@
 /* HP Thunderbolt Dock Audio Headset */
 {
 	USB_DEVICE(0x03f0, 0x0269),
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
-		.vendor_name = "HP",
-		.product_name = "Thunderbolt Dock Audio Headset",
-		.profile_name = "HP-Thunderbolt-Dock-Audio-Headset",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Headset",
+			     "HP-Thunderbolt-Dock-Audio-Headset"),
 },
 /* HP Thunderbolt Dock Audio Module */
 {
 	USB_DEVICE(0x03f0, 0x0567),
-	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
-		.vendor_name = "HP",
-		.product_name = "Thunderbolt Dock Audio Module",
-		.profile_name = "HP-Thunderbolt-Dock-Audio-Module",
-		.ifnum = QUIRK_NO_INTERFACE
-	}
+	QUIRK_DEVICE_PROFILE("HP", "Thunderbolt Dock Audio Module",
+			     "HP-Thunderbolt-Dock-Audio-Module"),
 },
 /* FTDI devices */
 {
