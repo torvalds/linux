@@ -56,12 +56,15 @@ static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
 static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, unsigned int flags)
 {
 	struct inode * inode;
-	ino_t ino;
+	ino_t ino = 0;
+	int res;
 	
 	if (dentry->d_name.len > EXT2_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ino = ext2_inode_by_name(dir, &dentry->d_name);
+	res = ext2_inode_by_name(dir, &dentry->d_name, &ino);
+	if (res)
+		return ERR_PTR(res);
 	inode = NULL;
 	if (ino) {
 		inode = ext2_iget(dir->i_sb, ino);
@@ -78,7 +81,12 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, uns
 struct dentry *ext2_get_parent(struct dentry *child)
 {
 	struct qstr dotdot = QSTR_INIT("..", 2);
-	unsigned long ino = ext2_inode_by_name(d_inode(child), &dotdot);
+	ino_t ino = 0;
+	int res;
+
+	res = ext2_inode_by_name(d_inode(child), &dotdot, &ino);
+	if (res)
+		return ERR_PTR(res);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
 	return d_obtain_alias(ext2_iget(child->d_sb, ino));
@@ -274,7 +282,11 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	if (err)
 		goto out;
 
-	de = ext2_find_entry (dir, &dentry->d_name, &page);
+	de = ext2_find_entry(dir, &dentry->d_name, &page);
+	if (IS_ERR(de)) {
+		err = PTR_ERR(de);
+		goto out;
+	}
 	if (!de) {
 		err = -ENOENT;
 		goto out;
@@ -330,7 +342,11 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	if (err)
 		goto out;
 
-	old_de = ext2_find_entry (old_dir, &old_dentry->d_name, &old_page);
+	old_de = ext2_find_entry(old_dir, &old_dentry->d_name, &old_page);
+	if (IS_ERR(old_de)) {
+		err = PTR_ERR(old_de);
+		goto out;
+	}
 	if (!old_de) {
 		err = -ENOENT;
 		goto out;
@@ -352,7 +368,11 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ext2_find_entry (new_dir, &new_dentry->d_name, &new_page);
+		new_de = ext2_find_entry(new_dir, &new_dentry->d_name, &new_page);
+		if (IS_ERR(new_de)) {
+			err = PTR_ERR(new_de);
+			goto out_dir;
+		}
 		if (!new_de)
 			goto out_dir;
 		ext2_set_link(new_dir, new_de, new_page, old_inode, 1);
