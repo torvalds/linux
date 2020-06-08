@@ -480,7 +480,8 @@ static int reclaim_pages(struct mlx5_core_dev *dev, u32 func_id, int npages,
 	MLX5_SET(manage_pages_in, in, input_num_entries, npages);
 	MLX5_SET(manage_pages_in, in, embedded_cpu_function, ec_function);
 
-	mlx5_core_dbg(dev, "npages %d, outlen %d\n", npages, outlen);
+	mlx5_core_dbg(dev, "func 0x%x, npages %d, outlen %d\n",
+		      func_id, npages, outlen);
 	err = reclaim_pages_cmd(dev, in, sizeof(in), out, outlen);
 	if (err) {
 		mlx5_core_err(dev, "failed reclaiming pages: err %d\n", err);
