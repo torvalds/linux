@@ -5776,7 +5776,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	refcount_set(&req->refs, 2);
 	req->task = NULL;
 	req->result = 0;
-	INIT_IO_WORK(&req->work, io_wq_submit_work);
+	INIT_IO_WORK(&req->work);
 
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
@@ -6796,6 +6796,7 @@ static int io_init_wq_offload(struct io_ring_ctx *ctx,
 
 	data.user = ctx->user;
 	data.free_work = io_free_work;
+	data.do_work = io_wq_submit_work;
 
 	if (!(p->flags & IORING_SETUP_ATTACH_WQ)) {
 		/* Do QD, or 4 * CPUS, whatever is smallest */

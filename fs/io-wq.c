@@ -112,6 +112,7 @@ struct io_wq {
 	unsigned long state;
 
 	free_work_fn *free_work;
+	io_wq_work_fn *do_work;
 
 	struct task_struct *manager;
 	struct user_struct *user;
@@ -528,7 +529,7 @@ get_next:
 
 			hash = io_get_work_hash(work);
 			linked = old_work = work;
-			linked->func(&linked);
+			wq->do_work(&linked);
 			linked = (old_work == linked) ? NULL : linked;
 
 			work = next_hashed;
@@ -785,7 +786,7 @@ static void io_run_cancel(struct io_wq_work *work, struct io_wqe *wqe)
 		struct io_wq_work *old_work = work;
 
 		work->flags |= IO_WQ_WORK_CANCEL;
-		work->func(&work);
+		wq->do_work(&work);
 		work = (work == old_work) ? NULL : work;
 		wq->free_work(old_work);
 	} while (work);
@@ -1023,7 +1024,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	int ret = -ENOMEM, node;
 	struct io_wq *wq;
 
-	if (WARN_ON_ONCE(!data->free_work))
+	if (WARN_ON_ONCE(!data->free_work || !data->do_work))
 		return ERR_PTR(-EINVAL);
 
 	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
@@ -1037,6 +1038,7 @@ struct io_wq *io_wq_create(unsigned bounded, struct io_wq_data *data)
 	}
 
 	wq->free_work = data->free_work;
+	wq->do_work = data->do_work;
 
 	/* caller must already hold a reference to this */
 	wq->user = data->user;
@@ -1093,7 +1095,7 @@ err:
 
 bool io_wq_get(struct io_wq *wq, struct io_wq_data *data)
 {
-	if (data->free_work != wq->free_work)
+	if (data->free_work != wq->free_work || data->do_work != wq->do_work)
 		return false;
 
 	return refcount_inc_not_zero(&wq->use_refs);
