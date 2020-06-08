@@ -1082,19 +1082,6 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
 	int ret = 0;
-	uint32_t max_power_limit;
-
-	max_power_limit = smu_get_max_power_limit(smu);
-
-	if (n > max_power_limit) {
-		dev_err(smu->adev->dev, "New power limit (%d) is over the max allowed %d\n",
-				n,
-				max_power_limit);
-		return -EINVAL;
-	}
-
-	if (n == 0)
-		n = smu->default_power_limit;
 
 	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
@@ -1106,7 +1093,8 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
-	smu->power_limit = n;
+
+	smu->current_power_limit = n;
 
 	return 0;
 }

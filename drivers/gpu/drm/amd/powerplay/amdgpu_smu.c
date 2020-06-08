@@ -2239,9 +2239,20 @@ int smu_set_power_limit(struct smu_context *smu, uint32_t limit)
 
 	mutex_lock(&smu->mutex);
 
+	if (limit > smu->max_power_limit) {
+		dev_err(smu->adev->dev,
+			"New power limit (%d) is over the max allowed %d\n",
+			limit, smu->max_power_limit);
+		goto out;
+	}
+
+	if (!limit)
+		limit = smu->current_power_limit;
+
 	if (smu->ppt_funcs->set_power_limit)
 		ret = smu->ppt_funcs->set_power_limit(smu, limit);
 
+out:
 	mutex_unlock(&smu->mutex);
 
 	return ret;
