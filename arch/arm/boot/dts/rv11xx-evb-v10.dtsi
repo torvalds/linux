@@ -997,6 +997,10 @@
 	status = "disabled";
 };
 
+&otp {
+	status = "okay";
+};
+
 &pdm {
 	status = "disabled";
 	#sound-dai-cells = <0>;
