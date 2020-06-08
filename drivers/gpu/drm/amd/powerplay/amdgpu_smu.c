@@ -1269,7 +1269,8 @@ static int smu_smc_hw_setup(struct smu_context *smu)
 	 * Set min deep sleep dce fclk with bootup value from vbios via
 	 * SetMinDeepSleepDcefclk MSG.
 	 */
-	ret = smu_set_min_dcef_deep_sleep(smu);
+	ret = smu_set_min_dcef_deep_sleep(smu,
+					  smu->smu_table.boot_values.dcefclk / 100);
 	if (ret)
 		return ret;
 
@@ -1584,9 +1585,8 @@ int smu_display_configuration_change(struct smu_context *smu,
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_deep_sleep_dcefclk)
-		smu->ppt_funcs->set_deep_sleep_dcefclk(smu,
-				display_config->min_dcef_deep_sleep_set_clk / 100);
+	smu_set_min_dcef_deep_sleep(smu,
+				    display_config->min_dcef_deep_sleep_set_clk / 100);
 
 	for (index = 0; index < display_config->num_path_including_non_display; index++) {
 		if (display_config->displays[index].controller_id != 0)
@@ -2482,8 +2482,7 @@ int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk)
 
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->set_deep_sleep_dcefclk)
-		ret = smu->ppt_funcs->set_deep_sleep_dcefclk(smu, clk);
+	ret = smu_set_min_dcef_deep_sleep(smu, clk);
 
 	mutex_unlock(&smu->mutex);
 

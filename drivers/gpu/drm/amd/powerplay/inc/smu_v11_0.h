@@ -170,8 +170,6 @@ int smu_v11_0_check_fw_version(struct smu_context *smu);
 
 int smu_v11_0_write_pptable(struct smu_context *smu);
 
-int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu);
-
 int smu_v11_0_set_driver_table_location(struct smu_context *smu);
 
 int smu_v11_0_set_tool_table_location(struct smu_context *smu);
@@ -215,7 +213,7 @@ int smu_v11_0_read_sensor(struct smu_context *smu,
 				 enum amd_pp_sensors sensor,
 				 void *data, uint32_t *size);
 
-int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
+int smu_v11_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
 
 int
 smu_v11_0_display_clock_voltage_request(struct smu_context *smu,

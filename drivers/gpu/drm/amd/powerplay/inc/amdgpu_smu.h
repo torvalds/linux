@@ -510,7 +510,6 @@ struct pptable_funcs {
 	int (*powergate_sdma)(struct smu_context *smu, bool gate);
 	int (*set_gfx_cgpg)(struct smu_context *smu, bool enable);
 	int (*write_pptable)(struct smu_context *smu);
-	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
 	int (*set_driver_table_location)(struct smu_context *smu);
 	int (*set_tool_table_location)(struct smu_context *smu);
 	int (*notify_memory_pool_location)(struct smu_context *smu);
@@ -527,7 +526,7 @@ struct pptable_funcs {
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*enable_thermal_alert)(struct smu_context *smu);
 	int (*disable_thermal_alert)(struct smu_context *smu);
-	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
+	int (*set_min_dcef_deep_sleep)(struct smu_context *smu, uint32_t clk);
 	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
 	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
 			      bool cc6_disable, bool pstate_disable,

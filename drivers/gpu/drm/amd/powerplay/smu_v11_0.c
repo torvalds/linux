@@ -770,7 +770,7 @@ int smu_v11_0_write_pptable(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
+int smu_v11_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 {
 	int ret;
 
@@ -780,16 +780,6 @@ int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 		dev_err(smu->adev->dev, "SMU11 attempt to set divider for DCEFCLK Failed!");
 
 	return ret;
-}
-
-int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
-{
-	struct smu_table_context *table_context = &smu->smu_table;
-
-	if (!table_context)
-		return -EINVAL;
-
-	return smu_v11_0_set_deep_sleep_dcefclk(smu, table_context->boot_values.dcefclk / 100);
 }
 
 int smu_v11_0_set_driver_table_location(struct smu_context *smu)
