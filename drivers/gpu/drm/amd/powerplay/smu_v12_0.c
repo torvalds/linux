@@ -319,7 +319,7 @@ int smu_v12_0_fini_smc_tables(struct smu_context *smu)
 	return 0;
 }
 
-int smu_v12_0_populate_smc_tables(struct smu_context *smu)
+int smu_v12_0_set_default_dpm_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 

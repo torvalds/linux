@@ -813,7 +813,7 @@ static int smu_late_init(void *handle)
 	 * gfxclk, memclk, dcefclk, and etc. And enable the DPM feature for each
 	 * type of clks.
 	 */
-	ret = smu_populate_smc_tables(smu);
+	ret = smu_set_default_dpm_table(smu);
 	if (ret) {
 		dev_err(adev->dev, "Failed to setup default dpm clock tables!\n");
 		return ret;

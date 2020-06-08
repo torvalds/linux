@@ -750,15 +750,6 @@ int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v11_0_populate_smc_pptable(struct smu_context *smu)
-{
-	int ret;
-
-	ret = smu_set_default_dpm_table(smu);
-
-	return ret;
-}
-
 int smu_v11_0_write_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;

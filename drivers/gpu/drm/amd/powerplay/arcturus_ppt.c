@@ -2587,7 +2587,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* pptable related */
 	.setup_pptable = arcturus_setup_pptable,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
-	.populate_smc_tables = smu_v11_0_populate_smc_pptable,
 	.check_fw_version = smu_v11_0_check_fw_version,
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_driver_table_location = smu_v11_0_set_driver_table_location,

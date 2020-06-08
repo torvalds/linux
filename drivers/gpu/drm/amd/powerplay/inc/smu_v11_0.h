@@ -164,8 +164,6 @@ int smu_v11_0_setup_pptable(struct smu_context *smu);
 
 int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu);
 
-int smu_v11_0_populate_smc_pptable(struct smu_context *smu);
-
 int smu_v11_0_check_fw_version(struct smu_context *smu);
 
 int smu_v11_0_write_pptable(struct smu_context *smu);
