@@ -11,6 +11,16 @@
 
 #include <linux/const.h>
 
+#define PMD_SHIFT		18
+#define PMD_SIZE        	(1UL << PMD_SHIFT)
+#define PMD_MASK        	(~(PMD_SIZE-1))
+#define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
+
+#define PGDIR_SHIFT     	24
+#define PGDIR_SIZE      	(1UL << PGDIR_SHIFT)
+#define PGDIR_MASK      	(~(PGDIR_SIZE-1))
+#define PGDIR_ALIGN(__addr) 	(((__addr) + ~PGDIR_MASK) & PGDIR_MASK)
+
 #ifndef __ASSEMBLY__
 #include <asm-generic/pgtable-nopud.h>
 
@@ -34,17 +44,10 @@ unsigned long __init bootmem_init(unsigned long *pages_avail);
 #define pmd_ERROR(e)   __builtin_trap()
 #define pgd_ERROR(e)   __builtin_trap()
 
-#define PMD_SHIFT		22
-#define PMD_SIZE        	(1UL << PMD_SHIFT)
-#define PMD_MASK        	(~(PMD_SIZE-1))
-#define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
-#define PGDIR_SHIFT     	SRMMU_PGDIR_SHIFT
-#define PGDIR_SIZE      	SRMMU_PGDIR_SIZE
-#define PGDIR_MASK      	SRMMU_PGDIR_MASK
-#define PTRS_PER_PTE    	1024
-#define PTRS_PER_PMD    	SRMMU_PTRS_PER_PMD
-#define PTRS_PER_PGD    	SRMMU_PTRS_PER_PGD
-#define USER_PTRS_PER_PGD	PAGE_OFFSET / SRMMU_PGDIR_SIZE
+#define PTRS_PER_PTE    	64
+#define PTRS_PER_PMD    	64
+#define PTRS_PER_PGD    	256
+#define USER_PTRS_PER_PGD	PAGE_OFFSET / PGDIR_SIZE
 #define FIRST_USER_ADDRESS	0UL
 #define PTE_SIZE		(PTRS_PER_PTE*4)
 
@@ -132,6 +135,17 @@ static inline struct page *pmd_page(pmd_t pmd)
 	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
 }
 
+static inline unsigned long __pmd_page(pmd_t pmd)
+{
+	unsigned long v;
+
+	if (srmmu_device_memory(pmd_val(pmd)))
+		BUG();
+
+	v = pmd_val(pmd) & SRMMU_PTD_PMASK;
+	return (unsigned long)__nocache_va(v << 4);
+}
+
 static inline unsigned long pud_page_vaddr(pud_t pud)
 {
 	if (srmmu_device_memory(pud_val(pud))) {
@@ -179,9 +193,7 @@ static inline int pmd_none(pmd_t pmd)
 
 static inline void pmd_clear(pmd_t *pmdp)
 {
-	int i;
-	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++)
-		set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
+	set_pte((pte_t *)&pmd_val(*pmdp), __pte(0));
 }
 
 static inline int pud_none(pud_t pud)
