@@ -192,7 +192,8 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 		return ret;
 	}
 
-	ret = nvif_notify_init(&wndw->wndw.base.user, wndw->notify.func, false,
+	ret = nvif_notify_ctor(&wndw->wndw.base.user, "kmsOvlyNtfy",
+			       wndw->notify.func, false,
 			       NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT,
 			       &(struct nvif_notify_uevent_req) {},
 			       sizeof(struct nvif_notify_uevent_req),

@@ -905,7 +905,7 @@ nouveau_svm_fault_buffer_dtor(struct nouveau_svm *svm, int id)
 
 	nouveau_svm_fault_buffer_fini(svm, id);
 
-	nvif_notify_fini(&buffer->notify);
+	nvif_notify_dtor(&buffer->notify);
 	nvif_object_dtor(&buffer->object);
 }
 
@@ -932,8 +932,8 @@ nouveau_svm_fault_buffer_ctor(struct nouveau_svm *svm, s32 oclass, int id)
 	buffer->getaddr = args.get;
 	buffer->putaddr = args.put;
 
-	ret = nvif_notify_init(&buffer->object, nouveau_svm_fault, true,
-			       NVB069_V0_NTFY_FAULT, NULL, 0, 0,
+	ret = nvif_notify_ctor(&buffer->object, "svmFault", nouveau_svm_fault,
+			       true, NVB069_V0_NTFY_FAULT, NULL, 0, 0,
 			       &buffer->notify);
 	if (ret)
 		return ret;

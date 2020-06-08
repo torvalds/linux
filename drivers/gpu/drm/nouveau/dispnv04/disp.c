@@ -178,7 +178,7 @@ nv04_display_destroy(struct drm_device *dev)
 
 	nouveau_hw_save_vga_fonts(dev, 0);
 
-	nvif_notify_fini(&disp->flip);
+	nvif_notify_dtor(&disp->flip);
 
 	nouveau_display(dev)->priv = NULL;
 	kfree(disp);
@@ -215,7 +215,7 @@ nv04_display_create(struct drm_device *dev)
 
 	/* Request page flip completion event. */
 	if (drm->nvsw.client) {
-		nvif_notify_init(&drm->nvsw, nv04_flip_complete,
+		nvif_notify_ctor(&drm->nvsw, "kmsFlip", nv04_flip_complete,
 				 false, NV04_NVSW_NTFY_UEVENT,
 				 NULL, 0, 0, &disp->flip);
 	}

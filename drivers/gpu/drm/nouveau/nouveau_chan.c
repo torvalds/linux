@@ -105,7 +105,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->nvsw);
 		nvif_object_dtor(&chan->gart);
 		nvif_object_dtor(&chan->vram);
-		nvif_notify_fini(&chan->kill);
+		nvif_notify_dtor(&chan->kill);
 		nvif_object_dtor(&chan->user);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
@@ -366,7 +366,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	nvif_object_map(&chan->user, NULL, 0);
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
-		ret = nvif_notify_init(&chan->user, nouveau_channel_killed,
+		ret = nvif_notify_ctor(&chan->user, "abi16ChanKilled",
+				       nouveau_channel_killed,
 				       true, NV906F_V0_NTFY_KILLED,
 				       NULL, 0, 0, &chan->kill);
 		if (ret == 0)
