@@ -2053,6 +2053,27 @@ config MFD_WCD934X
 	  This driver provides common support WCD934x audio codec and its
 	  associated Pin Controller, Soundwire Controller and Audio codec.
 
+config MFD_KHADAS_MCU
+	tristate "Support for Khadas System control Microcontroller"
+	depends on I2C
+	depends on ARCH_MESON || ARCH_ROCKCHIP || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Support for the Khadas System control Microcontroller interface
+	  present on their VIM and Edge boards.
+
+	  This Microcontroller is present on the Khadas VIM1, VIM2, VIM3 and
+	  Edge boards.
+
+	  It provides multiple boot control features like password check,
+	  power-on options, power-off control and system FAN control on recent
+	  boards.
+
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the functionality
+	  of the device.
+
 menu "Multimedia Capabilities Port drivers"
 	depends on ARCH_SA1100
 
