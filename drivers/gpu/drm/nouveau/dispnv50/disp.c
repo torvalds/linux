@@ -277,7 +277,7 @@ nv50_outp_release(struct nouveau_encoder *nv_encoder)
 }
 
 static int
-nv50_outp_acquire(struct nouveau_encoder *nv_encoder)
+nv50_outp_acquire(struct nouveau_encoder *nv_encoder, bool hda)
 {
 	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
 	struct nv50_disp *disp = nv50_disp(drm->dev);
@@ -289,6 +289,7 @@ nv50_outp_acquire(struct nouveau_encoder *nv_encoder)
 		.base.method = NV50_DISP_MTHD_V1_ACQUIRE,
 		.base.hasht  = nv_encoder->dcb->hasht,
 		.base.hashm  = nv_encoder->dcb->hashm,
+		.info.hda = hda,
 	};
 	int ret;
 
@@ -393,7 +394,7 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 
-	nv50_outp_acquire(nv_encoder);
+	nv50_outp_acquire(nv_encoder, false);
 
 	core->func->dac->ctrl(core, nv_encoder->or, 1 << nv_crtc->index, asyh);
 	asyh->or.depth = 0;
@@ -510,7 +511,7 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 		if (!nv_connector || !nv_crtc || nv_encoder->or != port ||
 		    nv_crtc->index != dev_id)
 			continue;
-		*enabled = drm_detect_monitor_audio(nv_connector->edid);
+		*enabled = nv_encoder->audio;
 		if (*enabled) {
 			ret = drm_eld_size(nv_connector->base.eld);
 			memcpy(buf, nv_connector->base.eld,
@@ -600,6 +601,7 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 				(0x0100 << nv_crtc->index),
 	};
 
+	nv_encoder->audio = false;
 	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
@@ -636,6 +638,7 @@ nv50_audio_enable(struct drm_encoder *encoder, struct drm_display_mode *mode)
 
 	nvif_mthd(&disp->disp->object, 0, &args,
 		  sizeof(args.base) + drm_eld_size(args.data));
+	nv_encoder->audio = true;
 
 	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
 					nv_crtc->index);
@@ -966,7 +969,7 @@ nv50_msto_enable(struct drm_encoder *encoder)
 		DRM_DEBUG_KMS("Failed to allocate VCPI\n");
 
 	if (!mstm->links++)
-		nv50_outp_acquire(mstm->outp);
+		nv50_outp_acquire(mstm->outp, false /*XXX: MST audio.*/);
 
 	if (mstm->outp->link & 1)
 		proto = 0x8;
@@ -1560,12 +1563,18 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
+	bool hda = false;
 	u8 proto = 0xf;
 	u8 depth = 0x0;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	nv_encoder->crtc = encoder->crtc;
-	nv50_outp_acquire(nv_encoder);
+
+	if ((disp->disp->object.oclass == GT214_DISP ||
+	     disp->disp->object.oclass >= GF110_DISP) &&
+	    drm_detect_monitor_audio(nv_connector->edid))
+		hda = true;
+	nv50_outp_acquire(nv_encoder, hda);
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
@@ -1775,7 +1784,7 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	u8 owner = 1 << nv_crtc->index;
 	u8 proto;
 
-	nv50_outp_acquire(nv_encoder);
+	nv50_outp_acquire(nv_encoder, false);
 
 	switch (asyh->or.bpc) {
 	case 10: asyh->or.depth = 0x6; break;
