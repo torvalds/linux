@@ -1866,7 +1866,14 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/*
 	 * Allocate a structure for each thread.
 	 */
-	for (ct = &dump_task->signal->core_state->dumper; ct; ct = ct->next) {
+	info->thread = kzalloc(offsetof(struct elf_thread_core_info,
+				     notes[info->thread_notes]),
+			    GFP_KERNEL);
+	if (unlikely(!info->thread))
+		return 0;
+
+	info->thread->task = dump_task;
+	for (ct = dump_task->signal->core_state->dumper.next; ct; ct = ct->next) {
 		t = kzalloc(offsetof(struct elf_thread_core_info,
 				     notes[info->thread_notes]),
 			    GFP_KERNEL);
@@ -1874,17 +1881,8 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 			return 0;
 
 		t->task = ct->task;
-		if (ct->task == dump_task || !info->thread) {
-			t->next = info->thread;
-			info->thread = t;
-		} else {
-			/*
-			 * Make sure to keep the original task at
-			 * the head of the list.
-			 */
-			t->next = info->thread->next;
-			info->thread->next = t;
-		}
+		t->next = info->thread->next;
+		info->thread->next = t;
 	}
 
 	/*
