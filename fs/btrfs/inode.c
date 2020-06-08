@@ -1378,6 +1378,8 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 			   int *page_started, unsigned long *nr_written)
 {
 	const bool is_space_ino = btrfs_is_free_space_inode(BTRFS_I(inode));
+	const bool is_reloc_ino = (BTRFS_I(inode)->root->root_key.objectid ==
+				   BTRFS_DATA_RELOC_TREE_OBJECTID);
 	const u64 range_bytes = end + 1 - start;
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	u64 range_start = start;
@@ -1408,17 +1410,22 @@ static int fallback_to_cow(struct inode *inode, struct page *locked_page,
 	 *    data space info, which we incremented in the step above.
 	 *
 	 * If we need to fallback to cow and the inode corresponds to a free
-	 * space cache inode, we must also increment bytes_may_use of the data
-	 * space_info for the same reason. Space caches always get a prealloc
+	 * space cache inode or an inode of the data relocation tree, we must
+	 * also increment bytes_may_use of the data space_info for the same
+	 * reason. Space caches and relocated data extents always get a prealloc
 	 * extent for them, however scrub or balance may have set the block
-	 * group that contains that extent to RO mode.
+	 * group that contains that extent to RO mode and therefore force COW
+	 * when starting writeback.
 	 */
 	count = count_range_bits(io_tree, &range_start, end, range_bytes,
 				 EXTENT_NORESERVE, 0);
-	if (count > 0 || is_space_ino) {
-		const u64 bytes = is_space_ino ? range_bytes : count;
+	if (count > 0 || is_space_ino || is_reloc_ino) {
+		u64 bytes = count;
 		struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 		struct btrfs_space_info *sinfo = fs_info->data_sinfo;
+
+		if (is_space_ino || is_reloc_ino)
+			bytes = range_bytes;
 
 		spin_lock(&sinfo->lock);
 		btrfs_space_info_update_bytes_may_use(fs_info, sinfo, bytes);
