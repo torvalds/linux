@@ -461,8 +461,8 @@ int main(int argc, char *argv[])
 		pabort("can't get max speed hz");
 
 	printf("spi mode: 0x%x\n", mode);
-	printf("bits per word: %d\n", bits);
-	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
+	printf("bits per word: %u\n", bits);
+	printf("max speed: %u Hz (%u kHz)\n", speed, speed/1000);
 
 	if (input_tx)
 		transfer_escaped_string(fd, input_tx);
