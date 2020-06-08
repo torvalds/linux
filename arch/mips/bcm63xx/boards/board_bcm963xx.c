@@ -760,11 +760,25 @@ void __init board_prom_init(void)
 
 	/* dump cfe version */
 	cfe = boot_addr + BCM963XX_CFE_VERSION_OFFSET;
-	if (!memcmp(cfe, "cfe-v", 5))
-		snprintf(cfe_version, sizeof(cfe_version), "%u.%u.%u-%u.%u",
-			 cfe[5], cfe[6], cfe[7], cfe[8], cfe[9]);
-	else
+	if (strstarts(cfe, "cfe-")) {
+		if(cfe[4] == 'v') {
+			if(cfe[5] == 'd')
+				snprintf(cfe_version, 11, "%s",
+					 (char *) &cfe[5]);
+			else if (cfe[10] > 0)
+				snprintf(cfe_version, sizeof(cfe_version),
+					 "%u.%u.%u-%u.%u-%u", cfe[5], cfe[6],
+					 cfe[7], cfe[8], cfe[9], cfe[10]);
+			else
+				snprintf(cfe_version, sizeof(cfe_version),
+					 "%u.%u.%u-%u.%u", cfe[5], cfe[6],
+					 cfe[7], cfe[8], cfe[9]);
+		} else {
+			snprintf(cfe_version, 12, "%s", (char *) &cfe[4]);
+		}
+	} else {
 		strcpy(cfe_version, "unknown");
+	}
 	pr_info("CFE version: %s\n", cfe_version);
 
 	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
