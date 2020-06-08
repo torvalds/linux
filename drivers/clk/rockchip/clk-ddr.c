@@ -102,7 +102,10 @@ static int rockchip_ddrclk_sip_set_rate(struct clk_hw *hw, unsigned long drate,
 		      ROCKCHIP_SIP_CONFIG_DRAM_SET_RATE,
 		      0, 0, 0, 0, &res);
 
-	return res.a0;
+	if (res.a0)
+		return 0;
+	else
+		return -EPERM;
 }
 
 static unsigned long
