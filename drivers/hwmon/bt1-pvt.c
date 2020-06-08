@@ -300,12 +300,12 @@ static irqreturn_t pvt_soft_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-inline umode_t pvt_limit_is_visible(enum pvt_sensor_type type)
+static inline umode_t pvt_limit_is_visible(enum pvt_sensor_type type)
 {
 	return 0644;
 }
 
-inline umode_t pvt_alarm_is_visible(enum pvt_sensor_type type)
+static inline umode_t pvt_alarm_is_visible(enum pvt_sensor_type type)
 {
 	return 0444;
 }
@@ -462,12 +462,12 @@ static irqreturn_t pvt_hard_isr(int irq, void *data)
 
 #define pvt_soft_isr NULL
 
-inline umode_t pvt_limit_is_visible(enum pvt_sensor_type type)
+static inline umode_t pvt_limit_is_visible(enum pvt_sensor_type type)
 {
 	return 0;
 }
 
-inline umode_t pvt_alarm_is_visible(enum pvt_sensor_type type)
+static inline umode_t pvt_alarm_is_visible(enum pvt_sensor_type type)
 {
 	return 0;
 }
