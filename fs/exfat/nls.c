@@ -692,8 +692,8 @@ static int exfat_load_upcase_table(struct super_block *sb,
 				index++;
 			}
 		}
-		brelse(bh);
 		chksum = exfat_calc_chksum32(bh->b_data, i, chksum, CS_DEFAULT);
+		brelse(bh);
 	}
 
 	if (index >= 0xFFFF && utbl_checksum == chksum)
