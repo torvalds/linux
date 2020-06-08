@@ -1306,7 +1306,6 @@ struct kvm_arch_async_pf {
 extern u64 __read_mostly host_efer;
 
 extern struct kvm_x86_ops kvm_x86_ops;
-extern struct kmem_cache *x86_fpu_cache;
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
