@@ -1000,9 +1000,6 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	handle_last_fault(vcpu, vsie_page);
 
-	if (test_cpu_flag(CIF_MCCK_PENDING))
-		s390_handle_mcck();
-
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 
 	/* save current guest state of bp isolation override */

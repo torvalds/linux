@@ -1416,7 +1416,7 @@ static const struct user_regset s390_regsets[] = {
 };
 
 static const struct user_regset_view user_s390_view = {
-	.name = UTS_MACHINE,
+	.name = "s390x",
 	.e_machine = EM_S390,
 	.regsets = s390_regsets,
 	.n = ARRAY_SIZE(s390_regsets)
