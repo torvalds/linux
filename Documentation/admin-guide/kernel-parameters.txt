@@ -4969,6 +4969,15 @@
 
 	switches=	[HW,M68k]
 
+	sysctl.*=	[KNL]
+			Set a sysctl parameter, right before loading the init
+			process, as if the value was written to the respective
+			/proc/sys/... file. Both '.' and '/' are recognized as
+			separators. Unrecognized parameters and invalid values
+			are reported in the kernel log. Sysctls registered
+			later by a loaded module cannot be set this way.
+			Example: sysctl.vm.swappiness=40
+
 	sysfs.deprecated=0|1 [KNL]
 			Enable/disable old style sysfs layout for old udev
 			on older distributions. When this option is enabled
