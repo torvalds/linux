@@ -23,6 +23,11 @@
 #define H_KERN_MAP_SIZE		(ASM_CONST(1) << REGION_SHIFT)
 
 /*
+ * Limits the linear mapping range
+ */
+#define H_MAX_PHYSMEM_BITS	46
+
+/*
  * Define the address range of the kernel non-linear virtual area (61TB)
  */
 #define H_KERN_VIRT_START	ASM_CONST(0xc0003d0000000000)

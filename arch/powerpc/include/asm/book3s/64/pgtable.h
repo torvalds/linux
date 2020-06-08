@@ -294,6 +294,13 @@ extern unsigned long pci_io_base;
 #include <asm/book3s/64/hash.h>
 #include <asm/book3s/64/radix.h>
 
+#if H_MAX_PHYSMEM_BITS > R_MAX_PHYSMEM_BITS
+#define  MAX_PHYSMEM_BITS	H_MAX_PHYSMEM_BITS
+#else
+#define  MAX_PHYSMEM_BITS	R_MAX_PHYSMEM_BITS
+#endif
+
+
 #ifdef CONFIG_PPC_64K_PAGES
 #include <asm/book3s/64/pgtable-64k.h>
 #else
