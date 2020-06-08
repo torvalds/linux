@@ -46,7 +46,7 @@ static void panfrost_gem_free_object(struct drm_gem_object *obj)
 				sg_free_table(&bo->sgts[i]);
 			}
 		}
-		kfree(bo->sgts);
+		kvfree(bo->sgts);
 	}
 
 	drm_gem_shmem_free_object(obj);
