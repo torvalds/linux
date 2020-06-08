@@ -763,6 +763,12 @@ static int __init rk_fiqdbg_init(void)
 }
 subsys_initcall(rk_fiqdbg_init); /* after of_platform_default_populate_init */
 
+static void __exit rk_fiqdbg_exit(void)
+{
+	platform_driver_unregister(&rk_fiqdbg_driver);
+}
+module_exit(rk_fiqdbg_exit);
+
 MODULE_AUTHOR("Huibin Hong <huibin.hong@rock-chips.com>");
 MODULE_DESCRIPTION("Rockchip FIQ Debugger");
 MODULE_LICENSE("GPL");
