@@ -382,6 +382,8 @@ struct smu_context
 	bool od_enabled;
 	uint32_t power_limit;
 	uint32_t default_power_limit;
+	uint32_t current_power_limit;
+	uint32_t max_power_limit;
 
 	/* soft pptable */
 	uint32_t ppt_offset_bytes;

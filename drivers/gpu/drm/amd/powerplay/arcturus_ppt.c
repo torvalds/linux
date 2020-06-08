@@ -1413,40 +1413,33 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 				     uint32_t *limit,
 				     bool cap)
 {
+	struct smu_11_0_powerplay_table *powerplay_table =
+		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	uint32_t asic_default_power_limit = 0;
-	int ret = 0;
-	int power_src;
+	uint32_t power_limit, od_percent;
 
-	if (!smu->power_limit) {
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
-			power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
-			if (power_src < 0)
-				return -EINVAL;
-
-			ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetPptLimit,
-				power_src << 16, &asic_default_power_limit);
-			if (ret) {
-				dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
-				return ret;
-			}
-		} else {
-			/* the last hope to figure out the ppt limit */
-			if (!pptable) {
-				dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
-				return -EINVAL;
-			}
-			asic_default_power_limit =
-				pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
+	if (smu_v11_0_get_current_power_limit(smu, &power_limit)) {
+		/* the last hope to figure out the ppt limit */
+		if (!pptable) {
+			dev_err(smu->adev->dev, "Cannot get PPT limit due to pptable missing!");
+			return -EINVAL;
 		}
-
-		smu->power_limit = asic_default_power_limit;
+		power_limit =
+			pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 	}
+	smu->current_power_limit = power_limit;
 
-	if (cap)
-		*limit = smu_get_max_power_limit(smu);
-	else
-		*limit = smu->power_limit;
+	if (smu->od_enabled) {
+		od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
+
+		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
+
+		power_limit *= (100 + od_percent);
+		power_limit /= 100;
+	}
+	smu->max_power_limit = power_limit;
+
+	*limit = (cap ? smu->max_power_limit : smu->current_power_limit);
 
 	return 0;
 }

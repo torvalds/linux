@@ -196,6 +196,9 @@ int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 
 int smu_v11_0_notify_display_change(struct smu_context *smu);
 
+int smu_v11_0_get_current_power_limit(struct smu_context *smu,
+				      uint32_t *power_limit);
+
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
 
 int smu_v11_0_get_current_clk_freq(struct smu_context *smu,

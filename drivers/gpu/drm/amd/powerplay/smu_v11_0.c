@@ -1056,6 +1056,29 @@ int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu)
 	return 0;
 }
 
+int smu_v11_0_get_current_power_limit(struct smu_context *smu,
+				      uint32_t *power_limit)
+{
+	int power_src;
+	int ret = 0;
+
+	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
+		return -EINVAL;
+
+	power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
+	if (power_src < 0)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  SMU_MSG_GetPptLimit,
+					  power_src << 16,
+					  power_limit);
+	if (ret)
+		dev_err(smu->adev->dev, "[%s] get PPT limit failed!", __func__);
+
+	return ret;
+}
+
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 {
 	int ret = 0;
