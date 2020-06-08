@@ -175,10 +175,9 @@ static int __init dma_atomic_pool_init(void)
 	 * sizes to 128KB per 1GB of memory, min 128KB, max MAX_ORDER-1.
 	 */
 	if (!atomic_pool_size) {
-		atomic_pool_size = max(totalram_pages() >> PAGE_SHIFT, 1UL) *
-					SZ_128K;
-		atomic_pool_size = min_t(size_t, atomic_pool_size,
-					 1 << (PAGE_SHIFT + MAX_ORDER-1));
+		unsigned long pages = totalram_pages() / (SZ_1G / SZ_128K);
+		pages = min_t(unsigned long, pages, MAX_ORDER_NR_PAGES);
+		atomic_pool_size = max_t(size_t, pages << PAGE_SHIFT, SZ_128K);
 	}
 	INIT_WORK(&atomic_pool_work, atomic_pool_work_fn);
 
