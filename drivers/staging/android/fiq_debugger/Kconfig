@@ -1,5 +1,5 @@
 config FIQ_DEBUGGER
-	bool "FIQ Mode Serial Debugger"
+	tristate "FIQ Mode Serial Debugger"
 	default n
 	depends on ARM || ARM64
 	help

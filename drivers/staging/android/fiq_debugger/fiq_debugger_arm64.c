@@ -152,6 +152,7 @@ void fiq_debugger_dump_allregs(struct fiq_debugger_output *output,
 	}
 }
 
+#ifndef CONFIG_FIQ_DEBUGGER_MODULE
 struct stacktrace_state {
 	struct fiq_debugger_output *output;
 	unsigned int depth;
@@ -194,3 +195,4 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 		walk_stackframe(current, &frame, report_trace, &sts);
 	}
 }
+#endif

@@ -200,6 +200,7 @@ static int report_trace(struct stackframe *frame, void *d)
 	return sts->depth == 0;
 }
 
+#ifndef CONFIG_FIQ_DEBUGGER_MODULE
 struct frame_tail {
 	struct frame_tail *fp;
 	unsigned long sp;
@@ -269,3 +270,4 @@ void fiq_debugger_dump_stacktrace(struct fiq_debugger_output *output,
 	while (depth-- && tail && !((unsigned long) tail & 3))
 		tail = user_backtrace(output, tail);
 }
+#endif
