@@ -2071,6 +2071,18 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	/* Account for additional needs from the planes */
 	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
 
+	/*
+	 * HACK. Currently for TGL platforms we calculate
+	 * min_cdclk initially based on pixel_rate divided
+	 * by 2, accounting for also plane requirements,
+	 * however in some cases the lowest possible CDCLK
+	 * doesn't work and causing the underruns.
+	 * Explicitly stating here that this seems to be currently
+	 * rather a Hack, than final solution.
+	 */
+	if (IS_TIGERLAKE(dev_priv))
+		min_cdclk = max(min_cdclk, (int)crtc_state->pixel_rate);
+
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "required cdclk (%d kHz) exceeds max (%d kHz)\n",
