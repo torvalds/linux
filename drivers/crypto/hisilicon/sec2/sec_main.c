@@ -30,9 +30,9 @@
 
 #define SEC_SQE_SIZE			128
 #define SEC_SQ_SIZE			(SEC_SQE_SIZE * QM_Q_DEPTH)
-#define SEC_PF_DEF_Q_NUM		64
+#define SEC_PF_DEF_Q_NUM		256
 #define SEC_PF_DEF_Q_BASE		0
-#define SEC_CTX_Q_NUM_DEF		24
+#define SEC_CTX_Q_NUM_DEF		2
 #define SEC_CTX_Q_NUM_MAX		32
 
 #define SEC_CTRL_CNT_CLR_CE		0x301120
@@ -191,7 +191,7 @@ static const struct kernel_param_ops sec_ctx_q_num_ops = {
 };
 static u32 ctx_q_num = SEC_CTX_Q_NUM_DEF;
 module_param_cb(ctx_q_num, &sec_ctx_q_num_ops, &ctx_q_num, 0444);
-MODULE_PARM_DESC(ctx_q_num, "Queue num in ctx (24 default, 2, 4, ..., 32)");
+MODULE_PARM_DESC(ctx_q_num, "Queue num in ctx (2 default, 2, 4, ..., 32)");
 
 static const struct kernel_param_ops vfs_num_ops = {
 	.set = vfs_num_set,
