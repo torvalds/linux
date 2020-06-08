@@ -1920,6 +1920,7 @@ static int navi10_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
 		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
+	struct smu_11_0_overdrive_table *od_settings = smu->od_settings;
 	PPTable_t *pptable = smu->smu_table.driver_pptable;
 	uint32_t power_limit, od_percent;
 
@@ -1934,7 +1935,8 @@ static int navi10_get_power_limit(struct smu_context *smu)
 	}
 	smu->current_power_limit = power_limit;
 
-	if (smu->od_enabled) {
+	if (smu->od_enabled &&
+	    navi10_od_feature_is_supported(od_settings, SMU_11_0_ODCAP_POWER_LIMIT)) {
 		od_percent = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
 
 		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_percent, power_limit);
