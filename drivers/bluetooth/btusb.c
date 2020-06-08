@@ -2548,6 +2548,9 @@ done:
 	 */
 	btintel_read_debug_features(hdev, &features);
 
+	/* Set DDC mask for available debug features */
+	btintel_set_debug_features(hdev, &features);
+
 	/* Read the Intel version information after loading the FW  */
 	err = btintel_read_version(hdev, &ver);
 	if (err)

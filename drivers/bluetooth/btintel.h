@@ -92,10 +92,10 @@ int btintel_read_boot_params(struct hci_dev *hdev,
 int btintel_download_firmware(struct hci_dev *dev, const struct firmware *fw,
 			      u32 *boot_param);
 void btintel_reset_to_bootloader(struct hci_dev *hdev);
-
 int btintel_read_debug_features(struct hci_dev *hdev,
 				struct intel_debug_features *features);
-
+int btintel_set_debug_features(struct hci_dev *hdev,
+			       const struct intel_debug_features *features);
 #else
 
 static inline int btintel_check_bdaddr(struct hci_dev *hdev)
@@ -197,6 +197,12 @@ static inline void btintel_reset_to_bootloader(struct hci_dev *hdev)
 
 static inline int btintel_read_debug_features(struct hci_dev *hdev,
 					      struct intel_debug_features *features)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int btintel_set_debug_features(struct hci_dev *hdev,
+					     const struct intel_debug_features *features)
 {
 	return -EOPNOTSUPP;
 }
