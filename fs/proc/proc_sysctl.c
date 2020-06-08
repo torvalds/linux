@@ -1721,6 +1721,7 @@ struct sysctl_alias {
  */
 static const struct sysctl_alias sysctl_aliases[] = {
 	{"numa_zonelist_order",		"vm.numa_zonelist_order" },
+	{"hung_task_panic",		"kernel.hung_task_panic" },
 	{ }
 };
 

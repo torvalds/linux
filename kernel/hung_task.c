@@ -63,16 +63,6 @@ static struct task_struct *watchdog_task;
 unsigned int __read_mostly sysctl_hung_task_panic =
 				CONFIG_BOOTPARAM_HUNG_TASK_PANIC_VALUE;
 
-static int __init hung_task_panic_setup(char *str)
-{
-	int rc = kstrtouint(str, 0, &sysctl_hung_task_panic);
-
-	if (rc)
-		return rc;
-	return 1;
-}
-__setup("hung_task_panic=", hung_task_panic_setup);
-
 static int
 hung_task_panic(struct notifier_block *this, unsigned long event, void *ptr)
 {
