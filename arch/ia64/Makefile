@@ -40,7 +40,7 @@ $(error Sorry, you need a newer version of the assember, one that is built from	
 endif
 
 quiet_cmd_gzip = GZIP    $@
-cmd_gzip = cat $(real-prereqs) | $(_GZIP) -n -f -9 > $@
+cmd_gzip = cat $(real-prereqs) | $(KGZIP) -n -f -9 > $@
 
 quiet_cmd_objcopy = OBJCOPY $@
 cmd_objcopy = $(OBJCOPY) $(OBJCOPYFLAGS) $(OBJCOPYFLAGS_$(@F)) $< $@
