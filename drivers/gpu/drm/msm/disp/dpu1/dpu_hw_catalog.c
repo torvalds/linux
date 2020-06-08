@@ -41,6 +41,8 @@
 #define PINGPONG_SDM845_SPLIT_MASK \
 	(PINGPONG_SDM845_MASK | BIT(DPU_PINGPONG_TE2))
 
+#define DSPP_SC7180_MASK BIT(DPU_DSPP_PCC)
+
 #define DEFAULT_PIXEL_RAM_SIZE		(50 * 1024)
 #define DEFAULT_DPU_LINE_WIDTH		2048
 #define DEFAULT_DPU_OUTPUT_LINE_WIDTH	2560
@@ -291,29 +293,30 @@ static const struct dpu_lm_sub_blks sdm845_lm_sblk = {
 	},
 };
 
-#define LM_BLK(_name, _id, _base, _fmask, _sblk, _pp, _lmpair) \
+#define LM_BLK(_name, _id, _base, _fmask, _sblk, _pp, _lmpair, _dspp) \
 	{ \
 	.name = _name, .id = _id, \
 	.base = _base, .len = 0x320, \
 	.features = _fmask, \
 	.sblk = _sblk, \
 	.pingpong = _pp, \
-	.lm_pair_mask = (1 << _lmpair) \
+	.lm_pair_mask = (1 << _lmpair), \
+	.dspp = _dspp \
 	}
 
 static const struct dpu_lm_cfg sdm845_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_0, LM_1),
+		&sdm845_lm_sblk, PINGPONG_0, LM_1, 0),
 	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_1, LM_0),
+		&sdm845_lm_sblk, PINGPONG_1, LM_0, 0),
 	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_2, LM_5),
+		&sdm845_lm_sblk, PINGPONG_2, LM_5, 0),
 	LM_BLK("lm_3", LM_3, 0x0, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_MAX, 0),
+		&sdm845_lm_sblk, PINGPONG_MAX, 0, 0),
 	LM_BLK("lm_4", LM_4, 0x0, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_MAX, 0),
+		&sdm845_lm_sblk, PINGPONG_MAX, 0, 0),
 	LM_BLK("lm_5", LM_5, 0x49000, MIXER_SDM845_MASK,
-		&sdm845_lm_sblk, PINGPONG_3, LM_2),
+		&sdm845_lm_sblk, PINGPONG_3, LM_2, 0),
 };
 
 /* SC7180 */
@@ -328,11 +331,30 @@ static const struct dpu_lm_sub_blks sc7180_lm_sblk = {
 
 static const struct dpu_lm_cfg sc7180_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SC7180_MASK,
-		&sc7180_lm_sblk, PINGPONG_0, LM_1),
+		&sc7180_lm_sblk, PINGPONG_0, LM_1, DSPP_0),
 	LM_BLK("lm_1", LM_1, 0x45000, MIXER_SC7180_MASK,
-		&sc7180_lm_sblk, PINGPONG_1, LM_0),
+		&sc7180_lm_sblk, PINGPONG_1, LM_0, 0),
 };
 
+/*************************************************************
+ * DSPP sub blocks config
+ *************************************************************/
+static const struct dpu_dspp_sub_blks sc7180_dspp_sblk = {
+	.pcc = {.id = DPU_DSPP_PCC, .base = 0x1700,
+		.len = 0x90, .version = 0x10000},
+};
+
+#define DSPP_BLK(_name, _id, _base) \
+		{\
+		.name = _name, .id = _id, \
+		.base = _base, .len = 0x1800, \
+		.features = DSPP_SC7180_MASK, \
+		.sblk = &sc7180_dspp_sblk \
+		}
+
+static const struct dpu_dspp_cfg sc7180_dspp[] = {
+	DSPP_BLK("dspp_0", DSPP_0, 0x54000),
+};
 /*************************************************************
  * PINGPONG sub blocks config
  *************************************************************/
@@ -515,8 +537,8 @@ static const struct dpu_perf_cfg sdm845_perf_data = {
 };
 
 static const struct dpu_perf_cfg sc7180_perf_data = {
-	.max_bw_low = 3900000,
-	.max_bw_high = 5500000,
+	.max_bw_low = 6800000,
+	.max_bw_high = 6800000,
 	.min_core_ib = 2400000,
 	.min_llcc_ib = 800000,
 	.min_dram_ib = 800000,
@@ -587,6 +609,8 @@ static void sc7180_cfg_init(struct dpu_mdss_cfg *dpu_cfg)
 		.sspp = sc7180_sspp,
 		.mixer_count = ARRAY_SIZE(sc7180_lm),
 		.mixer = sc7180_lm,
+		.dspp_count = ARRAY_SIZE(sc7180_dspp),
+		.dspp = sc7180_dspp,
 		.pingpong_count = ARRAY_SIZE(sc7180_pp),
 		.pingpong = sc7180_pp,
 		.intf_count = ARRAY_SIZE(sc7180_intf),
