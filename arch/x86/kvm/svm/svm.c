@@ -1378,6 +1378,8 @@ static void svm_clear_vintr(struct vcpu_svm *svm)
 	/* Drop int_ctl fields related to VINTR injection.  */
 	svm->vmcb->control.int_ctl &= mask;
 	if (is_guest_mode(&svm->vcpu)) {
+		svm->nested.hsave->control.int_ctl &= mask;
+
 		WARN_ON((svm->vmcb->control.int_ctl & V_TPR_MASK) !=
 			(svm->nested.ctl.int_ctl & V_TPR_MASK));
 		svm->vmcb->control.int_ctl |= svm->nested.ctl.int_ctl & ~mask;
@@ -1999,7 +2001,7 @@ void svm_set_gif(struct vcpu_svm *svm, bool value)
 		 */
 		if (vgif_enabled(svm))
 			clr_intercept(svm, INTERCEPT_STGI);
-		if (is_intercept(svm, SVM_EXIT_VINTR))
+		if (is_intercept(svm, INTERCEPT_VINTR))
 			svm_clear_vintr(svm);
 
 		enable_gif(svm);
