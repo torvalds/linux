@@ -305,11 +305,6 @@ static inline struct drm_mm_node *rb_hole_addr_to_node(struct rb_node *rb)
 	return rb_entry_safe(rb, struct drm_mm_node, rb_hole_addr);
 }
 
-static inline u64 rb_hole_size(struct rb_node *rb)
-{
-	return rb_entry(rb, struct drm_mm_node, rb_hole_size)->hole_size;
-}
-
 static struct drm_mm_node *best_hole(struct drm_mm *mm, u64 size)
 {
 	struct rb_node *rb = mm->holes_size.rb_root.rb_node;
