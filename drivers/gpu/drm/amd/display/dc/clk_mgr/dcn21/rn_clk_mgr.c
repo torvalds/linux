@@ -153,8 +153,9 @@ void rn_update_clocks(struct clk_mgr *clk_mgr_base,
 	}
 
 	// workaround: Limit dppclk to 100Mhz to avoid lower eDP panel switch to plus 4K monitor underflow.
+	// Do not adjust dppclk if dppclk is 0 to avoid unexpected result
 	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		if (new_clocks->dppclk_khz < 100000)
+		if (new_clocks->dppclk_khz < 100000 && new_clocks->dppclk_khz > 0)
 			new_clocks->dppclk_khz = 100000;
 	}
 
