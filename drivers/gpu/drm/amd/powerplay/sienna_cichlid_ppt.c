@@ -1737,12 +1737,6 @@ static int sienna_cichlid_display_disable_memory_clock_switch(struct smu_context
 	return ret;
 }
 
-static uint32_t sienna_cichlid_get_pptable_power_limit(struct smu_context *smu)
-{
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
-}
-
 static int sienna_cichlid_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_7_powerplay_table *powerplay_table =
@@ -1884,33 +1878,6 @@ static int sienna_cichlid_set_thermal_range(struct smu_context *smu,
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
 
 	return 0;
-}
-
-static uint32_t sienna_cichlid_get_max_power_limit(struct smu_context *smu) {
-	uint32_t od_limit, max_power_limit;
-	struct smu_11_0_7_powerplay_table *powerplay_table = NULL;
-	struct smu_table_context *table_context = &smu->smu_table;
-	powerplay_table = table_context->power_play_table;
-
-	max_power_limit = sienna_cichlid_get_pptable_power_limit(smu);
-
-	if (!max_power_limit) {
-		// If we couldn't get the table limit, fall back on first-read value
-		if (!smu->default_power_limit)
-			smu->default_power_limit = smu->power_limit;
-		max_power_limit = smu->default_power_limit;
-	}
-
-	if (smu->od_enabled) {
-		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_7_ODSETTING_POWERPERCENTAGE]);
-
-		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
-
-		max_power_limit *= (100 + od_limit);
-		max_power_limit /= 100;
-	}
-
-	return max_power_limit;
 }
 
 static void sienna_cichlid_dump_pptable(struct smu_context *smu)
@@ -2664,7 +2631,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.set_soft_freq_limited_range = sienna_cichlid_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.set_thermal_range = sienna_cichlid_set_thermal_range,
-	.get_max_power_limit = sienna_cichlid_get_max_power_limit,
 };
 
 void sienna_cichlid_set_ppt_funcs(struct smu_context *smu)

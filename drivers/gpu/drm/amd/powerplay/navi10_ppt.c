@@ -1916,12 +1916,6 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 	return ret;
 }
 
-static uint32_t navi10_get_pptable_power_limit(struct smu_context *smu)
-{
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
-}
-
 static int navi10_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
@@ -2380,33 +2374,6 @@ static int navi10_set_thermal_range(struct smu_context *smu,
 	return 0;
 }
 
-static uint32_t navi10_get_max_power_limit(struct smu_context *smu) {
-	uint32_t od_limit, max_power_limit;
-	struct smu_11_0_powerplay_table *powerplay_table = NULL;
-	struct smu_table_context *table_context = &smu->smu_table;
-	powerplay_table = table_context->power_play_table;
-
-	max_power_limit = navi10_get_pptable_power_limit(smu);
-
-	if (!max_power_limit) {
-		// If we couldn't get the table limit, fall back on first-read value
-		if (!smu->default_power_limit)
-			smu->default_power_limit = smu->power_limit;
-		max_power_limit = smu->default_power_limit;
-	}
-
-	if (smu->od_enabled) {
-		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
-
-		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
-
-		max_power_limit *= (100 + od_limit);
-		max_power_limit /= 100;
-	}
-
-	return max_power_limit;
-}
-
 static const struct pptable_funcs navi10_ppt_funcs = {
 	.tables_init = navi10_tables_init,
 	.alloc_dpm_context = navi10_allocate_dpm_context,
@@ -2497,7 +2464,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
 	.set_power_source = smu_v11_0_set_power_source,
 	.set_thermal_range = navi10_set_thermal_range,
-	.get_max_power_limit = navi10_get_max_power_limit,
 };
 
 void navi10_set_ppt_funcs(struct smu_context *smu)

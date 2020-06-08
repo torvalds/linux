@@ -2210,24 +2210,18 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed)
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool def,
-			bool lock_needed)
+			bool max_setting)
 {
-	int ret = 0;
+	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
+		return -EOPNOTSUPP;
 
-	if (lock_needed) {
-		if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
-			return -EOPNOTSUPP;
+	mutex_lock(&smu->mutex);
 
-		mutex_lock(&smu->mutex);
-	}
+	*limit = (max_setting ? smu->max_power_limit : smu->current_power_limit);
 
-	*limit = (def ? smu->max_power_limit : smu->current_power_limit);
+	mutex_unlock(&smu->mutex);
 
-	if (lock_needed)
-		mutex_unlock(&smu->mutex);
-
-	return ret;
+	return 0;
 }
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit)

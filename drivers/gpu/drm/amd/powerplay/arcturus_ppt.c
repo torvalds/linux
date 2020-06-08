@@ -2411,13 +2411,6 @@ static bool arcturus_is_baco_supported(struct smu_context *smu)
 	return (val & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK) ? true : false;
 }
 
-static uint32_t arcturus_get_pptable_power_limit(struct smu_context *smu)
-{
-	PPTable_t *pptable = smu->smu_table.driver_pptable;
-
-	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
-}
-
 static int arcturus_set_df_cstate(struct smu_context *smu,
 				  enum pp_df_cstate state)
 {
@@ -2544,33 +2537,6 @@ static int arcturus_set_thermal_range(struct smu_context *smu,
 	return 0;
 }
 
-static uint32_t atcturus_get_max_power_limit(struct smu_context *smu) {
-	uint32_t od_limit, max_power_limit;
-	struct smu_11_0_powerplay_table *powerplay_table = NULL;
-	struct smu_table_context *table_context = &smu->smu_table;
-	powerplay_table = table_context->power_play_table;
-
-	max_power_limit = arcturus_get_pptable_power_limit(smu);
-
-	if (!max_power_limit) {
-		// If we couldn't get the table limit, fall back on first-read value
-		if (!smu->default_power_limit)
-			smu->default_power_limit = smu->power_limit;
-		max_power_limit = smu->default_power_limit;
-	}
-
-	if (smu->od_enabled) {
-		od_limit = le32_to_cpu(powerplay_table->overdrive_table.max[SMU_11_0_ODSETTING_POWERPERCENTAGE]);
-
-		dev_dbg(smu->adev->dev, "ODSETTING_POWERPERCENTAGE: %d (default: %d)\n", od_limit, smu->default_power_limit);
-
-		max_power_limit *= (100 + od_limit);
-		max_power_limit /= 100;
-	}
-
-	return max_power_limit;
-}
-
 static const struct pptable_funcs arcturus_ppt_funcs = {
 	/* translate smu index into arcturus specific index */
 	.get_smu_msg_index = arcturus_get_smu_msg_index,
@@ -2662,7 +2628,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.allow_xgmi_power_down = arcturus_allow_xgmi_power_down,
 	.log_thermal_throttling_event = arcturus_log_thermal_throttling_event,
 	.set_thermal_range = arcturus_set_thermal_range,
-	.get_max_power_limit = atcturus_get_max_power_limit,
 };
 
 void arcturus_set_ppt_funcs(struct smu_context *smu)

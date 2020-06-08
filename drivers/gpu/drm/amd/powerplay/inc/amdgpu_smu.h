@@ -380,8 +380,6 @@ struct smu_context
 	uint32_t pstate_mclk;
 
 	bool od_enabled;
-	uint32_t power_limit;
-	uint32_t default_power_limit;
 	uint32_t current_power_limit;
 	uint32_t max_power_limit;
 
@@ -573,7 +571,6 @@ struct pptable_funcs {
 	int (*set_power_source)(struct smu_context *smu, enum smu_power_src_type power_src);
 	void (*log_thermal_throttling_event)(struct smu_context *smu);
 	int (*set_thermal_range)(struct smu_context *smu, struct smu_temperature_range range);
-	uint32_t (*get_max_power_limit)(struct smu_context *smu);
 };
 
 typedef enum {
@@ -616,8 +613,7 @@ int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
-			bool def,
-			bool lock_needed);
+			bool max_setting);
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
