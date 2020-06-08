@@ -337,6 +337,7 @@ enum dcn_pwr_state {
 struct dc_clocks {
 	int dispclk_khz;
 	int dppclk_khz;
+	int disp_dpp_voltage_level_khz;
 	int dcfclk_khz;
 	int socclk_khz;
 	int dcfclk_deep_sleep_khz;

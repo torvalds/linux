@@ -234,18 +234,24 @@ void dcn2_update_clocks(struct clk_mgr *clk_mgr_base,
 			dpp_clock_lowered = true;
 		clk_mgr->base.clks.dppclk_khz = new_clocks->dppclk_khz;
 
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_PIXELCLK, clk_mgr_base->clks.dppclk_khz / 1000);
-
 		update_dppclk = true;
 	}
 
 	if (should_set_clock(safe_to_lower, new_clocks->dispclk_khz, clk_mgr_base->clks.dispclk_khz)) {
 		clk_mgr_base->clks.dispclk_khz = new_clocks->dispclk_khz;
-		if (pp_smu && pp_smu->set_voltage_by_freq)
-			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.dispclk_khz / 1000);
 
 		update_dispclk = true;
+	}
+
+	if (update_dppclk || update_dispclk) {
+		new_clocks->disp_dpp_voltage_level_khz = new_clocks->dppclk_khz;
+
+		if (update_dispclk)
+			new_clocks->disp_dpp_voltage_level_khz = new_clocks->dispclk_khz > new_clocks->dppclk_khz ? new_clocks->dispclk_khz : new_clocks->dppclk_khz;
+
+		clk_mgr_base->clks.disp_dpp_voltage_level_khz = new_clocks->disp_dpp_voltage_level_khz;
+		if (pp_smu && pp_smu->set_voltage_by_freq)
+			pp_smu->set_voltage_by_freq(&pp_smu->pp_smu, PP_SMU_NV_DISPCLK, clk_mgr_base->clks.disp_dpp_voltage_level_khz / 1000);
 	}
 
 	if (dc->config.forced_clocks == false || (force_reset && safe_to_lower)) {
@@ -402,6 +408,8 @@ static bool dcn2_are_clock_states_equal(struct dc_clocks *a,
 	if (a->dispclk_khz != b->dispclk_khz)
 		return false;
 	else if (a->dppclk_khz != b->dppclk_khz)
+		return false;
+	else if (a->disp_dpp_voltage_level_khz != b->disp_dpp_voltage_level_khz)
 		return false;
 	else if (a->dcfclk_khz != b->dcfclk_khz)
 		return false;
