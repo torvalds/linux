@@ -54,6 +54,19 @@ struct glink_ssr {
 	struct completion completion;
 };
 
+/* Notifier list for all registered glink_ssr instances */
+static BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
+
+/**
+ * qcom_glink_ssr_notify() - notify GLINK SSR about stopped remoteproc
+ * @ssr_name:	name of the remoteproc that has been stopped
+ */
+void qcom_glink_ssr_notify(const char *ssr_name)
+{
+	blocking_notifier_call_chain(&ssr_notifiers, 0, (void *)ssr_name);
+}
+EXPORT_SYMBOL_GPL(qcom_glink_ssr_notify);
+
 static int qcom_glink_ssr_callback(struct rpmsg_device *rpdev,
 				   void *data, int len, void *priv, u32 addr)
 {
@@ -81,8 +94,9 @@ static int qcom_glink_ssr_callback(struct rpmsg_device *rpdev,
 	return 0;
 }
 
-static int qcom_glink_ssr_notify(struct notifier_block *nb, unsigned long event,
-				 void *data)
+static int qcom_glink_ssr_notifier_call(struct notifier_block *nb,
+					unsigned long event,
+					void *data)
 {
 	struct glink_ssr *ssr = container_of(nb, struct glink_ssr, nb);
 	struct do_cleanup_msg msg;
@@ -121,18 +135,18 @@ static int qcom_glink_ssr_probe(struct rpmsg_device *rpdev)
 
 	ssr->dev = &rpdev->dev;
 	ssr->ept = rpdev->ept;
-	ssr->nb.notifier_call = qcom_glink_ssr_notify;
+	ssr->nb.notifier_call = qcom_glink_ssr_notifier_call;
 
 	dev_set_drvdata(&rpdev->dev, ssr);
 
-	return qcom_register_ssr_notifier(&ssr->nb);
+	return blocking_notifier_chain_register(&ssr_notifiers, &ssr->nb);
 }
 
 static void qcom_glink_ssr_remove(struct rpmsg_device *rpdev)
 {
 	struct glink_ssr *ssr = dev_get_drvdata(&rpdev->dev);
 
-	qcom_unregister_ssr_notifier(&ssr->nb);
+	blocking_notifier_chain_unregister(&ssr_notifiers, &ssr->nb);
 }
 
 static const struct rpmsg_device_id qcom_glink_ssr_match[] = {
@@ -150,7 +164,3 @@ static struct rpmsg_driver qcom_glink_ssr_driver = {
 	},
 };
 module_rpmsg_driver(qcom_glink_ssr_driver);
-
-MODULE_ALIAS("rpmsg:glink_ssr");
-MODULE_DESCRIPTION("Qualcomm GLINK SSR notifier");
-MODULE_LICENSE("GPL v2");
