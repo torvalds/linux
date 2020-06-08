@@ -125,9 +125,6 @@ asmlinkage int m68k_clone(struct pt_regs *regs)
 		.tls		= regs->d5,
 	};
 
-	if (!legacy_clone_args_valid(&args))
-		return -EINVAL;
-
 	return _do_fork(&args);
 }
 
