@@ -86,3 +86,27 @@
 &sdhc_1 {
 	status = "ok";
 };
+
+&qusb_phy_0 {
+	status = "ok";
+};
+
+&qusb_phy_1 {
+	status = "ok";
+};
+
+&ssphy_0 {
+	status = "ok";
+};
+
+&ssphy_1 {
+	status = "ok";
+};
+
+&usb_0 {
+	status = "ok";
+};
+
+&usb_1 {
+	status = "ok";
+};
