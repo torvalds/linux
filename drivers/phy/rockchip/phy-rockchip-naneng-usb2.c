@@ -11,6 +11,7 @@
 #include <linux/extcon-provider.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/gpio/consumer.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
@@ -1464,6 +1465,7 @@ static int rockchip_usb2phy_remove(struct platform_device *pdev)
 static int rv1126_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
 	int ret = 0;
+	u32 rcal, reg;
 
 	if (rphy->phy_cfg->reg == 0xff4c0000) {
 		/* set iddig interrupt filter time to 10ms */
@@ -1475,6 +1477,30 @@ static int rv1126_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 		ret = regmap_write(rphy->grf, 0x1027c, 0x0f0f0100);
 		if (ret)
 			goto out;
+
+		reg = readl(rphy->base + 0x10);
+		/* Enable Rterm self calibration and wait for rcal trim done */
+		writel(reg & ~BIT(2), rphy->base + 0x10);
+		/*
+		 * If Rterm is disconnected, self calibration will fail and
+		 * rcal trim done will be set in about 3.5 us
+		 */
+		udelay(10);
+		if (readl(rphy->base + 0x34) & BIT(4)) {
+			dev_dbg(rphy->dev, "Rterm disconnected");
+		} else {
+			ret = readl_poll_timeout(rphy->base + 0x34, rcal,
+						 rcal & BIT(4),
+						 100, 600);
+			if (ret == -ETIMEDOUT)
+				dev_err(rphy->dev, "Rterm calibration timeout");
+			else
+				/* Use rcal out calibration code */
+				reg = (reg & ~(0x0f << 3)) |
+				      ((rcal & 0x0f) << 3);
+		}
+		/* Disable Rterm self calibration */
+		writel(reg | BIT(2), rphy->base + 0x10);
 	}
 
 	if (rphy->phy_cfg->reg == 0xff4c8000) {
