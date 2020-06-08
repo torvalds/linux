@@ -357,12 +357,12 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 	if (dev->flags & ACCESS_NO_IRQ_SUSPEND) {
 		dev_pm_set_driver_flags(&pdev->dev,
 					DPM_FLAG_SMART_PREPARE |
-					DPM_FLAG_LEAVE_SUSPENDED);
+					DPM_FLAG_MAY_SKIP_RESUME);
 	} else {
 		dev_pm_set_driver_flags(&pdev->dev,
 					DPM_FLAG_SMART_PREPARE |
 					DPM_FLAG_SMART_SUSPEND |
-					DPM_FLAG_LEAVE_SUSPENDED);
+					DPM_FLAG_MAY_SKIP_RESUME);
 	}
 
 	/* The code below assumes runtime PM to be disabled. */

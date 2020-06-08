@@ -311,27 +311,21 @@ int erofs_getattr(const struct path *path, struct kstat *stat,
 
 const struct inode_operations erofs_generic_iops = {
 	.getattr = erofs_getattr,
-#ifdef CONFIG_EROFS_FS_XATTR
 	.listxattr = erofs_listxattr,
-#endif
 	.get_acl = erofs_get_acl,
 };
 
 const struct inode_operations erofs_symlink_iops = {
 	.get_link = page_get_link,
 	.getattr = erofs_getattr,
-#ifdef CONFIG_EROFS_FS_XATTR
 	.listxattr = erofs_listxattr,
-#endif
 	.get_acl = erofs_get_acl,
 };
 
 const struct inode_operations erofs_fast_symlink_iops = {
 	.get_link = simple_get_link,
 	.getattr = erofs_getattr,
-#ifdef CONFIG_EROFS_FS_XATTR
 	.listxattr = erofs_listxattr,
-#endif
 	.get_acl = erofs_get_acl,
 };
 

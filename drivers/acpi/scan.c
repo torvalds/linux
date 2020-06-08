@@ -2157,10 +2157,13 @@ static void __init acpi_get_spcr_uart_addr(void)
 
 	status = acpi_get_table(ACPI_SIG_SPCR, 0,
 				(struct acpi_table_header **)&spcr_ptr);
-	if (ACPI_SUCCESS(status))
-		spcr_uart_addr = spcr_ptr->serial_port.address;
-	else
-		printk(KERN_WARNING PREFIX "STAO table present, but SPCR is missing\n");
+	if (ACPI_FAILURE(status)) {
+		pr_warn(PREFIX "STAO table present, but SPCR is missing\n");
+		return;
+	}
+
+	spcr_uart_addr = spcr_ptr->serial_port.address;
+	acpi_put_table((struct acpi_table_header *)spcr_ptr);
 }
 
 static bool acpi_scan_initialized;
@@ -2196,10 +2199,12 @@ int __init acpi_scan_init(void)
 				(struct acpi_table_header **)&stao_ptr);
 	if (ACPI_SUCCESS(status)) {
 		if (stao_ptr->header.length > sizeof(struct acpi_table_stao))
-			printk(KERN_INFO PREFIX "STAO Name List not yet supported.");
+			pr_info(PREFIX "STAO Name List not yet supported.\n");
 
 		if (stao_ptr->ignore_uart)
 			acpi_get_spcr_uart_addr();
+
+		acpi_put_table((struct acpi_table_header *)stao_ptr);
 	}
 
 	acpi_gpe_apply_masked_gpes();

@@ -740,8 +740,8 @@ static const struct file_operations kcov_fops = {
  * kcov_remote_handle() with KCOV_SUBSYSTEM_COMMON as the subsystem id and an
  * arbitrary 4-byte non-zero number as the instance id). This common handle
  * then gets saved into the task_struct of the process that issued the
- * KCOV_REMOTE_ENABLE ioctl. When this proccess issues system calls that spawn
- * kernel threads, the common handle must be retrived via kcov_common_handle()
+ * KCOV_REMOTE_ENABLE ioctl. When this process issues system calls that spawn
+ * kernel threads, the common handle must be retrieved via kcov_common_handle()
  * and passed to the spawned threads via custom annotations. Those kernel
  * threads must in turn be annotated with kcov_remote_start(common_handle) and
  * kcov_remote_stop(). All of the threads that are spawned by the same process

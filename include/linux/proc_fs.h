@@ -105,6 +105,9 @@ struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mo
 						    void *data);
 extern struct pid *tgid_pidfd_to_pid(const struct file *file);
 
+extern int bpf_iter_init_seq_net(void *priv_data);
+extern void bpf_iter_fini_seq_net(void *priv_data);
+
 #ifdef CONFIG_PROC_PID_ARCH_STATUS
 /*
  * The architecture which selects CONFIG_PROC_PID_ARCH_STATUS must
@@ -178,5 +181,7 @@ static inline struct pid_namespace *proc_pid_ns(const struct inode *inode)
 {
 	return inode->i_sb->s_fs_info;
 }
+
+bool proc_ns_file(const struct file *file);
 
 #endif /* _LINUX_PROC_FS_H */

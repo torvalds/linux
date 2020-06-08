@@ -543,6 +543,7 @@ encoded manner. The codes are the following:
     hg    huge page advise flag
     nh    no huge page advise flag
     mg    mergable advise flag
+    bt  - arm64 BTI guarded page
     ==    =======================================
 
 Note that there is no guarantee that every flag and associated mnemonic will
@@ -1042,8 +1043,8 @@ PageTables
               amount of memory dedicated to the lowest level of page
               tables.
 NFS_Unstable
-              NFS pages sent to the server, but not yet committed to stable
-	      storage
+              Always zero. Previous counted pages which had been written to
+              the server, but has not been committed to stable storage.
 Bounce
               Memory used for block device "bounce buffers"
 WritebackTmp
@@ -1870,7 +1871,7 @@ unbindable        mount is unbindable
 
 For more information on mount propagation see:
 
-  Documentation/filesystems/sharedsubtree.txt
+  Documentation/filesystems/sharedsubtree.rst
 
 
 3.6	/proc/<pid>/comm  & /proc/<pid>/task/<tid>/comm

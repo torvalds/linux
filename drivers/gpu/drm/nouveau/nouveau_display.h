@@ -8,26 +8,11 @@
 
 #include <drm/drm_framebuffer.h>
 
-struct nouveau_framebuffer {
-	struct drm_framebuffer base;
-	struct nouveau_bo *nvbo;
-	struct nouveau_vma *vma;
-	u32 r_handle;
-	u32 r_format;
-	u32 r_pitch;
-	struct nvif_object h_base[4];
-	struct nvif_object h_core;
-};
-
-static inline struct nouveau_framebuffer *
-nouveau_framebuffer(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct nouveau_framebuffer, base);
-}
-
-int nouveau_framebuffer_new(struct drm_device *,
-			    const struct drm_mode_fb_cmd2 *,
-			    struct nouveau_bo *, struct nouveau_framebuffer **);
+int
+nouveau_framebuffer_new(struct drm_device *dev,
+			const struct drm_mode_fb_cmd2 *mode_cmd,
+			struct drm_gem_object *gem,
+			struct drm_framebuffer **pfb);
 
 struct nouveau_display {
 	void *priv;
@@ -47,6 +32,8 @@ struct nouveau_display {
 	struct drm_property *color_vibrance_property;
 
 	struct drm_atomic_state *suspend;
+
+	const u64 *format_modifiers;
 };
 
 static inline struct nouveau_display *
@@ -74,6 +61,10 @@ int  nouveau_display_dumb_map_offset(struct drm_file *, struct drm_device *,
 				     u32 handle, u64 *offset);
 
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
+
+void
+nouveau_framebuffer_get_layout(struct drm_framebuffer *fb, uint32_t *tile_mode,
+			       uint8_t *kind);
 
 struct drm_framebuffer *
 nouveau_user_framebuffer_create(struct drm_device *, struct drm_file *,

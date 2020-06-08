@@ -134,8 +134,7 @@ static int parse_addr(__le16 *addr, char *str)
 }
 
 static int dn_node_address_handler(struct ctl_table *table, int write,
-				void __user *buffer,
-				size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char addr[DN_ASCBUF_LEN];
 	size_t len;
@@ -148,10 +147,7 @@ static int dn_node_address_handler(struct ctl_table *table, int write,
 
 	if (write) {
 		len = (*lenp < DN_ASCBUF_LEN) ? *lenp : (DN_ASCBUF_LEN-1);
-
-		if (copy_from_user(addr, buffer, len))
-			return -EFAULT;
-
+		memcpy(addr, buffer, len);
 		addr[len] = 0;
 		strip_it(addr);
 
@@ -173,11 +169,9 @@ static int dn_node_address_handler(struct ctl_table *table, int write,
 	len = strlen(addr);
 	addr[len++] = '\n';
 
-	if (len > *lenp) len = *lenp;
-
-	if (copy_to_user(buffer, addr, len))
-		return -EFAULT;
-
+	if (len > *lenp)
+		len = *lenp;
+	memcpy(buffer, addr, len);
 	*lenp = len;
 	*ppos += len;
 
@@ -185,8 +179,7 @@ static int dn_node_address_handler(struct ctl_table *table, int write,
 }
 
 static int dn_def_dev_handler(struct ctl_table *table, int write,
-				void __user *buffer,
-				size_t *lenp, loff_t *ppos)
+		void *buffer, size_t *lenp, loff_t *ppos)
 {
 	size_t len;
 	struct net_device *dev;
@@ -201,9 +194,7 @@ static int dn_def_dev_handler(struct ctl_table *table, int write,
 		if (*lenp > 16)
 			return -E2BIG;
 
-		if (copy_from_user(devname, buffer, *lenp))
-			return -EFAULT;
-
+		memcpy(devname, buffer, *lenp);
 		devname[*lenp] = 0;
 		strip_it(devname);
 
@@ -238,9 +229,7 @@ static int dn_def_dev_handler(struct ctl_table *table, int write,
 
 	if (len > *lenp) len = *lenp;
 
-	if (copy_to_user(buffer, devname, len))
-		return -EFAULT;
-
+	memcpy(buffer, devname, len);
 	*lenp = len;
 	*ppos += len;
 

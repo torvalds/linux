@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/utsname.h>
-#include <linux/vermagic.h>
+#include <generated/utsrelease.h>
 
 #include "ionic.h"
 #include "ionic_bus.h"
@@ -152,6 +152,8 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 		return "IONIC_CMD_RX_FILTER_ADD";
 	case IONIC_CMD_RX_FILTER_DEL:
 		return "IONIC_CMD_RX_FILTER_DEL";
+	case IONIC_CMD_Q_IDENTIFY:
+		return "IONIC_CMD_Q_IDENTIFY";
 	case IONIC_CMD_Q_INIT:
 		return "IONIC_CMD_Q_INIT";
 	case IONIC_CMD_Q_CONTROL:
@@ -356,7 +358,7 @@ try_again:
 		done = ionic_dev_cmd_done(idev);
 		if (done)
 			break;
-		msleep(20);
+		msleep(5);
 		hb = ionic_heartbeat_check(ionic);
 	} while (!done && !hb && time_before(jiffies, max_wait));
 	duration = jiffies - start_time;
@@ -413,6 +415,7 @@ int ionic_setup(struct ionic *ionic)
 	err = ionic_dev_setup(ionic);
 	if (err)
 		return err;
+	ionic_reset(ionic);
 
 	return 0;
 }
@@ -509,16 +512,16 @@ int ionic_port_init(struct ionic *ionic)
 	size_t sz;
 	int err;
 
-	if (idev->port_info)
-		return 0;
-
-	idev->port_info_sz = ALIGN(sizeof(*idev->port_info), PAGE_SIZE);
-	idev->port_info = dma_alloc_coherent(ionic->dev, idev->port_info_sz,
-					     &idev->port_info_pa,
-					     GFP_KERNEL);
 	if (!idev->port_info) {
-		dev_err(ionic->dev, "Failed to allocate port info, aborting\n");
-		return -ENOMEM;
+		idev->port_info_sz = ALIGN(sizeof(*idev->port_info), PAGE_SIZE);
+		idev->port_info = dma_alloc_coherent(ionic->dev,
+						     idev->port_info_sz,
+						     &idev->port_info_pa,
+						     GFP_KERNEL);
+		if (!idev->port_info) {
+			dev_err(ionic->dev, "Failed to allocate port info\n");
+			return -ENOMEM;
+		}
 	}
 
 	sz = min(sizeof(ident->port.config), sizeof(idev->dev_cmd_regs->data));

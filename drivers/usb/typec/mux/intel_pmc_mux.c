@@ -15,7 +15,7 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_tbt.h>
 
-#include <asm/intel_pmc_ipc.h>
+#include <asm/intel_scu_ipc.h>
 
 #define PMC_USBC_CMD		0xa7
 
@@ -63,6 +63,7 @@ enum {
 #define PMC_USB_ALTMODE_DP_MODE_SHIFT	8
 
 /* TBT specific Mode Data bits */
+#define PMC_USB_ALTMODE_HPD_HIGH	BIT(14)
 #define PMC_USB_ALTMODE_TBT_TYPE	BIT(17)
 #define PMC_USB_ALTMODE_CABLE_TYPE	BIT(18)
 #define PMC_USB_ALTMODE_ACTIVE_LINK	BIT(20)
@@ -74,8 +75,8 @@ enum {
 #define PMC_USB_ALTMODE_TBT_GEN(_g_)	(((_g_) & GENMASK(1, 0)) << 28)
 
 /* Display HPD Request bits */
+#define PMC_USB_DP_HPD_LVL		BIT(4)
 #define PMC_USB_DP_HPD_IRQ		BIT(5)
-#define PMC_USB_DP_HPD_LVL		BIT(6)
 
 struct pmc_usb;
 
@@ -96,6 +97,7 @@ struct pmc_usb_port {
 struct pmc_usb {
 	u8 num_ports;
 	struct device *dev;
+	struct intel_scu_ipc_dev *ipc;
 	struct pmc_usb_port *port;
 };
 
@@ -107,9 +109,8 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 * Error bit will always be 0 with the USBC command.
 	 * Status can be checked from the response message.
 	 */
-	intel_pmc_ipc_command(PMC_USBC_CMD, 0, msg, len,
-			      (void *)response, 1);
-
+	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
+				  response, sizeof(response));
 	if (response[2]) {
 		if (response[2] & BIT(1))
 			return -EIO;
@@ -156,6 +157,9 @@ pmc_usb_mux_dp(struct pmc_usb_port *port, struct typec_mux_state *state)
 
 	req.mode_data |= (state->mode - TYPEC_STATE_MODAL) <<
 			 PMC_USB_ALTMODE_DP_MODE_SHIFT;
+
+	if (data->status & DP_STATUS_HPD_STATE)
+		req.mode_data |= PMC_USB_ALTMODE_HPD_HIGH;
 
 	return pmc_usb_command(port, (void *)&req, sizeof(req));
 }
@@ -298,11 +302,11 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 	struct typec_mux_desc mux_desc = { };
 	int ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb2-port", &port->usb2_port);
+	ret = fwnode_property_read_u8(fwnode, "usb2-port-number", &port->usb2_port);
 	if (ret)
 		return ret;
 
-	ret = fwnode_property_read_u8(fwnode, "usb3-port", &port->usb3_port);
+	ret = fwnode_property_read_u8(fwnode, "usb3-port-number", &port->usb3_port);
 	if (ret)
 		return ret;
 
@@ -369,6 +373,10 @@ static int pmc_usb_probe(struct platform_device *pdev)
 				 sizeof(struct pmc_usb_port), GFP_KERNEL);
 	if (!pmc->port)
 		return -ENOMEM;
+
+	pmc->ipc = devm_intel_scu_ipc_dev_get(&pdev->dev);
+	if (!pmc->ipc)
+		return -ENODEV;
 
 	pmc->dev = &pdev->dev;
 

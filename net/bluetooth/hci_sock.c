@@ -1579,11 +1579,13 @@ static int hci_mgmt_cmd(struct hci_mgmt_chan *chan, struct sock *sk,
 		}
 	}
 
-	no_hdev = (handler->flags & HCI_MGMT_NO_HDEV);
-	if (no_hdev != !hdev) {
-		err = mgmt_cmd_status(sk, index, opcode,
-				      MGMT_STATUS_INVALID_INDEX);
-		goto done;
+	if (!(handler->flags & HCI_MGMT_HDEV_OPTIONAL)) {
+		no_hdev = (handler->flags & HCI_MGMT_NO_HDEV);
+		if (no_hdev != !hdev) {
+			err = mgmt_cmd_status(sk, index, opcode,
+					      MGMT_STATUS_INVALID_INDEX);
+			goto done;
+		}
 	}
 
 	var_len = (handler->flags & HCI_MGMT_VAR_LEN);

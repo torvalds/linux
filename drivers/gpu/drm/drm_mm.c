@@ -212,20 +212,6 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 				   &drm_mm_interval_tree_augment);
 }
 
-#define RB_INSERT(root, member, expr) do { \
-	struct rb_node **link = &root.rb_node, *rb = NULL; \
-	u64 x = expr(node); \
-	while (*link) { \
-		rb = *link; \
-		if (x < expr(rb_entry(rb, struct drm_mm_node, member))) \
-			link = &rb->rb_left; \
-		else \
-			link = &rb->rb_right; \
-	} \
-	rb_link_node(&node->member, rb, link); \
-	rb_insert_color(&node->member, &root); \
-} while (0)
-
 #define HOLE_SIZE(NODE) ((NODE)->hole_size)
 #define HOLE_ADDR(NODE) (__drm_mm_hole_node_start(NODE))
 
@@ -255,16 +241,42 @@ static void insert_hole_size(struct rb_root_cached *root,
 	rb_insert_color_cached(&node->rb_hole_size, root, first);
 }
 
+RB_DECLARE_CALLBACKS_MAX(static, augment_callbacks,
+			 struct drm_mm_node, rb_hole_addr,
+			 u64, subtree_max_hole, HOLE_SIZE)
+
+static void insert_hole_addr(struct rb_root *root, struct drm_mm_node *node)
+{
+	struct rb_node **link = &root->rb_node, *rb_parent = NULL;
+	u64 start = HOLE_ADDR(node), subtree_max_hole = node->subtree_max_hole;
+	struct drm_mm_node *parent;
+
+	while (*link) {
+		rb_parent = *link;
+		parent = rb_entry(rb_parent, struct drm_mm_node, rb_hole_addr);
+		if (parent->subtree_max_hole < subtree_max_hole)
+			parent->subtree_max_hole = subtree_max_hole;
+		if (start < HOLE_ADDR(parent))
+			link = &parent->rb_hole_addr.rb_left;
+		else
+			link = &parent->rb_hole_addr.rb_right;
+	}
+
+	rb_link_node(&node->rb_hole_addr, rb_parent, link);
+	rb_insert_augmented(&node->rb_hole_addr, root, &augment_callbacks);
+}
+
 static void add_hole(struct drm_mm_node *node)
 {
 	struct drm_mm *mm = node->mm;
 
 	node->hole_size =
 		__drm_mm_hole_node_end(node) - __drm_mm_hole_node_start(node);
+	node->subtree_max_hole = node->hole_size;
 	DRM_MM_BUG_ON(!drm_mm_hole_follows(node));
 
 	insert_hole_size(&mm->holes_size, node);
-	RB_INSERT(mm->holes_addr, rb_hole_addr, HOLE_ADDR);
+	insert_hole_addr(&mm->holes_addr, node);
 
 	list_add(&node->hole_stack, &mm->hole_stack);
 }
@@ -275,8 +287,10 @@ static void rm_hole(struct drm_mm_node *node)
 
 	list_del(&node->hole_stack);
 	rb_erase_cached(&node->rb_hole_size, &node->mm->holes_size);
-	rb_erase(&node->rb_hole_addr, &node->mm->holes_addr);
+	rb_erase_augmented(&node->rb_hole_addr, &node->mm->holes_addr,
+			   &augment_callbacks);
 	node->hole_size = 0;
+	node->subtree_max_hole = 0;
 
 	DRM_MM_BUG_ON(drm_mm_hole_follows(node));
 }
@@ -361,9 +375,90 @@ first_hole(struct drm_mm *mm,
 	}
 }
 
+/**
+ * next_hole_high_addr - returns next hole for a DRM_MM_INSERT_HIGH mode request
+ * @entry: previously selected drm_mm_node
+ * @size: size of the a hole needed for the request
+ *
+ * This function will verify whether left subtree of @entry has hole big enough
+ * to fit the requtested size. If so, it will return previous node of @entry or
+ * else it will return parent node of @entry
+ *
+ * It will also skip the complete left subtree if subtree_max_hole of that
+ * subtree is same as the subtree_max_hole of the @entry.
+ *
+ * Returns:
+ * previous node of @entry if left subtree of @entry can serve the request or
+ * else return parent of @entry
+ */
+static struct drm_mm_node *
+next_hole_high_addr(struct drm_mm_node *entry, u64 size)
+{
+	struct rb_node *rb_node, *left_rb_node, *parent_rb_node;
+	struct drm_mm_node *left_node;
+
+	if (!entry)
+		return NULL;
+
+	rb_node = &entry->rb_hole_addr;
+	if (rb_node->rb_left) {
+		left_rb_node = rb_node->rb_left;
+		parent_rb_node = rb_parent(rb_node);
+		left_node = rb_entry(left_rb_node,
+				     struct drm_mm_node, rb_hole_addr);
+		if ((left_node->subtree_max_hole < size ||
+		     entry->size == entry->subtree_max_hole) &&
+		    parent_rb_node && parent_rb_node->rb_left != rb_node)
+			return rb_hole_addr_to_node(parent_rb_node);
+	}
+
+	return rb_hole_addr_to_node(rb_prev(rb_node));
+}
+
+/**
+ * next_hole_low_addr - returns next hole for a DRM_MM_INSERT_LOW mode request
+ * @entry: previously selected drm_mm_node
+ * @size: size of the a hole needed for the request
+ *
+ * This function will verify whether right subtree of @entry has hole big enough
+ * to fit the requtested size. If so, it will return next node of @entry or
+ * else it will return parent node of @entry
+ *
+ * It will also skip the complete right subtree if subtree_max_hole of that
+ * subtree is same as the subtree_max_hole of the @entry.
+ *
+ * Returns:
+ * next node of @entry if right subtree of @entry can serve the request or
+ * else return parent of @entry
+ */
+static struct drm_mm_node *
+next_hole_low_addr(struct drm_mm_node *entry, u64 size)
+{
+	struct rb_node *rb_node, *right_rb_node, *parent_rb_node;
+	struct drm_mm_node *right_node;
+
+	if (!entry)
+		return NULL;
+
+	rb_node = &entry->rb_hole_addr;
+	if (rb_node->rb_right) {
+		right_rb_node = rb_node->rb_right;
+		parent_rb_node = rb_parent(rb_node);
+		right_node = rb_entry(right_rb_node,
+				      struct drm_mm_node, rb_hole_addr);
+		if ((right_node->subtree_max_hole < size ||
+		     entry->size == entry->subtree_max_hole) &&
+		    parent_rb_node && parent_rb_node->rb_right != rb_node)
+			return rb_hole_addr_to_node(parent_rb_node);
+	}
+
+	return rb_hole_addr_to_node(rb_next(rb_node));
+}
+
 static struct drm_mm_node *
 next_hole(struct drm_mm *mm,
 	  struct drm_mm_node *node,
+	  u64 size,
 	  enum drm_mm_insert_mode mode)
 {
 	switch (mode) {
@@ -372,10 +467,10 @@ next_hole(struct drm_mm *mm,
 		return rb_hole_size_to_node(rb_prev(&node->rb_hole_size));
 
 	case DRM_MM_INSERT_LOW:
-		return rb_hole_addr_to_node(rb_next(&node->rb_hole_addr));
+		return next_hole_low_addr(node, size);
 
 	case DRM_MM_INSERT_HIGH:
-		return rb_hole_addr_to_node(rb_prev(&node->rb_hole_addr));
+		return next_hole_high_addr(node, size);
 
 	case DRM_MM_INSERT_EVICT:
 		node = list_next_entry(node, hole_stack);
@@ -489,7 +584,7 @@ int drm_mm_insert_node_in_range(struct drm_mm * const mm,
 	remainder_mask = is_power_of_2(alignment) ? alignment - 1 : 0;
 	for (hole = first_hole(mm, range_start, range_end, size, mode);
 	     hole;
-	     hole = once ? NULL : next_hole(mm, hole, mode)) {
+	     hole = once ? NULL : next_hole(mm, hole, size, mode)) {
 		u64 hole_start = __drm_mm_hole_node_start(hole);
 		u64 hole_end = hole_start + hole->hole_size;
 		u64 adj_start, adj_end;

@@ -56,17 +56,17 @@
 		.bypass_mask	= _sm,				\
 	}							\
 
-static const struct regulator_linear_range dcdc1_dcdc2_ranges[] = {
+static const struct linear_range dcdc1_dcdc2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(850000, 0x0, 0x32, 10000),
 	REGULATOR_LINEAR_RANGE(1375000, 0x33, 0x3f, 25000),
 };
 
-static const struct regulator_linear_range ldo1_dcdc3_ranges[] = {
+static const struct linear_range ldo1_dcdc3_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0x0, 0x1a, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x1b, 0x3f, 50000),
 };
 
-static const struct regulator_linear_range dcdc4_ranges[] = {
+static const struct linear_range dcdc4_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1175000, 0x0, 0xf, 25000),
 	REGULATOR_LINEAR_RANGE(1600000, 0x10, 0x34, 50000),
 };

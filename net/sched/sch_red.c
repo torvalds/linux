@@ -48,7 +48,7 @@ struct red_sched_data {
 	struct Qdisc		*qdisc;
 };
 
-static const u32 red_supported_flags = TC_RED_HISTORIC_FLAGS | TC_RED_NODROP;
+#define TC_RED_SUPPORTED_FLAGS (TC_RED_HISTORIC_FLAGS | TC_RED_NODROP)
 
 static inline int red_use_ecn(struct red_sched_data *q)
 {
@@ -212,8 +212,7 @@ static const struct nla_policy red_policy[TCA_RED_MAX + 1] = {
 	[TCA_RED_PARMS]	= { .len = sizeof(struct tc_red_qopt) },
 	[TCA_RED_STAB]	= { .len = RED_STAB_SIZE },
 	[TCA_RED_MAX_P] = { .type = NLA_U32 },
-	[TCA_RED_FLAGS] = { .type = NLA_BITFIELD32,
-			    .validation_data = &red_supported_flags },
+	[TCA_RED_FLAGS] = NLA_POLICY_BITFIELD32(TC_RED_SUPPORTED_FLAGS),
 };
 
 static int red_change(struct Qdisc *sch, struct nlattr *opt,
@@ -248,7 +247,7 @@ static int red_change(struct Qdisc *sch, struct nlattr *opt,
 		return -EINVAL;
 
 	err = red_get_flags(ctl->flags, TC_RED_HISTORIC_FLAGS,
-			    tb[TCA_RED_FLAGS], red_supported_flags,
+			    tb[TCA_RED_FLAGS], TC_RED_SUPPORTED_FLAGS,
 			    &flags_bf, &userbits, extack);
 	if (err)
 		return err;
@@ -372,7 +371,7 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 	if (nla_put(skb, TCA_RED_PARMS, sizeof(opt), &opt) ||
 	    nla_put_u32(skb, TCA_RED_MAX_P, q->parms.max_P) ||
 	    nla_put_bitfield32(skb, TCA_RED_FLAGS,
-			       q->flags, red_supported_flags))
+			       q->flags, TC_RED_SUPPORTED_FLAGS))
 		goto nla_put_failure;
 	return nla_nest_end(skb, opts);
 

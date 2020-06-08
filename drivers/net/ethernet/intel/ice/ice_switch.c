@@ -593,8 +593,8 @@ enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw)
 			    ICE_AQC_GET_SW_CONF_RESP_IS_VF)
 				is_vf = true;
 
-			res_type = le16_to_cpu(ele->vsi_port_num) >>
-				ICE_AQC_GET_SW_CONF_RESP_TYPE_S;
+			res_type = (u8)(le16_to_cpu(ele->vsi_port_num) >>
+					ICE_AQC_GET_SW_CONF_RESP_TYPE_S);
 
 			if (res_type == ICE_AQC_GET_SW_CONF_RESP_VSI) {
 				/* FW VSI is not needed. Just continue. */
@@ -1612,18 +1612,17 @@ exit:
  * check for duplicates in this case, removing duplicates from a given
  * list should be taken care of in the caller of this function.
  */
-enum ice_status
-ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
+enum ice_status ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
 {
 	struct ice_aqc_sw_rules_elem *s_rule, *r_iter;
 	struct ice_fltr_list_entry *m_list_itr;
 	struct list_head *rule_head;
-	u16 elem_sent, total_elem_left;
+	u16 total_elem_left, s_rule_size;
 	struct ice_switch_info *sw;
 	struct mutex *rule_lock; /* Lock to protect filter rule list */
 	enum ice_status status = 0;
 	u16 num_unicast = 0;
-	u16 s_rule_size;
+	u8 elem_sent;
 
 	if (!m_list || !hw)
 		return ICE_ERR_PARAM;
@@ -1707,8 +1706,8 @@ ice_add_mac(struct ice_hw *hw, struct list_head *m_list)
 	     total_elem_left -= elem_sent) {
 		struct ice_aqc_sw_rules_elem *entry = r_iter;
 
-		elem_sent = min(total_elem_left,
-				(u16)(ICE_AQ_MAX_BUF_LEN / s_rule_size));
+		elem_sent = min_t(u8, total_elem_left,
+				  (ICE_AQ_MAX_BUF_LEN / s_rule_size));
 		status = ice_aq_sw_rules(hw, entry, elem_sent * s_rule_size,
 					 elem_sent, ice_aqc_opc_add_sw_rules,
 					 NULL);
@@ -1914,8 +1913,7 @@ exit:
  * @hw: pointer to the hardware structure
  * @v_list: list of VLAN entries and forwarding information
  */
-enum ice_status
-ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
+enum ice_status ice_add_vlan(struct ice_hw *hw, struct list_head *v_list)
 {
 	struct ice_fltr_list_entry *v_list_itr;
 
@@ -2145,8 +2143,7 @@ ice_find_ucast_rule_entry(struct ice_hw *hw, u8 recp_id,
  * the entries passed into m_list were added previously. It will not attempt to
  * do a partial remove of entries that were found.
  */
-enum ice_status
-ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
+enum ice_status ice_remove_mac(struct ice_hw *hw, struct list_head *m_list)
 {
 	struct ice_fltr_list_entry *list_itr, *tmp;
 	struct mutex *rule_lock; /* Lock to protect filter rule list */
@@ -2675,6 +2672,81 @@ void ice_remove_vsi_fltr(struct ice_hw *hw, u16 vsi_handle)
 	ice_remove_vsi_lkup_fltr(hw, vsi_handle, ICE_SW_LKUP_ETHERTYPE);
 	ice_remove_vsi_lkup_fltr(hw, vsi_handle, ICE_SW_LKUP_ETHERTYPE_MAC);
 	ice_remove_vsi_lkup_fltr(hw, vsi_handle, ICE_SW_LKUP_PROMISC_VLAN);
+}
+
+/**
+ * ice_alloc_res_cntr - allocating resource counter
+ * @hw: pointer to the hardware structure
+ * @type: type of resource
+ * @alloc_shared: if set it is shared else dedicated
+ * @num_items: number of entries requested for FD resource type
+ * @counter_id: counter index returned by AQ call
+ */
+enum ice_status
+ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		   u16 *counter_id)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	/* Allocate resource */
+	buf_len = sizeof(*buf);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	buf->num_elems = cpu_to_le16(num_items);
+	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
+				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_alloc_res, NULL);
+	if (status)
+		goto exit;
+
+	*counter_id = le16_to_cpu(buf->elem[0].e.sw_resp);
+
+exit:
+	kfree(buf);
+	return status;
+}
+
+/**
+ * ice_free_res_cntr - free resource counter
+ * @hw: pointer to the hardware structure
+ * @type: type of resource
+ * @alloc_shared: if set it is shared else dedicated
+ * @num_items: number of entries to be freed for FD resource type
+ * @counter_id: counter ID resource which needs to be freed
+ */
+enum ice_status
+ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
+		  u16 counter_id)
+{
+	struct ice_aqc_alloc_free_res_elem *buf;
+	enum ice_status status;
+	u16 buf_len;
+
+	/* Free resource */
+	buf_len = sizeof(*buf);
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return ICE_ERR_NO_MEMORY;
+
+	buf->num_elems = cpu_to_le16(num_items);
+	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
+				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+	buf->elem[0].e.sw_resp = cpu_to_le16(counter_id);
+
+	status = ice_aq_alloc_free_res(hw, 1, buf, buf_len,
+				       ice_aqc_opc_free_res, NULL);
+	if (status)
+		ice_debug(hw, ICE_DBG_SW,
+			  "counter resource could not be freed\n");
+
+	kfree(buf);
+	return status;
 }
 
 /**

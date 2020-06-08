@@ -181,8 +181,8 @@ config CFG80211_CRDA_SUPPORT
 	default y
 	help
 	  You should enable this option unless you know for sure you have no
-	  need for it, for example when using internal regdb (above) or the
-	  database loaded as a firmware file.
+	  need for it, for example when using the regulatory database loaded as
+	  a firmware file.
 
 	  If unsure, say Y.
 

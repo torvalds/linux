@@ -23,7 +23,7 @@
 #include <kvm/arm_hypercalls.h>
 
 #define CREATE_TRACE_POINTS
-#include "trace.h"
+#include "trace_handle_exit.h"
 
 typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
 

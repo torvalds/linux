@@ -155,7 +155,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, true);
 			ior->func->hda.hpd(ior, hidx, true);
-			ior->func->hda.eld(ior, data, size);
+			ior->func->hda.eld(ior, hidx, data, size);
 		} else {
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp.audio(ior, hidx, false);

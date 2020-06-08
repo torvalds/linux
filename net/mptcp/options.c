@@ -7,6 +7,7 @@
 #define pr_fmt(fmt) "MPTCP: " fmt
 
 #include <linux/kernel.h>
+#include <crypto/sha.h>
 #include <net/tcp.h>
 #include <net/mptcp.h>
 #include "protocol.h"
@@ -516,17 +517,22 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 		return ret;
 	}
 
-	ack_size = TCPOLEN_MPTCP_DSS_ACK64;
+	if (subflow->use_64bit_ack) {
+		ack_size = TCPOLEN_MPTCP_DSS_ACK64;
+		opts->ext_copy.data_ack = msk->ack_seq;
+		opts->ext_copy.ack64 = 1;
+	} else {
+		ack_size = TCPOLEN_MPTCP_DSS_ACK32;
+		opts->ext_copy.data_ack32 = (uint32_t)(msk->ack_seq);
+		opts->ext_copy.ack64 = 0;
+	}
+	opts->ext_copy.use_ack = 1;
 
 	/* Add kind/length/subtype/flag overhead if mapping is not populated */
 	if (dss_size == 0)
 		ack_size += TCPOLEN_MPTCP_DSS_BASE;
 
 	dss_size += ack_size;
-
-	opts->ext_copy.data_ack = msk->ack_seq;
-	opts->ext_copy.ack64 = 1;
-	opts->ext_copy.use_ack = 1;
 
 	*size = ALIGN(dss_size, 4);
 	return true;
@@ -535,7 +541,7 @@ static bool mptcp_established_options_dss(struct sock *sk, struct sk_buff *skb,
 static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 				  struct in_addr *addr)
 {
-	u8 hmac[MPTCP_ADDR_HMAC_LEN];
+	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[7];
 
 	msg[0] = addr_id;
@@ -545,14 +551,14 @@ static u64 add_addr_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 7, hmac);
 
-	return get_unaligned_be64(hmac);
+	return get_unaligned_be64(&hmac[SHA256_DIGEST_SIZE - sizeof(u64)]);
 }
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 				   struct in6_addr *addr)
 {
-	u8 hmac[MPTCP_ADDR_HMAC_LEN];
+	u8 hmac[SHA256_DIGEST_SIZE];
 	u8 msg[19];
 
 	msg[0] = addr_id;
@@ -562,7 +568,7 @@ static u64 add_addr6_generate_hmac(u64 key1, u64 key2, u8 addr_id,
 
 	mptcp_crypto_hmac_sha(key1, key2, msg, 19, hmac);
 
-	return get_unaligned_be64(hmac);
+	return get_unaligned_be64(&hmac[SHA256_DIGEST_SIZE - sizeof(u64)]);
 }
 #endif
 
@@ -986,8 +992,13 @@ mp_capable_done:
 		u8 flags = 0;
 
 		if (mpext->use_ack) {
-			len += TCPOLEN_MPTCP_DSS_ACK64;
-			flags = MPTCP_DSS_HAS_ACK | MPTCP_DSS_ACK64;
+			flags = MPTCP_DSS_HAS_ACK;
+			if (mpext->ack64) {
+				len += TCPOLEN_MPTCP_DSS_ACK64;
+				flags |= MPTCP_DSS_ACK64;
+			} else {
+				len += TCPOLEN_MPTCP_DSS_ACK32;
+			}
 		}
 
 		if (mpext->use_map) {
@@ -1004,8 +1015,13 @@ mp_capable_done:
 		*ptr++ = mptcp_option(MPTCPOPT_DSS, len, 0, flags);
 
 		if (mpext->use_ack) {
-			put_unaligned_be64(mpext->data_ack, ptr);
-			ptr += 2;
+			if (mpext->ack64) {
+				put_unaligned_be64(mpext->data_ack, ptr);
+				ptr += 2;
+			} else {
+				put_unaligned_be32(mpext->data_ack32, ptr);
+				ptr += 1;
+			}
 		}
 
 		if (mpext->use_map) {

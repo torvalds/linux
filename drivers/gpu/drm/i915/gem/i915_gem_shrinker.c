@@ -27,18 +27,6 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 		return false;
 
 	/*
-	 * Only report true if by unbinding the object and putting its pages
-	 * we can actually make forward progress towards freeing physical
-	 * pages.
-	 *
-	 * If the pages are pinned for any other reason than being bound
-	 * to the GPU, simply unbinding from the GPU is not going to succeed
-	 * in releasing our pin count on the pages themselves.
-	 */
-	if (atomic_read(&obj->mm.pages_pin_count) > atomic_read(&obj->bind_count))
-		return false;
-
-	/*
 	 * We can only return physical pages to the system if we can either
 	 * discard the contents (because the user has marked them as being
 	 * purgeable) or if we can move their contents out to swap.
@@ -54,6 +42,8 @@ static bool unsafe_drop_pages(struct drm_i915_gem_object *obj,
 	flags = 0;
 	if (shrink & I915_SHRINK_ACTIVE)
 		flags = I915_GEM_OBJECT_UNBIND_ACTIVE;
+	if (!(shrink & I915_SHRINK_BOUND))
+		flags = I915_GEM_OBJECT_UNBIND_TEST;
 
 	if (i915_gem_object_unbind(obj, flags) == 0)
 		__i915_gem_object_put_pages(obj);
@@ -192,10 +182,6 @@ i915_gem_shrink(struct drm_i915_private *i915,
 
 			if (!(shrink & I915_SHRINK_ACTIVE) &&
 			    i915_gem_object_is_framebuffer(obj))
-				continue;
-
-			if (!(shrink & I915_SHRINK_BOUND) &&
-			    atomic_read(&obj->bind_count))
 				continue;
 
 			if (!can_release_pages(obj))

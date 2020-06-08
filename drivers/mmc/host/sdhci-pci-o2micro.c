@@ -494,7 +494,7 @@ static void sdhci_o2_enable_clk(struct sdhci_host *host, u16 clk)
 	}
 }
 
-void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
+static void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	u16 clk;
 
@@ -509,7 +509,7 @@ void sdhci_pci_o2_set_clock(struct sdhci_host *host, unsigned int clock)
 	sdhci_o2_enable_clk(host, clk);
 }
 
-int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
+static int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_host *host;
@@ -578,7 +578,7 @@ int sdhci_pci_o2_probe_slot(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
-int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
+static int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 {
 	int ret;
 	u8 scratch;
@@ -783,7 +783,7 @@ int sdhci_pci_o2_probe(struct sdhci_pci_chip *chip)
 }
 
 #ifdef CONFIG_PM_SLEEP
-int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip)
+static int sdhci_pci_o2_resume(struct sdhci_pci_chip *chip)
 {
 	sdhci_pci_o2_probe(chip);
 	return sdhci_pci_resume_host(chip);

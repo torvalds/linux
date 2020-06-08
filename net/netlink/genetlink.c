@@ -1043,12 +1043,90 @@ static int genl_ctrl_event(int event, const struct genl_family *family,
 	return 0;
 }
 
+static int ctrl_dumppolicy(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	const struct genl_family *rt;
+	unsigned int fam_id = cb->args[0];
+	int err;
+
+	if (!fam_id) {
+		struct nlattr *tb[CTRL_ATTR_MAX + 1];
+
+		err = genlmsg_parse(cb->nlh, &genl_ctrl, tb,
+				    genl_ctrl.maxattr,
+				    genl_ctrl.policy, cb->extack);
+		if (err)
+			return err;
+
+		if (!tb[CTRL_ATTR_FAMILY_ID] && !tb[CTRL_ATTR_FAMILY_NAME])
+			return -EINVAL;
+
+		if (tb[CTRL_ATTR_FAMILY_ID]) {
+			fam_id = nla_get_u16(tb[CTRL_ATTR_FAMILY_ID]);
+		} else {
+			rt = genl_family_find_byname(
+				nla_data(tb[CTRL_ATTR_FAMILY_NAME]));
+			if (!rt)
+				return -ENOENT;
+			fam_id = rt->id;
+		}
+	}
+
+	rt = genl_family_find_byid(fam_id);
+	if (!rt)
+		return -ENOENT;
+
+	if (!rt->policy)
+		return -ENODATA;
+
+	err = netlink_policy_dump_start(rt->policy, rt->maxattr, &cb->args[1]);
+	if (err)
+		return err;
+
+	while (netlink_policy_dump_loop(&cb->args[1])) {
+		void *hdr;
+		struct nlattr *nest;
+
+		hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
+				  cb->nlh->nlmsg_seq, &genl_ctrl,
+				  NLM_F_MULTI, CTRL_CMD_GETPOLICY);
+		if (!hdr)
+			goto nla_put_failure;
+
+		if (nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, rt->id))
+			goto nla_put_failure;
+
+		nest = nla_nest_start(skb, CTRL_ATTR_POLICY);
+		if (!nest)
+			goto nla_put_failure;
+
+		if (netlink_policy_dump_write(skb, cb->args[1]))
+			goto nla_put_failure;
+
+		nla_nest_end(skb, nest);
+
+		genlmsg_end(skb, hdr);
+		continue;
+
+nla_put_failure:
+		genlmsg_cancel(skb, hdr);
+		break;
+	}
+
+	cb->args[0] = fam_id;
+	return skb->len;
+}
+
 static const struct genl_ops genl_ctrl_ops[] = {
 	{
 		.cmd		= CTRL_CMD_GETFAMILY,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.doit		= ctrl_getfamily,
 		.dumpit		= ctrl_dumpfamily,
+	},
+	{
+		.cmd		= CTRL_CMD_GETPOLICY,
+		.dumpit		= ctrl_dumppolicy,
 	},
 };
 

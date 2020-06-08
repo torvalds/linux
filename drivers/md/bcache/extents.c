@@ -130,18 +130,18 @@ static void bch_bkey_dump(struct btree_keys *keys, const struct bkey *k)
 	char buf[80];
 
 	bch_extent_to_text(buf, sizeof(buf), k);
-	pr_err(" %s", buf);
+	pr_cont(" %s", buf);
 
 	for (j = 0; j < KEY_PTRS(k); j++) {
 		size_t n = PTR_BUCKET_NR(b->c, k, j);
 
-		pr_err(" bucket %zu", n);
+		pr_cont(" bucket %zu", n);
 		if (n >= b->c->sb.first_bucket && n < b->c->sb.nbuckets)
-			pr_err(" prio %i",
-			       PTR_BUCKET(b->c, k, j)->prio);
+			pr_cont(" prio %i",
+				PTR_BUCKET(b->c, k, j)->prio);
 	}
 
-	pr_err(" %s\n", bch_ptr_status(b->c, k));
+	pr_cont(" %s\n", bch_ptr_status(b->c, k));
 }
 
 /* Btree ptrs */
@@ -553,7 +553,7 @@ static bool bch_extent_bad(struct btree_keys *bk, const struct bkey *k)
 
 		if (stale && KEY_DIRTY(k)) {
 			bch_extent_to_text(buf, sizeof(buf), k);
-			pr_info("stale dirty pointer, stale %u, key: %s",
+			pr_info("stale dirty pointer, stale %u, key: %s\n",
 				stale, buf);
 		}
 

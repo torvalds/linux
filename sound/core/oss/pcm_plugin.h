@@ -64,7 +64,7 @@ struct snd_pcm_plugin {
 	char *buf;
 	snd_pcm_uframes_t buf_frames;
 	struct snd_pcm_plugin_channel *buf_channels;
-	char extra_data[0];
+	char extra_data[];
 };
 
 int snd_pcm_plugin_build(struct snd_pcm_substream *handle,

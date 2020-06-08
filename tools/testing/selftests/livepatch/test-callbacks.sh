@@ -356,9 +356,7 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 echo -n "TEST: multiple target modules ... "
 dmesg -C
 
-load_mod $MOD_TARGET_BUSY sleep_secs=0
-# give $MOD_TARGET_BUSY::busymod_work_func() a chance to run
-sleep 5
+load_mod $MOD_TARGET_BUSY block_transition=N
 load_lp $MOD_LIVEPATCH
 load_mod $MOD_TARGET
 unload_mod $MOD_TARGET
@@ -366,9 +364,9 @@ disable_lp $MOD_LIVEPATCH
 unload_lp $MOD_LIVEPATCH
 unload_mod $MOD_TARGET_BUSY
 
-check_result "% modprobe $MOD_TARGET_BUSY sleep_secs=0
+check_result "% modprobe $MOD_TARGET_BUSY block_transition=N
 $MOD_TARGET_BUSY: ${MOD_TARGET_BUSY}_init
-$MOD_TARGET_BUSY: busymod_work_func, sleeping 0 seconds ...
+$MOD_TARGET_BUSY: busymod_work_func enter
 $MOD_TARGET_BUSY: busymod_work_func exit
 % modprobe $MOD_LIVEPATCH
 livepatch: enabling patch '$MOD_LIVEPATCH'
@@ -404,11 +402,10 @@ livepatch: '$MOD_LIVEPATCH': unpatching complete
 $MOD_TARGET_BUSY: ${MOD_TARGET_BUSY}_exit"
 
 
-
 # TEST: busy target module
 #
 # A similar test as the previous one, but force the "busy" kernel module
-# to do longer work.
+# to block the livepatch transition.
 #
 # The livepatching core will refuse to patch a task that is currently
 # executing a to-be-patched function -- the consistency model stalls the
@@ -417,8 +414,7 @@ $MOD_TARGET_BUSY: ${MOD_TARGET_BUSY}_exit"
 # function for a long time.  Meanwhile, load and unload other target
 # kernel modules while the livepatch transition is in progress.
 #
-# - Load the "busy" kernel module, this time make it do 10 seconds worth
-#   of work.
+# - Load the "busy" kernel module, this time make its work function loop
 #
 # - Meanwhile, the livepatch is loaded.  Notice that the patch
 #   transition does not complete as the targeted "busy" module is
@@ -438,20 +434,23 @@ $MOD_TARGET_BUSY: ${MOD_TARGET_BUSY}_exit"
 echo -n "TEST: busy target module ... "
 dmesg -C
 
-load_mod $MOD_TARGET_BUSY sleep_secs=10
+load_mod $MOD_TARGET_BUSY block_transition=Y
 load_lp_nowait $MOD_LIVEPATCH
-# Don't wait for transition, load $MOD_TARGET while the transition
-# is still stalled in $MOD_TARGET_BUSY::busymod_work_func()
-sleep 5
+
+# Wait until the livepatch reports in-transition state, i.e. that it's
+# stalled on $MOD_TARGET_BUSY::busymod_work_func()
+loop_until 'grep -q '^1$' /sys/kernel/livepatch/$MOD_LIVEPATCH/transition' ||
+	die "failed to stall transition"
+
 load_mod $MOD_TARGET
 unload_mod $MOD_TARGET
 disable_lp $MOD_LIVEPATCH
 unload_lp $MOD_LIVEPATCH
 unload_mod $MOD_TARGET_BUSY
 
-check_result "% modprobe $MOD_TARGET_BUSY sleep_secs=10
+check_result "% modprobe $MOD_TARGET_BUSY block_transition=Y
 $MOD_TARGET_BUSY: ${MOD_TARGET_BUSY}_init
-$MOD_TARGET_BUSY: busymod_work_func, sleeping 10 seconds ...
+$MOD_TARGET_BUSY: busymod_work_func enter
 % modprobe $MOD_LIVEPATCH
 livepatch: enabling patch '$MOD_LIVEPATCH'
 livepatch: '$MOD_LIVEPATCH': initializing patching transition

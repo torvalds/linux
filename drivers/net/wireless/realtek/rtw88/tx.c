@@ -196,7 +196,7 @@ static void rtw_tx_report_tx_status(struct rtw_dev *rtwdev,
 	ieee80211_tx_status_irqsafe(rtwdev->hw, skb);
 }
 
-void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
+void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb, int src)
 {
 	struct rtw_tx_report *tx_report = &rtwdev->tx_report;
 	struct rtw_c2h_cmd *c2h;
@@ -207,8 +207,13 @@ void rtw_tx_report_handle(struct rtw_dev *rtwdev, struct sk_buff *skb)
 
 	c2h = get_c2h_from_skb(skb);
 
-	sn = GET_CCX_REPORT_SEQNUM(c2h->payload);
-	st = GET_CCX_REPORT_STATUS(c2h->payload);
+	if (src == C2H_CCX_TX_RPT) {
+		sn = GET_CCX_REPORT_SEQNUM_V0(c2h->payload);
+		st = GET_CCX_REPORT_STATUS_V0(c2h->payload);
+	} else {
+		sn = GET_CCX_REPORT_SEQNUM_V1(c2h->payload);
+		st = GET_CCX_REPORT_STATUS_V1(c2h->payload);
+	}
 
 	spin_lock_irqsave(&tx_report->q_lock, flags);
 	skb_queue_walk_safe(&tx_report->queue, cur, tmp) {

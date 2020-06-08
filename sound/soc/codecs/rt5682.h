@@ -1337,6 +1337,13 @@
 #define RT5682_SAR_SOUR_BTN			(0x3f)
 #define RT5682_SAR_SOUR_TYPE			(0x0)
 
+/* soundwire timeout */
+#define RT5682_PROBE_TIMEOUT			2000
+
+
+#define RT5682_STEREO_RATES SNDRV_PCM_RATE_8000_192000
+#define RT5682_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
+		SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S8)
 
 /* System Clock Source */
 enum {
@@ -1418,10 +1425,29 @@ struct rt5682_priv {
 	int jack_type;
 };
 
+extern const char *rt5682_supply_names[RT5682_NUM_SUPPLIES];
+
 int rt5682_sel_asrc_clk_src(struct snd_soc_component *component,
 		unsigned int filter_mask, unsigned int clk_src);
-int rt5682_sdw_init(struct device *dev, struct regmap *regmap,
-	       struct sdw_slave *slave);
-int rt5682_io_init(struct device *dev, struct sdw_slave *slave);
+
+void rt5682_apply_patch_list(struct rt5682_priv *rt5682, struct device *dev);
+
+int rt5682_headset_detect(struct snd_soc_component *component, int jack_insert);
+void rt5682_jack_detect_handler(struct work_struct *work);
+
+bool rt5682_volatile_register(struct device *dev, unsigned int reg);
+bool rt5682_readable_register(struct device *dev, unsigned int reg);
+
+int rt5682_register_component(struct device *dev);
+void rt5682_calibrate(struct rt5682_priv *rt5682);
+void rt5682_reset(struct rt5682_priv *rt5682);
+int rt5682_parse_dt(struct rt5682_priv *rt5682, struct device *dev);
+
+#define RT5682_REG_NUM 318
+extern const struct reg_default rt5682_reg[RT5682_REG_NUM];
+
+extern const struct snd_soc_dai_ops rt5682_aif1_dai_ops;
+extern const struct snd_soc_dai_ops rt5682_aif2_dai_ops;
+extern const struct snd_soc_component_driver rt5682_soc_component_dev;
 
 #endif /* __RT5682_H__ */

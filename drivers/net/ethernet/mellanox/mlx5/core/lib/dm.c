@@ -90,7 +90,8 @@ void mlx5_dm_cleanup(struct mlx5_core_dev *dev)
 }
 
 int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
-			 u64 length, u16 uid, phys_addr_t *addr, u32 *obj_id)
+			 u64 length, u32 log_alignment, u16 uid,
+			 phys_addr_t *addr, u32 *obj_id)
 {
 	u32 num_blocks = DIV_ROUND_UP_ULL(length, MLX5_SW_ICM_BLOCK_SIZE(dev));
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {};
@@ -99,6 +100,7 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 	unsigned long *block_map;
 	u64 icm_start_addr;
 	u32 log_icm_size;
+	u64 align_mask;
 	u32 max_blocks;
 	u64 block_idx;
 	void *sw_icm;
@@ -136,11 +138,14 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 		return -EOPNOTSUPP;
 
 	max_blocks = BIT(log_icm_size - MLX5_LOG_SW_ICM_BLOCK_SIZE(dev));
+
+	if (log_alignment < MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))
+		log_alignment = MLX5_LOG_SW_ICM_BLOCK_SIZE(dev);
+	align_mask = BIT(log_alignment - MLX5_LOG_SW_ICM_BLOCK_SIZE(dev)) - 1;
+
 	spin_lock(&dm->lock);
-	block_idx = bitmap_find_next_zero_area(block_map,
-					       max_blocks,
-					       0,
-					       num_blocks, 0);
+	block_idx = bitmap_find_next_zero_area(block_map, max_blocks, 0,
+					       num_blocks, align_mask);
 
 	if (block_idx < max_blocks)
 		bitmap_set(block_map,

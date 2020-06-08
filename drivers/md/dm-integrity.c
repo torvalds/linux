@@ -2657,7 +2657,7 @@ static void bitmap_flush_work(struct work_struct *work)
 
 	dm_integrity_flush_buffers(ic);
 	if (ic->meta_dev)
-		blkdev_issue_flush(ic->dev->bdev, GFP_NOIO, NULL);
+		blkdev_issue_flush(ic->dev->bdev, GFP_NOIO);
 
 	limit = ic->provided_data_sectors;
 	if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {

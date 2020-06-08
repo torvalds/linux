@@ -453,18 +453,19 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
 
+	adev->nbio.funcs = &nbio_v2_3_funcs;
+	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
+
+	if (amdgpu_sriov_vf(adev)) {
+		adev->virt.ops = &xgpu_nv_virt_ops;
+		/* try send GPU_INIT_DATA request to host */
+		amdgpu_virt_request_init_data(adev);
+	}
+
 	/* Set IP register base before any HW register access */
 	r = nv_reg_base_init(adev);
 	if (r)
 		return r;
-
-	adev->nbio.funcs = &nbio_v2_3_funcs;
-	adev->nbio.hdp_flush_reg = &nbio_v2_3_hdp_flush_reg;
-
-	adev->nbio.funcs->detect_hw_virt(adev);
-
-	if (amdgpu_sriov_vf(adev))
-		adev->virt.ops = &xgpu_nv_virt_ops;
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
@@ -497,8 +498,7 @@ int nv_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gmc_v10_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &navi10_ih_ip_block);
 		amdgpu_device_ip_block_add(adev, &psp_v11_0_ip_block);
-		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP &&
-		    !amdgpu_sriov_vf(adev))
+		if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP)
 			amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
@@ -546,13 +546,6 @@ static void nv_invalidate_hdp(struct amdgpu_device *adev,
 static bool nv_need_full_reset(struct amdgpu_device *adev)
 {
 	return true;
-}
-
-static void nv_get_pcie_usage(struct amdgpu_device *adev,
-			      uint64_t *count0,
-			      uint64_t *count1)
-{
-	/*TODO*/
 }
 
 static bool nv_need_reset_on_init(struct amdgpu_device *adev)
@@ -629,7 +622,6 @@ static const struct amdgpu_asic_funcs nv_asic_funcs =
 	.invalidate_hdp = &nv_invalidate_hdp,
 	.init_doorbell_index = &nv_init_doorbell_index,
 	.need_full_reset = &nv_need_full_reset,
-	.get_pcie_usage = &nv_get_pcie_usage,
 	.need_reset_on_init = &nv_need_reset_on_init,
 	.get_pcie_replay_count = &nv_get_pcie_replay_count,
 	.supports_baco = &nv_asic_supports_baco,

@@ -1521,37 +1521,6 @@ static int s5p_hash_update(struct ahash_request *req)
 }
 
 /**
- * s5p_hash_shash_digest() - calculate shash digest
- * @tfm:	crypto transformation
- * @flags:	tfm flags
- * @data:	input data
- * @len:	length of data
- * @out:	output buffer
- */
-static int s5p_hash_shash_digest(struct crypto_shash *tfm, u32 flags,
-				 const u8 *data, unsigned int len, u8 *out)
-{
-	SHASH_DESC_ON_STACK(shash, tfm);
-
-	shash->tfm = tfm;
-
-	return crypto_shash_digest(shash, data, len, out);
-}
-
-/**
- * s5p_hash_final_shash() - calculate shash digest
- * @req:	AHASH request
- */
-static int s5p_hash_final_shash(struct ahash_request *req)
-{
-	struct s5p_hash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
-	struct s5p_hash_reqctx *ctx = ahash_request_ctx(req);
-
-	return s5p_hash_shash_digest(tctx->fallback, req->base.flags,
-				     ctx->buffer, ctx->bufcnt, req->result);
-}
-
-/**
  * s5p_hash_final() - close up hash and calculate digest
  * @req:	AHASH request
  *
@@ -1582,8 +1551,12 @@ static int s5p_hash_final(struct ahash_request *req)
 	if (ctx->error)
 		return -EINVAL; /* uncompleted hash is not needed */
 
-	if (!ctx->digcnt && ctx->bufcnt < BUFLEN)
-		return s5p_hash_final_shash(req);
+	if (!ctx->digcnt && ctx->bufcnt < BUFLEN) {
+		struct s5p_hash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+
+		return crypto_shash_tfm_digest(tctx->fallback, ctx->buffer,
+					       ctx->bufcnt, req->result);
+	}
 
 	return s5p_hash_enqueue(req, false); /* HASH_OP_FINAL */
 }

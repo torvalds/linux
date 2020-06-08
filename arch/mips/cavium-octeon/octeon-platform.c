@@ -141,7 +141,7 @@ static void octeon2_usb_clocks_start(struct device *dev)
 	default:
 		pr_err("Invalid UCTL clock rate of %u, using 12000000 instead\n",
 			clock_rate);
-		/* Fall through */
+		fallthrough;
 	case 12000000:
 		clk_rst_ctl.s.p_refclk_div = 0;
 		break;
@@ -1116,7 +1116,7 @@ end_led:
 				new_f[0] = cpu_to_be32(48000000);
 				fdt_setprop_inplace(initial_boot_params, usbn,
 						    "refclk-frequency",  new_f, sizeof(new_f));
-				/* Fall through ...*/
+				fallthrough;
 			case USB_CLOCK_TYPE_REF_12:
 				/* Missing "refclk-type" defaults to external. */
 				fdt_nop_property(initial_boot_params, usbn, "refclk-type");

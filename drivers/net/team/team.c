@@ -1647,6 +1647,7 @@ static int team_init(struct net_device *dev)
 
 	lockdep_register_key(&team->team_lock_key);
 	__mutex_init(&team->lock, "team->team_lock_key", &team->team_lock_key);
+	netdev_lockdep_set_classes(dev);
 
 	return 0;
 

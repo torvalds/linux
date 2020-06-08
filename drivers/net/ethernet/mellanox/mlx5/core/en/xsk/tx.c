@@ -5,7 +5,7 @@
 #include "umem.h"
 #include "en/xdp.h"
 #include "en/params.h"
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 
 int mlx5e_xsk_wakeup(struct net_device *dev, u32 qid, u32 flags)
 {
@@ -92,12 +92,11 @@ bool mlx5e_xsk_tx(struct mlx5e_xdpsq *sq, unsigned int budget)
 			break;
 		}
 
-		xdptxd.dma_addr = xdp_umem_get_dma(umem, desc.addr);
-		xdptxd.data = xdp_umem_get_data(umem, desc.addr);
+		xdptxd.dma_addr = xsk_buff_raw_get_dma(umem, desc.addr);
+		xdptxd.data = xsk_buff_raw_get_data(umem, desc.addr);
 		xdptxd.len = desc.len;
 
-		dma_sync_single_for_device(sq->pdev, xdptxd.dma_addr,
-					   xdptxd.len, DMA_BIDIRECTIONAL);
+		xsk_buff_raw_dma_sync_for_device(umem, xdptxd.dma_addr, xdptxd.len);
 
 		if (unlikely(!sq->xmit_xdp_frame(sq, &xdptxd, &xdpi, check_result))) {
 			if (sq->mpwqe.wqe)

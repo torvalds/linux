@@ -3716,24 +3716,26 @@ nla_put_failure:
 	return err;
 }
 
-static void devlink_nl_region_notify(struct devlink_region *region,
-				     struct devlink_snapshot *snapshot,
-				     enum devlink_command cmd)
+static struct sk_buff *
+devlink_nl_region_notify_build(struct devlink_region *region,
+			       struct devlink_snapshot *snapshot,
+			       enum devlink_command cmd, u32 portid, u32 seq)
 {
 	struct devlink *devlink = region->devlink;
 	struct sk_buff *msg;
 	void *hdr;
 	int err;
 
-	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
-		return;
+		return ERR_PTR(-ENOMEM);
 
-	hdr = genlmsg_put(msg, 0, 0, &devlink_nl_family, 0, cmd);
-	if (!hdr)
+	hdr = genlmsg_put(msg, portid, seq, &devlink_nl_family, 0, cmd);
+	if (!hdr) {
+		err = -EMSGSIZE;
 		goto out_free_msg;
+	}
 
 	err = devlink_nl_put_handle(msg, devlink);
 	if (err)
@@ -3757,15 +3759,30 @@ static void devlink_nl_region_notify(struct devlink_region *region,
 	}
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
-
-	return;
+	return msg;
 
 out_cancel_msg:
 	genlmsg_cancel(msg, hdr);
 out_free_msg:
 	nlmsg_free(msg);
+	return ERR_PTR(err);
+}
+
+static void devlink_nl_region_notify(struct devlink_region *region,
+				     struct devlink_snapshot *snapshot,
+				     enum devlink_command cmd)
+{
+	struct devlink *devlink = region->devlink;
+	struct sk_buff *msg;
+
+	WARN_ON(cmd != DEVLINK_CMD_REGION_NEW && cmd != DEVLINK_CMD_REGION_DEL);
+
+	msg = devlink_nl_region_notify_build(region, snapshot, cmd, 0, 0);
+	if (IS_ERR(msg))
+		return;
+
+	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
+				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
 }
 
 /**
@@ -4069,6 +4086,8 @@ static int
 devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
+	struct devlink_snapshot *snapshot;
+	struct nlattr *snapshot_id_attr;
 	struct devlink_region *region;
 	const char *region_name;
 	u32 snapshot_id;
@@ -4077,11 +4096,6 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 
 	if (!info->attrs[DEVLINK_ATTR_REGION_NAME]) {
 		NL_SET_ERR_MSG_MOD(info->extack, "No region name provided");
-		return -EINVAL;
-	}
-
-	if (!info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]) {
-		NL_SET_ERR_MSG_MOD(info->extack, "No snapshot id provided");
 		return -EINVAL;
 	}
 
@@ -4102,16 +4116,25 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 		return -ENOSPC;
 	}
 
-	snapshot_id = nla_get_u32(info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID]);
+	snapshot_id_attr = info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
+	if (snapshot_id_attr) {
+		snapshot_id = nla_get_u32(snapshot_id_attr);
 
-	if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
-		NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
-		return -EEXIST;
+		if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
+			NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
+			return -EEXIST;
+		}
+
+		err = __devlink_snapshot_id_insert(devlink, snapshot_id);
+		if (err)
+			return err;
+	} else {
+		err = __devlink_region_snapshot_id_get(devlink, &snapshot_id);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(info->extack, "Failed to allocate a new snapshot id");
+			return err;
+		}
 	}
-
-	err = __devlink_snapshot_id_insert(devlink, snapshot_id);
-	if (err)
-		return err;
 
 	err = region->ops->snapshot(devlink, info->extack, &data);
 	if (err)
@@ -4121,12 +4144,37 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto err_snapshot_create;
 
+	if (!snapshot_id_attr) {
+		struct sk_buff *msg;
+
+		snapshot = devlink_region_snapshot_get_by_id(region,
+							     snapshot_id);
+		if (WARN_ON(!snapshot))
+			return -EINVAL;
+
+		msg = devlink_nl_region_notify_build(region, snapshot,
+						     DEVLINK_CMD_REGION_NEW,
+						     info->snd_portid,
+						     info->snd_seq);
+		err = PTR_ERR_OR_ZERO(msg);
+		if (err)
+			goto err_notify;
+
+		err = genlmsg_reply(msg, info);
+		if (err)
+			goto err_notify;
+	}
+
 	return 0;
 
 err_snapshot_create:
 	region->ops->destructor(data);
 err_snapshot_capture:
 	__devlink_snapshot_id_decrement(devlink, snapshot_id);
+	return err;
+
+err_notify:
+	devlink_region_snapshot_del(region, snapshot);
 	return err;
 }
 
@@ -4167,7 +4215,6 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 						struct nlattr **attrs,
 						u64 start_offset,
 						u64 end_offset,
-						bool dump,
 						u64 *new_offset)
 {
 	struct devlink_snapshot *snapshot;
@@ -4181,9 +4228,6 @@ static int devlink_nl_region_read_snapshot_fill(struct sk_buff *skb,
 	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
 	if (!snapshot)
 		return -EINVAL;
-
-	if (end_offset > region->size || dump)
-		end_offset = region->size;
 
 	while (curr_offset < end_offset) {
 		u32 data_size;
@@ -4212,13 +4256,12 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 					     struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
-	u64 ret_offset, start_offset, end_offset = 0;
+	u64 ret_offset, start_offset, end_offset = U64_MAX;
 	struct nlattr **attrs = info->attrs;
 	struct devlink_region *region;
 	struct nlattr *chunks_attr;
 	const char *region_name;
 	struct devlink *devlink;
-	bool dump = true;
 	void *hdr;
 	int err;
 
@@ -4246,8 +4289,21 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto out_unlock;
 	}
 
+	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
+	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
+		if (!start_offset)
+			start_offset =
+				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+
+		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
+		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
+	}
+
+	if (end_offset > region->size)
+		end_offset = region->size;
+
 	/* return 0 if there is no further data to read */
-	if (start_offset >= region->size) {
+	if (start_offset == end_offset) {
 		err = 0;
 		goto out_unlock;
 	}
@@ -4274,27 +4330,10 @@ static int devlink_nl_cmd_region_read_dumpit(struct sk_buff *skb,
 		goto nla_put_failure;
 	}
 
-	if (attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR] &&
-	    attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]) {
-		if (!start_offset)
-			start_offset =
-				nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
-
-		end_offset = nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_ADDR]);
-		end_offset += nla_get_u64(attrs[DEVLINK_ATTR_REGION_CHUNK_LEN]);
-		dump = false;
-
-		if (start_offset == end_offset) {
-			err = 0;
-			goto nla_put_failure;
-		}
-	}
-
 	err = devlink_nl_region_read_snapshot_fill(skb, devlink,
 						   region, attrs,
 						   start_offset,
-						   end_offset, dump,
-						   &ret_offset);
+						   end_offset, &ret_offset);
 
 	if (err && err != -EMSGSIZE)
 		goto nla_put_failure;
@@ -5830,7 +5869,8 @@ devlink_trap_action_get_from_info(struct genl_info *info,
 	val = nla_get_u8(info->attrs[DEVLINK_ATTR_TRAP_ACTION]);
 	switch (val) {
 	case DEVLINK_TRAP_ACTION_DROP: /* fall-through */
-	case DEVLINK_TRAP_ACTION_TRAP:
+	case DEVLINK_TRAP_ACTION_TRAP: /* fall-through */
+	case DEVLINK_TRAP_ACTION_MIRROR:
 		*p_trap_action = val;
 		break;
 	default:
@@ -8455,6 +8495,50 @@ static const struct devlink_trap devlink_trap_generic[] = {
 	DEVLINK_TRAP(OVERLAY_SMAC_MC, DROP),
 	DEVLINK_TRAP(INGRESS_FLOW_ACTION_DROP, DROP),
 	DEVLINK_TRAP(EGRESS_FLOW_ACTION_DROP, DROP),
+	DEVLINK_TRAP(STP, CONTROL),
+	DEVLINK_TRAP(LACP, CONTROL),
+	DEVLINK_TRAP(LLDP, CONTROL),
+	DEVLINK_TRAP(IGMP_QUERY, CONTROL),
+	DEVLINK_TRAP(IGMP_V1_REPORT, CONTROL),
+	DEVLINK_TRAP(IGMP_V2_REPORT, CONTROL),
+	DEVLINK_TRAP(IGMP_V3_REPORT, CONTROL),
+	DEVLINK_TRAP(IGMP_V2_LEAVE, CONTROL),
+	DEVLINK_TRAP(MLD_QUERY, CONTROL),
+	DEVLINK_TRAP(MLD_V1_REPORT, CONTROL),
+	DEVLINK_TRAP(MLD_V2_REPORT, CONTROL),
+	DEVLINK_TRAP(MLD_V1_DONE, CONTROL),
+	DEVLINK_TRAP(IPV4_DHCP, CONTROL),
+	DEVLINK_TRAP(IPV6_DHCP, CONTROL),
+	DEVLINK_TRAP(ARP_REQUEST, CONTROL),
+	DEVLINK_TRAP(ARP_RESPONSE, CONTROL),
+	DEVLINK_TRAP(ARP_OVERLAY, CONTROL),
+	DEVLINK_TRAP(IPV6_NEIGH_SOLICIT, CONTROL),
+	DEVLINK_TRAP(IPV6_NEIGH_ADVERT, CONTROL),
+	DEVLINK_TRAP(IPV4_BFD, CONTROL),
+	DEVLINK_TRAP(IPV6_BFD, CONTROL),
+	DEVLINK_TRAP(IPV4_OSPF, CONTROL),
+	DEVLINK_TRAP(IPV6_OSPF, CONTROL),
+	DEVLINK_TRAP(IPV4_BGP, CONTROL),
+	DEVLINK_TRAP(IPV6_BGP, CONTROL),
+	DEVLINK_TRAP(IPV4_VRRP, CONTROL),
+	DEVLINK_TRAP(IPV6_VRRP, CONTROL),
+	DEVLINK_TRAP(IPV4_PIM, CONTROL),
+	DEVLINK_TRAP(IPV6_PIM, CONTROL),
+	DEVLINK_TRAP(UC_LB, CONTROL),
+	DEVLINK_TRAP(LOCAL_ROUTE, CONTROL),
+	DEVLINK_TRAP(EXTERNAL_ROUTE, CONTROL),
+	DEVLINK_TRAP(IPV6_UC_DIP_LINK_LOCAL_SCOPE, CONTROL),
+	DEVLINK_TRAP(IPV6_DIP_ALL_NODES, CONTROL),
+	DEVLINK_TRAP(IPV6_DIP_ALL_ROUTERS, CONTROL),
+	DEVLINK_TRAP(IPV6_ROUTER_SOLICIT, CONTROL),
+	DEVLINK_TRAP(IPV6_ROUTER_ADVERT, CONTROL),
+	DEVLINK_TRAP(IPV6_REDIRECT, CONTROL),
+	DEVLINK_TRAP(IPV4_ROUTER_ALERT, CONTROL),
+	DEVLINK_TRAP(IPV6_ROUTER_ALERT, CONTROL),
+	DEVLINK_TRAP(PTP_EVENT, CONTROL),
+	DEVLINK_TRAP(PTP_GENERAL, CONTROL),
+	DEVLINK_TRAP(FLOW_ACTION_SAMPLE, CONTROL),
+	DEVLINK_TRAP(FLOW_ACTION_TRAP, CONTROL),
 };
 
 #define DEVLINK_TRAP_GROUP(_id)						      \
@@ -8466,9 +8550,28 @@ static const struct devlink_trap devlink_trap_generic[] = {
 static const struct devlink_trap_group devlink_trap_group_generic[] = {
 	DEVLINK_TRAP_GROUP(L2_DROPS),
 	DEVLINK_TRAP_GROUP(L3_DROPS),
+	DEVLINK_TRAP_GROUP(L3_EXCEPTIONS),
 	DEVLINK_TRAP_GROUP(BUFFER_DROPS),
 	DEVLINK_TRAP_GROUP(TUNNEL_DROPS),
 	DEVLINK_TRAP_GROUP(ACL_DROPS),
+	DEVLINK_TRAP_GROUP(STP),
+	DEVLINK_TRAP_GROUP(LACP),
+	DEVLINK_TRAP_GROUP(LLDP),
+	DEVLINK_TRAP_GROUP(MC_SNOOPING),
+	DEVLINK_TRAP_GROUP(DHCP),
+	DEVLINK_TRAP_GROUP(NEIGH_DISCOVERY),
+	DEVLINK_TRAP_GROUP(BFD),
+	DEVLINK_TRAP_GROUP(OSPF),
+	DEVLINK_TRAP_GROUP(BGP),
+	DEVLINK_TRAP_GROUP(VRRP),
+	DEVLINK_TRAP_GROUP(PIM),
+	DEVLINK_TRAP_GROUP(UC_LB),
+	DEVLINK_TRAP_GROUP(LOCAL_DELIVERY),
+	DEVLINK_TRAP_GROUP(IPV6),
+	DEVLINK_TRAP_GROUP(PTP_EVENT),
+	DEVLINK_TRAP_GROUP(PTP_GENERAL),
+	DEVLINK_TRAP_GROUP(ACL_SAMPLE),
+	DEVLINK_TRAP_GROUP(ACL_TRAP),
 };
 
 static int devlink_trap_generic_verify(const struct devlink_trap *trap)
@@ -8805,6 +8908,13 @@ void devlink_trap_report(struct devlink *devlink, struct sk_buff *skb,
 
 	devlink_trap_stats_update(trap_item->stats, skb->len);
 	devlink_trap_stats_update(trap_item->group_item->stats, skb->len);
+
+	/* Control packets were not dropped by the device or encountered an
+	 * exception during forwarding and therefore should not be reported to
+	 * the kernel's drop monitor.
+	 */
+	if (trap_item->trap->type == DEVLINK_TRAP_TYPE_CONTROL)
+		return;
 
 	devlink_trap_report_metadata_fill(&hw_metadata, trap_item,
 					  in_devlink_port, fa_cookie);

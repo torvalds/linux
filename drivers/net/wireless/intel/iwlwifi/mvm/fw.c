@@ -87,36 +87,6 @@ struct iwl_mvm_alive_data {
 	u32 scd_base_addr;
 };
 
-/* set device type and latency */
-static int iwl_set_soc_latency(struct iwl_mvm *mvm)
-{
-	struct iwl_soc_configuration_cmd cmd = {};
-	int ret;
-
-	/*
-	 * In VER_1 of this command, the discrete value is considered
-	 * an integer; In VER_2, it's a bitmask.  Since we have only 2
-	 * values in VER_1, this is backwards-compatible with VER_2,
-	 * as long as we don't set any other bits.
-	 */
-	if (!mvm->trans->trans_cfg->integrated)
-		cmd.flags = cpu_to_le32(SOC_CONFIG_CMD_FLAGS_DISCRETE);
-
-	if (iwl_mvm_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
-				   SCAN_REQ_UMAC) >= 2 &&
-	    (mvm->trans->trans_cfg->low_latency_xtal))
-		cmd.flags |= cpu_to_le32(SOC_CONFIG_CMD_FLAGS_LOW_LATENCY);
-
-	cmd.latency = cpu_to_le32(mvm->trans->trans_cfg->xtal_latency);
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SOC_CONFIGURATION_CMD,
-						   SYSTEM_GROUP, 0), 0,
-				   sizeof(cmd), &cmd);
-	if (ret)
-		IWL_ERR(mvm, "Failed to set soc latency: %d\n", ret);
-	return ret;
-}
-
 static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_cfg_cmd tx_ant_cmd = {
@@ -550,10 +520,49 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_ACPI
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
+	/*
+	 * TODO: read specific phy config from BIOS
+	 * ACPI table for this feature has not been defined yet,
+	 * so for now we use hardcoded values.
+	 */
+
+	if (IWL_MVM_PHY_FILTER_CHAIN_A) {
+		phy_filters->filter_cfg_chain_a =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_A);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_B) {
+		phy_filters->filter_cfg_chain_b =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_B);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_C) {
+		phy_filters->filter_cfg_chain_c =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_C);
+	}
+	if (IWL_MVM_PHY_FILTER_CHAIN_D) {
+		phy_filters->filter_cfg_chain_d =
+			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_D);
+	}
+}
+
+#else /* CONFIG_ACPI */
+
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
+}
+#endif /* CONFIG_ACPI */
+
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 {
-	struct iwl_phy_cfg_cmd phy_cfg_cmd;
+	struct iwl_phy_cfg_cmd_v3 phy_cfg_cmd;
 	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
+	struct iwl_phy_specific_cfg phy_filters = {};
+	u8 cmd_ver;
+	size_t cmd_size;
 
 	if (iwl_mvm_has_unified_ucode(mvm) &&
 	    !mvm->trans->cfg->tx_with_siso_diversity)
@@ -580,11 +589,20 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	phy_cfg_cmd.calib_control.flow_trigger =
 		mvm->fw->default_calib[ucode_type].flow_trigger;
 
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, IWL_ALWAYS_LONG_GROUP,
+					PHY_CONFIGURATION_CMD);
+	if (cmd_ver == 3) {
+		iwl_mvm_phy_filter_init(mvm, &phy_filters);
+		memcpy(&phy_cfg_cmd.phy_specific_cfg, &phy_filters,
+		       sizeof(struct iwl_phy_specific_cfg));
+	}
+
 	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
 		       phy_cfg_cmd.phy_cfg);
-
+	cmd_size = (cmd_ver == 3) ? sizeof(struct iwl_phy_cfg_cmd_v3) :
+				    sizeof(struct iwl_phy_cfg_cmd_v1);
 	return iwl_mvm_send_cmd_pdu(mvm, PHY_CONFIGURATION_CMD, 0,
-				    sizeof(phy_cfg_cmd), &phy_cfg_cmd);
+				    cmd_size, &phy_cfg_cmd);
 }
 
 int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
@@ -725,12 +743,11 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	union {
 		struct iwl_dev_tx_power_cmd v5;
 		struct iwl_dev_tx_power_cmd_v4 v4;
-	} cmd;
-
+	} cmd = {
+		.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS),
+	};
 	int ret;
 	u16 len = 0;
-
-	cmd.v5.v3.set_mode = cpu_to_le32(IWL_TX_POWER_MODE_SET_CHAINS);
 
 	if (fw_has_api(&mvm->fw->ucode_capa,
 		       IWL_UCODE_TLV_API_REDUCE_TX_POWER))
@@ -937,6 +954,78 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
+static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
+{
+	int ret;
+	struct iwl_tas_config_cmd cmd = {};
+	int list_size;
+
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.black_list_array) <
+		     APCI_WTAS_BLACK_LIST_MAX);
+
+	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
+		IWL_DEBUG_RADIO(mvm, "TAS not enabled in FW\n");
+		return;
+	}
+
+	ret = iwl_acpi_get_tas(&mvm->fwrt, cmd.black_list_array, &list_size);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"TAS table invalid or unavailable. (%d)\n",
+				ret);
+		return;
+	}
+
+	if (list_size < 0)
+		return;
+
+	/* list size if TAS enabled can only be non-negative */
+	cmd.black_list_size = cpu_to_le32((u32)list_size);
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						TAS_CONFIG),
+				   0, sizeof(cmd), &cmd);
+	if (ret < 0)
+		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
+}
+
+static bool iwl_mvm_eval_dsm_indonesia_5g2(struct iwl_mvm *mvm)
+{
+	int ret = iwl_acpi_get_dsm_u8((&mvm->fwrt)->dev, 0,
+				      DSM_FUNC_ENABLE_INDONESIA_5G2);
+
+	IWL_DEBUG_RADIO(mvm,
+			"Evaluated DSM function ENABLE_INDONESIA_5G2, ret=%d\n",
+			ret);
+
+	return ret == 1;
+}
+
+static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
+{
+	int ret;
+	struct iwl_lari_config_change_cmd cmd = {};
+
+	if (iwl_mvm_eval_dsm_indonesia_5g2(mvm))
+		cmd.config_bitmap |=
+			cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
+
+	/* apply more config masks here */
+
+	if (cmd.config_bitmap) {
+		IWL_DEBUG_RADIO(mvm,
+				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x\n",
+				le32_to_cpu(cmd.config_bitmap));
+		ret = iwl_mvm_send_cmd_pdu(mvm,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE),
+					   0, sizeof(cmd), &cmd);
+		if (ret < 0)
+			IWL_DEBUG_RADIO(mvm,
+					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
+					ret);
+	}
+}
 #else /* CONFIG_ACPI */
 
 inline int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm,
@@ -963,6 +1052,14 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
 	return 0;
+}
+
+static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
+{
+}
+
+static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
+{
 }
 #endif /* CONFIG_ACPI */
 
@@ -1138,7 +1235,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SOC_LATENCY_SUPPORT)) {
-		ret = iwl_set_soc_latency(mvm);
+		ret = iwl_set_soc_latency(&mvm->fwrt);
 		if (ret)
 			goto error;
 	}
@@ -1238,6 +1335,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
+	iwl_mvm_lari_cfg(mvm);
 	/*
 	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
 	 * anyway, so don't init MCC.
@@ -1282,6 +1380,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret < 0)
 		goto error;
 
+	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
 
 	IWL_DEBUG_INFO(mvm, "RT uCode started.\n");

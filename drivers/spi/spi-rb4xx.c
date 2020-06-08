@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
+#include <linux/of.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
 
@@ -150,6 +151,7 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	if (IS_ERR(ahb_clk))
 		return PTR_ERR(ahb_clk);
 
+	master->dev.of_node = pdev->dev.of_node;
 	master->bus_num = 0;
 	master->num_chipselect = 3;
 	master->mode_bits = SPI_TX_DUAL;
@@ -157,6 +159,11 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	master->flags = SPI_MASTER_MUST_TX;
 	master->transfer_one = rb4xx_transfer_one;
 	master->set_cs = rb4xx_set_cs;
+
+	rbspi = spi_master_get_devdata(master);
+	rbspi->base = spi_base;
+	rbspi->clk = ahb_clk;
+	platform_set_drvdata(pdev, rbspi);
 
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err) {
@@ -167,11 +174,6 @@ static int rb4xx_spi_probe(struct platform_device *pdev)
 	err = clk_prepare_enable(ahb_clk);
 	if (err)
 		return err;
-
-	rbspi = spi_master_get_devdata(master);
-	rbspi->base = spi_base;
-	rbspi->clk = ahb_clk;
-	platform_set_drvdata(pdev, rbspi);
 
 	/* Enable SPI */
 	rb4xx_write(rbspi, AR71XX_SPI_REG_FS, AR71XX_SPI_FS_GPIO);
@@ -188,11 +190,18 @@ static int rb4xx_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id rb4xx_spi_dt_match[] = {
+	{ .compatible = "mikrotik,rb4xx-spi" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, rb4xx_spi_dt_match);
+
 static struct platform_driver rb4xx_spi_drv = {
 	.probe = rb4xx_spi_probe,
 	.remove = rb4xx_spi_remove,
 	.driver = {
 		.name = "rb4xx-spi",
+		.of_match_table = of_match_ptr(rb4xx_spi_dt_match),
 	},
 };
 
