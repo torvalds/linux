@@ -745,6 +745,7 @@ static int batadv_interface_kill_vid(struct net_device *dev, __be16 proto,
  * separate class since they always nest.
  */
 static struct lock_class_key batadv_netdev_xmit_lock_key;
+static struct lock_class_key batadv_netdev_addr_lock_key;
 
 /**
  * batadv_set_lockdep_class_one() - Set lockdep class for a single tx queue
@@ -765,6 +766,7 @@ static void batadv_set_lockdep_class_one(struct net_device *dev,
  */
 static void batadv_set_lockdep_class(struct net_device *dev)
 {
+	lockdep_set_class(&dev->addr_list_lock, &batadv_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, batadv_set_lockdep_class_one, NULL);
 }
 
