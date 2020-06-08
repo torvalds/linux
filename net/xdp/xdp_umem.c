@@ -336,7 +336,7 @@ static int xdp_umem_reg(struct xdp_umem *umem, struct xdp_umem_reg *mr)
 	if ((addr + size) < addr)
 		return -EINVAL;
 
-	npgs = div_u64(size, PAGE_SIZE);
+	npgs = size >> PAGE_SHIFT;
 	if (npgs > U32_MAX)
 		return -EINVAL;
 

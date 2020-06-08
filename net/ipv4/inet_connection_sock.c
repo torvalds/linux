@@ -902,6 +902,7 @@ void inet_csk_prepare_forced_close(struct sock *sk)
 	bh_unlock_sock(sk);
 	sock_put(sk);
 	inet_csk_prepare_for_destroy_sock(sk);
+	inet_sk(sk)->inet_num = 0;
 }
 EXPORT_SYMBOL(inet_csk_prepare_forced_close);
 
