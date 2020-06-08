@@ -29,6 +29,10 @@ struct qcom_apcs_ipc_data {
 	char *clk_name;
 };
 
+static const struct qcom_apcs_ipc_data ipq6018_apcs_data = {
+	.offset = 8, .clk_name = "qcom,apss-ipq6018-clk"
+};
+
 static const struct qcom_apcs_ipc_data ipq8074_apcs_data = {
 	.offset = 8, .clk_name = NULL
 };
@@ -139,6 +143,7 @@ static int qcom_apcs_ipc_remove(struct platform_device *pdev)
 
 /* .data is the offset of the ipc register within the global block */
 static const struct of_device_id qcom_apcs_ipc_of_match[] = {
+	{ .compatible = "qcom,ipq6018-apcs-apps-global", .data = &ipq6018_apcs_data },
 	{ .compatible = "qcom,ipq8074-apcs-apps-global", .data = &ipq8074_apcs_data },
 	{ .compatible = "qcom,msm8916-apcs-kpss-global", .data = &msm8916_apcs_data },
 	{ .compatible = "qcom,msm8996-apcs-hmss-global", .data = &msm8996_apcs_data },
