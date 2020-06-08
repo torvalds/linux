@@ -319,7 +319,7 @@ struct bio_integrity_payload {
 	struct work_struct	bip_work;	/* I/O completion */
 
 	struct bio_vec		*bip_vec;
-	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
+	struct bio_vec		bip_inline_vecs[];/* embedded bvec array */
 };
 
 #if defined(CONFIG_BLK_DEV_INTEGRITY)

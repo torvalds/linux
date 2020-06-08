@@ -1372,7 +1372,7 @@ static int am65_cpsw_nuss_init_tx_chns(struct am65_cpsw_common *common)
 err:
 	i = devm_add_action(dev, am65_cpsw_nuss_free_tx_chns, common);
 	if (i) {
-		dev_err(dev, "failed to add free_tx_chns action %d", i);
+		dev_err(dev, "Failed to add free_tx_chns action %d\n", i);
 		return i;
 	}
 
@@ -1481,7 +1481,7 @@ static int am65_cpsw_nuss_init_rx_chns(struct am65_cpsw_common *common)
 err:
 	i = devm_add_action(dev, am65_cpsw_nuss_free_rx_chns, common);
 	if (i) {
-		dev_err(dev, "failed to add free_rx_chns action %d", i);
+		dev_err(dev, "Failed to add free_rx_chns action %d\n", i);
 		return i;
 	}
 
@@ -1691,7 +1691,7 @@ static int am65_cpsw_nuss_init_ndev_2g(struct am65_cpsw_common *common)
 	ret = devm_add_action_or_reset(dev, am65_cpsw_pcpu_stats_free,
 				       ndev_priv->stats);
 	if (ret) {
-		dev_err(dev, "failed to add percpu stat free action %d", ret);
+		dev_err(dev, "Failed to add percpu stat free action %d\n", ret);
 		return ret;
 	}
 
@@ -1719,7 +1719,8 @@ static int am65_cpsw_nuss_ndev_add_napi_2g(struct am65_cpsw_common *common)
 
 		ret = devm_request_irq(dev, tx_chn->irq,
 				       am65_cpsw_nuss_tx_irq,
-				       0, tx_chn->tx_chn_name, tx_chn);
+				       IRQF_TRIGGER_HIGH,
+				       tx_chn->tx_chn_name, tx_chn);
 		if (ret) {
 			dev_err(dev, "failure requesting tx%u irq %u, %d\n",
 				tx_chn->id, tx_chn->irq, ret);
@@ -1744,7 +1745,7 @@ static int am65_cpsw_nuss_ndev_reg_2g(struct am65_cpsw_common *common)
 
 	ret = devm_request_irq(dev, common->rx_chns.irq,
 			       am65_cpsw_nuss_rx_irq,
-			       0, dev_name(dev), common);
+			       IRQF_TRIGGER_HIGH, dev_name(dev), common);
 	if (ret) {
 		dev_err(dev, "failure requesting rx irq %u, %d\n",
 			common->rx_chns.irq, ret);
@@ -1894,8 +1895,9 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	ale_params.nu_switch_ale = true;
 
 	common->ale = cpsw_ale_create(&ale_params);
-	if (!common->ale) {
+	if (IS_ERR(common->ale)) {
 		dev_err(dev, "error initializing ale engine\n");
+		ret = PTR_ERR(common->ale);
 		goto err_of_clear;
 	}
 

@@ -46,11 +46,8 @@ static int felix_fdb_add(struct dsa_switch *ds, int port,
 			 const unsigned char *addr, u16 vid)
 {
 	struct ocelot *ocelot = ds->priv;
-	bool vlan_aware;
 
-	vlan_aware = dsa_port_is_vlan_filtering(dsa_to_port(ds, port));
-
-	return ocelot_fdb_add(ocelot, port, addr, vid, vlan_aware);
+	return ocelot_fdb_add(ocelot, port, addr, vid);
 }
 
 static int felix_fdb_del(struct dsa_switch *ds, int port,
@@ -105,13 +102,17 @@ static void felix_vlan_add(struct dsa_switch *ds, int port,
 			   const struct switchdev_obj_port_vlan *vlan)
 {
 	struct ocelot *ocelot = ds->priv;
+	u16 flags = vlan->flags;
 	u16 vid;
 	int err;
 
+	if (dsa_is_cpu_port(ds, port))
+		flags &= ~BRIDGE_VLAN_INFO_UNTAGGED;
+
 	for (vid = vlan->vid_begin; vid <= vlan->vid_end; vid++) {
 		err = ocelot_vlan_add(ocelot, port, vid,
-				      vlan->flags & BRIDGE_VLAN_INFO_PVID,
-				      vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED);
+				      flags & BRIDGE_VLAN_INFO_PVID,
+				      flags & BRIDGE_VLAN_INFO_UNTAGGED);
 		if (err) {
 			dev_err(ds->dev, "Failed to add VLAN %d to port %d: %d\n",
 				vid, port, err);
@@ -391,6 +392,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	struct ocelot *ocelot = &felix->ocelot;
 	phy_interface_t *port_phy_modes;
 	resource_size_t switch_base;
+	struct resource res;
 	int port, i, err;
 
 	ocelot->num_phys_ports = num_phys_ports;
@@ -403,6 +405,7 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	ocelot->stats_layout	= felix->info->stats_layout;
 	ocelot->num_stats	= felix->info->num_stats;
 	ocelot->shared_queue_sz	= felix->info->shared_queue_sz;
+	ocelot->num_mact_rows	= felix->info->num_mact_rows;
 	ocelot->vcap_is2_keys	= felix->info->vcap_is2_keys;
 	ocelot->vcap_is2_actions= felix->info->vcap_is2_actions;
 	ocelot->vcap		= felix->info->vcap;
@@ -424,17 +427,16 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 
 	for (i = 0; i < TARGET_MAX; i++) {
 		struct regmap *target;
-		struct resource *res;
 
 		if (!felix->info->target_io_res[i].name)
 			continue;
 
-		res = &felix->info->target_io_res[i];
-		res->flags = IORESOURCE_MEM;
-		res->start += switch_base;
-		res->end += switch_base;
+		memcpy(&res, &felix->info->target_io_res[i], sizeof(res));
+		res.flags = IORESOURCE_MEM;
+		res.start += switch_base;
+		res.end += switch_base;
 
-		target = ocelot_regmap_init(ocelot, res);
+		target = ocelot_regmap_init(ocelot, &res);
 		if (IS_ERR(target)) {
 			dev_err(ocelot->dev,
 				"Failed to map device memory space\n");
@@ -455,7 +457,6 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 	for (port = 0; port < num_phys_ports; port++) {
 		struct ocelot_port *ocelot_port;
 		void __iomem *port_regs;
-		struct resource *res;
 
 		ocelot_port = devm_kzalloc(ocelot->dev,
 					   sizeof(struct ocelot_port),
@@ -467,12 +468,12 @@ static int felix_init_structs(struct felix *felix, int num_phys_ports)
 			return -ENOMEM;
 		}
 
-		res = &felix->info->port_io_res[port];
-		res->flags = IORESOURCE_MEM;
-		res->start += switch_base;
-		res->end += switch_base;
+		memcpy(&res, &felix->info->port_io_res[port], sizeof(res));
+		res.flags = IORESOURCE_MEM;
+		res.start += switch_base;
+		res.end += switch_base;
 
-		port_regs = devm_ioremap_resource(ocelot->dev, res);
+		port_regs = devm_ioremap_resource(ocelot->dev, &res);
 		if (IS_ERR(port_regs)) {
 			dev_err(ocelot->dev,
 				"failed to map registers for port %d\n", port);

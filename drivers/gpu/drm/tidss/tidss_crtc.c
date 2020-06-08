@@ -379,9 +379,17 @@ static struct drm_crtc_state *tidss_crtc_duplicate_state(struct drm_crtc *crtc)
 	return &state->base;
 }
 
+static void tidss_crtc_destroy(struct drm_crtc *crtc)
+{
+	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
+
+	drm_crtc_cleanup(crtc);
+	kfree(tcrtc);
+}
+
 static const struct drm_crtc_funcs tidss_crtc_funcs = {
 	.reset = tidss_crtc_reset,
-	.destroy = drm_crtc_cleanup,
+	.destroy = tidss_crtc_destroy,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = tidss_crtc_duplicate_state,
@@ -400,7 +408,7 @@ struct tidss_crtc *tidss_crtc_create(struct tidss_device *tidss,
 	bool has_ctm = tidss->feat->vp_feat.color.has_ctm;
 	int ret;
 
-	tcrtc = devm_kzalloc(tidss->dev, sizeof(*tcrtc), GFP_KERNEL);
+	tcrtc = kzalloc(sizeof(*tcrtc), GFP_KERNEL);
 	if (!tcrtc)
 		return ERR_PTR(-ENOMEM);
 
@@ -411,8 +419,10 @@ struct tidss_crtc *tidss_crtc_create(struct tidss_device *tidss,
 
 	ret = drm_crtc_init_with_planes(&tidss->ddev, crtc, primary,
 					NULL, &tidss_crtc_funcs, NULL);
-	if (ret < 0)
+	if (ret < 0) {
+		kfree(tcrtc);
 		return ERR_PTR(ret);
+	}
 
 	drm_crtc_helper_add(crtc, &tidss_crtc_helper_funcs);
 

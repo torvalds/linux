@@ -299,8 +299,6 @@
 	grf: syscon@ff100000 {
 		compatible = "rockchip,rk3328-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff100000 0x0 0x1000>;
-		#address-cells = <1>;
-		#size-cells = <1>;
 
 		io_domains: io-domains {
 			compatible = "rockchip,rk3328-io-voltage-domain";
@@ -1794,28 +1792,12 @@
 		};
 
 		gmac2phy {
-			fephyled_speed100: fephyled-speed100 {
-				rockchip,pins = <0 RK_PD7 1 &pcfg_pull_none>;
-			};
-
 			fephyled_speed10: fephyled-speed10 {
 				rockchip,pins = <0 RK_PD6 1 &pcfg_pull_none>;
 			};
 
 			fephyled_duplex: fephyled-duplex {
 				rockchip,pins = <0 RK_PD6 2 &pcfg_pull_none>;
-			};
-
-			fephyled_rxm0: fephyled-rxm0 {
-				rockchip,pins = <0 RK_PD5 1 &pcfg_pull_none>;
-			};
-
-			fephyled_txm0: fephyled-txm0 {
-				rockchip,pins = <0 RK_PD5 2 &pcfg_pull_none>;
-			};
-
-			fephyled_linkm0: fephyled-linkm0 {
-				rockchip,pins = <0 RK_PD4 1 &pcfg_pull_none>;
 			};
 
 			fephyled_rxm1: fephyled-rxm1 {

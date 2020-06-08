@@ -22,7 +22,7 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 
-unsigned long gp_in_global __asm__("gp");
+register unsigned long gp_in_global __asm__("gp");
 
 extern asmlinkage void ret_from_fork(void);
 extern asmlinkage void ret_from_kernel_thread(void);

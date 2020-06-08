@@ -1168,14 +1168,14 @@ static void __reg_assign_32_into_64(struct bpf_reg_state *reg)
 	 * but must be positive otherwise set to worse case bounds
 	 * and refine later from tnum.
 	 */
-	if (reg->s32_min_value > 0)
-		reg->smin_value = reg->s32_min_value;
-	else
-		reg->smin_value = 0;
-	if (reg->s32_max_value > 0)
+	if (reg->s32_min_value >= 0 && reg->s32_max_value >= 0)
 		reg->smax_value = reg->s32_max_value;
 	else
 		reg->smax_value = U32_MAX;
+	if (reg->s32_min_value >= 0)
+		reg->smin_value = reg->s32_min_value;
+	else
+		reg->smin_value = 0;
 }
 
 static void __reg_combine_32_into_64(struct bpf_reg_state *reg)
@@ -1255,8 +1255,7 @@ static void __mark_reg_unknown(const struct bpf_verifier_env *env,
 	reg->type = SCALAR_VALUE;
 	reg->var_off = tnum_unknown;
 	reg->frameno = 0;
-	reg->precise = env->subprog_cnt > 1 || !env->allow_ptr_leaks ?
-		       true : false;
+	reg->precise = env->subprog_cnt > 1 || !env->allow_ptr_leaks;
 	__mark_reg_unbounded(reg);
 }
 
@@ -2119,6 +2118,15 @@ static bool register_is_const(struct bpf_reg_state *reg)
 	return reg->type == SCALAR_VALUE && tnum_is_const(reg->var_off);
 }
 
+static bool __is_pointer_value(bool allow_ptr_leaks,
+			       const struct bpf_reg_state *reg)
+{
+	if (allow_ptr_leaks)
+		return false;
+
+	return reg->type != SCALAR_VALUE;
+}
+
 static void save_register_state(struct bpf_func_state *state,
 				int spi, struct bpf_reg_state *reg)
 {
@@ -2309,6 +2317,16 @@ static int check_stack_read(struct bpf_verifier_env *env,
 			 * which resets stack/reg liveness for state transitions
 			 */
 			state->regs[value_regno].live |= REG_LIVE_WRITTEN;
+		} else if (__is_pointer_value(env->allow_ptr_leaks, reg)) {
+			/* If value_regno==-1, the caller is asking us whether
+			 * it is acceptable to use this value as a SCALAR_VALUE
+			 * (e.g. for XADD).
+			 * We must not allow unprivileged callers to do that
+			 * with spilled pointers.
+			 */
+			verbose(env, "leaking pointer from stack off %d\n",
+				off);
+			return -EACCES;
 		}
 		mark_reg_read(env, reg, reg->parent, REG_LIVE_READ64);
 	} else {
@@ -2672,15 +2690,6 @@ static int check_sock_access(struct bpf_verifier_env *env, int insn_idx,
 		regno, reg_type_str[reg->type], off, size);
 
 	return -EACCES;
-}
-
-static bool __is_pointer_value(bool allow_ptr_leaks,
-			       const struct bpf_reg_state *reg)
-{
-	if (allow_ptr_leaks)
-		return false;
-
-	return reg->type != SCALAR_VALUE;
 }
 
 static struct bpf_reg_state *reg_state(struct bpf_verifier_env *env, int regno)
@@ -3090,7 +3099,7 @@ static int check_ptr_to_btf_access(struct bpf_verifier_env *env,
 	if (ret < 0)
 		return ret;
 
-	if (atype == BPF_READ) {
+	if (atype == BPF_READ && value_regno >= 0) {
 		if (ret == SCALAR_VALUE) {
 			mark_reg_unknown(env, regs, value_regno);
 			return 0;
@@ -4331,7 +4340,9 @@ static void do_refine_retval_range(struct bpf_reg_state *regs, int ret_type,
 
 	if (ret_type != RET_INTEGER ||
 	    (func_id != BPF_FUNC_get_stack &&
-	     func_id != BPF_FUNC_probe_read_str))
+	     func_id != BPF_FUNC_probe_read_str &&
+	     func_id != BPF_FUNC_probe_read_kernel_str &&
+	     func_id != BPF_FUNC_probe_read_user_str))
 		return;
 
 	ret_reg->smax_value = meta->msize_max_value;
@@ -7050,6 +7061,23 @@ static int check_return_code(struct bpf_verifier_env *env)
 			return 0;
 		range = tnum_const(0);
 		break;
+	case BPF_PROG_TYPE_TRACING:
+		switch (env->prog->expected_attach_type) {
+		case BPF_TRACE_FENTRY:
+		case BPF_TRACE_FEXIT:
+			range = tnum_const(0);
+			break;
+		case BPF_TRACE_RAW_TP:
+		case BPF_MODIFY_RETURN:
+			return 0;
+		default:
+			return -ENOTSUPP;
+		}
+		break;
+	case BPF_PROG_TYPE_EXT:
+		/* freplace program can return anything as its return value
+		 * depends on the to-be-replaced kernel func or bpf program.
+		 */
 	default:
 		return 0;
 	}
@@ -10400,21 +10428,12 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 }
 #define SECURITY_PREFIX "security_"
 
-static int check_attach_modify_return(struct bpf_verifier_env *env)
+static int check_attach_modify_return(struct bpf_prog *prog, unsigned long addr)
 {
-	struct bpf_prog *prog = env->prog;
-	unsigned long addr = (unsigned long) prog->aux->trampoline->func.addr;
-
-	/* This is expected to be cleaned up in the future with the KRSI effort
-	 * introducing the LSM_HOOK macro for cleaning up lsm_hooks.h.
-	 */
 	if (within_error_injection_list(addr) ||
 	    !strncmp(SECURITY_PREFIX, prog->aux->attach_func_name,
 		     sizeof(SECURITY_PREFIX) - 1))
 		return 0;
-
-	verbose(env, "fmod_ret attach_btf_id %u (%s) is not modifiable\n",
-		prog->aux->attach_btf_id, prog->aux->attach_func_name);
 
 	return -EINVAL;
 }
@@ -10488,6 +10507,7 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 				return -EINVAL;
 			}
 			env->ops = bpf_verifier_ops[tgt_prog->type];
+			prog->expected_attach_type = tgt_prog->expected_attach_type;
 		}
 		if (!tgt_prog->jited) {
 			verbose(env, "Can attach to only JITed progs\n");
@@ -10625,11 +10645,18 @@ static int check_attach_btf_id(struct bpf_verifier_env *env)
 				goto out;
 			}
 		}
+
+		if (prog->expected_attach_type == BPF_MODIFY_RETURN) {
+			ret = check_attach_modify_return(prog, addr);
+			if (ret)
+				verbose(env, "%s() is not modifiable\n",
+					prog->aux->attach_func_name);
+		}
+
+		if (ret)
+			goto out;
 		tr->func.addr = (void *)addr;
 		prog->aux->trampoline = tr;
-
-		if (prog->expected_attach_type == BPF_MODIFY_RETURN)
-			ret = check_attach_modify_return(env);
 out:
 		mutex_unlock(&tr->mutex);
 		if (ret)
@@ -10832,6 +10859,13 @@ err_release_maps:
 		 * them now. Otherwise free_used_maps() will release them.
 		 */
 		release_maps(env);
+
+	/* extension progs temporarily inherit the attach_type of their targets
+	   for verification purposes, so set it back to zero before returning
+	 */
+	if (env->prog->type == BPF_PROG_TYPE_EXT)
+		env->prog->expected_attach_type = 0;
+
 	*prog = env->prog;
 err_unlock:
 	if (!is_priv)

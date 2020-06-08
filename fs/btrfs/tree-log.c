@@ -96,8 +96,8 @@ enum {
 static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct btrfs_inode *inode,
 			   int inode_only,
-			   u64 start,
-			   u64 end,
+			   const loff_t start,
+			   const loff_t end,
 			   struct btrfs_log_ctx *ctx);
 static int link_to_fixup_dir(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
@@ -4226,6 +4226,9 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 	const u64 ino = btrfs_ino(inode);
 	struct btrfs_path *dst_path = NULL;
 	bool dropped_extents = false;
+	u64 truncate_offset = i_size;
+	struct extent_buffer *leaf;
+	int slot;
 	int ins_nr = 0;
 	int start_slot;
 	int ret;
@@ -4240,9 +4243,43 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 	if (ret < 0)
 		goto out;
 
+	/*
+	 * We must check if there is a prealloc extent that starts before the
+	 * i_size and crosses the i_size boundary. This is to ensure later we
+	 * truncate down to the end of that extent and not to the i_size, as
+	 * otherwise we end up losing part of the prealloc extent after a log
+	 * replay and with an implicit hole if there is another prealloc extent
+	 * that starts at an offset beyond i_size.
+	 */
+	ret = btrfs_previous_item(root, path, ino, BTRFS_EXTENT_DATA_KEY);
+	if (ret < 0)
+		goto out;
+
+	if (ret == 0) {
+		struct btrfs_file_extent_item *ei;
+
+		leaf = path->nodes[0];
+		slot = path->slots[0];
+		ei = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+
+		if (btrfs_file_extent_type(leaf, ei) ==
+		    BTRFS_FILE_EXTENT_PREALLOC) {
+			u64 extent_end;
+
+			btrfs_item_key_to_cpu(leaf, &key, slot);
+			extent_end = key.offset +
+				btrfs_file_extent_num_bytes(leaf, ei);
+
+			if (extent_end > i_size)
+				truncate_offset = extent_end;
+		}
+	} else {
+		ret = 0;
+	}
+
 	while (true) {
-		struct extent_buffer *leaf = path->nodes[0];
-		int slot = path->slots[0];
+		leaf = path->nodes[0];
+		slot = path->slots[0];
 
 		if (slot >= btrfs_header_nritems(leaf)) {
 			if (ins_nr > 0) {
@@ -4280,7 +4317,7 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 				ret = btrfs_truncate_inode_items(trans,
 							 root->log_root,
 							 &inode->vfs_inode,
-							 i_size,
+							 truncate_offset,
 							 BTRFS_EXTENT_DATA_KEY);
 			} while (ret == -EAGAIN);
 			if (ret)
@@ -4533,15 +4570,13 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   struct btrfs_inode *inode,
-			   struct btrfs_path *path,
-			   const u64 start,
-			   const u64 end)
+			   struct btrfs_path *path)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key key;
 	const u64 ino = btrfs_ino(inode);
 	const u64 i_size = i_size_read(&inode->vfs_inode);
-	u64 prev_extent_end = start;
+	u64 prev_extent_end = 0;
 	int ret;
 
 	if (!btrfs_fs_incompat(fs_info, NO_HOLES) || i_size == 0)
@@ -4549,21 +4584,14 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 
 	key.objectid = ino;
 	key.type = BTRFS_EXTENT_DATA_KEY;
-	key.offset = start;
+	key.offset = 0;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
 
-	if (ret > 0 && path->slots[0] > 0) {
-		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0] - 1);
-		if (key.objectid == ino && key.type == BTRFS_EXTENT_DATA_KEY)
-			path->slots[0]--;
-	}
-
 	while (true) {
 		struct extent_buffer *leaf = path->nodes[0];
-		u64 extent_end;
 
 		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
 			ret = btrfs_next_leaf(root, path);
@@ -4580,18 +4608,9 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 		if (key.objectid != ino || key.type != BTRFS_EXTENT_DATA_KEY)
 			break;
 
-		extent_end = btrfs_file_extent_end(path);
-		if (extent_end <= start)
-			goto next_slot;
-
 		/* We have a hole, log it. */
 		if (prev_extent_end < key.offset) {
-			u64 hole_len;
-
-			if (key.offset >= end)
-				hole_len = end - prev_extent_end;
-			else
-				hole_len = key.offset - prev_extent_end;
+			const u64 hole_len = key.offset - prev_extent_end;
 
 			/*
 			 * Release the path to avoid deadlocks with other code
@@ -4621,20 +4640,16 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 			leaf = path->nodes[0];
 		}
 
-		prev_extent_end = min(extent_end, end);
-		if (extent_end >= end)
-			break;
-next_slot:
+		prev_extent_end = btrfs_file_extent_end(path);
 		path->slots[0]++;
 		cond_resched();
 	}
 
-	if (prev_extent_end < end && prev_extent_end < i_size) {
+	if (prev_extent_end < i_size) {
 		u64 hole_len;
 
 		btrfs_release_path(path);
-		hole_len = min(ALIGN(i_size, fs_info->sectorsize), end);
-		hole_len -= prev_extent_end;
+		hole_len = ALIGN(i_size - prev_extent_end, fs_info->sectorsize);
 		ret = btrfs_insert_file_extent(trans, root->log_root,
 					       ino, prev_extent_end, 0, 0,
 					       hole_len, 0, hole_len,
@@ -4971,8 +4986,6 @@ static int copy_inode_items_to_log(struct btrfs_trans_handle *trans,
 				   const u64 logged_isize,
 				   const bool recursive_logging,
 				   const int inode_only,
-				   const u64 start,
-				   const u64 end,
 				   struct btrfs_log_ctx *ctx,
 				   bool *need_log_inode_item)
 {
@@ -4981,21 +4994,6 @@ static int copy_inode_items_to_log(struct btrfs_trans_handle *trans,
 	int ins_nr = 0;
 	int ret;
 
-	/*
-	 * We must make sure we don't copy extent items that are entirely out of
-	 * the range [start, end - 1]. This is not just an optimization to avoid
-	 * copying but also needed to avoid a corruption where we end up with
-	 * file extent items in the log tree that have overlapping ranges - this
-	 * can happen if we race with ordered extent completion for ranges that
-	 * are outside our target range. For example we copy an extent item and
-	 * when we move to the next leaf, that extent was trimmed and a new one
-	 * covering a subrange of it, but with a higher key, was inserted - we
-	 * would then copy this other extent too, resulting in a log tree with
-	 * 2 extent items that represent overlapping ranges.
-	 *
-	 * We can copy the entire extents at the range bondaries however, even
-	 * if they cover an area outside the target range. That's ok.
-	 */
 	while (1) {
 		ret = btrfs_search_forward(root, min_key, path, trans->transid);
 		if (ret < 0)
@@ -5063,29 +5061,6 @@ again:
 			goto next_slot;
 		}
 
-		if (min_key->type == BTRFS_EXTENT_DATA_KEY) {
-			const u64 extent_end = btrfs_file_extent_end(path);
-
-			if (extent_end <= start) {
-				if (ins_nr > 0) {
-					ret = copy_items(trans, inode, dst_path,
-							 path, ins_start_slot,
-							 ins_nr, inode_only,
-							 logged_isize);
-					if (ret < 0)
-						return ret;
-					ins_nr = 0;
-				}
-				goto next_slot;
-			}
-			if (extent_end >= end) {
-				ins_nr++;
-				if (ins_nr == 1)
-					ins_start_slot = path->slots[0];
-				break;
-			}
-		}
-
 		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
 			ins_nr++;
 			goto next_slot;
@@ -5151,8 +5126,8 @@ next_key:
 static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, struct btrfs_inode *inode,
 			   int inode_only,
-			   u64 start,
-			   u64 end,
+			   const loff_t start,
+			   const loff_t end,
 			   struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -5179,9 +5154,6 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 		btrfs_free_path(path);
 		return -ENOMEM;
 	}
-
-	start = ALIGN_DOWN(start, fs_info->sectorsize);
-	end = ALIGN(end, fs_info->sectorsize);
 
 	min_key.objectid = ino;
 	min_key.type = BTRFS_INODE_ITEM_KEY;
@@ -5298,8 +5270,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 
 	err = copy_inode_items_to_log(trans, inode, &min_key, &max_key,
 				      path, dst_path, logged_isize,
-				      recursive_logging, inode_only,
-				      start, end, ctx, &need_log_inode_item);
+				      recursive_logging, inode_only, ctx,
+				      &need_log_inode_item);
 	if (err)
 		goto out_unlock;
 
@@ -5312,7 +5284,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	if (max_key.type >= BTRFS_EXTENT_DATA_KEY && !fast_search) {
 		btrfs_release_path(path);
 		btrfs_release_path(dst_path);
-		err = btrfs_log_holes(trans, root, inode, path, start, end);
+		err = btrfs_log_holes(trans, root, inode, path);
 		if (err)
 			goto out_unlock;
 	}

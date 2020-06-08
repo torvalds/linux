@@ -106,7 +106,7 @@ struct lruvec_stat {
  */
 struct memcg_shrinker_map {
 	struct rcu_head rcu;
-	unsigned long map[0];
+	unsigned long map[];
 };
 
 /*
@@ -148,7 +148,7 @@ struct mem_cgroup_threshold_ary {
 	/* Size of entries[] */
 	unsigned int size;
 	/* Array of thresholds */
-	struct mem_cgroup_threshold entries[0];
+	struct mem_cgroup_threshold entries[];
 };
 
 struct mem_cgroup_thresholds {
@@ -783,6 +783,8 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
 		atomic_long_inc(&memcg->memory_events[event]);
 		cgroup_file_notify(&memcg->events_file);
 
+		if (!cgroup_subsys_on_dfl(memory_cgrp_subsys))
+			break;
 		if (cgrp_dfl_root.flags & CGRP_ROOT_MEMORY_LOCAL_EVENTS)
 			break;
 	} while ((memcg = parent_mem_cgroup(memcg)) &&

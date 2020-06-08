@@ -76,8 +76,7 @@ static struct clk_alpha_pll_postdiv gpll0_out_even = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll0_out_even",
 		.parent_data = &(const struct clk_parent_data){
-			.fw_name = "bi_tcxo",
-			.name = "bi_tcxo",
+			.hw = &gpll0.clkr.hw,
 		},
 		.num_parents = 1,
 		.ops = &clk_trion_pll_postdiv_ops,

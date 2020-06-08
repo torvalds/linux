@@ -12,6 +12,7 @@
 #include <net/flow_offload.h>
 #include <net/netfilter/nf_flow_table.h>
 #include <linux/workqueue.h>
+#include <linux/xarray.h>
 
 #include "esw/chains.h"
 #include "en/tc_ct.h"
@@ -35,7 +36,7 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_eswitch *esw;
 	const struct net_device *netdev;
 	struct idr fte_ids;
-	struct idr tuple_ids;
+	struct xarray tuple_ids;
 	struct rhashtable zone_ht;
 	struct mlx5_flow_table *ct;
 	struct mlx5_flow_table *ct_nat;
@@ -67,11 +68,9 @@ struct mlx5_ct_ft {
 	struct nf_flowtable *nf_ft;
 	struct mlx5_tc_ct_priv *ct_priv;
 	struct rhashtable ct_entries_ht;
-	struct list_head ct_entries_list;
 };
 
 struct mlx5_ct_entry {
-	struct list_head list;
 	u16 zone;
 	struct rhash_head node;
 	struct flow_rule *flow_rule;
@@ -240,7 +239,7 @@ mlx5_tc_ct_entry_del_rule(struct mlx5_tc_ct_priv *ct_priv,
 
 	mlx5_eswitch_del_offloaded_rule(esw, zone_rule->rule, attr);
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
-	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
+	xa_erase(&ct_priv->tuple_ids, zone_rule->tupleid);
 }
 
 static void
@@ -485,7 +484,7 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 	struct mlx5_esw_flow_attr *attr = &zone_rule->attr;
 	struct mlx5_eswitch *esw = ct_priv->esw;
 	struct mlx5_flow_spec *spec = NULL;
-	u32 tupleid = 1;
+	u32 tupleid;
 	int err;
 
 	zone_rule->nat = nat;
@@ -495,12 +494,12 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 		return -ENOMEM;
 
 	/* Get tuple unique id */
-	err = idr_alloc_u32(&ct_priv->tuple_ids, zone_rule, &tupleid,
-			    TUPLE_ID_MAX, GFP_KERNEL);
+	err = xa_alloc(&ct_priv->tuple_ids, &tupleid, zone_rule,
+		       XA_LIMIT(1, TUPLE_ID_MAX), GFP_KERNEL);
 	if (err) {
 		netdev_warn(ct_priv->netdev,
 			    "Failed to allocate tuple id, err: %d\n", err);
-		goto err_idr_alloc;
+		goto err_xa_alloc;
 	}
 	zone_rule->tupleid = tupleid;
 
@@ -541,8 +540,8 @@ mlx5_tc_ct_entry_add_rule(struct mlx5_tc_ct_priv *ct_priv,
 err_rule:
 	mlx5_modify_header_dealloc(esw->dev, attr->modify_hdr);
 err_mod_hdr:
-	idr_remove(&ct_priv->tuple_ids, zone_rule->tupleid);
-err_idr_alloc:
+	xa_erase(&ct_priv->tuple_ids, zone_rule->tupleid);
+err_xa_alloc:
 	kfree(spec);
 	return err;
 }
@@ -617,8 +616,6 @@ mlx5_tc_ct_block_flow_offload_add(struct mlx5_ct_ft *ft,
 	if (err)
 		goto err_insert;
 
-	list_add(&entry->list, &ft->ct_entries_list);
-
 	return 0;
 
 err_insert:
@@ -646,7 +643,6 @@ mlx5_tc_ct_block_flow_offload_del(struct mlx5_ct_ft *ft,
 	WARN_ON(rhashtable_remove_fast(&ft->ct_entries_ht,
 				       &entry->node,
 				       cts_ht_params));
-	list_del(&entry->list);
 	kfree(entry);
 
 	return 0;
@@ -703,6 +699,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		       struct netlink_ext_ack *extack)
 {
 	struct mlx5_tc_ct_priv *ct_priv = mlx5_tc_ct_get_ct_priv(priv);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector_key_ct *mask, *key;
 	bool trk, est, untrk, unest, new;
 	u32 ctstate = 0, ctstate_mask = 0;
@@ -710,7 +707,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 	u16 ct_state, ct_state_mask;
 	struct flow_match_ct match;
 
-	if (!flow_rule_match_key(f->rule, FLOW_DISSECTOR_KEY_CT))
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_CT))
 		return 0;
 
 	if (!ct_priv) {
@@ -719,7 +716,7 @@ mlx5_tc_ct_parse_match(struct mlx5e_priv *priv,
 		return -EOPNOTSUPP;
 	}
 
-	flow_rule_match_ct(f->rule, &match);
+	flow_rule_match_ct(rule, &match);
 
 	key = match.key;
 	mask = match.mask;
@@ -818,7 +815,6 @@ mlx5_tc_ct_add_ft_cb(struct mlx5_tc_ct_priv *ct_priv, u16 zone,
 	ft->zone = zone;
 	ft->nf_ft = nf_ft;
 	ft->ct_priv = ct_priv;
-	INIT_LIST_HEAD(&ft->ct_entries_list);
 	refcount_set(&ft->refcount, 1);
 
 	err = rhashtable_init(&ft->ct_entries_ht, &cts_ht_params);
@@ -847,12 +843,12 @@ err_init:
 }
 
 static void
-mlx5_tc_ct_flush_ft(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
+mlx5_tc_ct_flush_ft_entry(void *ptr, void *arg)
 {
-	struct mlx5_ct_entry *entry;
+	struct mlx5_tc_ct_priv *ct_priv = arg;
+	struct mlx5_ct_entry *entry = ptr;
 
-	list_for_each_entry(entry, &ft->ct_entries_list, list)
-		mlx5_tc_ct_entry_del_rules(ft->ct_priv, entry);
+	mlx5_tc_ct_entry_del_rules(ct_priv, entry);
 }
 
 static void
@@ -863,9 +859,10 @@ mlx5_tc_ct_del_ft_cb(struct mlx5_tc_ct_priv *ct_priv, struct mlx5_ct_ft *ft)
 
 	nf_flow_table_offload_del_cb(ft->nf_ft,
 				     mlx5_tc_ct_block_flow_offload, ft);
-	mlx5_tc_ct_flush_ft(ct_priv, ft);
 	rhashtable_remove_fast(&ct_priv->zone_ht, &ft->node, zone_params);
-	rhashtable_destroy(&ft->ct_entries_ht);
+	rhashtable_free_and_destroy(&ft->ct_entries_ht,
+				    mlx5_tc_ct_flush_ft_entry,
+				    ct_priv);
 	kfree(ft);
 }
 
@@ -1304,7 +1301,7 @@ mlx5_tc_ct_init(struct mlx5_rep_uplink_priv *uplink_priv)
 	}
 
 	idr_init(&ct_priv->fte_ids);
-	idr_init(&ct_priv->tuple_ids);
+	xa_init_flags(&ct_priv->tuple_ids, XA_FLAGS_ALLOC1);
 	mutex_init(&ct_priv->control_lock);
 	rhashtable_init(&ct_priv->zone_ht, &zone_params);
 
@@ -1339,7 +1336,7 @@ mlx5_tc_ct_clean(struct mlx5_rep_uplink_priv *uplink_priv)
 
 	rhashtable_destroy(&ct_priv->zone_ht);
 	mutex_destroy(&ct_priv->control_lock);
-	idr_destroy(&ct_priv->tuple_ids);
+	xa_destroy(&ct_priv->tuple_ids);
 	idr_destroy(&ct_priv->fte_ids);
 	kfree(ct_priv);
 
@@ -1357,7 +1354,7 @@ mlx5e_tc_ct_restore_flow(struct mlx5_rep_uplink_priv *uplink_priv,
 	if (!ct_priv || !tupleid)
 		return true;
 
-	zone_rule = idr_find(&ct_priv->tuple_ids, tupleid);
+	zone_rule = xa_load(&ct_priv->tuple_ids, tupleid);
 	if (!zone_rule)
 		return false;
 

@@ -407,12 +407,39 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 
 	set_vm_flush_reset_perms(trampoline);
 
-	set_memory_ro((unsigned long)trampoline, npages);
+	if (likely(system_state != SYSTEM_BOOTING))
+		set_memory_ro((unsigned long)trampoline, npages);
 	set_memory_x((unsigned long)trampoline, npages);
 	return (unsigned long)trampoline;
 fail:
 	tramp_free(trampoline);
 	return 0;
+}
+
+void set_ftrace_ops_ro(void)
+{
+	struct ftrace_ops *ops;
+	unsigned long start_offset;
+	unsigned long end_offset;
+	unsigned long npages;
+	unsigned long size;
+
+	do_for_each_ftrace_op(ops, ftrace_ops_list) {
+		if (!(ops->flags & FTRACE_OPS_FL_ALLOC_TRAMP))
+			continue;
+
+		if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
+			start_offset = (unsigned long)ftrace_regs_caller;
+			end_offset = (unsigned long)ftrace_regs_caller_end;
+		} else {
+			start_offset = (unsigned long)ftrace_caller;
+			end_offset = (unsigned long)ftrace_epilogue;
+		}
+		size = end_offset - start_offset;
+		size = size + RET_SIZE + sizeof(void *);
+		npages = DIV_ROUND_UP(size, PAGE_SIZE);
+		set_memory_ro((unsigned long)ops->trampoline, npages);
+	} while_for_each_ftrace_op(ops);
 }
 
 static unsigned long calc_trampoline_call_offset(bool save_regs)

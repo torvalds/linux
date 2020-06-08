@@ -1082,8 +1082,8 @@ static void neigh_timer_handler(struct timer_list *t)
 	}
 
 	if (neigh->nud_state & NUD_IN_TIMER) {
-		if (time_before(next, jiffies + HZ/2))
-			next = jiffies + HZ/2;
+		if (time_before(next, jiffies + HZ/100))
+			next = jiffies + HZ/100;
 		if (!mod_timer(&neigh->timer, next))
 			neigh_hold(neigh);
 	}
@@ -1956,6 +1956,9 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 				   NEIGH_UPDATE_F_OVERRIDE_ISROUTER);
 	}
 
+	if (protocol)
+		neigh->protocol = protocol;
+
 	if (ndm->ndm_flags & NTF_EXT_LEARNED)
 		flags |= NEIGH_UPDATE_F_EXT_LEARNED;
 
@@ -1968,9 +1971,6 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	} else
 		err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
 				     NETLINK_CB(skb).portid, extack);
-
-	if (protocol)
-		neigh->protocol = protocol;
 
 	neigh_release(neigh);
 

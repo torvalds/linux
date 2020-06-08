@@ -110,6 +110,16 @@ static bool is_32b_int(s64 val)
 	return -(1L << 31) <= val && val < (1L << 31);
 }
 
+static bool in_auipc_jalr_range(s64 val)
+{
+	/*
+	 * auipc+jalr can reach any signed PC-relative offset in the range
+	 * [-2^31 - 2^11, 2^31 - 2^11).
+	 */
+	return (-(1L << 31) - (1L << 11)) <= val &&
+		val < ((1L << 31) - (1L << 11));
+}
+
 static void emit_imm(u8 rd, s64 val, struct rv_jit_context *ctx)
 {
 	/* Note that the immediate from the add is sign-extended,
@@ -380,20 +390,24 @@ static void emit_sext_32_rd(u8 *rd, struct rv_jit_context *ctx)
 	*rd = RV_REG_T2;
 }
 
-static void emit_jump_and_link(u8 rd, s64 rvoff, bool force_jalr,
-			       struct rv_jit_context *ctx)
+static int emit_jump_and_link(u8 rd, s64 rvoff, bool force_jalr,
+			      struct rv_jit_context *ctx)
 {
 	s64 upper, lower;
 
 	if (rvoff && is_21b_int(rvoff) && !force_jalr) {
 		emit(rv_jal(rd, rvoff >> 1), ctx);
-		return;
+		return 0;
+	} else if (in_auipc_jalr_range(rvoff)) {
+		upper = (rvoff + (1 << 11)) >> 12;
+		lower = rvoff & 0xfff;
+		emit(rv_auipc(RV_REG_T1, upper), ctx);
+		emit(rv_jalr(rd, RV_REG_T1, lower), ctx);
+		return 0;
 	}
 
-	upper = (rvoff + (1 << 11)) >> 12;
-	lower = rvoff & 0xfff;
-	emit(rv_auipc(RV_REG_T1, upper), ctx);
-	emit(rv_jalr(rd, RV_REG_T1, lower), ctx);
+	pr_err("bpf-jit: target offset 0x%llx is out of range\n", rvoff);
+	return -ERANGE;
 }
 
 static bool is_signed_bpf_cond(u8 cond)
@@ -407,18 +421,16 @@ static int emit_call(bool fixed, u64 addr, struct rv_jit_context *ctx)
 	s64 off = 0;
 	u64 ip;
 	u8 rd;
+	int ret;
 
 	if (addr && ctx->insns) {
 		ip = (u64)(long)(ctx->insns + ctx->ninsns);
 		off = addr - ip;
-		if (!is_32b_int(off)) {
-			pr_err("bpf-jit: target call addr %pK is out of range\n",
-			       (void *)addr);
-			return -ERANGE;
-		}
 	}
 
-	emit_jump_and_link(RV_REG_RA, off, !fixed, ctx);
+	ret = emit_jump_and_link(RV_REG_RA, off, !fixed, ctx);
+	if (ret)
+		return ret;
 	rd = bpf_to_rv_reg(BPF_REG_0, ctx);
 	emit(rv_addi(rd, RV_REG_A0, 0), ctx);
 	return 0;
@@ -429,7 +441,7 @@ int bpf_jit_emit_insn(const struct bpf_insn *insn, struct rv_jit_context *ctx,
 {
 	bool is64 = BPF_CLASS(insn->code) == BPF_ALU64 ||
 		    BPF_CLASS(insn->code) == BPF_JMP;
-	int s, e, rvoff, i = insn - ctx->prog->insnsi;
+	int s, e, rvoff, ret, i = insn - ctx->prog->insnsi;
 	struct bpf_prog_aux *aux = ctx->prog->aux;
 	u8 rd = -1, rs = -1, code = insn->code;
 	s16 off = insn->off;
@@ -699,7 +711,9 @@ out_be:
 	/* JUMP off */
 	case BPF_JMP | BPF_JA:
 		rvoff = rv_offset(i, off, ctx);
-		emit_jump_and_link(RV_REG_ZERO, rvoff, false, ctx);
+		ret = emit_jump_and_link(RV_REG_ZERO, rvoff, false, ctx);
+		if (ret)
+			return ret;
 		break;
 
 	/* IF (dst COND src) JUMP off */
@@ -801,7 +815,6 @@ out_be:
 	case BPF_JMP | BPF_CALL:
 	{
 		bool fixed;
-		int ret;
 		u64 addr;
 
 		mark_call(ctx);
@@ -826,7 +839,9 @@ out_be:
 			break;
 
 		rvoff = epilogue_offset(ctx);
-		emit_jump_and_link(RV_REG_ZERO, rvoff, false, ctx);
+		ret = emit_jump_and_link(RV_REG_ZERO, rvoff, false, ctx);
+		if (ret)
+			return ret;
 		break;
 
 	/* dst = imm64 */

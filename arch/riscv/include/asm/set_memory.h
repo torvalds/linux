@@ -22,14 +22,6 @@ static inline int set_memory_x(unsigned long addr, int numpages) { return 0; }
 static inline int set_memory_nx(unsigned long addr, int numpages) { return 0; }
 #endif
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
-void set_kernel_text_ro(void);
-void set_kernel_text_rw(void);
-#else
-static inline void set_kernel_text_ro(void) { }
-static inline void set_kernel_text_rw(void) { }
-#endif
-
 int set_direct_map_invalid_noflush(struct page *page);
 int set_direct_map_default_noflush(struct page *page);
 

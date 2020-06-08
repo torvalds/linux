@@ -1343,7 +1343,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		return err;
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR) {
+	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR &&
+	    !(attr->ct_attr.ct_action & TCA_CT_ACT_CLEAR)) {
 		err = mlx5e_attach_mod_hdr(priv, flow, parse_attr);
 		dealloc_mod_hdr_actions(&parse_attr->mod_hdr_acts);
 		if (err)
@@ -2067,7 +2068,7 @@ static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
 	flow_rule_match_meta(rule, &match);
 	if (match.mask->ingress_ifindex != 0xFFFFFFFF) {
 		NL_SET_ERR_MSG_MOD(extack, "Unsupported ingress ifindex mask");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	ingress_dev = __dev_get_by_index(dev_net(filter_dev),
@@ -2075,13 +2076,13 @@ static int mlx5e_flower_parse_meta(struct net_device *filter_dev,
 	if (!ingress_dev) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't find the ingress port to match on");
-		return -EINVAL;
+		return -ENOENT;
 	}
 
 	if (ingress_dev != filter_dev) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can't match on the ingress filter port");
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -3072,6 +3073,11 @@ static bool actions_match_supported(struct mlx5e_priv *priv,
 	return true;
 }
 
+static bool same_port_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
+{
+	return priv->mdev == peer_priv->mdev;
+}
+
 static bool same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv)
 {
 	struct mlx5_core_dev *fmdev, *pmdev;
@@ -3290,7 +3296,7 @@ static inline int hash_encap_info(struct encap_key *key)
 }
 
 
-static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
+static bool is_merged_eswitch_vfs(struct mlx5e_priv *priv,
 				  struct net_device *peer_netdev)
 {
 	struct mlx5e_priv *peer_priv;
@@ -3298,12 +3304,10 @@ static bool is_merged_eswitch_dev(struct mlx5e_priv *priv,
 	peer_priv = netdev_priv(peer_netdev);
 
 	return (MLX5_CAP_ESW(priv->mdev, merged_eswitch) &&
-		mlx5e_eswitch_rep(priv->netdev) &&
-		mlx5e_eswitch_rep(peer_netdev) &&
+		mlx5e_eswitch_vf_rep(priv->netdev) &&
+		mlx5e_eswitch_vf_rep(peer_netdev) &&
 		same_hw_devs(priv, peer_priv));
 }
-
-
 
 bool mlx5e_encap_take(struct mlx5e_encap_entry *e)
 {
@@ -3558,12 +3562,13 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 			       struct mlx5_esw_flow_attr *attr,
 			       u32 *action)
 {
-	int nest_level = attr->parse_attr->filter_dev->lower_level;
 	struct flow_action_entry vlan_act = {
 		.id = FLOW_ACTION_VLAN_POP,
 	};
-	int err = 0;
+	int nest_level, err = 0;
 
+	nest_level = attr->parse_attr->filter_dev->lower_level -
+						priv->netdev->lower_level;
 	while (nest_level--) {
 		err = parse_tc_vlan_action(priv, &vlan_act, attr, action);
 		if (err)
@@ -3573,14 +3578,37 @@ static int add_vlan_pop_action(struct mlx5e_priv *priv,
 	return err;
 }
 
+static bool same_hw_reps(struct mlx5e_priv *priv,
+			 struct net_device *peer_netdev)
+{
+	struct mlx5e_priv *peer_priv;
+
+	peer_priv = netdev_priv(peer_netdev);
+
+	return mlx5e_eswitch_rep(priv->netdev) &&
+	       mlx5e_eswitch_rep(peer_netdev) &&
+	       same_hw_devs(priv, peer_priv);
+}
+
+static bool is_lag_dev(struct mlx5e_priv *priv,
+		       struct net_device *peer_netdev)
+{
+	return ((mlx5_lag_is_sriov(priv->mdev) ||
+		 mlx5_lag_is_multipath(priv->mdev)) &&
+		 same_hw_reps(priv, peer_netdev));
+}
+
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev)
 {
-	if (is_merged_eswitch_dev(priv, out_dev))
+	if (is_merged_eswitch_vfs(priv, out_dev))
+		return true;
+
+	if (is_lag_dev(priv, out_dev))
 		return true;
 
 	return mlx5e_eswitch_rep(out_dev) &&
-	       same_hw_devs(priv, netdev_priv(out_dev));
+	       same_port_devs(priv, netdev_priv(out_dev));
 }
 
 static bool is_duplicated_output_device(struct net_device *dev,
@@ -3821,10 +3849,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				if (!mlx5e_is_valid_eswitch_fwd_dev(priv, out_dev)) {
 					NL_SET_ERR_MSG_MOD(extack,
 							   "devices are not on same switch HW, can't offload forwarding");
-					netdev_warn(priv->netdev,
-						    "devices %s %s not on same switch HW, can't offload forwarding\n",
-						    priv->netdev->name,
-						    out_dev->name);
 					return -EOPNOTSUPP;
 				}
 
@@ -4586,7 +4610,7 @@ void mlx5e_tc_stats_matchall(struct mlx5e_priv *priv,
 	dpkts = cur_stats.rx_packets - rpriv->prev_vf_vport_stats.rx_packets;
 	dbytes = cur_stats.rx_bytes - rpriv->prev_vf_vport_stats.rx_bytes;
 	rpriv->prev_vf_vport_stats = cur_stats;
-	flow_stats_update(&ma->stats, dpkts, dbytes, jiffies,
+	flow_stats_update(&ma->stats, dbytes, dpkts, jiffies,
 			  FLOW_ACTION_HW_STATS_DELAYED);
 }
 

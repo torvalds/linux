@@ -729,6 +729,10 @@ static int linehandle_create(struct gpio_device *gdev, void __user *ip)
 			if (ret)
 				goto out_free_descs;
 		}
+
+		atomic_notifier_call_chain(&desc->gdev->notifier,
+					   GPIOLINE_CHANGED_REQUESTED, desc);
+
 		dev_dbg(&gdev->dev, "registered chardev handle for line %d\n",
 			offset);
 	}
@@ -1083,6 +1087,9 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		goto out_free_desc;
 
+	atomic_notifier_call_chain(&desc->gdev->notifier,
+				   GPIOLINE_CHANGED_REQUESTED, desc);
+
 	le->irq = gpiod_to_irq(desc);
 	if (le->irq <= 0) {
 		ret = -ENODEV;
@@ -1158,7 +1165,18 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 				  struct gpioline_info *info)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
+	bool ok_for_pinctrl;
 	unsigned long flags;
+
+	/*
+	 * This function takes a mutex so we must check this before taking
+	 * the spinlock.
+	 *
+	 * FIXME: find a non-racy way to retrieve this information. Maybe a
+	 * lock common to both frameworks?
+	 */
+	ok_for_pinctrl =
+		pinctrl_gpio_can_use_line(gc->base + info->line_offset);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
@@ -1186,7 +1204,7 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 	    test_bit(FLAG_USED_AS_IRQ, &desc->flags) ||
 	    test_bit(FLAG_EXPORT, &desc->flags) ||
 	    test_bit(FLAG_SYSFS, &desc->flags) ||
-	    !pinctrl_gpio_can_use_line(gc->base + info->line_offset))
+	    !ok_for_pinctrl)
 		info->flags |= GPIOLINE_FLAG_KERNEL;
 	if (test_bit(FLAG_IS_OUT, &desc->flags))
 		info->flags |= GPIOLINE_FLAG_IS_OUT;
@@ -1227,6 +1245,7 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	void __user *ip = (void __user *)arg;
 	struct gpio_desc *desc;
 	__u32 offset;
+	int hwgpio;
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
 	if (!gc)
@@ -1259,13 +1278,19 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
+		hwgpio = gpio_chip_hwgpio(desc);
+
+		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL &&
+		    test_bit(hwgpio, priv->watched_lines))
+			return -EBUSY;
+
 		gpio_desc_to_lineinfo(desc, &lineinfo);
 
 		if (copy_to_user(ip, &lineinfo, sizeof(lineinfo)))
 			return -EFAULT;
 
 		if (cmd == GPIO_GET_LINEINFO_WATCH_IOCTL)
-			set_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
+			set_bit(hwgpio, priv->watched_lines);
 
 		return 0;
 	} else if (cmd == GPIO_GET_LINEHANDLE_IOCTL) {
@@ -1280,7 +1305,12 @@ static long gpio_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (IS_ERR(desc))
 			return PTR_ERR(desc);
 
-		clear_bit(gpio_chip_hwgpio(desc), priv->watched_lines);
+		hwgpio = gpio_chip_hwgpio(desc);
+
+		if (!test_bit(hwgpio, priv->watched_lines))
+			return -EBUSY;
+
+		clear_bit(hwgpio, priv->watched_lines);
 		return 0;
 	}
 	return -EINVAL;
@@ -2975,8 +3005,6 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	}
 done:
 	spin_unlock_irqrestore(&gpio_lock, flags);
-	atomic_notifier_call_chain(&desc->gdev->notifier,
-				   GPIOLINE_CHANGED_REQUESTED, desc);
 	return ret;
 }
 
@@ -4192,7 +4220,9 @@ int gpiochip_lock_as_irq(struct gpio_chip *gc, unsigned int offset)
 		}
 	}
 
-	if (test_bit(FLAG_IS_OUT, &desc->flags)) {
+	/* To be valid for IRQ the line needs to be input or open drain */
+	if (test_bit(FLAG_IS_OUT, &desc->flags) &&
+	    !test_bit(FLAG_OPEN_DRAIN, &desc->flags)) {
 		chip_err(gc,
 			 "%s: tried to flag a GPIO set as output for IRQ\n",
 			 __func__);
@@ -4255,7 +4285,12 @@ void gpiochip_enable_irq(struct gpio_chip *gc, unsigned int offset)
 
 	if (!IS_ERR(desc) &&
 	    !WARN_ON(!test_bit(FLAG_USED_AS_IRQ, &desc->flags))) {
-		WARN_ON(test_bit(FLAG_IS_OUT, &desc->flags));
+		/*
+		 * We must not be output when using IRQ UNLESS we are
+		 * open drain.
+		 */
+		WARN_ON(test_bit(FLAG_IS_OUT, &desc->flags) &&
+			!test_bit(FLAG_OPEN_DRAIN, &desc->flags));
 		set_bit(FLAG_IRQ_IS_ENABLED, &desc->flags);
 	}
 }
@@ -4938,6 +4973,9 @@ struct gpio_desc *__must_check gpiod_get_index(struct device *dev,
 		return ERR_PTR(ret);
 	}
 
+	atomic_notifier_call_chain(&desc->gdev->notifier,
+				   GPIOLINE_CHANGED_REQUESTED, desc);
+
 	return desc;
 }
 EXPORT_SYMBOL_GPL(gpiod_get_index);
@@ -5002,6 +5040,9 @@ struct gpio_desc *fwnode_get_named_gpiod(struct fwnode_handle *fwnode,
 		gpiod_put(desc);
 		return ERR_PTR(ret);
 	}
+
+	atomic_notifier_call_chain(&desc->gdev->notifier,
+				   GPIOLINE_CHANGED_REQUESTED, desc);
 
 	return desc;
 }
@@ -5289,8 +5330,9 @@ static int __init gpiolib_dev_init(void)
 	gpiolib_initialized = true;
 	gpiochip_setup_devs();
 
-	if (IS_ENABLED(CONFIG_OF_DYNAMIC))
-		WARN_ON(of_reconfig_notifier_register(&gpio_of_notifier));
+#if IS_ENABLED(CONFIG_OF_DYNAMIC) && IS_ENABLED(CONFIG_OF_GPIO)
+	WARN_ON(of_reconfig_notifier_register(&gpio_of_notifier));
+#endif /* CONFIG_OF_DYNAMIC && CONFIG_OF_GPIO */
 
 	return ret;
 }
