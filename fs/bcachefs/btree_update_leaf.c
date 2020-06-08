@@ -830,9 +830,9 @@ int __bch2_trans_commit(struct btree_trans *trans)
 		trans_trigger_run = false;
 
 		trans_for_each_update(trans, i) {
-			if (unlikely(i->iter->uptodate > BTREE_ITER_NEED_PEEK)) {
+			if (unlikely(i->iter->uptodate > BTREE_ITER_NEED_PEEK &&
+				     (ret = bch2_btree_iter_traverse(i->iter)))) {
 				trace_trans_restart_traverse(trans->ip);
-				ret = -EINTR;
 				goto out;
 			}
 
