@@ -90,8 +90,7 @@ static void f2fs_unlock_rpages(struct compress_ctx *cc, int len)
 	f2fs_drop_rpages(cc, len, true);
 }
 
-static void f2fs_put_rpages_mapping(struct compress_ctx *cc,
-				struct address_space *mapping,
+static void f2fs_put_rpages_mapping(struct address_space *mapping,
 				pgoff_t start, int len)
 {
 	int i;
@@ -913,7 +912,7 @@ retry:
 
 		if (!PageUptodate(page)) {
 			f2fs_unlock_rpages(cc, i + 1);
-			f2fs_put_rpages_mapping(cc, mapping, start_idx,
+			f2fs_put_rpages_mapping(mapping, start_idx,
 					cc->cluster_size);
 			f2fs_destroy_compress_ctx(cc);
 			goto retry;
@@ -948,7 +947,7 @@ retry:
 unlock_pages:
 	f2fs_unlock_rpages(cc, i);
 release_pages:
-	f2fs_put_rpages_mapping(cc, mapping, start_idx, i);
+	f2fs_put_rpages_mapping(mapping, start_idx, i);
 	f2fs_destroy_compress_ctx(cc);
 	return ret;
 }
