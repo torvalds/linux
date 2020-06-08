@@ -836,11 +836,6 @@ int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	int ret = 0;
-	struct amdgpu_device *adev = smu->adev;
-
-	/* Sienna_Cichlid do not support to change display num currently */
-	if (adev->asic_type == CHIP_SIENNA_CICHLID)
-		return 0;
 
 	if (!smu->pm_enabled)
 		return ret;

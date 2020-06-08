@@ -2209,11 +2209,29 @@ static int navi10_dummy_pstate_control(struct smu_context *smu, bool enable)
 	return result;
 }
 
+static inline bool navi10_need_umc_cdr_12gbps_workaround(struct amdgpu_device *adev)
+{
+	if (adev->asic_type != CHIP_NAVI10)
+		return false;
+
+	if (adev->pdev->device == 0x731f &&
+	    (adev->pdev->revision == 0xc2 ||
+	     adev->pdev->revision == 0xc3 ||
+	     adev->pdev->revision == 0xca ||
+	     adev->pdev->revision == 0xcb))
+		return true;
+	else
+		return false;
+}
+
 static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 {
 	uint32_t uclk_count, uclk_min, uclk_max;
 	uint32_t smu_version;
 	int ret = 0;
+
+	if (!navi10_need_umc_cdr_12gbps_workaround(smu->adev))
+		return 0;
 
 	ret = smu_get_smc_version(smu, NULL, &smu_version);
 	if (ret)

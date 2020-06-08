@@ -1055,12 +1055,9 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		return 0;
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS &&
-	    adev->asic_type != CHIP_SIENNA_CICHLID) {
-		ret = smu_init_display_count(smu, 0);
-		if (ret)
-			return ret;
-	}
+	ret = smu_init_display_count(smu, 0);
+	if (ret)
+		return ret;
 
 	if (initialize) {
 		/* get boot_values from vbios to set revision, gfxclk, and etc. */
@@ -1134,17 +1131,10 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 	if (ret)
 		return ret;
 
-	if (adev->asic_type == CHIP_NAVI10) {
-		if (adev->pdev->device == 0x731f && (adev->pdev->revision == 0xc2 ||
-						     adev->pdev->revision == 0xc3 ||
-						     adev->pdev->revision == 0xca ||
-						     adev->pdev->revision == 0xcb)) {
-			ret = smu_disable_umc_cdr_12gbps_workaround(smu);
-			if (ret) {
-				pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
-				return ret;
-			}
-		}
+	ret = smu_disable_umc_cdr_12gbps_workaround(smu);
+	if (ret) {
+		pr_err("Workaround failed to disable UMC CDR feature on 12Gbps SKU!\n");
+		return ret;
 	}
 
 	if (smu->ppt_funcs->set_power_source) {
@@ -1162,20 +1152,17 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 		}
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS &&
-	    adev->asic_type != CHIP_SIENNA_CICHLID) {
-		ret = smu_notify_display_change(smu);
-		if (ret)
-			return ret;
+	ret = smu_notify_display_change(smu);
+	if (ret)
+		return ret;
 
-		/*
-		 * Set min deep sleep dce fclk with bootup value from vbios via
-		 * SetMinDeepSleepDcefclk MSG.
-		 */
-		ret = smu_set_min_dcef_deep_sleep(smu);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * Set min deep sleep dce fclk with bootup value from vbios via
+	 * SetMinDeepSleepDcefclk MSG.
+	 */
+	ret = smu_set_min_dcef_deep_sleep(smu);
+	if (ret)
+		return ret;
 
 	/*
 	 * Set initialized values (get from vbios) to dpm tables context such as
@@ -1192,11 +1179,9 @@ static int smu_smc_table_hw_init(struct smu_context *smu,
 			return ret;
 	}
 
-	if (adev->asic_type != CHIP_ARCTURUS) {
-		ret = smu_override_pcie_parameters(smu);
-		if (ret)
-			return ret;
-	}
+	ret = smu_override_pcie_parameters(smu);
+	if (ret)
+		return ret;
 
 	ret = smu_set_default_od_settings(smu, initialize);
 	if (ret)
