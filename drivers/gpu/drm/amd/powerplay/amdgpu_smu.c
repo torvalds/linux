@@ -831,9 +831,9 @@ static int smu_late_init(void *handle)
 		return ret;
 	}
 
-	ret = smu_get_power_limit(smu, &smu->default_power_limit, false, false);
+	ret = smu_get_asic_power_limits(smu);
 	if (ret) {
-		dev_err(adev->dev, "Failed to get default power limit!\n");
+		dev_err(adev->dev, "Failed to get asic power limits!\n");
 		return ret;
 	}
 
@@ -2222,8 +2222,7 @@ int smu_get_power_limit(struct smu_context *smu,
 		mutex_lock(&smu->mutex);
 	}
 
-	if (smu->ppt_funcs->get_power_limit)
-		ret = smu->ppt_funcs->get_power_limit(smu, limit, def);
+	*limit = (def ? smu->max_power_limit : smu->current_power_limit);
 
 	if (lock_needed)
 		mutex_unlock(&smu->mutex);

@@ -1409,9 +1409,7 @@ arcturus_get_profiling_clk_mask(struct smu_context *smu,
 	return 0;
 }
 
-static int arcturus_get_power_limit(struct smu_context *smu,
-				     uint32_t *limit,
-				     bool cap)
+static int arcturus_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
 		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
@@ -1438,8 +1436,6 @@ static int arcturus_get_power_limit(struct smu_context *smu,
 		power_limit /= 100;
 	}
 	smu->max_power_limit = power_limit;
-
-	*limit = (cap ? smu->max_power_limit : smu->current_power_limit);
 
 	return 0;
 }

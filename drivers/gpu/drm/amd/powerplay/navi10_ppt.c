@@ -1922,9 +1922,7 @@ static uint32_t navi10_get_pptable_power_limit(struct smu_context *smu)
 	return pptable->SocketPowerLimitAc[PPT_THROTTLER_PPT0];
 }
 
-static int navi10_get_power_limit(struct smu_context *smu,
-				  uint32_t *limit,
-				  bool cap)
+static int navi10_get_power_limit(struct smu_context *smu)
 {
 	struct smu_11_0_powerplay_table *powerplay_table =
 		(struct smu_11_0_powerplay_table *)smu->smu_table.power_play_table;
@@ -1951,8 +1949,6 @@ static int navi10_get_power_limit(struct smu_context *smu,
 		power_limit /= 100;
 	}
 	smu->max_power_limit = power_limit;
-
-	*limit = (cap ? smu->max_power_limit : smu->current_power_limit);
 
 	return 0;
 }
