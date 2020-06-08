@@ -94,8 +94,8 @@ bug并且需要对这样的代码额外仔细检查。那些试图使用volatile
 注释
 ----
 
-[1] http://lwn.net/Articles/233481/
-[2] http://lwn.net/Articles/233482/
+[1] https://lwn.net/Articles/233481/
+[2] https://lwn.net/Articles/233482/
 
 致谢
 ----

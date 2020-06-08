@@ -91,7 +91,7 @@
 :ref:`cn_split_changes`
 
 如果你用 ``git`` , ``git rebase -i`` 可以帮助你这一点。如果你不用 ``git``,
-``quilt`` <http://savannah.nongnu.org/projects/quilt> 另外一个流行的选择。
+``quilt`` <https://savannah.nongnu.org/projects/quilt> 另外一个流行的选择。
 
 .. _cn_describe_changes:
 
@@ -649,7 +649,7 @@ pull 请求还应该包含一条整体消息，说明请求中将包含什么，
 --------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
+  <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
