@@ -1720,8 +1720,11 @@ struct sysctl_alias {
  * parameter.
  */
 static const struct sysctl_alias sysctl_aliases[] = {
-	{"numa_zonelist_order",		"vm.numa_zonelist_order" },
-	{"hung_task_panic",		"kernel.hung_task_panic" },
+	{"hardlockup_all_cpu_backtrace",	"kernel.hardlockup_all_cpu_backtrace" },
+	{"hung_task_panic",			"kernel.hung_task_panic" },
+	{"numa_zonelist_order",			"vm.numa_zonelist_order" },
+	{"softlockup_all_cpu_backtrace",	"kernel.softlockup_all_cpu_backtrace" },
+	{"softlockup_panic",			"kernel.softlockup_panic" },
 	{ }
 };
 
