@@ -23,6 +23,7 @@
 #include "intel-pasid.h"
 
 static irqreturn_t prq_event_thread(int irq, void *d);
+static void intel_svm_drain_prq(struct device *dev, int pasid);
 
 #define PRQ_ORDER 0
 
@@ -65,6 +66,8 @@ int intel_svm_enable_prq(struct intel_iommu *iommu)
 	dmar_writeq(iommu->reg + DMAR_PQH_REG, 0ULL);
 	dmar_writeq(iommu->reg + DMAR_PQT_REG, 0ULL);
 	dmar_writeq(iommu->reg + DMAR_PQA_REG, virt_to_phys(iommu->prq) | PRQ_ORDER);
+
+	init_completion(&iommu->prq_complete);
 
 	return 0;
 }
@@ -138,7 +141,7 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 	}
 	desc.qw2 = 0;
 	desc.qw3 = 0;
-	qi_submit_sync(&desc, svm->iommu);
+	qi_submit_sync(svm->iommu, &desc, 1, 0);
 
 	if (sdev->dev_iotlb) {
 		desc.qw0 = QI_DEV_EIOTLB_PASID(svm->pasid) |
@@ -162,7 +165,7 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 		}
 		desc.qw2 = 0;
 		desc.qw3 = 0;
-		qi_submit_sync(&desc, svm->iommu);
+		qi_submit_sync(svm->iommu, &desc, 1, 0);
 	}
 }
 
@@ -206,10 +209,9 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 	 * *has* to handle gracefully without affecting other processes.
 	 */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdev, &svm->devs, list) {
-		intel_pasid_tear_down_entry(svm->iommu, sdev->dev, svm->pasid);
-		intel_flush_svm_range_dev(svm, sdev, 0, -1, 0);
-	}
+	list_for_each_entry_rcu(sdev, &svm->devs, list)
+		intel_pasid_tear_down_entry(svm->iommu, sdev->dev,
+					    svm->pasid, true);
 	rcu_read_unlock();
 
 }
@@ -226,13 +228,212 @@ static LIST_HEAD(global_svm_list);
 	list_for_each_entry((sdev), &(svm)->devs, list)	\
 		if ((d) != (sdev)->dev) {} else
 
-int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_ops *ops)
+int intel_svm_bind_gpasid(struct iommu_domain *domain, struct device *dev,
+			  struct iommu_gpasid_bind_data *data)
+{
+	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
+	struct dmar_domain *dmar_domain;
+	struct intel_svm_dev *sdev;
+	struct intel_svm *svm;
+	int ret = 0;
+
+	if (WARN_ON(!iommu) || !data)
+		return -EINVAL;
+
+	if (data->version != IOMMU_GPASID_BIND_VERSION_1 ||
+	    data->format != IOMMU_PASID_FORMAT_INTEL_VTD)
+		return -EINVAL;
+
+	if (!dev_is_pci(dev))
+		return -ENOTSUPP;
+
+	/* VT-d supports devices with full 20 bit PASIDs only */
+	if (pci_max_pasids(to_pci_dev(dev)) != PASID_MAX)
+		return -EINVAL;
+
+	/*
+	 * We only check host PASID range, we have no knowledge to check
+	 * guest PASID range.
+	 */
+	if (data->hpasid <= 0 || data->hpasid >= PASID_MAX)
+		return -EINVAL;
+
+	dmar_domain = to_dmar_domain(domain);
+
+	mutex_lock(&pasid_mutex);
+	svm = ioasid_find(NULL, data->hpasid, NULL);
+	if (IS_ERR(svm)) {
+		ret = PTR_ERR(svm);
+		goto out;
+	}
+
+	if (svm) {
+		/*
+		 * If we found svm for the PASID, there must be at
+		 * least one device bond, otherwise svm should be freed.
+		 */
+		if (WARN_ON(list_empty(&svm->devs))) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		for_each_svm_dev(sdev, svm, dev) {
+			/*
+			 * For devices with aux domains, we should allow
+			 * multiple bind calls with the same PASID and pdev.
+			 */
+			if (iommu_dev_feature_enabled(dev,
+						      IOMMU_DEV_FEAT_AUX)) {
+				sdev->users++;
+			} else {
+				dev_warn_ratelimited(dev,
+						     "Already bound with PASID %u\n",
+						     svm->pasid);
+				ret = -EBUSY;
+			}
+			goto out;
+		}
+	} else {
+		/* We come here when PASID has never been bond to a device. */
+		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
+		if (!svm) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		/* REVISIT: upper layer/VFIO can track host process that bind
+		 * the PASID. ioasid_set = mm might be sufficient for vfio to
+		 * check pasid VMM ownership. We can drop the following line
+		 * once VFIO and IOASID set check is in place.
+		 */
+		svm->mm = get_task_mm(current);
+		svm->pasid = data->hpasid;
+		if (data->flags & IOMMU_SVA_GPASID_VAL) {
+			svm->gpasid = data->gpasid;
+			svm->flags |= SVM_FLAG_GUEST_PASID;
+		}
+		ioasid_set_data(data->hpasid, svm);
+		INIT_LIST_HEAD_RCU(&svm->devs);
+		mmput(svm->mm);
+	}
+	sdev = kzalloc(sizeof(*sdev), GFP_KERNEL);
+	if (!sdev) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	sdev->dev = dev;
+
+	/* Only count users if device has aux domains */
+	if (iommu_dev_feature_enabled(dev, IOMMU_DEV_FEAT_AUX))
+		sdev->users = 1;
+
+	/* Set up device context entry for PASID if not enabled already */
+	ret = intel_iommu_enable_pasid(iommu, sdev->dev);
+	if (ret) {
+		dev_err_ratelimited(dev, "Failed to enable PASID capability\n");
+		kfree(sdev);
+		goto out;
+	}
+
+	/*
+	 * PASID table is per device for better security. Therefore, for
+	 * each bind of a new device even with an existing PASID, we need to
+	 * call the nested mode setup function here.
+	 */
+	spin_lock(&iommu->lock);
+	ret = intel_pasid_setup_nested(iommu, dev,
+				       (pgd_t *)(uintptr_t)data->gpgd,
+				       data->hpasid, &data->vtd, dmar_domain,
+				       data->addr_width);
+	spin_unlock(&iommu->lock);
+	if (ret) {
+		dev_err_ratelimited(dev, "Failed to set up PASID %llu in nested mode, Err %d\n",
+				    data->hpasid, ret);
+		/*
+		 * PASID entry should be in cleared state if nested mode
+		 * set up failed. So we only need to clear IOASID tracking
+		 * data such that free call will succeed.
+		 */
+		kfree(sdev);
+		goto out;
+	}
+
+	svm->flags |= SVM_FLAG_GUEST_MODE;
+
+	init_rcu_head(&sdev->rcu);
+	list_add_rcu(&sdev->list, &svm->devs);
+ out:
+	if (!IS_ERR_OR_NULL(svm) && list_empty(&svm->devs)) {
+		ioasid_set_data(data->hpasid, NULL);
+		kfree(svm);
+	}
+
+	mutex_unlock(&pasid_mutex);
+	return ret;
+}
+
+int intel_svm_unbind_gpasid(struct device *dev, int pasid)
+{
+	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
+	struct intel_svm_dev *sdev;
+	struct intel_svm *svm;
+	int ret = -EINVAL;
+
+	if (WARN_ON(!iommu))
+		return -EINVAL;
+
+	mutex_lock(&pasid_mutex);
+	svm = ioasid_find(NULL, pasid, NULL);
+	if (!svm) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (IS_ERR(svm)) {
+		ret = PTR_ERR(svm);
+		goto out;
+	}
+
+	for_each_svm_dev(sdev, svm, dev) {
+		ret = 0;
+		if (iommu_dev_feature_enabled(dev, IOMMU_DEV_FEAT_AUX))
+			sdev->users--;
+		if (!sdev->users) {
+			list_del_rcu(&sdev->list);
+			intel_pasid_tear_down_entry(iommu, dev,
+						    svm->pasid, false);
+			intel_svm_drain_prq(dev, svm->pasid);
+			kfree_rcu(sdev, rcu);
+
+			if (list_empty(&svm->devs)) {
+				/*
+				 * We do not free the IOASID here in that
+				 * IOMMU driver did not allocate it.
+				 * Unlike native SVM, IOASID for guest use was
+				 * allocated prior to the bind call.
+				 * In any case, if the free call comes before
+				 * the unbind, IOMMU driver will get notified
+				 * and perform cleanup.
+				 */
+				ioasid_set_data(pasid, NULL);
+				kfree(svm);
+			}
+		}
+		break;
+	}
+out:
+	mutex_unlock(&pasid_mutex);
+	return ret;
+}
+
+/* Caller must hold pasid_mutex, mm reference */
+static int
+intel_svm_bind_mm(struct device *dev, int flags, struct svm_dev_ops *ops,
+		  struct mm_struct *mm, struct intel_svm_dev **sd)
 {
 	struct intel_iommu *iommu = intel_svm_device_to_iommu(dev);
 	struct device_domain_info *info;
 	struct intel_svm_dev *sdev;
 	struct intel_svm *svm = NULL;
-	struct mm_struct *mm = NULL;
 	int pasid_max;
 	int ret;
 
@@ -249,16 +450,15 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	} else
 		pasid_max = 1 << 20;
 
+	/* Bind supervisor PASID shuld have mm = NULL */
 	if (flags & SVM_FLAG_SUPERVISOR_MODE) {
-		if (!ecap_srs(iommu->ecap))
+		if (!ecap_srs(iommu->ecap) || mm) {
+			pr_err("Supervisor PASID with user provided mm.\n");
 			return -EINVAL;
-	} else if (pasid) {
-		mm = get_task_mm(current);
-		BUG_ON(!mm);
+		}
 	}
 
-	mutex_lock(&pasid_mutex);
-	if (pasid && !(flags & SVM_FLAG_PRIVATE_PASID)) {
+	if (!(flags & SVM_FLAG_PRIVATE_PASID)) {
 		struct intel_svm *t;
 
 		list_for_each_entry(t, &global_svm_list, list) {
@@ -296,19 +496,12 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 	sdev->dev = dev;
 
 	ret = intel_iommu_enable_pasid(iommu, dev);
-	if (ret || !pasid) {
-		/* If they don't actually want to assign a PASID, this is
-		 * just an enabling check/preparation. */
+	if (ret) {
 		kfree(sdev);
 		goto out;
 	}
 
-	info = dev->archdata.iommu;
-	if (!info || !info->pasid_supported) {
-		kfree(sdev);
-		goto out;
-	}
-
+	info = get_domain_info(dev);
 	sdev->did = FLPT_DEFAULT_DID;
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
 	if (info->ats_enabled) {
@@ -397,26 +590,24 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 		}
 	}
 	list_add_rcu(&sdev->list, &svm->devs);
-
- success:
-	*pasid = svm->pasid;
+success:
+	sdev->pasid = svm->pasid;
+	sdev->sva.dev = dev;
+	if (sd)
+		*sd = sdev;
 	ret = 0;
  out:
-	mutex_unlock(&pasid_mutex);
-	if (mm)
-		mmput(mm);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_svm_bind_mm);
 
-int intel_svm_unbind_mm(struct device *dev, int pasid)
+/* Caller must hold pasid_mutex */
+static int intel_svm_unbind_mm(struct device *dev, int pasid)
 {
 	struct intel_svm_dev *sdev;
 	struct intel_iommu *iommu;
 	struct intel_svm *svm;
 	int ret = -EINVAL;
 
-	mutex_lock(&pasid_mutex);
 	iommu = intel_svm_device_to_iommu(dev);
 	if (!iommu)
 		goto out;
@@ -442,8 +633,9 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 			 * to use. We have a *shared* PASID table, because it's
 			 * large and has to be physically contiguous. So it's
 			 * hard to be as defensive as we might like. */
-			intel_pasid_tear_down_entry(iommu, dev, svm->pasid);
-			intel_flush_svm_range_dev(svm, sdev, 0, -1, 0);
+			intel_pasid_tear_down_entry(iommu, dev,
+						    svm->pasid, false);
+			intel_svm_drain_prq(dev, svm->pasid);
 			kfree_rcu(sdev, rcu);
 
 			if (list_empty(&svm->devs)) {
@@ -462,45 +654,9 @@ int intel_svm_unbind_mm(struct device *dev, int pasid)
 		break;
 	}
  out:
-	mutex_unlock(&pasid_mutex);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(intel_svm_unbind_mm);
-
-int intel_svm_is_pasid_valid(struct device *dev, int pasid)
-{
-	struct intel_iommu *iommu;
-	struct intel_svm *svm;
-	int ret = -EINVAL;
-
-	mutex_lock(&pasid_mutex);
-	iommu = intel_svm_device_to_iommu(dev);
-	if (!iommu)
-		goto out;
-
-	svm = ioasid_find(NULL, pasid, NULL);
-	if (!svm)
-		goto out;
-
-	if (IS_ERR(svm)) {
-		ret = PTR_ERR(svm);
-		goto out;
-	}
-	/* init_mm is used in this case */
-	if (!svm->mm)
-		ret = 1;
-	else if (atomic_read(&svm->mm->mm_users) > 0)
-		ret = 1;
-	else
-		ret = 0;
-
- out:
-	mutex_unlock(&pasid_mutex);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(intel_svm_is_pasid_valid);
 
 /* Page request queue descriptor */
 struct page_req_dsc {
@@ -555,6 +711,93 @@ static bool is_canonical_address(u64 addr)
 	long saddr = (long) addr;
 
 	return (((saddr << shift) >> shift) == saddr);
+}
+
+/**
+ * intel_svm_drain_prq - Drain page requests and responses for a pasid
+ * @dev: target device
+ * @pasid: pasid for draining
+ *
+ * Drain all pending page requests and responses related to @pasid in both
+ * software and hardware. This is supposed to be called after the device
+ * driver has stopped DMA, the pasid entry has been cleared, and both IOTLB
+ * and DevTLB have been invalidated.
+ *
+ * It waits until all pending page requests for @pasid in the page fault
+ * queue are completed by the prq handling thread. Then follow the steps
+ * described in VT-d spec CH7.10 to drain all page requests and page
+ * responses pending in the hardware.
+ */
+static void intel_svm_drain_prq(struct device *dev, int pasid)
+{
+	struct device_domain_info *info;
+	struct dmar_domain *domain;
+	struct intel_iommu *iommu;
+	struct qi_desc desc[3];
+	struct pci_dev *pdev;
+	int head, tail;
+	u16 sid, did;
+	int qdep;
+
+	info = get_domain_info(dev);
+	if (WARN_ON(!info || !dev_is_pci(dev)))
+		return;
+
+	if (!info->pri_enabled)
+		return;
+
+	iommu = info->iommu;
+	domain = info->domain;
+	pdev = to_pci_dev(dev);
+	sid = PCI_DEVID(info->bus, info->devfn);
+	did = domain->iommu_did[iommu->seq_id];
+	qdep = pci_ats_queue_depth(pdev);
+
+	/*
+	 * Check and wait until all pending page requests in the queue are
+	 * handled by the prq handling thread.
+	 */
+prq_retry:
+	reinit_completion(&iommu->prq_complete);
+	tail = dmar_readq(iommu->reg + DMAR_PQT_REG) & PRQ_RING_MASK;
+	head = dmar_readq(iommu->reg + DMAR_PQH_REG) & PRQ_RING_MASK;
+	while (head != tail) {
+		struct page_req_dsc *req;
+
+		req = &iommu->prq[head / sizeof(*req)];
+		if (!req->pasid_present || req->pasid != pasid) {
+			head = (head + sizeof(*req)) & PRQ_RING_MASK;
+			continue;
+		}
+
+		wait_for_completion(&iommu->prq_complete);
+		goto prq_retry;
+	}
+
+	/*
+	 * Perform steps described in VT-d spec CH7.10 to drain page
+	 * requests and responses in hardware.
+	 */
+	memset(desc, 0, sizeof(desc));
+	desc[0].qw0 = QI_IWD_STATUS_DATA(QI_DONE) |
+			QI_IWD_FENCE |
+			QI_IWD_TYPE;
+	desc[1].qw0 = QI_EIOTLB_PASID(pasid) |
+			QI_EIOTLB_DID(did) |
+			QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) |
+			QI_EIOTLB_TYPE;
+	desc[2].qw0 = QI_DEV_EIOTLB_PASID(pasid) |
+			QI_DEV_EIOTLB_SID(sid) |
+			QI_DEV_EIOTLB_QDEP(qdep) |
+			QI_DEIOTLB_TYPE |
+			QI_DEV_IOTLB_PFSID(info->pfsid);
+qi_retry:
+	reinit_completion(&iommu->prq_complete);
+	qi_submit_sync(iommu, desc, 3, QI_OPT_WAIT_DRAIN);
+	if (readl(iommu->reg + DMAR_PRS_REG) & DMA_PRS_PRO) {
+		wait_for_completion(&iommu->prq_complete);
+		goto qi_retry;
+	}
 }
 
 static irqreturn_t prq_event_thread(int irq, void *d)
@@ -685,12 +928,75 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 				       sizeof(req->priv_data));
 			resp.qw2 = 0;
 			resp.qw3 = 0;
-			qi_submit_sync(&resp, iommu);
+			qi_submit_sync(iommu, &resp, 1, 0);
 		}
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
 	}
 
 	dmar_writeq(iommu->reg + DMAR_PQH_REG, tail);
 
+	/*
+	 * Clear the page request overflow bit and wake up all threads that
+	 * are waiting for the completion of this handling.
+	 */
+	if (readl(iommu->reg + DMAR_PRS_REG) & DMA_PRS_PRO)
+		writel(DMA_PRS_PRO, iommu->reg + DMAR_PRS_REG);
+
+	if (!completion_done(&iommu->prq_complete))
+		complete(&iommu->prq_complete);
+
 	return IRQ_RETVAL(handled);
+}
+
+#define to_intel_svm_dev(handle) container_of(handle, struct intel_svm_dev, sva)
+struct iommu_sva *
+intel_svm_bind(struct device *dev, struct mm_struct *mm, void *drvdata)
+{
+	struct iommu_sva *sva = ERR_PTR(-EINVAL);
+	struct intel_svm_dev *sdev = NULL;
+	int flags = 0;
+	int ret;
+
+	/*
+	 * TODO: Consolidate with generic iommu-sva bind after it is merged.
+	 * It will require shared SVM data structures, i.e. combine io_mm
+	 * and intel_svm etc.
+	 */
+	if (drvdata)
+		flags = *(int *)drvdata;
+	mutex_lock(&pasid_mutex);
+	ret = intel_svm_bind_mm(dev, flags, NULL, mm, &sdev);
+	if (ret)
+		sva = ERR_PTR(ret);
+	else if (sdev)
+		sva = &sdev->sva;
+	else
+		WARN(!sdev, "SVM bind succeeded with no sdev!\n");
+
+	mutex_unlock(&pasid_mutex);
+
+	return sva;
+}
+
+void intel_svm_unbind(struct iommu_sva *sva)
+{
+	struct intel_svm_dev *sdev;
+
+	mutex_lock(&pasid_mutex);
+	sdev = to_intel_svm_dev(sva);
+	intel_svm_unbind_mm(sdev->dev, sdev->pasid);
+	mutex_unlock(&pasid_mutex);
+}
+
+int intel_svm_get_pasid(struct iommu_sva *sva)
+{
+	struct intel_svm_dev *sdev;
+	int pasid;
+
+	mutex_lock(&pasid_mutex);
+	sdev = to_intel_svm_dev(sva);
+	pasid = sdev->pasid;
+	mutex_unlock(&pasid_mutex);
+
+	return pasid;
 }
