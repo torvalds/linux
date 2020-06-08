@@ -77,7 +77,7 @@ struct virtio_mem {
 	uint64_t requested_size;
 
 	/* The device block size (for communicating with the device). */
-	uint32_t device_block_size;
+	uint64_t device_block_size;
 	/* The translated node id. NUMA_NO_NODE in case not specified. */
 	int nid;
 	/* Physical start address of the memory region. */
@@ -86,7 +86,7 @@ struct virtio_mem {
 	uint64_t region_size;
 
 	/* The subblock size. */
-	uint32_t subblock_size;
+	uint64_t subblock_size;
 	/* The number of subblocks per memory block. */
 	uint32_t nb_sb_per_mb;
 
@@ -1698,9 +1698,9 @@ static int virtio_mem_init(struct virtio_mem *vm)
 	 * - At least the device block size.
 	 * In the worst case, a single subblock per memory block.
 	 */
-	vm->subblock_size = PAGE_SIZE * 1u << max_t(uint32_t, MAX_ORDER - 1,
-						    pageblock_order);
-	vm->subblock_size = max_t(uint32_t, vm->device_block_size,
+	vm->subblock_size = PAGE_SIZE * 1ul << max_t(uint32_t, MAX_ORDER - 1,
+						     pageblock_order);
+	vm->subblock_size = max_t(uint64_t, vm->device_block_size,
 				  vm->subblock_size);
 	vm->nb_sb_per_mb = memory_block_size_bytes() / vm->subblock_size;
 
@@ -1713,12 +1713,12 @@ static int virtio_mem_init(struct virtio_mem *vm)
 
 	dev_info(&vm->vdev->dev, "start address: 0x%llx", vm->addr);
 	dev_info(&vm->vdev->dev, "region size: 0x%llx", vm->region_size);
-	dev_info(&vm->vdev->dev, "device block size: 0x%x",
-		 vm->device_block_size);
+	dev_info(&vm->vdev->dev, "device block size: 0x%llx",
+		 (unsigned long long)vm->device_block_size);
 	dev_info(&vm->vdev->dev, "memory block size: 0x%lx",
 		 memory_block_size_bytes());
-	dev_info(&vm->vdev->dev, "subblock size: 0x%x",
-		 vm->subblock_size);
+	dev_info(&vm->vdev->dev, "subblock size: 0x%llx",
+		 (unsigned long long)vm->subblock_size);
 	if (vm->nid != NUMA_NO_NODE)
 		dev_info(&vm->vdev->dev, "nid: %d", vm->nid);
 
