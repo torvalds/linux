@@ -323,6 +323,7 @@
 
 &u2phy0 {
 	status = "okay";
+	vup-gpios = <&gpio0 RK_PC1 GPIO_ACTIVE_LOW>;
 	u2phy_otg: otg-port {
 		status = "okay";
 		rockchip,vbus-always-on;
