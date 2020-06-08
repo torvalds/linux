@@ -1239,6 +1239,13 @@ ORed together. The letters are seen in "Tainted" line of Oops reports.
 
 See :doc:`/admin-guide/tainted-kernels` for more information.
 
+Note:
+  writes to this sysctl interface will fail with ``EINVAL`` if the kernel is
+  booted with the command line option ``panic_on_taint=<bitmask>,nousertaint``
+  and any of the ORed together values being written to ``tainted`` match with
+  the bitmask declared on panic_on_taint.
+  See :doc:`/admin-guide/kernel-parameters` for more details on that particular
+  kernel command line option and its optional ``nousertaint`` switch.
 
 threads-max
 ===========
