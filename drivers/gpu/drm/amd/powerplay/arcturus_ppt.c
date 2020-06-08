@@ -2561,7 +2561,7 @@ static uint32_t atcturus_get_max_power_limit(struct smu_context *smu) {
 	struct smu_table_context *table_context = &smu->smu_table;
 	powerplay_table = table_context->power_play_table;
 
-	max_power_limit = smu_get_pptable_power_limit(smu);
+	max_power_limit = arcturus_get_pptable_power_limit(smu);
 
 	if (!max_power_limit) {
 		// If we couldn't get the table limit, fall back on first-read value
@@ -2669,7 +2669,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v11_0_set_soft_freq_limited_range,
 	.override_pcie_parameters = NULL,
-	.get_pptable_power_limit = arcturus_get_pptable_power_limit,
 	.set_df_cstate = arcturus_set_df_cstate,
 	.allow_xgmi_power_down = arcturus_allow_xgmi_power_down,
 	.log_thermal_throttling_event = arcturus_log_thermal_throttling_event,

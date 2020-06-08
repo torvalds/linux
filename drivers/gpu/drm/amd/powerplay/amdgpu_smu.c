@@ -2827,13 +2827,3 @@ int smu_get_dpm_clock_table(struct smu_context *smu,
 
 	return ret;
 }
-
-uint32_t smu_get_pptable_power_limit(struct smu_context *smu)
-{
-	uint32_t ret = 0;
-
-	if (smu->ppt_funcs->get_pptable_power_limit)
-		ret = smu->ppt_funcs->get_pptable_power_limit(smu);
-
-	return ret;
-}

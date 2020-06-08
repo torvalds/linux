@@ -1903,7 +1903,7 @@ static uint32_t sienna_cichlid_get_max_power_limit(struct smu_context *smu) {
 	struct smu_table_context *table_context = &smu->smu_table;
 	powerplay_table = table_context->power_play_table;
 
-	max_power_limit = smu_get_pptable_power_limit(smu);
+	max_power_limit = sienna_cichlid_get_pptable_power_limit(smu);
 
 	if (!max_power_limit) {
 		// If we couldn't get the table limit, fall back on first-read value
@@ -2674,7 +2674,6 @@ static const struct pptable_funcs sienna_cichlid_ppt_funcs = {
 	.get_dpm_ultimate_freq = sienna_cichlid_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = sienna_cichlid_set_soft_freq_limited_range,
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
-	.get_pptable_power_limit = sienna_cichlid_get_pptable_power_limit,
 	.set_thermal_range = sienna_cichlid_set_thermal_range,
 	.get_max_power_limit = sienna_cichlid_get_max_power_limit,
 };

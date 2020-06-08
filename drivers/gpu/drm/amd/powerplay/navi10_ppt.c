@@ -2397,7 +2397,7 @@ static uint32_t navi10_get_max_power_limit(struct smu_context *smu) {
 	struct smu_table_context *table_context = &smu->smu_table;
 	powerplay_table = table_context->power_play_table;
 
-	max_power_limit = smu_get_pptable_power_limit(smu);
+	max_power_limit = navi10_get_pptable_power_limit(smu);
 
 	if (!max_power_limit) {
 		// If we couldn't get the table limit, fall back on first-read value
@@ -2504,7 +2504,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.override_pcie_parameters = smu_v11_0_override_pcie_parameters,
 	.set_default_od_settings = navi10_set_default_od_settings,
 	.od_edit_dpm_table = navi10_od_edit_dpm_table,
-	.get_pptable_power_limit = navi10_get_pptable_power_limit,
 	.run_btc = navi10_run_btc,
 	.disable_umc_cdr_12gbps_workaround = navi10_disable_umc_cdr_12gbps_workaround,
 	.set_power_source = smu_v11_0_set_power_source,
