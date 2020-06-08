@@ -2082,7 +2082,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	/* now collect the dump for the current */
 	memset(info->prstatus, 0, sizeof(*info->prstatus));
 	fill_prstatus(&info->prstatus->common, current, cprm->siginfo->si_signo);
-	elf_core_copy_regs(&info->prstatus->pr_reg, cprm->regs);
+	elf_core_copy_regs(&info->prstatus->pr_reg, task_pt_regs(current));
 
 	/* Set up header */
 	fill_elf_header(elf, phdrs, ELF_ARCH, ELF_CORE_EFLAGS);
@@ -2109,7 +2109,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 
 	/* Try to dump the FPU. */
 	info->prstatus->pr_fpvalid =
-		elf_core_copy_task_fpregs(current, cprm->regs, info->fpu);
+		elf_core_copy_task_fpregs(current, task_pt_regs(current), info->fpu);
 	if (info->prstatus->pr_fpvalid)
 		fill_note(info->notes + info->numnote++,
 			  "CORE", NT_PRFPREG, sizeof(*info->fpu), info->fpu);
