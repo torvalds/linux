@@ -1065,7 +1065,10 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	if (!smu_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT))
 		return -EINVAL;
 
-	power_src = smu_power_get_index(smu, SMU_POWER_SOURCE_AC);
+	power_src = smu_power_get_index(smu,
+					smu->adev->pm.ac_power ?
+					SMU_POWER_SOURCE_AC :
+					SMU_POWER_SOURCE_DC);
 	if (power_src < 0)
 		return -EINVAL;
 
