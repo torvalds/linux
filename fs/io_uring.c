@@ -3437,53 +3437,37 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	    req->close.fd == req->ctx->ring_fd)
 		return -EBADF;
 
+	req->close.put_file = NULL;
 	return 0;
-}
-
-/* only called when __close_fd_get_file() is done */
-static void __io_close_finish(struct io_kiocb *req)
-{
-	int ret;
-
-	ret = filp_close(req->close.put_file, req->work.files);
-	if (ret < 0)
-		req_set_fail_links(req);
-	io_cqring_add_event(req, ret);
-	fput(req->close.put_file);
-	io_put_req(req);
-}
-
-static void io_close_finish(struct io_wq_work **workptr)
-{
-	struct io_kiocb *req = container_of(*workptr, struct io_kiocb, work);
-
-	/* not cancellable, don't do io_req_cancelled() */
-	__io_close_finish(req);
-	io_steal_work(req, workptr);
 }
 
 static int io_close(struct io_kiocb *req, bool force_nonblock)
 {
+	struct io_close *close = &req->close;
 	int ret;
 
-	req->close.put_file = NULL;
-	ret = __close_fd_get_file(req->close.fd, &req->close.put_file);
-	if (ret < 0)
-		return (ret == -ENOENT) ? -EBADF : ret;
+	/* might be already done during nonblock submission */
+	if (!close->put_file) {
+		ret = __close_fd_get_file(close->fd, &close->put_file);
+		if (ret < 0)
+			return (ret == -ENOENT) ? -EBADF : ret;
+	}
 
 	/* if the file has a flush method, be safe and punt to async */
-	if (req->close.put_file->f_op->flush && force_nonblock) {
+	if (close->put_file->f_op->flush && force_nonblock) {
 		/* avoid grabbing files - we don't need the files */
 		req->flags |= REQ_F_NO_FILE_TABLE | REQ_F_MUST_PUNT;
-		req->work.func = io_close_finish;
 		return -EAGAIN;
 	}
 
-	/*
-	 * No ->flush(), safely close from here and just punt the
-	 * fput() to async context.
-	 */
-	__io_close_finish(req);
+	/* No ->flush() or already async, safely close from here */
+	ret = filp_close(close->put_file, req->work.files);
+	if (ret < 0)
+		req_set_fail_links(req);
+	io_cqring_add_event(req, ret);
+	fput(close->put_file);
+	close->put_file = NULL;
+	io_put_req(req);
 	return 0;
 }
 
