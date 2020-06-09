@@ -26,7 +26,7 @@ do { \
 		YYABORT; \
 } while (0)
 
-static struct list_head* alloc_list()
+static struct list_head* alloc_list(void)
 {
 	struct list_head *list;
 
