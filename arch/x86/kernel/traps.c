@@ -256,7 +256,6 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 }
 #endif
 
-#if defined(CONFIG_X86_64) || defined(CONFIG_DOUBLEFAULT)
 /*
  * Runs on an IST stack for x86_64 and on a special task stack for x86_32.
  *
@@ -380,7 +379,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsign
 	die("double fault", regs, error_code);
 	panic("Machine halted.");
 }
-#endif
 
 dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 {

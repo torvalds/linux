@@ -173,7 +173,8 @@ Before jumping into the kernel, the following conditions must be met:
 - Caches, MMUs
 
   The MMU must be off.
-  Instruction cache may be on or off.
+  The instruction cache may be on or off, and must not hold any stale
+  entries corresponding to the loaded kernel image.
   The address range corresponding to the loaded kernel image must be
   cleaned to the PoC. In the presence of a system cache or other
   coherent masters with caches enabled, this will typically require

@@ -43,13 +43,16 @@
  */
 #define barrier() __asm__ __volatile__("" : : : "memory")
 
+#if __has_feature(shadow_call_stack)
+# define __noscs	__attribute__((__no_sanitize__("shadow-call-stack")))
+#endif
+
 
 #ifdef CONFIG_LTO_CLANG
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 #define __norecordmcount \
 	__attribute__((__section__(".text..ftrace")))
 #endif
-
 
 #define __nocfi		__attribute__((__no_sanitize__("cfi")))
 #endif
