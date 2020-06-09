@@ -661,7 +661,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 
 	switch (type) {
 	case SMU_SCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_GFXCLK, &now);
+		ret = smu_v11_0_get_current_clk_freq(smu, SMU_GFXCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current gfx clk Failed!");
 			return ret;
@@ -688,7 +688,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_MCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_UCLK, &now);
+		ret = smu_v11_0_get_current_clk_freq(smu, SMU_UCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current mclk Failed!");
 			return ret;
@@ -711,7 +711,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_SOCCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_SOCCLK, &now);
+		ret = smu_v11_0_get_current_clk_freq(smu, SMU_SOCCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current socclk Failed!");
 			return ret;
@@ -734,7 +734,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_FCLK:
-		ret = smu_get_current_clk_freq(smu, SMU_FCLK, &now);
+		ret = smu_v11_0_get_current_clk_freq(smu, SMU_FCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current fclk Failed!");
 			return ret;
@@ -2597,7 +2597,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.notify_display_change = NULL,
 	.set_power_limit = smu_v11_0_set_power_limit,
-	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v11_0_disable_thermal_alert,

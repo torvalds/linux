@@ -59,7 +59,6 @@
 #define smu_set_default_dpm_table(smu)					smu_ppt_funcs(set_default_dpm_table, 0, smu)
 #define smu_populate_umd_state_clk(smu)					smu_ppt_funcs(populate_umd_state_clk, 0, smu)
 #define smu_set_default_od8_settings(smu)				smu_ppt_funcs(set_default_od8_settings, 0, smu)
-#define smu_get_current_clk_freq(smu, clk_id, value)			smu_ppt_funcs(get_current_clk_freq, 0, smu, clk_id, value)
 #define smu_tables_init(smu, tab)					smu_ppt_funcs(tables_init, 0, smu, tab)
 #define smu_set_thermal_fan_table(smu)					smu_ppt_funcs(set_thermal_fan_table, 0, smu)
 #define smu_enable_thermal_alert(smu)					smu_ppt_funcs(enable_thermal_alert, 0, smu)

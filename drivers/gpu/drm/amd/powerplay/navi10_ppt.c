@@ -877,7 +877,7 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_FCLK:
 	case SMU_DCEFCLK:
-		ret = smu_get_current_clk_freq(smu, clk_type, &cur_value);
+		ret = smu_v11_0_get_current_clk_freq(smu, clk_type, &cur_value);
 		if (ret)
 			return size;
 
@@ -2438,7 +2438,6 @@ static const struct pptable_funcs navi10_ppt_funcs = {
 	.get_enabled_mask = smu_v11_0_get_enabled_mask,
 	.notify_display_change = smu_v11_0_notify_display_change,
 	.set_power_limit = smu_v11_0_set_power_limit,
-	.get_current_clk_freq = smu_v11_0_get_current_clk_freq,
 	.init_max_sustainable_clocks = smu_v11_0_init_max_sustainable_clocks,
 	.enable_thermal_alert = smu_v11_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v11_0_disable_thermal_alert,
