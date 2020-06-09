@@ -90,6 +90,7 @@ struct egroup {
 	const char *metric_name;
 	const char *metric_expr;
 	const char *metric_unit;
+	int runtime;
 };
 
 static struct evsel *find_evsel_group(struct evlist *perf_evlist,
@@ -202,6 +203,7 @@ static int metricgroup__setup_events(struct list_head *groups,
 		expr->metric_name = eg->metric_name;
 		expr->metric_unit = eg->metric_unit;
 		expr->metric_events = metric_events;
+		expr->runtime = eg->runtime;
 		list_add(&expr->nd, &me->head);
 	}
 
@@ -485,6 +487,45 @@ static bool metricgroup__has_constraint(struct pmu_event *pe)
 	return false;
 }
 
+int __weak arch_get_runtimeparam(void)
+{
+	return 1;
+}
+
+static int __metricgroup__add_metric(struct strbuf *events,
+		struct list_head *group_list, struct pmu_event *pe, int runtime)
+{
+
+	const char **ids;
+	int idnum;
+	struct egroup *eg;
+
+	if (expr__find_other(pe->metric_expr, NULL, &ids, &idnum, runtime) < 0)
+		return -EINVAL;
+
+	if (events->len > 0)
+		strbuf_addf(events, ",");
+
+	if (metricgroup__has_constraint(pe))
+		metricgroup__add_metric_non_group(events, ids, idnum);
+	else
+		metricgroup__add_metric_weak_group(events, ids, idnum);
+
+	eg = malloc(sizeof(*eg));
+	if (!eg)
+		return -ENOMEM;
+
+	eg->ids = ids;
+	eg->idnum = idnum;
+	eg->metric_name = pe->metric_name;
+	eg->metric_expr = pe->metric_expr;
+	eg->metric_unit = pe->unit;
+	eg->runtime = runtime;
+	list_add_tail(&eg->nd, group_list);
+
+	return 0;
+}
+
 static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 				   struct list_head *group_list)
 {
@@ -504,35 +545,26 @@ static int metricgroup__add_metric(const char *metric, struct strbuf *events,
 			continue;
 		if (match_metric(pe->metric_group, metric) ||
 		    match_metric(pe->metric_name, metric)) {
-			const char **ids;
-			int idnum;
-			struct egroup *eg;
 
 			pr_debug("metric expr %s for %s\n", pe->metric_expr, pe->metric_name);
 
-			if (expr__find_other(pe->metric_expr,
-					     NULL, &ids, &idnum) < 0)
-				continue;
-			if (events->len > 0)
-				strbuf_addf(events, ",");
+			if (!strstr(pe->metric_expr, "?")) {
+				ret = __metricgroup__add_metric(events, group_list, pe, 1);
+			} else {
+				int j, count;
 
-			if (metricgroup__has_constraint(pe))
-				metricgroup__add_metric_non_group(events, ids, idnum);
-			else
-				metricgroup__add_metric_weak_group(events, ids, idnum);
+				count = arch_get_runtimeparam();
 
-			eg = malloc(sizeof(struct egroup));
-			if (!eg) {
-				ret = -ENOMEM;
-				break;
+				/* This loop is added to create multiple
+				 * events depend on count value and add
+				 * those events to group_list.
+				 */
+
+				for (j = 0; j < count; j++)
+					ret = __metricgroup__add_metric(events, group_list, pe, j);
 			}
-			eg->ids = ids;
-			eg->idnum = idnum;
-			eg->metric_name = pe->metric_name;
-			eg->metric_expr = pe->metric_expr;
-			eg->metric_unit = pe->unit;
-			list_add_tail(&eg->nd, group_list);
-			ret = 0;
+			if (ret == -ENOMEM)
+				break;
 		}
 	}
 	return ret;

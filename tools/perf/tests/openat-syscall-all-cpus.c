@@ -103,15 +103,15 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 		if (cpus->map[cpu] >= CPU_SETSIZE)
 			continue;
 
-		if (perf_evsel__read_on_cpu(evsel, cpu, 0) < 0) {
-			pr_debug("perf_evsel__read_on_cpu\n");
+		if (evsel__read_on_cpu(evsel, cpu, 0) < 0) {
+			pr_debug("evsel__read_on_cpu\n");
 			err = -1;
 			break;
 		}
 
 		expected = nr_openat_calls + cpu;
 		if (perf_counts(evsel->counts, cpu, 0)->val != expected) {
-			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
+			pr_debug("evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu, 0)->val);
 			err = -1;
 		}

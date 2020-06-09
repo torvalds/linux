@@ -44,22 +44,22 @@ int perf_evsel__fprintf(struct evsel *evsel,
 	if (details->event_group) {
 		struct evsel *pos;
 
-		if (!perf_evsel__is_group_leader(evsel))
+		if (!evsel__is_group_leader(evsel))
 			return 0;
 
 		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "%s{", evsel->group_name ?: "");
 
-		printed += fprintf(fp, "%s", perf_evsel__name(evsel));
+		printed += fprintf(fp, "%s", evsel__name(evsel));
 		for_each_group_member(pos, evsel)
-			printed += fprintf(fp, ",%s", perf_evsel__name(pos));
+			printed += fprintf(fp, ",%s", evsel__name(pos));
 
 		if (evsel->core.nr_members > 1)
 			printed += fprintf(fp, "}");
 		goto out;
 	}
 
-	printed += fprintf(fp, "%s", perf_evsel__name(evsel));
+	printed += fprintf(fp, "%s", evsel__name(evsel));
 
 	if (details->verbose) {
 		printed += perf_event_attr__fprintf(fp, &evsel->core.attr,
