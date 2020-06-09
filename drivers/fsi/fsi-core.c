@@ -1154,6 +1154,14 @@ static int fsi_master_write(struct fsi_master *master, int link,
 	return rc;
 }
 
+static int fsi_master_link_disable(struct fsi_master *master, int link)
+{
+	if (master->link_enable)
+		return master->link_enable(master, link, false);
+
+	return 0;
+}
+
 static int fsi_master_link_enable(struct fsi_master *master, int link)
 {
 	if (master->link_enable)
@@ -1192,12 +1200,15 @@ static int fsi_master_scan(struct fsi_master *master)
 		}
 		rc = fsi_master_break(master, link);
 		if (rc) {
+			fsi_master_link_disable(master, link);
 			dev_dbg(&master->dev,
 				"break to link %d failed: %d\n", link, rc);
 			continue;
 		}
 
-		fsi_slave_init(master, link, 0);
+		rc = fsi_slave_init(master, link, 0);
+		if (rc)
+			fsi_master_link_disable(master, link);
 	}
 
 	return 0;
