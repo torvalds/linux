@@ -49,7 +49,7 @@ static void exfat_put_super(struct super_block *sb)
 		sync_blockdev(sb->s_bdev);
 	exfat_set_vol_flags(sb, VOL_CLEAN);
 	exfat_free_bitmap(sbi);
-	brelse(sbi->pbr_bh);
+	brelse(sbi->boot_bh);
 	mutex_unlock(&sbi->s_lock);
 
 	call_rcu(&sbi->rcu, exfat_delayed_free);
@@ -101,8 +101,8 @@ static int exfat_statfs(struct dentry *dentry, struct kstatfs *buf)
 int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct pbr64 *bpb = (struct pbr64 *)sbi->pbr_bh->b_data;
-	bool sync = 0;
+	struct boot_sector *p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
+	bool sync;
 
 	/* flags are not changed */
 	if (sbi->vol_flag == new_flag)
@@ -116,18 +116,18 @@ int exfat_set_vol_flags(struct super_block *sb, unsigned short new_flag)
 	if (sb_rdonly(sb))
 		return 0;
 
-	bpb->bsx.vol_flags = cpu_to_le16(new_flag);
+	p_boot->vol_flags = cpu_to_le16(new_flag);
 
-	if (new_flag == VOL_DIRTY && !buffer_dirty(sbi->pbr_bh))
+	if (new_flag == VOL_DIRTY && !buffer_dirty(sbi->boot_bh))
 		sync = true;
 	else
 		sync = false;
 
-	set_buffer_uptodate(sbi->pbr_bh);
-	mark_buffer_dirty(sbi->pbr_bh);
+	set_buffer_uptodate(sbi->boot_bh);
+	mark_buffer_dirty(sbi->boot_bh);
 
 	if (sync)
-		sync_dirty_buffer(sbi->pbr_bh);
+		sync_dirty_buffer(sbi->boot_bh);
 	return 0;
 }
 
@@ -273,9 +273,8 @@ static int exfat_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		break;
 	case Opt_charset:
 		exfat_free_iocharset(sbi);
-		opts->iocharset = kstrdup(param->string, GFP_KERNEL);
-		if (!opts->iocharset)
-			return -ENOMEM;
+		opts->iocharset = param->string;
+		param->string = NULL;
 		break;
 	case Opt_errors:
 		opts->errors = result.uint_32;
@@ -366,151 +365,208 @@ static int exfat_read_root(struct inode *inode)
 	return 0;
 }
 
-static struct pbr *exfat_read_pbr_with_logical_sector(struct super_block *sb)
+static int exfat_calibrate_blocksize(struct super_block *sb, int logical_sect)
 {
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
-	struct pbr *p_pbr = (struct pbr *) (sbi->pbr_bh)->b_data;
-	unsigned short logical_sect = 0;
-
-	logical_sect = 1 << p_pbr->bsx.f64.sect_size_bits;
 
 	if (!is_power_of_2(logical_sect) ||
 	    logical_sect < 512 || logical_sect > 4096) {
-		exfat_msg(sb, KERN_ERR, "bogus logical sector size %u",
-				logical_sect);
-		return NULL;
+		exfat_err(sb, "bogus logical sector size %u", logical_sect);
+		return -EIO;
 	}
 
 	if (logical_sect < sb->s_blocksize) {
-		exfat_msg(sb, KERN_ERR,
-			"logical sector size too small for device (logical sector size = %u)",
-			logical_sect);
-		return NULL;
+		exfat_err(sb, "logical sector size too small for device (logical sector size = %u)",
+			  logical_sect);
+		return -EIO;
 	}
 
 	if (logical_sect > sb->s_blocksize) {
-		brelse(sbi->pbr_bh);
-		sbi->pbr_bh = NULL;
+		brelse(sbi->boot_bh);
+		sbi->boot_bh = NULL;
 
 		if (!sb_set_blocksize(sb, logical_sect)) {
-			exfat_msg(sb, KERN_ERR,
-				"unable to set blocksize %u", logical_sect);
-			return NULL;
+			exfat_err(sb, "unable to set blocksize %u",
+				  logical_sect);
+			return -EIO;
 		}
-		sbi->pbr_bh = sb_bread(sb, 0);
-		if (!sbi->pbr_bh) {
-			exfat_msg(sb, KERN_ERR,
-				"unable to read boot sector (logical sector size = %lu)",
-				sb->s_blocksize);
-			return NULL;
+		sbi->boot_bh = sb_bread(sb, 0);
+		if (!sbi->boot_bh) {
+			exfat_err(sb, "unable to read boot sector (logical sector size = %lu)",
+				  sb->s_blocksize);
+			return -EIO;
 		}
-
-		p_pbr = (struct pbr *)sbi->pbr_bh->b_data;
 	}
-	return p_pbr;
+	return 0;
 }
 
-/* mount the file system volume */
-static int __exfat_fill_super(struct super_block *sb)
+static int exfat_read_boot_sector(struct super_block *sb)
 {
-	int ret;
-	struct pbr *p_pbr;
-	struct pbr64 *p_bpb;
+	struct boot_sector *p_boot;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 
 	/* set block size to read super block */
 	sb_min_blocksize(sb, 512);
 
 	/* read boot sector */
-	sbi->pbr_bh = sb_bread(sb, 0);
-	if (!sbi->pbr_bh) {
-		exfat_msg(sb, KERN_ERR, "unable to read boot sector");
+	sbi->boot_bh = sb_bread(sb, 0);
+	if (!sbi->boot_bh) {
+		exfat_err(sb, "unable to read boot sector");
 		return -EIO;
 	}
+	p_boot = (struct boot_sector *)sbi->boot_bh->b_data;
 
-	/* PRB is read */
-	p_pbr = (struct pbr *)sbi->pbr_bh->b_data;
-
-	/* check the validity of PBR */
-	if (le16_to_cpu((p_pbr->signature)) != PBR_SIGNATURE) {
-		exfat_msg(sb, KERN_ERR, "invalid boot record signature");
-		ret = -EINVAL;
-		goto free_bh;
+	/* check the validity of BOOT */
+	if (le16_to_cpu((p_boot->signature)) != BOOT_SIGNATURE) {
+		exfat_err(sb, "invalid boot record signature");
+		return -EINVAL;
 	}
 
-
-	/* check logical sector size */
-	p_pbr = exfat_read_pbr_with_logical_sector(sb);
-	if (!p_pbr) {
-		ret = -EIO;
-		goto free_bh;
+	if (memcmp(p_boot->fs_name, STR_EXFAT, BOOTSEC_FS_NAME_LEN)) {
+		exfat_err(sb, "invalid fs_name"); /* fs_name may unprintable */
+		return -EINVAL;
 	}
 
 	/*
-	 * res_zero field must be filled with zero to prevent mounting
+	 * must_be_zero field must be filled with zero to prevent mounting
 	 * from FAT volume.
 	 */
-	if (memchr_inv(p_pbr->bpb.f64.res_zero, 0,
-			sizeof(p_pbr->bpb.f64.res_zero))) {
-		ret = -EINVAL;
-		goto free_bh;
+	if (memchr_inv(p_boot->must_be_zero, 0, sizeof(p_boot->must_be_zero)))
+		return -EINVAL;
+
+	if (p_boot->num_fats != 1 && p_boot->num_fats != 2) {
+		exfat_err(sb, "bogus number of FAT structure");
+		return -EINVAL;
 	}
 
-	p_bpb = (struct pbr64 *)p_pbr;
-	if (!p_bpb->bsx.num_fats) {
-		exfat_msg(sb, KERN_ERR, "bogus number of FAT structure");
-		ret = -EINVAL;
-		goto free_bh;
-	}
-
-	sbi->sect_per_clus = 1 << p_bpb->bsx.sect_per_clus_bits;
-	sbi->sect_per_clus_bits = p_bpb->bsx.sect_per_clus_bits;
-	sbi->cluster_size_bits = sbi->sect_per_clus_bits + sb->s_blocksize_bits;
+	sbi->sect_per_clus = 1 << p_boot->sect_per_clus_bits;
+	sbi->sect_per_clus_bits = p_boot->sect_per_clus_bits;
+	sbi->cluster_size_bits = p_boot->sect_per_clus_bits +
+		p_boot->sect_size_bits;
 	sbi->cluster_size = 1 << sbi->cluster_size_bits;
-	sbi->num_FAT_sectors = le32_to_cpu(p_bpb->bsx.fat_length);
-	sbi->FAT1_start_sector = le32_to_cpu(p_bpb->bsx.fat_offset);
-	sbi->FAT2_start_sector = p_bpb->bsx.num_fats == 1 ?
-		sbi->FAT1_start_sector :
-			sbi->FAT1_start_sector + sbi->num_FAT_sectors;
-	sbi->data_start_sector = le32_to_cpu(p_bpb->bsx.clu_offset);
-	sbi->num_sectors = le64_to_cpu(p_bpb->bsx.vol_length);
+	sbi->num_FAT_sectors = le32_to_cpu(p_boot->fat_length);
+	sbi->FAT1_start_sector = le32_to_cpu(p_boot->fat_offset);
+	sbi->FAT2_start_sector = le32_to_cpu(p_boot->fat_offset);
+	if (p_boot->num_fats == 2)
+		sbi->FAT2_start_sector += sbi->num_FAT_sectors;
+	sbi->data_start_sector = le32_to_cpu(p_boot->clu_offset);
+	sbi->num_sectors = le64_to_cpu(p_boot->vol_length);
 	/* because the cluster index starts with 2 */
-	sbi->num_clusters = le32_to_cpu(p_bpb->bsx.clu_count) +
+	sbi->num_clusters = le32_to_cpu(p_boot->clu_count) +
 		EXFAT_RESERVED_CLUSTERS;
 
-	sbi->root_dir = le32_to_cpu(p_bpb->bsx.root_cluster);
+	sbi->root_dir = le32_to_cpu(p_boot->root_cluster);
 	sbi->dentries_per_clu = 1 <<
 		(sbi->cluster_size_bits - DENTRY_SIZE_BITS);
 
-	sbi->vol_flag = le16_to_cpu(p_bpb->bsx.vol_flags);
+	sbi->vol_flag = le16_to_cpu(p_boot->vol_flags);
 	sbi->clu_srch_ptr = EXFAT_FIRST_CLUSTER;
 	sbi->used_clusters = EXFAT_CLUSTERS_UNTRACKED;
 
-	if (le16_to_cpu(p_bpb->bsx.vol_flags) & VOL_DIRTY) {
-		sbi->vol_flag |= VOL_DIRTY;
-		exfat_msg(sb, KERN_WARNING,
-			"Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
+	/* check consistencies */
+	if (sbi->num_FAT_sectors << p_boot->sect_size_bits <
+	    sbi->num_clusters * 4) {
+		exfat_err(sb, "bogus fat length");
+		return -EINVAL;
 	}
+	if (sbi->data_start_sector <
+	    sbi->FAT1_start_sector + sbi->num_FAT_sectors * p_boot->num_fats) {
+		exfat_err(sb, "bogus data start sector");
+		return -EINVAL;
+	}
+	if (sbi->vol_flag & VOL_DIRTY)
+		exfat_warn(sb, "Volume was not properly unmounted. Some data may be corrupt. Please run fsck.");
+	if (sbi->vol_flag & ERR_MEDIUM)
+		exfat_warn(sb, "Medium has reported failures. Some data may be lost.");
 
 	/* exFAT file size is limited by a disk volume size */
 	sb->s_maxbytes = (u64)(sbi->num_clusters - EXFAT_RESERVED_CLUSTERS) <<
 		sbi->cluster_size_bits;
 
+	/* check logical sector size */
+	if (exfat_calibrate_blocksize(sb, 1 << p_boot->sect_size_bits))
+		return -EIO;
+
+	return 0;
+}
+
+static int exfat_verify_boot_region(struct super_block *sb)
+{
+	struct buffer_head *bh = NULL;
+	u32 chksum = 0;
+	__le32 *p_sig, *p_chksum;
+	int sn, i;
+
+	/* read boot sector sub-regions */
+	for (sn = 0; sn < 11; sn++) {
+		bh = sb_bread(sb, sn);
+		if (!bh)
+			return -EIO;
+
+		if (sn != 0 && sn <= 8) {
+			/* extended boot sector sub-regions */
+			p_sig = (__le32 *)&bh->b_data[sb->s_blocksize - 4];
+			if (le32_to_cpu(*p_sig) != EXBOOT_SIGNATURE)
+				exfat_warn(sb, "Invalid exboot-signature(sector = %d): 0x%08x",
+					   sn, le32_to_cpu(*p_sig));
+		}
+
+		chksum = exfat_calc_chksum32(bh->b_data, sb->s_blocksize,
+			chksum, sn ? CS_DEFAULT : CS_BOOT_SECTOR);
+		brelse(bh);
+	}
+
+	/* boot checksum sub-regions */
+	bh = sb_bread(sb, sn);
+	if (!bh)
+		return -EIO;
+
+	for (i = 0; i < sb->s_blocksize; i += sizeof(u32)) {
+		p_chksum = (__le32 *)&bh->b_data[i];
+		if (le32_to_cpu(*p_chksum) != chksum) {
+			exfat_err(sb, "Invalid boot checksum (boot checksum : 0x%08x, checksum : 0x%08x)",
+				  le32_to_cpu(*p_chksum), chksum);
+			brelse(bh);
+			return -EINVAL;
+		}
+	}
+	brelse(bh);
+	return 0;
+}
+
+/* mount the file system volume */
+static int __exfat_fill_super(struct super_block *sb)
+{
+	int ret;
+	struct exfat_sb_info *sbi = EXFAT_SB(sb);
+
+	ret = exfat_read_boot_sector(sb);
+	if (ret) {
+		exfat_err(sb, "failed to read boot sector");
+		goto free_bh;
+	}
+
+	ret = exfat_verify_boot_region(sb);
+	if (ret) {
+		exfat_err(sb, "invalid boot region");
+		goto free_bh;
+	}
+
 	ret = exfat_create_upcase_table(sb);
 	if (ret) {
-		exfat_msg(sb, KERN_ERR, "failed to load upcase table");
+		exfat_err(sb, "failed to load upcase table");
 		goto free_bh;
 	}
 
 	ret = exfat_load_bitmap(sb);
 	if (ret) {
-		exfat_msg(sb, KERN_ERR, "failed to load alloc-bitmap");
+		exfat_err(sb, "failed to load alloc-bitmap");
 		goto free_upcase_table;
 	}
 
 	ret = exfat_count_used_clusters(sb, &sbi->used_clusters);
 	if (ret) {
-		exfat_msg(sb, KERN_ERR, "failed to scan clusters");
+		exfat_err(sb, "failed to scan clusters");
 		goto free_alloc_bitmap;
 	}
 
@@ -521,7 +577,7 @@ free_alloc_bitmap:
 free_upcase_table:
 	exfat_free_upcase_table(sbi);
 free_bh:
-	brelse(sbi->pbr_bh);
+	brelse(sbi->boot_bh);
 	return ret;
 }
 
@@ -539,8 +595,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 		struct request_queue *q = bdev_get_queue(sb->s_bdev);
 
 		if (!blk_queue_discard(q)) {
-			exfat_msg(sb, KERN_WARNING,
-				"mounting with \"discard\" option, but the device does not support discard");
+			exfat_warn(sb, "mounting with \"discard\" option, but the device does not support discard");
 			opts->discard = 0;
 		}
 	}
@@ -555,7 +610,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	err = __exfat_fill_super(sb);
 	if (err) {
-		exfat_msg(sb, KERN_ERR, "failed to recognize exfat type");
+		exfat_err(sb, "failed to recognize exfat type");
 		goto check_nls_io;
 	}
 
@@ -567,8 +622,8 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	else {
 		sbi->nls_io = load_nls(sbi->options.iocharset);
 		if (!sbi->nls_io) {
-			exfat_msg(sb, KERN_ERR, "IO charset %s not found",
-					sbi->options.iocharset);
+			exfat_err(sb, "IO charset %s not found",
+				  sbi->options.iocharset);
 			err = -EINVAL;
 			goto free_table;
 		}
@@ -581,7 +636,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	root_inode = new_inode(sb);
 	if (!root_inode) {
-		exfat_msg(sb, KERN_ERR, "failed to allocate root inode.");
+		exfat_err(sb, "failed to allocate root inode");
 		err = -ENOMEM;
 		goto free_table;
 	}
@@ -590,7 +645,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 	inode_set_iversion(root_inode, 1);
 	err = exfat_read_root(root_inode);
 	if (err) {
-		exfat_msg(sb, KERN_ERR, "failed to initialize root inode.");
+		exfat_err(sb, "failed to initialize root inode");
 		goto put_inode;
 	}
 
@@ -599,7 +654,7 @@ static int exfat_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
-		exfat_msg(sb, KERN_ERR, "failed to get the root dentry");
+		exfat_err(sb, "failed to get the root dentry");
 		err = -ENOMEM;
 		goto put_inode;
 	}
@@ -613,7 +668,7 @@ put_inode:
 free_table:
 	exfat_free_upcase_table(sbi);
 	exfat_free_bitmap(sbi);
-	brelse(sbi->pbr_bh);
+	brelse(sbi->boot_bh);
 
 check_nls_io:
 	unload_nls(sbi->nls_io);
@@ -630,7 +685,12 @@ static int exfat_get_tree(struct fs_context *fc)
 
 static void exfat_free(struct fs_context *fc)
 {
-	kfree(fc->s_fs_info);
+	struct exfat_sb_info *sbi = fc->s_fs_info;
+
+	if (sbi) {
+		exfat_free_iocharset(sbi);
+		kfree(sbi);
+	}
 }
 
 static const struct fs_context_operations exfat_context_ops = {
