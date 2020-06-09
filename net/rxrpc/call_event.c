@@ -320,7 +320,6 @@ recheck_state:
 
 	if (call->state == RXRPC_CALL_COMPLETE) {
 		del_timer_sync(&call->timer);
-		rxrpc_notify_socket(call);
 		goto out_put;
 	}
 

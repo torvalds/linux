@@ -292,9 +292,7 @@ static void rxrpc_distribute_error(struct rxrpc_peer *peer, int error,
 
 	hlist_for_each_entry_rcu(call, &peer->error_targets, error_link) {
 		rxrpc_see_call(call);
-		if (call->state < RXRPC_CALL_COMPLETE &&
-		    rxrpc_set_call_completion(call, compl, 0, -error))
-			rxrpc_notify_socket(call);
+		rxrpc_set_call_completion(call, compl, 0, -error);
 	}
 }
 
