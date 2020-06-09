@@ -48,7 +48,7 @@ static inline bool is_mapped_temp(int flags)
 
 /******************************************************************************/
 
-#define _UUID_STR_SIZE 35
+#define _UUID_STR_SIZE 36
 static char *_uuid_to_str(const TEEC_UUID *uuid)
 {
 	static char uuid_str[_UUID_STR_SIZE];
