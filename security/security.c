@@ -1464,6 +1464,7 @@ int security_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return call_int_hook(file_ioctl, 0, file, cmd, arg);
 }
+EXPORT_SYMBOL_GPL(security_file_ioctl);
 
 static inline unsigned long mmap_prot(struct file *file, unsigned long prot)
 {
