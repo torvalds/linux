@@ -2106,6 +2106,12 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'o';
 	if (test_bit(GLF_BLOCKING, gflags))
 		*p++ = 'b';
+	if (test_bit(GLF_INODE_CREATING, gflags))
+		*p++ = 'c';
+	if (test_bit(GLF_PENDING_DELETE, gflags))
+		*p++ = 'P';
+	if (test_bit(GLF_FREEING, gflags))
+		*p++ = 'x';
 	*p = 0;
 	return buf;
 }
