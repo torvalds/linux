@@ -504,12 +504,12 @@ do {										\
  * We want the unsafe accessors to always be inlined and use
  * the error labels - thus the macro games.
  */
-#define unsafe_copy_loop(dst, src, len, type, label)			\
-	while (len >= sizeof(type)) {					\
-		unsafe_put_user(*(type *)src,(type __user *)dst,label);	\
-		dst += sizeof(type);					\
-		src += sizeof(type);					\
-		len -= sizeof(type);					\
+#define unsafe_copy_loop(dst, src, len, type, label)				\
+	while (len >= sizeof(type)) {						\
+		unsafe_put_user(*(type *)(src),(type __user *)(dst),label);	\
+		dst += sizeof(type);						\
+		src += sizeof(type);						\
+		len -= sizeof(type);						\
 	}
 
 #define unsafe_copy_to_user(_dst,_src,_len,label)			\
@@ -529,7 +529,7 @@ do {									\
 do {									\
 	int __kr_err;							\
 									\
-	__get_user_size(*((type *)dst), (__force type __user *)src,	\
+	__get_user_size(*((type *)(dst)), (__force type __user *)(src),	\
 			sizeof(type), __kr_err);			\
 	if (unlikely(__kr_err))						\
 		goto err_label;						\
