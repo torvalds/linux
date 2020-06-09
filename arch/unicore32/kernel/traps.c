@@ -135,12 +135,13 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	set_fs(fs);
 }
 
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
+			   const char *loglvl)
 {
 	unsigned int fp;
 	int ok = 1;
 
-	printk(KERN_DEFAULT "Backtrace: ");
+	printk("%sBacktrace: ", loglvl);
 
 	if (!tsk)
 		tsk = current;
@@ -153,23 +154,29 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		asm("mov %0, fp" : "=r" (fp) : : "cc");
 
 	if (!fp) {
-		printk("no frame pointer");
+		printk("%sno frame pointer", loglvl);
 		ok = 0;
 	} else if (verify_stack(fp)) {
-		printk("invalid frame pointer 0x%08x", fp);
+		printk("%sinvalid frame pointer 0x%08x", loglvl, fp);
 		ok = 0;
 	} else if (fp < (unsigned long)end_of_stack(tsk))
-		printk("frame pointer underflow");
-	printk("\n");
+		printk("%sframe pointer underflow", loglvl);
+	printk("%s\n", loglvl);
 
 	if (ok)
-		c_backtrace(fp, KERN_DEFAULT);
+		c_backtrace(fp, loglvl);
+}
+
+void show_stack_loglvl(struct task_struct *tsk, unsigned long *sp,
+		       const char *loglvl)
+{
+	dump_backtrace(NULL, tsk, loglvl);
+	barrier();
 }
 
 void show_stack(struct task_struct *tsk, unsigned long *sp)
 {
-	dump_backtrace(NULL, tsk);
-	barrier();
+	show_stack_loglvl(tsk, sp, KERN_DEFAULT)
 }
 
 static int __die(const char *str, int err, struct thread_info *thread,
@@ -196,7 +203,7 @@ static int __die(const char *str, int err, struct thread_info *thread,
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem(KERN_EMERG, "Stack: ", regs->UCreg_sp,
 			 THREAD_SIZE + (unsigned long)task_stack_page(tsk));
-		dump_backtrace(regs, tsk);
+		dump_backtrace(regs, tsk, KERN_EMERG);
 		dump_instr(KERN_EMERG, regs);
 	}
 
