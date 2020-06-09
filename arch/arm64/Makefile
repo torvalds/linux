@@ -79,10 +79,6 @@ branch-prot-flags-$(CONFIG_CC_HAS_BRANCH_PROT_PAC_RET) := -mbranch-protection=pa
 branch-prot-flags-$(CONFIG_AS_HAS_PAC) += -Wa,-march=armv8.3-a
 endif
 
-ifeq ($(CONFIG_SHADOW_CALL_STACK), y)
-KBUILD_CFLAGS	+= -ffixed-x18
-endif
-
 KBUILD_CFLAGS += $(branch-prot-flags-y)
 
 ifeq ($(CONFIG_CPU_BIG_ENDIAN), y)
