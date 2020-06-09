@@ -35,6 +35,6 @@ config MT7663U
 	depends on MAC80211
 	depends on USB
 	help
-	  This adds support for MT7663U 802.11ax 2x2:2 wireless devices.
+	  This adds support for MT7663U 802.11ac 2x2:2 wireless devices.
 
 	  To compile this driver as a module, choose M here.
