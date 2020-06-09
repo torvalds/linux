@@ -198,15 +198,9 @@ static void parisc_show_stack(struct task_struct *task,
 	do_show_stack(&info, loglvl);
 }
 
-void show_stack_loglvl(struct task_struct *t, unsigned long *sp,
-		       const char *loglvl)
+void show_stack(struct task_struct *t, unsigned long *sp, const char *loglvl)
 {
 	parisc_show_stack(t, NULL, loglvl);
-}
-
-void show_stack(struct task_struct *t, unsigned long *sp)
-{
-	show_stack_loglvl(t, sp, KERN_CRIT)
 }
 
 int is_valid_bugaddr(unsigned long iaoq)

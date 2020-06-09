@@ -85,8 +85,7 @@ ia64_do_show_stack (struct unw_frame_info *info, void *arg)
 }
 
 void
-show_stack_loglvl (struct task_struct *task, unsigned long *sp,
-		   const char *loglvl)
+show_stack (struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	if (!task)
 		unw_init_running(ia64_do_show_stack, (void *)loglvl);
@@ -96,12 +95,6 @@ show_stack_loglvl (struct task_struct *task, unsigned long *sp,
 		unw_init_from_blocked_task(&info, task);
 		ia64_do_show_stack(&info, (void *)loglvl);
 	}
-}
-
-void
-show_stack (struct task_struct *task, unsigned long *sp)
-{
-	show_stack_loglvl(task, sp, KERN_DEFAULT);
 }
 
 void
@@ -158,7 +151,7 @@ show_regs (struct pt_regs *regs)
 			       ((i == sof - 1) || (i % 3) == 2) ? "\n" : " ");
 		}
 	} else
-		show_stack(NULL, NULL);
+		show_stack(NULL, NULL, KERN_DEFAULT);
 }
 
 /* local support for deprecated console_print */

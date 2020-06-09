@@ -126,7 +126,7 @@ unknown:
 	return -EINVAL;
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
+void show_stack(struct task_struct *task, unsigned long *stack,
 		       const char *loglvl)
 {
 	struct unwind_state state;
@@ -137,11 +137,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
 					"%s([<%016lx>] %pSR)\n",
 		       loglvl, state.ip, (void *) state.ip);
 	debug_show_held_locks(task ? : current);
-}
-
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	show_stack_loglvl(task, stack, KERN_DEFAULT);
 }
 
 static void show_last_breaking_event(struct pt_regs *regs)
@@ -181,7 +176,7 @@ void show_regs(struct pt_regs *regs)
 	show_registers(regs);
 	/* Show stack backtrace if pt_regs is from kernel mode */
 	if (!user_mode(regs))
-		show_stack(NULL, (unsigned long *) regs->gprs[15]);
+		show_stack(NULL, (unsigned long *) regs->gprs[15], KERN_DEFAULT);
 	show_last_breaking_event(regs);
 }
 

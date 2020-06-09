@@ -144,8 +144,7 @@ dik_show_trace(unsigned long *sp, const char *loglvl)
 
 static int kstack_depth_to_print = 24;
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
-			const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	unsigned long *stack;
 	int i;
@@ -172,11 +171,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
 	}
 	pr_cont("\n");
 	dik_show_trace(sp, loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	show_stack_loglvl(task, sp, KERN_DEFAULT);
 }
 
 void

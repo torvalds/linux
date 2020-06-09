@@ -228,15 +228,9 @@ noinline void show_stacktrace(struct task_struct *tsk, struct pt_regs *regs,
 EXPORT_SYMBOL(show_stacktrace);
 
 /* Expected by sched Code */
-void show_stack_loglvl(struct task_struct *tsk, unsigned long *sp,
-			const char *loglvl)
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
 	show_stacktrace(tsk, NULL, loglvl);
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp)
-{
-	show_stack_loglvl(tsk, sp, KERN_DEFAULT);
 }
 
 /* Another API expected by schedular, shows up in "ps" as Wait Channel

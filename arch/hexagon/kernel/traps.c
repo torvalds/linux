@@ -175,16 +175,10 @@ static void do_show_stack(struct task_struct *task, unsigned long *fp,
 	}
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *fp,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *fp, const char *loglvl)
 {
 	/* Saved link reg is one word above FP */
 	do_show_stack(task, fp, 0, loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *fp)
-{
-	show_stack_loglvl(task, fp, 0, KERN_INFO);
 }
 
 int die(const char *str, struct pt_regs *regs, long err)

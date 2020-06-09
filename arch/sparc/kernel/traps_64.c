@@ -2453,8 +2453,7 @@ static void user_instruction_dump(unsigned int __user *pc)
 	printk("\n");
 }
 
-void show_stack_loglvl(struct task_struct *tsk, unsigned long *_ksp,
-			 const char *loglvl)
+void show_stack(struct task_struct *tsk, unsigned long *_ksp, const char *loglvl)
 {
 	unsigned long fp, ksp;
 	struct thread_info *tp;
@@ -2512,11 +2511,6 @@ void show_stack_loglvl(struct task_struct *tsk, unsigned long *_ksp,
 		}
 #endif
 	} while (++count < 16);
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *_ksp)
-{
-	show_stack_loglvl(task, sp, KERN_DEFAULT);
 }
 
 static inline struct reg_window *kernel_stack_up(struct reg_window *rw)

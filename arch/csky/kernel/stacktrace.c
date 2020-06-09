@@ -95,17 +95,10 @@ static bool print_trace_address(unsigned long pc, void *arg)
 	return false;
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	pr_cont("Call Trace:\n");
 	walk_stackframe(task, NULL, print_trace_address, (void *)loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	pr_cont("Call Trace:\n");
-	walk_stackframe(task, NULL, print_trace_address, KERN_INFO);
 }
 
 static bool save_wchan(unsigned long pc, void *arg)

@@ -30,7 +30,7 @@ static void kdb_show_stack(struct task_struct *p, void *addr)
 		kdb_dump_stack_on_cpu(kdb_process_cpu(p));
 		console_loglevel = old_lvl;
 	} else {
-		show_stack_loglvl(p, addr, KERN_EMERG);
+		show_stack(p, addr, KERN_EMERG);
 	}
 
 	kdb_trap_printk--;

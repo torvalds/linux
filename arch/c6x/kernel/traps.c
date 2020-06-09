@@ -374,7 +374,7 @@ static void show_trace(unsigned long *stack, unsigned long *endstack,
 	printk("%s\n", loglvl);
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
+void show_stack(struct task_struct *task, unsigned long *stack,
 		const char *loglvl)
 {
 	unsigned long *p, *endstack;
@@ -401,11 +401,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
 	}
 	pr_cont("\n");
 	show_trace(stack, endstack, loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	show_stack_loglvl(task, stack, KERN_DEBUG);
 }
 
 int is_valid_bugaddr(unsigned long addr)

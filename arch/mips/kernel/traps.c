@@ -198,8 +198,7 @@ static void show_stacktrace(struct task_struct *task,
 	show_backtrace(task, regs, loglvl);
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *sp, const char *loglvl)
 {
 	struct pt_regs regs;
 	mm_segment_t old_fs = get_fs();
@@ -225,11 +224,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
 	set_fs(KERNEL_DS);
 	show_stacktrace(task, &regs, loglvl);
 	set_fs(old_fs);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	show_stack_loglvl(task, sp, KERN_DEFAULT)
 }
 
 static void show_code(unsigned int __user *pc)

@@ -135,8 +135,7 @@ static void __dump(struct task_struct *tsk, unsigned long *base_reg,
 	printk("%s\n", loglvl);
 }
 
-void show_stack_loglvl(struct task_struct *tsk, unsigned long *sp,
-		       const char *loglvl)
+void show_stack(struct task_struct *tsk, unsigned long *sp, const char *loglvl)
 {
 	unsigned long *base_reg;
 
@@ -155,11 +154,6 @@ void show_stack_loglvl(struct task_struct *tsk, unsigned long *sp,
 	}
 	__dump(tsk, base_reg, loglvl);
 	barrier();
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp)
-{
-	show_stack_loglvl(tsk, sp, KERN_EMERG);
 }
 
 DEFINE_SPINLOCK(die_lock);

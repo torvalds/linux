@@ -916,7 +916,7 @@ void show_registers(struct pt_regs *regs)
 	default:
 		pr_cont("\n");
 	}
-	show_stack(NULL, (unsigned long *)addr);
+	show_stack(NULL, (unsigned long *)addr, KERN_INFO);
 
 	pr_info("Code:");
 	set_fs(KERNEL_DS);
@@ -935,8 +935,8 @@ void show_registers(struct pt_regs *regs)
 	pr_cont("\n");
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *stack,
+		const char *loglvl)
 {
 	unsigned long *p;
 	unsigned long *endstack;
@@ -961,11 +961,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
 	}
 	pr_cont("\n");
 	show_trace(stack, loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	show_stack_loglvl(task, stack, KERN_INFO);
 }
 
 /*

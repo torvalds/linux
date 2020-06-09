@@ -115,8 +115,7 @@ void die(const char *str, struct pt_regs *fp, unsigned long err)
 
 static int kstack_depth_to_print = 24;
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *esp,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *esp, const char *loglvl)
 {
 	unsigned long *stack,  addr;
 	int i;
@@ -157,9 +156,4 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *esp,
 		}
 	}
 	printk("%s\n", loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *esp)
-{
-	show_stack_loglvl(task, esp, KERN_INFO);
 }

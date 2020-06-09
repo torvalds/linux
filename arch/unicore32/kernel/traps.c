@@ -167,16 +167,11 @@ static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 		c_backtrace(fp, loglvl);
 }
 
-void show_stack_loglvl(struct task_struct *tsk, unsigned long *sp,
+void show_stack(struct task_struct *tsk, unsigned long *sp,
 		       const char *loglvl)
 {
 	dump_backtrace(NULL, tsk, loglvl);
 	barrier();
-}
-
-void show_stack(struct task_struct *tsk, unsigned long *sp)
-{
-	show_stack_loglvl(tsk, sp, KERN_DEFAULT)
 }
 
 static int __die(const char *str, int err, struct thread_info *thread,

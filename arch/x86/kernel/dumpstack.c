@@ -279,7 +279,7 @@ next:
 	}
 }
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
+void show_stack(struct task_struct *task, unsigned long *sp,
 		       const char *loglvl)
 {
 	task = task ? : current;
@@ -292,11 +292,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
 		sp = get_stack_pointer(current, NULL);
 
 	show_trace_log_lvl(task, NULL, sp, loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *sp)
-{
-	show_stack_loglvl(task, sp, KERN_DEFAULT);
 }
 
 void show_stack_regs(struct pt_regs *regs)

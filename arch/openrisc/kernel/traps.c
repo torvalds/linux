@@ -48,19 +48,13 @@ void print_trace(void *data, unsigned long addr, int reliable)
 }
 
 /* displays a short stack trace */
-void show_stack_loglvl(struct task_struct *task, unsigned long *esp,
-		const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *esp, const char *loglvl)
 {
 	if (esp == NULL)
 		esp = (unsigned long *)&esp;
 
 	printk("%sCall trace:\n", loglvl);
 	unwind_stack((void *)loglvl, esp, print_trace);
-}
-
-void show_stack(struct task_struct *task, unsigned long *esp)
-{
-	show_stack_loglvl(task, esp, KERN_EMERG);
 }
 
 void show_registers(struct pt_regs *regs)
@@ -104,7 +98,7 @@ void show_registers(struct pt_regs *regs)
 	if (in_kernel) {
 
 		printk("\nStack: ");
-		show_stack(NULL, (unsigned long *)esp);
+		show_stack(NULL, (unsigned long *)esp, KERN_EMERG);
 
 		printk("\nCode: ");
 		if (regs->pc < PAGE_OFFSET)

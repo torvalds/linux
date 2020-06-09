@@ -52,14 +52,13 @@ void _exception(int signo, struct pt_regs *regs, int code, unsigned long addr)
 }
 
 /*
- * The show_stack(), show_stack_loglvl() are external API
- * which we do not use ourselves.
+ * The show_stack() is external API which we do not use ourselves.
  */
 
 int kstack_depth_to_print = 48;
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
-		       const char *loglvl)
+void show_stack(struct task_struct *task, unsigned long *stack,
+		const char *loglvl)
 {
 	unsigned long *endstack, addr;
 	int i;
@@ -104,11 +103,6 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
 		}
 	}
 	printk("%s\n", loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	show_stack_loglvl(task, stack, KERN_EMERG);
 }
 
 void __init trap_init(void)

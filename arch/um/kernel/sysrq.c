@@ -27,7 +27,7 @@ static const struct stacktrace_ops stackops = {
 	.address = _print_addr
 };
 
-void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
+void show_stack(struct task_struct *task, unsigned long *stack,
 		       const char *loglvl)
 {
 	struct pt_regs *segv_regs = current->thread.segv_regs;
@@ -55,9 +55,4 @@ void show_stack_loglvl(struct task_struct *task, unsigned long *stack,
 	printk("%sCall Trace:\n", loglvl);
 	dump_trace(current, &stackops, (void *)loglvl);
 	printk("%s\n", loglvl);
-}
-
-void show_stack(struct task_struct *task, unsigned long *stack)
-{
-	show_stack_loglvl(task, stack, KERN_INFO);
 }
