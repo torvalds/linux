@@ -534,18 +534,6 @@ static const struct mtk_gate top_clks[] = {
 	GATE_TOP2(CLK_TOP_APLL12_DIV3, "apll12_div3", "aud_1_ck", 5),
 };
 
-static const struct mtk_gate_regs ifr0_cg_regs = {
-	.set_ofs = 0x200,
-	.clr_ofs = 0x200,
-	.sta_ofs = 0x200,
-};
-
-static const struct mtk_gate_regs ifr1_cg_regs = {
-	.set_ofs = 0x74,
-	.clr_ofs = 0x74,
-	.sta_ofs = 0x74,
-};
-
 static const struct mtk_gate_regs ifr2_cg_regs = {
 	.set_ofs = 0x80,
 	.clr_ofs = 0x84,
@@ -569,24 +557,6 @@ static const struct mtk_gate_regs ifr5_cg_regs = {
 	.clr_ofs = 0xc4,
 	.sta_ofs = 0xc8,
 };
-
-#define GATE_IFR0(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &ifr0_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr_inv,	\
-	}
-
-#define GATE_IFR1(_id, _name, _parent, _shift) {	\
-		.id = _id,				\
-		.name = _name,				\
-		.parent_name = _parent,			\
-		.regs = &ifr1_cg_regs,			\
-		.shift = _shift,			\
-		.ops = &mtk_clk_gate_ops_no_setclr,	\
-	}
 
 #define GATE_IFR2(_id, _name, _parent, _shift) {	\
 		.id = _id,				\
