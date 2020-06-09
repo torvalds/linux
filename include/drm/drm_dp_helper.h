@@ -1561,7 +1561,7 @@ enum drm_dp_quirk {
 
 /**
  * drm_dp_has_quirk() - does the DP device have a specific quirk
- * @desc: Device decriptor filled by drm_dp_read_desc()
+ * @desc: Device descriptor filled by drm_dp_read_desc()
  * @edid_quirks: Optional quirk bitmask filled by drm_dp_get_edid_quirks()
  * @quirk: Quirk to query for
  *

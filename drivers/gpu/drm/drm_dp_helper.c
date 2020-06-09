@@ -1362,7 +1362,7 @@ EXPORT_SYMBOL(drm_dp_get_edid_quirks);
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD
  * @aux: DisplayPort AUX channel
- * @desc: Device decriptor to fill from DPCD
+ * @desc: Device descriptor to fill from DPCD
  * @is_branch: true for branch devices, false for sink devices
  *
  * Read DPCD 0x400 (sink) or 0x500 (branch) into @desc. Also debug log the
