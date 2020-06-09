@@ -2322,6 +2322,10 @@ int smu_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data = smu->smu_power.power_gate.vcn_gated ? 0 : 1;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
+		*(uint32_t *)data = 0;
+		*size = 4;
+		break;
 	default:
 		if (smu->ppt_funcs->read_sensor)
 			ret = smu->ppt_funcs->read_sensor(smu, sensor, data, size);

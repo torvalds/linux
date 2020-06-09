@@ -1193,10 +1193,6 @@ int smu_v11_0_read_sensor(struct smu_context *smu,
 		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
 		*size = 4;
 		break;
-	case AMDGPU_PP_SENSOR_MIN_FAN_RPM:
-		*(uint32_t *)data = 0;
-		*size = 4;
-		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
