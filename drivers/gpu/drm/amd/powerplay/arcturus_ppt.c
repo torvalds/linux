@@ -1212,8 +1212,13 @@ static int arcturus_read_sensor(struct smu_context *smu,
 		*(uint32_t *)data *= 100;
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_VDDGFX:
+		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
+		*size = 4;
+		break;
 	default:
-		ret = smu_v11_0_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
+		break;
 	}
 	mutex_unlock(&smu->sensor_lock);
 
@@ -2566,7 +2571,6 @@ static const struct pptable_funcs arcturus_ppt_funcs = {
 	.set_default_dpm_table = arcturus_set_default_dpm_table,
 	.populate_umd_state_clk = arcturus_populate_umd_state_clk,
 	.get_thermal_temperature_range = arcturus_get_thermal_temperature_range,
-	.get_current_clk_freq_by_table = arcturus_get_current_clk_freq_by_table,
 	.print_clk_levels = arcturus_print_clk_levels,
 	.force_clk_levels = arcturus_force_clk_levels,
 	.read_sensor = arcturus_read_sensor,

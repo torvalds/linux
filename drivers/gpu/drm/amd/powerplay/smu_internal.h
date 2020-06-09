@@ -86,7 +86,6 @@
 #define smu_dpm_set_vcn_enable(smu, enable)				smu_ppt_funcs(dpm_set_vcn_enable, 0, smu, enable)
 #define smu_dpm_set_jpeg_enable(smu, enable)				smu_ppt_funcs(dpm_set_jpeg_enable, 0, smu, enable)
 #define smu_set_watermarks_table(smu, tab, clock_ranges)		smu_ppt_funcs(set_watermarks_table, 0, smu, tab, clock_ranges)
-#define smu_get_current_clk_freq_by_table(smu, clk_type, value)		smu_ppt_funcs(get_current_clk_freq_by_table, 0, smu, clk_type, value)
 #define smu_thermal_temperature_range_update(smu, range, rw)		smu_ppt_funcs(thermal_temperature_range_update, 0, smu, range, rw)
 #define smu_get_thermal_temperature_range(smu, range)			smu_ppt_funcs(get_thermal_temperature_range, 0, smu, range)
 #define smu_register_irq_handler(smu)					smu_ppt_funcs(register_irq_handler, 0, smu)

@@ -907,7 +907,8 @@ static int renoir_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		ret = smu_v12_0_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
+		break;
 	}
 	mutex_unlock(&smu->sensor_lock);
 
@@ -941,7 +942,6 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_current_power_state = renoir_get_current_power_state,
 	.dpm_set_vcn_enable = renoir_dpm_set_vcn_enable,
 	.dpm_set_jpeg_enable = renoir_dpm_set_jpeg_enable,
-	.get_current_clk_freq_by_table = renoir_get_current_clk_freq_by_table,
 	.force_dpm_limit_value = renoir_force_dpm_limit_value,
 	.unforce_dpm_levels = renoir_unforce_dpm_levels,
 	.get_workload_type = renoir_get_workload_type,

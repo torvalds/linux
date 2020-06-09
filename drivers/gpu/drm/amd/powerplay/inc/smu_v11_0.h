@@ -197,19 +197,13 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 
 int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n);
 
-int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
-					  enum smu_clk_type clk_id,
-					  uint32_t *value);
-
 int smu_v11_0_init_max_sustainable_clocks(struct smu_context *smu);
 
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu);
 
 int smu_v11_0_disable_thermal_alert(struct smu_context *smu);
 
-int smu_v11_0_read_sensor(struct smu_context *smu,
-				 enum amd_pp_sensors sensor,
-				 void *data, uint32_t *size);
+int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value);
 
 int smu_v11_0_set_min_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk);
 

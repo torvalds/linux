@@ -1084,26 +1084,6 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	return 0;
 }
 
-int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
-					  enum smu_clk_type clk_id,
-					  uint32_t *value)
-{
-	int ret = 0;
-	uint32_t freq = 0;
-
-	if (clk_id >= SMU_CLK_COUNT || !value)
-		return -EINVAL;
-
-	ret =  smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
-	if (ret)
-		return ret;
-
-	freq *= 100;
-	*value = freq;
-
-	return ret;
-}
-
 int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
@@ -1153,7 +1133,7 @@ static uint16_t convert_to_vddc(uint8_t vid)
 	return (uint16_t) ((6200 - (vid * 25)) / SMU11_VOLTAGE_SCALE);
 }
 
-static int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value)
+int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t vdd = 0, val_vid = 0;
@@ -1170,31 +1150,6 @@ static int smu_v11_0_get_gfx_vdd(struct smu_context *smu, uint32_t *value)
 
 	return 0;
 
-}
-
-int smu_v11_0_read_sensor(struct smu_context *smu,
-				 enum amd_pp_sensors sensor,
-				 void *data, uint32_t *size)
-{
-	int ret = 0;
-
-	if(!data || !size)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_VDDGFX:
-		ret = smu_v11_0_get_gfx_vdd(smu, (uint32_t *)data);
-		*size = 4;
-		break;
-	default:
-		ret = -EOPNOTSUPP;
-		break;
-	}
-
-	if (ret)
-		*size = 0;
-
-	return ret;
 }
 
 int
