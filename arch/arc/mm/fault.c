@@ -107,7 +107,7 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 		flags |= FAULT_FLAG_WRITE;
 
 retry:
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 
 	vma = find_vma(mm, address);
 	if (!vma)
@@ -150,7 +150,7 @@ retry:
 	}
 
 bad_area:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	/*
 	 * Major/minor page fault accounting

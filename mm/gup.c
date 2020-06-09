@@ -1249,7 +1249,7 @@ retry:
 	}
 
 	if (ret & VM_FAULT_RETRY) {
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 		*unlocked = true;
 		fault_flags |= FAULT_FLAG_TRIED;
 		goto retry;
@@ -1354,7 +1354,7 @@ retry:
 			break;
 		}
 
-		ret = down_read_killable(&mm->mmap_sem);
+		ret = mmap_read_lock_killable(mm);
 		if (ret) {
 			BUG_ON(ret > 0);
 			if (!pages_done)
@@ -1389,7 +1389,7 @@ retry:
 		 * We must let the caller know we temporarily dropped the lock
 		 * and so the critical section protected by it was lost.
 		 */
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		*locked = 0;
 	}
 	return pages_done;
@@ -1477,7 +1477,7 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 		 */
 		if (!locked) {
 			locked = 1;
-			down_read(&mm->mmap_sem);
+			mmap_read_lock(mm);
 			vma = find_vma(mm, nstart);
 		} else if (nstart >= vma->vm_end)
 			vma = vma->vm_next;
@@ -1509,7 +1509,7 @@ int __mm_populate(unsigned long start, unsigned long len, int ignore_errors)
 		ret = 0;
 	}
 	if (locked)
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	return ret;	/* 0 or negative error code */
 }
 
@@ -2078,11 +2078,11 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
 	if (WARN_ON_ONCE(gup_flags & FOLL_LONGTERM))
 		return -EINVAL;
 
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	ret = __get_user_pages_locked(current, mm, start, nr_pages, pages, NULL,
 				      &locked, gup_flags | FOLL_TOUCH);
 	if (locked)
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 	return ret;
 }
 EXPORT_SYMBOL(get_user_pages_unlocked);
@@ -2723,11 +2723,11 @@ static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
 	 * get_user_pages_unlocked() (see comments in that function)
 	 */
 	if (gup_flags & FOLL_LONGTERM) {
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		ret = __gup_longterm_locked(current, current->mm,
 					    start, nr_pages,
 					    pages, NULL, gup_flags);
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 	} else {
 		ret = get_user_pages_unlocked(start, nr_pages,
 					      pages, gup_flags);

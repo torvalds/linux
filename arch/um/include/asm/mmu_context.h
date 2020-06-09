@@ -49,7 +49,7 @@ static inline void activate_mm(struct mm_struct *old, struct mm_struct *new)
 	__switch_mm(&new->context.id);
 	down_write_nested(&new->mmap_sem, 1);
 	uml_setup_stubs(new);
-	up_write(&new->mmap_sem);
+	mmap_write_unlock(new);
 }
 
 static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, 

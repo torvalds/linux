@@ -108,7 +108,7 @@ static int __bad_area(struct pt_regs *regs, unsigned long address, int si_code)
 	 * Something tried to access memory that isn't in our memory map..
 	 * Fix it, but check if it's kernel or user first..
 	 */
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	return __bad_area_nosemaphore(regs, address, si_code);
 }
@@ -144,7 +144,7 @@ static noinline int bad_access_pkey(struct pt_regs *regs, unsigned long address,
 	 */
 	pkey = vma_pkey(vma);
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	/*
 	 * If we are in kernel mode, bail out with a SEGV, this will
@@ -551,12 +551,12 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * source.  If this is invalid we can skip the address space check,
 	 * thus avoiding the deadlock.
 	 */
-	if (unlikely(!down_read_trylock(&mm->mmap_sem))) {
+	if (unlikely(!mmap_read_trylock(mm))) {
 		if (!is_user && !search_exception_tables(regs->nip))
 			return bad_area_nosemaphore(regs, address);
 
 retry:
-		down_read(&mm->mmap_sem);
+		mmap_read_lock(mm);
 	} else {
 		/*
 		 * The above down_read_trylock() might have succeeded in
@@ -580,7 +580,7 @@ retry:
 		if (!must_retry)
 			return bad_area(regs, address);
 
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		if (fault_in_pages_readable((const char __user *)regs->nip,
 					    sizeof(unsigned int)))
 			return bad_area_nosemaphore(regs, address);
@@ -625,7 +625,7 @@ good_area:
 		}
 	}
 
-	up_read(&current->mm->mmap_sem);
+	mmap_read_unlock(current->mm);
 
 	if (unlikely(fault & VM_FAULT_ERROR))
 		return mm_fault_error(regs, address, fault);

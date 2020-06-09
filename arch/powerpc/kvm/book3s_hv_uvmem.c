@@ -408,7 +408,7 @@ kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 	 */
 	ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,
 			  MADV_UNMERGEABLE, &vma->vm_flags);
-	downgrade_write(&kvm->mm->mmap_sem);
+	mmap_write_downgrade(kvm->mm);
 	*downgrade = true;
 	if (ret)
 		return ret;
@@ -525,7 +525,7 @@ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	down_write(&kvm->mm->mmap_sem);
+	mmap_write_lock(kvm->mm);
 
 	start = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(start))
@@ -548,9 +548,9 @@ out_unlock:
 	mutex_unlock(&kvm->arch.uvmem_lock);
 out:
 	if (downgrade)
-		up_read(&kvm->mm->mmap_sem);
+		mmap_read_unlock(kvm->mm);
 	else
-		up_write(&kvm->mm->mmap_sem);
+		mmap_write_unlock(kvm->mm);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }
@@ -703,7 +703,7 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
 
 	ret = H_PARAMETER;
 	srcu_idx = srcu_read_lock(&kvm->srcu);
-	down_read(&kvm->mm->mmap_sem);
+	mmap_read_lock(kvm->mm);
 	start = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(start))
 		goto out;
@@ -716,7 +716,7 @@ kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
 	if (!kvmppc_svm_page_out(vma, start, end, page_shift, kvm, gpa))
 		ret = H_SUCCESS;
 out:
-	up_read(&kvm->mm->mmap_sem);
+	mmap_read_unlock(kvm->mm);
 	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	return ret;
 }

@@ -193,9 +193,9 @@ static void test_lock(bool master, bool verbose)
 		if (verbose)
 			pr_notice("lock mmap_sem pid=%d\n", main_task->pid);
 		if (lock_read)
-			down_read(&main_task->mm->mmap_sem);
+			mmap_read_lock(main_task->mm);
 		else
-			down_write(&main_task->mm->mmap_sem);
+			mmap_write_lock(main_task->mm);
 	}
 
 	if (test_disable_irq)
@@ -276,9 +276,9 @@ static void test_unlock(bool master, bool verbose)
 
 	if (lock_mmap_sem && master) {
 		if (lock_read)
-			up_read(&main_task->mm->mmap_sem);
+			mmap_read_unlock(main_task->mm);
 		else
-			up_write(&main_task->mm->mmap_sem);
+			mmap_write_unlock(main_task->mm);
 		if (verbose)
 			pr_notice("unlock mmap_sem pid=%d\n", main_task->pid);
 	}

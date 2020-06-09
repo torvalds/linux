@@ -340,7 +340,7 @@ int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	struct mm_struct *mm = current->mm;
 	int ret;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	ret = aarch32_kuser_helpers_setup(mm);
@@ -357,7 +357,7 @@ int aarch32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 #endif /* CONFIG_COMPAT_VDSO */
 
 out:
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 	return ret;
 }
 #endif /* CONFIG_COMPAT */
@@ -398,7 +398,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 	struct mm_struct *mm = current->mm;
 	int ret;
 
-	if (down_write_killable(&mm->mmap_sem))
+	if (mmap_write_lock_killable(mm))
 		return -EINTR;
 
 	ret = __setup_additional_pages(VDSO_ABI_AA64,
@@ -406,7 +406,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm,
 				       bprm,
 				       uses_interp);
 
-	up_write(&mm->mmap_sem);
+	mmap_write_unlock(mm);
 
 	return ret;
 }

@@ -117,7 +117,7 @@ do_page_fault(unsigned long address, unsigned long mmcsr,
 	if (user_mode(regs))
 		flags |= FAULT_FLAG_USER;
 retry:
-	down_read(&mm->mmap_sem);
+	mmap_read_lock(mm);
 	vma = find_vma(mm, address);
 	if (!vma)
 		goto bad_area;
@@ -180,14 +180,14 @@ retry:
 		}
 	}
 
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	return;
 
 	/* Something tried to access memory that isn't in our memory map.
 	   Fix it, but check if it's kernel or user first.  */
  bad_area:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 
 	if (user_mode(regs))
 		goto do_sigsegv;
@@ -211,14 +211,14 @@ retry:
 	/* We ran out of memory, or some other thing happened to us that
 	   made us unable to handle the page fault gracefully.  */
  out_of_memory:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	if (!user_mode(regs))
 		goto no_context;
 	pagefault_out_of_memory();
 	return;
 
  do_sigbus:
-	up_read(&mm->mmap_sem);
+	mmap_read_unlock(mm);
 	/* Send a sigbus, regardless of whether we were in kernel
 	   or user mode.  */
 	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *) address, 0);
