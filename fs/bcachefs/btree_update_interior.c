@@ -803,7 +803,7 @@ void bch2_btree_interior_update_will_free_node(struct btree_update *as,
 	 * operations complete
 	 */
 	list_for_each_entry_safe(p, n, &b->write_blocked, write_blocked_list) {
-		list_del(&p->write_blocked_list);
+		list_del_init(&p->write_blocked_list);
 		btree_update_reparent(as, p);
 
 		/*
