@@ -672,7 +672,7 @@ static int inno_mipi_dphy_pll_register(struct inno_mipi_dphy *inno)
 	struct device_node *np = dev->of_node;
 	struct clk *clk;
 	const char *parent_name;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	parent_name = __clk_get_name(inno->ref_clk);
