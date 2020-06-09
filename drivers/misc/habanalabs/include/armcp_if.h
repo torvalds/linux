@@ -276,6 +276,8 @@ struct armcp_packet {
 		/* For get Armcp info/EEPROM data */
 		__le32 data_max_size;
 	};
+
+	__le32 reserved;
 };
 
 struct armcp_unmask_irq_arr_packet {
