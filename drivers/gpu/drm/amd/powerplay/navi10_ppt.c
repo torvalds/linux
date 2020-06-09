@@ -881,13 +881,13 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 		if (ret)
 			return size;
 
-		ret = smu_get_dpm_level_count(smu, clk_type, &count);
+		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
 			return size;
 
 		if (!navi10_is_support_fine_grained_dpm(smu, clk_type)) {
 			for (i = 0; i < count; i++) {
-				ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
 					return size;
 
@@ -895,10 +895,10 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 						cur_value == value ? "*" : "");
 			}
 		} else {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
+			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
 			if (ret)
 				return size;
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
+			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
 				return size;
 
@@ -1058,11 +1058,11 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
 		}
 
-		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
+		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			return size;
 
-		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
+		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
 		if (ret)
 			return size;
 
@@ -1110,7 +1110,7 @@ static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
 	case SMU_SOCCLK:
 	case SMU_MCLK:
 	case SMU_UCLK:
-		ret = smu_get_dpm_level_count(smu, clk_type, &level_count);
+		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &level_count);
 		if (ret)
 			return ret;
 
@@ -1118,7 +1118,7 @@ static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
 		clocks->num_levels = level_count;
 
 		for (i = 0; i < level_count; i++) {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &freq);
+			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &freq);
 			if (ret)
 				return ret;
 
@@ -1493,21 +1493,21 @@ static int navi10_get_profiling_clk_mask(struct smu_context *smu,
 			*mclk_mask = 0;
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
 		if(sclk_mask) {
-			ret = smu_get_dpm_level_count(smu, SMU_SCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_SCLK, &level_count);
 			if (ret)
 				return ret;
 			*sclk_mask = level_count - 1;
 		}
 
 		if(mclk_mask) {
-			ret = smu_get_dpm_level_count(smu, SMU_MCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_MCLK, &level_count);
 			if (ret)
 				return ret;
 			*mclk_mask = level_count - 1;
 		}
 
 		if(soc_mask) {
-			ret = smu_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
 			if (ret)
 				return ret;
 			*soc_mask = level_count - 1;
@@ -1831,12 +1831,18 @@ static int navi10_set_peak_performance_level(struct smu_context *smu)
 		sclk_freq = NAVI12_UMD_PSTATE_PEAK_GFXCLK;
 		break;
 	default:
-		ret = smu_get_dpm_level_range(smu, SMU_SCLK, NULL, &sclk_freq);
+		ret = smu_v11_0_get_dpm_level_range(smu,
+						    SMU_SCLK,
+						    NULL,
+						    &sclk_freq);
 		if (ret)
 			return ret;
 	}
 
-	ret = smu_get_dpm_level_range(smu, SMU_UCLK, NULL, &uclk_freq);
+	ret = smu_v11_0_get_dpm_level_range(smu,
+					    SMU_UCLK,
+					    NULL,
+					    &uclk_freq);
 	if (ret)
 		return ret;
 
@@ -2331,15 +2337,15 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 	if (smu_version < 0x2A3200)
 		return 0;
 
-	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_count);
+	ret = smu_v11_0_get_dpm_level_count(smu, SMU_UCLK, &uclk_count);
 	if (ret)
 		return ret;
 
-	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)0, &uclk_min);
+	ret = smu_v11_0_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)0, &uclk_min);
 	if (ret)
 		return ret;
 
-	ret = smu_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)(uclk_count - 1), &uclk_max);
+	ret = smu_v11_0_get_dpm_freq_by_index(smu, SMU_UCLK, (uint16_t)(uclk_count - 1), &uclk_max);
 	if (ret)
 		return ret;
 

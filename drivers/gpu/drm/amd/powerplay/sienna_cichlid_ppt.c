@@ -789,13 +789,13 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 		if ((clk_type == SMU_GFXCLK) || (clk_type == SMU_SCLK))
 			amdgpu_gfx_off_ctrl(adev, false);
 
-		ret = smu_get_dpm_level_count(smu, clk_type, &count);
+		ret = smu_v11_0_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
 			goto print_clk_out;
 
 		if (!sienna_cichlid_is_support_fine_grained_dpm(smu, clk_type)) {
 			for (i = 0; i < count; i++) {
-				ret = smu_get_dpm_freq_by_index(smu, clk_type, i, &value);
+				ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, i, &value);
 				if (ret)
 					goto print_clk_out;
 
@@ -803,10 +803,10 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 						cur_value == value ? "*" : "");
 			}
 		} else {
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
+			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, 0, &freq_values[0]);
 			if (ret)
 				goto print_clk_out;
-			ret = smu_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
+			ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, count - 1, &freq_values[2]);
 			if (ret)
 				goto print_clk_out;
 
@@ -901,11 +901,11 @@ static int sienna_cichlid_force_clk_levels(struct smu_context *smu,
 			soft_min_level = (soft_min_level >= 1 ? 1 : 0);
 		}
 
-		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
+		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_min_level, &min_freq);
 		if (ret)
 			goto forec_level_out;
 
-		ret = smu_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
+		ret = smu_v11_0_get_dpm_freq_by_index(smu, clk_type, soft_max_level, &max_freq);
 		if (ret)
 			goto forec_level_out;
 
@@ -1312,7 +1312,7 @@ static int sienna_cichlid_get_profiling_clk_mask(struct smu_context *smu,
 	} else if (level == AMD_DPM_FORCED_LEVEL_PROFILE_PEAK) {
 		if(sclk_mask) {
 			amdgpu_gfx_off_ctrl(adev, false);
-			ret = smu_get_dpm_level_count(smu, SMU_SCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_SCLK, &level_count);
 			amdgpu_gfx_off_ctrl(adev, true);
 			if (ret)
 				return ret;
@@ -1320,14 +1320,14 @@ static int sienna_cichlid_get_profiling_clk_mask(struct smu_context *smu,
 		}
 
 		if(mclk_mask) {
-			ret = smu_get_dpm_level_count(smu, SMU_MCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_MCLK, &level_count);
 			if (ret)
 				return ret;
 			*mclk_mask = level_count - 1;
 		}
 
 		if(soc_mask) {
-			ret = smu_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
+			ret = smu_v11_0_get_dpm_level_count(smu, SMU_SOCCLK, &level_count);
 			if (ret)
 				return ret;
 			*soc_mask = level_count - 1;

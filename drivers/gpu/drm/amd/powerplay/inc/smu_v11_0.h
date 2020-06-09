@@ -265,4 +265,18 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 int smu_v11_0_set_power_source(struct smu_context *smu,
 			       enum smu_power_src_type power_src);
 
+int smu_v11_0_get_dpm_freq_by_index(struct smu_context *smu,
+				    enum smu_clk_type clk_type,
+				    uint16_t level,
+				    uint32_t *value);
+
+int smu_v11_0_get_dpm_level_count(struct smu_context *smu,
+				  enum smu_clk_type clk_type,
+				  uint32_t *value);
+
+int smu_v11_0_get_dpm_level_range(struct smu_context *smu,
+				  enum smu_clk_type clk_type,
+				  uint32_t *min_value,
+				  uint32_t *max_value);
+
 #endif
