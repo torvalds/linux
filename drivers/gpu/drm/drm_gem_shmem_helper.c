@@ -461,6 +461,33 @@ bool drm_gem_shmem_purge(struct drm_gem_object *obj)
 EXPORT_SYMBOL(drm_gem_shmem_purge);
 
 /**
+ * drm_gem_shmem_create_object_cached - Create a shmem buffer object with
+ *                                      cached mappings
+ * @dev: DRM device
+ * @size: Size of the object to allocate
+ *
+ * By default, shmem buffer objects use writecombine mappings. This
+ * function implements struct drm_driver.gem_create_object for shmem
+ * buffer objects with cached mappings.
+ *
+ * Returns:
+ * A struct drm_gem_shmem_object * on success or NULL negative on failure.
+ */
+struct drm_gem_object *
+drm_gem_shmem_create_object_cached(struct drm_device *dev, size_t size)
+{
+	struct drm_gem_shmem_object *shmem;
+
+	shmem = kzalloc(sizeof(*shmem), GFP_KERNEL);
+	if (!shmem)
+		return NULL;
+	shmem->map_cached = true;
+
+	return &shmem->base;
+}
+EXPORT_SYMBOL(drm_gem_shmem_create_object_cached);
+
+/**
  * drm_gem_shmem_dumb_create - Create a dumb shmem buffer object
  * @file: DRM file structure to create the dumb buffer for
  * @dev: DRM device
