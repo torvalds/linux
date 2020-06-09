@@ -5,7 +5,7 @@ subsystem.
 GPIO descriptors
 
 Starting with commit 79a9becda894 the GPIO subsystem embarked on a journey
-to move away from the global GPIO numberspace and toward a decriptor-based
+to move away from the global GPIO numberspace and toward a descriptor-based
 approach. This means that GPIO consumers, drivers and machine descriptions
 ideally have no use or idea of the global GPIO numberspace that has/was
 used in the inception of the GPIO subsystem.
