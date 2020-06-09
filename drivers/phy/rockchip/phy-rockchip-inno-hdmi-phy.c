@@ -631,7 +631,7 @@ static int inno_hdmi_phy_clk_register(struct inno_hdmi_phy *inno)
 {
 	struct device *dev = inno->dev;
 	struct device_node *np = dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	struct clk *refclk;
 	const char *parent_name;
 	int ret;
