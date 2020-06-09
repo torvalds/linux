@@ -116,7 +116,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 			netif_carrier_on(netdev);
 		}
 
-		if (netif_running(lif->netdev))
+		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev))
 			ionic_start_queues(lif);
 	} else {
 		if (netif_carrier_ok(netdev)) {
@@ -124,7 +124,7 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 			netif_carrier_off(netdev);
 		}
 
-		if (netif_running(lif->netdev))
+		if (lif->netdev->flags & IFF_UP && netif_running(lif->netdev))
 			ionic_stop_queues(lif);
 	}
 
