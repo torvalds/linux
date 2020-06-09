@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/iopoll.h>
 #include <linux/regulator/consumer.h>
+#include <linux/interconnect.h>
 
 #include "sdhci-pltfm.h"
 #include "cqhci.h"
@@ -2070,6 +2071,11 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		goto bus_clk_disable;
 	}
 	msm_host->bulk_clks[0].clk = clk;
+
+	 /* Check for optional interconnect paths */
+	ret = dev_pm_opp_of_find_icc_paths(&pdev->dev, NULL);
+	if (ret)
+		goto bus_clk_disable;
 
 	msm_host->opp_table = dev_pm_opp_set_clkname(&pdev->dev, "core");
 	if (IS_ERR(msm_host->opp_table)) {
