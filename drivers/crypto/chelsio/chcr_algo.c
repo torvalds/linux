@@ -4391,22 +4391,32 @@ static int chcr_unregister_alg(void)
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		switch (driver_algs[i].type & CRYPTO_ALG_TYPE_MASK) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
-			if (driver_algs[i].is_registered)
+			if (driver_algs[i].is_registered && refcount_read(
+			    &driver_algs[i].alg.skcipher.base.cra_refcnt)
+			    == 1) {
 				crypto_unregister_skcipher(
 						&driver_algs[i].alg.skcipher);
+				driver_algs[i].is_registered = 0;
+			}
 			break;
 		case CRYPTO_ALG_TYPE_AEAD:
-			if (driver_algs[i].is_registered)
+			if (driver_algs[i].is_registered && refcount_read(
+			    &driver_algs[i].alg.aead.base.cra_refcnt) == 1) {
 				crypto_unregister_aead(
 						&driver_algs[i].alg.aead);
+				driver_algs[i].is_registered = 0;
+			}
 			break;
 		case CRYPTO_ALG_TYPE_AHASH:
-			if (driver_algs[i].is_registered)
+			if (driver_algs[i].is_registered && refcount_read(
+			    &driver_algs[i].alg.hash.halg.base.cra_refcnt)
+			    == 1) {
 				crypto_unregister_ahash(
 						&driver_algs[i].alg.hash);
+				driver_algs[i].is_registered = 0;
+			}
 			break;
 		}
-		driver_algs[i].is_registered = 0;
 	}
 	return 0;
 }
