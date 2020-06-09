@@ -406,13 +406,13 @@ static int qcom_swrm_port_enable(struct sdw_bus *bus,
 	return ctrl->reg_write(ctrl, reg, val);
 }
 
-static struct sdw_master_port_ops qcom_swrm_port_ops = {
+static const struct sdw_master_port_ops qcom_swrm_port_ops = {
 	.dpn_set_port_params = qcom_swrm_port_params,
 	.dpn_set_port_transport_params = qcom_swrm_transport_params,
 	.dpn_port_enable_ch = qcom_swrm_port_enable,
 };
 
-static struct sdw_master_ops qcom_swrm_ops = {
+static const struct sdw_master_ops qcom_swrm_ops = {
 	.xfer_msg = qcom_swrm_xfer_msg,
 	.pre_bank_switch = qcom_swrm_pre_bank_switch,
 };
