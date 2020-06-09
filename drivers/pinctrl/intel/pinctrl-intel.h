@@ -104,6 +104,7 @@ enum {
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
  * @nirqs: Optional total number of IRQs this community can generate
+ * @acpi_space_id: Optional address space ID for ACPI OpRegion handler
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
@@ -129,6 +130,7 @@ struct intel_community {
 	size_t ngpps;
 	const unsigned int *pad_map;
 	unsigned short nirqs;
+	unsigned short acpi_space_id;
 
 	/* Reserved for the core driver */
 	void __iomem *regs;
