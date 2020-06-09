@@ -29,5 +29,5 @@ KASAN_SANITIZE	:= n
 UBSAN_SANITIZE	:= n
 KCOV_INSTRUMENT	:= n
 
-# remove SCS and CFI flags from all objects in this directory
-KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_SCS) $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
+# remove CFI flags from all objects in this directory
+KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
