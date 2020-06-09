@@ -3472,7 +3472,9 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 					  INTEL_OUTPUT_DP_MST);
 	enum phy phy = intel_port_to_phy(dev_priv, encoder->port);
 
-	intel_dp_set_infoframes(encoder, false, old_crtc_state, old_conn_state);
+	if (!is_mst)
+		intel_dp_set_infoframes(encoder, false,
+					old_crtc_state, old_conn_state);
 
 	/*
 	 * Power down sink before disabling the port, otherwise we end
