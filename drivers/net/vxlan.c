@@ -876,7 +876,7 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 			nh = NULL;
 			goto err_inval;
 		}
-		if (!nh->is_fdb_nh) {
+		if (!nexthop_is_fdb(nh)) {
 			NL_SET_ERR_MSG(extack, "Nexthop is not a fdb nexthop");
 			goto err_inval;
 		}
