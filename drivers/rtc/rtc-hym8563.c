@@ -400,7 +400,7 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	struct i2c_client *client = hym8563->client;
 	struct device_node *node = client->dev.of_node;
 	struct clk *clk;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	ret = i2c_smbus_write_byte_data(client, HYM8563_CLKOUT,
