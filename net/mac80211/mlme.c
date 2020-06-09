@@ -167,6 +167,8 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			ret = IEEE80211_STA_DISABLE_HT |
 			      IEEE80211_STA_DISABLE_VHT |
 			      IEEE80211_STA_DISABLE_HE;
+		else
+			ret = 0;
 		vht_chandef = *chandef;
 		goto out;
 	}
