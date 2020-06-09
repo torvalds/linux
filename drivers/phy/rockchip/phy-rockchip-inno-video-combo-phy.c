@@ -723,7 +723,7 @@ static int inno_video_phy_pll_register(struct inno_video_phy *inno)
 	struct device *dev = inno->dev;
 	struct clk *clk;
 	const char *parent_name;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	int ret;
 
 	parent_name = __clk_get_name(inno->ref_clk);
