@@ -17,7 +17,7 @@
 #include <asm/pdc.h>
 	
 #include <asm/assembly.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <linux/linkage.h>
 #include <linux/init.h>

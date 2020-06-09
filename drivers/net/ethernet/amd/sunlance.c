@@ -97,7 +97,7 @@ static char lancestr[] = "LANCE";
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/byteorder.h>	/* Used by the checksum routines */
 #include <asm/idprom.h>
 #include <asm/prom.h>

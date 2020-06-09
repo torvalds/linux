@@ -19,7 +19,7 @@
 #include <asm/i8259.h>
 #include <asm/io.h>
 #include <asm/jazz.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/tlbmisc.h>
 
 static DEFINE_RAW_SPINLOCK(r4030_lock);

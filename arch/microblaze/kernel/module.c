@@ -12,7 +12,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/cacheflush.h>
 
 int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,

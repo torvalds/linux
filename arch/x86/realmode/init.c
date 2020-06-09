@@ -5,7 +5,7 @@
 #include <linux/mem_encrypt.h>
 
 #include <asm/set_memory.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/realmode.h>
 #include <asm/tlbflush.h>
 #include <asm/crash.h>

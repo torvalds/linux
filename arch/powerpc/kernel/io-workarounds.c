@@ -13,7 +13,7 @@
 
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/ppc-pci.h>
 #include <asm/io-workarounds.h>
 #include <asm/pte-walk.h>

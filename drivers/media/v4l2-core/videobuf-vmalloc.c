@@ -20,7 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <media/videobuf-vmalloc.h>
 

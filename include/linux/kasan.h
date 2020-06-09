@@ -12,7 +12,7 @@ struct task_struct;
 #ifdef CONFIG_KASAN
 
 #include <asm/kasan.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 extern unsigned char kasan_early_shadow_page[PAGE_SIZE];
 extern pte_t kasan_early_shadow_pte[PTRS_PER_PTE];

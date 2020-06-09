@@ -38,7 +38,7 @@
 
 #include <asm/setup.h>
 #include <asm/amigahw.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <linux/zorro.h>
 

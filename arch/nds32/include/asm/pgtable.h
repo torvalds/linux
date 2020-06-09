@@ -374,8 +374,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
 
-#include <asm-generic/pgtable.h>
-
 /*
  * We provide our own arch_get_unmapped_area to cope with VIPT caches.
  */

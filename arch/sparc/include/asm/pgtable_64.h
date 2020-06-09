@@ -1122,7 +1122,6 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 #define pte_access_permitted pte_access_permitted
 
 #include <asm/tlbflush.h>
-#include <asm-generic/pgtable.h>
 
 /* We provide our own get_unmapped_area to cope with VA holes and
  * SHM area cache aliasing for userland.

@@ -2,7 +2,6 @@
 #ifndef _H8300_PGTABLE_H
 #define _H8300_PGTABLE_H
 #include <asm-generic/pgtable-nopud.h>
-#include <asm-generic/pgtable.h>
 extern void paging_init(void);
 #define PAGE_NONE		__pgprot(0)    /* these mean nothing to NO_MM */
 #define PAGE_SHARED		__pgprot(0)    /* these mean nothing to NO_MM */

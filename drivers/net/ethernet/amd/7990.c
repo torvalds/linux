@@ -35,7 +35,7 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #ifdef CONFIG_HP300
 #include <asm/blinken.h>
 #endif

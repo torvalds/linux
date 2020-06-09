@@ -26,7 +26,7 @@
 #include <asm/cacheflush.h>
 #include <linux/sizes.h>
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>

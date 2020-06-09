@@ -18,7 +18,7 @@
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "../scsi.h"
 #include <scsi/scsi_host.h>

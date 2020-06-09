@@ -507,8 +507,6 @@ void __init *early_get_page(void);
 #endif /* CONFIG_MMU */
 
 #ifndef __ASSEMBLY__
-#include <asm-generic/pgtable.h>
-
 extern unsigned long ioremap_bot, ioremap_base;
 
 void setup_memory(void);

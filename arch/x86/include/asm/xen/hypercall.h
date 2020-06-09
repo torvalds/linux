@@ -42,7 +42,7 @@
 #include <trace/events/xen.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/smap.h>
 #include <asm/nospec-branch.h>
 

@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/of_fdt.h>
 #include <asm/machdep.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/time.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>

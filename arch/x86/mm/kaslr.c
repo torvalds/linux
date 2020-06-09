@@ -26,7 +26,7 @@
 #include <linux/memblock.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/setup.h>
 #include <asm/kaslr.h>
 

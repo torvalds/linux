@@ -21,7 +21,7 @@
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 enum pdt_access_type {
 	PDT_NONE,

@@ -17,7 +17,7 @@
 #ifndef __ASSEMBLY__
 #include <linux/sizes.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #ifdef CONFIG_HIGHMEM
 #include <linux/threads.h>
 #include <asm/kmap_types.h>

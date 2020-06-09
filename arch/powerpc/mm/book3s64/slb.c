@@ -10,7 +10,7 @@
  */
 
 #include <asm/asm-prototypes.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>

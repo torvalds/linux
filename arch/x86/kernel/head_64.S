@@ -14,7 +14,7 @@
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <asm/segment.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/page.h>
 #include <asm/msr.h>
 #include <asm/cache.h>

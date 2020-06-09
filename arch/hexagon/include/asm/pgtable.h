@@ -460,7 +460,4 @@ static inline int pte_exec(pte_t pte)
 		((type << 1) | \
 		 ((offset & 0x7ffff0) << 9) | ((offset & 0xf) << 6)) })
 
-/*  Oh boy.  There are a lot of possible arch overrides found in this file.  */
-#include <asm-generic/pgtable.h>
-
 #endif

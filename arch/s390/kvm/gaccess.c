@@ -10,7 +10,7 @@
 #include <linux/mm_types.h>
 #include <linux/err.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"

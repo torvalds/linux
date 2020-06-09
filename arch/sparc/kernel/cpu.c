@@ -13,7 +13,7 @@
 #include <linux/threads.h>
 
 #include <asm/spitfire.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/setup.h>
 #include <asm/page.h>

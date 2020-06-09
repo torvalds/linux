@@ -8,7 +8,7 @@
 #include <asm/io.h>
 #include <asm/cpufeature.h>
 #include <asm/special_insns.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/olpc_ofw.h>
 
 /* address of OFW callback interface; will be NULL if OFW isn't found */

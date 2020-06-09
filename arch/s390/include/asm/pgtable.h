@@ -1683,6 +1683,4 @@ extern void s390_reset_cmma(struct mm_struct *mm);
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
-#include <asm-generic/pgtable.h>
-
 #endif /* _S390_PAGE_H */

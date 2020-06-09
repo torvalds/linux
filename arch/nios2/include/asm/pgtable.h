@@ -285,8 +285,6 @@ static inline void pte_clear(struct mm_struct *mm,
 
 #define kern_addr_valid(addr)		(1)
 
-#include <asm-generic/pgtable.h>
-
 extern void __init paging_init(void);
 extern void __init mmu_init(void);
 

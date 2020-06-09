@@ -306,6 +306,4 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \
 	remap_pfn_range(vma, vaddr, pfn, size, prot)
 
-#include <asm-generic/pgtable.h>
-
 #endif /* __ASM_CSKY_PGTABLE_H */

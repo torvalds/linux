@@ -10,7 +10,7 @@
 #include <linux/string.h>
 
 #include <asm/cacheflush.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* string functions */
 

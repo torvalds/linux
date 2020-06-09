@@ -23,7 +23,7 @@
 #include <linux/irq.h>
 #include <linux/rtc.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
 #include <asm/bootstd.h>

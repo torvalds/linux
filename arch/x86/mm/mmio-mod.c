@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <linux/mmiotrace.h>
 #include <asm/e820/api.h> /* for ISA_START_ADDRESS */
 #include <linux/atomic.h>

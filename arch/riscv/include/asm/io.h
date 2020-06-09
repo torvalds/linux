@@ -13,7 +13,7 @@
 
 #include <linux/types.h>
 #include <asm/mmiowb.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /*
  * MMIO access functions are separated out to break dependency cycles

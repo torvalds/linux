@@ -37,7 +37,7 @@
 
 #include <asm/dma.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/oplib.h>
 #include <asm/io.h>
 #include <asm/irq.h>

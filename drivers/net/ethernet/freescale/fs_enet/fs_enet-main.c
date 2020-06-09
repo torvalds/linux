@@ -42,7 +42,7 @@
 #include <linux/of_net.h>
 
 #include <linux/vmalloc.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 

@@ -52,7 +52,7 @@
 #include <linux/uaccess.h>
 #include <asm/machdep.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/sections.h>
 #include <asm/irq.h>
 #ifdef CONFIG_PPC_PMAC

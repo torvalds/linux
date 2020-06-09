@@ -16,7 +16,7 @@
 #include <asm/timer.h>
 #include <asm/traps.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>

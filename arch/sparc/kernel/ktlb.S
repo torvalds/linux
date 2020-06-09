@@ -10,7 +10,7 @@
 #include <asm/head.h>
 #include <asm/asi.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/tsb.h>
 
 	.text

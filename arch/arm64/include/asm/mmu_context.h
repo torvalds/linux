@@ -20,7 +20,7 @@
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/sysreg.h>
 #include <asm/tlbflush.h>
 

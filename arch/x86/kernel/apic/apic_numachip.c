@@ -16,7 +16,7 @@
 #include <asm/numachip/numachip.h>
 #include <asm/numachip/numachip_csr.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "local.h"
 

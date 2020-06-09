@@ -42,7 +42,7 @@ static const char version[] =
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/dvma.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>

@@ -6,7 +6,7 @@
 #include <linux/kcore.h>
 
 #include <asm/cpu_entry_area.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/fixmap.h>
 #include <asm/desc.h>
 

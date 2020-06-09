@@ -16,7 +16,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #define __HAVE_ARCH_PTE_ALLOC_ONE_KERNEL
 #include <asm-generic/pgalloc.h>

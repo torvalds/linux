@@ -9,7 +9,7 @@
 
 #include <linux/atomic.h>
 #include <linux/user_namespace.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/mmu.h>
 
 #ifndef INIT_MM_CONTEXT

@@ -40,7 +40,7 @@
 #include <asm/mpc8260.h>
 #include <asm/cpm2.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 

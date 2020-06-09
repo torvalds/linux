@@ -7,7 +7,7 @@
  */
 
 #include <asm/debugfs.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/cpu_has_feature.h>
 
 #include "ptdump.h"

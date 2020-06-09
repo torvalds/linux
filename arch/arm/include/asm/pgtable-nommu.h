@@ -73,8 +73,6 @@ extern unsigned int kobjsize(const void *objp);
 
 #define FIRST_USER_ADDRESS      0UL
 
-#include <asm-generic/pgtable.h>
-
 #else 
 
 /*

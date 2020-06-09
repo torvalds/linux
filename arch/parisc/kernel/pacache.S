@@ -21,7 +21,7 @@
 
 #include <asm/psw.h>
 #include <asm/assembly.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/cache.h>
 #include <asm/ldcw.h>
 #include <asm/alternative.h>

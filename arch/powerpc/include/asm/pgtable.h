@@ -96,8 +96,6 @@ extern unsigned long ioremap_bot;
  */
 #define kern_addr_valid(addr)	(1)
 
-#include <asm-generic/pgtable.h>
-
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_large(pmd)		0
 #endif

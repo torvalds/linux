@@ -2,7 +2,7 @@
 
 #include <asm/cache.h>
 #include <asm/ptrace.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/thread_info.h>
 
 #define EMITS_PT_NOTE

@@ -13,7 +13,7 @@
 #include <asm/dcu.h>
 #include <asm/pstate.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/spitfire.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>

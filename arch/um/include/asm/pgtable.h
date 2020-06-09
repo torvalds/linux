@@ -353,8 +353,6 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 
 #define kern_addr_valid(addr) (1)
 
-#include <asm-generic/pgtable.h>
-
 /* Clear a kernel PTE and flush it from the TLB */
 #define kpte_clear_flush(ptep, vaddr)		\
 do {						\

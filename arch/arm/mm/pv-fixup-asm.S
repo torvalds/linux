@@ -9,7 +9,7 @@
 #include <asm/asm-offsets.h>
 #include <asm/cp15.h>
 #include <asm/memory.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 	.section ".idmap.text", "ax"
 

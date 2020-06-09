@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_GENERIC_PGTABLE_H
-#define _ASM_GENERIC_PGTABLE_H
+#ifndef _LINUX_PGTABLE_H
+#define _LINUX_PGTABLE_H
 
 #include <linux/pfn.h>
+#include <asm/pgtable.h>
 
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_MMU
@@ -1319,4 +1320,4 @@ typedef unsigned int pgtbl_mod_mask;
 #define pmd_leaf(x)	0
 #endif
 
-#endif /* _ASM_GENERIC_PGTABLE_H */
+#endif /* _LINUX_PGTABLE_H */

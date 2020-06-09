@@ -23,7 +23,7 @@
 
 /* These actually do the work of building the kernel identity maps. */
 #include <asm/init.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 /* Use the static base for this part of the boot process */
 #undef __PAGE_OFFSET
 #define __PAGE_OFFSET __PAGE_OFFSET_BASE

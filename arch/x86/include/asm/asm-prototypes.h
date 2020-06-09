@@ -7,7 +7,7 @@
 
 #include <asm-generic/asm-prototypes.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/special_insns.h>
 #include <asm/preempt.h>
 #include <asm/asm.h>

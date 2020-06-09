@@ -571,6 +571,5 @@ extern void arch_report_meminfo(struct seq_file *m);
 #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
 #define __HAVE_ARCH_PTE_SAME
-#include <asm-generic/pgtable.h>
 
 #endif /* _PARISC_PGTABLE_H */

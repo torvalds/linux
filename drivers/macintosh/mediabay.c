@@ -17,7 +17,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <asm/prom.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>

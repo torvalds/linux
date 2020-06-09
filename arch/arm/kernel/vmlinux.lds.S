@@ -14,7 +14,7 @@
 #include <asm/memory.h>
 #include <asm/mpu.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "vmlinux.lds.h"
 

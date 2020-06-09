@@ -440,8 +440,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	__changed;							  \
 })
 
-#include <asm-generic/pgtable.h>
-
 #endif /* !(__ASSEMBLY__) */
 
 #define VMALLOC_START           _AC(0xfe600000,UL)

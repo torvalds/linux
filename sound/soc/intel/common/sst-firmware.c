@@ -21,7 +21,7 @@
 #include <linux/dma/dw.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"

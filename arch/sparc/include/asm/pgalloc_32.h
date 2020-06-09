@@ -6,7 +6,7 @@
 #include <linux/sched.h>
 
 #include <asm/pgtsrmmu.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/vaddrs.h>
 #include <asm/page.h>
 

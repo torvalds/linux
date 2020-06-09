@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/pm_runtime.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>

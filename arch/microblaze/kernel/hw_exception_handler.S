@@ -70,7 +70,7 @@
 #include <linux/linkage.h>
 
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/signal.h>
 #include <asm/registers.h>
 #include <asm/asm-offsets.h>

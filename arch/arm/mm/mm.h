@@ -3,7 +3,7 @@
 #include <linux/list.h>
 #include <linux/vmalloc.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;

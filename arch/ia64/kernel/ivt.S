@@ -52,7 +52,7 @@
 #include <asm/break.h>
 #include <asm/kregs.h>
 #include <asm/asm-offsets.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>

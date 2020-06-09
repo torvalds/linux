@@ -99,7 +99,7 @@ io_mapping_unmap(void __iomem *vaddr)
 #else
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* Create the io_mapping object*/
 static inline struct io_mapping *

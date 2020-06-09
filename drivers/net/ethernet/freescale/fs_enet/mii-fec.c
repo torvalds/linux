@@ -33,7 +33,7 @@
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
 #include <asm/mpc5xxx.h>

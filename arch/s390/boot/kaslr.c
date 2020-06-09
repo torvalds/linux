@@ -3,7 +3,7 @@
  * Copyright IBM Corp. 2019
  */
 #include <asm/mem_detect.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
 #include <asm/sclp.h>

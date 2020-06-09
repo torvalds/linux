@@ -339,8 +339,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 /* FIXME: this is not correct */
 #define kern_addr_valid(addr)	(1)
 
-#include <asm-generic/pgtable.h>
-
 /*
  * We provide our own arch_get_unmapped_area to cope with VIPT caches.
  */

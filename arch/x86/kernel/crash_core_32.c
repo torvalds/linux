@@ -2,7 +2,7 @@
 
 #include <linux/crash_core.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/setup.h>
 
 void arch_crash_save_vmcoreinfo(void)

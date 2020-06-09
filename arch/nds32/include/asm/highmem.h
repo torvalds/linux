@@ -7,7 +7,7 @@
 #include <asm/proc-fns.h>
 #include <asm/kmap_types.h>
 #include <asm/fixmap.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /*
  * Right now we initialize only a single pte table. It can be extended

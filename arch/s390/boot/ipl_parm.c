@@ -7,7 +7,7 @@
 #include <asm/sections.h>
 #include <asm/boot_data.h>
 #include <asm/facility.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/uv.h>
 #include "boot.h"
 

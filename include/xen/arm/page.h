@@ -3,7 +3,7 @@
 #define _ASM_ARM_XEN_PAGE_H
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include <linux/pfn.h>
 #include <linux/types.h>

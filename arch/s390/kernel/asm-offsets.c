@@ -13,7 +13,7 @@
 #include <linux/purgatory.h>
 #include <asm/idle.h>
 #include <asm/vdso.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/gmap.h>
 #include <asm/nmi.h>
 #include <asm/stacktrace.h>

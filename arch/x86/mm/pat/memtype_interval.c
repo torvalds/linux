@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/gfp.h>
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/memtype.h>
 
 #include "memtype.h"
