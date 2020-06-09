@@ -213,6 +213,12 @@ void __iomem *devm_ioremap_resource_wc(struct device *dev,
  *	base = devm_of_iomap(&pdev->dev, node, 0, NULL);
  *	if (IS_ERR(base))
  *		return PTR_ERR(base);
+ *
+ * Please Note: This is not a one-to-one replacement for of_iomap() because the
+ * of_iomap() function does not track whether the region is already mapped.  If
+ * two drivers try to map the same memory, the of_iomap() function will succeed
+ * but the the devm_of_iomap() function will return -EBUSY.
+ *
  */
 void __iomem *devm_of_iomap(struct device *dev, struct device_node *node, int index,
 			    resource_size_t *size)
