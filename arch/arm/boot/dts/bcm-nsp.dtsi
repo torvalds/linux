@@ -200,7 +200,7 @@
 			status = "disabled";
 		};
 
-		dma@20000 {
+		dma: dma@20000 {
 			compatible = "arm,pl330", "arm,primecell";
 			reg = <0x20000 0x1000>;
 			interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>,
@@ -215,6 +215,8 @@
 			clocks = <&iprocslow>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
+			dma-coherent;
+			status = "disabled";
 		};
 
 		sdio: sdhci@21000 {

@@ -48,6 +48,10 @@
 	};
 };
 
+&dma {
+	status = "okay";
+};
+
 &amac0 {
 	status = "okay";
 };
