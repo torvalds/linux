@@ -21,12 +21,12 @@
 
 u64 powerpc_security_features __read_mostly = SEC_FTR_DEFAULT;
 
-enum count_cache_flush_type {
-	COUNT_CACHE_FLUSH_NONE	= 0x1,
-	COUNT_CACHE_FLUSH_SW	= 0x2,
-	COUNT_CACHE_FLUSH_HW	= 0x4,
+enum branch_cache_flush_type {
+	BRANCH_CACHE_FLUSH_NONE	= 0x1,
+	BRANCH_CACHE_FLUSH_SW	= 0x2,
+	BRANCH_CACHE_FLUSH_HW	= 0x4,
 };
-static enum count_cache_flush_type count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
+static enum branch_cache_flush_type count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
 static bool link_stack_flush_enabled;
 
 bool barrier_nospec_enabled;
@@ -222,10 +222,10 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		if (link_stack_flush_enabled)
 			seq_buf_printf(&s, ", Software link stack flush");
 
-	} else if (count_cache_flush_type != COUNT_CACHE_FLUSH_NONE) {
+	} else if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
 		seq_buf_printf(&s, "Mitigation: Software count cache flush");
 
-		if (count_cache_flush_type == COUNT_CACHE_FLUSH_HW)
+		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW)
 			seq_buf_printf(&s, " (hardware accelerated)");
 
 		if (link_stack_flush_enabled)
@@ -429,18 +429,18 @@ device_initcall(stf_barrier_debugfs_init);
 
 static void no_count_cache_flush(void)
 {
-	count_cache_flush_type = COUNT_CACHE_FLUSH_NONE;
+	count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
 	pr_info("count-cache-flush: software flush disabled.\n");
 }
 
-static void toggle_count_cache_flush(bool enable)
+static void toggle_branch_cache_flush(bool enable)
 {
 	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE) &&
 	    !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK))
 		enable = false;
 
 	if (!enable) {
-		patch_instruction_site(&patch__call_flush_count_cache,
+		patch_instruction_site(&patch__call_flush_branch_caches,
 				       ppc_inst(PPC_INST_NOP));
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 		patch_instruction_site(&patch__call_kvm_flush_link_stack,
@@ -452,9 +452,9 @@ static void toggle_count_cache_flush(bool enable)
 		return;
 	}
 
-	// This enables the branch from _switch to flush_count_cache
-	patch_branch_site(&patch__call_flush_count_cache,
-			  (u64)&flush_count_cache, BRANCH_SET_LINK);
+	// This enables the branch from _switch to flush_branch_caches
+	patch_branch_site(&patch__call_flush_branch_caches,
+			  (u64)&flush_branch_caches, BRANCH_SET_LINK);
 
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	// This enables the branch from guest_exit_cont to kvm_flush_link_stack
@@ -474,13 +474,13 @@ static void toggle_count_cache_flush(bool enable)
 	}
 
 	if (!security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
-		count_cache_flush_type = COUNT_CACHE_FLUSH_SW;
+		count_cache_flush_type = BRANCH_CACHE_FLUSH_SW;
 		pr_info("count-cache-flush: full software flush sequence enabled.\n");
 		return;
 	}
 
 	patch_instruction_site(&patch__flush_count_cache_return, ppc_inst(PPC_INST_BLR));
-	count_cache_flush_type = COUNT_CACHE_FLUSH_HW;
+	count_cache_flush_type = BRANCH_CACHE_FLUSH_HW;
 	pr_info("count-cache-flush: hardware assisted flush sequence enabled\n");
 }
 
@@ -505,7 +505,7 @@ void setup_count_cache_flush(void)
 	    security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE))
 		security_ftr_set(SEC_FTR_FLUSH_LINK_STACK);
 
-	toggle_count_cache_flush(enable);
+	toggle_branch_cache_flush(enable);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -520,14 +520,14 @@ static int count_cache_flush_set(void *data, u64 val)
 	else
 		return -EINVAL;
 
-	toggle_count_cache_flush(enable);
+	toggle_branch_cache_flush(enable);
 
 	return 0;
 }
 
 static int count_cache_flush_get(void *data, u64 *val)
 {
-	if (count_cache_flush_type == COUNT_CACHE_FLUSH_NONE)
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE)
 		*val = 0;
 	else
 		*val = 1;
