@@ -18,6 +18,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/ip.h>
+#include <net/cfg80211.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -26,12 +27,6 @@
 #include "ethernet.h"
 #include "usb_ops.h"
 #include "wifi.h"
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static u8 bridge_tunnel_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8};
-
-/* Ethernet-II snap header (RFC1042 for most EtherTypes) */
-static u8 rfc1042_header[] = {0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00};
 
 static void recv_tasklet(unsigned long priv);
 

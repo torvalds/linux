@@ -211,11 +211,10 @@ static char *translate_scan(struct _adapter *padapter,
 			    char *start, char *stop)
 {
 	struct iw_event iwe;
-	struct ieee80211_ht_cap *pht_capie;
 	char *current_val;
 	s8 *p;
 	u32 i = 0, ht_ielen = 0;
-	u16	cap, ht_cap = false, mcs_rate;
+	u16	cap, ht_cap = false;
 	u8 rssi;
 
 	if ((pnetwork->network.Configuration.DSConfig < 1) ||
@@ -241,8 +240,6 @@ static char *translate_scan(struct _adapter *padapter,
 			 &ht_ielen, pnetwork->network.IELength - 12);
 	if (p && ht_ielen > 0) {
 		ht_cap = true;
-		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
-		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
@@ -268,8 +265,8 @@ static char *translate_scan(struct _adapter *padapter,
 	memcpy((u8 *)&cap, r8712_get_capability_from_ie(pnetwork->network.IEs),
 		2);
 	le16_to_cpus(&cap);
-	if (cap & (WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_BSS)) {
-		if (cap & WLAN_CAPABILITY_BSS)
+	if (cap & (WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_ESS)) {
+		if (cap & WLAN_CAPABILITY_ESS)
 			iwe.u.mode = (u32)IW_MODE_MASTER;
 		else
 			iwe.u.mode = (u32)IW_MODE_ADHOC;
@@ -1395,7 +1392,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 	struct _adapter *padapter = netdev_priv(dev);
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
-	struct ieee80211_ht_cap *pht_capie;
+	struct rtl_ieee80211_ht_cap *pht_capie;
 	unsigned char rf_type = padapter->registrypriv.rf_config;
 	int i;
 	u8 *p;
@@ -1411,7 +1408,7 @@ static int r8711_wx_get_rate(struct net_device *dev,
 			 pcur_bss->IELength - 12);
 	if (p && ht_ielen > 0) {
 		ht_cap = true;
-		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
+		pht_capie = (struct rtl_ieee80211_ht_cap *)(p + 2);
 		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
 		bw_40MHz = (le16_to_cpu(pht_capie->cap_info) &
 			    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
