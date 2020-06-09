@@ -1705,7 +1705,6 @@ struct bus_type pcie_port_bus_type = {
 	.name		= "pci_express",
 	.match		= pcie_port_bus_match,
 };
-EXPORT_SYMBOL_GPL(pcie_port_bus_type);
 #endif
 
 static int __init pci_driver_init(void)
