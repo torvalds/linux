@@ -44,7 +44,7 @@ qla2x00_get_cmd_direction(srb_t *sp)
  * qla2x00_calc_iocbs_32() - Determine number of Command Type 2 and
  * Continuation Type 0 IOCBs to allocate.
  *
- * @dsds: number of data segment decriptors needed
+ * @dsds: number of data segment descriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
  */
@@ -66,7 +66,7 @@ qla2x00_calc_iocbs_32(uint16_t dsds)
  * qla2x00_calc_iocbs_64() - Determine number of Command Type 3 and
  * Continuation Type 1 IOCBs to allocate.
  *
- * @dsds: number of data segment decriptors needed
+ * @dsds: number of data segment descriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
  */
@@ -669,7 +669,7 @@ qla24xx_build_scsi_type_6_iocbs(srb_t *sp, struct cmd_type_6 *cmd_pkt,
  * qla24xx_calc_dsd_lists() - Determine number of DSD list required
  * for Command Type 6.
  *
- * @dsds: number of data segment decriptors needed
+ * @dsds: number of data segment descriptors needed
  *
  * Returns the number of dsd list needed to store @dsds.
  */
