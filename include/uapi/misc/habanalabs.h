@@ -530,13 +530,13 @@ union hl_wait_cs_args {
 	struct hl_wait_cs_out out;
 };
 
-/* Opcode to alloc device memory */
+/* Opcode to allocate device memory */
 #define HL_MEM_OP_ALLOC			0
 /* Opcode to free previously allocated device memory */
 #define HL_MEM_OP_FREE			1
-/* Opcode to map host memory */
+/* Opcode to map host and device memory */
 #define HL_MEM_OP_MAP			2
-/* Opcode to unmap previously mapped host memory */
+/* Opcode to unmap previously mapped host and device memory */
 #define HL_MEM_OP_UNMAP			3
 
 /* Memory flags */
