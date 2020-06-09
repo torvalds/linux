@@ -33,7 +33,7 @@
 #include <linux/crash_dump.h>
 
 #include "amd_iommu.h"
-#include "irq_remapping.h"
+#include "../irq_remapping.h"
 
 /*
  * definitions for the ACPI scanning code
