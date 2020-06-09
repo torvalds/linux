@@ -63,6 +63,16 @@ struct wmi_tlv_rdy_parse {
 	u32 num_extra_mac_addr;
 };
 
+struct wmi_tlv_dma_buf_release_parse {
+	struct ath11k_wmi_dma_buf_release_fixed_param fixed;
+	struct wmi_dma_buf_release_entry *buf_entry;
+	struct wmi_dma_buf_release_meta_data *meta_data;
+	u32 num_buf_entry;
+	u32 num_meta;
+	bool buf_entry_done;
+	bool meta_data_done;
+};
+
 static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 	[WMI_TAG_ARRAY_BYTE]
 		= { .min_len = 0 },
@@ -3388,6 +3398,80 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
 }
 
+int ath11k_wmi_vdev_spectral_conf(struct ath11k *ar,
+				  struct ath11k_wmi_vdev_spectral_conf_param *param)
+{
+	struct ath11k_wmi_vdev_spectral_conf_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct ath11k_wmi_vdev_spectral_conf_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_VDEV_SPECTRAL_CONFIGURE_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	memcpy(&cmd->param, param, sizeof(*param));
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb,
+				  WMI_VDEV_SPECTRAL_SCAN_CONFIGURE_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send spectral scan config wmi cmd\n");
+		goto err;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI spectral scan config cmd vdev_id 0x%x\n",
+		   param->vdev_id);
+
+	return 0;
+err:
+	dev_kfree_skb(skb);
+	return ret;
+}
+
+int ath11k_wmi_vdev_spectral_enable(struct ath11k *ar, u32 vdev_id,
+				    u32 trigger, u32 enable)
+{
+	struct ath11k_wmi_vdev_spectral_enable_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct ath11k_wmi_vdev_spectral_enable_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG,
+				     WMI_TAG_VDEV_SPECTRAL_ENABLE_CMD) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->vdev_id = vdev_id;
+	cmd->trigger_cmd = trigger;
+	cmd->enable_cmd = enable;
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb,
+				  WMI_VDEV_SPECTRAL_SCAN_ENABLE_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send spectral enable wmi cmd\n");
+		goto err;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI spectral enable cmd vdev id 0x%x\n",
+		   vdev_id);
+
+	return 0;
+err:
+	dev_kfree_skb(skb);
+	return ret;
+}
+
 int ath11k_wmi_pdev_dma_ring_cfg(struct ath11k *ar,
 				 struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *param)
 {
@@ -3432,6 +3516,116 @@ int ath11k_wmi_pdev_dma_ring_cfg(struct ath11k *ar,
 err:
 	dev_kfree_skb(skb);
 	return ret;
+}
+
+static int ath11k_wmi_tlv_dma_buf_entry_parse(struct ath11k_base *soc,
+					      u16 tag, u16 len,
+					      const void *ptr, void *data)
+{
+	struct wmi_tlv_dma_buf_release_parse *parse = data;
+
+	if (tag != WMI_TAG_DMA_BUF_RELEASE_ENTRY)
+		return -EPROTO;
+
+	if (parse->num_buf_entry >= parse->fixed.num_buf_release_entry)
+		return -ENOBUFS;
+
+	parse->num_buf_entry++;
+	return 0;
+}
+
+static int ath11k_wmi_tlv_dma_buf_meta_parse(struct ath11k_base *soc,
+					     u16 tag, u16 len,
+					     const void *ptr, void *data)
+{
+	struct wmi_tlv_dma_buf_release_parse *parse = data;
+
+	if (tag != WMI_TAG_DMA_BUF_RELEASE_SPECTRAL_META_DATA)
+		return -EPROTO;
+
+	if (parse->num_meta >= parse->fixed.num_meta_data_entry)
+		return -ENOBUFS;
+
+	parse->num_meta++;
+	return 0;
+}
+
+static int ath11k_wmi_tlv_dma_buf_parse(struct ath11k_base *ab,
+					u16 tag, u16 len,
+					const void *ptr, void *data)
+{
+	struct wmi_tlv_dma_buf_release_parse *parse = data;
+	int ret;
+
+	switch (tag) {
+	case WMI_TAG_DMA_BUF_RELEASE:
+		memcpy(&parse->fixed, ptr,
+		       sizeof(struct ath11k_wmi_dma_buf_release_fixed_param));
+		parse->fixed.pdev_id = DP_HW2SW_MACID(parse->fixed.pdev_id);
+		break;
+	case WMI_TAG_ARRAY_STRUCT:
+		if (!parse->buf_entry_done) {
+			parse->num_buf_entry = 0;
+			parse->buf_entry = (struct wmi_dma_buf_release_entry *)ptr;
+
+			ret = ath11k_wmi_tlv_iter(ab, ptr, len,
+						  ath11k_wmi_tlv_dma_buf_entry_parse,
+						  parse);
+			if (ret) {
+				ath11k_warn(ab, "failed to parse dma buf entry tlv %d\n",
+					    ret);
+				return ret;
+			}
+
+			parse->buf_entry_done = true;
+		} else if (!parse->meta_data_done) {
+			parse->num_meta = 0;
+			parse->meta_data = (struct wmi_dma_buf_release_meta_data *)ptr;
+
+			ret = ath11k_wmi_tlv_iter(ab, ptr, len,
+						  ath11k_wmi_tlv_dma_buf_meta_parse,
+						  parse);
+			if (ret) {
+				ath11k_warn(ab, "failed to parse dma buf meta tlv %d\n",
+					    ret);
+				return ret;
+			}
+
+			parse->meta_data_done = true;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static void ath11k_wmi_pdev_dma_ring_buf_release_event(struct ath11k_base *ab,
+						       struct sk_buff *skb)
+{
+	struct wmi_tlv_dma_buf_release_parse parse = { };
+	struct ath11k_dbring_buf_release_event param;
+	int ret;
+
+	ret = ath11k_wmi_tlv_iter(ab, skb->data, skb->len,
+				  ath11k_wmi_tlv_dma_buf_parse,
+				  &parse);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse dma buf release tlv %d\n", ret);
+		return;
+	}
+
+	param.fixed		= parse.fixed;
+	param.buf_entry		= parse.buf_entry;
+	param.num_buf_entry	= parse.num_buf_entry;
+	param.meta_data		= parse.meta_data;
+	param.num_meta		= parse.num_meta;
+
+	ret = ath11k_dbring_buffer_release_event(ab, &param);
+	if (ret) {
+		ath11k_warn(ab, "failed to handle dma buf release event %d\n", ret);
+		return;
+	}
 }
 
 static int ath11k_wmi_tlv_hw_mode_caps_parse(struct ath11k_base *soc,
@@ -6326,12 +6520,16 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_PDEV_TEMPERATURE_EVENTID:
 		ath11k_wmi_pdev_temperature_event(ab, skb);
 		break;
+	case WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID:
+		ath11k_wmi_pdev_dma_ring_buf_release_event(ab, skb);
+		break;
 	/* add Unsupported events here */
 	case WMI_TBTTOFFSET_EXT_UPDATE_EVENTID:
 	case WMI_VDEV_DELETE_RESP_EVENTID:
 	case WMI_PEER_OPER_MODE_CHANGE_EVENTID:
 	case WMI_TWT_ENABLE_EVENTID:
 	case WMI_TWT_DISABLE_EVENTID:
+	case WMI_PDEV_DMA_RING_CFG_RSP_EVENTID:
 		ath11k_dbg(ab, ATH11K_DBG_WMI,
 			   "ignoring unsupported event 0x%x\n", id);
 		break;

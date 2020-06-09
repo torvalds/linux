@@ -267,6 +267,9 @@ int ath11k_dbring_buffer_release_event(struct ath11k_base *ab,
 	}
 
 	switch (ev->fixed.module_id) {
+	case WMI_DIRECT_BUF_SPECTRAL:
+		ring = ath11k_spectral_get_dbring(ar);
+		break;
 	default:
 		ring = NULL;
 		ath11k_warn(ab, "Recv dma buffer release ev on unsupp module %d\n",

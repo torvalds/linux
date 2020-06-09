@@ -2031,6 +2031,7 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_DSM_ROAM_FILTER = 211,
 	WMI_TLV_SERVICE_PACKET_CAPTURE_SUPPORT = 212,
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
+	WMI_TLV_SERVICE_FREQINFO_IN_METADATA = 219,
 	WMI_TLV_SERVICE_EXT2_MSG = 220,
 
 	WMI_MAX_EXT_SERVICE
@@ -4796,6 +4797,64 @@ struct ath11k_wmi_pdev_lro_config_cmd {
 	u32 pdev_id;
 } __packed;
 
+#define ATH11K_WMI_SPECTRAL_COUNT_DEFAULT                 0
+#define ATH11K_WMI_SPECTRAL_PERIOD_DEFAULT              224
+#define ATH11K_WMI_SPECTRAL_PRIORITY_DEFAULT              1
+#define ATH11K_WMI_SPECTRAL_FFT_SIZE_DEFAULT              7
+#define ATH11K_WMI_SPECTRAL_GC_ENA_DEFAULT                1
+#define ATH11K_WMI_SPECTRAL_RESTART_ENA_DEFAULT           0
+#define ATH11K_WMI_SPECTRAL_NOISE_FLOOR_REF_DEFAULT     -96
+#define ATH11K_WMI_SPECTRAL_INIT_DELAY_DEFAULT           80
+#define ATH11K_WMI_SPECTRAL_NB_TONE_THR_DEFAULT          12
+#define ATH11K_WMI_SPECTRAL_STR_BIN_THR_DEFAULT           8
+#define ATH11K_WMI_SPECTRAL_WB_RPT_MODE_DEFAULT           0
+#define ATH11K_WMI_SPECTRAL_RSSI_RPT_MODE_DEFAULT         0
+#define ATH11K_WMI_SPECTRAL_RSSI_THR_DEFAULT           0xf0
+#define ATH11K_WMI_SPECTRAL_PWR_FORMAT_DEFAULT            0
+#define ATH11K_WMI_SPECTRAL_RPT_MODE_DEFAULT              2
+#define ATH11K_WMI_SPECTRAL_BIN_SCALE_DEFAULT             1
+#define ATH11K_WMI_SPECTRAL_DBM_ADJ_DEFAULT               1
+#define ATH11K_WMI_SPECTRAL_CHN_MASK_DEFAULT              1
+
+struct ath11k_wmi_vdev_spectral_conf_param {
+	u32 vdev_id;
+	u32 scan_count;
+	u32 scan_period;
+	u32 scan_priority;
+	u32 scan_fft_size;
+	u32 scan_gc_ena;
+	u32 scan_restart_ena;
+	u32 scan_noise_floor_ref;
+	u32 scan_init_delay;
+	u32 scan_nb_tone_thr;
+	u32 scan_str_bin_thr;
+	u32 scan_wb_rpt_mode;
+	u32 scan_rssi_rpt_mode;
+	u32 scan_rssi_thr;
+	u32 scan_pwr_format;
+	u32 scan_rpt_mode;
+	u32 scan_bin_scale;
+	u32 scan_dbm_adj;
+	u32 scan_chn_mask;
+} __packed;
+
+struct ath11k_wmi_vdev_spectral_conf_cmd {
+	u32 tlv_header;
+	struct ath11k_wmi_vdev_spectral_conf_param param;
+} __packed;
+
+#define ATH11K_WMI_SPECTRAL_TRIGGER_CMD_TRIGGER  1
+#define ATH11K_WMI_SPECTRAL_TRIGGER_CMD_CLEAR    2
+#define ATH11K_WMI_SPECTRAL_ENABLE_CMD_ENABLE    1
+#define ATH11K_WMI_SPECTRAL_ENABLE_CMD_DISABLE   2
+
+struct ath11k_wmi_vdev_spectral_enable_cmd {
+	u32 tlv_header;
+	u32 vdev_id;
+	u32 trigger_cmd;
+	u32 enable_cmd;
+} __packed;
+
 struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd {
 	u32 tlv_header;
 	u32 pdev_id;
@@ -5058,4 +5117,8 @@ int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 int ath11k_wmi_pdev_lro_cfg(struct ath11k *ar, int pdev_id);
 int ath11k_wmi_pdev_dma_ring_cfg(struct ath11k *ar,
 				 struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *param);
+int ath11k_wmi_vdev_spectral_enable(struct ath11k *ar, u32 vdev_id,
+				    u32 trigger, u32 enable);
+int ath11k_wmi_vdev_spectral_conf(struct ath11k *ar,
+				  struct ath11k_wmi_vdev_spectral_conf_param *param);
 #endif
