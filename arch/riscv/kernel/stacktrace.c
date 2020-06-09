@@ -99,16 +99,23 @@ void notrace walk_stackframe(struct task_struct *task,
 
 static bool print_trace_address(unsigned long pc, void *arg)
 {
-	print_ip_sym(KERN_DEFAULT, pc);
+	const char *loglvl = arg;
+
+	print_ip_sym(loglvl, pc);
 	return false;
+}
+
+void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
+		       const char *loglvl)
+{
+	pr_cont("Call Trace:\n");
+	walk_stackframe(task, NULL, print_trace_address, (void *)loglvl);
 }
 
 void show_stack(struct task_struct *task, unsigned long *sp)
 {
-	pr_cont("Call Trace:\n");
-	walk_stackframe(task, NULL, print_trace_address, NULL);
+	show_stack_loglvl(task, sp, KERN_DEFAULT);
 }
-
 
 static bool save_wchan(unsigned long pc, void *arg)
 {
