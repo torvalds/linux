@@ -212,9 +212,9 @@ static inline unsigned open_buckets_reserved(enum alloc_reserve reserve)
 	case RESERVE_ALLOC:
 		return 0;
 	case RESERVE_BTREE:
-		return BTREE_NODE_OPEN_BUCKET_RESERVE;
+		return OPEN_BUCKETS_COUNT / 4;
 	default:
-		return BTREE_NODE_OPEN_BUCKET_RESERVE * 2;
+		return OPEN_BUCKETS_COUNT / 2;
 	}
 }
 
