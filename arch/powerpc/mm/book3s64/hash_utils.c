@@ -35,10 +35,10 @@
 #include <linux/pkeys.h>
 #include <linux/hugetlb.h>
 #include <linux/cpu.h>
+#include <linux/pgtable.h>
 
 #include <asm/debugfs.h>
 #include <asm/processor.h>
-#include <linux/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/page.h>

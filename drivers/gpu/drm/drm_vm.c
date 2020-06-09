@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 
 #if defined(__ia64__)
 #include <linux/efi.h>
@@ -44,7 +45,6 @@
 #endif
 #include <linux/mem_encrypt.h>
 
-#include <linux/pgtable.h>
 
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_device.h>

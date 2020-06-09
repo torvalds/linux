@@ -10,8 +10,8 @@
 #ifndef __ASM_SUN3X_FLOPPY_H
 #define __ASM_SUN3X_FLOPPY_H
 
-#include <asm/page.h>
 #include <linux/pgtable.h>
+#include <asm/page.h>
 #include <asm/irq.h>
 #include <asm/sun3x.h>
 

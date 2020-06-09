@@ -8,11 +8,11 @@
 #include <linux/memblock.h>
 #include <linux/sched/task.h>
 #include <linux/numa.h>
+#include <linux/pgtable.h>
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
-#include <linux/pgtable.h>
 #include <asm/kexec.h>
 #include <asm/svm.h>
 #include <asm/ultravisor.h>

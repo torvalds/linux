@@ -6,8 +6,8 @@
 #include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/highmem.h>
-#include <asm/processor.h>
 #include <linux/pgtable.h>
+#include <asm/processor.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 

@@ -2,8 +2,8 @@
 #include <linux/kasan.h>
 #include <linux/sched/task.h>
 #include <linux/memblock.h>
-#include <asm/pgalloc.h>
 #include <linux/pgtable.h>
+#include <asm/pgalloc.h>
 #include <asm/kasan.h>
 #include <asm/mem_detect.h>
 #include <asm/processor.h>

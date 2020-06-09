@@ -2,8 +2,6 @@
 #ifndef __ASM_KASAN_H
 #define __ASM_KASAN_H
 
-#include <linux/pgtable.h>
-
 #ifdef CONFIG_KASAN
 
 #define KASAN_SHADOW_SCALE_SHIFT 3

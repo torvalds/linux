@@ -51,10 +51,10 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 
 #include <linux/uaccess.h>
 #include <asm/io.h>
-#include <linux/pgtable.h>
 #include <asm/irq.h>
 #include <asm/cache.h>
 #include <asm/prom.h>

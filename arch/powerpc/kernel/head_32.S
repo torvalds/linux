@@ -17,10 +17,10 @@
  */
 
 #include <linux/init.h>
+#include <linux/pgtable.h>
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <linux/pgtable.h>
 #include <asm/cputable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>

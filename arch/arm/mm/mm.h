@@ -2,7 +2,6 @@
 #ifdef CONFIG_MMU
 #include <linux/list.h>
 #include <linux/vmalloc.h>
-
 #include <linux/pgtable.h>
 
 /* the upper-most page table pointer */

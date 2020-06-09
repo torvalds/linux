@@ -10,7 +10,6 @@
  */
 
 #include <asm/asm-prototypes.h>
-#include <linux/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
@@ -21,6 +20,7 @@
 #include <linux/compiler.h>
 #include <linux/context_tracking.h>
 #include <linux/mm_types.h>
+#include <linux/pgtable.h>
 
 #include <asm/udbg.h>
 #include <asm/code-patching.h>

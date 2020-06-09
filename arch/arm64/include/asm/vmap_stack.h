@@ -7,8 +7,8 @@
 #include <linux/gfp.h>
 #include <linux/kconfig.h>
 #include <linux/vmalloc.h>
-#include <asm/memory.h>
 #include <linux/pgtable.h>
+#include <asm/memory.h>
 #include <asm/thread_info.h>
 
 /*

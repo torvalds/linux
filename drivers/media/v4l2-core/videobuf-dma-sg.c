@@ -21,13 +21,13 @@
 #include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
+#include <linux/pgtable.h>
 
 #include <linux/dma-mapping.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
 #include <asm/page.h>
-#include <linux/pgtable.h>
 
 #include <media/videobuf-dma-sg.h>
 

@@ -14,8 +14,8 @@
 
 
 #include <linux/linkage.h>
-#include <asm/page.h>
 #include <linux/pgtable.h>
+#include <asm/page.h>
 #include <asm/asmmacro.h>
 #include <asm/cacheasm.h>
 #include <asm/tlbflush.h>

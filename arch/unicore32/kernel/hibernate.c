@@ -11,9 +11,9 @@
 #include <linux/gfp.h>
 #include <linux/suspend.h>
 #include <linux/memblock.h>
+#include <linux/pgtable.h>
 
 #include <asm/page.h>
-#include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/suspend.h>

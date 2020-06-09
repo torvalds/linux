@@ -4,9 +4,9 @@
 
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/pgtable.h>
 
 #include <asm/pgtsrmmu.h>
-#include <linux/pgtable.h>
 #include <asm/vaddrs.h>
 #include <asm/page.h>
 
