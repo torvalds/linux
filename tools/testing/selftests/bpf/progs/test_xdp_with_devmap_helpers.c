@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include "vmlinux.h"
+#include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
 struct {
