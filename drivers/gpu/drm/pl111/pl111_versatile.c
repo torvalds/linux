@@ -9,7 +9,6 @@
  * Major contributions and discoveries by Russell King.
  */
 
-#include <linux/amba/clcd-regs.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/mfd/syscon.h>
