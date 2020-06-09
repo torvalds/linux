@@ -261,51 +261,25 @@ int smu_set_soft_freq_range(struct smu_context *smu,
 	return ret;
 }
 
-int smu_get_dpm_freq_range(struct smu_context *smu, enum smu_clk_type clk_type,
-			   uint32_t *min, uint32_t *max, bool lock_needed)
+int smu_get_dpm_freq_range(struct smu_context *smu,
+			   enum smu_clk_type clk_type,
+			   uint32_t *min,
+			   uint32_t *max)
 {
-	uint32_t clock_limit;
 	int ret = 0;
 
 	if (!min && !max)
 		return -EINVAL;
 
-	if (lock_needed)
-		mutex_lock(&smu->mutex);
+	mutex_lock(&smu->mutex);
 
-	if (!smu_clk_dpm_is_enabled(smu, clk_type)) {
-		switch (clk_type) {
-		case SMU_MCLK:
-		case SMU_UCLK:
-			clock_limit = smu->smu_table.boot_values.uclk;
-			break;
-		case SMU_GFXCLK:
-		case SMU_SCLK:
-			clock_limit = smu->smu_table.boot_values.gfxclk;
-			break;
-		case SMU_SOCCLK:
-			clock_limit = smu->smu_table.boot_values.socclk;
-			break;
-		default:
-			clock_limit = 0;
-			break;
-		}
+	if (smu->ppt_funcs->get_dpm_ultimate_freq)
+		ret = smu->ppt_funcs->get_dpm_ultimate_freq(smu,
+							    clk_type,
+							    min,
+							    max);
 
-		/* clock in Mhz unit */
-		if (min)
-			*min = clock_limit / 100;
-		if (max)
-			*max = clock_limit / 100;
-	} else {
-		/*
-		 * Todo: Use each asic(ASIC_ppt funcs) control the callbacks exposed to the
-		 * core driver and then have helpers for stuff that is common(SMU_v11_x | SMU_v12_x funcs).
-		 */
-		ret = smu_get_dpm_ultimate_freq(smu, clk_type, min, max);
-	}
-
-	if (lock_needed)
-		mutex_unlock(&smu->mutex);
+	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
