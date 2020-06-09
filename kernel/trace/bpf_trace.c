@@ -159,7 +159,7 @@ const struct bpf_func_proto bpf_probe_read_user_proto = {
 BPF_CALL_3(bpf_probe_read_user_str, void *, dst, u32, size,
 	   const void __user *, unsafe_ptr)
 {
-	int ret = strncpy_from_unsafe_user(dst, unsafe_ptr, size);
+	int ret = strncpy_from_user_nofault(dst, unsafe_ptr, size);
 
 	if (unlikely(ret < 0))
 		memset(dst, 0, size);
@@ -419,7 +419,7 @@ fmt_str:
 							   sizeof(buf));
 				break;
 			case 'u':
-				strncpy_from_unsafe_user(buf,
+				strncpy_from_user_nofault(buf,
 					(__force void __user *)unsafe_ptr,
 							 sizeof(buf));
 				break;
