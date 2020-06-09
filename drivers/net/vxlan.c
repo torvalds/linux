@@ -857,7 +857,6 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 			       u32 nhid, struct netlink_ext_ack *extack)
 {
 	struct nexthop *old_nh = rtnl_dereference(fdb->nh);
-	struct nh_group *nhg;
 	struct nexthop *nh;
 	int err = -EINVAL;
 
@@ -881,8 +880,7 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 			goto err_inval;
 		}
 
-		nhg = rtnl_dereference(nh->nh_grp);
-		if (!nh->is_group || !nhg->mpath) {
+		if (!nexthop_is_multipath(nh)) {
 			NL_SET_ERR_MSG(extack, "Nexthop is not a multipath group");
 			goto err_inval;
 		}
@@ -890,14 +888,14 @@ static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 		/* check nexthop group family */
 		switch (vxlan->default_dst.remote_ip.sa.sa_family) {
 		case AF_INET:
-			if (!nhg->has_v4) {
+			if (!nexthop_has_v4(nh)) {
 				err = -EAFNOSUPPORT;
 				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
 				goto err_inval;
 			}
 			break;
 		case AF_INET6:
-			if (nhg->has_v4) {
+			if (nexthop_has_v4(nh)) {
 				err = -EAFNOSUPPORT;
 				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
 				goto err_inval;
