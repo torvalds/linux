@@ -427,61 +427,69 @@ static __init int stf_barrier_debugfs_init(void)
 device_initcall(stf_barrier_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */
 
-static void no_count_cache_flush(void)
+static void update_branch_cache_flush(void)
 {
-	count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
-	pr_info("count-cache-flush: flush disabled.\n");
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	// This controls the branch from guest_exit_cont to kvm_flush_link_stack
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+		patch_instruction_site(&patch__call_kvm_flush_link_stack,
+				       ppc_inst(PPC_INST_NOP));
+	} else {
+		patch_branch_site(&patch__call_kvm_flush_link_stack,
+				  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
+	}
+#endif
+
+	// This controls the branch from _switch to flush_branch_caches
+	if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE &&
+	    link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+		patch_instruction_site(&patch__call_flush_branch_caches,
+				       ppc_inst(PPC_INST_NOP));
+	} else {
+		patch_branch_site(&patch__call_flush_branch_caches,
+				  (u64)&flush_branch_caches, BRANCH_SET_LINK);
+
+		// If we just need to flush the link stack, early return
+		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_NONE) {
+			patch_instruction_site(&patch__flush_link_stack_return,
+					       ppc_inst(PPC_INST_BLR));
+
+		// If we have flush instruction, early return
+		} else if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW) {
+			patch_instruction_site(&patch__flush_count_cache_return,
+					       ppc_inst(PPC_INST_BLR));
+		}
+	}
 }
 
 static void toggle_branch_cache_flush(bool enable)
 {
-	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE) &&
-	    !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK))
-		enable = false;
+	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
+		if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE)
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
 
-	if (!enable) {
-		patch_instruction_site(&patch__call_flush_branch_caches,
-				       ppc_inst(PPC_INST_NOP));
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-		patch_instruction_site(&patch__call_kvm_flush_link_stack,
-				       ppc_inst(PPC_INST_NOP));
-#endif
+		pr_info("count-cache-flush: flush disabled.\n");
+	} else {
+		if (security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_HW;
+			pr_info("count-cache-flush: hardware flush enabled.\n");
+		} else {
+			count_cache_flush_type = BRANCH_CACHE_FLUSH_SW;
+			pr_info("count-cache-flush: software flush enabled.\n");
+		}
+	}
+
+	if (!enable || !security_ftr_enabled(SEC_FTR_FLUSH_LINK_STACK)) {
+		if (link_stack_flush_type != BRANCH_CACHE_FLUSH_NONE)
+			link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
+
 		pr_info("link-stack-flush: flush disabled.\n");
-		link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
-		no_count_cache_flush();
-		return;
+	} else {
+		link_stack_flush_type = BRANCH_CACHE_FLUSH_SW;
+		pr_info("link-stack-flush: software flush enabled.\n");
 	}
 
-	// This enables the branch from _switch to flush_branch_caches
-	patch_branch_site(&patch__call_flush_branch_caches,
-			  (u64)&flush_branch_caches, BRANCH_SET_LINK);
-
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-	// This enables the branch from guest_exit_cont to kvm_flush_link_stack
-	patch_branch_site(&patch__call_kvm_flush_link_stack,
-			  (u64)&kvm_flush_link_stack, BRANCH_SET_LINK);
-#endif
-
-	pr_info("link-stack-flush: software flush enabled.\n");
-	link_stack_flush_type = BRANCH_CACHE_FLUSH_SW;
-
-	// If we just need to flush the link stack, patch an early return
-	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
-		patch_instruction_site(&patch__flush_link_stack_return,
-				       ppc_inst(PPC_INST_BLR));
-		no_count_cache_flush();
-		return;
-	}
-
-	if (!security_ftr_enabled(SEC_FTR_BCCTR_FLUSH_ASSIST)) {
-		count_cache_flush_type = BRANCH_CACHE_FLUSH_SW;
-		pr_info("count-cache-flush: software flush enabled.\n");
-		return;
-	}
-
-	patch_instruction_site(&patch__flush_count_cache_return, ppc_inst(PPC_INST_BLR));
-	count_cache_flush_type = BRANCH_CACHE_FLUSH_HW;
-	pr_info("count-cache-flush: hardware flush enabled.\n");
+	update_branch_cache_flush();
 }
 
 void setup_count_cache_flush(void)
