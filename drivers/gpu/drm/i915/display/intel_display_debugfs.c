@@ -2224,7 +2224,8 @@ int intel_connector_debugfs_add(struct drm_connector *connector)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 10 &&
-	    (connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
+	    ((connector->connector_type == DRM_MODE_CONNECTOR_DisplayPort &&
+	      !to_intel_connector(connector)->mst_port) ||
 	     connector->connector_type == DRM_MODE_CONNECTOR_eDP))
 		debugfs_create_file("i915_dsc_fec_support", S_IRUGO, root,
 				    connector, &i915_dsc_fec_support_fops);
