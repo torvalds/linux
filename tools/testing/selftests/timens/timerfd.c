@@ -28,6 +28,9 @@ int run_test(int clockid, struct timespec now)
 	long long elapsed;
 	int fd, i;
 
+	if (check_skip(clockid))
+		return 0;
+
 	if (tclock_gettime(clockid, &now))
 		return pr_perror("clock_gettime(%d)", clockid);
 
@@ -80,6 +83,8 @@ int main(int argc, char *argv[])
 	struct timespec btime_now, mtime_now;
 
 	nscheck();
+
+	check_supported_timers();
 
 	ksft_set_plan(3);
 
