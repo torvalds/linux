@@ -1770,7 +1770,7 @@ void mpt3sas_send_trigger_data_event(struct MPT3SAS_ADAPTER *ioc,
 void mpt3sas_process_trigger_data(struct MPT3SAS_ADAPTER *ioc,
 	struct SL_WH_TRIGGERS_EVENT_DATA_T *event_data);
 void mpt3sas_trigger_master(struct MPT3SAS_ADAPTER *ioc,
-	u32 tigger_bitmask);
+	u32 trigger_bitmask);
 void mpt3sas_trigger_event(struct MPT3SAS_ADAPTER *ioc, u16 event,
 	u16 log_entry_qualifier);
 void mpt3sas_trigger_scsi(struct MPT3SAS_ADAPTER *ioc, u8 sense_key,
