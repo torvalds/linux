@@ -364,7 +364,7 @@ static struct ipoib_txreq *hfi1_ipoib_send_dma_common(struct net_device *dev,
 	if (unlikely(!tx))
 		return ERR_PTR(-ENOMEM);
 
-	/* so that we can test if the sdma decriptors are there */
+	/* so that we can test if the sdma descriptors are there */
 	tx->txreq.num_desc = 0;
 	tx->priv = priv;
 	tx->txq = txp->txq;
