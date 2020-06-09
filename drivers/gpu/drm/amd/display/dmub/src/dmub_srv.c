@@ -281,6 +281,16 @@ dmub_srv_calc_region_info(struct dmub_srv *dmub,
 	if (fw_info) {
 		fw_state_size = fw_info->fw_region_size;
 		trace_buffer_size = fw_info->trace_buffer_size;
+
+		/**
+		 * If DM didn't fill in a version, then fill it in based on
+		 * the firmware meta now that we have it.
+		 *
+		 * TODO: Make it easier for driver to extract this out to
+		 * pass during creation.
+		 */
+		if (dmub->fw_version == 0)
+			dmub->fw_version = fw_info->fw_version;
 	}
 
 	trace_buff->base = dmub_align(mail->top, 256);
