@@ -781,12 +781,9 @@ static int sienna_cichlid_print_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_FCLK:
 	case SMU_DCEFCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, clk_type, &cur_value);
+		ret = sienna_cichlid_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
 			goto print_clk_out;
-
-		/* 10KHz -> MHz */
-		cur_value = cur_value / 100;
 
 		/* no need to disable gfxoff when retrieving the current gfxclk */
 		if ((clk_type == SMU_GFXCLK) || (clk_type == SMU_SCLK))

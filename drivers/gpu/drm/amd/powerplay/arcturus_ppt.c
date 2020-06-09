@@ -644,6 +644,180 @@ static int arcturus_freqs_in_same_level(int32_t frequency1,
 	return (abs(frequency1 - frequency2) <= EPSILON);
 }
 
+static int arcturus_get_smu_metrics_data(struct smu_context *smu,
+					 MetricsMember_t member,
+					 uint32_t *value)
+{
+	struct smu_table_context *smu_table= &smu->smu_table;
+	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
+	int ret = 0;
+
+	mutex_lock(&smu->metrics_lock);
+
+	if (!smu_table->metrics_time ||
+	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
+		ret = smu_update_table(smu,
+				       SMU_TABLE_SMU_METRICS,
+				       0,
+				       smu_table->metrics_table,
+				       false);
+		if (ret) {
+			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
+			mutex_unlock(&smu->metrics_lock);
+			return ret;
+		}
+		smu_table->metrics_time = jiffies;
+	}
+
+	switch (member) {
+	case METRICS_CURR_GFXCLK:
+		*value = metrics->CurrClock[PPCLK_GFXCLK];
+		break;
+	case METRICS_CURR_SOCCLK:
+		*value = metrics->CurrClock[PPCLK_SOCCLK];
+		break;
+	case METRICS_CURR_UCLK:
+		*value = metrics->CurrClock[PPCLK_UCLK];
+		break;
+	case METRICS_CURR_VCLK:
+		*value = metrics->CurrClock[PPCLK_VCLK];
+		break;
+	case METRICS_CURR_DCLK:
+		*value = metrics->CurrClock[PPCLK_DCLK];
+		break;
+	case METRICS_CURR_FCLK:
+		*value = metrics->CurrClock[PPCLK_FCLK];
+		break;
+	case METRICS_AVERAGE_GFXCLK:
+		*value = metrics->AverageGfxclkFrequency;
+		break;
+	case METRICS_AVERAGE_SOCCLK:
+		*value = metrics->AverageSocclkFrequency;
+		break;
+	case METRICS_AVERAGE_UCLK:
+		*value = metrics->AverageUclkFrequency;
+		break;
+	case METRICS_AVERAGE_VCLK:
+		*value = metrics->AverageVclkFrequency;
+		break;
+	case METRICS_AVERAGE_DCLK:
+		*value = metrics->AverageDclkFrequency;
+		break;
+	case METRICS_AVERAGE_GFXACTIVITY:
+		*value = metrics->AverageGfxActivity;
+		break;
+	case METRICS_AVERAGE_MEMACTIVITY:
+		*value = metrics->AverageUclkActivity;
+		break;
+	case METRICS_AVERAGE_VCNACTIVITY:
+		*value = metrics->VcnActivityPercentage;
+		break;
+	case METRICS_AVERAGE_SOCKETPOWER:
+		*value = metrics->AverageSocketPower << 8;
+		break;
+	case METRICS_TEMPERATURE_EDGE:
+		*value = metrics->TemperatureEdge *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_HOTSPOT:
+		*value = metrics->TemperatureHotspot *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_MEM:
+		*value = metrics->TemperatureHBM *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRGFX:
+		*value = metrics->TemperatureVrGfx *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRSOC:
+		*value = metrics->TemperatureVrSoc *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_TEMPERATURE_VRMEM:
+		*value = metrics->TemperatureVrMem *
+			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+		break;
+	case METRICS_THROTTLER_STATUS:
+		*value = metrics->ThrottlerStatus;
+		break;
+	case METRICS_CURR_FANSPEED:
+		*value = metrics->CurrFanSpeed;
+		break;
+	default:
+		*value = UINT_MAX;
+		break;
+	}
+
+	mutex_unlock(&smu->metrics_lock);
+
+	return ret;
+}
+
+static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
+				       enum smu_clk_type clk_type,
+				       uint32_t *value)
+{
+	MetricsMember_t member_type;
+	int clk_id = 0;
+
+	if (!value)
+		return -EINVAL;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return -EINVAL;
+
+	switch (clk_id) {
+	case PPCLK_GFXCLK:
+		/*
+		 * CurrClock[clk_id] can provide accurate
+		 *   output only when the dpm feature is enabled.
+		 * We can use Average_* for dpm disabled case.
+		 *   But this is available for gfxclk/uclk/socclk/vclk/dclk.
+		 */
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
+			member_type = METRICS_CURR_GFXCLK;
+		else
+			member_type = METRICS_AVERAGE_GFXCLK;
+		break;
+	case PPCLK_UCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
+			member_type = METRICS_CURR_UCLK;
+		else
+			member_type = METRICS_AVERAGE_UCLK;
+		break;
+	case PPCLK_SOCCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
+			member_type = METRICS_CURR_SOCCLK;
+		else
+			member_type = METRICS_AVERAGE_SOCCLK;
+		break;
+	case PPCLK_VCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+			member_type = METRICS_CURR_VCLK;
+		else
+			member_type = METRICS_AVERAGE_VCLK;
+		break;
+	case PPCLK_DCLK:
+		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
+			member_type = METRICS_CURR_DCLK;
+		else
+			member_type = METRICS_AVERAGE_DCLK;
+		break;
+	case PPCLK_FCLK:
+		member_type = METRICS_CURR_FCLK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return arcturus_get_smu_metrics_data(smu,
+					     member_type,
+					     value);
+}
+
 static int arcturus_print_clk_levels(struct smu_context *smu,
 			enum smu_clk_type type, char *buf)
 {
@@ -661,7 +835,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 
 	switch (type) {
 	case SMU_SCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, SMU_GFXCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current gfx clk Failed!");
 			return ret;
@@ -684,11 +858,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 					(clocks.num_levels == 1) ? "*" :
 					(arcturus_freqs_in_same_level(
 					clocks.data[i].clocks_in_khz / 1000,
-					now / 100) ? "*" : ""));
+					now) ? "*" : ""));
 		break;
 
 	case SMU_MCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, SMU_UCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_UCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current mclk Failed!");
 			return ret;
@@ -707,11 +881,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				now) ? "*" : ""));
 		break;
 
 	case SMU_SOCCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, SMU_SOCCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_SOCCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current socclk Failed!");
 			return ret;
@@ -730,11 +904,11 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				now) ? "*" : ""));
 		break;
 
 	case SMU_FCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, SMU_FCLK, &now);
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_FCLK, &now);
 		if (ret) {
 			dev_err(smu->adev->dev, "Attempt to get current fclk Failed!");
 			return ret;
@@ -753,7 +927,7 @@ static int arcturus_print_clk_levels(struct smu_context *smu,
 				(clocks.num_levels == 1) ? "*" :
 				(arcturus_freqs_in_same_level(
 				clocks.data[i].clocks_in_khz / 1000,
-				now / 100) ? "*" : ""));
+				now) ? "*" : ""));
 		break;
 
 	default:
@@ -918,117 +1092,6 @@ static int arcturus_get_thermal_temperature_range(struct smu_context *smu,
 	return 0;
 }
 
-static int arcturus_get_smu_metrics_data(struct smu_context *smu,
-					 MetricsMember_t member,
-					 uint32_t *value)
-{
-	struct smu_table_context *smu_table= &smu->smu_table;
-	SmuMetrics_t *metrics = (SmuMetrics_t *)smu_table->metrics_table;
-	int ret = 0;
-
-	mutex_lock(&smu->metrics_lock);
-
-	if (!smu_table->metrics_time ||
-	     time_after(jiffies, smu_table->metrics_time + msecs_to_jiffies(1))) {
-		ret = smu_update_table(smu,
-				       SMU_TABLE_SMU_METRICS,
-				       0,
-				       smu_table->metrics_table,
-				       false);
-		if (ret) {
-			dev_info(smu->adev->dev, "Failed to export SMU metrics table!\n");
-			mutex_unlock(&smu->metrics_lock);
-			return ret;
-		}
-		smu_table->metrics_time = jiffies;
-	}
-
-	switch (member) {
-	case METRICS_CURR_GFXCLK:
-		*value = metrics->CurrClock[PPCLK_GFXCLK];
-		break;
-	case METRICS_CURR_SOCCLK:
-		*value = metrics->CurrClock[PPCLK_SOCCLK];
-		break;
-	case METRICS_CURR_UCLK:
-		*value = metrics->CurrClock[PPCLK_UCLK];
-		break;
-	case METRICS_CURR_VCLK:
-		*value = metrics->CurrClock[PPCLK_VCLK];
-		break;
-	case METRICS_CURR_DCLK:
-		*value = metrics->CurrClock[PPCLK_DCLK];
-		break;
-	case METRICS_CURR_FCLK:
-		*value = metrics->CurrClock[PPCLK_FCLK];
-		break;
-	case METRICS_AVERAGE_GFXCLK:
-		*value = metrics->AverageGfxclkFrequency;
-		break;
-	case METRICS_AVERAGE_SOCCLK:
-		*value = metrics->AverageSocclkFrequency;
-		break;
-	case METRICS_AVERAGE_UCLK:
-		*value = metrics->AverageUclkFrequency;
-		break;
-	case METRICS_AVERAGE_VCLK:
-		*value = metrics->AverageVclkFrequency;
-		break;
-	case METRICS_AVERAGE_DCLK:
-		*value = metrics->AverageDclkFrequency;
-		break;
-	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = metrics->AverageGfxActivity;
-		break;
-	case METRICS_AVERAGE_MEMACTIVITY:
-		*value = metrics->AverageUclkActivity;
-		break;
-	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->VcnActivityPercentage;
-		break;
-	case METRICS_AVERAGE_SOCKETPOWER:
-		*value = metrics->AverageSocketPower << 8;
-		break;
-	case METRICS_TEMPERATURE_EDGE:
-		*value = metrics->TemperatureEdge *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = metrics->TemperatureHotspot *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_MEM:
-		*value = metrics->TemperatureHBM *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_VRGFX:
-		*value = metrics->TemperatureVrGfx *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_VRSOC:
-		*value = metrics->TemperatureVrSoc *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_TEMPERATURE_VRMEM:
-		*value = metrics->TemperatureVrMem *
-			SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-		break;
-	case METRICS_THROTTLER_STATUS:
-		*value = metrics->ThrottlerStatus;
-		break;
-	case METRICS_CURR_FANSPEED:
-		*value = metrics->CurrFanSpeed;
-		break;
-	default:
-		*value = UINT_MAX;
-		break;
-	}
-
-	mutex_unlock(&smu->metrics_lock);
-
-	return ret;
-}
-
 static int arcturus_get_current_activity_percent(struct smu_context *smu,
 						 enum amd_pp_sensors sensor,
 						 uint32_t *value)
@@ -1177,68 +1240,6 @@ static int arcturus_get_fan_speed_percent(struct smu_context *smu,
 	return ret;
 }
 
-static int arcturus_get_current_clk_freq_by_table(struct smu_context *smu,
-				       enum smu_clk_type clk_type,
-				       uint32_t *value)
-{
-	MetricsMember_t member_type;
-	int clk_id = 0;
-
-	if (!value)
-		return -EINVAL;
-
-	clk_id = smu_clk_get_index(smu, clk_type);
-	if (clk_id < 0)
-		return -EINVAL;
-
-	switch (clk_id) {
-	case PPCLK_GFXCLK:
-		/*
-		 * CurrClock[clk_id] can provide accurate
-		 *   output only when the dpm feature is enabled.
-		 * We can use Average_* for dpm disabled case.
-		 *   But this is available for gfxclk/uclk/socclk/vclk/dclk.
-		 */
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_GFXCLK_BIT))
-			member_type = METRICS_CURR_GFXCLK;
-		else
-			member_type = METRICS_AVERAGE_GFXCLK;
-		break;
-	case PPCLK_UCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT))
-			member_type = METRICS_CURR_UCLK;
-		else
-			member_type = METRICS_AVERAGE_UCLK;
-		break;
-	case PPCLK_SOCCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_SOCCLK_BIT))
-			member_type = METRICS_CURR_SOCCLK;
-		else
-			member_type = METRICS_AVERAGE_SOCCLK;
-		break;
-	case PPCLK_VCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
-			member_type = METRICS_CURR_VCLK;
-		else
-			member_type = METRICS_AVERAGE_VCLK;
-		break;
-	case PPCLK_DCLK:
-		if (smu_feature_is_enabled(smu, SMU_FEATURE_VCN_PG_BIT))
-			member_type = METRICS_CURR_DCLK;
-		else
-			member_type = METRICS_AVERAGE_DCLK;
-		break;
-	case PPCLK_FCLK:
-		member_type = METRICS_CURR_FCLK;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return arcturus_get_smu_metrics_data(smu,
-					     member_type,
-					     value);
-}
 
 static uint32_t arcturus_find_lowest_dpm_level(struct arcturus_single_dpm_table *table)
 {

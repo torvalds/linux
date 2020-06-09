@@ -877,12 +877,9 @@ static int navi10_print_clk_levels(struct smu_context *smu,
 	case SMU_UCLK:
 	case SMU_FCLK:
 	case SMU_DCEFCLK:
-		ret = smu_v11_0_get_current_clk_freq(smu, clk_type, &cur_value);
+		ret = navi10_get_current_clk_freq_by_table(smu, clk_type, &cur_value);
 		if (ret)
 			return size;
-
-		/* 10KHz -> MHz */
-		cur_value = cur_value / 100;
 
 		ret = smu_get_dpm_level_count(smu, clk_type, &count);
 		if (ret)
