@@ -103,6 +103,7 @@ enum {
  * @gpps: Pad groups if the controller has variable size pad groups
  * @ngpps: Number of pad groups in this community
  * @pad_map: Optional non-linear mapping of the pads
+ * @nirqs: Optional total number of IRQs this community can generate
  * @regs: Community specific common registers (reserved for core driver)
  * @pad_regs: Community specific pad registers (reserved for core driver)
  *
@@ -127,6 +128,7 @@ struct intel_community {
 	const struct intel_padgroup *gpps;
 	size_t ngpps;
 	const unsigned int *pad_map;
+	unsigned short nirqs;
 
 	/* Reserved for the core driver */
 	void __iomem *regs;
