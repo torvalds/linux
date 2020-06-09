@@ -3279,7 +3279,7 @@ static int haptics_start_lra_calibration(struct haptics_chip *chip)
 			HAP_CFG_AUTORES_CFG_REG, AUTORES_EN_BIT |
 			AUTORES_EN_DLY_MASK | AUTORES_ERR_WINDOW_MASK,
 			AUTORES_EN_DLY_1_CYCLE << AUTORES_EN_DLY_SHIFT
-			| AUTORES_ERR_WINDOW_25_PERCENT | AUTORES_EN_BIT);
+			| AUTORES_ERR_WINDOW_50_PERCENT | AUTORES_EN_BIT);
 	if (rc < 0)
 		goto unlock;
 
@@ -3306,8 +3306,8 @@ static int haptics_start_lra_calibration(struct haptics_chip *chip)
 		goto restore;
 	}
 
-	/* wait for ~60ms to get the LRA calibration result */
-	usleep_range(60000, 65000);
+	/* wait for ~150ms to get the LRA calibration result */
+	usleep_range(150000, 155000);
 
 	rc = haptics_get_closeloop_lra_period(chip);
 	if (rc < 0)
