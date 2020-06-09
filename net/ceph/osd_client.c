@@ -448,6 +448,7 @@ static void target_copy(struct ceph_osd_request_target *dest,
 	dest->recovery_deletes = src->recovery_deletes;
 
 	dest->flags = src->flags;
+	dest->used_replica = src->used_replica;
 	dest->paused = src->paused;
 
 	dest->epoch = src->epoch;
