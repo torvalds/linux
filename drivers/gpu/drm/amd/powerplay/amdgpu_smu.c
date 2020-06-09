@@ -506,52 +506,6 @@ int smu_get_power_num_states(struct smu_context *smu,
 	return 0;
 }
 
-int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
-			   void *data, uint32_t *size)
-{
-	struct smu_power_context *smu_power = &smu->smu_power;
-	struct smu_power_gate *power_gate = &smu_power->power_gate;
-	int ret = 0;
-
-	if(!data || !size)
-		return -EINVAL;
-
-	switch (sensor) {
-	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
-		*((uint32_t *)data) = smu->pstate_sclk;
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
-		*((uint32_t *)data) = smu->pstate_mclk;
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
-		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
-		*size = 8;
-		break;
-	case AMDGPU_PP_SENSOR_UVD_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT) ? 1 : 0;
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_VCE_POWER:
-		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT) ? 1 : 0;
-		*size = 4;
-		break;
-	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
-		*(uint32_t *)data = power_gate->vcn_gated ? 0 : 1;
-		*size = 4;
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	if (ret)
-		*size = 0;
-
-	return ret;
-}
-
 int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int argument,
 		     void *table_data, bool drv2smu)
 {
@@ -2338,10 +2292,41 @@ int smu_read_sensor(struct smu_context *smu,
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
 		return -EOPNOTSUPP;
 
+	if (!data || !size)
+		return -EINVAL;
+
 	mutex_lock(&smu->mutex);
 
-	if (smu->ppt_funcs->read_sensor)
-		ret = smu->ppt_funcs->read_sensor(smu, sensor, data, size);
+	switch (sensor) {
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
+		*((uint32_t *)data) = smu->pstate_sclk;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
+		*((uint32_t *)data) = smu->pstate_mclk;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:
+		ret = smu_feature_get_enabled_mask(smu, (uint32_t *)data, 2);
+		*size = 8;
+		break;
+	case AMDGPU_PP_SENSOR_UVD_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UVD_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCE_POWER:
+		*(uint32_t *)data = smu_feature_is_enabled(smu, SMU_FEATURE_DPM_VCE_BIT) ? 1 : 0;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCN_POWER_STATE:
+		*(uint32_t *)data = smu->smu_power.power_gate.vcn_gated ? 0 : 1;
+		*size = 4;
+		break;
+	default:
+		if (smu->ppt_funcs->read_sensor)
+			ret = smu->ppt_funcs->read_sensor(smu, sensor, data, size);
+		break;
+	}
 
 	mutex_unlock(&smu->mutex);
 

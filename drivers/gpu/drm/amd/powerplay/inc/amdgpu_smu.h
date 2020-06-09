@@ -695,8 +695,6 @@ int smu_update_table(struct smu_context *smu, enum smu_table_id table_index, int
 
 bool is_support_sw_smu(struct amdgpu_device *adev);
 int smu_reset(struct smu_context *smu);
-int smu_common_read_sensor(struct smu_context *smu, enum amd_pp_sensors sensor,
-			   void *data, uint32_t *size);
 int smu_sys_get_pp_table(struct smu_context *smu, void **table);
 int smu_sys_set_pp_table(struct smu_context *smu,  void *buf, size_t size);
 int smu_get_power_num_states(struct smu_context *smu, struct pp_states_info *state_info);

@@ -226,7 +226,7 @@ int smu_v12_0_read_sensor(struct smu_context *smu,
 		*size = 4;
 		break;
 	default:
-		ret = smu_common_read_sensor(smu, sensor, data, size);
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
