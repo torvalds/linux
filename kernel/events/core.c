@@ -1316,7 +1316,7 @@ static void put_ctx(struct perf_event_context *ctx)
  *	    perf_event::child_mutex;
  *	      perf_event_context::lock
  *	    perf_event::mmap_mutex
- *	    mmap_sem
+ *	    mmap_lock
  *	      perf_addr_filters_head::lock
  *
  *    cpu_hotplug_lock
@@ -3080,7 +3080,7 @@ static int perf_event_stop(struct perf_event *event, int restart)
  *     pre-existing mappings, called once when new filters arrive via SET_FILTER
  *     ioctl;
  * (2) perf_addr_filters_adjust(): adjusting filters' offsets based on newly
- *     registered mapping, called for every new mmap(), with mm::mmap_sem down
+ *     registered mapping, called for every new mmap(), with mm::mmap_lock down
  *     for reading;
  * (3) perf_event_addr_filters_exec(): clearing filters' offsets in the process
  *     of exec.
@@ -9742,7 +9742,7 @@ static void perf_addr_filters_splice(struct perf_event *event,
 /*
  * Scan through mm's vmas and see if one of them matches the
  * @filter; if so, adjust filter's address range.
- * Called with mm::mmap_sem down for reading.
+ * Called with mm::mmap_lock down for reading.
  */
 static void perf_addr_filter_apply(struct perf_addr_filter *filter,
 				   struct mm_struct *mm,

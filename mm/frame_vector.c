@@ -29,7 +29,7 @@
  * different type underlying the specified range of virtual addresses.
  * When the function isn't able to map a single page, it returns error.
  *
- * This function takes care of grabbing mmap_sem as necessary.
+ * This function takes care of grabbing mmap_lock as necessary.
  */
 int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
 		     unsigned int gup_flags, struct frame_vector *vec)

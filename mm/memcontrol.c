@@ -5901,7 +5901,7 @@ static void mem_cgroup_move_charge(void)
 retry:
 	if (unlikely(!mmap_read_trylock(mc.mm))) {
 		/*
-		 * Someone who are holding the mmap_sem might be waiting in
+		 * Someone who are holding the mmap_lock might be waiting in
 		 * waitq. So we cancel all extra charges, wake up all waiters,
 		 * and retry. Because we cancel precharges, we might not be able
 		 * to move enough charges, but moving charge is a best-effort

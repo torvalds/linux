@@ -373,7 +373,7 @@ static int __walk_page_range(unsigned long start, unsigned long end,
  * caller-specific data to callbacks, @private should be helpful.
  *
  * Locking:
- *   Callers of walk_page_range() and walk_page_vma() should hold @mm->mmap_sem,
+ *   Callers of walk_page_range() and walk_page_vma() should hold @mm->mmap_lock,
  *   because these function traverse vma list and/or access to vma's data.
  */
 int walk_page_range(struct mm_struct *mm, unsigned long start,
@@ -498,11 +498,11 @@ int walk_page_vma(struct vm_area_struct *vma, const struct mm_walk_ops *ops,
  * Also see walk_page_range() for additional information.
  *
  * Locking:
- *   This function can't require that the struct mm_struct::mmap_sem is held,
+ *   This function can't require that the struct mm_struct::mmap_lock is held,
  *   since @mapping may be mapped by multiple processes. Instead
  *   @mapping->i_mmap_rwsem must be held. This might have implications in the
  *   callbacks, and it's up tho the caller to ensure that the
- *   struct mm_struct::mmap_sem is not needed.
+ *   struct mm_struct::mmap_lock is not needed.
  *
  *   Also this means that a caller can't rely on the struct
  *   vm_area_struct::vm_flags to be constant across a call,

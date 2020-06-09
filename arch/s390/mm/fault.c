@@ -507,7 +507,7 @@ retry:
 			if (IS_ENABLED(CONFIG_PGSTE) && gmap &&
 			    (flags & FAULT_FLAG_RETRY_NOWAIT)) {
 				/* FAULT_FLAG_RETRY_NOWAIT has been set,
-				 * mmap_sem has not been released */
+				 * mmap_lock has not been released */
 				current->thread.gmap_pfault = 1;
 				fault = VM_FAULT_PFAULT;
 				goto out_up;

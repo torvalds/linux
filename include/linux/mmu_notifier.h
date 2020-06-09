@@ -122,7 +122,7 @@ struct mmu_notifier_ops {
 
 	/*
 	 * invalidate_range_start() and invalidate_range_end() must be
-	 * paired and are called only when the mmap_sem and/or the
+	 * paired and are called only when the mmap_lock and/or the
 	 * locks protecting the reverse maps are held. If the subsystem
 	 * can't guarantee that no additional references are taken to
 	 * the pages in the range, it has to implement the
@@ -213,13 +213,13 @@ struct mmu_notifier_ops {
 };
 
 /*
- * The notifier chains are protected by mmap_sem and/or the reverse map
+ * The notifier chains are protected by mmap_lock and/or the reverse map
  * semaphores. Notifier chains are only changed when all reverse maps and
- * the mmap_sem locks are taken.
+ * the mmap_lock locks are taken.
  *
  * Therefore notifier chains can only be traversed when either
  *
- * 1. mmap_sem is held.
+ * 1. mmap_lock is held.
  * 2. One of the reverse map locks is held (i_mmap_rwsem or anon_vma->rwsem).
  * 3. No other concurrent thread can access the list (release)
  */

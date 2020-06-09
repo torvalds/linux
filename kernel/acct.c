@@ -40,7 +40,7 @@
  *  is one more bug... 10/11/98, AV.
  *
  *	Oh, fsck... Oopsable SMP race in do_process_acct() - we must hold
- * ->mmap_sem to walk the vma list of current->mm. Nasty, since it leaks
+ * ->mmap_lock to walk the vma list of current->mm. Nasty, since it leaks
  * a struct file opened for write. Fixed. 2/6/2000, AV.
  */
 

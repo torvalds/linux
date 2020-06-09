@@ -245,9 +245,8 @@ int cxllib_handle_fault(struct mm_struct *mm, u64 addr, u64 size, u64 flags)
 	     dar += page_size) {
 		if (dar < vma_start || dar >= vma_end) {
 			/*
-			 * We don't hold the mm->mmap_sem semaphore
-			 * while iterating, since the semaphore is
-			 * required by one of the lower-level page
+			 * We don't hold mm->mmap_lock while iterating, since
+			 * the lock is required by one of the lower-level page
 			 * fault processing functions and it could
 			 * create a deadlock.
 			 *

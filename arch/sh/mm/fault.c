@@ -326,7 +326,7 @@ mm_fault_error(struct pt_regs *regs, unsigned long error_code,
 		return 1;
 	}
 
-	/* Release mmap_sem first if necessary */
+	/* Release mmap_lock first if necessary */
 	if (!(fault & VM_FAULT_RETRY))
 		mmap_read_unlock(current->mm);
 

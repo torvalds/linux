@@ -1746,7 +1746,7 @@ bool move_huge_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
-	 * ptlocks because exclusive mmap_sem prevents deadlock.
+	 * ptlocks because exclusive mmap_lock prevents deadlock.
 	 */
 	old_ptl = __pmd_trans_huge_lock(old_pmd, vma);
 	if (old_ptl) {
@@ -2618,7 +2618,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
 
 	if (PageAnon(head)) {
 		/*
-		 * The caller does not necessarily hold an mmap_sem that would
+		 * The caller does not necessarily hold an mmap_lock that would
 		 * prevent the anon_vma disappearing so we first we take a
 		 * reference to it and then lock the anon_vma for write. This
 		 * is similar to page_lock_anon_vma_read except the write lock

@@ -1091,7 +1091,7 @@ static int exec_mmap(struct mm_struct *mm)
 		/*
 		 * Make sure that if there is a core dump in progress
 		 * for the old mm, we get out and die instead of going
-		 * through with the exec.  We must hold mmap_sem around
+		 * through with the exec.  We must hold mmap_lock around
 		 * checking core_state and changing tsk->mm.
 		 */
 		mmap_read_lock(old_mm);

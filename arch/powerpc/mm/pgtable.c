@@ -306,7 +306,7 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	pmd = pmd_offset(pud, addr);
 	/*
 	 * khugepaged to collapse normal pages to hugepage, first set
-	 * pmd to none to force page fault/gup to take mmap_sem. After
+	 * pmd to none to force page fault/gup to take mmap_lock. After
 	 * pmd is set to none, we do a pte_clear which does this assertion
 	 * so if we find pmd none, return.
 	 */

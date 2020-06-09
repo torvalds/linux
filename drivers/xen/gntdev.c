@@ -1014,7 +1014,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 		 * to the PTE from going stale.
 		 *
 		 * Since this vma's mappings can't be touched without the
-		 * mmap_sem, and we are holding it now, there is no need for
+		 * mmap_lock, and we are holding it now, there is no need for
 		 * the notifier_range locking pattern.
 		 */
 		mmu_interval_read_begin(&map->notifier);

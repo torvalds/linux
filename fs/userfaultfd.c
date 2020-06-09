@@ -369,13 +369,13 @@ static inline bool userfaultfd_signal_pending(unsigned int flags)
  * FAULT_FLAG_KILLABLE are not straightforward. The "Caution"
  * recommendation in __lock_page_or_retry is not an understatement.
  *
- * If FAULT_FLAG_ALLOW_RETRY is set, the mmap_sem must be released
+ * If FAULT_FLAG_ALLOW_RETRY is set, the mmap_lock must be released
  * before returning VM_FAULT_RETRY only if FAULT_FLAG_RETRY_NOWAIT is
  * not set.
  *
  * If FAULT_FLAG_ALLOW_RETRY is set but FAULT_FLAG_KILLABLE is not
  * set, VM_FAULT_RETRY can still be returned if and only if there are
- * fatal_signal_pending()s, and the mmap_sem must be released before
+ * fatal_signal_pending()s, and the mmap_lock must be released before
  * returning it.
  */
 vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
@@ -396,14 +396,14 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	 * FOLL_DUMP case, anon memory also checks for FOLL_DUMP with
 	 * the no_page_table() helper in follow_page_mask(), but the
 	 * shmem_vm_ops->fault method is invoked even during
-	 * coredumping without mmap_sem and it ends up here.
+	 * coredumping without mmap_lock and it ends up here.
 	 */
 	if (current->flags & (PF_EXITING|PF_DUMPCORE))
 		goto out;
 
 	/*
-	 * Coredumping runs without mmap_sem so we can only check that
-	 * the mmap_sem is held, if PF_DUMPCORE was not set.
+	 * Coredumping runs without mmap_lock so we can only check that
+	 * the mmap_lock is held, if PF_DUMPCORE was not set.
 	 */
 	mmap_assert_locked(mm);
 
@@ -422,7 +422,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	/*
 	 * If it's already released don't get it. This avoids to loop
 	 * in __get_user_pages if userfaultfd_release waits on the
-	 * caller of handle_userfault to release the mmap_sem.
+	 * caller of handle_userfault to release the mmap_lock.
 	 */
 	if (unlikely(READ_ONCE(ctx->released))) {
 		/*
@@ -481,7 +481,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 	if (vmf->flags & FAULT_FLAG_RETRY_NOWAIT)
 		goto out;
 
-	/* take the reference before dropping the mmap_sem */
+	/* take the reference before dropping the mmap_lock */
 	userfaultfd_ctx_get(ctx);
 
 	init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
@@ -890,9 +890,9 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 	 * Flush page faults out of all CPUs. NOTE: all page faults
 	 * must be retried without returning VM_FAULT_SIGBUS if
 	 * userfaultfd_ctx_get() succeeds but vma->vma_userfault_ctx
-	 * changes while handle_userfault released the mmap_sem. So
+	 * changes while handle_userfault released the mmap_lock. So
 	 * it's critical that released is set to true (above), before
-	 * taking the mmap_sem for writing.
+	 * taking the mmap_lock for writing.
 	 */
 	mmap_write_lock(mm);
 	still_valid = mmget_still_valid(mm);

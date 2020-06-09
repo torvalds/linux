@@ -486,7 +486,7 @@ typedef enum {
 
 /* Sync one of the CPU's buffers into the global event buffer.
  * Here we need to go through each batch of samples punctuated
- * by context switch notes, taking the task's mmap_sem and doing
+ * by context switch notes, taking the task's mmap_lock and doing
  * lookup in task->mm->mmap to convert EIP into dcookie/offset
  * value.
  */

@@ -442,7 +442,7 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
 /*
  * ksmd, and unmerge_and_remove_all_rmap_items(), must not touch an mm's
  * page tables after it has passed through ksm_exit() - which, if necessary,
- * takes mmap_sem briefly to serialize against them.  ksm_exit() does not set
+ * takes mmap_lock briefly to serialize against them.  ksm_exit() does not set
  * a special flag: they can just back out as soon as mm_users goes to zero.
  * ksm_test_exit() is used throughout to make this test for exit: in some
  * places for correctness, in some places just to avoid unnecessary work.
@@ -831,7 +831,7 @@ static void remove_trailing_rmap_items(struct mm_slot *mm_slot,
  * Though it's very tempting to unmerge rmap_items from stable tree rather
  * than check every pte of a given vma, the locking doesn't quite work for
  * that - an rmap_item is assigned to the stable tree after inserting ksm
- * page and upping mmap_sem.  Nor does it fit with the way we skip dup'ing
+ * page and upping mmap_lock.  Nor does it fit with the way we skip dup'ing
  * rmap_items from parent to child at fork time (so as not to waste time
  * if exit comes before the next scan reaches it).
  *
@@ -1292,7 +1292,7 @@ static int try_to_merge_with_ksm_page(struct rmap_item *rmap_item,
 	/* Unstable nid is in union with stable anon_vma: remove first */
 	remove_rmap_item_from_tree(rmap_item);
 
-	/* Must get reference to anon_vma while still holding mmap_sem */
+	/* Must get reference to anon_vma while still holding mmap_lock */
 	rmap_item->anon_vma = vma->anon_vma;
 	get_anon_vma(vma->anon_vma);
 out:
@@ -2343,13 +2343,13 @@ next_mm:
 						struct mm_slot, mm_list);
 	if (ksm_scan.address == 0) {
 		/*
-		 * We've completed a full scan of all vmas, holding mmap_sem
+		 * We've completed a full scan of all vmas, holding mmap_lock
 		 * throughout, and found no VM_MERGEABLE: so do the same as
 		 * __ksm_exit does to remove this mm from all our lists now.
 		 * This applies either when cleaning up after __ksm_exit
 		 * (but beware: we can reach here even before __ksm_exit),
 		 * or when all VM_MERGEABLE areas have been unmapped (and
-		 * mmap_sem then protects against race with MADV_MERGEABLE).
+		 * mmap_lock then protects against race with MADV_MERGEABLE).
 		 */
 		hash_del(&slot->link);
 		list_del(&slot->mm_list);
@@ -2536,7 +2536,7 @@ void __ksm_exit(struct mm_struct *mm)
 	 * This process is exiting: if it's straightforward (as is the
 	 * case when ksmd was never running), free mm_slot immediately.
 	 * But if it's at the cursor or has rmap_items linked to it, use
-	 * mmap_sem to synchronize with any break_cows before pagetables
+	 * mmap_lock to synchronize with any break_cows before pagetables
 	 * are freed, and leave the mm_slot on the list for ksmd to free.
 	 * Beware: ksm may already have noticed it exiting and freed the slot.
 	 */

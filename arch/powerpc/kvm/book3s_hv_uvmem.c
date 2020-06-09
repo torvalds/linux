@@ -47,7 +47,7 @@
  * Locking order
  *
  * 1. kvm->srcu - Protects KVM memslots
- * 2. kvm->mm->mmap_sem - find_vma, migrate_vma_pages and helpers, ksm_madvise
+ * 2. kvm->mm->mmap_lock - find_vma, migrate_vma_pages and helpers, ksm_madvise
  * 3. kvm->arch.uvmem_lock - protects read/writes to uvmem slots thus acting
  *			     as sync-points for page-in/out
  */
@@ -402,8 +402,8 @@ kvmppc_svm_page_in(struct vm_area_struct *vma, unsigned long start,
 	mig.dst = &dst_pfn;
 
 	/*
-	 * We come here with mmap_sem write lock held just for
-	 * ksm_madvise(), otherwise we only need read mmap_sem.
+	 * We come here with mmap_lock write lock held just for
+	 * ksm_madvise(), otherwise we only need read mmap_lock.
 	 * Hence downgrade to read lock once ksm_madvise() is done.
 	 */
 	ret = ksm_madvise(vma, vma->vm_start, vma->vm_end,

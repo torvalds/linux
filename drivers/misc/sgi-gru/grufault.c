@@ -42,7 +42,7 @@ static inline int is_gru_paddr(unsigned long paddr)
 }
 
 /*
- * Find the vma of a GRU segment. Caller must hold mmap_sem.
+ * Find the vma of a GRU segment. Caller must hold mmap_lock.
  */
 struct vm_area_struct *gru_find_vma(unsigned long vaddr)
 {
@@ -58,7 +58,7 @@ struct vm_area_struct *gru_find_vma(unsigned long vaddr)
  * Find and lock the gts that contains the specified user vaddr.
  *
  * Returns:
- * 	- *gts with the mmap_sem locked for read and the GTS locked.
+ * 	- *gts with the mmap_lock locked for read and the GTS locked.
  *	- NULL if vaddr invalid OR is not a valid GSEG vaddr.
  */
 
@@ -198,7 +198,7 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
  * Only supports Intel large pages (2MB only) on x86_64.
  *	ZZZ - hugepage support is incomplete
  *
- * NOTE: mmap_sem is already held on entry to this function. This
+ * NOTE: mmap_lock is already held on entry to this function. This
  * guarantees existence of the page tables.
  */
 static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
@@ -569,7 +569,7 @@ static irqreturn_t gru_intr(int chiplet, int blade)
 		}
 
 		/*
-		 * This is running in interrupt context. Trylock the mmap_sem.
+		 * This is running in interrupt context. Trylock the mmap_lock.
 		 * If it fails, retry the fault in user context.
 		 */
 		gts->ustats.fmm_tlbmiss++;

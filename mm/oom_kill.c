@@ -898,7 +898,7 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
 	/*
 	 * Kill all user processes sharing victim->mm in other thread groups, if
 	 * any.  They don't get access to memory reserves, though, to avoid
-	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
+	 * depletion of all memory.  This prevents mm->mmap_lock livelock when an
 	 * oom killed thread cannot exit because it requires the semaphore and
 	 * its contended by another thread trying to allocate memory itself.
 	 * That thread will now get access to memory reserves since it has a

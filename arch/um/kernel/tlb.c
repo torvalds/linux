@@ -348,7 +348,7 @@ void fix_range_common(struct mm_struct *mm, unsigned long start_addr,
 	if (ret) {
 		printk(KERN_ERR "fix_range_common: failed, killing current "
 		       "process: %d\n", task_tgid_vnr(current));
-		/* We are under mmap_sem, release it such that current can terminate */
+		/* We are under mmap_lock, release it such that current can terminate */
 		mmap_write_unlock(current->mm);
 		force_sig(SIGKILL);
 		do_signal(&current->thread.regs);

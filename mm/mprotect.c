@@ -49,7 +49,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 	bool uffd_wp_resolve = cp_flags & MM_CP_UFFD_WP_RESOLVE;
 
 	/*
-	 * Can be called with only the mmap_sem for reading by
+	 * Can be called with only the mmap_lock for reading by
 	 * prot_numa so we must check the pmd isn't constantly
 	 * changing from under us from pmd_none to pmd_trans_huge
 	 * and/or the other way around.
@@ -59,7 +59,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 
 	/*
 	 * The pmd points to a regular pte so the pmd can't change
-	 * from under us even if the mmap_sem is only hold for
+	 * from under us even if the mmap_lock is only hold for
 	 * reading.
 	 */
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -228,7 +228,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
 		next = pmd_addr_end(addr, end);
 
 		/*
-		 * Automatic NUMA balancing walks the tables with mmap_sem
+		 * Automatic NUMA balancing walks the tables with mmap_lock
 		 * held for read. It's possible a parallel update to occur
 		 * between pmd_trans_huge() and a pmd_none_or_clear_bad()
 		 * check leading to a false positive and clearing.
@@ -477,7 +477,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 
 success:
 	/*
-	 * vm_flags and vm_page_prot are protected by the mmap_sem
+	 * vm_flags and vm_page_prot are protected by the mmap_lock
 	 * held in write mode.
 	 */
 	vma->vm_flags = newflags;

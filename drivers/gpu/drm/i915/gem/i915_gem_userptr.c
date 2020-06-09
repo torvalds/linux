@@ -203,7 +203,7 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 	mmap_write_lock(mm->mm);
 	mutex_lock(&mm->i915->mm_lock);
 	if (mm->mn == NULL && !err) {
-		/* Protected by mmap_sem (write-lock) */
+		/* Protected by mmap_lock (write-lock) */
 		err = __mmu_notifier_register(&mn->mn, mm->mm);
 		if (!err) {
 			/* Protected by mm_lock */
@@ -522,8 +522,8 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 
 	/* Spawn a worker so that we can acquire the
 	 * user pages without holding our mutex. Access
-	 * to the user pages requires mmap_sem, and we have
-	 * a strict lock ordering of mmap_sem, struct_mutex -
+	 * to the user pages requires mmap_lock, and we have
+	 * a strict lock ordering of mmap_lock, struct_mutex -
 	 * we already hold struct_mutex here and so cannot
 	 * call gup without encountering a lock inversion.
 	 *

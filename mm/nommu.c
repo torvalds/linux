@@ -582,7 +582,7 @@ static void put_nommu_region(struct vm_region *region)
  * add a VMA into a process's mm_struct in the appropriate place in the list
  * and tree and add to the address space's page tree also if not an anonymous
  * page
- * - should be called with mm->mmap_sem held writelocked
+ * - should be called with mm->mmap_lock held writelocked
  */
 static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
 {
@@ -696,7 +696,7 @@ static void delete_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 
 /*
  * look up the first VMA in which addr resides, NULL if none
- * - should be called with mm->mmap_sem at least held readlocked
+ * - should be called with mm->mmap_lock at least held readlocked
  */
 struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 {
@@ -742,7 +742,7 @@ int expand_stack(struct vm_area_struct *vma, unsigned long address)
 
 /*
  * look up the first VMA exactly that exactly matches addr
- * - should be called with mm->mmap_sem at least held readlocked
+ * - should be called with mm->mmap_lock at least held readlocked
  */
 static struct vm_area_struct *find_vma_exact(struct mm_struct *mm,
 					     unsigned long addr,

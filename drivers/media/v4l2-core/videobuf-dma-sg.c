@@ -533,7 +533,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		} else {
 			/* NOTE: HACK: videobuf_iolock on V4L2_MEMORY_MMAP
 			buffers can only be called from videobuf_qbuf
-			we take current->mm->mmap_sem there, to prevent
+			we take current->mm->mmap_lock there, to prevent
 			locking inversion, so don't take it here */
 
 			err = videobuf_dma_init_user_locked(&mem->dma,

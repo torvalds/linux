@@ -440,7 +440,7 @@ static void exit_mm(void)
 	sync_mm_rss(mm);
 	/*
 	 * Serialize with any possible pending coredump.
-	 * We must hold mmap_sem around checking core_state
+	 * We must hold mmap_lock around checking core_state
 	 * and clearing tsk->mm.  The core-inducing thread
 	 * will increment ->nr_threads for each thread in the
 	 * group with ->mm != NULL.

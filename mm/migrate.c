@@ -2120,7 +2120,7 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
 	 * pmd before doing set_pmd_at(), nor to flush the TLB after
 	 * set_pmd_at().  Clearing the pmd here would introduce a race
 	 * condition against MADV_DONTNEED, because MADV_DONTNEED only holds the
-	 * mmap_sem for reading.  If the pmd is set to NULL at any given time,
+	 * mmap_lock for reading.  If the pmd is set to NULL at any given time,
 	 * MADV_DONTNEED won't wait on the pmd lock and it'll skip clearing this
 	 * pmd.
 	 */
@@ -2675,7 +2675,7 @@ restore:
  * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
  *
  * It is safe to update device page table after migrate_vma_pages() because
- * both destination and source page are still locked, and the mmap_sem is held
+ * both destination and source page are still locked, and the mmap_lock is held
  * in read mode (hence no one can unmap the range being migrated).
  *
  * Once the caller is done cleaning up things and updating its page table (if it

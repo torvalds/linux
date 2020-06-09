@@ -246,7 +246,7 @@ retry:
 	fault = __do_pf(mm, addr, fsr, flags, tsk);
 
 	/* If we need to retry but a fatal signal is pending, handle the
-	 * signal first. We do not need to release the mmap_sem because
+	 * signal first. We do not need to release the mmap_lock because
 	 * it would already be released in __lock_page_or_retry in
 	 * mm/filemap.c. */
 	if (fault_signal_pending(fault, regs))

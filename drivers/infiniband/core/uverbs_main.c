@@ -835,7 +835,7 @@ void uverbs_user_mmap_disassociate(struct ib_uverbs_file *ufile)
 			return;
 
 		/*
-		 * The umap_lock is nested under mmap_sem since it used within
+		 * The umap_lock is nested under mmap_lock since it used within
 		 * the vma_ops callbacks, so we have to clean the list one mm
 		 * at a time to get the lock ordering right. Typically there
 		 * will only be one mm, so no big deal.

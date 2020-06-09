@@ -146,7 +146,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
-	 * pte locks because exclusive mmap_sem prevents deadlock.
+	 * pte locks because exclusive mmap_lock prevents deadlock.
 	 */
 	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
 	new_pte = pte_offset_map(new_pmd, new_addr);
@@ -213,7 +213,7 @@ static bool move_normal_pmd(struct vm_area_struct *vma, unsigned long old_addr,
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
-	 * ptlocks because exclusive mmap_sem prevents deadlock.
+	 * ptlocks because exclusive mmap_lock prevents deadlock.
 	 */
 	old_ptl = pmd_lock(vma->vm_mm, old_pmd);
 	new_ptl = pmd_lockptr(mm, new_pmd);
@@ -710,7 +710,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	 * Always allow a shrinking remap: that just unmaps
 	 * the unnecessary pages..
 	 * __do_munmap does all the needed commit accounting, and
-	 * downgrades mmap_sem to read if so directed.
+	 * downgrades mmap_lock to read if so directed.
 	 */
 	if (old_len >= new_len) {
 		int retval;
@@ -720,7 +720,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 		if (retval < 0 && old_len != new_len) {
 			ret = retval;
 			goto out;
-		/* Returning 1 indicates mmap_sem is downgraded to read. */
+		/* Returning 1 indicates mmap_lock is downgraded to read. */
 		} else if (retval == 1)
 			downgraded = true;
 		ret = addr;
