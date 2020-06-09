@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+/*
+ * Versatile family (ARM reference designs) handling for the PL11x.
+ * This is based on code and know-how in the previous frame buffer
+ * driver in drivers/video/fbdev/amba-clcd.c:
+ * Copyright (C) 2001 ARM Limited, by David A Rusling
+ * Updated to 2.5 by Deep Blue Solutions Ltd.
+ * Major contributions and discoveries by Russell King.
+ */
+
 #include <linux/amba/clcd-regs.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
