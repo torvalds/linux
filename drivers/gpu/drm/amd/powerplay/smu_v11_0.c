@@ -1089,24 +1089,13 @@ int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 {
 	int ret = 0;
 	uint32_t freq = 0;
-	int asic_clk_id;
 
 	if (clk_id >= SMU_CLK_COUNT || !value)
 		return -EINVAL;
 
-	asic_clk_id = smu_clk_get_index(smu, clk_id);
-	if (asic_clk_id < 0)
-		return -EINVAL;
-
-	/* if don't has GetDpmClockFreq Message, try get current clock by SmuMetrics_t */
-	if (smu_msg_get_index(smu, SMU_MSG_GetDpmClockFreq) < 0)
-		ret =  smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
-	else {
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetDpmClockFreq,
-						  (asic_clk_id << 16), &freq);
-		if (ret)
-			return ret;
-	}
+	ret =  smu_get_current_clk_freq_by_table(smu, clk_id, &freq);
+	if (ret)
+		return ret;
 
 	freq *= 100;
 	*value = freq;
