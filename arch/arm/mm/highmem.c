@@ -18,7 +18,7 @@
 static inline void set_fixmap_pte(int idx, pte_t pte)
 {
 	unsigned long vaddr = __fix_to_virt(idx);
-	pte_t *ptep = pte_offset_kernel(pmd_off_k(vaddr), vaddr);
+	pte_t *ptep = virt_to_kpte(vaddr);
 
 	set_pte_ext(ptep, pte, 0);
 	local_flush_tlb_kernel_page(vaddr);
@@ -26,7 +26,7 @@ static inline void set_fixmap_pte(int idx, pte_t pte)
 
 static inline pte_t get_fixmap_pte(unsigned long vaddr)
 {
-	pte_t *ptep = pte_offset_kernel(pmd_off_k(vaddr), vaddr);
+	pte_t *ptep = virt_to_kpte(vaddr);
 
 	return *ptep;
 }

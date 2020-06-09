@@ -98,9 +98,6 @@ static pmd_t *fixmap_pmd_p;
 static void __init fixedrange_init(void)
 {
 	unsigned long vaddr;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
 	pmd_t *pmd;
 #ifdef CONFIG_HIGHMEM
 	pte_t *pte;
@@ -110,10 +107,7 @@ static void __init fixedrange_init(void)
 	 * Fixed mappings:
 	 */
 	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1);
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	p4d = p4d_offset(pgd, vaddr);
-	pud = pud_offset(p4d, vaddr);
-	pmd = pmd_offset(pud, vaddr);
+	pmd = pmd_off_k(vaddr);
 	fixmap_pmd_p = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!fixmap_pmd_p)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
@@ -126,10 +120,7 @@ static void __init fixedrange_init(void)
 	 */
 	vaddr = PKMAP_BASE;
 
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	p4d = p4d_offset(pgd, vaddr);
-	pud = pud_offset(p4d, vaddr);
-	pmd = pmd_offset(pud, vaddr);
+	pmd = pmd_off_k(vaddr);
 	pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!pte)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",

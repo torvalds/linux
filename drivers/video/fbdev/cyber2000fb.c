@@ -47,7 +47,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include <asm/pgtable.h>
 
 #ifdef __arm__
 #include <asm/mach-types.h>

@@ -325,7 +325,7 @@ static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 		return VM_FAULT_SIGBUS;
 
 	/*
-	 * Because we release the mmap_sem, the context may be destroyed while
+	 * Because we release the mmap_lock, the context may be destroyed while
 	 * we're in spu_wait. Grab an extra reference so it isn't destroyed
 	 * in the meantime.
 	 */
@@ -334,8 +334,8 @@ static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 	/*
 	 * We have to wait for context to be loaded before we have
 	 * pages to hand out to the user, but we don't want to wait
-	 * with the mmap_sem held.
-	 * It is possible to drop the mmap_sem here, but then we need
+	 * with the mmap_lock held.
+	 * It is possible to drop the mmap_lock here, but then we need
 	 * to return VM_FAULT_NOPAGE because the mappings may have
 	 * hanged.
 	 */
@@ -343,11 +343,11 @@ static vm_fault_t spufs_ps_fault(struct vm_fault *vmf,
 		goto refault;
 
 	if (ctx->state == SPU_STATE_SAVED) {
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 		spu_context_nospu_trace(spufs_ps_fault__sleep, ctx);
 		err = spufs_wait(ctx->run_wq, ctx->state == SPU_STATE_RUNNABLE);
 		spu_context_trace(spufs_ps_fault__wake, ctx, ctx->spu);
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 	} else {
 		area = ctx->spu->problem_phys + ps_offs;
 		ret = vmf_insert_pfn(vmf->vma, vmf->address,

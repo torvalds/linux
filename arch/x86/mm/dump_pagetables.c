@@ -19,7 +19,6 @@
 #include <linux/ptdump.h>
 
 #include <asm/e820/types.h>
-#include <asm/pgtable.h>
 
 /*
  * The dumper groups pagetable entries of the same type into one, and for

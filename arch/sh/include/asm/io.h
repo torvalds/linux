@@ -17,7 +17,7 @@
 #include <asm/cache.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm-generic/iomap.h>
 
 #ifdef __KERNEL__

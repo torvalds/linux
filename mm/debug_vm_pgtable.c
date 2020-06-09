@@ -28,7 +28,6 @@
 #include <linux/start_kernel.h>
 #include <linux/sched/mm.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 #define VMFLAGS	(VM_READ|VM_WRITE|VM_EXEC)
 

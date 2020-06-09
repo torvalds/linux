@@ -31,8 +31,8 @@
 #include <linux/types.h>
 #include <linux/udp.h>
 #include <linux/workqueue.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 
 #define DRIVER_NAME	"pxa168-eth"

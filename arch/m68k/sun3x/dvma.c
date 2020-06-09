@@ -22,7 +22,6 @@
 #include <asm/dvma.h>
 #include <asm/io.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 
 /* IOMMU support */

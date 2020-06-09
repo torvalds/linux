@@ -36,10 +36,10 @@
 #include <linux/time.h>
 #include <linux/completion.h>
 #include <linux/acpi.h>
+#include <linux/pgtable.h>
 
 #ifdef CONFIG_X86
 /* for snoop control */
-#include <asm/pgtable.h>
 #include <asm/set_memory.h>
 #include <asm/cpufeature.h>
 #endif

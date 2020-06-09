@@ -2767,10 +2767,10 @@ static struct page *get_map_page(struct kvm *kvm, u64 uaddr)
 {
 	struct page *page = NULL;
 
-	down_read(&kvm->mm->mmap_sem);
+	mmap_read_lock(kvm->mm);
 	get_user_pages_remote(NULL, kvm->mm, uaddr, 1, FOLL_WRITE,
 			      &page, NULL, NULL);
-	up_read(&kvm->mm->mmap_sem);
+	mmap_read_unlock(kvm->mm);
 	return page;
 }
 

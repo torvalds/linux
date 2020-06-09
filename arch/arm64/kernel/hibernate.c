@@ -32,7 +32,6 @@
 #include <asm/memory.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/sections.h>
 #include <asm/smp.h>
@@ -189,7 +188,7 @@ static int trans_pgd_map_page(pgd_t *trans_pgd, void *page,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pgdp = pgd_offset_raw(trans_pgd, dst_addr);
+	pgdp = pgd_offset_pgd(trans_pgd, dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {
 		pudp = (void *)get_safe_page(GFP_ATOMIC);
 		if (!pudp)
@@ -491,7 +490,7 @@ static int copy_page_tables(pgd_t *dst_pgdp, unsigned long start,
 	unsigned long addr = start;
 	pgd_t *src_pgdp = pgd_offset_k(start);
 
-	dst_pgdp = pgd_offset_raw(dst_pgdp, start);
+	dst_pgdp = pgd_offset_pgd(dst_pgdp, start);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(READ_ONCE(*src_pgdp)))

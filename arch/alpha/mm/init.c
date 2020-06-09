@@ -24,7 +24,6 @@
 #include <linux/gfp.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/hwrpb.h>
 #include <asm/dma.h>

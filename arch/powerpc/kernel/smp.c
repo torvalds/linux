@@ -33,6 +33,7 @@
 #include <linux/processor.h>
 #include <linux/random.h>
 #include <linux/stackprotector.h>
+#include <linux/pgtable.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -41,7 +42,6 @@
 #include <asm/kvm_ppc.h>
 #include <asm/dbell.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/time.h>

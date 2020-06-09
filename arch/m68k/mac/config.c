@@ -36,7 +36,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 
 #include <asm/macintosh.h>

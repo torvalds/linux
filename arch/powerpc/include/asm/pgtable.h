@@ -41,25 +41,6 @@ struct mm_struct;
 
 #ifndef __ASSEMBLY__
 
-#ifdef CONFIG_PPC32
-static inline pmd_t *pmd_ptr(struct mm_struct *mm, unsigned long va)
-{
-	return pmd_offset(pud_offset(p4d_offset(pgd_offset(mm, va), va), va), va);
-}
-
-static inline pmd_t *pmd_ptr_k(unsigned long va)
-{
-	return pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va);
-}
-
-static inline pte_t *virt_to_kpte(unsigned long vaddr)
-{
-	pmd_t *pmd = pmd_ptr_k(vaddr);
-
-	return pmd_none(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
-}
-#endif
-
 #include <asm/tlbflush.h>
 
 /* Keep these as a macros to avoid include dependency mess */
@@ -76,6 +57,13 @@ static inline pgprot_t pte_pgprot(pte_t pte)
 	return __pgprot(pte_flags);
 }
 
+#ifndef pmd_page_vaddr
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	return ((unsigned long)__va(pmd_val(pmd) & ~PMD_MASKED_BITS));
+}
+#define pmd_page_vaddr pmd_page_vaddr
+#endif
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..
@@ -95,8 +83,6 @@ extern unsigned long ioremap_bot;
  * but most 64-bit archs actually perform a test.  What should we do here?
  */
 #define kern_addr_valid(addr)	(1)
-
-#include <asm-generic/pgtable.h>
 
 #ifndef CONFIG_TRANSPARENT_HUGEPAGE
 #define pmd_large(pmd)		0

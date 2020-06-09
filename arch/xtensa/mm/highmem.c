@@ -86,6 +86,6 @@ void __init kmap_init(void)
 	BUILD_BUG_ON(PKMAP_BASE < TLBTEMP_BASE_1 + TLBTEMP_SIZE);
 	/* cache the first kmap pte */
 	kmap_vstart = __fix_to_virt(FIX_KMAP_BEGIN);
-	kmap_pte = kmap_get_fixmap_pte(kmap_vstart);
+	kmap_pte = virt_to_kpte(kmap_vstart);
 	kmap_waitqueues_init();
 }

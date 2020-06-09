@@ -93,11 +93,11 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  * i_mmap_rwsem (inode->i_mmap_rwsem)!
  *
  * page fault path:
- * mmap_sem -> sb_start_pagefault -> i_mmap_sem (r) -> transaction start ->
+ * mmap_lock -> sb_start_pagefault -> i_mmap_sem (r) -> transaction start ->
  *   page lock -> i_data_sem (rw)
  *
  * buffered write path:
- * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> mmap_lock
  * sb_start_write -> i_mutex -> transaction start -> page lock ->
  *   i_data_sem (rw)
  *
@@ -107,7 +107,7 @@ static struct inode *ext4_get_journal_inode(struct super_block *sb,
  *   i_data_sem (rw)
  *
  * direct IO:
- * sb_start_write -> i_mutex -> mmap_sem
+ * sb_start_write -> i_mutex -> mmap_lock
  * sb_start_write -> i_mutex -> transaction start -> i_data_sem (rw)
  *
  * writepages:

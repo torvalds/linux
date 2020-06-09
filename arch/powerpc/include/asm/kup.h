@@ -39,7 +39,7 @@
 
 #else /* !__ASSEMBLY__ */
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 void setup_kup(void);
 

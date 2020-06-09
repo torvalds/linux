@@ -4,9 +4,9 @@
 #include <linux/percpu.h>
 #include <linux/kallsyms.h>
 #include <linux/kcore.h>
+#include <linux/pgtable.h>
 
 #include <asm/cpu_entry_area.h>
-#include <asm/pgtable.h>
 #include <asm/fixmap.h>
 #include <asm/desc.h>
 

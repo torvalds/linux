@@ -15,6 +15,7 @@
 #include <linux/nospec.h>
 #include <linux/prctl.h>
 #include <linux/sched/smt.h>
+#include <linux/pgtable.h>
 
 #include <asm/spec-ctrl.h>
 #include <asm/cmdline.h>
@@ -26,7 +27,6 @@
 #include <asm/vmx.h>
 #include <asm/paravirt.h>
 #include <asm/alternative.h>
-#include <asm/pgtable.h>
 #include <asm/set_memory.h>
 #include <asm/intel-family.h>
 #include <asm/e820/api.h>

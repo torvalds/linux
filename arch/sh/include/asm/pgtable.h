@@ -168,6 +168,4 @@ static inline bool pte_access_permitted(pte_t pte, bool write)
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
 
-#include <asm-generic/pgtable.h>
-
 #endif /* __ASM_SH_PGTABLE_H */

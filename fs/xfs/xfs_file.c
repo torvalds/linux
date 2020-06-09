@@ -1173,7 +1173,7 @@ xfs_file_llseek(
  * Locking for serialisation of IO during page faults. This results in a lock
  * ordering of:
  *
- * mmap_sem (MM)
+ * mmap_lock (MM)
  *   sb_start_pagefault(vfs, freeze)
  *     i_mmaplock (XFS - truncate serialisation)
  *       page_lock (MM)

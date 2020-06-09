@@ -30,13 +30,13 @@
 #include <linux/lockdep.h>
 #include <linux/memory.h>
 #include <linux/nmi.h>
+#include <linux/pgtable.h>
 
 #include <asm/debugfs.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
 #include <asm/machdep.h>

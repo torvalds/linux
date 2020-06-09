@@ -380,7 +380,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_device *device, u64 start,
 		unsigned long untagged_start = untagged_addr(start);
 		struct vm_area_struct *vma;
 
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		/*
 		 * FIXME: Ideally this would iterate over all the vmas that
 		 * cover the memory, but for now it requires a single vma to
@@ -395,7 +395,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_device *device, u64 start,
 			access_flags |= IB_ACCESS_LOCAL_WRITE;
 		}
 
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 	}
 
 	return ib_umem_get(device, start, length, access_flags);

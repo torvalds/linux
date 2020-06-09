@@ -11,12 +11,12 @@
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/debugfs.h>
+#include <linux/pgtable.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/pte-walk.h>
 #include <asm/ultravisor.h>

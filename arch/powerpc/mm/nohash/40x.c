@@ -36,7 +36,6 @@
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <linux/uaccess.h>
 #include <asm/smp.h>
@@ -104,7 +103,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_16M | _PAGE_EXEC | _PAGE_RW;
 
-		pmdp = pmd_ptr_k(v);
+		pmdp = pmd_off_k(v);
 		*pmdp++ = __pmd(val);
 		*pmdp++ = __pmd(val);
 		*pmdp++ = __pmd(val);
@@ -119,7 +118,7 @@ unsigned long __init mmu_mapin_ram(unsigned long base, unsigned long top)
 		pmd_t *pmdp;
 		unsigned long val = p | _PMD_SIZE_4M | _PAGE_EXEC | _PAGE_RW;
 
-		pmdp = pmd_ptr_k(v);
+		pmdp = pmd_off_k(v);
 		*pmdp = __pmd(val);
 
 		v += LARGE_PAGE_SIZE_4M;

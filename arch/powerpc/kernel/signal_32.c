@@ -47,7 +47,6 @@
 #include <asm/unistd.h>
 #else
 #include <asm/ucontext.h>
-#include <asm/pgtable.h>
 #endif
 
 #include "signal.h"

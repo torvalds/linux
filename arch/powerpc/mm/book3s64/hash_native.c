@@ -14,11 +14,11 @@
 #include <linux/processor.h>
 #include <linux/threads.h>
 #include <linux/smp.h>
+#include <linux/pgtable.h>
 
 #include <asm/machdep.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/trace.h>
 #include <asm/tlb.h>
 #include <asm/cputable.h>

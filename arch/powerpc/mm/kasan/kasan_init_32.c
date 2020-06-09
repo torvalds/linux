@@ -33,7 +33,7 @@ int __init kasan_init_shadow_page_tables(unsigned long k_start, unsigned long k_
 	pmd_t *pmd;
 	unsigned long k_cur, k_next;
 
-	pmd = pmd_ptr_k(k_start);
+	pmd = pmd_off_k(k_start);
 
 	for (k_cur = k_start; k_cur != k_end; k_cur = k_next, pmd++) {
 		pte_t *new;
@@ -69,7 +69,7 @@ int __init __weak kasan_init_region(void *start, size_t size)
 		return -ENOMEM;
 
 	for (k_cur = k_start & PAGE_MASK; k_cur < k_end; k_cur += PAGE_SIZE) {
-		pmd_t *pmd = pmd_ptr_k(k_cur);
+		pmd_t *pmd = pmd_off_k(k_cur);
 		void *va = block + k_cur - k_start;
 		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
 
@@ -86,7 +86,7 @@ kasan_update_early_region(unsigned long k_start, unsigned long k_end, pte_t pte)
 	phys_addr_t pa = __pa(kasan_early_shadow_page);
 
 	for (k_cur = k_start; k_cur != k_end; k_cur += PAGE_SIZE) {
-		pmd_t *pmd = pmd_ptr_k(k_cur);
+		pmd_t *pmd = pmd_off_k(k_cur);
 		pte_t *ptep = pte_offset_kernel(pmd, k_cur);
 
 		if ((pte_val(*ptep) & PTE_RPN_MASK) != pa)
@@ -184,7 +184,7 @@ void __init kasan_early_init(void)
 	unsigned long addr = KASAN_SHADOW_START;
 	unsigned long end = KASAN_SHADOW_END;
 	unsigned long next;
-	pmd_t *pmd = pmd_ptr_k(addr);
+	pmd_t *pmd = pmd_off_k(addr);
 
 	BUILD_BUG_ON(KASAN_SHADOW_START & ~PGDIR_MASK);
 

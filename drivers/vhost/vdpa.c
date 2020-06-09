@@ -527,7 +527,7 @@ static int vhost_vdpa_process_iotlb_update(struct vhost_vdpa *v,
 	if (!npages)
 		return -EINVAL;
 
-	down_read(&dev->mm->mmap_sem);
+	mmap_read_lock(dev->mm);
 
 	locked = atomic64_add_return(npages, &dev->mm->pinned_vm);
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
@@ -580,7 +580,7 @@ out:
 		vhost_vdpa_unmap(v, msg->iova, msg->size);
 		atomic64_sub(npages, &dev->mm->pinned_vm);
 	}
-	up_read(&dev->mm->mmap_sem);
+	mmap_read_unlock(dev->mm);
 	free_page((unsigned long)page_list);
 	return ret;
 }
