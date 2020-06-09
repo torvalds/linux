@@ -1192,7 +1192,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
 			return 0;
 
-		ret = smu_set_hard_freq_range(smu, clk_select, clk_freq, 0);
+		ret = smu_v11_0_set_hard_freq_limited_range(smu, clk_select, clk_freq, 0);
 
 		if(clk_select == SMU_UCLK)
 			smu->hard_min_uclk_req_from_dal = clk_freq;
@@ -1744,6 +1744,43 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu, enum smu_clk_
 	if (min > 0) {
 		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetSoftMinByFreq,
+						  param, NULL);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+int smu_v11_0_set_hard_freq_limited_range(struct smu_context *smu,
+					  enum smu_clk_type clk_type,
+					  uint32_t min,
+					  uint32_t max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param;
+
+	if (min <= 0 && max <= 0)
+		return -EINVAL;
+
+	if (!smu_clk_dpm_is_enabled(smu, clk_type))
+		return 0;
+
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0)
+		return clk_id;
+
+	if (max > 0) {
+		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMaxByFreq,
+						  param, NULL);
+		if (ret)
+			return ret;
+	}
+
+	if (min > 0) {
+		param = (uint32_t)((clk_id << 16) | (min & 0xffff));
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
 						  param, NULL);
 		if (ret)
 			return ret;

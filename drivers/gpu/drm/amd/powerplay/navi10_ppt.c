@@ -1146,7 +1146,7 @@ static int navi10_pre_display_config_changed(struct smu_context *smu)
 		ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &max_freq, false);
 		if (ret)
 			return ret;
-		ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, max_freq);
+		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, 0, max_freq);
 		if (ret)
 			return ret;
 	}
@@ -1549,7 +1549,7 @@ static int navi10_notify_smc_display_config(struct smu_context *smu)
 	}
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-		ret = smu_set_hard_freq_range(smu, SMU_UCLK, min_clocks.memory_clock/100, 0);
+		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, min_clocks.memory_clock/100, 0);
 		if (ret) {
 			dev_err(smu->adev->dev, "[%s] Set hard min uclk failed!", __func__);
 			return ret;
@@ -1921,9 +1921,9 @@ static int navi10_display_disable_memory_clock_switch(struct smu_context *smu,
 		return 0;
 
 	if(disable_memory_clock_switch)
-		ret = smu_set_hard_freq_range(smu, SMU_UCLK, max_memory_clock, 0);
+		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, max_memory_clock, 0);
 	else
-		ret = smu_set_hard_freq_range(smu, SMU_UCLK, min_memory_clock, 0);
+		ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, min_memory_clock, 0);
 
 	if(!ret)
 		smu->disable_uclk_switch = disable_memory_clock_switch;
@@ -2344,12 +2344,12 @@ static int navi10_disable_umc_cdr_12gbps_workaround(struct smu_context *smu)
 		return ret;
 
 	/* Force UCLK out of the highest DPM */
-	ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, uclk_min);
+	ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, 0, uclk_min);
 	if (ret)
 		return ret;
 
 	/* Revert the UCLK Hardmax */
-	ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, uclk_max);
+	ret = smu_v11_0_set_hard_freq_limited_range(smu, SMU_UCLK, 0, uclk_max);
 	if (ret)
 		return ret;
 
