@@ -72,24 +72,33 @@ static const struct rhashtable_params bch_btree_cache_params = {
 	.obj_cmpfn	= bch2_btree_cache_cmp_fn,
 };
 
+static int __btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
+{
+	BUG_ON(b->data || b->aux_data);
+
+	b->data = kvpmalloc(btree_bytes(c), gfp);
+	if (!b->data)
+		return -ENOMEM;
+
+	if (bch2_btree_keys_alloc(b, btree_page_order(c), gfp)) {
+		kvpfree(b->data, btree_bytes(c));
+		b->data = NULL;
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static void btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 {
 	struct btree_cache *bc = &c->btree_cache;
 
-	b->data = kvpmalloc(btree_bytes(c), gfp);
-	if (!b->data)
-		goto err;
-
-	if (bch2_btree_keys_alloc(b, btree_page_order(c), gfp))
-		goto err;
-
-	bc->used++;
-	list_move(&b->list, &bc->freeable);
-	return;
-err:
-	kvpfree(b->data, btree_bytes(c));
-	b->data = NULL;
-	list_move(&b->list, &bc->freed);
+	if (!__btree_node_data_alloc(c, b, gfp)) {
+		bc->used++;
+		list_move(&b->list, &bc->freeable);
+	} else {
+		list_move(&b->list, &bc->freed);
+	}
 }
 
 static struct btree *btree_node_mem_alloc(struct bch_fs *c, gfp_t gfp)
@@ -525,35 +534,47 @@ struct btree *bch2_btree_node_mem_alloc(struct bch_fs *c)
 	 */
 	list_for_each_entry(b, &bc->freeable, list)
 		if (!btree_node_reclaim(c, b))
-			goto out_unlock;
+			goto got_node;
 
 	/*
 	 * We never free struct btree itself, just the memory that holds the on
 	 * disk node. Check the freed list before allocating a new one:
 	 */
 	list_for_each_entry(b, &bc->freed, list)
-		if (!btree_node_reclaim(c, b)) {
-			btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_NOIO);
-			if (b->data)
-				goto out_unlock;
+		if (!btree_node_reclaim(c, b))
+			goto got_node;
 
-			six_unlock_write(&b->c.lock);
-			six_unlock_intent(&b->c.lock);
+	b = NULL;
+got_node:
+	if (b)
+		list_del_init(&b->list);
+	mutex_unlock(&bc->lock);
+
+	if (!b) {
+		b = kzalloc(sizeof(struct btree), GFP_KERNEL);
+		if (!b)
 			goto err;
-		}
 
-	b = btree_node_mem_alloc(c, __GFP_NOWARN|GFP_NOIO);
-	if (!b)
-		goto err;
+		bkey_btree_ptr_init(&b->key);
+		six_lock_init(&b->c.lock);
+		INIT_LIST_HEAD(&b->list);
+		INIT_LIST_HEAD(&b->write_blocked);
 
-	BUG_ON(!six_trylock_intent(&b->c.lock));
-	BUG_ON(!six_trylock_write(&b->c.lock));
-out_unlock:
+		BUG_ON(!six_trylock_intent(&b->c.lock));
+		BUG_ON(!six_trylock_write(&b->c.lock));
+	}
+
+	if (!b->data) {
+		if (__btree_node_data_alloc(c, b, __GFP_NOWARN|GFP_KERNEL))
+			goto err;
+
+		mutex_lock(&bc->lock);
+		bc->used++;
+		mutex_unlock(&bc->lock);
+	}
+
 	BUG_ON(btree_node_hashed(b));
 	BUG_ON(btree_node_write_in_flight(b));
-
-	list_del_init(&b->list);
-	mutex_unlock(&bc->lock);
 out:
 	b->flags		= 0;
 	b->written		= 0;
@@ -569,6 +590,14 @@ out:
 	memalloc_nofs_restore(flags);
 	return b;
 err:
+	mutex_lock(&bc->lock);
+
+	if (b) {
+		list_add(&b->list, &bc->freed);
+		six_unlock_write(&b->c.lock);
+		six_unlock_intent(&b->c.lock);
+	}
+
 	/* Try to cannibalize another cached btree node: */
 	if (bc->alloc_lock == current) {
 		b = btree_node_cannibalize(c);
