@@ -29,7 +29,7 @@
 #include <nvfw/sec2.h>
 
 static int
-gp102_sec2_acr_bootstrap_falcon_callback(void *priv, struct nv_falcon_msg *hdr)
+gp102_sec2_acr_bootstrap_falcon_callback(void *priv, struct nvfw_falcon_msg *hdr)
 {
 	struct nv_sec2_acr_bootstrap_falcon_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);

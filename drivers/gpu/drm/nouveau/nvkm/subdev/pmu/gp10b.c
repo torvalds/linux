@@ -28,7 +28,7 @@
 
 static int
 gp10b_pmu_acr_bootstrap_multiple_falcons_cb(void *priv,
-					    struct nv_falcon_msg *hdr)
+					    struct nvfw_falcon_msg *hdr)
 {
 	struct nv_pmu_acr_bootstrap_multiple_falcons_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);

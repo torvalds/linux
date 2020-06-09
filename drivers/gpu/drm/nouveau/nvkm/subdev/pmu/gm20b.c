@@ -28,7 +28,7 @@
 #include <nvfw/pmu.h>
 
 static int
-gm20b_pmu_acr_bootstrap_falcon_cb(void *priv, struct nv_falcon_msg *hdr)
+gm20b_pmu_acr_bootstrap_falcon_cb(void *priv, struct nvfw_falcon_msg *hdr)
 {
 	struct nv_pmu_acr_bootstrap_falcon_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);
@@ -130,7 +130,7 @@ gm20b_pmu_acr = {
 };
 
 static int
-gm20b_pmu_acr_init_wpr_callback(void *priv, struct nv_falcon_msg *hdr)
+gm20b_pmu_acr_init_wpr_callback(void *priv, struct nvfw_falcon_msg *hdr)
 {
 	struct nv_pmu_acr_init_wpr_region_msg *msg =
 		container_of(hdr, typeof(*msg), msg.hdr);
