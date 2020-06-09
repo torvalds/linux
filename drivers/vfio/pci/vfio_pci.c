@@ -1422,17 +1422,17 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 		mutex_unlock(&vdev->vma_lock);
 
 		if (try) {
-			if (!down_read_trylock(&mm->mmap_sem)) {
+			if (!mmap_read_trylock(mm)) {
 				mmput(mm);
 				return 0;
 			}
 		} else {
-			down_read(&mm->mmap_sem);
+			mmap_read_lock(mm);
 		}
 		if (mmget_still_valid(mm)) {
 			if (try) {
 				if (!mutex_trylock(&vdev->vma_lock)) {
-					up_read(&mm->mmap_sem);
+					mmap_read_unlock(mm);
 					mmput(mm);
 					return 0;
 				}
@@ -1454,7 +1454,7 @@ static int vfio_pci_zap_and_vma_lock(struct vfio_pci_device *vdev, bool try)
 			}
 			mutex_unlock(&vdev->vma_lock);
 		}
-		up_read(&mm->mmap_sem);
+		mmap_read_unlock(mm);
 		mmput(mm);
 	}
 }
