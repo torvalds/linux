@@ -46,7 +46,6 @@
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
-#include <asm/scs.h>
 #include <asm/smp_plat.h>
 #include <asm/sections.h>
 #include <asm/tlbflush.h>
@@ -370,9 +369,6 @@ void cpu_die(void)
 {
 	unsigned int cpu = smp_processor_id();
 	const struct cpu_operations *ops = get_cpu_ops(cpu);
-
-	/* Save the shadow stack pointer before exiting the idle task */
-	scs_save(current);
 
 	idle_task_exit();
 
