@@ -1201,6 +1201,17 @@ static int arcturus_read_sensor(struct smu_context *smu,
 						(uint32_t *)data);
 		*size = 4;
 		break;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_UCLK, (uint32_t *)data);
+		/* the output clock frequency in 10K unit */
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		ret = arcturus_get_current_clk_freq_by_table(smu, SMU_GFXCLK, (uint32_t *)data);
+		*(uint32_t *)data *= 100;
+		*size = 4;
+		break;
 	default:
 		ret = smu_v11_0_read_sensor(smu, sensor, data, size);
 	}
