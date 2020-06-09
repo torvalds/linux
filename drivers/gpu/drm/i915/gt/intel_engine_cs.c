@@ -646,7 +646,7 @@ static int engine_setup_common(struct intel_engine_cs *engine)
 struct measure_breadcrumb {
 	struct i915_request rq;
 	struct intel_ring ring;
-	u32 cs[1024];
+	u32 cs[2048];
 };
 
 static int measure_breadcrumb_dw(struct intel_context *ce)
@@ -668,6 +668,8 @@ static int measure_breadcrumb_dw(struct intel_context *ce)
 
 	frame->ring.vaddr = frame->cs;
 	frame->ring.size = sizeof(frame->cs);
+	frame->ring.wrap =
+		BITS_PER_TYPE(frame->ring.size) - ilog2(frame->ring.size);
 	frame->ring.effective_size = frame->ring.size;
 	intel_ring_update_space(&frame->ring);
 	frame->rq.ring = &frame->ring;
