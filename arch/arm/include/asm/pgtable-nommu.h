@@ -22,7 +22,6 @@
 #define pgd_bad(pgd)		(0)
 #define pgd_clear(pgdp)
 #define kern_addr_valid(addr)	(1)
-#define	pmd_offset(a, b)	((void *)0)
 /* FIXME */
 /*
  * PMD_SHIFT determines the size of the area a second-level page table can map

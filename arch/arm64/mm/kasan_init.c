@@ -190,7 +190,7 @@ void __init kasan_copy_shadow(pgd_t *pgdir)
 
 	pgdp = pgd_offset_k(KASAN_SHADOW_START);
 	pgdp_end = pgd_offset_k(KASAN_SHADOW_END);
-	pgdp_new = pgd_offset_raw(pgdir, KASAN_SHADOW_START);
+	pgdp_new = pgd_offset_pgd(pgdir, KASAN_SHADOW_START);
 	do {
 		set_pgd(pgdp_new, READ_ONCE(*pgdp));
 	} while (pgdp++, pgdp_new++, pgdp != pgdp_end);
