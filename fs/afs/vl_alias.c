@@ -28,7 +28,7 @@ static struct afs_volume *afs_sample_volume(struct afs_cell *cell, struct key *k
 	};
 
 	volume = afs_create_volume(&fc);
-	_leave(" = %px", volume);
+	_leave(" = %p", volume);
 	return volume;
 }
 
