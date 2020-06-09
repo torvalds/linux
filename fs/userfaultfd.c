@@ -1248,7 +1248,7 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
 	/*
 	 * To be sure waitqueue_active() is not reordered by the CPU
 	 * before the pagetable update, use an explicit SMP memory
-	 * barrier here. PT lock release or up_read(mmap_sem) still
+	 * barrier here. PT lock release or mmap_read_unlock(mm) still
 	 * have release semantics that can allow the
 	 * waitqueue_active() to be reordered before the pte update.
 	 */

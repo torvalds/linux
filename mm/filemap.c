@@ -1373,7 +1373,7 @@ EXPORT_SYMBOL_GPL(__lock_page_killable);
  * Return values:
  * 1 - page is locked; mmap_sem is still held.
  * 0 - page is not locked.
- *     mmap_sem has been released (up_read()), unless flags had both
+ *     mmap_lock has been released (mmap_read_unlock(), unless flags had both
  *     FAULT_FLAG_ALLOW_RETRY and FAULT_FLAG_RETRY_NOWAIT set, in
  *     which case mmap_sem is still held.
  *
