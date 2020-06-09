@@ -73,7 +73,8 @@ static int afs_compare_addrs(const struct sockaddr_rxrpc *srx_a,
 	}
 
 	default:
-		BUG();
+		WARN_ON(1);
+		diff = 1;
 	}
 
 out:
