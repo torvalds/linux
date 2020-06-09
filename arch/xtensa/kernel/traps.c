@@ -501,7 +501,8 @@ static void show_trace(struct task_struct *task, unsigned long *sp,
 #define STACK_DUMP_LINE_SIZE 32
 static size_t kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
-void show_stack(struct task_struct *task, unsigned long *sp)
+void show_stack_loglvl(struct task_struct *task, unsigned long *sp,
+		       const char *loglvl)
 {
 	size_t len;
 
@@ -511,11 +512,16 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	len = min((-(size_t)sp) & (THREAD_SIZE - STACK_DUMP_ENTRY_SIZE),
 		  kstack_depth_to_print * STACK_DUMP_ENTRY_SIZE);
 
-	pr_info("Stack:\n");
-	print_hex_dump(KERN_INFO, " ", DUMP_PREFIX_NONE,
+	printk("%sStack:\n", loglvl);
+	print_hex_dump(loglvl, " ", DUMP_PREFIX_NONE,
 		       STACK_DUMP_LINE_SIZE, STACK_DUMP_ENTRY_SIZE,
 		       sp, len, false);
-	show_trace(task, sp, KERN_INFO);
+	show_trace(task, sp, loglvl);
+}
+
+void show_stack(struct task_struct *task, unsigned long *sp)
+{
+	show_stack_loglvl(task, sp, KERN_INFO);
 }
 
 DEFINE_SPINLOCK(die_lock);
