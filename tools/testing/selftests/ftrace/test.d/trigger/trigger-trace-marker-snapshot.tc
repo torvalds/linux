@@ -46,7 +46,7 @@ test_trace() {
     done
 }
 
-echo "Test snapshot trace_marker tigger"
+echo "Test snapshot trace_marker trigger"
 
 echo 'snapshot' > events/ftrace/print/trigger
 

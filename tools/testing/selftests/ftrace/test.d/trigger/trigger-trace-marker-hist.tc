@@ -28,7 +28,7 @@ if [ ! -f events/ftrace/print/hist ]; then
     exit_unsupported
 fi
 
-echo "Test histogram trace_marker tigger"
+echo "Test histogram trace_marker trigger"
 
 echo 'hist:keys=common_pid' > events/ftrace/print/trigger
 for i in `seq 1 10` ; do echo "hello" > trace_marker; done

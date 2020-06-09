@@ -23,7 +23,7 @@ if [ -z "$FEATURE" ]; then
     exit_unsupported
 fi
 
-echo "Test stacktrace tigger"
+echo "Test stacktrace trigger"
 echo 0 > trace
 echo 0 > options/stacktrace
 echo 'stacktrace' > events/sched/sched_process_fork/trigger
