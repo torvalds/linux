@@ -428,8 +428,8 @@ struct bch_dev {
 	alloc_fifo		free[RESERVE_NR];
 	alloc_fifo		free_inc;
 
-	u8			open_buckets_partial[OPEN_BUCKETS_COUNT];
-	unsigned		open_buckets_partial_nr;
+	open_bucket_idx_t	open_buckets_partial[OPEN_BUCKETS_COUNT];
+	open_bucket_idx_t	open_buckets_partial_nr;
 
 	size_t			fifo_last_bucket;
 
@@ -690,8 +690,8 @@ struct bch_fs {
 	struct closure_waitlist	freelist_wait;
 	u64			blocked_allocate;
 	u64			blocked_allocate_open_bucket;
-	u8			open_buckets_freelist;
-	u8			open_buckets_nr_free;
+	open_bucket_idx_t	open_buckets_freelist;
+	open_bucket_idx_t	open_buckets_nr_free;
 	struct closure_waitlist	open_buckets_wait;
 	struct open_bucket	open_buckets[OPEN_BUCKETS_COUNT];
 

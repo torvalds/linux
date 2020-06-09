@@ -46,16 +46,22 @@ enum alloc_reserve {
 
 typedef FIFO(long)	alloc_fifo;
 
-/* Enough for 16 cache devices, 2 tiers and some left over for pipelining */
-#define OPEN_BUCKETS_COUNT	256
+#define OPEN_BUCKETS_COUNT	1024
 
 #define WRITE_POINT_HASH_NR	32
 #define WRITE_POINT_MAX		32
 
+typedef u16			open_bucket_idx_t;
+
 struct open_bucket {
 	spinlock_t		lock;
 	atomic_t		pin;
-	u8			freelist;
+	open_bucket_idx_t	freelist;
+
+	/*
+	 * When an open bucket has an ec_stripe attached, this is the index of
+	 * the block in the stripe this open_bucket corresponds to:
+	 */
 	u8			ec_idx;
 	u8			type;
 	unsigned		valid:1;
@@ -68,8 +74,8 @@ struct open_bucket {
 #define OPEN_BUCKET_LIST_MAX	15
 
 struct open_buckets {
-	u8			nr;
-	u8			v[OPEN_BUCKET_LIST_MAX];
+	open_bucket_idx_t	nr;
+	open_bucket_idx_t	v[OPEN_BUCKET_LIST_MAX];
 };
 
 struct dev_stripe_state {

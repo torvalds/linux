@@ -92,9 +92,9 @@ struct btree_update {
 	struct btree			*new_nodes[BTREE_UPDATE_NODES_MAX];
 	unsigned			nr_new_nodes;
 
-	u8				open_buckets[BTREE_UPDATE_NODES_MAX *
+	open_bucket_idx_t		open_buckets[BTREE_UPDATE_NODES_MAX *
 						     BCH_REPLICAS_MAX];
-	u8				nr_open_buckets;
+	open_bucket_idx_t		nr_open_buckets;
 
 	unsigned			journal_u64s;
 	u64				journal_entries[BTREE_UPDATE_JOURNAL_RES];
