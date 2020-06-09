@@ -1002,6 +1002,16 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 
 out:
 	if (gfs2_withdrawn(sdp)) {
+		/**
+		 * If the tr_list is empty, we're withdrawing during a log
+		 * flush that targets a transaction, but the transaction was
+		 * never queued onto any of the ail lists. Here we add it to
+		 * ail1 just so that ail_drain() will find and free it.
+		 */
+		spin_lock(&sdp->sd_ail_lock);
+		if (tr && list_empty(&tr->tr_list))
+			list_add(&tr->tr_list, &sdp->sd_ail1_list);
+		spin_unlock(&sdp->sd_ail_lock);
 		ail_drain(sdp); /* frees all transactions */
 		tr = NULL;
 	}
