@@ -27,6 +27,11 @@ struct wmi_tlv_svc_ready_parse {
 	bool wmi_svc_bitmap_done;
 };
 
+struct wmi_tlv_dma_ring_caps_parse {
+	struct wmi_dma_ring_capabilities *dma_ring_caps;
+	u32 n_dma_ring_caps;
+};
+
 struct wmi_tlv_svc_rdy_ext_parse {
 	struct ath11k_service_ext_param param;
 	struct wmi_soc_mac_phy_hw_mode_caps *hw_caps;
@@ -39,9 +44,19 @@ struct wmi_tlv_svc_rdy_ext_parse {
 	struct wmi_soc_hal_reg_capabilities *soc_hal_reg_caps;
 	struct wmi_hal_reg_capabilities_ext *ext_hal_reg_caps;
 	u32 n_ext_hal_reg_caps;
+	struct wmi_tlv_dma_ring_caps_parse dma_caps_parse;
 	bool hw_mode_done;
 	bool mac_phy_done;
 	bool ext_hal_reg_done;
+	bool mac_phy_chainmask_combo_done;
+	bool mac_phy_chainmask_cap_done;
+	bool oem_dma_ring_cap_done;
+	bool dma_ring_cap_done;
+};
+
+struct wmi_tlv_svc_rdy_ext2_parse {
+	struct wmi_tlv_dma_ring_caps_parse dma_caps_parse;
+	bool dma_ring_cap_done;
 };
 
 struct wmi_tlv_rdy_parse {
@@ -3373,6 +3388,52 @@ int ath11k_wmi_cmd_init(struct ath11k_base *ab)
 	return ath11k_init_cmd_send(&wmi_sc->wmi[0], &init_param);
 }
 
+int ath11k_wmi_pdev_dma_ring_cfg(struct ath11k *ar,
+				 struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *param)
+{
+	struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *cmd;
+	struct sk_buff *skb;
+	int ret;
+
+	skb = ath11k_wmi_alloc_skb(ar->wmi->wmi_ab, sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *)skb->data;
+	cmd->tlv_header = FIELD_PREP(WMI_TLV_TAG, WMI_TAG_DMA_RING_CFG_REQ) |
+			  FIELD_PREP(WMI_TLV_LEN, sizeof(*cmd) - TLV_HDR_SIZE);
+
+	cmd->pdev_id		= param->pdev_id;
+	cmd->module_id		= param->module_id;
+	cmd->base_paddr_lo	= param->base_paddr_lo;
+	cmd->base_paddr_hi	= param->base_paddr_hi;
+	cmd->head_idx_paddr_lo	= param->head_idx_paddr_lo;
+	cmd->head_idx_paddr_hi	= param->head_idx_paddr_hi;
+	cmd->tail_idx_paddr_lo	= param->tail_idx_paddr_lo;
+	cmd->tail_idx_paddr_hi	= param->tail_idx_paddr_hi;
+	cmd->num_elems		= param->num_elems;
+	cmd->buf_size		= param->buf_size;
+	cmd->num_resp_per_event	= param->num_resp_per_event;
+	cmd->event_timeout_ms	= param->event_timeout_ms;
+
+	ret = ath11k_wmi_cmd_send(ar->wmi, skb,
+				  WMI_PDEV_DMA_RING_CFG_REQ_CMDID);
+	if (ret) {
+		ath11k_warn(ar->ab,
+			    "failed to send dma ring cfg req wmi cmd\n");
+		goto err;
+	}
+
+	ath11k_dbg(ar->ab, ATH11K_DBG_WMI,
+		   "WMI DMA ring cfg req cmd pdev_id 0x%x\n",
+		   param->pdev_id);
+
+	return 0;
+err:
+	dev_kfree_skb(skb);
+	return ret;
+}
+
 static int ath11k_wmi_tlv_hw_mode_caps_parse(struct ath11k_base *soc,
 					     u16 tag, u16 len,
 					     const void *ptr, void *data)
@@ -3553,6 +3614,95 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 	return 0;
 }
 
+static int ath11k_wmi_tlv_dma_ring_caps_parse(struct ath11k_base *soc,
+					      u16 tag, u16 len,
+					      const void *ptr, void *data)
+{
+	struct wmi_tlv_dma_ring_caps_parse *parse = data;
+
+	if (tag != WMI_TAG_DMA_RING_CAPABILITIES)
+		return -EPROTO;
+
+	parse->n_dma_ring_caps++;
+	return 0;
+}
+
+static int ath11k_wmi_alloc_dbring_caps(struct ath11k_base *ab,
+					u32 num_cap)
+{
+	size_t sz;
+	void *ptr;
+
+	sz = num_cap * sizeof(struct ath11k_dbring_cap);
+	ptr = kzalloc(sz, GFP_ATOMIC);
+	if (!ptr)
+		return -ENOMEM;
+
+	ab->db_caps = ptr;
+	ab->num_db_cap = num_cap;
+
+	return 0;
+}
+
+static void ath11k_wmi_free_dbring_caps(struct ath11k_base *ab)
+{
+	kfree(ab->db_caps);
+	ab->db_caps = NULL;
+}
+
+static int ath11k_wmi_tlv_dma_ring_caps(struct ath11k_base *ab,
+					u16 len, const void *ptr, void *data)
+{
+	struct wmi_tlv_dma_ring_caps_parse *dma_caps_parse = data;
+	struct wmi_dma_ring_capabilities *dma_caps;
+	struct ath11k_dbring_cap *dir_buff_caps;
+	int ret;
+	u32 i;
+
+	dma_caps_parse->n_dma_ring_caps = 0;
+	dma_caps = (struct wmi_dma_ring_capabilities *)ptr;
+	ret = ath11k_wmi_tlv_iter(ab, ptr, len,
+				  ath11k_wmi_tlv_dma_ring_caps_parse,
+				  dma_caps_parse);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse dma ring caps tlv %d\n", ret);
+		return ret;
+	}
+
+	if (!dma_caps_parse->n_dma_ring_caps)
+		return 0;
+
+	if (ab->num_db_cap) {
+		ath11k_warn(ab, "Already processed, so ignoring dma ring caps\n");
+		return 0;
+	}
+
+	ret = ath11k_wmi_alloc_dbring_caps(ab, dma_caps_parse->n_dma_ring_caps);
+	if (ret)
+		return ret;
+
+	dir_buff_caps = ab->db_caps;
+	for (i = 0; i < dma_caps_parse->n_dma_ring_caps; i++) {
+		if (dma_caps[i].module_id >= WMI_DIRECT_BUF_MAX) {
+			ath11k_warn(ab, "Invalid module id %d\n", dma_caps[i].module_id);
+			ret = -EINVAL;
+			goto free_dir_buff;
+		}
+
+		dir_buff_caps[i].id = dma_caps[i].module_id;
+		dir_buff_caps[i].pdev_id = DP_HW2SW_MACID(dma_caps[i].pdev_id);
+		dir_buff_caps[i].min_elem = dma_caps[i].min_elem;
+		dir_buff_caps[i].min_buf_sz = dma_caps[i].min_buf_sz;
+		dir_buff_caps[i].min_buf_align = dma_caps[i].min_buf_align;
+	}
+
+	return 0;
+
+free_dir_buff:
+	ath11k_wmi_free_dbring_caps(ab);
+	return ret;
+}
+
 static int ath11k_wmi_tlv_svc_rdy_ext_parse(struct ath11k_base *ab,
 					    u16 tag, u16 len,
 					    const void *ptr, void *data)
@@ -3609,7 +3759,19 @@ static int ath11k_wmi_tlv_svc_rdy_ext_parse(struct ath11k_base *ab,
 				return ret;
 
 			svc_rdy_ext->ext_hal_reg_done = true;
-			complete(&ab->wmi_ab.service_ready);
+		} else if (!svc_rdy_ext->mac_phy_chainmask_combo_done) {
+			svc_rdy_ext->mac_phy_chainmask_combo_done = true;
+		} else if (!svc_rdy_ext->mac_phy_chainmask_cap_done) {
+			svc_rdy_ext->mac_phy_chainmask_cap_done = true;
+		} else if (!svc_rdy_ext->oem_dma_ring_cap_done) {
+			svc_rdy_ext->oem_dma_ring_cap_done = true;
+		} else if (!svc_rdy_ext->dma_ring_cap_done) {
+			ret = ath11k_wmi_tlv_dma_ring_caps(ab, len, ptr,
+							   &svc_rdy_ext->dma_caps_parse);
+			if (ret)
+				return ret;
+
+			svc_rdy_ext->dma_ring_cap_done = true;
 		}
 		break;
 
@@ -3630,11 +3792,66 @@ static int ath11k_service_ready_ext_event(struct ath11k_base *ab,
 				  &svc_rdy_ext);
 	if (ret) {
 		ath11k_warn(ab, "failed to parse tlv %d\n", ret);
-		return ret;
+		goto err;
 	}
+
+	if (!test_bit(WMI_TLV_SERVICE_EXT2_MSG, ab->wmi_ab.svc_map))
+		complete(&ab->wmi_ab.service_ready);
 
 	kfree(svc_rdy_ext.mac_phy_caps);
 	return 0;
+
+err:
+	ath11k_wmi_free_dbring_caps(ab);
+	return ret;
+}
+
+static int ath11k_wmi_tlv_svc_rdy_ext2_parse(struct ath11k_base *ab,
+					     u16 tag, u16 len,
+					     const void *ptr, void *data)
+{
+	struct wmi_tlv_svc_rdy_ext2_parse *parse = data;
+	int ret;
+
+	switch (tag) {
+	case WMI_TAG_ARRAY_STRUCT:
+		if (!parse->dma_ring_cap_done) {
+			ret = ath11k_wmi_tlv_dma_ring_caps(ab, len, ptr,
+							   &parse->dma_caps_parse);
+			if (ret)
+				return ret;
+
+			parse->dma_ring_cap_done = true;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int ath11k_service_ready_ext2_event(struct ath11k_base *ab,
+					   struct sk_buff *skb)
+{
+	struct wmi_tlv_svc_rdy_ext2_parse svc_rdy_ext2 = { };
+	int ret;
+
+	ret = ath11k_wmi_tlv_iter(ab, skb->data, skb->len,
+				  ath11k_wmi_tlv_svc_rdy_ext2_parse,
+				  &svc_rdy_ext2);
+	if (ret) {
+		ath11k_warn(ab, "failed to parse ext2 event tlv %d\n", ret);
+		goto err;
+	}
+
+	complete(&ab->wmi_ab.service_ready);
+
+	return 0;
+
+err:
+	ath11k_wmi_free_dbring_caps(ab);
+	return ret;
 }
 
 static int ath11k_pull_vdev_start_resp_tlv(struct ath11k_base *ab, struct sk_buff *skb,
@@ -6045,6 +6262,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 	case WMI_SERVICE_READY_EXT_EVENTID:
 		ath11k_service_ready_ext_event(ab, skb);
 		break;
+	case WMI_SERVICE_READY_EXT2_EVENTID:
+		ath11k_service_ready_ext2_event(ab, skb);
+		break;
 	case WMI_REG_CHAN_LIST_CC_EVENTID:
 		ath11k_reg_chan_list_event(ab, skb);
 		break;
@@ -6325,4 +6545,6 @@ void ath11k_wmi_detach(struct ath11k_base *ab)
 
 	for (i = 0; i < ab->htc.wmi_ep_count; i++)
 		ath11k_wmi_pdev_detach(ab, i);
+
+	ath11k_wmi_free_dbring_caps(ab);
 }

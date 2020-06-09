@@ -24,6 +24,8 @@ struct ath11k_fw_stats;
 #define HE_PET_8_USEC            1
 #define HE_PET_16_USEC           2
 
+#define WMI_MAX_CHAINS		 8
+
 #define WMI_MAX_NUM_SS                    MAX_HE_NSS
 #define WMI_MAX_NUM_RU                    MAX_HE_RU
 
@@ -596,6 +598,11 @@ enum wmi_tlv_event_id {
 	WMI_PDEV_DMA_RING_CFG_RSP_EVENTID,
 	WMI_PDEV_DMA_RING_BUF_RELEASE_EVENTID,
 	WMI_PDEV_CTL_FAILSAFE_CHECK_EVENTID,
+	WMI_PDEV_CSC_SWITCH_COUNT_STATUS_EVENTID,
+	WMI_PDEV_COLD_BOOT_CAL_DATA_EVENTID,
+	WMI_PDEV_RAP_INFO_EVENTID,
+	WMI_CHAN_RF_CHARACTERIZATION_INFO_EVENTID,
+	WMI_SERVICE_READY_EXT2_EVENTID,
 	WMI_VDEV_START_RESP_EVENTID = WMI_TLV_CMD(WMI_GRP_VDEV),
 	WMI_VDEV_STOPPED_EVENTID,
 	WMI_VDEV_INSTALL_KEY_COMPLETE_EVENTID,
@@ -2024,9 +2031,9 @@ enum wmi_tlv_service {
 	WMI_TLV_SERVICE_DSM_ROAM_FILTER = 211,
 	WMI_TLV_SERVICE_PACKET_CAPTURE_SUPPORT = 212,
 	WMI_TLV_SERVICE_PER_PEER_HTT_STATS_RESET = 213,
+	WMI_TLV_SERVICE_EXT2_MSG = 220,
 
 	WMI_MAX_EXT_SERVICE
-
 };
 
 enum {
@@ -2085,6 +2092,14 @@ enum wmi_peer_chwidth {
 enum wmi_beacon_gen_mode {
 	WMI_BEACON_STAGGERED_MODE = 0,
 	WMI_BEACON_BURST_MODE = 1
+};
+
+enum wmi_direct_buffer_module {
+	WMI_DIRECT_BUF_SPECTRAL = 0,
+	WMI_DIRECT_BUF_CFR = 1,
+
+	/* keep it last */
+	WMI_DIRECT_BUF_MAX
 };
 
 struct wmi_host_pdev_band_to_mac {
@@ -2391,6 +2406,15 @@ struct wmi_mac_addr {
 			u32 word1;
 		} __packed;
 	} __packed;
+} __packed;
+
+struct wmi_dma_ring_capabilities {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 module_id;
+	u32 min_elem;
+	u32 min_buf_sz;
+	u32 min_buf_align;
 } __packed;
 
 struct wmi_ready_event_min {
@@ -4772,6 +4796,59 @@ struct ath11k_wmi_pdev_lro_config_cmd {
 	u32 pdev_id;
 } __packed;
 
+struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd {
+	u32 tlv_header;
+	u32 pdev_id;
+	u32 module_id;		/* see enum wmi_direct_buffer_module */
+	u32 base_paddr_lo;
+	u32 base_paddr_hi;
+	u32 head_idx_paddr_lo;
+	u32 head_idx_paddr_hi;
+	u32 tail_idx_paddr_lo;
+	u32 tail_idx_paddr_hi;
+	u32 num_elems;		/* Number of elems in the ring */
+	u32 buf_size;		/* size of allocated buffer in bytes */
+
+	/* Number of wmi_dma_buf_release_entry packed together */
+	u32 num_resp_per_event;
+
+	/* Target should timeout and send whatever resp
+	 * it has if this time expires, units in milliseconds
+	 */
+	u32 event_timeout_ms;
+} __packed;
+
+struct ath11k_wmi_dma_buf_release_fixed_param {
+	u32 pdev_id;
+	u32 module_id;
+	u32 num_buf_release_entry;
+	u32 num_meta_data_entry;
+} __packed;
+
+struct wmi_dma_buf_release_entry {
+	u32 tlv_header;
+	u32 paddr_lo;
+
+	/* Bits 11:0:   address of data
+	 * Bits 31:12:  host context data
+	 */
+	u32 paddr_hi;
+} __packed;
+
+#define WMI_SPECTRAL_META_INFO1_FREQ1		GENMASK(15, 0)
+#define WMI_SPECTRAL_META_INFO1_FREQ2		GENMASK(31, 16)
+
+#define WMI_SPECTRAL_META_INFO2_CHN_WIDTH	GENMASK(7, 0)
+
+struct wmi_dma_buf_release_meta_data {
+	u32 tlv_header;
+	s32 noise_floor[WMI_MAX_CHAINS];
+	u32 reset_delay;
+	u32 freq1;
+	u32 freq2;
+	u32 ch_width;
+} __packed;
+
 struct target_resource_config {
 	u32 num_vdevs;
 	u32 num_peers;
@@ -4979,4 +5056,6 @@ int ath11k_wmi_send_obss_color_collision_cfg_cmd(struct ath11k *ar, u32 vdev_id,
 int ath11k_wmi_send_bss_color_change_enable_cmd(struct ath11k *ar, u32 vdev_id,
 						bool enable);
 int ath11k_wmi_pdev_lro_cfg(struct ath11k *ar, int pdev_id);
+int ath11k_wmi_pdev_dma_ring_cfg(struct ath11k *ar,
+				 struct ath11k_wmi_pdev_dma_ring_cfg_req_cmd *param);
 #endif

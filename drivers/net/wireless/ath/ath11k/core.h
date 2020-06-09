@@ -21,6 +21,7 @@
 #include "hal_rx.h"
 #include "reg.h"
 #include "thermal.h"
+#include "dbring.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -672,6 +673,9 @@ struct ath11k_base {
 
 	/* Round robbin based TCL ring selector */
 	atomic_t tcl_ring_selector;
+
+	struct ath11k_dbring_cap *db_caps;
+	u32 num_db_cap;
 
 	/* must be last */
 	u8 drv_priv[0] __aligned(sizeof(void *));
