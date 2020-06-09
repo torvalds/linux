@@ -29,6 +29,7 @@
 #include <linux/swap.h>
 #include <linux/migrate.h>
 #include <linux/sched/mm.h>
+#include <linux/iomap.h>
 #include <asm/unaligned.h>
 #include "misc.h"
 #include "ctree.h"
@@ -7819,14 +7820,91 @@ out_err:
 	return BLK_QC_T_NONE;
 }
 
-const struct iomap_ops btrfs_dio_iomap_ops = {
+static ssize_t check_direct_IO(struct btrfs_fs_info *fs_info,
+			       const struct iov_iter *iter, loff_t offset)
+{
+	int seg;
+	int i;
+	unsigned int blocksize_mask = fs_info->sectorsize - 1;
+	ssize_t retval = -EINVAL;
+
+	if (offset & blocksize_mask)
+		goto out;
+
+	if (iov_iter_alignment(iter) & blocksize_mask)
+		goto out;
+
+	/* If this is a write we don't need to check anymore */
+	if (iov_iter_rw(iter) != READ || !iter_is_iovec(iter))
+		return 0;
+	/*
+	 * Check to make sure we don't have duplicate iov_base's in this
+	 * iovec, if so return EINVAL, otherwise we'll get csum errors
+	 * when reading back.
+	 */
+	for (seg = 0; seg < iter->nr_segs; seg++) {
+		for (i = seg + 1; i < iter->nr_segs; i++) {
+			if (iter->iov[seg].iov_base == iter->iov[i].iov_base)
+				goto out;
+		}
+	}
+	retval = 0;
+out:
+	return retval;
+}
+
+static const struct iomap_ops btrfs_dio_iomap_ops = {
 	.iomap_begin            = btrfs_dio_iomap_begin,
 	.iomap_end              = btrfs_dio_iomap_end,
 };
 
-const struct iomap_dio_ops btrfs_dops = {
+static const struct iomap_dio_ops btrfs_dops = {
 	.submit_io		= btrfs_submit_direct,
 };
+
+ssize_t btrfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file->f_mapping->host;
+	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct extent_changeset *data_reserved = NULL;
+	loff_t offset = iocb->ki_pos;
+	size_t count = 0;
+	bool relock = false;
+	ssize_t ret;
+
+	if (check_direct_IO(fs_info, iter, offset))
+		return 0;
+
+	count = iov_iter_count(iter);
+	if (iov_iter_rw(iter) == WRITE) {
+		/*
+		 * If the write DIO is beyond the EOF, we need update
+		 * the isize, but it is protected by i_mutex. So we can
+		 * not unlock the i_mutex at this case.
+		 */
+		if (offset + count <= inode->i_size) {
+			inode_unlock(inode);
+			relock = true;
+		} else if (iocb->ki_flags & IOCB_NOWAIT) {
+			ret = -EAGAIN;
+			goto out;
+		}
+		down_read(&BTRFS_I(inode)->dio_sem);
+	}
+
+	ret = iomap_dio_rw(iocb, iter, &btrfs_dio_iomap_ops, &btrfs_dops,
+			is_sync_kiocb(iocb));
+
+	if (iov_iter_rw(iter) == WRITE) {
+		up_read(&BTRFS_I(inode)->dio_sem);
+	}
+out:
+	if (relock)
+		inode_lock(inode);
+	extent_changeset_free(data_reserved);
+	return ret;
+}
 
 #define BTRFS_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC)
 
