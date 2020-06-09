@@ -33,7 +33,6 @@
 #include <linux/atomic.h>
 #include <linux/dma-direct.h>
 #include <asm/mtrr.h>
-#include <asm/pgtable.h>
 #include <asm/proto.h>
 #include <asm/iommu.h>
 #include <asm/gart.h>

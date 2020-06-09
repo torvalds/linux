@@ -11,7 +11,6 @@
 #include <linux/uaccess.h>
 #include <linux/perf_event.h>
 
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 extern void die(const char *str, struct pt_regs *regs, long err);

@@ -29,7 +29,6 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/tlb.h>
 #include <asm/mmu_context.h>

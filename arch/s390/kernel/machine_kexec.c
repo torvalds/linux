@@ -16,7 +16,6 @@
 #include <linux/debug_locks.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>

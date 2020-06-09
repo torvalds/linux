@@ -32,7 +32,6 @@
 #include <linux/context_tracking.h>
 
 #include <asm/asi.h>
-#include <asm/pgtable.h>
 #include <linux/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>

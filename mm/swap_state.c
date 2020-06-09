@@ -22,7 +22,6 @@
 #include <linux/swap_slots.h>
 #include <linux/huge_mm.h>
 
-#include <asm/pgtable.h>
 
 /*
  * swapper_space is a fiction, retained to simplify the path through

@@ -21,7 +21,6 @@
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>
 #include <asm/tlbdebug.h>

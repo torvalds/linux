@@ -18,7 +18,6 @@
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/soc.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/ptdump.h>
 

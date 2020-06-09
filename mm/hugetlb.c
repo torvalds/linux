@@ -31,7 +31,6 @@
 #include <linux/cma.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/tlb.h>
 
 #include <linux/io.h>

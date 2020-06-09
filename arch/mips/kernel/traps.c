@@ -57,7 +57,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
 #include <asm/msa.h>
-#include <asm/pgtable.h>
 #include <asm/ptrace.h>
 #include <asm/sections.h>
 #include <asm/siginfo.h>

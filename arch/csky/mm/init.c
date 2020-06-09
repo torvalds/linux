@@ -24,7 +24,6 @@
 #include <asm/setup.h>
 #include <asm/cachectl.h>
 #include <asm/dma.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>

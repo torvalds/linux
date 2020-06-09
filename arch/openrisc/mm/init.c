@@ -29,7 +29,6 @@
 #include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <asm/tlb.h>

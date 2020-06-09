@@ -18,7 +18,6 @@
 #include <linux/security.h>
 #include <linux/memblock.h>
 
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
