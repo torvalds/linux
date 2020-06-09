@@ -27,7 +27,7 @@ enum branch_cache_flush_type {
 	BRANCH_CACHE_FLUSH_HW	= 0x4,
 };
 static enum branch_cache_flush_type count_cache_flush_type = BRANCH_CACHE_FLUSH_NONE;
-static bool link_stack_flush_enabled;
+static enum branch_cache_flush_type link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
 
 bool barrier_nospec_enabled;
 static bool no_nospec;
@@ -219,7 +219,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		if (ccd)
 			seq_buf_printf(&s, "Indirect branch cache disabled");
 
-		if (link_stack_flush_enabled)
+		if (link_stack_flush_type == BRANCH_CACHE_FLUSH_SW)
 			seq_buf_printf(&s, ", Software link stack flush");
 
 	} else if (count_cache_flush_type != BRANCH_CACHE_FLUSH_NONE) {
@@ -228,7 +228,7 @@ ssize_t cpu_show_spectre_v2(struct device *dev, struct device_attribute *attr, c
 		if (count_cache_flush_type == BRANCH_CACHE_FLUSH_HW)
 			seq_buf_printf(&s, " (hardware accelerated)");
 
-		if (link_stack_flush_enabled)
+		if (link_stack_flush_type == BRANCH_CACHE_FLUSH_SW)
 			seq_buf_printf(&s, ", Software link stack flush");
 
 	} else if (btb_flush_enabled) {
@@ -447,7 +447,7 @@ static void toggle_branch_cache_flush(bool enable)
 				       ppc_inst(PPC_INST_NOP));
 #endif
 		pr_info("link-stack-flush: software flush disabled.\n");
-		link_stack_flush_enabled = false;
+		link_stack_flush_type = BRANCH_CACHE_FLUSH_NONE;
 		no_count_cache_flush();
 		return;
 	}
@@ -463,7 +463,7 @@ static void toggle_branch_cache_flush(bool enable)
 #endif
 
 	pr_info("link-stack-flush: software flush enabled.\n");
-	link_stack_flush_enabled = true;
+	link_stack_flush_type = BRANCH_CACHE_FLUSH_SW;
 
 	// If we just need to flush the link stack, patch an early return
 	if (!security_ftr_enabled(SEC_FTR_FLUSH_COUNT_CACHE)) {
