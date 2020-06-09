@@ -62,12 +62,12 @@ static unsigned long efi_runtime, efi_nr_tables;
 unsigned long efi_fw_vendor, efi_config_table;
 
 static const efi_config_table_type_t arch_tables[] __initconst = {
-	{EFI_PROPERTIES_TABLE_GUID, "PROP", &prop_phys},
-	{UGA_IO_PROTOCOL_GUID, "UGA", &uga_phys},
+	{EFI_PROPERTIES_TABLE_GUID,	&prop_phys,		"PROP"		},
+	{UGA_IO_PROTOCOL_GUID,		&uga_phys,		"UGA"		},
 #ifdef CONFIG_X86_UV
-	{UV_SYSTEM_TABLE_GUID, "UVsystab", &uv_systab_phys},
+	{UV_SYSTEM_TABLE_GUID,		&uv_systab_phys,	"UVsystab"	},
 #endif
-	{NULL_GUID, NULL, NULL},
+	{},
 };
 
 static const unsigned long * const efi_tables[] = {
