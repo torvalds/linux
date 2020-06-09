@@ -795,7 +795,6 @@ struct afs_operation {
 			struct afs_read *req;
 		} fetch;
 		struct {
-			struct afs_vnode *lvnode;	/* vnode being locked */
 			afs_lock_type_t type;
 		} lock;
 		struct {
@@ -1070,7 +1069,6 @@ extern int afs_ilookup5_test_by_fid(struct inode *, void *);
 extern struct inode *afs_iget_pseudo_dir(struct super_block *, bool);
 extern struct inode *afs_iget(struct afs_operation *, struct afs_vnode_param *);
 extern struct inode *afs_root_iget(struct super_block *, struct key *);
-extern void afs_zap_data(struct afs_vnode *);
 extern bool afs_check_validity(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(const struct path *, struct kstat *, u32, unsigned int);
