@@ -90,7 +90,7 @@ static void flush_range(struct mm_struct *mm, unsigned long start,
 	if (start >= end)
 		return;
 	end = (end - 1) | ~PAGE_MASK;
-	pmd = pmd_ptr(mm, start);
+	pmd = pmd_off(mm, start);
 	for (;;) {
 		pmd_end = ((start + PGDIR_SIZE) & PGDIR_MASK) - 1;
 		if (pmd_end > end)
@@ -148,7 +148,7 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long vmaddr)
 		return;
 	}
 	mm = (vmaddr < TASK_SIZE)? vma->vm_mm: &init_mm;
-	pmd = pmd_ptr(mm, vmaddr);
+	pmd = pmd_off(mm, vmaddr);
 	if (!pmd_none(*pmd))
 		flush_hash_pages(mm->context.id, vmaddr, pmd_val(*pmd), 1);
 }

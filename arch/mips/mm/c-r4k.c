@@ -652,9 +652,6 @@ static inline void local_r4k_flush_cache_page(void *args)
 	int exec = vma->vm_flags & VM_EXEC;
 	struct mm_struct *mm = vma->vm_mm;
 	int map_coherent = 0;
-	pgd_t *pgdp;
-	p4d_t *p4dp;
-	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	void *vaddr;
@@ -667,11 +664,8 @@ static inline void local_r4k_flush_cache_page(void *args)
 		return;
 
 	addr &= PAGE_MASK;
-	pgdp = pgd_offset(mm, addr);
-	p4dp = p4d_offset(pgdp, addr);
-	pudp = pud_offset(p4dp, addr);
-	pmdp = pmd_offset(pudp, addr);
-	ptep = pte_offset(pmdp, addr);
+	pmdp = pmd_off(mm, addr);
+	ptep = pte_offset_kernel(pmdp, addr);
 
 	/*
 	 * If the page isn't marked valid, the page cannot possibly be

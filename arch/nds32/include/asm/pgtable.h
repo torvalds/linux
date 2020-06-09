@@ -195,8 +195,6 @@ extern void paging_init(void);
 #define pte_unmap(pte)		do { } while (0)
 #define pte_unmap_nested(pte)	do { } while (0)
 
-#define pmd_off_k(address)	pmd_offset(pud_offset(p4d_offset(pgd_offset_k(address), (address)), (address)), (address))
-
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 /*
  * Set a level 1 translation table entry, and clean it out of

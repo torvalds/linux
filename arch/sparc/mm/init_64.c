@@ -503,11 +503,7 @@ void __kprobes flush_icache_range(unsigned long start, unsigned long end)
 			if (kaddr >= PAGE_OFFSET)
 				paddr = kaddr & mask;
 			else {
-				pgd_t *pgdp = pgd_offset_k(kaddr);
-				p4d_t *p4dp = p4d_offset(pgdp, kaddr);
-				pud_t *pudp = pud_offset(p4dp, kaddr);
-				pmd_t *pmdp = pmd_offset(pudp, kaddr);
-				pte_t *ptep = pte_offset_kernel(pmdp, kaddr);
+				pte_t *ptep = virt_to_kpte(kaddr);
 
 				paddr = pte_val(*ptep) & mask;
 			}

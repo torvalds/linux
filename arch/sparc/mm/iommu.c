@@ -348,9 +348,6 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 	while(addr < end) {
 		page = va;
 		{
-			pgd_t *pgdp;
-			p4d_t *p4dp;
-			pud_t *pudp;
 			pmd_t *pmdp;
 			pte_t *ptep;
 
@@ -361,10 +358,7 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 			else
 				__flush_page_to_ram(page);
 
-			pgdp = pgd_offset(&init_mm, addr);
-			p4dp = p4d_offset(pgdp, addr);
-			pudp = pud_offset(p4dp, addr);
-			pmdp = pmd_offset(pudp, addr);
+			pmdp = pmd_off_k(addr);
 			ptep = pte_offset_map(pmdp, addr);
 
 			set_pte(ptep, mk_pte(virt_to_page(page), dvma_prot));

@@ -28,6 +28,30 @@
 #define USER_PGTABLES_CEILING	0UL
 #endif
 
+/*
+ * In many cases it is known that a virtual address is mapped at PMD or PTE
+ * level, so instead of traversing all the page table levels, we can get a
+ * pointer to the PMD entry in user or kernel page table or translate a virtual
+ * address to the pointer in the PTE in the kernel page tables with simple
+ * helpers.
+ */
+static inline pmd_t *pmd_off(struct mm_struct *mm, unsigned long va)
+{
+	return pmd_offset(pud_offset(p4d_offset(pgd_offset(mm, va), va), va), va);
+}
+
+static inline pmd_t *pmd_off_k(unsigned long va)
+{
+	return pmd_offset(pud_offset(p4d_offset(pgd_offset_k(va), va), va), va);
+}
+
+static inline pte_t *virt_to_kpte(unsigned long vaddr)
+{
+	pmd_t *pmd = pmd_off_k(vaddr);
+
+	return pmd_none(*pmd) ? NULL : pte_offset_kernel(pmd, vaddr);
+}
+
 #ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
 extern int ptep_set_access_flags(struct vm_area_struct *vma,
 				 unsigned long address, pte_t *ptep,

@@ -337,19 +337,11 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long address;
 	int nr, i, j;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
-	pmd_t *pmd;
 	pte_t *pte;
 
 	for (i = 0; i < numpages;) {
 		address = page_to_phys(page + i);
-		pgd = pgd_offset_k(address);
-		p4d = p4d_offset(pgd, address);
-		pud = pud_offset(p4d, address);
-		pmd = pmd_offset(pud, address);
-		pte = pte_offset_kernel(pmd, address);
+		pte = virt_to_kpte(address);
 		nr = (unsigned long)pte >> ilog2(sizeof(long));
 		nr = PTRS_PER_PTE - (nr & (PTRS_PER_PTE - 1));
 		nr = min(numpages - i, nr);

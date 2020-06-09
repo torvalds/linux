@@ -207,9 +207,6 @@ static void sh4_flush_cache_page(void *args)
 	struct page *page;
 	unsigned long address, pfn, phys;
 	int map_coherent = 0;
-	pgd_t *pgd;
-	p4d_t *p4d;
-	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	void *vaddr;
@@ -223,10 +220,7 @@ static void sh4_flush_cache_page(void *args)
 	if (cpu_context(smp_processor_id(), vma->vm_mm) == NO_CONTEXT)
 		return;
 
-	pgd = pgd_offset(vma->vm_mm, address);
-	p4d = p4d_offset(pgd, address);
-	pud = pud_offset(p4d, address);
-	pmd = pmd_offset(pud, address);
+	pmd = pmd_off(vma->vm_mm, address);
 	pte = pte_offset_kernel(pmd, address);
 
 	/* If the page isn't present, there is nothing to do here. */
