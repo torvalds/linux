@@ -24,7 +24,7 @@ bool __weak probe_kernel_read_allowed(const void *unsafe_src, size_t size)
 long probe_kernel_read(void *dst, const void *src, size_t size)
 {
 	if (!probe_kernel_read_allowed(src, size))
-		return -EFAULT;
+		return -ERANGE;
 
 	pagefault_disable();
 	probe_kernel_read_loop(dst, src, size, u64, Efault);
@@ -68,7 +68,7 @@ long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
 	if (unlikely(count <= 0))
 		return 0;
 	if (!probe_kernel_read_allowed(unsafe_addr, count))
-		return -EFAULT;
+		return -ERANGE;
 
 	pagefault_disable();
 	do {
@@ -93,7 +93,8 @@ Efault:
  * @size: size of the data chunk
  *
  * Safely read from kernel address @src to the buffer at @dst.  If a kernel
- * fault happens, handle that and return -EFAULT.
+ * fault happens, handle that and return -EFAULT.  If @src is not a valid kernel
+ * address, return -ERANGE.
  *
  * We ensure that the copy_from_user is executed in atomic context so that
  * do_page_fault() doesn't attempt to take mmap_lock.  This makes
@@ -106,7 +107,7 @@ long probe_kernel_read(void *dst, const void *src, size_t size)
 	mm_segment_t old_fs = get_fs();
 
 	if (!probe_kernel_read_allowed(src, size))
-		return -EFAULT;
+		return -ERANGE;
 
 	set_fs(KERNEL_DS);
 	pagefault_disable();
@@ -158,8 +159,9 @@ long probe_kernel_write(void *dst, const void *src, size_t size)
  *
  * On success, returns the length of the string INCLUDING the trailing NUL.
  *
- * If access fails, returns -EFAULT (some data may have been copied
- * and the trailing NUL added).
+ * If access fails, returns -EFAULT (some data may have been copied and the
+ * trailing NUL added).  If @unsafe_addr is not a valid kernel address, return
+ * -ERANGE.
  *
  * If @count is smaller than the length of the string, copies @count-1 bytes,
  * sets the last byte of @dst buffer to NUL and returns @count.
@@ -173,7 +175,7 @@ long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
 	if (unlikely(count <= 0))
 		return 0;
 	if (!probe_kernel_read_allowed(unsafe_addr, count))
-		return -EFAULT;
+		return -ERANGE;
 
 	set_fs(KERNEL_DS);
 	pagefault_disable();
