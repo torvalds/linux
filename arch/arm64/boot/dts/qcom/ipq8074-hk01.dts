@@ -82,3 +82,7 @@
 		nand-bus-width = <8>;
 	};
 };
+
+&sdhc_1 {
+	status = "ok";
+};
