@@ -55,7 +55,7 @@ devm_clk_regmap_register_mux(struct device *dev, const char *name,
 			     unsigned long flags)
 {
 	struct clk_regmap_mux *mux;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	mux = devm_kzalloc(dev, sizeof(*mux), GFP_KERNEL);
 	if (!mux)

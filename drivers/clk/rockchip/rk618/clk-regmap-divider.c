@@ -80,7 +80,7 @@ devm_clk_regmap_register_divider(struct device *dev, const char *name,
 				 unsigned long flags)
 {
 	struct clk_regmap_divider *divider;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	divider = devm_kzalloc(dev, sizeof(*divider), GFP_KERNEL);
 	if (!divider)

@@ -59,7 +59,7 @@ devm_clk_regmap_register_gate(struct device *dev, const char *name,
 			      unsigned long flags)
 {
 	struct clk_regmap_gate *gate;
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 
 	gate = devm_kzalloc(dev, sizeof(*gate), GFP_KERNEL);
 	if (!gate)
