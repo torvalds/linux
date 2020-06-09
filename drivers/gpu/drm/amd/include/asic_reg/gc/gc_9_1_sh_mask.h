@@ -29571,6 +29571,11 @@
 
 
 // addressBlock: sqind
+//SQ_DEBUG_STS_LOCAL
+#define SQ_DEBUG_STS_LOCAL__BUSY_MASK                                                                         0x00000001L
+#define SQ_DEBUG_STS_LOCAL__BUSY__SHIFT                                                                       0x00000000
+#define SQ_DEBUG_STS_LOCAL__WAVE_LEVEL_MASK                                                                   0x000003f0L
+#define SQ_DEBUG_STS_LOCAL__WAVE_LEVEL__SHIFT                                                                 0x00000004
 //SQ_WAVE_MODE
 #define SQ_WAVE_MODE__FP_ROUND__SHIFT                                                                         0x0
 #define SQ_WAVE_MODE__FP_DENORM__SHIFT                                                                        0x4

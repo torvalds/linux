@@ -13277,6 +13277,7 @@
 
 // addressBlock: sqind
 // base address: 0x0
+#define ixSQ_DEBUG_STS_LOCAL                                                                           0x0008
 #define ixSQ_WAVE_ACTIVE                                                                               0x000a
 #define ixSQ_WAVE_VALID_AND_IDLE                                                                       0x000b
 #define ixSQ_WAVE_MODE                                                                                 0x0101
