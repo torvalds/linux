@@ -77,7 +77,8 @@ static int hub_master_break(struct fsi_master *master, int link)
 	return hub_master_write(master, link, 0, addr, &cmd, sizeof(cmd));
 }
 
-static int hub_master_link_enable(struct fsi_master *master, int link)
+static int hub_master_link_enable(struct fsi_master *master, int link,
+				  bool enable)
 {
 	struct fsi_master_hub *hub = to_fsi_master_hub(master);
 	int idx, bit;
@@ -88,6 +89,10 @@ static int hub_master_link_enable(struct fsi_master *master, int link)
 	bit = link % 32;
 
 	reg = cpu_to_be32(0x80000000 >> bit);
+
+	if (!enable)
+		return fsi_device_write(hub->upstream, FSI_MCENP0 + (4 * idx),
+					&reg, 4);
 
 	rc = fsi_device_write(hub->upstream, FSI_MSENP0 + (4 * idx), &reg, 4);
 

@@ -1157,7 +1157,7 @@ static int fsi_master_write(struct fsi_master *master, int link,
 static int fsi_master_link_enable(struct fsi_master *master, int link)
 {
 	if (master->link_enable)
-		return master->link_enable(master, link);
+		return master->link_enable(master, link, true);
 
 	return 0;
 }

@@ -301,7 +301,8 @@ static int aspeed_master_write(struct fsi_master *master, int link,
 	return 0;
 }
 
-static int aspeed_master_link_enable(struct fsi_master *master, int link)
+static int aspeed_master_link_enable(struct fsi_master *master, int link,
+				     bool enable)
 {
 	struct fsi_master_aspeed *aspeed = to_fsi_master_aspeed(master);
 	int idx, bit, ret;
@@ -311,6 +312,10 @@ static int aspeed_master_link_enable(struct fsi_master *master, int link)
 	bit = link % 32;
 
 	reg = cpu_to_be32(0x80000000 >> bit);
+
+	if (!enable)
+		return opb_writel(aspeed, ctrl_base + FSI_MCENP0 + (4 * idx),
+				  reg);
 
 	ret = opb_writel(aspeed, ctrl_base + FSI_MSENP0 + (4 * idx), reg);
 	if (ret)
