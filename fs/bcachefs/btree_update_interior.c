@@ -529,6 +529,8 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 */
 	ret = bch2_trans_do(c, &as->disk_res, &journal_seq,
 			    BTREE_INSERT_NOFAIL|
+			    BTREE_INSERT_USE_RESERVE|
+			    BTREE_INSERT_USE_ALLOC_RESERVE|
 			    BTREE_INSERT_NOCHECK_RW|
 			    BTREE_INSERT_JOURNAL_RESERVED,
 			    btree_update_nodes_written_trans(&trans, as));
@@ -886,9 +888,10 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 	bch2_keylist_init(&as->new_keys, as->_new_keys);
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
 
-	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-				      BTREE_UPDATE_JOURNAL_RES,
-				      JOURNAL_RES_GET_NONBLOCK);
+	if (!(flags & BTREE_INSERT_JOURNAL_RESERVED))
+		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
+					      BTREE_UPDATE_JOURNAL_RES,
+					      JOURNAL_RES_GET_NONBLOCK);
 	if (ret == -EAGAIN) {
 		if (flags & BTREE_INSERT_NOUNLOCK)
 			return ERR_PTR(-EINTR);
