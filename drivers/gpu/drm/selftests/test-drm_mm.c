@@ -1981,16 +1981,6 @@ static int __igt_once(unsigned int mode)
 	}
 
 	memset(&node, 0, sizeof(node));
-	err = drm_mm_insert_node_generic(&mm, &node,
-					 2, 0, 0,
-					 mode | DRM_MM_INSERT_ONCE);
-	if (!err) {
-		pr_err("Unexpectedly inserted the node into the wrong hole: node.start=%llx\n",
-		       node.start);
-		err = -EINVAL;
-		goto err_node;
-	}
-
 	err = drm_mm_insert_node_generic(&mm, &node, 2, 0, 0, mode);
 	if (err) {
 		pr_err("Could not insert the node into the available hole!\n");
@@ -1998,7 +1988,6 @@ static int __igt_once(unsigned int mode)
 		goto err_hi;
 	}
 
-err_node:
 	drm_mm_remove_node(&node);
 err_hi:
 	drm_mm_remove_node(&rsvd_hi);

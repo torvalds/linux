@@ -325,13 +325,16 @@ static struct drm_mm_node *best_hole(struct drm_mm *mm, u64 size)
 	return best;
 }
 
-static struct drm_mm_node *find_hole(struct drm_mm *mm, u64 addr)
+static struct drm_mm_node *find_hole_addr(struct drm_mm *mm, u64 addr, u64 size)
 {
 	struct rb_node *rb = mm->holes_addr.rb_node;
 	struct drm_mm_node *node = NULL;
 
 	while (rb) {
 		u64 hole_start;
+
+		if (rb_hole_addr_to_node(rb)->subtree_max_hole < size)
+			break;
 
 		node = rb_hole_addr_to_node(rb);
 		hole_start = __drm_mm_hole_node_start(node);
@@ -358,10 +361,10 @@ first_hole(struct drm_mm *mm,
 		return best_hole(mm, size);
 
 	case DRM_MM_INSERT_LOW:
-		return find_hole(mm, start);
+		return find_hole_addr(mm, start, size);
 
 	case DRM_MM_INSERT_HIGH:
-		return find_hole(mm, end);
+		return find_hole_addr(mm, end, size);
 
 	case DRM_MM_INSERT_EVICT:
 		return list_first_entry_or_null(&mm->hole_stack,
@@ -497,7 +500,7 @@ int drm_mm_reserve_node(struct drm_mm *mm, struct drm_mm_node *node)
 		return -ENOSPC;
 
 	/* Find the relevant hole to add our node to */
-	hole = find_hole(mm, node->start);
+	hole = find_hole_addr(mm, node->start, 0);
 	if (!hole)
 		return -ENOSPC;
 
