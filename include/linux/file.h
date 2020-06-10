@@ -91,6 +91,14 @@ extern void put_unused_fd(unsigned int fd);
 
 extern void fd_install(unsigned int fd, struct file *file);
 
+extern int __receive_fd(struct file *file, int __user *ufd,
+			unsigned int o_flags);
+static inline int receive_fd_user(struct file *file, int __user *ufd,
+				  unsigned int o_flags)
+{
+	return __receive_fd(file, ufd, o_flags);
+}
+
 extern void flush_delayed_fput(void);
 extern void __fput_sync(struct file *);
 
