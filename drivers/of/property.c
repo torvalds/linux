@@ -1015,6 +1015,30 @@ static bool of_is_ancestor_of(struct device_node *test_ancestor,
 }
 
 /**
+ * of_get_next_parent_dev - Add device link to supplier from supplier phandle
+ * @np: device tree node
+ *
+ * Given a device tree node (@np), this function finds its closest ancestor
+ * device tree node that has a corresponding struct device.
+ *
+ * The caller of this function is expected to call put_device() on the returned
+ * device when they are done.
+ */
+static struct device *of_get_next_parent_dev(struct device_node *np)
+{
+	struct device *dev = NULL;
+
+	of_node_get(np);
+	do {
+		np = of_get_next_parent(np);
+		if (np)
+			dev = get_dev_from_fwnode(&np->fwnode);
+	} while (np && !dev);
+	of_node_put(np);
+	return dev;
+}
+
+/**
  * of_link_to_phandle - Add device link to supplier from supplier phandle
  * @dev: consumer device
  * @sup_np: phandle to supplier device tree node
@@ -1035,10 +1059,9 @@ static bool of_is_ancestor_of(struct device_node *test_ancestor,
 static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 			      u32 dl_flags)
 {
-	struct device *sup_dev;
+	struct device *sup_dev, *sup_par_dev;
 	int ret = 0;
 	struct device_node *tmp_np = sup_np;
-	int is_populated;
 
 	of_node_get(sup_np);
 	/*
@@ -1075,16 +1098,43 @@ static int of_link_to_phandle(struct device *dev, struct device_node *sup_np,
 		return -EINVAL;
 	}
 	sup_dev = get_dev_from_fwnode(&sup_np->fwnode);
-	is_populated = of_node_check_flag(sup_np, OF_POPULATED);
-	of_node_put(sup_np);
-	if (!sup_dev && is_populated) {
+	if (!sup_dev && of_node_check_flag(sup_np, OF_POPULATED)) {
 		/* Early device without struct device. */
 		dev_dbg(dev, "Not linking to %pOFP - No struct device\n",
 			sup_np);
+		of_node_put(sup_np);
 		return -ENODEV;
 	} else if (!sup_dev) {
-		return -EAGAIN;
+		/*
+		 * DL_FLAG_SYNC_STATE_ONLY doesn't block probing and supports
+		 * cycles. So cycle detection isn't necessary and shouldn't be
+		 * done.
+		 */
+		if (dl_flags & DL_FLAG_SYNC_STATE_ONLY) {
+			of_node_put(sup_np);
+			return -EAGAIN;
+		}
+
+		sup_par_dev = of_get_next_parent_dev(sup_np);
+
+		if (sup_par_dev && device_is_dependent(dev, sup_par_dev)) {
+			/* Cyclic dependency detected, don't try to link */
+			dev_dbg(dev, "Not linking to %pOFP - cycle detected\n",
+				sup_np);
+			ret = -EINVAL;
+		} else {
+			/*
+			 * Can't check for cycles or no cycles. So let's try
+			 * again later.
+			 */
+			ret = -EAGAIN;
+		}
+
+		of_node_put(sup_np);
+		put_device(sup_par_dev);
+		return ret;
 	}
+	of_node_put(sup_np);
 	if (!device_link_add(dev, sup_dev, dl_flags))
 		ret = -EINVAL;
 	put_device(sup_dev);
