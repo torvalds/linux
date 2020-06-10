@@ -111,6 +111,8 @@ else		{ return ELSE; }
 "|"		{ return '|'; }
 "^"		{ return '^'; }
 "&"		{ return '&'; }
+"<"		{ return '<'; }
+">"		{ return '>'; }
 "-"		{ return '-'; }
 "+"		{ return '+'; }
 "*"		{ return '*'; }

@@ -41,6 +41,12 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	ret |= test(&ctx, ".1 + 2.", 2.1);
 	ret |= test(&ctx, "d_ratio(1, 2)", 0.5);
 	ret |= test(&ctx, "d_ratio(2.5, 0)", 0);
+	ret |= test(&ctx, "1.1 < 2.2", 1);
+	ret |= test(&ctx, "2.2 > 1.1", 1);
+	ret |= test(&ctx, "1.1 < 1.1", 0);
+	ret |= test(&ctx, "2.2 > 2.2", 0);
+	ret |= test(&ctx, "2.2 < 1.1", 0);
+	ret |= test(&ctx, "1.1 > 2.2", 0);
 
 	if (ret)
 		return ret;
