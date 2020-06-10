@@ -301,10 +301,10 @@ static bool sanity_check_inode(struct inode *inode, struct page *node_page)
 		if (le64_to_cpu(ri->i_compr_blocks) >
 				SECTOR_TO_BLOCK(inode->i_blocks)) {
 			f2fs_warn(sbi, "%s: inode (ino=%lx) has inconsistent "
-				"i_compr_blocks:%llu, i_blocks:%lu, run fsck to fix",
+				"i_compr_blocks:%llu, i_blocks:%llu, run fsck to fix",
 				  __func__, inode->i_ino,
 				  le64_to_cpu(ri->i_compr_blocks),
-				  SECTOR_TO_BLOCK(inode->i_blocks));
+				  (u64)SECTOR_TO_BLOCK(inode->i_blocks));
 			return false;
 		}
 		if (ri->i_log_cluster_size < MIN_COMPRESS_LOG_SIZE ||
