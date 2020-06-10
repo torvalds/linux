@@ -1024,6 +1024,8 @@ static int rkisp_isp_start(struct rkisp_device *dev)
 	val = readl(base + CIF_ISP_CTRL);
 	val |= CIF_ISP_CTRL_ISP_CFG_UPD | CIF_ISP_CTRL_ISP_ENABLE |
 	       CIF_ISP_CTRL_ISP_INFORM_ENABLE | CIF_ISP_CTRL_ISP_CFG_UPD_PERMANENT;
+	if (dev->isp_ver == ISP_V20)
+		val |= NOC_HURRY_W_HIGH | NOC_HURRY_W_MODE(3);
 	writel(val, base + CIF_ISP_CTRL);
 
 	dev->isp_err_cnt = 0;
