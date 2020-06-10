@@ -39,6 +39,8 @@ int test__expr(struct test *t __maybe_unused, int subtest __maybe_unused)
 	ret |= test(&ctx, "1+1 if 3*4 else 0", 2);
 	ret |= test(&ctx, "1.1 + 2.1", 3.2);
 	ret |= test(&ctx, ".1 + 2.", 2.1);
+	ret |= test(&ctx, "d_ratio(1, 2)", 0.5);
+	ret |= test(&ctx, "d_ratio(2.5, 0)", 0);
 
 	if (ret)
 		return ret;

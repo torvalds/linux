@@ -10,6 +10,14 @@
 #include "smt.h"
 #include <string.h>
 
+static double d_ratio(double val0, double val1)
+{
+	if (val1 == 0) {
+		return 0;
+	}
+	return  val0 / val1;
+}
+
 %}
 
 %define api.pure full
@@ -28,7 +36,7 @@
 %token <num> NUMBER
 %token <str> ID
 %destructor { free ($$); } <str>
-%token MIN MAX IF ELSE SMT_ON
+%token MIN MAX IF ELSE SMT_ON D_RATIO
 %left MIN MAX IF
 %left '|'
 %left '^'
@@ -64,7 +72,8 @@ other: ID
 }
 |
 MIN | MAX | IF | ELSE | SMT_ON | NUMBER | '|' | '^' | '&' | '-' | '+' | '*' | '/' | '%' | '(' | ')' | ','
-
+|
+D_RATIO
 
 all_expr: if_expr			{ *final_val = $1; }
 	;
@@ -105,6 +114,7 @@ expr:	  NUMBER
 	| MIN '(' expr ',' expr ')' { $$ = $3 < $5 ? $3 : $5; }
 	| MAX '(' expr ',' expr ')' { $$ = $3 > $5 ? $3 : $5; }
 	| SMT_ON		 { $$ = smt_on() > 0; }
+	| D_RATIO '(' expr ',' expr ')' { $$ = d_ratio($3,$5); }
 	;
 
 %%
