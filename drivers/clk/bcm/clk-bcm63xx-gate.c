@@ -40,6 +40,48 @@ static const struct clk_bcm63xx_table_entry bcm3368_clocks[] = {
 	{ },
 };
 
+static const struct clk_bcm63xx_table_entry bcm6318_clocks[] = {
+	{ .name = "adsl_asb", .bit = 0, },
+	{ .name = "usb_asb", .bit = 1, },
+	{ .name = "mips_asb", .bit = 2, },
+	{ .name = "pcie_asb", .bit = 3, },
+	{ .name = "phymips_asb", .bit = 4, },
+	{ .name = "robosw_asb", .bit = 5, },
+	{ .name = "sar_asb", .bit = 6, },
+	{ .name = "sdr_asb", .bit = 7, },
+	{ .name = "swreg_asb", .bit = 8, },
+	{ .name = "periph_asb", .bit = 9, },
+	{ .name = "cpubus160", .bit = 10, },
+	{ .name = "adsl", .bit = 11, },
+	{ .name = "sar125", .bit = 12, },
+	{ .name = "mips", .bit = 13, .flags = CLK_IS_CRITICAL, },
+	{ .name = "pcie", .bit = 14, },
+	{ .name = "robosw250", .bit = 16, },
+	{ .name = "robosw025", .bit = 17, },
+	{ .name = "sdr", .bit = 19, .flags = CLK_IS_CRITICAL, },
+	{ .name = "usbd", .bit = 20, },
+	{ .name = "hsspi", .bit = 25, },
+	{ .name = "pcie25", .bit = 27, },
+	{ .name = "phymips", .bit = 28, },
+	{ .name = "afe", .bit = 29, },
+	{ .name = "qproc", .bit = 30, },
+	{ },
+};
+
+static const struct clk_bcm63xx_table_entry bcm6318_ubus_clocks[] = {
+	{ .name = "adsl-ubus", .bit = 0, },
+	{ .name = "arb-ubus", .bit = 1, .flags = CLK_IS_CRITICAL, },
+	{ .name = "mips-ubus", .bit = 2, .flags = CLK_IS_CRITICAL, },
+	{ .name = "pcie-ubus", .bit = 3, },
+	{ .name = "periph-ubus", .bit = 4, .flags = CLK_IS_CRITICAL, },
+	{ .name = "phymips-ubus", .bit = 5, },
+	{ .name = "robosw-ubus", .bit = 6, },
+	{ .name = "sar-ubus", .bit = 7, },
+	{ .name = "sdr-ubus", .bit = 8, },
+	{ .name = "usb-ubus", .bit = 9, },
+	{ },
+};
+
 static const struct clk_bcm63xx_table_entry bcm6328_clocks[] = {
 	{ .name = "phy_mips", .bit = 0, },
 	{ .name = "adsl_qproc", .bit = 1, },
@@ -218,6 +260,8 @@ static int clk_bcm63xx_remove(struct platform_device *pdev)
 
 static const struct of_device_id clk_bcm63xx_dt_ids[] = {
 	{ .compatible = "brcm,bcm3368-clocks", .data = &bcm3368_clocks, },
+	{ .compatible = "brcm,bcm6318-clocks", .data = &bcm6318_clocks, },
+	{ .compatible = "brcm,bcm6318-ubus-clocks", .data = &bcm6318_ubus_clocks, },
 	{ .compatible = "brcm,bcm6328-clocks", .data = &bcm6328_clocks, },
 	{ .compatible = "brcm,bcm6358-clocks", .data = &bcm6358_clocks, },
 	{ .compatible = "brcm,bcm6362-clocks", .data = &bcm6362_clocks, },
