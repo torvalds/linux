@@ -3076,9 +3076,7 @@ static void send_linger(struct ceph_osd_linger_request *lreq)
 		cancel_linger_request(req);
 
 	request_reinit(req);
-	ceph_oid_copy(&req->r_base_oid, &lreq->t.base_oid);
-	ceph_oloc_copy(&req->r_base_oloc, &lreq->t.base_oloc);
-	req->r_flags = lreq->t.flags;
+	target_copy(&req->r_t, &lreq->t);
 	req->r_mtime = lreq->mtime;
 
 	mutex_lock(&lreq->lock);
