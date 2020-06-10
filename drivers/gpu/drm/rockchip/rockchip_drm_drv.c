@@ -962,16 +962,20 @@ err_unlock:
 
 static const char *const loader_protect_clocks[] __initconst = {
 	"hclk_vio",
+	"hclk_vop",
 	"hclk_vopb",
 	"hclk_vopl",
 	"aclk_vio",
 	"aclk_vio0",
 	"aclk_vio1",
+	"aclk_vop",
 	"aclk_vopb",
 	"aclk_vopl",
 	"aclk_vo_pre",
 	"aclk_vio_pre",
 	"dclk_vop",
+	"dclk_vop0",
+	"dclk_vop1",
 	"dclk_vopb",
 	"dclk_vopl",
 };
