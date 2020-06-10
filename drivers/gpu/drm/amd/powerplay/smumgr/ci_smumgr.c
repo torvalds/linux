@@ -238,7 +238,7 @@ static void ci_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 
 	switch (dev_id) {
 	case 0x67BA:
-	case 0x66B1:
+	case 0x67B1:
 		smu_data->power_tune_defaults = &defaults_hawaii_pro;
 		break;
 	case 0x67B8:
