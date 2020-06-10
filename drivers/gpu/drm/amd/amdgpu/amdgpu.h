@@ -986,7 +986,7 @@ struct amdgpu_device {
 	/* Chip product information */
 	char				product_number[16];
 	char				product_name[32];
-	char				serial[16];
+	char				serial[20];
 
 	struct amdgpu_autodump		autodump;
 
