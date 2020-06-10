@@ -492,12 +492,12 @@ static void __init pti_setup_espfix64(void)
 }
 
 /*
- * Clone the populated PMDs of the entry and irqentry text and force it RO.
+ * Clone the populated PMDs of the entry text and force it RO.
  */
 static void pti_clone_entry_text(void)
 {
 	pti_clone_pgtable((unsigned long) __entry_text_start,
-			  (unsigned long) __irqentry_text_end,
+			  (unsigned long) __entry_text_end,
 			  PTI_CLONE_PMD);
 }
 

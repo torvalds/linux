@@ -478,9 +478,18 @@ SYM_CODE_END(\asmsym)
 
 /*
  * Include the defines which emit the idt entries which are shared
- * shared between 32 and 64 bit.
+ * shared between 32 and 64 bit and emit the __irqentry_text_* markers
+ * so the stacktrace boundary checks work.
  */
+	.align 16
+	.globl __irqentry_text_start
+__irqentry_text_start:
+
 #include <asm/idtentry.h>
+
+	.align 16
+	.globl __irqentry_text_end
+__irqentry_text_end:
 
 SYM_CODE_START_LOCAL(common_interrupt_return)
 SYM_INNER_LABEL(swapgs_restore_regs_and_return_to_usermode, SYM_L_GLOBAL)
