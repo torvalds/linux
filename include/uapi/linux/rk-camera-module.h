@@ -41,6 +41,9 @@
 #define RKMODULE_GET_LVDS_CFG	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 7, struct rkmodule_lvds_cfg)
 
+#define RKMODULE_SET_DPCC_CFG	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 8, struct rkmodule_dpcc_cfg)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -236,6 +239,12 @@ struct rkmodule_lvds_cfg {
 	enum rkmodule_lvds_mode mode;
 	struct rkmodule_sync_code act;
 	struct rkmodule_sync_code blk;
+} __attribute__ ((packed));
+
+struct rkmodule_dpcc_cfg {
+	__u32 enable;
+	__u32 cur_dpcc;
+	__u32 total_dpcc;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
