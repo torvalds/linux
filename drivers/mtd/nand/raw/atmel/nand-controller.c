@@ -1494,7 +1494,7 @@ static void atmel_nand_init(struct atmel_nand_controller *nc,
 	 * suitable for DMA.
 	 */
 	if (nc->dmac)
-		chip->options |= NAND_USE_BOUNCE_BUFFER;
+		chip->options |= NAND_USES_DMA;
 
 	/* Default to HW ECC if pmecc is available. */
 	if (nc->pmecc)
