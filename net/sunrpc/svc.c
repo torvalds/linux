@@ -1622,7 +1622,7 @@ u32 svc_max_payload(const struct svc_rqst *rqstp)
 EXPORT_SYMBOL_GPL(svc_max_payload);
 
 /**
- * svc_encode_read_payload - mark a range of bytes as a READ payload
+ * svc_encode_result_payload - mark a range of bytes as a result payload
  * @rqstp: svc_rqst to operate on
  * @offset: payload's byte offset in rqstp->rq_res
  * @length: size of payload, in bytes
@@ -1630,12 +1630,13 @@ EXPORT_SYMBOL_GPL(svc_max_payload);
  * Returns zero on success, or a negative errno if a permanent
  * error occurred.
  */
-int svc_encode_read_payload(struct svc_rqst *rqstp, unsigned int offset,
-			    unsigned int length)
+int svc_encode_result_payload(struct svc_rqst *rqstp, unsigned int offset,
+			      unsigned int length)
 {
-	return rqstp->rq_xprt->xpt_ops->xpo_read_payload(rqstp, offset, length);
+	return rqstp->rq_xprt->xpt_ops->xpo_result_payload(rqstp, offset,
+							   length);
 }
-EXPORT_SYMBOL_GPL(svc_encode_read_payload);
+EXPORT_SYMBOL_GPL(svc_encode_result_payload);
 
 /**
  * svc_fill_write_vector - Construct data argument for VFS write call

@@ -979,19 +979,19 @@ int svc_rdma_sendto(struct svc_rqst *rqstp)
 }
 
 /**
- * svc_rdma_read_payload - special processing for a READ payload
+ * svc_rdma_result_payload - special processing for a result payload
  * @rqstp: svc_rqst to operate on
  * @offset: payload's byte offset in @xdr
  * @length: size of payload, in bytes
  *
  * Returns zero on success.
  *
- * For the moment, just record the xdr_buf location of the READ
+ * For the moment, just record the xdr_buf location of the result
  * payload. svc_rdma_sendto will use that location later when
  * we actually send the payload.
  */
-int svc_rdma_read_payload(struct svc_rqst *rqstp, unsigned int offset,
-			  unsigned int length)
+int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
+			    unsigned int length)
 {
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
 

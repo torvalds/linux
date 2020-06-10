@@ -207,8 +207,8 @@ extern void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 				    struct svc_rdma_recv_ctxt *rctxt,
 				    int status);
 extern int svc_rdma_sendto(struct svc_rqst *);
-extern int svc_rdma_read_payload(struct svc_rqst *rqstp, unsigned int offset,
-				 unsigned int length);
+extern int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
+				   unsigned int length);
 
 /* svc_rdma_transport.c */
 extern struct svc_xprt_class svc_rdma_class;
