@@ -506,7 +506,7 @@ static void handle_dmi_entry(const struct dmi_header *dm, void *opaque)
 		u16 keycode = (bios_entry->keycode <
 			       ARRAY_SIZE(bios_to_linux_keycode)) ?
 			bios_to_linux_keycode[bios_entry->keycode] :
-			KEY_RESERVED;
+			(bios_entry->keycode == 0xffff ? KEY_UNKNOWN : KEY_RESERVED);
 
 		/*
 		 * Log if we find an entry in the DMI table that we don't
