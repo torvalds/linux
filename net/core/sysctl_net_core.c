@@ -128,7 +128,7 @@ static int flow_limit_cpu_sysctl(struct ctl_table *table, int write,
 		return -ENOMEM;
 
 	if (write) {
-		ret = cpumask_parse_user(buffer, *lenp, mask);
+		ret = cpumask_parse(buffer, mask);
 		if (ret)
 			goto done;
 
