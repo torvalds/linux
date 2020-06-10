@@ -864,8 +864,11 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_update *as;
-	int ret, disk_res_flags = (flags & BTREE_INSERT_NOFAIL)
+	int disk_res_flags = (flags & BTREE_INSERT_NOFAIL)
 		? BCH_DISK_RESERVATION_NOFAIL : 0;
+	int journal_flags = (flags & BTREE_INSERT_JOURNAL_RESERVED)
+		? JOURNAL_RES_GET_RECLAIM : 0;
+	int ret = 0;
 
 	/*
 	 * This check isn't necessary for correctness - it's just to potentially
@@ -888,10 +891,9 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 	bch2_keylist_init(&as->new_keys, as->_new_keys);
 	bch2_keylist_init(&as->parent_keys, as->inline_keys);
 
-	if (!(flags & BTREE_INSERT_JOURNAL_RESERVED))
-		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-					      BTREE_UPDATE_JOURNAL_RES,
-					      JOURNAL_RES_GET_NONBLOCK);
+	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
+				      BTREE_UPDATE_JOURNAL_RES,
+				      journal_flags|JOURNAL_RES_GET_NONBLOCK);
 	if (ret == -EAGAIN) {
 		if (flags & BTREE_INSERT_NOUNLOCK)
 			return ERR_PTR(-EINTR);
@@ -899,7 +901,8 @@ bch2_btree_update_start(struct btree_trans *trans, enum btree_id id,
 		bch2_trans_unlock(trans);
 
 		ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-					      BTREE_UPDATE_JOURNAL_RES, 0);
+				BTREE_UPDATE_JOURNAL_RES,
+				journal_flags);
 		if (ret)
 			return ERR_PTR(ret);
 

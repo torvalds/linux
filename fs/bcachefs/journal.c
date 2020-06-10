@@ -427,9 +427,10 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 
 static bool journal_preres_available(struct journal *j,
 				     struct journal_preres *res,
-				     unsigned new_u64s)
+				     unsigned new_u64s,
+				     unsigned flags)
 {
-	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s);
+	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags);
 
 	if (!ret)
 		bch2_journal_reclaim_work(&j->reclaim_work.work);
@@ -439,13 +440,14 @@ static bool journal_preres_available(struct journal *j,
 
 int __bch2_journal_preres_get(struct journal *j,
 			      struct journal_preres *res,
-			      unsigned new_u64s)
+			      unsigned new_u64s,
+			      unsigned flags)
 {
 	int ret;
 
 	closure_wait_event(&j->preres_wait,
 		   (ret = bch2_journal_error(j)) ||
-		   journal_preres_available(j, res, new_u64s));
+		   journal_preres_available(j, res, new_u64s, flags));
 	return ret;
 }
 

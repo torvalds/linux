@@ -301,6 +301,7 @@ int bch2_journal_res_get_slowpath(struct journal *, struct journal_res *,
 #define JOURNAL_RES_GET_NONBLOCK	(1 << 0)
 #define JOURNAL_RES_GET_CHECK		(1 << 1)
 #define JOURNAL_RES_GET_RESERVED	(1 << 2)
+#define JOURNAL_RES_GET_RECLAIM		(1 << 3)
 
 static inline int journal_res_get_fast(struct journal *j,
 				       struct journal_res *res,
@@ -408,11 +409,12 @@ static inline void bch2_journal_preres_put(struct journal *j,
 }
 
 int __bch2_journal_preres_get(struct journal *,
-			struct journal_preres *, unsigned);
+			struct journal_preres *, unsigned, unsigned);
 
 static inline int bch2_journal_preres_get_fast(struct journal *j,
 					       struct journal_preres *res,
-					       unsigned new_u64s)
+					       unsigned new_u64s,
+					       unsigned flags)
 {
 	int d = new_u64s - res->u64s;
 	union journal_preres_state old, new;
@@ -423,7 +425,15 @@ static inline int bch2_journal_preres_get_fast(struct journal *j,
 
 		new.reserved += d;
 
-		if (new.reserved > new.remaining)
+		/*
+		 * If we're being called from the journal reclaim path, we have
+		 * to unconditionally give out the pre-reservation, there's
+		 * nothing else sensible we can do - otherwise we'd recurse back
+		 * into the reclaim path and deadlock:
+		 */
+
+		if (!(flags & JOURNAL_RES_GET_RECLAIM) &&
+		    new.reserved > new.remaining)
 			return 0;
 	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,
 				       old.v, new.v)) != old.v);
@@ -440,13 +450,13 @@ static inline int bch2_journal_preres_get(struct journal *j,
 	if (new_u64s <= res->u64s)
 		return 0;
 
-	if (bch2_journal_preres_get_fast(j, res, new_u64s))
+	if (bch2_journal_preres_get_fast(j, res, new_u64s, flags))
 		return 0;
 
 	if (flags & JOURNAL_RES_GET_NONBLOCK)
 		return -EAGAIN;
 
-	return __bch2_journal_preres_get(j, res, new_u64s);
+	return __bch2_journal_preres_get(j, res, new_u64s, flags);
 }
 
 /* journal_entry_res: */
