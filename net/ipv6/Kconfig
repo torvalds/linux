@@ -51,7 +51,14 @@ config INET6_AH
 	tristate "IPv6: AH transformation"
 	select XFRM_AH
 	---help---
-	  Support for IPsec AH.
+	  Support for IPsec AH (Authentication Header).
+
+	  AH can be used with various authentication algorithms.  Besides
+	  enabling AH support itself, this option enables the generic
+	  implementations of the algorithms that RFC 8221 lists as MUST be
+	  implemented.  If you need any other algorithms, you'll need to enable
+	  them in the crypto API.  You should also enable accelerated
+	  implementations of any needed algorithms when available.
 
 	  If unsure, say Y.
 
@@ -59,7 +66,14 @@ config INET6_ESP
 	tristate "IPv6: ESP transformation"
 	select XFRM_ESP
 	---help---
-	  Support for IPsec ESP.
+	  Support for IPsec ESP (Encapsulating Security Payload).
+
+	  ESP can be used with various encryption and authentication algorithms.
+	  Besides enabling ESP support itself, this option enables the generic
+	  implementations of the algorithms that RFC 8221 lists as MUST be
+	  implemented.  If you need any other algorithms, you'll need to enable
+	  them in the crypto API.  You should also enable accelerated
+	  implementations of any needed algorithms when available.
 
 	  If unsure, say Y.
 

@@ -67,26 +67,29 @@ config XFRM_STATISTICS
 
 	  If unsure, say N.
 
+# This option selects XFRM_ALGO along with the AH authentication algorithms that
+# RFC 8221 lists as MUST be implemented.
 config XFRM_AH
 	tristate
 	select XFRM_ALGO
 	select CRYPTO
 	select CRYPTO_HMAC
-	select CRYPTO_MD5
-	select CRYPTO_SHA1
+	select CRYPTO_SHA256
 
+# This option selects XFRM_ALGO along with the ESP encryption and authentication
+# algorithms that RFC 8221 lists as MUST be implemented.
 config XFRM_ESP
 	tristate
 	select XFRM_ALGO
 	select CRYPTO
+	select CRYPTO_AES
 	select CRYPTO_AUTHENC
-	select CRYPTO_HMAC
-	select CRYPTO_MD5
 	select CRYPTO_CBC
-	select CRYPTO_SHA1
-	select CRYPTO_DES
 	select CRYPTO_ECHAINIV
+	select CRYPTO_GCM
+	select CRYPTO_HMAC
 	select CRYPTO_SEQIV
+	select CRYPTO_SHA256
 
 config XFRM_IPCOMP
 	tristate
