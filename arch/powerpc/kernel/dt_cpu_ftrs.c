@@ -24,7 +24,6 @@
 
 
 /* Device-tree visible constants follow */
-#define ISA_V2_07B      2070
 #define ISA_V3_0B       3000
 #define ISA_V3_1        3100
 
