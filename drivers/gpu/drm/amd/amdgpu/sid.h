@@ -1646,9 +1646,10 @@
 /*
  * PM4
  */
-#define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
-			 (((reg) >> 2) & 0xFFFF) |			\
-			 ((n) & 0x3FFF) << 16)
+#define PACKET_TYPE0    0
+#define PACKET0(reg, n) ((PACKET_TYPE0 << 30) |				\
+                         ((reg) & 0xFFFF) |				\
+                         ((n) & 0x3FFF) << 16)
 #define CP_PACKET2			0x80000000
 #define		PACKET2_PAD_SHIFT		0
 #define		PACKET2_PAD_MASK		(0x3fffffff << 0)
