@@ -2197,7 +2197,7 @@ int si_set_ip_blocks(struct amdgpu_device *adev)
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 		else
 			amdgpu_device_ip_block_add(adev, &dce_v6_0_ip_block);
-		/* amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block); */
+		amdgpu_device_ip_block_add(adev, &uvd_v3_1_ip_block);
 		/* amdgpu_device_ip_block_add(adev, &vce_v1_0_ip_block); */
 		break;
 	case CHIP_OLAND:
