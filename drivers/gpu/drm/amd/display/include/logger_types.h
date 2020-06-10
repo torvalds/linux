@@ -67,6 +67,7 @@
 #define DC_LOG_ALL_GAMMA(...) pr_debug("[GAMMA]:"__VA_ARGS__)
 #define DC_LOG_ALL_TF_CHANNELS(...) pr_debug("[GAMMA]:"__VA_ARGS__)
 #define DC_LOG_DSC(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_SMU(...) pr_debug("[SMU_MSG]:"__VA_ARGS__)
 #define DC_LOG_DWB(...) DRM_DEBUG_KMS(__VA_ARGS__)
 
 struct dal_logger;
@@ -113,6 +114,7 @@ enum dc_log_type {
 	LOG_DISPLAYSTATS,
 	LOG_HDMI_RETIMER_REDRIVER,
 	LOG_DSC,
+	LOG_SMU_MSG,
 	LOG_DWB,
 	LOG_GAMMA_DEBUG,
 	LOG_MAX_HW_POINTS,
