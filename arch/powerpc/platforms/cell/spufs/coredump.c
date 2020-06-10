@@ -118,7 +118,7 @@ static int spufs_arch_write_note(struct spu_context *ctx, int i,
 	size_t sz = spufs_coredump_read[i].size;
 	char fullname[80];
 	struct elf_note en;
-	size_t ret;
+	int ret;
 
 	sprintf(fullname, "SPU/%d/%s", dfd, spufs_coredump_read[i].name);
 	en.n_namesz = strlen(fullname) + 1;
