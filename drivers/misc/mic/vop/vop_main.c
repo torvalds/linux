@@ -438,7 +438,7 @@ error:
 /*
  * The config ops structure as defined by virtio config
  */
-static struct virtio_config_ops vop_vq_config_ops = {
+static const struct virtio_config_ops vop_vq_config_ops = {
 	.get_features = vop_get_features,
 	.finalize_features = vop_finalize_features,
 	.get = vop_get,
@@ -763,7 +763,7 @@ static void vop_driver_remove(struct vop_device *vpdev)
 	kfree(vi);
 }
 
-static struct vop_device_id id_table[] = {
+static const struct vop_device_id id_table[] = {
 	{ VOP_DEV_TRNSP, VOP_DEV_ANY_ID },
 	{ 0 },
 };
