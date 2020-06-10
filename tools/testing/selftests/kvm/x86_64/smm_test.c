@@ -47,10 +47,10 @@ uint8_t smi_handler[] = {
 	0x0f, 0xaa,           /* rsm */
 };
 
-void sync_with_host(uint64_t phase)
+static inline void sync_with_host(uint64_t phase)
 {
 	asm volatile("in $" XSTR(SYNC_PORT)", %%al \n"
-		     : : "a" (phase));
+		     : "+a" (phase));
 }
 
 void self_smi(void)
