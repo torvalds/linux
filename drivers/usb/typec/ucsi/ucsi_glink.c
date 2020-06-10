@@ -35,8 +35,7 @@
 
 #define ucsi_dbg(fmt, ...) \
 	do { \
-		ipc_log_string(ucsi_ipc_log, "%s: " fmt, __func__, \
-				##__VA_ARGS__); \
+		ipc_log_string(ucsi_ipc_log, fmt, ##__VA_ARGS__); \
 		pr_debug(fmt, ##__VA_ARGS__); \
 	} while (0)
 
@@ -204,7 +203,7 @@ static int handle_ucsi_notify(struct ucsi_dev *udev, void *data, size_t len)
 
 	msg_ptr = data;
 	cci = msg_ptr->notification;
-	ucsi_log("", UCSI_CCI, (u8 *)&cci, sizeof(cci));
+	ucsi_log("notify:", UCSI_CCI, (u8 *)&cci, sizeof(cci));
 
 	if (test_bit(CMD_PENDING, &udev->flags) &&
 		cci & (UCSI_CCI_ACK_COMPLETE | UCSI_CCI_COMMAND_COMPLETE)) {
