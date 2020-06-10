@@ -924,8 +924,6 @@
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
-  __symbol_get
-  __symbol_put
   sync_file_create
   sync_file_get_fence
   synchronize_irq
