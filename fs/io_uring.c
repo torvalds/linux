@@ -3909,6 +3909,9 @@ static int io_accept(struct io_kiocb *req, bool force_nonblock)
 	unsigned int file_flags = force_nonblock ? O_NONBLOCK : 0;
 	int ret;
 
+	if (req->file->f_flags & O_NONBLOCK)
+		req->flags |= REQ_F_NOWAIT;
+
 	ret = __sys_accept4_file(req->file, file_flags, accept->addr,
 					accept->addr_len, accept->flags,
 					accept->nofile);
