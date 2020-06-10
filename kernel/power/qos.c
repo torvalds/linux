@@ -340,7 +340,9 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 
 	curr_value = pm_qos_get_value(c);
 	pm_qos_set_value(c, curr_value);
+#ifndef CONFIG_ARCH_ROCKCHIP
 	pm_qos_set_value_for_cpus(c);
+#endif
 
 	spin_unlock_irqrestore(&pm_qos_lock, flags);
 
