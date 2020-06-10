@@ -35,6 +35,7 @@ int icc_enable(struct icc_path *path);
 int icc_disable(struct icc_path *path);
 int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw);
 void icc_set_tag(struct icc_path *path, u32 tag);
+const char *icc_get_name(struct icc_path *path);
 
 #else
 
@@ -82,6 +83,11 @@ static inline int icc_set_bw(struct icc_path *path, u32 avg_bw, u32 peak_bw)
 
 static inline void icc_set_tag(struct icc_path *path, u32 tag)
 {
+}
+
+static inline const char *icc_get_name(struct icc_path *path)
+{
+	return NULL;
 }
 
 #endif /* CONFIG_INTERCONNECT */
