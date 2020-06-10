@@ -388,7 +388,7 @@ static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *
 	return evsel__do_check_stype(evsel, sample_type, sample_msg, field, false);
 }
 
-static int perf_evsel__check_attr(struct evsel *evsel, struct perf_session *session)
+static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
 	bool allow_user_set;
@@ -522,7 +522,7 @@ static int perf_session__check_output_opt(struct perf_session *session)
 		}
 
 		if (evsel && output[j].fields &&
-			perf_evsel__check_attr(evsel, session))
+			evsel__check_attr(evsel, session))
 			return -1;
 
 		if (evsel == NULL)
@@ -1692,7 +1692,7 @@ struct perf_script {
 	int			range_num;
 };
 
-static int perf_evlist__max_name_len(struct evlist *evlist)
+static int evlist__max_name_len(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	int max = 0;
@@ -1875,7 +1875,7 @@ static void process_event(struct perf_script *script,
 		const char *evname = evsel__name(evsel);
 
 		if (!script->name_width)
-			script->name_width = perf_evlist__max_name_len(script->session->evlist);
+			script->name_width = evlist__max_name_len(script->session->evlist);
 
 		fprintf(fp, "%*s: ", script->name_width, evname ?: "[unknown]");
 	}
@@ -2120,7 +2120,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	}
 
 	if (evsel->core.attr.sample_type) {
-		err = perf_evsel__check_attr(evsel, scr->session);
+		err = evsel__check_attr(evsel, scr->session);
 		if (err)
 			return err;
 	}
