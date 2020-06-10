@@ -1421,9 +1421,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tActive[%d]:  ccid:%08x, ",
+					"\t\tActive[%d]:  ccid:%08x%s%s, ",
 					(int)(port - execlists->active),
-					rq->context->lrc.ccid);
+					rq->context->lrc.ccid,
+					intel_context_is_closed(rq->context) ? "!" : "",
+					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
@@ -1433,9 +1435,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 			int len;
 
 			len = scnprintf(hdr, sizeof(hdr),
-					"\t\tPending[%d]: ccid:%08x, ",
+					"\t\tPending[%d]: ccid:%08x%s%s, ",
 					(int)(port - execlists->pending),
-					rq->context->lrc.ccid);
+					rq->context->lrc.ccid,
+					intel_context_is_closed(rq->context) ? "!" : "",
+					intel_context_is_banned(rq->context) ? "*" : "");
 			len += print_ring(hdr + len, sizeof(hdr) - len, rq);
 			scnprintf(hdr + len, sizeof(hdr) - len, "rq: ");
 			print_request(m, rq, hdr);
