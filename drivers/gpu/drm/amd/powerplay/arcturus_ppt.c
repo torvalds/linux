@@ -548,26 +548,43 @@ static int arcturus_run_btc(struct smu_context *smu)
 
 static int arcturus_populate_umd_state_clk(struct smu_context *smu)
 {
-	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
-	struct arcturus_dpm_table *dpm_table = NULL;
-	struct arcturus_single_dpm_table *gfx_table = NULL;
-	struct arcturus_single_dpm_table *mem_table = NULL;
+	struct smu_11_0_dpm_context *dpm_context =
+				smu->smu_dpm.dpm_context;
+	struct smu_11_0_dpm_table *gfx_table =
+				&dpm_context->dpm_tables.gfx_table;
+	struct smu_11_0_dpm_table *mem_table =
+				&dpm_context->dpm_tables.uclk_table;
+	struct smu_11_0_dpm_table *soc_table =
+				&dpm_context->dpm_tables.soc_table;
+	struct smu_umd_pstate_table *pstate_table =
+				&smu->pstate_table;
 
-	dpm_table = smu_dpm->dpm_context;
-	gfx_table = &(dpm_table->gfx_table);
-	mem_table = &(dpm_table->mem_table);
+	pstate_table->gfxclk_pstate.min = gfx_table->min;
+	pstate_table->gfxclk_pstate.peak = gfx_table->max;
 
-	smu->pstate_sclk = gfx_table->dpm_levels[0].value;
-	smu->pstate_mclk = mem_table->dpm_levels[0].value;
+	pstate_table->uclk_pstate.min = mem_table->min;
+	pstate_table->uclk_pstate.peak = mem_table->max;
+
+	pstate_table->socclk_pstate.min = soc_table->min;
+	pstate_table->socclk_pstate.peak = soc_table->max;
 
 	if (gfx_table->count > ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL &&
-	    mem_table->count > ARCTURUS_UMD_PSTATE_MCLK_LEVEL) {
-		smu->pstate_sclk = gfx_table->dpm_levels[ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL].value;
-		smu->pstate_mclk = mem_table->dpm_levels[ARCTURUS_UMD_PSTATE_MCLK_LEVEL].value;
+	    mem_table->count > ARCTURUS_UMD_PSTATE_MCLK_LEVEL &&
+	    soc_table->count > ARCTURUS_UMD_PSTATE_SOCCLK_LEVEL) {
+		pstate_table->gfxclk_pstate.standard =
+			gfx_table->dpm_levels[ARCTURUS_UMD_PSTATE_GFXCLK_LEVEL].value;
+		pstate_table->uclk_pstate.standard =
+			mem_table->dpm_levels[ARCTURUS_UMD_PSTATE_MCLK_LEVEL].value;
+		pstate_table->socclk_pstate.standard =
+			soc_table->dpm_levels[ARCTURUS_UMD_PSTATE_SOCCLK_LEVEL].value;
+	} else {
+		pstate_table->gfxclk_pstate.standard =
+			pstate_table->gfxclk_pstate.min;
+		pstate_table->uclk_pstate.standard =
+			pstate_table->uclk_pstate.min;
+		pstate_table->socclk_pstate.standard =
+			pstate_table->socclk_pstate.min;
 	}
-
-	smu->pstate_sclk = smu->pstate_sclk * 100;
-	smu->pstate_mclk = smu->pstate_mclk * 100;
 
 	return 0;
 }

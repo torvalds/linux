@@ -2168,6 +2168,8 @@ int smu_read_sensor(struct smu_context *smu,
 		    enum amd_pp_sensors sensor,
 		    void *data, uint32_t *size)
 {
+	struct smu_umd_pstate_table *pstate_table =
+				&smu->pstate_table;
 	int ret = 0;
 
 	if (!smu->pm_enabled || !smu->adev->pm.dpm_enabled)
@@ -2180,11 +2182,11 @@ int smu_read_sensor(struct smu_context *smu,
 
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_SCLK:
-		*((uint32_t *)data) = smu->pstate_sclk;
+		*((uint32_t *)data) = pstate_table->gfxclk_pstate.standard * 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_STABLE_PSTATE_MCLK:
-		*((uint32_t *)data) = smu->pstate_mclk;
+		*((uint32_t *)data) = pstate_table->uclk_pstate.standard * 100;
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK:

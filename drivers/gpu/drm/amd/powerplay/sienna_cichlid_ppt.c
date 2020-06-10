@@ -1115,22 +1115,27 @@ forec_level_out:
 
 static int sienna_cichlid_populate_umd_state_clk(struct smu_context *smu)
 {
-	int ret = 0;
-	uint32_t min_sclk_freq = 0, min_mclk_freq = 0;
+	struct smu_11_0_dpm_context *dpm_context =
+				smu->smu_dpm.dpm_context;
+	struct smu_11_0_dpm_table *gfx_table =
+				&dpm_context->dpm_tables.gfx_table;
+	struct smu_11_0_dpm_table *mem_table =
+				&dpm_context->dpm_tables.uclk_table;
+	struct smu_11_0_dpm_table *soc_table =
+				&dpm_context->dpm_tables.soc_table;
+	struct smu_umd_pstate_table *pstate_table =
+				&smu->pstate_table;
 
-	ret = smu_v11_0_get_dpm_ultimate_freq(smu, SMU_SCLK, &min_sclk_freq, NULL);
-	if (ret)
-		return ret;
+	pstate_table->gfxclk_pstate.min = gfx_table->min;
+	pstate_table->gfxclk_pstate.peak = gfx_table->max;
 
-	smu->pstate_sclk = min_sclk_freq * 100;
+	pstate_table->uclk_pstate.min = mem_table->min;
+	pstate_table->uclk_pstate.peak = mem_table->max;
 
-	ret = smu_v11_0_get_dpm_ultimate_freq(smu, SMU_MCLK, &min_mclk_freq, NULL);
-	if (ret)
-		return ret;
+	pstate_table->socclk_pstate.min = soc_table->min;
+	pstate_table->socclk_pstate.peak = soc_table->max;
 
-	smu->pstate_mclk = min_mclk_freq * 100;
-
-	return ret;
+	return 0;
 }
 
 static int sienna_cichlid_pre_display_config_changed(struct smu_context *smu)

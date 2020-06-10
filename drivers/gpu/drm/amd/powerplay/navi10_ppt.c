@@ -1213,22 +1213,93 @@ static int navi10_force_clk_levels(struct smu_context *smu,
 
 static int navi10_populate_umd_state_clk(struct smu_context *smu)
 {
-	int ret = 0;
-	uint32_t min_sclk_freq = 0, min_mclk_freq = 0;
+	struct smu_11_0_dpm_context *dpm_context =
+				smu->smu_dpm.dpm_context;
+	struct smu_11_0_dpm_table *gfx_table =
+				&dpm_context->dpm_tables.gfx_table;
+	struct smu_11_0_dpm_table *mem_table =
+				&dpm_context->dpm_tables.uclk_table;
+	struct smu_11_0_dpm_table *soc_table =
+				&dpm_context->dpm_tables.soc_table;
+	struct smu_umd_pstate_table *pstate_table =
+				&smu->pstate_table;
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t sclk_freq;
 
-	ret = smu_v11_0_get_dpm_ultimate_freq(smu, SMU_SCLK, &min_sclk_freq, NULL);
-	if (ret)
-		return ret;
+	pstate_table->gfxclk_pstate.min = gfx_table->min;
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+		switch (adev->pdev->revision) {
+		case 0xf0: /* XTX */
+		case 0xc0:
+			sclk_freq = NAVI10_PEAK_SCLK_XTX;
+			break;
+		case 0xf1: /* XT */
+		case 0xc1:
+			sclk_freq = NAVI10_PEAK_SCLK_XT;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI10_PEAK_SCLK_XL;
+			break;
+		}
+		break;
+	case CHIP_NAVI14:
+		switch (adev->pdev->revision) {
+		case 0xc7: /* XT */
+		case 0xf4:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XT_GFXCLK;
+			break;
+		case 0xc1: /* XTM */
+		case 0xf2:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XTM_GFXCLK;
+			break;
+		case 0xc3: /* XLM */
+		case 0xf3:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		case 0xc5: /* XTX */
+		case 0xf6:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XL_GFXCLK;
+			break;
+		}
+		break;
+	case CHIP_NAVI12:
+		sclk_freq = NAVI12_UMD_PSTATE_PEAK_GFXCLK;
+		break;
+	default:
+		sclk_freq = gfx_table->dpm_levels[gfx_table->count - 1].value;
+		break;
+	}
+	pstate_table->gfxclk_pstate.peak = sclk_freq;
 
-	smu->pstate_sclk = min_sclk_freq * 100;
+	pstate_table->uclk_pstate.min = mem_table->min;
+	pstate_table->uclk_pstate.peak = mem_table->max;
 
-	ret = smu_v11_0_get_dpm_ultimate_freq(smu, SMU_MCLK, &min_mclk_freq, NULL);
-	if (ret)
-		return ret;
+	pstate_table->socclk_pstate.min = soc_table->min;
+	pstate_table->socclk_pstate.peak = soc_table->max;
 
-	smu->pstate_mclk = min_mclk_freq * 100;
+	if (gfx_table->max > NAVI10_UMD_PSTATE_PROFILING_GFXCLK &&
+	    mem_table->max > NAVI10_UMD_PSTATE_PROFILING_MEMCLK &&
+	    soc_table->max > NAVI10_UMD_PSTATE_PROFILING_SOCCLK) {
+		pstate_table->gfxclk_pstate.standard =
+			NAVI10_UMD_PSTATE_PROFILING_GFXCLK;
+		pstate_table->uclk_pstate.standard =
+			NAVI10_UMD_PSTATE_PROFILING_MEMCLK;
+		pstate_table->socclk_pstate.standard =
+			NAVI10_UMD_PSTATE_PROFILING_SOCCLK;
+	} else {
+		pstate_table->gfxclk_pstate.standard =
+			pstate_table->gfxclk_pstate.min;
+		pstate_table->uclk_pstate.standard =
+			pstate_table->uclk_pstate.min;
+		pstate_table->socclk_pstate.standard =
+			pstate_table->socclk_pstate.min;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int navi10_get_clock_by_type_with_latency(struct smu_context *smu,
