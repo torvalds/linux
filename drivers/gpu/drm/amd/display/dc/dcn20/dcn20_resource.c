@@ -2745,6 +2745,11 @@ int dcn20_validate_apply_pipe_split_flags(
 			split[i] = 4;
 			v->ODMCombineEnablePerState[vlevel][pipe_plane] = dm_odm_combine_mode_4to1;
 		}
+		/*420 format workaround*/
+		if (pipe->stream->timing.h_addressable > 7680 &&
+				pipe->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+			split[i] = 4;
+		}
 #endif
 		v->ODMCombineEnabled[pipe_plane] =
 			v->ODMCombineEnablePerState[vlevel][pipe_plane];
