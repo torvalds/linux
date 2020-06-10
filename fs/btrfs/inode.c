@@ -2467,7 +2467,8 @@ int btrfs_writepage_cow_fixup(struct page *page, u64 start, u64 end)
 
 static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 				       struct inode *inode, u64 file_pos,
-				       struct btrfs_file_extent_item *stack_fi)
+				       struct btrfs_file_extent_item *stack_fi,
+				       u64 qgroup_reserved)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
@@ -2477,7 +2478,6 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	u64 disk_bytenr = btrfs_stack_file_extent_disk_bytenr(stack_fi);
 	u64 num_bytes = btrfs_stack_file_extent_num_bytes(stack_fi);
 	u64 ram_bytes = btrfs_stack_file_extent_ram_bytes(stack_fi);
-	u64 qg_released;
 	int extent_inserted = 0;
 	int ret;
 
@@ -2531,17 +2531,9 @@ static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto out;
 
-	/*
-	 * Release the reserved range from inode dirty range map, as it is
-	 * already moved into delayed_ref_head
-	 */
-	ret = btrfs_qgroup_release_data(inode, file_pos, ram_bytes);
-	if (ret < 0)
-		goto out;
-	qg_released = ret;
 	ret = btrfs_alloc_reserved_file_extent(trans, root,
 					       btrfs_ino(BTRFS_I(inode)),
-					       file_pos, qg_released, &ins);
+					       file_pos, qgroup_reserved, &ins);
 out:
 	btrfs_free_path(path);
 
@@ -2569,6 +2561,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_file_extent_item stack_fi;
 	u64 logical_len;
+	int ret;
 
 	memset(&stack_fi, 0, sizeof(stack_fi));
 	btrfs_set_stack_file_extent_type(&stack_fi, BTRFS_FILE_EXTENT_REG);
@@ -2584,8 +2577,11 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_compression(&stack_fi, oe->compress_type);
 	/* Encryption and other encoding is reserved and all 0 */
 
+	ret = btrfs_qgroup_release_data(inode, oe->file_offset, logical_len);
+	if (ret < 0)
+		return ret;
 	return insert_reserved_file_extent(trans, inode, oe->file_offset,
-					   &stack_fi);
+					   &stack_fi, ret);
 }
 
 /*
@@ -9604,6 +9600,7 @@ static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_file_extent_item stack_fi;
 	u64 start = ins->objectid;
 	u64 len = ins->offset;
+	int ret;
 
 	memset(&stack_fi, 0, sizeof(stack_fi));
 
@@ -9615,8 +9612,11 @@ static int insert_prealloc_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_compression(&stack_fi, BTRFS_COMPRESS_NONE);
 	/* Encryption and other encoding is reserved and all 0 */
 
+	ret = btrfs_qgroup_release_data(inode, file_offset, len);
+	if (ret < 0)
+		return ret;
 	return insert_reserved_file_extent(trans, inode, file_offset,
-					   &stack_fi);
+					   &stack_fi, ret);
 }
 static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 				       u64 start, u64 num_bytes, u64 min_size,
