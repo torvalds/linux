@@ -182,7 +182,7 @@ do
 	kruntime=`gawk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 	if test -z "$qemu_pid" || kill -0 "$qemu_pid" > /dev/null 2>&1
 	then
-		if test $kruntime -ge $seconds
+		if test $kruntime -ge $seconds -o -f "$TORTURE_STOPFILE"
 		then
 			break;
 		fi
@@ -211,10 +211,19 @@ then
 fi
 if test $commandcompleted -eq 0 -a -n "$qemu_pid"
 then
-	echo Grace period for qemu job at pid $qemu_pid
+	if ! test -f "$TORTURE_STOPFILE"
+	then
+		echo Grace period for qemu job at pid $qemu_pid
+	fi
 	oldline="`tail $resdir/console.log`"
 	while :
 	do
+		if test -f "$TORTURE_STOPFILE"
+		then
+			echo "PID $qemu_pid killed due to run STOP request" >> $resdir/Warnings 2>&1
+			kill -KILL $qemu_pid
+			break
+		fi
 		kruntime=`gawk 'BEGIN { print systime() - '"$kstarttime"' }' < /dev/null`
 		if kill -0 $qemu_pid > /dev/null 2>&1
 		then
