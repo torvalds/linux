@@ -1621,12 +1621,16 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 		if (pgpath)
 			fail_path(pgpath);
 
-		if (atomic_read(&m->nr_valid_paths) == 0 &&
-		    !must_push_back_rq(m)) {
-			if (error == BLK_STS_IOERR)
-				dm_report_EIO(m);
-			/* complete with the original error */
-			r = DM_ENDIO_DONE;
+		if (!atomic_read(&m->nr_valid_paths)) {
+			unsigned long flags;
+			spin_lock_irqsave(&m->lock, flags);
+			if (!must_push_back_rq(m)) {
+				if (error == BLK_STS_IOERR)
+					dm_report_EIO(m);
+				/* complete with the original error */
+				r = DM_ENDIO_DONE;
+			}
+			spin_unlock_irqrestore(&m->lock, flags);
 		}
 	}
 
@@ -1656,15 +1660,19 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 	if (pgpath)
 		fail_path(pgpath);
 
-	if (atomic_read(&m->nr_valid_paths) == 0 &&
-	    !test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
-		if (__must_push_back(m)) {
-			r = DM_ENDIO_REQUEUE;
-		} else {
-			dm_report_EIO(m);
-			*error = BLK_STS_IOERR;
+	if (!atomic_read(&m->nr_valid_paths)) {
+		spin_lock_irqsave(&m->lock, flags);
+		if (!test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			if (__must_push_back(m)) {
+				r = DM_ENDIO_REQUEUE;
+			} else {
+				dm_report_EIO(m);
+				*error = BLK_STS_IOERR;
+			}
+			spin_unlock_irqrestore(&m->lock, flags);
+			goto done;
 		}
-		goto done;
+		spin_unlock_irqrestore(&m->lock, flags);
 	}
 
 	spin_lock_irqsave(&m->lock, flags);
@@ -1962,10 +1970,11 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 		}
 	} else {
 		/* No path is available */
+		r = -EIO;
+		spin_lock_irqsave(&m->lock, flags);
 		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
 			r = -ENOTCONN;
-		else
-			r = -EIO;
+		spin_unlock_irqrestore(&m->lock, flags);
 	}
 
 	if (r == -ENOTCONN) {
@@ -2036,8 +2045,15 @@ static int multipath_busy(struct dm_target *ti)
 		return true;
 
 	/* no paths available, for blk-mq: rely on IO mapping to delay requeue */
-	if (!atomic_read(&m->nr_valid_paths) && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))
-		return (m->queue_mode != DM_TYPE_REQUEST_BASED);
+	if (!atomic_read(&m->nr_valid_paths)) {
+		unsigned long flags;
+		spin_lock_irqsave(&m->lock, flags);
+		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			spin_unlock_irqrestore(&m->lock, flags);
+			return (m->queue_mode != DM_TYPE_REQUEST_BASED);
+		}
+		spin_unlock_irqrestore(&m->lock, flags);
+	}
 
 	/* Guess which priority_group will be used at next mapping time */
 	pg = READ_ONCE(m->current_pg);
