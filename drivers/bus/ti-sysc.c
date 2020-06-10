@@ -29,7 +29,7 @@
 
 #define SOC_FLAG(match, flag)	{ .machine = match, .data = (void *)(flag), }
 
-#define MAX_MODULE_SOFTRESET_WAIT		20000
+#define MAX_MODULE_SOFTRESET_WAIT		10000
 
 enum sysc_soc {
 	SOC_UNKNOWN,
