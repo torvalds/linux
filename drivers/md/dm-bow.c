@@ -627,7 +627,7 @@ static void dm_bow_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	const unsigned int block_size = bc->block_size;
 
 	limits->logical_block_size =
-		max_t(unsigned short, limits->logical_block_size, block_size);
+		max_t(unsigned int, limits->logical_block_size, block_size);
 	limits->physical_block_size =
 		max_t(unsigned int, limits->physical_block_size, block_size);
 	limits->io_min = max_t(unsigned int, limits->io_min, block_size);
