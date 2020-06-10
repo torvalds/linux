@@ -15,12 +15,20 @@ SECTIONS {
 		*(.eh_frame)
 	}
 
-	.bss : { *(.bss .bss.[0-9a-zA-Z_]*) }
-	.data : { *(.data .data.[0-9a-zA-Z_]*) }
-	.rela.data : { *(.rela.data .rela.data.[0-9a-zA-Z_]*) }
-	.rela.rodata : { *(.rela.rodata .rela.rodata.[0-9a-zA-Z_]*) }
-	.rela.text : { *(.rela.text .rela.text.[0-9a-zA-Z_]*) }
-	.rodata : { *(.rodata .rodata.[0-9a-zA-Z_]*) }
+	.bss : {
+		*(.bss .bss.[0-9a-zA-Z_]*)
+		*(.bss..L* .bss..compoundliteral*)
+	}
+
+	.data : {
+		*(.data .data.[0-9a-zA-Z_]*)
+		*(.data..L* .data..compoundliteral*)
+	}
+
+	.rodata : {
+		*(.rodata .rodata.[0-9a-zA-Z_]*)
+		*(.rodata..L* .rodata..compoundliteral*)
+	}
 
 	/*
 	 * With CFI_CLANG, ensure __cfi_check is at the beginning of the
@@ -30,5 +38,4 @@ SECTIONS {
 		*(.text.__cfi_check)
 		*(.text .text.[0-9a-zA-Z_]* .text..L.cfi*)
 	}
-
 }
