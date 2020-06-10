@@ -681,6 +681,14 @@ struct drm_dp_mst_topology_mgr {
 	 * @destroy_branch_device_list.
 	 */
 	struct mutex delayed_destroy_lock;
+
+	/**
+	 * @delayed_destroy_wq: Workqueue used for delayed_destroy_work items.
+	 * A dedicated WQ makes it possible to drain any requeued work items
+	 * on it.
+	 */
+	struct workqueue_struct *delayed_destroy_wq;
+
 	/**
 	 * @delayed_destroy_work: Work item to destroy MST port and branch
 	 * devices, needed to avoid locking inversion.

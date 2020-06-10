@@ -1630,7 +1630,7 @@ static void drm_dp_destroy_mst_branch_device(struct kref *kref)
 	mutex_lock(&mgr->delayed_destroy_lock);
 	list_add(&mstb->destroy_next, &mgr->destroy_branch_device_list);
 	mutex_unlock(&mgr->delayed_destroy_lock);
-	schedule_work(&mgr->delayed_destroy_work);
+	queue_work(mgr->delayed_destroy_wq, &mgr->delayed_destroy_work);
 }
 
 /**
@@ -1747,7 +1747,7 @@ static void drm_dp_destroy_port(struct kref *kref)
 	mutex_lock(&mgr->delayed_destroy_lock);
 	list_add(&port->next, &mgr->destroy_port_list);
 	mutex_unlock(&mgr->delayed_destroy_lock);
-	schedule_work(&mgr->delayed_destroy_work);
+	queue_work(mgr->delayed_destroy_wq, &mgr->delayed_destroy_work);
 }
 
 /**
@@ -5203,6 +5203,15 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	INIT_LIST_HEAD(&mgr->destroy_port_list);
 	INIT_LIST_HEAD(&mgr->destroy_branch_device_list);
 	INIT_LIST_HEAD(&mgr->up_req_list);
+
+	/*
+	 * delayed_destroy_work will be queued on a dedicated WQ, so that any
+	 * requeuing will be also flushed when deiniting the topology manager.
+	 */
+	mgr->delayed_destroy_wq = alloc_ordered_workqueue("drm_dp_mst_wq", 0);
+	if (mgr->delayed_destroy_wq == NULL)
+		return -ENOMEM;
+
 	INIT_WORK(&mgr->work, drm_dp_mst_link_probe_work);
 	INIT_WORK(&mgr->tx_work, drm_dp_tx_work);
 	INIT_WORK(&mgr->delayed_destroy_work, drm_dp_delayed_destroy_work);
@@ -5247,7 +5256,11 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 {
 	drm_dp_mst_topology_mgr_set_mst(mgr, false);
 	flush_work(&mgr->work);
-	cancel_work_sync(&mgr->delayed_destroy_work);
+	/* The following will also drain any requeued work on the WQ. */
+	if (mgr->delayed_destroy_wq) {
+		destroy_workqueue(mgr->delayed_destroy_wq);
+		mgr->delayed_destroy_wq = NULL;
+	}
 	mutex_lock(&mgr->payload_lock);
 	kfree(mgr->payloads);
 	mgr->payloads = NULL;
