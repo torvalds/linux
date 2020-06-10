@@ -13585,7 +13585,6 @@ M:	Guan Xuetao <gxt@pku.edu.cn>
 S:	Maintained
 W:	http://mprc.pku.edu.cn/~guanxuetao/linux
 T:	git git://github.com/gxt/linux.git
-F:	drivers/i2c/busses/i2c-puv3.c
 F:	drivers/input/serio/i8042-unicore32io.h
 F:	drivers/rtc/rtc-puv3.c
 F:	drivers/video/fbdev/fb-puv3.c
