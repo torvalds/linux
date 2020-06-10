@@ -352,6 +352,20 @@ struct smu_baco_context
 	bool platform_support;
 };
 
+struct pstates_clk_freq {
+	uint32_t			min;
+	uint32_t			standard;
+	uint32_t			peak;
+};
+
+struct smu_umd_pstate_table {
+	struct pstates_clk_freq		gfxclk_pstate;
+	struct pstates_clk_freq		socclk_pstate;
+	struct pstates_clk_freq		uclk_pstate;
+	struct pstates_clk_freq		vclk_pstate;
+	struct pstates_clk_freq		dclk_pstate;
+};
+
 #define WORKLOAD_POLICY_MAX 7
 struct smu_context
 {
@@ -376,6 +390,7 @@ struct smu_context
 	struct dentry                   *debugfs_sclk;
 #endif
 
+	struct smu_umd_pstate_table	pstate_table;
 	uint32_t pstate_sclk;
 	uint32_t pstate_mclk;
 
