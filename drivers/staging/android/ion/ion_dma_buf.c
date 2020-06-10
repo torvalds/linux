@@ -165,23 +165,11 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	struct ion_heap *heap = buffer->heap;
 	void *vaddr;
 	struct ion_dma_buf_attachment *a;
-	int ret;
 
 	if (heap->buf_ops.begin_cpu_access)
 		return heap->buf_ops.begin_cpu_access(dmabuf, direction);
 
-	/*
-	 * TODO: Move this elsewhere because we don't always need a vaddr
-	 * FIXME: Why do we need a vaddr here?
-	 */
-	ret = 0;
 	mutex_lock(&buffer->lock);
-	vaddr = ion_buffer_kmap_get(buffer);
-	if (IS_ERR(vaddr)) {
-		ret = PTR_ERR(vaddr);
-		goto unlock;
-	}
-
 	if (!(buffer->flags & ION_FLAG_CACHED))
 		goto unlock;
 
@@ -194,7 +182,7 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 
 unlock:
 	mutex_unlock(&buffer->lock);
-	return ret;
+	return 0;
 }
 
 static int
@@ -227,9 +215,6 @@ static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 		return heap->buf_ops.end_cpu_access(dmabuf, direction);
 
 	mutex_lock(&buffer->lock);
-
-	ion_buffer_kmap_put(buffer);
-
 	if (!(buffer->flags & ION_FLAG_CACHED))
 		goto unlock;
 
