@@ -396,7 +396,7 @@ exit_remove:
 
 static int i5k_amb_add(void)
 {
-	int res = -ENODEV;
+	int res;
 
 	/* only ever going to be one of these */
 	amb_pdev = platform_device_alloc(DRVNAME, 0);
