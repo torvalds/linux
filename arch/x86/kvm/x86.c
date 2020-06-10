@@ -10511,7 +10511,7 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu)
 	return kvm_arch_interrupt_allowed(vcpu);
 }
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+bool kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work)
 {
 	struct x86_exception fault;
@@ -10528,6 +10528,7 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		fault.address = work->arch.token;
 		fault.async_page_fault = true;
 		kvm_inject_page_fault(vcpu, &fault);
+		return true;
 	} else {
 		/*
 		 * It is not possible to deliver a paravirtualized asynchronous
@@ -10538,6 +10539,7 @@ void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 		 * fault is retried, hopefully the page will be ready in the host.
 		 */
 		kvm_make_request(KVM_REQ_APF_HALT, vcpu);
+		return false;
 	}
 }
 
@@ -10555,7 +10557,8 @@ void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 		kvm_del_async_pf_gfn(vcpu, work->arch.gfn);
 	trace_kvm_async_pf_ready(work->arch.token, work->cr2_or_gpa);
 
-	if (kvm_pv_async_pf_enabled(vcpu) &&
+	if ((work->wakeup_all || work->notpresent_injected) &&
+	    kvm_pv_async_pf_enabled(vcpu) &&
 	    !apf_put_user_ready(vcpu, work->arch.token)) {
 		vcpu->arch.apf.pageready_pending = true;
 		kvm_apic_set_irq(vcpu, &irq, NULL);

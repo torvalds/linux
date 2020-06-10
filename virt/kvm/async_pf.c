@@ -189,7 +189,7 @@ int kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 
 	list_add_tail(&work->queue, &vcpu->async_pf.queue);
 	vcpu->async_pf.queued++;
-	kvm_arch_async_page_not_present(vcpu, work);
+	work->notpresent_injected = kvm_arch_async_page_not_present(vcpu, work);
 
 	schedule_work(&work->work);
 
