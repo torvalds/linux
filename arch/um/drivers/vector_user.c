@@ -29,6 +29,7 @@
 #include <netdb.h>
 #include <stdlib.h>
 #include <os.h>
+#include <limits.h>
 #include <um_malloc.h>
 #include "vector_user.h"
 
@@ -41,6 +42,9 @@
 
 #define TRANS_RAW "raw"
 #define TRANS_RAW_LEN strlen(TRANS_RAW)
+
+#define TRANS_FD "fd"
+#define TRANS_FD_LEN strlen(TRANS_FD)
 
 #define VNET_HDR_FAIL "could not enable vnet headers on fd %d"
 #define TUN_GET_F_FAIL "tapraw: TUNGETFEATURES failed: %s"
@@ -347,6 +351,59 @@ unix_cleanup:
 	return NULL;
 }
 
+static int strtofd(const char *nptr)
+{
+	long fd;
+	char *endptr;
+
+	if (nptr == NULL)
+		return -1;
+
+	errno = 0;
+	fd = strtol(nptr, &endptr, 10);
+	if (nptr == endptr ||
+		errno != 0 ||
+		*endptr != '\0' ||
+		fd < 0 ||
+		fd > INT_MAX) {
+		return -1;
+	}
+	return fd;
+}
+
+static struct vector_fds *user_init_fd_fds(struct arglist *ifspec)
+{
+	int fd = -1;
+	char *fdarg = NULL;
+	struct vector_fds *result = NULL;
+
+	fdarg = uml_vector_fetch_arg(ifspec, "fd");
+	fd = strtofd(fdarg);
+	if (fd == -1) {
+		printk(UM_KERN_ERR "fd open: bad or missing fd argument");
+		goto fd_cleanup;
+	}
+
+	result = uml_kmalloc(sizeof(struct vector_fds), UM_GFP_KERNEL);
+	if (result == NULL) {
+		printk(UM_KERN_ERR "fd open: allocation failed");
+		goto fd_cleanup;
+	}
+
+	result->rx_fd = fd;
+	result->tx_fd = fd;
+	result->remote_addr_size = 0;
+	result->remote_addr = NULL;
+	return result;
+
+fd_cleanup:
+	if (fd >= 0)
+		os_close_file(fd);
+	if (result != NULL)
+		kfree(result);
+	return NULL;
+}
+
 static struct vector_fds *user_init_raw_fds(struct arglist *ifspec)
 {
 	int rxfd = -1, txfd = -1;
@@ -578,6 +635,8 @@ struct vector_fds *uml_vector_user_open(
 		return user_init_socket_fds(parsed, ID_L2TPV3);
 	if (strncmp(transport, TRANS_BESS, TRANS_BESS_LEN) == 0)
 		return user_init_unix_fds(parsed, ID_BESS);
+	if (strncmp(transport, TRANS_FD, TRANS_FD_LEN) == 0)
+		return user_init_fd_fds(parsed);
 	return NULL;
 }
 
