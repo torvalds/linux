@@ -472,7 +472,14 @@ static bool __must_push_back(struct multipath *m)
 
 static bool must_push_back_rq(struct multipath *m)
 {
-	return test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) || __must_push_back(m);
+	unsigned long flags;
+	bool ret;
+
+	spin_lock_irqsave(&m->lock, flags);
+	ret = (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags) || __must_push_back(m));
+	spin_unlock_irqrestore(&m->lock, flags);
+
+	return ret;
 }
 
 /*
@@ -1621,16 +1628,12 @@ static int multipath_end_io(struct dm_target *ti, struct request *clone,
 		if (pgpath)
 			fail_path(pgpath);
 
-		if (!atomic_read(&m->nr_valid_paths)) {
-			unsigned long flags;
-			spin_lock_irqsave(&m->lock, flags);
-			if (!must_push_back_rq(m)) {
-				if (error == BLK_STS_IOERR)
-					dm_report_EIO(m);
-				/* complete with the original error */
-				r = DM_ENDIO_DONE;
-			}
-			spin_unlock_irqrestore(&m->lock, flags);
+		if (!atomic_read(&m->nr_valid_paths) &&
+		    !must_push_back_rq(m)) {
+			if (error == BLK_STS_IOERR)
+				dm_report_EIO(m);
+			/* complete with the original error */
+			r = DM_ENDIO_DONE;
 		}
 	}
 
