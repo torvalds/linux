@@ -1193,6 +1193,8 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 	if (!credits)
 		return;
 
+	fws->fifo_credit_map |= 1 << fifo;
+
 	if (fifo > BRCMF_FWS_FIFO_AC_BK &&
 	    fifo <= BRCMF_FWS_FIFO_AC_VO) {
 		for (lender_ac = BRCMF_FWS_FIFO_AC_VO; lender_ac >= 0;
@@ -1216,7 +1218,6 @@ static void brcmf_fws_return_credits(struct brcmf_fws_info *fws,
 
 	if (credits) {
 		fws->fifo_credit[fifo] += credits;
-		fws->fifo_credit_map |= 1 << fifo;
 	}
 
 	if (fws->fifo_credit[fifo] > fws->init_fifo_credit[fifo])
