@@ -27,11 +27,9 @@ properties:
       of this binary blob is kept secret by CellWise. The only way to obtain
       it is to mail two batteries to a test facility of CellWise and receive
       back a test report with the binary blob.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint8-array
-    items:
-      - minItems: 64
-        maxItems: 64
+    $ref: /schemas/types.yaml#definitions/uint8-array
+    minItems: 64
+    maxItems: 64
 
   cellwise,monitor-interval-ms:
     description:
@@ -41,10 +39,9 @@ properties:
   power-supplies:
     description:
       Specifies supplies used for charging the battery connected to this gauge
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle-array
-      - minItems: 1
-        maxItems: 8 # Should be enough
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 8 # Should be enough
 
   monitored-battery:
     description:

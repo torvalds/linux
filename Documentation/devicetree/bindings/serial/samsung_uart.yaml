@@ -33,9 +33,8 @@ properties:
     description: |
       The size (in bytes) of the IO accesses that should be performed
       on the device.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [ 1, 4 ]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 1, 4 ]
 
   clocks:
     minItems: 2

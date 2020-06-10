@@ -67,8 +67,7 @@ properties:
       1 - direct_sync
       2 - scaled_sync
       3 - pulse_sync
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 

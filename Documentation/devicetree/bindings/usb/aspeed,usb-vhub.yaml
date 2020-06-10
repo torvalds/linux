@@ -52,21 +52,18 @@ properties:
 
   vhub-vendor-id:
     description: vhub Vendor ID
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maximum: 65535
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
 
   vhub-product-id:
     description: vhub Product ID
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maximum: 65535
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
 
   vhub-device-revision:
     description: vhub Device Revision in binary-coded decimal
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maximum: 65535
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 65535
 
   vhub-strings:
     type: object
@@ -90,18 +87,15 @@ properties:
 
           manufacturer:
             description: vhub manufacturer
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/string
+            $ref: /schemas/types.yaml#/definitions/string
 
           product:
             description: vhub product name
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/string
+            $ref: /schemas/types.yaml#/definitions/string
 
           serial-number:
             description: vhub device serial number
-            allOf:
-              - $ref: /schemas/types.yaml#/definitions/string
+            $ref: /schemas/types.yaml#/definitions/string
 
 required:
   - compatible

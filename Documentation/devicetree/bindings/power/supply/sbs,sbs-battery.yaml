@@ -32,16 +32,14 @@ properties:
     description:
       The number of times to retry I2C transactions on I2C IO failure.
     default: 0
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   sbs,poll-retry-count:
     description:
       The number of times to try looking for new status after an external
       change notification.
     default: 0
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   sbs,battery-detect-gpios:
     description:

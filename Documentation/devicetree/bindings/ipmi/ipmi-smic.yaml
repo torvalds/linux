@@ -31,9 +31,8 @@ properties:
 
   reg-size:
     description: The access width of the register in bytes. Defaults to 1.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 2, 4, 8]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 2, 4, 8]
 
   reg-spacing:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -43,9 +42,8 @@ properties:
     description: |
       The amount of bits to shift the register content to the right to get
       the data into bit zero.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - maximum: 56
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 56
 
 required:
   - compatible

@@ -74,15 +74,13 @@ properties:
       - const: cpts
 
   ti,cpts-ext-ts-inputs:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
       Number of hardware timestamp push inputs (HWx_TS_PUSH)
 
   ti,cpts-periodic-outputs:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 8
     description:
       Number of timestamp Generator function outputs (TS_GENFx)
