@@ -48,6 +48,7 @@
 
 #define SMU11_TOOL_SIZE			0x19000
 
+#define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 2
 
 #define CLK_MAP(clk, index) \
@@ -91,9 +92,17 @@ struct smu_11_0_max_sustainable_clocks {
 	uint32_t soc_clock;
 };
 
+struct smu_11_0_dpm_clk_level {
+	bool				enabled;
+	uint32_t			value;
+};
+
 struct smu_11_0_dpm_table {
-	uint32_t    min;        /* MHz */
-	uint32_t    max;        /* MHz */
+	uint32_t			min;        /* MHz */
+	uint32_t			max;        /* MHz */
+	uint32_t			count;
+	bool				is_fine_grained;
+	struct smu_11_0_dpm_clk_level	dpm_levels[MAX_DPM_LEVELS];
 };
 
 struct smu_11_0_pcie_table {
@@ -107,7 +116,9 @@ struct smu_11_0_dpm_tables {
 	struct smu_11_0_dpm_table        uclk_table;
 	struct smu_11_0_dpm_table        eclk_table;
 	struct smu_11_0_dpm_table        vclk_table;
+	struct smu_11_0_dpm_table        vclk1_table;
 	struct smu_11_0_dpm_table        dclk_table;
+	struct smu_11_0_dpm_table        dclk1_table;
 	struct smu_11_0_dpm_table        dcef_table;
 	struct smu_11_0_dpm_table        pixel_table;
 	struct smu_11_0_dpm_table        display_table;
