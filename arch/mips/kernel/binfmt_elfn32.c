@@ -54,27 +54,9 @@ struct elf_prstatus32
 };
 #define elf_prpsinfo compat_elf_prpsinfo
 
-#define elf_caddr_t	u32
 #define init_elf_binfmt init_elfn32_binfmt
 
-#define jiffies_to_timeval jiffies_to_old_timeval32
-static __inline__ void
-jiffies_to_old_timeval32(unsigned long jiffies, struct old_timeval32 *value)
-{
-	/*
-	 * Convert jiffies to nanoseconds and separate with
-	 * one divide.
-	 */
-	u64 nsec = (u64)jiffies * TICK_NSEC;
-	u32 rem;
-	value->tv_sec = div_u64_rem(nsec, NSEC_PER_SEC, &rem);
-	value->tv_usec = rem / NSEC_PER_USEC;
-}
-
 #define ELF_CORE_EFLAGS EF_MIPS_ABI2
-
-#undef TASK_SIZE
-#define TASK_SIZE TASK_SIZE32
 
 #undef ns_to_kernel_old_timeval
 #define ns_to_kernel_old_timeval ns_to_old_timeval32
