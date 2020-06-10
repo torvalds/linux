@@ -14493,6 +14493,7 @@ M:	Geert Uytterhoeven <geert+renesas@glider.be>
 L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/geert/renesas-drivers.git clk-renesas
+F:	Documentation/devicetree/bindings/clock/renesas,*
 F:	drivers/clk/renesas/
 
 RENESAS EMEV2 I2C DRIVER
