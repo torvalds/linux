@@ -93,11 +93,6 @@ struct io_wq_work {
 	pid_t task_pid;
 };
 
-#define INIT_IO_WORK(work)					\
-	do {							\
-		*(work) = (struct io_wq_work){};		\
-	} while (0)						\
-
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
 {
 	if (!work->list.next)

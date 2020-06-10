@@ -542,6 +542,7 @@ enum {
 	REQ_F_BUFFER_SELECTED_BIT,
 	REQ_F_NO_FILE_TABLE_BIT,
 	REQ_F_QUEUE_TIMEOUT_BIT,
+	REQ_F_WORK_INITIALIZED_BIT,
 
 	/* not a real bit, just to check we're not overflowing the space */
 	__REQ_F_LAST_BIT,
@@ -599,6 +600,8 @@ enum {
 	REQ_F_NO_FILE_TABLE	= BIT(REQ_F_NO_FILE_TABLE_BIT),
 	/* needs to queue linked timeout */
 	REQ_F_QUEUE_TIMEOUT	= BIT(REQ_F_QUEUE_TIMEOUT_BIT),
+	/* io_wq_work is initialized */
+	REQ_F_WORK_INITIALIZED	= BIT(REQ_F_WORK_INITIALIZED_BIT),
 };
 
 struct async_poll {
@@ -911,6 +914,19 @@ EXPORT_SYMBOL(io_uring_get_socket);
 
 static void io_file_put_work(struct work_struct *work);
 
+/*
+ * Note: must call io_req_init_async() for the first time you
+ * touch any members of io_wq_work.
+ */
+static inline void io_req_init_async(struct io_kiocb *req)
+{
+	if (req->flags & REQ_F_WORK_INITIALIZED)
+		return;
+
+	memset(&req->work, 0, sizeof(req->work));
+	req->flags |= REQ_F_WORK_INITIALIZED;
+}
+
 static inline bool io_async_submit(struct io_ring_ctx *ctx)
 {
 	return ctx->flags & IORING_SETUP_SQPOLL;
@@ -1037,6 +1053,9 @@ static inline void io_req_work_grab_env(struct io_kiocb *req,
 
 static inline void io_req_work_drop_env(struct io_kiocb *req)
 {
+	if (!(req->flags & REQ_F_WORK_INITIALIZED))
+		return;
+
 	if (req->work.mm) {
 		mmdrop(req->work.mm);
 		req->work.mm = NULL;
@@ -2785,8 +2804,14 @@ static int __io_splice_prep(struct io_kiocb *req,
 		return ret;
 	req->flags |= REQ_F_NEED_CLEANUP;
 
-	if (!S_ISREG(file_inode(sp->file_in)->i_mode))
+	if (!S_ISREG(file_inode(sp->file_in)->i_mode)) {
+		/*
+		 * Splice operation will be punted aync, and here need to
+		 * modify io_wq_work.flags, so initialize io_wq_work firstly.
+		 */
+		io_req_init_async(req);
 		req->work.flags |= IO_WQ_WORK_UNBOUND;
+	}
 
 	return 0;
 }
@@ -3372,8 +3397,10 @@ static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	/*
 	 * If we queue this for async, it must not be cancellable. That would
-	 * leave the 'file' in an undeterminate state.
+	 * leave the 'file' in an undeterminate state, and here need to modify
+	 * io_wq_work.flags, so initialize io_wq_work firstly.
 	 */
+	io_req_init_async(req);
 	req->work.flags |= IO_WQ_WORK_NO_CANCEL;
 
 	if (unlikely(req->ctx->flags & (IORING_SETUP_IOPOLL|IORING_SETUP_SQPOLL)))
@@ -4851,6 +4878,8 @@ static int io_req_defer_prep(struct io_kiocb *req,
 	if (!sqe)
 		return 0;
 
+	io_req_init_async(req);
+
 	if (io_op_defs[req->opcode].file_table) {
 		ret = io_grab_files(req);
 		if (unlikely(ret))
@@ -5505,7 +5534,8 @@ static void __io_queue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 again:
 	linked_timeout = io_prep_linked_timeout(req);
 
-	if (req->work.creds && req->work.creds != current_cred()) {
+	if ((req->flags & REQ_F_WORK_INITIALIZED) && req->work.creds &&
+	    req->work.creds != current_cred()) {
 		if (old_creds)
 			revert_creds(old_creds);
 		if (old_creds == req->work.creds)
@@ -5528,6 +5558,8 @@ again:
 			goto exit;
 		}
 punt:
+		io_req_init_async(req);
+
 		if (io_op_defs[req->opcode].file_table) {
 			ret = io_grab_files(req);
 			if (ret)
@@ -5780,7 +5812,6 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	refcount_set(&req->refs, 2);
 	req->task = NULL;
 	req->result = 0;
-	INIT_IO_WORK(&req->work);
 
 	if (unlikely(req->opcode >= IORING_OP_LAST))
 		return -EINVAL;
@@ -5802,6 +5833,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 
 	id = READ_ONCE(sqe->personality);
 	if (id) {
+		io_req_init_async(req);
 		req->work.creds = idr_find(&ctx->personality_idr, id);
 		if (unlikely(!req->work.creds))
 			return -EINVAL;
