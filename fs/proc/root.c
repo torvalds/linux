@@ -264,11 +264,13 @@ static void proc_kill_sb(struct super_block *sb)
 {
 	struct proc_fs_info *fs_info = proc_sb_info(sb);
 
-	if (fs_info->proc_self)
-		dput(fs_info->proc_self);
+	if (!fs_info) {
+		kill_anon_super(sb);
+		return;
+	}
 
-	if (fs_info->proc_thread_self)
-		dput(fs_info->proc_thread_self);
+	dput(fs_info->proc_self);
+	dput(fs_info->proc_thread_self);
 
 	kill_anon_super(sb);
 	put_pid_ns(fs_info->pid_ns);
