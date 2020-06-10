@@ -323,6 +323,10 @@ struct brcmf_skbuff_cb {
  *	firmware suppress the packet as device is already in PS mode.
  * @BRCMF_FWS_TXSTATUS_FW_TOSSED:
  *	firmware tossed the packet.
+ * @BRCMF_FWS_TXSTATUS_FW_DISCARD_NOACK:
+ *	firmware tossed the packet after retries.
+ * @BRCMF_FWS_TXSTATUS_FW_SUPPRESS_ACKED:
+ *	firmware wrongly reported suppressed previously, now fixing to acked.
  * @BRCMF_FWS_TXSTATUS_HOST_TOSSED:
  *	host tossed the packet.
  */
@@ -331,6 +335,8 @@ enum brcmf_fws_txstatus {
 	BRCMF_FWS_TXSTATUS_CORE_SUPPRESS,
 	BRCMF_FWS_TXSTATUS_FW_PS_SUPPRESS,
 	BRCMF_FWS_TXSTATUS_FW_TOSSED,
+	BRCMF_FWS_TXSTATUS_FW_DISCARD_NOACK,
+	BRCMF_FWS_TXSTATUS_FW_SUPPRESS_ACKED,
 	BRCMF_FWS_TXSTATUS_HOST_TOSSED
 };
 
@@ -1455,6 +1461,10 @@ brcmf_fws_txs_process(struct brcmf_fws_info *fws, u8 flags, u32 hslot,
 		remove_from_hanger = false;
 	} else if (flags == BRCMF_FWS_TXSTATUS_FW_TOSSED)
 		fws->stats.txs_tossed += compcnt;
+	else if (flags == BRCMF_FWS_TXSTATUS_FW_DISCARD_NOACK)
+		fws->stats.txs_discard += compcnt;
+	else if (flags == BRCMF_FWS_TXSTATUS_FW_SUPPRESS_ACKED)
+		fws->stats.txs_discard += compcnt;
 	else if (flags == BRCMF_FWS_TXSTATUS_HOST_TOSSED)
 		fws->stats.txs_host_tossed += compcnt;
 	else
