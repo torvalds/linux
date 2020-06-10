@@ -1921,11 +1921,6 @@ get_engines(struct i915_gem_context *ctx,
 	}
 
 	user = u64_to_user_ptr(args->value);
-	if (!access_ok(user, size)) {
-		err = -EFAULT;
-		goto err_free;
-	}
-
 	if (put_user(0, &user->extensions)) {
 		err = -EFAULT;
 		goto err_free;
