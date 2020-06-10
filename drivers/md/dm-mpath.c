@@ -335,6 +335,8 @@ static int pg_init_all_paths(struct multipath *m)
 
 static void __switch_pg(struct multipath *m, struct priority_group *pg)
 {
+	lockdep_assert_held(&m->lock);
+
 	m->current_pg = pg;
 
 	/* Must we initialise the PG first, and queue I/O till it's ready? */
@@ -382,7 +384,9 @@ static struct pgpath *choose_pgpath(struct multipath *m, size_t nr_bytes)
 	unsigned bypassed = 1;
 
 	if (!atomic_read(&m->nr_valid_paths)) {
+		spin_lock_irqsave(&m->lock, flags);
 		clear_bit(MPATHF_QUEUE_IO, &m->flags);
+		spin_unlock_irqrestore(&m->lock, flags);
 		goto failed;
 	}
 
@@ -422,8 +426,11 @@ check_current_pg:
 				continue;
 			pgpath = choose_path_in_pg(m, pg, nr_bytes);
 			if (!IS_ERR_OR_NULL(pgpath)) {
-				if (!bypassed)
+				if (!bypassed) {
+					spin_lock_irqsave(&m->lock, flags);
 					set_bit(MPATHF_PG_INIT_DELAY_RETRY, &m->flags);
+					spin_unlock_irqrestore(&m->lock, flags);
+				}
 				return pgpath;
 			}
 		}
@@ -1662,9 +1669,9 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 
 	spin_lock_irqsave(&m->lock, flags);
 	bio_list_add(&m->queued_bios, clone);
-	spin_unlock_irqrestore(&m->lock, flags);
 	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
 		queue_work(kmultipathd, &m->process_queued_bios);
+	spin_unlock_irqrestore(&m->lock, flags);
 
 	r = DM_ENDIO_INCOMPLETE;
 done:
@@ -1938,6 +1945,7 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 {
 	struct multipath *m = ti->private;
 	struct pgpath *current_pgpath;
+	unsigned long flags;
 	int r;
 
 	current_pgpath = READ_ONCE(m->current_pgpath);
@@ -1965,8 +1973,10 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 			/* Path status changed, redo selection */
 			(void) choose_pgpath(m, 0);
 		}
+		spin_lock_irqsave(&m->lock, flags);
 		if (test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags))
-			pg_init_all_paths(m);
+			(void) __pg_init_all_paths(m);
+		spin_unlock_irqrestore(&m->lock, flags);
 		dm_table_run_md_queue_async(m->ti->table);
 		process_queued_io_list(m);
 	}
