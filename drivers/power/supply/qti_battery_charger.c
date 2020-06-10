@@ -864,6 +864,7 @@ static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
 {
 	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
 						battery_class);
+	struct psy_state *pst = &bcdev->psy_list[PSY_TYPE_BATTERY];
 	int val;
 
 	if (kstrtoint(buf, 0, &val))
@@ -871,6 +872,9 @@ static ssize_t fake_soc_store(struct class *c, struct class_attribute *attr,
 
 	bcdev->fake_soc = val;
 	pr_debug("Set fake soc to %d\n", val);
+
+	if (IS_ENABLED(CONFIG_QTI_PMIC_GLINK_CLIENT_DEBUG) && pst->psy)
+		power_supply_changed(pst->psy);
 
 	return count;
 }
