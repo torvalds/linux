@@ -754,6 +754,7 @@ static struct snd_soc_dai_driver max98390_dai[] = {
 static int max98390_dsm_init(struct snd_soc_component *component)
 {
 	int ret;
+	int param_size, param_start_addr;
 	char filename[128];
 	const char *vendor, *product;
 	struct max98390_priv *max98390 =
@@ -778,16 +779,31 @@ static int max98390_dsm_init(struct snd_soc_component *component)
 	}
 
 	dev_dbg(component->dev,
-		"max98390: param fw size %ld\n",
+		"max98390: param fw size %zd\n",
 		fw->size);
+	if (fw->size < MAX98390_DSM_PARAM_MIN_SIZE) {
+		dev_err(component->dev,
+			"param fw is invalid.\n");
+		goto err_alloc;
+	}
 	dsm_param = (char *)fw->data;
+	param_start_addr = (dsm_param[0] & 0xff) | (dsm_param[1] & 0xff) << 8;
+	param_size = (dsm_param[2] & 0xff) | (dsm_param[3] & 0xff) << 8;
+	if (param_size > MAX98390_DSM_PARAM_MAX_SIZE ||
+		param_start_addr < DSM_STBASS_HPF_B0_BYTE0 ||
+		fw->size < param_size + MAX98390_DSM_PAYLOAD_OFFSET) {
+		dev_err(component->dev,
+			"param fw is invalid.\n");
+		goto err_alloc;
+	}
+	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x80);
 	dsm_param += MAX98390_DSM_PAYLOAD_OFFSET;
-	regmap_bulk_write(max98390->regmap, DSM_EQ_BQ1_B0_BYTE0,
-		dsm_param,
-		fw->size - MAX98390_DSM_PAYLOAD_OFFSET);
-	release_firmware(fw);
+	regmap_bulk_write(max98390->regmap, param_start_addr,
+		dsm_param, param_size);
 	regmap_write(max98390->regmap, MAX98390_R23E1_DSP_GLOBAL_EN, 0x01);
 
+err_alloc:
+	release_firmware(fw);
 err:
 	return ret;
 }
