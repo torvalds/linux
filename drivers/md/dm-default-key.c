@@ -386,7 +386,7 @@ static void default_key_io_hints(struct dm_target *ti,
 	const unsigned int sector_size = dkc->sector_size;
 
 	limits->logical_block_size =
-		max_t(unsigned short, limits->logical_block_size, sector_size);
+		max_t(unsigned int, limits->logical_block_size, sector_size);
 	limits->physical_block_size =
 		max_t(unsigned int, limits->physical_block_size, sector_size);
 	limits->io_min = max_t(unsigned int, limits->io_min, sector_size);
