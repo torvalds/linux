@@ -5111,7 +5111,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
 	struct intel_digital_port *dig_port;
 	struct intel_encoder *encoder;
-	bool init_hdmi, init_dp, init_lspcon = false;
+	bool init_hdmi, init_dp;
 	enum phy phy = intel_port_to_phy(dev_priv, port);
 
 	/*
@@ -5137,7 +5137,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		 * is initialized before lspcon.
 		 */
 		init_dp = true;
-		init_lspcon = true;
 		init_hdmi = false;
 		drm_dbg_kms(&dev_priv->drm, "VBT says port %c has lspcon\n",
 			    port_name(port));
@@ -5236,22 +5235,6 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	if (encoder->type != INTEL_OUTPUT_EDP && init_hdmi) {
 		if (!intel_ddi_init_hdmi_connector(dig_port))
 			goto err;
-	}
-
-	if (init_lspcon) {
-		if (lspcon_init(dig_port))
-			/* TODO: handle hdmi info frame part */
-			drm_dbg_kms(&dev_priv->drm,
-				    "LSPCON init success on port %c\n",
-				    port_name(port));
-		else
-			/*
-			 * LSPCON init faied, but DP init was success, so
-			 * lets try to drive as DP++ port.
-			 */
-			drm_err(&dev_priv->drm,
-				"LSPCON init failed on port %c\n",
-				port_name(port));
 	}
 
 	if (INTEL_GEN(dev_priv) >= 11) {
