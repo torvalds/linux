@@ -505,6 +505,36 @@ static void sdma_v4_0_init_golden_registers(struct amdgpu_device *adev)
 	}
 }
 
+static void sdma_v4_0_setup_ulv(struct amdgpu_device *adev)
+{
+	int i;
+
+	/*
+	 * The only chips with SDMAv4 and ULV are VG10 and VG20.
+	 * Server SKUs take a different hysteresis setting from other SKUs.
+	 */
+	switch (adev->asic_type) {
+	case CHIP_VEGA10:
+		if (adev->pdev->device == 0x6860)
+			break;
+		return;
+	case CHIP_VEGA20:
+		if (adev->pdev->device == 0x66a1)
+			break;
+		return;
+	default:
+		return;
+	}
+
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		uint32_t temp;
+
+		temp = RREG32_SDMA(i, mmSDMA0_ULV_CNTL);
+		temp = REG_SET_FIELD(temp, SDMA0_ULV_CNTL, HYSTERESIS, 0x0);
+		WREG32_SDMA(i, mmSDMA0_ULV_CNTL, temp);
+	}
+}
+
 static int sdma_v4_0_init_inst_ctx(struct amdgpu_sdma_instance *sdma_inst)
 {
 	int err = 0;
@@ -1812,6 +1842,8 @@ static int sdma_v4_0_late_init(void *handle)
 	struct ras_ih_if ih_info = {
 		.cb = sdma_v4_0_process_ras_data_cb,
 	};
+
+	sdma_v4_0_setup_ulv(adev);
 
 	if (adev->sdma.funcs && adev->sdma.funcs->reset_ras_error_count)
 		adev->sdma.funcs->reset_ras_error_count(adev);
