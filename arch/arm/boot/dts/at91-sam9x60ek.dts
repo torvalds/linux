@@ -309,6 +309,10 @@
 	};
 };
 
+&gpbr {
+	status = "okay";
+};
+
 &i2s {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2s_default>;
@@ -634,6 +638,11 @@
 			reg = <0x200000 0x600000>;
 		};
 	};
+};
+
+&rtt {
+	atmel,rtt-rtc-time-reg = <&gpbr 0x0>;
+	status = "okay";
 };
 
 &shutdown_controller {
