@@ -17532,13 +17532,6 @@ L:	linux-fsdevel@vger.kernel.org
 S:	Supported
 F:	fs/unicode/
 
-UNICORE32 ARCHITECTURE
-M:	Guan Xuetao <gxt@pku.edu.cn>
-S:	Maintained
-W:	http://mprc.pku.edu.cn/~guanxuetao/linux
-T:	git git://github.com/gxt/linux.git
-F:	arch/unicore32/
-
 UNIFDEF
 M:	Tony Finch <dot@dotat.at>
 S:	Maintained
