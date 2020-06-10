@@ -37,6 +37,8 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work);
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 {
 	INIT_DELAYED_WORK(&adev->jpeg.idle_work, amdgpu_jpeg_idle_work_handler);
+	mutex_init(&adev->jpeg.jpeg_pg_lock);
+	atomic_set(&adev->jpeg.total_submission_cnt, 0);
 
 	return 0;
 }
@@ -53,6 +55,8 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 
 		amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec);
 	}
+
+	mutex_destroy(&adev->jpeg.jpeg_pg_lock);
 
 	return 0;
 }
@@ -83,7 +87,7 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
 		fences += amdgpu_fence_count_emitted(&adev->jpeg.inst[i].ring_dec);
 	}
 
-	if (fences == 0)
+	if (!fences && !atomic_read(&adev->jpeg.total_submission_cnt))
 		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
 						       AMD_PG_STATE_GATE);
 	else
@@ -93,15 +97,19 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work)
 void amdgpu_jpeg_ring_begin_use(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	bool set_clocks = !cancel_delayed_work_sync(&adev->jpeg.idle_work);
 
-	if (set_clocks)
-		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
+	atomic_inc(&adev->jpeg.total_submission_cnt);
+	cancel_delayed_work_sync(&adev->jpeg.idle_work);
+
+	mutex_lock(&adev->jpeg.jpeg_pg_lock);
+	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_JPEG,
 						       AMD_PG_STATE_UNGATE);
+	mutex_unlock(&adev->jpeg.jpeg_pg_lock);
 }
 
 void amdgpu_jpeg_ring_end_use(struct amdgpu_ring *ring)
 {
+	atomic_dec(&ring->adev->jpeg.total_submission_cnt);
 	schedule_delayed_work(&ring->adev->jpeg.idle_work, JPEG_IDLE_TIMEOUT);
 }
 
