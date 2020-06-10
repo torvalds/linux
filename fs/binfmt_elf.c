@@ -208,7 +208,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		size_t len = strlen(k_platform) + 1;
 
 		u_platform = (elf_addr_t __user *)STACK_ALLOC(p, len);
-		if (__copy_to_user(u_platform, k_platform, len))
+		if (copy_to_user(u_platform, k_platform, len))
 			return -EFAULT;
 	}
 
@@ -221,7 +221,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		size_t len = strlen(k_base_platform) + 1;
 
 		u_base_platform = (elf_addr_t __user *)STACK_ALLOC(p, len);
-		if (__copy_to_user(u_base_platform, k_base_platform, len))
+		if (copy_to_user(u_base_platform, k_base_platform, len))
 			return -EFAULT;
 	}
 
@@ -231,7 +231,7 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	get_random_bytes(k_rand_bytes, sizeof(k_rand_bytes));
 	u_rand_bytes = (elf_addr_t __user *)
 		       STACK_ALLOC(p, sizeof(k_rand_bytes));
-	if (__copy_to_user(u_rand_bytes, k_rand_bytes, sizeof(k_rand_bytes)))
+	if (copy_to_user(u_rand_bytes, k_rand_bytes, sizeof(k_rand_bytes)))
 		return -EFAULT;
 
 	/* Create the ELF interpreter info */
@@ -314,21 +314,21 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 		return -EFAULT;
 
 	/* Now, let's put argc (and argv, envp if appropriate) on the stack */
-	if (__put_user(argc, sp++))
+	if (put_user(argc, sp++))
 		return -EFAULT;
 
 	/* Populate list of argv pointers back to argv strings. */
 	p = mm->arg_end = mm->arg_start;
 	while (argc-- > 0) {
 		size_t len;
-		if (__put_user((elf_addr_t)p, sp++))
+		if (put_user((elf_addr_t)p, sp++))
 			return -EFAULT;
 		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	if (__put_user(0, sp++))
+	if (put_user(0, sp++))
 		return -EFAULT;
 	mm->arg_end = p;
 
@@ -336,14 +336,14 @@ create_elf_tables(struct linux_binprm *bprm, const struct elfhdr *exec,
 	mm->env_end = mm->env_start = p;
 	while (envc-- > 0) {
 		size_t len;
-		if (__put_user((elf_addr_t)p, sp++))
+		if (put_user((elf_addr_t)p, sp++))
 			return -EFAULT;
 		len = strnlen_user((void __user *)p, MAX_ARG_STRLEN);
 		if (!len || len > MAX_ARG_STRLEN)
 			return -EINVAL;
 		p += len;
 	}
-	if (__put_user(0, sp++))
+	if (put_user(0, sp++))
 		return -EFAULT;
 	mm->env_end = p;
 
