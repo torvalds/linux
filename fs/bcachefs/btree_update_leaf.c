@@ -159,71 +159,32 @@ inline void bch2_btree_add_journal_pin(struct bch_fs *c,
 			     : btree_node_flush1);
 }
 
-static inline void __btree_journal_key(struct btree_trans *trans,
-				       enum btree_id btree_id,
-				       struct bkey_i *insert)
-{
-	struct journal *j = &trans->c->journal;
-	u64 seq = trans->journal_res.seq;
-	bool needs_whiteout = insert->k.needs_whiteout;
-
-	/* ick */
-	insert->k.needs_whiteout = false;
-	bch2_journal_add_keys(j, &trans->journal_res,
-			      btree_id, insert);
-	insert->k.needs_whiteout = needs_whiteout;
-
-	bch2_journal_set_has_inode(j, &trans->journal_res,
-				   insert->k.p.inode);
-
-	if (trans->journal_seq)
-		*trans->journal_seq = seq;
-}
-
-static void bch2_btree_journal_key(struct btree_trans *trans,
-				   struct btree_iter *iter,
-				   struct bkey_i *insert)
-{
-	struct bch_fs *c = trans->c;
-	struct journal *j = &c->journal;
-	struct btree *b = iter_l(iter)->b;
-
-	EBUG_ON(trans->journal_res.ref !=
-		!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY));
-
-	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
-		__btree_journal_key(trans, iter->btree_id, insert);
-		btree_bset_last(b)->journal_seq =
-			cpu_to_le64(trans->journal_res.seq);
-	}
-
-	bch2_btree_add_journal_pin(c, b,
-		likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))
-			? trans->journal_res.seq
-			: j->replay_journal_seq);
-
-	if (unlikely(!btree_node_dirty(b)))
-		set_btree_node_dirty(b);
-}
-
 /**
  * btree_insert_key - insert a key one key into a leaf node
  */
-static void btree_insert_key_leaf(struct btree_trans *trans,
+static bool btree_insert_key_leaf(struct btree_trans *trans,
 				  struct btree_iter *iter,
 				  struct bkey_i *insert)
 {
 	struct bch_fs *c = trans->c;
 	struct btree *b = iter_l(iter)->b;
 	struct bset_tree *t = bset_tree_last(b);
+	struct bset *i = bset(b, t);
 	int old_u64s = bset_u64s(t);
 	int old_live_u64s = b->nr.live_u64s;
 	int live_u64s_added, u64s_added;
 
-	insert->k.needs_whiteout = false;
+	if (unlikely(!bch2_btree_bset_insert_key(iter, b,
+					&iter_l(iter)->iter, insert)))
+		return false;
 
-	if (likely(bch2_btree_bset_insert_key(iter, b, &iter_l(iter)->iter, insert)))
-		bch2_btree_journal_key(trans, iter, insert);
+	i->journal_seq = cpu_to_le64(max(trans->journal_res.seq,
+					 le64_to_cpu(i->journal_seq)));
+
+	bch2_btree_add_journal_pin(c, b, trans->journal_res.seq);
+
+	if (unlikely(!btree_node_dirty(b)))
+		set_btree_node_dirty(b);
 
 	live_u64s_added = (int) b->nr.live_u64s - old_live_u64s;
 	u64s_added = (int) bset_u64s(t) - old_u64s;
@@ -238,6 +199,7 @@ static void btree_insert_key_leaf(struct btree_trans *trans,
 		bch2_btree_iter_reinit_node(iter, b);
 
 	trace_btree_insert_key(c, b, insert);
+	return true;
 }
 
 /* Normal update interface: */
@@ -326,7 +288,29 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 				       struct btree_iter *iter,
 				       struct bkey_i *insert)
 {
-	btree_insert_key_leaf(trans, iter, insert);
+	struct bch_fs *c = trans->c;
+	struct journal *j = &c->journal;
+	bool did_work;
+
+	EBUG_ON(trans->journal_res.ref !=
+		!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY));
+
+	insert->k.needs_whiteout = false;
+
+	did_work = btree_insert_key_leaf(trans, iter, insert);
+	if (!did_work)
+		return;
+
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+		bch2_journal_add_keys(j, &trans->journal_res,
+				      iter->btree_id, insert);
+
+		bch2_journal_set_has_inode(j, &trans->journal_res,
+					   insert->k.p.inode);
+
+		if (trans->journal_seq)
+			*trans->journal_seq = trans->journal_res.seq;
+	}
 }
 
 static inline bool iter_has_trans_triggers(struct btree_iter *iter)
@@ -411,6 +395,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 				JOURNAL_RES_GET_NONBLOCK);
 		if (ret)
 			goto err;
+	} else {
+		trans->journal_res.seq = c->journal.replay_journal_seq;
 	}
 
 	if (unlikely(trans->extra_journal_entry_u64s)) {
