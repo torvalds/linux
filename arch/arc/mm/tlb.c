@@ -562,7 +562,7 @@ void local_flush_pmd_tlb_range(struct vm_area_struct *vma, unsigned long start,
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-char *arc_mmu_mumbojumbo(int c, char *buf, int len)
+int arc_mmu_mumbojumbo(int c, char *buf, int len)
 {
 	struct cpuinfo_arc_mmu *mmu = &mmuinfo;
 	unsigned int bcr, u_dtlb, u_itlb, sasid;
@@ -607,7 +607,7 @@ char *arc_mmu_mumbojumbo(int c, char *buf, int len)
 		       IS_AVAIL1(sasid, ", SASID"),
 		       IS_AVAIL2(mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
 
-	return buf;
+	return n;
 }
 
 int pae40_exist_but_not_enab(void)

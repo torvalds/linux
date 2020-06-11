@@ -23,7 +23,7 @@
 #define ARC_REG_ICCM_BUILD	0x78	/* ICCM size (common) */
 #define ARC_REG_XY_MEM_BCR	0x79
 #define ARC_REG_MAC_BCR		0x7a
-#define ARC_REG_MUL_BCR		0x7b
+#define ARC_REG_MPY_BCR		0x7b
 #define ARC_REG_SWAP_BCR	0x7c
 #define ARC_REG_NORM_BCR	0x7d
 #define ARC_REG_MIXMAX_BCR	0x7e
@@ -177,7 +177,7 @@ struct bcr_isa_arcv2 {
 #endif
 };
 
-struct bcr_uarch_build_arcv2 {
+struct bcr_uarch_build {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, prod:8, maj:8, min:8;
 #else
@@ -353,35 +353,6 @@ struct bcr_generic {
 #else
 	unsigned int ver:8, info:24;
 #endif
-};
-
-/*
- *******************************************************************
- * Generic structures to hold build configuration used at runtime
- */
-
-struct cpuinfo_arc_bpu {
-	unsigned int ver, full, num_cache, num_pred, ret_stk;
-};
-
-struct cpuinfo_arc_ccm {
-	unsigned int base_addr, sz;
-};
-
-struct cpuinfo_arc {
-	struct cpuinfo_arc_bpu bpu;
-	struct bcr_identity core;
-	struct bcr_isa_arcv2 isa;
-	const char *release, *name;
-	unsigned int vec_base;
-	struct cpuinfo_arc_ccm iccm, dccm;
-	struct {
-		unsigned int swap:1, norm:1, minmax:1, barrel:1, crc:1, swape:1, pad1:2,
-			     fpu_sp:1, fpu_dp:1, dual:1, dual_enb:1, pad2:4,
-			     ap_num:4, ap_full:1, smart:1, rtt:1, pad3:1,
-			     timer0:1, timer1:1, rtc:1, gfrc:1, pad4:4;
-	} extn;
-	struct bcr_mpy extn_mpy;
 };
 
 static inline int is_isa_arcv2(void)

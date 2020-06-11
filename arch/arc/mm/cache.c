@@ -39,7 +39,7 @@ void (*__dma_cache_wback_inv)(phys_addr_t start, unsigned long sz);
 void (*__dma_cache_inv)(phys_addr_t start, unsigned long sz);
 void (*__dma_cache_wback)(phys_addr_t start, unsigned long sz);
 
-static char *read_decode_cache_bcr_arcv2(int c, char *buf, int len)
+static int read_decode_cache_bcr_arcv2(int c, char *buf, int len)
 {
 	struct cpuinfo_arc_cache *p_slc = &slc_info;
 	struct bcr_identity ident;
@@ -94,10 +94,10 @@ static char *read_decode_cache_bcr_arcv2(int c, char *buf, int len)
 		       perip_base,
 		       IS_AVAIL3(ioc_exists, ioc_enable, ", IO-Coherency (per-device) "));
 
-	return buf;
+	return n;
 }
 
-char *arc_cache_mumbojumbo(int c, char *buf, int len)
+int arc_cache_mumbojumbo(int c, char *buf, int len)
 {
 	struct cpuinfo_arc_cache *p_ic = &ic_info, *p_dc = &dc_info;
 	struct bcr_cache ibcr, dbcr;
@@ -153,9 +153,9 @@ dc_chk:
 
 slc_chk:
 	if (is_isa_arcv2())
-		read_decode_cache_bcr_arcv2(c, buf + n, len - n);
+		n += read_decode_cache_bcr_arcv2(c, buf + n, len - n);
 
-	return buf;
+	return n;
 }
 
 /*
