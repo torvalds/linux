@@ -230,6 +230,8 @@ struct amdgpu_ring {
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
+	u64			rptr_gpu_addr;
+	volatile u32		*rptr_cpu_addr;
 	u64			wptr;
 	u64			wptr_old;
 	unsigned		ring_size;
@@ -250,7 +252,11 @@ struct amdgpu_ring {
 	bool			use_doorbell;
 	bool			use_pollmem;
 	unsigned		wptr_offs;
+	u64			wptr_gpu_addr;
+	volatile u32		*wptr_cpu_addr;
 	unsigned		fence_offs;
+	u64			fence_gpu_addr;
+	volatile u32		*fence_cpu_addr;
 	uint64_t		current_ctx;
 	char			name[16];
 	u32                     trail_seq;
