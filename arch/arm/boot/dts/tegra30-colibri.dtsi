@@ -527,7 +527,7 @@
 			};
 
 			/* Colibri USBH_OC */
-			spi2-cs2-n-pw3, {
+			spi2-cs2-n-pw3 {
 				nvidia,pins = "spi2_cs2_n_pw3";
 				nvidia,function = "spi2_alt";
 				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
