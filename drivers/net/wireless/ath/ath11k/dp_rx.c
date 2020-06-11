@@ -1501,9 +1501,10 @@ static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
 						  struct sk_buff *skb)
 {
 	u32 *data = (u32 *)skb->data;
-	u8 pdev_id, ring_type, ring_id;
+	u8 pdev_id, ring_type, ring_id, pdev_idx;
 	u16 hp, tp;
 	u32 backpressure_time;
+	struct ath11k_bp_stats *bp_stats;
 
 	pdev_id = FIELD_GET(HTT_BACKPRESSURE_EVENT_PDEV_ID_M, *data);
 	ring_type = FIELD_GET(HTT_BACKPRESSURE_EVENT_RING_TYPE_M, *data);
@@ -1518,6 +1519,31 @@ static void ath11k_htt_backpressure_event_handler(struct ath11k_base *ab,
 
 	ath11k_dbg(ab, ATH11K_DBG_DP_HTT, "htt backpressure event, pdev %d, ring type %d,ring id %d, hp %d tp %d, backpressure time %d\n",
 		   pdev_id, ring_type, ring_id, hp, tp, backpressure_time);
+
+	if (ring_type == HTT_BACKPRESSURE_UMAC_RING_TYPE) {
+		if (ring_id >= HTT_SW_UMAC_RING_IDX_MAX)
+			return;
+
+		bp_stats = &ab->soc_stats.bp_stats.umac_ring_bp_stats[ring_id];
+	} else if (ring_type == HTT_BACKPRESSURE_LMAC_RING_TYPE) {
+		pdev_idx = DP_HW2SW_MACID(pdev_id);
+
+		if (ring_id >= HTT_SW_LMAC_RING_IDX_MAX || pdev_idx >= MAX_RADIOS)
+			return;
+
+		bp_stats = &ab->soc_stats.bp_stats.lmac_ring_bp_stats[ring_id][pdev_idx];
+	} else {
+		ath11k_warn(ab, "unknown ring type received in htt bp event %d\n",
+			    ring_type);
+		return;
+	}
+
+	spin_lock_bh(&ab->base_lock);
+	bp_stats->hp = hp;
+	bp_stats->tp = tp;
+	bp_stats->count++;
+	bp_stats->jiffies = jiffies;
+	spin_unlock_bh(&ab->base_lock);
 }
 
 void ath11k_dp_htt_htc_t2h_msg_handler(struct ath11k_base *ab,

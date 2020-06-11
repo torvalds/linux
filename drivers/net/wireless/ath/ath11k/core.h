@@ -590,6 +590,25 @@ struct ath11k_board_data {
 /* IPQ8074 HW channel counters frequency value in hertz */
 #define IPQ8074_CC_FREQ_HERTZ 320000
 
+struct ath11k_bp_stats {
+	/* Head Pointer reported by the last HTT Backpressure event for the ring */
+	u16 hp;
+
+	/* Tail Pointer reported by the last HTT Backpressure event for the ring */
+	u16 tp;
+
+	/* Number of Backpressure events received for the ring */
+	u32 count;
+
+	/* Last recorded event timestamp */
+	unsigned long jiffies;
+};
+
+struct ath11k_dp_ring_bp_stats {
+	struct ath11k_bp_stats umac_ring_bp_stats[HTT_SW_UMAC_RING_IDX_MAX];
+	struct ath11k_bp_stats lmac_ring_bp_stats[HTT_SW_LMAC_RING_IDX_MAX][MAX_RADIOS];
+};
+
 struct ath11k_soc_dp_tx_err_stats {
 	/* TCL Ring Descriptor unavailable */
 	u32 desc_na[DP_TCL_NUM_RING_MAX];
@@ -606,6 +625,7 @@ struct ath11k_soc_dp_stats {
 	u32 reo_error[HAL_REO_DEST_RING_ERROR_CODE_MAX];
 	u32 hal_reo_error[DP_REO_DST_RING_MAX];
 	struct ath11k_soc_dp_tx_err_stats tx_err;
+	struct ath11k_dp_ring_bp_stats bp_stats;
 };
 
 /* Master structure to hold the hw data which may be used in core module */
