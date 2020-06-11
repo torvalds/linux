@@ -112,10 +112,11 @@ static inline bool dma_should_free_from_pool(struct device *dev,
 static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp, unsigned long attrs)
 {
-	size_t alloc_size = PAGE_ALIGN(size);
 	int node = dev_to_node(dev);
 	struct page *page = NULL;
 	u64 phys_limit;
+
+	WARN_ON_ONCE(!PAGE_ALIGNED(size));
 
 	if (attrs & DMA_ATTR_NO_WARN)
 		gfp |= __GFP_NOWARN;
@@ -124,14 +125,14 @@ static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 	gfp &= ~__GFP_ZERO;
 	gfp |= dma_direct_optimal_gfp_mask(dev, dev->coherent_dma_mask,
 					   &phys_limit);
-	page = dma_alloc_contiguous(dev, alloc_size, gfp);
+	page = dma_alloc_contiguous(dev, size, gfp);
 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
-		dma_free_contiguous(dev, page, alloc_size);
+		dma_free_contiguous(dev, page, size);
 		page = NULL;
 	}
 again:
 	if (!page)
-		page = alloc_pages_node(node, gfp, get_order(alloc_size));
+		page = alloc_pages_node(node, gfp, get_order(size));
 	if (page && !dma_coherent_ok(dev, page_to_phys(page), size)) {
 		dma_free_contiguous(dev, page, size);
 		page = NULL;
@@ -158,8 +159,10 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	struct page *page;
 	void *ret;
 
+	size = PAGE_ALIGN(size);
+
 	if (dma_should_alloc_from_pool(dev, gfp, attrs)) {
-		ret = dma_alloc_from_pool(dev, PAGE_ALIGN(size), &page, gfp);
+		ret = dma_alloc_from_pool(dev, size, &page, gfp);
 		if (!ret)
 			return NULL;
 		goto done;
@@ -183,10 +186,10 @@ void *dma_direct_alloc_pages(struct device *dev, size_t size,
 	     dma_alloc_need_uncached(dev, attrs)) ||
 	    (IS_ENABLED(CONFIG_DMA_REMAP) && PageHighMem(page))) {
 		/* remove any dirty cache lines on the kernel alias */
-		arch_dma_prep_coherent(page, PAGE_ALIGN(size));
+		arch_dma_prep_coherent(page, size);
 
 		/* create a coherent mapping */
-		ret = dma_common_contiguous_remap(page, PAGE_ALIGN(size),
+		ret = dma_common_contiguous_remap(page, size,
 				dma_pgprot(dev, PAGE_KERNEL, attrs),
 				__builtin_return_address(0));
 		if (!ret)
