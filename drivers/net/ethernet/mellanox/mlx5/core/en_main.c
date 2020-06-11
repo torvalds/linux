@@ -399,7 +399,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 
 	if (params->xdp_prog)
 		bpf_prog_inc(params->xdp_prog);
-	rq->xdp_prog = params->xdp_prog;
+	RCU_INIT_POINTER(rq->xdp_prog, params->xdp_prog);
 
 	rq_xdp_ix = rq->ix;
 	if (xsk)
@@ -408,7 +408,7 @@ static int mlx5e_alloc_rq(struct mlx5e_channel *c,
 	if (err < 0)
 		goto err_rq_wq_destroy;
 
-	rq->buff.map_dir = rq->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
+	rq->buff.map_dir = params->xdp_prog ? DMA_BIDIRECTIONAL : DMA_FROM_DEVICE;
 	rq->buff.headroom = mlx5e_get_rq_headroom(mdev, params, xsk);
 	pool_size = 1 << params->log_rq_mtu_frames;
 
@@ -564,8 +564,8 @@ err_free:
 	}
 
 err_rq_wq_destroy:
-	if (rq->xdp_prog)
-		bpf_prog_put(rq->xdp_prog);
+	if (params->xdp_prog)
+		bpf_prog_put(params->xdp_prog);
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
 	page_pool_destroy(rq->page_pool);
 	mlx5_wq_destroy(&rq->wq_ctrl);
@@ -575,10 +575,16 @@ err_rq_wq_destroy:
 
 static void mlx5e_free_rq(struct mlx5e_rq *rq)
 {
+	struct mlx5e_channel *c = rq->channel;
+	struct bpf_prog *old_prog = NULL;
 	int i;
 
-	if (rq->xdp_prog)
-		bpf_prog_put(rq->xdp_prog);
+	/* drop_rq has neither channel nor xdp_prog. */
+	if (c)
+		old_prog = rcu_dereference_protected(rq->xdp_prog,
+						     lockdep_is_held(&c->priv->state_lock));
+	if (old_prog)
+		bpf_prog_put(old_prog);
 
 	switch (rq->wq_type) {
 	case MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ:
@@ -4330,6 +4336,16 @@ static int mlx5e_xdp_allowed(struct mlx5e_priv *priv, struct bpf_prog *prog)
 	return 0;
 }
 
+static void mlx5e_rq_replace_xdp_prog(struct mlx5e_rq *rq, struct bpf_prog *prog)
+{
+	struct bpf_prog *old_prog;
+
+	old_prog = rcu_replace_pointer(rq->xdp_prog, prog,
+				       lockdep_is_held(&rq->channel->priv->state_lock));
+	if (old_prog)
+		bpf_prog_put(old_prog);
+}
+
 static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
@@ -4388,29 +4404,10 @@ static int mlx5e_xdp_set(struct net_device *netdev, struct bpf_prog *prog)
 	 */
 	for (i = 0; i < priv->channels.num; i++) {
 		struct mlx5e_channel *c = priv->channels.c[i];
-		bool xsk_open = test_bit(MLX5E_CHANNEL_STATE_XSK, c->state);
 
-		clear_bit(MLX5E_RQ_STATE_ENABLED, &c->rq.state);
-		if (xsk_open)
-			clear_bit(MLX5E_RQ_STATE_ENABLED, &c->xskrq.state);
-		napi_synchronize(&c->napi);
-		/* prevent mlx5e_poll_rx_cq from accessing rq->xdp_prog */
-
-		old_prog = xchg(&c->rq.xdp_prog, prog);
-		if (old_prog)
-			bpf_prog_put(old_prog);
-
-		if (xsk_open) {
-			old_prog = xchg(&c->xskrq.xdp_prog, prog);
-			if (old_prog)
-				bpf_prog_put(old_prog);
-		}
-
-		set_bit(MLX5E_RQ_STATE_ENABLED, &c->rq.state);
-		if (xsk_open)
-			set_bit(MLX5E_RQ_STATE_ENABLED, &c->xskrq.state);
-		/* napi_schedule in case we have missed anything */
-		napi_schedule(&c->napi);
+		mlx5e_rq_replace_xdp_prog(&c->rq, prog);
+		if (test_bit(MLX5E_CHANNEL_STATE_XSK, c->state))
+			mlx5e_rq_replace_xdp_prog(&c->xskrq, prog);
 	}
 
 unlock:
