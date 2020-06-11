@@ -250,6 +250,27 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  */
 #include <asm/barrier.h>
 #include <linux/kasan-checks.h>
+#include <linux/kcsan-checks.h>
+
+/**
+ * data_race - mark an expression as containing intentional data races
+ *
+ * This data_race() macro is useful for situations in which data races
+ * should be forgiven.  One example is diagnostic code that accesses
+ * shared variables but is not a part of the core synchronization design.
+ *
+ * This macro *does not* affect normal code generation, but is a hint
+ * to tooling that data races here are to be ignored.
+ */
+#define data_race(expr)							\
+({									\
+	__kcsan_disable_current();					\
+	({								\
+		__unqual_scalar_typeof(({ expr; })) __v = ({ expr; });	\
+		__kcsan_enable_current();				\
+		__v;							\
+	});								\
+})
 
 /*
  * Use __READ_ONCE() instead of READ_ONCE() if you do not require any
@@ -260,7 +281,9 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 
 #define __READ_ONCE_SCALAR(x)						\
 ({									\
-	__unqual_scalar_typeof(x) __x = __READ_ONCE(x);			\
+	typeof(x) *__xp = &(x);						\
+	__unqual_scalar_typeof(x) __x = data_race(__READ_ONCE(*__xp));	\
+	kcsan_check_atomic_read(__xp, sizeof(*__xp));			\
 	smp_read_barrier_depends();					\
 	(typeof(x))__x;							\
 })
@@ -271,15 +294,22 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	__READ_ONCE_SCALAR(x);						\
 })
 
-#define __WRITE_ONCE(x, val)				\
-do {							\
-	*(volatile typeof(x) *)&(x) = (val);		\
+#define __WRITE_ONCE(x, val)						\
+do {									\
+	*(volatile typeof(x) *)&(x) = (val);				\
 } while (0)
 
-#define WRITE_ONCE(x, val)				\
-do {							\
-	compiletime_assert_rwonce_type(x);		\
-	__WRITE_ONCE(x, val);				\
+#define __WRITE_ONCE_SCALAR(x, val)					\
+do {									\
+	typeof(x) *__xp = &(x);						\
+	kcsan_check_atomic_write(__xp, sizeof(*__xp));			\
+	data_race(({ __WRITE_ONCE(*__xp, val); 0; }));			\
+} while (0)
+
+#define WRITE_ONCE(x, val)						\
+do {									\
+	compiletime_assert_rwonce_type(x);				\
+	__WRITE_ONCE_SCALAR(x, val);					\
 } while (0)
 
 #ifdef CONFIG_KASAN
@@ -290,11 +320,30 @@ do {							\
  * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
  */
 # define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
+# define __no_sanitize_or_inline __no_kasan_or_inline
 #else
 # define __no_kasan_or_inline __always_inline
 #endif
 
-static __no_kasan_or_inline
+#define __no_kcsan __no_sanitize_thread
+#ifdef __SANITIZE_THREAD__
+/*
+ * Rely on __SANITIZE_THREAD__ instead of CONFIG_KCSAN, to avoid not inlining in
+ * compilation units where instrumentation is disabled. The attribute 'noinline'
+ * is required for older compilers, where implicit inlining of very small
+ * functions renders __no_sanitize_thread ineffective.
+ */
+# define __no_kcsan_or_inline __no_kcsan noinline notrace __maybe_unused
+# define __no_sanitize_or_inline __no_kcsan_or_inline
+#else
+# define __no_kcsan_or_inline __always_inline
+#endif
+
+#ifndef __no_sanitize_or_inline
+#define __no_sanitize_or_inline __always_inline
+#endif
+
+static __no_sanitize_or_inline
 unsigned long __read_once_word_nocheck(const void *addr)
 {
 	return __READ_ONCE(*(unsigned long *)addr);
@@ -302,8 +351,8 @@ unsigned long __read_once_word_nocheck(const void *addr)
 
 /*
  * Use READ_ONCE_NOCHECK() instead of READ_ONCE() if you need to load a
- * word from memory atomically but without telling KASAN. This is usually
- * used by unwinding code when walking the stack of a running process.
+ * word from memory atomically but without telling KASAN/KCSAN. This is
+ * usually used by unwinding code when walking the stack of a running process.
  */
 #define READ_ONCE_NOCHECK(x)						\
 ({									\
