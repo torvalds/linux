@@ -116,7 +116,7 @@ void release_thread(struct task_struct *dead_task)
 extern asmlinkage void ret_from_fork(void);
 
 /*
- * copy_thread_tls
+ * copy_thread
  * @clone_flags: flags
  * @usp: user stack pointer or fn for kernel thread
  * @arg: arg to fn for kernel thread; always NULL for userspace thread
@@ -147,8 +147,8 @@ extern asmlinkage void ret_from_fork(void);
  */
 
 int
-copy_thread_tls(unsigned long clone_flags, unsigned long usp,
-		unsigned long arg, struct task_struct *p, unsigned long tls)
+copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+	    struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *userregs;
 	struct pt_regs *kregs;

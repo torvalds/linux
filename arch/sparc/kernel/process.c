@@ -28,7 +28,7 @@ asmlinkage long sparc_fork(struct pt_regs *regs)
 	ret = _do_fork(&args);
 
 	/* If we get an error and potentially restart the system
-	 * call, we're screwed because copy_thread_tls() clobbered
+	 * call, we're screwed because copy_thread() clobbered
 	 * the parent's %o1.  So detect that case and restore it
 	 * here.
 	 */
@@ -53,7 +53,7 @@ asmlinkage long sparc_vfork(struct pt_regs *regs)
 	ret = _do_fork(&args);
 
 	/* If we get an error and potentially restart the system
-	 * call, we're screwed because copy_thread_tls() clobbered
+	 * call, we're screwed because copy_thread() clobbered
 	 * the parent's %o1.  So detect that case and restore it
 	 * here.
 	 */
@@ -99,7 +99,7 @@ asmlinkage long sparc_clone(struct pt_regs *regs)
 	ret = _do_fork(&args);
 
 	/* If we get an error and potentially restart the system
-	 * call, we're screwed because copy_thread_tls() clobbered
+	 * call, we're screwed because copy_thread() clobbered
 	 * the parent's %o1.  So detect that case and restore it
 	 * here.
 	 */

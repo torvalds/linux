@@ -138,9 +138,8 @@ asmlinkage int m68k_clone3(struct pt_regs *regs)
 	return sys_clone3((struct clone_args __user *)regs->d1, regs->d2);
 }
 
-int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
-		    unsigned long arg, struct task_struct *p,
-		    unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long usp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct fork_frame {
 		struct switch_stack sw;

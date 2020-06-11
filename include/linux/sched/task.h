@@ -65,8 +65,8 @@ extern void fork_init(void);
 
 extern void release_task(struct task_struct * p);
 
-extern int copy_thread_tls(unsigned long, unsigned long, unsigned long,
-			struct task_struct *, unsigned long);
+extern int copy_thread(unsigned long, unsigned long, unsigned long,
+		       struct task_struct *, unsigned long);
 
 extern void flush_thread(void);
 

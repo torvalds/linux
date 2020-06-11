@@ -577,9 +577,8 @@ barf:
  * Parent -->  %o0 == childs  pid, %o1 == 0
  * Child  -->  %o0 == parents pid, %o1 == 1
  */
-int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
-		    unsigned long arg, struct task_struct *p,
-		    unsigned long tls)
+int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
+		struct task_struct *p, unsigned long tls)
 {
 	struct thread_info *t = task_thread_info(p);
 	struct pt_regs *regs = current_pt_regs();

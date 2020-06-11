@@ -208,7 +208,7 @@ arch_initcall(parisc_idle_init);
  * Copy architecture-specific thread state
  */
 int
-copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+copy_thread(unsigned long clone_flags, unsigned long usp,
 	    unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *cregs = &(p->thread.regs);
