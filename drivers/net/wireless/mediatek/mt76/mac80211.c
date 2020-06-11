@@ -58,12 +58,15 @@ static const struct ieee80211_channel mt76_channels_5ghz[] = {
 	CHAN5G(132, 5660),
 	CHAN5G(136, 5680),
 	CHAN5G(140, 5700),
+	CHAN5G(144, 5720),
 
 	CHAN5G(149, 5745),
 	CHAN5G(153, 5765),
 	CHAN5G(157, 5785),
 	CHAN5G(161, 5805),
 	CHAN5G(165, 5825),
+	CHAN5G(169, 5845),
+	CHAN5G(173, 5865),
 };
 
 static const struct ieee80211_tpt_blink mt76_tpt_blink[] = {
