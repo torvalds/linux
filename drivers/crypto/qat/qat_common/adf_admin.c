@@ -16,6 +16,7 @@
 #define ADF_DH895XCC_MAILBOX_BASE_OFFSET 0x20970
 #define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
 #define ADF_ADMINMSG_LEN 32
+#define ADF_CONST_TABLE_SIZE 1024
 
 static const u8 const_tab[1024] __aligned(1024) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -114,6 +115,7 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 	int offset = ae * ADF_ADMINMSG_LEN * 2;
 	void __iomem *mailbox = admin->mailbox_addr;
 	int mb_offset = ae * ADF_DH895XCC_MAILBOX_STRIDE;
+	struct icp_qat_fw_init_admin_req *request = in;
 	int times, received;
 
 	mutex_lock(&admin->lock);
@@ -138,33 +140,57 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 		       ADF_ADMINMSG_LEN, ADF_ADMINMSG_LEN);
 	else
 		dev_err(&GET_DEV(accel_dev),
-			"Failed to send admin msg to accelerator\n");
+			"Failed to send admin msg %d to accelerator %d\n",
+			request->cmd_id, ae);
 
 	mutex_unlock(&admin->lock);
 	return received ? 0 : -EFAULT;
 }
 
-static int adf_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
+static int adf_send_admin(struct adf_accel_dev *accel_dev,
+			  struct icp_qat_fw_init_admin_req *req,
+			  struct icp_qat_fw_init_admin_resp *resp,
+			  const unsigned long ae_mask)
 {
-	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	u32 ae;
+
+	for_each_set_bit(ae, &ae_mask, ICP_QAT_HW_AE_DELIMITER)
+		if (adf_put_admin_msg_sync(accel_dev, ae, req, resp) ||
+		    resp->status)
+			return -EFAULT;
+
+	return 0;
+}
+
+static int adf_init_me(struct adf_accel_dev *accel_dev)
+{
 	struct icp_qat_fw_init_admin_req req;
 	struct icp_qat_fw_init_admin_resp resp;
-	int i;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	u32 ae_mask = hw_device->ae_mask;
 
-	memset(&req, 0, sizeof(struct icp_qat_fw_init_admin_req));
-	req.cmd_id = cmd;
+	memset(&req, 0, sizeof(req));
+	memset(&resp, 0, sizeof(resp));
+	req.cmd_id = ICP_QAT_FW_INIT_ME;
 
-	if (cmd == ICP_QAT_FW_CONSTANTS_CFG) {
-		req.init_cfg_sz = 1024;
-		req.init_cfg_ptr = accel_dev->admin->const_tbl_addr;
-	}
-	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
-		memset(&resp, 0, sizeof(struct icp_qat_fw_init_admin_resp));
-		if (adf_put_admin_msg_sync(accel_dev, i, &req, &resp) ||
-		    resp.status)
-			return -EFAULT;
-	}
-	return 0;
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+
+static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
+{
+	struct icp_qat_fw_init_admin_req req;
+	struct icp_qat_fw_init_admin_resp resp;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	u32 ae_mask = hw_device->ae_mask;
+
+	memset(&req, 0, sizeof(req));
+	memset(&resp, 0, sizeof(resp));
+	req.cmd_id = ICP_QAT_FW_CONSTANTS_CFG;
+
+	req.init_cfg_sz = ADF_CONST_TABLE_SIZE;
+	req.init_cfg_ptr = accel_dev->admin->const_tbl_addr;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
 /**
@@ -177,11 +203,13 @@ static int adf_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
  */
 int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
-	int ret = adf_send_admin_cmd(accel_dev, ICP_QAT_FW_INIT_ME);
+	int ret;
 
+	ret = adf_init_me(accel_dev);
 	if (ret)
 		return ret;
-	return adf_send_admin_cmd(accel_dev, ICP_QAT_FW_CONSTANTS_CFG);
+
+	return adf_set_fw_constants(accel_dev);
 }
 EXPORT_SYMBOL_GPL(adf_send_admin_init);
 
