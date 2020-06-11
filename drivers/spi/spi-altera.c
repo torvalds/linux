@@ -86,6 +86,13 @@ static void altera_spi_tx_word(struct altera_spi *hw)
 			txd = (hw->tx[hw->count * 2]
 				| (hw->tx[hw->count * 2 + 1] << 8));
 			break;
+		case 4:
+			txd = (hw->tx[hw->count * 4]
+				| (hw->tx[hw->count * 4 + 1] << 8)
+				| (hw->tx[hw->count * 4 + 2] << 16)
+				| (hw->tx[hw->count * 4 + 3] << 24));
+			break;
+
 		}
 	}
 
@@ -106,6 +113,13 @@ static void altera_spi_rx_word(struct altera_spi *hw)
 			hw->rx[hw->count * 2] = rxd;
 			hw->rx[hw->count * 2 + 1] = rxd >> 8;
 			break;
+		case 4:
+			hw->rx[hw->count * 4] = rxd;
+			hw->rx[hw->count * 4 + 1] = rxd >> 8;
+			hw->rx[hw->count * 4 + 2] = rxd >> 16;
+			hw->rx[hw->count * 4 + 3] = rxd >> 24;
+			break;
+
 		}
 	}
 
