@@ -1378,6 +1378,63 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 	return NULL;
 }
 
+static enum bp_result get_vram_info_v23(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_3 *info_v23;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v23 = GET_IMAGE(struct atom_vram_info_header_v2_3,
+						DATA_TABLES(vram_info));
+
+	if (info_v23 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v23->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v23->vram_module[0].channel_width) / 8;
+
+	return result;
+}
+
+static enum bp_result get_vram_info_v24(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_4 *info_v24;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v24 = GET_IMAGE(struct atom_vram_info_header_v2_4,
+						DATA_TABLES(vram_info));
+
+	if (info_v24 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v24->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v24->vram_module[0].channel_width) / 8;
+
+	return result;
+}
+
+static enum bp_result get_vram_info_v25(
+	struct bios_parser *bp,
+	struct dc_vram_info *info)
+{
+	struct atom_vram_info_header_v2_5 *info_v25;
+	enum bp_result result = BP_RESULT_OK;
+
+	info_v25 = GET_IMAGE(struct atom_vram_info_header_v2_5,
+						DATA_TABLES(vram_info));
+
+	if (info_v25 == NULL)
+		return BP_RESULT_BADBIOSTABLE;
+
+	info->num_chans = info_v25->vram_module[0].channel_num;
+	info->dram_channel_width_bytes = (1 << info_v25->vram_module[0].channel_width) / 8;
+
+	return result;
+}
+
 /*
  * get_integrated_info_v11
  *
@@ -1666,6 +1723,46 @@ static enum bp_result construct_integrated_info(
 		}
 	}
 
+	return result;
+}
+
+static enum bp_result bios_parser_get_vram_info(
+		struct dc_bios *dcb,
+		struct dc_vram_info *info)
+{
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result = BP_RESULT_BADBIOSTABLE;
+	struct atom_common_table_header *header;
+	struct atom_data_revision revision;
+
+	if (info && DATA_TABLES(vram_info)) {
+		header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(vram_info));
+
+		get_atom_data_table_revision(header, &revision);
+
+		switch (revision.major) {
+		case 2:
+			switch (revision.minor) {
+			case 3:
+				result = get_vram_info_v23(bp, info);
+				break;
+			case 4:
+				result = get_vram_info_v24(bp, info);
+				break;
+			case 5:
+				result = get_vram_info_v25(bp, info);
+				break;
+			default:
+				break;
+			}
+			break;
+
+		default:
+			return result;
+		}
+
+	}
 	return result;
 }
 
@@ -2112,6 +2209,7 @@ static bool bios_parser2_construct(
 
 	bp->base.integrated_info = bios_parser_create_integrated_info(&bp->base);
 	bp->base.fw_info_valid = bios_parser_get_firmware_info(&bp->base, &bp->base.fw_info) == BP_RESULT_OK;
+	bios_parser_get_vram_info(&bp->base, &bp->base.vram_info);
 
 	return true;
 }

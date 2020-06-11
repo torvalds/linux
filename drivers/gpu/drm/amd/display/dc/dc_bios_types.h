@@ -153,6 +153,7 @@ struct dc_bios {
 	struct integrated_info *integrated_info;
 	struct dc_firmware_info fw_info;
 	bool fw_info_valid;
+	struct dc_vram_info vram_info;
 };
 
 #endif /* DC_BIOS_TYPES_H */

@@ -195,7 +195,6 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 	.max_avg_dram_bw_use_normal_percent = 40.0,
 	.writeback_latency_us = 12.0,
 	.max_request_size_bytes = 256,
-	.dram_channel_width_bytes = 2,
 	.fabric_datapath_to_dcn_data_return_bytes = 64,
 	.dcn_downspread_percent = 0.5,
 	.downspread_percent = 0.38,
@@ -2241,6 +2240,12 @@ validate_out:
 static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	unsigned int i;
+
+	if (dc->ctx->dc_bios->vram_info.num_chans)
+		dcn3_0_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
+
+	if (dc->ctx->dc_bios->vram_info.dram_channel_width_bytes)
+		dcn3_0_soc.dram_channel_width_bytes = dc->ctx->dc_bios->vram_info.dram_channel_width_bytes;
 
 	dcn3_0_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
