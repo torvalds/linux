@@ -598,17 +598,25 @@ static __latent_entropy void blk_done_softirq(struct softirq_action *h)
 	}
 }
 
+static void blk_mq_trigger_softirq(struct request *rq)
+{
+	struct list_head *list = this_cpu_ptr(&blk_cpu_done);
+
+	list_add_tail(&rq->ipi_list, list);
+
+	/*
+	 * If the list only contains our just added request, signal a raise of
+	 * the softirq.  If there are already entries there, someone already
+	 * raised the irq but it hasn't run yet.
+	 */
+	if (list->next == &rq->ipi_list)
+		raise_softirq_irqoff(BLOCK_SOFTIRQ);
+}
+
 #ifdef CONFIG_SMP
 static void trigger_softirq(void *data)
 {
-	struct request *rq = data;
-	struct list_head *list;
-
-	list = this_cpu_ptr(&blk_cpu_done);
-	list_add_tail(&rq->ipi_list, list);
-
-	if (list->next == &rq->ipi_list)
-		raise_softirq_irqoff(BLOCK_SOFTIRQ);
+	blk_mq_trigger_softirq(data);
 }
 
 /*
@@ -681,19 +689,8 @@ static void __blk_complete_request(struct request *req)
 	 * avoids IPI sending from current CPU to the first CPU of a group.
 	 */
 	if (ccpu == cpu || shared) {
-		struct list_head *list;
 do_local:
-		list = this_cpu_ptr(&blk_cpu_done);
-		list_add_tail(&req->ipi_list, list);
-
-		/*
-		 * if the list only contains our just added request,
-		 * signal a raise of the softirq. If there are already
-		 * entries there, someone already raised the irq but it
-		 * hasn't run yet.
-		 */
-		if (list->next == &req->ipi_list)
-			raise_softirq_irqoff(BLOCK_SOFTIRQ);
+		blk_mq_trigger_softirq(req);
 	} else if (raise_blk_irq(ccpu, req))
 		goto do_local;
 
