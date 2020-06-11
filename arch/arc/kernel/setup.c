@@ -186,8 +186,6 @@ static void read_arc_build_cfg_regs(void)
 	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
 	read_decode_ccm_bcr(cpu);
 
-	read_decode_cache_bcr();
-
 	if (is_isa_arcompact()) {
 		struct bcr_fp_arcompact sp, dp;
 		struct bcr_bpu_arcompact bpu;
@@ -463,6 +461,7 @@ void setup_processor(void)
 
 	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
 	pr_info("%s", arc_mmu_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_cache_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	arc_mmu_init();
 	arc_cache_init();

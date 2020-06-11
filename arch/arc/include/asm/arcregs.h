@@ -206,6 +206,38 @@ struct bcr_mmu_4 {
 #endif
 };
 
+struct bcr_cache {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:12, line_len:4, sz:4, config:4, ver:8;
+#else
+	unsigned int ver:8, config:4, sz:4, line_len:4, pad:12;
+#endif
+};
+
+struct bcr_slc_cfg {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:24, way:2, lsz:2, sz:4;
+#else
+	unsigned int sz:4, lsz:2, way:2, pad:24;
+#endif
+};
+
+struct bcr_clust_cfg {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int pad:7, c:1, num_entries:8, num_cores:8, ver:8;
+#else
+	unsigned int ver:8, num_cores:8, num_entries:8, c:1, pad:7;
+#endif
+};
+
+struct bcr_volatile {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int start:4, limit:4, pad:22, order:1, disable:1;
+#else
+	unsigned int disable:1, order:1, pad:22, limit:4, start:4;
+#endif
+};
+
 struct bcr_mpy {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	unsigned int pad:8, x1616:8, dsp:4, cycles:2, type:2, ver:8;
@@ -328,10 +360,6 @@ struct bcr_generic {
  * Generic structures to hold build configuration used at runtime
  */
 
-struct cpuinfo_arc_cache {
-	unsigned int sz_k:14, line_len:8, assoc:4, alias:1, vipt:1, pad:4;
-};
-
 struct cpuinfo_arc_bpu {
 	unsigned int ver, full, num_cache, num_pred, ret_stk;
 };
@@ -341,7 +369,6 @@ struct cpuinfo_arc_ccm {
 };
 
 struct cpuinfo_arc {
-	struct cpuinfo_arc_cache icache, dcache, slc;
 	struct cpuinfo_arc_bpu bpu;
 	struct bcr_identity core;
 	struct bcr_isa_arcv2 isa;
