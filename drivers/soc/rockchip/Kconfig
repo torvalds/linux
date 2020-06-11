@@ -111,7 +111,7 @@ config ROCKCHIP_VENDOR_STORAGE_UPDATE_LOADER
 	  The /dev/vendor_storage must set root user access only.
 
 config ROCKCHIP_DEBUG
-	bool "Rockchip DEBUG"
+	tristate "Rockchip DEBUG"
 	default y
 	help
 	  Print dbgpcsr for every cpu when panic.

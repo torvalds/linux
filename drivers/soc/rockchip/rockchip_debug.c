@@ -49,9 +49,10 @@
  *	};
  */
 
-#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include "../../staging/android/fiq_debugger/fiq_debugger_priv.h"
@@ -70,7 +71,7 @@
 
 static void __iomem *rockchip_cpu_debug[16];
 
-#ifdef CONFIG_FIQ_DEBUGGER
+#if IS_ENABLED(CONFIG_FIQ_DEBUGGER)
 int rockchip_debug_dump_pcsr(struct fiq_debugger_output *output)
 {
 	unsigned long dbgpcsr;
@@ -123,6 +124,7 @@ int rockchip_debug_dump_pcsr(struct fiq_debugger_output *output)
 	}
 	return NOTIFY_OK;
 }
+EXPORT_SYMBOL_GPL(rockchip_debug_dump_pcsr);
 #endif
 
 static int rockchip_panic_notify(struct notifier_block *nb, unsigned long event,
@@ -219,3 +221,20 @@ static int __init rockchip_debug_init(void)
 	return 0;
 }
 arch_initcall(rockchip_debug_init);
+
+static void __exit rockchip_debug_exit(void)
+{
+	int i = 0;
+
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &rockchip_panic_nb);
+
+	while (rockchip_cpu_debug[i])
+		iounmap(rockchip_cpu_debug[i++]);
+}
+module_exit(rockchip_debug_exit);
+
+MODULE_AUTHOR("Huibin Hong <huibin.hong@rock-chips.com>");
+MODULE_DESCRIPTION("Rockchip Debugger");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:rockchip-debugger");
