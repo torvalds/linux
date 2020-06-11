@@ -364,12 +364,6 @@ static void del_sw_ns(struct fs_node *node)
 
 static void del_sw_prio(struct fs_node *node)
 {
-	struct mlx5_flow_root_namespace *root_ns;
-	struct mlx5_flow_namespace *ns;
-
-	fs_get_obj(ns, node);
-	root_ns = container_of(ns, struct mlx5_flow_root_namespace, ns);
-	mutex_destroy(&root_ns->chain_lock);
 	kfree(node);
 }
 

@@ -1463,6 +1463,9 @@ static int l2tp_validate_socket(const struct sock *sk, const struct net *net,
 	if (sk->sk_type != SOCK_DGRAM)
 		return -EPROTONOSUPPORT;
 
+	if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
+		return -EPROTONOSUPPORT;
+
 	if ((encap == L2TP_ENCAPTYPE_UDP && sk->sk_protocol != IPPROTO_UDP) ||
 	    (encap == L2TP_ENCAPTYPE_IP && sk->sk_protocol != IPPROTO_L2TP))
 		return -EPROTONOSUPPORT;
