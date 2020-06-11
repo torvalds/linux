@@ -574,6 +574,18 @@ static void multipath_release_clone(struct request *clone,
  * Map cloned bios (bio-based multipath)
  */
 
+static void multipath_queue_bio(struct multipath *m, struct bio *bio)
+{
+	unsigned long flags;
+
+	/* Queue for the daemon to resubmit */
+	spin_lock_irqsave(&m->lock, flags);
+	bio_list_add(&m->queued_bios, bio);
+	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
+		queue_work(kmultipathd, &m->process_queued_bios);
+	spin_unlock_irqrestore(&m->lock, flags);
+}
+
 static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 {
 	struct pgpath *pgpath;
@@ -590,16 +602,11 @@ static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 
 	if ((pgpath && queue_io) ||
 	    (!pgpath && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))) {
-		/* Queue for the daemon to resubmit */
-		spin_lock_irqsave(&m->lock, flags);
-		bio_list_add(&m->queued_bios, bio);
-		spin_unlock_irqrestore(&m->lock, flags);
+		multipath_queue_bio(m, bio);
 
 		/* PG_INIT_REQUIRED cannot be set without QUEUE_IO */
 		if (queue_io || test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags))
 			pg_init_all_paths(m);
-		else if (!queue_io)
-			queue_work(kmultipathd, &m->process_queued_bios);
 
 		return ERR_PTR(-EAGAIN);
 	}
@@ -1678,12 +1685,7 @@ static int multipath_end_io_bio(struct dm_target *ti, struct bio *clone,
 		spin_unlock_irqrestore(&m->lock, flags);
 	}
 
-	spin_lock_irqsave(&m->lock, flags);
-	bio_list_add(&m->queued_bios, clone);
-	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
-		queue_work(kmultipathd, &m->process_queued_bios);
-	spin_unlock_irqrestore(&m->lock, flags);
-
+	multipath_queue_bio(m, clone);
 	r = DM_ENDIO_INCOMPLETE;
 done:
 	if (pgpath) {
