@@ -260,6 +260,7 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	bool is_connected_to_gate = ifmsh->num_gates > 0 ||
 		ifmsh->mshcfg.dot11MeshGateAnnouncementProtocol ||
 		ifmsh->mshcfg.dot11MeshConnectedToMeshGate;
+	bool is_connected_to_as = ifmsh->mshcfg.dot11MeshConnectedToAuthServer;
 
 	if (skb_tailroom(skb) < 2 + meshconf_len)
 		return -ENOMEM;
@@ -284,7 +285,9 @@ int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 	/* Mesh Formation Info - number of neighbors */
 	neighbors = atomic_read(&ifmsh->estab_plinks);
 	neighbors = min_t(int, neighbors, IEEE80211_MAX_MESH_PEERINGS);
-	*pos++ = (neighbors << 1) | is_connected_to_gate;
+	*pos++ = (is_connected_to_as << 7) |
+		 (neighbors << 1) |
+		 is_connected_to_gate;
 	/* Mesh capability */
 	*pos = 0x00;
 	*pos |= ifmsh->mshcfg.dot11MeshForwarding ?

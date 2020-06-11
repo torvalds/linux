@@ -6887,7 +6887,9 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 	    nla_put_u8(msg, NL80211_MESHCONF_CONNECTED_TO_GATE,
 		       cur_params.dot11MeshConnectedToMeshGate) ||
 	    nla_put_u8(msg, NL80211_MESHCONF_NOLEARN,
-		       cur_params.dot11MeshNolearn))
+		       cur_params.dot11MeshNolearn) ||
+	    nla_put_u8(msg, NL80211_MESHCONF_CONNECTED_TO_AS,
+		       cur_params.dot11MeshConnectedToAuthServer))
 		goto nla_put_failure;
 	nla_nest_end(msg, pinfoattr);
 	genlmsg_end(msg, hdr);
@@ -6946,6 +6948,7 @@ nl80211_meshconf_params_policy[NL80211_MESHCONF_ATTR_MAX+1] = {
 	[NL80211_MESHCONF_PLINK_TIMEOUT] = { .type = NLA_U32 },
 	[NL80211_MESHCONF_CONNECTED_TO_GATE] = NLA_POLICY_RANGE(NLA_U8, 0, 1),
 	[NL80211_MESHCONF_NOLEARN] = NLA_POLICY_RANGE(NLA_U8, 0, 1),
+	[NL80211_MESHCONF_CONNECTED_TO_AS] = NLA_POLICY_RANGE(NLA_U8, 0, 1),
 };
 
 static const struct nla_policy
@@ -7057,6 +7060,9 @@ do {									\
 				  nla_get_s32);
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshConnectedToMeshGate, mask,
 				  NL80211_MESHCONF_CONNECTED_TO_GATE,
+				  nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshConnectedToAuthServer, mask,
+				  NL80211_MESHCONF_CONNECTED_TO_AS,
 				  nla_get_u8);
 	/*
 	 * Check HT operation mode based on

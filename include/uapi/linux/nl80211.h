@@ -4242,6 +4242,10 @@ enum nl80211_mesh_power_mode {
  *      better. So if using this setting you will likely also want to disable
  *      dot11MeshForwarding and use another mesh routing protocol on top.
  *
+ * @NL80211_MESHCONF_CONNECTED_TO_AS: If set to true then this mesh STA
+ *	will advertise that it is connected to a authentication server
+ *	in the mesh formation field.
+ *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_meshconf_params {
@@ -4276,6 +4280,7 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_PLINK_TIMEOUT,
 	NL80211_MESHCONF_CONNECTED_TO_GATE,
 	NL80211_MESHCONF_NOLEARN,
+	NL80211_MESHCONF_CONNECTED_TO_AS,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,
