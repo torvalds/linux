@@ -589,6 +589,8 @@ void fsl_edma_xfer_desc(struct fsl_edma_chan *fsl_chan)
 {
 	struct virt_dma_desc *vdesc;
 
+	lockdep_assert_held(&fsl_chan->vchan.lock);
+
 	vdesc = vchan_next_desc(&fsl_chan->vchan);
 	if (!vdesc)
 		return;
