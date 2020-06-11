@@ -2817,7 +2817,7 @@ static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
 		return -EPERM;
 
 	if (kthread)
-		use_mm(mm);
+		kthread_use_mm(mm);
 	else if (current->mm != mm)
 		goto out;
 
@@ -2844,7 +2844,7 @@ static int vfio_iommu_type1_dma_rw_chunk(struct vfio_iommu *iommu,
 		*copied = copy_from_user(data, (void __user *)vaddr,
 					   count) ? 0 : count;
 	if (kthread)
-		unuse_mm(mm);
+		kthread_unuse_mm(mm);
 out:
 	mmput(mm);
 	return *copied ? 0 : -EFAULT;

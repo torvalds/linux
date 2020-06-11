@@ -5866,7 +5866,7 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 	if (io_op_defs[req->opcode].needs_mm && !current->mm) {
 		if (unlikely(!mmget_not_zero(ctx->sqo_mm)))
 			return -EFAULT;
-		use_mm(ctx->sqo_mm);
+		kthread_use_mm(ctx->sqo_mm);
 	}
 
 	sqe_flags = READ_ONCE(sqe->flags);
@@ -5980,7 +5980,7 @@ static inline void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
 	struct mm_struct *mm = current->mm;
 
 	if (mm) {
-		unuse_mm(mm);
+		kthread_unuse_mm(mm);
 		mmput(mm);
 	}
 }
