@@ -314,7 +314,7 @@
 	memory-controller@7000f400 {
 		nvidia,use-ram-code;
 
-		emc-tables@hynix {
+		emc-tables@0 {
 			nvidia,ram-code = <0x0>;
 			#address-cells = <1>;
 			#size-cells = <0>;
