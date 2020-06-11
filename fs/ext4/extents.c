@@ -1915,7 +1915,7 @@ out:
 
 /*
  * ext4_ext_insert_extent:
- * tries to merge requsted extent into the existing extent or
+ * tries to merge requested extent into the existing extent or
  * inserts requested extent as new one into the tree,
  * creating new leaf in the no-space case.
  */
@@ -3125,7 +3125,7 @@ static int ext4_ext_zeroout(struct inode *inode, struct ext4_extent *ex)
  *
  *
  * Splits extent [a, b] into two extents [a, @split) and [@split, b], states
- * of which are deterimined by split_flag.
+ * of which are determined by split_flag.
  *
  * There are two cases:
  *  a> the extent are splitted into two extent.
@@ -3650,7 +3650,7 @@ static int ext4_split_convert_extents(handle_t *handle,
 		eof_block = map->m_lblk + map->m_len;
 	/*
 	 * It is safe to convert extent to initialized via explicit
-	 * zeroout only if extent is fully insde i_size or new_size.
+	 * zeroout only if extent is fully inside i_size or new_size.
 	 */
 	depth = ext_depth(inode);
 	ex = path[depth].p_ext;
@@ -4495,7 +4495,7 @@ static long ext4_zero_range(struct file *file, loff_t offset,
 	}
 
 	/*
-	 * Round up offset. This is not fallocate, we neet to zero out
+	 * Round up offset. This is not fallocate, we need to zero out
 	 * blocks, so convert interior block aligned part of the range to
 	 * unwritten and possibly manually zero out unaligned parts of the
 	 * range.
@@ -5579,7 +5579,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 		}
 		ex1 = path1[path1->p_depth].p_ext;
 		ex2 = path2[path2->p_depth].p_ext;
-		/* Do we have somthing to swap ? */
+		/* Do we have something to swap ? */
 		if (unlikely(!ex2 || !ex1))
 			goto finish;
 
