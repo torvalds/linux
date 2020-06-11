@@ -257,7 +257,9 @@
 		dsi@54300000 {
 			compatible = "nvidia,tegra30-dsi";
 			reg = <0x54300000 0x00040000>;
-			clocks = <&tegra_car TEGRA30_CLK_DSIA>;
+			clocks = <&tegra_car TEGRA30_CLK_DSIA>,
+				 <&tegra_car TEGRA30_CLK_PLL_D_OUT0>;
+			clock-names = "dsi", "parent";
 			resets = <&tegra_car 48>;
 			reset-names = "dsi";
 			status = "disabled";
