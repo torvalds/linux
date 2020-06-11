@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/spi/altera.h>
 #include <linux/spi/spi.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -39,6 +40,8 @@
 #define ALTERA_SPI_CONTROL_IRRDY_MSK	0x80
 #define ALTERA_SPI_CONTROL_IE_MSK	0x100
 #define ALTERA_SPI_CONTROL_SSO_MSK	0x400
+
+#define ALTERA_SPI_MAX_CS		32
 
 struct altera_spi {
 	void __iomem *base;
@@ -182,6 +185,7 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
+	struct altera_spi_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct altera_spi *hw;
 	struct spi_master *master;
 	int err = -ENODEV;
@@ -192,9 +196,24 @@ static int altera_spi_probe(struct platform_device *pdev)
 
 	/* setup the master state. */
 	master->bus_num = pdev->id;
-	master->num_chipselect = 16;
-	master->mode_bits = SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+
+	if (pdata) {
+		if (pdata->num_chipselect > ALTERA_SPI_MAX_CS) {
+			dev_err(&pdev->dev,
+				"Invalid number of chipselect: %hu\n",
+				pdata->num_chipselect);
+			return -EINVAL;
+		}
+
+		master->num_chipselect = pdata->num_chipselect;
+		master->mode_bits = pdata->mode_bits;
+		master->bits_per_word_mask = pdata->bits_per_word_mask;
+	} else {
+		master->num_chipselect = 16;
+		master->mode_bits = SPI_CS_HIGH;
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	}
+
 	master->dev.of_node = pdev->dev.of_node;
 	master->transfer_one = altera_spi_txrx;
 	master->set_cs = altera_spi_set_cs;
