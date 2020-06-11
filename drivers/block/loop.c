@@ -1390,7 +1390,7 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 		goto out_unfreeze;
 
 	/* Mask out flags that can't be set using LOOP_SET_STATUS. */
-	lo->lo_flags &= ~LOOP_SET_STATUS_SETTABLE_FLAGS;
+	lo->lo_flags &= LOOP_SET_STATUS_SETTABLE_FLAGS;
 	/* For those flags, use the previous values instead */
 	lo->lo_flags |= prev_lo_flags & ~LOOP_SET_STATUS_SETTABLE_FLAGS;
 	/* For flags that can't be cleared, use previous values too */
