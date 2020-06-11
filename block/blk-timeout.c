@@ -20,13 +20,11 @@ static int __init setup_fail_io_timeout(char *str)
 }
 __setup("fail_io_timeout=", setup_fail_io_timeout);
 
-int blk_should_fake_timeout(struct request_queue *q)
+bool __blk_should_fake_timeout(struct request_queue *q)
 {
-	if (!test_bit(QUEUE_FLAG_FAIL_IO, &q->queue_flags))
-		return 0;
-
 	return should_fail(&fail_io_timeout, 1);
 }
+EXPORT_SYMBOL_GPL(__blk_should_fake_timeout);
 
 static int __init fail_io_timeout_debugfs(void)
 {

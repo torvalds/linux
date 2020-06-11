@@ -1589,18 +1589,12 @@ static blk_status_t scsi_mq_prep_fn(struct request *req)
 
 static void scsi_mq_done(struct scsi_cmnd *cmd)
 {
+	if (unlikely(blk_should_fake_timeout(cmd->request->q)))
+		return;
 	if (unlikely(test_and_set_bit(SCMD_STATE_COMPLETE, &cmd->state)))
 		return;
 	trace_scsi_dispatch_cmd_done(cmd);
-
-	/*
-	 * If the block layer didn't complete the request due to a timeout
-	 * injection, scsi must clear its internal completed state so that the
-	 * timeout handler will see it needs to escalate its own error
-	 * recovery.
-	 */
-	if (unlikely(!blk_mq_complete_request(cmd->request)))
-		clear_bit(SCMD_STATE_COMPLETE, &cmd->state);
+	blk_mq_complete_request(cmd->request);
 }
 
 static void scsi_mq_put_budget(struct blk_mq_hw_ctx *hctx)

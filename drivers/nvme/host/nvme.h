@@ -481,7 +481,8 @@ static inline void nvme_end_request(struct request *req, __le16 status,
 	rq->result = result;
 	/* inject error when permitted by fault injection framework */
 	nvme_should_fail(req);
-	blk_mq_complete_request(req);
+	if (likely(!blk_should_fake_timeout(req->q)))
+		blk_mq_complete_request(req);
 }
 
 static inline void nvme_get_ctrl(struct nvme_ctrl *ctrl)
