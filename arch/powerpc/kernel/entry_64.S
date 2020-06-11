@@ -233,12 +233,12 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	schedule_tail
 	REST_NVGPRS(r1)
-	mtlr	r14
+	mtctr	r14
 	mr	r3,r15
 #ifdef PPC64_ELF_ABI_v2
 	mr	r12,r14
 #endif
-	blrl
+	bctrl
 	li	r3,0
 	b	.Lsyscall_exit
 
