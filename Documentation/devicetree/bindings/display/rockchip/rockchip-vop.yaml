@@ -106,8 +106,8 @@ examples:
     #include <dt-bindings/power/rk3288-power.h>
     vopb: vopb@ff930000 {
       compatible = "rockchip,rk3288-vop";
-      reg = <0x0 0xff930000 0x0 0x19c>,
-            <0x0 0xff931000 0x0 0x1000>;
+      reg = <0xff930000 0x19c>,
+            <0xff931000 0x1000>;
       interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
       clocks = <&cru ACLK_VOP0>,
                <&cru DCLK_VOP0>,

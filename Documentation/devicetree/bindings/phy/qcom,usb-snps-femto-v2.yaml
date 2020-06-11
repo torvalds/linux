@@ -65,7 +65,7 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sm8150.h>
     phy@88e2000 {
         compatible = "qcom,sm8150-usb-hs-phy";
-        reg = <0 0x088e2000 0 0x400>;
+        reg = <0x088e2000 0x400>;
         #phy-cells = <0>;
 
         clocks = <&rpmhcc RPMH_CXO_CLK>;

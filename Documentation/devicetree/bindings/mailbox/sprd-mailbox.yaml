@@ -51,7 +51,7 @@ examples:
     #include <dt-bindings/interrupt-controller/arm-gic.h>
     mailbox: mailbox@400a0000 {
       compatible = "sprd,sc9860-mailbox";
-      reg = <0 0x400a0000 0 0x8000>, <0 0x400a8000 0 0x8000>;
+      reg = <0x400a0000 0x8000>, <0x400a8000 0x8000>;
       #mbox-cells = <1>;
       clock-names = "enable";
       clocks = <&aon_gate 53>;

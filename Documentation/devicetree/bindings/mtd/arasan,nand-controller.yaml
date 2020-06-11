@@ -53,7 +53,7 @@ examples:
   - |
     nfc: nand-controller@ff100000 {
         compatible = "xlnx,zynqmp-nand-controller", "arasan,nfc-v3p10";
-        reg = <0x0 0xff100000 0x0 0x1000>;
+        reg = <0xff100000 0x1000>;
         clock-names = "controller", "bus";
         clocks = <&clk200>, <&clk100>;
         interrupt-parent = <&gic>;

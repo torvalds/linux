@@ -80,7 +80,7 @@ examples:
 
     easrc: easrc@300c0000 {
            compatible = "fsl,imx8mn-easrc";
-           reg = <0x0 0x300c0000 0x0 0x10000>;
+           reg = <0x300c0000 0x10000>;
            interrupts = <0x0 122 0x4>;
            clocks = <&clk IMX8MN_CLK_ASRC_ROOT>;
            clock-names = "mem";
