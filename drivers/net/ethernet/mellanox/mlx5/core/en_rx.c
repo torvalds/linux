@@ -1132,7 +1132,6 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	struct xdp_buff xdp;
 	struct sk_buff *skb;
 	void *va, *data;
-	bool consumed;
 	u32 frag_size;
 
 	va             = page_address(di->page) + wi->offset;
@@ -1144,11 +1143,8 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 	prefetchw(va); /* xdp_frame data area */
 	prefetch(data);
 
-	rcu_read_lock();
 	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt, &xdp);
-	consumed = mlx5e_xdp_handle(rq, di, &cqe_bcnt, &xdp);
-	rcu_read_unlock();
-	if (consumed)
+	if (mlx5e_xdp_handle(rq, di, &cqe_bcnt, &xdp))
 		return NULL; /* page/packet was consumed by XDP */
 
 	rx_headroom = xdp.data - xdp.data_hard_start;
@@ -1438,7 +1434,6 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	struct sk_buff *skb;
 	void *va, *data;
 	u32 frag_size;
-	bool consumed;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
@@ -1455,11 +1450,8 @@ mlx5e_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq, struct mlx5e_mpw_info *wi,
 	prefetchw(va); /* xdp_frame data area */
 	prefetch(data);
 
-	rcu_read_lock();
 	mlx5e_fill_xdp_buff(rq, va, rx_headroom, cqe_bcnt32, &xdp);
-	consumed = mlx5e_xdp_handle(rq, di, &cqe_bcnt32, &xdp);
-	rcu_read_unlock();
-	if (consumed) {
+	if (mlx5e_xdp_handle(rq, di, &cqe_bcnt32, &xdp)) {
 		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags))
 			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
 		return NULL; /* page/packet was consumed by XDP */

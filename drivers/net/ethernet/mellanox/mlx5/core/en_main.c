@@ -873,7 +873,7 @@ void mlx5e_activate_rq(struct mlx5e_rq *rq)
 void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
 {
 	clear_bit(MLX5E_RQ_STATE_ENABLED, &rq->state);
-	napi_synchronize(&rq->channel->napi); /* prevent mlx5e_post_rx_wqes */
+	synchronize_rcu(); /* Sync with NAPI to prevent mlx5e_post_rx_wqes. */
 }
 
 void mlx5e_close_rq(struct mlx5e_rq *rq)
@@ -1318,12 +1318,10 @@ void mlx5e_tx_disable_queue(struct netdev_queue *txq)
 
 static void mlx5e_deactivate_txqsq(struct mlx5e_txqsq *sq)
 {
-	struct mlx5e_channel *c = sq->channel;
 	struct mlx5_wq_cyc *wq = &sq->wq;
 
 	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
-	/* prevent netif_tx_wake_queue */
-	napi_synchronize(&c->napi);
+	synchronize_rcu(); /* Sync with NAPI to prevent netif_tx_wake_queue. */
 
 	mlx5e_tx_disable_queue(sq->txq);
 
@@ -1398,10 +1396,8 @@ void mlx5e_activate_icosq(struct mlx5e_icosq *icosq)
 
 void mlx5e_deactivate_icosq(struct mlx5e_icosq *icosq)
 {
-	struct mlx5e_channel *c = icosq->channel;
-
 	clear_bit(MLX5E_SQ_STATE_ENABLED, &icosq->state);
-	napi_synchronize(&c->napi);
+	synchronize_rcu(); /* Sync with NAPI. */
 }
 
 void mlx5e_close_icosq(struct mlx5e_icosq *sq)
@@ -1480,7 +1476,7 @@ void mlx5e_close_xdpsq(struct mlx5e_xdpsq *sq)
 	struct mlx5e_channel *c = sq->channel;
 
 	clear_bit(MLX5E_SQ_STATE_ENABLED, &sq->state);
-	napi_synchronize(&c->napi);
+	synchronize_rcu(); /* Sync with NAPI. */
 
 	mlx5e_destroy_sq(c->mdev, sq->sqn);
 	mlx5e_free_xdpsq_descs(sq);
