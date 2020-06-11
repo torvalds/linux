@@ -18,7 +18,7 @@ struct snd_usX2Y_AsyncSeq {
 struct snd_usX2Y_urbSeq {
 	int	submitted;
 	int	len;
-	struct urb	*urb[0];
+	struct urb	*urb[];
 };
 
 #include "usx2yhwdeppcm.h"

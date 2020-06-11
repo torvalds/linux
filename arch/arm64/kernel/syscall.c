@@ -98,6 +98,24 @@ static void el0_svc_common(struct pt_regs *regs, int scno, int sc_nr,
 	regs->orig_x0 = regs->regs[0];
 	regs->syscallno = scno;
 
+	/*
+	 * BTI note:
+	 * The architecture does not guarantee that SPSR.BTYPE is zero
+	 * on taking an SVC, so we could return to userspace with a
+	 * non-zero BTYPE after the syscall.
+	 *
+	 * This shouldn't matter except when userspace is explicitly
+	 * doing something stupid, such as setting PROT_BTI on a page
+	 * that lacks conforming BTI/PACIxSP instructions, falling
+	 * through from one executable page to another with differing
+	 * PROT_BTI, or messing with BTYPE via ptrace: in such cases,
+	 * userspace should not be surprised if a SIGILL occurs on
+	 * syscall return.
+	 *
+	 * So, don't touch regs->pstate & PSR_BTYPE_MASK here.
+	 * (Similarly for HVC and SMC elsewhere.)
+	 */
+
 	cortex_a76_erratum_1463225_svc_handler();
 	local_daif_restore(DAIF_PROCCTX);
 	user_exit();

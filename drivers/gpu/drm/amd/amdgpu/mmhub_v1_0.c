@@ -96,7 +96,7 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
-	if (adev->asic_type == CHIP_RAVEN && adev->rev_id >= 0x8)
+	if (adev->apu_flags & AMD_APU_IS_RAVEN2)
 		/*
 		 * Raven2 has a HW issue that it is unable to use the vram which
 		 * is out of MC_VM_SYSTEM_APERTURE_HIGH_ADDR. So here is the
@@ -690,7 +690,8 @@ static const struct soc15_reg_entry mmhub_v1_0_edc_cnt_regs[] = {
    { SOC15_REG_ENTRY(MMHUB, 0, mmMMEA1_EDC_CNT2_VG20), 0, 0, 0},
 };
 
-static int mmhub_v1_0_get_ras_error_count(const struct soc15_reg_entry *reg,
+static int mmhub_v1_0_get_ras_error_count(struct amdgpu_device *adev,
+	const struct soc15_reg_entry *reg,
 	uint32_t value, uint32_t *sec_count, uint32_t *ded_count)
 {
 	uint32_t i;
@@ -704,7 +705,8 @@ static int mmhub_v1_0_get_ras_error_count(const struct soc15_reg_entry *reg,
 				mmhub_v1_0_ras_fields[i].sec_count_mask) >>
 				mmhub_v1_0_ras_fields[i].sec_count_shift;
 		if (sec_cnt) {
-			DRM_INFO("MMHUB SubBlock %s, SEC %d\n",
+			dev_info(adev->dev,
+				"MMHUB SubBlock %s, SEC %d\n",
 				mmhub_v1_0_ras_fields[i].name,
 				sec_cnt);
 			*sec_count += sec_cnt;
@@ -714,7 +716,8 @@ static int mmhub_v1_0_get_ras_error_count(const struct soc15_reg_entry *reg,
 				mmhub_v1_0_ras_fields[i].ded_count_mask) >>
 				mmhub_v1_0_ras_fields[i].ded_count_shift;
 		if (ded_cnt) {
-			DRM_INFO("MMHUB SubBlock %s, DED %d\n",
+			dev_info(adev->dev,
+				"MMHUB SubBlock %s, DED %d\n",
 				mmhub_v1_0_ras_fields[i].name,
 				ded_cnt);
 			*ded_count += ded_cnt;
@@ -739,7 +742,8 @@ static void mmhub_v1_0_query_ras_error_count(struct amdgpu_device *adev,
 		reg_value =
 			RREG32(SOC15_REG_ENTRY_OFFSET(mmhub_v1_0_edc_cnt_regs[i]));
 		if (reg_value)
-			mmhub_v1_0_get_ras_error_count(&mmhub_v1_0_edc_cnt_regs[i],
+			mmhub_v1_0_get_ras_error_count(adev,
+				&mmhub_v1_0_edc_cnt_regs[i],
 				reg_value, &sec_count, &ded_count);
 	}
 

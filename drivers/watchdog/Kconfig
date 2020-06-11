@@ -678,6 +678,7 @@ config TS4800_WATCHDOG
 config TS72XX_WATCHDOG
 	tristate "TS-72XX SBC Watchdog"
 	depends on MACH_TS72XX || COMPILE_TEST
+	select WATCHDOG_CORE
 	help
 	  Technologic Systems TS-7200, TS-7250 and TS-7260 boards have
 	  watchdog timer implemented in a external CPLD chip. Say Y here
@@ -866,6 +867,19 @@ config DIGICOLOR_WATCHDOG
 	  in Conexant Digicolor SoCs.
 	  To compile this driver as a module, choose M here: the
 	  module will be called digicolor_wdt.
+
+config ARM_SMC_WATCHDOG
+	tristate "ARM Secure Monitor Call based watchdog support"
+	depends on ARM || ARM64
+	depends on OF
+	depends on HAVE_ARM_SMCCC
+	select WATCHDOG_CORE
+	help
+	  Say Y here to include support for a watchdog timer
+	  implemented by the EL3 Secure Monitor on ARM platforms.
+	  Requires firmware support.
+	  To compile this driver as a module, choose M here: the
+	  module will be called arm_smc_wdt.
 
 config LPC18XX_WATCHDOG
 	tristate "LPC18xx/43xx Watchdog"
@@ -1217,6 +1231,7 @@ config ITCO_WDT
 	depends on (X86 || IA64) && PCI
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
+	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT
 	select LPC_ICH if !EXPERT
 	select I2C_I801 if !EXPERT && I2C
 	---help---

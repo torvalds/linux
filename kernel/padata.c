@@ -7,6 +7,9 @@
  * Copyright (C) 2008, 2009 secunet Security Networks AG
  * Copyright (C) 2008, 2009 Steffen Klassert <steffen.klassert@secunet.com>
  *
+ * Copyright (c) 2020 Oracle and/or its affiliates.
+ * Author: Daniel Jordan <daniel.m.jordan@oracle.com>
+ *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
@@ -21,6 +24,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <linux/completion.h>
 #include <linux/export.h>
 #include <linux/cpumask.h>
 #include <linux/err.h>
@@ -31,11 +35,30 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/rcupdate.h>
-#include <linux/module.h>
 
-#define MAX_OBJ_NUM 1000
+#define	PADATA_WORK_ONSTACK	1	/* Work's memory is on stack */
+
+struct padata_work {
+	struct work_struct	pw_work;
+	struct list_head	pw_list;  /* padata_free_works linkage */
+	void			*pw_data;
+};
+
+static DEFINE_SPINLOCK(padata_works_lock);
+static struct padata_work *padata_works;
+static LIST_HEAD(padata_free_works);
+
+struct padata_mt_job_state {
+	spinlock_t		lock;
+	struct completion	completion;
+	struct padata_mt_job	*job;
+	int			nworks;
+	int			nworks_fini;
+	unsigned long		chunk_size;
+};
 
 static void padata_free_pd(struct parallel_data *pd);
+static void __init padata_mt_helper(struct work_struct *work);
 
 static int padata_index_to_cpu(struct parallel_data *pd, int cpu_index)
 {
@@ -59,30 +82,82 @@ static int padata_cpu_hash(struct parallel_data *pd, unsigned int seq_nr)
 	return padata_index_to_cpu(pd, cpu_index);
 }
 
+static struct padata_work *padata_work_alloc(void)
+{
+	struct padata_work *pw;
+
+	lockdep_assert_held(&padata_works_lock);
+
+	if (list_empty(&padata_free_works))
+		return NULL;	/* No more work items allowed to be queued. */
+
+	pw = list_first_entry(&padata_free_works, struct padata_work, pw_list);
+	list_del(&pw->pw_list);
+	return pw;
+}
+
+static void padata_work_init(struct padata_work *pw, work_func_t work_fn,
+			     void *data, int flags)
+{
+	if (flags & PADATA_WORK_ONSTACK)
+		INIT_WORK_ONSTACK(&pw->pw_work, work_fn);
+	else
+		INIT_WORK(&pw->pw_work, work_fn);
+	pw->pw_data = data;
+}
+
+static int __init padata_work_alloc_mt(int nworks, void *data,
+				       struct list_head *head)
+{
+	int i;
+
+	spin_lock(&padata_works_lock);
+	/* Start at 1 because the current task participates in the job. */
+	for (i = 1; i < nworks; ++i) {
+		struct padata_work *pw = padata_work_alloc();
+
+		if (!pw)
+			break;
+		padata_work_init(pw, padata_mt_helper, data, 0);
+		list_add(&pw->pw_list, head);
+	}
+	spin_unlock(&padata_works_lock);
+
+	return i;
+}
+
+static void padata_work_free(struct padata_work *pw)
+{
+	lockdep_assert_held(&padata_works_lock);
+	list_add(&pw->pw_list, &padata_free_works);
+}
+
+static void __init padata_works_free(struct list_head *works)
+{
+	struct padata_work *cur, *next;
+
+	if (list_empty(works))
+		return;
+
+	spin_lock(&padata_works_lock);
+	list_for_each_entry_safe(cur, next, works, pw_list) {
+		list_del(&cur->pw_list);
+		padata_work_free(cur);
+	}
+	spin_unlock(&padata_works_lock);
+}
+
 static void padata_parallel_worker(struct work_struct *parallel_work)
 {
-	struct padata_parallel_queue *pqueue;
-	LIST_HEAD(local_list);
+	struct padata_work *pw = container_of(parallel_work, struct padata_work,
+					      pw_work);
+	struct padata_priv *padata = pw->pw_data;
 
 	local_bh_disable();
-	pqueue = container_of(parallel_work,
-			      struct padata_parallel_queue, work);
-
-	spin_lock(&pqueue->parallel.lock);
-	list_replace_init(&pqueue->parallel.list, &local_list);
-	spin_unlock(&pqueue->parallel.lock);
-
-	while (!list_empty(&local_list)) {
-		struct padata_priv *padata;
-
-		padata = list_entry(local_list.next,
-				    struct padata_priv, list);
-
-		list_del_init(&padata->list);
-
-		padata->parallel(padata);
-	}
-
+	padata->parallel(padata);
+	spin_lock(&padata_works_lock);
+	padata_work_free(pw);
+	spin_unlock(&padata_works_lock);
 	local_bh_enable();
 }
 
@@ -106,9 +181,9 @@ int padata_do_parallel(struct padata_shell *ps,
 		       struct padata_priv *padata, int *cb_cpu)
 {
 	struct padata_instance *pinst = ps->pinst;
-	int i, cpu, cpu_index, target_cpu, err;
-	struct padata_parallel_queue *queue;
+	int i, cpu, cpu_index, err;
 	struct parallel_data *pd;
+	struct padata_work *pw;
 
 	rcu_read_lock_bh();
 
@@ -136,25 +211,25 @@ int padata_do_parallel(struct padata_shell *ps,
 	if ((pinst->flags & PADATA_RESET))
 		goto out;
 
-	if (atomic_read(&pd->refcnt) >= MAX_OBJ_NUM)
-		goto out;
-
-	err = 0;
 	atomic_inc(&pd->refcnt);
 	padata->pd = pd;
 	padata->cb_cpu = *cb_cpu;
 
-	padata->seq_nr = atomic_inc_return(&pd->seq_nr);
-	target_cpu = padata_cpu_hash(pd, padata->seq_nr);
-	padata->cpu = target_cpu;
-	queue = per_cpu_ptr(pd->pqueue, target_cpu);
+	rcu_read_unlock_bh();
 
-	spin_lock(&queue->parallel.lock);
-	list_add_tail(&padata->list, &queue->parallel.list);
-	spin_unlock(&queue->parallel.lock);
+	spin_lock(&padata_works_lock);
+	padata->seq_nr = ++pd->seq_nr;
+	pw = padata_work_alloc();
+	spin_unlock(&padata_works_lock);
+	if (pw) {
+		padata_work_init(pw, padata_parallel_worker, padata, 0);
+		queue_work(pinst->parallel_wq, &pw->pw_work);
+	} else {
+		/* Maximum works limit exceeded, run in the current task. */
+		padata->parallel(padata);
+	}
 
-	queue_work(pinst->parallel_wq, &queue->work);
-
+	return 0;
 out:
 	rcu_read_unlock_bh();
 
@@ -325,8 +400,9 @@ static void padata_serial_worker(struct work_struct *serial_work)
 void padata_do_serial(struct padata_priv *padata)
 {
 	struct parallel_data *pd = padata->pd;
+	int hashed_cpu = padata_cpu_hash(pd, padata->seq_nr);
 	struct padata_parallel_queue *pqueue = per_cpu_ptr(pd->pqueue,
-							   padata->cpu);
+							   hashed_cpu);
 	struct padata_priv *cur;
 
 	spin_lock(&pqueue->reorder.lock);
@@ -387,6 +463,98 @@ out:
 	return err;
 }
 
+static void __init padata_mt_helper(struct work_struct *w)
+{
+	struct padata_work *pw = container_of(w, struct padata_work, pw_work);
+	struct padata_mt_job_state *ps = pw->pw_data;
+	struct padata_mt_job *job = ps->job;
+	bool done;
+
+	spin_lock(&ps->lock);
+
+	while (job->size > 0) {
+		unsigned long start, size, end;
+
+		start = job->start;
+		/* So end is chunk size aligned if enough work remains. */
+		size = roundup(start + 1, ps->chunk_size) - start;
+		size = min(size, job->size);
+		end = start + size;
+
+		job->start = end;
+		job->size -= size;
+
+		spin_unlock(&ps->lock);
+		job->thread_fn(start, end, job->fn_arg);
+		spin_lock(&ps->lock);
+	}
+
+	++ps->nworks_fini;
+	done = (ps->nworks_fini == ps->nworks);
+	spin_unlock(&ps->lock);
+
+	if (done)
+		complete(&ps->completion);
+}
+
+/**
+ * padata_do_multithreaded - run a multithreaded job
+ * @job: Description of the job.
+ *
+ * See the definition of struct padata_mt_job for more details.
+ */
+void __init padata_do_multithreaded(struct padata_mt_job *job)
+{
+	/* In case threads finish at different times. */
+	static const unsigned long load_balance_factor = 4;
+	struct padata_work my_work, *pw;
+	struct padata_mt_job_state ps;
+	LIST_HEAD(works);
+	int nworks;
+
+	if (job->size == 0)
+		return;
+
+	/* Ensure at least one thread when size < min_chunk. */
+	nworks = max(job->size / job->min_chunk, 1ul);
+	nworks = min(nworks, job->max_threads);
+
+	if (nworks == 1) {
+		/* Single thread, no coordination needed, cut to the chase. */
+		job->thread_fn(job->start, job->start + job->size, job->fn_arg);
+		return;
+	}
+
+	spin_lock_init(&ps.lock);
+	init_completion(&ps.completion);
+	ps.job	       = job;
+	ps.nworks      = padata_work_alloc_mt(nworks, &ps, &works);
+	ps.nworks_fini = 0;
+
+	/*
+	 * Chunk size is the amount of work a helper does per call to the
+	 * thread function.  Load balance large jobs between threads by
+	 * increasing the number of chunks, guarantee at least the minimum
+	 * chunk size from the caller, and honor the caller's alignment.
+	 */
+	ps.chunk_size = job->size / (ps.nworks * load_balance_factor);
+	ps.chunk_size = max(ps.chunk_size, job->min_chunk);
+	ps.chunk_size = roundup(ps.chunk_size, job->align);
+
+	list_for_each_entry(pw, &works, pw_list)
+		queue_work(system_unbound_wq, &pw->pw_work);
+
+	/* Use the current thread, which saves starting a workqueue worker. */
+	padata_work_init(&my_work, padata_mt_helper, &ps, PADATA_WORK_ONSTACK);
+	padata_mt_helper(&my_work.pw_work);
+
+	/* Wait for all the helpers to finish. */
+	wait_for_completion(&ps.completion);
+
+	destroy_work_on_stack(&my_work.pw_work);
+	padata_works_free(&works);
+}
+
 static void __padata_list_init(struct padata_list *pd_list)
 {
 	INIT_LIST_HEAD(&pd_list->list);
@@ -417,8 +585,6 @@ static void padata_init_pqueues(struct parallel_data *pd)
 		pqueue = per_cpu_ptr(pd->pqueue, cpu);
 
 		__padata_list_init(&pqueue->reorder);
-		__padata_list_init(&pqueue->parallel);
-		INIT_WORK(&pqueue->work, padata_parallel_worker);
 		atomic_set(&pqueue->num_obj, 0);
 	}
 }
@@ -452,7 +618,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_shell *ps)
 
 	padata_init_pqueues(pd);
 	padata_init_squeues(pd);
-	atomic_set(&pd->seq_nr, -1);
+	pd->seq_nr = -1;
 	atomic_set(&pd->refcnt, 1);
 	spin_lock_init(&pd->lock);
 	pd->cpu = cpumask_first(pd->cpumask.pcpu);
@@ -703,7 +869,7 @@ static int padata_cpu_online(unsigned int cpu, struct hlist_node *node)
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	pinst = hlist_entry_safe(node, struct padata_instance, cpu_online_node);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -718,7 +884,7 @@ static int padata_cpu_dead(unsigned int cpu, struct hlist_node *node)
 	struct padata_instance *pinst;
 	int ret;
 
-	pinst = hlist_entry_safe(node, struct padata_instance, node);
+	pinst = hlist_entry_safe(node, struct padata_instance, cpu_dead_node);
 	if (!pinst_has_cpu(pinst, cpu))
 		return 0;
 
@@ -734,8 +900,9 @@ static enum cpuhp_state hp_online;
 static void __padata_free(struct padata_instance *pinst)
 {
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_remove_instance_nocalls(CPUHP_PADATA_DEAD, &pinst->node);
-	cpuhp_state_remove_instance_nocalls(hp_online, &pinst->node);
+	cpuhp_state_remove_instance_nocalls(CPUHP_PADATA_DEAD,
+					    &pinst->cpu_dead_node);
+	cpuhp_state_remove_instance_nocalls(hp_online, &pinst->cpu_online_node);
 #endif
 
 	WARN_ON(!list_empty(&pinst->pslist));
@@ -939,9 +1106,10 @@ static struct padata_instance *padata_alloc(const char *name,
 	mutex_init(&pinst->lock);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	cpuhp_state_add_instance_nocalls_cpuslocked(hp_online, &pinst->node);
+	cpuhp_state_add_instance_nocalls_cpuslocked(hp_online,
+						    &pinst->cpu_online_node);
 	cpuhp_state_add_instance_nocalls_cpuslocked(CPUHP_PADATA_DEAD,
-						    &pinst->node);
+						    &pinst->cpu_dead_node);
 #endif
 
 	put_online_cpus();
@@ -1050,32 +1218,41 @@ void padata_free_shell(struct padata_shell *ps)
 }
 EXPORT_SYMBOL(padata_free_shell);
 
-#ifdef CONFIG_HOTPLUG_CPU
-
-static __init int padata_driver_init(void)
+void __init padata_init(void)
 {
+	unsigned int i, possible_cpus;
+#ifdef CONFIG_HOTPLUG_CPU
 	int ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_AP_ONLINE_DYN, "padata:online",
 				      padata_cpu_online, NULL);
 	if (ret < 0)
-		return ret;
+		goto err;
 	hp_online = ret;
 
 	ret = cpuhp_setup_state_multi(CPUHP_PADATA_DEAD, "padata:dead",
 				      NULL, padata_cpu_dead);
-	if (ret < 0) {
-		cpuhp_remove_multi_state(hp_online);
-		return ret;
-	}
-	return 0;
-}
-module_init(padata_driver_init);
-
-static __exit void padata_driver_exit(void)
-{
-	cpuhp_remove_multi_state(CPUHP_PADATA_DEAD);
-	cpuhp_remove_multi_state(hp_online);
-}
-module_exit(padata_driver_exit);
+	if (ret < 0)
+		goto remove_online_state;
 #endif
+
+	possible_cpus = num_possible_cpus();
+	padata_works = kmalloc_array(possible_cpus, sizeof(struct padata_work),
+				     GFP_KERNEL);
+	if (!padata_works)
+		goto remove_dead_state;
+
+	for (i = 0; i < possible_cpus; ++i)
+		list_add(&padata_works[i].pw_list, &padata_free_works);
+
+	return;
+
+remove_dead_state:
+#ifdef CONFIG_HOTPLUG_CPU
+	cpuhp_remove_multi_state(CPUHP_PADATA_DEAD);
+remove_online_state:
+	cpuhp_remove_multi_state(hp_online);
+err:
+#endif
+	pr_warn("padata: initialization failed\n");
+}

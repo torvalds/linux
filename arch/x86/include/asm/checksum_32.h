@@ -44,18 +44,21 @@ static inline __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 	return csum_partial_copy_generic(src, dst, len, sum, NULL, NULL);
 }
 
-static inline __wsum csum_partial_copy_from_user(const void __user *src,
-						 void *dst,
-						 int len, __wsum sum,
-						 int *err_ptr)
+static inline __wsum csum_and_copy_from_user(const void __user *src,
+					     void *dst, int len,
+					     __wsum sum, int *err_ptr)
 {
 	__wsum ret;
 
 	might_sleep();
-	stac();
+	if (!user_access_begin(src, len)) {
+		if (len)
+			*err_ptr = -EFAULT;
+		return sum;
+	}
 	ret = csum_partial_copy_generic((__force void *)src, dst,
 					len, sum, err_ptr, NULL);
-	clac();
+	user_access_end();
 
 	return ret;
 }
@@ -173,7 +176,6 @@ static inline __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 /*
  *	Copy and checksum to user
  */
-#define HAVE_CSUM_COPY_USER
 static inline __wsum csum_and_copy_to_user(const void *src,
 					   void __user *dst,
 					   int len, __wsum sum,
@@ -182,11 +184,10 @@ static inline __wsum csum_and_copy_to_user(const void *src,
 	__wsum ret;
 
 	might_sleep();
-	if (access_ok(dst, len)) {
-		stac();
+	if (user_access_begin(dst, len)) {
 		ret = csum_partial_copy_generic(src, (__force void *)dst,
 						len, sum, NULL, err_ptr);
-		clac();
+		user_access_end();
 		return ret;
 	}
 

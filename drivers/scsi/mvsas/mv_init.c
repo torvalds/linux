@@ -25,7 +25,7 @@ static const struct mvs_chip_info mvs_chips[] = {
 	[chip_1320] =	{ 2, 4, 0x800, 17, 64, 8,  9, &mvs_94xx_dispatch, },
 };
 
-struct device_attribute *mvst_host_attrs[];
+static struct device_attribute *mvst_host_attrs[];
 
 #define SOC_SAS_NUM 2
 
@@ -759,8 +759,6 @@ static DEVICE_ATTR(interrupt_coalescing,
 			 mvs_show_interrupt_coalescing,
 			 mvs_store_interrupt_coalescing);
 
-/* task handler */
-struct task_struct *mvs_th;
 static int __init mvs_init(void)
 {
 	int rc;
@@ -785,7 +783,7 @@ static void __exit mvs_exit(void)
 	sas_release_transport(mvs_stt);
 }
 
-struct device_attribute *mvst_host_attrs[] = {
+static struct device_attribute *mvst_host_attrs[] = {
 	&dev_attr_driver_version,
 	&dev_attr_interrupt_coalescing,
 	NULL,

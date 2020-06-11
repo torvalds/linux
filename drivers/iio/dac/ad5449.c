@@ -56,11 +56,13 @@ struct ad5449_chip_info {
  * @has_sdo:		whether the SDO line is connected
  * @dac_cache:		Cache for the DAC values
  * @data:		spi transfer buffers
+ * @lock		lock to protect the data buffer during SPI ops
  */
 struct ad5449 {
 	struct spi_device		*spi;
 	const struct ad5449_chip_info	*chip_info;
 	struct regulator_bulk_data	vref_reg[AD5449_MAX_VREFS];
+	struct mutex			lock;
 
 	bool has_sdo;
 	uint16_t dac_cache[AD5449_MAX_CHANNELS];
@@ -87,10 +89,10 @@ static int ad5449_write(struct iio_dev *indio_dev, unsigned int addr,
 	struct ad5449 *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->data[0] = cpu_to_be16((addr << 12) | val);
 	ret = spi_write(st->spi, st->data, 2);
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 
 	return ret;
 }
@@ -112,7 +114,7 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 		},
 	};
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	st->data[0] = cpu_to_be16(addr << 12);
 	st->data[1] = cpu_to_be16(AD5449_CMD_NOOP);
 
@@ -123,7 +125,7 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 	*val = be16_to_cpu(st->data[1]);
 
 out_unlock:
-	mutex_unlock(&indio_dev->mlock);
+	mutex_unlock(&st->lock);
 	return ret;
 }
 
@@ -301,6 +303,8 @@ static int ad5449_spi_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
+
+	mutex_init(&st->lock);
 
 	if (st->chip_info->has_ctrl) {
 		unsigned int ctrl = 0x00;

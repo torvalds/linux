@@ -36,10 +36,16 @@ config COMPAT_BINFMT_ELF
 config ARCH_BINFMT_ELF_STATE
 	bool
 
+config ARCH_HAVE_ELF_PROT
+	bool
+
+config ARCH_USE_GNU_PROPERTY
+	bool
+
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || (SUPERH32 && !MMU) || C6X)
+	depends on (ARM || (SUPERH && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -72,7 +78,7 @@ config CORE_DUMP_DEFAULT_ELF_HEADERS
 
 	  The core dump behavior can be controlled per process using
 	  the /proc/PID/coredump_filter pseudo-file; this setting is
-	  inherited.  See Documentation/filesystems/proc.txt for details.
+	  inherited.  See Documentation/filesystems/proc.rst for details.
 
 	  This config option changes the default setting of coredump_filter
 	  seen at boot time.  If unsure, say Y.

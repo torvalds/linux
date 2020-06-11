@@ -8,7 +8,7 @@
  *   - AVerMedia who kindly provided information and
  *   - Glen Harris who suffered from my mistakes during development.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include "dibusb.h"
 
@@ -27,8 +27,10 @@ static int a800_power_ctrl(struct dvb_usb_device *d, int onoff)
 }
 
 /* assure to put cold to 0 for iManufacturer == 1 */
-static int a800_identify_state(struct usb_device *udev, struct dvb_usb_device_properties *props,
-	struct dvb_usb_device_description **desc, int *cold)
+static int a800_identify_state(struct usb_device *udev,
+			       const struct dvb_usb_device_properties *props,
+			       const struct dvb_usb_device_description **desc,
+			       int *cold)
 {
 	*cold = udev->descriptor.iManufacturer != 1;
 	return 0;

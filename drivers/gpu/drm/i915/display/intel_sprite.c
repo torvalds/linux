@@ -2503,6 +2503,7 @@ static const u32 skl_plane_formats[] = {
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
+	DRM_FORMAT_XYUV8888,
 };
 
 static const u32 skl_planar_formats[] = {
@@ -2521,6 +2522,7 @@ static const u32 skl_planar_formats[] = {
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
 	DRM_FORMAT_NV12,
+	DRM_FORMAT_XYUV8888,
 };
 
 static const u32 glk_planar_formats[] = {
@@ -2539,6 +2541,7 @@ static const u32 glk_planar_formats[] = {
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
 	DRM_FORMAT_NV12,
+	DRM_FORMAT_XYUV8888,
 	DRM_FORMAT_P010,
 	DRM_FORMAT_P012,
 	DRM_FORMAT_P016,
@@ -2562,6 +2565,7 @@ static const u32 icl_sdr_y_plane_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
+	DRM_FORMAT_XYUV8888,
 	DRM_FORMAT_XVYU2101010,
 	DRM_FORMAT_XVYU12_16161616,
 	DRM_FORMAT_XVYU16161616,
@@ -2589,6 +2593,7 @@ static const u32 icl_sdr_uv_plane_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
+	DRM_FORMAT_XYUV8888,
 	DRM_FORMAT_XVYU2101010,
 	DRM_FORMAT_XVYU12_16161616,
 	DRM_FORMAT_XVYU16161616,
@@ -2620,6 +2625,7 @@ static const u32 icl_hdr_plane_formats[] = {
 	DRM_FORMAT_Y210,
 	DRM_FORMAT_Y212,
 	DRM_FORMAT_Y216,
+	DRM_FORMAT_XYUV8888,
 	DRM_FORMAT_XVYU2101010,
 	DRM_FORMAT_XVYU12_16161616,
 	DRM_FORMAT_XVYU16161616,
@@ -2790,6 +2796,7 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_XYUV8888:
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P012:
 	case DRM_FORMAT_P016:
@@ -2817,19 +2824,25 @@ static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
 	}
 }
 
-static bool gen12_plane_supports_mc_ccs(enum plane_id plane_id)
+static bool gen12_plane_supports_mc_ccs(struct drm_i915_private *dev_priv,
+					enum plane_id plane_id)
 {
+	/* Wa_14010477008:tgl[a0..c0] */
+	if (IS_TGL_REVID(dev_priv, TGL_REVID_A0, TGL_REVID_C0))
+		return false;
+
 	return plane_id < PLANE_SPRITE4;
 }
 
 static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 					     u32 format, u64 modifier)
 {
+	struct drm_i915_private *dev_priv = to_i915(_plane->dev);
 	struct intel_plane *plane = to_intel_plane(_plane);
 
 	switch (modifier) {
 	case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-		if (!gen12_plane_supports_mc_ccs(plane->id))
+		if (!gen12_plane_supports_mc_ccs(dev_priv, plane->id))
 			return false;
 		/* fall through */
 	case DRM_FORMAT_MOD_LINEAR:
@@ -2854,6 +2867,7 @@ static bool gen12_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
 	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_XYUV8888:
 	case DRM_FORMAT_P010:
 	case DRM_FORMAT_P012:
 	case DRM_FORMAT_P016:
@@ -2998,9 +3012,10 @@ static const u32 *icl_get_plane_formats(struct drm_i915_private *dev_priv,
 	}
 }
 
-static const u64 *gen12_get_plane_modifiers(enum plane_id plane_id)
+static const u64 *gen12_get_plane_modifiers(struct drm_i915_private *dev_priv,
+					    enum plane_id plane_id)
 {
-	if (gen12_plane_supports_mc_ccs(plane_id))
+	if (gen12_plane_supports_mc_ccs(dev_priv, plane_id))
 		return gen12_plane_format_modifiers_mc_ccs;
 	else
 		return gen12_plane_format_modifiers_rc_ccs;
@@ -3070,7 +3085,7 @@ skl_universal_plane_create(struct drm_i915_private *dev_priv,
 
 	plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe, plane_id);
 	if (INTEL_GEN(dev_priv) >= 12) {
-		modifiers = gen12_get_plane_modifiers(plane_id);
+		modifiers = gen12_get_plane_modifiers(dev_priv, plane_id);
 		plane_funcs = &gen12_plane_funcs;
 	} else {
 		if (plane->has_ccs)

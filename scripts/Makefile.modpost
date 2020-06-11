@@ -43,34 +43,30 @@ __modpost:
 include include/config/auto.conf
 include scripts/Kbuild.include
 
-kernelsymfile := $(objtree)/Module.symvers
-modulesymfile := $(firstword $(KBUILD_EXTMOD))/Module.symvers
-
 MODPOST = scripts/mod/modpost								\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
-	$(if $(KBUILD_EXTMOD),-i,-o) $(kernelsymfile)					\
-	$(if $(KBUILD_EXTMOD),$(addprefix -e ,$(KBUILD_EXTRA_SYMBOLS)))			\
-	$(if $(KBUILD_EXTMOD),-o $(modulesymfile))					\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\
-	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N) 	\
-	$(if $(KBUILD_MODPOST_WARN),-w)
+	$(if $(KBUILD_MODPOST_WARN),-w) \
+	-o $@
 
 ifdef MODPOST_VMLINUX
 
-quiet_cmd_modpost = MODPOST vmlinux.o
-      cmd_modpost = $(MODPOST) vmlinux.o
+quiet_cmd_modpost = MODPOST $@
+      cmd_modpost = $(MODPOST) $<
 
-__modpost:
+vmlinux.symvers: vmlinux.o
 	$(call cmd,modpost)
+
+__modpost: vmlinux.symvers
 
 else
 
-MODPOST += $(subst -i,-n,$(filter -i,$(MAKEFLAGS))) -s -T - \
-	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS))
-
 ifeq ($(KBUILD_EXTMOD),)
-MODPOST += $(wildcard vmlinux)
+
+input-symdump := vmlinux.symvers
+output-symdump := Module.symvers
+
 else
 
 # set src + obj - they may be used in the modules's Makefile
@@ -80,21 +76,56 @@ src := $(obj)
 # Include the module's Makefile to find KBUILD_EXTRA_SYMBOLS
 include $(if $(wildcard $(KBUILD_EXTMOD)/Kbuild), \
              $(KBUILD_EXTMOD)/Kbuild, $(KBUILD_EXTMOD)/Makefile)
+
+# modpost option for external modules
+MODPOST += -e
+
+input-symdump := Module.symvers $(KBUILD_EXTRA_SYMBOLS)
+output-symdump := $(KBUILD_EXTMOD)/Module.symvers
+
 endif
 
-# find all modules listed in modules.order
-modules := $(sort $(shell cat $(MODORDER)))
+# modpost options for modules (both in-kernel and external)
+MODPOST += \
+	$(addprefix -i ,$(wildcard $(input-symdump))) \
+	$(if $(KBUILD_NSDEPS),-d $(MODULES_NSDEPS)) \
+	$(if $(CONFIG_MODULE_ALLOW_MISSING_NAMESPACE_IMPORTS)$(KBUILD_NSDEPS),-N)
 
-# Read out modules.order instead of expanding $(modules) to pass in modpost.
+# 'make -i -k' ignores compile errors, and builds as many modules as possible.
+ifneq ($(findstring i,$(filter-out --%,$(MAKEFLAGS))),)
+MODPOST += -n
+endif
+
+# Clear VPATH to not search for *.symvers in $(srctree). Check only $(objtree).
+VPATH :=
+$(input-symdump):
+	@echo >&2 'WARNING: Symbol version dump "$@" is missing.'
+	@echo >&2 '         Modules may not have dependencies or modversions.'
+
+# Read out modules.order to pass in modpost.
 # Otherwise, allmodconfig would fail with "Argument list too long".
-quiet_cmd_modpost = MODPOST $(words $(modules)) modules
-      cmd_modpost = sed 's/ko$$/o/' $(MODORDER) | $(MODPOST)
+quiet_cmd_modpost = MODPOST $@
+      cmd_modpost = sed 's/ko$$/o/' $< | $(MODPOST) -T -
 
-__modpost:
-	$(call cmd,modpost)
+$(output-symdump): $(MODORDER) $(input-symdump) FORCE
+	$(call if_changed,modpost)
+
+targets += $(output-symdump)
+
+__modpost: $(output-symdump)
 ifneq ($(KBUILD_MODPOST_NOFINAL),1)
 	$(Q)$(MAKE) -f $(srctree)/scripts/Makefile.modfinal
 endif
+
+PHONY += FORCE
+FORCE:
+
+existing-targets := $(wildcard $(sort $(targets)))
+
+-include $(foreach f,$(existing-targets),$(dir $(f)).$(notdir $(f)).cmd)
+
+PHONY += FORCE
+FORCE:
 
 endif
 

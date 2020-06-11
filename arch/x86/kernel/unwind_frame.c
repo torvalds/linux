@@ -74,13 +74,7 @@ static bool in_entry_code(unsigned long ip)
 {
 	char *addr = (char *)ip;
 
-	if (addr >= __entry_text_start && addr < __entry_text_end)
-		return true;
-
-	if (addr >= __irqentry_text_start && addr < __irqentry_text_end)
-		return true;
-
-	return false;
+	return addr >= __entry_text_start && addr < __entry_text_end;
 }
 
 static inline unsigned long *last_frame(struct unwind_state *state)
@@ -342,6 +336,9 @@ bad_address:
 	 * unwinder warnings on 32-bit until it gets objtool support.
 	 */
 	if (IS_ENABLED(CONFIG_X86_32))
+		goto the_end;
+
+	if (state->task != current)
 		goto the_end;
 
 	if (state->regs) {

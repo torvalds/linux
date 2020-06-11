@@ -21,6 +21,9 @@
 #define IGC_DEV_ID_I225_I			0x15F8
 #define IGC_DEV_ID_I220_V			0x15F7
 #define IGC_DEV_ID_I225_K			0x3100
+#define IGC_DEV_ID_I225_K2			0x3101
+#define IGC_DEV_ID_I225_LMVP			0x5502
+#define IGC_DEV_ID_I225_IT			0x0D9F
 #define IGC_DEV_ID_I225_BLANK_NVM		0x15FD
 
 /* Function pointers for the MAC. */

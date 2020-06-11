@@ -658,7 +658,7 @@ static void btf_dump_emit_type(struct btf_dump *d, __u32 id, __u32 cont_id)
 			if (!btf_dump_is_blacklisted(d, id)) {
 				btf_dump_emit_typedef_def(d, id, t, 0);
 				btf_dump_printf(d, ";\n\n");
-			};
+			}
 			tstate->fwd_emitted = 1;
 			break;
 		default:

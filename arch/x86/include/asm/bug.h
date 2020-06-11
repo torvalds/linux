@@ -70,14 +70,17 @@ do {									\
 #define HAVE_ARCH_BUG
 #define BUG()							\
 do {								\
+	instrumentation_begin();				\
 	_BUG_FLAGS(ASM_UD2, 0);					\
 	unreachable();						\
 } while (0)
 
 #define __WARN_FLAGS(flags)					\
 do {								\
+	instrumentation_begin();				\
 	_BUG_FLAGS(ASM_UD2, BUGFLAG_WARNING|(flags));		\
 	annotate_reachable();					\
+	instrumentation_end();					\
 } while (0)
 
 #include <asm-generic/bug.h>

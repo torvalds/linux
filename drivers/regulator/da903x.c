@@ -248,7 +248,7 @@ static int da9034_set_dvc_voltage_sel(struct regulator_dev *rdev,
 	return ret;
 }
 
-static const struct regulator_linear_range da9034_ldo12_ranges[] = {
+static const struct linear_range da9034_ldo12_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1700000, 0, 7, 50000),
 	REGULATOR_LINEAR_RANGE(2700000, 8, 15, 50000),
 };

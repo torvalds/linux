@@ -155,7 +155,7 @@ static inline int set_av_attr(struct ocrdma_dev *dev, struct ocrdma_ah *ah,
 	return status;
 }
 
-int ocrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+int ocrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		     struct ib_udata *udata)
 {
 	u32 *ahid_addr;
@@ -165,6 +165,7 @@ int ocrdma_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
 	u16 vlan_tag = 0xffff;
 	const struct ib_gid_attr *sgid_attr;
 	struct ocrdma_pd *pd = get_ocrdma_pd(ibah->pd);
+	struct rdma_ah_attr *attr = init_attr->ah_attr;
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);
 
 	if ((attr->type != RDMA_AH_ATTR_TYPE_ROCE) ||

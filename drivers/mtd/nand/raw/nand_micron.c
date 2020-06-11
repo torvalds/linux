@@ -192,6 +192,7 @@ static int micron_nand_on_die_ecc_status_4(struct nand_chip *chip, u8 status,
 	struct micron_nand *micron = nand_get_manufacturer_data(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	unsigned int step, max_bitflips = 0;
+	bool use_datain = false;
 	int ret;
 
 	if (!(status & NAND_ECC_STATUS_WRITE_RECOMMENDED)) {
@@ -211,8 +212,27 @@ static int micron_nand_on_die_ecc_status_4(struct nand_chip *chip, u8 status,
 	 * in non-raw mode, even if the user did not request those bytes.
 	 */
 	if (!oob_required) {
-		ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize,
-					false);
+		/*
+		 * We first check which operation is supported by the controller
+		 * before running it. This trick makes it possible to support
+		 * all controllers, even the most constraints, without almost
+		 * any performance hit.
+		 *
+		 * TODO: could be enhanced to avoid repeating the same check
+		 * over and over in the fast path.
+		 */
+		if (!nand_has_exec_op(chip) ||
+		    !nand_read_data_op(chip, chip->oob_poi, mtd->oobsize, false,
+				       true))
+			use_datain = true;
+
+		if (use_datain)
+			ret = nand_read_data_op(chip, chip->oob_poi,
+						mtd->oobsize, false, false);
+		else
+			ret = nand_change_read_column_op(chip, mtd->writesize,
+							 chip->oob_poi,
+							 mtd->oobsize, false);
 		if (ret)
 			return ret;
 	}
@@ -285,6 +305,7 @@ micron_nand_read_page_on_die_ecc(struct nand_chip *chip, uint8_t *buf,
 				 int oob_required, int page)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
+	bool use_datain = false;
 	u8 status;
 	int ret, max_bitflips = 0;
 
@@ -300,14 +321,36 @@ micron_nand_read_page_on_die_ecc(struct nand_chip *chip, uint8_t *buf,
 	if (ret)
 		goto out;
 
-	ret = nand_exit_status_op(chip);
-	if (ret)
-		goto out;
+	/*
+	 * We first check which operation is supported by the controller before
+	 * running it. This trick makes it possible to support all controllers,
+	 * even the most constraints, without almost any performance hit.
+	 *
+	 * TODO: could be enhanced to avoid repeating the same check over and
+	 * over in the fast path.
+	 */
+	if (!nand_has_exec_op(chip) ||
+	    !nand_read_data_op(chip, buf, mtd->writesize, false, true))
+		use_datain = true;
 
-	ret = nand_read_data_op(chip, buf, mtd->writesize, false);
-	if (!ret && oob_required)
-		ret = nand_read_data_op(chip, chip->oob_poi, mtd->oobsize,
+	if (use_datain) {
+		ret = nand_exit_status_op(chip);
+		if (ret)
+			goto out;
+
+		ret = nand_read_data_op(chip, buf, mtd->writesize, false,
 					false);
+		if (!ret && oob_required)
+			ret = nand_read_data_op(chip, chip->oob_poi,
+						mtd->oobsize, false, false);
+	} else {
+		ret = nand_change_read_column_op(chip, 0, buf, mtd->writesize,
+						 false);
+		if (!ret && oob_required)
+			ret = nand_change_read_column_op(chip, mtd->writesize,
+							 chip->oob_poi,
+							 mtd->oobsize, false);
+	}
 
 	if (chip->ecc.strength == 4)
 		max_bitflips = micron_nand_on_die_ecc_status_4(chip, status,
@@ -508,8 +551,10 @@ static int micron_nand_init(struct nand_chip *chip)
 			chip->ecc.read_page_raw = nand_read_page_raw_notsupp;
 			chip->ecc.write_page_raw = nand_write_page_raw_notsupp;
 		} else {
-			chip->ecc.read_page_raw = nand_read_page_raw;
-			chip->ecc.write_page_raw = nand_write_page_raw;
+			if (!chip->ecc.read_page_raw)
+				chip->ecc.read_page_raw = nand_read_page_raw;
+			if (!chip->ecc.write_page_raw)
+				chip->ecc.write_page_raw = nand_write_page_raw;
 		}
 	}
 

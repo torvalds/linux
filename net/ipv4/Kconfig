@@ -49,7 +49,7 @@ config IP_ADVANCED_ROUTER
 
 	  Note that some distributions enable it in startup scripts.
 	  For details about rp_filter strict and loose mode read
-	  <file:Documentation/networking/ip-sysctl.txt>.
+	  <file:Documentation/networking/ip-sysctl.rst>.
 
 	  If unsure, say N here.
 
@@ -384,6 +384,7 @@ config INET_ESPINTCP
 	depends on XFRM && INET_ESP
 	select STREAM_PARSER
 	select NET_SOCK_MSG
+	select XFRM_ESPINTCP
 	help
 	  Support for RFC 8229 encapsulation of ESP and IKE over
 	  TCP/IPv4 sockets.

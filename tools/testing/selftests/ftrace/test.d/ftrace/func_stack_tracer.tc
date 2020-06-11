@@ -8,6 +8,8 @@ if [ ! -f stack_trace ]; then
   exit_unsupported
 fi
 
+check_filter_file stack_trace_filter
+
 echo > stack_trace_filter
 echo 0 > stack_max_size
 echo 1 > /proc/sys/kernel/stack_tracer_enabled

@@ -35,4 +35,14 @@ void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_r
 void run_guest(struct vmcb *vmcb, uint64_t vmcb_gpa);
 void nested_svm_check_supported(void);
 
+static inline bool cpu_has_svm(void)
+{
+	u32 eax = 0x80000001, ecx;
+
+	asm("cpuid" :
+	    "=a" (eax), "=c" (ecx) : "0" (eax) : "ebx", "edx");
+
+	return ecx & CPUID_SVM;
+}
+
 #endif /* SELFTEST_KVM_SVM_UTILS_H */

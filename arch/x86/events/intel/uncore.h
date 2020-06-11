@@ -130,7 +130,7 @@ struct intel_uncore_box {
 	struct list_head list;
 	struct list_head active_list;
 	void __iomem *io_addr;
-	struct intel_uncore_extra_reg shared_regs[0];
+	struct intel_uncore_extra_reg shared_regs[];
 };
 
 /* CFL uncore 8th cbox MSRs */

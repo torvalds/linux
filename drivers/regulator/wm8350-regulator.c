@@ -470,7 +470,7 @@ static int wm8350_dcdc_set_suspend_mode(struct regulator_dev *rdev,
 	return 0;
 }
 
-static const struct regulator_linear_range wm8350_ldo_ranges[] = {
+static const struct linear_range wm8350_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000, 0, 15, 50000),
 	REGULATOR_LINEAR_RANGE(1800000, 16, 31, 100000),
 };

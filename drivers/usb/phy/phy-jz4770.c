@@ -125,13 +125,13 @@ static int jz4770_phy_init(struct usb_phy *phy)
 
 	err = regulator_enable(priv->vcc_supply);
 	if (err) {
-		dev_err(priv->dev, "Unable to enable VCC: %d", err);
+		dev_err(priv->dev, "Unable to enable VCC: %d\n", err);
 		return err;
 	}
 
 	err = clk_prepare_enable(priv->clk);
 	if (err) {
-		dev_err(priv->dev, "Unable to start clock: %d", err);
+		dev_err(priv->dev, "Unable to start clock: %d\n", err);
 		return err;
 	}
 
@@ -191,7 +191,7 @@ static int jz4770_phy_probe(struct platform_device *pdev)
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
-		dev_err(dev, "Failed to map registers");
+		dev_err(dev, "Failed to map registers\n");
 		return PTR_ERR(priv->base);
 	}
 
@@ -199,7 +199,7 @@ static int jz4770_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk)) {
 		err = PTR_ERR(priv->clk);
 		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get clock");
+			dev_err(dev, "Failed to get clock\n");
 		return err;
 	}
 
@@ -207,14 +207,14 @@ static int jz4770_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->vcc_supply)) {
 		err = PTR_ERR(priv->vcc_supply);
 		if (err != -EPROBE_DEFER)
-			dev_err(dev, "failed to get regulator");
+			dev_err(dev, "Failed to get regulator\n");
 		return err;
 	}
 
 	err = usb_add_phy(&priv->phy, USB_PHY_TYPE_USB2);
 	if (err) {
 		if (err != -EPROBE_DEFER)
-			dev_err(dev, "Unable to register PHY");
+			dev_err(dev, "Unable to register PHY\n");
 		return err;
 	}
 

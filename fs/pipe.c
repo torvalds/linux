@@ -140,21 +140,20 @@ static void anon_pipe_buf_release(struct pipe_inode_info *pipe,
 		put_page(page);
 }
 
-static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
-			       struct pipe_buffer *buf)
+static bool anon_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
-	if (page_count(page) == 1) {
-		memcg_kmem_uncharge_page(page, 0);
-		__SetPageLocked(page);
-		return 0;
-	}
-	return 1;
+	if (page_count(page) != 1)
+		return false;
+	memcg_kmem_uncharge_page(page, 0);
+	__SetPageLocked(page);
+	return true;
 }
 
 /**
- * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
+ * generic_pipe_buf_try_steal - attempt to take ownership of a &pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to attempt to steal
  *
@@ -165,8 +164,8 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
  *	he wishes; the typical use is insertion into a different file
  *	page cache.
  */
-int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
-			   struct pipe_buffer *buf)
+bool generic_pipe_buf_try_steal(struct pipe_inode_info *pipe,
+		struct pipe_buffer *buf)
 {
 	struct page *page = buf->page;
 
@@ -177,12 +176,11 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 	 */
 	if (page_count(page) == 1) {
 		lock_page(page);
-		return 0;
+		return true;
 	}
-
-	return 1;
+	return false;
 }
-EXPORT_SYMBOL(generic_pipe_buf_steal);
+EXPORT_SYMBOL(generic_pipe_buf_try_steal);
 
 /**
  * generic_pipe_buf_get - get a reference to a &struct pipe_buffer
@@ -201,22 +199,6 @@ bool generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 EXPORT_SYMBOL(generic_pipe_buf_get);
 
 /**
- * generic_pipe_buf_confirm - verify contents of the pipe buffer
- * @info:	the pipe that the buffer belongs to
- * @buf:	the buffer to confirm
- *
- * Description:
- *	This function does nothing, because the generic pipe code uses
- *	pages that are always good when inserted into the pipe.
- */
-int generic_pipe_buf_confirm(struct pipe_inode_info *info,
-			     struct pipe_buffer *buf)
-{
-	return 0;
-}
-EXPORT_SYMBOL(generic_pipe_buf_confirm);
-
-/**
  * generic_pipe_buf_release - put a reference to a &struct pipe_buffer
  * @pipe:	the pipe that the buffer belongs to
  * @buf:	the buffer to put a reference to
@@ -231,47 +213,11 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 }
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
-/* New data written to a pipe may be appended to a buffer with this type. */
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
+	.release	= anon_pipe_buf_release,
+	.try_steal	= anon_pipe_buf_try_steal,
+	.get		= generic_pipe_buf_get,
 };
-
-static const struct pipe_buf_operations anon_pipe_buf_nomerge_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-static const struct pipe_buf_operations packet_pipe_buf_ops = {
-	.confirm = generic_pipe_buf_confirm,
-	.release = anon_pipe_buf_release,
-	.steal = anon_pipe_buf_steal,
-	.get = generic_pipe_buf_get,
-};
-
-/**
- * pipe_buf_mark_unmergeable - mark a &struct pipe_buffer as unmergeable
- * @buf:	the buffer to mark
- *
- * Description:
- *	This function ensures that no future writes will be merged into the
- *	given &struct pipe_buffer. This is necessary when multiple pipe buffers
- *	share the same backing page.
- */
-void pipe_buf_mark_unmergeable(struct pipe_buffer *buf)
-{
-	if (buf->ops == &anon_pipe_buf_ops)
-		buf->ops = &anon_pipe_buf_nomerge_ops;
-}
-
-static bool pipe_buf_can_merge(struct pipe_buffer *buf)
-{
-	return buf->ops == &anon_pipe_buf_ops;
-}
 
 /* Done while waiting without holding the pipe lock - thus the READ_ONCE() */
 static inline bool pipe_readable(const struct pipe_inode_info *pipe)
@@ -478,7 +424,8 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		struct pipe_buffer *buf = &pipe->bufs[(head - 1) & mask];
 		int offset = buf->offset + buf->len;
 
-		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
+		if ((buf->flags & PIPE_BUF_FLAG_CAN_MERGE) &&
+		    offset + chars <= PAGE_SIZE) {
 			ret = pipe_buf_confirm(pipe, buf);
 			if (ret)
 				goto out;
@@ -541,11 +488,10 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 			buf->ops = &anon_pipe_buf_ops;
 			buf->offset = 0;
 			buf->len = 0;
-			buf->flags = 0;
-			if (is_packetized(filp)) {
-				buf->ops = &packet_pipe_buf_ops;
+			if (is_packetized(filp))
 				buf->flags = PIPE_BUF_FLAG_PACKET;
-			}
+			else
+				buf->flags = PIPE_BUF_FLAG_CAN_MERGE;
 			pipe->tmp_page = NULL;
 
 			copied = copy_page_from_iter(page, 0, PAGE_SIZE, from);

@@ -19,11 +19,11 @@
 #include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/nvram.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -74,20 +74,20 @@ EXPORT_SYMBOL(DMA_MODE_WRITE);
  */
 notrace void __init machine_init(u64 dt_ptr)
 {
-	unsigned int *addr = (unsigned int *)patch_site_addr(&patch__memset_nocache);
-	unsigned long insn;
+	struct ppc_inst *addr = (struct ppc_inst *)patch_site_addr(&patch__memset_nocache);
+	struct ppc_inst insn;
 
 	/* Configure static keys first, now that we're relocated. */
 	setup_feature_keys();
 
-	early_ioremap_setup();
+	early_ioremap_init();
 
 	/* Enable early debugging if any specified (see udbg.h) */
 	udbg_early_init();
 
-	patch_instruction_site(&patch__memcpy_nocache, PPC_INST_NOP);
+	patch_instruction_site(&patch__memcpy_nocache, ppc_inst(PPC_INST_NOP));
 
-	insn = create_cond_branch(addr, branch_target(addr), 0x820000);
+	create_cond_branch(&insn, addr, branch_target(addr), 0x820000);
 	patch_instruction(addr, insn);	/* replace b by bne cr0 */
 
 	/* Do some early initialization based on the flat device tree */

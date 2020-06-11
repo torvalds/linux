@@ -79,7 +79,7 @@ The DPSW can have ports connected to DPNIs or to PHYs via DPMACs.
 
 For a more detailed description of the Ethernet switch device driver model
 see:
-	Documentation/networking/switchdev.txt
+	Documentation/networking/switchdev.rst
 
 Creating an Ethernet Switch
 ===========================

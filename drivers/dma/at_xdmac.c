@@ -212,7 +212,7 @@ struct at_xdmac {
 	struct clk		*clk;
 	u32			save_gim;
 	struct dma_pool		*at_xdmac_desc_pool;
-	struct at_xdmac_chan	chan[0];
+	struct at_xdmac_chan	chan[];
 };
 
 

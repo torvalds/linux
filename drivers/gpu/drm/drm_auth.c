@@ -135,6 +135,7 @@ static int drm_set_master(struct drm_device *dev, struct drm_file *fpriv,
 		}
 	}
 
+	fpriv->was_master = (ret == 0);
 	return ret;
 }
 
@@ -174,17 +175,77 @@ out_err:
 	return ret;
 }
 
+/*
+ * In the olden days the SET/DROP_MASTER ioctls used to return EACCES when
+ * CAP_SYS_ADMIN was not set. This was used to prevent rogue applications
+ * from becoming master and/or failing to release it.
+ *
+ * At the same time, the first client (for a given VT) is _always_ master.
+ * Thus in order for the ioctls to succeed, one had to _explicitly_ run the
+ * application as root or flip the setuid bit.
+ *
+ * If the CAP_SYS_ADMIN was missing, no other client could become master...
+ * EVER :-( Leading to a) the graphics session dying badly or b) a completely
+ * locked session.
+ *
+ *
+ * As some point systemd-logind was introduced to orchestrate and delegate
+ * master as applicable. It does so by opening the fd and passing it to users
+ * while in itself logind a) does the set/drop master per users' request and
+ * b)  * implicitly drops master on VT switch.
+ *
+ * Even though logind looks like the future, there are a few issues:
+ *  - some platforms don't have equivalent (Android, CrOS, some BSDs) so
+ * root is required _solely_ for SET/DROP MASTER.
+ *  - applications may not be updated to use it,
+ *  - any client which fails to drop master* can DoS the application using
+ * logind, to a varying degree.
+ *
+ * * Either due missing CAP_SYS_ADMIN or simply not calling DROP_MASTER.
+ *
+ *
+ * Here we implement the next best thing:
+ *  - ensure the logind style of fd passing works unchanged, and
+ *  - allow a client to drop/set master, iff it is/was master at a given point
+ * in time.
+ *
+ * Note: DROP_MASTER cannot be free for all, as an arbitrator user could:
+ *  - DoS/crash the arbitrator - details would be implementation specific
+ *  - open the node, become master implicitly and cause issues
+ *
+ * As a result this fixes the following when using root-less build w/o logind
+ * - startx
+ * - weston
+ * - various compositors based on wlroots
+ */
+static int
+drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
+{
+	if (file_priv->pid == task_pid(current) && file_priv->was_master)
+		return 0;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	return 0;
+}
+
 int drm_setmaster_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
 	int ret = 0;
 
 	mutex_lock(&dev->master_mutex);
+
+	ret = drm_master_check_perm(dev, file_priv);
+	if (ret)
+		goto out_unlock;
+
 	if (drm_is_current_master(file_priv))
 		goto out_unlock;
 
 	if (dev->master) {
-		ret = -EINVAL;
+		ret = -EBUSY;
 		goto out_unlock;
 	}
 
@@ -224,6 +285,12 @@ int drm_dropmaster_ioctl(struct drm_device *dev, void *data,
 	int ret = -EINVAL;
 
 	mutex_lock(&dev->master_mutex);
+
+	ret = drm_master_check_perm(dev, file_priv);
+	if (ret)
+		goto out_unlock;
+
+	ret = -EINVAL;
 	if (!drm_is_current_master(file_priv))
 		goto out_unlock;
 

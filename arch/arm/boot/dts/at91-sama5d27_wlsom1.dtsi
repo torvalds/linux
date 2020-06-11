@@ -17,6 +17,10 @@
 	model = "Microchip SAMA5D27 WLSOM1";
 	compatible = "microchip,sama5d27-wlsom1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		i2c0 = &i2c0;
+	};
+
 	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
@@ -32,18 +36,6 @@
 	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
 
 	uart6: serial@200 {
-		compatible = "atmel,at91sam9260-usart";
-		reg = <0x200 0x200>;
-		interrupts = <20 IRQ_TYPE_LEVEL_HIGH 7>;
-		dmas = <&dma0
-			(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
-			 AT91_XDMAC_DT_PERID(13))>,
-		       <&dma0
-			(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1) |
-			 AT91_XDMAC_DT_PERID(14))>;
-		dma-names = "tx", "rx";
-		clocks = <&pmc PMC_TYPE_PERIPHERAL 20>;
-		clock-names = "usart";
 		pinctrl-0 = <&pinctrl_flx1_default>;
 		pinctrl-names = "default";
 	};

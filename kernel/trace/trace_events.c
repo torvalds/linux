@@ -2209,6 +2209,10 @@ event_create_dir(struct dentry *parent, struct trace_event_file *file)
 	trace_create_file("hist", 0444, file->dir, file,
 			  &event_hist_fops);
 #endif
+#ifdef CONFIG_HIST_TRIGGERS_DEBUG
+	trace_create_file("hist_debug", 0444, file->dir, file,
+			  &event_hist_debug_fops);
+#endif
 	trace_create_file("format", 0444, file->dir, call,
 			  &ftrace_event_format_fops);
 

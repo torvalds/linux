@@ -294,15 +294,12 @@ static void send_done(struct ib_cq *cq, struct ib_wc *wc)
 
 static void dump_smbd_negotiate_resp(struct smbd_negotiate_resp *resp)
 {
-	log_rdma_event(INFO, "resp message min_version %u max_version %u "
-		"negotiated_version %u credits_requested %u "
-		"credits_granted %u status %u max_readwrite_size %u "
-		"preferred_send_size %u max_receive_size %u "
-		"max_fragmented_size %u\n",
-		resp->min_version, resp->max_version, resp->negotiated_version,
-		resp->credits_requested, resp->credits_granted, resp->status,
-		resp->max_readwrite_size, resp->preferred_send_size,
-		resp->max_receive_size, resp->max_fragmented_size);
+	log_rdma_event(INFO, "resp message min_version %u max_version %u negotiated_version %u credits_requested %u credits_granted %u status %u max_readwrite_size %u preferred_send_size %u max_receive_size %u max_fragmented_size %u\n",
+		       resp->min_version, resp->max_version,
+		       resp->negotiated_version, resp->credits_requested,
+		       resp->credits_granted, resp->status,
+		       resp->max_readwrite_size, resp->preferred_send_size,
+		       resp->max_receive_size, resp->max_fragmented_size);
 }
 
 /*
@@ -450,10 +447,9 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 	struct smbd_connection *info = response->info;
 	int data_length = 0;
 
-	log_rdma_recv(INFO, "response=%p type=%d wc status=%d wc opcode %d "
-		      "byte_len=%d pkey_index=%x\n",
-		response, response->type, wc->status, wc->opcode,
-		wc->byte_len, wc->pkey_index);
+	log_rdma_recv(INFO, "response=%p type=%d wc status=%d wc opcode %d byte_len=%d pkey_index=%x\n",
+		      response, response->type, wc->status, wc->opcode,
+		      wc->byte_len, wc->pkey_index);
 
 	if (wc->status != IB_WC_SUCCESS || wc->opcode != IB_WC_RECV) {
 		log_rdma_recv(INFO, "wc->status=%d opcode=%d\n",
@@ -519,12 +515,11 @@ static void recv_done(struct ib_cq *cq, struct ib_wc *wc)
 			wake_up_interruptible(&info->wait_send_queue);
 		}
 
-		log_incoming(INFO, "data flags %d data_offset %d "
-			"data_length %d remaining_data_length %d\n",
-			le16_to_cpu(data_transfer->flags),
-			le32_to_cpu(data_transfer->data_offset),
-			le32_to_cpu(data_transfer->data_length),
-			le32_to_cpu(data_transfer->remaining_data_length));
+		log_incoming(INFO, "data flags %d data_offset %d data_length %d remaining_data_length %d\n",
+			     le16_to_cpu(data_transfer->flags),
+			     le32_to_cpu(data_transfer->data_offset),
+			     le32_to_cpu(data_transfer->data_length),
+			     le32_to_cpu(data_transfer->remaining_data_length));
 
 		/* Send a KEEP_ALIVE response right away if requested */
 		info->keep_alive_requested = KEEP_ALIVE_NONE;
@@ -632,14 +627,10 @@ static int smbd_ia_open(
 	}
 
 	if (!frwr_is_supported(&info->id->device->attrs)) {
-		log_rdma_event(ERR,
-			"Fast Registration Work Requests "
-			"(FRWR) is not supported\n");
-		log_rdma_event(ERR,
-			"Device capability flags = %llx "
-			"max_fast_reg_page_list_len = %u\n",
-			info->id->device->attrs.device_cap_flags,
-			info->id->device->attrs.max_fast_reg_page_list_len);
+		log_rdma_event(ERR, "Fast Registration Work Requests (FRWR) is not supported\n");
+		log_rdma_event(ERR, "Device capability flags = %llx max_fast_reg_page_list_len = %u\n",
+			       info->id->device->attrs.device_cap_flags,
+			       info->id->device->attrs.max_fast_reg_page_list_len);
 		rc = -EPROTONOSUPPORT;
 		goto out2;
 	}
@@ -898,13 +889,12 @@ wait_send_queue:
 	packet->remaining_data_length = cpu_to_le32(remaining_data_length);
 	packet->padding = 0;
 
-	log_outgoing(INFO, "credits_requested=%d credits_granted=%d "
-		"data_offset=%d data_length=%d remaining_data_length=%d\n",
-		le16_to_cpu(packet->credits_requested),
-		le16_to_cpu(packet->credits_granted),
-		le32_to_cpu(packet->data_offset),
-		le32_to_cpu(packet->data_length),
-		le32_to_cpu(packet->remaining_data_length));
+	log_outgoing(INFO, "credits_requested=%d credits_granted=%d data_offset=%d data_length=%d remaining_data_length=%d\n",
+		     le16_to_cpu(packet->credits_requested),
+		     le16_to_cpu(packet->credits_granted),
+		     le32_to_cpu(packet->data_offset),
+		     le32_to_cpu(packet->data_length),
+		     le32_to_cpu(packet->remaining_data_length));
 
 	/* Map the packet to DMA */
 	header_length = sizeof(struct smbd_data_transfer);
@@ -1078,11 +1068,9 @@ static int smbd_negotiate(struct smbd_connection *info)
 
 	response->type = SMBD_NEGOTIATE_RESP;
 	rc = smbd_post_recv(info, response);
-	log_rdma_event(INFO,
-		"smbd_post_recv rc=%d iov.addr=%llx iov.length=%x "
-		"iov.lkey=%x\n",
-		rc, response->sge.addr,
-		response->sge.length, response->sge.lkey);
+	log_rdma_event(INFO, "smbd_post_recv rc=%d iov.addr=%llx iov.length=%x iov.lkey=%x\n",
+		       rc, response->sge.addr,
+		       response->sge.length, response->sge.lkey);
 	if (rc)
 		return rc;
 
@@ -1540,25 +1528,19 @@ static struct smbd_connection *_smbd_get_connection(
 
 	if (smbd_send_credit_target > info->id->device->attrs.max_cqe ||
 	    smbd_send_credit_target > info->id->device->attrs.max_qp_wr) {
-		log_rdma_event(ERR,
-			"consider lowering send_credit_target = %d. "
-			"Possible CQE overrun, device "
-			"reporting max_cpe %d max_qp_wr %d\n",
-			smbd_send_credit_target,
-			info->id->device->attrs.max_cqe,
-			info->id->device->attrs.max_qp_wr);
+		log_rdma_event(ERR, "consider lowering send_credit_target = %d. Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
+			       smbd_send_credit_target,
+			       info->id->device->attrs.max_cqe,
+			       info->id->device->attrs.max_qp_wr);
 		goto config_failed;
 	}
 
 	if (smbd_receive_credit_max > info->id->device->attrs.max_cqe ||
 	    smbd_receive_credit_max > info->id->device->attrs.max_qp_wr) {
-		log_rdma_event(ERR,
-			"consider lowering receive_credit_max = %d. "
-			"Possible CQE overrun, device "
-			"reporting max_cpe %d max_qp_wr %d\n",
-			smbd_receive_credit_max,
-			info->id->device->attrs.max_cqe,
-			info->id->device->attrs.max_qp_wr);
+		log_rdma_event(ERR, "consider lowering receive_credit_max = %d. Possible CQE overrun, device reporting max_cpe %d max_qp_wr %d\n",
+			       smbd_receive_credit_max,
+			       info->id->device->attrs.max_cqe,
+			       info->id->device->attrs.max_qp_wr);
 		goto config_failed;
 	}
 
@@ -1865,11 +1847,9 @@ again:
 			to_read -= to_copy;
 			data_read += to_copy;
 
-			log_read(INFO, "_get_first_reassembly memcpy %d bytes "
-				"data_transfer_length-offset=%d after that "
-				"to_read=%d data_read=%d offset=%d\n",
-				to_copy, data_length - offset,
-				to_read, data_read, offset);
+			log_read(INFO, "_get_first_reassembly memcpy %d bytes data_transfer_length-offset=%d after that to_read=%d data_read=%d offset=%d\n",
+				 to_copy, data_length - offset,
+				 to_read, data_read, offset);
 		}
 
 		spin_lock_irq(&info->reassembly_queue_lock);
@@ -1878,10 +1858,9 @@ again:
 		spin_unlock_irq(&info->reassembly_queue_lock);
 
 		info->first_entry_offset = offset;
-		log_read(INFO, "returning to thread data_read=%d "
-			"reassembly_data_length=%d first_entry_offset=%d\n",
-			data_read, info->reassembly_data_length,
-			info->first_entry_offset);
+		log_read(INFO, "returning to thread data_read=%d reassembly_data_length=%d first_entry_offset=%d\n",
+			 data_read, info->reassembly_data_length,
+			 info->first_entry_offset);
 read_rfc1002_done:
 		return data_read;
 	}
@@ -1952,7 +1931,7 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 
 	if (iov_iter_rw(&msg->msg_iter) == WRITE) {
 		/* It's a bug in upper layer to get there */
-		cifs_dbg(VFS, "CIFS: invalid msg iter dir %u\n",
+		cifs_dbg(VFS, "Invalid msg iter dir %u\n",
 			 iov_iter_rw(&msg->msg_iter));
 		rc = -EINVAL;
 		goto out;
@@ -1974,7 +1953,7 @@ int smbd_recv(struct smbd_connection *info, struct msghdr *msg)
 
 	default:
 		/* It's a bug in upper layer to get there */
-		cifs_dbg(VFS, "CIFS: invalid msg type %d\n",
+		cifs_dbg(VFS, "Invalid msg type %d\n",
 			 iov_iter_type(&msg->msg_iter));
 		rc = -EINVAL;
 	}
@@ -2043,10 +2022,9 @@ next_rqst:
 		dump_smb(iov[i].iov_base, iov[i].iov_len);
 
 
-	log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d "
-		"rq_tailsz=%d buflen=%lu\n",
-		rqst_idx, rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
-		rqst->rq_tailsz, smb_rqst_len(server, rqst));
+	log_write(INFO, "rqst_idx=%d nvec=%d rqst->rq_npages=%d rq_pagesz=%d rq_tailsz=%d buflen=%lu\n",
+		  rqst_idx, rqst->rq_nvec, rqst->rq_npages, rqst->rq_pagesz,
+		  rqst->rq_tailsz, smb_rqst_len(server, rqst));
 
 	start = i = 0;
 	buflen = 0;
@@ -2056,11 +2034,9 @@ next_rqst:
 			if (i > start) {
 				remaining_data_length -=
 					(buflen-iov[i].iov_len);
-				log_write(INFO, "sending iov[] from start=%d "
-					"i=%d nvecs=%d "
-					"remaining_data_length=%d\n",
-					start, i, i-start,
-					remaining_data_length);
+				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
+					  start, i, i - start,
+					  remaining_data_length);
 				rc = smbd_post_send_data(
 					info, &iov[start], i-start,
 					remaining_data_length);
@@ -2069,10 +2045,9 @@ next_rqst:
 			} else {
 				/* iov[start] is too big, break it */
 				nvecs = (buflen+max_iov_size-1)/max_iov_size;
-				log_write(INFO, "iov[%d] iov_base=%p buflen=%d"
-					" break to %d vectors\n",
-					start, iov[start].iov_base,
-					buflen, nvecs);
+				log_write(INFO, "iov[%d] iov_base=%p buflen=%d break to %d vectors\n",
+					  start, iov[start].iov_base,
+					  buflen, nvecs);
 				for (j = 0; j < nvecs; j++) {
 					vec.iov_base =
 						(char *)iov[start].iov_base +
@@ -2084,11 +2059,9 @@ next_rqst:
 							max_iov_size*(nvecs-1);
 					remaining_data_length -= vec.iov_len;
 					log_write(INFO,
-						"sending vec j=%d iov_base=%p"
-						" iov_len=%zu "
-						"remaining_data_length=%d\n",
-						j, vec.iov_base, vec.iov_len,
-						remaining_data_length);
+						"sending vec j=%d iov_base=%p iov_len=%zu remaining_data_length=%d\n",
+						  j, vec.iov_base, vec.iov_len,
+						  remaining_data_length);
 					rc = smbd_post_send_data(
 						info, &vec, 1,
 						remaining_data_length);
@@ -2106,11 +2079,9 @@ next_rqst:
 			if (i == rqst->rq_nvec) {
 				/* send out all remaining vecs */
 				remaining_data_length -= buflen;
-				log_write(INFO,
-					"sending iov[] from start=%d i=%d "
-					"nvecs=%d remaining_data_length=%d\n",
-					start, i, i-start,
-					remaining_data_length);
+				log_write(INFO, "sending iov[] from start=%d i=%d nvecs=%d remaining_data_length=%d\n",
+					  start, i, i - start,
+					  remaining_data_length);
 				rc = smbd_post_send_data(info, &iov[start],
 					i-start, remaining_data_length);
 				if (rc)
@@ -2134,10 +2105,9 @@ next_rqst:
 			if (j == nvecs-1)
 				size = buflen - j*max_iov_size;
 			remaining_data_length -= size;
-			log_write(INFO, "sending pages i=%d offset=%d size=%d"
-				" remaining_data_length=%d\n",
-				i, j*max_iov_size+offset, size,
-				remaining_data_length);
+			log_write(INFO, "sending pages i=%d offset=%d size=%d remaining_data_length=%d\n",
+				  i, j * max_iov_size + offset, size,
+				  remaining_data_length);
 			rc = smbd_post_send_page(
 				info, rqst->rq_pages[i],
 				j*max_iov_size + offset,
@@ -2211,11 +2181,9 @@ static void smbd_mr_recovery_work(struct work_struct *work)
 				info->pd, info->mr_type,
 				info->max_frmr_depth);
 			if (IS_ERR(smbdirect_mr->mr)) {
-				log_rdma_mr(ERR,
-					"ib_alloc_mr failed mr_type=%x "
-					"max_frmr_depth=%x\n",
-					info->mr_type,
-					info->max_frmr_depth);
+				log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
+					    info->mr_type,
+					    info->max_frmr_depth);
 				smbd_disconnect_rdma_connection(info);
 				continue;
 			}
@@ -2278,9 +2246,8 @@ static int allocate_mr_list(struct smbd_connection *info)
 		smbdirect_mr->mr = ib_alloc_mr(info->pd, info->mr_type,
 					info->max_frmr_depth);
 		if (IS_ERR(smbdirect_mr->mr)) {
-			log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x "
-				"max_frmr_depth=%x\n",
-				info->mr_type, info->max_frmr_depth);
+			log_rdma_mr(ERR, "ib_alloc_mr failed mr_type=%x max_frmr_depth=%x\n",
+				    info->mr_type, info->max_frmr_depth);
 			goto out;
 		}
 		smbdirect_mr->sgl = kcalloc(

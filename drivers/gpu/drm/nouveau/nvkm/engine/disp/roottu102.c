@@ -27,6 +27,7 @@
 static const struct nv50_disp_root_func
 tu102_disp_root = {
 	.user = {
+		{{-1,-1,GV100_DISP_CAPS                }, gv100_disp_caps_new },
 		{{0,0,TU102_DISP_CURSOR                }, gv100_disp_curs_new },
 		{{0,0,TU102_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
 		{{0,0,TU102_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },

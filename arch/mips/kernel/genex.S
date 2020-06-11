@@ -476,20 +476,20 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.endm
 
 	.macro	__build_clear_fpe
+	CLI
+	TRACE_IRQS_OFF
 	.set	push
 	/* gas fails to assemble cfc1 for some archs (octeon).*/ \
 	.set	mips1
 	SET_HARDFLOAT
 	cfc1	a1, fcr31
 	.set	pop
-	CLI
-	TRACE_IRQS_OFF
 	.endm
 
 	.macro	__build_clear_msa_fpe
-	_cfcmsa	a1, MSA_CSR
 	CLI
 	TRACE_IRQS_OFF
+	_cfcmsa	a1, MSA_CSR
 	.endm
 
 	.macro	__build_clear_ade
@@ -501,17 +501,17 @@ NESTED(nmi_handler, PT_SIZE, sp)
 	.macro	__BUILD_silent exception
 	.endm
 
-	/* Gas tries to parse the PRINT argument as a string containing
+	/* Gas tries to parse the ASM_PRINT argument as a string containing
 	   string escapes and emits bogus warnings if it believes to
 	   recognize an unknown escape code.  So make the arguments
 	   start with an n and gas will believe \n is ok ...  */
 	.macro	__BUILD_verbose nexception
 	LONG_L	a1, PT_EPC(sp)
 #ifdef CONFIG_32BIT
-	PRINT("Got \nexception at %08lx\012")
+	ASM_PRINT("Got \nexception at %08lx\012")
 #endif
 #ifdef CONFIG_64BIT
-	PRINT("Got \nexception at %016lx\012")
+	ASM_PRINT("Got \nexception at %016lx\012")
 #endif
 	.endm
 

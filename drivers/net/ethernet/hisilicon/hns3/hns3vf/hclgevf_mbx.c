@@ -5,6 +5,9 @@
 #include "hclgevf_main.h"
 #include "hnae3.h"
 
+#define CREATE_TRACE_POINTS
+#include "hclgevf_trace.h"
+
 static int hclgevf_resp_to_errno(u16 resp_code)
 {
 	return resp_code ? -resp_code : 0;
@@ -106,6 +109,8 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev,
 
 	memcpy(&req->msg, send_msg, sizeof(struct hclge_vf_to_pf_msg));
 
+	trace_hclge_vf_mbx_send(hdev, req);
+
 	/* synchronous send */
 	if (need_resp) {
 		mutex_lock(&hdev->mbx_resp.mbx_mutex);
@@ -178,6 +183,8 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			hclge_mbx_ring_ptr_move_crq(crq);
 			continue;
 		}
+
+		trace_hclge_vf_mbx_get(hdev, req);
 
 		/* synchronous messages are time critical and need preferential
 		 * treatment. Therefore, we need to acknowledge all the sync

@@ -327,7 +327,6 @@
 #include <linux/spinlock.h>
 #include <linux/kthread.h>
 #include <linux/percpu.h>
-#include <linux/cryptohash.h>
 #include <linux/fips.h>
 #include <linux/ptrace.h>
 #include <linux/workqueue.h>
@@ -337,6 +336,7 @@
 #include <linux/completion.h>
 #include <linux/uuid.h>
 #include <crypto/chacha.h>
+#include <crypto/sha.h>
 
 #include <asm/processor.h>
 #include <linux/uaccess.h>
@@ -1397,14 +1397,14 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 		__u32 w[5];
 		unsigned long l[LONGS(20)];
 	} hash;
-	__u32 workspace[SHA_WORKSPACE_WORDS];
+	__u32 workspace[SHA1_WORKSPACE_WORDS];
 	unsigned long flags;
 
 	/*
 	 * If we have an architectural hardware random number
 	 * generator, use it for SHA's initial vector
 	 */
-	sha_init(hash.w);
+	sha1_init(hash.w);
 	for (i = 0; i < LONGS(20); i++) {
 		unsigned long v;
 		if (!arch_get_random_long(&v))
@@ -1415,7 +1415,7 @@ static void extract_buf(struct entropy_store *r, __u8 *out)
 	/* Generate a hash across the pool, 16 words (512 bits) at a time */
 	spin_lock_irqsave(&r->lock, flags);
 	for (i = 0; i < r->poolinfo->poolwords; i += 16)
-		sha_transform(hash.w, (__u8 *)(r->pool + i), workspace);
+		sha1_transform(hash.w, (__u8 *)(r->pool + i), workspace);
 
 	/*
 	 * We mix the hash back into the pool to prevent backtracking
@@ -2057,7 +2057,7 @@ static char sysctl_bootid[16];
  * sysctl system call, as 16 bytes of binary data.
  */
 static int proc_do_uuid(struct ctl_table *table, int write,
-			void __user *buffer, size_t *lenp, loff_t *ppos)
+			void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
 	unsigned char buf[64], tmp_uuid[16], *uuid;
@@ -2087,7 +2087,7 @@ static int proc_do_uuid(struct ctl_table *table, int write,
  * Return entropy available scaled to integral bits
  */
 static int proc_do_entropy(struct ctl_table *table, int write,
-			   void __user *buffer, size_t *lenp, loff_t *ppos)
+			   void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct ctl_table fake_table;
 	int entropy_count;

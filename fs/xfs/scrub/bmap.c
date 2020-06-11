@@ -566,8 +566,9 @@ xchk_bmap_check_rmaps(
 	struct xfs_scrub	*sc,
 	int			whichfork)
 {
-	loff_t			size;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(sc->ip, whichfork);
 	xfs_agnumber_t		agno;
+	bool			zero_size;
 	int			error;
 
 	if (!xfs_sb_version_hasrmapbt(&sc->mp->m_sb) ||
@@ -579,6 +580,8 @@ xchk_bmap_check_rmaps(
 	if (XFS_IS_REALTIME_INODE(sc->ip) && whichfork == XFS_DATA_FORK)
 		return 0;
 
+	ASSERT(XFS_IFORK_PTR(sc->ip, whichfork) != NULL);
+
 	/*
 	 * Only do this for complex maps that are in btree format, or for
 	 * situations where we would seem to have a size but zero extents.
@@ -586,19 +589,14 @@ xchk_bmap_check_rmaps(
 	 * to flag this bmap as corrupt if there are rmaps that need to be
 	 * reattached.
 	 */
-	switch (whichfork) {
-	case XFS_DATA_FORK:
-		size = i_size_read(VFS_I(sc->ip));
-		break;
-	case XFS_ATTR_FORK:
-		size = XFS_IFORK_Q(sc->ip);
-		break;
-	default:
-		size = 0;
-		break;
-	}
-	if (XFS_IFORK_FORMAT(sc->ip, whichfork) != XFS_DINODE_FMT_BTREE &&
-	    (size == 0 || XFS_IFORK_NEXTENTS(sc->ip, whichfork) > 0))
+
+	if (whichfork == XFS_DATA_FORK)
+		zero_size = i_size_read(VFS_I(sc->ip)) == 0;
+	else
+		zero_size = false;
+
+	if (ifp->if_format != XFS_DINODE_FMT_BTREE &&
+	    (zero_size || ifp->if_nextents > 0))
 		return 0;
 
 	for (agno = 0; agno < sc->mp->m_sb.sb_agcount; agno++) {
@@ -627,12 +625,14 @@ xchk_bmap(
 	struct xchk_bmap_info	info = { NULL };
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_inode	*ip = sc->ip;
-	struct xfs_ifork	*ifp;
+	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
 	xfs_fileoff_t		endoff;
 	struct xfs_iext_cursor	icur;
 	int			error = 0;
 
-	ifp = XFS_IFORK_PTR(ip, whichfork);
+	/* Non-existent forks can be ignored. */
+	if (!ifp)
+		goto out;
 
 	info.is_rt = whichfork == XFS_DATA_FORK && XFS_IS_REALTIME_INODE(ip);
 	info.whichfork = whichfork;
@@ -641,9 +641,6 @@ xchk_bmap(
 
 	switch (whichfork) {
 	case XFS_COW_FORK:
-		/* Non-existent CoW forks are ignorable. */
-		if (!ifp)
-			goto out;
 		/* No CoW forks on non-reflink inodes/filesystems. */
 		if (!xfs_is_reflink_inode(ip)) {
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
@@ -651,8 +648,6 @@ xchk_bmap(
 		}
 		break;
 	case XFS_ATTR_FORK:
-		if (!ifp)
-			goto out_check_rmap;
 		if (!xfs_sb_version_hasattr(&mp->m_sb) &&
 		    !xfs_sb_version_hasattr2(&mp->m_sb))
 			xchk_ino_set_corrupt(sc, sc->ip->i_ino);
@@ -663,7 +658,7 @@ xchk_bmap(
 	}
 
 	/* Check the fork values */
-	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
+	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_UUID:
 	case XFS_DINODE_FMT_DEV:
 	case XFS_DINODE_FMT_LOCAL:
@@ -717,7 +712,6 @@ xchk_bmap(
 			goto out;
 	}
 
-out_check_rmap:
 	error = xchk_bmap_check_rmaps(sc, whichfork);
 	if (!xchk_fblock_xref_process_error(sc, whichfork, 0, &error))
 		goto out;

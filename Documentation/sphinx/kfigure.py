@@ -29,7 +29,7 @@ u"""
 
     Used tools:
 
-    * ``dot(1)``: Graphviz (http://www.graphviz.org). If Graphviz is not
+    * ``dot(1)``: Graphviz (https://www.graphviz.org). If Graphviz is not
       available, the DOT language is inserted as literal-block.
 
     * SVG to PDF: To generate PDF, you need at least one of this tools:
@@ -41,7 +41,7 @@ u"""
     * generate PDF from SVG / used by PDF (LaTeX) builder
 
     * generate SVG (html-builder) and PDF (latex-builder) from DOT files.
-      DOT: see http://www.graphviz.org/content/dot-language
+      DOT: see https://www.graphviz.org/content/dot-language
 
     """
 
@@ -182,7 +182,7 @@ def setupTools(app):
         kernellog.verbose(app, "use dot(1) from: " + dot_cmd)
     else:
         kernellog.warn(app, "dot(1) not found, for better output quality install "
-                       "graphviz from http://www.graphviz.org")
+                       "graphviz from https://www.graphviz.org")
     if convert_cmd:
         kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
     else:

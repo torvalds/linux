@@ -190,6 +190,7 @@ extern void backlight_force_update(struct backlight_device *bd,
 extern int backlight_register_notifier(struct notifier_block *nb);
 extern int backlight_unregister_notifier(struct notifier_block *nb);
 extern struct backlight_device *backlight_device_get_by_type(enum backlight_type type);
+struct backlight_device *backlight_device_get_by_name(const char *name);
 extern int backlight_device_set_brightness(struct backlight_device *bd, unsigned long brightness);
 
 #define to_backlight_device(obj) container_of(obj, struct backlight_device, dev)

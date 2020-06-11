@@ -32,7 +32,6 @@
 #include <linux/thread_info.h>
 #include <linux/kbuild.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 
 int main(void)

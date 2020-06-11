@@ -20,6 +20,8 @@
 
 #define HINIC_DB_PAGE_SIZE      SZ_4K
 #define HINIC_DB_SIZE           SZ_4M
+#define HINIC_HW_WQ_PAGE_SIZE	SZ_4K
+#define HINIC_DEFAULT_WQ_PAGE_SIZE SZ_256K
 
 #define HINIC_DB_MAX_AREAS      (HINIC_DB_SIZE / HINIC_DB_PAGE_SIZE)
 
@@ -47,7 +49,7 @@ struct hinic_free_db_area {
 
 struct hinic_func_to_io {
 	struct hinic_hwif       *hwif;
-
+	struct hinic_hwdev      *hwdev;
 	struct hinic_ceqs       ceqs;
 
 	struct hinic_wqs        wqs;
@@ -57,6 +59,9 @@ struct hinic_func_to_io {
 
 	struct hinic_qp         *qps;
 	u16                     max_qps;
+
+	u16			sq_depth;
+	u16			rq_depth;
 
 	void __iomem            **sq_db;
 	void __iomem            *db_base;
@@ -69,7 +74,26 @@ struct hinic_func_to_io {
 	void __iomem                    *cmdq_db_area[HINIC_MAX_CMDQ_TYPES];
 
 	struct hinic_cmdqs              cmdqs;
+
+	u16			max_vfs;
+	struct vf_data_storage	*vf_infos;
+	u8			link_status;
 };
+
+struct hinic_wq_page_size {
+	u8	status;
+	u8	version;
+	u8	rsvd0[6];
+
+	u16	func_idx;
+	u8	ppf_idx;
+	u8	page_size;
+
+	u32	rsvd1;
+};
+
+int hinic_set_wq_page_size(struct hinic_hwdev *hwdev, u16 func_idx,
+			   u32 page_size);
 
 int hinic_io_create_qps(struct hinic_func_to_io *func_to_io,
 			u16 base_qpn, int num_qps,

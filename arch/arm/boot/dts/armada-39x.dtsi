@@ -108,7 +108,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -119,7 +118,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -130,7 +128,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};
@@ -141,7 +138,6 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
-				timeout-ms = <1000>;
 				clocks = <&coreclk 0>;
 				status = "disabled";
 			};

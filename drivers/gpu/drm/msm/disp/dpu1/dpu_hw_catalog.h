@@ -146,6 +146,17 @@ enum {
 };
 
 /**
+ * DSPP sub-blocks
+ * @DPU_DSPP_PCC             Panel color correction block
+ * @DPU_DSPP_GC              Gamma correction block
+ */
+enum {
+	DPU_DSPP_PCC = 0x1,
+	DPU_DSPP_GC,
+	DPU_DSPP_MAX
+};
+
+/**
  * PINGPONG sub-blocks
  * @DPU_PINGPONG_TE         Tear check block
  * @DPU_PINGPONG_TE2        Additional tear check block for split pipes
@@ -377,6 +388,16 @@ struct dpu_lm_sub_blks {
 	struct dpu_pp_blk gc;
 };
 
+/**
+ * struct dpu_dspp_sub_blks: Information of DSPP block
+ * @gc : gamma correction block
+ * @pcc: pixel color correction block
+ */
+struct dpu_dspp_sub_blks {
+	struct dpu_pp_blk gc;
+	struct dpu_pp_blk pcc;
+};
+
 struct dpu_pingpong_sub_blks {
 	struct dpu_pp_blk te;
 	struct dpu_pp_blk te2;
@@ -471,7 +492,21 @@ struct dpu_lm_cfg {
 	DPU_HW_BLK_INFO;
 	const struct dpu_lm_sub_blks *sblk;
 	u32 pingpong;
+	u32 dspp;
 	unsigned long lm_pair_mask;
+};
+
+/**
+ * struct dpu_dspp_cfg - information of DSPP blocks
+ * @id                 enum identifying this block
+ * @base               register offset of this block
+ * @features           bit mask identifying sub-blocks/features
+ *                     supported by this block
+ * @sblk               sub-blocks information
+ */
+struct dpu_dspp_cfg  {
+	DPU_HW_BLK_INFO;
+	const struct dpu_dspp_sub_blks *sblk;
 };
 
 /**
@@ -688,6 +723,9 @@ struct dpu_mdss_cfg {
 
 	u32 ad_count;
 
+	u32 dspp_count;
+	const struct dpu_dspp_cfg *dspp;
+
 	/* Add additional block data structures here */
 
 	struct dpu_perf_cfg perf;
@@ -716,6 +754,7 @@ struct dpu_mdss_hw_cfg_handler {
 #define BLK_PINGPONG(s) ((s)->pingpong)
 #define BLK_INTF(s) ((s)->intf)
 #define BLK_AD(s) ((s)->ad)
+#define BLK_DSPP(s) ((s)->dspp)
 
 /**
  * dpu_hw_catalog_init - dpu hardware catalog init API retrieves

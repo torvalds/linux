@@ -15,10 +15,15 @@ description:
 
 properties:
   compatible:
-    enum:
-      - usb-a-connector
-      - usb-b-connector
-      - usb-c-connector
+    oneOf:
+      - enum:
+          - usb-a-connector
+          - usb-b-connector
+          - usb-c-connector
+
+      - items:
+          - const: gpio-usb-b-connector
+          - const: usb-b-connector
 
   label:
     description: Symbolic name for the connector.
@@ -27,8 +32,8 @@ properties:
     description: Size of the connector, should be specified in case of
       non-fullsize 'usb-a-connector' or 'usb-b-connector' compatible
       connectors.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - mini
       - micro
@@ -57,8 +62,8 @@ properties:
   power-role:
     description: Determines the power role that the Type C connector will
       support. "dual" refers to Dual Role Port (DRP).
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - source
       - sink
@@ -66,18 +71,18 @@ properties:
 
   try-power-role:
     description: Preferred power role.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
-     - source
-     - sink
-     - dual
+      - source
+      - sink
+      - dual
 
   data-role:
     description: Data role if Type C connector supports USB data. "dual" refers
       Dual Role Device (DRD).
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/string
+    $ref: /schemas/types.yaml#definitions/string
+
     enum:
       - host
       - device
@@ -95,8 +100,7 @@ properties:
       defined in dt-bindings/usb/pd.h.
     minItems: 1
     maxItems: 7
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   sink-pdos:
     description: An array of u32 with each entry providing supported power sink
@@ -108,8 +112,7 @@ properties:
       in dt-bindings/usb/pd.h.
     minItems: 1
     maxItems: 7
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
 
   op-sink-microwatt:
     description: Sink required operating power in microwatt, if source can't
@@ -142,9 +145,22 @@ properties:
 required:
   - compatible
 
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: gpio-usb-b-connector
+    then:
+      anyOf:
+        - required:
+            - vbus-gpios
+        - required:
+            - id-gpios
+
 examples:
   # Micro-USB connector with HS lines routed via controller (MUIC).
-  - |+
+  - |
     muic-max77843 {
       usb_con1: connector {
         compatible = "usb-b-connector";
@@ -156,7 +172,7 @@ examples:
   # USB-C connector attached to CC controller (s2mm005), HS lines routed
   # to companion PMIC (max77865), SS lines to USB3 PHY and SBU to DisplayPort.
   # DisplayPort video lines are routed to the connector via SS mux in USB3 PHY.
-  - |+
+  - |
     ccic: s2mm005 {
       usb_con2: connector {
         compatible = "usb-c-connector";
@@ -190,7 +206,7 @@ examples:
 
   # USB-C connector attached to a typec port controller(ptn5110), which has
   # power delivery support and enables drp.
-  - |+
+  - |
     #include <dt-bindings/usb/pd.h>
     typec: ptn5110 {
       usb_con3: connector {
@@ -202,5 +218,18 @@ examples:
         sink-pdos = <PDO_FIXED(5000, 2000, PDO_FIXED_USB_COMM)
                      PDO_VAR(5000, 12000, 2000)>;
         op-sink-microwatt = <10000000>;
+      };
+    };
+
+  # USB connector with GPIO control lines
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    usb {
+      connector {
+        compatible = "gpio-usb-b-connector", "usb-b-connector";
+        type = "micro";
+        id-gpios = <&pio 12 GPIO_ACTIVE_HIGH>;
+        vbus-supply = <&usb_p0_vbus>;
       };
     };

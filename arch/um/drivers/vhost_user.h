@@ -78,7 +78,7 @@ struct vhost_user_config {
 	u32 offset;
 	u32 size;
 	u32 flags;
-	u8 payload[0]; /* Variable length */
+	u8 payload[]; /* Variable length */
 } __packed;
 
 struct vhost_user_vring_state {

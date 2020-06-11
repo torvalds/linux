@@ -26,8 +26,7 @@ static int auto_flowlabels_min;
 static int auto_flowlabels_max = IP6_AUTO_FLOW_LABEL_MAX;
 
 static int proc_rt6_multipath_hash_policy(struct ctl_table *table, int write,
-					  void __user *buffer, size_t *lenp,
-					  loff_t *ppos)
+					  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	struct net *net;
 	int ret;

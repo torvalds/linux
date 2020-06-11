@@ -67,6 +67,14 @@ properties:
       (wired and enabled by pinmux configuration).  This depends on both the
       UART hardware and the board wiring.
 
+  rx-tx-swap:
+    type: boolean
+    description: RX and TX pins are swapped.
+
+  cts-rts-swap:
+    type: boolean
+    description: CTS and RTS pins are swapped.
+
 if:
   required:
     - uart-has-rtscts

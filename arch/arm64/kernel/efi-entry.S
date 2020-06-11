@@ -14,12 +14,12 @@
 
 SYM_CODE_START(efi_enter_kernel)
 	/*
-	 * efi_entry() will have copied the kernel image if necessary and we
+	 * efi_pe_entry() will have copied the kernel image if necessary and we
 	 * end up here with device tree address in x1 and the kernel entry
 	 * point stored in x0. Save those values in registers which are
 	 * callee preserved.
 	 */
-	ldr	w2, =stext_offset
+	ldr	w2, =primary_entry_offset
 	add	x19, x0, x2		// relocated Image entrypoint
 	mov	x20, x1			// DTB address
 

@@ -142,7 +142,7 @@ int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unu
 		struct hists *hists = evsel__hists(evsel);
 
 		hists__collapse_resort(hists, NULL);
-		perf_evsel__output_resort(evsel, NULL);
+		evsel__output_resort(evsel, NULL);
 
 		if (verbose > 2) {
 			pr_info("Normal histogram\n");

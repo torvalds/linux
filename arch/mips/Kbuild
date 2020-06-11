@@ -12,7 +12,7 @@ obj-y := $(platform-y)
 
 # make clean traverses $(obj-) without having included .config, so
 # everything ends up here
-obj- := $(platform-)
+obj- := $(platform-y)
 
 # mips object files
 # The object files are linked as core-y files would be linked

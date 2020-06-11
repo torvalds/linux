@@ -16,7 +16,7 @@ config ATM
 	  of your ATM card below.
 
 	  Note that you need a set of user-space programs to actually make use
-	  of ATM.  See the file <file:Documentation/networking/atm.txt> for
+	  of ATM.  See the file <file:Documentation/networking/atm.rst> for
 	  further details.
 
 config ATM_CLIP

@@ -395,10 +395,10 @@
 #define PD_IOMMUV2_MASK		(1UL << 3) /* domain has gcr3 table */
 
 extern bool amd_iommu_dump;
-#define DUMP_printk(format, arg...)					\
-	do {								\
-		if (amd_iommu_dump)						\
-			printk(KERN_INFO "AMD-Vi: " format, ## arg);	\
+#define DUMP_printk(format, arg...)				\
+	do {							\
+		if (amd_iommu_dump)				\
+			pr_info("AMD-Vi: " format, ## arg);	\
 	} while(0);
 
 /* global flag if IOMMUs cache non-present entries */
@@ -468,13 +468,18 @@ struct protection_domain {
 				       iommu core code */
 	spinlock_t lock;	/* mostly used to lock the page table*/
 	u16 id;			/* the domain id written to the device table */
-	int mode;		/* paging mode (0-6 levels) */
-	u64 *pt_root;		/* page table root pointer */
+	atomic64_t pt_root;	/* pgtable root and pgtable mode */
 	int glx;		/* Number of levels for GCR3 table */
 	u64 *gcr3_tbl;		/* Guest CR3 table */
 	unsigned long flags;	/* flags to find out type of domain */
 	unsigned dev_cnt;	/* devices assigned to this domain */
 	unsigned dev_iommu[MAX_IOMMUS]; /* per-IOMMU reference count */
+};
+
+/* For decocded pt_root */
+struct domain_pgtable {
+	int mode;
+	u64 *root;
 };
 
 /*
@@ -640,7 +645,6 @@ struct iommu_dev_data {
 	struct pci_dev *pdev;
 	u16 devid;			  /* PCI Device ID */
 	bool iommu_v2;			  /* Device can make use of IOMMUv2 */
-	bool passthrough;		  /* Device is identity mapped */
 	struct {
 		bool enabled;
 		int qdep;

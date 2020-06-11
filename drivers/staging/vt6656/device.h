@@ -73,6 +73,10 @@
 
 #define DEVICE_VERSION			"mac80211"
 
+#define FIRMWARE_VERSION		0x133		/* version 1.51 */
+#define FIRMWARE_NAME			"vntwusb.fw"
+#define FIRMWARE_CHUNK_SIZE		0x400
+
 #define CONFIG_PATH			"/etc/vntconfiguration.dat"
 
 #define MAX_UINTS			8
@@ -202,8 +206,7 @@ struct vnt_rsp_card_init {
  * Enum of context types for SendPacket
  */
 enum {
-	CONTEXT_DATA_PACKET = 1,
-	CONTEXT_MGMT_PACKET,
+	CONTEXT_DATA_PACKET = 0,
 	CONTEXT_BEACON_PACKET
 };
 
@@ -234,18 +237,14 @@ struct vnt_rcb {
 struct vnt_usb_send_context {
 	void *priv;
 	struct sk_buff *skb;
-	struct urb *urb;
-	struct ieee80211_hdr *hdr;
-	unsigned int buf_len;
+	void *tx_buffer;
 	u32 frame_len;
 	u16 tx_hdr_size;
 	u16 tx_rate;
 	u8 type;
 	u8 pkt_no;
 	u8 pkt_type;
-	u8 need_ack;
 	bool in_use;
-	unsigned char data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 };
 
 /*
@@ -288,6 +287,7 @@ struct vnt_private {
 
 	/* Variables to track resources for the BULK Out Pipe */
 	struct vnt_usb_send_context *tx_context[CB_MAX_TX_DESC];
+	struct usb_anchor tx_submitted;
 	u32 num_tx_context;
 
 	/* Variables to track resources for the Interrupt In Pipe */
@@ -344,12 +344,8 @@ struct vnt_private {
 	u8 ofdm_pwr_tbl[14];
 	u8 ofdm_a_pwr_tbl[42];
 
-	u16 current_rate;
 	u16 tx_rate_fb0;
 	u16 tx_rate_fb1;
-
-	u8 short_retry_limit;
-	u8 long_retry_limit;
 
 	enum nl80211_iftype op_mode;
 
@@ -382,8 +378,6 @@ struct vnt_private {
 
 	u8 bb_pre_ed_rssi;
 	u8 bb_pre_ed_index;
-
-	u16 wake_up_count;
 
 	/* command timer */
 	struct delayed_work run_command_work;

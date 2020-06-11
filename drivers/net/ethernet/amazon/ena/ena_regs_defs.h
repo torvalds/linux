@@ -154,4 +154,4 @@ enum ena_regs_reset_reason_types {
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_SHIFT          16
 #define ENA_REGS_RSS_IND_ENTRY_UPDATE_CQ_IDX_MASK           0xffff0000
 
-#endif /*_ENA_REGS_H_ */
+#endif /* _ENA_REGS_H_ */

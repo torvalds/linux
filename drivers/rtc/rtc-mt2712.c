@@ -310,7 +310,6 @@ static const struct rtc_class_ops mt2712_rtc_ops = {
 
 static int mt2712_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct mt2712_rtc *mt2712_rtc;
 	int ret;
 
@@ -319,8 +318,7 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	if (!mt2712_rtc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mt2712_rtc->base = devm_ioremap_resource(&pdev->dev, res);
+	mt2712_rtc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mt2712_rtc->base))
 		return PTR_ERR(mt2712_rtc->base);
 
@@ -328,10 +326,8 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	mt2712_rtc_hw_init(mt2712_rtc);
 
 	mt2712_rtc->irq = platform_get_irq(pdev, 0);
-	if (mt2712_rtc->irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (mt2712_rtc->irq < 0)
 		return mt2712_rtc->irq;
-	}
 
 	platform_set_drvdata(pdev, mt2712_rtc);
 
@@ -356,13 +352,7 @@ static int mt2712_rtc_probe(struct platform_device *pdev)
 	mt2712_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	mt2712_rtc->rtc->range_max = MT2712_RTC_TIMESTAMP_END_2127;
 
-	ret = rtc_register_device(mt2712_rtc->rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "register rtc device failed\n");
-		return ret;
-	}
-
-	return 0;
+	return rtc_register_device(mt2712_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP

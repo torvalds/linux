@@ -30,6 +30,7 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <net/netfilter/nf_conntrack_helper.h>
+#include <net/netfilter/nf_conntrack_acct.h>
 #include <net/netfilter/ipv6/nf_defrag_ipv6.h>
 #include <uapi/linux/netfilter/nf_nat.h>
 
@@ -198,6 +199,9 @@ static int tcf_ct_flow_table_add_action_nat(struct net *net,
 {
 	const struct nf_conntrack_tuple *tuple = &ct->tuplehash[dir].tuple;
 	struct nf_conntrack_tuple target;
+
+	if (!(ct->status & IPS_NAT_MASK))
+		return 0;
 
 	nf_ct_invert_tuple(&target, &ct->tuplehash[!dir].tuple);
 
@@ -536,6 +540,7 @@ static bool tcf_ct_flow_table_lookup(struct tcf_ct_params *p,
 	flow_offload_refresh(nf_ft, flow);
 	nf_conntrack_get(&ct->ct_general);
 	nf_ct_set(skb, ct, ctinfo);
+	nf_ct_acct_update(ct, dir, skb->len);
 
 	return true;
 }

@@ -740,12 +740,6 @@ struct qed_dbg_feature {
 	u32 dumped_dwords;
 };
 
-struct qed_dbg_params {
-	struct qed_dbg_feature features[DBG_FEATURE_NUM];
-	u8 engine_for_debug;
-	bool print_data;
-};
-
 struct qed_dev {
 	u32	dp_module;
 	u8	dp_level;
@@ -844,6 +838,9 @@ struct qed_dev {
 	/* Recovery */
 	bool recov_in_prog;
 
+	/* Indicates whether should prevent attentions from being reasserted */
+	bool attn_clr_en;
+
 	/* LLH info */
 	u8 ppfid_bitmap;
 	struct qed_llh_info *p_llh_info;
@@ -872,16 +869,17 @@ struct qed_dev {
 	} protocol_ops;
 	void				*ops_cookie;
 
-	struct qed_dbg_params		dbg_params;
-
 #ifdef CONFIG_QED_LL2
 	struct qed_cb_ll2_info		*ll2;
 	u8				ll2_mac_address[ETH_ALEN];
 #endif
 	struct qed_dbg_feature dbg_features[DBG_FEATURE_NUM];
+	u8 engine_for_debug;
 	bool disable_ilt_dump;
 	DECLARE_HASHTABLE(connections, 10);
 	const struct firmware		*firmware;
+
+	bool print_dbg_data;
 
 	u32 rdma_max_sge;
 	u32 rdma_max_inline;
@@ -1016,10 +1014,13 @@ int qed_device_num_ports(struct qed_dev *cdev);
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info);
 void qed_link_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt);
+void qed_bw_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);
 void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn);
+void qed_hw_error_occurred(struct qed_hwfn *p_hwfn,
+			   enum qed_hw_err_type err_type);
 void qed_get_protocol_stats(struct qed_dev *cdev,
 			    enum qed_mcp_protocol_type type,
 			    union qed_mcp_protocol_stats *stats);

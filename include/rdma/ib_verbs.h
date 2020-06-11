@@ -100,7 +100,8 @@ void ibdev_notice(const struct ib_device *ibdev, const char *format, ...);
 __printf(2, 3) __cold
 void ibdev_info(const struct ib_device *ibdev, const char *format, ...);
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
 #define ibdev_dbg(__dev, format, args...)                       \
 	dynamic_ibdev_dbg(__dev, format, ##args)
 #else
@@ -133,7 +134,8 @@ do {                                                                    \
 #define ibdev_info_ratelimited(ibdev, fmt, ...) \
 	ibdev_level_ratelimited(ibdev_info, ibdev, fmt, ##__VA_ARGS__)
 
-#if defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DEBUG) || \
+	(defined(CONFIG_DYNAMIC_DEBUG_CORE) && defined(DYNAMIC_DEBUG_MODULE))
 /* descriptor check is first to prevent flooding with "callbacks suppressed" */
 #define ibdev_dbg_ratelimited(ibdev, fmt, ...)                          \
 do {                                                                    \
@@ -305,7 +307,7 @@ enum ib_device_cap_flags {
 	IB_DEVICE_VIRTUAL_FUNCTION		= (1ULL << 33),
 	/* Deprecated. Please use IB_RAW_PACKET_CAP_SCATTER_FCS. */
 	IB_DEVICE_RAW_SCATTER_FCS		= (1ULL << 34),
-	IB_DEVICE_RDMA_NETDEV_OPA_VNIC		= (1ULL << 35),
+	IB_DEVICE_RDMA_NETDEV_OPA		= (1ULL << 35),
 	/* The device supports padding incoming writes to cacheline. */
 	IB_DEVICE_PCI_WRITE_END_PADDING		= (1ULL << 36),
 	IB_DEVICE_ALLOW_USER_UNREG		= (1ULL << 37),
@@ -430,8 +432,6 @@ struct ib_device_attr {
 	int			max_mcast_qp_attach;
 	int			max_total_mcast_qp_attach;
 	int			max_ah;
-	int			max_fmr;
-	int			max_map_per_fmr;
 	int			max_srq;
 	int			max_srq_wr;
 	int			max_srq_sge;
@@ -462,6 +462,11 @@ enum ib_mtu {
 	IB_MTU_4096 = 5
 };
 
+enum opa_mtu {
+	OPA_MTU_8192 = 6,
+	OPA_MTU_10240 = 7
+};
+
 static inline int ib_mtu_enum_to_int(enum ib_mtu mtu)
 {
 	switch (mtu) {
@@ -486,6 +491,28 @@ static inline enum ib_mtu ib_mtu_int_to_enum(int mtu)
 		return IB_MTU_512;
 	else
 		return IB_MTU_256;
+}
+
+static inline int opa_mtu_enum_to_int(enum opa_mtu mtu)
+{
+	switch (mtu) {
+	case OPA_MTU_8192:
+		return 8192;
+	case OPA_MTU_10240:
+		return 10240;
+	default:
+		return(ib_mtu_enum_to_int((enum ib_mtu)mtu));
+	}
+}
+
+static inline enum opa_mtu opa_mtu_int_to_enum(int mtu)
+{
+	if (mtu >= 10240)
+		return OPA_MTU_10240;
+	else if (mtu >= 8192)
+		return OPA_MTU_8192;
+	else
+		return ((enum opa_mtu)ib_mtu_int_to_enum(mtu));
 }
 
 enum ib_port_state {
@@ -651,6 +678,7 @@ struct ib_port_attr {
 	enum ib_port_state	state;
 	enum ib_mtu		max_mtu;
 	enum ib_mtu		active_mtu;
+	u32                     phys_mtu;
 	int			gid_tbl_len;
 	unsigned int		ip_gids:1;
 	/* This is the value from PortInfo CapabilityMask, defined by IBA */
@@ -880,6 +908,12 @@ struct ib_mr_status {
  */
 __attribute_const__ enum ib_rate mult_to_ib_rate(int mult);
 
+struct rdma_ah_init_attr {
+	struct rdma_ah_attr *ah_attr;
+	u32 flags;
+	struct net_device *xmit_slave;
+};
+
 enum rdma_ah_attr_type {
 	RDMA_AH_ATTR_TYPE_UNDEFINED,
 	RDMA_AH_ATTR_TYPE_IB,
@@ -1006,9 +1040,9 @@ enum ib_cq_notify_flags {
 };
 
 enum ib_srq_type {
-	IB_SRQT_BASIC,
-	IB_SRQT_XRC,
-	IB_SRQT_TM,
+	IB_SRQT_BASIC = IB_UVERBS_SRQT_BASIC,
+	IB_SRQT_XRC = IB_UVERBS_SRQT_XRC,
+	IB_SRQT_TM = IB_UVERBS_SRQT_TM,
 };
 
 static inline bool ib_srq_has_cq(enum ib_srq_type srq_type)
@@ -1077,16 +1111,16 @@ enum ib_qp_type {
 	IB_QPT_SMI,
 	IB_QPT_GSI,
 
-	IB_QPT_RC,
-	IB_QPT_UC,
-	IB_QPT_UD,
+	IB_QPT_RC = IB_UVERBS_QPT_RC,
+	IB_QPT_UC = IB_UVERBS_QPT_UC,
+	IB_QPT_UD = IB_UVERBS_QPT_UD,
 	IB_QPT_RAW_IPV6,
 	IB_QPT_RAW_ETHERTYPE,
-	IB_QPT_RAW_PACKET = 8,
-	IB_QPT_XRC_INI = 9,
-	IB_QPT_XRC_TGT,
+	IB_QPT_RAW_PACKET = IB_UVERBS_QPT_RAW_PACKET,
+	IB_QPT_XRC_INI = IB_UVERBS_QPT_XRC_INI,
+	IB_QPT_XRC_TGT = IB_UVERBS_QPT_XRC_TGT,
 	IB_QPT_MAX,
-	IB_QPT_DRIVER = 0xFF,
+	IB_QPT_DRIVER = IB_UVERBS_QPT_DRIVER,
 	/* Reserve a range for qp types internal to the low level driver.
 	 * These qp types will not be visible at the IB core layer, so the
 	 * IB_QPT_MAX usages should not be affected in the core layer
@@ -1105,17 +1139,21 @@ enum ib_qp_type {
 
 enum ib_qp_create_flags {
 	IB_QP_CREATE_IPOIB_UD_LSO		= 1 << 0,
-	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	= 1 << 1,
+	IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK	=
+		IB_UVERBS_QP_CREATE_BLOCK_MULTICAST_LOOPBACK,
 	IB_QP_CREATE_CROSS_CHANNEL              = 1 << 2,
 	IB_QP_CREATE_MANAGED_SEND               = 1 << 3,
 	IB_QP_CREATE_MANAGED_RECV               = 1 << 4,
 	IB_QP_CREATE_NETIF_QP			= 1 << 5,
 	IB_QP_CREATE_INTEGRITY_EN		= 1 << 6,
-	/* FREE					= 1 << 7, */
-	IB_QP_CREATE_SCATTER_FCS		= 1 << 8,
-	IB_QP_CREATE_CVLAN_STRIPPING		= 1 << 9,
+	IB_QP_CREATE_NETDEV_USE			= 1 << 7,
+	IB_QP_CREATE_SCATTER_FCS		=
+		IB_UVERBS_QP_CREATE_SCATTER_FCS,
+	IB_QP_CREATE_CVLAN_STRIPPING		=
+		IB_UVERBS_QP_CREATE_CVLAN_STRIPPING,
 	IB_QP_CREATE_SOURCE_QPN			= 1 << 10,
-	IB_QP_CREATE_PCI_WRITE_END_PADDING	= 1 << 11,
+	IB_QP_CREATE_PCI_WRITE_END_PADDING	=
+		IB_UVERBS_QP_CREATE_PCI_WRITE_END_PADDING,
 	/* reserve bits 26-31 for low level drivers' internal use */
 	IB_QP_CREATE_RESERVED_START		= 1 << 26,
 	IB_QP_CREATE_RESERVED_END		= 1 << 31,
@@ -1267,6 +1305,7 @@ struct ib_qp_attr {
 	u8			alt_port_num;
 	u8			alt_timeout;
 	u32			rate_limit;
+	struct net_device	*xmit_slave;
 };
 
 enum ib_wr_opcode {
@@ -1436,12 +1475,6 @@ enum ib_mr_rereg_flags {
 	IB_MR_REREG_SUPPORTED	= ((IB_MR_REREG_ACCESS << 1) - 1)
 };
 
-struct ib_fmr_attr {
-	int	max_pages;
-	int	max_maps;
-	u8	page_shift;
-};
-
 struct ib_umem;
 
 enum rdma_remove_reason {
@@ -1456,6 +1489,11 @@ enum rdma_remove_reason {
 	RDMA_REMOVE_DRIVER_REMOVE,
 	/* uobj is being cleaned-up before being committed */
 	RDMA_REMOVE_ABORT,
+	/*
+	 * uobj has been fully created, with the uobj->object set, but is being
+	 * cleaned up before being comitted
+	 */
+	RDMA_REMOVE_ABORT_HWOBJ,
 };
 
 struct ib_rdmacg_object {
@@ -1544,10 +1582,12 @@ struct ib_ah {
 typedef void (*ib_comp_handler)(struct ib_cq *cq, void *cq_context);
 
 enum ib_poll_context {
-	IB_POLL_DIRECT,		   /* caller context, no hw completions */
 	IB_POLL_SOFTIRQ,	   /* poll from softirq context */
 	IB_POLL_WORKQUEUE,	   /* poll from workqueue */
 	IB_POLL_UNBOUND_WORKQUEUE, /* poll from unbound workqueue */
+	IB_POLL_LAST_POOL_TYPE = IB_POLL_UNBOUND_WORKQUEUE,
+
+	IB_POLL_DIRECT,		   /* caller context, no hw completions */
 };
 
 struct ib_cq {
@@ -1557,9 +1597,11 @@ struct ib_cq {
 	void                  (*event_handler)(struct ib_event *, void *);
 	void                   *cq_context;
 	int               	cqe;
+	unsigned int		cqe_used;
 	atomic_t          	usecnt; /* count number of work queues */
 	enum ib_poll_context	poll_ctx;
 	struct ib_wc		*wc;
+	struct list_head        pool_entry;
 	union {
 		struct irq_poll		iop;
 		struct work_struct	work;
@@ -1569,7 +1611,9 @@ struct ib_cq {
 
 	/* updated only by trace points */
 	ktime_t timestamp;
-	bool interrupt;
+	u8 interrupt:1;
+	u8 shared:1;
+	unsigned int comp_vector;
 
 	/*
 	 * Implementation details of the RDMA core, don't use in drivers:
@@ -1614,7 +1658,7 @@ enum ib_raw_packet_caps {
 };
 
 enum ib_wq_type {
-	IB_WQT_RQ
+	IB_WQT_RQ = IB_UVERBS_WQT_RQ,
 };
 
 enum ib_wq_state {
@@ -1637,10 +1681,11 @@ struct ib_wq {
 };
 
 enum ib_wq_flags {
-	IB_WQ_FLAGS_CVLAN_STRIPPING	= 1 << 0,
-	IB_WQ_FLAGS_SCATTER_FCS		= 1 << 1,
-	IB_WQ_FLAGS_DELAY_DROP		= 1 << 2,
-	IB_WQ_FLAGS_PCI_WRITE_END_PADDING = 1 << 3,
+	IB_WQ_FLAGS_CVLAN_STRIPPING	= IB_UVERBS_WQ_FLAGS_CVLAN_STRIPPING,
+	IB_WQ_FLAGS_SCATTER_FCS		= IB_UVERBS_WQ_FLAGS_SCATTER_FCS,
+	IB_WQ_FLAGS_DELAY_DROP		= IB_UVERBS_WQ_FLAGS_DELAY_DROP,
+	IB_WQ_FLAGS_PCI_WRITE_END_PADDING =
+				IB_UVERBS_WQ_FLAGS_PCI_WRITE_END_PADDING,
 };
 
 struct ib_wq_init_attr {
@@ -1802,14 +1847,6 @@ struct ib_mw {
 	struct ib_uobject	*uobject;
 	u32			rkey;
 	enum ib_mw_type         type;
-};
-
-struct ib_fmr {
-	struct ib_device	*device;
-	struct ib_pd		*pd;
-	struct list_head	list;
-	u32			lkey;
-	u32			rkey;
 };
 
 /* Supported steering options */
@@ -2198,6 +2235,7 @@ struct rdma_netdev {
 	void              *clnt_priv;
 	struct ib_device  *hca;
 	u8                 port_num;
+	int                mtu;
 
 	/*
 	 * cleanup function must be specified.
@@ -2403,8 +2441,8 @@ struct ib_device_ops {
 	void (*disassociate_ucontext)(struct ib_ucontext *ibcontext);
 	int (*alloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
 	void (*dealloc_pd)(struct ib_pd *pd, struct ib_udata *udata);
-	int (*create_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
-			 u32 flags, struct ib_udata *udata);
+	int (*create_ah)(struct ib_ah *ah, struct rdma_ah_init_attr *attr,
+			 struct ib_udata *udata);
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	void (*destroy_ah)(struct ib_ah *ah, u32 flags);
@@ -2453,12 +2491,6 @@ struct ib_device_ops {
 	struct ib_mw *(*alloc_mw)(struct ib_pd *pd, enum ib_mw_type type,
 				  struct ib_udata *udata);
 	int (*dealloc_mw)(struct ib_mw *mw);
-	struct ib_fmr *(*alloc_fmr)(struct ib_pd *pd, int mr_access_flags,
-				    struct ib_fmr_attr *fmr_attr);
-	int (*map_phys_fmr)(struct ib_fmr *fmr, u64 *page_list, int list_len,
-			    u64 iova);
-	int (*unmap_fmr)(struct list_head *fmr_list);
-	int (*dealloc_fmr)(struct ib_fmr *fmr);
 	int (*attach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	int (*detach_mcast)(struct ib_qp *qp, union ib_gid *gid, u16 lid);
 	struct ib_xrcd *(*alloc_xrcd)(struct ib_device *device,
@@ -2687,6 +2719,10 @@ struct ib_device {
 #endif
 
 	u32                          index;
+
+	spinlock_t                   cq_pools_lock;
+	struct list_head             cq_pools[IB_POLL_LAST_POOL_TYPE + 1];
+
 	struct rdma_restrack_root *res;
 
 	const struct uapi_definition   *driver_def;
@@ -2709,12 +2745,13 @@ struct ib_device {
 	/* Used by iWarp CM */
 	char iw_ifname[IFNAMSIZ];
 	u32 iw_driver_flags;
+	u32 lag_flags;
 };
 
 struct ib_client_nl_info;
 struct ib_client {
 	const char *name;
-	void (*add)   (struct ib_device *);
+	int (*add)(struct ib_device *ibdev);
 	void (*remove)(struct ib_device *, void *client_data);
 	void (*rename)(struct ib_device *dev, void *client_data);
 	int (*get_nl_info)(struct ib_device *ibdev, void *client_data,
@@ -3355,6 +3392,55 @@ static inline unsigned int rdma_find_pg_bit(unsigned long addr,
 	return __fls(pgsz);
 }
 
+/**
+ * rdma_core_cap_opa_port - Return whether the RDMA Port is OPA or not.
+ * @device: Device
+ * @port_num: 1 based Port number
+ *
+ * Return true if port is an Intel OPA port , false if not
+ */
+static inline bool rdma_core_cap_opa_port(struct ib_device *device,
+					  u32 port_num)
+{
+	return (device->port_data[port_num].immutable.core_cap_flags &
+		RDMA_CORE_PORT_INTEL_OPA) == RDMA_CORE_PORT_INTEL_OPA;
+}
+
+/**
+ * rdma_mtu_enum_to_int - Return the mtu of the port as an integer value.
+ * @device: Device
+ * @port_num: Port number
+ * @mtu: enum value of MTU
+ *
+ * Return the MTU size supported by the port as an integer value. Will return
+ * -1 if enum value of mtu is not supported.
+ */
+static inline int rdma_mtu_enum_to_int(struct ib_device *device, u8 port,
+				       int mtu)
+{
+	if (rdma_core_cap_opa_port(device, port))
+		return opa_mtu_enum_to_int((enum opa_mtu)mtu);
+	else
+		return ib_mtu_enum_to_int((enum ib_mtu)mtu);
+}
+
+/**
+ * rdma_mtu_from_attr - Return the mtu of the port from the port attribute.
+ * @device: Device
+ * @port_num: Port number
+ * @attr: port attribute
+ *
+ * Return the MTU size supported by the port as an integer value.
+ */
+static inline int rdma_mtu_from_attr(struct ib_device *device, u8 port,
+				     struct ib_port_attr *attr)
+{
+	if (rdma_core_cap_opa_port(device, port))
+		return attr->phys_mtu;
+	else
+		return ib_mtu_enum_to_int(attr->max_mtu);
+}
+
 int ib_set_vf_link_state(struct ib_device *device, int vf, u8 port,
 			 int state);
 int ib_get_vf_config(struct ib_device *device, int vf, u8 port,
@@ -3551,21 +3637,18 @@ static inline int rdma_destroy_ah(struct ib_ah *ah, u32 flags)
 	return rdma_destroy_ah_user(ah, flags, NULL);
 }
 
-/**
- * ib_create_srq - Creates a SRQ associated with the specified protection
- *   domain.
- * @pd: The protection domain associated with the SRQ.
- * @srq_init_attr: A list of initial attributes required to create the
- *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
- *   the actual capabilities of the created SRQ.
- *
- * srq_attr->max_wr and srq_attr->max_sge are read the determine the
- * requested size of the SRQ, and set to the actual values allocated
- * on return.  If ib_create_srq() succeeds, then max_wr and max_sge
- * will always be at least as large as the requested values.
- */
-struct ib_srq *ib_create_srq(struct ib_pd *pd,
-			     struct ib_srq_init_attr *srq_init_attr);
+struct ib_srq *ib_create_srq_user(struct ib_pd *pd,
+				  struct ib_srq_init_attr *srq_init_attr,
+				  struct ib_usrq_object *uobject,
+				  struct ib_udata *udata);
+static inline struct ib_srq *
+ib_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *srq_init_attr)
+{
+	if (!pd->device->ops.create_srq)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	return ib_create_srq_user(pd, srq_init_attr, NULL, NULL);
+}
 
 /**
  * ib_modify_srq - Modifies the attributes for the specified SRQ.
@@ -3816,6 +3899,8 @@ static inline struct ib_cq *ib_alloc_cq_any(struct ib_device *dev,
  * ib_free_cq_user - Free kernel/user CQ
  * @cq: The CQ to free
  * @udata: Valid user data or NULL for kernel objects
+ *
+ * NOTE: This function shouldn't be called on shared CQs.
  */
 void ib_free_cq_user(struct ib_cq *cq, struct ib_udata *udata);
 
@@ -3940,6 +4025,12 @@ static inline int ib_req_notify_cq(struct ib_cq *cq,
 {
 	return cq->device->ops.req_notify_cq(cq, flags);
 }
+
+struct ib_cq *ib_cq_pool_get(struct ib_device *dev, unsigned int nr_cqe,
+			     int comp_vector_hint,
+			     enum ib_poll_context poll_ctx);
+
+void ib_cq_pool_put(struct ib_cq *cq, unsigned int nr_cqe);
 
 /**
  * ib_req_ncomp_notif - Request completion notification when there are
@@ -4207,45 +4298,6 @@ static inline u32 ib_inc_rkey(u32 rkey)
 	const u32 mask = 0x000000ff;
 	return ((rkey + 1) & mask) | (rkey & ~mask);
 }
-
-/**
- * ib_alloc_fmr - Allocates a unmapped fast memory region.
- * @pd: The protection domain associated with the unmapped region.
- * @mr_access_flags: Specifies the memory access rights.
- * @fmr_attr: Attributes of the unmapped region.
- *
- * A fast memory region must be mapped before it can be used as part of
- * a work request.
- */
-struct ib_fmr *ib_alloc_fmr(struct ib_pd *pd,
-			    int mr_access_flags,
-			    struct ib_fmr_attr *fmr_attr);
-
-/**
- * ib_map_phys_fmr - Maps a list of physical pages to a fast memory region.
- * @fmr: The fast memory region to associate with the pages.
- * @page_list: An array of physical pages to map to the fast memory region.
- * @list_len: The number of pages in page_list.
- * @iova: The I/O virtual address to use with the mapped region.
- */
-static inline int ib_map_phys_fmr(struct ib_fmr *fmr,
-				  u64 *page_list, int list_len,
-				  u64 iova)
-{
-	return fmr->device->ops.map_phys_fmr(fmr, page_list, list_len, iova);
-}
-
-/**
- * ib_unmap_fmr - Removes the mapping from a list of fast memory regions.
- * @fmr_list: A linked list of fast memory regions to unmap.
- */
-int ib_unmap_fmr(struct list_head *fmr_list);
-
-/**
- * ib_dealloc_fmr - Deallocates a fast memory region.
- * @fmr: The fast memory region to deallocate.
- */
-int ib_dealloc_fmr(struct ib_fmr *fmr);
 
 /**
  * ib_attach_mcast - Attaches the specified QP to a multicast group.
@@ -4701,4 +4753,48 @@ static inline struct ib_device *rdma_device_to_ibdev(struct device *device)
 
 bool rdma_dev_access_netns(const struct ib_device *device,
 			   const struct net *net);
+
+#define IB_ROCE_UDP_ENCAP_VALID_PORT_MIN (0xC000)
+#define IB_GRH_FLOWLABEL_MASK (0x000FFFFF)
+
+/**
+ * rdma_flow_label_to_udp_sport - generate a RoCE v2 UDP src port value based
+ *                               on the flow_label
+ *
+ * This function will convert the 20 bit flow_label input to a valid RoCE v2
+ * UDP src port 14 bit value. All RoCE V2 drivers should use this same
+ * convention.
+ */
+static inline u16 rdma_flow_label_to_udp_sport(u32 fl)
+{
+	u32 fl_low = fl & 0x03fff, fl_high = fl & 0xFC000;
+
+	fl_low ^= fl_high >> 14;
+	return (u16)(fl_low | IB_ROCE_UDP_ENCAP_VALID_PORT_MIN);
+}
+
+/**
+ * rdma_calc_flow_label - generate a RDMA symmetric flow label value based on
+ *                        local and remote qpn values
+ *
+ * This function folded the multiplication results of two qpns, 24 bit each,
+ * fields, and converts it to a 20 bit results.
+ *
+ * This function will create symmetric flow_label value based on the local
+ * and remote qpn values. this will allow both the requester and responder
+ * to calculate the same flow_label for a given connection.
+ *
+ * This helper function should be used by driver in case the upper layer
+ * provide a zero flow_label value. This is to improve entropy of RDMA
+ * traffic in the network.
+ */
+static inline u32 rdma_calc_flow_label(u32 lqpn, u32 rqpn)
+{
+	u64 v = (u64)lqpn * rqpn;
+
+	v ^= v >> 20;
+	v ^= v >> 40;
+
+	return (u32)(v & IB_GRH_FLOWLABEL_MASK);
+}
 #endif /* IB_VERBS_H */

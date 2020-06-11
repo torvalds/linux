@@ -12,6 +12,8 @@
 
 #include <linux/iio/iio.h>
 
+#include <asm/unaligned.h>
+
 #define ADIS16130_CON         0x0
 #define ADIS16130_CON_RD      (1 << 6)
 #define ADIS16130_IOP         0x1
@@ -59,7 +61,7 @@ static int adis16130_spi_read(struct iio_dev *indio_dev, u8 reg_addr, u32 *val)
 
 	ret = spi_sync_transfer(st->us, &xfer, 1);
 	if (ret == 0)
-		*val = (st->buf[1] << 16) | (st->buf[2] << 8) | st->buf[3];
+		*val = get_unaligned_be24(&st->buf[1]);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;

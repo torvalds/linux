@@ -90,6 +90,7 @@ int intel_execlists_submission_setup(struct intel_engine_cs *engine);
 #define LRC_PPHWSP_SZ	(1)
 /* After the PPHWSP we have the logical state for the context */
 #define LRC_STATE_PN	(LRC_PPHWSP_PN + LRC_PPHWSP_SZ)
+#define LRC_STATE_OFFSET (LRC_STATE_PN * PAGE_SIZE)
 
 /* Space within PPHWSP reserved to be used as scratch */
 #define LRC_PPHWSP_SCRATCH		0x34

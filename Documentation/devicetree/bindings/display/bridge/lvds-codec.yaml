@@ -32,17 +32,17 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - ti,ds90c185       # For the TI DS90C185 FPD-Link Serializer
-          - ti,ds90c187       # For the TI DS90C187 FPD-Link Serializer
-          - ti,sn75lvds83     # For the TI SN75LVDS83 FlatLink transmitter
-        - const: lvds-encoder # Generic LVDS encoder compatible fallback
+          - enum:
+              - ti,ds90c185   # For the TI DS90C185 FPD-Link Serializer
+              - ti,ds90c187   # For the TI DS90C187 FPD-Link Serializer
+              - ti,sn75lvds83 # For the TI SN75LVDS83 FlatLink transmitter
+          - const: lvds-encoder # Generic LVDS encoder compatible fallback
       - items:
-        - enum:
-          - ti,ds90cf384a     # For the DS90CF384A FPD-Link LVDS Receiver
-        - const: lvds-decoder # Generic LVDS decoders compatible fallback
+          - enum:
+              - ti,ds90cf384a # For the DS90CF384A FPD-Link LVDS Receiver
+          - const: lvds-decoder # Generic LVDS decoders compatible fallback
       - enum:
-        - thine,thc63lvdm83d  # For the THC63LVDM83D LVDS serializer
+          - thine,thc63lvdm83d # For the THC63LVDM83D LVDS serializer
 
   ports:
     type: object
@@ -50,6 +50,12 @@ properties:
       This device has two video ports. Their connections are modeled using the
       OF graph bindings specified in Documentation/devicetree/bindings/graph.txt
     properties:
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
       port@0:
         type: object
         description: |
@@ -65,6 +71,8 @@ properties:
     required:
       - port@0
       - port@1
+
+    additionalProperties: false
 
   powerdown-gpios:
     description:

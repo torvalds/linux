@@ -166,7 +166,7 @@ config TMPFS
 	  space. If you unmount a tmpfs instance, everything stored therein is
 	  lost.
 
-	  See <file:Documentation/filesystems/tmpfs.txt> for details.
+	  See <file:Documentation/filesystems/tmpfs.rst> for details.
 
 config TMPFS_POSIX_ACL
 	bool "Tmpfs POSIX Access Control Lists"

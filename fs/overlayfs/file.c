@@ -10,6 +10,7 @@
 #include <linux/uio.h>
 #include <linux/uaccess.h>
 #include <linux/splice.h>
+#include <linux/security.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include "overlayfs.h"
@@ -39,10 +40,22 @@ static struct file *ovl_open_realfile(const struct file *file,
 	struct file *realfile;
 	const struct cred *old_cred;
 	int flags = file->f_flags | O_NOATIME | FMODE_NONOTIFY;
+	int acc_mode = ACC_MODE(flags);
+	int err;
+
+	if (flags & O_APPEND)
+		acc_mode |= MAY_APPEND;
 
 	old_cred = ovl_override_creds(inode->i_sb);
-	realfile = open_with_fake_path(&file->f_path, flags, realinode,
-				       current_cred());
+	err = inode_permission(realinode, MAY_OPEN | acc_mode);
+	if (err) {
+		realfile = ERR_PTR(err);
+	} else if (!inode_owner_or_capable(realinode)) {
+		realfile = ERR_PTR(-EPERM);
+	} else {
+		realfile = open_with_fake_path(&file->f_path, flags, realinode,
+					       current_cred());
+	}
 	revert_creds(old_cred);
 
 	pr_debug("open(%p[%pD2/%c], 0%o) -> (%p, 0%o)\n",
@@ -219,9 +232,8 @@ static void ovl_file_accessed(struct file *file)
 	touch_atime(&file->f_path);
 }
 
-static rwf_t ovl_iocb_to_rwf(struct kiocb *iocb)
+static rwf_t ovl_iocb_to_rwf(int ifl)
 {
-	int ifl = iocb->ki_flags;
 	rwf_t flags = 0;
 
 	if (ifl & IOCB_NOWAIT)
@@ -283,7 +295,7 @@ static ssize_t ovl_read_iter(struct kiocb *iocb, struct iov_iter *iter)
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
 	if (is_sync_kiocb(iocb)) {
 		ret = vfs_iter_read(real.file, iter, &iocb->ki_pos,
-				    ovl_iocb_to_rwf(iocb));
+				    ovl_iocb_to_rwf(iocb->ki_flags));
 	} else {
 		struct ovl_aio_req *aio_req;
 
@@ -336,7 +348,7 @@ static ssize_t ovl_write_iter(struct kiocb *iocb, struct iov_iter *iter)
 	if (is_sync_kiocb(iocb)) {
 		file_start_write(real.file);
 		ret = vfs_iter_write(real.file, iter, &iocb->ki_pos,
-				     ovl_iocb_to_rwf(iocb));
+				     ovl_iocb_to_rwf(iocb->ki_flags));
 		file_end_write(real.file);
 		/* Update size */
 		ovl_copyattr(ovl_inode_real(inode), inode);
@@ -520,7 +532,9 @@ static long ovl_real_ioctl(struct file *file, unsigned int cmd,
 		return ret;
 
 	old_cred = ovl_override_creds(file_inode(file)->i_sb);
-	ret = vfs_ioctl(real.file, cmd, arg);
+	ret = security_file_ioctl(real.file, cmd, arg);
+	if (!ret)
+		ret = vfs_ioctl(real.file, cmd, arg);
 	revert_creds(old_cred);
 
 	fdput(real);

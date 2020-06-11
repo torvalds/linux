@@ -24,8 +24,8 @@ config NET_DSA_MV88E6XXX_PTP
 	bool "PTP support for Marvell 88E6xxx"
 	default n
 	depends on NET_DSA_MV88E6XXX_GLOBAL2
+	depends on PTP_1588_CLOCK
 	imply NETWORK_PHY_TIMESTAMPING
-	imply PTP_1588_CLOCK
 	help
 	  Say Y to enable PTP hardware timestamping on Marvell 88E6xxx switch
 	  chips that support it.

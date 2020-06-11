@@ -1963,8 +1963,9 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	/* "name" addr register_size Field_Width */
 
-	/* where Field_Width is 1 for single mode registers or 4 for upto 16
-	   mode registers and modes are described in assending order [0..16] */
+	/* where Field_Width is 1 for single mode registers or 4 for up to 16
+	 * mode registers and modes are described in assending order [0..15]
+	 */
 
 	{ PINMUX_CFG_REG("PAIOR0", 0xfffe3812, 16, 1, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0,

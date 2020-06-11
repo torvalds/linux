@@ -6,8 +6,8 @@
 #include "i915_drv.h"
 #include "gt/intel_context.h"
 #include "gt/intel_engine_pm.h"
-#include "gt/intel_engine_pool.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_ring.h"
 #include "i915_gem_clflush.h"
 #include "i915_gem_object_blt.h"
@@ -18,7 +18,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_vma *batch;
 	u64 offset;
 	u64 count;
@@ -33,7 +33,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	count = div_u64(round_up(vma->size, block_size), block_size);
 	size = (1 + 8 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_get_pool(ce->engine, size);
+	pool = intel_gt_get_buffer_pool(ce->engine->gt, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -78,9 +78,11 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -96,7 +98,7 @@ struct i915_vma *intel_emit_vma_fill_blt(struct intel_context *ce,
 	return batch;
 
 out_put:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 out_pm:
 	intel_engine_pm_put(ce->engine);
 	return ERR_PTR(err);
@@ -114,13 +116,13 @@ int intel_emit_vma_mark_active(struct i915_vma *vma, struct i915_request *rq)
 	if (unlikely(err))
 		return err;
 
-	return intel_engine_pool_mark_active(vma->private, rq);
+	return intel_gt_buffer_pool_mark_active(vma->private, rq);
 }
 
 void intel_emit_vma_release(struct intel_context *ce, struct i915_vma *vma)
 {
 	i915_vma_unpin(vma);
-	intel_engine_pool_put(vma->private);
+	intel_gt_buffer_pool_put(vma->private);
 	intel_engine_pm_put(ce->engine);
 }
 
@@ -213,7 +215,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 {
 	struct drm_i915_private *i915 = ce->vm->i915;
 	const u32 block_size = SZ_8M; /* ~1ms at 8GiB/s preemption delay */
-	struct intel_engine_pool_node *pool;
+	struct intel_gt_buffer_pool_node *pool;
 	struct i915_vma *batch;
 	u64 src_offset, dst_offset;
 	u64 count, rem;
@@ -228,7 +230,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	count = div_u64(round_up(dst->size, block_size), block_size);
 	size = (1 + 11 * count) * sizeof(u32);
 	size = round_up(size, PAGE_SIZE);
-	pool = intel_engine_get_pool(ce->engine, size);
+	pool = intel_gt_get_buffer_pool(ce->engine->gt, size);
 	if (IS_ERR(pool)) {
 		err = PTR_ERR(pool);
 		goto out_pm;
@@ -289,9 +291,11 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	} while (rem);
 
 	*cmd = MI_BATCH_BUFFER_END;
-	intel_gt_chipset_flush(ce->vm->gt);
 
+	i915_gem_object_flush_map(pool->obj);
 	i915_gem_object_unpin_map(pool->obj);
+
+	intel_gt_chipset_flush(ce->vm->gt);
 
 	batch = i915_vma_instance(pool->obj, ce->vm, NULL);
 	if (IS_ERR(batch)) {
@@ -307,7 +311,7 @@ struct i915_vma *intel_emit_vma_copy_blt(struct intel_context *ce,
 	return batch;
 
 out_put:
-	intel_engine_pool_put(pool);
+	intel_gt_buffer_pool_put(pool);
 out_pm:
 	intel_engine_pm_put(ce->engine);
 	return ERR_PTR(err);

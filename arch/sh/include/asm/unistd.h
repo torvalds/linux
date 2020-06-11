@@ -1,9 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-# ifdef CONFIG_SUPERH32
-#  include <asm/unistd_32.h>
-# else
-#  include <asm/unistd_64.h>
-# endif
+#include <asm/unistd_32.h>
 
 #define NR_syscalls	__NR_syscalls
 

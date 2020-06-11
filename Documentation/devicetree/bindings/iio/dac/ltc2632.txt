@@ -1,4 +1,4 @@
-Linear Technology LTC2632/2636 DAC
+Linear Technology LTC2632/2634/2636 DAC
 
 Required properties:
  - compatible: Has to contain one of the following:
@@ -8,6 +8,12 @@ Required properties:
 	lltc,ltc2632-h12
 	lltc,ltc2632-h10
 	lltc,ltc2632-h8
+	lltc,ltc2634-l12
+	lltc,ltc2634-l10
+	lltc,ltc2634-l8
+	lltc,ltc2634-h12
+	lltc,ltc2634-h10
+	lltc,ltc2634-h8
 	lltc,ltc2636-l12
 	lltc,ltc2636-l10
 	lltc,ltc2636-l8

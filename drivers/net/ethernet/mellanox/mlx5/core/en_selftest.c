@@ -234,7 +234,7 @@ static int mlx5e_test_loopback_setup(struct mlx5e_priv *priv,
 			return err;
 	}
 
-	err = mlx5e_refresh_tirs(priv, true);
+	err = mlx5e_refresh_tirs(priv, true, false);
 	if (err)
 		goto out;
 
@@ -263,7 +263,7 @@ static void mlx5e_test_loopback_cleanup(struct mlx5e_priv *priv,
 		mlx5_nic_vport_update_local_lb(priv->mdev, false);
 
 	dev_remove_pack(&lbtp->pt);
-	mlx5e_refresh_tirs(priv, false);
+	mlx5e_refresh_tirs(priv, false, false);
 }
 
 #define MLX5E_LB_VERIFY_TIMEOUT (msecs_to_jiffies(200))

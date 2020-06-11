@@ -22,6 +22,17 @@ config ATLAS_PH_SENSOR
 	  To compile this driver as module, choose M here: the
 	  module will be called atlas-ph-sensor.
 
+config ATLAS_EZO_SENSOR
+	tristate "Atlas Scientific EZO sensors"
+	depends on I2C
+	help
+	  Say Y here to build I2C interface support for the following
+	  Atlas Scientific EZO sensors
+	    * CO2 EZO Sensor
+
+	  To compile this driver as module, choose M here: the
+	  module will be called atlas-ezo-sensor.
+
 config BME680
 	tristate "Bosch Sensortec BME680 sensor driver"
 	depends on (I2C || SPI)

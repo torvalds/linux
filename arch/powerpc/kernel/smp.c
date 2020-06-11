@@ -33,6 +33,7 @@
 #include <linux/processor.h>
 #include <linux/random.h>
 #include <linux/stackprotector.h>
+#include <linux/pgtable.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -41,7 +42,6 @@
 #include <asm/kvm_ppc.h>
 #include <asm/dbell.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/time.h>
@@ -1383,7 +1383,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 #ifdef CONFIG_SCHED_SMT
 	if (has_big_cores) {
-		pr_info("Using small cores at SMT level\n");
+		pr_info("Big cores detected but using small core scheduling\n");
 		power9_topology[0].mask = smallcore_smt_mask;
 		powerpc_topology[0].mask = smallcore_smt_mask;
 	}

@@ -1073,27 +1073,12 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		},
 	},
 	{
-		.ident = "Dell XPS421",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS L421X"),
-		},
-	},
-	{
 		.ident = "Dell Studio",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Studio"),
 		},
 		.driver_data = (void *)&i8k_config_data[DELL_STUDIO],
-	},
-	{
-		.ident = "Dell XPS 13",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS13"),
-		},
-		.driver_data = (void *)&i8k_config_data[DELL_XPS],
 	},
 	{
 		.ident = "Dell XPS M140",
@@ -1104,17 +1089,10 @@ static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 		.driver_data = (void *)&i8k_config_data[DELL_XPS],
 	},
 	{
-		.ident = "Dell XPS 15 9560",
+		.ident = "Dell XPS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 15 9560"),
-		},
-	},
-	{
-		.ident = "Dell XPS 15 9570",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "XPS 15 9570"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "XPS"),
 		},
 	},
 	{ }

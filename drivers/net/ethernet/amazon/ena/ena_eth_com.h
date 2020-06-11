@@ -73,6 +73,7 @@ struct ena_com_rx_ctx {
 	u32 hash;
 	u16 descs;
 	int max_bufs;
+	u8 pkt_offset;
 };
 
 int ena_com_prepare_tx(struct ena_com_io_sq *io_sq,
@@ -95,7 +96,7 @@ static inline void ena_com_unmask_intr(struct ena_com_io_cq *io_cq,
 	writel(intr_reg->intr_control, io_cq->unmask_reg);
 }
 
-static inline int ena_com_free_desc(struct ena_com_io_sq *io_sq)
+static inline int ena_com_free_q_entries(struct ena_com_io_sq *io_sq)
 {
 	u16 tail, next_to_comp, cnt;
 
@@ -113,7 +114,7 @@ static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
 	int temp;
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_HOST)
-		return ena_com_free_desc(io_sq) >= required_buffers;
+		return ena_com_free_q_entries(io_sq) >= required_buffers;
 
 	/* This calculation doesn't need to be 100% accurate. So to reduce
 	 * the calculation overhead just Subtract 2 lines from the free descs
@@ -122,7 +123,7 @@ static inline bool ena_com_sq_have_enough_space(struct ena_com_io_sq *io_sq,
 	 */
 	temp = required_buffers / io_sq->llq_info.descs_per_entry + 2;
 
-	return ena_com_free_desc(io_sq) > temp;
+	return ena_com_free_q_entries(io_sq) > temp;
 }
 
 static inline bool ena_com_meta_desc_changed(struct ena_com_io_sq *io_sq,

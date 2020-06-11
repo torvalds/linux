@@ -165,9 +165,10 @@ void *child_thread(void *arg)
 			socklen_t zc_len = sizeof(zc);
 			int res;
 
+			memset(&zc, 0, sizeof(zc));
 			zc.address = (__u64)((unsigned long)addr);
 			zc.length = chunk_size;
-			zc.recv_skip_hint = 0;
+
 			res = getsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE,
 					 &zc, &zc_len);
 			if (res == -1)
@@ -281,12 +282,14 @@ static void setup_sockaddr(int domain, const char *str_addr,
 static void do_accept(int fdlisten)
 {
 	pthread_attr_t attr;
+	int rcvlowat;
 
 	pthread_attr_init(&attr);
 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
+	rcvlowat = chunk_size;
 	if (setsockopt(fdlisten, SOL_SOCKET, SO_RCVLOWAT,
-		       &chunk_size, sizeof(chunk_size)) == -1) {
+		       &rcvlowat, sizeof(rcvlowat)) == -1) {
 		perror("setsockopt SO_RCVLOWAT");
 	}
 

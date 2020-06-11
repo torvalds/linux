@@ -117,6 +117,9 @@ static int parse_fixed_partitions(struct mtd_info *master,
 		if (of_get_property(pp, "lock", &len))
 			parts[i].mask_flags |= MTD_POWERUP_LOCK;
 
+		if (of_property_read_bool(pp, "slc-mode"))
+			parts[i].add_flags |= MTD_SLC_ON_MLC_EMULATION;
+
 		i++;
 	}
 

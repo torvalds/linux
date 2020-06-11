@@ -7,7 +7,7 @@
  *
  * Core file which registers crypto algorithms supported by the SecuritySystem
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi/README
+ * You could find a link for the datasheet in Documentation/arm/sunxi.rst
  */
 #include <linux/clk.h>
 #include <linux/crypto.h>
@@ -537,10 +537,8 @@ static int sun8i_ss_probe(struct platform_device *pdev)
 		return err;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(ss->dev, "Cannot get SecuritySystem IRQ\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	ss->reset = devm_reset_control_get(&pdev->dev, NULL);
 	if (IS_ERR(ss->reset)) {

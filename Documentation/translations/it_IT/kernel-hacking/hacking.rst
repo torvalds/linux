@@ -627,6 +627,24 @@ Alcuni manutentori e sviluppatori potrebbero comunque richiedere
 :c:func:`EXPORT_SYMBOL_GPL()` quando si aggiungono nuove funzionalità o
 interfacce.
 
+:c:func:`EXPORT_SYMBOL_NS()`
+----------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../../../core-api/symbol-namespaces`
+
+:c:func:`EXPORT_SYMBOL_NS_GPL()`
+--------------------------------
+
+Definita in ``include/linux/export.h``
+
+Questa è una variate di `EXPORT_SYMBOL_GPL()` che permette di specificare uno
+spazio dei nomi. Lo spazio dei nomi è documentato in
+:doc:`../../../core-api/symbol-namespaces`
+
 Procedure e convenzioni
 =======================
 

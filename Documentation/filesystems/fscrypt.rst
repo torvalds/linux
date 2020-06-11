@@ -292,8 +292,22 @@ files' data differently, inode numbers are included in the IVs.
 Consequently, shrinking the filesystem may not be allowed.
 
 This format is optimized for use with inline encryption hardware
-compliant with the UFS or eMMC standards, which support only 64 IV
-bits per I/O request and may have only a small number of keyslots.
+compliant with the UFS standard, which supports only 64 IV bits per
+I/O request and may have only a small number of keyslots.
+
+IV_INO_LBLK_32 policies
+-----------------------
+
+IV_INO_LBLK_32 policies work like IV_INO_LBLK_64, except that for
+IV_INO_LBLK_32, the inode number is hashed with SipHash-2-4 (where the
+SipHash key is derived from the master key) and added to the file
+logical block number mod 2^32 to produce a 32-bit IV.
+
+This format is optimized for use with inline encryption hardware
+compliant with the eMMC v5.2 standard, which supports only 32 IV bits
+per I/O request and may have only a small number of keyslots.  This
+format results in some level of IV reuse, so it should only be used
+when necessary due to hardware limitations.
 
 Key identifiers
 ---------------
@@ -368,6 +382,10 @@ a little endian number, except that:
 - With `IV_INO_LBLK_64 policies`_, the logical block number is limited
   to 32 bits and is placed in bits 0-31 of the IV.  The inode number
   (which is also limited to 32 bits) is placed in bits 32-63.
+
+- With `IV_INO_LBLK_32 policies`_, the logical block number is limited
+  to 32 bits and is placed in bits 0-31 of the IV.  The inode number
+  is then hashed and added mod 2^32.
 
 Note that because file logical block numbers are included in the IVs,
 filesystems must enforce that blocks are never shifted around within
@@ -465,8 +483,15 @@ This structure must be initialized as follows:
     (0x3).
   - FSCRYPT_POLICY_FLAG_DIRECT_KEY: See `DIRECT_KEY policies`_.
   - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_64: See `IV_INO_LBLK_64
-    policies`_.  This is mutually exclusive with DIRECT_KEY and is not
-    supported on v1 policies.
+    policies`_.
+  - FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32: See `IV_INO_LBLK_32
+    policies`_.
+
+  v1 encryption policies only support the PAD_* and DIRECT_KEY flags.
+  The other flags are only supported by v2 encryption policies.
+
+  The DIRECT_KEY, IV_INO_LBLK_64, and IV_INO_LBLK_32 flags are
+  mutually exclusive.
 
 - For v2 encryption policies, ``__reserved`` must be zeroed.
 

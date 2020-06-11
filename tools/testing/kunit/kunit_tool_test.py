@@ -239,6 +239,24 @@ class KUnitMainTest(unittest.TestCase):
 		self.print_patch.stop()
 		pass
 
+	def test_config_passes_args_pass(self):
+		kunit.main(['config'], self.linux_source_mock)
+		assert self.linux_source_mock.build_reconfig.call_count == 1
+		assert self.linux_source_mock.run_kernel.call_count == 0
+
+	def test_build_passes_args_pass(self):
+		kunit.main(['build'], self.linux_source_mock)
+		assert self.linux_source_mock.build_reconfig.call_count == 0
+		self.linux_source_mock.build_um_kernel.assert_called_once_with(False, 8, '', None)
+		assert self.linux_source_mock.run_kernel.call_count == 0
+
+	def test_exec_passes_args_pass(self):
+		kunit.main(['exec'], self.linux_source_mock)
+		assert self.linux_source_mock.build_reconfig.call_count == 0
+		assert self.linux_source_mock.run_kernel.call_count == 1
+		self.linux_source_mock.run_kernel.assert_called_once_with(build_dir='', timeout=300)
+		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
 	def test_run_passes_args_pass(self):
 		kunit.main(['run'], self.linux_source_mock)
 		assert self.linux_source_mock.build_reconfig.call_count == 1
@@ -246,6 +264,13 @@ class KUnitMainTest(unittest.TestCase):
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			build_dir='', timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
+	def test_exec_passes_args_fail(self):
+		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
+		with self.assertRaises(SystemExit) as e:
+			kunit.main(['exec'], self.linux_source_mock)
+		assert type(e.exception) == SystemExit
+		assert e.exception.code == 1
 
 	def test_run_passes_args_fail(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
@@ -257,14 +282,28 @@ class KUnitMainTest(unittest.TestCase):
 		assert self.linux_source_mock.run_kernel.call_count == 1
 		self.print_mock.assert_any_call(StrContains(' 0 tests run'))
 
+	def test_exec_raw_output(self):
+		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
+		kunit.main(['exec', '--raw_output'], self.linux_source_mock)
+		assert self.linux_source_mock.run_kernel.call_count == 1
+		for kall in self.print_mock.call_args_list:
+			assert kall != mock.call(StrContains('Testing complete.'))
+			assert kall != mock.call(StrContains(' 0 tests run'))
+
 	def test_run_raw_output(self):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
-		with self.assertRaises(SystemExit) as e:
-			kunit.main(['run', '--raw_output'], self.linux_source_mock)
-		assert type(e.exception) == SystemExit
-		assert e.exception.code == 1
+		kunit.main(['run', '--raw_output'], self.linux_source_mock)
 		assert self.linux_source_mock.build_reconfig.call_count == 1
 		assert self.linux_source_mock.run_kernel.call_count == 1
+		for kall in self.print_mock.call_args_list:
+			assert kall != mock.call(StrContains('Testing complete.'))
+			assert kall != mock.call(StrContains(' 0 tests run'))
+
+	def test_exec_timeout(self):
+		timeout = 3453
+		kunit.main(['exec', '--timeout', str(timeout)], self.linux_source_mock)
+		self.linux_source_mock.run_kernel.assert_called_once_with(build_dir='', timeout=timeout)
+		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_timeout(self):
 		timeout = 3453
@@ -280,6 +319,22 @@ class KUnitMainTest(unittest.TestCase):
 		assert self.linux_source_mock.build_reconfig.call_count == 1
 		self.linux_source_mock.run_kernel.assert_called_once_with(
 			build_dir=build_dir, timeout=300)
+		self.print_mock.assert_any_call(StrContains('Testing complete.'))
+
+	def test_config_builddir(self):
+		build_dir = '.kunit'
+		kunit.main(['config', '--build_dir', build_dir], self.linux_source_mock)
+		assert self.linux_source_mock.build_reconfig.call_count == 1
+
+	def test_build_builddir(self):
+		build_dir = '.kunit'
+		kunit.main(['build', '--build_dir', build_dir], self.linux_source_mock)
+		self.linux_source_mock.build_um_kernel.assert_called_once_with(False, 8, build_dir, None)
+
+	def test_exec_builddir(self):
+		build_dir = '.kunit'
+		kunit.main(['exec', '--build_dir', build_dir], self.linux_source_mock)
+		self.linux_source_mock.run_kernel.assert_called_once_with(build_dir=build_dir, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 if __name__ == '__main__':
