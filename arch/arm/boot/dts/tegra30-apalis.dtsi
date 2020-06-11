@@ -846,6 +846,7 @@
 		sgtl5000: codec@a {
 			compatible = "fsl,sgtl5000";
 			reg = <0x0a>;
+			#sound-dai-cells = <0>;
 			VDDA-supply = <&reg_module_3v3_audio>;
 			VDDD-supply = <&reg_1v8_vio>;
 			VDDIO-supply = <&reg_module_3v3>;
