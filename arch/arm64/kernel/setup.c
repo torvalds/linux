@@ -319,6 +319,10 @@ void __init setup_arch(char **cmdline_p)
 
 	xen_early_init();
 	efi_init();
+
+	if (!efi_enabled(EFI_BOOT) && ((u64)_text % MIN_KIMG_ALIGN) != 0)
+	     pr_warn(FW_BUG "Kernel image misaligned at boot, please fix your bootloader!");
+
 	arm64_memblock_init();
 
 	paging_init();

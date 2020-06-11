@@ -74,7 +74,7 @@ static void scs_check_usage(struct task_struct *tsk)
 	for (p = task_scs(tsk); p < __scs_magic(tsk); ++p) {
 		if (!READ_ONCE_NOCHECK(*p))
 			break;
-		used++;
+		used += sizeof(*p);
 	}
 
 	while (used > curr) {
