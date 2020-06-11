@@ -287,8 +287,12 @@ static int rkcif_create_links(struct rkcif_device *dev)
 					source_entity = &sensor->sd->entity;
 					sink_entity = &dev->stream[id].vnode.vdev.entity;
 
-					(dev->chip_id != CHIP_RK1808_CIF && dev->chip_id != CHIP_RV1126_CIF) | (id == pad - 1) ?
-					(flags = MEDIA_LNK_FL_ENABLED) : (flags = 0);
+					if ((dev->chip_id != CHIP_RK1808_CIF &&
+					     dev->chip_id != CHIP_RV1126_CIF) |
+					    (id == pad - 1))
+						flags = MEDIA_LNK_FL_ENABLED;
+					else
+						flags = 0;
 
 					ret = media_create_pad_link(source_entity,
 								    pad,
