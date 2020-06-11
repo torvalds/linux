@@ -78,7 +78,6 @@ static bool __vcpu_read_sys_reg_from_cpu(int reg, u64 *val)
 	switch (reg) {
 	case CSSELR_EL1:	*val = read_sysreg_s(SYS_CSSELR_EL1);	break;
 	case SCTLR_EL1:		*val = read_sysreg_s(SYS_SCTLR_EL12);	break;
-	case ACTLR_EL1:		*val = read_sysreg_s(SYS_ACTLR_EL1);	break;
 	case CPACR_EL1:		*val = read_sysreg_s(SYS_CPACR_EL12);	break;
 	case TTBR0_EL1:		*val = read_sysreg_s(SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		*val = read_sysreg_s(SYS_TTBR1_EL12);	break;
@@ -118,7 +117,6 @@ static bool __vcpu_write_sys_reg_to_cpu(u64 val, int reg)
 	switch (reg) {
 	case CSSELR_EL1:	write_sysreg_s(val, SYS_CSSELR_EL1);	break;
 	case SCTLR_EL1:		write_sysreg_s(val, SYS_SCTLR_EL12);	break;
-	case ACTLR_EL1:		write_sysreg_s(val, SYS_ACTLR_EL1);	break;
 	case CPACR_EL1:		write_sysreg_s(val, SYS_CPACR_EL12);	break;
 	case TTBR0_EL1:		write_sysreg_s(val, SYS_TTBR0_EL12);	break;
 	case TTBR1_EL1:		write_sysreg_s(val, SYS_TTBR1_EL12);	break;
@@ -1034,16 +1032,13 @@ static bool trap_ptrauth(struct kvm_vcpu *vcpu,
 			 struct sys_reg_params *p,
 			 const struct sys_reg_desc *rd)
 {
-	kvm_arm_vcpu_ptrauth_trap(vcpu);
-
 	/*
-	 * Return false for both cases as we never skip the trapped
-	 * instruction:
-	 *
-	 * - Either we re-execute the same key register access instruction
-	 *   after enabling ptrauth.
-	 * - Or an UNDEF is injected as ptrauth is not supported/enabled.
+	 * If we land here, that is because we didn't fixup the access on exit
+	 * by allowing the PtrAuth sysregs. The only way this happens is when
+	 * the guest does not have PtrAuth support enabled.
 	 */
+	kvm_inject_undefined(vcpu);
+
 	return false;
 }
 
@@ -1319,10 +1314,16 @@ static bool access_clidr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 static bool access_csselr(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 			  const struct sys_reg_desc *r)
 {
+	int reg = r->reg;
+
+	/* See the 32bit mapping in kvm_host.h */
+	if (p->is_aarch32)
+		reg = r->reg / 2;
+
 	if (p->is_write)
-		vcpu_write_sys_reg(vcpu, p->regval, r->reg);
+		vcpu_write_sys_reg(vcpu, p->regval, reg);
 	else
-		p->regval = vcpu_read_sys_reg(vcpu, r->reg);
+		p->regval = vcpu_read_sys_reg(vcpu, reg);
 	return true;
 }
 
