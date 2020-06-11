@@ -739,12 +739,12 @@ static const struct file_operations fops_extd_rx_stats = {
 	.open = simple_open,
 };
 
-static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
+static ssize_t ath11k_debug_dump_soc_dp_stats(struct file *file,
 					      char __user *user_buf,
 					      size_t count, loff_t *ppos)
 {
 	struct ath11k_base *ab = file->private_data;
-	struct ath11k_soc_dp_rx_stats *soc_stats = &ab->soc_stats;
+	struct ath11k_soc_dp_stats *soc_stats = &ab->soc_stats;
 	int len = 0, i, retval;
 	const int size = 4096;
 	static const char *rxdma_err[HAL_REO_ENTR_RING_RXDMA_ECODE_MAX] = {
@@ -788,6 +788,17 @@ static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
 			 soc_stats->hal_reo_error[2],
 			 soc_stats->hal_reo_error[3]);
 
+	len += scnprintf(buf + len, size - len, "\nSOC TX STATS:\n");
+	len += scnprintf(buf + len, size - len, "\nTCL Ring Full Failures:\n");
+
+	for (i = 0; i < DP_TCL_NUM_RING_MAX; i++)
+		len += scnprintf(buf + len, size - len, "ring%d: %u\n",
+				 i, soc_stats->tx_err.desc_na[i]);
+
+	len += scnprintf(buf + len, size - len,
+			 "\nMisc Transmit Failures: %d\n",
+			 atomic_read(&soc_stats->tx_err.misc_fail));
+
 	if (len > size)
 		len = size;
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
@@ -796,8 +807,8 @@ static ssize_t ath11k_debug_dump_soc_rx_stats(struct file *file,
 	return retval;
 }
 
-static const struct file_operations fops_soc_rx_stats = {
-	.read = ath11k_debug_dump_soc_rx_stats,
+static const struct file_operations fops_soc_dp_stats = {
+	.read = ath11k_debug_dump_soc_dp_stats,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -819,8 +830,8 @@ int ath11k_debug_pdev_create(struct ath11k_base *ab)
 	debugfs_create_file("simulate_fw_crash", 0600, ab->debugfs_soc, ab,
 			    &fops_simulate_fw_crash);
 
-	debugfs_create_file("soc_rx_stats", 0600, ab->debugfs_soc, ab,
-			    &fops_soc_rx_stats);
+	debugfs_create_file("soc_dp_stats", 0600, ab->debugfs_soc, ab,
+			    &fops_soc_dp_stats);
 
 	return 0;
 }
