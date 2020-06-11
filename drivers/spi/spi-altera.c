@@ -189,6 +189,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 	struct altera_spi *hw;
 	struct spi_master *master;
 	int err = -ENODEV;
+	u16 i;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct altera_spi));
 	if (!master)
@@ -244,6 +245,16 @@ static int altera_spi_probe(struct platform_device *pdev)
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err)
 		goto exit;
+
+	if (pdata) {
+		for (i = 0; i < pdata->num_devices; i++) {
+			if (!spi_new_device(master, pdata->devices + i))
+				dev_warn(&pdev->dev,
+					 "unable to create SPI device: %s\n",
+					 pdata->devices[i].modalias);
+		}
+	}
+
 	dev_info(&pdev->dev, "base %p, irq %d\n", hw->base, hw->irq);
 
 	return 0;
