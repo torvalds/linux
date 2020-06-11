@@ -1087,7 +1087,8 @@ void i915_vma_release(struct kref *ref)
 
 		spin_lock(&obj->vma.lock);
 		list_del(&vma->obj_link);
-		rb_erase(&vma->obj_node, &obj->vma.tree);
+		if (!RB_EMPTY_NODE(&vma->obj_node))
+			rb_erase(&vma->obj_node, &obj->vma.tree);
 		spin_unlock(&obj->vma.lock);
 	}
 
