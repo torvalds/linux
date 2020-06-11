@@ -962,7 +962,7 @@
 	};
 
 	/* SD card */
-	sdhci@78000400 {
+	mmc@78000400 {
 		status = "okay";
 		bus-width = <4>;
 		vqmmc-supply = <&vddio_sdmmc3>;
@@ -971,7 +971,7 @@
 	};
 
 	/* eMMC */
-	sdhci@78000600 {
+	mmc@78000600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;

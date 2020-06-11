@@ -11,7 +11,7 @@
 	model = "NVIDIA Tegra30 Cardhu A04 (A05, A06, A07) evaluation board";
 	compatible = "nvidia,cardhu-a04", "nvidia,cardhu", "nvidia,tegra30";
 
-	sdhci@78000400 {
+	mmc@78000400 {
 		status = "okay";
 		power-gpios = <&gpio TEGRA_GPIO(D, 3) GPIO_ACTIVE_HIGH>;
 		bus-width = <4>;
