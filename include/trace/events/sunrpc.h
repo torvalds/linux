@@ -47,14 +47,17 @@ TRACE_DEFINE_ENUM(AF_INET6);
 		{ AF_INET,		"AF_INET" },		\
 		{ AF_INET6,		"AF_INET6" })
 
-DECLARE_EVENT_CLASS(xdr_buf_class,
+DECLARE_EVENT_CLASS(rpc_xdr_buf_class,
 	TP_PROTO(
+		const struct rpc_task *task,
 		const struct xdr_buf *xdr
 	),
 
-	TP_ARGS(xdr),
+	TP_ARGS(task, xdr),
 
 	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
 		__field(const void *, head_base)
 		__field(size_t, head_len)
 		__field(const void *, tail_base)
@@ -64,6 +67,8 @@ DECLARE_EVENT_CLASS(xdr_buf_class,
 	),
 
 	TP_fast_assign(
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client->cl_clid;
 		__entry->head_base = xdr->head[0].iov_base;
 		__entry->head_len = xdr->head[0].iov_len;
 		__entry->tail_base = xdr->tail[0].iov_base;
@@ -72,23 +77,137 @@ DECLARE_EVENT_CLASS(xdr_buf_class,
 		__entry->msg_len = xdr->len;
 	),
 
-	TP_printk("head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+	TP_printk("task:%u@%u head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+		__entry->task_id, __entry->client_id,
 		__entry->head_base, __entry->head_len, __entry->page_len,
 		__entry->tail_base, __entry->tail_len, __entry->msg_len
 	)
 );
 
-#define DEFINE_XDRBUF_EVENT(name)					\
-		DEFINE_EVENT(xdr_buf_class, name,			\
+#define DEFINE_RPCXDRBUF_EVENT(name)					\
+		DEFINE_EVENT(rpc_xdr_buf_class,				\
+				rpc_xdr_##name,				\
 				TP_PROTO(				\
+					const struct rpc_task *task,	\
 					const struct xdr_buf *xdr	\
 				),					\
-				TP_ARGS(xdr))
+				TP_ARGS(task, xdr))
 
-DEFINE_XDRBUF_EVENT(xprt_sendto);
-DEFINE_XDRBUF_EVENT(xprt_recvfrom);
-DEFINE_XDRBUF_EVENT(svc_recvfrom);
-DEFINE_XDRBUF_EVENT(svc_sendto);
+DEFINE_RPCXDRBUF_EVENT(sendto);
+DEFINE_RPCXDRBUF_EVENT(recvfrom);
+DEFINE_RPCXDRBUF_EVENT(reply_pages);
+
+
+DECLARE_EVENT_CLASS(rpc_clnt_class,
+	TP_PROTO(
+		const struct rpc_clnt *clnt
+	),
+
+	TP_ARGS(clnt),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+	),
+
+	TP_printk("clid=%u", __entry->client_id)
+);
+
+#define DEFINE_RPC_CLNT_EVENT(name)					\
+		DEFINE_EVENT(rpc_clnt_class,				\
+				rpc_clnt_##name,			\
+				TP_PROTO(				\
+					const struct rpc_clnt *clnt	\
+				),					\
+				TP_ARGS(clnt))
+
+DEFINE_RPC_CLNT_EVENT(free);
+DEFINE_RPC_CLNT_EVENT(killall);
+DEFINE_RPC_CLNT_EVENT(shutdown);
+DEFINE_RPC_CLNT_EVENT(release);
+DEFINE_RPC_CLNT_EVENT(replace_xprt);
+DEFINE_RPC_CLNT_EVENT(replace_xprt_err);
+
+TRACE_EVENT(rpc_clnt_new,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		const struct rpc_xprt *xprt,
+		const char *program,
+		const char *server
+	),
+
+	TP_ARGS(clnt, xprt, program, server),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+		__string(program, program)
+		__string(server, server)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+		__assign_str(program, program)
+		__assign_str(server, server)
+	),
+
+	TP_printk("client=%u peer=[%s]:%s program=%s server=%s",
+		__entry->client_id, __get_str(addr), __get_str(port),
+		__get_str(program), __get_str(server))
+);
+
+TRACE_EVENT(rpc_clnt_new_err,
+	TP_PROTO(
+		const char *program,
+		const char *server,
+		int error
+	),
+
+	TP_ARGS(program, server, error),
+
+	TP_STRUCT__entry(
+		__field(int, error)
+		__string(program, program)
+		__string(server, server)
+	),
+
+	TP_fast_assign(
+		__entry->error = error;
+		__assign_str(program, program)
+		__assign_str(server, server)
+	),
+
+	TP_printk("program=%s server=%s error=%d",
+		__get_str(program), __get_str(server), __entry->error)
+);
+
+TRACE_EVENT(rpc_clnt_clone_err,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		int error
+	),
+
+	TP_ARGS(clnt, error),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, client_id)
+		__field(int, error)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = clnt->cl_clid;
+		__entry->error = error;
+	),
+
+	TP_printk("client=%u error=%d", __entry->client_id, __entry->error)
+);
+
 
 TRACE_DEFINE_ENUM(RPC_AUTH_OK);
 TRACE_DEFINE_ENUM(RPC_AUTH_BADCRED);
@@ -175,29 +294,35 @@ TRACE_EVENT(rpc_request,
 
 TRACE_DEFINE_ENUM(RPC_TASK_ASYNC);
 TRACE_DEFINE_ENUM(RPC_TASK_SWAPPER);
+TRACE_DEFINE_ENUM(RPC_TASK_NULLCREDS);
 TRACE_DEFINE_ENUM(RPC_CALL_MAJORSEEN);
 TRACE_DEFINE_ENUM(RPC_TASK_ROOTCREDS);
 TRACE_DEFINE_ENUM(RPC_TASK_DYNAMIC);
+TRACE_DEFINE_ENUM(RPC_TASK_NO_ROUND_ROBIN);
 TRACE_DEFINE_ENUM(RPC_TASK_SOFT);
 TRACE_DEFINE_ENUM(RPC_TASK_SOFTCONN);
 TRACE_DEFINE_ENUM(RPC_TASK_SENT);
 TRACE_DEFINE_ENUM(RPC_TASK_TIMEOUT);
 TRACE_DEFINE_ENUM(RPC_TASK_NOCONNECT);
 TRACE_DEFINE_ENUM(RPC_TASK_NO_RETRANS_TIMEOUT);
+TRACE_DEFINE_ENUM(RPC_TASK_CRED_NOREF);
 
 #define rpc_show_task_flags(flags)					\
 	__print_flags(flags, "|",					\
 		{ RPC_TASK_ASYNC, "ASYNC" },				\
 		{ RPC_TASK_SWAPPER, "SWAPPER" },			\
+		{ RPC_TASK_NULLCREDS, "NULLCREDS" },			\
 		{ RPC_CALL_MAJORSEEN, "MAJORSEEN" },			\
 		{ RPC_TASK_ROOTCREDS, "ROOTCREDS" },			\
 		{ RPC_TASK_DYNAMIC, "DYNAMIC" },			\
+		{ RPC_TASK_NO_ROUND_ROBIN, "NO_ROUND_ROBIN" },		\
 		{ RPC_TASK_SOFT, "SOFT" },				\
 		{ RPC_TASK_SOFTCONN, "SOFTCONN" },			\
 		{ RPC_TASK_SENT, "SENT" },				\
 		{ RPC_TASK_TIMEOUT, "TIMEOUT" },			\
 		{ RPC_TASK_NOCONNECT, "NOCONNECT" },			\
-		{ RPC_TASK_NO_RETRANS_TIMEOUT, "NORTO" })
+		{ RPC_TASK_NO_RETRANS_TIMEOUT, "NORTO" },		\
+		{ RPC_TASK_CRED_NOREF, "CRED_NOREF" })
 
 TRACE_DEFINE_ENUM(RPC_TASK_RUNNING);
 TRACE_DEFINE_ENUM(RPC_TASK_QUEUED);
@@ -392,6 +517,34 @@ DEFINE_RPC_REPLY_EVENT(stale_creds);
 DEFINE_RPC_REPLY_EVENT(bad_creds);
 DEFINE_RPC_REPLY_EVENT(auth_tooweak);
 
+TRACE_EVENT(rpc_call_rpcerror,
+	TP_PROTO(
+		const struct rpc_task *task,
+		int tk_status,
+		int rpc_status
+	),
+
+	TP_ARGS(task, tk_status, rpc_status),
+
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(int, tk_status)
+		__field(int, rpc_status)
+	),
+
+	TP_fast_assign(
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->task_id = task->tk_pid;
+		__entry->tk_status = tk_status;
+		__entry->rpc_status = rpc_status;
+	),
+
+	TP_printk("task:%u@%u tk_status=%d rpc_status=%d",
+		__entry->task_id, __entry->client_id,
+		__entry->tk_status, __entry->rpc_status)
+);
+
 TRACE_EVENT(rpc_stats_latency,
 
 	TP_PROTO(
@@ -559,43 +712,6 @@ TRACE_EVENT(rpc_xdr_alignment,
 	)
 );
 
-TRACE_EVENT(rpc_reply_pages,
-	TP_PROTO(
-		const struct rpc_rqst *req
-	),
-
-	TP_ARGS(req),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, head_base)
-		__field(size_t, head_len)
-		__field(const void *, tail_base)
-		__field(size_t, tail_len)
-		__field(unsigned int, page_len)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = req->rq_task->tk_pid;
-		__entry->client_id = req->rq_task->tk_client->cl_clid;
-
-		__entry->head_base = req->rq_rcv_buf.head[0].iov_base;
-		__entry->head_len = req->rq_rcv_buf.head[0].iov_len;
-		__entry->page_len = req->rq_rcv_buf.page_len;
-		__entry->tail_base = req->rq_rcv_buf.tail[0].iov_base;
-		__entry->tail_len = req->rq_rcv_buf.tail[0].iov_len;
-	),
-
-	TP_printk(
-		"task:%u@%u xdr=[%p,%zu]/%u/[%p,%zu]\n",
-		__entry->task_id, __entry->client_id,
-		__entry->head_base, __entry->head_len,
-		__entry->page_len,
-		__entry->tail_base, __entry->tail_len
-	)
-);
-
 /*
  * First define the enums in the below macros to be exported to userspace
  * via TRACE_DEFINE_ENUM().
@@ -608,9 +724,9 @@ TRACE_EVENT(rpc_reply_pages,
 #define RPC_SHOW_SOCKET				\
 	EM( SS_FREE, "FREE" )			\
 	EM( SS_UNCONNECTED, "UNCONNECTED" )	\
-	EM( SS_CONNECTING, "CONNECTING," )	\
-	EM( SS_CONNECTED, "CONNECTED," )	\
-	EMe(SS_DISCONNECTING, "DISCONNECTING" )
+	EM( SS_CONNECTING, "CONNECTING" )	\
+	EM( SS_CONNECTED, "CONNECTED" )		\
+	EMe( SS_DISCONNECTING, "DISCONNECTING" )
 
 #define rpc_show_socket_state(state) \
 	__print_symbolic(state, RPC_SHOW_SOCKET)
@@ -751,6 +867,69 @@ DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_error);
 DEFINE_RPC_SOCKET_EVENT_DONE(rpc_socket_reset_connection);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
+
+TRACE_DEFINE_ENUM(XPRT_LOCKED);
+TRACE_DEFINE_ENUM(XPRT_CONNECTED);
+TRACE_DEFINE_ENUM(XPRT_CONNECTING);
+TRACE_DEFINE_ENUM(XPRT_CLOSE_WAIT);
+TRACE_DEFINE_ENUM(XPRT_BOUND);
+TRACE_DEFINE_ENUM(XPRT_BINDING);
+TRACE_DEFINE_ENUM(XPRT_CLOSING);
+TRACE_DEFINE_ENUM(XPRT_CONGESTED);
+TRACE_DEFINE_ENUM(XPRT_CWND_WAIT);
+TRACE_DEFINE_ENUM(XPRT_WRITE_SPACE);
+
+#define rpc_show_xprt_state(x)						\
+	__print_flags(x, "|",						\
+		{ (1UL << XPRT_LOCKED),		"LOCKED"},		\
+		{ (1UL << XPRT_CONNECTED),	"CONNECTED"},		\
+		{ (1UL << XPRT_CONNECTING),	"CONNECTING"},		\
+		{ (1UL << XPRT_CLOSE_WAIT),	"CLOSE_WAIT"},		\
+		{ (1UL << XPRT_BOUND),		"BOUND"},		\
+		{ (1UL << XPRT_BINDING),	"BINDING"},		\
+		{ (1UL << XPRT_CLOSING),	"CLOSING"},		\
+		{ (1UL << XPRT_CONGESTED),	"CONGESTED"},		\
+		{ (1UL << XPRT_CWND_WAIT),	"CWND_WAIT"},		\
+		{ (1UL << XPRT_WRITE_SPACE),	"WRITE_SPACE"})
+
+DECLARE_EVENT_CLASS(rpc_xprt_lifetime_class,
+	TP_PROTO(
+		const struct rpc_xprt *xprt
+	),
+
+	TP_ARGS(xprt),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, state)
+		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
+		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
+	),
+
+	TP_fast_assign(
+		__entry->state = xprt->state;
+		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
+		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
+	),
+
+	TP_printk("peer=[%s]:%s state=%s",
+		__get_str(addr), __get_str(port),
+		rpc_show_xprt_state(__entry->state))
+);
+
+#define DEFINE_RPC_XPRT_LIFETIME_EVENT(name) \
+	DEFINE_EVENT(rpc_xprt_lifetime_class, \
+			xprt_##name, \
+			TP_PROTO( \
+				const struct rpc_xprt *xprt \
+			), \
+			TP_ARGS(xprt))
+
+DEFINE_RPC_XPRT_LIFETIME_EVENT(create);
+DEFINE_RPC_XPRT_LIFETIME_EVENT(disconnect_auto);
+DEFINE_RPC_XPRT_LIFETIME_EVENT(disconnect_done);
+DEFINE_RPC_XPRT_LIFETIME_EVENT(disconnect_force);
+DEFINE_RPC_XPRT_LIFETIME_EVENT(disconnect_cleanup);
+DEFINE_RPC_XPRT_LIFETIME_EVENT(destroy);
 
 DECLARE_EVENT_CLASS(rpc_xprt_event,
 	TP_PROTO(
@@ -1022,6 +1201,54 @@ TRACE_EVENT(xs_stream_read_request,
 			__get_str(addr), __get_str(port), __entry->xid,
 			__entry->copied, __entry->reclen, __entry->offset)
 );
+
+
+DECLARE_EVENT_CLASS(svc_xdr_buf_class,
+	TP_PROTO(
+		const struct svc_rqst *rqst,
+		const struct xdr_buf *xdr
+	),
+
+	TP_ARGS(rqst, xdr),
+
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(const void *, head_base)
+		__field(size_t, head_len)
+		__field(const void *, tail_base)
+		__field(size_t, tail_len)
+		__field(unsigned int, page_len)
+		__field(unsigned int, msg_len)
+	),
+
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqst->rq_xid);
+		__entry->head_base = xdr->head[0].iov_base;
+		__entry->head_len = xdr->head[0].iov_len;
+		__entry->tail_base = xdr->tail[0].iov_base;
+		__entry->tail_len = xdr->tail[0].iov_len;
+		__entry->page_len = xdr->page_len;
+		__entry->msg_len = xdr->len;
+	),
+
+	TP_printk("xid=0x%08x head=[%p,%zu] page=%u tail=[%p,%zu] len=%u",
+		__entry->xid,
+		__entry->head_base, __entry->head_len, __entry->page_len,
+		__entry->tail_base, __entry->tail_len, __entry->msg_len
+	)
+);
+
+#define DEFINE_SVCXDRBUF_EVENT(name)					\
+		DEFINE_EVENT(svc_xdr_buf_class,				\
+				svc_xdr_##name,				\
+				TP_PROTO(				\
+					const struct svc_rqst *rqst,	\
+					const struct xdr_buf *xdr	\
+				),					\
+				TP_ARGS(rqst, xdr))
+
+DEFINE_SVCXDRBUF_EVENT(recvfrom);
+DEFINE_SVCXDRBUF_EVENT(sendto);
 
 #define show_rqstp_flags(flags)						\
 	__print_flags(flags, "|",					\
