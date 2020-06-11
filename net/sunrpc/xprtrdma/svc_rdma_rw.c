@@ -358,7 +358,6 @@ static int svc_rdma_post_chunk_ctxt(struct svc_rdma_chunk_ctxt *cc)
 	do {
 		if (atomic_sub_return(cc->cc_sqecount,
 				      &rdma->sc_sq_avail) > 0) {
-			trace_svcrdma_post_chunk(&cc->cc_cid, cc->cc_sqecount);
 			ret = ib_post_send(rdma->sc_qp, first_wr, &bad_wr);
 			if (ret)
 				break;
@@ -469,8 +468,6 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 					   DMA_TO_DEVICE);
 		if (ret < 0)
 			return -EIO;
-
-		trace_svcrdma_send_wseg(seg->rs_handle, write_len, offset);
 
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
@@ -590,21 +587,22 @@ int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
 			      const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
+	struct svc_rdma_chunk_ctxt *cc;
 	int ret;
 
 	info = svc_rdma_write_info_alloc(rdma, chunk);
 	if (!info)
 		return -ENOMEM;
+	cc = &info->wi_cc;
 
 	ret = svc_rdma_xb_write(xdr, info);
 	if (ret != xdr->len)
 		goto out_err;
 
-	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
+	trace_svcrdma_post_write_chunk(&cc->cc_cid, cc->cc_sqecount);
+	ret = svc_rdma_post_chunk_ctxt(cc);
 	if (ret < 0)
 		goto out_err;
-
-	trace_svcrdma_send_write_chunk(xdr->page_len);
 	return xdr->len;
 
 out_err:
@@ -630,6 +628,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 			      const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
+	struct svc_rdma_chunk_ctxt *cc;
 	struct svc_rdma_chunk *chunk;
 	int ret;
 
@@ -640,17 +639,18 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	info = svc_rdma_write_info_alloc(rdma, chunk);
 	if (!info)
 		return -ENOMEM;
+	cc = &info->wi_cc;
 
 	ret = pcl_process_nonpayloads(&rctxt->rc_write_pcl, xdr,
 				      svc_rdma_xb_write, info);
 	if (ret < 0)
 		goto out_err;
 
-	ret = svc_rdma_post_chunk_ctxt(&info->wi_cc);
+	trace_svcrdma_post_reply_chunk(&cc->cc_cid, cc->cc_sqecount);
+	ret = svc_rdma_post_chunk_ctxt(cc);
 	if (ret < 0)
 		goto out_err;
 
-	trace_svcrdma_send_reply_chunk(xdr->len);
 	return xdr->len;
 
 out_err:
@@ -737,10 +737,8 @@ static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 		if (ret < 0)
 			break;
 
-		trace_svcrdma_send_rseg(handle, length, offset);
 		info->ri_chunklen += length;
 	}
-
 	return ret;
 }
 
@@ -761,8 +759,6 @@ static int svc_rdma_build_normal_read_chunk(struct svc_rqst *rqstp,
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
-
-	trace_svcrdma_send_read_chunk(info->ri_chunklen, info->ri_position);
 
 	head->rc_hdr_count = 0;
 
@@ -817,8 +813,6 @@ static int svc_rdma_build_pz_read_chunk(struct svc_rqst *rqstp,
 	ret = svc_rdma_build_read_chunk(rqstp, info, p);
 	if (ret < 0)
 		goto out;
-
-	trace_svcrdma_send_pzr(info->ri_chunklen);
 
 	head->rc_arg.len += info->ri_chunklen;
 	head->rc_arg.buflen += info->ri_chunklen;
@@ -876,6 +870,7 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 			     struct svc_rdma_recv_ctxt *head, __be32 *p)
 {
 	struct svc_rdma_read_info *info;
+	struct svc_rdma_chunk_ctxt *cc;
 	int ret;
 
 	/* The request (with page list) is constructed in
@@ -893,6 +888,7 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	info = svc_rdma_read_info_alloc(rdma);
 	if (!info)
 		return -ENOMEM;
+	cc = &info->ri_cc;
 	info->ri_readctxt = head;
 	info->ri_pageno = 0;
 	info->ri_pageoff = 0;
@@ -905,7 +901,8 @@ int svc_rdma_recv_read_chunk(struct svcxprt_rdma *rdma, struct svc_rqst *rqstp,
 	if (ret < 0)
 		goto out_err;
 
-	ret = svc_rdma_post_chunk_ctxt(&info->ri_cc);
+	trace_svcrdma_post_read_chunk(&cc->cc_cid, cc->cc_sqecount);
+	ret = svc_rdma_post_chunk_ctxt(cc);
 	if (ret < 0)
 		goto out_err;
 	svc_rdma_save_io_pages(rqstp, 0, head->rc_page_count);

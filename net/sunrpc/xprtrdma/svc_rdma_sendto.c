@@ -411,8 +411,6 @@ static ssize_t svc_rdma_encode_write_chunk(struct svc_rdma_send_ctxt *sctxt,
 	unsigned int segno;
 	ssize_t len, ret;
 
-	trace_svcrdma_encode_write_chunk(remaining);
-
 	len = 0;
 	ret = xdr_stream_encode_item_present(&sctxt->sc_stream);
 	if (ret < 0)
