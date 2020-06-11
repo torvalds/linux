@@ -399,6 +399,10 @@ bool resource_are_streams_timing_synchronizable(
 				!= stream2->timing.v_addressable)
 		return false;
 
+	if (stream1->timing.v_front_porch
+				!= stream2->timing.v_front_porch)
+		return false;
+
 	if (stream1->timing.pix_clk_100hz
 				!= stream2->timing.pix_clk_100hz)
 		return false;
