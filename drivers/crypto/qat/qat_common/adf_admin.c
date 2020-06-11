@@ -152,7 +152,7 @@ static int adf_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
 	int i;
 
 	memset(&req, 0, sizeof(struct icp_qat_fw_init_admin_req));
-	req.init_admin_cmd_id = cmd;
+	req.cmd_id = cmd;
 
 	if (cmd == ICP_QAT_FW_CONSTANTS_CFG) {
 		req.init_cfg_sz = 1024;
@@ -161,7 +161,7 @@ static int adf_send_admin_cmd(struct adf_accel_dev *accel_dev, int cmd)
 	for (i = 0; i < hw_device->get_num_aes(hw_device); i++) {
 		memset(&resp, 0, sizeof(struct icp_qat_fw_init_admin_resp));
 		if (adf_put_admin_msg_sync(accel_dev, i, &req, &resp) ||
-		    resp.init_resp_hdr.status)
+		    resp.status)
 			return -EFAULT;
 	}
 	return 0;

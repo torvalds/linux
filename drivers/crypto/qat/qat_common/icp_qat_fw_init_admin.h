@@ -25,48 +25,73 @@ enum icp_qat_fw_init_admin_resp_status {
 struct icp_qat_fw_init_admin_req {
 	__u16 init_cfg_sz;
 	__u8 resrvd1;
-	__u8 init_admin_cmd_id;
+	__u8 cmd_id;
 	__u32 resrvd2;
 	__u64 opaque_data;
 	__u64 init_cfg_ptr;
-	__u64 resrvd3;
-};
 
-struct icp_qat_fw_init_admin_resp_hdr {
-	__u8 flags;
-	__u8 resrvd1;
-	__u8 status;
-	__u8 init_admin_cmd_id;
-};
-
-struct icp_qat_fw_init_admin_resp_pars {
 	union {
-		__u32 resrvd1[ICP_QAT_FW_NUM_LONGWORDS_4];
 		struct {
-			__u32 version_patch_num;
-			__u8 context_id;
-			__u8 ae_id;
-			__u16 resrvd1;
-			__u64 resrvd2;
-		} s1;
-		struct {
-			__u64 req_rec_count;
-			__u64 resp_sent_count;
-		} s2;
-	} u;
+			__u16 ibuf_size_in_kb;
+			__u16 resrvd3;
+		};
+		__u32 idle_filter;
+	};
+
+	__u32 resrvd4;
 };
 
 struct icp_qat_fw_init_admin_resp {
-	struct icp_qat_fw_init_admin_resp_hdr init_resp_hdr;
+	__u8 flags;
+	__u8 resrvd1;
+	__u8 status;
+	__u8 cmd_id;
 	union {
 		__u32 resrvd2;
 		struct {
 			__u16 version_minor_num;
 			__u16 version_major_num;
-		} s;
-	} u;
+		};
+	};
 	__u64 opaque_data;
-	struct icp_qat_fw_init_admin_resp_pars init_resp_pars;
+	union {
+		__u32 resrvd3[ICP_QAT_FW_NUM_LONGWORDS_4];
+		struct {
+			__u32 version_patch_num;
+			__u8 context_id;
+			__u8 ae_id;
+			__u16 resrvd4;
+			__u64 resrvd5;
+		};
+		struct {
+			__u64 req_rec_count;
+			__u64 resp_sent_count;
+		};
+		struct {
+			__u16 compression_algos;
+			__u16 checksum_algos;
+			__u32 deflate_capabilities;
+			__u32 resrvd6;
+			__u32 lzs_capabilities;
+		};
+		struct {
+			__u32 cipher_algos;
+			__u32 hash_algos;
+			__u16 keygen_algos;
+			__u16 other;
+			__u16 public_key_algos;
+			__u16 prime_algos;
+		};
+		struct {
+			__u64 timestamp;
+			__u64 resrvd7;
+		};
+		struct {
+			__u32 successful_count;
+			__u32 unsuccessful_count;
+			__u64 resrvd8;
+		};
+	};
 };
 
 #define ICP_QAT_FW_COMN_HEARTBEAT_OK 0
