@@ -129,7 +129,7 @@
 		};
 	};
 
-	rk_headset {
+	rk_headset: rk-headset {
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
