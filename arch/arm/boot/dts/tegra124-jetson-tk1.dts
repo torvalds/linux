@@ -1782,6 +1782,12 @@
 		};
 
 		ports {
+			/* Micro A/B */
+			usb2-0 {
+				status = "okay";
+				mode = "host";
+			};
+
 			/* Mini PCIe */
 			usb2-1 {
 				status = "okay";
