@@ -443,9 +443,14 @@ to_vc4_encoder(struct drm_encoder *encoder)
 struct vc4_crtc_data {
 	/* Which channel of the HVS this pixelvalve sources from. */
 	int hvs_channel;
+};
+
+struct vc4_pv_data {
+	struct vc4_crtc_data	base;
 
 	enum vc4_encoder_type encoder_types[4];
 	const char *debugfs_name;
+
 };
 
 struct vc4_crtc {
@@ -475,6 +480,20 @@ static inline struct vc4_crtc *
 to_vc4_crtc(struct drm_crtc *crtc)
 {
 	return (struct vc4_crtc *)crtc;
+}
+
+static inline const struct vc4_crtc_data *
+vc4_crtc_to_vc4_crtc_data(const struct vc4_crtc *crtc)
+{
+	return crtc->data;
+}
+
+static inline const struct vc4_pv_data *
+vc4_crtc_to_vc4_pv_data(const struct vc4_crtc *crtc)
+{
+	const struct vc4_crtc_data *data = vc4_crtc_to_vc4_crtc_data(crtc);
+
+	return container_of(data, struct vc4_pv_data, base);
 }
 
 struct vc4_crtc_state {
