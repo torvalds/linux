@@ -3167,7 +3167,7 @@ skip:
 	ASSERT_EQ(0, kill(pid, SIGKILL));
 }
 
-static int user_trap_syscall(int nr, unsigned int flags)
+static int user_notif_syscall(int nr, unsigned int flags)
 {
 	struct sock_filter filter[] = {
 		BPF_STMT(BPF_LD+BPF_W+BPF_ABS,
@@ -3213,7 +3213,7 @@ TEST(user_notification_basic)
 
 	/* Check that we get -ENOSYS with no listener attached */
 	if (pid == 0) {
-		if (user_trap_syscall(__NR_getppid, 0) < 0)
+		if (user_notif_syscall(__NR_getppid, 0) < 0)
 			exit(1);
 		ret = syscall(__NR_getppid);
 		exit(ret >= 0 || errno != ENOSYS);
@@ -3230,13 +3230,13 @@ TEST(user_notification_basic)
 	EXPECT_EQ(seccomp(SECCOMP_SET_MODE_FILTER, 0, &prog), 0);
 
 	/* Check that the basic notification machinery works */
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	/* Installing a second listener in the chain should EBUSY */
-	EXPECT_EQ(user_trap_syscall(__NR_getppid,
-				    SECCOMP_FILTER_FLAG_NEW_LISTENER),
+	EXPECT_EQ(user_notif_syscall(__NR_getppid,
+				     SECCOMP_FILTER_FLAG_NEW_LISTENER),
 		  -1);
 	EXPECT_EQ(errno, EBUSY);
 
@@ -3305,12 +3305,12 @@ TEST(user_notification_with_tsync)
 	/* these were exclusive */
 	flags = SECCOMP_FILTER_FLAG_NEW_LISTENER |
 		SECCOMP_FILTER_FLAG_TSYNC;
-	ASSERT_EQ(-1, user_trap_syscall(__NR_getppid, flags));
+	ASSERT_EQ(-1, user_notif_syscall(__NR_getppid, flags));
 	ASSERT_EQ(EINVAL, errno);
 
 	/* but now they're not */
 	flags |= SECCOMP_FILTER_FLAG_TSYNC_ESRCH;
-	ret = user_trap_syscall(__NR_getppid, flags);
+	ret = user_notif_syscall(__NR_getppid, flags);
 	close(ret);
 	ASSERT_LE(0, ret);
 }
@@ -3328,8 +3328,8 @@ TEST(user_notification_kill_in_middle)
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	/*
@@ -3382,8 +3382,8 @@ TEST(user_notification_signal)
 
 	ASSERT_EQ(socketpair(PF_LOCAL, SOCK_SEQPACKET, 0, sk_pair), 0);
 
-	listener = user_trap_syscall(__NR_gettid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_gettid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	pid = fork();
@@ -3452,8 +3452,8 @@ TEST(user_notification_closed_listener)
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	/*
@@ -3489,8 +3489,8 @@ TEST(user_notification_child_pid_ns)
 			SKIP(return, "kernel missing CLONE_NEWUSER support");
 	};
 
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	pid = fork();
@@ -3529,8 +3529,8 @@ TEST(user_notification_sibling_pid_ns)
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	pid = fork();
@@ -3597,8 +3597,8 @@ TEST(user_notification_fault_recv)
 
 	ASSERT_EQ(unshare(CLONE_NEWUSER), 0);
 
-	listener = user_trap_syscall(__NR_getppid,
-				     SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_getppid,
+				      SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	pid = fork();
@@ -3649,7 +3649,7 @@ TEST(user_notification_continue)
 		TH_LOG("Kernel does not support PR_SET_NO_NEW_PRIVS!");
 	}
 
-	listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+	listener = user_notif_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 	ASSERT_GE(listener, 0);
 
 	pid = fork();
@@ -3743,7 +3743,7 @@ TEST(user_notification_filter_empty)
 	if (pid == 0) {
 		int listener;
 
-		listener = user_trap_syscall(__NR_mknod, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+		listener = user_notif_syscall(__NR_mknod, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 		if (listener < 0)
 			_exit(EXIT_FAILURE);
 
@@ -3799,7 +3799,7 @@ TEST(user_notification_filter_empty_threaded)
 		int listener, status;
 		pthread_t thread;
 
-		listener = user_trap_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
+		listener = user_notif_syscall(__NR_dup, SECCOMP_FILTER_FLAG_NEW_LISTENER);
 		if (listener < 0)
 			_exit(EXIT_FAILURE);
 
