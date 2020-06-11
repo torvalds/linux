@@ -669,6 +669,7 @@ static int btmrvl_service_main_thread(void *data)
 int btmrvl_register_hdev(struct btmrvl_private *priv)
 {
 	struct hci_dev *hdev = NULL;
+	struct btmrvl_sdio_card *card = priv->btmrvl_dev.card;
 	int ret;
 
 	hdev = hci_alloc_dev();
@@ -687,6 +688,7 @@ int btmrvl_register_hdev(struct btmrvl_private *priv)
 	hdev->send  = btmrvl_send_frame;
 	hdev->setup = btmrvl_setup;
 	hdev->set_bdaddr = btmrvl_set_bdaddr;
+	SET_HCIDEV_DEV(hdev, &card->func->dev);
 
 	hdev->dev_type = priv->btmrvl_dev.dev_type;
 
