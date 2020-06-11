@@ -186,7 +186,6 @@ static void read_arc_build_cfg_regs(void)
 	/* Read CCM BCRs for boot reporting even if not enabled in Kconfig */
 	read_decode_ccm_bcr(cpu);
 
-	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
 
 	if (is_isa_arcompact()) {
@@ -256,7 +255,7 @@ static void read_arc_build_cfg_regs(void)
 		cpu->isa.be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		 /* there's no direct way to distinguish 750 vs. 770 */
-		if (unlikely(cpu->core.family < 0x34 || cpu->mmu.ver < 3))
+		if (unlikely(cpu->core.family < 0x34))
 			cpu->name = "ARC750";
 	} else {
 		cpu->isa = isa;
@@ -463,6 +462,7 @@ void setup_processor(void)
 	arc_init_IRQ();
 
 	pr_info("%s", arc_cpu_mumbojumbo(cpu_id, str, sizeof(str)));
+	pr_info("%s", arc_mmu_mumbojumbo(cpu_id, str, sizeof(str)));
 
 	arc_mmu_init();
 	arc_cache_init();

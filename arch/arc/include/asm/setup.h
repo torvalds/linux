@@ -36,7 +36,6 @@ long __init arc_get_mem_sz(void);
 
 extern void arc_mmu_init(void);
 extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
-extern void read_decode_mmu_bcr(void);
 
 extern void arc_cache_init(void);
 extern char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len);
