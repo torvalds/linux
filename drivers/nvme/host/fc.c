@@ -227,6 +227,7 @@ static DECLARE_COMPLETION(nvme_fc_unload_proceed);
  */
 static struct device *fc_udev_device;
 
+static void nvme_fc_complete_rq(struct request *rq);
 
 /* *********************** FC-NVME Port Management ************************ */
 
@@ -2033,7 +2034,8 @@ done:
 	}
 
 	__nvme_fc_fcpop_chk_teardowns(ctrl, op, opstate);
-	nvme_end_request(rq, status, result);
+	if (!nvme_end_request(rq, status, result))
+		nvme_fc_complete_rq(rq);
 
 check_error:
 	if (terminate_assoc)
