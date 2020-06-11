@@ -156,6 +156,12 @@ config ROCKCHIP_THUNDER_BOOT
 	  Say y here to enable Rockchip thunder boot support.
 	  This option make the kernel boot faster.
 
+config ROCKCHIP_THUNDER_BOOT_MMC
+	bool "Rockchip Thunder Boot from MMC"
+	depends on ROCKCHIP_THUNDER_BOOT
+	help
+	  Say y if boot from MMC.
+
 config ROCKCHIP_THUNDER_BOOT_SFC
 	bool "Rockchip Thunder Boot from SFC"
 	depends on ROCKCHIP_THUNDER_BOOT
