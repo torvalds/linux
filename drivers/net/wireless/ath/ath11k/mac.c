@@ -780,6 +780,8 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 	struct ieee80211_vif *vif = arvif->vif;
 	struct ieee80211_mutable_offsets offs = {};
 	struct sk_buff *bcn;
+	struct ieee80211_mgmt *mgmt;
+	u8 *ies;
 	int ret;
 
 	if (arvif->vdev_type != WMI_VDEV_TYPE_AP)
@@ -790,6 +792,17 @@ static int ath11k_mac_setup_bcn_tmpl(struct ath11k_vif *arvif)
 		ath11k_warn(ab, "failed to get beacon template from mac80211\n");
 		return -EPERM;
 	}
+
+	ies = bcn->data + ieee80211_get_hdrlen_from_skb(bcn);
+	ies += sizeof(mgmt->u.beacon);
+
+	if (cfg80211_find_ie(WLAN_EID_RSN, ies, (skb_tail_pointer(bcn) - ies)))
+		arvif->rsnie_present = true;
+
+	if (cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+				    WLAN_OUI_TYPE_MICROSOFT_WPA,
+				    ies, (skb_tail_pointer(bcn) - ies)))
+		arvif->wpaie_present = true;
 
 	ret = ath11k_wmi_bcn_tmpl(ar, arvif->vdev_id, &offs, bcn);
 
@@ -880,6 +893,7 @@ static void ath11k_peer_assoc_h_crypto(struct ath11k *ar,
 	struct ieee80211_bss_conf *info = &vif->bss_conf;
 	struct cfg80211_chan_def def;
 	struct cfg80211_bss *bss;
+	struct ath11k_vif *arvif = (struct ath11k_vif *)vif->drv_priv;
 	const u8 *rsnie = NULL;
 	const u8 *wpaie = NULL;
 
@@ -890,7 +904,12 @@ static void ath11k_peer_assoc_h_crypto(struct ath11k *ar,
 
 	bss = cfg80211_get_bss(ar->hw->wiphy, def.chan, info->bssid, NULL, 0,
 			       IEEE80211_BSS_TYPE_ANY, IEEE80211_PRIVACY_ANY);
-	if (bss) {
+
+	if (arvif->rsnie_present || arvif->wpaie_present) {
+		arg->need_ptk_4_way = true;
+		if (arvif->wpaie_present)
+			arg->need_gtk_2_way = true;
+	} else if (bss) {
 		const struct cfg80211_bss_ies *ies;
 
 		rcu_read_lock();

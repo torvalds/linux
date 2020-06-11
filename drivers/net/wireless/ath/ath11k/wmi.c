@@ -1728,10 +1728,10 @@ ath11k_wmi_copy_peer_flags(struct wmi_peer_assoc_complete_cmd *cmd,
 	 */
 	if (param->auth_flag)
 		cmd->peer_flags |= WMI_PEER_AUTH;
-	if (param->need_ptk_4_way)
+	if (param->need_ptk_4_way) {
 		cmd->peer_flags |= WMI_PEER_NEED_PTK_4_WAY;
-	else
-		cmd->peer_flags &= ~WMI_PEER_NEED_PTK_4_WAY;
+		cmd->peer_flags &= ~WMI_PEER_AUTH;
+	}
 	if (param->need_gtk_2_way)
 		cmd->peer_flags |= WMI_PEER_NEED_GTK_2_WAY;
 	/* safe mode bypass the 4-way handshake */
