@@ -1673,7 +1673,7 @@ void phydm_dfs_histogram_radar_distinguish(
 			dfs->pri_cond3 = 1;
 
 		/*@Cancel the condition that the abs between pri and pw*/
-			dfs->pri_cond4 = 1;
+		dfs->pri_cond4 = 1;
 
 		if (dfs->pri_hold_sum[5] <= dfs->pri_sum_g5_th)
 			dfs->pri_cond5 = 1;
