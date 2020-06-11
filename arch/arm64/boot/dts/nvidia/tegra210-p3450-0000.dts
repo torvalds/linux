@@ -543,7 +543,7 @@
 		};
 	};
 
-	sdhci@700b0000 {
+	mmc@700b0000 {
 		status = "okay";
 		bus-width = <4>;
 
@@ -561,7 +561,7 @@
 		hvdd-usb-supply = <&vdd_1v8>;
 	};
 
-	sdhci@700b0400 {
+	mmc@700b0400 {
 		status = "okay";
 		bus-width = <4>;
 

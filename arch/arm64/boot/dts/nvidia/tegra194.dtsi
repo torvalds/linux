@@ -456,7 +456,7 @@
 			#pwm-cells = <2>;
 		};
 
-		sdmmc1: sdhci@3400000 {
+		sdmmc1: mmc@3400000 {
 			compatible = "nvidia,tegra194-sdhci";
 			reg = <0x03400000 0x10000>;
 			interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
@@ -481,7 +481,7 @@
 			status = "disabled";
 		};
 
-		sdmmc3: sdhci@3440000 {
+		sdmmc3: mmc@3440000 {
 			compatible = "nvidia,tegra194-sdhci";
 			reg = <0x03440000 0x10000>;
 			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
@@ -507,7 +507,7 @@
 			status = "disabled";
 		};
 
-		sdmmc4: sdhci@3460000 {
+		sdmmc4: mmc@3460000 {
 			compatible = "nvidia,tegra194-sdhci";
 			reg = <0x03460000 0x10000>;
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;

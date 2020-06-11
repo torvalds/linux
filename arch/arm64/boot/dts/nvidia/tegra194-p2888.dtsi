@@ -9,8 +9,8 @@
 
 	aliases {
 		ethernet0 = "/cbb@0/ethernet@2490000";
-		sdhci0 = "/cbb@0/sdhci@3460000";
-		sdhci1 = "/cbb@0/sdhci@3400000";
+		mmc0 = "/cbb@0/mmc@3460000";
+		mmc1 = "/cbb@0/mmc@3400000";
 		serial0 = &tcu;
 		i2c0 = "/bpmp/i2c";
 		i2c1 = "/cbb@0/i2c@3160000";
@@ -58,12 +58,12 @@
 		};
 
 		/* SDMMC1 (SD/MMC) */
-		sdhci@3400000 {
+		mmc@3400000 {
 			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(A, 0) GPIO_ACTIVE_LOW>;
 		};
 
 		/* SDMMC4 (eMMC) */
-		sdhci@3460000 {
+		mmc@3460000 {
 			status = "okay";
 			bus-width = <8>;
 			non-removable;

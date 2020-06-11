@@ -28,7 +28,7 @@
 		};
 
 		/* SDMMC1 (SD/MMC) */
-		sdhci@3400000 {
+		mmc@3400000 {
 			status = "okay";
 		};
 

@@ -894,12 +894,12 @@
 	};
 
 	/* WIFI/BT module */
-	sdhci@700b0000 {
+	mmc@700b0000 {
 		status = "disabled";
 	};
 
 	/* external SD/MMC */
-	sdhci@700b0400 {
+	mmc@700b0400 {
 		cd-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_LOW>;
 		power-gpios = <&gpio TEGRA_GPIO(R, 0) GPIO_ACTIVE_HIGH>;
 		wp-gpios = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_HIGH>;
@@ -909,7 +909,7 @@
 	};
 
 	/* EMMC 4.51 */
-	sdhci@700b0600 {
+	mmc@700b0600 {
 		status = "okay";
 		bus-width = <8>;
 		non-removable;
