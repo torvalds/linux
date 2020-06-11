@@ -1988,6 +1988,38 @@ static const struct dma_fence_work_ops eb_parse_ops = {
 	.release = __eb_parse_release,
 };
 
+static inline int
+__parser_mark_active(struct i915_vma *vma,
+		     struct intel_timeline *tl,
+		     struct dma_fence *fence)
+{
+	struct intel_gt_buffer_pool_node *node = vma->private;
+
+	return i915_active_ref(&node->active, tl, fence);
+}
+
+static int
+parser_mark_active(struct eb_parse_work *pw, struct intel_timeline *tl)
+{
+	int err;
+
+	mutex_lock(&tl->mutex);
+
+	err = __parser_mark_active(pw->shadow, tl, &pw->base.dma);
+	if (err)
+		goto unlock;
+
+	if (pw->trampoline) {
+		err = __parser_mark_active(pw->trampoline, tl, &pw->base.dma);
+		if (err)
+			goto unlock;
+	}
+
+unlock:
+	mutex_unlock(&tl->mutex);
+	return err;
+}
+
 static int eb_parse_pipeline(struct i915_execbuffer *eb,
 			     struct i915_vma *shadow,
 			     struct i915_vma *trampoline)
@@ -2022,20 +2054,25 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 	pw->shadow = shadow;
 	pw->trampoline = trampoline;
 
+	/* Mark active refs early for this worker, in case we get interrupted */
+	err = parser_mark_active(pw, eb->context->timeline);
+	if (err)
+		goto err_commit;
+
 	err = dma_resv_lock_interruptible(pw->batch->resv, NULL);
 	if (err)
-		goto err_trampoline;
+		goto err_commit;
 
 	err = dma_resv_reserve_shared(pw->batch->resv, 1);
 	if (err)
-		goto err_batch_unlock;
+		goto err_commit_unlock;
 
 	/* Wait for all writes (and relocs) into the batch to complete */
 	err = i915_sw_fence_await_reservation(&pw->base.chain,
 					      pw->batch->resv, NULL, false,
 					      0, I915_FENCE_GFP);
 	if (err < 0)
-		goto err_batch_unlock;
+		goto err_commit_unlock;
 
 	/* Keep the batch alive and unwritten as we parse */
 	dma_resv_add_shared_fence(pw->batch->resv, &pw->base.dma);
@@ -2050,11 +2087,13 @@ static int eb_parse_pipeline(struct i915_execbuffer *eb,
 	dma_fence_work_commit_imm(&pw->base);
 	return 0;
 
-err_batch_unlock:
+err_commit_unlock:
 	dma_resv_unlock(pw->batch->resv);
-err_trampoline:
-	if (trampoline)
-		i915_active_release(&trampoline->active);
+err_commit:
+	i915_sw_fence_set_error_once(&pw->base.chain, err);
+	dma_fence_work_commit_imm(&pw->base);
+	return err;
+
 err_shadow:
 	i915_active_release(&shadow->active);
 err_batch:
@@ -2100,6 +2139,7 @@ static int eb_parse(struct i915_execbuffer *eb)
 		goto err;
 	}
 	i915_gem_object_set_readonly(shadow->obj);
+	shadow->private = pool;
 
 	trampoline = NULL;
 	if (CMDPARSER_USES_GGTT(eb->i915)) {
@@ -2113,6 +2153,7 @@ static int eb_parse(struct i915_execbuffer *eb)
 			shadow = trampoline;
 			goto err_shadow;
 		}
+		shadow->private = pool;
 
 		eb->batch_flags |= I915_DISPATCH_SECURE;
 	}
@@ -2129,7 +2170,6 @@ static int eb_parse(struct i915_execbuffer *eb)
 	eb->trampoline = trampoline;
 	eb->batch_start_offset = 0;
 
-	shadow->private = pool;
 	return 0;
 
 err_trampoline:
