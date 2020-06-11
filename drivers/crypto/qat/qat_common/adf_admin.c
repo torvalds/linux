@@ -3,7 +3,7 @@
 #include <linux/types.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
+#include <linux/iopoll.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include "adf_accel_devices.h"
@@ -17,6 +17,8 @@
 #define ADF_DH895XCC_MAILBOX_STRIDE 0x1000
 #define ADF_ADMINMSG_LEN 32
 #define ADF_CONST_TABLE_SIZE 1024
+#define ADF_ADMIN_POLL_DELAY_US 20
+#define ADF_ADMIN_POLL_TIMEOUT_US (5 * USEC_PER_SEC)
 
 static const u8 const_tab[1024] __aligned(1024) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -111,12 +113,13 @@ struct adf_admin_comms {
 static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 				  void *in, void *out)
 {
+	int ret;
+	u32 status;
 	struct adf_admin_comms *admin = accel_dev->admin;
 	int offset = ae * ADF_ADMINMSG_LEN * 2;
 	void __iomem *mailbox = admin->mailbox_addr;
 	int mb_offset = ae * ADF_DH895XCC_MAILBOX_STRIDE;
 	struct icp_qat_fw_init_admin_req *request = in;
-	int times, received;
 
 	mutex_lock(&admin->lock);
 
@@ -127,24 +130,25 @@ static int adf_put_admin_msg_sync(struct adf_accel_dev *accel_dev, u32 ae,
 
 	memcpy(admin->virt_addr + offset, in, ADF_ADMINMSG_LEN);
 	ADF_CSR_WR(mailbox, mb_offset, 1);
-	received = 0;
-	for (times = 0; times < 50; times++) {
-		msleep(20);
-		if (ADF_CSR_RD(mailbox, mb_offset) == 0) {
-			received = 1;
-			break;
-		}
-	}
-	if (received)
-		memcpy(out, admin->virt_addr + offset +
-		       ADF_ADMINMSG_LEN, ADF_ADMINMSG_LEN);
-	else
+
+	ret = readl_poll_timeout(mailbox + mb_offset, status,
+				 status == 0, ADF_ADMIN_POLL_DELAY_US,
+				 ADF_ADMIN_POLL_TIMEOUT_US);
+	if (ret < 0) {
+		/* Response timeout */
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to send admin msg %d to accelerator %d\n",
 			request->cmd_id, ae);
+	} else {
+		/* Response received from admin message, we can now
+		 * make response data available in "out" parameter.
+		 */
+		memcpy(out, admin->virt_addr + offset +
+		       ADF_ADMINMSG_LEN, ADF_ADMINMSG_LEN);
+	}
 
 	mutex_unlock(&admin->lock);
-	return received ? 0 : -EFAULT;
+	return ret;
 }
 
 static int adf_send_admin(struct adf_accel_dev *accel_dev,
