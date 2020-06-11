@@ -222,9 +222,14 @@ static inline void set_trap(struct pt_regs *regs, unsigned long val)
 	regs->trap = (regs->trap & TRAP_FLAGS_MASK) | (val & ~TRAP_FLAGS_MASK);
 }
 
+static inline bool trap_is_scv(struct pt_regs *regs)
+{
+	return (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && TRAP(regs) == 0x3000);
+}
+
 static inline bool trap_is_syscall(struct pt_regs *regs)
 {
-	return TRAP(regs) == 0xc00;
+	return (trap_is_scv(regs) || TRAP(regs) == 0xc00);
 }
 
 static inline bool trap_norestart(struct pt_regs *regs)

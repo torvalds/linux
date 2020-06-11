@@ -40,6 +40,7 @@ enum instruction_type {
 	CACHEOP,
 	BARRIER,
 	SYSCALL,
+	SYSCALL_VECTORED_0,
 	MFMSR,
 	MTMSR,
 	RFI,

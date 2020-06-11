@@ -16,6 +16,7 @@
 #include <asm/disassemble.h>
 
 extern char system_call_common[];
+extern char system_call_vectored_emulate[];
 
 #ifdef CONFIG_PPC64
 /* Bits in SRR1 that are copied from MSR */
@@ -1236,6 +1237,9 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 	case 17:	/* sc */
 		if ((word & 0xfe2) == 2)
 			op->type = SYSCALL;
+		else if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) &&
+				(word & 0xfe3) == 1)
+			op->type = SYSCALL_VECTORED_0;
 		else
 			op->type = UNKNOWN;
 		return 0;
@@ -3377,6 +3381,18 @@ int emulate_step(struct pt_regs *regs, struct ppc_inst instr)
 		regs->nip = (unsigned long) &system_call_common;
 		regs->msr = MSR_KERNEL;
 		return 1;
+
+#ifdef CONFIG_PPC64_BOOK3S
+	case SYSCALL_VECTORED_0:	/* scv 0 */
+		regs->gpr[9] = regs->gpr[13];
+		regs->gpr[10] = MSR_KERNEL;
+		regs->gpr[11] = regs->nip + 4;
+		regs->gpr[12] = regs->msr & MSR_MASK;
+		regs->gpr[13] = (unsigned long) get_paca();
+		regs->nip = (unsigned long) &system_call_vectored_emulate;
+		regs->msr = MSR_KERNEL;
+		return 1;
+#endif
 
 	case RFI:
 		return -1;
