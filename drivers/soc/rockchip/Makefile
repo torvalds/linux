@@ -16,4 +16,5 @@ obj-$(CONFIG_ROCKCHIP_PVTM)	+= rockchip_pvtm.o
 obj-$(CONFIG_ROCKCHIP_RAMDISK)	+= rockchip_ramdisk.o
 obj-$(CONFIG_ROCKCHIP_SUSPEND_MODE) += rockchip_pm_config.o
 obj-$(CONFIG_ROCKCHIP_SYSTEM_MONITOR) += rockchip_system_monitor.o
+obj-$(CONFIG_ROCKCHIP_THUNDER_BOOT_MMC) += rockchip_thunderboot_mmc.o
 obj-$(CONFIG_ROCKCHIP_DEBUG) += rockchip_debug.o
