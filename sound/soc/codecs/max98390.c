@@ -842,6 +842,20 @@ static int max98390_dsm_calibrate(struct snd_soc_component *component)
 	return 0;
 }
 
+static void max98390_init_regs(struct snd_soc_component *component)
+{
+	struct max98390_priv *max98390 =
+		snd_soc_component_get_drvdata(component);
+
+	regmap_write(max98390->regmap, MAX98390_CLK_MON, 0x6f);
+	regmap_write(max98390->regmap, MAX98390_DAT_MON, 0x00);
+	regmap_write(max98390->regmap, MAX98390_PWR_GATE_CTL, 0x00);
+	regmap_write(max98390->regmap, MAX98390_PCM_RX_EN_A, 0x03);
+	regmap_write(max98390->regmap, MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0e);
+	regmap_write(max98390->regmap, MAX98390_BOOST_BYPASS1, 0x46);
+	regmap_write(max98390->regmap, MAX98390_FET_SCALING3, 0x03);
+}
+
 static int max98390_probe(struct snd_soc_component *component)
 {
 	struct max98390_priv *max98390 =
@@ -853,18 +867,10 @@ static int max98390_probe(struct snd_soc_component *component)
 	/* Update dsm bin param */
 	max98390_dsm_init(component);
 
-	/* Amp Setting */
-	regmap_write(max98390->regmap, MAX98390_CLK_MON, 0x6f);
-	regmap_write(max98390->regmap, MAX98390_PCM_RX_EN_A, 0x03);
-	regmap_write(max98390->regmap, MAX98390_PWR_GATE_CTL, 0x2d);
-	regmap_write(max98390->regmap, MAX98390_ENV_TRACK_VOUT_HEADROOM, 0x0e);
-	regmap_write(max98390->regmap, MAX98390_BOOST_BYPASS1, 0x46);
-	regmap_write(max98390->regmap, MAX98390_FET_SCALING3, 0x03);
+	/* Amp init setting */
+	max98390_init_regs(component);
 
 	/* Dsm Setting */
-	regmap_write(max98390->regmap, DSM_VOL_CTRL, 0x94);
-	regmap_write(max98390->regmap, DSMIG_EN, 0x19);
-	regmap_write(max98390->regmap, MAX98390_R203A_AMP_EN, 0x80);
 	if (max98390->ref_rdc_value) {
 		regmap_write(max98390->regmap, DSM_TPROT_RECIP_RDC_ROOM_BYTE0,
 			max98390->ref_rdc_value & 0x000000ff);
