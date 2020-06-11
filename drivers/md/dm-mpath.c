@@ -1962,17 +1962,17 @@ static int multipath_prepare_ioctl(struct dm_target *ti,
 				   struct block_device **bdev)
 {
 	struct multipath *m = ti->private;
-	struct pgpath *current_pgpath;
+	struct pgpath *pgpath;
 	unsigned long flags;
 	int r;
 
-	current_pgpath = READ_ONCE(m->current_pgpath);
-	if (!current_pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
-		current_pgpath = choose_pgpath(m, 0);
+	pgpath = READ_ONCE(m->current_pgpath);
+	if (!pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
+		pgpath = choose_pgpath(m, 0);
 
-	if (current_pgpath) {
+	if (pgpath) {
 		if (!test_bit(MPATHF_QUEUE_IO, &m->flags)) {
-			*bdev = current_pgpath->path.dev->bdev;
+			*bdev = pgpath->path.dev->bdev;
 			r = 0;
 		} else {
 			/* pg_init has not started or completed */
