@@ -1,0 +1,253 @@
+// SPDX-License-Identifier: GPL-2.0-only
+
+/*
+ * Copyright (C) 2020 Google Corporation
+ */
+
+#include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
+#include <net/bluetooth/mgmt.h>
+
+#include "mgmt_util.h"
+#include "mgmt_config.h"
+
+#define HDEV_PARAM_U16(_param_code_, _param_name_) \
+{ \
+	{ cpu_to_le16(_param_code_), sizeof(__u16) }, \
+	{ cpu_to_le16(hdev->_param_name_) } \
+}
+
+int read_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
+			   u16 data_len)
+{
+	struct {
+		struct mgmt_tlv entry;
+		union {
+			/* This is a simplification for now since all values
+			 * are 16 bits.  In the future, this code may need
+			 * refactoring to account for variable length values
+			 * and properly calculate the required buffer size.
+			 */
+			__le16 value;
+		};
+	} __packed params[] = {
+		/* Please see mgmt-api.txt for documentation of these values */
+		HDEV_PARAM_U16(0x0000, def_page_scan_type),
+		HDEV_PARAM_U16(0x0001, def_page_scan_int),
+		HDEV_PARAM_U16(0x0002, def_page_scan_window),
+		HDEV_PARAM_U16(0x0003, def_inq_scan_type),
+		HDEV_PARAM_U16(0x0004, def_inq_scan_int),
+		HDEV_PARAM_U16(0x0005, def_inq_scan_window),
+		HDEV_PARAM_U16(0x0006, def_br_lsto),
+		HDEV_PARAM_U16(0x0007, def_page_timeout),
+		HDEV_PARAM_U16(0x0008, sniff_min_interval),
+		HDEV_PARAM_U16(0x0009, sniff_max_interval),
+		HDEV_PARAM_U16(0x000a, le_adv_min_interval),
+		HDEV_PARAM_U16(0x000b, le_adv_max_interval),
+		HDEV_PARAM_U16(0x000c, def_multi_adv_rotation_duration),
+		HDEV_PARAM_U16(0x000d, le_scan_interval),
+		HDEV_PARAM_U16(0x000e, le_scan_window),
+		HDEV_PARAM_U16(0x000f, le_scan_int_suspend),
+		HDEV_PARAM_U16(0x0010, le_scan_window_suspend),
+		HDEV_PARAM_U16(0x0011, le_scan_int_discovery),
+		HDEV_PARAM_U16(0x0012, le_scan_window_discovery),
+		HDEV_PARAM_U16(0x0013, le_scan_int_adv_monitor),
+		HDEV_PARAM_U16(0x0014, le_scan_window_adv_monitor),
+		HDEV_PARAM_U16(0x0015, le_scan_int_connect),
+		HDEV_PARAM_U16(0x0016, le_scan_window_connect),
+		HDEV_PARAM_U16(0x0017, le_conn_min_interval),
+		HDEV_PARAM_U16(0x0018, le_conn_max_interval),
+		HDEV_PARAM_U16(0x0019, le_conn_latency),
+		HDEV_PARAM_U16(0x001a, le_supv_timeout),
+	};
+	struct mgmt_rp_read_def_system_config *rp = (void *)params;
+
+	bt_dev_dbg(hdev, "sock %p", sk);
+
+	return mgmt_cmd_complete(sk, hdev->id,
+				 MGMT_OP_READ_DEF_SYSTEM_CONFIG,
+				 0, rp, sizeof(params));
+}
+
+#define TO_TLV(x)		((struct mgmt_tlv *)(x))
+#define TLV_GET_LE16(tlv)	le16_to_cpu(*((__le16 *)(TO_TLV(tlv)->value)))
+
+int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
+			  u16 data_len)
+{
+	u16 buffer_left = data_len;
+	u8 *buffer = data;
+
+	if (buffer_left < sizeof(struct mgmt_tlv)) {
+		return mgmt_cmd_status(sk, hdev->id,
+				       MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+				       MGMT_STATUS_INVALID_PARAMS);
+	}
+
+	/* First pass to validate the tlv */
+	while (buffer_left >= sizeof(struct mgmt_tlv)) {
+		const u8 len = TO_TLV(buffer)->length;
+		const u16 exp_len = sizeof(struct mgmt_tlv) +
+				    len;
+		const u16 type = le16_to_cpu(TO_TLV(buffer)->type);
+
+		if (buffer_left < exp_len) {
+			bt_dev_warn(hdev, "invalid len left %d, exp >= %d",
+				    buffer_left, exp_len);
+
+			return mgmt_cmd_status(sk, hdev->id,
+					MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+					MGMT_STATUS_INVALID_PARAMS);
+		}
+
+		/* Please see mgmt-api.txt for documentation of these values */
+		switch (type) {
+		case 0x0000:
+		case 0x0001:
+		case 0x0002:
+		case 0x0003:
+		case 0x0004:
+		case 0x0005:
+		case 0x0006:
+		case 0x0007:
+		case 0x0008:
+		case 0x0009:
+		case 0x000a:
+		case 0x000b:
+		case 0x000c:
+		case 0x000d:
+		case 0x000e:
+		case 0x000f:
+		case 0x0010:
+		case 0x0011:
+		case 0x0012:
+		case 0x0013:
+		case 0x0014:
+		case 0x0015:
+		case 0x0016:
+		case 0x0017:
+		case 0x0018:
+		case 0x0019:
+		case 0x001a:
+			if (len != sizeof(u16)) {
+				bt_dev_warn(hdev, "invalid length %d, exp %zu for type %d",
+					    len, sizeof(u16), type);
+
+				return mgmt_cmd_status(sk, hdev->id,
+					MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+					MGMT_STATUS_INVALID_PARAMS);
+			}
+			break;
+		default:
+			bt_dev_warn(hdev, "unsupported parameter %u", type);
+			break;
+		}
+
+		buffer_left -= exp_len;
+		buffer += exp_len;
+	}
+
+	buffer_left = data_len;
+	buffer = data;
+	while (buffer_left >= sizeof(struct mgmt_tlv)) {
+		const u8 len = TO_TLV(buffer)->length;
+		const u16 exp_len = sizeof(struct mgmt_tlv) +
+				    len;
+		const u16 type = le16_to_cpu(TO_TLV(buffer)->type);
+
+		switch (type) {
+		case 0x0000:
+			hdev->def_page_scan_type = TLV_GET_LE16(buffer);
+			break;
+		case 0x0001:
+			hdev->def_page_scan_int = TLV_GET_LE16(buffer);
+			break;
+		case 0x0002:
+			hdev->def_page_scan_window = TLV_GET_LE16(buffer);
+			break;
+		case 0x0003:
+			hdev->def_inq_scan_type = TLV_GET_LE16(buffer);
+			break;
+		case 0x0004:
+			hdev->def_inq_scan_int = TLV_GET_LE16(buffer);
+			break;
+		case 0x0005:
+			hdev->def_inq_scan_window = TLV_GET_LE16(buffer);
+			break;
+		case 0x0006:
+			hdev->def_br_lsto = TLV_GET_LE16(buffer);
+			break;
+		case 0x0007:
+			hdev->def_page_timeout = TLV_GET_LE16(buffer);
+			break;
+		case 0x0008:
+			hdev->sniff_min_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x0009:
+			hdev->sniff_max_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x000a:
+			hdev->le_adv_min_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x000b:
+			hdev->le_adv_max_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x000c:
+			hdev->def_multi_adv_rotation_duration =
+							   TLV_GET_LE16(buffer);
+			break;
+		case 0x000d:
+			hdev->le_scan_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x000e:
+			hdev->le_scan_window = TLV_GET_LE16(buffer);
+			break;
+		case 0x000f:
+			hdev->le_scan_int_suspend = TLV_GET_LE16(buffer);
+			break;
+		case 0x0010:
+			hdev->le_scan_window_suspend = TLV_GET_LE16(buffer);
+			break;
+		case 0x0011:
+			hdev->le_scan_int_discovery = TLV_GET_LE16(buffer);
+			break;
+		case 0x00012:
+			hdev->le_scan_window_discovery = TLV_GET_LE16(buffer);
+			break;
+		case 0x00013:
+			hdev->le_scan_int_adv_monitor = TLV_GET_LE16(buffer);
+			break;
+		case 0x00014:
+			hdev->le_scan_window_adv_monitor = TLV_GET_LE16(buffer);
+			break;
+		case 0x00015:
+			hdev->le_scan_int_connect = TLV_GET_LE16(buffer);
+			break;
+		case 0x00016:
+			hdev->le_scan_window_connect = TLV_GET_LE16(buffer);
+			break;
+		case 0x00017:
+			hdev->le_conn_min_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x00018:
+			hdev->le_conn_max_interval = TLV_GET_LE16(buffer);
+			break;
+		case 0x00019:
+			hdev->le_conn_latency = TLV_GET_LE16(buffer);
+			break;
+		case 0x0001a:
+			hdev->le_supv_timeout = TLV_GET_LE16(buffer);
+			break;
+		default:
+			bt_dev_warn(hdev, "unsupported parameter %u", type);
+			break;
+		}
+
+		buffer_left -= exp_len;
+		buffer += exp_len;
+	}
+
+	return mgmt_cmd_status(sk, hdev->id,
+			       MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+			       MGMT_STATUS_SUCCESS);
+}
