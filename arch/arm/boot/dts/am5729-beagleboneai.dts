@@ -630,58 +630,6 @@
 	status = "okay";
 };
 
-&mailbox1 {
-	status = "okay";
-};
-
-&mailbox2 {
-	status = "okay";
-};
-
-&mailbox3 {
-	status = "okay";
-};
-
-&mailbox4 {
-	status = "okay";
-};
-
-&mailbox5 {
-	status = "okay";
-};
-
-&mailbox6 {
-	status = "okay";
-};
-
-&mailbox7 {
-	status = "okay";
-};
-
-&mailbox8 {
-	status = "okay";
-};
-
-&mailbox9 {
-	status = "okay";
-};
-
-&mailbox10 {
-	status = "okay";
-};
-
-&mailbox11 {
-	status = "okay";
-};
-
-&mailbox12 {
-	status = "okay";
-};
-
-&mailbox13 {
-	status = "okay";
-};
-
 &cpu_alert0 {
 	temperature = <55000>; /* milliCelsius */
 };
