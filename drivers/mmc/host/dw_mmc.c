@@ -3287,9 +3287,7 @@ int dw_mci_probe(struct dw_mci *host)
 	int width, i, ret = 0;
 	u32 fifo_size;
 
-#if defined(CONFIG_ROCKCHIP_THUNDER_BOOT) && defined(CONFIG_ROCKCHIP_HW_DECOMPRESS)
-	struct resource idmac, ramdisk_src, ramdisk_dst;
-	struct device_node *dma, *rds, *rdd;
+#ifdef CONFIG_ROCKCHIP_THUNDER_BOOT
 	struct device *dev = host->dev;
 	u32 intr;
 
@@ -3308,33 +3306,6 @@ int dw_mci_probe(struct dw_mci *host)
 		intr = mci_readl(host, RINTSTS);
 		if (intr & DW_MCI_CMD_ERROR_FLAGS || intr & DW_MCI_DATA_ERROR_FLAGS)
 			BUG_ON(1);
-
-		/* Release idmac descriptor */
-		dma = of_parse_phandle(dev->of_node, "memory-region-idamc", 0);
-		if (dma) {
-			ret = of_address_to_resource(dma, 0, &idmac);
-			if (ret >= 0)
-				free_reserved_area(phys_to_virt(idmac.start),
-					phys_to_virt(idmac.start) + resource_size(&idmac),
-					-1, NULL);
-		}
-
-		/* Parse ramdisk addr and help start decompressing */
-		rds = of_parse_phandle(dev->of_node, "memory-region-src", 0);
-		rdd = of_parse_phandle(dev->of_node, "memory-region-dst", 0);
-		if (rds && rdd) {
-			if (of_address_to_resource(rds, 0, &ramdisk_src) >= 0 &&
-				of_address_to_resource(rdd, 0, &ramdisk_dst) >= 0)
-				/*
-				 * Decompress HW driver will free reserved area of
-				 * memory-region-src.
-				 */
-				ret = rk_decom_start(GZIP_MOD, ramdisk_src.start,
-						     ramdisk_dst.start,
-						     resource_size(&ramdisk_dst));
-			if (ret < 0)
-				dev_err(dev, "fail to start decom\n");
-		}
 	}
 #endif
 
