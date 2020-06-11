@@ -60,6 +60,9 @@ static void __init pmd_basic_tests(unsigned long pfn, pgprot_t prot)
 {
 	pmd_t pmd = pfn_pmd(pfn, prot);
 
+	if (!has_transparent_hugepage())
+		return;
+
 	WARN_ON(!pmd_same(pmd, pmd));
 	WARN_ON(!pmd_young(pmd_mkyoung(pmd_mkold(pmd))));
 	WARN_ON(!pmd_dirty(pmd_mkdirty(pmd_mkclean(pmd))));
@@ -78,6 +81,9 @@ static void __init pmd_basic_tests(unsigned long pfn, pgprot_t prot)
 static void __init pud_basic_tests(unsigned long pfn, pgprot_t prot)
 {
 	pud_t pud = pfn_pud(pfn, prot);
+
+	if (!has_transparent_hugepage())
+		return;
 
 	WARN_ON(!pud_same(pud, pud));
 	WARN_ON(!pud_young(pud_mkyoung(pud_mkold(pud))));

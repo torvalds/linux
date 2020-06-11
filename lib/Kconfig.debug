@@ -2052,15 +2052,15 @@ config TEST_LKM
 	  If unsure, say N.
 
 config TEST_BITOPS
-	tristate "Test module for compilation of clear_bit/set_bit operations"
+	tristate "Test module for compilation of bitops operations"
 	depends on m
 	help
 	  This builds the "test_bitops" module that is much like the
 	  TEST_LKM module except that it does a basic exercise of the
-	  clear_bit and set_bit macros to make sure there are no compiler
-	  warnings from C=1 sparse checker or -Wextra compilations. It has
-	  no dependencies and doesn't run or load unless explicitly requested
-	  by name.  for example: modprobe test_bitops.
+	  set/clear_bit macros and get_count_order/long to make sure there are
+	  no compiler warnings from C=1 sparse checker or -Wextra
+	  compilations. It has no dependencies and doesn't run or load unless
+	  explicitly requested by name.  for example: modprobe test_bitops.
 
 	  If unsure, say N.
 

@@ -427,7 +427,8 @@ void kcov_task_exit(struct task_struct *t)
 	 *        WARN_ON(!kcov->remote && kcov->t != t);
 	 *
 	 * For KCOV_REMOTE_ENABLE devices, the exiting task is either:
-	 * 2. A remote task between kcov_remote_start() and kcov_remote_stop().
+	 *
+	 * 1. A remote task between kcov_remote_start() and kcov_remote_stop().
 	 *    In this case we should print a warning right away, since a task
 	 *    shouldn't be exiting when it's in a kcov coverage collection
 	 *    section. Here t points to the task that is collecting remote
@@ -437,7 +438,7 @@ void kcov_task_exit(struct task_struct *t)
 	 *        WARN_ON(kcov->remote && kcov->t != t);
 	 *
 	 * 2. The task that created kcov exiting without calling KCOV_DISABLE,
-	 *    and then again we can make sure that t->kcov->t == t:
+	 *    and then again we make sure that t->kcov->t == t:
 	 *        WARN_ON(kcov->remote && kcov->t != t);
 	 *
 	 * By combining all three checks into one we get:
@@ -764,7 +765,7 @@ static const struct file_operations kcov_fops = {
  * Internally, kcov_remote_start() looks up the kcov device associated with the
  * provided handle, allocates an area for coverage collection, and saves the
  * pointers to kcov and area into the current task_struct to allow coverage to
- * be collected via __sanitizer_cov_trace_pc()
+ * be collected via __sanitizer_cov_trace_pc().
  * In turns kcov_remote_stop() clears those pointers from task_struct to stop
  * collecting coverage and copies all collected coverage into the kcov area.
  */
@@ -972,15 +973,24 @@ void kcov_remote_stop(void)
 		local_irq_restore(flags);
 		return;
 	}
-	kcov = t->kcov;
-	area = t->kcov_area;
-	size = t->kcov_size;
-	sequence = t->kcov_sequence;
-
+	/*
+	 * When in softirq, check if the corresponding kcov_remote_start()
+	 * actually found the remote handle and started collecting coverage.
+	 */
+	if (in_serving_softirq() && !t->kcov_softirq) {
+		local_irq_restore(flags);
+		return;
+	}
+	/* Make sure that kcov_softirq is only set when in softirq. */
 	if (WARN_ON(!in_serving_softirq() && t->kcov_softirq)) {
 		local_irq_restore(flags);
 		return;
 	}
+
+	kcov = t->kcov;
+	area = t->kcov_area;
+	size = t->kcov_size;
+	sequence = t->kcov_sequence;
 
 	kcov_stop(t);
 	if (in_serving_softirq()) {
