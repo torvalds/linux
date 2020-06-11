@@ -62,7 +62,7 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 #ifdef CONFIG_ACPI
 static int xen_register_pirq(u32 gsi, int triggering, bool set_pirq)
 {
-	int rc, pirq = -1, irq = -1;
+	int rc, pirq = -1, irq;
 	struct physdev_map_pirq map_irq;
 	int shareable = 0;
 	char *name;
