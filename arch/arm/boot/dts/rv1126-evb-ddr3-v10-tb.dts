@@ -34,7 +34,7 @@
 		};
 
 		mmc_ecsd: mmc@20f000 {
-			reg = <0x0020f000 0x1000>;
+			reg = <0x0020f000 0x00001000>;
 		};
 
 		ramoops@210000 {
@@ -63,6 +63,14 @@
 			reg = <0x05800000 (20 * 0x00100000)>;
 		};
 	};
+
+	rockchip_tb {
+		compatible = "rockchip,thunder-boot-mmc";
+		reg = <0xffc50000 0x4000>;
+		memory-region-src = <&ramdisk_c>;
+		memory-region-dst = <&ramdisk_r>;
+		memory-region-idmac = <&idma_descriptor>;
+	};
 };
 
 &cpu0_opp_table {
@@ -84,9 +92,6 @@
 
 &emmc {
 	memory-region-ecsd = <&mmc_ecsd>;
-	memory-region-idamc = <&idma_descriptor>;
-	memory-region-src = <&ramdisk_c>;
-	memory-region-dst = <&ramdisk_r>;
 	post-power-on-delay-ms = <0>;
 };
 
