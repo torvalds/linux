@@ -944,12 +944,13 @@ out_unlock:
  * @o_flags: the O_* flags to apply to the new fd entry
  *
  * Installs a received file into the file descriptor table, with appropriate
- * checks and count updates. Writes the fd number to userspace.
+ * checks and count updates. Optionally writes the fd number to userspace, if
+ * @ufd is non-NULL.
  *
  * This helper handles its own reference counting of the incoming
  * struct file.
  *
- * Returns -ve on error.
+ * Returns newly install fd or -ve on error.
  */
 int __receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 {
@@ -964,16 +965,18 @@ int __receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 	if (new_fd < 0)
 		return new_fd;
 
-	error = put_user(new_fd, ufd);
-	if (error) {
-		put_unused_fd(new_fd);
-		return error;
+	if (ufd) {
+		error = put_user(new_fd, ufd);
+		if (error) {
+			put_unused_fd(new_fd);
+			return error;
+		}
 	}
 
 	/* Bump the sock usage counts, if any. */
 	__receive_sock(file);
 	fd_install(new_fd, get_file(file));
-	return 0;
+	return new_fd;
 }
 
 static int ksys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
