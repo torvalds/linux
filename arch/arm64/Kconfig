@@ -1746,8 +1746,9 @@ config ARM64_DEBUG_PRIORITY_MASKING
 endif
 
 config RELOCATABLE
-	bool
+	bool "Build a relocatable kernel image" if EXPERT
 	select ARCH_HAS_RELR
+	default y
 	help
 	  This builds the kernel as a Position Independent Executable (PIE),
 	  which retains all relocation metadata required to relocate the
