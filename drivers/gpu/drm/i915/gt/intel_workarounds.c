@@ -179,6 +179,12 @@ wa_write_or(struct i915_wa_list *wal, i915_reg_t reg, u32 set)
 }
 
 static void
+wa_write_clr(struct i915_wa_list *wal, i915_reg_t reg, u32 clr)
+{
+	wa_write_masked_or(wal, reg, clr, 0);
+}
+
+static void
 wa_masked_en(struct i915_wa_list *wal, i915_reg_t reg, u32 val)
 {
 	wa_add(wal, reg, 0, _MASKED_BIT_ENABLE(val), val);
@@ -687,6 +693,46 @@ int intel_engine_emit_ctx_wa(struct i915_request *rq)
 }
 
 static void
+hsw_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
+{
+	/* L3 caching of data atomics doesn't work -- disable it. */
+	wa_write(wal, HSW_SCRATCH1, HSW_SCRATCH1_L3_DATA_ATOMICS_DISABLE);
+
+	wa_add(wal,
+	       HSW_ROW_CHICKEN3, 0,
+	       _MASKED_BIT_ENABLE(HSW_ROW_CHICKEN3_L3_GLOBAL_ATOMICS_DISABLE),
+		0 /* XXX does this reg exist? */);
+
+	/* WaVSRefCountFullforceMissDisable:hsw */
+	wa_write_clr(wal, GEN7_FF_THREAD_MODE, GEN7_FF_VS_REF_CNT_FFME);
+
+	wa_masked_dis(wal,
+		      CACHE_MODE_0_GEN7,
+		      /* WaDisable_RenderCache_OperationalFlush:hsw */
+		      RC_OP_FLUSH_ENABLE |
+		      /* enable HiZ Raw Stall Optimization */
+		      HIZ_RAW_STALL_OPT_DISABLE);
+
+	/* WaDisable4x2SubspanOptimization:hsw */
+	wa_masked_en(wal, CACHE_MODE_1, PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+
+	/*
+	 * BSpec recommends 8x4 when MSAA is used,
+	 * however in practice 16x4 seems fastest.
+	 *
+	 * Note that PS/WM thread counts depend on the WIZ hashing
+	 * disable bit, which we don't touch here, but it's good
+	 * to keep in mind (see 3DSTATE_PS and 3DSTATE_WM).
+	 */
+	wa_add(wal, GEN7_GT_MODE, 0,
+	       _MASKED_FIELD(GEN6_WIZ_HASHING_MASK, GEN6_WIZ_HASHING_16x4),
+	       GEN6_WIZ_HASHING_16x4);
+
+	/* WaSampleCChickenBitEnable:hsw */
+	wa_masked_en(wal, HALF_SLICE_CHICKEN3, HSW_SAMPLE_C_PERFORMANCE);
+}
+
+static void
 gen9_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 {
 	/* WaDisableKillLogic:bxt,skl,kbl */
@@ -963,6 +1009,8 @@ gt_init_workarounds(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		bxt_gt_workarounds_init(i915, wal);
 	else if (IS_SKYLAKE(i915))
 		skl_gt_workarounds_init(i915, wal);
+	else if (IS_HASWELL(i915))
+		hsw_gt_workarounds_init(i915, wal);
 	else if (INTEL_GEN(i915) <= 8)
 		return;
 	else
