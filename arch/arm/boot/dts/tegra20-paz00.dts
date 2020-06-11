@@ -589,7 +589,7 @@
 	gpio-leds {
 		compatible = "gpio-leds";
 
-		wifi {
+		led-0 {
 			label = "wifi-led";
 			gpios = <&gpio TEGRA_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "rfkill0";
