@@ -828,7 +828,7 @@ endif
 
 ifdef CONFIG_DEBUG_INFO_COMPRESSED
 DEBUG_CFLAGS	+= -gz=zlib
-KBUILD_AFLAGS	+= -Wa,--compress-debug-sections=zlib
+KBUILD_AFLAGS	+= -gz=zlib
 KBUILD_LDFLAGS	+= --compress-debug-sections=zlib
 endif
 
