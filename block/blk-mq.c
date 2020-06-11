@@ -632,8 +632,11 @@ static int blk_softirq_cpu_dead(unsigned int cpu)
 	return 0;
 }
 
-static void __blk_mq_complete_request(struct request *rq)
+
+static void __blk_mq_complete_request_remote(void *data)
 {
+	struct request *rq = data;
+
 	/*
 	 * For most of single queue controllers, there is only one irq vector
 	 * for handling I/O completion, and the only irq's affinity is set
@@ -647,11 +650,6 @@ static void __blk_mq_complete_request(struct request *rq)
 		blk_mq_trigger_softirq(rq);
 	else
 		rq->q->mq_ops->complete(rq);
-}
-
-static void __blk_mq_complete_request_remote(void *data)
-{
-	__blk_mq_complete_request(data);
 }
 
 static inline bool blk_mq_complete_need_ipi(struct request *rq)
@@ -672,6 +670,32 @@ static inline bool blk_mq_complete_need_ipi(struct request *rq)
 	return cpu_online(rq->mq_ctx->cpu);
 }
 
+bool blk_mq_complete_request_remote(struct request *rq)
+{
+	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
+
+	/*
+	 * For a polled request, always complete locallly, it's pointless
+	 * to redirect the completion.
+	 */
+	if (rq->cmd_flags & REQ_HIPRI)
+		return false;
+
+	if (blk_mq_complete_need_ipi(rq)) {
+		rq->csd.func = __blk_mq_complete_request_remote;
+		rq->csd.info = rq;
+		rq->csd.flags = 0;
+		smp_call_function_single_async(rq->mq_ctx->cpu, &rq->csd);
+	} else {
+		if (rq->q->nr_hw_queues > 1)
+			return false;
+		blk_mq_trigger_softirq(rq);
+	}
+
+	return true;
+}
+EXPORT_SYMBOL_GPL(blk_mq_complete_request_remote);
+
 /**
  * blk_mq_complete_request - end I/O on a request
  * @rq:		the request being processed
@@ -681,25 +705,8 @@ static inline bool blk_mq_complete_need_ipi(struct request *rq)
  **/
 void blk_mq_complete_request(struct request *rq)
 {
-	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
-
-	/*
-	 * For a polled request, always complete locallly, it's pointless
-	 * to redirect the completion.
-	 */
-	if (rq->cmd_flags & REQ_HIPRI) {
+	if (!blk_mq_complete_request_remote(rq))
 		rq->q->mq_ops->complete(rq);
-		return;
-	}
-
-	if (blk_mq_complete_need_ipi(rq)) {
-		rq->csd.func = __blk_mq_complete_request_remote;
-		rq->csd.info = rq;
-		rq->csd.flags = 0;
-		smp_call_function_single_async(rq->mq_ctx->cpu, &rq->csd);
-	} else {
-		__blk_mq_complete_request(rq);
-	}
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
