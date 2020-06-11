@@ -613,36 +613,10 @@ static void blk_mq_trigger_softirq(struct request *rq)
 		raise_softirq_irqoff(BLOCK_SOFTIRQ);
 }
 
-#ifdef CONFIG_SMP
 static void trigger_softirq(void *data)
 {
 	blk_mq_trigger_softirq(data);
 }
-
-/*
- * Setup and invoke a run of 'trigger_softirq' on the given cpu.
- */
-static int raise_blk_irq(int cpu, struct request *rq)
-{
-	if (cpu_online(cpu)) {
-		call_single_data_t *data = &rq->csd;
-
-		data->func = trigger_softirq;
-		data->info = rq;
-		data->flags = 0;
-
-		smp_call_function_single_async(cpu, data);
-		return 0;
-	}
-
-	return 1;
-}
-#else /* CONFIG_SMP */
-static int raise_blk_irq(int cpu, struct request *rq)
-{
-	return 1;
-}
-#endif
 
 static int blk_softirq_cpu_dead(unsigned int cpu)
 {
@@ -688,11 +662,17 @@ static void __blk_complete_request(struct request *req)
 	 * support multiple interrupts, so current CPU is unique actually. This
 	 * avoids IPI sending from current CPU to the first CPU of a group.
 	 */
-	if (ccpu == cpu || shared) {
-do_local:
+	if (IS_ENABLED(CONFIG_SMP) &&
+	    ccpu != cpu && !shared && cpu_online(ccpu)) {
+		call_single_data_t *data = &req->csd;
+
+		data->func = trigger_softirq;
+		data->info = req;
+		data->flags = 0;
+		smp_call_function_single_async(cpu, data);
+	} else {
 		blk_mq_trigger_softirq(req);
-	} else if (raise_blk_irq(ccpu, req))
-		goto do_local;
+	}
 
 	local_irq_restore(flags);
 }
