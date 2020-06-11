@@ -1081,7 +1081,7 @@
 
 	panel: panel {
 		compatible = "lg,lp129qe";
-
+		power-supply = <&vdd_3v3_panel>;
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
 	};
