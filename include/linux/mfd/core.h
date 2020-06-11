@@ -26,20 +26,20 @@
 		.id = (_id),						\
 	}
 
-#define OF_MFD_CELL(_name, _res, _pdata, _pdsize,_id, _compat)		\
-	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, _compat, NULL)	\
+#define OF_MFD_CELL(_name, _res, _pdata, _pdsize, _id, _compat) \
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, _compat, NULL)
 
-#define ACPI_MFD_CELL(_name, _res, _pdata, _pdsize, _id, _match)	\
-	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, _match)	\
+#define ACPI_MFD_CELL(_name, _res, _pdata, _pdsize, _id, _match) \
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, _match)
 
-#define MFD_CELL_BASIC(_name, _res, _pdata, _pdsize, _id)		\
-	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, NULL)	\
+#define MFD_CELL_BASIC(_name, _res, _pdata, _pdsize, _id) \
+	MFD_CELL_ALL(_name, _res, _pdata, _pdsize, _id, NULL, NULL)
 
-#define MFD_CELL_RES(_name, _res)					\
-	MFD_CELL_ALL(_name, _res, NULL, 0, 0, NULL, NULL)		\
+#define MFD_CELL_RES(_name, _res) \
+	MFD_CELL_ALL(_name, _res, NULL, 0, 0, NULL, NULL)
 
-#define MFD_CELL_NAME(_name)						\
-	MFD_CELL_ALL(_name, NULL, NULL, 0, 0, NULL, NULL)		\
+#define MFD_CELL_NAME(_name) \
+	MFD_CELL_ALL(_name, NULL, NULL, 0, 0, NULL, NULL)
 
 struct irq_domain;
 struct property_entry;
