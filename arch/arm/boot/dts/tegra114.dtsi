@@ -255,14 +255,14 @@
 
 	apbmisc@70000800 {
 		compatible = "nvidia,tegra114-apbmisc", "nvidia,tegra20-apbmisc";
-		reg = <0x70000800 0x64   /* Chip revision */
-		       0x70000008 0x04>; /* Strapping options */
+		reg = <0x70000800 0x64>, /* Chip revision */
+		      <0x70000008 0x04>; /* Strapping options */
 	};
 
 	pinmux: pinmux@70000868 {
 		compatible = "nvidia,tegra114-pinmux";
-		reg = <0x70000868 0x148		/* Pad control registers */
-		       0x70003000 0x40c>;	/* Mux registers */
+		reg = <0x70000868 0x148>, /* Pad control registers */
+		      <0x70003000 0x40c>; /* Mux registers */
 	};
 
 	/*
@@ -704,7 +704,8 @@
 
 	phy1: usb-phy@7d000000 {
 		compatible = "nvidia,tegra114-usb-phy", "nvidia,tegra30-usb-phy";
-		reg = <0x7d000000 0x4000 0x7d000000 0x4000>;
+		reg = <0x7d000000 0x4000>,
+		      <0x7d000000 0x4000>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA114_CLK_USBD>,
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
@@ -741,7 +742,8 @@
 
 	phy3: usb-phy@7d008000 {
 		compatible = "nvidia,tegra114-usb-phy", "nvidia,tegra30-usb-phy";
-		reg = <0x7d008000 0x4000 0x7d000000 0x4000>;
+		reg = <0x7d008000 0x4000>,
+		      <0x7d000000 0x4000>;
 		phy_type = "utmi";
 		clocks = <&tegra_car TEGRA114_CLK_USB3>,
 			 <&tegra_car TEGRA114_CLK_PLL_U>,
