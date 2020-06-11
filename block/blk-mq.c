@@ -703,6 +703,16 @@ void blk_mq_force_complete_rq(struct request *rq)
 	int cpu;
 
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
+
+	/*
+	 * For a polled request, always complete locallly, it's pointless
+	 * to redirect the completion.
+	 */
+	if (rq->cmd_flags & REQ_HIPRI) {
+		q->mq_ops->complete(rq);
+		return;
+	}
+
 	/*
 	 * Most of single queue controllers, there is only one irq vector
 	 * for handling IO completion, and the only irq's affinity is set
@@ -717,12 +727,7 @@ void blk_mq_force_complete_rq(struct request *rq)
 		return;
 	}
 
-	/*
-	 * For a polled request, always complete locallly, it's pointless
-	 * to redirect the completion.
-	 */
-	if ((rq->cmd_flags & REQ_HIPRI) ||
-	    !test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags)) {
+	if (!test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags)) {
 		q->mq_ops->complete(rq);
 		return;
 	}
