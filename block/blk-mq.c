@@ -600,8 +600,11 @@ static __latent_entropy void blk_done_softirq(struct softirq_action *h)
 
 static void blk_mq_trigger_softirq(struct request *rq)
 {
-	struct list_head *list = this_cpu_ptr(&blk_cpu_done);
+	struct list_head *list;
+	unsigned long flags;
 
+	local_irq_save(flags);
+	list = this_cpu_ptr(&blk_cpu_done);
 	list_add_tail(&rq->ipi_list, list);
 
 	/*
@@ -611,11 +614,7 @@ static void blk_mq_trigger_softirq(struct request *rq)
 	 */
 	if (list->next == &rq->ipi_list)
 		raise_softirq_irqoff(BLOCK_SOFTIRQ);
-}
-
-static void trigger_softirq(void *data)
-{
-	blk_mq_trigger_softirq(data);
+	local_irq_restore(flags);
 }
 
 static int blk_softirq_cpu_dead(unsigned int cpu)
@@ -633,56 +632,26 @@ static int blk_softirq_cpu_dead(unsigned int cpu)
 	return 0;
 }
 
-static void __blk_complete_request(struct request *req)
+static void __blk_mq_complete_request(struct request *rq)
 {
-	struct request_queue *q = req->q;
-	int cpu, ccpu = req->mq_ctx->cpu;
-	unsigned long flags;
-	bool shared = false;
-
-	BUG_ON(!q->mq_ops->complete);
-
-	local_irq_save(flags);
-	cpu = smp_processor_id();
-
 	/*
-	 * Select completion CPU
+	 * For most of single queue controllers, there is only one irq vector
+	 * for handling I/O completion, and the only irq's affinity is set
+	 * to all possible CPUs.  On most of ARCHs, this affinity means the irq
+	 * is handled on one specific CPU.
+	 *
+	 * So complete I/O requests in softirq context in case of single queue
+	 * devices to avoid degrading I/O performance due to irqsoff latency.
 	 */
-	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) && ccpu != -1) {
-		if (!test_bit(QUEUE_FLAG_SAME_FORCE, &q->queue_flags))
-			shared = cpus_share_cache(cpu, ccpu);
-	} else
-		ccpu = cpu;
-
-	/*
-	 * If current CPU and requested CPU share a cache, run the softirq on
-	 * the current CPU. One might concern this is just like
-	 * QUEUE_FLAG_SAME_FORCE, but actually not. blk_complete_request() is
-	 * running in interrupt handler, and currently I/O controller doesn't
-	 * support multiple interrupts, so current CPU is unique actually. This
-	 * avoids IPI sending from current CPU to the first CPU of a group.
-	 */
-	if (IS_ENABLED(CONFIG_SMP) &&
-	    ccpu != cpu && !shared && cpu_online(ccpu)) {
-		call_single_data_t *data = &req->csd;
-
-		data->func = trigger_softirq;
-		data->info = req;
-		data->flags = 0;
-		smp_call_function_single_async(cpu, data);
-	} else {
-		blk_mq_trigger_softirq(req);
-	}
-
-	local_irq_restore(flags);
+	if (rq->q->nr_hw_queues == 1)
+		blk_mq_trigger_softirq(rq);
+	else
+		rq->q->mq_ops->complete(rq);
 }
 
 static void __blk_mq_complete_request_remote(void *data)
 {
-	struct request *rq = data;
-	struct request_queue *q = rq->q;
-
-	q->mq_ops->complete(rq);
+	__blk_mq_complete_request(data);
 }
 
 /**
@@ -713,23 +682,9 @@ void blk_mq_force_complete_rq(struct request *rq)
 		return;
 	}
 
-	/*
-	 * Most of single queue controllers, there is only one irq vector
-	 * for handling IO completion, and the only irq's affinity is set
-	 * as all possible CPUs. On most of ARCHs, this affinity means the
-	 * irq is handled on one specific CPU.
-	 *
-	 * So complete IO reqeust in softirq context in case of single queue
-	 * for not degrading IO performance by irqsoff latency.
-	 */
-	if (q->nr_hw_queues == 1) {
-		__blk_complete_request(rq);
-		return;
-	}
-
 	if (!IS_ENABLED(CONFIG_SMP) ||
 	    !test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags)) {
-		q->mq_ops->complete(rq);
+		__blk_mq_complete_request(rq);
 		return;
 	}
 
@@ -743,7 +698,7 @@ void blk_mq_force_complete_rq(struct request *rq)
 		rq->csd.flags = 0;
 		smp_call_function_single_async(ctx->cpu, &rq->csd);
 	} else {
-		q->mq_ops->complete(rq);
+		__blk_mq_complete_request(rq);
 	}
 	put_cpu();
 }
