@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Xilinx Spartan6 Slave Serial SPI Driver
+ * Xilinx Spartan6 and 7 Series Slave Serial SPI Driver
  *
  * Copyright (C) 2017 DENX Software Engineering
  *
