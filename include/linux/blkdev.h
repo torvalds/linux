@@ -1078,7 +1078,6 @@ void blk_steal_bios(struct bio_list *list, struct request *rq);
 extern bool blk_update_request(struct request *rq, blk_status_t error,
 			       unsigned int nr_bytes);
 
-extern void __blk_complete_request(struct request *);
 extern void blk_abort_request(struct request *);
 
 /*
