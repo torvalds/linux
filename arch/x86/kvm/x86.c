@@ -9951,13 +9951,8 @@ int __x86_set_memory_region(struct kvm *kvm, int id, gpa_t gpa, u32 size)
 		if (!slot || !slot->npages)
 			return 0;
 
-		/*
-		 * Stuff a non-canonical value to catch use-after-delete.  This
-		 * ends up being 0 on 32-bit KVM, but there's no better
-		 * alternative.
-		 */
-		hva = (unsigned long)(0xdeadull << 48);
 		old_npages = slot->npages;
+		hva = 0;
 	}
 
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
