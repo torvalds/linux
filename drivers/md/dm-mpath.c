@@ -574,15 +574,20 @@ static void multipath_release_clone(struct request *clone,
  * Map cloned bios (bio-based multipath)
  */
 
+static void __multipath_queue_bio(struct multipath *m, struct bio *bio)
+{
+	/* Queue for the daemon to resubmit */
+	bio_list_add(&m->queued_bios, bio);
+	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
+		queue_work(kmultipathd, &m->process_queued_bios);
+}
+
 static void multipath_queue_bio(struct multipath *m, struct bio *bio)
 {
 	unsigned long flags;
 
-	/* Queue for the daemon to resubmit */
 	spin_lock_irqsave(&m->lock, flags);
-	bio_list_add(&m->queued_bios, bio);
-	if (!test_bit(MPATHF_QUEUE_IO, &m->flags))
-		queue_work(kmultipathd, &m->process_queued_bios);
+	__multipath_queue_bio(m, bio);
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
@@ -590,24 +595,24 @@ static struct pgpath *__map_bio(struct multipath *m, struct bio *bio)
 {
 	struct pgpath *pgpath;
 	unsigned long flags;
-	bool queue_io;
 
 	/* Do we need to select a new pgpath? */
 	pgpath = READ_ONCE(m->current_pgpath);
 	if (!pgpath || !test_bit(MPATHF_QUEUE_IO, &m->flags))
 		pgpath = choose_pgpath(m, bio->bi_iter.bi_size);
 
-	/* MPATHF_QUEUE_IO might have been cleared by choose_pgpath. */
-	queue_io = test_bit(MPATHF_QUEUE_IO, &m->flags);
+	if (!pgpath) {
+		spin_lock_irqsave(&m->lock, flags);
+		if (test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags)) {
+			__multipath_queue_bio(m, bio);
+			pgpath = ERR_PTR(-EAGAIN);
+		}
+		spin_unlock_irqrestore(&m->lock, flags);
 
-	if ((pgpath && queue_io) ||
-	    (!pgpath && test_bit(MPATHF_QUEUE_IF_NO_PATH, &m->flags))) {
+	} else if (test_bit(MPATHF_QUEUE_IO, &m->flags) ||
+		   test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags)) {
 		multipath_queue_bio(m, bio);
-
-		/* PG_INIT_REQUIRED cannot be set without QUEUE_IO */
-		if (queue_io || test_bit(MPATHF_PG_INIT_REQUIRED, &m->flags))
-			pg_init_all_paths(m);
-
+		pg_init_all_paths(m);
 		return ERR_PTR(-EAGAIN);
 	}
 
