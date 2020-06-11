@@ -306,27 +306,6 @@ exit_unlock:
 	return err;
 }
 
-static int f71862fg_pin_configure(unsigned short ioaddr)
-{
-	/* When ioaddr is non-zero the calling function has to take care of
-	   mutex handling and superio preparation! */
-
-	if (f71862fg_pin == 63) {
-		if (ioaddr) {
-			/* SPI must be disabled first to use this pin! */
-			superio_clear_bit(ioaddr, SIO_REG_ROM_ADDR_SEL, 6);
-			superio_set_bit(ioaddr, SIO_REG_MFUNCT3, 4);
-		}
-	} else if (f71862fg_pin == 56) {
-		if (ioaddr)
-			superio_set_bit(ioaddr, SIO_REG_MFUNCT1, 1);
-	} else {
-		pr_err("Invalid argument f71862fg_pin=%d\n", f71862fg_pin);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int watchdog_start(void)
 {
 	int err;
@@ -352,9 +331,13 @@ static int watchdog_start(void)
 		break;
 
 	case f71862fg:
-		err = f71862fg_pin_configure(watchdog.sioaddr);
-		if (err)
-			goto exit_superio;
+		if (f71862fg_pin == 63) {
+			/* SPI must be disabled first to use this pin! */
+			superio_clear_bit(watchdog.sioaddr, SIO_REG_ROM_ADDR_SEL, 6);
+			superio_set_bit(watchdog.sioaddr, SIO_REG_MFUNCT3, 4);
+		} else if (f71862fg_pin == 56) {
+			superio_set_bit(watchdog.sioaddr, SIO_REG_MFUNCT1, 1);
+		}
 		break;
 
 	case f71868:
@@ -810,7 +793,6 @@ static int __init f71808e_find(int sioaddr)
 		break;
 	case SIO_F71862_ID:
 		watchdog.type = f71862fg;
-		err = f71862fg_pin_configure(0); /* validate module parameter */
 		break;
 	case SIO_F71868_ID:
 		watchdog.type = f71868;
@@ -858,6 +840,11 @@ static int __init f71808e_init(void)
 	static const unsigned short addrs[] = { 0x2e, 0x4e };
 	int err = -ENODEV;
 	int i;
+
+	if (f71862fg_pin != 63 && f71862fg_pin != 56) {
+		pr_err("Invalid argument f71862fg_pin=%d\n", f71862fg_pin);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(addrs); i++) {
 		err = f71808e_find(addrs[i]);
