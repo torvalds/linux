@@ -244,7 +244,6 @@ struct mt7615_dev {
 	struct tasklet_struct irq_tasklet;
 
 	struct mt7615_phy phy;
-	u32 vif_mask;
 	u32 omac_mask;
 
 	u16 chainmask;

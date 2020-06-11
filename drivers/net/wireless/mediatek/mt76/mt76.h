@@ -491,6 +491,8 @@ struct mt76_phy {
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
 
+	u32 vif_mask;
+
 	int txpower_cur;
 	u8 antenna_mask;
 };

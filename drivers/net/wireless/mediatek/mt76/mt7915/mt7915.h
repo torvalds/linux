@@ -120,7 +120,6 @@ struct mt7915_phy {
 	struct ieee80211_sband_iftype_data iftype[2][NUM_NL80211_IFTYPES];
 
 	u32 rxfilter;
-	u32 vif_mask;
 	u32 omac_mask;
 
 	u16 noise;
