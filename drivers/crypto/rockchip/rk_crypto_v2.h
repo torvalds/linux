@@ -59,7 +59,16 @@ extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha256;
 extern struct rk_crypto_tmp rk_v2_ahash_hmac_sha512;
 extern struct rk_crypto_tmp rk_v2_ahash_hmac_sm3;
 
+extern struct rk_crypto_tmp rk_v2_asym_rsa;
+
 int rk_hw_crypto_v2_init(struct device *dev, void *hw_info);
 void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info);
-#endif
 
+void rk_pka_set_crypto_base(void __iomem *base);
+
+int rk_pka_expt_mod(struct rk_bignum *in,
+		    struct rk_bignum *e,
+		    struct rk_bignum *n,
+		    struct rk_bignum *out);
+
+#endif

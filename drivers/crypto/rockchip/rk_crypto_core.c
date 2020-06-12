@@ -315,6 +315,8 @@ static int rk_crypto_register(struct rk_crypto_info *crypto_info)
 			err = crypto_register_alg(&tmp_algs->alg.crypto);
 		} else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC) {
 			err = crypto_register_ahash(&tmp_algs->alg.hash);
+		} else if (tmp_algs->type == ALG_TYPE_ASYM) {
+			err = crypto_register_akcipher(&tmp_algs->alg.asym);
 		} else {
 			continue;
 		}
@@ -335,6 +337,8 @@ err_cipher_algs:
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
+		else if (tmp_algs->type == ALG_TYPE_ASYM)
+			crypto_unregister_akcipher(&tmp_algs->alg.asym);
 	}
 	return err;
 }
@@ -353,6 +357,8 @@ static void rk_crypto_unregister(struct rk_crypto_info *crypto_info)
 			crypto_unregister_alg(&tmp_algs->alg.crypto);
 		else if (tmp_algs->type == ALG_TYPE_HASH || tmp_algs->type == ALG_TYPE_HMAC)
 			crypto_unregister_ahash(&tmp_algs->alg.hash);
+		else if (tmp_algs->type == ALG_TYPE_ASYM)
+			crypto_unregister_akcipher(&tmp_algs->alg.asym);
 	}
 }
 
@@ -411,6 +417,8 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 	&rk_v2_ahash_hmac_sha512,	/* hmac(sha512) */
 	&rk_v2_ahash_hmac_md5,		/* hmac(md5) */
 	&rk_v2_ahash_hmac_sm3,		/* hmac(sm3) */
+
+	&rk_v2_asym_rsa,		/* rsa */
 };
 
 static char *px30_algs_name[] = {
@@ -427,6 +435,7 @@ static char *rv1126_algs_name[] = {
 	"ecb(des3_ede)", "cbc(des3_ede)", "cfb(des3_ede)", "ofb(des3_ede)",
 	"sha1", "sha256", "sha512", "md5", "sm3",
 	"hmac(sha1)", "hmac(sha256)", "hmac(sha512)", "hmac(md5)", "hmac(sm3)",
+	"rsa"
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =

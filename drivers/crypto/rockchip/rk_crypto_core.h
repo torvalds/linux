@@ -12,11 +12,15 @@
 #include <crypto/sha.h>
 #include <crypto/sm3.h>
 #include <crypto/sm4.h>
+#include <crypto/internal/akcipher.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/rsa.h>
 #include <crypto/internal/skcipher.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+
+#include "rk_crypto_bignum.h"
 
 #define RK_CRYPTO_PRIORITY		300
 
@@ -109,10 +113,19 @@ struct rk_cipher_ctx {
 	struct crypto_skcipher		*fallback_tfm;
 };
 
+struct rk_rsa_ctx {
+	struct rk_bignum *n;
+	struct rk_bignum *e;
+	struct rk_bignum *d;
+
+	struct rk_crypto_info		*dev;
+};
+
 enum alg_type {
 	ALG_TYPE_HASH,
 	ALG_TYPE_HMAC,
 	ALG_TYPE_CIPHER,
+	ALG_TYPE_ASYM,
 };
 
 struct rk_crypto_tmp {
@@ -120,6 +133,7 @@ struct rk_crypto_tmp {
 	union {
 		struct crypto_alg	crypto;
 		struct ahash_alg	hash;
+		struct akcipher_alg	asym;
 	} alg;
 	enum alg_type			type;
 	u32				algo;
@@ -295,9 +309,13 @@ enum rk_cipher_mode {
 					 __func__, __LINE__, ##__VA_ARGS__)
 #define CRYPTO_MSG(format, ...) pr_err("[%s, %05d]-msg:" format "\n", \
 				       __func__, __LINE__, ##__VA_ARGS__)
+#define CRYPTO_DUMPHEX(var_name, data, len) print_hex_dump(KERN_CONT, (var_name), \
+							   DUMP_PREFIX_OFFSET, \
+							   16, 1, (data), (len), false)
 #else
 #define CRYPTO_TRACE(format, ...)
 #define CRYPTO_MSG(format, ...)
+#define CRYPTO_DUMPHEX(var_name, data, len)
 #endif
 
 #endif
