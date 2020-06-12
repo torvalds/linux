@@ -850,7 +850,8 @@ static void __iommu_sync_single_for_cpu(struct device *dev,
 
 	if (!domain || iommu_is_iova_coherent(domain, dev_addr))
 		return;
-
+	if (is_device_dma_coherent(dev))
+		return;
 	phys = iommu_iova_to_phys(domain, dev_addr);
 	__dma_unmap_area(phys_to_virt(phys), size, dir);
 }
@@ -864,7 +865,8 @@ static void __iommu_sync_single_for_device(struct device *dev,
 
 	if (!domain || iommu_is_iova_coherent(domain, dev_addr))
 		return;
-
+	if (is_device_dma_coherent(dev))
+		return;
 	phys = iommu_iova_to_phys(domain, dev_addr);
 	__dma_map_area(phys_to_virt(phys), size, dir);
 }
@@ -906,7 +908,8 @@ static void __iommu_sync_sg_for_cpu(struct device *dev,
 
 	if (!domain || iommu_is_iova_coherent(domain, iova))
 		return;
-
+	if (is_device_dma_coherent(dev))
+		return;
 	for_each_sg(sgl, sg, nelems, i)
 		__dma_unmap_area(sg_virt(sg), sg->length, dir);
 }
@@ -922,7 +925,8 @@ static void __iommu_sync_sg_for_device(struct device *dev,
 
 	if (!domain || iommu_is_iova_coherent(domain, iova))
 		return;
-
+	if (is_device_dma_coherent(dev))
+		return;
 	for_each_sg(sgl, sg, nelems, i)
 		__dma_map_area(sg_virt(sg), sg->length, dir);
 }
@@ -931,18 +935,13 @@ static int __iommu_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
 				int nelems, enum dma_data_direction dir,
 				unsigned long attrs)
 {
-	bool coherent = is_dma_coherent(dev, attrs);
-	int ret;
-
-	ret =  iommu_dma_map_sg(dev, sgl, nelems,
-				dma_info_to_prot(dir, coherent, attrs));
-	if (!ret)
-		return ret;
+	bool coherent = is_device_dma_coherent(dev);
 
 	if ((attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
 		__iommu_sync_sg_for_device(dev, sgl, nelems, dir);
 
-	return ret;
+	return iommu_dma_map_sg(dev, sgl, nelems,
+				dma_info_to_prot(dir, coherent, attrs));
 }
 
 static void __iommu_unmap_sg_attrs(struct device *dev,
@@ -980,10 +979,48 @@ static int __init __iommu_dma_init(void)
 }
 arch_initcall(__iommu_dma_init);
 
+static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
+				  const struct iommu_ops *ops)
+{
+	struct iommu_domain *domain;
+
+	if (!ops)
+		return;
+
+	/*
+	 * The IOMMU core code allocates the default DMA domain, which the
+	 * underlying IOMMU driver needs to support via the dma-iommu layer.
+	 */
+	domain = iommu_get_domain_for_dev(dev);
+
+	if (!domain)
+		goto out_err;
+
+	if (domain->type == IOMMU_DOMAIN_DMA) {
+		if (iommu_dma_init_domain(domain, dma_base, size, dev))
+			goto out_err;
+
+		dev->dma_ops = &iommu_dma_ops;
+	}
+
+	return;
+
+out_err:
+	 pr_warn("Failed to set up IOMMU for device %s; retaining platform DMA ops\n",
+		 dev_name(dev));
+}
+
 void arch_teardown_dma_ops(struct device *dev)
 {
 	dev->dma_ops = NULL;
 }
+
+#else
+
+static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
+				  const struct iommu_ops *iommu)
+{ }
+
 #endif  /* CONFIG_IOMMU_DMA */
 
 static void arm_iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size);
@@ -999,7 +1036,10 @@ void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 	}
 
 	dev->archdata.dma_coherent = coherent;
-	arm_iommu_setup_dma_ops(dev, dma_base, size);
+	if (of_parse_phandle(dev->of_node, "qcom,iommu-group", 0))
+		arm_iommu_setup_dma_ops(dev, dma_base, size);
+	else
+		__iommu_setup_dma_ops(dev, dma_base, size, iommu);
 
 #ifdef CONFIG_XEN
 	if (xen_initial_domain()) {

@@ -519,9 +519,8 @@ static struct page **__iommu_dma_alloc_pages(unsigned int count,
 			unsigned int order = __fls(order_mask);
 
 			order_size = 1U << order;
-			page = alloc_pages(order ?
-					   (gfp | __GFP_NORETRY) &
-						~__GFP_RECLAIM : gfp, order);
+			page = alloc_pages((order_mask - order_size) ?
+					   gfp | __GFP_NORETRY : gfp, order);
 			if (!page)
 				continue;
 			if (!order)
