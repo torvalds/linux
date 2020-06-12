@@ -719,12 +719,12 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 		if (v < 3 || v > 15) {
 			ret = -EINVAL;
 			goto exit_unlock;
-		} else {
-			/* Enable glitch filter and debouncer */
-			value0 |= PADCFG0_PREGFRXSEL;
-			value2 |= v << PADCFG2_DEBOUNCE_SHIFT;
-			value2 |= PADCFG2_DEBEN;
 		}
+
+		/* Enable glitch filter and debouncer */
+		value0 |= PADCFG0_PREGFRXSEL;
+		value2 |= v << PADCFG2_DEBOUNCE_SHIFT;
+		value2 |= PADCFG2_DEBEN;
 	}
 
 	writel(value0, padcfg0);
