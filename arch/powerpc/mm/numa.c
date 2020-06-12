@@ -984,27 +984,7 @@ static int __init early_numa(char *p)
 }
 early_param("numa", early_numa);
 
-/*
- * The platform can inform us through one of several mechanisms
- * (post-migration device tree updates, PRRN or VPHN) that the NUMA
- * assignment of a resource has changed. This controls whether we act
- * on that. Disabled by default.
- */
-static bool topology_updates_enabled;
-
-static int __init early_topology_updates(char *p)
-{
-	if (!p)
-		return 0;
-
-	if (!strcmp(p, "on")) {
-		pr_warn("Caution: enabling topology updates\n");
-		topology_updates_enabled = true;
-	}
-
-	return 0;
-}
-early_param("topology_updates", early_topology_updates);
+static const bool topology_updates_enabled;
 
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
@@ -1632,61 +1612,12 @@ int prrn_is_enabled(void)
 	return prrn_enabled;
 }
 
-static int topology_read(struct seq_file *file, void *v)
-{
-	if (vphn_enabled || prrn_enabled)
-		seq_puts(file, "on\n");
-	else
-		seq_puts(file, "off\n");
-
-	return 0;
-}
-
-static int topology_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, topology_read, NULL);
-}
-
-static ssize_t topology_write(struct file *file, const char __user *buf,
-			      size_t count, loff_t *off)
-{
-	char kbuf[4]; /* "on" or "off" plus null. */
-	int read_len;
-
-	read_len = count < 3 ? count : 3;
-	if (copy_from_user(kbuf, buf, read_len))
-		return -EINVAL;
-
-	kbuf[read_len] = '\0';
-
-	if (!strncmp(kbuf, "on", 2)) {
-		topology_updates_enabled = true;
-		start_topology_update();
-	} else if (!strncmp(kbuf, "off", 3)) {
-		stop_topology_update();
-		topology_updates_enabled = false;
-	} else
-		return -EINVAL;
-
-	return count;
-}
-
-static const struct proc_ops topology_proc_ops = {
-	.proc_read	= seq_read,
-	.proc_write	= topology_write,
-	.proc_open	= topology_open,
-	.proc_release	= single_release,
-};
-
 static int topology_update_init(void)
 {
 	start_topology_update();
 
 	if (vphn_enabled)
 		topology_schedule_update();
-
-	if (!proc_create("powerpc/topology_updates", 0644, NULL, &topology_proc_ops))
-		return -ENOMEM;
 
 	topology_inited = 1;
 	return 0;
