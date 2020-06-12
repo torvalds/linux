@@ -1200,16 +1200,6 @@ int find_and_online_cpu_nid(int cpu)
 	return new_nid;
 }
 
-int numa_update_cpu_topology(bool cpus_locked)
-{
-	return 0;
-}
-
-int arch_update_cpu_topology(void)
-{
-	return numa_update_cpu_topology(true);
-}
-
 static int topology_update_init(void)
 {
 	topology_inited = 1;
