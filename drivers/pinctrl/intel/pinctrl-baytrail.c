@@ -1757,9 +1757,8 @@ static struct platform_driver byt_gpio_driver = {
 	.driver         = {
 		.name			= "byt_gpio",
 		.pm			= &byt_gpio_pm_ops,
+		.acpi_match_table	= byt_gpio_acpi_match,
 		.suppress_bind_attrs	= true,
-
-		.acpi_match_table = ACPI_PTR(byt_gpio_acpi_match),
 	},
 };
 
