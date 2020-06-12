@@ -145,11 +145,8 @@ static ssize_t store_hibernate(struct device *dev,
 			ssleep(1);
 	} while (rc == -EAGAIN);
 
-	if (!rc) {
-		stop_topology_update();
+	if (!rc)
 		rc = pm_suspend(PM_SUSPEND_MEM);
-		start_topology_update();
-	}
 
 	stream_id = 0;
 
