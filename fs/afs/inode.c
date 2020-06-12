@@ -168,6 +168,7 @@ static void afs_apply_status(struct afs_operation *op,
 	struct timespec64 t;
 	umode_t mode;
 	bool data_changed = false;
+	bool change_size = false;
 
 	_enter("{%llx:%llu.%u} %s",
 	       vp->fid.vid, vp->fid.vnode, vp->fid.unique,
@@ -226,6 +227,7 @@ static void afs_apply_status(struct afs_operation *op,
 		} else {
 			set_bit(AFS_VNODE_ZAP_DATA, &vnode->flags);
 		}
+		change_size = true;
 	} else if (vnode->status.type == AFS_FTYPE_DIR) {
 		/* Expected directory change is handled elsewhere so
 		 * that we can locally edit the directory and save on a
@@ -233,11 +235,19 @@ static void afs_apply_status(struct afs_operation *op,
 		 */
 		if (test_bit(AFS_VNODE_DIR_VALID, &vnode->flags))
 			data_changed = false;
+		change_size = true;
 	}
 
 	if (data_changed) {
 		inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
-		afs_set_i_size(vnode, status->size);
+
+		/* Only update the size if the data version jumped.  If the
+		 * file is being modified locally, then we might have our own
+		 * idea of what the size should be that's not the same as
+		 * what's on the server.
+		 */
+		if (change_size)
+			afs_set_i_size(vnode, status->size);
 	}
 }
 
