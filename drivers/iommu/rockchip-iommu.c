@@ -1578,6 +1578,7 @@ static const struct iommu_ops rk_iommu_ops_v2 = {
 	.detach_dev = rk_iommu_detach_device,
 	.map = rk_iommu_map_v2,
 	.unmap = rk_iommu_unmap_v2,
+	.map_sg = default_iommu_map_sg,
 	.flush_iotlb_all = rk_iommu_flush_tlb_all,
 	.add_device = rk_iommu_add_device,
 	.remove_device = rk_iommu_remove_device,
