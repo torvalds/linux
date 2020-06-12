@@ -33,8 +33,7 @@ properties:
 
   led:
     type: object
-    allOf:
-      - $ref: common.yaml#
+    $ref: common.yaml#
 
 required:
   - compatible

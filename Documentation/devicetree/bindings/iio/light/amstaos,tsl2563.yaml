@@ -25,9 +25,8 @@ properties:
 
   amstaos,cover-comp-gain:
     description: Multiplier for gain compensation
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 16]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 16]
 
 required:
   - compatible

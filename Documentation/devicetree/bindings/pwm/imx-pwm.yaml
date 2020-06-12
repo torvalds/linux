@@ -30,13 +30,11 @@ properties:
     items:
       - description: SoC PWM ipg clock
       - description: SoC PWM per clock
-    maxItems: 2
 
   clock-names:
     items:
       - const: ipg
       - const: per
-    maxItems: 2
 
   interrupts:
     maxItems: 1

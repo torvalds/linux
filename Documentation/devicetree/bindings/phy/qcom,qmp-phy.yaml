@@ -44,6 +44,8 @@ properties:
   "#size-cells":
     enum: [ 1, 2 ]
 
+  ranges: true
+
   clocks:
     minItems: 1
     maxItems: 4
@@ -87,6 +89,7 @@ required:
   - "#clock-cells"
   - "#address-cells"
   - "#size-cells"
+  - ranges
   - clocks
   - clock-names
   - resets
@@ -281,10 +284,11 @@ examples:
     #include <dt-bindings/clock/qcom,gcc-sdm845.h>
     usb_2_qmpphy: phy-wrapper@88eb000 {
         compatible = "qcom,sdm845-qmp-usb3-uni-phy";
-        reg = <0 0x088eb000 0 0x18c>;
+        reg = <0x088eb000 0x18c>;
         #clock-cells = <1>;
-        #address-cells = <2>;
-        #size-cells = <2>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0x0 0x088eb000 0x2000>;
 
         clocks = <&gcc GCC_USB3_SEC_PHY_AUX_CLK >,
                  <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
@@ -299,11 +303,11 @@ examples:
         vdda-phy-supply = <&vdda_usb2_ss_1p2>;
         vdda-pll-supply = <&vdda_usb2_ss_core>;
 
-        usb_2_ssphy: phy@88eb200 {
-                reg = <0 0x088eb200 0 0x128>,
-                      <0 0x088eb400 0 0x1fc>,
-                      <0 0x088eb800 0 0x218>,
-                      <0 0x088eb600 0 0x70>;
+        usb_2_ssphy: phy@200 {
+                reg = <0x200 0x128>,
+                      <0x400 0x1fc>,
+                      <0x800 0x218>,
+                      <0x600 0x70>;
                 #clock-cells = <0>;
                 #phy-cells = <0>;
                 clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;

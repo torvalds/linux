@@ -15,8 +15,7 @@ allOf:
 properties:
   cdns,max-outbound-regions:
     description: maximum number of outbound regions
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 32
     default: 32

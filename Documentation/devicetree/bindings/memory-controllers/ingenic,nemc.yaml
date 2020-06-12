@@ -45,9 +45,8 @@ patternProperties:
         maxItems: 255
 
       ingenic,nemc-bus-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [8, 16]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [8, 16]
         description: Specifies the bus width in bits.
 
       ingenic,nemc-tAS:

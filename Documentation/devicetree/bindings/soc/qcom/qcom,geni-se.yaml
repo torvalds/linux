@@ -100,8 +100,7 @@ patternProperties:
                  supports up to 50MHz, up to four chip selects, programmable
                  data path from 4 bits to 32 bits and numerous protocol
                  variants.
-    allOf:
-      - $ref: /spi/spi-controller.yaml#
+    $ref: /spi/spi-controller.yaml#
 
     properties:
       compatible:
@@ -126,8 +125,7 @@ patternProperties:
   "i2c@[0-9a-f]+$":
     type: object
     description: GENI serial engine based I2C controller.
-    allOf:
-      - $ref: /schemas/i2c/i2c-controller.yaml#
+    $ref: /schemas/i2c/i2c-controller.yaml#
 
     properties:
       compatible:
@@ -156,8 +154,7 @@ patternProperties:
   "serial@[0-9a-f]+$":
     type: object
     description: GENI Serial Engine based UART Controller.
-    allOf:
-      - $ref: /schemas/serial.yaml#
+    $ref: /schemas/serial.yaml#
 
     properties:
       compatible:

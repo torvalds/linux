@@ -32,8 +32,7 @@ properties:
 patternProperties:
   "^led@[0-2]$":
     type: object
-    allOf:
-      - $ref: common.yaml#
+    $ref: common.yaml#
 
     properties:
       reg:
