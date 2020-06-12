@@ -722,9 +722,6 @@ static int imx290_probe(struct i2c_client *client)
 		goto free_err;
 	}
 
-	/* Set default mode to max resolution */
-	imx290->current_mode = &imx290_modes[0];
-
 	/* get system clock (xclk) */
 	imx290->xclk = devm_clk_get(dev, "xclk");
 	if (IS_ERR(imx290->xclk)) {
@@ -808,6 +805,9 @@ static int imx290_probe(struct i2c_client *client)
 		dev_err(dev, "Could not register media entity\n");
 		goto free_ctrl;
 	}
+
+	/* Initialize the frame format (this also sets imx290->current_mode) */
+	imx290_entity_init_cfg(&imx290->sd, NULL);
 
 	ret = v4l2_async_register_subdev(&imx290->sd);
 	if (ret < 0) {
