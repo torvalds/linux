@@ -598,6 +598,81 @@ static int stp_sync_clock(void *data)
 	return 0;
 }
 
+static int stp_clear_leap(void)
+{
+	struct __kernel_timex txc;
+	int ret;
+
+	memset(&txc, 0, sizeof(txc));
+
+	ret = do_adjtimex(&txc);
+	if (ret < 0)
+		return ret;
+
+	txc.modes = ADJ_STATUS;
+	txc.status &= ~(STA_INS|STA_DEL);
+	return do_adjtimex(&txc);
+}
+
+static void stp_check_leap(void)
+{
+	struct stp_stzi stzi;
+	struct stp_lsoib *lsoib = &stzi.lsoib;
+	struct __kernel_timex txc;
+	int64_t timediff;
+	int leapdiff, ret;
+
+	if (!stp_info.lu || !check_sync_clock()) {
+		/*
+		 * Either a scheduled leap second was removed by the operator,
+		 * or STP is out of sync. In both cases, clear the leap second
+		 * kernel flags.
+		 */
+		if (stp_clear_leap() < 0)
+			pr_err("failed to clear leap second flags\n");
+		return;
+	}
+
+	if (chsc_stzi(stp_page, &stzi, sizeof(stzi))) {
+		pr_err("stzi failed\n");
+		return;
+	}
+
+	timediff = tod_to_ns(lsoib->nlsout - get_tod_clock()) / NSEC_PER_SEC;
+	leapdiff = lsoib->nlso - lsoib->also;
+
+	if (leapdiff != 1 && leapdiff != -1) {
+		pr_err("Cannot schedule %d leap seconds\n", leapdiff);
+		return;
+	}
+
+	if (timediff < 0) {
+		if (stp_clear_leap() < 0)
+			pr_err("failed to clear leap second flags\n");
+	} else if (timediff < 7200) {
+		memset(&txc, 0, sizeof(txc));
+		ret = do_adjtimex(&txc);
+		if (ret < 0)
+			return;
+
+		txc.modes = ADJ_STATUS;
+		if (leapdiff > 0)
+			txc.status |= STA_INS;
+		else
+			txc.status |= STA_DEL;
+		ret = do_adjtimex(&txc);
+		if (ret < 0)
+			pr_err("failed to set leap second flags\n");
+		/* arm Timer to clear leap second flags */
+		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(14400 * MSEC_PER_SEC));
+	} else {
+		/* The day the leap second is scheduled for hasn't been reached. Retry
+		 * in one hour.
+		 */
+		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(3600 * MSEC_PER_SEC));
+	}
+}
+
 /*
  * STP work. Check for the STP state and take over the clock
  * synchronization if the STP clock source is usable.
@@ -616,7 +691,7 @@ static void stp_work_fn(struct work_struct *work)
 		goto out_unlock;
 	}
 
-	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xb0e0, NULL);
+	rc = chsc_sstpc(stp_page, STP_OP_CTRL, 0xf0e0, NULL);
 	if (rc)
 		goto out_unlock;
 
@@ -625,14 +700,13 @@ static void stp_work_fn(struct work_struct *work)
 		goto out_unlock;
 
 	/* Skip synchronization if the clock is already in sync. */
-	if (check_sync_clock())
-		goto out_unlock;
-
-	memset(&stp_sync, 0, sizeof(stp_sync));
-	cpus_read_lock();
-	atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
-	stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
-	cpus_read_unlock();
+	if (!check_sync_clock()) {
+		memset(&stp_sync, 0, sizeof(stp_sync));
+		cpus_read_lock();
+		atomic_set(&stp_sync.cpus, num_online_cpus() - 1);
+		stop_machine_cpuslocked(stp_sync_clock, &stp_sync, cpu_online_mask);
+		cpus_read_unlock();
+	}
 
 	if (!check_sync_clock())
 		/*
@@ -640,6 +714,8 @@ static void stp_work_fn(struct work_struct *work)
 		 * Retry after a second.
 		 */
 		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(MSEC_PER_SEC));
+	else if (stp_info.lu)
+		stp_check_leap();
 
 out_unlock:
 	mutex_unlock(&stp_work_mutex);
