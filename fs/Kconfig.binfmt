@@ -78,7 +78,7 @@ config CORE_DUMP_DEFAULT_ELF_HEADERS
 
 	  The core dump behavior can be controlled per process using
 	  the /proc/PID/coredump_filter pseudo-file; this setting is
-	  inherited.  See Documentation/filesystems/proc.txt for details.
+	  inherited.  See Documentation/filesystems/proc.rst for details.
 
 	  This config option changes the default setting of coredump_filter
 	  seen at boot time.  If unsure, say Y.

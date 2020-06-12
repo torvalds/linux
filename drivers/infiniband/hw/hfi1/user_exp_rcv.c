@@ -206,13 +206,6 @@ static int pin_rcv_pages(struct hfi1_filedata *fd, struct tid_user_buf *tidbuf)
 		return -EINVAL;
 	}
 
-	/* Verify that access is OK for the user buffer */
-	if (!access_ok((void __user *)vaddr,
-		       npages * PAGE_SIZE)) {
-		dd_dev_err(dd, "Fail vaddr %p, %u pages, !access_ok\n",
-			   (void *)vaddr, npages);
-		return -EFAULT;
-	}
 	/* Allocate the array of struct page pointers needed for pinning */
 	pages = kcalloc(npages, sizeof(*pages), GFP_KERNEL);
 	if (!pages)

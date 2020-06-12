@@ -433,7 +433,7 @@ config INTERVAL_TREE
 
 	  See:
 
-		Documentation/rbtree.txt
+		Documentation/core-api/rbtree.rst
 
 	  for more information.
 

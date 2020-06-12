@@ -7,7 +7,7 @@ IRQ affinity on IA64 platforms
 
 By writing to /proc/irq/IRQ#/smp_affinity the interrupt routing can be
 controlled. The behavior on IA64 platforms is slightly different from
-that described in Documentation/IRQ-affinity.txt for i386 systems.
+that described in Documentation/core-api/irq/irq-affinity.rst for i386 systems.
 
 Because of the usage of SAPIC mode and physical destination mode the
 IRQ target is one particular CPU and cannot be a mask of several

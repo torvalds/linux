@@ -3093,7 +3093,8 @@ static int snd_pcm_xferi_frames_ioctl(struct snd_pcm_substream *substream,
 		result = snd_pcm_lib_write(substream, xferi.buf, xferi.frames);
 	else
 		result = snd_pcm_lib_read(substream, xferi.buf, xferi.frames);
-	__put_user(result, &_xferi->result);
+	if (put_user(result, &_xferi->result))
+		return -EFAULT;
 	return result < 0 ? result : 0;
 }
 
@@ -3122,7 +3123,8 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 	else
 		result = snd_pcm_lib_readv(substream, bufs, xfern.frames);
 	kfree(bufs);
-	__put_user(result, &_xfern->result);
+	if (put_user(result, &_xfern->result))
+		return -EFAULT;
 	return result < 0 ? result : 0;
 }
 
@@ -3137,7 +3139,8 @@ static int snd_pcm_rewind_ioctl(struct snd_pcm_substream *substream,
 	if (put_user(0, _frames))
 		return -EFAULT;
 	result = snd_pcm_rewind(substream, frames);
-	__put_user(result, _frames);
+	if (put_user(result, _frames))
+		return -EFAULT;
 	return result < 0 ? result : 0;
 }
 
@@ -3152,7 +3155,8 @@ static int snd_pcm_forward_ioctl(struct snd_pcm_substream *substream,
 	if (put_user(0, _frames))
 		return -EFAULT;
 	result = snd_pcm_forward(substream, frames);
-	__put_user(result, _frames);
+	if (put_user(result, _frames))
+		return -EFAULT;
 	return result < 0 ? result : 0;
 }
 
