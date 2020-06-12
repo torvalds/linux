@@ -999,6 +999,9 @@ static void ti_sn_bridge_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	ret = regmap_update_bits(pdata->regmap, SN_GPIO_IO_REG,
 				 BIT(SN_GPIO_OUTPUT_SHIFT + offset),
 				 val << (SN_GPIO_OUTPUT_SHIFT + offset));
+	if (ret)
+		dev_warn(pdata->dev,
+			 "Failed to set bridge GPIO %u: %d\n", offset, ret);
 }
 
 static int ti_sn_bridge_gpio_direction_input(struct gpio_chip *chip,
