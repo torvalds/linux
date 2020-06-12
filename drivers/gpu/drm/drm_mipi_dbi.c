@@ -268,7 +268,7 @@ static void mipi_dbi_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool full;
 	void *tr;
 
-	if (!dbidev->enabled)
+	if (WARN_ON(!fb))
 		return;
 
 	if (!drm_dev_enter(fb->dev, &idx))
@@ -314,6 +314,9 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
 
+	if (!pipe->crtc.state->active)
+		return;
+
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		mipi_dbi_fb_dirty(state->fb, &rect);
 }
@@ -325,9 +328,8 @@ EXPORT_SYMBOL(mipi_dbi_pipe_update);
  * @crtc_state: CRTC state
  * @plane_state: Plane state
  *
- * This function sets &mipi_dbi->enabled, flushes the whole framebuffer and
- * enables the backlight. Drivers can use this in their
- * &drm_simple_display_pipe_funcs->enable callback.
+ * Flushes the whole framebuffer and enables the backlight. Drivers can use this
+ * in their &drm_simple_display_pipe_funcs->enable callback.
  *
  * Note: Drivers which don't use mipi_dbi_pipe_update() because they have custom
  * framebuffer flushing, can't use this function since they both use the same
@@ -349,7 +351,6 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	dbidev->enabled = true;
 	mipi_dbi_fb_dirty(fb, &rect);
 	backlight_enable(dbidev->backlight);
 
@@ -390,12 +391,7 @@ void mipi_dbi_pipe_disable(struct drm_simple_display_pipe *pipe)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(pipe->crtc.dev);
 
-	if (!dbidev->enabled)
-		return;
-
 	DRM_DEBUG_KMS("\n");
-
-	dbidev->enabled = false;
 
 	if (dbidev->backlight)
 		backlight_disable(dbidev->backlight);

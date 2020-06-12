@@ -89,9 +89,6 @@ static void ili9225_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	bool full;
 	void *tr;
 
-	if (!dbidev->enabled)
-		return;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
@@ -166,6 +163,9 @@ static void ili9225_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		ili9225_fb_dirty(state->fb, &rect);
@@ -275,7 +275,6 @@ static void ili9225_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x1017);
 
-	dbidev->enabled = true;
 	ili9225_fb_dirty(fb, &rect);
 out_exit:
 	drm_dev_exit(idx);
@@ -295,16 +294,11 @@ static void ili9225_pipe_disable(struct drm_simple_display_pipe *pipe)
 	 * unplug.
 	 */
 
-	if (!dbidev->enabled)
-		return;
-
 	ili9225_command(dbi, ILI9225_DISPLAY_CONTROL_1, 0x0000);
 	msleep(50);
 	ili9225_command(dbi, ILI9225_POWER_CONTROL_2, 0x0007);
 	msleep(50);
 	ili9225_command(dbi, ILI9225_POWER_CONTROL_1, 0x0a02);
-
-	dbidev->enabled = false;
 }
 
 static int ili9225_dbi_command(struct mipi_dbi *dbi, u8 *cmd, u8 *par,

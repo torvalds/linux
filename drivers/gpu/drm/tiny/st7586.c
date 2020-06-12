@@ -118,9 +118,6 @@ static void st7586_fb_dirty(struct drm_framebuffer *fb, struct drm_rect *rect)
 	struct mipi_dbi *dbi = &dbidev->dbi;
 	int start, end, idx, ret = 0;
 
-	if (!dbidev->enabled)
-		return;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return;
 
@@ -160,6 +157,9 @@ static void st7586_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		st7586_fb_dirty(state->fb, &rect);
@@ -237,7 +237,6 @@ static void st7586_pipe_enable(struct drm_simple_display_pipe *pipe,
 
 	msleep(100);
 
-	dbidev->enabled = true;
 	st7586_fb_dirty(fb, &rect);
 
 	mipi_dbi_command(dbi, MIPI_DCS_SET_DISPLAY_ON);
@@ -258,11 +257,7 @@ static void st7586_pipe_disable(struct drm_simple_display_pipe *pipe)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (!dbidev->enabled)
-		return;
-
 	mipi_dbi_command(&dbidev->dbi, MIPI_DCS_SET_DISPLAY_OFF);
-	dbidev->enabled = false;
 }
 
 static const u32 st7586_formats[] = {
