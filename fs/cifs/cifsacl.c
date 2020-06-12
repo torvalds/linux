@@ -1000,7 +1000,7 @@ static int parse_sec_desc(struct cifs_sb_info *cifs_sb,
 /* Convert permission bits from mode to equivalent CIFS ACL */
 static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 	__u32 secdesclen, __u64 nmode, kuid_t uid, kgid_t gid,
-	bool mode_from_sid, int *aclflag)
+	bool mode_from_sid, bool id_from_sid, int *aclflag)
 {
 	int rc = 0;
 	__u32 dacloffset;
@@ -1041,12 +1041,23 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 			if (!nowner_sid_ptr)
 				return -ENOMEM;
 			id = from_kuid(&init_user_ns, uid);
-			rc = id_to_sid(id, SIDOWNER, nowner_sid_ptr);
-			if (rc) {
-				cifs_dbg(FYI, "%s: Mapping error %d for owner id %d\n",
-					 __func__, rc, id);
-				kfree(nowner_sid_ptr);
-				return rc;
+			if (id_from_sid) {
+				struct owner_sid *osid = (struct owner_sid *)nowner_sid_ptr;
+				/* Populate the user ownership fields S-1-5-88-1 */
+				osid->Revision = 1;
+				osid->NumAuth = 3;
+				osid->Authority[5] = 5;
+				osid->SubAuthorities[0] = cpu_to_le32(88);
+				osid->SubAuthorities[1] = cpu_to_le32(1);
+				osid->SubAuthorities[2] = cpu_to_le32(id);
+			} else { /* lookup sid with upcall */
+				rc = id_to_sid(id, SIDOWNER, nowner_sid_ptr);
+				if (rc) {
+					cifs_dbg(FYI, "%s: Mapping error %d for owner id %d\n",
+						 __func__, rc, id);
+					kfree(nowner_sid_ptr);
+					return rc;
+				}
 			}
 			cifs_copy_sid(owner_sid_ptr, nowner_sid_ptr);
 			kfree(nowner_sid_ptr);
@@ -1061,12 +1072,23 @@ static int build_sec_desc(struct cifs_ntsd *pntsd, struct cifs_ntsd *pnntsd,
 			if (!ngroup_sid_ptr)
 				return -ENOMEM;
 			id = from_kgid(&init_user_ns, gid);
-			rc = id_to_sid(id, SIDGROUP, ngroup_sid_ptr);
-			if (rc) {
-				cifs_dbg(FYI, "%s: Mapping error %d for group id %d\n",
-					 __func__, rc, id);
-				kfree(ngroup_sid_ptr);
-				return rc;
+			if (id_from_sid) {
+				struct owner_sid *gsid = (struct owner_sid *)ngroup_sid_ptr;
+				/* Populate the group ownership fields S-1-5-88-2 */
+				gsid->Revision = 1;
+				gsid->NumAuth = 3;
+				gsid->Authority[5] = 5;
+				gsid->SubAuthorities[0] = cpu_to_le32(88);
+				gsid->SubAuthorities[1] = cpu_to_le32(2);
+				gsid->SubAuthorities[2] = cpu_to_le32(id);
+			} else { /* lookup sid with upcall */
+				rc = id_to_sid(id, SIDGROUP, ngroup_sid_ptr);
+				if (rc) {
+					cifs_dbg(FYI, "%s: Mapping error %d for group id %d\n",
+						 __func__, rc, id);
+					kfree(ngroup_sid_ptr);
+					return rc;
+				}
 			}
 			cifs_copy_sid(group_sid_ptr, ngroup_sid_ptr);
 			kfree(ngroup_sid_ptr);
@@ -1269,7 +1291,7 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = cifs_sb_tlink(cifs_sb);
 	struct smb_version_operations *ops;
-	bool mode_from_sid;
+	bool mode_from_sid, id_from_sid;
 
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
@@ -1312,8 +1334,13 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 	else
 		mode_from_sid = false;
 
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UID_FROM_ACL)
+		id_from_sid = true;
+	else
+		id_from_sid = false;
+
 	rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
-			    mode_from_sid, &aclflag);
+			    mode_from_sid, id_from_sid, &aclflag);
 
 	cifs_dbg(NOISY, "build_sec_desc rc: %d\n", rc);
 
