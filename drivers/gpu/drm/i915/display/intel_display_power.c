@@ -5240,10 +5240,10 @@ struct buddy_page_mask {
 };
 
 static const struct buddy_page_mask tgl_buddy_page_masks[] = {
-	{ .num_channels = 1, .type = INTEL_DRAM_LPDDR4, .page_mask = 0xE },
 	{ .num_channels = 1, .type = INTEL_DRAM_DDR4,   .page_mask = 0xF },
 	{ .num_channels = 2, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x1C },
 	{ .num_channels = 2, .type = INTEL_DRAM_DDR4,   .page_mask = 0x1F },
+	{ .num_channels = 4, .type = INTEL_DRAM_LPDDR4, .page_mask = 0x38 },
 	{}
 };
 
