@@ -44,6 +44,7 @@
 					reg = <0x0>;
 					interrupt-parent = <&gpio>;
 					interrupts = <TEGRA194_MAIN_GPIO(G, 4) IRQ_TYPE_LEVEL_LOW>;
+					#phy-cells = <0>;
 				};
 			};
 		};
