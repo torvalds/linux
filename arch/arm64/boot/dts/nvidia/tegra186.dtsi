@@ -776,9 +776,9 @@
 		compatible = "nvidia,tegra186-pcie";
 		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_PCX>;
 		device_type = "pci";
-		reg = <0x0 0x10003000 0x0 0x00000800   /* PADS registers */
-		       0x0 0x10003800 0x0 0x00000800   /* AFI registers */
-		       0x0 0x40000000 0x0 0x10000000>; /* configuration space */
+		reg = <0x0 0x10003000 0x0 0x00000800>, /* PADS registers */
+		      <0x0 0x10003800 0x0 0x00000800>, /* AFI registers */
+		      <0x0 0x40000000 0x0 0x10000000>; /* configuration space */
 		reg-names = "pads", "afi", "cs";
 
 		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>, /* controller interrupt */
@@ -793,12 +793,12 @@
 		#address-cells = <3>;
 		#size-cells = <2>;
 
-		ranges = <0x82000000 0 0x10000000 0x0 0x10000000 0 0x00001000   /* port 0 configuration space */
-			  0x82000000 0 0x10001000 0x0 0x10001000 0 0x00001000   /* port 1 configuration space */
-			  0x82000000 0 0x10004000 0x0 0x10004000 0 0x00001000   /* port 2 configuration space */
-			  0x81000000 0 0x0        0x0 0x50000000 0 0x00010000   /* downstream I/O (64 KiB) */
-			  0x82000000 0 0x50100000 0x0 0x50100000 0 0x07F00000   /* non-prefetchable memory (127 MiB) */
-			  0xc2000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
+		ranges = <0x02000000 0 0x10000000 0x0 0x10000000 0 0x00001000>, /* port 0 configuration space */
+			 <0x02000000 0 0x10001000 0x0 0x10001000 0 0x00001000>,/* port 1 configuration space */
+			 <0x02000000 0 0x10004000 0x0 0x10004000 0 0x00001000>, /* port 2 configuration space */
+			 <0x01000000 0 0x0        0x0 0x50000000 0 0x00010000>, /* downstream I/O (64 KiB) */
+			 <0x02000000 0 0x50100000 0x0 0x50100000 0 0x07f00000>, /* non-prefetchable memory (127 MiB) */
+			 <0x42000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
 
 		clocks = <&bpmp TEGRA186_CLK_AFI>,
 			 <&bpmp TEGRA186_CLK_PCIE>,

@@ -1387,7 +1387,8 @@
 			spmic-default-output-high {
 				gpio-hog;
 				output-high;
-				gpios = <2 GPIO_ACTIVE_HIGH 7 GPIO_ACTIVE_HIGH>;
+				gpios = <2 GPIO_ACTIVE_HIGH>,
+					<7 GPIO_ACTIVE_HIGH>;
 			};
 
 			fps {
