@@ -1093,12 +1093,12 @@ static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
-static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
-	const struct intel_community *community)
+static int intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
+					    const struct intel_community *community)
 {
 	struct gpio_chip *gc = &pctrl->chip;
-	irqreturn_t ret = IRQ_NONE;
-	int gpp;
+	unsigned int gpp;
+	int ret = 0;
 
 	for (gpp = 0; gpp < community->ngpps; gpp++) {
 		const struct intel_padgroup *padgrp = &community->gpps[gpp];
@@ -1118,9 +1118,9 @@ static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 			irq = irq_find_mapping(gc->irq.domain,
 					       padgrp->gpio_base + gpp_offset);
 			generic_handle_irq(irq);
-
-			ret |= IRQ_HANDLED;
 		}
+
+		ret += pending ? 1 : 0;
 	}
 
 	return ret;
@@ -1130,16 +1130,16 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 {
 	const struct intel_community *community;
 	struct intel_pinctrl *pctrl = data;
-	irqreturn_t ret = IRQ_NONE;
-	int i;
+	unsigned int i;
+	int ret = 0;
 
 	/* Need to check all communities for pending interrupts */
 	for (i = 0; i < pctrl->ncommunities; i++) {
 		community = &pctrl->communities[i];
-		ret |= intel_gpio_community_irq_handler(pctrl, community);
+		ret += intel_gpio_community_irq_handler(pctrl, community);
 	}
 
-	return ret;
+	return IRQ_RETVAL(ret);
 }
 
 static int intel_gpio_add_community_ranges(struct intel_pinctrl *pctrl,
