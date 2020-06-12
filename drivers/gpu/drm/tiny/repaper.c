@@ -88,7 +88,6 @@ struct repaper_epd {
 	u8 *line_buffer;
 	void *current_frame;
 
-	bool enabled;
 	bool cleared;
 	bool partial;
 };
@@ -538,9 +537,6 @@ static int repaper_fb_dirty(struct drm_framebuffer *fb)
 	int idx, ret = 0;
 	u8 *buf = NULL;
 
-	if (!epd->enabled)
-		return 0;
-
 	if (!drm_dev_enter(fb->dev, &idx))
 		return -ENODEV;
 
@@ -786,7 +782,6 @@ static void repaper_pipe_enable(struct drm_simple_display_pipe *pipe,
 	 */
 	repaper_write_val(spi, 0x02, 0x04);
 
-	epd->enabled = true;
 	epd->partial = false;
 out_exit:
 	drm_dev_exit(idx);
@@ -805,12 +800,7 @@ static void repaper_pipe_disable(struct drm_simple_display_pipe *pipe)
 	 * unplug.
 	 */
 
-	if (!epd->enabled)
-		return;
-
 	DRM_DEBUG_DRIVER("\n");
-
-	epd->enabled = false;
 
 	/* Nothing frame */
 	for (line = 0; line < epd->height; line++)
@@ -858,6 +848,9 @@ static void repaper_pipe_update(struct drm_simple_display_pipe *pipe,
 {
 	struct drm_plane_state *state = pipe->plane.state;
 	struct drm_rect rect;
+
+	if (!pipe->crtc.state->active)
+		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
 		repaper_fb_dirty(state->fb);
