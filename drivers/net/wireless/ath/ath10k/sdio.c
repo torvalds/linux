@@ -1083,10 +1083,10 @@ static void ath10k_sdio_set_mbox_info(struct ath10k *ar)
 
 	mbox_info->ext_info[0].htc_ext_addr = ATH10K_HIF_MBOX0_EXT_BASE_ADDR;
 
-	dev_id_base = FIELD_GET(QCA_MANUFACTURER_ID_BASE, device);
-	dev_id_chiprev = FIELD_GET(QCA_MANUFACTURER_ID_REV_MASK, device);
+	dev_id_base = (device & 0x0F00);
+	dev_id_chiprev = (device & 0x00FF);
 	switch (dev_id_base) {
-	case QCA_MANUFACTURER_ID_AR6005_BASE:
+	case (SDIO_DEVICE_ID_ATHEROS_AR6005 & 0x0F00):
 		if (dev_id_chiprev < 4)
 			mbox_info->ext_info[0].htc_ext_sz =
 				ATH10K_HIF_MBOX0_EXT_WIDTH;
@@ -1097,7 +1097,7 @@ static void ath10k_sdio_set_mbox_info(struct ath10k *ar)
 			mbox_info->ext_info[0].htc_ext_sz =
 				ATH10K_HIF_MBOX0_EXT_WIDTH_ROME_2_0;
 		break;
-	case QCA_MANUFACTURER_ID_QCA9377_BASE:
+	case (SDIO_DEVICE_ID_ATHEROS_QCA9377 & 0x0F00):
 		mbox_info->ext_info[0].htc_ext_sz =
 			ATH10K_HIF_MBOX0_EXT_WIDTH_ROME_2_0;
 		break;
@@ -2185,19 +2185,16 @@ static int ath10k_sdio_probe(struct sdio_func *func,
 	skb_queue_head_init(&ar_sdio->rx_head);
 	INIT_WORK(&ar_sdio->async_work_rx, ath10k_rx_indication_async_work);
 
-	dev_id_base = FIELD_GET(QCA_MANUFACTURER_ID_BASE, id->device);
-	switch (dev_id_base) {
-	case QCA_MANUFACTURER_ID_AR6005_BASE:
-	case QCA_MANUFACTURER_ID_QCA9377_BASE:
-		ar->dev_id = QCA9377_1_0_DEVICE_ID;
-		break;
-	default:
+	dev_id_base = (id->device & 0x0F00);
+	if (dev_id_base != (SDIO_DEVICE_ID_ATHEROS_AR6005 & 0x0F00) &&
+	    dev_id_base != (SDIO_DEVICE_ID_ATHEROS_QCA9377 & 0x0F00)) {
 		ret = -ENODEV;
 		ath10k_err(ar, "unsupported device id %u (0x%x)\n",
 			   dev_id_base, id->device);
 		goto err_free_wq;
 	}
 
+	ar->dev_id = QCA9377_1_0_DEVICE_ID;
 	ar->id.vendor = id->vendor;
 	ar->id.device = id->device;
 
@@ -2246,10 +2243,8 @@ static void ath10k_sdio_remove(struct sdio_func *func)
 }
 
 static const struct sdio_device_id ath10k_sdio_devices[] = {
-	{SDIO_DEVICE(QCA_MANUFACTURER_CODE,
-		     (QCA_SDIO_ID_AR6005_BASE | 0xA))},
-	{SDIO_DEVICE(QCA_MANUFACTURER_CODE,
-		     (QCA_SDIO_ID_QCA9377_BASE | 0x1))},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_AR6005)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_ATHEROS, SDIO_DEVICE_ID_ATHEROS_QCA9377)},
 	{},
 };
 

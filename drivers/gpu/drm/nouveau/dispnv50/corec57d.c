@@ -46,6 +46,7 @@ static const struct nv50_core_func
 corec57d = {
 	.init = corec57d_init,
 	.ntfy_init = corec37d_ntfy_init,
+	.caps_init = corec37d_caps_init,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
 	.wndw.owner = corec37d_wndw_owner,

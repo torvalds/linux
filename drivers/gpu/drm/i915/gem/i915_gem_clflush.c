@@ -108,7 +108,7 @@ bool i915_gem_clflush_object(struct drm_i915_gem_object *obj,
 	if (clflush) {
 		i915_sw_fence_await_reservation(&clflush->base.chain,
 						obj->base.resv, NULL, true,
-						I915_FENCE_TIMEOUT,
+						i915_fence_timeout(to_i915(obj->base.dev)),
 						I915_FENCE_GFP);
 		dma_resv_add_excl_fence(obj->base.resv, &clflush->base.dma);
 		dma_fence_work_commit(&clflush->base);

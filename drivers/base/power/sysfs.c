@@ -666,7 +666,7 @@ int dpm_sysfs_add(struct device *dev)
 	if (rc)
 		return rc;
 
-	if (pm_runtime_callbacks_present(dev)) {
+	if (!pm_runtime_has_no_callbacks(dev)) {
 		rc = sysfs_merge_group(&dev->kobj, &pm_runtime_attr_group);
 		if (rc)
 			goto err_out;
@@ -709,7 +709,7 @@ int dpm_sysfs_change_owner(struct device *dev, kuid_t kuid, kgid_t kgid)
 	if (rc)
 		return rc;
 
-	if (pm_runtime_callbacks_present(dev)) {
+	if (!pm_runtime_has_no_callbacks(dev)) {
 		rc = sysfs_group_change_owner(
 			&dev->kobj, &pm_runtime_attr_group, kuid, kgid);
 		if (rc)

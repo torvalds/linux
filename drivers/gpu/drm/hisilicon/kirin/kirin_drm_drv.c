@@ -219,40 +219,6 @@ static int kirin_drm_kms_cleanup(struct drm_device *dev)
 	return 0;
 }
 
-static int kirin_drm_connectors_register(struct drm_device *dev)
-{
-	struct drm_connector *connector;
-	struct drm_connector *failed_connector;
-	struct drm_connector_list_iter conn_iter;
-	int ret;
-
-	mutex_lock(&dev->mode_config.mutex);
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		ret = drm_connector_register(connector);
-		if (ret) {
-			failed_connector = connector;
-			goto err;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return 0;
-
-err:
-	drm_connector_list_iter_begin(dev, &conn_iter);
-	drm_for_each_connector_iter(connector, &conn_iter) {
-		if (failed_connector == connector)
-			break;
-		drm_connector_unregister(connector);
-	}
-	drm_connector_list_iter_end(&conn_iter);
-	mutex_unlock(&dev->mode_config.mutex);
-
-	return ret;
-}
-
 static int kirin_drm_bind(struct device *dev)
 {
 	struct kirin_drm_data *driver_data;
@@ -279,17 +245,8 @@ static int kirin_drm_bind(struct device *dev)
 
 	drm_fbdev_generic_setup(drm_dev, 32);
 
-	/* connectors should be registered after drm device register */
-	if (driver_data->register_connects) {
-		ret = kirin_drm_connectors_register(drm_dev);
-		if (ret)
-			goto err_drm_dev_unregister;
-	}
-
 	return 0;
 
-err_drm_dev_unregister:
-	drm_dev_unregister(drm_dev);
 err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
 err_drm_dev_put:

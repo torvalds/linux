@@ -50,7 +50,7 @@ static inline void submit_dmub_read_modify_write(
 	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
 
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
 
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
 
@@ -73,7 +73,7 @@ static inline void submit_dmub_burst_write(
 	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
 
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
 
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = gather;
 
@@ -92,7 +92,7 @@ static inline void submit_dmub_reg_wait(
 	gather = ctx->dmub_srv->reg_helper_offload.gather_in_progress;
 	ctx->dmub_srv->reg_helper_offload.gather_in_progress = false;
 
-	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &cmd_buf->header);
+	dc_dmub_srv_cmd_queue(ctx->dmub_srv, &offload->cmd_data);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;

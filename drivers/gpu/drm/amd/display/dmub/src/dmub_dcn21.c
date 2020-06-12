@@ -23,7 +23,7 @@
  *
  */
 
-#include "../inc/dmub_srv.h"
+#include "../dmub_srv.h"
 #include "dmub_reg.h"
 #include "dmub_dcn21.h"
 

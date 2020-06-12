@@ -32,13 +32,15 @@
 
 #include "asic_reg/mp/mp_12_0_0_offset.h"
 #include "asic_reg/mp/mp_12_0_0_sh_mask.h"
+#include "asic_reg/smuio/smuio_12_0_0_offset.h"
+#include "asic_reg/smuio/smuio_12_0_0_sh_mask.h"
+
+// because some SMU12 based ASICs use older ip offset tables
+// we should undefine this register from the smuio12 header
+// to prevent confusion down the road
+#undef mmPWR_MISC_CNTL_STATUS
 
 #define smnMP1_FIRMWARE_FLAGS                                0x3010024
-
-#define mmSMUIO_GFX_MISC_CNTL                                0x00c8
-#define mmSMUIO_GFX_MISC_CNTL_BASE_IDX                       0
-#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS_MASK          0x00000006L
-#define SMUIO_GFX_MISC_CNTL__PWR_GFXOFF_STATUS__SHIFT        0x1
 
 int smu_v12_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
@@ -158,10 +160,10 @@ int smu_v12_0_check_fw_version(struct smu_context *smu)
 	 * Considering above, we just leave user a warning message instead
 	 * of halt driver loading.
 	 */
-	if (if_version != smu->smc_if_version) {
+	if (if_version != smu->smc_driver_if_version) {
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
-			smu->smc_if_version, if_version,
+			smu->smc_driver_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
 		pr_warn("SMU driver if version not matched\n");
 	}

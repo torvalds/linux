@@ -2237,6 +2237,7 @@ F:	drivers/*/qcom*
 F:	drivers/*/qcom/
 F:	drivers/bluetooth/btqcomsmd.c
 F:	drivers/clocksource/timer-qcom.c
+F:	drivers/cpuidle/cpuidle-qcom-spm.c
 F:	drivers/extcon/extcon-qcom*
 F:	drivers/i2c/busses/i2c-qcom-geni.c
 F:	drivers/i2c/busses/i2c-qup.c
@@ -5061,7 +5062,7 @@ F:	drivers/dma-buf/
 F:	include/linux/*fence.h
 F:	include/linux/dma-buf*
 F:	include/linux/dma-resv.h
-K:	dma_(buf|fence|resv)
+K:	\bdma_(?:buf|fence|resv)\b
 
 DMA GENERIC OFFLOAD ENGINE SUBSYSTEM
 M:	Vinod Koul <vkoul@kernel.org>
@@ -5273,7 +5274,7 @@ DRM DRIVER FOR ARM VERSATILE TFT PANELS
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.txt
+F:	Documentation/devicetree/bindings/display/panel/arm,versatile-tft-panel.yaml
 F:	drivers/gpu/drm/panel/panel-arm-versatile.c
 
 DRM DRIVER FOR ASPEED BMC GFX
@@ -5299,7 +5300,7 @@ F:	drivers/gpu/drm/bochs/
 DRM DRIVER FOR BOE HIMAX8279D PANELS
 M:	Jerry Han <hanxu5@huaqin.corp-partner.google.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/boe,himax8279d.txt
+F:	Documentation/devicetree/bindings/display/panel/boe,himax8279d.yaml
 F:	drivers/gpu/drm/panel/panel-boe-himax8279d.c
 
 DRM DRIVER FOR FARADAY TVE200 TV ENCODER
@@ -5317,7 +5318,7 @@ F:	drivers/gpu/drm/panel/panel-feixin-k101-im2ba02.c
 DRM DRIVER FOR FEIYANG FY07024DI26A30-D MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.txt
+F:	Documentation/devicetree/bindings/display/panel/feiyang,fy07024di26a30d.yaml
 F:	drivers/gpu/drm/panel/panel-feiyang-fy07024di26a30d.c
 
 DRM DRIVER FOR GRAIN MEDIA GM12U320 PROJECTORS
@@ -5351,6 +5352,14 @@ DRM DRIVER FOR INTEL I810 VIDEO CARDS
 S:	Orphan / Obsolete
 F:	drivers/gpu/drm/i810/
 F:	include/uapi/drm/i810_drm.h
+
+DRM DRIVER FOR LVDS PANELS
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	dri-devel@lists.freedesktop.org
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+S:	Maintained
+F:	drivers/gpu/drm/panel/panel-lvds.c
+F:	Documentation/devicetree/bindings/display/panel/lvds.yaml
 
 DRM DRIVER FOR MATROX G200/G400 GRAPHICS CARDS
 S:	Orphan / Obsolete
@@ -5400,7 +5409,7 @@ F:	include/uapi/drm/nouveau_drm.h
 DRM DRIVER FOR OLIMEX LCD-OLINUXINO PANELS
 M:	Stefan Mavrodiev <stefan@olimex.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.txt
+F:	Documentation/devicetree/bindings/display/panel/olimex,lcd-olinuxino.yaml
 F:	drivers/gpu/drm/panel/panel-olimex-lcd-olinuxino.c
 
 DRM DRIVER FOR PERVASIVE DISPLAYS REPAPER PANELS
@@ -5417,7 +5426,7 @@ L:	virtualization@lists.linux-foundation.org
 S:	Obsolete
 W:	https://www.kraxel.org/blog/2014/10/qemu-using-cirrus-considered-harmful/
 T:	git git://anongit.freedesktop.org/drm/drm-misc
-F:	drivers/gpu/drm/cirrus/
+F:	drivers/gpu/drm/tiny/cirrus.c
 
 DRM DRIVER FOR QXL VIRTUAL GPU
 M:	Dave Airlie <airlied@redhat.com>
@@ -5467,7 +5476,7 @@ F:	drivers/gpu/drm/tiny/st7586.c
 DRM DRIVER FOR SITRONIX ST7701 PANELS
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
-F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.txt
+F:	Documentation/devicetree/bindings/display/panel/sitronix,st7701.yaml
 F:	drivers/gpu/drm/panel/panel-sitronix-st7701.c
 
 DRM DRIVER FOR SITRONIX ST7735R PANELS
@@ -6733,6 +6742,13 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/crypto/fsl-sec4.txt
 F:	drivers/crypto/caam/
 
+FREESCALE COLDFIRE M5441X MMC DRIVER
+M:	Angelo Dureghello <angelo.dureghello@timesys.com>
+L:	linux-mmc@vger.kernel.org
+S:	Maintained
+F:	drivers/mmc/host/sdhci-esdhc-mcf.c
+F:	include/linux/platform_data/mmc-esdhc-mcf.h
+
 FREESCALE DIU FRAMEBUFFER DRIVER
 M:	Timur Tabi <timur@kernel.org>
 L:	linux-fbdev@vger.kernel.org
@@ -7760,7 +7776,9 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	Documentation/vm/hmm.rst
 F:	include/linux/hmm*
+F:	lib/test_hmm*
 F:	mm/hmm*
+F:	tools/testing/selftests/vm/*hmm*
 
 HOST AP DRIVER
 M:	Jouni Malinen <j@w1.fi>
@@ -8522,6 +8540,13 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel_atomisp2_pm.c
 
+INTEL BROXTON PMC DRIVER
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+M:	Zha Qipeng <qipeng.zha@intel.com>
+S:	Maintained
+F:	drivers/mfd/intel_pmc_bxt.c
+F:	include/linux/mfd/intel_pmc_bxt.h
+
 INTEL C600 SERIES SAS CONTROLLER DRIVER
 M:	Intel SCU Linux support <intel-linux-scu@intel.com>
 M:	Artur Paszkiewicz <artur.paszkiewicz@intel.com>
@@ -8729,21 +8754,19 @@ F:	include/uapi/linux/mic_common.h
 F:	include/uapi/linux/mic_ioctl.h
 F:	include/uapi/linux/scif_ioctl.h
 
+INTEL P-Unit IPC DRIVER
+M:	Zha Qipeng <qipeng.zha@intel.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	arch/x86/include/asm/intel_punit_ipc.h
+F:	drivers/platform/x86/intel_punit_ipc.c
+
 INTEL PMC CORE DRIVER
 M:	Rajneesh Bhardwaj <rajneesh.bhardwaj@intel.com>
 M:	Vishwanath Somayaji <vishwanath.somayaji@intel.com>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/intel_pmc_core*
-
-INTEL PMC/P-Unit IPC DRIVER
-M:	Zha Qipeng<qipeng.zha@intel.com>
-L:	platform-driver-x86@vger.kernel.org
-S:	Maintained
-F:	arch/x86/include/asm/intel_pmc_ipc.h
-F:	arch/x86/include/asm/intel_punit_ipc.h
-F:	drivers/platform/x86/intel_pmc_ipc.c
-F:	drivers/platform/x86/intel_punit_ipc.c
 
 INTEL PMIC GPIO DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
@@ -8782,6 +8805,12 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/i40iw/
 F:	include/uapi/rdma/i40iw-abi.h
+
+INTEL SCU DRIVERS
+M:	Mika Westerberg <mika.westerberg@linux.intel.com>
+S:	Maintained
+F:	arch/x86/include/asm/intel_scu_ipc.h
+F:	drivers/platform/x86/intel_scu_*
 
 INTEL SPEED SELECT TECHNOLOGY
 M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
@@ -8848,6 +8877,13 @@ W:	http://linuxwimax.org
 F:	Documentation/admin-guide/wimax/i2400m.rst
 F:	drivers/net/wimax/i2400m/
 F:	include/uapi/linux/wimax/i2400m.h
+
+INTEL WMI SLIM BOOTLOADER (SBL) FIRMWARE UPDATE DRIVER
+M:	Jithu Joseph <jithu.joseph@intel.com>
+R:	Maurice Ma <maurice.ma@intel.com>
+S:	Maintained
+W:	https://slimbootloader.github.io/security/firmware-update.html
+F:	drivers/platform/x86/intel-wmi-sbl-fw-update.c
 
 INTEL WMI THUNDERBOLT FORCE POWER DRIVER
 M:	Mario Limonciello <mario.limonciello@dell.com>
@@ -14119,7 +14155,6 @@ F:	drivers/net/wireless/quantenna
 RADEON and AMDGPU DRM DRIVERS
 M:	Alex Deucher <alexander.deucher@amd.com>
 M:	Christian König <christian.koenig@amd.com>
-M:	David (ChunMing) Zhou <David1.Zhou@amd.com>
 L:	amd-gfx@lists.freedesktop.org
 S:	Supported
 T:	git git://people.freedesktop.org/~agd5f/linux

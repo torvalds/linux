@@ -54,6 +54,8 @@ static struct i915_vma *create_wally(struct intel_engine_cs *engine)
 	*cs++ = STACK_MAGIC;
 
 	*cs++ = MI_BATCH_BUFFER_END;
+
+	i915_gem_object_flush_map(obj);
 	i915_gem_object_unpin_map(obj);
 
 	vma->private = intel_context_create(engine); /* dummy residuals */

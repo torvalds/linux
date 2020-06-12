@@ -22,6 +22,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/reboot.h>
 
 #include "hwmgr.h"
 #include "pp_debug.h"
@@ -557,7 +558,9 @@ void phm_apply_dal_min_voltage_request(struct pp_hwmgr *hwmgr)
 		if (req_vddc <= vddc_table->entries[i].vddc) {
 			req_volt = (((uint32_t)vddc_table->entries[i].vddc) * VOLTAGE_SCALE);
 			smum_send_msg_to_smc_with_parameter(hwmgr,
-					PPSMC_MSG_VddC_Request, req_volt);
+					PPSMC_MSG_VddC_Request,
+					req_volt,
+					NULL);
 			return;
 		}
 	}
@@ -593,37 +596,43 @@ int phm_irq_process(struct amdgpu_device *adev,
 	uint32_t src_id = entry->src_id;
 
 	if (client_id == AMDGPU_IRQ_CLIENTID_LEGACY) {
-		if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH)
-			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
-						PCI_BUS_NUM(adev->pdev->devfn),
-						PCI_SLOT(adev->pdev->devfn),
-						PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW)
-			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
-					PCI_BUS_NUM(adev->pdev->devfn),
-					PCI_SLOT(adev->pdev->devfn),
-					PCI_FUNC(adev->pdev->devfn));
-		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19)
-			pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
-					PCI_BUS_NUM(adev->pdev->devfn),
-					PCI_SLOT(adev->pdev->devfn),
-					PCI_FUNC(adev->pdev->devfn));
+		if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_LOW_TO_HIGH) {
+			dev_emerg(adev->dev, "ERROR: GPU over temperature range(SW CTF) detected!\n");
+			/*
+			 * SW CTF just occurred.
+			 * Try to do a graceful shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU SW CTF!\n");
+			orderly_poweroff(true);
+		} else if (src_id == VISLANDS30_IV_SRCID_CG_TSS_THERMAL_HIGH_TO_LOW)
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range detected!\n");
+		else if (src_id == VISLANDS30_IV_SRCID_GPIO_19) {
+			dev_emerg(adev->dev, "ERROR: GPU HW Critical Temperature Fault(aka CTF) detected!\n");
+			/*
+			 * HW CTF just occurred. Shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU HW CTF!\n");
+			orderly_poweroff(true);
+		}
 	} else if (client_id == SOC15_IH_CLIENTID_THM) {
-		if (src_id == 0)
-			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
-						PCI_BUS_NUM(adev->pdev->devfn),
-						PCI_SLOT(adev->pdev->devfn),
-						PCI_FUNC(adev->pdev->devfn));
-		else
-			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
-					PCI_BUS_NUM(adev->pdev->devfn),
-					PCI_SLOT(adev->pdev->devfn),
-					PCI_FUNC(adev->pdev->devfn));
-	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO)
-		pr_warn("GPU Critical Temperature Fault detected on PCIe %d:%d.%d!\n",
-				PCI_BUS_NUM(adev->pdev->devfn),
-				PCI_SLOT(adev->pdev->devfn),
-				PCI_FUNC(adev->pdev->devfn));
+		if (src_id == 0) {
+			dev_emerg(adev->dev, "ERROR: GPU over temperature range(SW CTF) detected!\n");
+			/*
+			 * SW CTF just occurred.
+			 * Try to do a graceful shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU SW CTF!\n");
+			orderly_poweroff(true);
+		} else
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range detected!\n");
+	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO) {
+		dev_emerg(adev->dev, "ERROR: GPU HW Critical Temperature Fault(aka CTF) detected!\n");
+		/*
+		 * HW CTF just occurred. Shutdown to prevent further damage.
+		 */
+		dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU HW CTF!\n");
+		orderly_poweroff(true);
+	}
 
 	return 0;
 }

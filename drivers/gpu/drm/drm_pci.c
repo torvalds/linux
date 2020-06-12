@@ -30,11 +30,12 @@
 #include <drm/drm.h>
 #include <drm/drm_agpsupport.h>
 #include <drm/drm_drv.h>
-#include <drm/drm_pci.h>
 #include <drm/drm_print.h>
 
 #include "drm_internal.h"
 #include "drm_legacy.h"
+
+#ifdef CONFIG_DRM_LEGACY
 
 /**
  * drm_pci_alloc - Allocate a PCI consistent memory block, for DMA.
@@ -93,6 +94,7 @@ void drm_pci_free(struct drm_device * dev, drm_dma_handle_t * dmah)
 }
 
 EXPORT_SYMBOL(drm_pci_free);
+#endif
 
 static int drm_get_pci_domain(struct drm_device *dev)
 {

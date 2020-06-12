@@ -119,7 +119,7 @@ examples:
         panel@0 {
                 compatible = "bananapi,lhr050h41", "ilitek,ili9881c";
                 reg = <0>;
-                power-gpios = <&pio 1 7 0>; /* PB07 */
+                power-supply = <&reg_display>;
                 reset-gpios = <&r_pio 0 5 1>; /* PL05 */
                 backlight = <&pwm_bl>;
         };

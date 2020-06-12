@@ -199,8 +199,6 @@ int __i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_object_has_pinned_pages(obj))
 		return -EBUSY;
 
-	GEM_BUG_ON(atomic_read(&obj->bind_count));
-
 	/* May be called by shrinker from within get_pages() (on another bo) */
 	mutex_lock(&obj->mm.lock);
 	if (unlikely(atomic_read(&obj->mm.pages_pin_count))) {
@@ -393,6 +391,7 @@ void __i915_gem_object_flush_map(struct drm_i915_gem_object *obj,
 	GEM_BUG_ON(range_overflows_t(typeof(obj->base.size),
 				     offset, size, obj->base.size));
 
+	wmb(); /* let all previous writes be visible to coherent partners */
 	obj->mm.dirty = true;
 
 	if (obj->cache_coherent & I915_BO_CACHE_COHERENT_FOR_WRITE)

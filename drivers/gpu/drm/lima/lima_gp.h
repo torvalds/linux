@@ -7,6 +7,8 @@
 struct lima_ip;
 struct lima_device;
 
+int lima_gp_resume(struct lima_ip *ip);
+void lima_gp_suspend(struct lima_ip *ip);
 int lima_gp_init(struct lima_ip *ip);
 void lima_gp_fini(struct lima_ip *ip);
 

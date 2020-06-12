@@ -275,7 +275,7 @@ static int pciehp_suspend(struct pcie_device *dev)
 	 * If the port is already runtime suspended we can keep it that
 	 * way.
 	 */
-	if (dev_pm_smart_suspend_and_suspended(&dev->port->dev))
+	if (dev_pm_skip_suspend(&dev->port->dev))
 		return 0;
 
 	pciehp_disable_interrupt(dev);

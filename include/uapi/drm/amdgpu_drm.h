@@ -133,6 +133,11 @@ extern "C" {
  * releasing the memory
  */
 #define AMDGPU_GEM_CREATE_VRAM_WIPE_ON_RELEASE	(1 << 9)
+/* Flag that BO will be encrypted and that the TMZ bit should be
+ * set in the PTEs when mapping this buffer via GPUVM or
+ * accessing it with various hw blocks
+ */
+#define AMDGPU_GEM_CREATE_ENCRYPTED		(1 << 10)
 
 struct drm_amdgpu_gem_create_in  {
 	/** the requested memory size */
@@ -559,7 +564,7 @@ struct drm_amdgpu_cs_in {
 	/**  Handle of resource list associated with CS */
 	__u32		bo_list_handle;
 	__u32		num_chunks;
-	__u32		_pad;
+	__u32		flags;
 	/** this points to __u64 * which point to cs chunks */
 	__u64		chunks;
 };
@@ -592,6 +597,14 @@ union drm_amdgpu_cs {
  * This will reset wave ID counters for the IB.
  */
 #define AMDGPU_IB_FLAG_RESET_GDS_MAX_WAVE_ID (1 << 4)
+
+/* Flag the IB as secure (TMZ)
+ */
+#define AMDGPU_IB_FLAGS_SECURE  (1 << 5)
+
+/* Tell KMD to flush and invalidate caches
+ */
+#define AMDGPU_IB_FLAG_EMIT_MEM_SYNC  (1 << 6)
 
 struct drm_amdgpu_cs_chunk_ib {
 	__u32 _pad;

@@ -250,6 +250,11 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 		list_add_tail(&lsf->head, &acr->lsf);
 	}
 
+	/* Ensure the falcon that'll provide ACR functions is booted first. */
+	lsf = nvkm_acr_falcon(device);
+	if (lsf)
+		list_move(&lsf->head, &acr->lsf);
+
 	if (!acr->wpr_fw || acr->wpr_comp)
 		wpr_size = acr->func->wpr_layout(acr);
 

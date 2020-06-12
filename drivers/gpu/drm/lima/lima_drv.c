@@ -5,23 +5,29 @@
 #include <linux/of_platform.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/pm_runtime.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_prime.h>
 #include <drm/lima_drm.h>
 
+#include "lima_device.h"
 #include "lima_drv.h"
 #include "lima_gem.h"
 #include "lima_vm.h"
 
 int lima_sched_timeout_ms;
 uint lima_heap_init_nr_pages = 8;
+uint lima_max_error_tasks;
 
 MODULE_PARM_DESC(sched_timeout_ms, "task run timeout in ms");
 module_param_named(sched_timeout_ms, lima_sched_timeout_ms, int, 0444);
 
 MODULE_PARM_DESC(heap_init_nr_pages, "heap buffer init number of pages");
 module_param_named(heap_init_nr_pages, lima_heap_init_nr_pages, uint, 0444);
+
+MODULE_PARM_DESC(max_error_tasks, "max number of error tasks to save");
+module_param_named(max_error_tasks, lima_max_error_tasks, uint, 0644);
 
 static int lima_ioctl_get_param(struct drm_device *dev, void *data, struct drm_file *file)
 {
@@ -272,6 +278,93 @@ static struct drm_driver lima_drm_driver = {
 	.gem_prime_mmap = drm_gem_prime_mmap,
 };
 
+struct lima_block_reader {
+	void *dst;
+	size_t base;
+	size_t count;
+	size_t off;
+	ssize_t read;
+};
+
+static bool lima_read_block(struct lima_block_reader *reader,
+			    void *src, size_t src_size)
+{
+	size_t max_off = reader->base + src_size;
+
+	if (reader->off < max_off) {
+		size_t size = min_t(size_t, max_off - reader->off,
+				    reader->count);
+
+		memcpy(reader->dst, src + (reader->off - reader->base), size);
+
+		reader->dst += size;
+		reader->off += size;
+		reader->read += size;
+		reader->count -= size;
+	}
+
+	reader->base = max_off;
+
+	return !!reader->count;
+}
+
+static ssize_t lima_error_state_read(struct file *filp, struct kobject *kobj,
+				     struct bin_attribute *attr, char *buf,
+				     loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	struct lima_sched_error_task *et;
+	struct lima_block_reader reader = {
+		.dst = buf,
+		.count = count,
+		.off = off,
+	};
+
+	mutex_lock(&ldev->error_task_list_lock);
+
+	if (lima_read_block(&reader, &ldev->dump, sizeof(ldev->dump))) {
+		list_for_each_entry(et, &ldev->error_task_list, list) {
+			if (!lima_read_block(&reader, et->data, et->size))
+				break;
+		}
+	}
+
+	mutex_unlock(&ldev->error_task_list_lock);
+	return reader.read;
+}
+
+static ssize_t lima_error_state_write(struct file *file, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct lima_device *ldev = dev_get_drvdata(dev);
+	struct lima_sched_error_task *et, *tmp;
+
+	mutex_lock(&ldev->error_task_list_lock);
+
+	list_for_each_entry_safe(et, tmp, &ldev->error_task_list, list) {
+		list_del(&et->list);
+		kvfree(et);
+	}
+
+	ldev->dump.size = 0;
+	ldev->dump.num_tasks = 0;
+
+	mutex_unlock(&ldev->error_task_list_lock);
+
+	return count;
+}
+
+static const struct bin_attribute lima_error_state_attr = {
+	.attr.name = "error",
+	.attr.mode = 0600,
+	.size = 0,
+	.read = lima_error_state_read,
+	.write = lima_error_state_write,
+};
+
 static int lima_pdev_probe(struct platform_device *pdev)
 {
 	struct lima_device *ldev;
@@ -288,7 +381,6 @@ static int lima_pdev_probe(struct platform_device *pdev)
 		goto err_out0;
 	}
 
-	ldev->pdev = pdev;
 	ldev->dev = &pdev->dev;
 	ldev->id = (enum lima_gpu_id)of_device_get_match_data(&pdev->dev);
 
@@ -306,16 +398,34 @@ static int lima_pdev_probe(struct platform_device *pdev)
 	if (err)
 		goto err_out1;
 
+	err = lima_devfreq_init(ldev);
+	if (err) {
+		dev_err(&pdev->dev, "Fatal error during devfreq init\n");
+		goto err_out2;
+	}
+
+	pm_runtime_set_active(ldev->dev);
+	pm_runtime_mark_last_busy(ldev->dev);
+	pm_runtime_set_autosuspend_delay(ldev->dev, 200);
+	pm_runtime_use_autosuspend(ldev->dev);
+	pm_runtime_enable(ldev->dev);
+
 	/*
 	 * Register the DRM device with the core and the connectors with
 	 * sysfs.
 	 */
 	err = drm_dev_register(ddev, 0);
 	if (err < 0)
-		goto err_out2;
+		goto err_out3;
+
+	if (sysfs_create_bin_file(&ldev->dev->kobj, &lima_error_state_attr))
+		dev_warn(ldev->dev, "fail to create error state sysfs\n");
 
 	return 0;
 
+err_out3:
+	pm_runtime_disable(ldev->dev);
+	lima_devfreq_fini(ldev);
 err_out2:
 	lima_device_fini(ldev);
 err_out1:
@@ -330,8 +440,17 @@ static int lima_pdev_remove(struct platform_device *pdev)
 	struct lima_device *ldev = platform_get_drvdata(pdev);
 	struct drm_device *ddev = ldev->ddev;
 
+	sysfs_remove_bin_file(&ldev->dev->kobj, &lima_error_state_attr);
+
 	drm_dev_unregister(ddev);
+
+	/* stop autosuspend to make sure device is in active state */
+	pm_runtime_set_autosuspend_delay(ldev->dev, -1);
+	pm_runtime_disable(ldev->dev);
+
+	lima_devfreq_fini(ldev);
 	lima_device_fini(ldev);
+
 	drm_dev_put(ddev);
 	lima_sched_slab_fini();
 	return 0;
@@ -344,26 +463,22 @@ static const struct of_device_id dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dt_match);
 
+static const struct dev_pm_ops lima_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
+	SET_RUNTIME_PM_OPS(lima_device_suspend, lima_device_resume, NULL)
+};
+
 static struct platform_driver lima_platform_driver = {
 	.probe      = lima_pdev_probe,
 	.remove     = lima_pdev_remove,
 	.driver     = {
 		.name   = "lima",
+		.pm	= &lima_pm_ops,
 		.of_match_table = dt_match,
 	},
 };
 
-static int __init lima_init(void)
-{
-	return platform_driver_register(&lima_platform_driver);
-}
-module_init(lima_init);
-
-static void __exit lima_exit(void)
-{
-	platform_driver_unregister(&lima_platform_driver);
-}
-module_exit(lima_exit);
+module_platform_driver(lima_platform_driver);
 
 MODULE_AUTHOR("Lima Project Developers");
 MODULE_DESCRIPTION("Lima DRM Driver");

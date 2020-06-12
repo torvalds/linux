@@ -209,7 +209,11 @@ void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
 void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
-/* Like above but the caller must manage the uncore.lock itself.
+void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
+				  enum forcewake_domains fw_domains);
+
+/*
+ * Like above but the caller must manage the uncore.lock itself.
  * Must be used with I915_READ_FW and friends.
  */
 void intel_uncore_forcewake_get__locked(struct intel_uncore *uncore,

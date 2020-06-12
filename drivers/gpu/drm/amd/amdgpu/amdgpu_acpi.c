@@ -444,7 +444,6 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 
 		DRM_DEBUG_DRIVER("ATIF: %d pending SBIOS requests\n", count);
 
-		/* todo: add DC handling */
 		if ((req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) &&
 		    !amdgpu_device_has_dc_support(adev)) {
 			struct amdgpu_encoder *enc = atif->encoder_for_bl;
@@ -463,6 +462,27 @@ static int amdgpu_atif_handler(struct amdgpu_device *adev,
 #endif
 			}
 		}
+#if defined(CONFIG_DRM_AMD_DC)
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+		if ((req.pending & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST) &&
+		    amdgpu_device_has_dc_support(adev)) {
+			struct amdgpu_display_manager *dm = &adev->dm;
+			struct backlight_device *bd = dm->backlight_dev;
+
+			if (bd) {
+				DRM_DEBUG_DRIVER("Changing brightness to %d\n",
+						 req.backlight_level);
+
+				/*
+				 * XXX backlight_device_set_brightness() is
+				 * hardwired to post BACKLIGHT_UPDATE_SYSFS.
+				 * It probably should accept 'reason' parameter.
+				 */
+				backlight_device_set_brightness(bd, req.backlight_level);
+			}
+		}
+#endif
+#endif
 		if (req.pending & ATIF_DGPU_DISPLAY_EVENT) {
 			if (adev->flags & AMD_IS_PX) {
 				pm_runtime_get_sync(adev->ddev->dev);
