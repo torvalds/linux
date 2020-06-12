@@ -799,15 +799,15 @@
 			 <0x02000000 0 0x50100000 0x0 0x50100000 0 0x07f00000>, /* non-prefetchable memory (127 MiB) */
 			 <0x42000000 0 0x58000000 0x0 0x58000000 0 0x28000000>; /* prefetchable memory (640 MiB) */
 
-		clocks = <&bpmp TEGRA186_CLK_AFI>,
-			 <&bpmp TEGRA186_CLK_PCIE>,
+		clocks = <&bpmp TEGRA186_CLK_PCIE>,
+			 <&bpmp TEGRA186_CLK_AFI>,
 			 <&bpmp TEGRA186_CLK_PLLE>;
-		clock-names = "afi", "pex", "pll_e";
+		clock-names = "pex", "afi", "pll_e";
 
-		resets = <&bpmp TEGRA186_RESET_AFI>,
-			 <&bpmp TEGRA186_RESET_PCIE>,
+		resets = <&bpmp TEGRA186_RESET_PCIE>,
+			 <&bpmp TEGRA186_RESET_AFI>,
 			 <&bpmp TEGRA186_RESET_PCIEXCLK>;
-		reset-names = "afi", "pex", "pcie_x";
+		reset-names = "pex", "afi", "pcie_x";
 
 		interconnects = <&mc TEGRA186_MEMORY_CLIENT_AFIR &emc>,
 				<&mc TEGRA186_MEMORY_CLIENT_AFIW &emc>;
