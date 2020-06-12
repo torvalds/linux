@@ -47,10 +47,10 @@ uint8_t smi_handler[] = {
 	0x0f, 0xaa,           /* rsm */
 };
 
-void sync_with_host(uint64_t phase)
+static inline void sync_with_host(uint64_t phase)
 {
 	asm volatile("in $" XSTR(SYNC_PORT)", %%al \n"
-		     : : "a" (phase));
+		     : "+a" (phase));
 }
 
 void self_smi(void)
@@ -118,15 +118,16 @@ int main(int argc, char *argv[])
 	vcpu_set_msr(vm, VCPU_ID, MSR_IA32_SMBASE, SMRAM_GPA);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		if (kvm_get_supported_cpuid_entry(0x80000001)->ecx & CPUID_SVM)
+		if (nested_svm_supported())
 			vcpu_alloc_svm(vm, &nested_gva);
-		else
+		else if (nested_vmx_supported())
 			vcpu_alloc_vmx(vm, &nested_gva);
-		vcpu_args_set(vm, VCPU_ID, 1, nested_gva);
-	} else {
-		pr_info("will skip SMM test with VMX enabled\n");
-		vcpu_args_set(vm, VCPU_ID, 1, 0);
 	}
+
+	if (!nested_gva)
+		pr_info("will skip SMM test with VMX enabled\n");
+
+	vcpu_args_set(vm, VCPU_ID, 1, nested_gva);
 
 	for (stage = 1;; stage++) {
 		_vcpu_run(vm, VCPU_ID);

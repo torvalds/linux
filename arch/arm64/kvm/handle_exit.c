@@ -162,40 +162,14 @@ static int handle_sve(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return 1;
 }
 
-#define __ptrauth_save_key(regs, key)						\
-({										\
-	regs[key ## KEYLO_EL1] = read_sysreg_s(SYS_ ## key ## KEYLO_EL1);	\
-	regs[key ## KEYHI_EL1] = read_sysreg_s(SYS_ ## key ## KEYHI_EL1);	\
-})
-
-/*
- * Handle the guest trying to use a ptrauth instruction, or trying to access a
- * ptrauth register.
- */
-void kvm_arm_vcpu_ptrauth_trap(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpu_context *ctxt;
-
-	if (vcpu_has_ptrauth(vcpu)) {
-		vcpu_ptrauth_enable(vcpu);
-		ctxt = vcpu->arch.host_cpu_context;
-		__ptrauth_save_key(ctxt->sys_regs, APIA);
-		__ptrauth_save_key(ctxt->sys_regs, APIB);
-		__ptrauth_save_key(ctxt->sys_regs, APDA);
-		__ptrauth_save_key(ctxt->sys_regs, APDB);
-		__ptrauth_save_key(ctxt->sys_regs, APGA);
-	} else {
-		kvm_inject_undefined(vcpu);
-	}
-}
-
 /*
  * Guest usage of a ptrauth instruction (which the guest EL1 did not turn into
- * a NOP).
+ * a NOP). If we get here, it is that we didn't fixup ptrauth on exit, and all
+ * that we can do is give the guest an UNDEF.
  */
 static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	kvm_arm_vcpu_ptrauth_trap(vcpu);
+	kvm_inject_undefined(vcpu);
 	return 1;
 }
 

@@ -31,6 +31,10 @@ bool l2_save_restore_done;
 static u64 l2_vmx_pt_start;
 volatile u64 l2_vmx_pt_finish;
 
+union vmx_basic basic;
+union vmx_ctrl_msr ctrl_pin_rev;
+union vmx_ctrl_msr ctrl_exit_rev;
+
 void l2_guest_code(void)
 {
 	u64 vmx_pt_delta;
