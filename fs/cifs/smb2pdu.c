@@ -2337,6 +2337,8 @@ static void setup_owner_group_sids(char *buf)
 	sids->group.SubAuthorities[0] = cpu_to_le32(88);
 	sids->group.SubAuthorities[1] = cpu_to_le32(2);
 	sids->group.SubAuthorities[2] = cpu_to_le32(current_fsgid().val);
+
+	cifs_dbg(FYI, "owner S-1-5-88-1-%d, group S-1-5-88-2-%d\n", current_fsuid().val, current_fsgid().val);
 }
 
 /* See MS-SMB2 2.2.13.2.2 and MS-DTYP 2.4.6 */
