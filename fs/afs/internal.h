@@ -744,9 +744,10 @@ struct afs_vnode_param {
 	afs_dataversion_t	dv_before;	/* Data version before the call */
 	unsigned int		cb_break_before; /* cb_break + cb_s_break before the call */
 	u8			dv_delta;	/* Expected change in data version */
-	bool			put_vnode;	/* T if we have a ref on the vnode */
-	bool			need_io_lock;	/* T if we need the I/O lock on this */
-	bool			update_ctime;	/* Need to update the ctime */
+	bool			put_vnode:1;	/* T if we have a ref on the vnode */
+	bool			need_io_lock:1;	/* T if we need the I/O lock on this */
+	bool			update_ctime:1;	/* Need to update the ctime */
+	bool			set_size:1;	/* Must update i_size */
 };
 
 /*

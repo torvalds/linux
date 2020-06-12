@@ -169,7 +169,7 @@ static void afs_apply_status(struct afs_operation *op,
 	struct timespec64 t;
 	umode_t mode;
 	bool data_changed = false;
-	bool change_size = false;
+	bool change_size = vp->set_size;
 
 	_enter("{%llx:%llu.%u} %s",
 	       vp->fid.vid, vp->fid.vnode, vp->fid.unique,
@@ -799,7 +799,15 @@ void afs_evict_inode(struct inode *inode)
 
 static void afs_setattr_success(struct afs_operation *op)
 {
+	struct inode *inode = &op->file[0].vnode->vfs_inode;
+
 	afs_vnode_commit_status(op, &op->file[0]);
+	if (op->setattr.attr->ia_valid & ATTR_SIZE) {
+		loff_t i_size = inode->i_size, size = op->setattr.attr->ia_size;
+		if (size > i_size)
+			pagecache_isize_extended(inode, i_size, size);
+		truncate_pagecache(inode, size);
+	}
 }
 
 static const struct afs_operation_ops afs_setattr_operation = {
@@ -815,6 +823,7 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct afs_operation *op;
 	struct afs_vnode *vnode = AFS_FS_I(d_inode(dentry));
+	int ret;
 
 	_enter("{%llx:%llu},{n=%pd},%x",
 	       vnode->fid.vid, vnode->fid.vnode, dentry,
@@ -825,6 +834,18 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 				ATTR_TOUCH))) {
 		_leave(" = 0 [unsupported]");
 		return 0;
+	}
+
+	if (attr->ia_valid & ATTR_SIZE) {
+		if (!S_ISREG(vnode->vfs_inode.i_mode))
+			return -EISDIR;
+
+		ret = inode_newsize_ok(&vnode->vfs_inode, attr->ia_size);
+		if (ret)
+			return ret;
+
+		if (attr->ia_size == i_size_read(&vnode->vfs_inode))
+			attr->ia_valid &= ~ATTR_SIZE;
 	}
 
 	/* flush any dirty data outstanding on a regular file */
@@ -840,8 +861,10 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	afs_op_set_vnode(op, 0, vnode);
 	op->setattr.attr = attr;
 
-	if (attr->ia_valid & ATTR_SIZE)
+	if (attr->ia_valid & ATTR_SIZE) {
 		op->file[0].dv_delta = 1;
+		op->file[0].set_size = true;
+	}
 	op->ctime = attr->ia_ctime;
 	op->file[0].update_ctime = 1;
 

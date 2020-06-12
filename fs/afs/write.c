@@ -492,6 +492,7 @@ static int afs_write_back_from_locked_page(struct address_space *mapping,
 	unsigned long count, priv;
 	unsigned n, offset, to, f, t;
 	pgoff_t start, first, last;
+	loff_t i_size, end;
 	int loop, ret;
 
 	_enter(",%lx", primary_page->index);
@@ -592,7 +593,12 @@ no_more:
 	first = primary_page->index;
 	last = first + count - 1;
 
+	end = (loff_t)last * PAGE_SIZE + to;
+	i_size = i_size_read(&vnode->vfs_inode);
+
 	_debug("write back %lx[%u..] to %lx[..%u]", first, offset, last, to);
+	if (end > i_size)
+		to = i_size & ~PAGE_MASK;
 
 	ret = afs_store_data(mapping, first, last, offset, to);
 	switch (ret) {
