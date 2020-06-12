@@ -368,17 +368,26 @@ static int mpp_process_task(struct mpp_session *session,
 	return 0;
 }
 
-static int mpp_refresh_pm_runtime(struct device *dev)
+static int mpp_refresh_pm_runtime(struct mpp_iommu_info *info,
+				  struct device *dev)
 {
+	int i;
+	int usage_count;
 	struct device_link *link;
+	struct device *iommu_dev = &info->pdev->dev;
 
 	rcu_read_lock();
 
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		pm_runtime_put_sync(link->supplier);
+	usage_count = atomic_read(&iommu_dev->power.usage_count);
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
+		for (i = 0; i < usage_count; i++)
+			pm_runtime_put_sync(link->supplier);
+	}
 
-	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node)
-		pm_runtime_get_sync(link->supplier);
+	list_for_each_entry_rcu(link, &dev->links.suppliers, c_node) {
+		for (i = 0; i < usage_count; i++)
+			pm_runtime_get_sync(link->supplier);
+	}
 
 	rcu_read_unlock();
 
@@ -495,7 +504,7 @@ int mpp_dev_reset(struct mpp_dev *mpp)
 	 * as an empty operation. Therefore, force to close and then open,
 	 * will be update the domain. In this way, domain can really attach.
 	 */
-	mpp_refresh_pm_runtime(mpp->dev);
+	mpp_refresh_pm_runtime(mpp->iommu_info, mpp->dev);
 
 	mpp_iommu_attach(mpp->iommu_info);
 	up_write(&mpp->reset_group->rw_sem);
