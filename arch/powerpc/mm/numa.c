@@ -1132,8 +1132,8 @@ struct topology_update_data {
 #define TOPOLOGY_DEF_TIMER_SECS	60
 
 static cpumask_t cpu_associativity_changes_mask;
-static int vphn_enabled;
-static int prrn_enabled;
+static const int vphn_enabled;
+static const int prrn_enabled;
 static void reset_topology_timer(void);
 static int topology_timer_secs = 1;
 static int topology_inited;
