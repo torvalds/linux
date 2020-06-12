@@ -9,6 +9,7 @@
 #define pr_fmt(fmt) "CPUidle PSCI: " fmt
 
 #include <linux/cpuhotplug.h>
+#include <linux/cpu_cooling.h>
 #include <linux/cpuidle.h>
 #include <linux/cpumask.h>
 #include <linux/cpu_pm.h>
@@ -318,6 +319,8 @@ static int __init psci_idle_init_cpu(int cpu)
 	ret = cpuidle_register(drv, NULL);
 	if (ret)
 		goto out_kfree_drv;
+
+	cpuidle_cooling_register(drv);
 
 	return 0;
 

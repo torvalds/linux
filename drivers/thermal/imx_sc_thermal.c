@@ -14,6 +14,7 @@
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
+#include "thermal_hwmon.h"
 
 #define IMX_SC_MISC_FUNC_GET_TEMP	13
 
@@ -115,6 +116,9 @@ static int imx_sc_thermal_probe(struct platform_device *pdev)
 			ret = PTR_ERR(sensor->tzd);
 			break;
 		}
+
+		if (devm_thermal_add_hwmon_sysfs(sensor->tzd))
+			dev_warn(&pdev->dev, "failed to add hwmon sysfs attributes\n");
 	}
 
 	of_node_put(sensor_np);
