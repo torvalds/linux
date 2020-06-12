@@ -553,14 +553,6 @@
 		vmmc-supply = <&vdd_3v3_sd>;
 	};
 
-	usb@700d0000 {
-		status = "okay";
-		phys = <&micro_b>;
-		phy-names = "usb2-0";
-		avddio-usb-supply = <&vdd_3v3_sys>;
-		hvdd-usb-supply = <&vdd_1v8>;
-	};
-
 	mmc@700b0400 {
 		status = "okay";
 		bus-width = <4>;
@@ -572,6 +564,14 @@
 		cap-sdio-irq;
 		keep-power-in-suspend;
 		wakeup-source;
+	};
+
+	usb@700d0000 {
+		status = "okay";
+		phys = <&micro_b>;
+		phy-names = "usb2-0";
+		avddio-usb-supply = <&vdd_3v3_sys>;
+		hvdd-usb-supply = <&vdd_1v8>;
 	};
 
 	clk32k_in: clock@0 {
