@@ -984,8 +984,6 @@ static int __init early_numa(char *p)
 }
 early_param("numa", early_numa);
 
-static const bool topology_updates_enabled;
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 /*
  * Find the node associated with a hot added memory section for
@@ -1133,7 +1131,6 @@ struct topology_update_data {
 
 #define TOPOLOGY_DEF_TIMER_SECS	60
 
-static u8 vphn_cpu_change_counts[NR_CPUS][MAX_DISTANCE_REF_POINTS];
 static cpumask_t cpu_associativity_changes_mask;
 static int vphn_enabled;
 static int prrn_enabled;
@@ -1156,63 +1153,6 @@ int timed_topology_update(int nsecs)
 	}
 
 	return 0;
-}
-
-/*
- * Store the current values of the associativity change counters in the
- * hypervisor.
- */
-static void setup_cpu_associativity_change_counters(void)
-{
-	int cpu;
-
-	/* The VPHN feature supports a maximum of 8 reference points */
-	BUILD_BUG_ON(MAX_DISTANCE_REF_POINTS > 8);
-
-	for_each_possible_cpu(cpu) {
-		int i;
-		u8 *counts = vphn_cpu_change_counts[cpu];
-		volatile u8 *hypervisor_counts = lppaca_of(cpu).vphn_assoc_counts;
-
-		for (i = 0; i < distance_ref_points_depth; i++)
-			counts[i] = hypervisor_counts[i];
-	}
-}
-
-/*
- * The hypervisor maintains a set of 8 associativity change counters in
- * the VPA of each cpu that correspond to the associativity levels in the
- * ibm,associativity-reference-points property. When an associativity
- * level changes, the corresponding counter is incremented.
- *
- * Set a bit in cpu_associativity_changes_mask for each cpu whose home
- * node associativity levels have changed.
- *
- * Returns the number of cpus with unhandled associativity changes.
- */
-static int update_cpu_associativity_changes_mask(void)
-{
-	int cpu;
-	cpumask_t *changes = &cpu_associativity_changes_mask;
-
-	for_each_possible_cpu(cpu) {
-		int i, changed = 0;
-		u8 *counts = vphn_cpu_change_counts[cpu];
-		volatile u8 *hypervisor_counts = lppaca_of(cpu).vphn_assoc_counts;
-
-		for (i = 0; i < distance_ref_points_depth; i++) {
-			if (hypervisor_counts[i] != counts[i]) {
-				counts[i] = hypervisor_counts[i];
-				changed = 1;
-			}
-		}
-		if (changed) {
-			cpumask_or(changes, changes, cpu_sibling_mask(cpu));
-			cpu = cpu_last_thread_sibling(cpu);
-		}
-	}
-
-	return cpumask_weight(changes);
 }
 
 /*
@@ -1498,16 +1438,6 @@ static void topology_schedule_update(void)
 	schedule_work(&topology_work);
 }
 
-static void topology_timer_fn(struct timer_list *unused)
-{
-	if (prrn_enabled && cpumask_weight(&cpu_associativity_changes_mask))
-		topology_schedule_update();
-	else if (vphn_enabled) {
-		if (update_cpu_associativity_changes_mask() > 0)
-			topology_schedule_update();
-		reset_topology_timer();
-	}
-}
 static struct timer_list topology_timer;
 
 static void reset_topology_timer(void)
@@ -1516,69 +1446,12 @@ static void reset_topology_timer(void)
 		mod_timer(&topology_timer, jiffies + topology_timer_secs * HZ);
 }
 
-#ifdef CONFIG_SMP
-
-static int dt_update_callback(struct notifier_block *nb,
-				unsigned long action, void *data)
-{
-	struct of_reconfig_data *update = data;
-	int rc = NOTIFY_DONE;
-
-	switch (action) {
-	case OF_RECONFIG_UPDATE_PROPERTY:
-		if (of_node_is_type(update->dn, "cpu") &&
-		    !of_prop_cmp(update->prop->name, "ibm,associativity")) {
-			u32 core_id;
-			of_property_read_u32(update->dn, "reg", &core_id);
-			rc = dlpar_cpu_readd(core_id);
-			rc = NOTIFY_OK;
-		}
-		break;
-	}
-
-	return rc;
-}
-
-static struct notifier_block dt_update_nb = {
-	.notifier_call = dt_update_callback,
-};
-
-#endif
-
 /*
  * Start polling for associativity changes.
  */
 int start_topology_update(void)
 {
-	int rc = 0;
-
-	if (!topology_updates_enabled)
-		return 0;
-
-	if (firmware_has_feature(FW_FEATURE_PRRN)) {
-		if (!prrn_enabled) {
-			prrn_enabled = 1;
-#ifdef CONFIG_SMP
-			rc = of_reconfig_notifier_register(&dt_update_nb);
-#endif
-		}
-	}
-	if (firmware_has_feature(FW_FEATURE_VPHN) &&
-		   lppaca_shared_proc(get_lppaca())) {
-		if (!vphn_enabled) {
-			vphn_enabled = 1;
-			setup_cpu_associativity_change_counters();
-			timer_setup(&topology_timer, topology_timer_fn,
-				    TIMER_DEFERRABLE);
-			reset_topology_timer();
-		}
-	}
-
-	pr_info("Starting topology update%s%s\n",
-		(prrn_enabled ? " prrn_enabled" : ""),
-		(vphn_enabled ? " vphn_enabled" : ""));
-
-	return rc;
+	return 0;
 }
 
 /*
@@ -1586,25 +1459,7 @@ int start_topology_update(void)
  */
 int stop_topology_update(void)
 {
-	int rc = 0;
-
-	if (!topology_updates_enabled)
-		return 0;
-
-	if (prrn_enabled) {
-		prrn_enabled = 0;
-#ifdef CONFIG_SMP
-		rc = of_reconfig_notifier_unregister(&dt_update_nb);
-#endif
-	}
-	if (vphn_enabled) {
-		vphn_enabled = 0;
-		rc = del_timer_sync(&topology_timer);
-	}
-
-	pr_info("Stopping topology update\n");
-
-	return rc;
+	return 0;
 }
 
 int prrn_is_enabled(void)
