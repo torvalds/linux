@@ -1777,6 +1777,7 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 static void haptics_set_gain(struct input_dev *dev, u16 gain)
 {
 	struct haptics_chip *chip = input_get_drvdata(dev);
+	struct haptics_hw_config *config = &chip->config;
 	struct haptics_play_info *play = &chip->play;
 	u32 vmax_mv;
 
@@ -1786,7 +1787,10 @@ static void haptics_set_gain(struct input_dev *dev, u16 gain)
 	if (gain > 0x7fff)
 		gain = 0x7fff;
 
-	vmax_mv = play->effect->vmax_mv;
+	vmax_mv = config->vmax_mv;
+	if (play->effect)
+		vmax_mv = play->effect->vmax_mv;
+
 	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
 		vmax_mv = CLAMPED_VMAX_MV;
 
