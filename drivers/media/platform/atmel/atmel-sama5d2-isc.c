@@ -321,11 +321,13 @@ static const struct dev_pm_ops atmel_isc_dev_pm_ops = {
 	SET_RUNTIME_PM_OPS(isc_runtime_suspend, isc_runtime_resume, NULL)
 };
 
+#if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id atmel_isc_of_match[] = {
 	{ .compatible = "atmel,sama5d2-isc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, atmel_isc_of_match);
+#endif
 
 static struct platform_driver atmel_isc_driver = {
 	.probe	= atmel_isc_probe,
