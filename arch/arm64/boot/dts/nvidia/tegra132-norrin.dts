@@ -1051,6 +1051,7 @@
 
 	panel: panel {
 		compatible = "innolux,n116bge";
+		power-supply = <&vdd_3v3_panel>;
 		backlight = <&backlight>;
 		ddc-i2c-bus = <&dpaux>;
 	};
