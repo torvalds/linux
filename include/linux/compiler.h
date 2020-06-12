@@ -250,6 +250,27 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
  */
 #include <asm/barrier.h>
 #include <linux/kasan-checks.h>
+#include <linux/kcsan-checks.h>
+
+/**
+ * data_race - mark an expression as containing intentional data races
+ *
+ * This data_race() macro is useful for situations in which data races
+ * should be forgiven.  One example is diagnostic code that accesses
+ * shared variables but is not a part of the core synchronization design.
+ *
+ * This macro *does not* affect normal code generation, but is a hint
+ * to tooling that data races here are to be ignored.
+ */
+#define data_race(expr)							\
+({									\
+	__unqual_scalar_typeof(({ expr; })) __v = ({			\
+		__kcsan_disable_current();				\
+		expr;							\
+	});								\
+	__kcsan_enable_current();					\
+	__v;								\
+})
 
 /*
  * Use __READ_ONCE() instead of READ_ONCE() if you do not require any
@@ -271,30 +292,18 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 	__READ_ONCE_SCALAR(x);						\
 })
 
-#define __WRITE_ONCE(x, val)				\
-do {							\
-	*(volatile typeof(x) *)&(x) = (val);		\
+#define __WRITE_ONCE(x, val)						\
+do {									\
+	*(volatile typeof(x) *)&(x) = (val);				\
 } while (0)
 
-#define WRITE_ONCE(x, val)				\
-do {							\
-	compiletime_assert_rwonce_type(x);		\
-	__WRITE_ONCE(x, val);				\
+#define WRITE_ONCE(x, val)						\
+do {									\
+	compiletime_assert_rwonce_type(x);				\
+	__WRITE_ONCE(x, val);						\
 } while (0)
 
-#ifdef CONFIG_KASAN
-/*
- * We can't declare function 'inline' because __no_sanitize_address conflicts
- * with inlining. Attempt to inline it may cause a build failure.
- *     https://gcc.gnu.org/bugzilla/show_bug.cgi?id=67368
- * '__maybe_unused' allows us to avoid defined-but-not-used warnings.
- */
-# define __no_kasan_or_inline __no_sanitize_address notrace __maybe_unused
-#else
-# define __no_kasan_or_inline __always_inline
-#endif
-
-static __no_kasan_or_inline
+static __no_sanitize_or_inline
 unsigned long __read_once_word_nocheck(const void *addr)
 {
 	return __READ_ONCE(*(unsigned long *)addr);
@@ -302,8 +311,8 @@ unsigned long __read_once_word_nocheck(const void *addr)
 
 /*
  * Use READ_ONCE_NOCHECK() instead of READ_ONCE() if you need to load a
- * word from memory atomically but without telling KASAN. This is usually
- * used by unwinding code when walking the stack of a running process.
+ * word from memory atomically but without telling KASAN/KCSAN. This is
+ * usually used by unwinding code when walking the stack of a running process.
  */
 #define READ_ONCE_NOCHECK(x)						\
 ({									\
