@@ -1210,11 +1210,6 @@ int arch_update_cpu_topology(void)
 	return numa_update_cpu_topology(true);
 }
 
-int prrn_is_enabled(void)
-{
-	return 0;
-}
-
 static int topology_update_init(void)
 {
 	topology_inited = 1;

@@ -93,13 +93,8 @@ static inline int cpu_distance(__be32 *cpu1_assoc, __be32 *cpu2_assoc)
 #endif /* CONFIG_NUMA */
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_PPC_SPLPAR)
-extern int prrn_is_enabled(void);
 extern int find_and_online_cpu_nid(int cpu);
 #else
-static inline int prrn_is_enabled(void)
-{
-	return 0;
-}
 static inline int find_and_online_cpu_nid(int cpu)
 {
 	return 0;
