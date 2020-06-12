@@ -513,15 +513,15 @@
 			usb2-0 {
 				status = "okay";
 				mode = "peripheral";
-
 				usb-role-switch;
+
 				connector {
-					compatible = "usb-b-connector",
-						     "gpio-usb-b-connector";
+					compatible = "gpio-usb-b-connector",
+						     "usb-b-connector";
 					label = "micro-USB";
 					type = "micro";
-					vbus-gpio = <&gpio TEGRA_GPIO(CC, 4)
-						     GPIO_ACTIVE_LOW>;
+					vbus-gpios = <&gpio TEGRA_GPIO(CC, 4)
+						      GPIO_ACTIVE_LOW>;
 				};
 			};
 

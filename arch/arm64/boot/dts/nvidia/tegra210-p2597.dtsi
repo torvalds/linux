@@ -1461,17 +1461,17 @@
 			usb2-0 {
 				status = "okay";
 				vbus-supply = <&vdd_usb_vbus_otg>;
+				usb-role-switch;
 				mode = "otg";
 
-				usb-role-switch;
 				connector {
-					compatible = "usb-b-connector",
-						     "gpio-usb-b-connector";
+					compatible = "gpio-usb-b-connector",
+						     "usb-b-connector";
 					label = "micro-USB";
 					type = "micro";
-					vbus-gpio = <&gpio TEGRA_GPIO(Z, 0)
-						     GPIO_ACTIVE_LOW>;
-					id-gpio = <&pmic 0 0>;
+					vbus-gpios = <&gpio TEGRA_GPIO(Z, 0)
+						      GPIO_ACTIVE_LOW>;
+					id-gpios = <&pmic 0 GPIO_ACTIVE_HIGH>;
 				};
 			};
 
