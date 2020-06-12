@@ -86,7 +86,7 @@
 	};
 
 	host1x@50000000 {
-		compatible = "nvidia,tegra210-host1x", "simple-bus";
+		compatible = "nvidia,tegra210-host1x";
 		reg = <0x0 0x50000000 0x0 0x00034000>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>, /* syncpt */
 			     <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>; /* general */
