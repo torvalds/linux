@@ -3170,13 +3170,6 @@ static void __submit_queue_imm(struct intel_engine_cs *engine)
 	if (reset_in_progress(execlists))
 		return; /* defer until we restart the engine following reset */
 
-	/* Hopefully we clear execlists->pending[] to let us through */
-	if (READ_ONCE(execlists->pending[0]) &&
-	    tasklet_trylock(&execlists->tasklet)) {
-		process_csb(engine);
-		tasklet_unlock(&execlists->tasklet);
-	}
-
 	__execlists_submission_tasklet(engine);
 }
 
@@ -3199,10 +3192,24 @@ static bool ancestor_on_hold(const struct intel_engine_cs *engine,
 	return !list_empty(&engine->active.hold) && hold_request(rq);
 }
 
+static void flush_csb(struct intel_engine_cs *engine)
+{
+	struct intel_engine_execlists *el = &engine->execlists;
+
+	if (READ_ONCE(el->pending[0]) && tasklet_trylock(&el->tasklet)) {
+		if (!reset_in_progress(el))
+			process_csb(engine);
+		tasklet_unlock(&el->tasklet);
+	}
+}
+
 static void execlists_submit_request(struct i915_request *request)
 {
 	struct intel_engine_cs *engine = request->engine;
 	unsigned long flags;
+
+	/* Hopefully we clear execlists->pending[] to let us through */
+	flush_csb(engine);
 
 	/* Will be called from irq-context when using foreign fences. */
 	spin_lock_irqsave(&engine->active.lock, flags);
