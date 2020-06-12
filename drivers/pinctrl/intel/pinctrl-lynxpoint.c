@@ -959,7 +959,7 @@ static struct platform_driver lp_gpio_driver = {
 	.driver         = {
 		.name   = "lp_gpio",
 		.pm	= &lp_gpio_pm_ops,
-		.acpi_match_table = ACPI_PTR(lynxpoint_gpio_acpi_match),
+		.acpi_match_table = lynxpoint_gpio_acpi_match,
 	},
 };
 
