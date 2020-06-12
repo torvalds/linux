@@ -103,14 +103,6 @@ int smum_process_firmware_header(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-uint32_t smum_get_argument(struct pp_hwmgr *hwmgr)
-{
-	if (NULL != hwmgr->smumgr_funcs->get_argument)
-		return hwmgr->smumgr_funcs->get_argument(hwmgr);
-
-	return 0;
-}
-
 uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value)
 {
 	if (NULL != hwmgr->smumgr_funcs->get_mac_definition)
@@ -135,22 +127,58 @@ int smum_upload_powerplay_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
+int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t *resp)
 {
-	if (hwmgr == NULL || hwmgr->smumgr_funcs->send_msg_to_smc == NULL)
+	int ret = 0;
+
+	if (hwmgr == NULL ||
+	    hwmgr->smumgr_funcs->send_msg_to_smc == NULL ||
+	    (resp && !hwmgr->smumgr_funcs->get_argument))
 		return -EINVAL;
 
-	return hwmgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
+	mutex_lock(&hwmgr->msg_lock);
+
+	ret = hwmgr->smumgr_funcs->send_msg_to_smc(hwmgr, msg);
+	if (ret) {
+		mutex_unlock(&hwmgr->msg_lock);
+		return ret;
+	}
+
+	if (resp)
+		*resp = hwmgr->smumgr_funcs->get_argument(hwmgr);
+
+	mutex_unlock(&hwmgr->msg_lock);
+
+	return ret;
 }
 
 int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
-					uint16_t msg, uint32_t parameter)
+					uint16_t msg,
+					uint32_t parameter,
+					uint32_t *resp)
 {
+	int ret = 0;
+
 	if (hwmgr == NULL ||
-		hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL)
+	    hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter == NULL ||
+	    (resp && !hwmgr->smumgr_funcs->get_argument))
 		return -EINVAL;
-	return hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter(
+
+	mutex_lock(&hwmgr->msg_lock);
+
+	ret = hwmgr->smumgr_funcs->send_msg_to_smc_with_parameter(
 						hwmgr, msg, parameter);
+	if (ret) {
+		mutex_unlock(&hwmgr->msg_lock);
+		return ret;
+	}
+
+	if (resp)
+		*resp = hwmgr->smumgr_funcs->get_argument(hwmgr);
+
+	mutex_unlock(&hwmgr->msg_lock);
+
+	return ret;
 }
 
 int smum_init_smc_table(struct pp_hwmgr *hwmgr)

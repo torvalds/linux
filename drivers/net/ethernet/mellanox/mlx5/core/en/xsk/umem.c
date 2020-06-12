@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2019 Mellanox Technologies. */
 
-#include <net/xdp_sock.h>
+#include <net/xdp_sock_drv.h>
 #include "umem.h"
 #include "setup.h"
 #include "en/params.h"
@@ -10,40 +10,14 @@ static int mlx5e_xsk_map_umem(struct mlx5e_priv *priv,
 			      struct xdp_umem *umem)
 {
 	struct device *dev = priv->mdev->device;
-	u32 i;
 
-	for (i = 0; i < umem->npgs; i++) {
-		dma_addr_t dma = dma_map_page(dev, umem->pgs[i], 0, PAGE_SIZE,
-					      DMA_BIDIRECTIONAL);
-
-		if (unlikely(dma_mapping_error(dev, dma)))
-			goto err_unmap;
-		umem->pages[i].dma = dma;
-	}
-
-	return 0;
-
-err_unmap:
-	while (i--) {
-		dma_unmap_page(dev, umem->pages[i].dma, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		umem->pages[i].dma = 0;
-	}
-
-	return -ENOMEM;
+	return xsk_buff_dma_map(umem, dev, 0);
 }
 
 static void mlx5e_xsk_unmap_umem(struct mlx5e_priv *priv,
 				 struct xdp_umem *umem)
 {
-	struct device *dev = priv->mdev->device;
-	u32 i;
-
-	for (i = 0; i < umem->npgs; i++) {
-		dma_unmap_page(dev, umem->pages[i].dma, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		umem->pages[i].dma = 0;
-	}
+	return xsk_buff_dma_unmap(umem, 0);
 }
 
 static int mlx5e_xsk_get_umems(struct mlx5e_xsk *xsk)
@@ -90,13 +64,14 @@ static void mlx5e_xsk_remove_umem(struct mlx5e_xsk *xsk, u16 ix)
 
 static bool mlx5e_xsk_is_umem_sane(struct xdp_umem *umem)
 {
-	return umem->headroom <= 0xffff && umem->chunk_size_nohr <= 0xffff;
+	return xsk_umem_get_headroom(umem) <= 0xffff &&
+		xsk_umem_get_chunk_size(umem) <= 0xffff;
 }
 
 void mlx5e_build_xsk_param(struct xdp_umem *umem, struct mlx5e_xsk_param *xsk)
 {
-	xsk->headroom = umem->headroom;
-	xsk->chunk_size = umem->chunk_size_nohr + umem->headroom;
+	xsk->headroom = xsk_umem_get_headroom(umem);
+	xsk->chunk_size = xsk_umem_get_chunk_size(umem);
 }
 
 static int mlx5e_xsk_enable_locked(struct mlx5e_priv *priv,
@@ -239,18 +214,6 @@ int mlx5e_xsk_setup_umem(struct net_device *dev, struct xdp_umem *umem, u16 qid)
 
 	return umem ? mlx5e_xsk_enable_umem(priv, umem, ix) :
 		      mlx5e_xsk_disable_umem(priv, ix);
-}
-
-int mlx5e_xsk_resize_reuseq(struct xdp_umem *umem, u32 nentries)
-{
-	struct xdp_umem_fq_reuse *reuseq;
-
-	reuseq = xsk_reuseq_prepare(nentries);
-	if (unlikely(!reuseq))
-		return -ENOMEM;
-	xsk_reuseq_free(xsk_reuseq_swap(umem, reuseq));
-
-	return 0;
 }
 
 u16 mlx5e_xsk_first_unused_channel(struct mlx5e_params *params, struct mlx5e_xsk *xsk)

@@ -39,7 +39,7 @@ vostra interfaccia.
        un qualche modo opaca.
 
  - Se dovete esporre solo delle informazioni sul sistema, un nuovo nodo in
-   sysfs (vedere ``Documentation/filesystems/sysfs.txt``) o
+   sysfs (vedere ``Documentation/filesystems/sysfs.rst``) o
    in procfs potrebbe essere sufficiente.  Tuttavia, l'accesso a questi
    meccanismi richiede che il filesystem sia montato, il che potrebbe non
    essere sempre vero (per esempio, in ambienti come namespace/sandbox/chroot).

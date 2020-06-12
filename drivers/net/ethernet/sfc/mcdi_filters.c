@@ -186,7 +186,6 @@ static void efx_mcdi_filter_push_prep(struct efx_nic *efx,
 				      struct efx_rss_context *ctx,
 				      bool replacing)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	u32 flags = spec->flags;
 
 	memset(inbuf, 0, MC_CMD_FILTER_OP_EXT_IN_LEN);
@@ -211,7 +210,7 @@ static void efx_mcdi_filter_push_prep(struct efx_nic *efx,
 		efx_mcdi_filter_push_prep_set_match_fields(efx, spec, inbuf);
 	}
 
-	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, nic_data->vport_id);
+	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_PORT_ID, efx->vport_id);
 	MCDI_SET_DWORD(inbuf, FILTER_OP_IN_RX_DEST,
 		       spec->dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP ?
 		       MC_CMD_FILTER_OP_IN_RX_DEST_DROP :
@@ -332,7 +331,6 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 					 bool replace_equal)
 {
 	DECLARE_BITMAP(mc_rem_map, EFX_EF10_FILTER_SEARCH_LIMIT);
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct efx_mcdi_filter_table *table;
 	struct efx_filter_spec *saved_spec;
 	struct efx_rss_context *ctx = NULL;
@@ -461,7 +459,7 @@ static s32 efx_mcdi_filter_insert_locked(struct efx_nic *efx,
 	rc = efx_mcdi_filter_push(efx, spec, &table->entry[ins_index].handle,
 				  ctx, replacing);
 
-	if (rc == -EINVAL && nic_data->must_realloc_vis)
+	if (rc == -EINVAL && efx->must_realloc_vis)
 		/* The MC rebooted under us, causing it to reject our filter
 		 * insertion as pointing to an invalid VI (spec->dmaq_id).
 		 */
@@ -813,7 +811,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 				      enum efx_encap_type encap_type,
 				      bool multicast, bool rollback)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	enum efx_filter_flags filter_flags;
 	struct efx_filter_spec spec;
 	u8 baddr[ETH_ALEN];
@@ -830,8 +828,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 		efx_filter_set_uc_def(&spec);
 
 	if (encap_type) {
-		if (nic_data->datapath_caps &
-		    (1 << MC_CMD_GET_CAPABILITIES_OUT_VXLAN_NVGRE_LBN))
+		if (efx_has_cap(efx, VXLAN_NVGRE, FLAGS1))
 			efx_filter_set_encap_type(&spec, encap_type);
 		else
 			/*
@@ -899,7 +896,7 @@ static int efx_mcdi_filter_insert_def(struct efx_nic *efx,
 
 		EFX_WARN_ON_PARANOID(*id != EFX_EF10_FILTER_ID_INVALID);
 		*id = efx_mcdi_filter_get_unsafe_id(rc);
-		if (!nic_data->workaround_26807 && !encap_type) {
+		if (!table->mc_chaining && !encap_type) {
 			/* Also need an Ethernet broadcast filter */
 			efx_filter_init_rx(&spec, EFX_FILTER_PRI_AUTO,
 					   filter_flags, 0);
@@ -965,7 +962,6 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 					      struct efx_mcdi_filter_vlan *vlan)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 
 	/*
 	 * Do not install unspecified VID if VLAN filtering is enabled.
@@ -1012,11 +1008,10 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 	 * If changing promiscuous state with cascaded multicast filters, remove
 	 * old filters first, so that packets are dropped rather than duplicated
 	 */
-	if (nic_data->workaround_26807 &&
-	    table->mc_promisc_last != table->mc_promisc)
+	if (table->mc_chaining && table->mc_promisc_last != table->mc_promisc)
 		efx_mcdi_filter_remove_old(efx);
 	if (table->mc_promisc) {
-		if (nic_data->workaround_26807) {
+		if (table->mc_chaining) {
 			/*
 			 * If we failed to insert promiscuous filters, rollback
 			 * and fall back to individual multicast filters
@@ -1051,7 +1046,7 @@ static void efx_mcdi_filter_vlan_sync_rx_mode(struct efx_nic *efx,
 		 */
 		if (efx_mcdi_filter_insert_addr_list(efx, vlan, true, true)) {
 			/* Changing promisc state, so remove old filters */
-			if (nic_data->workaround_26807)
+			if (table->mc_chaining)
 				efx_mcdi_filter_remove_old(efx);
 			if (efx_mcdi_filter_insert_def(efx, vlan,
 						       EFX_ENCAP_TYPE_NONE,
@@ -1288,12 +1283,10 @@ efx_mcdi_filter_table_probe_matches(struct efx_nic *efx,
 	return 0;
 }
 
-int efx_mcdi_filter_table_probe(struct efx_nic *efx)
+int efx_mcdi_filter_table_probe(struct efx_nic *efx, bool multicast_chaining)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	struct net_device *net_dev = efx->net_dev;
 	struct efx_mcdi_filter_table *table;
-	struct efx_mcdi_filter_vlan *vlan;
 	int rc;
 
 	if (!efx_rwsem_assert_write_locked(&efx->filter_sem))
@@ -1306,12 +1299,12 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx)
 	if (!table)
 		return -ENOMEM;
 
+	table->mc_chaining = multicast_chaining;
 	table->rx_match_count = 0;
 	rc = efx_mcdi_filter_table_probe_matches(efx, table, false);
 	if (rc)
 		goto fail;
-	if (nic_data->datapath_caps &
-		   (1 << MC_CMD_GET_CAPABILITIES_OUT_VXLAN_NVGRE_LBN))
+	if (efx_has_cap(efx, VXLAN_NVGRE, FLAGS1))
 		rc = efx_mcdi_filter_table_probe_matches(efx, table, true);
 	if (rc)
 		goto fail;
@@ -1342,20 +1335,20 @@ int efx_mcdi_filter_table_probe(struct efx_nic *efx)
 
 	efx->filter_state = table;
 
-	list_for_each_entry(vlan, &nic_data->vlan_list, list) {
-		rc = efx_mcdi_filter_add_vlan(efx, vlan->vid);
-		if (rc)
-			goto fail_add_vlan;
-	}
-
 	return 0;
-
-fail_add_vlan:
-	efx_mcdi_filter_cleanup_vlans(efx);
-	efx->filter_state = NULL;
 fail:
 	kfree(table);
 	return rc;
+}
+
+void efx_mcdi_filter_table_reset_mc_allocations(struct efx_nic *efx)
+{
+	struct efx_mcdi_filter_table *table = efx->filter_state;
+
+	if (table) {
+		table->must_restore_filters = true;
+		table->must_restore_rss_contexts = true;
+	}
 }
 
 /*
@@ -1365,7 +1358,6 @@ fail:
 void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 {
 	struct efx_mcdi_filter_table *table = efx->filter_state;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	unsigned int invalid_filters = 0, failed = 0;
 	struct efx_mcdi_filter_vlan *vlan;
 	struct efx_filter_spec *spec;
@@ -1377,10 +1369,7 @@ void efx_mcdi_filter_table_restore(struct efx_nic *efx)
 
 	WARN_ON(!rwsem_is_locked(&efx->filter_sem));
 
-	if (!nic_data->must_restore_filters)
-		return;
-
-	if (!table)
+	if (!table || !table->must_restore_filters)
 		return;
 
 	down_write(&table->lock);
@@ -1456,7 +1445,7 @@ not_restored:
 		netif_err(efx, hw, efx->net_dev,
 			  "unable to restore %u filters\n", failed);
 	else
-		nic_data->must_restore_filters = false;
+		table->must_restore_filters = false;
 }
 
 void efx_mcdi_filter_table_remove(struct efx_nic *efx)
@@ -1921,7 +1910,6 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 {
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_RSS_CONTEXT_ALLOC_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_RSS_CONTEXT_ALLOC_OUT_LEN);
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	size_t outlen;
 	int rc;
 	u32 alloc_type = exclusive ?
@@ -1939,12 +1927,11 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 		return 0;
 	}
 
-	if (nic_data->datapath_caps &
-	    1 << MC_CMD_GET_CAPABILITIES_OUT_RX_RSS_LIMITED_LBN)
+	if (efx_has_cap(efx, RX_RSS_LIMITED, FLAGS1))
 		return -EOPNOTSUPP;
 
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_UPSTREAM_PORT_ID,
-		       nic_data->vport_id);
+		       efx->vport_id);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_TYPE, alloc_type);
 	MCDI_SET_DWORD(inbuf, RSS_CONTEXT_ALLOC_IN_NUM_QUEUES, rss_spread);
 
@@ -1961,8 +1948,7 @@ static int efx_mcdi_filter_alloc_rss_context(struct efx_nic *efx, bool exclusive
 	if (context_size)
 		*context_size = rss_spread;
 
-	if (nic_data->datapath_caps &
-	    1 << MC_CMD_GET_CAPABILITIES_OUT_ADDITIONAL_RSS_MODES_LBN)
+	if (efx_has_cap(efx, ADDITIONAL_RSS_MODES, FLAGS1))
 		efx_mcdi_set_rss_context_flags(efx, ctx);
 
 	return 0;
@@ -2030,14 +2016,14 @@ void efx_mcdi_rx_free_indir_table(struct efx_nic *efx)
 static int efx_mcdi_filter_rx_push_shared_rss_config(struct efx_nic *efx,
 					      unsigned *context_size)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	int rc = efx_mcdi_filter_alloc_rss_context(efx, false, &efx->rss_context,
 					    context_size);
 
 	if (rc != 0)
 		return rc;
 
-	nic_data->rx_rss_context_exclusive = false;
+	table->rx_rss_context_exclusive = false;
 	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 	return 0;
 }
@@ -2046,12 +2032,12 @@ static int efx_mcdi_filter_rx_push_exclusive_rss_config(struct efx_nic *efx,
 						 const u32 *rx_indir_table,
 						 const u8 *key)
 {
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	u32 old_rx_rss_context = efx->rss_context.context_id;
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
 	int rc;
 
 	if (efx->rss_context.context_id == EFX_MCDI_RSS_CONTEXT_INVALID ||
-	    !nic_data->rx_rss_context_exclusive) {
+	    !table->rx_rss_context_exclusive) {
 		rc = efx_mcdi_filter_alloc_rss_context(efx, true, &efx->rss_context,
 						NULL);
 		if (rc == -EOPNOTSUPP)
@@ -2068,7 +2054,7 @@ static int efx_mcdi_filter_rx_push_exclusive_rss_config(struct efx_nic *efx,
 	if (efx->rss_context.context_id != old_rx_rss_context &&
 	    old_rx_rss_context != EFX_MCDI_RSS_CONTEXT_INVALID)
 		WARN_ON(efx_mcdi_filter_free_rss_context(efx, old_rx_rss_context) != 0);
-	nic_data->rx_rss_context_exclusive = true;
+	table->rx_rss_context_exclusive = true;
 	if (rx_indir_table != efx->rss_context.rx_indir_table)
 		memcpy(efx->rss_context.rx_indir_table, rx_indir_table,
 		       sizeof(efx->rss_context.rx_indir_table));
@@ -2182,13 +2168,13 @@ int efx_mcdi_rx_pull_rss_config(struct efx_nic *efx)
 
 void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 {
-	struct efx_ef10_nic_data *nic_data = efx->nic_data;
+	struct efx_mcdi_filter_table *table = efx->filter_state;
 	struct efx_rss_context *ctx;
 	int rc;
 
 	WARN_ON(!mutex_is_locked(&efx->rss_lock));
 
-	if (!nic_data->must_restore_rss_contexts)
+	if (!table->must_restore_rss_contexts)
 		return;
 
 	list_for_each_entry(ctx, &efx->rss_context.list, list) {
@@ -2204,7 +2190,7 @@ void efx_mcdi_rx_restore_rss_contexts(struct efx_nic *efx)
 				   "; RSS filters may fail to be applied\n",
 				   ctx->user_id, rc);
 	}
-	nic_data->must_restore_rss_contexts = false;
+	table->must_restore_rss_contexts = false;
 }
 
 int efx_mcdi_pf_rx_push_rss_config(struct efx_nic *efx, bool user,

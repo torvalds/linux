@@ -144,7 +144,7 @@ void mod_build_vsc_infopacket(const struct dc_stream_state *stream,
 	}
 
 	/*VSC packet set to 2 when DP revision >= 1.2*/
-	if (stream->psr_version != 0)
+	if (stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
 		vsc_packet_revision = vsc_packet_rev2;
 
 	/* Update to revision 5 for extended colorimetry support */

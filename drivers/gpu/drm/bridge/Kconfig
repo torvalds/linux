@@ -27,6 +27,16 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
+config DRM_CHRONTEL_CH7033
+	tristate "Chrontel CH7033 Video Encoder"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Enable support for the Chrontel CH7033 VGA/DVI/HDMI Encoder, as
+	  found in the Dell Wyse 3020 thin client.
+
+	  If in doubt, say "N".
+
 config DRM_DISPLAY_CONNECTOR
 	tristate "Display connector support"
 	depends on OF
@@ -57,6 +67,22 @@ config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	  GE B850v3 that convert dual channel LVDS
 	  to DP++. This is used with the i.MX6 imx-ldb
 	  driver. You are likely to say N here.
+
+config DRM_NWL_MIPI_DSI
+	tristate "Northwest Logic MIPI DSI Host controller"
+	depends on DRM
+	depends on COMMON_CLK
+	depends on OF && HAS_IOMEM
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
+	select MFD_SYSCON
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	help
+	  This enables the Northwest Logic MIPI DSI Host controller as
+	  for example found on NXP's i.MX8 Processors.
 
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"

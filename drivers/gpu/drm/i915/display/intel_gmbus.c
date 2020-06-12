@@ -379,8 +379,7 @@ gmbus_wait_idle(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
-static inline
-unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
+static unsigned int gmbus_max_xfer_size(struct drm_i915_private *dev_priv)
 {
 	return INTEL_GEN(dev_priv) >= 9 ? GEN9_GMBUS_BYTE_COUNT_MAX :
 	       GMBUS_BYTE_COUNT_MAX;

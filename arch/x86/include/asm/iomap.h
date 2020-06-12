@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 #include <asm/cacheflush.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 void __iomem *

@@ -4,7 +4,9 @@
  */
 
 /dts-v1/;
-/include/ "integrator.dtsi"
+#include "integrator.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "ARM Integrator/AP";
@@ -107,9 +109,6 @@
 	syscon {
 		compatible = "arm,integrator-ap-syscon", "syscon";
 		reg = <0x11000000 0x100>;
-		interrupt-parent = <&pic>;
-		/* These are the logical module IRQs */
-		interrupts = <9>, <10>, <11>, <12>;
 
 		/*
 		 * SYSCLK clocks PCIv3 bridge, system controller and the
@@ -237,6 +236,52 @@
 			arm,primecell-periphid = <0x00041050>;
 			clocks = <&xtal24mhz>, <&pclk>;
 			clock-names = "KMIREFCLK", "apb_pclk";
+		};
+	};
+
+	/*
+	 * Logic module bus, we support up to 4 logical modules
+	 * They appear at 0xc0000000, 0xd0000000, 0xe0000000 and 0xf0000000
+	 * and use interrupts 9, 10, 11 and 12 respectively.
+	 */
+	bus@c0000000 {
+		compatible = "arm,integrator-ap-lm";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0xc0000000 0xc0000000 0x40000000>;
+		dma-ranges;
+
+		lm0: bus@c0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xc0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xc0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm1: bus@d0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xd0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xd0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm2: bus@e0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xe0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xe0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+		lm3: bus@f0000000 {
+			compatible = "simple-bus";
+			ranges = <0x00000000 0xf0000000 0x10000000>;
+			dma-ranges = <0x00000000 0x80000000 0x10000000>;
+			reg = <0xf0000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 		};
 	};
 };

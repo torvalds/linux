@@ -131,7 +131,7 @@ static int hyperv_irq_remapping_activate(struct irq_domain *domain,
 	return 0;
 }
 
-static struct irq_domain_ops hyperv_ir_domain_ops = {
+static const struct irq_domain_ops hyperv_ir_domain_ops = {
 	.alloc = hyperv_irq_remapping_alloc,
 	.free = hyperv_irq_remapping_free,
 	.activate = hyperv_irq_remapping_activate,

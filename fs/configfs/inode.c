@@ -9,7 +9,7 @@
  *
  * configfs Copyright (C) 2005 Oracle.  All rights reserved.
  *
- * Please see Documentation/filesystems/configfs/configfs.txt for more
+ * Please see Documentation/filesystems/configfs.rst for more
  * information.
  */
 

@@ -21,7 +21,6 @@
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/tlb.h>
 #include <asm/tlbdebug.h>
@@ -469,7 +468,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 		cvmmemctl2 |= CVMMEMCTL2_INHIBITTS;
 		write_c0_cvmmemctl2(cvmmemctl2);
 		break;
-	};
+	}
 
 	/* Invalidate guest entries in guest TLB */
 	write_gc0_entrylo0(0);
@@ -486,7 +485,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	if (cvmmemctl2) {
 		cvmmemctl2 &= ~CVMMEMCTL2_INHIBITTS;
 		write_c0_cvmmemctl2(cvmmemctl2);
-	};
+	}
 
 	write_gc0_index(old_index);
 	write_gc0_entryhi(old_entryhi);

@@ -25,6 +25,44 @@
 	     order++)
 
 /* component interface */
+struct snd_compress_ops {
+	int (*open)(struct snd_soc_component *component,
+		    struct snd_compr_stream *stream);
+	int (*free)(struct snd_soc_component *component,
+		    struct snd_compr_stream *stream);
+	int (*set_params)(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream,
+			  struct snd_compr_params *params);
+	int (*get_params)(struct snd_soc_component *component,
+			  struct snd_compr_stream *stream,
+			  struct snd_codec *params);
+	int (*set_metadata)(struct snd_soc_component *component,
+			    struct snd_compr_stream *stream,
+			    struct snd_compr_metadata *metadata);
+	int (*get_metadata)(struct snd_soc_component *component,
+			    struct snd_compr_stream *stream,
+			    struct snd_compr_metadata *metadata);
+	int (*trigger)(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream, int cmd);
+	int (*pointer)(struct snd_soc_component *component,
+		       struct snd_compr_stream *stream,
+		       struct snd_compr_tstamp *tstamp);
+	int (*copy)(struct snd_soc_component *component,
+		    struct snd_compr_stream *stream, char __user *buf,
+		    size_t count);
+	int (*mmap)(struct snd_soc_component *component,
+		    struct snd_compr_stream *stream,
+		    struct vm_area_struct *vma);
+	int (*ack)(struct snd_soc_component *component,
+		   struct snd_compr_stream *stream, size_t bytes);
+	int (*get_caps)(struct snd_soc_component *component,
+			struct snd_compr_stream *stream,
+			struct snd_compr_caps *caps);
+	int (*get_codec_caps)(struct snd_soc_component *component,
+			      struct snd_compr_stream *stream,
+			      struct snd_compr_codec_caps *codec);
+};
+
 struct snd_soc_component_driver {
 	const char *name;
 
@@ -108,7 +146,7 @@ struct snd_soc_component_driver {
 		    struct snd_pcm_substream *substream,
 		    struct vm_area_struct *vma);
 
-	const struct snd_compr_ops *compr_ops;
+	const struct snd_compress_ops *compress_ops;
 
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
@@ -351,10 +389,10 @@ static inline void *snd_soc_component_get_drvdata(struct snd_soc_component *c)
 	return dev_get_drvdata(c->dev);
 }
 
-static inline bool snd_soc_component_is_active(
-	struct snd_soc_component *component)
+static inline unsigned int
+snd_soc_component_active(struct snd_soc_component *component)
 {
-	return component->active != 0;
+	return component->active;
 }
 
 /* component pin */

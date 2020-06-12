@@ -89,7 +89,7 @@ static void show_faulting_vma(unsigned long address)
 	/* can't use print_vma_addr() yet as it doesn't check for
 	 * non-inclusive vma
 	 */
-	down_read(&active_mm->mmap_sem);
+	mmap_read_lock(active_mm);
 	vma = find_vma(active_mm, address);
 
 	/* check against the find_vma( ) behaviour which returns the next VMA
@@ -111,7 +111,7 @@ static void show_faulting_vma(unsigned long address)
 	} else
 		pr_info("    @No matching VMA found\n");
 
-	up_read(&active_mm->mmap_sem);
+	mmap_read_unlock(active_mm);
 }
 
 static void show_ecr_verbose(struct pt_regs *regs)
@@ -191,10 +191,9 @@ void show_regs(struct pt_regs *regs)
 	if (user_mode(regs))
 		show_faulting_vma(regs->ret); /* faulting code, not data */
 
-	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\n",
-		regs->event, current->thread.fault_address, regs->ret);
-
-	pr_info("STAT32: 0x%08lx", regs->status32);
+	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\nSTAT: 0x%08lx",
+		regs->event, current->thread.fault_address, regs->ret,
+		regs->status32);
 
 #define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit" " : ""
 
@@ -210,11 +209,10 @@ void show_regs(struct pt_regs *regs)
 			(regs->status32 & STATUS_U_MASK) ? "U " : "K ",
 			STS_BIT(regs, DE), STS_BIT(regs, AE));
 #endif
-	pr_cont("  BTA: 0x%08lx\n", regs->bta);
-	pr_info("BLK: %pS\n SP: 0x%08lx  FP: 0x%08lx\n",
-		(void *)regs->blink, regs->sp, regs->fp);
+	pr_cont("  BTA: 0x%08lx\n  SP: 0x%08lx  FP: 0x%08lx BLK: %pS\n",
+		regs->bta, regs->sp, regs->fp, (void *)regs->blink);
 	pr_info("LPS: 0x%08lx\tLPE: 0x%08lx\tLPC: 0x%08lx\n",
-	       regs->lp_start, regs->lp_end, regs->lp_count);
+		regs->lp_start, regs->lp_end, regs->lp_count);
 
 	/* print regs->r0 thru regs->r12
 	 * Sequential printing was generating horrible code
@@ -242,5 +240,5 @@ void show_kernel_fault_diag(const char *str, struct pt_regs *regs,
 
 	/* Show stack trace if this Fatality happened in kernel mode */
 	if (!user_mode(regs))
-		show_stacktrace(current, regs);
+		show_stacktrace(current, regs, KERN_DEFAULT);
 }

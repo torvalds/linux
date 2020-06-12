@@ -974,7 +974,6 @@
 
 		target-module@4000 {			/* 0x4a304000, ap 17 24.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "counter_32k";
 			reg = <0x4000 0x4>,
 			      <0x4004 0x4>;
 			reg-names = "rev", "sysc";
@@ -1139,9 +1138,8 @@
 			};
 		};
 
-		target-module@8000 {			/* 0x4a318000, ap 9 1c.0 */
+		timer1_target: target-module@8000 {	/* 0x4a318000, ap 9 1c.0 */
 			compatible = "ti,sysc-omap2-timer", "ti,sysc";
-			ti,hwmods = "timer1";
 			reg = <0x8000 0x4>,
 			      <0x8010 0x4>,
 			      <0x8014 0x4>;

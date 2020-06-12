@@ -17,11 +17,11 @@
 #include <linux/seq_file.h>
 #include <linux/kthread.h>
 #include <linux/initrd.h>
+#include <linux/pgtable.h>
 
 #include <asm/pdc.h>
 #include <asm/pdcpat.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 
 enum pdt_access_type {
 	PDT_NONE,

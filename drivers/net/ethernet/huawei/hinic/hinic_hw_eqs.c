@@ -17,6 +17,7 @@
 #include <asm/byteorder.h>
 #include <asm/barrier.h>
 
+#include "hinic_hw_dev.h"
 #include "hinic_hw_csr.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
@@ -416,11 +417,11 @@ static irqreturn_t ceq_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void set_ctrl0(struct hinic_eq *eq)
+static u32 get_ctrl0_val(struct hinic_eq *eq, u32 addr)
 {
 	struct msix_entry *msix_entry = &eq->msix_entry;
 	enum hinic_eq_type type = eq->type;
-	u32 addr, val, ctrl0;
+	u32 val, ctrl0;
 
 	if (type == HINIC_AEQ) {
 		/* RMW Ctrl0 */
@@ -440,9 +441,7 @@ static void set_ctrl0(struct hinic_eq *eq)
 			HINIC_AEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INT_MODE);
 
 		val |= ctrl0;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
-	} else if (type == HINIC_CEQ) {
+	} else {
 		/* RMW Ctrl0 */
 		addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
 
@@ -462,16 +461,28 @@ static void set_ctrl0(struct hinic_eq *eq)
 			HINIC_CEQ_CTRL_0_SET(EQ_INT_MODE_ARMED, INTR_MODE);
 
 		val |= ctrl0;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
 	}
+	return val;
 }
 
-static void set_ctrl1(struct hinic_eq *eq)
+static void set_ctrl0(struct hinic_eq *eq)
 {
+	u32 val, addr;
+
+	if (eq->type == HINIC_AEQ)
+		addr = HINIC_CSR_AEQ_CTRL_0_ADDR(eq->q_id);
+	else
+		addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
+
+	val = get_ctrl0_val(eq, addr);
+
+	hinic_hwif_write_reg(eq->hwif, addr, val);
+}
+
+static u32 get_ctrl1_val(struct hinic_eq *eq, u32 addr)
+{
+	u32 page_size_val, elem_size, val, ctrl1;
 	enum hinic_eq_type type = eq->type;
-	u32 page_size_val, elem_size;
-	u32 addr, val, ctrl1;
 
 	if (type == HINIC_AEQ) {
 		/* RMW Ctrl1 */
@@ -491,9 +502,7 @@ static void set_ctrl1(struct hinic_eq *eq)
 			HINIC_AEQ_CTRL_1_SET(page_size_val, PAGE_SIZE);
 
 		val |= ctrl1;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
-	} else if (type == HINIC_CEQ) {
+	} else {
 		/* RMW Ctrl1 */
 		addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
 
@@ -508,19 +517,70 @@ static void set_ctrl1(struct hinic_eq *eq)
 			HINIC_CEQ_CTRL_1_SET(page_size_val, PAGE_SIZE);
 
 		val |= ctrl1;
-
-		hinic_hwif_write_reg(eq->hwif, addr, val);
 	}
+	return val;
+}
+
+static void set_ctrl1(struct hinic_eq *eq)
+{
+	u32 addr, val;
+
+	if (eq->type == HINIC_AEQ)
+		addr = HINIC_CSR_AEQ_CTRL_1_ADDR(eq->q_id);
+	else
+		addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
+
+	val = get_ctrl1_val(eq, addr);
+
+	hinic_hwif_write_reg(eq->hwif, addr, val);
+}
+
+static int set_ceq_ctrl_reg(struct hinic_eq *eq)
+{
+	struct hinic_ceq_ctrl_reg ceq_ctrl = {0};
+	struct hinic_hwdev *hwdev = eq->hwdev;
+	u16 out_size = sizeof(ceq_ctrl);
+	u16 in_size = sizeof(ceq_ctrl);
+	struct hinic_pfhwdev *pfhwdev;
+	u32 addr;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	addr = HINIC_CSR_CEQ_CTRL_0_ADDR(eq->q_id);
+	ceq_ctrl.ctrl0 = get_ctrl0_val(eq, addr);
+	addr = HINIC_CSR_CEQ_CTRL_1_ADDR(eq->q_id);
+	ceq_ctrl.ctrl1 = get_ctrl1_val(eq, addr);
+
+	ceq_ctrl.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	ceq_ctrl.q_id = eq->q_id;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_CEQ_CTRL_REG_WR_BY_UP,
+				&ceq_ctrl, in_size,
+				&ceq_ctrl, &out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || ceq_ctrl.status) {
+		dev_err(&hwdev->hwif->pdev->dev,
+			"Failed to set ceq %d ctrl reg, err: %d status: 0x%x, out_size: 0x%x\n",
+			eq->q_id, err, ceq_ctrl.status, out_size);
+		return -EFAULT;
+	}
+
+	return 0;
 }
 
 /**
  * set_eq_ctrls - setting eq's ctrl registers
  * @eq: the Event Queue for setting
  **/
-static void set_eq_ctrls(struct hinic_eq *eq)
+static int set_eq_ctrls(struct hinic_eq *eq)
 {
+	if (HINIC_IS_VF(eq->hwif) && eq->type == HINIC_CEQ)
+		return set_ceq_ctrl_reg(eq);
+
 	set_ctrl0(eq);
 	set_ctrl1(eq);
+	return 0;
 }
 
 /**
@@ -703,7 +763,12 @@ static int init_eq(struct hinic_eq *eq, struct hinic_hwif *hwif,
 		return -EINVAL;
 	}
 
-	set_eq_ctrls(eq);
+	err = set_eq_ctrls(eq);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to set eq ctrls\n");
+		return err;
+	}
+
 	eq_update_ci(eq, EQ_ARMED);
 
 	err = alloc_eq_pages(eq);
@@ -859,6 +924,7 @@ int hinic_ceqs_init(struct hinic_ceqs *ceqs, struct hinic_hwif *hwif,
 	ceqs->num_ceqs = num_ceqs;
 
 	for (q_id = 0; q_id < num_ceqs; q_id++) {
+		ceqs->ceq[q_id].hwdev = ceqs->hwdev;
 		err = init_eq(&ceqs->ceq[q_id], hwif, HINIC_CEQ, q_id, q_len,
 			      page_size, msix_entries[q_id]);
 		if (err) {

@@ -221,9 +221,6 @@ struct qdio_q {
 	 */
 	int first_to_check;
 
-	/* beginning position for calling the program */
-	int first_to_kick;
-
 	/* number of buffers in use by the adapter */
 	atomic_t nr_buf_used;
 
@@ -292,6 +289,8 @@ struct qdio_irq {
 
 	struct qdio_q *input_qs[QDIO_MAX_QUEUES_PER_IRQ];
 	struct qdio_q *output_qs[QDIO_MAX_QUEUES_PER_IRQ];
+	unsigned int max_input_qs;
+	unsigned int max_output_qs;
 
 	void (*irq_poll)(struct ccw_device *cdev, unsigned long data);
 	unsigned long poll_state;
@@ -364,16 +363,13 @@ static inline int multicast_outbound(struct qdio_q *q)
 extern u64 last_ai_time;
 
 /* prototypes for thin interrupt */
-void qdio_setup_thinint(struct qdio_irq *irq_ptr);
 int qdio_establish_thinint(struct qdio_irq *irq_ptr);
 void qdio_shutdown_thinint(struct qdio_irq *irq_ptr);
 void tiqdio_add_device(struct qdio_irq *irq_ptr);
 void tiqdio_remove_device(struct qdio_irq *irq_ptr);
 void tiqdio_inbound_processing(unsigned long q);
-int tiqdio_allocate_memory(void);
-void tiqdio_free_memory(void);
-int tiqdio_register_thinints(void);
-void tiqdio_unregister_thinints(void);
+int qdio_thinint_init(void);
+void qdio_thinint_exit(void);
 int test_nonshared_ind(struct qdio_irq *);
 
 /* prototypes for setup */
@@ -389,8 +385,10 @@ int qdio_setup_get_ssqd(struct qdio_irq *irq_ptr,
 			struct subchannel_id *schid,
 			struct qdio_ssqd_desc *data);
 int qdio_setup_irq(struct qdio_irq *irq_ptr, struct qdio_initialize *init_data);
+void qdio_shutdown_irq(struct qdio_irq *irq);
 void qdio_print_subchannel_info(struct qdio_irq *irq_ptr);
-void qdio_release_memory(struct qdio_irq *irq_ptr);
+void qdio_free_queues(struct qdio_irq *irq_ptr);
+void qdio_free_async_data(struct qdio_irq *irq_ptr);
 int qdio_setup_init(void);
 void qdio_setup_exit(void);
 int qdio_enable_async_operation(struct qdio_output_q *q);

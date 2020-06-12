@@ -86,7 +86,7 @@ config INET
 	  "Sysctl support" below, you can change various aspects of the
 	  behavior of the TCP/IP code by writing to the (virtual) files in
 	  /proc/sys/net/ipv4/*; the options are explained in the file
-	  <file:Documentation/networking/ip-sysctl.txt>.
+	  <file:Documentation/networking/ip-sysctl.rst>.
 
 	  Short answer: say Y.
 
@@ -344,7 +344,7 @@ config NET_PKTGEN
 	  what was just said, you don't need it: say N.
 
 	  Documentation on how to use the packet generator can be found
-	  at <file:Documentation/networking/pktgen.txt>.
+	  at <file:Documentation/networking/pktgen.rst>.
 
 	  To compile this code as a module, choose M here: the
 	  module will be called pktgen.
@@ -455,6 +455,7 @@ config FAILOVER
 config ETHTOOL_NETLINK
 	bool "Netlink interface for ethtool"
 	default y
+	depends on PHYLIB=y || PHYLIB=n
 	help
 	  An alternative userspace interface for ethtool based on generic
 	  netlink. It provides better extensibility and some new features,

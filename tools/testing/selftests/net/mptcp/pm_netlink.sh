@@ -30,7 +30,7 @@ ret=0
 
 cleanup()
 {
-	rm -f $out
+	rm -f $err
 	ip netns del $ns1
 }
 

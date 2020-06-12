@@ -169,7 +169,6 @@ trap_action_check()
 mtu_value_is_too_small_test()
 {
 	local trap_name="mtu_value_is_too_small"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -191,7 +190,7 @@ mtu_value_is_too_small_test()
 		-B 198.51.100.1 -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
 	check_err $? "Packets were not received to h1"
@@ -208,7 +207,6 @@ __ttl_value_is_too_small_test()
 {
 	local ttl_val=$1; shift
 	local trap_name="ttl_value_is_too_small"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -227,7 +225,7 @@ __ttl_value_is_too_small_test()
 		-b $rp1mac -B 198.51.100.1 -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
 	check_err $? "Packets were not received to h1"
@@ -271,7 +269,6 @@ __mc_reverse_path_forwarding_test()
 	local proto=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="mc_reverse_path_forwarding"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -292,7 +289,7 @@ __mc_reverse_path_forwarding_test()
 
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets "dev $rp2 egress" 101 0
 	check_err $? "Packets were not dropped"
@@ -322,7 +319,6 @@ __reject_route_test()
 	local unreachable=$1; shift
 	local flags=${1:-""}; shift
 	local trap_name="reject_route"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -341,7 +337,7 @@ __reject_route_test()
 		-B $dst_ip -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	tc_check_packets_hitting "dev $h1 ingress" 101
 	check_err $? "ICMP packet was not received to h1"
@@ -370,7 +366,6 @@ __host_miss_test()
 	local desc=$1; shift
 	local dip=$1; shift
 	local trap_name="unresolved_neigh"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -405,7 +400,6 @@ __invalid_nexthop_test()
 	local subnet=$1; shift
 	local via_add=$1; shift
 	local trap_name="unresolved_neigh"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -494,7 +488,6 @@ vrf_without_routes_destroy()
 ipv4_lpm_miss_test()
 {
 	local trap_name="ipv4_lpm_miss"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -511,7 +504,7 @@ ipv4_lpm_miss_test()
 		-B 203.0.113.1 -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	log_test "LPM miss: IPv4"
 
@@ -522,7 +515,6 @@ ipv4_lpm_miss_test()
 ipv6_lpm_miss_test()
 {
 	local trap_name="ipv6_lpm_miss"
-	local group_name="l3_drops"
 	local expected_action="trap"
 	local mz_pid
 
@@ -539,7 +531,7 @@ ipv6_lpm_miss_test()
 		-B 2001:db8::1 -q &
 	mz_pid=$!
 
-	devlink_trap_exception_test $trap_name $group_name
+	devlink_trap_exception_test $trap_name
 
 	log_test "LPM miss: IPv6"
 

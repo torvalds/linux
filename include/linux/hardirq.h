@@ -2,30 +2,27 @@
 #ifndef LINUX_HARDIRQ_H
 #define LINUX_HARDIRQ_H
 
+#include <linux/context_tracking_state.h>
 #include <linux/preempt.h>
 #include <linux/lockdep.h>
 #include <linux/ftrace_irq.h>
 #include <linux/vtime.h>
 #include <asm/hardirq.h>
 
-
 extern void synchronize_irq(unsigned int irq);
 extern bool synchronize_hardirq(unsigned int irq);
 
-#if defined(CONFIG_TINY_RCU)
-
-static inline void rcu_nmi_enter(void)
-{
-}
-
-static inline void rcu_nmi_exit(void)
-{
-}
-
+#ifdef CONFIG_NO_HZ_FULL
+void __rcu_irq_enter_check_tick(void);
 #else
-extern void rcu_nmi_enter(void);
-extern void rcu_nmi_exit(void);
+static inline void __rcu_irq_enter_check_tick(void) { }
 #endif
+
+static __always_inline void rcu_irq_enter_check_tick(void)
+{
+	if (context_tracking_enabled())
+		__rcu_irq_enter_check_tick();
+}
 
 /*
  * It is safe to do non-atomic ops on ->hardirq_context,
@@ -65,14 +62,34 @@ extern void irq_exit(void);
 #define arch_nmi_exit()		do { } while (0)
 #endif
 
+#ifdef CONFIG_TINY_RCU
+static inline void rcu_nmi_enter(void) { }
+static inline void rcu_nmi_exit(void) { }
+#else
+extern void rcu_nmi_enter(void);
+extern void rcu_nmi_exit(void);
+#endif
+
+/*
+ * NMI vs Tracing
+ * --------------
+ *
+ * We must not land in a tracer until (or after) we've changed preempt_count
+ * such that in_nmi() becomes true. To that effect all NMI C entry points must
+ * be marked 'notrace' and call nmi_enter() as soon as possible.
+ */
+
+/*
+ * nmi_enter() can nest up to 15 times; see NMI_BITS.
+ */
 #define nmi_enter()						\
 	do {							\
 		arch_nmi_enter();				\
 		printk_nmi_enter();				\
 		lockdep_off();					\
 		ftrace_nmi_enter();				\
-		BUG_ON(in_nmi());				\
-		preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		BUG_ON(in_nmi() == NMI_MASK);			\
+		__preempt_count_add(NMI_OFFSET + HARDIRQ_OFFSET);	\
 		rcu_nmi_enter();				\
 		lockdep_hardirq_enter();			\
 	} while (0)
@@ -82,7 +99,7 @@ extern void irq_exit(void);
 		lockdep_hardirq_exit();				\
 		rcu_nmi_exit();					\
 		BUG_ON(!in_nmi());				\
-		preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\
+		__preempt_count_sub(NMI_OFFSET + HARDIRQ_OFFSET);	\
 		ftrace_nmi_exit();				\
 		lockdep_on();					\
 		printk_nmi_exit();				\

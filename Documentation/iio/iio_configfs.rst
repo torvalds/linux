@@ -9,7 +9,7 @@ Configfs is a filesystem-based manager of kernel objects. IIO uses some
 objects that could be easily configured using configfs (e.g.: devices,
 triggers).
 
-See Documentation/filesystems/configfs/configfs.txt for more information
+See Documentation/filesystems/configfs.rst for more information
 about how configfs works.
 
 2. Usage

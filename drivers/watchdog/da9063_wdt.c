@@ -46,15 +46,16 @@ static unsigned int da9063_wdt_timeout_to_sel(unsigned int secs)
 }
 
 /*
- * Return 0 if watchdog is disabled, else non zero.
+ * Read the currently active timeout.
+ * Zero means the watchdog is disabled.
  */
-static unsigned int da9063_wdt_is_running(struct da9063 *da9063)
+static unsigned int da9063_wdt_read_timeout(struct da9063 *da9063)
 {
 	unsigned int val;
 
 	regmap_read(da9063->regmap, DA9063_REG_CONTROL_D, &val);
 
-	return val & DA9063_TWDSCALE_MASK;
+	return wdt_timeout[val & DA9063_TWDSCALE_MASK];
 }
 
 static int da9063_wdt_disable_timer(struct da9063 *da9063)
@@ -191,6 +192,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct da9063 *da9063;
 	struct watchdog_device *wdd;
+	unsigned int timeout;
 
 	if (!dev->parent)
 		return -EINVAL;
@@ -214,13 +216,19 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	watchdog_set_restart_priority(wdd, 128);
 	watchdog_set_drvdata(wdd, da9063);
 
-	/* Set default timeout, maybe override it with DT value, scale it */
 	wdd->timeout = DA9063_WDG_TIMEOUT;
+
+	/* Use pre-configured timeout if watchdog is already running. */
+	timeout = da9063_wdt_read_timeout(da9063);
+	if (timeout)
+		wdd->timeout = timeout;
+
+	/* Set timeout, maybe override it with DT value, scale it */
 	watchdog_init_timeout(wdd, 0, dev);
 	da9063_wdt_set_timeout(wdd, wdd->timeout);
 
-	/* Change the timeout to the default value if the watchdog is running */
-	if (da9063_wdt_is_running(da9063)) {
+	/* Update timeout if the watchdog is already running. */
+	if (timeout) {
 		da9063_wdt_update_timeout(da9063, wdd->timeout);
 		set_bit(WDOG_HW_RUNNING, &wdd->status);
 	}

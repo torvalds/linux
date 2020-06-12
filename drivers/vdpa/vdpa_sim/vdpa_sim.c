@@ -89,20 +89,19 @@ static struct vdpasim *dev_to_sim(struct device *dev)
 static void vdpasim_queue_ready(struct vdpasim *vdpasim, unsigned int idx)
 {
 	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
-	int ret;
 
-	ret = vringh_init_iotlb(&vq->vring, vdpasim_features,
-				VDPASIM_QUEUE_MAX, false,
-				(struct vring_desc *)(uintptr_t)vq->desc_addr,
-				(struct vring_avail *)
-				(uintptr_t)vq->driver_addr,
-				(struct vring_used *)
-				(uintptr_t)vq->device_addr);
+	vringh_init_iotlb(&vq->vring, vdpasim_features,
+			  VDPASIM_QUEUE_MAX, false,
+			  (struct vring_desc *)(uintptr_t)vq->desc_addr,
+			  (struct vring_avail *)
+			  (uintptr_t)vq->driver_addr,
+			  (struct vring_used *)
+			  (uintptr_t)vq->device_addr);
 }
 
 static void vdpasim_vq_reset(struct vdpasim_virtqueue *vq)
 {
-	vq->ready = 0;
+	vq->ready = false;
 	vq->desc_addr = 0;
 	vq->driver_addr = 0;
 	vq->device_addr = 0;
@@ -132,9 +131,10 @@ static void vdpasim_work(struct work_struct *work)
 						 vdpasim, work);
 	struct vdpasim_virtqueue *txq = &vdpasim->vqs[1];
 	struct vdpasim_virtqueue *rxq = &vdpasim->vqs[0];
-	size_t read, write, total_write;
-	int err;
+	ssize_t read, write;
+	size_t total_write;
 	int pkts = 0;
+	int err;
 
 	spin_lock(&vdpasim->lock);
 
@@ -435,7 +435,7 @@ static u64 vdpasim_get_vq_state(struct vdpa_device *vdpa, u16 idx)
 	return vrh->last_avail_idx;
 }
 
-static u16 vdpasim_get_vq_align(struct vdpa_device *vdpa)
+static u32 vdpasim_get_vq_align(struct vdpa_device *vdpa)
 {
 	return VDPASIM_QUEUE_ALIGN;
 }
@@ -488,7 +488,7 @@ static u8 vdpasim_get_status(struct vdpa_device *vdpa)
 	status = vdpasim->status;
 	spin_unlock(&vdpasim->lock);
 
-	return vdpasim->status;
+	return status;
 }
 
 static void vdpasim_set_status(struct vdpa_device *vdpa, u8 status)

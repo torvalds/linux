@@ -82,8 +82,6 @@ static void cdns3_exit_roles(struct cdns3 *cdns)
 	cdns3_drd_exit(cdns);
 }
 
-static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns);
-
 /**
  * cdns3_core_init_role - initialize role of operation
  * @cdns: Pointer to cdns3 structure
@@ -193,12 +191,12 @@ err:
 }
 
 /**
- * cdsn3_hw_role_state_machine  - role switch state machine based on hw events.
+ * cdns3_hw_role_state_machine  - role switch state machine based on hw events.
  * @cdns: Pointer to controller structure.
  *
  * Returns next role to be entered based on hw events.
  */
-static enum usb_role cdsn3_hw_role_state_machine(struct cdns3 *cdns)
+static enum usb_role cdns3_hw_role_state_machine(struct cdns3 *cdns)
 {
 	enum usb_role role;
 	int id, vbus;
@@ -291,14 +289,10 @@ int cdns3_hw_role_switch(struct cdns3 *cdns)
 	enum usb_role real_role, current_role;
 	int ret = 0;
 
-	/* Do nothing if role based on syfs. */
-	if (cdns->role_override)
-		return 0;
-
 	pm_runtime_get_sync(cdns->dev);
 
 	current_role = cdns->role;
-	real_role = cdsn3_hw_role_state_machine(cdns);
+	real_role = cdns3_hw_role_state_machine(cdns);
 
 	/* Do nothing if nothing changed */
 	if (current_role == real_role)
@@ -352,39 +346,6 @@ static int cdns3_role_set(struct usb_role_switch *sw, enum usb_role role)
 	int ret = 0;
 
 	pm_runtime_get_sync(cdns->dev);
-
-	/*
-	 * FIXME: switch role framework should be extended to meet
-	 * requirements. Driver assumes that role can be controlled
-	 * by SW or HW. Temporary workaround is to use USB_ROLE_NONE to
-	 * switch from SW to HW control.
-	 *
-	 * For dr_mode == USB_DR_MODE_OTG:
-	 *	if user sets USB_ROLE_HOST or USB_ROLE_DEVICE then driver
-	 *	sets role_override flag and forces that role.
-	 *	if user sets USB_ROLE_NONE, driver clears role_override and lets
-	 *	HW state machine take over.
-	 *
-	 * For dr_mode != USB_DR_MODE_OTG:
-	 *	Assumptions:
-	 *	1. Restricted user control between NONE and dr_mode.
-	 *	2. Driver doesn't need to rely on role_override flag.
-	 *	3. Driver needs to ensure that HW state machine is never called
-	 *	   if dr_mode != USB_DR_MODE_OTG.
-	 */
-	if (role == USB_ROLE_NONE)
-		cdns->role_override = 0;
-	else
-		cdns->role_override = 1;
-
-	/*
-	 * HW state might have changed so driver need to trigger
-	 * HW state machine if dr_mode == USB_DR_MODE_OTG.
-	 */
-	if (!cdns->role_override && cdns->dr_mode == USB_DR_MODE_OTG) {
-		cdns3_hw_role_switch(cdns);
-		goto pm_put;
-	}
 
 	if (cdns->role == role)
 		goto pm_put;
@@ -528,6 +489,8 @@ static int cdns3_probe(struct platform_device *pdev)
 	sw_desc.get = cdns3_role_get;
 	sw_desc.allow_userspace_control = true;
 	sw_desc.driver_data = cdns;
+	if (device_property_read_bool(dev, "usb-role-switch"))
+		sw_desc.fwnode = dev->fwnode;
 
 	cdns->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(cdns->role_sw)) {

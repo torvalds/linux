@@ -51,6 +51,8 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
 	struct flow_dissector *dissector = rule->match.dissector;
+	u16 proto = ntohs(f->common.protocol);
+	bool match_protocol = true;
 
 	if (dissector->used_keys &
 	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
@@ -71,7 +73,6 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
-		u16 proto = ntohs(f->common.protocol);
 
 		/* The hw support mac matches only for MAC_ETYPE key,
 		 * therefore if other matches(port, tcp flags, etc) are added
@@ -84,11 +85,6 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 		    (BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
 		     BIT(FLOW_DISSECTOR_KEY_BASIC) |
 		     BIT(FLOW_DISSECTOR_KEY_CONTROL)))
-			return -EOPNOTSUPP;
-
-		if (proto == ETH_P_IP ||
-		    proto == ETH_P_IPV6 ||
-		    proto == ETH_P_ARP)
 			return -EOPNOTSUPP;
 
 		flow_rule_match_eth_addrs(rule, &match);
@@ -114,6 +110,7 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 				match.key->ip_proto;
 			ace->frame.ipv4.proto.mask[0] =
 				match.mask->ip_proto;
+			match_protocol = false;
 		}
 		if (ntohs(match.key->n_proto) == ETH_P_IPV6) {
 			ace->type = OCELOT_ACE_TYPE_IPV6;
@@ -121,11 +118,12 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 				match.key->ip_proto;
 			ace->frame.ipv6.proto.mask[0] =
 				match.mask->ip_proto;
+			match_protocol = false;
 		}
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV4_ADDRS) &&
-	    ntohs(f->common.protocol) == ETH_P_IP) {
+	    proto == ETH_P_IP) {
 		struct flow_match_ipv4_addrs match;
 		u8 *tmp;
 
@@ -141,10 +139,11 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 
 		tmp = &ace->frame.ipv4.dip.mask.addr[0];
 		memcpy(tmp, &match.mask->dst, 4);
+		match_protocol = false;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IPV6_ADDRS) &&
-	    ntohs(f->common.protocol) == ETH_P_IPV6) {
+	    proto == ETH_P_IPV6) {
 		return -EOPNOTSUPP;
 	}
 
@@ -156,6 +155,7 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 		ace->frame.ipv4.sport.mask = ntohs(match.mask->src);
 		ace->frame.ipv4.dport.value = ntohs(match.key->dst);
 		ace->frame.ipv4.dport.mask = ntohs(match.mask->dst);
+		match_protocol = false;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
@@ -167,9 +167,20 @@ static int ocelot_flower_parse(struct flow_cls_offload *f,
 		ace->vlan.vid.mask = match.mask->vlan_id;
 		ace->vlan.pcp.value[0] = match.key->vlan_priority;
 		ace->vlan.pcp.mask[0] = match.mask->vlan_priority;
+		match_protocol = false;
 	}
 
 finished_key_parsing:
+	if (match_protocol && proto != ETH_P_ALL) {
+		/* TODO: support SNAP, LLC etc */
+		if (proto < ETH_P_802_3_MIN)
+			return -EOPNOTSUPP;
+		ace->type = OCELOT_ACE_TYPE_ETYPE;
+		*(u16 *)ace->frame.etype.etype.value = htons(proto);
+		*(u16 *)ace->frame.etype.etype.mask = 0xffff;
+	}
+	/* else, a rule of type OCELOT_ACE_TYPE_ANY is implicitly added */
+
 	ace->prio = f->common.prio;
 	ace->id = f->cookie;
 	return ocelot_flower_parse_action(f, ace);
@@ -205,7 +216,7 @@ int ocelot_cls_flower_replace(struct ocelot *ocelot, int port,
 		return ret;
 	}
 
-	return ocelot_ace_rule_offload_add(ocelot, ace);
+	return ocelot_ace_rule_offload_add(ocelot, ace, f->common.extack);
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_replace);
 

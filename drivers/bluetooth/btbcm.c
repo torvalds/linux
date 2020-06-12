@@ -27,6 +27,11 @@
 #define BDADDR_BCM4345C5 (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0xc5, 0x45, 0x43}})
 #define BDADDR_BCM43341B (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0x1b, 0x34, 0x43}})
 
+#define BCM_FW_NAME_LEN			64
+#define BCM_FW_NAME_COUNT_MAX		2
+/* For kmalloc-ing the fw-name array instead of putting it on the stack */
+typedef char bcm_fw_name[BCM_FW_NAME_LEN];
+
 int btbcm_check_bdaddr(struct hci_dev *hdev)
 {
 	struct hci_rp_read_bd_addr *bda;
@@ -358,6 +363,13 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	bt_dev_info(hdev, "BCM: features 0x%2.2x", skb->data[1]);
 	kfree_skb(skb);
 
+	return 0;
+}
+
+static int btbcm_print_local_name(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);
 	if (IS_ERR(skb))
@@ -380,6 +392,7 @@ static const struct bcm_subver_table bcm_uart_subver_table[] = {
 	{ 0x410e, "BCM43341B0"	},	/* 002.001.014 */
 	{ 0x4204, "BCM2076B1"	},	/* 002.002.004 */
 	{ 0x4406, "BCM4324B3"	},	/* 002.004.006 */
+	{ 0x4606, "BCM4324B5"	},	/* 002.006.006 */
 	{ 0x6109, "BCM4335C0"	},	/* 003.001.009 */
 	{ 0x610c, "BCM4354"	},	/* 003.001.012 */
 	{ 0x2122, "BCM4343A0"	},	/* 001.001.034 */
@@ -395,27 +408,32 @@ static const struct bcm_subver_table bcm_uart_subver_table[] = {
 };
 
 static const struct bcm_subver_table bcm_usb_subver_table[] = {
+	{ 0x2105, "BCM20703A1"	},	/* 001.001.005 */
 	{ 0x210b, "BCM43142A0"	},	/* 001.001.011 */
 	{ 0x2112, "BCM4314A0"	},	/* 001.001.018 */
 	{ 0x2118, "BCM20702A0"	},	/* 001.001.024 */
 	{ 0x2126, "BCM4335A0"	},	/* 001.001.038 */
 	{ 0x220e, "BCM20702A1"	},	/* 001.002.014 */
-	{ 0x230f, "BCM4354A2"	},	/* 001.003.015 */
+	{ 0x230f, "BCM4356A2"	},	/* 001.003.015 */
 	{ 0x4106, "BCM4335B0"	},	/* 002.001.006 */
 	{ 0x410e, "BCM20702B0"	},	/* 002.001.014 */
 	{ 0x6109, "BCM4335C0"	},	/* 003.001.009 */
 	{ 0x610c, "BCM4354"	},	/* 003.001.012 */
+	{ 0x6607, "BCM4350C5"	},	/* 003.006.007 */
 	{ }
 };
 
-int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
-		     bool reinit)
+int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 {
 	u16 subver, rev, pid, vid;
-	const char *hw_name = "BCM";
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
 	const struct bcm_subver_table *bcm_subver_table;
+	const char *hw_name = NULL;
+	char postfix[16] = "";
+	int fw_name_count = 0;
+	bcm_fw_name *fw_name;
+	const struct firmware *fw;
 	int i, err;
 
 	/* Reset */
@@ -434,15 +452,14 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 	kfree_skb(skb);
 
 	/* Read controller information */
-	if (!reinit) {
+	if (!(*fw_load_done)) {
 		err = btbcm_read_info(hdev);
 		if (err)
 			return err;
 	}
-
-	/* Upper nibble of rev should be between 0 and 3? */
-	if (((rev & 0xf000) >> 12) > 3)
-		return 0;
+	err = btbcm_print_local_name(hdev);
+	if (err)
+		return err;
 
 	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
 						    bcm_uart_subver_table;
@@ -454,6 +471,13 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 		}
 	}
 
+	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
+		    hw_name ? hw_name : "BCM", (subver & 0xe000) >> 13,
+		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	if (*fw_load_done)
+		return 0;
+
 	if (hdev->bus == HCI_USB) {
 		/* Read USB Product Info */
 		skb = btbcm_read_usb_product(hdev);
@@ -464,39 +488,64 @@ int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
 		pid = get_unaligned_le16(skb->data + 3);
 		kfree_skb(skb);
 
-		snprintf(fw_name, len, "brcm/%s-%4.4x-%4.4x.hcd",
-			 hw_name, vid, pid);
-	} else {
-		snprintf(fw_name, len, "brcm/%s.hcd", hw_name);
+		snprintf(postfix, sizeof(postfix), "-%4.4x-%4.4x", vid, pid);
 	}
 
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name, (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+	fw_name = kmalloc(BCM_FW_NAME_COUNT_MAX * BCM_FW_NAME_LEN, GFP_KERNEL);
+	if (!fw_name)
+		return -ENOMEM;
 
+	if (hw_name) {
+		snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
+			 "brcm/%s%s.hcd", hw_name, postfix);
+		fw_name_count++;
+	}
+
+	snprintf(fw_name[fw_name_count], BCM_FW_NAME_LEN,
+		 "brcm/BCM%s.hcd", postfix);
+	fw_name_count++;
+
+	for (i = 0; i < fw_name_count; i++) {
+		err = firmware_request_nowarn(&fw, fw_name[i], &hdev->dev);
+		if (err == 0) {
+			bt_dev_info(hdev, "%s '%s' Patch",
+				    hw_name ? hw_name : "BCM", fw_name[i]);
+			*fw_load_done = true;
+			break;
+		}
+	}
+
+	if (*fw_load_done) {
+		err = btbcm_patchram(hdev, fw);
+		if (err)
+			bt_dev_info(hdev, "BCM: Patch failed (%d)", err);
+
+		release_firmware(fw);
+	} else {
+		bt_dev_err(hdev, "BCM: firmware Patch file not found, tried:");
+		for (i = 0; i < fw_name_count; i++)
+			bt_dev_err(hdev, "BCM: '%s'", fw_name[i]);
+	}
+
+	kfree(fw_name);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(btbcm_initialize);
 
-int btbcm_finalize(struct hci_dev *hdev)
+int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done)
 {
-	char fw_name[64];
 	int err;
 
-	/* Re-initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
-	if (err)
-		return err;
+	/* Re-initialize if necessary */
+	if (*fw_load_done) {
+		err = btbcm_initialize(hdev, fw_load_done);
+		if (err)
+			return err;
+	}
 
 	btbcm_check_bdaddr(hdev);
 
 	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-
-	/* Some devices ship with the controller default address.
-	 * Allow the bootloader to set a valid address through the
-	 * device tree.
-	 */
-	set_bit(HCI_QUIRK_USE_BDADDR_PROPERTY, &hdev->quirks);
 
 	return 0;
 }
@@ -504,45 +553,16 @@ EXPORT_SYMBOL_GPL(btbcm_finalize);
 
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
-	char fw_name[64];
-	const struct firmware *fw;
-	struct sk_buff *skb;
+	bool fw_load_done = false;
 	int err;
 
 	/* Initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), false);
+	err = btbcm_initialize(hdev, &fw_load_done);
 	if (err)
 		return err;
 
-	err = request_firmware(&fw, fw_name, &hdev->dev);
-	if (err < 0) {
-		bt_dev_info(hdev, "BCM: Patch %s not found", fw_name);
-		goto done;
-	}
-
-	btbcm_patchram(hdev, fw);
-
-	release_firmware(fw);
-
-	/* Re-initialize */
-	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
-	if (err)
-		return err;
-
-	/* Read Local Name */
-	skb = btbcm_read_local_name(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	bt_dev_info(hdev, "%s", (char *)(skb->data + 1));
-	kfree_skb(skb);
-
-done:
-	btbcm_check_bdaddr(hdev);
-
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-
-	return 0;
+	/* Re-initialize after loading Patch */
+	return btbcm_finalize(hdev, &fw_load_done);
 }
 EXPORT_SYMBOL_GPL(btbcm_setup_patchram);
 

@@ -6,7 +6,6 @@
 #include <linux/fs.h>
 
 #include <linux/uaccess.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/desc.h>
 #include <asm/traps.h>

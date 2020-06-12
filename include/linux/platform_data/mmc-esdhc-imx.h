@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright 2010 Wolfram Sang <w.sang@pengutronix.de>
+ * Copyright 2010 Wolfram Sang <kernel@pengutronix.de>
  */
 
 #ifndef __ASM_ARCH_IMX_ESDHC_H

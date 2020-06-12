@@ -229,6 +229,9 @@ struct scsi_device {
 	struct scsi_device_handler *handler;
 	void			*handler_data;
 
+	size_t			dma_drain_len;
+	void			*dma_drain_buf;
+
 	unsigned char		access_state;
 	struct mutex		state_mutex;
 	enum scsi_device_state sdev_state;

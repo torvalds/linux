@@ -45,6 +45,7 @@ config JOYSTICK_A3D
 config JOYSTICK_ADI
 	tristate "Logitech ADI digital joysticks and gamepads"
 	select GAMEPORT
+	depends on ADI!=m # avoid module name conflict
 	help
 	  Say Y here if you have a Logitech controller using the ADI
 	  protocol over the PC gameport.

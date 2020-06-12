@@ -2303,9 +2303,9 @@ static void dce_v10_0_hide_cursor(struct drm_crtc *crtc)
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 	u32 tmp;
 
-	tmp = RREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = RREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_EN, 0);
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 }
 
 static void dce_v10_0_show_cursor(struct drm_crtc *crtc)
@@ -2319,10 +2319,10 @@ static void dce_v10_0_show_cursor(struct drm_crtc *crtc)
 	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       lower_32_bits(amdgpu_crtc->cursor_addr));
 
-	tmp = RREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
+	tmp = RREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_EN, 1);
 	tmp = REG_SET_FIELD(tmp, CUR_CONTROL, CURSOR_MODE, 2);
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset, tmp);
 }
 
 static int dce_v10_0_cursor_move_locked(struct drm_crtc *crtc,

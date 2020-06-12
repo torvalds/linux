@@ -27,7 +27,6 @@
 
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 /*
  * Copy the thread state to a regset that can be interpreted by userspace.

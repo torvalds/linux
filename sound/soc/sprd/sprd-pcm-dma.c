@@ -515,7 +515,7 @@ static const struct snd_soc_component_driver sprd_soc_component = {
 	.mmap		= sprd_pcm_mmap,
 	.pcm_construct	= sprd_pcm_new,
 	.pcm_destruct	= sprd_pcm_free,
-	.compr_ops	= &sprd_platform_compr_ops,
+	.compress_ops	= &sprd_platform_compress_ops,
 };
 
 static int sprd_soc_platform_probe(struct platform_device *pdev)

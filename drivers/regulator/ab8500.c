@@ -139,17 +139,6 @@ static const unsigned int ldo_vintcore_voltages[] = {
 	1350000,
 };
 
-static const unsigned int ldo_sdio_voltages[] = {
-	1160000,
-	1050000,
-	1100000,
-	1500000,
-	1800000,
-	2200000,
-	2910000,
-	3050000,
-};
-
 static const unsigned int fixed_1200000_voltage[] = {
 	1200000,
 };
@@ -164,10 +153,6 @@ static const unsigned int fixed_2000000_voltage[] = {
 
 static const unsigned int fixed_2050000_voltage[] = {
 	2050000,
-};
-
-static const unsigned int fixed_3300000_voltage[] = {
-	3300000,
 };
 
 static const unsigned int ldo_vana_voltages[] = {
@@ -190,13 +175,6 @@ static const unsigned int ldo_vaudio_voltages[] = {
 	2500000,
 	2600000,
 	2600000,	/* Duplicated in Vaudio and IsoUicc Control register. */
-};
-
-static const unsigned int ldo_vdmic_voltages[] = {
-	1800000,
-	1900000,
-	2000000,
-	2850000,
 };
 
 static DEFINE_MUTEX(shared_mode_mutex);

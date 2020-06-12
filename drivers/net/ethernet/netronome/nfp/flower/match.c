@@ -74,9 +74,10 @@ nfp_flower_compile_port(struct nfp_flower_in_port *frame, u32 cmsg_port,
 	return 0;
 }
 
-static void
+static int
 nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
-		       struct nfp_flower_mac_mpls *msk, struct flow_rule *rule)
+		       struct nfp_flower_mac_mpls *msk, struct flow_rule *rule,
+		       struct netlink_ext_ack *extack)
 {
 	memset(ext, 0, sizeof(struct nfp_flower_mac_mpls));
 	memset(msk, 0, sizeof(struct nfp_flower_mac_mpls));
@@ -97,14 +98,28 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
 		u32 t_mpls;
 
 		flow_rule_match_mpls(rule, &match);
-		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB, match.key->mpls_label) |
-			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC, match.key->mpls_tc) |
-			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS, match.key->mpls_bos) |
+
+		/* Only support matching the first LSE */
+		if (match.mask->used_lses != 1) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "unsupported offload: invalid LSE depth for MPLS match offload");
+			return -EOPNOTSUPP;
+		}
+
+		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB,
+				    match.key->ls[0].mpls_label) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC,
+				    match.key->ls[0].mpls_tc) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS,
+				    match.key->ls[0].mpls_bos) |
 			 NFP_FLOWER_MASK_MPLS_Q;
 		ext->mpls_lse = cpu_to_be32(t_mpls);
-		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB, match.mask->mpls_label) |
-			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC, match.mask->mpls_tc) |
-			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS, match.mask->mpls_bos) |
+		t_mpls = FIELD_PREP(NFP_FLOWER_MASK_MPLS_LB,
+				    match.mask->ls[0].mpls_label) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_TC,
+				    match.mask->ls[0].mpls_tc) |
+			 FIELD_PREP(NFP_FLOWER_MASK_MPLS_BOS,
+				    match.mask->ls[0].mpls_bos) |
 			 NFP_FLOWER_MASK_MPLS_Q;
 		msk->mpls_lse = cpu_to_be32(t_mpls);
 	} else if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
@@ -121,6 +136,8 @@ nfp_flower_compile_mac(struct nfp_flower_mac_mpls *ext,
 			msk->mpls_lse = cpu_to_be32(NFP_FLOWER_MASK_MPLS_Q);
 		}
 	}
+
+	return 0;
 }
 
 static void
@@ -461,9 +478,12 @@ int nfp_flower_compile_flow_match(struct nfp_app *app,
 	msk += sizeof(struct nfp_flower_in_port);
 
 	if (NFP_FLOWER_LAYER_MAC & key_ls->key_layer) {
-		nfp_flower_compile_mac((struct nfp_flower_mac_mpls *)ext,
-				       (struct nfp_flower_mac_mpls *)msk,
-				       rule);
+		err = nfp_flower_compile_mac((struct nfp_flower_mac_mpls *)ext,
+					     (struct nfp_flower_mac_mpls *)msk,
+					     rule, extack);
+		if (err)
+			return err;
+
 		ext += sizeof(struct nfp_flower_mac_mpls);
 		msk += sizeof(struct nfp_flower_mac_mpls);
 	}

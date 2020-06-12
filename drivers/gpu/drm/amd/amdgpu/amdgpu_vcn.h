@@ -132,6 +132,13 @@
 		}										\
 	} while (0)
 
+#define AMDGPU_VCN_MULTI_QUEUE_FLAG	(1 << 8)
+
+enum fw_queue_mode {
+	FW_QUEUE_RING_RESET = 1,
+	FW_QUEUE_DPG_HOLD_OFF = 2,
+};
+
 enum engine_status_constants {
 	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON = 0x2AAAA0,
 	UVD_PGFSM_STATUS__UVDM_UVDU_PWR_ON_2_0 = 0xAAAA0,
@@ -179,10 +186,15 @@ struct amdgpu_vcn_inst {
 	struct amdgpu_irq_src	irq;
 	struct amdgpu_vcn_reg	external;
 	struct amdgpu_bo	*dpg_sram_bo;
+	struct amdgpu_bo	*fw_shared_bo;
 	struct dpg_pause_state	pause_state;
 	void			*dpg_sram_cpu_addr;
 	uint64_t		dpg_sram_gpu_addr;
 	uint32_t		*dpg_sram_curr_addr;
+	atomic_t		dpg_enc_submission_cnt;
+	void			*fw_shared_cpu_addr;
+	uint64_t		fw_shared_gpu_addr;
+	void			*saved_shm_bo;
 };
 
 struct amdgpu_vcn {
@@ -196,15 +208,27 @@ struct amdgpu_vcn {
 	uint8_t	num_vcn_inst;
 	struct amdgpu_vcn_inst	 inst[AMDGPU_MAX_VCN_INSTANCES];
 	struct amdgpu_vcn_reg	 internal;
-	struct drm_gpu_scheduler *vcn_enc_sched[AMDGPU_MAX_VCN_ENC_RINGS];
-	struct drm_gpu_scheduler *vcn_dec_sched[AMDGPU_MAX_VCN_INSTANCES];
-	uint32_t		 num_vcn_enc_sched;
-	uint32_t		 num_vcn_dec_sched;
+	struct mutex		 vcn_pg_lock;
+	atomic_t		 total_submission_cnt;
 
 	unsigned	harvest_config;
 	int (*pause_dpg_mode)(struct amdgpu_device *adev,
 		int inst_idx, struct dpg_pause_state *new_state);
 };
+
+struct amdgpu_fw_shared_multi_queue {
+	uint8_t decode_queue_mode;
+	uint8_t encode_generalpurpose_queue_mode;
+	uint8_t encode_lowlatency_queue_mode;
+	uint8_t encode_realtime_queue_mode;
+	uint8_t padding[4];
+};
+
+struct amdgpu_fw_shared {
+	uint32_t present_flag_0;
+	uint8_t pad[53];
+	struct amdgpu_fw_shared_multi_queue multi_queue;
+} __attribute__((__packed__));
 
 int amdgpu_vcn_sw_init(struct amdgpu_device *adev);
 int amdgpu_vcn_sw_fini(struct amdgpu_device *adev);

@@ -269,6 +269,7 @@ config DM_UNSTRIPED
 config DM_CRYPT
 	tristate "Crypt target support"
 	depends on BLK_DEV_DM
+	depends on (ENCRYPTED_KEYS || ENCRYPTED_KEYS=n)
 	select CRYPTO
 	select CRYPTO_CBC
 	select CRYPTO_ESSIV
@@ -335,6 +336,14 @@ config DM_WRITECACHE
 
 	   The writecache target doesn't cache reads because reads are supposed
 	   to be cached in standard RAM.
+
+config DM_EBS
+	tristate "Emulated block size target (EXPERIMENTAL)"
+	depends on BLK_DEV_DM
+	select DM_BUFIO
+	help
+	  dm-ebs emulates smaller logical block size on backing devices
+	  with larger ones (e.g. 512 byte sectors on 4K native disks).
 
 config DM_ERA
        tristate "Era target (EXPERIMENTAL)"
@@ -440,6 +449,17 @@ config DM_MULTIPATH_ST
 	  This path selector is a dynamic load balancer which selects
 	  the path expected to complete the incoming I/O in the shortest
 	  time.
+
+	  If unsure, say N.
+
+config DM_MULTIPATH_HST
+	tristate "I/O Path Selector based on historical service time"
+	depends on DM_MULTIPATH
+	help
+	  This path selector is a dynamic load balancer which selects
+	  the path expected to complete the incoming I/O in the shortest
+	  time by comparing estimated service time (based on historical
+	  service time).
 
 	  If unsure, say N.
 

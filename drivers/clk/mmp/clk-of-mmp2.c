@@ -17,8 +17,10 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/of_address.h>
+#include <linux/clk.h>
 
 #include <dt-bindings/clock/marvell,mmp2.h>
+#include <dt-bindings/power/marvell,mmp2.h>
 
 #include "clk.h"
 #include "reset.h"
@@ -45,6 +47,10 @@
 #define APBC_SSP1	0x54
 #define APBC_SSP2	0x58
 #define APBC_SSP3	0x5c
+#define APBC_THERMAL0	0x90
+#define APBC_THERMAL1	0x98
+#define APBC_THERMAL2	0x9c
+#define APBC_THERMAL3	0xa0
 #define APMU_SDH0	0x54
 #define APMU_SDH1	0x58
 #define APMU_SDH2	0xe8
@@ -55,18 +61,19 @@
 #define APMU_DISP1	0x110
 #define APMU_CCIC0	0x50
 #define APMU_CCIC1	0xf4
-#define APBC_THERMAL0	0x90
-#define APBC_THERMAL1	0x98
-#define APBC_THERMAL2	0x9c
-#define APBC_THERMAL3	0xa0
 #define APMU_USBHSIC0	0xf8
 #define APMU_USBHSIC1	0xfc
 #define APMU_GPU	0xcc
+#define APMU_AUDIO	0x10c
+#define APMU_CAMERA	0x1fc
 
 #define MPMU_FCCR		0x8
 #define MPMU_POSR		0x10
 #define MPMU_UART_PLL		0x14
 #define MPMU_PLL2_CR		0x34
+#define MPMU_I2S0_PLL		0x40
+#define MPMU_I2S1_PLL		0x44
+#define MPMU_ACGR		0x1024
 /* MMP3 specific below */
 #define MPMU_PLL3_CR		0x50
 #define MPMU_PLL3_CTRL1		0x58
@@ -82,6 +89,8 @@ enum mmp2_clk_model {
 struct mmp2_clk_unit {
 	struct mmp_clk_unit unit;
 	enum mmp2_clk_model model;
+	struct genpd_onecell_data pd_data;
+	struct generic_pm_domain *pm_domains[MMP2_NR_POWER_DOMAINS];
 	void __iomem *mpmu_base;
 	void __iomem *apmu_base;
 	void __iomem *apbc_base;
@@ -91,6 +100,7 @@ static struct mmp_param_fixed_rate_clk fixed_rate_clks[] = {
 	{MMP2_CLK_CLK32, "clk32", NULL, 0, 32768},
 	{MMP2_CLK_VCTCXO, "vctcxo", NULL, 0, 26000000},
 	{MMP2_CLK_USB_PLL, "usb_pll", NULL, 0, 480000000},
+	{0, "i2s_pll", NULL, 0, 99666667},
 };
 
 static struct mmp_param_pll_clk pll_clks[] = {
@@ -139,7 +149,35 @@ static struct mmp_clk_factor_tbl uart_factor_tbl[] = {
 	{.num = 3521, .den = 689},	/*19.23MHZ */
 };
 
-static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
+static struct mmp_clk_factor_masks i2s_factor_masks = {
+	.factor = 2,
+	.num_mask = 0x7fff,
+	.den_mask = 0x1fff,
+	.num_shift = 0,
+	.den_shift = 15,
+	.enable_mask = 0xd0000000,
+};
+
+static struct mmp_clk_factor_tbl i2s_factor_tbl[] = {
+	{.num = 24868, .den =  511},	/*  2.0480 MHz */
+	{.num = 28003, .den =  793},	/*  2.8224 MHz */
+	{.num = 24941, .den = 1025},	/*  4.0960 MHz */
+	{.num = 28003, .den = 1586},	/*  5.6448 MHz */
+	{.num = 31158, .den = 2561},	/*  8.1920 MHz */
+	{.num = 16288, .den = 1845},	/* 11.2896 MHz */
+	{.num = 20772, .den = 2561},	/* 12.2880 MHz */
+	{.num =  8144, .den = 1845},	/* 22.5792 MHz */
+	{.num = 10386, .den = 2561},	/* 24.5760 MHz */
+};
+
+static DEFINE_SPINLOCK(acgr_lock);
+
+static struct mmp_param_gate_clk mpmu_gate_clks[] = {
+	{MMP2_CLK_I2S0, "i2s0_clk", "i2s0_pll", CLK_SET_RATE_PARENT, MPMU_ACGR, 0x200000, 0x200000, 0x0, 0, &acgr_lock},
+	{MMP2_CLK_I2S1, "i2s1_clk", "i2s1_pll", CLK_SET_RATE_PARENT, MPMU_ACGR, 0x100000, 0x100000, 0x0, 0, &acgr_lock},
+};
+
+static void mmp2_main_clk_init(struct mmp2_clk_unit *pxa_unit)
 {
 	struct clk *clk;
 	struct mmp_clk_unit *unit = &pxa_unit->unit;
@@ -166,6 +204,20 @@ static void mmp2_pll_init(struct mmp2_clk_unit *pxa_unit)
 				&uart_factor_masks, uart_factor_tbl,
 				ARRAY_SIZE(uart_factor_tbl), NULL);
 	mmp_clk_add(unit, MMP2_CLK_UART_PLL, clk);
+
+	mmp_clk_register_factor("i2s0_pll", "pll1_4",
+				CLK_SET_RATE_PARENT,
+				pxa_unit->mpmu_base + MPMU_I2S0_PLL,
+				&i2s_factor_masks, i2s_factor_tbl,
+				ARRAY_SIZE(i2s_factor_tbl), NULL);
+	mmp_clk_register_factor("i2s1_pll", "pll1_4",
+				CLK_SET_RATE_PARENT,
+				pxa_unit->mpmu_base + MPMU_I2S1_PLL,
+				&i2s_factor_masks, i2s_factor_tbl,
+				ARRAY_SIZE(i2s_factor_tbl), NULL);
+
+	mmp_register_gate_clks(unit, mpmu_gate_clks, pxa_unit->mpmu_base,
+				ARRAY_SIZE(mpmu_gate_clks));
 }
 
 static DEFINE_SPINLOCK(uart0_lock);
@@ -271,6 +323,8 @@ static u32 mmp2_gpu_bus_parent_table[] =         { 0x0000,   0x0020,   0x0030,  
 static const char * const mmp3_gpu_bus_parent_names[] = {"pll1_4", "pll1_6", "pll1_2", "pll2_2"};
 static const char * const mmp3_gpu_gc_parent_names[] =  {"pll1",   "pll2",   "pll1_p", "pll2_p"};
 
+static DEFINE_SPINLOCK(audio_lock);
+
 static struct mmp_clk_mix_config ccic0_mix_config = {
 	.reg_info = DEFINE_MIX_REG_INFO(4, 17, 2, 6, 32),
 };
@@ -326,6 +380,7 @@ static struct mmp_param_gate_clk apmu_gate_clks[] = {
 	{MMP2_CLK_CCIC1_PHY, "ccic1_phy_clk", "ccic1_mix_clk", CLK_SET_RATE_PARENT, APMU_CCIC1, 0x24, 0x24, 0x0, 0, &ccic1_lock},
 	{MMP2_CLK_CCIC1_SPHY, "ccic1_sphy_clk", "ccic1_sphy_div", CLK_SET_RATE_PARENT, APMU_CCIC1, 0x300, 0x300, 0x0, 0, &ccic1_lock},
 	{MMP2_CLK_GPU_BUS, "gpu_bus_clk", "gpu_bus_mux", CLK_SET_RATE_PARENT, APMU_GPU, 0xa, 0xa, 0x0, MMP_CLK_GATE_NEED_DELAY, &gpu_lock},
+	{MMP2_CLK_AUDIO, "audio_clk", "audio_mix_clk", CLK_SET_RATE_PARENT, APMU_AUDIO, 0x12, 0x12, 0x0, 0, &audio_lock},
 };
 
 static struct mmp_param_gate_clk mmp2_apmu_gate_clks[] = {
@@ -423,6 +478,41 @@ static void mmp2_clk_reset_init(struct device_node *np,
 	mmp_clk_reset_register(np, cells, nr_resets);
 }
 
+static void mmp2_pm_domain_init(struct device_node *np,
+				struct mmp2_clk_unit *pxa_unit)
+{
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		pxa_unit->pm_domains[MMP2_POWER_DOMAIN_GPU]
+			= mmp_pm_domain_register("gpu",
+				pxa_unit->apmu_base + APMU_GPU,
+				0x0600, 0x40003, 0x18000c, 0, &gpu_lock);
+	} else {
+		pxa_unit->pm_domains[MMP2_POWER_DOMAIN_GPU]
+			= mmp_pm_domain_register("gpu",
+				pxa_unit->apmu_base + APMU_GPU,
+				0x8600, 0x00003, 0x00000c,
+				MMP_PM_DOMAIN_NO_DISABLE, &gpu_lock);
+	}
+	pxa_unit->pd_data.num_domains++;
+
+	pxa_unit->pm_domains[MMP2_POWER_DOMAIN_AUDIO]
+		= mmp_pm_domain_register("audio",
+			pxa_unit->apmu_base + APMU_AUDIO,
+			0x600, 0x2, 0, 0, &audio_lock);
+	pxa_unit->pd_data.num_domains++;
+
+	if (pxa_unit->model == CLK_MODEL_MMP3) {
+		pxa_unit->pm_domains[MMP3_POWER_DOMAIN_CAMERA]
+			= mmp_pm_domain_register("camera",
+				pxa_unit->apmu_base + APMU_CAMERA,
+				0x600, 0, 0, 0, NULL);
+		pxa_unit->pd_data.num_domains++;
+	}
+
+	pxa_unit->pd_data.domains = pxa_unit->pm_domains;
+	of_genpd_add_provider_onecell(np, &pxa_unit->pd_data);
+}
+
 static void __init mmp2_clk_init(struct device_node *np)
 {
 	struct mmp2_clk_unit *pxa_unit;
@@ -454,9 +544,11 @@ static void __init mmp2_clk_init(struct device_node *np)
 		goto unmap_apmu_region;
 	}
 
+	mmp2_pm_domain_init(np, pxa_unit);
+
 	mmp_clk_init(np, &pxa_unit->unit, MMP2_NR_CLKS);
 
-	mmp2_pll_init(pxa_unit);
+	mmp2_main_clk_init(pxa_unit);
 
 	mmp2_apb_periph_clk_init(pxa_unit);
 

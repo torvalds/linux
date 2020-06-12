@@ -198,7 +198,7 @@ static void wm8711_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 
 	/* deactivate */
-	if (!snd_soc_component_is_active(component)) {
+	if (!snd_soc_component_active(component)) {
 		udelay(50);
 		snd_soc_component_write(component, WM8711_ACTIVE, 0x0);
 	}

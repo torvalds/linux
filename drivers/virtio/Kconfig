@@ -45,7 +45,7 @@ config VIRTIO_PCI_LEGACY
 
 config VIRTIO_VDPA
 	tristate "vDPA driver for virtio devices"
-	select VDPA
+	depends on VDPA
 	select VIRTIO
 	help
 	  This driver provides support for virtio based paravirtual
@@ -75,6 +75,23 @@ config VIRTIO_BALLOON
 	---help---
 	 This driver supports increasing and decreasing the amount
 	 of memory within a KVM guest.
+
+	 If unsure, say M.
+
+config VIRTIO_MEM
+	tristate "Virtio mem driver"
+	default m
+	depends on X86_64
+	depends on VIRTIO
+	depends on MEMORY_HOTPLUG_SPARSE
+	depends on MEMORY_HOTREMOVE
+	select CONTIG_ALLOC
+	help
+	 This driver provides access to virtio-mem paravirtualized memory
+	 devices, allowing to hotplug and hotunplug memory.
+
+	 This driver was only tested under x86-64, but should theoretically
+	 work on all architectures that support memory hotplug and hotremove.
 
 	 If unsure, say M.
 

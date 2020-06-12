@@ -44,7 +44,7 @@
 #define DPRINTK(a, b...)	\
 	printk(KERN_DEBUG "pm3fb: %s: " a, __func__ , ## b)
 #else
-#define DPRINTK(a, b...)
+#define DPRINTK(a, b...)	no_printk(a, ##b)
 #endif
 
 #define PM3_PIXMAP_SIZE	(2048 * 4)
@@ -306,7 +306,7 @@ static void pm3fb_init_engine(struct fb_info *info)
 					   PM3PixelSize_GLOBAL_32BIT);
 			break;
 		default:
-			DPRINTK(1, "Unsupported depth %d\n",
+			DPRINTK("Unsupported depth %d\n",
 				info->var.bits_per_pixel);
 			break;
 		}
@@ -349,8 +349,8 @@ static void pm3fb_init_engine(struct fb_info *info)
 					   (1 << 10) | (0 << 3));
 			break;
 		default:
-			DPRINTK(1, "Unsupported depth %d\n",
-				info->current_par->depth);
+			DPRINTK("Unsupported depth %d\n",
+				info->var.bits_per_pixel);
 			break;
 		}
 	}

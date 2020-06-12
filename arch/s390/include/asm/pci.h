@@ -22,11 +22,16 @@ int pci_domain_nr(struct pci_bus *);
 int pci_proc_domain(struct pci_bus *);
 
 #define ZPCI_BUS_NR			0	/* default bus number */
-#define ZPCI_DEVFN			0	/* default device number */
 
 #define ZPCI_NR_DMA_SPACES		1
 #define ZPCI_NR_DEVICES			CONFIG_PCI_NR_FUNCTIONS
 #define ZPCI_DOMAIN_BITMAP_SIZE		(1 << 16)
+
+#ifdef PCI
+#if (ZPCI_NR_DEVICES > ZPCI_DOMAIN_BITMAP_SIZE)
+# error ZPCI_NR_DEVICES can not be bigger than ZPCI_DOMAIN_BITMAP_SIZE
+#endif
+#endif /* PCI */
 
 /* PCI Function Controls */
 #define ZPCI_FC_FN_ENABLED		0x80
@@ -94,10 +99,26 @@ struct zpci_bar_struct {
 
 struct s390_domain;
 
+#define ZPCI_FUNCTIONS_PER_BUS 256
+struct zpci_bus {
+	struct kref		kref;
+	struct pci_bus		*bus;
+	struct zpci_dev		*function[ZPCI_FUNCTIONS_PER_BUS];
+	struct list_head	resources;
+	struct list_head	bus_next;
+	struct resource		bus_resource;
+	int			pchid;
+	int			domain_nr;
+	bool			multifunction;
+	enum pci_bus_speed	max_bus_speed;
+};
+
 /* Private data per function */
 struct zpci_dev {
-	struct pci_bus	*bus;
+	struct zpci_bus *zbus;
 	struct list_head entry;		/* list of all zpci_devices, needed for hotplug, etc. */
+	struct list_head bus_next;
+	struct kref kref;
 	struct hotplug_slot hotplug_slot;
 
 	enum zpci_state state;
@@ -107,7 +128,12 @@ struct zpci_dev {
 	u16		pchid;		/* physical channel ID */
 	u8		pfgid;		/* function group ID */
 	u8		pft;		/* pci function type */
-	u16		domain;
+	u8		port;
+	u8		rid_available	: 1;
+	u8		has_hp_slot	: 1;
+	u8		is_physfn	: 1;
+	u8		reserved	: 5;
+	unsigned int	devfn;		/* DEVFN part of the RID*/
 
 	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
@@ -167,6 +193,7 @@ static inline bool zdev_enabled(struct zpci_dev *zdev)
 
 extern const struct attribute_group *zpci_attr_groups[];
 extern unsigned int s390_pci_force_floating __initdata;
+extern unsigned int s390_pci_no_rid;
 
 /* -----------------------------------------------------------------------------
   Prototypes
@@ -227,7 +254,14 @@ static inline void zpci_exit_slot(struct zpci_dev *zdev) {}
 /* Helpers */
 static inline struct zpci_dev *to_zpci(struct pci_dev *pdev)
 {
-	return pdev->sysdata;
+	struct zpci_bus *zbus = pdev->sysdata;
+
+	return zbus->function[pdev->devfn];
+}
+
+static inline struct zpci_dev *to_zpci_dev(struct device *dev)
+{
+	return to_zpci(to_pci_dev(dev));
 }
 
 struct zpci_dev *get_zdev_by_fid(u32);

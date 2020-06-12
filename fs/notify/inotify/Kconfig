@@ -12,6 +12,6 @@ config INOTIFY_USER
 	  new features including multiple file events, one-shot support, and
 	  unmount notification.
 
-	  For more information, see <file:Documentation/filesystems/inotify.txt>
+	  For more information, see <file:Documentation/filesystems/inotify.rst>
 
 	  If unsure, say Y.

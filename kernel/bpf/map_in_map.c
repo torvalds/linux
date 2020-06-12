@@ -60,7 +60,7 @@ struct bpf_map *bpf_map_meta_alloc(int inner_map_ufd)
 	/* Misc members not needed in bpf_map_meta_equal() check. */
 	inner_map_meta->ops = inner_map->ops;
 	if (inner_map->ops == &array_map_ops) {
-		inner_map_meta->unpriv_array = inner_map->unpriv_array;
+		inner_map_meta->bypass_spec_v1 = inner_map->bypass_spec_v1;
 		container_of(inner_map_meta, struct bpf_array, map)->index_mask =
 		     container_of(inner_map, struct bpf_array, map)->index_mask;
 	}

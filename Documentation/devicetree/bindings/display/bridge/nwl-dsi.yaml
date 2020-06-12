@@ -1,0 +1,226 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/nwl-dsi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Northwest Logic MIPI-DSI controller on i.MX SoCs
+
+maintainers:
+  - Guido Gúnther <agx@sigxcpu.org>
+  - Robert Chiras <robert.chiras@nxp.com>
+
+description: |
+  NWL MIPI-DSI host controller found on i.MX8 platforms. This is a dsi bridge for
+  the SOCs NWL MIPI-DSI host controller.
+
+properties:
+  compatible:
+    const: fsl,imx8mq-nwl-dsi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  clocks:
+    items:
+      - description: DSI core clock
+      - description: RX_ESC clock (used in escape mode)
+      - description: TX_ESC clock (used in escape mode)
+      - description: PHY_REF clock
+      - description: LCDIF clock
+
+  clock-names:
+    items:
+      - const: core
+      - const: rx_esc
+      - const: tx_esc
+      - const: phy_ref
+      - const: lcdif
+
+  mux-controls:
+    description:
+      mux controller node to use for operating the input mux
+
+  phys:
+    maxItems: 1
+    description:
+      A phandle to the phy module representing the DPHY
+
+  phy-names:
+    items:
+      - const: dphy
+
+  power-domains:
+    maxItems: 1
+
+  resets:
+    items:
+      - description: dsi byte reset line
+      - description: dsi dpi reset line
+      - description: dsi esc reset line
+      - description: dsi pclk reset line
+
+  reset-names:
+    items:
+      - const: byte
+      - const: dpi
+      - const: esc
+      - const: pclk
+
+  ports:
+    type: object
+    description:
+      A node containing DSI input & output port nodes with endpoint
+      definitions as documented in
+      Documentation/devicetree/bindings/graph.txt.
+    properties:
+      port@0:
+        type: object
+        description:
+          Input port node to receive pixel data from the
+          display controller. Exactly one endpoint must be
+          specified.
+        properties:
+          '#address-cells':
+            const: 1
+
+          '#size-cells':
+            const: 0
+
+          endpoint@0:
+            description: sub-node describing the input from LCDIF
+            type: object
+
+          endpoint@1:
+            description: sub-node describing the input from DCSS
+            type: object
+
+          reg:
+            const: 0
+
+        required:
+          - '#address-cells'
+          - '#size-cells'
+          - reg
+
+        oneOf:
+          - required:
+              - endpoint@0
+          - required:
+              - endpoint@1
+
+        additionalProperties: false
+
+      port@1:
+        type: object
+        description:
+          DSI output port node to the panel or the next bridge
+          in the chain
+
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+    required:
+      - '#address-cells'
+      - '#size-cells'
+      - port@0
+      - port@1
+
+    additionalProperties: false
+
+patternProperties:
+  "^panel@[0-9]+$":
+    type: object
+
+required:
+  - '#address-cells'
+  - '#size-cells'
+  - clock-names
+  - clocks
+  - compatible
+  - interrupts
+  - mux-controls
+  - phy-names
+  - phys
+  - ports
+  - reg
+  - reset-names
+  - resets
+
+additionalProperties: false
+
+examples:
+ - |
+
+   #include <dt-bindings/clock/imx8mq-clock.h>
+   #include <dt-bindings/interrupt-controller/arm-gic.h>
+   #include <dt-bindings/reset/imx8mq-reset.h>
+
+   mipi_dsi: mipi_dsi@30a00000 {
+              #address-cells = <1>;
+              #size-cells = <0>;
+              compatible = "fsl,imx8mq-nwl-dsi";
+              reg = <0x30A00000 0x300>;
+              clocks = <&clk IMX8MQ_CLK_DSI_CORE>,
+                       <&clk IMX8MQ_CLK_DSI_AHB>,
+                       <&clk IMX8MQ_CLK_DSI_IPG_DIV>,
+                       <&clk IMX8MQ_CLK_DSI_PHY_REF>,
+                       <&clk IMX8MQ_CLK_LCDIF_PIXEL>;
+              clock-names = "core", "rx_esc", "tx_esc", "phy_ref", "lcdif";
+              interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+              mux-controls = <&mux 0>;
+              power-domains = <&pgc_mipi>;
+              resets = <&src IMX8MQ_RESET_MIPI_DSI_RESET_BYTE_N>,
+                       <&src IMX8MQ_RESET_MIPI_DSI_DPI_RESET_N>,
+                       <&src IMX8MQ_RESET_MIPI_DSI_ESC_RESET_N>,
+                       <&src IMX8MQ_RESET_MIPI_DSI_PCLK_RESET_N>;
+              reset-names = "byte", "dpi", "esc", "pclk";
+              phys = <&dphy>;
+              phy-names = "dphy";
+
+              panel@0 {
+                      #address-cells = <1>;
+                      #size-cells = <0>;
+                      compatible = "rocktech,jh057n00900";
+                      reg = <0>;
+                      port@0 {
+                           reg = <0>;
+                           panel_in: endpoint {
+                                     remote-endpoint = <&mipi_dsi_out>;
+                           };
+                      };
+              };
+
+              ports {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    port@0 {
+                           #size-cells = <0>;
+                           #address-cells = <1>;
+                           reg = <0>;
+                           mipi_dsi_in: endpoint@0 {
+                                        reg = <0>;
+                                        remote-endpoint = <&lcdif_mipi_dsi>;
+                           };
+                    };
+                    port@1 {
+                           reg = <1>;
+                           mipi_dsi_out: endpoint {
+                                         remote-endpoint = <&panel_in>;
+                           };
+                    };
+              };
+      };

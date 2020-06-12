@@ -17,6 +17,8 @@
 void ice_dcb_rebuild(struct ice_pf *pf);
 u8 ice_dcb_get_ena_tc(struct ice_dcbx_cfg *dcbcfg);
 u8 ice_dcb_get_num_tc(struct ice_dcbx_cfg *dcbcfg);
+void ice_vsi_set_dcb_tc_cfg(struct ice_vsi *vsi);
+bool ice_is_pfc_causing_hung_q(struct ice_pf *pf, unsigned int txqueue);
 u8 ice_dcb_get_tc(struct ice_vsi *vsi, int queue_index);
 int
 ice_pf_dcb_cfg(struct ice_pf *pf, struct ice_dcbx_cfg *new_cfg, bool locked);
@@ -25,13 +27,27 @@ void ice_pf_dcb_recfg(struct ice_pf *pf);
 void ice_vsi_cfg_dcb_rings(struct ice_vsi *vsi);
 int ice_init_pf_dcb(struct ice_pf *pf, bool locked);
 void ice_update_dcb_stats(struct ice_pf *pf);
-int
+void
 ice_tx_prepare_vlan_flags_dcb(struct ice_ring *tx_ring,
 			      struct ice_tx_buf *first);
 void
 ice_dcb_process_lldp_set_mib_change(struct ice_pf *pf,
 				    struct ice_rq_event_info *event);
 void ice_vsi_cfg_netdev_tc(struct ice_vsi *vsi, u8 ena_tc);
+
+/**
+ * ice_find_q_in_range
+ * @low: start of queue range for a TC i.e. offset of TC
+ * @high: start of queue for next TC
+ * @tx_q: hung_queue/tx_queue
+ *
+ * finds if queue 'tx_q' falls between the two offsets of any given TC
+ */
+static inline bool ice_find_q_in_range(u16 low, u16 high, unsigned int tx_q)
+{
+	return (tx_q >= low) && (tx_q < high);
+}
+
 static inline void
 ice_set_cgd_num(struct ice_tlan_ctx *tlan_ctx, struct ice_ring *ring)
 {
@@ -77,6 +93,13 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_ring __always_unused *tx_ring,
 			      struct ice_tx_buf __always_unused *first)
 {
 	return 0;
+}
+
+static inline bool
+ice_is_pfc_causing_hung_q(struct ice_pf __always_unused *pf,
+			  unsigned int __always_unused txqueue)
+{
+	return false;
 }
 
 #define ice_update_dcb_stats(pf) do {} while (0)

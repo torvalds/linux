@@ -8,10 +8,9 @@
  */
 
 #include <linux/debugfs.h>
-#include <linux/iommu.h>
 #include <linux/pci.h>
-#include "amd_iommu_proto.h"
-#include "amd_iommu_types.h"
+
+#include "amd_iommu.h"
 
 static struct dentry *amd_iommu_debugfs;
 static DEFINE_MUTEX(amd_iommu_debugfs_lock);

@@ -1524,7 +1524,7 @@ display-graph option::
    => remove_vma
    => exit_mmap
    => mmput
-   => flush_old_exec
+   => begin_new_exec
    => load_elf_binary
    => search_binary_handler
    => __do_execve_file.isra.32

@@ -1,15 +1,21 @@
-Binding for Silicon Labs Si5341 and Si5340 programmable i2c clock generator.
+Binding for Silicon Labs Si5340, Si5341 Si5342, Si5344 and Si5345 programmable
+i2c clock generator.
 
 Reference
 [1] Si5341 Data Sheet
     https://www.silabs.com/documents/public/data-sheets/Si5341-40-D-DataSheet.pdf
 [2] Si5341 Reference Manual
     https://www.silabs.com/documents/public/reference-manuals/Si5341-40-D-RM.pdf
+[3] Si5345 Reference Manual
+    https://www.silabs.com/documents/public/reference-manuals/Si5345-44-42-D-RM.pdf
 
 The Si5341 and Si5340 are programmable i2c clock generators with up to 10 output
 clocks. The chip contains a PLL that sources 5 (or 4) multisynth clocks, which
 in turn can be directed to any of the 10 (or 4) outputs through a divider.
 The internal structure of the clock generators can be found in [2].
+The Si5345 is similar to the Si5341 with the addition of fractional input
+dividers and automatic input selection, as described in [3].
+The Si5342 and Si5344 are smaller versions of the Si5345, with 2 or 4 outputs.
 
 The driver can be used in "as is" mode, reading the current settings from the
 chip at boot, in case you have a (pre-)programmed device. If the PLL is not
@@ -28,6 +34,9 @@ Required properties:
 - compatible: shall be one of the following:
 	"silabs,si5340" - Si5340 A/B/C/D
 	"silabs,si5341" - Si5341 A/B/C/D
+	"silabs,si5342" - Si5342 A/B/C/D
+	"silabs,si5344" - Si5344 A/B/C/D
+	"silabs,si5345" - Si5345 A/B/C/D
 - reg: i2c device address, usually 0x74
 - #clock-cells: from common clock binding; shall be set to 2.
 	The first value is "0" for outputs, "1" for synthesizers.

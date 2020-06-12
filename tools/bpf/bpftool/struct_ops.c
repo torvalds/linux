@@ -479,6 +479,7 @@ static int do_unregister(int argc, char **argv)
 
 static int do_register(int argc, char **argv)
 {
+	struct bpf_object_load_attr load_attr = {};
 	const struct bpf_map_def *def;
 	struct bpf_map_info info = {};
 	__u32 info_len = sizeof(info);
@@ -499,7 +500,12 @@ static int do_register(int argc, char **argv)
 
 	set_max_rlimit();
 
-	if (bpf_object__load(obj)) {
+	load_attr.obj = obj;
+	if (verifier_logs)
+		/* log_level1 + log_level2 + stats, but not stable UAPI */
+		load_attr.log_level = 1 + 2 + 4;
+
+	if (bpf_object__load_xattr(&load_attr)) {
 		bpf_object__close(obj);
 		return -1;
 	}
@@ -560,16 +566,15 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list } [STRUCT_OPS_MAP]\n"
-		"       %s %s dump [STRUCT_OPS_MAP]\n"
-		"       %s %s register OBJ\n"
-		"       %s %s unregister STRUCT_OPS_MAP\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s { show | list } [STRUCT_OPS_MAP]\n"
+		"       %1$s %2$s dump [STRUCT_OPS_MAP]\n"
+		"       %1$s %2$s register OBJ\n"
+		"       %1$s %2$s unregister STRUCT_OPS_MAP\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       OPTIONS := { {-j|--json} [{-p|--pretty}] }\n"
-		"       STRUCT_OPS_MAP := [ id STRUCT_OPS_MAP_ID | name STRUCT_OPS_MAP_NAME ]\n",
-		bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2],
+		"       STRUCT_OPS_MAP := [ id STRUCT_OPS_MAP_ID | name STRUCT_OPS_MAP_NAME ]\n"
+		"",
 		bin_name, argv[-2]);
 
 	return 0;
@@ -591,6 +596,8 @@ int do_struct_ops(int argc, char **argv)
 
 	err = cmd_select(cmds, argc, argv, do_help);
 
-	btf__free(btf_vmlinux);
+	if (!IS_ERR(btf_vmlinux))
+		btf__free(btf_vmlinux);
+
 	return err;
 }

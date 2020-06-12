@@ -365,8 +365,8 @@ pointed by REDIRECT. This should not be possible on local system as setting
 "trusted." xattrs will require CAP_SYS_ADMIN. But it should be possible
 for untrusted layers like from a pen drive.
 
-Note: redirect_dir={off|nofollow|follow[*]} conflicts with metacopy=on, and
-results in an error.
+Note: redirect_dir={off|nofollow|follow[*]} and nfs_export=on mount options
+conflict with metacopy=on, and will result in an error.
 
 [*] redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
 given.
@@ -559,6 +559,9 @@ cause failures to lookup files over NFS.
 When the NFS export feature is enabled, all directory index entries are
 verified on mount time to check that upper file handles are not stale.
 This verification may cause significant overhead in some cases.
+
+Note: the mount options index=off,nfs_export=on are conflicting and will
+result in an error.
 
 
 Testsuite

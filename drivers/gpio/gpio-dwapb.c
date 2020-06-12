@@ -49,7 +49,9 @@
 #define GPIO_EXT_PORTC		0x58
 #define GPIO_EXT_PORTD		0x5c
 
+#define DWAPB_DRIVER_NAME	"gpio-dwapb"
 #define DWAPB_MAX_PORTS		4
+
 #define GPIO_EXT_PORT_STRIDE	0x04 /* register stride 32 bits */
 #define GPIO_SWPORT_DR_STRIDE	0x0c /* register stride 3*32 bits */
 #define GPIO_SWPORT_DDR_STRIDE	0x0c /* register stride 3*32 bits */
@@ -61,6 +63,8 @@
 #define GPIO_INT_POLARITY_V2	0x38
 #define GPIO_INTSTATUS_V2	0x3c
 #define GPIO_PORTA_EOI_V2	0x40
+
+#define DWAPB_NR_CLOCKS		2
 
 struct dwapb_gpio;
 
@@ -97,7 +101,7 @@ struct dwapb_gpio {
 	struct irq_domain	*domain;
 	unsigned int		flags;
 	struct reset_control	*rst;
-	struct clk		*clk;
+	struct clk_bulk_data	clks[DWAPB_NR_CLOCKS];
 };
 
 static inline u32 gpio_reg_v2_convert(unsigned int offset)
@@ -189,22 +193,21 @@ static void dwapb_toggle_trigger(struct dwapb_gpio *gpio, unsigned int offs)
 
 static u32 dwapb_do_irq(struct dwapb_gpio *gpio)
 {
-	u32 irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
-	u32 ret = irq_status;
+	unsigned long irq_status;
+	irq_hw_number_t hwirq;
 
-	while (irq_status) {
-		int hwirq = fls(irq_status) - 1;
+	irq_status = dwapb_read(gpio, GPIO_INTSTATUS);
+	for_each_set_bit(hwirq, &irq_status, 32) {
 		int gpio_irq = irq_find_mapping(gpio->domain, hwirq);
+		u32 irq_type = irq_get_trigger_type(gpio_irq);
 
 		generic_handle_irq(gpio_irq);
-		irq_status &= ~BIT(hwirq);
 
-		if ((irq_get_trigger_type(gpio_irq) & IRQ_TYPE_SENSE_MASK)
-			== IRQ_TYPE_EDGE_BOTH)
+		if ((irq_type & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 			dwapb_toggle_trigger(gpio, hwirq);
 	}
 
-	return ret;
+	return irq_status;
 }
 
 static void dwapb_irq_handler(struct irq_desc *desc)
@@ -212,10 +215,9 @@ static void dwapb_irq_handler(struct irq_desc *desc)
 	struct dwapb_gpio *gpio = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 
+	chained_irq_enter(chip, desc);
 	dwapb_do_irq(gpio);
-
-	if (chip->irq_eoi)
-		chip->irq_eoi(irq_desc_get_irq_data(desc));
+	chained_irq_exit(chip, desc);
 }
 
 static void dwapb_irq_enable(struct irq_data *d)
@@ -228,7 +230,7 @@ static void dwapb_irq_enable(struct irq_data *d)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	val = dwapb_read(gpio, GPIO_INTEN);
-	val |= BIT(d->hwirq);
+	val |= BIT(irqd_to_hwirq(d));
 	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 }
@@ -243,34 +245,9 @@ static void dwapb_irq_disable(struct irq_data *d)
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	val = dwapb_read(gpio, GPIO_INTEN);
-	val &= ~BIT(d->hwirq);
+	val &= ~BIT(irqd_to_hwirq(d));
 	dwapb_write(gpio, GPIO_INTEN, val);
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
-}
-
-static int dwapb_irq_reqres(struct irq_data *d)
-{
-	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
-	struct dwapb_gpio *gpio = igc->private;
-	struct gpio_chip *gc = &gpio->ports[0].gc;
-	int ret;
-
-	ret = gpiochip_lock_as_irq(gc, irqd_to_hwirq(d));
-	if (ret) {
-		dev_err(gpio->dev, "unable to lock HW IRQ %lu for IRQ\n",
-			irqd_to_hwirq(d));
-		return ret;
-	}
-	return 0;
-}
-
-static void dwapb_irq_relres(struct irq_data *d)
-{
-	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
-	struct dwapb_gpio *gpio = igc->private;
-	struct gpio_chip *gc = &gpio->ports[0].gc;
-
-	gpiochip_unlock_as_irq(gc, irqd_to_hwirq(d));
 }
 
 static int dwapb_irq_set_type(struct irq_data *d, u32 type)
@@ -278,11 +255,10 @@ static int dwapb_irq_set_type(struct irq_data *d, u32 type)
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct gpio_chip *gc = &gpio->ports[0].gc;
-	int bit = d->hwirq;
+	irq_hw_number_t bit = irqd_to_hwirq(d);
 	unsigned long level, polarity, flags;
 
-	if (type & ~(IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING |
-		     IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
+	if (type & ~IRQ_TYPE_SENSE_MASK)
 		return -EINVAL;
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
@@ -328,11 +304,12 @@ static int dwapb_irq_set_wake(struct irq_data *d, unsigned int enable)
 	struct irq_chip_generic *igc = irq_data_get_irq_chip_data(d);
 	struct dwapb_gpio *gpio = igc->private;
 	struct dwapb_context *ctx = gpio->ports[0].ctx;
+	irq_hw_number_t bit = irqd_to_hwirq(d);
 
 	if (enable)
-		ctx->wake_en |= BIT(d->hwirq);
+		ctx->wake_en |= BIT(bit);
 	else
-		ctx->wake_en &= ~BIT(d->hwirq);
+		ctx->wake_en &= ~BIT(bit);
 
 	return 0;
 }
@@ -350,9 +327,10 @@ static int dwapb_gpio_set_debounce(struct gpio_chip *gc,
 
 	val_deb = dwapb_read(gpio, GPIO_PORTA_DEBOUNCE);
 	if (debounce)
-		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb | mask);
+		val_deb |= mask;
 	else
-		dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb & ~mask);
+		val_deb &= ~mask;
+	dwapb_write(gpio, GPIO_PORTA_DEBOUNCE, val_deb);
 
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
@@ -373,12 +351,7 @@ static int dwapb_gpio_set_config(struct gpio_chip *gc, unsigned offset,
 
 static irqreturn_t dwapb_irq_handler_mfd(int irq, void *dev_id)
 {
-	u32 worked;
-	struct dwapb_gpio *gpio = dev_id;
-
-	worked = dwapb_do_irq(gpio);
-
-	return worked ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_RETVAL(dwapb_do_irq(dev_id));
 }
 
 static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
@@ -388,9 +361,15 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	struct gpio_chip *gc = &port->gc;
 	struct fwnode_handle  *fwnode = pp->fwnode;
 	struct irq_chip_generic	*irq_gc = NULL;
-	unsigned int hwirq, ngpio = gc->ngpio;
+	unsigned int ngpio = gc->ngpio;
 	struct irq_chip_type *ct;
+	irq_hw_number_t hwirq;
 	int err, i;
+
+	if (memchr_inv(pp->irq, 0, sizeof(pp->irq)) == NULL) {
+		dev_warn(gpio->dev, "no IRQ for port%d\n", pp->idx);
+		return;
+	}
 
 	gpio->domain = irq_domain_create_linear(fwnode, ngpio,
 						 &irq_generic_chip_ops, gpio);
@@ -398,7 +377,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		return;
 
 	err = irq_alloc_domain_generic_chips(gpio->domain, ngpio, 2,
-					     "gpio-dwapb", handle_level_irq,
+					     DWAPB_DRIVER_NAME, handle_bad_irq,
 					     IRQ_NOREQUEST, 0,
 					     IRQ_GC_INIT_NESTED_LOCK);
 	if (err) {
@@ -426,8 +405,6 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		ct->chip.irq_set_type = dwapb_irq_set_type;
 		ct->chip.irq_enable = dwapb_irq_enable;
 		ct->chip.irq_disable = dwapb_irq_disable;
-		ct->chip.irq_request_resources = dwapb_irq_reqres;
-		ct->chip.irq_release_resources = dwapb_irq_relres;
 #ifdef CONFIG_PM_SLEEP
 		ct->chip.irq_set_wake = dwapb_irq_set_wake;
 #endif
@@ -437,6 +414,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 	}
 
 	irq_gc->chip_types[0].type = IRQ_TYPE_LEVEL_MASK;
+	irq_gc->chip_types[0].handler = handle_level_irq;
 	irq_gc->chip_types[1].type = IRQ_TYPE_EDGE_BOTH;
 	irq_gc->chip_types[1].handler = handle_edge_irq;
 
@@ -444,7 +422,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		int i;
 
 		for (i = 0; i < pp->ngpio; i++) {
-			if (pp->irq[i] >= 0)
+			if (pp->irq[i])
 				irq_set_chained_handler_and_data(pp->irq[i],
 						dwapb_irq_handler, gpio);
 		}
@@ -455,7 +433,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		 */
 		err = devm_request_irq(gpio->dev, pp->irq[0],
 				       dwapb_irq_handler_mfd,
-				       IRQF_SHARED, "gpio-dwapb-mfd", gpio);
+				       IRQF_SHARED, DWAPB_DRIVER_NAME, gpio);
 		if (err) {
 			dev_err(gpio->dev, "error requesting IRQ\n");
 			irq_domain_remove(gpio->domain);
@@ -464,7 +442,7 @@ static void dwapb_configure_irqs(struct dwapb_gpio *gpio,
 		}
 	}
 
-	for (hwirq = 0 ; hwirq < ngpio ; hwirq++)
+	for (hwirq = 0; hwirq < ngpio; hwirq++)
 		irq_create_mapping(gpio->domain, hwirq);
 
 	port->gc.to_irq = dwapb_gpio_to_irq;
@@ -480,7 +458,7 @@ static void dwapb_irq_teardown(struct dwapb_gpio *gpio)
 	if (!gpio->domain)
 		return;
 
-	for (hwirq = 0 ; hwirq < ngpio ; hwirq++)
+	for (hwirq = 0; hwirq < ngpio; hwirq++)
 		irq_dispose_mapping(irq_find_mapping(gpio->domain, hwirq));
 
 	irq_domain_remove(gpio->domain);
@@ -505,10 +483,9 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 		return -ENOMEM;
 #endif
 
-	dat = gpio->regs + GPIO_EXT_PORTA + (pp->idx * GPIO_EXT_PORT_STRIDE);
-	set = gpio->regs + GPIO_SWPORTA_DR + (pp->idx * GPIO_SWPORT_DR_STRIDE);
-	dirout = gpio->regs + GPIO_SWPORTA_DDR +
-		(pp->idx * GPIO_SWPORT_DDR_STRIDE);
+	dat = gpio->regs + GPIO_EXT_PORTA + pp->idx * GPIO_EXT_PORT_STRIDE;
+	set = gpio->regs + GPIO_SWPORTA_DR + pp->idx * GPIO_SWPORT_DR_STRIDE;
+	dirout = gpio->regs + GPIO_SWPORTA_DDR + pp->idx * GPIO_SWPORT_DDR_STRIDE;
 
 	/* This registers 32 GPIO lines per port */
 	err = bgpio_init(&port->gc, gpio->dev, 4, dat, set, NULL, dirout,
@@ -529,40 +506,66 @@ static int dwapb_gpio_add_port(struct dwapb_gpio *gpio,
 	if (pp->idx == 0)
 		port->gc.set_config = dwapb_gpio_set_config;
 
-	if (pp->has_irq)
+	/* Only port A can provide interrupts in all configurations of the IP */
+	if (pp->idx == 0)
 		dwapb_configure_irqs(gpio, port, pp);
 
 	err = gpiochip_add_data(&port->gc, port);
-	if (err)
+	if (err) {
 		dev_err(gpio->dev, "failed to register gpiochip for port%d\n",
 			port->idx);
-	else
-		port->is_registered = true;
+		return err;
+	}
 
 	/* Add GPIO-signaled ACPI event support */
-	if (pp->has_irq)
-		acpi_gpiochip_request_interrupts(&port->gc);
+	acpi_gpiochip_request_interrupts(&port->gc);
 
-	return err;
+	port->is_registered = true;
+
+	return 0;
 }
 
 static void dwapb_gpio_unregister(struct dwapb_gpio *gpio)
 {
 	unsigned int m;
 
-	for (m = 0; m < gpio->nr_ports; ++m)
-		if (gpio->ports[m].is_registered)
-			gpiochip_remove(&gpio->ports[m].gc);
+	for (m = 0; m < gpio->nr_ports; ++m) {
+		struct dwapb_gpio_port *port = &gpio->ports[m];
+
+		if (!port->is_registered)
+			continue;
+
+		acpi_gpiochip_free_interrupts(&port->gc);
+		gpiochip_remove(&port->gc);
+	}
 }
 
-static struct dwapb_platform_data *
-dwapb_gpio_get_pdata(struct device *dev)
+static void dwapb_get_irq(struct device *dev, struct fwnode_handle *fwnode,
+			  struct dwapb_port_property *pp)
+{
+	struct device_node *np = NULL;
+	int irq = -ENXIO, j;
+
+	if (fwnode_property_read_bool(fwnode, "interrupt-controller"))
+		np = to_of_node(fwnode);
+
+	for (j = 0; j < pp->ngpio; j++) {
+		if (np)
+			irq = of_irq_get(np, j);
+		else if (has_acpi_companion(dev))
+			irq = platform_get_irq_optional(to_platform_device(dev), j);
+		if (irq > 0)
+			pp->irq[j] = irq;
+	}
+}
+
+static struct dwapb_platform_data *dwapb_gpio_get_pdata(struct device *dev)
 {
 	struct fwnode_handle *fwnode;
 	struct dwapb_platform_data *pdata;
 	struct dwapb_port_property *pp;
 	int nports;
-	int i, j;
+	int i;
 
 	nports = device_get_child_node_count(dev);
 	if (nports == 0)
@@ -580,8 +583,6 @@ dwapb_gpio_get_pdata(struct device *dev)
 
 	i = 0;
 	device_for_each_child_node(dev, fwnode)  {
-		struct device_node *np = NULL;
-
 		pp = &pdata->properties[i++];
 		pp->fwnode = fwnode;
 
@@ -593,8 +594,7 @@ dwapb_gpio_get_pdata(struct device *dev)
 			return ERR_PTR(-EINVAL);
 		}
 
-		if (fwnode_property_read_u32(fwnode, "snps,nr-gpios",
-					 &pp->ngpio)) {
+		if (fwnode_property_read_u32(fwnode, "snps,nr-gpios", &pp->ngpio)) {
 			dev_info(dev,
 				 "failed to get number of gpios for port%d\n",
 				 i);
@@ -608,28 +608,8 @@ dwapb_gpio_get_pdata(struct device *dev)
 		 * Only port A can provide interrupts in all configurations of
 		 * the IP.
 		 */
-		if (pp->idx != 0)
-			continue;
-
-		if (dev->of_node && fwnode_property_read_bool(fwnode,
-						  "interrupt-controller")) {
-			np = to_of_node(fwnode);
-		}
-
-		for (j = 0; j < pp->ngpio; j++) {
-			pp->irq[j] = -ENXIO;
-
-			if (np)
-				pp->irq[j] = of_irq_get(np, j);
-			else if (has_acpi_companion(dev))
-				pp->irq[j] = platform_get_irq(to_platform_device(dev), j);
-
-			if (pp->irq[j] >= 0)
-				pp->has_irq = true;
-		}
-
-		if (!pp->has_irq)
-			dev_warn(dev, "no irq for port%d\n", pp->idx);
+		if (pp->idx == 0)
+			dwapb_get_irq(dev, fwnode, pp);
 	}
 
 	return pdata;
@@ -689,28 +669,23 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 	if (IS_ERR(gpio->regs))
 		return PTR_ERR(gpio->regs);
 
-	/* Optional bus clock */
-	gpio->clk = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(gpio->clk)) {
-		err = clk_prepare_enable(gpio->clk);
-		if (err) {
-			dev_info(&pdev->dev, "Cannot enable clock\n");
-			return err;
-		}
+	/* Optional bus and debounce clocks */
+	gpio->clks[0].id = "bus";
+	gpio->clks[1].id = "db";
+	err = devm_clk_bulk_get_optional(&pdev->dev, DWAPB_NR_CLOCKS,
+					 gpio->clks);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot get APB/Debounce clocks\n");
+		return err;
 	}
 
-	gpio->flags = 0;
-	if (dev->of_node) {
-		gpio->flags = (uintptr_t)of_device_get_match_data(dev);
-	} else if (has_acpi_companion(dev)) {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(dwapb_acpi_match, dev);
-		if (acpi_id) {
-			if (acpi_id->driver_data)
-				gpio->flags = acpi_id->driver_data;
-		}
+	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
+	if (err) {
+		dev_err(&pdev->dev, "Cannot enable APB/Debounce clocks\n");
+		return err;
 	}
+
+	gpio->flags = (uintptr_t)device_get_match_data(dev);
 
 	for (i = 0; i < gpio->nr_ports; i++) {
 		err = dwapb_gpio_add_port(gpio, &pdata->properties[i], i);
@@ -724,7 +699,7 @@ static int dwapb_gpio_probe(struct platform_device *pdev)
 out_unregister:
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return err;
 }
@@ -736,7 +711,7 @@ static int dwapb_gpio_remove(struct platform_device *pdev)
 	dwapb_gpio_unregister(gpio);
 	dwapb_irq_teardown(gpio);
 	reset_control_assert(gpio->rst);
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return 0;
 }
@@ -754,8 +729,6 @@ static int dwapb_gpio_suspend(struct device *dev)
 		unsigned int offset;
 		unsigned int idx = gpio->ports[i].idx;
 		struct dwapb_context *ctx = gpio->ports[i].ctx;
-
-		BUG_ON(!ctx);
 
 		offset = GPIO_SWPORTA_DDR + idx * GPIO_SWPORT_DDR_STRIDE;
 		ctx->dir = dwapb_read(gpio, offset);
@@ -775,13 +748,12 @@ static int dwapb_gpio_suspend(struct device *dev)
 			ctx->int_deb	= dwapb_read(gpio, GPIO_PORTA_DEBOUNCE);
 
 			/* Mask out interrupts */
-			dwapb_write(gpio, GPIO_INTMASK,
-				    0xffffffff & ~ctx->wake_en);
+			dwapb_write(gpio, GPIO_INTMASK, ~ctx->wake_en);
 		}
 	}
 	spin_unlock_irqrestore(&gc->bgpio_lock, flags);
 
-	clk_disable_unprepare(gpio->clk);
+	clk_bulk_disable_unprepare(DWAPB_NR_CLOCKS, gpio->clks);
 
 	return 0;
 }
@@ -791,18 +763,19 @@ static int dwapb_gpio_resume(struct device *dev)
 	struct dwapb_gpio *gpio = dev_get_drvdata(dev);
 	struct gpio_chip *gc	= &gpio->ports[0].gc;
 	unsigned long flags;
-	int i;
+	int i, err;
 
-	if (!IS_ERR(gpio->clk))
-		clk_prepare_enable(gpio->clk);
+	err = clk_bulk_prepare_enable(DWAPB_NR_CLOCKS, gpio->clks);
+	if (err) {
+		dev_err(gpio->dev, "Cannot reenable APB/Debounce clocks\n");
+		return err;
+	}
 
 	spin_lock_irqsave(&gc->bgpio_lock, flags);
 	for (i = 0; i < gpio->nr_ports; i++) {
 		unsigned int offset;
 		unsigned int idx = gpio->ports[i].idx;
 		struct dwapb_context *ctx = gpio->ports[i].ctx;
-
-		BUG_ON(!ctx);
 
 		offset = GPIO_SWPORTA_DR + idx * GPIO_SWPORT_DR_STRIDE;
 		dwapb_write(gpio, offset, ctx->data);
@@ -836,10 +809,10 @@ static SIMPLE_DEV_PM_OPS(dwapb_gpio_pm_ops, dwapb_gpio_suspend,
 
 static struct platform_driver dwapb_gpio_driver = {
 	.driver		= {
-		.name	= "gpio-dwapb",
+		.name	= DWAPB_DRIVER_NAME,
 		.pm	= &dwapb_gpio_pm_ops,
-		.of_match_table = of_match_ptr(dwapb_of_match),
-		.acpi_match_table = ACPI_PTR(dwapb_acpi_match),
+		.of_match_table = dwapb_of_match,
+		.acpi_match_table = dwapb_acpi_match,
 	},
 	.probe		= dwapb_gpio_probe,
 	.remove		= dwapb_gpio_remove,
@@ -850,3 +823,4 @@ module_platform_driver(dwapb_gpio_driver);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jamie Iles");
 MODULE_DESCRIPTION("Synopsys DesignWare APB GPIO driver");
+MODULE_ALIAS("platform:" DWAPB_DRIVER_NAME);

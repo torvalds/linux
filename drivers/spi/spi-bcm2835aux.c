@@ -569,7 +569,7 @@ static int bcm2835aux_spi_probe(struct platform_device *pdev)
 		goto out_clk_disable;
 	}
 
-	err = devm_spi_register_master(&pdev->dev, master);
+	err = spi_register_master(master);
 	if (err) {
 		dev_err(&pdev->dev, "could not register SPI master: %d\n", err);
 		goto out_clk_disable;
@@ -592,6 +592,8 @@ static int bcm2835aux_spi_remove(struct platform_device *pdev)
 	struct bcm2835aux_spi *bs = spi_master_get_devdata(master);
 
 	bcm2835aux_debugfs_remove(bs);
+
+	spi_unregister_master(master);
 
 	bcm2835aux_spi_reset_hw(bs);
 

@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
 
@@ -226,7 +227,7 @@ static struct i2c_driver dmard06_driver = {
 	.id_table = dmard06_id,
 	.driver = {
 		.name = DMARD06_DRV_NAME,
-		.of_match_table = of_match_ptr(dmard06_of_match),
+		.of_match_table = dmard06_of_match,
 		.pm = DMARD06_PM_OPS,
 	},
 };
