@@ -253,7 +253,6 @@ static int tidss_dispc_modeset_init(struct tidss_device *tidss)
 int tidss_modeset_init(struct tidss_device *tidss)
 {
 	struct drm_device *ddev = &tidss->ddev;
-	unsigned int i;
 	int ret;
 
 	dev_dbg(tidss->dev, "%s\n", __func__);
@@ -277,10 +276,6 @@ int tidss_modeset_init(struct tidss_device *tidss)
 	ret = drm_vblank_init(ddev, tidss->num_crtcs);
 	if (ret)
 		return ret;
-
-	/* Start with vertical blanking interrupt reporting disabled. */
-	for (i = 0; i < tidss->num_crtcs; ++i)
-		drm_crtc_vblank_reset(tidss->crtcs[i]);
 
 	drm_mode_config_reset(ddev);
 
