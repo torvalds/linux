@@ -189,7 +189,7 @@ static void cmm_set_timer(void)
 			del_timer(&cmm_timer);
 		return;
 	}
-	mod_timer(&cmm_timer, jiffies + cmm_timeout_seconds * HZ);
+	mod_timer(&cmm_timer, jiffies + msecs_to_jiffies(cmm_timeout_seconds * MSEC_PER_SEC));
 }
 
 static void cmm_timer_fn(struct timer_list *unused)

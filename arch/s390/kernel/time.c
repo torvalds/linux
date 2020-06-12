@@ -669,7 +669,7 @@ static void stp_work_fn(struct work_struct *work)
 		 * There is a usable clock but the synchonization failed.
 		 * Retry after a second.
 		 */
-		mod_timer(&stp_timer, jiffies + HZ);
+		mod_timer(&stp_timer, jiffies + msecs_to_jiffies(MSEC_PER_SEC));
 
 out_unlock:
 	mutex_unlock(&stp_work_mutex);
