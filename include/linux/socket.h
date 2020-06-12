@@ -10,6 +10,7 @@
 #include <linux/compiler.h>		/* __user			*/
 #include <uapi/linux/socket.h>
 
+struct file;
 struct pid;
 struct cred;
 struct socket;
