@@ -984,6 +984,7 @@ static int tegra_emc_load_timings_from_dt(struct tegra_emc *emc,
 
 static const struct of_device_id tegra_emc_of_match[] = {
 	{ .compatible = "nvidia,tegra124-emc" },
+	{ .compatible = "nvidia,tegra132-emc" },
 	{}
 };
 
