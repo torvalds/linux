@@ -688,8 +688,7 @@
 			reg-names = "hcd", "fpci";
 
 			interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&bpmp TEGRA194_CLK_XUSB_CORE_HOST>,
 				 <&bpmp TEGRA194_CLK_XUSB_FALCON>,
