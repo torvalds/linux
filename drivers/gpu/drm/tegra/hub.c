@@ -948,6 +948,15 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register host1x client: %d\n",
 			err);
 
+	err = devm_of_platform_populate(&pdev->dev);
+	if (err < 0)
+		goto unregister;
+
+	return err;
+
+unregister:
+	host1x_client_unregister(&hub->client);
+	pm_runtime_disable(&pdev->dev);
 	return err;
 }
 
