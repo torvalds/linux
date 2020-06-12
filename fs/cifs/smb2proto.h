@@ -182,6 +182,8 @@ extern int SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 			   struct TCP_Server_Info *server,
 			   u64 persistent_file_id, u64 volatile_file_id);
 extern void SMB2_flush_free(struct smb_rqst *rqst);
+extern int SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen);
 extern int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 			   u64 persistent_file_id, u64 volatile_file_id,
 			   struct smb2_file_all_info *data);

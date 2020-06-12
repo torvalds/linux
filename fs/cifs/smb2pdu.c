@@ -3459,6 +3459,19 @@ int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
 }
 
 int
+SMB311_posix_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid, struct smb311_posix_qinfo *data, u32 *plen)
+{
+	size_t output_len = sizeof(struct smb311_posix_qinfo *) +
+			(sizeof(struct cifs_sid) * 2) + (PATH_MAX * 2);
+	*plen = 0;
+
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  SMB_FIND_FILE_POSIX_INFO, SMB2_O_INFO_FILE, 0,
+			  output_len, sizeof(struct smb311_posix_qinfo), (void **)&data, plen);
+}
+
+int
 SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
 		u64 persistent_fid, u64 volatile_fid,
 		void **data, u32 *plen)
