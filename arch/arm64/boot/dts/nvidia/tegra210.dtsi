@@ -1355,7 +1355,7 @@
 			status = "disabled";
 		};
 
-		agic: agic@702f9000 {
+		agic: interrupt-controller@702f9000 {
 			compatible = "nvidia,tegra210-agic";
 			#interrupt-cells = <3>;
 			interrupt-controller;

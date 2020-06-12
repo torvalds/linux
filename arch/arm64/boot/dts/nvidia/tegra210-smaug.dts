@@ -1721,7 +1721,7 @@
 			status = "okay";
 		};
 
-		agic@702f9000 {
+		interrupt-controller@702f9000 {
 			status = "okay";
 		};
 	};
