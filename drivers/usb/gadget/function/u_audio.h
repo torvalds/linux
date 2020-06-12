@@ -57,7 +57,24 @@ struct uac_params {
 	int fb_max;	/* upper frequency drift feedback limit per-mil */
 };
 
+enum usb_state_index {
+	SET_INTERFACE_OUT,
+	SET_INTERFACE_IN,
+	SET_SAMPLE_RATE_OUT,
+	SET_SAMPLE_RATE_IN,
+};
+
+enum stream_state_index {
+	STATE_OUT,
+	STATE_IN,
+};
+
 struct g_audio {
+	struct device *device;
+	bool usb_state[4];
+	bool stream_state[2];
+	struct work_struct work;
+
 	struct usb_function func;
 	struct usb_gadget *gadget;
 
