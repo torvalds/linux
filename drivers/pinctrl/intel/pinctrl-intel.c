@@ -521,20 +521,17 @@ static const struct pinmux_ops intel_pinmux_ops = {
 	.gpio_set_direction = intel_gpio_set_direction,
 };
 
-static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
-			    unsigned long *config)
+static int intel_config_get_pull(struct intel_pinctrl *pctrl, unsigned int pin,
+				 enum pin_config_param param, u32 *arg)
 {
-	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
-	enum pin_config_param param = pinconf_to_config_param(*config);
 	const struct intel_community *community;
+	void __iomem *padcfg1;
 	u32 value, term;
-	u32 arg = 0;
-
-	if (!intel_pad_owned_by_host(pctrl, pin))
-		return -ENOTSUPP;
 
 	community = intel_get_community(pctrl, pin);
-	value = readl(intel_get_padcfg(pctrl, pin, PADCFG1));
+	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
+	value = readl(padcfg1);
+
 	term = (value & PADCFG1_TERM_MASK) >> PADCFG1_TERM_SHIFT;
 
 	switch (param) {
@@ -549,16 +546,16 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 
 		switch (term) {
 		case PADCFG1_TERM_1K:
-			arg = 1000;
+			*arg = 1000;
 			break;
 		case PADCFG1_TERM_2K:
-			arg = 2000;
+			*arg = 2000;
 			break;
 		case PADCFG1_TERM_5K:
-			arg = 5000;
+			*arg = 5000;
 			break;
 		case PADCFG1_TERM_20K:
-			arg = 20000;
+			*arg = 20000;
 			break;
 		}
 
@@ -572,35 +569,71 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PADCFG1_TERM_1K:
 			if (!(community->features & PINCTRL_FEATURE_1K_PD))
 				return -EINVAL;
-			arg = 1000;
+			*arg = 1000;
 			break;
 		case PADCFG1_TERM_5K:
-			arg = 5000;
+			*arg = 5000;
 			break;
 		case PADCFG1_TERM_20K:
-			arg = 20000;
+			*arg = 20000;
 			break;
 		}
 
 		break;
 
-	case PIN_CONFIG_INPUT_DEBOUNCE: {
-		void __iomem *padcfg2;
-		u32 v;
-
-		padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
-		if (!padcfg2)
-			return -ENOTSUPP;
-
-		v = readl(padcfg2);
-		if (!(v & PADCFG2_DEBEN))
-			return -EINVAL;
-
-		v = (v & PADCFG2_DEBOUNCE_MASK) >> PADCFG2_DEBOUNCE_SHIFT;
-		arg = BIT(v) * DEBOUNCE_PERIOD_NSEC / NSEC_PER_USEC;
-
-		break;
+	default:
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int intel_config_get_debounce(struct intel_pinctrl *pctrl, unsigned int pin,
+				     enum pin_config_param param, u32 *arg)
+{
+	void __iomem *padcfg2;
+	unsigned long v;
+	u32 value2;
+
+	padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
+	if (!padcfg2)
+		return -ENOTSUPP;
+
+	value2 = readl(padcfg2);
+	if (!(value2 & PADCFG2_DEBEN))
+		return -EINVAL;
+
+	v = (value2 & PADCFG2_DEBOUNCE_MASK) >> PADCFG2_DEBOUNCE_SHIFT;
+	*arg = BIT(v) * DEBOUNCE_PERIOD_NSEC / NSEC_PER_USEC;
+
+	return 0;
+}
+
+static int intel_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
+			    unsigned long *config)
+{
+	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	enum pin_config_param param = pinconf_to_config_param(*config);
+	u32 arg = 0;
+	int ret;
+
+	if (!intel_pad_owned_by_host(pctrl, pin))
+		return -ENOTSUPP;
+
+	switch (param) {
+	case PIN_CONFIG_BIAS_DISABLE:
+	case PIN_CONFIG_BIAS_PULL_UP:
+	case PIN_CONFIG_BIAS_PULL_DOWN:
+		ret = intel_config_get_pull(pctrl, pin, param, &arg);
+		if (ret)
+			return ret;
+		break;
+
+	case PIN_CONFIG_INPUT_DEBOUNCE:
+		ret = intel_config_get_debounce(pctrl, pin, param, &arg);
+		if (ret)
+			return ret;
+		break;
 
 	default:
 		return -ENOTSUPP;
