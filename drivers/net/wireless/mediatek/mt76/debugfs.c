@@ -9,7 +9,7 @@ mt76_reg_set(void *data, u64 val)
 {
 	struct mt76_dev *dev = data;
 
-	dev->bus->wr(dev, dev->debugfs_reg, val);
+	__mt76_wr(dev, dev->debugfs_reg, val);
 	return 0;
 }
 
@@ -18,7 +18,7 @@ mt76_reg_get(void *data, u64 *val)
 {
 	struct mt76_dev *dev = data;
 
-	*val = dev->bus->rr(dev, dev->debugfs_reg);
+	*val = __mt76_rr(dev, dev->debugfs_reg);
 	return 0;
 }
 
