@@ -1328,7 +1328,7 @@
 		status = "okay";
 		clock-frequency = <400000>;
 
-		max77620: max77620@3c {
+		pmic: pmic@3c {
 			compatible = "maxim,max77620";
 			reg = <0x3c>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
@@ -1343,12 +1343,12 @@
 			pinctrl-0 = <&max77620_default>;
 
 			max77620_default: pinmux@0 {
-				pin_gpio0 {
+				gpio0 {
 					pins = "gpio0";
 					function = "gpio";
 				};
 
-				pin_gpio1 {
+				gpio1 {
 					pins = "gpio1";
 					function = "fps-out";
 					drive-push-pull = <1>;
@@ -1357,34 +1357,33 @@
 					maxim,active-fps-power-down-slot = <0>;
 				};
 
-				pin_gpio2_3 {
-					pins = "gpio2", "gpio3";
+				gpio2 {
+					pins = "gpio2";
 					function = "fps-out";
 					drive-open-drain = <1>;
 					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
 				};
 
-				pin_gpio4 {
+				gpio3 {
+					pins = "gpio3";
+					function = "fps-out";
+					drive-open-drain = <1>;
+					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
+				};
+
+				gpio4 {
 					pins = "gpio4";
 					function = "32k-out1";
 				};
 
-				pin_gpio5_6_7 {
+				gpio5_6_7 {
 					pins = "gpio5", "gpio6", "gpio7";
 					function = "gpio";
 					drive-push-pull = <1>;
 				};
-
-				pin_gpio2 {
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-				};
-
-				pin_gpio3 {
-					maxim,active-fps-source = <MAX77620_FPS_SRC_0>;
-				};
 			};
 
-			spmic-default-output-high {
+			gpio@0 {
 				gpio-hog;
 				output-high;
 				gpios = <2 GPIO_ACTIVE_HIGH>,
@@ -1652,7 +1651,7 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 
-		gpio = <&max77620 3 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmic 3 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -1666,7 +1665,7 @@
 		regulator-always-on;
 		regulator-boot-on;
 
-		gpio = <&max77620 7 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmic 7 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -1711,7 +1710,7 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
 
-		gpio = <&max77620 1 GPIO_ACTIVE_HIGH>;
+		gpio = <&pmic 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
