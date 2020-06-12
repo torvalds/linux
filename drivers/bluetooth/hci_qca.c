@@ -2107,6 +2107,7 @@ static int __maybe_unused qca_suspend(struct device *dev)
 	if (tx_pending) {
 		serdev_device_wait_until_sent(hu->serdev,
 					      msecs_to_jiffies(CMD_TRANS_TIMEOUT_MS));
+		serial_clock_vote(HCI_IBS_TX_VOTE_CLOCK_OFF, hu);
 	}
 
 	/* Wait for HCI_IBS_SLEEP_IND sent by device to indicate its Tx is going
@@ -2120,7 +2121,6 @@ static int __maybe_unused qca_suspend(struct device *dev)
 		goto error;
 	}
 
-	qca_wq_serial_tx_clock_vote_off(&qca->ws_tx_vote_off);
 	return 0;
 
 error:
