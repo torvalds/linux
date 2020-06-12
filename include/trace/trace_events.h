@@ -709,9 +709,6 @@ static inline void ftrace_test_probe_##call(void)			\
 	check_trace_callback_type_##call(trace_event_raw_event_##template); \
 }
 
-#undef DEFINE_EVENT_PRINT
-#define DEFINE_EVENT_PRINT(template, name, proto, args, print)
-
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 #undef __entry
