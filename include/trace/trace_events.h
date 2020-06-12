@@ -443,9 +443,6 @@ static struct trace_event_fields trace_event_fields_##call[] = {	\
 	tstruct								\
 	{} };
 
-#undef DEFINE_EVENT
-#define DEFINE_EVENT(template, name, proto, args)
-
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
 	DEFINE_EVENT(template, name, PARAMS(proto), PARAMS(args))
@@ -522,9 +519,6 @@ static inline notrace int trace_event_get_offsets_##call(		\
 									\
 	return __data_size;						\
 }
-
-#undef DEFINE_EVENT
-#define DEFINE_EVENT(template, name, proto, args)
 
 #undef DEFINE_EVENT_PRINT
 #define DEFINE_EVENT_PRINT(template, name, proto, args, print)	\
