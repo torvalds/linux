@@ -119,10 +119,6 @@
 
 		avdd-pll-erefeut-supply = <&vdd_1v8_pll>;
 		avdd-usb-supply = <&vdd_3v3_sys>;
-		dvdd-pex-supply = <&vdd_pex>;
-		dvdd-pex-pll-supply = <&vdd_pex>;
-		hvdd-pex-supply = <&vdd_1v8>;
-		hvdd-pex-pll-supply = <&vdd_1v8>;
 		vclamp-usb-supply = <&vdd_1v8>;
 		vddio-hsic-supply = <&gnd>;
 
