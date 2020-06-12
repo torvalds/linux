@@ -30,21 +30,12 @@ allOf:
 
 properties:
   compatible:
-    const: ti,j721e-c66-dsp
+    enum:
+      - ti,j721e-c66-dsp
+      - ti,j721e-c71-dsp
     description:
       Use "ti,j721e-c66-dsp" for C66x DSPs on K3 J721E SoCs
-
-  reg:
-    items:
-      - description: Address and Size of the L2 SRAM internal memory region
-      - description: Address and Size of the L1 PRAM internal memory region
-      - description: Address and Size of the L1 DRAM internal memory region
-
-  reg-names:
-    items:
-      - const: l2sram
-      - const: l1pram
-      - const: l1dram
+      Use "ti,j721e-c71-dsp" for C71x DSPs on K3 J721E SoCs
 
   resets:
     description: |
@@ -92,6 +83,40 @@ properties:
       should be defined as per the generic bindings in,
       Documentation/devicetree/bindings/sram/sram.yaml
 
+if:
+  properties:
+    compatible:
+      enum:
+        - ti,j721e-c66-dsp
+then:
+  properties:
+    reg:
+      items:
+        - description: Address and Size of the L2 SRAM internal memory region
+        - description: Address and Size of the L1 PRAM internal memory region
+        - description: Address and Size of the L1 DRAM internal memory region
+    reg-names:
+      items:
+        - const: l2sram
+        - const: l1pram
+        - const: l1dram
+else:
+  if:
+    properties:
+      compatible:
+        enum:
+          - ti,j721e-c71-dsp
+  then:
+    properties:
+      reg:
+        items:
+          - description: Address and Size of the L2 SRAM internal memory region
+          - description: Address and Size of the L1 DRAM internal memory region
+      reg-names:
+        items:
+          - const: l2sram
+          - const: l1dram
+
 required:
  - compatible
  - reg
@@ -119,6 +144,7 @@ examples:
             #address-cells = <2>;
             #size-cells = <2>;
             ranges = <0x00 0x00100000 0x00 0x00100000 0x00 0x00020000>, /* ctrl mmr */
+                     <0x00 0x64800000 0x00 0x64800000 0x00 0x00800000>, /* C71_0 */
                      <0x4d 0x80800000 0x4d 0x80800000 0x00 0x00800000>, /* C66_0 */
                      <0x4d 0x81800000 0x4d 0x81800000 0x00 0x00800000>; /* C66_1 */
 
@@ -137,6 +163,22 @@ examples:
                 memory-region = <&c66_0_dma_memory_region>,
                                 <&c66_0_memory_region>;
                 mboxes = <&mailbox0_cluster3 &mbox_c66_0>;
+            };
+
+            /* J721E C71_0 DSP node */
+            c71_0: dsp@64800000 {
+                compatible = "ti,j721e-c71-dsp";
+                reg = <0x00 0x64800000 0x00 0x00080000>,
+                      <0x00 0x64e00000 0x00 0x0000c000>;
+                reg-names = "l2sram", "l1dram";
+                ti,sci = <&dmsc>;
+                ti,sci-dev-id = <15>;
+                ti,sci-proc-ids = <0x30 0xFF>;
+                resets = <&k3_reset 15 1>;
+                firmware-name = "j7-c71_0-fw";
+                memory-region = <&c71_0_dma_memory_region>,
+                                <&c71_0_memory_region>;
+                mboxes = <&mailbox0_cluster4 &mbox_c71_0>;
             };
         };
     };
