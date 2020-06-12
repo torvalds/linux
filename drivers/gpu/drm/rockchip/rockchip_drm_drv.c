@@ -179,7 +179,6 @@ struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
 	drm_connector_list_iter_begin(drm_dev, &conn_iter);
 	drm_for_each_connector_iter(connector, &conn_iter) {
 		if (connector->port == np_connector) {
-			drm_connector_list_iter_end(&conn_iter);
 			found_connector = true;
 			break;
 		}
