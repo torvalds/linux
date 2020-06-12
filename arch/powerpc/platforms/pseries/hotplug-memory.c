@@ -487,40 +487,6 @@ static int dlpar_memory_remove_by_index(u32 drc_index)
 	return rc;
 }
 
-static int dlpar_memory_readd_by_index(u32 drc_index)
-{
-	struct drmem_lmb *lmb;
-	int lmb_found;
-	int rc;
-
-	pr_info("Attempting to update LMB, drc index %x\n", drc_index);
-
-	lmb_found = 0;
-	for_each_drmem_lmb(lmb) {
-		if (lmb->drc_index == drc_index) {
-			lmb_found = 1;
-			rc = dlpar_remove_lmb(lmb);
-			if (!rc) {
-				rc = dlpar_add_lmb(lmb);
-				if (rc)
-					dlpar_release_drc(lmb->drc_index);
-			}
-			break;
-		}
-	}
-
-	if (!lmb_found)
-		rc = -EINVAL;
-
-	if (rc)
-		pr_info("Failed to update memory at %llx\n",
-			lmb->base_addr);
-	else
-		pr_info("Memory at %llx was updated\n", lmb->base_addr);
-
-	return rc;
-}
-
 static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index)
 {
 	struct drmem_lmb *lmb, *start_lmb, *end_lmb;
@@ -614,10 +580,6 @@ static int dlpar_memory_remove_by_count(u32 lmbs_to_remove)
 	return -EOPNOTSUPP;
 }
 static int dlpar_memory_remove_by_index(u32 drc_index)
-{
-	return -EOPNOTSUPP;
-}
-static int dlpar_memory_readd_by_index(u32 drc_index)
 {
 	return -EOPNOTSUPP;
 }
@@ -902,10 +864,6 @@ int dlpar_memory(struct pseries_hp_errorlog *hp_elog)
 			break;
 		}
 
-		break;
-	case PSERIES_HP_ELOG_ACTION_READD:
-		drc_index = hp_elog->_drc_u.drc_index;
-		rc = dlpar_memory_readd_by_index(drc_index);
 		break;
 	default:
 		pr_err("Invalid action (%d) specified\n", hp_elog->action);

@@ -215,7 +215,6 @@ inline uint16_t pseries_errorlog_length(struct pseries_errorlog *sect)
 
 #define PSERIES_HP_ELOG_ACTION_ADD	1
 #define PSERIES_HP_ELOG_ACTION_REMOVE	2
-#define PSERIES_HP_ELOG_ACTION_READD	3
 
 #define PSERIES_HP_ELOG_ID_DRC_NAME	1
 #define PSERIES_HP_ELOG_ID_DRC_INDEX	2
