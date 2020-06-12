@@ -1669,7 +1669,7 @@
 		pinctrl-0 = <&pex_rst_c5_out_state>, <&clkreq_c5_bi_dir_state>;
 
 		clocks = <&bpmp TEGRA194_CLK_PEX1_CORE_5>,
-			<&bpmp TEGRA194_CLK_PEX1_CORE_5M>;
+			 <&bpmp TEGRA194_CLK_PEX1_CORE_5M>;
 		clock-names = "core", "core_m";
 
 		resets = <&bpmp TEGRA194_RESET_PEX1_CORE_5_APB>,
