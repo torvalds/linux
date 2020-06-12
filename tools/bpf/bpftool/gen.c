@@ -257,8 +257,6 @@ static void codegen(const char *template, ...)
 	va_end(args);
 
 	free(s);
-	if (n)
-		exit(-1);
 }
 
 static int do_skeleton(int argc, char **argv)
