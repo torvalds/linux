@@ -1215,7 +1215,12 @@ static int cpm_uart_init_port(struct device_node *np,
 
 		pinfo->gpios[i] = NULL;
 
-		gpiod = devm_gpiod_get_index(dev, NULL, i, GPIOD_ASIS);
+		gpiod = devm_gpiod_get_index_optional(dev, NULL, i, GPIOD_ASIS);
+
+		if (IS_ERR(gpiod)) {
+			ret = PTR_ERR(gpiod);
+			goto out_irq;
+		}
 
 		if (gpiod) {
 			if (i == GPIO_RTS || i == GPIO_DTR)
@@ -1237,6 +1242,8 @@ static int cpm_uart_init_port(struct device_node *np,
 
 	return cpm_uart_request_port(&pinfo->port);
 
+out_irq:
+	irq_dispose_mapping(pinfo->port.irq);
 out_pram:
 	cpm_uart_unmap_pram(pinfo, pram);
 out_mem:
