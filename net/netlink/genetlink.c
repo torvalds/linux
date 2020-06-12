@@ -474,8 +474,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 				struct netlink_ext_ack *extack,
 				const struct genl_ops *ops,
 				int hdrlen,
-				enum genl_validate_flags no_strict_flag,
-				bool parallel)
+				enum genl_validate_flags no_strict_flag)
 {
 	enum netlink_validation validate = ops->validate & no_strict_flag ?
 					   NL_VALIDATE_LIBERAL :
@@ -486,7 +485,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	if (!family->maxattr)
 		return NULL;
 
-	if (parallel) {
+	if (family->parallel_ops) {
 		attrbuf = kmalloc_array(family->maxattr + 1,
 					sizeof(struct nlattr *), GFP_KERNEL);
 		if (!attrbuf)
@@ -498,7 +497,7 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	err = __nlmsg_parse(nlh, hdrlen, attrbuf, family->maxattr,
 			    family->policy, validate, extack);
 	if (err) {
-		if (parallel)
+		if (family->parallel_ops)
 			kfree(attrbuf);
 		return ERR_PTR(err);
 	}
@@ -506,10 +505,9 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 }
 
 static void genl_family_rcv_msg_attrs_free(const struct genl_family *family,
-					   struct nlattr **attrbuf,
-					   bool parallel)
+					   struct nlattr **attrbuf)
 {
-	if (parallel)
+	if (family->parallel_ops)
 		kfree(attrbuf);
 }
 
@@ -537,15 +535,14 @@ static int genl_start(struct netlink_callback *cb)
 
 	attrs = genl_family_rcv_msg_attrs_parse(ctx->family, ctx->nlh, ctx->extack,
 						ops, ctx->hdrlen,
-						GENL_DONT_VALIDATE_DUMP_STRICT,
-						true);
+						GENL_DONT_VALIDATE_DUMP_STRICT);
 	if (IS_ERR(attrs))
 		return PTR_ERR(attrs);
 
 no_attrs:
 	info = genl_dumpit_info_alloc();
 	if (!info) {
-		kfree(attrs);
+		genl_family_rcv_msg_attrs_free(ctx->family, attrs);
 		return -ENOMEM;
 	}
 	info->family = ctx->family;
@@ -562,7 +559,7 @@ no_attrs:
 	}
 
 	if (rc) {
-		kfree(attrs);
+		genl_family_rcv_msg_attrs_free(info->family, info->attrs);
 		genl_dumpit_info_free(info);
 		cb->data = NULL;
 	}
@@ -591,7 +588,7 @@ static int genl_lock_done(struct netlink_callback *cb)
 		rc = ops->done(cb);
 		genl_unlock();
 	}
-	genl_family_rcv_msg_attrs_free(info->family, info->attrs, false);
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -604,7 +601,7 @@ static int genl_parallel_done(struct netlink_callback *cb)
 
 	if (ops->done)
 		rc = ops->done(cb);
-	genl_family_rcv_msg_attrs_free(info->family, info->attrs, true);
+	genl_family_rcv_msg_attrs_free(info->family, info->attrs);
 	genl_dumpit_info_free(info);
 	return rc;
 }
@@ -671,8 +668,7 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 
 	attrbuf = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						  ops, hdrlen,
-						  GENL_DONT_VALIDATE_STRICT,
-						  family->parallel_ops);
+						  GENL_DONT_VALIDATE_STRICT);
 	if (IS_ERR(attrbuf))
 		return PTR_ERR(attrbuf);
 
@@ -698,7 +694,7 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 		family->post_doit(ops, skb, &info);
 
 out:
-	genl_family_rcv_msg_attrs_free(family, attrbuf, family->parallel_ops);
+	genl_family_rcv_msg_attrs_free(family, attrbuf);
 
 	return err;
 }
