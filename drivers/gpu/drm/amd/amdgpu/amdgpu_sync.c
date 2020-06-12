@@ -275,6 +275,8 @@ int amdgpu_sync_resv(struct amdgpu_device *adev, struct amdgpu_sync *sync,
 			continue;
 		}
 
+		WARN(debug_evictions && fence_owner == AMDGPU_FENCE_OWNER_KFD,
+		     "Adding eviction fence to sync obj");
 		r = amdgpu_sync_fence(sync, f, false);
 		if (r)
 			break;

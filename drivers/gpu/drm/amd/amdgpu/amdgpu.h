@@ -186,8 +186,10 @@ extern int amdgpu_noretry;
 extern int amdgpu_force_asic_type;
 #ifdef CONFIG_HSA_AMD
 extern int sched_policy;
+extern bool debug_evictions;
 #else
 static const int sched_policy = KFD_SCHED_POLICY_HWS;
+static const bool debug_evictions; /* = false */
 #endif
 
 extern int amdgpu_tmz;

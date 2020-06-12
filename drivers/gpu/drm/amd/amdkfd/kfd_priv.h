@@ -177,6 +177,11 @@ extern bool hws_gws_support;
  */
 extern int queue_preemption_timeout_ms;
 
+/*
+ * Enable eviction debug messages
+ */
+extern bool debug_evictions;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent

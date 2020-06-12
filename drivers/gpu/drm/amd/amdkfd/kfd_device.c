@@ -935,6 +935,7 @@ int kgd2kfd_quiesce_mm(struct mm_struct *mm)
 	if (!p)
 		return -ESRCH;
 
+	WARN(debug_evictions, "Evicting pid %d", p->lead_thread->pid);
 	r = kfd_process_evict_queues(p);
 
 	kfd_unref_process(p);
@@ -1002,6 +1003,8 @@ int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 	/* During process initialization eviction_work.dwork is initialized
 	 * to kfd_evict_bo_worker
 	 */
+	WARN(debug_evictions, "Scheduling eviction of pid %d in %ld jiffies",
+	     p->lead_thread->pid, delay_jiffies);
 	schedule_delayed_work(&p->eviction_work, delay_jiffies);
 out:
 	kfd_unref_process(p);
