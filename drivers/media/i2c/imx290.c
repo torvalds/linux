@@ -404,10 +404,10 @@ static int imx290_set_register_array(struct imx290 *imx290,
 		ret = imx290_write_reg(imx290, settings->reg, settings->val);
 		if (ret < 0)
 			return ret;
-
-		/* Settle time is 10ms for all registers */
-		msleep(10);
 	}
+
+	/* Provide 10ms settle time */
+	msleep(10);
 
 	return 0;
 }
