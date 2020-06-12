@@ -557,14 +557,34 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 		return false;
 	}
 
-	if (!__rcu_is_watching()) {
+	/*
+	 * If this entry hit the idle task invoke rcu_irq_enter() whether
+	 * RCU is watching or not.
+	 *
+	 * Interupts can nest when the first interrupt invokes softirq
+	 * processing on return which enables interrupts.
+	 *
+	 * Scheduler ticks in the idle task can mark quiescent state and
+	 * terminate a grace period, if and only if the timer interrupt is
+	 * not nested into another interrupt.
+	 *
+	 * Checking for __rcu_is_watching() here would prevent the nesting
+	 * interrupt to invoke rcu_irq_enter(). If that nested interrupt is
+	 * the tick then rcu_flavor_sched_clock_irq() would wrongfully
+	 * assume that it is the first interupt and eventually claim
+	 * quiescient state and end grace periods prematurely.
+	 *
+	 * Unconditionally invoke rcu_irq_enter() so RCU state stays
+	 * consistent.
+	 *
+	 * TINY_RCU does not support EQS, so let the compiler eliminate
+	 * this part when enabled.
+	 */
+	if (!IS_ENABLED(CONFIG_TINY_RCU) && is_idle_task(current)) {
 		/*
 		 * If RCU is not watching then the same careful
 		 * sequence vs. lockdep and tracing is required
 		 * as in enter_from_user_mode().
-		 *
-		 * This only happens for IRQs that hit the idle
-		 * loop, i.e. if idle is not using MWAIT.
 		 */
 		lockdep_hardirqs_off(CALLER_ADDR0);
 		rcu_irq_enter();
@@ -576,9 +596,10 @@ bool noinstr idtentry_enter_cond_rcu(struct pt_regs *regs)
 	}
 
 	/*
-	 * If RCU is watching then RCU only wants to check
-	 * whether it needs to restart the tick in NOHZ
-	 * mode.
+	 * If RCU is watching then RCU only wants to check whether it needs
+	 * to restart the tick in NOHZ mode. rcu_irq_enter_check_tick()
+	 * already contains a warning when RCU is not watching, so no point
+	 * in having another one here.
 	 */
 	instrumentation_begin();
 	rcu_irq_enter_check_tick();
