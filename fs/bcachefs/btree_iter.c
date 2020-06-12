@@ -101,7 +101,7 @@ bool __bch2_btree_node_relock(struct btree_iter *iter, unsigned level)
 
 	if (six_relock_type(&b->c.lock, want, iter->l[level].lock_seq) ||
 	    (btree_node_lock_seq_matches(iter, b, level) &&
-	     btree_node_lock_increment(iter, b, level, want))) {
+	     btree_node_lock_increment(iter->trans, b, level, want))) {
 		mark_btree_node_locked(iter, level, want);
 		return true;
 	} else {
@@ -130,7 +130,7 @@ static bool bch2_btree_node_upgrade(struct btree_iter *iter, unsigned level)
 		goto success;
 
 	if (btree_node_lock_seq_matches(iter, b, level) &&
-	    btree_node_lock_increment(iter, b, level, BTREE_NODE_INTENT_LOCKED)) {
+	    btree_node_lock_increment(iter->trans, b, level, BTREE_NODE_INTENT_LOCKED)) {
 		btree_node_unlock(iter, level);
 		goto success;
 	}
@@ -193,22 +193,17 @@ static inline bool btree_iter_get_locks(struct btree_iter *iter,
 
 /* Slowpath: */
 bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
-			   unsigned level,
-			   struct btree_iter *iter,
-			   enum six_lock_type type)
+			    unsigned level, struct btree_iter *iter,
+			    enum six_lock_type type)
 {
+	struct btree_trans *trans = iter->trans;
 	struct btree_iter *linked;
 	bool ret = true;
 
 	/* Check if it's safe to block: */
-	trans_for_each_iter(iter->trans, linked) {
+	trans_for_each_iter(trans, linked) {
 		if (!linked->nodes_locked)
 			continue;
-
-		/* Must lock btree nodes in key order: */
-		if ((cmp_int(iter->btree_id, linked->btree_id) ?:
-		     bkey_cmp(pos, linked->pos)) < 0)
-			ret = false;
 
 		/*
 		 * Can't block taking an intent lock if we have _any_ nodes read
@@ -224,13 +219,15 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 */
 		if (type == SIX_LOCK_intent &&
 		    linked->nodes_locked != linked->nodes_intent_locked) {
-			if (!(iter->trans->nounlock)) {
+			if (!(trans->nounlock)) {
 				linked->locks_want = max_t(unsigned,
 						linked->locks_want,
 						__fls(linked->nodes_locked) + 1);
-				btree_iter_get_locks(linked, true, false);
+				if (!btree_iter_get_locks(linked, true, false))
+					ret = false;
+			} else {
+				ret = false;
 			}
-			ret = false;
 		}
 
 		/*
@@ -240,14 +237,36 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		 */
 		if (linked->btree_id == iter->btree_id &&
 		    level > __fls(linked->nodes_locked)) {
-			if (!(iter->trans->nounlock)) {
+			if (!(trans->nounlock)) {
 				linked->locks_want =
 					max(level + 1, max_t(unsigned,
 					    linked->locks_want,
 					    iter->locks_want));
-				btree_iter_get_locks(linked, true, false);
+				if (!btree_iter_get_locks(linked, true, false))
+					ret = false;
+			} else {
+				ret = false;
 			}
+		}
+
+		/* Must lock btree nodes in key order: */
+		if (iter->btree_id < linked->btree_id)
 			ret = false;
+
+		if (iter->btree_id == linked->btree_id &&
+		    btree_node_locked(linked, level) &&
+		    bkey_cmp(pos, linked->l[level].b->key.k.p) <= 0)
+			ret = false;
+
+		/*
+		 * Recheck if this is a node we already have locked - since one
+		 * of the get_locks() calls might've successfully
+		 * upgraded/relocked it:
+		 */
+		if (linked->l[level].b == b &&
+		    btree_node_locked_type(linked, level) >= type) {
+			six_lock_increment(&b->c.lock, type);
+			return true;
 		}
 	}
 
@@ -2242,13 +2261,15 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->btree_trans_lock);
 	list_for_each_entry(trans, &c->btree_trans_list, list) {
-		pr_buf(out, "%i %ps\n", trans->pid, (void *) trans->ip);
+		pr_buf(out, "%i %px %ps\n", trans->pid, trans, (void *) trans->ip);
 
 		trans_for_each_iter(trans, iter) {
 			if (!iter->nodes_locked)
 				continue;
 
-			pr_buf(out, "  iter %s:", bch2_btree_ids[iter->btree_id]);
+			pr_buf(out, "  iter %u %s:",
+			       iter->idx,
+			       bch2_btree_ids[iter->btree_id]);
 			bch2_bpos_to_text(out, iter->pos);
 			pr_buf(out, "\n");
 
@@ -2256,8 +2277,8 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 				if (btree_node_locked(iter, l)) {
 					b = iter->l[l].b;
 
-					pr_buf(out, "    %p l=%u %s ",
-					       b, l, btree_node_intent_locked(iter, l) ? "i" : "r");
+					pr_buf(out, "    %px %s l=%u ",
+					       b, btree_node_intent_locked(iter, l) ? "i" : "r", l);
 					bch2_bpos_to_text(out, b->key.k.p);
 					pr_buf(out, "\n");
 				}
@@ -2266,7 +2287,13 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct bch_fs *c)
 
 		b = READ_ONCE(trans->locking);
 		if (b) {
-			pr_buf(out, "  locking %px l=%u %s:",
+			pr_buf(out, "  locking iter %u l=%u %s:",
+			       trans->locking_iter_idx,
+			       trans->locking_level,
+			       bch2_btree_ids[trans->locking_btree_id]);
+			bch2_bpos_to_text(out, trans->locking_pos);
+
+			pr_buf(out, " node %px l=%u %s:",
 			       b, b->c.level,
 			       bch2_btree_ids[b->c.btree_id]);
 			bch2_bpos_to_text(out, b->key.k.p);

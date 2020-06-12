@@ -481,7 +481,7 @@ static inline int do_bch2_trans_commit(struct btree_trans *trans,
 	 * or anything else that might call bch2_trans_relock(), since that
 	 * would just retake the read locks:
 	 */
-	trans_for_each_iter_all(trans, iter) {
+	trans_for_each_iter(trans, iter) {
 		if (iter->nodes_locked != iter->nodes_intent_locked) {
 			EBUG_ON(iter->flags & BTREE_ITER_KEEP_UNTIL_COMMIT);
 			EBUG_ON(trans->iters_live & (1ULL << iter->idx));

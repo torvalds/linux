@@ -287,6 +287,10 @@ struct btree_trans {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	struct list_head	list;
 	struct btree		*locking;
+	unsigned		locking_iter_idx;
+	struct bpos		locking_pos;
+	u8			locking_btree_id;
+	u8			locking_level;
 	pid_t			pid;
 #endif
 	unsigned long		ip;
