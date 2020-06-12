@@ -6,6 +6,8 @@
  * Author: Chris Bookholt <hap10@epoch.ncsc.mil>
  */
 
+#define dev_fmt(fmt) DRV_NAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include "pciback.h"
@@ -35,8 +37,8 @@ static struct xen_pcibk_config_quirk *xen_pcibk_find_quirk(struct pci_dev *dev)
 		if (match_one_device(&tmp_quirk->devid, dev) != NULL)
 			goto out;
 	tmp_quirk = NULL;
-	printk(KERN_DEBUG DRV_NAME
-	       ": quirk didn't match any device known\n");
+	dev_printk(KERN_DEBUG, &dev->dev,
+		   "quirk didn't match any device known\n");
 out:
 	return tmp_quirk;
 }
