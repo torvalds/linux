@@ -196,7 +196,7 @@ uint8_t amdgpu_amdkfd_get_xgmi_hops_count(struct kgd_dev *dst, struct kgd_dev *s
 			pagefault_disable();				\
 			if ((mmptr) == current->mm) {			\
 				valid = !get_user((dst), (wptr));	\
-			} else if (current->mm == NULL) {		\
+			} else if (current->flags & PF_KTHREAD) {	\
 				kthread_use_mm(mmptr);			\
 				valid = !get_user((dst), (wptr));	\
 				kthread_unuse_mm(mmptr);		\
