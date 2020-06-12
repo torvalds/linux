@@ -266,12 +266,14 @@ struct mpp_session {
 
 /* task state in work thread */
 enum mpp_task_state {
-	TASK_STATE_PENDING	= BIT(0),
-	TASK_STATE_RUNNING	= BIT(1),
-	TASK_STATE_START	= BIT(2),
-	TASK_STATE_IRQ		= BIT(3),
-	TASK_STATE_DONE		= BIT(4),
-	TASK_STATE_TIMEOUT	= BIT(5),
+	TASK_STATE_PENDING	= 0,
+	TASK_STATE_RUNNING	= 1,
+	TASK_STATE_START	= 2,
+	TASK_STATE_HANDLE	= 3,
+	TASK_STATE_IRQ		= 4,
+	TASK_STATE_FINISH	= 5,
+	TASK_STATE_TIMEOUT	= 6,
+	TASK_STATE_DONE		= 7,
 };
 
 /* The context for the a task */
@@ -289,7 +291,7 @@ struct mpp_task {
 	struct list_head mem_region_list;
 
 	/* state in the taskqueue */
-	enum mpp_task_state state;
+	unsigned long state;
 	atomic_t abort_request;
 	/* delayed work for hardware timeout */
 	struct delayed_work timeout_work;

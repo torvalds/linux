@@ -260,6 +260,7 @@ static int mpp_session_pop_done(struct mpp_session *session,
 	mutex_lock(&session->done_lock);
 	list_del_init(&task->done_link);
 	mutex_unlock(&session->done_lock);
+	set_bit(TASK_STATE_DONE, &task->state);
 	kref_put(&task->ref, mpp_free_task);
 
 	return 0;
@@ -278,10 +279,9 @@ static void mpp_free_task(struct kref *ref)
 	session = task->session;
 
 	mpp_debug_func(DEBUG_TASK_INFO,
-		       "session=%p, task=%p, state=%08x, abort_request=%d\n",
+		       "session=%p, task=%p, state=0x%lx, abort_request=%d\n",
 		       session, task, task->state,
 		       atomic_read(&task->abort_request));
-
 	if (!session->mpp) {
 		mpp_err("session %p, session->mpp is null.\n", session);
 		return;
@@ -300,10 +300,10 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 					     struct mpp_task,
 					     timeout_work);
 
-	mpp_err("task %p processing timed out!\n", task);
-	/* if hardware timeout, task must abort */
-	atomic_inc(&task->abort_request);
+	if (test_and_set_bit(TASK_STATE_HANDLE, &task->state))
+		return;
 
+	mpp_err("task %p processing timed out!\n", task);
 	if (!task->session) {
 		mpp_err("task %p, task->session is null.\n", task);
 		return;
@@ -322,7 +322,7 @@ static void mpp_task_timeout_work(struct work_struct *work_s)
 	mpp_power_off(mpp);
 
 	/* remove task from taskqueue running list */
-	task->state = TASK_STATE_TIMEOUT;
+	set_bit(TASK_STATE_TIMEOUT, &task->state);
 	mpp_taskqueue_pop_running(mpp->queue, task);
 }
 
@@ -360,7 +360,7 @@ static int mpp_process_task(struct mpp_session *session,
 	mpp_session_push_pending(session, task);
 	/* push current task to queue */
 	mpp_taskqueue_push_pending(mpp->queue, task);
-	task->state = TASK_STATE_PENDING;
+	set_bit(TASK_STATE_PENDING, &task->state);
 	/* trigger current queue to run task */
 	mpp_taskqueue_trigger_work(mpp->queue, mpp->workq);
 	kref_put(&task->ref, mpp_free_task);
@@ -558,7 +558,7 @@ static int mpp_task_run(struct mpp_dev *mpp,
 	 */
 	down_read(&mpp->reset_group->rw_sem);
 
-	task->state = TASK_STATE_START;
+	set_bit(TASK_STATE_START, &task->state);
 	schedule_delayed_work(&task->timeout_work,
 			      msecs_to_jiffies(MPP_WORK_TIMEOUT_DELAY));
 	if (mpp->dev_ops->run)
@@ -612,7 +612,7 @@ static void mpp_task_try_run(struct work_struct *work_s)
 	/* Push a pending task to running queue */
 	if (task) {
 		mpp_taskqueue_pending_to_run(queue, task);
-		task->state = TASK_STATE_RUNNING;
+		set_bit(TASK_STATE_RUNNING, &task->state);
 		if (mpp_task_run(mpp, task))
 			mpp_taskqueue_pop_running(mpp->queue, task);
 	}
@@ -1433,7 +1433,7 @@ int mpp_task_finish(struct mpp_session *session,
 		/* Wake up the GET thread */
 		wake_up(&session->wait);
 	}
-	task->state = TASK_STATE_DONE;
+	set_bit(TASK_STATE_FINISH, &task->state);
 	mpp_taskqueue_pop_running(mpp->queue, task);
 
 	return 0;
@@ -1668,9 +1668,20 @@ irqreturn_t mpp_dev_irq(int irq, void *param)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct mpp_dev *mpp = param;
+	struct mpp_task *task = mpp->cur_task;
 
-	if (mpp->dev_ops->irq)
-		ret = mpp->dev_ops->irq(mpp);
+	if (task) {
+		/* if wait or delayed work timeout, abort request will turn on,
+		 * isr should not to response, and handle it in delayed work
+		 */
+		if (test_and_set_bit(TASK_STATE_HANDLE, &task->state))
+			return IRQ_HANDLED;
+		cancel_delayed_work(&task->timeout_work);
+
+		set_bit(TASK_STATE_IRQ, &task->state);
+		if (mpp->dev_ops->irq)
+			ret = mpp->dev_ops->irq(mpp);
+	}
 
 	return ret;
 }
@@ -1679,18 +1690,6 @@ irqreturn_t mpp_dev_isr_sched(int irq, void *param)
 {
 	irqreturn_t ret = IRQ_NONE;
 	struct mpp_dev *mpp = param;
-	struct mpp_task *task = mpp->cur_task;
-
-	if (task) {
-		/* if wait or delayed work timeout, abort request will turn on,
-		 * isr should not to response, and handle it in delayed work
-		 */
-		if (atomic_read(&task->abort_request) > 0)
-			return IRQ_HANDLED;
-
-		task->state = TASK_STATE_IRQ;
-		cancel_delayed_work(&task->timeout_work);
-	}
 
 	if (mpp->hw_ops->reduce_freq &&
 	    list_empty(&mpp->queue->pending_list))
