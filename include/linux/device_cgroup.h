@@ -44,6 +44,9 @@ static inline int devcgroup_inode_mknod(int mode, dev_t dev)
 	if (!S_ISBLK(mode) && !S_ISCHR(mode))
 		return 0;
 
+	if (S_ISCHR(mode) && dev == WHITEOUT_DEV)
+		return 0;
+
 	if (S_ISBLK(mode))
 		type = DEVCG_DEV_BLOCK;
 	else
