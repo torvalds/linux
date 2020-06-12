@@ -605,7 +605,7 @@
 	};
 
 	emc: external-memory-controller@7001b000 {
-		compatible = "nvidia,tegra132-emc", "nvidia,tegra124-emc";
+		compatible = "nvidia,tegra132-emc";
 		reg = <0x0 0x7001b000 0x0 0x1000>;
 		clocks = <&tegra_car TEGRA124_CLK_EMC>;
 		clock-names = "emc";
