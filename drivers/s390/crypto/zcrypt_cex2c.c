@@ -25,6 +25,7 @@
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_cex2c.h"
 #include "zcrypt_cca_key.h"
+#include "zcrypt_ccamisc.h"
 
 #define CEX2C_MIN_MOD_SIZE	 16	/*  128 bits	*/
 #define CEX2C_MAX_MOD_SIZE	256	/* 2048 bits	*/
@@ -57,6 +58,91 @@ static struct ap_device_id zcrypt_cex2c_queue_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(ap, zcrypt_cex2c_queue_ids);
+
+/*
+ * CCA card additional device attributes
+ */
+static ssize_t cca_serialnr_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct cca_info ci;
+	struct ap_card *ac = to_ap_card(dev);
+	struct zcrypt_card *zc = ac->private;
+
+	memset(&ci, 0, sizeof(ci));
+
+	if (ap_domain_index >= 0)
+		cca_get_info(ac->id, ap_domain_index, &ci, zc->online);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", ci.serial);
+}
+
+static struct device_attribute dev_attr_cca_serialnr =
+	__ATTR(serialnr, 0444, cca_serialnr_show, NULL);
+
+static struct attribute *cca_card_attrs[] = {
+	&dev_attr_cca_serialnr.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_card_attr_grp = {
+	.attrs = cca_card_attrs,
+};
+
+ /*
+  * CCA queue additional device attributes
+  */
+static ssize_t cca_mkvps_show(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	int n = 0;
+	struct cca_info ci;
+	struct zcrypt_queue *zq = to_ap_queue(dev)->private;
+	static const char * const cao_state[] = { "invalid", "valid" };
+	static const char * const new_state[] = { "empty", "partial", "full" };
+
+	memset(&ci, 0, sizeof(ci));
+
+	cca_get_info(AP_QID_CARD(zq->queue->qid),
+		     AP_QID_QUEUE(zq->queue->qid),
+		     &ci, zq->online);
+
+	if (ci.new_mk_state >= '1' && ci.new_mk_state <= '3')
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
+			      new_state[ci.new_mk_state - '1'], ci.new_mkvp);
+	else
+		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
+
+	if (ci.cur_mk_state >= '1' && ci.cur_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES CUR: %s 0x%016llx\n",
+			       cao_state[ci.cur_mk_state - '1'], ci.cur_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES CUR: - -\n");
+
+	if (ci.old_mk_state >= '1' && ci.old_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "AES OLD: %s 0x%016llx\n",
+			       cao_state[ci.old_mk_state - '1'], ci.old_mkvp);
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "AES OLD: - -\n");
+
+	return n;
+}
+
+static struct device_attribute dev_attr_cca_mkvps =
+	__ATTR(mkvps, 0444, cca_mkvps_show, NULL);
+
+static struct attribute *cca_queue_attrs[] = {
+	&dev_attr_cca_mkvps.attr,
+	NULL,
+};
+
+static const struct attribute_group cca_queue_attr_grp = {
+	.attrs = cca_queue_attrs,
+};
 
 /**
  * Large random number detection function. Its sends a message to a CEX2C/CEX3C
@@ -178,6 +264,17 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
 	if (rc) {
 		ac->private = NULL;
 		zcrypt_card_free(zc);
+		return rc;
+	}
+
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_card_attr_grp);
+		if (rc) {
+			zcrypt_card_unregister(zc);
+			ac->private = NULL;
+			zcrypt_card_free(zc);
+		}
 	}
 
 	return rc;
@@ -189,8 +286,11 @@ static int zcrypt_cex2c_card_probe(struct ap_device *ap_dev)
  */
 static void zcrypt_cex2c_card_remove(struct ap_device *ap_dev)
 {
+	struct ap_card *ac = to_ap_card(&ap_dev->device);
 	struct zcrypt_card *zc = to_ap_card(&ap_dev->device)->private;
 
+	if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_card_attr_grp);
 	if (zc)
 		zcrypt_card_unregister(zc);
 }
@@ -239,7 +339,19 @@ static int zcrypt_cex2c_queue_probe(struct ap_device *ap_dev)
 	if (rc) {
 		aq->private = NULL;
 		zcrypt_queue_free(zq);
+		return rc;
 	}
+
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO)) {
+		rc = sysfs_create_group(&ap_dev->device.kobj,
+					&cca_queue_attr_grp);
+		if (rc) {
+			zcrypt_queue_unregister(zq);
+			aq->private = NULL;
+			zcrypt_queue_free(zq);
+		}
+	}
+
 	return rc;
 }
 
@@ -252,6 +364,8 @@ static void zcrypt_cex2c_queue_remove(struct ap_device *ap_dev)
 	struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 	struct zcrypt_queue *zq = aq->private;
 
+	if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+		sysfs_remove_group(&ap_dev->device.kobj, &cca_queue_attr_grp);
 	if (zq)
 		zcrypt_queue_unregister(zq);
 }
