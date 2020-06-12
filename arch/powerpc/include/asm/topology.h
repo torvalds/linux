@@ -115,7 +115,6 @@ int get_physical_package_id(int cpu);
 #define topology_core_cpumask(cpu)	(per_cpu(cpu_core_map, cpu))
 #define topology_core_id(cpu)		(cpu_to_core_id(cpu))
 
-int dlpar_cpu_readd(int cpu);
 #endif
 #endif
 
