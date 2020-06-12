@@ -460,6 +460,8 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 	void __iomem *padcfg0;
 	unsigned long flags;
 
+	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
+
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	if (!intel_pad_owned_by_host(pctrl, pin)) {
@@ -471,8 +473,6 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 		return 0;
 	}
-
-	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
 
 	/*
 	 * If pin is already configured in GPIO mode, we assume that
@@ -503,11 +503,10 @@ static int intel_gpio_set_direction(struct pinctrl_dev *pctldev,
 	void __iomem *padcfg0;
 	unsigned long flags;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
-
 	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
-	__intel_gpio_set_direction(padcfg0, input);
 
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
+	__intel_gpio_set_direction(padcfg0, input);
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
@@ -622,10 +621,11 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned int pin,
 	int ret = 0;
 	u32 value;
 
-	raw_spin_lock_irqsave(&pctrl->lock, flags);
-
 	community = intel_get_community(pctrl, pin);
 	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
+
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
+
 	value = readl(padcfg1);
 
 	switch (param) {
