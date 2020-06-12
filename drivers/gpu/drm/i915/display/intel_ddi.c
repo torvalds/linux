@@ -2615,7 +2615,7 @@ static void icl_ddi_vswing_sequence(struct intel_encoder *encoder,
 
 static void
 tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
-				u32 level)
+				u32 level, enum intel_output_type type)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, encoder->port);
@@ -2623,7 +2623,7 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
 	u32 n_entries, val, ln, dpcnt_mask, dpcnt_val;
 	int rate = 0;
 
-	if (encoder->type != INTEL_OUTPUT_HDMI) {
+	if (type == INTEL_OUTPUT_HDMI) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 
 		rate = intel_dp->link_rate;
@@ -2676,7 +2676,7 @@ static void tgl_ddi_vswing_sequence(struct intel_encoder *encoder,
 	if (intel_phy_is_combo(dev_priv, phy))
 		icl_combo_phy_ddi_vswing_sequence(encoder, level, type);
 	else
-		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level);
+		tgl_dkl_phy_ddi_vswing_sequence(encoder, link_clock, level, type);
 }
 
 static u32 translate_signal_level(struct intel_dp *intel_dp, int signal_levels)
