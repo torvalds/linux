@@ -1333,7 +1333,10 @@ struct inode *cifs_root_iget(struct super_block *sb)
 	}
 
 	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
-	rc = cifs_get_inode_info(&inode, path, NULL, sb, xid, NULL);
+	if (tcon->posix_extensions)
+		rc = smb311_posix_get_inode_info(&inode, path, sb, xid);
+	else
+		rc = cifs_get_inode_info(&inode, path, NULL, sb, xid, NULL);
 
 iget_no_retry:
 	if (!inode) {
@@ -1689,7 +1692,9 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 	int rc = 0;
 	struct inode *inode = NULL;
 
-	if (tcon->unix_ext)
+	if (tcon->posix_extensions)
+		rc = smb311_posix_get_inode_info(&inode, full_path, parent->i_sb, xid);
+	else if (tcon->unix_ext)
 		rc = cifs_get_inode_info_unix(&inode, full_path, parent->i_sb,
 					      xid);
 	else
