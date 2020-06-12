@@ -435,11 +435,20 @@ static void intel_gpio_set_gpio_mode(void __iomem *padcfg0)
 {
 	u32 value;
 
+	value = readl(padcfg0);
+
 	/* Put the pad into GPIO mode */
-	value = readl(padcfg0) & ~PADCFG0_PMODE_MASK;
+	value &= ~PADCFG0_PMODE_MASK;
+	value |= PADCFG0_PMODE_GPIO;
+
+	/* Disable input and output buffers */
+	value &= ~PADCFG0_GPIORXDIS;
+	value &= ~PADCFG0_GPIOTXDIS;
+
 	/* Disable SCI/SMI/NMI generation */
 	value &= ~(PADCFG0_GPIROUTIOXAPIC | PADCFG0_GPIROUTSCI);
 	value &= ~(PADCFG0_GPIROUTSMI | PADCFG0_GPIROUTNMI);
+
 	writel(value, padcfg0);
 }
 
@@ -1035,6 +1044,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned int type)
 	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	intel_gpio_set_gpio_mode(reg);
+
+	/* Disable TX buffer and enable RX (this will be input) */
+	__intel_gpio_set_direction(reg, true);
 
 	value = readl(reg);
 
