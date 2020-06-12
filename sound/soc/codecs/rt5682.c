@@ -2248,7 +2248,7 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 {
 	struct rt5682_priv *rt5682 = snd_soc_component_get_drvdata(component);
 	struct rl6231_pll_code pll_code, pll2f_code, pll2b_code;
-	unsigned int pll2_fout1;
+	unsigned int pll2_fout1, pll2_ps_val;
 	int ret;
 
 	if (source == rt5682->pll_src[pll_id] &&
@@ -2317,8 +2317,15 @@ static int rt5682_set_component_pll(struct snd_soc_component *component,
 			pll2b_code.n_code);
 		snd_soc_component_write(component, RT5682_PLL2_CTRL_3,
 			pll2f_code.n_code << RT5682_PLL2F_N_SFT);
+
+		if (freq_out == 22579200)
+			pll2_ps_val = 1 << RT5682_PLL2B_SEL_PS_SFT;
+		else
+			pll2_ps_val = 1 << RT5682_PLL2B_PS_BYP_SFT;
 		snd_soc_component_update_bits(component, RT5682_PLL2_CTRL_4,
+			RT5682_PLL2B_SEL_PS_MASK | RT5682_PLL2B_PS_BYP_MASK |
 			RT5682_PLL2B_M_BP_MASK | RT5682_PLL2F_M_BP_MASK | 0xf,
+			pll2_ps_val |
 			(pll2b_code.m_bp ? 1 : 0) << RT5682_PLL2B_M_BP_SFT |
 			(pll2f_code.m_bp ? 1 : 0) << RT5682_PLL2F_M_BP_SFT |
 			0xf);
