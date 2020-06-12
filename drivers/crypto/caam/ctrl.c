@@ -469,7 +469,7 @@ static int caam_get_era(struct caam_ctrl __iomem *ctrl)
  * pipeline to a depth of 1 (from it's default of 4) to preclude this situation
  * from occurring.
  */
-static void handle_imx6_err005766(u32 *mcr)
+static void handle_imx6_err005766(u32 __iomem *mcr)
 {
 	if (of_machine_is_compatible("fsl,imx6q") ||
 	    of_machine_is_compatible("fsl,imx6dl") ||
