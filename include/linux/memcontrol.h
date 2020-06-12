@@ -45,6 +45,7 @@ enum memcg_memory_event {
 	MEMCG_MAX,
 	MEMCG_OOM,
 	MEMCG_OOM_KILL,
+	MEMCG_SWAP_HIGH,
 	MEMCG_SWAP_MAX,
 	MEMCG_SWAP_FAIL,
 	MEMCG_NR_MEMORY_EVENTS,
@@ -214,9 +215,6 @@ struct mem_cgroup {
 	struct page_counter memsw;
 	struct page_counter kmem;
 	struct page_counter tcpmem;
-
-	/* Upper bound of normal memory consumption range */
-	unsigned long high;
 
 	/* Range enforcement for interrupt charges */
 	struct work_struct high_work;

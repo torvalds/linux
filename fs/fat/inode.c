@@ -210,10 +210,9 @@ static int fat_readpage(struct file *file, struct page *page)
 	return mpage_readpage(page, fat_get_block);
 }
 
-static int fat_readpages(struct file *file, struct address_space *mapping,
-			 struct list_head *pages, unsigned nr_pages)
+static void fat_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, fat_get_block);
+	mpage_readahead(rac, fat_get_block);
 }
 
 static void fat_write_failed(struct address_space *mapping, loff_t to)
@@ -344,7 +343,7 @@ int fat_block_truncate_page(struct inode *inode, loff_t from)
 
 static const struct address_space_operations fat_aops = {
 	.readpage	= fat_readpage,
-	.readpages	= fat_readpages,
+	.readahead	= fat_readahead,
 	.writepage	= fat_writepage,
 	.writepages	= fat_writepages,
 	.write_begin	= fat_write_begin,

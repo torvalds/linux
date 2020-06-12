@@ -679,6 +679,20 @@ static void slab_fix(struct kmem_cache *s, char *fmt, ...)
 	va_end(args);
 }
 
+static bool freelist_corrupted(struct kmem_cache *s, struct page *page,
+			       void *freelist, void *nextfree)
+{
+	if ((s->flags & SLAB_CONSISTENCY_CHECKS) &&
+	    !check_valid_pointer(s, page, nextfree)) {
+		object_err(s, page, freelist, "Freechain corrupt");
+		freelist = NULL;
+		slab_fix(s, "Isolate corrupted freechain");
+		return true;
+	}
+
+	return false;
+}
+
 static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
 {
 	unsigned int off;	/* Offset of last byte */
@@ -1410,6 +1424,11 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node,
 static inline void dec_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
 
+static bool freelist_corrupted(struct kmem_cache *s, struct page *page,
+			       void *freelist, void *nextfree)
+{
+	return false;
+}
 #endif /* CONFIG_SLUB_DEBUG */
 
 /*
@@ -2092,6 +2111,14 @@ static void deactivate_slab(struct kmem_cache *s, struct page *page,
 	while (freelist && (nextfree = get_freepointer(s, freelist))) {
 		void *prior;
 		unsigned long counters;
+
+		/*
+		 * If 'nextfree' is invalid, it is possible that the object at
+		 * 'freelist' is already corrupted.  So isolate all objects
+		 * starting at 'freelist'.
+		 */
+		if (freelist_corrupted(s, page, freelist, nextfree))
+			break;
 
 		do {
 			prior = page->freelist;
@@ -3739,12 +3766,14 @@ error:
 }
 
 static void list_slab_objects(struct kmem_cache *s, struct page *page,
-							const char *text)
+			      const char *text, unsigned long *map)
 {
 #ifdef CONFIG_SLUB_DEBUG
 	void *addr = page_address(page);
 	void *p;
-	unsigned long *map;
+
+	if (!map)
+		return;
 
 	slab_err(s, page, text, s->name);
 	slab_lock(page);
@@ -3757,8 +3786,6 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 			print_tracking(s, p);
 		}
 	}
-	put_map(map);
-
 	slab_unlock(page);
 #endif
 }
@@ -3772,6 +3799,11 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 {
 	LIST_HEAD(discard);
 	struct page *page, *h;
+	unsigned long *map = NULL;
+
+#ifdef CONFIG_SLUB_DEBUG
+	map = bitmap_alloc(oo_objects(s->max), GFP_KERNEL);
+#endif
 
 	BUG_ON(irqs_disabled());
 	spin_lock_irq(&n->list_lock);
@@ -3781,10 +3813,15 @@ static void free_partial(struct kmem_cache *s, struct kmem_cache_node *n)
 			list_add(&page->slab_list, &discard);
 		} else {
 			list_slab_objects(s, page,
-			"Objects remaining in %s on __kmem_cache_shutdown()");
+			  "Objects remaining in %s on __kmem_cache_shutdown()",
+			  map);
 		}
 	}
 	spin_unlock_irq(&n->list_lock);
+
+#ifdef CONFIG_SLUB_DEBUG
+	bitmap_free(map);
+#endif
 
 	list_for_each_entry_safe(page, h, &discard, slab_list)
 		discard_slab(s, page);
@@ -5654,7 +5691,8 @@ static void memcg_propagate_slab_attrs(struct kmem_cache *s)
 		 */
 		if (buffer)
 			buf = buffer;
-		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
+		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf) &&
+			 !IS_ENABLED(CONFIG_SLUB_STATS))
 			buf = mbuf;
 		else {
 			buffer = (char *) get_zeroed_page(GFP_KERNEL);
@@ -5686,19 +5724,6 @@ static const struct sysfs_ops slab_sysfs_ops = {
 static struct kobj_type slab_ktype = {
 	.sysfs_ops = &slab_sysfs_ops,
 	.release = kmem_cache_release,
-};
-
-static int uevent_filter(struct kset *kset, struct kobject *kobj)
-{
-	struct kobj_type *ktype = get_ktype(kobj);
-
-	if (ktype == &slab_ktype)
-		return 1;
-	return 0;
-}
-
-static const struct kset_uevent_ops slab_uevent_ops = {
-	.filter = uevent_filter,
 };
 
 static struct kset *slab_kset;
@@ -5768,7 +5793,6 @@ static void sysfs_slab_remove_workfn(struct work_struct *work)
 #ifdef CONFIG_MEMCG
 	kset_unregister(s->memcg_kset);
 #endif
-	kobject_uevent(&s->kobj, KOBJ_REMOVE);
 out:
 	kobject_put(&s->kobj);
 }
@@ -5826,7 +5850,6 @@ static int sysfs_slab_add(struct kmem_cache *s)
 	}
 #endif
 
-	kobject_uevent(&s->kobj, KOBJ_ADD);
 	if (!unmergeable) {
 		/* Setup first alias */
 		sysfs_slab_alias(s, s->name);
@@ -5907,7 +5930,7 @@ static int __init slab_sysfs_init(void)
 
 	mutex_lock(&slab_mutex);
 
-	slab_kset = kset_create_and_add("slab", &slab_uevent_ops, kernel_kobj);
+	slab_kset = kset_create_and_add("slab", NULL, kernel_kobj);
 	if (!slab_kset) {
 		mutex_unlock(&slab_mutex);
 		pr_err("Cannot register slab subsystem.\n");

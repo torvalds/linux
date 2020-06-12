@@ -387,8 +387,7 @@ static unsigned long global_dirtyable_memory(void)
  * Calculate @dtc->thresh and ->bg_thresh considering
  * vm_dirty_{bytes|ratio} and dirty_background_{bytes|ratio}.  The caller
  * must ensure that @dtc->avail is set before calling this function.  The
- * dirty limits will be lifted by 1/4 for PF_LESS_THROTTLE (ie. nfsd) and
- * real-time tasks.
+ * dirty limits will be lifted by 1/4 for real-time tasks.
  */
 static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 {
@@ -436,7 +435,7 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
 	if (bg_thresh >= thresh)
 		bg_thresh = thresh / 2;
 	tsk = current;
-	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+	if (rt_task(tsk)) {
 		bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;
 		thresh += thresh / 4 + global_wb_domain.dirty_limit / 32;
 	}
@@ -486,7 +485,7 @@ static unsigned long node_dirty_limit(struct pglist_data *pgdat)
 	else
 		dirty = vm_dirty_ratio * node_memory / 100;
 
-	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk))
+	if (rt_task(tsk))
 		dirty += dirty / 4;
 
 	return dirty;
@@ -505,7 +504,6 @@ bool node_dirty_ok(struct pglist_data *pgdat)
 	unsigned long nr_pages = 0;
 
 	nr_pages += node_page_state(pgdat, NR_FILE_DIRTY);
-	nr_pages += node_page_state(pgdat, NR_UNSTABLE_NFS);
 	nr_pages += node_page_state(pgdat, NR_WRITEBACK);
 
 	return nr_pages <= limit;
@@ -759,7 +757,7 @@ static void mdtc_calc_avail(struct dirty_throttle_control *mdtc,
  * bounded by the bdi->min_ratio and/or bdi->max_ratio parameters, if set.
  *
  * Return: @wb's dirty limit in pages. The term "dirty" in the context of
- * dirty balancing includes all PG_dirty, PG_writeback and NFS unstable pages.
+ * dirty balancing includes all PG_dirty and PG_writeback pages.
  */
 static unsigned long __wb_calc_thresh(struct dirty_throttle_control *dtc)
 {
@@ -1567,7 +1565,7 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
 	struct dirty_throttle_control * const mdtc = mdtc_valid(&mdtc_stor) ?
 						     &mdtc_stor : NULL;
 	struct dirty_throttle_control *sdtc;
-	unsigned long nr_reclaimable;	/* = file_dirty + unstable_nfs */
+	unsigned long nr_reclaimable;	/* = file_dirty */
 	long period;
 	long pause;
 	long max_pause;
@@ -1587,14 +1585,7 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
 		unsigned long m_thresh = 0;
 		unsigned long m_bg_thresh = 0;
 
-		/*
-		 * Unstable writes are a feature of certain networked
-		 * filesystems (i.e. NFS) in which data may have been
-		 * written to the server's write cache, but has not yet
-		 * been flushed to permanent storage.
-		 */
-		nr_reclaimable = global_node_page_state(NR_FILE_DIRTY) +
-					global_node_page_state(NR_UNSTABLE_NFS);
+		nr_reclaimable = global_node_page_state(NR_FILE_DIRTY);
 		gdtc->avail = global_dirtyable_memory();
 		gdtc->dirty = nr_reclaimable + global_node_page_state(NR_WRITEBACK);
 
@@ -1653,8 +1644,12 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
 		if (dirty <= dirty_freerun_ceiling(thresh, bg_thresh) &&
 		    (!mdtc ||
 		     m_dirty <= dirty_freerun_ceiling(m_thresh, m_bg_thresh))) {
-			unsigned long intv = dirty_poll_interval(dirty, thresh);
-			unsigned long m_intv = ULONG_MAX;
+			unsigned long intv;
+			unsigned long m_intv;
+
+free_running:
+			intv = dirty_poll_interval(dirty, thresh);
+			m_intv = ULONG_MAX;
 
 			current->dirty_paused_when = now;
 			current->nr_dirtied = 0;
@@ -1673,8 +1668,19 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
 		 * Calculate global domain's pos_ratio and select the
 		 * global dtc by default.
 		 */
-		if (!strictlimit)
+		if (!strictlimit) {
 			wb_dirty_limits(gdtc);
+
+			if ((current->flags & PF_LOCAL_THROTTLE) &&
+			    gdtc->wb_dirty <
+			    dirty_freerun_ceiling(gdtc->wb_thresh,
+						  gdtc->wb_bg_thresh))
+				/*
+				 * LOCAL_THROTTLE tasks must not be throttled
+				 * when below the per-wb freerun ceiling.
+				 */
+				goto free_running;
+		}
 
 		dirty_exceeded = (gdtc->wb_dirty > gdtc->wb_thresh) &&
 			((gdtc->dirty > gdtc->thresh) || strictlimit);
@@ -1689,9 +1695,20 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
 			 * both global and memcg domains.  Choose the one
 			 * w/ lower pos_ratio.
 			 */
-			if (!strictlimit)
+			if (!strictlimit) {
 				wb_dirty_limits(mdtc);
 
+				if ((current->flags & PF_LOCAL_THROTTLE) &&
+				    mdtc->wb_dirty <
+				    dirty_freerun_ceiling(mdtc->wb_thresh,
+							  mdtc->wb_bg_thresh))
+					/*
+					 * LOCAL_THROTTLE tasks must not be
+					 * throttled when below the per-wb
+					 * freerun ceiling.
+					 */
+					goto free_running;
+			}
 			dirty_exceeded |= (mdtc->wb_dirty > mdtc->wb_thresh) &&
 				((mdtc->dirty > mdtc->thresh) || strictlimit);
 
@@ -1938,8 +1955,7 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
 	 * as we're trying to decide whether to put more under writeback.
 	 */
 	gdtc->avail = global_dirtyable_memory();
-	gdtc->dirty = global_node_page_state(NR_FILE_DIRTY) +
-		      global_node_page_state(NR_UNSTABLE_NFS);
+	gdtc->dirty = global_node_page_state(NR_FILE_DIRTY);
 	domain_dirty_limits(gdtc);
 
 	if (gdtc->dirty > gdtc->bg_thresh)
@@ -2164,7 +2180,6 @@ int write_cache_pages(struct address_space *mapping,
 	int error;
 	struct pagevec pvec;
 	int nr_pages;
-	pgoff_t uninitialized_var(writeback_index);
 	pgoff_t index;
 	pgoff_t end;		/* Inclusive */
 	pgoff_t done_index;
@@ -2173,8 +2188,7 @@ int write_cache_pages(struct address_space *mapping,
 
 	pagevec_init(&pvec);
 	if (wbc->range_cyclic) {
-		writeback_index = mapping->writeback_index; /* prev offset */
-		index = writeback_index;
+		index = mapping->writeback_index; /* prev offset */
 		end = -1;
 	} else {
 		index = wbc->range_start >> PAGE_SHIFT;

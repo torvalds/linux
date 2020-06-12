@@ -210,14 +210,17 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
 {
 	struct task_struct *t = tk->tsk;
 	short addr_lsb = tk->size_shift;
-	int ret;
+	int ret = 0;
 
-	pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware memory corruption\n",
-		pfn, t->comm, t->pid);
+	if ((t->mm == current->mm) || !(flags & MF_ACTION_REQUIRED))
+		pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware memory corruption\n",
+			pfn, t->comm, t->pid);
 
-	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
-		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
-				       addr_lsb);
+	if (flags & MF_ACTION_REQUIRED) {
+		if (t->mm == current->mm)
+			ret = force_sig_mceerr(BUS_MCEERR_AR,
+					 (void __user *)tk->addr, addr_lsb);
+		/* send no signal to non-current processes */
 	} else {
 		/*
 		 * Don't use force here, it's convenient if the signal
