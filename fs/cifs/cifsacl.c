@@ -849,6 +849,28 @@ unsigned int setup_special_mode_ACE(struct cifs_ace *pntace, __u64 nmode)
 	return ace_size;
 }
 
+unsigned int setup_special_user_owner_ACE(struct cifs_ace *pntace)
+{
+	int i;
+	unsigned int ace_size = 28;
+
+	pntace->type = ACCESS_ALLOWED_ACE_TYPE;
+	pntace->flags = 0x0;
+	pntace->access_req = cpu_to_le32(GENERIC_ALL);
+	pntace->sid.num_subauth = 3;
+	pntace->sid.revision = 1;
+	for (i = 0; i < NUM_AUTHS; i++)
+		pntace->sid.authority[i] = sid_unix_NFS_users.authority[i];
+
+	pntace->sid.sub_auth[0] = sid_unix_NFS_users.sub_auth[0];
+	pntace->sid.sub_auth[1] = sid_unix_NFS_users.sub_auth[1];
+	pntace->sid.sub_auth[2] = cpu_to_le32(current_fsgid().val);
+
+	/* size = 1 + 1 + 2 + 4 + 1 + 1 + 6 + (psid->num_subauth*4) */
+	pntace->size = cpu_to_le16(ace_size);
+	return ace_size;
+}
+
 static int set_chmod_dacl(struct cifs_acl *pndacl, struct cifs_sid *pownersid,
 			struct cifs_sid *pgrpsid, __u64 nmode, bool modefromsid)
 {
