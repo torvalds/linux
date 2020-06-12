@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -195,6 +196,8 @@
 #define RV1126_CSI_DPHY_LANE2_CALIB_EN		0x2e8
 #define RV1126_CSI_DPHY_LANE3_CALIB_EN		0x368
 
+#define RV1126_CSI_DPHY_MIPI_LVDS_MODEL		0x2cc
+#define RV1126_CSI_DPHY_LVDS_MODE		0x300
 /*
  * CSI HOST
  */
@@ -271,6 +274,9 @@ enum csiphy_reg_id {
 	CSIPHY_LANE1_CALIB_ENABLE,
 	CSIPHY_LANE2_CALIB_ENABLE,
 	CSIPHY_LANE3_CALIB_ENABLE,
+	//rv1126 only
+	CSIPHY_MIPI_LVDS_MODEL,
+	CSIPHY_LVDS_MODE,
 };
 
 enum mipi_dphy_ctl_type {
@@ -487,6 +493,8 @@ static const struct csiphy_reg rv1126_csiphy_regs[] = {
 	[CSIPHY_LANE1_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE1_CALIB_EN),
 	[CSIPHY_LANE2_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE2_CALIB_EN),
 	[CSIPHY_LANE3_CALIB_ENABLE] = CSIPHY_REG(RV1126_CSI_DPHY_LANE3_CALIB_EN),
+	[CSIPHY_MIPI_LVDS_MODEL] = CSIPHY_REG(RV1126_CSI_DPHY_MIPI_LVDS_MODEL),
+	[CSIPHY_LVDS_MODE] = CSIPHY_REG(RV1126_CSI_DPHY_LVDS_MODE),
 };
 
 struct hsfreq_range {
@@ -520,6 +528,7 @@ struct sensor_async_subdev {
 struct mipidphy_sensor {
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_config mbus;
+	struct v4l2_mbus_framefmt format;
 	int lanes;
 };
 
@@ -559,6 +568,18 @@ static inline void write_grf_reg(struct mipidphy_priv *priv,
 
 	if (reg->offset)
 		regmap_write(priv->regmap_grf, reg->offset, val);
+}
+
+static inline u32 read_grf_reg(struct mipidphy_priv *priv, int index)
+{
+	const struct dphy_reg *reg = &priv->grf_regs[index];
+	unsigned int val = 0;
+
+	if (reg->offset) {
+		regmap_read(priv->regmap_grf, reg->offset, &val);
+		val = (val >> reg->shift) & reg->mask;
+	}
+	return val;
 }
 
 static inline void write_txrx_reg(struct mipidphy_priv *priv,
@@ -782,8 +803,7 @@ static int mipidphy_s_stream(struct v4l2_subdev *sd, int on)
 	int ret = 0;
 	struct mipidphy_priv *priv = to_dphy_priv(sd);
 
-	dev_info(priv->dev, "%s(%d) enter on(%d) !\n",
-			__func__, __LINE__, on);
+	dev_info(priv->dev, "stream on:%d\n", on);
 	mutex_lock(&priv->mutex);
 	if (on)
 		ret = mipidphy_s_stream_start(sd);
@@ -873,13 +893,20 @@ static int mipidphy_get_set_fmt(struct v4l2_subdev *sd,
 				struct v4l2_subdev_pad_config *cfg,
 				struct v4l2_subdev_format *fmt)
 {
-	struct v4l2_subdev *sensor = get_remote_sensor(sd);
-
+	struct mipidphy_priv *priv = to_dphy_priv(sd);
+	struct v4l2_subdev *sensor_sd = get_remote_sensor(sd);
+	struct mipidphy_sensor *sensor = sd_to_sensor(priv, sensor_sd);
+	int ret;
 	/*
 	 * Do not allow format changes and just relay whatever
 	 * set currently in the sensor.
 	 */
-	return v4l2_subdev_call(sensor, pad, get_fmt, NULL, fmt);
+	if (!sensor_sd)
+		return -ENODEV;
+	ret = v4l2_subdev_call(sensor_sd, pad, get_fmt, NULL, fmt);
+	if (!ret && fmt->pad == 0)
+		sensor->format = fmt->format;
+	return ret;
 }
 
 static int mipidphy_get_selection(struct v4l2_subdev *sd,
@@ -1013,11 +1040,25 @@ static void rk3399_mipidphy_individual_init(struct mipidphy_priv *priv)
 
 static void rv1126_mipidphy_individual_init(struct mipidphy_priv *priv)
 {
+	struct device *dev = priv->dev;
+	struct device_node *parent = dev->of_node;
+	struct device_node *remote = NULL;
+	u8 val, sel;
+
 	priv->grf_regs = priv->phy_index ?
 		rv1126_grf_dphy1_regs : rv1126_grf_dphy0_regs;
-	/* default: isp select pyh0, cif select phy1 */
-	write_grf_reg(priv, GRF_DPHY_SEL,
-		RV1126_GRF_PHY1_SEL_CIF | RV1126_GRF_PHY1_SEL_CIFLITE);
+	val = read_grf_reg(priv, GRF_DPHY_SEL);
+	/* get port1 remote endpoint info */
+	remote = of_graph_get_remote_node(parent, 1, 0);
+	if (remote) {
+		if (strstr(remote->name, "isp"))
+			sel = !priv->phy_index ? 0 : RV1126_GRF_PHY1_SEL_ISP;
+		else
+			sel = !priv->phy_index ? 0 :
+				RV1126_GRF_PHY1_SEL_CIF | RV1126_GRF_PHY1_SEL_CIFLITE;
+		of_node_put(remote);
+		write_grf_reg(priv, GRF_DPHY_SEL, val | sel);
+	}
 }
 
 static int mipidphy_rx_stream_on(struct mipidphy_priv *priv,
@@ -1239,6 +1280,7 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	const struct hsfreq_range *hsfreq_ranges = drv_data->hsfreq_ranges;
 	int num_hsfreq_ranges = drv_data->num_hsfreq_ranges;
 	int i, hsfreq = 0;
+	u32 val = 0;
 
 	write_grf_reg(priv, GRF_DVP_V18SEL, 0x1);
 
@@ -1254,9 +1296,36 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	write_csiphy_reg(priv, CSIPHY_CTRL_PWRCTL, 0xe0);
 	usleep_range(500, 1000);
 
-	/* Reset dphy digital part */
-	write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
-	write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
+	if (sensor->mbus.type == V4L2_MBUS_CSI2) {
+		/* Reset dphy digital part */
+		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1e);
+		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x1f);
+	} else {
+		/* Disable MIPI internal logical and switch to LVDS bank */
+		write_csiphy_reg(priv, CSIPHY_CTRL_DIG_RST, 0x3e);
+		/* Enable LVDS mode */
+		write_csiphy_reg(priv, CSIPHY_MIPI_LVDS_MODEL, 0x4);
+		switch (sensor->format.code) {
+		case MEDIA_BUS_FMT_Y12_1X12:
+		case MEDIA_BUS_FMT_SRGGB12_1X12:
+		case MEDIA_BUS_FMT_SBGGR12_1X12:
+		case MEDIA_BUS_FMT_SGBRG12_1X12:
+		case MEDIA_BUS_FMT_SGRBG12_1X12:
+			val = 0x1f; //12bit
+			break;
+		case MEDIA_BUS_FMT_Y10_1X10:
+		case MEDIA_BUS_FMT_SBGGR10_1X10:
+		case MEDIA_BUS_FMT_SRGGB10_1X10:
+		case MEDIA_BUS_FMT_SGBRG10_1X10:
+		case MEDIA_BUS_FMT_SGRBG10_1X10:
+			val = 0xf; //10bit
+			break;
+		default:
+			val = 0x2f; //8bit
+		}
+		/* Enable LVDS internal logical and select bit mode */
+		write_csiphy_reg(priv, CSIPHY_LVDS_MODE, val);
+	}
 
 	/* not into receive mode/wait stopstate */
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_FORCERXMODE, 0x0);
@@ -1303,7 +1372,6 @@ static int csi_mipidphy_stream_on(struct mipidphy_priv *priv,
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_CLKLANE_EN, 0x1);
 	write_grf_reg(priv, GRF_DPHY_CSIPHY_DATALANE_EN,
 		      GENMASK(sensor->lanes - 1, 0));
-
 	return 0;
 }
 
@@ -1434,10 +1502,10 @@ rockchip_mipidphy_notifier_bound(struct v4l2_async_notifier *notifier,
 	sensor->lanes = s_asd->lanes;
 	sensor->mbus = s_asd->mbus;
 	sensor->sd = sd;
+	dev_info(priv->dev, "match %s:bus type %d\n", sd->name, s_asd->mbus.type);
 
 	for (pad = 0; pad < sensor->sd->entity.num_pads; pad++)
-		if (sensor->sd->entity.pads[pad].flags
-					& MEDIA_PAD_FL_SOURCE)
+		if (sensor->sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE)
 			break;
 
 	if (pad == sensor->sd->entity.num_pads) {
@@ -1490,21 +1558,25 @@ static int rockchip_mipidphy_fwnode_parse(struct device *dev,
 			container_of(asd, struct sensor_async_subdev, asd);
 	struct v4l2_mbus_config *config = &s_asd->mbus;
 
-	if (vep->bus_type != V4L2_MBUS_CSI2) {
-		dev_err(dev, "Only CSI2 bus type is currently supported\n");
-		return -EINVAL;
-	}
-
 	if (vep->base.port != 0) {
 		dev_err(dev, "The PHY has only port 0\n");
 		return -EINVAL;
 	}
 
-	config->type = V4L2_MBUS_CSI2;
-	config->flags = vep->bus.mipi_csi2.flags;
-	s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
+	if (vep->bus_type == V4L2_MBUS_CSI2) {
+		config->type = V4L2_MBUS_CSI2;
+		config->flags = vep->bus.mipi_csi2.flags;
+		s_asd->lanes = vep->bus.mipi_csi2.num_data_lanes;
+	} else if (vep->bus_type == V4L2_MBUS_CCP2) {
+		/* V4L2_MBUS_CCP2 for lvds */
+		config->type = V4L2_MBUS_CCP2;
+		s_asd->lanes = vep->bus.mipi_csi1.data_lane;
+	} else {
+		dev_err(dev, "Only CSI2 and CCP2 bus type is currently supported\n");
+		return -EINVAL;
+	}
 
-	switch (vep->bus.mipi_csi2.num_data_lanes) {
+	switch (s_asd->lanes) {
 	case 1:
 		config->flags |= V4L2_MBUS_CSI2_1_LANE;
 		break;
@@ -1532,7 +1604,7 @@ static int rockchip_mipidphy_media_init(struct mipidphy_priv *priv)
 		MEDIA_PAD_FL_SOURCE | MEDIA_PAD_FL_MUST_CONNECT;
 	priv->pads[MIPI_DPHY_RX_PAD_SINK].flags =
 		MEDIA_PAD_FL_SINK | MEDIA_PAD_FL_MUST_CONNECT;
-
+	priv->sd.entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	ret = media_entity_pads_init(&priv->sd.entity,
 				MIPI_DPHY_RX_PADS_NUM, priv->pads);
 	if (ret < 0)
