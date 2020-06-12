@@ -2288,6 +2288,11 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *browser
 	return browser->he_selection->thread;
 }
 
+static struct res_sample *hist_browser__selected_res_sample(struct hist_browser *browser)
+{
+	return browser->he_selection ? browser->he_selection->res_samples : NULL;
+}
+
 /* Check whether the browser is for 'top' or 'report' */
 static inline bool is_report_browser(void *timer)
 {
@@ -3357,16 +3362,16 @@ skip_annotation:
 					     &options[nr_options], NULL, NULL, evsel);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_NORMAL);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_NORMAL);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_ASM);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_ASM);
 		nr_options += add_res_sample_opt(browser, &actions[nr_options],
 						 &options[nr_options],
-				 hist_browser__selected_entry(browser)->res_samples,
-				 evsel, A_SOURCE);
+						 hist_browser__selected_res_sample(browser),
+						 evsel, A_SOURCE);
 		nr_options += add_switch_opt(browser, &actions[nr_options],
 					     &options[nr_options]);
 skip_scripting:
