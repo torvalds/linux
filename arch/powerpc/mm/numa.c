@@ -1130,8 +1130,6 @@ struct topology_update_data {
 };
 
 static cpumask_t cpu_associativity_changes_mask;
-static const int vphn_enabled;
-static const int prrn_enabled;
 static int topology_inited;
 
 /*
@@ -1292,7 +1290,7 @@ int numa_update_cpu_topology(bool cpus_locked)
 	struct device *dev;
 	int weight, new_nid, i = 0;
 
-	if (!prrn_enabled && !vphn_enabled && topology_inited)
+	if (topology_inited)
 		return 0;
 
 	weight = cpumask_weight(&cpu_associativity_changes_mask);
@@ -1432,7 +1430,7 @@ int stop_topology_update(void)
 
 int prrn_is_enabled(void)
 {
-	return prrn_enabled;
+	return 0;
 }
 
 static int topology_update_init(void)
