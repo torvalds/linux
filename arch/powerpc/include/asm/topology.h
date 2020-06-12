@@ -97,7 +97,6 @@ extern int start_topology_update(void);
 extern int stop_topology_update(void);
 extern int prrn_is_enabled(void);
 extern int find_and_online_cpu_nid(int cpu);
-extern int timed_topology_update(int nsecs);
 #else
 static inline int start_topology_update(void)
 {
@@ -112,10 +111,6 @@ static inline int prrn_is_enabled(void)
 	return 0;
 }
 static inline int find_and_online_cpu_nid(int cpu)
-{
-	return 0;
-}
-static inline int timed_topology_update(int nsecs)
 {
 	return 0;
 }
