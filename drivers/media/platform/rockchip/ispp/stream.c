@@ -628,6 +628,9 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 
 	if (vdev->module_ens & ISPP_MODULE_FEC)
 		cnt = RKISP_ISPP_BUF_MAX;
+	else if (dev->inp == INP_ISP &&
+		 !(dev->isp_mode & ISP_ISPP_QUICK))
+		cnt = 0;
 	for (i = 0; i < cnt; i++) {
 		buf = &vdev->nr.buf.wr[i];
 		buf->size = size;
@@ -637,8 +640,10 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 		list_add_tail(&buf->list, &vdev->nr.list_wr);
 	}
 
-	if (dev->inp == INP_ISP && dev->isp_mode & ISP_ISPP_QUICK)
+	if (vdev->module_ens & ISPP_MODULE_FEC)
 		vdev->nr.cur_wr = get_list_buf(&vdev->nr.list_wr, false);
+	else
+		get_list_buf(&vdev->nr.list_wr, false);
 
 	buf = &vdev->nr.buf.tmp_yuv;
 	buf->size = size >> 4;
