@@ -198,8 +198,7 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rc)
 			goto finished;
 		num_rqst++;
-		trace_smb3_query_info_compound_enter(xid, ses->Suid, tcon->tid,
-						     full_path);
+		trace_smb3_posix_query_info_compound_enter(xid, ses->Suid, tcon->tid, full_path);
 		break;
 	case SMB2_OP_DELETE:
 		trace_smb3_delete_enter(xid, ses->Suid, tcon->tid, full_path);
@@ -428,11 +427,9 @@ smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 		if (rqst[2].rq_iov)
 			SMB2_close_free(&rqst[2]);
 		if (rc)
-			trace_smb3_query_info_compound_err(xid,  ses->Suid,
-						tcon->tid, rc);
+			trace_smb3_posix_query_info_compound_err(xid,  ses->Suid, tcon->tid, rc);
 		else
-			trace_smb3_query_info_compound_done(xid, ses->Suid,
-						tcon->tid);
+			trace_smb3_posix_query_info_compound_done(xid, ses->Suid, tcon->tid);
 		break;
 	case SMB2_OP_DELETE:
 		if (rc)
