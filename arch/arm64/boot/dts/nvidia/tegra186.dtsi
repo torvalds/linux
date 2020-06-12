@@ -990,7 +990,7 @@
 		};
 
 		display-hub@15200000 {
-			compatible = "nvidia,tegra186-display", "simple-bus";
+			compatible = "nvidia,tegra186-display";
 			reg = <0x15200000 0x00040000>;
 			resets = <&bpmp TEGRA186_RESET_NVDISPLAY0_MISC>,
 				 <&bpmp TEGRA186_RESET_NVDISPLAY0_WGRP0>,

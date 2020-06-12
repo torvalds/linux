@@ -1055,7 +1055,7 @@
 			interconnect-names = "dma-mem";
 
 			display-hub@15200000 {
-				compatible = "nvidia,tegra194-display", "simple-bus";
+				compatible = "nvidia,tegra194-display";
 				reg = <0x15200000 0x00040000>;
 				resets = <&bpmp TEGRA194_RESET_NVDISPLAY0_MISC>,
 					 <&bpmp TEGRA194_RESET_NVDISPLAY0_WGRP0>,
