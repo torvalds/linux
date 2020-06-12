@@ -781,7 +781,6 @@
 				battery: smart-battery {
 					compatible = "sbs,sbs-battery";
 					reg = <0xb>;
-					battery-name = "battery";
 					sbs,i2c-retry-count = <2>;
 					sbs,poll-retry-count = <10>;
 				/*	power-supplies = <&charger>; */
