@@ -97,24 +97,6 @@ int is_valid_bugaddr(unsigned long addr)
 	return ud == INSN_UD0 || ud == INSN_UD2;
 }
 
-int fixup_bug(struct pt_regs *regs, int trapnr)
-{
-	if (trapnr != X86_TRAP_UD)
-		return 0;
-
-	switch (report_bug(regs->ip, regs)) {
-	case BUG_TRAP_TYPE_NONE:
-	case BUG_TRAP_TYPE_BUG:
-		break;
-
-	case BUG_TRAP_TYPE_WARN:
-		regs->ip += LEN_UD2;
-		return 1;
-	}
-
-	return 0;
-}
-
 static nokprobe_inline int
 do_trap_no_signal(struct task_struct *tsk, int trapnr, const char *str,
 		  struct pt_regs *regs,	long error_code)
@@ -190,13 +172,6 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 {
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
-	/*
-	 * WARN*()s end up here; fix them up before we call the
-	 * notifier chain.
-	 */
-	if (!user_mode(regs) && fixup_bug(regs, trapnr))
-		return;
-
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr) !=
 			NOTIFY_STOP) {
 		cond_local_irq_enable(regs);
@@ -241,9 +216,46 @@ static inline void handle_invalid_op(struct pt_regs *regs)
 		      ILL_ILLOPN, error_get_trap_addr(regs));
 }
 
-DEFINE_IDTENTRY(exc_invalid_op)
+DEFINE_IDTENTRY_RAW(exc_invalid_op)
 {
+	bool rcu_exit;
+
+	/*
+	 * Handle BUG/WARN like NMIs instead of like normal idtentries:
+	 * if we bugged/warned in a bad RCU context, for example, the last
+	 * thing we want is to BUG/WARN again in the idtentry code, ad
+	 * infinitum.
+	 */
+	if (!user_mode(regs) && is_valid_bugaddr(regs->ip)) {
+		enum bug_trap_type type;
+
+		nmi_enter();
+		instrumentation_begin();
+		trace_hardirqs_off_finish();
+		type = report_bug(regs->ip, regs);
+		if (regs->flags & X86_EFLAGS_IF)
+			trace_hardirqs_on_prepare();
+		instrumentation_end();
+		nmi_exit();
+
+		if (type == BUG_TRAP_TYPE_WARN) {
+			/* Skip the ud2. */
+			regs->ip += LEN_UD2;
+			return;
+		}
+
+		/*
+		 * Else, if this was a BUG and report_bug returns or if this
+		 * was just a normal #UD, we want to continue onward and
+		 * crash.
+		 */
+	}
+
+	rcu_exit = idtentry_enter_cond_rcu(regs);
+	instrumentation_begin();
 	handle_invalid_op(regs);
+	instrumentation_end();
+	idtentry_exit_cond_rcu(regs, rcu_exit);
 }
 
 DEFINE_IDTENTRY(exc_coproc_segment_overrun)
