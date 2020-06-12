@@ -695,7 +695,6 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 	void __iomem *padcfg0, *padcfg2;
 	unsigned long flags;
 	u32 value0, value2;
-	int ret = 0;
 
 	padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
 	if (!padcfg2)
@@ -717,8 +716,8 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 
 		v = order_base_2(debounce * NSEC_PER_USEC / DEBOUNCE_PERIOD_NSEC);
 		if (v < 3 || v > 15) {
-			ret = -EINVAL;
-			goto exit_unlock;
+			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+			return -EINVAL;
 		}
 
 		/* Enable glitch filter and debouncer */
@@ -730,10 +729,9 @@ static int intel_config_set_debounce(struct intel_pinctrl *pctrl,
 	writel(value0, padcfg0);
 	writel(value2, padcfg2);
 
-exit_unlock:
 	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
-	return ret;
+	return 0;
 }
 
 static int intel_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
