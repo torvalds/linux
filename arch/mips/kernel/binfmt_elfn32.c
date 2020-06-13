@@ -44,7 +44,8 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #include <linux/math64.h>
 
 #define elf_prstatus elf_prstatus32
-struct elf_prstatus32
+#define elf_prstatus_common elf_prstatus32_common
+struct elf_prstatus32_common
 {
 	struct elf_siginfo pr_info;	/* Info associated with signal */
 	short	pr_cursig;		/* Current signal */
@@ -58,6 +59,10 @@ struct elf_prstatus32
 	struct old_timeval32 pr_stime; /* System time */
 	struct old_timeval32 pr_cutime;/* Cumulative user time */
 	struct old_timeval32 pr_cstime;/* Cumulative system time */
+};
+struct elf_prstatus32
+{
+	struct elf_prstatus32_common common:
 	elf_gregset_t pr_reg;	/* GP registers */
 	int pr_fpvalid;		/* True if math co-processor being used.  */
 };

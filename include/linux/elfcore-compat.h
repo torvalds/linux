@@ -17,7 +17,7 @@ struct compat_elf_siginfo
 	compat_int_t			si_errno;
 };
 
-struct compat_elf_prstatus
+struct compat_elf_prstatus_common
 {
 	struct compat_elf_siginfo	pr_info;
 	short				pr_cursig;
@@ -31,6 +31,11 @@ struct compat_elf_prstatus
 	struct old_timeval32		pr_stime;
 	struct old_timeval32		pr_cutime;
 	struct old_timeval32		pr_cstime;
+};
+
+struct compat_elf_prstatus
+{
+	struct compat_elf_prstatus_common	common;
 	compat_elf_gregset_t		pr_reg;
 	compat_int_t			pr_fpvalid;
 };

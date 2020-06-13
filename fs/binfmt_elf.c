@@ -1495,7 +1495,7 @@ static void fill_note(struct memelfnote *note, const char *name, int type,
  * fill up all the fields in prstatus from the given task struct, except
  * registers which need to be filled up separately.
  */
-static void fill_prstatus(struct elf_prstatus *prstatus,
+static void fill_prstatus(struct elf_prstatus_common *prstatus,
 		struct task_struct *p, long signr)
 {
 	prstatus->pr_info.si_signo = prstatus->pr_cursig = signr;
@@ -1736,7 +1736,7 @@ static int fill_thread_core_info(struct elf_thread_core_info *t,
 	 * than being the whole note contents.  We fill the reset in here.
 	 * We assume that regset 0 is NT_PRSTATUS.
 	 */
-	fill_prstatus(&t->prstatus, t->task, signr);
+	fill_prstatus(&t->prstatus.common, t->task, signr);
 	regset_get(t->task, &view->regsets[0],
 		   sizeof(t->prstatus.pr_reg), &t->prstatus.pr_reg);
 
@@ -1958,7 +1958,7 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 	struct task_struct *p = t->thread;
 	t->num_notes = 0;
 
-	fill_prstatus(&t->prstatus, p, signr);
+	fill_prstatus(&t->prstatus.common, p, signr);
 	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);	
 	
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
@@ -2037,7 +2037,7 @@ static int fill_note_info(struct elfhdr *elf, int phdrs,
 	}
 	/* now collect the dump for the current */
 	memset(info->prstatus, 0, sizeof(*info->prstatus));
-	fill_prstatus(info->prstatus, current, siginfo->si_signo);
+	fill_prstatus(&info->prstatus->common, current, siginfo->si_signo);
 	elf_core_copy_regs(&info->prstatus->pr_reg, regs);
 
 	/* Set up header */

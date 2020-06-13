@@ -50,6 +50,7 @@
  * which requires asm/elf.h to define compat_elf_gregset_t et al.
  */
 #define elf_prstatus	compat_elf_prstatus
+#define elf_prstatus_common	compat_elf_prstatus_common
 #define elf_prpsinfo	compat_elf_prpsinfo
 
 #undef ns_to_kernel_old_timeval
