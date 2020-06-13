@@ -319,20 +319,30 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 	struct journal_key *src, *dst;
 	size_t nr_keys = 0;
 
-	list_for_each_entry(p, journal_entries, list)
-		for_each_jset_key(k, _n, entry, &p->j)
-			nr_keys++;
+	if (list_empty(journal_entries))
+		return keys;
 
 	keys.journal_seq_base =
-		le64_to_cpu(list_first_entry(journal_entries,
-					     struct journal_replay,
-					     list)->j.seq);
+		le64_to_cpu(list_last_entry(journal_entries,
+				struct journal_replay, list)->j.last_seq);
+
+	list_for_each_entry(p, journal_entries, list) {
+		if (le64_to_cpu(p->j.seq) < keys.journal_seq_base)
+			continue;
+
+		for_each_jset_key(k, _n, entry, &p->j)
+			nr_keys++;
+	}
+
 
 	keys.d = kvmalloc(sizeof(keys.d[0]) * nr_keys, GFP_KERNEL);
 	if (!keys.d)
 		goto err;
 
-	list_for_each_entry(p, journal_entries, list)
+	list_for_each_entry(p, journal_entries, list) {
+		if (le64_to_cpu(p->j.seq) < keys.journal_seq_base)
+			continue;
+
 		for_each_jset_key(k, _n, entry, &p->j)
 			keys.d[keys.nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
@@ -342,6 +352,7 @@ static struct journal_keys journal_keys_sort(struct list_head *journal_entries)
 					keys.journal_seq_base,
 				.journal_offset	= k->_data - p->j._data,
 			};
+	}
 
 	sort(keys.d, keys.nr, sizeof(keys.d[0]), journal_sort_key_cmp, NULL);
 
@@ -568,6 +579,9 @@ verify_journal_entries_not_blacklisted_or_missing(struct bch_fs *c,
 	int ret = 0;
 
 	list_for_each_entry(i, journal, list) {
+		if (le64_to_cpu(i->j.seq) < start_seq)
+			continue;
+
 		fsck_err_on(seq != le64_to_cpu(i->j.seq), c,
 			"journal entries %llu-%llu missing! (replaying %llu-%llu)",
 			seq, le64_to_cpu(i->j.seq) - 1,

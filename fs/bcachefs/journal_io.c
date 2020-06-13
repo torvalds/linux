@@ -40,19 +40,21 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 				  list)->j.last_seq
 		: 0;
 
-	/* Is this entry older than the range we need? */
-	if (le64_to_cpu(j->seq) < le64_to_cpu(last_seq)) {
-		ret = JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
-		goto out;
-	}
+	if (!c->opts.read_entire_journal) {
+		/* Is this entry older than the range we need? */
+		if (le64_to_cpu(j->seq) < le64_to_cpu(last_seq)) {
+			ret = JOURNAL_ENTRY_ADD_OUT_OF_RANGE;
+			goto out;
+		}
 
-	/* Drop entries we don't need anymore */
-	list_for_each_entry_safe(i, pos, jlist->head, list) {
-		if (le64_to_cpu(i->j.seq) >= le64_to_cpu(j->last_seq))
-			break;
-		list_del(&i->list);
-		kvpfree(i, offsetof(struct journal_replay, j) +
-			vstruct_bytes(&i->j));
+		/* Drop entries we don't need anymore */
+		list_for_each_entry_safe(i, pos, jlist->head, list) {
+			if (le64_to_cpu(i->j.seq) >= le64_to_cpu(j->last_seq))
+				break;
+			list_del(&i->list);
+			kvpfree(i, offsetof(struct journal_replay, j) +
+				vstruct_bytes(&i->j));
+		}
 	}
 
 	list_for_each_entry_reverse(i, jlist->head, list) {
