@@ -37,7 +37,9 @@ static const unsigned char keyrings_capabilities[2] = {
 	       KEYCTL_CAPS0_MOVE
 	       ),
 	[1] = (KEYCTL_CAPS1_NS_KEYRING_NAME |
-	       KEYCTL_CAPS1_NS_KEY_TAG),
+	       KEYCTL_CAPS1_NS_KEY_TAG |
+	       (IS_ENABLED(CONFIG_KEY_NOTIFICATIONS)	? KEYCTL_CAPS1_NOTIFICATIONS : 0)
+	       ),
 };
 
 static int key_get_type_from_user(char *type,
@@ -429,7 +431,7 @@ long keyctl_invalidate_key(key_serial_t id)
 
 		/* Root is permitted to invalidate certain special keys */
 		if (capable(CAP_SYS_ADMIN)) {
-			key_ref = lookup_user_key(id, 0, 0);
+			key_ref = lookup_user_key(id, 0, KEY_SYSADMIN_OVERRIDE);
 			if (IS_ERR(key_ref))
 				goto error;
 			if (test_bit(KEY_FLAG_ROOT_CAN_INVAL,
@@ -474,7 +476,8 @@ long keyctl_keyring_clear(key_serial_t ringid)
 
 		/* Root is permitted to invalidate certain special keyrings */
 		if (capable(CAP_SYS_ADMIN)) {
-			keyring_ref = lookup_user_key(ringid, 0, 0);
+			keyring_ref = lookup_user_key(ringid, 0,
+						      KEY_SYSADMIN_OVERRIDE);
 			if (IS_ERR(keyring_ref))
 				goto error;
 			if (test_bit(KEY_FLAG_ROOT_CAN_CLEAR,
@@ -558,7 +561,7 @@ long keyctl_keyring_unlink(key_serial_t id, key_serial_t ringid)
 		goto error;
 	}
 
-	key_ref = lookup_user_key(id, KEY_LOOKUP_FOR_UNLINK, 0);
+	key_ref = lookup_user_key(id, KEY_LOOKUP_PARTIAL, KEY_NEED_UNLINK);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error2;
@@ -658,7 +661,7 @@ long keyctl_describe_key(key_serial_t keyid,
 				key_put(instkey);
 				key_ref = lookup_user_key(keyid,
 							  KEY_LOOKUP_PARTIAL,
-							  0);
+							  KEY_AUTHTOKEN_OVERRIDE);
 				if (!IS_ERR(key_ref))
 					goto okay;
 			}
@@ -828,7 +831,7 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	size_t key_data_len;
 
 	/* find the key first */
-	key_ref = lookup_user_key(keyid, 0, 0);
+	key_ref = lookup_user_key(keyid, 0, KEY_DEFER_PERM_CHECK);
 	if (IS_ERR(key_ref)) {
 		ret = -ENOKEY;
 		goto out;
@@ -1036,6 +1039,7 @@ long keyctl_chown_key(key_serial_t id, uid_t user, gid_t group)
 	if (group != (gid_t) -1)
 		key->gid = gid;
 
+	notify_key(key, NOTIFY_KEY_SETATTR, 0);
 	ret = 0;
 
 error_put:
@@ -1086,6 +1090,7 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	/* if we're not the sysadmin, we can only change a key that we own */
 	if (capable(CAP_SYS_ADMIN) || uid_eq(key->uid, current_fsuid())) {
 		key->perm = perm;
+		notify_key(key, NOTIFY_KEY_SETATTR, 0);
 		ret = 0;
 	}
 
@@ -1461,7 +1466,7 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 				key_put(instkey);
 				key_ref = lookup_user_key(id,
 							  KEY_LOOKUP_PARTIAL,
-							  0);
+							  KEY_AUTHTOKEN_OVERRIDE);
 				if (!IS_ERR(key_ref))
 					goto okay;
 			}
@@ -1474,10 +1479,12 @@ long keyctl_set_timeout(key_serial_t id, unsigned timeout)
 okay:
 	key = key_ref_to_ptr(key_ref);
 	ret = 0;
-	if (test_bit(KEY_FLAG_KEEP, &key->flags))
+	if (test_bit(KEY_FLAG_KEEP, &key->flags)) {
 		ret = -EPERM;
-	else
+	} else {
 		key_set_timeout(key, timeout);
+		notify_key(key, NOTIFY_KEY_SETATTR, 0);
+	}
 	key_put(key);
 
 error:
@@ -1567,7 +1574,8 @@ long keyctl_get_security(key_serial_t keyid,
 			return PTR_ERR(instkey);
 		key_put(instkey);
 
-		key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL, 0);
+		key_ref = lookup_user_key(keyid, KEY_LOOKUP_PARTIAL,
+					  KEY_AUTHTOKEN_OVERRIDE);
 		if (IS_ERR(key_ref))
 			return PTR_ERR(key_ref);
 	}
@@ -1751,6 +1759,90 @@ error:
 	return ret;
 }
 
+#ifdef CONFIG_KEY_NOTIFICATIONS
+/*
+ * Watch for changes to a key.
+ *
+ * The caller must have View permission to watch a key or keyring.
+ */
+long keyctl_watch_key(key_serial_t id, int watch_queue_fd, int watch_id)
+{
+	struct watch_queue *wqueue;
+	struct watch_list *wlist = NULL;
+	struct watch *watch = NULL;
+	struct key *key;
+	key_ref_t key_ref;
+	long ret;
+
+	if (watch_id < -1 || watch_id > 0xff)
+		return -EINVAL;
+
+	key_ref = lookup_user_key(id, KEY_LOOKUP_CREATE, KEY_NEED_VIEW);
+	if (IS_ERR(key_ref))
+		return PTR_ERR(key_ref);
+	key = key_ref_to_ptr(key_ref);
+
+	wqueue = get_watch_queue(watch_queue_fd);
+	if (IS_ERR(wqueue)) {
+		ret = PTR_ERR(wqueue);
+		goto err_key;
+	}
+
+	if (watch_id >= 0) {
+		ret = -ENOMEM;
+		if (!key->watchers) {
+			wlist = kzalloc(sizeof(*wlist), GFP_KERNEL);
+			if (!wlist)
+				goto err_wqueue;
+			init_watch_list(wlist, NULL);
+		}
+
+		watch = kzalloc(sizeof(*watch), GFP_KERNEL);
+		if (!watch)
+			goto err_wlist;
+
+		init_watch(watch, wqueue);
+		watch->id	= key->serial;
+		watch->info_id	= (u32)watch_id << WATCH_INFO_ID__SHIFT;
+
+		ret = security_watch_key(key);
+		if (ret < 0)
+			goto err_watch;
+
+		down_write(&key->sem);
+		if (!key->watchers) {
+			key->watchers = wlist;
+			wlist = NULL;
+		}
+
+		ret = add_watch_to_object(watch, key->watchers);
+		up_write(&key->sem);
+
+		if (ret == 0)
+			watch = NULL;
+	} else {
+		ret = -EBADSLT;
+		if (key->watchers) {
+			down_write(&key->sem);
+			ret = remove_watch_from_object(key->watchers,
+						       wqueue, key_serial(key),
+						       false);
+			up_write(&key->sem);
+		}
+	}
+
+err_watch:
+	kfree(watch);
+err_wlist:
+	kfree(wlist);
+err_wqueue:
+	put_watch_queue(wqueue);
+err_key:
+	key_put(key);
+	return ret;
+}
+#endif /* CONFIG_KEY_NOTIFICATIONS */
+
 /*
  * Get keyrings subsystem capabilities.
  */
@@ -1919,6 +2011,9 @@ SYSCALL_DEFINE5(keyctl, int, option, unsigned long, arg2, unsigned long, arg3,
 
 	case KEYCTL_CAPABILITIES:
 		return keyctl_capabilities((unsigned char __user *)arg2, (size_t)arg3);
+
+	case KEYCTL_WATCH_KEY:
+		return keyctl_watch_key((key_serial_t)arg2, (int)arg3, (int)arg4);
 
 	default:
 		return -EOPNOTSUPP;

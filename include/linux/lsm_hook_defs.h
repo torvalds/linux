@@ -254,6 +254,15 @@ LSM_HOOK(int, 0, inode_setsecctx, struct dentry *dentry, void *ctx, u32 ctxlen)
 LSM_HOOK(int, 0, inode_getsecctx, struct inode *inode, void **ctx,
 	 u32 *ctxlen)
 
+#if defined(CONFIG_SECURITY) && defined(CONFIG_WATCH_QUEUE)
+LSM_HOOK(int, 0, post_notification, const struct cred *w_cred,
+	 const struct cred *cred, struct watch_notification *n)
+#endif /* CONFIG_SECURITY && CONFIG_WATCH_QUEUE */
+
+#if defined(CONFIG_SECURITY) && defined(CONFIG_KEY_NOTIFICATIONS)
+LSM_HOOK(int, 0, watch_key, struct key *key)
+#endif /* CONFIG_SECURITY && CONFIG_KEY_NOTIFICATIONS */
+
 #ifdef CONFIG_SECURITY_NETWORK
 LSM_HOOK(int, 0, unix_stream_connect, struct sock *sock, struct sock *other,
 	 struct sock *newsk)
