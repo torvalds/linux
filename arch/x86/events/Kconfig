@@ -5,7 +5,7 @@ config PERF_EVENTS_INTEL_UNCORE
 	tristate "Intel uncore performance events"
 	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 	default y
-	---help---
+	help
 	Include support for Intel uncore performance events. These are
 	available on NehalemEX and more modern processors.
 
@@ -13,7 +13,7 @@ config PERF_EVENTS_INTEL_RAPL
 	tristate "Intel/AMD rapl performance events"
 	depends on PERF_EVENTS && (CPU_SUP_INTEL || CPU_SUP_AMD) && PCI
 	default y
-	---help---
+	help
 	Include support for Intel and AMD rapl performance events for power
 	monitoring on modern processors.
 
@@ -21,14 +21,14 @@ config PERF_EVENTS_INTEL_CSTATE
 	tristate "Intel cstate performance events"
 	depends on PERF_EVENTS && CPU_SUP_INTEL && PCI
 	default y
-	---help---
+	help
 	Include support for Intel cstate performance events for power
 	monitoring on modern processors.
 
 config PERF_EVENTS_AMD_POWER
 	depends on PERF_EVENTS && CPU_SUP_AMD
 	tristate "AMD Processor Power Reporting Mechanism"
-	---help---
+	help
 	  Provide power reporting mechanism support for AMD processors.
 	  Currently, it leverages X86_FEATURE_ACC_POWER
 	  (CPUID Fn8000_0007_EDX[12]) interface to calculate the

@@ -7,7 +7,7 @@ menuconfig ATM_DRIVERS
 	bool "ATM drivers"
 	depends on NETDEVICES && ATM
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for Asynchronous Transfer Mode
 	  device drivers. This option alone does not add any kernel code.
 
@@ -40,7 +40,7 @@ config ATM_LANAI
 config ATM_ENI
 	tristate "Efficient Networks ENI155P"
 	depends on PCI
-	---help---
+	help
 	  Driver for the Efficient Networks ENI155p series and SMC ATM
 	  Power155 155 Mbps ATM adapters. Both, the versions with 512KB and
 	  2MB on-board RAM (Efficient calls them "C" and "S", respectively),
@@ -64,7 +64,7 @@ config ATM_ENI_DEBUG
 config ATM_ENI_TUNE_BURST
 	bool "Fine-tune burst settings"
 	depends on ATM_ENI
-	---help---
+	help
 	  In order to obtain good throughput, the ENI NIC can transfer
 	  multiple words of data per PCI bus access cycle. Such a multi-word
 	  transfer is called a burst.
@@ -256,7 +256,7 @@ config ATM_AMBASSADOR
 config ATM_AMBASSADOR_DEBUG
 	bool "Enable debugging messages"
 	depends on ATM_AMBASSADOR
-	---help---
+	help
 	  Somewhat useful debugging messages are available. The choice of
 	  messages is controlled by a bitmap.  This may be specified as a
 	  module argument (kernel command line argument as well?), changed
@@ -280,7 +280,7 @@ config ATM_HORIZON
 config ATM_HORIZON_DEBUG
 	bool "Enable debugging messages"
 	depends on ATM_HORIZON
-	---help---
+	help
 	  Somewhat useful debugging messages are available. The choice of
 	  messages is controlled by a bitmap.  This may be specified as a
 	  module argument (kernel command line argument as well?), changed
@@ -296,7 +296,7 @@ config ATM_HORIZON_DEBUG
 config ATM_IA
 	tristate "Interphase ATM PCI x575/x525/x531"
 	depends on PCI
-	---help---
+	help
 	  This is a driver for the Interphase (i)ChipSAR adapter cards
 	  which include a variety of variants in term of the size of the
 	  control memory (128K-1KVC, 512K-4KVC), the size of the packet
@@ -312,7 +312,7 @@ config ATM_IA
 config ATM_IA_DEBUG
 	bool "Enable debugging messages"
 	depends on ATM_IA
-	---help---
+	help
 	  Somewhat useful debugging messages are available. The choice of
 	  messages is controlled by a bitmap. This may be specified as a
 	  module argument (kernel command line argument as well?), changed
@@ -330,7 +330,7 @@ config ATM_FORE200E
 	tristate "FORE Systems 200E-series"
 	depends on (PCI || SBUS)
 	select FW_LOADER
-	---help---
+	help
 	  This is a driver for the FORE Systems 200E-series ATM adapter
 	  cards. It simultaneously supports PCA-200E and SBA-200E models
 	  on PCI and SBUS hosts. Say Y (or M to compile as a module
@@ -352,7 +352,7 @@ config ATM_FORE200E_TX_RETRY
 	int "Maximum number of tx retries"
 	depends on ATM_FORE200E
 	default "16"
-	---help---
+	help
 	  Specifies the number of times the driver attempts to transmit
 	  a message before giving up, if the transmit queue of the ATM card
 	  is transiently saturated.

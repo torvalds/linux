@@ -185,7 +185,7 @@ config SAMPLE_VFIO_MDEV_MBOCHS
 
 config SAMPLE_ANDROID_BINDERFS
 	bool "Build Android binderfs example"
-	depends on ANDROID_BINDERFS
+	depends on CC_CAN_LINK && HEADERS_INSTALL
 	help
 	  Builds a sample program to illustrate the use of the Android binderfs
 	  filesystem.

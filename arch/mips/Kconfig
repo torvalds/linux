@@ -2742,7 +2742,7 @@ config RELOCATION_TABLE_SIZE
 	depends on RELOCATABLE
 	range 0x0 0x01000000
 	default "0x00100000"
-	---help---
+	help
 	  A table of relocation data will be appended to the kernel binary
 	  and parsed at boot to fix up the relocated kernel.
 
@@ -2756,7 +2756,7 @@ config RELOCATION_TABLE_SIZE
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
 	depends on RELOCATABLE
-	---help---
+	help
 	  Randomizes the physical and virtual address at which the
 	  kernel image is loaded, as a security feature that
 	  deters exploit attempts relying on knowledge of the location
@@ -2774,7 +2774,7 @@ config RANDOMIZE_BASE_MAX_OFFSET
 	range 0x0 0x40000000 if EVA || 64BIT
 	range 0x0 0x08000000
 	default "0x01000000"
-	---help---
+	help
 	  When kASLR is active, this provides the maximum offset that will
 	  be applied to the kernel image. It should be set according to the
 	  amount of physical RAM available in the target system minus

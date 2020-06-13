@@ -326,7 +326,7 @@ config SWAP
 
 config SYSVIPC
 	bool "System V IPC"
-	---help---
+	help
 	  Inter Process Communication is a suite of library functions and
 	  system calls which let processes (running programs) synchronize and
 	  exchange information. It is generally considered to be a good thing,
@@ -348,7 +348,7 @@ config SYSVIPC_SYSCTL
 config POSIX_MQUEUE
 	bool "POSIX Message Queues"
 	depends on NET
-	---help---
+	help
 	  POSIX variant of message queues is a part of IPC. In POSIX message
 	  queues every message has a priority which decides about succession
 	  of receiving it by a process. If you want to compile and run
@@ -626,7 +626,7 @@ config BUILD_BIN2C
 
 config IKCONFIG
 	tristate "Kernel .config support"
-	---help---
+	help
 	  This option enables the complete Linux kernel ".config" file
 	  contents to be saved in the kernel. It provides documentation
 	  of which kernel options are used in a running kernel or in an
@@ -639,7 +639,7 @@ config IKCONFIG
 config IKCONFIG_PROC
 	bool "Enable access to .config through /proc/config.gz"
 	depends on IKCONFIG && PROC_FS
-	---help---
+	help
 	  This option enables access to the kernel configuration file
 	  through /proc/config.gz.
 
@@ -885,7 +885,7 @@ config BLK_CGROUP
 	bool "IO controller"
 	depends on BLOCK
 	default n
-	---help---
+	help
 	Generic block IO controller cgroup interface. This is the common
 	cgroup interface which should be used by various IO controlling
 	policies.
@@ -1386,7 +1386,7 @@ config MULTIUSER
 config SGETMASK_SYSCALL
 	bool "sgetmask/ssetmask syscalls support" if EXPERT
 	def_bool PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
-	---help---
+	help
 	  sys_sgetmask and sys_ssetmask are obsolete system calls
 	  no longer supported in libc but still enabled by default in some
 	  architectures.
@@ -1396,7 +1396,7 @@ config SGETMASK_SYSCALL
 config SYSFS_SYSCALL
 	bool "Sysfs syscall support" if EXPERT
 	default y
-	---help---
+	help
 	  sys_sysfs is an obsolete system call no longer supported in libc.
 	  Note that disabling this option is more secure but might break
 	  compatibility with some systems.

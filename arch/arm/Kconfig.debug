@@ -9,7 +9,7 @@ config ARM_PTDUMP_DEBUGFS
 	depends on MMU
 	select ARM_PTDUMP_CORE
 	select DEBUG_FS
-	---help---
+	help
 	  Say Y here if you want to show the kernel pagetable layout in a
 	  debugfs file. This information is only useful for kernel developers
 	  who are working in architecture specific areas of the kernel.
@@ -21,7 +21,7 @@ config DEBUG_WX
 	bool "Warn on W+X mappings at boot"
 	depends on MMU
 	select ARM_PTDUMP_CORE
-	---help---
+	help
 		Generate a warning if any W+X mappings are found at boot.
 
 		This is useful for discovering cases where the kernel is leaving

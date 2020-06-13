@@ -876,7 +876,7 @@ config VMAP_STACK
 	bool "Use a virtually-mapped stack"
 	depends on HAVE_ARCH_VMAP_STACK
 	depends on !KASAN || KASAN_VMALLOC
-	---help---
+	help
 	  Enable this if you want the use virtually-mapped kernel stacks
 	  with guard pages.  This causes kernel stack overflows to be
 	  caught immediately rather than causing difficult-to-diagnose
@@ -948,7 +948,7 @@ config ARCH_USE_MEMREMAP_PROT
 config LOCK_EVENT_COUNTS
 	bool "Locking event counts collection"
 	depends on DEBUG_FS
-	---help---
+	help
 	  Enable light-weight counting of various locking related events
 	  in the system with minimal performance impact. This reduces
 	  the chance of application behavior change because of timing

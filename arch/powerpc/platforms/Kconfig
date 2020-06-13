@@ -24,7 +24,7 @@ source "arch/powerpc/platforms/amigaone/Kconfig"
 config KVM_GUEST
 	bool "KVM Guest support"
 	select EPAPR_PARAVIRT
-	---help---
+	help
 	  This option enables various optimizations for running under the KVM
 	  hypervisor. Overhead for the kernel when not running inside KVM should
 	  be minimal.
@@ -230,7 +230,7 @@ config TAU
 config TAU_INT
 	bool "Interrupt driven TAU driver (DANGEROUS)"
 	depends on TAU
-	---help---
+	help
 	  The TAU supports an interrupt driven mode which causes an interrupt
 	  whenever the temperature goes out of range. This is the fastest way
 	  to get notified the temp has exceeded a range. With this option off,
@@ -246,7 +246,7 @@ config TAU_INT
 config TAU_AVERAGE
 	bool "Average high and low temp"
 	depends on TAU
-	---help---
+	help
 	  The TAU hardware can compare the temperature to an upper and lower
 	  bound.  The default behavior is to show both the upper and lower
 	  bound in /proc/cpuinfo. If the range is large, the temperature is

@@ -577,7 +577,7 @@ config MMC_MVSDIO
 	tristate "Marvell MMC/SD/SDIO host driver"
 	depends on PLAT_ORION
 	depends on OF
-	---help---
+	help
 	  This selects the Marvell SDIO host driver.
 	  SDIO may currently be found on the Kirkwood 88F6281 and 88F6192
 	  SoC controllers.
