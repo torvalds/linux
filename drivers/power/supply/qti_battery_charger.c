@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 #include <linux/rpmsg.h>
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
@@ -31,6 +32,7 @@
 #define BC_USB_STATUS_SET		0x33
 #define BC_WLS_STATUS_GET		0x34
 #define BC_WLS_STATUS_SET		0x35
+#define BC_SHIP_MODE_REQ_SET		0x36
 #define BC_WLS_FW_CHECK_UPDATE		0x40
 #define BC_WLS_FW_PUSH_BUF_REQ		0x41
 #define BC_WLS_FW_UPDATE_STATUS_RESP	0x42
@@ -50,6 +52,11 @@ enum psy_type {
 	PSY_TYPE_USB,
 	PSY_TYPE_WLS,
 	PSY_TYPE_MAX,
+};
+
+enum ship_mode_type {
+	SHIP_MODE_PMIC,
+	SHIP_MODE_PACK_SIDE,
 };
 
 /* property ids */
@@ -175,6 +182,11 @@ struct wireless_fw_get_version_resp {
 	u32			fw_version;
 };
 
+struct battery_charger_ship_mode_req_msg {
+	struct pmic_glink_hdr	hdr;
+	u32			ship_mode_type;
+};
+
 struct psy_state {
 	struct power_supply	*psy;
 	char			*model;
@@ -203,9 +215,11 @@ struct battery_chg_dev {
 	struct work_struct		subsys_up_work;
 	int				fake_soc;
 	bool				block_tx;
+	bool				ship_mode_en;
 	bool				debug_battery_detected;
 	bool				wls_fw_update_reqd;
 	u32				wls_fw_version;
+	struct notifier_block		reboot_notifier;
 };
 
 static const int battery_prop_map[BATT_PROP_MAX] = {
@@ -1359,6 +1373,28 @@ static ssize_t soh_show(struct class *c, struct class_attribute *attr,
 }
 static CLASS_ATTR_RO(soh);
 
+static ssize_t ship_mode_en_store(struct class *c, struct class_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	if (kstrtobool(buf, &bcdev->ship_mode_en))
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t ship_mode_en_show(struct class *c, struct class_attribute *attr,
+				char *buf)
+{
+	struct battery_chg_dev *bcdev = container_of(c, struct battery_chg_dev,
+						battery_class);
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", bcdev->ship_mode_en);
+}
+static CLASS_ATTR_RW(ship_mode_en);
+
 static struct attribute *battery_class_attrs[] = {
 	&class_attr_soh.attr,
 	&class_attr_resistance.attr,
@@ -1369,6 +1405,7 @@ static struct attribute *battery_class_attrs[] = {
 	&class_attr_wireless_fw_update.attr,
 	&class_attr_wireless_fw_force_update.attr,
 	&class_attr_wireless_fw_version.attr,
+	&class_attr_ship_mode_en.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(battery_class);
@@ -1468,6 +1505,31 @@ static int battery_chg_parse_dt(struct battery_chg_dev *bcdev)
 	return 0;
 }
 
+static int battery_chg_ship_mode(struct notifier_block *nb, unsigned long code,
+		void *unused)
+{
+	struct battery_charger_ship_mode_req_msg msg = { { 0 } };
+	struct battery_chg_dev *bcdev = container_of(nb, struct battery_chg_dev,
+						     reboot_notifier);
+	int rc;
+
+	if (!bcdev->ship_mode_en)
+		return NOTIFY_DONE;
+
+	msg.hdr.owner = MSG_OWNER_BC;
+	msg.hdr.type = MSG_TYPE_REQ_RESP;
+	msg.hdr.opcode = BC_SHIP_MODE_REQ_SET;
+	msg.ship_mode_type = SHIP_MODE_PMIC;
+
+	if (code == SYS_POWER_OFF) {
+		rc = battery_chg_write(bcdev, &msg, sizeof(msg));
+		if (rc < 0)
+			pr_emerg("Failed to write ship mode: %d\n", rc);
+	}
+
+	return NOTIFY_DONE;
+}
+
 static int battery_chg_probe(struct platform_device *pdev)
 {
 	struct battery_chg_dev *bcdev;
@@ -1528,6 +1590,10 @@ static int battery_chg_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	bcdev->reboot_notifier.notifier_call = battery_chg_ship_mode;
+	bcdev->reboot_notifier.priority = 255;
+	register_reboot_notifier(&bcdev->reboot_notifier);
+
 	rc = battery_chg_parse_dt(bcdev);
 	if (rc < 0)
 		goto error;
@@ -1553,6 +1619,7 @@ static int battery_chg_probe(struct platform_device *pdev)
 	return 0;
 error:
 	pmic_glink_unregister_client(bcdev->client);
+	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	return rc;
 }
 
@@ -1564,6 +1631,7 @@ static int battery_chg_remove(struct platform_device *pdev)
 	device_init_wakeup(bcdev->dev, false);
 	debugfs_remove_recursive(bcdev->debugfs_dir);
 	class_unregister(&bcdev->battery_class);
+	unregister_reboot_notifier(&bcdev->reboot_notifier);
 	rc = pmic_glink_unregister_client(bcdev->client);
 	if (rc < 0) {
 		pr_err("Error unregistering from pmic_glink, rc=%d\n", rc);
