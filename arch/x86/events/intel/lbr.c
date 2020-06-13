@@ -383,6 +383,9 @@ static void __intel_pmu_lbr_restore(struct x86_perf_task_context *task_ctx)
 
 	wrmsrl(x86_pmu.lbr_tos, tos);
 	task_ctx->lbr_stack_state = LBR_NONE;
+
+	if (cpuc->lbr_select)
+		wrmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
 static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
@@ -415,6 +418,9 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 
 	cpuc->last_task_ctx = task_ctx;
 	cpuc->last_log_id = ++task_ctx->log_id;
+
+	if (cpuc->lbr_select)
+		rdmsrl(MSR_LBR_SELECT, task_ctx->lbr_sel);
 }
 
 void intel_pmu_lbr_swap_task_ctx(struct perf_event_context *prev,
@@ -485,6 +491,9 @@ void intel_pmu_lbr_add(struct perf_event *event)
 	if (!x86_pmu.lbr_nr)
 		return;
 
+	if (event->hw.flags & PERF_X86_EVENT_LBR_SELECT)
+		cpuc->lbr_select = 1;
+
 	cpuc->br_sel = event->hw.branch_reg.reg;
 
 	if (branch_user_callstack(cpuc->br_sel) && event->ctx->task_ctx_data) {
@@ -532,6 +541,9 @@ void intel_pmu_lbr_del(struct perf_event *event)
 		task_ctx->lbr_callstack_users--;
 	}
 
+	if (event->hw.flags & PERF_X86_EVENT_LBR_SELECT)
+		cpuc->lbr_select = 0;
+
 	if (x86_pmu.intel_cap.pebs_baseline && event->attr.precise_ip > 0)
 		cpuc->lbr_pebs_users--;
 	cpuc->lbr_users--;
@@ -540,11 +552,19 @@ void intel_pmu_lbr_del(struct perf_event *event)
 	perf_sched_cb_dec(event->ctx->pmu);
 }
 
+static inline bool vlbr_exclude_host(void)
+{
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+
+	return test_bit(INTEL_PMC_IDX_FIXED_VLBR,
+		(unsigned long *)&cpuc->intel_ctrl_guest_mask);
+}
+
 void intel_pmu_lbr_enable_all(bool pmi)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	if (cpuc->lbr_users)
+	if (cpuc->lbr_users && !vlbr_exclude_host())
 		__intel_pmu_lbr_enable(pmi);
 }
 
@@ -552,7 +572,7 @@ void intel_pmu_lbr_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
-	if (cpuc->lbr_users)
+	if (cpuc->lbr_users && !vlbr_exclude_host())
 		__intel_pmu_lbr_disable();
 }
 
@@ -694,7 +714,8 @@ void intel_pmu_lbr_read(void)
 	 * This could be smarter and actually check the event,
 	 * but this simple approach seems to work for now.
 	 */
-	if (!cpuc->lbr_users || cpuc->lbr_users == cpuc->lbr_pebs_users)
+	if (!cpuc->lbr_users || vlbr_exclude_host() ||
+	    cpuc->lbr_users == cpuc->lbr_pebs_users)
 		return;
 
 	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_32)
@@ -1365,5 +1386,5 @@ int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
 EXPORT_SYMBOL_GPL(x86_perf_get_lbr);
 
 struct event_constraint vlbr_constraint =
-	FIXED_EVENT_CONSTRAINT(INTEL_FIXED_VLBR_EVENT,
-			       (INTEL_PMC_IDX_FIXED_VLBR - INTEL_PMC_IDX_FIXED));
+	__EVENT_CONSTRAINT(INTEL_FIXED_VLBR_EVENT, (1ULL << INTEL_PMC_IDX_FIXED_VLBR),
+			  FIXED_EVENT_FLAGS, 1, 0, PERF_X86_EVENT_LBR_SELECT);

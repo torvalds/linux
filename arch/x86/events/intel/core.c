@@ -2189,7 +2189,8 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	} else if (idx == INTEL_PMC_IDX_FIXED_BTS) {
 		intel_pmu_disable_bts();
 		intel_pmu_drain_bts_buffer();
-	}
+	} else if (idx == INTEL_PMC_IDX_FIXED_VLBR)
+		intel_clear_masks(event, idx);
 
 	/*
 	 * Needs to be called after x86_pmu_disable_event,
@@ -2271,7 +2272,8 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		if (!__this_cpu_read(cpu_hw_events.enabled))
 			return;
 		intel_pmu_enable_bts(hwc->config);
-	}
+	} else if (idx == INTEL_PMC_IDX_FIXED_VLBR)
+		intel_set_masks(event, idx);
 }
 
 static void intel_pmu_add_event(struct perf_event *event)
