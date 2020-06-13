@@ -4,7 +4,7 @@
 
 config QRTR
 	tristate "Qualcomm IPC Router support"
-	---help---
+	help
 	  Say Y if you intend to use Qualcomm IPC router protocol.  The
 	  protocol is used to communicate with services provided by other
 	  hardware blocks in the system.
@@ -17,13 +17,13 @@ if QRTR
 config QRTR_SMD
 	tristate "SMD IPC Router channels"
 	depends on RPMSG || (COMPILE_TEST && RPMSG=n)
-	---help---
+	help
 	  Say Y here to support SMD based ipcrouter channels.  SMD is the
 	  most common transport for IPC Router.
 
 config QRTR_TUN
 	tristate "TUN device for Qualcomm IPC Router"
-	---help---
+	help
 	  Say Y here to expose a character device that allows user space to
 	  implement endpoints of QRTR, for purpose of tunneling data to other
 	  hosts or testing purposes.

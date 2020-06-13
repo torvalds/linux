@@ -6,7 +6,7 @@
 config PLIP
 	tristate "PLIP (parallel port) support"
 	depends on PARPORT
-	---help---
+	help
 	  PLIP (Parallel Line Internet Protocol) is used to create a
 	  reasonably fast mini network consisting of two (or, rarely, more)
 	  local machines.  A PLIP link from a Linux box is a popular means to

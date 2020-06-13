@@ -696,7 +696,7 @@ menu "I/O subsystem"
 config QDIO
 	def_tristate y
 	prompt "QDIO support"
-	---help---
+	help
 	  This driver provides the Queued Direct I/O base support for
 	  IBM System z.
 

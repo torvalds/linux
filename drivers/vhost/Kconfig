@@ -30,7 +30,7 @@ config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (TAP || !TAP)
 	select VHOST
-	---help---
+	help
 	  This kernel module can be loaded in host kernel to accelerate
 	  guest networking with virtio_net. Not to be confused with virtio_net
 	  module itself which needs to be loaded in guest kernel.
@@ -43,7 +43,7 @@ config VHOST_SCSI
 	depends on TARGET_CORE && EVENTFD
 	select VHOST
 	default n
-	---help---
+	help
 	Say M here to enable the vhost_scsi TCM fabric module
 	for use with virtio-scsi guests
 
@@ -53,7 +53,7 @@ config VHOST_VSOCK
 	select VHOST
 	select VIRTIO_VSOCKETS_COMMON
 	default n
-	---help---
+	help
 	This kernel module can be loaded in the host kernel to provide AF_VSOCK
 	sockets for communicating with guests.  The guests must have the
 	virtio_transport.ko driver loaded to use the virtio-vsock device.
@@ -76,7 +76,7 @@ config VHOST_VDPA
 config VHOST_CROSS_ENDIAN_LEGACY
 	bool "Cross-endian support for vhost"
 	default n
-	---help---
+	help
 	  This option allows vhost to support guests with a different byte
 	  ordering from host while using legacy virtio.
 

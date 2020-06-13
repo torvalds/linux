@@ -3,7 +3,7 @@
 menuconfig CRYPTO_HW
 	bool "Hardware crypto devices"
 	default y
-	---help---
+	help
 	  Say Y here to get to see options for hardware crypto devices and
 	  processors. This option alone does not add any kernel code.
 
@@ -334,7 +334,7 @@ config HW_RANDOM_PPC4XX
 	bool "PowerPC 4xx generic true random number generator support"
 	depends on CRYPTO_DEV_PPC4XX && HW_RANDOM
 	default y
-	---help---
+	help
 	 This option provides the kernel-side support for the TRNG hardware
 	 found in the security function of some PowerPC 4xx SoCs.
 
@@ -420,7 +420,7 @@ config CRYPTO_DEV_EXYNOS_RNG
 	depends on ARCH_EXYNOS || COMPILE_TEST
 	depends on HAS_IOMEM
 	select CRYPTO_RNG
-	---help---
+	help
 	  This driver provides kernel-side support through the
 	  cryptographic API for the pseudo random number generator hardware
 	  found on Exynos SoCs.
@@ -597,7 +597,7 @@ source "drivers/crypto/marvell/Kconfig"
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"
 	depends on PCI && 64BIT && (ARM64 || COMPILE_TEST)
-	---help---
+	help
 	  Select this option if you want to enable compression/decompression
 	  acceleration on Cavium's ARM based SoCs
 

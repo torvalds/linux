@@ -118,7 +118,7 @@ config IRQ_FORCED_THREADING
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering" if MAY_HAVE_SPARSE_IRQ
-	---help---
+	help
 
 	  Sparse irq numbering is useful for distro kernels that want
 	  to define a high CONFIG_NR_CPUS value but still want to have
@@ -134,7 +134,7 @@ config GENERIC_IRQ_DEBUGFS
 	depends on DEBUG_FS
 	select GENERIC_IRQ_INJECTION
 	default n
-	---help---
+	help
 
 	  Exposes internal state information through debugfs. Mostly for
 	  developers and debugging of hard to diagnose interrupt problems.

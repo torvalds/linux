@@ -6,7 +6,7 @@
 config NET_VENDOR_QUALCOMM
 	bool "Qualcomm devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -25,7 +25,7 @@ config QCA7000_SPI
 	tristate "Qualcomm Atheros QCA7000 SPI support"
 	select QCA7000
 	depends on SPI_MASTER && OF
-	---help---
+	help
 	  This SPI protocol driver supports the Qualcomm Atheros QCA7000.
 
 	  To compile this driver as a module, choose M here. The module
@@ -35,7 +35,7 @@ config QCA7000_UART
 	tristate "Qualcomm Atheros QCA7000 UART support"
 	select QCA7000
 	depends on SERIAL_DEV_BUS && OF
-	---help---
+	help
 	  This UART protocol driver supports the Qualcomm Atheros QCA7000.
 
 	  Currently the driver assumes these device UART settings:
@@ -52,7 +52,7 @@ config QCOM_EMAC
 	depends on HAS_DMA && HAS_IOMEM
 	select CRC32
 	select PHYLIB
-	---help---
+	help
 	  This driver supports the Qualcomm Technologies, Inc. Gigabit
 	  Ethernet Media Access Controller (EMAC). The controller
 	  supports IEEE 802.3-2002, half-duplex mode at 10/100 Mb/s,

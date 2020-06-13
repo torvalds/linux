@@ -147,7 +147,7 @@ choice
 
 config PA7000
 	bool "PA7000/PA7100"
-	---help---
+	help
 	  This is the processor type of your CPU.  This information is
 	  used for optimizing purposes.  In order to compile a kernel
 	  that can run on all 32-bit PA CPUs (albeit not optimally fast),
@@ -275,7 +275,7 @@ config PARISC_SELF_EXTRACT
 
 config SMP
 	bool "Symmetric multi-processing support"
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
@@ -382,7 +382,7 @@ source "drivers/parisc/Kconfig"
 config SECCOMP
 	def_bool y
 	prompt "Enable seccomp to safely compute untrusted bytecode"
-	---help---
+	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
 	  execution. By using pipes or other transports made available to

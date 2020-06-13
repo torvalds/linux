@@ -3,7 +3,7 @@ config INOTIFY_USER
 	bool "Inotify support for userspace"
 	select FSNOTIFY
 	default y
-	---help---
+	help
 	  Say Y here to enable inotify support for userspace, including the
 	  associated system calls.  Inotify allows monitoring of both files and
 	  directories via a single open fd.  Events are read from the file

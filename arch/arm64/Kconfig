@@ -1035,7 +1035,7 @@ config CC_HAVE_SHADOW_CALL_STACK
 
 config SECCOMP
 	bool "Enable seccomp to safely compute untrusted bytecode"
-	---help---
+	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
 	  execution. By using pipes or other transports made available to
@@ -1068,7 +1068,7 @@ config KEXEC
 	depends on PM_SLEEP_SMP
 	select KEXEC_CORE
 	bool "kexec system call"
-	---help---
+	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
 	  but it is independent of the system firmware.   And like a reboot

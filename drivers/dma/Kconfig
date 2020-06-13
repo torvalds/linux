@@ -198,7 +198,7 @@ config FSL_DMA
 	depends on FSL_SOC
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-	---help---
+	help
 	  Enable support for the Freescale Elo series DMA controllers.
 	  The Elo is the DMA controller on some mpc82xx and mpc83xx parts, the
 	  EloPlus is on mpc85xx and mpc86xx and Pxxx parts, and the Elo3 is on
@@ -233,7 +233,7 @@ config FSL_RAID
 	depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
-	---help---
+	help
 	  Enable support for Freescale RAID Engine. RAID Engine is
 	  available on some QorIQ SoCs (like P5020/P5040). It has
 	  the capability to offload memcpy, xor and pq computation
@@ -414,7 +414,7 @@ config MPC512X_DMA
 	tristate "Freescale MPC512x built-in DMA engine support"
 	depends on PPC_MPC512x || PPC_MPC831x
 	select DMA_ENGINE
-	---help---
+	help
 	  Enable support for the Freescale MPC512x built-in DMA engine.
 
 config MV_XOR
@@ -423,7 +423,7 @@ config MV_XOR
 	select DMA_ENGINE
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
-	---help---
+	help
 	  Enable support for the Marvell XOR engine.
 
 config MV_XOR_V2
@@ -433,7 +433,7 @@ config MV_XOR_V2
 	select DMA_ENGINE_RAID
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	select GENERIC_MSI_IRQ_DOMAIN
-	---help---
+	help
 	  Enable support for the Marvell version 2 XOR engine.
 
 	  This engine provides acceleration for copy, XOR and RAID6

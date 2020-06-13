@@ -32,7 +32,7 @@ config CEC_MESON_G12A_AO
 	select REGMAP_MMIO
 	select CEC_CORE
 	select CEC_NOTIFIER
-	---help---
+	help
 	  This is a driver for Amlogic Meson G12A SoCs AO CEC interface.
 	  This driver if for the new AO-CEC module found in G12A SoCs,
 	  usually named AO_CEC_B in documentation.

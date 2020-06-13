@@ -13,7 +13,7 @@ config VIDEO_ATOMISP
 	depends on VIDEO_V4L2 && INTEL_ATOMISP
 	select IOSF_MBI
 	select VIDEOBUF_VMALLOC
-	---help---
+	help
 	  Say Y here if your platform supports Intel Atom SoC
 	  camera imaging subsystem.
 	  To compile this driver as a module, choose M here: the

@@ -1655,7 +1655,7 @@ config UACCESS_WITH_MEMCPY
 config SECCOMP
 	bool
 	prompt "Enable seccomp to safely compute untrusted bytecode"
-	---help---
+	help
 	  This kernel feature is useful for number crunching applications
 	  that may need to compute untrusted bytecode during their
 	  execution. By using pipes or other transports made available to
@@ -1963,7 +1963,7 @@ config EFI
 	select EFI_STUB
 	select EFI_GENERIC_STUB
 	select EFI_RUNTIME_WRAPPERS
-	---help---
+	help
 	  This option provides support for runtime services provided
 	  by UEFI firmware (such as non-volatile variables, realtime
 	  clock, and platform reset). A UEFI stub is also provided to
@@ -2005,7 +2005,7 @@ comment "At least one emulation must be selected"
 config FPE_NWFPE
 	bool "NWFPE math emulation"
 	depends on (!AEABI || OABI_COMPAT) && !THUMB2_KERNEL
-	---help---
+	help
 	  Say Y to include the NWFPE floating point emulator in the kernel.
 	  This is necessary to run most binaries. Linux does not currently
 	  support floating point hardware so you need to say Y here even if
@@ -2029,7 +2029,7 @@ config FPE_NWFPE_XP
 config FPE_FASTFPE
 	bool "FastFPE math emulation (EXPERIMENTAL)"
 	depends on (!AEABI || OABI_COMPAT) && !CPU_32v3
-	---help---
+	help
 	  Say Y here to include the FAST floating point emulator in the kernel.
 	  This is an experimental much faster emulator which now also has full
 	  precision for the mantissa.  It does not support any exceptions.

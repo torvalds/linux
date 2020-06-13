@@ -16,7 +16,7 @@ config MFD_CROS_EC
 menuconfig CHROME_PLATFORMS
 	bool "Platform support for Chrome hardware"
 	depends on X86 || ARM || ARM64 || COMPILE_TEST
-	---help---
+	help
 	  Say Y here to get to see options for platform support for
 	  various Chromebooks and Chromeboxes. This option alone does
 	  not add any kernel code.
@@ -28,7 +28,7 @@ if CHROME_PLATFORMS
 config CHROMEOS_LAPTOP
 	tristate "Chrome OS Laptop"
 	depends on I2C && DMI && X86
-	---help---
+	help
 	  This driver instantiates i2c and smbus devices such as
 	  light sensors and touchpads.
 
@@ -38,7 +38,7 @@ config CHROMEOS_LAPTOP
 config CHROMEOS_PSTORE
 	tristate "Chrome OS pstore support"
 	depends on X86
-	---help---
+	help
 	  This module instantiates the persistent storage on x86 ChromeOS
 	  devices. It can be used to store away console logs and crash
 	  information across reboots.
@@ -112,7 +112,7 @@ config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
 	depends on CROS_EC && SPI
 
-	---help---
+	help
 	  If you say Y here, you get support for talking to the ChromeOS EC
 	  through a SPI bus, using a byte-level protocol. Since the EC's
 	  response time cannot be guaranteed, we support ignoring

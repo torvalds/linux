@@ -7,7 +7,7 @@ config NET_VENDOR_3COM
 	bool "3Com devices"
 	default y
 	depends on ISA || EISA || PCI || PCMCIA
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
@@ -20,7 +20,7 @@ if NET_VENDOR_3COM
 config EL3
 	tristate "3c509/3c579 \"EtherLink III\" support"
 	depends on (ISA || EISA)
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to the 3Com
 	  EtherLinkIII series, say Y here.
 
@@ -34,7 +34,7 @@ config EL3
 config 3C515
 	tristate "3c515 ISA \"Fast EtherLink\""
 	depends on ISA && ISA_DMA_API && !PPC32
-	---help---
+	help
 	  If you have a 3Com ISA EtherLink XL "Corkscrew" 3c515 Fast Ethernet
 	  network card, say Y here.
 
@@ -44,7 +44,7 @@ config 3C515
 config PCMCIA_3C574
 	tristate "3Com 3c574 PCMCIA support"
 	depends on PCMCIA
-	---help---
+	help
 	  Say Y here if you intend to attach a 3Com 3c574 or compatible PCMCIA
 	  (PC-card) Fast Ethernet card to your computer.
 
@@ -54,7 +54,7 @@ config PCMCIA_3C574
 config PCMCIA_3C589
 	tristate "3Com 3c589 PCMCIA support"
 	depends on PCMCIA
-	---help---
+	help
 	  Say Y here if you intend to attach a 3Com 3c589 or compatible PCMCIA
 	  (PC-card) Ethernet card to your computer.
 
@@ -65,7 +65,7 @@ config VORTEX
 	tristate "3c590/3c900 series (592/595/597) \"Vortex/Boomerang\" support"
 	depends on (PCI || EISA) && HAS_IOPORT_MAP
 	select MII
-	---help---
+	help
 	  This option enables driver support for a large number of 10Mbps and
 	  10/100Mbps EISA, PCI and Cardbus 3Com network cards:
 
@@ -86,7 +86,7 @@ config TYPHOON
 	tristate "3cr990 series \"Typhoon\" support"
 	depends on PCI
 	select CRC32
-	---help---
+	help
 	  This option enables driver support for the 3cr990 series of cards:
 
 	  3C990-TX, 3CR990-TX-95, 3CR990-TX-97, 3CR990-FX-95, 3CR990-FX-97,

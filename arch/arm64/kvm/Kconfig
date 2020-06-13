@@ -7,7 +7,7 @@ source "virt/lib/Kconfig"
 
 menuconfig VIRTUALIZATION
 	bool "Virtualization"
-	---help---
+	help
 	  Say Y here to get to see options for using your Linux host to run
 	  other operating systems inside virtual machines (guests).
 	  This option alone does not add any kernel code.
@@ -40,7 +40,7 @@ menuconfig KVM
 	select HAVE_KVM_VCPU_RUN_PID_CHANGE
 	select TASKSTATS
 	select TASK_DELAY_ACCT
-	---help---
+	help
 	  Support hosting virtualized guest machines.
 
 	  If unsure, say N.
@@ -53,7 +53,7 @@ config KVM_ARM_PMU
 	bool "Virtual Performance Monitoring Unit (PMU) support"
 	depends on HW_PERF_EVENTS
 	default y
-	---help---
+	help
 	  Adds support for a virtual Performance Monitoring Unit (PMU) in
 	  virtual machines.
 

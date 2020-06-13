@@ -44,7 +44,7 @@ config FORCE_MAX_ZONEORDER
 config MEMORY_START
 	hex "Physical memory start address"
 	default "0x08000000"
-	---help---
+	help
 	  Computers built with Hitachi SuperH processors always
 	  map the ROM starting at address zero.  But the processor
 	  does not specify the range that RAM takes.

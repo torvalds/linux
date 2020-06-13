@@ -7,7 +7,7 @@ config BINFMT_ELF
 	depends on MMU
 	select ELFCORE
 	default y
-	---help---
+	help
 	  ELF (Executable and Linkable Format) is a format for libraries and
 	  executables used across different architectures and operating
 	  systems. Saying Y here will enable your kernel to run ELF binaries
@@ -138,7 +138,7 @@ config HAVE_AOUT
 config BINFMT_AOUT
 	tristate "Kernel support for a.out and ECOFF binaries"
 	depends on HAVE_AOUT
-	---help---
+	help
 	  A.out (Assembler.OUTput) is a set of formats for libraries and
 	  executables used in the earliest versions of UNIX.  Linux used
 	  the a.out formats QMAGIC and ZMAGIC until they were replaced
@@ -168,7 +168,7 @@ config OSF4_COMPAT
 config BINFMT_EM86
 	tristate "Kernel support for Linux/Intel ELF binaries"
 	depends on ALPHA
-	---help---
+	help
 	  Say Y here if you want to be able to execute Linux/Intel ELF
 	  binaries just like native Alpha binaries on your Alpha machine. For
 	  this to work, you need to have the emulator /usr/bin/em86 in place.
@@ -182,7 +182,7 @@ config BINFMT_EM86
 
 config BINFMT_MISC
 	tristate "Kernel support for MISC binaries"
-	---help---
+	help
 	  If you say Y here, it will be possible to plug wrapper-driven binary
 	  formats into the kernel. You will like this especially when you use
 	  programs that need an interpreter to run like Java, Python, .NET or

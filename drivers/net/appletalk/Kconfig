@@ -5,7 +5,7 @@
 config ATALK
 	tristate "Appletalk protocol support"
 	select LLC
-	---help---
+	help
 	  AppleTalk is the protocol that Apple computers can use to communicate
 	  on a network.  If your Linux box is connected to such a network and you
 	  wish to connect to it, say Y.  You will need to use the netatalk package
@@ -79,7 +79,7 @@ config COPS_TANGENT
 config IPDDP
 	tristate "Appletalk-IP driver support"
 	depends on DEV_APPLETALK && ATALK
-	---help---
+	help
 	  This allows IP networking for users who only have AppleTalk
 	  networking available. This feature is experimental. With this
 	  driver, you can encapsulate IP inside AppleTalk (e.g. if your Linux

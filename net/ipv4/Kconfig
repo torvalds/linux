@@ -14,7 +14,7 @@ config IP_MULTICAST
 
 config IP_ADVANCED_ROUTER
 	bool "IP: advanced router"
-	---help---
+	help
 	  If you intend to run your Linux box mostly as a router, i.e. as a
 	  computer that forwards and redistributes network packets, say Y; you
 	  will then be presented with several options that allow more precise
@@ -56,7 +56,7 @@ config IP_ADVANCED_ROUTER
 config IP_FIB_TRIE_STATS
 	bool "FIB TRIE statistics"
 	depends on IP_ADVANCED_ROUTER
-	---help---
+	help
 	  Keep track of statistics on structure of FIB TRIE table.
 	  Useful for testing and measuring TRIE performance.
 
@@ -64,7 +64,7 @@ config IP_MULTIPLE_TABLES
 	bool "IP: policy routing"
 	depends on IP_ADVANCED_ROUTER
 	select FIB_RULES
-	---help---
+	help
 	  Normally, a router decides what to do with a received packet based
 	  solely on the packet's final destination address. If you say Y here,
 	  the Linux router will also be able to take the packet's source
@@ -117,7 +117,7 @@ config IP_PNP
 config IP_PNP_DHCP
 	bool "IP: DHCP support"
 	depends on IP_PNP
-	---help---
+	help
 	  If you want your Linux box to mount its whole root file system (the
 	  one containing the directory /) from some other computer over the
 	  net via NFS and you want the IP address of your computer to be
@@ -134,7 +134,7 @@ config IP_PNP_DHCP
 config IP_PNP_BOOTP
 	bool "IP: BOOTP support"
 	depends on IP_PNP
-	---help---
+	help
 	  If you want your Linux box to mount its whole root file system (the
 	  one containing the directory /) from some other computer over the
 	  net via NFS and you want the IP address of your computer to be
@@ -163,7 +163,7 @@ config NET_IPIP
 	tristate "IP: tunneling"
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
-	---help---
+	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
 	  encapsulating protocol. This particular tunneling driver implements
@@ -267,7 +267,7 @@ config IP_PIMSM_V2
 
 config SYN_COOKIES
 	bool "IP: TCP syncookie support"
-	---help---
+	help
 	  Normal TCP/IP networking is open to an attack known as "SYN
 	  flooding". This denial-of-service attack prevents legitimate remote
 	  users from being able to connect to your computer during an ongoing
@@ -307,7 +307,7 @@ config NET_IPVTI
 	select INET_TUNNEL
 	select NET_IP_TUNNEL
 	select XFRM
-	---help---
+	help
 	  Tunneling means encapsulating data of one protocol type within
 	  another protocol and sending it over a channel that understands the
 	  encapsulating protocol. This can be used with xfrm mode tunnel to give
@@ -323,7 +323,7 @@ config NET_FOU
 	tristate "IP: Foo (IP protocols) over UDP"
 	select XFRM
 	select NET_UDP_TUNNEL
-	---help---
+	help
 	  Foo over UDP allows any IP protocol to be directly encapsulated
 	  over UDP include tunnels (IPIP, GRE, SIT). By encapsulating in UDP
 	  network mechanisms and optimizations for UDP (such as ECMP
@@ -333,7 +333,7 @@ config NET_FOU_IP_TUNNELS
 	bool "IP: FOU encapsulation of IP tunnels"
 	depends on NET_IPIP || NET_IPGRE || IPV6_SIT
 	select NET_FOU
-	---help---
+	help
 	  Allow configuration of FOU or GUE encapsulation for IP tunnels.
 	  When this option is enabled IP tunnels can be configured to use
 	  FOU or GUE encapsulation.
@@ -345,7 +345,7 @@ config INET_AH
 	select CRYPTO_HMAC
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
-	---help---
+	help
 	  Support for IPsec AH.
 
 	  If unsure, say Y.
@@ -361,7 +361,7 @@ config INET_ESP
 	select CRYPTO_SHA1
 	select CRYPTO_DES
 	select CRYPTO_ECHAINIV
-	---help---
+	help
 	  Support for IPsec ESP.
 
 	  If unsure, say Y.
@@ -371,7 +371,7 @@ config INET_ESP_OFFLOAD
 	depends on INET_ESP
 	select XFRM_OFFLOAD
 	default n
-	---help---
+	help
 	  Support for ESP transformation offload. This makes sense
 	  only if this system really does IPsec and want to do it
 	  with high throughput. A typical desktop system does not
@@ -395,7 +395,7 @@ config INET_IPCOMP
 	tristate "IP: IPComp transformation"
 	select INET_XFRM_TUNNEL
 	select XFRM_IPCOMP
-	---help---
+	help
 	  Support for IP Payload Compression Protocol (IPComp) (RFC3173),
 	  typically needed for IPsec.
 
@@ -413,7 +413,7 @@ config INET_TUNNEL
 config INET_DIAG
 	tristate "INET: socket monitoring interface"
 	default y
-	---help---
+	help
 	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
 	  native Linux tools such as ss. ss is included in iproute2, currently
 	  downloadable at:
@@ -430,7 +430,7 @@ config INET_UDP_DIAG
 	tristate "UDP: socket monitoring interface"
 	depends on INET_DIAG && (IPV6 || IPV6=n)
 	default n
-	---help---
+	help
 	  Support for UDP socket monitoring interface used by the ss tool.
 	  If unsure, say Y.
 
@@ -438,7 +438,7 @@ config INET_RAW_DIAG
 	tristate "RAW: socket monitoring interface"
 	depends on INET_DIAG && (IPV6 || IPV6=n)
 	default n
-	---help---
+	help
 	  Support for RAW socket monitoring interface used by the ss tool.
 	  If unsure, say Y.
 
@@ -446,7 +446,7 @@ config INET_DIAG_DESTROY
 	bool "INET: allow privileged process to administratively close sockets"
 	depends on INET_DIAG
 	default n
-	---help---
+	help
 	  Provides a SOCK_DESTROY operation that allows privileged processes
 	  (e.g., a connection manager or a network administration tool such as
 	  ss) to close sockets opened by other processes. Closing a socket in
@@ -457,7 +457,7 @@ config INET_DIAG_DESTROY
 
 menuconfig TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"
-	---help---
+	help
 	  Support for selection of various TCP congestion control
 	  modules.
 
@@ -471,7 +471,7 @@ if TCP_CONG_ADVANCED
 config TCP_CONG_BIC
 	tristate "Binary Increase Congestion (BIC) control"
 	default m
-	---help---
+	help
 	  BIC-TCP is a sender-side only change that ensures a linear RTT
 	  fairness under large windows while offering both scalability and
 	  bounded TCP-friendliness. The protocol combines two schemes
@@ -485,7 +485,7 @@ config TCP_CONG_BIC
 config TCP_CONG_CUBIC
 	tristate "CUBIC TCP"
 	default y
-	---help---
+	help
 	  This is version 2.0 of BIC-TCP which uses a cubic growth function
 	  among other techniques.
 	  See http://www.csc.ncsu.edu/faculty/rhee/export/bitcp/cubic-paper.pdf
@@ -493,7 +493,7 @@ config TCP_CONG_CUBIC
 config TCP_CONG_WESTWOOD
 	tristate "TCP Westwood+"
 	default m
-	---help---
+	help
 	  TCP Westwood+ is a sender-side only modification of the TCP Reno
 	  protocol stack that optimizes the performance of TCP congestion
 	  control. It is based on end-to-end bandwidth estimation to set
@@ -507,7 +507,7 @@ config TCP_CONG_WESTWOOD
 config TCP_CONG_HTCP
 	tristate "H-TCP"
 	default m
-	---help---
+	help
 	  H-TCP is a send-side only modifications of the TCP Reno
 	  protocol stack that optimizes the performance of TCP
 	  congestion control for high speed network links. It uses a
@@ -518,7 +518,7 @@ config TCP_CONG_HTCP
 config TCP_CONG_HSTCP
 	tristate "High Speed TCP"
 	default n
-	---help---
+	help
 	  Sally Floyd's High Speed TCP (RFC 3649) congestion control.
 	  A modification to TCP's congestion control mechanism for use
 	  with large congestion windows. A table indicates how much to
@@ -528,7 +528,7 @@ config TCP_CONG_HSTCP
 config TCP_CONG_HYBLA
 	tristate "TCP-Hybla congestion control algorithm"
 	default n
-	---help---
+	help
 	  TCP-Hybla is a sender-side only change that eliminates penalization of
 	  long-RTT, large-bandwidth connections, like when satellite legs are
 	  involved, especially when sharing a common bottleneck with normal
@@ -537,7 +537,7 @@ config TCP_CONG_HYBLA
 config TCP_CONG_VEGAS
 	tristate "TCP Vegas"
 	default n
-	---help---
+	help
 	  TCP Vegas is a sender-side only change to TCP that anticipates
 	  the onset of congestion by estimating the bandwidth. TCP Vegas
 	  adjusts the sending rate by modifying the congestion
@@ -547,7 +547,7 @@ config TCP_CONG_VEGAS
 config TCP_CONG_NV
 	tristate "TCP NV"
 	default n
-	---help---
+	help
 	  TCP NV is a follow up to TCP Vegas. It has been modified to deal with
 	  10G networks, measurement noise introduced by LRO, GRO and interrupt
 	  coalescence. In addition, it will decrease its cwnd multiplicatively
@@ -563,7 +563,7 @@ config TCP_CONG_NV
 config TCP_CONG_SCALABLE
 	tristate "Scalable TCP"
 	default n
-	---help---
+	help
 	  Scalable TCP is a sender-side only change to TCP which uses a
 	  MIMD congestion control algorithm which has some nice scaling
 	  properties, though is known to have fairness issues.
@@ -572,7 +572,7 @@ config TCP_CONG_SCALABLE
 config TCP_CONG_LP
 	tristate "TCP Low Priority"
 	default n
-	---help---
+	help
 	  TCP Low Priority (TCP-LP), a distributed algorithm whose goal is
 	  to utilize only the excess network bandwidth as compared to the
 	  ``fair share`` of bandwidth as targeted by TCP.
@@ -581,7 +581,7 @@ config TCP_CONG_LP
 config TCP_CONG_VENO
 	tristate "TCP Veno"
 	default n
-	---help---
+	help
 	  TCP Veno is a sender-side only enhancement of TCP to obtain better
 	  throughput over wireless networks. TCP Veno makes use of state
 	  distinguishing to circumvent the difficult judgment of the packet loss
@@ -593,7 +593,7 @@ config TCP_CONG_YEAH
 	tristate "YeAH TCP"
 	select TCP_CONG_VEGAS
 	default n
-	---help---
+	help
 	  YeAH-TCP is a sender-side high-speed enabled TCP congestion control
 	  algorithm, which uses a mixed loss/delay approach to compute the
 	  congestion window. It's design goals target high efficiency,
@@ -606,7 +606,7 @@ config TCP_CONG_YEAH
 config TCP_CONG_ILLINOIS
 	tristate "TCP Illinois"
 	default n
-	---help---
+	help
 	  TCP-Illinois is a sender-side modification of TCP Reno for
 	  high speed long delay links. It uses round-trip-time to
 	  adjust the alpha and beta parameters to achieve a higher average
@@ -618,7 +618,7 @@ config TCP_CONG_ILLINOIS
 config TCP_CONG_DCTCP
 	tristate "DataCenter TCP (DCTCP)"
 	default n
-	---help---
+	help
 	  DCTCP leverages Explicit Congestion Notification (ECN) in the network to
 	  provide multi-bit feedback to the end hosts. It is designed to provide:
 
@@ -639,7 +639,7 @@ config TCP_CONG_DCTCP
 config TCP_CONG_CDG
 	tristate "CAIA Delay-Gradient (CDG)"
 	default n
-	---help---
+	help
 	  CAIA Delay-Gradient (CDG) is a TCP congestion control that modifies
 	  the TCP sender in order to:
 
@@ -655,7 +655,7 @@ config TCP_CONG_CDG
 config TCP_CONG_BBR
 	tristate "BBR TCP"
 	default n
-	---help---
+	help
 
 	  BBR (Bottleneck Bandwidth and RTT) TCP congestion control aims to
 	  maximize network utilization and minimize queues. It builds an explicit
@@ -734,7 +734,7 @@ config TCP_MD5SIG
 	bool "TCP: MD5 Signature Option support (RFC2385)"
 	select CRYPTO
 	select CRYPTO_MD5
-	---help---
+	help
 	  RFC2385 specifies a method of giving MD5 protection to TCP sessions.
 	  Its main (only?) use is to protect BGP sessions between core routers
 	  on the Internet.
