@@ -69,6 +69,18 @@
 		pinctrl-0 = <&touchkey_vdd_ena>;
 	};
 
+	gp2a_vled: regulator-fixed-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "VLED";
+		enable-active-high;
+		gpio = <&gpj1 4 GPIO_ACTIVE_HIGH>;
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gp2a_power>;
+	};
+
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpg1 2 GPIO_ACTIVE_LOW>;
@@ -468,9 +480,21 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&prox_i2c_pins>;
 
-		status = "disabled";
+		light-sensor@44 {
+			compatible = "sharp,gp2ap002a00f";
+			reg = <0x44>;
+			interrupt-parent = <&gph0>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
+			vdd-supply = <&gp2a_vled>;
+			vio-supply = <&gp2a_vled>;
+			io-channels = <&gp2a_shunt>;
+			io-channel-names = "alsout";
+			sharp,proximity-far-hysteresis = /bits/ 8 <0x40>;
+			sharp,proximity-close-hysteresis = /bits/ 8 <0x20>;
 
-		/* Sharp gp2a prox/light sensor, incomplete mainline binding */
+			pinctrl-names = "default";
+			pinctrl-0 = <&gp2a_irq>;
+		};
 	};
 
 	i2c_magnetometer: i2c-gpio-7 {
@@ -543,6 +567,14 @@
 	vdd-supply = <&ldo4_reg>;
 
 	status = "okay";
+
+	gp2a_shunt: current-sense-shunt {
+		compatible = "current-sense-shunt";
+		io-channels = <&adc 9>;
+		shunt-resistor-micro-ohms = <47000000>; /* 47 ohms */
+		#io-channel-cells = <0>;
+		io-channel-ranges;
+	};
 };
 
 &fimd {
@@ -618,6 +650,13 @@
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
+	gp2a_irq: gp2a-irq {
+		samsung,pins = "gph0-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	pmic_dvs_pins: pmic-dvs-pins {
 		samsung,pins = "gph0-3", "gph0-4", "gph0-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
@@ -682,6 +721,13 @@
 
 	vibrator_ena: vibrator-ena {
 		samsung,pins = "gpj1-1";
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	gp2a_power: gp2a-power {
+		samsung,pins = "gpj1-4";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
