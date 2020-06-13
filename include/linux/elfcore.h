@@ -104,13 +104,6 @@ static inline int elf_core_copy_task_fpregs(struct task_struct *t, struct pt_reg
 #endif
 }
 
-#ifdef ELF_CORE_COPY_XFPREGS
-static inline int elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregset_t *xfpu)
-{
-	return ELF_CORE_COPY_XFPREGS(t, xfpu);
-}
-#endif
-
 /*
  * These functions parameterize elf_core_dump in fs/binfmt_elf.c to write out
  * extra segments containing the gate DSO contents.  Dumping its
