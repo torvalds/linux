@@ -165,6 +165,7 @@ static void afs_apply_status(struct afs_operation *op,
 {
 	struct afs_file_status *status = &vp->scb.status;
 	struct afs_vnode *vnode = vp->vnode;
+	struct inode *inode = &vnode->vfs_inode;
 	struct timespec64 t;
 	umode_t mode;
 	bool data_changed = false;
@@ -187,25 +188,25 @@ static void afs_apply_status(struct afs_operation *op,
 	}
 
 	if (status->nlink != vnode->status.nlink)
-		set_nlink(&vnode->vfs_inode, status->nlink);
+		set_nlink(inode, status->nlink);
 
 	if (status->owner != vnode->status.owner)
-		vnode->vfs_inode.i_uid = make_kuid(&init_user_ns, status->owner);
+		inode->i_uid = make_kuid(&init_user_ns, status->owner);
 
 	if (status->group != vnode->status.group)
-		vnode->vfs_inode.i_gid = make_kgid(&init_user_ns, status->group);
+		inode->i_gid = make_kgid(&init_user_ns, status->group);
 
 	if (status->mode != vnode->status.mode) {
-		mode = vnode->vfs_inode.i_mode;
+		mode = inode->i_mode;
 		mode &= ~S_IALLUGO;
 		mode |= status->mode;
-		WRITE_ONCE(vnode->vfs_inode.i_mode, mode);
+		WRITE_ONCE(inode->i_mode, mode);
 	}
 
 	t = status->mtime_client;
-	vnode->vfs_inode.i_ctime = t;
-	vnode->vfs_inode.i_mtime = t;
-	vnode->vfs_inode.i_atime = t;
+	inode->i_mtime = t;
+	if (vp->update_ctime)
+		inode->i_ctime = op->ctime;
 
 	if (vnode->status.data_version != status->data_version)
 		data_changed = true;
@@ -239,15 +240,18 @@ static void afs_apply_status(struct afs_operation *op,
 	}
 
 	if (data_changed) {
-		inode_set_iversion_raw(&vnode->vfs_inode, status->data_version);
+		inode_set_iversion_raw(inode, status->data_version);
 
 		/* Only update the size if the data version jumped.  If the
 		 * file is being modified locally, then we might have our own
 		 * idea of what the size should be that's not the same as
 		 * what's on the server.
 		 */
-		if (change_size)
+		if (change_size) {
 			afs_set_i_size(vnode, status->size);
+			inode->i_ctime = t;
+			inode->i_atime = t;
+		}
 	}
 }
 
@@ -817,7 +821,8 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 	       attr->ia_valid);
 
 	if (!(attr->ia_valid & (ATTR_SIZE | ATTR_MODE | ATTR_UID | ATTR_GID |
-				ATTR_MTIME))) {
+				ATTR_MTIME | ATTR_MTIME_SET | ATTR_TIMES_SET |
+				ATTR_TOUCH))) {
 		_leave(" = 0 [unsupported]");
 		return 0;
 	}
@@ -837,6 +842,8 @@ int afs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (attr->ia_valid & ATTR_SIZE)
 		op->file[0].dv_delta = 1;
+	op->ctime = attr->ia_ctime;
+	op->file[0].update_ctime = 1;
 
 	op->ops = &afs_setattr_operation;
 	return afs_do_sync_operation(op);

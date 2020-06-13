@@ -393,6 +393,7 @@ static void afs_store_data_success(struct afs_operation *op)
 {
 	struct afs_vnode *vnode = op->file[0].vnode;
 
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
 	if (op->error == 0) {
 		afs_pages_written_back(vnode, op->store.first, op->store.last);

@@ -1268,6 +1268,7 @@ static void afs_vnode_new_inode(struct afs_operation *op)
 static void afs_create_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_check_for_remote_deletion(op, op->file[0].vnode);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
@@ -1325,6 +1326,7 @@ static int afs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 	op->dentry	= dentry;
 	op->create.mode	= S_IFDIR | mode;
 	op->create.reason = afs_edit_dir_for_mkdir;
@@ -1350,6 +1352,7 @@ static void afs_dir_remove_subdir(struct dentry *dentry)
 static void afs_rmdir_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_check_for_remote_deletion(op, op->file[0].vnode);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
@@ -1404,6 +1407,7 @@ static int afs_rmdir(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
 	op->ops		= &afs_rmdir_operation;
@@ -1479,6 +1483,7 @@ static void afs_dir_remove_link(struct afs_operation *op)
 static void afs_unlink_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_check_for_remote_deletion(op, op->file[0].vnode);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[1]);
@@ -1537,6 +1542,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	/* Try to make sure we have a callback promise on the victim. */
 	ret = afs_validate(vnode, op->key);
@@ -1561,6 +1567,7 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 
 	op->file[1].vnode = vnode;
+	op->file[1].update_ctime = true;
 	op->dentry	= dentry;
 	op->ops		= &afs_unlink_operation;
 	return afs_do_sync_operation(op);
@@ -1601,6 +1608,7 @@ static int afs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	afs_op_set_vnode(op, 0, dvnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
 
 	op->dentry	= dentry;
 	op->create.mode	= S_IFREG | mode;
@@ -1620,6 +1628,7 @@ static void afs_link_success(struct afs_operation *op)
 	struct afs_vnode_param *vp = &op->file[1];
 
 	_enter("op=%08x", op->debug_id);
+	op->ctime = dvp->scb.status.mtime_client;
 	afs_vnode_commit_status(op, dvp);
 	afs_vnode_commit_status(op, vp);
 	afs_update_dentry_version(op, dvp, op->dentry);
@@ -1672,6 +1681,8 @@ static int afs_link(struct dentry *from, struct inode *dir,
 	afs_op_set_vnode(op, 0, dvnode);
 	afs_op_set_vnode(op, 1, vnode);
 	op->file[0].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry		= dentry;
 	op->dentry_2		= from;
@@ -1740,9 +1751,12 @@ static void afs_rename_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
 
+	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
-	if (op->file[1].vnode != op->file[0].vnode)
+	if (op->file[1].vnode != op->file[0].vnode) {
+		op->ctime = op->file[1].scb.status.mtime_client;
 		afs_vnode_commit_status(op, &op->file[1]);
+	}
 }
 
 static void afs_rename_edit_dir(struct afs_operation *op)
@@ -1860,6 +1874,8 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	afs_op_set_vnode(op, 1, new_dvnode); /* May be same as orig_dvnode */
 	op->file[0].dv_delta = 1;
 	op->file[1].dv_delta = 1;
+	op->file[0].update_ctime = true;
+	op->file[1].update_ctime = true;
 
 	op->dentry		= old_dentry;
 	op->dentry_2		= new_dentry;

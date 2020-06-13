@@ -746,6 +746,7 @@ struct afs_vnode_param {
 	u8			dv_delta;	/* Expected change in data version */
 	bool			put_vnode;	/* T if we have a ref on the vnode */
 	bool			need_io_lock;	/* T if we need the I/O lock on this */
+	bool			update_ctime;	/* Need to update the ctime */
 };
 
 /*
@@ -766,6 +767,7 @@ struct afs_operation {
 	struct dentry		*dentry;	/* Dentry to be altered */
 	struct dentry		*dentry_2;	/* Second dentry to be altered */
 	struct timespec64	mtime;		/* Modification time to record */
+	struct timespec64	ctime;		/* Change time to set */
 	short			nr_files;	/* Number of entries in file[], more_files */
 	short			error;
 	unsigned int		abort_code;
