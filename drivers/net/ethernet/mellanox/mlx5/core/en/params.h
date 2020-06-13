@@ -11,18 +11,6 @@ struct mlx5e_xsk_param {
 	u16 chunk_size;
 };
 
-struct mlx5e_rq_param {
-	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
-	struct mlx5_wq_param       wq;
-	struct mlx5e_rq_frags_info frags_info;
-};
-
-struct mlx5e_sq_param {
-	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
-	struct mlx5_wq_param       wq;
-	bool                       is_mpw;
-};
-
 struct mlx5e_cq_param {
 	u32                        cqc[MLX5_ST_SZ_DW(cqc)];
 	struct mlx5_wq_param       wq;
@@ -30,14 +18,26 @@ struct mlx5e_cq_param {
 	u8                         cq_period_mode;
 };
 
+struct mlx5e_rq_param {
+	struct mlx5e_cq_param      cqp;
+	u32                        rqc[MLX5_ST_SZ_DW(rqc)];
+	struct mlx5_wq_param       wq;
+	struct mlx5e_rq_frags_info frags_info;
+};
+
+struct mlx5e_sq_param {
+	struct mlx5e_cq_param      cqp;
+	u32                        sqc[MLX5_ST_SZ_DW(sqc)];
+	struct mlx5_wq_param       wq;
+	bool                       is_mpw;
+};
+
 struct mlx5e_channel_param {
 	struct mlx5e_rq_param      rq;
-	struct mlx5e_sq_param      sq;
+	struct mlx5e_sq_param      txq_sq;
 	struct mlx5e_sq_param      xdp_sq;
 	struct mlx5e_sq_param      icosq;
-	struct mlx5e_cq_param      rx_cq;
-	struct mlx5e_cq_param      tx_cq;
-	struct mlx5e_cq_param      icosq_cq;
+	struct mlx5e_sq_param      async_icosq;
 };
 
 static inline bool mlx5e_qid_get_ch_if_in_group(struct mlx5e_params *params,

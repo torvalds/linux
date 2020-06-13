@@ -41,8 +41,6 @@ static void mlx5e_build_xsk_cparam(struct mlx5e_priv *priv,
 {
 	mlx5e_build_rq_param(priv, params, xsk, &cparam->rq);
 	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
-	mlx5e_build_rx_cq_param(priv, params, xsk, &cparam->rx_cq);
-	mlx5e_build_tx_cq_param(priv, params, &cparam->tx_cq);
 }
 
 int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
@@ -61,7 +59,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 
 	mlx5e_build_xsk_cparam(priv, params, xsk, cparam);
 
-	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam->rx_cq, &c->xskrq.cq);
+	err = mlx5e_open_cq(c, params->rx_cq_moderation, &cparam->rq.cqp, &c->xskrq.cq);
 	if (unlikely(err))
 		goto err_free_cparam;
 
@@ -69,7 +67,7 @@ int mlx5e_open_xsk(struct mlx5e_priv *priv, struct mlx5e_params *params,
 	if (unlikely(err))
 		goto err_close_rx_cq;
 
-	err = mlx5e_open_cq(c, params->tx_cq_moderation, &cparam->tx_cq, &c->xsksq.cq);
+	err = mlx5e_open_cq(c, params->tx_cq_moderation, &cparam->xdp_sq.cqp, &c->xsksq.cq);
 	if (unlikely(err))
 		goto err_close_rq;
 
