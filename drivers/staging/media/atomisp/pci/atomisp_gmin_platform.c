@@ -26,6 +26,9 @@ enum clock_rate {
 #define CLK_RATE_19_2MHZ	19200000
 #define CLK_RATE_25_0MHZ	25000000
 
+/* Valid clock number range from 0 to 5 */
+#define MAX_CLK_COUNT                   5
+
 /* X-Powers AXP288 register set */
 #define ALDO1_SEL_REG	0x28
 #define ALDO1_CTRL3_REG	0x13
@@ -61,7 +64,6 @@ enum clock_rate {
 
 struct gmin_subdev {
 	struct v4l2_subdev *subdev;
-	int clock_num;
 	enum clock_rate clock_src;
 	bool clock_on;
 	struct clk *pmc_clk;
@@ -447,7 +449,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	struct acpi_device *adev;
 	acpi_handle handle;
 	struct device *dev;
-	int i, ret;
+	int i, ret, clock_num;
 
 	if (!client)
 		return NULL;
@@ -492,17 +494,37 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	}
 
 	gmin_subdevs[i].subdev = subdev;
-	gmin_subdevs[i].clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
+
 	/*WA:CHT requires XTAL clock as PLL is not stable.*/
 	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, false, "ClkSrc",
 				    VLV2_CLK_PLL_19P2MHZ);
 	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
 	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
 
-	/* get PMC clock with clock framework */
-	snprintf(gmin_pmc_clk_name,
-		 sizeof(gmin_pmc_clk_name),
-		 "%s_%d", "pmc_plt_clk", gmin_subdevs[i].clock_num);
+	/*
+	 * FIXME:
+	 *
+	 * According with :
+	 *   https://github.com/projectceladon/hardware-intel-kernelflinger/blob/master/doc/fastboot.md
+	 *
+	 * The "CamClk" EFI var is set via fastboot on some Android devices,
+	 * and seems to contain the number of the clock used to feed the
+	 * sensor.
+	 *
+	 * On systems with a proper ACPI table, this is given via the _PR0
+	 * power resource table. The logic below should first check if there
+	 * is a power resource already, falling back to the EFI vars detection
+	 * otherwise.
+	 */
+	clock_num = gmin_get_var_int(dev, false, "CamClk", -1);
+
+	if (clock_num < 0 || clock_num > MAX_CLK_COUNT) {
+		dev_err(dev, "Invalid clock number\n");
+		return NULL;
+	}
+
+	snprintf(gmin_pmc_clk_name, sizeof(gmin_pmc_clk_name),
+		 "%s_%d", "pmc_plt_clk", clock_num);
 
 	gmin_subdevs[i].pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
 	if (IS_ERR(gmin_subdevs[i].pmc_clk)) {
@@ -515,6 +537,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 
 		return NULL;
 	}
+	dev_info(dev, "Will use CLK%d (%s)\n", clock_num, gmin_pmc_clk_name);
 
 	/*
 	 * The firmware might enable the clock at
@@ -956,6 +979,18 @@ static int gmin_get_config_dsm_var(struct device *dev,
 	acpi_handle handle = ACPI_HANDLE(dev);
 	union acpi_object *obj, *cur = NULL;
 	int i;
+
+	/*
+	 * The data reported by "CamClk" seems to be either 0 or 1 at the
+	 * _DSM table.
+	 *
+	 * At the ACPI tables we looked so far, this is not related to the
+	 * actual clock source for the sensor, which is given by the
+	 * _PR0 ACPI table. So, ignore it, as otherwise this will be
+	 * set to a wrong value.
+	 */
+	if (!strcmp(var, "CamClk"))
+		return -EINVAL;
 
 	obj = acpi_evaluate_dsm(handle, &atomisp_dsm_guid, 0, 0, NULL);
 	if (!obj) {
