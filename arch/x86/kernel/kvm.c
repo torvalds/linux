@@ -217,7 +217,7 @@ again:
 }
 EXPORT_SYMBOL_GPL(kvm_async_pf_task_wake);
 
-u32 kvm_read_and_reset_apf_flags(void)
+noinstr u32 kvm_read_and_reset_apf_flags(void)
 {
 	u32 flags = 0;
 
@@ -229,11 +229,11 @@ u32 kvm_read_and_reset_apf_flags(void)
 	return flags;
 }
 EXPORT_SYMBOL_GPL(kvm_read_and_reset_apf_flags);
-NOKPROBE_SYMBOL(kvm_read_and_reset_apf_flags);
 
-bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
+noinstr bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 {
 	u32 reason = kvm_read_and_reset_apf_flags();
+	bool rcu_exit;
 
 	switch (reason) {
 	case KVM_PV_REASON_PAGE_NOT_PRESENT:
@@ -242,6 +242,9 @@ bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 	default:
 		return false;
 	}
+
+	rcu_exit = idtentry_enter_cond_rcu(regs);
+	instrumentation_begin();
 
 	/*
 	 * If the host managed to inject an async #PF into an interrupt
@@ -257,13 +260,13 @@ bool __kvm_handle_async_pf(struct pt_regs *regs, u32 token)
 		/* Page is swapped out by the host. */
 		kvm_async_pf_task_wait_schedule(token);
 	} else {
-		rcu_irq_enter();
 		kvm_async_pf_task_wake(token);
-		rcu_irq_exit();
 	}
+
+	instrumentation_end();
+	idtentry_exit_cond_rcu(regs, rcu_exit);
 	return true;
 }
-NOKPROBE_SYMBOL(__kvm_handle_async_pf);
 
 static void __init paravirt_ops_setup(void)
 {

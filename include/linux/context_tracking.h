@@ -33,13 +33,13 @@ static inline void user_exit(void)
 }
 
 /* Called with interrupts disabled.  */
-static inline void user_enter_irqoff(void)
+static __always_inline void user_enter_irqoff(void)
 {
 	if (context_tracking_enabled())
 		__context_tracking_enter(CONTEXT_USER);
 
 }
-static inline void user_exit_irqoff(void)
+static __always_inline void user_exit_irqoff(void)
 {
 	if (context_tracking_enabled())
 		__context_tracking_exit(CONTEXT_USER);
@@ -75,7 +75,7 @@ static inline void exception_exit(enum ctx_state prev_ctx)
  * is enabled.  If context tracking is disabled, returns
  * CONTEXT_DISABLED.  This should be used primarily for debugging.
  */
-static inline enum ctx_state ct_state(void)
+static __always_inline enum ctx_state ct_state(void)
 {
 	return context_tracking_enabled() ?
 		this_cpu_read(context_tracking.state) : CONTEXT_DISABLED;

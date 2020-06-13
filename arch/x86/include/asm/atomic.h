@@ -205,13 +205,13 @@ static __always_inline bool arch_atomic_try_cmpxchg(atomic_t *v, int *old, int n
 }
 #define arch_atomic_try_cmpxchg arch_atomic_try_cmpxchg
 
-static inline int arch_atomic_xchg(atomic_t *v, int new)
+static __always_inline int arch_atomic_xchg(atomic_t *v, int new)
 {
 	return arch_xchg(&v->counter, new);
 }
 #define arch_atomic_xchg arch_atomic_xchg
 
-static inline void arch_atomic_and(int i, atomic_t *v)
+static __always_inline void arch_atomic_and(int i, atomic_t *v)
 {
 	asm volatile(LOCK_PREFIX "andl %1,%0"
 			: "+m" (v->counter)
@@ -219,7 +219,7 @@ static inline void arch_atomic_and(int i, atomic_t *v)
 			: "memory");
 }
 
-static inline int arch_atomic_fetch_and(int i, atomic_t *v)
+static __always_inline int arch_atomic_fetch_and(int i, atomic_t *v)
 {
 	int val = arch_atomic_read(v);
 
@@ -229,7 +229,7 @@ static inline int arch_atomic_fetch_and(int i, atomic_t *v)
 }
 #define arch_atomic_fetch_and arch_atomic_fetch_and
 
-static inline void arch_atomic_or(int i, atomic_t *v)
+static __always_inline void arch_atomic_or(int i, atomic_t *v)
 {
 	asm volatile(LOCK_PREFIX "orl %1,%0"
 			: "+m" (v->counter)
@@ -237,7 +237,7 @@ static inline void arch_atomic_or(int i, atomic_t *v)
 			: "memory");
 }
 
-static inline int arch_atomic_fetch_or(int i, atomic_t *v)
+static __always_inline int arch_atomic_fetch_or(int i, atomic_t *v)
 {
 	int val = arch_atomic_read(v);
 
@@ -247,7 +247,7 @@ static inline int arch_atomic_fetch_or(int i, atomic_t *v)
 }
 #define arch_atomic_fetch_or arch_atomic_fetch_or
 
-static inline void arch_atomic_xor(int i, atomic_t *v)
+static __always_inline void arch_atomic_xor(int i, atomic_t *v)
 {
 	asm volatile(LOCK_PREFIX "xorl %1,%0"
 			: "+m" (v->counter)
@@ -255,7 +255,7 @@ static inline void arch_atomic_xor(int i, atomic_t *v)
 			: "memory");
 }
 
-static inline int arch_atomic_fetch_xor(int i, atomic_t *v)
+static __always_inline int arch_atomic_fetch_xor(int i, atomic_t *v)
 {
 	int val = arch_atomic_read(v);
 
