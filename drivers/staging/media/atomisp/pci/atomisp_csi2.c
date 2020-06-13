@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -384,9 +385,9 @@ static void atomisp_csi2_configure_isp2401(struct atomisp_sub_device *asd)
 	for (n = 0; n < csi2_port_lanes[port] + 1; n++) {
 		hrt_address base = csi2_port_base[port] + csi2_lane_base[n];
 
-		atomisp_store_uint32(base + CSI2_REG_RX_CSI_DLY_CNT_TERMEN,
+		atomisp_css2_hw_store_32(base + CSI2_REG_RX_CSI_DLY_CNT_TERMEN,
 				     n == 0 ? clk_termen : dat_termen);
-		atomisp_store_uint32(base + CSI2_REG_RX_CSI_DLY_CNT_SETTLE,
+		atomisp_css2_hw_store_32(base + CSI2_REG_RX_CSI_DLY_CNT_SETTLE,
 				     n == 0 ? clk_settle : dat_settle);
 	}
 }

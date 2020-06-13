@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Kconfig for sensor drivers
 #
@@ -57,7 +58,7 @@ config VIDEO_ATOMISP_GC0310
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Galaxycore
 	  GC0310 0.3MP sensor.
-	 
+
 config VIDEO_ATOMISP_OV2680
        tristate "Omnivision OV2680 sensor support"
 	depends on ACPI

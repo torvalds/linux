@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -19,35 +20,6 @@
 
 /* for ia_css_binary_max_vf_width() */
 #include "ia_css_binary.h"
-
-enum ia_css_err ia_css_convert_errno(
-    int in_err)
-{
-	enum ia_css_err out_err;
-
-	switch (in_err) {
-	case 0:
-		out_err = IA_CSS_SUCCESS;
-		break;
-	case EINVAL:
-		out_err = IA_CSS_ERR_INVALID_ARGUMENTS;
-		break;
-	case ENODATA:
-		out_err = IA_CSS_ERR_QUEUE_IS_EMPTY;
-		break;
-	case ENOSYS:
-	case ENOTSUP:
-		out_err = IA_CSS_ERR_INTERNAL_ERROR;
-		break;
-	case ENOBUFS:
-		out_err = IA_CSS_ERR_QUEUE_IS_FULL;
-		break;
-	default:
-		out_err = IA_CSS_ERR_INTERNAL_ERROR;
-		break;
-	}
-	return out_err;
-}
 
 /* MW: Table look-up ??? */
 unsigned int ia_css_util_input_format_bpp(
@@ -113,49 +85,49 @@ unsigned int ia_css_util_input_format_bpp(
 	return rval;
 }
 
-enum ia_css_err ia_css_util_check_vf_info(
+int ia_css_util_check_vf_info(
     const struct ia_css_frame_info *const info)
 {
-	enum ia_css_err err;
+	int err;
 	unsigned int max_vf_width;
 
 	assert(info);
 	err = ia_css_frame_check_info(info);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 	max_vf_width = ia_css_binary_max_vf_width();
 	if (max_vf_width != 0 && info->res.width > max_vf_width * 2)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
-	return IA_CSS_SUCCESS;
+		return -EINVAL;
+	return 0;
 }
 
-enum ia_css_err ia_css_util_check_vf_out_info(
+int ia_css_util_check_vf_out_info(
     const struct ia_css_frame_info *const out_info,
     const struct ia_css_frame_info *const vf_info)
 {
-	enum ia_css_err err;
+	int err;
 
 	assert(out_info);
 	assert(vf_info);
 
 	err = ia_css_frame_check_info(out_info);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
 	err = ia_css_util_check_vf_info(vf_info);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		return err;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err ia_css_util_check_res(unsigned int width, unsigned int height)
+int ia_css_util_check_res(unsigned int width, unsigned int height)
 {
 	/* height can be odd number for jpeg/embedded data from ISYS2401 */
 	if (((width  == 0)   ||
 	     (height == 0)   ||
 	     IS_ODD(width))) {
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 /* ISP2401 */
@@ -200,7 +172,7 @@ bool ia_css_util_is_input_format_yuv(enum atomisp_input_format format)
 	       format == ATOMISP_INPUT_FORMAT_YUV422_16;
 }
 
-enum ia_css_err ia_css_util_check_input(
+int ia_css_util_check_input(
     const struct ia_css_stream_config *const stream_config,
     bool must_be_raw,
     bool must_be_yuv)
@@ -208,18 +180,18 @@ enum ia_css_err ia_css_util_check_input(
 	assert(stream_config);
 
 	if (!stream_config)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	if (stream_config->input_config.effective_res.width == 0 ||
 	    stream_config->input_config.effective_res.height == 0)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	if (must_be_raw &&
 	    !ia_css_util_is_input_format_raw(stream_config->input_config.format))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	if (must_be_yuv &&
 	    !ia_css_util_is_input_format_yuv(stream_config->input_config.format))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

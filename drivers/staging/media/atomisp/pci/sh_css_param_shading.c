@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -360,12 +361,13 @@ ia_css_shading_table_alloc(
 	me->fraction_bits = 0;
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
 		me->data[i] =
-		    sh_css_malloc(width * height * sizeof(*me->data[0]));
+		    kvmalloc(width * height * sizeof(*me->data[0]),
+			     GFP_KERNEL);
 		if (!me->data[i]) {
 			unsigned int j;
 
 			for (j = 0; j < i; j++) {
-				sh_css_free(me->data[j]);
+				kvfree(me->data[j]);
 				me->data[j] = NULL;
 			}
 			kfree(me);
@@ -392,7 +394,7 @@ ia_css_shading_table_free(struct ia_css_shading_table *table)
 
 	for (i = 0; i < IA_CSS_SC_NUM_COLORS; i++) {
 		if (table->data[i]) {
-			sh_css_free(table->data[i]);
+			kvfree(table->data[i]);
 			table->data[i] = NULL;
 		}
 	}

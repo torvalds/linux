@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -36,8 +37,8 @@ struct ia_css_fw {
  *				printing.
  * @param[in]	fw		Firmware package containing the firmware for all
  *				predefined ISP binaries.
- * @return			Returns IA_CSS_ERR_INTERNAL_ERROR in case of any
- *				errors and IA_CSS_SUCCESS otherwise.
+ * @return			Returns -EINVAL in case of any
+ *				errors and 0 otherwise.
  *
  * This function interprets the firmware package. All
  * contents of this firmware package are copied into local data structures, so
@@ -47,7 +48,7 @@ struct ia_css_fw {
  * speeds up ia_css_init (ia_css_init is called each time a stream is created but the
  * firmware only needs to be loaded once).
  */
-enum ia_css_err
+int
 ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 		     const struct ia_css_fw  *fw);
 

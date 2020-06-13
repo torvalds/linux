@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -12,8 +13,8 @@
  * more details.
  */
 
-#ifndef _HIVE_ISP_CSS_2401_IRQ_TYPES_HRT_H_
-#define _HIVE_ISP_CSS_2401_IRQ_TYPES_HRT_H_
+#ifndef _HIVE_ISP_CSS_IRQ_TYPES_HRT_H_
+#define _HIVE_ISP_CSS_IRQ_TYPES_HRT_H_
 
 /*
  * These are the indices of each interrupt in the interrupt
@@ -43,7 +44,7 @@ typedef enum hrt_isp_css_irq {
 	hrt_isp_css_irq_sp_stream_mon        = HIVE_GP_DEV_IRQ_SP_STREAM_MON_BIT_ID,
 	hrt_isp_css_irq_isp_stream_mon       = HIVE_GP_DEV_IRQ_ISP_STREAM_MON_BIT_ID,
 	hrt_isp_css_irq_mod_stream_mon       = HIVE_GP_DEV_IRQ_MOD_STREAM_MON_BIT_ID,
-	hrt_isp_css_irq_is2401               = HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
+	hrt_isp_css_irq_isp_pmem_error       = HIVE_GP_DEV_IRQ_ISP_PMEM_ERROR_BIT_ID,
 	hrt_isp_css_irq_isp_bamem_error      = HIVE_GP_DEV_IRQ_ISP_BAMEM_ERROR_BIT_ID,
 	hrt_isp_css_irq_isp_dmem_error       = HIVE_GP_DEV_IRQ_ISP_DMEM_ERROR_BIT_ID,
 	hrt_isp_css_irq_sp_icache_mem_error  = HIVE_GP_DEV_IRQ_SP_ICACHE_MEM_ERROR_BIT_ID,
@@ -65,4 +66,4 @@ typedef enum hrt_isp_css_irq_status {
 	hrt_isp_css_irq_status_success
 } hrt_isp_css_irq_status_t;
 
-#endif /* _HIVE_ISP_CSS_2401_IRQ_TYPES_HRT_H_ */
+#endif /* _HIVE_ISP_CSS_IRQ_TYPES_HRT_H_ */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -19,27 +20,6 @@
  * This file contains possible return values for most
  * functions in the CSS-API.
  */
-
-/* Errors, these values are used as the return value for most
- *  functions in this API.
- */
-enum ia_css_err {
-	IA_CSS_SUCCESS,
-	IA_CSS_ERR_INTERNAL_ERROR,
-	IA_CSS_ERR_CANNOT_ALLOCATE_MEMORY,
-	IA_CSS_ERR_INVALID_ARGUMENTS,
-	IA_CSS_ERR_SYSTEM_NOT_IDLE,
-	IA_CSS_ERR_MODE_HAS_NO_VIEWFINDER,
-	IA_CSS_ERR_QUEUE_IS_FULL,
-	IA_CSS_ERR_QUEUE_IS_EMPTY,
-	IA_CSS_ERR_RESOURCE_NOT_AVAILABLE,
-	IA_CSS_ERR_RESOURCE_LIST_TO_SMALL,
-	IA_CSS_ERR_RESOURCE_ITEMS_STILL_ALLOCATED,
-	IA_CSS_ERR_RESOURCE_EXHAUSTED,
-	IA_CSS_ERR_RESOURCE_ALREADY_ALLOCATED,
-	IA_CSS_ERR_VERSION_MISMATCH,
-	IA_CSS_ERR_NOT_SUPPORTED
-};
 
 /* FW warnings. This enum contains a value for each warning that
  * the SP FW could indicate potential performance issue

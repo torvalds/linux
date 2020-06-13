@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -24,8 +25,8 @@
 int atomisp_q_video_buffers_to_css(struct atomisp_sub_device *asd,
 				   struct atomisp_video_pipe *pipe,
 				   enum atomisp_input_stream_id stream_id,
-				   enum atomisp_css_buffer_type css_buf_type,
-				   enum atomisp_css_pipe_id css_pipe_id);
+				   enum ia_css_buffer_type css_buf_type,
+				   enum ia_css_pipe_id css_pipe_id);
 
 unsigned int atomisp_dev_users(struct atomisp_device *isp);
 unsigned int atomisp_sub_dev_users(struct atomisp_sub_device *asd);

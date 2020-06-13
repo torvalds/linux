@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -31,7 +32,7 @@ ia_css_ref_config(
 void
 ia_css_ref_configure(
     const struct ia_css_binary     *binary,
-    const struct ia_css_frame **ref_frames,
+    const struct ia_css_frame * const *ref_frames,
     const uint32_t dvs_frame_delay);
 
 void

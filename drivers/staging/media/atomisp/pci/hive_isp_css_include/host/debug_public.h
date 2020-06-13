@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -16,7 +17,8 @@
 #define __DEBUG_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#include "system_types.h"
+#include <ia_css_types.h>
+#include "system_local.h"
 
 /*! brief
  *
@@ -42,7 +44,7 @@ typedef struct debug_data_ddr_s	debug_data_ddr_t;
 
 extern debug_data_t				*debug_data_ptr;
 extern hrt_address				debug_buffer_address;
-extern hrt_vaddress				debug_buffer_ddr_address;
+extern ia_css_ptr				debug_buffer_ddr_address;
 
 /*! Check the empty state of the local debug data buffer
 
@@ -86,7 +88,7 @@ void debug_buffer_init(
  \return none
  */
 void debug_buffer_ddr_init(
-    const hrt_vaddress		addr);
+    const ia_css_ptr		addr);
 
 /*! Set the (remote) operating mode of the debug buffer
 

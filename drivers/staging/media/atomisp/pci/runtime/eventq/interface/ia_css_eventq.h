@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -23,8 +24,8 @@
  * @param[in]	eventq_handle	eventq_handle.
  * @param[in]	payload		The event payload.
  * @return	0		- Successfully dequeue.
- * @return	EINVAL		- Invalid argument.
- * @return	ENODATA		- Queue is empty.
+ * @return	-EINVAL		- Invalid argument.
+ * @return	-ENODATA		- Queue is empty.
  */
 int ia_css_eventq_recv(
     ia_css_queue_t *eventq_handle,
@@ -41,8 +42,8 @@ int ia_css_eventq_recv(
  * @param[in]	evt_payload_1	The event payload.
  * @param[in]	evt_payload_2	The event payload.
  * @return	0		- Successfully enqueue.
- * @return	EINVAL		- Invalid argument.
- * @return	ENOBUFS		- Queue is full.
+ * @return	-EINVAL		- Invalid argument.
+ * @return	-ENOBUFS		- Queue is full.
  */
 int ia_css_eventq_send(
     ia_css_queue_t *eventq_handle,

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for GalaxyCore GC0310 VGA camera sensor.
  *
