@@ -985,7 +985,6 @@ static int cpcap_adc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&ddata->wq_data_avail);
 
 	indio_dev->modes = INDIO_DIRECT_MODE | INDIO_BUFFER_SOFTWARE;
-	indio_dev->dev.of_node = pdev->dev.of_node;
 	indio_dev->channels = cpcap_adc_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cpcap_adc_channels);
 	indio_dev->name = dev_name(&pdev->dev);

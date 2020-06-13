@@ -179,7 +179,6 @@ static int ti_adc_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	indio_dev->info = &ti_adc_info;
-	indio_dev->dev.of_node = spi->dev.of_node;
 	indio_dev->name = TI_ADC_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	spi_set_drvdata(spi, indio_dev);

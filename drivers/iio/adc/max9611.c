@@ -545,7 +545,6 @@ static int max9611_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	indio_dev->dev.of_node	= client->dev.of_node;
 	indio_dev->name		= of_id->data;
 	indio_dev->modes	= INDIO_DIRECT_MODE;
 	indio_dev->info		= &indio_info;

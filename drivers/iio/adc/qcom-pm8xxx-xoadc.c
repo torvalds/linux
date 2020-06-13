@@ -933,7 +933,6 @@ static int pm8xxx_xoadc_probe(struct platform_device *pdev)
 		goto out_disable_vref;
 	}
 
-	indio_dev->dev.of_node = np;
 	indio_dev->name = variant->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &pm8xxx_xoadc_info;
