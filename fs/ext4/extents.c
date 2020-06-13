@@ -693,10 +693,8 @@ void ext4_ext_drop_refs(struct ext4_ext_path *path)
 		return;
 	depth = path->p_depth;
 	for (i = 0; i <= depth; i++, path++) {
-		if (path->p_bh) {
-			brelse(path->p_bh);
-			path->p_bh = NULL;
-		}
+		brelse(path->p_bh);
+		path->p_bh = NULL;
 	}
 }
 

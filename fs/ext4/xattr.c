@@ -1356,8 +1356,7 @@ retry:
 
 	block = 0;
 	while (wsize < bufsize) {
-		if (bh != NULL)
-			brelse(bh);
+		brelse(bh);
 		csize = (bufsize - wsize) > blocksize ? blocksize :
 								bufsize - wsize;
 		bh = ext4_getblk(handle, ea_inode, block, 0);
