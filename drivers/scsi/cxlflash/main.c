@@ -47,9 +47,6 @@ static void process_cmd_err(struct afu_cmd *cmd, struct scsi_cmnd *scp)
 	struct sisl_ioasa *ioasa;
 	u32 resid;
 
-	if (unlikely(!cmd))
-		return;
-
 	ioasa = &(cmd->sa);
 
 	if (ioasa->rc.flags & SISL_RC_FLAGS_UNDERRUN) {
