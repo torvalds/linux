@@ -629,6 +629,13 @@
 };
 
 &pinctrl0 {
+	bt_reset: bt-reset {
+		samsung,pins = "gpb-3";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
 	wlan_bt_en: wlan-bt-en {
 		samsung,pins = "gpb-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
@@ -650,6 +657,12 @@
 
 	wlan_gpio_rst: wlan-gpio-rst {
 		samsung,pins = "gpg1-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+	};
+
+	bt_wake: bt-wake {
+		samsung,pins = "gpg3-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
@@ -845,16 +858,23 @@
 };
 
 &uart0 {
+	assigned-clocks = <&clocks MOUT_UART0>, <&clocks SCLK_UART0>;
+	assigned-clock-rates = <0>, <111166667>;
+	assigned-clock-parents = <&clocks MOUT_MPLL>;
+
 	status = "okay";
 
 	bluetooth {
-		compatible = "brcm,bcm43438-bt";
-		max-speed = <115200>;
+		compatible = "brcm,bcm4329-bt";
+		max-speed = <3000000>;
 		pinctrl-names = "default";
-		pinctrl-0 = <&uart0_data &uart0_fctl &bt_host_wake>;
+		pinctrl-0 = <&uart0_data &uart0_fctl &bt_host_wake
+			     &bt_reset &bt_wake>;
 		shutdown-gpios = <&gpb 3 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&gpg3 4 GPIO_ACTIVE_HIGH>;
-		host-wakeup-gpios = <&gph2 5 GPIO_ACTIVE_HIGH>;
+		interrupt-parent = <&gph2>;
+		interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "host-wake";
 	};
 };
 
