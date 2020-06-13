@@ -1749,7 +1749,7 @@ config DEPRECATED_PARAM_STRUCT
 # TEXT and BSS so we preserve their values in the config files.
 config ZBOOT_ROM_TEXT
 	hex "Compressed ROM boot loader base address"
-	default "0"
+	default 0x0
 	help
 	  The physical address at which the ROM-able zImage is to be
 	  placed in the target.  Platforms which normally make use of
@@ -1760,7 +1760,7 @@ config ZBOOT_ROM_TEXT
 
 config ZBOOT_ROM_BSS
 	hex "Compressed ROM boot loader BSS address"
-	default "0"
+	default 0x0
 	help
 	  The base address of an area of read/write memory in the target
 	  for the ROM-able zImage which must be available while the
