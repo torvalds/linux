@@ -174,17 +174,21 @@ static inline bool btree_node_lock_increment(struct btree_trans *trans,
 }
 
 bool __bch2_btree_node_lock(struct btree *, struct bpos, unsigned,
-			    struct btree_iter *, enum six_lock_type);
+			    struct btree_iter *, enum six_lock_type,
+			    six_lock_should_sleep_fn, void *);
 
-static inline bool btree_node_lock(struct btree *b, struct bpos pos,
-				   unsigned level,
-				   struct btree_iter *iter,
-				   enum six_lock_type type)
+static inline bool btree_node_lock(struct btree *b,
+			struct bpos pos, unsigned level,
+			struct btree_iter *iter,
+			enum six_lock_type type,
+			six_lock_should_sleep_fn should_sleep_fn, void *p)
 {
 	struct btree_trans *trans = iter->trans;
 	bool ret;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
+	EBUG_ON(!(trans->iters_linked & (1ULL << iter->idx)));
+
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans->locking		= b;
 	trans->locking_iter_idx = iter->idx;
@@ -194,7 +198,8 @@ static inline bool btree_node_lock(struct btree *b, struct bpos pos,
 #endif
 	ret   = likely(six_trylock_type(&b->c.lock, type)) ||
 		btree_node_lock_increment(trans, b, level, type) ||
-		__bch2_btree_node_lock(b, pos, level, iter, type);
+		__bch2_btree_node_lock(b, pos, level, iter, type,
+				       should_sleep_fn, p);
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans->locking = NULL;

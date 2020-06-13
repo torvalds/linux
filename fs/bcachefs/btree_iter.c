@@ -194,10 +194,13 @@ static inline bool btree_iter_get_locks(struct btree_iter *iter,
 /* Slowpath: */
 bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 			    unsigned level, struct btree_iter *iter,
-			    enum six_lock_type type)
+			    enum six_lock_type type,
+			    six_lock_should_sleep_fn should_sleep_fn,
+			    void *p)
 {
 	struct btree_trans *trans = iter->trans;
 	struct btree_iter *linked;
+	u64 start_time = local_clock();
 	bool ret = true;
 
 	/* Check if it's safe to block: */
@@ -275,7 +278,14 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 		return false;
 	}
 
-	__btree_node_lock_type(iter->trans->c, b, type);
+	if (six_trylock_type(&b->c.lock, type))
+		return true;
+
+	if (six_lock_type(&b->c.lock, type, should_sleep_fn, p))
+		return false;
+
+	bch2_time_stats_update(&trans->c->times[lock_to_time_stat(type)],
+			       start_time);
 	return true;
 }
 
@@ -285,6 +295,11 @@ bool __bch2_btree_node_lock(struct btree *b, struct bpos pos,
 static void bch2_btree_iter_verify_locks(struct btree_iter *iter)
 {
 	unsigned l;
+
+	if (!(iter->trans->iters_linked & (1ULL << iter->idx))) {
+		BUG_ON(iter->nodes_locked);
+		return;
+	}
 
 	for (l = 0; btree_iter_node(iter, l); l++) {
 		if (iter->uptodate >= BTREE_ITER_NEED_RELOCK &&
@@ -300,7 +315,7 @@ void bch2_btree_trans_verify_locks(struct btree_trans *trans)
 {
 	struct btree_iter *iter;
 
-	trans_for_each_iter(trans, iter)
+	trans_for_each_iter_all(trans, iter)
 		bch2_btree_iter_verify_locks(iter);
 }
 #else
@@ -892,18 +907,26 @@ void bch2_btree_iter_reinit_node(struct btree_iter *iter, struct btree *b)
 		__btree_iter_init(linked, b->c.level);
 }
 
+static int lock_root_check_fn(struct six_lock *lock, void *p)
+{
+	struct btree *b = container_of(lock, struct btree, c.lock);
+	struct btree **rootp = p;
+
+	return b == *rootp ? 0 : -1;
+}
+
 static inline int btree_iter_lock_root(struct btree_iter *iter,
 				       unsigned depth_want)
 {
 	struct bch_fs *c = iter->trans->c;
-	struct btree *b;
+	struct btree *b, **rootp = &c->btree_roots[iter->btree_id].b;
 	enum six_lock_type lock_type;
 	unsigned i;
 
 	EBUG_ON(iter->nodes_locked);
 
 	while (1) {
-		b = READ_ONCE(c->btree_roots[iter->btree_id].b);
+		b = READ_ONCE(*rootp);
 		iter->level = READ_ONCE(b->c.level);
 
 		if (unlikely(iter->level < depth_want)) {
@@ -921,10 +944,11 @@ static inline int btree_iter_lock_root(struct btree_iter *iter,
 
 		lock_type = __btree_lock_want(iter, iter->level);
 		if (unlikely(!btree_node_lock(b, POS_MAX, iter->level,
-					      iter, lock_type)))
+					      iter, lock_type,
+					      lock_root_check_fn, rootp)))
 			return -EINTR;
 
-		if (likely(b == c->btree_roots[iter->btree_id].b &&
+		if (likely(b == READ_ONCE(*rootp) &&
 			   b->c.level == iter->level &&
 			   !race_fault())) {
 			for (i = 0; i < iter->level; i++)

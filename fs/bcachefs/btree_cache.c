@@ -678,6 +678,14 @@ static noinline struct btree *bch2_btree_node_fill(struct bch_fs *c,
 	return b;
 }
 
+static int lock_node_check_fn(struct six_lock *lock, void *p)
+{
+	struct btree *b = container_of(lock, struct btree, c.lock);
+	const struct bkey_i *k = p;
+
+	return b->hash_val == btree_ptr_hash_val(k) ? 0 : -1;
+}
+
 /**
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
@@ -750,8 +758,12 @@ lock_node:
 		if (btree_node_read_locked(iter, level + 1))
 			btree_node_unlock(iter, level + 1);
 
-		if (!btree_node_lock(b, k->k.p, level, iter, lock_type))
+		if (!btree_node_lock(b, k->k.p, level, iter, lock_type,
+				     lock_node_check_fn, (void *) k)) {
+			if (b->hash_val != btree_ptr_hash_val(k))
+				goto retry;
 			return ERR_PTR(-EINTR);
+		}
 
 		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.level != level ||
@@ -803,6 +815,7 @@ struct btree *bch2_btree_node_get_noiter(struct bch_fs *c,
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 	struct bset_tree *t;
+	int ret;
 
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 
@@ -823,7 +836,9 @@ retry:
 			return b;
 	} else {
 lock_node:
-		six_lock_read(&b->c.lock, NULL, NULL);
+		ret = six_lock_read(&b->c.lock, lock_node_check_fn, (void *) k);
+		if (ret)
+			goto retry;
 
 		if (unlikely(b->hash_val != btree_ptr_hash_val(k) ||
 			     b->c.btree_id != btree_id ||
