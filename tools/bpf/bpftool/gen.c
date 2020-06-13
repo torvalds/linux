@@ -200,7 +200,7 @@ out:
 	return err;
 }
 
-static int codegen(const char *template, ...)
+static void codegen(const char *template, ...)
 {
 	const char *src, *end;
 	int skip_tabs = 0, n;
@@ -211,7 +211,7 @@ static int codegen(const char *template, ...)
 	n = strlen(template);
 	s = malloc(n + 1);
 	if (!s)
-		return -ENOMEM;
+		exit(-1);
 	src = template;
 	dst = s;
 
@@ -224,7 +224,8 @@ static int codegen(const char *template, ...)
 		} else {
 			p_err("unrecognized character at pos %td in template '%s'",
 			      src - template - 1, template);
-			return -EINVAL;
+			free(s);
+			exit(-1);
 		}
 	}
 
@@ -234,7 +235,8 @@ static int codegen(const char *template, ...)
 			if (*src != '\t') {
 				p_err("not enough tabs at pos %td in template '%s'",
 				      src - template - 1, template);
-				return -EINVAL;
+				free(s);
+				exit(-1);
 			}
 		}
 		/* trim trailing whitespace */
@@ -255,7 +257,6 @@ static int codegen(const char *template, ...)
 	va_end(args);
 
 	free(s);
-	return n;
 }
 
 static int do_skeleton(int argc, char **argv)

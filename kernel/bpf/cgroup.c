@@ -378,7 +378,7 @@ static struct bpf_prog_list *find_attach_entry(struct list_head *progs,
 	}
 
 	list_for_each_entry(pl, progs, node) {
-		if (prog && pl->prog == prog)
+		if (prog && pl->prog == prog && prog != replace_prog)
 			/* disallow attaching the same prog twice */
 			return ERR_PTR(-EINVAL);
 		if (link && pl->link == link)
