@@ -545,7 +545,7 @@ config NR_CPUS
 	default "4" if !ALPHA_GENERIC && !ALPHA_MARVEL
 	help
 	  MARVEL support can handle a maximum of 32 CPUs, all the others
-          with working support have a maximum of 4 CPUs.
+	  with working support have a maximum of 4 CPUs.
 
 config ARCH_DISCONTIGMEM_ENABLE
 	bool "Discontiguous Memory Support"
@@ -657,7 +657,7 @@ choice
 endchoice
 
 config HZ
-	int 
+	int
 	default 32 if HZ_32
 	default 64 if HZ_64
 	default 128 if HZ_128
