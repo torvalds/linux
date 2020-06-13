@@ -31,7 +31,7 @@ config CFG80211
 
 	  For more information refer to documentation on the wireless wiki:
 
-	  http://wireless.kernel.org/en/developers/Documentation/cfg80211
+	  https://wireless.wiki.kernel.org/en/developers/Documentation/cfg80211
 
 	  When built as a module it will be called cfg80211.
 
