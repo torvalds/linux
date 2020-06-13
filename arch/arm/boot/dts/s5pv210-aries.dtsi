@@ -149,9 +149,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&accel_i2c_pins>;
 
-		status = "disabled";
+		accelerometer@38 {
+			compatible = "bosch,bma023";
+			reg = <0x38>;
 
-		/* bma023 accelerometer, no mainline binding */
+			vdd-supply = <&ldo9_reg>;
+			vddio-supply = <&ldo9_reg>;
+		};
 	};
 
 	i2c_pmic: i2c-gpio-2 {
