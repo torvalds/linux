@@ -1343,3 +1343,23 @@ void intel_pmu_lbr_init_knl(void)
 	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_LIP)
 		x86_pmu.intel_cap.lbr_format = LBR_FORMAT_EIP_FLAGS;
 }
+
+/**
+ * x86_perf_get_lbr - get the LBR records information
+ *
+ * @lbr: the caller's memory to store the LBR records information
+ *
+ * Returns: 0 indicates the LBR info has been successfully obtained
+ */
+int x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
+{
+	int lbr_fmt = x86_pmu.intel_cap.lbr_format;
+
+	lbr->nr = x86_pmu.lbr_nr;
+	lbr->from = x86_pmu.lbr_from;
+	lbr->to = x86_pmu.lbr_to;
+	lbr->info = (lbr_fmt == LBR_FORMAT_INFO) ? MSR_LBR_INFO_0 : 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(x86_perf_get_lbr);
