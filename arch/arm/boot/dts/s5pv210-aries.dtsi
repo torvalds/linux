@@ -425,10 +425,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&fg_i2c_pins>;
 
-		fuelgauge@36 {
+		fg: fuelgauge@36 {
 			compatible = "maxim,max17040";
-			interrupt-parent = <&vic0>;
-			interrupts = <7>;
 			reg = <0x36>;
 		};
 	};
