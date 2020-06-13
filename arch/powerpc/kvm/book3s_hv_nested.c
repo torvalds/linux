@@ -1233,7 +1233,7 @@ static long kvmhv_handle_nested_set_rc(struct kvm_vcpu *vcpu,
 
 	/* Set the rc bit in the pte of the shadow_pgtable for the nest guest */
 	ret = kvmppc_hv_handle_set_rc(kvm, true, writing,
-				      n_gpa, gp->shadow_lpid);
+				      n_gpa, gp->l1_lpid);
 	if (!ret)
 		ret = -EINVAL;
 	else
