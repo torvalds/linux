@@ -12,21 +12,6 @@
 #include <asm/barrier.h>
 #include <linux/atomic.h>
 
-/*
- * HP-PARISC specific bit operations
- * for a detailed description of the functions please refer
- * to include/asm-i386/bitops.h or kerneldoc
- */
-
-#if __BITS_PER_LONG == 64
-#define SHIFT_PER_LONG 6
-#else
-#define SHIFT_PER_LONG 5
-#endif
-
-#define CHOP_SHIFTCOUNT(x) (((unsigned long) (x)) & (BITS_PER_LONG - 1))
-
-
 /* See http://marc.theaimsgroup.com/?t=108826637900003 for discussion
  * on use of volatile and __*_bit() (set/clear/change):
  *	*_bit() want use of volatile.
@@ -35,10 +20,10 @@
 
 static __inline__ void set_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long flags;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
 	*addr |= mask;
 	_atomic_spin_unlock_irqrestore(addr, flags);
@@ -46,21 +31,21 @@ static __inline__ void set_bit(int nr, volatile unsigned long * addr)
 
 static __inline__ void clear_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = ~(1UL << CHOP_SHIFTCOUNT(nr));
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long flags;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
-	*addr &= mask;
+	*addr &= ~mask;
 	_atomic_spin_unlock_irqrestore(addr, flags);
 }
 
 static __inline__ void change_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long flags;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
 	*addr ^= mask;
 	_atomic_spin_unlock_irqrestore(addr, flags);
@@ -68,12 +53,12 @@ static __inline__ void change_bit(int nr, volatile unsigned long * addr)
 
 static __inline__ int test_and_set_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long old;
 	unsigned long flags;
 	int set;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
 	old = *addr;
 	set = (old & mask) ? 1 : 0;
@@ -86,12 +71,12 @@ static __inline__ int test_and_set_bit(int nr, volatile unsigned long * addr)
 
 static __inline__ int test_and_clear_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long old;
 	unsigned long flags;
 	int set;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
 	old = *addr;
 	set = (old & mask) ? 1 : 0;
@@ -104,11 +89,11 @@ static __inline__ int test_and_clear_bit(int nr, volatile unsigned long * addr)
 
 static __inline__ int test_and_change_bit(int nr, volatile unsigned long * addr)
 {
-	unsigned long mask = 1UL << CHOP_SHIFTCOUNT(nr);
+	unsigned long mask = BIT_MASK(nr);
 	unsigned long oldbit;
 	unsigned long flags;
 
-	addr += (nr >> SHIFT_PER_LONG);
+	addr += BIT_WORD(nr);
 	_atomic_spin_lock_irqsave(addr, flags);
 	oldbit = *addr;
 	*addr = oldbit ^ mask;
