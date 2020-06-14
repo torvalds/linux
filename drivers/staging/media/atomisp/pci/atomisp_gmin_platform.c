@@ -447,6 +447,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *power = NULL, *client = v4l2_get_subdevdata(subdev);
 	struct acpi_device *adev;
+	struct gmin_subdev *gs;
 	acpi_handle handle;
 	struct device *dev;
 	int i, ret, clock_num;
@@ -457,15 +458,38 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	dev = &client->dev;
 
 	handle = ACPI_HANDLE(dev);
-
-	// FIXME: may need to release resources allocated by acpi_bus_get_device()
-	if (!handle || acpi_bus_get_device(handle, &adev)) {
-		dev_err(dev, "Error could not get ACPI device\n");
-		return NULL;
-	}
+	adev = ACPI_COMPANION(&client->dev);
 
 	dev_info(&client->dev, "%s: ACPI detected it on bus ID=%s, HID=%s\n",
 		__func__, acpi_device_bid(adev), acpi_device_hid(adev));
+
+	for (i = 0; i < MAX_SUBDEVS && gmin_subdevs[i].subdev; i++)
+		;
+	if (i >= MAX_SUBDEVS)
+		return NULL;
+
+	gs = &gmin_subdevs[i];
+	gs->subdev = subdev;
+
+	/*WA:CHT requires XTAL clock as PLL is not stable.*/
+	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, false, "ClkSrc",
+				    VLV2_CLK_PLL_19P2MHZ);
+
+	gs->csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
+	gs->csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
+
+	gs->gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
+	if (IS_ERR(gs->gpio0))
+		gs->gpio0 = NULL;
+
+	gs->gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
+	if (IS_ERR(gs->gpio1))
+		gs->gpio1 = NULL;
+
+	/*
+	 * FIXME: the code below doesn't rely on ACPI device_pm.c code to
+	 * set clocks and do power management.
+	 */
 
 	if (!pmic_id) {
 		if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
@@ -478,13 +502,8 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 			pmic_id = PMIC_REGULATOR;
 	}
 
-	for (i = 0; i < MAX_SUBDEVS && gmin_subdevs[i].subdev; i++)
-		;
-	if (i >= MAX_SUBDEVS)
-		return NULL;
-
 	if (power) {
-		gmin_subdevs[i].pwm_i2c_addr = power->addr;
+		gs->pwm_i2c_addr = power->addr;
 		dev_info(dev,
 			 "gmin: power management provided via %s (i2c addr 0x%02x)\n",
 			 pmic_name[pmic_id], power->addr);
@@ -493,17 +512,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 			 pmic_name[pmic_id]);
 	}
 
-	gmin_subdevs[i].subdev = subdev;
-
-	/*WA:CHT requires XTAL clock as PLL is not stable.*/
-	gmin_subdevs[i].clock_src = gmin_get_var_int(dev, false, "ClkSrc",
-				    VLV2_CLK_PLL_19P2MHZ);
-	gmin_subdevs[i].csi_port = gmin_get_var_int(dev, false, "CsiPort", 0);
-	gmin_subdevs[i].csi_lanes = gmin_get_var_int(dev, false, "CsiLanes", 1);
-
 	/*
-	 * FIXME:
-	 *
 	 * According with :
 	 *   https://github.com/projectceladon/hardware-intel-kernelflinger/blob/master/doc/fastboot.md
 	 *
@@ -526,9 +535,9 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	snprintf(gmin_pmc_clk_name, sizeof(gmin_pmc_clk_name),
 		 "%s_%d", "pmc_plt_clk", clock_num);
 
-	gmin_subdevs[i].pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
-	if (IS_ERR(gmin_subdevs[i].pmc_clk)) {
-		ret = PTR_ERR(gmin_subdevs[i].pmc_clk);
+	gs->pmc_clk = devm_clk_get(dev, gmin_pmc_clk_name);
+	if (IS_ERR(gs->pmc_clk)) {
+		ret = PTR_ERR(gs->pmc_clk);
 
 		dev_err(dev,
 			"Failed to get clk from %s : %d\n",
@@ -549,25 +558,17 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	 * to disable a clock that has not been enabled,
 	 * we need to enable the clock first.
 	 */
-	ret = clk_prepare_enable(gmin_subdevs[i].pmc_clk);
+	ret = clk_prepare_enable(gs->pmc_clk);
 	if (!ret)
-		clk_disable_unprepare(gmin_subdevs[i].pmc_clk);
-
-	gmin_subdevs[i].gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
-	if (IS_ERR(gmin_subdevs[i].gpio0))
-		gmin_subdevs[i].gpio0 = NULL;
-
-	gmin_subdevs[i].gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
-	if (IS_ERR(gmin_subdevs[i].gpio1))
-		gmin_subdevs[i].gpio1 = NULL;
+		clk_disable_unprepare(gs->pmc_clk);
 
 	switch (pmic_id) {
 	case PMIC_REGULATOR:
-		gmin_subdevs[i].v1p8_reg = regulator_get(dev, "V1P8SX");
-		gmin_subdevs[i].v2p8_reg = regulator_get(dev, "V2P8SX");
+		gs->v1p8_reg = regulator_get(dev, "V1P8SX");
+		gs->v2p8_reg = regulator_get(dev, "V2P8SX");
 
-		gmin_subdevs[i].v1p2_reg = regulator_get(dev, "V1P2A");
-		gmin_subdevs[i].v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
+		gs->v1p2_reg = regulator_get(dev, "V1P2A");
+		gs->v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
 
 		/* Note: ideally we would initialize v[12]p8_on to the
 		 * output of regulator_is_enabled(), but sadly that
@@ -579,32 +580,32 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		break;
 
 	case PMIC_AXP:
-		gmin_subdevs[i].eldo1_1p8v = gmin_get_var_int(dev, false,
-							      "eldo1_1p8v",
-							      ELDO1_1P8V);
-		gmin_subdevs[i].eldo1_sel_reg = gmin_get_var_int(dev, false,
-								 "eldo1_sel_reg",
-								 ELDO1_SEL_REG);
-		gmin_subdevs[i].eldo1_ctrl_shift = gmin_get_var_int(dev, false,
-								    "eldo1_ctrl_shift",
-								    ELDO1_CTRL_SHIFT);
-		gmin_subdevs[i].eldo2_1p8v = gmin_get_var_int(dev, false,
-							      "eldo2_1p8v",
-							      ELDO2_1P8V);
-		gmin_subdevs[i].eldo2_sel_reg = gmin_get_var_int(dev, false,
-								 "eldo2_sel_reg",
-								 ELDO2_SEL_REG);
-		gmin_subdevs[i].eldo2_ctrl_shift = gmin_get_var_int(dev, false,
-								    "eldo2_ctrl_shift",
-								    ELDO2_CTRL_SHIFT);
-		gmin_subdevs[i].pwm_i2c_addr = power->addr;
+		gs->eldo1_1p8v = gmin_get_var_int(dev, false,
+						  "eldo1_1p8v",
+						  ELDO1_1P8V);
+		gs->eldo1_sel_reg = gmin_get_var_int(dev, false,
+						     "eldo1_sel_reg",
+						     ELDO1_SEL_REG);
+		gs->eldo1_ctrl_shift = gmin_get_var_int(dev, false,
+							"eldo1_ctrl_shift",
+							ELDO1_CTRL_SHIFT);
+		gs->eldo2_1p8v = gmin_get_var_int(dev, false,
+						  "eldo2_1p8v",
+						  ELDO2_1P8V);
+		gs->eldo2_sel_reg = gmin_get_var_int(dev, false,
+						     "eldo2_sel_reg",
+						     ELDO2_SEL_REG);
+		gs->eldo2_ctrl_shift = gmin_get_var_int(dev, false,
+							"eldo2_ctrl_shift",
+							ELDO2_CTRL_SHIFT);
+		gs->pwm_i2c_addr = power->addr;
 		break;
 
 	default:
 		break;
 	}
 
-	return &gmin_subdevs[i];
+	return gs;
 }
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev)
