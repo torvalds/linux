@@ -3204,6 +3204,8 @@ enum {
 	DIO_SKIP_HOLES	= 0x02,
 };
 
+void dio_end_io(struct bio *bio);
+
 ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 			     struct block_device *bdev, struct iov_iter *iter,
 			     get_block_t get_block,
