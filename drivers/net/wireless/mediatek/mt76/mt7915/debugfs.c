@@ -178,7 +178,14 @@ mt7915_txbf_stat_read_phy(struct mt7915_phy *phy, struct seq_file *s)
 	seq_printf(s, "Tx Beamformee feedback triggered counts: %ld\n",
 		   FIELD_GET(MT_ETBF_TX_FB_TRI, cnt));
 
-	/* Tx SU counters */
+	/* Tx SU & MU counters */
+	cnt = mt76_rr(dev, MT_MIB_SDR34(ext_phy));
+	seq_printf(s, "Tx multi-user Beamforming counts: %ld\n",
+		   FIELD_GET(MT_MIB_MU_BF_TX_CNT, cnt));
+	cnt = mt76_rr(dev, MT_MIB_DR8(ext_phy));
+	seq_printf(s, "Tx multi-user MPDU counts: %d\n", cnt);
+	cnt = mt76_rr(dev, MT_MIB_DR9(ext_phy));
+	seq_printf(s, "Tx multi-user successful MPDU counts: %d\n", cnt);
 	cnt = mt76_rr(dev, MT_MIB_DR11(ext_phy));
 	seq_printf(s, "Tx single-user successful MPDU counts: %d\n", cnt);
 
