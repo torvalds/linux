@@ -159,20 +159,6 @@ struct compat_shmid64_ds {
 	compat_ulong_t __unused5;
 };
 
-/*
- * The type of struct elf_prstatus.pr_reg in compatible core dumps.
- */
-typedef struct user_regs_struct compat_elf_gregset_t;
-
-/* Full regset -- prstatus on x32, otherwise on ia32 */
-#define COMPAT_PRSTATUS_SIZE (user_64bit_mode(task_pt_regs(current)) \
-	? sizeof(struct compat_elf_prstatus) \
-	: 144)
-#define COMPAT_SET_PR_FPVALID(S) \
-	(*(user_64bit_mode(task_pt_regs(current)) \
-	       ? &(S)->pr_fpvalid	\
-               : (int *)((void *)(S) + 140)) = 1)
-
 #ifdef CONFIG_X86_X32_ABI
 #define COMPAT_USE_64BIT_TIME \
 	(!!(task_pt_regs(current)->orig_ax & __X32_SYSCALL_BIT))

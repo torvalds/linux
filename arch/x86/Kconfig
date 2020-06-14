@@ -31,6 +31,7 @@ config X86_64
 	select MODULES_USE_ELF_RELA
 	select NEED_DMA_MAP_STATE
 	select SWIOTLB
+	select ARCH_HAS_ELFCORE_COMPAT
 
 config FORCE_DYNAMIC_FTRACE
 	def_bool y

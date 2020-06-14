@@ -33,13 +33,6 @@ struct compat_elf_prstatus_common
 	struct old_timeval32		pr_cstime;
 };
 
-struct compat_elf_prstatus
-{
-	struct compat_elf_prstatus_common	common;
-	compat_elf_gregset_t		pr_reg;
-	compat_int_t			pr_fpvalid;
-};
-
 struct compat_elf_prpsinfo
 {
 	char				pr_state;
@@ -52,6 +45,17 @@ struct compat_elf_prpsinfo
 	compat_pid_t			pr_pid, pr_ppid, pr_pgrp, pr_sid;
 	char				pr_fname[16];
 	char				pr_psargs[ELF_PRARGSZ];
+};
+
+#ifdef CONFIG_ARCH_HAS_ELFCORE_COMPAT
+#include <asm/elfcore-compat.h>
+#endif
+
+struct compat_elf_prstatus
+{
+	struct compat_elf_prstatus_common	common;
+	compat_elf_gregset_t		pr_reg;
+	compat_int_t			pr_fpvalid;
 };
 
 #endif /* _LINUX_ELFCORE_COMPAT_H */
