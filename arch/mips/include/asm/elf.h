@@ -469,9 +469,7 @@ extern const char *__elf_base_platform;
    the loader.	We need to make sure that it is out of the way of the program
    that it will "exec", and that there is sufficient room for the brk.	*/
 
-#ifndef ELF_ET_DYN_BASE
 #define ELF_ET_DYN_BASE		(TASK_SIZE / 3 * 2)
-#endif
 
 /* update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes */
 #define ARCH_DLINFO							\

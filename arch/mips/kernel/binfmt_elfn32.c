@@ -34,10 +34,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
  */
 #define elf_check_arch elfn32_check_arch
 
-#define TASK32_SIZE		0x7fff8000UL
-#undef ELF_ET_DYN_BASE
-#define ELF_ET_DYN_BASE		(TASK32_SIZE / 3 * 2)
-
 #include <asm/processor.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
