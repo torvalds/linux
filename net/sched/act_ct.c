@@ -1543,17 +1543,6 @@ static void __exit ct_cleanup_module(void)
 	destroy_workqueue(act_ct_wq);
 }
 
-void tcf_ct_flow_table_restore_skb(struct sk_buff *skb, unsigned long cookie)
-{
-	enum ip_conntrack_info ctinfo = cookie & NFCT_INFOMASK;
-	struct nf_conn *ct;
-
-	ct = (struct nf_conn *)(cookie & NFCT_PTRMASK);
-	nf_conntrack_get(&ct->ct_general);
-	nf_ct_set(skb, ct, ctinfo);
-}
-EXPORT_SYMBOL_GPL(tcf_ct_flow_table_restore_skb);
-
 module_init(ct_init_module);
 module_exit(ct_cleanup_module);
 MODULE_AUTHOR("Paul Blakey <paulb@mellanox.com>");
