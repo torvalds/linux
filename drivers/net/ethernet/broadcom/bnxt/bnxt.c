@@ -12133,19 +12133,9 @@ static int bnxt_resume(struct device *device)
 		goto resume_exit;
 	}
 
-	if (bnxt_hwrm_queue_qportcfg(bp)) {
-		rc = -ENODEV;
+	rc = bnxt_hwrm_func_qcaps(bp);
+	if (rc)
 		goto resume_exit;
-	}
-
-	if (bp->hwrm_spec_code >= 0x10803) {
-		if (bnxt_alloc_ctx_mem(bp)) {
-			rc = -ENODEV;
-			goto resume_exit;
-		}
-	}
-	if (BNXT_NEW_RM(bp))
-		bnxt_hwrm_func_resc_qcaps(bp, false);
 
 	if (bnxt_hwrm_func_drv_rgtr(bp, NULL, 0, false)) {
 		rc = -ENODEV;
