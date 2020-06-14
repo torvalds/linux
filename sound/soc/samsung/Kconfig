@@ -212,4 +212,17 @@ config SND_SOC_SAMSUNG_TM2_WM5110
 	help
 	  Say Y if you want to add support for SoC audio on the TM2 board.
 
+config SND_SOC_SAMSUNG_ARIES_WM8994
+	tristate "SoC I2S Audio support for WM8994 on Aries"
+	depends on SND_SOC_SAMSUNG && MFD_WM8994 && IIO && EXTCON
+	select SND_SOC_BT_SCO
+	select SND_SOC_WM8994
+	select SND_SAMSUNG_I2S
+	help
+	  Say Y if you want to add support for SoC audio on Aries boards,
+	  which has a WM8994 codec connected to a BT codec, a cellular
+	  modem, and the Samsung I2S controller.  Jack detection is done
+	  via ADC, GPIOs, and an extcon device.  Switching between the Mic
+	  and TV-Out path is also handled.
+
 endif #SND_SOC_SAMSUNG
