@@ -11,6 +11,7 @@
 #include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <linux/rcupdate.h>
 #include <linux/spinlock.h>
