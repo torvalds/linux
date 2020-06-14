@@ -350,9 +350,12 @@ static int
 mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
+	struct mt7915_dev *dev = mt7915_hw_dev(hw);
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;
 
 	/* no need to update right away, we'll get BSS_CHANGED_QOS */
+	queue = mt7915_lmac_mapping(dev, queue);
+
 	mvif->wmm[queue].cw_min = params->cw_min;
 	mvif->wmm[queue].cw_max = params->cw_max;
 	mvif->wmm[queue].aifs = params->aifs;

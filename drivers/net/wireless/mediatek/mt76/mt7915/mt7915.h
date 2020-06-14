@@ -200,6 +200,16 @@ enum {
 };
 
 enum {
+	MT_LMAC_AC00,
+	MT_LMAC_AC01,
+	MT_LMAC_AC02,
+	MT_LMAC_AC03,
+	MT_LMAC_ALTX0 = 0x10,
+	MT_LMAC_BMC0,
+	MT_LMAC_BCN0,
+};
+
+enum {
 	MT_RX_SEL0,
 	MT_RX_SEL1,
 };
@@ -252,6 +262,21 @@ mt7915_ext_phy(struct mt7915_dev *dev)
 		return NULL;
 
 	return phy->priv;
+}
+
+static inline u8 mt7915_lmac_mapping(struct mt7915_dev *dev, u8 ac)
+{
+	static const u8 lmac_queue_map[] = {
+		[IEEE80211_AC_BK] = MT_LMAC_AC00,
+		[IEEE80211_AC_BE] = MT_LMAC_AC01,
+		[IEEE80211_AC_VI] = MT_LMAC_AC02,
+		[IEEE80211_AC_VO] = MT_LMAC_AC03,
+	};
+
+	if (WARN_ON_ONCE(ac >= ARRAY_SIZE(lmac_queue_map)))
+		return MT_LMAC_AC01; /* BE */
+
+	return lmac_queue_map[ac];
 }
 
 static inline void

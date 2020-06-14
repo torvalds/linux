@@ -593,7 +593,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 
 	if (ieee80211_is_data(fc) || ieee80211_is_bufferable_mmpdu(fc)) {
 		q_idx = wmm_idx * MT7915_MAX_WMM_SETS +
-			skb_get_queue_mapping(skb);
+			mt7915_lmac_mapping(dev, skb_get_queue_mapping(skb));
 		p_fmt = MT_TX_TYPE_CT;
 	} else if (beacon) {
 		q_idx = MT_LMAC_BCN0;

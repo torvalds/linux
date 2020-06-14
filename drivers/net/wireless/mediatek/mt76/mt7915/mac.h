@@ -149,16 +149,6 @@ enum tx_pkt_type {
 	MT_TX_TYPE_FW,
 };
 
-enum tx_pkt_queue_idx {
-	MT_LMAC_AC00,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0 = 0x10,
-	MT_LMAC_BCN0 = 0x12,
-};
-
 enum tx_port_idx {
 	MT_TX_PORT_IDX_LMAC,
 	MT_TX_PORT_IDX_MCU
