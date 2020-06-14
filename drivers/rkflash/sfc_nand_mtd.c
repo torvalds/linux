@@ -46,7 +46,7 @@ static int sfc_nand_write_mtd(struct mtd_info *mtd, loff_t to,
 	while (remaining) {
 		memcpy(p_dev->dma_buf, data, mtd->writesize);
 		memset(p_dev->dma_buf + mtd->writesize, 0xff, mtd->oobsize);
-		oob_real = min(oob_left, mtd->oobsize - ops->ooboffs);
+		oob_real = min((u32)oob_left, mtd->oobsize - ops->ooboffs);
 		if (oob_real)
 			memcpy(p_dev->dma_buf + mtd->writesize + ops->ooboffs, oob_buf, oob_real);
 		ret = sfc_nand_prog_page_raw(0, to >> mtd->writesize_shift,
@@ -116,7 +116,7 @@ static int sfc_nand_read_mtd(struct mtd_info *mtd, loff_t from,
 			real_size = mtd->writesize - off;
 
 		memcpy(data, p_dev->dma_buf + off, real_size);
-		oob_real = min(oob_left, mtd->oobsize - ops->ooboffs);
+		oob_real = min((u32)oob_left, mtd->oobsize - ops->ooboffs);
 		if (oob_real)
 			memcpy(oob_buf, p_dev->dma_buf + mtd->writesize + ops->ooboffs,
 			       oob_real);
