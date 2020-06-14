@@ -52,8 +52,6 @@ struct elf_prstatus32
 
 #define init_elf_binfmt init_elfn32_binfmt
 
-#define ELF_CORE_EFLAGS EF_MIPS_ABI2
-
 #undef ns_to_kernel_old_timeval
 #define ns_to_kernel_old_timeval ns_to_old_timeval32
 
