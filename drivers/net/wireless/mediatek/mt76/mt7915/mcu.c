@@ -2888,23 +2888,23 @@ int mt7915_mcu_set_tx(struct mt7915_dev *dev, struct ieee80211_vif *vif)
 	int ac;
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+		struct ieee80211_tx_queue_params *q = &mvif->queue_params[ac];
 		struct edca *e = &req.edca[ac];
 
 		e->queue = ac + mvif->wmm_idx * MT7915_MAX_WMM_SETS;
-		e->aifs = mvif->wmm[ac].aifs;
-		e->txop = cpu_to_le16(mvif->wmm[ac].txop);
+		e->aifs = q->aifs;
+		e->txop = cpu_to_le16(q->txop);
 
-		if (mvif->wmm[ac].cw_min)
-			e->cw_min = fls(mvif->wmm[ac].cw_max);
+		if (q->cw_min)
+			e->cw_min = fls(q->cw_min);
 		else
 			e->cw_min = 5;
 
-		if (mvif->wmm[ac].cw_max)
-			e->cw_max = cpu_to_le16(fls(mvif->wmm[ac].cw_max));
+		if (q->cw_max)
+			e->cw_max = cpu_to_le16(fls(q->cw_max));
 		else
 			e->cw_max = cpu_to_le16(10);
 	}
-
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_EDCA_UPDATE,
 				  &req, sizeof(req), true);
 }

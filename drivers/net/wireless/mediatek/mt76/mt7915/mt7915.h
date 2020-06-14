@@ -99,15 +99,10 @@ struct mt7915_vif {
 	u8 band_idx;
 	u8 wmm_idx;
 
-	struct {
-		u16 cw_min;
-		u16 cw_max;
-		u16 txop;
-		u8 aifs;
-	} wmm[IEEE80211_NUM_ACS];
-
 	struct mt7915_sta sta;
 	struct mt7915_dev *dev;
+
+	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 };
 
 struct mib_stats {
