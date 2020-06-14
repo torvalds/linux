@@ -42,46 +42,17 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 #include <linux/elfcore.h>
 #include <linux/compat.h>
 #include <linux/math64.h>
+#include <linux/elfcore-compat.h>
 
 #define elf_prstatus elf_prstatus32
-#define elf_prstatus_common elf_prstatus32_common
-struct elf_prstatus32_common
-{
-	struct elf_siginfo pr_info;	/* Info associated with signal */
-	short	pr_cursig;		/* Current signal */
-	unsigned int pr_sigpend;	/* Set of pending signals */
-	unsigned int pr_sighold;	/* Set of held signals */
-	pid_t	pr_pid;
-	pid_t	pr_ppid;
-	pid_t	pr_pgrp;
-	pid_t	pr_sid;
-	struct old_timeval32 pr_utime; /* User time */
-	struct old_timeval32 pr_stime; /* System time */
-	struct old_timeval32 pr_cutime;/* Cumulative user time */
-	struct old_timeval32 pr_cstime;/* Cumulative system time */
-};
+#define elf_prstatus_common compat_elf_prstatus_common
 struct elf_prstatus32
 {
-	struct elf_prstatus32_common common:
+	struct compat_elf_prstatus_common common;
 	elf_gregset_t pr_reg;	/* GP registers */
 	int pr_fpvalid;		/* True if math co-processor being used.  */
 };
-
-#define elf_prpsinfo elf_prpsinfo32
-struct elf_prpsinfo32
-{
-	char	pr_state;	/* numeric process state */
-	char	pr_sname;	/* char for pr_state */
-	char	pr_zomb;	/* zombie */
-	char	pr_nice;	/* nice val */
-	unsigned int pr_flag;	/* flags */
-	__kernel_uid_t	pr_uid;
-	__kernel_gid_t	pr_gid;
-	pid_t	pr_pid, pr_ppid, pr_pgrp, pr_sid;
-	/* Lots missing */
-	char	pr_fname[16];	/* filename of executable */
-	char	pr_psargs[ELF_PRARGSZ]; /* initial part of arg list */
-};
+#define elf_prpsinfo compat_elf_prpsinfo
 
 #define elf_caddr_t	u32
 #define init_elf_binfmt init_elfn32_binfmt
