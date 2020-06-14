@@ -893,8 +893,7 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 		 * This should only happen with BCACHE_SB_VERSION_BDEV.
 		 * Block/page size is checked for BCACHE_SB_VERSION_CDEV.
 		 */
-		pr_info("%s: sb/logical block size (%u) greater than page size "
-			"(%lu) falling back to device logical block size (%u)",
+		pr_info("%s: sb/logical block size (%u) greater than page size (%lu) falling back to device logical block size (%u)\n",
 			d->disk->disk_name, q->limits.logical_block_size,
 			PAGE_SIZE, bdev_logical_block_size(cached_bdev));
 
