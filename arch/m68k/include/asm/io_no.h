@@ -14,15 +14,15 @@
  * that behavior here first before we include asm-generic/io.h.
  */
 #define __raw_readb(addr) \
-    ({ unsigned char __v = (*(volatile unsigned char *) (addr)); __v; })
+    ({ u8 __v = (*(__force volatile u8 *) (addr)); __v; })
 #define __raw_readw(addr) \
-    ({ unsigned short __v = (*(volatile unsigned short *) (addr)); __v; })
+    ({ u16 __v = (*(__force volatile u16 *) (addr)); __v; })
 #define __raw_readl(addr) \
-    ({ unsigned int __v = (*(volatile unsigned int *) (addr)); __v; })
+    ({ u32 __v = (*(__force volatile u32 *) (addr)); __v; })
 
-#define __raw_writeb(b, addr) (void)((*(volatile unsigned char *) (addr)) = (b))
-#define __raw_writew(b, addr) (void)((*(volatile unsigned short *) (addr)) = (b))
-#define __raw_writel(b, addr) (void)((*(volatile unsigned int *) (addr)) = (b))
+#define __raw_writeb(b, addr) (void)((*(__force volatile u8 *) (addr)) = (b))
+#define __raw_writew(b, addr) (void)((*(__force volatile u16 *) (addr)) = (b))
+#define __raw_writel(b, addr) (void)((*(__force volatile u32 *) (addr)) = (b))
 
 #if defined(CONFIG_COLDFIRE)
 /*
