@@ -1217,12 +1217,6 @@ static int stm32_gpiolib_register_bank(struct stm32_pinctrl *pctl,
 	if (IS_ERR(bank->base))
 		return PTR_ERR(bank->base);
 
-	bank->clk = of_clk_get_by_name(np, NULL);
-	if (IS_ERR(bank->clk)) {
-		dev_err(dev, "failed to get clk (%ld)\n", PTR_ERR(bank->clk));
-		return PTR_ERR(bank->clk);
-	}
-
 	err = clk_prepare(bank->clk);
 	if (err) {
 		dev_err(dev, "failed to prepare clk (%d)\n", err);
@@ -1516,6 +1510,23 @@ int stm32_pctl_probe(struct platform_device *pdev)
 			GFP_KERNEL);
 	if (!pctl->banks)
 		return -ENOMEM;
+
+	i = 0;
+	for_each_available_child_of_node(np, child) {
+		struct stm32_gpio_bank *bank = &pctl->banks[i];
+
+		if (of_property_read_bool(child, "gpio-controller")) {
+			bank->clk = of_clk_get_by_name(child, NULL);
+			if (IS_ERR(bank->clk)) {
+				if (PTR_ERR(bank->clk) != -EPROBE_DEFER)
+					dev_err(dev,
+						"failed to get clk (%ld)\n",
+						PTR_ERR(bank->clk));
+				return PTR_ERR(bank->clk);
+			}
+			i++;
+		}
+	}
 
 	for_each_available_child_of_node(np, child) {
 		if (of_property_read_bool(child, "gpio-controller")) {
