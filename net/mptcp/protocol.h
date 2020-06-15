@@ -135,8 +135,6 @@ static inline __be32 mptcp_option(u8 subopt, u8 len, u8 nib, u8 field)
 		     ((nib & 0xF) << 8) | field);
 }
 
-#define MPTCP_PM_MAX_ADDR	4
-
 struct mptcp_addr_info {
 	sa_family_t		family;
 	__be16			port;
