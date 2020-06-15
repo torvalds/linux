@@ -1809,40 +1809,43 @@ static void csi_m(struct vc_data *vc)
 	update_attr(vc);
 }
 
-static void respond_string(const char *p, struct tty_port *port)
+static void respond_string(const char *p, size_t len, struct tty_port *port)
 {
-	while (*p) {
-		tty_insert_flip_char(port, *p, 0);
-		p++;
-	}
+	tty_insert_flip_string(port, p, len);
 	tty_schedule_flip(port);
 }
 
 static void cursor_report(struct vc_data *vc, struct tty_struct *tty)
 {
 	char buf[40];
+	int len;
 
-	sprintf(buf, "\033[%d;%dR", vc->state.y + (vc->vc_decom ? vc->vc_top + 1 : 1), vc->state.x + 1);
-	respond_string(buf, tty->port);
+	len = sprintf(buf, "\033[%d;%dR", vc->state.y +
+			(vc->vc_decom ? vc->vc_top + 1 : 1),
+			vc->state.x + 1);
+	respond_string(buf, len, tty->port);
 }
 
 static inline void status_report(struct tty_struct *tty)
 {
-	respond_string("\033[0n", tty->port);	/* Terminal ok */
+	static const char teminal_ok[] = "\033[0n";
+
+	respond_string(teminal_ok, strlen(teminal_ok), tty->port);
 }
 
 static inline void respond_ID(struct tty_struct *tty)
 {
-	respond_string(VT102ID, tty->port);
+	respond_string(VT102ID, strlen(VT102ID), tty->port);
 }
 
 void mouse_report(struct tty_struct *tty, int butt, int mrx, int mry)
 {
 	char buf[8];
+	int len;
 
-	sprintf(buf, "\033[M%c%c%c", (char)(' ' + butt), (char)('!' + mrx),
-		(char)('!' + mry));
-	respond_string(buf, tty->port);
+	len = sprintf(buf, "\033[M%c%c%c", (char)(' ' + butt),
+			(char)('!' + mrx), (char)('!' + mry));
+	respond_string(buf, len, tty->port);
 }
 
 /* invoked via ioctl(TIOCLINUX) and through set_selection_user */
