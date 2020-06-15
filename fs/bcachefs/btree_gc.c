@@ -887,6 +887,82 @@ out:
 	return ret;
 }
 
+/*
+ * For recalculating oldest gen, we only need to walk keys in leaf nodes; btree
+ * node pointers currently never have cached pointers that can become stale:
+ */
+static int bch2_gc_btree_gens(struct bch_fs *c, enum btree_id id)
+{
+	struct btree_trans trans;
+	struct btree_iter *iter;
+	struct bkey_s_c k;
+	int ret;
+
+	bch2_trans_init(&trans, c, 0, 0);
+
+	for_each_btree_key(&trans, iter, id, POS_MIN, BTREE_ITER_PREFETCH, k, ret) {
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+		const struct bch_extent_ptr *ptr;
+
+		percpu_down_read(&c->mark_lock);
+		bkey_for_each_ptr(ptrs, ptr) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+			struct bucket *g = PTR_BUCKET(ca, ptr, false);
+
+			if (gen_after(g->gc_gen, ptr->gen))
+				g->gc_gen = ptr->gen;
+
+			if (gen_after(g->mark.gen, ptr->gen) > 32) {
+				/* rewrite btree node */
+
+			}
+		}
+		percpu_up_read(&c->mark_lock);
+	}
+
+	bch2_trans_exit(&trans);
+	return ret;
+}
+
+int bch2_gc_gens(struct bch_fs *c)
+{
+	struct bch_dev *ca;
+	struct bucket_array *buckets;
+	struct bucket *g;
+	unsigned i;
+	int ret;
+
+	down_read(&c->state_lock);
+
+	for_each_member_device(ca, c, i) {
+		down_read(&ca->bucket_lock);
+		buckets = bucket_array(ca);
+
+		for_each_bucket(g, buckets)
+			g->gc_gen = g->mark.gen;
+		up_read(&ca->bucket_lock);
+	}
+
+	for (i = 0; i < BTREE_ID_NR; i++)
+		if (btree_node_type_needs_gc(i)) {
+			ret = bch2_gc_btree_gens(c, i);
+			if (ret)
+				goto err;
+		}
+
+	for_each_member_device(ca, c, i) {
+		down_read(&ca->bucket_lock);
+		buckets = bucket_array(ca);
+
+		for_each_bucket(g, buckets)
+			g->oldest_gen = g->gc_gen;
+		up_read(&ca->bucket_lock);
+	}
+err:
+	up_read(&c->state_lock);
+	return ret;
+}
+
 /* Btree coalescing */
 
 static void recalc_packed_keys(struct btree *b)
@@ -1262,7 +1338,14 @@ static int bch2_gc_thread(void *arg)
 		last = atomic_long_read(&clock->now);
 		last_kick = atomic_read(&c->kick_gc);
 
+		/*
+		 * Full gc is currently incompatible with btree key cache:
+		 */
+#if 0
 		ret = bch2_gc(c, NULL, false, false);
+#else
+		ret = bch2_gc_gens(c);
+#endif
 		if (ret)
 			bch_err(c, "btree gc failed: %i", ret);
 

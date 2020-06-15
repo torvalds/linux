@@ -486,9 +486,16 @@ STORE(bch2_fs)
 		bch2_coalesce(c);
 
 	if (attr == &sysfs_trigger_gc) {
+		/*
+		 * Full gc is currently incompatible with btree key cache:
+		 */
+#if 0
 		down_read(&c->state_lock);
 		bch2_gc(c, NULL, false, false);
 		up_read(&c->state_lock);
+#else
+		bch2_gc_gens(c);
+#endif
 	}
 
 	if (attr == &sysfs_trigger_alloc_write) {
