@@ -501,6 +501,7 @@ static void bch2_bucket_clock_init(struct bch_fs *c, int rw)
 static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 {
 	unsigned long gc_count = c->gc_count;
+	u64 available;
 	int ret = 0;
 
 	ca->allocator_state = ALLOCATOR_BLOCKED;
@@ -516,9 +517,11 @@ static int wait_buckets_available(struct bch_fs *c, struct bch_dev *ca)
 		if (gc_count != c->gc_count)
 			ca->inc_gen_really_needs_gc = 0;
 
-		if ((ssize_t) (dev_buckets_available(c, ca) -
-			       ca->inc_gen_really_needs_gc) >=
-		    (ssize_t) fifo_free(&ca->free_inc))
+		available = max_t(s64, 0, dev_buckets_available(c, ca) -
+				  ca->inc_gen_really_needs_gc);
+
+		if (available > fifo_free(&ca->free_inc) ||
+		    (available && !fifo_full(&ca->free[RESERVE_BTREE])))
 			break;
 
 		up_read(&c->gc_lock);

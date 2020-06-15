@@ -340,7 +340,7 @@ enum bch_time_stats {
 #define BTREE_RESERVE_MAX	(BTREE_MAX_DEPTH + (BTREE_MAX_DEPTH - 1))
 
 /* Size of the freelist we allocate btree nodes from: */
-#define BTREE_NODE_RESERVE	BTREE_RESERVE_MAX
+#define BTREE_NODE_RESERVE	(BTREE_RESERVE_MAX * 4)
 
 #define BTREE_NODE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
 
