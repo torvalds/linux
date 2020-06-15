@@ -168,17 +168,17 @@ struct _vcs_dpi_ip_params_st dcn3_0_ip = {
 
 struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 	.clock_limits = {
-			/* State 0 should have clocks set below WM set B minimums */
 			{
 				.state = 0,
-			},
-			/* State 1 is max */
-			{
-				.state = 1,
+				.dispclk_mhz = 562.0,
+				.dppclk_mhz = 300.0,
+				.phyclk_mhz = 300.0,
+				.phyclk_d18_mhz = 667.0,
+				.dscclk_mhz = 405.6,
 			},
 		},
 	.min_dcfclk = 500.0, /* TODO: set this to actual min DCFCLK */
-	.num_states = 2,
+	.num_states = 1,
 	.sr_exit_time_us = 12,
 	.sr_enter_plus_exit_time_us = 20,
 	.urgent_latency_us = 4.0,
@@ -204,6 +204,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 	.round_trip_ping_latency_dcfclk_cycles = 191,
 	.urgent_out_of_order_return_per_channel_bytes = 4096,
 	.channel_interleave_bytes = 256,
+	.num_banks = 8,
 	.gpuvm_min_page_size_bytes = 4096,
 	.hostvm_min_page_size_bytes = 4096,
 	.dram_clock_change_latency_us = 404,
@@ -2351,46 +2352,26 @@ static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 		}
 
 		for (i = 0; i < dcn3_0_soc.num_states; i++) {
+			dcn3_0_soc.clock_limits[i].state = i;
 			dcn3_0_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
 			dcn3_0_soc.clock_limits[i].fabricclk_mhz = dcfclk_mhz[i];
 			dcn3_0_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
-		}
-	}
 
-	/* Fill all states with max values of all other clocks */
-	for (i = 0; i < dcn3_0_soc.num_states; i++) {
-		/* Some clocks can come from bw_params, if so fill from bw_params[1], otherwise fill from dcn3_0_soc[1] */
-		/* Temporarily ignore bw_params values */
-
-		/* DTBCLK */
-		/*if (bw_params->clk_table.entries[0].dtbclk_mhz)
-			dcn3_0_soc.clock_limits[i].dtbclk_mhz = bw_params->clk_table.entries[1].dtbclk_mhz;
-		else*/
-			dcn3_0_soc.clock_limits[i].dtbclk_mhz = dcn3_0_soc.clock_limits[1].dtbclk_mhz;
-
-		/* DISPCLK */
-		/*if (bw_params->clk_table.entries[0].dispclk_mhz)
+			/* Fill all states with max values of all other clocks */
 			dcn3_0_soc.clock_limits[i].dispclk_mhz = bw_params->clk_table.entries[1].dispclk_mhz;
-		else*/
-			dcn3_0_soc.clock_limits[i].dispclk_mhz = dcn3_0_soc.clock_limits[1].dispclk_mhz;
-
-		/* DPPCLK */
-		/*if (bw_params->clk_table.entries[0].dppclk_mhz)
-			dcn3_0_soc.clock_limits[i].dppclk_mhz = bw_params->clk_table.entries[1].dppclk_mhz;
-		else*/
-			dcn3_0_soc.clock_limits[i].dppclk_mhz = dcn3_0_soc.clock_limits[1].dppclk_mhz;
-
-		/* PHYCLK */
-		/*if (bw_params->clk_table.entries[0].phyclk_mhz)
-			dcn3_0_soc.clock_limits[i].phyclk_mhz = bw_params->clk_table.entries[1].phyclk_mhz;
-		else*/
-			dcn3_0_soc.clock_limits[i].phyclk_mhz = dcn3_0_soc.clock_limits[1].phyclk_mhz;
-
-		/* These clocks cannot come from bw_params, always fill from dcn3_0_soc[1] */
-		/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
-		dcn3_0_soc.clock_limits[i].phyclk_d18_mhz = dcn3_0_soc.clock_limits[1].phyclk_d18_mhz;
-		dcn3_0_soc.clock_limits[i].socclk_mhz = dcn3_0_soc.clock_limits[1].socclk_mhz;
-		dcn3_0_soc.clock_limits[i].dscclk_mhz = dcn3_0_soc.clock_limits[1].dscclk_mhz;
+			dcn3_0_soc.clock_limits[i].dppclk_mhz  = bw_params->clk_table.entries[1].dppclk_mhz;
+			dcn3_0_soc.clock_limits[i].phyclk_mhz  = bw_params->clk_table.entries[1].phyclk_mhz;
+			dcn3_0_soc.clock_limits[i].dtbclk_mhz = dcn3_0_soc.clock_limits[0].dtbclk_mhz;
+			/* These clocks cannot come from bw_params, always fill from dcn3_0_soc[1] */
+			/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
+			dcn3_0_soc.clock_limits[i].phyclk_d18_mhz = dcn3_0_soc.clock_limits[0].phyclk_d18_mhz;
+			dcn3_0_soc.clock_limits[i].socclk_mhz = dcn3_0_soc.clock_limits[0].socclk_mhz;
+			dcn3_0_soc.clock_limits[i].dscclk_mhz = dcn3_0_soc.clock_limits[0].dscclk_mhz;
+		}
+		/* re-init DML with updated bb */
+		dml_init_instance(&dc->dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
+		if (dc->current_state)
+			dml_init_instance(&dc->current_state->bw_ctx.dml, &dcn3_0_soc, &dcn3_0_ip, DML_PROJECT_DCN30);
 	}
 
 	/* re-init DML with updated bb */
