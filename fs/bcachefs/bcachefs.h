@@ -551,8 +551,8 @@ struct bch_fs {
 	struct super_block	*vfs_sb;
 	char			name[40];
 
-	/* ro/rw, add/remove devices: */
-	struct mutex		state_lock;
+	/* ro/rw, add/remove/resize devices: */
+	struct rw_semaphore	state_lock;
 
 	/* Counts outstanding writes, for clean transition to read-only */
 	struct percpu_ref	writes;

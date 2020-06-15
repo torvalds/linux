@@ -37,7 +37,7 @@ void bch2_io_error_work(struct work_struct *work)
 	struct bch_fs *c = ca->fs;
 	bool dev;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	dev = bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_RO,
 				    BCH_FORCE_IF_DEGRADED);
 	if (dev
@@ -47,7 +47,7 @@ void bch2_io_error_work(struct work_struct *work)
 		bch_err(ca,
 			"too many IO errors, setting %s RO",
 			dev ? "device" : "filesystem");
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 }
 
 void bch2_io_error(struct bch_dev *ca)

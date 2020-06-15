@@ -427,7 +427,7 @@ SHOW(bch2_fs)
 	return 0;
 }
 
-STORE(__bch2_fs)
+STORE(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
 
@@ -485,8 +485,11 @@ STORE(__bch2_fs)
 	if (attr == &sysfs_trigger_btree_coalesce)
 		bch2_coalesce(c);
 
-	if (attr == &sysfs_trigger_gc)
+	if (attr == &sysfs_trigger_gc) {
+		down_read(&c->state_lock);
 		bch2_gc(c, NULL, false, false);
+		up_read(&c->state_lock);
+	}
 
 	if (attr == &sysfs_trigger_alloc_write) {
 		bool wrote;
@@ -501,6 +504,7 @@ STORE(__bch2_fs)
 		sc.nr_to_scan = strtoul_or_return(buf);
 		c->btree_cache.shrink.scan_objects(&c->btree_cache.shrink, &sc);
 	}
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -520,17 +524,6 @@ STORE(__bch2_fs)
 		kfree(tmp);
 	}
 #endif
-	return size;
-}
-
-STORE(bch2_fs)
-{
-	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
-
-	mutex_lock(&c->state_lock);
-	size = __bch2_fs_store(kobj, attr, buf, size);
-	mutex_unlock(&c->state_lock);
-
 	return size;
 }
 SYSFS_OPS(bch2_fs);

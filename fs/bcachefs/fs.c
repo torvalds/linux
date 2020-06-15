@@ -1342,16 +1342,16 @@ static struct bch_fs *__bch2_open_as_blockdevs(const char *dev_name, char * cons
 	if (IS_ERR(c))
 		return c;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
-		mutex_unlock(&c->state_lock);
+		up_write(&c->state_lock);
 		closure_put(&c->cl);
 		pr_err("err mounting %s: incomplete filesystem", dev_name);
 		return ERR_PTR(-EINVAL);
 	}
 
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 
 	set_bit(BCH_FS_BDEV_MOUNTED, &c->flags);
 	return c;
@@ -1400,7 +1400,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 		return ret;
 
 	if (opts.read_only != c->opts.read_only) {
-		mutex_lock(&c->state_lock);
+		down_write(&c->state_lock);
 
 		if (opts.read_only) {
 			bch2_fs_read_only(c);
@@ -1410,7 +1410,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 			ret = bch2_fs_read_write(c);
 			if (ret) {
 				bch_err(c, "error going rw: %i", ret);
-				mutex_unlock(&c->state_lock);
+				up_write(&c->state_lock);
 				return -EINVAL;
 			}
 
@@ -1419,7 +1419,7 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 
 		c->opts.read_only = opts.read_only;
 
-		mutex_unlock(&c->state_lock);
+		up_write(&c->state_lock);
 	}
 
 	if (opts.errors >= 0)

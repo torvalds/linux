@@ -340,9 +340,9 @@ static void bch2_fs_read_only_work(struct work_struct *work)
 	struct bch_fs *c =
 		container_of(work, struct bch_fs, read_only_work);
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	bch2_fs_read_only(c);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 }
 
 static void bch2_fs_read_only_async(struct bch_fs *c)
@@ -534,9 +534,9 @@ void bch2_fs_stop(struct bch_fs *c)
 
 	cancel_work_sync(&c->journal_seq_blacklist_gc_work);
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	bch2_fs_read_only(c);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 
 	for_each_member_device(ca, c, i)
 		if (ca->kobj.state_in_sysfs &&
@@ -607,7 +607,7 @@ static const char *bch2_fs_online(struct bch_fs *c)
 	    bch2_opts_create_sysfs_files(&c->opts_dir))
 		return "error creating sysfs objects";
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	err = "error creating sysfs objects";
 	__for_each_member_device(ca, c, i, NULL)
@@ -617,7 +617,7 @@ static const char *bch2_fs_online(struct bch_fs *c)
 	list_add(&c->list, &bch_fs_list);
 	err = NULL;
 err:
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return err;
 }
 
@@ -639,7 +639,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	c->minor		= -1;
 	c->disk_sb.fs_sb	= true;
 
-	mutex_init(&c->state_lock);
+	init_rwsem(&c->state_lock);
 	mutex_init(&c->sb_lock);
 	mutex_init(&c->replicas_gc_lock);
 	mutex_init(&c->btree_root_lock);
@@ -832,7 +832,7 @@ int bch2_fs_start(struct bch_fs *c)
 	unsigned i;
 	int ret = -EINVAL;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	BUG_ON(test_bit(BCH_FS_STARTED, &c->flags));
 
@@ -882,7 +882,7 @@ int bch2_fs_start(struct bch_fs *c)
 	print_mount_opts(c);
 	ret = 0;
 out:
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return ret;
 err:
 	switch (ret) {
@@ -1376,9 +1376,9 @@ int bch2_dev_set_state(struct bch_fs *c, struct bch_dev *ca,
 {
 	int ret;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	ret = __bch2_dev_set_state(c, ca, new_state, flags);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 
 	return ret;
 }
@@ -1391,7 +1391,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	unsigned dev_idx = ca->dev_idx, data;
 	int ret = -EINVAL;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	/*
 	 * We consume a reference to ca->ref, regardless of whether we succeed
@@ -1481,13 +1481,13 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	bch2_write_super(c);
 
 	mutex_unlock(&c->sb_lock);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return 0;
 err:
 	if (ca->mi.state == BCH_MEMBER_STATE_RW &&
 	    !percpu_ref_is_zero(&ca->io_ref))
 		__bch2_dev_read_write(c, ca);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return ret;
 }
 
@@ -1563,7 +1563,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 
 	dev_usage_clear(ca);
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	mutex_lock(&c->sb_lock);
 
 	err = "insufficient space in new superblock";
@@ -1624,12 +1624,12 @@ have_slot:
 			goto err_late;
 	}
 
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return 0;
 
 err_unlock:
 	mutex_unlock(&c->sb_lock);
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 err:
 	if (ca)
 		bch2_dev_free(ca);
@@ -1652,11 +1652,11 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	const char *err;
 	int ret;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	ret = bch2_read_super(path, &opts, &sb);
 	if (ret) {
-		mutex_unlock(&c->state_lock);
+		up_write(&c->state_lock);
 		return ret;
 	}
 
@@ -1687,10 +1687,10 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
 
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return 0;
 err:
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	bch2_free_super(&sb);
 	bch_err(c, "error bringing %s online: %s", path, err);
 	return -EINVAL;
@@ -1698,23 +1698,23 @@ err:
 
 int bch2_dev_offline(struct bch_fs *c, struct bch_dev *ca, int flags)
 {
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	if (!bch2_dev_is_online(ca)) {
 		bch_err(ca, "Already offline");
-		mutex_unlock(&c->state_lock);
+		up_write(&c->state_lock);
 		return 0;
 	}
 
 	if (!bch2_dev_state_allowed(c, ca, BCH_MEMBER_STATE_FAILED, flags)) {
 		bch_err(ca, "Cannot offline required disk");
-		mutex_unlock(&c->state_lock);
+		up_write(&c->state_lock);
 		return -EINVAL;
 	}
 
 	__bch2_dev_offline(c, ca);
 
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return 0;
 }
 
@@ -1723,7 +1723,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	struct bch_member *mi;
 	int ret = 0;
 
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 
 	if (nbuckets < ca->mi.nbuckets) {
 		bch_err(ca, "Cannot shrink yet");
@@ -1754,7 +1754,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	bch2_recalc_capacity(c);
 err:
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 	return ret;
 }
 
@@ -1834,13 +1834,13 @@ struct bch_fs *bch2_fs_open(char * const *devices, unsigned nr_devices,
 		goto err;
 
 	err = "bch2_dev_online() error";
-	mutex_lock(&c->state_lock);
+	down_write(&c->state_lock);
 	for (i = 0; i < nr_devices; i++)
 		if (bch2_dev_attach_bdev(c, &sb[i])) {
-			mutex_unlock(&c->state_lock);
+			up_write(&c->state_lock);
 			goto err_print;
 		}
-	mutex_unlock(&c->state_lock);
+	up_write(&c->state_lock);
 
 	err = "insufficient devices";
 	if (!bch2_fs_may_start(c))

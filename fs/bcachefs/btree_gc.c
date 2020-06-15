@@ -800,6 +800,7 @@ int bch2_gc(struct bch_fs *c, struct journal_keys *journal_keys,
 	unsigned i, iter = 0;
 	int ret;
 
+	lockdep_assert_held(&c->state_lock);
 	trace_gc_start(c);
 
 	down_write(&c->gc_lock);

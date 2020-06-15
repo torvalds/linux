@@ -1967,6 +1967,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	int ret = -ENOMEM;
 	unsigned i;
 
+	lockdep_assert_held(&c->state_lock);
+
 	memset(&free,		0, sizeof(free));
 	memset(&free_inc,	0, sizeof(free_inc));
 	memset(&alloc_heap,	0, sizeof(alloc_heap));
@@ -1993,7 +1995,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bch2_copygc_stop(ca);
 
 	if (resize) {
-		down_write(&c->gc_lock);
 		down_write(&ca->bucket_lock);
 		percpu_down_write(&c->mark_lock);
 	}
@@ -2036,10 +2037,8 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	nbuckets = ca->mi.nbuckets;
 
-	if (resize) {
+	if (resize)
 		up_write(&ca->bucket_lock);
-		up_write(&c->gc_lock);
-	}
 
 	if (start_copygc &&
 	    bch2_copygc_start(c, ca))
