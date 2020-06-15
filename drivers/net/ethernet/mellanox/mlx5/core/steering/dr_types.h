@@ -797,6 +797,7 @@ struct mlx5dr_rule {
 	struct mlx5dr_rule_rx_tx rx;
 	struct mlx5dr_rule_rx_tx tx;
 	struct list_head rule_actions_list;
+	u32 flow_source;
 };
 
 void mlx5dr_rule_update_rule_member(struct mlx5dr_ste *new_ste,
