@@ -2436,13 +2436,6 @@ static inline unsigned long cpu_util_rt(struct rq *rq)
 	return READ_ONCE(rq->avg_rt.util_avg);
 }
 
-static inline unsigned long cpu_util_freq(int cpu)
-{
-	struct rq *rq = cpu_rq(cpu);
-
-	return min(cpu_util_cfs(rq) + cpu_util_rt(rq), capacity_orig_of(cpu));
-}
-
 #else /* CONFIG_CPU_FREQ_GOV_SCHEDUTIL */
 static inline unsigned long schedutil_cpu_util(int cpu, unsigned long util_cfs,
 				 unsigned long max, enum schedutil_type type,
