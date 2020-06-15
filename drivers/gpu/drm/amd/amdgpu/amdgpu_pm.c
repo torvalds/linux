@@ -696,7 +696,7 @@ static ssize_t amdgpu_set_pp_table(struct device *dev,
  * default power levels, write "r" (reset) to the file to reset them.
  *
  *
- * < For Vega20 >
+ * < For Vega20 and newer ASICs >
  *
  * Reading the file will display:
  *
