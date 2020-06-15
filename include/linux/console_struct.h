@@ -167,8 +167,7 @@ struct vc {
 	struct work_struct SAK_work;
 
 	/* might add  scrmem, kbd  at some time,
-	   to have everything in one place - the disadvantage
-	   would be that vc_cons etc can no longer be static */
+	   to have everything in one place */
 };
 
 extern struct vc vc_cons [MAX_NR_CONSOLES];
