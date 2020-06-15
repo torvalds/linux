@@ -230,6 +230,7 @@ The AMD-TEE driver packages the command buffer payload for processing in TEE.
 The command buffer format for the different TEE commands can be found in [7].
 
 The TEE commands supported by AMD-TEE Trusted OS are:
+
 * TEE_CMD_ID_LOAD_TA          - loads a Trusted Application (TA) binary into
                                 TEE environment.
 * TEE_CMD_ID_UNLOAD_TA        - unloads TA binary from TEE environment.
