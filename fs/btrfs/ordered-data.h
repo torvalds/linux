@@ -104,9 +104,6 @@ struct btrfs_ordered_extent {
 	/* list of checksums for insertion when the extent io is done */
 	struct list_head list;
 
-	/* If the transaction needs to wait on this ordered extent */
-	struct list_head trans_list;
-
 	/* used to wait for the BTRFS_ORDERED_COMPLETE bit */
 	wait_queue_head_t wait;
 
