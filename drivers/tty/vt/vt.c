@@ -2103,6 +2103,30 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	    csi_J(vc, 2);
 }
 
+static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
+{
+	unsigned char *charset = which == 0 ? &vc->state.G0_charset :
+		&vc->state.G1_charset;
+
+	switch (c) {
+	case '0':
+		*charset = GRAF_MAP;
+		break;
+	case 'B':
+		*charset = LAT1_MAP;
+		break;
+	case 'U':
+		*charset = IBMPC_MAP;
+		break;
+	case 'K':
+		*charset = USER_MAP;
+		break;
+	}
+
+	if (vc->state.charset == which)
+		vc->vc_translate = set_translate(*charset, vc);
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 {
@@ -2485,29 +2509,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		}
 		return;
 	case ESsetG0:
-		if (c == '0')
-			vc->state.G0_charset = GRAF_MAP;
-		else if (c == 'B')
-			vc->state.G0_charset = LAT1_MAP;
-		else if (c == 'U')
-			vc->state.G0_charset = IBMPC_MAP;
-		else if (c == 'K')
-			vc->state.G0_charset = USER_MAP;
-		if (vc->state.charset == 0)
-			vc->vc_translate = set_translate(vc->state.G0_charset, vc);
+		vc_setGx(vc, 0, c);
 		vc->vc_state = ESnormal;
 		return;
 	case ESsetG1:
-		if (c == '0')
-			vc->state.G1_charset = GRAF_MAP;
-		else if (c == 'B')
-			vc->state.G1_charset = LAT1_MAP;
-		else if (c == 'U')
-			vc->state.G1_charset = IBMPC_MAP;
-		else if (c == 'K')
-			vc->state.G1_charset = USER_MAP;
-		if (vc->state.charset == 1)
-			vc->vc_translate = set_translate(vc->state.G1_charset, vc);
+		vc_setGx(vc, 1, c);
 		vc->vc_state = ESnormal;
 		return;
 	case ESosc:
