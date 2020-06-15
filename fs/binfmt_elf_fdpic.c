@@ -1466,12 +1466,13 @@ struct elf_thread_status
  * we need to keep a linked list of every thread's pr_status and then create
  * a single section for them in the final core file.
  */
-static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
+static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_struct *p, int *sz)
 {
-	struct task_struct *p = t->thread;
-	int sz = 0;
+	struct elf_thread_status *t;
 
-	t->num_notes = 0;
+	t = kzalloc(sizeof(struct elf_thread_status), GFP_KERNEL);
+	if (!t)
+		return t;
 
 	fill_prstatus(&t->prstatus, p, signr);
 	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);
@@ -1479,16 +1480,16 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
 		  &t->prstatus);
 	t->num_notes++;
-	sz += notesize(&t->notes[0]);
+	*sz += notesize(&t->notes[0]);
 
 	t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, NULL, &t->fpu);
 	if (t->prstatus.pr_fpvalid) {
 		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &t->fpu);
 		t->num_notes++;
-		sz += notesize(&t->notes[1]);
+		*sz += notesize(&t->notes[1]);
 	}
-	return sz;
+	return t;
 }
 
 static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
@@ -1621,18 +1622,13 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 
 	for (ct = current->mm->core_state->dumper.next;
 					ct; ct = ct->next) {
-		tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+		tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
+					     ct->task, &thread_status_size);
 		if (!tmp)
 			goto end_coredump;
 
-		tmp->thread = ct->task;
 		tmp->next = thread_list;
 		thread_list = tmp;
-	}
-
-	for (tmp = thread_list; tmp; tmp = tmp->next) {
-		int sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
-		thread_status_size += sz;
 	}
 
 	/* now collect the dump for the current */
