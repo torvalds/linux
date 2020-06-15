@@ -2630,14 +2630,14 @@ static int soc_dpcm_fe_runtime_update(struct snd_soc_pcm_runtime *fe, int new)
 	int count, paths;
 	int ret;
 
+	if (!fe->dai_link->dynamic)
+		return 0;
+
 	if (fe->num_cpus > 1) {
 		dev_err(fe->dev,
 			"%s doesn't support Multi CPU yet\n", __func__);
 		return -EINVAL;
 	}
-
-	if (!fe->dai_link->dynamic)
-		return 0;
 
 	/* only check active links */
 	if (!snd_soc_dai_active(asoc_rtd_to_cpu(fe, 0)))

@@ -2829,12 +2829,13 @@ static int rt5682_probe(struct snd_soc_component *component)
 				return ret;
 			}
 			rt5682->mclk = NULL;
-		} else {
-			/* Register CCF DAI clock control */
-			ret = rt5682_register_dai_clks(component);
-			if (ret)
-				return ret;
 		}
+
+		/* Register CCF DAI clock control */
+		ret = rt5682_register_dai_clks(component);
+		if (ret)
+			return ret;
+
 		/* Initial setup for CCF */
 		rt5682->lrck[RT5682_AIF1] = CLK_48;
 #endif
