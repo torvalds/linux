@@ -518,6 +518,31 @@ static inline int do_fontx_ioctl(int cmd,
 	return -EINVAL;
 }
 
+static int vt_io_fontreset(struct console_font_op *op)
+{
+	int ret;
+
+	if (__is_defined(BROKEN_GRAPHICS_PROGRAMS)) {
+		/*
+		 * With BROKEN_GRAPHICS_PROGRAMS defined, the default font is
+		 * not saved.
+		 */
+		return -ENOSYS;
+	}
+
+	op->op = KD_FONT_OP_SET_DEFAULT;
+	op->data = NULL;
+	ret = con_font_op(vc_cons[fg_console].d, op);
+	if (ret)
+		return ret;
+
+	console_lock();
+	con_set_default_unimap(vc_cons[fg_console].d);
+	console_unlock();
+
+	return 0;
+}
+
 static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
 		int perm, struct vc_data *vc)
 {
@@ -581,24 +606,7 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
 		if (!perm)
 			return -EPERM;
 
-#ifdef BROKEN_GRAPHICS_PROGRAMS
-		/* With BROKEN_GRAPHICS_PROGRAMS defined, the default
-		   font is not saved. */
-		return -ENOSYS;
-#else
-		{
-		int ret;
-		op.op = KD_FONT_OP_SET_DEFAULT;
-		op.data = NULL;
-		ret = con_font_op(vc_cons[fg_console].d, &op);
-		if (ret)
-			return ret;
-		console_lock();
-		con_set_default_unimap(vc_cons[fg_console].d);
-		console_unlock();
-		break;
-		}
-#endif
+		return vt_io_fontreset(&op);
 
 	case PIO_SCRNMAP:
 		if (!perm)
