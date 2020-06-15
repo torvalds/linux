@@ -141,17 +141,6 @@ static int idxd_setup_interrupts(struct idxd_device *idxd)
 	return rc;
 }
 
-static void idxd_wqs_free_lock(struct idxd_device *idxd)
-{
-	int i;
-
-	for (i = 0; i < idxd->max_wqs; i++) {
-		struct idxd_wq *wq = &idxd->wqs[i];
-
-		percpu_free_rwsem(&wq->submit_lock);
-	}
-}
-
 static int idxd_setup_internals(struct idxd_device *idxd)
 {
 	struct device *dev = &idxd->pdev->dev;
@@ -181,19 +170,11 @@ static int idxd_setup_internals(struct idxd_device *idxd)
 
 	for (i = 0; i < idxd->max_wqs; i++) {
 		struct idxd_wq *wq = &idxd->wqs[i];
-		int rc;
 
 		wq->id = i;
 		wq->idxd = idxd;
 		mutex_init(&wq->wq_lock);
-		atomic_set(&wq->dq_count, 0);
-		init_waitqueue_head(&wq->submit_waitq);
 		wq->idxd_cdev.minor = -1;
-		rc = percpu_init_rwsem(&wq->submit_lock);
-		if (rc < 0) {
-			idxd_wqs_free_lock(idxd);
-			return rc;
-		}
 	}
 
 	for (i = 0; i < idxd->max_engines; i++) {
@@ -462,7 +443,6 @@ static void idxd_remove(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "%s called\n", __func__);
 	idxd_cleanup_sysfs(idxd);
 	idxd_shutdown(pdev);
-	idxd_wqs_free_lock(idxd);
 	mutex_lock(&idxd_idr_lock);
 	idr_remove(&idxd_idrs[idxd->type], idxd->id);
 	mutex_unlock(&idxd_idr_lock);

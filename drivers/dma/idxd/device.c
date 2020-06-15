@@ -160,16 +160,14 @@ static int alloc_descs(struct idxd_wq *wq, int num)
 int idxd_wq_alloc_resources(struct idxd_wq *wq)
 {
 	struct idxd_device *idxd = wq->idxd;
-	struct idxd_group *group = wq->group;
 	struct device *dev = &idxd->pdev->dev;
 	int rc, num_descs, i;
 
 	if (wq->type != IDXD_WQT_KERNEL)
 		return 0;
 
-	num_descs = wq->size +
-		idxd->hw.gen_cap.max_descs_per_engine * group->num_engines;
-	wq->num_descs = num_descs;
+	wq->num_descs = wq->size;
+	num_descs = wq->size;
 
 	rc = alloc_hw_descs(wq, num_descs);
 	if (rc < 0)
@@ -187,8 +185,8 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 	if (rc < 0)
 		goto fail_alloc_descs;
 
-	rc = sbitmap_init_node(&wq->sbmap, num_descs, -1, GFP_KERNEL,
-			       dev_to_node(dev));
+	rc = sbitmap_queue_init_node(&wq->sbq, num_descs, -1, false, GFP_KERNEL,
+				     dev_to_node(dev));
 	if (rc < 0)
 		goto fail_sbitmap_init;
 
@@ -201,7 +199,7 @@ int idxd_wq_alloc_resources(struct idxd_wq *wq)
 			sizeof(struct dsa_completion_record) * i;
 		desc->id = i;
 		desc->wq = wq;
-
+		desc->cpu = -1;
 		dma_async_tx_descriptor_init(&desc->txd, &wq->dma_chan);
 		desc->txd.tx_submit = idxd_dma_tx_submit;
 	}
@@ -227,7 +225,7 @@ void idxd_wq_free_resources(struct idxd_wq *wq)
 	free_hw_descs(wq);
 	free_descs(wq);
 	dma_free_coherent(dev, wq->compls_size, wq->compls, wq->compls_addr);
-	sbitmap_free(&wq->sbmap);
+	sbitmap_queue_free(&wq->sbq);
 }
 
 int idxd_wq_enable(struct idxd_wq *wq)

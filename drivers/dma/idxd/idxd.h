@@ -104,7 +104,6 @@ struct idxd_wq {
 	enum idxd_wq_state state;
 	unsigned long flags;
 	union wqcfg wqcfg;
-	atomic_t dq_count;	/* dedicated queue flow control */
 	u32 vec_ptr;		/* interrupt steering */
 	struct dsa_hw_desc **hw_descs;
 	int num_descs;
@@ -112,10 +111,8 @@ struct idxd_wq {
 	dma_addr_t compls_addr;
 	int compls_size;
 	struct idxd_desc **descs;
-	struct sbitmap sbmap;
+	struct sbitmap_queue sbq;
 	struct dma_chan dma_chan;
-	struct percpu_rw_semaphore submit_lock;
-	wait_queue_head_t submit_waitq;
 	char name[WQ_NAME_SIZE + 1];
 };
 
@@ -201,6 +198,7 @@ struct idxd_desc {
 	struct llist_node llnode;
 	struct list_head list;
 	int id;
+	int cpu;
 	struct idxd_wq *wq;
 };
 
