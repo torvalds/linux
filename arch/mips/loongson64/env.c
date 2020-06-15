@@ -133,11 +133,11 @@ void __init prom_init_env(void)
 		case PRID_REV_LOONGSON3A_R2_1:
 		case PRID_REV_LOONGSON3A_R3_0:
 		case PRID_REV_LOONGSON3A_R3_1:
-			loongson_fdt_blob = __dtb_loongson3_4core_rs780e_begin;
+			loongson_fdt_blob = __dtb_loongson64c_4core_rs780e_begin;
 			break;
 		case PRID_REV_LOONGSON3B_R1:
 		case PRID_REV_LOONGSON3B_R2:
-			loongson_fdt_blob = __dtb_loongson3_8core_rs780e_begin;
+			loongson_fdt_blob = __dtb_loongson64c_8core_rs780e_begin;
 			break;
 		default:
 			break;
