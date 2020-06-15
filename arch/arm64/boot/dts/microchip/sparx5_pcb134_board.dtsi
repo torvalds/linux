@@ -7,4 +7,9 @@
 #include "sparx5_pcb_common.dtsi"
 
 /{
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 37 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
 };
