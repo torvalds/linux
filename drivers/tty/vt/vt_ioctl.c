@@ -241,6 +241,47 @@ int vt_waitactive(int n)
 #define GPLAST 0x3df
 #define GPNUM (GPLAST - GPFIRST + 1)
 
+/*
+ * currently, setting the mode from KD_TEXT to KD_GRAPHICS doesn't do a whole
+ * lot. i'm not sure if it should do any restoration of modes or what...
+ *
+ * XXX It should at least call into the driver, fbdev's definitely need to
+ * restore their engine state. --BenH
+ */
+static int vt_kdsetmode(struct vc_data *vc, unsigned long mode)
+{
+	switch (mode) {
+	case KD_GRAPHICS:
+		break;
+	case KD_TEXT0:
+	case KD_TEXT1:
+		mode = KD_TEXT;
+		fallthrough;
+	case KD_TEXT:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* FIXME: this needs the console lock extending */
+	if (vc->vc_mode == mode)
+		return 0;
+
+	vc->vc_mode = mode;
+	if (vc->vc_num != fg_console)
+		return 0;
+
+	/* explicitly blank/unblank the screen if switching modes */
+	console_lock();
+	if (mode == KD_TEXT)
+		do_unblank_screen(1);
+	else
+		do_blank_screen(1);
+	console_unlock();
+
+	return 0;
+}
+
 static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 		unsigned long arg, bool perm)
 {
@@ -335,43 +376,10 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 	}
 
 	case KDSETMODE:
-		/*
-		 * currently, setting the mode from KD_TEXT to KD_GRAPHICS
-		 * doesn't do a whole lot. i'm not sure if it should do any
-		 * restoration of modes or what...
-		 *
-		 * XXX It should at least call into the driver, fbdev's definitely
-		 * need to restore their engine state. --BenH
-		 */
 		if (!perm)
 			return -EPERM;
-		switch (arg) {
-		case KD_GRAPHICS:
-			break;
-		case KD_TEXT0:
-		case KD_TEXT1:
-			arg = KD_TEXT;
-		case KD_TEXT:
-			break;
-		default:
-			return -EINVAL;
-		}
-		/* FIXME: this needs the console lock extending */
-		if (vc->vc_mode == (unsigned char) arg)
-			break;
-		vc->vc_mode = (unsigned char) arg;
-		if (console != fg_console)
-			break;
-		/*
-		 * explicitly blank/unblank the screen if switching modes
-		 */
-		console_lock();
-		if (arg == KD_TEXT)
-			do_unblank_screen(1);
-		else
-			do_blank_screen(1);
-		console_unlock();
-		break;
+
+		return vt_kdsetmode(vc, arg);
 
 	case KDGETMODE:
 		return put_user(vc->vc_mode, (int __user *)arg);
