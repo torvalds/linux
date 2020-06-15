@@ -1638,8 +1638,8 @@ static void gaudi_init_hbm_cred(struct hl_device *hdev)
 	uint32_t hbm0_wr, hbm1_wr, hbm0_rd, hbm1_rd;
 
 	hbm0_wr = 0x33333333;
-	hbm1_wr = 0x33333333;
 	hbm0_rd = 0x77777777;
+	hbm1_wr = 0x55555555;
 	hbm1_rd = 0xDDDDDDDD;
 
 	WREG32(mmDMA_IF_E_N_HBM0_WR_CRED_CNT, hbm0_wr);
@@ -1689,125 +1689,6 @@ static void gaudi_init_hbm_cred(struct hl_device *hdev)
 			(1 << DMA_IF_HBM_CRED_EN_WRITE_CREDIT_EN_SHIFT));
 }
 
-static void gaudi_init_rate_limiter(struct hl_device *hdev)
-{
-	u32 nr, nf, od, sat, rst, timeout;
-	u64 freq;
-
-	nr = RREG32(mmPSOC_HBM_PLL_NR);
-	nf = RREG32(mmPSOC_HBM_PLL_NF);
-	od = RREG32(mmPSOC_HBM_PLL_OD);
-	freq = (50 * (nf + 1)) / ((nr + 1) * (od + 1));
-
-	dev_dbg(hdev->dev, "HBM frequency is %lluMHz\n", freq);
-
-	/* Configuration is for five (5) DDMA channels */
-	if (freq == 800) {
-		sat = 4;
-		rst = 11;
-		timeout = 15;
-	} else if (freq == 900) {
-		sat = 4;
-		rst = 15;
-		timeout = 16;
-	} else if (freq == 950) {
-		sat = 4;
-		rst = 15;
-		timeout = 15;
-	} else {
-		dev_warn(hdev->dev,
-			"unsupported HBM frequency %lluMHz, no rate-limiters\n",
-			freq);
-		return;
-	}
-
-	WREG32(mmDMA_IF_W_S_DOWN_RSP_MID_WGHT_0, 0x111);
-	WREG32(mmDMA_IF_W_S_DOWN_RSP_MID_WGHT_1, 0x111);
-	WREG32(mmDMA_IF_E_S_DOWN_RSP_MID_WGHT_0, 0x111);
-	WREG32(mmDMA_IF_E_S_DOWN_RSP_MID_WGHT_1, 0x111);
-	WREG32(mmDMA_IF_W_N_DOWN_RSP_MID_WGHT_0, 0x111);
-	WREG32(mmDMA_IF_W_N_DOWN_RSP_MID_WGHT_1, 0x111);
-	WREG32(mmDMA_IF_E_N_DOWN_RSP_MID_WGHT_0, 0x111);
-	WREG32(mmDMA_IF_E_N_DOWN_RSP_MID_WGHT_1, 0x111);
-
-	if (!hdev->rl_enable) {
-		dev_info(hdev->dev, "Rate limiters disabled\n");
-		return;
-	}
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_HBM_SAT, sat);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_HBM_SAT, sat);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_HBM_RST, rst);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_HBM_RST, rst);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_HBM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_HBM_TIMEOUT, timeout);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_HBM_EN, 1);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_HBM_EN, 1);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_SRAM_SAT, sat);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_SRAM_SAT, sat);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_SRAM_RST, rst);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_SRAM_RST, rst);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_SRAM_TIMEOUT, timeout);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_SRAM_TIMEOUT, timeout);
-
-	WREG32(mmDMA_IF_W_S_DOWN_CH0_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_W_S_DOWN_CH1_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_E_S_DOWN_CH0_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_E_S_DOWN_CH1_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_W_N_DOWN_CH0_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_W_N_DOWN_CH1_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_E_N_DOWN_CH0_RL_SRAM_EN, 1);
-	WREG32(mmDMA_IF_E_N_DOWN_CH1_RL_SRAM_EN, 1);
-}
-
 static void gaudi_init_golden_registers(struct hl_device *hdev)
 {
 	u32 tpc_offset;
@@ -1816,8 +1697,6 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 	gaudi_init_e2e(hdev);
 
 	gaudi_init_hbm_cred(hdev);
-
-	gaudi_init_rate_limiter(hdev);
 
 	gaudi_disable_clock_gating(hdev);
 
@@ -1839,9 +1718,6 @@ static void gaudi_init_golden_registers(struct hl_device *hdev)
 	WREG32(mmMME1_CTRL_EUS_ROLLUP_CNT_ADD, 3);
 	WREG32(mmMME2_CTRL_EUS_ROLLUP_CNT_ADD, 3);
 	WREG32(mmMME3_CTRL_EUS_ROLLUP_CNT_ADD, 3);
-
-	/* WA for H3-2081 */
-	WREG32(mmPCIE_WRAP_MAX_OUTSTAND, 0x10ff);
 }
 
 static void gaudi_init_pci_dma_qman(struct hl_device *hdev, int dma_id,

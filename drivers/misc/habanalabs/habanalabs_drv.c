@@ -238,7 +238,6 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->axi_drain = 0;
 	hdev->sram_scrambler_enable = 1;
 	hdev->dram_scrambler_enable = 1;
-	hdev->rl_enable = 1;
 	hdev->bmc_enable = 1;
 	hdev->hard_reset_on_fw_events = 1;
 }
