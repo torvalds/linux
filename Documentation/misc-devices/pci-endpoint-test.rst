@@ -53,4 +53,4 @@ ioctl
 	      Perform read tests. The size of the buffer should be passed
 	      as argument.
 
-.. [1] Documentation/PCI/endpoint/function/binding/pci-test.txt
+.. [1] Documentation/PCI/endpoint/function/binding/pci-test.rst
