@@ -1977,8 +1977,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	int ret = -ENOMEM;
 	unsigned i;
 
-	lockdep_assert_held(&c->state_lock);
-
 	memset(&free,		0, sizeof(free));
 	memset(&free_inc,	0, sizeof(free_inc));
 	memset(&alloc_heap,	0, sizeof(alloc_heap));
