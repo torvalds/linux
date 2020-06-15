@@ -90,7 +90,6 @@ struct io_wq_work {
 	const struct cred *creds;
 	struct fs_struct *fs;
 	unsigned flags;
-	pid_t task_pid;
 };
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
