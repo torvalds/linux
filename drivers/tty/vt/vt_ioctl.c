@@ -353,8 +353,6 @@ int vt_ioctl(struct tty_struct *tty,
 	struct vc_data *vc = tty->driver_data;
 	struct console_font_op op;	/* used in multiple places here */
 	unsigned int console = vc->vc_num;
-	unsigned char ucval;
-	unsigned int uival;
 	void __user *up = (void __user *)arg;
 	int i, perm;
 	int ret;
@@ -406,8 +404,7 @@ int vt_ioctl(struct tty_struct *tty,
 		/*
 		 * this is naïve.
 		 */
-		ucval = KB_101;
-		return put_user(ucval, (char __user *)arg);
+		return put_user(KB_101, (char __user *)arg);
 
 		/*
 		 * These cannot be implemented on any machine that implements
@@ -495,8 +492,7 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	case KDGETMODE:
-		uival = vc->vc_mode;
-		goto setint;
+		return put_user(vc->vc_mode, (int __user *)arg);
 
 	case KDMAPDISP:
 	case KDUNMAPDISP:
@@ -516,8 +512,7 @@ int vt_ioctl(struct tty_struct *tty,
 		break;
 
 	case KDGKBMODE:
-		uival = vt_do_kdgkbmode(console);
-		return put_user(uival, (int __user *)arg);
+		return put_user(vt_do_kdgkbmode(console), (int __user *)arg);
 
 	/* this could be folded into KDSKBMODE, but for compatibility
 	   reasons it is not so easy to fold KDGKBMETA into KDGKBMODE */
@@ -526,9 +521,7 @@ int vt_ioctl(struct tty_struct *tty,
 
 	case KDGKBMETA:
 		/* FIXME: should review whether this is worth locking */
-		uival = vt_do_kdgkbmeta(console);
-	setint:
-		return put_user(uival, (int __user *)arg);
+		return put_user(vt_do_kdgkbmeta(console), (int __user *)arg);
 
 	case KDGETKEYCODE:
 	case KDSETKEYCODE:
@@ -650,8 +643,8 @@ int vt_ioctl(struct tty_struct *tty,
 			if (!vt_in_use(i))
 				break;
 		console_unlock();
-		uival = i < MAX_NR_CONSOLES ? (i+1) : -1;
-		goto setint;		 
+		i = i < MAX_NR_CONSOLES ? (i+1) : -1;
+		return put_user(i, (int __user *)arg);
 
 	/*
 	 * ioctl(fd, VT_ACTIVATE, num) will cause us to switch to vt # num,
