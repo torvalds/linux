@@ -8,6 +8,7 @@ Required properties:
 	"rockchip,rk3326-mipi-dphy"
 	"rockchip,rk3368-mipi-dphy"
 	"rockchip,rk3399-mipi-dphy"
+	"rockchip,rv1126-csi-dphy"
 - clocks : list of clock specifiers, corresponding to entries in
 	clock-names property;
 - clock-names: required clock name.
@@ -34,7 +35,12 @@ The first port show the sensors connected in this mipi-dphy.
 			data input lanes and their mapping to logical lanes; the
 			D-PHY can't reroute lanes, so the array's content should
 			be consecutive and only its length is meaningful.
-
+			For CCP2, v4l2 fwnode endpoint parse this read by u32.
+	- bus-type: data bus type. Possible values are:
+			0 - autodetect based on other properties (MIPI CSI-2 D-PHY, parallel or Bt656)
+			1 - MIPI CSI-2 C-PHY, no support
+			2 - MIPI CSI1, no support
+			3 - CCP2, using for lvds
 The port node must contain at least one endpoint. It could have multiple endpoints
 linked to different sensors, but please note that they are not supposed to be
 actived at the same time.
@@ -87,6 +93,43 @@ grf: syscon@ff770000 {
 				dphy_rx0_out: endpoint {
 					remote-endpoint = <&isp0_mipi_in>;
 				};
+			};
+		};
+	};
+};
+
+example for rv1126 node
+csi_dphy0 {
+	compatible = "rockchip,rv1126-csi-dphy";
+	reg = <0xff4b0000 0x8000>;
+	clocks = <&cru PCLK_CSIPHY0>;
+	clock-names = "pclk";
+	rockchip,grf = <&grf>;
+	status = "okay";
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in_ucam0: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ucam_out0>;
+				/*data-lanes = <1 2 3 4>; //for mipi*/
+				data-lanes = <4>; //for lvds, note: this diff to mipi
+				bus-type = <3>; //for lvds
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_in>;
 			};
 		};
 	};
