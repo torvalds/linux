@@ -2658,6 +2658,21 @@ need_more_bytes:
 	return -1;
 }
 
+static inline unsigned char vc_invert_attr(const struct vc_data *vc)
+{
+	if (!vc->vc_can_do_color)
+		return vc->vc_attr ^ 0x08;
+
+	if (vc->vc_hi_font_mask == 0x100)
+		return   (vc->vc_attr & 0x11) |
+			((vc->vc_attr & 0xe0) >> 4) |
+			((vc->vc_attr & 0x0e) << 4);
+
+	return   (vc->vc_attr & 0x88) |
+		((vc->vc_attr & 0x70) >> 4) |
+		((vc->vc_attr & 0x07) << 4);
+}
+
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
@@ -2776,14 +2791,7 @@ rescan_last_byte:
 			if (!inverse) {
 				vc_attr = vc->vc_attr;
 			} else {
-				/* invert vc_attr */
-				if (!vc->vc_can_do_color) {
-					vc_attr = (vc->vc_attr) ^ 0x08;
-				} else if (vc->vc_hi_font_mask == 0x100) {
-					vc_attr = ((vc->vc_attr) & 0x11) | (((vc->vc_attr) & 0xe0) >> 4) | (((vc->vc_attr) & 0x0e) << 4);
-				} else {
-					vc_attr = ((vc->vc_attr) & 0x88) | (((vc->vc_attr) & 0x70) >> 4) | (((vc->vc_attr) & 0x07) << 4);
-				}
+				vc_attr = vc_invert_attr(vc);
 				con_flush(vc, draw_from, draw_to, &draw_x);
 			}
 
