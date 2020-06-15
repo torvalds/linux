@@ -805,17 +805,33 @@ static int max77686_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int max77686_rtc_suspend(struct device *dev)
 {
+	struct max77686_rtc_info *info = dev_get_drvdata(dev);
+	int ret = 0;
+
 	if (device_may_wakeup(dev)) {
 		struct max77686_rtc_info *info = dev_get_drvdata(dev);
 
-		return enable_irq_wake(info->virq);
+		ret = enable_irq_wake(info->virq);
 	}
 
-	return 0;
+	/*
+	 * Main IRQ (not virtual) must be disabled during suspend because if it
+	 * happens while suspended it will be handled before resuming I2C.
+	 *
+	 * Since Main IRQ is shared, all its users should disable it to be sure
+	 * it won't fire while one of them is still suspended.
+	 */
+	disable_irq(info->rtc_irq);
+
+	return ret;
 }
 
 static int max77686_rtc_resume(struct device *dev)
 {
+	struct max77686_rtc_info *info = dev_get_drvdata(dev);
+
+	enable_irq(info->rtc_irq);
+
 	if (device_may_wakeup(dev)) {
 		struct max77686_rtc_info *info = dev_get_drvdata(dev);
 
