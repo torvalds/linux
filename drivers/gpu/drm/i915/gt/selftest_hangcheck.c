@@ -499,6 +499,20 @@ static int igt_reset_nop_engine(void *arg)
 
 				rq = intel_context_create_request(ce);
 				if (IS_ERR(rq)) {
+					struct drm_printer p =
+						drm_info_printer(gt->i915->drm.dev);
+					intel_engine_dump(engine, &p,
+							  "%s(%s): failed to submit request\n",
+							  __func__,
+							  engine->name);
+
+					GEM_TRACE("%s(%s): failed to submit request\n",
+						  __func__,
+						  engine->name);
+					GEM_TRACE_DUMP();
+
+					intel_gt_set_wedged(gt);
+
 					err = PTR_ERR(rq);
 					break;
 				}
