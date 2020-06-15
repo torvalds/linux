@@ -539,6 +539,100 @@ static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
 	return 0;
 }
 
+static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
+		bool perm)
+{
+	struct console_font_op op;	/* used in multiple places here */
+
+	switch (cmd) {
+	case PIO_FONT:
+		if (!perm)
+			return -EPERM;
+		op.op = KD_FONT_OP_SET;
+		op.flags = KD_FONT_FLAG_OLD | KD_FONT_FLAG_DONT_RECALC;	/* Compatibility */
+		op.width = 8;
+		op.height = 0;
+		op.charcount = 256;
+		op.data = up;
+		return con_font_op(vc_cons[fg_console].d, &op);
+
+	case GIO_FONT:
+		op.op = KD_FONT_OP_GET;
+		op.flags = KD_FONT_FLAG_OLD;
+		op.width = 8;
+		op.height = 32;
+		op.charcount = 256;
+		op.data = up;
+		return con_font_op(vc_cons[fg_console].d, &op);
+
+	case PIO_CMAP:
+                if (!perm)
+			return -EPERM;
+		return con_set_cmap(up);
+
+	case GIO_CMAP:
+                return con_get_cmap(up);
+
+	case PIO_FONTX:
+	case GIO_FONTX:
+		return do_fontx_ioctl(cmd, up, perm, &op);
+
+	case PIO_FONTRESET:
+		if (!perm)
+			return -EPERM;
+
+#ifdef BROKEN_GRAPHICS_PROGRAMS
+		/* With BROKEN_GRAPHICS_PROGRAMS defined, the default
+		   font is not saved. */
+		return -ENOSYS;
+#else
+		{
+		int ret;
+		op.op = KD_FONT_OP_SET_DEFAULT;
+		op.data = NULL;
+		ret = con_font_op(vc_cons[fg_console].d, &op);
+		if (ret)
+			return ret;
+		console_lock();
+		con_set_default_unimap(vc_cons[fg_console].d);
+		console_unlock();
+		break;
+		}
+#endif
+
+	case PIO_SCRNMAP:
+		if (!perm)
+			return -EPERM;
+		return con_set_trans_old(up);
+
+	case GIO_SCRNMAP:
+		return con_get_trans_old(up);
+
+	case PIO_UNISCRNMAP:
+		if (!perm)
+			return -EPERM;
+		return con_set_trans_new(up);
+
+	case GIO_UNISCRNMAP:
+		return con_get_trans_new(up);
+
+	case PIO_UNIMAPCLR:
+		if (!perm)
+			return -EPERM;
+		con_clear_unimap(vc);
+		break;
+
+	case PIO_UNIMAP:
+	case GIO_UNIMAP:
+		return do_unimap_ioctl(cmd, up, perm, vc);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+
+	return 0;
+}
+
 /* deallocate a single console, if possible (leave 0) */
 static int vt_disallocate(unsigned int vc_num)
 {
@@ -586,7 +680,6 @@ int vt_ioctl(struct tty_struct *tty,
 	     unsigned int cmd, unsigned long arg)
 {
 	struct vc_data *vc = tty->driver_data;
-	struct console_font_op op;	/* used in multiple places here */
 	void __user *up = (void __user *)arg;
 	int i, perm;
 	int ret;
@@ -600,6 +693,10 @@ int vt_ioctl(struct tty_struct *tty,
 		perm = 1;
 
 	ret = vt_k_ioctl(tty, cmd, arg, perm);
+	if (ret != -ENOIOCTLCMD)
+		return ret;
+
+	ret = vt_io_ioctl(vc, cmd, up, perm);
 	if (ret != -ENOIOCTLCMD)
 		return ret;
 
@@ -902,84 +999,6 @@ int vt_ioctl(struct tty_struct *tty,
 		}
 		break;
 	}
-
-	case PIO_FONT:
-		if (!perm)
-			return -EPERM;
-		op.op = KD_FONT_OP_SET;
-		op.flags = KD_FONT_FLAG_OLD | KD_FONT_FLAG_DONT_RECALC;	/* Compatibility */
-		op.width = 8;
-		op.height = 0;
-		op.charcount = 256;
-		op.data = up;
-		return con_font_op(vc_cons[fg_console].d, &op);
-
-	case GIO_FONT:
-		op.op = KD_FONT_OP_GET;
-		op.flags = KD_FONT_FLAG_OLD;
-		op.width = 8;
-		op.height = 32;
-		op.charcount = 256;
-		op.data = up;
-		return con_font_op(vc_cons[fg_console].d, &op);
-
-	case PIO_CMAP:
-                if (!perm)
-			return -EPERM;
-		return con_set_cmap(up);
-
-	case GIO_CMAP:
-                return con_get_cmap(up);
-
-	case PIO_FONTX:
-	case GIO_FONTX:
-		return do_fontx_ioctl(cmd, up, perm, &op);
-
-	case PIO_FONTRESET:
-		if (!perm)
-			return -EPERM;
-
-#ifdef BROKEN_GRAPHICS_PROGRAMS
-		/* With BROKEN_GRAPHICS_PROGRAMS defined, the default
-		   font is not saved. */
-		return -ENOSYS;
-#else
-		op.op = KD_FONT_OP_SET_DEFAULT;
-		op.data = NULL;
-		ret = con_font_op(vc_cons[fg_console].d, &op);
-		if (ret)
-			return ret;
-		console_lock();
-		con_set_default_unimap(vc_cons[fg_console].d);
-		console_unlock();
-		break;
-#endif
-
-	case PIO_SCRNMAP:
-		if (!perm)
-			return -EPERM;
-		return con_set_trans_old(up);
-
-	case GIO_SCRNMAP:
-		return con_get_trans_old(up);
-
-	case PIO_UNISCRNMAP:
-		if (!perm)
-			return -EPERM;
-		return con_set_trans_new(up);
-
-	case GIO_UNISCRNMAP:
-		return con_get_trans_new(up);
-
-	case PIO_UNIMAPCLR:
-		if (!perm)
-			return -EPERM;
-		con_clear_unimap(vc);
-		break;
-
-	case PIO_UNIMAP:
-	case GIO_UNIMAP:
-		return do_unimap_ioctl(cmd, up, perm, vc);
 
 	case VT_LOCKSWITCH:
 		if (!capable(CAP_SYS_TTY_CONFIG))
