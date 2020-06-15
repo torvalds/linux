@@ -132,10 +132,10 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 {
     unsigned short car1;
 
-    car1 = conp->vc_screenbuf[conp->vc_x + conp->vc_y * conp->vc_cols];
+    car1 = conp->vc_screenbuf[conp->state.x + conp->state.y * conp->vc_cols];
     switch (mode) {
     case CM_ERASE:
-	sti_putc(sticon_sti, car1, conp->vc_y, conp->vc_x);
+	sti_putc(sticon_sti, car1, conp->state.y, conp->state.x);
 	break;
     case CM_MOVE:
     case CM_DRAW:
@@ -146,7 +146,7 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 	case CUR_TWO_THIRDS:
 	case CUR_BLOCK:
 	    sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
-		     conp->vc_y, conp->vc_x);
+		     conp->state.y, conp->state.x);
 	    break;
 	}
 	break;

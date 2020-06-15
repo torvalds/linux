@@ -85,8 +85,8 @@ static void tile_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	struct fb_tilecursor cursor;
 	int use_sw = (vc->vc_cursor_type & 0x10);
 
-	cursor.sx = vc->vc_x;
-	cursor.sy = vc->vc_y;
+	cursor.sx = vc->state.x;
+	cursor.sy = vc->state.y;
 	cursor.mode = (mode == CM_ERASE || use_sw) ? 0 : 1;
 	cursor.fg = fg;
 	cursor.bg = bg;

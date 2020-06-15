@@ -208,7 +208,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	struct fbcon_ops *ops = info->fbcon_par;
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.height + 7) >> 3, c;
-	int y = real_y(ops->p, vc->vc_y);
+	int y = real_y(ops->p, vc->state.y);
 	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
 	int err = 1, dx, dy;
 	char *src;
@@ -267,7 +267,7 @@ static void cw_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	}
 
 	dx = vxres - ((y * vc->vc_font.height) + vc->vc_font.height);
-	dy = vc->vc_x * vc->vc_font.width;
+	dy = vc->state.x * vc->vc_font.width;
 
 	if (ops->cursor_state.image.dx != dx ||
 	    ops->cursor_state.image.dy != dy ||

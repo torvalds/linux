@@ -263,8 +263,8 @@ static unsigned char get_attributes(struct vc_data *vc, u16 *pos)
 
 static void speakup_date(struct vc_data *vc)
 {
-	spk_x = spk_cx = vc->vc_x;
-	spk_y = spk_cy = vc->vc_y;
+	spk_x = spk_cx = vc->state.x;
+	spk_y = spk_cy = vc->state.y;
 	spk_pos = spk_cp = vc->vc_pos;
 	spk_old_attr = spk_attr;
 	spk_attr = get_attributes(vc, (u_short *)spk_pos);
@@ -1551,9 +1551,9 @@ static void do_handle_cursor(struct vc_data *vc, u_char value, char up_flag)
  */
 	is_cursor = value + 1;
 	old_cursor_pos = vc->vc_pos;
-	old_cursor_x = vc->vc_x;
-	old_cursor_y = vc->vc_y;
-	speakup_console[vc->vc_num]->ht.cy = vc->vc_y;
+	old_cursor_x = vc->state.x;
+	old_cursor_y = vc->state.y;
+	speakup_console[vc->vc_num]->ht.cy = vc->state.y;
 	cursor_con = vc->vc_num;
 	if (cursor_track == CT_Highlight)
 		reset_highlight_buffers(vc);
@@ -1574,8 +1574,8 @@ static void update_color_buffer(struct vc_data *vc, const u16 *ic, int len)
 	i = 0;
 	if (speakup_console[vc_num]->ht.highsize[bi] == 0) {
 		speakup_console[vc_num]->ht.rpos[bi] = vc->vc_pos;
-		speakup_console[vc_num]->ht.rx[bi] = vc->vc_x;
-		speakup_console[vc_num]->ht.ry[bi] = vc->vc_y;
+		speakup_console[vc_num]->ht.rx[bi] = vc->state.x;
+		speakup_console[vc_num]->ht.ry[bi] = vc->state.y;
 	}
 	while ((hi < COLOR_BUFFER_SIZE) && (i < len)) {
 		if (ic[i] > 32) {
@@ -1664,9 +1664,9 @@ static int speak_highlight(struct vc_data *vc)
 		return 0;
 	hc = get_highlight_color(vc);
 	if (hc != -1) {
-		d = vc->vc_y - speakup_console[vc_num]->ht.cy;
+		d = vc->state.y - speakup_console[vc_num]->ht.cy;
 		if ((d == 1) || (d == -1))
-			if (speakup_console[vc_num]->ht.ry[hc] != vc->vc_y)
+			if (speakup_console[vc_num]->ht.ry[hc] != vc->state.y)
 				return 0;
 		spk_parked |= 0x01;
 		spk_do_flush();
@@ -1693,8 +1693,8 @@ static void cursor_done(struct timer_list *unused)
 	}
 	speakup_date(vc);
 	if (win_enabled) {
-		if (vc->vc_x >= win_left && vc->vc_x <= win_right &&
-		    vc->vc_y >= win_top && vc->vc_y <= win_bottom) {
+		if (vc->state.x >= win_left && vc->state.x <= win_right &&
+		    vc->state.y >= win_top && vc->state.y <= win_bottom) {
 			spk_keydown = 0;
 			is_cursor = 0;
 			goto out;
@@ -1757,7 +1757,7 @@ static void speakup_con_write(struct vc_data *vc, u16 *str, int len)
 	if (!spin_trylock_irqsave(&speakup_info.spinlock, flags))
 		/* Speakup output, discard */
 		return;
-	if (spk_bell_pos && spk_keydown && (vc->vc_x == spk_bell_pos - 1))
+	if (spk_bell_pos && spk_keydown && (vc->state.x == spk_bell_pos - 1))
 		bleep(3);
 	if ((is_cursor) || (cursor_track == read_all_mode)) {
 		if (cursor_track == CT_Highlight)
@@ -1766,8 +1766,8 @@ static void speakup_con_write(struct vc_data *vc, u16 *str, int len)
 		return;
 	}
 	if (win_enabled) {
-		if (vc->vc_x >= win_left && vc->vc_x <= win_right &&
-		    vc->vc_y >= win_top && vc->vc_y <= win_bottom) {
+		if (vc->state.x >= win_left && vc->state.x <= win_right &&
+		    vc->state.y >= win_top && vc->state.y <= win_bottom) {
 			spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 			return;
 		}
