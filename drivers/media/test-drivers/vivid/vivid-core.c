@@ -1126,7 +1126,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
 	tpg_init(&dev->tpg, 640, 360);
-	if (tpg_alloc(&dev->tpg, MAX_ZOOM * MAX_WIDTH))
+	if (tpg_alloc(&dev->tpg, array_size(MAX_WIDTH, MAX_ZOOM)))
 		goto free_dev;
 	dev->scaled_line = vzalloc(array_size(MAX_WIDTH, MAX_ZOOM));
 	if (!dev->scaled_line)
@@ -1136,7 +1136,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		goto free_dev;
 
 	/* load the edid */
-	dev->edid = vmalloc(256 * 128);
+	dev->edid = vmalloc(array_size(256, 128));
 	if (!dev->edid)
 		goto free_dev;
 
