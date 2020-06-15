@@ -335,8 +335,8 @@ Path for the hotplug policy agent.
 Default value is "``/sbin/hotplug``".
 
 
-hung_task_all_cpu_backtrace:
-================
+hung_task_all_cpu_backtrace
+===========================
 
 If this option is set, the kernel will send an NMI to all CPUs to dump
 their backtraces when a hung task is detected. This file shows up if
@@ -646,8 +646,8 @@ rate for each task.
 scanned for a given scan.
 
 
-oops_all_cpu_backtrace:
-================
+oops_all_cpu_backtrace
+======================
 
 If this option is set, the kernel will send an NMI to all CPUs to dump
 their backtraces when an oops event occurs. It should be used as a last
