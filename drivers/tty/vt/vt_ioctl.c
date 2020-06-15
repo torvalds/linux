@@ -746,6 +746,60 @@ static void vt_disallocate_all(void)
 	}
 }
 
+static int vt_resizex(struct vc_data *vc, struct vt_consize __user *cs)
+{
+	struct vt_consize v;
+	int i;
+
+	if (copy_from_user(&v, cs, sizeof(struct vt_consize)))
+		return -EFAULT;
+
+	/* FIXME: Should check the copies properly */
+	if (!v.v_vlin)
+		v.v_vlin = vc->vc_scan_lines;
+
+	if (v.v_clin) {
+		int rows = v.v_vlin / v.v_clin;
+		if (v.v_rows != rows) {
+			if (v.v_rows) /* Parameters don't add up */
+				return -EINVAL;
+			v.v_rows = rows;
+		}
+	}
+
+	if (v.v_vcol && v.v_ccol) {
+		int cols = v.v_vcol / v.v_ccol;
+		if (v.v_cols != cols) {
+			if (v.v_cols)
+				return -EINVAL;
+			v.v_cols = cols;
+		}
+	}
+
+	if (v.v_clin > 32)
+		return -EINVAL;
+
+	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		struct vc_data *vcp;
+
+		if (!vc_cons[i].d)
+			continue;
+		console_lock();
+		vcp = vc_cons[i].d;
+		if (vcp) {
+			if (v.v_vlin)
+				vcp->vc_scan_lines = v.v_vlin;
+			if (v.v_clin)
+				vcp->vc_font.height = v.v_clin;
+			vcp->vc_resize_user = 1;
+			vc_resize(vcp, v.v_cols, v.v_rows);
+		}
+		console_unlock();
+	}
+
+	return 0;
+}
+
 /*
  * We handle the console-specific ioctl's here.  We allow the
  * capability to modify any console, not just the fg_console.
@@ -947,54 +1001,10 @@ int vt_ioctl(struct tty_struct *tty,
 	}
 
 	case VT_RESIZEX:
-	{
-		struct vt_consize v;
 		if (!perm)
 			return -EPERM;
-		if (copy_from_user(&v, up, sizeof(struct vt_consize)))
-			return -EFAULT;
-		/* FIXME: Should check the copies properly */
-		if (!v.v_vlin)
-			v.v_vlin = vc->vc_scan_lines;
-		if (v.v_clin) {
-			int rows = v.v_vlin/v.v_clin;
-			if (v.v_rows != rows) {
-				if (v.v_rows) /* Parameters don't add up */
-					return -EINVAL;
-				v.v_rows = rows;
-			}
-		}
-		if (v.v_vcol && v.v_ccol) {
-			int cols = v.v_vcol/v.v_ccol;
-			if (v.v_cols != cols) {
-				if (v.v_cols)
-					return -EINVAL;
-				v.v_cols = cols;
-			}
-		}
 
-		if (v.v_clin > 32)
-			return -EINVAL;
-
-		for (i = 0; i < MAX_NR_CONSOLES; i++) {
-			struct vc_data *vcp;
-
-			if (!vc_cons[i].d)
-				continue;
-			console_lock();
-			vcp = vc_cons[i].d;
-			if (vcp) {
-				if (v.v_vlin)
-					vcp->vc_scan_lines = v.v_vlin;
-				if (v.v_clin)
-					vcp->vc_font.height = v.v_clin;
-				vcp->vc_resize_user = 1;
-				vc_resize(vcp, v.v_cols, v.v_rows);
-			}
-			console_unlock();
-		}
-		break;
-	}
+		return vt_resizex(vc, up);
 
 	case VT_LOCKSWITCH:
 		if (!capable(CAP_SYS_TTY_CONFIG))
