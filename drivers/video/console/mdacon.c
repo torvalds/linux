@@ -396,7 +396,8 @@ static inline u16 mda_convert_attr(u16 ch)
 
 static u8 mdacon_build_attr(struct vc_data *c, u8 color,
 			    enum vc_intensity intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 italic)
+			    bool blink, bool underline, bool reverse,
+			    bool italic)
 {
 	/* The attribute is just a bit vector:
 	 *
@@ -407,10 +408,10 @@ static u8 mdacon_build_attr(struct vc_data *c, u8 color,
 	 */
 
 	return (intensity & VCI_MASK) |
-		((underline & 1) << 2) |
-		((reverse   & 1) << 3) |
-		(!!italic << 4) |
-		((blink     & 1) << 7);
+		(underline << 2) |
+		(reverse << 3) |
+		(italic << 4) |
+		(blink << 7);
 }
 
 static void mdacon_invert_region(struct vc_data *c, u16 *p, int count)

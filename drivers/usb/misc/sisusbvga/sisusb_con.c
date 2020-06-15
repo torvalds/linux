@@ -303,7 +303,8 @@ sisusbcon_deinit(struct vc_data *c)
 /* interface routine */
 static u8
 sisusbcon_build_attr(struct vc_data *c, u8 color, enum vc_intensity intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 unused)
+			    bool blink, bool underline, bool reverse,
+			    bool unused)
 {
 	u8 attr = color;
 

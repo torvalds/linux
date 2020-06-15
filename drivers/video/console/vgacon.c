@@ -631,7 +631,8 @@ static void vgacon_deinit(struct vc_data *c)
 
 static u8 vgacon_build_attr(struct vc_data *c, u8 color,
 			    enum vc_intensity intensity,
-			    u8 blink, u8 underline, u8 reverse, u8 italic)
+			    bool blink, bool underline, bool reverse,
+			    bool italic)
 {
 	u8 attr = color;
 

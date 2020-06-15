@@ -54,10 +54,10 @@ struct vc_state {
 
 	/* attribute flags */
 	enum vc_intensity intensity;
-	unsigned int	italic		: 1;
-	unsigned int	underline	: 1;
-	unsigned int	blink		: 1;
-	unsigned int	reverse		: 1;
+	bool		italic;
+	bool		underline;
+	bool		blink;
+	bool		reverse;
 };
 
 /*

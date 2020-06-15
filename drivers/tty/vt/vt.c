@@ -706,8 +706,8 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 /* Structure of attributes is hardware-dependent */
 
 static u8 build_attr(struct vc_data *vc, u8 _color,
-		enum vc_intensity _intensity, u8 _blink, u8 _underline,
-		u8 _reverse, u8 _italic)
+		enum vc_intensity _intensity, bool _blink, bool _underline,
+		bool _reverse, bool _italic)
 {
 	if (vc->vc_sw->con_build_attr)
 		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
@@ -755,8 +755,8 @@ static void update_attr(struct vc_data *vc)
 	              vc->state.blink, vc->state.underline,
 	              vc->state.reverse ^ vc->vc_decscnm, vc->state.italic);
 	vc->vc_video_erase_char = ' ' | (build_attr(vc, vc->state.color,
-				VCI_NORMAL, vc->state.blink, 0, vc->vc_decscnm,
-				0) << 8);
+				VCI_NORMAL, vc->state.blink, false,
+				vc->vc_decscnm, false) << 8);
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -1614,10 +1614,10 @@ static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar posi
 static void default_attr(struct vc_data *vc)
 {
 	vc->state.intensity = VCI_NORMAL;
-	vc->state.italic = 0;
-	vc->state.underline = 0;
-	vc->state.reverse = 0;
-	vc->state.blink = 0;
+	vc->state.italic = false;
+	vc->state.underline = false;
+	vc->state.reverse = false;
+	vc->state.blink = false;
 	vc->state.color = vc->vc_def_color;
 }
 
@@ -1723,7 +1723,7 @@ static void csi_m(struct vc_data *vc)
 			vc->state.intensity = VCI_HALF_BRIGHT;
 			break;
 		case 3:
-			vc->state.italic = 1;
+			vc->state.italic = true;
 			break;
 		case 21:
 			/*
@@ -1731,13 +1731,13 @@ static void csi_m(struct vc_data *vc)
 			 * convert it to a single underline.
 			 */
 		case 4:
-			vc->state.underline = 1;
+			vc->state.underline = true;
 			break;
 		case 5:
-			vc->state.blink = 1;
+			vc->state.blink = true;
 			break;
 		case 7:
-			vc->state.reverse = 1;
+			vc->state.reverse = true;
 			break;
 		case 10: /* ANSI X3.64-1979 (SCO-ish?)
 			  * Select primary font, don't display control chars if
@@ -1769,16 +1769,16 @@ static void csi_m(struct vc_data *vc)
 			vc->state.intensity = VCI_NORMAL;
 			break;
 		case 23:
-			vc->state.italic = 0;
+			vc->state.italic = false;
 			break;
 		case 24:
-			vc->state.underline = 0;
+			vc->state.underline = false;
 			break;
 		case 25:
-			vc->state.blink = 0;
+			vc->state.blink = false;
 			break;
 		case 27:
-			vc->state.reverse = 0;
+			vc->state.reverse = false;
 			break;
 		case 38:
 			i = vc_t416_color(vc, i, rgb_foreground);
