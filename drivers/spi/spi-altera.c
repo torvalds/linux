@@ -14,6 +14,7 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/spi/altera.h>
 #include <linux/spi/spi.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -39,6 +40,8 @@
 #define ALTERA_SPI_CONTROL_IRRDY_MSK	0x80
 #define ALTERA_SPI_CONTROL_IE_MSK	0x100
 #define ALTERA_SPI_CONTROL_SSO_MSK	0x400
+
+#define ALTERA_SPI_MAX_CS		32
 
 struct altera_spi {
 	void __iomem *base;
@@ -86,6 +89,13 @@ static void altera_spi_tx_word(struct altera_spi *hw)
 			txd = (hw->tx[hw->count * 2]
 				| (hw->tx[hw->count * 2 + 1] << 8));
 			break;
+		case 4:
+			txd = (hw->tx[hw->count * 4]
+				| (hw->tx[hw->count * 4 + 1] << 8)
+				| (hw->tx[hw->count * 4 + 2] << 16)
+				| (hw->tx[hw->count * 4 + 3] << 24));
+			break;
+
 		}
 	}
 
@@ -106,6 +116,13 @@ static void altera_spi_rx_word(struct altera_spi *hw)
 			hw->rx[hw->count * 2] = rxd;
 			hw->rx[hw->count * 2 + 1] = rxd >> 8;
 			break;
+		case 4:
+			hw->rx[hw->count * 4] = rxd;
+			hw->rx[hw->count * 4 + 1] = rxd >> 8;
+			hw->rx[hw->count * 4 + 2] = rxd >> 16;
+			hw->rx[hw->count * 4 + 3] = rxd >> 24;
+			break;
+
 		}
 	}
 
@@ -168,9 +185,11 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
+	struct altera_spi_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct altera_spi *hw;
 	struct spi_master *master;
 	int err = -ENODEV;
+	u16 i;
 
 	master = spi_alloc_master(&pdev->dev, sizeof(struct altera_spi));
 	if (!master)
@@ -178,9 +197,24 @@ static int altera_spi_probe(struct platform_device *pdev)
 
 	/* setup the master state. */
 	master->bus_num = pdev->id;
-	master->num_chipselect = 16;
-	master->mode_bits = SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+
+	if (pdata) {
+		if (pdata->num_chipselect > ALTERA_SPI_MAX_CS) {
+			dev_err(&pdev->dev,
+				"Invalid number of chipselect: %hu\n",
+				pdata->num_chipselect);
+			return -EINVAL;
+		}
+
+		master->num_chipselect = pdata->num_chipselect;
+		master->mode_bits = pdata->mode_bits;
+		master->bits_per_word_mask = pdata->bits_per_word_mask;
+	} else {
+		master->num_chipselect = 16;
+		master->mode_bits = SPI_CS_HIGH;
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	}
+
 	master->dev.of_node = pdev->dev.of_node;
 	master->transfer_one = altera_spi_txrx;
 	master->set_cs = altera_spi_set_cs;
@@ -211,6 +245,16 @@ static int altera_spi_probe(struct platform_device *pdev)
 	err = devm_spi_register_master(&pdev->dev, master);
 	if (err)
 		goto exit;
+
+	if (pdata) {
+		for (i = 0; i < pdata->num_devices; i++) {
+			if (!spi_new_device(master, pdata->devices + i))
+				dev_warn(&pdev->dev,
+					 "unable to create SPI device: %s\n",
+					 pdata->devices[i].modalias);
+		}
+	}
+
 	dev_info(&pdev->dev, "base %p, irq %d\n", hw->base, hw->irq);
 
 	return 0;
