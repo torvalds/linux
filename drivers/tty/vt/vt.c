@@ -2560,6 +2560,18 @@ static void con_flush(struct vc_data *vc, unsigned long draw_from,
 	*draw_x = -1;
 }
 
+static inline int vc_translate_ascii(const struct vc_data *vc, int c)
+{
+	if (IS_ENABLED(CONFIG_CONSOLE_TRANSLATIONS)) {
+		if (vc->vc_toggle_meta)
+			c |= 0x80;
+
+		return vc->vc_translate[c];
+	}
+
+	return c;
+}
+
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
@@ -2687,7 +2699,7 @@ rescan_last_byte:
 			c = 0xfffd;
 		    tc = c;
 		} else {	/* no utf or alternate charset mode */
-		    tc = vc_translate(vc, c);
+			tc = vc_translate_ascii(vc, c);
 		}
 
 		param.c = tc;
