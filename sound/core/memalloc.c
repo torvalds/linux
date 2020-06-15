@@ -135,16 +135,17 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 	dmab->dev.type = type;
 	dmab->dev.dev = device;
 	dmab->bytes = 0;
+	dmab->area = NULL;
+	dmab->addr = 0;
+	dmab->private_data = NULL;
 	switch (type) {
 	case SNDRV_DMA_TYPE_CONTINUOUS:
 		gfp = snd_mem_get_gfp_flags(device, GFP_KERNEL);
 		dmab->area = alloc_pages_exact(size, gfp);
-		dmab->addr = 0;
 		break;
 	case SNDRV_DMA_TYPE_VMALLOC:
 		gfp = snd_mem_get_gfp_flags(device, GFP_KERNEL | __GFP_HIGHMEM);
 		dmab->area = __vmalloc(size, gfp);
-		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA
 #ifdef CONFIG_GENERIC_ALLOCATOR
@@ -171,8 +172,6 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 #endif
 	default:
 		pr_err("snd-malloc: invalid device type %d\n", type);
-		dmab->area = NULL;
-		dmab->addr = 0;
 		return -ENXIO;
 	}
 	if (! dmab->area)
