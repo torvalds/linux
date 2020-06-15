@@ -281,8 +281,6 @@ void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *v
 
 	_enter("");
 
-	ASSERTCMP(op->error, ==, 0);
-
 	write_seqlock(&vnode->cb_lock);
 
 	if (vp->scb.have_error) {
@@ -300,7 +298,7 @@ void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *v
 
 	write_sequnlock(&vnode->cb_lock);
 
-	if (op->error == 0 && vp->scb.have_status)
+	if (vp->scb.have_status)
 		afs_cache_permit(vnode, op->key, vp->cb_break_before, &vp->scb);
 }
 
