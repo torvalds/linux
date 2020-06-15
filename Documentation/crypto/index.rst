@@ -18,6 +18,7 @@ for cryptographic use cases, as well as programming examples.
 
    intro
    architecture
+   asymmetric-keys
    devel-algos
    userspace-if
    crypto_engine

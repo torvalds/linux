@@ -912,7 +912,7 @@ The keyctl syscall functions are:
 
      One application of restricted keyrings is to verify X.509 certificate
      chains or individual certificate signatures using the asymmetric key type.
-     See Documentation/crypto/asymmetric-keys.txt for specific restrictions
+     See Documentation/crypto/asymmetric-keys.rst for specific restrictions
      applicable to the asymmetric key type.
 
 
