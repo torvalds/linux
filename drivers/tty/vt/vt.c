@@ -2717,10 +2717,11 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 
 	while (!tty->stopped && count) {
 		int orig = *buf;
-		c = orig;
 		buf++;
 		n++;
 		count--;
+rescan_last_byte:
+		c = orig;
 		rescan = false;
 		inverse = false;
 		width = 1;
@@ -2729,7 +2730,6 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		if (vc->vc_state != ESnormal) {
 			tc = c;
 		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
-rescan_last_byte:
 			tc = c = vc_translate_unicode(vc, c, &rescan);
 			if (tc == -1)
 				continue;
@@ -2834,13 +2834,9 @@ rescan_last_byte:
 			if (inverse)
 				con_flush(vc, draw_from, draw_to, &draw_x);
 
-			if (rescan) {
-				rescan = false;
-				inverse = false;
-				width = 1;
-				c = orig;
+			if (rescan)
 				goto rescan_last_byte;
-			}
+
 			continue;
 		}
 		con_flush(vc, draw_from, draw_to, &draw_x);
