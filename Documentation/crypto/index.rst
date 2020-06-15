@@ -19,6 +19,8 @@ for cryptographic use cases, as well as programming examples.
    intro
    api-intro
    architecture
+
+   async-tx-api
    asymmetric-keys
    devel-algos
    userspace-if
