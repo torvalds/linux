@@ -36,6 +36,7 @@
 #include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
+#include <linux/rk-camera-module.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
 #include <linux/kfifo.h>
@@ -129,7 +130,7 @@ static struct v4l2_subdev *get_remote_sensor(struct v4l2_subdev *sd)
 	struct media_entity *sensor_me;
 	struct v4l2_subdev *remote_sd = NULL;
 
-	local = &sd->entity.pads[RKISP_ISP_PAD_SINK];
+	local = &sd->entity.pads[0];
 	if (!local)
 		goto end;
 	remote = rkisp_media_entity_remote_pad(local);
@@ -562,7 +563,9 @@ static int rkisp_config_isp(struct rkisp_device *dev)
 			acq_prop = CIF_ISP_ACQ_PROP_DMA_RGB;
 	} else if (in_fmt->fmt_type == FMT_YUV) {
 		acq_mult = 2;
-		if (sensor && sensor->mbus.type == V4L2_MBUS_CSI2) {
+		if (sensor &&
+		    (sensor->mbus.type == V4L2_MBUS_CSI2 ||
+		     sensor->mbus.type == V4L2_MBUS_CCP2)) {
 			isp_ctrl = CIF_ISP_CTRL_ISP_MODE_ITU601;
 		} else {
 			if (sensor && sensor->mbus.type == V4L2_MBUS_BT656)
@@ -677,6 +680,66 @@ static int rkisp_config_dvp(struct rkisp_device *dev)
 	return 0;
 }
 
+static int rkisp_config_lvds(struct rkisp_device *dev)
+{
+	struct rkisp_sensor_info *sensor = dev->active_sensor;
+	struct ispsd_in_fmt *in_fmt = &dev->isp_sdev.in_fmt;
+	struct rkmodule_lvds_cfg cfg;
+	struct v4l2_subdev *sd = NULL;
+	u32 ret = 0, val, lane, data;
+
+	sd = get_remote_sensor(sensor->sd);
+	ret = v4l2_subdev_call(sd, core, ioctl, RKMODULE_GET_LVDS_CFG, &cfg);
+	if (ret)
+		goto err;
+
+	switch (sensor->mbus.flags & V4L2_MBUS_CSI2_LANES) {
+	case V4L2_MBUS_CSI2_1_LANE:
+		lane = 1;
+		break;
+	case V4L2_MBUS_CSI2_2_LANE:
+		lane = 2;
+		break;
+	case V4L2_MBUS_CSI2_3_LANE:
+		lane = 3;
+		break;
+	case V4L2_MBUS_CSI2_4_LANE:
+	default:
+		lane = 4;
+	}
+	lane = BIT(lane) - 1;
+
+	switch (in_fmt->bus_width) {
+	case 8:
+		data = 0;
+		break;
+	case 10:
+		data = 1;
+		break;
+	case 12:
+		data = 2;
+		break;
+	default:
+		ret = -EINVAL;
+		goto err;
+	}
+	val = SW_LVDS_SAV(cfg.act.sav) | SW_LVDS_EAV(cfg.act.eav);
+	writel(val, dev->base_addr + LVDS_SAV_EAV_ACT);
+	val = SW_LVDS_SAV(cfg.blk.sav) | SW_LVDS_EAV(cfg.blk.eav);
+	writel(val, dev->base_addr + LVDS_SAV_EAV_BLK);
+	val = SW_LVDS_EN | SW_LVDS_WIDTH(data) | SW_LVDS_LANE_EN(lane) | cfg.mode;
+	writel(val, dev->base_addr + LVDS_CTRL);
+	v4l2_dbg(1, rkisp_debug, &dev->v4l2_dev,
+		 "lvds CTRL:0x%x ACT:0x%x BLK:0x%x\n",
+		 readl(dev->base_addr + LVDS_CTRL),
+		 readl(dev->base_addr + LVDS_SAV_EAV_ACT),
+		 readl(dev->base_addr + LVDS_SAV_EAV_BLK));
+	return ret;
+err:
+	v4l2_err(&dev->v4l2_dev, "%s error ret:%d\n", __func__, ret);
+	return ret;
+}
+
 /* Configure MUX */
 static int rkisp_config_path(struct rkisp_device *dev)
 {
@@ -684,16 +747,19 @@ static int rkisp_config_path(struct rkisp_device *dev)
 	struct rkisp_sensor_info *sensor = dev->active_sensor;
 	u32 dpcl = readl(dev->base_addr + CIF_VI_DPCL);
 
-	if (sensor && (sensor->mbus.type == V4L2_MBUS_BT656 ||
-		sensor->mbus.type == V4L2_MBUS_PARALLEL)) {
+	if (sensor &&
+	    (sensor->mbus.type == V4L2_MBUS_BT656 ||
+	     sensor->mbus.type == V4L2_MBUS_PARALLEL)) {
 		ret = rkisp_config_dvp(dev);
 		dpcl |= CIF_VI_DPCL_IF_SEL_PARALLEL;
 	} else if ((sensor && sensor->mbus.type == V4L2_MBUS_CSI2) ||
-		   dev->isp_inp & (INP_RAWRD0 |
-		   INP_RAWRD1 | INP_RAWRD2)) {
+		   dev->isp_inp & (INP_RAWRD0 | INP_RAWRD1 | INP_RAWRD2)) {
 		dpcl |= CIF_VI_DPCL_IF_SEL_MIPI;
 	} else if (dev->isp_inp == INP_DMARX_ISP) {
 		dpcl |= CIF_VI_DPCL_DMA_SW_ISP;
+	} else if (sensor && sensor->mbus.type == V4L2_MBUS_CCP2) {
+		ret = rkisp_config_lvds(dev);
+		dpcl |= VI_DPCL_IF_SEL_LVDS;
 	}
 
 	writel(dpcl, dev->base_addr + CIF_VI_DPCL);
@@ -1588,10 +1654,12 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	if (!sd)
 		return -ENODEV;
 	dev = sd_to_isp_dev(sd);
+	if (!dev)
+		return -ENODEV;
 	if (!strcmp(remote->entity->name, DMA_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_DMARX];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp)
+			if (dev->isp_inp & ~INP_DMARX_ISP)
 				goto err;
 			if (dev->active_sensor)
 				dev->active_sensor = NULL;
@@ -1610,7 +1678,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX0_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD0];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp == INP_DMARX_ISP)
+			if (dev->isp_inp & ~(INP_CSI | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD0;
 		} else {
@@ -1619,7 +1687,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX1_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD1];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp == INP_DMARX_ISP)
+			if (dev->isp_inp & ~(INP_CSI | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD1;
 		} else {
@@ -1628,7 +1696,7 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	} else if (!strcmp(remote->entity->name, DMARX2_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_RAWRD2];
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp == INP_DMARX_ISP)
+			if (dev->isp_inp & ~(INP_CSI | rawrd))
 				goto err;
 			dev->isp_inp |= INP_RAWRD2;
 		} else {
@@ -1650,9 +1718,17 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 		     dev->cap_dev.stream[RKISP_STREAM_MP].linked))
 			goto err;
 		dev->br_dev.linked = flags & MEDIA_LNK_FL_ENABLED;
+	} else if (!strcmp(remote->entity->name, "rockchip-mipi-dphy-rx")) {
+		if (flags & MEDIA_LNK_FL_ENABLED) {
+			if (dev->isp_inp & ~INP_LVDS)
+				goto err;
+			dev->isp_inp |= INP_LVDS;
+		} else {
+			dev->isp_inp &= ~INP_LVDS;
+		}
 	} else {
 		if (flags & MEDIA_LNK_FL_ENABLED) {
-			if (dev->isp_inp & ~(INP_DVP | rawrd))
+			if (dev->isp_inp & ~INP_DVP)
 				goto err;
 			dev->isp_inp |= INP_DVP;
 		} else {
@@ -1672,8 +1748,8 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	return 0;
 err:
 	v4l2_err(sd, "link error %s -> %s\n"
-		 "\tdmaread can't work with other input\n"
-		 "\tcsi dvp can't work together\n"
+		 "\tcsi dvp lvds dmaread can't work together\n"
+		 "\trawrd can't work with dvp lvds dmaread\n"
 		 "\tbridge can't work with mainpath/selfpath\n",
 		 local->entity->name, remote->entity->name);
 	return -EINVAL;

@@ -93,7 +93,7 @@ static int __isp_pipeline_prepare(struct rkisp_pipeline *p,
 	p->num_subdevs = 0;
 	memset(p->subdevs, 0, sizeof(p->subdevs));
 
-	if (!(dev->isp_inp & (INP_CSI | INP_DVP)))
+	if (!(dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS)))
 		return 0;
 
 	while (1) {
@@ -121,7 +121,6 @@ static int __isp_pipeline_prepare(struct rkisp_pipeline *p,
 		if (me->num_pads == 1)
 			break;
 	}
-
 	if (!p->num_subdevs)
 		return -EINVAL;
 
@@ -136,7 +135,7 @@ static int __isp_pipeline_s_isp_clk(struct rkisp_pipeline *p)
 	u64 data_rate;
 	int i;
 
-	if (!(dev->isp_inp & (INP_CSI | INP_DVP))) {
+	if (!(dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS))) {
 		if (dev->clks[0])
 			clk_set_rate(dev->clks[0], 400 * 1000000UL);
 		return 0;
@@ -270,55 +269,52 @@ err_stream_off:
 static int rkisp_create_links(struct rkisp_device *dev)
 {
 	unsigned int s, pad;
-	int ret;
+	int ret = 0;
 
 	/* sensor links(or mipi-phy) */
 	for (s = 0; s < dev->num_sensors; ++s) {
 		struct rkisp_sensor_info *sensor = &dev->sensors[s];
 		u32 type = sensor->sd->entity.function;
+		bool en = s ? 0 : MEDIA_LNK_FL_ENABLED;
 
 		for (pad = 0; pad < sensor->sd->entity.num_pads; pad++)
-			if (sensor->sd->entity.pads[pad].flags &
-				MEDIA_PAD_FL_SOURCE)
+			if (sensor->sd->entity.pads[pad].flags & MEDIA_PAD_FL_SOURCE)
 				break;
 
 		if (pad == sensor->sd->entity.num_pads) {
-			dev_err(dev->dev,
-				"failed to find src pad for %s\n",
+			dev_err(dev->dev, "failed to find src pad for %s\n",
 				sensor->sd->name);
-
 			return -ENXIO;
 		}
 
 		/* sensor link -> isp */
 		if (type == MEDIA_ENT_F_CAM_SENSOR) {
 			dev->isp_inp = INP_DVP;
-			ret = media_create_pad_link(&sensor->sd->entity,
-				pad, &dev->isp_sdev.sd.entity,
-				RKISP_ISP_PAD_SINK,
-				s ? 0 : MEDIA_LNK_FL_ENABLED);
+			ret = media_create_pad_link(&sensor->sd->entity, pad,
+				&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
 		} else {
-			/* mipi-phy link -> csi -> isp */
-			dev->isp_inp = INP_CSI;
-			ret = media_create_pad_link(&sensor->sd->entity,
-				pad, &dev->csi_dev.sd.entity, CSI_SINK,
-				s ? 0 : MEDIA_LNK_FL_ENABLED);
-			ret |= media_create_pad_link(&dev->csi_dev.sd.entity,
-				CSI_SRC_CH0, &dev->isp_sdev.sd.entity,
-				RKISP_ISP_PAD_SINK,
-				s ? 0 : MEDIA_LNK_FL_ENABLED);
-			dev->csi_dev.sink[0].linked = true;
-			dev->csi_dev.sink[0].index = BIT(0);
+			v4l2_subdev_call(sensor->sd, video,
+					 g_mbus_config, &sensor->mbus);
+			if (sensor->mbus.type == V4L2_MBUS_CCP2) {
+				/* mipi-phy lvds link -> isp */
+				dev->isp_inp = INP_LVDS;
+				ret = media_create_pad_link(&sensor->sd->entity, pad,
+					&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
+			} else {
+				/* mipi-phy link -> csi -> isp */
+				dev->isp_inp = INP_CSI;
+				ret = media_create_pad_link(&sensor->sd->entity,
+					pad, &dev->csi_dev.sd.entity, CSI_SINK, en);
+				ret |= media_create_pad_link(&dev->csi_dev.sd.entity, CSI_SRC_CH0,
+					&dev->isp_sdev.sd.entity, RKISP_ISP_PAD_SINK, en);
+				dev->csi_dev.sink[0].linked = en;
+				dev->csi_dev.sink[0].index = BIT(0);
+			}
 		}
-
-		if (ret) {
-			dev_err(dev->dev,
-				"failed to create link for %s\n",
-				sensor->sd->name);
-			return ret;
-		}
+		if (ret)
+			dev_err(dev->dev, "failed to create link for %s\n", sensor->sd->name);
 	}
-	return 0;
+	return ret;
 }
 
 static int _set_pipeline_default_fmt(struct rkisp_device *dev)

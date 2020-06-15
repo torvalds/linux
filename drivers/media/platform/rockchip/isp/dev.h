@@ -100,6 +100,7 @@ enum rkisp_isp_inp {
 	INP_CSI = BIT(4),
 	INP_DVP = BIT(5),
 	INP_DMARX_ISP = BIT(6),
+	INP_LVDS = BIT(7),
 };
 
 /*

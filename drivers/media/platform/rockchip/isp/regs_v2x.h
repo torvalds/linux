@@ -15,6 +15,9 @@
 #define CTRL_VI_IRCL					(CTRL_BASE + 0x00014)
 #define CTRL_VI_DPCL					(CTRL_BASE + 0x00018)
 #define CTRL_SWS_CFG					(CTRL_BASE + 0x0001c)
+#define LVDS_CTRL					(CTRL_BASE + 0x00020)
+#define LVDS_SAV_EAV_ACT				(CTRL_BASE + 0x00024)
+#define LVDS_SAV_EAV_BLK				(CTRL_BASE + 0x00028)
 
 #define IMG_EFF_BASE					0x00000200
 #define IMG_EFF_CTRL					(IMG_EFF_BASE + 0x00000)
@@ -1736,6 +1739,9 @@
 #define IRCL_MIPI_SW_RST		BIT(11)
 #define IRCL_3A_SW_RST			BIT(13)
 
+/* VI_DPCL */
+#define VI_DPCL_IF_SEL_LVDS		BIT(8)
+
 /* SWS_CFG */
 #define SW_SWS_EN			BIT(0)
 #define SW_ISP2PP_PIPE_EN		BIT(1)
@@ -1749,6 +1755,18 @@
 #define SW_ISP2PP_DIFX16(a)		(((a) & 0xff) << 16)
 #define SW_3A_DDR_WRITE_EN		BIT(24)
 #define SW_ISP2PP_HOLD			BIT(31)
+
+/* LVDS_CTRL */
+#define SW_LVDS_EN			BIT(0)
+#define SW_LVDS_MODE			BIT(1)
+#define SW_LVDS_WIDTH(a)		(((a) & 0x3) << 2)
+#define SW_LVDS_LANE_EN(a)		(((a) & 0xf) << 4)
+#define SW_LVDS_MAIN_LANE(a)		(((a) & 0x3) << 8)
+#define SW_LVDS_START_X(a)		(((a) & 0x7ff) << 10)
+#define SW_LVDS_START_Y(a)		(((a) & 0x7ff) << 21)
+
+#define SW_LVDS_SAV(a)			((a) & 0xfff)
+#define SW_LVDS_EAV(a)			(((a) & 0xfff) << 16)
 
 /* isp interrupt */
 #define ISP2X_OFF			BIT(0)
