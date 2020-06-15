@@ -289,6 +289,27 @@ static noinline void check_xa_mark_2(struct xarray *xa)
 	xa_destroy(xa);
 }
 
+static noinline void check_xa_mark_3(struct xarray *xa)
+{
+#ifdef CONFIG_XARRAY_MULTI
+	XA_STATE(xas, xa, 0x41);
+	void *entry;
+	int count = 0;
+
+	xa_store_order(xa, 0x40, 2, xa_mk_index(0x40), GFP_KERNEL);
+	xa_set_mark(xa, 0x41, XA_MARK_0);
+
+	rcu_read_lock();
+	xas_for_each_marked(&xas, entry, ULONG_MAX, XA_MARK_0) {
+		count++;
+		XA_BUG_ON(xa, entry != xa_mk_index(0x40));
+	}
+	XA_BUG_ON(xa, count != 1);
+	rcu_read_unlock();
+	xa_destroy(xa);
+#endif
+}
+
 static noinline void check_xa_mark(struct xarray *xa)
 {
 	unsigned long index;
@@ -297,6 +318,7 @@ static noinline void check_xa_mark(struct xarray *xa)
 		check_xa_mark_1(xa, index);
 
 	check_xa_mark_2(xa);
+	check_xa_mark_3(xa);
 }
 
 static noinline void check_xa_shrink(struct xarray *xa)
