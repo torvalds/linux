@@ -38,6 +38,9 @@
 #define RKMODULE_SET_CONVERSION_GAIN	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 6, __u32)
 
+#define RKMODULE_GET_LVDS_CFG	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 7, struct rkmodule_lvds_cfg)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -199,6 +202,40 @@ struct rkmodule_hdr_esp {
 struct rkmodule_hdr_cfg {
 	__u32 hdr_mode;
 	struct rkmodule_hdr_esp esp;
+} __attribute__ ((packed));
+
+/* sensor lvds sync code
+ * sav: start of active video codes
+ * eav: end of active video codes
+ */
+struct rkmodule_sync_code {
+	u16 sav;
+	u16 eav;
+};
+
+/* sensor lvds difference sync code mode
+ * LS_FIRST: valid line ls-le or sav-eav
+ *	   invalid line fs-fe or sav-eav
+ * FS_FIRST: valid line fs-le
+ *	   invalid line ls-fe
+ * ls: line start
+ * le: line end
+ * fs: frame start
+ * fe: frame end
+ */
+enum rkmodule_lvds_mode {
+	LS_FIRST = 0,
+	FS_FIRST = BIT(1),
+};
+
+/* struct rkmodule_lvds_cfg
+ * act: valid line sync code
+ * blk: invalid line sync code
+ */
+struct rkmodule_lvds_cfg {
+	enum rkmodule_lvds_mode mode;
+	struct rkmodule_sync_code act;
+	struct rkmodule_sync_code blk;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
