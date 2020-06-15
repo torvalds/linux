@@ -46,6 +46,7 @@ struct mlx5e_ktls_offload_context_rx {
 	struct tls12_crypto_info_aes_gcm_128 crypto_info;
 	struct accel_rule rule;
 	struct sock *sk;
+	struct mlx5e_rq_stats *stats;
 	struct completion add_ctx;
 	u32 tirn;
 	u32 key_id;
@@ -203,6 +204,7 @@ unlock:
 	return err;
 
 err_out:
+	priv_rx->stats->tls_resync_req_skip++;
 	err = PTR_ERR(cseg);
 	complete(&priv_rx->add_ctx);
 	goto unlock;
@@ -296,6 +298,7 @@ resync_post_get_progress_params(struct mlx5e_icosq *sq,
 	return cseg;
 
 err_out:
+	priv_rx->stats->tls_resync_req_skip++;
 	return ERR_PTR(err);
 }
 
@@ -362,11 +365,13 @@ static int resync_handle_seq_match(struct mlx5e_ktls_offload_context_rx *priv_rx
 
 	cseg = post_static_params(sq, priv_rx);
 	if (IS_ERR(cseg)) {
+		priv_rx->stats->tls_resync_res_skip++;
 		err = PTR_ERR(cseg);
 		goto unlock;
 	}
 	/* Do not increment priv_rx refcnt, CQE handling is empty */
 	mlx5e_notify_hw(&sq->wq, sq->pc, sq->uar_map, cseg);
+	priv_rx->stats->tls_resync_res_ok++;
 unlock:
 	spin_unlock(&c->async_icosq_lock);
 
@@ -396,11 +401,14 @@ void mlx5e_ktls_handle_get_psv_completion(struct mlx5e_icosq_wqe_info *wi,
 	tracker_state = MLX5_GET(tls_progress_params, ctx, record_tracker_state);
 	auth_state = MLX5_GET(tls_progress_params, ctx, auth_state);
 	if (tracker_state != MLX5E_TLS_PROGRESS_PARAMS_RECORD_TRACKER_STATE_TRACKING ||
-	    auth_state != MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD)
+	    auth_state != MLX5E_TLS_PROGRESS_PARAMS_AUTH_STATE_NO_OFFLOAD) {
+		priv_rx->stats->tls_resync_req_skip++;
 		goto out;
+	}
 
 	hw_seq = MLX5_GET(tls_progress_params, ctx, hw_resync_tcp_sn);
 	tls_offload_rx_resync_async_request_end(priv_rx->sk, cpu_to_be32(hw_seq));
+	priv_rx->stats->tls_resync_req_end++;
 out:
 	refcount_dec(&resync->refcnt);
 	kfree(buf);
@@ -479,6 +487,7 @@ static void resync_update_sn(struct mlx5e_rq *rq, struct sk_buff *skb)
 	seq = th->seq;
 	datalen = skb->len - depth;
 	tls_offload_rx_resync_async_request_start(sk, seq, datalen);
+	rq->stats->tls_resync_req_start++;
 }
 
 void mlx5e_ktls_rx_resync(struct net_device *netdev, struct sock *sk,
@@ -509,18 +518,25 @@ void mlx5e_ktls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
 			      struct mlx5_cqe64 *cqe, u32 *cqe_bcnt)
 {
 	u8 tls_offload = get_cqe_tls_offload(cqe);
+	struct mlx5e_rq_stats *stats;
 
 	if (likely(tls_offload == CQE_TLS_OFFLOAD_NOT_DECRYPTED))
 		return;
 
+	stats = rq->stats;
+
 	switch (tls_offload) {
 	case CQE_TLS_OFFLOAD_DECRYPTED:
 		skb->decrypted = 1;
+		stats->tls_decrypted_packets++;
+		stats->tls_decrypted_bytes += *cqe_bcnt;
 		break;
 	case CQE_TLS_OFFLOAD_RESYNC:
+		stats->tls_resync_req_pkt++;
 		resync_update_sn(rq, skb);
 		break;
 	default: /* CQE_TLS_OFFLOAD_ERROR: */
+		stats->tls_err++;
 		break;
 	}
 }
@@ -562,12 +578,14 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 
 	priv_rx->crypto_info  =
 		*(struct tls12_crypto_info_aes_gcm_128 *)crypto_info;
-	priv_rx->sk = sk;
-	priv_rx->rxq = mlx5e_accel_sk_get_rxq(sk);
 
+	rxq = mlx5e_accel_sk_get_rxq(sk);
+	priv_rx->rxq = rxq;
+	priv_rx->sk = sk;
+
+	priv_rx->stats = &priv->channel_stats[rxq].rq;
 	mlx5e_set_ktls_rx_priv_ctx(tls_ctx, priv_rx);
 
-	rxq = priv_rx->rxq;
 	rqtn = priv->direct_tir[rxq].rqt.rqtn;
 
 	err = mlx5e_ktls_create_tir(mdev, &priv_rx->tirn, rqtn);
@@ -585,6 +603,8 @@ int mlx5e_ktls_add_rx(struct net_device *netdev, struct sock *sk,
 	err = post_rx_param_wqes(priv->channels.c[rxq], priv_rx, start_offload_tcp_sn);
 	if (err)
 		goto err_post_wqes;
+
+	priv_rx->stats->tls_ctx++;
 
 	return 0;
 
@@ -646,6 +666,7 @@ void mlx5e_ktls_del_rx(struct net_device *netdev, struct tls_context *tls_ctx)
 		refcount_dec(&resync->refcnt);
 	wait_for_resync(netdev, resync);
 
+	priv_rx->stats->tls_del++;
 	if (priv_rx->rule.rule)
 		mlx5e_accel_fs_del_sk(priv_rx->rule.rule);
 
