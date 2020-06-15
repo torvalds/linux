@@ -83,7 +83,7 @@
 #define OS04A10_FETCH_LSB_GAIN(VAL)	(((VAL) << 4) & 0xf0)
 #define OS04A10_FETCH_MSB_GAIN(VAL)	(((VAL) >> 4) & 0x1f)
 
-#define OS04A10_REG_TEST_PATTERN	0x50C0
+#define OS04A10_REG_TEST_PATTERN	0x5080
 #define OS04A10_TEST_PATTERN_ENABLE	0x80
 #define OS04A10_TEST_PATTERN_DISABLE	0x0
 
@@ -1130,14 +1130,17 @@ static int os04a10_enum_frame_sizes(struct v4l2_subdev *sd,
 static int os04a10_enable_test_pattern(struct os04a10 *os04a10, u32 pattern)
 {
 	u32 val;
+	int ret = 0;
 
 	if (pattern)
-		val = (pattern - 1) | OS04A10_TEST_PATTERN_ENABLE;
+		val = ((pattern - 1) << 2) | OS04A10_TEST_PATTERN_ENABLE;
 	else
 		val = OS04A10_TEST_PATTERN_DISABLE;
-
-	return os04a10_write_reg(os04a10->client, OS04A10_REG_TEST_PATTERN,
+	ret = os04a10_write_reg(os04a10->client, OS04A10_REG_TEST_PATTERN,
 				OS04A10_REG_VALUE_08BIT, val);
+	ret |= os04a10_write_reg(os04a10->client, OS04A10_REG_TEST_PATTERN + 0x40,
+				OS04A10_REG_VALUE_08BIT, val);
+	return ret;
 }
 
 static int os04a10_g_frame_interval(struct v4l2_subdev *sd,
