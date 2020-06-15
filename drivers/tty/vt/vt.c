@@ -2658,6 +2658,19 @@ need_more_bytes:
 	return -1;
 }
 
+static int vc_translate(struct vc_data *vc, int *c, bool *rescan)
+{
+	/* Do no translation at all in control states */
+	if (vc->vc_state != ESnormal)
+		return *c;
+
+	if (vc->vc_utf && !vc->vc_disp_ctrl)
+		return *c = vc_translate_unicode(vc, *c, rescan);
+
+	/* no utf or alternate charset mode */
+	return vc_translate_ascii(vc, *c);
+}
+
 static inline unsigned char vc_invert_attr(const struct vc_data *vc)
 {
 	if (!vc->vc_can_do_color)
@@ -2726,16 +2739,9 @@ rescan_last_byte:
 		inverse = false;
 		width = 1;
 
-		/* Do no translation at all in control states */
-		if (vc->vc_state != ESnormal) {
-			tc = c;
-		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
-			tc = c = vc_translate_unicode(vc, c, &rescan);
-			if (tc == -1)
-				continue;
-		} else {	/* no utf or alternate charset mode */
-			tc = vc_translate_ascii(vc, c);
-		}
+		tc = vc_translate(vc, &c, &rescan);
+		if (tc == -1)
+			continue;
 
 		param.c = tc;
 		if (atomic_notifier_call_chain(&vt_notifier_list, VT_PREWRITE,
