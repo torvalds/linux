@@ -23,9 +23,104 @@ static inline int get_rssi0(struct wcn36xx_rx_bd *bd)
 	return 100 - ((bd->phy_stat0 >> 24) & 0xff);
 }
 
+struct wcn36xx_rate {
+	u16 bitrate;
+	u16 mcs_or_legacy_index;
+	enum mac80211_rx_encoding encoding;
+	enum mac80211_rx_encoding_flags encoding_flags;
+	enum rate_info_bw bw;
+};
+
+static const struct wcn36xx_rate wcn36xx_rate_table[] = {
+	/* 11b rates */
+	{  10, 0, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{  20, 1, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{  55, 2, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 110, 3, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+
+	/* 11b SP (short preamble) */
+	{  10, 0, RX_ENC_LEGACY, RX_ENC_FLAG_SHORTPRE, RATE_INFO_BW_20 },
+	{  20, 1, RX_ENC_LEGACY, RX_ENC_FLAG_SHORTPRE, RATE_INFO_BW_20 },
+	{  55, 2, RX_ENC_LEGACY, RX_ENC_FLAG_SHORTPRE, RATE_INFO_BW_20 },
+	{ 110, 3, RX_ENC_LEGACY, RX_ENC_FLAG_SHORTPRE, RATE_INFO_BW_20 },
+
+	/* 11ag */
+	{  60, 4, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{  90, 5, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 120, 6, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 180, 7, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 240, 8, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 360, 9, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 480, 10, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+	{ 540, 11, RX_ENC_LEGACY, 0, RATE_INFO_BW_20 },
+
+	/* 11n */
+	{  65, 0, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 130, 1, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 195, 2, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 260, 3, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 390, 4, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 520, 5, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 585, 6, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+	{ 650, 7, RX_ENC_HT, 0, RATE_INFO_BW_20 },
+
+	/* 11n SGI */
+	{  72, 0, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 144, 1, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 217, 2, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 289, 3, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 434, 4, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 578, 5, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 650, 6, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+	{ 722, 7, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_20 },
+
+	/* 11n GF (greenfield) */
+	{  65, 0, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 130, 1, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 195, 2, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 260, 3, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 390, 4, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 520, 5, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 585, 6, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+	{ 650, 7, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_20 },
+
+	/* 11n CB (channel bonding) */
+	{ 135, 0, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 270, 1, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 405, 2, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 540, 3, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 810, 4, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 1080, 5, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 1215, 6, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+	{ 1350, 7, RX_ENC_HT, 0, RATE_INFO_BW_40 },
+
+	/* 11n CB + SGI */
+	{ 150, 0, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 300, 1, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 450, 2, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 600, 3, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 900, 4, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 1200, 5, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 1350, 6, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+	{ 1500, 7, RX_ENC_HT, RX_ENC_FLAG_SHORT_GI, RATE_INFO_BW_40 },
+
+	/* 11n GF + CB */
+	{ 135, 0, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 270, 1, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 405, 2, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 540, 3, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 810, 4, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 1080, 5, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 1215, 6, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+	{ 1350, 7, RX_ENC_HT, RX_ENC_FLAG_HT_GF, RATE_INFO_BW_40 },
+
+	/* TODO: AC rates */
+};
+
 int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status status;
+	const struct wcn36xx_rate *rate;
 	struct ieee80211_hdr *hdr;
 	struct wcn36xx_rx_bd *bd;
 	u16 fc, sn;
@@ -61,7 +156,6 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	status.mactime = 10;
 	status.signal = -get_rssi0(bd);
 	status.antenna = 1;
-	status.rate_idx = 1;
 	status.flag = 0;
 	status.rx_flags = 0;
 	status.flag |= RX_FLAG_IV_STRIPPED |
@@ -69,6 +163,19 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 		       RX_FLAG_DECRYPTED;
 
 	wcn36xx_dbg(WCN36XX_DBG_RX, "status.flags=%x\n", status.flag);
+
+	if (bd->rate_id < ARRAY_SIZE(wcn36xx_rate_table)) {
+		rate = &wcn36xx_rate_table[bd->rate_id];
+		status.encoding = rate->encoding;
+		status.enc_flags = rate->encoding_flags;
+		status.bw = rate->bw;
+		status.rate_idx = rate->mcs_or_legacy_index;
+	} else {
+		status.encoding = 0;
+		status.bw = 0;
+		status.enc_flags = 0;
+		status.rate_idx = 0;
+	}
 
 	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
 
