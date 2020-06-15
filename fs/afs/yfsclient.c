@@ -330,29 +330,6 @@ static void xdr_decode_YFSFetchVolumeStatus(const __be32 **_bp,
 }
 
 /*
- * Deliver a reply that's a status, callback and volsync.
- */
-static int yfs_deliver_fs_status_cb_and_volsync(struct afs_call *call)
-{
-	struct afs_operation *op = call->op;
-	const __be32 *bp;
-	int ret;
-
-	ret = afs_transfer_reply(call);
-	if (ret < 0)
-		return ret;
-
-	/* unmarshall the reply once we've received all of it */
-	bp = call->buffer;
-	xdr_decode_YFSFetchStatus(&bp, call, &op->file[0].scb);
-	xdr_decode_YFSCallBack(&bp, call, &op->file[0].scb);
-	xdr_decode_YFSVolSync(&bp, &op->volsync);
-
-	_leave(" = 0 [done]");
-	return 0;
-}
-
-/*
  * Deliver reply data to operations that just return a file status and a volume
  * sync record.
  */
@@ -1563,12 +1540,36 @@ void yfs_fs_release_lock(struct afs_operation *op)
 }
 
 /*
+ * Deliver a reply to YFS.FetchStatus
+ */
+static int yfs_deliver_fs_fetch_status(struct afs_call *call)
+{
+	struct afs_operation *op = call->op;
+	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
+	const __be32 *bp;
+	int ret;
+
+	ret = afs_transfer_reply(call);
+	if (ret < 0)
+		return ret;
+
+	/* unmarshall the reply once we've received all of it */
+	bp = call->buffer;
+	xdr_decode_YFSFetchStatus(&bp, call, &vp->scb);
+	xdr_decode_YFSCallBack(&bp, call, &vp->scb);
+	xdr_decode_YFSVolSync(&bp, &op->volsync);
+
+	_leave(" = 0 [done]");
+	return 0;
+}
+
+/*
  * YFS.FetchStatus operation type
  */
 static const struct afs_call_type yfs_RXYFSFetchStatus = {
 	.name		= "YFS.FetchStatus",
 	.op		= yfs_FS_FetchStatus,
-	.deliver	= yfs_deliver_fs_status_cb_and_volsync,
+	.deliver	= yfs_deliver_fs_fetch_status,
 	.destructor	= afs_flat_call_destructor,
 };
 
@@ -1577,7 +1578,7 @@ static const struct afs_call_type yfs_RXYFSFetchStatus = {
  */
 void yfs_fs_fetch_status(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
 	struct afs_call *call;
 	__be32 *bp;
 
