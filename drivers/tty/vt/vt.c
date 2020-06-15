@@ -2052,6 +2052,8 @@ enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
 /* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
 {
+	unsigned int i;
+
 	vc->vc_top		= 0;
 	vc->vc_bottom		= vc->vc_rows;
 	vc->vc_state		= ESnormal;
@@ -2082,14 +2084,9 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	default_attr(vc);
 	update_attr(vc);
 
-	vc->vc_tab_stop[0]	=
-	vc->vc_tab_stop[1]	=
-	vc->vc_tab_stop[2]	=
-	vc->vc_tab_stop[3]	=
-	vc->vc_tab_stop[4]	=
-	vc->vc_tab_stop[5]	=
-	vc->vc_tab_stop[6]	=
-	vc->vc_tab_stop[7]	= 0x01010101;
+	bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
+	for (i = 0; i < VC_TABSTOPS_COUNT; i += 8)
+		set_bit(i, vc->vc_tab_stop);
 
 	vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
 	vc->vc_bell_duration = DEFAULT_BELL_DURATION;
@@ -2147,11 +2144,13 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		return;
 	case 9:
 		vc->vc_pos -= (vc->state.x << 1);
-		while (vc->state.x < vc->vc_cols - 1) {
-			vc->state.x++;
-			if (vc->vc_tab_stop[7 & (vc->state.x >> 5)] & (1 << (vc->state.x & 31)))
-				break;
-		}
+
+		vc->state.x = find_next_bit(vc->vc_tab_stop,
+				min(vc->vc_cols - 1, VC_TABSTOPS_COUNT),
+				vc->state.x + 1);
+		if (vc->state.x >= VC_TABSTOPS_COUNT)
+			vc->state.x = vc->vc_cols - 1;
+
 		vc->vc_pos += (vc->state.x << 1);
 		notify_write(vc, '\t');
 		return;
@@ -2210,7 +2209,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			lf(vc);
 			return;
 		case 'H':
-			vc->vc_tab_stop[7 & (vc->state.x >> 5)] |= (1 << (vc->state.x & 31));
+			if (vc->state.x < VC_TABSTOPS_COUNT)
+				set_bit(vc->state.x, vc->vc_tab_stop);
 			return;
 		case 'Z':
 			respond_ID(tty);
@@ -2421,18 +2421,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				respond_ID(tty);
 			return;
 		case 'g':
-			if (!vc->vc_par[0])
-				vc->vc_tab_stop[7 & (vc->state.x >> 5)] &= ~(1 << (vc->state.x & 31));
-			else if (vc->vc_par[0] == 3) {
-				vc->vc_tab_stop[0] =
-					vc->vc_tab_stop[1] =
-					vc->vc_tab_stop[2] =
-					vc->vc_tab_stop[3] =
-					vc->vc_tab_stop[4] =
-					vc->vc_tab_stop[5] =
-					vc->vc_tab_stop[6] =
-					vc->vc_tab_stop[7] = 0;
-			}
+			if (!vc->vc_par[0] && vc->state.x < VC_TABSTOPS_COUNT)
+				set_bit(vc->state.x, vc->vc_tab_stop);
+			else if (vc->vc_par[0] == 3)
+				bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
 			return;
 		case 'm':
 			csi_m(vc);

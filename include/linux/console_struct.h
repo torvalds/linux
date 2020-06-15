@@ -21,6 +21,7 @@ struct uni_pagedir;
 struct uni_screen;
 
 #define NPAR 16
+#define VC_TABSTOPS_COUNT	256U
 
 enum vc_intensity {
 	VCI_HALF_BRIGHT,
@@ -147,7 +148,7 @@ struct vc_data {
 	unsigned char	vc_utf		: 1;	/* Unicode UTF-8 encoding */
 	unsigned char	vc_utf_count;
 		 int	vc_utf_char;
-	unsigned int	vc_tab_stop[8];		/* Tab stops. 256 columns. */
+	DECLARE_BITMAP(vc_tab_stop, VC_TABSTOPS_COUNT);	/* Tab stops. 256 columns. */
 	unsigned char   vc_palette[16*3];       /* Colour palette for VGA+ */
 	unsigned short * vc_translate;
 	unsigned int    vc_resize_user;         /* resize request from user */
