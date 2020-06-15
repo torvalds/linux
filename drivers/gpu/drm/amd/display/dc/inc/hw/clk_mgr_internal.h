@@ -273,6 +273,8 @@ struct clk_mgr_internal {
 #ifdef CONFIG_DRM_AMD_DC_DCN3_0
 
 	bool smu_present;
+	void *wm_range_table;
+	long long wm_range_table_addr;
 #endif
 };
 

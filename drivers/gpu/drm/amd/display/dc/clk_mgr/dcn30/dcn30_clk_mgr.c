@@ -344,15 +344,11 @@ static void dcn3_update_clocks(struct clk_mgr *clk_mgr_base,
 static void dcn3_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 {
 	unsigned int i;
-	long long table_addr;
-	WatermarksExternal_t *table;
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	WatermarksExternal_t *table = (WatermarksExternal_t *) clk_mgr->wm_range_table;
 
 	if (!clk_mgr->smu_present)
 		return;
-
-	/* need physical address of table to give to PMFW */
-	table = (WatermarksExternal_t *) dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART, sizeof(WatermarksExternal_t), &table_addr);
 
 	if (!table)
 		// should log failure
@@ -371,11 +367,9 @@ static void dcn3_notify_wm_ranges(struct clk_mgr *clk_mgr_base)
 			table->Watermarks.WatermarkRow[WM_DCEFCLK][i].Flags = clk_mgr->base.bw_params->wm_table.nv_entries[i].pmfw_breakdown.wm_type;
 		}
 
-	dcn30_smu_set_dram_addr_high(clk_mgr, table_addr >> 32);
-	dcn30_smu_set_dram_addr_low(clk_mgr, table_addr & 0xFFFFFFFF);
+	dcn30_smu_set_dram_addr_high(clk_mgr, clk_mgr->wm_range_table_addr >> 32);
+	dcn30_smu_set_dram_addr_low(clk_mgr, clk_mgr->wm_range_table_addr & 0xFFFFFFFF);
 	dcn30_smu_transfer_wm_table_dram_2_smu(clk_mgr);
-
-	dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART, table);
 }
 
 /* Set min memclk to minimum, either constrained by the current mode or DPM0 */
@@ -534,10 +528,19 @@ void dcn3_clk_mgr_construct(
 	dce_clock_read_ss_info(clk_mgr);
 
 	clk_mgr->base.bw_params = kzalloc(sizeof(*clk_mgr->base.bw_params), GFP_KERNEL);
+
+	/* need physical address of table to give to PMFW */
+	clk_mgr->wm_range_table = dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx,
+			DC_MEM_ALLOC_TYPE_GART, sizeof(WatermarksExternal_t),
+			&clk_mgr->wm_range_table_addr);
 }
 
 void dcn3_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
 	if (clk_mgr->base.bw_params)
 		kfree(clk_mgr->base.bw_params);
+
+	if (clk_mgr->wm_range_table)
+		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,
+				clk_mgr->wm_range_table);
 }
