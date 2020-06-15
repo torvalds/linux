@@ -492,7 +492,7 @@ static void mdacon_cursor(struct vc_data *c, int mode)
 
 	mda_set_cursor(c->state.y * mda_num_columns * 2 + c->state.x * 2);
 
-	switch (c->vc_cursor_type & 0x0f) {
+	switch (CUR_SIZE(c->vc_cursor_type)) {
 
 		case CUR_LOWER_THIRD:	mda_set_cursor_size(10, 13); break;
 		case CUR_LOWER_HALF:	mda_set_cursor_size(7,  13); break;

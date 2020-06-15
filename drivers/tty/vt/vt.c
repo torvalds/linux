@@ -866,17 +866,18 @@ static void add_softcursor(struct vc_data *vc)
 	int i = scr_readw((u16 *) vc->vc_pos);
 	u32 type = vc->vc_cursor_type;
 
-	if (!(type & 0x10))
+	if (!(type & CUR_SW))
 		return;
 	if (softcursor_original != -1)
 		return;
 	softcursor_original = i;
-	i |= (type >> 8) & 0xff00;
-	i ^= type & 0xff00;
-	if ((type & 0x20) && (softcursor_original & 0x7000) == (i & 0x7000))
-		i ^= 0x7000;
-	if ((type & 0x40) && (i & 0x700) == ((i & 0x7000) >> 4))
-		i ^= 0x0700;
+	i |= CUR_SET(type);
+	i ^= CUR_CHANGE(type);
+	if ((type & CUR_ALWAYS_BG) &&
+			(softcursor_original & CUR_BG) == (i & CUR_BG))
+		i ^= CUR_BG;
+	if ((type & CUR_INVERT_FG_BG) && (i & CUR_FG) == ((i & CUR_BG) >> 4))
+		i ^= CUR_FG;
 	scr_writew(i, (u16 *)vc->vc_pos);
 	if (con_should_update(vc))
 		vc->vc_sw->con_putc(vc, i, vc->state.y, vc->state.x);
@@ -910,7 +911,7 @@ static void set_cursor(struct vc_data *vc)
 		if (vc_is_sel(vc))
 			clear_selection();
 		add_softcursor(vc);
-		if ((vc->vc_cursor_type & 0x0f) != 1)
+		if (CUR_SIZE(vc->vc_cursor_type) != CUR_NONE)
 			vc->vc_sw->con_cursor(vc, CM_DRAW);
 	} else
 		hide_cursor(vc);
@@ -2322,7 +2323,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case 'c':
 			if (vc->vc_priv == EPdec) {
 				if (vc->vc_par[0])
-					vc->vc_cursor_type = vc->vc_par[0] | (vc->vc_par[1] << 8) | (vc->vc_par[2] << 16);
+					vc->vc_cursor_type =
+						CUR_MAKE(vc->vc_par[0],
+							 vc->vc_par[1],
+							 vc->vc_par[2]);
 				else
 					vc->vc_cursor_type = cur_default;
 				return;

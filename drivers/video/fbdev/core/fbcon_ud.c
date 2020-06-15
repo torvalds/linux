@@ -256,7 +256,7 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = (vc->vc_font.width + 7) >> 3, c;
 	int y = real_y(ops->p, vc->state.y);
-	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
+	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1, dx, dy;
 	char *src;
 	u32 vyres = GETVYRES(ops->p->scrollmode, info);

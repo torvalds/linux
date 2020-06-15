@@ -241,7 +241,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	unsigned short charmask = vc->vc_hi_font_mask ? 0x1ff : 0xff;
 	int w = DIV_ROUND_UP(vc->vc_font.width, 8), c;
 	int y = real_y(ops->p, vc->state.y);
-	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
+	int attribute, use_sw = vc->vc_cursor_type & CUR_SW;
 	int err = 1;
 	char *src;
 

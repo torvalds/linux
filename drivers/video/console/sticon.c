@@ -139,7 +139,7 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 	break;
     case CM_MOVE:
     case CM_DRAW:
-	switch (conp->vc_cursor_type & 0x0f) {
+	switch (CUR_SIZE(conp->vc_cursor_type)) {
 	case CUR_UNDERLINE:
 	case CUR_LOWER_THIRD:
 	case CUR_LOWER_HALF:
