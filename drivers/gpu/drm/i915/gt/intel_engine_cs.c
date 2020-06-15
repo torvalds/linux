@@ -1094,6 +1094,9 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
 
+	if (!t->func)
+		return;
+
 	/* Synchronise and wait for the tasklet on another CPU */
 	tasklet_kill(t);
 
