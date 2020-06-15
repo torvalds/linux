@@ -2549,15 +2549,20 @@ static int is_double_width(uint32_t ucs)
 			sizeof(struct interval), ucs_cmp) != NULL;
 }
 
-static void con_flush(struct vc_data *vc, unsigned long draw_from,
-		unsigned long draw_to, int *draw_x)
+struct vc_draw_region {
+	unsigned long from, to;
+	int x;
+};
+
+static void con_flush(struct vc_data *vc, struct vc_draw_region *draw)
 {
-	if (*draw_x < 0)
+	if (draw->x < 0)
 		return;
 
-	vc->vc_sw->con_putcs(vc, (u16 *)draw_from,
-			(u16 *)draw_to - (u16 *)draw_from, vc->state.y, *draw_x);
-	*draw_x = -1;
+	vc->vc_sw->con_putcs(vc, (u16 *)draw->from,
+			(u16 *)draw->to - (u16 *)draw->from, vc->state.y,
+			draw->x);
+	draw->x = -1;
 }
 
 static inline int vc_translate_ascii(const struct vc_data *vc, int c)
@@ -2689,9 +2694,11 @@ static inline unsigned char vc_invert_attr(const struct vc_data *vc)
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
-	int c, next_c, tc, ok, n = 0, draw_x = -1;
+	struct vc_draw_region draw = {
+		.x = -1,
+	};
+	int c, next_c, tc, ok, n = 0;
 	unsigned int currcons;
-	unsigned long draw_from = 0, draw_to = 0;
 	struct vc_data *vc;
 	unsigned char vc_attr;
 	struct vt_notifier_param param;
@@ -2798,14 +2805,13 @@ rescan_last_byte:
 				vc_attr = vc->vc_attr;
 			} else {
 				vc_attr = vc_invert_attr(vc);
-				con_flush(vc, draw_from, draw_to, &draw_x);
+				con_flush(vc, &draw);
 			}
 
 			next_c = c;
 			while (1) {
 				if (vc->vc_need_wrap || vc->vc_decim)
-					con_flush(vc, draw_from, draw_to,
-							&draw_x);
+					con_flush(vc, &draw);
 				if (vc->vc_need_wrap) {
 					cr(vc);
 					lf(vc);
@@ -2817,16 +2823,16 @@ rescan_last_byte:
 					     ((vc_attr << 8) & ~himask) + ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
 					     (vc_attr << 8) + tc,
 					   (u16 *) vc->vc_pos);
-				if (con_should_update(vc) && draw_x < 0) {
-					draw_x = vc->state.x;
-					draw_from = vc->vc_pos;
+				if (con_should_update(vc) && draw.x < 0) {
+					draw.x = vc->state.x;
+					draw.from = vc->vc_pos;
 				}
 				if (vc->state.x == vc->vc_cols - 1) {
 					vc->vc_need_wrap = vc->vc_decawm;
-					draw_to = vc->vc_pos + 2;
+					draw.to = vc->vc_pos + 2;
 				} else {
 					vc->state.x++;
-					draw_to = (vc->vc_pos += 2);
+					draw.to = (vc->vc_pos += 2);
 				}
 
 				if (!--width) break;
@@ -2838,17 +2844,17 @@ rescan_last_byte:
 			notify_write(vc, c);
 
 			if (inverse)
-				con_flush(vc, draw_from, draw_to, &draw_x);
+				con_flush(vc, &draw);
 
 			if (rescan)
 				goto rescan_last_byte;
 
 			continue;
 		}
-		con_flush(vc, draw_from, draw_to, &draw_x);
+		con_flush(vc, &draw);
 		do_con_trol(tty, vc, orig);
 	}
-	con_flush(vc, draw_from, draw_to, &draw_x);
+	con_flush(vc, &draw);
 	vc_uniscr_debug_check(vc);
 	console_conditional_schedule();
 	notify_update(vc);
