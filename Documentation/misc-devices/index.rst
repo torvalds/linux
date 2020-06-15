@@ -21,5 +21,6 @@ fit into other categories.
    lis3lv02d
    max6875
    mic/index
+   spear-pcie-gadget
    uacce
    xilinx_sdfec
