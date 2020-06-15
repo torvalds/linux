@@ -39,7 +39,6 @@ void __init paging_init(void)
 	unsigned long address, size;
 	unsigned long next_pgtable, bootmem_end;
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
-	enum zone_type zone;
 	int i;
 
 	empty_zero_page = (void *) memblock_alloc(PAGE_SIZE, PAGE_SIZE);
