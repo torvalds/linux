@@ -2581,10 +2581,10 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 	struct vc_data *vc;
 	unsigned char vc_attr;
 	struct vt_notifier_param param;
-	uint8_t rescan;
-	uint8_t inverse;
-	uint8_t width;
 	u16 himask, charmask;
+	u8 width;
+	bool rescan;
+	bool inverse;
 
 	if (in_interrupt())
 		return count;
@@ -2620,8 +2620,8 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		buf++;
 		n++;
 		count--;
-		rescan = 0;
-		inverse = 0;
+		rescan = false;
+		inverse = false;
 		width = 1;
 
 		/* Do no translation at all in control states */
@@ -2660,7 +2660,7 @@ rescan_last_byte:
 			/* Single ASCII byte or first byte of a sequence received */
 			if (vc->vc_utf_count) {
 			    /* Continuation byte expected */
-			    rescan = 1;
+			    rescan = true;
 			    vc->vc_utf_count = 0;
 			    c = 0xfffd;
 			} else if (c > 0x7f) {
@@ -2746,7 +2746,7 @@ rescan_last_byte:
 				    /* Display U+FFFD. If it's not found, display an inverse question mark. */
 				    tc = conv_uni_to_pc(vc, 0xfffd);
 				    if (tc < 0) {
-					inverse = 1;
+					inverse = true;
 					tc = conv_uni_to_pc(vc, '?');
 					if (tc < 0) tc = '?';
 				    }
@@ -2807,8 +2807,8 @@ rescan_last_byte:
 				con_flush(vc, draw_from, draw_to, &draw_x);
 
 			if (rescan) {
-				rescan = 0;
-				inverse = 0;
+				rescan = false;
+				inverse = false;
 				width = 1;
 				c = orig;
 				goto rescan_last_byte;
