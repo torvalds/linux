@@ -22,6 +22,7 @@ fit into other categories.
    lis3lv02d
    max6875
    mic/index
+   pci-endpoint-test
    spear-pcie-gadget
    uacce
    xilinx_sdfec
