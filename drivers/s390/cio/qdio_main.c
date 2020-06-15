@@ -413,15 +413,8 @@ static inline void qdio_stop_polling(struct qdio_q *q)
 
 static inline void account_sbals(struct qdio_q *q, unsigned int count)
 {
-	int pos;
-
 	q->q_stats.nr_sbal_total += count;
-	if (count == QDIO_MAX_BUFFERS_MASK) {
-		q->q_stats.nr_sbals[7]++;
-		return;
-	}
-	pos = ilog2(count);
-	q->q_stats.nr_sbals[pos]++;
+	q->q_stats.nr_sbals[ilog2(count)]++;
 }
 
 static void process_buffer_error(struct qdio_q *q, unsigned int start,

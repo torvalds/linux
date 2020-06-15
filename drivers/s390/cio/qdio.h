@@ -166,11 +166,7 @@ struct qdio_dev_perf_stat {
 } ____cacheline_aligned;
 
 struct qdio_queue_perf_stat {
-	/*
-	 * Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128.
-	 * Since max. 127 SBALs are scanned reuse entry for 128 as queue full
-	 * aka 127 SBALs found.
-	 */
+	/* Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128. */
 	unsigned int nr_sbals[8];
 	unsigned int nr_sbal_error;
 	unsigned int nr_sbal_nop;
