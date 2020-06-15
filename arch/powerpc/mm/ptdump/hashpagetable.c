@@ -258,7 +258,7 @@ static int pseries_find(unsigned long ea, int psize, bool primary, u64 *v, u64 *
 	for (i = 0; i < HPTES_PER_GROUP; i += 4, hpte_group += 4) {
 		lpar_rc = plpar_pte_read_4(0, hpte_group, (void *)ptes);
 
-		if (lpar_rc != H_SUCCESS)
+		if (lpar_rc)
 			continue;
 		for (j = 0; j < 4; j++) {
 			if (HPTE_V_COMPARE(ptes[j].v, want_v) &&
