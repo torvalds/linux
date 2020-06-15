@@ -17,6 +17,7 @@ for cryptographic use cases, as well as programming examples.
    :maxdepth: 2
 
    intro
+   api-intro
    architecture
    asymmetric-keys
    devel-algos
