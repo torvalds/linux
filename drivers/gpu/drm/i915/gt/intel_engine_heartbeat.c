@@ -65,6 +65,9 @@ static void heartbeat(struct work_struct *wrk)
 	struct intel_context *ce = engine->kernel_context;
 	struct i915_request *rq;
 
+	/* Just in case everything has gone horribly wrong, give it a kick */
+	intel_engine_flush_submission(engine);
+
 	rq = engine->heartbeat.systole;
 	if (rq && i915_request_completed(rq)) {
 		i915_request_put(rq);

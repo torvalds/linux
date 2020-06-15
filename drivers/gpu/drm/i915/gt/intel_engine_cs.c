@@ -1094,19 +1094,18 @@ void intel_engine_flush_submission(struct intel_engine_cs *engine)
 {
 	struct tasklet_struct *t = &engine->execlists.tasklet;
 
-	if (__tasklet_is_scheduled(t)) {
-		local_bh_disable();
-		if (tasklet_trylock(t)) {
-			/* Must wait for any GPU reset in progress. */
-			if (__tasklet_is_enabled(t))
-				t->func(t->data);
-			tasklet_unlock(t);
-		}
-		local_bh_enable();
-	}
+	/* Synchronise and wait for the tasklet on another CPU */
+	tasklet_kill(t);
 
-	/* Otherwise flush the tasklet if it was running on another cpu */
-	tasklet_unlock_wait(t);
+	/* Having cancelled the tasklet, ensure that is run */
+	local_bh_disable();
+	if (tasklet_trylock(t)) {
+		/* Must wait for any GPU reset in progress. */
+		if (__tasklet_is_enabled(t))
+			t->func(t->data);
+		tasklet_unlock(t);
+	}
+	local_bh_enable();
 }
 
 /**
