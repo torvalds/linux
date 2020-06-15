@@ -2572,6 +2572,19 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 	return c;
 }
 
+
+/**
+ * vc_sanitize_unicode -- Replace invalid Unicode code points with U+FFFD
+ * @c: the received character, or U+FFFD for invalid sequences.
+ */
+static inline int vc_sanitize_unicode(const int c)
+{
+	if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
+		return 0xfffd;
+
+	return c;
+}
+
 /**
  * vc_translate_unicode -- Combine UTF-8 into Unicode in @vc_utf_char
  *
@@ -2586,69 +2599,63 @@ static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 		0x001fffff, 0x03ffffff, 0x7fffffff
 	};
 
+	/* Continuation byte received */
 	if ((c & 0xc0) == 0x80) {
-		/* Continuation byte received */
-		if (vc->vc_utf_count) {
-			vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
-			vc->vc_npar++;
-			if (--vc->vc_utf_count) {
-				/* Still need some bytes */
-				return -1;
-			}
-			/* Got a whole character */
-			c = vc->vc_utf_char;
-			/* Reject overlong sequences */
-			if (c <= utf8_length_changes[vc->vc_npar - 1] ||
-					c > utf8_length_changes[vc->vc_npar])
-				return 0xfffd;
-		} else {
-			/* Unexpected continuation byte */
-			vc->vc_utf_count = 0;
+		/* Unexpected continuation byte? */
+		if (!vc->vc_utf_count)
 			return 0xfffd;
-		}
-	} else {
-		/* Single ASCII byte or first byte of a sequence received */
-		if (vc->vc_utf_count) {
-			/* Continuation byte expected */
-			*rescan = true;
-			vc->vc_utf_count = 0;
-			return 0xfffd;
-		} else if (c > 0x7f) {
-			/* First byte of a multibyte sequence received */
-			vc->vc_npar = 0;
-			if ((c & 0xe0) == 0xc0) {
-				vc->vc_utf_count = 1;
-				vc->vc_utf_char = (c & 0x1f);
-			} else if ((c & 0xf0) == 0xe0) {
-				vc->vc_utf_count = 2;
-				vc->vc_utf_char = (c & 0x0f);
-			} else if ((c & 0xf8) == 0xf0) {
-				vc->vc_utf_count = 3;
-				vc->vc_utf_char = (c & 0x07);
-			} else if ((c & 0xfc) == 0xf8) {
-				vc->vc_utf_count = 4;
-				vc->vc_utf_char = (c & 0x03);
-			} else if ((c & 0xfe) == 0xfc) {
-				vc->vc_utf_count = 5;
-				vc->vc_utf_char = (c & 0x01);
-			} else {
-				/* 254 and 255 are invalid */
-				return 0xfffd;
-			}
-			if (vc->vc_utf_count) {
-				/* Still need some bytes */
-				return -1;
-			}
-		}
-		/* Nothing to do if an ASCII byte was received */
-	}
-	/* End of UTF-8 decoding. */
-	/* c is the received character, or U+FFFD for invalid sequences. */
-	/* Replace invalid Unicode code points with U+FFFD too */
-	if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
-		return 0xfffd;
 
-	return c;
+		vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
+		vc->vc_npar++;
+		if (--vc->vc_utf_count)
+			goto need_more_bytes;
+
+		/* Got a whole character */
+		c = vc->vc_utf_char;
+		/* Reject overlong sequences */
+		if (c <= utf8_length_changes[vc->vc_npar - 1] ||
+				c > utf8_length_changes[vc->vc_npar])
+			return 0xfffd;
+
+		return vc_sanitize_unicode(c);
+	}
+
+	/* Single ASCII byte or first byte of a sequence received */
+	if (vc->vc_utf_count) {
+		/* Continuation byte expected */
+		*rescan = true;
+		vc->vc_utf_count = 0;
+		return 0xfffd;
+	}
+
+	/* Nothing to do if an ASCII byte was received */
+	if (c <= 0x7f)
+		return c;
+
+	/* First byte of a multibyte sequence received */
+	vc->vc_npar = 0;
+	if ((c & 0xe0) == 0xc0) {
+		vc->vc_utf_count = 1;
+		vc->vc_utf_char = (c & 0x1f);
+	} else if ((c & 0xf0) == 0xe0) {
+		vc->vc_utf_count = 2;
+		vc->vc_utf_char = (c & 0x0f);
+	} else if ((c & 0xf8) == 0xf0) {
+		vc->vc_utf_count = 3;
+		vc->vc_utf_char = (c & 0x07);
+	} else if ((c & 0xfc) == 0xf8) {
+		vc->vc_utf_count = 4;
+		vc->vc_utf_char = (c & 0x03);
+	} else if ((c & 0xfe) == 0xfc) {
+		vc->vc_utf_count = 5;
+		vc->vc_utf_char = (c & 0x01);
+	} else {
+		/* 254 and 255 are invalid */
+		return 0xfffd;
+	}
+
+need_more_bytes:
+	return -1;
 }
 
 /* acquires console_lock */
