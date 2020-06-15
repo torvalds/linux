@@ -719,10 +719,10 @@ static u8 build_attr(struct vc_data *vc, u8 _color,
 	u8 a = _color;
 	if (!vc->vc_can_do_color)
 		return _intensity |
-		       (_italic ? 2 : 0) |
-		       (_underline ? 4 : 0) |
-		       (_reverse ? 8 : 0) |
-		       (_blink ? 0x80 : 0);
+		       (_italic    << 1) |
+		       (_underline << 2) |
+		       (_reverse   << 3) |
+		       (_blink     << 7);
 	if (_italic)
 		a = (a & 0xF0) | vc->vc_itcolor;
 	else if (_underline)
