@@ -34,8 +34,7 @@ enum vc_intensity {
  * @x: cursor's x-position
  * @y: cursor's y-position
  * @color: foreground & background colors
- * @G0_charset: what's G0 slot set to (like GRAF_MAP, LAT1_MAP)
- * @G1_charset: what's G1 slot set to (like GRAF_MAP, LAT1_MAP)
+ * @Gx_charset: what's G0/G1 slot set to (like GRAF_MAP, LAT1_MAP)
  * @charset: what character set to use (0=G0 or 1=G1)
  * @intensity: see enum vc_intensity for values
  * @reverse: reversed foreground/background colors
@@ -48,8 +47,7 @@ struct vc_state {
 
 	unsigned char	color;
 
-	unsigned char	G0_charset;
-	unsigned char	G1_charset;
+	unsigned char	Gx_charset[2];
 	unsigned int	charset		: 1;
 
 	/* attribute flags */

@@ -1743,9 +1743,7 @@ static void csi_m(struct vc_data *vc)
 			  * Select primary font, don't display control chars if
 			  * defined, don't set bit 8 on output.
 			  */
-			vc->vc_translate = set_translate(vc->state.charset == 0
-					? vc->state.G0_charset
-					: vc->state.G1_charset, vc);
+			vc->vc_translate = set_translate(vc->state.Gx_charset[vc->state.charset], vc);
 			vc->vc_disp_ctrl = 0;
 			vc->vc_toggle_meta = 0;
 			break;
@@ -2041,8 +2039,8 @@ static void restore_cur(struct vc_data *vc)
 	memcpy(&vc->state, &vc->saved_state, sizeof(vc->state));
 
 	gotoxy(vc, vc->state.x, vc->state.y);
-	vc->vc_translate = set_translate(vc->state.charset ? vc->state.G1_charset :
-			vc->state.G0_charset, vc);
+	vc->vc_translate = set_translate(vc->state.Gx_charset[vc->state.charset],
+			vc);
 	update_attr(vc);
 	vc->vc_need_wrap = 0;
 }
@@ -2059,8 +2057,8 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	vc->vc_state		= ESnormal;
 	vc->vc_priv		= EPecma;
 	vc->vc_translate	= set_translate(LAT1_MAP, vc);
-	vc->state.G0_charset	= LAT1_MAP;
-	vc->state.G1_charset	= GRAF_MAP;
+	vc->state.Gx_charset[0]	= LAT1_MAP;
+	vc->state.Gx_charset[1]	= GRAF_MAP;
 	vc->state.charset	= 0;
 	vc->vc_need_wrap	= 0;
 	vc->vc_report_mouse	= 0;
@@ -2105,8 +2103,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 
 static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
 {
-	unsigned char *charset = which == 0 ? &vc->state.G0_charset :
-		&vc->state.G1_charset;
+	unsigned char *charset = &vc->state.Gx_charset[which];
 
 	switch (c) {
 	case '0':
@@ -2168,12 +2165,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		return;
 	case 14:
 		vc->state.charset = 1;
-		vc->vc_translate = set_translate(vc->state.G1_charset, vc);
+		vc->vc_translate = set_translate(vc->state.Gx_charset[1], vc);
 		vc->vc_disp_ctrl = 1;
 		return;
 	case 15:
 		vc->state.charset = 0;
-		vc->vc_translate = set_translate(vc->state.G0_charset, vc);
+		vc->vc_translate = set_translate(vc->state.Gx_charset[0], vc);
 		vc->vc_disp_ctrl = 0;
 		return;
 	case 24: case 26:
