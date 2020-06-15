@@ -730,7 +730,7 @@ static u8 build_attr(struct vc_data *vc, u8 _color,
 	else if (_intensity == VCI_HALF_BRIGHT)
 		a = (a & 0xf0) | vc->vc_halfcolor;
 	if (_reverse)
-		a = ((a) & 0x88) | ((((a) >> 4) | ((a) << 4)) & 0x77);
+		a = (a & 0x88) | (((a >> 4) | (a << 4)) & 0x77);
 	if (_blink)
 		a ^= 0x80;
 	if (_intensity == VCI_BOLD)
@@ -777,14 +777,18 @@ void invert_screen(struct vc_data *vc, int offset, int count, int viewed)
 		} else if (vc->vc_hi_font_mask == 0x100) {
 			while (cnt--) {
 				a = scr_readw(q);
-				a = ((a) & 0x11ff) | (((a) & 0xe000) >> 4) | (((a) & 0x0e00) << 4);
+				a = (a & 0x11ff) |
+				   ((a & 0xe000) >> 4) |
+				   ((a & 0x0e00) << 4);
 				scr_writew(a, q);
 				q++;
 			}
 		} else {
 			while (cnt--) {
 				a = scr_readw(q);
-				a = ((a) & 0x88ff) | (((a) & 0x7000) >> 4) | (((a) & 0x0700) << 4);
+				a = (a & 0x88ff) |
+				   ((a & 0x7000) >> 4) |
+				   ((a & 0x0700) << 4);
 				scr_writew(a, q);
 				q++;
 			}
