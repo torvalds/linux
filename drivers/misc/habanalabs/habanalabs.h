@@ -378,38 +378,15 @@ struct hl_cb {
 
 struct hl_cs_job;
 
-/*
- * Currently, there are two limitations on the maximum length of a queue:
- *
- * 1. The memory footprint of the queue. The current allocated space for the
- *    queue is PAGE_SIZE. Because each entry in the queue is HL_BD_SIZE,
- *    the maximum length of the queue can be PAGE_SIZE / HL_BD_SIZE,
- *    which currently is 4096/16 = 256 entries.
- *
- *    To increase that, we need either to decrease the size of the
- *    BD (difficult), or allocate more than a single page (easier).
- *
- * 2. Because the size of the JOB handle field in the BD CTL / completion queue
- *    is 10-bit, we can have up to 1024 open jobs per hardware queue.
- *    Therefore, each queue can hold up to 1024 entries.
- *
- * HL_QUEUE_LENGTH is in units of struct hl_bd.
- * HL_QUEUE_LENGTH * sizeof(struct hl_bd) should be <= HL_PAGE_SIZE
- */
-
-#define HL_PAGE_SIZE			4096 /* minimum page size */
-/* Must be power of 2 (HL_PAGE_SIZE / HL_BD_SIZE) */
-#define HL_QUEUE_LENGTH			256
+/* Queue length of external and HW queues */
+#define HL_QUEUE_LENGTH			4096
 #define HL_QUEUE_SIZE_IN_BYTES		(HL_QUEUE_LENGTH * HL_BD_SIZE)
 
-/*
- * HL_CQ_LENGTH is in units of struct hl_cq_entry.
- * HL_CQ_LENGTH should be <= HL_PAGE_SIZE
- */
+/* HL_CQ_LENGTH is in units of struct hl_cq_entry */
 #define HL_CQ_LENGTH			HL_QUEUE_LENGTH
 #define HL_CQ_SIZE_IN_BYTES		(HL_CQ_LENGTH * HL_CQ_ENTRY_SIZE)
 
-/* Must be power of 2 (HL_PAGE_SIZE / HL_EQ_ENTRY_SIZE) */
+/* Must be power of 2 */
 #define HL_EQ_LENGTH			64
 #define HL_EQ_SIZE_IN_BYTES		(HL_EQ_LENGTH * HL_EQ_ENTRY_SIZE)
 

@@ -220,8 +220,6 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 {
 	void *p;
 
-	BUILD_BUG_ON(HL_CQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
-
 	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
 				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
 	if (!p)
@@ -281,8 +279,6 @@ void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
 int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
 	void *p;
-
-	BUILD_BUG_ON(HL_EQ_SIZE_IN_BYTES > HL_PAGE_SIZE);
 
 	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
 							HL_EQ_SIZE_IN_BYTES,
