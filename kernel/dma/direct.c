@@ -109,7 +109,7 @@ static inline bool dma_should_free_from_pool(struct device *dev,
 	return false;
 }
 
-struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
+static struct page *__dma_direct_alloc_pages(struct device *dev, size_t size,
 		gfp_t gfp, unsigned long attrs)
 {
 	size_t alloc_size = PAGE_ALIGN(size);
