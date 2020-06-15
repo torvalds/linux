@@ -458,6 +458,7 @@ static int goya_pci_bars_map(struct hl_device *hdev)
 static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 {
 	struct goya_device *goya = hdev->asic_specific;
+	struct hl_inbound_pci_region pci_region;
 	u64 old_addr = addr;
 	int rc;
 
@@ -465,7 +466,10 @@ static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
 		return old_addr;
 
 	/* Inbound Region 1 - Bar 4 - Point to DDR */
-	rc = hl_pci_set_dram_bar_base(hdev, 1, 4, addr);
+	pci_region.mode = PCI_BAR_MATCH_MODE;
+	pci_region.bar = DDR_BAR_ID;
+	pci_region.addr = addr;
+	rc = hl_pci_set_inbound_region(hdev, 1, &pci_region);
 	if (rc)
 		return U64_MAX;
 
@@ -487,8 +491,35 @@ static u64 goya_set_ddr_bar_base(struct hl_device *hdev, u64 addr)
  */
 static int goya_init_iatu(struct hl_device *hdev)
 {
-	return hl_pci_init_iatu(hdev, SRAM_BASE_ADDR, DRAM_PHYS_BASE,
-				HOST_PHYS_BASE, HOST_PHYS_SIZE);
+	struct hl_inbound_pci_region inbound_region;
+	struct hl_outbound_pci_region outbound_region;
+	int rc;
+
+	/* Inbound Region 0 - Bar 0 - Point to SRAM and CFG */
+	inbound_region.mode = PCI_BAR_MATCH_MODE;
+	inbound_region.bar = SRAM_CFG_BAR_ID;
+	inbound_region.addr = SRAM_BASE_ADDR;
+	rc = hl_pci_set_inbound_region(hdev, 0, &inbound_region);
+	if (rc)
+		goto done;
+
+	/* Inbound Region 1 - Bar 4 - Point to DDR */
+	inbound_region.mode = PCI_BAR_MATCH_MODE;
+	inbound_region.bar = DDR_BAR_ID;
+	inbound_region.addr = DRAM_PHYS_BASE;
+	rc = hl_pci_set_inbound_region(hdev, 1, &inbound_region);
+	if (rc)
+		goto done;
+
+	hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+
+	/* Outbound Region 0 - Point to Host  */
+	outbound_region.addr = HOST_PHYS_BASE;
+	outbound_region.size = HOST_PHYS_SIZE;
+	rc = hl_pci_set_outbound_region(hdev, &outbound_region);
+
+done:
+	return rc;
 }
 
 /*

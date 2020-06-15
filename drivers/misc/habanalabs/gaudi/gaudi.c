@@ -465,6 +465,7 @@ static int gaudi_pci_bars_map(struct hl_device *hdev)
 static u64 gaudi_set_hbm_bar_base(struct hl_device *hdev, u64 addr)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
+	struct hl_inbound_pci_region pci_region;
 	u64 old_addr = addr;
 	int rc;
 
@@ -472,7 +473,10 @@ static u64 gaudi_set_hbm_bar_base(struct hl_device *hdev, u64 addr)
 		return old_addr;
 
 	/* Inbound Region 2 - Bar 4 - Point to HBM */
-	rc = hl_pci_set_dram_bar_base(hdev, 2, 4, addr);
+	pci_region.mode = PCI_BAR_MATCH_MODE;
+	pci_region.bar = HBM_BAR_ID;
+	pci_region.addr = addr;
+	rc = hl_pci_set_inbound_region(hdev, 2, &pci_region);
 	if (rc)
 		return U64_MAX;
 
@@ -486,22 +490,43 @@ static u64 gaudi_set_hbm_bar_base(struct hl_device *hdev, u64 addr)
 
 static int gaudi_init_iatu(struct hl_device *hdev)
 {
-	int rc = 0;
+	struct hl_inbound_pci_region inbound_region;
+	struct hl_outbound_pci_region outbound_region;
+	int rc;
+
+	/* Inbound Region 0 - Bar 0 - Point to SRAM + CFG */
+	inbound_region.mode = PCI_BAR_MATCH_MODE;
+	inbound_region.bar = SRAM_BAR_ID;
+	inbound_region.addr = SRAM_BASE_ADDR;
+	rc = hl_pci_set_inbound_region(hdev, 0, &inbound_region);
+	if (rc)
+		goto done;
 
 	/* Inbound Region 1 - Bar 2 - Point to SPI FLASH */
-	rc  = hl_pci_iatu_write(hdev, 0x314,
-				lower_32_bits(SPI_FLASH_BASE_ADDR));
-	rc |= hl_pci_iatu_write(hdev, 0x318,
-				upper_32_bits(SPI_FLASH_BASE_ADDR));
-	rc |= hl_pci_iatu_write(hdev, 0x300, 0);
-	/* Enable + Bar match + match enable */
-	rc |= hl_pci_iatu_write(hdev, 0x304, 0xC0080200);
-
+	inbound_region.mode = PCI_BAR_MATCH_MODE;
+	inbound_region.bar = CFG_BAR_ID;
+	inbound_region.addr = SPI_FLASH_BASE_ADDR;
+	rc = hl_pci_set_inbound_region(hdev, 1, &inbound_region);
 	if (rc)
-		return -EIO;
+		goto done;
 
-	return hl_pci_init_iatu(hdev, SRAM_BASE_ADDR, DRAM_PHYS_BASE,
-				HOST_PHYS_BASE, HOST_PHYS_SIZE);
+	/* Inbound Region 2 - Bar 4 - Point to HBM */
+	inbound_region.mode = PCI_BAR_MATCH_MODE;
+	inbound_region.bar = HBM_BAR_ID;
+	inbound_region.addr = DRAM_PHYS_BASE;
+	rc = hl_pci_set_inbound_region(hdev, 2, &inbound_region);
+	if (rc)
+		goto done;
+
+	hdev->asic_funcs->set_dma_mask_from_fw(hdev);
+
+	/* Outbound Region 0 - Point to Host */
+	outbound_region.addr = HOST_PHYS_BASE;
+	outbound_region.size = HOST_PHYS_SIZE;
+	rc = hl_pci_set_outbound_region(hdev, &outbound_region);
+
+done:
+	return rc;
 }
 
 static int gaudi_early_init(struct hl_device *hdev)
@@ -2883,16 +2908,6 @@ static int gaudi_hw_init(struct hl_device *hdev)
 	gaudi_init_pci_dma_qmans(hdev);
 
 	gaudi_init_hbm_dma_qmans(hdev);
-
-	/*
-	 * Before pushing u-boot/linux to device, need to set the hbm bar to
-	 * base address of dram
-	 */
-	if (gaudi_set_hbm_bar_base(hdev, DRAM_PHYS_BASE) == U64_MAX) {
-		dev_err(hdev->dev,
-			"failed to map HBM bar to DRAM base address\n");
-		return -EIO;
-	}
 
 	rc = gaudi_init_cpu(hdev);
 	if (rc) {

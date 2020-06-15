@@ -66,6 +66,8 @@
 #define IS_POWER_OF_2(n)		(n != 0 && ((n & (n - 1)) == 0))
 #define IS_MAX_PENDING_CS_VALID(n)	(IS_POWER_OF_2(n) && (n > 1))
 
+#define HL_PCI_NUM_BARS			6
+
 /**
  * struct pgt_info - MMU hop page info.
  * @node: hash linked-list node for the pgts shadow hash of pgts.
@@ -89,6 +91,16 @@ struct pgt_info {
 
 struct hl_device;
 struct hl_fpriv;
+
+/**
+ * enum hl_pci_match_mode - pci match mode per region
+ * @PCI_ADDRESS_MATCH_MODE: address match mode
+ * @PCI_BAR_MATCH_MODE: bar match mode
+ */
+enum hl_pci_match_mode {
+	PCI_ADDRESS_MATCH_MODE,
+	PCI_BAR_MATCH_MODE
+};
 
 /**
  * enum hl_fw_component - F/W components to read version through registers.
@@ -123,6 +135,32 @@ enum hl_cs_type {
 	CS_TYPE_DEFAULT,
 	CS_TYPE_SIGNAL,
 	CS_TYPE_WAIT
+};
+
+/*
+ * struct hl_inbound_pci_region - inbound region descriptor
+ * @mode: pci match mode for this region
+ * @addr: region target address
+ * @size: region size in bytes
+ * @offset_in_bar: offset within bar (address match mode)
+ * @bar: bar id
+ */
+struct hl_inbound_pci_region {
+	enum hl_pci_match_mode	mode;
+	u64			addr;
+	u64			size;
+	u64			offset_in_bar;
+	u8			bar;
+};
+
+/*
+ * struct hl_outbound_pci_region - outbound region descriptor
+ * @addr: region target address
+ * @size: region size in bytes
+ */
+struct hl_outbound_pci_region {
+	u64	addr;
+	u64	size;
 };
 
 /*
@@ -1347,7 +1385,9 @@ struct hl_device_idle_busy_ts {
 /**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
- * @pcie_bar: array of available PCIe bars.
+ * @pcie_bar_phys: array of available PCIe bars physical addresses.
+ *		   (required only for PCI address match mode)
+ * @pcie_bar: array of available PCIe bars virtual addresses.
  * @rmmio: configuration area address on SRAM.
  * @cdev: related char device.
  * @cdev_ctrl: char device for control operations only (INFO IOCTL)
@@ -1442,7 +1482,8 @@ struct hl_device_idle_busy_ts {
  */
 struct hl_device {
 	struct pci_dev			*pdev;
-	void __iomem			*pcie_bar[6];
+	u64				pcie_bar_phys[HL_PCI_NUM_BARS];
+	void __iomem			*pcie_bar[HL_PCI_NUM_BARS];
 	void __iomem			*rmmio;
 	struct cdev			cdev;
 	struct cdev			cdev_ctrl;
@@ -1767,9 +1808,10 @@ int hl_pci_bars_map(struct hl_device *hdev, const char * const name[3],
 int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data);
 int hl_pci_set_dram_bar_base(struct hl_device *hdev, u8 inbound_region, u8 bar,
 				u64 addr);
-int hl_pci_init_iatu(struct hl_device *hdev, u64 sram_base_address,
-			u64 dram_base_address, u64 host_phys_base_address,
-			u64 host_phys_size);
+int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
+		struct hl_inbound_pci_region *pci_region);
+int hl_pci_set_outbound_region(struct hl_device *hdev,
+		struct hl_outbound_pci_region *pci_region);
 int hl_pci_init(struct hl_device *hdev);
 void hl_pci_fini(struct hl_device *hdev);
 
