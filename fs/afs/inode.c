@@ -284,16 +284,25 @@ void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *v
 	write_seqlock(&vnode->cb_lock);
 
 	if (vp->scb.have_error) {
+		/* A YFS server will return this from RemoveFile2 and AFS and
+		 * YFS will return this from InlineBulkStatus.
+		 */
 		if (vp->scb.status.abort_code == VNOVNODE) {
 			set_bit(AFS_VNODE_DELETED, &vnode->flags);
 			clear_nlink(&vnode->vfs_inode);
 			__afs_break_callback(vnode, afs_cb_break_for_deleted);
+			op->flags &= ~AFS_OPERATION_DIR_CONFLICT;
 		}
-	} else {
-		if (vp->scb.have_status)
-			afs_apply_status(op, vp);
+	} else if (vp->scb.have_status) {
+		afs_apply_status(op, vp);
 		if (vp->scb.have_cb)
 			afs_apply_callback(op, vp);
+	} else if (vp->op_unlinked && !(op->flags & AFS_OPERATION_DIR_CONFLICT)) {
+		drop_nlink(&vnode->vfs_inode);
+		if (vnode->vfs_inode.i_nlink == 0) {
+			set_bit(AFS_VNODE_DELETED, &vnode->flags);
+			__afs_break_callback(vnode, afs_cb_break_for_deleted);
+		}
 	}
 
 	write_sequnlock(&vnode->cb_lock);
@@ -304,7 +313,7 @@ void afs_vnode_commit_status(struct afs_operation *op, struct afs_vnode_param *v
 
 static void afs_fetch_status_success(struct afs_operation *op)
 {
-	struct afs_vnode_param *vp = &op->file[0];
+	struct afs_vnode_param *vp = &op->file[op->fetch_status.which];
 	struct afs_vnode *vnode = vp->vnode;
 	int ret;
 
@@ -318,7 +327,7 @@ static void afs_fetch_status_success(struct afs_operation *op)
 	}
 }
 
-static const struct afs_operation_ops afs_fetch_status_operation = {
+const struct afs_operation_ops afs_fetch_status_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_status,
 	.issue_yfs_rpc	= yfs_fs_fetch_status,
 	.success	= afs_fetch_status_success,
@@ -729,6 +738,9 @@ int afs_getattr(const struct path *path, struct kstat *stat,
 	do {
 		read_seqbegin_or_lock(&vnode->cb_lock, &seq);
 		generic_fillattr(inode, stat);
+		if (test_bit(AFS_VNODE_SILLY_DELETED, &vnode->flags) &&
+		    stat->nlink > 0)
+			stat->nlink -= 1;
 	} while (need_seqretry(&vnode->cb_lock, seq));
 
 	done_seqretry(&vnode->cb_lock, seq);

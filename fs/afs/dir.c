@@ -696,7 +696,7 @@ static const struct afs_operation_ops afs_inline_bulk_status_operation = {
 	.success	= afs_do_lookup_success,
 };
 
-static const struct afs_operation_ops afs_fetch_status_operation = {
+static const struct afs_operation_ops afs_lookup_fetch_status_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_status,
 	.issue_yfs_rpc	= yfs_fs_fetch_status,
 	.success	= afs_do_lookup_success,
@@ -1496,6 +1496,7 @@ static void afs_unlink_success(struct afs_operation *op)
 {
 	_enter("op=%08x", op->debug_id);
 	op->ctime = op->file[0].scb.status.mtime_client;
+	afs_check_dir_conflict(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[1]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
@@ -1580,9 +1581,24 @@ static int afs_unlink(struct inode *dir, struct dentry *dentry)
 
 	op->file[1].vnode = vnode;
 	op->file[1].update_ctime = true;
+	op->file[1].op_unlinked = true;
 	op->dentry	= dentry;
 	op->ops		= &afs_unlink_operation;
-	return afs_do_sync_operation(op);
+	afs_begin_vnode_operation(op);
+	afs_wait_for_operation(op);
+
+	/* If there was a conflict with a third party, check the status of the
+	 * unlinked vnode.
+	 */
+	if (op->error == 0 && (op->flags & AFS_OPERATION_DIR_CONFLICT)) {
+		op->file[1].update_ctime = false;
+		op->fetch_status.which = 1;
+		op->ops = &afs_fetch_status_operation;
+		afs_begin_vnode_operation(op);
+		afs_wait_for_operation(op);
+	}
+
+	return afs_put_operation(op);
 
 error:
 	return afs_put_operation(op);
@@ -1767,6 +1783,7 @@ static void afs_rename_success(struct afs_operation *op)
 	_enter("op=%08x", op->debug_id);
 
 	op->ctime = op->file[0].scb.status.mtime_client;
+	afs_check_dir_conflict(op, &op->file[1]);
 	afs_vnode_commit_status(op, &op->file[0]);
 	if (op->file[1].vnode != op->file[0].vnode) {
 		op->ctime = op->file[1].scb.status.mtime_client;
