@@ -54,18 +54,17 @@
  * Flag bit for COMMAND_RECONFIG
  *
  * COMMAND_RECONFIG_FLAG_PARTIAL:
- * Set to FPGA configuration type (full or partial), the default
- * is full reconfig.
+ * Set to FPGA configuration type (full or partial).
  */
-#define COMMAND_RECONFIG_FLAG_PARTIAL	0
+#define COMMAND_RECONFIG_FLAG_PARTIAL	1
 
 /**
  * Timeout settings for service clients:
  * timeout value used in Stratix10 FPGA manager driver.
  * timeout value used in RSU driver
  */
-#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         100
-#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          240
+#define SVC_RECONFIG_REQUEST_TIMEOUT_MS         300
+#define SVC_RECONFIG_BUFFER_TIMEOUT_MS          720
 #define SVC_RSU_REQUEST_TIMEOUT_MS              300
 
 struct stratix10_svc_chan;
