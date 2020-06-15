@@ -2747,7 +2747,7 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 			return -1; /* nothing to display */
 
 		/* Glyph not found */
-		if ((!(vc->vc_utf && !vc->vc_disp_ctrl) || c < 128) &&
+		if ((!vc->vc_utf || vc->vc_disp_ctrl || c < 128) &&
 				!(c & ~charmask)) {
 			/*
 			 * In legacy mode use the glyph we get by a 1:1
