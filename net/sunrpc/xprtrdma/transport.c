@@ -242,7 +242,7 @@ xprt_rdma_connect_worker(struct work_struct *work)
 
 	rc = rpcrdma_xprt_connect(r_xprt);
 	xprt_clear_connecting(xprt);
-	if (r_xprt->rx_ep && r_xprt->rx_ep->re_connect_status > 0) {
+	if (!rc) {
 		xprt->connect_cookie++;
 		xprt->stat.connect_count++;
 		xprt->stat.connect_time += (long)jiffies -
