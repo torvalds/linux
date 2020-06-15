@@ -21,9 +21,12 @@
 #ifndef _gc_9_1_OFFSET_HEADER
 #define _gc_9_1_OFFSET_HEADER
 
-#define mmSQ_DEBUG_STS_GLOBAL                                                                          0x2309
-#define mmSQ_DEBUG_STS_GLOBAL2                                                                         0x2310
-#define mmSQ_DEBUG_STS_GLOBAL3                                                                         0x2311
+#define mmSQ_DEBUG_STS_GLOBAL                                                                          0x0309
+#define mmSQ_DEBUG_STS_GLOBAL_BASE_IDX                                                                 0
+#define mmSQ_DEBUG_STS_GLOBAL2                                                                         0x0310
+#define mmSQ_DEBUG_STS_GLOBAL2_BASE_IDX                                                                0
+#define mmSQ_DEBUG_STS_GLOBAL3                                                                         0x0311
+#define mmSQ_DEBUG_STS_GLOBAL3_BASE_IDX                                                                0
 
 // addressBlock: gc_grbmdec
 // base address: 0x8000
