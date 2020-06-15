@@ -1226,7 +1226,6 @@ static int  gsl_ts_probe(struct i2c_client *client, const struct i2c_device_id *
 			pr_info("Cannot allocate ts INT!ERRNO:%d\n", rc);
 			goto error_req_irq_fail;
 		}
-		disable_irq(ts->irq);
 	} else {
 		pr_info("gsl x680 irq req fail\n");
 		goto error_req_irq_fail;
