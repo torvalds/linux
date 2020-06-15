@@ -2730,7 +2730,7 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		struct vc_draw_region *draw)
 {
 	int next_c;
-	unsigned char vc_attr;
+	unsigned char vc_attr = vc->vc_attr;
 	u16 himask = vc->vc_hi_font_mask, charmask = himask ? 0x1ff : 0xff;
 	u8 width = 1;
 	bool inverse = false;
@@ -2769,15 +2769,11 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 				tc = conv_uni_to_pc(vc, '?');
 				if (tc < 0)
 					tc = '?';
+
+				vc_attr = vc_invert_attr(vc);
+				con_flush(vc, draw);
 			}
 		}
-	}
-
-	if (!inverse) {
-		vc_attr = vc->vc_attr;
-	} else {
-		vc_attr = vc_invert_attr(vc);
-		con_flush(vc, draw);
 	}
 
 	next_c = c;
