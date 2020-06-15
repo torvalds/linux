@@ -2196,7 +2196,7 @@ static inline pte_t gup_get_pte(pte_t *ptep)
  */
 static inline pte_t gup_get_pte(pte_t *ptep)
 {
-	return READ_ONCE(*ptep);
+	return ptep_get(ptep);
 }
 #endif /* CONFIG_GUP_GET_PTE_LOW_HIGH */
 
