@@ -25,10 +25,10 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
-#define IQS620_PWR_SETTINGS			0xD2
+#define IQS620_PWR_SETTINGS			0xd2
 #define IQS620_PWR_SETTINGS_PWM_OUT		BIT(7)
 
-#define IQS620_PWM_DUTY_CYCLE			0xD8
+#define IQS620_PWM_DUTY_CYCLE			0xd8
 
 #define IQS620_PWM_PERIOD_NS			1000000
 
@@ -94,7 +94,7 @@ static int iqs620_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	if (state->enabled && duty_scale) {
 		ret = regmap_update_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
-					 IQS620_PWR_SETTINGS_PWM_OUT, 0xFF);
+					 IQS620_PWR_SETTINGS_PWM_OUT, 0xff);
 		if (ret)
 			goto err_mutex;
 	}
@@ -160,7 +160,7 @@ static int iqs620_pwm_notifier(struct notifier_block *notifier,
 
 	ret = regmap_update_bits(iqs62x->regmap, IQS620_PWR_SETTINGS,
 				 IQS620_PWR_SETTINGS_PWM_OUT,
-				 iqs620_pwm->out_en ? 0xFF : 0);
+				 iqs620_pwm->out_en ? 0xff : 0);
 
 err_mutex:
 	mutex_unlock(&iqs620_pwm->lock);
