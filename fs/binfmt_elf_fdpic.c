@@ -35,6 +35,7 @@
 #include <linux/elfcore.h>
 #include <linux/coredump.h>
 #include <linux/dax.h>
+#include <linux/regset.h>
 
 #include <linux/uaccess.h>
 #include <asm/param.h>
@@ -1456,8 +1457,7 @@ struct elf_thread_status
 	struct elf_thread_status *next;
 	struct elf_prstatus_fdpic prstatus;	/* NT_PRSTATUS */
 	elf_fpregset_t fpu;		/* NT_PRFPREG */
-	struct task_struct *thread;
-	struct memelfnote notes[3];
+	struct memelfnote notes[2];
 	int num_notes;
 };
 
@@ -1468,22 +1468,35 @@ struct elf_thread_status
  */
 static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_struct *p, int *sz)
 {
+	const struct user_regset_view *view = task_user_regset_view(p);
 	struct elf_thread_status *t;
+	int i, ret;
 
 	t = kzalloc(sizeof(struct elf_thread_status), GFP_KERNEL);
 	if (!t)
 		return t;
 
 	fill_prstatus(&t->prstatus, p, signr);
-	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);
+	regset_get(p, &view->regsets[0],
+		   sizeof(t->prstatus.pr_reg), &t->prstatus.pr_reg);
 
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
 		  &t->prstatus);
 	t->num_notes++;
 	*sz += notesize(&t->notes[0]);
 
-	t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, task_pt_regs(p),
-							   &t->fpu);
+	for (i = 1; i < view->n; ++i) {
+		const struct user_regset *regset = &view->regsets[i];
+		if (regset->core_note_type != NT_PRFPREG)
+			continue;
+		if (regset->active && regset->active(p, regset) <= 0)
+			continue;
+		ret = regset_get(p, regset, sizeof(t->fpu), &t->fpu);
+		if (ret >= 0)
+			t->prstatus.pr_fpvalid = 1;
+		break;
+	}
+
 	if (t->prstatus.pr_fpvalid) {
 		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &t->fpu);
