@@ -23,6 +23,7 @@
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
   autoremove_wake_function
+  bcmp
   bin2hex
   __bitmap_clear
   bitmap_find_next_zero_area_off
@@ -245,7 +246,6 @@
   driver_unregister
   drm_panel_notifier_register
   drm_panel_notifier_unregister
-  dst_release
   dummy_dma_ops
   enable_irq
   ether_setup
@@ -384,7 +384,6 @@
   iommu_unmap
   __ioremap
   __iounmap
-  ip_route_output_flow
   __ipv6_addr_type
   irq_chip_disable_parent
   irq_chip_enable_parent
@@ -546,8 +545,6 @@
   netif_tx_wake_queue
   netlink_unicast
   net_ratelimit
-  nf_register_net_hooks
-  nf_unregister_net_hooks
   nla_memcpy
   nla_parse
   nla_put
@@ -764,7 +761,6 @@
   register_netdev
   register_netdevice
   register_netdevice_notifier
-  register_net_sysctl
   register_pernet_subsys
   register_pm_notifier
   register_shrinker
@@ -818,7 +814,6 @@
   seq_puts
   seq_read
   seq_release
-  set_normalized_timespec
   set_user_nice
   sg_alloc_table
   sg_free_table
@@ -928,12 +923,14 @@
   sync_file_get_fence
   synchronize_irq
   syscon_node_to_regmap
+  sysfs_create_bin_file
   sysfs_create_file_ns
   sysfs_create_files
   sysfs_create_group
   sysfs_create_groups
   sysfs_create_link
   sysfs_notify
+  sysfs_remove_bin_file
   sysfs_remove_file_ns
   sysfs_remove_group
   sysfs_remove_groups
@@ -993,7 +990,6 @@
   unregister_netdev
   unregister_netdevice_notifier
   unregister_netdevice_queue
-  unregister_net_sysctl_table
   unregister_pernet_subsys
   unregister_pm_notifier
   unregister_syscore_ops
@@ -1068,6 +1064,7 @@
   iio_channel_get_all
 
 # required by adsprpc.ko
+  set_normalized_timespec64
   try_wait_for_completion
   vfs_statx
 
@@ -1154,20 +1151,6 @@
   rfkill_init_sw_state
   rfkill_register
   rfkill_unregister
-
-# required by br_netfilter.ko
-  br_dev_queue_push_xmit
-  br_forward_finish
-  br_handle_frame_finish
-  ip_do_fragment
-  ip_route_input_noref
-  neigh_destroy
-  nf_br_ops
-  nf_hook_slow
-  nf_hooks_needed
-  nf_ipv6_ops
-  pskb_trim_rcsum_slow
-  skb_pull_rcsum
 
 # required by cam-sync.ko
   media_device_cleanup
@@ -1315,7 +1298,6 @@
   phy_set_mode
   pinctrl_pm_select_default_state
   pinctrl_pm_select_sleep_state
-  strcat
   usb_add_gadget_udc
   usb_del_gadget_udc
   usb_ep_set_maxpacket_limit
@@ -1337,7 +1319,9 @@
 # required by ebtables.ko
   audit_enabled
   audit_log
+  nf_register_net_hooks
   nf_register_sockopt
+  nf_unregister_net_hooks
   nf_unregister_sockopt
   __request_module
   strscpy
@@ -1556,8 +1540,6 @@
   security_mmap_addr
   set_page_dirty_lock
   sg_alloc_table_from_pages
-  sysfs_create_bin_file
-  sysfs_remove_bin_file
   sysfs_remove_files
   unmapped_area_topdown
   unregister_shrinker
@@ -1591,6 +1573,7 @@
   drm_atomic_get_connector_state
   drm_atomic_get_crtc_state
   drm_atomic_get_plane_state
+  drm_atomic_get_private_obj_state
   drm_atomic_helper_check
   drm_atomic_helper_cleanup_planes
   drm_atomic_helper_commit_duplicated_state
@@ -1609,6 +1592,7 @@
   drm_atomic_helper_page_flip
   __drm_atomic_helper_plane_duplicate_state
   drm_atomic_helper_prepare_planes
+  __drm_atomic_helper_private_obj_duplicate_state
   __drm_atomic_helper_set_config
   drm_atomic_helper_set_config
   drm_atomic_helper_swap_state
@@ -1616,6 +1600,7 @@
   drm_atomic_helper_update_plane
   drm_atomic_helper_wait_for_fences
   drm_atomic_helper_wait_for_vblanks
+  drm_atomic_private_obj_init
   drm_atomic_set_crtc_for_connector
   drm_atomic_set_fence_for_plane
   drm_atomic_set_mode_for_crtc
@@ -2172,6 +2157,7 @@
   rtnl_link_register
   rtnl_link_unregister
   rtnl_trylock
+  set_normalized_timespec
   set_task_boost
   skb_append_pagefrags
   skb_checksum
@@ -2214,6 +2200,7 @@
   __crc32c_le_shift
   crypto_shash_digest
   dev_get_by_index_rcu
+  dst_release
   fl6_sock_lookup
   fl6_update_dst
   flex_array_alloc
@@ -2259,6 +2246,7 @@
   __ip_dev_find
   ip_getsockopt
   __ip_queue_xmit
+  ip_route_output_flow
   ip_setsockopt
   ipv6_chk_addr
   ipv6_dup_options
@@ -2286,6 +2274,7 @@
   rcu_barrier
   refcount_add_checked
   refcount_sub_and_test_checked
+  register_net_sysctl
   remove_proc_subtree
   rfs_needed
   rhashtable_free_and_destroy
@@ -2325,6 +2314,7 @@
   __sock_recv_ts_and_drops
   sock_wake_async
   sock_wfree
+  unregister_net_sysctl_table
   __wake_up_sync_key
   __xfrm_policy_check
 
@@ -2603,6 +2593,7 @@
 
 # required by usb-dwc3-msm.ko
   device_wakeup_disable
+  extcon_get_edev_name
   extcon_get_property
   irq_set_irqchip_state
   pm_runtime_barrier
