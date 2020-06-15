@@ -1,5 +1,6 @@
 
 #include "bcachefs.h"
+#include "btree_cache.h"
 #include "btree_iter.h"
 #include "btree_key_cache.h"
 #include "btree_locking.h"
@@ -491,4 +492,28 @@ void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
 int bch2_fs_btree_key_cache_init(struct btree_key_cache *c)
 {
 	return rhashtable_init(&c->table, &bch2_btree_key_cache_params);
+}
+
+void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *c)
+{
+	struct bucket_table *tbl;
+	struct bkey_cached *ck;
+	struct rhash_head *pos;
+	size_t i;
+
+	mutex_lock(&c->lock);
+	tbl = rht_dereference_rcu(c->table.tbl, &c->table);
+
+	for (i = 0; i < tbl->size; i++) {
+		rht_for_each_entry_rcu(ck, pos, tbl, i, hash) {
+			pr_buf(out, "%s:",
+			       bch2_btree_ids[ck->key.btree_id]);
+			bch2_bpos_to_text(out, ck->key.pos);
+
+			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags))
+				pr_buf(out, " journal seq %llu", ck->journal.seq);
+			pr_buf(out, "\n");
+		}
+	}
+	mutex_unlock(&c->lock);
 }

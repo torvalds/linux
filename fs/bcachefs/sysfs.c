@@ -14,6 +14,7 @@
 #include "btree_cache.h"
 #include "btree_io.h"
 #include "btree_iter.h"
+#include "btree_key_cache.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_gc.h"
@@ -165,6 +166,7 @@ read_attribute(journal_debug);
 read_attribute(journal_pins);
 read_attribute(btree_updates);
 read_attribute(dirty_btree_nodes);
+read_attribute(btree_key_cache);
 read_attribute(btree_transactions);
 
 read_attribute(internal_uuid);
@@ -401,6 +403,14 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_dirty_btree_nodes)
 		return bch2_dirty_btree_nodes_print(c, buf);
+
+	if (attr == &sysfs_btree_key_cache) {
+		struct printbuf out = _PBUF(buf, PAGE_SIZE);
+
+		bch2_btree_key_cache_to_text(&out, &c->btree_key_cache);
+		return out.pos - buf;
+	}
+
 	if (attr == &sysfs_btree_transactions) {
 		struct printbuf out = _PBUF(buf, PAGE_SIZE);
 
@@ -571,6 +581,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_journal_pins,
 	&sysfs_btree_updates,
 	&sysfs_dirty_btree_nodes,
+	&sysfs_btree_key_cache,
 	&sysfs_btree_transactions,
 
 	&sysfs_read_realloc_races,
