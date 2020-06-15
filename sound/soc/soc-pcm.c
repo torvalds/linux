@@ -850,7 +850,6 @@ static void codec2codec_close_delayed_work(struct snd_soc_pcm_runtime *rtd)
 static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
 	struct snd_soc_dai *dai;
 	int i, ret = 0;
 
@@ -860,14 +859,9 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		goto out;
 
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_prepare(component, substream);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: platform prepare error: %d\n", ret);
-			goto out;
-		}
-	}
+	ret = snd_soc_pcm_component_prepare(substream);
+	if (ret < 0)
+		goto out;
 
 	ret = snd_soc_pcm_dai_prepare(substream);
 	if (ret < 0) {
@@ -902,25 +896,6 @@ static void soc_pcm_codec_params_fixup(struct snd_pcm_hw_params *params,
 	interval = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	interval->min = channels;
 	interval->max = channels;
-}
-
-static int soc_pcm_components_hw_free(struct snd_pcm_substream *substream,
-				      struct snd_soc_component *last)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	int i, r, ret = 0;
-
-	for_each_rtd_components(rtd, i, component) {
-		if (component == last)
-			break;
-
-		r = snd_soc_component_hw_free(component, substream);
-		if (r < 0)
-			ret = r; /* use last ret */
-	}
-
-	return ret;
 }
 
 /*
@@ -1015,23 +990,16 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_dapm_update_dai(substream, params, cpu_dai);
 	}
 
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_hw_params(component, substream, params);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"ASoC: %s hw params failed: %d\n",
-				component->name, ret);
-			goto component_err;
-		}
-	}
-	component = NULL;
+	ret = snd_soc_pcm_component_hw_params(substream, params, &component);
+	if (ret < 0)
+		goto component_err;
 
 out:
 	mutex_unlock(&rtd->card->pcm_mutex);
 	return ret;
 
 component_err:
-	soc_pcm_components_hw_free(substream, component);
+	snd_soc_pcm_component_hw_free(substream, component);
 
 	i = rtd->num_cpus;
 
@@ -1090,7 +1058,7 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	snd_soc_link_hw_free(substream);
 
 	/* free any component resources */
-	soc_pcm_components_hw_free(substream, NULL);
+	snd_soc_pcm_component_hw_free(substream, NULL);
 
 	/* now free hw params for the DAIs  */
 	for_each_rtd_dais(rtd, i, dai) {
@@ -1104,65 +1072,37 @@ static int soc_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int soc_pcm_trigger_start(struct snd_pcm_substream *substream, int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	int i, ret;
-
-	ret = snd_soc_link_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_trigger(component, substream, cmd);
-		if (ret < 0)
-			return ret;
-	}
-
-	return snd_soc_pcm_dai_trigger(substream, cmd);
-}
-
-static int soc_pcm_trigger_stop(struct snd_pcm_substream *substream, int cmd)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_component *component;
-	int i, ret;
-
-	ret = snd_soc_pcm_dai_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	for_each_rtd_components(rtd, i, component) {
-		ret = snd_soc_component_trigger(component, substream, cmd);
-		if (ret < 0)
-			return ret;
-	}
-
-	ret = snd_soc_link_trigger(substream, cmd);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int soc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
-	int ret;
+	int ret = -EINVAL;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		ret = soc_pcm_trigger_start(substream, cmd);
+		ret = snd_soc_link_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_component_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_dai_trigger(substream, cmd);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		ret = soc_pcm_trigger_stop(substream, cmd);
+		ret = snd_soc_pcm_dai_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_pcm_component_trigger(substream, cmd);
+		if (ret < 0)
+			break;
+
+		ret = snd_soc_link_trigger(substream, cmd);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	return ret;

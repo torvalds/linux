@@ -1208,15 +1208,14 @@ static int soc_probe_component(struct snd_soc_card *card,
 	     component->name);
 	probed = 1;
 
-	/* machine specific init */
-	if (component->init) {
-		ret = component->init(component);
-		if (ret < 0) {
-			dev_err(component->dev,
-				"Failed to do machine specific init %d\n", ret);
-			goto err_probe;
-		}
-	}
+	/*
+	 * machine specific init
+	 * see
+	 *	snd_soc_component_set_aux()
+	 */
+	ret = snd_soc_component_init(component);
+	if (ret < 0)
+		goto err_probe;
 
 	ret = snd_soc_add_component_controls(component,
 					     component->driver->controls,
@@ -1330,7 +1329,8 @@ static void soc_unbind_aux_dev(struct snd_soc_card *card)
 	struct snd_soc_component *component, *_component;
 
 	for_each_card_auxs_safe(card, component, _component) {
-		component->init = NULL;
+		/* for snd_soc_component_init() */
+		snd_soc_component_set_aux(component, NULL);
 		list_del(&component->card_aux_list);
 	}
 }
@@ -1347,7 +1347,8 @@ static int soc_bind_aux_dev(struct snd_soc_card *card)
 		if (!component)
 			return -EPROBE_DEFER;
 
-		component->init = aux->init;
+		/* for snd_soc_component_init() */
+		snd_soc_component_set_aux(component, aux);
 		/* see for_each_card_auxs */
 		list_add(&component->card_aux_list, &card->aux_comp_list);
 	}
@@ -2378,76 +2379,6 @@ err:
 	return ret;
 }
 
-static int snd_soc_component_initialize(struct snd_soc_component *component,
-	const struct snd_soc_component_driver *driver, struct device *dev)
-{
-	INIT_LIST_HEAD(&component->dai_list);
-	INIT_LIST_HEAD(&component->dobj_list);
-	INIT_LIST_HEAD(&component->card_list);
-	mutex_init(&component->io_mutex);
-
-	component->name = fmt_single_name(dev, &component->id);
-	if (!component->name) {
-		dev_err(dev, "ASoC: Failed to allocate name\n");
-		return -ENOMEM;
-	}
-
-	component->dev = dev;
-	component->driver = driver;
-
-	return 0;
-}
-
-static void snd_soc_component_setup_regmap(struct snd_soc_component *component)
-{
-	int val_bytes = regmap_get_val_bytes(component->regmap);
-
-	/* Errors are legitimate for non-integer byte multiples */
-	if (val_bytes > 0)
-		component->val_bytes = val_bytes;
-}
-
-#ifdef CONFIG_REGMAP
-
-/**
- * snd_soc_component_init_regmap() - Initialize regmap instance for the
- *                                   component
- * @component: The component for which to initialize the regmap instance
- * @regmap: The regmap instance that should be used by the component
- *
- * This function allows deferred assignment of the regmap instance that is
- * associated with the component. Only use this if the regmap instance is not
- * yet ready when the component is registered. The function must also be called
- * before the first IO attempt of the component.
- */
-void snd_soc_component_init_regmap(struct snd_soc_component *component,
-	struct regmap *regmap)
-{
-	component->regmap = regmap;
-	snd_soc_component_setup_regmap(component);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_init_regmap);
-
-/**
- * snd_soc_component_exit_regmap() - De-initialize regmap instance for the
- *                                   component
- * @component: The component for which to de-initialize the regmap instance
- *
- * Calls regmap_exit() on the regmap instance associated to the component and
- * removes the regmap instance from the component.
- *
- * This function should only be used if snd_soc_component_init_regmap() was used
- * to initialize the regmap instance.
- */
-void snd_soc_component_exit_regmap(struct snd_soc_component *component)
-{
-	regmap_exit(component->regmap);
-	component->regmap = NULL;
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
-
-#endif
-
 #define ENDIANNESS_MAP(name) \
 	(SNDRV_PCM_FMTBIT_##name##LE | SNDRV_PCM_FMTBIT_##name##BE)
 static u64 endianness_format_map[] = {
@@ -2510,12 +2441,19 @@ int snd_soc_add_component(struct device *dev,
 			struct snd_soc_dai_driver *dai_drv,
 			int num_dai)
 {
+	const char *name = fmt_single_name(dev, &component->id);
 	int ret;
 	int i;
 
+	if (!name) {
+		dev_err(dev, "ASoC: Failed to allocate name\n");
+		return -ENOMEM;
+	}
+
 	mutex_lock(&client_mutex);
 
-	ret = snd_soc_component_initialize(component, component_driver, dev);
+	ret = snd_soc_component_initialize(component, component_driver,
+					   dev, name);
 	if (ret)
 		goto err_free;
 
