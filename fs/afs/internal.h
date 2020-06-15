@@ -771,7 +771,6 @@ struct afs_operation {
 	struct timespec64	ctime;		/* Change time to set */
 	short			nr_files;	/* Number of entries in file[], more_files */
 	short			error;
-	unsigned int		abort_code;
 	unsigned int		debug_id;
 
 	unsigned int		cb_v_break;	/* Volume break counter before op */

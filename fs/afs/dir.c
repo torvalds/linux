@@ -648,7 +648,7 @@ static void afs_do_lookup_success(struct afs_operation *op)
 			vp = &op->file[0];
 			abort_code = vp->scb.status.abort_code;
 			if (abort_code != 0) {
-				op->abort_code = abort_code;
+				op->ac.abort_code = abort_code;
 				op->error = afs_abort_to_error(abort_code);
 			}
 			break;
