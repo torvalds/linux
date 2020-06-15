@@ -486,7 +486,7 @@ static int vt_k_ioctl(struct tty_struct *tty, unsigned int cmd,
 }
 
 static inline int do_fontx_ioctl(int cmd,
-		struct consolefontdesc __user *user_cfd, int perm,
+		struct consolefontdesc __user *user_cfd,
 		struct console_font_op *op)
 {
 	struct consolefontdesc cfdarg;
@@ -497,8 +497,6 @@ static inline int do_fontx_ioctl(int cmd,
 
 	switch (cmd) {
 	case PIO_FONTX:
-		if (!perm)
-			return -EPERM;
 		op->op = KD_FONT_OP_SET;
 		op->flags = KD_FONT_FLAG_OLD;
 		op->width = 8;
@@ -552,7 +550,7 @@ static int vt_io_fontreset(struct console_font_op *op)
 }
 
 static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
-		int perm, struct vc_data *vc)
+		struct vc_data *vc)
 {
 	struct unimapdesc tmp;
 
@@ -560,11 +558,9 @@ static inline int do_unimap_ioctl(int cmd, struct unimapdesc __user *user_ud,
 		return -EFAULT;
 	switch (cmd) {
 	case PIO_UNIMAP:
-		if (!perm)
-			return -EPERM;
 		return con_set_unimap(vc, tmp.entry_ct, tmp.entries);
 	case GIO_UNIMAP:
-		if (!perm && fg_console != vc->vc_num)
+		if (fg_console != vc->vc_num)
 			return -EPERM;
 		return con_get_unimap(vc, tmp.entry_ct, &(user_ud->entry_ct),
 				tmp.entries);
@@ -607,8 +603,12 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
                 return con_get_cmap(up);
 
 	case PIO_FONTX:
+		if (!perm)
+			return -EPERM;
+
+		fallthrough;
 	case GIO_FONTX:
-		return do_fontx_ioctl(cmd, up, perm, &op);
+		return do_fontx_ioctl(cmd, up, &op);
 
 	case PIO_FONTRESET:
 		if (!perm)
@@ -640,7 +640,10 @@ static int vt_io_ioctl(struct vc_data *vc, unsigned int cmd, void __user *up,
 
 	case PIO_UNIMAP:
 	case GIO_UNIMAP:
-		return do_unimap_ioctl(cmd, up, perm, vc);
+		if (!perm)
+			return -EPERM;
+
+		return do_unimap_ioctl(cmd, up, vc);
 
 	default:
 		return -ENOIOCTLCMD;
