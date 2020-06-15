@@ -101,11 +101,17 @@ void __init wait_initrd_hw_decom_done(void)
 	wait_event(initrd_decom_done, initrd_continue);
 }
 
-int rk_decom_start(u32 mode, phys_addr_t mem_start, phys_addr_t mem_dst, u32 dst_max_size)
+static DECLARE_WAIT_QUEUE_HEAD(decom_init_done);
+
+int rk_decom_start(u32 mode, phys_addr_t src, phys_addr_t dst, u32 dst_max_size)
 {
 	u32 irq_status;
 	u32 decom_enr;
 
+	pr_info("%s: mode %u src %pa dst %pa max_size %u\n",
+		__func__, mode, &src, &dst, dst_max_size);
+
+	wait_event_timeout(decom_init_done, g_decom, HZ);
 	if (!g_decom)
 		return -EINVAL;
 
@@ -146,14 +152,16 @@ int rk_decom_start(u32 mode, phys_addr_t mem_start, phys_addr_t mem_dst, u32 dst
 		return -EINVAL;
 	}
 
-	writel(mem_start, g_decom->regs + DECOM_RADDR);
-	writel(mem_dst, g_decom->regs + DECOM_WADDR);
+	writel(src, g_decom->regs + DECOM_RADDR);
+	writel(dst, g_decom->regs + DECOM_WADDR);
 
 	writel(dst_max_size, g_decom->regs + DECOM_LMTSL);
 	writel(0x0, g_decom->regs + DECOM_LMTSH);
 
 	writel(DECOM_INT_MASK, g_decom->regs + DECOM_IEN);
 	writel(DECOM_ENABLE, g_decom->regs + DECOM_ENR);
+
+	pr_info("%s: started\n", __func__);
 
 	return 0;
 }
@@ -284,6 +292,7 @@ static int rockchip_decom_probe(struct platform_device *pdev)
 	}
 
 	g_decom = rk_dec;
+	wake_up(&decom_init_done);
 
 	return 0;
 
