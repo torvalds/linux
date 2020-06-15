@@ -2572,6 +2572,85 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 	return c;
 }
 
+/**
+ * vc_translate_unicode -- Combine UTF-8 into Unicode in @vc_utf_char
+ *
+ * @vc_utf_char is the being-constructed unicode character.
+ * @vc_utf_count is the number of continuation bytes still expected to arrive.
+ * @vc_npar is the number of continuation bytes arrived so far.
+ */
+static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
+{
+	static const u32 utf8_length_changes[] = {
+		0x0000007f, 0x000007ff, 0x0000ffff,
+		0x001fffff, 0x03ffffff, 0x7fffffff
+	};
+
+	if ((c & 0xc0) == 0x80) {
+		/* Continuation byte received */
+		if (vc->vc_utf_count) {
+			vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
+			vc->vc_npar++;
+			if (--vc->vc_utf_count) {
+				/* Still need some bytes */
+				return -1;
+			}
+			/* Got a whole character */
+			c = vc->vc_utf_char;
+			/* Reject overlong sequences */
+			if (c <= utf8_length_changes[vc->vc_npar - 1] ||
+					c > utf8_length_changes[vc->vc_npar])
+				return 0xfffd;
+		} else {
+			/* Unexpected continuation byte */
+			vc->vc_utf_count = 0;
+			return 0xfffd;
+		}
+	} else {
+		/* Single ASCII byte or first byte of a sequence received */
+		if (vc->vc_utf_count) {
+			/* Continuation byte expected */
+			*rescan = true;
+			vc->vc_utf_count = 0;
+			return 0xfffd;
+		} else if (c > 0x7f) {
+			/* First byte of a multibyte sequence received */
+			vc->vc_npar = 0;
+			if ((c & 0xe0) == 0xc0) {
+				vc->vc_utf_count = 1;
+				vc->vc_utf_char = (c & 0x1f);
+			} else if ((c & 0xf0) == 0xe0) {
+				vc->vc_utf_count = 2;
+				vc->vc_utf_char = (c & 0x0f);
+			} else if ((c & 0xf8) == 0xf0) {
+				vc->vc_utf_count = 3;
+				vc->vc_utf_char = (c & 0x07);
+			} else if ((c & 0xfc) == 0xf8) {
+				vc->vc_utf_count = 4;
+				vc->vc_utf_char = (c & 0x03);
+			} else if ((c & 0xfe) == 0xfc) {
+				vc->vc_utf_count = 5;
+				vc->vc_utf_char = (c & 0x01);
+			} else {
+				/* 254 and 255 are invalid */
+				return 0xfffd;
+			}
+			if (vc->vc_utf_count) {
+				/* Still need some bytes */
+				return -1;
+			}
+		}
+		/* Nothing to do if an ASCII byte was received */
+	}
+	/* End of UTF-8 decoding. */
+	/* c is the received character, or U+FFFD for invalid sequences. */
+	/* Replace invalid Unicode code points with U+FFFD too */
+	if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
+		return 0xfffd;
+
+	return c;
+}
+
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
@@ -2628,76 +2707,10 @@ static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int co
 		if (vc->vc_state != ESnormal) {
 			tc = c;
 		} else if (vc->vc_utf && !vc->vc_disp_ctrl) {
-		    /* Combine UTF-8 into Unicode in vc_utf_char.
-		     * vc_utf_count is the number of continuation bytes still
-		     * expected to arrive.
-		     * vc_npar is the number of continuation bytes arrived so
-		     * far
-		     */
 rescan_last_byte:
-		    if ((c & 0xc0) == 0x80) {
-			/* Continuation byte received */
-			static const uint32_t utf8_length_changes[] = { 0x0000007f, 0x000007ff, 0x0000ffff, 0x001fffff, 0x03ffffff, 0x7fffffff };
-			if (vc->vc_utf_count) {
-			    vc->vc_utf_char = (vc->vc_utf_char << 6) | (c & 0x3f);
-			    vc->vc_npar++;
-			    if (--vc->vc_utf_count) {
-				/* Still need some bytes */
+			tc = c = vc_translate_unicode(vc, c, &rescan);
+			if (tc == -1)
 				continue;
-			    }
-			    /* Got a whole character */
-			    c = vc->vc_utf_char;
-			    /* Reject overlong sequences */
-			    if (c <= utf8_length_changes[vc->vc_npar - 1] ||
-					c > utf8_length_changes[vc->vc_npar])
-				c = 0xfffd;
-			} else {
-			    /* Unexpected continuation byte */
-			    vc->vc_utf_count = 0;
-			    c = 0xfffd;
-			}
-		    } else {
-			/* Single ASCII byte or first byte of a sequence received */
-			if (vc->vc_utf_count) {
-			    /* Continuation byte expected */
-			    rescan = true;
-			    vc->vc_utf_count = 0;
-			    c = 0xfffd;
-			} else if (c > 0x7f) {
-			    /* First byte of a multibyte sequence received */
-			    vc->vc_npar = 0;
-			    if ((c & 0xe0) == 0xc0) {
-				vc->vc_utf_count = 1;
-				vc->vc_utf_char = (c & 0x1f);
-			    } else if ((c & 0xf0) == 0xe0) {
-				vc->vc_utf_count = 2;
-				vc->vc_utf_char = (c & 0x0f);
-			    } else if ((c & 0xf8) == 0xf0) {
-				vc->vc_utf_count = 3;
-				vc->vc_utf_char = (c & 0x07);
-			    } else if ((c & 0xfc) == 0xf8) {
-				vc->vc_utf_count = 4;
-				vc->vc_utf_char = (c & 0x03);
-			    } else if ((c & 0xfe) == 0xfc) {
-				vc->vc_utf_count = 5;
-				vc->vc_utf_char = (c & 0x01);
-			    } else {
-				/* 254 and 255 are invalid */
-				c = 0xfffd;
-			    }
-			    if (vc->vc_utf_count) {
-				/* Still need some bytes */
-				continue;
-			    }
-			}
-			/* Nothing to do if an ASCII byte was received */
-		    }
-		    /* End of UTF-8 decoding. */
-		    /* c is the received character, or U+FFFD for invalid sequences. */
-		    /* Replace invalid Unicode code points with U+FFFD too */
-		    if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
-			c = 0xfffd;
-		    tc = c;
 		} else {	/* no utf or alternate charset mode */
 			tc = vc_translate_ascii(vc, c);
 		}
