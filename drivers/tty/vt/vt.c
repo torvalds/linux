@@ -2787,11 +2787,14 @@ static int vc_con_write_normal(struct vc_data *vc, int tc, int c,
 		if (vc->vc_decim)
 			insert_char(vc, 1);
 		vc_uniscr_putc(vc, next_c);
-		scr_writew(himask ?
-			     ((vc_attr << 8) & ~himask) +
-			     ((tc & 0x100) ? himask : 0) + (tc & 0xff) :
-			     (vc_attr << 8) + tc,
-			   (u16 *)vc->vc_pos);
+
+		if (himask)
+			tc = ((tc & 0x100) ? himask : 0) |
+			      (tc &  0xff);
+		tc |= (vc_attr << 8) & ~himask;
+
+		scr_writew(tc, (u16 *)vc->vc_pos);
+
 		if (con_should_update(vc) && draw->x < 0) {
 			draw->x = vc->state.x;
 			draw->from = vc->vc_pos;
