@@ -7,8 +7,51 @@
 /dts-v1/;
 #include "rk3288.dtsi"
 #include "rk3288-android.dtsi"
+#include <dt-bindings/sensor-dev.h>
 
 / {
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		brightness-levels = <
+			255 195 194 194 193 193 192 192
+			191 191 190 190 189 189 188 188
+			187 187 186 186 185 185 184 184
+			183 183 182 182 181 181 180 180
+			179 179 178 178 177 177 176 176
+			175 175 174 174 173 173 172 172
+			171 171 170 170 169 169 169 168
+			168 167 167 166 166 165 165 164
+			164 163 163 162 162 161 161 160
+			159 159 158 158 157 157 156 156
+			155 155 154 154 153 153 152 151
+			151 150 150 149 149 148 148 147
+			147 146 146 145 145 144 144 143
+			143 142 142 141 141 140 140 139
+			139 138 138 137 137 136 136 135
+			135 134 133 132 131 130 129 128
+			127 126 125 124 123 122 121 120
+			119 118 117 116 115 114 113 112
+			111 110 109 108 107 106 105 104
+			103 103 103 102 102 101 101 100
+			100  99  99  98  98  97  97  96
+			96  95  95  94  94  93  93  92
+			92  91  91  90  90  89  88  88
+			87  87  86  86  86  85  85  85
+			84  84  83  83  83  82  82  82
+			81  81  81  80  80  80  79  79
+			79  78  78  78  77  77  77  76
+			76  76  75  75  74  73  72  71
+			70  69  68  67  66  65  64  63
+			62  61  60  59  58  57  56  55
+			54  53  52  51  50  49  48  48
+			47  47  46  46  45  45  44  44>;
+		default-brightness-level = <180>;
+		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&bl_en>;
+		pwms = <&pwm0 0 1000000 0>;
+	};
+
 	vcc_sys: vsys-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_sys";
@@ -81,6 +124,44 @@
 		compatible = "rockchip_headset";
 		headset_gpio = <&gpio7 7 GPIO_ACTIVE_HIGH>;
 		io-channels = <&saradc 2>;
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+		poll-interval = <100>;
+
+		vol-up-key {
+			label = "volume up";
+			linux,code = <KEY_VOLUMEUP>;
+			press-threshold-microvolt = <1000>;
+		};
+
+		vol-down-key {
+			label = "volume down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			press-threshold-microvolt = <170000>;
+		};
+
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&pwrbtn>;
+
+		power {
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_POWER>;
+			label = "GPIO Key Power";
+			linux,input-type = <1>;
+			wakeup-source;
+			debounce-interval = <100>;
+		};
 	};
 
 	uboot-charge {
@@ -379,21 +460,27 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	mpu6500@68 {
-		compatible = "invensense,mpu6500";
+	mpu6050_acc: mpu-acc@68 {
 		status = "okay";
+		compatible = "mpu6500_acc";
 		pinctrl-names = "default";
-		pinctrl-0 = <&mpu6500_irq_gpio>;
+		pinctrl-0 = <&mpu6050_irq_gpio>;
 		reg = <0x68>;
 		irq-gpio = <&gpio8 0 IRQ_TYPE_EDGE_RISING>;
-		mpu-int_config = <0x10>;
-		mpu-level_shifter = <0>;
-		mpu-orientation = <1 0 0 0 1 0 0 0 1>;
-		orientation-x= <0>;
-		orientation-y= <1>;
-		orientation-z= <1>;
-		support-hw-poweroff = <0>;
-		mpu-debug = <0>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_ACCEL>;
+		layout = <5>;
+	};
+
+	mpu6050_gyro: mpu-gyro@68 {
+		status = "okay";
+		compatible = "mpu6500_gyro";
+		reg = <0x68>;
+		irq_enable = <0>;
+		poll_delay_ms = <30>;
+		type = <SENSOR_TYPE_GYROSCOPE>;
+		layout = <5>;
 	};
 
 	ts@40 {
@@ -408,7 +495,7 @@
 		x_mul = <2>;
 		y_mul = <2>;
 		bin_ver = <0>;
-		irq-gpio = <&gpio7 6 IRQ_TYPE_LEVEL_LOW>;
+		irq-gpio = <&gpio7 6 IRQ_TYPE_LEVEL_HIGH>;
 		wake-gpio = <&gpio7 5 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -468,48 +555,6 @@
 	supports-sd;
 };
 
-&backlight {
-	compatible = "pwm-backlight";
-	brightness-levels = <
-		255 195 194 194 193 193 192 192
-		191 191 190 190 189 189 188 188
-		187 187 186 186 185 185 184 184
-		183 183 182 182 181 181 180 180
-		179 179 178 178 177 177 176 176
-		175 175 174 174 173 173 172 172
-		171 171 170 170 169 169 169 168
-		168 167 167 166 166 165 165 164
-		164 163 163 162 162 161 161 160
-		159 159 158 158 157 157 156 156
-		155 155 154 154 153 153 152 151
-		151 150 150 149 149 148 148 147
-		147 146 146 145 145 144 144 143
-		143 142 142 141 141 140 140 139
-		139 138 138 137 137 136 136 135
-		135 134 133 132 131 130 129 128
-		127 126 125 124 123 122 121 120
-		119 118 117 116 115 114 113 112
-		111 110 109 108 107 106 105 104
-		103 103 103 102 102 101 101 100
-		  100  99  99  98  98  97  97  96
-		  96  95  95  94  94  93  93  92
-		  92  91  91  90  90  89  88  88
-		  87  87  86  86  86  85  85  85
-		  84  84  83  83  83  82  82  82
-		  81  81  81  80  80  80  79  79
-		  79  78  78  78  77  77  77  76
-		  76  76  75  75  74  73  72  71
-		  70  69  68  67  66  65  64  63
-		  62  61  60  59  58  57  56  55
-		  54  53  52  51  50  49  48  48
-		  47  47  46  46  45  45  44  44>;
-	default-brightness-level = <180>;
-	enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&bl_en>;
-	pwms = <&pwm0 0 1000000 0>;
-};
-
 &dsi0 {
 	rockchip,dual-channel = <&dsi1>;
 	rockchip,lane-rate = <1000>;
@@ -520,14 +565,14 @@
 		reg = <0>;
 		backlight = <&backlight>;
 		power-supply = <&vcc_lcd>;
-		reset-gpios = <&gpio7 4 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&gpio7 RK_PA4 GPIO_ACTIVE_LOW>;
 		reset-delay-ms = <20>;
 		init-delay-ms = <20>;
 		enable-delay-ms = <20>;
 		prepare-delay-ms = <20>;
 
 		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			      MIPI_DSI_MODE_EOT_PACKET)>;
+			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <8>;
 
@@ -569,6 +614,14 @@
 
 &dsi1 {
 	status = "okay";
+};
+
+&vopb_out_dsi1 {
+	status = "disabled";
+};
+
+&vopl_out_dsi1 {
+	status = "disabled";
 };
 
 &dsi0_in_vopl {
@@ -648,14 +701,6 @@
 	mali-supply = <&vdd_gpu>;
 };
 
-&hevc_service {
-	status = "okay";
-};
-
-&vpu_service {
-	status = "okay";
-};
-
 &wdt {
 	status = "okay";
 };
@@ -669,10 +714,6 @@
 };
 
 &isp_mmu {
-	status = "okay";
-};
-
-&rga {
 	status = "okay";
 };
 
@@ -738,8 +779,14 @@
 		};
 	};
 
-	mpu6500 {
-		mpu6500_irq_gpio: mpu6500-irq-gpio {
+	backlight {
+		bl_en: bl-en {
+			rockchip,pins = <7 2 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	mpu6050 {
+		mpu6050_irq_gpio: mpu6050-irq-gpio {
 			rockchip,pins = <8 0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};

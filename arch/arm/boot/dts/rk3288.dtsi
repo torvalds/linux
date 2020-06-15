@@ -9,6 +9,7 @@
 #include <dt-bindings/thermal/thermal.h>
 #include <dt-bindings/soc/rockchip,boot-mode.h>
 #include <dt-bindings/suspend/rockchip-rk3288.h>
+#include <dt-bindings/display/drm_mipi_dsi.h>
 
 / {
 	#address-cells = <2>;
