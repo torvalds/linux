@@ -1453,7 +1453,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 /* Here is the structure in which status of each thread is captured. */
 struct elf_thread_status
 {
-	struct list_head list;
+	struct elf_thread_status *next;
 	struct elf_prstatus_fdpic prstatus;	/* NT_PRSTATUS */
 	elf_fpregset_t fpu;		/* NT_PRFPREG */
 	struct task_struct *thread;
@@ -1578,8 +1578,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	struct memelfnote *notes = NULL;
 	struct elf_prstatus_fdpic *prstatus = NULL;	/* NT_PRSTATUS */
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
- 	LIST_HEAD(thread_list);
- 	struct list_head *t;
+	struct elf_thread_status *thread_list = NULL;
 	elf_fpregset_t *fpu = NULL;
 	int thread_status_size = 0;
 	elf_addr_t *auxv;
@@ -1627,15 +1626,12 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 			goto end_coredump;
 
 		tmp->thread = ct->task;
-		list_add(&tmp->list, &thread_list);
+		tmp->next = thread_list;
+		thread_list = tmp;
 	}
 
-	list_for_each(t, &thread_list) {
-		struct elf_thread_status *tmp;
-		int sz;
-
-		tmp = list_entry(t, struct elf_thread_status, list);
-		sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
+	for (tmp = thread_list; tmp; tmp = tmp->next) {
+		int sz = elf_dump_thread_status(cprm->siginfo->si_signo, tmp);
 		thread_status_size += sz;
 	}
 
@@ -1760,10 +1756,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 			goto end_coredump;
 
 	/* write out the thread status notes section */
-	list_for_each(t, &thread_list) {
-		struct elf_thread_status *tmp =
-				list_entry(t, struct elf_thread_status, list);
-
+	for (tmp = thread_list; tmp; tmp = tmp->next) {
 		for (i = 0; i < tmp->num_notes; i++)
 			if (!writenote(&tmp->notes[i], cprm))
 				goto end_coredump;
@@ -1791,10 +1784,10 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	}
 
 end_coredump:
-	while (!list_empty(&thread_list)) {
-		struct list_head *tmp = thread_list.next;
-		list_del(tmp);
-		kfree(list_entry(tmp, struct elf_thread_status, list));
+	while (thread_list) {
+		tmp = thread_list;
+		thread_list = thread_list->next;
+		kfree(tmp);
 	}
 	kfree(phdr4note);
 	kfree(elf);
