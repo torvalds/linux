@@ -84,12 +84,9 @@
 #define DEVICE_TYPE_RC				0x4
 
 #define QCOM_PCIE_2_1_0_MAX_SUPPLY	3
+#define QCOM_PCIE_2_1_0_MAX_CLOCKS	5
 struct qcom_pcie_resources_2_1_0 {
-	struct clk *iface_clk;
-	struct clk *core_clk;
-	struct clk *phy_clk;
-	struct clk *aux_clk;
-	struct clk *ref_clk;
+	struct clk_bulk_data clks[QCOM_PCIE_2_1_0_MAX_CLOCKS];
 	struct reset_control *pci_reset;
 	struct reset_control *axi_reset;
 	struct reset_control *ahb_reset;
@@ -237,25 +234,21 @@ static int qcom_pcie_get_resources_2_1_0(struct qcom_pcie *pcie)
 	if (ret)
 		return ret;
 
-	res->iface_clk = devm_clk_get(dev, "iface");
-	if (IS_ERR(res->iface_clk))
-		return PTR_ERR(res->iface_clk);
+	res->clks[0].id = "iface";
+	res->clks[1].id = "core";
+	res->clks[2].id = "phy";
+	res->clks[3].id = "aux";
+	res->clks[4].id = "ref";
 
-	res->core_clk = devm_clk_get(dev, "core");
-	if (IS_ERR(res->core_clk))
-		return PTR_ERR(res->core_clk);
+	/* iface, core, phy are required */
+	ret = devm_clk_bulk_get(dev, 3, res->clks);
+	if (ret < 0)
+		return ret;
 
-	res->phy_clk = devm_clk_get(dev, "phy");
-	if (IS_ERR(res->phy_clk))
-		return PTR_ERR(res->phy_clk);
-
-	res->aux_clk = devm_clk_get_optional(dev, "aux");
-	if (IS_ERR(res->aux_clk))
-		return PTR_ERR(res->aux_clk);
-
-	res->ref_clk = devm_clk_get_optional(dev, "ref");
-	if (IS_ERR(res->ref_clk))
-		return PTR_ERR(res->ref_clk);
+	/* aux, ref are optional */
+	ret = devm_clk_bulk_get_optional(dev, 2, res->clks + 3);
+	if (ret < 0)
+		return ret;
 
 	res->pci_reset = devm_reset_control_get_exclusive(dev, "pci");
 	if (IS_ERR(res->pci_reset))
@@ -285,17 +278,13 @@ static void qcom_pcie_deinit_2_1_0(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_2_1_0 *res = &pcie->res.v2_1_0;
 
-	clk_disable_unprepare(res->phy_clk);
+	clk_bulk_disable_unprepare(ARRAY_SIZE(res->clks), res->clks);
 	reset_control_assert(res->pci_reset);
 	reset_control_assert(res->axi_reset);
 	reset_control_assert(res->ahb_reset);
 	reset_control_assert(res->por_reset);
 	reset_control_assert(res->ext_reset);
 	reset_control_assert(res->phy_reset);
-	clk_disable_unprepare(res->iface_clk);
-	clk_disable_unprepare(res->core_clk);
-	clk_disable_unprepare(res->aux_clk);
-	clk_disable_unprepare(res->ref_clk);
 	regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
 }
 
@@ -313,36 +302,6 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 		return ret;
 	}
 
-	ret = reset_control_assert(res->ahb_reset);
-	if (ret) {
-		dev_err(dev, "cannot assert ahb reset\n");
-		goto err_assert_ahb;
-	}
-
-	ret = clk_prepare_enable(res->iface_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable iface clock\n");
-		goto err_assert_ahb;
-	}
-
-	ret = clk_prepare_enable(res->core_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable core clock\n");
-		goto err_clk_core;
-	}
-
-	ret = clk_prepare_enable(res->aux_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable aux clock\n");
-		goto err_clk_aux;
-	}
-
-	ret = clk_prepare_enable(res->ref_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable ref clock\n");
-		goto err_clk_ref;
-	}
-
 	ret = reset_control_deassert(res->ahb_reset);
 	if (ret) {
 		dev_err(dev, "cannot deassert ahb reset\n");
@@ -352,8 +311,36 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 	ret = reset_control_deassert(res->ext_reset);
 	if (ret) {
 		dev_err(dev, "cannot deassert ext reset\n");
-		goto err_deassert_ahb;
+		goto err_deassert_ext;
 	}
+
+	ret = reset_control_deassert(res->phy_reset);
+	if (ret) {
+		dev_err(dev, "cannot deassert phy reset\n");
+		goto err_deassert_phy;
+	}
+
+	ret = reset_control_deassert(res->pci_reset);
+	if (ret) {
+		dev_err(dev, "cannot deassert pci reset\n");
+		goto err_deassert_pci;
+	}
+
+	ret = reset_control_deassert(res->por_reset);
+	if (ret) {
+		dev_err(dev, "cannot deassert por reset\n");
+		goto err_deassert_por;
+	}
+
+	ret = reset_control_deassert(res->axi_reset);
+	if (ret) {
+		dev_err(dev, "cannot deassert axi reset\n");
+		goto err_deassert_axi;
+	}
+
+	ret = clk_bulk_prepare_enable(ARRAY_SIZE(res->clks), res->clks);
+	if (ret)
+		goto err_clks;
 
 	/* enable PCIe clocks and resets */
 	val = readl(pcie->parf + PCIE20_PARF_PHY_CTRL);
@@ -364,36 +351,6 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 	val = readl(pcie->parf + PCIE20_PARF_PHY_REFCLK);
 	val |= BIT(16);
 	writel(val, pcie->parf + PCIE20_PARF_PHY_REFCLK);
-
-	ret = reset_control_deassert(res->phy_reset);
-	if (ret) {
-		dev_err(dev, "cannot deassert phy reset\n");
-		return ret;
-	}
-
-	ret = reset_control_deassert(res->pci_reset);
-	if (ret) {
-		dev_err(dev, "cannot deassert pci reset\n");
-		return ret;
-	}
-
-	ret = reset_control_deassert(res->por_reset);
-	if (ret) {
-		dev_err(dev, "cannot deassert por reset\n");
-		return ret;
-	}
-
-	ret = reset_control_deassert(res->axi_reset);
-	if (ret) {
-		dev_err(dev, "cannot deassert axi reset\n");
-		return ret;
-	}
-
-	ret = clk_prepare_enable(res->phy_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable phy clock\n");
-		goto err_deassert_ahb;
-	}
 
 	/* wait for clock acquisition */
 	usleep_range(1000, 1500);
@@ -407,15 +364,19 @@ static int qcom_pcie_init_2_1_0(struct qcom_pcie *pcie)
 
 	return 0;
 
+err_clks:
+	reset_control_assert(res->axi_reset);
+err_deassert_axi:
+	reset_control_assert(res->por_reset);
+err_deassert_por:
+	reset_control_assert(res->pci_reset);
+err_deassert_pci:
+	reset_control_assert(res->phy_reset);
+err_deassert_phy:
+	reset_control_assert(res->ext_reset);
+err_deassert_ext:
+	reset_control_assert(res->ahb_reset);
 err_deassert_ahb:
-	clk_disable_unprepare(res->ref_clk);
-err_clk_ref:
-	clk_disable_unprepare(res->aux_clk);
-err_clk_aux:
-	clk_disable_unprepare(res->core_clk);
-err_clk_core:
-	clk_disable_unprepare(res->iface_clk);
-err_assert_ahb:
 	regulator_bulk_disable(ARRAY_SIZE(res->supplies), res->supplies);
 
 	return ret;
