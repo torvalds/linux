@@ -127,14 +127,6 @@ struct con_driver {
 static struct con_driver registered_con_driver[MAX_NR_CON_DRIVER];
 const struct consw *conswitchp;
 
-/* A bitmap for codes <32. A bit of 1 indicates that the code
- * corresponding to that bit number invokes some special action
- * (such as cursor movement) and should not be displayed as a
- * glyph unless the disp_ctrl mode is explicitly enabled.
- */
-#define CTRL_ACTION 0x0d00ff81
-#define CTRL_ALWAYS 0x0800f501	/* Cannot be overridden by disp_ctrl */
-
 /*
  * Here is the default bell parameters: 750HZ, 1/8th of a second
  */
@@ -2691,13 +2683,56 @@ static inline unsigned char vc_invert_attr(const struct vc_data *vc)
 		((vc->vc_attr & 0x07) << 4);
 }
 
+static bool vc_is_control(struct vc_data *vc, int tc, int c)
+{
+	/*
+	 * A bitmap for codes <32. A bit of 1 indicates that the code
+	 * corresponding to that bit number invokes some special action (such
+	 * as cursor movement) and should not be displayed as a glyph unless
+	 * the disp_ctrl mode is explicitly enabled.
+	 */
+	static const u32 CTRL_ACTION = 0x0d00ff81;
+	/* Cannot be overridden by disp_ctrl */
+	static const u32 CTRL_ALWAYS = 0x0800f501;
+
+	if (vc->vc_state != ESnormal)
+		return true;
+
+	if (!tc)
+		return true;
+
+	/*
+	 * If the original code was a control character we only allow a glyph
+	 * to be displayed if the code is not normally used (such as for cursor
+	 * movement) or if the disp_ctrl mode has been explicitly enabled.
+	 * Certain characters (as given by the CTRL_ALWAYS bitmap) are always
+	 * displayed as control characters, as the console would be pretty
+	 * useless without them; to display an arbitrary font position use the
+	 * direct-to-font zone in UTF-8 mode.
+	 */
+	if (c < 32) {
+		if (vc->vc_disp_ctrl)
+			return CTRL_ALWAYS & BIT(c);
+		else
+			return vc->vc_utf || (CTRL_ACTION & BIT(c));
+	}
+
+	if (c == 127 && !vc->vc_disp_ctrl)
+		return true;
+
+	if (c == 128 + 27)
+		return true;
+
+	return false;
+}
+
 /* acquires console_lock */
 static int do_con_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct vc_draw_region draw = {
 		.x = -1,
 	};
-	int c, next_c, tc, ok, n = 0;
+	int c, next_c, tc, n = 0;
 	unsigned int currcons;
 	struct vc_data *vc;
 	unsigned char vc_attr;
@@ -2755,23 +2790,7 @@ rescan_last_byte:
 					&param) == NOTIFY_STOP)
 			continue;
 
-                /* If the original code was a control character we
-                 * only allow a glyph to be displayed if the code is
-                 * not normally used (such as for cursor movement) or
-                 * if the disp_ctrl mode has been explicitly enabled.
-                 * Certain characters (as given by the CTRL_ALWAYS
-                 * bitmap) are always displayed as control characters,
-                 * as the console would be pretty useless without
-                 * them; to display an arbitrary font position use the
-                 * direct-to-font zone in UTF-8 mode.
-                 */
-                ok = tc && (c >= 32 ||
-			    !(vc->vc_disp_ctrl ? (CTRL_ALWAYS >> c) & 1 :
-				  vc->vc_utf || ((CTRL_ACTION >> c) & 1)))
-			&& (c != 127 || vc->vc_disp_ctrl)
-			&& (c != 128+27);
-
-		if (vc->vc_state == ESnormal && ok) {
+		if (!vc_is_control(vc, tc, c)) {
 			if (vc->vc_utf && !vc->vc_disp_ctrl) {
 				if (is_double_width(c))
 					width = 2;
