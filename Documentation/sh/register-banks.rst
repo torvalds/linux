@@ -1,5 +1,8 @@
-	Notes on register bank usage in the kernel
-	==========================================
+.. SPDX-License-Identifier: GPL-2.0
+
+==========================================
+Notes on register bank usage in the kernel
+==========================================
 
 Introduction
 ------------
@@ -23,11 +26,15 @@ Presently the kernel uses several of these registers.
 
 	- r0_bank, r1_bank (referenced as k0 and k1, used for scratch
 	  registers when doing exception handling).
+
 	- r2_bank (used to track the EXPEVT/INTEVT code)
+
 		- Used by do_IRQ() and friends for doing irq mapping based off
 		  of the interrupt exception vector jump table offset
+
 	- r6_bank (global interrupt mask)
+
 		- The SR.IMASK interrupt handler makes use of this to set the
 		  interrupt priority level (used by local_irq_enable())
-	- r7_bank (current)
 
+	- r7_bank (current)
