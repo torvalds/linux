@@ -151,7 +151,6 @@ static void afs_silly_unlink_success(struct afs_operation *op)
 	struct afs_vnode *vnode = op->file[1].vnode;
 
 	_enter("op=%08x", op->debug_id);
-	afs_check_for_remote_deletion(op, op->file[0].vnode);
 	afs_vnode_commit_status(op, &op->file[0]);
 	afs_vnode_commit_status(op, &op->file[1]);
 	afs_update_dentry_version(op, &op->file[0], op->dentry);
@@ -181,6 +180,7 @@ static const struct afs_operation_ops afs_silly_unlink_operation = {
 	.issue_afs_rpc	= afs_fs_remove_file,
 	.issue_yfs_rpc	= yfs_fs_remove_file,
 	.success	= afs_silly_unlink_success,
+	.aborted	= afs_check_for_remote_deletion,
 	.edit_dir	= afs_silly_unlink_edit_dir,
 };
 

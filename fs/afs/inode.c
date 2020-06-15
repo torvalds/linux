@@ -324,6 +324,7 @@ static const struct afs_operation_ops afs_fetch_status_operation = {
 	.issue_afs_rpc	= afs_fs_fetch_status,
 	.issue_yfs_rpc	= yfs_fs_fetch_status,
 	.success	= afs_fetch_status_success,
+	.aborted	= afs_check_for_remote_deletion,
 };
 
 /*

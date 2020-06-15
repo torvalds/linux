@@ -934,6 +934,7 @@ extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 extern void afs_d_release(struct dentry *);
+extern void afs_check_for_remote_deletion(struct afs_operation *);
 
 /*
  * dir_edit.c
@@ -1480,15 +1481,6 @@ static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 {
 	return &vnode->vfs_inode;
-}
-
-static inline void afs_check_for_remote_deletion(struct afs_operation *op,
-						 struct afs_vnode *vnode)
-{
-	if (op->error == -ENOENT) {
-		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		afs_break_callback(vnode, afs_cb_break_for_deleted);
-	}
 }
 
 /*
