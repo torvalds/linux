@@ -1019,9 +1019,7 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 	skb->mac_len = ETH_HLEN;
 
-#ifdef CONFIG_MLX5_EN_TLS
 	mlx5e_tls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
-#endif
 
 	if (lro_num_seg > 1) {
 		mlx5e_lro_update_hdr(skb, cqe, cqe_bcnt);

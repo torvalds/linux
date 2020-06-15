@@ -355,18 +355,12 @@ out:
 	return 0;
 }
 
-void mlx5e_tls_handle_rx_skb(struct mlx5e_rq *rq, struct sk_buff *skb,
-			     struct mlx5_cqe64 *cqe, u32 *cqe_bcnt)
+/* FPGA tls rx handler */
+void mlx5e_tls_handle_rx_skb_metadata(struct mlx5e_rq *rq, struct sk_buff *skb,
+				      u32 *cqe_bcnt)
 {
 	struct mlx5e_tls_metadata *mdata;
 	struct mlx5e_priv *priv;
-
-	if (likely(mlx5_accel_is_ktls_rx(rq->mdev)))
-		return mlx5e_ktls_handle_rx_skb(rq, skb, cqe, cqe_bcnt);
-
-	/* FPGA */
-	if (!is_metadata_hdr_valid(skb))
-		return;
 
 	/* Use the metadata */
 	mdata = (struct mlx5e_tls_metadata *)(skb->data + ETH_HLEN);
