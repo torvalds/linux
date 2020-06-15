@@ -705,8 +705,9 @@ void update_region(struct vc_data *vc, unsigned long start, int count)
 
 /* Structure of attributes is hardware-dependent */
 
-static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
-    u8 _underline, u8 _reverse, u8 _italic)
+static u8 build_attr(struct vc_data *vc, u8 _color,
+		enum vc_intensity _intensity, u8 _blink, u8 _underline,
+		u8 _reverse, u8 _italic)
 {
 	if (vc->vc_sw->con_build_attr)
 		return vc->vc_sw->con_build_attr(vc, _color, _intensity,
@@ -734,13 +735,13 @@ static u8 build_attr(struct vc_data *vc, u8 _color, u8 _intensity, u8 _blink,
 		a = (a & 0xF0) | vc->vc_itcolor;
 	else if (_underline)
 		a = (a & 0xf0) | vc->vc_ulcolor;
-	else if (_intensity == 0)
+	else if (_intensity == VCI_HALF_BRIGHT)
 		a = (a & 0xf0) | vc->vc_halfcolor;
 	if (_reverse)
 		a = ((a) & 0x88) | ((((a) >> 4) | ((a) << 4)) & 0x77);
 	if (_blink)
 		a ^= 0x80;
-	if (_intensity == 2)
+	if (_intensity == VCI_BOLD)
 		a ^= 0x08;
 	if (vc->vc_hi_font_mask == 0x100)
 		a <<= 1;
@@ -753,8 +754,9 @@ static void update_attr(struct vc_data *vc)
 	vc->vc_attr = build_attr(vc, vc->state.color, vc->state.intensity,
 	              vc->state.blink, vc->state.underline,
 	              vc->state.reverse ^ vc->vc_decscnm, vc->state.italic);
-	vc->vc_video_erase_char = ' ' | (build_attr(vc, vc->state.color, 1,
-				vc->state.blink, 0, vc->vc_decscnm, 0) << 8);
+	vc->vc_video_erase_char = ' ' | (build_attr(vc, vc->state.color,
+				VCI_NORMAL, vc->state.blink, 0, vc->vc_decscnm,
+				0) << 8);
 }
 
 /* Note: inverting the screen twice should revert to the original state */
@@ -1611,7 +1613,7 @@ static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar posi
 
 static void default_attr(struct vc_data *vc)
 {
-	vc->state.intensity = 1;
+	vc->state.intensity = VCI_NORMAL;
 	vc->state.italic = 0;
 	vc->state.underline = 0;
 	vc->state.reverse = 0;
@@ -1652,11 +1654,11 @@ static void rgb_foreground(struct vc_data *vc, const struct rgb *c)
 
 	if (hue == 7 && max <= 0x55) {
 		hue = 0;
-		vc->state.intensity = 2;
+		vc->state.intensity = VCI_BOLD;
 	} else if (max > 0xaa)
-		vc->state.intensity = 2;
+		vc->state.intensity = VCI_BOLD;
 	else
-		vc->state.intensity = 1;
+		vc->state.intensity = VCI_NORMAL;
 
 	vc->state.color = (vc->state.color & 0xf0) | hue;
 }
@@ -1715,10 +1717,10 @@ static void csi_m(struct vc_data *vc)
 			default_attr(vc);
 			break;
 		case 1:
-			vc->state.intensity = 2;
+			vc->state.intensity = VCI_BOLD;
 			break;
 		case 2:
-			vc->state.intensity = 0;
+			vc->state.intensity = VCI_HALF_BRIGHT;
 			break;
 		case 3:
 			vc->state.italic = 1;
@@ -1764,7 +1766,7 @@ static void csi_m(struct vc_data *vc)
 			vc->vc_toggle_meta = 1;
 			break;
 		case 22:
-			vc->state.intensity = 1;
+			vc->state.intensity = VCI_NORMAL;
 			break;
 		case 23:
 			vc->state.italic = 0;
@@ -1795,7 +1797,7 @@ static void csi_m(struct vc_data *vc)
 		default:
 			if (vc->vc_par[i] >= 90 && vc->vc_par[i] <= 107) {
 				if (vc->vc_par[i] < 100)
-					vc->state.intensity = 2;
+					vc->state.intensity = VCI_BOLD;
 				vc->vc_par[i] -= 60;
 			}
 			if (vc->vc_par[i] >= 30 && vc->vc_par[i] <= 37)
@@ -1934,7 +1936,7 @@ static void setterm_command(struct vc_data *vc)
 	case 2:	/* set color for half intensity mode */
 		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
 			vc->vc_halfcolor = color_table[vc->vc_par[1]];
-			if (vc->state.intensity == 0)
+			if (vc->state.intensity == VCI_HALF_BRIGHT)
 				update_attr(vc);
 		}
 		break;

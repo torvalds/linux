@@ -35,6 +35,8 @@ enum con_scroll {
 	SM_DOWN,
 };
 
+enum vc_intensity;
+
 /**
  * struct consw - callbacks for consoles
  *
@@ -74,7 +76,8 @@ struct consw {
 	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
 	int	(*con_set_origin)(struct vc_data *vc);
 	void	(*con_save_screen)(struct vc_data *vc);
-	u8	(*con_build_attr)(struct vc_data *vc, u8 color, u8 intensity,
+	u8	(*con_build_attr)(struct vc_data *vc, u8 color,
+			enum vc_intensity intensity,
 			u8 blink, u8 underline, u8 reverse, u8 italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
 	u16    *(*con_screen_pos)(struct vc_data *vc, int offset);

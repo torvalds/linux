@@ -22,6 +22,13 @@ struct uni_screen;
 
 #define NPAR 16
 
+enum vc_intensity {
+	VCI_HALF_BRIGHT,
+	VCI_NORMAL,
+	VCI_BOLD,
+	VCI_MASK = 0x3,
+};
+
 /**
  * struct vc_state -- state of a VC
  * @x: cursor's x-position
@@ -30,7 +37,7 @@ struct uni_screen;
  * @G0_charset: what's G0 slot set to (like GRAF_MAP, LAT1_MAP)
  * @G1_charset: what's G1 slot set to (like GRAF_MAP, LAT1_MAP)
  * @charset: what character set to use (0=G0 or 1=G1)
- * @intensity: 0=half-bright, 1=normal, 2=bold
+ * @intensity: see enum vc_intensity for values
  * @reverse: reversed foreground/background colors
  *
  * These members are defined separately from struct vc_data as we save &
@@ -46,7 +53,7 @@ struct vc_state {
 	unsigned int	charset		: 1;
 
 	/* attribute flags */
-	unsigned int	intensity	: 2;
+	enum vc_intensity intensity;
 	unsigned int	italic		: 1;
 	unsigned int	underline	: 1;
 	unsigned int	blink		: 1;

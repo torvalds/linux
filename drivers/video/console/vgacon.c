@@ -629,7 +629,8 @@ static void vgacon_deinit(struct vc_data *c)
 	con_set_default_unimap(c);
 }
 
-static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
+static u8 vgacon_build_attr(struct vc_data *c, u8 color,
+			    enum vc_intensity intensity,
 			    u8 blink, u8 underline, u8 reverse, u8 italic)
 {
 	u8 attr = color;
@@ -639,7 +640,7 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 			attr = (attr & 0xF0) | c->vc_itcolor;
 		else if (underline)
 			attr = (attr & 0xf0) | c->vc_ulcolor;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | c->vc_halfcolor;
 	}
 	if (reverse)
@@ -648,14 +649,14 @@ static u8 vgacon_build_attr(struct vc_data *c, u8 color, u8 intensity,
 				       0x77);
 	if (blink)
 		attr ^= 0x80;
-	if (intensity == 2)
+	if (intensity == VCI_BOLD)
 		attr ^= 0x08;
 	if (!vga_can_do_color) {
 		if (italic)
 			attr = (attr & 0xF8) | 0x02;
 		else if (underline)
 			attr = (attr & 0xf8) | 0x01;
-		else if (intensity == 0)
+		else if (intensity == VCI_HALF_BRIGHT)
 			attr = (attr & 0xf0) | 0x08;
 	}
 	return attr;
