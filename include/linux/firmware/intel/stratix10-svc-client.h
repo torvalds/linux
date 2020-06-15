@@ -98,6 +98,12 @@ struct stratix10_svc_chan;
  *
  * @COMMAND_RSU_RETRY: query firmware for the current image's retry counter,
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_MAX_RETRY: query firmware for the max retry value,
+ * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
+ *
+ * @COMMAND_RSU_DCMF_VERSION: query firmware for the DCMF version, return status
+ * is SVC_STATUS_OK or SVC_STATUS_ERROR
  */
 enum stratix10_svc_command_code {
 	COMMAND_NOOP = 0,
@@ -109,6 +115,8 @@ enum stratix10_svc_command_code {
 	COMMAND_RSU_UPDATE,
 	COMMAND_RSU_NOTIFY,
 	COMMAND_RSU_RETRY,
+	COMMAND_RSU_MAX_RETRY,
+	COMMAND_RSU_DCMF_VERSION,
 };
 
 /**
