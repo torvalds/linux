@@ -456,8 +456,9 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	napi_disable(&dev->mt76.tx_napi);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++)
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_disable(&dev->mt76.napi[i]);
+	}
 
 	mutex_lock(&dev->mt76.mutex);
 
@@ -515,7 +516,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
-	for (i = 0; i < ARRAY_SIZE(dev->mt76.napi); i++) {
+	mt76_for_each_q_rx(&dev->mt76, i) {
 		napi_enable(&dev->mt76.napi[i]);
 		napi_schedule(&dev->mt76.napi[i]);
 	}
