@@ -1861,7 +1861,7 @@ enum emulation_result kvm_mips_emulate_store(union mips_instruction inst,
 				  vcpu->arch.gprs[rt], *(u64 *)data);
 			break;
 		default:
-			kvm_err("Godson Exteneded GS-Store not yet supported (inst=0x%08x)\n",
+			kvm_err("Godson Extended GS-Store not yet supported (inst=0x%08x)\n",
 				inst.word);
 			break;
 		}
@@ -2103,7 +2103,7 @@ enum emulation_result kvm_mips_emulate_load(union mips_instruction inst,
 			vcpu->mmio_needed = 30;	/* signed */
 			break;
 		default:
-			kvm_err("Godson Exteneded GS-Load for float not yet supported (inst=0x%08x)\n",
+			kvm_err("Godson Extended GS-Load for float not yet supported (inst=0x%08x)\n",
 				inst.word);
 			break;
 		}
