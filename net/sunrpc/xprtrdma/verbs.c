@@ -130,6 +130,16 @@ static void rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 	trace_xprtrdma_qp_event(ep, event);
 }
 
+/* Ensure xprt_force_disconnect() is invoked exactly once when a
+ * connection is closed or lost. (The important thing is it needs
+ * to be invoked "at least" once).
+ */
+static void rpcrdma_force_disconnect(struct rpcrdma_ep *ep)
+{
+	if (atomic_add_unless(&ep->re_force_disconnect, 1, 1))
+		xprt_force_disconnect(ep->re_xprt);
+}
+
 /**
  * rpcrdma_flush_disconnect - Disconnect on flushed completion
  * @r_xprt: transport to disconnect
@@ -139,13 +149,8 @@ static void rpcrdma_qp_event_handler(struct ib_event *event, void *context)
  */
 void rpcrdma_flush_disconnect(struct rpcrdma_xprt *r_xprt, struct ib_wc *wc)
 {
-	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
-
-	if (wc->status != IB_WC_SUCCESS &&
-	    r_xprt->rx_ep->re_connect_status == 1) {
-		r_xprt->rx_ep->re_connect_status = -ECONNABORTED;
-		xprt_force_disconnect(xprt);
-	}
+	if (wc->status != IB_WC_SUCCESS)
+		rpcrdma_force_disconnect(r_xprt->rx_ep);
 }
 
 /**
@@ -243,7 +248,6 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 {
 	struct sockaddr *sap = (struct sockaddr *)&id->route.addr.dst_addr;
 	struct rpcrdma_ep *ep = id->context;
-	struct rpc_xprt *xprt = ep->re_xprt;
 
 	might_sleep();
 
@@ -267,7 +271,6 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 		/* fall through */
 	case RDMA_CM_EVENT_ADDR_CHANGE:
 		ep->re_connect_status = -ENODEV;
-		xprt_force_disconnect(xprt);
 		goto disconnected;
 	case RDMA_CM_EVENT_ESTABLISHED:
 		rpcrdma_ep_get(ep);
@@ -292,7 +295,7 @@ rpcrdma_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 	case RDMA_CM_EVENT_DISCONNECTED:
 		ep->re_connect_status = -ECONNABORTED;
 disconnected:
-		xprt_force_disconnect(xprt);
+		rpcrdma_force_disconnect(ep);
 		return rpcrdma_ep_put(ep);
 	default:
 		break;
