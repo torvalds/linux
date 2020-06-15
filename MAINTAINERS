@@ -14561,8 +14561,8 @@ RENESAS R-CAR THERMAL DRIVERS
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
 L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
-F:	Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.txt
-F:	Documentation/devicetree/bindings/thermal/rcar-thermal.txt
+F:	Documentation/devicetree/bindings/thermal/rcar-gen3-thermal.yaml
+F:	Documentation/devicetree/bindings/thermal/rcar-thermal.yaml
 F:	drivers/thermal/rcar_gen3_thermal.c
 F:	drivers/thermal/rcar_thermal.c
 
