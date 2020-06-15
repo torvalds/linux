@@ -1438,7 +1438,6 @@ extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 /*
  * yfsclient.c
  */
-extern void yfs_fs_fetch_file_status(struct afs_operation *);
 extern void yfs_fs_fetch_data(struct afs_operation *);
 extern void yfs_fs_create_file(struct afs_operation *);
 extern void yfs_fs_make_dir(struct afs_operation *);
