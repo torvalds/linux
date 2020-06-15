@@ -1582,13 +1582,15 @@ static void csi_K(struct vc_data *vc, int vpar)
 		do_update_region(vc, (unsigned long)(start + offset), count);
 }
 
-static void csi_X(struct vc_data *vc, int vpar) /* erase the following vpar positions */
+/* erase the following vpar positions */
+static void csi_X(struct vc_data *vc, unsigned int vpar)
 {					  /* not vt100? */
-	int count;
+	unsigned int count;
 
 	if (!vpar)
 		vpar++;
-	count = (vpar > vc->vc_cols - vc->state.x) ? (vc->vc_cols - vc->state.x) : vpar;
+
+	count = min(vpar, vc->vc_cols - vc->state.x);
 
 	vc_uniscr_clear_line(vc, vc->state.x, count);
 	scr_memsetw((unsigned short *)vc->vc_pos, vc->vc_video_erase_char, 2 * count);
