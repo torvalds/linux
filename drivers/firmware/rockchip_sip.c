@@ -22,6 +22,7 @@
 #include <uapi/linux/psci.h>
 #include <linux/ptrace.h>
 #include <linux/sched/clock.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_64BIT
 #define PSCI_FN_NATIVE(version, name)	PSCI_##version##_FN64_##name
@@ -114,6 +115,44 @@ int sip_smc_secure_reg_write(u32 addr_phy, u32 val)
 	return res.a0;
 }
 
+static void *sip_map(phys_addr_t start, size_t size)
+{
+	struct page **pages;
+	phys_addr_t page_start;
+	unsigned int page_count;
+	pgprot_t prot;
+	unsigned int i;
+	void *vaddr;
+
+	if (!pfn_valid(__phys_to_pfn(start)))
+		return ioremap(start, size);
+
+	page_start = start - offset_in_page(start);
+	page_count = DIV_ROUND_UP(size + offset_in_page(start), PAGE_SIZE);
+
+	prot = pgprot_noncached(PAGE_KERNEL);
+
+	pages = kmalloc_array(page_count, sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		pr_err("%s: Failed to allocate array for %u pages\n",
+		       __func__, page_count);
+		return NULL;
+	}
+
+	for (i = 0; i < page_count; i++)
+		pages[i] = phys_to_page(page_start + i * PAGE_SIZE);
+
+	vaddr = vmap(pages, page_count, VM_MAP, prot);
+	kfree(pages);
+
+	/*
+	 * Since vmap() uses page granularity, we must add the offset
+	 * into the page here, to get the byte granularity address
+	 * into the mapping to represent the actual "start" location.
+	 */
+	return vaddr + offset_in_page(start);
+}
+
 struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 					       share_page_type_t page_type)
 {
@@ -125,7 +164,7 @@ struct arm_smccc_res sip_smc_request_share_mem(u32 page_num,
 		goto error;
 
 	share_mem_phy = res.a1;
-	res.a1 = (unsigned long)ioremap(share_mem_phy, SIZE_PAGE(page_num));
+	res.a1 = (unsigned long)sip_map(share_mem_phy, SIZE_PAGE(page_num));
 
 error:
 	return res;
@@ -162,13 +201,13 @@ struct arm_smccc_res sip_smc_lastlog_request(void)
 	if (IS_SIP_ERROR(res.a0))
 		return res;
 
-	addr1 = ioremap(res.a1, res.a3);
+	addr1 = sip_map(res.a1, res.a3);
 	if (!addr1) {
 		pr_err("%s: share memory buffer0 ioremap failed\n", __func__);
 		res.a0 = SIP_RET_INVALID_ADDRESS;
 		return res;
 	}
-	addr2 = ioremap(res.a2, res.a3);
+	addr2 = sip_map(res.a2, res.a3);
 	if (!addr2) {
 		pr_err("%s: share memory buffer1 ioremap failed\n", __func__);
 		res.a0 = SIP_RET_INVALID_ADDRESS;
@@ -322,7 +361,7 @@ int sip_fiq_debugger_uart_irq_tf_init(u32 irq_id, void *callback_fn)
 	/* share memory ioremap */
 	if (!ft_fiq_mem_base) {
 		ft_fiq_mem_phy = res.a1;
-		ft_fiq_mem_base = ioremap(ft_fiq_mem_phy,
+		ft_fiq_mem_base = sip_map(ft_fiq_mem_phy,
 					  FIQ_UARTDBG_SHARE_MEM_SIZE);
 		if (!ft_fiq_mem_base) {
 			pr_err("%s: share memory ioremap failed\n", __func__);
