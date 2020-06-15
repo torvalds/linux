@@ -4,6 +4,7 @@
 
 #include <asm/processor.h>
 #include <asm/alternative.h>
+#include <linux/interrupt.h>
 #include <uapi/asm/kvm_para.h>
 
 extern void kvmclock_init(void);
