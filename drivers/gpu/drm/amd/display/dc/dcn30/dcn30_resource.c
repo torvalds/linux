@@ -2237,9 +2237,41 @@ validate_out:
 	return out;
 }
 
+static void get_optimal_dcfclk_fclk_for_uclk(unsigned int uclk_mts,
+                                                       unsigned int *optimal_dcfclk,
+                                                       unsigned int *optimal_fclk)
+{
+       double bw_from_dram, bw_from_dram1, bw_from_dram2;
+
+       bw_from_dram1 = uclk_mts * dcn3_0_soc.num_chans *
+                       dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_dram_bw_use_normal_percent / 100);
+       bw_from_dram2 = uclk_mts * dcn3_0_soc.num_chans *
+                       dcn3_0_soc.dram_channel_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100);
+
+       bw_from_dram = (bw_from_dram1 < bw_from_dram2) ? bw_from_dram1 : bw_from_dram2;
+
+       if (optimal_fclk)
+               *optimal_fclk = bw_from_dram /
+               (dcn3_0_soc.fabric_datapath_to_dcn_data_return_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100));
+
+       if (optimal_dcfclk)
+               *optimal_dcfclk =  bw_from_dram /
+               (dcn3_0_soc.return_bus_width_bytes * (dcn3_0_soc.max_avg_sdp_bw_use_normal_percent / 100));
+}
+
 static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
-	unsigned int i;
+	unsigned int i, j;
+	unsigned int num_states = 0;
+
+	unsigned int dcfclk_mhz[DC__VOLTAGE_STATES] = {0};
+	unsigned int dram_speed_mts[DC__VOLTAGE_STATES] = {0};
+	unsigned int optimal_uclk_for_dcfclk_sta_targets[DC__VOLTAGE_STATES] = {0};
+	unsigned int optimal_dcfclk_for_uclk[DC__VOLTAGE_STATES] = {0};
+
+	unsigned int dcfclk_sta_targets[DC__VOLTAGE_STATES] = {694, 875, 1000, 1200};
+	unsigned int num_dcfclk_sta_targets = 4;
+	unsigned int num_uclk_states;
 
 	if (dc->ctx->dc_bios->vram_info.num_chans)
 		dcn3_0_soc.num_chans = dc->ctx->dc_bios->vram_info.num_chans;
@@ -2250,13 +2282,78 @@ static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 	dcn3_0_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
 
-	/* UCLK first, it determines number of states */
 	if (bw_params->clk_table.entries[0].memclk_mhz) {
-		dcn3_0_soc.num_states = bw_params->clk_table.num_entries;
+
+		if (bw_params->clk_table.entries[1].dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+			// If max DCFCLK is greater than the max DCFCLK STA target, insert into the DCFCLK STA target array
+			dcfclk_sta_targets[num_dcfclk_sta_targets] = bw_params->clk_table.entries[1].dcfclk_mhz;
+			num_dcfclk_sta_targets++;
+		} else if (bw_params->clk_table.entries[1].dcfclk_mhz < dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+			// If max DCFCLK is less than the max DCFCLK STA target, cap values and remove duplicates
+			for (i = 0; i < num_dcfclk_sta_targets; i++) {
+				if (dcfclk_sta_targets[i] > bw_params->clk_table.entries[1].dcfclk_mhz) {
+					dcfclk_sta_targets[i] = bw_params->clk_table.entries[1].dcfclk_mhz;
+					break;
+				}
+			}
+			// Update size of array since we "removed" duplicates
+			num_dcfclk_sta_targets = i + 1;
+		}
+
+		num_uclk_states = bw_params->clk_table.num_entries;
+
+		// Calculate optimal dcfclk for each uclk
+		for (i = 0; i < num_uclk_states; i++) {
+			get_optimal_dcfclk_fclk_for_uclk(bw_params->clk_table.entries[i].memclk_mhz * 16,
+					&optimal_dcfclk_for_uclk[i], NULL);
+			if (optimal_dcfclk_for_uclk[i] < bw_params->clk_table.entries[0].dcfclk_mhz) {
+				optimal_dcfclk_for_uclk[i] = bw_params->clk_table.entries[0].dcfclk_mhz;
+			}
+		}
+
+		// Calculate optimal uclk for each dcfclk sta target
+		for (i = 0; i < num_dcfclk_sta_targets; i++) {
+			for (j = 0; j < num_uclk_states; j++) {
+				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j]) {
+					optimal_uclk_for_dcfclk_sta_targets[i] =
+							bw_params->clk_table.entries[j].memclk_mhz * 16;
+					break;
+				}
+			}
+		}
+
+		i = 0;
+		j = 0;
+		// create the final dcfclk and uclk table
+		while (i < num_dcfclk_sta_targets && j < num_uclk_states && num_states < DC__VOLTAGE_STATES) {
+			if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j] && i < num_dcfclk_sta_targets) {
+				dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
+				dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
+			} else {
+				if (j < num_uclk_states && optimal_dcfclk_for_uclk[j] <= bw_params->clk_table.entries[1].dcfclk_mhz) {
+					dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
+					dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
+				} else {
+					j = num_uclk_states;
+				}
+			}
+		}
+
+		while (i < num_dcfclk_sta_targets && num_states < DC__VOLTAGE_STATES) {
+			dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
+			dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
+		}
+
+		while (j < num_uclk_states && num_states < DC__VOLTAGE_STATES &&
+				optimal_dcfclk_for_uclk[j] <= bw_params->clk_table.entries[1].dcfclk_mhz) {
+			dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
+			dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
+		}
 
 		for (i = 0; i < dcn3_0_soc.num_states; i++) {
-			dcn3_0_soc.clock_limits[i].state = i;
-			dcn3_0_soc.clock_limits[i].dram_speed_mts = bw_params->clk_table.entries[i].memclk_mhz * 16;
+			dcn3_0_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
+			dcn3_0_soc.clock_limits[i].fabricclk_mhz = dcfclk_mhz[i];
+			dcn3_0_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
 		}
 	}
 
@@ -2264,12 +2361,6 @@ static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 	for (i = 0; i < dcn3_0_soc.num_states; i++) {
 		/* Some clocks can come from bw_params, if so fill from bw_params[1], otherwise fill from dcn3_0_soc[1] */
 		/* Temporarily ignore bw_params values */
-
-		/* DCFCLK */
-		/*if (bw_params->clk_table.entries[0].dcfclk_mhz)
-			dcn3_0_soc.clock_limits[i].dcfclk_mhz = bw_params->clk_table.entries[1].dcfclk_mhz;
-		else*/
-			dcn3_0_soc.clock_limits[i].dcfclk_mhz = dcn3_0_soc.clock_limits[1].dcfclk_mhz;
 
 		/* DTBCLK */
 		/*if (bw_params->clk_table.entries[0].dtbclk_mhz)
@@ -2297,7 +2388,6 @@ static void dcn30_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 
 		/* These clocks cannot come from bw_params, always fill from dcn3_0_soc[1] */
 		/* FCLK, PHYCLK_D18, SOCCLK, DSCCLK */
-		dcn3_0_soc.clock_limits[i].fabricclk_mhz = dcn3_0_soc.clock_limits[1].fabricclk_mhz;
 		dcn3_0_soc.clock_limits[i].phyclk_d18_mhz = dcn3_0_soc.clock_limits[1].phyclk_d18_mhz;
 		dcn3_0_soc.clock_limits[i].socclk_mhz = dcn3_0_soc.clock_limits[1].socclk_mhz;
 		dcn3_0_soc.clock_limits[i].dscclk_mhz = dcn3_0_soc.clock_limits[1].dscclk_mhz;
