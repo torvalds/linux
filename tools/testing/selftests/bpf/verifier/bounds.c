@@ -20,7 +20,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT,
 },
 {
@@ -146,7 +146,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 min value is outside of the array range",
+	.errstr = "R0 min value is outside of the allowed memory range",
 	.result = REJECT
 },
 {
@@ -238,7 +238,7 @@
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 	BPF_LD_MAP_FD(BPF_REG_1, 0),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
-	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 8),
 	/* r1 = [0x00, 0xff] */
 	BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
@@ -253,10 +253,6 @@
 	 *      [0xffff'ffff'0000'0080, 0xffff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
-	/* r1 = 0 or
-	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
-	 */
-	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
 	/* error on OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* exit */
@@ -265,8 +261,10 @@
 	},
 	.fixup_map_hash_8b = { 3 },
 	/* not actually fully unbounded, but the bound is very high */
-	.errstr = "value 72057594021150720 makes map_value pointer be out of bounds",
-	.result = REJECT
+	.errstr_unpriv = "R1 has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root",
+	.result_unpriv = REJECT,
+	.errstr = "value -4294967168 makes map_value pointer be out of bounds",
+	.result = REJECT,
 },
 {
 	"bounds check after truncation of boundary-crossing range (2)",
@@ -276,7 +274,7 @@
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
 	BPF_LD_MAP_FD(BPF_REG_1, 0),
 	BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_map_lookup_elem),
-	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+	BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 8),
 	/* r1 = [0x00, 0xff] */
 	BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
 	BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, 0xffffff80 >> 1),
@@ -293,10 +291,6 @@
 	 *      [0xffff'ffff'0000'0080, 0xffff'ffff'ffff'ffff]
 	 */
 	BPF_ALU64_IMM(BPF_SUB, BPF_REG_1, 0xffffff80 >> 1),
-	/* r1 = 0 or
-	 *      [0x00ff'ffff'ff00'0000, 0x00ff'ffff'ffff'ffff]
-	 */
-	BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 8),
 	/* error on OOB pointer computation */
 	BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
 	/* exit */
@@ -305,8 +299,10 @@
 	},
 	.fixup_map_hash_8b = { 3 },
 	/* not actually fully unbounded, but the bound is very high */
-	.errstr = "value 72057594021150720 makes map_value pointer be out of bounds",
-	.result = REJECT
+	.errstr_unpriv = "R1 has unknown scalar with mixed signed bounds, pointer arithmetic with it prohibited for !root",
+	.result_unpriv = REJECT,
+	.errstr = "value -4294967168 makes map_value pointer be out of bounds",
+	.result = REJECT,
 },
 {
 	"bounds check after wrapping 32-bit addition",
@@ -358,7 +354,7 @@
 	BPF_EXIT_INSN(),
 	},
 	.fixup_map_hash_8b = { 3 },
-	.errstr = "R0 max value is outside of the array range",
+	.errstr = "R0 max value is outside of the allowed memory range",
 	.result = REJECT
 },
 {
@@ -538,4 +534,26 @@
 	BPF_EXIT_INSN(),
 	},
 	.result = ACCEPT
+},
+{
+	"assigning 32bit bounds to 64bit for wA = 0, wB = wA",
+	.insns = {
+	BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_1,
+		    offsetof(struct __sk_buff, data_end)),
+	BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_1,
+		    offsetof(struct __sk_buff, data)),
+	BPF_MOV32_IMM(BPF_REG_9, 0),
+	BPF_MOV32_REG(BPF_REG_2, BPF_REG_9),
+	BPF_MOV64_REG(BPF_REG_6, BPF_REG_7),
+	BPF_ALU64_REG(BPF_ADD, BPF_REG_6, BPF_REG_2),
+	BPF_MOV64_REG(BPF_REG_3, BPF_REG_6),
+	BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, 8),
+	BPF_JMP_REG(BPF_JGT, BPF_REG_3, BPF_REG_8, 1),
+	BPF_LDX_MEM(BPF_W, BPF_REG_5, BPF_REG_6, 0),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	.result = ACCEPT,
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },

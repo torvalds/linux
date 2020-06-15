@@ -34,7 +34,7 @@ void vbox_report_hotplug(struct vbox_private *vbox)
 irqreturn_t vbox_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *)arg;
-	struct vbox_private *vbox = (struct vbox_private *)dev->dev_private;
+	struct vbox_private *vbox = to_vbox_dev(dev);
 	u32 host_flags = vbox_get_flags(vbox);
 
 	if (!(host_flags & HGSMIHOSTFLAGS_IRQ))

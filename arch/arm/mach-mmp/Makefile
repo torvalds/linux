@@ -12,12 +12,6 @@ obj-$(CONFIG_CPU_PXA910)	+= pxa910.o
 obj-$(CONFIG_CPU_MMP2)		+= mmp2.o
 obj-$(CONFIG_MMP_SRAM)		+= sram.o
 
-ifeq ($(CONFIG_COMMON_CLK), )
-obj-y				+= clock.o
-obj-$(CONFIG_CPU_PXA168)	+= clock-pxa168.o
-obj-$(CONFIG_CPU_PXA910)	+= clock-pxa910.o
-obj-$(CONFIG_CPU_MMP2)		+= clock-mmp2.o
-endif
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_CPU_PXA910)	+= pm-pxa910.o
 obj-$(CONFIG_CPU_MMP2)		+= pm-mmp2.o

@@ -111,6 +111,7 @@ struct rdma_cm_event {
 		struct rdma_conn_param	conn;
 		struct rdma_ud_param	ud;
 	} param;
+	struct rdma_ucm_ece ece;
 };
 
 struct rdma_cm_id;
@@ -264,6 +265,9 @@ int rdma_init_qp_attr(struct rdma_cm_id *id, struct ib_qp_attr *qp_attr,
  */
 int rdma_connect(struct rdma_cm_id *id, struct rdma_conn_param *conn_param);
 
+int rdma_connect_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		     struct rdma_ucm_ece *ece);
+
 /**
  * rdma_listen - This function is called by the passive side to
  *   listen for incoming connection requests.
@@ -275,6 +279,9 @@ int rdma_listen(struct rdma_cm_id *id, int backlog);
 
 int __rdma_accept(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
 		  const char *caller);
+
+int __rdma_accept_ece(struct rdma_cm_id *id, struct rdma_conn_param *conn_param,
+		      const char *caller, struct rdma_ucm_ece *ece);
 
 /**
  * rdma_accept - Called to accept a connection request or response.
@@ -313,7 +320,7 @@ int rdma_notify(struct rdma_cm_id *id, enum ib_event_type event);
  * rdma_reject - Called to reject a connection request or response.
  */
 int rdma_reject(struct rdma_cm_id *id, const void *private_data,
-		u8 private_data_len);
+		u8 private_data_len, u8 reason);
 
 /**
  * rdma_disconnect - This function disconnects the associated QP and
@@ -389,14 +396,6 @@ __be64 rdma_get_service_id(struct rdma_cm_id *id, struct sockaddr *addr);
  */
 const char *__attribute_const__ rdma_reject_msg(struct rdma_cm_id *id,
 						int reason);
-/**
- * rdma_is_consumer_reject - return true if the consumer rejected the connect
- *                           request.
- * @id: Communication identifier that received the REJECT event.
- * @reason: Value returned in the REJECT event status field.
- */
-bool rdma_is_consumer_reject(struct rdma_cm_id *id, int reason);
-
 /**
  * rdma_consumer_reject_data - return the consumer reject private data and
  *			       length, if any.

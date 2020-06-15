@@ -16,6 +16,8 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 
+#include <asm/unaligned.h>
+
 #include "ms5611.h"
 
 static int ms5611_i2c_reset(struct device *dev)
@@ -50,7 +52,7 @@ static int ms5611_i2c_read_adc(struct ms5611_state *st, s32 *val)
 	if (ret < 0)
 		return ret;
 
-	*val = (buf[0] << 16) | (buf[1] << 8) | buf[2];
+	*val = get_unaligned_be24(&buf[0]);
 
 	return 0;
 }

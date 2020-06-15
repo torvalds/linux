@@ -17,6 +17,7 @@
 
 #include "i915_vma.h"
 #include "intel_engine_types.h"
+#include "intel_gt_buffer_pool_types.h"
 #include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
@@ -61,6 +62,7 @@ struct intel_gt {
 	struct list_head closed_vma;
 	spinlock_t closed_lock; /* guards the list of closed_vma */
 
+	ktime_t last_init_time;
 	struct intel_reset reset;
 
 	/**
@@ -72,13 +74,11 @@ struct intel_gt {
 	 */
 	intel_wakeref_t awake;
 
+	u32 clock_frequency;
+
 	struct intel_llc llc;
 	struct intel_rc6 rc6;
 	struct intel_rps rps;
-
-	ktime_t last_init_time;
-
-	struct i915_vma *scratch;
 
 	spinlock_t irq_lock;
 	u32 gt_imr;
@@ -97,6 +97,18 @@ struct intel_gt {
 	 * Reserved for exclusive use by the kernel.
 	 */
 	struct i915_address_space *vm;
+
+	/*
+	 * A pool of objects to use as shadow copies of client batch buffers
+	 * when the command parser is enabled. Prevents the client from
+	 * modifying the batch contents after software parsing.
+	 *
+	 * Buffers older than 1s are periodically reaped from the pool,
+	 * or may be reclaimed by the shrinker before then.
+	 */
+	struct intel_gt_buffer_pool buffer_pool;
+
+	struct i915_vma *scratch;
 };
 
 enum intel_gt_scratch_field {

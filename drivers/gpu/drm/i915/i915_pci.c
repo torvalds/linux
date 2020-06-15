@@ -160,6 +160,7 @@
 	GEN(2), \
 	.is_mobile = 1, \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_overlay = 1, \
 	.display.cursor_needs_physical = 1, \
 	.display.overlay_needs_physical = 1, \
@@ -170,6 +171,7 @@
 	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
+	.dma_mask_size = 32, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	I9XX_COLORS, \
@@ -179,6 +181,7 @@
 #define I845_FEATURES \
 	GEN(2), \
 	.pipe_mask = BIT(PIPE_A), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A), \
 	.display.has_overlay = 1, \
 	.display.overlay_needs_physical = 1, \
 	.display.has_gmch = 1, \
@@ -188,6 +191,7 @@
 	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
+	.dma_mask_size = 32, \
 	I845_PIPE_OFFSETS, \
 	I845_CURSOR_OFFSETS, \
 	I9XX_COLORS, \
@@ -218,11 +222,13 @@ static const struct intel_device_info i865g_info = {
 #define GEN3_FEATURES \
 	GEN(3), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
+	.dma_mask_size = 32, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	I9XX_COLORS, \
@@ -283,6 +289,7 @@ static const struct intel_device_info g33_info = {
 	PLATFORM(INTEL_G33),
 	.display.has_hotplug = 1,
 	.display.has_overlay = 1,
+	.dma_mask_size = 36,
 };
 
 static const struct intel_device_info pnv_g_info = {
@@ -290,6 +297,7 @@ static const struct intel_device_info pnv_g_info = {
 	PLATFORM(INTEL_PINEVIEW),
 	.display.has_hotplug = 1,
 	.display.has_overlay = 1,
+	.dma_mask_size = 36,
 };
 
 static const struct intel_device_info pnv_m_info = {
@@ -298,17 +306,20 @@ static const struct intel_device_info pnv_m_info = {
 	.is_mobile = 1,
 	.display.has_hotplug = 1,
 	.display.has_overlay = 1,
+	.dma_mask_size = 36,
 };
 
 #define GEN4_FEATURES \
 	GEN(4), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
 	.display.has_gmch = 1, \
 	.gpu_reset_clobbers_display = true, \
 	.engine_mask = BIT(RCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
+	.dma_mask_size = 36, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	I965_COLORS, \
@@ -354,12 +365,14 @@ static const struct intel_device_info gm45_info = {
 #define GEN5_FEATURES \
 	GEN(5), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0), \
 	.has_snoop = true, \
 	.has_coherent_ggtt = true, \
 	/* ilk does support rc6, but we do not implement [power] contexts */ \
 	.has_rc6 = 0, \
+	.dma_mask_size = 36, \
 	I9XX_PIPE_OFFSETS, \
 	I9XX_CURSOR_OFFSETS, \
 	ILK_COLORS, \
@@ -381,6 +394,7 @@ static const struct intel_device_info ilk_m_info = {
 #define GEN6_FEATURES \
 	GEN(6), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
@@ -389,6 +403,7 @@ static const struct intel_device_info ilk_m_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
+	.dma_mask_size = 40, \
 	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	I9XX_PIPE_OFFSETS, \
@@ -430,6 +445,7 @@ static const struct intel_device_info snb_m_gt2_info = {
 #define GEN7_FEATURES  \
 	GEN(7), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C), \
 	.display.has_hotplug = 1, \
 	.display.has_fbc = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0), \
@@ -438,6 +454,7 @@ static const struct intel_device_info snb_m_gt2_info = {
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
 	.has_rps = true, \
+	.dma_mask_size = 40, \
 	.ppgtt_type = INTEL_PPGTT_ALIASING, \
 	.ppgtt_size = 31, \
 	IVB_PIPE_OFFSETS, \
@@ -482,6 +499,7 @@ static const struct intel_device_info ivb_q_info = {
 	PLATFORM(INTEL_IVYBRIDGE),
 	.gt = 2,
 	.pipe_mask = 0, /* legal, last one wins */
+	.cpu_transcoder_mask = 0,
 	.has_l3_dpf = 1,
 };
 
@@ -490,11 +508,13 @@ static const struct intel_device_info vlv_info = {
 	GEN(7),
 	.is_lp = 1,
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B),
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B),
 	.has_runtime_pm = 1,
 	.has_rc6 = 1,
 	.has_rps = true,
 	.display.has_gmch = 1,
 	.display.has_hotplug = 1,
+	.dma_mask_size = 40,
 	.ppgtt_type = INTEL_PPGTT_ALIASING,
 	.ppgtt_size = 31,
 	.has_snoop = true,
@@ -511,6 +531,8 @@ static const struct intel_device_info vlv_info = {
 #define G75_FEATURES  \
 	GEN7_FEATURES, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP), \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.display.has_psr = 1, \
@@ -543,6 +565,7 @@ static const struct intel_device_info hsw_gt3_info = {
 	G75_FEATURES, \
 	GEN(8), \
 	.has_logical_ring_contexts = 1, \
+	.dma_mask_size = 39, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_64bit_reloc = 1, \
@@ -581,6 +604,7 @@ static const struct intel_device_info chv_info = {
 	PLATFORM(INTEL_CHERRYVIEW),
 	GEN(8),
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C),
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | BIT(TRANSCODER_C),
 	.display.has_hotplug = 1,
 	.is_lp = 1,
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0),
@@ -590,7 +614,8 @@ static const struct intel_device_info chv_info = {
 	.has_rps = true,
 	.has_logical_ring_contexts = 1,
 	.display.has_gmch = 1,
-	.ppgtt_type = INTEL_PPGTT_ALIASING,
+	.dma_mask_size = 39,
+	.ppgtt_type = INTEL_PPGTT_FULL,
 	.ppgtt_size = 32,
 	.has_reset_engine = 1,
 	.has_snoop = true,
@@ -656,6 +681,9 @@ static const struct intel_device_info skl_gt4_info = {
 	.display.has_hotplug = 1, \
 	.engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
+		BIT(TRANSCODER_DSI_A) | BIT(TRANSCODER_DSI_C), \
 	.has_64bit_reloc = 1, \
 	.display.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
@@ -670,6 +698,7 @@ static const struct intel_device_info skl_gt4_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
 	.has_gt_uc = 1, \
+	.dma_mask_size = 39, \
 	.ppgtt_type = INTEL_PPGTT_FULL, \
 	.ppgtt_size = 48, \
 	.has_reset_engine = 1, \
@@ -759,6 +788,9 @@ static const struct intel_device_info cnl_info = {
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
 	GEN11_DEFAULT_PAGE_SIZES, \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
+		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
 	.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
@@ -799,6 +831,10 @@ static const struct intel_device_info ehl_info = {
 #define GEN12_FEATURES \
 	GEN11_FEATURES, \
 	GEN(12), \
+	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D), \
+	.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
+		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
+		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
 	.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
@@ -822,7 +858,6 @@ static const struct intel_device_info ehl_info = {
 static const struct intel_device_info tgl_info = {
 	GEN12_FEATURES,
 	PLATFORM(INTEL_TIGERLAKE),
-	.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),
 	.display.has_modular_fia = 1,
 	.engine_mask =
 		BIT(RCS0) | BIT(BCS0) | BIT(VECS0) | BIT(VCS0) | BIT(VCS2),
@@ -920,8 +955,6 @@ static void i915_pci_remove(struct pci_dev *pdev)
 
 	i915_driver_remove(i915);
 	pci_set_drvdata(pdev, NULL);
-
-	drm_dev_put(&i915->drm);
 }
 
 /* is device_id present in comma separated list of ids */

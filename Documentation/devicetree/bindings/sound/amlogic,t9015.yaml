@@ -49,10 +49,9 @@ examples:
 
     acodec: audio-controller@32000 {
         compatible = "amlogic,t9015";
-        reg = <0x0 0x32000 0x0 0x14>;
+        reg = <0x32000 0x14>;
         #sound-dai-cells = <0>;
         clocks = <&clkc CLKID_AUDIO_CODEC>;
         clock-names = "pclk";
         resets = <&reset RESET_AUDIO_CODEC>;
     };
-

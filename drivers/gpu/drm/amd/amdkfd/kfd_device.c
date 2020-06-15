@@ -569,6 +569,23 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 	}
 }
 
+static int kfd_gws_init(struct kfd_dev *kfd)
+{
+	int ret = 0;
+
+	if (kfd->dqm->sched_policy == KFD_SCHED_POLICY_NO_HWS)
+		return 0;
+
+	if (hws_gws_support
+		|| (kfd->device_info->asic_family >= CHIP_VEGA10
+			&& kfd->device_info->asic_family <= CHIP_RAVEN
+			&& kfd->mec2_fw_version >= 0x1b3))
+		ret = amdgpu_amdkfd_alloc_gws(kfd->kgd,
+				amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws);
+
+	return ret;
+}
+
 bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			 struct drm_device *ddev,
 			 const struct kgd2kfd_shared_resources *gpu_resources)
@@ -578,6 +595,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	kfd->ddev = ddev;
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_MEC1);
+	kfd->mec2_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
+			KGD_ENGINE_MEC2);
 	kfd->sdma_fw_version = amdgpu_amdkfd_get_fw_version(kfd->kgd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
@@ -598,13 +617,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	} else
 		kfd->max_proc_per_quantum = hws_max_conc_proc;
 
-	/* Allocate global GWS that is shared by all KFD processes */
-	if (hws_gws_support && amdgpu_amdkfd_alloc_gws(kfd->kgd,
-			amdgpu_amdkfd_get_num_gws(kfd->kgd), &kfd->gws)) {
-		dev_err(kfd_device, "Could not allocate %d gws\n",
-			amdgpu_amdkfd_get_num_gws(kfd->kgd));
-		goto out;
-	}
 	/* calculate max size of mqds needed for queues */
 	size = max_num_of_queues_per_device *
 			kfd->device_info->mqd_size_aligned;
@@ -662,6 +674,15 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		goto device_queue_manager_error;
 	}
 
+	/* If supported on this device, allocate global GWS that is shared
+	 * by all KFD processes
+	 */
+	if (kfd_gws_init(kfd)) {
+		dev_err(kfd_device, "Could not allocate %d gws\n",
+			amdgpu_amdkfd_get_num_gws(kfd->kgd));
+		goto gws_error;
+	}
+
 	if (kfd_iommu_device_init(kfd)) {
 		dev_err(kfd_device, "Error initializing iommuv2\n");
 		goto device_iommu_error;
@@ -691,6 +712,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 kfd_topology_add_device_error:
 kfd_resume_error:
 device_iommu_error:
+gws_error:
 	device_queue_manager_uninit(kfd->dqm);
 device_queue_manager_error:
 	kfd_interrupt_exit(kfd);
@@ -701,7 +723,7 @@ kfd_doorbell_error:
 kfd_gtt_sa_init_error:
 	amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
 alloc_gtt_mem_failure:
-	if (hws_gws_support)
+	if (kfd->gws)
 		amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	dev_err(kfd_device,
 		"device %x:%x NOT added due to errors\n",
@@ -720,7 +742,7 @@ void kgd2kfd_device_exit(struct kfd_dev *kfd)
 		kfd_doorbell_fini(kfd);
 		kfd_gtt_sa_fini(kfd);
 		amdgpu_amdkfd_free_gtt_mem(kfd->kgd, kfd->gtt_mem);
-		if (hws_gws_support)
+		if (kfd->gws)
 			amdgpu_amdkfd_free_gws(kfd->kgd, kfd->gws);
 	}
 

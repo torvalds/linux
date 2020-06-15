@@ -13,7 +13,7 @@
 #ifdef CONFIG_EFI
 
 __efistub_kernel_size		= _edata - _text;
-__efistub_stext_offset		= stext - _text;
+__efistub_primary_entry_offset	= primary_entry - _text;
 
 
 /*

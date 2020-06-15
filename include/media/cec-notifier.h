@@ -2,7 +2,7 @@
 /*
  * cec-notifier.h - notify CEC drivers of physical address changes
  *
- * Copyright 2016 Russell King <rmk+kernel@arm.linux.org.uk>
+ * Copyright 2016 Russell King.
  * Copyright 2016-2017 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
  */
 

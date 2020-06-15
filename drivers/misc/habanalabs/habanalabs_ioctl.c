@@ -71,6 +71,8 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
 
 	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
+	hw_ip.module_id = le32_to_cpu(prop->armcp_info.card_location);
+
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
@@ -258,6 +260,22 @@ static int get_reset_count(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(reset_count))) ? -EFAULT : 0;
 }
 
+static int time_sync_info(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_time_sync time_sync = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	time_sync.device_time = hdev->asic_funcs->get_device_time(hdev);
+	time_sync.host_time = ktime_get_raw_ns();
+
+	return copy_to_user(out, &time_sync,
+		min((size_t) max_size, sizeof(time_sync))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -314,6 +332,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 	case HL_INFO_CLK_RATE:
 		rc = get_clk_rate(hdev, args);
 		break;
+
+	case HL_INFO_TIME_SYNC:
+		return time_sync_info(hdev, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

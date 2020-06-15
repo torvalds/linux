@@ -13,6 +13,10 @@
 	model = "Atmel SAMA5D27 SoM1";
 	compatible = "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
+	aliases {
+		i2c0	= &i2c0;
+	};
+
 	clocks {
 		slow_xtal {
 			clock-frequency = <32768>;
@@ -34,12 +38,44 @@
 				pinctrl-0 = <&pinctrl_qspi1_default>;
 
 				flash@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
 					compatible = "jedec,spi-nor";
 					reg = <0>;
 					spi-max-frequency = <80000000>;
 					spi-tx-bus-width = <4>;
 					spi-rx-bus-width = <4>;
 					m25p,fast-read;
+
+					at91bootstrap@00000000 {
+						label = "at91bootstrap";
+						reg = <0x00000000 0x00040000>;
+					};
+
+					bootloader@00040000 {
+						label = "bootloader";
+						reg = <0x00040000 0x000c0000>;
+					};
+
+					bootloaderenvred@00100000 {
+						label = "bootloader env redundant";
+						reg = <0x00100000 0x00040000>;
+					};
+
+					bootloaderenv@00140000 {
+						label = "bootloader env";
+						reg = <0x00140000 0x00040000>;
+					};
+
+					dtb@00180000 {
+						label = "device tree";
+						reg = <0x00180000 0x00080000>;
+					};
+
+					kernel@00200000 {
+						label = "kernel";
+						reg = <0x00200000 0x00600000>;
+					};
 				};
 			};
 
@@ -57,7 +93,25 @@
 				};
 			};
 
+			i2c0: i2c@f8028000 {
+				dmas = <0>, <0>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c0_default>;
+				status = "okay";
+
+				at24@50 {
+					compatible = "24c02";
+					reg = <0x50>;
+					pagesize = <8>;
+				};
+			};
+
 			pinctrl@fc038000 {
+				pinctrl_i2c0_default: i2c0_default {
+					pinmux = <PIN_PD21__TWD0>,
+						 <PIN_PD22__TWCK0>;
+					bias-disable;
+				};
 
 				pinctrl_qspi1_default: qspi1_default {
 					sck_cs {

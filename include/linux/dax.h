@@ -5,7 +5,6 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/radix-tree.h>
-#include <asm/pgtable.h>
 
 /* Flag for synchronous flush */
 #define DAXDEV_F_SYNC (1UL << 0)

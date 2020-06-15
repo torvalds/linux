@@ -233,10 +233,13 @@ enum {
  * @DEVLINK_TRAP_ACTION_DROP: Packet is dropped by the device and a copy is not
  *                            sent to the CPU.
  * @DEVLINK_TRAP_ACTION_TRAP: The sole copy of the packet is sent to the CPU.
+ * @DEVLINK_TRAP_ACTION_MIRROR: Packet is forwarded by the device and a copy is
+ *                              sent to the CPU.
  */
 enum devlink_trap_action {
 	DEVLINK_TRAP_ACTION_DROP,
 	DEVLINK_TRAP_ACTION_TRAP,
+	DEVLINK_TRAP_ACTION_MIRROR,
 };
 
 /**
@@ -250,10 +253,16 @@ enum devlink_trap_action {
  *                               control plane for resolution. Trapped packets
  *                               are processed by devlink and injected to
  *                               the kernel's Rx path.
+ * @DEVLINK_TRAP_TYPE_CONTROL: Packet was trapped because it is required for
+ *                             the correct functioning of the control plane.
+ *                             For example, an ARP request packet. Trapped
+ *                             packets are injected to the kernel's Rx path,
+ *                             but not reported to drop monitor.
  */
 enum devlink_trap_type {
 	DEVLINK_TRAP_TYPE_DROP,
 	DEVLINK_TRAP_TYPE_EXCEPTION,
+	DEVLINK_TRAP_TYPE_CONTROL,
 };
 
 enum {

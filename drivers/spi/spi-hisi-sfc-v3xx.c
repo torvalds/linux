@@ -17,6 +17,11 @@
 
 #define HISI_SFC_V3XX_VERSION (0x1f8)
 
+#define HISI_SFC_V3XX_INT_STAT (0x120)
+#define HISI_SFC_V3XX_INT_STAT_PP_ERR BIT(2)
+#define HISI_SFC_V3XX_INT_STAT_ADDR_IACCES BIT(5)
+#define HISI_SFC_V3XX_INT_CLR (0x12c)
+#define HISI_SFC_V3XX_INT_CLR_CLEAR (0xff)
 #define HISI_SFC_V3XX_CMD_CFG (0x300)
 #define HISI_SFC_V3XX_CMD_CFG_DUAL_IN_DUAL_OUT (1 << 17)
 #define HISI_SFC_V3XX_CMD_CFG_DUAL_IO (2 << 17)
@@ -163,7 +168,7 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 					 u8 chip_select)
 {
 	int ret, len = op->data.nbytes;
-	u32 config = 0;
+	u32 int_stat, config = 0;
 
 	if (op->addr.nbytes)
 		config |= HISI_SFC_V3XX_CMD_CFG_ADDR_EN_MSK;
@@ -227,6 +232,25 @@ static int hisi_sfc_v3xx_generic_exec_op(struct hisi_sfc_v3xx_host *host,
 	ret = hisi_sfc_v3xx_wait_cmd_idle(host);
 	if (ret)
 		return ret;
+
+	/*
+	 * The interrupt status register indicates whether an error occurs
+	 * after per operation. Check it, and clear the interrupts for
+	 * next time judgement.
+	 */
+	int_stat = readl(host->regbase + HISI_SFC_V3XX_INT_STAT);
+	writel(HISI_SFC_V3XX_INT_CLR_CLEAR,
+	       host->regbase + HISI_SFC_V3XX_INT_CLR);
+
+	if (int_stat & HISI_SFC_V3XX_INT_STAT_ADDR_IACCES) {
+		dev_err(host->dev, "fail to access protected address\n");
+		return -EIO;
+	}
+
+	if (int_stat & HISI_SFC_V3XX_INT_STAT_PP_ERR) {
+		dev_err(host->dev, "page program operation failed\n");
+		return -EIO;
+	}
 
 	if (op->data.dir == SPI_MEM_DATA_IN)
 		hisi_sfc_v3xx_read_databuf(host, op->data.buf.in, len);

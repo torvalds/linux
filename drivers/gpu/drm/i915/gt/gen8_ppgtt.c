@@ -389,6 +389,16 @@ static int gen8_ppgtt_alloc(struct i915_address_space *vm,
 	return err;
 }
 
+static __always_inline void
+write_pte(gen8_pte_t *pte, const gen8_pte_t val)
+{
+	/* Magic delays? Or can we refine these to flush all in one pass? */
+	*pte = val;
+	wmb(); /* cpu to cache */
+	clflush(pte); /* cache to memory */
+	wmb(); /* visible to all */
+}
+
 static __always_inline u64
 gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 		      struct i915_page_directory *pdp,
@@ -405,7 +415,8 @@ gen8_ppgtt_insert_pte(struct i915_ppgtt *ppgtt,
 	vaddr = kmap_atomic_px(i915_pt_entry(pd, gen8_pd_index(idx, 1)));
 	do {
 		GEM_BUG_ON(iter->sg->length < I915_GTT_PAGE_SIZE);
-		vaddr[gen8_pd_index(idx, 0)] = pte_encode | iter->dma;
+		write_pte(&vaddr[gen8_pd_index(idx, 0)],
+			  pte_encode | iter->dma);
 
 		iter->dma += I915_GTT_PAGE_SIZE;
 		if (iter->dma >= iter->max) {
@@ -487,7 +498,7 @@ static void gen8_ppgtt_insert_huge(struct i915_vma *vma,
 
 		do {
 			GEM_BUG_ON(iter->sg->length < page_size);
-			vaddr[index++] = encode | iter->dma;
+			write_pte(&vaddr[index++], encode | iter->dma);
 
 			start += page_size;
 			iter->dma += page_size;

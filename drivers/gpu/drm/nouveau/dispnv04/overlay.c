@@ -31,6 +31,7 @@
 #include "nouveau_bo.h"
 #include "nouveau_connector.h"
 #include "nouveau_display.h"
+#include "nouveau_gem.h"
 #include "nvreg.h"
 #include "disp.h"
 
@@ -120,9 +121,9 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nvif_object *dev = &drm->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
-	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_bo *cur = nv_plane->cur;
+	struct nouveau_bo *nvbo;
 	bool flip = nv_plane->flip;
 	int soff = NV_PCRTC0_SIZE * nv_crtc->index;
 	int soff2 = NV_PCRTC0_SIZE * !nv_crtc->index;
@@ -140,17 +141,18 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
+	nvbo = nouveau_gem_object(fb->obj[0]);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 
-	nv_plane->cur = nv_fb->nvbo;
+	nv_plane->cur = nvbo;
 
 	nvif_mask(dev, NV_PCRTC_ENGINE_CTRL + soff, NV_CRTC_FSEL_OVERLAY, NV_CRTC_FSEL_OVERLAY);
 	nvif_mask(dev, NV_PCRTC_ENGINE_CTRL + soff2, NV_CRTC_FSEL_OVERLAY, 0);
 
 	nvif_wr32(dev, NV_PVIDEO_BASE(flip), 0);
-	nvif_wr32(dev, NV_PVIDEO_OFFSET_BUFF(flip), nv_fb->nvbo->bo.offset);
+	nvif_wr32(dev, NV_PVIDEO_OFFSET_BUFF(flip), nvbo->bo.offset);
 	nvif_wr32(dev, NV_PVIDEO_SIZE_IN(flip), src_h << 16 | src_w);
 	nvif_wr32(dev, NV_PVIDEO_POINT_IN(flip), src_y << 16 | src_x);
 	nvif_wr32(dev, NV_PVIDEO_DS_DX(flip), (src_w << 20) / crtc_w);
@@ -172,7 +174,7 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (format & NV_PVIDEO_FORMAT_PLANAR) {
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_BASE(flip), 0);
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_OFFSET_BUFF(flip),
-			nv_fb->nvbo->bo.offset + fb->offsets[1]);
+			nvbo->bo.offset + fb->offsets[1]);
 	}
 	nvif_wr32(dev, NV_PVIDEO_FORMAT(flip), format | fb->pitches[0]);
 	nvif_wr32(dev, NV_PVIDEO_STOP, 0);
@@ -368,8 +370,8 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	struct nvif_object *dev = &nouveau_drm(plane->dev)->client.device.object;
 	struct nouveau_plane *nv_plane =
 		container_of(plane, struct nouveau_plane, base);
-	struct nouveau_framebuffer *nv_fb = nouveau_framebuffer(fb);
 	struct nouveau_bo *cur = nv_plane->cur;
+	struct nouveau_bo *nvbo;
 	uint32_t overlay = 1;
 	int brightness = (nv_plane->brightness - 512) * 62 / 512;
 	int ret, i;
@@ -384,11 +386,12 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	ret = nouveau_bo_pin(nv_fb->nvbo, TTM_PL_FLAG_VRAM, false);
+	nvbo = nouveau_gem_object(fb->obj[0]);
+	ret = nouveau_bo_pin(nvbo, TTM_PL_FLAG_VRAM, false);
 	if (ret)
 		return ret;
 
-	nv_plane->cur = nv_fb->nvbo;
+	nv_plane->cur = nvbo;
 
 	nvif_wr32(dev, NV_PVIDEO_OE_STATE, 0);
 	nvif_wr32(dev, NV_PVIDEO_SU_STATE, 0);
@@ -396,7 +399,7 @@ nv04_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	for (i = 0; i < 2; i++) {
 		nvif_wr32(dev, NV_PVIDEO_BUFF0_START_ADDRESS + 4 * i,
-			  nv_fb->nvbo->bo.offset);
+			  nvbo->bo.offset);
 		nvif_wr32(dev, NV_PVIDEO_BUFF0_PITCH_LENGTH + 4 * i,
 			  fb->pitches[0]);
 		nvif_wr32(dev, NV_PVIDEO_BUFF0_OFFSET + 4 * i, 0);

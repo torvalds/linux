@@ -747,11 +747,11 @@ static int cmi_lcd_hack_create_device(void)
 		return -EINVAL;
 	}
 
-	client = i2c_new_device(adapter, &info);
-	if (!client) {
-		pr_err("%s: i2c_new_device() failed\n", __func__);
+	client = i2c_new_client_device(adapter, &info);
+	if (IS_ERR(client)) {
+		pr_err("%s: creating I2C device failed\n", __func__);
 		i2c_put_adapter(adapter);
-		return -EINVAL;
+		return PTR_ERR(client);
 	}
 
 	return 0;
@@ -765,12 +765,7 @@ static const struct drm_encoder_helper_funcs tc35876x_encoder_helper_funcs = {
 	.commit = mdfld_dsi_dpi_commit,
 };
 
-static const struct drm_encoder_funcs tc35876x_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 const struct panel_funcs mdfld_tc35876x_funcs = {
-	.encoder_funcs = &tc35876x_encoder_funcs,
 	.encoder_helper_funcs = &tc35876x_encoder_helper_funcs,
 	.get_config_mode = tc35876x_get_config_mode,
 	.get_panel_info = tc35876x_get_panel_info,

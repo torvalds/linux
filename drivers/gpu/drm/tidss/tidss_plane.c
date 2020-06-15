@@ -22,7 +22,7 @@ static int tidss_plane_atomic_check(struct drm_plane *plane,
 				    struct drm_plane_state *state)
 {
 	struct drm_device *ddev = plane->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
 	const struct drm_format_info *finfo;
 	struct drm_crtc_state *crtc_state;
@@ -101,7 +101,7 @@ static void tidss_plane_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
 	struct drm_device *ddev = plane->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
 	struct drm_plane_state *state = plane->state;
 	u32 hw_videoport;
@@ -133,7 +133,7 @@ static void tidss_plane_atomic_disable(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
 	struct drm_device *ddev = plane->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_plane *tplane = to_tidss_plane(plane);
 
 	dev_dbg(ddev->dev, "%s\n", __func__);

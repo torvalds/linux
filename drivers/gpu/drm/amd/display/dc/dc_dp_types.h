@@ -740,5 +740,11 @@ struct dpcd_dsc_capabilities {
 	union dpcd_dsc_ext_capabilities dsc_ext_caps;
 };
 
+/* These parameters are from PSR capabilities reported by Sink DPCD */
+struct psr_caps {
+	unsigned char psr_version;
+	unsigned int psr_rfb_setup_time;
+	bool psr_exit_link_training_required;
+};
 
 #endif /* DC_DP_TYPES_H */

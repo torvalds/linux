@@ -59,16 +59,16 @@
 
 /* define two XPC debug device structures to be used with dev_dbg() et al */
 
-struct device_driver xpc_dbg_name = {
+static struct device_driver xpc_dbg_name = {
 	.name = "xpc"
 };
 
-struct device xpc_part_dbg_subname = {
+static struct device xpc_part_dbg_subname = {
 	.init_name = "",	/* set to "part" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
 
-struct device xpc_chan_dbg_subname = {
+static struct device xpc_chan_dbg_subname = {
 	.init_name = "",	/* set to "chan" at xpc_init() time */
 	.driver = &xpc_dbg_name
 };
@@ -1217,7 +1217,7 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 	return NOTIFY_DONE;
 }
 
-int __init
+static int __init
 xpc_init(void)
 {
 	int ret;
@@ -1319,7 +1319,7 @@ out_1:
 
 module_init(xpc_init);
 
-void __exit
+static void __exit
 xpc_exit(void)
 {
 	xpc_do_exit(xpUnloading);

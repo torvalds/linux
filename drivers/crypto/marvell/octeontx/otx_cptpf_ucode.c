@@ -62,7 +62,7 @@ static struct otx_cpt_bitmap get_cores_bmap(struct device *dev,
 	int i;
 
 	if (eng_grp->g->engs_num > OTX_CPT_MAX_ENGINES) {
-		dev_err(dev, "unsupported number of engines %d on octeontx",
+		dev_err(dev, "unsupported number of engines %d on octeontx\n",
 			eng_grp->g->engs_num);
 		return bmap;
 	}
@@ -78,7 +78,7 @@ static struct otx_cpt_bitmap get_cores_bmap(struct device *dev,
 	}
 
 	if (!found)
-		dev_err(dev, "No engines reserved for engine group %d",
+		dev_err(dev, "No engines reserved for engine group %d\n",
 			eng_grp->idx);
 	return bmap;
 }
@@ -306,7 +306,7 @@ static int process_tar_file(struct device *dev,
 	ucode_size = ntohl(ucode_hdr->code_length) * 2;
 	if (!ucode_size || (size < round_up(ucode_size, 16) +
 	    sizeof(struct otx_cpt_ucode_hdr) + OTX_CPT_UCODE_SIGN_LEN)) {
-		dev_err(dev, "Ucode %s invalid size", filename);
+		dev_err(dev, "Ucode %s invalid size\n", filename);
 		return -EINVAL;
 	}
 
@@ -379,18 +379,18 @@ static void print_tar_dbg_info(struct tar_arch_info_t *tar_arch,
 {
 	struct tar_ucode_info_t *curr;
 
-	pr_debug("Tar archive filename %s", tar_filename);
-	pr_debug("Tar archive pointer %p, size %ld", tar_arch->fw->data,
+	pr_debug("Tar archive filename %s\n", tar_filename);
+	pr_debug("Tar archive pointer %p, size %ld\n", tar_arch->fw->data,
 		 tar_arch->fw->size);
 	list_for_each_entry(curr, &tar_arch->ucodes, list) {
-		pr_debug("Ucode filename %s", curr->ucode.filename);
-		pr_debug("Ucode version string %s", curr->ucode.ver_str);
-		pr_debug("Ucode version %d.%d.%d.%d",
+		pr_debug("Ucode filename %s\n", curr->ucode.filename);
+		pr_debug("Ucode version string %s\n", curr->ucode.ver_str);
+		pr_debug("Ucode version %d.%d.%d.%d\n",
 			 curr->ucode.ver_num.nn, curr->ucode.ver_num.xx,
 			 curr->ucode.ver_num.yy, curr->ucode.ver_num.zz);
-		pr_debug("Ucode type (%d) %s", curr->ucode.type,
+		pr_debug("Ucode type (%d) %s\n", curr->ucode.type,
 			 get_ucode_type_str(curr->ucode.type));
-		pr_debug("Ucode size %d", curr->ucode.size);
+		pr_debug("Ucode size %d\n", curr->ucode.size);
 		pr_debug("Ucode ptr %p\n", curr->ucode_ptr);
 	}
 }
@@ -417,14 +417,14 @@ static struct tar_arch_info_t *load_tar_archive(struct device *dev,
 		goto release_tar_arch;
 
 	if (tar_arch->fw->size < TAR_BLOCK_LEN) {
-		dev_err(dev, "Invalid tar archive %s ", tar_filename);
+		dev_err(dev, "Invalid tar archive %s\n", tar_filename);
 		goto release_tar_arch;
 	}
 
 	tar_size = tar_arch->fw->size;
 	tar_blk = (struct tar_blk_t *) tar_arch->fw->data;
 	if (strncmp(tar_blk->hdr.magic, TAR_MAGIC, TAR_MAGIC_LEN - 1)) {
-		dev_err(dev, "Unsupported format of tar archive %s",
+		dev_err(dev, "Unsupported format of tar archive %s\n",
 			tar_filename);
 		goto release_tar_arch;
 	}
@@ -437,7 +437,7 @@ static struct tar_arch_info_t *load_tar_archive(struct device *dev,
 
 		if (tar_offs + cur_size > tar_size ||
 		    tar_offs + 2*TAR_BLOCK_LEN > tar_size) {
-			dev_err(dev, "Invalid tar archive %s ", tar_filename);
+			dev_err(dev, "Invalid tar archive %s\n", tar_filename);
 			goto release_tar_arch;
 		}
 
@@ -458,7 +458,7 @@ static struct tar_arch_info_t *load_tar_archive(struct device *dev,
 
 		/* Check for the end of the archive */
 		if (tar_offs + 2*TAR_BLOCK_LEN > tar_size) {
-			dev_err(dev, "Invalid tar archive %s ", tar_filename);
+			dev_err(dev, "Invalid tar archive %s\n", tar_filename);
 			goto release_tar_arch;
 		}
 
@@ -563,13 +563,13 @@ static void print_engs_info(struct otx_cpt_eng_grp_info *eng_grp,
 
 static void print_ucode_dbg_info(struct otx_cpt_ucode *ucode)
 {
-	pr_debug("Ucode info");
-	pr_debug("Ucode version string %s", ucode->ver_str);
-	pr_debug("Ucode version %d.%d.%d.%d", ucode->ver_num.nn,
+	pr_debug("Ucode info\n");
+	pr_debug("Ucode version string %s\n", ucode->ver_str);
+	pr_debug("Ucode version %d.%d.%d.%d\n", ucode->ver_num.nn,
 		 ucode->ver_num.xx, ucode->ver_num.yy, ucode->ver_num.zz);
-	pr_debug("Ucode type %s", get_ucode_type_str(ucode->type));
-	pr_debug("Ucode size %d", ucode->size);
-	pr_debug("Ucode virt address %16.16llx", (u64)ucode->align_va);
+	pr_debug("Ucode type %s\n", get_ucode_type_str(ucode->type));
+	pr_debug("Ucode size %d\n", ucode->size);
+	pr_debug("Ucode virt address %16.16llx\n", (u64)ucode->align_va);
 	pr_debug("Ucode phys address %16.16llx\n", ucode->align_dma);
 }
 
@@ -600,19 +600,19 @@ static void print_dbg_info(struct device *dev,
 	u32 mask[4];
 	int i, j;
 
-	pr_debug("Engine groups global info");
-	pr_debug("max SE %d, max AE %d",
+	pr_debug("Engine groups global info\n");
+	pr_debug("max SE %d, max AE %d\n",
 		 eng_grps->avail.max_se_cnt, eng_grps->avail.max_ae_cnt);
-	pr_debug("free SE %d", eng_grps->avail.se_cnt);
-	pr_debug("free AE %d", eng_grps->avail.ae_cnt);
+	pr_debug("free SE %d\n", eng_grps->avail.se_cnt);
+	pr_debug("free AE %d\n", eng_grps->avail.ae_cnt);
 
 	for (i = 0; i < OTX_CPT_MAX_ENGINE_GROUPS; i++) {
 		grp = &eng_grps->grp[i];
-		pr_debug("engine_group%d, state %s", i, grp->is_enabled ?
+		pr_debug("engine_group%d, state %s\n", i, grp->is_enabled ?
 			 "enabled" : "disabled");
 		if (grp->is_enabled) {
 			mirrored_grp = &eng_grps->grp[grp->mirror.idx];
-			pr_debug("Ucode0 filename %s, version %s",
+			pr_debug("Ucode0 filename %s, version %s\n",
 				 grp->mirror.is_ena ?
 				 mirrored_grp->ucode[0].filename :
 				 grp->ucode[0].filename,
@@ -626,18 +626,18 @@ static void print_dbg_info(struct device *dev,
 			if (engs->type) {
 				print_engs_info(grp, engs_info,
 						2*OTX_CPT_UCODE_NAME_LENGTH, j);
-				pr_debug("Slot%d: %s", j, engs_info);
+				pr_debug("Slot%d: %s\n", j, engs_info);
 				bitmap_to_arr32(mask, engs->bmap,
 						eng_grps->engs_num);
-				pr_debug("Mask:  %8.8x %8.8x %8.8x %8.8x",
+				pr_debug("Mask: %8.8x %8.8x %8.8x %8.8x\n",
 					 mask[3], mask[2], mask[1], mask[0]);
 			} else
-				pr_debug("Slot%d not used", j);
+				pr_debug("Slot%d not used\n", j);
 		}
 		if (grp->is_enabled) {
 			cpt_print_engines_mask(grp, dev, engs_mask,
 					       OTX_CPT_UCODE_NAME_LENGTH);
-			pr_debug("Cmask: %s", engs_mask);
+			pr_debug("Cmask: %s\n", engs_mask);
 		}
 	}
 }
@@ -766,7 +766,7 @@ static int check_engines_availability(struct device *dev,
 
 	if (avail_cnt < req_eng->count) {
 		dev_err(dev,
-			"Error available %s engines %d < than requested %d",
+			"Error available %s engines %d < than requested %d\n",
 			get_eng_type_str(req_eng->type),
 			avail_cnt, req_eng->count);
 		return -EBUSY;
@@ -867,7 +867,7 @@ static int copy_ucode_to_dma_mem(struct device *dev,
 				       OTX_CPT_UCODE_ALIGNMENT,
 				       &ucode->dma, GFP_KERNEL);
 	if (!ucode->va) {
-		dev_err(dev, "Unable to allocate space for microcode");
+		dev_err(dev, "Unable to allocate space for microcode\n");
 		return -ENOMEM;
 	}
 	ucode->align_va = PTR_ALIGN(ucode->va, OTX_CPT_UCODE_ALIGNMENT);
@@ -905,15 +905,15 @@ static int ucode_load(struct device *dev, struct otx_cpt_ucode *ucode,
 	ucode->size = ntohl(ucode_hdr->code_length) * 2;
 	if (!ucode->size || (fw->size < round_up(ucode->size, 16)
 	    + sizeof(struct otx_cpt_ucode_hdr) + OTX_CPT_UCODE_SIGN_LEN)) {
-		dev_err(dev, "Ucode %s invalid size", ucode_filename);
+		dev_err(dev, "Ucode %s invalid size\n", ucode_filename);
 		ret = -EINVAL;
 		goto release_fw;
 	}
 
 	ret = get_ucode_type(ucode_hdr, &ucode->type);
 	if (ret) {
-		dev_err(dev, "Microcode %s unknown type 0x%x", ucode->filename,
-			ucode->type);
+		dev_err(dev, "Microcode %s unknown type 0x%x\n",
+			ucode->filename, ucode->type);
 		goto release_fw;
 	}
 
@@ -1083,7 +1083,7 @@ static int eng_grp_update_masks(struct device *dev,
 			break;
 
 		default:
-			dev_err(dev, "Invalid engine type %d", engs->type);
+			dev_err(dev, "Invalid engine type %d\n", engs->type);
 			return -EINVAL;
 		}
 
@@ -1142,13 +1142,14 @@ static int delete_engine_group(struct device *dev,
 		return -EINVAL;
 
 	if (eng_grp->mirror.ref_count) {
-		dev_err(dev, "Can't delete engine_group%d as it is used by:",
+		dev_err(dev, "Can't delete engine_group%d as it is used by engine_group(s):",
 			eng_grp->idx);
 		for (i = 0; i < OTX_CPT_MAX_ENGINE_GROUPS; i++) {
 			if (eng_grp->g->grp[i].mirror.is_ena &&
 			    eng_grp->g->grp[i].mirror.idx == eng_grp->idx)
-				dev_err(dev, "engine_group%d", i);
+				pr_cont(" %d", i);
 		}
+		pr_cont("\n");
 		return -EINVAL;
 	}
 
@@ -1182,7 +1183,7 @@ static int validate_1_ucode_scenario(struct device *dev,
 		if (!otx_cpt_uc_supports_eng_type(&eng_grp->ucode[0],
 						  engs[i].type)) {
 			dev_err(dev,
-				"Microcode %s does not support %s engines",
+				"Microcode %s does not support %s engines\n",
 				eng_grp->ucode[0].filename,
 				get_eng_type_str(engs[i].type));
 			return -EINVAL;
@@ -1220,7 +1221,7 @@ static int create_engine_group(struct device *dev,
 	/* Validate if requested engine types are supported by this device */
 	for (i = 0; i < engs_cnt; i++)
 		if (!dev_supports_eng_type(eng_grps, engs[i].type)) {
-			dev_err(dev, "Device does not support %s engines",
+			dev_err(dev, "Device does not support %s engines\n",
 				get_eng_type_str(engs[i].type));
 			return -EPERM;
 		}
@@ -1228,7 +1229,7 @@ static int create_engine_group(struct device *dev,
 	/* Find engine group which is not used */
 	eng_grp = find_unused_eng_grp(eng_grps);
 	if (!eng_grp) {
-		dev_err(dev, "Error all engine groups are being used");
+		dev_err(dev, "Error all engine groups are being used\n");
 		return -ENOSPC;
 	}
 
@@ -1298,11 +1299,11 @@ static int create_engine_group(struct device *dev,
 	eng_grp->is_enabled = true;
 	if (eng_grp->mirror.is_ena)
 		dev_info(dev,
-			 "Engine_group%d: reuse microcode %s from group %d",
+			 "Engine_group%d: reuse microcode %s from group %d\n",
 			 eng_grp->idx, mirrored_eng_grp->ucode[0].ver_str,
 			 mirrored_eng_grp->idx);
 	else
-		dev_info(dev, "Engine_group%d: microcode loaded %s",
+		dev_info(dev, "Engine_group%d: microcode loaded %s\n",
 			 eng_grp->idx, eng_grp->ucode[0].ver_str);
 
 	return 0;
@@ -1412,14 +1413,14 @@ static ssize_t ucode_load_store(struct device *dev,
 	} else {
 		if (del_grp_idx < 0 ||
 		    del_grp_idx >= OTX_CPT_MAX_ENGINE_GROUPS) {
-			dev_err(dev, "Invalid engine group index %d",
+			dev_err(dev, "Invalid engine group index %d\n",
 				del_grp_idx);
 			ret = -EINVAL;
 			return ret;
 		}
 
 		if (!eng_grps->grp[del_grp_idx].is_enabled) {
-			dev_err(dev, "Error engine_group%d is not configured",
+			dev_err(dev, "Error engine_group%d is not configured\n",
 				del_grp_idx);
 			ret = -EINVAL;
 			return ret;
@@ -1568,7 +1569,7 @@ void otx_cpt_disable_all_cores(struct otx_cpt_device *cpt)
 		udelay(CSR_DELAY);
 		reg = readq(cpt->reg_base + OTX_CPT_PF_EXEC_BUSY);
 		if (timeout--) {
-			dev_warn(&cpt->pdev->dev, "Cores still busy");
+			dev_warn(&cpt->pdev->dev, "Cores still busy\n");
 			break;
 		}
 	}
@@ -1626,7 +1627,7 @@ int otx_cpt_init_eng_grps(struct pci_dev *pdev,
 			     eng_grps->avail.max_ae_cnt;
 	if (eng_grps->engs_num > OTX_CPT_MAX_ENGINES) {
 		dev_err(&pdev->dev,
-			"Number of engines %d > than max supported %d",
+			"Number of engines %d > than max supported %d\n",
 			eng_grps->engs_num, OTX_CPT_MAX_ENGINES);
 		ret = -EINVAL;
 		goto err;

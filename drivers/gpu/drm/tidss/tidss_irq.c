@@ -23,7 +23,7 @@ static void tidss_irq_update(struct tidss_device *tidss)
 void tidss_irq_enable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	u32 hw_videoport = tcrtc->hw_videoport;
 	unsigned long flags;
@@ -38,7 +38,7 @@ void tidss_irq_enable_vblank(struct drm_crtc *crtc)
 void tidss_irq_disable_vblank(struct drm_crtc *crtc)
 {
 	struct drm_device *ddev = crtc->dev;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	struct tidss_crtc *tcrtc = to_tidss_crtc(crtc);
 	u32 hw_videoport = tcrtc->hw_videoport;
 	unsigned long flags;
@@ -53,7 +53,7 @@ void tidss_irq_disable_vblank(struct drm_crtc *crtc)
 irqreturn_t tidss_irq_handler(int irq, void *arg)
 {
 	struct drm_device *ddev = (struct drm_device *)arg;
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	unsigned int id;
 	dispc_irq_t irqstatus;
 
@@ -95,7 +95,7 @@ void tidss_irq_resume(struct tidss_device *tidss)
 
 void tidss_irq_preinstall(struct drm_device *ddev)
 {
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 
 	spin_lock_init(&tidss->wait_lock);
 
@@ -109,7 +109,7 @@ void tidss_irq_preinstall(struct drm_device *ddev)
 
 int tidss_irq_postinstall(struct drm_device *ddev)
 {
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 	unsigned long flags;
 	unsigned int i;
 
@@ -138,7 +138,7 @@ int tidss_irq_postinstall(struct drm_device *ddev)
 
 void tidss_irq_uninstall(struct drm_device *ddev)
 {
-	struct tidss_device *tidss = ddev->dev_private;
+	struct tidss_device *tidss = to_tidss(ddev);
 
 	tidss_runtime_get(tidss);
 	dispc_set_irqenable(tidss->dispc, 0);

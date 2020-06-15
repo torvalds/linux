@@ -214,7 +214,7 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 				complete(&ctrl->complete_status);
 				break;
 			}
-			cb_data->status = BIT(SVC_STATUS_RECONFIG_BUFFER_DONE);
+			cb_data->status = BIT(SVC_STATUS_BUFFER_DONE);
 			cb_data->kaddr1 = svc_pa_to_va(res.a1);
 			cb_data->kaddr2 = (res.a2) ?
 					  svc_pa_to_va(res.a2) : NULL;
@@ -227,7 +227,7 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 				 __func__);
 		}
 	} while (res.a0 == INTEL_SIP_SMC_STATUS_OK ||
-		 res.a0 == INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY ||
+		 res.a0 == INTEL_SIP_SMC_STATUS_BUSY ||
 		 wait_for_completion_timeout(&ctrl->complete_status, timeout));
 }
 
@@ -250,7 +250,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 	cb_data->kaddr1 = NULL;
 	cb_data->kaddr2 = NULL;
 	cb_data->kaddr3 = NULL;
-	cb_data->status = BIT(SVC_STATUS_RECONFIG_ERROR);
+	cb_data->status = BIT(SVC_STATUS_ERROR);
 
 	pr_debug("%s: polling config status\n", __func__);
 
@@ -259,7 +259,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 		ctrl->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_ISDONE,
 				0, 0, 0, 0, 0, 0, 0, &res);
 		if ((res.a0 == INTEL_SIP_SMC_STATUS_OK) ||
-		    (res.a0 == INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR))
+		    (res.a0 == INTEL_SIP_SMC_STATUS_ERROR))
 			break;
 
 		/*
@@ -271,7 +271,7 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 	}
 
 	if (res.a0 == INTEL_SIP_SMC_STATUS_OK && count_in_sec)
-		cb_data->status = BIT(SVC_STATUS_RECONFIG_COMPLETED);
+		cb_data->status = BIT(SVC_STATUS_COMPLETED);
 
 	p_data->chan->scl->receive_cb(p_data->chan->scl, cb_data);
 }
@@ -294,24 +294,18 @@ static void svc_thread_recv_status_ok(struct stratix10_svc_data *p_data,
 
 	switch (p_data->command) {
 	case COMMAND_RECONFIG:
-		cb_data->status = BIT(SVC_STATUS_RECONFIG_REQUEST_OK);
-		break;
-	case COMMAND_RECONFIG_DATA_SUBMIT:
-		cb_data->status = BIT(SVC_STATUS_RECONFIG_BUFFER_SUBMITTED);
-		break;
-	case COMMAND_NOOP:
-		cb_data->status = BIT(SVC_STATUS_RECONFIG_BUFFER_SUBMITTED);
-		cb_data->kaddr1 = svc_pa_to_va(res.a1);
-		break;
-	case COMMAND_RECONFIG_STATUS:
-		cb_data->status = BIT(SVC_STATUS_RECONFIG_COMPLETED);
-		break;
 	case COMMAND_RSU_UPDATE:
 	case COMMAND_RSU_NOTIFY:
-		cb_data->status = BIT(SVC_STATUS_RSU_OK);
+		cb_data->status = BIT(SVC_STATUS_OK);
+		break;
+	case COMMAND_RECONFIG_DATA_SUBMIT:
+		cb_data->status = BIT(SVC_STATUS_BUFFER_SUBMITTED);
+		break;
+	case COMMAND_RECONFIG_STATUS:
+		cb_data->status = BIT(SVC_STATUS_COMPLETED);
 		break;
 	case COMMAND_RSU_RETRY:
-		cb_data->status = BIT(SVC_STATUS_RSU_OK);
+		cb_data->status = BIT(SVC_STATUS_OK);
 		cb_data->kaddr1 = &res.a1;
 		break;
 	default:
@@ -430,9 +424,9 @@ static int svc_normal_to_secure_thread(void *data)
 
 		if (pdata->command == COMMAND_RSU_STATUS) {
 			if (res.a0 == INTEL_SIP_SMC_RSU_ERROR)
-				cbdata->status = BIT(SVC_STATUS_RSU_ERROR);
+				cbdata->status = BIT(SVC_STATUS_ERROR);
 			else
-				cbdata->status = BIT(SVC_STATUS_RSU_OK);
+				cbdata->status = BIT(SVC_STATUS_OK);
 
 			cbdata->kaddr1 = &res;
 			cbdata->kaddr2 = NULL;
@@ -445,7 +439,7 @@ static int svc_normal_to_secure_thread(void *data)
 		case INTEL_SIP_SMC_STATUS_OK:
 			svc_thread_recv_status_ok(pdata, cbdata, res);
 			break;
-		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY:
+		case INTEL_SIP_SMC_STATUS_BUSY:
 			switch (pdata->command) {
 			case COMMAND_RECONFIG_DATA_SUBMIT:
 				svc_thread_cmd_data_claim(ctrl,
@@ -460,33 +454,13 @@ static int svc_normal_to_secure_thread(void *data)
 				break;
 			}
 			break;
-		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_REJECTED:
+		case INTEL_SIP_SMC_STATUS_REJECTED:
 			pr_debug("%s: STATUS_REJECTED\n", __func__);
 			break;
-		case INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR:
+		case INTEL_SIP_SMC_STATUS_ERROR:
 		case INTEL_SIP_SMC_RSU_ERROR:
 			pr_err("%s: STATUS_ERROR\n", __func__);
-			switch (pdata->command) {
-			/* for FPGA mgr */
-			case COMMAND_RECONFIG_DATA_CLAIM:
-			case COMMAND_RECONFIG:
-			case COMMAND_RECONFIG_DATA_SUBMIT:
-			case COMMAND_RECONFIG_STATUS:
-				cbdata->status =
-					BIT(SVC_STATUS_RECONFIG_ERROR);
-				break;
-
-			/* for RSU */
-			case COMMAND_RSU_STATUS:
-			case COMMAND_RSU_UPDATE:
-			case COMMAND_RSU_NOTIFY:
-			case COMMAND_RSU_RETRY:
-				cbdata->status =
-					BIT(SVC_STATUS_RSU_ERROR);
-				break;
-			}
-
-			cbdata->status = BIT(SVC_STATUS_RECONFIG_ERROR);
+			cbdata->status = BIT(SVC_STATUS_ERROR);
 			cbdata->kaddr1 = NULL;
 			cbdata->kaddr2 = NULL;
 			cbdata->kaddr3 = NULL;
@@ -502,7 +476,7 @@ static int svc_normal_to_secure_thread(void *data)
 			if ((pdata->command == COMMAND_RSU_RETRY) ||
 				(pdata->command == COMMAND_RSU_NOTIFY)) {
 				cbdata->status =
-					BIT(SVC_STATUS_RSU_NO_SUPPORT);
+					BIT(SVC_STATUS_NO_SUPPORT);
 				cbdata->kaddr1 = NULL;
 				cbdata->kaddr2 = NULL;
 				cbdata->kaddr3 = NULL;

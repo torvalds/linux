@@ -34,7 +34,6 @@
 
 #define ACPI_EC_CLASS			"embedded_controller"
 #define ACPI_EC_DEVICE_NAME		"Embedded Controller"
-#define ACPI_EC_FILE_INFO		"info"
 
 /* EC status register */
 #define ACPI_EC_FLAG_OBF	0x01	/* Output buffer full */
@@ -1783,13 +1782,14 @@ static void __init acpi_ec_ecdt_start(void)
 		return;
 
 	status = acpi_get_handle(NULL, ecdt_ptr->id, &handle);
-	if (ACPI_FAILURE(status))
-		return;
+	if (ACPI_SUCCESS(status)) {
+		boot_ec->handle = handle;
 
-	boot_ec->handle = handle;
+		/* Add a special ACPI device object to represent the boot EC. */
+		acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
+	}
 
-	/* Add a special ACPI device object to represent the boot EC. */
-	acpi_bus_register_early_device(ACPI_BUS_TYPE_ECDT_EC);
+	acpi_put_table((struct acpi_table_header *)ecdt_ptr);
 }
 
 /*
@@ -1891,12 +1891,12 @@ void __init acpi_ec_ecdt_probe(void)
 		 * Asus X50GL:
 		 * https://bugzilla.kernel.org/show_bug.cgi?id=11880
 		 */
-		return;
+		goto out;
 	}
 
 	ec = acpi_ec_alloc();
 	if (!ec)
-		return;
+		goto out;
 
 	if (EC_FLAGS_CORRECT_ECDT) {
 		ec->command_addr = ecdt_ptr->data.address;
@@ -1922,13 +1922,16 @@ void __init acpi_ec_ecdt_probe(void)
 	ret = acpi_ec_setup(ec, NULL);
 	if (ret) {
 		acpi_ec_free(ec);
-		return;
+		goto out;
 	}
 
 	boot_ec = ec;
 	boot_ec_is_ecdt = true;
 
 	pr_info("Boot ECDT EC used to handle transactions\n");
+
+out:
+	acpi_put_table((struct acpi_table_header *)ecdt_ptr);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2017,7 +2020,7 @@ bool acpi_ec_dispatch_gpe(void)
 	 */
 	ret = acpi_dispatch_gpe(NULL, first_ec->gpe);
 	if (ret == ACPI_INTERRUPT_HANDLED) {
-		pm_pr_dbg("EC GPE dispatched\n");
+		pm_pr_dbg("ACPI EC GPE dispatched\n");
 
 		/* Flush the event and query workqueues. */
 		acpi_ec_flush_work();

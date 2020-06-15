@@ -143,7 +143,7 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 		break;
 	case SNDRV_DMA_TYPE_VMALLOC:
 		gfp = snd_mem_get_gfp_flags(device, GFP_KERNEL | __GFP_HIGHMEM);
-		dmab->area = __vmalloc(size, gfp, PAGE_KERNEL);
+		dmab->area = __vmalloc(size, gfp);
 		dmab->addr = 0;
 		break;
 #ifdef CONFIG_HAS_DMA

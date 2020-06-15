@@ -28,7 +28,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^dsi-controller(@.*)?$"
+    pattern: "^dsi(@.*)?$"
 
   "#address-cells":
     const: 1
@@ -76,7 +76,7 @@ patternProperties:
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    dsi-controller@a0351000 {
+    dsi@a0351000 {
         reg = <0xa0351000 0x1000>;
         #address-cells = <1>;
         #size-cells = <0>;

@@ -161,7 +161,7 @@ device must complete the update before the driver callback returns.
 When the device driver wants to populate a range of virtual addresses, it can
 use::
 
-  long hmm_range_fault(struct hmm_range *range);
+  int hmm_range_fault(struct hmm_range *range);
 
 It will trigger a page fault on missing or read-only entries if write access is
 requested (see below). Page faults use the generic mm page fault code path just
@@ -184,25 +184,22 @@ The usage pattern is::
       range.notifier = &interval_sub;
       range.start = ...;
       range.end = ...;
-      range.pfns = ...;
-      range.flags = ...;
-      range.values = ...;
-      range.pfn_shift = ...;
+      range.hmm_pfns = ...;
 
       if (!mmget_not_zero(interval_sub->notifier.mm))
           return -EFAULT;
 
  again:
       range.notifier_seq = mmu_interval_read_begin(&interval_sub);
-      down_read(&mm->mmap_sem);
+      mmap_read_lock(mm);
       ret = hmm_range_fault(&range);
       if (ret) {
-          up_read(&mm->mmap_sem);
+          mmap_read_unlock(mm);
           if (ret == -EBUSY)
                  goto again;
           return ret;
       }
-      up_read(&mm->mmap_sem);
+      mmap_read_unlock(mm);
 
       take_lock(driver->update);
       if (mmu_interval_read_retry(&ni, range.notifier_seq) {
@@ -229,15 +226,10 @@ The hmm_range struct has 2 fields, default_flags and pfn_flags_mask, that specif
 fault or snapshot policy for the whole range instead of having to set them
 for each entry in the pfns array.
 
-For instance, if the device flags for range.flags are::
+For instance if the device driver wants pages for a range with at least read
+permission, it sets::
 
-    range.flags[HMM_PFN_VALID] = (1 << 63);
-    range.flags[HMM_PFN_WRITE] = (1 << 62);
-
-and the device driver wants pages for a range with at least read permission,
-it sets::
-
-    range->default_flags = (1 << 63);
+    range->default_flags = HMM_PFN_REQ_FAULT;
     range->pfn_flags_mask = 0;
 
 and calls hmm_range_fault() as described above. This will fill fault all pages
@@ -246,18 +238,18 @@ in the range with at least read permission.
 Now let's say the driver wants to do the same except for one page in the range for
 which it wants to have write permission. Now driver set::
 
-    range->default_flags = (1 << 63);
-    range->pfn_flags_mask = (1 << 62);
-    range->pfns[index_of_write] = (1 << 62);
+    range->default_flags = HMM_PFN_REQ_FAULT;
+    range->pfn_flags_mask = HMM_PFN_REQ_WRITE;
+    range->pfns[index_of_write] = HMM_PFN_REQ_WRITE;
 
 With this, HMM will fault in all pages with at least read (i.e., valid) and for the
 address == range->start + (index_of_write << PAGE_SHIFT) it will fault with
 write permission i.e., if the CPU pte does not have write permission set then HMM
 will call handle_mm_fault().
 
-Note that HMM will populate the pfns array with write permission for any page
-that is mapped with CPU write permission no matter what values are set
-in default_flags or pfn_flags_mask.
+After hmm_range_fault completes the flag bits are set to the current state of
+the page tables, ie HMM_PFN_VALID | HMM_PFN_WRITE will be set if the page is
+writable.
 
 
 Represent and manage device memory from core kernel point of view

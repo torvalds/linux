@@ -13,7 +13,7 @@ Recommended properties:
 
 Example:
 
-i2c@20205000 {
+i2c@7e205000 {
 	compatible = "brcm,bcm2835-i2c";
 	reg = <0x7e205000 0x1000>;
 	interrupts = <2 21>;

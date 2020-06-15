@@ -1,4 +1,0 @@
-Startek Electronic Technology Co. KD050C 5.0" WVGA TFT LCD panel
-
-Required properties:
-- compatible: should be "startek,startek-kd050c"

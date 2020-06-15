@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config HISI_PMU
+	tristate "HiSilicon SoC PMU drivers"
+	depends on ARM64 && ACPI
+	  help
+	  Support for HiSilicon SoC L3 Cache performance monitor, Hydra Home
+	  Agent performance monitor and DDR Controller performance monitor.

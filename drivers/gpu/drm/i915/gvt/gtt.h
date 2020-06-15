@@ -160,6 +160,7 @@ struct intel_vgpu_mm {
 
 			struct list_head list;
 			struct list_head lru_list;
+			struct list_head link; /* possible LRI shadow mm list */
 		} ppgtt_mm;
 		struct {
 			void *virtual_ggtt;

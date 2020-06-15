@@ -4,8 +4,7 @@
  *
  * Example use:
  * cat /sys/kernel/debug/page_owner > page_owner_full.txt
- * grep -v ^PFN page_owner_full.txt > page_owner.txt
- * ./page_owner_sort page_owner.txt sorted_page_owner.txt
+ * ./page_owner_sort page_owner_full.txt sorted_page_owner.txt
  *
  * See Documentation/vm/page_owner.rst
 */
@@ -38,6 +37,8 @@ int read_block(char *buf, int buf_size, FILE *fin)
 	while (buf_end - curr > 1 && fgets(curr, buf_end - curr, fin)) {
 		if (*curr == '\n') /* empty line */
 			return curr - buf;
+		if (!strncmp(curr, "PFN", 3))
+			continue;
 		curr += strlen(curr);
 	}
 

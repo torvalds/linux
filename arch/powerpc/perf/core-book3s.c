@@ -421,14 +421,14 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 		if (probe_kernel_read(&instr, (void *)addr, sizeof(instr)))
 			return 0;
 
-		return branch_target(&instr);
+		return branch_target((struct ppc_inst *)&instr);
 	}
 
 	/* Userspace: need copy instruction here then translate it */
 	if (probe_user_read(&instr, (unsigned int __user *)addr, sizeof(instr)))
 		return 0;
 
-	target = branch_target(&instr);
+	target = branch_target((struct ppc_inst *)&instr);
 	if ((!target) || (instr & BRANCH_ABSOLUTE))
 		return target;
 

@@ -1977,6 +1977,25 @@ static const struct pinctrl_ops ingenic_pctlops = {
 	.dt_free_map = pinconf_generic_dt_free_map,
 };
 
+static int ingenic_gpio_irq_request(struct irq_data *data)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+	int ret;
+
+	ret = ingenic_gpio_direction_input(gpio_chip, data->hwirq);
+	if (ret)
+		return ret;
+
+	return gpiochip_reqres_irq(gpio_chip, data->hwirq);
+}
+
+static void ingenic_gpio_irq_release(struct irq_data *data)
+{
+	struct gpio_chip *gpio_chip = irq_data_get_irq_chip_data(data);
+
+	return gpiochip_relres_irq(gpio_chip, data->hwirq);
+}
+
 static int ingenic_pinmux_set_pin_fn(struct ingenic_pinctrl *jzpc,
 		int pin, int func)
 {
@@ -2338,6 +2357,8 @@ static int __init ingenic_gpio_probe(struct ingenic_pinctrl *jzpc,
 	jzgc->irq_chip.irq_ack = ingenic_gpio_irq_ack;
 	jzgc->irq_chip.irq_set_type = ingenic_gpio_irq_set_type;
 	jzgc->irq_chip.irq_set_wake = ingenic_gpio_irq_set_wake;
+	jzgc->irq_chip.irq_request_resources = ingenic_gpio_irq_request;
+	jzgc->irq_chip.irq_release_resources = ingenic_gpio_irq_release;
 	jzgc->irq_chip.flags = IRQCHIP_MASK_ON_SUSPEND;
 
 	girq = &jzgc->gc.irq;
