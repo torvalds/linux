@@ -3848,6 +3848,16 @@ S:	Orphan
 F:	Documentation/devicetree/bindings/mtd/cadence-nand-controller.txt
 F:	drivers/mtd/nand/raw/cadence-nand-controller.c
 
+CADENCE USB3 DRD IP DRIVER
+M:	Peter Chen <peter.chen@nxp.com>
+M:	Pawel Laszczak <pawell@cadence.com>
+M:	Roger Quadros <rogerq@ti.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/peter.chen/usb.git
+F:	Documentation/devicetree/bindings/usb/cdns-usb3.txt
+F:	drivers/usb/cdns3/
+
 CADET FM/AM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
