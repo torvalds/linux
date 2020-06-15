@@ -80,36 +80,6 @@ struct reg_sequence {
 				}
 #define REG_SEQ0(_reg, _def)	REG_SEQ(_reg, _def, 0)
 
-#define	regmap_update_bits(map, reg, mask, val) \
-	regmap_update_bits_base(map, reg, mask, val, NULL, false, false)
-#define	regmap_update_bits_async(map, reg, mask, val)\
-	regmap_update_bits_base(map, reg, mask, val, NULL, true, false)
-#define	regmap_update_bits_check(map, reg, mask, val, change)\
-	regmap_update_bits_base(map, reg, mask, val, change, false, false)
-#define	regmap_update_bits_check_async(map, reg, mask, val, change)\
-	regmap_update_bits_base(map, reg, mask, val, change, true, false)
-
-#define	regmap_write_bits(map, reg, mask, val) \
-	regmap_update_bits_base(map, reg, mask, val, NULL, false, true)
-
-#define	regmap_field_write(field, val) \
-	regmap_field_update_bits_base(field, ~0, val, NULL, false, false)
-#define	regmap_field_force_write(field, val) \
-	regmap_field_update_bits_base(field, ~0, val, NULL, false, true)
-#define	regmap_field_update_bits(field, mask, val)\
-	regmap_field_update_bits_base(field, mask, val, NULL, false, false)
-#define	regmap_field_force_update_bits(field, mask, val) \
-	regmap_field_update_bits_base(field, mask, val, NULL, false, true)
-
-#define	regmap_fields_write(field, id, val) \
-	regmap_fields_update_bits_base(field, id, ~0, val, NULL, false, false)
-#define	regmap_fields_force_write(field, id, val) \
-	regmap_fields_update_bits_base(field, id, ~0, val, NULL, false, true)
-#define	regmap_fields_update_bits(field, id, mask, val)\
-	regmap_fields_update_bits_base(field, id, mask, val, NULL, false, false)
-#define	regmap_fields_force_update_bits(field, id, mask, val) \
-	regmap_fields_update_bits_base(field, id, mask, val, NULL, false, true)
-
 /**
  * regmap_read_poll_timeout - Poll until a condition is met or a timeout occurs
  *
@@ -1054,6 +1024,42 @@ int regmap_bulk_read(struct regmap *map, unsigned int reg, void *val,
 int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 			    unsigned int mask, unsigned int val,
 			    bool *change, bool async, bool force);
+
+static inline int regmap_update_bits(struct regmap *map, unsigned int reg,
+				     unsigned int mask, unsigned int val)
+{
+	return regmap_update_bits_base(map, reg, mask, val, NULL, false, false);
+}
+
+static inline int regmap_update_bits_async(struct regmap *map, unsigned int reg,
+					   unsigned int mask, unsigned int val)
+{
+	return regmap_update_bits_base(map, reg, mask, val, NULL, true, false);
+}
+
+static inline int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+					   unsigned int mask, unsigned int val,
+					   bool *change)
+{
+	return regmap_update_bits_base(map, reg, mask, val,
+				       change, false, false);
+}
+
+static inline int
+regmap_update_bits_check_async(struct regmap *map, unsigned int reg,
+			       unsigned int mask, unsigned int val,
+			       bool *change)
+{
+	return regmap_update_bits_base(map, reg, mask, val,
+				       change, true, false);
+}
+
+static inline int regmap_write_bits(struct regmap *map, unsigned int reg,
+				    unsigned int mask, unsigned int val)
+{
+	return regmap_update_bits_base(map, reg, mask, val, NULL, false, true);
+}
+
 int regmap_get_val_bytes(struct regmap *map);
 int regmap_get_max_register(struct regmap *map);
 int regmap_get_reg_stride(struct regmap *map);
@@ -1152,6 +1158,65 @@ int regmap_fields_read(struct regmap_field *field, unsigned int id,
 int regmap_fields_update_bits_base(struct regmap_field *field,  unsigned int id,
 				   unsigned int mask, unsigned int val,
 				   bool *change, bool async, bool force);
+
+static inline int regmap_field_write(struct regmap_field *field,
+				     unsigned int val)
+{
+	return regmap_field_update_bits_base(field, ~0, val,
+					     NULL, false, false);
+}
+
+static inline int regmap_field_force_write(struct regmap_field *field,
+					   unsigned int val)
+{
+	return regmap_field_update_bits_base(field, ~0, val, NULL, false, true);
+}
+
+static inline int regmap_field_update_bits(struct regmap_field *field,
+					   unsigned int mask, unsigned int val)
+{
+	return regmap_field_update_bits_base(field, mask, val,
+					     NULL, false, false);
+}
+
+static inline int
+regmap_field_force_update_bits(struct regmap_field *field,
+			       unsigned int mask, unsigned int val)
+{
+	return regmap_field_update_bits_base(field, mask, val,
+					     NULL, false, true);
+}
+
+static inline int regmap_fields_write(struct regmap_field *field,
+				      unsigned int id, unsigned int val)
+{
+	return regmap_fields_update_bits_base(field, id, ~0, val,
+					      NULL, false, false);
+}
+
+static inline int regmap_fields_force_write(struct regmap_field *field,
+					    unsigned int id, unsigned int val)
+{
+	return regmap_fields_update_bits_base(field, id, ~0, val,
+					      NULL, false, true);
+}
+
+static inline int
+regmap_fields_update_bits(struct regmap_field *field, unsigned int id,
+			  unsigned int mask, unsigned int val)
+{
+	return regmap_fields_update_bits_base(field, id, mask, val,
+					      NULL, false, false);
+}
+
+static inline int
+regmap_fields_force_update_bits(struct regmap_field *field, unsigned int id,
+				unsigned int mask, unsigned int val)
+{
+	return regmap_fields_update_bits_base(field, id, mask, val,
+					      NULL, false, true);
+}
+
 /**
  * struct regmap_irq_type - IRQ type definitions.
  *
@@ -1453,6 +1518,103 @@ static inline int regmap_fields_update_bits_base(struct regmap_field *field,
 				   unsigned int id,
 				   unsigned int mask, unsigned int val,
 				   bool *change, bool async, bool force)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits(struct regmap *map, unsigned int reg,
+				     unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits_async(struct regmap *map, unsigned int reg,
+					   unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_update_bits_check(struct regmap *map, unsigned int reg,
+					   unsigned int mask, unsigned int val,
+					   bool *change)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int
+regmap_update_bits_check_async(struct regmap *map, unsigned int reg,
+			       unsigned int mask, unsigned int val,
+			       bool *change)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_write_bits(struct regmap *map, unsigned int reg,
+				    unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_write(struct regmap_field *field,
+				     unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_force_write(struct regmap_field *field,
+					   unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_field_update_bits(struct regmap_field *field,
+					   unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int
+regmap_field_force_update_bits(struct regmap_field *field,
+			       unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_fields_write(struct regmap_field *field,
+				      unsigned int id, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int regmap_fields_force_write(struct regmap_field *field,
+					    unsigned int id, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int
+regmap_fields_update_bits(struct regmap_field *field, unsigned int id,
+			  unsigned int mask, unsigned int val)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return -EINVAL;
+}
+
+static inline int
+regmap_fields_force_update_bits(struct regmap_field *field, unsigned int id,
+				unsigned int mask, unsigned int val)
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
