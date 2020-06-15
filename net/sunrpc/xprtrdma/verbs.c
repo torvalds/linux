@@ -132,14 +132,13 @@ static void rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 
 /**
  * rpcrdma_flush_disconnect - Disconnect on flushed completion
- * @cq: completion queue
+ * @r_xprt: transport to disconnect
  * @wc: work completion entry
  *
  * Must be called in process context.
  */
-void rpcrdma_flush_disconnect(struct ib_cq *cq, struct ib_wc *wc)
+void rpcrdma_flush_disconnect(struct rpcrdma_xprt *r_xprt, struct ib_wc *wc)
 {
-	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
 
 	if (wc->status != IB_WC_SUCCESS &&
@@ -160,11 +159,12 @@ static void rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct ib_cqe *cqe = wc->wr_cqe;
 	struct rpcrdma_sendctx *sc =
 		container_of(cqe, struct rpcrdma_sendctx, sc_cqe);
+	struct rpcrdma_xprt *r_xprt = cq->cq_context;
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_send(sc, wc);
-	rpcrdma_sendctx_put_locked((struct rpcrdma_xprt *)cq->cq_context, sc);
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_sendctx_put_locked(r_xprt, sc);
+	rpcrdma_flush_disconnect(r_xprt, wc);
 }
 
 /**
@@ -199,7 +199,7 @@ static void rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	return;
 
 out_flushed:
-	rpcrdma_flush_disconnect(cq, wc);
+	rpcrdma_flush_disconnect(r_xprt, wc);
 	rpcrdma_rep_destroy(rep);
 }
 
