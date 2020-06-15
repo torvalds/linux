@@ -70,15 +70,17 @@ __drm_gem_shmem_create(struct drm_device *dev, size_t size, bool private)
 	mutex_init(&shmem->vmap_lock);
 	INIT_LIST_HEAD(&shmem->madv_list);
 
-	/*
-	 * Our buffers are kept pinned, so allocating them
-	 * from the MOVABLE zone is a really bad idea, and
-	 * conflicts with CMA. See comments above new_inode()
-	 * why this is required _and_ expected if you're
-	 * going to pin these pages.
-	 */
-	mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
-			     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	if (!private) {
+		/*
+		 * Our buffers are kept pinned, so allocating them
+		 * from the MOVABLE zone is a really bad idea, and
+		 * conflicts with CMA. See comments above new_inode()
+		 * why this is required _and_ expected if you're
+		 * going to pin these pages.
+		 */
+		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER |
+				     __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
+	}
 
 	return shmem;
 
