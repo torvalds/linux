@@ -24,12 +24,6 @@ struct module;
 struct tty_struct;
 struct notifier_block;
 
-/*
- * this is what the terminal answers to a ESC-Z or csi0c query.
- */
-#define VT100ID "\033[?1;2c"
-#define VT102ID "\033[?6c"
-
 enum con_scroll {
 	SM_UP,
 	SM_DOWN,

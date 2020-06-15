@@ -1397,12 +1397,6 @@ enum { EPecma = 0, EPdec, EPeq, EPgt, EPlt};
 #define kbdapplic	VC_APPLIC
 #define lnm		VC_CRLF
 
-/*
- * this is what the terminal answers to a ESC-Z or csi0c query.
- */
-#define VT100ID "\033[?1;2c"
-#define VT102ID "\033[?6c"
-
 const unsigned char color_table[] = { 0, 4, 2, 6, 1, 5, 3, 7,
 				       8,12,10,14, 9,13,11,15 };
 
@@ -1835,7 +1829,10 @@ static inline void status_report(struct tty_struct *tty)
 
 static inline void respond_ID(struct tty_struct *tty)
 {
-	respond_string(VT102ID, strlen(VT102ID), tty->port);
+	/* terminal answer to an ESC-Z or csi0c query. */
+	static const char vt102_id[] = "\033[?6c";
+
+	respond_string(vt102_id, strlen(vt102_id), tty->port);
 }
 
 void mouse_report(struct tty_struct *tty, int butt, int mrx, int mry)
