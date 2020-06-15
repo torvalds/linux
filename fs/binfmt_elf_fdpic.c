@@ -1482,7 +1482,8 @@ static struct elf_thread_status *elf_dump_thread_status(long signr, struct task_
 	t->num_notes++;
 	*sz += notesize(&t->notes[0]);
 
-	t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, NULL, &t->fpu);
+	t->prstatus.pr_fpvalid = elf_core_copy_task_fpregs(p, task_pt_regs(p),
+							   &t->fpu);
 	if (t->prstatus.pr_fpvalid) {
 		fill_note(&t->notes[1], "CORE", NT_PRFPREG, sizeof(t->fpu),
 			  &t->fpu);
@@ -1568,19 +1569,15 @@ static size_t elf_core_vma_data_size(unsigned long mm_flags)
  */
 static int elf_fdpic_core_dump(struct coredump_params *cprm)
 {
-#define	NUM_NOTES	6
 	int has_dumped = 0;
 	int segs;
 	int i;
 	struct vm_area_struct *vma;
 	struct elfhdr *elf = NULL;
 	loff_t offset = 0, dataoff;
-	int numnote;
-	struct memelfnote *notes = NULL;
-	struct elf_prstatus_fdpic *prstatus = NULL;	/* NT_PRSTATUS */
+	struct memelfnote psinfo_note, auxv_note;
 	struct elf_prpsinfo *psinfo = NULL;	/* NT_PRPSINFO */
 	struct elf_thread_status *thread_list = NULL;
-	elf_fpregset_t *fpu = NULL;
 	int thread_status_size = 0;
 	elf_addr_t *auxv;
 	struct elf_phdr *phdr4note = NULL;
@@ -1606,18 +1603,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	elf = kmalloc(sizeof(*elf), GFP_KERNEL);
 	if (!elf)
 		goto end_coredump;
-	prstatus = kzalloc(sizeof(*prstatus), GFP_KERNEL);
-	if (!prstatus)
-		goto end_coredump;
 	psinfo = kmalloc(sizeof(*psinfo), GFP_KERNEL);
 	if (!psinfo)
-		goto end_coredump;
-	notes = kmalloc_array(NUM_NOTES, sizeof(struct memelfnote),
-			      GFP_KERNEL);
-	if (!notes)
-		goto end_coredump;
-	fpu = kmalloc(sizeof(*fpu), GFP_KERNEL);
-	if (!fpu)
 		goto end_coredump;
 
 	for (ct = current->mm->core_state->dumper.next;
@@ -1632,8 +1619,12 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	}
 
 	/* now collect the dump for the current */
-	fill_prstatus(prstatus, current, cprm->siginfo->si_signo);
-	elf_core_copy_regs(&prstatus->pr_reg, cprm->regs);
+	tmp = elf_dump_thread_status(cprm->siginfo->si_signo,
+				     current, &thread_status_size);
+	if (!tmp)
+		goto end_coredump;
+	tmp->next = thread_list;
+	thread_list = tmp;
 
 	segs = current->mm->map_count;
 	segs += elf_core_extra_phdrs();
@@ -1655,46 +1646,28 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	 * with info from their /proc.
 	 */
 
-	fill_note(notes + 0, "CORE", NT_PRSTATUS, sizeof(*prstatus), prstatus);
 	fill_psinfo(psinfo, current->group_leader, current->mm);
-	fill_note(notes + 1, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
-
-	numnote = 2;
+	fill_note(&psinfo_note, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
+	thread_status_size += notesize(&psinfo_note);
 
 	auxv = (elf_addr_t *) current->mm->saved_auxv;
-
 	i = 0;
 	do
 		i += 2;
 	while (auxv[i - 2] != AT_NULL);
-	fill_note(&notes[numnote++], "CORE", NT_AUXV,
-		  i * sizeof(elf_addr_t), auxv);
+	fill_note(&auxv_note, "CORE", NT_AUXV, i * sizeof(elf_addr_t), auxv);
+	thread_status_size += notesize(&auxv_note);
 
-  	/* Try to dump the FPU. */
-	if ((prstatus->pr_fpvalid =
-	     elf_core_copy_task_fpregs(current, cprm->regs, fpu)))
-		fill_note(notes + numnote++,
-			  "CORE", NT_PRFPREG, sizeof(*fpu), fpu);
-
-	offset += sizeof(*elf);				/* Elf header */
+	offset = sizeof(*elf);				/* Elf header */
 	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 
 	/* Write notes phdr entry */
-	{
-		int sz = 0;
+	phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
+	if (!phdr4note)
+		goto end_coredump;
 
-		for (i = 0; i < numnote; i++)
-			sz += notesize(notes + i);
-
-		sz += thread_status_size;
-
-		phdr4note = kmalloc(sizeof(*phdr4note), GFP_KERNEL);
-		if (!phdr4note)
-			goto end_coredump;
-
-		fill_elf_note_phdr(phdr4note, sz, offset);
-		offset += sz;
-	}
+	fill_elf_note_phdr(phdr4note, thread_status_size, offset);
+	offset += thread_status_size;
 
 	/* Page-align dumped data */
 	dataoff = offset = roundup(offset, ELF_EXEC_PAGESIZE);
@@ -1747,12 +1720,18 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 		goto end_coredump;
 
  	/* write out the notes section */
-	for (i = 0; i < numnote; i++)
-		if (!writenote(notes + i, cprm))
+	if (!writenote(thread_list->notes, cprm))
+		goto end_coredump;
+	if (!writenote(&psinfo_note, cprm))
+		goto end_coredump;
+	if (!writenote(&auxv_note, cprm))
+		goto end_coredump;
+	for (i = 1; i < thread_list->num_notes; i++)
+		if (!writenote(thread_list->notes + i, cprm))
 			goto end_coredump;
 
 	/* write out the thread status notes section */
-	for (tmp = thread_list; tmp; tmp = tmp->next) {
+	for (tmp = thread_list->next; tmp; tmp = tmp->next) {
 		for (i = 0; i < tmp->num_notes; i++)
 			if (!writenote(&tmp->notes[i], cprm))
 				goto end_coredump;
@@ -1787,13 +1766,9 @@ end_coredump:
 	}
 	kfree(phdr4note);
 	kfree(elf);
-	kfree(prstatus);
 	kfree(psinfo);
-	kfree(notes);
-	kfree(fpu);
 	kfree(shdr4extnum);
 	return has_dumped;
-#undef NUM_NOTES
 }
 
 #endif		/* CONFIG_ELF_CORE */
