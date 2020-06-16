@@ -1186,7 +1186,7 @@ static ssize_t dp_dsc_bytes_per_pixel_read(struct file *f, char __user *buf,
 
 	snprintf(rd_buf_ptr, str_len,
 		"%d\n",
-		dsc_state.dsc_bytes_per_pixel);
+		dsc_state.dsc_bits_per_pixel);
 	rd_buf_ptr += str_len;
 
 	while (size) {
