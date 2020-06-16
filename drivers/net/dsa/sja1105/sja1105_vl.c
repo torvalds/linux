@@ -593,7 +593,9 @@ int sja1105_vl_gate(struct sja1105_private *priv, int port,
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on DMAC");
 		return -EOPNOTSUPP;
-	} else if (key->type != SJA1105_KEY_VLAN_AWARE_VL) {
+	} else if ((priv->vlan_state == SJA1105_VLAN_BEST_EFFORT ||
+		    priv->vlan_state == SJA1105_VLAN_FILTERING_FULL) &&
+		   key->type != SJA1105_KEY_VLAN_AWARE_VL) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Can only gate based on {DMAC, VID, PCP}");
 		return -EOPNOTSUPP;
