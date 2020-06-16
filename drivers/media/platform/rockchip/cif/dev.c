@@ -632,6 +632,38 @@ static const char * const rk3328_cif_rsts[] = {
 	"rst_cif_h",
 };
 
+static const char * const rk3368_cif_clks[] = {
+	"pclk_cif",
+	"aclk_cif0",
+	"hclk_cif0",
+	"cif0_in",
+};
+
+static const char * const rk3368_cif_rsts[] = {
+	"rst_cif",
+};
+
+static const struct cif_reg rk3368_cif_regs[] = {
+	[CIF_REG_DVP_CTRL] = CIF_REG(CIF_CTRL),
+	[CIF_REG_DVP_INTEN] = CIF_REG(CIF_INTEN),
+	[CIF_REG_DVP_INTSTAT] = CIF_REG(CIF_INTSTAT),
+	[CIF_REG_DVP_FOR] = CIF_REG(CIF_FOR),
+	[CIF_REG_DVP_DMA_IDLE_REQ] = CIF_REG(CIF_DMA_IDLE_REQ),
+	[CIF_REG_DVP_FRM0_ADDR_Y] = CIF_REG(CIF_FRM0_ADDR_Y),
+	[CIF_REG_DVP_FRM0_ADDR_UV] = CIF_REG(CIF_FRM0_ADDR_UV),
+	[CIF_REG_DVP_FRM1_ADDR_Y] = CIF_REG(CIF_FRM1_ADDR_Y),
+	[CIF_REG_DVP_FRM1_ADDR_UV] = CIF_REG(CIF_FRM1_ADDR_UV),
+	[CIF_REG_DVP_VIR_LINE_WIDTH] = CIF_REG(CIF_VIR_LINE_WIDTH),
+	[CIF_REG_DVP_SET_SIZE] = CIF_REG(CIF_SET_SIZE),
+	[CIF_REG_DVP_CROP] = CIF_REG(CIF_CROP),
+	[CIF_REG_DVP_SCL_CTRL] = CIF_REG(CIF_SCL_CTRL),
+	[CIF_REG_DVP_FIFO_ENTRY] = CIF_REG(CIF_FIFO_ENTRY),
+	[CIF_REG_DVP_FRAME_STATUS] = CIF_REG(CIF_FRAME_STATUS),
+	[CIF_REG_DVP_CUR_DST] = CIF_REG(CIF_CUR_DST),
+	[CIF_REG_DVP_LAST_LINE] = CIF_REG(CIF_LAST_LINE),
+	[CIF_REG_DVP_LAST_PIX] = CIF_REG(CIF_LAST_PIX),
+};
+
 static const char * const rv1126_cif_clks[] = {
 	"aclk_cif",
 	"hclk_cif",
@@ -767,6 +799,15 @@ static const struct cif_match_data rk3328_cif_match_data = {
 	.cif_regs = rk3328_cif_regs,
 };
 
+static const struct cif_match_data rk3368_cif_match_data = {
+	.chip_id = CHIP_RK3368_CIF,
+	.clks = rk3368_cif_clks,
+	.clks_num = ARRAY_SIZE(rk3368_cif_clks),
+	.rsts = rk3368_cif_rsts,
+	.rsts_num = ARRAY_SIZE(rk3368_cif_rsts),
+	.cif_regs = rk3368_cif_regs,
+};
+
 static const struct cif_match_data rv1126_cif_match_data = {
 	.chip_id = CHIP_RV1126_CIF,
 	.clks = rv1126_cif_clks,
@@ -796,6 +837,10 @@ static const struct of_device_id rkcif_plat_of_match[] = {
 	{
 		.compatible = "rockchip,rk3328-cif",
 		.data = &rk3328_cif_match_data,
+	},
+	{
+		.compatible = "rockchip,rk3368-cif",
+		.data = &rk3368_cif_match_data,
 	},
 	{
 		.compatible = "rockchip,rv1126-cif",
