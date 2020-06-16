@@ -493,7 +493,7 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 
 	if (!rt1015->dac_is_used) {
 		rt1015->bypass_boost = ucontrol->value.integer.value[0];
-		if (rt1015->bypass_boost == 1) {
+		if (rt1015->bypass_boost == RT1015_Bypass_Boost) {
 			snd_soc_component_write(component,
 				RT1015_PWR4, 0x00b2);
 			snd_soc_component_write(component,
@@ -549,7 +549,7 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		rt1015->dac_is_used = 1;
-		if (rt1015->bypass_boost == 0) {
+		if (rt1015->bypass_boost == RT1015_Enable_Boost) {
 			snd_soc_component_write(component,
 				RT1015_SYS_RST1, 0x05f7);
 			snd_soc_component_write(component,
@@ -566,8 +566,17 @@ static int r1015_dac_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 
+	case SND_SOC_DAPM_POST_PMU:
+		if (rt1015->bypass_boost == RT1015_Bypass_Boost) {
+			regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x00a8);
+			regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x0597);
+			regmap_write(rt1015->regmap, RT1015_SYS_RST1, 0x05f7);
+			regmap_write(rt1015->regmap, RT1015_MAN_I2C, 0x0028);
+		}
+		break;
+
 	case SND_SOC_DAPM_POST_PMD:
-		if (rt1015->bypass_boost == 0) {
+		if (rt1015->bypass_boost == RT1015_Enable_Boost) {
 			snd_soc_component_write(component,
 				RT1015_PWR9, 0xa800);
 			snd_soc_component_write(component,
@@ -617,7 +626,8 @@ static const struct snd_soc_dapm_widget rt1015_dapm_widgets[] = {
 
 	SND_SOC_DAPM_AIF_IN("AIFRX", "AIF Playback", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_DAC_E("DAC", NULL, RT1015_PWR1, RT1015_PWR_DAC_BIT, 0,
-		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+		r1015_dac_event, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU |
+		SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_OUTPUT("SPO"),
 };
