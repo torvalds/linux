@@ -511,6 +511,58 @@ static void rtw8821c_set_tx_power_index(struct rtw_dev *rtwdev)
 	}
 }
 
+static void rtw8821c_false_alarm_statistics(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u32 cck_enable;
+	u32 cck_fa_cnt;
+	u32 ofdm_fa_cnt;
+	u32 crc32_cnt;
+	u32 cca32_cnt;
+
+	cck_enable = rtw_read32(rtwdev, REG_RXPSEL) & BIT(28);
+	cck_fa_cnt = rtw_read16(rtwdev, REG_FA_CCK);
+	ofdm_fa_cnt = rtw_read16(rtwdev, REG_FA_OFDM);
+
+	dm_info->cck_fa_cnt = cck_fa_cnt;
+	dm_info->ofdm_fa_cnt = ofdm_fa_cnt;
+	if (cck_enable)
+		dm_info->total_fa_cnt += cck_fa_cnt;
+	dm_info->total_fa_cnt = ofdm_fa_cnt;
+
+	crc32_cnt = rtw_read32(rtwdev, REG_CRC_CCK);
+	dm_info->cck_ok_cnt = FIELD_GET(GENMASK(15, 0), crc32_cnt);
+	dm_info->cck_err_cnt = FIELD_GET(GENMASK(31, 16), crc32_cnt);
+
+	crc32_cnt = rtw_read32(rtwdev, REG_CRC_OFDM);
+	dm_info->ofdm_ok_cnt = FIELD_GET(GENMASK(15, 0), crc32_cnt);
+	dm_info->ofdm_err_cnt = FIELD_GET(GENMASK(31, 16), crc32_cnt);
+
+	crc32_cnt = rtw_read32(rtwdev, REG_CRC_HT);
+	dm_info->ht_ok_cnt = FIELD_GET(GENMASK(15, 0), crc32_cnt);
+	dm_info->ht_err_cnt = FIELD_GET(GENMASK(31, 16), crc32_cnt);
+
+	crc32_cnt = rtw_read32(rtwdev, REG_CRC_VHT);
+	dm_info->vht_ok_cnt = FIELD_GET(GENMASK(15, 0), crc32_cnt);
+	dm_info->vht_err_cnt = FIELD_GET(GENMASK(31, 16), crc32_cnt);
+
+	cca32_cnt = rtw_read32(rtwdev, REG_CCA_OFDM);
+	dm_info->ofdm_cca_cnt = FIELD_GET(GENMASK(31, 16), cca32_cnt);
+	dm_info->total_cca_cnt = dm_info->ofdm_cca_cnt;
+	if (cck_enable) {
+		cca32_cnt = rtw_read32(rtwdev, REG_CCA_CCK);
+		dm_info->cck_cca_cnt = FIELD_GET(GENMASK(15, 0), cca32_cnt);
+		dm_info->total_cca_cnt += dm_info->cck_cca_cnt;
+	}
+
+	rtw_write32_set(rtwdev, REG_FAS, BIT(17));
+	rtw_write32_clr(rtwdev, REG_FAS, BIT(17));
+	rtw_write32_clr(rtwdev, REG_RXDESC, BIT(15));
+	rtw_write32_set(rtwdev, REG_RXDESC, BIT(15));
+	rtw_write32_set(rtwdev, REG_CNTRST, BIT(0));
+	rtw_write32_clr(rtwdev, REG_CNTRST, BIT(0));
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8821c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -948,6 +1000,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
 	.set_antenna		= NULL,
 	.set_tx_power_index	= rtw8821c_set_tx_power_index,
 	.cfg_ldo25		= rtw8821c_cfg_ldo25,
+	.false_alarm_statistics	= rtw8821c_false_alarm_statistics,
 };
 
 struct rtw_chip_info rtw8821c_hw_spec = {

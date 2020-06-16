@@ -183,13 +183,16 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_ACBB0	0x948
 #define REG_ACBBRXFIR	0x94c
 #define REG_ACGG2TBL	0x958
+#define REG_FAS		0x9a4
 #define REG_RXSB	0xa00
 #define REG_ADCINI	0xa04
 #define REG_TXSF2	0xa24
 #define REG_TXSF6	0xa28
+#define REG_FA_CCK	0xa5c
 #define REG_RXDESC	0xa2c
 #define REG_ENTXCCK	0xa80
 #define REG_TXFILTER	0xaac
+#define REG_CNTRST	0xb58
 #define REG_AGCTR_A	0xc08
 #define REG_TXSCALE_A	0xc1c
 #define REG_TXDFIR	0xc20
@@ -201,6 +204,13 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_RFEINV	0xcbc
 #define REG_AGCTR_B	0xe08
 #define REG_RXIGI_B	0xe50
+#define REG_CRC_CCK	0xf04
+#define REG_CRC_OFDM	0xf14
+#define REG_CRC_HT	0xf10
+#define REG_CRC_VHT	0xf0c
+#define REG_CCA_OFDM	0xf08
+#define REG_FA_OFDM	0xf48
+#define REG_CCA_CCK	0xfcc
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
 
