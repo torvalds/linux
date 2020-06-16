@@ -151,6 +151,19 @@ struct dfl_fpga_port_dma_unmap {
 
 #define DFL_FPGA_PORT_DMA_UNMAP		_IO(DFL_FPGA_MAGIC, DFL_PORT_BASE + 4)
 
+/**
+ * struct dfl_fpga_irq_set - the argument for DFL_FPGA_XXX_SET_IRQ ioctl.
+ *
+ * @start: Index of the first irq.
+ * @count: The number of eventfd handler.
+ * @evtfds: Eventfd handlers.
+ */
+struct dfl_fpga_irq_set {
+	__u32 start;
+	__u32 count;
+	__s32 evtfds[];
+};
+
 /* IOCTLs for FME file descriptor */
 
 /**
