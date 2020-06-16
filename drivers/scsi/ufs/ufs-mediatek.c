@@ -185,8 +185,8 @@ static void ufs_mtk_setup_ref_clk_wait_us(struct ufs_hba *hba,
 	host->ref_clk_ungating_wait_us = ungating_us;
 }
 
-int ufs_mtk_wait_link_state(struct ufs_hba *hba, u32 state,
-			    unsigned long max_wait_ms)
+static int ufs_mtk_wait_link_state(struct ufs_hba *hba, u32 state,
+				   unsigned long max_wait_ms)
 {
 	ktime_t timeout, time_checked;
 	u32 val;
