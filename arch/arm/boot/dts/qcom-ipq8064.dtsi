@@ -425,6 +425,13 @@
 			qcom,controller-type = "pmic-arbiter";
 		};
 
+		qfprom: qfprom@700000 {
+			compatible = "qcom,qfprom";
+			reg = <0x00700000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+		};
+
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-ipq8064";
 			reg = <0x00900000 0x4000>;
