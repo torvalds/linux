@@ -754,6 +754,7 @@ EXPORT_SYMBOL(__kcsan_check_access);
  */
 
 #define DEFINE_TSAN_READ_WRITE(size)                                           \
+	void __tsan_read##size(void *ptr);                                     \
 	void __tsan_read##size(void *ptr)                                      \
 	{                                                                      \
 		check_access(ptr, size, 0);                                    \
@@ -762,6 +763,7 @@ EXPORT_SYMBOL(__kcsan_check_access);
 	void __tsan_unaligned_read##size(void *ptr)                            \
 		__alias(__tsan_read##size);                                    \
 	EXPORT_SYMBOL(__tsan_unaligned_read##size);                            \
+	void __tsan_write##size(void *ptr);                                    \
 	void __tsan_write##size(void *ptr)                                     \
 	{                                                                      \
 		check_access(ptr, size, KCSAN_ACCESS_WRITE);                   \
@@ -777,12 +779,14 @@ DEFINE_TSAN_READ_WRITE(4);
 DEFINE_TSAN_READ_WRITE(8);
 DEFINE_TSAN_READ_WRITE(16);
 
+void __tsan_read_range(void *ptr, size_t size);
 void __tsan_read_range(void *ptr, size_t size)
 {
 	check_access(ptr, size, 0);
 }
 EXPORT_SYMBOL(__tsan_read_range);
 
+void __tsan_write_range(void *ptr, size_t size);
 void __tsan_write_range(void *ptr, size_t size)
 {
 	check_access(ptr, size, KCSAN_ACCESS_WRITE);
@@ -799,6 +803,7 @@ EXPORT_SYMBOL(__tsan_write_range);
  * the size-check of compiletime_assert_rwonce_type().
  */
 #define DEFINE_TSAN_VOLATILE_READ_WRITE(size)                                  \
+	void __tsan_volatile_read##size(void *ptr);                            \
 	void __tsan_volatile_read##size(void *ptr)                             \
 	{                                                                      \
 		const bool is_atomic = size <= sizeof(long long) &&            \
@@ -811,6 +816,7 @@ EXPORT_SYMBOL(__tsan_write_range);
 	void __tsan_unaligned_volatile_read##size(void *ptr)                   \
 		__alias(__tsan_volatile_read##size);                           \
 	EXPORT_SYMBOL(__tsan_unaligned_volatile_read##size);                   \
+	void __tsan_volatile_write##size(void *ptr);                           \
 	void __tsan_volatile_write##size(void *ptr)                            \
 	{                                                                      \
 		const bool is_atomic = size <= sizeof(long long) &&            \
@@ -836,14 +842,17 @@ DEFINE_TSAN_VOLATILE_READ_WRITE(16);
  * The below are not required by KCSAN, but can still be emitted by the
  * compiler.
  */
+void __tsan_func_entry(void *call_pc);
 void __tsan_func_entry(void *call_pc)
 {
 }
 EXPORT_SYMBOL(__tsan_func_entry);
+void __tsan_func_exit(void);
 void __tsan_func_exit(void)
 {
 }
 EXPORT_SYMBOL(__tsan_func_exit);
+void __tsan_init(void);
 void __tsan_init(void)
 {
 }
