@@ -11,7 +11,7 @@ endif
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 
-tune-mcpu-def-$(CONFIG_ISA_ARCOMPACT)	:= -mA7
+tune-mcpu-def-$(CONFIG_ISA_ARCOMPACT)	:= -mcpu=arc700
 tune-mcpu-def-$(CONFIG_ISA_ARCV2)	:= -mcpu=hs38
 
 ifeq ($(CONFIG_ARC_TUNE_MCPU),"")
