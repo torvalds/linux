@@ -1901,7 +1901,6 @@ static int ath11k_qmi_load_bdf(struct ath11k_base *ab)
 			goto out_qmi_bdf;
 		}
 	}
-	ath11k_info(ab, "qmi BDF downloaded\n");
 
 out_qmi_bdf:
 	iounmap(bdf_addr);
