@@ -1547,6 +1547,22 @@
 		status = "disabled";
 	};
 
+	cif_new: cif-new@ff950000 {
+		compatible = "rockchip,rk3368-cif";
+		reg = <0x0 0xff950000 0x0 0x400>;
+		interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru PCLK_VIP>, <&cru ACLK_VIP>, <&cru HCLK_VIP>,
+				<&cru SCLK_VIP_SRC>, <&cru SCLK_VIP_OUT>;
+		clock-names = "pclk_cif", "aclk_cif0", "hclk_cif0",
+				"cif0_in", "cif0_out";
+		resets = <&cru SRST_VIP>;
+		reset-names = "rst_cif";
+		rockchip,grf = <&grf>;
+		power-domains = <&power RK3368_PD_VIO>;
+		iommus = <&vip_mmu>;
+		status = "disabled";
+	};
+
 	vip_mmu: iommu@ff950800{
 		compatible = "rockchip,iommu";
 		reg = <0x0 0xff950800 0x0 0x100>;
