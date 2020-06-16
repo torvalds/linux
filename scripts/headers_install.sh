@@ -11,7 +11,7 @@ then
 	echo "asm/inline/volatile keywords."
 	echo
 	echo "INFILE: header file to operate on"
-	echo "OUTFILE: output file which the processed header is writen to"
+	echo "OUTFILE: output file which the processed header is written to"
 
 	exit 1
 fi
