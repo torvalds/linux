@@ -1669,6 +1669,8 @@ static int nvme_pci_configure_admin_queue(struct nvme_dev *dev)
 	if (result)
 		return result;
 
+	dev->ctrl.numa_node = dev_to_node(dev->dev);
+
 	nvmeq = &dev->queues[0];
 	aqa = nvmeq->q_depth - 1;
 	aqa |= aqa << 16;
