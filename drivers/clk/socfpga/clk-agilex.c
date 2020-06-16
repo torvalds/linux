@@ -294,8 +294,12 @@ static const struct stratix10_gate_clock agilex_gate_clks[] = {
 	  8, 0, 0, 0, 0, 0, 0},
 	{ AGILEX_SPI_M_CLK, "spi_m_clk", "l4_mp_clk", NULL, 1, 0, 0x7C,
 	  9, 0, 0, 0, 0, 0, 0},
-	{ AGILEX_NAND_CLK, "nand_clk", "l4_main_clk", NULL, 1, 0, 0x7C,
+	{ AGILEX_NAND_X_CLK, "nand_x_clk", "l4_mp_clk", NULL, 1, 0, 0x7C,
 	  10, 0, 0, 0, 0, 0, 0},
+	{ AGILEX_NAND_CLK, "nand_clk", "nand_x_clk", NULL, 1, 0, 0x7C,
+	  10, 0, 0, 0, 0, 0, 4},
+	{ AGILEX_NAND_ECC_CLK, "nand_ecc_clk", "nand_x_clk", NULL, 1, 0, 0x7C,
+	  10, 0, 0, 0, 0, 0, 4},
 };
 
 static int agilex_clk_register_c_perip(const struct stratix10_perip_c_clock *clks,
