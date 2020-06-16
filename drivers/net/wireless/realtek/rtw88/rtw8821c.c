@@ -563,6 +563,39 @@ static void rtw8821c_false_alarm_statistics(struct rtw_dev *rtwdev)
 	rtw_write32_clr(rtwdev, REG_CNTRST, BIT(0));
 }
 
+static void rtw8821c_do_iqk(struct rtw_dev *rtwdev)
+{
+	static int do_iqk_cnt;
+	struct rtw_iqk_para para = {.clear = 0, .segment_iqk = 0};
+	u32 rf_reg, iqk_fail_mask;
+	int counter;
+	bool reload;
+
+	if (rtw_is_assoc(rtwdev))
+		para.segment_iqk = 1;
+
+	rtw_fw_do_iqk(rtwdev, &para);
+
+	for (counter = 0; counter < 300; counter++) {
+		rf_reg = rtw_read_rf(rtwdev, RF_PATH_A, RF_DTXLOK, RFREG_MASK);
+		if (rf_reg == 0xabcde)
+			break;
+		msleep(20);
+	}
+	rtw_write_rf(rtwdev, RF_PATH_A, RF_DTXLOK, RFREG_MASK, 0x0);
+
+	reload = !!rtw_read32_mask(rtwdev, REG_IQKFAILMSK, BIT(16));
+	iqk_fail_mask = rtw_read32_mask(rtwdev, REG_IQKFAILMSK, GENMASK(7, 0));
+	rtw_dbg(rtwdev, RTW_DBG_PHY,
+		"iqk counter=%d reload=%d do_iqk_cnt=%d n_iqk_fail(mask)=0x%02x\n",
+		counter, reload, ++do_iqk_cnt, iqk_fail_mask);
+}
+
+static void rtw8821c_phy_calibration(struct rtw_dev *rtwdev)
+{
+	rtw8821c_do_iqk(rtwdev);
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8821c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -1001,6 +1034,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
 	.set_tx_power_index	= rtw8821c_set_tx_power_index,
 	.cfg_ldo25		= rtw8821c_cfg_ldo25,
 	.false_alarm_statistics	= rtw8821c_false_alarm_statistics,
+	.phy_calibration	= rtw8821c_phy_calibration,
 };
 
 struct rtw_chip_info rtw8821c_hw_spec = {
