@@ -447,6 +447,8 @@ static inline void spi_unregister_driver(struct spi_driver *sdrv)
  *	If the driver does not set this, the SPI core takes the snapshot as
  *	close to the driver hand-over as possible.
  * @irq_flags: Interrupt enable state during PTP system timestamping
+ * @fallback: fallback to pio if dma transfer return failure with
+ *	SPI_TRANS_FAIL_NO_START.
  *
  * Each SPI controller can communicate with one or more @spi_device
  * children.  These make a small bus, sharing MOSI, MISO and SCK signals
@@ -602,6 +604,7 @@ struct spi_controller {
 	bool				auto_runtime_pm;
 	bool                            cur_msg_prepared;
 	bool				cur_msg_mapped;
+	bool                            fallback;
 	struct completion               xfer_completion;
 	size_t				max_dma_len;
 
@@ -847,6 +850,7 @@ extern void spi_res_release(struct spi_controller *ctlr,
  *	back unset and they need the better resolution.
  * @timestamped_post: See above. The reason why both exist is that these
  *	booleans are also used to keep state in the core SPI logic.
+ * @error: Error status logged by spi controller driver.
  *
  * SPI transfers always write the same number of bytes as they read.
  * Protocol drivers should always provide @rx_buf and/or @tx_buf.
@@ -940,6 +944,9 @@ struct spi_transfer {
 	bool		timestamped;
 
 	struct list_head transfer_list;
+
+#define SPI_TRANS_FAIL_NO_START	BIT(0)
+	u16		error;
 };
 
 /**
