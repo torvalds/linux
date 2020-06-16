@@ -329,6 +329,8 @@ rollback:
 
 /**
  * fsverity_ioctl_enable() - enable verity on a file
+ * @filp: file to enable verity on
+ * @uarg: user pointer to fsverity_enable_arg
  *
  * Enable fs-verity on a file.  See the "FS_IOC_ENABLE_VERITY" section of
  * Documentation/filesystems/fsverity.rst for the documentation.

@@ -53,6 +53,7 @@ struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags)
 
 /**
  * fscrypt_free_bounce_page() - free a ciphertext bounce page
+ * @bounce_page: the bounce page to free, or NULL
  *
  * Free a bounce page that was allocated by fscrypt_encrypt_pagecache_blocks(),
  * or by fscrypt_alloc_bounce_page() directly.
@@ -143,7 +144,8 @@ int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
 }
 
 /**
- * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a pagecache page
+ * fscrypt_encrypt_pagecache_blocks() - Encrypt filesystem blocks from a
+ *					pagecache page
  * @page:      The locked pagecache page containing the block(s) to encrypt
  * @len:       Total size of the block(s) to encrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -233,7 +235,8 @@ int fscrypt_encrypt_block_inplace(const struct inode *inode, struct page *page,
 EXPORT_SYMBOL(fscrypt_encrypt_block_inplace);
 
 /**
- * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a pagecache page
+ * fscrypt_decrypt_pagecache_blocks() - Decrypt filesystem blocks in a
+ *					pagecache page
  * @page:      The locked pagecache page containing the block(s) to decrypt
  * @len:       Total size of the block(s) to decrypt.  Must be a nonzero
  *		multiple of the filesystem's block size.
@@ -357,6 +360,8 @@ void fscrypt_msg(const struct inode *inode, const char *level,
 
 /**
  * fscrypt_init() - Set up for fs encryption.
+ *
+ * Return: 0 on success; -errno on failure
  */
 static int __init fscrypt_init(void)
 {

@@ -217,8 +217,12 @@ fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
                        pass, but the performance will regress. "nobarrier" is
                        based on "posix", but doesn't issue flush command for
                        non-atomic files likewise "nobarrier" mount option.
-test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
+test_dummy_encryption
+test_dummy_encryption=%s
+                       Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
+                       The argument may be either "v1" or "v2", in order to
+                       select the corresponding fscrypt policy version.
 checkpoint=%s[:%u[%]]     Set to "disable" to turn off checkpointing. Set to "enable"
                        to reenable checkpointing. Is enabled by default. While
                        disabled, any unmounting or unexpected shutdowns will cause
