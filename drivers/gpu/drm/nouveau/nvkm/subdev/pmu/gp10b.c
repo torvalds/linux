@@ -93,7 +93,8 @@ MODULE_FIRMWARE("nvidia/gp10b/pmu/sig.bin");
 
 static const struct nvkm_pmu_fwif
 gp10b_pmu_fwif[] = {
-	{ 0, gm20b_pmu_load, &gp10b_pmu, &gp10b_pmu_acr },
+	{  0, gm20b_pmu_load, &gp10b_pmu, &gp10b_pmu_acr },
+	{ -1, gm200_pmu_nofw, &gp10b_pmu },
 	{}
 };
 

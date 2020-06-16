@@ -234,7 +234,8 @@ gm20b_pmu_load(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
 
 static const struct nvkm_pmu_fwif
 gm20b_pmu_fwif[] = {
-	{ 0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
+	{  0, gm20b_pmu_load, &gm20b_pmu, &gm20b_pmu_acr },
+	{ -1, gm200_pmu_nofw, &gm20b_pmu },
 	{}
 };
 

@@ -30,9 +30,17 @@ gm200_pmu = {
 	.reset = gf100_pmu_reset,
 };
 
+
+int
+gm200_pmu_nofw(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
+{
+	nvkm_warn(&pmu->subdev, "firmware unavailable\n");
+	return 0;
+}
+
 static const struct nvkm_pmu_fwif
 gm200_pmu_fwif[] = {
-	{ -1, gf100_pmu_nofw, &gm200_pmu },
+	{ -1, gm200_pmu_nofw, &gm200_pmu },
 	{}
 };
 
