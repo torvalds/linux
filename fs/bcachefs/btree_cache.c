@@ -310,7 +310,7 @@ restart:
 			if (freed >= nr)
 				goto out;
 
-			if (sc->gfp_mask & __GFP_IO)
+			if (sc->gfp_mask & __GFP_FS)
 				mutex_lock(&bc->lock);
 			else if (!mutex_trylock(&bc->lock))
 				goto out;
