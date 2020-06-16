@@ -73,7 +73,7 @@ static void da7219_aad_btn_det_work(struct work_struct *work)
 	snd_soc_dapm_sync(dapm);
 
 	do {
-		statusa = snd_soc_component_read32(component, DA7219_ACCDET_STATUS_A);
+		statusa = snd_soc_component_read(component, DA7219_ACCDET_STATUS_A);
 		if (statusa & DA7219_MICBIAS_UP_STS_MASK)
 			micbias_up = true;
 		else if (retries++ < DA7219_AAD_MICBIAS_CHK_RETRIES)
@@ -91,7 +91,7 @@ static void da7219_aad_btn_det_work(struct work_struct *work)
 	 */
 	if (da7219_aad->micbias_pulse_lvl && da7219_aad->micbias_pulse_time) {
 		/* Pulse higher level voltage */
-		micbias_ctrl = snd_soc_component_read32(component, DA7219_MICBIAS_CTRL);
+		micbias_ctrl = snd_soc_component_read(component, DA7219_MICBIAS_CTRL);
 		snd_soc_component_update_bits(component, DA7219_MICBIAS_CTRL,
 				    DA7219_MICBIAS1_LEVEL_MASK,
 				    da7219_aad->micbias_pulse_lvl);
@@ -141,11 +141,11 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	 * If MCLK is present, but PLL is not enabled then we enable it here to
 	 * ensure a consistent detection procedure.
 	 */
-	pll_srm_sts = snd_soc_component_read32(component, DA7219_PLL_SRM_STS);
+	pll_srm_sts = snd_soc_component_read(component, DA7219_PLL_SRM_STS);
 	if (pll_srm_sts & DA7219_PLL_SRM_STS_MCLK) {
 		tonegen_freq_hptest = cpu_to_le16(DA7219_AAD_HPTEST_RAMP_FREQ);
 
-		pll_ctrl = snd_soc_component_read32(component, DA7219_PLL_CTRL);
+		pll_ctrl = snd_soc_component_read(component, DA7219_PLL_CTRL);
 		if ((pll_ctrl & DA7219_PLL_MODE_MASK) == DA7219_PLL_MODE_BYPASS)
 			da7219_set_pll(component, DA7219_SYSCLK_PLL,
 				       DA7219_PLL_FREQ_OUT_98304);
@@ -154,7 +154,7 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	}
 
 	/* Ensure gain ramping at fastest rate */
-	gain_ramp_ctrl = snd_soc_component_read32(component, DA7219_GAIN_RAMP_CTRL);
+	gain_ramp_ctrl = snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
 	snd_soc_component_write(component, DA7219_GAIN_RAMP_CTRL, DA7219_GAIN_RAMP_RATE_X8);
 
 	/* Bypass cache so it saves current settings */
@@ -248,7 +248,7 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	msleep(DA7219_AAD_HPTEST_PERIOD);
 
 	/* Grab comparator reading */
-	accdet_cfg8 = snd_soc_component_read32(component, DA7219_ACCDET_CONFIG_8);
+	accdet_cfg8 = snd_soc_component_read(component, DA7219_ACCDET_CONFIG_8);
 	if (accdet_cfg8 & DA7219_HPTEST_COMP_MASK)
 		report |= SND_JACK_HEADPHONE;
 	else
@@ -357,7 +357,7 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 		return IRQ_NONE;
 
 	/* Read status register for jack insertion & type status */
-	statusa = snd_soc_component_read32(component, DA7219_ACCDET_STATUS_A);
+	statusa = snd_soc_component_read(component, DA7219_ACCDET_STATUS_A);
 
 	/* Clear events */
 	regmap_bulk_write(da7219->regmap, DA7219_ACCDET_IRQ_EVENT_A,
@@ -847,7 +847,7 @@ void da7219_aad_suspend(struct snd_soc_component *component)
 		 * suspend then this will be dealt with through the IRQ handler.
 		 */
 		if (da7219_aad->jack_inserted) {
-			micbias_ctrl = snd_soc_component_read32(component, DA7219_MICBIAS_CTRL);
+			micbias_ctrl = snd_soc_component_read(component, DA7219_MICBIAS_CTRL);
 			if (micbias_ctrl & DA7219_MICBIAS1_EN_MASK) {
 				snd_soc_dapm_disable_pin(dapm, "Mic Bias");
 				snd_soc_dapm_sync(dapm);
