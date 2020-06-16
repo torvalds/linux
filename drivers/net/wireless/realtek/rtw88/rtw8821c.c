@@ -579,6 +579,10 @@ static const struct rtw_rfe_def rtw8821c_rfe_defs[] = {
 	[0] = RTW_DEF_RFE(8821c, 0, 0),
 };
 
+static struct rtw_hw_reg rtw8821c_dig[] = {
+	[0] = { .addr = 0xc50, .mask = 0x7f },
+};
+
 static const struct rtw_ltecoex_addr rtw8821c_ltecoex_addr = {
 	.ctrl = LTECOEX_ACCESS_CTRL,
 	.wdata = LTECOEX_WRITE_DATA,
@@ -660,6 +664,7 @@ struct rtw_chip_info rtw8821c_hw_spec = {
 	.csi_buf_pg_num = 0,
 	.band = RTW_BAND_2G | RTW_BAND_5G,
 	.page_size = 128,
+	.dig_min = 0x1c,
 	.ht_supported = true,
 	.vht_supported = true,
 	.lps_deep_mode_supported = BIT(LPS_DEEP_MODE_LCLK),
@@ -670,6 +675,7 @@ struct rtw_chip_info rtw8821c_hw_spec = {
 	.rqpn_table = rqpn_table_8821c,
 	.prioq_addrs = &prioq_addrs_8821c,
 	.intf_table = &phy_para_table_8821c,
+	.dig = rtw8821c_dig,
 	.rf_base_addr = {0x2800, 0x2c00},
 	.rf_sipi_addr = {0xc90, 0xe90},
 	.ltecoex_addr = &rtw8821c_ltecoex_addr,
