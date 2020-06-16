@@ -535,6 +535,9 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 		return r;
 	}
 
+	if (adev->enable_mes)
+		queue_mask = ~0ULL;
+
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
 	for (i = 0; i < adev->gfx.num_compute_rings; i++)
 		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
