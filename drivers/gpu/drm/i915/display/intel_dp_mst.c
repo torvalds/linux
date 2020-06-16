@@ -323,7 +323,7 @@ static void clear_act_sent(struct intel_dp *intel_dp)
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	intel_de_write(i915, intel_dp->regs.dp_tp_status,
-		       intel_de_read(i915, intel_dp->regs.dp_tp_status));
+		       DP_TP_STATUS_ACT_SENT);
 }
 
 static void wait_for_act_sent(struct intel_dp *intel_dp)
