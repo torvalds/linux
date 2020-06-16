@@ -224,7 +224,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(master);
 
-	if (!use_dma)
+	if (!use_dma || master->fallback)
 		return false;
 
 	if (!master->dma_rx)
@@ -1364,11 +1364,12 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 
 	ret = spi_imx_dma_configure(master);
 	if (ret)
-		return ret;
+		goto dma_failure_no_start;
 
 	if (!spi_imx->devtype_data->setup_wml) {
 		dev_err(spi_imx->dev, "No setup_wml()?\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto dma_failure_no_start;
 	}
 	spi_imx->devtype_data->setup_wml(spi_imx);
 
@@ -1379,8 +1380,10 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	desc_rx = dmaengine_prep_slave_sg(master->dma_rx,
 				rx->sgl, rx->nents, DMA_DEV_TO_MEM,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
-	if (!desc_rx)
-		return -EINVAL;
+	if (!desc_rx) {
+		ret = -EINVAL;
+		goto dma_failure_no_start;
+	}
 
 	desc_rx->callback = spi_imx_dma_rx_callback;
 	desc_rx->callback_param = (void *)spi_imx;
@@ -1425,6 +1428,10 @@ static int spi_imx_dma_transfer(struct spi_imx_data *spi_imx,
 	}
 
 	return transfer->len;
+/* fallback to pio */
+dma_failure_no_start:
+	transfer->error |= SPI_TRANS_FAIL_NO_START;
+	return ret;
 }
 
 static int spi_imx_pio_transfer(struct spi_device *spi,
@@ -1507,7 +1514,6 @@ static int spi_imx_transfer(struct spi_device *spi,
 				struct spi_transfer *transfer)
 {
 	struct spi_imx_data *spi_imx = spi_master_get_devdata(spi->master);
-	int ret;
 
 	/* flush rxfifo before transfer */
 	while (spi_imx->devtype_data->rx_available(spi_imx))
@@ -1516,21 +1522,8 @@ static int spi_imx_transfer(struct spi_device *spi,
 	if (spi_imx->slave_mode)
 		return spi_imx_pio_transfer_slave(spi, transfer);
 
-	/*
-	 * fallback PIO mode if dma setup error happen, for example sdma
-	 * firmware may not be updated as ERR009165 required.
-	 */
-	if (spi_imx->usedma) {
-		ret = spi_imx_dma_transfer(spi_imx, transfer);
-		if (ret != -EINVAL)
-			return ret;
-
-		spi_imx->devtype_data->disable_dma(spi_imx);
-
-		spi_imx->usedma = false;
-		spi_imx->dynamic_burst = spi_imx->devtype_data->dynamic_burst;
-		dev_dbg(&spi->dev, "Fallback to PIO mode\n");
-	}
+	if (spi_imx->usedma)
+		return spi_imx_dma_transfer(spi_imx, transfer);
 
 	return spi_imx_pio_transfer(spi, transfer);
 }
