@@ -271,6 +271,10 @@ void intel_dsb_prepare(struct intel_crtc_state *crtc_state)
 		return;
 
 	dsb = kmalloc(sizeof(*dsb), GFP_KERNEL);
+	if (!dsb) {
+		drm_err(&i915->drm, "DSB object creation failed\n");
+		return;
+	}
 
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
