@@ -821,7 +821,7 @@ static int f2fs_compressed_blocks(struct compress_ctx *cc)
 }
 
 /* return # of valid blocks in compressed cluster */
-static int f2fs_cluster_blocks(struct compress_ctx *cc, bool compr)
+static int f2fs_cluster_blocks(struct compress_ctx *cc)
 {
 	return __f2fs_cluster_blocks(cc, false);
 }
@@ -835,7 +835,7 @@ int f2fs_is_compressed_cluster(struct inode *inode, pgoff_t index)
 		.cluster_idx = index >> F2FS_I(inode)->i_log_cluster_size,
 	};
 
-	return f2fs_cluster_blocks(&cc, false);
+	return f2fs_cluster_blocks(&cc);
 }
 
 static bool cluster_may_compress(struct compress_ctx *cc)
@@ -886,7 +886,7 @@ static int prepare_compress_overwrite(struct compress_ctx *cc,
 	bool prealloc;
 
 retry:
-	ret = f2fs_cluster_blocks(cc, false);
+	ret = f2fs_cluster_blocks(cc);
 	if (ret <= 0)
 		return ret;
 
