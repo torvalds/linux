@@ -231,6 +231,7 @@
 #define HFI_RATE_CONTROL_VBR_CFR		0x1000003
 #define HFI_RATE_CONTROL_CBR_VFR		0x1000004
 #define HFI_RATE_CONTROL_CBR_CFR		0x1000005
+#define HFI_RATE_CONTROL_CQ			0x1000008
 
 #define HFI_VIDEO_CODEC_H264			0x00000002
 #define HFI_VIDEO_CODEC_H263			0x00000004
@@ -504,6 +505,7 @@
 #define HFI_PROPERTY_CONFIG_VENC_HIER_P_ENH_LAYER		0x200600b
 #define HFI_PROPERTY_CONFIG_VENC_LTRPERIOD			0x200600c
 #define HFI_PROPERTY_CONFIG_VENC_PERF_MODE			0x200600e
+#define HFI_PROPERTY_CONFIG_HEIC_FRAME_QUALITY			0x2006014
 
 /*
  * HFI_PROPERTY_PARAM_VPE_COMMON_START
@@ -520,7 +522,8 @@
 enum hfi_version {
 	HFI_VERSION_1XX,
 	HFI_VERSION_3XX,
-	HFI_VERSION_4XX
+	HFI_VERSION_4XX,
+	HFI_VERSION_6XX,
 };
 
 struct hfi_buffer_info {
@@ -723,6 +726,11 @@ struct hfi_profile_level_supported {
 
 struct hfi_quality_vs_speed {
 	u32 quality_vs_speed;
+};
+
+struct hfi_heic_frame_quality {
+	u32 frame_quality;
+	u32 reserved[3];
 };
 
 struct hfi_quantization {
