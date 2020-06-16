@@ -28,6 +28,7 @@ struct nvkm_acr_func {
 	void (*wpr_check)(struct nvkm_acr *, u64 *start, u64 *limit);
 	int (*init)(struct nvkm_acr *);
 	void (*fini)(struct nvkm_acr *);
+	u64 bootstrap_falcons;
 };
 
 extern const struct nvkm_acr_func gm200_acr;

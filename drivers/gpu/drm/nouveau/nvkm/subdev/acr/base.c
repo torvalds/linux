@@ -141,12 +141,19 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 	struct nvkm_acr *acr = device->acr;
 	unsigned long id;
 
+	/* If there's no LS FW managing bootstrapping of other LS falcons,
+	 * we depend on the HS firmware being able to do it instead.
+	 */
 	if (!acrflcn) {
-		int ret = nvkm_acr_reload(acr);
-		if (ret)
-			return ret;
+		/* Which isn't possible everywhere... */
+		if ((mask & acr->func->bootstrap_falcons) == mask) {
+			int ret = nvkm_acr_reload(acr);
+			if (ret)
+				return ret;
 
-		return acr->done ? 0 : -EINVAL;
+			return acr->done ? 0 : -EINVAL;
+		}
+		return -ENOSYS;
 	}
 
 	if (acrflcn->func->bootstrap_multiple_falcons) {

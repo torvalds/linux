@@ -446,6 +446,8 @@ gm200_acr_0 = {
 	.wpr_patch = gm200_acr_wpr_patch,
 	.wpr_check = gm200_acr_wpr_check,
 	.init = gm200_acr_init,
+	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
+			     BIT_ULL(NVKM_ACR_LSF_GPCCS),
 };
 
 static int
