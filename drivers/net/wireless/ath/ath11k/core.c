@@ -22,7 +22,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.hw_rev = ATH11K_HW_IPQ8074,
 		.name = "ipq8074 hw2.0",
 		.fw = {
-			.dir = IPQ8074_FW_DIR,
+			.dir = "IPQ8074/hw2.0",
 			.board_size = IPQ8074_MAX_BOARD_DATA_SZ,
 			.cal_size =  IPQ8074_MAX_CAL_DATA_SZ,
 		},
@@ -49,27 +49,23 @@ static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 }
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
-						    const char *dir,
 						    const char *file)
 {
-	char filename[100];
 	const struct firmware *fw;
+	char path[100];
 	int ret;
 
 	if (file == NULL)
 		return ERR_PTR(-ENOENT);
 
-	if (dir == NULL)
-		dir = ".";
+	ath11k_core_create_firmware_path(ab, file, path, sizeof(path));
 
-	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-
-	ret = firmware_request_nowarn(&fw, filename, ab->dev);
+	ret = firmware_request_nowarn(&fw, path, ab->dev);
 	if (ret)
 		return ERR_PTR(ret);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot firmware request %s size %zu\n",
-		   filename, fw->size);
+		   path, fw->size);
 
 	return fw;
 }
@@ -175,9 +171,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 	int ret, ie_id;
 
 	if (!bd->fw)
-		bd->fw = ath11k_core_firmware_request(ab,
-						      ab->hw_params.fw.dir,
-						      filename);
+		bd->fw = ath11k_core_firmware_request(ab, filename);
+
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 
@@ -267,9 +262,7 @@ err:
 static int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 					      struct ath11k_board_data *bd)
 {
-	bd->fw = ath11k_core_firmware_request(ab,
-					      ab->hw_params.fw.dir,
-					      ATH11K_DEFAULT_BOARD_FILE);
+	bd->fw = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_BOARD_FILE);
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 
