@@ -112,6 +112,8 @@ struct ath11k_hw_params {
 	const char *name;
 	u16 hw_rev;
 	u8 max_radios;
+	u32 bdf_addr;
+
 	struct {
 		const char *dir;
 		size_t board_size;
