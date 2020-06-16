@@ -1893,6 +1893,8 @@ static void gaudi_init_pci_dma_qman(struct hl_device *hdev, int dma_id,
 	WREG32(mmDMA0_QM_CP_MSG_BASE3_ADDR_LO_0 + q_off, so_base_ws_lo);
 	WREG32(mmDMA0_QM_CP_MSG_BASE3_ADDR_HI_0 + q_off, so_base_ws_hi);
 
+	WREG32(mmDMA0_QM_CP_BARRIER_CFG_0 + q_off, 0x100);
+
 	/* The following configuration is needed only once per QMAN */
 	if (qman_id == 0) {
 		/* Configure RAZWI IRQ */
