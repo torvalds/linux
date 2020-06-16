@@ -229,7 +229,7 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 	if ((&tbo->mem == mem || tbo->mem.mem_type != TTM_PL_TT) &&
 	    atomic64_read(&mgr->available) < mem->num_pages) {
 		spin_unlock(&mgr->lock);
-		return 0;
+		return -ENOSPC;
 	}
 	atomic64_sub(mem->num_pages, &mgr->available);
 	spin_unlock(&mgr->lock);
@@ -250,7 +250,6 @@ static int amdgpu_gtt_mgr_new(struct ttm_mem_type_manager *man,
 		if (unlikely(r)) {
 			kfree(node);
 			mem->mm_node = NULL;
-			r = 0;
 			goto err_out;
 		}
 	} else {

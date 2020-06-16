@@ -909,10 +909,10 @@ static int ttm_bo_mem_force_space(struct ttm_buffer_object *bo,
 	ticket = dma_resv_locking_ctx(bo->base.resv);
 	do {
 		ret = (*man->func->get_node)(man, bo, place, mem);
-		if (unlikely(ret != 0))
-			return ret;
-		if (mem->mm_node)
+		if (likely(!ret))
 			break;
+		if (unlikely(ret != -ENOSPC))
+			return ret;
 		ret = ttm_mem_evict_first(bdev, mem->mem_type, place, ctx,
 					  ticket);
 		if (unlikely(ret != 0))
@@ -1056,11 +1056,10 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 
 		man = &bdev->man[mem->mem_type];
 		ret = (*man->func->get_node)(man, bo, place, mem);
+		if (ret == -ENOSPC)
+			continue;
 		if (unlikely(ret))
 			goto error;
-
-		if (!mem->mm_node)
-			continue;
 
 		ret = ttm_bo_add_move_fence(bo, man, mem, ctx->no_wait_gpu);
 		if (unlikely(ret)) {
@@ -1126,6 +1125,8 @@ static int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 	mem.page_alignment = bo->mem.page_alignment;
 	mem.bus.io_reserved_vm = false;
 	mem.bus.io_reserved_count = 0;
+	mem.mm_node = NULL;
+
 	/*
 	 * Determine where to move the buffer.
 	 */
