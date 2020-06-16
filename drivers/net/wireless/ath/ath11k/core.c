@@ -26,6 +26,7 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 			.board_size = IPQ8074_MAX_BOARD_DATA_SZ,
 			.cal_size =  IPQ8074_MAX_CAL_DATA_SZ,
 		},
+		.max_radios = 3,
 	},
 };
 
