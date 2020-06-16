@@ -145,6 +145,22 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define WLAN_RX_TSF_CFG		(WLAN_CCK_RX_TSF | (WLAN_OFDM_RX_TSF) << 8)
 #define WLAN_PRE_TXCNT_TIME_TH		0x1E4
 
+/* phy status page0 */
+#define GET_PHY_STAT_P0_PWDB(phy_stat)                                         \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x00), GENMASK(15, 8))
+
+/* phy status page1 */
+#define GET_PHY_STAT_P1_PWDB_A(phy_stat)                                       \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x00), GENMASK(15, 8))
+#define GET_PHY_STAT_P1_PWDB_B(phy_stat)                                       \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x00), GENMASK(23, 16))
+#define GET_PHY_STAT_P1_RF_MODE(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x03), GENMASK(29, 28))
+#define GET_PHY_STAT_P1_L_RXSC(phy_stat)                                       \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(11, 8))
+#define GET_PHY_STAT_P1_HT_RXSC(phy_stat)                                      \
+	le32_get_bits(*((__le32 *)(phy_stat) + 0x01), GENMASK(15, 12))
+
 #define REG_INIRTS_RATE_SEL 0x0480
 #define REG_HTSTFWT	0x800
 #define REG_RXPSEL	0x808
