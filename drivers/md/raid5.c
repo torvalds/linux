@@ -4682,15 +4682,20 @@ static void handle_stripe(struct stripe_head *sh)
 	struct r5dev *pdev, *qdev;
 
 	clear_bit(STRIPE_HANDLE, &sh->state);
+
+	/*
+	 * handle_stripe should not continue handle the batched stripe, only
+	 * the head of batch list or lone stripe can continue. Otherwise we
+	 * could see break_stripe_batch_list warns about the STRIPE_ACTIVE
+	 * is set for the batched stripe.
+	 */
+	if (clear_batch_ready(sh))
+		return;
+
 	if (test_and_set_bit_lock(STRIPE_ACTIVE, &sh->state)) {
 		/* already being handled, ensure it gets handled
 		 * again when current action finishes */
 		set_bit(STRIPE_HANDLE, &sh->state);
-		return;
-	}
-
-	if (clear_batch_ready(sh) ) {
-		clear_bit_unlock(STRIPE_ACTIVE, &sh->state);
 		return;
 	}
 
