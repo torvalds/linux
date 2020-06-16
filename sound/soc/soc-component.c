@@ -403,15 +403,9 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
 
 #endif
 
-/**
- * snd_soc_component_read() - Read register value
- * @component: Component to read from
- * @reg: Register to read
- *
- * Return: read value
- */
-unsigned int snd_soc_component_read(struct snd_soc_component *component,
-				    unsigned int reg)
+static unsigned int soc_component_read_no_lock(
+	struct snd_soc_component *component,
+	unsigned int reg)
 {
 	int ret;
 	unsigned int val = 0;
@@ -430,7 +424,40 @@ unsigned int snd_soc_component_read(struct snd_soc_component *component,
 
 	return val;
 }
+
+/**
+ * snd_soc_component_read() - Read register value
+ * @component: Component to read from
+ * @reg: Register to read
+ *
+ * Return: read value
+ */
+unsigned int snd_soc_component_read(struct snd_soc_component *component,
+				    unsigned int reg)
+{
+	unsigned int val;
+
+	mutex_lock(&component->io_mutex);
+	val = soc_component_read_no_lock(component, reg);
+	mutex_unlock(&component->io_mutex);
+
+	return val;
+}
 EXPORT_SYMBOL_GPL(snd_soc_component_read);
+
+static int soc_component_write_no_lock(
+	struct snd_soc_component *component,
+	unsigned int reg, unsigned int val)
+{
+	int ret = -EIO;
+
+	if (component->regmap)
+		ret = regmap_write(component->regmap, reg, val);
+	else if (component->driver->write)
+		ret = component->driver->write(component, reg, val);
+
+	return soc_component_ret(component, ret);
+}
 
 /**
  * snd_soc_component_write() - Write register value
@@ -443,14 +470,13 @@ EXPORT_SYMBOL_GPL(snd_soc_component_read);
 int snd_soc_component_write(struct snd_soc_component *component,
 			    unsigned int reg, unsigned int val)
 {
-	int ret = -EIO;
+	int ret;
 
-	if (component->regmap)
-		ret = regmap_write(component->regmap, reg, val);
-	else if (component->driver->write)
-		ret = component->driver->write(component, reg, val);
+	mutex_lock(&component->io_mutex);
+	ret = soc_component_write_no_lock(component, reg, val);
+	mutex_unlock(&component->io_mutex);
 
-	return soc_component_ret(component, ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_component_write);
 
@@ -463,12 +489,12 @@ static int snd_soc_component_update_bits_legacy(
 
 	mutex_lock(&component->io_mutex);
 
-	old = snd_soc_component_read(component, reg);
+	old = soc_component_read_no_lock(component, reg);
 
 	new = (old & ~mask) | (val & mask);
 	*change = old != new;
 	if (*change)
-		ret = snd_soc_component_write(component, reg, new);
+		ret = soc_component_write_no_lock(component, reg, new);
 
 	mutex_unlock(&component->io_mutex);
 
