@@ -12,6 +12,7 @@
 #include <linux/kthread.h>
 #include <linux/ktime.h>
 #include <linux/blk-mq.h>
+#include <linux/keyslot-manager.h>
 
 #include <trace/events/block.h>
 
@@ -49,6 +50,9 @@ struct mapped_device {
 
 	int numa_node_id;
 	struct request_queue *queue;
+#ifdef CONFIG_BLK_INLINE_ENCRYPTION
+	struct blk_keyslot_manager ksm;
+#endif
 
 	atomic_t holders;
 	atomic_t open_count;

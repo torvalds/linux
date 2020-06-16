@@ -1624,10 +1624,10 @@ static int device_intersect_crypto_modes(struct dm_target *ti,
 					 struct dm_dev *dev, sector_t start,
 					 sector_t len, void *data)
 {
-	struct keyslot_manager *parent = data;
-	struct keyslot_manager *child = bdev_get_queue(dev->bdev)->ksm;
+	struct blk_keyslot_manager *parent = data;
+	struct blk_keyslot_manager *child = bdev_get_queue(dev->bdev)->ksm;
 
-	keyslot_manager_intersect_modes(parent, child);
+	blk_ksm_intersect_modes(parent, child);
 	return 0;
 }
 
@@ -1651,7 +1651,7 @@ static void dm_calculate_supported_crypto_modes(struct dm_table *t,
 		ti = dm_table_get_target(t, i);
 
 		if (!ti->may_passthrough_inline_crypto) {
-			keyslot_manager_intersect_modes(q->ksm, NULL);
+			blk_ksm_intersect_modes(q->ksm, NULL);
 			return;
 		}
 		if (!ti->type->iterate_devices)

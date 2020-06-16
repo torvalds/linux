@@ -152,7 +152,7 @@ void fscrypt_destroy_prepared_key(struct fscrypt_prepared_key *prep_key)
 int fscrypt_set_per_file_enc_key(struct fscrypt_info *ci, const u8 *raw_key)
 {
 	ci->ci_owns_key = true;
-	return fscrypt_prepare_key(&ci->ci_key, raw_key, ci->ci_mode->keysize,
+	return fscrypt_prepare_key(&ci->ci_enc_key, raw_key, ci->ci_mode->keysize,
 				   false /*is_hw_wrapped*/, ci);
 }
 
@@ -176,7 +176,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 
 	prep_key = &keys[mode_num];
 	if (fscrypt_is_key_prepared(prep_key, ci)) {
-		ci->ci_key = *prep_key;
+		ci->ci_enc_key = *prep_key;
 		return 0;
 	}
 
@@ -228,8 +228,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 			goto out_unlock;
 	}
 done_unlock:
-	ci->ci_key = *prep_key;
-
+	ci->ci_enc_key = *prep_key;
 	err = 0;
 out_unlock:
 	mutex_unlock(&fscrypt_mode_key_setup_mutex);
@@ -471,7 +470,7 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	if (ci->ci_direct_key)
 		fscrypt_put_direct_key(ci->ci_direct_key);
 	else if (ci->ci_owns_key)
-		fscrypt_destroy_prepared_key(&ci->ci_key);
+		fscrypt_destroy_prepared_key(&ci->ci_enc_key);
 
 	key = ci->ci_master_key;
 	if (key) {

@@ -69,7 +69,6 @@ struct fscrypt_operations {
 	bool (*has_stable_inodes)(struct super_block *sb);
 	void (*get_ino_and_lblk_bits)(struct super_block *sb,
 				      int *ino_bits_ret, int *lblk_bits_ret);
-	bool (*inline_crypt_enabled)(struct super_block *sb);
 	int (*get_num_devices)(struct super_block *sb);
 	void (*get_devices)(struct super_block *sb,
 			    struct request_queue **devs);
@@ -558,23 +557,22 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-extern bool fscrypt_inode_uses_inline_crypto(const struct inode *inode);
 
-extern bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode);
+bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode);
 
-extern void fscrypt_set_bio_crypt_ctx(struct bio *bio,
-				      const struct inode *inode,
-				      u64 first_lblk, gfp_t gfp_mask);
+void fscrypt_set_bio_crypt_ctx(struct bio *bio,
+			       const struct inode *inode, u64 first_lblk,
+			       gfp_t gfp_mask);
 
-extern void fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
-					 const struct buffer_head *first_bh,
-					 gfp_t gfp_mask);
+void fscrypt_set_bio_crypt_ctx_bh(struct bio *bio,
+				  const struct buffer_head *first_bh,
+				  gfp_t gfp_mask);
 
-extern bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
-				  u64 next_lblk);
+bool fscrypt_mergeable_bio(struct bio *bio, const struct inode *inode,
+			   u64 next_lblk);
 
-extern bool fscrypt_mergeable_bio_bh(struct bio *bio,
-				     const struct buffer_head *next_bh);
+bool fscrypt_mergeable_bio_bh(struct bio *bio,
+			      const struct buffer_head *next_bh);
 
 bool fscrypt_dio_supported(struct kiocb *iocb, struct iov_iter *iter);
 
@@ -582,14 +580,10 @@ int fscrypt_limit_dio_pages(const struct inode *inode, loff_t pos,
 			    int nr_pages);
 
 #else /* CONFIG_FS_ENCRYPTION_INLINE_CRYPT */
-static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
+
+static inline bool __fscrypt_inode_uses_inline_crypto(const struct inode *inode)
 {
 	return false;
-}
-
-static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
-{
-	return IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode);
 }
 
 static inline void fscrypt_set_bio_crypt_ctx(struct bio *bio,
@@ -642,6 +636,36 @@ fscrypt_inode_should_skip_dm_default_key(const struct inode *inode)
 	return false;
 }
 #endif
+
+/**
+ * fscrypt_inode_uses_inline_crypto() - test whether an inode uses inline
+ *					encryption
+ * @inode: an inode. If encrypted, its key must be set up.
+ *
+ * Return: true if the inode requires file contents encryption and if the
+ *	   encryption should be done in the block layer via blk-crypto rather
+ *	   than in the filesystem layer.
+ */
+static inline bool fscrypt_inode_uses_inline_crypto(const struct inode *inode)
+{
+	return fscrypt_needs_contents_encryption(inode) &&
+	       __fscrypt_inode_uses_inline_crypto(inode);
+}
+
+/**
+ * fscrypt_inode_uses_fs_layer_crypto() - test whether an inode uses fs-layer
+ *					  encryption
+ * @inode: an inode. If encrypted, its key must be set up.
+ *
+ * Return: true if the inode requires file contents encryption and if the
+ *	   encryption should be done in the filesystem layer rather than in the
+ *	   block layer via blk-crypto.
+ */
+static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
+{
+	return fscrypt_needs_contents_encryption(inode) &&
+	       !__fscrypt_inode_uses_inline_crypto(inode);
+}
 
 /**
  * fscrypt_require_key() - require an inode's encryption key

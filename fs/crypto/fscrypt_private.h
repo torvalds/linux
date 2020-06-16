@@ -14,7 +14,7 @@
 #include <linux/fscrypt.h>
 #include <linux/siphash.h>
 #include <crypto/hash.h>
-#include <linux/bio-crypt-ctx.h>
+#include <linux/blk-crypto.h>
 
 #define CONST_STRLEN(str)	(sizeof(str) - 1)
 
@@ -192,9 +192,12 @@ struct fscrypt_prepared_key {
 struct fscrypt_info {
 
 	/* The key in a form prepared for actual encryption/decryption */
-	struct fscrypt_prepared_key	ci_key;
+	struct fscrypt_prepared_key	ci_enc_key;
 
-	/* True if the key should be freed when this fscrypt_info is freed */
+	/*
+	 * True if the ci_enc_key should be freed when this fscrypt_info is
+	 * freed
+	 */
 	bool ci_owns_key;
 
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
@@ -229,7 +232,7 @@ struct fscrypt_info {
 
 	/*
 	 * If non-NULL, then encryption is done using the master key directly
-	 * and ci_key will equal ci_direct_key->dk_key.
+	 * and ci_enc_key will equal ci_direct_key->dk_key.
 	 */
 	struct fscrypt_direct_key *ci_direct_key;
 
@@ -328,8 +331,8 @@ void fscrypt_destroy_hkdf(struct fscrypt_hkdf *hkdf);
 
 /* inline_crypt.c */
 #ifdef CONFIG_FS_ENCRYPTION_INLINE_CRYPT
-extern int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
-					  bool is_hw_wrapped_key);
+int fscrypt_select_encryption_impl(struct fscrypt_info *ci,
+				   bool is_hw_wrapped_key);
 
 static inline bool
 fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
@@ -337,15 +340,13 @@ fscrypt_using_inline_encryption(const struct fscrypt_info *ci)
 	return ci->ci_inlinecrypt;
 }
 
-extern int fscrypt_prepare_inline_crypt_key(
-					struct fscrypt_prepared_key *prep_key,
-					const u8 *raw_key,
-					unsigned int raw_key_size,
-					bool is_hw_wrapped,
-					const struct fscrypt_info *ci);
+int fscrypt_prepare_inline_crypt_key(struct fscrypt_prepared_key *prep_key,
+				     const u8 *raw_key,
+				     unsigned int raw_key_size,
+				     bool is_hw_wrapped,
+				     const struct fscrypt_info *ci);
 
-extern void fscrypt_destroy_inline_crypt_key(
-					struct fscrypt_prepared_key *prep_key);
+void fscrypt_destroy_inline_crypt_key(struct fscrypt_prepared_key *prep_key);
 
 extern int fscrypt_derive_raw_secret(struct super_block *sb,
 				     const u8 *wrapped_key,

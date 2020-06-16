@@ -258,7 +258,7 @@ static int setup_v1_file_key_direct(struct fscrypt_info *ci,
 	if (IS_ERR(dk))
 		return PTR_ERR(dk);
 	ci->ci_direct_key = dk;
-	ci->ci_key = dk->dk_key;
+	ci->ci_enc_key = dk->dk_key;
 	return 0;
 }
 

@@ -596,13 +596,13 @@ int ll_back_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs)
 	if (blk_integrity_rq(req) &&
 	    integrity_req_gap_back_merge(req, bio))
 		return 0;
+	if (!bio_crypt_ctx_back_mergeable(req, bio))
+		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req, blk_rq_pos(req))) {
 		req_set_nomerge(req->q, req);
 		return 0;
 	}
-	if (!bio_crypt_ctx_mergeable(req->bio, blk_rq_bytes(req), bio))
-		return 0;
 
 	return ll_new_hw_segment(req, bio, nr_segs);
 }
@@ -614,13 +614,13 @@ int ll_front_merge_fn(struct request *req, struct bio *bio, unsigned int nr_segs
 	if (blk_integrity_rq(req) &&
 	    integrity_req_gap_front_merge(req, bio))
 		return 0;
+	if (!bio_crypt_ctx_front_mergeable(req, bio))
+		return 0;
 	if (blk_rq_sectors(req) + bio_sectors(bio) >
 	    blk_rq_get_max_sectors(req, bio->bi_iter.bi_sector)) {
 		req_set_nomerge(req->q, req);
 		return 0;
 	}
-	if (!bio_crypt_ctx_mergeable(bio, bio->bi_iter.bi_size, req->bio))
-		return 0;
 
 	return ll_new_hw_segment(req, bio, nr_segs);
 }
@@ -665,7 +665,7 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	if (blk_integrity_merge_rq(q, req, next) == false)
 		return 0;
 
-	if (!bio_crypt_ctx_mergeable(req->bio, blk_rq_bytes(req), next->bio))
+	if (!bio_crypt_ctx_merge_rq(req, next))
 		return 0;
 
 	/* Merge is OK... */
@@ -892,6 +892,10 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 	if (blk_integrity_merge_bio(rq->q, rq, bio) == false)
 		return false;
 
+	/* Only merge if the crypt contexts are compatible */
+	if (!bio_crypt_rq_ctx_compatible(rq, bio))
+		return false;
+
 	/* must be using the same buffer */
 	if (req_op(rq) == REQ_OP_WRITE_SAME &&
 	    !blk_write_same_mergeable(rq->bio, bio))
@@ -905,10 +909,6 @@ bool blk_rq_merge_ok(struct request *rq, struct bio *bio)
 		return false;
 
 	if (rq->ioprio != bio_prio(bio))
-		return false;
-
-	/* Only merge if the crypt contexts are compatible */
-	if (!bio_crypt_ctx_compatible(bio, rq->bio))
 		return false;
 
 	return true;
