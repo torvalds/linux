@@ -129,16 +129,8 @@ out:
 	sock_put(sk);
 }
 
-static int smc_rx_pipe_buf_nosteal(struct pipe_inode_info *pipe,
-				   struct pipe_buffer *buf)
-{
-	return 1;
-}
-
 static const struct pipe_buf_operations smc_pipe_ops = {
-	.confirm = generic_pipe_buf_confirm,
 	.release = smc_rx_pipe_buf_release,
-	.steal = smc_rx_pipe_buf_nosteal,
 	.get = generic_pipe_buf_get
 };
 

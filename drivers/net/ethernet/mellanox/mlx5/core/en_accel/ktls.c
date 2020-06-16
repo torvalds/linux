@@ -4,6 +4,19 @@
 #include "en.h"
 #include "en_accel/ktls.h"
 
+u16 mlx5e_ktls_get_stop_room(struct mlx5e_txqsq *sq)
+{
+	u16 num_dumps, stop_room = 0;
+
+	num_dumps = mlx5e_ktls_dumps_num_wqes(sq, MAX_SKB_FRAGS, TLS_MAX_PAYLOAD_SIZE);
+
+	stop_room += mlx5e_stop_room_for_wqe(MLX5E_KTLS_STATIC_WQEBBS);
+	stop_room += mlx5e_stop_room_for_wqe(MLX5E_KTLS_PROGRESS_WQEBBS);
+	stop_room += num_dumps * mlx5e_stop_room_for_wqe(MLX5E_KTLS_DUMP_WQEBBS);
+
+	return stop_room;
+}
+
 static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
 {
 	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};

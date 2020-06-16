@@ -225,8 +225,12 @@ fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
                        pass, but the performance will regress. "nobarrier" is
                        based on "posix", but doesn't issue flush command for
                        non-atomic files likewise "nobarrier" mount option.
-test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
+test_dummy_encryption
+test_dummy_encryption=%s
+                       Enable dummy encryption, which provides a fake fscrypt
                        context. The fake fscrypt context is used by xfstests.
+                       The argument may be either "v1" or "v2", in order to
+                       select the corresponding fscrypt policy version.
 checkpoint=%s[:%u[%]]  Set to "disable" to turn off checkpointing. Set to "enable"
                        to reenable checkpointing. Is enabled by default. While
                        disabled, any unmounting or unexpected shutdowns will cause
@@ -244,7 +248,7 @@ checkpoint=%s[:%u[%]]  Set to "disable" to turn off checkpointing. Set to "enabl
                        would be unusable can be viewed at /sys/fs/f2fs/<disk>/unusable
                        This space is reclaimed once checkpoint=enable.
 compress_algorithm=%s  Control compress algorithm, currently f2fs supports "lzo",
-                       "lz4" and "zstd" algorithm.
+                       "lz4", "zstd" and "lzo-rle" algorithm.
 compress_log_size=%u   Support configuring compress cluster size, the size will
                        be 4KB * (1 << %u), 16KB is minimum size, also it's
                        default size.

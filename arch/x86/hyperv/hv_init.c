@@ -15,6 +15,7 @@
 #include <asm/hypervisor.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
+#include <asm/idtentry.h>
 #include <linux/version.h>
 #include <linux/vmalloc.h>
 #include <linux/mm.h>
@@ -97,8 +98,7 @@ static int hv_cpu_init(unsigned int cpu)
 	 * not be stopped in the case of CPU offlining and the VM will hang.
 	 */
 	if (!*hvp) {
-		*hvp = __vmalloc(PAGE_SIZE, GFP_KERNEL | __GFP_ZERO,
-				 PAGE_KERNEL);
+		*hvp = __vmalloc(PAGE_SIZE, GFP_KERNEL | __GFP_ZERO);
 	}
 
 	if (*hvp) {
@@ -153,15 +153,11 @@ static inline bool hv_reenlightenment_available(void)
 		ms_hyperv.features & HV_X64_ACCESS_REENLIGHTENMENT;
 }
 
-__visible void __irq_entry hyperv_reenlightenment_intr(struct pt_regs *regs)
+DEFINE_IDTENTRY_SYSVEC(sysvec_hyperv_reenlightenment)
 {
-	entering_ack_irq();
-
+	ack_APIC_irq();
 	inc_irq_stat(irq_hv_reenlightenment_count);
-
 	schedule_delayed_work(&hv_reenlightenment_work, HZ/10);
-
-	exiting_irq();
 }
 
 void set_hv_tscchange_cb(void (*cb)(void))
@@ -379,7 +375,7 @@ void __init hyperv_init(void)
 	guest_id = generate_guest_id(0, LINUX_VERSION_CODE, 0);
 	wrmsrl(HV_X64_MSR_GUEST_OS_ID, guest_id);
 
-	hv_hypercall_pg  = __vmalloc(PAGE_SIZE, GFP_KERNEL, PAGE_KERNEL_RX);
+	hv_hypercall_pg = vmalloc_exec(PAGE_SIZE);
 	if (hv_hypercall_pg == NULL) {
 		wrmsrl(HV_X64_MSR_GUEST_OS_ID, 0);
 		goto remove_cpuhp_state;

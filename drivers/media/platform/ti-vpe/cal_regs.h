@@ -101,15 +101,6 @@
 #define CM_CTRL_CORE_CAMERRX_CONTROL	0x000
 
 /*********************************************************************
-* Generic value used in various field below
-*********************************************************************/
-
-#define CAL_GEN_DISABLE			0
-#define CAL_GEN_ENABLE			1
-#define CAL_GEN_FALSE			0
-#define CAL_GEN_TRUE			1
-
-/*********************************************************************
 * Field Definition Macros
 *********************************************************************/
 
@@ -151,12 +142,11 @@
 #define CAL_HL_IRQ_EOI_LINE_NUMBER_EOI0			0
 
 #define CAL_HL_IRQ_MASK(m)			BIT((m) - 1)
-#define CAL_HL_IRQ_NOACTION				0x0
-#define CAL_HL_IRQ_ENABLE				0x1
-#define CAL_HL_IRQ_CLEAR				0x1
-#define CAL_HL_IRQ_DISABLED				0x0
-#define CAL_HL_IRQ_ENABLED				0x1
-#define CAL_HL_IRQ_PENDING				0x1
+
+#define CAL_HL_IRQ_OCPO_ERR_MASK		BIT(6)
+
+#define CAL_HL_IRQ_CIO_MASK(i)			BIT(16 + ((i) - 1) * 8)
+#define CAL_HL_IRQ_VC_MASK(i)			BIT(17 + ((i) - 1) * 8)
 
 #define CAL_PIX_PROC_EN_MASK			BIT(0)
 #define CAL_PIX_PROC_EXTRACT_MASK		GENMASK(4, 1)
@@ -414,6 +404,7 @@
 #define CAL_CSI2_COMPLEXIO_IRQ_ERRCONTROL3_MASK		BIT(17)
 #define CAL_CSI2_COMPLEXIO_IRQ_ERRCONTROL4_MASK		BIT(18)
 #define CAL_CSI2_COMPLEXIO_IRQ_ERRCONTROL5_MASK		BIT(19)
+#define CAL_CSI2_COMPLEXIO_IRQ_LANE_ERRORS_MASK		GENMASK(19, 0)
 #define CAL_CSI2_COMPLEXIO_IRQ_STATEULPM1_MASK		BIT(20)
 #define CAL_CSI2_COMPLEXIO_IRQ_STATEULPM2_MASK		BIT(21)
 #define CAL_CSI2_COMPLEXIO_IRQ_STATEULPM3_MASK		BIT(22)

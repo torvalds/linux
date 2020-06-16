@@ -15,7 +15,7 @@ config ARCH_MIGHT_HAVE_PC_PARPORT
 menuconfig PARPORT
 	tristate "Parallel port support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  If you want to use devices connected to your machine's parallel port
 	  (the connector at the computer with 25 holes), e.g. printer, ZIP
 	  drive, PLIP link (Parallel Line Internet Protocol is mainly used to

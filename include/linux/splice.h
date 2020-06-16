@@ -82,6 +82,9 @@ extern long do_splice(struct file *in, loff_t __user *off_in,
 		      struct file *out, loff_t __user *off_out,
 		      size_t len, unsigned int flags);
 
+extern long do_tee(struct file *in, struct file *out, size_t len,
+		   unsigned int flags);
+
 /*
  * for dynamic pipe sizing
  */

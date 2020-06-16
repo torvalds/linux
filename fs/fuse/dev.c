@@ -342,7 +342,7 @@ static int queue_interrupt(struct fuse_iqueue *fiq, struct fuse_req *req)
 		list_add_tail(&req->intr_entry, &fiq->interrupts);
 		/*
 		 * Pairs with smp_mb() implied by test_and_set_bit()
-		 * from request_end().
+		 * from fuse_request_end().
 		 */
 		smp_mb();
 		if (test_bit(FR_FINISHED, &req->flags)) {
@@ -764,16 +764,15 @@ static int fuse_check_page(struct page *page)
 {
 	if (page_mapcount(page) ||
 	    page->mapping != NULL ||
-	    page_count(page) != 1 ||
 	    (page->flags & PAGE_FLAGS_CHECK_AT_PREP &
 	     ~(1 << PG_locked |
 	       1 << PG_referenced |
 	       1 << PG_uptodate |
 	       1 << PG_lru |
 	       1 << PG_active |
-	       1 << PG_reclaim))) {
-		pr_warn("trying to steal weird page\n");
-		pr_warn("  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
+	       1 << PG_reclaim |
+	       1 << PG_waiters))) {
+		dump_page(page, "fuse: trying to steal weird page");
 		return 1;
 	}
 	return 0;
@@ -805,7 +804,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	if (cs->len != PAGE_SIZE)
 		goto out_fallback;
 
-	if (pipe_buf_steal(cs->pipe, buf) != 0)
+	if (!pipe_buf_try_steal(cs->pipe, buf))
 		goto out_fallback;
 
 	newpage = buf->page;
@@ -840,7 +839,7 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	get_page(newpage);
 
 	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
-		lru_cache_add_file(newpage);
+		lru_cache_add(newpage);
 
 	err = 0;
 	spin_lock(&cs->req->waitq.lock);
@@ -1977,8 +1976,9 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 		struct pipe_buffer *ibuf;
 		struct pipe_buffer *obuf;
 
-		BUG_ON(nbuf >= pipe->ring_size);
-		BUG_ON(tail == head);
+		if (WARN_ON(nbuf >= count || tail == head))
+			goto out_free;
+
 		ibuf = &pipe->bufs[tail & mask];
 		obuf = &bufs[nbuf];
 
@@ -2081,7 +2081,7 @@ static void end_polls(struct fuse_conn *fc)
  * The same effect is usually achievable through killing the filesystem daemon
  * and all users of the filesystem.  The exception is the combination of an
  * asynchronous request and the tricky deadlock (see
- * Documentation/filesystems/fuse.txt).
+ * Documentation/filesystems/fuse.rst).
  *
  * Aborting requests under I/O goes as follows: 1: Separate out unlocked
  * requests, they should be finished off immediately.  Locked requests will be

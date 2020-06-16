@@ -8,10 +8,6 @@
 #include "igc_phy.h"
 #include "igc_defines.h"
 
-#ifndef IGC_REMOVED
-#define IGC_REMOVED(a) (0)
-#endif /* IGC_REMOVED */
-
 /* forward declaration */
 s32 igc_disable_pcie_master(struct igc_hw *hw);
 s32 igc_check_for_copper_link(struct igc_hw *hw);

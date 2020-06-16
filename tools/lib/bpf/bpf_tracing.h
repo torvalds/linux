@@ -413,4 +413,20 @@ typeof(name(0)) name(struct pt_regs *ctx)				    \
 }									    \
 static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
 
+/*
+ * BPF_SEQ_PRINTF to wrap bpf_seq_printf to-be-printed values
+ * in a structure.
+ */
+#define BPF_SEQ_PRINTF(seq, fmt, args...)				    \
+	({								    \
+		_Pragma("GCC diagnostic push")				    \
+		_Pragma("GCC diagnostic ignored \"-Wint-conversion\"")	    \
+		static const char ___fmt[] = fmt;			    \
+		unsigned long long ___param[] = { args };		    \
+		_Pragma("GCC diagnostic pop")				    \
+		int ___ret = bpf_seq_printf(seq, ___fmt, sizeof(___fmt),    \
+					    ___param, sizeof(___param));    \
+		___ret;							    \
+	})
+
 #endif

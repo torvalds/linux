@@ -107,7 +107,7 @@ and elsewhere regarding submitting Linux kernel patches.
     and why.
 
 26) If any ioctl's are added by the patch, then also update
-    ``Documentation/ioctl/ioctl-number.rst``.
+    ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
 27) If your modified source code depends on or uses any of the kernel
     APIs or features that are related to the following ``Kconfig`` symbols,

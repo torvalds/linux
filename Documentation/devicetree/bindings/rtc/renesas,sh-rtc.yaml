@@ -43,6 +43,9 @@ properties:
     items:
       enum: [ fck, rtc_x1, rtc_x3, extal ]
 
+  power-domains:
+    maxItems: 1
+
 required:
   - compatible
   - reg
@@ -50,6 +53,7 @@ required:
   - interrupt-names
   - clocks
   - clock-names
+  - power-domains
 
 additionalProperties: false
 
@@ -68,5 +72,6 @@ examples:
         interrupt-names = "alarm", "period", "carry";
         clocks = <&mstp6_clks R7S72100_CLK_RTC>, <&rtc_x1_clk>,
                  <&rtc_x3_clk>, <&extal_clk>;
+        power-domains = <&cpg_clocks>;
         clock-names = "fck", "rtc_x1", "rtc_x3", "extal";
     };

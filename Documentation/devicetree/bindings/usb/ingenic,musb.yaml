@@ -42,6 +42,9 @@ properties:
   phys:
     description: PHY specifier for the USB PHY
 
+  usb-role-switch:
+    type: boolean
+
 required:
   - compatible
   - reg

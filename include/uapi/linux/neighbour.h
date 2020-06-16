@@ -29,6 +29,7 @@ enum {
 	NDA_LINK_NETNSID,
 	NDA_SRC_VNI,
 	NDA_PROTOCOL,  /* Originator of entry */
+	NDA_NH_ID,
 	__NDA_MAX
 };
 

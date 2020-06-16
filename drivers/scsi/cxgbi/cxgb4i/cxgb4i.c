@@ -1127,10 +1127,9 @@ static void do_abort_rpl_rss(struct cxgbi_device *cdev, struct sk_buff *skb)
 	if (!csk)
 		goto rel_skb;
 
-	if (csk)
-		pr_info_ipaddr("csk 0x%p,%u,0x%lx,%u, status %u.\n",
-			       (&csk->saddr), (&csk->daddr), csk,
-			       csk->state, csk->flags, csk->tid, rpl->status);
+	pr_info_ipaddr("csk 0x%p,%u,0x%lx,%u, status %u.\n",
+		       (&csk->saddr), (&csk->daddr), csk,
+		       csk->state, csk->flags, csk->tid, rpl->status);
 
 	if (rpl->status == CPL_ERR_ABORT_FAILED)
 		goto rel_skb;

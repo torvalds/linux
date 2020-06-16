@@ -113,13 +113,19 @@ static void encoder_control_dmcub(
 		struct dc_dmub_srv *dmcub,
 		struct dig_encoder_stream_setup_parameters_v1_5 *dig)
 {
-	struct dmub_rb_cmd_digx_encoder_control encoder_control = { 0 };
+	union dmub_rb_cmd cmd;
 
-	encoder_control.header.type = DMUB_CMD__VBIOS;
-	encoder_control.header.sub_type = DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL;
-	encoder_control.encoder_control.dig.stream_param = *dig;
+	memset(&cmd, 0, sizeof(cmd));
 
-	dc_dmub_srv_cmd_queue(dmcub, &encoder_control.header);
+	cmd.digx_encoder_control.header.type = DMUB_CMD__VBIOS;
+	cmd.digx_encoder_control.header.sub_type =
+		DMUB_CMD__VBIOS_DIGX_ENCODER_CONTROL;
+	cmd.digx_encoder_control.header.payload_bytes =
+		sizeof(cmd.digx_encoder_control) -
+		sizeof(cmd.digx_encoder_control.header);
+	cmd.digx_encoder_control.encoder_control.dig.stream_param = *dig;
+
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
 }
@@ -238,14 +244,19 @@ static void transmitter_control_dmcub(
 		struct dc_dmub_srv *dmcub,
 		struct dig_transmitter_control_parameters_v1_6 *dig)
 {
-	struct dmub_rb_cmd_dig1_transmitter_control transmitter_control;
+	union dmub_rb_cmd cmd;
 
-	transmitter_control.header.type = DMUB_CMD__VBIOS;
-	transmitter_control.header.sub_type =
+	memset(&cmd, 0, sizeof(cmd));
+
+	cmd.dig1_transmitter_control.header.type = DMUB_CMD__VBIOS;
+	cmd.dig1_transmitter_control.header.sub_type =
 		DMUB_CMD__VBIOS_DIG1_TRANSMITTER_CONTROL;
-	transmitter_control.transmitter_control.dig = *dig;
+	cmd.dig1_transmitter_control.header.payload_bytes =
+		sizeof(cmd.dig1_transmitter_control) -
+		sizeof(cmd.dig1_transmitter_control.header);
+	cmd.dig1_transmitter_control.transmitter_control.dig = *dig;
 
-	dc_dmub_srv_cmd_queue(dmcub, &transmitter_control.header);
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
 }
@@ -339,13 +350,18 @@ static void set_pixel_clock_dmcub(
 		struct dc_dmub_srv *dmcub,
 		struct set_pixel_clock_parameter_v1_7 *clk)
 {
-	struct dmub_rb_cmd_set_pixel_clock pixel_clock = { 0 };
+	union dmub_rb_cmd cmd;
 
-	pixel_clock.header.type = DMUB_CMD__VBIOS;
-	pixel_clock.header.sub_type = DMUB_CMD__VBIOS_SET_PIXEL_CLOCK;
-	pixel_clock.pixel_clock.clk = *clk;
+	memset(&cmd, 0, sizeof(cmd));
 
-	dc_dmub_srv_cmd_queue(dmcub, &pixel_clock.header);
+	cmd.set_pixel_clock.header.type = DMUB_CMD__VBIOS;
+	cmd.set_pixel_clock.header.sub_type = DMUB_CMD__VBIOS_SET_PIXEL_CLOCK;
+	cmd.set_pixel_clock.header.payload_bytes =
+		sizeof(cmd.set_pixel_clock) -
+		sizeof(cmd.set_pixel_clock.header);
+	cmd.set_pixel_clock.pixel_clock.clk = *clk;
+
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
 }
@@ -705,13 +721,19 @@ static void enable_disp_power_gating_dmcub(
 	struct dc_dmub_srv *dmcub,
 	struct enable_disp_power_gating_parameters_v2_1 *pwr)
 {
-	struct dmub_rb_cmd_enable_disp_power_gating power_gating;
+	union dmub_rb_cmd cmd;
 
-	power_gating.header.type = DMUB_CMD__VBIOS;
-	power_gating.header.sub_type = DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
-	power_gating.power_gating.pwr = *pwr;
+	memset(&cmd, 0, sizeof(cmd));
 
-	dc_dmub_srv_cmd_queue(dmcub, &power_gating.header);
+	cmd.enable_disp_power_gating.header.type = DMUB_CMD__VBIOS;
+	cmd.enable_disp_power_gating.header.sub_type =
+		DMUB_CMD__VBIOS_ENABLE_DISP_POWER_GATING;
+	cmd.enable_disp_power_gating.header.payload_bytes =
+		sizeof(cmd.enable_disp_power_gating) -
+		sizeof(cmd.enable_disp_power_gating.header);
+	cmd.enable_disp_power_gating.power_gating.pwr = *pwr;
+
+	dc_dmub_srv_cmd_queue(dmcub, &cmd);
 	dc_dmub_srv_cmd_execute(dmcub);
 	dc_dmub_srv_wait_idle(dmcub);
 }

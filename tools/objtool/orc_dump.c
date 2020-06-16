@@ -4,7 +4,8 @@
  */
 
 #include <unistd.h>
-#include "orc.h"
+#include <asm/orc_types.h>
+#include "objtool.h"
 #include "warn.h"
 
 static const char *reg_name(unsigned int reg)

@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
 #include <asm/cpm.h>
 #include <asm/cpm1.h>

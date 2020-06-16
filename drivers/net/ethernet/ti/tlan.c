@@ -70,7 +70,7 @@ MODULE_DESCRIPTION("Driver for TI ThunderLAN based ethernet PCI adapters");
 MODULE_LICENSE("GPL");
 
 /* Turn on debugging.
- * See Documentation/networking/device_drivers/ti/tlan.txt for details
+ * See Documentation/networking/device_drivers/ti/tlan.rst for details
  */
 static  int		debug;
 module_param(debug, int, 0);

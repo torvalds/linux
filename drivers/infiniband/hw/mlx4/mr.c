@@ -380,7 +380,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_device *device, u64 start,
 		unsigned long untagged_start = untagged_addr(start);
 		struct vm_area_struct *vma;
 
-		down_read(&current->mm->mmap_sem);
+		mmap_read_lock(current->mm);
 		/*
 		 * FIXME: Ideally this would iterate over all the vmas that
 		 * cover the memory, but for now it requires a single vma to
@@ -395,7 +395,7 @@ static struct ib_umem *mlx4_get_umem_mr(struct ib_device *device, u64 start,
 			access_flags |= IB_ACCESS_LOCAL_WRITE;
 		}
 
-		up_read(&current->mm->mmap_sem);
+		mmap_read_unlock(current->mm);
 	}
 
 	return ib_umem_get(device, start, length, access_flags);
@@ -696,99 +696,6 @@ err_free_mr:
 err_free:
 	kfree(mr);
 	return ERR_PTR(err);
-}
-
-struct ib_fmr *mlx4_ib_fmr_alloc(struct ib_pd *pd, int acc,
-				 struct ib_fmr_attr *fmr_attr)
-{
-	struct mlx4_ib_dev *dev = to_mdev(pd->device);
-	struct mlx4_ib_fmr *fmr;
-	int err = -ENOMEM;
-
-	fmr = kmalloc(sizeof *fmr, GFP_KERNEL);
-	if (!fmr)
-		return ERR_PTR(-ENOMEM);
-
-	err = mlx4_fmr_alloc(dev->dev, to_mpd(pd)->pdn, convert_access(acc),
-			     fmr_attr->max_pages, fmr_attr->max_maps,
-			     fmr_attr->page_shift, &fmr->mfmr);
-	if (err)
-		goto err_free;
-
-	err = mlx4_fmr_enable(to_mdev(pd->device)->dev, &fmr->mfmr);
-	if (err)
-		goto err_mr;
-
-	fmr->ibfmr.rkey = fmr->ibfmr.lkey = fmr->mfmr.mr.key;
-
-	return &fmr->ibfmr;
-
-err_mr:
-	(void) mlx4_mr_free(to_mdev(pd->device)->dev, &fmr->mfmr.mr);
-
-err_free:
-	kfree(fmr);
-
-	return ERR_PTR(err);
-}
-
-int mlx4_ib_map_phys_fmr(struct ib_fmr *ibfmr, u64 *page_list,
-		      int npages, u64 iova)
-{
-	struct mlx4_ib_fmr *ifmr = to_mfmr(ibfmr);
-	struct mlx4_ib_dev *dev = to_mdev(ifmr->ibfmr.device);
-
-	return mlx4_map_phys_fmr(dev->dev, &ifmr->mfmr, page_list, npages, iova,
-				 &ifmr->ibfmr.lkey, &ifmr->ibfmr.rkey);
-}
-
-int mlx4_ib_unmap_fmr(struct list_head *fmr_list)
-{
-	struct ib_fmr *ibfmr;
-	int err;
-	struct mlx4_dev *mdev = NULL;
-
-	list_for_each_entry(ibfmr, fmr_list, list) {
-		if (mdev && to_mdev(ibfmr->device)->dev != mdev)
-			return -EINVAL;
-		mdev = to_mdev(ibfmr->device)->dev;
-	}
-
-	if (!mdev)
-		return 0;
-
-	list_for_each_entry(ibfmr, fmr_list, list) {
-		struct mlx4_ib_fmr *ifmr = to_mfmr(ibfmr);
-
-		mlx4_fmr_unmap(mdev, &ifmr->mfmr, &ifmr->ibfmr.lkey, &ifmr->ibfmr.rkey);
-	}
-
-	/*
-	 * Make sure all MPT status updates are visible before issuing
-	 * SYNC_TPT firmware command.
-	 */
-	wmb();
-
-	err = mlx4_SYNC_TPT(mdev);
-	if (err)
-		pr_warn("SYNC_TPT error %d when "
-		       "unmapping FMRs\n", err);
-
-	return 0;
-}
-
-int mlx4_ib_fmr_dealloc(struct ib_fmr *ibfmr)
-{
-	struct mlx4_ib_fmr *ifmr = to_mfmr(ibfmr);
-	struct mlx4_ib_dev *dev = to_mdev(ibfmr->device);
-	int err;
-
-	err = mlx4_fmr_free(dev->dev, &ifmr->mfmr);
-
-	if (!err)
-		kfree(ifmr);
-
-	return err;
 }
 
 static int mlx4_set_page(struct ib_mr *ibmr, u64 addr)

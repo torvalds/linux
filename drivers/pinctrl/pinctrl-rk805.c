@@ -73,7 +73,7 @@ struct rk805_pctrl_info {
 	int num_pin_groups;
 	const struct pinctrl_pin_desc *pins;
 	unsigned int num_pins;
-	struct rk805_pin_config *pin_cfg;
+	const struct rk805_pin_config *pin_cfg;
 };
 
 enum rk805_pinmux_option {
@@ -121,7 +121,7 @@ static const struct rk805_pin_group rk805_pin_groups[] = {
 #define RK805_GPIO0_VAL_MSK	BIT(0)
 #define RK805_GPIO1_VAL_MSK	BIT(1)
 
-static struct rk805_pin_config rk805_gpio_cfgs[] = {
+static const struct rk805_pin_config rk805_gpio_cfgs[] = {
 	{
 		.reg = RK805_OUT_REG,
 		.val_msk = RK805_GPIO0_VAL_MSK,

@@ -93,6 +93,7 @@ configure specific aspects of kernel behavior to your liking.
    lockup-watchdogs
    LSM/index
    md
+   media/index
    mm/index
    module-signing
    mono

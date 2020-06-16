@@ -109,8 +109,8 @@ int mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			    bool direction_sx);
 void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 			     bool direction_sx);
-int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle, u32 seq,
-			     u64 rcd_sn);
+int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+			     u32 seq, __be64 rcd_sn);
 bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev);
 u32 mlx5_accel_tls_device_caps(struct mlx5_core_dev *mdev);
 int mlx5_accel_tls_init(struct mlx5_core_dev *mdev);
@@ -125,8 +125,8 @@ mlx5_accel_tls_add_flow(struct mlx5_core_dev *mdev, void *flow,
 			bool direction_sx) { return -ENOTSUPP; }
 static inline void mlx5_accel_tls_del_flow(struct mlx5_core_dev *mdev, u32 swid,
 					   bool direction_sx) { }
-static inline int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, u32 handle,
-					   u32 seq, u64 rcd_sn) { return 0; }
+static inline int mlx5_accel_tls_resync_rx(struct mlx5_core_dev *mdev, __be32 handle,
+					   u32 seq, __be64 rcd_sn) { return 0; }
 static inline bool mlx5_accel_is_tls_device(struct mlx5_core_dev *mdev)
 {
 	return mlx5_accel_is_ktls_device(mdev);

@@ -38,7 +38,15 @@ pior507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	}
 }
 
+static void
+pior507d_get_caps(struct nv50_disp *disp, struct nouveau_encoder *outp,
+		  int or)
+{
+	outp->caps.dp_interlace = true;
+}
+
 const struct nv50_outp_func
 pior507d = {
 	.ctrl = pior507d_ctrl,
+	.get_caps = pior507d_get_caps,
 };

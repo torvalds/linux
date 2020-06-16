@@ -19,14 +19,14 @@ config RAPIDIO_DISC_TIMEOUT
 	int "Discovery timeout duration (seconds)"
 	depends on RAPIDIO
 	default "30"
-	---help---
+	help
 	  Amount of time a discovery node waits for a host to complete
 	  enumeration before giving up.
 
 config RAPIDIO_ENABLE_RX_TX_PORTS
 	bool "Enable RapidIO Input/Output Ports"
 	depends on RAPIDIO
-	---help---
+	help
 	  The RapidIO specification describes a Output port transmit
 	  enable and a Input port receive enable. The recommended state
 	  for Input ports and Output ports should be disabled. When

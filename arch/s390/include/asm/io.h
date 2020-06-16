@@ -26,7 +26,7 @@ void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr);
 
 #define IO_SPACE_LIMIT 0
 
-void __iomem *ioremap(unsigned long offset, unsigned long size);
+void __iomem *ioremap(phys_addr_t addr, size_t size);
 void iounmap(volatile void __iomem *addr);
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)

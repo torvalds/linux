@@ -9,7 +9,7 @@ title: Vivante GPU Bindings
 description: Vivante GPU core devices
 
 maintainers:
-  -  Lucas Stach <l.stach@pengutronix.de>
+  - Lucas Stach <l.stach@pengutronix.de>
 
 properties:
   compatible:

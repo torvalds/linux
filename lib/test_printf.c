@@ -494,7 +494,7 @@ struct_va_format(void)
 }
 
 static void __init
-struct_rtc_time(void)
+time_and_date(void)
 {
 	/* 1543210543 */
 	const struct rtc_time tm = {
@@ -505,14 +505,21 @@ struct_rtc_time(void)
 		.tm_mon = 10,
 		.tm_year = 118,
 	};
+	/* 2019-01-04T15:32:23 */
+	time64_t t = 1546615943;
 
-	test("(%ptR?)", "%pt", &tm);
+	test("(%pt?)", "%pt", &tm);
 	test("2018-11-26T05:35:43", "%ptR", &tm);
 	test("0118-10-26T05:35:43", "%ptRr", &tm);
 	test("05:35:43|2018-11-26", "%ptRt|%ptRd", &tm, &tm);
 	test("05:35:43|0118-10-26", "%ptRtr|%ptRdr", &tm, &tm);
 	test("05:35:43|2018-11-26", "%ptRttr|%ptRdtr", &tm, &tm);
 	test("05:35:43 tr|2018-11-26 tr", "%ptRt tr|%ptRd tr", &tm, &tm);
+
+	test("2019-01-04T15:32:23", "%ptT", &t);
+	test("0119-00-04T15:32:23", "%ptTr", &t);
+	test("15:32:23|2019-01-04", "%ptTt|%ptTd", &t, &t);
+	test("15:32:23|0119-00-04", "%ptTtr|%ptTdr", &t, &t);
 }
 
 static void __init
@@ -637,7 +644,9 @@ static void __init fwnode_pointer(void)
 	test(second_name, "%pfwP", software_node_fwnode(&softnodes[1]));
 	test(third_name, "%pfwP", software_node_fwnode(&softnodes[2]));
 
-	software_node_unregister_nodes(softnodes);
+	software_node_unregister(&softnodes[2]);
+	software_node_unregister(&softnodes[1]);
+	software_node_unregister(&softnodes[0]);
 }
 
 static void __init
@@ -678,7 +687,7 @@ test_pointer(void)
 	uuid();
 	dentry();
 	struct_va_format();
-	struct_rtc_time();
+	time_and_date();
 	struct_clk();
 	bitmap();
 	netdev_features();

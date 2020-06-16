@@ -250,6 +250,10 @@
 #define PRID_REV_LOONGSON1C		0x0020	/* Same as Loongson-1B */
 #define PRID_REV_LOONGSON2E		0x0002
 #define PRID_REV_LOONGSON2F		0x0003
+#define PRID_REV_LOONGSON2K_R1_0	0x0000
+#define PRID_REV_LOONGSON2K_R1_1	0x0001
+#define PRID_REV_LOONGSON2K_R1_2	0x0002
+#define PRID_REV_LOONGSON2K_R1_3	0x0003
 #define PRID_REV_LOONGSON3A_R1		0x0005
 #define PRID_REV_LOONGSON3B_R1		0x0006
 #define PRID_REV_LOONGSON3B_R2		0x0007
@@ -343,14 +347,16 @@ enum cpu_type_enum {
 #define MIPS_CPU_ISA_M32R2	0x00000020
 #define MIPS_CPU_ISA_M64R1	0x00000040
 #define MIPS_CPU_ISA_M64R2	0x00000080
-#define MIPS_CPU_ISA_M32R6	0x00000100
-#define MIPS_CPU_ISA_M64R6	0x00000200
+#define MIPS_CPU_ISA_M32R5	0x00000100
+#define MIPS_CPU_ISA_M64R5	0x00000200
+#define MIPS_CPU_ISA_M32R6	0x00000400
+#define MIPS_CPU_ISA_M64R6	0x00000800
 
 #define MIPS_CPU_ISA_32BIT (MIPS_CPU_ISA_II | MIPS_CPU_ISA_M32R1 | \
-	MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M32R6)
+	MIPS_CPU_ISA_M32R2 | MIPS_CPU_ISA_M32R5 | MIPS_CPU_ISA_M32R6)
 #define MIPS_CPU_ISA_64BIT (MIPS_CPU_ISA_III | MIPS_CPU_ISA_IV | \
 	MIPS_CPU_ISA_V | MIPS_CPU_ISA_M64R1 | MIPS_CPU_ISA_M64R2 | \
-	MIPS_CPU_ISA_M64R6)
+	MIPS_CPU_ISA_M64R5 | MIPS_CPU_ISA_M64R6)
 
 /*
  * CPU Option encodings
@@ -416,7 +422,9 @@ enum cpu_type_enum {
 #define MIPS_CPU_MT_PER_TC_PERF_COUNTERS \
 				BIT_ULL(56)	/* CPU has perf counters implemented per TC (MIPSMT ASE) */
 #define MIPS_CPU_MMID		BIT_ULL(57)	/* CPU supports MemoryMapIDs */
-#define MIPS_CPU_MAC_2008_ONLY	BIT_ULL(58)	/* CPU Only support MAC2008 Fused multiply-add instruction */
+#define MIPS_CPU_MM_SYSAD	BIT_ULL(58)	/* CPU supports write-through SysAD Valid merge */
+#define MIPS_CPU_MM_FULL	BIT_ULL(59)	/* CPU supports write-through full merge */
+#define MIPS_CPU_MAC_2008_ONLY	BIT_ULL(60)	/* CPU Only support MAC2008 Fused multiply-add instruction */
 
 /*
  * CPU ASE encodings

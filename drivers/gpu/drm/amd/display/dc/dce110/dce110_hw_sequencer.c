@@ -53,6 +53,7 @@
 #include "abm.h"
 #include "audio.h"
 #include "reg_helper.h"
+#include "panel_cntl.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"
@@ -697,31 +698,6 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 }
 
-/*todo: cloned in stream enc, fix*/
-bool dce110_is_panel_backlight_on(struct dc_link *link)
-{
-	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hws = ctx->dc->hwseq;
-	uint32_t value;
-
-	REG_GET(LVTMA_PWRSEQ_CNTL, LVTMA_BLON, &value);
-
-	return value;
-}
-
-bool dce110_is_panel_powered_on(struct dc_link *link)
-{
-	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hws = ctx->dc->hwseq;
-	uint32_t pwr_seq_state, dig_on, dig_on_ovrd;
-
-	REG_GET(LVTMA_PWRSEQ_STATE, LVTMA_PWRSEQ_TARGET_STATE_R, &pwr_seq_state);
-
-	REG_GET_2(LVTMA_PWRSEQ_CNTL, LVTMA_DIGON, &dig_on, LVTMA_DIGON_OVRD, &dig_on_ovrd);
-
-	return (pwr_seq_state == 1) || (dig_on == 1 && dig_on_ovrd == 1);
-}
-
 static enum bp_result link_transmitter_control(
 		struct dc_bios *bios,
 	struct bp_transmitter_control *cntl)
@@ -810,7 +786,6 @@ void dce110_edp_power_control(
 		bool power_up)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hwseq = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result bp_result;
 
@@ -821,7 +796,11 @@ void dce110_edp_power_control(
 		return;
 	}
 
-	if (power_up != hwseq->funcs.is_panel_powered_on(link)) {
+	if (!link->panel_cntl)
+		return;
+
+	if (power_up !=
+		link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl)) {
 		/* Send VBIOS command to prompt eDP panel power */
 		if (power_up) {
 			unsigned long long current_ts = dm_get_timestamp(ctx);
@@ -892,7 +871,6 @@ void dce110_edp_backlight_control(
 		bool enable)
 {
 	struct dc_context *ctx = link->ctx;
-	struct dce_hwseq *hws = ctx->dc->hwseq;
 	struct bp_transmitter_control cntl = { 0 };
 
 	if (dal_graphics_object_id_get_connector_id(link->link_enc->connector)
@@ -901,7 +879,8 @@ void dce110_edp_backlight_control(
 		return;
 	}
 
-	if (enable && hws->funcs.is_panel_backlight_on(link)) {
+	if (enable && link->panel_cntl &&
+		link->panel_cntl->funcs->is_panel_backlight_on(link->panel_cntl)) {
 		DC_LOG_HW_RESUME_S3(
 				"%s: panel already powered up. Do nothing.\n",
 				__func__);
@@ -1087,7 +1066,7 @@ void dce110_blank_stream(struct pipe_ctx *pipe_ctx)
 
 	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP) {
 		hws->funcs.edp_backlight_control(link, false);
-		dc_link_set_abm_disable(link);
+		link->dc->hwss.set_abm_immediate_disable(pipe_ctx);
 	}
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
@@ -1432,7 +1411,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
-	pipe_ctx->stream->link->psr_feature_enabled = false;
+	pipe_ctx->stream->link->psr_settings.psr_feature_enabled = false;
 
 	return DC_OK;
 }
@@ -1838,7 +1817,7 @@ static bool should_enable_fbc(struct dc *dc,
 		return false;
 
 	/* PSR should not be enabled */
-	if (pipe_ctx->stream->link->psr_feature_enabled)
+	if (pipe_ctx->stream->link->psr_settings.psr_feature_enabled)
 		return false;
 
 	/* Nothing to compress */
@@ -2376,6 +2355,7 @@ static void init_hw(struct dc *dc)
 	struct abm *abm;
 	struct dmcu *dmcu;
 	struct dce_hwseq *hws = dc->hwseq;
+	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
 	bp = dc->ctx->dc_bios;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2422,11 +2402,16 @@ static void init_hw(struct dc *dc)
 		audio->funcs->hw_init(audio);
 	}
 
-	abm = dc->res_pool->abm;
-	if (abm != NULL) {
-		abm->funcs->init_backlight(abm);
-		abm->funcs->abm_init(abm);
+	for (i = 0; i < dc->link_count; i++) {
+		struct dc_link *link = dc->links[i];
+
+		if (link->panel_cntl)
+			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
 	}
+
+	abm = dc->res_pool->abm;
+	if (abm != NULL)
+		abm->funcs->abm_init(abm, backlight);
 
 	dmcu = dc->res_pool->dmcu;
 	if (dmcu != NULL && abm != NULL)
@@ -2735,6 +2720,53 @@ void dce110_set_cursor_attribute(struct pipe_ctx *pipe_ctx)
 				pipe_ctx->plane_res.xfm, attributes);
 }
 
+bool dce110_set_backlight_level(struct pipe_ctx *pipe_ctx,
+		uint32_t backlight_pwm_u16_16,
+		uint32_t frame_ramp)
+{
+	struct dc_link *link = pipe_ctx->stream->link;
+	struct dc  *dc = link->ctx->dc;
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = link->panel_cntl;
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+	bool fw_set_brightness = true;
+	/* DMCU -1 for all controller id values,
+	 * therefore +1 here
+	 */
+	uint32_t controller_id = pipe_ctx->stream_res.tg->inst + 1;
+
+	if (abm == NULL || panel_cntl == NULL || (abm->funcs->set_backlight_level_pwm == NULL))
+		return false;
+
+	if (dmcu)
+		fw_set_brightness = dmcu->funcs->is_dmcu_initialized(dmcu);
+
+	if (!fw_set_brightness && panel_cntl->funcs->driver_set_backlight)
+		panel_cntl->funcs->driver_set_backlight(panel_cntl, backlight_pwm_u16_16);
+	else
+		abm->funcs->set_backlight_level_pwm(
+				abm,
+				backlight_pwm_u16_16,
+				frame_ramp,
+				controller_id,
+				link->panel_cntl->inst);
+
+	return true;
+}
+
+void dce110_set_abm_immediate_disable(struct pipe_ctx *pipe_ctx)
+{
+	struct abm *abm = pipe_ctx->stream_res.abm;
+	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
+
+	if (abm)
+		abm->funcs->set_abm_immediate_disable(abm,
+				pipe_ctx->stream->link->panel_cntl->inst);
+
+	if (panel_cntl)
+		panel_cntl->funcs->store_backlight_level(panel_cntl);
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.program_output_csc = program_output_csc,
@@ -2769,7 +2801,9 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.edp_power_control = dce110_edp_power_control,
 	.edp_wait_for_hpd_ready = dce110_edp_wait_for_hpd_ready,
 	.set_cursor_position = dce110_set_cursor_position,
-	.set_cursor_attribute = dce110_set_cursor_attribute
+	.set_cursor_attribute = dce110_set_cursor_attribute,
+	.set_backlight_level = dce110_set_backlight_level,
+	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 };
 
 static const struct hwseq_private_funcs dce110_private_funcs = {
@@ -2785,8 +2819,6 @@ static const struct hwseq_private_funcs dce110_private_funcs = {
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.edp_backlight_control = dce110_edp_backlight_control,
-	.is_panel_backlight_on = dce110_is_panel_backlight_on,
-	.is_panel_powered_on = dce110_is_panel_powered_on,
 };
 
 void dce110_hw_sequencer_construct(struct dc *dc)

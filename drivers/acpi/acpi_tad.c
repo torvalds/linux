@@ -624,7 +624,7 @@ static int acpi_tad_probe(struct platform_device *pdev)
 	 */
 	device_init_wakeup(dev, true);
 	dev_pm_set_driver_flags(dev, DPM_FLAG_SMART_SUSPEND |
-				     DPM_FLAG_LEAVE_SUSPENDED);
+				     DPM_FLAG_MAY_SKIP_RESUME);
 	/*
 	 * The platform bus type layer tells the ACPI PM domain powers up the
 	 * device, so set the runtime PM status of it to "active".

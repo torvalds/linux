@@ -97,7 +97,7 @@ struct tcg_pcr_event {
 	u32 event_type;
 	u8 digest[20];
 	u32 event_size;
-	u8 event[0];
+	u8 event[];
 } __packed;
 
 struct tcg_event_field {

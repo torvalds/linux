@@ -116,6 +116,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_MAX98926
 	imply SND_SOC_MAX98927
 	imply SND_SOC_MAX98373
+	imply SND_SOC_MAX98390
 	imply SND_SOC_MAX9850
 	imply SND_SOC_MAX9860
 	imply SND_SOC_MAX9759
@@ -167,7 +168,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_RT5668
 	imply SND_SOC_RT5670
 	imply SND_SOC_RT5677
-	imply SND_SOC_RT5682
+	imply SND_SOC_RT5682_I2C
 	imply SND_SOC_RT5682_SDW
 	imply SND_SOC_RT700_SDW
 	imply SND_SOC_RT711_SDW
@@ -272,6 +273,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WM9712
 	imply SND_SOC_WM9713
 	imply SND_SOC_WSA881X
+	imply SND_SOC_ZL38060
 	help
 	  Normally ASoC codec drivers are only built if a machine driver which
 	  uses them is also built since they are only usable with a machine
@@ -537,8 +539,7 @@ config SND_SOC_CQ0093VC
 config SND_SOC_CROS_EC_CODEC
 	tristate "codec driver for ChromeOS EC"
 	depends on CROS_EC
-	select CRYPTO
-	select CRYPTO_SHA256
+	select CRYPTO_LIB_SHA256
 	help
 	  If you say yes here you will get support for the
 	  ChromeOS Embedded Controller's Audio Codec.
@@ -681,6 +682,7 @@ config SND_SOC_CX2072X
 
 config SND_SOC_JZ4740_CODEC
 	depends on MIPS || COMPILE_TEST
+	depends on OF
 	select REGMAP_MMIO
 	tristate "Ingenic JZ4740 internal CODEC"
 	help
@@ -692,6 +694,7 @@ config SND_SOC_JZ4740_CODEC
 
 config SND_SOC_JZ4725B_CODEC
 	depends on MIPS || COMPILE_TEST
+	depends on OF
 	select REGMAP
 	tristate "Ingenic JZ4725B internal CODEC"
 	help
@@ -703,6 +706,7 @@ config SND_SOC_JZ4725B_CODEC
 
 config SND_SOC_JZ4770_CODEC
 	depends on MIPS || COMPILE_TEST
+	depends on OF
 	select REGMAP
 	tristate "Ingenic JZ4770 internal CODEC"
 	help
@@ -717,7 +721,7 @@ config SND_SOC_L3
 
 config SND_SOC_DA7210
 	tristate
-	depends on I2C
+	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_DA7213
 	tristate "Dialog DA7213 CODEC"
@@ -865,6 +869,10 @@ config SND_SOC_MAX98927
 
 config SND_SOC_MAX98373
 	tristate "Maxim Integrated MAX98373 Speaker Amplifier"
+	depends on I2C
+
+config SND_SOC_MAX98390
+	tristate "Maxim Integrated MAX98390 Speaker Amplifier"
 	depends on I2C
 
 config SND_SOC_MAX9850
@@ -1135,7 +1143,11 @@ config SND_SOC_RT5677_SPI
 
 config SND_SOC_RT5682
 	tristate
-	depends on I2C || SOUNDWIRE
+
+config SND_SOC_RT5682_I2C
+	tristate
+	depends on I2C
+	select SND_SOC_RT5682
 
 config SND_SOC_RT5682_SDW
 	tristate "Realtek RT5682 Codec - SDW"
@@ -1569,7 +1581,7 @@ config SND_SOC_WM8978
 
 config SND_SOC_WM8983
 	tristate
-	depends on I2C
+	depends on SND_SOC_I2C_AND_SPI
 
 config SND_SOC_WM8985
 	tristate "Wolfson Microelectronics WM8985 and WM8758 codec driver"
@@ -1620,19 +1632,19 @@ config SND_SOC_WM9090
 
 config SND_SOC_WM9705
 	tristate
-	depends on SND_SOC_AC97_BUS
+	depends on SND_SOC_AC97_BUS || AC97_BUS_NEW
 	select REGMAP_AC97
 	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
 config SND_SOC_WM9712
 	tristate
-	depends on SND_SOC_AC97_BUS
+	depends on SND_SOC_AC97_BUS || AC97_BUS_NEW
 	select REGMAP_AC97
 	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
 config SND_SOC_WM9713
 	tristate
-	depends on SND_SOC_AC97_BUS
+	depends on SND_SOC_AC97_BUS || AC97_BUS_NEW
 	select REGMAP_AC97
 	select AC97_BUS_COMPAT if AC97_BUS_NEW
 
@@ -1644,6 +1656,16 @@ config SND_SOC_WSA881X
 	help
 	  This enables support for Qualcomm WSA8810/WSA8815 Class-D
 	  Smart Speaker Amplifier.
+
+config SND_SOC_ZL38060
+	tristate "Microsemi ZL38060 Connected Home Audio Processor"
+	depends on SPI_MASTER
+	select GPIOLIB
+	select REGMAP
+	help
+	  Support for ZL38060 Connected Home Audio Processor from Microsemi,
+	  which consists of a Digital Signal Processor (DSP), several Digital
+	  Audio Interfaces (DAIs), analog outputs, and a block of 14 GPIOs.
 
 config SND_SOC_ZX_AUD96P22
 	tristate "ZTE ZX AUD96P22 CODEC"

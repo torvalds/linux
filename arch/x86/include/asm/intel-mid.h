@@ -88,10 +88,16 @@ static inline bool intel_mid_has_msic(void)
 	return (intel_mid_identify_cpu() == INTEL_MID_CPU_CHIP_PENWELL);
 }
 
+extern void intel_scu_devices_create(void);
+extern void intel_scu_devices_destroy(void);
+
 #else /* !CONFIG_X86_INTEL_MID */
 
 #define intel_mid_identify_cpu()	0
 #define intel_mid_has_msic()		0
+
+static inline void intel_scu_devices_create(void) { }
+static inline void intel_scu_devices_destroy(void) { }
 
 #endif /* !CONFIG_X86_INTEL_MID */
 
@@ -114,9 +120,6 @@ extern enum intel_mid_timer_options intel_mid_timer_options;
 
 #define SFI_MTMR_MAX_NUM		8
 #define SFI_MRTC_MAX			8
-
-extern void intel_scu_devices_create(void);
-extern void intel_scu_devices_destroy(void);
 
 /* VRTC timer */
 #define MRST_VRTC_MAP_SZ		1024

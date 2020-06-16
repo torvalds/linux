@@ -2812,7 +2812,7 @@ static int init_bdw_mmio_info(struct intel_gvt *gvt)
 	MMIO_D(GAMTARBMODE, D_BDW_PLUS);
 
 #define RING_REG(base) _MMIO((base) + 0x270)
-	MMIO_RING_F(RING_REG, 32, 0, 0, 0, D_BDW_PLUS, NULL, NULL);
+	MMIO_RING_F(RING_REG, 32, F_CMD_ACCESS, 0, 0, D_BDW_PLUS, NULL, NULL);
 #undef RING_REG
 
 	MMIO_RING_GM_RDR(RING_HWS_PGA, D_BDW_PLUS, NULL, hws_pga_write);

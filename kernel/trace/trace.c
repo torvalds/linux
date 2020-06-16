@@ -1299,8 +1299,11 @@ EXPORT_SYMBOL_GPL(tracing_off);
 
 void disable_trace_on_warning(void)
 {
-	if (__disable_trace_on_warning)
+	if (__disable_trace_on_warning) {
+		trace_array_printk_buf(global_trace.array_buffer.buffer, _THIS_IP_,
+			"Disabling tracing due to warning\n");
 		tracing_off();
+	}
 }
 
 /**
@@ -2662,7 +2665,7 @@ static void output_printk(struct trace_event_buffer *fbuffer)
 }
 
 int tracepoint_printk_sysctl(struct ctl_table *table, int write,
-			     void __user *buffer, size_t *lenp,
+			     void *buffer, size_t *lenp,
 			     loff_t *ppos)
 {
 	int save_tracepoint_printk;
@@ -6305,13 +6308,6 @@ static void tracing_spd_release_pipe(struct splice_pipe_desc *spd,
 	__free_page(spd->pages[idx]);
 }
 
-static const struct pipe_buf_operations tracing_pipe_buf_ops = {
-	.confirm		= generic_pipe_buf_confirm,
-	.release		= generic_pipe_buf_release,
-	.steal			= generic_pipe_buf_steal,
-	.get			= generic_pipe_buf_get,
-};
-
 static size_t
 tracing_fill_pipe_page(size_t rem, struct trace_iterator *iter)
 {
@@ -6373,7 +6369,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		.partial	= partial_def,
 		.nr_pages	= 0, /* This gets updated below. */
 		.nr_pages_max	= PIPE_DEF_BUFFERS,
-		.ops		= &tracing_pipe_buf_ops,
+		.ops		= &default_pipe_buf_ops,
 		.spd_release	= tracing_spd_release_pipe,
 	};
 	ssize_t ret;
@@ -7582,9 +7578,7 @@ static bool buffer_pipe_buf_get(struct pipe_inode_info *pipe,
 
 /* Pipe buffer operations for a buffer. */
 static const struct pipe_buf_operations buffer_pipe_buf_ops = {
-	.confirm		= generic_pipe_buf_confirm,
 	.release		= buffer_pipe_buf_release,
-	.steal			= generic_pipe_buf_nosteal,
 	.get			= buffer_pipe_buf_get,
 };
 
@@ -8526,18 +8520,6 @@ static int allocate_trace_buffers(struct trace_array *tr, int size)
 	 */
 	allocate_snapshot = false;
 #endif
-
-	/*
-	 * Because of some magic with the way alloc_percpu() works on
-	 * x86_64, we need to synchronize the pgd of all the tables,
-	 * otherwise the trace events that happen in x86_64 page fault
-	 * handlers can't cope with accessing the chance that a
-	 * alloc_percpu()'d memory might be touched in the page fault trace
-	 * event. Oh, and we need to audit all other alloc_percpu() and vmalloc()
-	 * calls in tracing, because something might get triggered within a
-	 * page fault trace event!
-	 */
-	vmalloc_sync_mappings();
 
 	return 0;
 }

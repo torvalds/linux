@@ -13,7 +13,6 @@ config CPU_LITTLE_ENDIAN
 
 config CPU_BIG_ENDIAN
 	bool "Big Endian"
-	depends on !CPU_SH5
 
 endchoice
 
@@ -26,10 +25,6 @@ config SH_FPU
 	  have FPU units (ie, SH77xx).
 
 	  This option must be set in order to enable the FPU.
-
-config SH64_FPU_DENORM_FLUSH
-	bool "Flush floating point denorms to zero"
-	depends on SH_FPU && SUPERH64
 
 config SH_FPU_EMU
 	def_bool n
@@ -76,10 +71,6 @@ config SPECULATIVE_EXECUTION
 	  this, as outlined in the SH7780 hardware manual.
 
 	  If unsure, say N.
-
-config SH64_ID2815_WORKAROUND
-	bool "Include workaround for SH5-101 cut2 silicon defect ID2815"
-	depends on CPU_SUBTYPE_SH5_101
 
 config CPU_HAS_INTEVT
 	bool

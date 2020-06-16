@@ -40,7 +40,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/crypto.h>
-#include <linux/cryptohash.h>
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/highmem.h>
@@ -294,9 +293,6 @@ static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
 			return false;
 	}
-	/* Inline single pdu */
-	if (skb_shinfo(skb)->gso_size)
-		return false;
 	return true;
 }
 
@@ -406,7 +402,7 @@ inline void *copy_esn_pktxt(struct sk_buff *skb,
 	xo = xfrm_offload(skb);
 
 	aadiv->spi = (esphdr->spi);
-	seqlo = htonl(esphdr->seq_no);
+	seqlo = ntohl(esphdr->seq_no);
 	seqno = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
 	memcpy(aadiv->seq_no, &seqno, 8);
 	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);

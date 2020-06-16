@@ -1742,6 +1742,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	long timeo;
 	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	bool is_peek = flags & MSG_PEEK;
+	bool bpf_strp_enabled;
 	int num_async = 0;
 	int pending;
 
@@ -1752,6 +1753,7 @@ int tls_sw_recvmsg(struct sock *sk,
 
 	psock = sk_psock_get(sk);
 	lock_sock(sk);
+	bpf_strp_enabled = sk_psock_strp_enabled(psock);
 
 	/* Process pending decrypted records. It must be non-zero-copy */
 	err = process_rx_list(ctx, msg, &control, &cmsg, 0, len, false,
@@ -1805,11 +1807,12 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		if (to_decrypt <= len && !is_kvec && !is_peek &&
 		    ctx->control == TLS_RECORD_TYPE_DATA &&
-		    prot->version != TLS_1_3_VERSION)
+		    prot->version != TLS_1_3_VERSION &&
+		    !bpf_strp_enabled)
 			zc = true;
 
 		/* Do not use async mode if record is non-data */
-		if (ctx->control == TLS_RECORD_TYPE_DATA)
+		if (ctx->control == TLS_RECORD_TYPE_DATA && !bpf_strp_enabled)
 			async_capable = ctx->async_capable;
 		else
 			async_capable = false;
@@ -1859,6 +1862,19 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto pick_next_record;
 
 		if (!zc) {
+			if (bpf_strp_enabled) {
+				err = sk_psock_tls_strp_read(psock, skb);
+				if (err != __SK_PASS) {
+					rxm->offset = rxm->offset + rxm->full_len;
+					rxm->full_len = 0;
+					if (err == __SK_DROP)
+						consume_skb(skb);
+					ctx->recv_pkt = NULL;
+					__strp_unpause(&ctx->strp);
+					continue;
+				}
+			}
+
 			if (rxm->full_len > len) {
 				retain_skb = true;
 				chunk = len;

@@ -460,6 +460,7 @@ EXPORT_SYMBOL(st_gyro_get_settings);
 int st_gyro_common_probe(struct iio_dev *indio_dev)
 {
 	struct st_sensor_data *gdata = iio_priv(indio_dev);
+	struct st_sensors_platform_data *pdata;
 	int err;
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -477,12 +478,12 @@ int st_gyro_common_probe(struct iio_dev *indio_dev)
 	indio_dev->channels = gdata->sensor_settings->ch;
 	indio_dev->num_channels = ST_SENSORS_NUMBER_ALL_CHANNELS;
 
-	gdata->current_fullscale = (struct st_sensor_fullscale_avl *)
-					&gdata->sensor_settings->fs.fs_avl[0];
+	gdata->current_fullscale = &gdata->sensor_settings->fs.fs_avl[0];
 	gdata->odr = gdata->sensor_settings->odr.odr_avl[0].hz;
 
-	err = st_sensors_init_sensor(indio_dev,
-				(struct st_sensors_platform_data *)&gyro_pdata);
+	pdata = (struct st_sensors_platform_data *)&gyro_pdata;
+
+	err = st_sensors_init_sensor(indio_dev, pdata);
 	if (err < 0)
 		goto st_gyro_power_off;
 

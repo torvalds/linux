@@ -84,7 +84,7 @@ static int amdgpu_vm_cpu_update(struct amdgpu_vm_update_params *p,
 
 	pe += (unsigned long)amdgpu_bo_kptr(bo);
 
-	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags, p->direct);
+	trace_amdgpu_vm_set_ptes(pe, addr, count, incr, flags, p->immediate);
 
 	for (i = 0; i < count; i++) {
 		value = p->pages_addr ?

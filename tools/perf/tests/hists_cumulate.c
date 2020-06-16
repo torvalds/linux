@@ -190,7 +190,7 @@ static int do_test(struct hists *hists, struct result *expected, size_t nr_expec
 	 * function since TEST_ASSERT_VAL() returns in case of failure.
 	 */
 	hists__collapse_resort(hists, NULL);
-	perf_evsel__output_resort(hists_to_evsel(hists), NULL);
+	evsel__output_resort(hists_to_evsel(hists), NULL);
 
 	if (verbose > 2) {
 		pr_info("use callchain: %d, cumulate callchain: %d\n",
@@ -280,7 +280,7 @@ static int test1(struct evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = false;
 	symbol_conf.cumulate_callchain = false;
-	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
+	evsel__reset_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting(NULL);
 	callchain_register_param(&callchain_param);
@@ -427,7 +427,7 @@ static int test2(struct evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = true;
 	symbol_conf.cumulate_callchain = false;
-	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
+	evsel__set_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting(NULL);
 	callchain_register_param(&callchain_param);
@@ -485,7 +485,7 @@ static int test3(struct evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = false;
 	symbol_conf.cumulate_callchain = true;
-	perf_evsel__reset_sample_bit(evsel, CALLCHAIN);
+	evsel__reset_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting(NULL);
 	callchain_register_param(&callchain_param);
@@ -669,7 +669,7 @@ static int test4(struct evsel *evsel, struct machine *machine)
 
 	symbol_conf.use_callchain = true;
 	symbol_conf.cumulate_callchain = true;
-	perf_evsel__set_sample_bit(evsel, CALLCHAIN);
+	evsel__set_sample_bit(evsel, CALLCHAIN);
 
 	setup_sorting(NULL);
 

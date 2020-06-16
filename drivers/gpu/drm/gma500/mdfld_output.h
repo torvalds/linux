@@ -51,7 +51,6 @@ struct panel_info {
 };
 
 struct panel_funcs {
-	const struct drm_encoder_funcs *encoder_funcs;
 	const struct drm_encoder_helper_funcs *encoder_helper_funcs;
 	struct drm_display_mode * (*get_config_mode)(struct drm_device *);
 	int (*get_panel_info)(struct drm_device *, int, struct panel_info *);

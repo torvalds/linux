@@ -329,7 +329,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 		cdns->otg_v1_regs = NULL;
 		cdns->otg_regs = regs;
 		writel(1, &cdns->otg_v0_regs->simulate);
-		dev_info(cdns->dev, "DRD version v0 (%08x)\n",
+		dev_dbg(cdns->dev, "DRD version v0 (%08x)\n",
 			 readl(&cdns->otg_v0_regs->version));
 	} else {
 		cdns->otg_v0_regs = NULL;
@@ -337,7 +337,7 @@ int cdns3_drd_init(struct cdns3 *cdns)
 		cdns->otg_regs = (void *)&cdns->otg_v1_regs->cmd;
 		cdns->version  = CDNS3_CONTROLLER_V1;
 		writel(1, &cdns->otg_v1_regs->simulate);
-		dev_info(cdns->dev, "DRD version v1 (ID: %08x, rev: %08x)\n",
+		dev_dbg(cdns->dev, "DRD version v1 (ID: %08x, rev: %08x)\n",
 			 readl(&cdns->otg_v1_regs->did),
 			 readl(&cdns->otg_v1_regs->rid));
 	}

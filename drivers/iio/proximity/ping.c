@@ -89,14 +89,14 @@ static irqreturn_t ping_handle_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ping_read(struct ping_data *data)
+static int ping_read(struct iio_dev *indio_dev)
 {
+	struct ping_data *data = iio_priv(indio_dev);
 	int ret;
 	ktime_t ktime_dt;
 	s64 dt_ns;
 	u32 time_ns, distance_mm;
 	struct platform_device *pdev = to_platform_device(data->dev);
-	struct iio_dev *indio_dev = iio_priv_to_dev(data);
 
 	/*
 	 * just one read-echo-cycle can take place at a time
@@ -228,7 +228,6 @@ static int ping_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *channel, int *val,
 			    int *val2, long info)
 {
-	struct ping_data *data = iio_priv(indio_dev);
 	int ret;
 
 	if (channel->type != IIO_DISTANCE)
@@ -236,7 +235,7 @@ static int ping_read_raw(struct iio_dev *indio_dev,
 
 	switch (info) {
 	case IIO_CHAN_INFO_RAW:
-		ret = ping_read(data);
+		ret = ping_read(indio_dev);
 		if (ret < 0)
 			return ret;
 		*val = ret;

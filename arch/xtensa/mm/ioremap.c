@@ -7,9 +7,9 @@
 
 #include <linux/io.h>
 #include <linux/vmalloc.h>
+#include <linux/pgtable.h>
 #include <asm/cacheflush.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 
 static void __iomem *xtensa_ioremap(unsigned long paddr, unsigned long size,
 				    pgprot_t prot)

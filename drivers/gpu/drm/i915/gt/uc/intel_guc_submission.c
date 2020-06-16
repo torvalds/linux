@@ -258,7 +258,7 @@ static void guc_submit(struct intel_engine_cs *engine,
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.attr.priority | __NO_PREEMPTION;
+	return rq->sched.attr.priority;
 }
 
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)

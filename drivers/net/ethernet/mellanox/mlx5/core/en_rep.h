@@ -56,6 +56,7 @@ struct mlx5e_neigh_update_table {
 };
 
 struct mlx5_tc_ct_priv;
+struct mlx5e_rep_bond;
 struct mlx5_rep_uplink_priv {
 	/* Filters DB - instantiated by the uplink representor and shared by
 	 * the uplink's VFs
@@ -68,13 +69,8 @@ struct mlx5_rep_uplink_priv {
 	 * tc_indr_block_cb_priv_list is used to lookup indirect callback
 	 * private data
 	 *
-	 * netdevice_nb is the netdev events notifier - used to register
-	 * tunnel devices for block events
-	 *
 	 */
 	struct list_head	    tc_indr_block_priv_list;
-	struct notifier_block	    netdevice_nb;
-	struct netdev_net_notifier  netdevice_nn;
 
 	struct mlx5_tun_entropy tun_entropy;
 
@@ -89,6 +85,9 @@ struct mlx5_rep_uplink_priv {
 	struct mapping_ctx *tunnel_enc_opts_mapping;
 
 	struct mlx5_tc_ct_priv *ct_priv;
+
+	/* support eswitch vports bonding */
+	struct mlx5e_rep_bond *bond;
 };
 
 struct mlx5e_rep_priv {
@@ -158,6 +157,22 @@ struct mlx5e_neigh_hash_entry {
 enum {
 	/* set when the encap entry is successfully offloaded into HW */
 	MLX5_ENCAP_ENTRY_VALID     = BIT(0),
+	MLX5_REFORMAT_DECAP        = BIT(1),
+};
+
+struct mlx5e_decap_key {
+	struct ethhdr key;
+};
+
+struct mlx5e_decap_entry {
+	struct mlx5e_decap_key key;
+	struct list_head flows;
+	struct hlist_node hlist;
+	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
+	struct mlx5_pkt_reformat *pkt_reformat;
+	struct rcu_head rcu;
 };
 
 struct mlx5e_encap_entry {
@@ -195,6 +210,15 @@ struct mlx5e_rep_sq {
 
 void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev);
 void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev);
+int mlx5e_rep_bond_init(struct mlx5e_rep_priv *rpriv);
+void mlx5e_rep_bond_cleanup(struct mlx5e_rep_priv *rpriv);
+int mlx5e_rep_bond_enslave(struct mlx5_eswitch *esw, struct net_device *netdev,
+			   struct net_device *lag_dev);
+void mlx5e_rep_bond_unslave(struct mlx5_eswitch *esw,
+			    const struct net_device *netdev,
+			    const struct net_device *lag_dev);
+int mlx5e_rep_bond_update(struct mlx5e_priv *priv, bool cleanup);
+
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);
 int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
@@ -202,11 +226,6 @@ void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv);
 void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe);
 void mlx5e_handle_rx_cqe_mpwrq_rep(struct mlx5e_rq *rq,
 				   struct mlx5_cqe64 *cqe);
-
-int mlx5e_rep_encap_entry_attach(struct mlx5e_priv *priv,
-				 struct mlx5e_encap_entry *e);
-void mlx5e_rep_encap_entry_detach(struct mlx5e_priv *priv,
-				  struct mlx5e_encap_entry *e);
 
 void mlx5e_rep_queue_neigh_stats_work(struct mlx5e_priv *priv);
 

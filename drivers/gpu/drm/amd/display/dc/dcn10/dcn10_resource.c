@@ -51,6 +51,7 @@
 #include "dce112/dce112_resource.h"
 #include "dcn10_hubp.h"
 #include "dcn10_hubbub.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "soc15_hw_ip.h"
 #include "vega10_ip_offset.h"
@@ -327,6 +328,18 @@ static const struct dcn10_link_enc_shift le_shift = {
 
 static const struct dcn10_link_enc_mask le_mask = {
 		LINK_ENCODER_MASK_SH_LIST_DCN10(_MASK)
+};
+
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCN_PANEL_CNTL_REG_LIST() }
+};
+
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
 };
 
 static const struct dce110_aux_registers_shift aux_shift = {
@@ -817,6 +830,23 @@ struct link_encoder *dcn10_link_encoder_create(
 	return &enc10->base;
 }
 
+static struct panel_cntl *dcn10_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+{
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+
+	if (!panel_cntl)
+		return NULL;
+
+	dce_panel_cntl_construct(panel_cntl,
+			init_data,
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
+
+	return &panel_cntl->base;
+}
+
 struct clock_source *dcn10_clock_source_create(
 	struct dc_context *ctx,
 	struct dc_bios *bios,
@@ -1091,24 +1121,6 @@ static enum dc_status build_mapped_resource(
 {
 	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
 
-	/*TODO Seems unneeded anymore */
-	/*	if (old_context && resource_is_stream_unchanged(old_context, stream)) {
-			if (stream != NULL && old_context->streams[i] != NULL) {
-				 todo: shouldn't have to copy missing parameter here
-				resource_build_bit_depth_reduction_params(stream,
-						&stream->bit_depth_params);
-				stream->clamping.pixel_encoding =
-						stream->timing.pixel_encoding;
-
-				resource_build_bit_depth_reduction_params(stream,
-								&stream->bit_depth_params);
-				build_clamping_params(stream);
-
-				continue;
-			}
-		}
-	*/
-
 	if (!pipe_ctx)
 		return DC_ERROR_UNEXPECTED;
 
@@ -1301,6 +1313,7 @@ static const struct dc_cap_funcs cap_funcs = {
 static const struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
+	.panel_cntl_create = dcn10_panel_cntl_create,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
@@ -1362,6 +1375,40 @@ static bool dcn10_resource_construct(
 
 	/* Raven DP PHY HBR2 eye diagram pattern is not stable. Use TP4 */
 	dc->caps.force_dp_tps4_for_cp2520 = true;
+
+	/* Color pipeline capabilities */
+	dc->caps.color.dpp.dcn_arch = 1;
+	dc->caps.color.dpp.input_lut_shared = 1;
+	dc->caps.color.dpp.icsc = 1;
+	dc->caps.color.dpp.dgam_ram = 1;
+	dc->caps.color.dpp.dgam_rom_caps.srgb = 1;
+	dc->caps.color.dpp.dgam_rom_caps.bt2020 = 1;
+	dc->caps.color.dpp.dgam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.dpp.dgam_rom_caps.pq = 0;
+	dc->caps.color.dpp.dgam_rom_caps.hlg = 0;
+	dc->caps.color.dpp.post_csc = 0;
+	dc->caps.color.dpp.gamma_corr = 0;
+
+	dc->caps.color.dpp.hw_3d_lut = 0;
+	dc->caps.color.dpp.ogam_ram = 1; // RGAM on DCN1
+	dc->caps.color.dpp.ogam_rom_caps.srgb = 1;
+	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 1;
+	dc->caps.color.dpp.ogam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.dpp.ogam_rom_caps.pq = 0;
+	dc->caps.color.dpp.ogam_rom_caps.hlg = 0;
+	dc->caps.color.dpp.ocsc = 1;
+
+	/* no post-blend color operations */
+	dc->caps.color.mpc.gamut_remap = 0;
+	dc->caps.color.mpc.num_3dluts = 0;
+	dc->caps.color.mpc.shared_3d_lut = 0;
+	dc->caps.color.mpc.ogam_ram = 0;
+	dc->caps.color.mpc.ogam_rom_caps.srgb = 0;
+	dc->caps.color.mpc.ogam_rom_caps.bt2020 = 0;
+	dc->caps.color.mpc.ogam_rom_caps.gamma2_2 = 0;
+	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
+	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
+	dc->caps.color.mpc.ocsc = 0;
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

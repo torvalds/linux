@@ -1,3 +1,9 @@
+What:		sys/bus/dsa/devices/dsa<m>/version
+Date:		Apr 15, 2020
+KernelVersion:	5.8.0
+Contact:	dmaengine@vger.kernel.org
+Description:	The hardware version number.
+
 What:           sys/bus/dsa/devices/dsa<m>/cdev_major
 Date:           Oct 25, 2019
 KernelVersion: 	5.6.0

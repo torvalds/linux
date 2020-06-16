@@ -73,12 +73,14 @@ struct dpu_crtc_smmu_state_data {
  * struct dpu_crtc_mixer: stores the map for each virtual pipeline in the CRTC
  * @hw_lm:	LM HW Driver context
  * @lm_ctl:	CTL Path HW driver context
+ * @lm_dspp:	DSPP HW driver context
  * @mixer_op_mode:	mixer blending operation mode
  * @flush_mask:	mixer flush mask for ctl, mixer and pipe
  */
 struct dpu_crtc_mixer {
 	struct dpu_hw_mixer *hw_lm;
 	struct dpu_hw_ctl *lm_ctl;
+	struct dpu_hw_dspp *hw_dspp;
 	u32 mixer_op_mode;
 	u32 flush_mask;
 };

@@ -15,6 +15,7 @@
 #include <linux/hid.h>
 #include <linux/hidraw.h>
 #include <linux/i2c.h>
+#include <linux/gpio/driver.h>
 #include "hid-ids.h"
 
 /* Commands codes in a raw output report */
@@ -27,6 +28,8 @@ enum {
 	MCP2221_I2C_PARAM_OR_STATUS	= 0x10,
 	MCP2221_I2C_SET_SPEED = 0x20,
 	MCP2221_I2C_CANCEL = 0x10,
+	MCP2221_GPIO_SET = 0x50,
+	MCP2221_GPIO_GET = 0x51,
 };
 
 /* Response codes in a raw input report */
@@ -42,6 +45,8 @@ enum {
 	MCP2221_I2C_WRADDRL_SEND = 0x21,
 	MCP2221_I2C_ADDR_NACK = 0x25,
 	MCP2221_I2C_READ_COMPL = 0x55,
+	MCP2221_ALT_F_NOT_GPIOV = 0xEE,
+	MCP2221_ALT_F_NOT_GPIOD = 0xEF,
 };
 
 /*
@@ -59,6 +64,9 @@ struct mcp2221 {
 	int rxbuf_idx;
 	int status;
 	u8 cur_i2c_clk_div;
+	struct gpio_chip *gc;
+	u8 gp_idx;
+	u8 gpio_dir;
 };
 
 /*
@@ -526,6 +534,110 @@ static const struct i2c_algorithm mcp_i2c_algo = {
 	.functionality = mcp_i2c_func,
 };
 
+static int mcp_gpio_get(struct gpio_chip *gc,
+				unsigned int offset)
+{
+	int ret;
+	struct mcp2221 *mcp = gpiochip_get_data(gc);
+
+	mcp->txbuf[0] = MCP2221_GPIO_GET;
+
+	mcp->gp_idx = (offset + 1) * 2;
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
+	mutex_unlock(&mcp->lock);
+
+	return ret;
+}
+
+static void mcp_gpio_set(struct gpio_chip *gc,
+				unsigned int offset, int value)
+{
+	struct mcp2221 *mcp = gpiochip_get_data(gc);
+
+	memset(mcp->txbuf, 0, 18);
+	mcp->txbuf[0] = MCP2221_GPIO_SET;
+
+	mcp->gp_idx = ((offset + 1) * 4) - 1;
+
+	mcp->txbuf[mcp->gp_idx - 1] = 1;
+	mcp->txbuf[mcp->gp_idx] = !!value;
+
+	mutex_lock(&mcp->lock);
+	mcp_send_data_req_status(mcp, mcp->txbuf, 18);
+	mutex_unlock(&mcp->lock);
+}
+
+static int mcp_gpio_dir_set(struct mcp2221 *mcp,
+				unsigned int offset, u8 val)
+{
+	memset(mcp->txbuf, 0, 18);
+	mcp->txbuf[0] = MCP2221_GPIO_SET;
+
+	mcp->gp_idx = (offset + 1) * 5;
+
+	mcp->txbuf[mcp->gp_idx - 1] = 1;
+	mcp->txbuf[mcp->gp_idx] = val;
+
+	return mcp_send_data_req_status(mcp, mcp->txbuf, 18);
+}
+
+static int mcp_gpio_direction_input(struct gpio_chip *gc,
+				unsigned int offset)
+{
+	int ret;
+	struct mcp2221 *mcp = gpiochip_get_data(gc);
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_gpio_dir_set(mcp, offset, 0);
+	mutex_unlock(&mcp->lock);
+
+	return ret;
+}
+
+static int mcp_gpio_direction_output(struct gpio_chip *gc,
+				unsigned int offset, int value)
+{
+	int ret;
+	struct mcp2221 *mcp = gpiochip_get_data(gc);
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_gpio_dir_set(mcp, offset, 1);
+	mutex_unlock(&mcp->lock);
+
+	/* Can't configure as output, bailout early */
+	if (ret)
+		return ret;
+
+	mcp_gpio_set(gc, offset, value);
+
+	return 0;
+}
+
+static int mcp_gpio_get_direction(struct gpio_chip *gc,
+				unsigned int offset)
+{
+	int ret;
+	struct mcp2221 *mcp = gpiochip_get_data(gc);
+
+	mcp->txbuf[0] = MCP2221_GPIO_GET;
+
+	mcp->gp_idx = (offset + 1) * 2;
+
+	mutex_lock(&mcp->lock);
+	ret = mcp_send_data_req_status(mcp, mcp->txbuf, 1);
+	mutex_unlock(&mcp->lock);
+
+	if (ret)
+		return ret;
+
+	if (mcp->gpio_dir)
+		return GPIO_LINE_DIRECTION_IN;
+
+	return GPIO_LINE_DIRECTION_OUT;
+}
+
 /* Gives current state of i2c engine inside mcp2221 */
 static int mcp_get_i2c_eng_state(struct mcp2221 *mcp,
 				u8 *data, u8 idx)
@@ -638,6 +750,39 @@ static int mcp2221_raw_event(struct hid_device *hdev,
 		complete(&mcp->wait_in_report);
 		break;
 
+	case MCP2221_GPIO_GET:
+		switch (data[1]) {
+		case MCP2221_SUCCESS:
+			if ((data[mcp->gp_idx] == MCP2221_ALT_F_NOT_GPIOV) ||
+				(data[mcp->gp_idx + 1] == MCP2221_ALT_F_NOT_GPIOD)) {
+				mcp->status = -ENOENT;
+			} else {
+				mcp->status = !!data[mcp->gp_idx];
+				mcp->gpio_dir = !!data[mcp->gp_idx + 1];
+			}
+			break;
+		default:
+			mcp->status = -EAGAIN;
+		}
+		complete(&mcp->wait_in_report);
+		break;
+
+	case MCP2221_GPIO_SET:
+		switch (data[1]) {
+		case MCP2221_SUCCESS:
+			if ((data[mcp->gp_idx] == MCP2221_ALT_F_NOT_GPIOV) ||
+				(data[mcp->gp_idx - 1] == MCP2221_ALT_F_NOT_GPIOV)) {
+				mcp->status = -ENOENT;
+			} else {
+				mcp->status = 0;
+			}
+			break;
+		default:
+			mcp->status = -EAGAIN;
+		}
+		complete(&mcp->wait_in_report);
+		break;
+
 	default:
 		mcp->status = -EIO;
 		complete(&mcp->wait_in_report);
@@ -702,8 +847,32 @@ static int mcp2221_probe(struct hid_device *hdev,
 	}
 	i2c_set_adapdata(&mcp->adapter, mcp);
 
+	/* Setup GPIO chip */
+	mcp->gc = devm_kzalloc(&hdev->dev, sizeof(*mcp->gc), GFP_KERNEL);
+	if (!mcp->gc) {
+		ret = -ENOMEM;
+		goto err_gc;
+	}
+
+	mcp->gc->label = "mcp2221_gpio";
+	mcp->gc->direction_input = mcp_gpio_direction_input;
+	mcp->gc->direction_output = mcp_gpio_direction_output;
+	mcp->gc->get_direction = mcp_gpio_get_direction;
+	mcp->gc->set = mcp_gpio_set;
+	mcp->gc->get = mcp_gpio_get;
+	mcp->gc->ngpio = 4;
+	mcp->gc->base = -1;
+	mcp->gc->can_sleep = 1;
+	mcp->gc->parent = &hdev->dev;
+
+	ret = devm_gpiochip_add_data(&hdev->dev, mcp->gc, mcp);
+	if (ret)
+		goto err_gc;
+
 	return 0;
 
+err_gc:
+	i2c_del_adapter(&mcp->adapter);
 err_i2c:
 	hid_hw_close(mcp->hdev);
 err_hstop:

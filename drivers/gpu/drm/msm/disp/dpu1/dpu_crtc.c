@@ -9,6 +9,7 @@
 #include <linux/sort.h>
 #include <linux/debugfs.h>
 #include <linux/ktime.h>
+#include <linux/bits.h>
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
@@ -20,6 +21,7 @@
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_ctl.h"
+#include "dpu_hw_dspp.h"
 #include "dpu_crtc.h"
 #include "dpu_plane.h"
 #include "dpu_encoder.h"
@@ -39,6 +41,9 @@
 
 /* timeout in ms waiting for frame done */
 #define DPU_CRTC_FRAME_DONE_TIMEOUT_MS	60
+
+#define	CONVERT_S3_15(val) \
+	(((((u64)val) & ~BIT_ULL(63)) >> 17) & GENMASK_ULL(17, 0))
 
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
@@ -88,11 +93,9 @@ static void _dpu_crtc_setup_blend_cfg(struct dpu_crtc_mixer *mixer,
 
 static void _dpu_crtc_program_lm_output_roi(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *crtc_state;
 	int lm_idx, lm_horiz_position;
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	crtc_state = to_dpu_crtc_state(crtc->state);
 
 	lm_horiz_position = 0;
@@ -422,6 +425,74 @@ static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 	drm_mode_debug_printmodeline(adj_mode);
 }
 
+static void _dpu_crtc_get_pcc_coeff(struct drm_crtc_state *state,
+		struct dpu_hw_pcc_cfg *cfg)
+{
+	struct drm_color_ctm *ctm;
+
+	memset(cfg, 0, sizeof(struct dpu_hw_pcc_cfg));
+
+	ctm = (struct drm_color_ctm *)state->ctm->data;
+
+	if (!ctm)
+		return;
+
+	cfg->r.r = CONVERT_S3_15(ctm->matrix[0]);
+	cfg->g.r = CONVERT_S3_15(ctm->matrix[1]);
+	cfg->b.r = CONVERT_S3_15(ctm->matrix[2]);
+
+	cfg->r.g = CONVERT_S3_15(ctm->matrix[3]);
+	cfg->g.g = CONVERT_S3_15(ctm->matrix[4]);
+	cfg->b.g = CONVERT_S3_15(ctm->matrix[5]);
+
+	cfg->r.b = CONVERT_S3_15(ctm->matrix[6]);
+	cfg->g.b = CONVERT_S3_15(ctm->matrix[7]);
+	cfg->b.b = CONVERT_S3_15(ctm->matrix[8]);
+}
+
+static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
+{
+	struct drm_crtc_state *state = crtc->state;
+	struct dpu_crtc_state *cstate = to_dpu_crtc_state(crtc->state);
+	struct dpu_crtc_mixer *mixer = cstate->mixers;
+	struct dpu_hw_pcc_cfg cfg;
+	struct dpu_hw_ctl *ctl;
+	struct dpu_hw_mixer *lm;
+	struct dpu_hw_dspp *dspp;
+	int i;
+
+
+	if (!state->color_mgmt_changed)
+		return;
+
+	for (i = 0; i < cstate->num_mixers; i++) {
+		ctl = mixer[i].lm_ctl;
+		lm = mixer[i].hw_lm;
+		dspp = mixer[i].hw_dspp;
+
+		if (!dspp || !dspp->ops.setup_pcc)
+			continue;
+
+		if (!state->ctm) {
+			dspp->ops.setup_pcc(dspp, NULL);
+		} else {
+			_dpu_crtc_get_pcc_coeff(state, &cfg);
+			dspp->ops.setup_pcc(dspp, &cfg);
+		}
+
+		mixer[i].flush_mask |= ctl->ops.get_bitmask_dspp(ctl,
+			mixer[i].hw_dspp->idx);
+
+		/* stage config flush mask */
+		ctl->ops.update_pending_flush(ctl, mixer[i].flush_mask);
+
+		DPU_DEBUG("lm %d, ctl %d, flush mask 0x%x\n",
+			mixer[i].hw_lm->idx - DSPP_0,
+			ctl->idx - CTL_0,
+			mixer[i].flush_mask);
+	}
+}
+
 static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 		struct drm_crtc_state *old_state)
 {
@@ -430,7 +501,6 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct drm_encoder *encoder;
 	struct drm_device *dev;
 	unsigned long flags;
-	struct dpu_crtc_smmu_state_data *smmu_state;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
@@ -448,7 +518,6 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(crtc->state);
 	dev = crtc->dev;
-	smmu_state = &dpu_crtc->smmu_state;
 
 	_dpu_crtc_setup_lm_bounds(crtc, crtc->state);
 
@@ -475,6 +544,8 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 
 	_dpu_crtc_blend_setup(crtc);
 
+	_dpu_crtc_setup_cp_blocks(crtc);
+
 	/*
 	 * PP_DONE irq is only used by command mode for now.
 	 * It is better to request pending before FLUSH and START trigger
@@ -491,7 +562,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 	struct drm_device *dev;
 	struct drm_plane *plane;
 	struct msm_drm_private *priv;
-	struct msm_drm_thread *event_thread;
 	unsigned long flags;
 	struct dpu_crtc_state *cstate;
 
@@ -512,8 +582,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 		DPU_ERROR("invalid crtc index[%d]\n", crtc->index);
 		return;
 	}
-
-	event_thread = &priv->event_thread[crtc->index];
 
 	if (dpu_crtc->event) {
 		DPU_DEBUG("already received dpu_crtc->event\n");
@@ -567,7 +635,6 @@ static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
 static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
 
 	if (!crtc || !state) {
@@ -575,7 +642,6 @@ static void dpu_crtc_destroy_state(struct drm_crtc *crtc,
 		return;
 	}
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(state);
 
 	DPU_DEBUG("crtc%d\n", crtc->base.id);
@@ -662,11 +728,9 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 /**
  * dpu_crtc_duplicate_state - state duplicate hook
  * @crtc: Pointer to drm crtc structure
- * @Returns: Pointer to new drm_crtc_state structure
  */
 static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate, *old_cstate;
 
 	if (!crtc || !crtc->state) {
@@ -674,7 +738,6 @@ static struct drm_crtc_state *dpu_crtc_duplicate_state(struct drm_crtc *crtc)
 		return NULL;
 	}
 
-	dpu_crtc = to_dpu_crtc(crtc);
 	old_cstate = to_dpu_crtc_state(crtc->state);
 	cstate = kmemdup(old_cstate, sizeof(*old_cstate), GFP_KERNEL);
 	if (!cstate) {
@@ -693,9 +756,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 {
 	struct dpu_crtc *dpu_crtc;
 	struct dpu_crtc_state *cstate;
-	struct drm_display_mode *mode;
 	struct drm_encoder *encoder;
-	struct msm_drm_private *priv;
 	unsigned long flags;
 	bool release_bandwidth = false;
 
@@ -705,8 +766,6 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 	}
 	dpu_crtc = to_dpu_crtc(crtc);
 	cstate = to_dpu_crtc_state(crtc->state);
-	mode = &cstate->base.adjusted_mode;
-	priv = crtc->dev->dev_private;
 
 	DRM_DEBUG_KMS("crtc%d\n", crtc->base.id);
 
@@ -768,14 +827,12 @@ static void dpu_crtc_enable(struct drm_crtc *crtc,
 {
 	struct dpu_crtc *dpu_crtc;
 	struct drm_encoder *encoder;
-	struct msm_drm_private *priv;
 	bool request_bandwidth;
 
 	if (!crtc) {
 		DPU_ERROR("invalid crtc\n");
 		return;
 	}
-	priv = crtc->dev->dev_private;
 
 	pm_runtime_get_sync(crtc->dev->dev);
 
@@ -1318,6 +1375,8 @@ struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 				NULL);
 
 	drm_crtc_helper_add(crtc, &dpu_crtc_helper_funcs);
+
+	drm_crtc_enable_color_mgmt(crtc, 0, true, 0);
 
 	/* save user friendly CRTC name for later */
 	snprintf(dpu_crtc->name, DPU_CRTC_NAME_SIZE, "crtc%u", crtc->base.id);

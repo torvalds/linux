@@ -6,26 +6,12 @@
 
 #include "en.h"
 
-#define MLX5E_SQ_NOPS_ROOM (MLX5_SEND_WQE_MAX_WQEBBS - 1)
-#define MLX5E_SQ_STOP_ROOM (MLX5_SEND_WQE_MAX_WQEBBS +\
-			    MLX5E_SQ_NOPS_ROOM)
-
-#ifndef CONFIG_MLX5_EN_TLS
-#define MLX5E_SQ_TLS_ROOM (0)
-#else
-/* TLS offload requires additional stop_room for:
- *  - a resync SKB.
- * kTLS offload requires fixed additional stop_room for:
- * - a static params WQE, and a progress params WQE.
- * The additional MTU-depending room for the resync DUMP WQEs
- * will be calculated and added in runtime.
- */
-#define MLX5E_SQ_TLS_ROOM  \
-	(MLX5_SEND_WQE_MAX_WQEBBS + \
-	 MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS)
-#endif
-
 #define INL_HDR_START_SZ (sizeof(((struct mlx5_wqe_eth_seg *)NULL)->inline_hdr.start))
+
+enum mlx5e_icosq_wqe_type {
+	MLX5E_ICOSQ_WQE_NOP,
+	MLX5E_ICOSQ_WQE_UMR_RX,
+};
 
 static inline bool
 mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
@@ -33,18 +19,18 @@ mlx5e_wqc_has_room_for(struct mlx5_wq_cyc *wq, u16 cc, u16 pc, u16 n)
 	return (mlx5_wq_cyc_ctr2ix(wq, cc - pc) >= n) || (cc == pc);
 }
 
-static inline void *
-mlx5e_sq_fetch_wqe(struct mlx5e_txqsq *sq, size_t size, u16 *pi)
+static inline void *mlx5e_fetch_wqe(struct mlx5_wq_cyc *wq, u16 pi, size_t wqe_size)
 {
-	struct mlx5_wq_cyc *wq = &sq->wq;
 	void *wqe;
 
-	*pi  = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	wqe = mlx5_wq_cyc_get_wqe(wq, *pi);
-	memset(wqe, 0, size);
+	wqe = mlx5_wq_cyc_get_wqe(wq, pi);
+	memset(wqe, 0, wqe_size);
 
 	return wqe;
 }
+
+#define MLX5E_TX_FETCH_WQE(sq, pi) \
+	((struct mlx5e_tx_wqe *)mlx5e_fetch_wqe(&(sq)->wq, pi, sizeof(struct mlx5e_tx_wqe)))
 
 static inline struct mlx5e_tx_wqe *
 mlx5e_post_nop(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
@@ -81,6 +67,84 @@ mlx5e_post_nop_fence(struct mlx5_wq_cyc *wq, u32 sqn, u16 *pc)
 	return wqe;
 }
 
+struct mlx5e_tx_wqe_info {
+	struct sk_buff *skb;
+	u32 num_bytes;
+	u8 num_wqebbs;
+	u8 num_dma;
+#ifdef CONFIG_MLX5_EN_TLS
+	struct page *resync_dump_frag_page;
+#endif
+};
+
+static inline u16 mlx5e_txqsq_get_next_pi(struct mlx5e_txqsq *sq, u16 size)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 pi, contig_wqebbs;
+
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_tx_wqe_info *wi, *edge_wi;
+
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
+
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_tx_wqe_info) {
+				.num_wqebbs = 1,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+		sq->stats->nop += contig_wqebbs;
+
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
+
+	return pi;
+}
+
+struct mlx5e_icosq_wqe_info {
+	u8 wqe_type;
+	u8 num_wqebbs;
+
+	/* Auxiliary data for different wqe types. */
+	union {
+		struct {
+			struct mlx5e_rq *rq;
+		} umr;
+	};
+};
+
+static inline u16 mlx5e_icosq_get_next_pi(struct mlx5e_icosq *sq, u16 size)
+{
+	struct mlx5_wq_cyc *wq = &sq->wq;
+	u16 pi, contig_wqebbs;
+
+	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	contig_wqebbs = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
+	if (unlikely(contig_wqebbs < size)) {
+		struct mlx5e_icosq_wqe_info *wi, *edge_wi;
+
+		wi = &sq->db.wqe_info[pi];
+		edge_wi = wi + contig_wqebbs;
+
+		/* Fill SQ frag edge with NOPs to avoid WQE wrapping two pages. */
+		for (; wi < edge_wi; wi++) {
+			*wi = (struct mlx5e_icosq_wqe_info) {
+				.wqe_type   = MLX5E_ICOSQ_WQE_NOP,
+				.num_wqebbs = 1,
+			};
+			mlx5e_post_nop(wq, sq->sqn, &sq->pc);
+		}
+
+		pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+	}
+
+	return pi;
+}
+
 static inline void
 mlx5e_fill_sq_frag_edge(struct mlx5e_txqsq *sq, struct mlx5_wq_cyc *wq,
 			u16 pi, u16 nnops)
@@ -102,7 +166,7 @@ static inline void
 mlx5e_notify_hw(struct mlx5_wq_cyc *wq, u16 pc, void __iomem *uar_map,
 		struct mlx5_wqe_ctrl_seg *ctrl)
 {
-	ctrl->fm_ce_se = MLX5_WQE_CTRL_CQ_UPDATE;
+	ctrl->fm_ce_se |= MLX5_WQE_CTRL_CQ_UPDATE;
 	/* ensure wqe is visible to device before updating doorbell record */
 	dma_wmb();
 
@@ -189,6 +253,22 @@ static inline void mlx5e_rqwq_reset(struct mlx5e_rq *rq)
 	}
 }
 
+static inline void mlx5e_dump_error_cqe(struct mlx5e_cq *cq, u32 sqn,
+					struct mlx5_err_cqe *err_cqe)
+{
+	struct mlx5_cqwq *wq = &cq->wq;
+	u32 ci;
+
+	ci = mlx5_cqwq_ctr2ix(wq, wq->cc - 1);
+
+	netdev_err(cq->channel->netdev,
+		   "Error cqe on cqn 0x%x, ci 0x%x, sqn 0x%x, opcode 0x%x, syndrome 0x%x, vendor syndrome 0x%x\n",
+		   cq->mcq.cqn, ci, sqn,
+		   get_cqe_opcode((struct mlx5_cqe64 *)err_cqe),
+		   err_cqe->syndrome, err_cqe->vendor_err_synd);
+	mlx5_dump_err_cqe(cq->mdev, err_cqe);
+}
+
 /* SW parser related functions */
 
 struct mlx5e_swp_spec {
@@ -230,6 +310,27 @@ mlx5e_set_eseg_swp(struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg,
 		eseg->swp_inner_l4_offset = skb_inner_transport_offset(skb) / 2;
 		break;
 	}
+}
+
+static inline u16 mlx5e_stop_room_for_wqe(u16 wqe_size)
+{
+	BUILD_BUG_ON(PAGE_SIZE / MLX5_SEND_WQE_BB < MLX5_SEND_WQE_MAX_WQEBBS);
+
+	/* A WQE must not cross the page boundary, hence two conditions:
+	 * 1. Its size must not exceed the page size.
+	 * 2. If the WQE size is X, and the space remaining in a page is less
+	 *    than X, this space needs to be padded with NOPs. So, one WQE of
+	 *    size X may require up to X-1 WQEBBs of padding, which makes the
+	 *    stop room of X-1 + X.
+	 * WQE size is also limited by the hardware limit.
+	 */
+
+	if (__builtin_constant_p(wqe_size))
+		BUILD_BUG_ON(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
+	else
+		WARN_ON_ONCE(wqe_size > MLX5_SEND_WQE_MAX_WQEBBS);
+
+	return wqe_size * 2 - 1;
 }
 
 #endif

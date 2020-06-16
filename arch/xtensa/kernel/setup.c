@@ -37,7 +37,6 @@
 #include <asm/bootparam.h>
 #include <asm/kasan.h>
 #include <asm/mmu_context.h>
-#include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/timex.h>
 #include <asm/platform.h>

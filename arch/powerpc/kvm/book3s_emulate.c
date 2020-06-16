@@ -235,7 +235,7 @@ void kvmppc_emulate_tabort(struct kvm_vcpu *vcpu, int ra_val)
 
 #endif
 
-int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_core_emulate_op_pr(struct kvm_vcpu *vcpu,
 			      unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
@@ -371,13 +371,13 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE)
 				break;
 
-			run->papr_hcall.nr = cmd;
+			vcpu->run->papr_hcall.nr = cmd;
 			for (i = 0; i < 9; ++i) {
 				ulong gpr = kvmppc_get_gpr(vcpu, 4 + i);
-				run->papr_hcall.args[i] = gpr;
+				vcpu->run->papr_hcall.args[i] = gpr;
 			}
 
-			run->exit_reason = KVM_EXIT_PAPR_HCALL;
+			vcpu->run->exit_reason = KVM_EXIT_PAPR_HCALL;
 			vcpu->arch.hcall_needed = 1;
 			emulated = EMULATE_EXIT_USER;
 			break;
@@ -629,7 +629,7 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	}
 
 	if (emulated == EMULATE_FAIL)
-		emulated = kvmppc_emulate_paired_single(run, vcpu);
+		emulated = kvmppc_emulate_paired_single(vcpu);
 
 	return emulated;
 }

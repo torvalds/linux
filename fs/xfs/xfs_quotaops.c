@@ -21,10 +21,10 @@ xfs_qm_fill_state(
 	struct qc_type_state	*tstate,
 	struct xfs_mount	*mp,
 	struct xfs_inode	*ip,
-	xfs_ino_t		ino)
+	xfs_ino_t		ino,
+	struct xfs_def_quota	*defq)
 {
-	struct xfs_quotainfo *q = mp->m_quotainfo;
-	bool tempqip = false;
+	bool			tempqip = false;
 
 	tstate->ino = ino;
 	if (!ip && ino == NULLFSINO)
@@ -36,13 +36,13 @@ xfs_qm_fill_state(
 	}
 	tstate->flags |= QCI_SYSFILE;
 	tstate->blocks = ip->i_d.di_nblocks;
-	tstate->nextents = ip->i_d.di_nextents;
-	tstate->spc_timelimit = (u32)q->qi_btimelimit;
-	tstate->ino_timelimit = (u32)q->qi_itimelimit;
-	tstate->rt_spc_timelimit = (u32)q->qi_rtbtimelimit;
-	tstate->spc_warnlimit = q->qi_bwarnlimit;
-	tstate->ino_warnlimit = q->qi_iwarnlimit;
-	tstate->rt_spc_warnlimit = q->qi_rtbwarnlimit;
+	tstate->nextents = ip->i_df.if_nextents;
+	tstate->spc_timelimit = (u32)defq->btimelimit;
+	tstate->ino_timelimit = (u32)defq->itimelimit;
+	tstate->rt_spc_timelimit = (u32)defq->rtbtimelimit;
+	tstate->spc_warnlimit = defq->bwarnlimit;
+	tstate->ino_warnlimit = defq->iwarnlimit;
+	tstate->rt_spc_warnlimit = defq->rtbwarnlimit;
 	if (tempqip)
 		xfs_irele(ip);
 }
@@ -77,11 +77,11 @@ xfs_fs_get_quota_state(
 		state->s_state[PRJQUOTA].flags |= QCI_LIMITS_ENFORCED;
 
 	xfs_qm_fill_state(&state->s_state[USRQUOTA], mp, q->qi_uquotaip,
-			  mp->m_sb.sb_uquotino);
+			  mp->m_sb.sb_uquotino, &q->qi_usr_default);
 	xfs_qm_fill_state(&state->s_state[GRPQUOTA], mp, q->qi_gquotaip,
-			  mp->m_sb.sb_gquotino);
+			  mp->m_sb.sb_gquotino, &q->qi_grp_default);
 	xfs_qm_fill_state(&state->s_state[PRJQUOTA], mp, q->qi_pquotaip,
-			  mp->m_sb.sb_pquotino);
+			  mp->m_sb.sb_pquotino, &q->qi_prj_default);
 	return 0;
 }
 
@@ -109,8 +109,8 @@ xfs_fs_set_info(
 	int			type,
 	struct qc_info		*info)
 {
-	struct xfs_mount *mp = XFS_M(sb);
-	struct qc_dqblk newlim;
+	struct xfs_mount	*mp = XFS_M(sb);
+	struct qc_dqblk		newlim;
 
 	if (sb_rdonly(sb))
 		return -EROFS;

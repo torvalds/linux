@@ -23,10 +23,11 @@
 #include <linux/nmi.h>
 #include <linux/cpuhotplug.h>
 #include <linux/stackprotector.h>
+#include <linux/pgtable.h>
 
 #include <asm/paravirt.h>
+#include <asm/idtentry.h>
 #include <asm/desc.h>
-#include <asm/pgtable.h>
 #include <asm/cpu.h>
 
 #include <xen/interface/xen.h>
@@ -348,7 +349,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	ctxt->gs_base_kernel = per_cpu_offset(cpu);
 #endif
 	ctxt->event_callback_eip    =
-		(unsigned long)xen_hypervisor_callback;
+		(unsigned long)xen_asm_exc_xen_hypervisor_callback;
 	ctxt->failsafe_callback_eip =
 		(unsigned long)xen_failsafe_callback;
 	per_cpu(xen_cr3, cpu) = __pa(swapper_pg_dir);

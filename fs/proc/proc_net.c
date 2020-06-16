@@ -98,6 +98,25 @@ static const struct proc_ops proc_net_seq_ops = {
 	.proc_release	= seq_release_net,
 };
 
+int bpf_iter_init_seq_net(void *priv_data)
+{
+#ifdef CONFIG_NET_NS
+	struct seq_net_private *p = priv_data;
+
+	p->net = get_net(current->nsproxy->net_ns);
+#endif
+	return 0;
+}
+
+void bpf_iter_fini_seq_net(void *priv_data)
+{
+#ifdef CONFIG_NET_NS
+	struct seq_net_private *p = priv_data;
+
+	put_net(p->net);
+#endif
+}
+
 struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
 		struct proc_dir_entry *parent, const struct seq_operations *ops,
 		unsigned int state_size, void *data)

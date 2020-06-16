@@ -18,7 +18,7 @@
 #include <asm/cacheflush.h>
 #include <asm/page.h>
 #else
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/psr.h>
 #endif
 

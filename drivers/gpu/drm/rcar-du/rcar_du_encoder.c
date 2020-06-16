@@ -13,6 +13,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_panel.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "rcar_du_drv.h"
 #include "rcar_du_encoder.h"
@@ -22,13 +23,6 @@
 /* -----------------------------------------------------------------------------
  * Encoder
  */
-
-static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
-};
-
-static const struct drm_encoder_funcs encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
 
 static unsigned int rcar_du_encoder_count_ports(struct device_node *node)
 {
@@ -110,12 +104,10 @@ int rcar_du_encoder_init(struct rcar_du_device *rcdu,
 		}
 	}
 
-	ret = drm_encoder_init(rcdu->ddev, encoder, &encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+	ret = drm_simple_encoder_init(rcdu->ddev, encoder,
+				      DRM_MODE_ENCODER_NONE);
 	if (ret < 0)
 		goto done;
-
-	drm_encoder_helper_add(encoder, &encoder_helper_funcs);
 
 	/*
 	 * Attach the bridge to the encoder. The bridge will create the

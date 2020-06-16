@@ -193,6 +193,14 @@ should not be changed when reloading the target because the layout of disk
 data depend on them and the reloaded target would be non-functional.
 
 
+Status line:
+
+1. the number of integrity mismatches
+2. provided data sectors - that is the number of sectors that the user
+   could use
+3. the current recalculating position (or '-' if we didn't recalculate)
+
+
 The layout of the formatted block device:
 
 * reserved sectors

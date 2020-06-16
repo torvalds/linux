@@ -30,18 +30,21 @@
 #include "cpsw_sl.h"
 #include "am65-cpsw-nuss.h"
 #include "k3-cppi-desc-pool.h"
+#include "am65-cpts.h"
 
 #define AM65_CPSW_SS_BASE	0x0
 #define AM65_CPSW_SGMII_BASE	0x100
 #define AM65_CPSW_XGMII_BASE	0x2100
 #define AM65_CPSW_CPSW_NU_BASE	0x20000
 #define AM65_CPSW_NU_PORTS_BASE	0x1000
+#define AM65_CPSW_NU_FRAM_BASE	0x12000
 #define AM65_CPSW_NU_STATS_BASE	0x1a000
 #define AM65_CPSW_NU_ALE_BASE	0x1e000
 #define AM65_CPSW_NU_CPTS_BASE	0x1d000
 
 #define AM65_CPSW_NU_PORTS_OFFSET	0x1000
 #define AM65_CPSW_NU_STATS_PORT_OFFSET	0x200
+#define AM65_CPSW_NU_FRAM_PORT_OFFSET	0x200
 
 #define AM65_CPSW_MAX_PORTS	8
 
@@ -187,9 +190,11 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
 		cpsw_ale_control_set(common->ale, port->port_id,
 				     ALE_PORT_STATE, ALE_PORT_STATE_FORWARD);
 
+		am65_cpsw_qos_link_up(ndev, phy->speed);
 		netif_tx_wake_all_queues(ndev);
 	} else {
 		int tmo;
+
 		/* disable forwarding */
 		cpsw_ale_control_set(common->ale, port->port_id,
 				     ALE_PORT_STATE, ALE_PORT_STATE_DISABLE);
@@ -203,6 +208,7 @@ void am65_cpsw_nuss_adjust_link(struct net_device *ndev)
 
 		cpsw_sl_ctl_reset(port->slave.mac_sl);
 
+		am65_cpsw_qos_link_down(ndev);
 		netif_tx_stop_all_queues(ndev);
 	}
 
@@ -668,6 +674,18 @@ static void am65_cpsw_nuss_rx_cleanup(void *data, dma_addr_t desc_dma)
 	dev_kfree_skb_any(skb);
 }
 
+static void am65_cpsw_nuss_rx_ts(struct sk_buff *skb, u32 *psdata)
+{
+	struct skb_shared_hwtstamps *ssh;
+	u64 ns;
+
+	ns = ((u64)psdata[1] << 32) | psdata[0];
+
+	ssh = skb_hwtstamps(skb);
+	memset(ssh, 0, sizeof(*ssh));
+	ssh->hwtstamp = ns_to_ktime(ns);
+}
+
 /* RX psdata[2] word format - checksum information */
 #define AM65_CPSW_RX_PSD_CSUM_ADD	GENMASK(15, 0)
 #define AM65_CPSW_RX_PSD_CSUM_ERR	BIT(16)
@@ -745,6 +763,9 @@ static int am65_cpsw_nuss_rx_packets(struct am65_cpsw_common *common,
 	skb->dev = ndev;
 
 	psdata = cppi5_hdesc_get_psdata(desc_rx);
+	/* add RX timestamp */
+	if (port->rx_ts_enabled)
+		am65_cpsw_nuss_rx_ts(skb, psdata);
 	csum_info = psdata[2];
 	dev_dbg(dev, "%s rx csum_info:%#x\n", __func__, csum_info);
 
@@ -904,6 +925,8 @@ static int am65_cpsw_nuss_tx_compl_packets(struct am65_cpsw_common *common,
 
 		ndev = skb->dev;
 
+		am65_cpts_tx_timestamp(common->cpts, skb);
+
 		ndev_priv = netdev_priv(ndev);
 		stats = this_cpu_ptr(ndev_priv->stats);
 		u64_stats_update_begin(&stats->syncp);
@@ -994,6 +1017,10 @@ static netdev_tx_t am65_cpsw_nuss_ndo_slave_xmit(struct sk_buff *skb,
 
 	/* padding enabled in hw */
 	pkt_len = skb_headlen(skb);
+
+	/* SKB TX timestamp */
+	if (port->tx_ts_enabled)
+		am65_cpts_prep_tx_timestamp(common->cpts, skb);
 
 	q_idx = skb_get_queue_mapping(skb);
 	dev_dbg(dev, "%s skb_queue:%d\n", __func__, q_idx);
@@ -1158,6 +1185,111 @@ static int am65_cpsw_nuss_ndo_slave_set_mac_address(struct net_device *ndev,
 	return 0;
 }
 
+static int am65_cpsw_nuss_hwtstamp_set(struct net_device *ndev,
+				       struct ifreq *ifr)
+{
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
+	u32 ts_ctrl, seq_id, ts_ctrl_ltype2, ts_vlan_ltype;
+	struct hwtstamp_config cfg;
+
+	if (!IS_ENABLED(CONFIG_TI_K3_AM65_CPTS))
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
+		return -EFAULT;
+
+	/* TX HW timestamp */
+	switch (cfg.tx_type) {
+	case HWTSTAMP_TX_OFF:
+	case HWTSTAMP_TX_ON:
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	switch (cfg.rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		port->rx_ts_enabled = false;
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		port->rx_ts_enabled = true;
+		cfg.rx_filter = HWTSTAMP_FILTER_ALL;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	port->tx_ts_enabled = (cfg.tx_type == HWTSTAMP_TX_ON);
+
+	/* cfg TX timestamp */
+	seq_id = (AM65_CPSW_TS_SEQ_ID_OFFSET <<
+		  AM65_CPSW_PN_TS_SEQ_ID_OFFSET_SHIFT) | ETH_P_1588;
+
+	ts_vlan_ltype = ETH_P_8021Q;
+
+	ts_ctrl_ltype2 = ETH_P_1588 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_107 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_129 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_130 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_131 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_132 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_319 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_320 |
+			 AM65_CPSW_PN_TS_CTL_LTYPE2_TS_TTL_NONZERO;
+
+	ts_ctrl = AM65_CPSW_TS_EVENT_MSG_TYPE_BITS <<
+		  AM65_CPSW_PN_TS_CTL_MSG_TYPE_EN_SHIFT;
+
+	if (port->tx_ts_enabled)
+		ts_ctrl |= AM65_CPSW_TS_TX_ANX_ALL_EN |
+			   AM65_CPSW_PN_TS_CTL_TX_VLAN_LT1_EN;
+
+	writel(seq_id, port->port_base + AM65_CPSW_PORTN_REG_TS_SEQ_LTYPE_REG);
+	writel(ts_vlan_ltype, port->port_base +
+	       AM65_CPSW_PORTN_REG_TS_VLAN_LTYPE_REG);
+	writel(ts_ctrl_ltype2, port->port_base +
+	       AM65_CPSW_PORTN_REG_TS_CTL_LTYPE2);
+	writel(ts_ctrl, port->port_base + AM65_CPSW_PORTN_REG_TS_CTL);
+
+	/* en/dis RX timestamp */
+	am65_cpts_rx_enable(common->cpts, port->rx_ts_enabled);
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+
+static int am65_cpsw_nuss_hwtstamp_get(struct net_device *ndev,
+				       struct ifreq *ifr)
+{
+	struct am65_cpsw_port *port = am65_ndev_to_port(ndev);
+	struct hwtstamp_config cfg;
+
+	if (!IS_ENABLED(CONFIG_TI_K3_AM65_CPTS))
+		return -EOPNOTSUPP;
+
+	cfg.flags = 0;
+	cfg.tx_type = port->tx_ts_enabled ?
+		      HWTSTAMP_TX_ON : HWTSTAMP_TX_OFF;
+	cfg.rx_filter = port->rx_ts_enabled ?
+			HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+
+	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+}
+
 static int am65_cpsw_nuss_ndo_slave_ioctl(struct net_device *ndev,
 					  struct ifreq *req, int cmd)
 {
@@ -1165,6 +1297,13 @@ static int am65_cpsw_nuss_ndo_slave_ioctl(struct net_device *ndev,
 
 	if (!netif_running(ndev))
 		return -EINVAL;
+
+	switch (cmd) {
+	case SIOCSHWTSTAMP:
+		return am65_cpsw_nuss_hwtstamp_set(ndev, req);
+	case SIOCGHWTSTAMP:
+		return am65_cpsw_nuss_hwtstamp_get(ndev, req);
+	}
 
 	if (!port->slave.phy)
 		return -EOPNOTSUPP;
@@ -1244,6 +1383,7 @@ static const struct net_device_ops am65_cpsw_nuss_netdev_ops_2g = {
 	.ndo_vlan_rx_kill_vid	= am65_cpsw_nuss_ndo_slave_kill_vid,
 	.ndo_do_ioctl		= am65_cpsw_nuss_ndo_slave_ioctl,
 	.ndo_set_features	= am65_cpsw_nuss_ndo_slave_set_features,
+	.ndo_setup_tc           = am65_cpsw_qos_ndo_setup_tc,
 };
 
 static void am65_cpsw_nuss_slave_disable_unused(struct am65_cpsw_port *port)
@@ -1531,6 +1671,40 @@ static int am65_cpsw_am654_get_efuse_macid(struct device_node *of_node,
 	return 0;
 }
 
+static int am65_cpsw_init_cpts(struct am65_cpsw_common *common)
+{
+	struct device *dev = common->dev;
+	struct device_node *node;
+	struct am65_cpts *cpts;
+	void __iomem *reg_base;
+
+	if (!IS_ENABLED(CONFIG_TI_K3_AM65_CPTS))
+		return 0;
+
+	node = of_get_child_by_name(dev->of_node, "cpts");
+	if (!node) {
+		dev_err(dev, "%s cpts not found\n", __func__);
+		return -ENOENT;
+	}
+
+	reg_base = common->cpsw_base + AM65_CPSW_NU_CPTS_BASE;
+	cpts = am65_cpts_create(dev, reg_base, node);
+	if (IS_ERR(cpts)) {
+		int ret = PTR_ERR(cpts);
+
+		if (ret == -EOPNOTSUPP) {
+			dev_info(dev, "cpts disabled\n");
+			return 0;
+		}
+
+		dev_err(dev, "cpts create err %d\n", ret);
+		return ret;
+	}
+	common->cpts = cpts;
+
+	return 0;
+}
+
 static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 {
 	struct device_node *node, *port_np;
@@ -1571,6 +1745,9 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 		port->stat_base = common->cpsw_base + AM65_CPSW_NU_STATS_BASE +
 				  (AM65_CPSW_NU_STATS_PORT_OFFSET * port_id);
 		port->name = of_get_property(port_np, "label", NULL);
+		port->fetch_ram_base =
+				common->cpsw_base + AM65_CPSW_NU_FRAM_BASE +
+				(AM65_CPSW_NU_FRAM_PORT_OFFSET * (port_id - 1));
 
 		port->disabled = !of_device_is_available(port_np);
 		if (port->disabled)
@@ -1804,7 +1981,7 @@ MODULE_DEVICE_TABLE(of, am65_cpsw_nuss_of_mtable);
 
 static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 {
-	struct cpsw_ale_params ale_params;
+	struct cpsw_ale_params ale_params = { 0 };
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct am65_cpsw_common *common;
@@ -1863,10 +2040,21 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
-	/* We do not want to force this, as in some cases may not have child */
-	if (ret)
-		dev_warn(dev, "populating child nodes err:%d\n", ret);
+	node = of_get_child_by_name(dev->of_node, "mdio");
+	if (!node) {
+		dev_warn(dev, "MDIO node not found\n");
+	} else if (of_device_is_available(node)) {
+		struct platform_device *mdio_pdev;
+
+		mdio_pdev = of_platform_device_create(node, NULL, dev);
+		if (!mdio_pdev) {
+			ret = -ENODEV;
+			goto err_pm_clear;
+		}
+
+		common->mdio_dev =  &mdio_pdev->dev;
+	}
+	of_node_put(node);
 
 	am65_cpsw_nuss_get_ver(common);
 
@@ -1901,6 +2089,10 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 		goto err_of_clear;
 	}
 
+	ret = am65_cpsw_init_cpts(common);
+	if (ret)
+		goto err_of_clear;
+
 	/* init ports */
 	for (i = 0; i < common->port_num; i++)
 		am65_cpsw_nuss_slave_disable_unused(&common->ports[i]);
@@ -1919,7 +2111,8 @@ static int am65_cpsw_nuss_probe(struct platform_device *pdev)
 	return 0;
 
 err_of_clear:
-	of_platform_depopulate(dev);
+	of_platform_device_destroy(common->mdio_dev, NULL);
+err_pm_clear:
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 	return ret;
@@ -1944,7 +2137,7 @@ static int am65_cpsw_nuss_remove(struct platform_device *pdev)
 	 */
 	am65_cpsw_nuss_cleanup_ndev(common);
 
-	of_platform_depopulate(dev);
+	of_platform_device_destroy(common->mdio_dev, NULL);
 
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);

@@ -186,8 +186,6 @@ void xen_pcibk_do_op(struct work_struct *data);
 int xen_pcibk_xenbus_register(void);
 void xen_pcibk_xenbus_unregister(void);
 
-extern int verbose_request;
-
 void xen_pcibk_test_and_schedule_op(struct xen_pcibk_device *pdev);
 #endif
 

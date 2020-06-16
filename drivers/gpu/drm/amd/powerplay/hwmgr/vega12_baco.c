@@ -96,7 +96,7 @@ int vega12_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 	if (state == BACO_STATE_IN) {
 		if (soc15_baco_program_registers(hwmgr, pre_baco_tbl,
 					     ARRAY_SIZE(pre_baco_tbl))) {
-			if (smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_EnterBaco, 0))
+			if (smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_EnterBaco, 0, NULL))
 				return -EINVAL;
 
 			if (soc15_baco_program_registers(hwmgr, enter_baco_tbl,

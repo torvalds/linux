@@ -690,6 +690,26 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 		struct dc_debug_options *dbg,
 		struct dc_state *context)
 {
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		/**
+		 * Workaround for avoiding pipe-split in cases where we'd split
+		 * planes that are too small, resulting in splits that aren't
+		 * valid for the scaler.
+		 */
+		if (pipe->plane_state &&
+		    (pipe->plane_state->dst_rect.width <= 16 ||
+		     pipe->plane_state->dst_rect.height <= 16 ||
+		     pipe->plane_state->src_rect.width <= 16 ||
+		     pipe->plane_state->src_rect.height <= 16)) {
+			hack_disable_optional_pipe_split(v);
+			return;
+		}
+	}
+
 	if (dbg->pipe_split_policy == MPC_SPLIT_AVOID)
 		hack_disable_optional_pipe_split(v);
 
@@ -701,7 +721,6 @@ static void hack_bounding_box(struct dcn_bw_internal_vars *v,
 			dbg->force_single_disp_pipe_split)
 		hack_force_pipe_split(v, context->streams[0]->timing.pix_clk_100hz);
 }
-
 
 unsigned int get_highest_allowed_voltage_level(uint32_t hw_internal_rev, uint32_t pci_revision_id)
 {

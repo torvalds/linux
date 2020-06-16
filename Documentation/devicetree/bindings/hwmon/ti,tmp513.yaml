@@ -45,16 +45,14 @@ properties:
       The gain value for the PGA function. This is 8, 4, 2 or 1.
       The PGA gain affect the shunt voltage range.
       The range will be equal to: pga-gain * 40mV
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [1, 2, 4, 8]
     default: 8
 
   ti,bus-range-microvolt:
     description: |
       This is the operating range of the bus voltage in microvolt
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [16000000, 32000000]
     default: 32000000
 
@@ -63,14 +61,13 @@ properties:
       Array of three(TMP513) or two(TMP512) n-Factor value for each remote
       temperature channel.
       See datasheet Table 11 for n-Factor range list and value interpretation.
-    allOf:
-      - $ref: /schemas/types.yaml#definitions/uint32-array
-      - minItems: 2
-        maxItems: 3
-        items:
-          default: 0x00
-          minimum: 0x00
-          maximum: 0xFF
+    $ref: /schemas/types.yaml#definitions/uint32-array
+    minItems: 2
+    maxItems: 3
+    items:
+      default: 0x00
+      minimum: 0x00
+      maximum: 0xFF
 
 required:
   - compatible

@@ -136,8 +136,8 @@ uint64_t amdgpu_gmc_agp_addr(struct ttm_buffer_object *bo)
 /**
  * amdgpu_gmc_vram_location - try to find VRAM location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  * @base: base address at which to put VRAM
  *
  * Function will try to place VRAM at base address provided
@@ -165,8 +165,8 @@ void amdgpu_gmc_vram_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc,
 /**
  * amdgpu_gmc_gart_location - try to find GART location
  *
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to place GART before or after VRAM.
  *
@@ -207,8 +207,8 @@ void amdgpu_gmc_gart_location(struct amdgpu_device *adev, struct amdgpu_gmc *mc)
 
 /**
  * amdgpu_gmc_agp_location - try to find AGP location
- * @adev: amdgpu device structure holding all necessary informations
- * @mc: memory controller structure holding memory informations
+ * @adev: amdgpu device structure holding all necessary information
+ * @mc: memory controller structure holding memory information
  *
  * Function will place try to find a place for the AGP BAR in the MC address
  * space.
@@ -372,4 +372,39 @@ int amdgpu_gmc_allocate_vm_inv_eng(struct amdgpu_device *adev)
 	}
 
 	return 0;
+}
+
+/**
+ * amdgpu_tmz_set -- check and set if a device supports TMZ
+ * @adev: amdgpu_device pointer
+ *
+ * Check and set if an the device @adev supports Trusted Memory
+ * Zones (TMZ).
+ */
+void amdgpu_gmc_tmz_set(struct amdgpu_device *adev)
+{
+	switch (adev->asic_type) {
+	case CHIP_RAVEN:
+	case CHIP_RENOIR:
+	case CHIP_NAVI10:
+	case CHIP_NAVI14:
+	case CHIP_NAVI12:
+		/* Don't enable it by default yet.
+		 */
+		if (amdgpu_tmz < 1) {
+			adev->gmc.tmz_enabled = false;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature disabled as experimental (default)\n");
+		} else {
+			adev->gmc.tmz_enabled = true;
+			dev_info(adev->dev,
+				 "Trusted Memory Zone (TMZ) feature enabled as experimental (cmd line)\n");
+		}
+		break;
+	default:
+		adev->gmc.tmz_enabled = false;
+		dev_warn(adev->dev,
+			 "Trusted Memory Zone (TMZ) feature not supported\n");
+		break;
+	}
 }

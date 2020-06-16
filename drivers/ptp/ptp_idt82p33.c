@@ -23,12 +23,12 @@ MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");
 
 /* Module Parameters */
-u32 sync_tod_timeout = SYNC_TOD_TIMEOUT_SEC;
+static u32 sync_tod_timeout = SYNC_TOD_TIMEOUT_SEC;
 module_param(sync_tod_timeout, uint, 0);
 MODULE_PARM_DESC(sync_tod_timeout,
 "duration in second to keep SYNC_TOD on (set to 0 to keep it always on)");
 
-u32 phase_snap_threshold = SNAP_THRESHOLD_NS;
+static u32 phase_snap_threshold = SNAP_THRESHOLD_NS;
 module_param(phase_snap_threshold, uint, 0);
 MODULE_PARM_DESC(phase_snap_threshold,
 "threshold (150000ns by default) below which adjtime would ignore");
@@ -881,7 +881,7 @@ static int idt82p33_load_firmware(struct idt82p33 *idt82p33)
 
 			/* Page size 128, last 4 bytes of page skipped */
 			if (((loaddr > 0x7b) && (loaddr <= 0x7f))
-			     || ((loaddr > 0xfb) && (loaddr <= 0xff)))
+			     || loaddr > 0xfb)
 				continue;
 
 			err = idt82p33_write(idt82p33, _ADDR(page, loaddr),

@@ -120,7 +120,7 @@ static void qla24xx_abort_iocb_timeout(void *data)
 	if (sp->cmd_sp)
 		sp->cmd_sp->done(sp->cmd_sp, QLA_OS_TIMER_EXPIRED);
 
-	abt->u.abt.comp_status = CS_TIMEOUT;
+	abt->u.abt.comp_status = cpu_to_le16(CS_TIMEOUT);
 	sp->done(sp, QLA_OS_TIMER_EXPIRED);
 }
 
@@ -992,7 +992,7 @@ static void qla24xx_async_gnl_sp_done(srb_t *sp, int res)
 
 		ql_dbg(ql_dbg_disc, vha, 0x20e8,
 		    "%s %8phC %02x:%02x:%02x CLS %x/%x lid %x \n",
-		    __func__, (void *)&wwn, e->port_id[2], e->port_id[1],
+		    __func__, &wwn, e->port_id[2], e->port_id[1],
 		    e->port_id[0], e->current_login_state, e->last_login_state,
 		    (loop_id & 0x7fff));
 	}
@@ -1343,7 +1343,7 @@ int qla24xx_async_gpdb(struct scsi_qla_host *vha, fc_port_t *fcport, u8 opt)
 	mb[9] = vha->vp_idx;
 	mb[10] = opt;
 
-	mbx->u.mbx.in = (void *)pd;
+	mbx->u.mbx.in = pd;
 	mbx->u.mbx.in_dma = pd_dma;
 
 	sp->done = qla24xx_async_gpdb_sp_done;
@@ -1791,7 +1791,7 @@ qla2x00_tmf_iocb_timeout(void *data)
 			}
 		}
 		spin_unlock_irqrestore(sp->qpair->qp_lock_ptr, flags);
-		tmf->u.tmf.comp_status = CS_TIMEOUT;
+		tmf->u.tmf.comp_status = cpu_to_le16(CS_TIMEOUT);
 		tmf->u.tmf.data = QLA_FUNCTION_FAILED;
 		complete(&tmf->u.tmf.comp);
 	}
@@ -2219,7 +2219,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 
 	/* Check for secure flash support */
 	if (IS_QLA28XX(ha)) {
-		if (RD_REG_DWORD(&reg->mailbox12) & BIT_0)
+		if (rd_reg_word(&reg->mailbox12) & BIT_0)
 			ha->flags.secure_adapter = 1;
 		ql_log(ql_log_info, vha, 0xffff, "Secure Adapter: %s\n",
 		    (ha->flags.secure_adapter) ? "Yes" : "No");
@@ -2357,7 +2357,7 @@ qla2100_pci_config(scsi_qla_host_t *vha)
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->pci_attr = RD_REG_WORD(&reg->ctrl_status);
+	ha->pci_attr = rd_reg_word(&reg->ctrl_status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_SUCCESS;
@@ -2399,17 +2399,17 @@ qla2300_pci_config(scsi_qla_host_t *vha)
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 
 		/* Pause RISC. */
-		WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
+		wrt_reg_word(&reg->hccr, HCCR_PAUSE_RISC);
 		for (cnt = 0; cnt < 30000; cnt++) {
-			if ((RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) != 0)
+			if ((rd_reg_word(&reg->hccr) & HCCR_RISC_PAUSE) != 0)
 				break;
 
 			udelay(10);
 		}
 
 		/* Select FPM registers. */
-		WRT_REG_WORD(&reg->ctrl_status, 0x20);
-		RD_REG_WORD(&reg->ctrl_status);
+		wrt_reg_word(&reg->ctrl_status, 0x20);
+		rd_reg_word(&reg->ctrl_status);
 
 		/* Get the fb rev level */
 		ha->fb_rev = RD_FB_CMD_REG(ha, reg);
@@ -2418,13 +2418,13 @@ qla2300_pci_config(scsi_qla_host_t *vha)
 			pci_clear_mwi(ha->pdev);
 
 		/* Deselect FPM registers. */
-		WRT_REG_WORD(&reg->ctrl_status, 0x0);
-		RD_REG_WORD(&reg->ctrl_status);
+		wrt_reg_word(&reg->ctrl_status, 0x0);
+		rd_reg_word(&reg->ctrl_status);
 
 		/* Release RISC module. */
-		WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC);
+		wrt_reg_word(&reg->hccr, HCCR_RELEASE_RISC);
 		for (cnt = 0; cnt < 30000; cnt++) {
-			if ((RD_REG_WORD(&reg->hccr) & HCCR_RISC_PAUSE) == 0)
+			if ((rd_reg_word(&reg->hccr) & HCCR_RISC_PAUSE) == 0)
 				break;
 
 			udelay(10);
@@ -2439,7 +2439,7 @@ qla2300_pci_config(scsi_qla_host_t *vha)
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->pci_attr = RD_REG_WORD(&reg->ctrl_status);
+	ha->pci_attr = rd_reg_word(&reg->ctrl_status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_SUCCESS;
@@ -2483,7 +2483,7 @@ qla24xx_pci_config(scsi_qla_host_t *vha)
 
 	/* Get PCI bus information. */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	ha->pci_attr = RD_REG_DWORD(&reg->ctrl_status);
+	ha->pci_attr = rd_reg_dword(&reg->ctrl_status);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_SUCCESS;
@@ -2587,36 +2587,36 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 
 	if (!IS_QLA2100(ha)) {
 		/* Pause RISC. */
-		WRT_REG_WORD(&reg->hccr, HCCR_PAUSE_RISC);
+		wrt_reg_word(&reg->hccr, HCCR_PAUSE_RISC);
 		if (IS_QLA2200(ha) || IS_QLA2300(ha)) {
 			for (cnt = 0; cnt < 30000; cnt++) {
-				if ((RD_REG_WORD(&reg->hccr) &
+				if ((rd_reg_word(&reg->hccr) &
 				    HCCR_RISC_PAUSE) != 0)
 					break;
 				udelay(100);
 			}
 		} else {
-			RD_REG_WORD(&reg->hccr);	/* PCI Posting. */
+			rd_reg_word(&reg->hccr);	/* PCI Posting. */
 			udelay(10);
 		}
 
 		/* Select FPM registers. */
-		WRT_REG_WORD(&reg->ctrl_status, 0x20);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, 0x20);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 
 		/* FPM Soft Reset. */
-		WRT_REG_WORD(&reg->fpm_diag_config, 0x100);
-		RD_REG_WORD(&reg->fpm_diag_config);	/* PCI Posting. */
+		wrt_reg_word(&reg->fpm_diag_config, 0x100);
+		rd_reg_word(&reg->fpm_diag_config);	/* PCI Posting. */
 
 		/* Toggle Fpm Reset. */
 		if (!IS_QLA2200(ha)) {
-			WRT_REG_WORD(&reg->fpm_diag_config, 0x0);
-			RD_REG_WORD(&reg->fpm_diag_config); /* PCI Posting. */
+			wrt_reg_word(&reg->fpm_diag_config, 0x0);
+			rd_reg_word(&reg->fpm_diag_config); /* PCI Posting. */
 		}
 
 		/* Select frame buffer registers. */
-		WRT_REG_WORD(&reg->ctrl_status, 0x10);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, 0x10);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 
 		/* Reset frame buffer FIFOs. */
 		if (IS_QLA2200(ha)) {
@@ -2634,23 +2634,23 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 		}
 
 		/* Select RISC module registers. */
-		WRT_REG_WORD(&reg->ctrl_status, 0);
-		RD_REG_WORD(&reg->ctrl_status);		/* PCI Posting. */
+		wrt_reg_word(&reg->ctrl_status, 0);
+		rd_reg_word(&reg->ctrl_status);		/* PCI Posting. */
 
 		/* Reset RISC processor. */
-		WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-		RD_REG_WORD(&reg->hccr);		/* PCI Posting. */
+		wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
+		rd_reg_word(&reg->hccr);		/* PCI Posting. */
 
 		/* Release RISC processor. */
-		WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC);
-		RD_REG_WORD(&reg->hccr);		/* PCI Posting. */
+		wrt_reg_word(&reg->hccr, HCCR_RELEASE_RISC);
+		rd_reg_word(&reg->hccr);		/* PCI Posting. */
 	}
 
-	WRT_REG_WORD(&reg->hccr, HCCR_CLR_RISC_INT);
-	WRT_REG_WORD(&reg->hccr, HCCR_CLR_HOST_INT);
+	wrt_reg_word(&reg->hccr, HCCR_CLR_RISC_INT);
+	wrt_reg_word(&reg->hccr, HCCR_CLR_HOST_INT);
 
 	/* Reset ISP chip. */
-	WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
+	wrt_reg_word(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
 
 	/* Wait for RISC to recover from reset. */
 	if (IS_QLA2100(ha) || IS_QLA2200(ha) || IS_QLA2300(ha)) {
@@ -2661,7 +2661,7 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 		 */
 		udelay(20);
 		for (cnt = 30000; cnt; cnt--) {
-			if ((RD_REG_WORD(&reg->ctrl_status) &
+			if ((rd_reg_word(&reg->ctrl_status) &
 			    CSR_ISP_SOFT_RESET) == 0)
 				break;
 			udelay(100);
@@ -2670,13 +2670,13 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 		udelay(10);
 
 	/* Reset RISC processor. */
-	WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
+	wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
 
-	WRT_REG_WORD(&reg->semaphore, 0);
+	wrt_reg_word(&reg->semaphore, 0);
 
 	/* Release RISC processor. */
-	WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC);
-	RD_REG_WORD(&reg->hccr);			/* PCI Posting. */
+	wrt_reg_word(&reg->hccr, HCCR_RELEASE_RISC);
+	rd_reg_word(&reg->hccr);			/* PCI Posting. */
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha) || IS_QLA2300(ha)) {
 		for (cnt = 0; cnt < 30000; cnt++) {
@@ -2694,8 +2694,8 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
 
 	/* Disable RISC pause on FPM parity error. */
 	if (!IS_QLA2100(ha)) {
-		WRT_REG_WORD(&reg->hccr, HCCR_DISABLE_PARITY_PAUSE);
-		RD_REG_WORD(&reg->hccr);		/* PCI Posting. */
+		wrt_reg_word(&reg->hccr, HCCR_DISABLE_PARITY_PAUSE);
+		rd_reg_word(&reg->hccr);		/* PCI Posting. */
 	}
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -2740,32 +2740,32 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	/* Reset RISC. */
-	WRT_REG_DWORD(&reg->ctrl_status, CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
+	wrt_reg_dword(&reg->ctrl_status, CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
 	for (cnt = 0; cnt < 30000; cnt++) {
-		if ((RD_REG_DWORD(&reg->ctrl_status) & CSRX_DMA_ACTIVE) == 0)
+		if ((rd_reg_dword(&reg->ctrl_status) & CSRX_DMA_ACTIVE) == 0)
 			break;
 
 		udelay(10);
 	}
 
-	if (!(RD_REG_DWORD(&reg->ctrl_status) & CSRX_DMA_ACTIVE))
+	if (!(rd_reg_dword(&reg->ctrl_status) & CSRX_DMA_ACTIVE))
 		set_bit(DMA_SHUTDOWN_CMPL, &ha->fw_dump_cap_flags);
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x017e,
 	    "HCCR: 0x%x, Control Status %x, DMA active status:0x%x\n",
-	    RD_REG_DWORD(&reg->hccr),
-	    RD_REG_DWORD(&reg->ctrl_status),
-	    (RD_REG_DWORD(&reg->ctrl_status) & CSRX_DMA_ACTIVE));
+	    rd_reg_dword(&reg->hccr),
+	    rd_reg_dword(&reg->ctrl_status),
+	    (rd_reg_dword(&reg->ctrl_status) & CSRX_DMA_ACTIVE));
 
-	WRT_REG_DWORD(&reg->ctrl_status,
+	wrt_reg_dword(&reg->ctrl_status,
 	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
 	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
 	udelay(100);
 
 	/* Wait for firmware to complete NVRAM accesses. */
-	RD_REG_WORD(&reg->mailbox0);
-	for (cnt = 10000; RD_REG_WORD(&reg->mailbox0) != 0 &&
+	rd_reg_word(&reg->mailbox0);
+	for (cnt = 10000; rd_reg_word(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		barrier();
 		if (cnt)
@@ -2779,26 +2779,26 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x017f,
 	    "HCCR: 0x%x, MailBox0 Status 0x%x\n",
-	    RD_REG_DWORD(&reg->hccr),
-	    RD_REG_DWORD(&reg->mailbox0));
+	    rd_reg_dword(&reg->hccr),
+	    rd_reg_word(&reg->mailbox0));
 
 	/* Wait for soft-reset to complete. */
-	RD_REG_DWORD(&reg->ctrl_status);
+	rd_reg_dword(&reg->ctrl_status);
 	for (cnt = 0; cnt < 60; cnt++) {
 		barrier();
-		if ((RD_REG_DWORD(&reg->ctrl_status) &
+		if ((rd_reg_dword(&reg->ctrl_status) &
 		    CSRX_ISP_SOFT_RESET) == 0)
 			break;
 
 		udelay(5);
 	}
-	if (!(RD_REG_DWORD(&reg->ctrl_status) & CSRX_ISP_SOFT_RESET))
+	if (!(rd_reg_dword(&reg->ctrl_status) & CSRX_ISP_SOFT_RESET))
 		set_bit(ISP_SOFT_RESET_CMPL, &ha->fw_dump_cap_flags);
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x015d,
 	    "HCCR: 0x%x, Soft Reset status: 0x%x\n",
-	    RD_REG_DWORD(&reg->hccr),
-	    RD_REG_DWORD(&reg->ctrl_status));
+	    rd_reg_dword(&reg->hccr),
+	    rd_reg_dword(&reg->ctrl_status));
 
 	/* If required, do an MPI FW reset now */
 	if (test_and_clear_bit(MPI_RESET_NEEDED, &vha->dpc_flags)) {
@@ -2817,17 +2817,17 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		}
 	}
 
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
-	RD_REG_DWORD(&reg->hccr);
+	wrt_reg_dword(&reg->hccr, HCCRX_SET_RISC_RESET);
+	rd_reg_dword(&reg->hccr);
 
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);
+	wrt_reg_dword(&reg->hccr, HCCRX_REL_RISC_PAUSE);
+	rd_reg_dword(&reg->hccr);
 
-	WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_RESET);
-	RD_REG_DWORD(&reg->hccr);
+	wrt_reg_dword(&reg->hccr, HCCRX_CLR_RISC_RESET);
+	rd_reg_dword(&reg->hccr);
 
-	RD_REG_WORD(&reg->mailbox0);
-	for (cnt = 60; RD_REG_WORD(&reg->mailbox0) != 0 &&
+	rd_reg_word(&reg->mailbox0);
+	for (cnt = 60; rd_reg_word(&reg->mailbox0) != 0 &&
 	    rval == QLA_SUCCESS; cnt--) {
 		barrier();
 		if (cnt)
@@ -2840,8 +2840,8 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 
 	ql_dbg(ql_dbg_init + ql_dbg_verbose, vha, 0x015e,
 	    "Host Risc 0x%x, mailbox0 0x%x\n",
-	    RD_REG_DWORD(&reg->hccr),
-	     RD_REG_WORD(&reg->mailbox0));
+	    rd_reg_dword(&reg->hccr),
+	     rd_reg_word(&reg->mailbox0));
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
@@ -2860,9 +2860,8 @@ qla25xx_read_risc_sema_reg(scsi_qla_host_t *vha, uint32_t *data)
 {
 	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
 
-	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
-	*data = RD_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET);
-
+	wrt_reg_dword(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	*data = rd_reg_dword(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFSET);
 }
 
 static void
@@ -2870,8 +2869,8 @@ qla25xx_write_risc_sema_reg(scsi_qla_host_t *vha, uint32_t data)
 {
 	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
 
-	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
-	WRT_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET, data);
+	wrt_reg_dword(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	wrt_reg_dword(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFSET, data);
 }
 
 static void
@@ -2887,7 +2886,7 @@ qla25xx_manipulate_risc_semaphore(scsi_qla_host_t *vha)
 	    vha->hw->pdev->subsystem_device != 0x0240)
 		return;
 
-	WRT_REG_DWORD(&vha->hw->iobase->isp24.hccr, HCCRX_SET_RISC_PAUSE);
+	wrt_reg_dword(&vha->hw->iobase->isp24.hccr, HCCRX_SET_RISC_PAUSE);
 	udelay(100);
 
 attempt:
@@ -2989,7 +2988,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
 	/* Reset ISP chip. */
-	WRT_REG_WORD(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
+	wrt_reg_word(&reg->ctrl_status, CSR_ISP_SOFT_RESET);
 
 	/*
 	 * We need to have a delay here since the card will not respond while
@@ -2999,7 +2998,7 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 	data = qla2x00_debounce_register(&reg->ctrl_status);
 	for (cnt = 6000000 ; cnt && (data & CSR_ISP_SOFT_RESET); cnt--) {
 		udelay(5);
-		data = RD_REG_WORD(&reg->ctrl_status);
+		data = rd_reg_word(&reg->ctrl_status);
 		barrier();
 	}
 
@@ -3010,8 +3009,8 @@ qla2x00_chip_diag(scsi_qla_host_t *vha)
 	    "Reset register cleared by chip reset.\n");
 
 	/* Reset RISC processor. */
-	WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-	WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC);
+	wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
+	wrt_reg_word(&reg->hccr, HCCR_RELEASE_RISC);
 
 	/* Workaround for QLA2312 PCI parity error */
 	if (IS_QLA2100(ha) || IS_QLA2200(ha) || IS_QLA2300(ha)) {
@@ -3339,6 +3338,8 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 				    dump_size / 1024);
 
 				if (IS_QLA27XX(ha) || IS_QLA28XX(ha)) {
+					ha->mpi_fw_dump = (char *)fw_dump +
+						ha->fwdt[1].dump_size;
 					mutex_unlock(&ha->optrom_mutex);
 					return;
 				}
@@ -3650,8 +3651,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {
 		/* Disable SRAM, Instruction RAM and GP RAM parity.  */
 		spin_lock_irqsave(&ha->hardware_lock, flags);
-		WRT_REG_WORD(&reg->hccr, (HCCR_ENABLE_PARITY + 0x0));
-		RD_REG_WORD(&reg->hccr);
+		wrt_reg_word(&reg->hccr, (HCCR_ENABLE_PARITY + 0x0));
+		rd_reg_word(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
@@ -3758,11 +3759,11 @@ enable_82xx_npiv:
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		if (IS_QLA2300(ha))
 			/* SRAM parity */
-			WRT_REG_WORD(&reg->hccr, HCCR_ENABLE_PARITY + 0x1);
+			wrt_reg_word(&reg->hccr, HCCR_ENABLE_PARITY + 0x1);
 		else
 			/* SRAM, Instruction RAM and GP RAM parity */
-			WRT_REG_WORD(&reg->hccr, HCCR_ENABLE_PARITY + 0x7);
-		RD_REG_WORD(&reg->hccr);
+			wrt_reg_word(&reg->hccr, HCCR_ENABLE_PARITY + 0x7);
+		rd_reg_word(&reg->hccr);
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	}
 
@@ -4006,11 +4007,11 @@ qla2x00_config_rings(struct scsi_qla_host *vha)
 	put_unaligned_le64(req->dma, &ha->init_cb->request_q_address);
 	put_unaligned_le64(rsp->dma, &ha->init_cb->response_q_address);
 
-	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), 0);
-	WRT_REG_WORD(ISP_REQ_Q_OUT(ha, reg), 0);
-	WRT_REG_WORD(ISP_RSP_Q_IN(ha, reg), 0);
-	WRT_REG_WORD(ISP_RSP_Q_OUT(ha, reg), 0);
-	RD_REG_WORD(ISP_RSP_Q_OUT(ha, reg));		/* PCI Posting. */
+	wrt_reg_word(ISP_REQ_Q_IN(ha, reg), 0);
+	wrt_reg_word(ISP_REQ_Q_OUT(ha, reg), 0);
+	wrt_reg_word(ISP_RSP_Q_IN(ha, reg), 0);
+	wrt_reg_word(ISP_RSP_Q_OUT(ha, reg), 0);
+	rd_reg_word(ISP_RSP_Q_OUT(ha, reg));		/* PCI Posting. */
 }
 
 void
@@ -4072,15 +4073,15 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		}
 		icb->firmware_options_2 |= cpu_to_le32(BIT_23);
 
-		WRT_REG_DWORD(&reg->isp25mq.req_q_in, 0);
-		WRT_REG_DWORD(&reg->isp25mq.req_q_out, 0);
-		WRT_REG_DWORD(&reg->isp25mq.rsp_q_in, 0);
-		WRT_REG_DWORD(&reg->isp25mq.rsp_q_out, 0);
+		wrt_reg_dword(&reg->isp25mq.req_q_in, 0);
+		wrt_reg_dword(&reg->isp25mq.req_q_out, 0);
+		wrt_reg_dword(&reg->isp25mq.rsp_q_in, 0);
+		wrt_reg_dword(&reg->isp25mq.rsp_q_out, 0);
 	} else {
-		WRT_REG_DWORD(&reg->isp24.req_q_in, 0);
-		WRT_REG_DWORD(&reg->isp24.req_q_out, 0);
-		WRT_REG_DWORD(&reg->isp24.rsp_q_in, 0);
-		WRT_REG_DWORD(&reg->isp24.rsp_q_out, 0);
+		wrt_reg_dword(&reg->isp24.req_q_in, 0);
+		wrt_reg_dword(&reg->isp24.req_q_out, 0);
+		wrt_reg_dword(&reg->isp24.rsp_q_in, 0);
+		wrt_reg_dword(&reg->isp24.rsp_q_out, 0);
 	}
 
 	qlt_24xx_config_rings(vha);
@@ -4090,11 +4091,11 @@ qla24xx_config_rings(struct scsi_qla_host *vha)
 		ql_dbg(ql_dbg_init, vha, 0x00fd,
 		    "Speed set by user : %s Gbps \n",
 		    qla2x00_get_link_speed_str(ha, ha->set_data_rate));
-		icb->firmware_options_3 = (ha->set_data_rate << 13);
+		icb->firmware_options_3 = cpu_to_le32(ha->set_data_rate << 13);
 	}
 
 	/* PCI posting */
-	RD_REG_DWORD(&ioreg->hccr);
+	rd_reg_word(&ioreg->hccr);
 }
 
 /**
@@ -4125,7 +4126,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		req = ha->req_q_map[que];
 		if (!req || !test_bit(que, ha->req_qid_map))
 			continue;
-		req->out_ptr = (void *)(req->ring + req->length);
+		req->out_ptr = (uint16_t *)(req->ring + req->length);
 		*req->out_ptr = 0;
 		for (cnt = 1; cnt < req->num_outstanding_cmds; cnt++)
 			req->outstanding_cmds[cnt] = NULL;
@@ -4142,7 +4143,7 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		rsp = ha->rsp_q_map[que];
 		if (!rsp || !test_bit(que, ha->rsp_qid_map))
 			continue;
-		rsp->in_ptr = (void *)(rsp->ring + rsp->length);
+		rsp->in_ptr = (uint16_t *)(rsp->ring + rsp->length);
 		*rsp->in_ptr = 0;
 		/* Initialize response queue entries */
 		if (IS_QLAFX00(ha))
@@ -4181,12 +4182,14 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		mid_init_cb->init_cb.execution_throttle =
 		    cpu_to_le16(ha->cur_fw_xcb_count);
 		ha->flags.dport_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_7) != 0;
+			(le32_to_cpu(mid_init_cb->init_cb.firmware_options_1) &
+			 BIT_7) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x0191, "DPORT Support: %s.\n",
 		    (ha->flags.dport_enabled) ? "enabled" : "disabled");
 		/* FA-WWPN Status */
 		ha->flags.fawwpn_enabled =
-		    (mid_init_cb->init_cb.firmware_options_1 & BIT_6) != 0;
+			(le32_to_cpu(mid_init_cb->init_cb.firmware_options_1) &
+			 BIT_6) != 0;
 		ql_dbg(ql_dbg_init, vha, 0x00bc, "FA-WWPN Support: %s.\n",
 		    (ha->flags.fawwpn_enabled) ? "enabled" : "disabled");
 	}
@@ -4565,7 +4568,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	ha->nvram_size = sizeof(*nv);
 	ha->nvram_base = 0;
 	if (!IS_QLA2100(ha) && !IS_QLA2200(ha) && !IS_QLA2300(ha))
-		if ((RD_REG_WORD(&reg->ctrl_status) >> 14) == 1)
+		if ((rd_reg_word(&reg->ctrl_status) >> 14) == 1)
 			ha->nvram_base = 0x80;
 
 	/* Get NVRAM data and calculate checksum. */
@@ -5079,6 +5082,54 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 	return (rval);
 }
 
+static int qla2x00_configure_n2n_loop(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	unsigned long flags;
+	fc_port_t *fcport;
+	int rval;
+
+	if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
+		/* borrowing */
+		u32 *bp, sz;
+
+		memset(ha->init_cb, 0, ha->init_cb_size);
+		sz = min_t(int, sizeof(struct els_plogi_payload),
+			   ha->init_cb_size);
+		rval = qla24xx_get_port_login_templ(vha, ha->init_cb_dma,
+						    ha->init_cb, sz);
+		if (rval == QLA_SUCCESS) {
+			__be32 *q = &ha->plogi_els_payld.data[0];
+
+			bp = (uint32_t *)ha->init_cb;
+			cpu_to_be32_array(q, bp, sz / 4);
+			memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
+		} else {
+			ql_dbg(ql_dbg_init, vha, 0x00d1,
+			       "PLOGI ELS param read fail.\n");
+			goto skip_login;
+		}
+	}
+
+	list_for_each_entry(fcport, &vha->vp_fcports, list) {
+		if (fcport->n2n_flag) {
+			qla24xx_fcport_handle_login(vha, fcport);
+			return QLA_SUCCESS;
+		}
+	}
+
+skip_login:
+	spin_lock_irqsave(&vha->work_lock, flags);
+	vha->scan.scan_retry++;
+	spin_unlock_irqrestore(&vha->work_lock, flags);
+
+	if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
+		set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+		set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+	}
+	return QLA_FUNCTION_FAILED;
+}
+
 /*
  * qla2x00_configure_local_loop
  *	Updates Fibre Channel Device Database with local loop devices.
@@ -5096,7 +5147,6 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	int		found_devs;
 	int		found;
 	fc_port_t	*fcport, *new_fcport;
-
 	uint16_t	index;
 	uint16_t	entries;
 	struct gid_list_info *gid;
@@ -5106,47 +5156,8 @@ qla2x00_configure_local_loop(scsi_qla_host_t *vha)
 	unsigned long flags;
 
 	/* Inititae N2N login. */
-	if (N2N_TOPO(ha)) {
-		if (test_and_clear_bit(N2N_LOGIN_NEEDED, &vha->dpc_flags)) {
-			/* borrowing */
-			u32 *bp, sz;
-
-			memset(ha->init_cb, 0, ha->init_cb_size);
-			sz = min_t(int, sizeof(struct els_plogi_payload),
-			    ha->init_cb_size);
-			rval = qla24xx_get_port_login_templ(vha,
-			    ha->init_cb_dma, (void *)ha->init_cb, sz);
-			if (rval == QLA_SUCCESS) {
-				__be32 *q = &ha->plogi_els_payld.data[0];
-
-				bp = (uint32_t *)ha->init_cb;
-				cpu_to_be32_array(q, bp, sz / 4);
-
-				memcpy(bp, q, sizeof(ha->plogi_els_payld.data));
-			} else {
-				ql_dbg(ql_dbg_init, vha, 0x00d1,
-				    "PLOGI ELS param read fail.\n");
-				goto skip_login;
-			}
-		}
-
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->n2n_flag) {
-				qla24xx_fcport_handle_login(vha, fcport);
-				return QLA_SUCCESS;
-			}
-		}
-skip_login:
-		spin_lock_irqsave(&vha->work_lock, flags);
-		vha->scan.scan_retry++;
-		spin_unlock_irqrestore(&vha->work_lock, flags);
-
-		if (vha->scan.scan_retry < MAX_SCAN_RETRIES) {
-			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
-			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
-		}
-		return QLA_FUNCTION_FAILED;
-	}
+	if (N2N_TOPO(ha))
+		return qla2x00_configure_n2n_loop(vha);
 
 	found_devs = 0;
 	new_fcport = NULL;
@@ -7078,10 +7089,10 @@ qla2x00_reset_adapter(scsi_qla_host_t *vha)
 	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	WRT_REG_WORD(&reg->hccr, HCCR_RESET_RISC);
-	RD_REG_WORD(&reg->hccr);			/* PCI Posting. */
-	WRT_REG_WORD(&reg->hccr, HCCR_RELEASE_RISC);
-	RD_REG_WORD(&reg->hccr);			/* PCI Posting. */
+	wrt_reg_word(&reg->hccr, HCCR_RESET_RISC);
+	rd_reg_word(&reg->hccr);			/* PCI Posting. */
+	wrt_reg_word(&reg->hccr, HCCR_RELEASE_RISC);
+	rd_reg_word(&reg->hccr);			/* PCI Posting. */
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return QLA_SUCCESS;
@@ -7102,10 +7113,10 @@ qla24xx_reset_adapter(scsi_qla_host_t *vha)
 	ha->isp_ops->disable_intrs(ha);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_RESET);
-	RD_REG_DWORD(&reg->hccr);
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);
+	wrt_reg_dword(&reg->hccr, HCCRX_SET_RISC_RESET);
+	rd_reg_dword(&reg->hccr);
+	wrt_reg_dword(&reg->hccr, HCCRX_REL_RISC_PAUSE);
+	rd_reg_dword(&reg->hccr);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (IS_NOPOLLING_TYPE(ha))
@@ -7143,7 +7154,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	int   rval;
 	struct init_cb_24xx *icb;
 	struct nvram_24xx *nv;
-	uint32_t *dptr;
+	__le32 *dptr;
 	uint8_t  *dptr1, *dptr2;
 	uint32_t chksum;
 	uint16_t cnt;
@@ -7171,7 +7182,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 	    ha->nvram_base - FA_NVRAM_FUNC0_ADDR, FA_NVRAM_VPD_SIZE * 4);
 
 	/* Get NVRAM data into cache and calculate checksum. */
-	dptr = (uint32_t *)nv;
+	dptr = (__force __le32 *)nv;
 	ha->isp_ops->read_nvram(vha, dptr, ha->nvram_base, ha->nvram_size);
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
@@ -7199,7 +7210,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		memset(nv, 0, ha->nvram_size);
 		nv->nvram_version = cpu_to_le16(ICB_VERSION);
 		nv->version = cpu_to_le16(ICB_VERSION);
-		nv->frame_payload_size = 2048;
+		nv->frame_payload_size = cpu_to_le16(2048);
 		nv->execution_throttle = cpu_to_le16(0xFFFF);
 		nv->exchange_count = cpu_to_le16(0);
 		nv->hard_address = cpu_to_le16(124);
@@ -7367,7 +7378,7 @@ qla24xx_nvram_config(scsi_qla_host_t *vha)
 		ha->login_retry_count = ql2xloginretrycount;
 
 	/* N2N: driver will initiate Login instead of FW */
-	icb->firmware_options_3 |= BIT_8;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_8);
 
 	/* Enable ZIO. */
 	if (!vha->flags.init_done) {
@@ -7435,7 +7446,7 @@ qla27xx_check_image_status_signature(struct qla27xx_image_status *image_status)
 static ulong
 qla27xx_image_status_checksum(struct qla27xx_image_status *image_status)
 {
-	uint32_t *p = (void *)image_status;
+	__le32 *p = (__force __le32 *)image_status;
 	uint n = sizeof(*image_status) / sizeof(*p);
 	uint32_t sum = 0;
 
@@ -7498,7 +7509,7 @@ qla28xx_get_aux_images(
 		goto check_sec_image;
 	}
 
-	qla24xx_read_flash_data(vha, (void *)&pri_aux_image_status,
+	qla24xx_read_flash_data(vha, (uint32_t *)&pri_aux_image_status,
 	    ha->flt_region_aux_img_status_pri,
 	    sizeof(pri_aux_image_status) >> 2);
 	qla27xx_print_image(vha, "Primary aux image", &pri_aux_image_status);
@@ -7531,7 +7542,7 @@ check_sec_image:
 		goto check_valid_image;
 	}
 
-	qla24xx_read_flash_data(vha, (void *)&sec_aux_image_status,
+	qla24xx_read_flash_data(vha, (uint32_t *)&sec_aux_image_status,
 	    ha->flt_region_aux_img_status_sec,
 	    sizeof(sec_aux_image_status) >> 2);
 	qla27xx_print_image(vha, "Secondary aux image", &sec_aux_image_status);
@@ -7596,7 +7607,7 @@ qla27xx_get_active_image(struct scsi_qla_host *vha,
 		goto check_sec_image;
 	}
 
-	if (qla24xx_read_flash_data(vha, (void *)(&pri_image_status),
+	if (qla24xx_read_flash_data(vha, (uint32_t *)&pri_image_status,
 	    ha->flt_region_img_status_pri, sizeof(pri_image_status) >> 2) !=
 	    QLA_SUCCESS) {
 		WARN_ON_ONCE(true);
@@ -7703,7 +7714,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 	ql_dbg(ql_dbg_init, vha, 0x008b,
 	    "FW: Loading firmware from flash (%x).\n", faddr);
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	qla24xx_read_flash_data(vha, dcode, faddr, 8);
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x008c,
@@ -7716,18 +7727,18 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		return QLA_FUNCTION_FAILED;
 	}
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 	segments = FA_RISC_CODE_SEGMENTS;
 	for (j = 0; j < segments; j++) {
 		ql_dbg(ql_dbg_init, vha, 0x008d,
 		    "-> Loading segment %u...\n", j);
 		qla24xx_read_flash_data(vha, dcode, faddr, 10);
-		risc_addr = be32_to_cpu(dcode[2]);
-		risc_size = be32_to_cpu(dcode[3]);
+		risc_addr = be32_to_cpu((__force __be32)dcode[2]);
+		risc_size = be32_to_cpu((__force __be32)dcode[3]);
 		if (!*srisc_addr) {
 			*srisc_addr = risc_addr;
-			risc_attr = be32_to_cpu(dcode[9]);
+			risc_attr = be32_to_cpu((__force __be32)dcode[9]);
 		}
 
 		dlen = ha->fw_transfer_size >> 2;
@@ -7767,9 +7778,9 @@ qla24xx_load_risc_flash(scsi_qla_host_t *vha, uint32_t *srisc_addr,
 		fwdt->template = NULL;
 		fwdt->length = 0;
 
-		dcode = (void *)req->ring;
+		dcode = (uint32_t *)req->ring;
 		qla24xx_read_flash_data(vha, dcode, faddr, 7);
-		risc_size = be32_to_cpu(dcode[2]);
+		risc_size = be32_to_cpu((__force __be32)dcode[2]);
 		ql_dbg(ql_dbg_init, vha, 0x0161,
 		    "-> fwdt%u template array at %#x (%#x dwords)\n",
 		    j, faddr, risc_size);
@@ -7838,7 +7849,8 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 {
 	int	rval;
 	int	i, fragment;
-	uint16_t *wcode, *fwcode;
+	uint16_t *wcode;
+	__be16	 *fwcode;
 	uint32_t risc_addr, risc_size, fwclen, wlen, *seg;
 	struct fw_blob *blob;
 	struct qla_hw_data *ha = vha->hw;
@@ -7858,7 +7870,7 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 	wcode = (uint16_t *)req->ring;
 	*srisc_addr = 0;
-	fwcode = (uint16_t *)blob->fw->data;
+	fwcode = (__force __be16 *)blob->fw->data;
 	fwclen = 0;
 
 	/* Validate firmware image by checking version. */
@@ -7906,7 +7918,7 @@ qla2x00_load_risc(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 			    "words 0x%x.\n", risc_addr, wlen);
 
 			for (i = 0; i < wlen; i++)
-				wcode[i] = swab16(fwcode[i]);
+				wcode[i] = swab16((__force u32)fwcode[i]);
 
 			rval = qla2x00_load_ram(vha, req->dma, risc_addr,
 			    wlen);
@@ -7943,7 +7955,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 	ulong i;
 	uint j;
 	struct fw_blob *blob;
-	uint32_t *fwcode;
+	__be32 *fwcode;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	struct fwdt *fwdt = ha->fwdt;
@@ -7959,8 +7971,8 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	fwcode = (void *)blob->fw->data;
-	dcode = fwcode;
+	fwcode = (__force __be32 *)blob->fw->data;
+	dcode = (__force uint32_t *)fwcode;
 	if (qla24xx_risc_firmware_invalid(dcode)) {
 		ql_log(ql_log_fatal, vha, 0x0093,
 		    "Unable to verify integrity of firmware image (%zd).\n",
@@ -7971,7 +7983,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 		return QLA_FUNCTION_FAILED;
 	}
 
-	dcode = (void *)req->ring;
+	dcode = (uint32_t *)req->ring;
 	*srisc_addr = 0;
 	segments = FA_RISC_CODE_SEGMENTS;
 	for (j = 0; j < segments; j++) {
@@ -7997,7 +8009,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 			    dlen);
 
 			for (i = 0; i < dlen; i++)
-				dcode[i] = swab32(fwcode[i]);
+				dcode[i] = swab32((__force u32)fwcode[i]);
 
 			rval = qla2x00_load_ram(vha, req->dma, risc_addr, dlen);
 			if (rval) {
@@ -8051,7 +8063,7 @@ qla24xx_load_risc_blob(scsi_qla_host_t *vha, uint32_t *srisc_addr)
 
 		dcode = fwdt->template;
 		for (i = 0; i < risc_size; i++)
-			dcode[i] = fwcode[i];
+			dcode[i] = (__force u32)fwcode[i];
 
 		if (!qla27xx_fwdt_template_valid(dcode)) {
 			ql_log(ql_log_warn, vha, 0x0175,
@@ -8322,7 +8334,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	int   rval;
 	struct init_cb_81xx *icb;
 	struct nvram_81xx *nv;
-	uint32_t *dptr;
+	__le32 *dptr;
 	uint8_t  *dptr1, *dptr2;
 	uint32_t chksum;
 	uint16_t cnt;
@@ -8369,7 +8381,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	    "primary" : "secondary");
 	ha->isp_ops->read_optrom(vha, ha->nvram, faddr << 2, ha->nvram_size);
 
-	dptr = (uint32_t *)nv;
+	dptr = (__force __le32 *)nv;
 	for (cnt = 0, chksum = 0; cnt < ha->nvram_size >> 2; cnt++, dptr++)
 		chksum += le32_to_cpu(*dptr);
 
@@ -8396,7 +8408,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 		memset(nv, 0, ha->nvram_size);
 		nv->nvram_version = cpu_to_le16(ICB_VERSION);
 		nv->version = cpu_to_le16(ICB_VERSION);
-		nv->frame_payload_size = 2048;
+		nv->frame_payload_size = cpu_to_le16(2048);
 		nv->execution_throttle = cpu_to_le16(0xFFFF);
 		nv->exchange_count = cpu_to_le16(0);
 		nv->port_name[0] = 0x21;
@@ -8440,7 +8452,7 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	}
 
 	if (IS_T10_PI_CAPABLE(ha))
-		nv->frame_payload_size &= ~7;
+		nv->frame_payload_size &= cpu_to_le16(~7);
 
 	qlt_81xx_config_nvram_stage1(vha, nv);
 
@@ -8603,10 +8615,10 @@ qla81xx_nvram_config(scsi_qla_host_t *vha)
 	}
 
 	 /* enable RIDA Format2 */
-	icb->firmware_options_3 |= BIT_0;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_0);
 
 	/* N2N: driver will initiate Login instead of FW */
-	icb->firmware_options_3 |= BIT_8;
+	icb->firmware_options_3 |= cpu_to_le32(BIT_8);
 
 	/* Determine NVMe/FCP priority for target ports */
 	ha->fc4_type_priority = qla2xxx_get_fc4_priority(vha);

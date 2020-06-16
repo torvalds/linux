@@ -2,7 +2,7 @@
 config TTY
 	bool "Enable TTY" if EXPERT
 	default y
-	---help---
+	help
 	  Allows you to remove TTY support which can save space, and
 	  blocks features that require TTY from inclusion in the kernel.
 	  TTY is required for any text terminals or serial port
@@ -15,7 +15,7 @@ config VT
 	depends on !UML
 	select INPUT
 	default y
-	---help---
+	help
 	  If you say Y here, you will get support for terminal devices with
 	  display and keyboard devices. These are called "virtual" because you
 	  can run several virtual terminals (also called virtual consoles) on
@@ -46,7 +46,7 @@ config CONSOLE_TRANSLATIONS
 	depends on VT
 	default y
 	bool "Enable character translations in console" if EXPERT
-	---help---
+	help
 	  This enables support for font mapping and Unicode translation
 	  on virtual consoles.
 
@@ -54,7 +54,7 @@ config VT_CONSOLE
 	bool "Support for console on virtual terminal" if EXPERT
 	depends on VT
 	default y
-	---help---
+	help
 	  The system console is the device which receives all kernel messages
 	  and warnings and which allows logins in single user mode. If you
 	  answer Y here, a virtual terminal (the device used to interact with
@@ -84,7 +84,7 @@ config HW_CONSOLE
 config VT_HW_CONSOLE_BINDING
 	bool "Support for binding and unbinding console drivers"
 	depends on HW_CONSOLE
-	---help---
+	help
 	  The virtual terminal is the device that interacts with the physical
 	  terminal through console drivers. On these systems, at least one
 	  console driver is loaded. In other configurations, additional console
@@ -100,7 +100,7 @@ config VT_HW_CONSOLE_BINDING
 config UNIX98_PTYS
 	bool "Unix98 PTY support" if EXPERT
 	default y
-	---help---
+	help
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to
 	  a physical terminal; the master device is used by a process to
@@ -123,7 +123,7 @@ config UNIX98_PTYS
 config LEGACY_PTYS
 	bool "Legacy (BSD) PTY support"
 	default y
-	---help---
+	help
 	  A pseudo terminal (PTY) is a software device consisting of two
 	  halves: a master and a slave. The slave device behaves identical to
 	  a physical terminal; the master device is used by a process to
@@ -142,7 +142,7 @@ config LEGACY_PTY_COUNT
 	depends on LEGACY_PTYS
 	range 0 256
 	default "256"
-	---help---
+	help
 	  The maximum number of legacy PTYs that can be used at any one time.
 	  The default is 256, and should be more than enough.  Embedded
 	  systems may want to reduce this to save memory.
@@ -178,7 +178,7 @@ source "drivers/tty/serial/Kconfig"
 config SERIAL_NONSTANDARD
 	bool "Non-standard serial port support"
 	depends on HAS_IOMEM
-	---help---
+	help
 	  Say Y here if you have any non-standard serial boards -- boards
 	  which aren't supported using the standard "dumb" serial driver.
 	  This includes intelligent serial boards such as Cyclades,
@@ -211,7 +211,7 @@ config CYCLADES
 	tristate "Cyclades async mux support"
 	depends on SERIAL_NONSTANDARD && (PCI || ISA)
 	select FW_LOADER
-	---help---
+	help
 	  This driver supports Cyclades Z and Y multiserial boards.
 	  You would need something like this to connect more than two modems to
 	  your Linux box, for instance in order to become a dial-in server.

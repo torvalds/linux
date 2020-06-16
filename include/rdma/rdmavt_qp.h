@@ -2,7 +2,7 @@
 #define DEF_RDMAVT_INCQP_H
 
 /*
- * Copyright(c) 2016 - 2019 Intel Corporation.
+ * Copyright(c) 2016 - 2020 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -67,6 +67,33 @@
 #define RVT_R_RSP_NAK   0x04
 #define RVT_R_RSP_SEND  0x08
 #define RVT_R_COMM_EST  0x10
+
+/*
+ * If a packet's QP[23:16] bits match this value, then it is
+ * a PSM packet and the hardware will expect a KDETH header
+ * following the BTH.
+ */
+#define RVT_KDETH_QP_PREFIX       0x80
+#define RVT_KDETH_QP_SUFFIX       0xffff
+#define RVT_KDETH_QP_PREFIX_MASK  0x00ff0000
+#define RVT_KDETH_QP_PREFIX_SHIFT 16
+#define RVT_KDETH_QP_BASE         (u32)(RVT_KDETH_QP_PREFIX << \
+					RVT_KDETH_QP_PREFIX_SHIFT)
+#define RVT_KDETH_QP_MAX          (u32)(RVT_KDETH_QP_BASE + RVT_KDETH_QP_SUFFIX)
+
+/*
+ * If a packet's LNH == BTH and DEST QPN[23:16] in the BTH match this
+ * prefix value, then it is an AIP packet with a DETH containing the entropy
+ * value in byte 4 following the BTH.
+ */
+#define RVT_AIP_QP_PREFIX       0x81
+#define RVT_AIP_QP_SUFFIX       0xffff
+#define RVT_AIP_QP_PREFIX_MASK  0x00ff0000
+#define RVT_AIP_QP_PREFIX_SHIFT 16
+#define RVT_AIP_QP_BASE         (u32)(RVT_AIP_QP_PREFIX << \
+				      RVT_AIP_QP_PREFIX_SHIFT)
+#define RVT_AIP_QPN_MAX         BIT(RVT_AIP_QP_PREFIX_SHIFT)
+#define RVT_AIP_QP_MAX          (u32)(RVT_AIP_QP_BASE + RVT_AIP_QPN_MAX - 1)
 
 /*
  * Bit definitions for s_flags.
@@ -440,7 +467,7 @@ struct rvt_qp {
 	/*
 	 * This sge list MUST be last. Do not add anything below here.
 	 */
-	struct rvt_sge r_sg_list[0] /* verified SGEs */
+	struct rvt_sge r_sg_list[] /* verified SGEs */
 		____cacheline_aligned_in_smp;
 };
 

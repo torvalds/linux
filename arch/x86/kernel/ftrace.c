@@ -282,7 +282,8 @@ static inline void tramp_free(void *tramp) { }
 
 /* Defined as markers to the end of the ftrace default trampolines */
 extern void ftrace_regs_caller_end(void);
-extern void ftrace_epilogue(void);
+extern void ftrace_regs_caller_ret(void);
+extern void ftrace_caller_end(void);
 extern void ftrace_caller_op_ptr(void);
 extern void ftrace_regs_caller_op_ptr(void);
 
@@ -334,7 +335,7 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 		call_offset = (unsigned long)ftrace_regs_call;
 	} else {
 		start_offset = (unsigned long)ftrace_caller;
-		end_offset = (unsigned long)ftrace_epilogue;
+		end_offset = (unsigned long)ftrace_caller_end;
 		op_offset = (unsigned long)ftrace_caller_op_ptr;
 		call_offset = (unsigned long)ftrace_call;
 	}
@@ -365,6 +366,13 @@ create_trampoline(struct ftrace_ops *ops, unsigned int *tramp_size)
 	ret = probe_kernel_read(ip, (void *)retq, RET_SIZE);
 	if (WARN_ON(ret < 0))
 		goto fail;
+
+	if (ops->flags & FTRACE_OPS_FL_SAVE_REGS) {
+		ip = trampoline + (ftrace_regs_caller_ret - ftrace_regs_caller);
+		ret = probe_kernel_read(ip, (void *)retq, RET_SIZE);
+		if (WARN_ON(ret < 0))
+			goto fail;
+	}
 
 	/*
 	 * The address of the ftrace_ops that is used for this trampoline
@@ -433,7 +441,7 @@ void set_ftrace_ops_ro(void)
 			end_offset = (unsigned long)ftrace_regs_caller_end;
 		} else {
 			start_offset = (unsigned long)ftrace_caller;
-			end_offset = (unsigned long)ftrace_epilogue;
+			end_offset = (unsigned long)ftrace_caller_end;
 		}
 		size = end_offset - start_offset;
 		size = size + RET_SIZE + sizeof(void *);

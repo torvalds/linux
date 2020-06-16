@@ -256,6 +256,10 @@ static int device_early_init(struct hl_device *hdev)
 		goya_set_asic_funcs(hdev);
 		strlcpy(hdev->asic_name, "GOYA", sizeof(hdev->asic_name));
 		break;
+	case ASIC_GAUDI:
+		gaudi_set_asic_funcs(hdev);
+		sprintf(hdev->asic_name, "GAUDI");
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 			hdev->asic_type);
@@ -603,6 +607,9 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 
 		hdev->in_debug = 0;
 
+		if (!hdev->hard_reset_pending)
+			hdev->asic_funcs->enable_clock_gating(hdev);
+
 		goto out;
 	}
 
@@ -613,6 +620,7 @@ int hl_device_set_debug_mode(struct hl_device *hdev, bool enable)
 		goto out;
 	}
 
+	hdev->asic_funcs->disable_clock_gating(hdev);
 	hdev->in_debug = 1;
 
 out:
@@ -718,7 +726,7 @@ disable_device:
 	return rc;
 }
 
-static void device_kill_open_processes(struct hl_device *hdev)
+static int device_kill_open_processes(struct hl_device *hdev)
 {
 	u16 pending_total, pending_cnt;
 	struct hl_fpriv	*hpriv;
@@ -771,9 +779,7 @@ static void device_kill_open_processes(struct hl_device *hdev)
 		ssleep(1);
 	}
 
-	if (!list_empty(&hdev->fpriv_list))
-		dev_crit(hdev->dev,
-			"Going to hard reset with open user contexts\n");
+	return list_empty(&hdev->fpriv_list) ? 0 : -EBUSY;
 }
 
 static void device_hard_reset_pending(struct work_struct *work)
@@ -793,6 +799,7 @@ static void device_hard_reset_pending(struct work_struct *work)
  * @hdev: pointer to habanalabs device structure
  * @hard_reset: should we do hard reset to all engines or just reset the
  *              compute/dma engines
+ * @from_hard_reset_thread: is the caller the hard-reset thread
  *
  * Block future CS and wait for pending CS to be enqueued
  * Call ASIC H/W fini
@@ -813,6 +820,11 @@ int hl_device_reset(struct hl_device *hdev, bool hard_reset,
 		dev_err(hdev->dev,
 			"Can't reset before initialization is done\n");
 		return 0;
+	}
+
+	if ((!hard_reset) && (!hdev->supports_soft_reset)) {
+		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+		hard_reset = true;
 	}
 
 	/*
@@ -894,7 +906,12 @@ again:
 		 * process can't really exit until all its CSs are done, which
 		 * is what we do in cs rollback
 		 */
-		device_kill_open_processes(hdev);
+		rc = device_kill_open_processes(hdev);
+		if (rc) {
+			dev_crit(hdev->dev,
+				"Failed to kill all open processes, stopping hard reset\n");
+			goto out_err;
+		}
 
 		/* Flush the Event queue workers to make sure no other thread is
 		 * reading or writing to registers during the reset
@@ -1062,7 +1079,7 @@ out_err:
  */
 int hl_device_init(struct hl_device *hdev, struct class *hclass)
 {
-	int i, rc, cq_ready_cnt;
+	int i, rc, cq_cnt, cq_ready_cnt;
 	char *name;
 	bool add_cdev_sysfs_on_err = false;
 
@@ -1120,14 +1137,16 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto sw_fini;
 	}
 
+	cq_cnt = hdev->asic_prop.completion_queues_count;
+
 	/*
 	 * Initialize the completion queues. Must be done before hw_init,
 	 * because there the addresses of the completion queues are being
 	 * passed as arguments to request_irq
 	 */
-	hdev->completion_queue =
-			kcalloc(hdev->asic_prop.completion_queues_count,
-				sizeof(*hdev->completion_queue), GFP_KERNEL);
+	hdev->completion_queue = kcalloc(cq_cnt,
+						sizeof(*hdev->completion_queue),
+						GFP_KERNEL);
 
 	if (!hdev->completion_queue) {
 		dev_err(hdev->dev, "failed to allocate completion queues\n");
@@ -1135,10 +1154,9 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto hw_queues_destroy;
 	}
 
-	for (i = 0, cq_ready_cnt = 0;
-			i < hdev->asic_prop.completion_queues_count;
-			i++, cq_ready_cnt++) {
-		rc = hl_cq_init(hdev, &hdev->completion_queue[i], i);
+	for (i = 0, cq_ready_cnt = 0 ; i < cq_cnt ; i++, cq_ready_cnt++) {
+		rc = hl_cq_init(hdev, &hdev->completion_queue[i],
+				hdev->asic_funcs->get_queue_id_for_cq(hdev, i));
 		if (rc) {
 			dev_err(hdev->dev,
 				"failed to initialize completion queue\n");
@@ -1325,11 +1343,12 @@ void hl_device_fini(struct hl_device *hdev)
 	 * This function is competing with the reset function, so try to
 	 * take the reset atomic and if we are already in middle of reset,
 	 * wait until reset function is finished. Reset function is designed
-	 * to always finish (could take up to a few seconds in worst case).
+	 * to always finish. However, in Gaudi, because of all the network
+	 * ports, the hard reset could take between 10-30 seconds
 	 */
 
 	timeout = ktime_add_us(ktime_get(),
-				HL_PENDING_RESET_PER_SEC * 1000 * 1000 * 4);
+				HL_HARD_RESET_MAX_TIMEOUT * 1000 * 1000);
 	rc = atomic_cmpxchg(&hdev->in_reset, 0, 1);
 	while (rc) {
 		usleep_range(50, 200);
@@ -1375,7 +1394,9 @@ void hl_device_fini(struct hl_device *hdev)
 	 * can't really exit until all its CSs are done, which is what we
 	 * do in cs rollback
 	 */
-	device_kill_open_processes(hdev);
+	rc = device_kill_open_processes(hdev);
+	if (rc)
+		dev_crit(hdev->dev, "Failed to kill all open processes\n");
 
 	hl_cb_pool_fini(hdev);
 

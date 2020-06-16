@@ -200,10 +200,10 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 	if (IS_ERR(mn))
 		err = PTR_ERR(mn);
 
-	down_write(&mm->mm->mmap_sem);
+	mmap_write_lock(mm->mm);
 	mutex_lock(&mm->i915->mm_lock);
 	if (mm->mn == NULL && !err) {
-		/* Protected by mmap_sem (write-lock) */
+		/* Protected by mmap_lock (write-lock) */
 		err = __mmu_notifier_register(&mn->mn, mm->mm);
 		if (!err) {
 			/* Protected by mm_lock */
@@ -217,7 +217,7 @@ i915_mmu_notifier_find(struct i915_mm_struct *mm)
 		err = 0;
 	}
 	mutex_unlock(&mm->i915->mm_lock);
-	up_write(&mm->mm->mmap_sem);
+	mmap_write_unlock(mm->mm);
 
 	if (mn && !IS_ERR(mn))
 		kfree(mn);
@@ -468,10 +468,10 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		if (mmget_not_zero(mm)) {
 			while (pinned < npages) {
 				if (!locked) {
-					down_read(&mm->mmap_sem);
+					mmap_read_lock(mm);
 					locked = 1;
 				}
-				ret = get_user_pages_remote
+				ret = pin_user_pages_remote
 					(work->task, mm,
 					 obj->userptr.ptr + pinned * PAGE_SIZE,
 					 npages - pinned,
@@ -483,7 +483,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 				pinned += ret;
 			}
 			if (locked)
-				up_read(&mm->mmap_sem);
+				mmap_read_unlock(mm);
 			mmput(mm);
 		}
 	}
@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	}
 	mutex_unlock(&obj->mm.lock);
 
-	release_pages(pvec, pinned);
+	unpin_user_pages(pvec, pinned);
 	kvfree(pvec);
 
 	i915_gem_object_put(obj);
@@ -522,8 +522,8 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 
 	/* Spawn a worker so that we can acquire the
 	 * user pages without holding our mutex. Access
-	 * to the user pages requires mmap_sem, and we have
-	 * a strict lock ordering of mmap_sem, struct_mutex -
+	 * to the user pages requires mmap_lock, and we have
+	 * a strict lock ordering of mmap_lock, struct_mutex -
 	 * we already hold struct_mutex here and so cannot
 	 * call gup without encountering a lock inversion.
 	 *
@@ -564,6 +564,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	struct sg_table *pages;
 	bool active;
 	int pinned;
+	unsigned int gup_flags = 0;
 
 	/* If userspace should engineer that these pages are replaced in
 	 * the vma between us binding this page into the GTT and completion
@@ -598,11 +599,22 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 				      GFP_KERNEL |
 				      __GFP_NORETRY |
 				      __GFP_NOWARN);
-		if (pvec) /* defer to worker if malloc fails */
-			pinned = __get_user_pages_fast(obj->userptr.ptr,
-						       num_pages,
-						       !i915_gem_object_is_readonly(obj),
-						       pvec);
+		/*
+		 * Using __get_user_pages_fast() with a read-only
+		 * access is questionable. A read-only page may be
+		 * COW-broken, and then this might end up giving
+		 * the wrong side of the COW..
+		 *
+		 * We may or may not care.
+		 */
+		if (pvec) {
+			/* defer to worker if malloc fails */
+			if (!i915_gem_object_is_readonly(obj))
+				gup_flags |= FOLL_WRITE;
+			pinned = pin_user_pages_fast_only(obj->userptr.ptr,
+							  num_pages, gup_flags,
+							  pvec);
+		}
 	}
 
 	active = false;
@@ -620,7 +632,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 		__i915_gem_userptr_set_active(obj, true);
 
 	if (IS_ERR(pages))
-		release_pages(pvec, pinned);
+		unpin_user_pages(pvec, pinned);
 	kvfree(pvec);
 
 	return PTR_ERR_OR_ZERO(pages);
@@ -675,7 +687,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
 		}
 
 		mark_page_accessed(page);
-		put_page(page);
+		unpin_user_page(page);
 	}
 	obj->mm.dirty = false;
 

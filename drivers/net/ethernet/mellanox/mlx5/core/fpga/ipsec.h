@@ -37,6 +37,7 @@
 #include "accel/ipsec.h"
 #include "fs_cmd.h"
 
+#ifdef CONFIG_MLX5_FPGA_IPSEC
 u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev);
 unsigned int mlx5_fpga_ipsec_counters_count(struct mlx5_core_dev *mdev);
 int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
@@ -46,7 +47,8 @@ void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 				    struct mlx5_accel_esp_xfrm *accel_xfrm,
 				    const __be32 saddr[4],
 				    const __be32 daddr[4],
-				    const __be32 spi, bool is_ipv6);
+				    const __be32 spi, bool is_ipv6,
+				    u32 *sa_handle);
 void mlx5_fpga_ipsec_delete_sa_ctx(void *context);
 
 int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev);
@@ -63,5 +65,17 @@ int mlx5_fpga_esp_modify_xfrm(struct mlx5_accel_esp_xfrm *xfrm,
 
 const struct mlx5_flow_cmds *
 mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type);
+#else
+static inline u32 mlx5_fpga_ipsec_device_caps(struct mlx5_core_dev *mdev)
+{
+	return 0;
+}
 
-#endif	/* __MLX5_FPGA_SADB_H__ */
+static inline const struct mlx5_flow_cmds *
+mlx5_fs_cmd_get_default_ipsec_fpga_cmds(enum fs_flow_table_type type)
+{
+	return mlx5_fs_cmd_get_default(type);
+}
+
+#endif /* CONFIG_MLX5_FPGA_IPSEC */
+#endif	/* __MLX5_FPGA_IPSEC_H__ */

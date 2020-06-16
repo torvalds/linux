@@ -100,6 +100,41 @@ with a huge page size selection parameter "hugepagesz=<size>".  <size> must
 be specified in bytes with optional scale suffix [kKmMgG].  The default huge
 page size may be selected with the "default_hugepagesz=<size>" boot parameter.
 
+Hugetlb boot command line parameter semantics
+hugepagesz - Specify a huge page size.  Used in conjunction with hugepages
+	parameter to preallocate a number of huge pages of the specified
+	size.  Hence, hugepagesz and hugepages are typically specified in
+	pairs such as:
+		hugepagesz=2M hugepages=512
+	hugepagesz can only be specified once on the command line for a
+	specific huge page size.  Valid huge page sizes are architecture
+	dependent.
+hugepages - Specify the number of huge pages to preallocate.  This typically
+	follows a valid hugepagesz or default_hugepagesz parameter.  However,
+	if hugepages is the first or only hugetlb command line parameter it
+	implicitly specifies the number of huge pages of default size to
+	allocate.  If the number of huge pages of default size is implicitly
+	specified, it can not be overwritten by a hugepagesz,hugepages
+	parameter pair for the default size.
+	For example, on an architecture with 2M default huge page size:
+		hugepages=256 hugepagesz=2M hugepages=512
+	will result in 256 2M huge pages being allocated and a warning message
+	indicating that the hugepages=512 parameter is ignored.  If a hugepages
+	parameter is preceded by an invalid hugepagesz parameter, it will
+	be ignored.
+default_hugepagesz - Specify the default huge page size.  This parameter can
+	only be specified once on the command line.  default_hugepagesz can
+	optionally be followed by the hugepages parameter to preallocate a
+	specific number of huge pages of default size.  The number of default
+	sized huge pages to preallocate can also be implicitly specified as
+	mentioned in the hugepages section above.  Therefore, on an
+	architecture with 2M default huge page size:
+		hugepages=256
+		default_hugepagesz=2M hugepages=256
+		hugepages=256 default_hugepagesz=2M
+	will all result in 256 2M huge pages being allocated.  Valid default
+	huge page size is architecture dependent.
+
 When multiple huge page sizes are supported, ``/proc/sys/vm/nr_hugepages``
 indicates the current number of pre-allocated huge pages of the default size.
 Thus, one can use the following command to dynamically allocate/deallocate

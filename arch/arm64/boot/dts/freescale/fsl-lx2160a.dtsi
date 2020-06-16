@@ -436,19 +436,19 @@
 	};
 
 	thermal-zones {
-		core_thermal1: core-thermal1 {
+		cluster6-7 {
 			polling-delay-passive = <1000>;
 			polling-delay = <5000>;
 			thermal-sensors = <&tmu 0>;
 
 			trips {
-				core_cluster_alert: core-cluster-alert {
+				cluster6_7_alert: cluster6-7-alert {
 					temperature = <85000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
 
-				core_cluster_crit: core-cluster-crit {
+				cluster6_7_crit: cluster6-7-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -457,7 +457,7 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&core_cluster_alert>;
+					trip = <&cluster6_7_alert>;
 					cooling-device =
 						<&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -475,6 +475,126 @@
 						<&cpu601 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu700 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 						<&cpu701 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		ddr-cluster5 {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 1>;
+
+			trips {
+				ddr-cluster5-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				ddr-cluster5-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		wriop {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 2>;
+
+			trips {
+				wriop-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				wriop-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		dce-qbman-hsio2 {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 3>;
+
+			trips {
+				dce-qbman-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				dce-qbman-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		ccn-dpaa-tbu {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 4>;
+
+			trips {
+				ccn-dpaa-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				ccn-dpaa-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cluster4-hsio3 {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 5>;
+
+			trips {
+				clust4-hsio3-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				clust4-hsio3-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cluster2-3 {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+			thermal-sensors = <&tmu 6>;
+
+			trips {
+				cluster2-3-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				cluster2-3-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
 				};
 			};
 		};
@@ -549,7 +669,7 @@
 				/* Calibration data group 1 */
 				<0x00000000 0x00000035
 				/* Calibration data group 2 */
-				0x00010001 0x00000154>;
+				0x00000001 0x00000154>;
 			little-endian;
 			#thermal-sensor-cells = <1>;
 		};

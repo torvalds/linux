@@ -61,7 +61,7 @@ config BMG160
 	help
 	  Say yes here to build support for BOSCH BMG160 Tri-axis Gyro Sensor
 	  driver connected via I2C or SPI. This driver also supports BMI055
-	  gyroscope.
+	  and BMI088 gyroscope.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called bmg160_i2c or bmg160_spi.

@@ -1,12 +1,6 @@
-* Don't use v4l2_async_notifier_parse_fwnode_endpoints_by_port().
-e.g. isp_parse_of_endpoints in drivers/media/platform/omap3isp/isp.c
-cio2_parse_firmware in drivers/media/pci/intel/ipu3/ipu3-cio2.c.
 * Fix pad format size for statistics and parameters entities.
 * Use threaded interrupt for rkisp1_stats_isr(), remove work queue.
 * Fix checkpatch errors.
-* Make sure uapi structs have the same size and layout in 32 and 62 bits,
-and that there are no holes in the structures (pahole is a utility that
-can be used to test this).
 * Review and comment every lock
 * Handle quantization
 * Document rkisp1-common.h

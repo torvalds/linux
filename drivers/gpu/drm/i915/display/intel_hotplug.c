@@ -270,8 +270,7 @@ static void intel_hpd_irq_storm_reenable_work(struct work_struct *work)
 
 enum intel_hotplug_state
 intel_encoder_hotplug(struct intel_encoder *encoder,
-		      struct intel_connector *connector,
-		      bool irq_received)
+		      struct intel_connector *connector)
 {
 	struct drm_device *dev = connector->base.dev;
 	enum drm_connector_status old_status;
@@ -392,12 +391,17 @@ static void i915_hotplug_work_func(struct work_struct *work)
 			struct intel_encoder *encoder =
 				intel_attached_encoder(connector);
 
-			drm_dbg_kms(&dev_priv->drm,
-				    "Connector %s (pin %i) received hotplug event.\n",
-				    connector->base.name, pin);
+			if (hpd_event_bits & hpd_bit)
+				connector->hotplug_retries = 0;
+			else
+				connector->hotplug_retries++;
 
-			switch (encoder->hotplug(encoder, connector,
-						 hpd_event_bits & hpd_bit)) {
+			drm_dbg_kms(&dev_priv->drm,
+				    "Connector %s (pin %i) received hotplug event. (retry %d)\n",
+				    connector->base.name, pin,
+				    connector->hotplug_retries);
+
+			switch (encoder->hotplug(encoder, connector)) {
 			case INTEL_HOTPLUG_UNCHANGED:
 				break;
 			case INTEL_HOTPLUG_CHANGED:

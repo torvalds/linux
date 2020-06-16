@@ -399,38 +399,31 @@ static int vti4_err(struct sk_buff *skb, u32 info)
 }
 
 static int
-vti_tunnel_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+vti_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd)
 {
 	int err = 0;
-	struct ip_tunnel_parm p;
-
-	if (copy_from_user(&p, ifr->ifr_ifru.ifru_data, sizeof(p)))
-		return -EFAULT;
 
 	if (cmd == SIOCADDTUNNEL || cmd == SIOCCHGTUNNEL) {
-		if (p.iph.version != 4 || p.iph.protocol != IPPROTO_IPIP ||
-		    p.iph.ihl != 5)
+		if (p->iph.version != 4 || p->iph.protocol != IPPROTO_IPIP ||
+		    p->iph.ihl != 5)
 			return -EINVAL;
 	}
 
-	if (!(p.i_flags & GRE_KEY))
-		p.i_key = 0;
-	if (!(p.o_flags & GRE_KEY))
-		p.o_key = 0;
+	if (!(p->i_flags & GRE_KEY))
+		p->i_key = 0;
+	if (!(p->o_flags & GRE_KEY))
+		p->o_key = 0;
 
-	p.i_flags = VTI_ISVTI;
+	p->i_flags = VTI_ISVTI;
 
-	err = ip_tunnel_ioctl(dev, &p, cmd);
+	err = ip_tunnel_ctl(dev, p, cmd);
 	if (err)
 		return err;
 
 	if (cmd != SIOCDELTUNNEL) {
-		p.i_flags |= GRE_KEY;
-		p.o_flags |= GRE_KEY;
+		p->i_flags |= GRE_KEY;
+		p->o_flags |= GRE_KEY;
 	}
-
-	if (copy_to_user(ifr->ifr_ifru.ifru_data, &p, sizeof(p)))
-		return -EFAULT;
 	return 0;
 }
 
@@ -438,10 +431,11 @@ static const struct net_device_ops vti_netdev_ops = {
 	.ndo_init	= vti_tunnel_init,
 	.ndo_uninit	= ip_tunnel_uninit,
 	.ndo_start_xmit	= vti_tunnel_xmit,
-	.ndo_do_ioctl	= vti_tunnel_ioctl,
+	.ndo_do_ioctl	= ip_tunnel_ioctl,
 	.ndo_change_mtu	= ip_tunnel_change_mtu,
 	.ndo_get_stats64 = ip_tunnel_get_stats64,
 	.ndo_get_iflink = ip_tunnel_get_iflink,
+	.ndo_tunnel_ctl	= vti_tunnel_ctl,
 };
 
 static void vti_tunnel_setup(struct net_device *dev)

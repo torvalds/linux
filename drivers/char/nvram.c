@@ -232,8 +232,6 @@ static ssize_t nvram_misc_read(struct file *file, char __user *buf,
 	ssize_t ret;
 
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
 	if (*ppos >= nvram_size)
 		return 0;
 
@@ -264,8 +262,6 @@ static ssize_t nvram_misc_write(struct file *file, const char __user *buf,
 	char *tmp;
 	ssize_t ret;
 
-	if (!access_ok(buf, count))
-		return -EFAULT;
 	if (*ppos >= nvram_size)
 		return 0;
 

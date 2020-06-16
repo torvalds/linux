@@ -29,6 +29,10 @@ struct lpass_data {
 	/* MI2S bit clock (derived from system clock by a divider */
 	struct clk *mi2s_bit_clk[LPASS_MAX_MI2S_PORTS];
 
+	/* MI2S SD lines to use for playback/capture */
+	unsigned int mi2s_playback_sd_mode[LPASS_MAX_MI2S_PORTS];
+	unsigned int mi2s_capture_sd_mode[LPASS_MAX_MI2S_PORTS];
+
 	/* low-power audio interface (LPAIF) registers */
 	void __iomem *lpaif;
 

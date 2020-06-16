@@ -566,16 +566,15 @@ static int do_help(int argc, char **argv)
 	}
 
 	fprintf(stderr,
-		"Usage: %s %s { show | list } [STRUCT_OPS_MAP]\n"
-		"       %s %s dump [STRUCT_OPS_MAP]\n"
-		"       %s %s register OBJ\n"
-		"       %s %s unregister STRUCT_OPS_MAP\n"
-		"       %s %s help\n"
+		"Usage: %1$s %2$s { show | list } [STRUCT_OPS_MAP]\n"
+		"       %1$s %2$s dump [STRUCT_OPS_MAP]\n"
+		"       %1$s %2$s register OBJ\n"
+		"       %1$s %2$s unregister STRUCT_OPS_MAP\n"
+		"       %1$s %2$s help\n"
 		"\n"
 		"       OPTIONS := { {-j|--json} [{-p|--pretty}] }\n"
-		"       STRUCT_OPS_MAP := [ id STRUCT_OPS_MAP_ID | name STRUCT_OPS_MAP_NAME ]\n",
-		bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2],
+		"       STRUCT_OPS_MAP := [ id STRUCT_OPS_MAP_ID | name STRUCT_OPS_MAP_NAME ]\n"
+		"",
 		bin_name, argv[-2]);
 
 	return 0;

@@ -43,6 +43,7 @@ static struct var_t vars[] = {
 	{ CAPS_STOP, .u.s = {"[:dv ap 100]" } },
 	{ RATE, .u.n = {"[:ra %d]", 7, 0, 9, 150, 25, NULL } },
 	{ PITCH, .u.n = {"[:dv ap %d]", 100, 0, 100, 0, 0, NULL } },
+	{ INFLECTION, .u.n = {"[:dv pr %d] ", 100, 0, 10000, 0, 0, NULL } },
 	{ VOL, .u.n = {"[:dv gv %d]", 13, 0, 16, 0, 5, NULL } },
 	{ PUNCT, .u.n = {"[:pu %c]", 0, 0, 2, 0, 0, "nsa" } },
 	{ VOICE, .u.n = {"[:n%c]", 0, 0, 9, 0, 0, "phfdburwkv" } },
@@ -59,6 +60,8 @@ static struct kobj_attribute caps_stop_attribute =
 	__ATTR(caps_stop, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute pitch_attribute =
 	__ATTR(pitch, 0644, spk_var_show, spk_var_store);
+static struct kobj_attribute inflection_attribute =
+	__ATTR(inflection, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute punct_attribute =
 	__ATTR(punct, 0644, spk_var_show, spk_var_store);
 static struct kobj_attribute rate_attribute =
@@ -87,6 +90,7 @@ static struct attribute *synth_attrs[] = {
 	&caps_start_attribute.attr,
 	&caps_stop_attribute.attr,
 	&pitch_attribute.attr,
+	&inflection_attribute.attr,
 	&punct_attribute.attr,
 	&rate_attribute.attr,
 	&voice_attribute.attr,

@@ -1,3 +1,15 @@
+config DRM_I915_FENCE_TIMEOUT
+	int "Timeout for unsignaled foreign fences (ms, jiffy granularity)"
+	default 10000 # milliseconds
+	help
+	  When listening to a foreign fence, we install a supplementary timer
+	  to ensure that we are always signaled and our userspace is able to
+	  make forward progress. This value specifies the timeout used for an
+	  unsignaled foreign fence.
+
+	  May be 0 to disable the timeout, and rely on the foreign fence being
+	  eventually signaled.
+
 config DRM_I915_USERFAULT_AUTOSUSPEND
 	int "Runtime autosuspend delay for userspace GGTT mmaps (ms)"
 	default 250 # milliseconds

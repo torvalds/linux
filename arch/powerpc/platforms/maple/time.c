@@ -23,7 +23,6 @@
 #include <asm/sections.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
 

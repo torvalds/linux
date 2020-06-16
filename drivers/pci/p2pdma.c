@@ -282,6 +282,8 @@ static const struct pci_p2pdma_whitelist_entry {
 } pci_p2pdma_whitelist[] = {
 	/* AMD ZEN */
 	{PCI_VENDOR_ID_AMD,	0x1450,	0},
+	{PCI_VENDOR_ID_AMD,	0x15d0,	0},
+	{PCI_VENDOR_ID_AMD,	0x1630,	0},
 
 	/* Intel Xeon E5/Core i7 */
 	{PCI_VENDOR_ID_INTEL,	0x3c00, REQ_SAME_HOST_BRIDGE},

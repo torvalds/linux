@@ -40,8 +40,9 @@ enum color_transfer_func {
 
 enum vrr_packet_type {
 	PACKET_TYPE_VRR,
-	PACKET_TYPE_FS1,
-	PACKET_TYPE_FS2,
+	PACKET_TYPE_FS_V1,
+	PACKET_TYPE_FS_V2,
+	PACKET_TYPE_FS_V3,
 	PACKET_TYPE_VTEM
 };
 

@@ -31,8 +31,7 @@
 
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm);
-	*current_rpm = smum_get_argument(hwmgr);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm, current_rpm);
 	return 0;
 }
 
@@ -520,7 +519,8 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanTemperatureTarget,
-				(uint32_t)table->FanTargetTemperature);
+				(uint32_t)table->FanTargetTemperature,
+				NULL);
 
 	table->FanPwmMin = hwmgr->thermal_controller.
 			advanceFanControlParameters.usPWMMin * 255 / 100;

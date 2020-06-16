@@ -521,28 +521,29 @@ int i40e_add_del_fdir(struct i40e_vsi *vsi,
 /**
  * i40e_fd_handle_status - check the Programming Status for FD
  * @rx_ring: the Rx ring for this descriptor
- * @rx_desc: the Rx descriptor for programming Status, not a packet descriptor.
+ * @qword0_raw: qword0
+ * @qword1: qword1 after le_to_cpu
  * @prog_id: the id originally used for programming
  *
  * This is used to verify if the FD programming or invalidation
  * requested by SW to the HW is successful or not and take actions accordingly.
  **/
-void i40e_fd_handle_status(struct i40e_ring *rx_ring,
-			   union i40e_rx_desc *rx_desc, u8 prog_id)
+static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
+				  u64 qword1, u8 prog_id)
 {
 	struct i40e_pf *pf = rx_ring->vsi->back;
 	struct pci_dev *pdev = pf->pdev;
+	struct i40e_32b_rx_wb_qw0 *qw0;
 	u32 fcnt_prog, fcnt_avail;
 	u32 error;
-	u64 qw;
 
-	qw = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	error = (qw & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
+	qw0 = (struct i40e_32b_rx_wb_qw0 *)&qword0_raw;
+	error = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
 		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
 
 	if (error == BIT(I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
-		pf->fd_inv = le32_to_cpu(rx_desc->wb.qword0.hi_dword.fd_id);
-		if ((rx_desc->wb.qword0.hi_dword.fd_id != 0) ||
+		pf->fd_inv = le32_to_cpu(qw0->hi_dword.fd_id);
+		if (qw0->hi_dword.fd_id != 0 ||
 		    (I40E_DEBUG_FD & pf->hw.debug_mask))
 			dev_warn(&pdev->dev, "ntuple filter loc = %d, could not be added\n",
 				 pf->fd_inv);
@@ -560,7 +561,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 		/* store the current atr filter count */
 		pf->fd_atr_cnt = i40e_get_current_atr_cnt(pf);
 
-		if ((rx_desc->wb.qword0.hi_dword.fd_id == 0) &&
+		if (qw0->hi_dword.fd_id == 0 &&
 		    test_bit(__I40E_FD_SB_AUTO_DISABLED, pf->state)) {
 			/* These set_bit() calls aren't atomic with the
 			 * test_bit() here, but worse case we potentially
@@ -589,7 +590,7 @@ void i40e_fd_handle_status(struct i40e_ring *rx_ring,
 	} else if (error == BIT(I40E_RX_PROG_STATUS_DESC_NO_FD_ENTRY_SHIFT)) {
 		if (I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pdev->dev, "ntuple filter fd_id = %d, could not be removed\n",
-				 rx_desc->wb.qword0.hi_dword.fd_id);
+				 qw0->hi_dword.fd_id);
 	}
 }
 
@@ -1195,6 +1196,11 @@ clear_counts:
 	rc->total_packets = 0;
 }
 
+static struct i40e_rx_buffer *i40e_rx_bi(struct i40e_ring *rx_ring, u32 idx)
+{
+	return &rx_ring->rx_bi[idx];
+}
+
 /**
  * i40e_reuse_rx_page - page flip buffer and store it back on the ring
  * @rx_ring: rx descriptor ring to store buffers on
@@ -1208,7 +1214,7 @@ static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
 	struct i40e_rx_buffer *new_buff;
 	u16 nta = rx_ring->next_to_alloc;
 
-	new_buff = &rx_ring->rx_bi[nta];
+	new_buff = i40e_rx_bi(rx_ring, nta);
 
 	/* update, and store next to alloc */
 	nta++;
@@ -1227,29 +1233,10 @@ static void i40e_reuse_rx_page(struct i40e_ring *rx_ring,
 }
 
 /**
- * i40e_rx_is_programming_status - check for programming status descriptor
- * @qw: qword representing status_error_len in CPU ordering
- *
- * The value of in the descriptor length field indicate if this
- * is a programming status descriptor for flow director or FCoE
- * by the value of I40E_RX_PROG_STATUS_DESC_LENGTH, otherwise
- * it is a packet descriptor.
- **/
-static inline bool i40e_rx_is_programming_status(u64 qw)
-{
-	/* The Rx filter programming status and SPH bit occupy the same
-	 * spot in the descriptor. Since we don't support packet split we
-	 * can just reuse the bit as an indication that this is a
-	 * programming status descriptor.
-	 */
-	return qw & I40E_RXD_QW1_LENGTH_SPH_MASK;
-}
-
-/**
- * i40e_clean_programming_status - try clean the programming status descriptor
+ * i40e_clean_programming_status - clean the programming status descriptor
  * @rx_ring: the rx ring that has this descriptor
- * @rx_desc: the rx descriptor written back by HW
- * @qw: qword representing status_error_len in CPU ordering
+ * @qword0_raw: qword0
+ * @qword1: qword1 representing status_error_len in CPU ordering
  *
  * Flow director should handle FD_FILTER_STATUS to check its filter programming
  * status being successful or not and take actions accordingly. FCoE should
@@ -1257,34 +1244,16 @@ static inline bool i40e_rx_is_programming_status(u64 qw)
  *
  * Returns an i40e_rx_buffer to reuse if the cleanup occurred, otherwise NULL.
  **/
-struct i40e_rx_buffer *i40e_clean_programming_status(
-	struct i40e_ring *rx_ring,
-	union i40e_rx_desc *rx_desc,
-	u64 qw)
+void i40e_clean_programming_status(struct i40e_ring *rx_ring, u64 qword0_raw,
+				   u64 qword1)
 {
-	struct i40e_rx_buffer *rx_buffer;
-	u32 ntc;
 	u8 id;
 
-	if (!i40e_rx_is_programming_status(qw))
-		return NULL;
-
-	ntc = rx_ring->next_to_clean;
-
-	/* fetch, update, and store next to clean */
-	rx_buffer = &rx_ring->rx_bi[ntc++];
-	ntc = (ntc < rx_ring->count) ? ntc : 0;
-	rx_ring->next_to_clean = ntc;
-
-	prefetch(I40E_RX_DESC(rx_ring, ntc));
-
-	id = (qw & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
+	id = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
 		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
-		i40e_fd_handle_status(rx_ring, rx_desc, id);
-
-	return rx_buffer;
+		i40e_fd_handle_status(rx_ring, qword0_raw, qword1, id);
 }
 
 /**
@@ -1336,13 +1305,25 @@ err:
 	return -ENOMEM;
 }
 
+int i40e_alloc_rx_bi(struct i40e_ring *rx_ring)
+{
+	unsigned long sz = sizeof(*rx_ring->rx_bi) * rx_ring->count;
+
+	rx_ring->rx_bi = kzalloc(sz, GFP_KERNEL);
+	return rx_ring->rx_bi ? 0 : -ENOMEM;
+}
+
+static void i40e_clear_rx_bi(struct i40e_ring *rx_ring)
+{
+	memset(rx_ring->rx_bi, 0, sizeof(*rx_ring->rx_bi) * rx_ring->count);
+}
+
 /**
  * i40e_clean_rx_ring - Free Rx buffers
  * @rx_ring: ring to be cleaned
  **/
 void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 {
-	unsigned long bi_size;
 	u16 i;
 
 	/* ring already cleared, nothing to do */
@@ -1361,7 +1342,7 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 
 	/* Free all the Rx ring sk_buffs */
 	for (i = 0; i < rx_ring->count; i++) {
-		struct i40e_rx_buffer *rx_bi = &rx_ring->rx_bi[i];
+		struct i40e_rx_buffer *rx_bi = i40e_rx_bi(rx_ring, i);
 
 		if (!rx_bi->page)
 			continue;
@@ -1388,8 +1369,10 @@ void i40e_clean_rx_ring(struct i40e_ring *rx_ring)
 	}
 
 skip_free:
-	bi_size = sizeof(struct i40e_rx_buffer) * rx_ring->count;
-	memset(rx_ring->rx_bi, 0, bi_size);
+	if (rx_ring->xsk_umem)
+		i40e_clear_rx_bi_zc(rx_ring);
+	else
+		i40e_clear_rx_bi(rx_ring);
 
 	/* Zero out the descriptor ring */
 	memset(rx_ring->desc, 0, rx_ring->size);
@@ -1430,15 +1413,7 @@ void i40e_free_rx_resources(struct i40e_ring *rx_ring)
 int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 {
 	struct device *dev = rx_ring->dev;
-	int err = -ENOMEM;
-	int bi_size;
-
-	/* warn if we are about to overwrite the pointer */
-	WARN_ON(rx_ring->rx_bi);
-	bi_size = sizeof(struct i40e_rx_buffer) * rx_ring->count;
-	rx_ring->rx_bi = kzalloc(bi_size, GFP_KERNEL);
-	if (!rx_ring->rx_bi)
-		goto err;
+	int err;
 
 	u64_stats_init(&rx_ring->syncp);
 
@@ -1451,7 +1426,7 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 	if (!rx_ring->desc) {
 		dev_info(dev, "Unable to allocate memory for the Rx descriptor ring, size=%d\n",
 			 rx_ring->size);
-		goto err;
+		return -ENOMEM;
 	}
 
 	rx_ring->next_to_alloc = 0;
@@ -1463,16 +1438,12 @@ int i40e_setup_rx_descriptors(struct i40e_ring *rx_ring)
 		err = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev,
 				       rx_ring->queue_index);
 		if (err < 0)
-			goto err;
+			return err;
 	}
 
 	rx_ring->xdp_prog = rx_ring->vsi->xdp_prog;
 
 	return 0;
-err:
-	kfree(rx_ring->rx_bi);
-	rx_ring->rx_bi = NULL;
-	return err;
 }
 
 /**
@@ -1505,6 +1476,22 @@ void i40e_release_rx_desc(struct i40e_ring *rx_ring, u32 val)
 static inline unsigned int i40e_rx_offset(struct i40e_ring *rx_ring)
 {
 	return ring_uses_build_skb(rx_ring) ? I40E_SKB_PAD : 0;
+}
+
+static unsigned int i40e_rx_frame_truesize(struct i40e_ring *rx_ring,
+					   unsigned int size)
+{
+	unsigned int truesize;
+
+#if (PAGE_SIZE < 8192)
+	truesize = i40e_rx_pg_size(rx_ring) / 2; /* Must be power-of-2 */
+#else
+	truesize = i40e_rx_offset(rx_ring) ?
+		SKB_DATA_ALIGN(size + i40e_rx_offset(rx_ring)) +
+		SKB_DATA_ALIGN(sizeof(struct skb_shared_info)) :
+		SKB_DATA_ALIGN(size);
+#endif
+	return truesize;
 }
 
 /**
@@ -1576,7 +1563,7 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		return false;
 
 	rx_desc = I40E_RX_DESC(rx_ring, ntu);
-	bi = &rx_ring->rx_bi[ntu];
+	bi = i40e_rx_bi(rx_ring, ntu);
 
 	do {
 		if (!i40e_alloc_mapped_page(rx_ring, bi))
@@ -1598,7 +1585,7 @@ bool i40e_alloc_rx_buffers(struct i40e_ring *rx_ring, u16 cleaned_count)
 		ntu++;
 		if (unlikely(ntu == rx_ring->count)) {
 			rx_desc = I40E_RX_DESC(rx_ring, 0);
-			bi = rx_ring->rx_bi;
+			bi = i40e_rx_bi(rx_ring, 0);
 			ntu = 0;
 		}
 
@@ -1965,7 +1952,7 @@ static struct i40e_rx_buffer *i40e_get_rx_buffer(struct i40e_ring *rx_ring,
 {
 	struct i40e_rx_buffer *rx_buffer;
 
-	rx_buffer = &rx_ring->rx_bi[rx_ring->next_to_clean];
+	rx_buffer = i40e_rx_bi(rx_ring, rx_ring->next_to_clean);
 	prefetchw(rx_buffer->page);
 
 	/* we are reusing so sync this buffer for CPU use */
@@ -2180,7 +2167,7 @@ static int i40e_xmit_xdp_ring(struct xdp_frame *xdpf,
 
 int i40e_xmit_xdp_tx_ring(struct xdp_buff *xdp, struct i40e_ring *xdp_ring)
 {
-	struct xdp_frame *xdpf = convert_to_xdp_frame(xdp);
+	struct xdp_frame *xdpf = xdp_convert_buff_to_frame(xdp);
 
 	if (unlikely(!xdpf))
 		return I40E_XDP_CONSUMED;
@@ -2246,13 +2233,11 @@ static void i40e_rx_buffer_flip(struct i40e_ring *rx_ring,
 				struct i40e_rx_buffer *rx_buffer,
 				unsigned int size)
 {
-#if (PAGE_SIZE < 8192)
-	unsigned int truesize = i40e_rx_pg_size(rx_ring) / 2;
+	unsigned int truesize = i40e_rx_frame_truesize(rx_ring, size);
 
+#if (PAGE_SIZE < 8192)
 	rx_buffer->page_offset ^= truesize;
 #else
-	unsigned int truesize = SKB_DATA_ALIGN(i40e_rx_offset(rx_ring) + size);
-
 	rx_buffer->page_offset += truesize;
 #endif
 }
@@ -2335,6 +2320,9 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 	bool failure = false;
 	struct xdp_buff xdp;
 
+#if (PAGE_SIZE < 8192)
+	xdp.frame_sz = i40e_rx_frame_truesize(rx_ring, 0);
+#endif
 	xdp.rxq = &rx_ring->xdp_rxq;
 
 	while (likely(total_rx_packets < (unsigned int)budget)) {
@@ -2365,9 +2353,12 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 		 */
 		dma_rmb();
 
-		rx_buffer = i40e_clean_programming_status(rx_ring, rx_desc,
-							  qword);
-		if (unlikely(rx_buffer)) {
+		if (i40e_rx_is_programming_status(qword)) {
+			i40e_clean_programming_status(rx_ring,
+						      rx_desc->raw.qword[0],
+						      qword);
+			rx_buffer = i40e_rx_bi(rx_ring, rx_ring->next_to_clean);
+			i40e_inc_ntc(rx_ring);
 			i40e_reuse_rx_page(rx_ring, rx_buffer);
 			cleaned_count++;
 			continue;
@@ -2389,7 +2380,10 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget)
 			xdp.data_hard_start = xdp.data -
 					      i40e_rx_offset(rx_ring);
 			xdp.data_end = xdp.data + size;
-
+#if (PAGE_SIZE > 4096)
+			/* At larger PAGE_SIZE, frame_sz depend on len size */
+			xdp.frame_sz = i40e_rx_frame_truesize(rx_ring, size);
+#endif
 			skb = i40e_run_xdp(rx_ring, &xdp);
 		}
 

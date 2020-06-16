@@ -23,6 +23,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/reboot.h>
 
 #define SMU_11_0_PARTIAL_PPTABLE
 
@@ -57,7 +58,7 @@ static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
 	struct amdgpu_device *adev = smu->adev;
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
 	return 0;
 }
 
@@ -65,7 +66,7 @@ static int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	*arg = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82);
 	return 0;
 }
 
@@ -75,7 +76,7 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	uint32_t cur_value, i, timeout = adev->usec_timeout * 10;
 
 	for (i = 0; i < timeout; i++) {
-		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		cur_value = RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90);
 		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			return cur_value == 0x1 ? 0 : -EIO;
 
@@ -83,7 +84,10 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	}
 
 	/* timeout means wrong logic */
-	return -ETIME;
+	if (i == timeout)
+		return -ETIME;
+
+	return RREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
 }
 
 int
@@ -107,9 +111,9 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 		goto out;
 	}
 
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
-	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+	WREG32_SOC15_NO_KIQ(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
 
 	smu_v11_0_send_msg_without_waiting(smu, (uint16_t)index);
 
@@ -119,6 +123,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu,
 		       smu_get_message_name(smu, msg), index, param, ret);
 		goto out;
 	}
+
 	if (read_arg) {
 		ret = smu_v11_0_read_arg(smu, read_arg);
 		if (ret) {
@@ -201,13 +206,15 @@ int smu_v11_0_load_microcode(struct smu_context *smu)
 	const struct smc_firmware_header_v1_0 *hdr;
 	uint32_t addr_start = MP1_SRAM;
 	uint32_t i;
+	uint32_t smc_fw_size;
 	uint32_t mp1_fw_flags;
 
 	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
 	src = (const uint32_t *)(adev->pm.fw->data +
 		le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+	smc_fw_size = hdr->header.ucode_size_bytes;
 
-	for (i = 1; i < MP1_SMC_SIZE/4 - 1; i++) {
+	for (i = 1; i < smc_fw_size/4 - 1; i++) {
 		WREG32_PCIE(addr_start, src[i]);
 		addr_start += 4;
 	}
@@ -264,23 +271,23 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 
 	switch (smu->adev->asic_type) {
 	case CHIP_VEGA20:
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_VG20;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VG20;
 		break;
 	case CHIP_ARCTURUS:
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
 		break;
 	case CHIP_NAVI10:
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV10;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV10;
 		break;
 	case CHIP_NAVI12:
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV12;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV12;
 		break;
 	case CHIP_NAVI14:
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV14;
 		break;
 	default:
 		pr_err("smu unsupported asic type:%d.\n", smu->adev->asic_type);
-		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_INV;
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
 		break;
 	}
 
@@ -292,10 +299,10 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	 * Considering above, we just leave user a warning message instead
 	 * of halt driver loading.
 	 */
-	if (if_version != smu->smc_if_version) {
+	if (if_version != smu->smc_driver_if_version) {
 		pr_info("smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
 			"smu fw version = 0x%08x (%d.%d.%d)\n",
-			smu->smc_if_version, if_version,
+			smu->smc_driver_if_version, if_version,
 			smu_version, smu_major, smu_minor, smu_debug);
 		pr_warn("SMU driver if version not matched\n");
 	}
@@ -479,8 +486,6 @@ int smu_v11_0_init_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (smu_power->power_context || smu_power->power_context_size != 0)
 		return -EINVAL;
 
@@ -497,8 +502,6 @@ int smu_v11_0_fini_power(struct smu_context *smu)
 {
 	struct smu_power_context *smu_power = &smu->smu_power;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (!smu_power->power_context || smu_power->power_context_size == 0)
 		return -EINVAL;
 
@@ -730,8 +733,9 @@ int smu_v11_0_parse_pptable(struct smu_context *smu)
 	struct smu_table_context *table_context = &smu->smu_table;
 	struct smu_table *table = &table_context->tables[SMU_TABLE_PPTABLE];
 
+	/* during TDR we need to free and alloc the pptable */
 	if (table_context->driver_pptable)
-		return -EINVAL;
+		kfree(table_context->driver_pptable);
 
 	table_context->driver_pptable = kzalloc(table->size, GFP_KERNEL);
 
@@ -771,6 +775,9 @@ int smu_v11_0_set_deep_sleep_dcefclk(struct smu_context *smu, uint32_t clk)
 {
 	int ret;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetMinDeepSleepDcefclk, clk, NULL);
 	if (ret)
@@ -783,8 +790,6 @@ int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 {
 	struct smu_table_context *table_context = &smu->smu_table;
 
-	if (!smu->pm_enabled)
-		return 0;
 	if (!table_context)
 		return -EINVAL;
 
@@ -816,6 +821,9 @@ int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 	int ret = 0;
 	struct smu_table *tool_table = &smu->smu_table.tables[SMU_TABLE_PMSTATUSLOG];
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	if (tool_table->mc_address) {
 		ret = smu_send_smc_msg_with_param(smu,
 				SMU_MSG_SetToolsDramAddrHigh,
@@ -835,6 +843,9 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 {
 	int ret = 0;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	if (!smu->pm_enabled)
 		return ret;
 
@@ -848,6 +859,9 @@ int smu_v11_0_set_allowed_mask(struct smu_context *smu)
 	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
 	uint32_t feature_mask[2];
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
 
 	mutex_lock(&feature->mutex);
 	if (bitmap_empty(feature->allowed, SMU_FEATURE_MAX) || feature->feature_num < 64)
@@ -876,6 +890,9 @@ int smu_v11_0_get_enabled_mask(struct smu_context *smu,
 	uint32_t feature_mask_high = 0, feature_mask_low = 0;
 	struct smu_feature *feature = &smu->smu_feature;
 	int ret = 0;
+
+	if (amdgpu_sriov_vf(smu->adev) && !amdgpu_sriov_is_pp_one_vf(smu->adev))
+		return 0;
 
 	if (!feature_mask || num < 2)
 		return -EINVAL;
@@ -932,8 +949,12 @@ int smu_v11_0_notify_display_change(struct smu_context *smu)
 {
 	int ret = 0;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	if (!smu->pm_enabled)
 		return ret;
+
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT) &&
 	    smu->adev->gmc.vram_type == AMDGPU_VRAM_TYPE_HBM)
 		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetUclkFastSwitch, 1, NULL);
@@ -947,9 +968,6 @@ smu_v11_0_get_max_sustainable_clock(struct smu_context *smu, uint32_t *clock,
 {
 	int ret = 0;
 	int clk_id;
-
-	if (!smu->pm_enabled)
-		return ret;
 
 	if ((smu_msg_get_index(smu, SMU_MSG_GetDcModeMaxDpmFreq) < 0) ||
 	    (smu_msg_get_index(smu, SMU_MSG_GetMaxDpmFreq) < 0))
@@ -1096,6 +1114,9 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	int ret = 0;
 	uint32_t max_power_limit;
 
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
+
 	max_power_limit = smu_v11_0_get_max_power_limit(smu);
 
 	if (n > max_power_limit) {
@@ -1204,9 +1225,6 @@ int smu_v11_0_start_thermal_control(struct smu_context *smu)
 	int ret = 0;
 	struct smu_temperature_range range;
 	struct amdgpu_device *adev = smu->adev;
-
-	if (!smu->pm_enabled)
-		return ret;
 
 	memcpy(&range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
 
@@ -1320,9 +1338,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	int ret = 0;
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-
-	if (!smu->pm_enabled)
-		return -EINVAL;
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_DCEFCLK_BIT) ||
 		smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
@@ -1533,39 +1548,65 @@ static int smu_v11_0_ack_ac_dc_interrupt(struct smu_context *smu)
 #define THM_11_0__SRCID__THM_DIG_THERM_L2H		0		/* ASIC_TEMP > CG_THERMAL_INT.DIG_THERM_INTH  */
 #define THM_11_0__SRCID__THM_DIG_THERM_H2L		1		/* ASIC_TEMP < CG_THERMAL_INT.DIG_THERM_INTL  */
 
+#define SMUIO_11_0__SRCID__SMUIO_GPIO19			83
+
 static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
+	/*
+	 * ctxid is used to distinguish different
+	 * events for SMCToHost interrupt.
+	 */
+	uint32_t ctxid = entry->src_data[0];
+	uint32_t data;
 
 	if (client_id == SOC15_IH_CLIENTID_THM) {
 		switch (src_id) {
 		case THM_11_0__SRCID__THM_DIG_THERM_L2H:
-			pr_warn("GPU over temperature range detected on PCIe %d:%d.%d!\n",
-				PCI_BUS_NUM(adev->pdev->devfn),
-				PCI_SLOT(adev->pdev->devfn),
-				PCI_FUNC(adev->pdev->devfn));
+			dev_emerg(adev->dev, "ERROR: GPU over temperature range(SW CTF) detected!\n");
+			/*
+			 * SW CTF just occurred.
+			 * Try to do a graceful shutdown to prevent further damage.
+			 */
+			dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU SW CTF!\n");
+			orderly_poweroff(true);
 		break;
 		case THM_11_0__SRCID__THM_DIG_THERM_H2L:
-			pr_warn("GPU under temperature range detected on PCIe %d:%d.%d!\n",
-				PCI_BUS_NUM(adev->pdev->devfn),
-				PCI_SLOT(adev->pdev->devfn),
-				PCI_FUNC(adev->pdev->devfn));
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range detected\n");
 		break;
 		default:
-			pr_warn("GPU under temperature range unknown src id (%d), detected on PCIe %d:%d.%d!\n",
-				src_id,
-				PCI_BUS_NUM(adev->pdev->devfn),
-				PCI_SLOT(adev->pdev->devfn),
-				PCI_FUNC(adev->pdev->devfn));
+			dev_emerg(adev->dev, "ERROR: GPU under temperature range unknown src id (%d)\n",
+				src_id);
 		break;
-
 		}
+	} else if (client_id == SOC15_IH_CLIENTID_ROM_SMUIO) {
+		dev_emerg(adev->dev, "ERROR: GPU HW Critical Temperature Fault(aka CTF) detected!\n");
+		/*
+		 * HW CTF just occurred. Shutdown to prevent further damage.
+		 */
+		dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU HW CTF!\n");
+		orderly_poweroff(true);
 	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
-		if (src_id == 0xfe)
-			smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+		if (src_id == 0xfe) {
+			/* ACK SMUToHost interrupt */
+			data = RREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL);
+			data = REG_SET_FIELD(data, MP1_SMN_IH_SW_INT_CTRL, INT_ACK, 1);
+			WREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL, data);
+
+			switch (ctxid) {
+			case 0x3:
+				dev_dbg(adev->dev, "Switched to AC mode!\n");
+				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				break;
+			case 0x4:
+				dev_dbg(adev->dev, "Switched to DC mode!\n");
+				smu_v11_0_ack_ac_dc_interrupt(&adev->smu);
+				break;
+			}
+		}
 	}
 
 	return 0;
@@ -1601,6 +1642,13 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_THM,
 				THM_11_0__SRCID__THM_DIG_THERM_H2L,
+				irq_src);
+	if (ret)
+		return ret;
+
+	/* Register CTF(GPIO_19) interrupt */
+	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_ROM_SMUIO,
+				SMUIO_11_0__SRCID__SMUIO_GPIO19,
 				irq_src);
 	if (ret)
 		return ret;
@@ -1832,6 +1880,9 @@ int smu_v11_0_override_pcie_parameters(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t pcie_gen = 0, pcie_width = 0;
 	int ret;
+
+	if (amdgpu_sriov_vf(smu->adev))
+		return 0;
 
 	if (adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_GEN4)
 		pcie_gen = 3;

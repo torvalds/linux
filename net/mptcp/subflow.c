@@ -393,6 +393,7 @@ static void mptcp_sock_destruct(struct sock *sk)
 		sock_orphan(sk);
 	}
 
+	mptcp_token_destroy(mptcp_sk(sk)->token);
 	inet_sock_destruct(sk);
 }
 
@@ -411,6 +412,20 @@ static void subflow_ulp_fallback(struct sock *sk,
 	icsk->icsk_ulp_ops = NULL;
 	rcu_assign_pointer(icsk->icsk_ulp_data, NULL);
 	tcp_sk(sk)->is_mptcp = 0;
+}
+
+static void subflow_drop_ctx(struct sock *ssk)
+{
+	struct mptcp_subflow_context *ctx = mptcp_subflow_ctx(ssk);
+
+	if (!ctx)
+		return;
+
+	subflow_ulp_fallback(ssk, ctx);
+	if (ctx->conn)
+		sock_put(ctx->conn);
+
+	kfree_rcu(ctx, rcu);
 }
 
 static struct sock *subflow_syn_recv_sock(const struct sock *sk,
@@ -475,18 +490,17 @@ create_child:
 	if (child && *own_req) {
 		struct mptcp_subflow_context *ctx = mptcp_subflow_ctx(child);
 
+		tcp_rsk(req)->drop_req = false;
+
 		/* we need to fallback on ctx allocation failure and on pre-reqs
 		 * checking above. In the latter scenario we additionally need
 		 * to reset the context to non MPTCP status.
 		 */
 		if (!ctx || fallback) {
 			if (fallback_is_fatal)
-				goto close_child;
+				goto dispose_child;
 
-			if (ctx) {
-				subflow_ulp_fallback(child, ctx);
-				kfree_rcu(ctx, rcu);
-			}
+			subflow_drop_ctx(child);
 			goto out;
 		}
 
@@ -510,13 +524,14 @@ create_child:
 
 			owner = mptcp_token_get_sock(ctx->token);
 			if (!owner)
-				goto close_child;
+				goto dispose_child;
 
 			ctx->conn = (struct sock *)owner;
 			if (!mptcp_finish_join(child))
-				goto close_child;
+				goto dispose_child;
 
 			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKRX);
+			tcp_rsk(req)->drop_req = true;
 		}
 	}
 
@@ -533,11 +548,15 @@ out:
 		      !mptcp_subflow_ctx(child)->conn));
 	return child;
 
-close_child:
+dispose_child:
+	subflow_drop_ctx(child);
+	tcp_rsk(req)->drop_req = true;
 	tcp_send_active_reset(child, GFP_ATOMIC);
-	inet_csk_prepare_forced_close(child);
+	inet_csk_prepare_for_destroy_sock(child);
 	tcp_done(child);
-	return NULL;
+
+	/* The last child reference will be released by the caller */
+	return child;
 }
 
 static struct inet_connection_sock_af_ops subflow_specific;
@@ -666,9 +685,11 @@ static enum mapping_status get_mapping_status(struct sock *ssk)
 	if (!mpext->dsn64) {
 		map_seq = expand_seq(subflow->map_seq, subflow->map_data_len,
 				     mpext->data_seq);
+		subflow->use_64bit_ack = 0;
 		pr_debug("expanded seq=%llu", subflow->map_seq);
 	} else {
 		map_seq = mpext->data_seq;
+		subflow->use_64bit_ack = 1;
 	}
 
 	if (subflow->map_valid) {
@@ -848,6 +869,24 @@ bool mptcp_subflow_data_available(struct sock *sk)
 	subflow->data_avail = skb &&
 		       before(tcp_sk(sk)->copied_seq, TCP_SKB_CB(skb)->end_seq);
 	return subflow->data_avail;
+}
+
+/* If ssk has an mptcp parent socket, use the mptcp rcvbuf occupancy,
+ * not the ssk one.
+ *
+ * In mptcp, rwin is about the mptcp-level connection data.
+ *
+ * Data that is still on the ssk rx queue can thus be ignored,
+ * as far as mptcp peer is concerened that data is still inflight.
+ * DSS ACK is updated when skb is moved to the mptcp rx queue.
+ */
+void mptcp_space(const struct sock *ssk, int *space, int *full_space)
+{
+	const struct mptcp_subflow_context *subflow = mptcp_subflow_ctx(ssk);
+	const struct sock *sk = subflow->conn;
+
+	*space = tcp_space(sk);
+	*full_space = tcp_full_space(sk);
 }
 
 static void subflow_data_ready(struct sock *sk)

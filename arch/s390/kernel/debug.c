@@ -867,7 +867,7 @@ static int debug_active = 1;
  * if debug_active is already off
  */
 static int s390dbf_procactive(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp, loff_t *ppos)
+			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	if (!write || debug_stoppable || !debug_active)
 		return proc_dointvec(table, write, buffer, lenp, ppos);

@@ -70,7 +70,7 @@ list of volume location server IP addresses::
 The first module is the AF_RXRPC network protocol driver.  This provides the
 RxRPC remote operation protocol and may also be accessed from userspace.  See:
 
-	Documentation/networking/rxrpc.txt
+	Documentation/networking/rxrpc.rst
 
 The second module is the kerberos RxRPC security driver, and the third module
 is the actual filesystem driver for the AFS filesystem.

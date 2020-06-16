@@ -110,6 +110,7 @@ struct src_ent {
 	ALIGNED_TYPE_SIZE(union conn_context, p_hwfn)
 
 #define SRQ_CXT_SIZE (sizeof(struct rdma_srq_context))
+#define XRC_SRQ_CXT_SIZE (sizeof(struct rdma_xrc_srq_context))
 
 #define TYPE0_TASK_CXT_SIZE(p_hwfn) \
 	ALIGNED_TYPE_SIZE(union type0_task_context, p_hwfn)
@@ -293,18 +294,40 @@ static struct qed_tid_seg *qed_cxt_tid_seg_info(struct qed_hwfn *p_hwfn,
 	return NULL;
 }
 
-static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
+static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn,
+				  u32 num_srqs, u32 num_xrc_srqs)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
 	p_mgr->srq_count = num_srqs;
+	p_mgr->xrc_srq_count = num_xrc_srqs;
 }
 
-u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
+u32 qed_cxt_get_ilt_page_size(struct qed_hwfn *p_hwfn,
+			      enum ilt_clients ilt_client)
+{
+	struct qed_cxt_mngr *p_mngr = p_hwfn->p_cxt_mngr;
+	struct qed_ilt_client_cfg *p_cli = &p_mngr->clients[ilt_client];
+
+	return ILT_PAGE_IN_BYTES(p_cli->p_size.val);
+}
+
+static u32 qed_cxt_xrc_srqs_per_page(struct qed_hwfn *p_hwfn)
+{
+	u32 page_size;
+
+	page_size = qed_cxt_get_ilt_page_size(p_hwfn, ILT_CLI_TSDM);
+	return page_size / XRC_SRQ_CXT_SIZE;
+}
+
+u32 qed_cxt_get_total_srq_count(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
+	u32 total_srqs;
 
-	return p_mgr->srq_count;
+	total_srqs = p_mgr->srq_count + p_mgr->xrc_srq_count;
+
+	return total_srqs;
 }
 
 /* set the iids count per protocol */
@@ -692,7 +715,7 @@ int qed_cxt_cfg_ilt_compute(struct qed_hwfn *p_hwfn, u32 *line_count)
 	}
 
 	/* TSDM (SRQ CONTEXT) */
-	total = qed_cxt_get_srq_count(p_hwfn);
+	total = qed_cxt_get_total_srq_count(p_hwfn);
 
 	if (total) {
 		p_cli = qed_cxt_set_cli(&p_mngr->clients[ILT_CLI_TSDM]);
@@ -1962,10 +1985,8 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 				   struct qed_rdma_pf_params *p_params,
 				   u32 num_tasks)
 {
-	u32 num_cons, num_qps, num_srqs;
+	u32 num_cons, num_qps;
 	enum protocol_type proto;
-
-	num_srqs = min_t(u32, QED_RDMA_MAX_SRQS, p_params->num_srqs);
 
 	if (p_hwfn->mcp_info->func_info.protocol == QED_PCI_ETH_RDMA) {
 		DP_NOTICE(p_hwfn,
@@ -1989,6 +2010,8 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 	}
 
 	if (num_cons && num_tasks) {
+		u32 num_srqs, num_xrc_srqs;
+
 		qed_cxt_set_proto_cid_count(p_hwfn, proto, num_cons, 0);
 
 		/* Deliberatly passing ROCE for tasks id. This is because
@@ -1997,7 +2020,13 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 		qed_cxt_set_proto_tid_count(p_hwfn, PROTOCOLID_ROCE,
 					    QED_CXT_ROCE_TID_SEG, 1,
 					    num_tasks, false);
-		qed_cxt_set_srq_count(p_hwfn, num_srqs);
+
+		num_srqs = min_t(u32, QED_RDMA_MAX_SRQS, p_params->num_srqs);
+
+		/* XRC SRQs populate a single ILT page */
+		num_xrc_srqs = qed_cxt_xrc_srqs_per_page(p_hwfn);
+
+		qed_cxt_set_srq_count(p_hwfn, num_srqs, num_xrc_srqs);
 	} else {
 		DP_INFO(p_hwfn->cdev,
 			"RDMA personality used without setting params!\n");
@@ -2163,8 +2192,15 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		p_blk = &p_cli->pf_blks[CDUC_BLK];
 		break;
 	case QED_ELEM_SRQ:
+		/* The first ILT page is not used for regular SRQs. Skip it. */
+		iid += p_hwfn->p_cxt_mngr->xrc_srq_count;
 		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
 		elem_size = SRQ_CXT_SIZE;
+		p_blk = &p_cli->pf_blks[SRQ_BLK];
+		break;
+	case QED_ELEM_XRC_SRQ:
+		p_cli = &p_hwfn->p_cxt_mngr->clients[ILT_CLI_TSDM];
+		elem_size = XRC_SRQ_CXT_SIZE;
 		p_blk = &p_cli->pf_blks[SRQ_BLK];
 		break;
 	case QED_ELEM_TASK:
@@ -2386,8 +2422,12 @@ int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto)
 		return rc;
 
 	/* Free TSDM CXT */
-	rc = qed_cxt_free_ilt_range(p_hwfn, QED_ELEM_SRQ, 0,
-				    qed_cxt_get_srq_count(p_hwfn));
+	rc = qed_cxt_free_ilt_range(p_hwfn, QED_ELEM_XRC_SRQ, 0,
+				    p_hwfn->p_cxt_mngr->xrc_srq_count);
+
+	rc = qed_cxt_free_ilt_range(p_hwfn, QED_ELEM_SRQ,
+				    p_hwfn->p_cxt_mngr->xrc_srq_count,
+				    p_hwfn->p_cxt_mngr->srq_count);
 
 	return rc;
 }

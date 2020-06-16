@@ -225,6 +225,14 @@ TRACE_EVENT(kvm_apic,
 #define KVM_ISA_VMX   1
 #define KVM_ISA_SVM   2
 
+#define kvm_print_exit_reason(exit_reason, isa)				\
+	(isa == KVM_ISA_VMX) ?						\
+	__print_symbolic(exit_reason & 0xffff, VMX_EXIT_REASONS) :	\
+	__print_symbolic(exit_reason, SVM_EXIT_REASONS),		\
+	(isa == KVM_ISA_VMX && exit_reason & ~0xffff) ? " " : "",	\
+	(isa == KVM_ISA_VMX) ?						\
+	__print_flags(exit_reason & ~0xffff, " ", VMX_EXIT_REASON_FLAGS) : ""
+
 /*
  * Tracepoint for kvm guest exit:
  */
@@ -250,12 +258,10 @@ TRACE_EVENT(kvm_exit,
 					   &__entry->info2);
 	),
 
-	TP_printk("vcpu %u reason %s rip 0x%lx info %llx %llx",
+	TP_printk("vcpu %u reason %s%s%s rip 0x%lx info %llx %llx",
 		  __entry->vcpu_id,
-		 (__entry->isa == KVM_ISA_VMX) ?
-		 __print_symbolic(__entry->exit_reason, VMX_EXIT_REASONS) :
-		 __print_symbolic(__entry->exit_reason, SVM_EXIT_REASONS),
-		 __entry->guest_rip, __entry->info1, __entry->info2)
+		  kvm_print_exit_reason(__entry->exit_reason, __entry->isa),
+		  __entry->guest_rip, __entry->info1, __entry->info2)
 );
 
 /*
@@ -588,12 +594,10 @@ TRACE_EVENT(kvm_nested_vmexit,
 		__entry->exit_int_info_err	= exit_int_info_err;
 		__entry->isa			= isa;
 	),
-	TP_printk("rip: 0x%016llx reason: %s ext_inf1: 0x%016llx "
+	TP_printk("rip: 0x%016llx reason: %s%s%s ext_inf1: 0x%016llx "
 		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
 		  __entry->rip,
-		 (__entry->isa == KVM_ISA_VMX) ?
-		 __print_symbolic(__entry->exit_code, VMX_EXIT_REASONS) :
-		 __print_symbolic(__entry->exit_code, SVM_EXIT_REASONS),
+		  kvm_print_exit_reason(__entry->exit_code, __entry->isa),
 		  __entry->exit_info1, __entry->exit_info2,
 		  __entry->exit_int_info, __entry->exit_int_info_err)
 );
@@ -626,13 +630,11 @@ TRACE_EVENT(kvm_nested_vmexit_inject,
 		__entry->isa			= isa;
 	),
 
-	TP_printk("reason: %s ext_inf1: 0x%016llx "
+	TP_printk("reason: %s%s%s ext_inf1: 0x%016llx "
 		  "ext_inf2: 0x%016llx ext_int: 0x%08x ext_int_err: 0x%08x",
-		 (__entry->isa == KVM_ISA_VMX) ?
-		 __print_symbolic(__entry->exit_code, VMX_EXIT_REASONS) :
-		 __print_symbolic(__entry->exit_code, SVM_EXIT_REASONS),
-		__entry->exit_info1, __entry->exit_info2,
-		__entry->exit_int_info, __entry->exit_int_info_err)
+		  kvm_print_exit_reason(__entry->exit_code, __entry->isa),
+		  __entry->exit_info1, __entry->exit_info2,
+		  __entry->exit_int_info, __entry->exit_int_info_err)
 );
 
 /*
@@ -1539,6 +1541,57 @@ TRACE_EVENT(kvm_nested_vmenter_failed,
 		__print_symbolic(__entry->err, VMX_VMENTER_INSTRUCTION_ERRORS))
 );
 
+/*
+ * Tracepoint for syndbg_set_msr.
+ */
+TRACE_EVENT(kvm_hv_syndbg_set_msr,
+	TP_PROTO(int vcpu_id, u32 vp_index, u32 msr, u64 data),
+	TP_ARGS(vcpu_id, vp_index, msr, data),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, vp_index)
+		__field(u32, msr)
+		__field(u64, data)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->vp_index = vp_index;
+		__entry->msr = msr;
+		__entry->data = data;
+	),
+
+	TP_printk("vcpu_id %d vp_index %u msr 0x%x data 0x%llx",
+		  __entry->vcpu_id, __entry->vp_index, __entry->msr,
+		  __entry->data)
+);
+
+/*
+ * Tracepoint for syndbg_get_msr.
+ */
+TRACE_EVENT(kvm_hv_syndbg_get_msr,
+	TP_PROTO(int vcpu_id, u32 vp_index, u32 msr, u64 data),
+	TP_ARGS(vcpu_id, vp_index, msr, data),
+
+	TP_STRUCT__entry(
+		__field(int, vcpu_id)
+		__field(u32, vp_index)
+		__field(u32, msr)
+		__field(u64, data)
+	),
+
+	TP_fast_assign(
+		__entry->vcpu_id = vcpu_id;
+		__entry->vp_index = vp_index;
+		__entry->msr = msr;
+		__entry->data = data;
+	),
+
+	TP_printk("vcpu_id %d vp_index %u msr 0x%x data 0x%llx",
+		  __entry->vcpu_id, __entry->vp_index, __entry->msr,
+		  __entry->data)
+);
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH

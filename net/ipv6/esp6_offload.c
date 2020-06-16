@@ -284,7 +284,6 @@ static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features
 	int alen;
 	int blksize;
 	struct xfrm_offload *xo;
-	struct ip_esp_hdr *esph;
 	struct crypto_aead *aead;
 	struct esp_info esp;
 	bool hw_offload = true;
@@ -325,13 +324,13 @@ static int esp6_xmit(struct xfrm_state *x, struct sk_buff *skb,  netdev_features
 
 	seq = xo->seq.low;
 
-	esph = ip_esp_hdr(skb);
-	esph->spi = x->id.spi;
+	esp.esph = ip_esp_hdr(skb);
+	esp.esph->spi = x->id.spi;
 
 	skb_push(skb, -skb_network_offset(skb));
 
 	if (xo->flags & XFRM_GSO_SEGMENT) {
-		esph->seq_no = htonl(seq);
+		esp.esph->seq_no = htonl(seq);
 
 		if (!skb_is_gso(skb))
 			xo->seq.low++;

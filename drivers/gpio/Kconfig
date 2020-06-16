@@ -73,6 +73,10 @@ config GPIO_GENERIC
 	depends on HAS_IOMEM # Only for IOMEM drivers
 	tristate
 
+config GPIO_REGMAP
+	depends on REGMAP
+	tristate
+
 # put drivers in the right section, in alphabetical order
 
 # This symbol is selected by both I2C and SPI expanders
@@ -422,7 +426,7 @@ config GPIO_OMAP
 	  Say yes here to enable GPIO support for TI OMAP SoCs.
 
 config GPIO_PL061
-	bool "PrimeCell PL061 GPIO support"
+	tristate "PrimeCell PL061 GPIO support"
 	depends on ARM_AMBA
 	select IRQ_DOMAIN
 	select GPIOLIB_IRQCHIP
@@ -439,7 +443,7 @@ config GPIO_PMIC_EIC_SPRD
 
 config GPIO_PXA
 	bool "PXA GPIO support"
-	depends on ARCH_PXA || ARCH_MMP
+	depends on ARCH_PXA || ARCH_MMP || COMPILE_TEST
 	help
 	  Say yes here to support the PXA GPIO device
 
@@ -638,7 +642,7 @@ config GPIO_XGENE
 
 config GPIO_XGENE_SB
 	tristate "APM X-Gene GPIO standby controller support"
-	depends on ARCH_XGENE && OF_GPIO
+	depends on (ARCH_XGENE || COMPILE_TEST)
 	select GPIO_GENERIC
 	select GPIOLIB_IRQCHIP
 	select IRQ_DOMAIN_HIERARCHY
@@ -952,7 +956,7 @@ config GPIO_PCA953X
 
 config GPIO_PCA953X_IRQ
 	bool "Interrupt controller support for PCA953x"
-	depends on GPIO_PCA953X=y
+	depends on GPIO_PCA953X
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to enable the pca953x to be used as an interrupt
@@ -1232,7 +1236,7 @@ config GPIO_TC3589X
 config GPIO_TIMBERDALE
 	bool "Support for timberdale GPIO IP"
 	depends on MFD_TIMBERDALE
-	---help---
+	help
 	Add support for the GPIO IP in the timberdale FPGA.
 
 config GPIO_TPS65086
@@ -1540,6 +1544,18 @@ config GPIO_VIPERBOARD
 	  of the module parameters.
 
 endmenu
+
+config GPIO_AGGREGATOR
+	tristate "GPIO Aggregator"
+	help
+	  Say yes here to enable the GPIO Aggregator, which provides a way to
+	  aggregate existing GPIO lines into a new virtual GPIO chip.
+	  This can serve the following purposes:
+	    - Assign permissions for a collection of GPIO lines to a user,
+	    - Export a collection of GPIO lines to a virtual machine,
+	    - Provide a generic driver for a GPIO-operated device in an
+	      industrial control context, to be operated from userspace using
+	      the GPIO chardev interface.
 
 config GPIO_MOCKUP
 	tristate "GPIO Testing Driver"

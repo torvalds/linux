@@ -524,7 +524,7 @@ static void b53_srab_prepare_irq(struct platform_device *pdev)
 
 		port->num = i;
 		port->dev = dev;
-		port->irq = platform_get_irq_byname(pdev, name);
+		port->irq = platform_get_irq_byname_optional(pdev, name);
 		kfree(name);
 	}
 

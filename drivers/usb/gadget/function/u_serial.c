@@ -120,6 +120,8 @@ struct gs_port {
 	wait_queue_head_t	drain_wait;	/* wait while writes drain */
 	bool                    write_busy;
 	wait_queue_head_t	close_wait;
+	bool			suspended;	/* port suspended */
+	bool			start_delayed;	/* delay start when suspended */
 
 	/* REVISIT this state ... */
 	struct usb_cdc_line_coding port_line_coding;	/* 8-N-1 etc */
@@ -630,13 +632,19 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 	/* if connected, start the I/O stream */
 	if (port->port_usb) {
-		struct gserial	*gser = port->port_usb;
+		/* if port is suspended, wait resume to start I/0 stream */
+		if (!port->suspended) {
+			struct gserial	*gser = port->port_usb;
 
-		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
-		gs_start_io(port);
+			pr_debug("gs_open: start ttyGS%d\n", port->port_num);
+			gs_start_io(port);
 
-		if (gser->connect)
-			gser->connect(gser);
+			if (gser->connect)
+				gser->connect(gser);
+		} else {
+			pr_debug("delay start of ttyGS%d\n", port->port_num);
+			port->start_delayed = true;
+		}
 	}
 
 	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
@@ -680,7 +688,7 @@ raced_with_open:
 	pr_debug("gs_close: ttyGS%d (%p,%p) ...\n", port->port_num, tty, file);
 
 	gser = port->port_usb;
-	if (gser && gser->disconnect)
+	if (gser && !port->suspended && gser->disconnect)
 		gser->disconnect(gser);
 
 	/* wait for circular write buffer to drain, disconnect, or at
@@ -708,6 +716,7 @@ raced_with_open:
 	else
 		kfifo_reset(&port->port_write_buf);
 
+	port->start_delayed = false;
 	port->port.count = 0;
 	port->port.tty = NULL;
 
@@ -1402,6 +1411,38 @@ void gserial_disconnect(struct gserial *gser)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 EXPORT_SYMBOL_GPL(gserial_disconnect);
+
+void gserial_suspend(struct gserial *gser)
+{
+	struct gs_port	*port = gser->ioport;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&port->port_lock, flags);
+	port->suspended = true;
+	spin_unlock_irqrestore(&port->port_lock, flags);
+}
+EXPORT_SYMBOL_GPL(gserial_suspend);
+
+void gserial_resume(struct gserial *gser)
+{
+	struct gs_port *port = gser->ioport;
+	unsigned long	flags;
+
+	spin_lock_irqsave(&port->port_lock, flags);
+	port->suspended = false;
+	if (!port->start_delayed) {
+		spin_unlock_irqrestore(&port->port_lock, flags);
+		return;
+	}
+
+	pr_debug("delayed start ttyGS%d\n", port->port_num);
+	gs_start_io(port);
+	if (gser->connect)
+		gser->connect(gser);
+	port->start_delayed = false;
+	spin_unlock_irqrestore(&port->port_lock, flags);
+}
+EXPORT_SYMBOL_GPL(gserial_resume);
 
 static int userial_init(void)
 {

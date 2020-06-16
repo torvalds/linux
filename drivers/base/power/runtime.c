@@ -523,13 +523,11 @@ static int rpm_suspend(struct device *dev, int rpmflags)
 
  repeat:
 	retval = rpm_check_suspend_allowed(dev);
-
 	if (retval < 0)
-		;	/* Conditions are wrong. */
+		goto out;	/* Conditions are wrong. */
 
 	/* Synchronous suspends are not allowed in the RPM_RESUMING state. */
-	else if (dev->power.runtime_status == RPM_RESUMING &&
-	    !(rpmflags & RPM_ASYNC))
+	if (dev->power.runtime_status == RPM_RESUMING && !(rpmflags & RPM_ASYNC))
 		retval = -EAGAIN;
 	if (retval)
 		goto out;

@@ -134,7 +134,7 @@ static void __init __sme_early_map_unmap_mem(void *vaddr, unsigned long size,
 		size = (size <= PMD_SIZE) ? 0 : size - PMD_SIZE;
 	} while (size);
 
-	__native_flush_tlb();
+	flush_tlb_local();
 }
 
 void __init sme_unmap_bootdata(char *real_mode_data)

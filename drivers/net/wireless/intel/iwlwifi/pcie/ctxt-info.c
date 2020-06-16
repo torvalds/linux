@@ -6,7 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -20,7 +20,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -91,6 +91,21 @@ static void *iwl_pcie_ctxt_info_dma_alloc_coherent(struct iwl_trans *trans,
 						   dma_addr_t *phys)
 {
 	return _iwl_pcie_ctxt_info_dma_alloc_coherent(trans, size, phys, 0);
+}
+
+static int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
+					const struct fw_desc *sec,
+					struct iwl_dram_data *dram)
+{
+	dram->block = iwl_pcie_ctxt_info_dma_alloc_coherent(trans, sec->len,
+							    &dram->physical);
+	if (!dram->block)
+		return -ENOMEM;
+
+	dram->size = sec->len;
+	memcpy(dram->block, sec->data, sec->len);
+
+	return 0;
 }
 
 void iwl_pcie_ctxt_info_free_paging(struct iwl_trans *trans)
@@ -248,7 +263,7 @@ int iwl_pcie_ctxt_info_init(struct iwl_trans *trans,
 
 	/* initialize TX command queue */
 	ctxt_info->hcmd_cfg.cmd_queue_addr =
-		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
+		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
 	ctxt_info->hcmd_cfg.cmd_queue_size =
 		TFD_QUEUE_CB_SIZE(IWL_CMD_QUEUE_SIZE);
 

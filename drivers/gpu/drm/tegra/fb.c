@@ -4,7 +4,7 @@
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  *
  * Based on the KMS/FB CMA helpers
- *   Copyright (C) 2012 Analog Device Inc.
+ *   Copyright (C) 2012 Analog Devices Inc.
  */
 
 #include <linux/console.h>

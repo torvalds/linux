@@ -176,7 +176,7 @@ static const struct snd_compr_codec_caps q6asm_compr_caps = {
 };
 
 static void event_handler(uint32_t opcode, uint32_t token,
-			  uint32_t *payload, void *priv)
+			  void *payload, void *priv)
 {
 	struct q6asm_dai_rtd *prtd = priv;
 	struct snd_pcm_substream *substream = prtd->substream;
@@ -490,7 +490,7 @@ static int q6asm_dai_hw_params(struct snd_soc_component *component,
 }
 
 static void compress_event_handler(uint32_t opcode, uint32_t token,
-				   uint32_t *payload, void *priv)
+				   void *payload, void *priv)
 {
 	struct q6asm_dai_rtd *prtd = priv;
 	struct snd_compr_stream *substream = prtd->cstream;
@@ -540,19 +540,19 @@ static void compress_event_handler(uint32_t opcode, uint32_t token,
 	}
 }
 
-static int q6asm_dai_compr_open(struct snd_compr_stream *stream)
+static int q6asm_dai_compr_open(struct snd_soc_component *component,
+				struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
 	struct q6asm_dai_data *pdata;
-	struct device *dev = c->dev;
+	struct device *dev = component->dev;
 	struct q6asm_dai_rtd *prtd;
 	int stream_id, size, ret;
 
 	stream_id = cpu_dai->driver->id;
-	pdata = snd_soc_component_get_drvdata(c);
+	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata) {
 		dev_err(dev, "Drv data not found ..\n");
 		return -EINVAL;
@@ -600,7 +600,8 @@ free_prtd:
 	return ret;
 }
 
-static int q6asm_dai_compr_free(struct snd_compr_stream *stream)
+static int q6asm_dai_compr_free(struct snd_soc_component *component,
+				struct snd_compr_stream *stream)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
@@ -622,13 +623,13 @@ static int q6asm_dai_compr_free(struct snd_compr_stream *stream)
 	return 0;
 }
 
-static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
+static int q6asm_dai_compr_set_params(struct snd_soc_component *component,
+				      struct snd_compr_stream *stream,
 				      struct snd_compr_params *params)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	int dir = stream->direction;
 	struct q6asm_dai_data *pdata;
 	struct q6asm_flac_cfg flac_cfg;
@@ -636,7 +637,7 @@ static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
 	struct q6asm_alac_cfg alac_cfg;
 	struct q6asm_ape_cfg ape_cfg;
 	unsigned int wma_v9 = 0;
-	struct device *dev = c->dev;
+	struct device *dev = component->dev;
 	int ret;
 	union snd_codec_options *codec_options;
 	struct snd_dec_flac *flac;
@@ -649,7 +650,7 @@ static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
 
 	memcpy(&prtd->codec_param, params, sizeof(*params));
 
-	pdata = snd_soc_component_get_drvdata(c);
+	pdata = snd_soc_component_get_drvdata(component);
 	if (!pdata)
 		return -EINVAL;
 
@@ -842,7 +843,8 @@ static int q6asm_dai_compr_set_params(struct snd_compr_stream *stream,
 	return 0;
 }
 
-static int q6asm_dai_compr_trigger(struct snd_compr_stream *stream, int cmd)
+static int q6asm_dai_compr_trigger(struct snd_soc_component *component,
+				   struct snd_compr_stream *stream, int cmd)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
@@ -870,8 +872,9 @@ static int q6asm_dai_compr_trigger(struct snd_compr_stream *stream, int cmd)
 	return ret;
 }
 
-static int q6asm_dai_compr_pointer(struct snd_compr_stream *stream,
-		struct snd_compr_tstamp *tstamp)
+static int q6asm_dai_compr_pointer(struct snd_soc_component *component,
+				   struct snd_compr_stream *stream,
+				   struct snd_compr_tstamp *tstamp)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
@@ -887,8 +890,9 @@ static int q6asm_dai_compr_pointer(struct snd_compr_stream *stream,
 	return 0;
 }
 
-static int q6asm_dai_compr_ack(struct snd_compr_stream *stream,
-				size_t count)
+static int q6asm_dai_compr_ack(struct snd_soc_component *component,
+			       struct snd_compr_stream *stream,
+			       size_t count)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
@@ -901,21 +905,21 @@ static int q6asm_dai_compr_ack(struct snd_compr_stream *stream,
 	return count;
 }
 
-static int q6asm_dai_compr_mmap(struct snd_compr_stream *stream,
-		struct vm_area_struct *vma)
+static int q6asm_dai_compr_mmap(struct snd_soc_component *component,
+				struct snd_compr_stream *stream,
+				struct vm_area_struct *vma)
 {
 	struct snd_compr_runtime *runtime = stream->runtime;
 	struct q6asm_dai_rtd *prtd = runtime->private_data;
-	struct snd_soc_pcm_runtime *rtd = stream->private_data;
-	struct snd_soc_component *c = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct device *dev = c->dev;
+	struct device *dev = component->dev;
 
 	return dma_mmap_coherent(dev, vma,
 			prtd->dma_buffer.area, prtd->dma_buffer.addr,
 			prtd->dma_buffer.bytes);
 }
 
-static int q6asm_dai_compr_get_caps(struct snd_compr_stream *stream,
+static int q6asm_dai_compr_get_caps(struct snd_soc_component *component,
+				    struct snd_compr_stream *stream,
 				    struct snd_compr_caps *caps)
 {
 	caps->direction = SND_COMPRESS_PLAYBACK;
@@ -933,7 +937,8 @@ static int q6asm_dai_compr_get_caps(struct snd_compr_stream *stream,
 	return 0;
 }
 
-static int q6asm_dai_compr_get_codec_caps(struct snd_compr_stream *stream,
+static int q6asm_dai_compr_get_codec_caps(struct snd_soc_component *component,
+					  struct snd_compr_stream *stream,
 					  struct snd_compr_codec_caps *codec)
 {
 	switch (codec->codec) {
@@ -947,7 +952,7 @@ static int q6asm_dai_compr_get_codec_caps(struct snd_compr_stream *stream,
 	return 0;
 }
 
-static struct snd_compr_ops q6asm_dai_compr_ops = {
+static struct snd_compress_ops q6asm_dai_compress_ops = {
 	.open		= q6asm_dai_compr_open,
 	.free		= q6asm_dai_compr_free,
 	.set_params	= q6asm_dai_compr_set_params,
@@ -1021,7 +1026,7 @@ static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.mmap		= q6asm_dai_mmap,
 	.pcm_construct	= q6asm_dai_pcm_new,
 	.pcm_destruct	= q6asm_dai_pcm_free,
-	.compr_ops	= &q6asm_dai_compr_ops,
+	.compress_ops	= &q6asm_dai_compress_ops,
 };
 
 static struct snd_soc_dai_driver q6asm_fe_dais_template[] = {

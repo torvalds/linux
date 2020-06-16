@@ -274,10 +274,10 @@ struct device_type part_type = {
 	.uevent		= part_uevent,
 };
 
-static void delete_partition_work_fn(struct work_struct *work)
+static void hd_struct_free_work(struct work_struct *work)
 {
-	struct hd_struct *part = container_of(to_rcu_work(work), struct hd_struct,
-					rcu_work);
+	struct hd_struct *part =
+		container_of(to_rcu_work(work), struct hd_struct, rcu_work);
 
 	part->start_sect = 0;
 	part->nr_sects = 0;
@@ -285,32 +285,42 @@ static void delete_partition_work_fn(struct work_struct *work)
 	put_device(part_to_dev(part));
 }
 
-void __delete_partition(struct percpu_ref *ref)
+static void hd_struct_free(struct percpu_ref *ref)
 {
 	struct hd_struct *part = container_of(ref, struct hd_struct, ref);
-	INIT_RCU_WORK(&part->rcu_work, delete_partition_work_fn);
+	struct gendisk *disk = part_to_disk(part);
+	struct disk_part_tbl *ptbl =
+		rcu_dereference_protected(disk->part_tbl, 1);
+
+	rcu_assign_pointer(ptbl->last_lookup, NULL);
+	put_device(disk_to_dev(disk));
+
+	INIT_RCU_WORK(&part->rcu_work, hd_struct_free_work);
 	queue_rcu_work(system_wq, &part->rcu_work);
+}
+
+int hd_ref_init(struct hd_struct *part)
+{
+	if (percpu_ref_init(&part->ref, hd_struct_free, 0, GFP_KERNEL))
+		return -ENOMEM;
+	return 0;
 }
 
 /*
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-void delete_partition(struct gendisk *disk, int partno)
+void delete_partition(struct gendisk *disk, struct hd_struct *part)
 {
 	struct disk_part_tbl *ptbl =
 		rcu_dereference_protected(disk->part_tbl, 1);
-	struct hd_struct *part;
 
-	if (partno >= ptbl->len)
-		return;
-
-	part = rcu_dereference_protected(ptbl->part[partno], 1);
-	if (!part)
-		return;
-
-	rcu_assign_pointer(ptbl->part[partno], NULL);
-	rcu_assign_pointer(ptbl->last_lookup, NULL);
+	/*
+	 * ->part_tbl is referenced in this part's release handler, so
+	 *  we have to hold the disk device
+	 */
+	get_device(disk_to_dev(part_to_disk(part)));
+	rcu_assign_pointer(ptbl->part[part->partno], NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
@@ -321,7 +331,7 @@ void delete_partition(struct gendisk *disk, int partno)
 	 * "in-use" until we really free the gendisk.
 	 */
 	blk_invalidate_devt(part_devt(part));
-	hd_struct_kill(part);
+	percpu_ref_kill(&part->ref);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -335,7 +345,7 @@ static DEVICE_ATTR(whole_disk, 0444, whole_disk_show, NULL);
  * Must be called either with bd_mutex held, before a disk can be opened or
  * after all disk users are gone.
  */
-struct hd_struct *add_partition(struct gendisk *disk, int partno,
+static struct hd_struct *add_partition(struct gendisk *disk, int partno,
 				sector_t start, sector_t len, int flags,
 				struct partition_meta_info *info)
 {
@@ -377,12 +387,13 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	if (!p)
 		return ERR_PTR(-EBUSY);
 
-	if (!init_part_stats(p)) {
+	p->dkstats = alloc_percpu(struct disk_stats);
+	if (!p->dkstats) {
 		err = -ENOMEM;
 		goto out_free;
 	}
 
-	seqcount_init(&p->nr_sects_seq);
+	hd_sects_seq_init(p);
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
@@ -458,7 +469,7 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 out_free_info:
 	kfree(p->info);
 out_free_stats:
-	free_part_stats(p);
+	free_percpu(p->dkstats);
 out_free:
 	kfree(p);
 	return ERR_PTR(err);
@@ -470,6 +481,121 @@ out_del:
 out_put:
 	put_device(pdev);
 	return ERR_PTR(err);
+}
+
+static bool partition_overlaps(struct gendisk *disk, sector_t start,
+		sector_t length, int skip_partno)
+{
+	struct disk_part_iter piter;
+	struct hd_struct *part;
+	bool overlap = false;
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	while ((part = disk_part_iter_next(&piter))) {
+		if (part->partno == skip_partno ||
+		    start >= part->start_sect + part->nr_sects ||
+		    start + length <= part->start_sect)
+			continue;
+		overlap = true;
+		break;
+	}
+
+	disk_part_iter_exit(&piter);
+	return overlap;
+}
+
+int bdev_add_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length)
+{
+	struct hd_struct *part;
+
+	mutex_lock(&bdev->bd_mutex);
+	if (partition_overlaps(bdev->bd_disk, start, length, -1)) {
+		mutex_unlock(&bdev->bd_mutex);
+		return -EBUSY;
+	}
+
+	part = add_partition(bdev->bd_disk, partno, start, length,
+			ADDPART_FLAG_NONE, NULL);
+	mutex_unlock(&bdev->bd_mutex);
+	return PTR_ERR_OR_ZERO(part);
+}
+
+int bdev_del_partition(struct block_device *bdev, int partno)
+{
+	struct block_device *bdevp;
+	struct hd_struct *part;
+	int ret = 0;
+
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		return -ENXIO;
+
+	ret = -ENOMEM;
+	bdevp = bdget(part_devt(part));
+	if (!bdevp)
+		goto out_put_part;
+
+	mutex_lock(&bdevp->bd_mutex);
+
+	ret = -EBUSY;
+	if (bdevp->bd_openers)
+		goto out_unlock;
+
+	sync_blockdev(bdevp);
+	invalidate_bdev(bdevp);
+
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+	delete_partition(bdev->bd_disk, part);
+	mutex_unlock(&bdev->bd_mutex);
+
+	ret = 0;
+out_unlock:
+	mutex_unlock(&bdevp->bd_mutex);
+	bdput(bdevp);
+out_put_part:
+	disk_put_part(part);
+	return ret;
+}
+
+int bdev_resize_partition(struct block_device *bdev, int partno,
+		sector_t start, sector_t length)
+{
+	struct block_device *bdevp;
+	struct hd_struct *part;
+	int ret = 0;
+
+	part = disk_get_part(bdev->bd_disk, partno);
+	if (!part)
+		return -ENXIO;
+
+	ret = -ENOMEM;
+	bdevp = bdget(part_devt(part));
+	if (!bdevp)
+		goto out_put_part;
+
+	mutex_lock(&bdevp->bd_mutex);
+	mutex_lock_nested(&bdev->bd_mutex, 1);
+
+	ret = -EINVAL;
+	if (start != part->start_sect)
+		goto out_unlock;
+
+	ret = -EBUSY;
+	if (partition_overlaps(bdev->bd_disk, start, length, partno))
+		goto out_unlock;
+
+	part_nr_sects_write(part, (sector_t)length);
+	i_size_write(bdevp->bd_inode, length << SECTOR_SHIFT);
+
+	ret = 0;
+out_unlock:
+	mutex_unlock(&bdevp->bd_mutex);
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdevp);
+out_put_part:
+	disk_put_part(part);
+	return ret;
 }
 
 static bool disk_unlock_native_capacity(struct gendisk *disk)
@@ -488,27 +614,30 @@ static bool disk_unlock_native_capacity(struct gendisk *disk)
 	}
 }
 
-int blk_drop_partitions(struct gendisk *disk, struct block_device *bdev)
+int blk_drop_partitions(struct block_device *bdev)
 {
 	struct disk_part_iter piter;
 	struct hd_struct *part;
-	int res;
 
-	if (!disk_part_scan_enabled(disk))
+	if (!disk_part_scan_enabled(bdev->bd_disk))
 		return 0;
 	if (bdev->bd_part_count)
 		return -EBUSY;
-	res = invalidate_partition(disk, 0);
-	if (res)
-		return res;
 
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	sync_blockdev(bdev);
+	invalidate_bdev(bdev);
+
+	disk_part_iter_init(&piter, bdev->bd_disk, DISK_PITER_INCL_EMPTY);
 	while ((part = disk_part_iter_next(&piter)))
-		delete_partition(disk, part->partno);
+		delete_partition(bdev->bd_disk, part);
 	disk_part_iter_exit(&piter);
 
 	return 0;
 }
+#ifdef CONFIG_S390
+/* for historic reasons in the DASD driver */
+EXPORT_SYMBOL_GPL(blk_drop_partitions);
+#endif
 
 static bool blk_add_partition(struct gendisk *disk, struct block_device *bdev,
 		struct parsed_partitions *state, int p)

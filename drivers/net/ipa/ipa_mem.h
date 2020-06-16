@@ -7,6 +7,7 @@
 #define _IPA_MEM_H_
 
 struct ipa;
+struct ipa_mem_data;
 
 /**
  * DOC: IPA Local Memory
@@ -84,7 +85,7 @@ void ipa_mem_teardown(struct ipa *ipa);
 
 int ipa_mem_zero_modem(struct ipa *ipa);
 
-int ipa_mem_init(struct ipa *ipa, u32 count, const struct ipa_mem *mem);
+int ipa_mem_init(struct ipa *ipa, const struct ipa_mem_data *mem_data);
 void ipa_mem_exit(struct ipa *ipa);
 
 #endif /* _IPA_MEM_H_ */

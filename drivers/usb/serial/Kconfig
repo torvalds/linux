@@ -6,7 +6,7 @@
 menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
 	depends on TTY
-	---help---
+	help
 	  Say Y here if you have a USB device that provides normal serial
 	  ports, or acts like a serial device, and you want to connect it to
 	  your USB bus.
@@ -23,7 +23,7 @@ if USB_SERIAL
 config USB_SERIAL_CONSOLE
 	bool "USB Serial Console device support"
 	depends on USB_SERIAL=y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a USB to serial
 	  converter port as the system console (the system console is the
 	  device which receives all kernel messages and warnings and which
@@ -123,7 +123,7 @@ config USB_SERIAL_WHITEHEAT
 
 config USB_SERIAL_DIGI_ACCELEPORT
 	tristate "USB Digi International AccelePort USB Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use Digi AccelePort USB 2 or 4 devices,
 	  2 port (plus parallel port) and 4 port USB serial converters.  The
 	  parallel port on the USB 2 appears as a third serial port on Linux.
@@ -168,7 +168,7 @@ config USB_SERIAL_EMPEG
 
 config USB_SERIAL_FTDI_SIO
 	tristate "USB FTDI Single Port Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use a FTDI SIO single port USB to serial
 	  converter device. The implementation I have is called the USC-1000.
 	  This driver has also been tested with the 245 and 232 devices.
@@ -213,7 +213,7 @@ config USB_SERIAL_IR
 
 config USB_SERIAL_EDGEPORT
 	tristate "USB Inside Out Edgeport Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use any of the following devices from
 	  Inside Out Networks (Digi):
 	  Edgeport/4
@@ -311,7 +311,7 @@ config USB_SERIAL_KEYSPAN_PDA
 config USB_SERIAL_KEYSPAN
 	tristate "USB Keyspan USA-xxx Serial Driver"
 	select USB_EZUSB_FX2
-	---help---
+	help
 	  Say Y here if you want to use Keyspan USB to serial converter
 	  devices.  This driver makes use of Keyspan's official firmware
 	  and was developed with their support.  You must also include
@@ -324,7 +324,7 @@ config USB_SERIAL_KEYSPAN
 
 config USB_SERIAL_KLSI
 	tristate "USB KL5KUSB105 (Palmconnect) Driver"
-	---help---
+	help
 	  Say Y here if you want to use a KL5KUSB105 - based single port
 	  serial adapter. The most widely known -- and currently the only
 	  tested -- device in this category is the PalmConnect USB Serial
@@ -339,7 +339,7 @@ config USB_SERIAL_KLSI
 
 config USB_SERIAL_KOBIL_SCT
 	tristate "USB KOBIL chipcard reader"
-	---help---
+	help
 	  Say Y here if you want to use one of the following KOBIL USB chipcard
 	  readers:
 
@@ -356,7 +356,7 @@ config USB_SERIAL_KOBIL_SCT
 
 config USB_SERIAL_MCT_U232
 	tristate "USB MCT Single Port Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use a USB Serial single port adapter from
 	  Magic Control Technology Corp. (U232 is one of the model numbers).
 
@@ -368,7 +368,7 @@ config USB_SERIAL_MCT_U232
 
 config USB_SERIAL_METRO
 	tristate "USB Metrologic Instruments USB-POS Barcode Scanner Driver"
-	---help---
+	help
 	  Say Y here if you want to use a USB POS Metrologic barcode scanner.
 
 	  To compile this driver as a module, choose M here: the
@@ -376,7 +376,7 @@ config USB_SERIAL_METRO
 
 config USB_SERIAL_MOS7720
 	tristate "USB Moschip 7720 Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use USB Serial single and double
 	  port adapters from Moschip Semiconductor Tech.
 
@@ -388,14 +388,14 @@ config USB_SERIAL_MOS7715_PARPORT
 	depends on USB_SERIAL_MOS7720
 	depends on PARPORT=y || PARPORT=USB_SERIAL_MOS7720
 	select PARPORT_NOT_PC
-	---help---
+	help
 	Say Y if you have a Moschip 7715 device and would like to use
 	the parallel port it provides.  The port will register with
 	the parport subsystem as a low-level driver.
 
 config USB_SERIAL_MOS7840
 	tristate "USB Moschip 7840/7820 USB Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use a MCS7840 Quad-Serial or MCS7820
 	  Dual-Serial port device from MosChip Semiconductor.
 
@@ -409,7 +409,7 @@ config USB_SERIAL_MOS7840
 
 config USB_SERIAL_MXUPORT
 	tristate "USB Moxa UPORT Serial Driver"
-	---help---
+	help
 	  Say Y here if you want to use a MOXA UPort Serial hub.
 
 	  This driver supports:
@@ -528,7 +528,7 @@ config USB_SERIAL_TI
 
 config USB_SERIAL_CYBERJACK
 	tristate "USB REINER SCT cyberJack pinpad/e-com chipcard reader"
-	---help---
+	help
 	  Say Y here if you want to use a cyberJack pinpad/e-com USB chipcard
 	  reader. This is an interface to ISO 7816 compatible contact-based
 	  chipcards, e.g. GSM SIMs.

@@ -373,6 +373,23 @@ static const struct ts_dmi_data jumper_ezpad_mini3_data = {
 	.properties	= jumper_ezpad_mini3_props,
 };
 
+static const struct property_entry mpman_mpwin895cl_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 3),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 9),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1728),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1150),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl3680-mpman-mpwin895cl.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data mpman_mpwin895cl_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= mpman_mpwin895cl_props,
+};
+
 static const struct property_entry myria_my8307_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1720),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
@@ -446,6 +463,24 @@ static const struct property_entry onda_v820w_32g_props[] = {
 static const struct ts_dmi_data onda_v820w_32g_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= onda_v820w_32g_props,
+};
+
+static const struct property_entry onda_v891_v5_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1715),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl3676-onda-v891-v5.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data onda_v891_v5_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= onda_v891_v5_props,
 };
 
 static const struct property_entry onda_v891w_v1_props[] = {
@@ -588,6 +623,22 @@ static const struct ts_dmi_data schneider_sct101ctm_data = {
 	.properties	= schneider_sct101ctm_props,
 };
 
+static const struct property_entry techbite_arc_11_6_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 5),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 7),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1981),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1270),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-techbite-arc-11-6.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	{ }
+};
+
+static const struct ts_dmi_data techbite_arc_11_6_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= techbite_arc_11_6_props,
+};
+
 static const struct property_entry teclast_x3_plus_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
@@ -662,11 +713,14 @@ static const struct ts_dmi_data trekstor_primetab_t13b_data = {
 };
 
 static const struct property_entry trekstor_surftab_twin_10_1_props[] = {
-	PROPERTY_ENTRY_U32("touchscreen-size-x", 1900),
+	PROPERTY_ENTRY_U32("touchscreen-min-x", 20),
+	PROPERTY_ENTRY_U32("touchscreen-min-y", 0),
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1890),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
 	PROPERTY_ENTRY_U32("touchscreen-inverted-y", 1),
 	PROPERTY_ENTRY_STRING("firmware-name", "gsl3670-surftab-twin-10-1-st10432-8.fw"),
 	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
 	{ }
 };
 
@@ -689,6 +743,20 @@ static const struct property_entry trekstor_surftab_wintron70_props[] = {
 static const struct ts_dmi_data trekstor_surftab_wintron70_data = {
 	.acpi_name	= "MSSL1680:00",
 	.properties	= trekstor_surftab_wintron70_props,
+};
+
+static const struct property_entry vinga_twizzle_j116_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1920),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1280),
+	PROPERTY_ENTRY_STRING("firmware-name", "gsl1680-vinga-twizzle_j116.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data vinga_twizzle_j116_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= vinga_twizzle_j116_props,
 };
 
 /* NOTE: Please keep this table sorted alphabetically */
@@ -909,6 +977,14 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* MP Man MPWIN895CL */
+		.driver_data = (void *)&mpman_mpwin895cl_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MPMAN"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MPWIN8900CL"),
+		},
+	},
+	{
 		/* Myria MY8307 */
 		.driver_data = (void *)&myria_my8307_data,
 		.matches = {
@@ -938,6 +1014,15 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "ONDA"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "V820w DualOS")
+		},
+	},
+	{
+		/* ONDA V891 v5 */
+		.driver_data = (void *)&onda_v891_v5_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ONDA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ONDA Tablet"),
+			DMI_MATCH(DMI_BIOS_VERSION, "ONDA.D869CJABNRBA06"),
 		},
 	},
 	{
@@ -1030,6 +1115,15 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Techbite Arc 11.6 */
+		.driver_data = (void *)&techbite_arc_11_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "mPTech"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "techBite Arc 11.6"),
+			DMI_MATCH(DMI_BOARD_NAME, "G8316_272B"),
+		},
+	},
+	{
 		/* Teclast X3 Plus */
 		.driver_data = (void *)&teclast_x3_plus_data,
 		.matches = {
@@ -1107,6 +1201,21 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 		},
 	},
 	{
+		/* Trekstor Yourbook C11B (same touchscreen as the Primebook C11) */
+		.driver_data = (void *)&trekstor_primebook_c11_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TREKSTOR"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "YOURBOOK C11B"),
+		},
+	},
+	{
+		/* Vinga Twizzle J116 */
+		.driver_data = (void *)&vinga_twizzle_j116_data,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "VINGA Twizzle J116"),
+		},
+	},
+	{
 		/* Yours Y8W81, same case and touchscreen as Chuwi Vi8 */
 		.driver_data = (void *)&chuwi_vi8_data,
 		.matches = {
@@ -1114,7 +1223,7 @@ const struct dmi_system_id touchscreen_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Y8W81"),
 		},
 	},
-	{ },
+	{ }
 };
 
 static const struct ts_dmi_data *ts_data;

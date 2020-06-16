@@ -73,6 +73,7 @@ int bpf_sk_lookup_test0(struct __sk_buff *skb)
 
 	tuple_len = ipv4 ? sizeof(tuple->ipv4) : sizeof(tuple->ipv6);
 	sk = bpf_sk_lookup_tcp(skb, tuple, tuple_len, BPF_F_CURRENT_NETNS, 0);
+	bpf_printk("sk=%d\n", sk ? 1 : 0);
 	if (sk)
 		bpf_sk_release(sk);
 	return sk ? TC_ACT_OK : TC_ACT_UNSPEC;

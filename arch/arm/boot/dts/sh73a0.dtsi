@@ -99,7 +99,7 @@
 	};
 
 	cmt1: timer@e6138000 {
-		compatible = "renesas,cmt-48-sh73a0", "renesas,cmt-48";
+		compatible = "renesas,sh73a0-cmt1";
 		reg = <0xe6138000 0x200>;
 		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&mstp3_clks SH73A0_CLK_CMT1>;

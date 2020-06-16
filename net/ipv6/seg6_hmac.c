@@ -34,7 +34,6 @@
 #include <net/addrconf.h>
 #include <net/xfrm.h>
 
-#include <linux/cryptohash.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <net/seg6.h>

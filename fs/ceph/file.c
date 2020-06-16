@@ -11,11 +11,13 @@
 #include <linux/writeback.h>
 #include <linux/falloc.h>
 #include <linux/iversion.h>
+#include <linux/ktime.h>
 
 #include "super.h"
 #include "mds_client.h"
 #include "cache.h"
 #include "io.h"
+#include "metric.h"
 
 static __le32 ceph_flags_sys2wire(u32 flags)
 {
@@ -906,6 +908,12 @@ static ssize_t ceph_sync_read(struct kiocb *iocb, struct iov_iter *to,
 		ret = ceph_osdc_start_request(osdc, req, false);
 		if (!ret)
 			ret = ceph_osdc_wait_request(osdc, req);
+
+		ceph_update_read_latency(&fsc->mdsc->metric,
+					 req->r_start_latency,
+					 req->r_end_latency,
+					 ret);
+
 		ceph_osdc_put_request(req);
 
 		i_size = i_size_read(inode);
@@ -1044,12 +1052,24 @@ static void ceph_aio_complete_req(struct ceph_osd_request *req)
 	struct inode *inode = req->r_inode;
 	struct ceph_aio_request *aio_req = req->r_priv;
 	struct ceph_osd_data *osd_data = osd_req_op_extent_osd_data(req, 0);
+	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_client_metric *metric = &fsc->mdsc->metric;
 
 	BUG_ON(osd_data->type != CEPH_OSD_DATA_TYPE_BVECS);
 	BUG_ON(!osd_data->num_bvecs);
 
 	dout("ceph_aio_complete_req %p rc %d bytes %u\n",
 	     inode, rc, osd_data->bvec_pos.iter.bi_size);
+
+	/* r_start_latency == 0 means the request was not submitted */
+	if (req->r_start_latency) {
+		if (aio_req->write)
+			ceph_update_write_latency(metric, req->r_start_latency,
+						  req->r_end_latency, rc);
+		else
+			ceph_update_read_latency(metric, req->r_start_latency,
+						 req->r_end_latency, rc);
+	}
 
 	if (rc == -EOLDSNAPC) {
 		struct ceph_aio_work *aio_work;
@@ -1179,6 +1199,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_client_metric *metric = &fsc->mdsc->metric;
 	struct ceph_vino vino;
 	struct ceph_osd_request *req;
 	struct bio_vec *bvecs;
@@ -1294,6 +1315,13 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 		ret = ceph_osdc_start_request(req->r_osdc, req, false);
 		if (!ret)
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
+
+		if (write)
+			ceph_update_write_latency(metric, req->r_start_latency,
+						  req->r_end_latency, ret);
+		else
+			ceph_update_read_latency(metric, req->r_start_latency,
+						 req->r_end_latency, ret);
 
 		size = i_size_read(inode);
 		if (!write) {
@@ -1466,6 +1494,8 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 		if (!ret)
 			ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
+		ceph_update_write_latency(&fsc->mdsc->metric, req->r_start_latency,
+					  req->r_end_latency, ret);
 out:
 		ceph_osdc_put_request(req);
 		if (ret != 0) {

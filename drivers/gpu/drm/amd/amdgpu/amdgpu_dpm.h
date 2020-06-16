@@ -450,6 +450,7 @@ struct amdgpu_pm {
 
 	/* Used for I2C access to various EEPROMs on relevant ASICs */
 	struct i2c_adapter smu_i2c;
+	struct list_head	pm_attr_list;
 };
 
 #define R600_SSTU_DFLT                               0
@@ -537,5 +538,7 @@ int amdgpu_dpm_baco_enter(struct amdgpu_device *adev);
 
 int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 			     uint32_t cstate);
+
+int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en);
 
 #endif

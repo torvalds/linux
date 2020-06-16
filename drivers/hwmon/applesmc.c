@@ -156,14 +156,19 @@ static struct workqueue_struct *applesmc_led_wq;
  */
 static int wait_read(void)
 {
+	unsigned long end = jiffies + (APPLESMC_MAX_WAIT * HZ) / USEC_PER_SEC;
 	u8 status;
 	int us;
+
 	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
-		udelay(us);
+		usleep_range(us, us * 16);
 		status = inb(APPLESMC_CMD_PORT);
 		/* read: wait for smc to settle */
 		if (status & 0x01)
 			return 0;
+		/* timeout: give up */
+		if (time_after(jiffies, end))
+			break;
 	}
 
 	pr_warn("wait_read() fail: 0x%02x\n", status);
@@ -178,10 +183,11 @@ static int send_byte(u8 cmd, u16 port)
 {
 	u8 status;
 	int us;
+	unsigned long end = jiffies + (APPLESMC_MAX_WAIT * HZ) / USEC_PER_SEC;
 
 	outb(cmd, port);
 	for (us = APPLESMC_MIN_WAIT; us < APPLESMC_MAX_WAIT; us <<= 1) {
-		udelay(us);
+		usleep_range(us, us * 16);
 		status = inb(APPLESMC_CMD_PORT);
 		/* write: wait for smc to settle */
 		if (status & 0x02)
@@ -190,7 +196,7 @@ static int send_byte(u8 cmd, u16 port)
 		if (status & 0x04)
 			return 0;
 		/* timeout: give up */
-		if (us << 1 == APPLESMC_MAX_WAIT)
+		if (time_after(jiffies, end))
 			break;
 		/* busy: long wait and resend */
 		udelay(APPLESMC_RETRY_WAIT);

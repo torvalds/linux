@@ -64,8 +64,8 @@ uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
 			     s64 id, struct uverbs_attr_bundle *attrs);
 
 void uverbs_finalize_object(struct ib_uobject *uobj,
-			    enum uverbs_obj_access access, bool commit,
-			    struct uverbs_attr_bundle *attrs);
+			    enum uverbs_obj_access access, bool hw_obj_valid,
+			    bool commit, struct uverbs_attr_bundle *attrs);
 
 int uverbs_output_written(const struct uverbs_attr_bundle *bundle, size_t idx);
 
@@ -159,6 +159,9 @@ extern const struct uapi_definition uverbs_def_obj_dm[];
 extern const struct uapi_definition uverbs_def_obj_flow_action[];
 extern const struct uapi_definition uverbs_def_obj_intf[];
 extern const struct uapi_definition uverbs_def_obj_mr[];
+extern const struct uapi_definition uverbs_def_obj_qp[];
+extern const struct uapi_definition uverbs_def_obj_srq[];
+extern const struct uapi_definition uverbs_def_obj_wq[];
 extern const struct uapi_definition uverbs_def_write_intf[];
 
 static inline const struct uverbs_api_write_method *

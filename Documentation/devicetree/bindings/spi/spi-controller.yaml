@@ -115,24 +115,22 @@ patternProperties:
           Maximum SPI clocking speed of the device in Hz.
 
       spi-rx-bus-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [ 1, 2, 4, 8 ]
-          - default: 1
         description:
           Bus width to the SPI bus used for read transfers.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4, 8]
+        default: 1
 
       spi-rx-delay-us:
         description:
           Delay, in microseconds, after a read transfer.
 
       spi-tx-bus-width:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [ 1, 2, 4, 8 ]
-          - default: 1
         description:
           Bus width to the SPI bus used for write transfers.
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [1, 2, 4, 8]
+        default: 1
 
       spi-tx-delay-us:
         description:

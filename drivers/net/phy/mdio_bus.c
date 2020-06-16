@@ -42,14 +42,11 @@
 
 static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
-	int error;
-
 	/* Deassert the optional reset signal */
 	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
 						 "reset", GPIOD_OUT_LOW);
-	error = PTR_ERR_OR_ZERO(mdiodev->reset_gpio);
-	if (error)
-		return error;
+	if (IS_ERR(mdiodev->reset_gpio))
+		return PTR_ERR(mdiodev->reset_gpio);
 
 	if (mdiodev->reset_gpio)
 		gpiod_set_consumer_name(mdiodev->reset_gpio, "PHY reset");
@@ -170,7 +167,12 @@ EXPORT_SYMBOL(mdiobus_alloc_size);
 
 static void _devm_mdiobus_free(struct device *dev, void *res)
 {
-	mdiobus_free(*(struct mii_bus **)res);
+	struct mii_bus *bus = *(struct mii_bus **)res;
+
+	if (bus->is_managed_registered && bus->state == MDIOBUS_REGISTERED)
+		mdiobus_unregister(bus);
+
+	mdiobus_free(bus);
 }
 
 static int devm_mdiobus_match(struct device *dev, void *res, void *data)
@@ -210,6 +212,7 @@ struct mii_bus *devm_mdiobus_alloc_size(struct device *dev, int sizeof_priv)
 	if (bus) {
 		*ptr = bus;
 		devres_add(dev, ptr);
+		bus->is_managed = 1;
 	} else {
 		devres_free(ptr);
 	}
@@ -611,6 +614,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	}
 
 	mutex_init(&bus->mdio_lock);
+	mutex_init(&bus->shared_lock);
 
 	/* de-assert bus level PHY GPIO reset */
 	gpiod = devm_gpiod_get_optional(&bus->dev, "reset", GPIOD_OUT_LOW);
@@ -627,8 +631,11 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 		gpiod_set_value_cansleep(gpiod, 0);
 	}
 
-	if (bus->reset)
-		bus->reset(bus);
+	if (bus->reset) {
+		err = bus->reset(bus);
+		if (err)
+			goto error_reset_gpiod;
+	}
 
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		if ((bus->phy_mask & (1 << i)) == 0) {
@@ -657,7 +664,7 @@ error:
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
 	}
-
+error_reset_gpiod:
 	/* Put PHYs in RESET to save power */
 	if (bus->reset_gpiod)
 		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
@@ -757,6 +764,7 @@ EXPORT_SYMBOL(mdiobus_scan);
 
 static void mdiobus_stats_acct(struct mdio_bus_stats *stats, bool op, int ret)
 {
+	preempt_disable();
 	u64_stats_update_begin(&stats->syncp);
 
 	u64_stats_inc(&stats->transfers);
@@ -771,6 +779,7 @@ static void mdiobus_stats_acct(struct mdio_bus_stats *stats, bool op, int ret)
 		u64_stats_inc(&stats->writes);
 out:
 	u64_stats_update_end(&stats->syncp);
+	preempt_enable();
 }
 
 /**

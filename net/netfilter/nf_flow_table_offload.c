@@ -754,12 +754,15 @@ static void flow_offload_work_add(struct flow_offload_work *offload)
 	err = flow_offload_rule_add(offload, flow_rule);
 	if (err < 0)
 		set_bit(NF_FLOW_HW_REFRESH, &offload->flow->flags);
+	else
+		set_bit(IPS_HW_OFFLOAD_BIT, &offload->flow->ct->status);
 
 	nf_flow_offload_destroy(flow_rule);
 }
 
 static void flow_offload_work_del(struct flow_offload_work *offload)
 {
+	clear_bit(IPS_HW_OFFLOAD_BIT, &offload->flow->ct->status);
 	flow_offload_tuple_del(offload, FLOW_OFFLOAD_DIR_ORIGINAL);
 	flow_offload_tuple_del(offload, FLOW_OFFLOAD_DIR_REPLY);
 	set_bit(NF_FLOW_HW_DEAD, &offload->flow->flags);
@@ -939,6 +942,18 @@ static void nf_flow_table_block_offload_init(struct flow_block_offload *bo,
 	INIT_LIST_HEAD(&bo->cb_list);
 }
 
+static void nf_flow_table_indr_cleanup(struct flow_block_cb *block_cb)
+{
+	struct nf_flowtable *flowtable = block_cb->indr.data;
+	struct net_device *dev = block_cb->indr.dev;
+
+	nf_flow_table_gc_cleanup(flowtable, dev);
+	down_write(&flowtable->flow_block_lock);
+	list_del(&block_cb->list);
+	flow_block_cb_free(block_cb);
+	up_write(&flowtable->flow_block_lock);
+}
+
 static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 					  struct nf_flowtable *flowtable,
 					  struct net_device *dev,
@@ -947,12 +962,9 @@ static int nf_flow_table_indr_offload_cmd(struct flow_block_offload *bo,
 {
 	nf_flow_table_block_offload_init(bo, dev_net(dev), cmd, flowtable,
 					 extack);
-	flow_indr_block_call(dev, bo, cmd, TC_SETUP_FT);
 
-	if (list_empty(&bo->cb_list))
-		return -EOPNOTSUPP;
-
-	return 0;
+	return flow_indr_dev_setup_offload(dev, TC_SETUP_FT, flowtable, bo,
+					   nf_flow_table_indr_cleanup);
 }
 
 static int nf_flow_table_offload_cmd(struct flow_block_offload *bo,
@@ -996,69 +1008,6 @@ int nf_flow_table_offload_setup(struct nf_flowtable *flowtable,
 }
 EXPORT_SYMBOL_GPL(nf_flow_table_offload_setup);
 
-static void nf_flow_table_indr_block_ing_cmd(struct net_device *dev,
-					     struct nf_flowtable *flowtable,
-					     flow_indr_block_bind_cb_t *cb,
-					     void *cb_priv,
-					     enum flow_block_command cmd)
-{
-	struct netlink_ext_ack extack = {};
-	struct flow_block_offload bo;
-
-	if (!flowtable)
-		return;
-
-	nf_flow_table_block_offload_init(&bo, dev_net(dev), cmd, flowtable,
-					 &extack);
-
-	cb(dev, cb_priv, TC_SETUP_FT, &bo);
-
-	nf_flow_table_block_setup(flowtable, &bo, cmd);
-}
-
-static void nf_flow_table_indr_block_cb_cmd(struct nf_flowtable *flowtable,
-					    struct net_device *dev,
-					    flow_indr_block_bind_cb_t *cb,
-					    void *cb_priv,
-					    enum flow_block_command cmd)
-{
-	if (!(flowtable->flags & NF_FLOWTABLE_HW_OFFLOAD))
-		return;
-
-	nf_flow_table_indr_block_ing_cmd(dev, flowtable, cb, cb_priv, cmd);
-}
-
-static void nf_flow_table_indr_block_cb(struct net_device *dev,
-					flow_indr_block_bind_cb_t *cb,
-					void *cb_priv,
-					enum flow_block_command cmd)
-{
-	struct net *net = dev_net(dev);
-	struct nft_flowtable *nft_ft;
-	struct nft_table *table;
-	struct nft_hook *hook;
-
-	mutex_lock(&net->nft.commit_mutex);
-	list_for_each_entry(table, &net->nft.tables, list) {
-		list_for_each_entry(nft_ft, &table->flowtables, list) {
-			list_for_each_entry(hook, &nft_ft->hook_list, list) {
-				if (hook->ops.dev != dev)
-					continue;
-
-				nf_flow_table_indr_block_cb_cmd(&nft_ft->data,
-								dev, cb,
-								cb_priv, cmd);
-			}
-		}
-	}
-	mutex_unlock(&net->nft.commit_mutex);
-}
-
-static struct flow_indr_block_entry block_ing_entry = {
-	.cb	= nf_flow_table_indr_block_cb,
-	.list	= LIST_HEAD_INIT(block_ing_entry.list),
-};
-
 int nf_flow_table_offload_init(void)
 {
 	nf_flow_offload_wq  = alloc_workqueue("nf_flow_table_offload",
@@ -1066,13 +1015,10 @@ int nf_flow_table_offload_init(void)
 	if (!nf_flow_offload_wq)
 		return -ENOMEM;
 
-	flow_indr_add_block_cb(&block_ing_entry);
-
 	return 0;
 }
 
 void nf_flow_table_offload_exit(void)
 {
-	flow_indr_del_block_cb(&block_ing_entry);
 	destroy_workqueue(nf_flow_offload_wq);
 }

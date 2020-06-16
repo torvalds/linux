@@ -43,7 +43,7 @@ static int pm_map_process_v9(struct packet_manager *pm,
 	packet->bitfields2.pasid = qpd->pqm->process->pasid;
 	packet->bitfields14.gds_size = qpd->gds_size & 0x3F;
 	packet->bitfields14.gds_size_hi = (qpd->gds_size >> 6) & 0xF;
-	packet->bitfields14.num_gws = qpd->num_gws;
+	packet->bitfields14.num_gws = (qpd->mapped_gws_queue) ? qpd->num_gws : 0;
 	packet->bitfields14.num_oac = qpd->num_oac;
 	packet->bitfields14.sdma_enable = 1;
 	packet->bitfields14.num_queues = (qpd->is_debug) ? 0 : qpd->queue_count;

@@ -14,7 +14,7 @@ $(objtree)/$(obj)/randomize_layout_seed.h: FORCE
 	$(call if_changed,create_randomize_layout_seed)
 targets = randomize_layout_seed.h randomize_layout_hash.h
 
-hostcxxlibs-y := $(foreach p,$(GCC_PLUGIN),$(if $(findstring /,$(p)),,$(p)))
+hostcxxlibs-y := $(GCC_PLUGIN)
 always-y := $(hostcxxlibs-y)
 
 $(foreach p,$(hostcxxlibs-y:%.so=%),$(eval $(p)-objs := $(p).o))

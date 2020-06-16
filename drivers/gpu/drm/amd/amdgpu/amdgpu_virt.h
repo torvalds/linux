@@ -30,6 +30,17 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+/* all asic after AI use this offset */
+#define mmRCC_IOV_FUNC_IDENTIFIER 0xDE5
+/* tonga/fiji use this offset */
+#define mmBIF_IOV_FUNC_IDENTIFIER 0x1503
+
+enum amdgpu_sriov_vf_mode {
+	SRIOV_VF_MODE_BARE_METAL = 0,
+	SRIOV_VF_MODE_ONE_VF,
+	SRIOV_VF_MODE_MULTI_VF,
+};
+
 struct amdgpu_mm_table {
 	struct amdgpu_bo	*bo;
 	uint32_t		*cpu_addr;
@@ -54,6 +65,7 @@ struct amdgpu_vf_error_buffer {
 struct amdgpu_virt_ops {
 	int (*req_full_gpu)(struct amdgpu_device *adev, bool init);
 	int (*rel_full_gpu)(struct amdgpu_device *adev, bool init);
+	int (*req_init_data)(struct amdgpu_device *adev);
 	int (*reset_gpu)(struct amdgpu_device *adev);
 	int (*wait_reset)(struct amdgpu_device *adev);
 	void (*trans_msg)(struct amdgpu_device *adev, u32 req, u32 data1, u32 data2, u32 data3);
@@ -83,6 +95,8 @@ enum AMDGIM_FEATURE_FLAG {
 	AMDGIM_FEATURE_GIM_LOAD_UCODES   = 0x2,
 	/* VRAM LOST by GIM */
 	AMDGIM_FEATURE_GIM_FLR_VRAMLOST = 0x4,
+	/* MM bandwidth */
+	AMDGIM_FEATURE_GIM_MM_BW_MGR = 0x8,
 	/* PP ONE VF MODE in GIM */
 	AMDGIM_FEATURE_PP_ONE_VF = (1 << 4),
 };
@@ -256,6 +270,8 @@ struct amdgpu_virt {
 	struct amdgpu_virt_fw_reserve	fw_reserve;
 	uint32_t gim_feature;
 	uint32_t reg_access_mode;
+	int req_init_data_ver;
+	bool tdr_debug;
 };
 
 #define amdgpu_sriov_enabled(adev) \
@@ -287,6 +303,10 @@ static inline bool is_virtual_machine(void)
 
 #define amdgpu_sriov_is_pp_one_vf(adev) \
 	((adev)->virt.gim_feature & AMDGIM_FEATURE_PP_ONE_VF)
+#define amdgpu_sriov_is_debug(adev) \
+	((!adev->in_gpu_reset) && adev->virt.tdr_debug)
+#define amdgpu_sriov_is_normal(adev) \
+	((!adev->in_gpu_reset) && (!adev->virt.tdr_debug))
 
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
@@ -296,6 +316,7 @@ void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
 int amdgpu_virt_request_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_release_full_gpu(struct amdgpu_device *adev, bool init);
 int amdgpu_virt_reset_gpu(struct amdgpu_device *adev);
+void amdgpu_virt_request_init_data(struct amdgpu_device *adev);
 int amdgpu_virt_wait_reset(struct amdgpu_device *adev);
 int amdgpu_virt_alloc_mm_table(struct amdgpu_device *adev);
 void amdgpu_virt_free_mm_table(struct amdgpu_device *adev);
@@ -303,4 +324,11 @@ int amdgpu_virt_fw_reserve_get_checksum(void *obj, unsigned long obj_size,
 					unsigned int key,
 					unsigned int chksum);
 void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev);
+void amdgpu_detect_virtualization(struct amdgpu_device *adev);
+
+bool amdgpu_virt_can_access_debugfs(struct amdgpu_device *adev);
+int amdgpu_virt_enable_access_debugfs(struct amdgpu_device *adev);
+void amdgpu_virt_disable_access_debugfs(struct amdgpu_device *adev);
+
+enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *adev);
 #endif

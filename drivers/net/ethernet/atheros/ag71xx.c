@@ -871,13 +871,40 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 			    unsigned long *supported,
 			    struct phylink_link_state *state)
 {
+	struct ag71xx *ag = netdev_priv(to_net_dev(config->dev));
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != PHY_INTERFACE_MODE_GMII &&
-	    state->interface != PHY_INTERFACE_MODE_MII) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		return;
+	switch (state->interface) {
+	case PHY_INTERFACE_MODE_NA:
+		break;
+	case PHY_INTERFACE_MODE_MII:
+		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 0) ||
+		    ag71xx_is(ag, AR9340) ||
+		    ag71xx_is(ag, QCA9530) ||
+		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+			break;
+		goto unsupported;
+	case PHY_INTERFACE_MODE_GMII:
+		if ((ag71xx_is(ag, AR9330) && ag->mac_idx == 1) ||
+		    (ag71xx_is(ag, AR9340) && ag->mac_idx == 1) ||
+		    (ag71xx_is(ag, QCA9530) && ag->mac_idx == 1))
+			break;
+		goto unsupported;
+	case PHY_INTERFACE_MODE_SGMII:
+		if (ag71xx_is(ag, QCA9550) && ag->mac_idx == 0)
+			break;
+		goto unsupported;
+	case PHY_INTERFACE_MODE_RMII:
+		if (ag71xx_is(ag, AR9340) && ag->mac_idx == 0)
+			break;
+		goto unsupported;
+	case PHY_INTERFACE_MODE_RGMII:
+		if ((ag71xx_is(ag, AR9340) && ag->mac_idx == 0) ||
+		    (ag71xx_is(ag, QCA9550) && ag->mac_idx == 1))
+			break;
+		goto unsupported;
+	default:
+		goto unsupported;
 	}
 
 	phylink_set(mask, MII);
@@ -889,6 +916,8 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 	phylink_set(mask, 100baseT_Full);
 
 	if (state->interface == PHY_INTERFACE_MODE_NA ||
+	    state->interface == PHY_INTERFACE_MODE_SGMII ||
+	    state->interface == PHY_INTERFACE_MODE_RGMII ||
 	    state->interface == PHY_INTERFACE_MODE_GMII) {
 		phylink_set(mask, 1000baseT_Full);
 		phylink_set(mask, 1000baseX_Full);
@@ -898,6 +927,10 @@ static void ag71xx_mac_validate(struct phylink_config *config,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
 	bitmap_and(state->advertising, state->advertising, mask,
 		   __ETHTOOL_LINK_MODE_MASK_NBITS);
+
+	return;
+unsupported:
+	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
 static void ag71xx_mac_pcs_get_state(struct phylink_config *config,

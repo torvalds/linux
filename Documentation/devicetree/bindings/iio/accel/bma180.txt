@@ -1,15 +1,21 @@
-* Bosch BMA180 / BMA25x triaxial acceleration sensor
+* Bosch BMA023 / BMA150/ BMA180 / BMA25x / SMB380 triaxial acceleration sensor
 
+https://media.digikey.com/pdf/Data%20Sheets/Bosch/BMA150.pdf
 http://omapworld.com/BMA180_111_1002839.pdf
 http://ae-bst.resource.bosch.com/media/products/dokumente/bma250/bst-bma250-ds002-05.pdf
 
 Required properties:
 
   - compatible : should be one of:
+    "bosch,bma023"
+    "bosch,bma150"
     "bosch,bma180"
     "bosch,bma250"
     "bosch,bma254"
+    "bosch,smb380"
   - reg : the I2C address of the sensor
+  - vdd-supply : regulator phandle connected to the VDD pin
+  - vddio-supply : regulator phandle connected to the VDDIO pin
 
 Optional properties:
 

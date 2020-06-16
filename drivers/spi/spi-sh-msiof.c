@@ -1398,7 +1398,7 @@ static int sh_msiof_spi_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(sh_msiof_spi_pm_ops, sh_msiof_spi_suspend,
 			 sh_msiof_spi_resume);
-#define DEV_PM_OPS	&sh_msiof_spi_pm_ops
+#define DEV_PM_OPS	(&sh_msiof_spi_pm_ops)
 #else
 #define DEV_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP */

@@ -63,6 +63,19 @@
 #define   SDHCI_GLI_9750_TUNING_PARAMETERS_RX_DLY    GENMASK(2, 0)
 #define   GLI_9750_TUNING_PARAMETERS_RX_DLY_VALUE    0x1
 
+#define SDHCI_GLI_9763E_CTRL_HS400  0x7
+
+#define SDHCI_GLI_9763E_HS400_ES_REG      0x52C
+#define   SDHCI_GLI_9763E_HS400_ES_BIT      BIT(8)
+
+#define PCIE_GLI_9763E_VHS	 0x884
+#define   GLI_9763E_VHS_REV	   GENMASK(19, 16)
+#define   GLI_9763E_VHS_REV_R      0x0
+#define   GLI_9763E_VHS_REV_M      0x1
+#define   GLI_9763E_VHS_REV_W      0x2
+#define PCIE_GLI_9763E_SCR	 0x8E0
+#define   GLI_9763E_SCR_AXI_REQ	   BIT(9)
+
 #define GLI_MAX_TUNING_LOOP 40
 
 /* Genesys Logic chipset */
@@ -351,6 +364,81 @@ static int sdhci_pci_gli_resume(struct sdhci_pci_chip *chip)
 }
 #endif
 
+static void gl9763e_hs400_enhanced_strobe(struct mmc_host *mmc,
+					  struct mmc_ios *ios)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	u32 val;
+
+	val = sdhci_readl(host, SDHCI_GLI_9763E_HS400_ES_REG);
+	if (ios->enhanced_strobe)
+		val |= SDHCI_GLI_9763E_HS400_ES_BIT;
+	else
+		val &= ~SDHCI_GLI_9763E_HS400_ES_BIT;
+
+	sdhci_writel(host, val, SDHCI_GLI_9763E_HS400_ES_REG);
+}
+
+static void sdhci_set_gl9763e_signaling(struct sdhci_host *host,
+					unsigned int timing)
+{
+	u16 ctrl_2;
+
+	ctrl_2 = sdhci_readw(host, SDHCI_HOST_CONTROL2);
+	ctrl_2 &= ~SDHCI_CTRL_UHS_MASK;
+	if (timing == MMC_TIMING_MMC_HS200)
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR104;
+	else if (timing == MMC_TIMING_MMC_HS)
+		ctrl_2 |= SDHCI_CTRL_UHS_SDR25;
+	else if (timing == MMC_TIMING_MMC_DDR52)
+		ctrl_2 |= SDHCI_CTRL_UHS_DDR50;
+	else if (timing == MMC_TIMING_MMC_HS400)
+		ctrl_2 |= SDHCI_GLI_9763E_CTRL_HS400;
+
+	sdhci_writew(host, ctrl_2, SDHCI_HOST_CONTROL2);
+}
+
+static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
+{
+	struct pci_dev *pdev = slot->chip->pdev;
+	u32 value;
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_W);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_SCR, &value);
+	value |= GLI_9763E_SCR_AXI_REQ;
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_SCR, value);
+
+	pci_read_config_dword(pdev, PCIE_GLI_9763E_VHS, &value);
+	value &= ~GLI_9763E_VHS_REV;
+	value |= FIELD_PREP(GLI_9763E_VHS_REV, GLI_9763E_VHS_REV_R);
+	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
+}
+
+static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
+{
+	struct sdhci_host *host = slot->host;
+
+	host->mmc->caps |= MMC_CAP_8_BIT_DATA |
+			   MMC_CAP_1_8V_DDR |
+			   MMC_CAP_NONREMOVABLE;
+	host->mmc->caps2 |= MMC_CAP2_HS200_1_8V_SDR |
+			    MMC_CAP2_HS400_1_8V |
+			    MMC_CAP2_HS400_ES |
+			    MMC_CAP2_NO_SDIO |
+			    MMC_CAP2_NO_SD;
+	gli_pcie_enable_msi(slot);
+	host->mmc_host_ops.hs400_enhanced_strobe =
+					gl9763e_hs400_enhanced_strobe;
+	gli_set_gl9763e(slot);
+	sdhci_enable_v4_mode(host);
+
+	return 0;
+}
+
 static const struct sdhci_ops sdhci_gl9755_ops = {
 	.set_clock		= sdhci_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
@@ -386,6 +474,24 @@ const struct sdhci_pci_fixes sdhci_gl9750 = {
 	.quirks2	= SDHCI_QUIRK2_BROKEN_DDR50,
 	.probe_slot	= gli_probe_slot_gl9750,
 	.ops            = &sdhci_gl9750_ops,
+#ifdef CONFIG_PM_SLEEP
+	.resume         = sdhci_pci_gli_resume,
+#endif
+};
+
+static const struct sdhci_ops sdhci_gl9763e_ops = {
+	.set_clock		= sdhci_set_clock,
+	.enable_dma		= sdhci_pci_enable_dma,
+	.set_bus_width		= sdhci_set_bus_width,
+	.reset			= sdhci_reset,
+	.set_uhs_signaling	= sdhci_set_gl9763e_signaling,
+	.voltage_switch		= sdhci_gli_voltage_switch,
+};
+
+const struct sdhci_pci_fixes sdhci_gl9763e = {
+	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.probe_slot	= gli_probe_slot_gl9763e,
+	.ops            = &sdhci_gl9763e_ops,
 #ifdef CONFIG_PM_SLEEP
 	.resume         = sdhci_pci_gli_resume,
 #endif

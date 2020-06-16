@@ -30,6 +30,7 @@
 #include "util.h"
 #include "dir.h"
 #include "trace_gfs2.h"
+#include "trans.h"
 
 static void gfs2_log_shutdown(struct gfs2_sbd *sdp);
 
@@ -145,9 +146,6 @@ static void dump_ail_list(struct gfs2_sbd *sdp)
 	struct gfs2_bufdata *bd;
 	struct buffer_head *bh;
 
-	fs_err(sdp, "Error: In gfs2_ail1_flush for ten minutes! t=%d\n",
-	       current->journal_info ? 1 : 0);
-
 	list_for_each_entry_reverse(tr, &sdp->sd_ail1_list, tr_list) {
 		list_for_each_entry_reverse(bd, &tr->tr_ail1_list,
 					    bd_ail_st_list) {
@@ -197,6 +195,8 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 restart:
 	ret = 0;
 	if (time_after(jiffies, flush_start + (HZ * 600))) {
+		fs_err(sdp, "Error: In %s for ten minutes! t=%d\n",
+		       __func__, current->journal_info ? 1 : 0);
 		dump_ail_list(sdp);
 		goto out;
 	}
@@ -379,7 +379,7 @@ static void ail2_empty(struct gfs2_sbd *sdp, unsigned int new_tail)
 		list_del(&tr->tr_list);
 		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail1_list));
 		gfs2_assert_warn(sdp, list_empty(&tr->tr_ail2_list));
-		kfree(tr);
+		gfs2_trans_free(sdp, tr);
 	}
 
 	spin_unlock(&sdp->sd_ail_lock);
@@ -864,16 +864,38 @@ static void ail_drain(struct gfs2_sbd *sdp)
 		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail1_list);
 		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
 		list_del(&tr->tr_list);
-		kfree(tr);
+		gfs2_trans_free(sdp, tr);
 	}
 	while (!list_empty(&sdp->sd_ail2_list)) {
 		tr = list_first_entry(&sdp->sd_ail2_list, struct gfs2_trans,
 				      tr_list);
 		gfs2_ail_empty_tr(sdp, tr, &tr->tr_ail2_list);
 		list_del(&tr->tr_list);
-		kfree(tr);
+		gfs2_trans_free(sdp, tr);
 	}
 	spin_unlock(&sdp->sd_ail_lock);
+}
+
+/**
+ * empty_ail1_list - try to start IO and empty the ail1 list
+ * @sdp: Pointer to GFS2 superblock
+ */
+static void empty_ail1_list(struct gfs2_sbd *sdp)
+{
+	unsigned long start = jiffies;
+
+	for (;;) {
+		if (time_after(jiffies, start + (HZ * 600))) {
+			fs_err(sdp, "Error: In %s for 10 minutes! t=%d\n",
+			       __func__, current->journal_info ? 1 : 0);
+			dump_ail_list(sdp);
+			return;
+		}
+		gfs2_ail1_start(sdp);
+		gfs2_ail1_wait(sdp);
+		if (gfs2_ail1_empty(sdp, 0))
+			return;
+	}
 }
 
 /**
@@ -912,8 +934,6 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 	tr = sdp->sd_log_tr;
 	if (tr) {
 		sdp->sd_log_tr = NULL;
-		INIT_LIST_HEAD(&tr->tr_ail1_list);
-		INIT_LIST_HEAD(&tr->tr_ail2_list);
 		tr->tr_first = sdp->sd_log_flush_head;
 		if (unlikely (state == SFS_FROZEN))
 			if (gfs2_assert_withdraw_delayed(sdp,
@@ -965,12 +985,7 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl, u32 flags)
 
 	if (!(flags & GFS2_LOG_HEAD_FLUSH_NORMAL)) {
 		if (!sdp->sd_log_idle) {
-			for (;;) {
-				gfs2_ail1_start(sdp);
-				gfs2_ail1_wait(sdp);
-				if (gfs2_ail1_empty(sdp, 0))
-					break;
-			}
+			empty_ail1_list(sdp);
 			if (gfs2_withdrawn(sdp))
 				goto out;
 			atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
@@ -994,7 +1009,7 @@ out:
 	trace_gfs2_log_flush(sdp, 0, flags);
 	up_write(&sdp->sd_log_flush_lock);
 
-	kfree(tr);
+	gfs2_trans_free(sdp, tr);
 }
 
 /**
@@ -1003,8 +1018,10 @@ out:
  * @new: New transaction to be merged
  */
 
-static void gfs2_merge_trans(struct gfs2_trans *old, struct gfs2_trans *new)
+static void gfs2_merge_trans(struct gfs2_sbd *sdp, struct gfs2_trans *new)
 {
+	struct gfs2_trans *old = sdp->sd_log_tr;
+
 	WARN_ON_ONCE(!test_bit(TR_ATTACHED, &old->tr_flags));
 
 	old->tr_num_buf_new	+= new->tr_num_buf_new;
@@ -1016,6 +1033,11 @@ static void gfs2_merge_trans(struct gfs2_trans *old, struct gfs2_trans *new)
 
 	list_splice_tail_init(&new->tr_databuf, &old->tr_databuf);
 	list_splice_tail_init(&new->tr_buf, &old->tr_buf);
+
+	spin_lock(&sdp->sd_ail_lock);
+	list_splice_tail_init(&new->tr_ail1_list, &old->tr_ail1_list);
+	list_splice_tail_init(&new->tr_ail2_list, &old->tr_ail2_list);
+	spin_unlock(&sdp->sd_ail_lock);
 }
 
 static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
@@ -1027,7 +1049,7 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	gfs2_log_lock(sdp);
 
 	if (sdp->sd_log_tr) {
-		gfs2_merge_trans(sdp->sd_log_tr, tr);
+		gfs2_merge_trans(sdp, tr);
 	} else if (tr->tr_num_buf_new || tr->tr_num_databuf_new) {
 		gfs2_assert_withdraw(sdp, test_bit(TR_ALLOCED, &tr->tr_flags));
 		sdp->sd_log_tr = tr;

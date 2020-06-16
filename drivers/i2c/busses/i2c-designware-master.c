@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 
 #include "i2c-designware-core.h"
@@ -25,11 +26,11 @@
 static void i2c_dw_configure_fifo_master(struct dw_i2c_dev *dev)
 {
 	/* Configure Tx/Rx FIFO threshold levels */
-	dw_writel(dev, dev->tx_fifo_depth / 2, DW_IC_TX_TL);
-	dw_writel(dev, 0, DW_IC_RX_TL);
+	regmap_write(dev->map, DW_IC_TX_TL, dev->tx_fifo_depth / 2);
+	regmap_write(dev->map, DW_IC_RX_TL, 0);
 
 	/* Configure the I2C master */
-	dw_writel(dev, dev->master_cfg, DW_IC_CON);
+	regmap_write(dev->map, DW_IC_CON, dev->master_cfg);
 }
 
 static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
@@ -44,8 +45,11 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	ret = i2c_dw_acquire_lock(dev);
 	if (ret)
 		return ret;
-	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
+
+	ret = regmap_read(dev->map, DW_IC_COMP_PARAM_1, &comp_param1);
 	i2c_dw_release_lock(dev);
+	if (ret)
+		return ret;
 
 	/* Set standard and fast speed dividers for high/low periods */
 	sda_falling_time = t->sda_fall_ns ?: 300; /* ns */
@@ -76,14 +80,27 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 	 */
 	if (t->bus_freq_hz == 1000000) {
 		/*
-		 * Check are fast mode plus parameters available and use
-		 * fast mode if not.
+		 * Check are Fast Mode Plus parameters available. Calculate
+		 * SCL timing parameters for Fast Mode Plus if not set.
 		 */
 		if (dev->fp_hcnt && dev->fp_lcnt) {
 			dev->fs_hcnt = dev->fp_hcnt;
 			dev->fs_lcnt = dev->fp_lcnt;
-			fp_str = " Plus";
+		} else {
+			ic_clk = i2c_dw_clk_rate(dev);
+			dev->fs_hcnt =
+				i2c_dw_scl_hcnt(ic_clk,
+						260,	/* tHIGH = 260 ns */
+						sda_falling_time,
+						0,	/* DW default */
+						0);	/* No offset */
+			dev->fs_lcnt =
+				i2c_dw_scl_lcnt(ic_clk,
+						500,	/* tLOW = 500 ns */
+						scl_falling_time,
+						0);	/* No offset */
 		}
+		fp_str = " Plus";
 	}
 	/*
 	 * Calculate SCL timing parameters for fast mode if not set. They are
@@ -116,10 +133,22 @@ static int i2c_dw_set_timings_master(struct dw_i2c_dev *dev)
 			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
 			dev->hs_hcnt = 0;
 			dev->hs_lcnt = 0;
-		} else if (dev->hs_hcnt && dev->hs_lcnt) {
-			dev_dbg(dev->dev, "High Speed Mode HCNT:LCNT = %d:%d\n",
-				dev->hs_hcnt, dev->hs_lcnt);
+		} else if (!dev->hs_hcnt || !dev->hs_lcnt) {
+			ic_clk = i2c_dw_clk_rate(dev);
+			dev->hs_hcnt =
+				i2c_dw_scl_hcnt(ic_clk,
+						160,	/* tHIGH = 160 ns */
+						sda_falling_time,
+						0,	/* DW default */
+						0);	/* No offset */
+			dev->hs_lcnt =
+				i2c_dw_scl_lcnt(ic_clk,
+						320,	/* tLOW = 320 ns */
+						scl_falling_time,
+						0);	/* No offset */
 		}
+		dev_dbg(dev->dev, "High Speed Mode HCNT:LCNT = %d:%d\n",
+			dev->hs_hcnt, dev->hs_lcnt);
 	}
 
 	ret = i2c_dw_set_sda_hold(dev);
@@ -162,22 +191,22 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 	__i2c_dw_disable(dev);
 
 	/* Write standard speed timing parameters */
-	dw_writel(dev, dev->ss_hcnt, DW_IC_SS_SCL_HCNT);
-	dw_writel(dev, dev->ss_lcnt, DW_IC_SS_SCL_LCNT);
+	regmap_write(dev->map, DW_IC_SS_SCL_HCNT, dev->ss_hcnt);
+	regmap_write(dev->map, DW_IC_SS_SCL_LCNT, dev->ss_lcnt);
 
 	/* Write fast mode/fast mode plus timing parameters */
-	dw_writel(dev, dev->fs_hcnt, DW_IC_FS_SCL_HCNT);
-	dw_writel(dev, dev->fs_lcnt, DW_IC_FS_SCL_LCNT);
+	regmap_write(dev->map, DW_IC_FS_SCL_HCNT, dev->fs_hcnt);
+	regmap_write(dev->map, DW_IC_FS_SCL_LCNT, dev->fs_lcnt);
 
 	/* Write high speed timing parameters if supported */
 	if (dev->hs_hcnt && dev->hs_lcnt) {
-		dw_writel(dev, dev->hs_hcnt, DW_IC_HS_SCL_HCNT);
-		dw_writel(dev, dev->hs_lcnt, DW_IC_HS_SCL_LCNT);
+		regmap_write(dev->map, DW_IC_HS_SCL_HCNT, dev->hs_hcnt);
+		regmap_write(dev->map, DW_IC_HS_SCL_LCNT, dev->hs_lcnt);
 	}
 
 	/* Write SDA hold time if supported */
 	if (dev->sda_hold_time)
-		dw_writel(dev, dev->sda_hold_time, DW_IC_SDA_HOLD);
+		regmap_write(dev->map, DW_IC_SDA_HOLD, dev->sda_hold_time);
 
 	i2c_dw_configure_fifo_master(dev);
 	i2c_dw_release_lock(dev);
@@ -188,15 +217,15 @@ static int i2c_dw_init_master(struct dw_i2c_dev *dev)
 static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	u32 ic_con, ic_tar = 0;
+	u32 ic_con = 0, ic_tar = 0;
+	u32 dummy;
 
 	/* Disable the adapter */
 	__i2c_dw_disable(dev);
 
 	/* If the slave address is ten bit address, enable 10BITADDR */
-	ic_con = dw_readl(dev, DW_IC_CON);
 	if (msgs[dev->msg_write_idx].flags & I2C_M_TEN) {
-		ic_con |= DW_IC_CON_10BITADDR_MASTER;
+		ic_con = DW_IC_CON_10BITADDR_MASTER;
 		/*
 		 * If I2C_DYNAMIC_TAR_UPDATE is set, the 10-bit addressing
 		 * mode has to be enabled via bit 12 of IC_TAR register.
@@ -204,17 +233,17 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 		 * detected from registers.
 		 */
 		ic_tar = DW_IC_TAR_10BITADDR_MASTER;
-	} else {
-		ic_con &= ~DW_IC_CON_10BITADDR_MASTER;
 	}
 
-	dw_writel(dev, ic_con, DW_IC_CON);
+	regmap_update_bits(dev->map, DW_IC_CON, DW_IC_CON_10BITADDR_MASTER,
+			   ic_con);
 
 	/*
 	 * Set the slave (target) address and enable 10-bit addressing mode
 	 * if applicable.
 	 */
-	dw_writel(dev, msgs[dev->msg_write_idx].addr | ic_tar, DW_IC_TAR);
+	regmap_write(dev->map, DW_IC_TAR,
+		     msgs[dev->msg_write_idx].addr | ic_tar);
 
 	/* Enforce disabled interrupts (due to HW issues) */
 	i2c_dw_disable_int(dev);
@@ -223,11 +252,11 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
 	__i2c_dw_enable(dev);
 
 	/* Dummy read to avoid the register getting stuck on Bay Trail */
-	dw_readl(dev, DW_IC_ENABLE_STATUS);
+	regmap_read(dev->map, DW_IC_ENABLE_STATUS, &dummy);
 
 	/* Clear and enable interrupts */
-	dw_readl(dev, DW_IC_CLR_INTR);
-	dw_writel(dev, DW_IC_INTR_MASTER_MASK, DW_IC_INTR_MASK);
+	regmap_read(dev->map, DW_IC_CLR_INTR, &dummy);
+	regmap_write(dev->map, DW_IC_INTR_MASK, DW_IC_INTR_MASTER_MASK);
 }
 
 /*
@@ -246,6 +275,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	u32 buf_len = dev->tx_buf_len;
 	u8 *buf = dev->tx_buf;
 	bool need_restart = false;
+	unsigned int flr;
 
 	intr_mask = DW_IC_INTR_MASTER_MASK;
 
@@ -278,8 +308,11 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 				need_restart = true;
 		}
 
-		tx_limit = dev->tx_fifo_depth - dw_readl(dev, DW_IC_TXFLR);
-		rx_limit = dev->rx_fifo_depth - dw_readl(dev, DW_IC_RXFLR);
+		regmap_read(dev->map, DW_IC_TXFLR, &flr);
+		tx_limit = dev->tx_fifo_depth - flr;
+
+		regmap_read(dev->map, DW_IC_RXFLR, &flr);
+		rx_limit = dev->rx_fifo_depth - flr;
 
 		while (buf_len > 0 && tx_limit > 0 && rx_limit > 0) {
 			u32 cmd = 0;
@@ -312,11 +345,14 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 				if (dev->rx_outstanding >= dev->rx_fifo_depth)
 					break;
 
-				dw_writel(dev, cmd | 0x100, DW_IC_DATA_CMD);
+				regmap_write(dev->map, DW_IC_DATA_CMD,
+					     cmd | 0x100);
 				rx_limit--;
 				dev->rx_outstanding++;
-			} else
-				dw_writel(dev, cmd | *buf++, DW_IC_DATA_CMD);
+			} else {
+				regmap_write(dev->map, DW_IC_DATA_CMD,
+					     cmd | *buf++);
+			}
 			tx_limit--; buf_len--;
 		}
 
@@ -346,7 +382,7 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 	if (dev->msg_err)
 		intr_mask = 0;
 
-	dw_writel(dev, intr_mask,  DW_IC_INTR_MASK);
+	regmap_write(dev->map,  DW_IC_INTR_MASK, intr_mask);
 }
 
 static u8
@@ -371,10 +407,10 @@ static void
 i2c_dw_read(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;
-	int rx_valid;
+	unsigned int rx_valid;
 
 	for (; dev->msg_read_idx < dev->msgs_num; dev->msg_read_idx++) {
-		u32 len;
+		u32 len, tmp;
 		u8 *buf;
 
 		if (!(msgs[dev->msg_read_idx].flags & I2C_M_RD))
@@ -388,18 +424,18 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 			buf = dev->rx_buf;
 		}
 
-		rx_valid = dw_readl(dev, DW_IC_RXFLR);
+		regmap_read(dev->map, DW_IC_RXFLR, &rx_valid);
 
 		for (; len > 0 && rx_valid > 0; len--, rx_valid--) {
 			u32 flags = msgs[dev->msg_read_idx].flags;
 
-			*buf = dw_readl(dev, DW_IC_DATA_CMD);
+			regmap_read(dev->map, DW_IC_DATA_CMD, &tmp);
 			/* Ensure length byte is a valid value */
 			if (flags & I2C_M_RECV_LEN &&
-				*buf <= I2C_SMBUS_BLOCK_MAX && *buf > 0) {
-				len = i2c_dw_recv_len(dev, *buf);
+			    tmp <= I2C_SMBUS_BLOCK_MAX && tmp > 0) {
+				len = i2c_dw_recv_len(dev, tmp);
 			}
-			buf++;
+			*buf++ = tmp;
 			dev->rx_outstanding--;
 		}
 
@@ -517,7 +553,7 @@ static const struct i2c_adapter_quirks i2c_dw_quirks = {
 
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 {
-	u32 stat;
+	u32 stat, dummy;
 
 	/*
 	 * The IC_INTR_STAT register just indicates "enabled" interrupts.
@@ -525,47 +561,47 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 	 * in the IC_RAW_INTR_STAT register.
 	 *
 	 * That is,
-	 *   stat = dw_readl(IC_INTR_STAT);
+	 *   stat = readl(IC_INTR_STAT);
 	 * equals to,
-	 *   stat = dw_readl(IC_RAW_INTR_STAT) & dw_readl(IC_INTR_MASK);
+	 *   stat = readl(IC_RAW_INTR_STAT) & readl(IC_INTR_MASK);
 	 *
 	 * The raw version might be useful for debugging purposes.
 	 */
-	stat = dw_readl(dev, DW_IC_INTR_STAT);
+	regmap_read(dev->map, DW_IC_INTR_STAT, &stat);
 
 	/*
 	 * Do not use the IC_CLR_INTR register to clear interrupts, or
 	 * you'll miss some interrupts, triggered during the period from
-	 * dw_readl(IC_INTR_STAT) to dw_readl(IC_CLR_INTR).
+	 * readl(IC_INTR_STAT) to readl(IC_CLR_INTR).
 	 *
 	 * Instead, use the separately-prepared IC_CLR_* registers.
 	 */
 	if (stat & DW_IC_INTR_RX_UNDER)
-		dw_readl(dev, DW_IC_CLR_RX_UNDER);
+		regmap_read(dev->map, DW_IC_CLR_RX_UNDER, &dummy);
 	if (stat & DW_IC_INTR_RX_OVER)
-		dw_readl(dev, DW_IC_CLR_RX_OVER);
+		regmap_read(dev->map, DW_IC_CLR_RX_OVER, &dummy);
 	if (stat & DW_IC_INTR_TX_OVER)
-		dw_readl(dev, DW_IC_CLR_TX_OVER);
+		regmap_read(dev->map, DW_IC_CLR_TX_OVER, &dummy);
 	if (stat & DW_IC_INTR_RD_REQ)
-		dw_readl(dev, DW_IC_CLR_RD_REQ);
+		regmap_read(dev->map, DW_IC_CLR_RD_REQ, &dummy);
 	if (stat & DW_IC_INTR_TX_ABRT) {
 		/*
 		 * The IC_TX_ABRT_SOURCE register is cleared whenever
 		 * the IC_CLR_TX_ABRT is read.  Preserve it beforehand.
 		 */
-		dev->abort_source = dw_readl(dev, DW_IC_TX_ABRT_SOURCE);
-		dw_readl(dev, DW_IC_CLR_TX_ABRT);
+		regmap_read(dev->map, DW_IC_TX_ABRT_SOURCE, &dev->abort_source);
+		regmap_read(dev->map, DW_IC_CLR_TX_ABRT, &dummy);
 	}
 	if (stat & DW_IC_INTR_RX_DONE)
-		dw_readl(dev, DW_IC_CLR_RX_DONE);
+		regmap_read(dev->map, DW_IC_CLR_RX_DONE, &dummy);
 	if (stat & DW_IC_INTR_ACTIVITY)
-		dw_readl(dev, DW_IC_CLR_ACTIVITY);
+		regmap_read(dev->map, DW_IC_CLR_ACTIVITY, &dummy);
 	if (stat & DW_IC_INTR_STOP_DET)
-		dw_readl(dev, DW_IC_CLR_STOP_DET);
+		regmap_read(dev->map, DW_IC_CLR_STOP_DET, &dummy);
 	if (stat & DW_IC_INTR_START_DET)
-		dw_readl(dev, DW_IC_CLR_START_DET);
+		regmap_read(dev->map, DW_IC_CLR_START_DET, &dummy);
 	if (stat & DW_IC_INTR_GEN_CALL)
-		dw_readl(dev, DW_IC_CLR_GEN_CALL);
+		regmap_read(dev->map, DW_IC_CLR_GEN_CALL, &dummy);
 
 	return stat;
 }
@@ -587,7 +623,7 @@ static int i2c_dw_irq_handler_master(struct dw_i2c_dev *dev)
 		 * Anytime TX_ABRT is set, the contents of the tx/rx
 		 * buffers are flushed. Make sure to skip them.
 		 */
-		dw_writel(dev, 0, DW_IC_INTR_MASK);
+		regmap_write(dev->map, DW_IC_INTR_MASK, 0);
 		goto tx_aborted;
 	}
 
@@ -608,9 +644,9 @@ tx_aborted:
 		complete(&dev->cmd_complete);
 	else if (unlikely(dev->flags & ACCESS_INTR_MASK)) {
 		/* Workaround to trigger pending interrupt */
-		stat = dw_readl(dev, DW_IC_INTR_MASK);
+		regmap_read(dev->map, DW_IC_INTR_MASK, &stat);
 		i2c_dw_disable_int(dev);
-		dw_writel(dev, stat, DW_IC_INTR_MASK);
+		regmap_write(dev->map, DW_IC_INTR_MASK, stat);
 	}
 
 	return 0;
@@ -621,8 +657,8 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	struct dw_i2c_dev *dev = dev_id;
 	u32 stat, enabled;
 
-	enabled = dw_readl(dev, DW_IC_ENABLE);
-	stat = dw_readl(dev, DW_IC_RAW_INTR_STAT);
+	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
+	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
 	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
 	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
 		return IRQ_NONE;
@@ -631,6 +667,30 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 
 	return IRQ_HANDLED;
 }
+
+void i2c_dw_configure_master(struct dw_i2c_dev *dev)
+{
+	struct i2c_timings *t = &dev->timings;
+
+	dev->functionality = I2C_FUNC_10BIT_ADDR | DW_IC_DEFAULT_FUNCTIONALITY;
+
+	dev->master_cfg = DW_IC_CON_MASTER | DW_IC_CON_SLAVE_DISABLE |
+			  DW_IC_CON_RESTART_EN;
+
+	dev->mode = DW_IC_MASTER;
+
+	switch (t->bus_freq_hz) {
+	case I2C_MAX_STANDARD_MODE_FREQ:
+		dev->master_cfg |= DW_IC_CON_SPEED_STD;
+		break;
+	case I2C_MAX_HIGH_SPEED_MODE_FREQ:
+		dev->master_cfg |= DW_IC_CON_SPEED_HIGH;
+		break;
+	default:
+		dev->master_cfg |= DW_IC_CON_SPEED_FAST;
+	}
+}
+EXPORT_SYMBOL_GPL(i2c_dw_configure_master);
 
 static void i2c_dw_prepare_recovery(struct i2c_adapter *adap)
 {
@@ -678,7 +738,7 @@ static int i2c_dw_init_recovery_info(struct dw_i2c_dev *dev)
 	return 0;
 }
 
-int i2c_dw_probe(struct dw_i2c_dev *dev)
+int i2c_dw_probe_master(struct dw_i2c_dev *dev)
 {
 	struct i2c_adapter *adap = &dev->adapter;
 	unsigned long irq_flags;
@@ -690,7 +750,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	dev->disable = i2c_dw_disable;
 	dev->disable_int = i2c_dw_disable_int;
 
-	ret = i2c_dw_set_reg_access(dev);
+	ret = i2c_dw_init_regmap(dev);
 	if (ret)
 		return ret;
 
@@ -698,7 +758,9 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 	if (ret)
 		return ret;
 
-	i2c_dw_set_fifo_size(dev);
+	ret = i2c_dw_set_fifo_size(dev);
+	if (ret)
+		return ret;
 
 	ret = dev->init(dev);
 	if (ret)
@@ -745,7 +807,7 @@ int i2c_dw_probe(struct dw_i2c_dev *dev)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(i2c_dw_probe);
+EXPORT_SYMBOL_GPL(i2c_dw_probe_master);
 
 MODULE_DESCRIPTION("Synopsys DesignWare I2C bus master adapter");
 MODULE_LICENSE("GPL");

@@ -241,7 +241,7 @@ struct lance_private {
 /* Now the prototypes we export */
 int lance_open(struct net_device *dev);
 int lance_close(struct net_device *dev);
-int lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
+netdev_tx_t lance_start_xmit(struct sk_buff *skb, struct net_device *dev);
 void lance_set_multicast(struct net_device *dev);
 void lance_tx_timeout(struct net_device *dev, unsigned int txqueue);
 #ifdef CONFIG_NET_POLL_CONTROLLER

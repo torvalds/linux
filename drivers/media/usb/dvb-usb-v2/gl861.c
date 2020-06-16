@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant linux driver for GL861 USB2.0 devices.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 #include <linux/string.h>
 
@@ -550,7 +550,7 @@ static struct dvb_usb_device_properties friio_props = {
 static const struct usb_device_id gl861_id_table[] = {
 	{ DVB_USB_DEVICE(USB_VID_MSI, USB_PID_MSI_MEGASKY580_55801,
 		&gl861_props, "MSI Mega Sky 55801 DVB-T USB2.0", NULL) },
-	{ DVB_USB_DEVICE(USB_VID_ALINK, USB_VID_ALINK_DTU,
+	{ DVB_USB_DEVICE(USB_VID_ALINK, USB_PID_ALINK_DTU,
 		&gl861_props, "A-LINK DTU DVB-T USB2.0", NULL) },
 	{ DVB_USB_DEVICE(USB_VID_774, USB_PID_FRIIO_WHITE,
 		&friio_props, "774 Friio White ISDB-T USB2.0", NULL) },

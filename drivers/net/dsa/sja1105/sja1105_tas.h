@@ -6,6 +6,10 @@
 
 #include <net/pkt_sched.h>
 
+#define SJA1105_TAS_MAX_DELTA		BIT(18)
+
+struct sja1105_private;
+
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_TAS)
 
 enum sja1105_tas_state {
@@ -20,8 +24,23 @@ enum sja1105_ptp_op {
 	SJA1105_PTP_ADJUSTFREQ,
 };
 
+struct sja1105_gate_entry {
+	struct list_head list;
+	struct sja1105_rule *rule;
+	s64 interval;
+	u8 gate_state;
+};
+
+struct sja1105_gating_config {
+	u64 cycle_time;
+	s64 base_time;
+	int num_entries;
+	struct list_head entries;
+};
+
 struct sja1105_tas_data {
 	struct tc_taprio_qopt_offload *offload[SJA1105_NUM_PORTS];
+	struct sja1105_gating_config gating_cfg;
 	enum sja1105_tas_state state;
 	enum sja1105_ptp_op last_op;
 	struct work_struct tas_work;
@@ -41,6 +60,11 @@ void sja1105_tas_teardown(struct dsa_switch *ds);
 void sja1105_tas_clockstep(struct dsa_switch *ds);
 
 void sja1105_tas_adjfreq(struct dsa_switch *ds);
+
+bool sja1105_gating_check_conflicts(struct sja1105_private *priv, int port,
+				    struct netlink_ext_ack *extack);
+
+int sja1105_init_scheduling(struct sja1105_private *priv);
 
 #else
 
@@ -62,6 +86,18 @@ static inline void sja1105_tas_teardown(struct dsa_switch *ds) { }
 static inline void sja1105_tas_clockstep(struct dsa_switch *ds) { }
 
 static inline void sja1105_tas_adjfreq(struct dsa_switch *ds) { }
+
+static inline bool
+sja1105_gating_check_conflicts(struct dsa_switch *ds, int port,
+			       struct netlink_ext_ack *extack)
+{
+	return true;
+}
+
+static inline int sja1105_init_scheduling(struct sja1105_private *priv)
+{
+	return 0;
+}
 
 #endif /* IS_ENABLED(CONFIG_NET_DSA_SJA1105_TAS) */
 

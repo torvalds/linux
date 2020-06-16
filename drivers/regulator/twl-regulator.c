@@ -360,12 +360,12 @@ static const u16 VINTANA2_VSEL_table[] = {
 };
 
 /* 600mV to 1450mV in 12.5 mV steps */
-static const struct regulator_linear_range VDD1_ranges[] = {
+static const struct linear_range VDD1_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 68, 12500)
 };
 
 /* 600mV to 1450mV in 12.5 mV steps, everything above = 1500mV */
-static const struct regulator_linear_range VDD2_ranges[] = {
+static const struct linear_range VDD2_ranges[] = {
 	REGULATOR_LINEAR_RANGE(600000, 0, 68, 12500),
 	REGULATOR_LINEAR_RANGE(1500000, 69, 69, 12500)
 };

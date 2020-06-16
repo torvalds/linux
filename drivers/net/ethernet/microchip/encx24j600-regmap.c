@@ -17,11 +17,6 @@
 
 #include "encx24j600_hw.h"
 
-static inline bool is_bits_set(int value, int mask)
-{
-	return (value & mask) == mask;
-}
-
 static int encx24j600_switch_bank(struct encx24j600_context *ctx,
 				  int bank)
 {

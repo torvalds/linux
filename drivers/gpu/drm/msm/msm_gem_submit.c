@@ -8,7 +8,9 @@
 #include <linux/sync_file.h>
 #include <linux/uaccess.h>
 
+#include <drm/drm_drv.h>
 #include <drm/drm_file.h>
+#include <drm/drm_syncobj.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
@@ -391,6 +393,186 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 	}
 }
 
+
+struct msm_submit_post_dep {
+	struct drm_syncobj *syncobj;
+	uint64_t point;
+	struct dma_fence_chain *chain;
+};
+
+static struct drm_syncobj **msm_wait_deps(struct drm_device *dev,
+                                          struct drm_file *file,
+                                          uint64_t in_syncobjs_addr,
+                                          uint32_t nr_in_syncobjs,
+                                          size_t syncobj_stride,
+                                          struct msm_ringbuffer *ring)
+{
+	struct drm_syncobj **syncobjs = NULL;
+	struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
+	int ret = 0;
+	uint32_t i, j;
+
+	syncobjs = kcalloc(nr_in_syncobjs, sizeof(*syncobjs),
+	                   GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!syncobjs)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < nr_in_syncobjs; ++i) {
+		uint64_t address = in_syncobjs_addr + i * syncobj_stride;
+		struct dma_fence *fence;
+
+		if (copy_from_user(&syncobj_desc,
+			           u64_to_user_ptr(address),
+			           min(syncobj_stride, sizeof(syncobj_desc)))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (syncobj_desc.point &&
+		    !drm_core_check_feature(dev, DRIVER_SYNCOBJ_TIMELINE)) {
+			ret = -EOPNOTSUPP;
+			break;
+		}
+
+		if (syncobj_desc.flags & ~MSM_SUBMIT_SYNCOBJ_FLAGS) {
+			ret = -EINVAL;
+			break;
+		}
+
+		ret = drm_syncobj_find_fence(file, syncobj_desc.handle,
+		                             syncobj_desc.point, 0, &fence);
+		if (ret)
+			break;
+
+		if (!dma_fence_match_context(fence, ring->fctx->context))
+			ret = dma_fence_wait(fence, true);
+
+		dma_fence_put(fence);
+		if (ret)
+			break;
+
+		if (syncobj_desc.flags & MSM_SUBMIT_SYNCOBJ_RESET) {
+			syncobjs[i] =
+				drm_syncobj_find(file, syncobj_desc.handle);
+			if (!syncobjs[i]) {
+				ret = -EINVAL;
+				break;
+			}
+		}
+	}
+
+	if (ret) {
+		for (j = 0; j <= i; ++j) {
+			if (syncobjs[j])
+				drm_syncobj_put(syncobjs[j]);
+		}
+		kfree(syncobjs);
+		return ERR_PTR(ret);
+	}
+	return syncobjs;
+}
+
+static void msm_reset_syncobjs(struct drm_syncobj **syncobjs,
+                               uint32_t nr_syncobjs)
+{
+	uint32_t i;
+
+	for (i = 0; syncobjs && i < nr_syncobjs; ++i) {
+		if (syncobjs[i])
+			drm_syncobj_replace_fence(syncobjs[i], NULL);
+	}
+}
+
+static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
+                                                       struct drm_file *file,
+                                                       uint64_t syncobjs_addr,
+                                                       uint32_t nr_syncobjs,
+                                                       size_t syncobj_stride)
+{
+	struct msm_submit_post_dep *post_deps;
+	struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
+	int ret = 0;
+	uint32_t i, j;
+
+	post_deps = kmalloc_array(nr_syncobjs, sizeof(*post_deps),
+	                          GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
+	if (!post_deps)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < nr_syncobjs; ++i) {
+		uint64_t address = syncobjs_addr + i * syncobj_stride;
+
+		if (copy_from_user(&syncobj_desc,
+			           u64_to_user_ptr(address),
+			           min(syncobj_stride, sizeof(syncobj_desc)))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		post_deps[i].point = syncobj_desc.point;
+		post_deps[i].chain = NULL;
+
+		if (syncobj_desc.flags) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (syncobj_desc.point) {
+			if (!drm_core_check_feature(dev,
+			                            DRIVER_SYNCOBJ_TIMELINE)) {
+				ret = -EOPNOTSUPP;
+				break;
+			}
+
+			post_deps[i].chain =
+				kmalloc(sizeof(*post_deps[i].chain),
+				        GFP_KERNEL);
+			if (!post_deps[i].chain) {
+				ret = -ENOMEM;
+				break;
+			}
+		}
+
+		post_deps[i].syncobj =
+			drm_syncobj_find(file, syncobj_desc.handle);
+		if (!post_deps[i].syncobj) {
+			ret = -EINVAL;
+			break;
+		}
+	}
+
+	if (ret) {
+		for (j = 0; j <= i; ++j) {
+			kfree(post_deps[j].chain);
+			if (post_deps[j].syncobj)
+				drm_syncobj_put(post_deps[j].syncobj);
+		}
+
+		kfree(post_deps);
+		return ERR_PTR(ret);
+	}
+
+	return post_deps;
+}
+
+static void msm_process_post_deps(struct msm_submit_post_dep *post_deps,
+                                  uint32_t count, struct dma_fence *fence)
+{
+	uint32_t i;
+
+	for (i = 0; post_deps && i < count; ++i) {
+		if (post_deps[i].chain) {
+			drm_syncobj_add_point(post_deps[i].syncobj,
+			                      post_deps[i].chain,
+			                      fence, post_deps[i].point);
+			post_deps[i].chain = NULL;
+		} else {
+			drm_syncobj_replace_fence(post_deps[i].syncobj,
+			                          fence);
+		}
+	}
+}
+
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -403,6 +585,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct sync_file *sync_file = NULL;
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
+	struct msm_submit_post_dep *post_deps = NULL;
+	struct drm_syncobj **syncobjs_to_reset = NULL;
 	int out_fence_fd = -1;
 	struct pid *pid = get_pid(task_pid(current));
 	bool has_ww_ticket = false;
@@ -410,6 +594,9 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	int ret, submitid;
 	if (!gpu)
 		return -ENXIO;
+
+	if (args->pad)
+		return -EINVAL;
 
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
@@ -458,9 +645,29 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			return ret;
 	}
 
+	if (args->flags & MSM_SUBMIT_SYNCOBJ_IN) {
+		syncobjs_to_reset = msm_wait_deps(dev, file,
+		                                  args->in_syncobjs,
+		                                  args->nr_in_syncobjs,
+		                                  args->syncobj_stride, ring);
+		if (IS_ERR(syncobjs_to_reset))
+			return PTR_ERR(syncobjs_to_reset);
+	}
+
+	if (args->flags & MSM_SUBMIT_SYNCOBJ_OUT) {
+		post_deps = msm_parse_post_deps(dev, file,
+		                                args->out_syncobjs,
+		                                args->nr_out_syncobjs,
+		                                args->syncobj_stride);
+		if (IS_ERR(post_deps)) {
+			ret = PTR_ERR(post_deps);
+			goto out_post_unlock;
+		}
+	}
+
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
-		return ret;
+		goto out_post_unlock;
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
 		out_fence_fd = get_unused_fd_flags(O_CLOEXEC);
@@ -587,6 +794,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		args->fence_fd = out_fence_fd;
 	}
 
+	msm_reset_syncobjs(syncobjs_to_reset, args->nr_in_syncobjs);
+	msm_process_post_deps(post_deps, args->nr_out_syncobjs,
+	                      submit->fence);
+
+
 out:
 	submit_cleanup(submit);
 	if (has_ww_ticket)
@@ -597,5 +809,23 @@ out_unlock:
 	if (ret && (out_fence_fd >= 0))
 		put_unused_fd(out_fence_fd);
 	mutex_unlock(&dev->struct_mutex);
+
+out_post_unlock:
+	if (!IS_ERR_OR_NULL(post_deps)) {
+		for (i = 0; i < args->nr_out_syncobjs; ++i) {
+			kfree(post_deps[i].chain);
+			drm_syncobj_put(post_deps[i].syncobj);
+		}
+		kfree(post_deps);
+	}
+
+	if (!IS_ERR_OR_NULL(syncobjs_to_reset)) {
+		for (i = 0; i < args->nr_in_syncobjs; ++i) {
+			if (syncobjs_to_reset[i])
+				drm_syncobj_put(syncobjs_to_reset[i]);
+		}
+		kfree(syncobjs_to_reset);
+	}
+
 	return ret;
 }

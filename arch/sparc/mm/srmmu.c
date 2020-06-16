@@ -136,36 +136,8 @@ static void msi_set_sync(void)
 
 void pmd_set(pmd_t *pmdp, pte_t *ptep)
 {
-	unsigned long ptp;	/* Physical address, shifted right by 4 */
-	int i;
-
-	ptp = __nocache_pa(ptep) >> 4;
-	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
-		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
-	}
-}
-
-void pmd_populate(struct mm_struct *mm, pmd_t *pmdp, struct page *ptep)
-{
-	unsigned long ptp;	/* Physical address, shifted right by 4 */
-	int i;
-
-	ptp = page_to_pfn(ptep) << (PAGE_SHIFT-4);	/* watch for overflow */
-	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++) {
-		set_pte((pte_t *)&pmdp->pmdv[i], __pte(SRMMU_ET_PTD | ptp));
-		ptp += (SRMMU_REAL_PTRS_PER_PTE * sizeof(pte_t) >> 4);
-	}
-}
-
-/* Find an entry in the third-level page table.. */
-pte_t *pte_offset_kernel(pmd_t *dir, unsigned long address)
-{
-	void *pte;
-
-	pte = __nocache_va((dir->pmdv[0] & SRMMU_PTD_PMASK) << 4);
-	return (pte_t *) pte +
-	    ((address >> PAGE_SHIFT) & (PTRS_PER_PTE - 1));
+	unsigned long ptp = __nocache_pa(ptep) >> 4;
+	set_pte((pte_t *)&pmd_val(*pmdp), __pte(SRMMU_ET_PTD | ptp));
 }
 
 /*
@@ -175,18 +147,18 @@ pte_t *pte_offset_kernel(pmd_t *dir, unsigned long address)
  */
 static void *__srmmu_get_nocache(int size, int align)
 {
-	int offset;
+	int offset, minsz = 1 << SRMMU_NOCACHE_BITMAP_SHIFT;
 	unsigned long addr;
 
-	if (size < SRMMU_NOCACHE_BITMAP_SHIFT) {
+	if (size < minsz) {
 		printk(KERN_ERR "Size 0x%x too small for nocache request\n",
 		       size);
-		size = SRMMU_NOCACHE_BITMAP_SHIFT;
+		size = minsz;
 	}
-	if (size & (SRMMU_NOCACHE_BITMAP_SHIFT - 1)) {
-		printk(KERN_ERR "Size 0x%x unaligned int nocache request\n",
+	if (size & (minsz - 1)) {
+		printk(KERN_ERR "Size 0x%x unaligned in nocache request\n",
 		       size);
-		size += SRMMU_NOCACHE_BITMAP_SHIFT - 1;
+		size += minsz - 1;
 	}
 	BUG_ON(align > SRMMU_NOCACHE_ALIGN_MAX);
 
@@ -376,31 +348,33 @@ pgd_t *get_pgd_fast(void)
  */
 pgtable_t pte_alloc_one(struct mm_struct *mm)
 {
-	unsigned long pte;
+	pte_t *ptep;
 	struct page *page;
 
-	if ((pte = (unsigned long)pte_alloc_one_kernel(mm)) == 0)
+	if ((ptep = pte_alloc_one_kernel(mm)) == 0)
 		return NULL;
-	page = pfn_to_page(__nocache_pa(pte) >> PAGE_SHIFT);
-	if (!pgtable_pte_page_ctor(page)) {
-		__free_page(page);
-		return NULL;
+	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
+	spin_lock(&mm->page_table_lock);
+	if (page_ref_inc_return(page) == 2 && !pgtable_pte_page_ctor(page)) {
+		page_ref_dec(page);
+		ptep = NULL;
 	}
-	return page;
+	spin_unlock(&mm->page_table_lock);
+
+	return ptep;
 }
 
-void pte_free(struct mm_struct *mm, pgtable_t pte)
+void pte_free(struct mm_struct *mm, pgtable_t ptep)
 {
-	unsigned long p;
+	struct page *page;
 
-	pgtable_pte_page_dtor(pte);
-	p = (unsigned long)page_address(pte);	/* Cached address (for test) */
-	if (p == 0)
-		BUG();
-	p = page_to_pfn(pte) << PAGE_SHIFT;	/* Physical address */
+	page = pfn_to_page(__nocache_pa((unsigned long)ptep) >> PAGE_SHIFT);
+	spin_lock(&mm->page_table_lock);
+	if (page_ref_dec_return(page) == 1)
+		pgtable_pte_page_dtor(page);
+	spin_unlock(&mm->page_table_lock);
 
-	/* free non cached virtual address*/
-	srmmu_free_nocache(__nocache_va(p), PTE_SIZE);
+	srmmu_free_nocache(ptep, SRMMU_PTE_TABLE_SIZE);
 }
 
 /* context handling - a dynamically sized pool is used */
@@ -822,13 +796,13 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		what = 0;
 		addr = start - PAGE_SIZE;
 
-		if (!(start & ~(SRMMU_REAL_PMD_MASK))) {
-			if (srmmu_probe(addr + SRMMU_REAL_PMD_SIZE) == probed)
+		if (!(start & ~(PMD_MASK))) {
+			if (srmmu_probe(addr + PMD_SIZE) == probed)
 				what = 1;
 		}
 
-		if (!(start & ~(SRMMU_PGDIR_MASK))) {
-			if (srmmu_probe(addr + SRMMU_PGDIR_SIZE) == probed)
+		if (!(start & ~(PGDIR_MASK))) {
+			if (srmmu_probe(addr + PGDIR_SIZE) == probed)
 				what = 2;
 		}
 
@@ -837,7 +811,7 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 		pudp = pud_offset(p4dp, start);
 		if (what == 2) {
 			*(pgd_t *)__nocache_fix(pgdp) = __pgd(probed);
-			start += SRMMU_PGDIR_SIZE;
+			start += PGDIR_SIZE;
 			continue;
 		}
 		if (pud_none(*(pud_t *)__nocache_fix(pudp))) {
@@ -849,25 +823,17 @@ static void __init srmmu_inherit_prom_mappings(unsigned long start,
 			pud_set(__nocache_fix(pudp), pmdp);
 		}
 		pmdp = pmd_offset(__nocache_fix(pgdp), start);
+		if (what == 1) {
+			*(pmd_t *)__nocache_fix(pmdp) = __pmd(probed);
+			start += PMD_SIZE;
+			continue;
+		}
 		if (srmmu_pmd_none(*(pmd_t *)__nocache_fix(pmdp))) {
 			ptep = __srmmu_get_nocache(PTE_SIZE, PTE_SIZE);
 			if (ptep == NULL)
 				early_pgtable_allocfail("pte");
 			memset(__nocache_fix(ptep), 0, PTE_SIZE);
 			pmd_set(__nocache_fix(pmdp), ptep);
-		}
-		if (what == 1) {
-			/* We bend the rule where all 16 PTPs in a pmd_t point
-			 * inside the same PTE page, and we leak a perfectly
-			 * good hardware PTE piece. Alternatives seem worse.
-			 */
-			unsigned int x;	/* Index of HW PMD in soft cluster */
-			unsigned long *val;
-			x = (start >> PMD_SHIFT) & 15;
-			val = &pmdp->pmdv[x];
-			*(unsigned long *)__nocache_fix(val) = probed;
-			start += SRMMU_REAL_PMD_SIZE;
-			continue;
 		}
 		ptep = pte_offset_kernel(__nocache_fix(pmdp), start);
 		*(pte_t *)__nocache_fix(ptep) = __pte(probed);
@@ -890,9 +856,9 @@ static void __init do_large_mapping(unsigned long vaddr, unsigned long phys_base
 /* Map sp_bank entry SP_ENTRY, starting at virtual address VBASE. */
 static unsigned long __init map_spbank(unsigned long vbase, int sp_entry)
 {
-	unsigned long pstart = (sp_banks[sp_entry].base_addr & SRMMU_PGDIR_MASK);
-	unsigned long vstart = (vbase & SRMMU_PGDIR_MASK);
-	unsigned long vend = SRMMU_PGDIR_ALIGN(vbase + sp_banks[sp_entry].num_bytes);
+	unsigned long pstart = (sp_banks[sp_entry].base_addr & PGDIR_MASK);
+	unsigned long vstart = (vbase & PGDIR_MASK);
+	unsigned long vend = PGDIR_ALIGN(vbase + sp_banks[sp_entry].num_bytes);
 	/* Map "low" memory only */
 	const unsigned long min_vaddr = PAGE_OFFSET;
 	const unsigned long max_vaddr = PAGE_OFFSET + SRMMU_MAXMEM;
@@ -905,7 +871,7 @@ static unsigned long __init map_spbank(unsigned long vbase, int sp_entry)
 
 	while (vstart < vend) {
 		do_large_mapping(vstart, pstart);
-		vstart += SRMMU_PGDIR_SIZE; pstart += SRMMU_PGDIR_SIZE;
+		vstart += PGDIR_SIZE; pstart += PGDIR_SIZE;
 	}
 	return vstart;
 }
@@ -1008,24 +974,13 @@ void __init srmmu_paging_init(void)
 	kmap_init();
 
 	{
-		unsigned long zones_size[MAX_NR_ZONES];
-		unsigned long zholes_size[MAX_NR_ZONES];
-		unsigned long npages;
-		int znum;
+		unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 
-		for (znum = 0; znum < MAX_NR_ZONES; znum++)
-			zones_size[znum] = zholes_size[znum] = 0;
+		max_zone_pfn[ZONE_DMA] = max_low_pfn;
+		max_zone_pfn[ZONE_NORMAL] = max_low_pfn;
+		max_zone_pfn[ZONE_HIGHMEM] = highend_pfn;
 
-		npages = max_low_pfn - pfn_base;
-
-		zones_size[ZONE_DMA] = npages;
-		zholes_size[ZONE_DMA] = npages - pages_avail;
-
-		npages = highend_pfn - max_low_pfn;
-		zones_size[ZONE_HIGHMEM] = npages;
-		zholes_size[ZONE_HIGHMEM] = npages - calc_highpages();
-
-		free_area_init_node(0, zones_size, pfn_base, zholes_size);
+		free_area_init(max_zone_pfn);
 	}
 }
 

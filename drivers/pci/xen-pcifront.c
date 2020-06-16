@@ -77,9 +77,6 @@ static inline void pcifront_init_sd(struct pcifront_sd *sd,
 static DEFINE_SPINLOCK(pcifront_dev_lock);
 static struct pcifront_device *pcifront_dev;
 
-static int verbose_request;
-module_param(verbose_request, int, 0644);
-
 static int errno_to_pcibios_err(int errno)
 {
 	switch (errno) {
@@ -190,18 +187,16 @@ static int pcifront_bus_read(struct pci_bus *bus, unsigned int devfn,
 	struct pcifront_sd *sd = bus->sysdata;
 	struct pcifront_device *pdev = pcifront_get_pdev(sd);
 
-	if (verbose_request)
-		dev_info(&pdev->xdev->dev,
-			 "read dev=%04x:%02x:%02x.%d - offset %x size %d\n",
-			 pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
-			 PCI_FUNC(devfn), where, size);
+	dev_dbg(&pdev->xdev->dev,
+		"read dev=%04x:%02x:%02x.%d - offset %x size %d\n",
+		pci_domain_nr(bus), bus->number, PCI_SLOT(devfn),
+		PCI_FUNC(devfn), where, size);
 
 	err = do_pci_op(pdev, &op);
 
 	if (likely(!err)) {
-		if (verbose_request)
-			dev_info(&pdev->xdev->dev, "read got back value %x\n",
-				 op.value);
+		dev_dbg(&pdev->xdev->dev, "read got back value %x\n",
+			op.value);
 
 		*val = op.value;
 	} else if (err == -ENODEV) {
@@ -229,12 +224,10 @@ static int pcifront_bus_write(struct pci_bus *bus, unsigned int devfn,
 	struct pcifront_sd *sd = bus->sysdata;
 	struct pcifront_device *pdev = pcifront_get_pdev(sd);
 
-	if (verbose_request)
-		dev_info(&pdev->xdev->dev,
-			 "write dev=%04x:%02x:%02x.%d - "
-			 "offset %x size %d val %x\n",
-			 pci_domain_nr(bus), bus->number,
-			 PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
+	dev_dbg(&pdev->xdev->dev,
+		"write dev=%04x:%02x:%02x.%d - offset %x size %d val %x\n",
+		pci_domain_nr(bus), bus->number,
+		PCI_SLOT(devfn), PCI_FUNC(devfn), where, size, val);
 
 	return errno_to_pcibios_err(do_pci_op(pdev, &op));
 }

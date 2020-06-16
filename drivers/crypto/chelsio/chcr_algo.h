@@ -389,10 +389,6 @@ static inline void copy_hash_init_values(char *key, int digestsize)
 	}
 }
 
-static const u8 sgl_lengths[20] = {
-	0, 1, 2, 3, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 11, 12, 13, 13, 14, 15
-};
-
 /* Number of len fields(8) * size of one addr field */
 #define PHYSDSGL_MAX_LEN_SIZE 16
 

@@ -108,7 +108,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	}
 
 	/* NAU88L24 supports 4 butons headset detection
-	 * KEY_MEDIA
+	 * KEY_PLAYPAUSE
 	 * KEY_VOICECOMMAND
 	 * KEY_VOLUMEUP
 	 * KEY_VOLUMEDOWN
@@ -122,7 +122,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 			"Headset Jack creation failed %d\n", ret);
 		return ret;
 	}
-	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_MEDIA);
+	snd_jack_set_key(jack->jack, SND_JACK_BTN_0, KEY_PLAYPAUSE);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_1, KEY_VOICECOMMAND);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_2, KEY_VOLUMEUP);
 	snd_jack_set_key(jack->jack, SND_JACK_BTN_3, KEY_VOLUMEDOWN);
@@ -282,6 +282,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-nau8824",
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+		.pm = &snd_soc_pm_ops,
+#endif
 	},
 	.probe = snd_cht_mc_probe,
 };

@@ -35,6 +35,9 @@
 #define RREG32_SOC15(ip, inst, reg) \
 	RREG32(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
 
+#define RREG32_SOC15_NO_KIQ(ip, inst, reg) \
+	RREG32_NO_KIQ(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
+
 #define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
 	RREG32((adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg) + offset)
 

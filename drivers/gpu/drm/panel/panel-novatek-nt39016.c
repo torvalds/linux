@@ -49,7 +49,8 @@ enum nt39016_regs {
 #define NT39016_SYSTEM_STANDBY	BIT(1)
 
 struct nt39016_panel_info {
-	struct drm_display_mode display_mode;
+	const struct drm_display_mode *display_modes;
+	unsigned int num_modes;
 	u16 width_mm, height_mm;
 	u32 bus_format, bus_flags;
 };
@@ -212,15 +213,22 @@ static int nt39016_get_modes(struct drm_panel *drm_panel,
 	struct nt39016 *panel = to_nt39016(drm_panel);
 	const struct nt39016_panel_info *panel_info = panel->panel_info;
 	struct drm_display_mode *mode;
+	unsigned int i;
 
-	mode = drm_mode_duplicate(connector->dev, &panel_info->display_mode);
-	if (!mode)
-		return -ENOMEM;
+	for (i = 0; i < panel_info->num_modes; i++) {
+		mode = drm_mode_duplicate(connector->dev,
+					  &panel_info->display_modes[i]);
+		if (!mode)
+			return -ENOMEM;
 
-	drm_mode_set_name(mode);
+		drm_mode_set_name(mode);
 
-	mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-	drm_mode_probed_add(connector, mode);
+		mode->type = DRM_MODE_TYPE_DRIVER;
+		if (panel_info->num_modes == 1)
+			mode->type |= DRM_MODE_TYPE_PREFERRED;
+
+		drm_mode_probed_add(connector, mode);
+	}
 
 	connector->display_info.bpc = 8;
 	connector->display_info.width_mm = panel_info->width_mm;
@@ -230,7 +238,7 @@ static int nt39016_get_modes(struct drm_panel *drm_panel,
 					 &panel_info->bus_format, 1);
 	connector->display_info.bus_flags = panel_info->bus_flags;
 
-	return 1;
+	return panel_info->num_modes;
 }
 
 static const struct drm_panel_funcs nt39016_funcs = {
@@ -316,8 +324,8 @@ static int nt39016_remove(struct spi_device *spi)
 	return 0;
 }
 
-static const struct nt39016_panel_info kd035g6_info = {
-	.display_mode = {
+static const struct drm_display_mode kd035g6_display_modes[] = {
+	{	/* 60 Hz */
 		.clock = 6000,
 		.hdisplay = 320,
 		.hsync_start = 320 + 10,
@@ -330,6 +338,24 @@ static const struct nt39016_panel_info kd035g6_info = {
 		.vrefresh = 60,
 		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 	},
+	{	/* 50 Hz */
+		.clock = 5400,
+		.hdisplay = 320,
+		.hsync_start = 320 + 42,
+		.hsync_end = 320 + 42 + 50,
+		.htotal = 320 + 42 + 50 + 20,
+		.vdisplay = 240,
+		.vsync_start = 240 + 5,
+		.vsync_end = 240 + 5 + 1,
+		.vtotal = 240 + 5 + 1 + 4,
+		.vrefresh = 50,
+		.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+	},
+};
+
+static const struct nt39016_panel_info kd035g6_info = {
+	.display_modes = kd035g6_display_modes,
+	.num_modes = ARRAY_SIZE(kd035g6_display_modes),
 	.width_mm = 71,
 	.height_mm = 53,
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,

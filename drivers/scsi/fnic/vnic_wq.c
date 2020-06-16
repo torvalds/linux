@@ -25,7 +25,7 @@
 #include "vnic_wq.h"
 
 
-int vnic_wq_get_ctrl(struct vnic_dev *vdev, struct vnic_wq *wq,
+static int vnic_wq_get_ctrl(struct vnic_dev *vdev, struct vnic_wq *wq,
 		unsigned int index, enum vnic_res_type res_type)
 {
 	wq->ctrl = vnic_dev_get_res(vdev, res_type, index);
@@ -37,7 +37,7 @@ int vnic_wq_get_ctrl(struct vnic_dev *vdev, struct vnic_wq *wq,
 }
 
 
-int vnic_wq_alloc_ring(struct vnic_dev *vdev, struct vnic_wq *wq,
+static int vnic_wq_alloc_ring(struct vnic_dev *vdev, struct vnic_wq *wq,
 		unsigned int desc_count, unsigned int desc_size)
 {
 	return vnic_dev_alloc_desc_ring(vdev, &wq->ring, desc_count, desc_size);

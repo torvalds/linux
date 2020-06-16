@@ -31,6 +31,13 @@ struct intel_rps_ei {
 	u32 media_c0;
 };
 
+enum {
+	INTEL_RPS_ENABLED = 0,
+	INTEL_RPS_ACTIVE,
+	INTEL_RPS_INTERRUPTS,
+	INTEL_RPS_TIMER,
+};
+
 struct intel_rps {
 	struct mutex lock; /* protects enabling and the worker */
 
@@ -38,9 +45,12 @@ struct intel_rps {
 	 * work, interrupts_enabled and pm_iir are protected by
 	 * dev_priv->irq_lock
 	 */
+	struct timer_list timer;
 	struct work_struct work;
-	bool enabled;
-	bool active;
+	unsigned long flags;
+
+	ktime_t pm_timestamp;
+	u32 pm_interval;
 	u32 pm_iir;
 
 	/* PM interrupt bits that should never be masked */

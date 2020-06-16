@@ -420,7 +420,7 @@ tegra_actmon_cpufreq_contribution(struct tegra_devfreq *tegra,
 
 	static_cpu_emc_freq = actmon_cpu_to_emc_rate(tegra, cpu_freq);
 
-	if (dev_freq >= static_cpu_emc_freq)
+	if (dev_freq + actmon_dev->boost_freq >= static_cpu_emc_freq)
 		return 0;
 
 	return static_cpu_emc_freq;
@@ -807,10 +807,9 @@ static int tegra_devfreq_probe(struct platform_device *pdev)
 	}
 
 	err = platform_get_irq(pdev, 0);
-	if (err < 0) {
-		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", err);
+	if (err < 0)
 		return err;
-	}
+
 	tegra->irq = err;
 
 	irq_set_status_flags(tegra->irq, IRQ_NOAUTOEN);

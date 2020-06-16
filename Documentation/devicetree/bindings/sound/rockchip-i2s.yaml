@@ -24,6 +24,7 @@ properties:
             - rockchip,rk3188-i2s
             - rockchip,rk3228-i2s
             - rockchip,rk3288-i2s
+            - rockchip,rk3308-i2s
             - rockchip,rk3328-i2s
             - rockchip,rk3366-i2s
             - rockchip,rk3368-i2s
@@ -47,28 +48,27 @@ properties:
       - const: i2s_hclk
 
   dmas:
-    items:
-      - description: TX DMA Channel
-      - description: RX DMA Channel
+    minItems: 1
+    maxItems: 2
 
   dma-names:
-    items:
-      - const: tx
+    oneOf:
       - const: rx
+      - items:
+        - const: tx
+        - const: rx
 
   power-domains:
     maxItems: 1
 
   rockchip,capture-channels:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 2
     description:
       Max capture channels, if not set, 2 channels default.
 
   rockchip,playback-channels:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 8
     description:
       Max playback channels, if not set, 8 channels default.

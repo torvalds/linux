@@ -15,7 +15,7 @@ if USB_NET_DRIVERS
 config USB_CATC
 	tristate "USB CATC NetMate-based Ethernet device support"
 	select CRC32
-	---help---
+	help
 	  Say Y if you want to use one of the following 10Mbps USB Ethernet
 	  device based on the EL1210A chip. Supported devices are:
 	  Belkin F5U011
@@ -33,7 +33,7 @@ config USB_CATC
 
 config USB_KAWETH
 	tristate "USB KLSI KL5USB101-based ethernet device support"
-	---help---
+	help
 	  Say Y here if you want to use one of the following 10Mbps only
 	  USB Ethernet adapters based on the KLSI KL5KUSB101B chipset:
 	  3Com 3C19250
@@ -73,7 +73,7 @@ config USB_KAWETH
 config USB_PEGASUS
 	tristate "USB Pegasus/Pegasus-II based ethernet device support"
 	select MII
-	---help---
+	help
 	  Say Y here if you know you have Pegasus or Pegasus-II based adapter.
 	  If in doubt then look at <file:drivers/net/usb/pegasus.h> for the
 	  complete list of supported devices.
@@ -128,7 +128,7 @@ config USB_LAN78XX
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	select MII
-	---help---
+	help
 	  This driver supports several kinds of network links over USB,
 	  with "minidrivers" built around a common network driver core
 	  that supports deep queues for efficient transfers.  (This gives
@@ -321,7 +321,7 @@ config USB_NET_SR9800
 	tristate "CoreChip-sz SR9800 based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
 	select CRC32
-	---help---
+	help
 	  Say Y if you want to use one of the following 100Mbps USB Ethernet
 	  device based on the CoreChip-sz SR9800 chip.
 
@@ -570,7 +570,7 @@ config USB_CDC_PHONET
 config USB_IPHETH
 	tristate "Apple iPhone USB Ethernet driver"
 	default n
-	---help---
+	help
 	  Module used to share Internet connection (tethering) from your
 	  iPhone (Original, 3G and 3GS) to your system.
 	  Note that you need userspace libraries and programs that are needed

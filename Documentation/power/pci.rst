@@ -1004,41 +1004,39 @@ including the PCI bus type.  The flags should be set once at the driver probe
 time with the help of the dev_pm_set_driver_flags() function and they should not
 be updated directly afterwards.
 
-The DPM_FLAG_NEVER_SKIP flag prevents the PM core from using the direct-complete
-mechanism allowing device suspend/resume callbacks to be skipped if the device
-is in runtime suspend when the system suspend starts.  That also affects all of
-the ancestors of the device, so this flag should only be used if absolutely
-necessary.
+The DPM_FLAG_NO_DIRECT_COMPLETE flag prevents the PM core from using the
+direct-complete mechanism allowing device suspend/resume callbacks to be skipped
+if the device is in runtime suspend when the system suspend starts.  That also
+affects all of the ancestors of the device, so this flag should only be used if
+absolutely necessary.
 
-The DPM_FLAG_SMART_PREPARE flag instructs the PCI bus type to only return a
-positive value from pci_pm_prepare() if the ->prepare callback provided by the
+The DPM_FLAG_SMART_PREPARE flag causes the PCI bus type to return a positive
+value from pci_pm_prepare() only if the ->prepare callback provided by the
 driver of the device returns a positive value.  That allows the driver to opt
-out from using the direct-complete mechanism dynamically.
+out from using the direct-complete mechanism dynamically (whereas setting
+DPM_FLAG_NO_DIRECT_COMPLETE means permanent opt-out).
 
 The DPM_FLAG_SMART_SUSPEND flag tells the PCI bus type that from the driver's
 perspective the device can be safely left in runtime suspend during system
 suspend.  That causes pci_pm_suspend(), pci_pm_freeze() and pci_pm_poweroff()
-to skip resuming the device from runtime suspend unless there are PCI-specific
-reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq(),
-pci_pm_freeze_late/noirq() and pci_pm_poweroff_late/noirq() to return early
-if the device remains in runtime suspend in the beginning of the "late" phase
-of the system-wide transition under way.  Moreover, if the device is in
-runtime suspend in pci_pm_resume_noirq() or pci_pm_restore_noirq(), its runtime
-power management status will be changed to "active" (as it is going to be put
-into D0 going forward), but if it is in runtime suspend in pci_pm_thaw_noirq(),
-the function will set the power.direct_complete flag for it (to make the PM core
-skip the subsequent "thaw" callbacks for it) and return.
+to avoid resuming the device from runtime suspend unless there are PCI-specific
+reasons for doing that.  Also, it causes pci_pm_suspend_late/noirq() and
+pci_pm_poweroff_late/noirq() to return early if the device remains in runtime
+suspend during the "late" phase of the system-wide transition under way.
+Moreover, if the device is in runtime suspend in pci_pm_resume_noirq() or
+pci_pm_restore_noirq(), its runtime PM status will be changed to "active" (as it
+is going to be put into D0 going forward).
 
-Setting the DPM_FLAG_LEAVE_SUSPENDED flag means that the driver prefers the
-device to be left in suspend after system-wide transitions to the working state.
-This flag is checked by the PM core, but the PCI bus type informs the PM core
-which devices may be left in suspend from its perspective (that happens during
-the "noirq" phase of system-wide suspend and analogous transitions) and next it
-uses the dev_pm_may_skip_resume() helper to decide whether or not to return from
-pci_pm_resume_noirq() early, as the PM core will skip the remaining resume
-callbacks for the device during the transition under way and will set its
-runtime PM status to "suspended" if dev_pm_may_skip_resume() returns "true" for
-it.
+Setting the DPM_FLAG_MAY_SKIP_RESUME flag means that the driver allows its
+"noirq" and "early" resume callbacks to be skipped if the device can be left
+in suspend after a system-wide transition into the working state.  This flag is
+taken into consideration by the PM core along with the power.may_skip_resume
+status bit of the device which is set by pci_pm_suspend_noirq() in certain
+situations.  If the PM core determines that the driver's "noirq" and "early"
+resume callbacks should be skipped, the dev_pm_skip_resume() helper function
+will return "true" and that will cause pci_pm_resume_noirq() and
+pci_pm_resume_early() to return upfront without touching the device and
+executing the driver callbacks.
 
 3.2. Device Runtime Power Management
 ------------------------------------

@@ -10,6 +10,8 @@
 #define EFUSE_HW_CAP_SUPP_BW80		7
 #define EFUSE_HW_CAP_SUPP_BW40		6
 
+#define EFUSE_READ_FAIL			0xff
+
 #define GET_EFUSE_HW_CAP_HCI(hw_cap)					       \
 	le32_get_bits(*((__le32 *)(hw_cap) + 0x01), GENMASK(3, 0))
 #define GET_EFUSE_HW_CAP_BW(hw_cap)					       \
@@ -22,5 +24,6 @@
 	le32_get_bits(*((__le32 *)(hw_cap) + 0x01), GENMASK(27, 26))
 
 int rtw_parse_efuse_map(struct rtw_dev *rtwdev);
+int rtw_read8_physical_efuse(struct rtw_dev *rtwdev, u16 addr, u8 *data);
 
 #endif

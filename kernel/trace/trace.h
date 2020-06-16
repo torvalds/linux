@@ -1661,6 +1661,7 @@ extern struct list_head ftrace_events;
 
 extern const struct file_operations event_trigger_fops;
 extern const struct file_operations event_hist_fops;
+extern const struct file_operations event_hist_debug_fops;
 extern const struct file_operations event_inject_fops;
 
 #ifdef CONFIG_HIST_TRIGGERS

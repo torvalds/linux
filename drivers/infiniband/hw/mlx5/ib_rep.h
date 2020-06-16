@@ -9,9 +9,9 @@
 #include <linux/mlx5/eswitch.h>
 #include "mlx5_ib.h"
 
-#ifdef CONFIG_MLX5_ESWITCH
 extern const struct mlx5_ib_profile raw_eth_profile;
 
+#ifdef CONFIG_MLX5_ESWITCH
 u8 mlx5_ib_eswitch_mode(struct mlx5_eswitch *esw);
 struct mlx5_ib_dev *mlx5_ib_get_rep_ibdev(struct mlx5_eswitch *esw,
 					  u16 vport_num);

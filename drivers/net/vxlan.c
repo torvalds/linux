@@ -26,6 +26,7 @@
 #include <net/netns/generic.h>
 #include <net/tun_proto.h>
 #include <net/vxlan.h>
+#include <net/nexthop.h>
 
 #if IS_ENABLED(CONFIG_IPV6)
 #include <net/ip6_tunnel.h>
@@ -78,6 +79,9 @@ struct vxlan_fdb {
 	u16		  state;	/* see ndm_state */
 	__be32		  vni;
 	u16		  flags;	/* see ndm_flags and below */
+	struct list_head  nh_list;
+	struct nexthop __rcu *nh;
+	struct vxlan_dev  __rcu *vdev;
 };
 
 #define NTF_VXLAN_ADDED_BY_USER 0x100
@@ -174,11 +178,15 @@ static inline struct hlist_head *vs_head(struct net *net, __be16 port)
  */
 static inline struct vxlan_rdst *first_remote_rcu(struct vxlan_fdb *fdb)
 {
+	if (rcu_access_pointer(fdb->nh))
+		return NULL;
 	return list_entry_rcu(fdb->remotes.next, struct vxlan_rdst, list);
 }
 
 static inline struct vxlan_rdst *first_remote_rtnl(struct vxlan_fdb *fdb)
 {
+	if (rcu_access_pointer(fdb->nh))
+		return NULL;
 	return list_first_entry(&fdb->remotes, struct vxlan_rdst, list);
 }
 
@@ -251,9 +259,12 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 {
 	unsigned long now = jiffies;
 	struct nda_cacheinfo ci;
-	struct nlmsghdr *nlh;
-	struct ndmsg *ndm;
 	bool send_ip, send_eth;
+	struct nlmsghdr *nlh;
+	struct nexthop *nh;
+	struct ndmsg *ndm;
+	int nh_family;
+	u32 nh_id;
 
 	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
@@ -264,16 +275,28 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	send_eth = send_ip = true;
 
+	rcu_read_lock();
+	nh = rcu_dereference(fdb->nh);
+	if (nh) {
+		nh_family = nexthop_get_family(nh);
+		nh_id = nh->id;
+	}
+	rcu_read_unlock();
+
 	if (type == RTM_GETNEIGH) {
-		send_ip = !vxlan_addr_any(&rdst->remote_ip);
+		if (rdst) {
+			send_ip = !vxlan_addr_any(&rdst->remote_ip);
+			ndm->ndm_family = send_ip ? rdst->remote_ip.sa.sa_family : AF_INET;
+		} else if (nh) {
+			ndm->ndm_family = nh_family;
+		}
 		send_eth = !is_zero_ether_addr(fdb->eth_addr);
-		ndm->ndm_family = send_ip ? rdst->remote_ip.sa.sa_family : AF_INET;
 	} else
 		ndm->ndm_family	= AF_BRIDGE;
 	ndm->ndm_state = fdb->state;
 	ndm->ndm_ifindex = vxlan->dev->ifindex;
 	ndm->ndm_flags = fdb->flags;
-	if (rdst->offloaded)
+	if (rdst && rdst->offloaded)
 		ndm->ndm_flags |= NTF_OFFLOADED;
 	ndm->ndm_type = RTN_UNICAST;
 
@@ -284,22 +307,29 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
 		goto nla_put_failure;
+	if (nh) {
+		if (nla_put_u32(skb, NDA_NH_ID, nh_id))
+			goto nla_put_failure;
+	} else if (rdst) {
+		if (send_ip && vxlan_nla_put_addr(skb, NDA_DST,
+						  &rdst->remote_ip))
+			goto nla_put_failure;
 
-	if (send_ip && vxlan_nla_put_addr(skb, NDA_DST, &rdst->remote_ip))
-		goto nla_put_failure;
+		if (rdst->remote_port &&
+		    rdst->remote_port != vxlan->cfg.dst_port &&
+		    nla_put_be16(skb, NDA_PORT, rdst->remote_port))
+			goto nla_put_failure;
+		if (rdst->remote_vni != vxlan->default_dst.remote_vni &&
+		    nla_put_u32(skb, NDA_VNI, be32_to_cpu(rdst->remote_vni)))
+			goto nla_put_failure;
+		if (rdst->remote_ifindex &&
+		    nla_put_u32(skb, NDA_IFINDEX, rdst->remote_ifindex))
+			goto nla_put_failure;
+	}
 
-	if (rdst->remote_port && rdst->remote_port != vxlan->cfg.dst_port &&
-	    nla_put_be16(skb, NDA_PORT, rdst->remote_port))
-		goto nla_put_failure;
-	if (rdst->remote_vni != vxlan->default_dst.remote_vni &&
-	    nla_put_u32(skb, NDA_VNI, be32_to_cpu(rdst->remote_vni)))
-		goto nla_put_failure;
 	if ((vxlan->cfg.flags & VXLAN_F_COLLECT_METADATA) && fdb->vni &&
 	    nla_put_u32(skb, NDA_SRC_VNI,
 			be32_to_cpu(fdb->vni)))
-		goto nla_put_failure;
-	if (rdst->remote_ifindex &&
-	    nla_put_u32(skb, NDA_IFINDEX, rdst->remote_ifindex))
 		goto nla_put_failure;
 
 	ci.ndm_used	 = jiffies_to_clock_t(now - fdb->used);
@@ -401,7 +431,7 @@ static int vxlan_fdb_notify(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
 {
 	int err;
 
-	if (swdev_notify) {
+	if (swdev_notify && rd) {
 		switch (type) {
 		case RTM_NEWNEIGH:
 			err = vxlan_fdb_switchdev_call_notifiers(vxlan, fdb, rd,
@@ -793,8 +823,9 @@ static int vxlan_gro_complete(struct sock *sk, struct sk_buff *skb, int nhoff)
 	return eth_gro_complete(skb, nhoff + sizeof(struct vxlanhdr));
 }
 
-static struct vxlan_fdb *vxlan_fdb_alloc(const u8 *mac, __u16 state,
-					 __be32 src_vni, __u16 ndm_flags)
+static struct vxlan_fdb *vxlan_fdb_alloc(struct vxlan_dev *vxlan, const u8 *mac,
+					 __u16 state, __be32 src_vni,
+					 __u16 ndm_flags)
 {
 	struct vxlan_fdb *f;
 
@@ -805,6 +836,9 @@ static struct vxlan_fdb *vxlan_fdb_alloc(const u8 *mac, __u16 state,
 	f->flags = ndm_flags;
 	f->updated = f->used = jiffies;
 	f->vni = src_vni;
+	f->nh = NULL;
+	RCU_INIT_POINTER(f->vdev, vxlan);
+	INIT_LIST_HEAD(&f->nh_list);
 	INIT_LIST_HEAD(&f->remotes);
 	memcpy(f->eth_addr, mac, ETH_ALEN);
 
@@ -819,11 +853,76 @@ static void vxlan_fdb_insert(struct vxlan_dev *vxlan, const u8 *mac,
 			   vxlan_fdb_head(vxlan, mac, src_vni));
 }
 
+static int vxlan_fdb_nh_update(struct vxlan_dev *vxlan, struct vxlan_fdb *fdb,
+			       u32 nhid, struct netlink_ext_ack *extack)
+{
+	struct nexthop *old_nh = rtnl_dereference(fdb->nh);
+	struct nexthop *nh;
+	int err = -EINVAL;
+
+	if (old_nh && old_nh->id == nhid)
+		return 0;
+
+	nh = nexthop_find_by_id(vxlan->net, nhid);
+	if (!nh) {
+		NL_SET_ERR_MSG(extack, "Nexthop id does not exist");
+		goto err_inval;
+	}
+
+	if (nh) {
+		if (!nexthop_get(nh)) {
+			NL_SET_ERR_MSG(extack, "Nexthop has been deleted");
+			nh = NULL;
+			goto err_inval;
+		}
+		if (!nexthop_is_fdb(nh)) {
+			NL_SET_ERR_MSG(extack, "Nexthop is not a fdb nexthop");
+			goto err_inval;
+		}
+
+		if (!nexthop_is_multipath(nh)) {
+			NL_SET_ERR_MSG(extack, "Nexthop is not a multipath group");
+			goto err_inval;
+		}
+
+		/* check nexthop group family */
+		switch (vxlan->default_dst.remote_ip.sa.sa_family) {
+		case AF_INET:
+			if (!nexthop_has_v4(nh)) {
+				err = -EAFNOSUPPORT;
+				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
+				goto err_inval;
+			}
+			break;
+		case AF_INET6:
+			if (nexthop_has_v4(nh)) {
+				err = -EAFNOSUPPORT;
+				NL_SET_ERR_MSG(extack, "Nexthop group family not supported");
+				goto err_inval;
+			}
+		}
+	}
+
+	if (old_nh) {
+		list_del_rcu(&fdb->nh_list);
+		nexthop_put(old_nh);
+	}
+	rcu_assign_pointer(fdb->nh, nh);
+	list_add_tail_rcu(&fdb->nh_list, &nh->fdb_list);
+	return 1;
+
+err_inval:
+	if (nh)
+		nexthop_put(nh);
+	return err;
+}
+
 static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
 			    __u16 state, __be16 port, __be32 src_vni,
 			    __be32 vni, __u32 ifindex, __u16 ndm_flags,
-			    struct vxlan_fdb **fdb)
+			    u32 nhid, struct vxlan_fdb **fdb,
+			    struct netlink_ext_ack *extack)
 {
 	struct vxlan_rdst *rd = NULL;
 	struct vxlan_fdb *f;
@@ -834,24 +933,37 @@ static int vxlan_fdb_create(struct vxlan_dev *vxlan,
 		return -ENOSPC;
 
 	netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
-	f = vxlan_fdb_alloc(mac, state, src_vni, ndm_flags);
+	f = vxlan_fdb_alloc(vxlan, mac, state, src_vni, ndm_flags);
 	if (!f)
 		return -ENOMEM;
 
-	rc = vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
-	if (rc < 0) {
-		kfree(f);
-		return rc;
-	}
+	if (nhid)
+		rc = vxlan_fdb_nh_update(vxlan, f, nhid, extack);
+	else
+		rc = vxlan_fdb_append(f, ip, port, vni, ifindex, &rd);
+	if (rc < 0)
+		goto errout;
 
 	*fdb = f;
 
 	return 0;
+
+errout:
+	kfree(f);
+	return rc;
 }
 
 static void __vxlan_fdb_free(struct vxlan_fdb *f)
 {
 	struct vxlan_rdst *rd, *nd;
+	struct nexthop *nh;
+
+	nh = rcu_dereference_raw(f->nh);
+	if (nh) {
+		rcu_assign_pointer(f->nh, NULL);
+		rcu_assign_pointer(f->vdev, NULL);
+		nexthop_put(nh);
+	}
 
 	list_for_each_entry_safe(rd, nd, &f->remotes, list) {
 		dst_cache_destroy(&rd->dst_cache);
@@ -875,12 +987,18 @@ static void vxlan_fdb_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 	netdev_dbg(vxlan->dev, "delete %pM\n", f->eth_addr);
 
 	--vxlan->addrcnt;
-	if (do_notify)
-		list_for_each_entry(rd, &f->remotes, list)
-			vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH,
+	if (do_notify) {
+		if (rcu_access_pointer(f->nh))
+			vxlan_fdb_notify(vxlan, f, NULL, RTM_DELNEIGH,
 					 swdev_notify, NULL);
+		else
+			list_for_each_entry(rd, &f->remotes, list)
+				vxlan_fdb_notify(vxlan, f, rd, RTM_DELNEIGH,
+						 swdev_notify, NULL);
+	}
 
 	hlist_del_rcu(&f->hlist);
+	list_del_rcu(&f->nh_list);
 	call_rcu(&f->rcu, vxlan_fdb_free);
 }
 
@@ -897,7 +1015,7 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 				     __u16 state, __u16 flags,
 				     __be16 port, __be32 vni,
 				     __u32 ifindex, __u16 ndm_flags,
-				     struct vxlan_fdb *f,
+				     struct vxlan_fdb *f, u32 nhid,
 				     bool swdev_notify,
 				     struct netlink_ext_ack *extack)
 {
@@ -907,6 +1025,18 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 	int notify = 0;
 	int rc = 0;
 	int err;
+
+	if (nhid && !rcu_access_pointer(f->nh)) {
+		NL_SET_ERR_MSG(extack,
+			       "Cannot replace an existing non nexthop fdb with a nexthop");
+		return -EOPNOTSUPP;
+	}
+
+	if (nhid && (flags & NLM_F_APPEND)) {
+		NL_SET_ERR_MSG(extack,
+			       "Cannot append to a nexthop fdb");
+		return -EOPNOTSUPP;
+	}
 
 	/* Do not allow an externally learned entry to take over an entry added
 	 * by the user.
@@ -929,10 +1059,17 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 		/* Only change unicasts */
 		if (!(is_multicast_ether_addr(f->eth_addr) ||
 		      is_zero_ether_addr(f->eth_addr))) {
-			rc = vxlan_fdb_replace(f, ip, port, vni,
-					       ifindex, &oldrd);
+			if (nhid) {
+				rc = vxlan_fdb_nh_update(vxlan, f, nhid, extack);
+				if (rc < 0)
+					return rc;
+			} else {
+				rc = vxlan_fdb_replace(f, ip, port, vni,
+						       ifindex, &oldrd);
+			}
 			notify |= rc;
 		} else {
+			NL_SET_ERR_MSG(extack, "Cannot replace non-unicast fdb entries");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -962,6 +1099,8 @@ static int vxlan_fdb_update_existing(struct vxlan_dev *vxlan,
 	return 0;
 
 err_notify:
+	if (nhid)
+		return err;
 	if ((flags & NLM_F_REPLACE) && rc)
 		*rd = oldrd;
 	else if ((flags & NLM_F_APPEND) && rc) {
@@ -975,7 +1114,7 @@ static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
 				   const u8 *mac, union vxlan_addr *ip,
 				   __u16 state, __u16 flags,
 				   __be16 port, __be32 src_vni, __be32 vni,
-				   __u32 ifindex, __u16 ndm_flags,
+				   __u32 ifindex, __u16 ndm_flags, u32 nhid,
 				   bool swdev_notify,
 				   struct netlink_ext_ack *extack)
 {
@@ -990,7 +1129,7 @@ static int vxlan_fdb_update_create(struct vxlan_dev *vxlan,
 
 	netdev_dbg(vxlan->dev, "add %pM -> %pIS\n", mac, ip);
 	rc = vxlan_fdb_create(vxlan, mac, ip, state, port, src_vni,
-			      vni, ifindex, fdb_flags, &f);
+			      vni, ifindex, fdb_flags, nhid, &f, extack);
 	if (rc < 0)
 		return rc;
 
@@ -1012,7 +1151,7 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 			    const u8 *mac, union vxlan_addr *ip,
 			    __u16 state, __u16 flags,
 			    __be16 port, __be32 src_vni, __be32 vni,
-			    __u32 ifindex, __u16 ndm_flags,
+			    __u32 ifindex, __u16 ndm_flags, u32 nhid,
 			    bool swdev_notify,
 			    struct netlink_ext_ack *extack)
 {
@@ -1028,14 +1167,15 @@ static int vxlan_fdb_update(struct vxlan_dev *vxlan,
 
 		return vxlan_fdb_update_existing(vxlan, ip, state, flags, port,
 						 vni, ifindex, ndm_flags, f,
-						 swdev_notify, extack);
+						 nhid, swdev_notify, extack);
 	} else {
 		if (!(flags & NLM_F_CREATE))
 			return -ENOENT;
 
 		return vxlan_fdb_update_create(vxlan, mac, ip, state, flags,
 					       port, src_vni, vni, ifindex,
-					       ndm_flags, swdev_notify, extack);
+					       ndm_flags, nhid, swdev_notify,
+					       extack);
 	}
 }
 
@@ -1049,10 +1189,14 @@ static void vxlan_fdb_dst_destroy(struct vxlan_dev *vxlan, struct vxlan_fdb *f,
 
 static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 			   union vxlan_addr *ip, __be16 *port, __be32 *src_vni,
-			   __be32 *vni, u32 *ifindex)
+			   __be32 *vni, u32 *ifindex, u32 *nhid)
 {
 	struct net *net = dev_net(vxlan->dev);
 	int err;
+
+	if (tb[NDA_NH_ID] && (tb[NDA_DST] || tb[NDA_VNI] || tb[NDA_IFINDEX] ||
+	    tb[NDA_PORT]))
+		return -EINVAL;
 
 	if (tb[NDA_DST]) {
 		err = vxlan_nla_get_addr(ip, tb[NDA_DST]);
@@ -1109,6 +1253,11 @@ static int vxlan_fdb_parse(struct nlattr *tb[], struct vxlan_dev *vxlan,
 		*ifindex = 0;
 	}
 
+	if (tb[NDA_NH_ID])
+		*nhid = nla_get_u32(tb[NDA_NH_ID]);
+	else
+		*nhid = 0;
+
 	return 0;
 }
 
@@ -1123,7 +1272,7 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	union vxlan_addr ip;
 	__be16 port;
 	__be32 src_vni, vni;
-	u32 ifindex;
+	u32 ifindex, nhid;
 	u32 hash_index;
 	int err;
 
@@ -1133,10 +1282,11 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		return -EINVAL;
 	}
 
-	if (tb[NDA_DST] == NULL)
+	if (!tb || (!tb[NDA_DST] && !tb[NDA_NH_ID]))
 		return -EINVAL;
 
-	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &src_vni, &vni, &ifindex);
+	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &src_vni, &vni, &ifindex,
+			      &nhid);
 	if (err)
 		return err;
 
@@ -1148,7 +1298,7 @@ static int vxlan_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	err = vxlan_fdb_update(vxlan, addr, &ip, ndm->ndm_state, flags,
 			       port, src_vni, vni, ifindex,
 			       ndm->ndm_flags | NTF_VXLAN_ADDED_BY_USER,
-			       true, extack);
+			       nhid, true, extack);
 	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 
 	return err;
@@ -1159,8 +1309,8 @@ static int __vxlan_fdb_delete(struct vxlan_dev *vxlan,
 			      __be16 port, __be32 src_vni, __be32 vni,
 			      u32 ifindex, bool swdev_notify)
 {
-	struct vxlan_fdb *f;
 	struct vxlan_rdst *rd = NULL;
+	struct vxlan_fdb *f;
 	int err = -ENOENT;
 
 	f = vxlan_find_mac(vxlan, addr, src_vni);
@@ -1195,12 +1345,13 @@ static int vxlan_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	union vxlan_addr ip;
 	__be32 src_vni, vni;
-	__be16 port;
-	u32 ifindex;
+	u32 ifindex, nhid;
 	u32 hash_index;
+	__be16 port;
 	int err;
 
-	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &src_vni, &vni, &ifindex);
+	err = vxlan_fdb_parse(tb, vxlan, &ip, &port, &src_vni, &vni, &ifindex,
+			      &nhid);
 	if (err)
 		return err;
 
@@ -1227,6 +1378,17 @@ static int vxlan_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 
 		hlist_for_each_entry_rcu(f, &vxlan->fdb_head[h], hlist) {
 			struct vxlan_rdst *rd;
+
+			if (rcu_access_pointer(f->nh)) {
+				err = vxlan_fdb_info(skb, vxlan, f,
+						     NETLINK_CB(cb->skb).portid,
+						     cb->nlh->nlmsg_seq,
+						     RTM_NEWNEIGH,
+						     NLM_F_MULTI, NULL);
+				if (err < 0)
+					goto out;
+				continue;
+			}
 
 			list_for_each_entry_rcu(rd, &f->remotes, list) {
 				if (*idx < cb->args[2])
@@ -1311,6 +1473,10 @@ static bool vxlan_snoop(struct net_device *dev,
 		if (f->state & (NUD_PERMANENT | NUD_NOARP))
 			return true;
 
+		/* Don't override an fdb with nexthop with a learnt entry */
+		if (rcu_access_pointer(f->nh))
+			return true;
+
 		if (net_ratelimit())
 			netdev_info(dev,
 				    "%pM migrated from %pIS to %pIS\n",
@@ -1333,7 +1499,7 @@ static bool vxlan_snoop(struct net_device *dev,
 					 vxlan->cfg.dst_port,
 					 vni,
 					 vxlan->default_dst.remote_vni,
-					 ifindex, NTF_SELF, true, NULL);
+					 ifindex, NTF_SELF, 0, true, NULL);
 		spin_unlock(&vxlan->hash_lock[hash_index]);
 	}
 
@@ -1924,6 +2090,10 @@ static struct sk_buff *vxlan_na_create(struct sk_buff *request,
 	ns_olen = request->len - skb_network_offset(request) -
 		sizeof(struct ipv6hdr) - sizeof(*ns);
 	for (i = 0; i < ns_olen-1; i += (ns->opt[i+1]<<3)) {
+		if (!ns->opt[i + 1]) {
+			kfree_skb(reply);
+			return NULL;
+		}
 		if (ns->opt[i] == ND_OPT_SOURCE_LL_ADDR) {
 			daddr = ns->opt + i + sizeof(struct nd_opt_hdr);
 			break;
@@ -2616,6 +2786,38 @@ tx_error:
 	kfree_skb(skb);
 }
 
+static void vxlan_xmit_nh(struct sk_buff *skb, struct net_device *dev,
+			  struct vxlan_fdb *f, __be32 vni, bool did_rsc)
+{
+	struct vxlan_rdst nh_rdst;
+	struct nexthop *nh;
+	bool do_xmit;
+	u32 hash;
+
+	memset(&nh_rdst, 0, sizeof(struct vxlan_rdst));
+	hash = skb_get_hash(skb);
+
+	rcu_read_lock();
+	nh = rcu_dereference(f->nh);
+	if (!nh) {
+		rcu_read_unlock();
+		goto drop;
+	}
+	do_xmit = vxlan_fdb_nh_path_select(nh, hash, &nh_rdst);
+	rcu_read_unlock();
+
+	if (likely(do_xmit))
+		vxlan_xmit_one(skb, dev, vni, &nh_rdst, did_rsc);
+	else
+		goto drop;
+
+	return;
+
+drop:
+	dev->stats.tx_dropped++;
+	dev_kfree_skb(skb);
+}
+
 /* Transmit local packets over Vxlan
  *
  * Outer IP header inherits ECN and DF from inner header.
@@ -2692,22 +2894,27 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	list_for_each_entry_rcu(rdst, &f->remotes, list) {
-		struct sk_buff *skb1;
+	if (rcu_access_pointer(f->nh)) {
+		vxlan_xmit_nh(skb, dev, f,
+			      (vni ? : vxlan->default_dst.remote_vni), did_rsc);
+	} else {
+		list_for_each_entry_rcu(rdst, &f->remotes, list) {
+			struct sk_buff *skb1;
 
-		if (!fdst) {
-			fdst = rdst;
-			continue;
+			if (!fdst) {
+				fdst = rdst;
+				continue;
+			}
+			skb1 = skb_clone(skb, GFP_ATOMIC);
+			if (skb1)
+				vxlan_xmit_one(skb1, dev, vni, rdst, did_rsc);
 		}
-		skb1 = skb_clone(skb, GFP_ATOMIC);
-		if (skb1)
-			vxlan_xmit_one(skb1, dev, vni, rdst, did_rsc);
+		if (fdst)
+			vxlan_xmit_one(skb, dev, vni, fdst, did_rsc);
+		else
+			kfree_skb(skb);
 	}
 
-	if (fdst)
-		vxlan_xmit_one(skb, dev, vni, fdst, did_rsc);
-	else
-		kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
 
@@ -3615,7 +3822,7 @@ static int __vxlan_dev_create(struct net *net, struct net_device *dev,
 				       dst->remote_vni,
 				       dst->remote_vni,
 				       dst->remote_ifindex,
-				       NTF_SELF, &f);
+				       NTF_SELF, 0, &f, extack);
 		if (err)
 			return err;
 	}
@@ -4013,7 +4220,7 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 					       vxlan->cfg.dst_port,
 					       conf.vni, conf.vni,
 					       conf.remote_ifindex,
-					       NTF_SELF, true, extack);
+					       NTF_SELF, 0, true, extack);
 			if (err) {
 				spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 				netdev_adjacent_change_abort(dst->remote_dev,
@@ -4036,10 +4243,8 @@ static int vxlan_changelink(struct net_device *dev, struct nlattr *tb[],
 		mod_timer(&vxlan->age_timer, jiffies);
 
 	netdev_adjacent_change_commit(dst->remote_dev, lowerdev, dev);
-	if (lowerdev && lowerdev != dst->remote_dev) {
+	if (lowerdev && lowerdev != dst->remote_dev)
 		dst->remote_dev = lowerdev;
-		netdev_update_lockdep_key(lowerdev);
-	}
 	vxlan_config_apply(dev, &conf, lowerdev, vxlan->net, true);
 	return 0;
 }
@@ -4335,7 +4540,7 @@ vxlan_fdb_external_learn_add(struct net_device *dev,
 			       fdb_info->remote_vni,
 			       fdb_info->remote_ifindex,
 			       NTF_USE | NTF_SELF | NTF_EXT_LEARNED,
-			       false, extack);
+			       0, false, extack);
 	spin_unlock_bh(&vxlan->hash_lock[hash_index]);
 
 	return err;
@@ -4410,6 +4615,43 @@ static struct notifier_block vxlan_switchdev_notifier_block __read_mostly = {
 	.notifier_call = vxlan_switchdev_event,
 };
 
+static void vxlan_fdb_nh_flush(struct nexthop *nh)
+{
+	struct vxlan_fdb *fdb;
+	struct vxlan_dev *vxlan;
+	u32 hash_index;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(fdb, &nh->fdb_list, nh_list) {
+		vxlan = rcu_dereference(fdb->vdev);
+		WARN_ON(!vxlan);
+		hash_index = fdb_head_index(vxlan, fdb->eth_addr,
+					    vxlan->default_dst.remote_vni);
+		spin_lock_bh(&vxlan->hash_lock[hash_index]);
+		if (!hlist_unhashed(&fdb->hlist))
+			vxlan_fdb_destroy(vxlan, fdb, false, false);
+		spin_unlock_bh(&vxlan->hash_lock[hash_index]);
+	}
+	rcu_read_unlock();
+}
+
+static int vxlan_nexthop_event(struct notifier_block *nb,
+			       unsigned long event, void *ptr)
+{
+	struct nexthop *nh = ptr;
+
+	if (!nh || event != NEXTHOP_EVENT_DEL)
+		return NOTIFY_DONE;
+
+	vxlan_fdb_nh_flush(nh);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block vxlan_nexthop_notifier_block __read_mostly = {
+	.notifier_call = vxlan_nexthop_event,
+};
+
 static __net_init int vxlan_init_net(struct net *net)
 {
 	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
@@ -4421,7 +4663,7 @@ static __net_init int vxlan_init_net(struct net *net)
 	for (h = 0; h < PORT_HASH_SIZE; ++h)
 		INIT_HLIST_HEAD(&vn->sock_list[h]);
 
-	return 0;
+	return register_nexthop_notifier(net, &vxlan_nexthop_notifier_block);
 }
 
 static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
@@ -4453,6 +4695,8 @@ static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
 	LIST_HEAD(list);
 
 	rtnl_lock();
+	list_for_each_entry(net, net_list, exit_list)
+		unregister_nexthop_notifier(net, &vxlan_nexthop_notifier_block);
 	list_for_each_entry(net, net_list, exit_list)
 		vxlan_destroy_tunnels(net, &list);
 

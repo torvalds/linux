@@ -27,6 +27,16 @@ config DRM_CDNS_DSI
 	  Support Cadence DPI to DSI bridge. This is an internal
 	  bridge and is meant to be directly embedded in a SoC.
 
+config DRM_CHRONTEL_CH7033
+	tristate "Chrontel CH7033 Video Encoder"
+	depends on OF
+	select DRM_KMS_HELPER
+	help
+	  Enable support for the Chrontel CH7033 VGA/DVI/HDMI Encoder, as
+	  found in the Dell Wyse 3020 thin client.
+
+	  If in doubt, say "N".
+
 config DRM_DISPLAY_CONNECTOR
 	tristate "Display connector support"
 	depends on OF
@@ -52,18 +62,34 @@ config DRM_MEGACHIPS_STDPXXXX_GE_B850V3_FW
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL
-	---help---
+	help
 	  This is a driver for the display bridges of
 	  GE B850v3 that convert dual channel LVDS
 	  to DP++. This is used with the i.MX6 imx-ldb
 	  driver. You are likely to say N here.
+
+config DRM_NWL_MIPI_DSI
+	tristate "Northwest Logic MIPI DSI Host controller"
+	depends on DRM
+	depends on COMMON_CLK
+	depends on OF && HAS_IOMEM
+	select DRM_KMS_HELPER
+	select DRM_MIPI_DSI
+	select DRM_PANEL_BRIDGE
+	select GENERIC_PHY_MIPI_DPHY
+	select MFD_SYSCON
+	select MULTIPLEXER
+	select REGMAP_MMIO
+	help
+	  This enables the Northwest Logic MIPI DSI Host controller as
+	  for example found on NXP's i.MX8 Processors.
 
 config DRM_NXP_PTN3460
 	tristate "NXP PTN3460 DP/LVDS bridge"
 	depends on OF
 	select DRM_KMS_HELPER
 	select DRM_PANEL
-	---help---
+	help
 	  NXP PTN3460 eDP-LVDS bridge chip driver.
 
 config DRM_PARADE_PS8622
@@ -72,7 +98,7 @@ config DRM_PARADE_PS8622
 	select DRM_PANEL
 	select DRM_KMS_HELPER
 	select BACKLIGHT_CLASS_DEVICE
-	---help---
+	help
 	  Parade eDP-LVDS bridge chip driver.
 
 config DRM_PARADE_PS8640
@@ -102,13 +128,13 @@ config DRM_SII902X
 	select REGMAP_I2C
 	select I2C_MUX
 	select SND_SOC_HDMI_CODEC if SND_SOC
-	---help---
+	help
 	  Silicon Image sii902x bridge chip driver.
 
 config DRM_SII9234
 	tristate "Silicon Image SII9234 HDMI/MHL bridge"
 	depends on OF
-	---help---
+	help
 	  Say Y here if you want support for the MHL interface.
 	  It is an I2C driver, that detects connection of MHL bridge
 	  and starts encapsulation of HDMI signal.
@@ -124,7 +150,7 @@ config DRM_SIMPLE_BRIDGE
 config DRM_THINE_THC63LVD1024
 	tristate "Thine THC63LVD1024 LVDS decoder bridge"
 	depends on OF
-	---help---
+	help
 	  Thine THC63LVD1024 LVDS/parallel converter driver.
 
 config DRM_TOSHIBA_TC358764
@@ -142,7 +168,7 @@ config DRM_TOSHIBA_TC358767
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
-	---help---
+	help
 	  Toshiba TC358767 eDP bridge chip driver.
 
 config DRM_TOSHIBA_TC358768
@@ -159,7 +185,7 @@ config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"
 	depends on OF
 	select DRM_KMS_HELPER
-	---help---
+	help
 	  Texas Instruments TFP410 DVI/HDMI Transmitter driver
 
 config DRM_TI_SN65DSI86

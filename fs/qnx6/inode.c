@@ -99,10 +99,9 @@ static int qnx6_readpage(struct file *file, struct page *page)
 	return mpage_readpage(page, qnx6_get_block);
 }
 
-static int qnx6_readpages(struct file *file, struct address_space *mapping,
-		   struct list_head *pages, unsigned nr_pages)
+static void qnx6_readahead(struct readahead_control *rac)
 {
-	return mpage_readpages(mapping, pages, nr_pages, qnx6_get_block);
+	mpage_readahead(rac, qnx6_get_block);
 }
 
 /*
@@ -499,7 +498,7 @@ static sector_t qnx6_bmap(struct address_space *mapping, sector_t block)
 }
 static const struct address_space_operations qnx6_aops = {
 	.readpage	= qnx6_readpage,
-	.readpages	= qnx6_readpages,
+	.readahead	= qnx6_readahead,
 	.bmap		= qnx6_bmap
 };
 

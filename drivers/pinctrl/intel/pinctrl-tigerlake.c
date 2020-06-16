@@ -21,8 +21,6 @@
 #define TGL_GPI_IS	0x100
 #define TGL_GPI_IE	0x120
 
-#define TGL_NO_GPIO	-1
-
 #define TGL_GPP(r, s, e, g)				\
 	{						\
 		.reg_num = (r),				\
@@ -342,30 +340,30 @@ static const struct pinctrl_pin_desc tgllp_pins[] = {
 };
 
 static const struct intel_padgroup tgllp_community0_gpps[] = {
-	TGL_GPP(0, 0, 25, 0),			/* GPP_B */
-	TGL_GPP(1, 26, 41, 32),			/* GPP_T */
-	TGL_GPP(2, 42, 66, 64),			/* GPP_A */
+	TGL_GPP(0, 0, 25, 0),				/* GPP_B */
+	TGL_GPP(1, 26, 41, 32),				/* GPP_T */
+	TGL_GPP(2, 42, 66, 64),				/* GPP_A */
 };
 
 static const struct intel_padgroup tgllp_community1_gpps[] = {
-	TGL_GPP(0, 67, 74, 96),			/* GPP_S */
-	TGL_GPP(1, 75, 98, 128),		/* GPP_H */
-	TGL_GPP(2, 99, 119, 160),		/* GPP_D */
-	TGL_GPP(3, 120, 143, 192),		/* GPP_U */
-	TGL_GPP(4, 144, 170, 224),		/* vGPIO */
+	TGL_GPP(0, 67, 74, 96),				/* GPP_S */
+	TGL_GPP(1, 75, 98, 128),			/* GPP_H */
+	TGL_GPP(2, 99, 119, 160),			/* GPP_D */
+	TGL_GPP(3, 120, 143, 192),			/* GPP_U */
+	TGL_GPP(4, 144, 170, 224),			/* vGPIO */
 };
 
 static const struct intel_padgroup tgllp_community4_gpps[] = {
-	TGL_GPP(0, 171, 194, 256),		/* GPP_C */
-	TGL_GPP(1, 195, 219, 288),		/* GPP_F */
-	TGL_GPP(2, 220, 225, TGL_NO_GPIO),	/* HVCMOS */
-	TGL_GPP(3, 226, 250, 320),		/* GPP_E */
-	TGL_GPP(4, 251, 259, TGL_NO_GPIO),	/* JTAG */
+	TGL_GPP(0, 171, 194, 256),			/* GPP_C */
+	TGL_GPP(1, 195, 219, 288),			/* GPP_F */
+	TGL_GPP(2, 220, 225, INTEL_GPIO_BASE_NOMAP),	/* HVCMOS */
+	TGL_GPP(3, 226, 250, 320),			/* GPP_E */
+	TGL_GPP(4, 251, 259, INTEL_GPIO_BASE_NOMAP),	/* JTAG */
 };
 
 static const struct intel_padgroup tgllp_community5_gpps[] = {
-	TGL_GPP(0, 260, 267, 352),		/* GPP_R */
-	TGL_GPP(1, 268, 276, TGL_NO_GPIO),	/* SPI */
+	TGL_GPP(0, 260, 267, 352),			/* GPP_R */
+	TGL_GPP(1, 268, 276, INTEL_GPIO_BASE_NOMAP),	/* SPI */
 };
 
 static const struct intel_community tgllp_communities[] = {

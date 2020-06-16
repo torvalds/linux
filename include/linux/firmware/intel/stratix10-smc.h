@@ -54,32 +54,25 @@
  * Secure monitor software doesn't recognize the request.
  *
  * INTEL_SIP_SMC_STATUS_OK:
- * FPGA configuration completed successfully,
- * In case of FPGA configuration write operation, it means secure monitor
- * software can accept the next chunk of FPGA configuration data.
+ * Secure monitor software accepts the service client's request.
  *
- * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY:
- * In case of FPGA configuration write operation, it means secure monitor
- * software is still processing previous data & can't accept the next chunk
- * of data. Service driver needs to issue
- * INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE call to query the
- * completed block(s).
+ * INTEL_SIP_SMC_STATUS_BUSY:
+ * Secure monitor software is still processing service client's request.
  *
- * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR:
- * There is error during the FPGA configuration process.
+ * INTEL_SIP_SMC_STATUS_REJECTED:
+ * Secure monitor software reject the service client's request.
  *
- * INTEL_SIP_SMC_REG_ERROR:
- * There is error during a read or write operation of the protected registers.
+ * INTEL_SIP_SMC_STATUS_ERROR:
+ * There is error during the process of service request.
  *
  * INTEL_SIP_SMC_RSU_ERROR:
- * There is error during a remote status update.
+ * There is error during the process of remote status update request.
  */
 #define INTEL_SIP_SMC_RETURN_UNKNOWN_FUNCTION		0xFFFFFFFF
 #define INTEL_SIP_SMC_STATUS_OK				0x0
-#define INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY		0x1
-#define INTEL_SIP_SMC_FPGA_CONFIG_STATUS_REJECTED       0x2
-#define INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR		0x4
-#define INTEL_SIP_SMC_REG_ERROR				0x5
+#define INTEL_SIP_SMC_STATUS_BUSY			0x1
+#define INTEL_SIP_SMC_STATUS_REJECTED			0x2
+#define INTEL_SIP_SMC_STATUS_ERROR			0x4
 #define INTEL_SIP_SMC_RSU_ERROR				0x7
 
 /**
@@ -95,7 +88,7 @@
  * a2-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, or INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK, or INTEL_SIP_SMC_STATUS_ERROR.
  * a1-3: not used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_START 1
@@ -115,8 +108,8 @@
  * a3-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY or
- * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_BUSY or
+ * INTEL_SIP_SMC_STATUS_ERROR.
  * a1: 64bit physical address of 1st completed memory block if any completed
  * block, otherwise zero value.
  * a2: 64bit physical address of 2nd completed memory block if any completed
@@ -133,15 +126,15 @@
  *
  * Sync call used by service driver at EL1 to track the completed write
  * transactions. This request is called after INTEL_SIP_SMC_FPGA_CONFIG_WRITE
- * call returns INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY.
+ * call returns INTEL_SIP_SMC_STATUS_BUSY.
  *
  * Call register usage:
  * a0: INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE.
  * a1-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY or
- * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FPGA_BUSY or
+ * INTEL_SIP_SMC_STATUS_ERROR.
  * a1: 64bit physical address of 1st completed memory block.
  * a2: 64bit physical address of 2nd completed memory block if
  * any completed block, otherwise zero value.
@@ -164,8 +157,8 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a1-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_FPGA_CONFIG_STATUS_BUSY or
- * INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_BUSY or
+ * INTEL_SIP_SMC_STATUS_ERROR.
  * a1-3: not used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_ISDONE 4
@@ -183,7 +176,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a1-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_STATUS_ERROR.
  * a1: start of physical address of reserved memory block.
  * a2: size of reserved memory block.
  * a3: not used.
@@ -203,7 +196,7 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
  * a1-7: not used.
  *
  * Return status:
- * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR.
+ * a0: INTEL_SIP_SMC_STATUS_OK or INTEL_SIP_SMC_STATUS_ERROR.
  * a1-3: not used.
  */
 #define INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_LOOPBACK 6

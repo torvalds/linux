@@ -39,6 +39,7 @@
 #define EFI_WRITE_PROTECTED	( 8 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_TIMEOUT		(18 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_ABORTED		(21 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_SECURITY_VIOLATION	(26 | (1UL << (BITS_PER_LONG-1)))
 
@@ -379,8 +380,8 @@ typedef union {
 
 typedef struct {
 	efi_guid_t guid;
-	const char *name;
 	unsigned long *ptr;
+	const char name[16];
 } efi_config_table_type_t;
 
 #define EFI_SYSTEM_TABLE_SIGNATURE ((u64)0x5453595320494249ULL)
@@ -426,6 +427,7 @@ typedef struct {
 	u32 tables;
 } efi_system_table_32_t;
 
+typedef union efi_simple_text_input_protocol efi_simple_text_input_protocol_t;
 typedef union efi_simple_text_output_protocol efi_simple_text_output_protocol_t;
 
 typedef union {
@@ -434,7 +436,7 @@ typedef union {
 		unsigned long fw_vendor;	/* physical addr of CHAR16 vendor string */
 		u32 fw_revision;
 		unsigned long con_in_handle;
-		unsigned long con_in;
+		efi_simple_text_input_protocol_t *con_in;
 		unsigned long con_out_handle;
 		efi_simple_text_output_protocol_t *con_out;
 		unsigned long stderr_handle;

@@ -122,10 +122,22 @@ static int i10nm_get_all_munits(void)
 	return 0;
 }
 
+static struct res_config i10nm_cfg0 = {
+	.type			= I10NM,
+	.decs_did		= 0x3452,
+	.busno_cfg_offset	= 0xcc,
+};
+
+static struct res_config i10nm_cfg1 = {
+	.type			= I10NM,
+	.decs_did		= 0x3452,
+	.busno_cfg_offset	= 0xd0,
+};
+
 static const struct x86_cpu_id i10nm_cpuids[] = {
-	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		NULL),
-	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		NULL),
+	X86_MATCH_INTEL_FAM6_MODEL(ATOM_TREMONT_D,	&i10nm_cfg0),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&i10nm_cfg0),
+	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&i10nm_cfg1),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, i10nm_cpuids);
@@ -161,7 +173,7 @@ static int i10nm_get_dimm_config(struct mem_ctl_info *mci)
 				 mtr, mcddrtcfg, imc->mc, i, j);
 
 			if (IS_DIMM_PRESENT(mtr))
-				ndimms += skx_get_dimm_info(mtr, 0, dimm,
+				ndimms += skx_get_dimm_info(mtr, 0, 0, dimm,
 							    imc, i, j);
 			else if (IS_NVDIMM_PRESENT(mcddrtcfg, j))
 				ndimms += skx_get_nvdimm_info(dimm, imc, i, j,
@@ -234,6 +246,7 @@ static int __init i10nm_init(void)
 {
 	u8 mc = 0, src_id = 0, node_id = 0;
 	const struct x86_cpu_id *id;
+	struct res_config *cfg;
 	const char *owner;
 	struct skx_dev *d;
 	int rc, i, off[3] = {0xd0, 0xc8, 0xcc};
@@ -249,11 +262,17 @@ static int __init i10nm_init(void)
 	if (!id)
 		return -ENODEV;
 
+	cfg = (struct res_config *)id->driver_data;
+
+	/* Newer steppings have different offset for ATOM_TREMONT_D/ICELAKE_X */
+	if (boot_cpu_data.x86_stepping >= 4)
+		cfg->busno_cfg_offset = 0xd0;
+
 	rc = skx_get_hi_lo(0x09a2, off, &tolm, &tohm);
 	if (rc)
 		return rc;
 
-	rc = skx_get_all_bus_mappings(0x3452, 0xcc, I10NM, &i10nm_edac_list);
+	rc = skx_get_all_bus_mappings(cfg, &i10nm_edac_list);
 	if (rc < 0)
 		goto fail;
 	if (rc == 0) {

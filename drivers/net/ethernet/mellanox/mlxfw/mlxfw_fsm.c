@@ -76,7 +76,7 @@ static int mlxfw_fsm_state_err(struct mlxfw_dev *mlxfw_dev,
 	case MLXFW_FSM_STATE_ERR_MAX:
 		MLXFW_ERR_MSG(mlxfw_dev, extack, "unknown error", err);
 		break;
-	};
+	}
 
 	return mlxfw_fsm_state_errno[fsm_state_err];
 };
@@ -159,7 +159,7 @@ mlxfw_fsm_reactivate_err(struct mlxfw_dev *mlxfw_dev,
 	case MLXFW_FSM_REACTIVATE_STATUS_MAX:
 		MLXFW_REACT_ERR("unexpected error", err);
 		break;
-	};
+	}
 	return -EREMOTEIO;
 };
 

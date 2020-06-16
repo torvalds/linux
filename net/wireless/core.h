@@ -60,10 +60,6 @@ struct cfg80211_registered_device {
 	struct list_head beacon_registrations;
 	spinlock_t beacon_registrations_lock;
 
-	struct list_head mlme_unreg;
-	spinlock_t mlme_unreg_lock;
-	struct work_struct mlme_unreg_wk;
-
 	/* protected by RTNL only */
 	int num_running_ifaces;
 	int num_running_monitor_ifaces;
@@ -102,6 +98,8 @@ struct cfg80211_registered_device {
 
 	struct cfg80211_chan_def cac_done_chandef;
 	struct work_struct propagate_cac_done_wk;
+
+	struct work_struct mgmt_registrations_update_wk;
 
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
@@ -290,7 +288,7 @@ struct cfg80211_cqm_config {
 	u32 rssi_hyst;
 	s32 last_rssi_event_value;
 	int n_rssi_thresholds;
-	s32 rssi_thresholds[0];
+	s32 rssi_thresholds[];
 };
 
 void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev);
@@ -385,8 +383,9 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 				u16 frame_type, const u8 *match_data,
-				int match_len, struct netlink_ext_ack *extack);
-void cfg80211_mlme_unreg_wk(struct work_struct *wk);
+				int match_len, bool multicast_rx,
+				struct netlink_ext_ack *extack);
+void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk);
 void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid);
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev);
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,

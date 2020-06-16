@@ -432,7 +432,7 @@ int mlx5e_ethtool_set_channels(struct mlx5e_priv *priv,
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		*cur_params = new_channels.params;
-		mlx5e_num_channels_changed(priv);
+		err = mlx5e_num_channels_changed(priv);
 		goto out;
 	}
 
@@ -1173,7 +1173,8 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	struct mlx5e_rss_params *rss = &priv->rss_params;
 	int inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
-	bool hash_changed = false;
+	bool refresh_tirs = false;
+	bool refresh_rqt = false;
 	void *in;
 
 	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) &&
@@ -1189,37 +1190,39 @@ int mlx5e_set_rxfh(struct net_device *dev, const u32 *indir,
 
 	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != rss->hfunc) {
 		rss->hfunc = hfunc;
-		hash_changed = true;
+		refresh_rqt = true;
+		refresh_tirs = true;
 	}
 
 	if (indir) {
 		memcpy(rss->indirection_rqt, indir,
 		       sizeof(rss->indirection_rqt));
-
-		if (test_bit(MLX5E_STATE_OPENED, &priv->state)) {
-			u32 rqtn = priv->indir_rqt.rqtn;
-			struct mlx5e_redirect_rqt_param rrp = {
-				.is_rss = true,
-				{
-					.rss = {
-						.hfunc = rss->hfunc,
-						.channels  = &priv->channels,
-					},
-				},
-			};
-
-			mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
-		}
+		refresh_rqt = true;
 	}
 
 	if (key) {
 		memcpy(rss->toeplitz_hash_key, key,
 		       sizeof(rss->toeplitz_hash_key));
-		hash_changed = hash_changed || rss->hfunc == ETH_RSS_HASH_TOP;
+		refresh_tirs = refresh_tirs || rss->hfunc == ETH_RSS_HASH_TOP;
 	}
 
-	if (hash_changed)
-		mlx5e_modify_tirs_hash(priv, in, inlen);
+	if (refresh_rqt && test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		struct mlx5e_redirect_rqt_param rrp = {
+			.is_rss = true,
+			{
+				.rss = {
+					.hfunc = rss->hfunc,
+					.channels  = &priv->channels,
+				},
+			},
+		};
+		u32 rqtn = priv->indir_rqt.rqtn;
+
+		mlx5e_redirect_rqt(priv, rqtn, MLX5E_INDIR_RQT_SIZE, rrp);
+	}
+
+	if (refresh_tirs)
+		mlx5e_modify_tirs_hash(priv, in);
 
 	mutex_unlock(&priv->state_lock);
 

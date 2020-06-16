@@ -42,7 +42,8 @@ struct nf_conntrack_l4proto {
 	/* Calculate tuple nlattr size */
 	unsigned int (*nlattr_tuple_size)(void);
 	int (*nlattr_to_tuple)(struct nlattr *tb[],
-			       struct nf_conntrack_tuple *t);
+			       struct nf_conntrack_tuple *t,
+			       u_int32_t flags);
 	const struct nla_policy *nla_policy;
 
 	struct {
@@ -152,7 +153,8 @@ const struct nf_conntrack_l4proto *nf_ct_l4proto_find(u8 l4proto);
 int nf_ct_port_tuple_to_nlattr(struct sk_buff *skb,
 			       const struct nf_conntrack_tuple *tuple);
 int nf_ct_port_nlattr_to_tuple(struct nlattr *tb[],
-			       struct nf_conntrack_tuple *t);
+			       struct nf_conntrack_tuple *t,
+			       u_int32_t flags);
 unsigned int nf_ct_port_nlattr_tuple_size(void);
 extern const struct nla_policy nf_ct_port_nla_policy[];
 

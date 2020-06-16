@@ -30,6 +30,76 @@ struct nft_nat {
 	u16			flags;
 };
 
+static void nft_nat_setup_addr(struct nf_nat_range2 *range,
+			       const struct nft_regs *regs,
+			       const struct nft_nat *priv)
+{
+	switch (priv->family) {
+	case AF_INET:
+		range->min_addr.ip = (__force __be32)
+				regs->data[priv->sreg_addr_min];
+		range->max_addr.ip = (__force __be32)
+				regs->data[priv->sreg_addr_max];
+		break;
+	case AF_INET6:
+		memcpy(range->min_addr.ip6, &regs->data[priv->sreg_addr_min],
+		       sizeof(range->min_addr.ip6));
+		memcpy(range->max_addr.ip6, &regs->data[priv->sreg_addr_max],
+		       sizeof(range->max_addr.ip6));
+		break;
+	}
+}
+
+static void nft_nat_setup_proto(struct nf_nat_range2 *range,
+				const struct nft_regs *regs,
+				const struct nft_nat *priv)
+{
+	range->min_proto.all = (__force __be16)
+		nft_reg_load16(&regs->data[priv->sreg_proto_min]);
+	range->max_proto.all = (__force __be16)
+		nft_reg_load16(&regs->data[priv->sreg_proto_max]);
+}
+
+static void nft_nat_setup_netmap(struct nf_nat_range2 *range,
+				 const struct nft_pktinfo *pkt,
+				 const struct nft_nat *priv)
+{
+	struct sk_buff *skb = pkt->skb;
+	union nf_inet_addr new_addr;
+	__be32 netmask;
+	int i, len = 0;
+
+	switch (priv->type) {
+	case NFT_NAT_SNAT:
+		if (nft_pf(pkt) == NFPROTO_IPV4) {
+			new_addr.ip = ip_hdr(skb)->saddr;
+			len = sizeof(struct in_addr);
+		} else {
+			new_addr.in6 = ipv6_hdr(skb)->saddr;
+			len = sizeof(struct in6_addr);
+		}
+		break;
+	case NFT_NAT_DNAT:
+		if (nft_pf(pkt) == NFPROTO_IPV4) {
+			new_addr.ip = ip_hdr(skb)->daddr;
+			len = sizeof(struct in_addr);
+		} else {
+			new_addr.in6 = ipv6_hdr(skb)->daddr;
+			len = sizeof(struct in6_addr);
+		}
+		break;
+	}
+
+	for (i = 0; i < len / sizeof(__be32); i++) {
+		netmask = ~(range->min_addr.ip6[i] ^ range->max_addr.ip6[i]);
+		new_addr.ip6[i] &= ~netmask;
+		new_addr.ip6[i] |= range->min_addr.ip6[i] & netmask;
+	}
+
+	range->min_addr = new_addr;
+	range->max_addr = new_addr;
+}
+
 static void nft_nat_eval(const struct nft_expr *expr,
 			 struct nft_regs *regs,
 			 const struct nft_pktinfo *pkt)
@@ -40,33 +110,17 @@ static void nft_nat_eval(const struct nft_expr *expr,
 	struct nf_nat_range2 range;
 
 	memset(&range, 0, sizeof(range));
+
 	if (priv->sreg_addr_min) {
-		if (priv->family == AF_INET) {
-			range.min_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_min];
-			range.max_addr.ip = (__force __be32)
-					regs->data[priv->sreg_addr_max];
-
-		} else {
-			memcpy(range.min_addr.ip6,
-			       &regs->data[priv->sreg_addr_min],
-			       sizeof(range.min_addr.ip6));
-			memcpy(range.max_addr.ip6,
-			       &regs->data[priv->sreg_addr_max],
-			       sizeof(range.max_addr.ip6));
-		}
-		range.flags |= NF_NAT_RANGE_MAP_IPS;
+		nft_nat_setup_addr(&range, regs, priv);
+		if (priv->flags & NF_NAT_RANGE_NETMAP)
+			nft_nat_setup_netmap(&range, pkt, priv);
 	}
 
-	if (priv->sreg_proto_min) {
-		range.min_proto.all = (__force __be16)nft_reg_load16(
-			&regs->data[priv->sreg_proto_min]);
-		range.max_proto.all = (__force __be16)nft_reg_load16(
-			&regs->data[priv->sreg_proto_max]);
-		range.flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
-	}
+	if (priv->sreg_proto_min)
+		nft_nat_setup_proto(&range, regs, priv);
 
-	range.flags |= priv->flags;
+	range.flags = priv->flags;
 
 	regs->verdict.code = nf_nat_setup_info(ct, &range, priv->type);
 }
@@ -129,7 +183,7 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		priv->type = NF_NAT_MANIP_DST;
 		break;
 	default:
-		return -EINVAL;
+		return -EOPNOTSUPP;
 	}
 
 	if (tb[NFTA_NAT_FAMILY] == NULL)
@@ -169,6 +223,8 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		} else {
 			priv->sreg_addr_max = priv->sreg_addr_min;
 		}
+
+		priv->flags |= NF_NAT_RANGE_MAP_IPS;
 	}
 
 	plen = sizeof_field(struct nf_nat_range, min_addr.all);
@@ -191,12 +247,14 @@ static int nft_nat_init(const struct nft_ctx *ctx, const struct nft_expr *expr,
 		} else {
 			priv->sreg_proto_max = priv->sreg_proto_min;
 		}
+
+		priv->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
 	}
 
 	if (tb[NFTA_NAT_FLAGS]) {
-		priv->flags = ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
+		priv->flags |= ntohl(nla_get_be32(tb[NFTA_NAT_FLAGS]));
 		if (priv->flags & ~NF_NAT_RANGE_MASK)
-			return -EINVAL;
+			return -EOPNOTSUPP;
 	}
 
 	return nf_ct_netns_get(ctx->net, family);

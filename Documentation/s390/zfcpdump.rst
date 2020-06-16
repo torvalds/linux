@@ -46,5 +46,5 @@ initramfs with a user space application that writes the dump to a SCSI
 partition.
 
 For more information on how to use zfcpdump refer to the s390 'Using the Dump
-Tools book', which is available from
-http://www.ibm.com/developerworks/linux/linux390.
+Tools' book, which is available from IBM Knowledge Center:
+https://www.ibm.com/support/knowledgecenter/linuxonibm/liaaf/lnz_r_dt.html

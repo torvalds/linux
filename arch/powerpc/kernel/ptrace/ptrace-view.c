@@ -149,7 +149,7 @@ static int set_user_dscr(struct task_struct *task, unsigned long dscr)
  */
 static int set_user_trap(struct task_struct *task, unsigned long trap)
 {
-	task->thread.regs->trap = trap & 0xfff0;
+	set_trap(task->thread.regs, trap);
 	return 0;
 }
 

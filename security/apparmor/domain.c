@@ -320,8 +320,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	might_sleep();
 
 	/* transition from exec match to xattr set */
-	state = aa_dfa_null_transition(profile->xmatch, state);
-
+	state = aa_dfa_outofband_transition(profile->xmatch, state);
 	d = bprm->file->f_path.dentry;
 
 	for (i = 0; i < profile->xattr_count; i++) {
@@ -330,7 +329,13 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 		if (size >= 0) {
 			u32 perm;
 
-			/* Check the xattr value, not just presence */
+			/*
+			 * Check the xattr presence before value. This ensure
+			 * that not present xattr can be distinguished from a 0
+			 * length value or rule that matches any value
+			 */
+			state = aa_dfa_null_transition(profile->xmatch, state);
+			/* Check xattr value */
 			state = aa_dfa_match_len(profile->xmatch, state, value,
 						 size);
 			perm = dfa_user_allow(profile->xmatch, state);
@@ -340,7 +345,7 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			}
 		}
 		/* transition to next element */
-		state = aa_dfa_null_transition(profile->xmatch, state);
+		state = aa_dfa_outofband_transition(profile->xmatch, state);
 		if (size < 0) {
 			/*
 			 * No xattr match, so verify if transition to
@@ -620,8 +625,6 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 					   bool *secure_exec)
 {
 	struct aa_label *new = NULL;
-	struct aa_profile *component;
-	struct label_it i;
 	const char *info = NULL, *name = NULL, *target = NULL;
 	unsigned int state = profile->file.start;
 	struct aa_perms perms = {};
@@ -670,21 +673,6 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 			info = "profile transition not found";
 			/* remove MAY_EXEC to audit as failure */
 			perms.allow &= ~MAY_EXEC;
-		} else {
-			/* verify that each component's xattr requirements are
-			 * met, and fail execution otherwise
-			 */
-			label_for_each(i, new, component) {
-				if (aa_xattrs_match(bprm, component, state) <
-				    0) {
-					error = -EACCES;
-					info = "required xattrs not present";
-					perms.allow &= ~MAY_EXEC;
-					aa_put_label(new);
-					new = NULL;
-					goto audit;
-				}
-			}
 		}
 	} else if (COMPLAIN_MODE(profile)) {
 		/* no exec permission - learning mode */
@@ -854,14 +842,14 @@ static struct aa_label *handle_onexec(struct aa_label *label,
 }
 
 /**
- * apparmor_bprm_set_creds - set the new creds on the bprm struct
+ * apparmor_bprm_creds_for_exec - Update the new creds on the bprm struct
  * @bprm: binprm for the exec  (NOT NULL)
  *
  * Returns: %0 or error on failure
  *
  * TODO: once the other paths are done see if we can't refactor into a fn
  */
-int apparmor_bprm_set_creds(struct linux_binprm *bprm)
+int apparmor_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	struct aa_task_ctx *ctx;
 	struct aa_label *label, *new = NULL;
@@ -874,9 +862,6 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 		file_inode(bprm->file)->i_uid,
 		file_inode(bprm->file)->i_mode
 	};
-
-	if (bprm->called_set_creds)
-		return 0;
 
 	ctx = task_ctx(current);
 	AA_BUG(!cred_label(bprm->cred));
@@ -929,7 +914,8 @@ int apparmor_bprm_set_creds(struct linux_binprm *bprm)
 	 * aways results in a further reduction of permissions.
 	 */
 	if ((bprm->unsafe & LSM_UNSAFE_NO_NEW_PRIVS) &&
-	    !unconfined(label) && !aa_label_is_subset(new, ctx->nnp)) {
+	    !unconfined(label) &&
+	    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 		error = -EPERM;
 		info = "no new privs";
 		goto audit;
@@ -1207,7 +1193,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		 * reduce restrictions.
 		 */
 		if (task_no_new_privs(current) && !unconfined(label) &&
-		    !aa_label_is_subset(new, ctx->nnp)) {
+		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
 			AA_DEBUG("no_new_privs - change_hat denied");
 			error = -EPERM;
@@ -1228,7 +1214,7 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 		 * reduce restrictions.
 		 */
 		if (task_no_new_privs(current) && !unconfined(label) &&
-		    !aa_label_is_subset(previous, ctx->nnp)) {
+		    !aa_label_is_unconfined_subset(previous, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
 			AA_DEBUG("no_new_privs - change_hat denied");
 			error = -EPERM;
@@ -1423,7 +1409,7 @@ check:
 		 * reduce restrictions.
 		 */
 		if (task_no_new_privs(current) && !unconfined(label) &&
-		    !aa_label_is_subset(new, ctx->nnp)) {
+		    !aa_label_is_unconfined_subset(new, ctx->nnp)) {
 			/* not an apparmor denial per se, so don't log it */
 			AA_DEBUG("no_new_privs - change_hat denied");
 			error = -EPERM;

@@ -257,7 +257,6 @@ out:
 static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
 				       u8 *uuid, u8 type, u64 subvolid)
 {
-	struct btrfs_key key;
 	int ret = 0;
 	struct btrfs_root *subvol_root;
 
@@ -265,10 +264,7 @@ static int btrfs_check_uuid_tree_entry(struct btrfs_fs_info *fs_info,
 	    type != BTRFS_UUID_KEY_RECEIVED_SUBVOL)
 		goto out;
 
-	key.objectid = subvolid;
-	key.type = BTRFS_ROOT_ITEM_KEY;
-	key.offset = (u64)-1;
-	subvol_root = btrfs_get_fs_root(fs_info, &key, true);
+	subvol_root = btrfs_get_fs_root(fs_info, subvolid, true);
 	if (IS_ERR(subvol_root)) {
 		ret = PTR_ERR(subvol_root);
 		if (ret == -ENOENT)

@@ -220,7 +220,8 @@ static void intel_lvds_pps_init_hw(struct drm_i915_private *dev_priv,
 		       REG_FIELD_PREP(PP_REFERENCE_DIVIDER_MASK, pps->divider) | REG_FIELD_PREP(PANEL_POWER_CYCLE_DELAY_MASK, DIV_ROUND_UP(pps->t4, 1000) + 1));
 }
 
-static void intel_pre_enable_lvds(struct intel_encoder *encoder,
+static void intel_pre_enable_lvds(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config,
 				  const struct drm_connector_state *conn_state)
 {
@@ -301,7 +302,8 @@ static void intel_pre_enable_lvds(struct intel_encoder *encoder,
 /*
  * Sets the power state for the panel.
  */
-static void intel_enable_lvds(struct intel_encoder *encoder,
+static void intel_enable_lvds(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *pipe_config,
 			      const struct drm_connector_state *conn_state)
 {
@@ -323,7 +325,8 @@ static void intel_enable_lvds(struct intel_encoder *encoder,
 	intel_panel_enable_backlight(pipe_config, conn_state);
 }
 
-static void intel_disable_lvds(struct intel_encoder *encoder,
+static void intel_disable_lvds(struct intel_atomic_state *state,
+			       struct intel_encoder *encoder,
 			       const struct intel_crtc_state *old_crtc_state,
 			       const struct drm_connector_state *old_conn_state)
 {
@@ -341,28 +344,31 @@ static void intel_disable_lvds(struct intel_encoder *encoder,
 	intel_de_posting_read(dev_priv, lvds_encoder->reg);
 }
 
-static void gmch_disable_lvds(struct intel_encoder *encoder,
+static void gmch_disable_lvds(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 
 {
 	intel_panel_disable_backlight(old_conn_state);
 
-	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
+	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
 
-static void pch_disable_lvds(struct intel_encoder *encoder,
+static void pch_disable_lvds(struct intel_atomic_state *state,
+			     struct intel_encoder *encoder,
 			     const struct intel_crtc_state *old_crtc_state,
 			     const struct drm_connector_state *old_conn_state)
 {
 	intel_panel_disable_backlight(old_conn_state);
 }
 
-static void pch_post_disable_lvds(struct intel_encoder *encoder,
+static void pch_post_disable_lvds(struct intel_atomic_state *state,
+				  struct intel_encoder *encoder,
 				  const struct intel_crtc_state *old_crtc_state,
 				  const struct drm_connector_state *old_conn_state)
 {
-	intel_disable_lvds(encoder, old_crtc_state, old_conn_state);
+	intel_disable_lvds(state, encoder, old_crtc_state, old_conn_state);
 }
 
 static enum drm_mode_status
@@ -397,6 +403,7 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	unsigned int lvds_bpp;
+	int ret;
 
 	/* Should never happen!! */
 	if (INTEL_GEN(dev_priv) < 4 && intel_crtc->pipe == 0) {
@@ -430,16 +437,15 @@ static int intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return -EINVAL;
 
-	if (HAS_PCH_SPLIT(dev_priv)) {
+	if (HAS_PCH_SPLIT(dev_priv))
 		pipe_config->has_pch_encoder = true;
 
-		intel_pch_panel_fitting(intel_crtc, pipe_config,
-					conn_state->scaling_mode);
-	} else {
-		intel_gmch_panel_fitting(intel_crtc, pipe_config,
-					 conn_state->scaling_mode);
-
-	}
+	if (HAS_GMCH(dev_priv))
+		ret = intel_gmch_panel_fitting(pipe_config, conn_state);
+	else
+		ret = intel_pch_panel_fitting(pipe_config, conn_state);
+	if (ret)
+		return ret;
 
 	/*
 	 * XXX: It would be nice to support lower refresh rates on the

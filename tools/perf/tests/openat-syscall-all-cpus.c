@@ -44,7 +44,7 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 
 	CPU_ZERO(&cpu_set);
 
-	evsel = perf_evsel__newtp("syscalls", "sys_enter_openat");
+	evsel = evsel__newtp("syscalls", "sys_enter_openat");
 	if (IS_ERR(evsel)) {
 		tracing_path__strerror_open_tp(errno, errbuf, sizeof(errbuf), "syscalls", "sys_enter_openat");
 		pr_debug("%s\n", errbuf);
@@ -90,8 +90,8 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 	 * we use the auto allocation it will allocate just for 1 cpu,
 	 * as we start by cpu 0.
 	 */
-	if (perf_evsel__alloc_counts(evsel, cpus->nr, 1) < 0) {
-		pr_debug("perf_evsel__alloc_counts(ncpus=%d)\n", cpus->nr);
+	if (evsel__alloc_counts(evsel, cpus->nr, 1) < 0) {
+		pr_debug("evsel__alloc_counts(ncpus=%d)\n", cpus->nr);
 		goto out_close_fd;
 	}
 
@@ -103,21 +103,21 @@ int test__openat_syscall_event_on_all_cpus(struct test *test __maybe_unused, int
 		if (cpus->map[cpu] >= CPU_SETSIZE)
 			continue;
 
-		if (perf_evsel__read_on_cpu(evsel, cpu, 0) < 0) {
-			pr_debug("perf_evsel__read_on_cpu\n");
+		if (evsel__read_on_cpu(evsel, cpu, 0) < 0) {
+			pr_debug("evsel__read_on_cpu\n");
 			err = -1;
 			break;
 		}
 
 		expected = nr_openat_calls + cpu;
 		if (perf_counts(evsel->counts, cpu, 0)->val != expected) {
-			pr_debug("perf_evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
+			pr_debug("evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
 				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu, 0)->val);
 			err = -1;
 		}
 	}
 
-	perf_evsel__free_counts(evsel);
+	evsel__free_counts(evsel);
 out_close_fd:
 	perf_evsel__close_fd(&evsel->core);
 out_evsel_delete:

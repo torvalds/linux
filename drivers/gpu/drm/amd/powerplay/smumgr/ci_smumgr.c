@@ -2780,7 +2780,7 @@ static int ci_update_dpm_settings(struct pp_hwmgr *hwmgr,
 
 	if (setting->bupdate_sclk) {
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel, NULL);
 		for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
 			if (levels[i].ActivityLevel !=
 				cpu_to_be16(setting->sclk_activity)) {
@@ -2810,12 +2810,12 @@ static int ci_update_dpm_settings(struct pp_hwmgr *hwmgr,
 			}
 		}
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel, NULL);
 	}
 
 	if (setting->bupdate_mclk) {
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel, NULL);
 		for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++) {
 			if (mclk_levels[i].ActivityLevel !=
 				cpu_to_be16(setting->mclk_activity)) {
@@ -2845,7 +2845,7 @@ static int ci_update_dpm_settings(struct pp_hwmgr *hwmgr,
 			}
 		}
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel, NULL);
 	}
 	return 0;
 }
@@ -2881,8 +2881,9 @@ static int ci_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_UVDDPM))
 			break;
 	}
-	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_UVDDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.uvd_dpm_enable_mask);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_UVDDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.uvd_dpm_enable_mask,
+				NULL);
 
 	return 0;
 }
@@ -2912,8 +2913,9 @@ static int ci_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 		if (hwmgr->dpm_level & profile_mode_mask || !PP_CAP(PHM_PlatformCaps_VCEDPM))
 			break;
 	}
-	ci_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_VCEDPM_SetEnabledMask,
-				data->dpm_level_enable_mask.vce_dpm_enable_mask);
+	smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_VCEDPM_SetEnabledMask,
+				data->dpm_level_enable_mask.vce_dpm_enable_mask,
+				NULL);
 
 	return 0;
 }

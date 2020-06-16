@@ -38,7 +38,7 @@ struct node_header {
 
 struct btree_node {
 	struct node_header header;
-	__le64 keys[0];
+	__le64 keys[];
 } __packed;
 
 
@@ -68,7 +68,7 @@ struct ro_spine {
 };
 
 void init_ro_spine(struct ro_spine *s, struct dm_btree_info *info);
-int exit_ro_spine(struct ro_spine *s);
+void exit_ro_spine(struct ro_spine *s);
 int ro_step(struct ro_spine *s, dm_block_t new_child);
 void ro_pop(struct ro_spine *s);
 struct btree_node *ro_node(struct ro_spine *s);

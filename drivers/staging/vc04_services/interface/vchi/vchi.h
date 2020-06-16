@@ -60,14 +60,8 @@ struct vchi_service_handle;
  * (local / remote)
  *****************************************************************************/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 // Routine used to initialise the vchi on both local + remote connections
 extern int32_t vchi_initialise(struct vchi_instance_handle **instance_handle);
-
-extern int32_t vchi_exit(void);
 
 extern int32_t vchi_connect(struct vchi_instance_handle *instance_handle);
 
@@ -75,17 +69,9 @@ extern int32_t vchi_connect(struct vchi_instance_handle *instance_handle);
 //Bulk transfers can remain 'queued'
 extern int32_t vchi_disconnect(struct vchi_instance_handle *instance_handle);
 
-// helper functions
-extern void *vchi_allocate_buffer(struct vchi_service_handle *handle, uint32_t *length);
-extern void vchi_free_buffer(struct vchi_service_handle *handle, void *address);
-extern uint32_t vchi_current_time(struct vchi_instance_handle *instance_handle);
-
 /******************************************************************************
  * Global service API
  *****************************************************************************/
-// Routine to destroy a service
-extern int32_t vchi_service_destroy(const struct vchi_service_handle *handle);
-
 // Routine to open a named service
 extern int32_t vchi_service_open(struct vchi_instance_handle *instance_handle,
 				 struct service_creation *setup,
@@ -103,22 +89,11 @@ extern int32_t vchi_service_use(const struct vchi_service_handle *handle);
 // Routine to decrement ref count on a named service
 extern int32_t vchi_service_release(const struct vchi_service_handle *handle);
 
-// Routine to set a control option for a named service
-extern int32_t vchi_service_set_option(const struct vchi_service_handle *handle,
-				       enum vchi_service_option option,
-				       int value);
-
 /* Routine to send a message from kernel memory across a service */
 extern int
 vchi_queue_kernel_message(struct vchi_service_handle *handle,
 			  void *data,
 			  unsigned int size);
-
-/* Routine to send a message from user memory across a service */
-extern int
-vchi_queue_user_message(struct vchi_service_handle *handle,
-			void __user *data,
-			unsigned int size);
 
 // Routine to receive a msg from a service
 // Dequeue is equivalent to hold, copy into client buffer, release
@@ -149,53 +124,13 @@ extern int32_t vchi_msg_hold(struct vchi_service_handle *handle,
 			     enum vchi_flags flags,
 			     struct vchi_held_msg *message_descriptor);
 
-// Initialise an iterator to look through messages in place
-extern int32_t vchi_msg_look_ahead(struct vchi_service_handle *handle,
-				   struct vchi_msg_iter *iter,
-				   enum vchi_flags flags);
-
 /*******************************************************************************
  * Global service support API - operations on held messages
  * and message iterators
  ******************************************************************************/
 
-// Routine to get the address of a held message
-extern void *vchi_held_msg_ptr(const struct vchi_held_msg *message);
-
-// Routine to get the size of a held message
-extern int32_t vchi_held_msg_size(const struct vchi_held_msg *message);
-
-// Routine to get the transmit timestamp as written into the header by the peer
-extern uint32_t vchi_held_msg_tx_timestamp(const struct vchi_held_msg *message);
-
-// Routine to get the reception timestamp, written as we parsed the header
-extern uint32_t vchi_held_msg_rx_timestamp(const struct vchi_held_msg *message);
-
 // Routine to release a held message after it has been processed
 extern int32_t vchi_held_msg_release(struct vchi_held_msg *message);
-
-// Indicates whether the iterator has a next message.
-extern int32_t vchi_msg_iter_has_next(const struct vchi_msg_iter *iter);
-
-// Return the pointer and length for the next message and advance the iterator.
-extern int32_t vchi_msg_iter_next(struct vchi_msg_iter *iter,
-				  void **data,
-				  uint32_t *msg_size);
-
-// Remove the last message returned by vchi_msg_iter_next.
-// Can only be called once after each call to vchi_msg_iter_next.
-extern int32_t vchi_msg_iter_remove(struct vchi_msg_iter *iter);
-
-// Hold the last message returned by vchi_msg_iter_next.
-// Can only be called once after each call to vchi_msg_iter_next.
-extern int32_t vchi_msg_iter_hold(struct vchi_msg_iter *iter,
-				  struct vchi_held_msg *message);
-
-// Return information for the next message, and hold it, advancing the iterator.
-extern int32_t vchi_msg_iter_hold_next(struct vchi_msg_iter *iter,
-				       void **data,        // } may be NULL
-				       uint32_t *msg_size, // }
-				       struct vchi_held_msg *message);
 
 /******************************************************************************
  * Global bulk API
@@ -208,13 +143,6 @@ extern int32_t vchi_bulk_queue_receive(struct vchi_service_handle *handle,
 				       enum vchi_flags flags,
 				       void *transfer_handle);
 
-// Prepare interface for a transfer from the other side into relocatable memory.
-int32_t vchi_bulk_queue_receive_reloc(const struct vchi_service_handle *handle,
-				      uint32_t offset,
-				      uint32_t data_size,
-				      const enum vchi_flags flags,
-				      void * const bulk_handle);
-
 // Routine to queue up data ready for transfer to the other (once they have signalled they are ready)
 extern int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
 					const void *data_src,
@@ -226,15 +154,6 @@ extern int32_t vchi_bulk_queue_transmit(struct vchi_service_handle *handle,
  * Configuration plumbing
  *****************************************************************************/
 
-#ifdef __cplusplus
-}
-#endif
-
-extern int32_t vchi_bulk_queue_transmit_reloc(struct vchi_service_handle *handle,
-					      uint32_t offset,
-					      uint32_t data_size,
-					      enum vchi_flags flags,
-					      void *transfer_handle);
 #endif /* VCHI_H_ */
 
 /****************************** End of file **********************************/

@@ -1787,7 +1787,7 @@ static int wcd934x_hw_params(struct snd_pcm_substream *substream,
 				params_rate(params));
 			return -EINVAL;
 
-		};
+		}
 
 		ret = wcd934x_set_decimator_rate(dai, tx_fs_rate,
 						 params_rate(params));
@@ -1803,13 +1803,13 @@ static int wcd934x_hw_params(struct snd_pcm_substream *substream,
 			dev_err(wcd->dev, "Invalid format 0x%x\n",
 				params_width(params));
 			return -EINVAL;
-		};
+		}
 		break;
 	default:
 		dev_err(wcd->dev, "Invalid stream type %d\n",
 			substream->stream);
 		return -EINVAL;
-	};
+	}
 
 	wcd->dai[dai->id].sconfig.rate = params_rate(params);
 	wcd934x_slim_set_hw_params(wcd, &wcd->dai[dai->id], substream->stream);
@@ -2489,7 +2489,7 @@ static int wcd934x_compander_set(struct snd_kcontrol *kc,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3539,7 +3539,7 @@ static int wcd934x_codec_enable_mix_path(struct snd_soc_dapm_widget *w,
 		val += offset_val;
 		snd_soc_component_write(comp, gain_reg, val);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3593,7 +3593,7 @@ static int wcd934x_codec_enable_main_path(struct snd_soc_dapm_widget *w,
 		snd_soc_component_write(comp, gain_reg,
 				snd_soc_component_read32(comp, gain_reg));
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3618,7 +3618,7 @@ static int wcd934x_codec_ear_dac_event(struct snd_soc_dapm_widget *w,
 		wcd_clsh_ctrl_set_state(wcd->clsh_ctrl, WCD_CLSH_EVENT_POST_PA,
 					WCD_CLSH_STATE_EAR, CLS_H_NORMAL);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3670,7 +3670,7 @@ static int wcd934x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3720,7 +3720,7 @@ static int wcd934x_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 		break;
 	default:
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3801,7 +3801,7 @@ static int wcd934x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 		 */
 		usleep_range(20000, 20100);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3863,7 +3863,7 @@ static int wcd934x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		 */
 		usleep_range(20000, 20100);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -3878,7 +3878,7 @@ static u32 wcd934x_get_dmic_sample_rate(struct snd_soc_component *comp,
 	u16 adc_mux_ctl_reg, tx_fs_reg;
 	u32 dmic_fs;
 
-	while (dec_found == 0 && adc_mux_index < WCD934X_MAX_VALID_ADC_MUX) {
+	while (!dec_found && adc_mux_index < WCD934X_MAX_VALID_ADC_MUX) {
 		if (adc_mux_index < 4) {
 			adc_mux_ctl_reg = WCD934X_CDC_TX_INP_MUX_ADC_MUX0_CFG0 +
 						(adc_mux_index * 2);
@@ -4015,7 +4015,7 @@ static int wcd934x_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 		dev_err(comp->dev, "%s: Invalid DMIC Selection\n",
 			__func__);
 		return -EINVAL;
-	};
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -4040,7 +4040,7 @@ static int wcd934x_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(comp, dmic_clk_reg,
 						      dmic_clk_en, 0);
 		break;
-	};
+	}
 
 	return 0;
 }
@@ -4267,7 +4267,7 @@ static int wcd934x_codec_enable_dec(struct snd_soc_dapm_widget *w,
 					      WCD934X_DEC_PWR_LVL_MASK,
 					      WCD934X_DEC_PWR_LVL_DF);
 		break;
-	};
+	}
 out:
 	kfree(wname);
 	return ret;

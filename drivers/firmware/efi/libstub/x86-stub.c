@@ -20,21 +20,9 @@
 /* Maximum physical address for 64-bit kernel with 4-level paging */
 #define MAXMEM_X86_64_4LEVEL (1ull << 46)
 
-static efi_system_table_t *sys_table __efistub_global;
-extern const bool efi_is64;
+const efi_system_table_t *efi_system_table;
 extern u32 image_offset;
-
-__pure efi_system_table_t *efi_system_table(void)
-{
-	return sys_table;
-}
-
-__attribute_const__ bool efi_is_64bit(void)
-{
-	if (IS_ENABLED(CONFIG_EFI_MIXED))
-		return efi_is64;
-	return IS_ENABLED(CONFIG_X86_64);
-}
+static efi_loaded_image_t *image = NULL;
 
 static efi_status_t
 preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
@@ -62,7 +50,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 	status = efi_bs_call(allocate_pool, EFI_LOADER_DATA, size,
 			     (void **)&rom);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate memory for 'rom'\n");
+		efi_err("Failed to allocate memory for 'rom'\n");
 		return status;
 	}
 
@@ -78,7 +66,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				PCI_VENDOR_ID, 1, &rom->vendor);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to read rom->vendor\n");
+		efi_err("Failed to read rom->vendor\n");
 		goto free_struct;
 	}
 
@@ -86,7 +74,7 @@ preserve_pci_rom_image(efi_pci_io_protocol_t *pci, struct pci_setup_rom **__rom)
 				PCI_DEVICE_ID, 1, &rom->devid);
 
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to read rom->devid\n");
+		efi_err("Failed to read rom->devid\n");
 		goto free_struct;
 	}
 
@@ -131,7 +119,7 @@ static void setup_efi_pci(struct boot_params *params)
 				     (void **)&pci_handle);
 
 		if (status != EFI_SUCCESS) {
-			efi_printk("Failed to allocate memory for 'pci_handle'\n");
+			efi_err("Failed to allocate memory for 'pci_handle'\n");
 			return;
 		}
 
@@ -185,7 +173,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 		return;
 
 	if (efi_table_attr(p, version) != 0x10000) {
-		efi_printk("Unsupported properties proto version\n");
+		efi_err("Unsupported properties proto version\n");
 		return;
 	}
 
@@ -198,7 +186,7 @@ static void retrieve_apple_device_properties(struct boot_params *boot_params)
 				     size + sizeof(struct setup_data),
 				     (void **)&new);
 		if (status != EFI_SUCCESS) {
-			efi_printk("Failed to allocate memory for 'properties'\n");
+			efi_err("Failed to allocate memory for 'properties'\n");
 			return;
 		}
 
@@ -227,7 +215,7 @@ static const efi_char16_t apple[] = L"Apple";
 static void setup_quirks(struct boot_params *boot_params)
 {
 	efi_char16_t *fw_vendor = (efi_char16_t *)(unsigned long)
-		efi_table_attr(efi_system_table(), fw_vendor);
+		efi_table_attr(efi_system_table, fw_vendor);
 
 	if (!memcmp(fw_vendor, apple, sizeof(apple))) {
 		if (IS_ENABLED(CONFIG_APPLE_PROPERTIES))
@@ -368,7 +356,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 {
 	struct boot_params *boot_params;
 	struct setup_header *hdr;
-	efi_loaded_image_t *image;
 	void *image_base;
 	efi_guid_t proto = LOADED_IMAGE_PROTOCOL_GUID;
 	int options_size = 0;
@@ -377,28 +364,29 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	unsigned long ramdisk_addr;
 	unsigned long ramdisk_size;
 
-	sys_table = sys_table_arg;
+	efi_system_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		efi_exit(handle, EFI_INVALID_PARAMETER);
 
 	status = efi_bs_call(handle_protocol, handle, &proto, (void **)&image);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
+		efi_err("Failed to get handle for LOADED_IMAGE_PROTOCOL\n");
 		efi_exit(handle, status);
 	}
 
 	image_base = efi_table_attr(image, image_base);
 	image_offset = (void *)startup_32 - image_base;
 
-	status = efi_allocate_pages(0x4000, (unsigned long *)&boot_params, ULONG_MAX);
+	status = efi_allocate_pages(sizeof(struct boot_params),
+				    (unsigned long *)&boot_params, ULONG_MAX);
 	if (status != EFI_SUCCESS) {
-		efi_printk("Failed to allocate lowmem for boot params\n");
+		efi_err("Failed to allocate lowmem for boot params\n");
 		efi_exit(handle, status);
 	}
 
-	memset(boot_params, 0x0, 0x4000);
+	memset(boot_params, 0x0, sizeof(struct boot_params));
 
 	hdr = &boot_params->hdr;
 
@@ -416,43 +404,21 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	hdr->type_of_loader = 0x21;
 
 	/* Convert unicode cmdline to ascii */
-	cmdline_ptr = efi_convert_cmdline(image, &options_size, ULONG_MAX);
+	cmdline_ptr = efi_convert_cmdline(image, &options_size);
 	if (!cmdline_ptr)
 		goto fail;
 
-	hdr->cmd_line_ptr = (unsigned long)cmdline_ptr;
-	/* Fill in upper bits of command line address, NOP on 32 bit  */
-	boot_params->ext_cmd_line_ptr = (u64)(unsigned long)cmdline_ptr >> 32;
+	efi_set_u64_split((unsigned long)cmdline_ptr,
+			  &hdr->cmd_line_ptr, &boot_params->ext_cmd_line_ptr);
 
 	hdr->ramdisk_image = 0;
 	hdr->ramdisk_size = 0;
 
-	if (efi_is_native()) {
-		status = efi_parse_options(cmdline_ptr);
-		if (status != EFI_SUCCESS)
-			goto fail2;
-
-		if (!noinitrd()) {
-			status = efi_load_initrd(image, &ramdisk_addr,
-						 &ramdisk_size,
-						 hdr->initrd_addr_max,
-						 ULONG_MAX);
-			if (status != EFI_SUCCESS)
-				goto fail2;
-			hdr->ramdisk_image = ramdisk_addr & 0xffffffff;
-			hdr->ramdisk_size  = ramdisk_size & 0xffffffff;
-			boot_params->ext_ramdisk_image = (u64)ramdisk_addr >> 32;
-			boot_params->ext_ramdisk_size  = (u64)ramdisk_size >> 32;
-		}
-	}
-
-	efi_stub_entry(handle, sys_table, boot_params);
+	efi_stub_entry(handle, sys_table_arg, boot_params);
 	/* not reached */
 
-fail2:
-	efi_free(options_size, (unsigned long)cmdline_ptr);
 fail:
-	efi_free(0x4000, (unsigned long)boot_params);
+	efi_free(sizeof(struct boot_params), (unsigned long)boot_params);
 
 	efi_exit(handle, status);
 }
@@ -645,16 +611,13 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 				   : EFI32_LOADER_SIGNATURE;
 	memcpy(&p->efi->efi_loader_signature, signature, sizeof(__u32));
 
-	p->efi->efi_systab		= (unsigned long)efi_system_table();
+	efi_set_u64_split((unsigned long)efi_system_table,
+			  &p->efi->efi_systab, &p->efi->efi_systab_hi);
 	p->efi->efi_memdesc_size	= *map->desc_size;
 	p->efi->efi_memdesc_version	= *map->desc_ver;
-	p->efi->efi_memmap		= (unsigned long)*map->map;
+	efi_set_u64_split((unsigned long)*map->map,
+			  &p->efi->efi_memmap, &p->efi->efi_memmap_hi);
 	p->efi->efi_memmap_size		= *map->map_size;
-
-#ifdef CONFIG_X86_64
-	p->efi->efi_systab_hi		= (unsigned long)efi_system_table() >> 32;
-	p->efi->efi_memmap_hi		= (unsigned long)*map->map >> 32;
-#endif
 
 	return EFI_SUCCESS;
 }
@@ -711,12 +674,11 @@ unsigned long efi_main(efi_handle_t handle,
 	unsigned long buffer_start, buffer_end;
 	struct setup_header *hdr = &boot_params->hdr;
 	efi_status_t status;
-	unsigned long cmdline_paddr;
 
-	sys_table = sys_table_arg;
+	efi_system_table = sys_table_arg;
 
 	/* Check if we were booted by the EFI firmware */
-	if (sys_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
+	if (efi_system_table->hdr.signature != EFI_SYSTEM_TABLE_SIGNATURE)
 		efi_exit(handle, EFI_INVALID_PARAMETER);
 
 	/*
@@ -759,7 +721,7 @@ unsigned long efi_main(efi_handle_t handle,
 					     hdr->kernel_alignment,
 					     LOAD_PHYSICAL_ADDR);
 		if (status != EFI_SUCCESS) {
-			efi_printk("efi_relocate_kernel() failed!\n");
+			efi_err("efi_relocate_kernel() failed!\n");
 			goto fail;
 		}
 		/*
@@ -770,34 +732,47 @@ unsigned long efi_main(efi_handle_t handle,
 		image_offset = 0;
 	}
 
-	/*
-	 * efi_pe_entry() may have been called before efi_main(), in which
-	 * case this is the second time we parse the cmdline. This is ok,
-	 * parsing the cmdline multiple times does not have side-effects.
-	 */
-	cmdline_paddr = ((u64)hdr->cmd_line_ptr |
-			 ((u64)boot_params->ext_cmd_line_ptr << 32));
-	efi_parse_options((char *)cmdline_paddr);
+#ifdef CONFIG_CMDLINE_BOOL
+	status = efi_parse_options(CONFIG_CMDLINE);
+	if (status != EFI_SUCCESS) {
+		efi_err("Failed to parse options\n");
+		goto fail;
+	}
+#endif
+	if (!IS_ENABLED(CONFIG_CMDLINE_OVERRIDE)) {
+		unsigned long cmdline_paddr = ((u64)hdr->cmd_line_ptr |
+					       ((u64)boot_params->ext_cmd_line_ptr << 32));
+		status = efi_parse_options((char *)cmdline_paddr);
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to parse options\n");
+			goto fail;
+		}
+	}
 
 	/*
-	 * At this point, an initrd may already have been loaded, either by
-	 * the bootloader and passed via bootparams, or loaded from a initrd=
-	 * command line option by efi_pe_entry() above. In either case, we
-	 * permit an initrd loaded from the LINUX_EFI_INITRD_MEDIA_GUID device
-	 * path to supersede it.
+	 * At this point, an initrd may already have been loaded by the
+	 * bootloader and passed via bootparams. We permit an initrd loaded
+	 * from the LINUX_EFI_INITRD_MEDIA_GUID device path to supersede it.
+	 *
+	 * If the device path is not present, any command-line initrd=
+	 * arguments will be processed only if image is not NULL, which will be
+	 * the case only if we were loaded via the PE entry point.
 	 */
-	if (!noinitrd()) {
+	if (!efi_noinitrd) {
 		unsigned long addr, size;
 
-		status = efi_load_initrd_dev_path(&addr, &size, ULONG_MAX);
-		if (status == EFI_SUCCESS) {
-			hdr->ramdisk_image		= (u32)addr;
-			hdr->ramdisk_size 		= (u32)size;
-			boot_params->ext_ramdisk_image	= (u64)addr >> 32;
-			boot_params->ext_ramdisk_size 	= (u64)size >> 32;
-		} else if (status != EFI_NOT_FOUND) {
-			efi_printk("efi_load_initrd_dev_path() failed!\n");
+		status = efi_load_initrd(image, &addr, &size,
+					 hdr->initrd_addr_max, ULONG_MAX);
+
+		if (status != EFI_SUCCESS) {
+			efi_err("Failed to load initrd!\n");
 			goto fail;
+		}
+		if (size > 0) {
+			efi_set_u64_split(addr, &hdr->ramdisk_image,
+					  &boot_params->ext_ramdisk_image);
+			efi_set_u64_split(size, &hdr->ramdisk_size,
+					  &boot_params->ext_ramdisk_size);
 		}
 	}
 
@@ -823,13 +798,13 @@ unsigned long efi_main(efi_handle_t handle,
 
 	status = exit_boot(boot_params, handle);
 	if (status != EFI_SUCCESS) {
-		efi_printk("exit_boot() failed!\n");
+		efi_err("exit_boot() failed!\n");
 		goto fail;
 	}
 
 	return bzimage_addr;
 fail:
-	efi_printk("efi_main() failed!\n");
+	efi_err("efi_main() failed!\n");
 
 	efi_exit(handle, status);
 }

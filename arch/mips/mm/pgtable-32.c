@@ -10,7 +10,6 @@
 #include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <asm/fixmap.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 

@@ -58,43 +58,120 @@
  *
  *****************************************************************************/
 
+#include <linux/uuid.h>
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "acpi.h"
 #include "fw/runtime.h"
 
-void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+static const guid_t intel_wifi_guid = GUID_INIT(0xF21202BF, 0x8F78, 0x4DC6,
+						0xA5, 0xB3, 0x1F, 0x73,
+						0x8E, 0x28, 0x5A, 0xDE);
+
+static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
+			       acpi_handle *ret_handle)
 {
 	acpi_handle root_handle;
-	acpi_handle handle;
-	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 
 	root_handle = ACPI_HANDLE(dev);
 	if (!root_handle) {
 		IWL_DEBUG_DEV_RADIO(dev,
-				    "Could not retrieve root port ACPI handle\n");
-		return ERR_PTR(-ENOENT);
+				    "ACPI: Could not retrieve root port handle\n");
+		return -ENOENT;
 	}
 
-	/* Get the method's handle */
-	status = acpi_get_handle(root_handle, method, &handle);
+	status = acpi_get_handle(root_handle, method, ret_handle);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_DEV_RADIO(dev, "%s method not found\n", method);
-		return ERR_PTR(-ENOENT);
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: %s method not found\n", method);
+		return -ENOENT;
 	}
+	return 0;
+}
+
+void *iwl_acpi_get_object(struct device *dev, acpi_string method)
+{
+	struct acpi_buffer buf = {ACPI_ALLOCATE_BUFFER, NULL};
+	acpi_handle handle;
+	acpi_status status;
+	int ret;
+
+	ret = iwl_acpi_get_handle(dev, method, &handle);
+	if (ret)
+		return ERR_PTR(-ENOENT);
 
 	/* Call the method with no arguments */
 	status = acpi_evaluate_object(handle, NULL, NULL, &buf);
 	if (ACPI_FAILURE(status)) {
-		IWL_DEBUG_DEV_RADIO(dev, "%s invocation failed (0x%x)\n",
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: %s method invocation failed (status: 0x%x)\n",
 				    method, status);
 		return ERR_PTR(-ENOENT);
 	}
-
 	return buf.pointer;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_object);
+
+/**
+* Generic function for evaluating a method defined in the device specific
+* method (DSM) interface. The returned acpi object must be freed by calling
+* function.
+*/
+void *iwl_acpi_get_dsm_object(struct device *dev, int rev, int func,
+			      union acpi_object *args)
+{
+	union acpi_object *obj;
+
+	obj = acpi_evaluate_dsm(ACPI_HANDLE(dev), &intel_wifi_guid, rev, func,
+				args);
+	if (!obj) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM method invocation failed (rev: %d, func:%d)\n",
+				    rev, func);
+		return ERR_PTR(-ENOENT);
+	}
+	return obj;
+}
+
+/**
+ * Evaluate a DSM with no arguments and a single u8 return value (inside a
+ * buffer object), verify and return that value.
+ */
+int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func)
+{
+	union acpi_object *obj;
+	int ret;
+
+	obj = iwl_acpi_get_dsm_object(dev, rev, func, NULL);
+	if (IS_ERR(obj))
+		return -ENOENT;
+
+	if (obj->type != ACPI_TYPE_BUFFER) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM method did not return a valid object, type=%d\n",
+				    obj->type);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (obj->buffer.length != sizeof(u8)) {
+		IWL_DEBUG_DEV_RADIO(dev,
+				    "ACPI: DSM method returned invalid buffer, length=%d\n",
+				    obj->buffer.length);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	ret = obj->buffer.pointer[0];
+	IWL_DEBUG_DEV_RADIO(dev,
+			    "ACPI: DSM method evaluated: func=%d, ret=%d\n",
+			    func, ret);
+out:
+	ACPI_FREE(obj);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
 
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
@@ -150,6 +227,82 @@ found:
 	return wifi_pkg;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_wifi_pkg);
+
+int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
+		     __le32 *black_list_array,
+		     int *black_list_size)
+{
+	union acpi_object *wifi_pkg, *data;
+	int ret, tbl_rev, i;
+	bool enabled;
+
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WTAS_METHOD);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WTAS_WIFI_DATA_SIZE,
+					 &tbl_rev);
+	if (IS_ERR(wifi_pkg)) {
+		ret = PTR_ERR(wifi_pkg);
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[0].type != ACPI_TYPE_INTEGER ||
+	    tbl_rev != 0) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	enabled = !!wifi_pkg->package.elements[0].integer.value;
+
+	if (!enabled) {
+		*black_list_size = -1;
+		IWL_DEBUG_RADIO(fwrt, "TAS not enabled\n");
+		ret = 0;
+		goto out_free;
+	}
+
+	if (wifi_pkg->package.elements[1].type != ACPI_TYPE_INTEGER ||
+	    wifi_pkg->package.elements[1].integer.value >
+	    APCI_WTAS_BLACK_LIST_MAX) {
+		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %llu\n",
+				wifi_pkg->package.elements[1].integer.value);
+		ret = -EINVAL;
+		goto out_free;
+	}
+	*black_list_size = wifi_pkg->package.elements[1].integer.value;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS array size %d\n", *black_list_size);
+	if (*black_list_size > APCI_WTAS_BLACK_LIST_MAX) {
+		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
+				*black_list_size);
+		ret = -EINVAL;
+		goto out_free;
+	}
+
+	for (i = 0; i < *black_list_size; i++) {
+		u32 country;
+
+		if (wifi_pkg->package.elements[2 + i].type !=
+		    ACPI_TYPE_INTEGER) {
+			IWL_DEBUG_RADIO(fwrt,
+					"TAS invalid array elem %d\n", 2 + i);
+			ret = -EINVAL;
+			goto out_free;
+		}
+
+		country = wifi_pkg->package.elements[2 + i].integer.value;
+		black_list_array[i] = cpu_to_le32(country);
+		IWL_DEBUG_RADIO(fwrt, "TAS black list country %d\n", country);
+	}
+
+	ret = 0;
+out_free:
+	kfree(data);
+	return ret;
+}
+IWL_EXPORT_SYMBOL(iwl_acpi_get_tas);
 
 int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {

@@ -76,20 +76,18 @@ properties:
   # Other properties
 
   bus-width:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 4, 8]
-        default: 1
     description:
       Number of data lines.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 4, 8]
+    default: 1
 
   max-frequency:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 400000
-      - maximum: 200000000
     description:
       Maximum operating frequency of the bus.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 400000
+    maximum: 200000000
 
   disable-wp:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -212,13 +210,12 @@ properties:
       eMMC HS400 enhanced strobe mode is supported
 
   dsr:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-      - maximum: 0xffff
     description:
       Value the card Driver Stage Register (DSR) should be programmed
       with.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 0xffff
 
   no-sdio:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -238,25 +235,23 @@ properties:
       initialization.
 
   fixed-emmc-driver-type:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 0
-      - maximum: 4
     description:
       For non-removable eMMC, enforce this driver type. The value is
       the driver type as specified in the eMMC specification (table
       206 in spec version 5.1)
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 4
 
   post-power-on-delay-ms:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - default: 10
     description:
       It was invented for MMC pwrseq-simple which could be referred to
       mmc-pwrseq-simple.txt. But now it\'s reused as a tunable delay
       waiting for I/O signalling and card power supply to be stable,
       regardless of whether pwrseq-simple is used. Default to 10ms if
       no available.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 10
 
   supports-cqe:
     $ref: /schemas/types.yaml#/definitions/flag
@@ -333,8 +328,8 @@ patternProperties:
       - reg
 
   "^clk-phase-(legacy|sd-hs|mmc-(hs|hs[24]00|ddr52)|uhs-(sdr(12|25|50|104)|ddr50))$":
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
     minItems: 2
     maxItems: 2
     items:

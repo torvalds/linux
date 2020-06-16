@@ -45,6 +45,7 @@ struct bnxt_qplib_srq {
 	struct bnxt_qplib_db_info	dbinfo;
 	u64				srq_handle;
 	u32				id;
+	u16				wqe_size;
 	u32				max_wqe;
 	u32				max_sge;
 	u32				threshold;
@@ -65,38 +66,7 @@ struct bnxt_qplib_sge {
 	u32				size;
 };
 
-#define BNXT_QPLIB_MAX_SQE_ENTRY_SIZE	sizeof(struct sq_send)
-
-#define SQE_CNT_PER_PG		(PAGE_SIZE / BNXT_QPLIB_MAX_SQE_ENTRY_SIZE)
-#define SQE_MAX_IDX_PER_PG	(SQE_CNT_PER_PG - 1)
-
-static inline u32 get_sqe_pg(u32 val)
-{
-	return ((val & ~SQE_MAX_IDX_PER_PG) / SQE_CNT_PER_PG);
-}
-
-static inline u32 get_sqe_idx(u32 val)
-{
-	return (val & SQE_MAX_IDX_PER_PG);
-}
-
-#define BNXT_QPLIB_MAX_PSNE_ENTRY_SIZE	sizeof(struct sq_psn_search)
-
-#define PSNE_CNT_PER_PG		(PAGE_SIZE / BNXT_QPLIB_MAX_PSNE_ENTRY_SIZE)
-#define PSNE_MAX_IDX_PER_PG	(PSNE_CNT_PER_PG - 1)
-
-static inline u32 get_psne_pg(u32 val)
-{
-	return ((val & ~PSNE_MAX_IDX_PER_PG) / PSNE_CNT_PER_PG);
-}
-
-static inline u32 get_psne_idx(u32 val)
-{
-	return (val & PSNE_MAX_IDX_PER_PG);
-}
-
 #define BNXT_QPLIB_QP_MAX_SGL	6
-
 struct bnxt_qplib_swq {
 	u64				wr_id;
 	int				next_idx;
@@ -226,19 +196,13 @@ struct bnxt_qplib_swqe {
 	};
 };
 
-#define BNXT_QPLIB_MAX_RQE_ENTRY_SIZE	sizeof(struct rq_wqe)
-
-#define RQE_CNT_PER_PG		(PAGE_SIZE / BNXT_QPLIB_MAX_RQE_ENTRY_SIZE)
-#define RQE_MAX_IDX_PER_PG	(RQE_CNT_PER_PG - 1)
-#define RQE_PG(x)		(((x) & ~RQE_MAX_IDX_PER_PG) / RQE_CNT_PER_PG)
-#define RQE_IDX(x)		((x) & RQE_MAX_IDX_PER_PG)
-
 struct bnxt_qplib_q {
 	struct bnxt_qplib_hwq		hwq;
 	struct bnxt_qplib_swq		*swq;
 	struct bnxt_qplib_db_info	dbinfo;
 	struct bnxt_qplib_sg_info	sg_info;
 	u32				max_wqe;
+	u16				wqe_size;
 	u16				q_full_delta;
 	u16				max_sge;
 	u32				psn;
@@ -256,7 +220,7 @@ struct bnxt_qplib_qp {
 	struct bnxt_qplib_dpi		*dpi;
 	struct bnxt_qplib_chip_ctx	*cctx;
 	u64				qp_handle;
-#define        BNXT_QPLIB_QP_ID_INVALID        0xFFFFFFFF
+#define BNXT_QPLIB_QP_ID_INVALID        0xFFFFFFFF
 	u32				id;
 	u8				type;
 	u8				sig_type;

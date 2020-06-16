@@ -10,8 +10,6 @@
 
 #include <drm/drm.h> /* for drm_legacy.h! */
 #include <drm/drm_cache.h>
-#include <drm/drm_legacy.h> /* for drm_pci.h! */
-#include <drm/drm_pci.h>
 
 #include "gt/intel_gt.h"
 #include "i915_drv.h"

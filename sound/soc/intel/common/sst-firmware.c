@@ -16,12 +16,12 @@
 #include <linux/dmaengine.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/pgtable.h>
 
 /* supported DMA engine drivers */
 #include <linux/dma/dw.h>
 
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #include "sst-dsp.h"
 #include "sst-dsp-priv.h"

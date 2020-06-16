@@ -12,6 +12,7 @@
 
 #include "am65-cpsw-nuss.h"
 #include "cpsw_ale.h"
+#include "am65-cpts.h"
 
 #define AM65_CPSW_REGDUMP_VER 0x1
 
@@ -694,6 +695,27 @@ static void am65_cpsw_get_ethtool_stats(struct net_device *ndev,
 					hw_stats[i].offset);
 }
 
+static int am65_cpsw_get_ethtool_ts_info(struct net_device *ndev,
+					 struct ethtool_ts_info *info)
+{
+	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+
+	if (!IS_ENABLED(CONFIG_TI_K3_AM65_CPTS))
+		return ethtool_op_get_ts_info(ndev, info);
+
+	info->so_timestamping =
+		SOF_TIMESTAMPING_TX_HARDWARE |
+		SOF_TIMESTAMPING_TX_SOFTWARE |
+		SOF_TIMESTAMPING_RX_HARDWARE |
+		SOF_TIMESTAMPING_RX_SOFTWARE |
+		SOF_TIMESTAMPING_SOFTWARE |
+		SOF_TIMESTAMPING_RAW_HARDWARE;
+	info->phc_index = am65_cpts_phc_index(common->cpts);
+	info->tx_types = BIT(HWTSTAMP_TX_OFF) | BIT(HWTSTAMP_TX_ON);
+	info->rx_filters = BIT(HWTSTAMP_FILTER_NONE) | BIT(HWTSTAMP_FILTER_ALL);
+	return 0;
+}
+
 static u32 am65_cpsw_get_ethtool_priv_flags(struct net_device *ndev)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
@@ -708,9 +730,17 @@ static u32 am65_cpsw_get_ethtool_priv_flags(struct net_device *ndev)
 static int am65_cpsw_set_ethtool_priv_flags(struct net_device *ndev, u32 flags)
 {
 	struct am65_cpsw_common *common = am65_ndev_to_common(ndev);
+	int rrobin;
 
-	common->pf_p0_rx_ptype_rrobin =
-			!!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
+	rrobin = !!(flags & AM65_CPSW_PRIV_P0_RX_PTYPE_RROBIN);
+
+	if (common->est_enabled && rrobin) {
+		netdev_err(ndev,
+			   "p0-rx-ptype-rrobin flag conflicts with QOS\n");
+		return -EINVAL;
+	}
+
+	common->pf_p0_rx_ptype_rrobin = rrobin;
 	am65_cpsw_nuss_set_p0_ptype(common);
 
 	return 0;
@@ -730,7 +760,7 @@ const struct ethtool_ops am65_cpsw_ethtool_ops_slave = {
 	.get_sset_count		= am65_cpsw_get_sset_count,
 	.get_strings		= am65_cpsw_get_strings,
 	.get_ethtool_stats	= am65_cpsw_get_ethtool_stats,
-	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_ts_info		= am65_cpsw_get_ethtool_ts_info,
 	.get_priv_flags		= am65_cpsw_get_ethtool_priv_flags,
 	.set_priv_flags		= am65_cpsw_set_ethtool_priv_flags,
 

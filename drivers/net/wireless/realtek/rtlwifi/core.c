@@ -1722,7 +1722,7 @@ static void rtl_op_rfkill_poll(struct ieee80211_hw *hw)
 				 "wireless radio switch turned %s\n",
 				  radio_state ? "on" : "off");
 
-			blocked = (rtlpriv->rfkill.rfkill_state == 1) ? 0 : 1;
+			blocked = !rtlpriv->rfkill.rfkill_state;
 			wiphy_rfkill_set_hw_state(hw->wiphy, blocked);
 		}
 	}

@@ -42,17 +42,17 @@ bool __mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 }
 EXPORT_SYMBOL_GPL(__mt76_poll_msec);
 
-int mt76_wcid_alloc(unsigned long *mask, int size)
+int mt76_wcid_alloc(u32 *mask, int size)
 {
 	int i, idx = 0, cur;
 
-	for (i = 0; i < size / BITS_PER_LONG; i++) {
+	for (i = 0; i < DIV_ROUND_UP(size, 32); i++) {
 		idx = ffs(~mask[i]);
 		if (!idx)
 			continue;
 
 		idx--;
-		cur = i * BITS_PER_LONG + idx;
+		cur = i * 32 + idx;
 		if (cur >= size)
 			break;
 
@@ -74,13 +74,13 @@ int mt76_get_min_avg_rssi(struct mt76_dev *dev, bool ext_phy)
 	rcu_read_lock();
 
 	for (i = 0; i < ARRAY_SIZE(dev->wcid_mask); i++) {
-		unsigned long mask = dev->wcid_mask[i];
-		unsigned long phy_mask = dev->wcid_phy_mask[i];
+		u32 mask = dev->wcid_mask[i];
+		u32 phy_mask = dev->wcid_phy_mask[i];
 
 		if (!mask)
 			continue;
 
-		for (j = i * BITS_PER_LONG; mask; j++, mask >>= 1, phy_mask >>= 1) {
+		for (j = i * 32; mask; j++, mask >>= 1, phy_mask >>= 1) {
 			if (!(mask & 1))
 				continue;
 

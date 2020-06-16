@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/crash_core.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/setup.h>
 
 void arch_crash_save_vmcoreinfo(void)

@@ -2668,7 +2668,7 @@ struct mwl8k_cmd_mac_multicast_adr {
 	struct mwl8k_cmd_pkt header;
 	__le16 action;
 	__le16 numaddr;
-	__u8 addr[0][ETH_ALEN];
+	__u8 addr[][ETH_ALEN];
 };
 
 #define MWL8K_ENABLE_RX_DIRECTED	0x0001

@@ -7,7 +7,7 @@ Filter) facility, with a focus on the extended BPF version (eBPF).
 
 This kernel side documentation is still work in progress.  The main
 textual documentation is (for historical reasons) described in
-`Documentation/networking/filter.txt`_, which describe both classical
+`Documentation/networking/filter.rst`_, which describe both classical
 and extended BPF instruction-set.
 The Cilium project also maintains a `BPF and XDP Reference Guide`_
 that goes into great technical depth about the BPF Architecture.
@@ -59,7 +59,7 @@ Testing and debugging BPF
 
 
 .. Links:
-.. _Documentation/networking/filter.txt: ../networking/filter.txt
+.. _Documentation/networking/filter.rst: ../networking/filter.txt
 .. _man-pages: https://www.kernel.org/doc/man-pages/
 .. _bpf(2): http://man7.org/linux/man-pages/man2/bpf.2.html
 .. _BPF and XDP Reference Guide: http://cilium.readthedocs.io/en/latest/bpf/

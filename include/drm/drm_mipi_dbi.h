@@ -152,7 +152,6 @@ int mipi_dbi_dev_init_with_formats(struct mipi_dbi_dev *dbidev,
 int mipi_dbi_dev_init(struct mipi_dbi_dev *dbidev,
 		      const struct drm_simple_display_pipe_funcs *funcs,
 		      const struct drm_display_mode *mode, unsigned int rotation);
-void mipi_dbi_release(struct drm_device *drm);
 void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 			  struct drm_plane_state *old_state);
 void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
@@ -170,7 +169,8 @@ int mipi_dbi_spi_transfer(struct spi_device *spi, u32 speed_hz,
 
 int mipi_dbi_command_read(struct mipi_dbi *dbi, u8 cmd, u8 *val);
 int mipi_dbi_command_buf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
-int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, u8 *data, size_t len);
+int mipi_dbi_command_stackbuf(struct mipi_dbi *dbi, u8 cmd, const u8 *data,
+			      size_t len);
 int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
 		      struct drm_rect *clip, bool swap);
 /**
@@ -187,12 +187,12 @@ int mipi_dbi_buf_copy(void *dst, struct drm_framebuffer *fb,
  */
 #define mipi_dbi_command(dbi, cmd, seq...) \
 ({ \
-	u8 d[] = { seq }; \
+	const u8 d[] = { seq }; \
 	mipi_dbi_command_stackbuf(dbi, cmd, d, ARRAY_SIZE(d)); \
 })
 
 #ifdef CONFIG_DEBUG_FS
-int mipi_dbi_debugfs_init(struct drm_minor *minor);
+void mipi_dbi_debugfs_init(struct drm_minor *minor);
 #else
 #define mipi_dbi_debugfs_init		NULL
 #endif

@@ -39,7 +39,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 	/* Do some checks on provided FDT, if it exists: */
 	if (orig_fdt) {
 		if (fdt_check_header(orig_fdt)) {
-			pr_efi_err("Device Tree header not valid!\n");
+			efi_err("Device Tree header not valid!\n");
 			return EFI_LOAD_ERROR;
 		}
 		/*
@@ -47,7 +47,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 		 * configuration table:
 		 */
 		if (orig_fdt_size && fdt_totalsize(orig_fdt) > orig_fdt_size) {
-			pr_efi_err("Truncated device tree! foo!\n");
+			efi_err("Truncated device tree! foo!\n");
 			return EFI_LOAD_ERROR;
 		}
 	}
@@ -110,7 +110,7 @@ static efi_status_t update_fdt(void *orig_fdt, unsigned long orig_fdt_size,
 
 	/* Add FDT entries for EFI runtime services in chosen node. */
 	node = fdt_subnode_offset(fdt, 0, "chosen");
-	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table());
+	fdt_val64 = cpu_to_fdt64((u64)(unsigned long)efi_system_table);
 
 	status = fdt_setprop_var(fdt, node, "linux,uefi-system-table", fdt_val64);
 	if (status)
@@ -270,16 +270,16 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	 */
 	status = efi_get_memory_map(&map);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Unable to retrieve UEFI memory map.\n");
+		efi_err("Unable to retrieve UEFI memory map.\n");
 		return status;
 	}
 
-	pr_efi("Exiting boot services and installing virtual address map...\n");
+	efi_info("Exiting boot services and installing virtual address map...\n");
 
 	map.map = &memory_map;
 	status = efi_allocate_pages(MAX_FDT_SIZE, new_fdt_addr, max_addr);
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Unable to allocate memory for new device tree.\n");
+		efi_err("Unable to allocate memory for new device tree.\n");
 		goto fail;
 	}
 
@@ -296,7 +296,7 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 			    initrd_addr, initrd_size);
 
 	if (status != EFI_SUCCESS) {
-		pr_efi_err("Unable to construct new device tree.\n");
+		efi_err("Unable to construct new device tree.\n");
 		goto fail_free_new_fdt;
 	}
 
@@ -310,11 +310,11 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 	if (status == EFI_SUCCESS) {
 		efi_set_virtual_address_map_t *svam;
 
-		if (novamap())
+		if (efi_novamap)
 			return EFI_SUCCESS;
 
 		/* Install the new virtual address map */
-		svam = efi_system_table()->runtime->set_virtual_address_map;
+		svam = efi_system_table->runtime->set_virtual_address_map;
 		status = svam(runtime_entry_count * desc_size, desc_size,
 			      desc_ver, runtime_map);
 
@@ -342,13 +342,13 @@ efi_status_t allocate_new_fdt_and_exit_boot(void *handle,
 		return EFI_SUCCESS;
 	}
 
-	pr_efi_err("Exit boot services failed.\n");
+	efi_err("Exit boot services failed.\n");
 
 fail_free_new_fdt:
 	efi_free(MAX_FDT_SIZE, *new_fdt_addr);
 
 fail:
-	efi_system_table()->boottime->free_pool(runtime_map);
+	efi_system_table->boottime->free_pool(runtime_map);
 
 	return EFI_LOAD_ERROR;
 }
@@ -363,7 +363,7 @@ void *get_fdt(unsigned long *fdt_size)
 		return NULL;
 
 	if (fdt_check_header(fdt) != 0) {
-		pr_efi_err("Invalid header detected on UEFI supplied FDT, ignoring ...\n");
+		efi_err("Invalid header detected on UEFI supplied FDT, ignoring ...\n");
 		return NULL;
 	}
 	*fdt_size = fdt_totalsize(fdt);

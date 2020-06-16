@@ -783,16 +783,10 @@ static struct mii_timestamping_ctrl ines_ctrl = {
 static int ines_ptp_ctrl_probe(struct platform_device *pld)
 {
 	struct ines_clock *clock;
-	struct resource *res;
 	void __iomem *addr;
 	int err = 0;
 
-	res = platform_get_resource(pld, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pld->dev, "missing memory resource\n");
-		return -EINVAL;
-	}
-	addr = devm_ioremap_resource(&pld->dev, res);
+	addr = devm_platform_ioremap_resource(pld, 0);
 	if (IS_ERR(addr)) {
 		err = PTR_ERR(addr);
 		goto out;

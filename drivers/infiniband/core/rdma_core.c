@@ -130,6 +130,17 @@ static int uverbs_destroy_uobject(struct ib_uobject *uobj,
 	lockdep_assert_held(&ufile->hw_destroy_rwsem);
 	assert_uverbs_usecnt(uobj, UVERBS_LOOKUP_WRITE);
 
+	if (reason == RDMA_REMOVE_ABORT_HWOBJ) {
+		reason = RDMA_REMOVE_ABORT;
+		ret = uobj->uapi_object->type_class->destroy_hw(uobj, reason,
+								attrs);
+		/*
+		 * Drivers are not permitted to ignore RDMA_REMOVE_ABORT, see
+		 * ib_is_destroy_retryable, cleanup_retryable == false here.
+		 */
+		WARN_ON(ret);
+	}
+
 	if (reason == RDMA_REMOVE_ABORT) {
 		WARN_ON(!list_empty(&uobj->list));
 		WARN_ON(!uobj->context);
@@ -653,11 +664,15 @@ void rdma_alloc_commit_uobject(struct ib_uobject *uobj,
  * object and anything else connected to uobj before calling this.
  */
 void rdma_alloc_abort_uobject(struct ib_uobject *uobj,
-			      struct uverbs_attr_bundle *attrs)
+			      struct uverbs_attr_bundle *attrs,
+			      bool hw_obj_valid)
 {
 	struct ib_uverbs_file *ufile = uobj->ufile;
 
-	uverbs_destroy_uobject(uobj, RDMA_REMOVE_ABORT, attrs);
+	uverbs_destroy_uobject(uobj,
+			       hw_obj_valid ? RDMA_REMOVE_ABORT_HWOBJ :
+					      RDMA_REMOVE_ABORT,
+			       attrs);
 
 	/* Matches the down_read in rdma_alloc_begin_uobject */
 	up_read(&ufile->hw_destroy_rwsem);
@@ -927,8 +942,8 @@ uverbs_get_uobject_from_file(u16 object_id, enum uverbs_obj_access access,
 }
 
 void uverbs_finalize_object(struct ib_uobject *uobj,
-			    enum uverbs_obj_access access, bool commit,
-			    struct uverbs_attr_bundle *attrs)
+			    enum uverbs_obj_access access, bool hw_obj_valid,
+			    bool commit, struct uverbs_attr_bundle *attrs)
 {
 	/*
 	 * refcounts should be handled at the object level and not at the
@@ -951,7 +966,7 @@ void uverbs_finalize_object(struct ib_uobject *uobj,
 		if (commit)
 			rdma_alloc_commit_uobject(uobj, attrs);
 		else
-			rdma_alloc_abort_uobject(uobj, attrs);
+			rdma_alloc_abort_uobject(uobj, attrs, hw_obj_valid);
 		break;
 	default:
 		WARN_ON(true);

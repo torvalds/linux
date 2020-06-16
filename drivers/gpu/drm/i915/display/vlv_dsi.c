@@ -267,7 +267,6 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
 						   base);
 	struct intel_connector *intel_connector = intel_dsi->attached_connector;
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	const struct drm_display_mode *fixed_mode = intel_connector->panel.fixed_mode;
 	struct drm_display_mode *adjusted_mode = &pipe_config->hw.adjusted_mode;
 	int ret;
@@ -279,11 +278,11 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 		intel_fixed_panel_mode(fixed_mode, adjusted_mode);
 
 		if (HAS_GMCH(dev_priv))
-			intel_gmch_panel_fitting(crtc, pipe_config,
-						 conn_state->scaling_mode);
+			ret = intel_gmch_panel_fitting(pipe_config, conn_state);
 		else
-			intel_pch_panel_fitting(crtc, pipe_config,
-						conn_state->scaling_mode);
+			ret = intel_pch_panel_fitting(pipe_config, conn_state);
+		if (ret)
+			return ret;
 	}
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -759,7 +758,8 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder);
  * DSI port enable has to be done before pipe and plane enable, so we do it in
  * the pre_enable hook instead of the enable hook.
  */
-static void intel_dsi_pre_enable(struct intel_encoder *encoder,
+static void intel_dsi_pre_enable(struct intel_atomic_state *state,
+				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *pipe_config,
 				 const struct drm_connector_state *conn_state)
 {
@@ -858,11 +858,12 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_ON);
 }
 
-static void bxt_dsi_enable(struct intel_encoder *encoder,
+static void bxt_dsi_enable(struct intel_atomic_state *state,
+			   struct intel_encoder *encoder,
 			   const struct intel_crtc_state *crtc_state,
 			   const struct drm_connector_state *conn_state)
 {
-	WARN_ON(crtc_state->has_pch_encoder);
+	drm_WARN_ON(state->base.dev, crtc_state->has_pch_encoder);
 
 	intel_crtc_vblank_on(crtc_state);
 }
@@ -871,14 +872,16 @@ static void bxt_dsi_enable(struct intel_encoder *encoder,
  * DSI port disable has to be done after pipe and plane disable, so we do it in
  * the post_disable hook.
  */
-static void intel_dsi_disable(struct intel_encoder *encoder,
+static void intel_dsi_disable(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state,
 			      const struct drm_connector_state *old_conn_state)
 {
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	enum port port;
 
-	DRM_DEBUG_KMS("\n");
+	drm_dbg_kms(&i915->drm, "\n");
 
 	intel_dsi_vbt_exec_sequence(intel_dsi, MIPI_SEQ_BACKLIGHT_OFF);
 	intel_panel_disable_backlight(old_conn_state);
@@ -906,7 +909,8 @@ static void intel_dsi_clear_device_ready(struct intel_encoder *encoder)
 		vlv_dsi_clear_device_ready(encoder);
 }
 
-static void intel_dsi_post_disable(struct intel_encoder *encoder,
+static void intel_dsi_post_disable(struct intel_atomic_state *state,
+				   struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {

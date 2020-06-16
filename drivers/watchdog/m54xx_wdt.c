@@ -29,6 +29,7 @@
 #include <linux/bitops.h>
 #include <linux/ioport.h>
 #include <linux/uaccess.h>
+#include <linux/io.h>
 
 #include <asm/coldfire.h>
 #include <asm/m54xxsim.h>

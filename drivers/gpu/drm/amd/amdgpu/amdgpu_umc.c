@@ -110,7 +110,8 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		 * even NOMEM error is encountered
 		 */
 		if(!err_data->err_addr)
-			DRM_WARN("Failed to alloc memory for umc error address record!\n");
+			dev_warn(adev->dev, "Failed to alloc memory for "
+					"umc error address record!\n");
 
 		/* umc query_ras_error_address is also responsible for clearing
 		 * error status
@@ -120,10 +121,14 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 
 	/* only uncorrectable error needs gpu reset */
 	if (err_data->ue_count) {
+		dev_info(adev->dev, "%ld uncorrectable hardware errors "
+				"detected in UMC block\n",
+				err_data->ue_count);
+
 		if (err_data->err_addr_cnt &&
 		    amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
 						err_data->err_addr_cnt))
-			DRM_WARN("Failed to add ras bad page!\n");
+			dev_warn(adev->dev, "Failed to add ras bad page!\n");
 
 		amdgpu_ras_reset_gpu(adev);
 	}

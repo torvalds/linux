@@ -28,10 +28,6 @@ struct hdac_hda_priv {
 	bool need_display_power;
 };
 
-#define hdac_to_hda_priv(_hdac) \
-			container_of(_hdac, struct hdac_hda_priv, codec.core)
-#define hdac_to_hda_codec(_hdac) container_of(_hdac, struct hda_codec, core)
-
 struct hdac_ext_bus_ops *snd_soc_hdac_hda_get_ops(void);
 
 #endif /* __HDAC_HDA_H__ */

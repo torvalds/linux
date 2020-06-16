@@ -35,7 +35,6 @@
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/crash_core.h>
-#include <linux/kdb.h>
 #include <linux/ratelimit.h>
 #include <linux/kmsg_dump.h>
 #include <linux/syslog.h>
@@ -173,7 +172,7 @@ __setup("printk.devkmsg=", control_devkmsg);
 char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE] = "ratelimit";
 
 int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
-			      void __user *buffer, size_t *lenp, loff_t *ppos)
+			      void *buffer, size_t *lenp, loff_t *ppos)
 {
 	char old_str[DEVKMSG_STR_MAX_SIZE];
 	unsigned int old;
@@ -280,6 +279,7 @@ static struct console *exclusive_console;
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int preferred_console = -1;
+static bool has_preferred_console;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
@@ -973,6 +973,16 @@ static loff_t devkmsg_llseek(struct file *file, loff_t offset, int whence)
 		/* after the last record */
 		user->idx = log_next_idx;
 		user->seq = log_next_seq;
+		break;
+	case SEEK_CUR:
+		/*
+		 * It isn't supported due to the record nature of this
+		 * interface: _SET _DATA and _END point to very specific
+		 * record positions, while _CUR would be more useful in case
+		 * of a byte-based log. Because of that, return the default
+		 * errno value for invalid seek operation.
+		 */
+		ret = -ESPIPE;
 		break;
 	default:
 		ret = -EINVAL;
@@ -2036,18 +2046,7 @@ EXPORT_SYMBOL(vprintk);
 
 int vprintk_default(const char *fmt, va_list args)
 {
-	int r;
-
-#ifdef CONFIG_KGDB_KDB
-	/* Allow to pass printk() to kdb but avoid a recursion. */
-	if (unlikely(kdb_trap_printk && kdb_printf_cpu < 0)) {
-		r = vkdb_printf(KDB_MSGSRC_PRINTK, fmt, args);
-		return r;
-	}
-#endif
-	r = vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
-
-	return r;
+	return vprintk_emit(0, LOGLEVEL_DEFAULT, NULL, 0, fmt, args);
 }
 EXPORT_SYMBOL_GPL(vprintk_default);
 
@@ -2140,7 +2139,7 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
 #endif
 
 static int __add_preferred_console(char *name, int idx, char *options,
-				   char *brl_options)
+				   char *brl_options, bool user_specified)
 {
 	struct console_cmdline *c;
 	int i;
@@ -2155,6 +2154,8 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			if (!brl_options)
 				preferred_console = i;
+			if (user_specified)
+				c->user_specified = true;
 			return 0;
 		}
 	}
@@ -2164,6 +2165,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		preferred_console = i;
 	strlcpy(c->name, name, sizeof(c->name));
 	c->options = options;
+	c->user_specified = user_specified;
 	braille_set_options(c, brl_options);
 
 	c->index = idx;
@@ -2189,6 +2191,9 @@ static int __init console_setup(char *str)
 	char buf[sizeof(console_cmdline[0].name) + 4]; /* 4 for "ttyS" */
 	char *s, *options, *brl_options = NULL;
 	int idx;
+
+	if (str[0] == 0)
+		return 1;
 
 	if (_braille_console_setup(&str, &brl_options))
 		return 1;
@@ -2218,7 +2223,7 @@ static int __init console_setup(char *str)
 	idx = simple_strtoul(s, NULL, 10);
 	*s = 0;
 
-	__add_preferred_console(buf, idx, options, brl_options);
+	__add_preferred_console(buf, idx, options, brl_options, true);
 	console_set_on_cmdline = 1;
 	return 1;
 }
@@ -2239,7 +2244,7 @@ __setup("console=", console_setup);
  */
 int add_preferred_console(char *name, int idx, char *options)
 {
-	return __add_preferred_console(name, idx, options, NULL);
+	return __add_preferred_console(name, idx, options, NULL, false);
 }
 
 bool console_suspend_enabled = true;
@@ -2438,9 +2443,9 @@ again:
 		printk_safe_enter_irqsave(flags);
 		raw_spin_lock(&logbuf_lock);
 		if (console_seq < log_first_seq) {
-			len = sprintf(text,
-				      "** %llu printk messages dropped **\n",
-				      log_first_seq - console_seq);
+			len = snprintf(text, sizeof(text),
+				       "** %llu printk messages dropped **\n",
+				       log_first_seq - console_seq);
 
 			/* messages are gone, move to first one */
 			console_seq = log_first_seq;
@@ -2652,6 +2657,63 @@ static int __init keep_bootcon_setup(char *str)
 early_param("keep_bootcon", keep_bootcon_setup);
 
 /*
+ * This is called by register_console() to try to match
+ * the newly registered console with any of the ones selected
+ * by either the command line or add_preferred_console() and
+ * setup/enable it.
+ *
+ * Care need to be taken with consoles that are statically
+ * enabled such as netconsole
+ */
+static int try_enable_new_console(struct console *newcon, bool user_specified)
+{
+	struct console_cmdline *c;
+	int i;
+
+	for (i = 0, c = console_cmdline;
+	     i < MAX_CMDLINECONSOLES && c->name[0];
+	     i++, c++) {
+		if (c->user_specified != user_specified)
+			continue;
+		if (!newcon->match ||
+		    newcon->match(newcon, c->name, c->index, c->options) != 0) {
+			/* default matching */
+			BUILD_BUG_ON(sizeof(c->name) != sizeof(newcon->name));
+			if (strcmp(c->name, newcon->name) != 0)
+				continue;
+			if (newcon->index >= 0 &&
+			    newcon->index != c->index)
+				continue;
+			if (newcon->index < 0)
+				newcon->index = c->index;
+
+			if (_braille_register_console(newcon, c))
+				return 0;
+
+			if (newcon->setup &&
+			    newcon->setup(newcon, c->options) != 0)
+				return -EIO;
+		}
+		newcon->flags |= CON_ENABLED;
+		if (i == preferred_console) {
+			newcon->flags |= CON_CONSDEV;
+			has_preferred_console = true;
+		}
+		return 0;
+	}
+
+	/*
+	 * Some consoles, such as pstore and netconsole, can be enabled even
+	 * without matching. Accept the pre-enabled consoles only when match()
+	 * and setup() had a change to be called.
+	 */
+	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
+		return 0;
+
+	return -ENOENT;
+}
+
+/*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
  * print any messages that were printed by the kernel before the
@@ -2672,11 +2734,9 @@ early_param("keep_bootcon", keep_bootcon_setup);
  */
 void register_console(struct console *newcon)
 {
-	int i;
 	unsigned long flags;
 	struct console *bcon = NULL;
-	struct console_cmdline *c;
-	static bool has_preferred;
+	int err;
 
 	for_each_console(bcon) {
 		if (WARN(bcon == newcon, "console '%s%d' already registered\n",
@@ -2701,15 +2761,15 @@ void register_console(struct console *newcon)
 	if (console_drivers && console_drivers->flags & CON_BOOT)
 		bcon = console_drivers;
 
-	if (!has_preferred || bcon || !console_drivers)
-		has_preferred = preferred_console >= 0;
+	if (!has_preferred_console || bcon || !console_drivers)
+		has_preferred_console = preferred_console >= 0;
 
 	/*
 	 *	See if we want to use this console driver. If we
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (!has_preferred) {
+	if (!has_preferred_console) {
 		if (newcon->index < 0)
 			newcon->index = 0;
 		if (newcon->setup == NULL ||
@@ -2717,47 +2777,20 @@ void register_console(struct console *newcon)
 			newcon->flags |= CON_ENABLED;
 			if (newcon->device) {
 				newcon->flags |= CON_CONSDEV;
-				has_preferred = true;
+				has_preferred_console = true;
 			}
 		}
 	}
 
-	/*
-	 *	See if this console matches one we selected on
-	 *	the command line.
-	 */
-	for (i = 0, c = console_cmdline;
-	     i < MAX_CMDLINECONSOLES && c->name[0];
-	     i++, c++) {
-		if (!newcon->match ||
-		    newcon->match(newcon, c->name, c->index, c->options) != 0) {
-			/* default matching */
-			BUILD_BUG_ON(sizeof(c->name) != sizeof(newcon->name));
-			if (strcmp(c->name, newcon->name) != 0)
-				continue;
-			if (newcon->index >= 0 &&
-			    newcon->index != c->index)
-				continue;
-			if (newcon->index < 0)
-				newcon->index = c->index;
+	/* See if this console matches one we selected on the command line */
+	err = try_enable_new_console(newcon, true);
 
-			if (_braille_register_console(newcon, c))
-				return;
+	/* If not, try to match against the platform default(s) */
+	if (err == -ENOENT)
+		err = try_enable_new_console(newcon, false);
 
-			if (newcon->setup &&
-			    newcon->setup(newcon, c->options) != 0)
-				break;
-		}
-
-		newcon->flags |= CON_ENABLED;
-		if (i == preferred_console) {
-			newcon->flags |= CON_CONSDEV;
-			has_preferred = true;
-		}
-		break;
-	}
-
-	if (!(newcon->flags & CON_ENABLED))
+	/* printk() messages are not printed to the Braille console. */
+	if (err || newcon->flags & CON_BRL)
 		return;
 
 	/*
@@ -2779,6 +2812,8 @@ void register_console(struct console *newcon)
 		console_drivers = newcon;
 		if (newcon->next)
 			newcon->next->flags &= ~CON_CONSDEV;
+		/* Ensure this flag is always set for the head of the list */
+		newcon->flags |= CON_CONSDEV;
 	} else {
 		newcon->next = console_drivers->next;
 		console_drivers->next = newcon;
@@ -3144,6 +3179,23 @@ EXPORT_SYMBOL_GPL(kmsg_dump_unregister);
 static bool always_kmsg_dump;
 module_param_named(always_kmsg_dump, always_kmsg_dump, bool, S_IRUGO | S_IWUSR);
 
+const char *kmsg_dump_reason_str(enum kmsg_dump_reason reason)
+{
+	switch (reason) {
+	case KMSG_DUMP_PANIC:
+		return "Panic";
+	case KMSG_DUMP_OOPS:
+		return "Oops";
+	case KMSG_DUMP_EMERG:
+		return "Emergency";
+	case KMSG_DUMP_SHUTDOWN:
+		return "Shutdown";
+	default:
+		return "Unknown";
+	}
+}
+EXPORT_SYMBOL_GPL(kmsg_dump_reason_str);
+
 /**
  * kmsg_dump - dump kernel log to kernel message dumpers.
  * @reason: the reason (oops, panic etc) for dumping
@@ -3157,12 +3209,19 @@ void kmsg_dump(enum kmsg_dump_reason reason)
 	struct kmsg_dumper *dumper;
 	unsigned long flags;
 
-	if ((reason > KMSG_DUMP_OOPS) && !always_kmsg_dump)
-		return;
-
 	rcu_read_lock();
 	list_for_each_entry_rcu(dumper, &dump_list, list) {
-		if (dumper->max_reason && reason > dumper->max_reason)
+		enum kmsg_dump_reason max_reason = dumper->max_reason;
+
+		/*
+		 * If client has not provided a specific max_reason, default
+		 * to KMSG_DUMP_OOPS, unless always_kmsg_dump was set.
+		 */
+		if (max_reason == KMSG_DUMP_UNDEF) {
+			max_reason = always_kmsg_dump ? KMSG_DUMP_MAX :
+							KMSG_DUMP_OOPS;
+		}
+		if (reason > max_reason)
 			continue;
 
 		/* initialize iterator with data about the stored records */
@@ -3360,7 +3419,7 @@ out:
 EXPORT_SYMBOL_GPL(kmsg_dump_get_buffer);
 
 /**
- * kmsg_dump_rewind_nolock - reset the interator (unlocked version)
+ * kmsg_dump_rewind_nolock - reset the iterator (unlocked version)
  * @dumper: registered kmsg dumper
  *
  * Reset the dumper's iterator so that kmsg_dump_get_line() and
@@ -3378,7 +3437,7 @@ void kmsg_dump_rewind_nolock(struct kmsg_dumper *dumper)
 }
 
 /**
- * kmsg_dump_rewind - reset the interator
+ * kmsg_dump_rewind - reset the iterator
  * @dumper: registered kmsg dumper
  *
  * Reset the dumper's iterator so that kmsg_dump_get_line() and

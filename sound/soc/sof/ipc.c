@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -335,21 +335,20 @@ int sof_ipc_tx_message_no_pm(struct snd_sof_ipc *ipc, u32 header,
 EXPORT_SYMBOL(sof_ipc_tx_message_no_pm);
 
 /* handle reply message from DSP */
-int snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
+void snd_sof_ipc_reply(struct snd_sof_dev *sdev, u32 msg_id)
 {
 	struct snd_sof_ipc_msg *msg = &sdev->ipc->msg;
 
 	if (msg->ipc_complete) {
-		dev_err(sdev->dev, "error: no reply expected, received 0x%x",
+		dev_dbg(sdev->dev,
+			"no reply expected, received 0x%x, will be ignored",
 			msg_id);
-		return -EINVAL;
+		return;
 	}
 
 	/* wake up and return the error if we have waiters on this message ? */
 	msg->ipc_complete = true;
 	wake_up(&msg->waitq);
-
-	return 0;
 }
 EXPORT_SYMBOL(snd_sof_ipc_reply);
 

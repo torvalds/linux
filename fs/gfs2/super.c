@@ -626,7 +626,7 @@ int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 		}
 	}
 
-	flush_workqueue(gfs2_delete_workqueue);
+	gfs2_flush_delete_work(sdp);
 	if (!log_write_allowed && current == sdp->sd_quotad_process)
 		fs_warn(sdp, "The quotad daemon is withdrawing.\n");
 	else if (sdp->sd_quotad_process)
@@ -1054,7 +1054,7 @@ static int gfs2_drop_inode(struct inode *inode)
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 
 		gfs2_glock_hold(gl);
-		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+		if (!gfs2_queue_delete_work(gl, 0))
 			gfs2_glock_queue_put(gl);
 		return false;
 	}
@@ -1258,6 +1258,55 @@ static void gfs2_glock_put_eventually(struct gfs2_glock *gl)
 		gfs2_glock_put(gl);
 }
 
+static bool gfs2_upgrade_iopen_glock(struct inode *inode)
+{
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_holder *gh = &ip->i_iopen_gh;
+	long timeout = 5 * HZ;
+	int error;
+
+	gh->gh_flags |= GL_NOCACHE;
+	gfs2_glock_dq_wait(gh);
+
+	/*
+	 * If there are no other lock holders, we'll get the lock immediately.
+	 * Otherwise, the other nodes holding the lock will be notified about
+	 * our locking request.  If they don't have the inode open, they'll
+	 * evict the cached inode and release the lock.  Otherwise, if they
+	 * poke the inode glock, we'll take this as an indication that they
+	 * still need the iopen glock and that they'll take care of deleting
+	 * the inode when they're done.  As a last resort, if another node
+	 * keeps holding the iopen glock without showing any activity on the
+	 * inode glock, we'll eventually time out.
+	 *
+	 * Note that we're passing the LM_FLAG_TRY_1CB flag to the first
+	 * locking request as an optimization to notify lock holders as soon as
+	 * possible.  Without that flag, they'd be notified implicitly by the
+	 * second locking request.
+	 */
+
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE, gh);
+	error = gfs2_glock_nq(gh);
+	if (error != GLR_TRYFAILED)
+		return !error;
+
+	gfs2_holder_reinit(LM_ST_EXCLUSIVE, GL_ASYNC | GL_NOCACHE, gh);
+	error = gfs2_glock_nq(gh);
+	if (error)
+		return false;
+
+	timeout = wait_event_interruptible_timeout(sdp->sd_async_glock_wait,
+		!test_bit(HIF_WAIT, &gh->gh_iflags) ||
+		test_bit(GLF_DEMOTE, &ip->i_gl->gl_flags),
+		timeout);
+	if (!test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+		gfs2_glock_dq(gh);
+		return false;
+	}
+	return true;
+}
+
 /**
  * gfs2_evict_inode - Remove an inode from cache
  * @inode: The inode to evict
@@ -1299,8 +1348,11 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (test_bit(GIF_ALLOC_FAILED, &ip->i_flags)) {
 		BUG_ON(!gfs2_glock_is_locked_by_me(ip->i_gl));
 		gfs2_holder_mark_uninitialized(&gh);
-		goto alloc_failed;
+		goto out_delete;
 	}
+
+	if (test_bit(GIF_DEFERRED_DELETE, &ip->i_flags))
+		goto out;
 
 	/* Deletes should never happen under memory pressure anymore.  */
 	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
@@ -1315,6 +1367,8 @@ static void gfs2_evict_inode(struct inode *inode)
 		goto out;
 	}
 
+	if (gfs2_inode_already_deleted(ip->i_gl, ip->i_no_formal_ino))
+		goto out_truncate;
 	error = gfs2_check_blk_type(sdp, ip->i_no_addr, GFS2_BLKST_UNLINKED);
 	if (error)
 		goto out_truncate;
@@ -1331,16 +1385,13 @@ static void gfs2_evict_inode(struct inode *inode)
 	if (inode->i_nlink)
 		goto out_truncate;
 
-alloc_failed:
+out_delete:
 	if (gfs2_holder_initialized(&ip->i_iopen_gh) &&
 	    test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags)) {
-		ip->i_iopen_gh.gh_flags |= GL_NOCACHE;
-		gfs2_glock_dq_wait(&ip->i_iopen_gh);
-		gfs2_holder_reinit(LM_ST_EXCLUSIVE, LM_FLAG_TRY_1CB | GL_NOCACHE,
-				   &ip->i_iopen_gh);
-		error = gfs2_glock_nq(&ip->i_iopen_gh);
-		if (error)
+		if (!gfs2_upgrade_iopen_glock(inode)) {
+			gfs2_holder_uninit(&ip->i_iopen_gh);
 			goto out_truncate;
+		}
 	}
 
 	if (S_ISDIR(inode->i_mode) &&
@@ -1368,6 +1419,7 @@ alloc_failed:
 	   that subsequent inode creates don't see an old gl_object. */
 	glock_clear_object(ip->i_gl, ip);
 	error = gfs2_dinode_dealloc(ip);
+	gfs2_inode_remember_delete(ip->i_gl, ip->i_no_formal_ino);
 	goto out_unlock;
 
 out_truncate:

@@ -127,16 +127,8 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
  		goto out;
 	}
 
-	{
-		SHASH_DESC_ON_STACK(desc, tfm);
-
-		desc->tfm = tfm;
-
-		status = crypto_shash_digest(desc, clname->data, clname->len,
-					     cksum.data);
-		shash_desc_zero(desc);
-	}
-
+	status = crypto_shash_tfm_digest(tfm, clname->data, clname->len,
+					 cksum.data);
 	if (status)
 		goto out;
 
@@ -1148,7 +1140,6 @@ nfsd4_cld_create_v2(struct nfs4_client *clp)
 	struct crypto_shash *tfm = cn->cn_tfm;
 	struct xdr_netobj cksum;
 	char *principal = NULL;
-	SHASH_DESC_ON_STACK(desc, tfm);
 
 	/* Don't upcall if it's already stored */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -1170,16 +1161,14 @@ nfsd4_cld_create_v2(struct nfs4_client *clp)
 	else if (clp->cl_cred.cr_principal)
 		principal = clp->cl_cred.cr_principal;
 	if (principal) {
-		desc->tfm = tfm;
 		cksum.len = crypto_shash_digestsize(tfm);
 		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
 		if (cksum.data == NULL) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		ret = crypto_shash_digest(desc, principal, strlen(principal),
-					  cksum.data);
-		shash_desc_zero(desc);
+		ret = crypto_shash_tfm_digest(tfm, principal, strlen(principal),
+					      cksum.data);
 		if (ret) {
 			kfree(cksum.data);
 			goto out;
@@ -1343,7 +1332,6 @@ nfsd4_cld_check_v2(struct nfs4_client *clp)
 	struct crypto_shash *tfm = cn->cn_tfm;
 	struct xdr_netobj cksum;
 	char *principal = NULL;
-	SHASH_DESC_ON_STACK(desc, tfm);
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -1381,14 +1369,12 @@ found:
 			principal = clp->cl_cred.cr_principal;
 		if (principal == NULL)
 			return -ENOENT;
-		desc->tfm = tfm;
 		cksum.len = crypto_shash_digestsize(tfm);
 		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
 		if (cksum.data == NULL)
 			return -ENOENT;
-		status = crypto_shash_digest(desc, principal, strlen(principal),
-					     cksum.data);
-		shash_desc_zero(desc);
+		status = crypto_shash_tfm_digest(tfm, principal,
+						 strlen(principal), cksum.data);
 		if (status) {
 			kfree(cksum.data);
 			return -ENOENT;

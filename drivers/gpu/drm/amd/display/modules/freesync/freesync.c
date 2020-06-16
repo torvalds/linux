@@ -443,7 +443,7 @@ static bool vrr_settings_require_update(struct core_freesync *core_freesync,
 		return true;
 	} else if (in_vrr->state == VRR_STATE_ACTIVE_FIXED &&
 			in_vrr->fixed.target_refresh_in_uhz !=
-					in_config->min_refresh_in_uhz) {
+					in_config->fixed_refresh_in_uhz) {
 		return true;
 	} else if (in_vrr->min_refresh_in_uhz != min_refresh_in_uhz) {
 		return true;
@@ -491,7 +491,7 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 	return false;
 }
 
-static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
+static void build_vrr_infopacket_data_v1(const struct mod_vrr_params *vrr,
 		struct dc_info_packet *infopacket)
 {
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
@@ -523,14 +523,74 @@ static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
 			vrr->state == VRR_STATE_ACTIVE_FIXED)
 		infopacket->sb[6] |= 0x04;
 
+	// For v1 & 2 infoframes program nominal if non-fs mode, otherwise full range
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
-	infopacket->sb[7] = (unsigned char)((vrr->min_refresh_in_uhz + 500000) / 1000000);
+	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+			vrr->state == VRR_STATE_ACTIVE_FIXED) {
+		infopacket->sb[7] = (unsigned char)((vrr->min_refresh_in_uhz + 500000) / 1000000);
+	} else {
+		infopacket->sb[7] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+	}
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz)
 	 * Note: We should never go above the field rate of the mode timing set.
 	 */
 	infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
 
+	//FreeSync HDR
+	infopacket->sb[9] = 0;
+	infopacket->sb[10] = 0;
+}
+
+static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
+		struct dc_info_packet *infopacket)
+{
+	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
+	infopacket->sb[1] = 0x1A;
+
+	/* PB2 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 1) */
+	infopacket->sb[2] = 0x00;
+
+	/* PB3 = 0x00 (24bit AMD IEEE OUI (0x00001A) - Byte 2) */
+	infopacket->sb[3] = 0x00;
+
+	/* PB4 = Reserved */
+
+	/* PB5 = Reserved */
+
+	/* PB6 = [Bits 7:3 = Reserved] */
+
+	/* PB6 = [Bit 0 = FreeSync Supported] */
+	if (vrr->state != VRR_STATE_UNSUPPORTED)
+		infopacket->sb[6] |= 0x01;
+
+	/* PB6 = [Bit 1 = FreeSync Enabled] */
+	if (vrr->state != VRR_STATE_DISABLED &&
+			vrr->state != VRR_STATE_UNSUPPORTED)
+		infopacket->sb[6] |= 0x02;
+
+	/* PB6 = [Bit 2 = FreeSync Active] */
+	if (vrr->state == VRR_STATE_ACTIVE_VARIABLE ||
+			vrr->state == VRR_STATE_ACTIVE_FIXED)
+		infopacket->sb[6] |= 0x04;
+
+	if (vrr->state == VRR_STATE_ACTIVE_FIXED) {
+		/* PB7 = FreeSync Minimum refresh rate (Hz) */
+		infopacket->sb[7] = (unsigned char)((vrr->fixed_refresh_in_uhz + 500000) / 1000000);
+		/* PB8 = FreeSync Maximum refresh rate (Hz) */
+		infopacket->sb[8] = (unsigned char)((vrr->fixed_refresh_in_uhz + 500000) / 1000000);
+	} else if (vrr->state == VRR_STATE_ACTIVE_VARIABLE) {
+		/* PB7 = FreeSync Minimum refresh rate (Hz) */
+		infopacket->sb[7] = (unsigned char)((vrr->min_refresh_in_uhz + 500000) / 1000000);
+		/* PB8 = FreeSync Maximum refresh rate (Hz) */
+		infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+	} else {
+		// Non-fs case, program nominal range
+		/* PB7 = FreeSync Minimum refresh rate (Hz) */
+		infopacket->sb[7] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+		/* PB8 = FreeSync Maximum refresh rate (Hz) */
+		infopacket->sb[8] = (unsigned char)((vrr->max_refresh_in_uhz + 500000) / 1000000);
+	}
 
 	//FreeSync HDR
 	infopacket->sb[9] = 0;
@@ -678,7 +738,7 @@ static void build_vrr_infopacket_v1(enum signal_type signal,
 	unsigned int payload_size = 0;
 
 	build_vrr_infopacket_header_v1(signal, infopacket, &payload_size);
-	build_vrr_infopacket_data(vrr, infopacket);
+	build_vrr_infopacket_data_v1(vrr, infopacket);
 	build_vrr_infopacket_checksum(&payload_size, infopacket);
 
 	infopacket->valid = true;
@@ -692,7 +752,24 @@ static void build_vrr_infopacket_v2(enum signal_type signal,
 	unsigned int payload_size = 0;
 
 	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
-	build_vrr_infopacket_data(vrr, infopacket);
+	build_vrr_infopacket_data_v1(vrr, infopacket);
+
+	build_vrr_infopacket_fs2_data(app_tf, infopacket);
+
+	build_vrr_infopacket_checksum(&payload_size, infopacket);
+
+	infopacket->valid = true;
+}
+
+static void build_vrr_infopacket_v3(enum signal_type signal,
+		const struct mod_vrr_params *vrr,
+		enum color_transfer_func app_tf,
+		struct dc_info_packet *infopacket)
+{
+	unsigned int payload_size = 0;
+
+	build_vrr_infopacket_header_v2(signal, infopacket, &payload_size);
+	build_vrr_infopacket_data_v3(vrr, infopacket);
 
 	build_vrr_infopacket_fs2_data(app_tf, infopacket);
 
@@ -717,11 +794,14 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		return;
 
 	switch (packet_type) {
-	case PACKET_TYPE_FS2:
+	case PACKET_TYPE_FS_V3:
+		build_vrr_infopacket_v3(stream->signal, vrr, app_tf, infopacket);
+		break;
+	case PACKET_TYPE_FS_V2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
 		break;
 	case PACKET_TYPE_VRR:
-	case PACKET_TYPE_FS1:
+	case PACKET_TYPE_FS_V1:
 	default:
 		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
 	}
@@ -793,6 +873,11 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 				calc_duration_in_us_from_refresh_in_uhz(
 						(unsigned int)max_refresh_in_uhz);
 
+		if (in_config->state == VRR_STATE_ACTIVE_FIXED)
+			in_out_vrr->fixed_refresh_in_uhz = in_config->fixed_refresh_in_uhz;
+		else
+			in_out_vrr->fixed_refresh_in_uhz = 0;
+
 		refresh_range = in_out_vrr->max_refresh_in_uhz -
 				in_out_vrr->min_refresh_in_uhz;
 
@@ -843,7 +928,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 				in_out_vrr->min_refresh_in_uhz);
 	} else if (in_out_vrr->state == VRR_STATE_ACTIVE_FIXED) {
 		in_out_vrr->fixed.target_refresh_in_uhz =
-				in_out_vrr->min_refresh_in_uhz;
+				in_out_vrr->fixed_refresh_in_uhz;
 		if (in_out_vrr->fixed.ramping_active &&
 				in_out_vrr->fixed.fixed_active) {
 			/* Do not update vtotals if ramping is already active

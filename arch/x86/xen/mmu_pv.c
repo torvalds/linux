@@ -51,13 +51,13 @@
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/crash_dump.h>
+#include <linux/pgtable.h>
 #ifdef CONFIG_KEXEC_CORE
 #include <linux/kexec.h>
 #endif
 
 #include <trace/events/xen.h>
 
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
 #include <asm/mmu_context.h>

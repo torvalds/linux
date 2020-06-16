@@ -6,6 +6,7 @@
  * Benoit Parrot, <bparrot@ti.com>
  */
 
+#include <linux/clk.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/ioctl.h>
@@ -340,6 +341,7 @@ static const struct cal_data am654_cal_data = {
  * all instances.
  */
 struct cal_dev {
+	struct clk		*fclk;
 	int			irq;
 	void __iomem		*base;
 	struct resource		*res;
@@ -412,6 +414,8 @@ struct cal_ctx {
 	struct cal_buffer	*cur_frm;
 	/* Pointer pointing to next v4l2_buffer */
 	struct cal_buffer	*next_frm;
+
+	bool dma_act;
 };
 
 static const struct cal_fmt *find_format_by_pix(struct cal_ctx *ctx,
@@ -643,34 +647,10 @@ static void i913_errata(struct cal_dev *dev, unsigned int port)
 {
 	u32 reg10 = reg_read(dev->cc[port], CAL_CSI2_PHY_REG10);
 
-	set_field(&reg10, CAL_CSI2_PHY_REG0_HSCLOCKCONFIG_DISABLE,
-		  CAL_CSI2_PHY_REG10_I933_LDO_DISABLE_MASK);
+	set_field(&reg10, 1, CAL_CSI2_PHY_REG10_I933_LDO_DISABLE_MASK);
 
 	cal_dbg(1, dev, "CSI2_%d_REG10 = 0x%08x\n", port, reg10);
 	reg_write(dev->cc[port], CAL_CSI2_PHY_REG10, reg10);
-}
-
-static int cal_runtime_get(struct cal_dev *dev)
-{
-	int r;
-
-	r = pm_runtime_get_sync(&dev->pdev->dev);
-
-	if (dev->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
-		/*
-		 * Apply errata on both port eveytime we (re-)enable
-		 * the clock
-		 */
-		i913_errata(dev, 0);
-		i913_errata(dev, 1);
-	}
-
-	return r;
-}
-
-static inline void cal_runtime_put(struct cal_dev *dev)
-{
-	pm_runtime_put_sync(&dev->pdev->dev);
 }
 
 static void cal_quickdump_regs(struct cal_dev *dev)
@@ -704,16 +684,31 @@ static void cal_quickdump_regs(struct cal_dev *dev)
  */
 static void enable_irqs(struct cal_ctx *ctx)
 {
+	u32 val;
+
+	const u32 cio_err_mask =
+		CAL_CSI2_COMPLEXIO_IRQ_LANE_ERRORS_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_FIFO_OVR_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_SHORT_PACKET_MASK |
+		CAL_CSI2_COMPLEXIO_IRQ_ECC_NO_CORRECTION_MASK;
+
+	/* Enable CIO error irqs */
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(1),
+		  CAL_HL_IRQ_CIO_MASK(ctx->csi2_port));
+	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_IRQENABLE(ctx->csi2_port),
+		  cio_err_mask);
+
+	/* Always enable OCPO error */
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(1), CAL_HL_IRQ_OCPO_ERR_MASK);
+
 	/* Enable IRQ_WDMA_END 0/1 */
-	reg_write_field(ctx->dev,
-			CAL_HL_IRQENABLE_SET(2),
-			CAL_HL_IRQ_ENABLE,
-			CAL_HL_IRQ_MASK(ctx->csi2_port));
+	val = 0;
+	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(2), val);
 	/* Enable IRQ_WDMA_START 0/1 */
-	reg_write_field(ctx->dev,
-			CAL_HL_IRQENABLE_SET(3),
-			CAL_HL_IRQ_ENABLE,
-			CAL_HL_IRQ_MASK(ctx->csi2_port));
+	val = 0;
+	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_SET(3), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
 	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(1), 0xFF000000);
 }
@@ -722,24 +717,59 @@ static void disable_irqs(struct cal_ctx *ctx)
 {
 	u32 val;
 
+	/* Disable CIO error irqs */
+	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(1),
+		  CAL_HL_IRQ_CIO_MASK(ctx->csi2_port));
+	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_IRQENABLE(ctx->csi2_port),
+		  0);
+
 	/* Disable IRQ_WDMA_END 0/1 */
 	val = 0;
-	set_field(&val, CAL_HL_IRQ_CLEAR, CAL_HL_IRQ_MASK(ctx->csi2_port));
+	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(2), val);
 	/* Disable IRQ_WDMA_START 0/1 */
 	val = 0;
-	set_field(&val, CAL_HL_IRQ_CLEAR, CAL_HL_IRQ_MASK(ctx->csi2_port));
+	set_field(&val, 1, CAL_HL_IRQ_MASK(ctx->csi2_port));
 	reg_write(ctx->dev, CAL_HL_IRQENABLE_CLR(3), val);
 	/* Todo: Add VC_IRQ and CSI2_COMPLEXIO_IRQ handling */
 	reg_write(ctx->dev, CAL_CSI2_VC_IRQENABLE(1), 0);
+}
+
+static void csi2_cio_power(struct cal_ctx *ctx, bool enable)
+{
+	u32 target_state;
+	unsigned int i;
+
+	target_state = enable ? CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON :
+		       CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF;
+
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			target_state, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
+
+	for (i = 0; i < 10; i++) {
+		u32 current_state;
+
+		current_state = reg_read_field(ctx->dev,
+					       CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+					       CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK);
+
+		if (current_state == target_state)
+			break;
+
+		usleep_range(1000, 1100);
+	}
+
+	if (i == 10)
+		ctx_err(ctx, "Failed to power %s complexio\n",
+			enable ? "up" : "down");
 }
 
 static void csi2_phy_config(struct cal_ctx *ctx);
 
 static void csi2_phy_init(struct cal_ctx *ctx)
 {
-	int i;
 	u32 val;
+	u32 sscounter;
 
 	/* Steps
 	 *  1. Configure D-PHY mode and enable required lanes
@@ -762,66 +792,90 @@ static void csi2_phy_init(struct cal_ctx *ctx)
 	camerarx_phy_enable(ctx);
 
 	/* 2. Reset complex IO - Do not wait for reset completion */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
-		  CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_OPERATIONAL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
 	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x De-assert Complex IO Reset\n",
 		ctx->csi2_port,
 		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)));
 
-	/* Dummy read to allow SCP to complete */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
+	/* Dummy read to allow SCP reset to complete */
+	reg_read(ctx->cc, CAL_CSI2_PHY_REG0);
 
 	/* 3.A. Program Phy Timing Parameters */
 	csi2_phy_config(ctx);
 
 	/* 3.B. Program Stop States */
+	/*
+	 * The stop-state-counter is based on fclk cycles, and we always use
+	 * the x16 and x4 settings, so stop-state-timeout =
+	 * fclk-cycle * 16 * 4 * counter.
+	 *
+	 * Stop-state-timeout must be more than 100us as per CSI2 spec, so we
+	 * calculate a timeout that's 100us (rounding up).
+	 */
+	sscounter = DIV_ROUND_UP(clk_get_rate(ctx->dev->fclk), 10000 *  16 * 4);
+
 	val = reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port));
-	set_field(&val, CAL_GEN_ENABLE,
-		  CAL_CSI2_TIMING_STOP_STATE_X16_IO1_MASK);
-	set_field(&val, CAL_GEN_DISABLE,
-		  CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
-	set_field(&val, 407, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
+	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X16_IO1_MASK);
+	set_field(&val, 1, CAL_CSI2_TIMING_STOP_STATE_X4_IO1_MASK);
+	set_field(&val, sscounter, CAL_CSI2_TIMING_STOP_STATE_COUNTER_IO1_MASK);
 	reg_write(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port), val);
 	ctx_dbg(3, ctx, "CAL_CSI2_TIMING(%d) = 0x%08x Stop States\n",
 		ctx->csi2_port,
 		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)));
 
 	/* 4. Force FORCERXMODE */
-	val = reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port));
-	set_field(&val, CAL_GEN_ENABLE,
-		  CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
-	reg_write(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port),
+			1, CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK);
 	ctx_dbg(3, ctx, "CAL_CSI2_TIMING(%d) = 0x%08x Force RXMODE\n",
 		ctx->csi2_port,
 		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)));
 
 	/* E. Power up the PHY using the complex IO */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_ON,
-		  CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	csi2_cio_power(ctx, true);
+}
 
-	/* F. Wait for power up completion */
-	for (i = 0; i < 10; i++) {
+static void csi2_wait_complexio_reset(struct cal_ctx *ctx)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(750);
+	while (time_before(jiffies, timeout)) {
 		if (reg_read_field(ctx->dev,
 				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-				   CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_STATE_ON)
+				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
+		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
 			break;
-		usleep_range(1000, 1100);
+		usleep_range(500, 5000);
 	}
-	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Powered UP %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)),
-		(i >= 10) ? "(timeout)" : "");
+
+	if (reg_read_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) !=
+			   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
+		ctx_err(ctx, "Timeout waiting for Complex IO reset done\n");
+}
+
+static void csi2_wait_stop_state(struct cal_ctx *ctx)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(750);
+	while (time_before(jiffies, timeout)) {
+		if (reg_read_field(ctx->dev,
+				   CAL_CSI2_TIMING(ctx->csi2_port),
+				   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) == 0)
+			break;
+		usleep_range(500, 5000);
+	}
+
+	if (reg_read_field(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port),
+			   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) != 0)
+		ctx_err(ctx, "Timeout waiting for stop state\n");
 }
 
 static void csi2_wait_for_phy(struct cal_ctx *ctx)
 {
-	int i;
-
 	/* Steps
 	 *  2. Wait for completion of reset
 	 *          Note if the external sensor is not sending byte clock,
@@ -832,32 +886,10 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 	 */
 
 	/* 2. Wait for reset completion */
-	for (i = 0; i < 250; i++) {
-		if (reg_read_field(ctx->dev,
-				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-				   CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_RESET_DONE_RESETCOMPLETED)
-			break;
-		usleep_range(1000, 1100);
-	}
-	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Complex IO Reset Done (%d) %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)), i,
-		(i >= 250) ? "(timeout)" : "");
+	csi2_wait_complexio_reset(ctx);
 
 	/* 4. G. Wait for all enabled lane to reach stop state */
-	for (i = 0; i < 10; i++) {
-		if (reg_read_field(ctx->dev,
-				   CAL_CSI2_TIMING(ctx->csi2_port),
-				   CAL_CSI2_TIMING_FORCE_RX_MODE_IO1_MASK) ==
-		    CAL_GEN_DISABLE)
-			break;
-		usleep_range(1000, 1100);
-	}
-	ctx_dbg(3, ctx, "CAL_CSI2_TIMING(%d) = 0x%08x Stop State Reached %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_TIMING(ctx->csi2_port)),
-		(i >= 10) ? "(timeout)" : "");
+	csi2_wait_stop_state(ctx);
 
 	ctx_dbg(1, ctx, "CSI2_%d_REG1 = 0x%08x (Bit(31,28) should be set!)\n",
 		(ctx->csi2_port - 1), reg_read(ctx->cc, CAL_CSI2_PHY_REG1));
@@ -866,33 +898,13 @@ static void csi2_wait_for_phy(struct cal_ctx *ctx)
 static void csi2_phy_deinit(struct cal_ctx *ctx)
 {
 	int i;
-	u32 val;
 
-	/* Power down the PHY using the complex IO */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_STATE_OFF,
-		  CAL_CSI2_COMPLEXIO_CFG_PWR_CMD_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
-
-	/* Wait for power down completion */
-	for (i = 0; i < 10; i++) {
-		if (reg_read_field(ctx->dev,
-				   CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
-				   CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_MASK) ==
-		    CAL_CSI2_COMPLEXIO_CFG_PWR_STATUS_STATE_OFF)
-			break;
-		usleep_range(1000, 1100);
-	}
-	ctx_dbg(3, ctx, "CAL_CSI2_COMPLEXIO_CFG(%d) = 0x%08x Powered Down %s\n",
-		ctx->csi2_port,
-		reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port)),
-		(i >= 10) ? "(timeout)" : "");
+	csi2_cio_power(ctx, false);
 
 	/* Assert Comple IO Reset */
-	val = reg_read(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port));
-	set_field(&val, CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
-		  CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
-	reg_write(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port), val);
+	reg_write_field(ctx->dev, CAL_CSI2_COMPLEXIO_CFG(ctx->csi2_port),
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL,
+			CAL_CSI2_COMPLEXIO_CFG_RESET_CTRL_MASK);
 
 	/* Wait for power down completion */
 	for (i = 0; i < 10; i++) {
@@ -942,14 +954,15 @@ static void csi2_lane_config(struct cal_ctx *ctx)
 
 static void csi2_ppi_enable(struct cal_ctx *ctx)
 {
+	reg_write(ctx->dev, CAL_CSI2_PPI_CTRL(ctx->csi2_port), BIT(3));
 	reg_write_field(ctx->dev, CAL_CSI2_PPI_CTRL(ctx->csi2_port),
-			CAL_GEN_ENABLE, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
+			1, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }
 
 static void csi2_ppi_disable(struct cal_ctx *ctx)
 {
 	reg_write_field(ctx->dev, CAL_CSI2_PPI_CTRL(ctx->csi2_port),
-			CAL_GEN_DISABLE, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
+			0, CAL_CSI2_PPI_CTRL_IF_EN_MASK);
 }
 
 static void csi2_ctx_config(struct cal_ctx *ctx)
@@ -969,8 +982,7 @@ static void csi2_ctx_config(struct cal_ctx *ctx)
 	set_field(&val, 0x1, CAL_CSI2_CTX_DT_MASK);
 	/* Virtual Channel from the CSI2 sensor usually 0! */
 	set_field(&val, ctx->virtual_channel, CAL_CSI2_CTX_VC_MASK);
-	/* NUM_LINES_PER_FRAME => 0 means auto detect */
-	set_field(&val, 0, CAL_CSI2_CTX_LINES_MASK);
+	set_field(&val, ctx->v_fmt.fmt.pix.height, CAL_CSI2_CTX_LINES_MASK);
 	set_field(&val, CAL_CSI2_CTX_ATT_PIX, CAL_CSI2_CTX_ATT_MASK);
 	set_field(&val, CAL_CSI2_CTX_PACK_MODE_LINE,
 		  CAL_CSI2_CTX_PACK_MODE_MASK);
@@ -1024,7 +1036,7 @@ static void pix_proc_config(struct cal_ctx *ctx)
 	set_field(&val, CAL_PIX_PROC_DPCME_BYPASS, CAL_PIX_PROC_DPCME_MASK);
 	set_field(&val, pack, CAL_PIX_PROC_PACK_MASK);
 	set_field(&val, ctx->csi2_port, CAL_PIX_PROC_CPORT_MASK);
-	set_field(&val, CAL_GEN_ENABLE, CAL_PIX_PROC_EN_MASK);
+	set_field(&val, 1, CAL_PIX_PROC_EN_MASK);
 	reg_write(ctx->dev, CAL_PIX_PROC(ctx->csi2_port), val);
 	ctx_dbg(3, ctx, "CAL_PIX_PROC(%d) = 0x%08x\n", ctx->csi2_port,
 		reg_read(ctx->dev, CAL_PIX_PROC(ctx->csi2_port)));
@@ -1044,7 +1056,7 @@ static void cal_wr_dma_config(struct cal_ctx *ctx,
 		  CAL_WR_DMA_CTRL_MODE_MASK);
 	set_field(&val, CAL_WR_DMA_CTRL_PATTERN_LINEAR,
 		  CAL_WR_DMA_CTRL_PATTERN_MASK);
-	set_field(&val, CAL_GEN_ENABLE, CAL_WR_DMA_CTRL_STALL_RD_MASK);
+	set_field(&val, 1, CAL_WR_DMA_CTRL_STALL_RD_MASK);
 	reg_write(ctx->dev, CAL_WR_DMA_CTRL(ctx->csi2_port), val);
 	ctx_dbg(3, ctx, "CAL_WR_DMA_CTRL(%d) = 0x%08x\n", ctx->csi2_port,
 		reg_read(ctx->dev, CAL_WR_DMA_CTRL(ctx->csi2_port)));
@@ -1192,57 +1204,74 @@ static irqreturn_t cal_irq(int irq_cal, void *data)
 	struct cal_dev *dev = (struct cal_dev *)data;
 	struct cal_ctx *ctx;
 	struct cal_dmaqueue *dma_q;
-	u32 irqst2, irqst3;
+	u32 irqst1, irqst2, irqst3;
+
+	irqst1 = reg_read(dev, CAL_HL_IRQSTATUS(1));
+	if (irqst1) {
+		int i;
+
+		reg_write(dev, CAL_HL_IRQSTATUS(1), irqst1);
+
+		if (irqst1 & CAL_HL_IRQ_OCPO_ERR_MASK)
+			dev_err_ratelimited(&dev->pdev->dev, "OCPO ERROR\n");
+
+		for (i = 1; i <= 2; ++i) {
+			if (irqst1 & CAL_HL_IRQ_CIO_MASK(i)) {
+				u32 cio_stat = reg_read(dev,
+							CAL_CSI2_COMPLEXIO_IRQSTATUS(i));
+
+				dev_err_ratelimited(&dev->pdev->dev,
+						    "CIO%d error: %#08x\n", i, cio_stat);
+
+				reg_write(dev, CAL_CSI2_COMPLEXIO_IRQSTATUS(i),
+					  cio_stat);
+			}
+		}
+	}
 
 	/* Check which DMA just finished */
 	irqst2 = reg_read(dev, CAL_HL_IRQSTATUS(2));
 	if (irqst2) {
+		int i;
+
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(2), irqst2);
 
-		/* Need to check both port */
-		if (isportirqset(irqst2, 1)) {
-			ctx = dev->ctx[0];
+		for (i = 1; i <= 2; ++i) {
+			if (isportirqset(irqst2, i)) {
+				ctx = dev->ctx[i - 1];
 
-			if (ctx->cur_frm != ctx->next_frm)
-				cal_process_buffer_complete(ctx);
-		}
+				spin_lock(&ctx->slock);
+				ctx->dma_act = false;
 
-		if (isportirqset(irqst2, 2)) {
-			ctx = dev->ctx[1];
+				if (ctx->cur_frm != ctx->next_frm)
+					cal_process_buffer_complete(ctx);
 
-			if (ctx->cur_frm != ctx->next_frm)
-				cal_process_buffer_complete(ctx);
+				spin_unlock(&ctx->slock);
+			}
 		}
 	}
 
 	/* Check which DMA just started */
 	irqst3 = reg_read(dev, CAL_HL_IRQSTATUS(3));
 	if (irqst3) {
+		int i;
+
 		/* Clear Interrupt status */
 		reg_write(dev, CAL_HL_IRQSTATUS(3), irqst3);
 
-		/* Need to check both port */
-		if (isportirqset(irqst3, 1)) {
-			ctx = dev->ctx[0];
-			dma_q = &ctx->vidq;
+		for (i = 1; i <= 2; ++i) {
+			if (isportirqset(irqst3, i)) {
+				ctx = dev->ctx[i - 1];
+				dma_q = &ctx->vidq;
 
-			spin_lock(&ctx->slock);
-			if (!list_empty(&dma_q->active) &&
-			    ctx->cur_frm == ctx->next_frm)
-				cal_schedule_next_buffer(ctx);
-			spin_unlock(&ctx->slock);
-		}
-
-		if (isportirqset(irqst3, 2)) {
-			ctx = dev->ctx[1];
-			dma_q = &ctx->vidq;
-
-			spin_lock(&ctx->slock);
-			if (!list_empty(&dma_q->active) &&
-			    ctx->cur_frm == ctx->next_frm)
-				cal_schedule_next_buffer(ctx);
-			spin_unlock(&ctx->slock);
+				spin_lock(&ctx->slock);
+				ctx->dma_act = true;
+				if (!list_empty(&dma_q->active) &&
+				    ctx->cur_frm == ctx->next_frm)
+					cal_schedule_next_buffer(ctx);
+				spin_unlock(&ctx->slock);
+			}
 		}
 	}
 
@@ -1665,7 +1694,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 		goto err;
 	}
 
-	cal_runtime_get(ctx->dev);
+	pm_runtime_get_sync(&ctx->dev->pdev->dev);
 
 	csi2_ctx_config(ctx);
 	pix_proc_config(ctx);
@@ -1680,7 +1709,7 @@ static int cal_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret) {
 		v4l2_subdev_call(ctx->sensor, core, s_power, 0);
 		ctx_err(ctx, "stream on failed in subdev\n");
-		cal_runtime_put(ctx->dev);
+		pm_runtime_put_sync(&ctx->dev->pdev->dev);
 		goto err;
 	}
 
@@ -1711,10 +1740,27 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	struct cal_ctx *ctx = vb2_get_drv_priv(vq);
 	struct cal_dmaqueue *dma_q = &ctx->vidq;
 	struct cal_buffer *buf, *tmp;
+	unsigned long timeout;
 	unsigned long flags;
 	int ret;
+	bool dma_act;
 
 	csi2_ppi_disable(ctx);
+
+	/* wait for stream and dma to finish */
+	dma_act = true;
+	timeout = jiffies + msecs_to_jiffies(500);
+	while (dma_act && time_before(jiffies, timeout)) {
+		msleep(50);
+
+		spin_lock_irqsave(&ctx->slock, flags);
+		dma_act = ctx->dma_act;
+		spin_unlock_irqrestore(&ctx->slock, flags);
+	}
+
+	if (dma_act)
+		ctx_err(ctx, "failed to disable dma cleanly\n");
+
 	disable_irqs(ctx);
 	csi2_phy_deinit(ctx);
 
@@ -1743,7 +1789,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	ctx->next_frm = NULL;
 	spin_unlock_irqrestore(&ctx->slock, flags);
 
-	cal_runtime_put(ctx->dev);
+	pm_runtime_put_sync(&ctx->dev->pdev->dev);
 }
 
 static const struct vb2_ops cal_video_qops = {
@@ -2191,7 +2237,26 @@ err_exit:
 	return NULL;
 }
 
-static const struct of_device_id cal_of_match[];
+static const struct of_device_id cal_of_match[] = {
+	{
+		.compatible = "ti,dra72-cal",
+		.data = (void *)&dra72x_cal_data,
+	},
+	{
+		.compatible = "ti,dra72-pre-es2-cal",
+		.data = (void *)&dra72x_es1_cal_data,
+	},
+	{
+		.compatible = "ti,dra76-cal",
+		.data = (void *)&dra76x_cal_data,
+	},
+	{
+		.compatible = "ti,am654-cal",
+		.data = (void *)&am654_cal_data,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, cal_of_match);
 
 static int cal_probe(struct platform_device *pdev)
 {
@@ -2222,6 +2287,12 @@ static int cal_probe(struct platform_device *pdev)
 
 	/* save pdev pointer */
 	dev->pdev = pdev;
+
+	dev->fclk = devm_clk_get(&pdev->dev, "fck");
+	if (IS_ERR(dev->fclk)) {
+		dev_err(&pdev->dev, "cannot get CAL fclk\n");
+		return PTR_ERR(dev->fclk);
+	}
 
 	syscon_camerrx = syscon_regmap_lookup_by_phandle(parent,
 							 "ti,camerrx-control");
@@ -2296,20 +2367,24 @@ static int cal_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	vb2_dma_contig_set_max_seg_size(&pdev->dev, DMA_BIT_MASK(32));
+
 	pm_runtime_enable(&pdev->dev);
 
-	ret = cal_runtime_get(dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret)
 		goto runtime_disable;
 
 	/* Just check we can actually access the module */
 	cal_get_hwinfo(dev);
 
-	cal_runtime_put(dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 
 runtime_disable:
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
+
 	pm_runtime_disable(&pdev->dev);
 	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
 		ctx = dev->ctx[i];
@@ -2333,7 +2408,7 @@ static int cal_remove(struct platform_device *pdev)
 
 	cal_dbg(1, dev, "Removing %s\n", CAL_MODULE_NAME);
 
-	cal_runtime_get(dev);
+	pm_runtime_get_sync(&pdev->dev);
 
 	for (i = 0; i < CAL_NUM_CONTEXT; i++) {
 		ctx = dev->ctx[i];
@@ -2349,41 +2424,41 @@ static int cal_remove(struct platform_device *pdev)
 		}
 	}
 
-	cal_runtime_put(dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	vb2_dma_contig_clear_max_seg_size(&pdev->dev);
 
 	return 0;
 }
 
-#if defined(CONFIG_OF)
-static const struct of_device_id cal_of_match[] = {
-	{
-		.compatible = "ti,dra72-cal",
-		.data = (void *)&dra72x_cal_data,
-	},
-	{
-		.compatible = "ti,dra72-pre-es2-cal",
-		.data = (void *)&dra72x_es1_cal_data,
-	},
-	{
-		.compatible = "ti,dra76-cal",
-		.data = (void *)&dra76x_cal_data,
-	},
-	{
-		.compatible = "ti,am654-cal",
-		.data = (void *)&am654_cal_data,
-	},
-	{},
+static int cal_runtime_resume(struct device *dev)
+{
+	struct cal_dev *caldev = dev_get_drvdata(dev);
+
+	if (caldev->flags & DRA72_CAL_PRE_ES2_LDO_DISABLE) {
+		/*
+		 * Apply errata on both port everytime we (re-)enable
+		 * the clock
+		 */
+		i913_errata(caldev, 0);
+		i913_errata(caldev, 1);
+	}
+
+	return 0;
+}
+
+static const struct dev_pm_ops cal_pm_ops = {
+	.runtime_resume = cal_runtime_resume,
 };
-MODULE_DEVICE_TABLE(of, cal_of_match);
-#endif
 
 static struct platform_driver cal_pdrv = {
 	.probe		= cal_probe,
 	.remove		= cal_remove,
 	.driver		= {
 		.name	= CAL_MODULE_NAME,
-		.of_match_table = of_match_ptr(cal_of_match),
+		.pm	= &cal_pm_ops,
+		.of_match_table = cal_of_match,
 	},
 };
 

@@ -50,6 +50,7 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 	hwmgr->not_vf = !amdgpu_sriov_vf(adev);
 	hwmgr->device = amdgpu_cgs_create_device(adev);
 	mutex_init(&hwmgr->smu_lock);
+	mutex_init(&hwmgr->msg_lock);
 	hwmgr->chip_family = adev->family;
 	hwmgr->chip_id = adev->asic_type;
 	hwmgr->feature_mask = adev->pm.pp_feature;
@@ -63,6 +64,8 @@ static int amd_powerplay_create(struct amdgpu_device *adev)
 static void amd_powerplay_destroy(struct amdgpu_device *adev)
 {
 	struct pp_hwmgr *hwmgr = adev->powerplay.pp_handle;
+
+	mutex_destroy(&hwmgr->msg_lock);
 
 	kfree(hwmgr->hardcode_pp_table);
 	hwmgr->hardcode_pp_table = NULL;

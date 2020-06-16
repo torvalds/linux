@@ -626,6 +626,7 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	struct reserve_ticket *ticket = NULL;
 	struct btrfs_block_rsv *delayed_rsv = &fs_info->delayed_block_rsv;
 	struct btrfs_block_rsv *delayed_refs_rsv = &fs_info->delayed_refs_rsv;
+	struct btrfs_block_rsv *trans_rsv = &fs_info->trans_block_rsv;
 	struct btrfs_trans_handle *trans;
 	u64 bytes_needed;
 	u64 reclaim_bytes = 0;
@@ -688,6 +689,11 @@ static int may_commit_transaction(struct btrfs_fs_info *fs_info,
 	spin_lock(&delayed_refs_rsv->lock);
 	reclaim_bytes += delayed_refs_rsv->reserved;
 	spin_unlock(&delayed_refs_rsv->lock);
+
+	spin_lock(&trans_rsv->lock);
+	reclaim_bytes += trans_rsv->reserved;
+	spin_unlock(&trans_rsv->lock);
+
 	if (reclaim_bytes >= bytes_needed)
 		goto commit;
 	bytes_needed -= reclaim_bytes;
@@ -856,6 +862,34 @@ static inline int need_do_async_reclaim(struct btrfs_fs_info *fs_info,
 		!test_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state));
 }
 
+static bool steal_from_global_rsv(struct btrfs_fs_info *fs_info,
+				  struct btrfs_space_info *space_info,
+				  struct reserve_ticket *ticket)
+{
+	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+	u64 min_bytes;
+
+	if (global_rsv->space_info != space_info)
+		return false;
+
+	spin_lock(&global_rsv->lock);
+	min_bytes = div_factor(global_rsv->size, 1);
+	if (global_rsv->reserved < min_bytes + ticket->bytes) {
+		spin_unlock(&global_rsv->lock);
+		return false;
+	}
+	global_rsv->reserved -= ticket->bytes;
+	ticket->bytes = 0;
+	list_del_init(&ticket->list);
+	wake_up(&ticket->wait);
+	space_info->tickets_id++;
+	if (global_rsv->reserved < global_rsv->size)
+		global_rsv->full = 0;
+	spin_unlock(&global_rsv->lock);
+
+	return true;
+}
+
 /*
  * maybe_fail_all_tickets - we've exhausted our flushing, start failing tickets
  * @fs_info - fs_info for this fs
@@ -887,6 +921,10 @@ static bool maybe_fail_all_tickets(struct btrfs_fs_info *fs_info,
 	       tickets_id == space_info->tickets_id) {
 		ticket = list_first_entry(&space_info->tickets,
 					  struct reserve_ticket, list);
+
+		if (ticket->steal &&
+		    steal_from_global_rsv(fs_info, space_info, ticket))
+			return true;
 
 		/*
 		 * may_commit_transaction will avoid committing the transaction
@@ -1104,6 +1142,7 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 
 	switch (flush) {
 	case BTRFS_RESERVE_FLUSH_ALL:
+	case BTRFS_RESERVE_FLUSH_ALL_STEAL:
 		wait_reserve_ticket(fs_info, space_info, ticket);
 		break;
 	case BTRFS_RESERVE_FLUSH_LIMIT:
@@ -1125,11 +1164,17 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	ret = ticket->error;
 	if (ticket->bytes || ticket->error) {
 		/*
-		 * Need to delete here for priority tickets. For regular tickets
-		 * either the async reclaim job deletes the ticket from the list
-		 * or we delete it ourselves at wait_reserve_ticket().
+		 * We were a priority ticket, so we need to delete ourselves
+		 * from the list.  Because we could have other priority tickets
+		 * behind us that require less space, run
+		 * btrfs_try_granting_tickets() to see if their reservations can
+		 * now be made.
 		 */
-		remove_ticket(space_info, ticket);
+		if (!list_empty(&ticket->list)) {
+			remove_ticket(space_info, ticket);
+			btrfs_try_granting_tickets(fs_info, space_info);
+		}
+
 		if (!ret)
 			ret = -ENOSPC;
 	}
@@ -1143,6 +1188,16 @@ static int handle_reserve_ticket(struct btrfs_fs_info *fs_info,
 	 */
 	ASSERT(!(ticket->bytes == 0 && ticket->error));
 	return ret;
+}
+
+/*
+ * This returns true if this flush state will go through the ordinary flushing
+ * code.
+ */
+static inline bool is_normal_flushing(enum btrfs_reserve_flush_enum flush)
+{
+	return	(flush == BTRFS_RESERVE_FLUSH_ALL) ||
+		(flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
 }
 
 /**
@@ -1175,8 +1230,17 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	spin_lock(&space_info->lock);
 	ret = -ENOSPC;
 	used = btrfs_space_info_used(space_info, true);
-	pending_tickets = !list_empty(&space_info->tickets) ||
-		!list_empty(&space_info->priority_tickets);
+
+	/*
+	 * We don't want NO_FLUSH allocations to jump everybody, they can
+	 * generally handle ENOSPC in a different way, so treat them the same as
+	 * normal flushers when it comes to skipping pending tickets.
+	 */
+	if (is_normal_flushing(flush) || (flush == BTRFS_RESERVE_NO_FLUSH))
+		pending_tickets = !list_empty(&space_info->tickets) ||
+			!list_empty(&space_info->priority_tickets);
+	else
+		pending_tickets = !list_empty(&space_info->priority_tickets);
 
 	/*
 	 * Carry on if we have enough space (short-circuit) OR call
@@ -1198,12 +1262,13 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
 	 * the list and we will do our own flushing further down.
 	 */
 	if (ret && flush != BTRFS_RESERVE_NO_FLUSH) {
-		ASSERT(space_info->reclaim_size >= 0);
 		ticket.bytes = orig_bytes;
 		ticket.error = 0;
 		space_info->reclaim_size += ticket.bytes;
 		init_waitqueue_head(&ticket.wait);
-		if (flush == BTRFS_RESERVE_FLUSH_ALL) {
+		ticket.steal = (flush == BTRFS_RESERVE_FLUSH_ALL_STEAL);
+		if (flush == BTRFS_RESERVE_FLUSH_ALL ||
+		    flush == BTRFS_RESERVE_FLUSH_ALL_STEAL) {
 			list_add_tail(&ticket.list, &space_info->tickets);
 			if (!space_info->flush) {
 				space_info->flush = 1;

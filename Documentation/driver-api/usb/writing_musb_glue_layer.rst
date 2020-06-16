@@ -707,12 +707,12 @@ cheerful guidance and support.
 Resources
 =========
 
-USB Home Page: http://www.usb.org
+USB Home Page: https://www.usb.org
 
-linux-usb Mailing List Archives: http://marc.info/?l=linux-usb
+linux-usb Mailing List Archives: https://marc.info/?l=linux-usb
 
 USB On-the-Go Basics:
-http://www.maximintegrated.com/app-notes/index.mvp/id/1822
+https://www.maximintegrated.com/app-notes/index.mvp/id/1822
 
 :ref:`Writing USB Device Drivers <writing-usb-driver>`
 

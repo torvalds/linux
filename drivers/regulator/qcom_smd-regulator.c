@@ -199,7 +199,7 @@ static const struct regulator_ops rpm_bob_ops = {
 };
 
 static const struct regulator_desc pma8084_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000,  0,  95, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 96, 158, 25000),
 	},
@@ -209,7 +209,7 @@ static const struct regulator_desc pma8084_hfsmps = {
 };
 
 static const struct regulator_desc pma8084_ftsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 184, 5000),
 		REGULATOR_LINEAR_RANGE(1280000, 185, 261, 10000),
 	},
@@ -219,7 +219,7 @@ static const struct regulator_desc pma8084_ftsmps = {
 };
 
 static const struct regulator_desc pma8084_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 750000,  0,  63, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 64, 126, 25000),
 		REGULATOR_LINEAR_RANGE(3100000, 127, 163, 50000),
@@ -230,7 +230,7 @@ static const struct regulator_desc pma8084_pldo = {
 };
 
 static const struct regulator_desc pma8084_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(750000, 0, 63, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -243,7 +243,7 @@ static const struct regulator_desc pma8084_switch = {
 };
 
 static const struct regulator_desc pm8x41_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 375000,  0,  95, 12500),
 		REGULATOR_LINEAR_RANGE(1575000, 96, 158, 25000),
 	},
@@ -253,7 +253,7 @@ static const struct regulator_desc pm8x41_hfsmps = {
 };
 
 static const struct regulator_desc pm8841_ftsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 184, 5000),
 		REGULATOR_LINEAR_RANGE(1280000, 185, 261, 10000),
 	},
@@ -263,7 +263,7 @@ static const struct regulator_desc pm8841_ftsmps = {
 };
 
 static const struct regulator_desc pm8941_boost = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(4000000, 0, 30, 50000),
 	},
 	.n_linear_ranges = 1,
@@ -272,7 +272,7 @@ static const struct regulator_desc pm8941_boost = {
 };
 
 static const struct regulator_desc pm8941_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 750000,  0,  63, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 64, 126, 25000),
 		REGULATOR_LINEAR_RANGE(3100000, 127, 163, 50000),
@@ -283,7 +283,7 @@ static const struct regulator_desc pm8941_pldo = {
 };
 
 static const struct regulator_desc pm8941_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(750000, 0, 63, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -302,7 +302,7 @@ static const struct regulator_desc pm8941_switch = {
 };
 
 static const struct regulator_desc pm8916_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(750000, 0, 208, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -311,7 +311,7 @@ static const struct regulator_desc pm8916_pldo = {
 };
 
 static const struct regulator_desc pm8916_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000, 0, 93, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -320,7 +320,7 @@ static const struct regulator_desc pm8916_nldo = {
 };
 
 static const struct regulator_desc pm8916_buck_lvo_smps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000, 0, 95, 12500),
 		REGULATOR_LINEAR_RANGE(750000, 96, 127, 25000),
 	},
@@ -330,7 +330,7 @@ static const struct regulator_desc pm8916_buck_lvo_smps = {
 };
 
 static const struct regulator_desc pm8916_buck_hvo_smps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1550000, 0, 31, 25000),
 	},
 	.n_linear_ranges = 1,
@@ -339,7 +339,7 @@ static const struct regulator_desc pm8916_buck_hvo_smps = {
 };
 
 static const struct regulator_desc pm8950_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000, 0, 95, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 96, 127, 25000),
 	},
@@ -349,7 +349,7 @@ static const struct regulator_desc pm8950_hfsmps = {
 };
 
 static const struct regulator_desc pm8950_ftsmps2p5 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(80000, 0, 255, 5000),
 		REGULATOR_LINEAR_RANGE(160000, 256, 460, 10000),
 	},
@@ -359,7 +359,7 @@ static const struct regulator_desc pm8950_ftsmps2p5 = {
 };
 
 static const struct regulator_desc pm8950_ult_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(375000, 0, 202, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -368,7 +368,7 @@ static const struct regulator_desc pm8950_ult_nldo = {
 };
 
 static const struct regulator_desc pm8950_ult_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1750000, 0, 127, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -377,7 +377,7 @@ static const struct regulator_desc pm8950_ult_pldo = {
 };
 
 static const struct regulator_desc pm8950_pldo_lv = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1500000, 0, 16, 25000),
 	},
 	.n_linear_ranges = 1,
@@ -386,7 +386,7 @@ static const struct regulator_desc pm8950_pldo_lv = {
 };
 
 static const struct regulator_desc pm8950_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(975000, 0, 164, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -396,7 +396,7 @@ static const struct regulator_desc pm8950_pldo = {
 
 
 static const struct regulator_desc pm8994_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 375000,  0,  95, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 96, 158, 25000),
 	},
@@ -406,7 +406,7 @@ static const struct regulator_desc pm8994_hfsmps = {
 };
 
 static const struct regulator_desc pm8994_ftsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 199, 5000),
 		REGULATOR_LINEAR_RANGE(700000, 200, 349, 10000),
 	},
@@ -416,7 +416,7 @@ static const struct regulator_desc pm8994_ftsmps = {
 };
 
 static const struct regulator_desc pm8994_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(750000, 0, 63, 12500),
 	},
 	.n_linear_ranges = 1,
@@ -425,7 +425,7 @@ static const struct regulator_desc pm8994_nldo = {
 };
 
 static const struct regulator_desc pm8994_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE( 750000,  0,  63, 12500),
 		REGULATOR_LINEAR_RANGE(1550000, 64, 126, 25000),
 		REGULATOR_LINEAR_RANGE(3100000, 127, 163, 50000),
@@ -446,7 +446,7 @@ static const struct regulator_desc pm8994_lnldo = {
 };
 
 static const struct regulator_desc pmi8994_ftsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0, 199, 5000),
 		REGULATOR_LINEAR_RANGE(700000, 200, 349, 10000),
 	},
@@ -456,7 +456,7 @@ static const struct regulator_desc pmi8994_ftsmps = {
 };
 
 static const struct regulator_desc pmi8994_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(350000,  0,  80, 12500),
 		REGULATOR_LINEAR_RANGE(700000, 81, 141, 25000),
 	},
@@ -466,7 +466,7 @@ static const struct regulator_desc pmi8994_hfsmps = {
 };
 
 static const struct regulator_desc pmi8994_bby = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(3000000, 0, 44, 50000),
 	},
 	.n_linear_ranges = 1,
@@ -475,7 +475,7 @@ static const struct regulator_desc pmi8994_bby = {
 };
 
 static const struct regulator_desc pmi8994_boost = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(4000000, 0, 30, 50000),
 	},
 	.n_linear_ranges = 1,
@@ -484,7 +484,7 @@ static const struct regulator_desc pmi8994_boost = {
 };
 
 static const struct regulator_desc pm8998_ftsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(320000, 0, 258, 4000),
 	},
 	.n_linear_ranges = 1,
@@ -493,7 +493,7 @@ static const struct regulator_desc pm8998_ftsmps = {
 };
 
 static const struct regulator_desc pm8998_hfsmps = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(320000, 0, 215, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -502,7 +502,7 @@ static const struct regulator_desc pm8998_hfsmps = {
 };
 
 static const struct regulator_desc pm8998_nldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(312000, 0, 127, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -511,7 +511,7 @@ static const struct regulator_desc pm8998_nldo = {
 };
 
 static const struct regulator_desc pm8998_pldo = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1664000, 0, 255, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -520,7 +520,7 @@ static const struct regulator_desc pm8998_pldo = {
 };
 
 static const struct regulator_desc pm8998_pldo_lv = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1256000, 0, 127, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -533,7 +533,7 @@ static const struct regulator_desc pm8998_switch = {
 };
 
 static const struct regulator_desc pmi8998_bob = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1824000, 0, 83, 32000),
 	},
 	.n_linear_ranges = 1,
@@ -542,7 +542,7 @@ static const struct regulator_desc pmi8998_bob = {
 };
 
 static const struct regulator_desc pms405_hfsmps3 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(320000, 0, 215, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -551,7 +551,7 @@ static const struct regulator_desc pms405_hfsmps3 = {
 };
 
 static const struct regulator_desc pms405_nldo300 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(312000, 0, 127, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -560,7 +560,7 @@ static const struct regulator_desc pms405_nldo300 = {
 };
 
 static const struct regulator_desc pms405_nldo1200 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(312000, 0, 127, 8000),
 	},
 	.n_linear_ranges = 1,
@@ -569,7 +569,7 @@ static const struct regulator_desc pms405_nldo1200 = {
 };
 
 static const struct regulator_desc pms405_pldo50 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1664000, 0, 128, 16000),
 	},
 	.n_linear_ranges = 1,
@@ -578,7 +578,7 @@ static const struct regulator_desc pms405_pldo50 = {
 };
 
 static const struct regulator_desc pms405_pldo150 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1664000, 0, 128, 16000),
 	},
 	.n_linear_ranges = 1,
@@ -587,7 +587,7 @@ static const struct regulator_desc pms405_pldo150 = {
 };
 
 static const struct regulator_desc pms405_pldo600 = {
-	.linear_ranges = (struct regulator_linear_range[]) {
+	.linear_ranges = (struct linear_range[]) {
 		REGULATOR_LINEAR_RANGE(1256000, 0, 98, 8000),
 	},
 	.n_linear_ranges = 1,

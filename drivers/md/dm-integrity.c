@@ -92,7 +92,7 @@ struct journal_entry {
 		} s;
 		__u64 sector;
 	} u;
-	commit_id_t last_bytes[0];
+	commit_id_t last_bytes[];
 	/* __u8 tag[0]; */
 };
 
@@ -1553,8 +1553,6 @@ static void integrity_metadata(struct work_struct *w)
 		char checksums_onstack[max((size_t)HASH_MAX_DIGESTSIZE, MAX_TAG_SIZE)];
 		sector_t sector;
 		unsigned sectors_to_process;
-		sector_t save_metadata_block;
-		unsigned save_metadata_offset;
 
 		if (unlikely(ic->mode == 'R'))
 			goto skip_io;
@@ -1605,8 +1603,6 @@ static void integrity_metadata(struct work_struct *w)
 			goto skip_io;
 		}
 
-		save_metadata_block = dio->metadata_block;
-		save_metadata_offset = dio->metadata_offset;
 		sector = dio->range.logical_sector;
 		sectors_to_process = dio->range.n_sectors;
 
@@ -2657,7 +2653,7 @@ static void bitmap_flush_work(struct work_struct *work)
 
 	dm_integrity_flush_buffers(ic);
 	if (ic->meta_dev)
-		blkdev_issue_flush(ic->dev->bdev, GFP_NOIO, NULL);
+		blkdev_issue_flush(ic->dev->bdev, GFP_NOIO);
 
 	limit = ic->provided_data_sectors;
 	if (ic->sb->flags & cpu_to_le32(SB_FLAG_RECALCULATING)) {

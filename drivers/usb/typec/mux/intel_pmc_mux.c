@@ -15,7 +15,7 @@
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_tbt.h>
 
-#include <asm/intel_pmc_ipc.h>
+#include <asm/intel_scu_ipc.h>
 
 #define PMC_USBC_CMD		0xa7
 
@@ -92,13 +92,33 @@ struct pmc_usb_port {
 
 	u8 usb2_port;
 	u8 usb3_port;
+
+	enum typec_orientation sbu_orientation;
+	enum typec_orientation hsl_orientation;
 };
 
 struct pmc_usb {
 	u8 num_ports;
 	struct device *dev;
+	struct intel_scu_ipc_dev *ipc;
 	struct pmc_usb_port *port;
 };
+
+static int sbu_orientation(struct pmc_usb_port *port)
+{
+	if (port->sbu_orientation)
+		return port->sbu_orientation - 1;
+
+	return port->orientation - 1;
+}
+
+static int hsl_orientation(struct pmc_usb_port *port)
+{
+	if (port->hsl_orientation)
+		return port->hsl_orientation - 1;
+
+	return port->orientation - 1;
+}
 
 static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 {
@@ -108,9 +128,8 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 * Error bit will always be 0 with the USBC command.
 	 * Status can be checked from the response message.
 	 */
-	intel_pmc_ipc_command(PMC_USBC_CMD, 0, msg, len,
-			      (void *)response, 1);
-
+	intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg, len,
+				  response, sizeof(response));
 	if (response[2]) {
 		if (response[2] & BIT(1))
 			return -EIO;
@@ -152,8 +171,9 @@ pmc_usb_mux_dp(struct pmc_usb_port *port, struct typec_mux_state *state)
 
 	req.mode_data = (port->orientation - 1) << PMC_USB_ALTMODE_ORI_SHIFT;
 	req.mode_data |= (port->role - 1) << PMC_USB_ALTMODE_UFP_SHIFT;
-	req.mode_data |= (port->orientation - 1) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
-	req.mode_data |= (port->orientation - 1) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
+
+	req.mode_data |= sbu_orientation(port) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
+	req.mode_data |= hsl_orientation(port) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
 
 	req.mode_data |= (state->mode - TYPEC_STATE_MODAL) <<
 			 PMC_USB_ALTMODE_DP_MODE_SHIFT;
@@ -177,8 +197,9 @@ pmc_usb_mux_tbt(struct pmc_usb_port *port, struct typec_mux_state *state)
 
 	req.mode_data = (port->orientation - 1) << PMC_USB_ALTMODE_ORI_SHIFT;
 	req.mode_data |= (port->role - 1) << PMC_USB_ALTMODE_UFP_SHIFT;
-	req.mode_data |= (port->orientation - 1) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
-	req.mode_data |= (port->orientation - 1) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
+
+	req.mode_data |= sbu_orientation(port) << PMC_USB_ALTMODE_ORI_AUX_SHIFT;
+	req.mode_data |= hsl_orientation(port) << PMC_USB_ALTMODE_ORI_HSL_SHIFT;
 
 	if (TBT_ADAPTER(data->device_mode) == TBT_ADAPTER_TBT3)
 		req.mode_data |= PMC_USB_ALTMODE_TBT_TYPE;
@@ -215,8 +236,8 @@ static int pmc_usb_connect(struct pmc_usb_port *port)
 	msg[0] |= port->usb3_port << PMC_USB_MSG_USB3_PORT_SHIFT;
 
 	msg[1] = port->usb2_port << PMC_USB_MSG_USB2_PORT_SHIFT;
-	msg[1] |= (port->orientation - 1) << PMC_USB_MSG_ORI_HSL_SHIFT;
-	msg[1] |= (port->orientation - 1) << PMC_USB_MSG_ORI_AUX_SHIFT;
+	msg[1] |= hsl_orientation(port) << PMC_USB_MSG_ORI_HSL_SHIFT;
+	msg[1] |= sbu_orientation(port) << PMC_USB_MSG_ORI_AUX_SHIFT;
 
 	return pmc_usb_command(port, msg, sizeof(msg));
 }
@@ -300,6 +321,7 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 	struct usb_role_switch_desc desc = { };
 	struct typec_switch_desc sw_desc = { };
 	struct typec_mux_desc mux_desc = { };
+	const char *str;
 	int ret;
 
 	ret = fwnode_property_read_u8(fwnode, "usb2-port-number", &port->usb2_port);
@@ -309,6 +331,14 @@ static int pmc_usb_register_port(struct pmc_usb *pmc, int index,
 	ret = fwnode_property_read_u8(fwnode, "usb3-port-number", &port->usb3_port);
 	if (ret)
 		return ret;
+
+	ret = fwnode_property_read_string(fwnode, "sbu-orientation", &str);
+	if (!ret)
+		port->sbu_orientation = typec_find_orientation(str);
+
+	ret = fwnode_property_read_string(fwnode, "hsl-orientation", &str);
+	if (!ret)
+		port->hsl_orientation = typec_find_orientation(str);
 
 	port->num = index;
 	port->pmc = pmc;
@@ -373,6 +403,10 @@ static int pmc_usb_probe(struct platform_device *pdev)
 				 sizeof(struct pmc_usb_port), GFP_KERNEL);
 	if (!pmc->port)
 		return -ENOMEM;
+
+	pmc->ipc = devm_intel_scu_ipc_dev_get(&pdev->dev);
+	if (!pmc->ipc)
+		return -ENODEV;
 
 	pmc->dev = &pdev->dev;
 

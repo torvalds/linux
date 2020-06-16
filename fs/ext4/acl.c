@@ -215,9 +215,8 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 				      value, size, xattr_flags);
 
 	kfree(value);
-	if (!error) {
+	if (!error)
 		set_cached_acl(inode, type, acl);
-	}
 
 	return error;
 }
@@ -256,7 +255,7 @@ retry:
 	if (!error && update_mode) {
 		inode->i_mode = mode;
 		inode->i_ctime = current_time(inode);
-		ext4_mark_inode_dirty(handle, inode);
+		error = ext4_mark_inode_dirty(handle, inode);
 	}
 out_stop:
 	ext4_journal_stop(handle);

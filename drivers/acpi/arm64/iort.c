@@ -299,61 +299,8 @@ out:
 	return status;
 }
 
-struct iort_workaround_oem_info {
-	char oem_id[ACPI_OEM_ID_SIZE + 1];
-	char oem_table_id[ACPI_OEM_TABLE_ID_SIZE + 1];
-	u32 oem_revision;
-};
-
-static bool apply_id_count_workaround;
-
-static struct iort_workaround_oem_info wa_info[] __initdata = {
-	{
-		.oem_id		= "HISI  ",
-		.oem_table_id	= "HIP07   ",
-		.oem_revision	= 0,
-	}, {
-		.oem_id		= "HISI  ",
-		.oem_table_id	= "HIP08   ",
-		.oem_revision	= 0,
-	}
-};
-
-static void __init
-iort_check_id_count_workaround(struct acpi_table_header *tbl)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(wa_info); i++) {
-		if (!memcmp(wa_info[i].oem_id, tbl->oem_id, ACPI_OEM_ID_SIZE) &&
-		    !memcmp(wa_info[i].oem_table_id, tbl->oem_table_id, ACPI_OEM_TABLE_ID_SIZE) &&
-		    wa_info[i].oem_revision == tbl->oem_revision) {
-			apply_id_count_workaround = true;
-			pr_warn(FW_BUG "ID count for ID mapping entry is wrong, applying workaround\n");
-			break;
-		}
-	}
-}
-
-static inline u32 iort_get_map_max(struct acpi_iort_id_mapping *map)
-{
-	u32 map_max = map->input_base + map->id_count;
-
-	/*
-	 * The IORT specification revision D (Section 3, table 4, page 9) says
-	 * Number of IDs = The number of IDs in the range minus one, but the
-	 * IORT code ignored the "minus one", and some firmware did that too,
-	 * so apply a workaround here to keep compatible with both the spec
-	 * compliant and non-spec compliant firmwares.
-	 */
-	if (apply_id_count_workaround)
-		map_max--;
-
-	return map_max;
-}
-
 static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
-		       u32 *rid_out)
+		       u32 *rid_out, bool check_overlap)
 {
 	/* Single mapping does not care for input id */
 	if (map->flags & ACPI_IORT_ID_SINGLE_MAPPING) {
@@ -368,10 +315,37 @@ static int iort_id_map(struct acpi_iort_id_mapping *map, u8 type, u32 rid_in,
 		return -ENXIO;
 	}
 
-	if (rid_in < map->input_base || rid_in > iort_get_map_max(map))
+	if (rid_in < map->input_base ||
+	    (rid_in > map->input_base + map->id_count))
 		return -ENXIO;
 
+	if (check_overlap) {
+		/*
+		 * We already found a mapping for this input ID at the end of
+		 * another region. If it coincides with the start of this
+		 * region, we assume the prior match was due to the off-by-1
+		 * issue mentioned below, and allow it to be superseded.
+		 * Otherwise, things are *really* broken, and we just disregard
+		 * duplicate matches entirely to retain compatibility.
+		 */
+		pr_err(FW_BUG "[map %p] conflicting mapping for input ID 0x%x\n",
+		       map, rid_in);
+		if (rid_in != map->input_base)
+			return -ENXIO;
+
+		pr_err(FW_BUG "applying workaround.\n");
+	}
+
 	*rid_out = map->output_base + (rid_in - map->input_base);
+
+	/*
+	 * Due to confusion regarding the meaning of the id_count field (which
+	 * carries the number of IDs *minus 1*), we may have to disregard this
+	 * match if it is at the end of the range, and overlaps with the start
+	 * of another one.
+	 */
+	if (map->id_count > 0 && rid_in == map->input_base + map->id_count)
+		return -EAGAIN;
 	return 0;
 }
 
@@ -414,6 +388,7 @@ static struct acpi_iort_node *iort_node_get_id(struct acpi_iort_node *node,
 static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 {
 	struct acpi_iort_smmu_v3 *smmu;
+	struct acpi_iort_pmcg *pmcg;
 
 	switch (node->type) {
 	case ACPI_IORT_NODE_SMMU_V3:
@@ -441,6 +416,10 @@ static int iort_get_id_mapping_index(struct acpi_iort_node *node)
 
 		return smmu->id_mapping_index;
 	case ACPI_IORT_NODE_PMCG:
+		pmcg = (struct acpi_iort_pmcg *)node->node_data;
+		if (pmcg->overflow_gsiv || node->mapping_count == 0)
+			return -EINVAL;
+
 		return 0;
 	default:
 		return -EINVAL;
@@ -456,7 +435,8 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 	/* Parse the ID mapping tree to find specified node type */
 	while (node) {
 		struct acpi_iort_id_mapping *map;
-		int i, index;
+		int i, index, rc = 0;
+		u32 out_ref = 0, map_id = id;
 
 		if (IORT_TYPE_MASK(node->type) & type_mask) {
 			if (id_out)
@@ -490,15 +470,18 @@ static struct acpi_iort_node *iort_node_map_id(struct acpi_iort_node *node,
 			if (i == index)
 				continue;
 
-			if (!iort_id_map(map, node->type, id, &id))
+			rc = iort_id_map(map, node->type, map_id, &id, out_ref);
+			if (!rc)
 				break;
+			if (rc == -EAGAIN)
+				out_ref = map->output_reference;
 		}
 
-		if (i == node->mapping_count)
+		if (i == node->mapping_count && !out_ref)
 			goto fail_map;
 
 		node = ACPI_ADD_PTR(struct acpi_iort_node, iort_table,
-				    map->output_reference);
+				    rc ? out_ref : map->output_reference);
 	}
 
 fail_map:
@@ -787,15 +770,6 @@ void acpi_configure_pmsi_domain(struct device *dev)
 	msi_domain = iort_get_platform_device_domain(dev);
 	if (msi_domain)
 		dev_set_msi_domain(dev, msi_domain);
-}
-
-static int __maybe_unused __get_pci_rid(struct pci_dev *pdev, u16 alias,
-					void *data)
-{
-	u32 *rid = data;
-
-	*rid = alias;
-	return 0;
 }
 
 #ifdef CONFIG_IOMMU_API
@@ -1148,13 +1122,10 @@ void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 	else
 		size = 1ULL << 32;
 
-	if (dev_is_pci(dev)) {
-		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
-		if (ret == -ENODEV)
-			ret = rc_dma_get_range(dev, &size);
-	} else {
-		ret = nc_dma_get_range(dev, &size);
-	}
+	ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
+	if (ret == -ENODEV)
+		ret = dev_is_pci(dev) ? rc_dma_get_range(dev, &size)
+				      : nc_dma_get_range(dev, &size);
 
 	if (!ret) {
 		/*
@@ -1692,6 +1663,10 @@ void __init acpi_iort_init(void)
 {
 	acpi_status status;
 
+	/* iort_table will be used at runtime after the iort init,
+	 * so we don't need to call acpi_put_table() to release
+	 * the IORT table mapping.
+	 */
 	status = acpi_get_table(ACPI_SIG_IORT, 0, &iort_table);
 	if (ACPI_FAILURE(status)) {
 		if (status != AE_NOT_FOUND) {
@@ -1703,6 +1678,5 @@ void __init acpi_iort_init(void)
 		return;
 	}
 
-	iort_check_id_count_workaround(iort_table);
 	iort_init_platform_devices();
 }

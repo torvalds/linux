@@ -13,11 +13,11 @@ description: Binding for Amlogic Thermal
 
 properties:
   compatible:
-      items:
-        - enum:
-            - amlogic,g12a-cpu-thermal
-            - amlogic,g12a-ddr-thermal
-        - const: amlogic,g12a-thermal
+    items:
+      - enum:
+          - amlogic,g12a-cpu-thermal
+          - amlogic,g12a-ddr-thermal
+      - const: amlogic,g12a-thermal
 
   reg:
     maxItems: 1

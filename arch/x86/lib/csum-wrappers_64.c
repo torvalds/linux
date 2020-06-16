@@ -10,7 +10,7 @@
 #include <asm/smap.h>
 
 /**
- * csum_partial_copy_from_user - Copy and checksum from user space.
+ * csum_and_copy_from_user - Copy and checksum from user space.
  * @src: source address (user space)
  * @dst: destination address
  * @len: number of bytes to be copied.
@@ -21,13 +21,13 @@
  * src and dst are best aligned to 64bits.
  */
 __wsum
-csum_partial_copy_from_user(const void __user *src, void *dst,
+csum_and_copy_from_user(const void __user *src, void *dst,
 			    int len, __wsum isum, int *errp)
 {
 	might_sleep();
 	*errp = 0;
 
-	if (!likely(access_ok(src, len)))
+	if (!user_access_begin(src, len))
 		goto out_err;
 
 	/*
@@ -42,8 +42,7 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 		while (((unsigned long)src & 6) && len >= 2) {
 			__u16 val16;
 
-			if (__get_user(val16, (const __u16 __user *)src))
-				goto out_err;
+			unsafe_get_user(val16, (const __u16 __user *)src, out);
 
 			*(__u16 *)dst = val16;
 			isum = (__force __wsum)add32_with_carry(
@@ -53,25 +52,26 @@ csum_partial_copy_from_user(const void __user *src, void *dst,
 			len -= 2;
 		}
 	}
-	stac();
 	isum = csum_partial_copy_generic((__force const void *)src,
 				dst, len, isum, errp, NULL);
-	clac();
+	user_access_end();
 	if (unlikely(*errp))
 		goto out_err;
 
 	return isum;
 
+out:
+	user_access_end();
 out_err:
 	*errp = -EFAULT;
 	memset(dst, 0, len);
 
 	return isum;
 }
-EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_and_copy_from_user);
 
 /**
- * csum_partial_copy_to_user - Copy and checksum to user space.
+ * csum_and_copy_to_user - Copy and checksum to user space.
  * @src: source address
  * @dst: destination address (user space)
  * @len: number of bytes to be copied.
@@ -82,14 +82,14 @@ EXPORT_SYMBOL(csum_partial_copy_from_user);
  * src and dst are best aligned to 64bits.
  */
 __wsum
-csum_partial_copy_to_user(const void *src, void __user *dst,
+csum_and_copy_to_user(const void *src, void __user *dst,
 			  int len, __wsum isum, int *errp)
 {
 	__wsum ret;
 
 	might_sleep();
 
-	if (unlikely(!access_ok(dst, len))) {
+	if (!user_access_begin(dst, len)) {
 		*errp = -EFAULT;
 		return 0;
 	}
@@ -100,9 +100,7 @@ csum_partial_copy_to_user(const void *src, void __user *dst,
 
 			isum = (__force __wsum)add32_with_carry(
 					(__force unsigned)isum, val16);
-			*errp = __put_user(val16, (__u16 __user *)dst);
-			if (*errp)
-				return isum;
+			unsafe_put_user(val16, (__u16 __user *)dst, out);
 			src += 2;
 			dst += 2;
 			len -= 2;
@@ -110,13 +108,16 @@ csum_partial_copy_to_user(const void *src, void __user *dst,
 	}
 
 	*errp = 0;
-	stac();
 	ret = csum_partial_copy_generic(src, (void __force *)dst,
 					len, isum, NULL, errp);
-	clac();
+	user_access_end();
 	return ret;
+out:
+	user_access_end();
+	*errp = -EFAULT;
+	return isum;
 }
-EXPORT_SYMBOL(csum_partial_copy_to_user);
+EXPORT_SYMBOL(csum_and_copy_to_user);
 
 /**
  * csum_partial_copy_nocheck - Copy and checksum.

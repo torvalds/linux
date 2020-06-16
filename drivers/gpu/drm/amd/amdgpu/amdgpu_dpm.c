@@ -856,7 +856,7 @@ void amdgpu_add_thermal_controller(struct amdgpu_device *adev)
 				const char *name = pp_lib_thermal_controller_names[controller->ucType];
 				info.addr = controller->ucI2cAddress >> 1;
 				strlcpy(info.type, name, sizeof(info.type));
-				i2c_new_device(&adev->pm.i2c_bus->adapter, &info);
+				i2c_new_client_device(&adev->pm.i2c_bus->adapter, &info);
 			}
 		} else {
 			DRM_INFO("Unknown thermal controller type %d at 0x%02x %s fan control\n",
@@ -1187,4 +1187,14 @@ int amdgpu_dpm_set_df_cstate(struct amdgpu_device *adev,
 		ret = pp_funcs->set_df_cstate(pp_handle, cstate);
 
 	return ret;
+}
+
+int amdgpu_dpm_allow_xgmi_power_down(struct amdgpu_device *adev, bool en)
+{
+	struct smu_context *smu = &adev->smu;
+
+	if (is_support_sw_smu(adev))
+		return smu_allow_xgmi_power_down(smu, en);
+
+	return 0;
 }

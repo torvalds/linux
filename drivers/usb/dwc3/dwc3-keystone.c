@@ -14,6 +14,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
+#include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 
 /* USBSS register offsets */
@@ -34,6 +35,7 @@
 struct dwc3_keystone {
 	struct device			*dev;
 	void __iomem			*usbss;
+	struct phy			*usb3_phy;
 };
 
 static inline u32 kdwc3_readl(void __iomem *base, u32 offset)
@@ -95,8 +97,38 @@ static int kdwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(kdwc->usbss))
 		return PTR_ERR(kdwc->usbss);
 
-	pm_runtime_enable(kdwc->dev);
+	/* PSC dependency on AM65 needs SERDES0 to be powered before USB0 */
+	kdwc->usb3_phy = devm_phy_optional_get(dev, "usb3-phy");
+	if (IS_ERR(kdwc->usb3_phy)) {
+		error = PTR_ERR(kdwc->usb3_phy);
+		if (error != -EPROBE_DEFER)
+			dev_err(dev, "couldn't get usb3 phy: %d\n", error);
 
+		return error;
+	}
+
+	phy_pm_runtime_get_sync(kdwc->usb3_phy);
+
+	error = phy_reset(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy reset failed: %d\n", error);
+		return error;
+	}
+
+	error = phy_init(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy init failed: %d\n", error);
+		return error;
+	}
+
+	error = phy_power_on(kdwc->usb3_phy);
+	if (error < 0) {
+		dev_err(dev, "usb3 phy power on failed: %d\n", error);
+		phy_exit(kdwc->usb3_phy);
+		return error;
+	}
+
+	pm_runtime_enable(kdwc->dev);
 	error = pm_runtime_get_sync(kdwc->dev);
 	if (error < 0) {
 		dev_err(kdwc->dev, "pm_runtime_get_sync failed, error %d\n",
@@ -138,6 +170,9 @@ err_core:
 err_irq:
 	pm_runtime_put_sync(kdwc->dev);
 	pm_runtime_disable(kdwc->dev);
+	phy_power_off(kdwc->usb3_phy);
+	phy_exit(kdwc->usb3_phy);
+	phy_pm_runtime_put_sync(kdwc->usb3_phy);
 
 	return error;
 }
@@ -162,6 +197,10 @@ static int kdwc3_remove(struct platform_device *pdev)
 	device_for_each_child(&pdev->dev, NULL, kdwc3_remove_core);
 	pm_runtime_put_sync(kdwc->dev);
 	pm_runtime_disable(kdwc->dev);
+
+	phy_power_off(kdwc->usb3_phy);
+	phy_exit(kdwc->usb3_phy);
+	phy_pm_runtime_put_sync(kdwc->usb3_phy);
 
 	platform_set_drvdata(pdev, NULL);
 

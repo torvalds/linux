@@ -58,5 +58,6 @@ extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);
 extern int __cpu_disable(void);
+extern void schedule_mcck_handler(void);
 
 #endif /* __ASM_SMP_H */

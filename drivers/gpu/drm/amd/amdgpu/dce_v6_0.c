@@ -2194,9 +2194,9 @@ static void dce_v6_0_hide_cursor(struct drm_crtc *crtc)
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct amdgpu_device *adev = crtc->dev->dev_private;
 
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset,
-		   (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
-		   (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset,
+	       (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
+	       (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
 
 
 }
@@ -2211,10 +2211,10 @@ static void dce_v6_0_show_cursor(struct drm_crtc *crtc)
 	WREG32(mmCUR_SURFACE_ADDRESS + amdgpu_crtc->crtc_offset,
 	       lower_32_bits(amdgpu_crtc->cursor_addr));
 
-	WREG32_IDX(mmCUR_CONTROL + amdgpu_crtc->crtc_offset,
-		   CUR_CONTROL__CURSOR_EN_MASK |
-		   (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
-		   (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
+	WREG32(mmCUR_CONTROL + amdgpu_crtc->crtc_offset,
+	       CUR_CONTROL__CURSOR_EN_MASK |
+	       (CURSOR_24_8_PRE_MULT << CUR_CONTROL__CURSOR_MODE__SHIFT) |
+	       (CURSOR_URGENT_1_2 << CUR_CONTROL__CURSOR_URGENT_CONTROL__SHIFT));
 
 }
 

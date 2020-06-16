@@ -35,6 +35,12 @@ Required properties:
 	Due to above changes, Tegra114 I2C driver makes incompatible with
 	previous hardware driver. Hence, tegra114 I2C controller is compatible
 	with "nvidia,tegra114-i2c".
+  nvidia,tegra210-i2c-vi: Tegra210 has one I2C controller that is part of the
+	host1x domain and typically used for camera use-cases. This VI I2C
+	controller is mostly compatible with the programming model of the
+	regular I2C controllers with a few exceptions. The I2C registers start
+	at an offset of 0xc00 (instead of 0), registers are 16 bytes apart
+	(rather than 4) and the controller does not support slave mode.
 - reg: Should contain I2C controller registers physical address and length.
 - interrupts: Should contain I2C controller interrupts.
 - address-cells: Address cells for I2C device address.

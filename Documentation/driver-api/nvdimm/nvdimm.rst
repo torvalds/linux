@@ -278,8 +278,8 @@ by a region device with a dynamically assigned id (REGION0 - REGION5).
        be contiguous in DPA-space.
 
     This bus is provided by the kernel under the device
-    /sys/devices/platform/nfit_test.0 when CONFIG_NFIT_TEST is enabled and
-    the nfit_test.ko module is loaded.  This not only test LIBNVDIMM but the
+    /sys/devices/platform/nfit_test.0 when the nfit_test.ko module from
+    tools/testing/nvdimm is loaded.  This not only test LIBNVDIMM but the
     acpi_nfit.ko driver as well.
 
 

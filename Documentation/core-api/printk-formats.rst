@@ -2,6 +2,8 @@
 How to get printk format specifiers right
 =========================================
 
+.. _printk-specifiers:
+
 :Author: Randy Dunlap <rdunlap@infradead.org>
 :Author: Andrew Murray <amurray@mpc-data.co.uk>
 
@@ -482,21 +484,23 @@ Examples (OF)::
 	%pfwf	/ocp@68000000/i2c@48072000/camera@10/port/endpoint - Full name
 	%pfwP	endpoint				- Node name
 
-Time and date (struct rtc_time)
--------------------------------
+Time and date
+-------------
 
 ::
 
-	%ptR		YYYY-mm-ddTHH:MM:SS
-	%ptRd		YYYY-mm-dd
-	%ptRt		HH:MM:SS
-	%ptR[dt][r]
+	%pt[RT]			YYYY-mm-ddTHH:MM:SS
+	%pt[RT]d		YYYY-mm-dd
+	%pt[RT]t		HH:MM:SS
+	%pt[RT][dt][r]
 
-For printing date and time as represented by struct rtc_time structure in
-human readable format.
+For printing date and time as represented by
+	R  struct rtc_time structure
+	T  time64_t type
+in human readable format.
 
-By default year will be incremented by 1900 and month by 1. Use %ptRr (raw)
-to suppress this behaviour.
+By default year will be incremented by 1900 and month by 1.
+Use %pt[RT]r (raw) to suppress this behaviour.
 
 Passed by reference.
 

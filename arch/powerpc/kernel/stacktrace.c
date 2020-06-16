@@ -260,7 +260,7 @@ static void raise_backtrace_ipi(cpumask_t *mask)
 			pr_cont(" current pointer corrupt? (%px)\n", p->__current);
 
 		pr_warn("Back trace of paca->saved_r1 (0x%016llx) (possibly stale):\n", p->saved_r1);
-		show_stack(p->__current, (unsigned long *)p->saved_r1);
+		show_stack(p->__current, (unsigned long *)p->saved_r1, KERN_WARNING);
 	}
 }
 

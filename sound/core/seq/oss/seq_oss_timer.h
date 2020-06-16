@@ -44,14 +44,4 @@ snd_seq_oss_timer_cur_tick(struct seq_oss_timer *timer)
 	return timer->cur_tick;
 }
 
-
-/*
- * is realtime event?
- */
-static inline int
-snd_seq_oss_timer_is_realtime(struct seq_oss_timer *timer)
-{
-	return timer->realtime;
-}
-
 #endif
