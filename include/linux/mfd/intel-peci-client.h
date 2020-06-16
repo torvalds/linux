@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (c) 2018-2019 Intel Corporation */
+/* Copyright (c) 2018-2020 Intel Corporation */
 
 #ifndef __LINUX_MFD_INTEL_PECI_CLIENT_H
 #define __LINUX_MFD_INTEL_PECI_CLIENT_H
@@ -114,6 +114,38 @@ peci_client_read_package_config(struct peci_client_manager *priv,
 	memcpy(data, msg.pkg_config, 4);
 
 	return 0;
+}
+
+/**
+ * peci_client_write_package_config - write to the Package Configuration Space
+ * @priv: driver private data structure
+ * @index: encoding index for the requested service
+ * @param: parameter to specify the exact data being requested
+ * @data: data buffer with values to write
+ * Context: can sleep
+ *
+ * Return: zero on success, else a negative error code.
+ */
+static inline int
+peci_client_write_package_config(struct peci_client_manager *priv,
+				 u8 index, u16 param, u8 *data)
+{
+	struct peci_rd_pkg_cfg_msg msg;
+	int ret;
+
+	msg.addr = priv->client->addr;
+	msg.index = index;
+	msg.param = param;
+	msg.rx_len = 4u;
+	memcpy(msg.pkg_config, data, msg.rx_len);
+
+	ret = peci_command(priv->client->adapter, PECI_CMD_WR_PKG_CFG, &msg);
+	if (!ret) {
+		if (msg.cc != PECI_DEV_CC_SUCCESS)
+			ret = -EAGAIN;
+	}
+
+	return ret;
 }
 
 #endif /* __LINUX_MFD_INTEL_PECI_CLIENT_H */

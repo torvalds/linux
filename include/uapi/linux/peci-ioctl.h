@@ -226,12 +226,15 @@ struct peci_rd_pkg_cfg_msg {
 	__u16	param;
 /* When index is PECI_MBX_INDEX_CPU_ID */
 #define PECI_PKG_ID_CPU_ID			0x0000  /* CPUID Info */
+#define PECI_PKG_POWER_SKU_UNIT		0x0000 /* Time, Energy, Power units */
 #define PECI_PKG_ID_PLATFORM_ID			0x0001  /* Platform ID */
 #define PECI_PKG_ID_UNCORE_ID			0x0002  /* Uncore Device ID */
 #define PECI_PKG_ID_MAX_THREAD_ID		0x0003  /* Max Thread ID */
 #define PECI_PKG_ID_MICROCODE_REV		0x0004  /* CPU Microcode Update Revision */
 #define PECI_PKG_ID_MACHINE_CHECK_STATUS	0x0005  /* Machine Check Status */
-#define PECI_PKG_ID_PKG_ENERGY_STATUS		0x00ff  /* Average Energy  */
+#define PECI_PKG_ID_CPU_PACKAGE		0x00ff  /* CPU package ID*/
+#define PECI_PKG_ID_DIMM			0x00ff  /* DIMM ID*/
+#define PECI_PKG_ID_PLATFORM			0x00fe  /* Entire platform ID */
 
 	__u8	rx_len;
 	__u8	cc;

@@ -49,7 +49,7 @@ static int get_average_power(struct peci_cpupower *priv)
 
 	ret = peci_client_read_package_config(priv->mgr,
 					      PECI_MBX_INDEX_TDP_UNITS,
-					      PECI_PKG_ID_PKG_ENERGY_STATUS,
+					      PECI_PKG_ID_CPU_PACKAGE,
 					      pkg_cfg);
 
 	u32 power_unit = ((le32_to_cpup((__le32 *)pkg_cfg)) & 0x1f00) >> 8;
@@ -59,7 +59,7 @@ static int get_average_power(struct peci_cpupower *priv)
 
 	ret = peci_client_read_package_config(priv->mgr,
 					      PECI_MBX_INDEX_ENERGY_COUNTER,
-					      PECI_PKG_ID_PKG_ENERGY_STATUS,
+					      PECI_PKG_ID_CPU_PACKAGE,
 					      pkg_cfg);
 	if (!ret) {
 		u32 energy_cnt = le32_to_cpup((__le32 *)pkg_cfg);
