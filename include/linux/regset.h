@@ -82,27 +82,6 @@ static inline int membuf_write(struct membuf *s, const void *v, size_t size)
 typedef int user_regset_active_fn(struct task_struct *target,
 				  const struct user_regset *regset);
 
-/**
- * user_regset_get_fn - type of @get function in &struct user_regset
- * @target:	thread being examined
- * @regset:	regset being examined
- * @pos:	offset into the regset data to access, in bytes
- * @count:	amount of data to copy, in bytes
- * @kbuf:	if not %NULL, a kernel-space pointer to copy into
- * @ubuf:	if @kbuf is %NULL, a user-space pointer to copy into
- *
- * Fetch register values.  Return %0 on success; -%EIO or -%ENODEV
- * are usual failure returns.  The @pos and @count values are in
- * bytes, but must be properly aligned.  If @kbuf is non-null, that
- * buffer is used and @ubuf is ignored.  If @kbuf is %NULL, then
- * ubuf gives a userland pointer to access directly, and an -%EFAULT
- * return value is possible.
- */
-typedef int user_regset_get_fn(struct task_struct *target,
-			       const struct user_regset *regset,
-			       unsigned int pos, unsigned int count,
-			       void *kbuf, void __user *ubuf);
-
 typedef int user_regset_get2_fn(struct task_struct *target,
 			       const struct user_regset *regset,
 			       struct membuf to);
@@ -235,7 +214,6 @@ typedef unsigned int user_regset_get_size_fn(struct task_struct *target,
  * omitted when there is an @active function and it returns zero.
  */
 struct user_regset {
-	user_regset_get_fn		*get;
 	user_regset_get2_fn		*regset_get;
 	user_regset_set_fn		*set;
 	user_regset_active_fn		*active;

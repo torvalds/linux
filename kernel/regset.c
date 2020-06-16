@@ -11,7 +11,7 @@ static int __regset_get(struct task_struct *target,
 	void *p = *data, *to_free = NULL;
 	int res;
 
-	if (!regset->get && !regset->regset_get)
+	if (!regset->regset_get)
 		return -EOPNOTSUPP;
 	if (size > regset->n * regset->size)
 		size = regset->n * regset->size;
@@ -20,28 +20,14 @@ static int __regset_get(struct task_struct *target,
 		if (!p)
 			return -ENOMEM;
 	}
-	if (regset->regset_get) {
-		res = regset->regset_get(target, regset,
-				   (struct membuf){.p = p, .left = size});
-		if (res < 0) {
-			kfree(to_free);
-			return res;
-		}
-		*data = p;
-		return size - res;
-	}
-	res = regset->get(target, regset, 0, size, p, NULL);
-	if (unlikely(res < 0)) {
+	res = regset->regset_get(target, regset,
+			   (struct membuf){.p = p, .left = size});
+	if (res < 0) {
 		kfree(to_free);
 		return res;
 	}
 	*data = p;
-	if (regset->get_size) { // arm64-only kludge, will go away
-		unsigned max_size = regset->get_size(target, regset);
-		if (size > max_size)
-			size = max_size;
-	}
-	return size;
+	return size - res;
 }
 
 int regset_get(struct task_struct *target,
