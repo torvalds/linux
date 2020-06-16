@@ -28,6 +28,14 @@
 #include <nvfw/flcn.h>
 #include <nvfw/sec2.h>
 
+int
+gp102_sec2_nofw(struct nvkm_sec2 *sec2, int ver,
+		const struct nvkm_sec2_fwif *fwif)
+{
+	nvkm_warn(&sec2->engine.subdev, "firmware unavailable\n");
+	return 0;
+}
+
 static int
 gp102_sec2_acr_bootstrap_falcon_callback(void *priv, struct nvfw_falcon_msg *hdr)
 {
@@ -328,8 +336,9 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/sig-1.bin");
 
 static const struct nvkm_sec2_fwif
 gp102_sec2_fwif[] = {
-	{ 1, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_1 },
-	{ 0, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_0 },
+	{  1, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_1 },
+	{  0, gp102_sec2_load, &gp102_sec2, &gp102_sec2_acr_0 },
+	{ -1, gp102_sec2_nofw, &gp102_sec2 },
 	{}
 };
 
