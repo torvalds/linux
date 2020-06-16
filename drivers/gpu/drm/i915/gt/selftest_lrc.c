@@ -1177,18 +1177,18 @@ static int live_timeslice_rewind(void *arg)
 			goto err;
 		}
 
-		rq[0] = create_rewinder(ce, NULL, slot, X);
-		if (IS_ERR(rq[0])) {
+		rq[A1] = create_rewinder(ce, NULL, slot, X);
+		if (IS_ERR(rq[A1])) {
 			intel_context_put(ce);
 			goto err;
 		}
 
-		rq[1] = create_rewinder(ce, NULL, slot, Y);
+		rq[A2] = create_rewinder(ce, NULL, slot, Y);
 		intel_context_put(ce);
-		if (IS_ERR(rq[1]))
+		if (IS_ERR(rq[A2]))
 			goto err;
 
-		err = wait_for_submit(engine, rq[1], HZ / 2);
+		err = wait_for_submit(engine, rq[A2], HZ / 2);
 		if (err) {
 			pr_err("%s: failed to submit first context\n",
 			       engine->name);
@@ -1201,12 +1201,12 @@ static int live_timeslice_rewind(void *arg)
 			goto err;
 		}
 
-		rq[2] = create_rewinder(ce, rq[0], slot, Z);
+		rq[B1] = create_rewinder(ce, rq[A1], slot, Z);
 		intel_context_put(ce);
 		if (IS_ERR(rq[2]))
 			goto err;
 
-		err = wait_for_submit(engine, rq[2], HZ / 2);
+		err = wait_for_submit(engine, rq[B1], HZ / 2);
 		if (err) {
 			pr_err("%s: failed to submit second context\n",
 			       engine->name);
@@ -1214,6 +1214,7 @@ static int live_timeslice_rewind(void *arg)
 		}
 
 		/* ELSP[] = { { A:rq1, A:rq2 }, { B:rq1 } } */
+		ENGINE_TRACE(engine, "forcing tasklet for rewind\n");
 		if (i915_request_is_active(rq[A2])) { /* semaphore yielded! */
 			/* Wait for the timeslice to kick in */
 			del_timer(&engine->execlists.timer);
