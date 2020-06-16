@@ -48,9 +48,9 @@ static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 	return 0;
 }
 
-static const struct firmware *ath11k_fetch_fw_file(struct ath11k_base *ab,
-						   const char *dir,
-						   const char *file)
+const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
+						    const char *dir,
+						    const char *file)
 {
 	char filename[100];
 	const struct firmware *fw;
@@ -63,14 +63,13 @@ static const struct firmware *ath11k_fetch_fw_file(struct ath11k_base *ab,
 		dir = ".";
 
 	snprintf(filename, sizeof(filename), "%s/%s", dir, file);
-	ret = firmware_request_nowarn(&fw, filename, ab->dev);
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot fw request '%s': %d\n",
-		   filename, ret);
 
+	ret = firmware_request_nowarn(&fw, filename, ab->dev);
 	if (ret)
 		return ERR_PTR(ret);
-	ath11k_warn(ab, "Downloading BDF: %s, size: %zu\n",
-		    filename, fw->size);
+
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot firmware request %s size %zu\n",
+		   filename, fw->size);
 
 	return fw;
 }
@@ -176,9 +175,9 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 	int ret, ie_id;
 
 	if (!bd->fw)
-		bd->fw = ath11k_fetch_fw_file(ab,
-					      ab->hw_params.fw.dir,
-					      filename);
+		bd->fw = ath11k_core_firmware_request(ab,
+						      ab->hw_params.fw.dir,
+						      filename);
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 
@@ -268,9 +267,9 @@ err:
 static int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 					      struct ath11k_board_data *bd)
 {
-	bd->fw = ath11k_fetch_fw_file(ab,
-				      ab->hw_params.fw.dir,
-				      ATH11K_DEFAULT_BOARD_FILE);
+	bd->fw = ath11k_core_firmware_request(ab,
+					      ab->hw_params.fw.dir,
+					      ATH11K_DEFAULT_BOARD_FILE);
 	if (IS_ERR(bd->fw))
 		return PTR_ERR(bd->fw);
 

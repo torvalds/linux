@@ -1790,8 +1790,6 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 				struct qmi_wlanfw_bdf_download_req_msg_v01 *req,
 				void __iomem *bdf_addr)
 {
-	struct device *dev = ab->dev;
-	char filename[ATH11K_QMI_MAX_BDF_FILE_NAME_SIZE];
 	const struct firmware *fw_entry;
 	struct ath11k_board_data bd;
 	u32 fw_size;
@@ -1812,11 +1810,11 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 		ath11k_core_free_bdf(ab, &bd);
 		break;
 	case ATH11K_QMI_FILE_TYPE_CALDATA:
-		snprintf(filename, sizeof(filename),
-			 "%s/%s", ab->hw_params.fw.dir, ATH11K_QMI_DEFAULT_CAL_FILE_NAME);
-		ret = request_firmware(&fw_entry, filename, dev);
+		fw_entry = ath11k_core_firmware_request(ab, ab->hw_params.fw.dir,
+							ATH11K_QMI_DEFAULT_CAL_FILE_NAME);
 		if (ret) {
-			ath11k_warn(ab, "qmi failed to load CAL: %s\n", filename);
+			ath11k_warn(ab, "failed to load %s: %d\n",
+				    ATH11K_QMI_DEFAULT_CAL_FILE_NAME, ret);
 			goto out;
 		}
 
@@ -1825,8 +1823,6 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 
 		memcpy_toio(bdf_addr + ATH11K_QMI_CALDATA_OFFSET,
 			    fw_entry->data, fw_size);
-		ath11k_info(ab, "qmi downloading BDF: %s, size: %zu\n",
-			    filename, fw_entry->size);
 
 		release_firmware(fw_entry);
 		break;

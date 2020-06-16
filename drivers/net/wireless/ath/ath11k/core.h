@@ -861,6 +861,10 @@ void ath11k_core_free_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd);
 
 void ath11k_core_halt(struct ath11k *ar);
 
+const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
+						    const char *dir,
+						    const char *file);
+
 static inline const char *ath11k_scan_state_str(enum ath11k_scan_state state)
 {
 	switch (state) {
