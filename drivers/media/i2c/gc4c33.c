@@ -1511,6 +1511,7 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct gc4c33 *gc4c33 = to_gc4c33(sd);
 	struct rkmodule_hdr_cfg *hdr;
+	struct rkmodule_nr_switch_threshold *nr_switch;
 	u32 i, h, w;
 	long ret = 0;
 
@@ -1557,6 +1558,14 @@ static long gc4c33_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_DPCC_CFG:
 		ret = gc4c33_set_dpcc_cfg(gc4c33, (struct rkmodule_dpcc_cfg *)arg);
 		break;
+	case RKMODULE_GET_NR_SWITCH_THRESHOLD:
+		nr_switch = (struct rkmodule_nr_switch_threshold *)arg;
+		nr_switch->direct = 0;
+		nr_switch->up_thres = 3014;
+		nr_switch->down_thres = 3014;
+		nr_switch->div_coeff = 100;
+		ret = 0;
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1575,6 +1584,7 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_hdr_cfg *hdr;
 	struct rkmodule_dpcc_cfg *dpcc;
 	struct preisp_hdrae_exp_s *hdrae;
+	struct rkmodule_nr_switch_threshold *nr_switch;
 	long ret;
 
 	switch (cmd) {
@@ -1649,6 +1659,18 @@ static long gc4c33_compat_ioctl32(struct v4l2_subdev *sd,
 		if (!ret)
 			ret = gc4c33_ioctl(sd, cmd, hdrae);
 		kfree(hdrae);
+		break;
+	case RKMODULE_GET_NR_SWITCH_THRESHOLD:
+		nr_switch = kzalloc(sizeof(*nr_switch), GFP_KERNEL);
+		if (!nr_switch) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = gc4c33_ioctl(sd, cmd, nr_switch);
+		if (!ret)
+			ret = copy_to_user(up, nr_switch, sizeof(*nr_switch));
+		kfree(nr_switch);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

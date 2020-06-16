@@ -44,6 +44,9 @@
 #define RKMODULE_SET_DPCC_CFG	\
 	_IOW('V', BASE_VIDIOC_PRIVATE + 8, struct rkmodule_dpcc_cfg)
 
+#define RKMODULE_GET_NR_SWITCH_THRESHOLD	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 9, struct rkmodule_nr_switch_threshold)
+
 /**
  * struct rkmodule_base_inf - module base information
  *
@@ -245,6 +248,20 @@ struct rkmodule_dpcc_cfg {
 	__u32 enable;
 	__u32 cur_dpcc;
 	__u32 total_dpcc;
+} __attribute__ ((packed));
+
+/**
+ * nr switch by gain
+ * direct: 0 -> up_thres LSNR to HSNR, 1 -> up_thres HSNR to LSNR
+ * up_thres: threshold of nr change from low gain to high gain
+ * down_thres: threshold of nr change from high gain to low gain;
+ * div_coeff: Coefficients converted from float to int
+ */
+struct rkmodule_nr_switch_threshold {
+	__u32 direct;
+	__u32 up_thres;
+	__u32 down_thres;
+	__u32 div_coeff;
 } __attribute__ ((packed));
 
 #endif /* _UAPI_RKMODULE_CAMERA_H */
