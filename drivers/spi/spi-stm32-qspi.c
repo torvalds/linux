@@ -553,20 +553,6 @@ static const struct spi_controller_mem_ops stm32_qspi_mem_ops = {
 	.exec_op = stm32_qspi_exec_op,
 };
 
-static void stm32_qspi_release(struct stm32_qspi *qspi)
-{
-	pm_runtime_get_sync(qspi->dev);
-	/* disable qspi */
-	writel_relaxed(0, qspi->io_base + QSPI_CR);
-	stm32_qspi_dma_free(qspi);
-	mutex_destroy(&qspi->lock);
-	pm_runtime_put_noidle(qspi->dev);
-	pm_runtime_disable(qspi->dev);
-	pm_runtime_set_suspended(qspi->dev);
-	pm_runtime_dont_use_autosuspend(qspi->dev);
-	clk_disable_unprepare(qspi->clk);
-}
-
 static int stm32_qspi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -642,7 +628,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	if (IS_ERR(rstc)) {
 		ret = PTR_ERR(rstc);
 		if (ret == -EPROBE_DEFER)
-			goto err_qspi_release;
+			goto err_clk_disable;
 	} else {
 		reset_control_assert(rstc);
 		udelay(2);
@@ -653,7 +639,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, qspi);
 	ret = stm32_qspi_dma_setup(qspi);
 	if (ret)
-		goto err_qspi_release;
+		goto err_dma_free;
 
 	mutex_init(&qspi->lock);
 
@@ -673,15 +659,26 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 
 	ret = devm_spi_register_master(dev, ctrl);
 	if (ret)
-		goto err_qspi_release;
+		goto err_pm_runtime_free;
 
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
 	return 0;
 
-err_qspi_release:
-	stm32_qspi_release(qspi);
+err_pm_runtime_free:
+	pm_runtime_get_sync(qspi->dev);
+	/* disable qspi */
+	writel_relaxed(0, qspi->io_base + QSPI_CR);
+	mutex_destroy(&qspi->lock);
+	pm_runtime_put_noidle(qspi->dev);
+	pm_runtime_disable(qspi->dev);
+	pm_runtime_set_suspended(qspi->dev);
+	pm_runtime_dont_use_autosuspend(qspi->dev);
+err_dma_free:
+	stm32_qspi_dma_free(qspi);
+err_clk_disable:
+	clk_disable_unprepare(qspi->clk);
 err_master_put:
 	spi_master_put(qspi->ctrl);
 
@@ -692,7 +689,16 @@ static int stm32_qspi_remove(struct platform_device *pdev)
 {
 	struct stm32_qspi *qspi = platform_get_drvdata(pdev);
 
-	stm32_qspi_release(qspi);
+	pm_runtime_get_sync(qspi->dev);
+	/* disable qspi */
+	writel_relaxed(0, qspi->io_base + QSPI_CR);
+	stm32_qspi_dma_free(qspi);
+	mutex_destroy(&qspi->lock);
+	pm_runtime_put_noidle(qspi->dev);
+	pm_runtime_disable(qspi->dev);
+	pm_runtime_set_suspended(qspi->dev);
+	pm_runtime_dont_use_autosuspend(qspi->dev);
+	clk_disable_unprepare(qspi->clk);
 
 	return 0;
 }
