@@ -56,15 +56,15 @@ do
 				cat $i/Warnings
 			fi
 		else
-			if test -f "$i/qemu-cmd"
-			then
-				print_bug qemu failed
-				echo "   $i"
-			elif test -f "$i/buildonly"
+			if test -f "$i/buildonly"
 			then
 				echo Build-only run, no boot/test
 				configcheck.sh $i/.config $i/ConfigFragment
 				parse-build.sh $i/Make.out $configfile
+			elif test -f "$i/qemu-cmd"
+			then
+				print_bug qemu failed
+				echo "   $i"
 			else
 				print_bug Build failed
 				echo "   $i"
