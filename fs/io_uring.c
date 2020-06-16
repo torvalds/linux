@@ -6997,12 +6997,23 @@ static void io_unaccount_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
 	if (ctx->limit_mem)
 		__io_unaccount_mem(ctx->user, nr_pages);
+
+	if (ctx->sqo_mm)
+		atomic64_sub(nr_pages, &ctx->sqo_mm->pinned_vm);
 }
 
 static int io_account_mem(struct io_ring_ctx *ctx, unsigned long nr_pages)
 {
-	if (ctx->limit_mem)
-		return __io_account_mem(ctx->user, nr_pages);
+	int ret;
+
+	if (ctx->limit_mem) {
+		ret = __io_account_mem(ctx->user, nr_pages);
+		if (ret)
+			return ret;
+	}
+
+	if (ctx->sqo_mm)
+		atomic64_add(nr_pages, &ctx->sqo_mm->pinned_vm);
 
 	return 0;
 }
@@ -7304,8 +7315,10 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 static void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_finish_async(ctx);
-	if (ctx->sqo_mm)
+	if (ctx->sqo_mm) {
 		mmdrop(ctx->sqo_mm);
+		ctx->sqo_mm = NULL;
+	}
 
 	io_iopoll_reap_events(ctx);
 	io_sqe_buffer_unregister(ctx);
@@ -7912,7 +7925,6 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		return -ENOMEM;
 	}
 	ctx->compat = in_compat_syscall();
-	ctx->limit_mem = limit_mem;
 	ctx->user = user;
 	ctx->creds = get_current_cred();
 
@@ -7960,6 +7972,8 @@ static int io_uring_create(unsigned entries, struct io_uring_params *p,
 		goto err;
 
 	trace_io_uring_create(ret, ctx, p->sq_entries, p->cq_entries, p->flags);
+	io_account_mem(ctx, ring_pages(p->sq_entries, p->cq_entries));
+	ctx->limit_mem = limit_mem;
 	return ret;
 err:
 	io_ring_ctx_wait_and_kill(ctx);
