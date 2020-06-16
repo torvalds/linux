@@ -468,6 +468,15 @@ int intel_dp_get_link_train_fallback_values(struct intel_dp *intel_dp,
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	int index;
 
+	/*
+	 * TODO: Enable fallback on MST links once MST link compute can handle
+	 * the fallback params.
+	 */
+	if (intel_dp->is_mst) {
+		drm_err(&i915->drm, "Link Training Unsuccessful\n");
+		return -1;
+	}
+
 	index = intel_dp_rate_index(intel_dp->common_rates,
 				    intel_dp->num_common_rates,
 				    link_rate);
@@ -6165,7 +6174,17 @@ intel_dp_detect(struct drm_connector *connector,
 		goto out;
 	}
 
-	if (intel_dp->reset_link_params) {
+	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
+	if (INTEL_GEN(dev_priv) >= 11)
+		intel_dp_get_dsc_sink_cap(intel_dp);
+
+	intel_dp_configure_mst(intel_dp);
+
+	/*
+	 * TODO: Reset link params when switching to MST mode, until MST
+	 * supports link training fallback params.
+	 */
+	if (intel_dp->reset_link_params || intel_dp->is_mst) {
 		/* Initial max link lane count */
 		intel_dp->max_link_lane_count = intel_dp_max_common_lane_count(intel_dp);
 
@@ -6176,12 +6195,6 @@ intel_dp_detect(struct drm_connector *connector,
 	}
 
 	intel_dp_print_rates(intel_dp);
-
-	/* Read DP Sink DSC Cap DPCD regs for DP v1.4 */
-	if (INTEL_GEN(dev_priv) >= 11)
-		intel_dp_get_dsc_sink_cap(intel_dp);
-
-	intel_dp_configure_mst(intel_dp);
 
 	if (intel_dp->is_mst) {
 		/*
