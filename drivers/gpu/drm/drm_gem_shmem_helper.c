@@ -379,7 +379,7 @@ drm_gem_shmem_create_with_handle(struct drm_file *file_priv,
 	struct drm_gem_shmem_object *shmem;
 	int ret;
 
-	shmem = __drm_gem_shmem_create(dev, size, true);
+	shmem = drm_gem_shmem_create(dev, size);
 	if (IS_ERR(shmem))
 		return shmem;
 
@@ -732,7 +732,7 @@ drm_gem_shmem_prime_import_sg_table(struct drm_device *dev,
 	size_t size = PAGE_ALIGN(attach->dmabuf->size);
 	struct drm_gem_shmem_object *shmem;
 
-	shmem = drm_gem_shmem_create(dev, size);
+	shmem = __drm_gem_shmem_create(dev, size, true);
 	if (IS_ERR(shmem))
 		return ERR_CAST(shmem);
 
