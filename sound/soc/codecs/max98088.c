@@ -996,7 +996,7 @@ static int max98088_dai1_hw_params(struct snd_pcm_substream *substream,
        cdata->rate = rate;
 
        /* Configure NI when operating as master */
-       if (snd_soc_component_read32(component, M98088_REG_14_DAI1_FORMAT)
+       if (snd_soc_component_read(component, M98088_REG_14_DAI1_FORMAT)
                & M98088_DAI_MAS) {
                if (max98088->sysclk == 0) {
                        dev_err(component->dev, "Invalid system clock frequency\n");
@@ -1063,7 +1063,7 @@ static int max98088_dai2_hw_params(struct snd_pcm_substream *substream,
        cdata->rate = rate;
 
        /* Configure NI when operating as master */
-       if (snd_soc_component_read32(component, M98088_REG_1C_DAI2_FORMAT)
+       if (snd_soc_component_read(component, M98088_REG_1C_DAI2_FORMAT)
                & M98088_DAI_MAS) {
                if (max98088->sysclk == 0) {
                        dev_err(component->dev, "Invalid system clock frequency\n");
@@ -1120,7 +1120,7 @@ static int max98088_dai_set_sysclk(struct snd_soc_dai *dai,
                return -EINVAL;
        }
 
-       if (snd_soc_component_read32(component, M98088_REG_51_PWR_SYS)  & M98088_SHDNRUN) {
+       if (snd_soc_component_read(component, M98088_REG_51_PWR_SYS)  & M98088_SHDNRUN) {
                snd_soc_component_update_bits(component, M98088_REG_51_PWR_SYS,
                        M98088_SHDNRUN, 0);
                snd_soc_component_update_bits(component, M98088_REG_51_PWR_SYS,
@@ -1440,7 +1440,7 @@ static void max98088_setup_eq1(struct snd_soc_component *component)
                pdata->eq_cfg[best].rate, fs);
 
        /* Disable EQ while configuring, and save current on/off state */
-       save = snd_soc_component_read32(component, M98088_REG_49_CFG_LEVEL);
+       save = snd_soc_component_read(component, M98088_REG_49_CFG_LEVEL);
        snd_soc_component_update_bits(component, M98088_REG_49_CFG_LEVEL, M98088_EQ1EN, 0);
 
        coef_set = &pdata->eq_cfg[sel];
@@ -1487,7 +1487,7 @@ static void max98088_setup_eq2(struct snd_soc_component *component)
                pdata->eq_cfg[best].rate, fs);
 
        /* Disable EQ while configuring, and save current on/off state */
-       save = snd_soc_component_read32(component, M98088_REG_49_CFG_LEVEL);
+       save = snd_soc_component_read(component, M98088_REG_49_CFG_LEVEL);
        snd_soc_component_update_bits(component, M98088_REG_49_CFG_LEVEL, M98088_EQ2EN, 0);
 
        coef_set = &pdata->eq_cfg[sel];
@@ -1673,7 +1673,7 @@ static int max98088_probe(struct snd_soc_component *component)
        max98088->mic1pre = 0;
        max98088->mic2pre = 0;
 
-       ret = snd_soc_component_read32(component, M98088_REG_FF_REV_ID);
+       ret = snd_soc_component_read(component, M98088_REG_FF_REV_ID);
        if (ret < 0) {
                dev_err(component->dev, "Failed to read device revision: %d\n",
                        ret);
