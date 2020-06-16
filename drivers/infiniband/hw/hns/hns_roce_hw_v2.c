@@ -910,7 +910,7 @@ static int hns_roce_v2_rst_process_cmd(struct hns_roce_dev *hr_dev)
 	instance_stage = handle->rinfo.instance_state;
 	reset_stage = handle->rinfo.reset_state;
 	reset_cnt = ops->ae_dev_reset_cnt(handle);
-	hw_resetting = ops->get_hw_reset_stat(handle);
+	hw_resetting = ops->get_cmdq_stat(handle);
 	sw_resetting = ops->ae_dev_resetting(handle);
 
 	if (reset_cnt != hr_dev->reset_cnt)
