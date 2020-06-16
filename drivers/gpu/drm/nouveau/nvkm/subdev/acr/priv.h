@@ -10,6 +10,7 @@ struct nvkm_acr_fwif {
 	const struct nvkm_acr_func *func;
 };
 
+int gm200_acr_nofw(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 int gm20b_acr_load(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 int gp102_acr_load(struct nvkm_acr *, int, const struct nvkm_acr_fwif *);
 
@@ -29,6 +30,7 @@ struct nvkm_acr_func {
 	void (*fini)(struct nvkm_acr *);
 };
 
+extern const struct nvkm_acr_func gm200_acr;
 int gm200_acr_wpr_parse(struct nvkm_acr *);
 u32 gm200_acr_wpr_layout(struct nvkm_acr *);
 int gm200_acr_wpr_build(struct nvkm_acr *, struct nvkm_acr_lsf *);
