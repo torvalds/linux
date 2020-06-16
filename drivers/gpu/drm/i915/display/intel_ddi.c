@@ -4193,11 +4193,6 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 	if (drm_WARN_ON(&dev_priv->drm, transcoder_is_dsi(cpu_transcoder)))
 		return;
 
-	if (INTEL_GEN(dev_priv) >= 12) {
-		intel_dp->regs.dp_tp_ctl = TGL_DP_TP_CTL(cpu_transcoder);
-		intel_dp->regs.dp_tp_status = TGL_DP_TP_STATUS(cpu_transcoder);
-	}
-
 	intel_dsc_get_config(encoder, pipe_config);
 
 	temp = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder));
@@ -4297,6 +4292,16 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	default:
 		break;
+	}
+
+	if (INTEL_GEN(dev_priv) >= 12) {
+		enum transcoder transcoder =
+			intel_dp_mst_is_slave_trans(pipe_config) ?
+			pipe_config->mst_master_transcoder :
+			pipe_config->cpu_transcoder;
+
+		intel_dp->regs.dp_tp_ctl = TGL_DP_TP_CTL(transcoder);
+		intel_dp->regs.dp_tp_status = TGL_DP_TP_STATUS(transcoder);
 	}
 
 	pipe_config->has_audio =
