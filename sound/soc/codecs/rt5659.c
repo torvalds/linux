@@ -1238,7 +1238,7 @@ static int rt5659_hp_vol_put(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	int ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
-	if (snd_soc_component_read32(component, RT5659_STO_NG2_CTRL_1) & RT5659_NG2_EN) {
+	if (snd_soc_component_read(component, RT5659_STO_NG2_CTRL_1) & RT5659_NG2_EN) {
 		snd_soc_component_update_bits(component, RT5659_STO_NG2_CTRL_1,
 			RT5659_NG2_EN_MASK, RT5659_NG2_DIS);
 		snd_soc_component_update_bits(component, RT5659_STO_NG2_CTRL_1,
@@ -1305,7 +1305,7 @@ static int rt5659_headset_detect(struct snd_soc_component *component, int jack_i
 		snd_soc_dapm_force_enable_pin(dapm,
 			"Mic Det Power");
 		snd_soc_dapm_sync(dapm);
-		reg_63 = snd_soc_component_read32(component, RT5659_PWR_ANLG_1);
+		reg_63 = snd_soc_component_read(component, RT5659_PWR_ANLG_1);
 
 		snd_soc_component_update_bits(component, RT5659_PWR_ANLG_1,
 			RT5659_PWR_VREF2 | RT5659_PWR_MB,
@@ -1323,7 +1323,7 @@ static int rt5659_headset_detect(struct snd_soc_component *component, int jack_i
 
 		while (i < 5) {
 			msleep(sleep_time[i]);
-			val = snd_soc_component_read32(component, RT5659_EJD_CTRL_2) & 0x0003;
+			val = snd_soc_component_read(component, RT5659_EJD_CTRL_2) & 0x0003;
 			i++;
 			if (val == 0x1 || val == 0x2 || val == 0x3)
 				break;
@@ -1357,7 +1357,7 @@ static int rt5659_button_detect(struct snd_soc_component *component)
 {
 	int btn_type, val;
 
-	val = snd_soc_component_read32(component, RT5659_4BTN_IL_CMD_1);
+	val = snd_soc_component_read(component, RT5659_4BTN_IL_CMD_1);
 	btn_type = val & 0xfff0;
 	snd_soc_component_write(component, RT5659_4BTN_IL_CMD_1, val);
 
@@ -1396,7 +1396,7 @@ static void rt5659_jack_detect_work(struct work_struct *work)
 	if (!rt5659->component)
 		return;
 
-	val = snd_soc_component_read32(rt5659->component, RT5659_INT_ST_1) & 0x0080;
+	val = snd_soc_component_read(rt5659->component, RT5659_INT_ST_1) & 0x0080;
 	if (!val) {
 		/* jack in */
 		if (rt5659->jack_type == 0) {
@@ -1696,7 +1696,7 @@ static int is_sys_clk_from_pll(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
-	val = snd_soc_component_read32(component, RT5659_GLB_CLK);
+	val = snd_soc_component_read(component, RT5659_GLB_CLK);
 	val &= RT5659_SCLK_SRC_MASK;
 	if (val == RT5659_SCLK_SRC_PLL1)
 		return 1;
@@ -1739,7 +1739,7 @@ static int is_using_asrc(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
-	val = (snd_soc_component_read32(component, reg) >> shift) & 0xf;
+	val = (snd_soc_component_read(component, reg) >> shift) & 0xf;
 	switch (val) {
 	case 1:
 	case 2:
