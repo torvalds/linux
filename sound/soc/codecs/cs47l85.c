@@ -191,19 +191,11 @@ static void cs47l85_hp_post_enable(struct snd_soc_dapm_widget *w)
 	struct snd_soc_component *component =
 		snd_soc_dapm_to_component(w->dapm);
 	unsigned int val;
-	int ret;
 
 	switch (w->shift) {
 	case MADERA_OUT1L_ENA_SHIFT:
 	case MADERA_OUT1R_ENA_SHIFT:
-		ret = snd_soc_component_read(component, MADERA_OUTPUT_ENABLES_1,
-					     &val);
-		if (ret) {
-			dev_err(component->dev,
-				"Failed to check output enables: %d\n", ret);
-			return;
-		}
-
+		val = snd_soc_component_read(component, MADERA_OUTPUT_ENABLES_1);
 		val &= (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA);
 
 		if (val != (MADERA_OUT1L_ENA | MADERA_OUT1R_ENA))

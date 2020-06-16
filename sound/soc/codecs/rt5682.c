@@ -2640,8 +2640,7 @@ static unsigned long rt5682_bclk_recalc_rate(struct clk_hw *hw,
 	struct snd_soc_component *component = rt5682->component;
 	unsigned int bclks_per_wclk;
 
-	snd_soc_component_read(component, RT5682_TDM_TCON_CTRL,
-		&bclks_per_wclk);
+	bclks_per_wclk = snd_soc_component_read(component, RT5682_TDM_TCON_CTRL);
 
 	switch (bclks_per_wclk & RT5682_TDM_BCLK_MS1_MASK) {
 	case RT5682_TDM_BCLK_MS1_256:

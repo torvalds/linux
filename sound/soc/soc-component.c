@@ -407,41 +407,30 @@ EXPORT_SYMBOL_GPL(snd_soc_component_exit_regmap);
  * snd_soc_component_read() - Read register value
  * @component: Component to read from
  * @reg: Register to read
- * @val: Pointer to where the read value is stored
  *
- * Return: 0 on success, a negative error code otherwise.
+ * Return: read value
  */
-int snd_soc_component_read(struct snd_soc_component *component,
-			   unsigned int reg, unsigned int *val)
+unsigned int snd_soc_component_read(struct snd_soc_component *component,
+				    unsigned int reg)
 {
 	int ret;
+	unsigned int val = 0;
 
 	if (component->regmap)
-		ret = regmap_read(component->regmap, reg, val);
+		ret = regmap_read(component->regmap, reg, &val);
 	else if (component->driver->read) {
-		*val = component->driver->read(component, reg);
 		ret = 0;
+		val = component->driver->read(component, reg);
 	}
 	else
 		ret = -EIO;
 
-	return soc_component_ret(component, ret);
-}
-EXPORT_SYMBOL_GPL(snd_soc_component_read);
-
-unsigned int snd_soc_component_read32(struct snd_soc_component *component,
-				      unsigned int reg)
-{
-	unsigned int val;
-	int ret;
-
-	ret = snd_soc_component_read(component, reg, &val);
 	if (ret < 0)
-		return soc_component_ret(component, -1);
+		soc_component_ret(component, ret);
 
 	return val;
 }
-EXPORT_SYMBOL_GPL(snd_soc_component_read32);
+EXPORT_SYMBOL_GPL(snd_soc_component_read);
 
 /**
  * snd_soc_component_write() - Write register value
@@ -470,19 +459,17 @@ static int snd_soc_component_update_bits_legacy(
 	unsigned int mask, unsigned int val, bool *change)
 {
 	unsigned int old, new;
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&component->io_mutex);
 
-	ret = snd_soc_component_read(component, reg, &old);
-	if (ret < 0)
-		goto out_unlock;
+	old = snd_soc_component_read(component, reg);
 
 	new = (old & ~mask) | (val & mask);
 	*change = old != new;
 	if (*change)
 		ret = snd_soc_component_write(component, reg, new);
-out_unlock:
+
 	mutex_unlock(&component->io_mutex);
 
 	return soc_component_ret(component, ret);
@@ -584,11 +571,8 @@ int snd_soc_component_test_bits(struct snd_soc_component *component,
 				unsigned int reg, unsigned int mask, unsigned int value)
 {
 	unsigned int old, new;
-	int ret;
 
-	ret = snd_soc_component_read(component, reg, &old);
-	if (ret < 0)
-		return soc_component_ret(component, ret);
+	old = snd_soc_component_read(component, reg);
 	new = (old & ~mask) | value;
 	return old != new;
 }

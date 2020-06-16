@@ -831,7 +831,7 @@ static int nau8822_hw_params(struct snd_pcm_substream *substream,
 	unsigned int ctrl_val, bclk_fs, bclk_div;
 
 	/* make BCLK and LRC divide configuration if the codec as master. */
-	snd_soc_component_read(component, NAU8822_REG_CLOCKING, &ctrl_val);
+	ctrl_val = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
 	if (ctrl_val & NAU8822_CLK_MASTER) {
 		/* get the bclk and fs ratio */
 		bclk_fs = snd_soc_params_to_bclk(params) / params_rate(params);

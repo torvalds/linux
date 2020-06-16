@@ -508,10 +508,10 @@ static int tas5722_volume_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int val;
 
-	snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG, &val);
+	val = snd_soc_component_read(component, TAS5720_VOLUME_CTRL_REG);
 	ucontrol->value.integer.value[0] = val << 1;
 
-	snd_soc_component_read(component, TAS5722_DIGITAL_CTRL2_REG, &val);
+	val = snd_soc_component_read(component, TAS5722_DIGITAL_CTRL2_REG);
 	ucontrol->value.integer.value[0] |= val & TAS5722_VOL_CONTROL_LSB;
 
 	return 0;
