@@ -1120,12 +1120,26 @@ static int mes_v10_1_hw_fini(void *handle)
 
 static int mes_v10_1_suspend(void *handle)
 {
-	return 0;
+	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	r = amdgpu_mes_suspend(adev);
+	if (r)
+		return r;
+
+	return mes_v10_1_hw_fini(adev);
 }
 
 static int mes_v10_1_resume(void *handle)
 {
-	return 0;
+	int r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	r = mes_v10_1_hw_init(adev);
+	if (r)
+		return r;
+
+	return amdgpu_mes_resume(adev);
 }
 
 static const struct amd_ip_funcs mes_v10_1_ip_funcs = {
