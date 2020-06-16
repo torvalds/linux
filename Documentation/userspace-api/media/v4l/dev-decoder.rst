@@ -906,7 +906,9 @@ reflected by corresponding queries):
 
 * visible resolution (selection rectangles),
 
-* the minimum number of buffers needed for decoding.
+* the minimum number of buffers needed for decoding,
+
+* bit-depth of the bitstream has been changed.
 
 Whenever that happens, the decoder must proceed as follows:
 
