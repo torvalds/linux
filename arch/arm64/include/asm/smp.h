@@ -23,14 +23,6 @@
 #define CPU_STUCK_REASON_52_BIT_VA	(UL(1) << CPU_STUCK_REASON_SHIFT)
 #define CPU_STUCK_REASON_NO_GRAN	(UL(2) << CPU_STUCK_REASON_SHIFT)
 
-/* Possible options for __cpu_setup */
-/* Option to setup primary cpu */
-#define ARM64_CPU_BOOT_PRIMARY		(1)
-/* Option to setup secondary cpus */
-#define ARM64_CPU_BOOT_SECONDARY	(2)
-/* Option to setup cpus for different cpu run time services */
-#define ARM64_CPU_RUNTIME		(3)
-
 #ifndef __ASSEMBLY__
 
 #include <asm/percpu.h>
@@ -96,9 +88,6 @@ asmlinkage void secondary_start_kernel(void);
 struct secondary_data {
 	void *stack;
 	struct task_struct *task;
-#ifdef CONFIG_ARM64_PTR_AUTH
-	struct ptrauth_keys_kernel ptrauth_key;
-#endif
 	long status;
 };
 

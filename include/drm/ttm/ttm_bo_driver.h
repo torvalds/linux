@@ -390,7 +390,6 @@ struct ttm_bo_driver {
 /**
  * struct ttm_bo_global - Buffer object driver global data.
  *
- * @mem_glob: Pointer to a struct ttm_mem_global object for accounting.
  * @dummy_read_page: Pointer to a dummy page used for mapping requests
  * of unpopulated pages.
  * @shrink: A shrink callback object used for buffer object swap.

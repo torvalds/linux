@@ -1408,15 +1408,9 @@ xt_replace_table(struct xt_table *table,
 		}
 	}
 
-#ifdef CONFIG_AUDIT
-	if (audit_enabled) {
-		audit_log(audit_context(), GFP_KERNEL,
-			  AUDIT_NETFILTER_CFG,
-			  "table=%s family=%u entries=%u",
-			  table->name, table->af, private->number);
-	}
-#endif
-
+	audit_log_nfcfg(table->name, table->af, private->number,
+			!private->number ? AUDIT_XT_OP_REGISTER :
+					   AUDIT_XT_OP_REPLACE);
 	return private;
 }
 EXPORT_SYMBOL_GPL(xt_replace_table);
@@ -1478,6 +1472,8 @@ void *xt_unregister_table(struct xt_table *table)
 	private = table->private;
 	list_del(&table->list);
 	mutex_unlock(&xt[table->af].mutex);
+	audit_log_nfcfg(table->name, table->af, private->number,
+			AUDIT_XT_OP_UNREGISTER);
 	kfree(table);
 
 	return private;

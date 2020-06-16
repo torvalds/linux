@@ -941,7 +941,7 @@ static int deinterlace_runtime_resume(struct device *device)
 	if (ret) {
 		dev_err(dev->dev, "Failed to enable bus clock\n");
 
-		goto err_exlusive_rate;
+		goto err_exclusive_rate;
 	}
 
 	ret = clk_prepare_enable(dev->mod_clk);
@@ -969,14 +969,14 @@ static int deinterlace_runtime_resume(struct device *device)
 
 	return 0;
 
-err_exlusive_rate:
-	clk_rate_exclusive_put(dev->mod_clk);
 err_ram_clk:
 	clk_disable_unprepare(dev->ram_clk);
 err_mod_clk:
 	clk_disable_unprepare(dev->mod_clk);
 err_bus_clk:
 	clk_disable_unprepare(dev->bus_clk);
+err_exclusive_rate:
+	clk_rate_exclusive_put(dev->mod_clk);
 
 	return ret;
 }

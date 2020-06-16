@@ -64,9 +64,9 @@ static const struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* module options */
-static bool console = 1; /* Allow fbcon to open framebuffer */
-static bool fb_defio = 1;  /* Detect mmap writes using page faults */
-static bool shadow = 1; /* Optionally disable shadow framebuffer */
+static bool console = true; /* Allow fbcon to open framebuffer */
+static bool fb_defio = true;  /* Detect mmap writes using page faults */
+static bool shadow = true; /* Optionally disable shadow framebuffer */
 static int pixel_limit; /* Optionally force a pixel resolution limit */
 
 struct dlfb_deferred_free {

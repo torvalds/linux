@@ -42,7 +42,7 @@ int cmd_list(int argc, const char **argv)
 		OPT_END()
 	};
 	const char * const list_usage[] = {
-		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|event_glob]",
+		"perf list [<options>] [hw|sw|cache|tracepoint|pmu|sdt|metric|metricgroup|event_glob]",
 		NULL
 	};
 

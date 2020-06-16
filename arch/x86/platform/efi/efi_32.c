@@ -24,11 +24,11 @@
 #include <linux/types.h>
 #include <linux/ioport.h>
 #include <linux/efi.h>
+#include <linux/pgtable.h>
 
 #include <asm/io.h>
 #include <asm/desc.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/efi.h>
 

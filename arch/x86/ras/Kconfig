@@ -2,7 +2,7 @@
 config RAS_CEC
 	bool "Correctable Errors Collector"
 	depends on X86_MCE && MEMORY_FAILURE && DEBUG_FS
-	---help---
+	help
 	  This is a small cache which collects correctable memory errors per 4K
 	  page PFN and counts their repeated occurrence. Once the counter for a
 	  PFN overflows, we try to soft-offline that page as we take it to mean

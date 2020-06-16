@@ -274,6 +274,23 @@ static void lima_gp_print_version(struct lima_ip *ip)
 static struct kmem_cache *lima_gp_task_slab;
 static int lima_gp_task_slab_refcnt;
 
+static int lima_gp_hw_init(struct lima_ip *ip)
+{
+	ip->data.async_reset = false;
+	lima_gp_soft_reset_async(ip);
+	return lima_gp_soft_reset_async_wait(ip);
+}
+
+int lima_gp_resume(struct lima_ip *ip)
+{
+	return lima_gp_hw_init(ip);
+}
+
+void lima_gp_suspend(struct lima_ip *ip)
+{
+
+}
+
 int lima_gp_init(struct lima_ip *ip)
 {
 	struct lima_device *dev = ip->dev;
@@ -281,9 +298,7 @@ int lima_gp_init(struct lima_ip *ip)
 
 	lima_gp_print_version(ip);
 
-	ip->data.async_reset = false;
-	lima_gp_soft_reset_async(ip);
-	err = lima_gp_soft_reset_async_wait(ip);
+	err = lima_gp_hw_init(ip);
 	if (err)
 		return err;
 

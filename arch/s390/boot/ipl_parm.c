@@ -2,12 +2,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ctype.h>
+#include <linux/pgtable.h>
 #include <asm/ebcdic.h>
 #include <asm/sclp.h>
 #include <asm/sections.h>
 #include <asm/boot_data.h>
 #include <asm/facility.h>
-#include <asm/pgtable.h>
 #include <asm/uv.h>
 #include "boot.h"
 

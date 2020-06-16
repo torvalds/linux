@@ -6,7 +6,7 @@
 config MOST_CDEV
 	tristate "Cdev"
 
-	---help---
+	help
 	  Say Y here if you want to commumicate via character devices.
 
 	  To compile this driver as a module, choose M here: the

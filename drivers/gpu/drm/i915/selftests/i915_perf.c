@@ -14,10 +14,85 @@
 #include "igt_flush_test.h"
 #include "lib_sw_fence.h"
 
+#define TEST_OA_CONFIG_UUID "12345678-1234-1234-1234-1234567890ab"
+
+static int
+alloc_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config;
+
+	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
+	if (!oa_config)
+		return -ENOMEM;
+
+	oa_config->perf = perf;
+	kref_init(&oa_config->ref);
+
+	strlcpy(oa_config->uuid, TEST_OA_CONFIG_UUID, sizeof(oa_config->uuid));
+
+	mutex_lock(&perf->metrics_lock);
+
+	oa_config->id = idr_alloc(&perf->metrics_idr, oa_config, 2, 0, GFP_KERNEL);
+	if (oa_config->id < 0)  {
+		mutex_unlock(&perf->metrics_lock);
+		i915_oa_config_put(oa_config);
+		return -ENOMEM;
+	}
+
+	mutex_unlock(&perf->metrics_lock);
+
+	return 0;
+}
+
+static void
+destroy_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config = NULL, *tmp;
+	int id;
+
+	mutex_lock(&perf->metrics_lock);
+
+	idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+		if (!strcmp(tmp->uuid, TEST_OA_CONFIG_UUID)) {
+			oa_config = tmp;
+			break;
+		}
+	}
+
+	if (oa_config)
+		idr_remove(&perf->metrics_idr, oa_config->id);
+
+	mutex_unlock(&perf->metrics_lock);
+
+	if (oa_config)
+		i915_oa_config_put(oa_config);
+}
+
+static struct i915_oa_config *
+get_empty_config(struct i915_perf *perf)
+{
+	struct i915_oa_config *oa_config = NULL, *tmp;
+	int id;
+
+	mutex_lock(&perf->metrics_lock);
+
+	idr_for_each_entry(&perf->metrics_idr, tmp, id) {
+		if (!strcmp(tmp->uuid, TEST_OA_CONFIG_UUID)) {
+			oa_config = i915_oa_config_get(tmp);
+			break;
+		}
+	}
+
+	mutex_unlock(&perf->metrics_lock);
+
+	return oa_config;
+}
+
 static struct i915_perf_stream *
 test_stream(struct i915_perf *perf)
 {
 	struct drm_i915_perf_open_param param = {};
+	struct i915_oa_config *oa_config = get_empty_config(perf);
 	struct perf_open_properties props = {
 		.engine = intel_engine_lookup_user(perf->i915,
 						   I915_ENGINE_CLASS_RENDER,
@@ -25,13 +100,19 @@ test_stream(struct i915_perf *perf)
 		.sample_flags = SAMPLE_OA_REPORT,
 		.oa_format = IS_GEN(perf->i915, 12) ?
 		I915_OA_FORMAT_A32u40_A4u32_B8_C8 : I915_OA_FORMAT_C4_B8,
-		.metrics_set = 1,
 	};
 	struct i915_perf_stream *stream;
 
-	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
-	if (!stream)
+	if (!oa_config)
 		return NULL;
+
+	props.metrics_set = oa_config->id;
+
+	stream = kzalloc(sizeof(*stream), GFP_KERNEL);
+	if (!stream) {
+		i915_oa_config_put(oa_config);
+		return NULL;
+	}
 
 	stream->perf = perf;
 
@@ -41,6 +122,8 @@ test_stream(struct i915_perf *perf)
 		stream =  NULL;
 	}
 	mutex_unlock(&perf->lock);
+
+	i915_oa_config_put(oa_config);
 
 	return stream;
 }
@@ -138,8 +221,7 @@ static int live_noa_delay(void *arg)
 		goto out;
 	}
 
-	if (rq->engine->emit_init_breadcrumb &&
-	    i915_request_timeline(rq)->has_initial_breadcrumb) {
+	if (rq->engine->emit_init_breadcrumb) {
 		err = rq->engine->emit_init_breadcrumb(rq);
 		if (err) {
 			i915_request_add(rq);
@@ -180,8 +262,7 @@ static int live_noa_delay(void *arg)
 
 	delay = intel_read_status_page(stream->engine, 0x102);
 	delay -= intel_read_status_page(stream->engine, 0x100);
-	delay = div_u64(mul_u32_u32(delay, 1000 * 1000),
-			RUNTIME_INFO(i915)->cs_timestamp_frequency_khz);
+	delay = i915_cs_timestamp_ticks_to_ns(i915, delay);
 	pr_info("GPU delay: %uns, expected %lluns\n",
 		delay, expected);
 
@@ -206,6 +287,7 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_noa_delay),
 	};
 	struct i915_perf *perf = &i915->perf;
+	int err;
 
 	if (!perf->metrics_kobj || !perf->ops.enable_metric_set)
 		return 0;
@@ -213,5 +295,13 @@ int i915_perf_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	return i915_subtests(tests, i915);
+	err = alloc_empty_config(&i915->perf);
+	if (err)
+		return err;
+
+	err = i915_subtests(tests, i915);
+
+	destroy_empty_config(&i915->perf);
+
+	return err;
 }

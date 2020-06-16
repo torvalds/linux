@@ -426,58 +426,75 @@ struct cfg80211_mgmt_registration {
 
 	__le16 frame_type;
 
+	bool multicast_rx;
+
 	u8 match[];
 };
 
-static void
-cfg80211_process_mlme_unregistrations(struct cfg80211_registered_device *rdev)
+static void cfg80211_mgmt_registrations_update(struct wireless_dev *wdev)
 {
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct wireless_dev *tmp;
 	struct cfg80211_mgmt_registration *reg;
+	struct mgmt_frame_regs upd = {};
 
 	ASSERT_RTNL();
 
-	spin_lock_bh(&rdev->mlme_unreg_lock);
-	while ((reg = list_first_entry_or_null(&rdev->mlme_unreg,
-					       struct cfg80211_mgmt_registration,
-					       list))) {
-		list_del(&reg->list);
-		spin_unlock_bh(&rdev->mlme_unreg_lock);
-
-		if (rdev->ops->mgmt_frame_register) {
-			u16 frame_type = le16_to_cpu(reg->frame_type);
-
-			rdev_mgmt_frame_register(rdev, reg->wdev,
-						 frame_type, false);
-		}
-
-		kfree(reg);
-
-		spin_lock_bh(&rdev->mlme_unreg_lock);
+	spin_lock_bh(&wdev->mgmt_registrations_lock);
+	if (!wdev->mgmt_registrations_need_update) {
+		spin_unlock_bh(&wdev->mgmt_registrations_lock);
+		return;
 	}
-	spin_unlock_bh(&rdev->mlme_unreg_lock);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tmp, &rdev->wiphy.wdev_list, list) {
+		list_for_each_entry(reg, &tmp->mgmt_registrations, list) {
+			u32 mask = BIT(le16_to_cpu(reg->frame_type) >> 4);
+			u32 mcast_mask = 0;
+
+			if (reg->multicast_rx)
+				mcast_mask = mask;
+
+			upd.global_stypes |= mask;
+			upd.global_mcast_stypes |= mcast_mask;
+
+			if (tmp == wdev) {
+				upd.interface_stypes |= mask;
+				upd.interface_mcast_stypes |= mcast_mask;
+			}
+		}
+	}
+	rcu_read_unlock();
+
+	wdev->mgmt_registrations_need_update = 0;
+	spin_unlock_bh(&wdev->mgmt_registrations_lock);
+
+	rdev_update_mgmt_frame_registrations(rdev, wdev, &upd);
 }
 
-void cfg80211_mlme_unreg_wk(struct work_struct *wk)
+void cfg80211_mgmt_registrations_update_wk(struct work_struct *wk)
 {
 	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
 
 	rdev = container_of(wk, struct cfg80211_registered_device,
-			    mlme_unreg_wk);
+			    mgmt_registrations_update_wk);
 
 	rtnl_lock();
-	cfg80211_process_mlme_unregistrations(rdev);
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list)
+		cfg80211_mgmt_registrations_update(wdev);
 	rtnl_unlock();
 }
 
 int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
-				int match_len, struct netlink_ext_ack *extack)
+				int match_len, bool multicast_rx,
+				struct netlink_ext_ack *extack)
 {
-	struct wiphy *wiphy = wdev->wiphy;
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct cfg80211_mgmt_registration *reg, *nreg;
 	int err = 0;
 	u16 mgmt_type;
+	bool update_multicast = false;
 
 	if (!wdev->wiphy->mgmt_stypes)
 		return -EOPNOTSUPP;
@@ -528,34 +545,40 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 			continue;
 
 		if (memcmp(reg->match, match_data, mlen) == 0) {
+			if (reg->multicast_rx != multicast_rx) {
+				update_multicast = true;
+				reg->multicast_rx = multicast_rx;
+				break;
+			}
 			NL_SET_ERR_MSG(extack, "Match already configured");
 			err = -EALREADY;
 			break;
 		}
 	}
 
-	if (err) {
-		kfree(nreg);
+	if (err)
 		goto out;
-	}
 
-	memcpy(nreg->match, match_data, match_len);
-	nreg->match_len = match_len;
-	nreg->nlportid = snd_portid;
-	nreg->frame_type = cpu_to_le16(frame_type);
-	nreg->wdev = wdev;
-	list_add(&nreg->list, &wdev->mgmt_registrations);
+	if (update_multicast) {
+		kfree(nreg);
+	} else {
+		memcpy(nreg->match, match_data, match_len);
+		nreg->match_len = match_len;
+		nreg->nlportid = snd_portid;
+		nreg->frame_type = cpu_to_le16(frame_type);
+		nreg->wdev = wdev;
+		nreg->multicast_rx = multicast_rx;
+		list_add(&nreg->list, &wdev->mgmt_registrations);
+	}
+	wdev->mgmt_registrations_need_update = 1;
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	/* process all unregistrations to avoid driver confusion */
-	cfg80211_process_mlme_unregistrations(rdev);
-
-	if (rdev->ops->mgmt_frame_register)
-		rdev_mgmt_frame_register(rdev, wdev, frame_type, true);
+	cfg80211_mgmt_registrations_update(wdev);
 
 	return 0;
 
  out:
+	kfree(nreg);
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
 	return err;
@@ -574,11 +597,10 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 			continue;
 
 		list_del(&reg->list);
-		spin_lock(&rdev->mlme_unreg_lock);
-		list_add_tail(&reg->list, &rdev->mlme_unreg);
-		spin_unlock(&rdev->mlme_unreg_lock);
+		kfree(reg);
 
-		schedule_work(&rdev->mlme_unreg_wk);
+		wdev->mgmt_registrations_need_update = 1;
+		schedule_work(&rdev->mgmt_registrations_update_wk);
 	}
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -594,15 +616,17 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 {
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
+	struct cfg80211_mgmt_registration *reg, *tmp;
 
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
-	spin_lock(&rdev->mlme_unreg_lock);
-	list_splice_tail_init(&wdev->mgmt_registrations, &rdev->mlme_unreg);
-	spin_unlock(&rdev->mlme_unreg_lock);
+	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
+		list_del(&reg->list);
+		kfree(reg);
+	}
+	wdev->mgmt_registrations_need_update = 1;
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	cfg80211_process_mlme_unregistrations(rdev);
+	cfg80211_mgmt_registrations_update(wdev);
 }
 
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
@@ -721,8 +745,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
 }
 
-bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
-		      const u8 *buf, size_t len, u32 flags)
+bool cfg80211_rx_mgmt_khz(struct wireless_dev *wdev, int freq, int sig_dbm,
+			  const u8 *buf, size_t len, u32 flags)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
@@ -777,7 +801,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_dbm,
 	trace_cfg80211_return_bool(result);
 	return result;
 }
-EXPORT_SYMBOL(cfg80211_rx_mgmt);
+EXPORT_SYMBOL(cfg80211_rx_mgmt_khz);
 
 void cfg80211_sched_dfs_chan_update(struct cfg80211_registered_device *rdev)
 {

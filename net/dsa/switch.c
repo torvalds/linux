@@ -89,11 +89,16 @@ static int dsa_switch_mtu(struct dsa_switch *ds,
 static int dsa_switch_bridge_join(struct dsa_switch *ds,
 				  struct dsa_notifier_bridge_info *info)
 {
-	if (ds->index == info->sw_index && ds->ops->port_bridge_join)
+	struct dsa_switch_tree *dst = ds->dst;
+
+	if (dst->index == info->tree_index && ds->index == info->sw_index &&
+	    ds->ops->port_bridge_join)
 		return ds->ops->port_bridge_join(ds, info->port, info->br);
 
-	if (ds->index != info->sw_index && ds->ops->crosschip_bridge_join)
-		return ds->ops->crosschip_bridge_join(ds, info->sw_index,
+	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
+	    ds->ops->crosschip_bridge_join)
+		return ds->ops->crosschip_bridge_join(ds, info->tree_index,
+						      info->sw_index,
 						      info->port, info->br);
 
 	return 0;
@@ -103,13 +108,17 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 				   struct dsa_notifier_bridge_info *info)
 {
 	bool unset_vlan_filtering = br_vlan_enabled(info->br);
+	struct dsa_switch_tree *dst = ds->dst;
 	int err, i;
 
-	if (ds->index == info->sw_index && ds->ops->port_bridge_leave)
+	if (dst->index == info->tree_index && ds->index == info->sw_index &&
+	    ds->ops->port_bridge_join)
 		ds->ops->port_bridge_leave(ds, info->port, info->br);
 
-	if (ds->index != info->sw_index && ds->ops->crosschip_bridge_leave)
-		ds->ops->crosschip_bridge_leave(ds, info->sw_index, info->port,
+	if ((dst->index != info->tree_index || ds->index != info->sw_index) &&
+	    ds->ops->crosschip_bridge_join)
+		ds->ops->crosschip_bridge_leave(ds, info->tree_index,
+						info->sw_index, info->port,
 						info->br);
 
 	/* If the bridge was vlan_filtering, the bridge core doesn't trigger an

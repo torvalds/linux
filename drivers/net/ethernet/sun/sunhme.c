@@ -52,7 +52,6 @@
 #endif
 #include <linux/uaccess.h>
 
-#include <asm/pgtable.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_PCI

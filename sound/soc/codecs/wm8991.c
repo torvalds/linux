@@ -476,14 +476,6 @@ static SOC_ENUM_SINGLE_DECL(wm8991_ainrmux_enum,
 static const struct snd_kcontrol_new wm8991_dapm_ainrmux_controls =
 	SOC_DAPM_ENUM("Route", wm8991_ainrmux_enum);
 
-/* RXVOICE */
-static const struct snd_kcontrol_new wm8991_dapm_rxvoice_controls[] = {
-	SOC_DAPM_SINGLE_TLV("LIN4RXN", WM8991_INPUT_MIXER5, WM8991_LR4BVOL_SHIFT,
-		WM8991_LR4BVOL_MASK, 0, in_mix_tlv),
-	SOC_DAPM_SINGLE_TLV("RIN4RXP", WM8991_INPUT_MIXER6, WM8991_RL4BVOL_SHIFT,
-		WM8991_RL4BVOL_MASK, 0, in_mix_tlv),
-};
-
 /* LOMIX */
 static const struct snd_kcontrol_new wm8991_dapm_lomix_controls[] = {
 	SOC_DAPM_SINGLE("LOMIX Right ADC Bypass Switch", WM8991_OUTPUT_MIXER1,

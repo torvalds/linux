@@ -4,15 +4,15 @@ LIBNVDIMM Maintainer Entry Profile
 Overview
 --------
 The libnvdimm subsystem manages persistent memory across multiple
-architectures. The mailing list, is tracked by patchwork here:
+architectures. The mailing list is tracked by patchwork here:
 https://patchwork.kernel.org/project/linux-nvdimm/list/
 ...and that instance is configured to give feedback to submitters on
 patch acceptance and upstream merge. Patches are merged to either the
-'libnvdimm-fixes', or 'libnvdimm-for-next' branch. Those branches are
+'libnvdimm-fixes' or 'libnvdimm-for-next' branch. Those branches are
 available here:
 https://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm.git/
 
-In general patches can be submitted against the latest -rc, however if
+In general patches can be submitted against the latest -rc; however, if
 the incoming code change is dependent on other pending changes then the
 patch should be based on the libnvdimm-for-next branch. However, since
 persistent memory sits at the intersection of storage and memory there
@@ -35,12 +35,12 @@ getting the test environment set up.
 
 ACPI Device Specific Methods (_DSM)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Before patches enabling for a new _DSM family will be considered it must
+Before patches enabling a new _DSM family will be considered, it must
 be assigned a format-interface-code from the NVDIMM Sub-team of the ACPI
 Specification Working Group. In general, the stance of the subsystem is
-to push back on the proliferation of NVDIMM command sets, do strongly
+to push back on the proliferation of NVDIMM command sets, so do strongly
 consider implementing support for an existing command set. See
-drivers/acpi/nfit/nfit.h for the set of support command sets.
+drivers/acpi/nfit/nfit.h for the set of supported command sets.
 
 
 Key Cycle Dates
@@ -48,7 +48,7 @@ Key Cycle Dates
 New submissions can be sent at any time, but if they intend to hit the
 next merge window they should be sent before -rc4, and ideally
 stabilized in the libnvdimm-for-next branch by -rc6. Of course if a
-patch set requires more than 2 weeks of review -rc4 is already too late
+patch set requires more than 2 weeks of review, -rc4 is already too late
 and some patches may require multiple development cycles to review.
 
 

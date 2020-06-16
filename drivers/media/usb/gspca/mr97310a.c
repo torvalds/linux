@@ -287,7 +287,6 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 			return err_code;
 
 		err_code = cam_get_response16(gspca_dev, 0x21, 0);
-		status = data[0];
 		tries++;
 		if (err_code < 0)
 			return err_code;

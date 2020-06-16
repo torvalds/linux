@@ -1084,7 +1084,7 @@ auth_fail:
 
 unsigned int OnAuthClient(struct adapter *padapter, union recv_frame *precv_frame)
 {
-	unsigned int	seq, len, status, algthm, offset;
+	unsigned int	seq, len, status, offset;
 	unsigned char *p;
 	unsigned int	go2asoc = 0;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -1103,7 +1103,6 @@ unsigned int OnAuthClient(struct adapter *padapter, union recv_frame *precv_fram
 
 	offset = (GetPrivacy(pframe)) ? 4 : 0;
 
-	algthm	= le16_to_cpu(*(__le16 *)((SIZE_PTR)pframe + WLAN_HDR_A3_LEN + offset));
 	seq	= le16_to_cpu(*(__le16 *)((SIZE_PTR)pframe + WLAN_HDR_A3_LEN + offset + 2));
 	status	= le16_to_cpu(*(__le16 *)((SIZE_PTR)pframe + WLAN_HDR_A3_LEN + offset + 4));
 
@@ -1170,7 +1169,7 @@ authclnt_fail:
 
 unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 {
-	u16 capab_info, listen_interval;
+	u16 capab_info;
 	struct rtw_ieee802_11_elems elems;
 	struct sta_info *pstat;
 	unsigned char 	reassoc, *p, *pos, *wpa_ie;
@@ -1216,8 +1215,6 @@ unsigned int OnAssocReq(struct adapter *padapter, union recv_frame *precv_frame)
 
 	capab_info = RTW_GET_LE16(pframe + WLAN_HDR_A3_LEN);
 	/* capab_info = le16_to_cpu(*(unsigned short *)(pframe + WLAN_HDR_A3_LEN)); */
-	/* listen_interval = le16_to_cpu(*(unsigned short *)(pframe + WLAN_HDR_A3_LEN+2)); */
-	listen_interval = RTW_GET_LE16(pframe + WLAN_HDR_A3_LEN+2);
 
 	left = pkt_len - (sizeof(struct ieee80211_hdr_3addr) + ie_offset);
 	pos = pframe + (sizeof(struct ieee80211_hdr_3addr) + ie_offset);

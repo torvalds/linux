@@ -111,7 +111,7 @@ struct fuse_inode {
 			wait_queue_head_t page_waitq;
 
 			/* List of writepage requestst (pending or sent) */
-			struct list_head writepages;
+			struct rb_root writepages;
 		};
 
 		/* readdir cache (directory only) */
@@ -249,6 +249,7 @@ struct fuse_args {
 	bool out_argvar:1;
 	bool page_zeroing:1;
 	bool page_replace:1;
+	bool may_block:1;
 	struct fuse_in_arg in_args[3];
 	struct fuse_arg out_args[2];
 	void (*end)(struct fuse_conn *fc, struct fuse_args *args, int error);

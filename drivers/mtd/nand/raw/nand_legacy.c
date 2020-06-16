@@ -225,7 +225,8 @@ static void nand_wait_status_ready(struct nand_chip *chip, unsigned long timeo)
 	do {
 		u8 status;
 
-		ret = nand_read_data_op(chip, &status, sizeof(status), true);
+		ret = nand_read_data_op(chip, &status, sizeof(status), true,
+					false);
 		if (ret)
 			return;
 
@@ -552,7 +553,8 @@ static int nand_wait(struct nand_chip *chip)
 					break;
 			} else {
 				ret = nand_read_data_op(chip, &status,
-							sizeof(status), true);
+							sizeof(status), true,
+							false);
 				if (ret)
 					return ret;
 
@@ -563,7 +565,7 @@ static int nand_wait(struct nand_chip *chip)
 		} while (time_before(jiffies, timeo));
 	}
 
-	ret = nand_read_data_op(chip, &status, sizeof(status), true);
+	ret = nand_read_data_op(chip, &status, sizeof(status), true, false);
 	if (ret)
 		return ret;
 

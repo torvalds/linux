@@ -13,8 +13,8 @@
 #include <linux/perf_event.h>
 #include <linux/tboot.h>
 #include <linux/dmi.h>
+#include <linux/pgtable.h>
 
-#include <asm/pgtable.h>
 #include <asm/proto.h>
 #include <asm/mtrr.h>
 #include <asm/page.h>
@@ -307,7 +307,7 @@ int hibernate_resume_nonboot_cpu_disable(void)
 	if (ret)
 		return ret;
 	smp_ops.play_dead = resume_play_dead;
-	ret = disable_nonboot_cpus();
+	ret = freeze_secondary_cpus(0);
 	smp_ops.play_dead = play_dead;
 	return ret;
 }

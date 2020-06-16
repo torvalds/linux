@@ -522,8 +522,8 @@ static int mshw0011_probe(struct i2c_client *client)
 	strlcpy(board_info.type, "MSHW0011-bat0", I2C_NAME_SIZE);
 
 	bat0 = i2c_acpi_new_device(dev, 1, &board_info);
-	if (!bat0)
-		return -ENOMEM;
+	if (IS_ERR(bat0))
+		return PTR_ERR(bat0);
 
 	data->bat0 = bat0;
 	i2c_set_clientdata(bat0, data);

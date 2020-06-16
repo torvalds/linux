@@ -3,7 +3,7 @@
  * Xilinx XADC driver
  *
  * Copyright 2013 Analog Devices Inc.
- *  Author: Lars-Peter Clauen <lars@metafoo.de>
+ *  Author: Lars-Peter Clausen <lars@metafoo.de>
  */
 
 #ifndef __IIO_XILINX_XADC__

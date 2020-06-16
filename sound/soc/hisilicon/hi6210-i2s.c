@@ -547,7 +547,7 @@ static int hi6210_i2s_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
+	i2s = devm_kzalloc(dev, sizeof(*i2s), GFP_KERNEL);
 	if (!i2s)
 		return -ENOMEM;
 
@@ -562,28 +562,28 @@ static int hi6210_i2s_probe(struct platform_device *pdev)
 	i2s->base_phys = (phys_addr_t)res->start;
 	i2s->dai = hi6210_i2s_dai_init;
 
-	dev_set_drvdata(&pdev->dev, i2s);
+	dev_set_drvdata(dev, i2s);
 
 	i2s->sysctrl = syscon_regmap_lookup_by_phandle(node,
 						"hisilicon,sysctrl-syscon");
 	if (IS_ERR(i2s->sysctrl))
 		return PTR_ERR(i2s->sysctrl);
 
-	i2s->clk[CLK_DACODEC] = devm_clk_get(&pdev->dev, "dacodec");
-	if (IS_ERR_OR_NULL(i2s->clk[CLK_DACODEC]))
+	i2s->clk[CLK_DACODEC] = devm_clk_get(dev, "dacodec");
+	if (IS_ERR(i2s->clk[CLK_DACODEC]))
 		return PTR_ERR(i2s->clk[CLK_DACODEC]);
 	i2s->clocks++;
 
-	i2s->clk[CLK_I2S_BASE] = devm_clk_get(&pdev->dev, "i2s-base");
-	if (IS_ERR_OR_NULL(i2s->clk[CLK_I2S_BASE]))
+	i2s->clk[CLK_I2S_BASE] = devm_clk_get(dev, "i2s-base");
+	if (IS_ERR(i2s->clk[CLK_I2S_BASE]))
 		return PTR_ERR(i2s->clk[CLK_I2S_BASE]);
 	i2s->clocks++;
 
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
 	if (ret)
 		return ret;
 
-	ret = devm_snd_soc_register_component(&pdev->dev, &hi6210_i2s_i2s_comp,
+	ret = devm_snd_soc_register_component(dev, &hi6210_i2s_i2s_comp,
 					 &i2s->dai, 1);
 	return ret;
 }

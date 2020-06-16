@@ -27,8 +27,6 @@
 #ifndef __DML2_DISPLAY_MODE_VBA_H__
 #define __DML2_DISPLAY_MODE_VBA_H__
 
-#include "dml_common_defs.h"
-
 struct display_mode_lib;
 
 void ModeSupportAndSystemConfiguration(struct display_mode_lib *mode_lib);
@@ -898,6 +896,8 @@ struct vba_vars_st {
 	bool dummystring[DC__NUM_DPP__MAX];
 	double BPP;
 	enum odm_combine_policy ODMCombinePolicy;
+	bool UseMinimumRequiredDCFCLK;
+	bool AllowDramClockChangeOneDisplayVactive;
 };
 
 bool CalculateMinAndMaxPrefetchMode(

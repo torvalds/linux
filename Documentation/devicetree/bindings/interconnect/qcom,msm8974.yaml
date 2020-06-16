@@ -10,8 +10,8 @@ maintainers:
   - Brian Masney <masneyb@onstation.org>
 
 description: |
-   The Qualcomm MSM8974 interconnect providers support setting system
-   bandwidth requirements between various network-on-chip fabrics.
+  The Qualcomm MSM8974 interconnect providers support setting system
+  bandwidth requirements between various network-on-chip fabrics.
 
 properties:
   reg:

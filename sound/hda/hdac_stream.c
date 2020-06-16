@@ -38,7 +38,7 @@ int snd_hdac_get_stream_stripe_ctl(struct hdac_bus *bus,
 		else
 			value = (channels * bits_per_sample) / sdo_line;
 
-		if (value >= 8)
+		if (value >= bus->sdo_limit)
 			break;
 	}
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  HID driver for Logitech Unifying receivers
+ *  HID driver for Logitech receivers
  *
  *  Copyright (c) 2011 Logitech
  */
@@ -701,7 +701,7 @@ static void logi_dj_recv_add_djhid_device(struct dj_receiver_dev *djrcv_dev,
 			type_str, dj_hiddev->product);
 	} else {
 		snprintf(dj_hiddev->name, sizeof(dj_hiddev->name),
-			"Logitech Unifying Device. Wireless PID:%04x",
+			"Logitech Wireless Device PID:%04x",
 			dj_hiddev->product);
 	}
 

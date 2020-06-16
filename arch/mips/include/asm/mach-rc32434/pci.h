@@ -319,9 +319,6 @@ struct pci_msu {
 #define PCIM_H_EA		0x3
 #define PCIM_H_IA_FIX		0x4
 #define PCIM_H_IA_RR		0x5
-#if 0
-#define PCI_ADDR_START		0x13000000
-#endif
 
 #define PCI_ADDR_START		0x50000000
 

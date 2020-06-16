@@ -362,7 +362,7 @@ struct qlink_cmd {
 struct qlink_cmd_init_fw {
 	struct qlink_cmd chdr;
 	__le32 qlink_proto_ver;
-	u8 var_info[0];
+	u8 var_info[];
 } __packed;
 
 /**
@@ -434,7 +434,7 @@ struct qlink_cmd_frame_tx {
 	__le32 cookie;
 	__le16 freq;
 	__le16 flags;
-	u8 frame_data[0];
+	u8 frame_data[];
 } __packed;
 
 /**
@@ -466,7 +466,7 @@ struct qlink_cmd_add_key {
 	__le32 cipher;
 	__le16 vlanid;
 	u8 rsvd[2];
-	u8 key_data[0];
+	u8 key_data[];
 } __packed;
 
 /**
@@ -578,7 +578,7 @@ struct qlink_cmd_connect {
 	u8 mfp;
 	u8 pbss;
 	u8 rsvd[2];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 /**
@@ -592,7 +592,7 @@ struct qlink_cmd_external_auth {
 	struct qlink_cmd chdr;
 	u8 peer[ETH_ALEN];
 	__le16 status;
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 /**
@@ -698,7 +698,7 @@ struct qlink_cmd_reg_notify {
 	u8 dfs_region;
 	u8 slave_radar;
 	u8 dfs_offload;
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -773,7 +773,7 @@ struct qlink_cmd_start_ap {
 	struct qlink_sr_params sr_params;
 	u8 twt_responder;
 	u8 rsvd[3];
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -807,7 +807,7 @@ struct qlink_mac_address {
 struct qlink_acl_data {
 	__le32 policy;
 	__le32 num_entries;
-	struct qlink_mac_address mac_addrs[0];
+	struct qlink_mac_address mac_addrs[];
 } __packed;
 
 /**
@@ -882,7 +882,7 @@ enum qlink_wowlan_trigger {
 struct qlink_cmd_wowlan_set {
 	struct qlink_cmd chdr;
 	__le32 triggers;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 enum qlink_ndev_event_type {
@@ -958,7 +958,7 @@ struct qlink_cmd_scan {
 	u8 bssid[ETH_ALEN];
 	u8 scan_width;
 	u8 rsvd[3];
-	u8 var_info[0];
+	u8 var_info[];
 } __packed;
 
 /**
@@ -972,7 +972,7 @@ struct qlink_cmd_update_owe {
 	struct qlink_cmd chdr;
 	u8 peer[ETH_ALEN];
 	__le16 status;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 /* QLINK Command Responses messages related definitions
@@ -1106,7 +1106,7 @@ struct qlink_resp_get_mac_info {
 	u8 n_reg_rules;
 	u8 dfs_region;
 	u8 rsvd[3];
-	u8 var_info[0];
+	u8 var_info[];
 } __packed;
 
 /**
@@ -1131,7 +1131,7 @@ struct qlink_resp_get_hw_info {
 	u8 mac_bitmap;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -1167,7 +1167,7 @@ struct qlink_resp_get_sta_info {
 	struct qlink_resp rhdr;
 	u8 sta_addr[ETH_ALEN];
 	u8 rsvd[2];
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -1184,7 +1184,7 @@ struct qlink_resp_band_info_get {
 	u8 num_chans;
 	u8 num_bitrates;
 	u8 rsvd[1];
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -1196,7 +1196,7 @@ struct qlink_resp_band_info_get {
 struct qlink_resp_get_chan_stats {
 	struct qlink_resp rhdr;
 	__le32 chan_freq;
-	u8 info[0];
+	u8 info[];
 } __packed;
 
 /**
@@ -1270,7 +1270,7 @@ struct qlink_event_sta_assoc {
 	struct qlink_event ehdr;
 	u8 sta_addr[ETH_ALEN];
 	__le16 frame_control;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 /**
@@ -1297,7 +1297,7 @@ struct qlink_event_bss_join {
 	struct qlink_chandef chan;
 	u8 bssid[ETH_ALEN];
 	__le16 status;
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 /**
@@ -1339,7 +1339,7 @@ struct qlink_event_rxmgmt {
 	__le32 flags;
 	s8 sig_dbm;
 	u8 rsvd[3];
-	u8 frame_data[0];
+	u8 frame_data[];
 } __packed;
 
 /**
@@ -1367,7 +1367,7 @@ struct qlink_event_scan_result {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 bssid[ETH_ALEN];
 	u8 rsvd[2];
-	u8 payload[0];
+	u8 payload[];
 } __packed;
 
 /**
@@ -1456,7 +1456,7 @@ struct qlink_event_update_owe {
 	struct qlink_event ehdr;
 	u8 peer[ETH_ALEN];
 	u8 rsvd[2];
-	u8 ies[0];
+	u8 ies[];
 } __packed;
 
 /* QLINK TLVs (Type-Length Values) definitions
@@ -1512,7 +1512,7 @@ enum qlink_tlv_id {
 struct qlink_tlv_hdr {
 	__le16 type;
 	__le16 len;
-	u8 val[0];
+	u8 val[];
 } __packed;
 
 struct qlink_iface_limit {
@@ -1524,7 +1524,7 @@ struct qlink_iface_limit_record {
 	__le16 max_interfaces;
 	u8 num_different_channels;
 	u8 n_limits;
-	struct qlink_iface_limit limits[0];
+	struct qlink_iface_limit limits[];
 } __packed;
 
 #define QLINK_RSSI_OFFSET	120
@@ -1647,7 +1647,7 @@ struct qlink_tlv_ie_set {
 	u8 type;
 	u8 flags;
 	u8 rsvd[2];
-	u8 ie_data[0];
+	u8 ie_data[];
 } __packed;
 
 /**
@@ -1660,7 +1660,7 @@ struct qlink_tlv_ext_ie {
 	struct qlink_tlv_hdr hdr;
 	u8 eid_ext;
 	u8 rsvd[3];
-	u8 ie_data[0];
+	u8 ie_data[];
 } __packed;
 
 #define IEEE80211_HE_PPE_THRES_MAX_LEN		25
@@ -1681,7 +1681,7 @@ struct qlink_tlv_iftype_data {
 	struct qlink_tlv_hdr hdr;
 	u8 n_iftype_data;
 	u8 rsvd[3];
-	struct qlink_sband_iftype_data iftype_data[0];
+	struct qlink_sband_iftype_data iftype_data[];
 } __packed;
 
 /**
@@ -1867,7 +1867,7 @@ struct qlink_random_mac_addr {
 struct qlink_wowlan_capab_data {
 	__le16 version;
 	__le16 len;
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**

@@ -34,6 +34,8 @@ struct mcde {
 	struct regulator *vana;
 };
 
+#define to_mcde(dev) container_of(dev, struct mcde, drm)
+
 bool mcde_dsi_irq(struct mipi_dsi_device *mdsi);
 void mcde_dsi_te_request(struct mipi_dsi_device *mdsi);
 extern struct platform_driver mcde_dsi_driver;

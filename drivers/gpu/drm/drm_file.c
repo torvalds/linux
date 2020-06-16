@@ -569,9 +569,6 @@ ssize_t drm_read(struct file *filp, char __user *buffer,
 	struct drm_device *dev = file_priv->minor->dev;
 	ssize_t ret;
 
-	if (!access_ok(buffer, count))
-		return -EFAULT;
-
 	ret = mutex_lock_interruptible(&file_priv->event_read_lock);
 	if (ret)
 		return ret;
@@ -613,7 +610,8 @@ put_back_event:
 				file_priv->event_space -= length;
 				list_add(&e->link, &file_priv->event_list);
 				spin_unlock_irq(&dev->event_lock);
-				wake_up_interruptible(&file_priv->event_wait);
+				wake_up_interruptible_poll(&file_priv->event_wait,
+					EPOLLIN | EPOLLRDNORM);
 				break;
 			}
 
@@ -809,7 +807,8 @@ void drm_send_event_locked(struct drm_device *dev, struct drm_pending_event *e)
 	list_del(&e->pending_link);
 	list_add_tail(&e->link,
 		      &e->file_priv->event_list);
-	wake_up_interruptible(&e->file_priv->event_wait);
+	wake_up_interruptible_poll(&e->file_priv->event_wait,
+		EPOLLIN | EPOLLRDNORM);
 }
 EXPORT_SYMBOL(drm_send_event_locked);
 

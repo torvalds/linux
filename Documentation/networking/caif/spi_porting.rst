@@ -1,0 +1,229 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+================
+CAIF SPI porting
+================
+
+CAIF SPI basics
+===============
+
+Running CAIF over SPI needs some extra setup, owing to the nature of SPI.
+Two extra GPIOs have been added in order to negotiate the transfers
+between the master and the slave. The minimum requirement for running
+CAIF over SPI is a SPI slave chip and two GPIOs (more details below).
+Please note that running as a slave implies that you need to keep up
+with the master clock. An overrun or underrun event is fatal.
+
+CAIF SPI framework
+==================
+
+To make porting as easy as possible, the CAIF SPI has been divided in
+two parts. The first part (called the interface part) deals with all
+generic functionality such as length framing, SPI frame negotiation
+and SPI frame delivery and transmission. The other part is the CAIF
+SPI slave device part, which is the module that you have to write if
+you want to run SPI CAIF on a new hardware. This part takes care of
+the physical hardware, both with regard to SPI and to GPIOs.
+
+- Implementing a CAIF SPI device:
+
+	- Functionality provided by the CAIF SPI slave device:
+
+	In order to implement a SPI device you will, as a minimum,
+	need to implement the following
+	functions:
+
+	::
+
+	    int (*init_xfer) (struct cfspi_xfer * xfer, struct cfspi_dev *dev):
+
+	This function is called by the CAIF SPI interface to give
+	you a chance to set up your hardware to be ready to receive
+	a stream of data from the master. The xfer structure contains
+	both physical and logical addresses, as well as the total length
+	of the transfer in both directions.The dev parameter can be used
+	to map to different CAIF SPI slave devices.
+
+	::
+
+	    void (*sig_xfer) (bool xfer, struct cfspi_dev *dev):
+
+	This function is called by the CAIF SPI interface when the output
+	(SPI_INT) GPIO needs to change state. The boolean value of the xfer
+	variable indicates whether the GPIO should be asserted (HIGH) or
+	deasserted (LOW). The dev parameter can be used to map to different CAIF
+	SPI slave devices.
+
+	- Functionality provided by the CAIF SPI interface:
+
+	::
+
+	    void (*ss_cb) (bool assert, struct cfspi_ifc *ifc);
+
+	This function is called by the CAIF SPI slave device in order to
+	signal a change of state of the input GPIO (SS) to the interface.
+	Only active edges are mandatory to be reported.
+	This function can be called from IRQ context (recommended in order
+	not to introduce latency). The ifc parameter should be the pointer
+	returned from the platform probe function in the SPI device structure.
+
+	::
+
+	    void (*xfer_done_cb) (struct cfspi_ifc *ifc);
+
+	This function is called by the CAIF SPI slave device in order to
+	report that a transfer is completed. This function should only be
+	called once both the transmission and the reception are completed.
+	This function can be called from IRQ context (recommended in order
+	not to introduce latency). The ifc parameter should be the pointer
+	returned from the platform probe function in the SPI device structure.
+
+	- Connecting the bits and pieces:
+
+		- Filling in the SPI slave device structure:
+
+		  Connect the necessary callback functions.
+
+		  Indicate clock speed (used to calculate toggle delays).
+
+		  Chose a suitable name (helps debugging if you use several CAIF
+		  SPI slave devices).
+
+		  Assign your private data (can be used to map to your
+		  structure).
+
+		- Filling in the SPI slave platform device structure:
+
+		  Add name of driver to connect to ("cfspi_sspi").
+
+		  Assign the SPI slave device structure as platform data.
+
+Padding
+=======
+
+In order to optimize throughput, a number of SPI padding options are provided.
+Padding can be enabled independently for uplink and downlink transfers.
+Padding can be enabled for the head, the tail and for the total frame size.
+The padding needs to be correctly configured on both sides of the link.
+The padding can be changed via module parameters in cfspi_sspi.c or via
+the sysfs directory of the cfspi_sspi driver (before device registration).
+
+- CAIF SPI device template::
+
+    /*
+    *	Copyright (C) ST-Ericsson AB 2010
+    *	Author: Daniel Martensson / Daniel.Martensson@stericsson.com
+    *	License terms: GNU General Public License (GPL), version 2.
+    *
+    */
+
+    #include <linux/init.h>
+    #include <linux/module.h>
+    #include <linux/device.h>
+    #include <linux/wait.h>
+    #include <linux/interrupt.h>
+    #include <linux/dma-mapping.h>
+    #include <net/caif/caif_spi.h>
+
+    MODULE_LICENSE("GPL");
+
+    struct sspi_struct {
+	    struct cfspi_dev sdev;
+	    struct cfspi_xfer *xfer;
+    };
+
+    static struct sspi_struct slave;
+    static struct platform_device slave_device;
+
+    static irqreturn_t sspi_irq(int irq, void *arg)
+    {
+	    /* You only need to trigger on an edge to the active state of the
+	    * SS signal. Once a edge is detected, the ss_cb() function should be
+	    * called with the parameter assert set to true. It is OK
+	    * (and even advised) to call the ss_cb() function in IRQ context in
+	    * order not to add any delay. */
+
+	    return IRQ_HANDLED;
+    }
+
+    static void sspi_complete(void *context)
+    {
+	    /* Normally the DMA or the SPI framework will call you back
+	    * in something similar to this. The only thing you need to
+	    * do is to call the xfer_done_cb() function, providing the pointer
+	    * to the CAIF SPI interface. It is OK to call this function
+	    * from IRQ context. */
+    }
+
+    static int sspi_init_xfer(struct cfspi_xfer *xfer, struct cfspi_dev *dev)
+    {
+	    /* Store transfer info. For a normal implementation you should
+	    * set up your DMA here and make sure that you are ready to
+	    * receive the data from the master SPI. */
+
+	    struct sspi_struct *sspi = (struct sspi_struct *)dev->priv;
+
+	    sspi->xfer = xfer;
+
+	    return 0;
+    }
+
+    void sspi_sig_xfer(bool xfer, struct cfspi_dev *dev)
+    {
+	    /* If xfer is true then you should assert the SPI_INT to indicate to
+	    * the master that you are ready to receive the data from the master
+	    * SPI. If xfer is false then you should de-assert SPI_INT to indicate
+	    * that the transfer is done.
+	    */
+
+	    struct sspi_struct *sspi = (struct sspi_struct *)dev->priv;
+    }
+
+    static void sspi_release(struct device *dev)
+    {
+	    /*
+	    * Here you should release your SPI device resources.
+	    */
+    }
+
+    static int __init sspi_init(void)
+    {
+	    /* Here you should initialize your SPI device by providing the
+	    * necessary functions, clock speed, name and private data. Once
+	    * done, you can register your device with the
+	    * platform_device_register() function. This function will return
+	    * with the CAIF SPI interface initialized. This is probably also
+	    * the place where you should set up your GPIOs, interrupts and SPI
+	    * resources. */
+
+	    int res = 0;
+
+	    /* Initialize slave device. */
+	    slave.sdev.init_xfer = sspi_init_xfer;
+	    slave.sdev.sig_xfer = sspi_sig_xfer;
+	    slave.sdev.clk_mhz = 13;
+	    slave.sdev.priv = &slave;
+	    slave.sdev.name = "spi_sspi";
+	    slave_device.dev.release = sspi_release;
+
+	    /* Initialize platform device. */
+	    slave_device.name = "cfspi_sspi";
+	    slave_device.dev.platform_data = &slave.sdev;
+
+	    /* Register platform device. */
+	    res = platform_device_register(&slave_device);
+	    if (res) {
+		    printk(KERN_WARNING "sspi_init: failed to register dev.\n");
+		    return -ENODEV;
+	    }
+
+	    return res;
+    }
+
+    static void __exit sspi_exit(void)
+    {
+	    platform_device_del(&slave_device);
+    }
+
+    module_init(sspi_init);
+    module_exit(sspi_exit);

@@ -2572,13 +2572,15 @@ list in 4.68.
 :Parameters: None
 :Returns: 0 on success, -1 on error
 
-This signals to the host kernel that the specified guest is being paused by
-userspace.  The host will set a flag in the pvclock structure that is checked
-from the soft lockup watchdog.  The flag is part of the pvclock structure that
-is shared between guest and host, specifically the second bit of the flags
+This ioctl sets a flag accessible to the guest indicating that the specified
+vCPU has been paused by the host userspace.
+
+The host will set a flag in the pvclock structure that is checked from the
+soft lockup watchdog.  The flag is part of the pvclock structure that is
+shared between guest and host, specifically the second bit of the flags
 field of the pvclock_vcpu_time_info structure.  It will be set exclusively by
 the host and read/cleared exclusively by the guest.  The guest operation of
-checking and clearing the flag must an atomic operation so
+checking and clearing the flag must be an atomic operation so
 load-link/store-conditional, or equivalent must be used.  There are two cases
 where the guest will clear the flag: when the soft lockup watchdog timer resets
 itself or when a soft lockup is detected.  This ioctl can be called any time
@@ -4334,9 +4336,13 @@ Errors:
   #define KVM_STATE_NESTED_VMX_SMM_GUEST_MODE	0x00000001
   #define KVM_STATE_NESTED_VMX_SMM_VMXON	0x00000002
 
+#define KVM_STATE_VMX_PREEMPTION_TIMER_DEADLINE 0x00000001
+
   struct kvm_vmx_nested_state_hdr {
+	__u32 flags;
 	__u64 vmxon_pa;
 	__u64 vmcs12_pa;
+	__u64 preemption_timer_deadline;
 
 	struct {
 		__u16 flags;
@@ -5066,10 +5072,13 @@ EOI was received.
 		struct kvm_hyperv_exit {
   #define KVM_EXIT_HYPERV_SYNIC          1
   #define KVM_EXIT_HYPERV_HCALL          2
+  #define KVM_EXIT_HYPERV_SYNDBG         3
 			__u32 type;
+			__u32 pad1;
 			union {
 				struct {
 					__u32 msr;
+					__u32 pad2;
 					__u64 control;
 					__u64 evt_page;
 					__u64 msg_page;
@@ -5079,6 +5088,15 @@ EOI was received.
 					__u64 result;
 					__u64 params[2];
 				} hcall;
+				struct {
+					__u32 msr;
+					__u32 pad2;
+					__u64 control;
+					__u64 status;
+					__u64 send_page;
+					__u64 recv_page;
+					__u64 pending_page;
+				} syndbg;
 			} u;
 		};
 		/* KVM_EXIT_HYPERV */
@@ -5094,6 +5112,12 @@ Valid values for 'type' are:
 Hyper-V SynIC state change. Notification is used to remap SynIC
 event/message pages and to enable/disable SynIC messages/events processing
 in userspace.
+
+	- KVM_EXIT_HYPERV_SYNDBG -- synchronously notify user-space about
+
+Hyper-V Synthetic debugger state change. Notification is used to either update
+the pending_page location or to send a control command (send the buffer located
+in send_page or recv a buffer to recv_page).
 
 ::
 
@@ -5777,7 +5801,7 @@ will be initialized to 1 when created.  This also improves performance because
 dirty logging can be enabled gradually in small chunks on the first call
 to KVM_CLEAR_DIRTY_LOG.  KVM_DIRTY_LOG_INITIALLY_SET depends on
 KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE (it is also only available on
-x86 for now).
+x86 and arm64 for now).
 
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2 was previously available under the name
 KVM_CAP_MANUAL_DIRTY_LOG_PROTECT, but the implementation had bugs that make
@@ -5801,6 +5825,23 @@ has the opportunity to veto the transition.
 If present, this capability can be enabled for a VM, meaning that KVM
 will allow the transition to secure guest mode.  Otherwise KVM will
 veto the transition.
+
+7.20 KVM_CAP_HALT_POLL
+----------------------
+
+:Architectures: all
+:Target: VM
+:Parameters: args[0] is the maximum poll time in nanoseconds
+:Returns: 0 on success; -1 on error
+
+This capability overrides the kvm module parameter halt_poll_ns for the
+target VM.
+
+VCPU polling allows a VCPU to poll for wakeup events instead of immediately
+scheduling during guest halts. The maximum time a VCPU can spend polling is
+controlled by the kvm module parameter halt_poll_ns. This capability allows
+the maximum halt time to specified on a per-VM basis, effectively overriding
+the module parameter for the target VM.
 
 8. Other capabilities.
 ======================

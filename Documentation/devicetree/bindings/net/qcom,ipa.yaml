@@ -20,7 +20,10 @@ description:
   The GSI is an integral part of the IPA, but it is logically isolated
   and has a distinct interrupt and a separately-defined address space.
 
-  See also soc/qcom/qcom,smp2p.txt and interconnect/interconnect.txt.
+  See also soc/qcom/qcom,smp2p.txt and interconnect/interconnect.txt.  See
+  iommu/iommu.txt and iommu/arm,smmu.yaml for more information about SMMU
+  bindings.
+
 
   - |
     --------             ---------
@@ -53,6 +56,9 @@ properties:
       - const: ipa-reg
       - const: ipa-shared
       - const: gsi
+
+  iommus:
+    maxItems: 1
 
   clocks:
     maxItems: 1
@@ -87,16 +93,14 @@ properties:
       - const: config
 
   qcom,smem-states:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle-array
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     description: State bits used in by the AP to signal the modem.
     items:
     - description: Whether the "ipa-clock-enabled" state bit is valid
     - description: Whether the IPA clock is enabled (if valid)
 
   qcom,smem-state-names:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string-array
+    $ref: /schemas/types.yaml#/definitions/string-array
     description: The names of the state bits used for SMP2P output
     items:
       - const: ipa-clock-enabled-valid
@@ -126,6 +130,7 @@ properties:
 
 required:
   - compatible
+  - iommus
   - reg
   - clocks
   - interrupts
@@ -164,9 +169,10 @@ examples:
                 modem-init;
                 modem-remoteproc = <&mss_pil>;
 
-                reg = <0 0x1e40000 0 0x7000>,
-                        <0 0x1e47000 0 0x2000>,
-                        <0 0x1e04000 0 0x2c000>;
+                iommus = <&apps_smmu 0x720 0x3>;
+                reg = <0x1e40000 0x7000>,
+                        <0x1e47000 0x2000>,
+                        <0x1e04000 0x2c000>;
                 reg-names = "ipa-reg",
                             "ipa-shared",
                             "gsi";

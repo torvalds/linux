@@ -475,7 +475,7 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 			snd_soc_component_write(component,
 				RT1015_CLSD_INTERNAL9, 0x0140);
 			snd_soc_component_write(component,
-				RT1015_GAT_BOOST, 0x00fe);
+				RT1015_GAT_BOOST, 0x0efe);
 			snd_soc_component_write(component,
 				RT1015_PWR_STATE_CTRL, 0x000d);
 			msleep(500);
@@ -780,6 +780,14 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 		freq_out == rt1015->pll_out)
 		return 0;
 
+	if (source == RT1015_PLL_S_BCLK) {
+		if (rt1015->bclk_ratio == 0) {
+			dev_err(component->dev,
+				"Can not support bclk ratio as 0.\n");
+			return -EINVAL;
+		}
+	}
+
 	switch (source) {
 	case RT1015_PLL_S_MCLK:
 		snd_soc_component_update_bits(component, RT1015_CLK2,
@@ -819,12 +827,30 @@ static int rt1015_set_component_pll(struct snd_soc_component *component,
 	return 0;
 }
 
+static int rt1015_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rt1015_priv *rt1015 = snd_soc_component_get_drvdata(component);
+
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
+
+	rt1015->bclk_ratio = ratio;
+
+	if (ratio == 50) {
+		dev_dbg(component->dev, "Unsupport bclk ratio\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rt1015_probe(struct snd_soc_component *component)
 {
 	struct rt1015_priv *rt1015 =
 		snd_soc_component_get_drvdata(component);
 
 	rt1015->component = component;
+	rt1015->bclk_ratio = 0;
 	snd_soc_component_write(component, RT1015_BAT_RPO_STEP1, 0x061c);
 
 	return 0;
@@ -844,6 +870,7 @@ static void rt1015_remove(struct snd_soc_component *component)
 static struct snd_soc_dai_ops rt1015_aif_dai_ops = {
 	.hw_params = rt1015_hw_params,
 	.set_fmt = rt1015_set_dai_fmt,
+	.set_bclk_ratio = rt1015_set_bclk_ratio,
 };
 
 static struct snd_soc_dai_driver rt1015_dai[] = {

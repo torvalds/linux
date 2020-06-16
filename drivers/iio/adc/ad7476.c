@@ -12,9 +12,11 @@
 #include <linux/sysfs.h>
 #include <linux/spi/spi.h>
 #include <linux/regulator/consumer.h>
+#include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -27,6 +29,8 @@ struct ad7476_state;
 struct ad7476_chip_info {
 	unsigned int			int_vref_uv;
 	struct iio_chan_spec		channel[2];
+	/* channels used when convst gpio is defined */
+	struct iio_chan_spec		convst_channel[2];
 	void (*reset)(struct ad7476_state *);
 };
 
@@ -34,6 +38,7 @@ struct ad7476_state {
 	struct spi_device		*spi;
 	const struct ad7476_chip_info	*chip_info;
 	struct regulator		*reg;
+	struct gpio_desc		*convst_gpio;
 	struct spi_transfer		xfer;
 	struct spi_message		msg;
 	/*
@@ -64,12 +69,25 @@ enum ad7476_supported_device_ids {
 	ID_ADS7868,
 };
 
+static void ad7091_convst(struct ad7476_state *st)
+{
+	if (!st->convst_gpio)
+		return;
+
+	gpiod_set_value(st->convst_gpio, 0);
+	udelay(1); /* CONVST pulse width: 10 ns min */
+	gpiod_set_value(st->convst_gpio, 1);
+	udelay(1); /* Conversion time: 650 ns max */
+}
+
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7476_state *st = iio_priv(indio_dev);
 	int b_sent;
+
+	ad7091_convst(st);
 
 	b_sent = spi_sync(st->spi, &st->msg);
 	if (b_sent < 0)
@@ -92,6 +110,8 @@ static void ad7091_reset(struct ad7476_state *st)
 static int ad7476_scan_direct(struct ad7476_state *st)
 {
 	int ret;
+
+	ad7091_convst(st);
 
 	ret = spi_sync(st->spi, &st->msg);
 	if (ret)
@@ -160,6 +180,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 #define AD7940_CHAN(bits) _AD7476_CHAN((bits), 15 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 #define AD7091R_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), 0)
+#define AD7091R_CONVST_CHAN(bits) _AD7476_CHAN((bits), 16 - (bits), \
+		BIT(IIO_CHAN_INFO_RAW))
 #define ADS786X_CHAN(bits) _AD7476_CHAN((bits), 12 - (bits), \
 		BIT(IIO_CHAN_INFO_RAW))
 
@@ -167,6 +189,8 @@ static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7091R] = {
 		.channel[0] = AD7091R_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
+		.convst_channel[0] = AD7091R_CONVST_CHAN(12),
+		.convst_channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.reset = ad7091_reset,
 	},
 	[ID_AD7276] = {
@@ -232,6 +256,13 @@ static const struct iio_info ad7476_info = {
 	.read_raw = &ad7476_read_raw,
 };
 
+static void ad7476_reg_disable(void *data)
+{
+	struct ad7476_state *st = data;
+
+	regulator_disable(st->reg);
+}
+
 static int ad7476_probe(struct spi_device *spi)
 {
 	struct ad7476_state *st;
@@ -254,6 +285,17 @@ static int ad7476_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, ad7476_reg_disable,
+				       st);
+	if (ret)
+		return ret;
+
+	st->convst_gpio = devm_gpiod_get_optional(&spi->dev,
+						  "adi,conversion-start",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(st->convst_gpio))
+		return PTR_ERR(st->convst_gpio);
+
 	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
@@ -266,6 +308,9 @@ static int ad7476_probe(struct spi_device *spi)
 	indio_dev->channels = st->chip_info->channel;
 	indio_dev->num_channels = 2;
 	indio_dev->info = &ad7476_info;
+
+	if (st->convst_gpio)
+		indio_dev->channels = st->chip_info->convst_channel;
 	/* Setup default message */
 
 	st->xfer.rx_buf = &st->data;
@@ -295,19 +340,8 @@ error_disable_reg:
 	return ret;
 }
 
-static int ad7476_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7476_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-	regulator_disable(st->reg);
-
-	return 0;
-}
-
 static const struct spi_device_id ad7476_id[] = {
+	{"ad7091", ID_AD7091R},
 	{"ad7091r", ID_AD7091R},
 	{"ad7273", ID_AD7277},
 	{"ad7274", ID_AD7276},
@@ -343,7 +377,6 @@ static struct spi_driver ad7476_driver = {
 		.name	= "ad7476",
 	},
 	.probe		= ad7476_probe,
-	.remove		= ad7476_remove,
 	.id_table	= ad7476_id,
 };
 module_spi_driver(ad7476_driver);

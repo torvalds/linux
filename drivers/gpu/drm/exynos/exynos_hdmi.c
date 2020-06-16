@@ -38,6 +38,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 
 #include "exynos_drm_crtc.h"
 #include "regs-hdmi.h"
@@ -1559,10 +1560,6 @@ static const struct drm_encoder_helper_funcs exynos_hdmi_encoder_helper_funcs = 
 	.disable	= hdmi_disable,
 };
 
-static const struct drm_encoder_funcs exynos_hdmi_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static void hdmi_audio_shutdown(struct device *dev, void *data)
 {
 	struct hdmi_context *hdata = dev_get_drvdata(dev);
@@ -1843,8 +1840,7 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 
 	hdata->phy_clk.enable = hdmiphy_clk_enable;
 
-	drm_encoder_init(drm_dev, encoder, &exynos_hdmi_encoder_funcs,
-			 DRM_MODE_ENCODER_TMDS, NULL);
+	drm_simple_encoder_init(drm_dev, encoder, DRM_MODE_ENCODER_TMDS);
 
 	drm_encoder_helper_add(encoder, &exynos_hdmi_encoder_helper_funcs);
 

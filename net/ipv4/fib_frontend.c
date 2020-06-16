@@ -309,17 +309,18 @@ bool fib_info_nh_uses_dev(struct fib_info *fi, const struct net_device *dev)
 {
 	bool dev_match = false;
 #ifdef CONFIG_IP_ROUTE_MULTIPATH
-	int ret;
+	if (unlikely(fi->nh)) {
+		dev_match = nexthop_uses_dev(fi->nh, dev);
+	} else {
+		int ret;
 
-	for (ret = 0; ret < fib_info_num_path(fi); ret++) {
-		const struct fib_nh_common *nhc = fib_info_nhc(fi, ret);
+		for (ret = 0; ret < fib_info_num_path(fi); ret++) {
+			const struct fib_nh_common *nhc = fib_info_nhc(fi, ret);
 
-		if (nhc->nhc_dev == dev) {
-			dev_match = true;
-			break;
-		} else if (l3mdev_master_ifindex_rcu(nhc->nhc_dev) == dev->ifindex) {
-			dev_match = true;
-			break;
+			if (nhc_l3mdev_matches_dev(nhc, dev)) {
+				dev_match = true;
+				break;
+			}
 		}
 	}
 #else
@@ -918,7 +919,6 @@ int ip_valid_fib_dump_req(struct net *net, const struct nlmsghdr *nlh,
 	else
 		filter->dump_exceptions = false;
 
-	filter->dump_all_families = (rtm->rtm_family == AF_UNSPEC);
 	filter->flags    = rtm->rtm_flags;
 	filter->protocol = rtm->rtm_protocol;
 	filter->rt_type  = rtm->rtm_type;
@@ -990,7 +990,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	if (filter.table_id) {
 		tb = fib_get_table(net, filter.table_id);
 		if (!tb) {
-			if (filter.dump_all_families)
+			if (rtnl_msg_family(cb->nlh) != PF_INET)
 				return skb->len;
 
 			NL_SET_ERR_MSG(cb->extack, "ipv4: FIB table does not exist");

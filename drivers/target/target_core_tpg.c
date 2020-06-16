@@ -582,8 +582,7 @@ int core_tpg_add_lun(
 	if (ret)
 		goto out_kill_ref;
 
-	if (!(dev->transport->transport_flags &
-	     TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
+	if (!(dev->transport_flags & TRANSPORT_FLAG_PASSTHROUGH_ALUA) &&
 	    !(dev->se_hba->hba_flags & HBA_FLAGS_INTERNAL_USE))
 		target_attach_tg_pt_gp(lun, dev->t10_alua.default_tg_pt_gp);
 

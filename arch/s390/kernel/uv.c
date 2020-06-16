@@ -23,10 +23,11 @@
 int __bootdata_preserved(prot_virt_guest);
 #endif
 
+struct uv_info __bootdata_preserved(uv_info);
+
 #if IS_ENABLED(CONFIG_KVM)
 int prot_virt_host;
 EXPORT_SYMBOL(prot_virt_host);
-struct uv_info __bootdata_preserved(uv_info);
 EXPORT_SYMBOL(uv_info);
 
 static int __init prot_virt_setup(char *val)
@@ -204,7 +205,7 @@ int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb)
 
 again:
 	rc = -EFAULT;
-	down_read(&gmap->mm->mmap_sem);
+	mmap_read_lock(gmap->mm);
 
 	uaddr = __gmap_translate(gmap, gaddr);
 	if (IS_ERR_VALUE(uaddr))
@@ -233,7 +234,7 @@ again:
 	pte_unmap_unlock(ptep, ptelock);
 	unlock_page(page);
 out:
-	up_read(&gmap->mm->mmap_sem);
+	mmap_read_unlock(gmap->mm);
 
 	if (rc == -EAGAIN) {
 		wait_on_page_writeback(page);

@@ -24,7 +24,6 @@
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/cacheflush.h>	/* flush_sig_insns */
 #include <asm/switch_to.h>
 

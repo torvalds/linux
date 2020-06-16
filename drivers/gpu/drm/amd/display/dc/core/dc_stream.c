@@ -231,34 +231,6 @@ struct dc_stream_status *dc_stream_get_status(
 	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
-static void delay_cursor_until_vupdate(struct pipe_ctx *pipe_ctx, struct dc *dc)
-{
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-	unsigned int vupdate_line;
-	unsigned int lines_to_vupdate, us_to_vupdate, vpos, nvpos;
-	struct dc_stream_state *stream = pipe_ctx->stream;
-	unsigned int us_per_line;
-
-	if (stream->ctx->asic_id.chip_family == FAMILY_RV &&
-			ASICREV_IS_RAVEN(stream->ctx->asic_id.hw_internal_rev)) {
-
-		vupdate_line = dc->hwss.get_vupdate_offset_from_vsync(pipe_ctx);
-		if (!dc_stream_get_crtc_position(dc, &stream, 1, &vpos, &nvpos))
-			return;
-
-		if (vpos >= vupdate_line)
-			return;
-
-		us_per_line = stream->timing.h_total * 10000 / stream->timing.pix_clk_100hz;
-		lines_to_vupdate = vupdate_line - vpos;
-		us_to_vupdate = lines_to_vupdate * us_per_line;
-
-		/* 70 us is a conservative estimate of cursor update time*/
-		if (us_to_vupdate < 70)
-			udelay(us_to_vupdate);
-	}
-#endif
-}
 
 /**
  * dc_stream_set_cursor_attributes() - Update cursor attributes and set cursor surface address
@@ -298,9 +270,7 @@ bool dc_stream_set_cursor_attributes(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-
-			delay_cursor_until_vupdate(pipe_ctx, dc);
-			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
+			dc->hwss.cursor_lock(dc, pipe_to_program, true);
 		}
 
 		dc->hwss.set_cursor_attribute(pipe_ctx);
@@ -309,7 +279,7 @@ bool dc_stream_set_cursor_attributes(
 	}
 
 	if (pipe_to_program)
-		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
+		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
 	return true;
 }
@@ -349,16 +319,14 @@ bool dc_stream_set_cursor_position(
 
 		if (!pipe_to_program) {
 			pipe_to_program = pipe_ctx;
-
-			delay_cursor_until_vupdate(pipe_ctx, dc);
-			dc->hwss.pipe_control_lock(dc, pipe_to_program, true);
+			dc->hwss.cursor_lock(dc, pipe_to_program, true);
 		}
 
 		dc->hwss.set_cursor_position(pipe_ctx);
 	}
 
 	if (pipe_to_program)
-		dc->hwss.pipe_control_lock(dc, pipe_to_program, false);
+		dc->hwss.cursor_lock(dc, pipe_to_program, false);
 
 	return true;
 }

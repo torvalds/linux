@@ -45,6 +45,7 @@ struct filter_entry {
 	char			name[];
 };
 
+static volatile int workload_exec_errno;
 static bool done;
 
 static void sig_handler(int sig __maybe_unused)
@@ -63,7 +64,7 @@ static void ftrace__workload_exec_failed_signal(int signo __maybe_unused,
 						siginfo_t *info __maybe_unused,
 						void *ucontext __maybe_unused)
 {
-	/* workload_exec_errno = info->si_value.sival_int; */
+	workload_exec_errno = info->si_value.sival_int;
 	done = true;
 }
 
@@ -284,10 +285,11 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 		.events = POLLIN,
 	};
 
-	if (!perf_cap__capable(CAP_SYS_ADMIN)) {
+	if (!(perf_cap__capable(CAP_PERFMON) ||
+	      perf_cap__capable(CAP_SYS_ADMIN))) {
 		pr_err("ftrace only works for %s!\n",
 #ifdef HAVE_LIBCAP_SUPPORT
-		"users with the SYS_ADMIN capability"
+		"users with the CAP_PERFMON or CAP_SYS_ADMIN capability"
 #else
 		"root"
 #endif
@@ -382,6 +384,14 @@ static int __cmd_ftrace(struct perf_ftrace *ftrace, int argc, const char **argv)
 
 	write_tracing_file("tracing_on", "0");
 
+	if (workload_exec_errno) {
+		const char *emsg = str_error_r(workload_exec_errno, buf, sizeof(buf));
+		/* flush stdout first so below error msg appears at the end. */
+		fflush(stdout);
+		pr_err("workload failed: %s\n", emsg);
+		goto out_close_fd;
+	}
+
 	/* read remaining buffer contents */
 	while (true) {
 		int n = read(trace_fd, buf, sizeof(buf));
@@ -396,7 +406,7 @@ out_close_fd:
 out_reset:
 	reset_tracing_files(ftrace);
 out:
-	return done ? 0 : -1;
+	return (done && !workload_exec_errno) ? 0 : -1;
 }
 
 static int perf_ftrace_config(const char *var, const char *value, void *cb)
@@ -493,7 +503,7 @@ int cmd_ftrace(int argc, const char **argv)
 	argc = parse_options(argc, argv, ftrace_options, ftrace_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target__none(&ftrace.target))
-		usage_with_options(ftrace_usage, ftrace_options);
+		ftrace.target.system_wide = true;
 
 	ret = target__validate(&ftrace.target);
 	if (ret) {

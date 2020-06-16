@@ -150,13 +150,12 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 
 	prescaler = MX3_PWMCR_PRESCALER_GET(val);
 	pwm_clk = clk_get_rate(imx->clk_per);
-	pwm_clk = DIV_ROUND_CLOSEST_ULL(pwm_clk, prescaler);
 	val = readl(imx->mmio_base + MX3_PWMPR);
 	period = val >= MX3_PWMPR_MAX ? MX3_PWMPR_MAX : val;
 
 	/* PWMOUT (Hz) = PWMCLK / (PWMPR + 2) */
-	tmp = NSEC_PER_SEC * (u64)(period + 2);
-	state->period = DIV_ROUND_CLOSEST_ULL(tmp, pwm_clk);
+	tmp = NSEC_PER_SEC * (u64)(period + 2) * prescaler;
+	state->period = DIV_ROUND_UP_ULL(tmp, pwm_clk);
 
 	/*
 	 * PWMSAR can be read only if PWM is enabled. If the PWM is disabled,
@@ -167,8 +166,8 @@ static void pwm_imx27_get_state(struct pwm_chip *chip,
 	else
 		val = imx->duty_cycle;
 
-	tmp = NSEC_PER_SEC * (u64)(val);
-	state->duty_cycle = DIV_ROUND_CLOSEST_ULL(tmp, pwm_clk);
+	tmp = NSEC_PER_SEC * (u64)(val) * prescaler;
+	state->duty_cycle = DIV_ROUND_UP_ULL(tmp, pwm_clk);
 
 	pwm_imx27_clk_disable_unprepare(imx);
 }
@@ -220,22 +219,23 @@ static int pwm_imx27_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	struct pwm_imx27_chip *imx = to_pwm_imx27_chip(chip);
 	struct pwm_state cstate;
 	unsigned long long c;
+	unsigned long long clkrate;
 	int ret;
 	u32 cr;
 
 	pwm_get_state(pwm, &cstate);
 
-	c = clk_get_rate(imx->clk_per);
-	c *= state->period;
+	clkrate = clk_get_rate(imx->clk_per);
+	c = clkrate * state->period;
 
-	do_div(c, 1000000000);
+	do_div(c, NSEC_PER_SEC);
 	period_cycles = c;
 
 	prescale = period_cycles / 0x10000 + 1;
 
 	period_cycles /= prescale;
-	c = (unsigned long long)period_cycles * state->duty_cycle;
-	do_div(c, state->period);
+	c = clkrate * state->duty_cycle;
+	do_div(c, NSEC_PER_SEC * prescale);
 	duty_cycles = c;
 
 	/*

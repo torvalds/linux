@@ -228,7 +228,7 @@ static struct sk_buff *ocelot_rcv(struct sk_buff *skb,
 	return skb;
 }
 
-static struct dsa_device_ops ocelot_netdev_ops = {
+static const struct dsa_device_ops ocelot_netdev_ops = {
 	.name			= "ocelot",
 	.proto			= DSA_TAG_PROTO_OCELOT,
 	.xmit			= ocelot_xmit,

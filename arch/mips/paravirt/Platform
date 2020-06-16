@@ -1,7 +1,6 @@
 #
 # Generic para-virtualized guest.
 #
-platform-$(CONFIG_MIPS_PARAVIRT)	+= paravirt/
 cflags-$(CONFIG_MIPS_PARAVIRT)		+=				\
 		-I$(srctree)/arch/mips/include/asm/mach-paravirt
 

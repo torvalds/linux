@@ -6,7 +6,7 @@
 config NET_VENDOR_HUAWEI
 	bool "Huawei devices"
 	default y
-	---help---
+	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all

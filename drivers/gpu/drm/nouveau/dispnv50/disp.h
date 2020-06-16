@@ -9,6 +9,7 @@ struct nv50_msto;
 struct nv50_disp {
 	struct nvif_disp *disp;
 	struct nv50_core *core;
+	struct nvif_object caps;
 
 #define NV50_DISP_SYNC(c, o)                                ((c) * 0x040 + (o))
 #define NV50_DISP_CORE_NTFY                       NV50_DISP_SYNC(0      , 0x00)
@@ -77,6 +78,10 @@ void nv50_dmac_destroy(struct nv50_dmac *);
 
 u32 *evo_wait(struct nv50_dmac *, int nr);
 void evo_kick(u32 *, struct nv50_dmac *);
+
+extern const u64 disp50xx_modifiers[];
+extern const u64 disp90xx_modifiers[];
+extern const u64 wndwc57e_modifiers[];
 
 #define evo_mthd(p, m, s) do {						\
 	const u32 _m = (m), _s = (s);					\

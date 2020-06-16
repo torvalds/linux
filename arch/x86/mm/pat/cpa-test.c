@@ -14,7 +14,6 @@
 #include <linux/vmalloc.h>
 
 #include <asm/cacheflush.h>
-#include <asm/pgtable.h>
 #include <asm/kdebug.h>
 
 /*

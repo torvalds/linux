@@ -706,6 +706,7 @@ static void atmel_spi_next_xfer_pio(struct spi_master *master,
 static int atmel_spi_next_xfer_dma_submit(struct spi_master *master,
 				struct spi_transfer *xfer,
 				u32 *plen)
+	__must_hold(&as->lock)
 {
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	struct dma_chan		*rxchan = master->dma_rx;

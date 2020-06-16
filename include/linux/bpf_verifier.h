@@ -54,6 +54,8 @@ struct bpf_reg_state {
 
 		u32 btf_id; /* for PTR_TO_BTF_ID */
 
+		u32 mem_size; /* for PTR_TO_MEM | PTR_TO_MEM_OR_NULL */
+
 		/* Max size from any of the above. */
 		unsigned long raw;
 	};
@@ -63,6 +65,8 @@ struct bpf_reg_state {
 	 * offset, so they can share range knowledge.
 	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
 	 * came from, when one is tested for != NULL.
+	 * For PTR_TO_MEM_OR_NULL this is used to identify memory allocation
+	 * for the purpose of tracking that it's freed.
 	 * For PTR_TO_SOCKET this is used to share which pointers retain the
 	 * same reference to the socket, to determine proper reference freeing.
 	 */
@@ -375,6 +379,9 @@ struct bpf_verifier_env {
 	u32 used_map_cnt;		/* number of used maps */
 	u32 id_gen;			/* used to generate unique reg IDs */
 	bool allow_ptr_leaks;
+	bool bpf_capable;
+	bool bypass_spec_v1;
+	bool bypass_spec_v4;
 	bool seen_direct_write;
 	struct bpf_insn_aux_data *insn_aux_data; /* array of per-insn state */
 	const struct bpf_line_info *prev_linfo;

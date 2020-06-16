@@ -16,7 +16,7 @@ Supported chips:
 
   * Renesas ISL68220
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl68220'
 
     Addresses scanned: -
 
@@ -26,7 +26,7 @@ Supported chips:
 
   * Renesas ISL68221
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl68221'
 
     Addresses scanned: -
 
@@ -36,7 +36,7 @@ Supported chips:
 
   * Renesas ISL68222
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl68222'
 
     Addresses scanned: -
 
@@ -46,7 +46,7 @@ Supported chips:
 
   * Renesas ISL68223
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl68223'
 
     Addresses scanned: -
 
@@ -56,7 +56,7 @@ Supported chips:
 
   * Renesas ISL68224
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl68224'
 
     Addresses scanned: -
 
@@ -66,7 +66,7 @@ Supported chips:
 
   * Renesas ISL68225
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl68225'
 
     Addresses scanned: -
 
@@ -76,7 +76,7 @@ Supported chips:
 
   * Renesas ISL68226
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl68226'
 
     Addresses scanned: -
 
@@ -86,7 +86,7 @@ Supported chips:
 
   * Renesas ISL68227
 
-    Prefix: 'raa_dmpvr2_1rail'
+    Prefix: 'isl68227'
 
     Addresses scanned: -
 
@@ -96,7 +96,7 @@ Supported chips:
 
   * Renesas ISL68229
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl68229'
 
     Addresses scanned: -
 
@@ -106,7 +106,7 @@ Supported chips:
 
   * Renesas ISL68233
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl68233'
 
     Addresses scanned: -
 
@@ -116,7 +116,7 @@ Supported chips:
 
   * Renesas ISL68239
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl68239'
 
     Addresses scanned: -
 
@@ -126,7 +126,7 @@ Supported chips:
 
   * Renesas ISL69222
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69222'
 
     Addresses scanned: -
 
@@ -136,7 +136,7 @@ Supported chips:
 
   * Renesas ISL69223
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl69223'
 
     Addresses scanned: -
 
@@ -146,7 +146,7 @@ Supported chips:
 
   * Renesas ISL69224
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69224'
 
     Addresses scanned: -
 
@@ -156,7 +156,7 @@ Supported chips:
 
   * Renesas ISL69225
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69225'
 
     Addresses scanned: -
 
@@ -166,7 +166,7 @@ Supported chips:
 
   * Renesas ISL69227
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl69227'
 
     Addresses scanned: -
 
@@ -176,7 +176,7 @@ Supported chips:
 
   * Renesas ISL69228
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl69228'
 
     Addresses scanned: -
 
@@ -186,7 +186,7 @@ Supported chips:
 
   * Renesas ISL69234
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69234'
 
     Addresses scanned: -
 
@@ -196,7 +196,7 @@ Supported chips:
 
   * Renesas ISL69236
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69236'
 
     Addresses scanned: -
 
@@ -206,7 +206,7 @@ Supported chips:
 
   * Renesas ISL69239
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl69239'
 
     Addresses scanned: -
 
@@ -216,7 +216,7 @@ Supported chips:
 
   * Renesas ISL69242
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69242'
 
     Addresses scanned: -
 
@@ -226,7 +226,7 @@ Supported chips:
 
   * Renesas ISL69243
 
-    Prefix: 'raa_dmpvr2_1rail'
+    Prefix: 'isl69243'
 
     Addresses scanned: -
 
@@ -236,7 +236,7 @@ Supported chips:
 
   * Renesas ISL69247
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69247'
 
     Addresses scanned: -
 
@@ -246,7 +246,7 @@ Supported chips:
 
   * Renesas ISL69248
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69248'
 
     Addresses scanned: -
 
@@ -256,7 +256,7 @@ Supported chips:
 
   * Renesas ISL69254
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69254'
 
     Addresses scanned: -
 
@@ -266,7 +266,7 @@ Supported chips:
 
   * Renesas ISL69255
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69255'
 
     Addresses scanned: -
 
@@ -276,7 +276,7 @@ Supported chips:
 
   * Renesas ISL69256
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69256'
 
     Addresses scanned: -
 
@@ -286,7 +286,7 @@ Supported chips:
 
   * Renesas ISL69259
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69259'
 
     Addresses scanned: -
 
@@ -296,7 +296,7 @@ Supported chips:
 
   * Renesas ISL69260
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69260'
 
     Addresses scanned: -
 
@@ -306,7 +306,7 @@ Supported chips:
 
   * Renesas ISL69268
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69268'
 
     Addresses scanned: -
 
@@ -316,7 +316,7 @@ Supported chips:
 
   * Renesas ISL69269
 
-    Prefix: 'raa_dmpvr2_3rail'
+    Prefix: 'isl69269'
 
     Addresses scanned: -
 
@@ -326,7 +326,7 @@ Supported chips:
 
   * Renesas ISL69298
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'isl69298'
 
     Addresses scanned: -
 
@@ -336,7 +336,7 @@ Supported chips:
 
   * Renesas RAA228000
 
-    Prefix: 'raa_dmpvr2_hv'
+    Prefix: 'raa228000'
 
     Addresses scanned: -
 
@@ -346,7 +346,7 @@ Supported chips:
 
   * Renesas RAA228004
 
-    Prefix: 'raa_dmpvr2_hv'
+    Prefix: 'raa228004'
 
     Addresses scanned: -
 
@@ -356,7 +356,7 @@ Supported chips:
 
   * Renesas RAA228006
 
-    Prefix: 'raa_dmpvr2_hv'
+    Prefix: 'raa228006'
 
     Addresses scanned: -
 
@@ -366,7 +366,7 @@ Supported chips:
 
   * Renesas RAA228228
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'raa228228'
 
     Addresses scanned: -
 
@@ -376,7 +376,7 @@ Supported chips:
 
   * Renesas RAA229001
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'raa229001'
 
     Addresses scanned: -
 
@@ -386,7 +386,7 @@ Supported chips:
 
   * Renesas RAA229004
 
-    Prefix: 'raa_dmpvr2_2rail'
+    Prefix: 'raa229004'
 
     Addresses scanned: -
 

@@ -13,8 +13,8 @@
 #include <linux/linkage.h>
 #include <linux/threads.h>
 #include <linux/init.h>
+#include <linux/pgtable.h>
 #include <asm/segment.h>
-#include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/msr.h>
 #include <asm/cache.h>
@@ -29,15 +29,16 @@
 #ifdef CONFIG_PARAVIRT_XXL
 #include <asm/asm-offsets.h>
 #include <asm/paravirt.h>
+#define GET_CR2_INTO(reg) GET_CR2_INTO_AX ; _ASM_MOV %_ASM_AX, reg
 #else
 #define INTERRUPT_RETURN iretq
+#define GET_CR2_INTO(reg) _ASM_MOV %cr2, reg
 #endif
 
-/* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
+/*
+ * We are not able to switch in one step to the final KERNEL ADDRESS SPACE
  * because we need identity-mapped pages.
- *
  */
-
 #define l4_index(x)	(((x) >> 39) & 511)
 #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 

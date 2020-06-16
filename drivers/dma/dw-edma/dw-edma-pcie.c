@@ -54,6 +54,15 @@ static const struct dw_edma_pcie_data snps_edda_data = {
 	.irqs				= 1,
 };
 
+static int dw_edma_pcie_irq_vector(struct device *dev, unsigned int nr)
+{
+	return pci_irq_vector(to_pci_dev(dev), nr);
+}
+
+static const struct dw_edma_core_ops dw_edma_pcie_core_ops = {
+	.irq_vector = dw_edma_pcie_irq_vector,
+};
+
 static int dw_edma_pcie_probe(struct pci_dev *pdev,
 			      const struct pci_device_id *pid)
 {
@@ -151,6 +160,7 @@ static int dw_edma_pcie_probe(struct pci_dev *pdev,
 	dw->version = pdata->version;
 	dw->mode = pdata->mode;
 	dw->nr_irqs = nr_irqs;
+	dw->ops = &dw_edma_pcie_core_ops;
 
 	/* Debug info */
 	pci_dbg(pdev, "Version:\t%u\n", dw->version);

@@ -248,6 +248,7 @@ mmu_on:
 
 
 	blr
+_ASM_NOKPROBE_SYMBOL(lite5200_wakeup)
 
 
 /* ---------------------------------------------------------------------- */
@@ -391,6 +392,7 @@ restore_regs:
 	LOAD_SPRN(TBWU,  0x5b);
 
 	blr
+_ASM_NOKPROBE_SYMBOL(restore_regs)
 
 
 

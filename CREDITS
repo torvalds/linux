@@ -3104,14 +3104,16 @@ W: http://www.qsl.net/dl1bke/
 D: Generic Z8530 driver, AX.25 DAMA slave implementation
 D: Several AX.25 hacks
 
-N: Ricardo Ribalda Delgado
-E: ricardo.ribalda@gmail.com
+N: Ricardo Ribalda
+E: ribalda@kernel.org
 W: http://ribalda.com
 D: PLX USB338x driver
 D: PCA9634 driver
 D: Option GTM671WFS
 D: Fintek F81216A
 D: AD5761 iio driver
+D: TI DAC7612 driver
+D: Sony IMX214 driver
 D: Various kernel hacks
 S: Qtechnology A/S
 S: Valby Langgade 142

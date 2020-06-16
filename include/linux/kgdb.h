@@ -269,6 +269,9 @@ struct kgdb_arch {
  * @write_char: Pointer to a function that will write one char.
  * @flush: Pointer to a function that will flush any pending writes.
  * @init: Pointer to a function that will initialize the device.
+ * @deinit: Pointer to a function that will deinit the device. Implies that
+ * this I/O driver is temporary and expects to be replaced. Called when
+ * an I/O driver is replaced or explicitly unregistered.
  * @pre_exception: Pointer to a function that will do any prep work for
  * the I/O driver.
  * @post_exception: Pointer to a function that will do any cleanup work
@@ -282,6 +285,7 @@ struct kgdb_io {
 	void			(*write_char) (u8);
 	void			(*flush) (void);
 	int			(*init) (void);
+	void			(*deinit) (void);
 	void			(*pre_exception) (void);
 	void			(*post_exception) (void);
 	int			is_console;
@@ -298,7 +302,7 @@ extern bool kgdb_nmi_poll_knock(void);
 #else
 static inline int kgdb_register_nmi_console(void) { return 0; }
 static inline int kgdb_unregister_nmi_console(void) { return 0; }
-static inline bool kgdb_nmi_poll_knock(void) { return 1; }
+static inline bool kgdb_nmi_poll_knock(void) { return true; }
 #endif
 
 extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
@@ -323,7 +327,7 @@ extern void gdbstub_exit(int status);
 extern int			kgdb_single_step;
 extern atomic_t			kgdb_active;
 #define in_dbg_master() \
-	(raw_smp_processor_id() == atomic_read(&kgdb_active))
+	(irqs_disabled() && (smp_processor_id() == atomic_read(&kgdb_active)))
 extern bool dbg_is_early;
 extern void __init dbg_late_init(void);
 extern void kgdb_panic(const char *msg);

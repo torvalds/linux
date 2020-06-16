@@ -65,21 +65,21 @@ examples:
 
       config_noc: interconnect@1500000 {
             compatible = "qcom,sc7180-config-noc";
-            reg = <0 0x01500000 0 0x28000>;
+            reg = <0x01500000 0x28000>;
             #interconnect-cells = <1>;
             qcom,bcm-voters = <&apps_bcm_voter>;
       };
 
       system_noc: interconnect@1620000 {
             compatible = "qcom,sc7180-system-noc";
-            reg = <0 0x01620000 0 0x17080>;
+            reg = <0x01620000 0x17080>;
             #interconnect-cells = <1>;
             qcom,bcm-voters = <&apps_bcm_voter>;
       };
 
       mmss_noc: interconnect@1740000 {
             compatible = "qcom,sc7180-mmss-noc";
-            reg = <0 0x01740000 0 0x1c100>;
+            reg = <0x01740000 0x1c100>;
             #interconnect-cells = <1>;
             qcom,bcm-voters = <&apps_bcm_voter>;
       };

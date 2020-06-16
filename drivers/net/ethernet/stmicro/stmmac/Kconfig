@@ -9,7 +9,7 @@ config STMMAC_ETH
 	select CRC32
 	imply PTP_1588_CLOCK
 	select RESET_CONTROLLER
-	---help---
+	help
 	  This is the driver for the Ethernet IPs built around a
 	  Synopsys IP Core.
 
@@ -20,7 +20,7 @@ config STMMAC_SELFTESTS
 	depends on INET
 	depends on STMMAC_ETH
 	default n
-	---help---
+	help
 	  This adds support for STMMAC Selftests using ethtool. Enable this
 	  feature if you are facing problems with your HW and submit the test
 	  results to the netdev Mailing List.
@@ -30,7 +30,7 @@ config STMMAC_PLATFORM
 	depends on STMMAC_ETH
 	select MFD_SYSCON
 	default y
-	---help---
+	help
 	  This selects the platform specific bus support for the stmmac driver.
 	  This is the driver used on several SoCs:
 	  STi, Allwinner, Amlogic Meson, Altera SOCFPGA.
@@ -52,7 +52,7 @@ config DWMAC_DWC_QOS_ETH
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
 	default STMMAC_PLATFORM
-	---help---
+	help
 	  Generic DWMAC driver for platforms that don't require any
 	  platform specific code to function or is using platform
 	  data for setup.
@@ -84,7 +84,7 @@ config DWMAC_LPC18XX
 	default ARCH_LPC18XX
 	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
 	select MFD_SYSCON
-	---help---
+	help
 	  Support for NXP LPC18xx/43xx DWMAC Ethernet.
 
 config DWMAC_MEDIATEK
@@ -155,7 +155,7 @@ config DWMAC_STI
 	default ARCH_STI
 	depends on OF && (ARCH_STI || COMPILE_TEST)
 	select MFD_SYSCON
-	---help---
+	help
 	  Support for ethernet controller on STi SOCs.
 
 	  This selects STi SoC glue layer support for the stmmac
@@ -167,7 +167,7 @@ config DWMAC_STM32
 	default ARCH_STM32
 	depends on OF && HAS_IOMEM && (ARCH_STM32 || COMPILE_TEST)
 	select MFD_SYSCON
-	---help---
+	help
 	  Support for ethernet controller on STM32 SOCs.
 
 	  This selects STM32 SoC glue layer support for the stmmac
@@ -178,7 +178,7 @@ config DWMAC_SUNXI
 	tristate "Allwinner GMAC support"
 	default ARCH_SUNXI
 	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
-	---help---
+	help
 	  Support for Allwinner A20/A31 GMAC ethernet controllers.
 
 	  This selects Allwinner SoC glue layer support for the
@@ -190,12 +190,25 @@ config DWMAC_SUN8I
 	default ARCH_SUNXI
 	depends on OF && (ARCH_SUNXI || COMPILE_TEST)
 	select MDIO_BUS_MUX
-	---help---
+	help
 	  Support for Allwinner H3 A83T A64 EMAC ethernet controllers.
 
 	  This selects Allwinner SoC glue layer support for the
 	  stmmac device driver. This driver is used for H3/A83T/A64
 	  EMAC ethernet controller.
+
+config DWMAC_IMX8
+	tristate "NXP IMX8 DWMAC support"
+	default ARCH_MXC
+	depends on OF && (ARCH_MXC || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for ethernet controller on NXP i.MX8 SOCs.
+
+	  This selects NXP SoC glue layer support for the stmmac
+	  device driver. This driver is used for i.MX8 series like
+	  iMX8MP/iMX8DXL GMAC ethernet controller.
+
 endif
 
 config DWMAC_INTEL
@@ -203,7 +216,7 @@ config DWMAC_INTEL
 	default X86
 	depends on X86 && STMMAC_ETH && PCI
 	depends on COMMON_CLK
-	---help---
+	help
 	  This selects the Intel platform specific bus support for the
 	  stmmac driver. This driver is used for Intel Quark/EHL/TGL.
 
@@ -211,7 +224,7 @@ config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
 	depends on COMMON_CLK
-	---help---
+	help
 	  This selects the platform specific bus support for the stmmac driver.
 	  This driver was tested on XLINX XC2V3000 FF1152AMT0221
 	  D1215994A VIRTEX FPGA board and SNPS QoS IPK Prototyping Kit.

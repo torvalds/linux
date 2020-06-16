@@ -303,5 +303,7 @@ out_munmap:
 out_close:
 	close(vmlinux_fd);
 out_ret:
+	fprintf(stdout, "loongson3-llsc-check returns %s\n",
+		status ? "failure" : "success");
 	return status;
 }

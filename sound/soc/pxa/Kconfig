@@ -9,14 +9,8 @@ config SND_PXA2XX_SOC
 	  to select the audio interfaces to support below.
 
 config SND_MMP_SOC
-	bool "Soc Audio for Marvell MMP chips"
-	depends on ARCH_MMP
+	bool
 	select MMP_SRAM
-	select SND_SOC_GENERIC_DMAENGINE_PCM
-	select SND_ARM
-	help
-	  Say Y if you want to add support for codecs attached to
-	  the MMP SSPA interface.
 
 config SND_PXA2XX_AC97
 	tristate
@@ -39,7 +33,13 @@ config SND_PXA_SOC_SSP
 	select SND_PXA2XX_LIB
 
 config SND_MMP_SOC_SSPA
-	tristate
+	tristate "SoC Audio via MMP SSPA ports"
+	depends on ARCH_MMP
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	select SND_ARM
+	help
+	  Say Y if you want to add support for codecs attached to
+	  the MMP SSPA interface.
 
 config SND_PXA2XX_SOC_CORGI
 	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
@@ -128,9 +128,8 @@ config SND_PXA2XX_SOC_E800
 	  Toshiba e800 PDA
 
 config SND_PXA2XX_SOC_EM_X270
-	tristate "SoC Audio support for CompuLab EM-x270, eXeda and CM-X300"
-	depends on SND_PXA2XX_SOC && (MACH_EM_X270 || MACH_EXEDA || \
-			MACH_CM_X300)
+	tristate "SoC Audio support for CompuLab CM-X300"
+	depends on SND_PXA2XX_SOC && MACH_CM_X300
 	depends on AC97_BUS=n
 	select REGMAP
 	select AC97_BUS_NEW
@@ -232,8 +231,8 @@ config SND_PXA2XX_SOC_IMOTE2
 
 config SND_MMP_SOC_BROWNSTONE
 	tristate "SoC Audio support for Marvell Brownstone"
-	depends on SND_MMP_SOC && MACH_BROWNSTONE && I2C
-	select SND_MMP_SOC_SSPA
+	depends on SND_MMP_SOC_SSPA && MACH_BROWNSTONE && I2C
+	select SND_MMP_SOC
 	select MFD_WM8994
 	select SND_SOC_WM8994
 	help

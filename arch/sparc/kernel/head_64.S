@@ -12,13 +12,13 @@
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/pgtable.h>
 #include <asm/thread_info.h>
 #include <asm/asi.h>
 #include <asm/pstate.h>
 #include <asm/ptrace.h>
 #include <asm/spitfire.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/errno.h>
 #include <asm/signal.h>
 #include <asm/processor.h>

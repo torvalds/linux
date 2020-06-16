@@ -630,7 +630,7 @@ static struct platform_driver snd_dw_hdmi_driver = {
 
 module_platform_driver(snd_dw_hdmi_driver);
 
-MODULE_AUTHOR("Russell King <rmk+kernel@arm.linux.org.uk>");
+MODULE_AUTHOR("Russell King <rmk+kernel@armlinux.org.uk>");
 MODULE_DESCRIPTION("Synopsis Designware HDMI AHB ALSA interface");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

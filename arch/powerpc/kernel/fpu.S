@@ -12,7 +12,6 @@
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/pgtable.h>
 #include <asm/cputable.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
@@ -119,6 +118,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	blr
+_ASM_NOKPROBE_SYMBOL(load_up_fpu)
 
 /*
  * save_fpu(tsk)

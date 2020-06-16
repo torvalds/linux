@@ -48,8 +48,11 @@ cleanup() {
 	exec 2>/dev/null
 	printf "$orig_message_cost" > /proc/sys/net/core/message_cost
 	ip0 link del dev wg0
+	ip0 link del dev wg1
 	ip1 link del dev wg0
+	ip1 link del dev wg1
 	ip2 link del dev wg0
+	ip2 link del dev wg1
 	local to_kill="$(ip netns pids $netns0) $(ip netns pids $netns1) $(ip netns pids $netns2)"
 	[[ -n $to_kill ]] && kill $to_kill
 	pp ip netns del $netns1
@@ -77,18 +80,20 @@ ip0 link set wg0 netns $netns2
 key1="$(pp wg genkey)"
 key2="$(pp wg genkey)"
 key3="$(pp wg genkey)"
+key4="$(pp wg genkey)"
 pub1="$(pp wg pubkey <<<"$key1")"
 pub2="$(pp wg pubkey <<<"$key2")"
 pub3="$(pp wg pubkey <<<"$key3")"
+pub4="$(pp wg pubkey <<<"$key4")"
 psk="$(pp wg genpsk)"
 [[ -n $key1 && -n $key2 && -n $psk ]]
 
 configure_peers() {
 	ip1 addr add 192.168.241.1/24 dev wg0
-	ip1 addr add fd00::1/24 dev wg0
+	ip1 addr add fd00::1/112 dev wg0
 
 	ip2 addr add 192.168.241.2/24 dev wg0
-	ip2 addr add fd00::2/24 dev wg0
+	ip2 addr add fd00::2/112 dev wg0
 
 	n1 wg set wg0 \
 		private-key <(echo "$key1") \
@@ -230,9 +235,38 @@ n1 ping -W 1 -c 1 192.168.241.2
 n1 wg set wg0 private-key <(echo "$key3")
 n2 wg set wg0 peer "$pub3" preshared-key <(echo "$psk") allowed-ips 192.168.241.1/32 peer "$pub1" remove
 n1 ping -W 1 -c 1 192.168.241.2
+n2 wg set wg0 peer "$pub3" remove
 
-ip1 link del wg0
+# Test that we can route wg through wg
+ip1 addr flush dev wg0
+ip2 addr flush dev wg0
+ip1 addr add fd00::5:1/112 dev wg0
+ip2 addr add fd00::5:2/112 dev wg0
+n1 wg set wg0 private-key <(echo "$key1") peer "$pub2" preshared-key <(echo "$psk") allowed-ips fd00::5:2/128 endpoint 127.0.0.1:2
+n2 wg set wg0 private-key <(echo "$key2") listen-port 2 peer "$pub1" preshared-key <(echo "$psk") allowed-ips fd00::5:1/128 endpoint 127.212.121.99:9998
+ip1 link add wg1 type wireguard
+ip2 link add wg1 type wireguard
+ip1 addr add 192.168.241.1/24 dev wg1
+ip1 addr add fd00::1/112 dev wg1
+ip2 addr add 192.168.241.2/24 dev wg1
+ip2 addr add fd00::2/112 dev wg1
+ip1 link set mtu 1340 up dev wg1
+ip2 link set mtu 1340 up dev wg1
+n1 wg set wg1 listen-port 5 private-key <(echo "$key3") peer "$pub4" allowed-ips 192.168.241.2/32,fd00::2/128 endpoint [fd00::5:2]:5
+n2 wg set wg1 listen-port 5 private-key <(echo "$key4") peer "$pub3" allowed-ips 192.168.241.1/32,fd00::1/128 endpoint [fd00::5:1]:5
+tests
+# Try to set up a routing loop between the two namespaces
+ip1 link set netns $netns0 dev wg1
+ip0 addr add 192.168.241.1/24 dev wg1
+ip0 link set up dev wg1
+n0 ping -W 1 -c 1 192.168.241.2
+n1 wg set wg0 peer "$pub2" endpoint 192.168.241.2:7
 ip2 link del wg0
+ip2 link del wg1
+! n0 ping -W 1 -c 10 -f 192.168.241.2 || false # Should not crash kernel
+
+ip0 link del wg1
+ip1 link del wg0
 
 # Test using NAT. We now change the topology to this:
 # ┌────────────────────────────────────────┐    ┌────────────────────────────────────────────────┐     ┌────────────────────────────────────────┐
@@ -281,6 +315,20 @@ n2 ping -W 1 -c 1 192.168.241.1
 pp sleep 3
 n2 ping -W 1 -c 1 192.168.241.1
 n1 wg set wg0 peer "$pub2" persistent-keepalive 0
+
+# Test that onion routing works, even when it loops
+n1 wg set wg0 peer "$pub3" allowed-ips 192.168.242.2/32 endpoint 192.168.241.2:5
+ip1 addr add 192.168.242.1/24 dev wg0
+ip2 link add wg1 type wireguard
+ip2 addr add 192.168.242.2/24 dev wg1
+n2 wg set wg1 private-key <(echo "$key3") listen-port 5 peer "$pub1" allowed-ips 192.168.242.1/32
+ip2 link set wg1 up
+n1 ping -W 1 -c 1 192.168.242.2
+ip2 link del wg1
+n1 wg set wg0 peer "$pub3" endpoint 192.168.242.2:5
+! n1 ping -W 1 -c 1 192.168.242.2 || false # Should not crash kernel
+n1 wg set wg0 peer "$pub3" remove
+ip1 addr del 192.168.242.1/24 dev wg0
 
 # Do a wg-quick(8)-style policy routing for the default route, making sure vethc has a v6 address to tease out bugs.
 ip1 -6 addr add fc00::9/96 dev vethc

@@ -20,6 +20,7 @@ properties:
           - const: renesas,rcar-thermal # Generic without thermal-zone
       - items:
           - enum:
+              - renesas,thermal-r8a7742 # RZ/G1H
               - renesas,thermal-r8a7743 # RZ/G1M
               - renesas,thermal-r8a7744 # RZ/G1N
           - const: renesas,rcar-gen2-thermal # Generic thermal-zone
@@ -94,8 +95,8 @@ examples:
 
     thermal@e61f0000 {
             compatible = "renesas,thermal-r8a73a4", "renesas,rcar-thermal";
-            reg = <0 0xe61f0000 0 0x14>, <0 0xe61f0100 0 0x38>,
-                  <0 0xe61f0200 0 0x38>, <0 0xe61f0300 0 0x38>;
+            reg = <0xe61f0000 0x14>, <0xe61f0100 0x38>,
+                  <0xe61f0200 0x38>, <0xe61f0300 0x38>;
             interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&mstp5_clks R8A73A4_CLK_THERMAL>;
             power-domains = <&pd_c5>;
@@ -111,7 +112,7 @@ examples:
       compatible = "renesas,thermal-r8a7790",
                    "renesas,rcar-gen2-thermal",
                    "renesas,rcar-thermal";
-            reg = <0 0xe61f0000 0 0x10>, <0 0xe61f0100 0 0x38>;
+            reg = <0xe61f0000 0x10>, <0xe61f0100 0x38>;
             interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&cpg CPG_MOD 522>;
             power-domains = <&sysc R8A7790_PD_ALWAYS_ON>;

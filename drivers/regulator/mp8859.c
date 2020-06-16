@@ -73,7 +73,7 @@ static int mp8859_get_voltage_sel(struct regulator_dev *rdev)
 	return val;
 }
 
-static const struct regulator_linear_range mp8859_dcdc_ranges[] = {
+static const struct linear_range mp8859_dcdc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, VOL_MIN_IDX, VOL_MAX_IDX, 10000),
 };
 

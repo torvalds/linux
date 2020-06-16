@@ -40,7 +40,6 @@
 #include <asm/maar.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
-#include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 #include <asm/fixmap.h>
@@ -358,17 +357,23 @@ void maar_init(void)
 		write_c0_maari(i);
 		back_to_back_c0_hazard();
 		upper = read_c0_maar();
+#ifdef CONFIG_XPA
+		upper |= (phys_addr_t)readx_c0_maar() << MIPS_MAARX_ADDR_SHIFT;
+#endif
 
 		write_c0_maari(i + 1);
 		back_to_back_c0_hazard();
 		lower = read_c0_maar();
+#ifdef CONFIG_XPA
+		lower |= (phys_addr_t)readx_c0_maar() << MIPS_MAARX_ADDR_SHIFT;
+#endif
 
 		attr = lower & upper;
 		lower = (lower & MIPS_MAAR_ADDR) << 4;
 		upper = ((upper & MIPS_MAAR_ADDR) << 4) | 0xffff;
 
 		pr_info("  [%d]: ", i / 2);
-		if (!(attr & MIPS_MAAR_VL)) {
+		if ((attr & MIPS_MAAR_V) != MIPS_MAAR_V) {
 			pr_cont("disabled\n");
 			continue;
 		}
@@ -418,7 +423,7 @@ void __init paging_init(void)
 	}
 #endif
 
-	free_area_init_nodes(max_zone_pfns);
+	free_area_init(max_zone_pfns);
 }
 
 #ifdef CONFIG_64BIT

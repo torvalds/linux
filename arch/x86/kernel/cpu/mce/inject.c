@@ -146,9 +146,9 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 		regs.cs = m->cs;
 		pregs = &regs;
 	}
-	/* in mcheck exeception handler, irq will be disabled */
+	/* do_machine_check() expects interrupts disabled -- at least */
 	local_irq_save(flags);
-	do_machine_check(pregs, 0);
+	do_machine_check(pregs);
 	local_irq_restore(flags);
 	m->finished = 0;
 }

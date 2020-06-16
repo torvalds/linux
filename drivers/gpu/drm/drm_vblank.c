@@ -30,6 +30,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_framebuffer.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_vblank.h>
@@ -39,6 +40,69 @@
 
 /**
  * DOC: vblank handling
+ *
+ * From the computer's perspective, every time the monitor displays
+ * a new frame the scanout engine has "scanned out" the display image
+ * from top to bottom, one row of pixels at a time. The current row
+ * of pixels is referred to as the current scanline.
+ *
+ * In addition to the display's visible area, there's usually a couple of
+ * extra scanlines which aren't actually displayed on the screen.
+ * These extra scanlines don't contain image data and are occasionally used
+ * for features like audio and infoframes. The region made up of these
+ * scanlines is referred to as the vertical blanking region, or vblank for
+ * short.
+ *
+ * For historical reference, the vertical blanking period was designed to
+ * give the electron gun (on CRTs) enough time to move back to the top of
+ * the screen to start scanning out the next frame. Similar for horizontal
+ * blanking periods. They were designed to give the electron gun enough
+ * time to move back to the other side of the screen to start scanning the
+ * next scanline.
+ *
+ * ::
+ *
+ *
+ *    physical →   ⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽
+ *    top of      |                                        |
+ *    display     |                                        |
+ *                |               New frame                |
+ *                |                                        |
+ *                |↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓|
+ *                |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~| ← Scanline,
+ *                |↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓|   updates the
+ *                |                                        |   frame as it
+ *                |                                        |   travels down
+ *                |                                        |   ("sacn out")
+ *                |               Old frame                |
+ *                |                                        |
+ *                |                                        |
+ *                |                                        |
+ *                |                                        |   physical
+ *                |                                        |   bottom of
+ *    vertical    |⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽| ← display
+ *    blanking    ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *    region   →  ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *                ┆xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx┆
+ *    start of →   ⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽⎽
+ *    new frame
+ *
+ * "Physical top of display" is the reference point for the high-precision/
+ * corrected timestamp.
+ *
+ * On a lot of display hardware, programming needs to take effect during the
+ * vertical blanking period so that settings like gamma, the image buffer
+ * buffer to be scanned out, etc. can safely be changed without showing
+ * any visual artifacts on the screen. In some unforgiving hardware, some of
+ * this programming has to both start and end in the same vblank. To help
+ * with the timing of the hardware programming, an interrupt is usually
+ * available to notify the driver when it can start the updating of registers.
+ * The interrupt is in this context named the vblank interrupt.
+ *
+ * The vblank interrupt may be fired at different points depending on the
+ * hardware. Some hardware implementations will fire the interrupt when the
+ * new frame start, other implementations will fire the interrupt at different
+ * points in time.
  *
  * Vertical blanking plays a major role in graphics rendering. To achieve
  * tear-free display, users must synchronize page flips and/or rendering to
@@ -278,8 +342,8 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 
 	DRM_DEBUG_VBL("updating vblank count on crtc %u:"
 		      " current=%llu, diff=%u, hw=%u hw_last=%u\n",
-		      pipe, atomic64_read(&vblank->count), diff,
-		      cur_vblank, vblank->last);
+		      pipe, (unsigned long long)atomic64_read(&vblank->count),
+		      diff, cur_vblank, vblank->last);
 
 	if (diff == 0) {
 		WARN_ON_ONCE(cur_vblank != vblank->last);
@@ -425,13 +489,9 @@ static void vblank_disable_fn(struct timer_list *t)
 	spin_unlock_irqrestore(&dev->vbl_lock, irqflags);
 }
 
-void drm_vblank_cleanup(struct drm_device *dev)
+static void drm_vblank_init_release(struct drm_device *dev, void *ptr)
 {
 	unsigned int pipe;
-
-	/* Bail if the driver didn't call drm_vblank_init() */
-	if (dev->num_crtcs == 0)
-		return;
 
 	for (pipe = 0; pipe < dev->num_crtcs; pipe++) {
 		struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
@@ -441,10 +501,6 @@ void drm_vblank_cleanup(struct drm_device *dev)
 
 		del_timer_sync(&vblank->disable_timer);
 	}
-
-	kfree(dev->vblank);
-
-	dev->num_crtcs = 0;
 }
 
 /**
@@ -453,25 +509,29 @@ void drm_vblank_cleanup(struct drm_device *dev)
  * @num_crtcs: number of CRTCs supported by @dev
  *
  * This function initializes vblank support for @num_crtcs display pipelines.
- * Cleanup is handled by the DRM core, or through calling drm_dev_fini() for
- * drivers with a &drm_driver.release callback.
+ * Cleanup is handled automatically through a cleanup function added with
+ * drmm_add_action().
  *
  * Returns:
  * Zero on success or a negative error code on failure.
  */
 int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs)
 {
-	int ret = -ENOMEM;
+	int ret;
 	unsigned int i;
 
 	spin_lock_init(&dev->vbl_lock);
 	spin_lock_init(&dev->vblank_time_lock);
 
+	dev->vblank = drmm_kcalloc(dev, num_crtcs, sizeof(*dev->vblank), GFP_KERNEL);
+	if (!dev->vblank)
+		return -ENOMEM;
+
 	dev->num_crtcs = num_crtcs;
 
-	dev->vblank = kcalloc(num_crtcs, sizeof(*dev->vblank), GFP_KERNEL);
-	if (!dev->vblank)
-		goto err;
+	ret = drmm_add_action(dev, drm_vblank_init_release, NULL);
+	if (ret)
+		return ret;
 
 	for (i = 0; i < num_crtcs; i++) {
 		struct drm_vblank_crtc *vblank = &dev->vblank[i];
@@ -486,10 +546,6 @@ int drm_vblank_init(struct drm_device *dev, unsigned int num_crtcs)
 	DRM_INFO("Supports vblank timestamp caching Rev 2 (21.10.2013).\n");
 
 	return 0;
-
-err:
-	dev->num_crtcs = 0;
-	return ret;
 }
 EXPORT_SYMBOL(drm_vblank_init);
 

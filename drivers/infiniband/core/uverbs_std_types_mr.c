@@ -136,21 +136,15 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 
 	uobj->object = mr;
 
+	uverbs_finalize_uobj_create(attrs, UVERBS_ATTR_REG_DM_MR_HANDLE);
+
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_DM_MR_RESP_LKEY, &mr->lkey,
 			     sizeof(mr->lkey));
 	if (ret)
-		goto err_dereg;
+		return ret;
 
 	ret = uverbs_copy_to(attrs, UVERBS_ATTR_REG_DM_MR_RESP_RKEY,
 			     &mr->rkey, sizeof(mr->rkey));
-	if (ret)
-		goto err_dereg;
-
-	return 0;
-
-err_dereg:
-	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
-
 	return ret;
 }
 

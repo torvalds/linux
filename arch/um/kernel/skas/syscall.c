@@ -11,6 +11,7 @@
 #include <sysdep/ptrace_user.h>
 #include <sysdep/syscalls.h>
 #include <linux/time-internal.h>
+#include <asm/unistd.h>
 
 void handle_syscall(struct uml_pt_regs *r)
 {

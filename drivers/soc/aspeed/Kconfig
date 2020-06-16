@@ -8,7 +8,7 @@ config SOC_ASPEED
 config ASPEED_LPC_CTRL
 	depends on SOC_ASPEED && REGMAP && MFD_SYSCON
 	tristate "Aspeed ast2400/2500 HOST LPC to BMC bridge control"
-	---help---
+	help
 	  Control Aspeed ast2400/2500 HOST LPC to BMC mappings through
 	  ioctl()s, the driver also provides a read/write interface to a BMC ram
 	  region where the host LPC read/write region can be buffered.

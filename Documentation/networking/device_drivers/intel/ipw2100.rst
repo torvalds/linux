@@ -1,0 +1,323 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
+===========================================
+Intel(R) PRO/Wireless 2100 Driver for Linux
+===========================================
+
+Support for:
+
+- Intel(R) PRO/Wireless 2100 Network Connection
+
+Copyright |copy| 2003-2006, Intel Corporation
+
+README.ipw2100
+
+:Version: git-1.1.5
+:Date:    January 25, 2006
+
+.. Index
+
+    0. IMPORTANT INFORMATION BEFORE USING THIS DRIVER
+    1. Introduction
+    2. Release git-1.1.5 Current Features
+    3. Command Line Parameters
+    4. Sysfs Helper Files
+    5. Radio Kill Switch
+    6. Dynamic Firmware
+    7. Power Management
+    8. Support
+    9. License
+
+
+0. IMPORTANT INFORMATION BEFORE USING THIS DRIVER
+=================================================
+
+Important Notice FOR ALL USERS OR DISTRIBUTORS!!!!
+
+Intel wireless LAN adapters are engineered, manufactured, tested, and
+quality checked to ensure that they meet all necessary local and
+governmental regulatory agency requirements for the regions that they
+are designated and/or marked to ship into. Since wireless LANs are
+generally unlicensed devices that share spectrum with radars,
+satellites, and other licensed and unlicensed devices, it is sometimes
+necessary to dynamically detect, avoid, and limit usage to avoid
+interference with these devices. In many instances Intel is required to
+provide test data to prove regional and local compliance to regional and
+governmental regulations before certification or approval to use the
+product is granted. Intel's wireless LAN's EEPROM, firmware, and
+software driver are designed to carefully control parameters that affect
+radio operation and to ensure electromagnetic compliance (EMC). These
+parameters include, without limitation, RF power, spectrum usage,
+channel scanning, and human exposure.
+
+For these reasons Intel cannot permit any manipulation by third parties
+of the software provided in binary format with the wireless WLAN
+adapters (e.g., the EEPROM and firmware). Furthermore, if you use any
+patches, utilities, or code with the Intel wireless LAN adapters that
+have been manipulated by an unauthorized party (i.e., patches,
+utilities, or code (including open source code modifications) which have
+not been validated by Intel), (i) you will be solely responsible for
+ensuring the regulatory compliance of the products, (ii) Intel will bear
+no liability, under any theory of liability for any issues associated
+with the modified products, including without limitation, claims under
+the warranty and/or issues arising from regulatory non-compliance, and
+(iii) Intel will not provide or be required to assist in providing
+support to any third parties for such modified products.
+
+Note: Many regulatory agencies consider Wireless LAN adapters to be
+modules, and accordingly, condition system-level regulatory approval
+upon receipt and review of test data documenting that the antennas and
+system configuration do not cause the EMC and radio operation to be
+non-compliant.
+
+The drivers available for download from SourceForge are provided as a
+part of a development project.  Conformance to local regulatory
+requirements is the responsibility of the individual developer.  As
+such, if you are interested in deploying or shipping a driver as part of
+solution intended to be used for purposes other than development, please
+obtain a tested driver from Intel Customer Support at:
+
+http://www.intel.com/support/wireless/sb/CS-006408.htm
+
+1. Introduction
+===============
+
+This document provides a brief overview of the features supported by the
+IPW2100 driver project.  The main project website, where the latest
+development version of the driver can be found, is:
+
+	http://ipw2100.sourceforge.net
+
+There you can find the not only the latest releases, but also information about
+potential fixes and patches, as well as links to the development mailing list
+for the driver project.
+
+
+2. Release git-1.1.5 Current Supported Features
+===============================================
+
+- Managed (BSS) and Ad-Hoc (IBSS)
+- WEP (shared key and open)
+- Wireless Tools support
+- 802.1x (tested with XSupplicant 1.0.1)
+
+Enabled (but not supported) features:
+- Monitor/RFMon mode
+- WPA/WPA2
+
+The distinction between officially supported and enabled is a reflection
+on the amount of validation and interoperability testing that has been
+performed on a given feature.
+
+
+3. Command Line Parameters
+==========================
+
+If the driver is built as a module, the following optional parameters are used
+by entering them on the command line with the modprobe command using this
+syntax::
+
+	modprobe ipw2100 [<option>=<VAL1><,VAL2>...]
+
+For example, to disable the radio on driver loading, enter:
+
+	modprobe ipw2100 disable=1
+
+The ipw2100 driver supports the following module parameters:
+
+=========	==============	============  ==============================
+Name		Value		Example       Meaning
+=========	==============	============  ==============================
+debug		0x0-0xffffffff	debug=1024    Debug level set to 1024
+mode		0,1,2		mode=1        AdHoc
+channel		int		channel=3     Only valid in AdHoc or Monitor
+associate	boolean		associate=0   Do NOT auto associate
+disable		boolean		disable=1     Do not power the HW
+=========	==============	============  ==============================
+
+
+4. Sysfs Helper Files
+=====================
+
+There are several ways to control the behavior of the driver.  Many of the
+general capabilities are exposed through the Wireless Tools (iwconfig).  There
+are a few capabilities that are exposed through entries in the Linux Sysfs.
+
+
+**Driver Level**
+
+For the driver level files, look in /sys/bus/pci/drivers/ipw2100/
+
+  debug_level
+	This controls the same global as the 'debug' module parameter.  For
+	information on the various debugging levels available, run the 'dvals'
+	script found in the driver source directory.
+
+	.. note::
+
+	      'debug_level' is only enabled if CONFIG_IPW2100_DEBUG is turn on.
+
+**Device Level**
+
+For the device level files look in::
+
+	/sys/bus/pci/drivers/ipw2100/{PCI-ID}/
+
+For example::
+
+	/sys/bus/pci/drivers/ipw2100/0000:02:01.0
+
+For the device level files, see /sys/bus/pci/drivers/ipw2100:
+
+  rf_kill
+	read
+
+	==  =========================================
+	0   RF kill not enabled (radio on)
+	1   SW based RF kill active (radio off)
+	2   HW based RF kill active (radio off)
+	3   Both HW and SW RF kill active (radio off)
+	==  =========================================
+
+	write
+
+	==  ==================================================
+	0   If SW based RF kill active, turn the radio back on
+	1   If radio is on, activate SW based RF kill
+	==  ==================================================
+
+	.. note::
+
+	   If you enable the SW based RF kill and then toggle the HW
+	   based RF kill from ON -> OFF -> ON, the radio will NOT come back on
+
+
+5. Radio Kill Switch
+====================
+
+Most laptops provide the ability for the user to physically disable the radio.
+Some vendors have implemented this as a physical switch that requires no
+software to turn the radio off and on.  On other laptops, however, the switch
+is controlled through a button being pressed and a software driver then making
+calls to turn the radio off and on.  This is referred to as a "software based
+RF kill switch"
+
+See the Sysfs helper file 'rf_kill' for determining the state of the RF switch
+on your system.
+
+
+6. Dynamic Firmware
+===================
+
+As the firmware is licensed under a restricted use license, it can not be
+included within the kernel sources.  To enable the IPW2100 you will need a
+firmware image to load into the wireless NIC's processors.
+
+You can obtain these images from <http://ipw2100.sf.net/firmware.php>.
+
+See INSTALL for instructions on installing the firmware.
+
+
+7. Power Management
+===================
+
+The IPW2100 supports the configuration of the Power Save Protocol
+through a private wireless extension interface.  The IPW2100 supports
+the following different modes:
+
+	===	===========================================================
+	off	No power management.  Radio is always on.
+	on	Automatic power management
+	1-5	Different levels of power management.  The higher the
+		number the greater the power savings, but with an impact to
+		packet latencies.
+	===	===========================================================
+
+Power management works by powering down the radio after a certain
+interval of time has passed where no packets are passed through the
+radio.  Once powered down, the radio remains in that state for a given
+period of time.  For higher power savings, the interval between last
+packet processed to sleep is shorter and the sleep period is longer.
+
+When the radio is asleep, the access point sending data to the station
+must buffer packets at the AP until the station wakes up and requests
+any buffered packets.  If you have an AP that does not correctly support
+the PSP protocol you may experience packet loss or very poor performance
+while power management is enabled.  If this is the case, you will need
+to try and find a firmware update for your AP, or disable power
+management (via ``iwconfig eth1 power off``)
+
+To configure the power level on the IPW2100 you use a combination of
+iwconfig and iwpriv.  iwconfig is used to turn power management on, off,
+and set it to auto.
+
+	=========================  ====================================
+	iwconfig eth1 power off    Disables radio power down
+	iwconfig eth1 power on     Enables radio power management to
+				   last set level (defaults to AUTO)
+	iwpriv eth1 set_power 0    Sets power level to AUTO and enables
+				   power management if not previously
+				   enabled.
+	iwpriv eth1 set_power 1-5  Set the power level as specified,
+				   enabling power management if not
+				   previously enabled.
+	=========================  ====================================
+
+You can view the current power level setting via::
+
+	iwpriv eth1 get_power
+
+It will return the current period or timeout that is configured as a string
+in the form of xxxx/yyyy (z) where xxxx is the timeout interval (amount of
+time after packet processing), yyyy is the period to sleep (amount of time to
+wait before powering the radio and querying the access point for buffered
+packets), and z is the 'power level'.  If power management is turned off the
+xxxx/yyyy will be replaced with 'off' -- the level reported will be the active
+level if `iwconfig eth1 power on` is invoked.
+
+
+8. Support
+==========
+
+For general development information and support,
+go to:
+
+    http://ipw2100.sf.net/
+
+The ipw2100 1.1.0 driver and firmware can be downloaded from:
+
+    http://support.intel.com
+
+For installation support on the ipw2100 1.1.0 driver on Linux kernels
+2.6.8 or greater, email support is available from:
+
+    http://supportmail.intel.com
+
+9. License
+==========
+
+  Copyright |copy| 2003 - 2006 Intel Corporation. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify it
+  under the terms of the GNU General Public License (version 2) as
+  published by the Free Software Foundation.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+  more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program; if not, write to the Free Software Foundation, Inc., 59
+  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+
+  The full GNU General Public License is included in this distribution in the
+  file called LICENSE.
+
+  License Contact Information:
+
+  James P. Ketrenos <ipw2100-admin@linux.intel.com>
+
+  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+

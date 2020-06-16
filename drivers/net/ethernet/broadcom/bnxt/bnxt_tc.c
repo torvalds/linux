@@ -1939,53 +1939,25 @@ static int bnxt_tc_setup_indr_block(struct net_device *netdev, struct bnxt *bp,
 	return 0;
 }
 
-static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
-				 enum tc_setup_type type, void *type_data)
-{
-	switch (type) {
-	case TC_SETUP_BLOCK:
-		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
 static bool bnxt_is_netdev_indr_offload(struct net_device *netdev)
 {
 	return netif_is_vxlan(netdev);
 }
 
-static int bnxt_tc_indr_block_event(struct notifier_block *nb,
-				    unsigned long event, void *ptr)
+static int bnxt_tc_setup_indr_cb(struct net_device *netdev, void *cb_priv,
+				 enum tc_setup_type type, void *type_data)
 {
-	struct net_device *netdev;
-	struct bnxt *bp;
-	int rc;
-
-	netdev = netdev_notifier_info_to_dev(ptr);
 	if (!bnxt_is_netdev_indr_offload(netdev))
-		return NOTIFY_OK;
+		return -EOPNOTSUPP;
 
-	bp = container_of(nb, struct bnxt, tc_netdev_nb);
-
-	switch (event) {
-	case NETDEV_REGISTER:
-		rc = __flow_indr_block_cb_register(netdev, bp,
-						   bnxt_tc_setup_indr_cb,
-						   bp);
-		if (rc)
-			netdev_info(bp->dev,
-				    "Failed to register indirect blk: dev: %s\n",
-				    netdev->name);
-		break;
-	case NETDEV_UNREGISTER:
-		__flow_indr_block_cb_unregister(netdev,
-						bnxt_tc_setup_indr_cb,
-						bp);
+	switch (type) {
+	case TC_SETUP_BLOCK:
+		return bnxt_tc_setup_indr_block(netdev, cb_priv, type_data);
+	default:
 		break;
 	}
 
-	return NOTIFY_DONE;
+	return -EOPNOTSUPP;
 }
 
 static const struct rhashtable_params bnxt_tc_flow_ht_params = {
@@ -2074,8 +2046,8 @@ int bnxt_init_tc(struct bnxt *bp)
 
 	/* init indirect block notifications */
 	INIT_LIST_HEAD(&bp->tc_indr_block_list);
-	bp->tc_netdev_nb.notifier_call = bnxt_tc_indr_block_event;
-	rc = register_netdevice_notifier(&bp->tc_netdev_nb);
+
+	rc = flow_indr_dev_register(bnxt_tc_setup_indr_cb, bp);
 	if (!rc)
 		return 0;
 
@@ -2101,7 +2073,8 @@ void bnxt_shutdown_tc(struct bnxt *bp)
 	if (!bnxt_tc_flower_enabled(bp))
 		return;
 
-	unregister_netdevice_notifier(&bp->tc_netdev_nb);
+	flow_indr_dev_unregister(bnxt_tc_setup_indr_cb, bp,
+				 bnxt_tc_setup_indr_block_cb);
 	rhashtable_destroy(&tc_info->flow_table);
 	rhashtable_destroy(&tc_info->l2_table);
 	rhashtable_destroy(&tc_info->decap_l2_table);

@@ -202,6 +202,7 @@ int ftrace_disable_ftrace_graph_caller(void)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
+#ifdef CONFIG_DYNAMIC_FTRACE
 #ifndef CONFIG_CPU_HAS_ICACHE_INS
 struct ftrace_modify_param {
 	int command;
@@ -231,6 +232,7 @@ void arch_ftrace_update_code(int command)
 	stop_machine(__ftrace_modify_code, &param, cpu_online_mask);
 }
 #endif
+#endif /* CONFIG_DYNAMIC_FTRACE */
 
 /* _mcount is defined in abi's mcount.S */
 EXPORT_SYMBOL(_mcount);

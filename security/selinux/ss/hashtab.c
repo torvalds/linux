@@ -29,34 +29,21 @@ static u32 hashtab_compute_size(u32 nel)
 	return nel == 0 ? 0 : roundup_pow_of_two(nel);
 }
 
-struct hashtab *hashtab_create(u32 (*hash_value)(struct hashtab *h, const void *key),
-			       int (*keycmp)(struct hashtab *h, const void *key1, const void *key2),
-			       u32 nel_hint)
+int hashtab_init(struct hashtab *h,
+		 u32 (*hash_value)(struct hashtab *h, const void *key),
+		 int (*keycmp)(struct hashtab *h, const void *key1,
+			       const void *key2),
+		 u32 nel_hint)
 {
-	struct hashtab *p;
-	u32 i, size = hashtab_compute_size(nel_hint);
+	h->size = hashtab_compute_size(nel_hint);
+	h->nel = 0;
+	h->hash_value = hash_value;
+	h->keycmp = keycmp;
+	if (!h->size)
+		return 0;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return p;
-
-	p->size = size;
-	p->nel = 0;
-	p->hash_value = hash_value;
-	p->keycmp = keycmp;
-	if (!size)
-		return p;
-
-	p->htable = kmalloc_array(size, sizeof(*p->htable), GFP_KERNEL);
-	if (!p->htable) {
-		kfree(p);
-		return NULL;
-	}
-
-	for (i = 0; i < size; i++)
-		p->htable[i] = NULL;
-
-	return p;
+	h->htable = kcalloc(h->size, sizeof(*h->htable), GFP_KERNEL);
+	return h->htable ? 0 : -ENOMEM;
 }
 
 int hashtab_insert(struct hashtab *h, void *key, void *datum)
@@ -66,7 +53,7 @@ int hashtab_insert(struct hashtab *h, void *key, void *datum)
 
 	cond_resched();
 
-	if (!h || !h->size || h->nel == HASHTAB_MAX_NODES)
+	if (!h->size || h->nel == HASHTAB_MAX_NODES)
 		return -EINVAL;
 
 	hvalue = h->hash_value(h, key);
@@ -102,7 +89,7 @@ void *hashtab_search(struct hashtab *h, const void *key)
 	u32 hvalue;
 	struct hashtab_node *cur;
 
-	if (!h || !h->size)
+	if (!h->size)
 		return NULL;
 
 	hvalue = h->hash_value(h, key);
@@ -121,9 +108,6 @@ void hashtab_destroy(struct hashtab *h)
 	u32 i;
 	struct hashtab_node *cur, *temp;
 
-	if (!h)
-		return;
-
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
 		while (cur) {
@@ -136,8 +120,6 @@ void hashtab_destroy(struct hashtab *h)
 
 	kfree(h->htable);
 	h->htable = NULL;
-
-	kfree(h);
 }
 
 int hashtab_map(struct hashtab *h,
@@ -147,9 +129,6 @@ int hashtab_map(struct hashtab *h,
 	u32 i;
 	int ret;
 	struct hashtab_node *cur;
-
-	if (!h)
-		return 0;
 
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];

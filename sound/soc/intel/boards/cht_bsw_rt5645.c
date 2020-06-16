@@ -680,6 +680,9 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 static struct platform_driver snd_cht_mc_driver = {
 	.driver = {
 		.name = "cht-bsw-rt5645",
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
+		.pm = &snd_soc_pm_ops,
+#endif
 	},
 	.probe = snd_cht_mc_probe,
 };

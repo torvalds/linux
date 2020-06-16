@@ -53,7 +53,7 @@
  * @clock_on:		Whether IPA clock is on
  * @notified:		Whether modem has been notified of clock state
  * @disabled:		Whether setup ready interrupt handling is disabled
- * @mutex mutex:	Motex protecting ready interrupt/shutdown interlock
+ * @mutex:		Mutex protecting ready-interrupt/shutdown interlock
  * @panic_notifier:	Panic notifier structure
 */
 struct ipa_smp2p {

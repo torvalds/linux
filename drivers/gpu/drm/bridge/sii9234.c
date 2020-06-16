@@ -836,7 +836,8 @@ static int sii9234_init_resources(struct sii9234 *ctx,
 	ctx->supplies[3].supply = "cvcc12";
 	ret = devm_regulator_bulk_get(ctx->dev, 4, ctx->supplies);
 	if (ret) {
-		dev_err(ctx->dev, "regulator_bulk failed\n");
+		if (ret != -EPROBE_DEFER)
+			dev_err(ctx->dev, "regulator_bulk failed\n");
 		return ret;
 	}
 

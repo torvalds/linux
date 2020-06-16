@@ -15,8 +15,7 @@ struct perf_attr_details {
 	bool trace_fields;
 };
 
-int perf_evsel__fprintf(struct evsel *evsel,
-			struct perf_attr_details *details, FILE *fp);
+int evsel__fprintf(struct evsel *evsel, struct perf_attr_details *details, FILE *fp);
 
 #define EVSEL__PRINT_IP			(1<<0)
 #define EVSEL__PRINT_SYM		(1<<1)

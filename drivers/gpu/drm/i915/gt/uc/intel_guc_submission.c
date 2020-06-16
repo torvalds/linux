@@ -217,7 +217,7 @@ static void guc_wq_item_append(struct intel_guc *guc,
 static void guc_add_request(struct intel_guc *guc, struct i915_request *rq)
 {
 	struct intel_engine_cs *engine = rq->engine;
-	u32 ctx_desc = lower_32_bits(rq->context->lrc_desc);
+	u32 ctx_desc = rq->context->lrc.ccid;
 	u32 ring_tail = intel_ring_set_tail(rq->ring, rq->tail) / sizeof(u64);
 
 	guc_wq_item_append(guc, engine->guc_id, ctx_desc,
@@ -258,7 +258,7 @@ static void guc_submit(struct intel_engine_cs *engine,
 
 static inline int rq_prio(const struct i915_request *rq)
 {
-	return rq->sched.attr.priority | __NO_PREEMPTION;
+	return rq->sched.attr.priority;
 }
 
 static struct i915_request *schedule_in(struct i915_request *rq, int idx)

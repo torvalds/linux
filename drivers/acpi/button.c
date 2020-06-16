@@ -24,7 +24,6 @@
 #define PREFIX "ACPI: "
 
 #define ACPI_BUTTON_CLASS		"button"
-#define ACPI_BUTTON_FILE_INFO		"info"
 #define ACPI_BUTTON_FILE_STATE		"state"
 #define ACPI_BUTTON_TYPE_UNKNOWN	0x00
 #define ACPI_BUTTON_NOTIFY_STATUS	0x80
@@ -86,18 +85,6 @@ static const struct dmi_system_id dmi_lid_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire SW5-012"),
 		},
 		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_DISABLED,
-	},
-	{
-		/*
-		 * Asus T200TA, _LID keeps reporting closed after every second
-		 * openening of the lid. Causing immediate re-suspend after
-		 * opening every other open. Using LID_INIT_OPEN fixes this.
-		 */
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-			DMI_MATCH(DMI_PRODUCT_NAME, "T200TA"),
-		},
-		.driver_data = (void *)(long)ACPI_BUTTON_LID_INIT_OPEN,
 	},
 	{
 		/* GP-electronic T701, _LID method points to a floating GPIO */

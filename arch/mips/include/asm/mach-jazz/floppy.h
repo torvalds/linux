@@ -15,21 +15,20 @@
 #include <asm/addrspace.h>
 #include <asm/jazz.h>
 #include <asm/jazzdma.h>
-#include <asm/pgtable.h>
 
-static inline unsigned char fd_inb(unsigned int port)
+static inline unsigned char fd_inb(unsigned int base, unsigned int reg)
 {
 	unsigned char c;
 
-	c = *(volatile unsigned char *) port;
+	c = *(volatile unsigned char *) (base + reg);
 	udelay(1);
 
 	return c;
 }
 
-static inline void fd_outb(unsigned char value, unsigned int port)
+static inline void fd_outb(unsigned char value, unsigned int base, unsigned int reg)
 {
-	*(volatile unsigned char *) port = value;
+	*(volatile unsigned char *) (base + reg) = value;
 }
 
 /*

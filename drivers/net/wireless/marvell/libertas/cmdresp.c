@@ -220,9 +220,8 @@ done:
 	return ret;
 }
 
-int lbs_process_event(struct lbs_private *priv, u32 event)
+void lbs_process_event(struct lbs_private *priv, u32 event)
 {
-	int ret = 0;
 	struct cmd_header cmd;
 
 	switch (event) {
@@ -351,6 +350,4 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		netdev_alert(priv->dev, "EVENT: unknown event id %d\n", event);
 		break;
 	}
-
-	return ret;
 }

@@ -287,7 +287,7 @@ void ocxl_context_free(struct ocxl_context *ctx)
 
 	ocxl_afu_irq_free_all(ctx);
 	idr_destroy(&ctx->irq_idr);
-	/* reference to the AFU taken in ocxl_context_init */
+	/* reference to the AFU taken in ocxl_context_alloc() */
 	ocxl_afu_put(ctx->afu);
 	kfree(ctx);
 }

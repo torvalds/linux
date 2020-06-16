@@ -2,7 +2,7 @@
 /*
  * i2c.h - definitions for the Linux i2c bus interface
  * Copyright (C) 1995-2000 Simon G. Vogl
- * Copyright (C) 2013-2019 Wolfram Sang <wsa@the-dreams.de>
+ * Copyright (C) 2013-2019 Wolfram Sang <wsa@kernel.org>
  *
  * With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and
  * Frodo Looijaard <frodol@dds.nl>
@@ -351,14 +351,14 @@ static inline struct i2c_client *kobj_to_i2c_client(struct kobject *kobj)
 	return to_i2c_client(dev);
 }
 
-static inline void *i2c_get_clientdata(const struct i2c_client *dev)
+static inline void *i2c_get_clientdata(const struct i2c_client *client)
 {
-	return dev_get_drvdata(&dev->dev);
+	return dev_get_drvdata(&client->dev);
 }
 
-static inline void i2c_set_clientdata(struct i2c_client *dev, void *data)
+static inline void i2c_set_clientdata(struct i2c_client *client, void *data)
 {
-	dev_set_drvdata(&dev->dev, data);
+	dev_set_drvdata(&client->dev, data);
 }
 
 /* I2C slave support */
@@ -457,12 +457,6 @@ i2c_new_client_device(struct i2c_adapter *adap, struct i2c_board_info const *inf
  */
 struct i2c_client *
 i2c_new_scanned_device(struct i2c_adapter *adap,
-		       struct i2c_board_info *info,
-		       unsigned short const *addr_list,
-		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));
-
-struct i2c_client *
-i2c_new_probed_device(struct i2c_adapter *adap,
 		       struct i2c_board_info *info,
 		       unsigned short const *addr_list,
 		       int (*probe)(struct i2c_adapter *adap, unsigned short addr));

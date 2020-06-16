@@ -5,10 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,10 +27,9 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2012 - 2014, 2018 - 2020 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -134,12 +132,10 @@ extern const struct ieee80211_ops iwl_mvm_hw_ops;
  *	We will register to mac80211 to have testmode working. The NIC must not
  *	be up'ed after the INIT fw asserted. This is useful to be able to use
  *	proprietary tools over testmode to debug the INIT fw.
- * @tfd_q_hang_detect: enabled the detection of hung transmit queues
  * @power_scheme: one of enum iwl_power_scheme
  */
 struct iwl_mvm_mod_params {
 	bool init_dbg;
-	bool tfd_q_hang_detect;
 	int power_scheme;
 };
 extern struct iwl_mvm_mod_params iwlmvm_mod_params;
@@ -2149,8 +2145,8 @@ iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 
 static inline int iwl_umac_scan_get_max_profiles(const struct iwl_fw *fw)
 {
-	u8 ver = iwl_mvm_lookup_cmd_ver(fw, IWL_ALWAYS_LONG_GROUP,
-					SCAN_OFFLOAD_UPDATE_PROFILES_CMD);
+	u8 ver = iwl_fw_lookup_cmd_ver(fw, IWL_ALWAYS_LONG_GROUP,
+				       SCAN_OFFLOAD_UPDATE_PROFILES_CMD);
 	return (ver == IWL_FW_CMD_VER_UNKNOWN || ver < 3) ?
 		IWL_SCAN_MAX_PROFILES : IWL_SCAN_MAX_PROFILES_V2;
 }

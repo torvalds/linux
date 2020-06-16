@@ -35,7 +35,7 @@
 #define HCI_REQ_CANCELED  2
 
 #define LE_SUSPEND_SCAN_WINDOW		0x0012
-#define LE_SUSPEND_SCAN_INTERVAL	0x0060
+#define LE_SUSPEND_SCAN_INTERVAL	0x0400
 
 void hci_req_init(struct hci_request *req, struct hci_dev *hdev)
 {
@@ -890,7 +890,7 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
 	u8 filter_policy;
-	u8 window, interval;
+	u16 window, interval;
 
 	if (hdev->scanning_paused) {
 		bt_dev_dbg(hdev, "Scanning is paused for suspend");
@@ -1090,7 +1090,7 @@ void hci_req_prepare_suspend(struct hci_dev *hdev, enum suspended_state next)
 				   disconnect_counter);
 			set_bit(SUSPEND_DISCONNECTING, hdev->suspend_tasks);
 		}
-	} else if (next == BT_SUSPEND_COMPLETE) {
+	} else if (next == BT_SUSPEND_CONFIGURE_WAKE) {
 		/* Unpause to take care of updating scanning params */
 		hdev->scanning_paused = false;
 		/* Enable event filter for paired devices */
@@ -1447,7 +1447,7 @@ void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
 		memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
 		hdev->scan_rsp_data_len = len;
 
-		cp.handle = 0;
+		cp.handle = instance;
 		cp.length = len;
 		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
 		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
@@ -1591,7 +1591,7 @@ void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 		hdev->adv_data_len = len;
 
 		cp.length = len;
-		cp.handle = 0;
+		cp.handle = instance;
 		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
 		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
 
@@ -1876,7 +1876,7 @@ int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
 
 		memset(&cp, 0, sizeof(cp));
 
-		cp.handle = 0;
+		cp.handle = instance;
 		bacpy(&cp.bdaddr, &random_addr);
 
 		hci_req_add(req,
@@ -2723,6 +2723,8 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	uint16_t interval = opt;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
+	/* White list is not used for discovery */
+	u8 filter_policy = 0x00;
 	int err;
 
 	BT_DBG("%s", hdev->name);
@@ -2744,7 +2746,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
 	hci_req_start_scan(req, LE_SCAN_ACTIVE, interval, DISCOV_LE_SCAN_WIN,
-			   own_addr_type, 0);
+			   own_addr_type, filter_policy);
 	return 0;
 }
 

@@ -125,7 +125,7 @@ extern const char *kdb_diemsg;
 #define KDB_FLAG_NO_I8042	(1 << 7) /* No i8042 chip is available, do
 					  * not use keyboard */
 
-extern int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
+extern unsigned int kdb_flags;	/* Global flags, see kdb_state for per cpu state */
 
 extern void kdb_save_flags(void);
 extern void kdb_restore_flags(void);

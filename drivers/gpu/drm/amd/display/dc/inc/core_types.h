@@ -38,6 +38,7 @@
 #endif
 #include "dwb.h"
 #include "mcif_wb.h"
+#include "panel_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
 
@@ -92,6 +93,8 @@ struct clk_bw_params;
 struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
 	void (*link_init)(struct dc_link *link);
+	struct panel_cntl*(*panel_cntl_create)(
+		const struct panel_cntl_init_data *panel_cntl_init_data);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
 	bool (*validate_bandwidth)(

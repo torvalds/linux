@@ -635,18 +635,18 @@ int perf_evlist__gtk_browse_hists(struct evlist *evlist,
 
 	evlist__for_each_entry(evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
-		const char *evname = perf_evsel__name(pos);
+		const char *evname = evsel__name(pos);
 		GtkWidget *scrolled_window;
 		GtkWidget *tab_label;
 		char buf[512];
 		size_t size = sizeof(buf);
 
 		if (symbol_conf.event_group) {
-			if (!perf_evsel__is_group_leader(pos))
+			if (!evsel__is_group_leader(pos))
 				continue;
 
 			if (pos->core.nr_members > 1) {
-				perf_evsel__group_desc(pos, buf, size);
+				evsel__group_desc(pos, buf, size);
 				evname = buf;
 			}
 		}

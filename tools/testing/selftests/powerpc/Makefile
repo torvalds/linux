@@ -19,6 +19,7 @@ SUB_DIRS = alignment		\
 	   copyloops		\
 	   dscr			\
 	   mm			\
+	   nx-gzip		\
 	   pmu			\
 	   signal		\
 	   primitives		\

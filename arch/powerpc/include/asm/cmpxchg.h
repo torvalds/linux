@@ -6,7 +6,6 @@
 #include <linux/compiler.h>
 #include <asm/synch.h>
 #include <linux/bug.h>
-#include <asm/asm-405.h>
 
 #ifdef __BIG_ENDIAN
 #define BITOFF_CAL(size, off)	((sizeof(u32) - size - off) * BITS_PER_BYTE)
@@ -29,7 +28,6 @@ static inline u32 __xchg_##type##sfx(volatile void *p, u32 val)	\
 "1:	lwarx   %0,0,%3\n"					\
 "	andc	%1,%0,%5\n"					\
 "	or	%1,%1,%4\n"					\
-	PPC405_ERR77(0,%3)					\
 "	stwcx.	%1,0,%3\n"					\
 "	bne-	1b\n"						\
 	: "=&r" (prev), "=&r" (tmp), "+m" (*(u32*)p)		\
@@ -60,7 +58,6 @@ u32 __cmpxchg_##type##sfx(volatile void *p, u32 old, u32 new)	\
 "	bne-	2f\n"						\
 "	andc	%1,%0,%6\n"					\
 "	or	%1,%1,%5\n"					\
-	PPC405_ERR77(0,%3)					\
 "	stwcx.  %1,0,%3\n"					\
 "	bne-    1b\n"						\
 	br2							\
@@ -92,7 +89,6 @@ __xchg_u32_local(volatile void *p, unsigned long val)
 
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2 \n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%3,0,%2 \n\
 	bne-	1b"
 	: "=&r" (prev), "+m" (*(volatile unsigned int *)p)
@@ -109,7 +105,6 @@ __xchg_u32_relaxed(u32 *p, unsigned long val)
 
 	__asm__ __volatile__(
 "1:	lwarx	%0,0,%2\n"
-	PPC405_ERR77(0, %2)
 "	stwcx.	%3,0,%2\n"
 "	bne-	1b"
 	: "=&r" (prev), "+m" (*p)
@@ -127,7 +122,6 @@ __xchg_u64_local(volatile void *p, unsigned long val)
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2 \n"
-	PPC405_ERR77(0,%2)
 "	stdcx.	%3,0,%2 \n\
 	bne-	1b"
 	: "=&r" (prev), "+m" (*(volatile unsigned long *)p)
@@ -144,7 +138,6 @@ __xchg_u64_relaxed(u64 *p, unsigned long val)
 
 	__asm__ __volatile__(
 "1:	ldarx	%0,0,%2\n"
-	PPC405_ERR77(0, %2)
 "	stdcx.	%3,0,%2\n"
 "	bne-	1b"
 	: "=&r" (prev), "+m" (*p)
@@ -229,7 +222,6 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 "1:	lwarx	%0,0,%2		# __cmpxchg_u32\n\
 	cmpw	0,%0,%3\n\
 	bne-	2f\n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%4,0,%2\n\
 	bne-	1b"
 	PPC_ATOMIC_EXIT_BARRIER
@@ -252,7 +244,6 @@ __cmpxchg_u32_local(volatile unsigned int *p, unsigned long old,
 "1:	lwarx	%0,0,%2		# __cmpxchg_u32\n\
 	cmpw	0,%0,%3\n\
 	bne-	2f\n"
-	PPC405_ERR77(0,%2)
 "	stwcx.	%4,0,%2\n\
 	bne-	1b"
 	"\n\
@@ -273,7 +264,6 @@ __cmpxchg_u32_relaxed(u32 *p, unsigned long old, unsigned long new)
 "1:	lwarx	%0,0,%2		# __cmpxchg_u32_relaxed\n"
 "	cmpw	0,%0,%3\n"
 "	bne-	2f\n"
-	PPC405_ERR77(0, %2)
 "	stwcx.	%4,0,%2\n"
 "	bne-	1b\n"
 "2:"
@@ -301,7 +291,6 @@ __cmpxchg_u32_acquire(u32 *p, unsigned long old, unsigned long new)
 "1:	lwarx	%0,0,%2		# __cmpxchg_u32_acquire\n"
 "	cmpw	0,%0,%3\n"
 "	bne-	2f\n"
-	PPC405_ERR77(0, %2)
 "	stwcx.	%4,0,%2\n"
 "	bne-	1b\n"
 	PPC_ACQUIRE_BARRIER

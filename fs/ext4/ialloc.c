@@ -113,7 +113,7 @@ verified:
  * Read the inode allocation bitmap for a given block_group, reading
  * into the specified slot in the superblock's bitmap cache.
  *
- * Return buffer_head of bitmap on success or NULL.
+ * Return buffer_head of bitmap on success, or an ERR_PTR on error.
  */
 static struct buffer_head *
 ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
@@ -662,7 +662,7 @@ static int find_group_other(struct super_block *sb, struct inode *parent,
  * block has been written back to disk.  (Yes, these values are
  * somewhat arbitrary...)
  */
-#define RECENTCY_MIN	5
+#define RECENTCY_MIN	60
 #define RECENTCY_DIRTY	300
 
 static int recently_deleted(struct super_block *sb, ext4_group_t group, int ino)
@@ -1246,6 +1246,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 		ext4_error_err(sb, -err,
 			       "couldn't read orphan inode %lu (err %d)",
 			       ino, err);
+		brelse(bitmap_bh);
 		return inode;
 	}
 
@@ -1440,7 +1441,7 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 	if (ret < 0)
 		goto err_out;
 	if (barrier)
-		blkdev_issue_flush(sb->s_bdev, GFP_NOFS, NULL);
+		blkdev_issue_flush(sb->s_bdev, GFP_NOFS);
 
 skip_zeroout:
 	ext4_lock_group(sb, group);

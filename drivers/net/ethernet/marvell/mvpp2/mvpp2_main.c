@@ -4329,6 +4329,8 @@ static int mvpp2_ethtool_get_rxfh_context(struct net_device *dev, u32 *indir,
 
 	if (!mvpp22_rss_is_supported())
 		return -EOPNOTSUPP;
+	if (rss_context >= MVPP22_N_RSS_TABLES)
+		return -EINVAL;
 
 	if (hfunc)
 		*hfunc = ETH_RSS_HASH_CRC32;

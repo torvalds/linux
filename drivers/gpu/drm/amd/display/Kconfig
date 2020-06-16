@@ -21,16 +21,12 @@ config DRM_AMD_DC_HDCP
 	bool "Enable HDCP support in DC"
 	depends on DRM_AMD_DC
 	help
-	 Choose this option
-	 if you want to support
-	 HDCP authentication
+	  Choose this option if you want to support HDCP authentication.
 
 config DEBUG_KERNEL_DC
 	bool "Enable kgdb break in DC"
 	depends on DRM_AMD_DC
 	help
-	  Choose this option
-	  if you want to hit
-	  kdgb_break in assert.
+	  Choose this option if you want to hit kdgb_break in assert.
 
 endmenu

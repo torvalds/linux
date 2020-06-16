@@ -32,7 +32,7 @@ int qxl_mode_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *dev,
 			    struct drm_mode_create_dumb *args)
 {
-	struct qxl_device *qdev = dev->dev_private;
+	struct qxl_device *qdev = to_qxl(dev);
 	struct qxl_bo *qobj;
 	uint32_t handle;
 	int r;

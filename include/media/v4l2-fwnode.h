@@ -20,7 +20,6 @@
 #include <linux/types.h>
 
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-subdev.h>
 
 struct fwnode_handle;
 struct v4l2_async_notifier;
@@ -107,6 +106,36 @@ struct v4l2_fwnode_endpoint {
 	} bus;
 	u64 *link_frequencies;
 	unsigned int nr_of_link_frequencies;
+};
+
+/**
+ * V4L2_FWNODE_PROPERTY_UNSET - identify a non initialized property
+ *
+ * All properties in &struct v4l2_fwnode_device_properties are initialized
+ * to this value.
+ */
+#define V4L2_FWNODE_PROPERTY_UNSET   (-1U)
+
+/**
+ * enum v4l2_fwnode_orientation - possible device orientation
+ * @V4L2_FWNODE_ORIENTATION_FRONT: device installed on the front side
+ * @V4L2_FWNODE_ORIENTATION_BACK: device installed on the back side
+ * @V4L2_FWNODE_ORIENTATION_EXTERNAL: device externally located
+ */
+enum v4l2_fwnode_orientation {
+	V4L2_FWNODE_ORIENTATION_FRONT,
+	V4L2_FWNODE_ORIENTATION_BACK,
+	V4L2_FWNODE_ORIENTATION_EXTERNAL
+};
+
+/**
+ * struct v4l2_fwnode_device_properties - fwnode device properties
+ * @orientation: device orientation. See &enum v4l2_fwnode_orientation
+ * @rotation: device rotation
+ */
+struct v4l2_fwnode_device_properties {
+	enum v4l2_fwnode_orientation orientation;
+	unsigned int rotation;
 };
 
 /**
@@ -355,6 +384,23 @@ int v4l2_fwnode_connector_add_link(struct fwnode_handle *fwnode,
 				   struct v4l2_fwnode_connector *connector);
 
 /**
+ * v4l2_fwnode_device_parse() - parse fwnode device properties
+ * @dev: pointer to &struct device
+ * @props: pointer to &struct v4l2_fwnode_device_properties where to store the
+ *	   parsed properties values
+ *
+ * This function parses and validates the V4L2 fwnode device properties from the
+ * firmware interface, and fills the @struct v4l2_fwnode_device_properties
+ * provided by the caller.
+ *
+ * Return:
+ *	% 0 on success
+ *	%-EINVAL if a parsed property value is not valid
+ */
+int v4l2_fwnode_device_parse(struct device *dev,
+			     struct v4l2_fwnode_device_properties *props);
+
+/**
  * typedef parse_endpoint_func - Driver's callback function to be called on
  *	each V4L2 fwnode endpoint.
  *
@@ -489,43 +535,6 @@ v4l2_async_notifier_parse_fwnode_endpoints_by_port(struct device *dev,
  */
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,
 						   struct v4l2_async_notifier *notifier);
-
-/**
- * v4l2_async_register_fwnode_subdev - registers a sub-device to the
- *					asynchronous sub-device framework
- *					and parses fwnode endpoints
- *
- * @sd: pointer to struct &v4l2_subdev
- * @asd_struct_size: size of the driver's async sub-device struct, including
- *		     sizeof(struct v4l2_async_subdev). The &struct
- *		     v4l2_async_subdev shall be the first member of
- *		     the driver's async sub-device struct, i.e. both
- *		     begin at the same memory address.
- * @ports: array of port id's to parse for fwnode endpoints. If NULL, will
- *	   parse all ports owned by the sub-device.
- * @num_ports: number of ports in @ports array. Ignored if @ports is NULL.
- * @parse_endpoint: Driver's callback function called on each V4L2 fwnode
- *		    endpoint. Optional.
- *
- * This function is just like v4l2_async_register_subdev() with the
- * exception that calling it will also allocate a notifier for the
- * sub-device, parse the sub-device's firmware node endpoints using
- * v4l2_async_notifier_parse_fwnode_endpoints() or
- * v4l2_async_notifier_parse_fwnode_endpoints_by_port(), and
- * registers the sub-device notifier. The sub-device is similarly
- * unregistered by calling v4l2_async_unregister_subdev().
- *
- * While registered, the subdev module is marked as in-use.
- *
- * An error is returned if the module is no longer loaded on any attempts
- * to register it.
- */
-int
-v4l2_async_register_fwnode_subdev(struct v4l2_subdev *sd,
-				  size_t asd_struct_size,
-				  unsigned int *ports,
-				  unsigned int num_ports,
-				  parse_endpoint_func parse_endpoint);
 
 /* Helper macros to access the connector links. */
 

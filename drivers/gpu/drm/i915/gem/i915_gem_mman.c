@@ -93,7 +93,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		struct mm_struct *mm = current->mm;
 		struct vm_area_struct *vma;
 
-		if (down_write_killable(&mm->mmap_sem)) {
+		if (mmap_write_lock_killable(mm)) {
 			addr = -EINTR;
 			goto err;
 		}
@@ -103,7 +103,7 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 				pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
 		else
 			addr = -ENOMEM;
-		up_write(&mm->mmap_sem);
+		mmap_write_unlock(mm);
 		if (IS_ERR_VALUE(addr))
 			goto err;
 	}
@@ -394,6 +394,38 @@ err_rpm:
 	i915_gem_object_unpin_pages(obj);
 err:
 	return i915_error_to_vmf_fault(ret);
+}
+
+static int
+vm_access(struct vm_area_struct *area, unsigned long addr,
+	  void *buf, int len, int write)
+{
+	struct i915_mmap_offset *mmo = area->vm_private_data;
+	struct drm_i915_gem_object *obj = mmo->obj;
+	void *vaddr;
+
+	if (i915_gem_object_is_readonly(obj) && write)
+		return -EACCES;
+
+	addr -= area->vm_start;
+	if (addr >= obj->base.size)
+		return -EINVAL;
+
+	/* As this is primarily for debugging, let's focus on simplicity */
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_FORCE_WC);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
+
+	if (write) {
+		memcpy(vaddr + addr, buf, len);
+		__i915_gem_object_flush_map(obj, addr, len);
+	} else {
+		memcpy(buf, vaddr + addr, len);
+	}
+
+	i915_gem_object_unpin_map(obj);
+
+	return len;
 }
 
 void __i915_gem_object_release_mmap_gtt(struct drm_i915_gem_object *obj)
@@ -745,12 +777,14 @@ static void vm_close(struct vm_area_struct *vma)
 
 static const struct vm_operations_struct vm_ops_gtt = {
 	.fault = vm_fault_gtt,
+	.access = vm_access,
 	.open = vm_open,
 	.close = vm_close,
 };
 
 static const struct vm_operations_struct vm_ops_cpu = {
 	.fault = vm_fault_cpu,
+	.access = vm_access,
 	.open = vm_open,
 	.close = vm_close,
 };

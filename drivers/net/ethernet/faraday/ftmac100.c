@@ -1057,9 +1057,6 @@ static int ftmac100_probe(struct platform_device *pdev)
 	struct ftmac100 *priv;
 	int err;
 
-	if (!pdev)
-		return -ENODEV;
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENXIO;

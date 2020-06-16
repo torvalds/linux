@@ -25,7 +25,7 @@ static int max_devices = 16;
 module_param(max_devices, int, 0644);
 MODULE_PARM_DESC(max_devices, "max number of switchtec device instances");
 
-static bool use_dma_mrpc = 1;
+static bool use_dma_mrpc = true;
 module_param(use_dma_mrpc, bool, 0644);
 MODULE_PARM_DESC(use_dma_mrpc,
 		 "Enable the use of the DMA MRPC feature");

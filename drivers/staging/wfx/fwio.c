@@ -99,16 +99,16 @@ static int sram_write_dma_safe(struct wfx_dev *wdev, u32 addr, const u8 *buf,
 	return ret;
 }
 
-int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
-		 const struct firmware **fw, int *file_offset)
+static int get_firmware(struct wfx_dev *wdev, u32 keyset_chip,
+			const struct firmware **fw, int *file_offset)
 {
 	int keyset_file;
 	char filename[256];
 	const char *data;
 	int ret;
 
-	snprintf(filename, sizeof(filename), "%s_%02X.sec", wdev->pdata.file_fw,
-		 keyset_chip);
+	snprintf(filename, sizeof(filename), "%s_%02X.sec",
+		 wdev->pdata.file_fw, keyset_chip);
 	ret = firmware_request_nowarn(fw, filename, wdev->dev);
 	if (ret) {
 		dev_info(wdev->dev, "can't load %s, falling back to %s.sec\n",
@@ -325,8 +325,8 @@ static int init_gpr(struct wfx_dev *wdev)
 				     gpr_init[i].value);
 		if (ret < 0)
 			return ret;
-		dev_dbg(wdev->dev, "  index %02x: %08x\n", gpr_init[i].index,
-			gpr_init[i].value);
+		dev_dbg(wdev->dev, "  index %02x: %08x\n",
+			gpr_init[i].index, gpr_init[i].value);
 	}
 	return 0;
 }
@@ -360,7 +360,7 @@ int wfx_init_device(struct wfx_dev *wdev)
 	dev_dbg(wdev->dev, "initial config register value: %08x\n", reg);
 
 	hw_revision = FIELD_GET(CFG_DEVICE_ID_MAJOR, reg);
-	if (hw_revision == 0 || hw_revision > 2) {
+	if (hw_revision == 0) {
 		dev_err(wdev->dev, "bad hardware revision number: %d\n",
 			hw_revision);
 		return -ENODEV;

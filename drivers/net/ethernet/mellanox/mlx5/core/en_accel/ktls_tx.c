@@ -108,10 +108,11 @@ static void tx_fill_wi(struct mlx5e_txqsq *sq,
 {
 	struct mlx5e_tx_wqe_info *wi = &sq->db.wqe_info[pi];
 
-	memset(wi, 0, sizeof(*wi));
-	wi->num_wqebbs = num_wqebbs;
-	wi->num_bytes  = num_bytes;
-	wi->resync_dump_frag_page = page;
+	*wi = (struct mlx5e_tx_wqe_info) {
+		.num_wqebbs = num_wqebbs,
+		.num_bytes  = num_bytes,
+		.resync_dump_frag_page = page,
+	};
 }
 
 void mlx5e_ktls_tx_offload_set_pending(struct mlx5e_ktls_offload_context_tx *priv_tx)
@@ -134,13 +135,14 @@ post_static_params(struct mlx5e_txqsq *sq,
 		   struct mlx5e_ktls_offload_context_tx *priv_tx,
 		   bool fence)
 {
+	u16 pi, num_wqebbs = MLX5E_KTLS_STATIC_WQEBBS;
 	struct mlx5e_umr_wqe *umr_wqe;
-	u16 pi;
 
-	umr_wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_STATIC_UMR_WQE_SZ, &pi);
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
+	umr_wqe = MLX5E_TLS_FETCH_UMR_WQE(sq, pi);
 	build_static_params(umr_wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_STATIC_WQEBBS, 0, NULL);
-	sq->pc += MLX5E_KTLS_STATIC_WQEBBS;
+	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
+	sq->pc += num_wqebbs;
 }
 
 static void
@@ -148,13 +150,14 @@ post_progress_params(struct mlx5e_txqsq *sq,
 		     struct mlx5e_ktls_offload_context_tx *priv_tx,
 		     bool fence)
 {
+	u16 pi, num_wqebbs = MLX5E_KTLS_PROGRESS_WQEBBS;
 	struct mlx5e_tx_wqe *wqe;
-	u16 pi;
 
-	wqe = mlx5e_sq_fetch_wqe(sq, MLX5E_KTLS_PROGRESS_WQE_SZ, &pi);
+	pi = mlx5e_txqsq_get_next_pi(sq, num_wqebbs);
+	wqe = MLX5E_TLS_FETCH_PROGRESS_WQE(sq, pi);
 	build_progress_params(wqe, sq->pc, sq->sqn, priv_tx, fence);
-	tx_fill_wi(sq, pi, MLX5E_KTLS_PROGRESS_WQEBBS, 0, NULL);
-	sq->pc += MLX5E_KTLS_PROGRESS_WQEBBS;
+	tx_fill_wi(sq, pi, num_wqebbs, 0, NULL);
+	sq->pc += num_wqebbs;
 }
 
 static void
@@ -163,14 +166,6 @@ mlx5e_ktls_tx_post_param_wqes(struct mlx5e_txqsq *sq,
 			      bool skip_static_post, bool fence_first_post)
 {
 	bool progress_fence = skip_static_post || !fence_first_post;
-	struct mlx5_wq_cyc *wq = &sq->wq;
-	u16 contig_wqebbs_room, pi;
-
-	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
-	if (unlikely(contig_wqebbs_room <
-		     MLX5E_KTLS_STATIC_WQEBBS + MLX5E_KTLS_PROGRESS_WQEBBS))
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 
 	if (!skip_static_post)
 		post_static_params(sq, priv_tx, fence_first_post);
@@ -278,7 +273,9 @@ tx_post_resync_dump(struct mlx5e_txqsq *sq, skb_frag_t *frag, u32 tisn, bool fir
 	int fsz;
 	u16 pi;
 
-	wqe = mlx5e_sq_fetch_wqe(sq, sizeof(*wqe), &pi);
+	BUILD_BUG_ON(MLX5E_KTLS_DUMP_WQEBBS != 1);
+	pi = mlx5_wq_cyc_ctr2ix(&sq->wq, sq->pc);
+	wqe = MLX5E_TLS_FETCH_DUMP_WQE(sq, pi);
 
 	ds_cnt = sizeof(*wqe) / MLX5_SEND_WQE_DS;
 
@@ -343,11 +340,8 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 			 u32 seq)
 {
 	struct mlx5e_sq_stats *stats = sq->stats;
-	struct mlx5_wq_cyc *wq = &sq->wq;
 	enum mlx5e_ktls_sync_retval ret;
 	struct tx_sync_info info = {};
-	u16 contig_wqebbs_room, pi;
-	u8 num_wqebbs;
 	int i = 0;
 
 	ret = tx_sync_info_get(priv_tx, seq, datalen, &info);
@@ -375,13 +369,6 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		tx_post_fence_nop(sq);
 		return MLX5E_KTLS_SYNC_DONE;
 	}
-
-	num_wqebbs = mlx5e_ktls_dumps_num_wqebbs(sq, info.nr_frags, info.sync_len);
-	pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
-	contig_wqebbs_room = mlx5_wq_cyc_get_contig_wqebbs(wq, pi);
-
-	if (unlikely(contig_wqebbs_room < num_wqebbs))
-		mlx5e_fill_sq_frag_edge(sq, wq, pi, contig_wqebbs_room);
 
 	for (; i < info.nr_frags; i++) {
 		unsigned int orig_fsz, frag_offset = 0, n = 0;
@@ -422,34 +409,18 @@ err_out:
 	return MLX5E_KTLS_SYNC_FAIL;
 }
 
-struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
-					 struct mlx5e_txqsq *sq,
-					 struct sk_buff *skb,
-					 struct mlx5e_tx_wqe **wqe, u16 *pi)
+bool mlx5e_ktls_handle_tx_skb(struct tls_context *tls_ctx, struct mlx5e_txqsq *sq,
+			      struct sk_buff *skb, int datalen,
+			      struct mlx5e_accel_tx_tls_state *state)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	struct mlx5e_sq_stats *stats = sq->stats;
-	struct mlx5_wqe_ctrl_seg *cseg;
-	struct tls_context *tls_ctx;
-	int datalen;
 	u32 seq;
-
-	if (!skb->sk || !tls_is_sk_tx_device_offloaded(skb->sk))
-		goto out;
-
-	datalen = skb->len - (skb_transport_offset(skb) + tcp_hdrlen(skb));
-	if (!datalen)
-		goto out;
-
-	tls_ctx = tls_get_ctx(skb->sk);
-	if (WARN_ON_ONCE(tls_ctx->netdev != netdev))
-		goto err_out;
 
 	priv_tx = mlx5e_get_ktls_tx_priv_ctx(tls_ctx);
 
 	if (unlikely(mlx5e_ktls_tx_offload_test_and_clear_pending(priv_tx))) {
 		mlx5e_ktls_tx_post_param_wqes(sq, priv_tx, false, false);
-		*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
 		stats->tls_ctx++;
 	}
 
@@ -460,30 +431,28 @@ struct sk_buff *mlx5e_ktls_handle_tx_skb(struct net_device *netdev,
 
 		switch (ret) {
 		case MLX5E_KTLS_SYNC_DONE:
-			*wqe = mlx5e_sq_fetch_wqe(sq, sizeof(**wqe), pi);
 			break;
 		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
 			if (likely(!skb->decrypted))
 				goto out;
 			WARN_ON_ONCE(1);
 			/* fall-through */
-		default: /* MLX5E_KTLS_SYNC_FAIL */
+		case MLX5E_KTLS_SYNC_FAIL:
 			goto err_out;
 		}
 	}
 
 	priv_tx->expected_seq = seq + datalen;
 
-	cseg = &(*wqe)->ctrl;
-	cseg->tisn = cpu_to_be32(priv_tx->tisn << 8);
+	state->tls_tisn = priv_tx->tisn;
 
 	stats->tls_encrypted_packets += skb_is_gso(skb) ? skb_shinfo(skb)->gso_segs : 1;
 	stats->tls_encrypted_bytes   += datalen;
 
 out:
-	return skb;
+	return true;
 
 err_out:
 	dev_kfree_skb_any(skb);
-	return NULL;
+	return false;
 }

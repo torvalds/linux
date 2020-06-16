@@ -99,10 +99,10 @@ comment "Set to Y if you want auto-loading the codec driver"
 	depends on SND_HDA=y && SND_HDA_CODEC_REALTEK=m
 
 config SND_HDA_CODEC_ANALOG
-	tristate "Build Analog Device HD-audio codec support"
+	tristate "Build Analog Devices HD-audio codec support"
 	select SND_HDA_GENERIC
 	help
-	  Say Y or M here to include Analog Device HD-audio codec support in
+	  Say Y or M here to include Analog Devices HD-audio codec support in
 	  snd-hda-intel driver, such as AD1986A.
 
 comment "Set to Y if you want auto-loading the codec driver"

@@ -27,6 +27,7 @@ enum ipl_pbt {
 	IPL_PBT_FCP = 0,
 	IPL_PBT_SCP_DATA = 1,
 	IPL_PBT_CCW = 2,
+	IPL_PBT_NVME = 4,
 };
 
 /* IPL Parameter Block 0 with common fields */
@@ -66,6 +67,30 @@ struct ipl_pb0_fcp {
 
 #define IPL_PB0_FCP_OPT_IPL	0x10
 #define IPL_PB0_FCP_OPT_DUMP	0x20
+
+/* IPL Parameter Block 0 for NVMe */
+struct ipl_pb0_nvme {
+	__u32 len;
+	__u8  pbt;
+	__u8  reserved1[3];
+	__u8  loadparm[8];
+	__u8  reserved2[304];
+	__u8  opt;
+	__u8  reserved3[3];
+	__u32 fid;
+	__u8 reserved4[12];
+	__u32 nsid;
+	__u8 reserved5[4];
+	__u32 bootprog;
+	__u8 reserved6[12];
+	__u64 br_lba;
+	__u32 scp_data_len;
+	__u8  reserved7[260];
+	__u8  scp_data[];
+} __packed;
+
+#define IPL_PB0_NVME_OPT_IPL	0x10
+#define IPL_PB0_NVME_OPT_DUMP	0x20
 
 /* IPL Parameter Block 0 for CCW */
 struct ipl_pb0_ccw {

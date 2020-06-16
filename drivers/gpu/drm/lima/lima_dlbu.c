@@ -42,7 +42,7 @@ void lima_dlbu_set_reg(struct lima_ip *ip, u32 *reg)
 	dlbu_write(LIMA_DLBU_START_TILE_POS, reg[3]);
 }
 
-int lima_dlbu_init(struct lima_ip *ip)
+static int lima_dlbu_hw_init(struct lima_ip *ip)
 {
 	struct lima_device *dev = ip->dev;
 
@@ -50,6 +50,21 @@ int lima_dlbu_init(struct lima_ip *ip)
 	dlbu_write(LIMA_DLBU_MASTER_TLLIST_VADDR, LIMA_VA_RESERVE_DLBU);
 
 	return 0;
+}
+
+int lima_dlbu_resume(struct lima_ip *ip)
+{
+	return lima_dlbu_hw_init(ip);
+}
+
+void lima_dlbu_suspend(struct lima_ip *ip)
+{
+
+}
+
+int lima_dlbu_init(struct lima_ip *ip)
+{
+	return lima_dlbu_hw_init(ip);
 }
 
 void lima_dlbu_fini(struct lima_ip *ip)

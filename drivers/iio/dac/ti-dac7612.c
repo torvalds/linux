@@ -3,7 +3,7 @@
  * DAC7612 Dual, 12-Bit Serial input Digital-to-Analog Converter
  *
  * Copyright 2019 Qtechnology A/S
- * 2019 Ricardo Ribalda <ricardo@ribalda.com>
+ * 2019 Ricardo Ribalda <ribalda@kernel.org>
  *
  * Licensed under the GPL-2.
  */
@@ -179,6 +179,6 @@ static struct spi_driver dac7612_driver = {
 };
 module_spi_driver(dac7612_driver);
 
-MODULE_AUTHOR("Ricardo Ribalda <ricardo@ribalda.com>");
+MODULE_AUTHOR("Ricardo Ribalda <ribalda@kernel.org>");
 MODULE_DESCRIPTION("Texas Instruments DAC7612 DAC driver");
 MODULE_LICENSE("GPL v2");

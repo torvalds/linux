@@ -97,30 +97,35 @@ examples:
     #include <dt-bindings/clock/tegra186-clock.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    memory-controller@2c00000 {
-        compatible = "nvidia,tegra186-mc";
-        reg = <0x0 0x02c00000 0x0 0xb0000>;
-        interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
-
+    bus {
         #address-cells = <2>;
         #size-cells = <2>;
 
-        ranges = <0x0 0x02c00000 0x02c00000 0x0 0xb0000>;
+        memory-controller@2c00000 {
+            compatible = "nvidia,tegra186-mc";
+            reg = <0x0 0x02c00000 0x0 0xb0000>;
+            interrupts = <GIC_SPI 223 IRQ_TYPE_LEVEL_HIGH>;
 
-        /*
-         * Memory clients have access to all 40 bits that the memory
-         * controller can address.
-         */
-        dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+            #address-cells = <2>;
+            #size-cells = <2>;
 
-        external-memory-controller@2c60000 {
-            compatible = "nvidia,tegra186-emc";
-            reg = <0x0 0x02c60000 0x0 0x50000>;
-            interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
-            clocks = <&bpmp TEGRA186_CLK_EMC>;
-            clock-names = "emc";
+            ranges = <0x0 0x02c00000 0x0 0x02c00000 0x0 0xb0000>;
 
-            nvidia,bpmp = <&bpmp>;
+            /*
+             * Memory clients have access to all 40 bits that the memory
+             * controller can address.
+             */
+            dma-ranges = <0x0 0x0 0x0 0x0 0x100 0x0>;
+
+            external-memory-controller@2c60000 {
+                compatible = "nvidia,tegra186-emc";
+                reg = <0x0 0x02c60000 0x0 0x50000>;
+                interrupts = <GIC_SPI 224 IRQ_TYPE_LEVEL_HIGH>;
+                clocks = <&bpmp TEGRA186_CLK_EMC>;
+                clock-names = "emc";
+
+                nvidia,bpmp = <&bpmp>;
+            };
         };
     };
 

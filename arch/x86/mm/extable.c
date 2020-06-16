@@ -204,8 +204,19 @@ void __init early_fixup_exception(struct pt_regs *regs, int trapnr)
 	if (fixup_exception(regs, trapnr, regs->orig_ax, 0))
 		return;
 
-	if (fixup_bug(regs, trapnr))
-		return;
+	if (trapnr == X86_TRAP_UD) {
+		if (report_bug(regs->ip, regs) == BUG_TRAP_TYPE_WARN) {
+			/* Skip the ud2. */
+			regs->ip += LEN_UD2;
+			return;
+		}
+
+		/*
+		 * If this was a BUG and report_bug returns or if this
+		 * was just a normal #UD, we want to continue onward and
+		 * crash.
+		 */
+	}
 
 fail:
 	early_printk("PANIC: early exception 0x%02x IP %lx:%lx error %lx cr2 0x%lx\n",

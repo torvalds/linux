@@ -14,7 +14,7 @@
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
  *
- * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
+ * see Documentation/driver-api/media/drivers/dvb-usb.rst for more information
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

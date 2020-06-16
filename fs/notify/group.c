@@ -25,6 +25,7 @@ static void fsnotify_final_destroy_group(struct fsnotify_group *group)
 		group->ops->free_group_priv(group);
 
 	mem_cgroup_put(group->memcg);
+	mutex_destroy(&group->mark_mutex);
 
 	kfree(group);
 }

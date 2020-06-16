@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iommu/renesas,ipmmu-vmsa.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas VMSA-Compatible IOMMU
+
+maintainers:
+  - Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+
+description:
+  The IPMMU is an IOMMU implementation compatible with the ARM VMSA page tables.
+  It provides address translation for bus masters outside of the CPU, each
+  connected to the IPMMU through a port called micro-TLB.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - renesas,ipmmu-r8a73a4  # R-Mobile APE6
+              - renesas,ipmmu-r8a7743  # RZ/G1M
+              - renesas,ipmmu-r8a7744  # RZ/G1N
+              - renesas,ipmmu-r8a7745  # RZ/G1E
+              - renesas,ipmmu-r8a7790  # R-Car H2
+              - renesas,ipmmu-r8a7791  # R-Car M2-W
+              - renesas,ipmmu-r8a7793  # R-Car M2-N
+              - renesas,ipmmu-r8a7794  # R-Car E2
+          - const: renesas,ipmmu-vmsa  # R-Mobile APE6 or R-Car Gen2 or RZ/G1
+      - items:
+          - enum:
+              - renesas,ipmmu-r8a774a1 # RZ/G2M
+              - renesas,ipmmu-r8a774b1 # RZ/G2N
+              - renesas,ipmmu-r8a774c0 # RZ/G2E
+              - renesas,ipmmu-r8a7795  # R-Car H3
+              - renesas,ipmmu-r8a7796  # R-Car M3-W
+              - renesas,ipmmu-r8a77965 # R-Car M3-N
+              - renesas,ipmmu-r8a77970 # R-Car V3M
+              - renesas,ipmmu-r8a77980 # R-Car V3H
+              - renesas,ipmmu-r8a77990 # R-Car E3
+              - renesas,ipmmu-r8a77995 # R-Car D3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+    description:
+      Specifiers for the MMU fault interrupts. Not required for cache IPMMUs.
+    items:
+      - description: non-secure mode
+      - description: secure mode if supported
+
+  '#iommu-cells':
+    const: 1
+    description:
+      The number of the micro-TLB that the device is connected to.
+
+  power-domains:
+    maxItems: 1
+
+  renesas,ipmmu-main:
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    description:
+      Reference to the main IPMMU phandle plus 1 cell. The cell is
+      the interrupt bit number associated with the particular cache IPMMU
+      device. The interrupt bit number needs to match the main IPMMU IMSSTR
+      register. Only used by cache IPMMU instances.
+
+required:
+  - compatible
+  - reg
+  - '#iommu-cells'
+  - power-domains
+
+oneOf:
+  - required:
+      - interrupts
+  - required:
+      - renesas,ipmmu-main
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/r8a7791-cpg-mssr.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/r8a7791-sysc.h>
+
+    ipmmu_mx: iommu@fe951000 {
+        compatible = "renasas,ipmmu-r8a7791", "renasas,ipmmu-vmsa";
+        reg = <0xfe951000 0x1000>;
+        interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 221 IRQ_TYPE_LEVEL_HIGH>;
+        #iommu-cells = <1>;
+    };

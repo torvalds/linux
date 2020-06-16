@@ -920,14 +920,15 @@ static int ivtv_g_selection(struct file *file, void *fh,
 static int ivtv_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
 {
 	static const struct v4l2_fmtdesc hm12 = {
-		0, V4L2_BUF_TYPE_VIDEO_CAPTURE, 0,
-		"HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
-		{ 0, 0, 0, 0 }
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.description = "HM12 (YUV 4:2:0)",
+		.pixelformat = V4L2_PIX_FMT_HM12,
 	};
 	static const struct v4l2_fmtdesc mpeg = {
-		0, V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FMT_FLAG_COMPRESSED,
-		"MPEG", V4L2_PIX_FMT_MPEG,
-		{ 0, 0, 0, 0 }
+		.type = V4L2_BUF_TYPE_VIDEO_CAPTURE,
+		.flags = V4L2_FMT_FLAG_COMPRESSED,
+		.description = "MPEG",
+		.pixelformat = V4L2_PIX_FMT_MPEG,
 	};
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];
@@ -946,14 +947,15 @@ static int ivtv_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtdes
 static int ivtv_enum_fmt_vid_out(struct file *file, void *fh, struct v4l2_fmtdesc *fmt)
 {
 	static const struct v4l2_fmtdesc hm12 = {
-		0, V4L2_BUF_TYPE_VIDEO_OUTPUT, 0,
-		"HM12 (YUV 4:2:0)", V4L2_PIX_FMT_HM12,
-		{ 0, 0, 0, 0 }
+		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+		.description = "HM12 (YUV 4:2:0)",
+		.pixelformat = V4L2_PIX_FMT_HM12,
 	};
 	static const struct v4l2_fmtdesc mpeg = {
-		0, V4L2_BUF_TYPE_VIDEO_OUTPUT, V4L2_FMT_FLAG_COMPRESSED,
-		"MPEG", V4L2_PIX_FMT_MPEG,
-		{ 0, 0, 0, 0 }
+		.type = V4L2_BUF_TYPE_VIDEO_OUTPUT,
+		.flags = V4L2_FMT_FLAG_COMPRESSED,
+		.description = "MPEG",
+		.pixelformat = V4L2_PIX_FMT_MPEG,
 	};
 	struct ivtv *itv = fh2id(fh)->itv;
 	struct ivtv_stream *s = &itv->streams[fh2id(fh)->type];

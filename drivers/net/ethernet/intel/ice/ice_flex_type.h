@@ -20,7 +20,7 @@ struct ice_fv {
 
 /* Package and segment headers and tables */
 struct ice_pkg_hdr {
-	struct ice_pkg_ver format_ver;
+	struct ice_pkg_ver pkg_format_ver;
 	__le32 seg_count;
 	__le32 seg_offset[1];
 };
@@ -30,9 +30,9 @@ struct ice_generic_seg_hdr {
 #define SEGMENT_TYPE_METADATA	0x00000001
 #define SEGMENT_TYPE_ICE	0x00000010
 	__le32 seg_type;
-	struct ice_pkg_ver seg_ver;
+	struct ice_pkg_ver seg_format_ver;
 	__le32 seg_size;
-	char seg_name[ICE_PKG_NAME_SIZE];
+	char seg_id[ICE_PKG_NAME_SIZE];
 };
 
 /* ice specific segment */
@@ -75,7 +75,7 @@ struct ice_buf_table {
 struct ice_global_metadata_seg {
 	struct ice_generic_seg_hdr hdr;
 	struct ice_pkg_ver pkg_ver;
-	__le32 track_id;
+	__le32 rsvd;
 	char pkg_name[ICE_PKG_NAME_SIZE];
 };
 
@@ -149,6 +149,7 @@ struct ice_buf_hdr {
 #define ICE_SID_CDID_REDIR_RSS		48
 
 #define ICE_SID_RXPARSER_BOOST_TCAM	56
+#define ICE_SID_TXPARSER_BOOST_TCAM	66
 
 #define ICE_SID_XLT0_PE			80
 #define ICE_SID_XLT_KEY_BUILDER_PE	81
@@ -289,6 +290,38 @@ struct ice_pkg_enum {
 
 	u32 entry_idx;
 	void *(*handler)(u32 sect_type, void *section, u32 index, u32 *offset);
+};
+
+/* Tunnel enabling */
+
+enum ice_tunnel_type {
+	TNL_VXLAN = 0,
+	TNL_GENEVE,
+	TNL_LAST = 0xFF,
+	TNL_ALL = 0xFF,
+};
+
+struct ice_tunnel_type_scan {
+	enum ice_tunnel_type type;
+	const char *label_prefix;
+};
+
+struct ice_tunnel_entry {
+	enum ice_tunnel_type type;
+	u16 boost_addr;
+	u16 port;
+	u16 ref;
+	struct ice_boost_tcam_entry *boost_entry;
+	u8 valid;
+	u8 in_use;
+	u8 marked;
+};
+
+#define ICE_TUNNEL_MAX_ENTRIES	16
+
+struct ice_tunnel_table {
+	struct ice_tunnel_entry tbl[ICE_TUNNEL_MAX_ENTRIES];
+	u16 count;
 };
 
 struct ice_pkg_es {

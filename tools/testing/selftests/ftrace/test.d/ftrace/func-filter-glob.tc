@@ -9,6 +9,8 @@ if ! grep -q function available_tracers; then
     exit_unsupported
 fi
 
+check_filter_file set_ftrace_filter
+
 disable_tracing
 clear_trace
 

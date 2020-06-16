@@ -1431,8 +1431,9 @@ error:
 }
 
 /* Transmit the packet using specified transmit queue */
-int emac_mac_tx_buf_send(struct emac_adapter *adpt, struct emac_tx_queue *tx_q,
-			 struct sk_buff *skb)
+netdev_tx_t emac_mac_tx_buf_send(struct emac_adapter *adpt,
+				 struct emac_tx_queue *tx_q,
+				 struct sk_buff *skb)
 {
 	struct emac_tpd tpd;
 	u32 prod_idx;

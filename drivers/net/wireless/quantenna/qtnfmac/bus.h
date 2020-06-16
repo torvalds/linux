@@ -69,7 +69,7 @@ struct qtnf_bus {
 	struct notifier_block netdev_nb;
 	u8 hw_id[ETH_ALEN];
 	/* bus private data */
-	char bus_priv[0] __aligned(sizeof(void *));
+	char bus_priv[] __aligned(sizeof(void *));
 };
 
 static inline bool qtnf_fw_is_up(struct qtnf_bus *bus)

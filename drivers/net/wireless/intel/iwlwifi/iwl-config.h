@@ -5,9 +5,8 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2007 - 2014, 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -27,9 +26,8 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright (C) 2016 - 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2005 - 2014, 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -284,6 +282,13 @@ struct iwl_pwr_tx_backoff {
 	u32 backoff;
 };
 
+enum iwl_cfg_trans_ltr_delay {
+	IWL_CFG_TRANS_LTR_DELAY_NONE	= 0,
+	IWL_CFG_TRANS_LTR_DELAY_200US	= 1,
+	IWL_CFG_TRANS_LTR_DELAY_2500US	= 2,
+	IWL_CFG_TRANS_LTR_DELAY_1820US	= 3,
+};
+
 /**
  * struct iwl_cfg_trans - information needed to start the trans
  *
@@ -304,6 +309,7 @@ struct iwl_pwr_tx_backoff {
  * @mq_rx_supported: multi-queue rx support
  * @integrated: discrete or integrated
  * @low_latency_xtal: use the low latency xtal if supported
+ * @ltr_delay: LTR delay parameter, &enum iwl_cfg_trans_ltr_delay.
  */
 struct iwl_cfg_trans_params {
 	const struct iwl_base_params *base_params;
@@ -317,7 +323,8 @@ struct iwl_cfg_trans_params {
 	    mq_rx_supported:1,
 	    integrated:1,
 	    low_latency_xtal:1,
-	    bisr_workaround:1;
+	    bisr_workaround:1,
+	    ltr_delay:2;
 };
 
 /**
@@ -470,12 +477,16 @@ struct iwl_cfg {
 #define IWL_CFG_RF_TYPE_TH1		0x108
 #define IWL_CFG_RF_TYPE_JF2		0x105
 #define IWL_CFG_RF_TYPE_JF1		0x108
+#define IWL_CFG_RF_TYPE_HR2		0x10A
+#define IWL_CFG_RF_TYPE_HR1		0x10C
 
 #define IWL_CFG_RF_ID_TH		0x1
 #define IWL_CFG_RF_ID_TH1		0x1
 #define IWL_CFG_RF_ID_JF		0x3
 #define IWL_CFG_RF_ID_JF1		0x6
 #define IWL_CFG_RF_ID_JF1_DIV		0xA
+#define IWL_CFG_RF_ID_HR		0x7
+#define IWL_CFG_RF_ID_HR1		0x4
 
 #define IWL_CFG_NO_160			0x0
 #define IWL_CFG_160			0x1
@@ -506,9 +517,10 @@ struct iwl_dev_info {
 extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl9560_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl9560_shared_clk_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_qu_trans_cfg;
-extern const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_qnj_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_qu_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_qu_medium_latency_trans_cfg;
+extern const struct iwl_cfg_trans_params iwl_qu_long_latency_trans_cfg;
 extern const struct iwl_cfg_trans_params iwl_ax200_trans_cfg;
 extern const char iwl9162_name[];
 extern const char iwl9260_name[];
@@ -527,6 +539,8 @@ extern const char iwl9260_killer_1550_name[];
 extern const char iwl9560_killer_1550i_name[];
 extern const char iwl9560_killer_1550s_name[];
 extern const char iwl_ax200_name[];
+extern const char iwl_ax201_name[];
+extern const char iwl_ax101_name[];
 extern const char iwl_ax200_killer_1650w_name[];
 extern const char iwl_ax200_killer_1650x_name[];
 
@@ -601,9 +615,9 @@ extern const struct iwl_cfg iwl9560_qu_c0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_quz_a0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_qnj_b0_jf_b0_cfg;
 extern const struct iwl_cfg iwl9560_2ac_cfg_soc;
-extern const struct iwl_cfg iwl_ax101_cfg_qu_hr;
-extern const struct iwl_cfg iwl_ax101_cfg_qu_c0_hr_b0;
-extern const struct iwl_cfg iwl_ax101_cfg_quz_hr;
+extern const struct iwl_cfg iwl_qu_b0_hr1_b0;
+extern const struct iwl_cfg iwl_qu_c0_hr1_b0;
+extern const struct iwl_cfg iwl_quz_a0_hr1_b0;
 extern const struct iwl_cfg iwl_ax200_cfg_cc;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
 extern const struct iwl_cfg iwl_ax201_cfg_qu_hr;
@@ -617,14 +631,16 @@ extern const struct iwl_cfg killer1650s_2ax_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg killer1650i_2ax_cfg_qu_c0_hr_b0;
 extern const struct iwl_cfg killer1650x_2ax_cfg;
 extern const struct iwl_cfg killer1650w_2ax_cfg;
-extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0_f0;
-extern const struct iwl_cfg iwl22000_2ax_cfg_qnj_hr_b0;
+extern const struct iwl_cfg iwl_qnj_b0_hr_b0_cfg;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_jf_a0;
 extern const struct iwl_cfg iwlax210_2ax_cfg_so_hr_a0;
 extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0;
+extern const struct iwl_cfg iwlax211_2ax_cfg_so_gf_a0_long;
 extern const struct iwl_cfg iwlax210_2ax_cfg_ty_gf_a0;
 extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0;
+extern const struct iwl_cfg iwlax411_2ax_cfg_so_gf4_a0_long;
 extern const struct iwl_cfg iwlax411_2ax_cfg_sosnj_gf4_a0;
+extern const struct iwl_cfg iwlax211_cfg_snj_gf_a0;
 #endif /* CPTCFG_IWLMVM || CPTCFG_IWLFMAC */
 
 #endif /* __IWL_CONFIG_H__ */

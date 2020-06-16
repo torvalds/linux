@@ -186,7 +186,7 @@ struct touchpad_protocol {
 	u8			number_of_fingers;
 	u8			clicked2;
 	u8			unknown3[16];
-	struct tp_finger	fingers[0];
+	struct tp_finger	fingers[];
 };
 
 /**

@@ -28,6 +28,7 @@ properties:
       - sprd,sc9863a-rpll
       - sprd,sc9863a-dpll
       - sprd,sc9863a-mm-gate
+      - sprd,sc9863a-mm-clk
       - sprd,sc9863a-apapb-gate
 
   clocks:
@@ -76,29 +77,24 @@ examples:
   - |
     ap_clk: clock-controller@21500000 {
       compatible = "sprd,sc9863a-ap-clk";
-      reg = <0 0x21500000 0 0x1000>;
+      reg = <0x21500000 0x1000>;
       clocks = <&ext_26m>, <&ext_32k>;
       clock-names = "ext-26m", "ext-32k";
       #clock-cells = <1>;
     };
 
   - |
-    soc {
-      #address-cells = <2>;
-      #size-cells = <2>;
+    syscon@20e00000 {
+      compatible = "sprd,sc9863a-glbregs", "syscon", "simple-mfd";
+      reg = <0x20e00000 0x4000>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      ranges = <0 0x20e00000 0x4000>;
 
-      ap_ahb_regs: syscon@20e00000 {
-        compatible = "sprd,sc9863a-glbregs", "syscon", "simple-mfd";
-        reg = <0 0x20e00000 0 0x4000>;
-        #address-cells = <1>;
-        #size-cells = <1>;
-        ranges = <0 0 0x20e00000 0x4000>;
-
-        apahb_gate: apahb-gate@0 {
-          compatible = "sprd,sc9863a-apahb-gate";
-          reg = <0x0 0x1020>;
-          #clock-cells = <1>;
-        };
+      apahb_gate: apahb-gate@0 {
+        compatible = "sprd,sc9863a-apahb-gate";
+        reg = <0x0 0x1020>;
+        #clock-cells = <1>;
       };
     };
 

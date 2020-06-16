@@ -44,7 +44,7 @@ config EDAC_DECODE_MCE
 	tristate "Decode MCEs in human-readable form (only on AMD for now)"
 	depends on CPU_SUP_AMD && X86_MCE_AMD
 	default y
-	---help---
+	help
 	  Enable this option if you want to decode Machine Check Exceptions
 	  occurring on your machine in human-readable form.
 

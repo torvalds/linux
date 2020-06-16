@@ -673,9 +673,11 @@ static int free_tx_poll(struct napi_struct *napi, int budget)
 
 	if (pkts < budget) {
 		napi_complete(napi);
-		hinic_hwdev_set_msix_state(nic_dev->hwdev,
-					   sq->msix_entry,
-					   HINIC_MSIX_ENABLE);
+		if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+			hinic_hwdev_set_msix_state(nic_dev->hwdev,
+						   sq->msix_entry,
+						   HINIC_MSIX_ENABLE);
+
 		return pkts;
 	}
 
@@ -701,10 +703,11 @@ static irqreturn_t tx_irq(int irq, void *data)
 
 	nic_dev = netdev_priv(txq->netdev);
 
-	/* Disable the interrupt until napi will be completed */
-	hinic_hwdev_set_msix_state(nic_dev->hwdev,
-				   txq->sq->msix_entry,
-				   HINIC_MSIX_DISABLE);
+	if (!HINIC_IS_VF(nic_dev->hwdev->hwif))
+		/* Disable the interrupt until napi will be completed */
+		hinic_hwdev_set_msix_state(nic_dev->hwdev,
+					   txq->sq->msix_entry,
+					   HINIC_MSIX_DISABLE);
 
 	hinic_hwdev_msix_cnt_set(nic_dev->hwdev, txq->sq->msix_entry);
 

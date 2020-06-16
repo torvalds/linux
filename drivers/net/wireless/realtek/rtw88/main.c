@@ -137,7 +137,6 @@ struct rtw_watch_dog_iter_data {
 static void rtw_dynamic_csi_rate(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
 {
 	struct rtw_bf_info *bf_info = &rtwdev->bf_info;
-	struct rtw_chip_info *chip = rtwdev->chip;
 	u8 fix_rate_enable = 0;
 	u8 new_csi_rate_idx;
 
@@ -145,9 +144,9 @@ static void rtw_dynamic_csi_rate(struct rtw_dev *rtwdev, struct rtw_vif *rtwvif)
 	    rtwvif->bfee.role != RTW_BFEE_MU)
 		return;
 
-	chip->ops->cfg_csi_rate(rtwdev, rtwdev->dm_info.min_rssi,
-				bf_info->cur_csi_rpt_rate,
-				fix_rate_enable, &new_csi_rate_idx);
+	rtw_chip_cfg_csi_rate(rtwdev, rtwdev->dm_info.min_rssi,
+			      bf_info->cur_csi_rpt_rate,
+			      fix_rate_enable, &new_csi_rate_idx);
 
 	if (new_csi_rate_idx != bf_info->cur_csi_rpt_rate)
 		bf_info->cur_csi_rpt_rate = new_csi_rate_idx;
@@ -409,6 +408,23 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 	}
 
 	rtw_phy_set_tx_power_level(rtwdev, center_chan);
+
+	/* if the channel isn't set for scanning, we will do RF calibration
+	 * in ieee80211_ops::mgd_prepare_tx(). Performing the calibration
+	 * during scanning on each channel takes too long.
+	 */
+	if (!test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
+		rtwdev->need_rfk = true;
+}
+
+void rtw_chip_prepare_tx(struct rtw_dev *rtwdev)
+{
+	struct rtw_chip_info *chip = rtwdev->chip;
+
+	if (rtwdev->need_rfk) {
+		rtwdev->need_rfk = false;
+		chip->ops->phy_calibration(rtwdev);
+	}
 }
 
 static void rtw_vif_write_addr(struct rtw_dev *rtwdev, u32 start, u8 *addr)
@@ -473,6 +489,7 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
+	struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (hw_ant_num == EFUSE_HW_CAP_IGNORE ||
 	    hw_ant_num >= hal->rf_path_num)
@@ -482,6 +499,8 @@ static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 	case 1:
 		hal->rf_type = RF_1T1R;
 		hal->rf_path_num = 1;
+		if (!chip->fix_rf_phy_num)
+			hal->rf_phy_num = hal->rf_path_num;
 		hal->antenna_tx = BB_PATH_A;
 		hal->antenna_rx = BB_PATH_A;
 		break;
@@ -931,8 +950,11 @@ static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 	ht_cap->cap = 0;
 	ht_cap->cap |= IEEE80211_HT_CAP_SGI_20 |
 			IEEE80211_HT_CAP_MAX_AMSDU |
-			IEEE80211_HT_CAP_LDPC_CODING |
 			(1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+
+	if (rtw_chip_has_rx_ldpc(rtwdev))
+		ht_cap->cap |= IEEE80211_HT_CAP_LDPC_CODING;
+
 	if (efuse->hw_cap.bw & BIT(RTW_CHANNEL_WIDTH_40))
 		ht_cap->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 				IEEE80211_HT_CAP_DSSSCCK40 |
@@ -966,7 +988,6 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 
 	vht_cap->vht_supported = true;
 	vht_cap->cap = IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
-		       IEEE80211_VHT_CAP_RXLDPC |
 		       IEEE80211_VHT_CAP_SHORT_GI_80 |
 		       IEEE80211_VHT_CAP_TXSTBC |
 		       IEEE80211_VHT_CAP_RXSTBC_1 |
@@ -978,6 +999,9 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 			IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
 	vht_cap->cap |= (rtwdev->hal.bfee_sts_cap <<
 			IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT);
+
+	if (rtw_chip_has_rx_ldpc(rtwdev))
+		vht_cap->cap |= IEEE80211_VHT_CAP_RXLDPC;
 
 	mcs_map = IEEE80211_VHT_MCS_SUPPORT_0_9 << 0 |
 		  IEEE80211_VHT_MCS_NOT_SUPPORTED << 4 |
@@ -1040,11 +1064,43 @@ static void rtw_unset_supported_band(struct ieee80211_hw *hw,
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
 }
 
+static void __update_firmware_info(struct rtw_dev *rtwdev,
+				   struct rtw_fw_state *fw)
+{
+	const struct rtw_fw_hdr *fw_hdr =
+				(const struct rtw_fw_hdr *)fw->firmware->data;
+
+	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
+	fw->version = le16_to_cpu(fw_hdr->version);
+	fw->sub_version = fw_hdr->subversion;
+	fw->sub_index = fw_hdr->subindex;
+}
+
+static void __update_firmware_info_legacy(struct rtw_dev *rtwdev,
+					  struct rtw_fw_state *fw)
+{
+	struct rtw_fw_hdr_legacy *legacy =
+				(struct rtw_fw_hdr_legacy *)fw->firmware->data;
+
+	fw->h2c_version = 0;
+	fw->version = le16_to_cpu(legacy->version);
+	fw->sub_version = legacy->subversion1;
+	fw->sub_index = legacy->subversion2;
+}
+
+static void update_firmware_info(struct rtw_dev *rtwdev,
+				 struct rtw_fw_state *fw)
+{
+	if (rtw_chip_wcpu_11n(rtwdev))
+		__update_firmware_info_legacy(rtwdev, fw);
+	else
+		__update_firmware_info(rtwdev, fw);
+}
+
 static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 {
 	struct rtw_fw_state *fw = context;
 	struct rtw_dev *rtwdev = fw->rtwdev;
-	const struct rtw_fw_hdr *fw_hdr;
 
 	if (!firmware || !firmware->data) {
 		rtw_err(rtwdev, "failed to request firmware\n");
@@ -1052,13 +1108,8 @@ static void rtw_load_firmware_cb(const struct firmware *firmware, void *context)
 		return;
 	}
 
-	fw_hdr = (const struct rtw_fw_hdr *)firmware->data;
-	fw->h2c_version = le16_to_cpu(fw_hdr->h2c_fmt_ver);
-	fw->version = le16_to_cpu(fw_hdr->version);
-	fw->sub_version = fw_hdr->subversion;
-	fw->sub_index = fw_hdr->subindex;
-
 	fw->firmware = firmware;
+	update_firmware_info(rtwdev, fw);
 	complete_all(&fw->completion);
 
 	rtw_info(rtwdev, "Firmware version %u.%u.%u, H2C version %u\n",
@@ -1131,6 +1182,8 @@ static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 		hal->antenna_tx = BB_PATH_A;
 		hal->antenna_rx = BB_PATH_A;
 	}
+	hal->rf_phy_num = chip->fix_rf_phy_num ? chip->fix_rf_phy_num :
+			  hal->rf_path_num;
 
 	efuse->physical_size = chip->phy_efuse_size;
 	efuse->logical_size = chip->log_efuse_size;
@@ -1450,6 +1503,7 @@ EXPORT_SYMBOL(rtw_core_deinit);
 
 int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 {
+	struct rtw_hal *hal = &rtwdev->hal;
 	int max_tx_headroom = 0;
 	int ret;
 
@@ -1478,6 +1532,8 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 				     BIT(NL80211_IFTYPE_AP) |
 				     BIT(NL80211_IFTYPE_ADHOC) |
 				     BIT(NL80211_IFTYPE_MESH_POINT);
+	hw->wiphy->available_antennas_tx = hal->antenna_tx;
+	hw->wiphy->available_antennas_rx = hal->antenna_rx;
 
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
 			    WIPHY_FLAG_TDLS_EXTERNAL_SETUP;

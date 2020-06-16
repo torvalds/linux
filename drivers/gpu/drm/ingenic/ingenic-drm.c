@@ -23,11 +23,13 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_irq.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_plane.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <drm/drm_vblank.h>
 
 #define JZ_REG_LCD_CFG				0x00
@@ -488,15 +490,6 @@ static irqreturn_t ingenic_drm_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void ingenic_drm_release(struct drm_device *drm)
-{
-	struct ingenic_drm *priv = drm_device_get_priv(drm);
-
-	drm_mode_config_cleanup(drm);
-	drm_dev_fini(drm);
-	kfree(priv);
-}
-
 static int ingenic_drm_enable_vblank(struct drm_crtc *crtc)
 {
 	struct ingenic_drm *priv = drm_crtc_get_priv(crtc);
@@ -540,7 +533,6 @@ static struct drm_driver ingenic_drm_driver_data = {
 	.gem_prime_mmap		= drm_gem_cma_prime_mmap,
 
 	.irq_handler		= ingenic_drm_irq_handler,
-	.release		= ingenic_drm_release,
 };
 
 static const struct drm_plane_funcs ingenic_drm_primary_plane_funcs = {
@@ -592,10 +584,6 @@ static const struct drm_mode_config_funcs ingenic_drm_mode_config_funcs = {
 	.atomic_commit		= drm_atomic_helper_commit,
 };
 
-static const struct drm_encoder_funcs ingenic_drm_encoder_funcs = {
-	.destroy		= drm_encoder_cleanup,
-};
-
 static void ingenic_drm_free_dma_hwdesc(void *d)
 {
 	struct ingenic_drm *priv = d;
@@ -623,24 +611,21 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	priv = devm_drm_dev_alloc(dev, &ingenic_drm_driver_data,
+				  struct ingenic_drm, drm);
+	if (IS_ERR(priv))
+		return PTR_ERR(priv);
 
 	priv->soc_info = soc_info;
 	priv->dev = dev;
 	drm = &priv->drm;
-	drm->dev_private = priv;
 
 	platform_set_drvdata(pdev, priv);
 
-	ret = devm_drm_dev_init(dev, drm, &ingenic_drm_driver_data);
-	if (ret) {
-		kfree(priv);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
 		return ret;
-	}
 
-	drm_mode_config_init(drm);
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
 	drm->mode_config.max_width = soc_info->max_width;
@@ -661,10 +646,8 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "Failed to get platform irq");
+	if (irq < 0)
 		return irq;
-	}
 
 	if (soc_info->needs_dev_clk) {
 		priv->lcd_clk = devm_clk_get(dev, "lcd");
@@ -730,8 +713,8 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 	drm_encoder_helper_add(&priv->encoder,
 			       &ingenic_drm_encoder_helper_funcs);
 
-	ret = drm_encoder_init(drm, &priv->encoder, &ingenic_drm_encoder_funcs,
-			       DRM_MODE_ENCODER_DPI, NULL);
+	ret = drm_simple_encoder_init(drm, &priv->encoder,
+				      DRM_MODE_ENCODER_DPI);
 	if (ret) {
 		dev_err(dev, "Failed to init encoder: %i", ret);
 		return ret;
@@ -791,9 +774,7 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		goto err_devclk_disable;
 	}
 
-	ret = drm_fbdev_generic_setup(drm, 32);
-	if (ret)
-		dev_warn(dev, "Unable to start fbdev emulation: %i", ret);
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 

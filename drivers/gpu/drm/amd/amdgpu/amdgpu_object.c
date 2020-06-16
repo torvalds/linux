@@ -753,7 +753,7 @@ int amdgpu_bo_restore_shadow(struct amdgpu_bo *shadow, struct dma_fence **fence)
 
 	return amdgpu_copy_buffer(ring, shadow_addr, parent_addr,
 				  amdgpu_bo_size(shadow), NULL, fence,
-				  true, false);
+				  true, false, false);
 }
 
 /**

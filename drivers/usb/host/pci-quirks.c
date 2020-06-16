@@ -16,6 +16,9 @@
 #include <linux/export.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <soc/bcm2835/raspberrypi-firmware.h>
+
 #include "pci-quirks.h"
 #include "xhci-ext-caps.h"
 
@@ -205,7 +208,7 @@ static void usb_amd_find_chipset_info(void)
 {
 	unsigned long flags;
 	struct amd_chipset_info info;
-	info.need_pll_quirk = 0;
+	info.need_pll_quirk = false;
 
 	spin_lock_irqsave(&amd_lock, flags);
 
@@ -229,10 +232,10 @@ static void usb_amd_find_chipset_info(void)
 	case AMD_CHIPSET_SB800:
 	case AMD_CHIPSET_HUDSON2:
 	case AMD_CHIPSET_BOLTON:
-		info.need_pll_quirk = 1;
+		info.need_pll_quirk = true;
 		break;
 	default:
-		info.need_pll_quirk = 0;
+		info.need_pll_quirk = false;
 		break;
 	}
 
@@ -529,7 +532,7 @@ void usb_amd_dev_put(void)
 	amd_chipset.nb_type = 0;
 	memset(&amd_chipset.sb_type, 0, sizeof(amd_chipset.sb_type));
 	amd_chipset.isoc_reqs = 0;
-	amd_chipset.need_pll_quirk = 0;
+	amd_chipset.need_pll_quirk = false;
 
 	spin_unlock_irqrestore(&amd_lock, flags);
 
@@ -1243,11 +1246,24 @@ iounmap:
 
 static void quirk_usb_early_handoff(struct pci_dev *pdev)
 {
+	int ret;
+
 	/* Skip Netlogic mips SoC's internal PCI USB controller.
 	 * This device does not need/support EHCI/OHCI handoff
 	 */
 	if (pdev->vendor == 0x184e)	/* vendor Netlogic */
 		return;
+
+	if (pdev->vendor == PCI_VENDOR_ID_VIA && pdev->device == 0x3483) {
+		ret = rpi_firmware_init_vl805(pdev);
+		if (ret) {
+			/* Firmware might be outdated, or something failed */
+			dev_warn(&pdev->dev,
+				 "Failed to load VL805's firmware: %d. Will continue to attempt to work, but bad things might happen. You should fix this...\n",
+				 ret);
+		}
+	}
+
 	if (pdev->class != PCI_CLASS_SERIAL_USB_UHCI &&
 			pdev->class != PCI_CLASS_SERIAL_USB_OHCI &&
 			pdev->class != PCI_CLASS_SERIAL_USB_EHCI &&

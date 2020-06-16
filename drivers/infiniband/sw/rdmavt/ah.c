@@ -98,14 +98,14 @@ EXPORT_SYMBOL(rvt_check_ah);
  *
  * Return: 0 on success
  */
-int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
-		  u32 create_flags, struct ib_udata *udata)
+int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
+		  struct ib_udata *udata)
 {
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);
 	struct rvt_dev_info *dev = ib_to_rvt(ibah->device);
 	unsigned long flags;
 
-	if (rvt_check_ah(ibah->device, ah_attr))
+	if (rvt_check_ah(ibah->device, init_attr->ah_attr))
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->n_ahs_lock, flags);
@@ -117,10 +117,11 @@ int rvt_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr,
 	dev->n_ahs_allocated++;
 	spin_unlock_irqrestore(&dev->n_ahs_lock, flags);
 
-	rdma_copy_ah_attr(&ah->attr, ah_attr);
+	rdma_copy_ah_attr(&ah->attr, init_attr->ah_attr);
 
 	if (dev->driver_f.notify_new_ah)
-		dev->driver_f.notify_new_ah(ibah->device, ah_attr, ah);
+		dev->driver_f.notify_new_ah(ibah->device,
+					    init_attr->ah_attr, ah);
 
 	return 0;
 }

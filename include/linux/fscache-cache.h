@@ -6,7 +6,7 @@
  *
  * NOTE!!! See:
  *
- *	Documentation/filesystems/caching/backend-api.txt
+ *	Documentation/filesystems/caching/backend-api.rst
  *
  * for a description of the cache backend interface declared here.
  */
@@ -454,7 +454,7 @@ static inline void fscache_object_lookup_error(struct fscache_object *object)
  * Set the maximum size an object is permitted to reach, implying the highest
  * byte that may be written.  Intended to be called by the attr_changed() op.
  *
- * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * See Documentation/filesystems/caching/backend-api.rst for a complete
  * description.
  */
 static inline

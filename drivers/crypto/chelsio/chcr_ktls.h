@@ -89,10 +89,15 @@ static inline int chcr_get_first_rx_qid(struct adapter *adap)
 	return u_ctx->lldi.rxq_ids[0];
 }
 
-void chcr_enable_ktls(struct adapter *adap);
-void chcr_disable_ktls(struct adapter *adap);
 int chcr_ktls_cpl_act_open_rpl(struct adapter *adap, unsigned char *input);
 int chcr_ktls_cpl_set_tcb_rpl(struct adapter *adap, unsigned char *input);
 int chcr_ktls_xmit(struct sk_buff *skb, struct net_device *dev);
+int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
+		      enum tls_offload_ctx_dir direction,
+		      struct tls_crypto_info *crypto_info,
+		      u32 start_offload_tcp_sn);
+void chcr_ktls_dev_del(struct net_device *netdev,
+		       struct tls_context *tls_ctx,
+		       enum tls_offload_ctx_dir direction);
 #endif /* CONFIG_CHELSIO_TLS_DEVICE */
 #endif /* __CHCR_KTLS_H__ */

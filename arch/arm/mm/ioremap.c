@@ -141,14 +141,8 @@ void __check_vmalloc_seq(struct mm_struct *mm)
 static void unmap_area_sections(unsigned long virt, unsigned long size)
 {
 	unsigned long addr = virt, end = virt + (size & ~(SZ_1M - 1));
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmdp;
+	pmd_t *pmdp = pmd_off_k(addr);
 
-	flush_cache_vunmap(addr, end);
-	pgd = pgd_offset_k(addr);
-	pud = pud_offset(pgd, addr);
-	pmdp = pmd_offset(pud, addr);
 	do {
 		pmd_t pmd = *pmdp;
 
@@ -189,9 +183,7 @@ remap_area_sections(unsigned long virt, unsigned long pfn,
 		    size_t size, const struct mem_type *type)
 {
 	unsigned long addr = virt, end = virt + size;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
+	pmd_t *pmd = pmd_off_k(addr);
 
 	/*
 	 * Remove and free any PTE-based mapping, and
@@ -199,9 +191,6 @@ remap_area_sections(unsigned long virt, unsigned long pfn,
 	 */
 	unmap_area_sections(virt, size);
 
-	pgd = pgd_offset_k(addr);
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
 	do {
 		pmd[0] = __pmd(__pfn_to_phys(pfn) | type->prot_sect);
 		pfn += SZ_1M >> PAGE_SHIFT;
@@ -221,19 +210,13 @@ remap_area_supersections(unsigned long virt, unsigned long pfn,
 			 size_t size, const struct mem_type *type)
 {
 	unsigned long addr = virt, end = virt + size;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
+	pmd_t *pmd = pmd_off_k(addr);
 
 	/*
 	 * Remove and free any PTE-based mapping, and
 	 * sync the current kernel mapping.
 	 */
 	unmap_area_sections(virt, size);
-
-	pgd = pgd_offset_k(virt);
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
 	do {
 		unsigned long super_pmd_val, i;
 

@@ -43,6 +43,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/moduleparam.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include "mlx4_en.h"
 
@@ -261,6 +262,10 @@ static void mlx4_en_stamp_wqe(struct mlx4_en_priv *priv,
 	}
 }
 
+INDIRECT_CALLABLE_DECLARE(u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
+						   struct mlx4_en_tx_ring *ring,
+						   int index, u64 timestamp,
+						   int napi_mode));
 
 u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 			 struct mlx4_en_tx_ring *ring,
@@ -329,6 +334,11 @@ u32 mlx4_en_free_tx_desc(struct mlx4_en_priv *priv,
 	return tx_info->nr_txbb;
 }
 
+INDIRECT_CALLABLE_DECLARE(u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
+						      struct mlx4_en_tx_ring *ring,
+						      int index, u64 timestamp,
+						      int napi_mode));
+
 u32 mlx4_en_recycle_tx_desc(struct mlx4_en_priv *priv,
 			    struct mlx4_en_tx_ring *ring,
 			    int index, u64 timestamp,
@@ -382,8 +392,8 @@ int mlx4_en_free_tx_buf(struct net_device *dev, struct mlx4_en_tx_ring *ring)
 	return cnt;
 }
 
-bool mlx4_en_process_tx_cq(struct net_device *dev,
-			   struct mlx4_en_cq *cq, int napi_budget)
+int mlx4_en_process_tx_cq(struct net_device *dev,
+			  struct mlx4_en_cq *cq, int napi_budget)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_cq *mcq = &cq->mcq;
@@ -405,7 +415,7 @@ bool mlx4_en_process_tx_cq(struct net_device *dev,
 	u32 ring_cons;
 
 	if (unlikely(!priv->port_up))
-		return true;
+		return 0;
 
 	netdev_txq_bql_complete_prefetchw(ring->tx_queue);
 
@@ -449,7 +459,9 @@ bool mlx4_en_process_tx_cq(struct net_device *dev,
 				timestamp = mlx4_en_get_cqe_ts(cqe);
 
 			/* free next descriptor */
-			last_nr_txbb = ring->free_tx_desc(
+			last_nr_txbb = INDIRECT_CALL_2(ring->free_tx_desc,
+						       mlx4_en_free_tx_desc,
+						       mlx4_en_recycle_tx_desc,
 					priv, ring, ring_index,
 					timestamp, napi_budget);
 
@@ -480,7 +492,7 @@ bool mlx4_en_process_tx_cq(struct net_device *dev,
 	WRITE_ONCE(ring->cons, ring_cons + txbbs_skipped);
 
 	if (cq->type == TX_XDP)
-		return done < budget;
+		return done;
 
 	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
@@ -492,7 +504,7 @@ bool mlx4_en_process_tx_cq(struct net_device *dev,
 		ring->wake_queue++;
 	}
 
-	return done < budget;
+	return done;
 }
 
 void mlx4_en_tx_irq(struct mlx4_cq *mcq)
@@ -512,14 +524,14 @@ int mlx4_en_poll_tx_cq(struct napi_struct *napi, int budget)
 	struct mlx4_en_cq *cq = container_of(napi, struct mlx4_en_cq, napi);
 	struct net_device *dev = cq->dev;
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	bool clean_complete;
+	int work_done;
 
-	clean_complete = mlx4_en_process_tx_cq(dev, cq, budget);
-	if (!clean_complete)
+	work_done = mlx4_en_process_tx_cq(dev, cq, budget);
+	if (work_done >= budget)
 		return budget;
 
-	napi_complete(napi);
-	mlx4_en_arm_cq(priv, cq);
+	if (napi_complete_done(napi, work_done))
+		mlx4_en_arm_cq(priv, cq);
 
 	return 0;
 }

@@ -15,7 +15,9 @@
 #include <linux/jiffies.h>
 #include <linux/log2.h>
 #include <linux/err.h>
+#include <linux/netdevice.h>
 
+#include "hinic_sriov.h"
 #include "hinic_hw_if.h"
 #include "hinic_hw_eqs.h"
 #include "hinic_hw_mgmt.h"
@@ -42,24 +44,6 @@ enum io_status {
 	IO_RUNNING = 1,
 };
 
-enum hw_ioctxt_set_cmdq_depth {
-	HW_IOCTXT_SET_CMDQ_DEPTH_DEFAULT,
-};
-
-/* HW struct */
-struct hinic_dev_cap {
-	u8      status;
-	u8      version;
-	u8      rsvd0[6];
-
-	u8      rsvd1[5];
-	u8      intr_type;
-	u8      rsvd2[66];
-	u16     max_sqs;
-	u16     max_rqs;
-	u8      rsvd3[208];
-};
-
 /**
  * get_capability - convert device capabilities to NIC capabilities
  * @hwdev: the HW device to set and convert device capabilities for
@@ -67,16 +51,13 @@ struct hinic_dev_cap {
  *
  * Return 0 - Success, negative - Failure
  **/
-static int get_capability(struct hinic_hwdev *hwdev,
-			  struct hinic_dev_cap *dev_cap)
+static int parse_capability(struct hinic_hwdev *hwdev,
+			    struct hinic_dev_cap *dev_cap)
 {
 	struct hinic_cap *nic_cap = &hwdev->nic_cap;
 	int num_aeqs, num_ceqs, num_irqs;
 
-	if (!HINIC_IS_PF(hwdev->hwif) && !HINIC_IS_PPF(hwdev->hwif))
-		return -EINVAL;
-
-	if (dev_cap->intr_type != INTR_MSIX_TYPE)
+	if (!HINIC_IS_VF(hwdev->hwif) && dev_cap->intr_type != INTR_MSIX_TYPE)
 		return -EFAULT;
 
 	num_aeqs = HINIC_HWIF_NUM_AEQS(hwdev->hwif);
@@ -89,12 +70,18 @@ static int get_capability(struct hinic_hwdev *hwdev,
 	if (nic_cap->num_qps > HINIC_Q_CTXT_MAX)
 		nic_cap->num_qps = HINIC_Q_CTXT_MAX;
 
-	nic_cap->max_qps = dev_cap->max_sqs + 1;
-	if (nic_cap->max_qps != (dev_cap->max_rqs + 1))
-		return -EFAULT;
+	if (!HINIC_IS_VF(hwdev->hwif))
+		nic_cap->max_qps = dev_cap->max_sqs + 1;
+	else
+		nic_cap->max_qps = dev_cap->max_sqs;
 
 	if (nic_cap->num_qps > nic_cap->max_qps)
 		nic_cap->num_qps = nic_cap->max_qps;
+
+	if (!HINIC_IS_VF(hwdev->hwif)) {
+		nic_cap->max_vf = dev_cap->max_vf;
+		nic_cap->max_vf_qps = dev_cap->max_vf_sqs + 1;
+	}
 
 	return 0;
 }
@@ -105,27 +92,26 @@ static int get_capability(struct hinic_hwdev *hwdev,
  *
  * Return 0 - Success, negative - Failure
  **/
-static int get_cap_from_fw(struct hinic_pfhwdev *pfhwdev)
+static int get_capability(struct hinic_pfhwdev *pfhwdev)
 {
 	struct hinic_hwdev *hwdev = &pfhwdev->hwdev;
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_dev_cap dev_cap;
-	u16 in_len, out_len;
+	u16 out_len;
 	int err;
 
-	in_len = 0;
 	out_len = sizeof(dev_cap);
 
 	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_CFGM,
-				HINIC_CFG_NIC_CAP, &dev_cap, in_len, &dev_cap,
-				&out_len, HINIC_MGMT_MSG_SYNC);
+				HINIC_CFG_NIC_CAP, &dev_cap, sizeof(dev_cap),
+				&dev_cap, &out_len, HINIC_MGMT_MSG_SYNC);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get capability from FW\n");
 		return err;
 	}
 
-	return get_capability(hwdev, &dev_cap);
+	return parse_capability(hwdev, &dev_cap);
 }
 
 /**
@@ -144,15 +130,14 @@ static int get_dev_cap(struct hinic_hwdev *hwdev)
 	switch (HINIC_FUNC_TYPE(hwif)) {
 	case HINIC_PPF:
 	case HINIC_PF:
+	case HINIC_VF:
 		pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
-
-		err = get_cap_from_fw(pfhwdev);
+		err = get_capability(pfhwdev);
 		if (err) {
-			dev_err(&pdev->dev, "Failed to get capability from FW\n");
+			dev_err(&pdev->dev, "Failed to get capability\n");
 			return err;
 		}
 		break;
-
 	default:
 		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
 		return -EINVAL;
@@ -225,18 +210,24 @@ static void disable_msix(struct hinic_hwdev *hwdev)
 int hinic_port_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_port_cmd cmd,
 		       void *buf_in, u16 in_size, void *buf_out, u16 *out_size)
 {
-	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
 
 	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC, cmd,
+				 buf_in, in_size, buf_out, out_size,
+				 HINIC_MGMT_MSG_SYNC);
+}
+
+int hinic_hilink_msg_cmd(struct hinic_hwdev *hwdev, enum hinic_hilink_cmd cmd,
+			 void *buf_in, u16 in_size, void *buf_out,
+			 u16 *out_size)
+{
+	struct hinic_pfhwdev *pfhwdev;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	return hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_HILINK, cmd,
 				 buf_in, in_size, buf_out, out_size,
 				 HINIC_MGMT_MSG_SYNC);
 }
@@ -252,13 +243,8 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_cmd_fw_ctxt fw_ctxt;
-	u16 out_size;
+	u16 out_size = sizeof(fw_ctxt);
 	int err;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	fw_ctxt.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 	fw_ctxt.rx_buf_sz = HINIC_RX_BUF_SZ;
@@ -283,18 +269,12 @@ static int init_fw_ctxt(struct hinic_hwdev *hwdev)
  *
  * Return 0 - Success, negative - Failure
  **/
-static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int rq_depth,
-			 unsigned int sq_depth)
+static int set_hw_ioctxt(struct hinic_hwdev *hwdev, unsigned int sq_depth,
+			 unsigned int rq_depth)
 {
 	struct hinic_hwif *hwif = hwdev->hwif;
 	struct hinic_cmd_hw_ioctxt hw_ioctxt;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	hw_ioctxt.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 	hw_ioctxt.ppf_idx = HINIC_HWIF_PPF_IDX(hwif);
@@ -374,11 +354,6 @@ static int clear_io_resources(struct hinic_hwdev *hwdev)
 	struct hinic_pfhwdev *pfhwdev;
 	int err;
 
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		return -EINVAL;
-	}
-
 	/* sleep 100ms to wait for firmware stopping I/O */
 	msleep(100);
 
@@ -410,13 +385,7 @@ static int set_resources_state(struct hinic_hwdev *hwdev,
 {
 	struct hinic_cmd_set_res_state res_state;
 	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	res_state.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
 	res_state.state = state;
@@ -441,8 +410,8 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
 {
 	struct hinic_cmd_base_qpn cmd_base_qpn;
 	struct hinic_hwif *hwif = hwdev->hwif;
+	u16 out_size = sizeof(cmd_base_qpn);
 	struct pci_dev *pdev = hwif->pdev;
-	u16 out_size;
 	int err;
 
 	cmd_base_qpn.func_idx = HINIC_HWIF_FUNC_IDX(hwif);
@@ -466,7 +435,7 @@ static int get_base_qpn(struct hinic_hwdev *hwdev, u16 *base_qpn)
  *
  * Return 0 - Success, negative - Failure
  **/
-int hinic_hwdev_ifup(struct hinic_hwdev *hwdev)
+int hinic_hwdev_ifup(struct hinic_hwdev *hwdev, u16 sq_depth, u16 rq_depth)
 {
 	struct hinic_func_to_io *func_to_io = &hwdev->func_to_io;
 	struct hinic_cap *nic_cap = &hwdev->nic_cap;
@@ -488,6 +457,9 @@ int hinic_hwdev_ifup(struct hinic_hwdev *hwdev)
 	num_ceqs = HINIC_HWIF_NUM_CEQS(hwif);
 
 	ceq_msix_entries = &hwdev->msix_entries[num_aeqs];
+	func_to_io->hwdev = hwdev;
+	func_to_io->sq_depth = sq_depth;
+	func_to_io->rq_depth = rq_depth;
 
 	err = hinic_io_init(func_to_io, hwif, nic_cap->max_qps, num_ceqs,
 			    ceq_msix_entries);
@@ -513,7 +485,7 @@ int hinic_hwdev_ifup(struct hinic_hwdev *hwdev)
 		hinic_db_state_set(hwif, HINIC_DB_ENABLE);
 	}
 
-	err = set_hw_ioctxt(hwdev, HINIC_SQ_DEPTH, HINIC_RQ_DEPTH);
+	err = set_hw_ioctxt(hwdev, sq_depth, rq_depth);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to set HW IO ctxt\n");
 		goto err_hw_ioctxt;
@@ -558,16 +530,9 @@ void hinic_hwdev_cb_register(struct hinic_hwdev *hwdev,
 					     u16 in_size, void *buf_out,
 					     u16 *out_size))
 {
-	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_nic_cb *nic_cb;
 	u8 cmd_cb;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "unsupported PCI Function type\n");
-		return;
-	}
 
 	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
 
@@ -588,15 +553,12 @@ void hinic_hwdev_cb_unregister(struct hinic_hwdev *hwdev,
 			       enum hinic_mgmt_msg_cmd cmd)
 {
 	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_nic_cb *nic_cb;
 	u8 cmd_cb;
 
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "unsupported PCI Function type\n");
+	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif))
 		return;
-	}
 
 	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
 
@@ -676,10 +638,23 @@ static int init_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 		return err;
 	}
 
-	hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC,
-				   pfhwdev, nic_mgmt_msg_handler);
+	err = hinic_func_to_func_init(hwdev);
+	if (err) {
+		dev_err(&hwif->pdev->dev, "Failed to init mailbox\n");
+		hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
+		return err;
+	}
+
+	if (!HINIC_IS_VF(hwif))
+		hinic_register_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					   HINIC_MOD_L2NIC, pfhwdev,
+					   nic_mgmt_msg_handler);
+	else
+		hinic_register_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC,
+					  nic_mgmt_msg_handler);
 
 	hinic_set_pf_action(hwif, HINIC_PF_MGMT_ACTIVE);
+
 	return 0;
 }
 
@@ -693,9 +668,41 @@ static void free_pfhwdev(struct hinic_pfhwdev *pfhwdev)
 
 	hinic_set_pf_action(hwdev->hwif, HINIC_PF_MGMT_INIT);
 
-	hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt, HINIC_MOD_L2NIC);
+	if (!HINIC_IS_VF(hwdev->hwif))
+		hinic_unregister_mgmt_msg_cb(&pfhwdev->pf_to_mgmt,
+					     HINIC_MOD_L2NIC);
+	else
+		hinic_unregister_vf_mbox_cb(hwdev, HINIC_MOD_L2NIC);
+
+	hinic_func_to_func_free(hwdev);
 
 	hinic_pf_to_mgmt_free(&pfhwdev->pf_to_mgmt);
+}
+
+static int hinic_l2nic_reset(struct hinic_hwdev *hwdev)
+{
+	struct hinic_cmd_l2nic_reset l2nic_reset = {0};
+	u16 out_size = sizeof(l2nic_reset);
+	struct hinic_pfhwdev *pfhwdev;
+	int err;
+
+	pfhwdev = container_of(hwdev, struct hinic_pfhwdev, hwdev);
+
+	l2nic_reset.func_id = HINIC_HWIF_FUNC_IDX(hwdev->hwif);
+	/* 0 represents standard l2nic reset flow */
+	l2nic_reset.reset_flag = 0;
+
+	err = hinic_msg_to_mgmt(&pfhwdev->pf_to_mgmt, HINIC_MOD_COMM,
+				HINIC_COMM_CMD_L2NIC_RESET, &l2nic_reset,
+				sizeof(l2nic_reset), &l2nic_reset,
+				&out_size, HINIC_MGMT_MSG_SYNC);
+	if (err || !out_size || l2nic_reset.status) {
+		dev_err(&hwdev->hwif->pdev->dev, "Failed to reset L2NIC resources, err: %d, status: 0x%x, out_size: 0x%x\n",
+			err, l2nic_reset.status, out_size);
+		return -EIO;
+	}
+
+	return 0;
 }
 
 /**
@@ -721,12 +728,6 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init HW interface\n");
 		return ERR_PTR(err);
-	}
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		err = -EFAULT;
-		goto err_func_type;
 	}
 
 	pfhwdev = devm_kzalloc(&pdev->dev, sizeof(*pfhwdev), GFP_KERNEL);
@@ -766,10 +767,20 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 		goto err_init_pfhwdev;
 	}
 
+	err = hinic_l2nic_reset(hwdev);
+	if (err)
+		goto err_l2nic_reset;
+
 	err = get_dev_cap(hwdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to get device capabilities\n");
 		goto err_dev_cap;
+	}
+
+	err = hinic_vf_func_init(hwdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to init nic mbox\n");
+		goto err_vf_func_init;
 	}
 
 	err = init_fw_ctxt(hwdev);
@@ -788,6 +799,9 @@ struct hinic_hwdev *hinic_init_hwdev(struct pci_dev *pdev)
 
 err_resources_state:
 err_init_fw_ctxt:
+	hinic_vf_func_free(hwdev);
+err_vf_func_init:
+err_l2nic_reset:
 err_dev_cap:
 	free_pfhwdev(pfhwdev);
 
@@ -799,7 +813,6 @@ err_aeqs_init:
 
 err_init_msix:
 err_pfhwdev_alloc:
-err_func_type:
 	hinic_free_hwif(hwif);
 	return ERR_PTR(err);
 }
@@ -930,14 +943,8 @@ int hinic_hwdev_hw_ci_addr_set(struct hinic_hwdev *hwdev, struct hinic_sq *sq,
 {
 	struct hinic_qp *qp = container_of(sq, struct hinic_qp, sq);
 	struct hinic_hwif *hwif = hwdev->hwif;
-	struct pci_dev *pdev = hwif->pdev;
 	struct hinic_pfhwdev *pfhwdev;
 	struct hinic_cmd_hw_ci hw_ci;
-
-	if (!HINIC_IS_PF(hwif) && !HINIC_IS_PPF(hwif)) {
-		dev_err(&pdev->dev, "Unsupported PCI Function type\n");
-		return -EINVAL;
-	}
 
 	hw_ci.dma_attr_off  = 0;
 	hw_ci.pending_limit = pending_limit;

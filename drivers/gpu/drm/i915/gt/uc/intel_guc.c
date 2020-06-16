@@ -169,7 +169,7 @@ void intel_guc_init_early(struct intel_guc *guc)
 {
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 
-	intel_guc_fw_init_early(guc);
+	intel_uc_fw_init_early(&guc->fw, INTEL_UC_FW_TYPE_GUC);
 	intel_guc_ct_init_early(&guc->ct);
 	intel_guc_log_init_early(&guc->log);
 	intel_guc_submission_init_early(guc);
@@ -722,4 +722,48 @@ int intel_guc_allocate_and_map_vma(struct intel_guc *guc, u32 size,
 	*out_vaddr = vaddr;
 
 	return 0;
+}
+
+/**
+ * intel_guc_load_status - dump information about GuC load status
+ * @guc: the GuC
+ * @p: the &drm_printer
+ *
+ * Pretty printer for GuC load status.
+ */
+void intel_guc_load_status(struct intel_guc *guc, struct drm_printer *p)
+{
+	struct intel_gt *gt = guc_to_gt(guc);
+	struct intel_uncore *uncore = gt->uncore;
+	intel_wakeref_t wakeref;
+
+	if (!intel_guc_is_supported(guc)) {
+		drm_printf(p, "GuC not supported\n");
+		return;
+	}
+
+	if (!intel_guc_is_wanted(guc)) {
+		drm_printf(p, "GuC disabled\n");
+		return;
+	}
+
+	intel_uc_fw_dump(&guc->fw, p);
+
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		u32 status = intel_uncore_read(uncore, GUC_STATUS);
+		u32 i;
+
+		drm_printf(p, "\nGuC status 0x%08x:\n", status);
+		drm_printf(p, "\tBootrom status = 0x%x\n",
+			   (status & GS_BOOTROM_MASK) >> GS_BOOTROM_SHIFT);
+		drm_printf(p, "\tuKernel status = 0x%x\n",
+			   (status & GS_UKERNEL_MASK) >> GS_UKERNEL_SHIFT);
+		drm_printf(p, "\tMIA Core status = 0x%x\n",
+			   (status & GS_MIA_MASK) >> GS_MIA_SHIFT);
+		drm_puts(p, "\nScratch registers:\n");
+		for (i = 0; i < 16; i++) {
+			drm_printf(p, "\t%2d: \t0x%x\n",
+				   i, intel_uncore_read(uncore, SOFT_SCRATCH(i)));
+		}
+	}
 }

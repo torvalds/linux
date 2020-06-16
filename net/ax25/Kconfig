@@ -40,7 +40,7 @@ config AX25
 	  radio as well as information about how to configure an AX.25 port is
 	  contained in the AX25-HOWTO, available from
 	  <http://www.tldp.org/docs.html#howto>. You might also want to
-	  check out the file <file:Documentation/networking/ax25.txt> in the
+	  check out the file <file:Documentation/networking/ax25.rst> in the
 	  kernel source. More information about digital amateur radio in
 	  general is on the WWW at
 	  <http://www.tapr.org/>.
@@ -88,7 +88,7 @@ config NETROM
 	  users as well as information about how to configure an AX.25 port is
 	  contained in the Linux Ham Wiki, available from
 	  <http://www.linux-ax25.org>. You also might want to check out the
-	  file <file:Documentation/networking/ax25.txt>. More information about
+	  file <file:Documentation/networking/ax25.rst>. More information about
 	  digital amateur radio in general is on the WWW at
 	  <http://www.tapr.org/>.
 
@@ -107,7 +107,7 @@ config ROSE
 	  users as well as information about how to configure an AX.25 port is
 	  contained in the Linux Ham Wiki, available from
 	  <http://www.linux-ax25.org>.  You also might want to check out the
-	  file <file:Documentation/networking/ax25.txt>. More information about
+	  file <file:Documentation/networking/ax25.rst>. More information about
 	  digital amateur radio in general is on the WWW at
 	  <http://www.tapr.org/>.
 

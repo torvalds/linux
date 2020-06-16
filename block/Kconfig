@@ -66,7 +66,7 @@ config BLK_DEV_BSGLIB
 
 config BLK_DEV_INTEGRITY
 	bool "Block layer data integrity support"
-	---help---
+	help
 	Some storage devices allow extra information to be
 	stored/retrieved to help protect the data.  The block layer
 	data integrity option provides hooks which can be used by
@@ -84,7 +84,7 @@ config BLK_DEV_INTEGRITY_T10
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
 	select MQ_IOSCHED_DEADLINE
-	---help---
+	help
 	Block layer zoned block device support. This option enables
 	support for ZAC/ZBC host-managed and host-aware zoned block devices.
 
@@ -94,7 +94,7 @@ config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
 	select BLK_CGROUP_RWSTAT
-	---help---
+	help
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and
 	one needs to mount and use blkio cgroup controller for creating
@@ -105,7 +105,7 @@ config BLK_DEV_THROTTLING
 config BLK_DEV_THROTTLING_LOW
 	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
 	depends on BLK_DEV_THROTTLING
-	---help---
+	help
 	Add .low limit interface for block throttling. The low limit is a best
 	effort limit to prioritize cgroups. Depending on the setting, the limit
 	can be used to protect cgroups in terms of bandwidth/iops and better
@@ -115,7 +115,7 @@ config BLK_DEV_THROTTLING_LOW
 
 config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
-	---help---
+	help
 	Enabling this option allows you to specify the partition layout from
 	the kernel boot args.  This is typically of use for embedded devices
 	which don't otherwise have any standardized method for listing the
@@ -125,7 +125,7 @@ config BLK_CMDLINE_PARSER
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
-	---help---
+	help
 	Enabling this option enables the block layer to throttle buffered
 	background writeback from the VM, making it more smooth and having
 	less impact on foreground operations. The throttling is done
@@ -135,7 +135,7 @@ config BLK_WBT
 config BLK_CGROUP_IOLATENCY
 	bool "Enable support for latency based cgroup IO protection"
 	depends on BLK_CGROUP=y
-	---help---
+	help
 	Enabling this option enables the .latency interface for IO throttling.
 	The IO controller will attempt to maintain average IO latencies below
 	the configured latency target, throttling anybody with a higher latency
@@ -146,8 +146,9 @@ config BLK_CGROUP_IOLATENCY
 config BLK_CGROUP_IOCOST
 	bool "Enable support for cost model based cgroup IO controller"
 	depends on BLK_CGROUP=y
+	select BLK_RQ_IO_DATA_LEN
 	select BLK_RQ_ALLOC_TIME
-	---help---
+	help
 	Enabling this option enables the .weight interface for cost
 	model based proportional IO control.  The IO controller
 	distributes IO capacity between different groups based on
@@ -157,7 +158,7 @@ config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"
 	default y
 	depends on BLK_WBT
-	---help---
+	help
 	Enable writeback throttling by default on multiqueue devices.
 	Multiqueue currently doesn't have support for IO scheduling,
 	enabling this option is recommended.
@@ -166,7 +167,7 @@ config BLK_DEBUG_FS
 	bool "Block layer debugging information in debugfs"
 	default y
 	depends on DEBUG_FS
-	---help---
+	help
 	Include block layer debugging information in debugfs. This information
 	is mostly useful for kernel developers, but it doesn't incur any cost
 	at runtime.
@@ -180,10 +181,27 @@ config BLK_DEBUG_FS_ZONED
 
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"
-	---help---
+	help
 	Builds Logic for interfacing with Opal enabled controllers.
 	Enabling this option enables users to setup/unlock/lock
 	Locking ranges for SED devices using the Opal protocol.
+
+config BLK_INLINE_ENCRYPTION
+	bool "Enable inline encryption support in block layer"
+	help
+	  Build the blk-crypto subsystem. Enabling this lets the
+	  block layer handle encryption, so users can take
+	  advantage of inline encryption hardware if present.
+
+config BLK_INLINE_ENCRYPTION_FALLBACK
+	bool "Enable crypto API fallback for blk-crypto"
+	depends on BLK_INLINE_ENCRYPTION
+	select CRYPTO
+	select CRYPTO_SKCIPHER
+	help
+	  Enabling this lets the block layer handle inline encryption
+	  by falling back to the kernel crypto API when inline
+	  encryption hardware is not present.
 
 menu "Partition Types"
 

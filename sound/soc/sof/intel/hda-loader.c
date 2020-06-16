@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 //
 // This file is provided under a dual BSD/GPLv2 license.  When using or
 // redistributing this file, you may do so under either license.
@@ -293,8 +293,13 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 
 	chip_info = desc->chip_info;
 
-	stripped_firmware.data = plat_data->fw->data;
-	stripped_firmware.size = plat_data->fw->size;
+	if (plat_data->fw->size <= plat_data->fw_offset) {
+		dev_err(sdev->dev, "error: firmware size must be greater than firmware offset\n");
+		return -EINVAL;
+	}
+
+	stripped_firmware.data = plat_data->fw->data + plat_data->fw_offset;
+	stripped_firmware.size = plat_data->fw->size - plat_data->fw_offset;
 
 	/* init for booting wait */
 	init_waitqueue_head(&sdev->boot_wait);

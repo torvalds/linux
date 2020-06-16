@@ -827,6 +827,7 @@ struct regmap *__regmap_init(struct device *dev,
 	} else if (!bus->read || !bus->write) {
 		map->reg_read = _regmap_bus_reg_read;
 		map->reg_write = _regmap_bus_reg_write;
+		map->reg_update_bits = bus->reg_update_bits;
 
 		map->defer_caching = false;
 		goto skip_format_initialization;
@@ -2935,6 +2936,28 @@ int regmap_update_bits_base(struct regmap *map, unsigned int reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits_base);
+
+/**
+ * regmap_test_bits() - Check if all specified bits are set in a register.
+ *
+ * @map: Register map to operate on
+ * @reg: Register to read from
+ * @bits: Bits to test
+ *
+ * Returns -1 if the underlying regmap_read() fails, 0 if at least one of the
+ * tested bits is not set and 1 if all tested bits are set.
+ */
+int regmap_test_bits(struct regmap *map, unsigned int reg, unsigned int bits)
+{
+	unsigned int val, ret;
+
+	ret = regmap_read(map, reg, &val);
+	if (ret)
+		return ret;
+
+	return (val & bits) == bits;
+}
+EXPORT_SYMBOL_GPL(regmap_test_bits);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret)
 {

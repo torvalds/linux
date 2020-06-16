@@ -26,13 +26,9 @@ static inline
 __wsum csum_and_copy_from_user (const void __user *src, void *dst,
 				      int len, __wsum sum, int *err_ptr)
 {
-	if (access_ok(src, len))
-		return csum_partial_copy_from_user(src, dst, len, sum, err_ptr);
-
-	if (len)
+	if (copy_from_user(dst, src, len))
 		*err_ptr = -EFAULT;
-
-	return sum;
+	return csum_partial(dst, len, sum);
 }
 #endif
 
@@ -42,10 +38,8 @@ static __inline__ __wsum csum_and_copy_to_user
 {
 	sum = csum_partial(src, len, sum);
 
-	if (access_ok(dst, len)) {
-		if (copy_to_user(dst, src, len) == 0)
-			return sum;
-	}
+	if (copy_to_user(dst, src, len) == 0)
+		return sum;
 	if (len)
 		*err_ptr = -EFAULT;
 

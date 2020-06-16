@@ -20,6 +20,15 @@ config ARM_CCI400_PORT_CTRL
 	  Low level power management driver for CCI400 cache coherent
 	  interconnect for ARM platforms.
 
+config ARM_INTEGRATOR_LM
+	bool "ARM Integrator Logic Module bus"
+	depends on HAS_IOMEM
+	depends on ARCH_INTEGRATOR || COMPILE_TEST
+	default ARCH_INTEGRATOR
+	help
+	  Say y here to enable support for the ARM Logic Module bus
+	  found on the ARM Integrator AP (Application Platform)
+
 config BRCMSTB_GISB_ARB
 	bool "Broadcom STB GISB bus arbiter"
 	depends on ARM || ARM64 || MIPS
@@ -28,6 +37,36 @@ config BRCMSTB_GISB_ARB
 	  Driver for the Broadcom Set Top Box System-on-a-chip internal bus
 	  arbiter. This driver provides timeout and target abort error handling
 	  and internal bus master decoding.
+
+config BT1_APB
+	bool "Baikal-T1 APB-bus driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	  Baikal-T1 AXI-APB bridge is used to access the SoC subsystem CSRs.
+	  IO requests are routed to this bus by means of the DW AMBA 3 AXI
+	  Interconnect. In case of any APB protocol collisions, slave device
+	  not responding on timeout an IRQ is raised with an erroneous address
+	  reported to the APB terminator (APB Errors Handler Block). This
+	  driver provides the interrupt handler to detect the erroneous
+	  address, prints an error message about the address fault, updates an
+	  errors counter. The counter and the APB-bus operations timeout can be
+	  accessed via corresponding sysfs nodes.
+
+config BT1_AXI
+	bool "Baikal-T1 AXI-bus driver"
+	depends on MIPS_BAIKAL_T1 || COMPILE_TEST
+	select MFD_SYSCON
+	help
+	  AXI3-bus is the main communication bus connecting all high-speed
+	  peripheral IP-cores with RAM controller and with MIPS P5600 cores on
+	  Baikal-T1 SoC. Traffic arbitration is done by means of DW AMBA 3 AXI
+	  Interconnect (so called AXI Main Interconnect) routing IO requests
+	  from one SoC block to another. This driver provides a way to detect
+	  any bus protocol errors and device not responding situations by
+	  means of an embedded on top of the interconnect errors handler
+	  block (EHB). AXI Interconnect QoS arbitration tuning is currently
+	  unsupported.
 
 config MOXTET
 	tristate "CZ.NIC Turris Mox module configuration bus"
@@ -183,7 +222,7 @@ config UNIPHIER_SYSTEM_BUS
 	  needed to use on-board devices connected to UniPhier SoCs.
 
 config VEXPRESS_CONFIG
-	bool "Versatile Express configuration bus"
+	tristate "Versatile Express configuration bus"
 	default y if ARCH_VEXPRESS
 	depends on ARM || ARM64
 	depends on OF

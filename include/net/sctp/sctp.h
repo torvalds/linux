@@ -615,4 +615,11 @@ static inline bool sctp_newsk_ready(const struct sock *sk)
 	return sock_flag(sk, SOCK_DEAD) || sk->sk_socket;
 }
 
+static inline void sctp_sock_set_nodelay(struct sock *sk)
+{
+	lock_sock(sk);
+	sctp_sk(sk)->nodelay = true;
+	release_sock(sk);
+}
+
 #endif /* __net_sctp_h__ */

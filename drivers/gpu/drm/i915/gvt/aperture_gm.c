@@ -35,7 +35,7 @@
  */
 
 #include "i915_drv.h"
-#include "i915_gem_fence_reg.h"
+#include "gt/intel_ggtt_fencing.h"
 #include "gvt.h"
 
 static int alloc_gm(struct intel_vgpu *vgpu, bool high_gm)

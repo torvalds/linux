@@ -45,4 +45,4 @@ struct ena_common_mem_addr {
 	u16 reserved16;
 };
 
-#endif /*_ENA_COMMON_H_ */
+#endif /* _ENA_COMMON_H_ */

@@ -33,11 +33,6 @@ struct kmem_zone;
 #define	XFS_CUI_MAX_FAST_EXTENTS	16
 
 /*
- * Define CUI flag bits. Manipulated by set/clear/test_bit operators.
- */
-#define	XFS_CUI_RECOVERED		1
-
-/*
  * This is the "refcount update intent" log item.  It is used to log
  * the fact that some reverse mappings need to change.  It is used in
  * conjunction with the "refcount update done" log item described
@@ -51,7 +46,6 @@ struct xfs_cui_log_item {
 	struct xfs_log_item		cui_item;
 	atomic_t			cui_refcount;
 	atomic_t			cui_next_extent;
-	unsigned long			cui_flags;	/* misc flags */
 	struct xfs_cui_log_format	cui_format;
 };
 
@@ -76,10 +70,5 @@ struct xfs_cud_log_item {
 
 extern struct kmem_zone	*xfs_cui_zone;
 extern struct kmem_zone	*xfs_cud_zone;
-
-struct xfs_cui_log_item *xfs_cui_init(struct xfs_mount *, uint);
-void xfs_cui_item_free(struct xfs_cui_log_item *);
-void xfs_cui_release(struct xfs_cui_log_item *);
-int xfs_cui_recover(struct xfs_trans *parent_tp, struct xfs_cui_log_item *cuip);
 
 #endif	/* __XFS_REFCOUNT_ITEM_H__ */

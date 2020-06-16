@@ -364,7 +364,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, const struct in6_addr *addr)
 	ipv6_del_acaddr_hash(aca);
 	addrconf_leave_solict(idev, &aca->aca_addr);
 
-	ip6_del_rt(dev_net(idev->dev), aca->aca_rt);
+	ip6_del_rt(dev_net(idev->dev), aca->aca_rt, false);
 
 	aca_put(aca);
 	return 0;
@@ -393,7 +393,7 @@ void ipv6_ac_destroy_dev(struct inet6_dev *idev)
 
 		addrconf_leave_solict(idev, &aca->aca_addr);
 
-		ip6_del_rt(dev_net(idev->dev), aca->aca_rt);
+		ip6_del_rt(dev_net(idev->dev), aca->aca_rt, false);
 
 		aca_put(aca);
 

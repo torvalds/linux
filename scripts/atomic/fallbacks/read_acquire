@@ -1,6 +1,6 @@
 cat <<EOF
-static inline ${ret}
-${atomic}_read_acquire(const ${atomic}_t *v)
+static __always_inline ${ret}
+${arch}${atomic}_read_acquire(const ${atomic}_t *v)
 {
 	return smp_load_acquire(&(v)->counter);
 }

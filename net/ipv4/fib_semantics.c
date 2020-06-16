@@ -1780,6 +1780,8 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			goto nla_put_failure;
 		if (nexthop_is_blackhole(fi->nh))
 			rtm->rtm_type = RTN_BLACKHOLE;
+		if (!fi->fib_net->ipv4.sysctl_nexthop_compat_mode)
+			goto offload;
 	}
 
 	if (nhs == 1) {
@@ -1805,6 +1807,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 			goto nla_put_failure;
 	}
 
+offload:
 	if (fri->offload)
 		rtm->rtm_flags |= RTM_F_OFFLOAD;
 	if (fri->trap)
@@ -2014,7 +2017,7 @@ static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 
 	hlist_for_each_entry_rcu(fa, fa_head, fa_list) {
 		struct fib_info *next_fi = fa->fa_info;
-		struct fib_nh *nh;
+		struct fib_nh_common *nhc;
 
 		if (fa->fa_slen != slen)
 			continue;
@@ -2037,8 +2040,8 @@ static void fib_select_default(const struct flowi4 *flp, struct fib_result *res)
 		    fa->fa_type != RTN_UNICAST)
 			continue;
 
-		nh = fib_info_nh(next_fi, 0);
-		if (!nh->fib_nh_gw4 || nh->fib_nh_scope != RT_SCOPE_LINK)
+		nhc = fib_info_nhc(next_fi, 0);
+		if (!nhc->nhc_gw_family || nhc->nhc_scope != RT_SCOPE_LINK)
 			continue;
 
 		fib_alias_accessed(fa);

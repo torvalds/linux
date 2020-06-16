@@ -15,13 +15,18 @@
 #include "event.h"
 
 struct branch_flags {
-	u64 mispred:1;
-	u64 predicted:1;
-	u64 in_tx:1;
-	u64 abort:1;
-	u64 cycles:16;
-	u64 type:4;
-	u64 reserved:40;
+	union {
+		u64 value;
+		struct {
+			u64 mispred:1;
+			u64 predicted:1;
+			u64 in_tx:1;
+			u64 abort:1;
+			u64 cycles:16;
+			u64 type:4;
+			u64 reserved:40;
+		};
+	};
 };
 
 struct branch_info {
@@ -41,7 +46,7 @@ struct branch_entry {
 struct branch_stack {
 	u64			nr;
 	u64			hw_idx;
-	struct branch_entry	entries[0];
+	struct branch_entry	entries[];
 };
 
 /*

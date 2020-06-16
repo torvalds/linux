@@ -281,7 +281,7 @@ static void intel_overlay_flip_prepare(struct intel_overlay *overlay,
 	enum pipe pipe = overlay->crtc->pipe;
 	struct intel_frontbuffer *from = NULL, *to = NULL;
 
-	WARN_ON(overlay->old_vma);
+	drm_WARN_ON(&overlay->i915->drm, overlay->old_vma);
 
 	if (overlay->vma)
 		from = intel_frontbuffer_get(overlay->vma->obj);
@@ -350,7 +350,7 @@ static void intel_overlay_release_old_vma(struct intel_overlay *overlay)
 	struct i915_vma *vma;
 
 	vma = fetch_and_zero(&overlay->old_vma);
-	if (WARN_ON(!vma))
+	if (drm_WARN_ON(&overlay->i915->drm, !vma))
 		return;
 
 	intel_frontbuffer_flip_complete(overlay->i915,
@@ -396,7 +396,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 	struct i915_request *rq;
 	u32 *cs, flip_addr = overlay->flip_addr;
 
-	WARN_ON(!overlay->active);
+	drm_WARN_ON(&overlay->i915->drm, !overlay->active);
 
 	/* According to intel docs the overlay hw may hang (when switching
 	 * off) without loading the filter coeffs. It is however unclear whether
@@ -1342,7 +1342,7 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 	if (!HAS_OVERLAY(dev_priv))
 		return;
 
-	engine = dev_priv->engine[RCS0];
+	engine = dev_priv->gt.engine[RCS0];
 	if (!engine || !engine->kernel_context)
 		return;
 

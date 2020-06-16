@@ -15,6 +15,8 @@
 #define FW_FILENAME	"idtcm.bin"
 #define MAX_PHC_PLL	4
 
+#define MAX_ABS_WRITE_PHASE_PICOSECONDS (107374182350LL)
+
 #define PLL_MASK_ADDR		(0xFFA5)
 #define DEFAULT_PLL_MASK	(0x04)
 
@@ -33,8 +35,9 @@
 
 #define POST_SM_RESET_DELAY_MS		(3000)
 #define PHASE_PULL_IN_THRESHOLD_NS	(150000)
-#define TOD_WRITE_OVERHEAD_COUNT_MAX    (5)
-#define TOD_BYTE_COUNT                  (11)
+#define TOD_WRITE_OVERHEAD_COUNT_MAX	(5)
+#define TOD_BYTE_COUNT			(11)
+#define WR_PHASE_SETUP_MS		(5000)
 
 /* Values of DPLL_N.DPLL_MODE.PLL_MODE */
 enum pll_mode {
@@ -77,6 +80,7 @@ struct idtcm_channel {
 	u16			hw_dpll_n;
 	enum pll_mode		pll_mode;
 	u16			output_mask;
+	int			write_phase_ready;
 };
 
 struct idtcm {

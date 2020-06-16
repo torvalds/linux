@@ -41,9 +41,22 @@
 /* watermark expressed in number of words */
 #define DEFAULT_F2_WATERMARK    0x8
 #define CY_4373_F2_WATERMARK    0x40
+#define CY_4373_F1_MESBUSYCTRL  (CY_4373_F2_WATERMARK | SBSDIO_MESBUSYCTRL_ENAB)
 #define CY_43012_F2_WATERMARK    0x60
-#define CY_4359_F2_WATERMARK	0x40
-#define CY_4359_F1_MESBUSYCTRL	(CY_4359_F2_WATERMARK | SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_43012_MES_WATERMARK  0x50
+#define CY_43012_MESBUSYCTRL    (CY_43012_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_4339_F2_WATERMARK    48
+#define CY_4339_MES_WATERMARK	80
+#define CY_4339_MESBUSYCTRL	(CY_4339_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_43455_F2_WATERMARK	0x60
+#define CY_43455_MES_WATERMARK	0x50
+#define CY_43455_MESBUSYCTRL	(CY_43455_MES_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
+#define CY_435X_F2_WATERMARK	0x40
+#define CY_435X_F1_MESBUSYCTRL	(CY_435X_F2_WATERMARK | \
+				 SBSDIO_MESBUSYCTRL_ENAB)
 
 #ifdef DEBUG
 
@@ -314,15 +327,6 @@ struct rte_console {
 #define KSO_WAIT_US 50
 #define MAX_KSO_ATTEMPTS (PMU_MAX_TRANSITION_DLY/KSO_WAIT_US)
 #define BRCMF_SDIO_MAX_ACCESS_ERRORS	5
-
-/*
- * Conversion of 802.1D priority to precedence level
- */
-static uint prio2prec(u32 prio)
-{
-	return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
-	       (prio^2) : prio;
-}
 
 #ifdef DEBUG
 /* Device console log buffer state */
@@ -2774,7 +2778,13 @@ static int brcmf_sdio_bus_txdata(struct device *dev, struct sk_buff *pkt)
 	skb_push(pkt, bus->tx_hdrlen);
 	/* precondition: IS_ALIGNED((unsigned long)(pkt->data), 2) */
 
-	prec = prio2prec((pkt->priority & PRIOMASK));
+	/* In WLAN, priority is always set by the AP using WMM parameters
+	 * and this need not always follow the standard 802.1d priority.
+	 * Based on AP WMM config, map from 802.1d priority to corresponding
+	 * precedence level.
+	 */
+	prec = brcmf_map_prio_to_prec(bus_if->drvr->config,
+				      (pkt->priority & PRIOMASK));
 
 	/* Check for existing queue, current flow-control,
 			 pending event, or pending clock */
@@ -4187,7 +4197,7 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 				   bus->hostintmask, NULL);
 
 		switch (sdiod->func1->device) {
-		case SDIO_DEVICE_ID_CYPRESS_4373:
+		case SDIO_DEVICE_ID_BROADCOM_CYPRESS_4373:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_4373_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
@@ -4198,10 +4208,9 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
-					   CY_4373_F2_WATERMARK |
-					   SBSDIO_MESBUSYCTRL_ENAB, &err);
+					   CY_4373_F1_MESBUSYCTRL, &err);
 			break;
-		case SDIO_DEVICE_ID_CYPRESS_43012:
+		case SDIO_DEVICE_ID_BROADCOM_CYPRESS_43012:
 			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
 				  CY_43012_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
@@ -4211,19 +4220,51 @@ static void brcmf_sdio_firmware_callback(struct device *dev, int err,
 			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_43012_MESBUSYCTRL, &err);
 			break;
-		case SDIO_DEVICE_ID_BROADCOM_4359:
-			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
-				  CY_4359_F2_WATERMARK);
+		case SDIO_DEVICE_ID_BROADCOM_4339:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 4339\n",
+				  CY_4339_F2_WATERMARK);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
-					   CY_4359_F2_WATERMARK, &err);
+					   CY_4339_F2_WATERMARK, &err);
 			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
 						   &err);
 			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
 			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
 					   &err);
 			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
-					   CY_4359_F1_MESBUSYCTRL, &err);
+					   CY_4339_MESBUSYCTRL, &err);
+			break;
+		case SDIO_DEVICE_ID_BROADCOM_43455:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes for 43455\n",
+				  CY_43455_F2_WATERMARK);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
+					   CY_43455_F2_WATERMARK, &err);
+			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
+						   &err);
+			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
+			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
+					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_43455_MESBUSYCTRL, &err);
+			break;
+		case SDIO_DEVICE_ID_BROADCOM_4359:
+			/* fallthrough */
+		case SDIO_DEVICE_ID_BROADCOM_4354:
+			/* fallthrough */
+		case SDIO_DEVICE_ID_BROADCOM_4356:
+			brcmf_dbg(INFO, "set F2 watermark to 0x%x*4 bytes\n",
+				  CY_435X_F2_WATERMARK);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,
+					   CY_435X_F2_WATERMARK, &err);
+			devctl = brcmf_sdiod_readb(sdiod, SBSDIO_DEVICE_CTL,
+						   &err);
+			devctl |= SBSDIO_DEVCTL_F2WM_ENAB;
+			brcmf_sdiod_writeb(sdiod, SBSDIO_DEVICE_CTL, devctl,
+					   &err);
+			brcmf_sdiod_writeb(sdiod, SBSDIO_FUNC1_MESBUSYCTRL,
+					   CY_435X_F1_MESBUSYCTRL, &err);
 			break;
 		default:
 			brcmf_sdiod_writeb(sdiod, SBSDIO_WATERMARK,

@@ -180,7 +180,7 @@ struct r1bio {
 	 * if the IO is in WRITE direction, then multiple bios are used.
 	 * We choose the number when they are allocated.
 	 */
-	struct bio		*bios[0];
+	struct bio		*bios[];
 	/* DO NOT PUT ANY NEW FIELDS HERE - bios array is contiguously alloced*/
 };
 

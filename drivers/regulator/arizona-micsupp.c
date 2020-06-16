@@ -125,7 +125,7 @@ static const struct regulator_ops arizona_micsupp_ops = {
 	.set_bypass = arizona_micsupp_set_bypass,
 };
 
-static const struct regulator_linear_range arizona_micsupp_ranges[] = {
+static const struct linear_range arizona_micsupp_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1700000, 0,    0x1e, 50000),
 	REGULATOR_LINEAR_RANGE(3300000, 0x1f, 0x1f, 0),
 };
@@ -152,7 +152,7 @@ static const struct regulator_desc arizona_micsupp = {
 	.owner = THIS_MODULE,
 };
 
-static const struct regulator_linear_range arizona_micsupp_ext_ranges[] = {
+static const struct linear_range arizona_micsupp_ext_ranges[] = {
 	REGULATOR_LINEAR_RANGE(900000,  0,    0x14, 25000),
 	REGULATOR_LINEAR_RANGE(1500000, 0x15, 0x27, 100000),
 };

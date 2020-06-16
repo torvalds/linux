@@ -132,6 +132,9 @@ dtb_found:
 #endif
 
 	MTC0		zero, CP0_CONTEXT	# clear context register
+#ifdef CONFIG_64BIT
+	MTC0		zero, CP0_XCONTEXT
+#endif
 	PTR_LA		$28, init_thread_union
 	/* Set the SP after an empty pt_regs.  */
 	PTR_LI		sp, _THREAD_SIZE - 32 - PT_SIZE

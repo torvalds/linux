@@ -759,7 +759,7 @@ void vc4_crtc_get_margins(struct drm_crtc_state *state,
 			  unsigned int *top, unsigned int *bottom);
 
 /* vc4_debugfs.c */
-int vc4_debugfs_init(struct drm_minor *minor);
+void vc4_debugfs_init(struct drm_minor *minor);
 #ifdef CONFIG_DEBUG_FS
 void vc4_debugfs_add_file(struct drm_device *drm,
 			  const char *filename,

@@ -13,8 +13,14 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <net/dst.h>
+#include <net/icmp.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
+
+#if IS_ENABLED(CONFIG_IPV6)
+#include <net/ip6_route.h>
+#include <net/ipv6_stubs.h>
+#endif
 
 #include "xfrm_inout.h"
 
@@ -565,6 +571,22 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 	struct xfrm_state *x = skb_dst(skb)->xfrm;
 	int err;
 
+	switch (x->outer_mode.family) {
+	case AF_INET:
+		memset(IPCB(skb), 0, sizeof(*IPCB(skb)));
+#ifdef CONFIG_NETFILTER
+		IPCB(skb)->flags |= IPSKB_XFRM_TRANSFORMED;
+#endif
+		break;
+	case AF_INET6:
+		memset(IP6CB(skb), 0, sizeof(*IP6CB(skb)));
+
+#ifdef CONFIG_NETFILTER
+		IP6CB(skb)->flags |= IP6SKB_XFRM_TRANSFORMED;
+#endif
+		break;
+	}
+
 	secpath_reset(skb);
 
 	if (xfrm_dev_offload_ok(skb, x)) {
@@ -583,17 +605,19 @@ int xfrm_output(struct sock *sk, struct sk_buff *skb)
 		xfrm_state_hold(x);
 
 		if (skb_is_gso(skb)) {
-			skb_shinfo(skb)->gso_type |= SKB_GSO_ESP;
+			if (skb->inner_protocol)
+				return xfrm_output_gso(net, sk, skb);
 
-			return xfrm_output2(net, sk, skb);
+			skb_shinfo(skb)->gso_type |= SKB_GSO_ESP;
+			goto out;
 		}
 
 		if (x->xso.dev && x->xso.dev->features & NETIF_F_HW_ESP_TX_CSUM)
 			goto out;
+	} else {
+		if (skb_is_gso(skb))
+			return xfrm_output_gso(net, sk, skb);
 	}
-
-	if (skb_is_gso(skb))
-		return xfrm_output_gso(net, sk, skb);
 
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		err = skb_checksum_help(skb);
@@ -609,11 +633,101 @@ out:
 }
 EXPORT_SYMBOL_GPL(xfrm_output);
 
+static int xfrm4_tunnel_check_size(struct sk_buff *skb)
+{
+	int mtu, ret = 0;
+
+	if (IPCB(skb)->flags & IPSKB_XFRM_TUNNEL_SIZE)
+		goto out;
+
+	if (!(ip_hdr(skb)->frag_off & htons(IP_DF)) || skb->ignore_df)
+		goto out;
+
+	mtu = dst_mtu(skb_dst(skb));
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) &&
+	     !skb_gso_validate_network_len(skb, ip_skb_dst_mtu(skb->sk, skb)))) {
+		skb->protocol = htons(ETH_P_IP);
+
+		if (skb->sk)
+			xfrm_local_error(skb, mtu);
+		else
+			icmp_send(skb, ICMP_DEST_UNREACH,
+				  ICMP_FRAG_NEEDED, htonl(mtu));
+		ret = -EMSGSIZE;
+	}
+out:
+	return ret;
+}
+
+static int xfrm4_extract_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+	int err;
+
+	err = xfrm4_tunnel_check_size(skb);
+	if (err)
+		return err;
+
+	XFRM_MODE_SKB_CB(skb)->protocol = ip_hdr(skb)->protocol;
+
+	xfrm4_extract_header(skb);
+	return 0;
+}
+
+#if IS_ENABLED(CONFIG_IPV6)
+static int xfrm6_tunnel_check_size(struct sk_buff *skb)
+{
+	int mtu, ret = 0;
+	struct dst_entry *dst = skb_dst(skb);
+
+	if (skb->ignore_df)
+		goto out;
+
+	mtu = dst_mtu(dst);
+	if (mtu < IPV6_MIN_MTU)
+		mtu = IPV6_MIN_MTU;
+
+	if ((!skb_is_gso(skb) && skb->len > mtu) ||
+	    (skb_is_gso(skb) &&
+	     !skb_gso_validate_network_len(skb, ip6_skb_dst_mtu(skb)))) {
+		skb->dev = dst->dev;
+		skb->protocol = htons(ETH_P_IPV6);
+
+		if (xfrm6_local_dontfrag(skb->sk))
+			ipv6_stub->xfrm6_local_rxpmtu(skb, mtu);
+		else if (skb->sk)
+			xfrm_local_error(skb, mtu);
+		else
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
+		ret = -EMSGSIZE;
+	}
+out:
+	return ret;
+}
+#endif
+
+static int xfrm6_extract_output(struct xfrm_state *x, struct sk_buff *skb)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	int err;
+
+	err = xfrm6_tunnel_check_size(skb);
+	if (err)
+		return err;
+
+	XFRM_MODE_SKB_CB(skb)->protocol = ipv6_hdr(skb)->nexthdr;
+
+	xfrm6_extract_header(skb);
+	return 0;
+#else
+	WARN_ON_ONCE(1);
+	return -EAFNOSUPPORT;
+#endif
+}
+
 static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 {
-	const struct xfrm_state_afinfo *afinfo;
 	const struct xfrm_mode *inner_mode;
-	int err = -EAFNOSUPPORT;
 
 	if (x->sel.family == AF_UNSPEC)
 		inner_mode = xfrm_ip2inner_mode(x,
@@ -624,13 +738,14 @@ static int xfrm_inner_extract_output(struct xfrm_state *x, struct sk_buff *skb)
 	if (inner_mode == NULL)
 		return -EAFNOSUPPORT;
 
-	rcu_read_lock();
-	afinfo = xfrm_state_afinfo_get_rcu(inner_mode->family);
-	if (likely(afinfo))
-		err = afinfo->extract_output(x, skb);
-	rcu_read_unlock();
+	switch (inner_mode->family) {
+	case AF_INET:
+		return xfrm4_extract_output(x, skb);
+	case AF_INET6:
+		return xfrm6_extract_output(x, skb);
+	}
 
-	return err;
+	return -EAFNOSUPPORT;
 }
 
 void xfrm_local_error(struct sk_buff *skb, int mtu)
@@ -640,7 +755,8 @@ void xfrm_local_error(struct sk_buff *skb, int mtu)
 
 	if (skb->protocol == htons(ETH_P_IP))
 		proto = AF_INET;
-	else if (skb->protocol == htons(ETH_P_IPV6))
+	else if (skb->protocol == htons(ETH_P_IPV6) &&
+		 skb->sk->sk_family == AF_INET6)
 		proto = AF_INET6;
 	else
 		return;

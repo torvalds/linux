@@ -33,10 +33,6 @@
 #ifndef _HNS_ROCE_COMMON_H
 #define _HNS_ROCE_COMMON_H
 
-#ifndef assert
-#define assert(cond)
-#endif
-
 #define roce_write(dev, reg, val)	writel((val), (dev)->reg_base + (reg))
 #define roce_read(dev, reg)		readl((dev)->reg_base + (reg))
 #define roce_raw_write(value, addr) \

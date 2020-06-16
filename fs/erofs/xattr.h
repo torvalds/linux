@@ -76,11 +76,8 @@ static inline int erofs_getxattr(struct inode *inode, int index,
 	return -EOPNOTSUPP;
 }
 
-static inline ssize_t erofs_listxattr(struct dentry *dentry,
-				      char *buffer, size_t buffer_size)
-{
-	return -EOPNOTSUPP;
-}
+#define erofs_listxattr (NULL)
+#define erofs_xattr_handlers (NULL)
 #endif	/* !CONFIG_EROFS_FS_XATTR */
 
 #ifdef CONFIG_EROFS_FS_POSIX_ACL

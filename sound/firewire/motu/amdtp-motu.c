@@ -76,15 +76,11 @@ int amdtp_motu_set_parameters(struct amdtp_stream *s, unsigned int rate,
 	if (i == ARRAY_SIZE(snd_motu_clock_rates))
 		return -EINVAL;
 
-	pcm_chunks = formats->fixed_part_pcm_chunks[mode] +
-		     formats->differed_part_pcm_chunks[mode];
+	// Each data block includes SPH in its head. Data chunks follow with
+	// 3 byte alignment. Padding follows with zero to conform to quadlet
+	// alignment.
+	pcm_chunks = formats->pcm_chunks[mode];
 	data_chunks = formats->msg_chunks + pcm_chunks;
-
-	/*
-	 * Each data block includes SPH in its head. Data chunks follow with
-	 * 3 byte alignment. Padding follows with zero to conform to quadlet
-	 * alignment.
-	 */
 	data_block_quadlets = 1 + DIV_ROUND_UP(data_chunks * 3, 4);
 
 	err = amdtp_stream_set_parameters(s, rate, data_block_quadlets);
@@ -440,7 +436,7 @@ static unsigned int process_it_ctx_payloads(struct amdtp_stream *s,
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
-		    const struct snd_motu_protocol *const protocol)
+		    const struct snd_motu_spec *spec)
 {
 	amdtp_stream_process_ctx_payloads_t process_ctx_payloads;
 	int fmt = CIP_FMT_MOTU;
@@ -454,14 +450,15 @@ int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		 * Units of version 3 transmits packets with invalid CIP header
 		 * against IEC 61883-1.
 		 */
-		if (protocol == &snd_motu_protocol_v3) {
+		if (spec->protocol_version == SND_MOTU_PROTOCOL_V3) {
 			flags |= CIP_WRONG_DBS |
 				 CIP_SKIP_DBC_ZERO_CHECK |
 				 CIP_HEADER_WITHOUT_EOH;
 			fmt = CIP_FMT_MOTU_TX_V3;
 		}
 
-		if (protocol == &snd_motu_protocol_v2) {
+		if (spec == &snd_motu_spec_8pre ||
+		    spec == &snd_motu_spec_ultralite) {
 			// 8pre has some quirks.
 			flags |= CIP_WRONG_DBS |
 				 CIP_SKIP_DBC_ZERO_CHECK;

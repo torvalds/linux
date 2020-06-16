@@ -624,7 +624,7 @@
 				clock-names = "ckil", "osc";
 			};
 
-			src: src@30390000 {
+			src: reset-controller@30390000 {
 				compatible = "fsl,imx7d-src", "syscon";
 				reg = <0x30390000 0x10000>;
 				interrupts = <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
@@ -1190,6 +1190,7 @@
 					"enet_clk_ref", "enet_out";
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
+				fsl,stop-mode = <&gpr 0x10 3>;
 				status = "disabled";
 			};
 		};

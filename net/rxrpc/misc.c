@@ -63,11 +63,6 @@ unsigned int rxrpc_rx_mtu = 5692;
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
 
-/*
- * Time till packet resend (in milliseconds).
- */
-unsigned long rxrpc_resend_timeout = 4 * HZ;
-
 const s8 rxrpc_ack_priority[] = {
 	[0]				= 0,
 	[RXRPC_ACK_DELAY]		= 1,

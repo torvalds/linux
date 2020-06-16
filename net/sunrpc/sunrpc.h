@@ -52,4 +52,5 @@ static inline int sock_is_loopback(struct sock *sk)
 
 int rpc_clients_notifier_register(void);
 void rpc_clients_notifier_unregister(void);
+void auth_domain_cleanup(void);
 #endif /* _NET_SUNRPC_SUNRPC_H */

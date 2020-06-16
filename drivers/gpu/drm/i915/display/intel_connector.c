@@ -33,6 +33,7 @@
 
 #include "i915_drv.h"
 #include "intel_connector.h"
+#include "intel_display_debugfs.h"
 #include "intel_display_types.h"
 #include "intel_hdcp.h"
 
@@ -122,6 +123,8 @@ int intel_connector_register(struct drm_connector *connector)
 		ret = -EFAULT;
 		goto err_backlight;
 	}
+
+	intel_connector_debugfs_add(connector);
 
 	return 0;
 
@@ -290,7 +293,7 @@ intel_attach_colorspace_property(struct drm_connector *connector)
 			return;
 		break;
 	default:
-		DRM_DEBUG_KMS("Colorspace property not supported\n");
+		MISSING_CASE(connector->connector_type);
 		return;
 	}
 

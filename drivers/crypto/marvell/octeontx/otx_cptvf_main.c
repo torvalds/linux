@@ -584,7 +584,7 @@ static irqreturn_t cptvf_done_intr_handler(int __always_unused irq,
 		cptvf_write_vq_done_ack(cptvf, intr);
 		wqe = get_cptvf_vq_wqe(cptvf, 0);
 		if (unlikely(!wqe)) {
-			dev_err(&pdev->dev, "No work to schedule for VF (%d)",
+			dev_err(&pdev->dev, "No work to schedule for VF (%d)\n",
 				cptvf->vfid);
 			return IRQ_NONE;
 		}
@@ -602,7 +602,7 @@ static void cptvf_set_irq_affinity(struct otx_cptvf *cptvf, int vec)
 	if (!zalloc_cpumask_var(&cptvf->affinity_mask[vec],
 				GFP_KERNEL)) {
 		dev_err(&pdev->dev,
-			"Allocation failed for affinity_mask for VF %d",
+			"Allocation failed for affinity_mask for VF %d\n",
 			cptvf->vfid);
 		return;
 	}
@@ -691,7 +691,7 @@ static ssize_t vf_engine_group_store(struct device *dev,
 		return -EINVAL;
 
 	if (val >= OTX_CPT_MAX_ENGINE_GROUPS) {
-		dev_err(dev, "Engine group >= than max available groups %d",
+		dev_err(dev, "Engine group >= than max available groups %d\n",
 			OTX_CPT_MAX_ENGINE_GROUPS);
 		return -EINVAL;
 	}
@@ -837,7 +837,7 @@ static int otx_cptvf_probe(struct pci_dev *pdev,
 			  cptvf_misc_intr_handler, 0, "CPT VF misc intr",
 			  cptvf);
 	if (err) {
-		dev_err(dev, "Failed to request misc irq");
+		dev_err(dev, "Failed to request misc irq\n");
 		goto free_vectors;
 	}
 
@@ -854,7 +854,7 @@ static int otx_cptvf_probe(struct pci_dev *pdev,
 	cptvf->cqinfo.qchunksize = OTX_CPT_CMD_QCHUNK_SIZE;
 	err = cptvf_sw_init(cptvf, OTX_CPT_CMD_QLEN, OTX_CPT_NUM_QS_PER_VF);
 	if (err) {
-		dev_err(dev, "cptvf_sw_init() failed");
+		dev_err(dev, "cptvf_sw_init() failed\n");
 		goto free_misc_irq;
 	}
 	/* Convey VQ LEN to PF */
@@ -946,7 +946,7 @@ static void otx_cptvf_remove(struct pci_dev *pdev)
 
 	/* Convey DOWN to PF */
 	if (otx_cptvf_send_vf_down(cptvf)) {
-		dev_err(&pdev->dev, "PF not responding to DOWN msg");
+		dev_err(&pdev->dev, "PF not responding to DOWN msg\n");
 	} else {
 		sysfs_remove_group(&pdev->dev.kobj, &otx_cptvf_sysfs_group);
 		otx_cpt_crypto_exit(pdev, THIS_MODULE, cptvf->vftype);

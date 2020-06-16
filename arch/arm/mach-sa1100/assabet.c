@@ -34,7 +34,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
-#include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
 #include <asm/mach/arch.h>
@@ -633,7 +632,7 @@ static void __init map_sa1100_gpio_regs( void )
 	int prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO);
 	pmd_t *pmd;
 
-	pmd = pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
+	pmd = pmd_off_k(virt);
 	*pmd = __pmd(phys | prot);
 	flush_pmd_entry(pmd);
 }

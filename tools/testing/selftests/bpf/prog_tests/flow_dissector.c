@@ -1,9 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
+#include <network_helpers.h>
 #include <error.h>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <sys/uio.h>
+
+#include "bpf_flow.skel.h"
 
 #ifndef IP_MF
 #define IP_MF 0x2000
@@ -100,6 +103,7 @@ struct test {
 
 #define VLAN_HLEN	4
 
+static __u32 duration;
 struct test tests[] = {
 	{
 		.name = "ipv4",
@@ -443,16 +447,129 @@ static int ifup(const char *ifname)
 	return 0;
 }
 
+static int init_prog_array(struct bpf_object *obj, struct bpf_map *prog_array)
+{
+	int i, err, map_fd, prog_fd;
+	struct bpf_program *prog;
+	char prog_name[32];
+
+	map_fd = bpf_map__fd(prog_array);
+	if (map_fd < 0)
+		return -1;
+
+	for (i = 0; i < bpf_map__def(prog_array)->max_entries; i++) {
+		snprintf(prog_name, sizeof(prog_name), "flow_dissector/%i", i);
+
+		prog = bpf_object__find_program_by_title(obj, prog_name);
+		if (!prog)
+			return -1;
+
+		prog_fd = bpf_program__fd(prog);
+		if (prog_fd < 0)
+			return -1;
+
+		err = bpf_map_update_elem(map_fd, &i, &prog_fd, BPF_ANY);
+		if (err)
+			return -1;
+	}
+	return 0;
+}
+
+static void run_tests_skb_less(int tap_fd, struct bpf_map *keys)
+{
+	int i, err, keys_fd;
+
+	keys_fd = bpf_map__fd(keys);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(tests); i++) {
+		/* Keep in sync with 'flags' from eth_get_headlen. */
+		__u32 eth_get_headlen_flags =
+			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
+		struct bpf_prog_test_run_attr tattr = {};
+		struct bpf_flow_keys flow_keys = {};
+		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
+			    tests[i].keys.dport;
+
+		/* For skb-less case we can't pass input flags; run
+		 * only the tests that have a matching set of flags.
+		 */
+
+		if (tests[i].flags != eth_get_headlen_flags)
+			continue;
+
+		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
+		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
+
+		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
+
+		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
+		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
+
+		err = bpf_map_delete_elem(keys_fd, &key);
+		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
+	}
+}
+
+static void test_skb_less_prog_attach(struct bpf_flow *skel, int tap_fd)
+{
+	int err, prog_fd;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		return;
+
+	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
+	if (CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno))
+		return;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
+	CHECK(err, "bpf_prog_detach", "err %d errno %d\n", err, errno);
+}
+
+static void test_skb_less_link_create(struct bpf_flow *skel, int tap_fd)
+{
+	struct bpf_link *link;
+	int err, net_fd;
+
+	net_fd = open("/proc/self/ns/net", O_RDONLY);
+	if (CHECK(net_fd < 0, "open(/proc/self/ns/net)", "err %d\n", errno))
+		return;
+
+	link = bpf_program__attach_netns(skel->progs._dissect, net_fd);
+	if (CHECK(IS_ERR(link), "attach_netns", "err %ld\n", PTR_ERR(link)))
+		goto out_close;
+
+	run_tests_skb_less(tap_fd, skel->maps.last_dissection);
+
+	err = bpf_link__destroy(link);
+	CHECK(err, "bpf_link__destroy", "err %d\n", err);
+out_close:
+	close(net_fd);
+}
+
 void test_flow_dissector(void)
 {
 	int i, err, prog_fd, keys_fd = -1, tap_fd;
-	struct bpf_object *obj;
-	__u32 duration = 0;
+	struct bpf_flow *skel;
 
-	err = bpf_flow_load(&obj, "./bpf_flow.o", "flow_dissector",
-			    "jmp_table", "last_dissection", &prog_fd, &keys_fd);
-	if (CHECK_FAIL(err))
+	skel = bpf_flow__open_and_load();
+	if (CHECK(!skel, "skel", "failed to open/load skeleton\n"))
 		return;
+
+	prog_fd = bpf_program__fd(skel->progs._dissect);
+	if (CHECK(prog_fd < 0, "bpf_program__fd", "err %d\n", prog_fd))
+		goto out_destroy_skel;
+	keys_fd = bpf_map__fd(skel->maps.last_dissection);
+	if (CHECK(keys_fd < 0, "bpf_map__fd", "err %d\n", keys_fd))
+		goto out_destroy_skel;
+	err = init_prog_array(skel->obj, skel->maps.jmp_table);
+	if (CHECK(err, "init_prog_array", "err %d\n", err))
+		goto out_destroy_skel;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		struct bpf_flow_keys flow_keys;
@@ -486,43 +603,17 @@ void test_flow_dissector(void)
 	 * via BPF map in this case.
 	 */
 
-	err = bpf_prog_attach(prog_fd, 0, BPF_FLOW_DISSECTOR, 0);
-	CHECK(err, "bpf_prog_attach", "err %d errno %d\n", err, errno);
-
 	tap_fd = create_tap("tap0");
 	CHECK(tap_fd < 0, "create_tap", "tap_fd %d errno %d\n", tap_fd, errno);
 	err = ifup("tap0");
 	CHECK(err, "ifup", "err %d errno %d\n", err, errno);
 
-	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		/* Keep in sync with 'flags' from eth_get_headlen. */
-		__u32 eth_get_headlen_flags =
-			BPF_FLOW_DISSECTOR_F_PARSE_1ST_FRAG;
-		struct bpf_prog_test_run_attr tattr = {};
-		struct bpf_flow_keys flow_keys = {};
-		__u32 key = (__u32)(tests[i].keys.sport) << 16 |
-			    tests[i].keys.dport;
+	/* Test direct prog attachment */
+	test_skb_less_prog_attach(skel, tap_fd);
+	/* Test indirect prog attachment via link */
+	test_skb_less_link_create(skel, tap_fd);
 
-		/* For skb-less case we can't pass input flags; run
-		 * only the tests that have a matching set of flags.
-		 */
-
-		if (tests[i].flags != eth_get_headlen_flags)
-			continue;
-
-		err = tx_tap(tap_fd, &tests[i].pkt, sizeof(tests[i].pkt));
-		CHECK(err < 0, "tx_tap", "err %d errno %d\n", err, errno);
-
-		err = bpf_map_lookup_elem(keys_fd, &key, &flow_keys);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_lookup_elem %d\n", err);
-
-		CHECK_ATTR(err, tests[i].name, "skb-less err %d\n", err);
-		CHECK_FLOW_KEYS(tests[i].name, flow_keys, tests[i].keys);
-
-		err = bpf_map_delete_elem(keys_fd, &key);
-		CHECK_ATTR(err, tests[i].name, "bpf_map_delete_elem %d\n", err);
-	}
-
-	bpf_prog_detach(prog_fd, BPF_FLOW_DISSECTOR);
-	bpf_object__close(obj);
+	close(tap_fd);
+out_destroy_skel:
+	bpf_flow__destroy(skel);
 }

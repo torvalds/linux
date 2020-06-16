@@ -26,6 +26,7 @@
 #define TEE_SHM_REGISTER	BIT(3)  /* Memory registered in secure world */
 #define TEE_SHM_USER_MAPPED	BIT(4)  /* Memory mapped in user space */
 #define TEE_SHM_POOL		BIT(5)  /* Memory allocated from pool */
+#define TEE_SHM_KERNEL_MAPPED	BIT(6)  /* Memory mapped in kernel space */
 
 struct device;
 struct tee_device;
@@ -164,6 +165,22 @@ int tee_device_register(struct tee_device *teedev);
  * @teedev is NULL.
  */
 void tee_device_unregister(struct tee_device *teedev);
+
+/**
+ * tee_session_calc_client_uuid() - Calculates client UUID for session
+ * @uuid:		Resulting UUID
+ * @connection_method:	Connection method for session (TEE_IOCTL_LOGIN_*)
+ * @connectuon_data:	Connection data for opening session
+ *
+ * Based on connection method calculates UUIDv5 based client UUID.
+ *
+ * For group based logins verifies that calling process has specified
+ * credentials.
+ *
+ * @return < 0 on failure
+ */
+int tee_session_calc_client_uuid(uuid_t *uuid, u32 connection_method,
+				 const u8 connection_data[TEE_IOCTL_UUID_LEN]);
 
 /**
  * struct tee_shm - shared memory object

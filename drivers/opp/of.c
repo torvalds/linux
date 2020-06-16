@@ -332,6 +332,105 @@ free_required_opps:
 	return ret;
 }
 
+static int _bandwidth_supported(struct device *dev, struct opp_table *opp_table)
+{
+	struct device_node *np, *opp_np;
+	struct property *prop;
+
+	if (!opp_table) {
+		np = of_node_get(dev->of_node);
+		if (!np)
+			return -ENODEV;
+
+		opp_np = _opp_of_get_opp_desc_node(np, 0);
+		of_node_put(np);
+	} else {
+		opp_np = of_node_get(opp_table->np);
+	}
+
+	/* Lets not fail in case we are parsing opp-v1 bindings */
+	if (!opp_np)
+		return 0;
+
+	/* Checking only first OPP is sufficient */
+	np = of_get_next_available_child(opp_np, NULL);
+	if (!np) {
+		dev_err(dev, "OPP table empty\n");
+		return -EINVAL;
+	}
+	of_node_put(opp_np);
+
+	prop = of_find_property(np, "opp-peak-kBps", NULL);
+	of_node_put(np);
+
+	if (!prop || !prop->length)
+		return 0;
+
+	return 1;
+}
+
+int dev_pm_opp_of_find_icc_paths(struct device *dev,
+				 struct opp_table *opp_table)
+{
+	struct device_node *np;
+	int ret, i, count, num_paths;
+	struct icc_path **paths;
+
+	ret = _bandwidth_supported(dev, opp_table);
+	if (ret <= 0)
+		return ret;
+
+	ret = 0;
+
+	np = of_node_get(dev->of_node);
+	if (!np)
+		return 0;
+
+	count = of_count_phandle_with_args(np, "interconnects",
+					   "#interconnect-cells");
+	of_node_put(np);
+	if (count < 0)
+		return 0;
+
+	/* two phandles when #interconnect-cells = <1> */
+	if (count % 2) {
+		dev_err(dev, "%s: Invalid interconnects values\n", __func__);
+		return -EINVAL;
+	}
+
+	num_paths = count / 2;
+	paths = kcalloc(num_paths, sizeof(*paths), GFP_KERNEL);
+	if (!paths)
+		return -ENOMEM;
+
+	for (i = 0; i < num_paths; i++) {
+		paths[i] = of_icc_get_by_index(dev, i);
+		if (IS_ERR(paths[i])) {
+			ret = PTR_ERR(paths[i]);
+			if (ret != -EPROBE_DEFER) {
+				dev_err(dev, "%s: Unable to get path%d: %d\n",
+					__func__, i, ret);
+			}
+			goto err;
+		}
+	}
+
+	if (opp_table) {
+		opp_table->paths = paths;
+		opp_table->path_count = num_paths;
+		return 0;
+	}
+
+err:
+	while (i--)
+		icc_put(paths[i]);
+
+	kfree(paths);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_of_find_icc_paths);
+
 static bool _opp_is_supported(struct device *dev, struct opp_table *opp_table,
 			      struct device_node *np)
 {
@@ -521,6 +620,90 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
+static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
+		    struct device_node *np, bool peak)
+{
+	const char *name = peak ? "opp-peak-kBps" : "opp-avg-kBps";
+	struct property *prop;
+	int i, count, ret;
+	u32 *bw;
+
+	prop = of_find_property(np, name, NULL);
+	if (!prop)
+		return -ENODEV;
+
+	count = prop->length / sizeof(u32);
+	if (table->path_count != count) {
+		pr_err("%s: Mismatch between %s and paths (%d %d)\n",
+				__func__, name, count, table->path_count);
+		return -EINVAL;
+	}
+
+	bw = kmalloc_array(count, sizeof(*bw), GFP_KERNEL);
+	if (!bw)
+		return -ENOMEM;
+
+	ret = of_property_read_u32_array(np, name, bw, count);
+	if (ret) {
+		pr_err("%s: Error parsing %s: %d\n", __func__, name, ret);
+		goto out;
+	}
+
+	for (i = 0; i < count; i++) {
+		if (peak)
+			new_opp->bandwidth[i].peak = kBps_to_icc(bw[i]);
+		else
+			new_opp->bandwidth[i].avg = kBps_to_icc(bw[i]);
+	}
+
+out:
+	kfree(bw);
+	return ret;
+}
+
+static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
+			 struct device_node *np, bool *rate_not_available)
+{
+	bool found = false;
+	u64 rate;
+	int ret;
+
+	ret = of_property_read_u64(np, "opp-hz", &rate);
+	if (!ret) {
+		/*
+		 * Rate is defined as an unsigned long in clk API, and so
+		 * casting explicitly to its type. Must be fixed once rate is 64
+		 * bit guaranteed in clk API.
+		 */
+		new_opp->rate = (unsigned long)rate;
+		found = true;
+	}
+	*rate_not_available = !!ret;
+
+	/*
+	 * Bandwidth consists of peak and average (optional) values:
+	 * opp-peak-kBps = <path1_value path2_value>;
+	 * opp-avg-kBps = <path1_value path2_value>;
+	 */
+	ret = _read_bw(new_opp, table, np, true);
+	if (!ret) {
+		found = true;
+		ret = _read_bw(new_opp, table, np, false);
+	}
+
+	/* The properties were found but we failed to parse them */
+	if (ret && ret != -ENODEV)
+		return ret;
+
+	if (!of_property_read_u32(np, "opp-level", &new_opp->level))
+		found = true;
+
+	if (found)
+		return 0;
+
+	return ret;
+}
+
 /**
  * _opp_add_static_v2() - Allocate static OPPs (As per 'v2' DT bindings)
  * @opp_table:	OPP table
@@ -558,25 +741,11 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 	if (!new_opp)
 		return ERR_PTR(-ENOMEM);
 
-	ret = of_property_read_u64(np, "opp-hz", &rate);
-	if (ret < 0) {
-		/* "opp-hz" is optional for devices like power domains. */
-		if (!opp_table->is_genpd) {
-			dev_err(dev, "%s: opp-hz not found\n", __func__);
-			goto free_opp;
-		}
-
-		rate_not_available = true;
-	} else {
-		/*
-		 * Rate is defined as an unsigned long in clk API, and so
-		 * casting explicitly to its type. Must be fixed once rate is 64
-		 * bit guaranteed in clk API.
-		 */
-		new_opp->rate = (unsigned long)rate;
+	ret = _read_opp_key(new_opp, opp_table, np, &rate_not_available);
+	if (ret < 0 && !opp_table->is_genpd) {
+		dev_err(dev, "%s: opp key field not found\n", __func__);
+		goto free_opp;
 	}
-
-	of_property_read_u32(np, "opp-level", &new_opp->level);
 
 	/* Check if the OPP supports hardware's hierarchy of versions or not */
 	if (!_opp_is_supported(dev, opp_table, np)) {

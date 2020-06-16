@@ -95,13 +95,12 @@ static int dr_icm_create_dm_mkey(struct mlx5_core_dev *mdev,
 }
 
 static struct mlx5dr_icm_mr *
-dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool,
-		      enum mlx5_sw_icm_type type,
-		      size_t align_base)
+dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool)
 {
 	struct mlx5_core_dev *mdev = pool->dmn->mdev;
+	enum mlx5_sw_icm_type dm_type;
 	struct mlx5dr_icm_mr *icm_mr;
-	size_t align_diff;
+	size_t log_align_base;
 	int err;
 
 	icm_mr = kvzalloc(sizeof(*icm_mr), GFP_KERNEL);
@@ -111,14 +110,22 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool,
 	icm_mr->pool = pool;
 	INIT_LIST_HEAD(&icm_mr->mr_list);
 
-	icm_mr->dm.type = type;
-
-	/* 2^log_biggest_table * entry-size * double-for-alignment */
 	icm_mr->dm.length = mlx5dr_icm_pool_chunk_size_to_byte(pool->max_log_chunk_sz,
-							       pool->icm_type) * 2;
+							       pool->icm_type);
 
-	err = mlx5_dm_sw_icm_alloc(mdev, icm_mr->dm.type, icm_mr->dm.length, 0,
-				   &icm_mr->dm.addr, &icm_mr->dm.obj_id);
+	if (pool->icm_type == DR_ICM_TYPE_STE) {
+		dm_type = MLX5_SW_ICM_TYPE_STEERING;
+		log_align_base = ilog2(icm_mr->dm.length);
+	} else {
+		dm_type = MLX5_SW_ICM_TYPE_HEADER_MODIFY;
+		/* Align base is 64B */
+		log_align_base = ilog2(DR_ICM_MODIFY_HDR_ALIGN_BASE);
+	}
+	icm_mr->dm.type = dm_type;
+
+	err = mlx5_dm_sw_icm_alloc(mdev, icm_mr->dm.type, icm_mr->dm.length,
+				   log_align_base, 0, &icm_mr->dm.addr,
+				   &icm_mr->dm.obj_id);
 	if (err) {
 		mlx5dr_err(pool->dmn, "Failed to allocate SW ICM memory, err (%d)\n", err);
 		goto free_icm_mr;
@@ -137,15 +144,18 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool,
 
 	icm_mr->icm_start_addr = icm_mr->dm.addr;
 
-	/* align_base is always a power of 2 */
-	align_diff = icm_mr->icm_start_addr & (align_base - 1);
-	if (align_diff)
-		icm_mr->used_length = align_base - align_diff;
+	if (icm_mr->icm_start_addr & (BIT(log_align_base) - 1)) {
+		mlx5dr_err(pool->dmn, "Failed to get Aligned ICM mem (asked: %zu)\n",
+			   log_align_base);
+		goto free_mkey;
+	}
 
 	list_add_tail(&icm_mr->mr_list, &pool->icm_mr_list);
 
 	return icm_mr;
 
+free_mkey:
+	mlx5_core_destroy_mkey(mdev, &icm_mr->mkey);
 free_dm:
 	mlx5_dm_sw_icm_dealloc(mdev, icm_mr->dm.type, icm_mr->dm.length, 0,
 			       icm_mr->dm.addr, icm_mr->dm.obj_id);
@@ -200,24 +210,11 @@ static int dr_icm_chunks_create(struct mlx5dr_icm_bucket *bucket)
 	struct mlx5dr_icm_pool *pool = bucket->pool;
 	struct mlx5dr_icm_mr *icm_mr = NULL;
 	struct mlx5dr_icm_chunk *chunk;
-	enum mlx5_sw_icm_type dm_type;
-	size_t align_base;
 	int i, err = 0;
 
 	mr_req_size = bucket->num_of_entries * bucket->entry_size;
 	mr_row_size = mlx5dr_icm_pool_chunk_size_to_byte(pool->max_log_chunk_sz,
 							 pool->icm_type);
-
-	if (pool->icm_type == DR_ICM_TYPE_STE) {
-		dm_type = MLX5_SW_ICM_TYPE_STEERING;
-		/* Align base is the biggest chunk size / row size */
-		align_base = mr_row_size;
-	} else {
-		dm_type = MLX5_SW_ICM_TYPE_HEADER_MODIFY;
-		/* Align base is 64B */
-		align_base = DR_ICM_MODIFY_HDR_ALIGN_BASE;
-	}
-
 	mutex_lock(&pool->mr_mutex);
 	if (!list_empty(&pool->icm_mr_list)) {
 		icm_mr = list_last_entry(&pool->icm_mr_list,
@@ -228,7 +225,7 @@ static int dr_icm_chunks_create(struct mlx5dr_icm_bucket *bucket)
 	}
 
 	if (!icm_mr || mr_free_size < mr_row_size) {
-		icm_mr = dr_icm_pool_mr_create(pool, dm_type, align_base);
+		icm_mr = dr_icm_pool_mr_create(pool);
 		if (!icm_mr) {
 			err = -ENOMEM;
 			goto out_err;

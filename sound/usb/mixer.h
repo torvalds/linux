@@ -6,6 +6,13 @@
 
 struct media_mixer_ctl;
 
+struct usbmix_connector_map {
+	u8 id;
+	u8 delegated_id;
+	u8 control;
+	u8 channel;
+};
+
 struct usb_mixer_interface {
 	struct snd_usb_audio *chip;
 	struct usb_host_interface *hostif;
@@ -17,6 +24,9 @@ struct usb_mixer_interface {
 
 	/* the usb audio specification version this interface complies to */
 	int protocol;
+
+	/* optional connector delegation map */
+	const struct usbmix_connector_map *connector_map;
 
 	/* Sound Blaster remote control stuff */
 	const struct rc_config *rc_cfg;

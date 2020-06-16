@@ -801,7 +801,7 @@ static int pyrf_evsel__init(struct pyrf_evsel *pevsel,
 
 static void pyrf_evsel__delete(struct pyrf_evsel *pevsel)
 {
-	perf_evsel__exit(&pevsel->evsel);
+	evsel__exit(&pevsel->evsel);
 	Py_TYPE(pevsel)->tp_free((PyObject*)pevsel);
 }
 
@@ -1044,7 +1044,7 @@ static PyObject *pyrf_evlist__read_on_cpu(struct pyrf_evlist *pevlist,
 
 		pevent->evsel = evsel;
 
-		err = perf_evsel__parse_sample(evsel, event, &pevent->sample);
+		err = evsel__parse_sample(evsel, event, &pevent->sample);
 
 		/* Consume the even only after we parsed it out. */
 		perf_mmap__consume(&md->core);

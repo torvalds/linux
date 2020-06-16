@@ -50,6 +50,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.disable_audio_stream = dce110_disable_audio_stream,
 	.disable_plane = dcn10_disable_plane,
 	.pipe_control_lock = dcn10_pipe_control_lock,
+	.cursor_lock = dcn10_cursor_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.prepare_bandwidth = dcn10_prepare_bandwidth,
 	.optimize_bandwidth = dcn10_optimize_bandwidth,
@@ -71,6 +72,9 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_clock = dcn10_set_clock,
 	.get_clock = dcn10_get_clock,
 	.get_vupdate_offset_from_vsync = dcn10_get_vupdate_offset_from_vsync,
+	.calc_vupdate_position = dcn10_calc_vupdate_position,
+	.set_backlight_level = dce110_set_backlight_level,
+	.set_abm_immediate_disable = dce110_set_abm_immediate_disable,
 };
 
 static const struct hwseq_private_funcs dcn10_private_funcs = {
@@ -87,8 +91,6 @@ static const struct hwseq_private_funcs dcn10_private_funcs = {
 	.reset_hw_ctx_wrap = dcn10_reset_hw_ctx_wrap,
 	.enable_stream_timing = dcn10_enable_stream_timing,
 	.edp_backlight_control = dce110_edp_backlight_control,
-	.is_panel_backlight_on = dce110_is_panel_backlight_on,
-	.is_panel_powered_on = dce110_is_panel_powered_on,
 	.disable_stream_gating = NULL,
 	.enable_stream_gating = NULL,
 	.setup_vupdate_interrupt = dcn10_setup_vupdate_interrupt,

@@ -53,10 +53,10 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
+#include <linux/pgtable.h>
 
 #include <asm/bootinfo.h>
 #include <asm/bitops.h>
-#include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 

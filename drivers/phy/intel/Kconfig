@@ -2,8 +2,23 @@
 #
 # Phy drivers for Intel Lightning Mountain(LGM) platform
 #
+config PHY_INTEL_COMBO
+	bool "Intel ComboPHY driver"
+	depends on X86 || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select MFD_SYSCON
+	select GENERIC_PHY
+	select REGMAP
+	help
+	  Enable this to support Intel ComboPhy.
+
+	  This driver configures ComboPhy subsystem on Intel gateway
+	  chipsets which provides PHYs for various controllers, EMAC,
+	  SATA and PCIe.
+
 config PHY_INTEL_EMMC
 	tristate "Intel EMMC PHY driver"
+	depends on X86 || COMPILE_TEST
 	select GENERIC_PHY
 	help
 	  Enable this to support the Intel EMMC PHY

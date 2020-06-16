@@ -172,7 +172,8 @@ void ice_release_nvm(struct ice_hw *hw)
  *
  * Reads one 16 bit word from the Shadow RAM using the ice_read_sr_word_aq.
  */
-enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
+static enum ice_status
+ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
 {
 	enum ice_status status;
 
@@ -196,7 +197,7 @@ enum ice_status ice_read_sr_word(struct ice_hw *hw, u16 offset, u16 *data)
  * Area (PFA) and returns the TLV pointer and length. The caller can
  * use these to read the variable length TLV value.
  */
-enum ice_status
+static enum ice_status
 ice_get_pfa_module_tlv(struct ice_hw *hw, u16 *module_tlv, u16 *module_tlv_len,
 		       u16 module_type)
 {
@@ -367,6 +368,87 @@ static enum ice_status ice_get_orom_ver_info(struct ice_hw *hw)
 }
 
 /**
+ * ice_get_netlist_ver_info
+ * @hw: pointer to the HW struct
+ *
+ * Get the netlist version information
+ */
+static enum ice_status ice_get_netlist_ver_info(struct ice_hw *hw)
+{
+	struct ice_netlist_ver_info *ver = &hw->netlist_ver;
+	enum ice_status ret;
+	u32 id_blk_start;
+	__le16 raw_data;
+	u16 data, i;
+	u16 *buff;
+
+	ret = ice_acquire_nvm(hw, ICE_RES_READ);
+	if (ret)
+		return ret;
+	buff = kcalloc(ICE_AQC_NVM_NETLIST_ID_BLK_LEN, sizeof(*buff),
+		       GFP_KERNEL);
+	if (!buff) {
+		ret = ICE_ERR_NO_MEMORY;
+		goto exit_no_mem;
+	}
+
+	/* read module length */
+	ret = ice_aq_read_nvm(hw, ICE_AQC_NVM_LINK_TOPO_NETLIST_MOD_ID,
+			      ICE_AQC_NVM_LINK_TOPO_NETLIST_LEN_OFFSET * 2,
+			      ICE_AQC_NVM_LINK_TOPO_NETLIST_LEN, &raw_data,
+			      false, false, NULL);
+	if (ret)
+		goto exit_error;
+
+	data = le16_to_cpu(raw_data);
+	/* exit if length is = 0 */
+	if (!data)
+		goto exit_error;
+
+	/* read node count */
+	ret = ice_aq_read_nvm(hw, ICE_AQC_NVM_LINK_TOPO_NETLIST_MOD_ID,
+			      ICE_AQC_NVM_NETLIST_NODE_COUNT_OFFSET * 2,
+			      ICE_AQC_NVM_NETLIST_NODE_COUNT_LEN, &raw_data,
+			      false, false, NULL);
+	if (ret)
+		goto exit_error;
+	data = le16_to_cpu(raw_data) & ICE_AQC_NVM_NETLIST_NODE_COUNT_M;
+
+	/* netlist ID block starts from offset 4 + node count * 2 */
+	id_blk_start = ICE_AQC_NVM_NETLIST_ID_BLK_START_OFFSET + data * 2;
+
+	/* read the entire netlist ID block */
+	ret = ice_aq_read_nvm(hw, ICE_AQC_NVM_LINK_TOPO_NETLIST_MOD_ID,
+			      id_blk_start * 2,
+			      ICE_AQC_NVM_NETLIST_ID_BLK_LEN * 2, buff, false,
+			      false, NULL);
+	if (ret)
+		goto exit_error;
+
+	for (i = 0; i < ICE_AQC_NVM_NETLIST_ID_BLK_LEN; i++)
+		buff[i] = le16_to_cpu(((__force __le16 *)buff)[i]);
+
+	ver->major = (buff[ICE_AQC_NVM_NETLIST_ID_BLK_MAJOR_VER_HIGH] << 16) |
+		buff[ICE_AQC_NVM_NETLIST_ID_BLK_MAJOR_VER_LOW];
+	ver->minor = (buff[ICE_AQC_NVM_NETLIST_ID_BLK_MINOR_VER_HIGH] << 16) |
+		buff[ICE_AQC_NVM_NETLIST_ID_BLK_MINOR_VER_LOW];
+	ver->type = (buff[ICE_AQC_NVM_NETLIST_ID_BLK_TYPE_HIGH] << 16) |
+		buff[ICE_AQC_NVM_NETLIST_ID_BLK_TYPE_LOW];
+	ver->rev = (buff[ICE_AQC_NVM_NETLIST_ID_BLK_REV_HIGH] << 16) |
+		buff[ICE_AQC_NVM_NETLIST_ID_BLK_REV_LOW];
+	ver->cust_ver = buff[ICE_AQC_NVM_NETLIST_ID_BLK_CUST_VER];
+	/* Read the left most 4 bytes of SHA */
+	ver->hash = buff[ICE_AQC_NVM_NETLIST_ID_BLK_SHA_HASH + 15] << 16 |
+		buff[ICE_AQC_NVM_NETLIST_ID_BLK_SHA_HASH + 14];
+
+exit_error:
+	kfree(buff);
+exit_no_mem:
+	ice_release_nvm(hw);
+	return ret;
+}
+
+/**
  * ice_discover_flash_size - Discover the available flash size.
  * @hw: pointer to the HW struct
  *
@@ -514,6 +596,11 @@ enum ice_status ice_init_nvm(struct ice_hw *hw)
 		ice_debug(hw, ICE_DBG_INIT, "Failed to read Option ROM info.\n");
 		return status;
 	}
+
+	/* read the netlist version information */
+	status = ice_get_netlist_ver_info(hw);
+	if (status)
+		ice_debug(hw, ICE_DBG_INIT, "Failed to read netlist info.\n");
 
 	return 0;
 }

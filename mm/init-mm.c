@@ -6,10 +6,10 @@
 #include <linux/list.h>
 #include <linux/cpumask.h>
 #include <linux/mman.h>
+#include <linux/pgtable.h>
 
 #include <linux/atomic.h>
 #include <linux/user_namespace.h>
-#include <asm/pgtable.h>
 #include <asm/mmu.h>
 
 #ifndef INIT_MM_CONTEXT
@@ -31,7 +31,7 @@ struct mm_struct init_mm = {
 	.pgd		= swapper_pg_dir,
 	.mm_users	= ATOMIC_INIT(2),
 	.mm_count	= ATOMIC_INIT(1),
-	.mmap_sem	= __RWSEM_INITIALIZER(init_mm.mmap_sem),
+	MMAP_LOCK_INITIALIZER(init_mm)
 	.page_table_lock =  __SPIN_LOCK_UNLOCKED(init_mm.page_table_lock),
 	.arg_lock	=  __SPIN_LOCK_UNLOCKED(init_mm.arg_lock),
 	.mmlist		= LIST_HEAD_INIT(init_mm.mmlist),

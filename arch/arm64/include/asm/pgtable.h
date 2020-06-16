@@ -298,6 +298,11 @@ static inline pte_t pgd_pte(pgd_t pgd)
 	return __pte(pgd_val(pgd));
 }
 
+static inline pte_t p4d_pte(p4d_t p4d)
+{
+	return __pte(p4d_val(p4d));
+}
+
 static inline pte_t pud_pte(pud_t pud)
 {
 	return __pte(pud_val(pud));
@@ -335,7 +340,7 @@ static inline pgprot_t mk_pmd_sect_prot(pgprot_t prot)
 
 #ifdef CONFIG_NUMA_BALANCING
 /*
- * See the comment in include/asm-generic/pgtable.h
+ * See the comment in include/linux/pgtable.h
  */
 static inline int pte_protnone(pte_t pte)
 {
@@ -366,7 +371,7 @@ static inline int pmd_protnone(pmd_t pmd)
 #define pmd_mkclean(pmd)	pte_pmd(pte_mkclean(pmd_pte(pmd)))
 #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
 #define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
-#define pmd_mknotpresent(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
+#define pmd_mkinvalid(pmd)	(__pmd(pmd_val(pmd) & ~PMD_SECT_VALID))
 
 #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
 
@@ -401,11 +406,17 @@ static inline pmd_t pmd_mkdevmap(pmd_t pmd)
 
 #define set_pmd_at(mm, addr, pmdp, pmd)	set_pte_at(mm, addr, (pte_t *)pmdp, pmd_pte(pmd))
 
+#define __p4d_to_phys(p4d)	__pte_to_phys(p4d_pte(p4d))
+#define __phys_to_p4d_val(phys)	__phys_to_pte_val(phys)
+
 #define __pgd_to_phys(pgd)	__pte_to_phys(pgd_pte(pgd))
 #define __phys_to_pgd_val(phys)	__phys_to_pte_val(phys)
 
 #define __pgprot_modify(prot,mask,bits) \
 	__pgprot((pgprot_val(prot) & ~(mask)) | (bits))
+
+#define pgprot_nx(prot) \
+	__pgprot_modify(prot, 0, PTE_PXN)
 
 /*
  * Mark the prot value as uncacheable and unbufferable.
@@ -457,6 +468,7 @@ extern pgd_t init_pg_dir[PTRS_PER_PGD];
 extern pgd_t init_pg_end[];
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
+extern pgd_t idmap_pg_end[];
 extern pgd_t tramp_pg_dir[PTRS_PER_PGD];
 
 extern void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd);
@@ -494,21 +506,19 @@ static inline phys_addr_t pmd_page_paddr(pmd_t pmd)
 	return __pmd_to_phys(pmd);
 }
 
-static inline void pte_unmap(pte_t *pte) { }
+static inline unsigned long pmd_page_vaddr(pmd_t pmd)
+{
+	return (unsigned long)__va(pmd_page_paddr(pmd));
+}
 
 /* Find an entry in the third-level page table. */
-#define pte_index(addr)		(((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
-
 #define pte_offset_phys(dir,addr)	(pmd_page_paddr(READ_ONCE(*(dir))) + pte_index(addr) * sizeof(pte_t))
-#define pte_offset_kernel(dir,addr)	((pte_t *)__va(pte_offset_phys((dir), (addr))))
-
-#define pte_offset_map(dir,addr)	pte_offset_kernel((dir), (addr))
 
 #define pte_set_fixmap(addr)		((pte_t *)set_fixmap_offset(FIX_PTE, addr))
 #define pte_set_fixmap_offset(pmd, addr)	pte_set_fixmap(pte_offset_phys(pmd, addr))
 #define pte_clear_fixmap()		clear_fixmap(FIX_PTE)
 
-#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(__pmd_to_phys(pmd)))
+#define pmd_page(pmd)			phys_to_page(__pmd_to_phys(pmd))
 
 /* use ONLY for statically allocated translation tables */
 #define pte_offset_kimg(dir,addr)	((pte_t *)__phys_to_kimg(pte_offset_phys((dir), (addr))))
@@ -556,17 +566,19 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 	return __pud_to_phys(pud);
 }
 
-/* Find an entry in the second-level page table. */
-#define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
+static inline unsigned long pud_page_vaddr(pud_t pud)
+{
+	return (unsigned long)__va(pud_page_paddr(pud));
+}
 
+/* Find an entry in the second-level page table. */
 #define pmd_offset_phys(dir, addr)	(pud_page_paddr(READ_ONCE(*(dir))) + pmd_index(addr) * sizeof(pmd_t))
-#define pmd_offset(dir, addr)		((pmd_t *)__va(pmd_offset_phys((dir), (addr))))
 
 #define pmd_set_fixmap(addr)		((pmd_t *)set_fixmap_offset(FIX_PMD, addr))
 #define pmd_set_fixmap_offset(pud, addr)	pmd_set_fixmap(pmd_offset_phys(pud, addr))
 #define pmd_clear_fixmap()		clear_fixmap(FIX_PMD)
 
-#define pud_page(pud)		pfn_to_page(__phys_to_pfn(__pud_to_phys(pud)))
+#define pud_page(pud)			phys_to_page(__pud_to_phys(pud))
 
 /* use ONLY for statically allocated translation tables */
 #define pmd_offset_kimg(dir,addr)	((pmd_t *)__phys_to_kimg(pmd_offset_phys((dir), (addr))))
@@ -588,49 +600,52 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
 
 #define pud_ERROR(pud)		__pud_error(__FILE__, __LINE__, pud_val(pud))
 
-#define pgd_none(pgd)		(!pgd_val(pgd))
-#define pgd_bad(pgd)		(!(pgd_val(pgd) & 2))
-#define pgd_present(pgd)	(pgd_val(pgd))
+#define p4d_none(p4d)		(!p4d_val(p4d))
+#define p4d_bad(p4d)		(!(p4d_val(p4d) & 2))
+#define p4d_present(p4d)	(p4d_val(p4d))
 
-static inline void set_pgd(pgd_t *pgdp, pgd_t pgd)
+static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 {
-	if (in_swapper_pgdir(pgdp)) {
-		set_swapper_pgd(pgdp, pgd);
+	if (in_swapper_pgdir(p4dp)) {
+		set_swapper_pgd((pgd_t *)p4dp, __pgd(p4d_val(p4d)));
 		return;
 	}
 
-	WRITE_ONCE(*pgdp, pgd);
+	WRITE_ONCE(*p4dp, p4d);
 	dsb(ishst);
 	isb();
 }
 
-static inline void pgd_clear(pgd_t *pgdp)
+static inline void p4d_clear(p4d_t *p4dp)
 {
-	set_pgd(pgdp, __pgd(0));
+	set_p4d(p4dp, __p4d(0));
 }
 
-static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
+static inline phys_addr_t p4d_page_paddr(p4d_t p4d)
 {
-	return __pgd_to_phys(pgd);
+	return __p4d_to_phys(p4d);
+}
+
+static inline unsigned long p4d_page_vaddr(p4d_t p4d)
+{
+	return (unsigned long)__va(p4d_page_paddr(p4d));
 }
 
 /* Find an entry in the frst-level page table. */
-#define pud_index(addr)		(((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
-
-#define pud_offset_phys(dir, addr)	(pgd_page_paddr(READ_ONCE(*(dir))) + pud_index(addr) * sizeof(pud_t))
-#define pud_offset(dir, addr)		((pud_t *)__va(pud_offset_phys((dir), (addr))))
+#define pud_offset_phys(dir, addr)	(p4d_page_paddr(READ_ONCE(*(dir))) + pud_index(addr) * sizeof(pud_t))
 
 #define pud_set_fixmap(addr)		((pud_t *)set_fixmap_offset(FIX_PUD, addr))
-#define pud_set_fixmap_offset(pgd, addr)	pud_set_fixmap(pud_offset_phys(pgd, addr))
+#define pud_set_fixmap_offset(p4d, addr)	pud_set_fixmap(pud_offset_phys(p4d, addr))
 #define pud_clear_fixmap()		clear_fixmap(FIX_PUD)
 
-#define pgd_page(pgd)		pfn_to_page(__phys_to_pfn(__pgd_to_phys(pgd)))
+#define p4d_page(p4d)		pfn_to_page(__phys_to_pfn(__p4d_to_phys(p4d)))
 
 /* use ONLY for statically allocated translation tables */
 #define pud_offset_kimg(dir,addr)	((pud_t *)__phys_to_kimg(pud_offset_phys((dir), (addr))))
 
 #else
 
+#define p4d_page_paddr(p4d)	({ BUILD_BUG(); 0;})
 #define pgd_page_paddr(pgd)	({ BUILD_BUG(); 0;})
 
 /* Match pud_offset folding in <asm/generic/pgtable-nopud.h> */
@@ -644,23 +659,13 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
 
 #define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
 
-/* to find an entry in a page-table-directory */
-#define pgd_index(addr)		(((addr) >> PGDIR_SHIFT) & (PTRS_PER_PGD - 1))
-
-#define pgd_offset_raw(pgd, addr)	((pgd) + pgd_index(addr))
-
-#define pgd_offset(mm, addr)	(pgd_offset_raw((mm)->pgd, (addr)))
-
-/* to find an entry in a kernel page-table-directory */
-#define pgd_offset_k(addr)	pgd_offset(&init_mm, addr)
-
 #define pgd_set_fixmap(addr)	((pgd_t *)set_fixmap_offset(FIX_PGD, addr))
 #define pgd_clear_fixmap()	clear_fixmap(FIX_PGD)
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	const pteval_t mask = PTE_USER | PTE_PXN | PTE_UXN | PTE_RDONLY |
-			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE;
+			      PTE_PROT_NONE | PTE_VALID | PTE_WRITE | PTE_GP;
 	/* preserve the hardware dirty information */
 	if (pte_hw_dirty(pte))
 		pte = pte_mkdirty(pte);
@@ -839,8 +844,6 @@ static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
 #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > __SWP_TYPE_BITS)
 
 extern int kern_addr_valid(unsigned long addr);
-
-#include <asm-generic/pgtable.h>
 
 /*
  * On AArch64, the cache coherency is handled via the set_pte_at() function.

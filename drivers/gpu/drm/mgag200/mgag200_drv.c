@@ -77,6 +77,8 @@ static int mga_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret)
 		goto err_mgag200_driver_unload;
 
+	drm_fbdev_generic_setup(dev, 0);
+
 	return 0;
 
 err_mgag200_driver_unload:
@@ -118,7 +120,7 @@ int mgag200_driver_dumb_create(struct drm_file *file,
 			       struct drm_device *dev,
 			       struct drm_mode_create_dumb *args)
 {
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 	unsigned long pg_align;
 
 	if (WARN_ONCE(!dev->vram_mm, "VRAM MM not initialized"))

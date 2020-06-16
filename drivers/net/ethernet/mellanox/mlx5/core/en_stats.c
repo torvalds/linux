@@ -32,8 +32,8 @@
 
 #include "lib/mlx5.h"
 #include "en.h"
-#include "en_accel/ipsec.h"
 #include "en_accel/tls.h"
+#include "en_accel/en_accel.h"
 
 static unsigned int stats_grps_num(struct mlx5e_priv *priv)
 {
@@ -411,18 +411,29 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(qcnt)
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(qcnt)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
-	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
+	int ret;
 
-	if (priv->q_counter &&
-	    !mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out,
-				       sizeof(out)))
-		qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
-						  out, out_of_buffer);
-	if (priv->drop_rq_q_counter &&
-	    !mlx5_core_query_q_counter(priv->mdev, priv->drop_rq_q_counter, 0,
-				       out, sizeof(out)))
-		qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out, out,
-						    out_of_buffer);
+	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
+
+	if (priv->q_counter) {
+		MLX5_SET(query_q_counter_in, in, counter_set_id,
+			 priv->q_counter);
+		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
+		if (!ret)
+			qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
+							  out, out_of_buffer);
+	}
+
+	if (priv->drop_rq_q_counter) {
+		MLX5_SET(query_q_counter_in, in, counter_set_id,
+			 priv->drop_rq_q_counter);
+		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
+		if (!ret)
+			qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out,
+							    out, out_of_buffer);
+	}
 }
 
 #define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)
@@ -480,18 +491,14 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vnic_env)
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vnic_env)
 {
 	u32 *out = (u32 *)priv->stats.vnic.query_vnic_env_out;
-	int outlen = MLX5_ST_SZ_BYTES(query_vnic_env_out);
-	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {};
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
 		return;
 
-	MLX5_SET(query_vnic_env_in, in, opcode,
-		 MLX5_CMD_OP_QUERY_VNIC_ENV);
-	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
-	MLX5_SET(query_vnic_env_in, in, other_vport, 0);
-	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
+	MLX5_SET(query_vnic_env_in, in, opcode, MLX5_CMD_OP_QUERY_VNIC_ENV);
+	mlx5_cmd_exec_inout(mdev, query_vnic_env, in, out);
 }
 
 #define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
@@ -566,15 +573,12 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vport)
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport)
 {
-	int outlen = MLX5_ST_SZ_BYTES(query_vport_counter_out);
 	u32 *out = (u32 *)priv->stats.vport.query_vport_out;
-	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {0};
+	u32 in[MLX5_ST_SZ_DW(query_vport_counter_in)] = {};
 	struct mlx5_core_dev *mdev = priv->mdev;
 
 	MLX5_SET(query_vport_counter_in, in, opcode, MLX5_CMD_OP_QUERY_VPORT_COUNTER);
-	MLX5_SET(query_vport_counter_in, in, op_mod, 0);
-	MLX5_SET(query_vport_counter_in, in, other_vport, 0);
-	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
+	mlx5_cmd_exec_inout(mdev, query_vport_counter, in, out);
 }
 
 #define PPORT_802_3_OFF(c) \
@@ -1424,27 +1428,6 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(pme)
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(pme) { return; }
 
-static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(ipsec)
-{
-	return mlx5e_ipsec_get_count(priv);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(ipsec)
-{
-	return idx + mlx5e_ipsec_get_strings(priv,
-					     data + idx * ETH_GSTRING_LEN);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(ipsec)
-{
-	return idx + mlx5e_ipsec_get_stats(priv, data + idx);
-}
-
-static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(ipsec)
-{
-	mlx5e_ipsec_update_stats(priv);
-}
-
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(tls)
 {
 	return mlx5e_tls_get_count(priv);
@@ -1714,7 +1697,6 @@ MLX5E_DEFINE_STATS_GRP(pme, 0);
 MLX5E_DEFINE_STATS_GRP(channels, 0);
 MLX5E_DEFINE_STATS_GRP(per_port_buff_congest, 0);
 MLX5E_DEFINE_STATS_GRP(eth_ext, 0);
-static MLX5E_DEFINE_STATS_GRP(ipsec, 0);
 static MLX5E_DEFINE_STATS_GRP(tls, 0);
 
 /* The stats groups order is opposite to the update_stats() order calls */
@@ -1731,7 +1713,10 @@ mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
 	&MLX5E_STATS_GRP(pcie),
 	&MLX5E_STATS_GRP(per_prio),
 	&MLX5E_STATS_GRP(pme),
-	&MLX5E_STATS_GRP(ipsec),
+#ifdef CONFIG_MLX5_EN_IPSEC
+	&MLX5E_STATS_GRP(ipsec_sw),
+	&MLX5E_STATS_GRP(ipsec_hw),
+#endif
 	&MLX5E_STATS_GRP(tls),
 	&MLX5E_STATS_GRP(channels),
 	&MLX5E_STATS_GRP(per_port_buff_congest),

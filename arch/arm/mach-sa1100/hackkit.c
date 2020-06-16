@@ -22,11 +22,11 @@
 #include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/pgtable.h>
 
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>

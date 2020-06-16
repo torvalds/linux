@@ -50,6 +50,7 @@
 #define KERNEL_VER	bin2bcd(((LINUX_VERSION_CODE >> 8) & 0x0ff))
 
 enum {
+	AST_VHUB_STR_INDEX_MAX = 4,
 	AST_VHUB_STR_MANUF = 3,
 	AST_VHUB_STR_PRODUCT = 2,
 	AST_VHUB_STR_SERIAL = 1,
@@ -71,13 +72,6 @@ static const struct usb_device_descriptor ast_vhub_dev_desc = {
 	.iSerialNumber		= AST_VHUB_STR_SERIAL,
 	.bNumConfigurations	= 1,
 };
-
-/* Patches to the above when forcing USB1 mode */
-static void ast_vhub_patch_dev_desc_usb1(struct usb_device_descriptor *desc)
-{
-	desc->bcdUSB = cpu_to_le16(0x0100);
-	desc->bDeviceProtocol = 0;
-}
 
 /*
  * Configuration descriptor: same comments as above
@@ -302,31 +296,81 @@ static int ast_vhub_rep_desc(struct ast_vhub_ep *ep,
 	if (len > dsize)
 		len = dsize;
 
-	/* Patch it if forcing USB1 */
-	if (desc_type == USB_DT_DEVICE && ep->vhub->force_usb1)
-		ast_vhub_patch_dev_desc_usb1(ep->buf);
-
 	/* Shoot it from the EP buffer */
 	return ast_vhub_reply(ep, NULL, len);
+}
+
+static struct usb_gadget_strings*
+ast_vhub_str_of_container(struct usb_gadget_string_container *container)
+{
+	return (struct usb_gadget_strings *)container->stash;
+}
+
+static int ast_vhub_collect_languages(struct ast_vhub *vhub, void *buf,
+				      size_t size)
+{
+	int rc, hdr_len, nlangs, max_langs;
+	struct usb_gadget_strings *lang_str;
+	struct usb_gadget_string_container *container;
+	struct usb_string_descriptor *sdesc = buf;
+
+	nlangs = 0;
+	hdr_len = sizeof(struct usb_descriptor_header);
+	max_langs = (size - hdr_len) / sizeof(sdesc->wData[0]);
+	list_for_each_entry(container, &vhub->vhub_str_desc, list) {
+		if (nlangs >= max_langs)
+			break;
+
+		lang_str = ast_vhub_str_of_container(container);
+		sdesc->wData[nlangs++] = cpu_to_le16(lang_str->language);
+	}
+
+	rc = hdr_len + nlangs * sizeof(sdesc->wData[0]);
+	sdesc->bLength = rc;
+	sdesc->bDescriptorType = USB_DT_STRING;
+
+	return rc;
+}
+
+static struct usb_gadget_strings *ast_vhub_lookup_string(struct ast_vhub *vhub,
+							 u16 lang_id)
+{
+	struct usb_gadget_strings *lang_str;
+	struct usb_gadget_string_container *container;
+
+	list_for_each_entry(container, &vhub->vhub_str_desc, list) {
+		lang_str = ast_vhub_str_of_container(container);
+		if (lang_str->language == lang_id)
+			return lang_str;
+	}
+
+	return NULL;
 }
 
 static int ast_vhub_rep_string(struct ast_vhub_ep *ep,
 			       u8 string_id, u16 lang_id,
 			       u16 len)
 {
-	int rc = usb_gadget_get_string(&ep->vhub->vhub_str_desc,
-					string_id, ep->buf);
+	int rc;
+	u8 buf[256];
+	struct ast_vhub *vhub = ep->vhub;
+	struct usb_gadget_strings *lang_str;
 
-	/*
-	 * This should never happen unless we put too big strings in
-	 * the array above
-	 */
-	BUG_ON(rc >= AST_VHUB_EP0_MAX_PACKET);
+	if (string_id == 0) {
+		rc = ast_vhub_collect_languages(vhub, buf, sizeof(buf));
+	} else {
+		lang_str = ast_vhub_lookup_string(vhub, lang_id);
+		if (!lang_str)
+			return std_req_stall;
 
-	if (rc < 0)
+		rc = usb_gadget_get_string(lang_str, string_id, buf);
+	}
+
+	if (rc < 0 || rc >= AST_VHUB_EP0_MAX_PACKET)
 		return std_req_stall;
 
 	/* Shoot it from the EP buffer */
+	memcpy(ep->buf, buf, rc);
 	return ast_vhub_reply(ep, NULL, min_t(u16, rc, len));
 }
 
@@ -832,11 +876,148 @@ void ast_vhub_hub_reset(struct ast_vhub *vhub)
 	writel(0, vhub->regs + AST_VHUB_EP1_STS_CHG);
 }
 
-static void ast_vhub_init_desc(struct ast_vhub *vhub)
+static void ast_vhub_of_parse_dev_desc(struct ast_vhub *vhub,
+				       const struct device_node *vhub_np)
 {
+	u16 id;
+	u32 data;
+
+	if (!of_property_read_u32(vhub_np, "vhub-vendor-id", &data)) {
+		id = (u16)data;
+		vhub->vhub_dev_desc.idVendor = cpu_to_le16(id);
+	}
+	if (!of_property_read_u32(vhub_np, "vhub-product-id", &data)) {
+		id = (u16)data;
+		vhub->vhub_dev_desc.idProduct = cpu_to_le16(id);
+	}
+	if (!of_property_read_u32(vhub_np, "vhub-device-revision", &data)) {
+		id = (u16)data;
+		vhub->vhub_dev_desc.bcdDevice = cpu_to_le16(id);
+	}
+}
+
+static void ast_vhub_fixup_usb1_dev_desc(struct ast_vhub *vhub)
+{
+	vhub->vhub_dev_desc.bcdUSB = cpu_to_le16(0x0100);
+	vhub->vhub_dev_desc.bDeviceProtocol = 0;
+}
+
+static struct usb_gadget_string_container*
+ast_vhub_str_container_alloc(struct ast_vhub *vhub)
+{
+	unsigned int size;
+	struct usb_string *str_array;
+	struct usb_gadget_strings *lang_str;
+	struct usb_gadget_string_container *container;
+
+	size = sizeof(*container);
+	size += sizeof(struct usb_gadget_strings);
+	size += sizeof(struct usb_string) * AST_VHUB_STR_INDEX_MAX;
+	container = devm_kzalloc(&vhub->pdev->dev, size, GFP_KERNEL);
+	if (!container)
+		return ERR_PTR(-ENOMEM);
+
+	lang_str = ast_vhub_str_of_container(container);
+	str_array = (struct usb_string *)(lang_str + 1);
+	lang_str->strings = str_array;
+	return container;
+}
+
+static void ast_vhub_str_deep_copy(struct usb_gadget_strings *dest,
+				   const struct usb_gadget_strings *src)
+{
+	struct usb_string *src_array = src->strings;
+	struct usb_string *dest_array = dest->strings;
+
+	dest->language = src->language;
+	if (src_array && dest_array) {
+		do {
+			*dest_array = *src_array;
+			dest_array++;
+			src_array++;
+		} while (src_array->s);
+	}
+}
+
+static int ast_vhub_str_alloc_add(struct ast_vhub *vhub,
+				  const struct usb_gadget_strings *src_str)
+{
+	struct usb_gadget_strings *dest_str;
+	struct usb_gadget_string_container *container;
+
+	container = ast_vhub_str_container_alloc(vhub);
+	if (IS_ERR(container))
+		return PTR_ERR(container);
+
+	dest_str = ast_vhub_str_of_container(container);
+	ast_vhub_str_deep_copy(dest_str, src_str);
+	list_add_tail(&container->list, &vhub->vhub_str_desc);
+
+	return 0;
+}
+
+static const struct {
+	const char *name;
+	u8 id;
+} str_id_map[] = {
+	{"manufacturer",	AST_VHUB_STR_MANUF},
+	{"product",		AST_VHUB_STR_PRODUCT},
+	{"serial-number",	AST_VHUB_STR_SERIAL},
+	{},
+};
+
+static int ast_vhub_of_parse_str_desc(struct ast_vhub *vhub,
+				      const struct device_node *desc_np)
+{
+	u32 langid;
+	int ret = 0;
+	int i, offset;
+	const char *str;
+	struct device_node *child;
+	struct usb_string str_array[AST_VHUB_STR_INDEX_MAX];
+	struct usb_gadget_strings lang_str = {
+		.strings = (struct usb_string *)str_array,
+	};
+
+	for_each_child_of_node(desc_np, child) {
+		if (of_property_read_u32(child, "reg", &langid))
+			continue; /* no language identifier specified */
+
+		if (!usb_validate_langid(langid))
+			continue; /* invalid language identifier */
+
+		lang_str.language = langid;
+		for (i = offset = 0; str_id_map[i].name; i++) {
+			str = of_get_property(child, str_id_map[i].name, NULL);
+			if (str) {
+				str_array[offset].s = str;
+				str_array[offset].id = str_id_map[i].id;
+				offset++;
+			}
+		}
+		str_array[offset].id = 0;
+		str_array[offset].s = NULL;
+
+		ret = ast_vhub_str_alloc_add(vhub, &lang_str);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+
+static int ast_vhub_init_desc(struct ast_vhub *vhub)
+{
+	int ret;
+	struct device_node *desc_np;
+	const struct device_node *vhub_np = vhub->pdev->dev.of_node;
+
 	/* Initialize vhub Device Descriptor. */
 	memcpy(&vhub->vhub_dev_desc, &ast_vhub_dev_desc,
 		sizeof(vhub->vhub_dev_desc));
+	ast_vhub_of_parse_dev_desc(vhub, vhub_np);
+	if (vhub->force_usb1)
+		ast_vhub_fixup_usb1_dev_desc(vhub);
 
 	/* Initialize vhub Configuration Descriptor. */
 	memcpy(&vhub->vhub_conf_desc, &ast_vhub_conf_desc,
@@ -848,15 +1029,20 @@ static void ast_vhub_init_desc(struct ast_vhub *vhub)
 	vhub->vhub_hub_desc.bNbrPorts = vhub->max_ports;
 
 	/* Initialize vhub String Descriptors. */
-	memcpy(&vhub->vhub_str_desc, &ast_vhub_strings,
-		sizeof(vhub->vhub_str_desc));
+	INIT_LIST_HEAD(&vhub->vhub_str_desc);
+	desc_np = of_get_child_by_name(vhub_np, "vhub-strings");
+	if (desc_np)
+		ret = ast_vhub_of_parse_str_desc(vhub, desc_np);
+	else
+		ret = ast_vhub_str_alloc_add(vhub, &ast_vhub_strings);
+
+	return ret;
 }
 
-void ast_vhub_init_hub(struct ast_vhub *vhub)
+int ast_vhub_init_hub(struct ast_vhub *vhub)
 {
 	vhub->speed = USB_SPEED_UNKNOWN;
 	INIT_WORK(&vhub->wake_work, ast_vhub_wake_work);
 
-	ast_vhub_init_desc(vhub);
+	return ast_vhub_init_desc(vhub);
 }
-

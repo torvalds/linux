@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 
 #include "hinic_hw_csr.h"
 #include "hinic_hw_if.h"
@@ -17,6 +18,8 @@
 #define PCIE_ATTR_ENTRY         0
 
 #define VALID_MSIX_IDX(attr, msix_index) ((msix_index) < (attr)->num_irqs)
+
+#define WAIT_HWIF_READY_TIMEOUT	10000
 
 /**
  * hinic_msix_attr_set - set message attribute for msix entry
@@ -115,8 +118,12 @@ int hinic_msix_attr_cnt_clear(struct hinic_hwif *hwif, u16 msix_index)
  **/
 void hinic_set_pf_action(struct hinic_hwif *hwif, enum hinic_pf_action action)
 {
-	u32 attr5 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR);
+	u32 attr5;
 
+	if (HINIC_IS_VF(hwif))
+		return;
+
+	attr5 = hinic_hwif_read_reg(hwif, HINIC_CSR_FUNC_ATTR5_ADDR);
 	attr5 = HINIC_FA5_CLEAR(attr5, PF_ACTION);
 	attr5 |= HINIC_FA5_SET(action, PF_ACTION);
 
@@ -183,18 +190,37 @@ void hinic_set_msix_state(struct hinic_hwif *hwif, u16 msix_idx,
  **/
 static int hwif_ready(struct hinic_hwif *hwif)
 {
-	struct pci_dev *pdev = hwif->pdev;
 	u32 addr, attr1;
 
 	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
 	attr1  = hinic_hwif_read_reg(hwif, addr);
 
-	if (!HINIC_FA1_GET(attr1, INIT_STATUS)) {
-		dev_err(&pdev->dev, "hwif status is not ready\n");
-		return -EFAULT;
+	if (!HINIC_FA1_GET(attr1, MGMT_INIT_STATUS))
+		return -EBUSY;
+
+	if (HINIC_IS_VF(hwif)) {
+		if (!HINIC_FA1_GET(attr1, PF_INIT_STATUS))
+			return -EBUSY;
 	}
 
 	return 0;
+}
+
+static int wait_hwif_ready(struct hinic_hwif *hwif)
+{
+	unsigned long timeout = 0;
+
+	do {
+		if (!hwif_ready(hwif))
+			return 0;
+
+		usleep_range(999, 1000);
+		timeout++;
+	} while (timeout <= WAIT_HWIF_READY_TIMEOUT);
+
+	dev_err(&hwif->pdev->dev, "Wait for hwif timeout\n");
+
+	return -EBUSY;
 }
 
 /**
@@ -203,7 +229,8 @@ static int hwif_ready(struct hinic_hwif *hwif)
  * @attr0: the first attribute that was read from the hw
  * @attr1: the second attribute that was read from the hw
  **/
-static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
+static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1,
+			  u32 attr2)
 {
 	hwif->attr.func_idx     = HINIC_FA0_GET(attr0, FUNC_IDX);
 	hwif->attr.pf_idx       = HINIC_FA0_GET(attr0, PF_IDX);
@@ -214,6 +241,8 @@ static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
 	hwif->attr.num_ceqs = BIT(HINIC_FA1_GET(attr1, CEQS_PER_FUNC));
 	hwif->attr.num_irqs = BIT(HINIC_FA1_GET(attr1, IRQS_PER_FUNC));
 	hwif->attr.num_dma_attr = BIT(HINIC_FA1_GET(attr1, DMA_ATTR_PER_FUNC));
+	hwif->attr.global_vf_id_of_pf = HINIC_FA2_GET(attr2,
+						      GLOBAL_VF_ID_OF_PF);
 }
 
 /**
@@ -222,7 +251,7 @@ static void set_hwif_attr(struct hinic_hwif *hwif, u32 attr0, u32 attr1)
  **/
 static void read_hwif_attr(struct hinic_hwif *hwif)
 {
-	u32 addr, attr0, attr1;
+	u32 addr, attr0, attr1, attr2;
 
 	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
 	attr0  = hinic_hwif_read_reg(hwif, addr);
@@ -230,7 +259,10 @@ static void read_hwif_attr(struct hinic_hwif *hwif)
 	addr   = HINIC_CSR_FUNC_ATTR1_ADDR;
 	attr1  = hinic_hwif_read_reg(hwif, addr);
 
-	set_hwif_attr(hwif, attr0, attr1);
+	addr   = HINIC_CSR_FUNC_ATTR2_ADDR;
+	attr2  = hinic_hwif_read_reg(hwif, addr);
+
+	set_hwif_attr(hwif, attr0, attr1, attr2);
 }
 
 /**
@@ -309,6 +341,34 @@ static void dma_attr_init(struct hinic_hwif *hwif)
 		     HINIC_PCIE_SNOOP, HINIC_PCIE_TPH_DISABLE);
 }
 
+u16 hinic_glb_pf_vf_offset(struct hinic_hwif *hwif)
+{
+	if (!hwif)
+		return 0;
+
+	return hwif->attr.global_vf_id_of_pf;
+}
+
+u16 hinic_global_func_id_hw(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+
+	return HINIC_FA0_GET(attr0, FUNC_IDX);
+}
+
+u16 hinic_pf_id_of_vf_hw(struct hinic_hwif *hwif)
+{
+	u32 addr, attr0;
+
+	addr   = HINIC_CSR_FUNC_ATTR0_ADDR;
+	attr0  = hinic_hwif_read_reg(hwif, addr);
+
+	return HINIC_FA0_GET(attr0, PF_IDX);
+}
+
 /**
  * hinic_init_hwif - initialize the hw interface
  * @hwif: the HW interface of a pci function device
@@ -335,7 +395,7 @@ int hinic_init_hwif(struct hinic_hwif *hwif, struct pci_dev *pdev)
 		goto err_map_intr_bar;
 	}
 
-	err = hwif_ready(hwif);
+	err = wait_hwif_ready(hwif);
 	if (err) {
 		dev_err(&pdev->dev, "HW interface is not ready\n");
 		goto err_hwif_ready;

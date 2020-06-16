@@ -29,6 +29,7 @@
 #include <linux/devcoredump.h>
 #include <linux/rculist.h>
 #include <linux/remoteproc.h>
+#include <linux/pm_runtime.h>
 #include <linux/iommu.h>
 #include <linux/idr.h>
 #include <linux/elf.h>
@@ -517,7 +518,7 @@ static int rproc_handle_vdev(struct rproc *rproc, struct fw_rsc_vdev *rsc,
 
 	/* Initialise vdev subdevice */
 	snprintf(name, sizeof(name), "vdev%dbuffer", rvdev->index);
-	rvdev->dev.parent = rproc->dev.parent;
+	rvdev->dev.parent = &rproc->dev;
 	rvdev->dev.dma_pfn_offset = rproc->dev.parent->dma_pfn_offset;
 	rvdev->dev.release = rproc_rvdev_release;
 	dev_set_name(&rvdev->dev, "%s#%s", dev_name(rvdev->dev.parent), name);
@@ -1382,6 +1383,12 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	if (ret)
 		return ret;
 
+	ret = pm_runtime_get_sync(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm_runtime_get_sync failed: %d\n", ret);
+		return ret;
+	}
+
 	dev_info(dev, "Booting fw image %s, size %zd\n", name, fw->size);
 
 	/*
@@ -1391,7 +1398,14 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	ret = rproc_enable_iommu(rproc);
 	if (ret) {
 		dev_err(dev, "can't enable iommu: %d\n", ret);
-		return ret;
+		goto put_pm_runtime;
+	}
+
+	/* Prepare rproc for firmware loading if needed */
+	ret = rproc_prepare_device(rproc);
+	if (ret) {
+		dev_err(dev, "can't prepare rproc %s: %d\n", rproc->name, ret);
+		goto disable_iommu;
 	}
 
 	rproc->bootaddr = rproc_get_boot_addr(rproc, fw);
@@ -1399,7 +1413,7 @@ static int rproc_fw_boot(struct rproc *rproc, const struct firmware *fw)
 	/* Load resource table, core dump segment list etc from the firmware */
 	ret = rproc_parse_fw(rproc, fw);
 	if (ret)
-		goto disable_iommu;
+		goto unprepare_rproc;
 
 	/* reset max_notifyid */
 	rproc->max_notifyid = -1;
@@ -1433,8 +1447,13 @@ clean_up_resources:
 	kfree(rproc->cached_table);
 	rproc->cached_table = NULL;
 	rproc->table_ptr = NULL;
+unprepare_rproc:
+	/* release HW resources if needed */
+	rproc_unprepare_device(rproc);
 disable_iommu:
 	rproc_disable_iommu(rproc);
+put_pm_runtime:
+	pm_runtime_put(dev);
 	return ret;
 }
 
@@ -1566,6 +1585,28 @@ int rproc_coredump_add_custom_segment(struct rproc *rproc,
 EXPORT_SYMBOL(rproc_coredump_add_custom_segment);
 
 /**
+ * rproc_coredump_set_elf_info() - set coredump elf information
+ * @rproc:	handle of a remote processor
+ * @class:	elf class for coredump elf file
+ * @machine:	elf machine for coredump elf file
+ *
+ * Set elf information which will be used for coredump elf file.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
+int rproc_coredump_set_elf_info(struct rproc *rproc, u8 class, u16 machine)
+{
+	if (class != ELFCLASS64 && class != ELFCLASS32)
+		return -EINVAL;
+
+	rproc->elf_class = class;
+	rproc->elf_machine = machine;
+
+	return 0;
+}
+EXPORT_SYMBOL(rproc_coredump_set_elf_info);
+
+/**
  * rproc_coredump() - perform coredump
  * @rproc:	rproc handle
  *
@@ -1587,6 +1628,11 @@ static void rproc_coredump(struct rproc *rproc)
 	if (list_empty(&rproc->dump_segments))
 		return;
 
+	if (class == ELFCLASSNONE) {
+		dev_err(&rproc->dev, "Elf class is not set\n");
+		return;
+	}
+
 	data_size = elf_size_of_hdr(class);
 	list_for_each_entry(segment, &rproc->dump_segments, node) {
 		data_size += elf_size_of_phdr(class) + segment->size;
@@ -1605,7 +1651,7 @@ static void rproc_coredump(struct rproc *rproc)
 	elf_hdr_init_ident(ehdr, class);
 
 	elf_hdr_set_e_type(class, ehdr, ET_CORE);
-	elf_hdr_set_e_machine(class, ehdr, EM_NONE);
+	elf_hdr_set_e_machine(class, ehdr, rproc->elf_machine);
 	elf_hdr_set_e_version(class, ehdr, EV_CURRENT);
 	elf_hdr_set_e_entry(class, ehdr, rproc->bootaddr);
 	elf_hdr_set_e_phoff(class, ehdr, elf_size_of_hdr(class));
@@ -1729,6 +1775,8 @@ static void rproc_crash_handler_work(struct work_struct *work)
 
 	if (!rproc->recovery_disabled)
 		rproc_trigger_recovery(rproc);
+
+	pm_relax(rproc->dev.parent);
 }
 
 /**
@@ -1838,7 +1886,12 @@ void rproc_shutdown(struct rproc *rproc)
 	/* clean up all acquired resources */
 	rproc_resource_cleanup(rproc);
 
+	/* release HW resources if needed */
+	rproc_unprepare_device(rproc);
+
 	rproc_disable_iommu(rproc);
+
+	pm_runtime_put(dev);
 
 	/* Free the copy of the resource table */
 	kfree(rproc->cached_table);
@@ -1949,6 +2002,33 @@ int rproc_add(struct rproc *rproc)
 }
 EXPORT_SYMBOL(rproc_add);
 
+static void devm_rproc_remove(void *rproc)
+{
+	rproc_del(rproc);
+}
+
+/**
+ * devm_rproc_add() - resource managed rproc_add()
+ * @dev: the underlying device
+ * @rproc: the remote processor handle to register
+ *
+ * This function performs like rproc_add() but the registered rproc device will
+ * automatically be removed on driver detach.
+ *
+ * Returns: 0 on success, negative errno on failure
+ */
+int devm_rproc_add(struct device *dev, struct rproc *rproc)
+{
+	int err;
+
+	err = rproc_add(rproc);
+	if (err)
+		return err;
+
+	return devm_add_action_or_reset(dev, devm_rproc_remove, rproc);
+}
+EXPORT_SYMBOL(devm_rproc_add);
+
 /**
  * rproc_type_release() - release a remote processor instance
  * @dev: the rproc's device
@@ -1969,7 +2049,8 @@ static void rproc_type_release(struct device *dev)
 	if (rproc->index >= 0)
 		ida_simple_remove(&rproc_dev_index, rproc->index);
 
-	kfree(rproc->firmware);
+	kfree_const(rproc->firmware);
+	kfree_const(rproc->name);
 	kfree(rproc->ops);
 	kfree(rproc);
 }
@@ -1978,6 +2059,47 @@ static const struct device_type rproc_type = {
 	.name		= "remoteproc",
 	.release	= rproc_type_release,
 };
+
+static int rproc_alloc_firmware(struct rproc *rproc,
+				const char *name, const char *firmware)
+{
+	const char *p;
+
+	/*
+	 * Allocate a firmware name if the caller gave us one to work
+	 * with.  Otherwise construct a new one using a default pattern.
+	 */
+	if (firmware)
+		p = kstrdup_const(firmware, GFP_KERNEL);
+	else
+		p = kasprintf(GFP_KERNEL, "rproc-%s-fw", name);
+
+	if (!p)
+		return -ENOMEM;
+
+	rproc->firmware = p;
+
+	return 0;
+}
+
+static int rproc_alloc_ops(struct rproc *rproc, const struct rproc_ops *ops)
+{
+	rproc->ops = kmemdup(ops, sizeof(*ops), GFP_KERNEL);
+	if (!rproc->ops)
+		return -ENOMEM;
+
+	if (rproc->ops->load)
+		return 0;
+
+	/* Default to ELF loader if no load function is specified */
+	rproc->ops->load = rproc_elf_load_segments;
+	rproc->ops->parse_fw = rproc_elf_load_rsc_table;
+	rproc->ops->find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table;
+	rproc->ops->sanity_check = rproc_elf_sanity_check;
+	rproc->ops->get_boot_addr = rproc_elf_get_boot_addr;
+
+	return 0;
+}
 
 /**
  * rproc_alloc() - allocate a remote processor handle
@@ -2007,78 +2129,48 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 			  const char *firmware, int len)
 {
 	struct rproc *rproc;
-	char *p, *template = "rproc-%s-fw";
-	int name_len;
 
 	if (!dev || !name || !ops)
 		return NULL;
 
-	if (!firmware) {
-		/*
-		 * If the caller didn't pass in a firmware name then
-		 * construct a default name.
-		 */
-		name_len = strlen(name) + strlen(template) - 2 + 1;
-		p = kmalloc(name_len, GFP_KERNEL);
-		if (!p)
-			return NULL;
-		snprintf(p, name_len, template, name);
-	} else {
-		p = kstrdup(firmware, GFP_KERNEL);
-		if (!p)
-			return NULL;
-	}
-
 	rproc = kzalloc(sizeof(struct rproc) + len, GFP_KERNEL);
-	if (!rproc) {
-		kfree(p);
+	if (!rproc)
 		return NULL;
-	}
 
-	rproc->ops = kmemdup(ops, sizeof(*ops), GFP_KERNEL);
-	if (!rproc->ops) {
-		kfree(p);
-		kfree(rproc);
-		return NULL;
-	}
-
-	rproc->firmware = p;
-	rproc->name = name;
 	rproc->priv = &rproc[1];
 	rproc->auto_boot = true;
-	rproc->elf_class = ELFCLASS32;
+	rproc->elf_class = ELFCLASSNONE;
+	rproc->elf_machine = EM_NONE;
 
 	device_initialize(&rproc->dev);
 	rproc->dev.parent = dev;
 	rproc->dev.type = &rproc_type;
 	rproc->dev.class = &rproc_class;
 	rproc->dev.driver_data = rproc;
+	idr_init(&rproc->notifyids);
+
+	rproc->name = kstrdup_const(name, GFP_KERNEL);
+	if (!rproc->name)
+		goto put_device;
+
+	if (rproc_alloc_firmware(rproc, name, firmware))
+		goto put_device;
+
+	if (rproc_alloc_ops(rproc, ops))
+		goto put_device;
 
 	/* Assign a unique device index and name */
 	rproc->index = ida_simple_get(&rproc_dev_index, 0, 0, GFP_KERNEL);
 	if (rproc->index < 0) {
 		dev_err(dev, "ida_simple_get failed: %d\n", rproc->index);
-		put_device(&rproc->dev);
-		return NULL;
+		goto put_device;
 	}
 
 	dev_set_name(&rproc->dev, "remoteproc%d", rproc->index);
 
 	atomic_set(&rproc->power, 0);
 
-	/* Default to ELF loader if no load function is specified */
-	if (!rproc->ops->load) {
-		rproc->ops->load = rproc_elf_load_segments;
-		rproc->ops->parse_fw = rproc_elf_load_rsc_table;
-		rproc->ops->find_loaded_rsc_table = rproc_elf_find_loaded_rsc_table;
-		if (!rproc->ops->sanity_check)
-			rproc->ops->sanity_check = rproc_elf32_sanity_check;
-		rproc->ops->get_boot_addr = rproc_elf_get_boot_addr;
-	}
-
 	mutex_init(&rproc->lock);
-
-	idr_init(&rproc->notifyids);
 
 	INIT_LIST_HEAD(&rproc->carveouts);
 	INIT_LIST_HEAD(&rproc->mappings);
@@ -2091,7 +2183,14 @@ struct rproc *rproc_alloc(struct device *dev, const char *name,
 
 	rproc->state = RPROC_OFFLINE;
 
+	pm_runtime_no_callbacks(&rproc->dev);
+	pm_runtime_enable(&rproc->dev);
+
 	return rproc;
+
+put_device:
+	put_device(&rproc->dev);
+	return NULL;
 }
 EXPORT_SYMBOL(rproc_alloc);
 
@@ -2106,6 +2205,7 @@ EXPORT_SYMBOL(rproc_alloc);
  */
 void rproc_free(struct rproc *rproc)
 {
+	pm_runtime_disable(&rproc->dev);
 	put_device(&rproc->dev);
 }
 EXPORT_SYMBOL(rproc_free);
@@ -2171,6 +2271,46 @@ int rproc_del(struct rproc *rproc)
 }
 EXPORT_SYMBOL(rproc_del);
 
+static void devm_rproc_free(struct device *dev, void *res)
+{
+	rproc_free(*(struct rproc **)res);
+}
+
+/**
+ * devm_rproc_alloc() - resource managed rproc_alloc()
+ * @dev: the underlying device
+ * @name: name of this remote processor
+ * @ops: platform-specific handlers (mainly start/stop)
+ * @firmware: name of firmware file to load, can be NULL
+ * @len: length of private data needed by the rproc driver (in bytes)
+ *
+ * This function performs like rproc_alloc() but the acquired rproc device will
+ * automatically be released on driver detach.
+ *
+ * Returns: new rproc instance, or NULL on failure
+ */
+struct rproc *devm_rproc_alloc(struct device *dev, const char *name,
+			       const struct rproc_ops *ops,
+			       const char *firmware, int len)
+{
+	struct rproc **ptr, *rproc;
+
+	ptr = devres_alloc(devm_rproc_free, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return NULL;
+
+	rproc = rproc_alloc(dev, name, ops, firmware, len);
+	if (rproc) {
+		*ptr = rproc;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return rproc;
+}
+EXPORT_SYMBOL(devm_rproc_alloc);
+
 /**
  * rproc_add_subdev() - add a subdevice to a remoteproc
  * @rproc: rproc handle to add the subdevice to
@@ -2229,6 +2369,9 @@ void rproc_report_crash(struct rproc *rproc, enum rproc_crash_type type)
 		pr_err("NULL rproc pointer\n");
 		return;
 	}
+
+	/* Prevent suspend while the remoteproc is being recovered */
+	pm_stay_awake(rproc->dev.parent);
 
 	dev_err(&rproc->dev, "crash detected in %s: type %s\n",
 		rproc->name, rproc_crash_to_string(type));

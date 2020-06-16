@@ -35,7 +35,7 @@ void flush_thread(void){}
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
 {
-	struct switch_stack *sw = (struct switch_stack *)tsk->thread.ksp;
+	struct switch_stack *sw = (struct switch_stack *)tsk->thread.sp;
 
 	return sw->r15;
 }
@@ -56,8 +56,8 @@ int copy_thread_tls(unsigned long clone_flags,
 	childstack = ((struct switch_stack *) childregs) - 1;
 	memset(childstack, 0, sizeof(struct switch_stack));
 
-	/* setup ksp for switch_to !!! */
-	p->thread.ksp = (unsigned long)childstack;
+	/* setup thread.sp for switch_to !!! */
+	p->thread.sp = (unsigned long)childstack;
 
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
@@ -97,37 +97,6 @@ int dump_task_regs(struct task_struct *tsk, elf_gregset_t *pr_regs)
 
 	return 1;
 }
-
-unsigned long get_wchan(struct task_struct *p)
-{
-	unsigned long lr;
-	unsigned long *fp, *stack_start, *stack_end;
-	int count = 0;
-
-	if (!p || p == current || p->state == TASK_RUNNING)
-		return 0;
-
-	stack_start = (unsigned long *)end_of_stack(p);
-	stack_end = (unsigned long *)(task_stack_page(p) + THREAD_SIZE);
-
-	fp = (unsigned long *) thread_saved_fp(p);
-	do {
-		if (fp < stack_start || fp > stack_end)
-			return 0;
-#ifdef CONFIG_STACKTRACE
-		lr = fp[1];
-		fp = (unsigned long *)fp[0];
-#else
-		lr = *fp++;
-#endif
-		if (!in_sched_functions(lr) &&
-		    __kernel_text_address(lr))
-			return lr;
-	} while (count++ < 16);
-
-	return 0;
-}
-EXPORT_SYMBOL(get_wchan);
 
 #ifndef CONFIG_CPU_PM_NONE
 void arch_cpu_idle(void)

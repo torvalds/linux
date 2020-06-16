@@ -173,7 +173,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	    priv->byBBVGACurrent != priv->abyBBVGA[0]) {
 		priv->byBBVGACurrent = priv->abyBBVGA[0];
 
-		BBvSetVGAGainOffset(priv, priv->byBBVGACurrent);
+		bb_set_vga_gain_offset(priv, priv->byBBVGACurrent);
 	}
 
 	/* clear NAV */
@@ -195,7 +195,7 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	if (priv->bEnablePSMode)
 		RFvWriteWakeProgSyn(priv, priv->byRFType, ch->hw_value);
 
-	BBvSoftwareReset(priv);
+	bb_software_reset(priv);
 
 	if (priv->byLocalID > REV_ID_VT3253_B1) {
 		unsigned long flags;

@@ -1900,6 +1900,7 @@ struct intel_vgpu_mm *intel_vgpu_create_ppgtt_mm(struct intel_vgpu *vgpu,
 
 	INIT_LIST_HEAD(&mm->ppgtt_mm.list);
 	INIT_LIST_HEAD(&mm->ppgtt_mm.lru_list);
+	INIT_LIST_HEAD(&mm->ppgtt_mm.link);
 
 	if (root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY)
 		mm->ppgtt_mm.guest_pdps[0] = pdps[0];
@@ -2341,12 +2342,27 @@ int intel_vgpu_emulate_ggtt_mmio_write(struct intel_vgpu *vgpu,
 {
 	const struct intel_gvt_device_info *info = &vgpu->gvt->device_info;
 	int ret;
+	struct intel_vgpu_submission *s = &vgpu->submission;
+	struct intel_engine_cs *engine;
+	int i;
 
 	if (bytes != 4 && bytes != 8)
 		return -EINVAL;
 
 	off -= info->gtt_start_offset;
 	ret = emulate_ggtt_mmio_write(vgpu, off, p_data, bytes);
+
+	/* if ggtt of last submitted context is written,
+	 * that context is probably got unpinned.
+	 * Set last shadowed ctx to invalid.
+	 */
+	for_each_engine(engine, vgpu->gvt->gt, i) {
+		if (!s->last_ctx[i].valid)
+			continue;
+
+		if (s->last_ctx[i].lrca == (off >> info->gtt_entry_size_shift))
+			s->last_ctx[i].valid = false;
+	}
 	return ret;
 }
 

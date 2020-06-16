@@ -23,12 +23,12 @@ int BPF_PROG(test_int_hook, struct vm_area_struct *vma,
 		return ret;
 
 	__u32 pid = bpf_get_current_pid_tgid() >> 32;
-	int is_heap = 0;
+	int is_stack = 0;
 
-	is_heap = (vma->vm_start >= vma->vm_mm->start_brk &&
-		   vma->vm_end <= vma->vm_mm->brk);
+	is_stack = (vma->vm_start <= vma->vm_mm->start_stack &&
+		    vma->vm_end >= vma->vm_mm->start_stack);
 
-	if (is_heap && monitored_pid == pid) {
+	if (is_stack && monitored_pid == pid) {
 		mprotect_count++;
 		ret = -EPERM;
 	}

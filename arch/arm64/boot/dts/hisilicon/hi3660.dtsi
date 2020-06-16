@@ -974,7 +974,7 @@
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI2>;
 			clock-names = "apb_pclk";
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi2_pmx_func>;
+			pinctrl-0 = <&spi2_pmx_func &spi2_cfg_func>;
 			num-cs = <1>;
 			cs-gpios = <&gpio27 2 0>;
 			status = "disabled";
@@ -989,7 +989,7 @@
 			clocks = <&crg_ctrl HI3660_CLK_GATE_SPI3>;
 			clock-names = "apb_pclk";
 			pinctrl-names = "default";
-			pinctrl-0 = <&spi3_pmx_func>;
+			pinctrl-0 = <&spi3_pmx_func &spi3_cfg_func>;
 			num-cs = <1>;
 			cs-gpios = <&gpio18 5 0>;
 			status = "disabled";

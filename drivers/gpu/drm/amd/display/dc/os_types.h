@@ -108,7 +108,7 @@
 #define ASSERT(expr) ASSERT_CRITICAL(expr)
 
 #else
-#define ASSERT(expr) WARN_ON(!(expr))
+#define ASSERT(expr) WARN_ON_ONCE(!(expr))
 #endif
 
 #define BREAK_TO_DEBUGGER() ASSERT(0)

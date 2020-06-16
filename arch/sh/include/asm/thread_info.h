@@ -70,9 +70,7 @@ register unsigned long current_stack_pointer asm("r15") __used;
 static inline struct thread_info *current_thread_info(void)
 {
 	struct thread_info *ti;
-#if defined(CONFIG_SUPERH64)
-	__asm__ __volatile__ ("getcon	cr17, %0" : "=r" (ti));
-#elif defined(CONFIG_CPU_HAS_SR_RB)
+#if defined(CONFIG_CPU_HAS_SR_RB)
 	__asm__ __volatile__ ("stc	r7_bank, %0" : "=r" (ti));
 #else
 	unsigned long __dummy;

@@ -171,7 +171,7 @@ config MMC_SDHCI_OF_ASPEED
 config MMC_SDHCI_OF_AT91
 	tristate "SDHCI OF support for the Atmel SDMMC controller"
 	depends on MMC_SDHCI_PLTFM
-	depends on OF
+	depends on OF && HAVE_CLK
 	help
 	  This selects the Atmel SDMMC driver
 
@@ -230,6 +230,19 @@ config MMC_SDHCI_CNS3XXX
 	depends on MMC_SDHCI_PLTFM
 	help
 	  This selects the SDHCI support for CNS3xxx System-on-Chip devices.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_ESDHC_MCF
+	tristate "SDHCI support for the Freescale eSDHC ColdFire controller"
+	depends on M5441x
+	depends on MMC_SDHCI_PLTFM
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This selects the Freescale eSDHC controller support for
+	  ColdFire mcf5441x devices.
 
 	  If you have a controller with this interface, say Y or M here.
 
@@ -405,11 +418,25 @@ config MMC_MESON_GX
 
 	  If you have a controller with this interface, say Y here.
 
+config MMC_MESON_MX_SDHC
+	tristate "Amlogic Meson SDHC Host Controller support"
+	depends on (ARM && ARCH_MESON) || COMPILE_TEST
+	depends on COMMON_CLK
+	depends on OF
+	help
+	  This selects support for the SDHC Host Controller on
+	  Amlogic Meson6, Meson8, Meson8b and Meson8m2 SoCs.
+	  The controller supports the SD/SDIO Spec 3.x and eMMC Spec 4.5x
+	  with 1, 4, and 8 bit bus widths.
+
+	  If you have a controller with this interface, say Y or M here.
+	  If unsure, say N.
+
 config MMC_MESON_MX_SDIO
 	tristate "Amlogic Meson6/Meson8/Meson8b SD/MMC Host Controller support"
 	depends on ARCH_MESON || COMPILE_TEST
 	depends on COMMON_CLK
-	depends on OF
+	depends on OF_ADDRESS
 	help
 	  This selects support for the SD/MMC Host Controller on
 	  Amlogic Meson6, Meson8 and Meson8b SoCs.
@@ -550,7 +577,7 @@ config MMC_MVSDIO
 	tristate "Marvell MMC/SD/SDIO host driver"
 	depends on PLAT_ORION
 	depends on OF
-	---help---
+	help
 	  This selects the Marvell SDIO host driver.
 	  SDIO may currently be found on the Kirkwood 88F6281 and 88F6192
 	  SoC controllers.

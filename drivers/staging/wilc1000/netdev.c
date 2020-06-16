@@ -571,6 +571,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	struct wilc *wl = vif->wilc;
 	unsigned char mac_add[ETH_ALEN] = {0};
 	int ret = 0;
+	struct mgmt_frame_regs mgmt_regs = {};
 
 	if (!wl || !wl->dev) {
 		netdev_err(ndev, "device not ready\n");
@@ -602,14 +603,12 @@ static int wilc_mac_open(struct net_device *ndev)
 		return -EINVAL;
 	}
 
-	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
-				 vif->ndev->ieee80211_ptr,
-				 vif->frame_reg[0].type,
-				 vif->frame_reg[0].reg);
-	wilc_mgmt_frame_register(vif->ndev->ieee80211_ptr->wiphy,
-				 vif->ndev->ieee80211_ptr,
-				 vif->frame_reg[1].type,
-				 vif->frame_reg[1].reg);
+	mgmt_regs.interface_stypes = vif->mgmt_reg_stypes;
+	/* so we detect a change */
+	vif->mgmt_reg_stypes = 0;
+	wilc_update_mgmt_frame_registrations(vif->ndev->ieee80211_ptr->wiphy,
+					     vif->ndev->ieee80211_ptr,
+					     &mgmt_regs);
 	netif_wake_queue(ndev);
 	wl->open_ifcs++;
 	vif->mac_opened = 1;
@@ -792,12 +791,10 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size)
 	srcu_idx = srcu_read_lock(&wilc->srcu);
 	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
 		u16 type = le16_to_cpup((__le16 *)buff);
+		u32 type_bit = BIT(type >> 4);
 
 		if (vif->priv.p2p_listen_state &&
-		    ((type == vif->frame_reg[0].type &&
-		      vif->frame_reg[0].reg) ||
-		     (type == vif->frame_reg[1].type &&
-		      vif->frame_reg[1].reg)))
+		    vif->mgmt_reg_stypes & type_bit)
 			wilc_wfi_p2p_rx(vif, buff, size);
 
 		if (vif->monitor_flag)

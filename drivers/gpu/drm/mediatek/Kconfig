@@ -11,6 +11,7 @@ config DRM_MEDIATEK
 	select DRM_MIPI_DSI
 	select DRM_PANEL
 	select MEMORY
+	select MTK_MMSYS
 	select MTK_SMI
 	select VIDEOMODE_HELPERS
 	help

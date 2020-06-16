@@ -16,6 +16,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
@@ -537,7 +538,7 @@ MODULE_DEVICE_TABLE(i2c, vl6180_id);
 static struct i2c_driver vl6180_driver = {
 	.driver = {
 		.name   = VL6180_DRV_NAME,
-		.of_match_table = of_match_ptr(vl6180_of_match),
+		.of_match_table = vl6180_of_match,
 	},
 	.probe  = vl6180_probe,
 	.id_table = vl6180_id,

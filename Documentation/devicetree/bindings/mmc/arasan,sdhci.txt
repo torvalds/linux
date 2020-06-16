@@ -18,11 +18,20 @@ Required Properties:
     - "xlnx,zynqmp-8.9a": ZynqMP SDHCI 8.9a PHY
       For this device it is strongly suggested to include clock-output-names and
       #clock-cells.
+    - "xlnx,versal-8.9a": Versal SDHCI 8.9a PHY
+      For this device it is strongly suggested to include clock-output-names and
+      #clock-cells.
     - "ti,am654-sdhci-5.1", "arasan,sdhci-5.1": TI AM654 MMC PHY
 	Note: This binding has been deprecated and moved to [5].
     - "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1": Intel LGM eMMC PHY
       For this device it is strongly suggested to include arasan,soc-ctl-syscon.
     - "intel,lgm-sdhci-5.1-sdxc", "arasan,sdhci-5.1": Intel LGM SDXC PHY
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
+    - "intel,keembay-sdhci-5.1-emmc", "arasan,sdhci-5.1": Intel Keem Bay eMMC
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
+    - "intel,keembay-sdhci-5.1-sd": Intel Keem Bay SD controller
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
+    - "intel,keembay-sdhci-5.1-sdio": Intel Keem Bay SDIO controller
       For this device it is strongly suggested to include arasan,soc-ctl-syscon.
 
   [5] Documentation/devicetree/bindings/mmc/sdhci-am654.txt
@@ -104,6 +113,18 @@ Example:
 		clk-phase-sd-hs = <63>, <72>;
 	};
 
+	sdhci: mmc@f1040000 {
+		compatible = "xlnx,versal-8.9a", "arasan,sdhci-8.9a";
+		interrupt-parent = <&gic>;
+		interrupts = <0 126 4>;
+		reg = <0x0 0xf1040000 0x0 0x10000>;
+		clocks = <&clk200>, <&clk200>;
+		clock-names = "clk_xin", "clk_ahb";
+		clock-output-names = "clk_out_sd0", "clk_in_sd0";
+		#clock-cells = <1>;
+		clk-phase-sd-hs = <132>, <60>;
+	};
+
 	emmc: sdhci@ec700000 {
 		compatible = "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1";
 		reg = <0xec700000 0x300>;
@@ -132,4 +153,40 @@ Example:
 		phys = <&sdxc_phy>;
 		phy-names = "phy_arasan";
 		arasan,soc-ctl-syscon = <&sysconf>;
+	};
+
+	mmc: mmc@33000000 {
+		compatible = "intel,keembay-sdhci-5.1-emmc", "arasan,sdhci-5.1";
+		interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0x33000000 0x0 0x300>;
+		clock-names = "clk_xin", "clk_ahb";
+		clocks = <&scmi_clk KEEM_BAY_PSS_AUX_EMMC>,
+			 <&scmi_clk KEEM_BAY_PSS_EMMC>;
+		phys = <&emmc_phy>;
+		phy-names = "phy_arasan";
+		assigned-clocks = <&scmi_clk KEEM_BAY_PSS_AUX_EMMC>;
+		assigned-clock-rates = <200000000>;
+		clock-output-names = "emmc_cardclock";
+		#clock-cells = <0>;
+		arasan,soc-ctl-syscon = <&mmc_phy_syscon>;
+	};
+
+	sd0: mmc@31000000 {
+		compatible = "intel,keembay-sdhci-5.1-sd";
+		interrupts = <GIC_SPI 83 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0x31000000 0x0 0x300>;
+		clock-names = "clk_xin", "clk_ahb";
+		clocks = <&scmi_clk KEEM_BAY_PSS_AUX_SD0>,
+			 <&scmi_clk KEEM_BAY_PSS_SD0>;
+		arasan,soc-ctl-syscon = <&sd0_phy_syscon>;
+	};
+
+	sd1: mmc@32000000 {
+		compatible = "intel,keembay-sdhci-5.1-sdio";
+		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
+		reg = <0x0 0x32000000 0x0 0x300>;
+		clock-names = "clk_xin", "clk_ahb";
+		clocks = <&scmi_clk KEEM_BAY_PSS_AUX_SD1>,
+			 <&scmi_clk KEEM_BAY_PSS_SD1>;
+		arasan,soc-ctl-syscon = <&sd1_phy_syscon>;
 	};

@@ -72,7 +72,6 @@ config MIPS
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select HAVE_LD_DEAD_CODE_DATA_ELIMINATION
-	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_OPROFILE
@@ -91,6 +90,9 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+
+config MIPS_FIXUP_BIGPHYS_ADDR
+	bool
 
 menu "Machine selection"
 
@@ -157,6 +159,7 @@ config MIPS_ALCHEMY
 	select CSRC_R4K
 	select IRQ_MIPS_CPU
 	select DMA_MAYBE_COHERENT	# Au1000,1500,1100 aren't, rest is
+	select MIPS_FIXUP_BIGPHYS_ADDR if PCI
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_APM_EMULATION
@@ -181,7 +184,7 @@ config AR7
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select GPIOLIB
 	select VLYNQ
-	select HAVE_CLK
+	select HAVE_LEGACY_CLK
 	help
 	  Support for the Texas Instruments AR7 System-on-a-Chip
 	  family: TNETD7100, 7200 and 7300.
@@ -209,9 +212,7 @@ config ATH79
 	select DMA_NONCOHERENT
 	select GPIOLIB
 	select PINCTRL
-	select HAVE_CLK
 	select COMMON_CLK
-	select CLKDEV_LOOKUP
 	select IRQ_MIPS_CPU
 	select SYS_HAS_CPU_MIPS32_R2
 	select SYS_HAS_EARLY_PRINTK
@@ -298,9 +299,9 @@ config BCM63XX
 	select SYS_HAS_EARLY_PRINTK
 	select SWAP_IO_SPACE
 	select GPIOLIB
-	select HAVE_CLK
 	select MIPS_L1_CACHE_SHIFT_4
 	select CLKDEV_LOOKUP
+	select HAVE_LEGACY_CLK
 	help
 	  Support for BCM63XX based boards
 
@@ -421,28 +422,12 @@ config LANTIQ
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select CLKDEV_LOOKUP
+	select HAVE_LEGACY_CLK
 	select USE_OF
 	select PINCTRL
 	select PINCTRL_LANTIQ
 	select ARCH_HAS_RESET_CONTROLLER
 	select RESET_CONTROLLER
-
-config LASAT
-	bool "LASAT Networks platforms"
-	select CEVT_R4K
-	select CRC32
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SYS_HAS_EARLY_PRINTK
-	select HAVE_PCI
-	select IRQ_MIPS_CPU
-	select PCI_GT64XXX_PCI0
-	select MIPS_NILE4
-	select R5000_CPU_SCACHE
-	select SYS_HAS_CPU_R5000
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL if BROKEN
-	select SYS_SUPPORTS_LITTLE_ENDIAN
 
 config MACH_LOONGSON32
 	bool "Loongson 32-bit family of machines"
@@ -475,8 +460,10 @@ config MACH_LOONGSON64
 	select ISA
 	select I8259
 	select IRQ_MIPS_CPU
-	select NR_CPUS_DEFAULT_4
+	select NO_EXCEPT_FILL
+	select NR_CPUS_DEFAULT_64
 	select USE_GENERIC_EARLY_PRINTK_8250
+	select PCI_DRIVERS_GENERIC
 	select SYS_HAS_CPU_LOONGSON64
 	select SYS_HAS_EARLY_PRINTK
 	select SYS_SUPPORTS_SMP
@@ -593,13 +580,6 @@ config MACH_PIC32
 	  Microchip PIC32 is a family of general-purpose 32 bit MIPS core
 	  microcontrollers.
 
-config NEC_MARKEINS
-	bool "NEC EMMA2RH Mark-eins board"
-	select SOC_EMMA2RH
-	select HAVE_PCI
-	help
-	  This enables support for the NEC Electronics Mark-eins boards.
-
 config MACH_VR41XX
 	bool "NEC VR4100 series based machines"
 	select CEVT_R4K
@@ -620,30 +600,6 @@ config NXP_STB225
 	select SOC_PNX8335
 	help
 	  Support for NXP Semiconductors STB225 Development Board.
-
-config PMC_MSP
-	bool "PMC-Sierra MSP chipsets"
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select SWAP_IO_SPACE
-	select NO_EXCEPT_FILL
-	select BOOT_RAW
-	select SYS_HAS_CPU_MIPS32_R1
-	select SYS_HAS_CPU_MIPS32_R2
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_MIPS16
-	select IRQ_MIPS_CPU
-	select SERIAL_8250
-	select SERIAL_8250_CONSOLE
-	select USB_EHCI_BIG_ENDIAN_MMIO
-	select USB_EHCI_BIG_ENDIAN_DESC
-	help
-	  This adds support for the PMC-Sierra family of Multi-Service
-	  Processor System-On-A-Chips.  These parts include a number
-	  of integrated peripherals, interfaces and DSPs in addition to
-	  a variety of MIPS cores.
 
 config RALINK
 	bool "Ralink based machines"
@@ -1087,10 +1043,8 @@ source "arch/mips/generic/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/jz4740/Kconfig"
 source "arch/mips/lantiq/Kconfig"
-source "arch/mips/lasat/Kconfig"
 source "arch/mips/pic32/Kconfig"
 source "arch/mips/pistachio/Kconfig"
-source "arch/mips/pmcs-msp71xx/Kconfig"
 source "arch/mips/ralink/Kconfig"
 source "arch/mips/sgi-ip27/Kconfig"
 source "arch/mips/sibyte/Kconfig"
@@ -1154,6 +1108,7 @@ config CSRC_IOASIC
 	bool
 
 config CSRC_R4K
+	select CLOCKSOURCE_WATCHDOG if CPU_FREQ
 	bool
 
 config CSRC_SB1250
@@ -1209,9 +1164,6 @@ config MIPS_BONITO64
 	bool
 
 config MIPS_MSC
-	bool
-
-config MIPS_NILE4
 	bool
 
 config SYNC_R4K
@@ -1334,18 +1286,6 @@ config PCI_XTALK_BRIDGE
 config NO_EXCEPT_FILL
 	bool
 
-config SOC_EMMA2RH
-	bool
-	select CEVT_R4K
-	select CSRC_R4K
-	select DMA_NONCOHERENT
-	select IRQ_MIPS_CPU
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_R5500
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-
 config SOC_PNX833X
 	bool
 	select CEVT_R4K
@@ -1419,9 +1359,6 @@ config MIPS_L1_CACHE_SHIFT
 	default "4" if MIPS_L1_CACHE_SHIFT_4
 	default "5"
 
-config HAVE_STD_PC_SERIAL_PORT
-	bool
-
 config ARC_CMDLINE_ONLY
 	bool
 
@@ -1466,6 +1403,7 @@ config CPU_LOONGSON64
 	select MIPS_L1_CACHE_SHIFT_6
 	select GPIOLIB
 	select SWIOTLB
+	select HAVE_KVM
 	help
 		The Loongson GSx64(GS264/GS464/GS464E/GS464V) series of processor
 		cores implements the MIPS64R2 instruction set with many extensions,
@@ -1501,6 +1439,18 @@ config CPU_LOONGSON3_WORKAROUNDS
 	  The workarounds have no significant side effect on them but may
 	  decrease the performance of the system so this option should be
 	  disabled unless the kernel is intended to be run on old systems.
+
+	  If unsure, please say Y.
+
+config CPU_LOONGSON3_CPUCFG_EMULATION
+	bool "Emulate the CPUCFG instruction on older Loongson cores"
+	default y
+	depends on CPU_LOONGSON64
+	help
+	  Loongson-3A R4 and newer have the CPUCFG instruction available for
+	  userland to query CPU capabilities, much like CPUID on x86. This
+	  option provides emulation of the instruction on older Loongson
+	  cores, back to Loongson-3A1000.
 
 	  If unsure, please say Y.
 
@@ -1580,6 +1530,21 @@ config CPU_MIPS32_R2
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS32_R1 is a safe bet for any MIPS32 system.
 
+config CPU_MIPS32_R5
+	bool "MIPS32 Release 5"
+	depends on SYS_HAS_CPU_MIPS32_R5
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
+	select HAVE_KVM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for release 5 or later of the
+	  MIPS32 architecture.  New MIPS processors, starting with the Warrior
+	  family, are based on a MIPS32r5 processor. If you own an older
+	  processor, you probably need to select MIPS32r1 or MIPS32r2 instead.
+
 config CPU_MIPS32_R6
 	bool "MIPS32 Release 6"
 	depends on SYS_HAS_CPU_MIPS32_R6
@@ -1632,6 +1597,23 @@ config CPU_MIPS64_R2
 	  specific type of processor in your system, choose those that one
 	  otherwise CPU_MIPS64_R1 is a safe bet for any MIPS64 system.
 
+config CPU_MIPS64_R5
+	bool "MIPS64 Release 5"
+	depends on SYS_HAS_CPU_MIPS64_R5
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_64BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_HUGEPAGES
+	select CPU_SUPPORTS_MSA
+	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
+	select HAVE_KVM
+	help
+	  Choose this option to build a kernel for release 5 or later of the
+	  MIPS64 architecture.  This is a intermediate MIPS architecture
+	  release partly implementing release 6 features. Though there is no
+	  any hardware known to be based on this release.
+
 config CPU_MIPS64_R6
 	bool "MIPS64 Release 6"
 	depends on SYS_HAS_CPU_MIPS64_R6
@@ -1649,6 +1631,28 @@ config CPU_MIPS64_R6
 	  MIPS64 architecture.  New MIPS processors, starting with the Warrior
 	  family, are based on a MIPS64r6 processor. If you own an older
 	  processor, you probably need to select MIPS64r1 or MIPS64r2 instead.
+
+config CPU_P5600
+	bool "MIPS Warrior P5600"
+	depends on SYS_HAS_CPU_P5600
+	select CPU_HAS_PREFETCH
+	select CPU_SUPPORTS_32BIT_KERNEL
+	select CPU_SUPPORTS_HIGHMEM
+	select CPU_SUPPORTS_MSA
+	select CPU_SUPPORTS_UNCACHED_ACCELERATED
+	select CPU_SUPPORTS_CPUFREQ
+	select CPU_MIPSR2_IRQ_VI
+	select CPU_MIPSR2_IRQ_EI
+	select HAVE_KVM
+	select MIPS_O32_FP64_SUPPORT
+	help
+	  Choose this option to build a kernel for MIPS Warrior P5600 CPU.
+	  It's based on MIPS32r5 ISA with XPA, EVA, dual/quad issue exec pipes,
+	  MMU with two-levels TLB, UCA, MSA, MDU core level features and system
+	  level features like up to six P5600 calculation cores, CM2 with L2
+	  cache, IOCU/IOMMU (though might be unused depending on the system-
+	  specific IP core configuration), GIC, CPC, virtualisation module,
+	  eJTAG and PDtrace.
 
 config CPU_R3000
 	bool "R3000"
@@ -1826,7 +1830,8 @@ endchoice
 config CPU_MIPS32_3_5_FEATURES
 	bool "MIPS32 Release 3.5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R3_5
-	depends on CPU_MIPS32_R2 || CPU_MIPS32_R6
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R5 || CPU_MIPS32_R6 || \
+		   CPU_P5600
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from the 3.5 release such as
@@ -1846,7 +1851,7 @@ config CPU_MIPS32_3_5_EVA
 config CPU_MIPS32_R5_FEATURES
 	bool "MIPS32 Release 5 Features"
 	depends on SYS_HAS_CPU_MIPS32_R5
-	depends on CPU_MIPS32_R2
+	depends on CPU_MIPS32_R2 || CPU_MIPS32_R5 || CPU_P5600
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture including features from release 5 such as
@@ -2001,6 +2006,10 @@ config SYS_HAS_CPU_MIPS64_R6
 	bool
 	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
 
+config SYS_HAS_CPU_P5600
+	bool
+	select ARCH_HAS_SYNC_DMA_FOR_CPU if DMA_NONCOHERENT
+
 config SYS_HAS_CPU_R3000
 	bool
 
@@ -2084,11 +2093,13 @@ endmenu
 #
 config CPU_MIPS32
 	bool
-	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R6
+	default y if CPU_MIPS32_R1 || CPU_MIPS32_R2 || CPU_MIPS32_R5 || \
+		     CPU_MIPS32_R6 || CPU_P5600
 
 config CPU_MIPS64
 	bool
-	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R6
+	default y if CPU_MIPS64_R1 || CPU_MIPS64_R2 || CPU_MIPS64_R5 || \
+		     CPU_MIPS64_R6
 
 #
 # These indicate the revision of the architecture
@@ -2100,6 +2111,13 @@ config CPU_MIPSR1
 config CPU_MIPSR2
 	bool
 	default y if CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_CAVIUM_OCTEON
+	select CPU_HAS_RIXI
+	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
+	select MIPS_SPRAM
+
+config CPU_MIPSR5
+	bool
+	default y if CPU_MIPS32_R5 || CPU_MIPS64_R5 || CPU_P5600
 	select CPU_HAS_RIXI
 	select CPU_HAS_DIEI if !CPU_DIEI_BROKEN
 	select MIPS_SPRAM
@@ -2118,6 +2136,7 @@ config TARGET_ISA_REV
 	int
 	default 1 if CPU_MIPSR1
 	default 2 if CPU_MIPSR2
+	default 5 if CPU_MIPSR5
 	default 6 if CPU_MIPSR6
 	default 0
 	help
@@ -2707,7 +2726,11 @@ config NEED_PER_CPU_EMBED_FIRST_CHUNK
 
 config RELOCATABLE
 	bool "Relocatable kernel"
-	depends on SYS_SUPPORTS_RELOCATABLE && (CPU_MIPS32_R2 || CPU_MIPS64_R2 || CPU_MIPS32_R6 || CPU_MIPS64_R6 || CAVIUM_OCTEON_SOC)
+	depends on SYS_SUPPORTS_RELOCATABLE
+	depends on CPU_MIPS32_R2 || CPU_MIPS64_R2 || \
+		   CPU_MIPS32_R5 || CPU_MIPS64_R5 || \
+		   CPU_MIPS32_R6 || CPU_MIPS64_R6 || \
+		   CPU_P5600 || CAVIUM_OCTEON_SOC
 	help
 	  This builds a kernel image that retains relocation information
 	  so it can be loaded someplace besides the default 1MB.
@@ -2719,7 +2742,7 @@ config RELOCATION_TABLE_SIZE
 	depends on RELOCATABLE
 	range 0x0 0x01000000
 	default "0x00100000"
-	---help---
+	help
 	  A table of relocation data will be appended to the kernel binary
 	  and parsed at boot to fix up the relocated kernel.
 
@@ -2733,7 +2756,7 @@ config RELOCATION_TABLE_SIZE
 config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
 	depends on RELOCATABLE
-	---help---
+	help
 	  Randomizes the physical and virtual address at which the
 	  kernel image is loaded, as a security feature that
 	  deters exploit attempts relying on knowledge of the location
@@ -2751,7 +2774,7 @@ config RANDOMIZE_BASE_MAX_OFFSET
 	range 0x0 0x40000000 if EVA || 64BIT
 	range 0x0 0x08000000
 	default "0x01000000"
-	---help---
+	help
 	  When kASLR is active, this provides the maximum offset that will
 	  be applied to the kernel image. It should be set according to the
 	  amount of physical RAM available in the target system minus
@@ -3275,3 +3298,5 @@ endmenu
 source "drivers/firmware/Kconfig"
 
 source "arch/mips/kvm/Kconfig"
+
+source "arch/mips/vdso/Kconfig"

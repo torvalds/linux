@@ -59,6 +59,7 @@ perché non si è trovato un posto migliore.
    magic-number
    volatile-considered-harmful
    clang-format
+   ../riscv/patch-acceptance
 
 .. only::  subproject and html
 

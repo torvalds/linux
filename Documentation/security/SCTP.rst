@@ -328,7 +328,7 @@ NOTES:
       label (see **netlabel-config**\(8) helper script for details).
 
    5) The NetLabel SCTP peer labeling rules apply as discussed in the following
-      set of posts tagged "netlabel" at: http://www.paul-moore.com/blog/t.
+      set of posts tagged "netlabel" at: https://www.paul-moore.com/blog/t.
 
    6) CIPSO is only supported for IPv4 addressing: ``socket(AF_INET, ...)``
       CALIPSO is only supported for IPv6 addressing: ``socket(AF_INET6, ...)``

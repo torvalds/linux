@@ -44,6 +44,7 @@
 #include "dce/dce_clock_source.h"
 #include "dce/dce_ipp.h"
 #include "dce/dce_mem_input.h"
+#include "dce/dce_panel_cntl.h"
 
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce120/dce120_hw_sequencer.h"
@@ -293,6 +294,18 @@ static const struct dce_stream_encoder_mask se_mask = {
 		SE_COMMON_MASK_SH_LIST_DCE120(_MASK)
 };
 
+static const struct dce_panel_cntl_registers panel_cntl_regs[] = {
+	{ DCE_PANEL_CNTL_REG_LIST() }
+};
+
+static const struct dce_panel_cntl_shift panel_cntl_shift = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(__SHIFT)
+};
+
+static const struct dce_panel_cntl_mask panel_cntl_mask = {
+	DCE_PANEL_CNTL_MASK_SH_LIST(_MASK)
+};
+
 static const struct dce110_aux_registers_shift aux_shift = {
 	DCE12_AUX_MASK_SH_LIST(__SHIFT)
 };
@@ -503,7 +516,7 @@ static const struct dc_plane_cap plane_cap = {
 	.pixel_format_support = {
 			.argb8888 = true,
 			.nv12 = false,
-			.fp16 = false
+			.fp16 = true
 	},
 
 	.max_upscale_factor = {
@@ -715,6 +728,23 @@ static struct link_encoder *dce120_link_encoder_create(
 	return &enc110->base;
 }
 
+static struct panel_cntl *dce120_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+{
+	struct dce_panel_cntl *panel_cntl =
+		kzalloc(sizeof(struct dce_panel_cntl), GFP_KERNEL);
+
+	if (!panel_cntl)
+		return NULL;
+
+	dce_panel_cntl_construct(panel_cntl,
+			init_data,
+			&panel_cntl_regs[init_data->inst],
+			&panel_cntl_shift,
+			&panel_cntl_mask);
+
+	return &panel_cntl->base;
+}
+
 static struct input_pixel_processor *dce120_ipp_create(
 	struct dc_context *ctx, uint32_t inst)
 {
@@ -880,6 +910,7 @@ static void dce120_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce120_res_pool_funcs = {
 	.destroy = dce120_destroy_resource_pool,
 	.link_enc_create = dce120_link_encoder_create,
+	.panel_cntl_create = dce120_panel_cntl_create,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce112_add_stream_to_ctx,

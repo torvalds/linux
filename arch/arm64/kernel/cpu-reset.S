@@ -29,7 +29,7 @@
  * branch to what would be the reset vector. It must be executed with the
  * flat identity mapping.
  */
-ENTRY(__cpu_soft_restart)
+SYM_CODE_START(__cpu_soft_restart)
 	/* Clear sctlr_el1 flags. */
 	mrs	x12, sctlr_el1
 	mov_q	x13, SCTLR_ELx_FLAGS
@@ -47,6 +47,6 @@ ENTRY(__cpu_soft_restart)
 	mov	x1, x3				// arg1
 	mov	x2, x4				// arg2
 	br	x8
-ENDPROC(__cpu_soft_restart)
+SYM_CODE_END(__cpu_soft_restart)
 
 .popsection

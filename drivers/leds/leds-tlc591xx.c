@@ -214,8 +214,9 @@ tlc591xx_probe(struct i2c_client *client,
 		err = devm_led_classdev_register_ext(dev, &led->ldev,
 						     &init_data);
 		if (err < 0) {
-			dev_err(dev, "couldn't register LED %s\n",
-				led->ldev.name);
+			if (err != -EPROBE_DEFER)
+				dev_err(dev, "couldn't register LED %s\n",
+					led->ldev.name);
 			return err;
 		}
 	}

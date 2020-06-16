@@ -74,8 +74,6 @@ int main(int argc, char **argv)
 	int write = 0;
 	int reserve = 1;
 
-	unsigned long i;
-
 	if (signal(SIGINT, sig_handler) == SIG_ERR)
 		err(1, "\ncan't catch SIGINT\n");
 

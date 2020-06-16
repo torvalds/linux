@@ -27,27 +27,17 @@
 
 #include "dm_services_types.h"
 
-struct abm_backlight_registers {
-	unsigned int BL_PWM_CNTL;
-	unsigned int BL_PWM_CNTL2;
-	unsigned int BL_PWM_PERIOD_CNTL;
-	unsigned int LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-};
-
 struct abm {
 	struct dc_context *ctx;
 	const struct abm_funcs *funcs;
 	bool dmcu_is_running;
-	/* registers setting needs to be saved and restored at InitBacklight */
-	struct abm_backlight_registers stored_backlight_registers;
 };
 
 struct abm_funcs {
-	void (*abm_init)(struct abm *abm);
+	void (*abm_init)(struct abm *abm, uint32_t back_light);
 	bool (*set_abm_level)(struct abm *abm, unsigned int abm_level);
-	bool (*set_abm_immediate_disable)(struct abm *abm);
-	bool (*set_pipe)(struct abm *abm, unsigned int controller_id);
-	bool (*init_backlight)(struct abm *abm);
+	bool (*set_abm_immediate_disable)(struct abm *abm, unsigned int panel_inst);
+	bool (*set_pipe)(struct abm *abm, unsigned int controller_id, unsigned int panel_inst);
 
 	/* backlight_pwm_u16_16 is unsigned 32 bit,
 	 * 16 bit integer + 16 fractional, where 1.0 is max backlight value.
@@ -56,10 +46,13 @@ struct abm_funcs {
 			unsigned int backlight_pwm_u16_16,
 			unsigned int frame_ramp,
 			unsigned int controller_id,
-			bool use_smooth_brightness);
+			unsigned int panel_inst);
 
 	unsigned int (*get_current_backlight)(struct abm *abm);
 	unsigned int (*get_target_backlight)(struct abm *abm);
+	bool (*init_abm_config)(struct abm *abm,
+			const char *src,
+			unsigned int bytes);
 };
 
 #endif

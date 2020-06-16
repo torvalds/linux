@@ -17,6 +17,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
+#include <drm/drm_simple_kms_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/of_graph.h>
@@ -374,10 +375,6 @@ static struct drm_connector *vc4_vec_connector_init(struct drm_device *dev,
 	return connector;
 }
 
-static const struct drm_encoder_funcs vc4_vec_encoder_funcs = {
-	.destroy = drm_encoder_cleanup,
-};
-
 static void vc4_vec_encoder_disable(struct drm_encoder *encoder)
 {
 	struct vc4_vec_encoder *vc4_vec_encoder = to_vc4_vec_encoder(encoder);
@@ -566,8 +563,7 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 
 	pm_runtime_enable(dev);
 
-	drm_encoder_init(drm, vec->encoder, &vc4_vec_encoder_funcs,
-			 DRM_MODE_ENCODER_TVDAC, NULL);
+	drm_simple_encoder_init(drm, vec->encoder, DRM_MODE_ENCODER_TVDAC);
 	drm_encoder_helper_add(vec->encoder, &vc4_vec_encoder_helper_funcs);
 
 	vec->connector = vc4_vec_connector_init(drm, vec);

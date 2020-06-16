@@ -22,8 +22,7 @@ properties:
     const: google,extcon-usbc-cros-ec
 
   google,usb-port-id:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: the port id
     minimum: 0
     maximum: 255

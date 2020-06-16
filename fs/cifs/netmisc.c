@@ -957,15 +957,15 @@ struct timespec64 cnvrtDosUnixTm(__le16 le_date, __le16 le_time, int offset)
 	sec = 2 * st->TwoSeconds;
 	min = st->Minutes;
 	if ((sec > 59) || (min > 59))
-		cifs_dbg(VFS, "illegal time min %d sec %lld\n", min, sec);
+		cifs_dbg(VFS, "Invalid time min %d sec %lld\n", min, sec);
 	sec += (min * 60);
 	sec += 60 * 60 * st->Hours;
 	if (st->Hours > 24)
-		cifs_dbg(VFS, "illegal hours %d\n", st->Hours);
+		cifs_dbg(VFS, "Invalid hours %d\n", st->Hours);
 	day = sd->Day;
 	month = sd->Month;
 	if (day < 1 || day > 31 || month < 1 || month > 12) {
-		cifs_dbg(VFS, "illegal date, month %d day: %d\n", month, day);
+		cifs_dbg(VFS, "Invalid date, month %d day: %d\n", month, day);
 		day = clamp(day, 1, 31);
 		month = clamp(month, 1, 12);
 	}

@@ -27,7 +27,6 @@ struct mlx5_eq {
 	__be32 __iomem	        *doorbell;
 	u32                     cons_index;
 	struct mlx5_frag_buf    buf;
-	int                     size;
 	unsigned int            vecidx;
 	unsigned int            irqn;
 	u8                      eqn;

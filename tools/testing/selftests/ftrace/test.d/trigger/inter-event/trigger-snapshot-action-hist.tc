@@ -12,6 +12,11 @@ if [ ! -f set_event ]; then
     exit_unsupported
 fi
 
+if [ ! -f events/sched/sched_process_fork/hist ]; then
+    echo "hist trigger is not supported"
+    exit_unsupported
+fi
+
 if [ ! -f snapshot ]; then
     echo "snapshot is not supported"
     exit_unsupported

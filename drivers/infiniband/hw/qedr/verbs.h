@@ -70,7 +70,7 @@ int qedr_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 void qedr_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata);
 int qedr_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 		       const struct ib_recv_wr **bad_recv_wr);
-int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_attr *attr, u32 flags,
+int qedr_create_ah(struct ib_ah *ibah, struct rdma_ah_init_attr *init_attr,
 		   struct ib_udata *udata);
 void qedr_destroy_ah(struct ib_ah *ibah, u32 flags);
 

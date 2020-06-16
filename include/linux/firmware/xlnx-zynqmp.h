@@ -42,6 +42,8 @@
 
 #define ZYNQMP_PM_MAX_QOS		100U
 
+#define GSS_NUM_REGS	(4)
+
 /* Node capabilities */
 #define	ZYNQMP_PM_CAPABILITY_ACCESS	0x1U
 #define	ZYNQMP_PM_CAPABILITY_CONTEXT	0x2U
@@ -62,6 +64,7 @@
 
 enum pm_api_id {
 	PM_GET_API_VERSION = 1,
+	PM_SYSTEM_SHUTDOWN = 12,
 	PM_REQUEST_NODE = 13,
 	PM_RELEASE_NODE,
 	PM_SET_REQUIREMENT,
@@ -107,6 +110,12 @@ enum pm_ioctl_id {
 	IOCTL_GET_PLL_FRAC_MODE,
 	IOCTL_SET_PLL_FRAC_DATA,
 	IOCTL_GET_PLL_FRAC_DATA,
+	IOCTL_WRITE_GGS = 12,
+	IOCTL_READ_GGS = 13,
+	IOCTL_WRITE_PGGS = 14,
+	IOCTL_READ_PGGS = 15,
+	/* Set healthy bit value */
+	IOCTL_SET_BOOT_HEALTH_STATUS = 17,
 };
 
 enum pm_query_id {
@@ -279,6 +288,18 @@ enum dll_reset_type {
 	PM_DLL_RESET_PULSE,
 };
 
+enum zynqmp_pm_shutdown_type {
+	ZYNQMP_PM_SHUTDOWN_TYPE_SHUTDOWN,
+	ZYNQMP_PM_SHUTDOWN_TYPE_RESET,
+	ZYNQMP_PM_SHUTDOWN_TYPE_SETSCOPE_ONLY,
+};
+
+enum zynqmp_pm_shutdown_subtype {
+	ZYNQMP_PM_SHUTDOWN_SUBTYPE_SUBSYSTEM,
+	ZYNQMP_PM_SHUTDOWN_SUBTYPE_PS_ONLY,
+	ZYNQMP_PM_SHUTDOWN_SUBTYPE_SYSTEM,
+};
+
 /**
  * struct zynqmp_pm_query_data - PM query data
  * @qid:	query ID
@@ -293,48 +314,198 @@ struct zynqmp_pm_query_data {
 	u32 arg3;
 };
 
-struct zynqmp_eemi_ops {
-	int (*get_api_version)(u32 *version);
-	int (*get_chipid)(u32 *idcode, u32 *version);
-	int (*fpga_load)(const u64 address, const u32 size, const u32 flags);
-	int (*fpga_get_status)(u32 *value);
-	int (*query_data)(struct zynqmp_pm_query_data qdata, u32 *out);
-	int (*clock_enable)(u32 clock_id);
-	int (*clock_disable)(u32 clock_id);
-	int (*clock_getstate)(u32 clock_id, u32 *state);
-	int (*clock_setdivider)(u32 clock_id, u32 divider);
-	int (*clock_getdivider)(u32 clock_id, u32 *divider);
-	int (*clock_setrate)(u32 clock_id, u64 rate);
-	int (*clock_getrate)(u32 clock_id, u64 *rate);
-	int (*clock_setparent)(u32 clock_id, u32 parent_id);
-	int (*clock_getparent)(u32 clock_id, u32 *parent_id);
-	int (*ioctl)(u32 node_id, u32 ioctl_id, u32 arg1, u32 arg2, u32 *out);
-	int (*reset_assert)(const enum zynqmp_pm_reset reset,
-			    const enum zynqmp_pm_reset_action assert_flag);
-	int (*reset_get_status)(const enum zynqmp_pm_reset reset, u32 *status);
-	int (*init_finalize)(void);
-	int (*set_suspend_mode)(u32 mode);
-	int (*request_node)(const u32 node,
-			    const u32 capabilities,
-			    const u32 qos,
-			    const enum zynqmp_pm_request_ack ack);
-	int (*release_node)(const u32 node);
-	int (*set_requirement)(const u32 node,
-			       const u32 capabilities,
-			       const u32 qos,
-			       const enum zynqmp_pm_request_ack ack);
-	int (*aes)(const u64 address, u32 *out);
-};
 
 int zynqmp_pm_invoke_fn(u32 pm_api_id, u32 arg0, u32 arg1,
 			u32 arg2, u32 arg3, u32 *ret_payload);
 
 #if IS_REACHABLE(CONFIG_ZYNQMP_FIRMWARE)
-const struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void);
+int zynqmp_pm_get_api_version(u32 *version);
+int zynqmp_pm_get_chipid(u32 *idcode, u32 *version);
+int zynqmp_pm_query_data(struct zynqmp_pm_query_data qdata, u32 *out);
+int zynqmp_pm_clock_enable(u32 clock_id);
+int zynqmp_pm_clock_disable(u32 clock_id);
+int zynqmp_pm_clock_getstate(u32 clock_id, u32 *state);
+int zynqmp_pm_clock_setdivider(u32 clock_id, u32 divider);
+int zynqmp_pm_clock_getdivider(u32 clock_id, u32 *divider);
+int zynqmp_pm_clock_setrate(u32 clock_id, u64 rate);
+int zynqmp_pm_clock_getrate(u32 clock_id, u64 *rate);
+int zynqmp_pm_clock_setparent(u32 clock_id, u32 parent_id);
+int zynqmp_pm_clock_getparent(u32 clock_id, u32 *parent_id);
+int zynqmp_pm_set_pll_frac_mode(u32 clk_id, u32 mode);
+int zynqmp_pm_get_pll_frac_mode(u32 clk_id, u32 *mode);
+int zynqmp_pm_set_pll_frac_data(u32 clk_id, u32 data);
+int zynqmp_pm_get_pll_frac_data(u32 clk_id, u32 *data);
+int zynqmp_pm_set_sd_tapdelay(u32 node_id, u32 type, u32 value);
+int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type);
+int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
+			   const enum zynqmp_pm_reset_action assert_flag);
+int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset, u32 *status);
+int zynqmp_pm_init_finalize(void);
+int zynqmp_pm_set_suspend_mode(u32 mode);
+int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
+			   const u32 qos, const enum zynqmp_pm_request_ack ack);
+int zynqmp_pm_release_node(const u32 node);
+int zynqmp_pm_set_requirement(const u32 node, const u32 capabilities,
+			      const u32 qos,
+			      const enum zynqmp_pm_request_ack ack);
+int zynqmp_pm_aes_engine(const u64 address, u32 *out);
+int zynqmp_pm_fpga_load(const u64 address, const u32 size, const u32 flags);
+int zynqmp_pm_fpga_get_status(u32 *value);
+int zynqmp_pm_write_ggs(u32 index, u32 value);
+int zynqmp_pm_read_ggs(u32 index, u32 *value);
+int zynqmp_pm_write_pggs(u32 index, u32 value);
+int zynqmp_pm_read_pggs(u32 index, u32 *value);
+int zynqmp_pm_system_shutdown(const u32 type, const u32 subtype);
+int zynqmp_pm_set_boot_health_status(u32 value);
 #else
 static inline struct zynqmp_eemi_ops *zynqmp_pm_get_eemi_ops(void)
 {
 	return ERR_PTR(-ENODEV);
+}
+static inline int zynqmp_pm_get_api_version(u32 *version)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_get_chipid(u32 *idcode, u32 *version)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_query_data(struct zynqmp_pm_query_data qdata,
+				       u32 *out)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_enable(u32 clock_id)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_disable(u32 clock_id)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_getstate(u32 clock_id, u32 *state)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_setdivider(u32 clock_id, u32 divider)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_getdivider(u32 clock_id, u32 *divider)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_setrate(u32 clock_id, u64 rate)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_getrate(u32 clock_id, u64 *rate)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_setparent(u32 clock_id, u32 parent_id)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_clock_getparent(u32 clock_id, u32 *parent_id)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_pll_frac_mode(u32 clk_id, u32 mode)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_get_pll_frac_mode(u32 clk_id, u32 *mode)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_pll_frac_data(u32 clk_id, u32 data)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_get_pll_frac_data(u32 clk_id, u32 *data)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_sd_tapdelay(u32 node_id, u32 type, u32 value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_sd_dll_reset(u32 node_id, u32 type)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_reset_assert(const enum zynqmp_pm_reset reset,
+			   const enum zynqmp_pm_reset_action assert_flag)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_reset_get_status(const enum zynqmp_pm_reset reset,
+					     u32 *status)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_init_finalize(void)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_suspend_mode(u32 mode)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_request_node(const u32 node, const u32 capabilities,
+					 const u32 qos,
+					 const enum zynqmp_pm_request_ack ack)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_release_node(const u32 node)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_requirement(const u32 node,
+					const u32 capabilities,
+					const u32 qos,
+					const enum zynqmp_pm_request_ack ack)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_aes_engine(const u64 address, u32 *out)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_fpga_load(const u64 address, const u32 size,
+				      const u32 flags)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_fpga_get_status(u32 *value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_write_ggs(u32 index, u32 value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_read_ggs(u32 index, u32 *value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_write_pggs(u32 index, u32 value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_read_pggs(u32 index, u32 *value)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_system_shutdown(const u32 type, const u32 subtype)
+{
+	return -ENODEV;
+}
+static inline int zynqmp_pm_set_boot_health_status(u32 value)
+{
+	return -ENODEV;
 }
 #endif
 

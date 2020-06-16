@@ -43,6 +43,9 @@ struct inet_diag_entry {
 	u16 userlocks;
 	u32 ifindex;
 	u32 mark;
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	u64 cgroup_id;
+#endif
 };
 
 static DEFINE_MUTEX(inet_diag_table_mutex);
@@ -161,6 +164,13 @@ int inet_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
 		if (nla_put_u32(skb, INET_DIAG_CLASS_ID, classid))
 			goto errout;
 	}
+
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	if (nla_put_u64_64bit(skb, INET_DIAG_CGROUP_ID,
+			      cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)),
+			      INET_DIAG_PAD))
+		goto errout;
+#endif
 
 	r->idiag_uid = from_kuid_munged(user_ns, sock_i_uid(sk));
 	r->idiag_inode = sock_i_ino(sk);
@@ -675,6 +685,16 @@ static int inet_diag_bc_run(const struct nlattr *_bc,
 				yes = 0;
 			break;
 		}
+#ifdef CONFIG_SOCK_CGROUP_DATA
+		case INET_DIAG_BC_CGROUP_COND: {
+			u64 cgroup_id;
+
+			cgroup_id = get_unaligned((const u64 *)(op + 1));
+			if (cgroup_id != entry->cgroup_id)
+				yes = 0;
+			break;
+		}
+#endif
 		}
 
 		if (yes) {
@@ -725,6 +745,10 @@ int inet_diag_bc_sk(const struct nlattr *bc, struct sock *sk)
 		entry.mark = inet_rsk(inet_reqsk(sk))->ir_mark;
 	else
 		entry.mark = 0;
+#ifdef CONFIG_SOCK_CGROUP_DATA
+	entry.cgroup_id = sk_fullsock(sk) ?
+		cgroup_id(sock_cgroup_ptr(&sk->sk_cgrp_data)) : 0;
+#endif
 
 	return inet_diag_bc_run(bc, &entry);
 }
@@ -814,6 +838,15 @@ static bool valid_markcond(const struct inet_diag_bc_op *op, int len,
 	return len >= *min_len;
 }
 
+#ifdef CONFIG_SOCK_CGROUP_DATA
+static bool valid_cgroupcond(const struct inet_diag_bc_op *op, int len,
+			     int *min_len)
+{
+	*min_len += sizeof(u64);
+	return len >= *min_len;
+}
+#endif
+
 static int inet_diag_bc_audit(const struct nlattr *attr,
 			      const struct sk_buff *skb)
 {
@@ -856,6 +889,12 @@ static int inet_diag_bc_audit(const struct nlattr *attr,
 			if (!valid_markcond(bc, len, &min_len))
 				return -EINVAL;
 			break;
+#ifdef CONFIG_SOCK_CGROUP_DATA
+		case INET_DIAG_BC_CGROUP_COND:
+			if (!valid_cgroupcond(bc, len, &min_len))
+				return -EINVAL;
+			break;
+#endif
 		case INET_DIAG_BC_AUTO:
 		case INET_DIAG_BC_JMP:
 		case INET_DIAG_BC_NOP:

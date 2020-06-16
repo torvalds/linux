@@ -26,35 +26,27 @@ struct linux_binprm {
 	unsigned long p; /* current top of mem */
 	unsigned long argmin; /* rlimit marker for copy_strings() */
 	unsigned int
+		/* Should an execfd be passed to userspace? */
+		have_execfd:1,
+
+		/* Use the creds of a script (see binfmt_misc) */
+		execfd_creds:1,
 		/*
-		 * True after the bprm_set_creds hook has been called once
-		 * (multiple calls can be made via prepare_binprm() for
-		 * binfmt_script/misc).
-		 */
-		called_set_creds:1,
-		/*
-		 * True if most recent call to the commoncaps bprm_set_creds
-		 * hook (due to multiple prepare_binprm() calls from the
-		 * binfmt_script/misc handlers) resulted in elevated
-		 * privileges.
-		 */
-		cap_elevated:1,
-		/*
-		 * Set by bprm_set_creds hook to indicate a privilege-gaining
-		 * exec has happened. Used to sanitize execution environment
-		 * and to set AT_SECURE auxv for glibc.
+		 * Set by bprm_creds_for_exec hook to indicate a
+		 * privilege-gaining exec has happened. Used to set
+		 * AT_SECURE auxv for glibc.
 		 */
 		secureexec:1,
 		/*
-		 * Set by flush_old_exec, when exec_mmap has been called.
-		 * This is past the point of no return, when the
-		 * exec_update_mutex has been taken.
+		 * Set when errors can no longer be returned to the
+		 * original userspace.
 		 */
-		called_exec_mmap:1;
+		point_of_no_return:1;
 #ifdef __alpha__
 	unsigned int taso:1;
 #endif
-	unsigned int recursion_depth; /* only for search_binary_handler() */
+	struct file * executable; /* Executable to pass to the interpreter */
+	struct file * interpreter;
 	struct file * file;
 	struct cred *cred;	/* new credentials */
 	int unsafe;		/* how unsafe this exec is (mask of LSM_UNSAFE_*) */
@@ -65,7 +57,7 @@ struct linux_binprm {
 				   of the time same as filename, but could be
 				   different for binfmt_{misc,script} */
 	unsigned interp_flags;
-	unsigned interp_data;
+	int execfd;		/* File descriptor of the executable */
 	unsigned long loader, exec;
 
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
@@ -75,10 +67,6 @@ struct linux_binprm {
 
 #define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0
 #define BINPRM_FLAGS_ENFORCE_NONDUMP (1 << BINPRM_FLAGS_ENFORCE_NONDUMP_BIT)
-
-/* fd of the binary should be passed to the interpreter */
-#define BINPRM_FLAGS_EXECFD_BIT 1
-#define BINPRM_FLAGS_EXECFD (1 << BINPRM_FLAGS_EXECFD_BIT)
 
 /* filename of the binary will be inaccessible after exec */
 #define BINPRM_FLAGS_PATH_INACCESSIBLE_BIT 2
@@ -123,10 +111,8 @@ static inline void insert_binfmt(struct linux_binfmt *fmt)
 
 extern void unregister_binfmt(struct linux_binfmt *);
 
-extern int prepare_binprm(struct linux_binprm *);
 extern int __must_check remove_arg_zero(struct linux_binprm *);
-extern int search_binary_handler(struct linux_binprm *);
-extern int flush_old_exec(struct linux_binprm * bprm);
+extern int begin_new_exec(struct linux_binprm * bprm);
 extern void setup_new_exec(struct linux_binprm * bprm);
 extern void finalize_exec(struct linux_binprm *bprm);
 extern void would_dump(struct linux_binprm *, struct file *);
@@ -144,9 +130,7 @@ extern int setup_arg_pages(struct linux_binprm * bprm,
 extern int transfer_args_to_stack(struct linux_binprm *bprm,
 				  unsigned long *sp_location);
 extern int bprm_change_interp(const char *interp, struct linux_binprm *bprm);
-extern int copy_strings_kernel(int argc, const char *const *argv,
-			       struct linux_binprm *bprm);
-extern void install_exec_creds(struct linux_binprm *bprm);
+int copy_string_kernel(const char *arg, struct linux_binprm *bprm);
 extern void set_binfmt(struct linux_binfmt *new);
 extern ssize_t read_code(struct file *, unsigned long, loff_t, size_t);
 

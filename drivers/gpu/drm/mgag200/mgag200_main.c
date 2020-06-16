@@ -10,14 +10,7 @@
 
 #include <linux/pci.h>
 
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_gem_framebuffer_helper.h>
-
 #include "mgag200_drv.h"
-
-static const struct drm_mode_config_funcs mga_mode_funcs = {
-	.fb_create = drm_gem_fb_create
-};
 
 static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 {
@@ -66,51 +59,54 @@ static int mga_probe_vram(struct mga_device *mdev, void __iomem *mem)
 /* Map the framebuffer from the card and configure the core */
 static int mga_vram_init(struct mga_device *mdev)
 {
+	struct drm_device *dev = mdev->dev;
 	void __iomem *mem;
 
 	/* BAR 0 is VRAM */
-	mdev->mc.vram_base = pci_resource_start(mdev->dev->pdev, 0);
-	mdev->mc.vram_window = pci_resource_len(mdev->dev->pdev, 0);
+	mdev->mc.vram_base = pci_resource_start(dev->pdev, 0);
+	mdev->mc.vram_window = pci_resource_len(dev->pdev, 0);
 
-	if (!devm_request_mem_region(mdev->dev->dev, mdev->mc.vram_base, mdev->mc.vram_window,
-				"mgadrmfb_vram")) {
+	if (!devm_request_mem_region(dev->dev, mdev->mc.vram_base,
+				     mdev->mc.vram_window, "mgadrmfb_vram")) {
 		DRM_ERROR("can't reserve VRAM\n");
 		return -ENXIO;
 	}
 
-	mem = pci_iomap(mdev->dev->pdev, 0, 0);
+	mem = pci_iomap(dev->pdev, 0, 0);
 	if (!mem)
 		return -ENOMEM;
 
 	mdev->mc.vram_size = mga_probe_vram(mdev, mem);
 
-	pci_iounmap(mdev->dev->pdev, mem);
+	pci_iounmap(dev->pdev, mem);
 
 	return 0;
 }
 
-static int mgag200_device_init(struct drm_device *dev,
-			       uint32_t flags)
+int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev;
 	int ret, option;
+
+	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
+	if (mdev == NULL)
+		return -ENOMEM;
+	dev->dev_private = (void *)mdev;
+	mdev->dev = dev;
 
 	mdev->flags = mgag200_flags_from_driver_data(flags);
 	mdev->type = mgag200_type_from_driver_data(flags);
-
-	/* Hardcode the number of CRTCs to 1 */
-	mdev->num_crtc = 1;
 
 	pci_read_config_dword(dev->pdev, PCI_MGA_OPTION, &option);
 	mdev->has_sdram = !(option & (1 << 14));
 
 	/* BAR 0 is the framebuffer, BAR 1 contains registers */
-	mdev->rmmio_base = pci_resource_start(mdev->dev->pdev, 1);
-	mdev->rmmio_size = pci_resource_len(mdev->dev->pdev, 1);
+	mdev->rmmio_base = pci_resource_start(dev->pdev, 1);
+	mdev->rmmio_size = pci_resource_len(dev->pdev, 1);
 
-	if (!devm_request_mem_region(mdev->dev->dev, mdev->rmmio_base, mdev->rmmio_size,
-				"mgadrmfb_mmio")) {
-		DRM_ERROR("can't reserve mmio registers\n");
+	if (!devm_request_mem_region(dev->dev, mdev->rmmio_base,
+				     mdev->rmmio_size, "mgadrmfb_mmio")) {
+		drm_err(dev, "can't reserve mmio registers\n");
 		return -ENOMEM;
 	}
 
@@ -121,90 +117,43 @@ static int mgag200_device_init(struct drm_device *dev,
 	/* stash G200 SE model number for later use */
 	if (IS_G200_SE(mdev)) {
 		mdev->unique_rev_id = RREG32(0x1e24);
-		DRM_DEBUG("G200 SE unique revision id is 0x%x\n",
-			  mdev->unique_rev_id);
+		drm_dbg(dev, "G200 SE unique revision id is 0x%x\n",
+			mdev->unique_rev_id);
 	}
 
 	ret = mga_vram_init(mdev);
 	if (ret)
 		return ret;
 
-	mdev->bpp_shifts[0] = 0;
-	mdev->bpp_shifts[1] = 1;
-	mdev->bpp_shifts[2] = 0;
-	mdev->bpp_shifts[3] = 2;
-	return 0;
-}
-
-/*
- * Functions here will be called by the core once it's bound the driver to
- * a PCI device
- */
-
-
-int mgag200_driver_load(struct drm_device *dev, unsigned long flags)
-{
-	struct mga_device *mdev;
-	int r;
-
-	mdev = devm_kzalloc(dev->dev, sizeof(struct mga_device), GFP_KERNEL);
-	if (mdev == NULL)
-		return -ENOMEM;
-	dev->dev_private = (void *)mdev;
-	mdev->dev = dev;
-
-	r = mgag200_device_init(dev, flags);
-	if (r) {
-		dev_err(&dev->pdev->dev, "Fatal error during GPU init: %d\n", r);
-		return r;
-	}
-	r = mgag200_mm_init(mdev);
-	if (r)
+	ret = mgag200_mm_init(mdev);
+	if (ret)
 		goto err_mm;
 
-	drm_mode_config_init(dev);
-	dev->mode_config.funcs = (void *)&mga_mode_funcs;
-	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
-		dev->mode_config.preferred_depth = 16;
-	else
-		dev->mode_config.preferred_depth = 32;
-	dev->mode_config.prefer_shadow = 1;
-
-	r = mgag200_modeset_init(mdev);
-	if (r) {
-		dev_err(&dev->pdev->dev, "Fatal error during modeset init: %d\n", r);
-		goto err_modeset;
+	ret = mgag200_modeset_init(mdev);
+	if (ret) {
+		drm_err(dev, "Fatal error during modeset init: %d\n", ret);
+		goto err_mgag200_mm_fini;
 	}
 
-	r = mgag200_cursor_init(mdev);
-	if (r)
-		dev_warn(&dev->pdev->dev,
-			"Could not initialize cursors. Not doing hardware cursors.\n");
-
-	r = drm_fbdev_generic_setup(mdev->dev, 0);
-	if (r)
-		goto err_modeset;
+	ret = mgag200_cursor_init(mdev);
+	if (ret)
+		drm_err(dev, "Could not initialize cursors. Not doing hardware cursors.\n");
 
 	return 0;
 
-err_modeset:
-	drm_mode_config_cleanup(dev);
-	mgag200_cursor_fini(mdev);
+err_mgag200_mm_fini:
 	mgag200_mm_fini(mdev);
 err_mm:
 	dev->dev_private = NULL;
-
-	return r;
+	return ret;
 }
 
 void mgag200_driver_unload(struct drm_device *dev)
 {
-	struct mga_device *mdev = dev->dev_private;
+	struct mga_device *mdev = to_mga_device(dev);
 
 	if (mdev == NULL)
 		return;
-	mgag200_modeset_fini(mdev);
-	drm_mode_config_cleanup(dev);
 	mgag200_cursor_fini(mdev);
 	mgag200_mm_fini(mdev);
 	dev->dev_private = NULL;

@@ -91,6 +91,9 @@ struct q6v5_wcss {
 	phys_addr_t mem_reloc;
 	void *mem_region;
 	size_t mem_size;
+
+	struct qcom_rproc_glink glink_subdev;
+	struct qcom_rproc_ssr ssr_subdev;
 };
 
 static int q6v5_wcss_reset(struct q6v5_wcss *wcss)
@@ -556,6 +559,9 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, WCSS_CRASH_REASON, NULL);
 	if (ret)
 		goto free_rproc;
+
+	qcom_add_glink_subdev(rproc, &wcss->glink_subdev, "q6wcss");
+	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "q6wcss");
 
 	ret = rproc_add(rproc);
 	if (ret)

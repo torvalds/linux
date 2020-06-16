@@ -190,41 +190,72 @@ MSR_KVM_ASYNC_PF_EN:
 	0x4b564d02
 
 data:
-	Bits 63-6 hold 64-byte aligned physical address of a
-	64 byte memory area which must be in guest RAM and must be
-	zeroed. Bits 5-3 are reserved and should be zero. Bit 0 is 1
-	when asynchronous page faults are enabled on the vcpu 0 when
-	disabled. Bit 1 is 1 if asynchronous page faults can be injected
-	when vcpu is in cpl == 0. Bit 2 is 1 if asynchronous page faults
-	are delivered to L1 as #PF vmexits.  Bit 2 can be set only if
-	KVM_FEATURE_ASYNC_PF_VMEXIT is present in CPUID.
+	Asynchronous page fault (APF) control MSR.
 
-	First 4 byte of 64 byte memory location will be written to by
-	the hypervisor at the time of asynchronous page fault (APF)
-	injection to indicate type of asynchronous page fault. Value
-	of 1 means that the page referred to by the page fault is not
-	present. Value 2 means that the page is now available. Disabling
-	interrupt inhibits APFs. Guest must not enable interrupt
-	before the reason is read, or it may be overwritten by another
-	APF. Since APF uses the same exception vector as regular page
-	fault guest must reset the reason to 0 before it does
-	something that can generate normal page fault.  If during page
-	fault APF reason is 0 it means that this is regular page
-	fault.
+	Bits 63-6 hold 64-byte aligned physical address of a 64 byte memory area
+	which must be in guest RAM and must be zeroed. This memory is expected
+	to hold a copy of the following structure::
 
-	During delivery of type 1 APF cr2 contains a token that will
-	be used to notify a guest when missing page becomes
-	available. When page becomes available type 2 APF is sent with
-	cr2 set to the token associated with the page. There is special
-	kind of token 0xffffffff which tells vcpu that it should wake
-	up all processes waiting for APFs and no individual type 2 APFs
-	will be sent.
+	  struct kvm_vcpu_pv_apf_data {
+		/* Used for 'page not present' events delivered via #PF */
+		__u32 flags;
+
+		/* Used for 'page ready' events delivered via interrupt notification */
+		__u32 token;
+
+		__u8 pad[56];
+		__u32 enabled;
+	  };
+
+	Bits 5-4 of the MSR are reserved and should be zero. Bit 0 is set to 1
+	when asynchronous page faults are enabled on the vcpu, 0 when disabled.
+	Bit 1 is 1 if asynchronous page faults can be injected when vcpu is in
+	cpl == 0. Bit 2 is 1 if asynchronous page faults are delivered to L1 as
+	#PF vmexits.  Bit 2 can be set only if KVM_FEATURE_ASYNC_PF_VMEXIT is
+	present in CPUID. Bit 3 enables interrupt based delivery of 'page ready'
+	events. Bit 3 can only be set if KVM_FEATURE_ASYNC_PF_INT is present in
+	CPUID.
+
+	'Page not present' events are currently always delivered as synthetic
+	#PF exception. During delivery of these events APF CR2 register contains
+	a token that will be used to notify the guest when missing page becomes
+	available. Also, to make it possible to distinguish between real #PF and
+	APF, first 4 bytes of 64 byte memory location ('flags') will be written
+	to by the hypervisor at the time of injection. Only first bit of 'flags'
+	is currently supported, when set, it indicates that the guest is dealing
+	with asynchronous 'page not present' event. If during a page fault APF
+	'flags' is '0' it means that this is regular page fault. Guest is
+	supposed to clear 'flags' when it is done handling #PF exception so the
+	next event can be delivered.
+
+	Note, since APF 'page not present' events use the same exception vector
+	as regular page fault, guest must reset 'flags' to '0' before it does
+	something that can generate normal page fault.
+
+	Bytes 5-7 of 64 byte memory location ('token') will be written to by the
+	hypervisor at the time of APF 'page ready' event injection. The content
+	of these bytes is a token which was previously delivered as 'page not
+	present' event. The event indicates the page in now available. Guest is
+	supposed to write '0' to 'token' when it is done handling 'page ready'
+	event and to write 1' to MSR_KVM_ASYNC_PF_ACK after clearing the location;
+	writing to the MSR forces KVM to re-scan its queue and deliver the next
+	pending notification.
+
+	Note, MSR_KVM_ASYNC_PF_INT MSR specifying the interrupt vector for 'page
+	ready' APF delivery needs to be written to before enabling APF mechanism
+	in MSR_KVM_ASYNC_PF_EN or interrupt #0 can get injected. The MSR is
+	available if KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
+
+	Note, previously, 'page ready' events were delivered via the same #PF
+	exception as 'page not present' events but this is now deprecated. If
+	bit 3 (interrupt based delivery) is not set APF events are not delivered.
 
 	If APF is disabled while there are outstanding APFs, they will
 	not be delivered.
 
-	Currently type 2 APF will be always delivered on the same vcpu as
-	type 1 was, but guest should not rely on that.
+	Currently 'page ready' APF events will be always delivered on the
+	same vcpu as 'page not present' event was, but guest should not rely on
+	that.
 
 MSR_KVM_STEAL_TIME:
 	0x4b564d03
@@ -319,3 +350,29 @@ data:
 
 	KVM guests can request the host not to poll on HLT, for example if
 	they are performing polling themselves.
+
+MSR_KVM_ASYNC_PF_INT:
+	0x4b564d06
+
+data:
+	Second asynchronous page fault (APF) control MSR.
+
+	Bits 0-7: APIC vector for delivery of 'page ready' APF events.
+	Bits 8-63: Reserved
+
+	Interrupt vector for asynchnonous 'page ready' notifications delivery.
+	The vector has to be set up before asynchronous page fault mechanism
+	is enabled in MSR_KVM_ASYNC_PF_EN.  The MSR is only available if
+	KVM_FEATURE_ASYNC_PF_INT is present in CPUID.
+
+MSR_KVM_ASYNC_PF_ACK:
+	0x4b564d07
+
+data:
+	Asynchronous page fault (APF) acknowledgment.
+
+	When the guest is done processing 'page ready' APF event and 'token'
+	field in 'struct kvm_vcpu_pv_apf_data' is cleared it is supposed to
+	write '1' to bit 0 of the MSR, this causes the host to re-scan its queue
+	and check if there are more notifications pending. The MSR is available
+	if KVM_FEATURE_ASYNC_PF_INT is present in CPUID.

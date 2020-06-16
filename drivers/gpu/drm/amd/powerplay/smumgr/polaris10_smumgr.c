@@ -99,7 +99,8 @@ static int polaris10_perform_btc(struct pp_hwmgr *hwmgr)
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 
 	if (0 != smu_data->avfs_btc_param) {
-		if (0 != smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param)) {
+		if (0 != smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_PerformBtc, smu_data->avfs_btc_param,
+					NULL)) {
 			pr_info("[AVFS][SmuPolaris10_PerformBtc] PerformBTC SMU msg failed");
 			result = -1;
 		}
@@ -2049,15 +2050,16 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 		return 0;
 
 	smum_send_msg_to_smc_with_parameter(hwmgr,
-			PPSMC_MSG_SetGBDroopSettings, data->avfs_vdroop_override_setting);
+			PPSMC_MSG_SetGBDroopSettings, data->avfs_vdroop_override_setting,
+			NULL);
 
-	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs, NULL);
 
 	/* Apply avfs cks-off voltages to avoid the overshoot
 	 * when switching to the highest sclk frequency
 	 */
 	if (data->apply_avfs_cks_off_voltage)
-		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage, NULL);
 
 	return 0;
 }
@@ -2158,14 +2160,16 @@ static int polaris10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 		res = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanMinPwm,
 				hwmgr->thermal_controller.
-				advanceFanControlParameters.ucMinimumPWMLimit);
+				advanceFanControlParameters.ucMinimumPWMLimit,
+				NULL);
 
 	if (!res && hwmgr->thermal_controller.
 			advanceFanControlParameters.ulMinFanSCLKAcousticLimit)
 		res = smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_SetFanSclkTarget,
 				hwmgr->thermal_controller.
-				advanceFanControlParameters.ulMinFanSCLKAcousticLimit);
+				advanceFanControlParameters.ulMinFanSCLKAcousticLimit,
+				NULL);
 
 	if (res)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
@@ -2202,7 +2206,8 @@ static int polaris10_update_uvd_smc_table(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_StablePState))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_UVDDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.UvdBootLevel));
+				(uint32_t)(1 << smu_data->smc_state_table.UvdBootLevel),
+				NULL);
 	return 0;
 }
 
@@ -2234,7 +2239,8 @@ static int polaris10_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_StablePState))
 		smum_send_msg_to_smc_with_parameter(hwmgr,
 				PPSMC_MSG_VCEDPM_SetEnabledMask,
-				(uint32_t)1 << smu_data->smc_state_table.VceBootLevel);
+				(uint32_t)1 << smu_data->smc_state_table.VceBootLevel,
+				NULL);
 	return 0;
 }
 
@@ -2485,7 +2491,7 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 
 	if (setting->bupdate_sclk) {
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel, NULL);
 		for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
 			if (levels[i].ActivityLevel !=
 				cpu_to_be16(setting->sclk_activity)) {
@@ -2515,12 +2521,12 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 			}
 		}
 		if (!data->sclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel, NULL);
 	}
 
 	if (setting->bupdate_mclk) {
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel, NULL);
 		for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++) {
 			if (mclk_levels[i].ActivityLevel !=
 				cpu_to_be16(setting->mclk_activity)) {
@@ -2550,7 +2556,7 @@ static int polaris10_update_dpm_settings(struct pp_hwmgr *hwmgr,
 			}
 		}
 		if (!data->mclk_dpm_key_disabled)
-			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel, NULL);
 	}
 	return 0;
 }
@@ -2565,6 +2571,7 @@ const struct pp_smumgr_func polaris10_smu_funcs = {
 	.request_smu_load_specific_fw = NULL,
 	.send_msg_to_smc = smu7_send_msg_to_smc,
 	.send_msg_to_smc_with_parameter = smu7_send_msg_to_smc_with_parameter,
+	.get_argument = smu7_get_argument,
 	.download_pptable_settings = NULL,
 	.upload_pptable_settings = NULL,
 	.update_smc_table = polaris10_update_smc_table,

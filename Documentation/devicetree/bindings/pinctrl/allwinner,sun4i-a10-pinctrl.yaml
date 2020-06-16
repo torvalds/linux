@@ -84,13 +84,12 @@ properties:
   gpio-line-names: true
 
   input-debounce:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 5
     description:
       Debouncing periods in microseconds, one period per interrupt
       bank found in the controller
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 5
 
 patternProperties:
   # It's pretty scary, but the basic idea is that:
@@ -115,9 +114,8 @@ patternProperties:
       bias-pull-down: true
 
       drive-strength:
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/uint32
-          - enum: [ 10, 20, 30, 40 ]
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [10, 20, 30, 40]
 
     required:
       - pins

@@ -341,8 +341,7 @@ static unsigned int find_supported_vector_length(unsigned int vl)
 #ifdef CONFIG_SYSCTL
 
 static int sve_proc_do_default_vl(struct ctl_table *table, int write,
-				  void __user *buffer, size_t *lenp,
-				  loff_t *ppos)
+				  void *buffer, size_t *lenp, loff_t *ppos)
 {
 	int ret;
 	int vl = sve_default_vl;

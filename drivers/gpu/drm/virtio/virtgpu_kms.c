@@ -25,6 +25,7 @@
 
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
+#include <linux/virtio_ring.h>
 
 #include <drm/drm_file.h>
 

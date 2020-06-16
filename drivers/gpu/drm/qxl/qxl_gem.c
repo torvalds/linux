@@ -34,7 +34,7 @@ void qxl_gem_object_free(struct drm_gem_object *gobj)
 	struct qxl_device *qdev;
 	struct ttm_buffer_object *tbo;
 
-	qdev = (struct qxl_device *)gobj->dev->dev_private;
+	qdev = to_qxl(gobj->dev);
 
 	qxl_surface_evict(qdev, qobj, false);
 

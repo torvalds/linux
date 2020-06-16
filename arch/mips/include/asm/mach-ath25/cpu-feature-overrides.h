@@ -56,6 +56,5 @@
 #define cpu_has_64bits			0
 #define cpu_has_64bit_zero_reg		0
 #define cpu_has_64bit_gp_regs		0
-#define cpu_has_64bit_addresses		0
 
 #endif /* __ASM_MACH_ATH25_CPU_FEATURE_OVERRIDES_H */

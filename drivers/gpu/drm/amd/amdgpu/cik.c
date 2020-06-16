@@ -1358,8 +1358,6 @@ static int cik_asic_reset(struct amdgpu_device *adev)
 	int r;
 
 	if (cik_asic_reset_method(adev) == AMD_RESET_METHOD_BACO) {
-		if (!adev->in_suspend)
-			amdgpu_inc_vram_lost(adev);
 		r = amdgpu_dpm_baco_reset(adev);
 	} else {
 		r = cik_asic_pci_config_reset(adev);
@@ -1811,12 +1809,6 @@ static uint32_t cik_get_rev_id(struct amdgpu_device *adev)
 		>> CC_DRM_ID_STRAPS__ATI_REV_ID__SHIFT;
 }
 
-static void cik_detect_hw_virtualization(struct amdgpu_device *adev)
-{
-	if (is_virtual_machine()) /* passthrough mode */
-		adev->virt.caps |= AMDGPU_PASSTHROUGH_MODE;
-}
-
 static void cik_flush_hdp(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
 	if (!ring || !ring->funcs->emit_wreg) {
@@ -2179,8 +2171,6 @@ static const struct amdgpu_ip_block_version cik_common_ip_block =
 
 int cik_set_ip_blocks(struct amdgpu_device *adev)
 {
-	cik_detect_hw_virtualization(adev);
-
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
 		amdgpu_device_ip_block_add(adev, &cik_common_ip_block);

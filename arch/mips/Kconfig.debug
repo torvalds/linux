@@ -148,4 +148,14 @@ config MIPS_CPS_NS16550_SHIFT
 	  form their addresses. That is, log base 2 of the span between
 	  adjacent ns16550 registers in the system.
 
+config MIPS_CPS_NS16550_WIDTH
+	int "UART Register Width"
+	default 1
+	help
+	  ns16550 registers width. UART registers IO access methods will be
+	  selected in accordance with this parameter. By setting it to 1, 2 or
+	  4 UART registers will be accessed by means of lb/sb, lh/sh or lw/sw
+	  instructions respectively. Any value not from that set activates
+	  lb/sb instructions.
+
 endif # MIPS_CPS_NS16550_BOOL

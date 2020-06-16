@@ -334,8 +334,10 @@ static int macb_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	int status;
 
 	status = pm_runtime_get_sync(&bp->pdev->dev);
-	if (status < 0)
+	if (status < 0) {
+		pm_runtime_put_noidle(&bp->pdev->dev);
 		goto mdio_pm_exit;
+	}
 
 	status = macb_mdio_wait_for_idle(bp);
 	if (status < 0)
@@ -386,8 +388,10 @@ static int macb_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	int status;
 
 	status = pm_runtime_get_sync(&bp->pdev->dev);
-	if (status < 0)
+	if (status < 0) {
+		pm_runtime_put_noidle(&bp->pdev->dev);
 		goto mdio_pm_exit;
+	}
 
 	status = macb_mdio_wait_for_idle(bp);
 	if (status < 0)
@@ -2554,13 +2558,16 @@ static int macb_open(struct net_device *dev)
 
 	err = macb_phylink_connect(bp);
 	if (err)
-		goto pm_exit;
+		goto napi_exit;
 
 	netif_tx_start_all_queues(dev);
 
 	if (bp->ptp_info)
 		bp->ptp_info->ptp_init(dev);
 
+napi_exit:
+	for (q = 0, queue = bp->queues; q < bp->num_queues; ++q, ++queue)
+		napi_disable(&queue->napi);
 pm_exit:
 	if (err) {
 		pm_runtime_put_sync(&bp->pdev->dev);
@@ -3816,8 +3823,10 @@ static int at91ether_open(struct net_device *dev)
 	int ret;
 
 	ret = pm_runtime_get_sync(&lp->pdev->dev);
-	if (ret < 0)
+	if (ret < 0) {
+		pm_runtime_put_noidle(&lp->pdev->dev);
 		return ret;
+	}
 
 	/* Clear internal statistics */
 	ctl = macb_readl(lp, NCR);
@@ -4172,15 +4181,9 @@ static int fu540_c000_clk_init(struct platform_device *pdev, struct clk **pclk,
 
 static int fu540_c000_init(struct platform_device *pdev)
 {
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res)
-		return -ENODEV;
-
-	mgmt->reg = ioremap(res->start, resource_size(res));
-	if (!mgmt->reg)
-		return -ENOMEM;
+	mgmt->reg = devm_platform_ioremap_resource(pdev, 1);
+	if (IS_ERR(mgmt->reg))
+		return PTR_ERR(mgmt->reg);
 
 	return macb_init(pdev);
 }

@@ -15,16 +15,6 @@
 
 #define RDRAND_RETRY_LOOPS	10
 
-#define RDRAND_INT	".byte 0x0f,0xc7,0xf0"
-#define RDSEED_INT	".byte 0x0f,0xc7,0xf8"
-#ifdef CONFIG_X86_64
-# define RDRAND_LONG	".byte 0x48,0x0f,0xc7,0xf0"
-# define RDSEED_LONG	".byte 0x48,0x0f,0xc7,0xf8"
-#else
-# define RDRAND_LONG	RDRAND_INT
-# define RDSEED_LONG	RDSEED_INT
-#endif
-
 /* Unconditional execution of RDRAND and RDSEED */
 
 static inline bool __must_check rdrand_long(unsigned long *v)
@@ -32,9 +22,9 @@ static inline bool __must_check rdrand_long(unsigned long *v)
 	bool ok;
 	unsigned int retry = RDRAND_RETRY_LOOPS;
 	do {
-		asm volatile(RDRAND_LONG
+		asm volatile("rdrand %[out]"
 			     CC_SET(c)
-			     : CC_OUT(c) (ok), "=a" (*v));
+			     : CC_OUT(c) (ok), [out] "=r" (*v));
 		if (ok)
 			return true;
 	} while (--retry);
@@ -46,9 +36,9 @@ static inline bool __must_check rdrand_int(unsigned int *v)
 	bool ok;
 	unsigned int retry = RDRAND_RETRY_LOOPS;
 	do {
-		asm volatile(RDRAND_INT
+		asm volatile("rdrand %[out]"
 			     CC_SET(c)
-			     : CC_OUT(c) (ok), "=a" (*v));
+			     : CC_OUT(c) (ok), [out] "=r" (*v));
 		if (ok)
 			return true;
 	} while (--retry);
@@ -58,18 +48,18 @@ static inline bool __must_check rdrand_int(unsigned int *v)
 static inline bool __must_check rdseed_long(unsigned long *v)
 {
 	bool ok;
-	asm volatile(RDSEED_LONG
+	asm volatile("rdseed %[out]"
 		     CC_SET(c)
-		     : CC_OUT(c) (ok), "=a" (*v));
+		     : CC_OUT(c) (ok), [out] "=r" (*v));
 	return ok;
 }
 
 static inline bool __must_check rdseed_int(unsigned int *v)
 {
 	bool ok;
-	asm volatile(RDSEED_INT
+	asm volatile("rdseed %[out]"
 		     CC_SET(c)
-		     : CC_OUT(c) (ok), "=a" (*v));
+		     : CC_OUT(c) (ok), [out] "=r" (*v));
 	return ok;
 }
 

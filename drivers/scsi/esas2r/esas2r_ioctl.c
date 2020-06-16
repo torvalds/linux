@@ -1510,7 +1510,7 @@ ioctl_done:
 	}
 
 	/* Always copy the buffer back, if only to pick up the status */
-	err = __copy_to_user(arg, ioctl, sizeof(struct atto_express_ioctl));
+	err = copy_to_user(arg, ioctl, sizeof(struct atto_express_ioctl));
 	if (err != 0) {
 		esas2r_log(ESAS2R_LOG_WARN,
 			   "ioctl_handler copy_to_user didn't copy everything (err %d, cmd %u)",

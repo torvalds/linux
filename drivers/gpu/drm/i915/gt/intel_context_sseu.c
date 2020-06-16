@@ -25,8 +25,7 @@ static int gen8_emit_rpcs_config(struct i915_request *rq,
 		return PTR_ERR(cs);
 
 	offset = i915_ggtt_offset(ce->state) +
-		 LRC_STATE_PN * PAGE_SIZE +
-		 CTX_R_PWR_CLK_STATE * 4;
+		 LRC_STATE_OFFSET + CTX_R_PWR_CLK_STATE * 4;
 
 	*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 	*cs++ = lower_32_bits(offset);

@@ -22,7 +22,6 @@
 
 #include <asm/sgialib.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 #include <asm/bootinfo.h>
 
 #undef DEBUG

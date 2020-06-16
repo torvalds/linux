@@ -24,18 +24,18 @@ properties:
     oneOf:
       - description: Always-on power domain UART controller
         items:
-        - enum:
+          - enum:
+              - amlogic,meson6-uart
+              - amlogic,meson8-uart
+              - amlogic,meson8b-uart
+              - amlogic,meson-gx-uart
+          - const: amlogic,meson-ao-uart
+      - description: Everything-Else power domain UART controller
+        enum:
           - amlogic,meson6-uart
           - amlogic,meson8-uart
           - amlogic,meson8b-uart
           - amlogic,meson-gx-uart
-        - const: amlogic,meson-ao-uart
-      - description: Everything-Else power domain UART controller
-        enum:
-        - amlogic,meson6-uart
-        - amlogic,meson8-uart
-        - amlogic,meson8b-uart
-        - amlogic,meson-gx-uart
 
   reg:
     maxItems: 1

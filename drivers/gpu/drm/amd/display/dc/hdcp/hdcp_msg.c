@@ -322,3 +322,92 @@ static const struct protection_properties dp_11_protection = {
 	.process_transaction = dp_11_process_transaction
 };
 
+static const struct protection_properties *get_protection_properties_by_signal(
+	struct dc_link *link,
+	enum signal_type st,
+	enum hdcp_version version)
+{
+	switch (version) {
+	case HDCP_VERSION_14:
+		switch (st) {
+		case SIGNAL_TYPE_DVI_SINGLE_LINK:
+		case SIGNAL_TYPE_DVI_DUAL_LINK:
+		case SIGNAL_TYPE_HDMI_TYPE_A:
+			return &hdmi_14_protection;
+		case SIGNAL_TYPE_DISPLAY_PORT:
+			if (link &&
+				(link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
+				link->dpcd_caps.dongle_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER)) {
+				return &non_supported_protection;
+			}
+			return &dp_11_protection;
+		case SIGNAL_TYPE_DISPLAY_PORT_MST:
+		case SIGNAL_TYPE_EDP:
+			return &dp_11_protection;
+		default:
+			return &non_supported_protection;
+		}
+		break;
+	case HDCP_VERSION_22:
+		switch (st) {
+		case SIGNAL_TYPE_DVI_SINGLE_LINK:
+		case SIGNAL_TYPE_DVI_DUAL_LINK:
+		case SIGNAL_TYPE_HDMI_TYPE_A:
+			return &hdmi_14_protection; //todo version2.2
+		case SIGNAL_TYPE_DISPLAY_PORT:
+		case SIGNAL_TYPE_DISPLAY_PORT_MST:
+		case SIGNAL_TYPE_EDP:
+			return &dp_11_protection;  //todo version2.2
+		default:
+			return &non_supported_protection;
+		}
+		break;
+	default:
+		return &non_supported_protection;
+	}
+}
+
+enum hdcp_message_status dc_process_hdcp_msg(
+	enum signal_type signal,
+	struct dc_link *link,
+	struct hdcp_protection_message *message_info)
+{
+	enum hdcp_message_status status = HDCP_MESSAGE_FAILURE;
+	uint32_t i = 0;
+
+	const struct protection_properties *protection_props;
+
+	if (!message_info)
+		return HDCP_MESSAGE_UNSUPPORTED;
+
+	if (message_info->msg_id < HDCP_MESSAGE_ID_READ_BKSV ||
+		message_info->msg_id >= HDCP_MESSAGE_ID_MAX)
+		return HDCP_MESSAGE_UNSUPPORTED;
+
+	protection_props =
+		get_protection_properties_by_signal(
+			link,
+			signal,
+			message_info->version);
+
+	if (!protection_props->supported)
+		return HDCP_MESSAGE_UNSUPPORTED;
+
+	if (protection_props->process_transaction(
+		link,
+		message_info)) {
+		status = HDCP_MESSAGE_SUCCESS;
+	} else {
+		for (i = 0; i < message_info->max_retries; i++) {
+			if (protection_props->process_transaction(
+						link,
+						message_info)) {
+				status = HDCP_MESSAGE_SUCCESS;
+				break;
+			}
+		}
+	}
+
+	return status;
+}
+

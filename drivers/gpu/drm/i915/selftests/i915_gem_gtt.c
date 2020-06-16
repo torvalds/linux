@@ -331,9 +331,6 @@ static void close_object_list(struct list_head *objects,
 		vma = i915_vma_instance(obj, vm, NULL);
 		if (!IS_ERR(vma))
 			ignored = i915_vma_unbind(vma);
-		/* Only ppgtt vma may be closed before the object is freed */
-		if (!IS_ERR(vma) && !i915_vma_is_ggtt(vma))
-			i915_vma_close(vma);
 
 		list_del(&obj->st_link);
 		i915_gem_object_put(obj);
@@ -591,7 +588,7 @@ static int walk_hole(struct i915_address_space *vm,
 				pr_err("%s bind failed at %llx + %llx [hole %llx- %llx] with err=%d\n",
 				       __func__, addr, vma->size,
 				       hole_start, hole_end, err);
-				goto err_close;
+				goto err_put;
 			}
 			i915_vma_unpin(vma);
 
@@ -600,14 +597,14 @@ static int walk_hole(struct i915_address_space *vm,
 				pr_err("%s incorrect at %llx + %llx\n",
 				       __func__, addr, vma->size);
 				err = -EINVAL;
-				goto err_close;
+				goto err_put;
 			}
 
 			err = i915_vma_unbind(vma);
 			if (err) {
 				pr_err("%s unbind failed at %llx + %llx  with err=%d\n",
 				       __func__, addr, vma->size, err);
-				goto err_close;
+				goto err_put;
 			}
 
 			GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
@@ -616,13 +613,10 @@ static int walk_hole(struct i915_address_space *vm,
 					"%s timed out at %llx\n",
 					__func__, addr)) {
 				err = -EINTR;
-				goto err_close;
+				goto err_put;
 			}
 		}
 
-err_close:
-		if (!i915_vma_is_ggtt(vma))
-			i915_vma_close(vma);
 err_put:
 		i915_gem_object_put(obj);
 		if (err)
@@ -675,7 +669,7 @@ static int pot_hole(struct i915_address_space *vm,
 				       addr,
 				       hole_start, hole_end,
 				       err);
-				goto err;
+				goto err_obj;
 			}
 
 			if (!drm_mm_node_allocated(&vma->node) ||
@@ -685,7 +679,7 @@ static int pot_hole(struct i915_address_space *vm,
 				i915_vma_unpin(vma);
 				err = i915_vma_unbind(vma);
 				err = -EINVAL;
-				goto err;
+				goto err_obj;
 			}
 
 			i915_vma_unpin(vma);
@@ -697,13 +691,10 @@ static int pot_hole(struct i915_address_space *vm,
 				"%s timed out after %d/%d\n",
 				__func__, pot, fls64(hole_end - 1) - 1)) {
 			err = -EINTR;
-			goto err;
+			goto err_obj;
 		}
 	}
 
-err:
-	if (!i915_vma_is_ggtt(vma))
-		i915_vma_close(vma);
 err_obj:
 	i915_gem_object_put(obj);
 	return err;
@@ -778,7 +769,7 @@ static int drunk_hole(struct i915_address_space *vm,
 				       addr, BIT_ULL(size),
 				       hole_start, hole_end,
 				       err);
-				goto err;
+				goto err_obj;
 			}
 
 			if (!drm_mm_node_allocated(&vma->node) ||
@@ -788,7 +779,7 @@ static int drunk_hole(struct i915_address_space *vm,
 				i915_vma_unpin(vma);
 				err = i915_vma_unbind(vma);
 				err = -EINVAL;
-				goto err;
+				goto err_obj;
 			}
 
 			i915_vma_unpin(vma);
@@ -799,13 +790,10 @@ static int drunk_hole(struct i915_address_space *vm,
 					"%s timed out after %d/%d\n",
 					__func__, n, count)) {
 				err = -EINTR;
-				goto err;
+				goto err_obj;
 			}
 		}
 
-err:
-		if (!i915_vma_is_ggtt(vma))
-			i915_vma_close(vma);
 err_obj:
 		i915_gem_object_put(obj);
 		kfree(order);
@@ -1229,7 +1217,6 @@ static void track_vma_bind(struct i915_vma *vma)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
 
-	atomic_inc(&obj->bind_count); /* track for eviction later */
 	__i915_gem_object_pin_pages(obj);
 
 	GEM_BUG_ON(vma->pages);

@@ -59,18 +59,6 @@ static inline int idset_contains(struct idset *set, int ssid, int id)
 	return test_bit(ssid * set->num_id + id, set->bitmap);
 }
 
-static inline int idset_get_first(struct idset *set, int *ssid, int *id)
-{
-	int bitnum;
-
-	bitnum = find_first_bit(set->bitmap, set->num_ssid * set->num_id);
-	if (bitnum >= set->num_ssid * set->num_id)
-		return 0;
-	*ssid = bitnum / set->num_id;
-	*id = bitnum % set->num_id;
-	return 1;
-}
-
 struct idset *idset_sch_new(void)
 {
 	return idset_new(max_ssid + 1, __MAX_SUBCHANNEL + 1);

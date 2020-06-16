@@ -46,11 +46,6 @@
 
 #define FLASH_PARALLEL_HIGH_PIN_CNT	(1 << 20)	/* else low pin cnt */
 
-static const struct of_device_id syscon_match[] = {
-	{ .compatible = "cortina,gemini-syscon" },
-	{ },
-};
-
 struct gemini_flash {
 	struct device *dev;
 	struct pinctrl *p;

@@ -1175,15 +1175,14 @@ static void slot_err_v1_hw(struct hisi_hba *hisi_hba,
 
 }
 
-static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
-			       struct hisi_sas_slot *slot)
+static void slot_complete_v1_hw(struct hisi_hba *hisi_hba,
+				struct hisi_sas_slot *slot)
 {
 	struct sas_task *task = slot->task;
 	struct hisi_sas_device *sas_dev;
 	struct device *dev = hisi_hba->dev;
 	struct task_status_struct *ts;
 	struct domain_device *device;
-	enum exec_status sts;
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			hisi_hba->complete_hdr[slot->cmplt_queue];
 	struct hisi_sas_complete_v1_hdr *complete_hdr;
@@ -1194,7 +1193,7 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	cmplt_hdr_data = le32_to_cpu(complete_hdr->data);
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
-		return -EINVAL;
+		return;
 
 	ts = &task->task_status;
 	device = task->dev;
@@ -1260,7 +1259,7 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 
 		slot_err_v1_hw(hisi_hba, task, slot);
 		if (unlikely(slot->abort))
-			return ts->stat;
+			return;
 		goto out;
 	}
 
@@ -1309,12 +1308,9 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 
 out:
 	hisi_sas_slot_task_free(hisi_hba, task, slot);
-	sts = ts->stat;
 
 	if (task->task_done)
 		task->task_done(task);
-
-	return sts;
 }
 
 /* Interrupts */
@@ -1757,6 +1753,7 @@ static struct device_attribute *host_attrs_v1_hw[] = {
 
 static struct scsi_host_template sht_v1_hw = {
 	.name			= DRV_NAME,
+	.proc_name		= DRV_NAME,
 	.module			= THIS_MODULE,
 	.queuecommand		= sas_queuecommand,
 	.target_alloc		= sas_target_alloc,

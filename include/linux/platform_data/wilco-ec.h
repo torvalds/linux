@@ -83,7 +83,7 @@ struct wilco_ec_response {
 	u16 result;
 	u16 data_size;
 	u8 reserved[2];
-	u8 data[0];
+	u8 data[];
 } __packed;
 
 /**

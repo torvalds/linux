@@ -34,12 +34,12 @@
 	status = "okay";
 	/* Network PHY */
 	phy = <&phy0>;
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 };
 
 &cp1_eth0 {
 	status = "okay";
 	/* Network PHY */
 	phy = <&phy8>;
-	phy-mode = "10gbase-kr";
+	phy-mode = "10gbase-r";
 };

@@ -177,7 +177,10 @@ acpi_ds_create_buffer_field(union acpi_parse_object *op,
 					arg->common.value.string, ACPI_TYPE_ANY,
 					ACPI_IMODE_LOAD_PASS1, flags,
 					walk_state, &node);
-		if (ACPI_FAILURE(status)) {
+		if ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE)
+		    && status == AE_ALREADY_EXISTS) {
+			status = AE_OK;
+		} else if (ACPI_FAILURE(status)) {
 			ACPI_ERROR_NAMESPACE(walk_state->scope_info,
 					     arg->common.value.string, status);
 			return_ACPI_STATUS(status);
@@ -514,13 +517,20 @@ acpi_ds_create_field(union acpi_parse_object *op,
 	info.region_node = region_node;
 
 	status = acpi_ds_get_field_names(&info, walk_state, arg->common.next);
-	if (info.region_node->object->region.space_id ==
-	    ACPI_ADR_SPACE_PLATFORM_COMM
-	    && !(region_node->object->field.internal_pcc_buffer =
-		 ACPI_ALLOCATE_ZEROED(info.region_node->object->region.
-				      length))) {
-		return_ACPI_STATUS(AE_NO_MEMORY);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
+
+	if (info.region_node->object->region.space_id ==
+	    ACPI_ADR_SPACE_PLATFORM_COMM) {
+		region_node->object->field.internal_pcc_buffer =
+		    ACPI_ALLOCATE_ZEROED(info.region_node->object->region.
+					 length);
+		if (!region_node->object->field.internal_pcc_buffer) {
+			return_ACPI_STATUS(AE_NO_MEMORY);
+		}
+	}
+
 	return_ACPI_STATUS(status);
 }
 

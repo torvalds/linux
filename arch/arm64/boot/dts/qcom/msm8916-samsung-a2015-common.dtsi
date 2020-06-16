@@ -72,32 +72,27 @@
 			};
 		};
 
+		mdss@1a00000 {
+			dsi@1a98000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				vdda-supply = <&pm8916_l2>;
+				vddio-supply = <&pm8916_l6>;
+
+				pinctrl-names = "default", "sleep";
+				pinctrl-0 = <&mdss_default>;
+				pinctrl-1 = <&mdss_sleep>;
+			};
+
+			dsi-phy@1a98300 {
+				vddio-supply = <&pm8916_l6>;
+			};
+		};
+
 		wcnss@a21b000 {
 			status = "okay";
 		};
-
-		/*
-		 * Attempting to enable these devices causes a "synchronous
-		 * external abort". Suspected cause is that the debug power
-		 * domain is not enabled by default on this device.
-		 * Disable these devices for now to avoid the crash.
-		 *
-		 * See: https://lore.kernel.org/linux-arm-msm/20190618202623.GA53651@gerhold.net/
-		 */
-		tpiu@820000 { status = "disabled"; };
-		funnel@821000 { status = "disabled"; };
-		replicator@824000 { status = "disabled"; };
-		etf@825000 { status = "disabled"; };
-		etr@826000 { status = "disabled"; };
-		funnel@841000 { status = "disabled"; };
-		debug@850000 { status = "disabled"; };
-		debug@852000 { status = "disabled"; };
-		debug@854000 { status = "disabled"; };
-		debug@856000 { status = "disabled"; };
-		etm@85c000 { status = "disabled"; };
-		etm@85d000 { status = "disabled"; };
-		etm@85e000 { status = "disabled"; };
-		etm@85f000 { status = "disabled"; };
 	};
 
 	gpio-keys {
@@ -138,6 +133,19 @@
 		};
 	};
 
+	reg_vdd_tsp: regulator-vdd-tsp {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_tsp";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&tsp_en_default>;
+	};
+
 	i2c-muic {
 		compatible = "i2c-gpio";
 		sda-gpios = <&msmgpio 105 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -160,7 +168,7 @@
 };
 
 &msmgpio {
-	gpio_keys_default: gpio_keys_default {
+	gpio_keys_default: gpio-keys-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio107", "gpio109";
@@ -172,7 +180,7 @@
 		};
 	};
 
-	gpio_hall_sensor_default: gpio_hall_sensor_default {
+	gpio_hall_sensor_default: gpio-hall-sensor-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio52";
@@ -184,7 +192,7 @@
 		};
 	};
 
-	muic_int_default: muic_int_default {
+	muic_int_default: muic-int-default {
 		pinmux {
 			function = "gpio";
 			pins = "gpio12";
@@ -193,6 +201,44 @@
 			pins = "gpio12";
 			drive-strength = <2>;
 			bias-disable;
+		};
+	};
+
+	tsp_en_default: tsp-en-default {
+		pinmux {
+			function = "gpio";
+			pins = "gpio73";
+		};
+		pinconf {
+			pins = "gpio73";
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	pmx-mdss {
+		mdss_default: mdss-default {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <8>;
+				bias-disable;
+			};
+		};
+
+		mdss_sleep: mdss-sleep {
+			pinmux {
+				function = "gpio";
+				pins = "gpio25";
+			};
+			pinconf {
+				pins = "gpio25";
+				drive-strength = <2>;
+				bias-pull-down;
+			};
 		};
 	};
 };

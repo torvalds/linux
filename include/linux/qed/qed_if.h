@@ -607,6 +607,16 @@ struct qed_sb_info {
 	struct qed_dev *cdev;
 };
 
+enum qed_hw_err_type {
+	QED_HW_ERR_FAN_FAIL,
+	QED_HW_ERR_MFW_RESP_FAIL,
+	QED_HW_ERR_HW_ATTN,
+	QED_HW_ERR_DMAE_FAIL,
+	QED_HW_ERR_RAMROD_FAIL,
+	QED_HW_ERR_FW_ASSERT,
+	QED_HW_ERR_LAST,
+};
+
 enum qed_dev_type {
 	QED_DEV_TYPE_BB,
 	QED_DEV_TYPE_AH,
@@ -811,12 +821,14 @@ enum qed_nvm_flash_cmd {
 
 struct qed_common_cb_ops {
 	void (*arfs_filter_op)(void *dev, void *fltr, u8 fw_rc);
-	void	(*link_update)(void			*dev,
-			       struct qed_link_output	*link);
+	void (*link_update)(void *dev, struct qed_link_output *link);
 	void (*schedule_recovery_handler)(void *dev);
-	void	(*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
+	void (*schedule_hw_err_handler)(void *dev,
+					enum qed_hw_err_type err_type);
+	void (*dcbx_aen)(void *dev, struct qed_dcbx_get *get, u32 mib_type);
 	void (*get_generic_tlv_data)(void *dev, struct qed_generic_tlvs *data);
 	void (*get_protocol_tlv_data)(void *dev, void *data);
+	void (*bw_update)(void *dev);
 };
 
 struct qed_selftest_ops {
@@ -1034,6 +1046,15 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+
+/**
+ * @brief attn_clr_enable - Prevent attentions from being reasserted
+ *
+ * @param cdev
+ * @param clr_enable
+ */
+	void (*attn_clr_enable)(struct qed_dev *cdev, bool clr_enable);
+
 /**
  * @brief db_recovery_add - add doorbell information to the doorbell
  * recovery mechanism.

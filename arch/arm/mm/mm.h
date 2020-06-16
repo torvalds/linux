@@ -2,8 +2,7 @@
 #ifdef CONFIG_MMU
 #include <linux/list.h>
 #include <linux/vmalloc.h>
-
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 /* the upper-most page table pointer */
 extern pmd_t *top_pmd;
@@ -34,11 +33,6 @@ static inline pte_t get_top_pte(unsigned long va)
 {
 	pte_t *ptep = pte_offset_kernel(top_pmd, va);
 	return *ptep;
-}
-
-static inline pmd_t *pmd_off_k(unsigned long virt)
-{
-	return pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
 }
 
 struct mem_type {

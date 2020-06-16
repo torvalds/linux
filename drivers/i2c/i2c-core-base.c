@@ -7,7 +7,7 @@
  *   Mux support by Rodolfo Giometti <giometti@enneenne.com> and
  *   Michael Lawnick <michael.lawnick.ext@nsn.com>
  *
- * Copyright (C) 2013-2017 Wolfram Sang <wsa@the-dreams.de>
+ * Copyright (C) 2013-2017 Wolfram Sang <wsa@kernel.org>
  */
 
 #define pr_fmt(fmt) "i2c-core: " fmt
@@ -338,8 +338,10 @@ static int i2c_device_probe(struct device *dev)
 		} else if (ACPI_COMPANION(dev)) {
 			irq = i2c_acpi_get_irq(client);
 		}
-		if (irq == -EPROBE_DEFER)
-			return irq;
+		if (irq == -EPROBE_DEFER) {
+			status = irq;
+			goto put_sync_adapter;
+		}
 
 		if (irq < 0)
 			irq = 0;
@@ -353,15 +355,19 @@ static int i2c_device_probe(struct device *dev)
 	 */
 	if (!driver->id_table &&
 	    !i2c_acpi_match_device(dev->driver->acpi_match_table, client) &&
-	    !i2c_of_match_device(dev->driver->of_match_table, client))
-		return -ENODEV;
+	    !i2c_of_match_device(dev->driver->of_match_table, client)) {
+		status = -ENODEV;
+		goto put_sync_adapter;
+	}
 
 	if (client->flags & I2C_CLIENT_WAKE) {
 		int wakeirq;
 
 		wakeirq = of_irq_get_byname(dev->of_node, "wakeup");
-		if (wakeirq == -EPROBE_DEFER)
-			return wakeirq;
+		if (wakeirq == -EPROBE_DEFER) {
+			status = wakeirq;
+			goto put_sync_adapter;
+		}
 
 		device_init_wakeup(&client->dev, true);
 
@@ -408,6 +414,10 @@ err_detach_pm_domain:
 err_clear_wakeup_irq:
 	dev_pm_clear_wake_irq(&client->dev);
 	device_init_wakeup(&client->dev, false);
+put_sync_adapter:
+	if (client->flags & I2C_CLIENT_HOST_NOTIFY)
+		pm_runtime_put_sync(&client->adapter->dev);
+
 	return status;
 }
 
@@ -1588,6 +1598,18 @@ void i2c_del_adapter(struct i2c_adapter *adap)
 }
 EXPORT_SYMBOL(i2c_del_adapter);
 
+static void i2c_parse_timing(struct device *dev, char *prop_name, u32 *cur_val_p,
+			    u32 def_val, bool use_def)
+{
+	int ret;
+
+	ret = device_property_read_u32(dev, prop_name, cur_val_p);
+	if (ret && use_def)
+		*cur_val_p = def_val;
+
+	dev_dbg(dev, "%s: %u\n", prop_name, *cur_val_p);
+}
+
 /**
  * i2c_parse_fw_timings - get I2C related timing parameters from firmware
  * @dev: The device to scan for I2C timing properties
@@ -1606,49 +1628,28 @@ EXPORT_SYMBOL(i2c_del_adapter);
  */
 void i2c_parse_fw_timings(struct device *dev, struct i2c_timings *t, bool use_defaults)
 {
-	int ret;
+	bool u = use_defaults;
+	u32 d;
 
-	ret = device_property_read_u32(dev, "clock-frequency", &t->bus_freq_hz);
-	if (ret && use_defaults)
-		t->bus_freq_hz = I2C_MAX_STANDARD_MODE_FREQ;
+	i2c_parse_timing(dev, "clock-frequency", &t->bus_freq_hz,
+			 I2C_MAX_STANDARD_MODE_FREQ, u);
 
-	ret = device_property_read_u32(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= I2C_MAX_STANDARD_MODE_FREQ)
-			t->scl_rise_ns = 1000;
-		else if (t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ)
-			t->scl_rise_ns = 300;
-		else
-			t->scl_rise_ns = 120;
-	}
+	d = t->bus_freq_hz <= I2C_MAX_STANDARD_MODE_FREQ ? 1000 :
+	    t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ ? 300 : 120;
+	i2c_parse_timing(dev, "i2c-scl-rising-time-ns", &t->scl_rise_ns, d, u);
 
-	ret = device_property_read_u32(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns);
-	if (ret && use_defaults) {
-		if (t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ)
-			t->scl_fall_ns = 300;
-		else
-			t->scl_fall_ns = 120;
-	}
+	d = t->bus_freq_hz <= I2C_MAX_FAST_MODE_FREQ ? 300 : 120;
+	i2c_parse_timing(dev, "i2c-scl-falling-time-ns", &t->scl_fall_ns, d, u);
 
-	ret = device_property_read_u32(dev, "i2c-scl-internal-delay-ns", &t->scl_int_delay_ns);
-	if (ret && use_defaults)
-		t->scl_int_delay_ns = 0;
-
-	ret = device_property_read_u32(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns);
-	if (ret && use_defaults)
-		t->sda_fall_ns = t->scl_fall_ns;
-
-	ret = device_property_read_u32(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns);
-	if (ret && use_defaults)
-		t->sda_hold_ns = 0;
-
-	ret = device_property_read_u32(dev, "i2c-digital-filter-width-ns", &t->digital_filter_width_ns);
-	if (ret && use_defaults)
-		t->digital_filter_width_ns = 0;
-
-	ret = device_property_read_u32(dev, "i2c-analog-filter-cutoff-frequency", &t->analog_filter_cutoff_freq_hz);
-	if (ret && use_defaults)
-		t->analog_filter_cutoff_freq_hz = 0;
+	i2c_parse_timing(dev, "i2c-scl-internal-delay-ns",
+			 &t->scl_int_delay_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-sda-falling-time-ns", &t->sda_fall_ns,
+			 t->scl_fall_ns, u);
+	i2c_parse_timing(dev, "i2c-sda-hold-time-ns", &t->sda_hold_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-digital-filter-width-ns",
+			 &t->digital_filter_width_ns, 0, u);
+	i2c_parse_timing(dev, "i2c-analog-filter-cutoff-frequency",
+			 &t->analog_filter_cutoff_freq_hz, 0, u);
 }
 EXPORT_SYMBOL_GPL(i2c_parse_fw_timings);
 
@@ -2185,7 +2186,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	const unsigned short *address_list;
 	struct i2c_client *temp_client;
 	int i, err = 0;
-	int adap_id = i2c_adapter_id(adapter);
 
 	address_list = driver->address_list;
 	if (!driver->detect || !address_list)
@@ -2213,7 +2213,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev,
 			"found normal entry for adapter %d, addr 0x%02x\n",
-			adap_id, address_list[i]);
+			i2c_adapter_id(adapter), address_list[i]);
 		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
 		if (unlikely(err))
@@ -2272,19 +2272,6 @@ i2c_new_scanned_device(struct i2c_adapter *adap,
 	return i2c_new_client_device(adap, info);
 }
 EXPORT_SYMBOL_GPL(i2c_new_scanned_device);
-
-struct i2c_client *
-i2c_new_probed_device(struct i2c_adapter *adap,
-		      struct i2c_board_info *info,
-		      unsigned short const *addr_list,
-		      int (*probe)(struct i2c_adapter *adap, unsigned short addr))
-{
-	struct i2c_client *client;
-
-	client = i2c_new_scanned_device(adap, info, addr_list, probe);
-	return IS_ERR(client) ? NULL : client;
-}
-EXPORT_SYMBOL_GPL(i2c_new_probed_device);
 
 struct i2c_adapter *i2c_get_adapter(int nr)
 {

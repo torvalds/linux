@@ -429,7 +429,7 @@ int cond_read_list(struct policydb *p, void *fp)
 
 	p->cond_list = kcalloc(len, sizeof(*p->cond_list), GFP_KERNEL);
 	if (!p->cond_list)
-		return rc;
+		return -ENOMEM;
 
 	rc = avtab_alloc(&(p->te_cond_avtab), p->te_avtab.nel);
 	if (rc)
