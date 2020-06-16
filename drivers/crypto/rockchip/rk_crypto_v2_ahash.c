@@ -54,11 +54,19 @@ static const u8 null_hash_sha512_value[] = {
 	0xa5, 0x38, 0x32, 0x7a, 0xf9, 0x27, 0xda, 0x3e
 };
 
+static const u8 null_hash_sm3_value[] = {
+	0x1a, 0xb2, 0x1d, 0x83, 0x55, 0xcf, 0xa1, 0x7f,
+	0x8e, 0x61, 0x19, 0x48, 0x31, 0xe8, 0x1a, 0x8f,
+	0x22, 0xbe, 0xc8, 0xc7, 0x28, 0xfe, 0xfb, 0x74,
+	0x7e, 0xd0, 0x35, 0xeb, 0x50, 0x82, 0xaa, 0x2b
+};
+
 static const u32 hash_algo2bc[] = {
 	[HASH_ALGO_MD5]    = CRYPTO_MD5,
 	[HASH_ALGO_SHA1]   = CRYPTO_SHA1,
 	[HASH_ALGO_SHA256] = CRYPTO_SHA256,
 	[HASH_ALGO_SHA512] = CRYPTO_SHA512,
+	[HASH_ALGO_SM3]    = CRYPTO_SM3,
 };
 
 static void word2byte(u32 word, u8 *ch, u32 endian)
@@ -108,6 +116,9 @@ static int zero_message_process(struct ahash_request *req)
 		break;
 	case HASH_ALGO_SHA512:
 		memcpy(req->result, null_hash_sha512_value, rk_digest_size);
+		break;
+	case HASH_ALGO_SM3:
+		memcpy(req->result, null_hash_sm3_value, rk_digest_size);
 		break;
 	default:
 		return -EINVAL;
@@ -477,4 +488,5 @@ struct rk_crypto_tmp rk_v2_ahash_md5 = RK_HASH_ALGO_INIT(MD5, md5);
 struct rk_crypto_tmp rk_v2_ahash_sha1 = RK_HASH_ALGO_INIT(SHA1, sha1);
 struct rk_crypto_tmp rk_v2_ahash_sha256 = RK_HASH_ALGO_INIT(SHA256, sha256);
 struct rk_crypto_tmp rk_v2_ahash_sha512 = RK_HASH_ALGO_INIT(SHA512, sha512);
+struct rk_crypto_tmp rk_v2_ahash_sm3 = RK_HASH_ALGO_INIT(SM3, sm3);
 

@@ -648,6 +648,7 @@ config CRYPTO_DEV_ROCKCHIP
 	select CRYPTO_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
+	select CRYPTO_SM3
 	select CRYPTO_SHA256
 	select CRYPTO_HASH
 	select CRYPTO_BLKCIPHER

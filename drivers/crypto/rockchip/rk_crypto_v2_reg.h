@@ -80,6 +80,7 @@
 /* Block Cipher Control Register */
 #define CRYPTO_BC_CTL			0x0044
 #define CRYPTO_BC_AES			_SBF(8, 0x00)
+#define CRYPTO_BC_SM4			_SBF(8, 0x01)
 #define CRYPTO_BC_DES			_SBF(8, 0x02)
 #define CRYPTO_BC_TDES			_SBF(8, 0x03)
 #define CRYPTO_BC_ECB			_SBF(4, 0x00)

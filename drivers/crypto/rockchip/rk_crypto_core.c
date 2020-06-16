@@ -364,6 +364,10 @@ static const char * const crypto_v2_rsts[] = {
 };
 
 static struct rk_crypto_tmp *crypto_v2_algs[] = {
+	&rk_v2_ecb_sm4_alg,		/* ecb(sm4) */
+	&rk_v2_cbc_sm4_alg,		/* cbc(sm4) */
+	&rk_v2_xts_sm4_alg,		/* xts(sm4) */
+
 	&rk_v2_ecb_aes_alg,		/* ecb(aes) */
 	&rk_v2_cbc_aes_alg,		/* cbc(aes) */
 	&rk_v2_xts_aes_alg,		/* xts(aes) */
@@ -378,6 +382,7 @@ static struct rk_crypto_tmp *crypto_v2_algs[] = {
 	&rk_v2_ahash_sha256,		/* sha256 */
 	&rk_v2_ahash_sha512,		/* sha512 */
 	&rk_v2_ahash_md5,		/* md5 */
+	&rk_v2_ahash_sm3,		/* sm3 */
 };
 
 static char *px30_algs_name[] = {
@@ -388,9 +393,10 @@ static char *px30_algs_name[] = {
 };
 
 static char *rv1126_algs_name[] = {
+	"ecb(sm4)", "cbc(sm4)", "xts(sm4)",
 	"ecb(des)", "cbc(des)",
 	"ecb(des3_ede)", "cbc(des3_ede)",
-	"sha1", "sha256", "sha512", "md5",
+	"sha1", "sha256", "sha512", "md5", "sm3",
 };
 
 static const struct rk_crypto_soc_data px30_soc_data =

@@ -11,6 +11,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+
 #include "rk_crypto_core.h"
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v2_reg.h"
@@ -22,6 +23,7 @@ static const u32 cipher_algo2bc[] = {
 	[CIPHER_ALGO_DES]      = CRYPTO_BC_DES,
 	[CIPHER_ALGO_DES3_EDE] = CRYPTO_BC_TDES,
 	[CIPHER_ALGO_AES]      = CRYPTO_BC_AES,
+	[CIPHER_ALGO_SM4]      = CRYPTO_BC_SM4,
 };
 
 static const u32 cipher_mode2bc[] = {
@@ -203,6 +205,15 @@ static int rk_cipher_setkey(struct crypto_ablkcipher *cipher,
 		} else {
 			if (keylen != AES_KEYSIZE_256 &&
 			    keylen != AES_KEYSIZE_256 * 2)
+				goto error;
+		}
+		break;
+	case CIPHER_ALGO_SM4:
+		if (algt->mode != CIPHER_MODE_XTS) {
+			if (keylen != SM4_KEY_SIZE)
+				goto error;
+		} else {
+			if (keylen != SM4_KEY_SIZE * 2)
 				goto error;
 		}
 		break;
@@ -488,6 +499,15 @@ void rk_hw_crypto_v2_deinit(struct device *dev, void *hw_info)
 				  info->desc, info->desc_dma);
 }
 
+struct rk_crypto_tmp rk_v2_ecb_sm4_alg =
+	RK_CIPHER_ALGO_INIT(SM4, ECB, ecb(sm4), ecb-sm4-rk);
+
+struct rk_crypto_tmp rk_v2_cbc_sm4_alg =
+	RK_CIPHER_ALGO_INIT(SM4, CBC, cbc(sm4), cbc-sm4-rk);
+
+struct rk_crypto_tmp rk_v2_xts_sm4_alg =
+	RK_CIPHER_ALGO_XTS_INIT(SM4, xts(sm4), xts-sm4-rk);
+
 struct rk_crypto_tmp rk_v2_ecb_aes_alg =
 	RK_CIPHER_ALGO_INIT(AES, ECB, ecb(aes), ecb-aes-rk);
 
@@ -508,3 +528,4 @@ struct rk_crypto_tmp rk_v2_ecb_des3_ede_alg =
 
 struct rk_crypto_tmp rk_v2_cbc_des3_ede_alg =
 	RK_CIPHER_ALGO_INIT(DES3_EDE, CBC, cbc(des3_ede), cbc-des3_ede-rk);
+

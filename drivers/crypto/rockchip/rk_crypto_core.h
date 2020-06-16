@@ -10,6 +10,8 @@
 #include <crypto/algapi.h>
 #include <crypto/md5.h>
 #include <crypto/sha.h>
+#include <crypto/sm3.h>
+#include <crypto/sm4.h>
 #include <crypto/internal/hash.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -121,12 +123,14 @@ enum rk_hash_algo {
 	HASH_ALGO_SHA1,
 	HASH_ALGO_SHA256,
 	HASH_ALGO_SHA512,
+	HASH_ALGO_SM3,
 };
 
 enum rk_cipher_algo {
 	CIPHER_ALGO_DES,
 	CIPHER_ALGO_DES3_EDE,
 	CIPHER_ALGO_AES,
+	CIPHER_ALGO_SM4,
 };
 
 enum rk_cipher_mode {
@@ -139,6 +143,8 @@ enum rk_cipher_mode {
 #define DES_MAX_KEY_SIZE	DES_KEY_SIZE
 #define DES3_EDE_MIN_KEY_SIZE	DES3_EDE_KEY_SIZE
 #define DES3_EDE_MAX_KEY_SIZE	DES3_EDE_KEY_SIZE
+#define SM4_MIN_KEY_SIZE	SM4_KEY_SIZE
+#define SM4_MAX_KEY_SIZE	SM4_KEY_SIZE
 
 #define MD5_BLOCK_SIZE		SHA1_BLOCK_SIZE
 
