@@ -1810,11 +1810,10 @@ ath11k_qmi_prepare_bdf_download(struct ath11k_base *ab, int type,
 		ath11k_core_free_bdf(ab, &bd);
 		break;
 	case ATH11K_QMI_FILE_TYPE_CALDATA:
-		fw_entry = ath11k_core_firmware_request(ab,
-							ATH11K_QMI_DEFAULT_CAL_FILE_NAME);
+		fw_entry = ath11k_core_firmware_request(ab, ATH11K_DEFAULT_CAL_FILE);
 		if (ret) {
 			ath11k_warn(ab, "failed to load %s: %d\n",
-				    ATH11K_QMI_DEFAULT_CAL_FILE_NAME, ret);
+				    ATH11K_DEFAULT_CAL_FILE, ret);
 			goto out;
 		}
 
