@@ -68,10 +68,6 @@
 
 #define ATH11K_FW_DIR			"ath11k"
 
-/* IPQ8074 definitions */
-#define IPQ8074_MAX_BOARD_DATA_SZ	(256 * 1024)
-#define IPQ8074_MAX_CAL_DATA_SZ		IPQ8074_MAX_BOARD_DATA_SZ
-
 #define ATH11K_BOARD_MAGIC		"QCA-ATH11K-BOARD"
 #define ATH11K_BOARD_API2_FILE		"board-2.bin"
 #define ATH11K_DEFAULT_BOARD_FILE	"board.bin"

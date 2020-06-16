@@ -23,8 +23,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.name = "ipq8074 hw2.0",
 		.fw = {
 			.dir = "IPQ8074/hw2.0",
-			.board_size = IPQ8074_MAX_BOARD_DATA_SZ,
-			.cal_size =  IPQ8074_MAX_CAL_DATA_SZ,
+			.board_size = 256 * 1024,
+			.cal_size = 256 * 1024,
 		},
 		.max_radios = 3,
 		.bdf_addr = 0x4B0C0000,
