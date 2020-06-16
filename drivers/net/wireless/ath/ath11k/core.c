@@ -165,10 +165,12 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 {
 	size_t len, magic_len;
 	const u8 *data;
-	char *filename = ATH11K_BOARD_API2_FILE;
+	char *filename, filepath[100];
 	size_t ie_len;
 	struct ath11k_fw_ie *hdr;
 	int ret, ie_id;
+
+	filename = ATH11K_BOARD_API2_FILE;
 
 	if (!bd->fw)
 		bd->fw = ath11k_core_firmware_request(ab, filename);
@@ -179,11 +181,14 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 	data = bd->fw->data;
 	len = bd->fw->size;
 
+	ath11k_core_create_firmware_path(ab, filename,
+					 filepath, sizeof(filepath));
+
 	/* magic has extra null byte padded */
 	magic_len = strlen(ATH11K_BOARD_MAGIC) + 1;
 	if (len < magic_len) {
-		ath11k_err(ab, "failed to find magic value in %s/%s, file too short: %zu\n",
-			   ab->hw_params.fw.dir, filename, len);
+		ath11k_err(ab, "failed to find magic value in %s, file too short: %zu\n",
+			   filepath, len);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -197,8 +202,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 	/* magic is padded to 4 bytes */
 	magic_len = ALIGN(magic_len, 4);
 	if (len < magic_len) {
-		ath11k_err(ab, "failed: %s/%s too small to contain board data, len: %zu\n",
-			   ab->hw_params.fw.dir, filename, len);
+		ath11k_err(ab, "failed: %s too small to contain board data, len: %zu\n",
+			   filepath, len);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -246,8 +251,8 @@ static int ath11k_core_fetch_board_data_api_n(struct ath11k_base *ab,
 out:
 	if (!bd->data || !bd->len) {
 		ath11k_err(ab,
-			   "failed to fetch board data for %s from %s/%s\n",
-			   boardname, ab->hw_params.fw.dir, filename);
+			   "failed to fetch board data for %s from %s\n",
+			   boardname, filepath);
 		ret = -ENODATA;
 		goto err;
 	}
