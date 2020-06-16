@@ -871,7 +871,7 @@ void ubifs_dump_leb(const struct ubifs_info *c, int lnum)
 		cond_resched();
 		pr_err("Dumping node at LEB %d:%d len %d\n", lnum,
 		       snod->offs, snod->len);
-		ubifs_dump_node(c, snod->node);
+		ubifs_dump_node(c, snod->node, c->leb_size - snod->offs);
 	}
 
 	pr_err("(pid %d) finish dumping LEB %d\n", current->pid, lnum);
@@ -1249,7 +1249,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err(c, "but it should have key %s according to tnc",
 			  dbg_snprintf_key(c, &zbr1->key, key_buf,
 					   DBG_KEY_BUF_LEN));
-		ubifs_dump_node(c, dent1);
+		ubifs_dump_node(c, dent1, UBIFS_MAX_DENT_NODE_SZ);
 		goto out_free;
 	}
 
@@ -1261,7 +1261,7 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 		ubifs_err(c, "but it should have key %s according to tnc",
 			  dbg_snprintf_key(c, &zbr2->key, key_buf,
 					   DBG_KEY_BUF_LEN));
-		ubifs_dump_node(c, dent2);
+		ubifs_dump_node(c, dent2, UBIFS_MAX_DENT_NODE_SZ);
 		goto out_free;
 	}
 
@@ -1280,9 +1280,9 @@ static int dbg_check_key_order(struct ubifs_info *c, struct ubifs_zbranch *zbr1,
 			  dbg_snprintf_key(c, &key, key_buf, DBG_KEY_BUF_LEN));
 
 	ubifs_msg(c, "first node at %d:%d\n", zbr1->lnum, zbr1->offs);
-	ubifs_dump_node(c, dent1);
+	ubifs_dump_node(c, dent1, UBIFS_MAX_DENT_NODE_SZ);
 	ubifs_msg(c, "second node at %d:%d\n", zbr2->lnum, zbr2->offs);
-	ubifs_dump_node(c, dent2);
+	ubifs_dump_node(c, dent2, UBIFS_MAX_DENT_NODE_SZ);
 
 out_free:
 	kfree(dent2);
@@ -2147,7 +2147,7 @@ out:
 
 out_dump:
 	ubifs_msg(c, "dump of node at LEB %d:%d", zbr->lnum, zbr->offs);
-	ubifs_dump_node(c, node);
+	ubifs_dump_node(c, node, zbr->len);
 out_free:
 	kfree(node);
 	return err;
@@ -2280,7 +2280,7 @@ out_dump:
 
 	ubifs_msg(c, "dump of the inode %lu sitting in LEB %d:%d",
 		  (unsigned long)fscki->inum, zbr->lnum, zbr->offs);
-	ubifs_dump_node(c, ino);
+	ubifs_dump_node(c, ino, zbr->len);
 	kfree(ino);
 	return -EINVAL;
 }
@@ -2351,12 +2351,12 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 
 		if (sa->type != UBIFS_DATA_NODE) {
 			ubifs_err(c, "bad node type %d", sa->type);
-			ubifs_dump_node(c, sa->node);
+			ubifs_dump_node(c, sa->node, c->leb_size - sa->offs);
 			return -EINVAL;
 		}
 		if (sb->type != UBIFS_DATA_NODE) {
 			ubifs_err(c, "bad node type %d", sb->type);
-			ubifs_dump_node(c, sb->node);
+			ubifs_dump_node(c, sb->node, c->leb_size - sb->offs);
 			return -EINVAL;
 		}
 
@@ -2387,8 +2387,8 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 	return 0;
 
 error_dump:
-	ubifs_dump_node(c, sa->node);
-	ubifs_dump_node(c, sb->node);
+	ubifs_dump_node(c, sa->node, c->leb_size - sa->offs);
+	ubifs_dump_node(c, sb->node, c->leb_size - sb->offs);
 	return -EINVAL;
 }
 
@@ -2419,13 +2419,13 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 		if (sa->type != UBIFS_INO_NODE && sa->type != UBIFS_DENT_NODE &&
 		    sa->type != UBIFS_XENT_NODE) {
 			ubifs_err(c, "bad node type %d", sa->type);
-			ubifs_dump_node(c, sa->node);
+			ubifs_dump_node(c, sa->node, c->leb_size - sa->offs);
 			return -EINVAL;
 		}
 		if (sb->type != UBIFS_INO_NODE && sb->type != UBIFS_DENT_NODE &&
 		    sb->type != UBIFS_XENT_NODE) {
 			ubifs_err(c, "bad node type %d", sb->type);
-			ubifs_dump_node(c, sb->node);
+			ubifs_dump_node(c, sb->node, c->leb_size - sb->offs);
 			return -EINVAL;
 		}
 
@@ -2475,9 +2475,9 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 
 error_dump:
 	ubifs_msg(c, "dumping first node");
-	ubifs_dump_node(c, sa->node);
+	ubifs_dump_node(c, sa->node, c->leb_size - sa->offs);
 	ubifs_msg(c, "dumping second node");
-	ubifs_dump_node(c, sb->node);
+	ubifs_dump_node(c, sb->node, c->leb_size - sb->offs);
 	return -EINVAL;
 }
 

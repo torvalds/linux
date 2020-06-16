@@ -390,7 +390,7 @@ static int read_znode(struct ubifs_info *c, struct ubifs_zbranch *zzbr,
 
 out_dump:
 	ubifs_err(c, "bad indexing node at LEB %d:%d, error %d", lnum, offs, err);
-	ubifs_dump_node(c, idx);
+	ubifs_dump_node(c, idx, c->max_idx_node_sz);
 	kfree(idx);
 	return -EINVAL;
 }
@@ -488,7 +488,7 @@ int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 			  zbr->lnum, zbr->offs);
 		dbg_tnck(key, "looked for key ");
 		dbg_tnck(&key1, "but found node's key ");
-		ubifs_dump_node(c, node);
+		ubifs_dump_node(c, node, zbr->len);
 		return -EINVAL;
 	}
 

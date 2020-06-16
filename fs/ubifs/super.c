@@ -253,7 +253,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 
 out_invalid:
 	ubifs_err(c, "inode %lu validation failed, error %d", inode->i_ino, err);
-	ubifs_dump_node(c, ino);
+	ubifs_dump_node(c, ino, UBIFS_MAX_INO_NODE_SZ);
 	ubifs_dump_inode(c, inode);
 	err = -EINVAL;
 out_ino:
