@@ -210,8 +210,8 @@
 				 <STM32_PINMUX('E', 2, ANALOG)>, /* ETH_RGMII_TXD3 */
 				 <STM32_PINMUX('B', 11, ANALOG)>, /* ETH_RGMII_TX_CTL */
 				 <STM32_PINMUX('C', 1, ANALOG)>, /* ETH_MDC */
-			         <STM32_PINMUX('A', 2, ANALOG)>, /* ETH_MDIO */
-			         <STM32_PINMUX('C', 4, ANALOG)>, /* ETH_RGMII_RXD0 */
+				 <STM32_PINMUX('A', 2, ANALOG)>, /* ETH_MDIO */
+				 <STM32_PINMUX('C', 4, ANALOG)>, /* ETH_RGMII_RXD0 */
 				 <STM32_PINMUX('C', 5, ANALOG)>, /* ETH_RGMII_RXD1 */
 				 <STM32_PINMUX('H', 6, ANALOG)>, /* ETH_RGMII_RXD2 */
 				 <STM32_PINMUX('H', 7, ANALOG)>, /* ETH_RGMII_RXD3 */
@@ -453,7 +453,7 @@
 	i2c5_pins_b: i2c5-1 {
 		pins {
 			pinmux = <STM32_PINMUX('D', 0, AF4)>, /* I2C5_SCL */
-			         <STM32_PINMUX('D', 1, AF4)>; /* I2C5_SDA */
+				 <STM32_PINMUX('D', 1, AF4)>; /* I2C5_SDA */
 			bias-disable;
 			drive-open-drain;
 			slew-rate = <0>;
@@ -463,7 +463,7 @@
 	i2c5_sleep_pins_b: i2c5-sleep-1 {
 		pins {
 			pinmux = <STM32_PINMUX('D', 0, ANALOG)>, /* I2C5_SCL */
-			         <STM32_PINMUX('D', 1, ANALOG)>; /* I2C5_SDA */
+				 <STM32_PINMUX('D', 1, ANALOG)>; /* I2C5_SDA */
 		};
 	};
 
@@ -1071,7 +1071,6 @@
 				 <STM32_PINMUX('E', 0, ANALOG)>; /* SAI2_MCLK_A */
 		};
 	};
-
 
 	sai2a_pins_b: sai2a-1 {
 		pins1 {
