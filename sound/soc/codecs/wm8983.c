@@ -492,7 +492,7 @@ static int eqmode_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM8983_EQ1_LOW_SHELF);
+	reg = snd_soc_component_read(component, WM8983_EQ1_LOW_SHELF);
 	if (reg & WM8983_EQ3DMODE)
 		ucontrol->value.enumerated.item[0] = 1;
 	else
@@ -512,7 +512,7 @@ static int eqmode_put(struct snd_kcontrol *kcontrol,
 	    && ucontrol->value.enumerated.item[0] != 1)
 		return -EINVAL;
 
-	reg_eq = snd_soc_component_read32(component, WM8983_EQ1_LOW_SHELF);
+	reg_eq = snd_soc_component_read(component, WM8983_EQ1_LOW_SHELF);
 	switch ((reg_eq & WM8983_EQ3DMODE) >> WM8983_EQ3DMODE_SHIFT) {
 	case 0:
 		if (!ucontrol->value.enumerated.item[0])
@@ -524,8 +524,8 @@ static int eqmode_put(struct snd_kcontrol *kcontrol,
 		break;
 	}
 
-	regpwr2 = snd_soc_component_read32(component, WM8983_POWER_MANAGEMENT_2);
-	regpwr3 = snd_soc_component_read32(component, WM8983_POWER_MANAGEMENT_3);
+	regpwr2 = snd_soc_component_read(component, WM8983_POWER_MANAGEMENT_2);
+	regpwr3 = snd_soc_component_read(component, WM8983_POWER_MANAGEMENT_3);
 	/* disable the DACs and ADCs */
 	snd_soc_component_update_bits(component, WM8983_POWER_MANAGEMENT_2,
 			    WM8983_ADCENR_MASK | WM8983_ADCENL_MASK, 0);

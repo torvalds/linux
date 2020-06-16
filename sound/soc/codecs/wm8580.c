@@ -511,7 +511,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_component_write(component, WM8580_PLLA3 + offset,
 		     (pll_div.k >> 18 & 0xf) | (pll_div.n << 4));
 
-	reg = snd_soc_component_read32(component, WM8580_PLLA4 + offset);
+	reg = snd_soc_component_read(component, WM8580_PLLA4 + offset);
 	reg &= ~0x1b;
 	reg |= pll_div.prescale | pll_div.postscale << 1 |
 		pll_div.freqmode << 3;
@@ -608,8 +608,8 @@ static int wm8580_set_paif_dai_fmt(struct snd_soc_dai *codec_dai,
 	unsigned int aifb;
 	int can_invert_lrclk;
 
-	aifa = snd_soc_component_read32(component, WM8580_PAIF1 + codec_dai->driver->id);
-	aifb = snd_soc_component_read32(component, WM8580_PAIF3 + codec_dai->driver->id);
+	aifa = snd_soc_component_read(component, WM8580_PAIF1 + codec_dai->driver->id);
+	aifb = snd_soc_component_read(component, WM8580_PAIF3 + codec_dai->driver->id);
 
 	aifb &= ~(WM8580_AIF_FMT_MASK | WM8580_AIF_LRP | WM8580_AIF_BCP);
 
@@ -689,7 +689,7 @@ static int wm8580_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8580_MCLK:
-		reg = snd_soc_component_read32(component, WM8580_PLLB4);
+		reg = snd_soc_component_read(component, WM8580_PLLB4);
 		reg &= ~WM8580_PLLB4_MCLKOUTSRC_MASK;
 
 		switch (div) {
@@ -715,7 +715,7 @@ static int wm8580_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		break;
 
 	case WM8580_CLKOUTSRC:
-		reg = snd_soc_component_read32(component, WM8580_PLLB4);
+		reg = snd_soc_component_read(component, WM8580_PLLB4);
 		reg &= ~WM8580_PLLB4_CLKOUTSRC_MASK;
 
 		switch (div) {
@@ -805,7 +805,7 @@ static int wm8580_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 	struct snd_soc_component *component = codec_dai->component;
 	unsigned int reg;
 
-	reg = snd_soc_component_read32(component, WM8580_DAC_CONTROL5);
+	reg = snd_soc_component_read(component, WM8580_DAC_CONTROL5);
 
 	if (mute)
 		reg |= WM8580_DAC_CONTROL5_MUTEALL;

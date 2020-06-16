@@ -447,7 +447,7 @@ static int wm8770_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Only need to set MCLK/LRCLK ratio if we're master */
-	if (snd_soc_component_read32(component, WM8770_MSTRCTRL) & 0x100) {
+	if (snd_soc_component_read(component, WM8770_MSTRCTRL) & 0x100) {
 		for (; i < ARRAY_SIZE(mclk_ratios); ++i) {
 			ratio = wm8770->sysclk / params_rate(params);
 			if (ratio == mclk_ratios[i])

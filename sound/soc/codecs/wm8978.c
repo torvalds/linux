@@ -653,8 +653,8 @@ static int wm8978_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	 * BCLK polarity mask = 0x100, LRC clock polarity mask = 0x80,
 	 * Data Format mask = 0x18: all will be calculated anew
 	 */
-	u16 iface = snd_soc_component_read32(component, WM8978_AUDIO_INTERFACE) & ~0x198;
-	u16 clk = snd_soc_component_read32(component, WM8978_CLOCKING);
+	u16 iface = snd_soc_component_read(component, WM8978_AUDIO_INTERFACE) & ~0x198;
+	u16 clk = snd_soc_component_read(component, WM8978_CLOCKING);
 
 	dev_dbg(component->dev, "%s\n", __func__);
 
@@ -720,10 +720,10 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct wm8978_priv *wm8978 = snd_soc_component_get_drvdata(component);
 	/* Word length mask = 0x60 */
-	u16 iface_ctl = snd_soc_component_read32(component, WM8978_AUDIO_INTERFACE) & ~0x60;
+	u16 iface_ctl = snd_soc_component_read(component, WM8978_AUDIO_INTERFACE) & ~0x60;
 	/* Sampling rate mask = 0xe (for filters) */
-	u16 add_ctl = snd_soc_component_read32(component, WM8978_ADDITIONAL_CONTROL) & ~0xe;
-	u16 clking = snd_soc_component_read32(component, WM8978_CLOCKING);
+	u16 add_ctl = snd_soc_component_read(component, WM8978_ADDITIONAL_CONTROL) & ~0xe;
+	u16 clking = snd_soc_component_read(component, WM8978_CLOCKING);
 	enum wm8978_sysclk_src current_clk_id = clking & 0x100 ?
 		WM8978_PLL : WM8978_MCLK;
 	unsigned int f_sel, diff, diff_best = INT_MAX;
@@ -853,7 +853,7 @@ static int wm8978_mute(struct snd_soc_dai *dai, int mute)
 static int wm8978_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	u16 power1 = snd_soc_component_read32(component, WM8978_POWER_MANAGEMENT_1) & ~3;
+	u16 power1 = snd_soc_component_read(component, WM8978_POWER_MANAGEMENT_1) & ~3;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:

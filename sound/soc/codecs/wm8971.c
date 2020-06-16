@@ -508,8 +508,8 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8971_priv *wm8971 = snd_soc_component_get_drvdata(component);
-	u16 iface = snd_soc_component_read32(component, WM8971_IFACE) & 0x1f3;
-	u16 srate = snd_soc_component_read32(component, WM8971_SRATE) & 0x1c0;
+	u16 iface = snd_soc_component_read(component, WM8971_IFACE) & 0x1f3;
+	u16 srate = snd_soc_component_read(component, WM8971_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8971->sysclk, params_rate(params));
 
 	/* bit size */
@@ -539,7 +539,7 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 static int wm8971_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 mute_reg = snd_soc_component_read32(component, WM8971_ADCDAC) & 0xfff7;
+	u16 mute_reg = snd_soc_component_read(component, WM8971_ADCDAC) & 0xfff7;
 
 	if (mute)
 		snd_soc_component_write(component, WM8971_ADCDAC, mute_reg | 0x8);
@@ -561,7 +561,7 @@ static int wm8971_set_bias_level(struct snd_soc_component *component,
 	enum snd_soc_bias_level level)
 {
 	struct wm8971_priv *wm8971 = snd_soc_component_get_drvdata(component);
-	u16 pwr_reg = snd_soc_component_read32(component, WM8971_PWR1) & 0xfe3e;
+	u16 pwr_reg = snd_soc_component_read(component, WM8971_PWR1) & 0xfe3e;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:

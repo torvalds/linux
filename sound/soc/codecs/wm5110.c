@@ -290,7 +290,7 @@ static int wm5110_hp_pre_enable(struct snd_soc_dapm_widget *w)
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
-	unsigned int val = snd_soc_component_read32(component, ARIZONA_DRE_ENABLE);
+	unsigned int val = snd_soc_component_read(component, ARIZONA_DRE_ENABLE);
 	const struct reg_sequence *wseq;
 	int nregs;
 
@@ -326,7 +326,7 @@ static int wm5110_hp_pre_disable(struct snd_soc_dapm_widget *w)
 {
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
-	unsigned int val = snd_soc_component_read32(component, ARIZONA_DRE_ENABLE);
+	unsigned int val = snd_soc_component_read(component, ARIZONA_DRE_ENABLE);
 
 	switch (w->shift) {
 	case ARIZONA_OUT1L_ENA_SHIFT:
@@ -524,7 +524,7 @@ static int wm5110_in_analog_ev(struct snd_soc_dapm_widget *w,
 		wm5110->in_post_pending++;
 		return 0;
 	case SND_SOC_DAPM_PRE_PMU:
-		wm5110->in_pga_cache[w->shift] = snd_soc_component_read32(component, reg);
+		wm5110->in_pga_cache[w->shift] = snd_soc_component_read(component, reg);
 
 		snd_soc_component_update_bits(component, reg, mask,
 				    0x40 << ARIZONA_IN1L_PGA_VOL_SHIFT);

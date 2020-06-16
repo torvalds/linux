@@ -619,7 +619,7 @@ static int wm8955_hw_params(struct snd_pcm_substream *substream,
 	/* If the chip is clocked then disable the clocks and force a
 	 * reconfiguration, otherwise DAPM will power up the
 	 * clocks for us later. */
-	ret = snd_soc_component_read32(component, WM8955_POWER_MANAGEMENT_1);
+	ret = snd_soc_component_read(component, WM8955_POWER_MANAGEMENT_1);
 	if (ret < 0)
 		return ret;
 	if (ret & WM8955_DIGENB) {

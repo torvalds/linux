@@ -98,7 +98,7 @@ static int wm8400_outpga_put_volsw_vu(struct snd_kcontrol *kcontrol,
                 return ret;
 
         /* now hit the volume update bits (always bit 8) */
-        val = snd_soc_component_read32(component, reg);
+	val = snd_soc_component_read(component, reg);
         return snd_soc_component_write(component, reg, val | 0x0100);
 }
 
@@ -328,7 +328,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 
 	switch (reg_shift) {
 	case WM8400_SPEAKER_MIXER | (WM8400_LDSPK << 8) :
-		reg = snd_soc_component_read32(component, WM8400_OUTPUT_MIXER1);
+		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER1);
 		if (reg & WM8400_LDLO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 1 LDLO Set\n");
@@ -336,7 +336,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_SPEAKER_MIXER | (WM8400_RDSPK << 8):
-		reg = snd_soc_component_read32(component, WM8400_OUTPUT_MIXER2);
+		reg = snd_soc_component_read(component, WM8400_OUTPUT_MIXER2);
 		if (reg & WM8400_RDRO) {
 			printk(KERN_WARNING
 			"Cannot set as Output Mixer 2 RDRO Set\n");
@@ -344,7 +344,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER1 | (WM8400_LDLO << 8):
-		reg = snd_soc_component_read32(component, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_LDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer LDSPK Set\n");
@@ -352,7 +352,7 @@ static int outmixer_event (struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case WM8400_OUTPUT_MIXER2 | (WM8400_RDRO << 8):
-		reg = snd_soc_component_read32(component, WM8400_SPEAKER_MIXER);
+		reg = snd_soc_component_read(component, WM8400_SPEAKER_MIXER);
 		if (reg & WM8400_RDSPK) {
 			printk(KERN_WARNING
 			"Cannot set as Speaker Mixer RDSPK Set\n");
@@ -957,11 +957,11 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	wm8400->fll_in = freq_in;
 
 	/* We *must* disable the FLL before any changes */
-	reg = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_2);
+	reg = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_2);
 	reg &= ~WM8400_FLL_ENA;
 	snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_2, reg);
 
-	reg = snd_soc_component_read32(component, WM8400_FLL_CONTROL_1);
+	reg = snd_soc_component_read(component, WM8400_FLL_CONTROL_1);
 	reg &= ~WM8400_FLL_OSC_ENA;
 	snd_soc_component_write(component, WM8400_FLL_CONTROL_1, reg);
 
@@ -976,7 +976,7 @@ static int wm8400_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_component_write(component, WM8400_FLL_CONTROL_2, factors.k);
 	snd_soc_component_write(component, WM8400_FLL_CONTROL_3, factors.n);
 
-	reg = snd_soc_component_read32(component, WM8400_FLL_CONTROL_4);
+	reg = snd_soc_component_read(component, WM8400_FLL_CONTROL_4);
 	reg &= ~WM8400_FLL_OUTDIV_MASK;
 	reg |= factors.outdiv;
 	snd_soc_component_write(component, WM8400_FLL_CONTROL_4, reg);
@@ -993,8 +993,8 @@ static int wm8400_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct snd_soc_component *component = codec_dai->component;
 	u16 audio1, audio3;
 
-	audio1 = snd_soc_component_read32(component, WM8400_AUDIO_INTERFACE_1);
-	audio3 = snd_soc_component_read32(component, WM8400_AUDIO_INTERFACE_3);
+	audio1 = snd_soc_component_read(component, WM8400_AUDIO_INTERFACE_1);
+	audio3 = snd_soc_component_read(component, WM8400_AUDIO_INTERFACE_3);
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1048,22 +1048,22 @@ static int wm8400_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 
 	switch (div_id) {
 	case WM8400_MCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8400_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8400_CLOCKING_2) &
 			~WM8400_MCLK_DIV_MASK;
 		snd_soc_component_write(component, WM8400_CLOCKING_2, reg | div);
 		break;
 	case WM8400_DACCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8400_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8400_CLOCKING_2) &
 			~WM8400_DAC_CLKDIV_MASK;
 		snd_soc_component_write(component, WM8400_CLOCKING_2, reg | div);
 		break;
 	case WM8400_ADCCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8400_CLOCKING_2) &
+		reg = snd_soc_component_read(component, WM8400_CLOCKING_2) &
 			~WM8400_ADC_CLKDIV_MASK;
 		snd_soc_component_write(component, WM8400_CLOCKING_2, reg | div);
 		break;
 	case WM8400_BCLK_DIV:
-		reg = snd_soc_component_read32(component, WM8400_CLOCKING_1) &
+		reg = snd_soc_component_read(component, WM8400_CLOCKING_1) &
 			~WM8400_BCLK_DIV_MASK;
 		snd_soc_component_write(component, WM8400_CLOCKING_1, reg | div);
 		break;
@@ -1082,7 +1082,7 @@ static int wm8400_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 audio1 = snd_soc_component_read32(component, WM8400_AUDIO_INTERFACE_1);
+	u16 audio1 = snd_soc_component_read(component, WM8400_AUDIO_INTERFACE_1);
 
 	audio1 &= ~WM8400_AIF_WL_MASK;
 	/* bit size */
@@ -1107,7 +1107,7 @@ static int wm8400_hw_params(struct snd_pcm_substream *substream,
 static int wm8400_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_component *component = dai->component;
-	u16 val = snd_soc_component_read32(component, WM8400_DAC_CTRL) & ~WM8400_DAC_MUTE;
+	u16 val = snd_soc_component_read(component, WM8400_DAC_CTRL) & ~WM8400_DAC_MUTE;
 
 	if (mute)
 		snd_soc_component_write(component, WM8400_DAC_CTRL, val | WM8400_DAC_MUTE);
@@ -1131,7 +1131,7 @@ static int wm8400_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_PREPARE:
 		/* VMID=2*50k */
-		val = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1) &
+		val = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1) &
 			~WM8400_VMID_MODE_MASK;
 		snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_1, val | 0x2);
 		break;
@@ -1157,7 +1157,7 @@ static int wm8400_set_bias_level(struct snd_soc_component *component,
 			msleep(50);
 
 			/* Enable VREF & VMID at 2x50k */
-			val = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1);
+			val = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1);
 			val |= 0x2 | WM8400_VREF_ENA;
 			snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_1, val);
 
@@ -1171,7 +1171,7 @@ static int wm8400_set_bias_level(struct snd_soc_component *component,
 		}
 
 		/* VMID=2*300k */
-		val = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1) &
+		val = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1) &
 			~WM8400_VMID_MODE_MASK;
 		snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_1, val | 0x4);
 		break;
@@ -1187,11 +1187,11 @@ static int wm8400_set_bias_level(struct snd_soc_component *component,
 			WM8400_BUFIOEN);
 
 		/* mute DAC */
-		val = snd_soc_component_read32(component, WM8400_DAC_CTRL);
+		val = snd_soc_component_read(component, WM8400_DAC_CTRL);
 		snd_soc_component_write(component, WM8400_DAC_CTRL, val | WM8400_DAC_MUTE);
 
 		/* Enable any disabled outputs */
-		val = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1);
+		val = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1);
 		val |= WM8400_SPK_ENA | WM8400_OUT3_ENA |
 			WM8400_OUT4_ENA | WM8400_LOUT_ENA |
 			WM8400_ROUT_ENA;
@@ -1293,14 +1293,14 @@ static int wm8400_component_probe(struct snd_soc_component *component)
 
 	wm8400_component_reset(component);
 
-	reg = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1);
+	reg = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1);
 	snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_1, reg | WM8400_CODEC_ENA);
 
 	/* Latch volume update bits */
-	reg = snd_soc_component_read32(component, WM8400_LEFT_LINE_INPUT_1_2_VOLUME);
+	reg = snd_soc_component_read(component, WM8400_LEFT_LINE_INPUT_1_2_VOLUME);
 	snd_soc_component_write(component, WM8400_LEFT_LINE_INPUT_1_2_VOLUME,
 		     reg & WM8400_IPVU);
-	reg = snd_soc_component_read32(component, WM8400_RIGHT_LINE_INPUT_1_2_VOLUME);
+	reg = snd_soc_component_read(component, WM8400_RIGHT_LINE_INPUT_1_2_VOLUME);
 	snd_soc_component_write(component, WM8400_RIGHT_LINE_INPUT_1_2_VOLUME,
 		     reg & WM8400_IPVU);
 
@@ -1314,7 +1314,7 @@ static void  wm8400_component_remove(struct snd_soc_component *component)
 {
 	u16 reg;
 
-	reg = snd_soc_component_read32(component, WM8400_POWER_MANAGEMENT_1);
+	reg = snd_soc_component_read(component, WM8400_POWER_MANAGEMENT_1);
 	snd_soc_component_write(component, WM8400_POWER_MANAGEMENT_1,
 		     reg & (~WM8400_CODEC_ENA));
 }
