@@ -7,6 +7,7 @@
  * V0.0X01.0X00 first version
  * V0.0X01.0X01 add conversion gain control
  * V0.0X01.0X02 add debug interface for conversion gain control
+ * V0.0X01.0X03 support enum sensor fmt
  */
 
 #include <linux/clk.h>
@@ -28,7 +29,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -1696,12 +1697,11 @@ static int imx347_enum_frame_interval(struct v4l2_subdev *sd,
 	if (fie->index >= imx347->cfg_num)
 		return -EINVAL;
 
-	if (fie->code != supported_modes[fie->index].bus_fmt)
-		return -EINVAL;
-
+	fie->code = supported_modes[fie->index].bus_fmt;
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
+	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
 	return 0;
 }
 
