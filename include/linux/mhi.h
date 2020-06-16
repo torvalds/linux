@@ -202,10 +202,12 @@ enum mhi_er_data_type {
  * enum mhi_er_priority - Event ring processing priority
  * @MHI_ER_PRIORITY_DEFAULT_NOSLEEP: processed by tasklet
  * @MHI_ER_PRIORITY_HI_NOSLEEP: processed by hi-priority tasklet
+ * @MHI_ER_PRIORITY_HI_SLEEP: processed by hi-priority wq
  */
 enum mhi_er_priority {
 	MHI_ER_PRIORITY_DEFAULT_NOSLEEP,
 	MHI_ER_PRIORITY_HI_NOSLEEP,
+	MHI_ER_PRIORITY_HI_SLEEP,
 };
 
 /**

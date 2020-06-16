@@ -946,11 +946,13 @@ int mhi_register_controller(struct mhi_controller *mhi_cntrl,
 
 		mhi_event->mhi_cntrl = mhi_cntrl;
 		spin_lock_init(&mhi_event->lock);
-		if (mhi_event->data_type == MHI_ER_CTRL)
-			tasklet_init(&mhi_event->task, mhi_ctrl_ev_task,
-				     (ulong)mhi_event);
+
+		if (mhi_event->priority == MHI_ER_PRIORITY_HI_SLEEP)
+			INIT_WORK(&mhi_event->work, mhi_process_ev_work);
 		else
-			tasklet_init(&mhi_event->task, mhi_ev_task,
+			tasklet_init(&mhi_event->task,
+				     (mhi_event->data_type == MHI_ER_CTRL) ?
+				     mhi_ctrl_ev_task : mhi_ev_task,
 				     (ulong)mhi_event);
 	}
 

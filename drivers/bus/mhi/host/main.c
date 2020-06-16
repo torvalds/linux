@@ -426,6 +426,30 @@ void mhi_create_devices(struct mhi_controller *mhi_cntrl)
 	}
 }
 
+void mhi_process_sleeping_events(struct mhi_controller *mhi_cntrl)
+{
+	struct mhi_event *mhi_event;
+	struct mhi_event_ctxt *er_ctxt;
+	struct mhi_ring *ev_ring;
+	int i;
+
+	mhi_event = mhi_cntrl->mhi_event;
+	for (i = 0; i < mhi_cntrl->total_ev_rings; i++, mhi_event++) {
+		if (mhi_event->offload_ev || mhi_event->priority !=
+		    MHI_ER_PRIORITY_HI_SLEEP)
+			continue;
+
+		er_ctxt = &mhi_cntrl->mhi_ctxt->er_ctxt[mhi_event->er_index];
+		ev_ring = &mhi_event->ring;
+
+		/* Only proceed if event ring has pending events */
+		if (ev_ring->rp == mhi_to_virtual(ev_ring, er_ctxt->rp))
+			continue;
+
+		queue_work(mhi_cntrl->hiprio_wq, &mhi_event->work);
+	}
+}
+
 irqreturn_t mhi_irq_handler(int irq_number, void *priv)
 {
 	struct mhi_event *mhi_event = priv;
@@ -466,6 +490,9 @@ irqreturn_t mhi_irq_handler(int irq_number, void *priv)
 		break;
 	case MHI_ER_PRIORITY_DEFAULT_NOSLEEP:
 		tasklet_schedule(&mhi_event->task);
+		break;
+	case MHI_ER_PRIORITY_HI_SLEEP:
+		queue_work(mhi_cntrl->hiprio_wq, &mhi_event->work);
 		break;
 	default:
 		dev_dbg(dev, "skip unknown priority event\n");
@@ -1093,6 +1120,24 @@ void mhi_ctrl_ev_task(unsigned long data)
 		if (pm_state == MHI_PM_SYS_ERR_DETECT)
 			mhi_pm_sys_err_handler(mhi_cntrl);
 	}
+}
+
+void mhi_process_ev_work(struct work_struct *work)
+{
+	struct mhi_event *mhi_event = container_of(work, struct mhi_event,
+						   work);
+	struct mhi_controller *mhi_cntrl = mhi_event->mhi_cntrl;
+	struct device *dev = mhi_cntrl->cntrl_dev;
+
+	dev_dbg(dev, "Enter with pm_state:%s MHI_STATE:%s ee:%s\n",
+		to_mhi_pm_state_str(mhi_cntrl->pm_state),
+		mhi_state_str(mhi_cntrl->dev_state),
+		TO_MHI_EXEC_STR(mhi_cntrl->ee));
+
+	if (unlikely(MHI_EVENT_ACCESS_INVALID(mhi_cntrl->pm_state)))
+		return;
+
+	mhi_event->process_event(mhi_cntrl, mhi_event, U32_MAX);
 }
 
 static bool mhi_is_ring_full(struct mhi_controller *mhi_cntrl,
