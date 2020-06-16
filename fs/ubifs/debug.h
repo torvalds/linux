@@ -252,8 +252,6 @@ void ubifs_dump_lprop(const struct ubifs_info *c,
 void ubifs_dump_lprops(struct ubifs_info *c);
 void ubifs_dump_lpt_info(struct ubifs_info *c);
 void ubifs_dump_leb(const struct ubifs_info *c, int lnum);
-void ubifs_dump_sleb(const struct ubifs_info *c,
-		     const struct ubifs_scan_leb *sleb, int offs);
 void ubifs_dump_znode(const struct ubifs_info *c,
 		      const struct ubifs_znode *znode);
 void ubifs_dump_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
