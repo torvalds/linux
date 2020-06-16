@@ -1326,6 +1326,10 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 		efuse->share_ant = true;
 	if (efuse->regd == 0xff)
 		efuse->regd = 0;
+	if (efuse->tx_bb_swing_setting_2g == 0xff)
+		efuse->tx_bb_swing_setting_2g = 0;
+	if (efuse->tx_bb_swing_setting_5g == 0xff)
+		efuse->tx_bb_swing_setting_5g = 0;
 
 	efuse->btcoex = (efuse->rf_board_option & 0xe0) == 0x20;
 	efuse->ext_pa_2g = efuse->pa_type_2g & BIT(4) ? 1 : 0;

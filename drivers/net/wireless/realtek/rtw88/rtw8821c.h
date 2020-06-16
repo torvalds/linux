@@ -161,6 +161,7 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_ADCCLK	0x8ac
 #define REG_ADC160	0x8c4
 #define REG_ADC40	0x8c8
+#define REG_CHFIR	0x8f0
 #define REG_CDDTXP	0x93c
 #define REG_TXPSEL1	0x940
 #define REG_ACBB0	0x948
@@ -172,7 +173,9 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_TXSF6	0xa28
 #define REG_RXDESC	0xa2c
 #define REG_ENTXCCK	0xa80
+#define REG_TXFILTER	0xaac
 #define REG_AGCTR_A	0xc08
+#define REG_TXSCALE_A	0xc1c
 #define REG_TXDFIR	0xc20
 #define REG_RXIGI_A	0xc50
 #define REG_TRSW	0xca0
@@ -184,5 +187,17 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_RXIGI_B	0xe50
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
+
+#define RF18_BAND_MASK		(BIT(16) | BIT(9) | BIT(8))
+#define RF18_BAND_2G		(0)
+#define RF18_BAND_5G		(BIT(16) | BIT(8))
+#define RF18_CHANNEL_MASK	(MASKBYTE0)
+#define RF18_RFSI_MASK		(BIT(18) | BIT(17))
+#define RF18_RFSI_GE		(BIT(17))
+#define RF18_RFSI_GT		(BIT(18))
+#define RF18_BW_MASK		(BIT(11) | BIT(10))
+#define RF18_BW_20M		(BIT(11) | BIT(10))
+#define RF18_BW_40M		(BIT(11))
+#define RF18_BW_80M		(BIT(10))
 
 #endif
