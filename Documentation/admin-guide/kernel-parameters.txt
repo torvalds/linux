@@ -1207,26 +1207,28 @@
 			Format: {"off" | "on" | "skip[mbr]"}
 
 	efi=		[EFI]
-			Format: { "old_map", "nochunk", "noruntime", "debug",
-				  "nosoftreserve", "disable_early_pci_dma",
-				  "no_disable_early_pci_dma" }
-			old_map [X86-64]: switch to the old ioremap-based EFI
-			runtime services mapping. [Needs CONFIG_X86_UV=y]
+			Format: { "debug", "disable_early_pci_dma",
+				  "nochunk", "noruntime", "nosoftreserve",
+				  "novamap", "no_disable_early_pci_dma",
+				  "old_map" }
+			debug: enable misc debug output.
+			disable_early_pci_dma: disable the busmaster bit on all
+			PCI bridges while in the EFI boot stub.
 			nochunk: disable reading files in "chunks" in the EFI
 			boot stub, as chunking can cause problems with some
 			firmware implementations.
 			noruntime : disable EFI runtime services support
-			debug: enable misc debug output
 			nosoftreserve: The EFI_MEMORY_SP (Specific Purpose)
 			attribute may cause the kernel to reserve the
 			memory range for a memory mapping driver to
 			claim. Specify efi=nosoftreserve to disable this
 			reservation and treat the memory by its base type
 			(i.e. EFI_CONVENTIONAL_MEMORY / "System RAM").
-			disable_early_pci_dma: Disable the busmaster bit on all
-			PCI bridges while in the EFI boot stub
+			novamap: do not call SetVirtualAddressMap().
 			no_disable_early_pci_dma: Leave the busmaster bit set
 			on all PCI bridges while in the EFI boot stub
+			old_map [X86-64]: switch to the old ioremap-based EFI
+			runtime services mapping. [Needs CONFIG_X86_UV=y]
 
 	efi_no_storage_paranoia [EFI; X86]
 			Using this parameter you can use more than 50% of
