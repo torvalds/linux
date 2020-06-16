@@ -96,7 +96,8 @@ static void ionic_link_status_check(struct ionic_lif *lif)
 	u16 link_status;
 	bool link_up;
 
-	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state))
+	if (!test_bit(IONIC_LIF_F_LINK_CHECK_REQUESTED, lif->state) ||
+	    test_bit(IONIC_LIF_F_QUEUE_RESET, lif->state))
 		return;
 
 	link_status = le16_to_cpu(lif->info->status.link_status);
