@@ -115,6 +115,9 @@ gp102_sec2_acr_0 = {
 	.bld_write = gp102_sec2_acr_bld_write,
 	.bld_patch = gp102_sec2_acr_bld_patch,
 	.boot = gp102_sec2_acr_boot,
+	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
+			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
+			     BIT_ULL(NVKM_ACR_LSF_SEC2),
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 
@@ -294,6 +297,9 @@ gp102_sec2_acr_1 = {
 	.bld_write = gp102_sec2_acr_bld_write_1,
 	.bld_patch = gp102_sec2_acr_bld_patch_1,
 	.boot = gp102_sec2_acr_boot,
+	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
+			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
+			     BIT_ULL(NVKM_ACR_LSF_SEC2),
 	.bootstrap_falcon = gp102_sec2_acr_bootstrap_falcon,
 };
 

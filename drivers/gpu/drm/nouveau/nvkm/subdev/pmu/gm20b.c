@@ -126,6 +126,9 @@ gm20b_pmu_acr = {
 	.bld_write = gm20b_pmu_acr_bld_write,
 	.bld_patch = gm20b_pmu_acr_bld_patch,
 	.boot = gm20b_pmu_acr_boot,
+	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_PMU) |
+			     BIT_ULL(NVKM_ACR_LSF_FECS) |
+			     BIT_ULL(NVKM_ACR_LSF_GPCCS),
 	.bootstrap_falcon = gm20b_pmu_acr_bootstrap_falcon,
 };
 

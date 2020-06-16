@@ -156,6 +156,9 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 		return -ENOSYS;
 	}
 
+	if ((mask & acrflcn->func->bootstrap_falcons) != mask)
+		return -ENOSYS;
+
 	if (acrflcn->func->bootstrap_multiple_falcons) {
 		return acrflcn->func->
 			bootstrap_multiple_falcons(acrflcn->falcon, mask);
@@ -174,13 +177,10 @@ bool
 nvkm_acr_managed_falcon(struct nvkm_device *device, enum nvkm_acr_lsf_id id)
 {
 	struct nvkm_acr *acr = device->acr;
-	struct nvkm_acr_lsf *lsf;
 
 	if (acr) {
-		list_for_each_entry(lsf, &acr->lsf, head) {
-			if (lsf->id == id)
-				return true;
-		}
+		if (acr->managed_falcons & BIT_ULL(id))
+			return true;
 	}
 
 	return false;
@@ -220,6 +220,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	struct nvkm_acr_lsfw *lsfw, *lsft;
 	struct nvkm_acr_lsf *lsf;
 	u32 wpr_size = 0;
+	u64 falcons;
 	int ret, i;
 
 	if (list_empty(&acr->hsfw)) {
@@ -255,12 +256,28 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 		lsf->falcon = lsfw->falcon;
 		lsf->id = lsfw->id;
 		list_add_tail(&lsf->head, &acr->lsf);
+		acr->managed_falcons |= BIT_ULL(lsf->id);
 	}
 
 	/* Ensure the falcon that'll provide ACR functions is booted first. */
 	lsf = nvkm_acr_falcon(device);
-	if (lsf)
+	if (lsf) {
+		falcons = lsf->func->bootstrap_falcons;
 		list_move(&lsf->head, &acr->lsf);
+	} else {
+		falcons = acr->func->bootstrap_falcons;
+	}
+
+	/* Cull falcons that can't be bootstrapped, or the HSFW can fail to
+	 * boot and leave the GPU in a weird state.
+	 */
+	list_for_each_entry_safe(lsfw, lsft, &acr->lsfw, head) {
+		if (!(falcons & BIT_ULL(lsfw->id))) {
+			nvkm_warn(subdev, "%s falcon cannot be bootstrapped\n",
+				  nvkm_acr_lsf_id(lsfw->id));
+			nvkm_acr_lsfw_del(lsfw);
+		}
+	}
 
 	if (!acr->wpr_fw || acr->wpr_comp)
 		wpr_size = acr->func->wpr_layout(acr);
