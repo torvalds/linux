@@ -1185,11 +1185,12 @@ EXPORT_SYMBOL_GPL(iommu_report_device_fault);
 int iommu_page_response(struct device *dev,
 			struct iommu_page_response *msg)
 {
-	bool pasid_valid;
+	bool needs_pasid;
 	int ret = -EINVAL;
 	struct iommu_fault_event *evt;
 	struct iommu_fault_page_request *prm;
 	struct dev_iommu *param = dev->iommu;
+	bool has_pasid = msg->flags & IOMMU_PAGE_RESP_PASID_VALID;
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 
 	if (!domain || !domain->ops->page_response)
@@ -1214,14 +1215,24 @@ int iommu_page_response(struct device *dev,
 	 */
 	list_for_each_entry(evt, &param->fault_param->faults, list) {
 		prm = &evt->fault.prm;
-		pasid_valid = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
-
-		if ((pasid_valid && prm->pasid != msg->pasid) ||
-		    prm->grpid != msg->grpid)
+		if (prm->grpid != msg->grpid)
 			continue;
 
-		/* Sanitize the reply */
-		msg->flags = pasid_valid ? IOMMU_PAGE_RESP_PASID_VALID : 0;
+		/*
+		 * If the PASID is required, the corresponding request is
+		 * matched using the group ID, the PASID valid bit and the PASID
+		 * value. Otherwise only the group ID matches request and
+		 * response.
+		 */
+		needs_pasid = prm->flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID;
+		if (needs_pasid && (!has_pasid || msg->pasid != prm->pasid))
+			continue;
+
+		if (!needs_pasid && has_pasid) {
+			/* No big deal, just clear it. */
+			msg->flags &= ~IOMMU_PAGE_RESP_PASID_VALID;
+			msg->pasid = 0;
+		}
 
 		ret = domain->ops->page_response(dev, evt, msg);
 		list_del(&evt->list);
