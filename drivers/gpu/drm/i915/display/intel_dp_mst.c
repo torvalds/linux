@@ -390,6 +390,8 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
+	clear_act_sent(intel_dp);
+
 	val = intel_de_read(dev_priv,
 			    TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder));
 	val &= ~TRANS_DDI_DP_VC_PAYLOAD_ALLOC;
