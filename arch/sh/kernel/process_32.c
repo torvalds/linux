@@ -103,9 +103,8 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 
 	fpvalid = !!tsk_used_math(tsk);
 	if (fpvalid)
-		fpvalid = !fpregs_get(tsk, NULL, 0,
-				      sizeof(struct user_fpu_struct),
-				      fpu, NULL);
+		fpvalid = !fpregs_get(tsk, NULL,
+				      (struct membuf){fpu, sizeof(*fpu)});
 #endif
 
 	return fpvalid;
