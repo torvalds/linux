@@ -510,14 +510,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 
 static int qdio_inbound_q_moved(struct qdio_q *q, unsigned int start)
 {
-	int count;
-
-	count = get_inbound_buffer_frontier(q, start);
-
-	if (count && !is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-		q->u.in.timestamp = get_tod_clock();
-
-	return count;
+	return get_inbound_buffer_frontier(q, start);
 }
 
 static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
@@ -535,22 +528,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q, unsigned int start)
 		/* more work coming */
 		return 0;
 
-	if (is_thinint_irq(q->irq_ptr))
-		return 1;
-
-	/* don't poll under z/VM */
-	if (MACHINE_IS_VM)
-		return 1;
-
-	/*
-	 * At this point we know, that inbound first_to_check
-	 * has (probably) not moved (see qdio_inbound_processing).
-	 */
-	if (get_tod_clock_fast() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
-		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x", start);
-		return 1;
-	} else
-		return 0;
+	return 1;
 }
 
 static inline void qdio_handle_aobs(struct qdio_q *q, int start, int count)

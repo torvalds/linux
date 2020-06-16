@@ -15,7 +15,6 @@
 #define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
 #define QDIO_BUSY_BIT_RETRY_DELAY	10		/* 10 milliseconds */
 #define QDIO_BUSY_BIT_RETRIES		1000		/* = 10s retry time */
-#define QDIO_INPUT_THRESHOLD		(500 << 12)	/* 500 microseconds */
 
 enum qdio_irq_states {
 	QDIO_IRQ_STATE_INACTIVE,
@@ -181,8 +180,6 @@ struct qdio_input_q {
 	/* Batch of SBALs that we processed while polling the queue: */
 	unsigned int batch_start;
 	unsigned int batch_count;
-	/* last time of noticing incoming data */
-	u64 timestamp;
 };
 
 struct qdio_output_q {
