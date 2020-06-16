@@ -188,7 +188,7 @@ static int nau8822_eq_get(struct snd_kcontrol *kcontrol,
 	val = (u16 *)ucontrol->value.bytes.data;
 	reg = NAU8822_REG_EQ1;
 	for (i = 0; i < params->max / sizeof(u16); i++) {
-		reg_val = snd_soc_component_read32(component, reg + i);
+		reg_val = snd_soc_component_read(component, reg + i);
 		/* conversion of 16-bit integers between native CPU format
 		 * and big endian format
 		 */
@@ -445,7 +445,7 @@ static int check_mclk_select_pll(struct snd_soc_dapm_widget *source,
 		snd_soc_dapm_to_component(source->dapm);
 	unsigned int value;
 
-	value = snd_soc_component_read32(component, NAU8822_REG_CLOCKING);
+	value = snd_soc_component_read(component, NAU8822_REG_CLOCKING);
 
 	return (value & NAU8822_CLKM_MASK);
 }

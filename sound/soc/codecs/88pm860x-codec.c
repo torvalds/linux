@@ -274,10 +274,10 @@ static int snd_soc_get_volsw_2r_st(struct snd_kcontrol *kcontrol,
 	unsigned int reg2 = mc->rreg;
 	int val[2], val2[2], i;
 
-	val[0] = snd_soc_component_read32(component, reg) & 0x3f;
-	val[1] = (snd_soc_component_read32(component, PM860X_SIDETONE_SHIFT) >> 4) & 0xf;
-	val2[0] = snd_soc_component_read32(component, reg2) & 0x3f;
-	val2[1] = (snd_soc_component_read32(component, PM860X_SIDETONE_SHIFT)) & 0xf;
+	val[0] = snd_soc_component_read(component, reg) & 0x3f;
+	val[1] = (snd_soc_component_read(component, PM860X_SIDETONE_SHIFT) >> 4) & 0xf;
+	val2[0] = snd_soc_component_read(component, reg2) & 0x3f;
+	val2[1] = (snd_soc_component_read(component, PM860X_SIDETONE_SHIFT)) & 0xf;
 
 	for (i = 0; i < ARRAY_SIZE(st_table); i++) {
 		if ((st_table[i].m == val[0]) && (st_table[i].n == val[1]))
@@ -333,8 +333,8 @@ static int snd_soc_get_volsw_2r_out(struct snd_kcontrol *kcontrol,
 	int max = mc->max, val, val2;
 	unsigned int mask = (1 << fls(max)) - 1;
 
-	val = snd_soc_component_read32(component, reg) >> shift;
-	val2 = snd_soc_component_read32(component, reg2) >> shift;
+	val = snd_soc_component_read(component, reg) >> shift;
+	val2 = snd_soc_component_read(component, reg2) >> shift;
 	ucontrol->value.integer.value[0] = (max - val) & mask;
 	ucontrol->value.integer.value[1] = (max - val2) & mask;
 
@@ -426,7 +426,7 @@ static int pm860x_dac_event(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(component, PM860X_EAR_CTRL_2,
 					    RSYNC_CHANGE, RSYNC_CHANGE);
 			/* update dac */
-			data = snd_soc_component_read32(component, PM860X_DAC_EN_2);
+			data = snd_soc_component_read(component, PM860X_DAC_EN_2);
 			data &= ~dac;
 			if (!(data & (DAC_LEFT | DAC_RIGHT)))
 				data &= ~MODULATOR;
