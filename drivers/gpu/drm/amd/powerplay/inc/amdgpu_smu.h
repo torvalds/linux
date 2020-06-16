@@ -491,8 +491,8 @@ struct pptable_funcs {
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 	int (*allow_xgmi_power_down)(struct smu_context *smu, bool en);
 	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
-	int (*i2c_eeprom_init)(struct i2c_adapter *control);
-	void (*i2c_eeprom_fini)(struct i2c_adapter *control);
+	int (*i2c_eeprom_init)(struct smu_context *smu, struct i2c_adapter *control);
+	void (*i2c_eeprom_fini)(struct smu_context *smu, struct i2c_adapter *control);
 	void (*get_unique_id)(struct smu_context *smu);
 	int (*get_dpm_clock_table)(struct smu_context *smu, struct dpm_clocks *clock_table);
 	int (*init_microcode)(struct smu_context *smu);

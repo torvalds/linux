@@ -2338,7 +2338,7 @@ static bool arcturus_i2c_adapter_is_added(struct i2c_adapter *control)
 	return control->dev.parent == &adev->pdev->dev;
 }
 
-static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
+static int arcturus_i2c_eeprom_control_init(struct smu_context *smu, struct i2c_adapter *control)
 {
 	struct amdgpu_device *adev = to_amdgpu_device(control);
 	int res;
@@ -2360,7 +2360,7 @@ static int arcturus_i2c_eeprom_control_init(struct i2c_adapter *control)
 	return res;
 }
 
-static void arcturus_i2c_eeprom_control_fini(struct i2c_adapter *control)
+static void arcturus_i2c_eeprom_control_fini(struct smu_context *smu, struct i2c_adapter *control)
 {
 	if (!arcturus_i2c_adapter_is_added(control))
 		return;
