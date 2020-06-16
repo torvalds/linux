@@ -22,7 +22,7 @@ enum {
 static void
 fill_static_params(struct mlx5_wqe_tls_static_params_seg *params,
 		   struct tls12_crypto_info_aes_gcm_128 *info,
-		   u32 key_id)
+		   u32 key_id, u32 resync_tcp_sn)
 {
 	char *initial_rn, *gcm_iv;
 	u16 salt_sz, rec_seq_sz;
@@ -47,6 +47,7 @@ fill_static_params(struct mlx5_wqe_tls_static_params_seg *params,
 	MLX5_SET(tls_static_params, ctx, const_2, 2);
 	MLX5_SET(tls_static_params, ctx, encryption_standard,
 		 MLX5E_ENCRYPTION_STANDARD_TLS);
+	MLX5_SET(tls_static_params, ctx, resync_tcp_sn, resync_tcp_sn);
 	MLX5_SET(tls_static_params, ctx, dek_index, key_id);
 }
 
@@ -54,7 +55,7 @@ void
 mlx5e_ktls_build_static_params(struct mlx5e_set_tls_static_params_wqe *wqe,
 			       u16 pc, u32 sqn,
 			       struct tls12_crypto_info_aes_gcm_128 *info,
-			       u32 tis_tir_num, u32 key_id,
+			       u32 tis_tir_num, u32 key_id, u32 resync_tcp_sn,
 			       bool fence, enum tls_offload_ctx_dir direction)
 {
 	struct mlx5_wqe_umr_ctrl_seg *ucseg = &wqe->uctrl;
@@ -74,7 +75,7 @@ mlx5e_ktls_build_static_params(struct mlx5e_set_tls_static_params_wqe *wqe,
 	ucseg->flags = MLX5_UMR_INLINE;
 	ucseg->bsf_octowords = cpu_to_be16(MLX5_ST_SZ_BYTES(tls_static_params) / 16);
 
-	fill_static_params(&wqe->params, info, key_id);
+	fill_static_params(&wqe->params, info, key_id, resync_tcp_sn);
 }
 
 static void

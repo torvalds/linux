@@ -40,7 +40,11 @@ static int mlx5e_ktls_resync(struct net_device *netdev,
 			     struct sock *sk, u32 seq, u8 *rcd_sn,
 			     enum tls_offload_ctx_dir direction)
 {
-	return -EOPNOTSUPP;
+	if (unlikely(direction != TLS_OFFLOAD_CTX_DIR_RX))
+		return -EOPNOTSUPP;
+
+	mlx5e_ktls_rx_resync(netdev, sk, seq, rcd_sn);
+	return 0;
 }
 
 static const struct tlsdev_ops mlx5e_ktls_ops = {
