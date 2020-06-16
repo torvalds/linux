@@ -86,6 +86,7 @@ MODULE_PARM_DESC(polling_limit_us,
  * @clk: core clock, divided to calculate serial clock
  * @irq: interrupt, signals TX FIFO empty or RX FIFO ¾ full
  * @tfr: SPI transfer currently processed
+ * @ctlr: SPI controller reverse lookup
  * @tx_buf: pointer whence next transmitted byte is read
  * @rx_buf: pointer where next received byte is written
  * @tx_len: remaining bytes to transmit
@@ -125,6 +126,7 @@ struct bcm2835_spi {
 	struct clk *clk;
 	int irq;
 	struct spi_transfer *tfr;
+	struct spi_controller *ctlr;
 	const u8 *tx_buf;
 	u8 *rx_buf;
 	int tx_len;
@@ -362,8 +364,7 @@ static void bcm2835_spi_reset_hw(struct bcm2835_spi *bs)
 
 static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 {
-	struct spi_controller *ctlr = dev_id;
-	struct bcm2835_spi *bs = spi_controller_get_devdata(ctlr);
+	struct bcm2835_spi *bs = dev_id;
 	u32 cs = bcm2835_rd(bs, BCM2835_SPI_CS);
 
 	/*
@@ -387,7 +388,7 @@ static irqreturn_t bcm2835_spi_interrupt(int irq, void *dev_id)
 		/* Transfer complete - reset SPI HW */
 		bcm2835_spi_reset_hw(bs);
 		/* wake up the framework */
-		complete(&ctlr->xfer_completion);
+		complete(&bs->ctlr->xfer_completion);
 	}
 
 	return IRQ_HANDLED;
@@ -1310,6 +1311,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 	ctlr->dev.of_node = pdev->dev.of_node;
 
 	bs = spi_controller_get_devdata(ctlr);
+	bs->ctlr = ctlr;
 
 	bs->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bs->regs)) {
@@ -1344,7 +1346,7 @@ static int bcm2835_spi_probe(struct platform_device *pdev)
 		   BCM2835_SPI_CS_CLEAR_RX | BCM2835_SPI_CS_CLEAR_TX);
 
 	err = devm_request_irq(&pdev->dev, bs->irq, bcm2835_spi_interrupt, 0,
-			       dev_name(&pdev->dev), ctlr);
+			       dev_name(&pdev->dev), bs);
 	if (err) {
 		dev_err(&pdev->dev, "could not request IRQ: %d\n", err);
 		goto out_dma_release;
