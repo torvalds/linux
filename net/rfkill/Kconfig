@@ -36,6 +36,7 @@ config RFKILL_RK
 	tristate "Rockchip RFKILL driver"
 	depends on RFKILL
 	depends on MMC
+	depends on ARCH_ROCKCHIP
 	default y
 	help
 	  Rockchip rfkill driver for rk29/rk3X
