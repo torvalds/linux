@@ -318,6 +318,25 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	return ret;
 }
 
+static void clear_act_sent(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	intel_de_write(i915, intel_dp->regs.dp_tp_status,
+		       intel_de_read(i915, intel_dp->regs.dp_tp_status));
+}
+
+static void wait_for_act_sent(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (intel_de_wait_for_set(i915, intel_dp->regs.dp_tp_status,
+				  DP_TP_STATUS_ACT_SENT, 1))
+		drm_err(&i915->drm, "Timed out waiting for ACT sent\n");
+
+	drm_dp_check_act_status(&intel_dp->mst_mgr);
+}
+
 static void intel_mst_disable_dp(struct intel_atomic_state *state,
 				 struct intel_encoder *encoder,
 				 const struct intel_crtc_state *old_crtc_state,
@@ -378,11 +397,7 @@ static void intel_mst_post_disable_dp(struct intel_atomic_state *state,
 		       TRANS_DDI_FUNC_CTL(old_crtc_state->cpu_transcoder),
 		       val);
 
-	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
-				  DP_TP_STATUS_ACT_SENT, 1))
-		drm_err(&dev_priv->drm,
-			"Timed out waiting for ACT sent when disabling\n");
-	drm_dp_check_act_status(&intel_dp->mst_mgr);
+	wait_for_act_sent(intel_dp);
 
 	drm_dp_mst_deallocate_vcpi(&intel_dp->mst_mgr, connector->port);
 
@@ -453,7 +468,6 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	int ret;
-	u32 temp;
 	bool first_mst_stream;
 
 	/* MST encoders are bound to a crtc, not to a connector,
@@ -486,8 +500,6 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 		drm_err(&dev_priv->drm, "failed to allocate vcpi\n");
 
 	intel_dp->active_mst_links++;
-	temp = intel_de_read(dev_priv, intel_dp->regs.dp_tp_status);
-	intel_de_write(dev_priv, intel_dp->regs.dp_tp_status, temp);
 
 	ret = drm_dp_update_payload_part1(&intel_dp->mst_mgr);
 
@@ -518,16 +530,14 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 
 	drm_WARN_ON(&dev_priv->drm, pipe_config->has_pch_encoder);
 
+	clear_act_sent(intel_dp);
+
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
 	drm_dbg_kms(&dev_priv->drm, "active links %d\n",
 		    intel_dp->active_mst_links);
 
-	if (intel_de_wait_for_set(dev_priv, intel_dp->regs.dp_tp_status,
-				  DP_TP_STATUS_ACT_SENT, 1))
-		drm_err(&dev_priv->drm, "Timed out waiting for ACT sent\n");
-
-	drm_dp_check_act_status(&intel_dp->mst_mgr);
+	wait_for_act_sent(intel_dp);
 
 	drm_dp_update_payload_part2(&intel_dp->mst_mgr);
 
