@@ -144,9 +144,29 @@ static inline void mlx5e_insert_vlan(void *start, struct sk_buff *skb, u16 ihs)
 	memcpy(&vhdr->h_vlan_encapsulated_proto, skb->data + cpy1_sz, cpy2_sz);
 }
 
+/* RM 2311217: no L4 inner checksum for IPsec tunnel type packet */
+static void
+ipsec_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb,
+			    struct mlx5_wqe_eth_seg *eseg)
+{
+	eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
+	if (skb->encapsulation) {
+		eseg->cs_flags |= MLX5_ETH_WQE_L3_INNER_CSUM;
+		sq->stats->csum_partial_inner++;
+	} else {
+		eseg->cs_flags |= MLX5_ETH_WQE_L4_CSUM;
+		sq->stats->csum_partial++;
+	}
+}
+
 static inline void
 mlx5e_txwqe_build_eseg_csum(struct mlx5e_txqsq *sq, struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
 {
+	if (unlikely(eseg->flow_table_metadata & cpu_to_be32(MLX5_ETH_WQE_FT_META_IPSEC))) {
+		ipsec_txwqe_build_eseg_csum(sq, skb, eseg);
+		return;
+	}
+
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		eseg->cs_flags = MLX5_ETH_WQE_L3_CSUM;
 		if (skb->encapsulation) {
@@ -237,12 +257,14 @@ struct mlx5e_tx_attr {
 	u16 headlen;
 	u16 ihs;
 	__be16 mss;
+	u16 insz;
 	u8 opcode;
 };
 
 struct mlx5e_tx_wqe_attr {
 	u16 ds_cnt;
 	u16 ds_cnt_inl;
+	u16 ds_cnt_ids;
 	u8 num_wqebbs;
 };
 
@@ -299,6 +321,7 @@ static void mlx5e_sq_xmit_prepare(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		stats->packets++;
 	}
 
+	attr->insz = mlx5e_accel_tx_ids_len(sq, accel);
 	stats->bytes += attr->num_bytes;
 }
 
@@ -307,9 +330,13 @@ static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_at
 {
 	u16 ds_cnt = MLX5E_TX_WQE_EMPTY_DS_COUNT;
 	u16 ds_cnt_inl = 0;
+	u16 ds_cnt_ids = 0;
 
-	ds_cnt += !!attr->headlen + skb_shinfo(skb)->nr_frags;
+	if (attr->insz)
+		ds_cnt_ids = DIV_ROUND_UP(sizeof(struct mlx5_wqe_inline_seg) + attr->insz,
+					  MLX5_SEND_WQE_DS);
 
+	ds_cnt += !!attr->headlen + skb_shinfo(skb)->nr_frags + ds_cnt_ids;
 	if (attr->ihs) {
 		u16 inl = attr->ihs - INL_HDR_START_SZ;
 
@@ -323,6 +350,7 @@ static void mlx5e_sq_calc_wqe_attr(struct sk_buff *skb, const struct mlx5e_tx_at
 	*wqe_attr = (struct mlx5e_tx_wqe_attr) {
 		.ds_cnt     = ds_cnt,
 		.ds_cnt_inl = ds_cnt_inl,
+		.ds_cnt_ids = ds_cnt_ids,
 		.num_wqebbs = DIV_ROUND_UP(ds_cnt, MLX5_SEND_WQEBB_NUM_DS),
 	};
 }
@@ -398,11 +426,11 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 
 	if (attr->ihs) {
 		if (skb_vlan_tag_present(skb)) {
-			eseg->inline_hdr.sz = cpu_to_be16(attr->ihs + VLAN_HLEN);
+			eseg->inline_hdr.sz |= cpu_to_be16(attr->ihs + VLAN_HLEN);
 			mlx5e_insert_vlan(eseg->inline_hdr.start, skb, attr->ihs);
 			stats->added_vlan_packets++;
 		} else {
-			eseg->inline_hdr.sz = cpu_to_be16(attr->ihs);
+			eseg->inline_hdr.sz |= cpu_to_be16(attr->ihs);
 			memcpy(eseg->inline_hdr.start, skb->data, attr->ihs);
 		}
 		dseg += wqe_attr->ds_cnt_inl;
@@ -414,6 +442,7 @@ mlx5e_sq_xmit_wqe(struct mlx5e_txqsq *sq, struct sk_buff *skb,
 		stats->added_vlan_packets++;
 	}
 
+	dseg += wqe_attr->ds_cnt_ids;
 	num_dma = mlx5e_txwqe_build_dsegs(sq, skb, skb->data + attr->ihs,
 					  attr->headlen, dseg);
 	if (unlikely(num_dma < 0))
@@ -430,7 +459,8 @@ err_drop:
 
 static bool mlx5e_tx_skb_supports_mpwqe(struct sk_buff *skb, struct mlx5e_tx_attr *attr)
 {
-	return !skb_is_nonlinear(skb) && !skb_vlan_tag_present(skb) && !attr->ihs;
+	return !skb_is_nonlinear(skb) && !skb_vlan_tag_present(skb) && !attr->ihs &&
+	       !attr->insz;
 }
 
 static bool mlx5e_tx_mpwqe_same_eseg(struct mlx5e_txqsq *sq, struct mlx5_wqe_eth_seg *eseg)
@@ -580,7 +610,7 @@ void mlx5e_tx_mpwqe_ensure_complete(struct mlx5e_txqsq *sq)
 static bool mlx5e_txwqe_build_eseg(struct mlx5e_priv *priv, struct mlx5e_txqsq *sq,
 				   struct sk_buff *skb, struct mlx5_wqe_eth_seg *eseg)
 {
-	if (unlikely(!mlx5e_accel_tx_eseg(priv, sq, skb, eseg)))
+	if (unlikely(!mlx5e_accel_tx_eseg(priv, skb, eseg)))
 		return false;
 
 	mlx5e_txwqe_build_eseg_csum(sq, skb, eseg);
@@ -625,7 +655,8 @@ netdev_tx_t mlx5e_xmit(struct sk_buff *skb, struct net_device *dev)
 	wqe = MLX5E_TX_FETCH_WQE(sq, pi);
 
 	/* May update the WQE, but may not post other WQEs. */
-	mlx5e_accel_tx_finish(sq, wqe, &accel);
+	mlx5e_accel_tx_finish(sq, wqe, &accel,
+			      (struct mlx5_wqe_inline_seg *)(wqe->data + wqe_attr.ds_cnt_inl));
 	if (unlikely(!mlx5e_txwqe_build_eseg(priv, sq, skb, &wqe->eth)))
 		return NETDEV_TX_OK;
 
