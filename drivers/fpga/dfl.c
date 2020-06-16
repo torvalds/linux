@@ -421,6 +421,9 @@ EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
  *
  * @dev: device to enumerate.
  * @cdev: the container device for all feature devices.
+ * @nr_irqs: number of irqs for all feature devices.
+ * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
+ *	       this device.
  * @feature_dev: current feature device.
  * @ioaddr: header register region address of feature device in enumeration.
  * @sub_features: a sub features linked list for feature device in enumeration.
@@ -429,6 +432,9 @@ EXPORT_SYMBOL_GPL(dfl_fpga_dev_ops_unregister);
 struct build_feature_devs_info {
 	struct device *dev;
 	struct dfl_fpga_cdev *cdev;
+	unsigned int nr_irqs;
+	int *irq_table;
+
 	struct platform_device *feature_dev;
 	void __iomem *ioaddr;
 	struct list_head sub_features;
@@ -442,12 +448,16 @@ struct build_feature_devs_info {
  * @mmio_res: mmio resource of this sub feature.
  * @ioaddr: mapped base address of mmio resource.
  * @node: node in sub_features linked list.
+ * @irq_base: start of irq index in this sub feature.
+ * @nr_irqs: number of irqs of this sub feature.
  */
 struct dfl_feature_info {
 	u64 fid;
 	struct resource mmio_res;
 	void __iomem *ioaddr;
 	struct list_head node;
+	unsigned int irq_base;
+	unsigned int nr_irqs;
 };
 
 static void dfl_fpga_cdev_add_port_dev(struct dfl_fpga_cdev *cdev,
@@ -519,12 +529,28 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	/* fill features and resource information for feature dev */
 	list_for_each_entry_safe(finfo, p, &binfo->sub_features, node) {
 		struct dfl_feature *feature = &pdata->features[index];
+		struct dfl_feature_irq_ctx *ctx;
+		unsigned int i;
 
 		/* save resource information for each feature */
 		feature->id = finfo->fid;
 		feature->resource_index = index;
 		feature->ioaddr = finfo->ioaddr;
 		fdev->resource[index++] = finfo->mmio_res;
+
+		if (finfo->nr_irqs) {
+			ctx = devm_kcalloc(binfo->dev, finfo->nr_irqs,
+					   sizeof(*ctx), GFP_KERNEL);
+			if (!ctx)
+				return -ENOMEM;
+
+			for (i = 0; i < finfo->nr_irqs; i++)
+				ctx[i].irq =
+					binfo->irq_table[finfo->irq_base + i];
+
+			feature->irq_ctx = ctx;
+			feature->nr_irqs = finfo->nr_irqs;
+		}
 
 		list_del(&finfo->node);
 		kfree(finfo);
@@ -637,6 +663,78 @@ static u64 feature_id(void __iomem *start)
 	return 0;
 }
 
+static int parse_feature_irqs(struct build_feature_devs_info *binfo,
+			      resource_size_t ofst, u64 fid,
+			      unsigned int *irq_base, unsigned int *nr_irqs)
+{
+	void __iomem *base = binfo->ioaddr + ofst;
+	unsigned int i, ibase, inr = 0;
+	int virq;
+	u64 v;
+
+	/*
+	 * Ideally DFL framework should only read info from DFL header, but
+	 * current version DFL only provides mmio resources information for
+	 * each feature in DFL Header, no field for interrupt resources.
+	 * Interrupt resource information is provided by specific mmio
+	 * registers of each private feature which supports interrupt. So in
+	 * order to parse and assign irq resources, DFL framework has to look
+	 * into specific capability registers of these private features.
+	 *
+	 * Once future DFL version supports generic interrupt resource
+	 * information in common DFL headers, the generic interrupt parsing
+	 * code will be added. But in order to be compatible to old version
+	 * DFL, the driver may still fall back to these quirks.
+	 */
+	switch (fid) {
+	case PORT_FEATURE_ID_UINT:
+		v = readq(base + PORT_UINT_CAP);
+		ibase = FIELD_GET(PORT_UINT_CAP_FST_VECT, v);
+		inr = FIELD_GET(PORT_UINT_CAP_INT_NUM, v);
+		break;
+	case PORT_FEATURE_ID_ERROR:
+		v = readq(base + PORT_ERROR_CAP);
+		ibase = FIELD_GET(PORT_ERROR_CAP_INT_VECT, v);
+		inr = FIELD_GET(PORT_ERROR_CAP_SUPP_INT, v);
+		break;
+	case FME_FEATURE_ID_GLOBAL_ERR:
+		v = readq(base + FME_ERROR_CAP);
+		ibase = FIELD_GET(FME_ERROR_CAP_INT_VECT, v);
+		inr = FIELD_GET(FME_ERROR_CAP_SUPP_INT, v);
+		break;
+	}
+
+	if (!inr) {
+		*irq_base = 0;
+		*nr_irqs = 0;
+		return 0;
+	}
+
+	dev_dbg(binfo->dev, "feature: 0x%llx, irq_base: %u, nr_irqs: %u\n",
+		fid, ibase, inr);
+
+	if (ibase + inr > binfo->nr_irqs) {
+		dev_err(binfo->dev,
+			"Invalid interrupt number in feature 0x%llx\n", fid);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < inr; i++) {
+		virq = binfo->irq_table[ibase + i];
+		if (virq < 0 || virq > NR_IRQS) {
+			dev_err(binfo->dev,
+				"Invalid irq table entry for feature 0x%llx\n",
+				fid);
+			return -EINVAL;
+		}
+	}
+
+	*irq_base = ibase;
+	*nr_irqs = inr;
+
+	return 0;
+}
+
 /*
  * when create sub feature instances, for private features, it doesn't need
  * to provide resource size and feature id as they could be read from DFH
@@ -649,7 +747,9 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 			struct dfl_fpga_enum_dfl *dfl, resource_size_t ofst,
 			resource_size_t size, u64 fid)
 {
+	unsigned int irq_base, nr_irqs;
 	struct dfl_feature_info *finfo;
+	int ret;
 
 	/* read feature size and id if inputs are invalid */
 	size = size ? size : feature_size(dfl->ioaddr + ofst);
@@ -657,6 +757,10 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 
 	if (dfl->len - ofst < size)
 		return -EINVAL;
+
+	ret = parse_feature_irqs(binfo, ofst, fid, &irq_base, &nr_irqs);
+	if (ret)
+		return ret;
 
 	finfo = kzalloc(sizeof(*finfo), GFP_KERNEL);
 	if (!finfo)
@@ -666,6 +770,8 @@ create_feature_instance(struct build_feature_devs_info *binfo,
 	finfo->mmio_res.start = dfl->start + ofst;
 	finfo->mmio_res.end = finfo->mmio_res.start + size - 1;
 	finfo->mmio_res.flags = IORESOURCE_MEM;
+	finfo->irq_base = irq_base;
+	finfo->nr_irqs = nr_irqs;
 	finfo->ioaddr = dfl->ioaddr + ofst;
 
 	list_add_tail(&finfo->node, &binfo->sub_features);
@@ -852,6 +958,10 @@ void dfl_fpga_enum_info_free(struct dfl_fpga_enum_info *info)
 		devm_kfree(dev, dfl);
 	}
 
+	/* remove irq table */
+	if (info->irq_table)
+		devm_kfree(dev, info->irq_table);
+
 	devm_kfree(dev, info);
 	put_device(dev);
 }
@@ -890,6 +1000,45 @@ int dfl_fpga_enum_info_add_dfl(struct dfl_fpga_enum_info *info,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(dfl_fpga_enum_info_add_dfl);
+
+/**
+ * dfl_fpga_enum_info_add_irq - add irq table to enum info
+ *
+ * @info: ptr to dfl_fpga_enum_info
+ * @nr_irqs: number of irqs of the DFL fpga device to be enumerated.
+ * @irq_table: Linux IRQ numbers for all irqs, indexed by local irq index of
+ *	       this device.
+ *
+ * One FPGA device may have several interrupts. This function adds irq
+ * information of the DFL fpga device to enum info for next step enumeration.
+ * This function should be called before dfl_fpga_feature_devs_enumerate().
+ * As we only support one irq domain for all DFLs in the same enum info, adding
+ * irq table a second time for the same enum info will return error.
+ *
+ * If we need to enumerate DFLs which belong to different irq domains, we
+ * should fill more enum info and enumerate them one by one.
+ *
+ * Return: 0 on success, negative error code otherwise.
+ */
+int dfl_fpga_enum_info_add_irq(struct dfl_fpga_enum_info *info,
+			       unsigned int nr_irqs, int *irq_table)
+{
+	if (!nr_irqs || !irq_table)
+		return -EINVAL;
+
+	if (info->irq_table)
+		return -EEXIST;
+
+	info->irq_table = devm_kmemdup(info->dev, irq_table,
+				       sizeof(int) * nr_irqs, GFP_KERNEL);
+	if (!info->irq_table)
+		return -ENOMEM;
+
+	info->nr_irqs = nr_irqs;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dfl_fpga_enum_info_add_irq);
 
 static int remove_feature_dev(struct device *dev, void *data)
 {
@@ -957,6 +1106,10 @@ dfl_fpga_feature_devs_enumerate(struct dfl_fpga_enum_info *info)
 
 	binfo->dev = info->dev;
 	binfo->cdev = cdev;
+
+	binfo->nr_irqs = info->nr_irqs;
+	if (info->nr_irqs)
+		binfo->irq_table = info->irq_table;
 
 	/*
 	 * start enumeration for all feature devices based on Device Feature

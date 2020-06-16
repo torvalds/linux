@@ -18,6 +18,7 @@
 #include <linux/cdev.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/platform_device.h>
@@ -112,6 +113,13 @@
 #define FME_PORT_OFST_ACC_VF	1
 #define FME_PORT_OFST_IMP	BIT_ULL(60)
 
+/* FME Error Capability Register */
+#define FME_ERROR_CAP		0x70
+
+/* FME Error Capability Register Bitfield */
+#define FME_ERROR_CAP_SUPP_INT	BIT_ULL(0)		/* Interrupt Support */
+#define FME_ERROR_CAP_INT_VECT	GENMASK_ULL(12, 1)	/* Interrupt vector */
+
 /* PORT Header Register Set */
 #define PORT_HDR_DFH		DFH
 #define PORT_HDR_GUID_L		GUID_L
@@ -144,6 +152,20 @@
 #define PORT_STS_PWR_STATE_AP1	1			/* 50% throttling */
 #define PORT_STS_PWR_STATE_AP2	2			/* 90% throttling */
 #define PORT_STS_PWR_STATE_AP6	6			/* 100% throttling */
+
+/* Port Error Capability Register */
+#define PORT_ERROR_CAP		0x38
+
+/* Port Error Capability Register Bitfield */
+#define PORT_ERROR_CAP_SUPP_INT	BIT_ULL(0)		/* Interrupt Support */
+#define PORT_ERROR_CAP_INT_VECT	GENMASK_ULL(12, 1)	/* Interrupt vector */
+
+/* Port Uint Capability Register */
+#define PORT_UINT_CAP		0x8
+
+/* Port Uint Capability Register Bitfield */
+#define PORT_UINT_CAP_INT_NUM	GENMASK_ULL(11, 0)	/* Interrupts num */
+#define PORT_UINT_CAP_FST_VECT	GENMASK_ULL(23, 12)	/* First Vector */
 
 /**
  * struct dfl_fpga_port_ops - port ops
@@ -189,6 +211,15 @@ struct dfl_feature_driver {
 };
 
 /**
+ * struct dfl_feature_irq_ctx - dfl private feature interrupt context
+ *
+ * @irq: Linux IRQ number of this interrupt.
+ */
+struct dfl_feature_irq_ctx {
+	int irq;
+};
+
+/**
  * struct dfl_feature - sub feature of the feature devices
  *
  * @id: sub feature id.
@@ -196,6 +227,8 @@ struct dfl_feature_driver {
  *		    this index is used to find its mmio resource from the
  *		    feature dev (platform device)'s reources.
  * @ioaddr: mapped mmio resource address.
+ * @irq_ctx: interrupt context list.
+ * @nr_irqs: number of interrupt contexts.
  * @ops: ops of this sub feature.
  * @priv: priv data of this feature.
  */
@@ -203,6 +236,8 @@ struct dfl_feature {
 	u64 id;
 	int resource_index;
 	void __iomem *ioaddr;
+	struct dfl_feature_irq_ctx *irq_ctx;
+	unsigned int nr_irqs;
 	const struct dfl_feature_ops *ops;
 	void *priv;
 };
@@ -384,10 +419,14 @@ static inline u8 dfl_feature_revision(void __iomem *base)
  *
  * @dev: parent device.
  * @dfls: list of device feature lists.
+ * @nr_irqs: number of irqs for all feature devices.
+ * @irq_table: Linux IRQ numbers for all irqs, indexed by hw irq numbers.
  */
 struct dfl_fpga_enum_info {
 	struct device *dev;
 	struct list_head dfls;
+	unsigned int nr_irqs;
+	int *irq_table;
 };
 
 /**
@@ -411,6 +450,8 @@ struct dfl_fpga_enum_info *dfl_fpga_enum_info_alloc(struct device *dev);
 int dfl_fpga_enum_info_add_dfl(struct dfl_fpga_enum_info *info,
 			       resource_size_t start, resource_size_t len,
 			       void __iomem *ioaddr);
+int dfl_fpga_enum_info_add_irq(struct dfl_fpga_enum_info *info,
+			       unsigned int nr_irqs, int *irq_table);
 void dfl_fpga_enum_info_free(struct dfl_fpga_enum_info *info);
 
 /**
