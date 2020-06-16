@@ -2103,7 +2103,7 @@ gf100_gr_new_(const struct gf100_gr_fwif *fwif,
 
 	fwif = nvkm_firmware_load(&gr->base.engine.subdev, fwif, "Gr", gr);
 	if (IS_ERR(fwif))
-		return -ENODEV;
+		return PTR_ERR(fwif);
 
 	gr->func = fwif->func;
 
