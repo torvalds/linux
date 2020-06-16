@@ -4573,12 +4573,12 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 	rcu_read_unlock();
 }
 
+/*
+ * Return '1' if this is a member of batch, or '0' if it is a lone stripe or
+ * a head which can now be handled.
+ */
 static int clear_batch_ready(struct stripe_head *sh)
 {
-	/* Return '1' if this is a member of batch, or
-	 * '0' if it is a lone stripe or a head which can now be
-	 * handled.
-	 */
 	struct stripe_head *tmp;
 	if (!test_and_clear_bit(STRIPE_BATCH_READY, &sh->state))
 		return (sh->batch_head && sh->batch_head != sh);
