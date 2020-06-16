@@ -16,7 +16,8 @@ ath11k-y += core.o \
 	    debug.o \
 	    ce.o \
 	    peer.o \
-	    dbring.o
+	    dbring.o \
+	    hw.o
 
 ath11k-$(CONFIG_ATH11K_DEBUGFS) += debug_htt_stats.o debugfs_sta.o
 ath11k-$(CONFIG_NL80211_TESTMODE) += testmode.o
