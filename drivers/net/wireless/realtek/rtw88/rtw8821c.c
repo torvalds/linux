@@ -169,6 +169,44 @@ static void rtw8821c_cfg_ldo25(struct rtw_dev *rtwdev, bool enable)
 	rtw_write8(rtwdev, REG_LDO_EFUSE_CTRL + 3, ldo_pwr);
 }
 
+static void
+rtw8821c_set_tx_power_index_by_rate(struct rtw_dev *rtwdev, u8 path, u8 rs)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	static const u32 offset_txagc[2] = {0x1d00, 0x1d80};
+	static u32 phy_pwr_idx;
+	u8 rate, rate_idx, pwr_index, shift;
+	int j;
+
+	for (j = 0; j < rtw_rate_size[rs]; j++) {
+		rate = rtw_rate_section[rs][j];
+		pwr_index = hal->tx_pwr_tbl[path][rate];
+		shift = rate & 0x3;
+		phy_pwr_idx |= ((u32)pwr_index << (shift * 8));
+		if (shift == 0x3 || rate == DESC_RATEVHT1SS_MCS9) {
+			rate_idx = rate & 0xfc;
+			rtw_write32(rtwdev, offset_txagc[path] + rate_idx,
+				    phy_pwr_idx);
+			phy_pwr_idx = 0;
+		}
+	}
+}
+
+static void rtw8821c_set_tx_power_index(struct rtw_dev *rtwdev)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	int rs, path;
+
+	for (path = 0; path < hal->rf_path_num; path++) {
+		for (rs = 0; rs < RTW_RATE_SECTION_MAX; rs++) {
+			if (rs == RTW_RATE_SECTION_HT_2S ||
+			    rs == RTW_RATE_SECTION_VHT_2S)
+				continue;
+			rtw8821c_set_tx_power_index_by_rate(rtwdev, path, rs);
+		}
+	}
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8821c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -598,6 +636,7 @@ static struct rtw_chip_ops rtw8821c_ops = {
 	.read_rf		= rtw_phy_read_rf,
 	.write_rf		= rtw_phy_write_rf_reg_sipi,
 	.set_antenna		= NULL,
+	.set_tx_power_index	= rtw8821c_set_tx_power_index,
 	.cfg_ldo25		= rtw8821c_cfg_ldo25,
 };
 
