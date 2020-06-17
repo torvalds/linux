@@ -213,7 +213,7 @@ show_fault_oops(struct pt_regs *regs, unsigned long address)
 				     : "paging request",
 		 address);
 	pr_alert("PC:");
-	printk_address(regs->pc, 1, KERN_ALERT);
+	printk_address(regs->pc, 1);
 
 	show_pte(NULL, address);
 }
