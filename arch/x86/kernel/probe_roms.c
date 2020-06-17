@@ -99,7 +99,7 @@ static bool probe_list(struct pci_dev *pdev, unsigned short vendor,
 	unsigned short device;
 
 	do {
-		if (probe_kernel_address(rom_list, device) != 0)
+		if (get_kernel_nofault(device, rom_list) != 0)
 			device = 0;
 
 		if (device && match_id(pdev, vendor, device))
@@ -125,13 +125,13 @@ static struct resource *find_oprom(struct pci_dev *pdev)
 			break;
 
 		rom = isa_bus_to_virt(res->start);
-		if (probe_kernel_address(rom + 0x18, offset) != 0)
+		if (get_kernel_nofault(offset, rom + 0x18) != 0)
 			continue;
 
-		if (probe_kernel_address(rom + offset + 0x4, vendor) != 0)
+		if (get_kernel_nofault(vendor, rom + offset + 0x4) != 0)
 			continue;
 
-		if (probe_kernel_address(rom + offset + 0x6, device) != 0)
+		if (get_kernel_nofault(device, rom + offset + 0x6) != 0)
 			continue;
 
 		if (match_id(pdev, vendor, device)) {
@@ -139,8 +139,8 @@ static struct resource *find_oprom(struct pci_dev *pdev)
 			break;
 		}
 
-		if (probe_kernel_address(rom + offset + 0x8, list) == 0 &&
-		    probe_kernel_address(rom + offset + 0xc, rev) == 0 &&
+		if (get_kernel_nofault(list, rom + offset + 0x8) == 0 &&
+		    get_kernel_nofault(rev, rom + offset + 0xc) == 0 &&
 		    rev >= 3 && list &&
 		    probe_list(pdev, vendor, rom + offset + list)) {
 			oprom = res;
@@ -183,14 +183,14 @@ static int __init romsignature(const unsigned char *rom)
 	const unsigned short * const ptr = (const unsigned short *)rom;
 	unsigned short sig;
 
-	return probe_kernel_address(ptr, sig) == 0 && sig == ROMSIGNATURE;
+	return get_kernel_nofault(sig, ptr) == 0 && sig == ROMSIGNATURE;
 }
 
 static int __init romchecksum(const unsigned char *rom, unsigned long length)
 {
 	unsigned char sum, c;
 
-	for (sum = 0; length && probe_kernel_address(rom++, c) == 0; length--)
+	for (sum = 0; length && get_kernel_nofault(c, rom++) == 0; length--)
 		sum += c;
 	return !length && !sum;
 }
@@ -211,7 +211,7 @@ void __init probe_roms(void)
 
 		video_rom_resource.start = start;
 
-		if (probe_kernel_address(rom + 2, c) != 0)
+		if (get_kernel_nofault(c, rom + 2) != 0)
 			continue;
 
 		/* 0 < length <= 0x7f * 512, historically */
@@ -249,7 +249,7 @@ void __init probe_roms(void)
 		if (!romsignature(rom))
 			continue;
 
-		if (probe_kernel_address(rom + 2, c) != 0)
+		if (get_kernel_nofault(c, rom + 2) != 0)
 			continue;
 
 		/* 0 < length <= 0x7f * 512, historically */

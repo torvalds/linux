@@ -62,7 +62,7 @@ int get_step_address(struct pt_regs *regs, unsigned long *next_addr)
 	unsigned int rs1_num, rs2_num;
 	int op_code;
 
-	if (probe_kernel_address((void *)pc, op_code))
+	if (get_kernel_nofault(op_code, (void *)pc))
 		return -EINVAL;
 	if ((op_code & __INSN_LENGTH_MASK) != __INSN_LENGTH_GE_32) {
 		if (is_c_jalr_insn(op_code) || is_c_jr_insn(op_code)) {
@@ -146,7 +146,7 @@ int do_single_step(struct pt_regs *regs)
 		return error;
 
 	/* Store the op code in the stepped address */
-	error = probe_kernel_address((void *)addr, stepped_opcode);
+	error = get_kernel_nofault(stepped_opcode, (void *)addr);
 	if (error)
 		return error;
 

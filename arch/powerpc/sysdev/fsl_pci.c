@@ -1069,7 +1069,7 @@ int fsl_pci_mcheck_exception(struct pt_regs *regs)
 			ret = copy_from_user_nofault(&inst,
 					(void __user *)regs->nip, sizeof(inst));
 		else
-			ret = probe_kernel_address((void *)regs->nip, inst);
+			ret = get_kernel_nofault(inst, (void *)regs->nip);
 
 		if (!ret && mcheck_handle_load(regs, inst)) {
 			regs->nip += 4;

@@ -318,14 +318,14 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 long strnlen_user_nofault(const void __user *unsafe_addr, long count);
 
 /**
- * probe_kernel_address(): safely attempt to read from a location
- * @addr: address to read from
- * @retval: read into this variable
+ * get_kernel_nofault(): safely attempt to read from a location
+ * @val: read into this variable
+ * @ptr: address to read from
  *
  * Returns 0 on success, or -EFAULT.
  */
-#define probe_kernel_address(addr, retval)		\
-	copy_from_kernel_nofault(&retval, addr, sizeof(retval))
+#define get_kernel_nofault(val, ptr)		\
+	copy_from_kernel_nofault(&(val), (ptr), sizeof(val))
 
 #ifndef user_access_begin
 #define user_access_begin(ptr,len) access_ok(ptr, len)
