@@ -4687,13 +4687,12 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 
 	rcu_read_lock();
 	flow = rhashtable_lookup(tc_ht, &f->cookie, tc_ht_params);
-	rcu_read_unlock();
 	if (flow) {
 		/* Same flow rule offloaded to non-uplink representor sharing tc block,
 		 * just return 0.
 		 */
 		if (is_flow_rule_duplicate_allowed(dev, rpriv) && flow->orig_dev != dev)
-			goto out;
+			goto rcu_unlock;
 
 		NL_SET_ERR_MSG_MOD(extack,
 				   "flow cookie already exists, ignoring");
@@ -4701,8 +4700,12 @@ int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
 				 "flow cookie %lx already exists, ignoring\n",
 				 f->cookie);
 		err = -EEXIST;
-		goto out;
+		goto rcu_unlock;
 	}
+rcu_unlock:
+	rcu_read_unlock();
+	if (flow)
+		goto out;
 
 	trace_mlx5e_configure_flower(f);
 	err = mlx5e_tc_add_flow(priv, f, flags, dev, &flow);
