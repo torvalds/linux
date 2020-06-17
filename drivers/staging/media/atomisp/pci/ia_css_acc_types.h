@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -19,7 +20,7 @@
  * This file contains types used for acceleration
  */
 
-#include <system_types.h>	/* HAS_IRQ_MAP_VERSION_# */
+#include <system_local.h>	/* HAS_IRQ_MAP_VERSION_# */
 #include <type_support.h>
 #include <platform_support.h>
 #include <debug_global.h>
@@ -62,8 +63,8 @@ enum ia_css_cell_type {
  */
 enum ia_css_fw_type {
 	ia_css_sp_firmware,		/** Firmware for the SP */
-	ia_css_isp_firmware,	/** Firmware for the ISP */
-	ia_css_bootloader_firmware, /** Firmware for the BootLoader */
+	ia_css_isp_firmware,		/** Firmware for the ISP */
+	ia_css_bootloader_firmware,	/** Firmware for the BootLoader */
 	ia_css_acc_firmware		/** Firmware for accelrations */
 };
 

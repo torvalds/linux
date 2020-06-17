@@ -2035,9 +2035,6 @@ static int storvsc_suspend(struct hv_device *hv_dev)
 
 	vmbus_close(hv_dev->channel);
 
-	memset(stor_device->stor_chns, 0,
-	       num_possible_cpus() * sizeof(void *));
-
 	kfree(stor_device->stor_chns);
 	stor_device->stor_chns = NULL;
 

@@ -28,9 +28,8 @@ properties:
     const: 0
 
   socionext,tmod-calibration:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - maxItems: 2
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    maxItems: 2
     description:
       A pair of calibrated values referred from PVT, in case that the values
       aren't set on SoC, like a reference board.

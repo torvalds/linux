@@ -40,28 +40,25 @@ properties:
 
   calxeda,led-order:
     description: Maps port numbers to offsets within the SGPIO bitstream.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 8
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
 
   calxeda,port-phys:
     description: |
       phandle-combophy and lane assignment, which maps each SATA port to a
       combophy and a lane within that combophy
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/phandle-array
-      - minItems: 1
-        maxItems: 8
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    minItems: 1
+    maxItems: 8
 
   calxeda,tx-atten:
     description: |
       Contains TX attenuation override codes, one per port.
       The upper 24 bits of each entry are always 0 and thus ignored.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 8
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
 
   calxeda,sgpio-gpio:
     description: |

@@ -664,7 +664,7 @@ static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
-static int _generic_set_opp_regulator(const struct opp_table *opp_table,
+static int _generic_set_opp_regulator(struct opp_table *opp_table,
 				      struct device *dev,
 				      unsigned long old_freq,
 				      unsigned long freq,
@@ -699,6 +699,18 @@ static int _generic_set_opp_regulator(const struct opp_table *opp_table,
 			goto restore_freq;
 	}
 
+	/*
+	 * Enable the regulator after setting its voltages, otherwise it breaks
+	 * some boot-enabled regulators.
+	 */
+	if (unlikely(!opp_table->regulator_enabled)) {
+		ret = regulator_enable(reg);
+		if (ret < 0)
+			dev_warn(dev, "Failed to enable regulator: %d", ret);
+		else
+			opp_table->regulator_enabled = true;
+	}
+
 	return 0;
 
 restore_freq:
@@ -711,6 +723,34 @@ restore_voltage:
 		_set_opp_voltage(dev, reg, old_supply);
 
 	return ret;
+}
+
+static int _set_opp_bw(const struct opp_table *opp_table,
+		       struct dev_pm_opp *opp, struct device *dev, bool remove)
+{
+	u32 avg, peak;
+	int i, ret;
+
+	if (!opp_table->paths)
+		return 0;
+
+	for (i = 0; i < opp_table->path_count; i++) {
+		if (remove) {
+			avg = 0;
+			peak = 0;
+		} else {
+			avg = opp->bandwidth[i].avg;
+			peak = opp->bandwidth[i].peak;
+		}
+		ret = icc_set_bw(opp_table->paths[i], avg, peak);
+		if (ret) {
+			dev_err(dev, "Failed to %s bandwidth[%d]: %d\n",
+				remove ? "remove" : "set", i, ret);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int _set_opp_custom(const struct opp_table *opp_table,
@@ -817,15 +857,31 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	}
 
 	if (unlikely(!target_freq)) {
-		if (opp_table->required_opp_tables) {
-			ret = _set_required_opps(dev, opp_table, NULL);
-		} else if (!_get_opp_count(opp_table)) {
+		/*
+		 * Some drivers need to support cases where some platforms may
+		 * have OPP table for the device, while others don't and
+		 * opp_set_rate() just needs to behave like clk_set_rate().
+		 */
+		if (!_get_opp_count(opp_table))
 			return 0;
-		} else {
+
+		if (!opp_table->required_opp_tables && !opp_table->regulators &&
+		    !opp_table->paths) {
 			dev_err(dev, "target frequency can't be 0\n");
 			ret = -EINVAL;
+			goto put_opp_table;
 		}
 
+		ret = _set_opp_bw(opp_table, NULL, dev, true);
+		if (ret)
+			return ret;
+
+		if (opp_table->regulator_enabled) {
+			regulator_disable(opp_table->regulators[0]);
+			opp_table->regulator_enabled = false;
+		}
+
+		ret = _set_required_opps(dev, opp_table, NULL);
 		goto put_opp_table;
 	}
 
@@ -908,6 +964,9 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		if (ret)
 			dev_err(dev, "Failed to set required opps: %d\n", ret);
 	}
+
+	if (!ret)
+		ret = _set_opp_bw(opp_table, opp, dev, false);
 
 put_opp:
 	dev_pm_opp_put(opp);
@@ -999,6 +1058,12 @@ static struct opp_table *_allocate_opp_table(struct device *dev, int index)
 				ret);
 	}
 
+	/* Find interconnect path(s) for the device */
+	ret = dev_pm_opp_of_find_icc_paths(dev, opp_table);
+	if (ret)
+		dev_warn(dev, "%s: Error finding interconnect paths: %d\n",
+			 __func__, ret);
+
 	BLOCKING_INIT_NOTIFIER_HEAD(&opp_table->head);
 	INIT_LIST_HEAD(&opp_table->opp_list);
 	kref_init(&opp_table->kref);
@@ -1057,12 +1122,19 @@ static void _opp_table_kref_release(struct kref *kref)
 {
 	struct opp_table *opp_table = container_of(kref, struct opp_table, kref);
 	struct opp_device *opp_dev, *temp;
+	int i;
 
 	_of_clear_opp_table(opp_table);
 
 	/* Release clk */
 	if (!IS_ERR(opp_table->clk))
 		clk_put(opp_table->clk);
+
+	if (opp_table->paths) {
+		for (i = 0; i < opp_table->path_count; i++)
+			icc_put(opp_table->paths[i]);
+		kfree(opp_table->paths);
+	}
 
 	WARN_ON(!list_empty(&opp_table->opp_list));
 
@@ -1243,19 +1315,23 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_remove_all_dynamic);
 struct dev_pm_opp *_opp_allocate(struct opp_table *table)
 {
 	struct dev_pm_opp *opp;
-	int count, supply_size;
+	int supply_count, supply_size, icc_size;
 
 	/* Allocate space for at least one supply */
-	count = table->regulator_count > 0 ? table->regulator_count : 1;
-	supply_size = sizeof(*opp->supplies) * count;
+	supply_count = table->regulator_count > 0 ? table->regulator_count : 1;
+	supply_size = sizeof(*opp->supplies) * supply_count;
+	icc_size = sizeof(*opp->bandwidth) * table->path_count;
 
 	/* allocate new OPP node and supplies structures */
-	opp = kzalloc(sizeof(*opp) + supply_size, GFP_KERNEL);
+	opp = kzalloc(sizeof(*opp) + supply_size + icc_size, GFP_KERNEL);
+
 	if (!opp)
 		return NULL;
 
 	/* Put the supplies at the end of the OPP structure as an empty array */
 	opp->supplies = (struct dev_pm_opp_supply *)(opp + 1);
+	if (icc_size)
+		opp->bandwidth = (struct dev_pm_opp_icc_bw *)(opp->supplies + supply_count);
 	INIT_LIST_HEAD(&opp->node);
 
 	return opp;
@@ -1286,11 +1362,24 @@ static bool _opp_supported_by_regulators(struct dev_pm_opp *opp,
 	return true;
 }
 
+int _opp_compare_key(struct dev_pm_opp *opp1, struct dev_pm_opp *opp2)
+{
+	if (opp1->rate != opp2->rate)
+		return opp1->rate < opp2->rate ? -1 : 1;
+	if (opp1->bandwidth && opp2->bandwidth &&
+	    opp1->bandwidth[0].peak != opp2->bandwidth[0].peak)
+		return opp1->bandwidth[0].peak < opp2->bandwidth[0].peak ? -1 : 1;
+	if (opp1->level != opp2->level)
+		return opp1->level < opp2->level ? -1 : 1;
+	return 0;
+}
+
 static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
 			     struct opp_table *opp_table,
 			     struct list_head **head)
 {
 	struct dev_pm_opp *opp;
+	int opp_cmp;
 
 	/*
 	 * Insert new OPP in order of increasing frequency and discard if
@@ -1301,12 +1390,13 @@ static int _opp_is_duplicate(struct device *dev, struct dev_pm_opp *new_opp,
 	 * loop.
 	 */
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		if (new_opp->rate > opp->rate) {
+		opp_cmp = _opp_compare_key(new_opp, opp);
+		if (opp_cmp > 0) {
 			*head = &opp->node;
 			continue;
 		}
 
-		if (new_opp->rate < opp->rate)
+		if (opp_cmp < 0)
 			return 0;
 
 		/* Duplicate OPPs */
@@ -1669,6 +1759,13 @@ void dev_pm_opp_put_regulators(struct opp_table *opp_table)
 
 	/* Make sure there are no concurrent readers while updating opp_table */
 	WARN_ON(!list_empty(&opp_table->opp_list));
+
+	if (opp_table->regulator_enabled) {
+		for (i = opp_table->regulator_count - 1; i >= 0; i--)
+			regulator_disable(opp_table->regulators[i]);
+
+		opp_table->regulator_enabled = false;
+	}
 
 	for (i = opp_table->regulator_count - 1; i >= 0; i--)
 		regulator_put(opp_table->regulators[i]);

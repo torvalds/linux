@@ -15,7 +15,7 @@ config MFD_CS5535
 	tristate "AMD CS5535 and CS5536 southbridge core functions"
 	select MFD_CORE
 	depends on PCI && (X86_32 || (X86 && COMPILE_TEST))
-	---help---
+	help
 	  This is the core driver for CS5535/CS5536 MFD functions.  This is
 	  necessary for using the board's GPIO and MFGPT functionality.
 
@@ -292,7 +292,7 @@ config MFD_ASIC3
 	bool "Compaq ASIC3"
 	depends on GPIOLIB && ARM
 	select MFD_CORE
-	 ---help---
+	help
 	  This driver supports the ASIC3 multifunction chip found on many
 	  PDAs (mainly iPAQ and HTC based ones)
 
@@ -1165,7 +1165,7 @@ config MFD_SI476X_CORE
 config MFD_SM501
 	tristate "Silicon Motion SM501"
 	depends on HAS_DMA
-	 ---help---
+	help
 	  This is the core driver for the Silicon Motion SM501 multimedia
 	  companion chip. This device is a multifunction device which may
 	  provide numerous interfaces including USB host controller, USB gadget,
@@ -1176,7 +1176,7 @@ config MFD_SM501
 config MFD_SM501_GPIO
 	bool "Export GPIO via GPIO layer"
 	depends on MFD_SM501 && GPIOLIB
-	 ---help---
+	help
 	  This option uses the gpio library layer to export the 64 GPIO
 	  lines on the SM501. The platform data is used to supply the
 	  base number for the first GPIO line to register.
@@ -1721,7 +1721,7 @@ config MFD_TIMBERDALE
 	tristate "Timberdale FPGA"
 	select MFD_CORE
 	depends on PCI && GPIOLIB && (X86_32 || COMPILE_TEST)
-	---help---
+	help
 	This is the core driver for the timberdale FPGA. This device is a
 	multifunction device which exposes numerous platform devices.
 

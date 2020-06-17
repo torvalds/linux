@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2010 - 2015, Intel Corporation.
@@ -14,16 +15,16 @@
 
 #include "ia_css_rmgr.h"
 
-enum ia_css_err ia_css_rmgr_init(void)
+int ia_css_rmgr_init(void)
 {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	err = ia_css_rmgr_init_vbuf(vbuf_ref);
-	if (err == IA_CSS_SUCCESS)
+	if (!err)
 		err = ia_css_rmgr_init_vbuf(vbuf_write);
-	if (err == IA_CSS_SUCCESS)
+	if (!err)
 		err = ia_css_rmgr_init_vbuf(hmm_buffer_pool);
-	if (err != IA_CSS_SUCCESS)
+	if (err)
 		ia_css_rmgr_uninit();
 	return err;
 }

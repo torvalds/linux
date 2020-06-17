@@ -71,8 +71,8 @@ examples:
 
     bus@1f059000 {
       compatible = "baikal,bt1-apb", "simple-bus";
-      reg = <0 0x1f059000 0 0x1000>,
-            <0 0x1d000000 0 0x2040000>;
+      reg = <0x1f059000 0x1000>,
+            <0x1d000000 0x2040000>;
       reg-names = "ehb", "nodev";
       #address-cells = <1>;
       #size-cells = <1>;

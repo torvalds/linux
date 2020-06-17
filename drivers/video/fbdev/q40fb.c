@@ -23,7 +23,6 @@
 #include <asm/q40_master.h>
 #include <linux/fb.h>
 #include <linux/module.h>
-#include <asm/pgtable.h>
 
 #define Q40_PHYS_SCREEN_ADDR 0xFE800000
 

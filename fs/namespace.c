@@ -684,9 +684,6 @@ bool __is_local_mountpoint(struct dentry *dentry)
 	struct mount *mnt;
 	bool is_covered = false;
 
-	if (!d_mountpoint(dentry))
-		goto out;
-
 	down_read(&namespace_sem);
 	lock_ns_list(ns);
 	list_for_each_entry(mnt, &ns->list, mnt_list) {
@@ -698,7 +695,7 @@ bool __is_local_mountpoint(struct dentry *dentry)
 	}
 	unlock_ns_list(ns);
 	up_read(&namespace_sem);
-out:
+
 	return is_covered;
 }
 
@@ -1936,6 +1933,9 @@ struct vfsmount *clone_private_mount(const struct path *path)
 	new_mnt = clone_mnt(old_mnt, path->dentry, CL_PRIVATE);
 	if (IS_ERR(new_mnt))
 		return ERR_CAST(new_mnt);
+
+	/* Longterm mount to be removed by kern_unmount*() */
+	new_mnt->mnt_ns = MNT_NS_INTERNAL;
 
 	return &new_mnt->mnt;
 }
@@ -3862,6 +3862,19 @@ void kern_unmount(struct vfsmount *mnt)
 	}
 }
 EXPORT_SYMBOL(kern_unmount);
+
+void kern_unmount_array(struct vfsmount *mnt[], unsigned int num)
+{
+	unsigned int i;
+
+	for (i = 0; i < num; i++)
+		if (mnt[i])
+			real_mount(mnt[i])->mnt_ns = NULL;
+	synchronize_rcu_expedited();
+	for (i = 0; i < num; i++)
+		mntput(mnt[i]);
+}
+EXPORT_SYMBOL(kern_unmount_array);
 
 bool our_mnt(struct vfsmount *mnt)
 {

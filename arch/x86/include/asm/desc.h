@@ -40,11 +40,6 @@ static inline void fill_ldt(struct desc_struct *desc, const struct user_desc *in
 	desc->l			= 0;
 }
 
-extern struct desc_ptr idt_descr;
-extern gate_desc idt_table[];
-extern const struct desc_ptr debug_idt_descr;
-extern gate_desc debug_idt_table[];
-
 struct gdt_page {
 	struct desc_struct gdt[GDT_ENTRIES];
 } __attribute__((aligned(PAGE_SIZE)));
@@ -214,7 +209,7 @@ static inline void native_load_gdt(const struct desc_ptr *dtr)
 	asm volatile("lgdt %0"::"m" (*dtr));
 }
 
-static inline void native_load_idt(const struct desc_ptr *dtr)
+static __always_inline void native_load_idt(const struct desc_ptr *dtr)
 {
 	asm volatile("lidt %0"::"m" (*dtr));
 }
@@ -386,64 +381,23 @@ static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
 	desc->limit1 = (limit >> 16) & 0xf;
 }
 
-void update_intr_gate(unsigned int n, const void *addr);
 void alloc_intr_gate(unsigned int n, const void *addr);
 
 extern unsigned long system_vectors[];
 
-#ifdef CONFIG_X86_64
-DECLARE_PER_CPU(u32, debug_idt_ctr);
-static inline bool is_debug_idt_enabled(void)
-{
-	if (this_cpu_read(debug_idt_ctr))
-		return true;
-
-	return false;
-}
-
-static inline void load_debug_idt(void)
-{
-	load_idt((const struct desc_ptr *)&debug_idt_descr);
-}
-#else
-static inline bool is_debug_idt_enabled(void)
-{
-	return false;
-}
-
-static inline void load_debug_idt(void)
-{
-}
-#endif
-
-/*
- * The load_current_idt() must be called with interrupts disabled
- * to avoid races. That way the IDT will always be set back to the expected
- * descriptor. It's also called when a CPU is being initialized, and
- * that doesn't need to disable interrupts, as nothing should be
- * bothering the CPU then.
- */
-static inline void load_current_idt(void)
-{
-	if (is_debug_idt_enabled())
-		load_debug_idt();
-	else
-		load_idt((const struct desc_ptr *)&idt_descr);
-}
-
+extern void load_current_idt(void);
 extern void idt_setup_early_handler(void);
 extern void idt_setup_early_traps(void);
 extern void idt_setup_traps(void);
 extern void idt_setup_apic_and_irq_gates(void);
+extern bool idt_is_f00f_address(unsigned long address);
 
 #ifdef CONFIG_X86_64
 extern void idt_setup_early_pf(void);
 extern void idt_setup_ist_traps(void);
-extern void idt_setup_debugidt_traps(void);
 #else
 static inline void idt_setup_early_pf(void) { }
 static inline void idt_setup_ist_traps(void) { }
-static inline void idt_setup_debugidt_traps(void) { }
 #endif
 
 extern void idt_invalidate(void *addr);

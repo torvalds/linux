@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Medifield PNW Camera Imaging ISP subsystem.
  *
@@ -68,9 +69,6 @@
 #if 0
 #define V4L2_MBUS_FMT_CUSTOM_M10MO_RAW	0x800b
 #endif
-
-/* FIXME: for now, let's use a boolean to identify the type of atomisp chipset */
-extern bool atomisp_hw_is_isp2401;
 
 /* Configuration used by Bayer noise reduction and YCC noise reduction */
 struct atomisp_nr_config {
@@ -509,7 +507,7 @@ struct atomisp_parameters {
 	struct atomisp_shading_table *shading_table;
 	struct atomisp_morph_table   *morph_table;
 	struct atomisp_dvs_coefficients *dvs_coefs; /* DVS 1.0 coefficients */
-	struct atomisp_dvs2_coefficients *dvs2_coefs; /* DVS 2.0 coefficients */
+	struct atomisp_dis_coefficients *dvs2_coefs; /* DVS 2.0 coefficients */
 	struct atomisp_capture_config   *capture_config;
 	struct atomisp_anr_thres   *anr_thres;
 
@@ -917,6 +915,8 @@ struct atomisp_acc_map {
 
 #define ATOMISP_MAP_FLAG_NOFLUSH	0x0001	/* Do not flush cache */
 #define ATOMISP_MAP_FLAG_CACHED		0x0002	/* Enable cache */
+#define ATOMISP_MAP_FLAG_CONTIGUOUS	0x0004
+#define ATOMISP_MAP_FLAG_CLEARED	0x0008
 
 struct atomisp_acc_state {
 	__u32 flags;			/* Flags, see list below */
@@ -1272,7 +1272,7 @@ struct atomisp_sensor_ae_bracketing_lut {
 /* VCM slew control */
 #define V4L2_CID_VCM_SLEW                  (V4L2_CID_CAMERA_LASTP1 + 11)
 /* VCM step time */
-#define V4L2_CID_VCM_TIMEING               (V4L2_CID_CAMERA_LASTP1 + 12)
+#define V4L2_CID_VCM_TIMING                (V4L2_CID_CAMERA_LASTP1 + 12)
 
 /* Query Focus Status */
 #define V4L2_CID_FOCUS_STATUS              (V4L2_CID_CAMERA_LASTP1 + 14)

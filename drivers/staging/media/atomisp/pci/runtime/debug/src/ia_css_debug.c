@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -13,7 +14,6 @@
  */
 
 #include "debug.h"
-#include "memory_access.h"
 
 #ifndef __INLINE_INPUT_SYSTEM__
 #define __INLINE_INPUT_SYSTEM__
@@ -31,6 +31,8 @@
 #define __INLINE_STREAM2MMIO__
 #endif
 
+#include <linux/string.h> /* for strscpy() */
+
 #include "ia_css_debug.h"
 #include "ia_css_debug_pipe.h"
 #include "ia_css_irq.h"
@@ -47,7 +49,6 @@
 #include "system_local.h"
 #include "assert_support.h"
 #include "print_support.h"
-#include "string_support.h"
 
 #include "fifo_monitor.h"
 
@@ -102,9 +103,6 @@
 #include "de/de_2/ia_css_de2.host.h"
 #include "gc/gc_2/ia_css_gc2.host.h"
 #include "ynr/ynr_2/ia_css_ynr2.host.h"
-
-/* Global variable to store the dtrace verbosity level */
-unsigned int ia_css_debug_trace_level = IA_CSS_DEBUG_WARNING;
 
 #define DPG_START "ia_css_debug_pipe_graph_dump_start "
 #define DPG_END   " ia_css_debug_pipe_graph_dump_end\n"
@@ -244,13 +242,13 @@ void ia_css_debug_dump_sp_stack_info(void)
 
 void ia_css_debug_set_dtrace_level(const unsigned int trace_level)
 {
-	ia_css_debug_trace_level = trace_level;
+	dbg_level = trace_level;
 	return;
 }
 
 unsigned int ia_css_debug_get_dtrace_level(void)
 {
-	return ia_css_debug_trace_level;
+	return dbg_level;
 }
 
 static const char *debug_stream_format2str(const enum atomisp_input_format
@@ -463,7 +461,6 @@ void ia_css_debug_dump_isp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[2] dma_FIFO stalled",
 				    stall.fifo2);
-#if defined(HAS_ISP_2400_MAMOIADA) || defined(HAS_ISP_2401_MAMOIADA) || defined(IS_ISP_2500_SYSTEM)
 
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[3] gdc0_FIFO stalled",
 				    stall.fifo3);
@@ -475,9 +472,6 @@ void ia_css_debug_dump_isp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "[6] sp_FIFO stalled",
 				    stall.fifo6);
-#else
-#error "ia_css_debug: ISP cell must be one of {2400_MAMOIADA,, 2401_MAMOIADA, 2500_SKYCAM}"
-#endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n",
 				    "status & control stalled",
 				    stall.stat_ctrl);
@@ -489,14 +483,12 @@ void ia_css_debug_dump_isp_state(void)
 				    stall.vamem1);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "vamem2 stalled",
 				    stall.vamem2);
-#if defined(HAS_ISP_2400_MAMOIADA) || defined(HAS_ISP_2401_MAMOIADA)
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "vamem3 stalled",
 				    stall.vamem3);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "hmem stalled",
 				    stall.hmem);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "pmem stalled",
 				    stall.pmem);
-#endif
 	}
 	return;
 }
@@ -509,7 +501,6 @@ void ia_css_debug_dump_sp_state(void)
 	sp_get_state(SP0_ID, &state, &stall);
 	debug_print_sp_state(&state, "SP");
 	if (state.is_stalling) {
-#if defined(HAS_SP_2400) || defined(IS_ISP_2500_SYSTEM)
 #if !defined(HAS_NO_INPUT_SYSTEM)
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "isys_FIFO stalled",
 				    stall.fifo0);
@@ -540,9 +531,6 @@ void ia_css_debug_dump_sp_state(void)
 #endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "irq FIFO stalled",
 				    stall.fifoa);
-#else
-#error "ia_css_debug: SP cell must be one of {SP2400, SP2500}"
-#endif
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n", "dmem stalled",
 				    stall.dmem);
 		ia_css_debug_dtrace(2, "\t%-32s: %d\n",
@@ -2231,7 +2219,7 @@ void ia_css_debug_dump_debug_info(const char *context)
 	ia_css_debug_dump_isys_state();
 
 	{
-		irq_controller_state_t state;
+		struct irq_controller_state state;
 
 		irq_controller_get_state(IRQ2_ID, &state);
 
@@ -2492,8 +2480,8 @@ void ia_css_debug_dump_perf_counters(void)
 
 void sh_css_init_ddr_debug_queue(void)
 {
-	hrt_vaddress ddr_debug_queue_addr =
-			mmgr_malloc(sizeof(debug_data_ddr_t));
+	ia_css_ptr ddr_debug_queue_addr =
+			hmm_alloc(sizeof(debug_data_ddr_t), HMM_BO_PRIVATE, 0, NULL, 0);
 	const struct ia_css_fw_info *fw;
 	unsigned int HIVE_ADDR_debug_buffer_ddr_address;
 
@@ -2665,7 +2653,7 @@ void sh_css_dump_pipe_stripe_info(void)
 
 static void
 ia_css_debug_pipe_graph_dump_frame(
-    struct ia_css_frame *frame,
+    const struct ia_css_frame *frame,
     enum ia_css_pipe_id id,
     char const *blob_name,
     char const *frame_name,
@@ -2782,8 +2770,9 @@ ia_css_debug_pipe_graph_dump_stage(
 				 stage->binary->info->blob->name, stage->stage_num);
 	} else if (stage->firmware) {
 		bin_type = "firmware";
-		strncpy_s(blob_name, sizeof(blob_name),
-			  IA_CSS_EXT_ISP_PROG_NAME(stage->firmware), sizeof(blob_name));
+
+		strscpy(blob_name, IA_CSS_EXT_ISP_PROG_NAME(stage->firmware),
+			sizeof(blob_name));
 	}
 
 	/* Guard in case of binaries that don't have any binary_info */
@@ -2849,10 +2838,8 @@ ia_css_debug_pipe_graph_dump_stage(
 				while (ei[p] != ',')
 					p--;
 				/* Last comma found, copy till that comma */
-				strncpy_s(enable_info1,
-					  sizeof(enable_info1),
-					  ei, p);
-				enable_info1[p] = '\0';
+				strscpy(enable_info1, ei,
+                                        p > sizeof(enable_info1) ? sizeof(enable_info1) : p);
 
 				ei += p + 1;
 				l = strlen(ei);
@@ -2862,10 +2849,10 @@ ia_css_debug_pipe_graph_dump_stage(
 					/* we cannot use ei as argument because
 					 * it is not guaranteed dword aligned
 					 */
-					strncpy_s(enable_info2,
-						  sizeof(enable_info2),
-						  ei, l);
-					enable_info2[l] = '\0';
+
+					strscpy(enable_info2, ei,
+						l > sizeof(enable_info2) ? sizeof(enable_info2) : l);
+
 					snprintf(enable_info, sizeof(enable_info), "%s\\n%s",
 						 enable_info1, enable_info2);
 
@@ -2874,10 +2861,10 @@ ia_css_debug_pipe_graph_dump_stage(
 					p = ENABLE_LINE_MAX_LENGTH;
 					while (ei[p] != ',')
 						p--;
-					strncpy_s(enable_info2,
-						  sizeof(enable_info2),
-						  ei, p);
-					enable_info2[p] = '\0';
+
+					strscpy(enable_info2, ei,
+						p > sizeof(enable_info2) ? sizeof(enable_info2) : p);
+
 					ei += p + 1;
 					l = strlen(ei);
 
@@ -2886,9 +2873,8 @@ ia_css_debug_pipe_graph_dump_stage(
 						/* we cannot use ei as argument because
 						* it is not guaranteed dword aligned
 						*/
-						strcpy_s(enable_info3,
-							 sizeof(enable_info3), ei);
-						enable_info3[l] = '\0';
+						strscpy(enable_info3, ei,
+							sizeof(enable_info3));
 						snprintf(enable_info, sizeof(enable_info),
 							 "%s\\n%s\\n%s",
 							 enable_info1, enable_info2,
@@ -2898,13 +2884,11 @@ ia_css_debug_pipe_graph_dump_stage(
 						p = ENABLE_LINE_MAX_LENGTH;
 						while (ei[p] != ',')
 							p--;
-						strncpy_s(enable_info3,
-							  sizeof(enable_info3),
-							  ei, p);
-						enable_info3[p] = '\0';
+						strscpy(enable_info3, ei,
+							p > sizeof(enable_info3) ? sizeof(enable_info3) : p);
 						ei += p + 1;
-						strcpy_s(enable_info3,
-							 sizeof(enable_info3), ei);
+						strscpy(enable_info3, ei,
+							sizeof(enable_info3));
 						snprintf(enable_info, sizeof(enable_info),
 							 "%s\\n%s\\n%s",
 							 enable_info1, enable_info2,
@@ -3100,7 +3084,7 @@ ia_css_debug_dump_pipe_config(
 				     "capt_pp_in_res");
 	ia_css_debug_dump_resolution(&config->vf_pp_in_res, "vf_pp_in_res");
 
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		ia_css_debug_dump_resolution(&config->output_system_in_res,
 					    "output_system_in_res");
 	}
@@ -3328,7 +3312,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		return;
 	}
 
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		tmp = ia_css_device_load_uint32(start_addr);
 		point_num = (tmp >> 16) & 0xFFFF;
 
@@ -3362,7 +3346,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 		if ((limit == (-1)) && (trace_read_buf[i] == 0))
 			limit = i;
 	}
-	if (atomisp_hw_is_isp2401) {
+	if (IS_ISP2401) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "Status:\n");
 		for (i = 0; i < SH_CSS_MAX_SP_THREADS; i++)
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -3395,7 +3379,7 @@ static void debug_dump_one_trace(enum TRACE_CORE_ID proc_id)
 	for (i = 0; i < point_num; i++) {
 		j = (limit + i) % point_num;
 		if (trace_read_buf[j]) {
-			if (!atomisp_hw_is_isp2401) {
+			if (!IS_ISP2401) {
 				TRACE_DUMP_FORMAT dump_format = FIELD_FORMAT_UNPACK(trace_read_buf[j]);
 			} else {
 				tid_val = FIELD_TID_UNPACK(trace_read_buf[j]);

@@ -46,7 +46,7 @@ int __init kasan_init_region(void *start, size_t size)
 	kasan_update_early_region(k_start, k_cur, __pte(0));
 
 	for (; k_cur < k_end; k_cur += PAGE_SIZE) {
-		pmd_t *pmd = pmd_ptr_k(k_cur);
+		pmd_t *pmd = pmd_off_k(k_cur);
 		void *va = block + k_cur - k_start;
 		pte_t pte = pfn_pte(PHYS_PFN(__pa(va)), PAGE_KERNEL);
 

@@ -10,7 +10,6 @@
 #include <linux/mm.h>
 
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 #include <asm/mmu.h>
 #include <asm/tlb.h>
@@ -238,7 +237,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * to hugepage, we first clear the pmd, then invalidate all
 	 * the PTE entries. The assumption here is that any low level
 	 * page fault will see a none pmd and take the slow path that
-	 * will wait on mmap_sem. But we could very well be in a
+	 * will wait on mmap_lock. But we could very well be in a
 	 * hash_page with local ptep pointer value. Such a hash page
 	 * can result in adding new HPTE entries for normal subpages.
 	 * That means we could be modifying the page content as we
@@ -252,7 +251,7 @@ pmd_t hash__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addres
 	 * Now invalidate the hpte entries in the range
 	 * covered by pmd. This make sure we take a
 	 * fault and will find the pmd as none, which will
-	 * result in a major fault which takes mmap_sem and
+	 * result in a major fault which takes mmap_lock and
 	 * hence wait for collapse to complete. Without this
 	 * the __collapse_huge_page_copy can result in copying
 	 * the old content.

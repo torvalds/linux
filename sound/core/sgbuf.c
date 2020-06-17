@@ -9,7 +9,6 @@
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
-#include <asm/pgtable.h>
 #include <sound/memalloc.h>
 
 

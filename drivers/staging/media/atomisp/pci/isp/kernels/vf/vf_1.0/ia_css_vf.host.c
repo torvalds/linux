@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -49,7 +50,7 @@ ia_css_vf_config(
  * to the requested viewfinder resolution on the upper side. The output cannot
  * be smaller than the requested viewfinder resolution.
  */
-enum ia_css_err
+int
 sh_css_vf_downscale_log2(
     const struct ia_css_frame_info *out_info,
     const struct ia_css_frame_info *vf_info,
@@ -58,12 +59,12 @@ sh_css_vf_downscale_log2(
 	unsigned int out_width;
 
 	if ((!out_info) | (!vf_info))
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	out_width = out_info->res.width;
 
 	if (out_width == 0)
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 
 	/* downscale until width smaller than the viewfinder width. We don't
 	* test for the height since the vmem buffers only put restrictions on
@@ -79,26 +80,26 @@ sh_css_vf_downscale_log2(
 		ds_log2--;
 	/* TODO: use actual max input resolution of vf_pp binary */
 	if ((out_info->res.width >> ds_log2) >= 2 * ia_css_binary_max_vf_width())
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	*downscale_log2 = ds_log2;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-static enum ia_css_err
+static int
 configure_kernel(
     const struct ia_css_binary_info *info,
     const struct ia_css_frame_info *out_info,
     const struct ia_css_frame_info *vf_info,
     unsigned int *downscale_log2,
     struct ia_css_vf_configuration *config) {
-	enum ia_css_err err;
+	int err;
 	unsigned int vf_log_ds = 0;
 
 	/* First compute value */
 	if (vf_info)
 	{
 		err = sh_css_vf_downscale_log2(out_info, vf_info, &vf_log_ds);
-		if (err != IA_CSS_SUCCESS)
+		if (err)
 			return err;
 	}
 	vf_log_ds = min(vf_log_ds, info->vf_dec.max_log_downscale);
@@ -106,7 +107,7 @@ configure_kernel(
 
 	/* Then store it in isp config section */
 	config->vf_downscale_bits = vf_log_ds;
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
 static void
@@ -117,13 +118,13 @@ configure_dma(
 	config->info = vf_info;
 }
 
-enum ia_css_err
+int
 ia_css_vf_configure(
     const struct ia_css_binary *binary,
     const struct ia_css_frame_info *out_info,
     struct ia_css_frame_info *vf_info,
     unsigned int *downscale_log2) {
-	enum ia_css_err err;
+	int err;
 	struct ia_css_vf_configuration config;
 	const struct ia_css_binary_info *info = &binary->info->sp;
 
@@ -134,5 +135,5 @@ ia_css_vf_configure(
 		vf_info->raw_bit_depth = info->dma.vfdec_bits_per_pixel;
 	ia_css_configure_vf(binary, &config);
 
-	return IA_CSS_SUCCESS;
+	return 0;
 }

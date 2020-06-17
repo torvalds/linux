@@ -701,7 +701,9 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 					cifs_sb_target->local_nls); */
 
 	if (rc == 0) {
-		if (pTcon->unix_ext)
+		if (pTcon->posix_extensions)
+			rc = smb311_posix_get_inode_info(&newinode, full_path, inode->i_sb, xid);
+		else if (pTcon->unix_ext)
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						      inode->i_sb, xid);
 		else

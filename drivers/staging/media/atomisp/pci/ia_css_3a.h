@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -106,7 +107,7 @@ struct ia_css_isp_3a_statistics_map {
  * used.
  * Always use this function, never copy the buffer directly.
  */
-enum ia_css_err
+int
 ia_css_get_3a_statistics(struct ia_css_3a_statistics           *host_stats,
 			 const struct ia_css_isp_3a_statistics *isp_stats);
 

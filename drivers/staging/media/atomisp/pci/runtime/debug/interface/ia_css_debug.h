@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -44,8 +45,9 @@
 #define IA_CSS_DEBUG_PARAM   8
 /*! Level for tracing info messages */
 #define IA_CSS_DEBUG_INFO    9
+
 /* Global variable which controls the verbosity levels of the debug tracing */
-extern unsigned int ia_css_debug_trace_level;
+extern int dbg_level;
 
 /*! @brief Enum defining the different isp parameters to dump.
  *  Values can be combined to dump a combination of sets.
@@ -90,7 +92,7 @@ enum ia_css_debug_enable_param_dump {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, \
 		"%s(): leave: " fmt "\n", __func__, ##__VA_ARGS__)
 
-/* Shorthand for returning an enum ia_css_err return value */
+/* Shorthand for returning an int return value */
 #define IA_CSS_LEAVE_ERR(__err) \
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, \
 		"%s() %d: leave: return_err=%d\n", __func__, __LINE__, __err)
@@ -111,7 +113,7 @@ enum ia_css_debug_enable_param_dump {
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, \
 		"%s(): leave: " fmt "\n", __func__, ##__VA_ARGS__)
 
-/* Shorthand for returning an enum ia_css_err return value */
+/* Shorthand for returning an int return value */
 #define IA_CSS_LEAVE_ERR_PRIVATE(__err) \
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE, \
 		"%s() %d: leave: return_err=%d\n", __func__, __LINE__, __err)
@@ -130,7 +132,7 @@ enum ia_css_debug_enable_param_dump {
 static inline void
 ia_css_debug_vdtrace(unsigned int level, const char *fmt, va_list args)
 {
-	if (ia_css_debug_trace_level >= level)
+	if (dbg_level >= level)
 		sh_css_vprint(fmt, args);
 }
 

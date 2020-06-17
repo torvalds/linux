@@ -186,7 +186,7 @@ typedef struct {
 
 #define INVALID_MMIO_REG _MMIO(0)
 
-static inline u32 i915_mmio_reg_offset(i915_reg_t reg)
+static __always_inline u32 i915_mmio_reg_offset(i915_reg_t reg)
 {
 	return reg.reg;
 }

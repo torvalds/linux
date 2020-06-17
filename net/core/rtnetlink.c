@@ -2462,7 +2462,6 @@ static int do_set_master(struct net_device *dev, int ifindex,
 			err = ops->ndo_del_slave(upper_dev, dev);
 			if (err)
 				return err;
-			netdev_update_lockdep_key(dev);
 		} else {
 			return -EOPNOTSUPP;
 		}

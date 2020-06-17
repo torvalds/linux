@@ -264,7 +264,7 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 #if defined(CONFIG_PPC_8xx)
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
 {
-	pmd_t *pmd = pmd_ptr(mm, addr);
+	pmd_t *pmd = pmd_off(mm, addr);
 	pte_basic_t val;
 	pte_basic_t *entry = &ptep->pte;
 	int num = is_hugepd(*((hugepd_t *)pmd)) ? 1 : SZ_512K / SZ_4K;
@@ -306,7 +306,7 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	pmd = pmd_offset(pud, addr);
 	/*
 	 * khugepaged to collapse normal pages to hugepage, first set
-	 * pmd to none to force page fault/gup to take mmap_sem. After
+	 * pmd to none to force page fault/gup to take mmap_lock. After
 	 * pmd is set to none, we do a pte_clear which does this assertion
 	 * so if we find pmd none, return.
 	 */

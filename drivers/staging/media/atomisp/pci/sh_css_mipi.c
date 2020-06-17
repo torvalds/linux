@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Support for Intel Camera Imaging ISP subsystem.
  * Copyright (c) 2015, Intel Corporation.
@@ -34,10 +35,10 @@ static u32
 ref_count_mipi_allocation[N_CSI_PORTS]; /* Initialized in mipi_init */
 #endif
 
-enum ia_css_err
+int
 ia_css_mipi_frame_specify(const unsigned int size_mem_words,
 			  const bool contiguous) {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	my_css.size_mem_words = size_mem_words;
 	(void)contiguous;
@@ -97,14 +98,14 @@ static bool ia_css_mipi_is_source_port_valid(struct ia_css_pipe *pipe,
  *  etc.).
  * Result is given in DDR mem words, 32B or 256 bits
  */
-enum ia_css_err
+int
 ia_css_mipi_frame_calculate_size(const unsigned int width,
 				 const unsigned int height,
 				 const enum atomisp_input_format format,
 				 const bool hasSOLandEOL,
 				 const unsigned int embedded_data_size_words,
 				 unsigned int *size_mem_words) {
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	unsigned int bits_per_pixel = 0;
 	unsigned int even_line_bytes = 0;
@@ -182,7 +183,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	case ATOMISP_INPUT_FORMAT_YUV422_16:		/* Not supported */
 	case ATOMISP_INPUT_FORMAT_RAW_16:		/* TODO: not specified in MIPI SPEC, check */
 	default:
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 
 	odd_line_bytes = (width_padded * bits_per_pixel + 7) >> 3; /* ceil ( bits per line / 8) */
@@ -246,12 +247,12 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 }
 
 #if !defined(HAS_NO_INPUT_SYSTEM) && defined(USE_INPUT_SYSTEM_VERSION_2)
-enum ia_css_err
+int
 ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 				       const unsigned int	size_mem_words) {
 	u32 idx;
 
-	enum ia_css_err err = IA_CSS_ERR_RESOURCE_NOT_AVAILABLE;
+	int err = -EBUSY;
 
 	OP___assert(port < N_CSI_PORTS);
 	OP___assert(size_mem_words != 0);
@@ -264,7 +265,7 @@ ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
 	if (idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT)
 	{
 		my_css.mipi_sizes_for_check[port][idx] = size_mem_words;
-		err = IA_CSS_SUCCESS;
+		err = 0;
 	}
 
 	return err;
@@ -282,12 +283,12 @@ mipi_init(void)
 #endif
 }
 
-enum ia_css_err
+int
 calculate_mipi_buff_size(
     struct ia_css_stream_config *stream_cfg,
     unsigned int *size_mem_words) {
 #if !defined(USE_INPUT_SYSTEM_VERSION_2401)
-	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
+	int err = -EINVAL;
 	(void)stream_cfg;
 	(void)size_mem_words;
 #else
@@ -310,7 +311,7 @@ calculate_mipi_buff_size(
 
 	unsigned int mem_words_per_buff_line = 0;
 	unsigned int mem_words_per_buff = 0;
-	enum ia_css_err err = IA_CSS_SUCCESS;
+	int err = 0;
 
 	/**
 	 * zhengjie.lu@intel.com
@@ -354,7 +355,7 @@ calculate_mipi_buff_size(
 	bits_per_pixel =
 	(format == ATOMISP_INPUT_FORMAT_RAW_10 && pack_raw_pixels) ? bits_per_pixel : 16;
 	if (bits_per_pixel == 0)
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 
 	odd_line_bytes = (width_padded * bits_per_pixel + 7) >> 3; /* ceil ( bits per line / 8) */
 
@@ -390,7 +391,7 @@ calculate_mipi_buff_size(
 
 static bool buffers_needed(struct ia_css_pipe *pipe)
 {
-	if (!atomisp_hw_is_isp2401) {
+	if (!IS_ISP2401) {
 		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_BUFFERED_SENSOR)
 			return false;
 		else
@@ -405,11 +406,11 @@ static bool buffers_needed(struct ia_css_pipe *pipe)
 	return true;
 }
 
-enum ia_css_err
+int
 allocate_mipi_frames(struct ia_css_pipe *pipe,
 		     struct ia_css_stream_info *info) {
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
+	int err = -EINVAL;
 	unsigned int port;
 	struct ia_css_frame_info mipi_intermediate_info;
 
@@ -423,7 +424,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: pipe or stream is null.\n",
 				    pipe);
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
@@ -432,7 +433,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: no buffers needed for 2401 pipe mode.\n",
 				    pipe);
-		return IA_CSS_SUCCESS;
+		return 0;
 	}
 
 #endif
@@ -441,10 +442,10 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: no buffers needed for pipe mode.\n",
 				    pipe);
-		return IA_CSS_SUCCESS; /* AM TODO: Check  */
+		return 0; /* AM TODO: Check  */
 	}
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		port = (unsigned int)pipe->stream->config.source.port.port;
 	else
 		err = ia_css_mipi_is_source_port_valid(pipe, &port);
@@ -455,7 +456,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: error: port is not correct (port=%d).\n",
 				    pipe, port);
-		return IA_CSS_ERR_INTERNAL_ERROR;
+		return -EINVAL;
 	}
 
 #ifdef USE_INPUT_SYSTEM_VERSION_2401
@@ -470,7 +471,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) exit: already allocated for this port (port=%d).\n",
 				    pipe, port);
-		return IA_CSS_SUCCESS;
+		return 0;
 	}
 #else
 	/* 2401 system allows multiple streams to use same physical port. This is not
@@ -484,7 +485,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 				    "allocate_mipi_frames(%p) leave: nothing to do, already allocated for this port (port=%d).\n",
 				    pipe, port);
-		return IA_CSS_SUCCESS;
+		return 0;
 	}
 #endif
 
@@ -522,7 +523,7 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 					  &my_css.mipi_frames[port][i],
 					  my_css.mipi_frame_size[port] * HIVE_ISP_DDR_WORD_BYTES,
 					  false);
-				if (err != IA_CSS_SUCCESS) {
+				if (err) {
 					for (j = 0; j < i; j++) {
 						if (my_css.mipi_frames[port][j]) {
 							ia_css_frame_free(my_css.mipi_frames[port][j]);
@@ -562,14 +563,14 @@ allocate_mipi_frames(struct ia_css_pipe *pipe,
 #else
 	(void)pipe;
 	(void)info;
-	return IA_CSS_SUCCESS;
+	return 0;
 #endif
 }
 
-enum ia_css_err
+int
 free_mipi_frames(struct ia_css_pipe *pipe) {
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
+	int err = -EINVAL;
 	unsigned int port;
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
@@ -583,7 +584,7 @@ free_mipi_frames(struct ia_css_pipe *pipe) {
 			ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 					    "free_mipi_frames(%p) exit: error: pipe or stream is null.\n",
 					    pipe);
-			return IA_CSS_ERR_INVALID_ARGUMENTS;
+			return -EINVAL;
 		}
 
 		if (!buffers_needed(pipe)) {
@@ -593,7 +594,7 @@ free_mipi_frames(struct ia_css_pipe *pipe) {
 			return err;
 		}
 
-		if (!atomisp_hw_is_isp2401)
+		if (!IS_ISP2401)
 			port = (unsigned int)pipe->stream->config.source.port.port;
 		else
 			err = ia_css_mipi_is_source_port_valid(pipe, &port);
@@ -677,13 +678,13 @@ free_mipi_frames(struct ia_css_pipe *pipe) {
 #else
 	(void)pipe;
 #endif
-	return IA_CSS_SUCCESS;
+	return 0;
 }
 
-enum ia_css_err
+int
 send_mipi_frames(struct ia_css_pipe *pipe) {
 #if defined(USE_INPUT_SYSTEM_VERSION_2) || defined(USE_INPUT_SYSTEM_VERSION_2401)
-	enum ia_css_err err = IA_CSS_ERR_INTERNAL_ERROR;
+	int err = -EINVAL;
 	unsigned int i;
 #ifndef ISP2401
 	unsigned int port;
@@ -698,18 +699,18 @@ send_mipi_frames(struct ia_css_pipe *pipe) {
 	if (!pipe || !pipe->stream)
 	{
 		IA_CSS_ERROR("pipe or stream is null");
-		return IA_CSS_ERR_INVALID_ARGUMENTS;
+		return -EINVAL;
 	}
 
 	/* multi stream video needs mipi buffers */
 	/* nothing to be done in other cases. */
 	if (!buffers_needed(pipe)) {
 		IA_CSS_LOG("nothing to be done for this mode");
-		return IA_CSS_SUCCESS;
+		return 0;
 		/* TODO: AM: maybe this should be returning an error. */
 	}
 
-	if (!atomisp_hw_is_isp2401)
+	if (!IS_ISP2401)
 		port = (unsigned int)pipe->stream->config.source.port.port;
 	else
 		err = ia_css_mipi_is_source_port_valid(pipe, &port);
@@ -749,9 +750,9 @@ send_mipi_frames(struct ia_css_pipe *pipe) {
 	    (uint8_t)port,
 	    (uint8_t)my_css.num_mipi_frames[port],
 	    0 /* not used */);
-	IA_CSS_LEAVE_ERR_PRIVATE(IA_CSS_SUCCESS);
+	IA_CSS_LEAVE_ERR_PRIVATE(0);
 #else
 	(void)pipe;
 #endif
-	return IA_CSS_SUCCESS;
+	return 0;
 }

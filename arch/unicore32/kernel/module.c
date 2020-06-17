@@ -16,7 +16,6 @@
 #include <linux/string.h>
 #include <linux/gfp.h>
 
-#include <asm/pgtable.h>
 #include <asm/sections.h>
 
 void *module_alloc(unsigned long size)

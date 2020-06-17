@@ -162,7 +162,7 @@ static int __init test_sysctl_init(void)
 	}
 	return 0;
 }
-late_initcall(test_sysctl_init);
+module_init(test_sysctl_init);
 
 static void __exit test_sysctl_exit(void)
 {

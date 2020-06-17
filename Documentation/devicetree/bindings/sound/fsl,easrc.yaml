@@ -45,23 +45,20 @@ properties:
       - const: ctx3_tx
 
   firmware-name:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/string
-      - const: imx/easrc/easrc-imx8mn.bin
+    $ref: /schemas/types.yaml#/definitions/string
+    const: imx/easrc/easrc-imx8mn.bin
     description: The coefficient table for the filters
 
   fsl,asrc-rate:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - minimum: 8000
-      - maximum: 192000
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 8000
+    maximum: 192000
     description: Defines a mutual sample rate used by DPCM Back Ends
 
   fsl,asrc-format:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [2, 6, 10, 32, 36]
-        default: 2
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [2, 6, 10, 32, 36]
+    default: 2
     description:
       Defines a mutual sample format used by DPCM Back Ends
 
@@ -83,7 +80,7 @@ examples:
 
     easrc: easrc@300c0000 {
            compatible = "fsl,imx8mn-easrc";
-           reg = <0x0 0x300c0000 0x0 0x10000>;
+           reg = <0x300c0000 0x10000>;
            interrupts = <0x0 122 0x4>;
            clocks = <&clk IMX8MN_CLK_ASRC_ROOT>;
            clock-names = "mem";

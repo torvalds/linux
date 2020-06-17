@@ -27,7 +27,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
-#include <asm/pgtable.h>
 
 #include "hardware.h"
 #include "irqs.h"

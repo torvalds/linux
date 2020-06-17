@@ -76,13 +76,12 @@ properties:
        PDMIN3 - PDMCLK latching edge used for channel 5 and 6 data
        PDMIN4 - PDMCLK latching edge used for channel 7 and 8 data
 
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 4
-        items:
-          maximum: 1
-        default: [0, 0, 0, 0]
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 1
+    default: [0, 0, 0, 0]
 
   ti,gpi-config:
     description: |
@@ -102,13 +101,12 @@ properties:
        7 - GPIX is configured as a PDM data input for channel 7 and channel
             (PDMDIN4)
 
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32-array
-      - minItems: 1
-        maxItems: 4
-        items:
-          maximum: 7
-        default: [0, 0, 0, 0]
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 4
+    items:
+      maximum: 7
+    default: [0, 0, 0, 0]
 
 required:
   - compatible

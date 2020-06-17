@@ -588,7 +588,7 @@ config KEXEC_JUMP
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if (EXPERT || CRASH_DUMP)
 	default MEMORY_START
-	---help---
+	help
 	  This gives the physical address where the kernel is loaded
 	  and is ordinarily the same as MEMORY_START.
 
@@ -615,7 +615,7 @@ config SECCOMP
 config SMP
 	bool "Symmetric multi-processing support"
 	depends on SYS_SUPPORTS_SMP
-	---help---
+	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, say N. If you have a system with more
 	  than one CPU, say Y.
