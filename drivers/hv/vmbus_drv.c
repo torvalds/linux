@@ -226,7 +226,7 @@ static ssize_t numa_node_show(struct device *dev,
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", hv_dev->channel->numa_node);
+	return sprintf(buf, "%d\n", cpu_to_node(hv_dev->channel->target_cpu));
 }
 static DEVICE_ATTR_RO(numa_node);
 #endif
@@ -1778,7 +1778,6 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	 */
 
 	channel->target_cpu = target_cpu;
-	channel->numa_node = cpu_to_node(target_cpu);
 
 	/* See init_vp_index(). */
 	if (hv_is_perf_channel(channel))

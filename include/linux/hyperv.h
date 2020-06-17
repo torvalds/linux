@@ -812,7 +812,6 @@ struct vmbus_channel {
 	 * the earlier behavior.
 	 */
 	u32 target_cpu;
-	int numa_node;
 	/*
 	 * Support for sub-channels. For high performance devices,
 	 * it will be useful to have multiple sub-channels to support

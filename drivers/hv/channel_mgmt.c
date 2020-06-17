@@ -702,7 +702,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 		 * In case alloc_cpumask_var() fails, bind it to
 		 * VMBUS_CONNECT_CPU.
 		 */
-		channel->numa_node = cpu_to_node(VMBUS_CONNECT_CPU);
 		channel->target_cpu = VMBUS_CONNECT_CPU;
 		if (perf_chn)
 			hv_set_alloced_cpu(VMBUS_CONNECT_CPU);
@@ -719,7 +718,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 			continue;
 		break;
 	}
-	channel->numa_node = numa_node;
 	alloced_mask = &hv_context.hv_numa_map[numa_node];
 
 	if (cpumask_weight(alloced_mask) ==
