@@ -256,7 +256,7 @@ static int cpcap_regulator_set_mode(struct regulator_dev *rdev,
 				  CPCAP_BIT_AUDIO_LOW_PWR, value);
 }
 
-static struct regulator_ops cpcap_regulator_ops = {
+static const struct regulator_ops cpcap_regulator_ops = {
 	.enable = cpcap_regulator_enable,
 	.disable = cpcap_regulator_disable,
 	.is_enabled = regulator_is_enabled_regmap,
