@@ -2376,7 +2376,7 @@ int policydb_read(struct policydb *p, void *fp)
 	struct role_trans_datum *rtd = NULL;
 	int i, j, rc;
 	__le32 buf[4];
-	u32 len, nprim, nel;
+	u32 len, nprim, nel, perm;
 
 	char *policydb_str;
 	struct policydb_compat_info *info;
@@ -2519,8 +2519,10 @@ int policydb_read(struct policydb *p, void *fp)
 
 	rc = -EINVAL;
 	p->process_class = string_to_security_class(p, "process");
-	if (!p->process_class)
+	if (!p->process_class) {
+		pr_err("SELinux: process class is required, not defined in policy\n");
 		goto bad;
+	}
 
 	rc = avtab_read(&p->te_avtab, fp, p);
 	if (rc)
@@ -2618,10 +2620,18 @@ int policydb_read(struct policydb *p, void *fp)
 		goto bad;
 
 	rc = -EINVAL;
-	p->process_trans_perms = string_to_av_perm(p, p->process_class, "transition");
-	p->process_trans_perms |= string_to_av_perm(p, p->process_class, "dyntransition");
-	if (!p->process_trans_perms)
+	perm = string_to_av_perm(p, p->process_class, "transition");
+	if (!perm) {
+		pr_err("SELinux: process transition permission is required, not defined in policy\n");
 		goto bad;
+	}
+	p->process_trans_perms = perm;
+	perm = string_to_av_perm(p, p->process_class, "dyntransition");
+	if (!perm) {
+		pr_err("SELinux: process dyntransition permission is required, not defined in policy\n");
+		goto bad;
+	}
+	p->process_trans_perms |= perm;
 
 	rc = ocontext_read(p, info, fp);
 	if (rc)
