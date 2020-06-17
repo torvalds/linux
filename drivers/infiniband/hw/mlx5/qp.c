@@ -2341,18 +2341,18 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	unsigned long flags;
 	int err;
 
-	if (qp->ibqp.rwq_ind_tbl) {
+	if (qp->is_rss) {
 		destroy_rss_raw_qp_tir(dev, qp);
 		return;
 	}
 
-	base = (qp->ibqp.qp_type == IB_QPT_RAW_PACKET ||
+	base = (qp->type == IB_QPT_RAW_PACKET ||
 		qp->flags & IB_QP_CREATE_SOURCE_QPN) ?
-	       &qp->raw_packet_qp.rq.base :
-	       &qp->trans_qp.base;
+		       &qp->raw_packet_qp.rq.base :
+		       &qp->trans_qp.base;
 
 	if (qp->state != IB_QPS_RESET) {
-		if (qp->ibqp.qp_type != IB_QPT_RAW_PACKET &&
+		if (qp->type != IB_QPT_RAW_PACKET &&
 		    !(qp->flags & IB_QP_CREATE_SOURCE_QPN)) {
 			err = mlx5_core_qp_modify(dev, MLX5_CMD_OP_2RST_QP, 0,
 						  NULL, &base->mqp, NULL);
@@ -2368,8 +2368,8 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 				     base->mqp.qpn);
 	}
 
-	get_cqs(qp->ibqp.qp_type, qp->ibqp.send_cq, qp->ibqp.recv_cq,
-		&send_cq, &recv_cq);
+	get_cqs(qp->type, qp->ibqp.send_cq, qp->ibqp.recv_cq, &send_cq,
+		&recv_cq);
 
 	spin_lock_irqsave(&dev->reset_flow_resource_lock, flags);
 	mlx5_ib_lock_cqs(send_cq, recv_cq);
@@ -2391,7 +2391,7 @@ static void destroy_qp_common(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	mlx5_ib_unlock_cqs(send_cq, recv_cq);
 	spin_unlock_irqrestore(&dev->reset_flow_resource_lock, flags);
 
-	if (qp->ibqp.qp_type == IB_QPT_RAW_PACKET ||
+	if (qp->type == IB_QPT_RAW_PACKET ||
 	    qp->flags & IB_QP_CREATE_SOURCE_QPN) {
 		destroy_raw_packet_qp(dev, qp);
 	} else {
@@ -3002,10 +3002,18 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attr,
 	return &qp->ibqp;
 
 destroy_qp:
-	if (qp->type == MLX5_IB_QPT_DCT)
+	if (qp->type == MLX5_IB_QPT_DCT) {
 		mlx5_ib_destroy_dct(qp);
-	else
+	} else {
+		/*
+		 * The two lines below are temp solution till QP allocation
+		 * will be moved to be under IB/core responsiblity.
+		 */
+		qp->ibqp.send_cq = attr->send_cq;
+		qp->ibqp.recv_cq = attr->recv_cq;
 		destroy_qp_common(dev, qp, udata);
+	}
+
 	qp = NULL;
 free_qp:
 	kfree(qp);
