@@ -1679,19 +1679,17 @@ static int add_default_attributes(void)
 		if (target__has_cpu(&target))
 			default_attrs0[0].config = PERF_COUNT_SW_CPU_CLOCK;
 
-		if (perf_evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
+		if (evlist__add_default_attrs(evsel_list, default_attrs0) < 0)
 			return -1;
 		if (pmu_have_event("cpu", "stalled-cycles-frontend")) {
-			if (perf_evlist__add_default_attrs(evsel_list,
-						frontend_attrs) < 0)
+			if (evlist__add_default_attrs(evsel_list, frontend_attrs) < 0)
 				return -1;
 		}
 		if (pmu_have_event("cpu", "stalled-cycles-backend")) {
-			if (perf_evlist__add_default_attrs(evsel_list,
-						backend_attrs) < 0)
+			if (evlist__add_default_attrs(evsel_list, backend_attrs) < 0)
 				return -1;
 		}
-		if (perf_evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
+		if (evlist__add_default_attrs(evsel_list, default_attrs1) < 0)
 			return -1;
 	}
 
@@ -1701,21 +1699,21 @@ static int add_default_attributes(void)
 		return 0;
 
 	/* Append detailed run extra attributes: */
-	if (perf_evlist__add_default_attrs(evsel_list, detailed_attrs) < 0)
+	if (evlist__add_default_attrs(evsel_list, detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 2)
 		return 0;
 
 	/* Append very detailed run extra attributes: */
-	if (perf_evlist__add_default_attrs(evsel_list, very_detailed_attrs) < 0)
+	if (evlist__add_default_attrs(evsel_list, very_detailed_attrs) < 0)
 		return -1;
 
 	if (detailed_run < 3)
 		return 0;
 
 	/* Append very, very detailed run extra attributes: */
-	return perf_evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
+	return evlist__add_default_attrs(evsel_list, very_very_detailed_attrs);
 }
 
 static const char * const stat_record_usage[] = {

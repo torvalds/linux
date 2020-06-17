@@ -92,20 +92,20 @@ void evlist__delete(struct evlist *evlist);
 void evlist__add(struct evlist *evlist, struct evsel *entry);
 void evlist__remove(struct evlist *evlist, struct evsel *evsel);
 
-int __perf_evlist__add_default(struct evlist *evlist, bool precise);
+int __evlist__add_default(struct evlist *evlist, bool precise);
 
-static inline int perf_evlist__add_default(struct evlist *evlist)
+static inline int evlist__add_default(struct evlist *evlist)
 {
-	return __perf_evlist__add_default(evlist, true);
+	return __evlist__add_default(evlist, true);
 }
 
-int __perf_evlist__add_default_attrs(struct evlist *evlist,
+int __evlist__add_default_attrs(struct evlist *evlist,
 				     struct perf_event_attr *attrs, size_t nr_attrs);
 
-#define perf_evlist__add_default_attrs(evlist, array) \
-	__perf_evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
+#define evlist__add_default_attrs(evlist, array) \
+	__evlist__add_default_attrs(evlist, array, ARRAY_SIZE(array))
 
-int perf_evlist__add_dummy(struct evlist *evlist);
+int evlist__add_dummy(struct evlist *evlist);
 
 int perf_evlist__add_sb_event(struct evlist *evlist,
 			      struct perf_event_attr *attr,
@@ -116,8 +116,7 @@ int perf_evlist__start_sb_thread(struct evlist *evlist,
 				 struct target *target);
 void perf_evlist__stop_sb_thread(struct evlist *evlist);
 
-int perf_evlist__add_newtp(struct evlist *evlist,
-			   const char *sys, const char *name, void *handler);
+int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler);
 
 int __evlist__set_tracepoints_handlers(struct evlist *evlist,
 				       const struct evsel_str_handler *assocs,

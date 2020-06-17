@@ -852,7 +852,7 @@ static int record__open(struct record *rec)
 	 * event synthesis.
 	 */
 	if (opts->initial_delay || target__has_cpu(&opts->target)) {
-		if (perf_evlist__add_dummy(evlist))
+		if (evlist__add_dummy(evlist))
 			return -ENOMEM;
 
 		/* Disable tracking of mmaps on lead event. */
@@ -2722,7 +2722,7 @@ int cmd_record(int argc, const char **argv)
 		record.opts.tail_synthesize = true;
 
 	if (rec->evlist->core.nr_entries == 0 &&
-	    __perf_evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
+	    __evlist__add_default(rec->evlist, !record.opts.no_samples) < 0) {
 		pr_err("Not enough memory for event selector list\n");
 		goto out;
 	}

@@ -79,7 +79,7 @@ struct evlist *perf_evlist__new_default(void)
 {
 	struct evlist *evlist = evlist__new();
 
-	if (evlist && perf_evlist__add_default(evlist)) {
+	if (evlist && evlist__add_default(evlist)) {
 		evlist__delete(evlist);
 		evlist = NULL;
 	}
@@ -91,7 +91,7 @@ struct evlist *perf_evlist__new_dummy(void)
 {
 	struct evlist *evlist = evlist__new();
 
-	if (evlist && perf_evlist__add_dummy(evlist)) {
+	if (evlist && evlist__add_dummy(evlist)) {
 		evlist__delete(evlist);
 		evlist = NULL;
 	}
@@ -231,7 +231,7 @@ void perf_evlist__set_leader(struct evlist *evlist)
 	}
 }
 
-int __perf_evlist__add_default(struct evlist *evlist, bool precise)
+int __evlist__add_default(struct evlist *evlist, bool precise)
 {
 	struct evsel *evsel = evsel__new_cycles(precise);
 
@@ -242,7 +242,7 @@ int __perf_evlist__add_default(struct evlist *evlist, bool precise)
 	return 0;
 }
 
-int perf_evlist__add_dummy(struct evlist *evlist)
+int evlist__add_dummy(struct evlist *evlist)
 {
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_SOFTWARE,
@@ -258,8 +258,7 @@ int perf_evlist__add_dummy(struct evlist *evlist)
 	return 0;
 }
 
-static int evlist__add_attrs(struct evlist *evlist,
-				  struct perf_event_attr *attrs, size_t nr_attrs)
+static int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
 {
 	struct evsel *evsel, *n;
 	LIST_HEAD(head);
@@ -282,8 +281,7 @@ out_delete_partial_list:
 	return -1;
 }
 
-int __perf_evlist__add_default_attrs(struct evlist *evlist,
-				     struct perf_event_attr *attrs, size_t nr_attrs)
+int __evlist__add_default_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs)
 {
 	size_t i;
 
@@ -322,8 +320,7 @@ perf_evlist__find_tracepoint_by_name(struct evlist *evlist,
 	return NULL;
 }
 
-int perf_evlist__add_newtp(struct evlist *evlist,
-			   const char *sys, const char *name, void *handler)
+int evlist__add_newtp(struct evlist *evlist, const char *sys, const char *name, void *handler)
 {
 	struct evsel *evsel = evsel__newtp(sys, name);
 
