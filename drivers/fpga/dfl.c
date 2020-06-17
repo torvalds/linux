@@ -487,8 +487,7 @@ static int build_info_commit_dev(struct build_feature_devs_info *binfo)
 	 * it will be automatically freed by device's release() callback,
 	 * platform_device_release().
 	 */
-	pdata = kzalloc(dfl_feature_platform_data_size(binfo->feature_num),
-			GFP_KERNEL);
+	pdata = kzalloc(struct_size(pdata, features, binfo->feature_num), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 

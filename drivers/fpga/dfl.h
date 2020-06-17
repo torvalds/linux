@@ -299,12 +299,6 @@ struct dfl_feature_ops {
 #define DFL_FPGA_FEATURE_DEV_FME		"dfl-fme"
 #define DFL_FPGA_FEATURE_DEV_PORT		"dfl-port"
 
-static inline int dfl_feature_platform_data_size(const int num)
-{
-	return sizeof(struct dfl_feature_platform_data) +
-		num * sizeof(struct dfl_feature);
-}
-
 void dfl_fpga_dev_feature_uinit(struct platform_device *pdev);
 int dfl_fpga_dev_feature_init(struct platform_device *pdev,
 			      struct dfl_feature_driver *feature_drvs);
