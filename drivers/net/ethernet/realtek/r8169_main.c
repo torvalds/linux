@@ -5432,8 +5432,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
 			    "ok" : "ko");
 
-	if (r8168_check_dash(tp))
+	if (r8168_check_dash(tp)) {
+		netdev_info(dev, "DASH enabled\n");
 		rtl8168_driver_start(tp);
+	}
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_sync(&pdev->dev);
