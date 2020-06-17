@@ -1568,6 +1568,20 @@ config SENSORS_PECI_CPUPOWER
 	  This driver can also be built as a module. If so, the module
 	  will be called peci-cpupower.
 
+config SENSORS_PECI_DIMMPOWER
+	tristate "PECI DIMM power monitoring support"
+	depends on PECI
+	select MFD_INTEL_PECI_CLIENT
+	help
+	  If you say yes here you get support for the generic Intel PECI
+	  dimmpower driver which provides average engergy readings of the memory
+	  package, current power limit, maximal and minimal power setting using
+	  the PECI Client Command Suite via the processor PECI client.
+	  Check Documentation/hwmon/peci-dimmpower for details.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called peci-dimmpower.
+
 source "drivers/hwmon/pmbus/Kconfig"
 
 config SENSORS_PWM_FAN
