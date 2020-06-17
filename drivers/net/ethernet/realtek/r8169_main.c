@@ -3929,7 +3929,7 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 static void rtl8169_hw_reset(struct rtl8169_private *tp, bool going_down)
 {
 	/* Give a racing hard_start_xmit a few cycles to complete. */
-	synchronize_rcu();
+	synchronize_net();
 
 	/* Disable interrupts */
 	rtl8169_irq_mask_and_ack(tp);
