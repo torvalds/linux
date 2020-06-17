@@ -129,12 +129,8 @@ static int __vmbus_open(struct vmbus_channel *newchannel,
 	send_pages = newchannel->ringbuffer_send_offset;
 	recv_pages = newchannel->ringbuffer_pagecount - send_pages;
 
-	spin_lock_irqsave(&newchannel->lock, flags);
-	if (newchannel->state != CHANNEL_OPEN_STATE) {
-		spin_unlock_irqrestore(&newchannel->lock, flags);
+	if (newchannel->state != CHANNEL_OPEN_STATE)
 		return -EINVAL;
-	}
-	spin_unlock_irqrestore(&newchannel->lock, flags);
 
 	newchannel->state = CHANNEL_OPENING_STATE;
 	newchannel->onchannel_callback = onchannelcallback;
