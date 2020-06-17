@@ -27,6 +27,9 @@ static int cond_evaluate_expr(struct policydb *p, struct cond_expr *expr)
 	int s[COND_EXPR_MAXDEPTH];
 	int sp = -1;
 
+	if (expr->len == 0)
+		return -1;
+
 	for (i = 0; i < expr->len; i++) {
 		struct cond_expr_node *node = &expr->nodes[i];
 
