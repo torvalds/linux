@@ -71,6 +71,18 @@ config GS_MC3230
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config GS_SC7660
+	bool "gsensor sc7660"
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
+config GS_SC7A20
+	bool "gsensor sc7a20"
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
 config GS_SC7A30
 	bool "gsensor sc7a30"
 	help
@@ -118,6 +130,12 @@ config LSM330_ACC
 config BMA2XX_ACC
 	bool "Sensor bma2xx_acc"
 	default n
+	help
+	  To have support for your specific gsesnor you will have to
+	  select the proper drivers which depend on this option.
+
+config GS_DA223
+	bool "gsensor da223"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.

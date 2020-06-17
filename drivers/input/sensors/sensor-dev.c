@@ -2016,6 +2016,8 @@ static const struct i2c_device_id sensor_id[] = {
 	{"gs_mxc6655xa", ACCEL_ID_MXC6655XA},
 	{"gs_dmard10", ACCEL_ID_DMARD10},
 	{"gs_lsm303d", ACCEL_ID_LSM303D},
+	{"gs_sc7660", ACCEL_ID_SC7660},
+	{"gs_sc7a20", ACCEL_ID_SC7A20},
 	{"gs_sc7a30",ACCEL_ID_SC7A30},
 	{"gs_mc3230", ACCEL_ID_MC3230},
 	{"mpu6880_acc", ACCEL_ID_MPU6880},
@@ -2023,6 +2025,7 @@ static const struct i2c_device_id sensor_id[] = {
 	{"lsm330_acc", ACCEL_ID_LSM330},
 	{"bma2xx_acc", ACCEL_ID_BMA2XX},
 	{"gs_stk8baxx", ACCEL_ID_STK8BAXX},
+	{"gs_da223", ACCEL_ID_MIR3DA},
 	/*compass*/
 	{"compass", COMPASS_ID_ALL},
 	{"ak8975", COMPASS_ID_AK8975},
