@@ -410,8 +410,7 @@ static int report__setup_sample_type(struct report *rep)
 	}
 
 	/* ??? handle more cases than just ANY? */
-	if (!(perf_evlist__combined_branch_type(session->evlist) &
-				PERF_SAMPLE_BRANCH_ANY))
+	if (!(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY))
 		rep->nonany_branch_mode = true;
 
 #if !defined(HAVE_LIBUNWIND_SUPPORT) && !defined(HAVE_DWARF_SUPPORT)

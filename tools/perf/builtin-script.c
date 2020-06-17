@@ -443,8 +443,7 @@ static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 		return -EINVAL;
 	}
 	if (PRINT_FIELD(BRSTACKINSN) && !allow_user_set &&
-	    !(perf_evlist__combined_branch_type(session->evlist) &
-	      PERF_SAMPLE_BRANCH_ANY)) {
+	    !(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY)) {
 		pr_err("Display of branch stack assembler requested, but non all-branch filter set\n"
 		       "Hint: run 'perf record -b ...'\n");
 		return -EINVAL;

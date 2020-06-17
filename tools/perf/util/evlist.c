@@ -1123,7 +1123,7 @@ u64 evlist__combined_sample_type(struct evlist *evlist)
 	return __evlist__combined_sample_type(evlist);
 }
 
-u64 perf_evlist__combined_branch_type(struct evlist *evlist)
+u64 evlist__combined_branch_type(struct evlist *evlist)
 {
 	struct evsel *evsel;
 	u64 branch_type = 0;

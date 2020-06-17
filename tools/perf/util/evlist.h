@@ -220,7 +220,7 @@ void perf_evlist__set_leader(struct evlist *evlist);
 
 u64 __evlist__combined_sample_type(struct evlist *evlist);
 u64 evlist__combined_sample_type(struct evlist *evlist);
-u64 perf_evlist__combined_branch_type(struct evlist *evlist);
+u64 evlist__combined_branch_type(struct evlist *evlist);
 bool evlist__sample_id_all(struct evlist *evlist);
 u16 perf_evlist__id_hdr_size(struct evlist *evlist);
 
