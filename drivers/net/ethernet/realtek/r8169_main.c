@@ -4638,6 +4638,8 @@ static void rtl8169_down(struct rtl8169_private *tp)
 
 	phy_stop(tp->phydev);
 
+	rtl8169_update_counters(tp);
+
 	rtl8169_cleanup(tp, true);
 
 	rtl_pll_power_down(tp);
@@ -4651,9 +4653,6 @@ static int rtl8169_close(struct net_device *dev)
 	struct pci_dev *pdev = tp->pci_dev;
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	/* Update counters before going down */
-	rtl8169_update_counters(tp);
 
 	netif_stop_queue(dev);
 	rtl8169_down(tp);
@@ -4874,9 +4873,6 @@ static int rtl8169_runtime_suspend(struct device *device)
 	rtl_unlock_work(tp);
 
 	rtl8169_net_suspend(tp);
-
-	/* Update counters before going runtime suspend */
-	rtl8169_update_counters(tp);
 
 	return 0;
 }
