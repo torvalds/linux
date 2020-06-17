@@ -12,13 +12,16 @@
 #ifndef CCS_PLL_H
 #define CCS_PLL_H
 
+#include <linux/bits.h>
+
 /* CSI-2 or CCP-2 */
 #define CCS_PLL_BUS_TYPE_CSI2_DPHY				0x00
 #define CCS_PLL_BUS_TYPE_CSI2_CPHY				0x01
 
+/* Old SMIA and implementation specific flags */
 /* op pix clock is for all lanes in total normally */
-#define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
-#define CCS_PLL_FLAG_NO_OP_CLOCKS				(1 << 1)
+#define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
+#define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
 
 /**
  * struct ccs_pll_branch_fr - CCS PLL configuration (front)
