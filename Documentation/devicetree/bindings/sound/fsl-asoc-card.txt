@@ -34,6 +34,8 @@ The compatible list for this generic sound card currently:
 
  "fsl,imx-audio-wm8960"
 
+ "fsl,imx-audio-mqs"
+
 Required properties:
 
   - compatible		: Contains one of entries in the compatible list.
@@ -43,6 +45,11 @@ Required properties:
   - audio-cpu		: The phandle of an CPU DAI controller
 
   - audio-codec		: The phandle of an audio codec
+
+Optional properties:
+
+  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
+			  need to add ASRC support via DPCM.
 
   - audio-routing	: A list of the connections between audio components.
 			  Each entry is a pair of strings, the first being the
@@ -59,11 +66,6 @@ Required properties:
 			  Note: The "Mic Jack" and "AMIC" are redundant while
 			        coexisting in order to support the old bindings
 				of wm8962 and sgtl5000.
-
-Optional properties:
-
-  - audio-asrc		: The phandle of ASRC. It can be absent if there's no
-			  need to add ASRC support via DPCM.
 
 Optional unless SSI is selected as a CPU DAI:
 
