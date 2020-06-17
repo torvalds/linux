@@ -9,159 +9,478 @@
 #include <linux/platform_device.h>
 #include "peci-hwmon.h"
 
-#define POWER_DEFAULT_CHANNEL_NUMS   1
+#define PECI_CPUPOWER_CHANNEL_COUNT   1 /* Supported channels number */
+
+#define PECI_CPUPOWER_SENSOR_COUNT 4 /* Supported sensors/readings number */
 
 struct peci_cpupower {
-	struct peci_client_manager *mgr;
 	struct device *dev;
+	struct peci_client_manager *mgr;
 	char name[PECI_NAME_SIZE];
-	const struct cpu_gen_info *gen_info;
-	struct peci_sensor_data energy;
-	long avg_power_val;
-	u64 core_mask;
-	u32 power_config[POWER_DEFAULT_CHANNEL_NUMS + 1];
-	uint config_idx;
+	u32 power_config[PECI_CPUPOWER_CHANNEL_COUNT + 1];
+	u32 config_idx;
 	struct hwmon_channel_info power_info;
 	const struct hwmon_channel_info *info[2];
 	struct hwmon_chip_info chip;
+
+	struct peci_sensor_data
+		sensor_data_list[PECI_CPUPOWER_CHANNEL_COUNT]
+				[PECI_CPUPOWER_SENSOR_COUNT];
+
+	s32 avg_power_val;
+	union peci_pkg_power_sku_unit units;
+	bool units_valid;
+
+	u32 ppl1_time_window;
+	u32 ppl2_time_window;
+	bool ppl_time_windows_valid;
 };
 
-enum cpupower_channels {
-	average_power,
+static const char *peci_cpupower_labels[PECI_CPUPOWER_CHANNEL_COUNT] = {
+	"cpu power",
 };
 
-static const u32 config_table[POWER_DEFAULT_CHANNEL_NUMS] = {
-	/* average power */
-	HWMON_P_LABEL | HWMON_P_AVERAGE,
-};
-
-static const char *cpupower_label[POWER_DEFAULT_CHANNEL_NUMS] = {
-	"Average Power",
-};
-
-static int get_average_power(struct peci_cpupower *priv)
+/**
+ * peci_cpupower_read_cpu_pkg_pwr_info_low - read PCS Platform Power SKU low.
+ * @peci_mgr: PECI client manager handle
+ * @reg: Pointer to the variable read value is going to be put
+ *
+ * Return: 0 if succeeded, other values in case an error.
+ */
+static inline int
+peci_cpupower_read_cpu_pkg_pwr_info_low(struct peci_client_manager *peci_mgr,
+					union peci_package_power_info_low *reg)
 {
-	u8  pkg_cfg[4];
+	return peci_pcs_read(peci_mgr, PECI_MBX_INDEX_TDP,
+			     PECI_PKG_ID_CPU_PACKAGE, &reg->value);
+}
+
+/**
+ * peci_cpupower_read_cpu_pkg_pwr_lim_low - read PCS Package Power Limit Low
+ * @peci_mgr: PECI client manager handle
+ * @reg: Pointer to the variable read value is going to be put
+ *
+ * Return: 0 if succeeded, other values in case an error.
+ */
+static inline int
+peci_cpupower_read_cpu_pkg_pwr_lim_low(struct peci_client_manager *peci_mgr,
+				       union peci_package_power_limit_low *reg)
+{
+	return peci_pcs_read(peci_mgr, PECI_MBX_INDEX_PKG_POWER_LIMIT1,
+			     PECI_PCS_PARAM_ZERO, &reg->value);
+}
+
+static int
+peci_cpupower_get_average_power(void *ctx, struct peci_sensor_conf *sensor_conf,
+				struct peci_sensor_data *sensor_data,
+				s32 *val)
+{
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	u32 energy_cnt;
+	ulong jif;
 	int ret;
 
-	if (!peci_sensor_need_update(&priv->energy))
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		*val = priv->avg_power_val;
+		dev_dbg(priv->dev,
+			"skip reading peci, average power %dmW\n", *val);
 		return 0;
-
-	ret = peci_client_read_package_config(priv->mgr,
-					      PECI_MBX_INDEX_TDP_UNITS,
-					      PECI_PKG_ID_CPU_PACKAGE,
-					      pkg_cfg);
-
-	u32 power_unit = ((le32_to_cpup((__le32 *)pkg_cfg)) & 0x1f00) >> 8;
-
-	dev_dbg(priv->dev, "cpupower units %d  (1J/pow(2, unit))\n",
-		power_unit);
-
-	ret = peci_client_read_package_config(priv->mgr,
-					      PECI_MBX_INDEX_ENERGY_COUNTER,
-					      PECI_PKG_ID_CPU_PACKAGE,
-					      pkg_cfg);
-	if (!ret) {
-		u32 energy_cnt = le32_to_cpup((__le32 *)pkg_cfg);
-		ulong jif = jiffies;
-		ulong elapsed = (jif - priv->energy.last_updated);
-		long power_val = 0;
-		/*
-		 * Don't calculate average power for first counter read or
-		 * counter wrapped around or last counter read was more than
-		 * 60 minutes ago (jiffies did not wrap and power calculation
-		 * does not overflow or underflow
-		 */
-		if (priv->energy.last_updated > 0 &&
-		    energy_cnt > priv->energy.value &&
-		    (elapsed < (HZ * 3600))) {
-			power_val = (long)(energy_cnt - priv->energy.value)
-				/ elapsed * HZ;
-			dev_dbg(priv->dev, "countDiff %d, jiffes elapsed %d, raw powerValue %d scale to %d mW\n",
-				(long)(energy_cnt - priv->energy.value),
-				elapsed, power_val,
-				power_val >> (power_unit - 10));
-		} else {
-			dev_dbg(priv->dev, "countDiff %d, jiffes elapsed %d, skipping calculate power, try agin\n",
-				(long)(energy_cnt - priv->energy.value),
-				elapsed);
-			ret = -EAGAIN;
-		}
-
-		priv->energy.value = energy_cnt;
-		priv->avg_power_val = power_val >> ((power_unit - 10));
-		peci_sensor_mark_updated(&priv->energy);
-
-		dev_dbg(priv->dev, "energy counter 0x%8x, average power %dmW, jif %u, HZ is %d jiffies\n",
-			priv->energy.value, priv->avg_power_val,
-			jif, HZ);
 	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	jif = jiffies;
+	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_ENERGY_COUNTER,
+			    PECI_PKG_ID_CPU_PACKAGE, &energy_cnt);
+
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package energy\n");
+		return ret;
+	}
+
+	ret = peci_pcs_calc_pwr_from_eng(priv->dev, sensor_data, energy_cnt,
+					 priv->units.bits.eng_unit, val);
+
+	priv->avg_power_val = *val;
+	peci_sensor_mark_updated_with_time(sensor_data, jif);
+
+	dev_dbg(priv->dev, "average power %dmW, jif %lu, HZ is %d jiffies\n",
+		*val, jif, HZ);
+
 	return ret;
 }
 
-static int cpupower_read_string(struct device *dev,
-				enum hwmon_sensor_types type,
-				u32 attr, int channel, const char **str)
+static int
+peci_cpupower_get_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
+			      struct peci_sensor_data *sensor_data,
+			      s32 *val)
 {
-	if (attr != hwmon_power_label)
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	union peci_package_power_limit_low power_limit;
+	ulong jif;
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		*val = sensor_data->value;
+		dev_dbg(priv->dev, "skip reading peci, power limit %dmW\n",
+			*val);
+		return 0;
+	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	jif = jiffies;
+	ret = peci_cpupower_read_cpu_pkg_pwr_lim_low(priv->mgr, &power_limit);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read power limit\n");
+		return ret;
+	}
+
+	*val = peci_pcs_xn_to_munits(power_limit.bits.pwr_lim_1,
+				     priv->units.bits.pwr_unit);
+
+	sensor_data->value = *val;
+	peci_sensor_mark_updated_with_time(sensor_data, jif);
+
+	dev_dbg(priv->dev, "raw power limit %u, unit %u, power limit %d\n",
+		power_limit.bits.pwr_lim_1, priv->units.bits.pwr_unit, *val);
+
+	return ret;
+}
+
+static int
+peci_cpupower_set_power_limit(void *ctx, struct peci_sensor_conf *sensor_conf,
+			      struct peci_sensor_data *sensor_data,
+			      s32 val)
+{
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	union peci_package_power_limit_high power_limit_high;
+	union peci_package_power_limit_low power_limit_low;
+	int ret;
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	ret = peci_cpupower_read_cpu_pkg_pwr_lim_low(priv->mgr,
+						     &power_limit_low);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package power limit 1\n");
+		return ret;
+	}
+
+	ret = peci_pcs_read(priv->mgr, PECI_MBX_INDEX_PKG_POWER_LIMIT2,
+			    PECI_PCS_PARAM_ZERO, &power_limit_high.value);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package power limit 2\n");
+		return ret;
+	}
+
+	/* Calculate PPL time windows if needed */
+	if (!priv->ppl_time_windows_valid) {
+		priv->ppl1_time_window =
+			peci_pcs_calc_plxy_time_window(peci_pcs_munits_to_xn(
+				PECI_PCS_PPL1_TIME_WINDOW,
+				priv->units.bits.tim_unit));
+		priv->ppl2_time_window =
+			peci_pcs_calc_plxy_time_window(peci_pcs_munits_to_xn(
+				PECI_PCS_PPL2_TIME_WINDOW,
+				priv->units.bits.tim_unit));
+		priv->ppl_time_windows_valid = true;
+	}
+
+	/* Enable or disable power limitation */
+	if (val > 0) {
+		/* Set PPL1 */
+		power_limit_low.bits.pwr_lim_1 =
+			peci_pcs_munits_to_xn(val, priv->units.bits.pwr_unit);
+		power_limit_low.bits.pwr_lim_1_en = 1u;
+		power_limit_low.bits.pwr_clmp_lim_1 = 1u;
+		power_limit_low.bits.pwr_lim_1_time = priv->ppl1_time_window;
+
+		/* Set PPL2 */
+		power_limit_high.bits.pwr_lim_2 =
+			peci_pcs_munits_to_xn(PECI_PCS_PPL1_TO_PPL2(val),
+					      priv->units.bits.pwr_unit);
+		power_limit_high.bits.pwr_lim_2_en = 1u;
+		power_limit_high.bits.pwr_clmp_lim_2 = 1u;
+		power_limit_high.bits.pwr_lim_2_time = priv->ppl2_time_window;
+	} else {
+		power_limit_low.bits.pwr_lim_1 = 0u;
+		power_limit_low.bits.pwr_lim_1_en = 0u;
+		power_limit_low.bits.pwr_clmp_lim_1 = 0u;
+		power_limit_high.bits.pwr_lim_2 = 0u;
+		power_limit_high.bits.pwr_lim_2_en = 0u;
+		power_limit_high.bits.pwr_clmp_lim_2 = 0u;
+	}
+
+	ret = peci_pcs_write(priv->mgr, PECI_MBX_INDEX_PKG_POWER_LIMIT1,
+			     PECI_PCS_PARAM_ZERO, power_limit_low.value);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to write package power limit 1\n");
+		return ret;
+	}
+
+	ret = peci_pcs_write(priv->mgr, PECI_MBX_INDEX_PKG_POWER_LIMIT2,
+			     PECI_PCS_PARAM_ZERO, power_limit_high.value);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to write package power limit 2\n");
+		return ret;
+	}
+
+	dev_dbg(priv->dev,
+		"power limit %d, unit %u, raw package power limit 1 %u,\n",
+		val, priv->units.bits.pwr_unit, power_limit_low.bits.pwr_lim_1);
+
+	return ret;
+}
+
+static int
+peci_cpupower_read_max_power(void *ctx, struct peci_sensor_conf *sensor_conf,
+			     struct peci_sensor_data *sensor_data,
+			     s32 *val)
+{
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	union peci_package_power_info_low power_info;
+	ulong jif;
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		*val = sensor_data->value;
+		dev_dbg(priv->dev, "skip reading peci, max power %dmW\n", *val);
+		return 0;
+	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	jif = jiffies;
+	ret = peci_cpupower_read_cpu_pkg_pwr_info_low(priv->mgr, &power_info);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package power info\n");
+		return ret;
+	}
+
+	*val = peci_pcs_xn_to_munits(power_info.bits.pkg_tdp,
+				     priv->units.bits.pwr_unit);
+
+	sensor_data->value = *val;
+	peci_sensor_mark_updated_with_time(sensor_data, jif);
+
+	dev_dbg(priv->dev, "raw max power %u, unit %u, max power %dmW\n",
+		power_info.bits.pkg_tdp, priv->units.bits.pwr_unit, *val);
+
+	return ret;
+}
+
+static int
+peci_cpupower_read_min_power(void *ctx, struct peci_sensor_conf *sensor_conf,
+			     struct peci_sensor_data *sensor_data,
+			     s32 *val)
+{
+	struct peci_cpupower *priv = (struct peci_cpupower *)ctx;
+	union peci_package_power_info_low power_info;
+	ulong jif;
+	int ret;
+
+	if (!peci_sensor_need_update_with_time(sensor_data,
+					       sensor_conf->update_interval)) {
+		*val = sensor_data->value;
+		dev_dbg(priv->dev, "skip reading peci, min power %dmW\n",
+			*val);
+		return 0;
+	}
+
+	ret = peci_pcs_get_units(priv->mgr, &priv->units, &priv->units_valid);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read units\n");
+		return ret;
+	}
+
+	jif = jiffies;
+	ret = peci_cpupower_read_cpu_pkg_pwr_info_low(priv->mgr, &power_info);
+	if (ret) {
+		dev_dbg(priv->dev, "not able to read package power info\n");
+		return ret;
+	}
+
+	*val = peci_pcs_xn_to_munits(power_info.bits.pkg_min_pwr,
+				     priv->units.bits.pwr_unit);
+
+	sensor_data->value = *val;
+	peci_sensor_mark_updated_with_time(sensor_data, jif);
+
+	dev_dbg(priv->dev, "raw min power %u, unit %u, min power %dmW\n",
+		power_info.bits.pkg_min_pwr, priv->units.bits.pwr_unit, *val);
+
+	return ret;
+}
+
+static struct peci_sensor_conf
+peci_cpupower_cfg[PECI_CPUPOWER_CHANNEL_COUNT][PECI_CPUPOWER_SENSOR_COUNT] = {
+	/* Channel 0  - Power */
+	{
+		{
+			.attribute = hwmon_power_average,
+			.config = HWMON_P_AVERAGE,
+			.update_interval = UPDATE_INTERVAL_100MS,
+			.read = peci_cpupower_get_average_power,
+			.write = NULL,
+		},
+		{
+			.attribute = hwmon_power_cap,
+			.config = HWMON_P_CAP,
+			.update_interval = UPDATE_INTERVAL_100MS,
+			.read = peci_cpupower_get_power_limit,
+			.write = peci_cpupower_set_power_limit,
+		},
+		{
+			.attribute = hwmon_power_cap_max,
+			.config = HWMON_P_CAP_MAX,
+			.update_interval = UPDATE_INTERVAL_10S,
+			.read = peci_cpupower_read_max_power,
+			.write = NULL,
+		},
+		{
+			.attribute = hwmon_power_cap_min,
+			.config = HWMON_P_CAP_MIN,
+			.update_interval = UPDATE_INTERVAL_10S,
+			.read = peci_cpupower_read_min_power,
+			.write = NULL,
+		},
+	},
+};
+
+static int
+peci_cpupower_read_string(struct device *dev, enum hwmon_sensor_types type,
+			  u32 attr, int channel, const char **str)
+{
+	if (attr != hwmon_power_label || channel >= PECI_CPUPOWER_CHANNEL_COUNT)
 		return -EOPNOTSUPP;
-	if (channel >= POWER_DEFAULT_CHANNEL_NUMS)
-		return -EOPNOTSUPP;
-	*str = cpupower_label[channel];
+
+	if (str)
+		*str = peci_cpupower_labels[channel];
+	else
+		return -EINVAL;
 
 	return 0;
 }
 
-static int cpupower_read(struct device *dev,
-			 enum hwmon_sensor_types type,
-			 u32 attr, int channel, long *val)
+static int
+peci_cpupower_read(struct device *dev, enum hwmon_sensor_types type,
+		   u32 attr, int channel, long *val)
 {
 	struct peci_cpupower *priv = dev_get_drvdata(dev);
+	struct peci_sensor_conf *sensor_conf;
+	struct peci_sensor_data *sensor_data;
 	int ret;
 
-	if (channel >= POWER_DEFAULT_CHANNEL_NUMS ||
-	    !(priv->power_config[channel] & BIT(attr)))
+	if (!priv || !val)
+		return -EINVAL;
+
+	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
 		return -EOPNOTSUPP;
 
-	switch (attr) {
-	case hwmon_power_average:
-		switch (channel) {
-		case average_power:
-			ret = get_average_power(priv);
-			if (ret)
-				break;
+	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
+				  &sensor_conf, priv->sensor_data_list[channel],
+				  &sensor_data,
+				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	if (ret)
+		return ret;
 
-			*val = priv->avg_power_val;
-			break;
-		default:
-			break;
-		}
-		break;
-	default:
+	if (sensor_conf->read) {
+		s32 tmp;
+
+		ret = sensor_conf->read(priv, sensor_conf, sensor_data, &tmp);
+		if (!ret)
+			*val = (long)tmp;
+	} else {
 		ret = -EOPNOTSUPP;
-		break;
 	}
 
 	return ret;
 }
 
-static umode_t cpupower_is_visible(const void *data,
-				   enum hwmon_sensor_types type,
-				   u32 attr, int channel)
+static int
+peci_cpupower_write(struct device *dev, enum hwmon_sensor_types type,
+		    u32 attr, int channel, long val)
 {
-	const struct peci_cpupower *priv = data;
+	struct peci_cpupower *priv = dev_get_drvdata(dev);
+	struct peci_sensor_conf *sensor_conf;
+	struct peci_sensor_data *sensor_data;
+	int ret;
 
-	if (channel < POWER_DEFAULT_CHANNEL_NUMS ||
-	    (priv->power_config[channel] & BIT(attr)))
-		return 0444;
+	if (!priv)
+		return -EINVAL;
 
-	return 0;
+	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+		return -EOPNOTSUPP;
+
+	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
+				  &sensor_conf, priv->sensor_data_list[channel],
+				  &sensor_data,
+				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	if (ret)
+		return ret;
+
+	if (sensor_conf->write) {
+		ret = sensor_conf->write(priv, sensor_conf, sensor_data,
+					 (s32)val);
+	} else {
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
 }
 
-static const struct hwmon_ops cpupower_ops = {
-	.is_visible = cpupower_is_visible,
-	.read_string = cpupower_read_string,
-	.read = cpupower_read,
+static umode_t
+peci_cpupower_is_visible(const void *data, enum hwmon_sensor_types type,
+			 u32 attr, int channel)
+{
+	struct peci_sensor_conf *sensor_conf;
+	umode_t mode = 0;
+	int ret;
+
+	if (channel >= PECI_CPUPOWER_CHANNEL_COUNT)
+		return mode;
+
+	if (attr == hwmon_power_label)
+		return 0444;
+
+	ret = peci_sensor_get_ctx(attr, peci_cpupower_cfg[channel],
+				  &sensor_conf, NULL, NULL,
+				  ARRAY_SIZE(peci_cpupower_cfg[channel]));
+	if (!ret) {
+		if (sensor_conf->read)
+			mode |= 0444;
+		if (sensor_conf->write)
+			mode |= 0200;
+	}
+
+	return mode;
+}
+
+static const struct hwmon_ops peci_cpupower_ops = {
+	.is_visible = peci_cpupower_is_visible,
+	.read_string = peci_cpupower_read_string,
+	.read = peci_cpupower_read,
+	.write = peci_cpupower_write,
 };
 
 static int peci_cpupower_probe(struct platform_device *pdev)
@@ -170,12 +489,11 @@ static int peci_cpupower_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct peci_cpupower *priv;
 	struct device *hwmon_dev;
+	u32 cmd_mask;
 
-	if ((mgr->client->adapter->cmd_mask &
-				(BIT(PECI_CMD_RD_PKG_CFG))) !=
-			(BIT(PECI_CMD_RD_PKG_CFG))) {
+	cmd_mask = BIT(PECI_CMD_RD_PKG_CFG) | BIT(PECI_CMD_WR_PKG_CFG);
+	if ((mgr->client->adapter->cmd_mask & cmd_mask) != cmd_mask)
 		return -ENODEV;
-	}
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -184,25 +502,25 @@ static int peci_cpupower_probe(struct platform_device *pdev)
 	dev_set_drvdata(dev, priv);
 	priv->mgr = mgr;
 	priv->dev = dev;
-	priv->gen_info = mgr->gen_info;
 
 	snprintf(priv->name, PECI_NAME_SIZE, "peci_cpupower.cpu%d",
 		 mgr->client->addr - PECI_BASE_ADDR);
 
-	priv->power_config[priv->config_idx++] = config_table[average_power];
+	priv->power_config[priv->config_idx] = HWMON_P_LABEL |
+		peci_sensor_get_config(peci_cpupower_cfg[priv->config_idx],
+				       ARRAY_SIZE(peci_cpupower_cfg
+						  [priv->config_idx]));
+	priv->config_idx++;
 
-	priv->chip.ops = &cpupower_ops;
+	priv->chip.ops = &peci_cpupower_ops;
 	priv->chip.info = priv->info;
-
 	priv->info[0] = &priv->power_info;
 
 	priv->power_info.type = hwmon_power;
 	priv->power_info.config = priv->power_config;
 
-	hwmon_dev = devm_hwmon_device_register_with_info(priv->dev,
-							 priv->name,
-							 priv,
-							 &priv->chip,
+	hwmon_dev = devm_hwmon_device_register_with_info(priv->dev, priv->name,
+							 priv, &priv->chip,
 							 NULL);
 
 	if (IS_ERR(hwmon_dev))

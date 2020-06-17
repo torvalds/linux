@@ -1560,8 +1560,8 @@ config SENSORS_PECI_CPUPOWER
 	select MFD_INTEL_PECI_CLIENT
 	help
 	  If you say yes here you get support for the generic Intel PECI
-	  cputemp driver which provides average engergy
-	  readings of the CPU package using
+	  cpupower driver which provides average engergy readings of the CPU package,
+	  current package power limit, maximal (TDP) and minimal power setting using
 	  the PECI Client Command Suite via the processor PECI client.
 	  Check Documentation/hwmon/peci-cpupower for details.
 
