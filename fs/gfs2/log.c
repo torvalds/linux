@@ -613,6 +613,12 @@ static int ip_cmp(void *priv, struct list_head *a, struct list_head *b)
 	return 0;
 }
 
+static void __ordered_del_inode(struct gfs2_inode *ip)
+{
+	if (!list_empty(&ip->i_ordered))
+		list_del_init(&ip->i_ordered);
+}
+
 static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 {
 	struct gfs2_inode *ip;
@@ -623,8 +629,7 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 	while (!list_empty(&sdp->sd_log_ordered)) {
 		ip = list_first_entry(&sdp->sd_log_ordered, struct gfs2_inode, i_ordered);
 		if (ip->i_inode.i_mapping->nrpages == 0) {
-			test_and_clear_bit(GIF_ORDERED, &ip->i_flags);
-			list_del(&ip->i_ordered);
+			__ordered_del_inode(ip);
 			continue;
 		}
 		list_move(&ip->i_ordered, &written);
@@ -643,8 +648,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 	spin_lock(&sdp->sd_ordered_lock);
 	while (!list_empty(&sdp->sd_log_ordered)) {
 		ip = list_first_entry(&sdp->sd_log_ordered, struct gfs2_inode, i_ordered);
-		list_del(&ip->i_ordered);
-		WARN_ON(!test_and_clear_bit(GIF_ORDERED, &ip->i_flags));
+		__ordered_del_inode(ip);
 		if (ip->i_inode.i_mapping->nrpages == 0)
 			continue;
 		spin_unlock(&sdp->sd_ordered_lock);
@@ -659,8 +663,7 @@ void gfs2_ordered_del_inode(struct gfs2_inode *ip)
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 
 	spin_lock(&sdp->sd_ordered_lock);
-	if (test_and_clear_bit(GIF_ORDERED, &ip->i_flags))
-		list_del(&ip->i_ordered);
+	__ordered_del_inode(ip);
 	spin_unlock(&sdp->sd_ordered_lock);
 }
 
