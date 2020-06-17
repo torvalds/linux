@@ -16,8 +16,8 @@
 #include <asm/unwinder.h>
 #include <asm/stacktrace.h>
 
-void dump_mem(const char *str, const char *loglvl,
-	      unsigned long bottom, unsigned long top)
+void dump_mem(const char *str, const char *loglvl, unsigned long bottom,
+	      unsigned long top)
 {
 	unsigned long p;
 	int i;
@@ -31,23 +31,23 @@ void dump_mem(const char *str, const char *loglvl,
 			unsigned int val;
 
 			if (p < bottom || p >= top)
-				printk("%s         ", loglvl);
+				pr_cont("         ");
 			else {
 				if (__get_user(val, (unsigned int __user *)p)) {
-					printk("%s\n", loglvl);
+					pr_cont("\n");
 					return;
 				}
-				printk("%s%08x ", loglvl, val);
+				pr_cont("%08x ", val);
 			}
 		}
-		printk("%s\n", loglvl);
+		pr_cont("\n");
 	}
 }
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%p>] %s%pS\n", (void *) address,
-			reliable ? "" : "? ", (void *) address);
+	pr_cont(" [<%px>] %s%pS\n", (void *) address,
+		reliable ? "" : "? ", (void *) address);
 }
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -137,7 +137,7 @@ void show_trace(struct task_struct *tsk, unsigned long *sp,
 
 	unwind_stack(tsk, regs, sp, &print_trace_ops, (void *)loglvl);
 
-	printk("%s\n", loglvl);
+	pr_cont("\n");
 
 	if (!tsk)
 		tsk = current;
