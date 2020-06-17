@@ -1676,6 +1676,7 @@ struct i40e_aq_set_phy_config { /* same bits as above in all */
 	u8	link_speed;
 	u8	abilities;
 /* bits 0-2 use the values from get_phy_abilities_resp */
+#define I40E_AQ_PHY_ENABLE_LINK		0x08
 #define I40E_AQ_PHY_ENABLE_AN		0x10
 #define I40E_AQ_PHY_ENABLE_ATOMIC_LINK	0x20
 	__le16	eee_capability;

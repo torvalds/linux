@@ -428,6 +428,8 @@ struct i40e_priv_flags {
 static const struct i40e_priv_flags i40e_gstrings_priv_flags[] = {
 	/* NOTE: MFP setting cannot be changed */
 	I40E_PRIV_FLAG("MFP", I40E_FLAG_MFP_ENABLED, 1),
+	I40E_PRIV_FLAG("total-port-shutdown",
+		       I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED, 1),
 	I40E_PRIV_FLAG("LinkPolling", I40E_FLAG_LINK_POLLING_ENABLED, 0),
 	I40E_PRIV_FLAG("flow-director-atr", I40E_FLAG_FD_ATR_ENABLED, 0),
 	I40E_PRIV_FLAG("veb-stats", I40E_FLAG_VEB_STATS_ENABLED, 0),
@@ -5005,6 +5007,13 @@ flags_complete:
 		}
 		if (i40e_set_fec_cfg(dev, fec_cfg))
 			dev_warn(&pf->pdev->dev, "Cannot change FEC config\n");
+	}
+
+	if ((changed_flags & I40E_FLAG_LINK_DOWN_ON_CLOSE_ENABLED) &&
+	    (orig_flags & I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED)) {
+		dev_err(&pf->pdev->dev,
+			"Setting link-down-on-close not supported on this port (because total-port-shutdown is enabled)\n");
+		return -EOPNOTSUPP;
 	}
 
 	if ((changed_flags & new_flags &
