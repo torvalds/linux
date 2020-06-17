@@ -1323,6 +1323,14 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 		};
+
+		exp2: gpio@77 {
+			compatible = "ti,tca9539";
+			reg = <0x77>;
+
+			#gpio-cells = <2>;
+			gpio-controller;
+		};
 	};
 
 	/* HDMI DDC */
@@ -1673,5 +1681,35 @@
 		gpio = <&exp1 12 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&vdd_5v0_sys>;
+	};
+
+	vdd_cam_1v2: regulator@11 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-cam-1v2";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		gpio = <&exp2 10 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_cam_2v8: regulator@12 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-cam-2v8";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&exp1 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
+	};
+
+	vdd_cam_1v8: regulator@13 {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd-cam-1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&exp2 9 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		vin-supply = <&vdd_3v3_sys>;
 	};
 };
