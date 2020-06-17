@@ -15,6 +15,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/iopoll.h>
 #include <linux/crc16.h>
+#include <linux/of_net.h>
 #include "lan743x_main.h"
 #include "lan743x_ethtool.h"
 
@@ -807,26 +808,29 @@ static int lan743x_mac_init(struct lan743x_adapter *adapter)
 	data |= MAC_CR_CNTR_RST_;
 	lan743x_csr_write(adapter, MAC_CR, data);
 
-	mac_addr_hi = lan743x_csr_read(adapter, MAC_RX_ADDRH);
-	mac_addr_lo = lan743x_csr_read(adapter, MAC_RX_ADDRL);
-	adapter->mac_address[0] = mac_addr_lo & 0xFF;
-	adapter->mac_address[1] = (mac_addr_lo >> 8) & 0xFF;
-	adapter->mac_address[2] = (mac_addr_lo >> 16) & 0xFF;
-	adapter->mac_address[3] = (mac_addr_lo >> 24) & 0xFF;
-	adapter->mac_address[4] = mac_addr_hi & 0xFF;
-	adapter->mac_address[5] = (mac_addr_hi >> 8) & 0xFF;
+	if (!is_valid_ether_addr(adapter->mac_address)) {
+		mac_addr_hi = lan743x_csr_read(adapter, MAC_RX_ADDRH);
+		mac_addr_lo = lan743x_csr_read(adapter, MAC_RX_ADDRL);
+		adapter->mac_address[0] = mac_addr_lo & 0xFF;
+		adapter->mac_address[1] = (mac_addr_lo >> 8) & 0xFF;
+		adapter->mac_address[2] = (mac_addr_lo >> 16) & 0xFF;
+		adapter->mac_address[3] = (mac_addr_lo >> 24) & 0xFF;
+		adapter->mac_address[4] = mac_addr_hi & 0xFF;
+		adapter->mac_address[5] = (mac_addr_hi >> 8) & 0xFF;
 
-	if (((mac_addr_hi & 0x0000FFFF) == 0x0000FFFF) &&
-	    mac_addr_lo == 0xFFFFFFFF) {
-		mac_address_valid = false;
-	} else if (!is_valid_ether_addr(adapter->mac_address)) {
-		mac_address_valid = false;
+		if (((mac_addr_hi & 0x0000FFFF) == 0x0000FFFF) &&
+		    mac_addr_lo == 0xFFFFFFFF) {
+			mac_address_valid = false;
+		} else if (!is_valid_ether_addr(adapter->mac_address)) {
+			mac_address_valid = false;
+		}
+
+		if (!mac_address_valid)
+			eth_random_addr(adapter->mac_address);
 	}
-
-	if (!mac_address_valid)
-		eth_random_addr(adapter->mac_address);
 	lan743x_mac_set_address(adapter, adapter->mac_address);
 	ether_addr_copy(netdev->dev_addr, adapter->mac_address);
+
 	return 0;
 }
 
@@ -2817,6 +2821,7 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 {
 	struct lan743x_adapter *adapter = NULL;
 	struct net_device *netdev = NULL;
+	const void *mac_addr;
 	int ret = -ENODEV;
 
 	netdev = devm_alloc_etherdev(&pdev->dev,
@@ -2832,6 +2837,10 @@ static int lan743x_pcidev_probe(struct pci_dev *pdev,
 			      NETIF_MSG_LINK | NETIF_MSG_IFUP |
 			      NETIF_MSG_IFDOWN | NETIF_MSG_TX_QUEUED;
 	netdev->max_mtu = LAN743X_MAX_FRAME_SIZE;
+
+	mac_addr = of_get_mac_address(pdev->dev.of_node);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(adapter->mac_address, mac_addr);
 
 	ret = lan743x_pci_init(adapter, pdev);
 	if (ret)
