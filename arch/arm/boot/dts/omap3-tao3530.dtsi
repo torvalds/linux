@@ -8,7 +8,11 @@
 #include "omap34xx.dtsi"
 
 /* Secure omaps have some devices inaccessible depending on the firmware */
-&aes {
+&aes1_target {
+	status = "disabled";
+};
+
+&aes2_target {
 	status = "disabled";
 };
 
