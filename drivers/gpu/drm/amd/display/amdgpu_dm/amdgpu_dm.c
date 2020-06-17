@@ -4667,8 +4667,12 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 						  &stream->timing,
 						  &stream->timing.dsc_cfg))
 				stream->timing.flags.DSC = 1;
+			/* Overwrite the stream flag if DSC is enabled through debugfs */
 			if (aconnector->dsc_settings.dsc_clock_en)
 				stream->timing.flags.DSC = 1;
+			if (stream->timing.flags.DSC && aconnector->dsc_settings.dsc_slice_width)
+				stream->timing.dsc_cfg.num_slices_h = DIV_ROUND_UP(stream->timing.h_addressable,
+										   aconnector->dsc_settings.dsc_slice_width);
 		}
 #endif
 	}
