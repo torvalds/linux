@@ -4670,9 +4670,10 @@ static bool is_flow_rule_duplicate_allowed(struct net_device *dev,
 					   struct mlx5e_rep_priv *rpriv)
 {
 	/* Offloaded flow rule is allowed to duplicate on non-uplink representor
-	 * sharing tc block with other slaves of a lag device.
+	 * sharing tc block with other slaves of a lag device. Rpriv can be NULL if this
+	 * function is called from NIC mode.
 	 */
-	return netif_is_lag_port(dev) && rpriv->rep->vport != MLX5_VPORT_UPLINK;
+	return netif_is_lag_port(dev) && rpriv && rpriv->rep->vport != MLX5_VPORT_UPLINK;
 }
 
 int mlx5e_configure_flower(struct net_device *dev, struct mlx5e_priv *priv,
