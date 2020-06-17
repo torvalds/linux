@@ -6,7 +6,7 @@
  *	http://armlinux.simtec.co.uk/
  */
 
-/* Hote on 2410 error handling
+/* Note on 2410 error handling
  *
  * The s3c2410 manual has a love/hate affair with the contents of the
  * UERSTAT register in the UART blocks, and keeps marking some of the
