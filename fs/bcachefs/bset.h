@@ -615,8 +615,8 @@ void bch2_bfloat_to_text(struct printbuf *, struct btree *,
 
 /* Debug stuff */
 
-void bch2_dump_bset(struct btree *, struct bset *, unsigned);
-void bch2_dump_btree_node(struct btree *);
+void bch2_dump_bset(struct bch_fs *, struct btree *, struct bset *, unsigned);
+void bch2_dump_btree_node(struct bch_fs *, struct btree *);
 void bch2_dump_btree_node_iter(struct btree *, struct btree_node_iter *);
 
 #ifdef CONFIG_BCACHEFS_DEBUG

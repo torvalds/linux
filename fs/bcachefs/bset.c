@@ -52,21 +52,27 @@ struct bset_tree *bch2_bkey_to_bset(struct btree *b, struct bkey_packed *k)
  * by the time we actually do the insert will all be deleted.
  */
 
-void bch2_dump_bset(struct btree *b, struct bset *i, unsigned set)
+void bch2_dump_bset(struct bch_fs *c, struct btree *b,
+		    struct bset *i, unsigned set)
 {
 	struct bkey_packed *_k, *_n;
-	struct bkey k, n;
-	char buf[120];
+	struct bkey uk, n;
+	struct bkey_s_c k;
+	char buf[200];
 
 	if (!i->u64s)
 		return;
 
-	for (_k = i->start, k = bkey_unpack_key(b, _k);
+	for (_k = i->start;
 	     _k < vstruct_last(i);
-	     _k = _n, k = n) {
+	     _k = _n) {
 		_n = bkey_next_skip_noops(_k, vstruct_last(i));
 
-		bch2_bkey_to_text(&PBUF(buf), &k);
+		k = bkey_disassemble(b, _k, &uk);
+		if (c)
+			bch2_bkey_val_to_text(&PBUF(buf), c, k);
+		else
+			bch2_bkey_to_text(&PBUF(buf), k.k);
 		printk(KERN_ERR "block %u key %5zu: %s\n", set,
 		       _k->_data - i->_data, buf);
 
@@ -75,31 +81,24 @@ void bch2_dump_bset(struct btree *b, struct bset *i, unsigned set)
 
 		n = bkey_unpack_key(b, _n);
 
-		if (bkey_cmp(bkey_start_pos(&n), k.p) < 0) {
+		if (bkey_cmp(bkey_start_pos(&n), k.k->p) < 0) {
 			printk(KERN_ERR "Key skipped backwards\n");
 			continue;
 		}
 
-		/*
-		 * Weird check for duplicate non extent keys: extents are
-		 * deleted iff they have 0 size, so if it has zero size and it's
-		 * not deleted these aren't extents:
-		 */
-		if (((!k.size && !bkey_deleted(&k)) ||
-		     (!n.size && !bkey_deleted(&n))) &&
-		    !bkey_deleted(&k) &&
-		    !bkey_cmp(n.p, k.p))
+		if (!bkey_deleted(k.k) &&
+		    !bkey_cmp(n.p, k.k->p))
 			printk(KERN_ERR "Duplicate keys\n");
 	}
 }
 
-void bch2_dump_btree_node(struct btree *b)
+void bch2_dump_btree_node(struct bch_fs *c, struct btree *b)
 {
 	struct bset_tree *t;
 
 	console_lock();
 	for_each_bset(b, t)
-		bch2_dump_bset(b, bset(b, t), t - b->set);
+		bch2_dump_bset(c, b, bset(b, t), t - b->set);
 	console_unlock();
 }
 
@@ -158,7 +157,7 @@ static void bch2_btree_node_iter_next_check(struct btree_node_iter *_iter,
 		struct bkey nu = bkey_unpack_key(b, n);
 		char buf1[80], buf2[80];
 
-		bch2_dump_btree_node(b);
+		bch2_dump_btree_node(NULL, b);
 		bch2_bkey_to_text(&PBUF(buf1), &ku);
 		bch2_bkey_to_text(&PBUF(buf2), &nu);
 		printk(KERN_ERR "out of order/overlapping:\n%s\n%s\n",
@@ -236,7 +235,7 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		char buf1[100];
 		char buf2[100];
 
-		bch2_dump_btree_node(b);
+		bch2_dump_btree_node(NULL, b);
 		bch2_bkey_to_text(&PBUF(buf1), &k1);
 		bch2_bkey_to_text(&PBUF(buf2), &k2);
 
@@ -257,7 +256,7 @@ void bch2_verify_insert_pos(struct btree *b, struct bkey_packed *where,
 		char buf1[100];
 		char buf2[100];
 
-		bch2_dump_btree_node(b);
+		bch2_dump_btree_node(NULL, b);
 		bch2_bkey_to_text(&PBUF(buf1), &k1);
 		bch2_bkey_to_text(&PBUF(buf2), &k2);
 

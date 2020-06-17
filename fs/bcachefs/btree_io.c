@@ -897,7 +897,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			bch2_bkey_to_text(&PBUF(buf1), &up);
 			bch2_bkey_to_text(&PBUF(buf2), u.k);
 
-			bch2_dump_bset(b, i, 0);
+			bch2_dump_bset(c, b, i, 0);
 			btree_err(BTREE_ERR_FATAL, c, b, i,
 				  "keys out of order: %s > %s",
 				  buf1, buf2);
