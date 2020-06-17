@@ -740,18 +740,6 @@ static unsigned int sve_size_from_header(struct user_sve_header const *header)
 	return ALIGN(header->size, SVE_VQ_BYTES);
 }
 
-static unsigned int sve_get_size(struct task_struct *target,
-				 const struct user_regset *regset)
-{
-	struct user_sve_header header;
-
-	if (!system_supports_sve())
-		return 0;
-
-	sve_init_header_from_task(&header, target);
-	return sve_size_from_header(&header);
-}
-
 static int sve_get(struct task_struct *target,
 		   const struct user_regset *regset,
 		   struct membuf to)
@@ -1130,7 +1118,6 @@ static const struct user_regset aarch64_regsets[] = {
 		.align = SVE_VQ_BYTES,
 		.regset_get = sve_get,
 		.set = sve_set,
-		.get_size = sve_get_size,
 	},
 #endif
 #ifdef CONFIG_ARM64_PTR_AUTH
