@@ -1461,8 +1461,7 @@ int perf_evlist__parse_sample_timestamp(struct evlist *evlist,
 	return evsel__parse_sample_timestamp(evsel, event, timestamp);
 }
 
-int perf_evlist__strerror_open(struct evlist *evlist,
-			       int err, char *buf, size_t size)
+int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size)
 {
 	int printed, value;
 	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
@@ -1515,7 +1514,7 @@ out_default:
 	return 0;
 }
 
-int perf_evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size)
+int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size)
 {
 	char sbuf[STRERR_BUFSIZE], *emsg = str_error_r(err, sbuf, sizeof(sbuf));
 	int pages_attempted = evlist->core.mmap_len / 1024, pages_max_per_user, printed = 0;

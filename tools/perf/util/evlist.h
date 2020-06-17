@@ -257,8 +257,8 @@ static inline struct evsel *evlist__last(struct evlist *evlist)
 	return container_of(evsel, struct evsel, core);
 }
 
-int perf_evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
-int perf_evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
+int evlist__strerror_open(struct evlist *evlist, int err, char *buf, size_t size);
+int evlist__strerror_mmap(struct evlist *evlist, int err, char *buf, size_t size);
 
 bool perf_evlist__can_select_event(struct evlist *evlist, const char *str);
 void perf_evlist__to_front(struct evlist *evlist,
