@@ -1399,6 +1399,12 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 
 	dev_kfree_skb(skb);
+
+	rcu_read_lock();
+	mt7615_mac_sta_poll(dev);
+	rcu_read_unlock();
+
+	tasklet_schedule(&dev->mt76.tx_tasklet);
 }
 
 void mt7615_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
