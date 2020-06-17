@@ -180,14 +180,14 @@ do
 		shift
 		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\|refperf\)$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\|refscale\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
-		if test "$TORTURE_SUITE" = rcuperf || test "$TORTURE_SUITE" = refperf
+		if test "$TORTURE_SUITE" = rcuperf || test "$TORTURE_SUITE" = refscale
 		then
-			# If you really want jitter for refperf or
+			# If you really want jitter for refscale or
 			# rcuperf, specify it after specifying the rcuperf
-			# or the refperf.  (But why jitter in these cases?)
+			# or the refscale.  (But why jitter in these cases?)
 			jitter=0
 		fi
 		;;

@@ -1,9 +1,9 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0+
 #
-# Analyze a given results directory for refperf performance measurements.
+# Analyze a given results directory for refscale performance measurements.
 #
-# Usage: kvm-recheck-refperf.sh resdir
+# Usage: kvm-recheck-refscale.sh resdir
 #
 # Copyright (C) IBM Corporation, 2016
 #
@@ -51,7 +51,7 @@ END {
 	print configfile " results:";
 	newNR = asort(readertimes);
 	if (newNR <= 0) {
-		print "No refperf records found???"
+		print "No refscale records found???"
 		exit;
 	}
 	medianidx = int(newNR / 2);
@@ -67,5 +67,5 @@ END {
 	print "Minimum reader duration: " readertimes[1];
 	print "Median reader duration: " medianvalue;
 	print "Maximum reader duration: " readertimes[newNR];
-	print "Computed from refperf printk output.";
+	print "Computed from refscale printk output.";
 }'
