@@ -6837,9 +6837,11 @@ netdev_features_t qeth_features_check(struct sk_buff *skb,
 				      struct net_device *dev,
 				      netdev_features_t features)
 {
+	struct qeth_card *card = dev->ml_priv;
+
 	/* Traffic with local next-hop is not eligible for some offloads: */
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		struct qeth_card *card = dev->ml_priv;
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    card->options.isolation != ISOLATION_MODE_FWD) {
 		netdev_features_t restricted = 0;
 
 		if (skb_is_gso(skb) && !netif_needs_gso(skb, features))
