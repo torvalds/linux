@@ -270,3 +270,6 @@ LIBBPF_0.0.9 {
 		ring_buffer__new;
 		ring_buffer__poll;
 } LIBBPF_0.0.8;
+
+LIBBPF_0.1.0 {
+} LIBBPF_0.0.9;
