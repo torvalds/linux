@@ -251,3 +251,21 @@ int set_def_system_config(struct sock *sk, struct hci_dev *hdev, void *data,
 			       MGMT_OP_SET_DEF_SYSTEM_CONFIG,
 			       MGMT_STATUS_SUCCESS);
 }
+
+int read_def_runtime_config(struct sock *sk, struct hci_dev *hdev, void *data,
+			    u16 data_len)
+{
+	bt_dev_dbg(hdev, "sock %p", sk);
+
+	return mgmt_cmd_complete(sk, hdev->id,
+				 MGMT_OP_READ_DEF_RUNTIME_CONFIG, 0, NULL, 0);
+}
+
+int set_def_runtime_config(struct sock *sk, struct hci_dev *hdev, void *data,
+			   u16 data_len)
+{
+	bt_dev_dbg(hdev, "sock %p", sk);
+
+	return mgmt_cmd_status(sk, hdev->id, MGMT_OP_SET_DEF_SYSTEM_CONFIG,
+			       MGMT_STATUS_INVALID_PARAMS);
+}
