@@ -883,7 +883,7 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 		if (attr->pa_granularity < 1 || attr->pa_granularity > 6) {
 			/* Valid range for granularity: 1 ~ 6 */
 			dev_warn(hba->dev,
-				"%s: pa_granularty %d is invalid, assuming backwards compatibility\n",
+				"%s: pa_granularity %d is invalid, assuming backwards compatibility\n",
 				__func__,
 				attr->pa_granularity);
 			attr->pa_granularity = 6;
