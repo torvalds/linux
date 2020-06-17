@@ -190,11 +190,11 @@ static void svc_rdma_cc_release(struct svc_rdma_chunk_ctxt *cc,
  *  - Stores arguments for the SGL constructor functions
  */
 struct svc_rdma_write_info {
+	const struct svc_rdma_chunk	*wi_chunk;
+
 	/* write state of this chunk */
 	unsigned int		wi_seg_off;
 	unsigned int		wi_seg_no;
-	unsigned int		wi_nsegs;
-	__be32			*wi_segs;
 
 	/* SGL constructor arguments */
 	const struct xdr_buf	*wi_xdr;
@@ -205,7 +205,8 @@ struct svc_rdma_write_info {
 };
 
 static struct svc_rdma_write_info *
-svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma, __be32 *chunk)
+svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma,
+			  const struct svc_rdma_chunk *chunk)
 {
 	struct svc_rdma_write_info *info;
 
@@ -213,10 +214,9 @@ svc_rdma_write_info_alloc(struct svcxprt_rdma *rdma, __be32 *chunk)
 	if (!info)
 		return info;
 
+	info->wi_chunk = chunk;
 	info->wi_seg_off = 0;
 	info->wi_seg_no = 0;
-	info->wi_nsegs = be32_to_cpup(++chunk);
-	info->wi_segs = ++chunk;
 	svc_rdma_cc_init(rdma, &info->wi_cc);
 	info->wi_cc.cc_cqe.done = svc_rdma_write_done;
 	return info;
@@ -443,23 +443,19 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 {
 	struct svc_rdma_chunk_ctxt *cc = &info->wi_cc;
 	struct svcxprt_rdma *rdma = cc->cc_rdma;
+	const struct svc_rdma_segment *seg;
 	struct svc_rdma_rw_ctxt *ctxt;
-	__be32 *seg;
 	int ret;
 
-	seg = info->wi_segs + info->wi_seg_no * rpcrdma_segment_maxsz;
 	do {
 		unsigned int write_len;
-		u32 handle, length;
 		u64 offset;
 
-		if (info->wi_seg_no >= info->wi_nsegs)
+		seg = &info->wi_chunk->ch_segments[info->wi_seg_no];
+		if (!seg)
 			goto out_overflow;
 
-		xdr_decode_rdma_segment(seg, &handle, &length, &offset);
-		offset += info->wi_seg_off;
-
-		write_len = min(remaining, length - info->wi_seg_off);
+		write_len = min(remaining, seg->rs_length - info->wi_seg_off);
 		if (!write_len)
 			goto out_overflow;
 		ctxt = svc_rdma_get_rw_ctxt(rdma,
@@ -468,17 +464,17 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 			return -ENOMEM;
 
 		constructor(info, write_len, ctxt);
-		ret = svc_rdma_rw_ctx_init(rdma, ctxt, offset, handle,
+		offset = seg->rs_offset + info->wi_seg_off;
+		ret = svc_rdma_rw_ctx_init(rdma, ctxt, offset, seg->rs_handle,
 					   DMA_TO_DEVICE);
 		if (ret < 0)
 			return -EIO;
 
-		trace_svcrdma_send_wseg(handle, write_len, offset);
+		trace_svcrdma_send_wseg(seg->rs_handle, write_len, offset);
 
 		list_add(&ctxt->rw_list, &cc->cc_rwctxts);
 		cc->cc_sqecount += ret;
-		if (write_len == length - info->wi_seg_off) {
-			seg += 4;
+		if (write_len == seg->rs_length - info->wi_seg_off) {
 			info->wi_seg_no++;
 			info->wi_seg_off = 0;
 		} else {
@@ -491,7 +487,7 @@ svc_rdma_build_writes(struct svc_rdma_write_info *info,
 
 out_overflow:
 	trace_svcrdma_small_wrch_err(rdma, remaining, info->wi_seg_no,
-				     info->wi_nsegs);
+				     info->wi_chunk->ch_segcount);
 	return -E2BIG;
 }
 
@@ -579,7 +575,7 @@ static int svc_rdma_xb_write(const struct xdr_buf *xdr,
 /**
  * svc_rdma_send_write_chunk - Write all segments in a Write chunk
  * @rdma: controlling RDMA transport
- * @wr_ch: Write chunk provided by client
+ * @chunk: Write chunk provided by the client
  * @xdr: xdr_buf containing the data payload
  *
  * Returns a non-negative number of bytes the chunk consumed, or
@@ -589,13 +585,14 @@ static int svc_rdma_xb_write(const struct xdr_buf *xdr,
  *	%-ENOTCONN if posting failed (connection is lost),
  *	%-EIO if rdma_rw initialization failed (DMA mapping, etc).
  */
-int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma, __be32 *wr_ch,
+int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
+			      const struct svc_rdma_chunk *chunk,
 			      const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
 	int ret;
 
-	info = svc_rdma_write_info_alloc(rdma, wr_ch);
+	info = svc_rdma_write_info_alloc(rdma, chunk);
 	if (!info)
 		return -ENOMEM;
 
@@ -633,12 +630,14 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 			      struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
+	struct svc_rdma_chunk *chunk;
 	int consumed, ret;
 
-	if (!rctxt->rc_reply_chunk)
+	if (pcl_is_empty(&rctxt->rc_reply_pcl))
 		return 0;
 
-	info = svc_rdma_write_info_alloc(rdma, rctxt->rc_reply_chunk);
+	chunk = pcl_first_chunk(&rctxt->rc_reply_pcl);
+	info = svc_rdma_write_info_alloc(rdma, chunk);
 	if (!info)
 		return -ENOMEM;
 
@@ -650,7 +649,7 @@ int svc_rdma_send_reply_chunk(struct svcxprt_rdma *rdma,
 	/* Send the page list in the Reply chunk only if the
 	 * client did not provide Write chunks.
 	 */
-	if (!rctxt->rc_write_list && xdr->page_len) {
+	if (pcl_is_empty(&rctxt->rc_write_pcl) && xdr->page_len) {
 		ret = svc_rdma_pages_write(info, xdr, xdr->head[0].iov_len,
 					   xdr->page_len);
 		if (ret < 0)

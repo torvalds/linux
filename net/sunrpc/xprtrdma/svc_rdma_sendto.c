@@ -466,12 +466,14 @@ static ssize_t
 svc_rdma_encode_write_list(const struct svc_rdma_recv_ctxt *rctxt,
 			   struct svc_rdma_send_ctxt *sctxt)
 {
+	struct svc_rdma_chunk *chunk;
 	ssize_t len, ret;
 
 	len = 0;
 	if (rctxt->rc_write_list) {
+		chunk = pcl_first_chunk(&rctxt->rc_write_pcl);
 		ret = svc_rdma_encode_write_chunk(rctxt->rc_write_list, sctxt,
-						  rctxt->rc_read_payload_length);
+						  chunk->ch_payload_length);
 		if (ret < 0)
 			return ret;
 		len = ret;
@@ -978,25 +980,27 @@ int svc_rdma_result_payload(struct svc_rqst *rqstp, unsigned int offset,
 			    unsigned int length)
 {
 	struct svc_rdma_recv_ctxt *rctxt = rqstp->rq_xprt_ctxt;
+	struct svc_rdma_chunk *chunk;
 	struct svcxprt_rdma *rdma;
 	struct xdr_buf subbuf;
 	int ret;
 
-	if (!rctxt->rc_write_list || !length)
+	chunk = rctxt->rc_cur_result_payload;
+	if (!length || !chunk)
 		return 0;
+	rctxt->rc_cur_result_payload =
+		pcl_next_chunk(&rctxt->rc_write_pcl, chunk);
+	if (length > chunk->ch_length)
+		return -E2BIG;
 
-	/* XXX: Just one READ payload slot for now, since our
-	 * transport implementation currently supports only one
-	 * Write chunk.
-	 */
-	rctxt->rc_read_payload_offset = offset;
-	rctxt->rc_read_payload_length = length;
+	chunk->ch_position = offset;
+	chunk->ch_payload_length = length;
 
 	if (xdr_buf_subsegment(&rqstp->rq_res, &subbuf, offset, length))
 		return -EMSGSIZE;
 
 	rdma = container_of(rqstp->rq_xprt, struct svcxprt_rdma, sc_xprt);
-	ret = svc_rdma_send_write_chunk(rdma, rctxt->rc_write_list, &subbuf);
+	ret = svc_rdma_send_write_chunk(rdma, chunk, &subbuf);
 	if (ret < 0)
 		return ret;
 	return 0;
