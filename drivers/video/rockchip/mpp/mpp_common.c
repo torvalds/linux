@@ -57,7 +57,6 @@ struct mpp_msg_v1 {
 };
 
 static void mpp_free_task(struct kref *ref);
-static int mpp_dev_reset(struct mpp_dev *mpp);
 
 /* task queue schedule */
 static int
@@ -181,7 +180,7 @@ mpp_taskqueue_trigger_work(struct mpp_taskqueue *queue,
 	return 0;
 }
 
-static int mpp_power_on(struct mpp_dev *mpp)
+int mpp_power_on(struct mpp_dev *mpp)
 {
 	pm_runtime_get_sync(mpp->dev);
 	pm_stay_awake(mpp->dev);
@@ -192,7 +191,7 @@ static int mpp_power_on(struct mpp_dev *mpp)
 	return 0;
 }
 
-static int mpp_power_off(struct mpp_dev *mpp)
+int mpp_power_off(struct mpp_dev *mpp)
 {
 	if (mpp->hw_ops->power_off)
 		mpp->hw_ops->power_off(mpp);
@@ -466,7 +465,7 @@ fail:
 	return NULL;
 }
 
-static int mpp_dev_reset(struct mpp_dev *mpp)
+int mpp_dev_reset(struct mpp_dev *mpp)
 {
 	dev_info(mpp->dev, "resetting...\n");
 

@@ -419,6 +419,10 @@ int mpp_dev_probe(struct mpp_dev *mpp,
 		  struct platform_device *pdev);
 int mpp_dev_remove(struct mpp_dev *mpp);
 
+int mpp_power_on(struct mpp_dev *mpp);
+int mpp_power_off(struct mpp_dev *mpp);
+int mpp_dev_reset(struct mpp_dev *mpp);
+
 irqreturn_t mpp_dev_irq(int irq, void *param);
 irqreturn_t mpp_dev_isr_sched(int irq, void *param);
 

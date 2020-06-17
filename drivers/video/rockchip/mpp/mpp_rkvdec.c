@@ -199,6 +199,9 @@ struct rkvdec_dev {
 	unsigned long aclk_devf;
 	unsigned long clk_core_devf;
 	unsigned long clk_cabac_devf;
+	/* record last infos */
+	u32 last_fmt;
+	bool had_reset;
 };
 
 /*
@@ -852,6 +855,34 @@ fail:
 	return NULL;
 }
 
+static void *rkvdec_prepare_with_reset(struct mpp_dev *mpp,
+				       struct mpp_task *mpp_task)
+{
+	struct mpp_task *out_task = NULL;
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+
+	mutex_lock(&mpp->queue->running_lock);
+	out_task = list_empty(&mpp->queue->running_list) ? mpp_task : NULL;
+	mutex_unlock(&mpp->queue->running_lock);
+
+	if (out_task && !dec->had_reset) {
+		struct rkvdec_task *task = to_rkvdec_task(out_task);
+		u32 fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
+
+		/* in 3399 3228 and 3229 chips, when 264 switch vp9,
+		 * hardware will timeout, and can't recover problem.
+		 * so reset it when 264 switch vp9, before hardware run.
+		 */
+		if (dec->last_fmt == RKVDEC_FMT_H264D && fmt == RKVDEC_FMT_VP9D) {
+			mpp_power_on(mpp);
+			mpp_dev_reset(mpp);
+			mpp_power_off(mpp);
+		}
+	}
+
+	return out_task;
+}
+
 static int rkvdec_run(struct mpp_dev *mpp,
 		      struct mpp_task *mpp_task)
 {
@@ -1024,6 +1055,19 @@ static int rkvdec_finish(struct mpp_dev *mpp,
 	}
 
 	mpp_debug_leave();
+
+	return 0;
+}
+
+static int rkvdec_finish_with_record_info(struct mpp_dev *mpp,
+					  struct mpp_task *mpp_task)
+{
+	struct rkvdec_dev *dec = to_rkvdec_dev(mpp);
+	struct rkvdec_task *task = to_rkvdec_task(mpp_task);
+
+	rkvdec_finish(mpp, mpp_task);
+	dec->last_fmt = RKVDEC_GET_FORMAT(task->reg[RKVDEC_REG_SYS_CTRL_INDEX]);
+	dec->had_reset = (atomic_read(&mpp->reset_request) > 0) ? true : false;
 
 	return 0;
 }
@@ -1588,7 +1632,7 @@ static struct mpp_hw_ops rkvdec_3399_hw_ops = {
 	.get_freq = rkvdec_get_freq,
 	.set_freq = rkvdec_set_freq,
 	.reduce_freq = rkvdec_reduce_freq,
-	.reset = rkvdec_sip_reset,
+	.reset = rkvdec_reset,
 };
 
 static struct mpp_hw_ops rkvdec_3368_hw_ops = {
@@ -1632,6 +1676,17 @@ static struct mpp_dev_ops rkvdec_3328_dev_ops = {
 	.free_task = rkvdec_free_task,
 };
 
+static struct mpp_dev_ops rkvdec_3399_dev_ops = {
+	.alloc_task = rkvdec_alloc_task,
+	.prepare = rkvdec_prepare_with_reset,
+	.run = rkvdec_run,
+	.irq = rkvdec_irq,
+	.isr = rkvdec_isr,
+	.finish = rkvdec_finish_with_record_info,
+	.result = rkvdec_result,
+	.free_task = rkvdec_free_task,
+};
+
 static const struct mpp_dev_var rk_hevcdec_data = {
 	.device_type = MPP_DEVICE_HEVC_DEC,
 	.hw_info = &rk_hevcdec_hw_info,
@@ -1669,7 +1724,7 @@ static const struct mpp_dev_var rkvdec_3399_data = {
 	.hw_info = &rkvdec_v1_hw_info,
 	.trans_info = rkvdec_v1_trans,
 	.hw_ops = &rkvdec_3399_hw_ops,
-	.dev_ops = &rkvdec_v1_dev_ops,
+	.dev_ops = &rkvdec_3399_dev_ops,
 };
 
 static const struct mpp_dev_var rkvdec_3328_data = {
