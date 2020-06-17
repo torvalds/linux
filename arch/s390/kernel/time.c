@@ -790,6 +790,34 @@ static ssize_t leap_seconds_show(struct device *dev,
 
 static DEVICE_ATTR_RO(leap_seconds);
 
+static ssize_t leap_seconds_scheduled_show(struct device *dev,
+						struct device_attribute *attr,
+						char *buf)
+{
+	struct stp_stzi stzi;
+	ssize_t ret;
+
+	mutex_lock(&stp_work_mutex);
+	if (!stpinfo_valid() || !(stp_info.vbits & 0x8000) || !stp_info.lu) {
+		mutex_unlock(&stp_work_mutex);
+		return -ENODATA;
+	}
+
+	ret = chsc_stzi(stp_page, &stzi, sizeof(stzi));
+	mutex_unlock(&stp_work_mutex);
+	if (ret < 0)
+		return ret;
+
+	if (!stzi.lsoib.p)
+		return sprintf(buf, "0,0\n");
+
+	return sprintf(buf, "%llu,%d\n",
+		       tod_to_ns(stzi.lsoib.nlsout - TOD_UNIX_EPOCH) / NSEC_PER_SEC,
+		       stzi.lsoib.nlso - stzi.lsoib.also);
+}
+
+static DEVICE_ATTR_RO(leap_seconds_scheduled);
+
 static ssize_t stratum_show(struct device *dev,
 				struct device_attribute *attr,
 				char *buf)
@@ -906,6 +934,7 @@ static struct device_attribute *stp_attributes[] = {
 	&dev_attr_dst_offset,
 	&dev_attr_leap_seconds,
 	&dev_attr_online,
+	&dev_attr_leap_seconds_scheduled,
 	&dev_attr_stratum,
 	&dev_attr_time_offset,
 	&dev_attr_time_zone_offset,
