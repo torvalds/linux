@@ -345,6 +345,7 @@ struct amdgpu_display_manager {
 struct dsc_preferred_settings {
 	bool dsc_clock_en;
 	uint32_t dsc_slice_width;
+	uint32_t dsc_slice_height;
 };
 
 struct amdgpu_dm_connector {

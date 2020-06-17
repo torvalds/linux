@@ -452,6 +452,7 @@ struct dsc_mst_fairness_params {
 	struct drm_dp_mst_port *port;
 	bool clock_overwrite;
 	uint32_t slice_width_overwrite;
+	uint32_t slice_height_overwrite;
 };
 
 struct dsc_mst_fairness_vars {
@@ -490,6 +491,11 @@ static void set_dsc_configs_from_fairness_vars(struct dsc_mst_fairness_params *p
 				params[i].timing->dsc_cfg.num_slices_h = DIV_ROUND_UP(
 										params[i].timing->h_addressable,
 										params[i].slice_width_overwrite);
+
+			if (params[i].slice_height_overwrite)
+				params[i].timing->dsc_cfg.num_slices_v = DIV_ROUND_UP(
+										params[i].timing->v_addressable,
+										params[i].slice_height_overwrite);
 		} else {
 			params[i].timing->flags.DSC = 0;
 		}
@@ -707,6 +713,7 @@ static bool compute_mst_dsc_configs_for_link(struct drm_atomic_state *state,
 		if (params[count].clock_overwrite)
 			debugfs_overwrite = true;
 		params[count].slice_width_overwrite = aconnector->dsc_settings.dsc_slice_width;
+		params[count].slice_height_overwrite = aconnector->dsc_settings.dsc_slice_height;
 		params[count].compression_possible = stream->sink->dsc_caps.dsc_dec_caps.is_dsc_supported;
 		dc_dsc_get_policy_for_timing(params[count].timing, &dsc_policy);
 		if (!dc_dsc_compute_bandwidth_range(
