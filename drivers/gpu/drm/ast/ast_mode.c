@@ -565,14 +565,15 @@ static void
 ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct ast_private *ast = to_ast_private(plane->dev);
+	struct drm_device *dev = plane->dev;
+	struct ast_private *ast = to_ast_private(dev);
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
 
 	gbo = drm_gem_vram_of_gem(state->fb->obj[0]);
 	gpu_addr = drm_gem_vram_offset(gbo);
-	if (WARN_ON_ONCE(gpu_addr < 0))
+	if (drm_WARN_ON_ONCE(dev, gpu_addr < 0))
 		return; /* Bug: we didn't pin the BO to VRAM in prepare_fb. */
 
 	ast_set_offset_reg(ast, state->fb);
@@ -619,6 +620,7 @@ static int
 ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 				   struct drm_plane_state *new_state)
 {
+	struct drm_device *dev = plane->dev;
 	struct drm_framebuffer *fb = new_state->fb;
 	struct drm_crtc *crtc = new_state->crtc;
 	struct drm_gem_vram_object *gbo;
@@ -629,11 +631,11 @@ ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 	if (!crtc || !fb)
 		return 0;
 
-	if (WARN_ON_ONCE(fb->width > AST_MAX_HWC_WIDTH) ||
-	    WARN_ON_ONCE(fb->height > AST_MAX_HWC_HEIGHT))
+	if (drm_WARN_ON_ONCE(dev, fb->width > AST_MAX_HWC_WIDTH) ||
+	    drm_WARN_ON_ONCE(dev, fb->height > AST_MAX_HWC_HEIGHT))
 		return -EINVAL; /* BUG: didn't test in atomic_check() */
 
-	ast = to_ast_private(crtc->dev);
+	ast = to_ast_private(dev);
 
 	gbo = drm_gem_vram_of_gem(fb->obj[0]);
 	src = drm_gem_vram_vmap(gbo);
@@ -702,6 +704,7 @@ static void
 ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 				      struct drm_plane_state *old_state)
 {
+	struct drm_device *dev = plane->dev;
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
@@ -718,7 +721,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 		/* A new cursor image was installed. */
 		gbo = ast->cursor.gbo[ast->cursor.next_index];
 		off = drm_gem_vram_offset(gbo);
-		if (WARN_ON_ONCE(off < 0))
+		if (drm_WARN_ON_ONCE(dev, off < 0))
 			return; /* Bug: we didn't pin cursor HW BO to VRAM. */
 		ast_cursor_set_base(ast, off);
 
@@ -897,8 +900,9 @@ static struct drm_crtc_state *
 ast_crtc_atomic_duplicate_state(struct drm_crtc *crtc)
 {
 	struct ast_crtc_state *new_ast_state, *ast_state;
+	struct drm_device *dev = crtc->dev;
 
-	if (WARN_ON(!crtc->state))
+	if (drm_WARN_ON(dev, !crtc->state))
 		return NULL;
 
 	new_ast_state = kmalloc(sizeof(*new_ast_state), GFP_KERNEL);
@@ -1104,7 +1108,7 @@ static int ast_connector_init(struct drm_device *dev)
 	connector = &ast_connector->base;
 	ast_connector->i2c = ast_i2c_create(dev);
 	if (!ast_connector->i2c)
-		DRM_ERROR("failed to add ddc bus for connector\n");
+		drm_err(dev, "failed to add ddc bus for connector\n");
 
 	drm_connector_init_with_ddc(dev, connector,
 				    &ast_connector_funcs,
@@ -1188,7 +1192,7 @@ int ast_mode_init(struct drm_device *dev)
 				       ARRAY_SIZE(ast_primary_plane_formats),
 				       NULL, DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
-		DRM_ERROR("ast: drm_universal_plane_init() failed: %d\n", ret);
+		drm_err(dev, "ast: drm_universal_plane_init() failed: %d\n", ret);
 		return ret;
 	}
 	drm_plane_helper_add(&ast->primary_plane,
@@ -1200,7 +1204,7 @@ int ast_mode_init(struct drm_device *dev)
 				       ARRAY_SIZE(ast_cursor_plane_formats),
 				       NULL, DRM_PLANE_TYPE_CURSOR, NULL);
 	if (ret) {
-		DRM_ERROR("drm_universal_plane_failed(): %d\n", ret);
+		drm_err(dev, "drm_universal_plane_failed(): %d\n", ret);
 		return ret;
 	}
 	drm_plane_helper_add(&ast->cursor_plane,
@@ -1322,7 +1326,7 @@ static struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 	i2c->bit.getscl = get_clock;
 	ret = i2c_bit_add_bus(&i2c->adapter);
 	if (ret) {
-		DRM_ERROR("Failed to register bit i2c\n");
+		drm_err(dev, "Failed to register bit i2c\n");
 		goto out_free;
 	}
 

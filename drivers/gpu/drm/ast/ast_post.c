@@ -2067,7 +2067,7 @@ void ast_post_chip_2500(struct drm_device *dev)
 		}
 
 		if (!ast_dram_init_2500(ast))
-			DRM_ERROR("DRAM init failed !\n");
+			drm_err(dev, "DRAM init failed !\n");
 
 		temp = ast_mindwm(ast, 0x1e6e2040);
 		ast_moutdwm(ast, 0x1e6e2040, temp | 0x40);

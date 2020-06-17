@@ -79,7 +79,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 					scu_rev)) {
 		/* We do, disable P2A access */
 		ast->config_mode = ast_use_dt;
-		DRM_INFO("Using device-tree for configuration\n");
+		drm_info(dev, "Using device-tree for configuration\n");
 		return;
 	}
 
@@ -101,7 +101,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 			/* P2A works, grab silicon revision */
 			ast->config_mode = ast_use_p2a;
 
-			DRM_INFO("Using P2A bridge for configuration\n");
+			drm_info(dev, "Using P2A bridge for configuration\n");
 
 			/* Read SCU7c (silicon revision register) */
 			ast_write32(ast, 0xf004, 0x1e6e0000);
@@ -112,7 +112,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 	}
 
 	/* We have a P2A bridge but it's disabled */
-	DRM_INFO("P2A bridge disabled, using default configuration\n");
+	drm_info(dev, "P2A bridge disabled, using default configuration\n");
 }
 
 static int ast_detect_chip(struct drm_device *dev, bool *need_post)
@@ -128,7 +128,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	 */
 	if (!ast_is_vga_enabled(dev)) {
 		ast_enable_vga(dev);
-		DRM_INFO("VGA not enabled on entry, requesting chip POST\n");
+		drm_info(dev, "VGA not enabled on entry, requesting chip POST\n");
 		*need_post = true;
 	} else
 		*need_post = false;
@@ -144,36 +144,36 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	/* Identify chipset */
 	if (dev->pdev->revision >= 0x40) {
 		ast->chip = AST2500;
-		DRM_INFO("AST 2500 detected\n");
+		drm_info(dev, "AST 2500 detected\n");
 	} else if (dev->pdev->revision >= 0x30) {
 		ast->chip = AST2400;
-		DRM_INFO("AST 2400 detected\n");
+		drm_info(dev, "AST 2400 detected\n");
 	} else if (dev->pdev->revision >= 0x20) {
 		ast->chip = AST2300;
-		DRM_INFO("AST 2300 detected\n");
+		drm_info(dev, "AST 2300 detected\n");
 	} else if (dev->pdev->revision >= 0x10) {
 		switch (scu_rev & 0x0300) {
 		case 0x0200:
 			ast->chip = AST1100;
-			DRM_INFO("AST 1100 detected\n");
+			drm_info(dev, "AST 1100 detected\n");
 			break;
 		case 0x0100:
 			ast->chip = AST2200;
-			DRM_INFO("AST 2200 detected\n");
+			drm_info(dev, "AST 2200 detected\n");
 			break;
 		case 0x0000:
 			ast->chip = AST2150;
-			DRM_INFO("AST 2150 detected\n");
+			drm_info(dev, "AST 2150 detected\n");
 			break;
 		default:
 			ast->chip = AST2100;
-			DRM_INFO("AST 2100 detected\n");
+			drm_info(dev, "AST 2100 detected\n");
 			break;
 		}
 		ast->vga2_clone = false;
 	} else {
 		ast->chip = AST2000;
-		DRM_INFO("AST 2000 detected\n");
+		drm_info(dev, "AST 2000 detected\n");
 	}
 
 	/* Check if we support wide screen */
@@ -248,13 +248,13 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	/* Print stuff for diagnostic purposes */
 	switch(ast->tx_chip_type) {
 	case AST_TX_SIL164:
-		DRM_INFO("Using Sil164 TMDS transmitter\n");
+		drm_info(dev, "Using Sil164 TMDS transmitter\n");
 		break;
 	case AST_TX_DP501:
-		DRM_INFO("Using DP501 DisplayPort transmitter\n");
+		drm_info(dev, "Using DP501 DisplayPort transmitter\n");
 		break;
 	default:
-		DRM_INFO("Analog VGA only\n");
+		drm_info(dev, "Analog VGA only\n");
 	}
 	return 0;
 }
@@ -443,7 +443,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	 * and higher).
 	 */
 	if (!(pci_resource_flags(dev->pdev, 2) & IORESOURCE_IO)) {
-		DRM_INFO("platform has no IO space, trying MMIO\n");
+		drm_info(dev, "platform has no IO space, trying MMIO\n");
 		ast->ioregs = ast->regs + AST_IO_MM_OFFSET;
 	}
 
@@ -465,7 +465,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto out_free;
 	ast->vram_size = ast_get_vram_info(dev);
-	DRM_INFO("dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
+	drm_info(dev, "dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
 		 ast->mclk, ast->dram_type,
 		 ast->dram_bus_width, ast->vram_size);
 
