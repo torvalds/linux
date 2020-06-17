@@ -29,8 +29,8 @@ static int live_engine_busy_stats(void *arg)
 	GEM_BUG_ON(intel_gt_pm_is_awake(gt));
 	for_each_engine(engine, gt, id) {
 		struct i915_request *rq;
-		ktime_t de;
-		u64 dt;
+		ktime_t de, dt;
+		ktime_t t[2];
 
 		if (!intel_engine_supports_stats(engine))
 			continue;
@@ -47,12 +47,11 @@ static int live_engine_busy_stats(void *arg)
 
 		ENGINE_TRACE(engine, "measuring idle time\n");
 		preempt_disable();
-		dt = ktime_to_ns(ktime_get());
-		de = intel_engine_get_busy_time(engine);
+		de = intel_engine_get_busy_time(engine, &t[0]);
 		udelay(100);
-		de = ktime_sub(intel_engine_get_busy_time(engine), de);
-		dt = ktime_to_ns(ktime_get()) - dt;
+		de = ktime_sub(intel_engine_get_busy_time(engine, &t[1]), de);
 		preempt_enable();
+		dt = ktime_sub(t[1], t[0]);
 		if (de < 0 || de > 10) {
 			pr_err("%s: reported %lldns [%d%%] busyness while sleeping [for %lldns]\n",
 			       engine->name,
@@ -80,12 +79,11 @@ static int live_engine_busy_stats(void *arg)
 
 		ENGINE_TRACE(engine, "measuring busy time\n");
 		preempt_disable();
-		dt = ktime_to_ns(ktime_get());
-		de = intel_engine_get_busy_time(engine);
+		de = intel_engine_get_busy_time(engine, &t[0]);
 		udelay(100);
-		de = ktime_sub(intel_engine_get_busy_time(engine), de);
-		dt = ktime_to_ns(ktime_get()) - dt;
+		de = ktime_sub(intel_engine_get_busy_time(engine, &t[1]), de);
 		preempt_enable();
+		dt = ktime_sub(t[1], t[0]);
 		if (100 * de < 95 * dt || 95 * de > 100 * dt) {
 			pr_err("%s: reported %lldns [%d%%] busyness while spinning [for %lldns]\n",
 			       engine->name,

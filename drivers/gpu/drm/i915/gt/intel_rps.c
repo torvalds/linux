@@ -53,13 +53,13 @@ static void rps_timer(struct timer_list *t)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	s64 max_busy[3] = {};
-	ktime_t dt, last;
+	ktime_t dt, timestamp, last;
 
 	for_each_engine(engine, rps_to_gt(rps), id) {
 		s64 busy;
 		int i;
 
-		dt = intel_engine_get_busy_time(engine);
+		dt = intel_engine_get_busy_time(engine, &timestamp);
 		last = engine->stats.rps;
 		engine->stats.rps = dt;
 
@@ -70,15 +70,14 @@ static void rps_timer(struct timer_list *t)
 		}
 	}
 
-	dt = ktime_get();
 	last = rps->pm_timestamp;
-	rps->pm_timestamp = dt;
+	rps->pm_timestamp = timestamp;
 
 	if (intel_rps_is_active(rps)) {
 		s64 busy;
 		int i;
 
-		dt = ktime_sub(dt, last);
+		dt = ktime_sub(timestamp, last);
 
 		/*
 		 * Our goal is to evaluate each engine independently, so we run

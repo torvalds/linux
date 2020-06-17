@@ -334,7 +334,8 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		       struct drm_printer *m,
 		       const char *header, ...);
 
-ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine);
+ktime_t intel_engine_get_busy_time(struct intel_engine_cs *engine,
+				   ktime_t *now);
 
 struct i915_request *
 intel_engine_find_active_request(struct intel_engine_cs *engine);

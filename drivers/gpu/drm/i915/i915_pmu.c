@@ -565,7 +565,10 @@ static u64 __i915_pmu_event_read(struct perf_event *event)
 			/* Do nothing */
 		} else if (sample == I915_SAMPLE_BUSY &&
 			   intel_engine_supports_stats(engine)) {
-			val = ktime_to_ns(intel_engine_get_busy_time(engine));
+			ktime_t unused;
+
+			val = ktime_to_ns(intel_engine_get_busy_time(engine,
+								     &unused));
 		} else {
 			val = engine->pmu.sample[sample].cur;
 		}
