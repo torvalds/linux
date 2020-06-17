@@ -488,7 +488,8 @@ static enum kernel_gp_hint get_kernel_gp_address(struct pt_regs *regs,
 	u8 insn_buf[MAX_INSN_SIZE];
 	struct insn insn;
 
-	if (probe_kernel_read(insn_buf, (void *)regs->ip, MAX_INSN_SIZE))
+	if (copy_from_kernel_nofault(insn_buf, (void *)regs->ip,
+			MAX_INSN_SIZE))
 		return GP_NO_HINT;
 
 	kernel_insn_init(&insn, insn_buf, MAX_INSN_SIZE);

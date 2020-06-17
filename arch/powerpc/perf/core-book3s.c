@@ -418,7 +418,8 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 	__u64 target;
 
 	if (is_kernel_addr(addr)) {
-		if (probe_kernel_read(&instr, (void *)addr, sizeof(instr)))
+		if (copy_from_kernel_nofault(&instr, (void *)addr,
+				sizeof(instr)))
 			return 0;
 
 		return branch_target((struct ppc_inst *)&instr);

@@ -153,7 +153,7 @@ int do_single_step(struct pt_regs *regs)
 	stepped_address = addr;
 
 	/* Replace the op code with the break instruction */
-	error = probe_kernel_write((void *)stepped_address,
+	error = copy_to_kernel_nofault((void *)stepped_address,
 				   arch_kgdb_ops.gdb_bpt_instr,
 				   BREAK_INSTR_SIZE);
 	/* Flush and return */
@@ -173,7 +173,7 @@ int do_single_step(struct pt_regs *regs)
 static void undo_single_step(struct pt_regs *regs)
 {
 	if (stepped_opcode != 0) {
-		probe_kernel_write((void *)stepped_address,
+		copy_to_kernel_nofault((void *)stepped_address,
 				   (void *)&stepped_opcode, BREAK_INSTR_SIZE);
 		flush_icache_range(stepped_address,
 				   stepped_address + BREAK_INSTR_SIZE);

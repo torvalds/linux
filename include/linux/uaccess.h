@@ -301,13 +301,14 @@ copy_struct_from_user(void *dst, size_t ksize, const void __user *src,
 	return 0;
 }
 
-bool probe_kernel_read_allowed(const void *unsafe_src, size_t size);
+bool copy_from_kernel_nofault_allowed(const void *unsafe_src, size_t size);
 
-extern long probe_kernel_read(void *dst, const void *src, size_t size);
+long copy_from_kernel_nofault(void *dst, const void *src, size_t size);
+long notrace copy_to_kernel_nofault(void *dst, const void *src, size_t size);
+
 extern long probe_user_read(void *dst, const void __user *src, size_t size);
-
-extern long notrace probe_kernel_write(void *dst, const void *src, size_t size);
-extern long notrace probe_user_write(void __user *dst, const void *src, size_t size);
+extern long notrace probe_user_write(void __user *dst, const void *src,
+		size_t size);
 
 long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr,
 		long count);
@@ -324,7 +325,7 @@ long strnlen_user_nofault(const void __user *unsafe_addr, long count);
  * Returns 0 on success, or -EFAULT.
  */
 #define probe_kernel_address(addr, retval)		\
-	probe_kernel_read(&retval, addr, sizeof(retval))
+	copy_from_kernel_nofault(&retval, addr, sizeof(retval))
 
 #ifndef user_access_begin
 #define user_access_begin(ptr,len) access_ok(ptr, len)
