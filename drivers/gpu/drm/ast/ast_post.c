@@ -58,13 +58,9 @@ bool ast_is_vga_enabled(struct drm_device *dev)
 	struct ast_private *ast = dev->dev_private;
 	u8 ch;
 
-	if (ast->chip == AST1180) {
-		/* TODO 1180 */
-	} else {
-		ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
-		return !!(ch & 0x01);
-	}
-	return false;
+	ch = ast_io_read8(ast, AST_IO_VGA_ENABLE_PORT);
+
+	return !!(ch & 0x01);
 }
 
 static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };

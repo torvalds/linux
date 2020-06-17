@@ -768,9 +768,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = crtc->dev->dev_private;
 
-	if (ast->chip == AST1180)
-		return;
-
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
 	 */
@@ -796,11 +793,6 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
-
-	if (ast->chip == AST1180) {
-		DRM_ERROR("AST 1180 modesetting not supported\n");
-		return -EINVAL;
-	}
 
 	if (!state->enable)
 		return 0; /* no mode checks if CRTC is being disabled */
@@ -1043,7 +1035,7 @@ static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 
 		if ((ast->chip == AST2100) || (ast->chip == AST2200) ||
 		    (ast->chip == AST2300) || (ast->chip == AST2400) ||
-		    (ast->chip == AST2500) || (ast->chip == AST1180)) {
+		    (ast->chip == AST2500)) {
 			if ((mode->hdisplay == 1920) && (mode->vdisplay == 1080))
 				return MODE_OK;
 

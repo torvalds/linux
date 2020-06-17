@@ -142,50 +142,42 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 	ast_detect_config_mode(dev, &scu_rev);
 
 	/* Identify chipset */
-	if (dev->pdev->device == PCI_CHIP_AST1180) {
-		ast->chip = AST1100;
-		DRM_INFO("AST 1180 detected\n");
-	} else {
-		if (dev->pdev->revision >= 0x40) {
-			ast->chip = AST2500;
-			DRM_INFO("AST 2500 detected\n");
-		} else if (dev->pdev->revision >= 0x30) {
-			ast->chip = AST2400;
-			DRM_INFO("AST 2400 detected\n");
-		} else if (dev->pdev->revision >= 0x20) {
-			ast->chip = AST2300;
-			DRM_INFO("AST 2300 detected\n");
-		} else if (dev->pdev->revision >= 0x10) {
-			switch (scu_rev & 0x0300) {
-			case 0x0200:
-				ast->chip = AST1100;
-				DRM_INFO("AST 1100 detected\n");
-				break;
-			case 0x0100:
-				ast->chip = AST2200;
-				DRM_INFO("AST 2200 detected\n");
-				break;
-			case 0x0000:
-				ast->chip = AST2150;
-				DRM_INFO("AST 2150 detected\n");
-				break;
-			default:
-				ast->chip = AST2100;
-				DRM_INFO("AST 2100 detected\n");
-				break;
-			}
-			ast->vga2_clone = false;
-		} else {
-			ast->chip = AST2000;
-			DRM_INFO("AST 2000 detected\n");
+	if (dev->pdev->revision >= 0x40) {
+		ast->chip = AST2500;
+		DRM_INFO("AST 2500 detected\n");
+	} else if (dev->pdev->revision >= 0x30) {
+		ast->chip = AST2400;
+		DRM_INFO("AST 2400 detected\n");
+	} else if (dev->pdev->revision >= 0x20) {
+		ast->chip = AST2300;
+		DRM_INFO("AST 2300 detected\n");
+	} else if (dev->pdev->revision >= 0x10) {
+		switch (scu_rev & 0x0300) {
+		case 0x0200:
+			ast->chip = AST1100;
+			DRM_INFO("AST 1100 detected\n");
+			break;
+		case 0x0100:
+			ast->chip = AST2200;
+			DRM_INFO("AST 2200 detected\n");
+			break;
+		case 0x0000:
+			ast->chip = AST2150;
+			DRM_INFO("AST 2150 detected\n");
+			break;
+		default:
+			ast->chip = AST2100;
+			DRM_INFO("AST 2100 detected\n");
+			break;
 		}
+		ast->vga2_clone = false;
+	} else {
+		ast->chip = AST2000;
+		DRM_INFO("AST 2000 detected\n");
 	}
 
 	/* Check if we support wide screen */
 	switch (ast->chip) {
-	case AST1180:
-		ast->support_wide_screen = true;
-		break;
 	case AST2000:
 		ast->support_wide_screen = false;
 		break;
@@ -469,15 +461,13 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	if (need_post)
 		ast_post_gpu(dev);
 
-	if (ast->chip != AST1180) {
-		ret = ast_get_dram_info(dev);
-		if (ret)
-			goto out_free;
-		ast->vram_size = ast_get_vram_info(dev);
-		DRM_INFO("dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
-			 ast->mclk, ast->dram_type,
-			 ast->dram_bus_width, ast->vram_size);
-	}
+	ret = ast_get_dram_info(dev);
+	if (ret)
+		goto out_free;
+	ast->vram_size = ast_get_vram_info(dev);
+	DRM_INFO("dram MCLK=%u Mhz type=%d bus_width=%d size=%08x\n",
+		 ast->mclk, ast->dram_type,
+		 ast->dram_bus_width, ast->vram_size);
 
 	ret = ast_mm_init(ast);
 	if (ret)
@@ -496,8 +486,7 @@ int ast_driver_load(struct drm_device *dev, unsigned long flags)
 	    ast->chip == AST2200 ||
 	    ast->chip == AST2300 ||
 	    ast->chip == AST2400 ||
-	    ast->chip == AST2500 ||
-	    ast->chip == AST1180) {
+	    ast->chip == AST2500) {
 		dev->mode_config.max_width = 1920;
 		dev->mode_config.max_height = 2048;
 	} else {
