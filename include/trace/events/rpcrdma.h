@@ -1447,8 +1447,43 @@ DECLARE_EVENT_CLASS(svcrdma_segment_event,
 				TP_ARGS(handle, length, offset))
 
 DEFINE_SEGMENT_EVENT(send_rseg);
-DEFINE_SEGMENT_EVENT(encode_wseg);
 DEFINE_SEGMENT_EVENT(send_wseg);
+
+TRACE_EVENT(svcrdma_encode_wseg,
+	TP_PROTO(
+		const struct svc_rdma_send_ctxt *ctxt,
+		u32 segno,
+		u32 handle,
+		u32 length,
+		u64 offset
+	),
+
+	TP_ARGS(ctxt, segno, handle, length, offset),
+
+	TP_STRUCT__entry(
+		__field(u32, cq_id)
+		__field(int, completion_id)
+		__field(u32, segno)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+	),
+
+	TP_fast_assign(
+		__entry->cq_id = ctxt->sc_cid.ci_queue_id;
+		__entry->completion_id = ctxt->sc_cid.ci_completion_id;
+		__entry->segno = segno;
+		__entry->handle = handle;
+		__entry->length = length;
+		__entry->offset = offset;
+	),
+
+	TP_printk("cq_id=%u cid=%d segno=%u %u@0x%016llx:0x%08x",
+		__entry->cq_id, __entry->completion_id,
+		__entry->segno, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle
+	)
+);
 
 TRACE_EVENT(svcrdma_decode_rseg,
 	TP_PROTO(
