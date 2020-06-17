@@ -1716,7 +1716,7 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	/* No CPUs should come up or down during this. */
 	cpus_read_lock();
 
-	if (!cpumask_test_cpu(target_cpu, cpu_online_mask)) {
+	if (!cpu_online(target_cpu)) {
 		cpus_read_unlock();
 		return -EINVAL;
 	}
