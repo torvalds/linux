@@ -223,7 +223,7 @@ struct chcr_authenc_ctx {
 
 struct __aead_ctx {
 	struct chcr_gcm_ctx gcm[0];
-	struct chcr_authenc_ctx authenc[0];
+	struct chcr_authenc_ctx authenc[];
 };
 
 struct chcr_aead_ctx {
@@ -235,7 +235,7 @@ struct chcr_aead_ctx {
 	u8 nonce[4];
 	u16 hmac_ctrl;
 	u16 mayverify;
-	struct	__aead_ctx ctx[0];
+	struct	__aead_ctx ctx[];
 };
 
 struct hmac_ctx {
@@ -247,7 +247,7 @@ struct hmac_ctx {
 struct __crypto_ctx {
 	struct hmac_ctx hmacctx[0];
 	struct ablk_ctx ablkctx[0];
-	struct chcr_aead_ctx aeadctx[0];
+	struct chcr_aead_ctx aeadctx[];
 };
 
 struct chcr_context {
@@ -257,7 +257,7 @@ struct chcr_context {
 	unsigned int  ntxq;
 	unsigned int  nrxq;
 	struct completion cbc_aes_aio_done;
-	struct __crypto_ctx crypto_ctx[0];
+	struct __crypto_ctx crypto_ctx[];
 };
 
 struct chcr_hctx_per_wr {
