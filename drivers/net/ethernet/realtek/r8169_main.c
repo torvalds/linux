@@ -2292,10 +2292,14 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	default:
 		break;
 	}
+
+	clk_disable_unprepare(tp->clk);
 }
 
 static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
+	clk_prepare_enable(tp->clk);
+
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
@@ -4826,7 +4830,6 @@ static int __maybe_unused rtl8169_suspend(struct device *device)
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	rtl8169_net_suspend(tp);
-	clk_disable_unprepare(tp->clk);
 
 	return 0;
 }
@@ -4852,8 +4855,6 @@ static int __maybe_unused rtl8169_resume(struct device *device)
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	rtl_rar_set(tp, tp->dev->dev_addr);
-
-	clk_prepare_enable(tp->clk);
 
 	if (netif_running(tp->dev))
 		__rtl8169_resume(tp);
