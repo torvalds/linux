@@ -188,9 +188,6 @@ static int ast_pm_freeze(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *ddev = pci_get_drvdata(pdev);
-
-	if (!ddev || !ddev->dev_private)
-		return -ENODEV;
 	return ast_drm_freeze(ddev);
 }
 
