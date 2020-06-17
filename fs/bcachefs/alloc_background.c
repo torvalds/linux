@@ -1104,6 +1104,8 @@ static int bch2_allocator_thread(void *arg)
 
 	while (1) {
 		cond_resched();
+		if (kthread_should_stop())
+			break;
 
 		pr_debug("discarding %zu invalidated buckets",
 			 fifo_used(&ca->free_inc));
