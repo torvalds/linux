@@ -529,8 +529,6 @@ enum rtl_rx_desc_bit {
 	RxVlanTag	= (1 << 16), /* VLAN tag available */
 };
 
-#define RsvdMask	0x3fffc000
-
 #define RTL_GSO_MAX_SIZE_V1	32000
 #define RTL_GSO_MAX_SEGS_V1	24
 #define RTL_GSO_MAX_SIZE_V2	64000
