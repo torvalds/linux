@@ -1731,16 +1731,16 @@ struct rtl_coalesce_info {
 #define COALESCE_DELAY(d) { (d), 8 * (d), 16 * (d), 32 * (d) }
 
 static const struct rtl_coalesce_info rtl_coalesce_info_8169[] = {
-	{ SPEED_10,	COALESCE_DELAY(40960) },
-	{ SPEED_100,	COALESCE_DELAY(2560) },
 	{ SPEED_1000,	COALESCE_DELAY(320) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_10,	COALESCE_DELAY(40960) },
 	{ 0 },
 };
 
 static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
-	{ SPEED_10,	COALESCE_DELAY(40960) },
-	{ SPEED_100,	COALESCE_DELAY(2560) },
 	{ SPEED_1000,	COALESCE_DELAY(5000) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_10,	COALESCE_DELAY(40960) },
 	{ 0 },
 };
 #undef COALESCE_DELAY
@@ -1755,6 +1755,10 @@ rtl_coalesce_info(struct rtl8169_private *tp)
 		ci = rtl_coalesce_info_8169;
 	else
 		ci = rtl_coalesce_info_8168_8136;
+
+	/* if speed is unknown assume highest one */
+	if (tp->phydev->speed == SPEED_UNKNOWN)
+		return ci;
 
 	for (; ci->speed; ci++) {
 		if (tp->phydev->speed == ci->speed)
