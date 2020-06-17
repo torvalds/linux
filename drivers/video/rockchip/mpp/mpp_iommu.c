@@ -428,12 +428,6 @@ err_put_pdev:
 
 int mpp_iommu_remove(struct mpp_iommu_info *info)
 {
-#ifdef CONFIG_ARM_DMA_USE_IOMMU
-	struct dma_iommu_mapping *mapping;
-
-	mapping = to_dma_iommu_mapping(info->dev);
-	arm_iommu_release_mapping(mapping);
-#endif
 	iommu_group_put(info->group);
 	platform_device_put(info->pdev);
 
