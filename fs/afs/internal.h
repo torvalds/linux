@@ -634,6 +634,7 @@ struct afs_vnode {
 #define AFS_VNODE_AUTOCELL	6		/* set if Vnode is an auto mount point */
 #define AFS_VNODE_PSEUDODIR	7 		/* set if Vnode is a pseudo directory */
 #define AFS_VNODE_NEW_CONTENT	8		/* Set if file has new content (create/trunc-0) */
+#define AFS_VNODE_SILLY_DELETED	9		/* Set if file has been silly-deleted */
 
 	struct list_head	wb_keys;	/* List of keys available for writeback */
 	struct list_head	pending_locks;	/* locks waiting to be granted */
@@ -744,8 +745,11 @@ struct afs_vnode_param {
 	afs_dataversion_t	dv_before;	/* Data version before the call */
 	unsigned int		cb_break_before; /* cb_break + cb_s_break before the call */
 	u8			dv_delta;	/* Expected change in data version */
-	bool			put_vnode;	/* T if we have a ref on the vnode */
-	bool			need_io_lock;	/* T if we need the I/O lock on this */
+	bool			put_vnode:1;	/* T if we have a ref on the vnode */
+	bool			need_io_lock:1;	/* T if we need the I/O lock on this */
+	bool			update_ctime:1;	/* Need to update the ctime */
+	bool			set_size:1;	/* Must update i_size */
+	bool			op_unlinked:1;	/* True if file was unlinked by op */
 };
 
 /*
@@ -766,9 +770,9 @@ struct afs_operation {
 	struct dentry		*dentry;	/* Dentry to be altered */
 	struct dentry		*dentry_2;	/* Second dentry to be altered */
 	struct timespec64	mtime;		/* Modification time to record */
+	struct timespec64	ctime;		/* Change time to set */
 	short			nr_files;	/* Number of entries in file[], more_files */
 	short			error;
-	unsigned int		abort_code;
 	unsigned int		debug_id;
 
 	unsigned int		cb_v_break;	/* Volume break counter before op */
@@ -837,6 +841,7 @@ struct afs_operation {
 #define AFS_OPERATION_LOCK_1		0x0200	/* Set if have io_lock on file[1] */
 #define AFS_OPERATION_TRIED_ALL		0x0400	/* Set if we've tried all the fileservers */
 #define AFS_OPERATION_RETRY_SERVER	0x0800	/* Set if we should retry the current server */
+#define AFS_OPERATION_DIR_CONFLICT	0x1000	/* Set if we detected a 3rd-party dir change */
 };
 
 /*
@@ -932,6 +937,7 @@ extern const struct address_space_operations afs_dir_aops;
 extern const struct dentry_operations afs_fs_dentry_operations;
 
 extern void afs_d_release(struct dentry *);
+extern void afs_check_for_remote_deletion(struct afs_operation *);
 
 /*
  * dir_edit.c
@@ -1063,6 +1069,8 @@ extern int afs_wait_for_one_fs_probe(struct afs_server *, bool);
 /*
  * inode.c
  */
+extern const struct afs_operation_ops afs_fetch_status_operation;
+
 extern void afs_vnode_commit_status(struct afs_operation *, struct afs_vnode_param *);
 extern int afs_fetch_status(struct afs_vnode *, struct key *, bool, afs_access_t *);
 extern int afs_ilookup5_test_by_fid(struct inode *, void *);
@@ -1435,7 +1443,6 @@ extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 /*
  * yfsclient.c
  */
-extern void yfs_fs_fetch_file_status(struct afs_operation *);
 extern void yfs_fs_fetch_data(struct afs_operation *);
 extern void yfs_fs_create_file(struct afs_operation *);
 extern void yfs_fs_make_dir(struct afs_operation *);
@@ -1481,15 +1488,6 @@ static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 	return &vnode->vfs_inode;
 }
 
-static inline void afs_check_for_remote_deletion(struct afs_operation *op,
-						 struct afs_vnode *vnode)
-{
-	if (op->error == -ENOENT) {
-		set_bit(AFS_VNODE_DELETED, &vnode->flags);
-		afs_break_callback(vnode, afs_cb_break_for_deleted);
-	}
-}
-
 /*
  * Note that a dentry got changed.  We need to set d_fsdata to the data version
  * number derived from the result of the operation.  It doesn't matter if
@@ -1502,6 +1500,18 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
 	if (!op->error)
 		dentry->d_fsdata =
 			(void *)(unsigned long)dir_vp->scb.status.data_version;
+}
+
+/*
+ * Check for a conflicting operation on a directory that we just unlinked from.
+ * If someone managed to sneak a link or an unlink in on the file we just
+ * unlinked, we won't be able to trust nlink on an AFS file (but not YFS).
+ */
+static inline void afs_check_dir_conflict(struct afs_operation *op,
+					  struct afs_vnode_param *dvp)
+{
+	if (dvp->dv_before + dvp->dv_delta != dvp->scb.status.data_version)
+		op->flags |= AFS_OPERATION_DIR_CONFLICT;
 }
 
 static inline int afs_io_error(struct afs_call *call, enum afs_io_error where)
