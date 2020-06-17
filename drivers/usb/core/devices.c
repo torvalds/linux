@@ -598,8 +598,6 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 		return -EINVAL;
 	if (nbytes <= 0)
 		return 0;
-	if (!access_ok(buf, nbytes))
-		return -EFAULT;
 
 	mutex_lock(&usb_bus_idr_lock);
 	/* print devices for all busses */

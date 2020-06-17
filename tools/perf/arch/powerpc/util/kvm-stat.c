@@ -39,7 +39,7 @@ static void hcall_event_get_key(struct evsel *evsel,
 				struct event_key *key)
 {
 	key->info = 0;
-	key->key = perf_evsel__intval(evsel, sample, "req");
+	key->key = evsel__intval(evsel, sample, "req");
 }
 
 static const char *get_hcall_exit_reason(u64 exit_code)

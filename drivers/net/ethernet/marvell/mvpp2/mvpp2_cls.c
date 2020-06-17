@@ -1070,7 +1070,7 @@ void mvpp2_cls_oversize_rxq_set(struct mvpp2_port *port)
 		    (port->first_rxq >> MVPP2_CLS_OVERSIZE_RXQ_LOW_BITS));
 
 	val = mvpp2_read(port->priv, MVPP2_CLS_SWFWD_PCTRL_REG);
-	val |= MVPP2_CLS_SWFWD_PCTRL_MASK(port->id);
+	val &= ~MVPP2_CLS_SWFWD_PCTRL_MASK(port->id);
 	mvpp2_write(port->priv, MVPP2_CLS_SWFWD_PCTRL_REG, val);
 }
 

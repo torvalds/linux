@@ -125,6 +125,8 @@ int crypto_inst_setname(struct crypto_instance *inst, const char *name,
 void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
+void crypto_enqueue_request_head(struct crypto_queue *queue,
+				 struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
 static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 {

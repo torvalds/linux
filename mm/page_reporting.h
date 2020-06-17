@@ -7,7 +7,7 @@
 #include <linux/page-isolation.h>
 #include <linux/jump_label.h>
 #include <linux/slab.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <linux/scatterlist.h>
 
 #define PAGE_REPORTING_MIN_ORDER	pageblock_order

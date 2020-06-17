@@ -13,11 +13,15 @@ config XEN_BALLOON
 config XEN_BALLOON_MEMORY_HOTPLUG
 	bool "Memory hotplug support for Xen balloon driver"
 	depends on XEN_BALLOON && MEMORY_HOTPLUG
+	default y
 	help
 	  Memory hotplug support for Xen balloon driver allows expanding memory
 	  available for the system above limit declared at system startup.
 	  It is very useful on critical systems which require long
 	  run without rebooting.
+
+	  It's also very useful for non PV domains to obtain unpopulated physical
+	  memory ranges to use in order to map foreign memory or grants.
 
 	  Memory could be hotplugged in following steps:
 

@@ -74,7 +74,7 @@
 			reg = <0x000>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <741>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP0>;
 			dynamic-power-coefficient = <84>;
 			#cooling-cells = <2>;
 		};
@@ -85,7 +85,7 @@
 			reg = <0x001>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <741>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP0>;
 			dynamic-power-coefficient = <84>;
 			#cooling-cells = <2>;
 		};
@@ -96,7 +96,7 @@
 			reg = <0x002>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <741>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP0>;
 			dynamic-power-coefficient = <84>;
 			#cooling-cells = <2>;
 		};
@@ -107,7 +107,7 @@
 			reg = <0x003>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <741>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP0>;
 			dynamic-power-coefficient = <84>;
 			#cooling-cells = <2>;
 		};
@@ -118,7 +118,7 @@
 			reg = <0x100>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP1>;
 			dynamic-power-coefficient = <211>;
 			#cooling-cells = <2>;
 		};
@@ -129,7 +129,7 @@
 			reg = <0x101>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP1>;
 			dynamic-power-coefficient = <211>;
 			#cooling-cells = <2>;
 		};
@@ -140,7 +140,7 @@
 			reg = <0x102>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP1>;
 			dynamic-power-coefficient = <211>;
 			#cooling-cells = <2>;
 		};
@@ -151,7 +151,7 @@
 			reg = <0x103>;
 			enable-method = "psci";
 			capacity-dmips-mhz = <1024>;
-			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
+			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP1>;
 			dynamic-power-coefficient = <211>;
 			#cooling-cells = <2>;
 		};
@@ -168,7 +168,15 @@
 				min-residency-us = <800>;
 			};
 
-			CLUSTER_SLEEP: cluster-sleep {
+			CLUSTER_SLEEP0: cluster-sleep@0 {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				arm,psci-suspend-param = <0x01010001>;
+				entry-latency-us = <250>;
+				exit-latency-us = <400>;
+				min-residency-us = <1000>;
+			};
+			CLUSTER_SLEEP1: cluster-sleep@1 {
 				compatible = "arm,idle-state";
 				local-timer-stop;
 				arm,psci-suspend-param = <0x01010001>;
@@ -638,6 +646,30 @@
 			compatible = "mediatek,mt8183-audiosys", "syscon";
 			reg = <0 0x11220000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		mmc0: mmc@11230000 {
+			compatible = "mediatek,mt8183-mmc";
+			reg = <0 0x11230000 0 0x1000>,
+			      <0 0x11f50000 0 0x1000>;
+			interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&topckgen CLK_TOP_MUX_MSDC50_0>,
+				 <&infracfg CLK_INFRA_MSDC0>,
+				 <&infracfg CLK_INFRA_MSDC0_SCK>;
+			clock-names = "source", "hclk", "source_cg";
+			status = "disabled";
+		};
+
+		mmc1: mmc@11240000 {
+			compatible = "mediatek,mt8183-mmc";
+			reg = <0 0x11240000 0 0x1000>,
+			      <0 0x11e10000 0 0x1000>;
+			interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_LOW>;
+			clocks = <&topckgen CLK_TOP_MUX_MSDC30_1>,
+				 <&infracfg CLK_INFRA_MSDC1>,
+				 <&infracfg CLK_INFRA_MSDC1_SCK>;
+			clock-names = "source", "hclk", "source_cg";
+			status = "disabled";
 		};
 
 		efuse: efuse@11f10000 {

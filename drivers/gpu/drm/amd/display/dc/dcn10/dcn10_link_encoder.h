@@ -575,4 +575,7 @@ void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 
 enum signal_type dcn10_get_dig_mode(
 	struct link_encoder *enc);
+
+void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings);
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

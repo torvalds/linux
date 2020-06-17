@@ -100,6 +100,8 @@ struct sev_data_init {
 	u32 tmr_len;			/* In */
 } __packed;
 
+#define SEV_INIT_FLAGS_SEV_ES	0x01
+
 /**
  * struct sev_data_pek_csr - PEK_CSR command parameters
  *

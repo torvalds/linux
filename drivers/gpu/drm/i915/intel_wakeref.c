@@ -70,11 +70,12 @@ unlock:
 
 void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 {
-	INTEL_WAKEREF_BUG_ON(work_pending(&wf->work));
+	INTEL_WAKEREF_BUG_ON(delayed_work_pending(&wf->work));
 
 	/* Assume we are not in process context and so cannot sleep. */
 	if (flags & INTEL_WAKEREF_PUT_ASYNC || !mutex_trylock(&wf->mutex)) {
-		schedule_work(&wf->work);
+		mod_delayed_work(system_wq, &wf->work,
+				 FIELD_GET(INTEL_WAKEREF_PUT_DELAY, flags));
 		return;
 	}
 
@@ -83,7 +84,7 @@ void __intel_wakeref_put_last(struct intel_wakeref *wf, unsigned long flags)
 
 static void __intel_wakeref_put_work(struct work_struct *wrk)
 {
-	struct intel_wakeref *wf = container_of(wrk, typeof(*wf), work);
+	struct intel_wakeref *wf = container_of(wrk, typeof(*wf), work.work);
 
 	if (atomic_add_unless(&wf->count, -1, 1))
 		return;
@@ -104,8 +105,9 @@ void __intel_wakeref_init(struct intel_wakeref *wf,
 	atomic_set(&wf->count, 0);
 	wf->wakeref = 0;
 
-	INIT_WORK(&wf->work, __intel_wakeref_put_work);
-	lockdep_init_map(&wf->work.lockdep_map, "wakeref.work", &key->work, 0);
+	INIT_DELAYED_WORK(&wf->work, __intel_wakeref_put_work);
+	lockdep_init_map(&wf->work.work.lockdep_map,
+			 "wakeref.work", &key->work, 0);
 }
 
 int intel_wakeref_wait_for_idle(struct intel_wakeref *wf)

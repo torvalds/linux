@@ -2,7 +2,7 @@
 #ifndef _ASM_X86_AGP_H
 #define _ASM_X86_AGP_H
 
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 #include <asm/cacheflush.h>
 
 /*

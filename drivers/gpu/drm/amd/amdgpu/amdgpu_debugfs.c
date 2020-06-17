@@ -27,7 +27,7 @@
 #include <linux/pci.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
-
+#include <linux/poll.h>
 #include <drm/drm_debugfs.h>
 
 #include "amdgpu.h"
@@ -74,7 +74,81 @@ int amdgpu_debugfs_add_files(struct amdgpu_device *adev,
 	return 0;
 }
 
+int amdgpu_debugfs_wait_dump(struct amdgpu_device *adev)
+{
 #if defined(CONFIG_DEBUG_FS)
+	unsigned long timeout = 600 * HZ;
+	int ret;
+
+	wake_up_interruptible(&adev->autodump.gpu_hang);
+
+	ret = wait_for_completion_interruptible_timeout(&adev->autodump.dumping, timeout);
+	if (ret == 0) {
+		pr_err("autodump: timeout, move on to gpu recovery\n");
+		return -ETIMEDOUT;
+	}
+#endif
+	return 0;
+}
+
+#if defined(CONFIG_DEBUG_FS)
+
+static int amdgpu_debugfs_autodump_open(struct inode *inode, struct file *file)
+{
+	struct amdgpu_device *adev = inode->i_private;
+	int ret;
+
+	file->private_data = adev;
+
+	mutex_lock(&adev->lock_reset);
+	if (adev->autodump.dumping.done) {
+		reinit_completion(&adev->autodump.dumping);
+		ret = 0;
+	} else {
+		ret = -EBUSY;
+	}
+	mutex_unlock(&adev->lock_reset);
+
+	return ret;
+}
+
+static int amdgpu_debugfs_autodump_release(struct inode *inode, struct file *file)
+{
+	struct amdgpu_device *adev = file->private_data;
+
+	complete_all(&adev->autodump.dumping);
+	return 0;
+}
+
+static unsigned int amdgpu_debugfs_autodump_poll(struct file *file, struct poll_table_struct *poll_table)
+{
+	struct amdgpu_device *adev = file->private_data;
+
+	poll_wait(file, &adev->autodump.gpu_hang, poll_table);
+
+	if (adev->in_gpu_reset)
+		return POLLIN | POLLRDNORM | POLLWRNORM;
+
+	return 0;
+}
+
+static const struct file_operations autodump_debug_fops = {
+	.owner = THIS_MODULE,
+	.open = amdgpu_debugfs_autodump_open,
+	.poll = amdgpu_debugfs_autodump_poll,
+	.release = amdgpu_debugfs_autodump_release,
+};
+
+static void amdgpu_debugfs_autodump_init(struct amdgpu_device *adev)
+{
+	init_completion(&adev->autodump.dumping);
+	complete_all(&adev->autodump.dumping);
+	init_waitqueue_head(&adev->autodump.gpu_hang);
+
+	debugfs_create_file("amdgpu_autodump", 0600,
+		adev->ddev->primary->debugfs_root,
+		adev, &autodump_debug_fops);
+}
 
 /**
  * amdgpu_debugfs_process_reg_op - Handle MMIO register reads/writes
@@ -152,11 +226,16 @@ static int  amdgpu_debugfs_process_reg_op(bool read, struct file *f,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	if (use_bank) {
 		if ((sh_bank != 0xFFFFFFFF && sh_bank >= adev->gfx.config.max_sh_per_se) ||
 		    (se_bank != 0xFFFFFFFF && se_bank >= adev->gfx.config.max_shader_engines)) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return -EINVAL;
 		}
 		mutex_lock(&adev->grbm_idx_mutex);
@@ -207,6 +286,7 @@ end:
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -255,6 +335,10 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -263,6 +347,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -275,6 +360,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -304,6 +390,10 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -311,6 +401,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -325,6 +416,7 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -354,6 +446,10 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -362,6 +458,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -374,6 +471,7 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -403,6 +501,10 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -410,6 +512,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -424,6 +527,7 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -453,6 +557,10 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -461,6 +569,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -473,6 +582,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -502,6 +612,10 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	while (size) {
 		uint32_t value;
 
@@ -509,6 +623,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 		if (r) {
 			pm_runtime_mark_last_busy(adev->ddev->dev);
 			pm_runtime_put_autosuspend(adev->ddev->dev);
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
 		}
 
@@ -523,6 +638,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -651,16 +767,24 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	r = amdgpu_dpm_read_sensor(adev, idx, &values[0], &valuesize);
 
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
-	if (r)
+	if (r) {
+		amdgpu_virt_disable_access_debugfs(adev);
 		return r;
+	}
 
-	if (size > valuesize)
+	if (size > valuesize) {
+		amdgpu_virt_disable_access_debugfs(adev);
 		return -EINVAL;
+	}
 
 	outsize = 0;
 	x = 0;
@@ -673,6 +797,7 @@ static ssize_t amdgpu_debugfs_sensor_read(struct file *f, char __user *buf,
 		}
 	}
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return !r ? outsize : r;
 }
 
@@ -720,6 +845,10 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
 	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
@@ -734,16 +863,20 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 	pm_runtime_mark_last_busy(adev->ddev->dev);
 	pm_runtime_put_autosuspend(adev->ddev->dev);
 
-	if (!x)
+	if (!x) {
+		amdgpu_virt_disable_access_debugfs(adev);
 		return -EINVAL;
+	}
 
 	while (size && (offset < x * 4)) {
 		uint32_t value;
 
 		value = data[offset >> 2];
 		r = put_user(value, (uint32_t *)buf);
-		if (r)
+		if (r) {
+			amdgpu_virt_disable_access_debugfs(adev);
 			return r;
+		}
 
 		result += 4;
 		buf += 4;
@@ -751,6 +884,7 @@ static ssize_t amdgpu_debugfs_wave_read(struct file *f, char __user *buf,
 		size -= 4;
 	}
 
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -805,6 +939,10 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 	if (r < 0)
 		return r;
 
+	r = amdgpu_virt_enable_access_debugfs(adev);
+	if (r < 0)
+		return r;
+
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
 	amdgpu_gfx_select_se_sh(adev, se, sh, cu);
@@ -840,6 +978,7 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 
 err:
 	kfree(data);
+	amdgpu_virt_disable_access_debugfs(adev);
 	return result;
 }
 
@@ -1368,6 +1507,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 	}
 
 	amdgpu_ras_debugfs_create_all(adev);
+
+	amdgpu_debugfs_autodump_init(adev);
 
 	return amdgpu_debugfs_add_files(adev, amdgpu_debugfs_list,
 					ARRAY_SIZE(amdgpu_debugfs_list));

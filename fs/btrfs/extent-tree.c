@@ -2114,22 +2114,6 @@ static u64 find_middle(struct rb_root *root)
 }
 #endif
 
-static inline u64 heads_to_leaves(struct btrfs_fs_info *fs_info, u64 heads)
-{
-	u64 num_bytes;
-
-	num_bytes = heads * (sizeof(struct btrfs_extent_item) +
-			     sizeof(struct btrfs_extent_inline_ref));
-	if (!btrfs_fs_incompat(fs_info, SKINNY_METADATA))
-		num_bytes += heads * sizeof(struct btrfs_tree_block_info);
-
-	/*
-	 * We don't ever fill up leaves all the way so multiply by 2 just to be
-	 * closer to what we're really going to want to use.
-	 */
-	return div_u64(num_bytes, BTRFS_LEAF_DATA_SIZE(fs_info));
-}
-
 /*
  * Takes the number of bytes to be csumm'ed and figures out how many leaves it
  * would require to store the csums for that many bytes.
@@ -2442,7 +2426,7 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 	nritems = btrfs_header_nritems(buf);
 	level = btrfs_header_level(buf);
 
-	if (!test_bit(BTRFS_ROOT_REF_COWS, &root->state) && level == 0)
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state) && level == 0)
 		return 0;
 
 	if (full_backref)
@@ -2932,7 +2916,7 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 						   &trimmed);
 
 		list_del_init(&block_group->bg_list);
-		btrfs_put_block_group_trimming(block_group);
+		btrfs_unfreeze_block_group(block_group);
 		btrfs_put_block_group(block_group);
 
 		if (ret) {
@@ -3369,6 +3353,7 @@ static struct btrfs_block_group *btrfs_lock_cluster(
 		   struct btrfs_block_group *block_group,
 		   struct btrfs_free_cluster *cluster,
 		   int delalloc)
+	__acquires(&cluster->refill_lock)
 {
 	struct btrfs_block_group *used_bg = NULL;
 
@@ -5501,8 +5486,6 @@ out:
 	 */
 	if (!for_reloc && !root_dropped)
 		btrfs_add_dead_root(root);
-	if (err && err != -EAGAIN)
-		btrfs_handle_fs_error(fs_info, err, NULL);
 	return err;
 }
 

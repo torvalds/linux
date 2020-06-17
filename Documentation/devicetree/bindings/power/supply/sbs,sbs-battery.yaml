@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/sbs,sbs-battery.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: SBS compliant battery
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+description: |
+  Battery compatible with the smart battery system specifications
+
+properties:
+
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - ti,bq20z65
+              - ti,bq20z75
+          - enum:
+              - sbs,sbs-battery
+      - items:
+          - const: sbs,sbs-battery
+
+  reg:
+    maxItems: 1
+
+  sbs,i2c-retry-count:
+    description:
+      The number of times to retry I2C transactions on I2C IO failure.
+    default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  sbs,poll-retry-count:
+    description:
+      The number of times to try looking for new status after an external
+      change notification.
+    default: 0
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  sbs,battery-detect-gpios:
+    description:
+      GPIO which signals battery detection. If this is not supplied, the bus
+      needs to be polled to detect the battery.
+    maxItems: 1
+
+  sbs,disable-charger-broadcasts:
+    description:
+      SBS batteries by default send broadcast messages to SBS compliant chargers to
+      configure max. charge current/voltage. If your hardware does not have an SBS
+      compliant charger it should be disabled via this property to avoid blocking
+      the bus. Also some SBS battery fuel gauges are known to have a buggy multi-
+      master implementation.
+    type: boolean
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        battery@b {
+            compatible = "ti,bq20z75", "sbs,sbs-battery";
+            reg = <0xb>;
+            sbs,i2c-retry-count = <2>;
+            sbs,poll-retry-count = <10>;
+            sbs,battery-detect-gpios = <&gpio 122 GPIO_ACTIVE_HIGH>;
+            sbs,disable-charger-broadcasts;
+       };
+    };

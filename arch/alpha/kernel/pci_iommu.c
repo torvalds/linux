@@ -638,7 +638,7 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 
 		while (sg+1 < end && (int) sg[1].dma_address == -1) {
 			size += sg[1].length;
-			sg++;
+			sg = sg_next(sg);
 		}
 
 		npages = iommu_num_pages(paddr, size, PAGE_SIZE);

@@ -6,8 +6,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,8 +27,7 @@
  * BSD LICENSE
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,6 +145,7 @@ struct iwl_tof_config_cmd {
  * @IWL_TOF_BW_40: 40 MHz
  * @IWL_TOF_BW_80: 80 MHz
  * @IWL_TOF_BW_160: 160 MHz
+ * @IWL_TOF_BW_NUM: number of tof bandwidths
  */
 enum iwl_tof_bandwidth {
 	IWL_TOF_BW_20_LEGACY,
@@ -154,6 +153,7 @@ enum iwl_tof_bandwidth {
 	IWL_TOF_BW_40,
 	IWL_TOF_BW_80,
 	IWL_TOF_BW_160,
+	IWL_TOF_BW_NUM,
 }; /* LOCAT_BW_TYPE_E */
 
 /*
@@ -430,6 +430,9 @@ struct iwl_tof_range_req_ap_entry_v2 {
  * @IWL_INITIATOR_AP_FLAGS_NON_TB: Use non trigger based flow
  * @IWL_INITIATOR_AP_FLAGS_TB: Use trigger based flow
  * @IWL_INITIATOR_AP_FLAGS_SECURED: request secured measurement
+ * @IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK: Send LMR feedback
+ * @IWL_INITIATOR_AP_FLAGS_USE_CALIB: Use calibration values from the request
+ *      instead of fw internal values.
  */
 enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_ASAP = BIT(1),
@@ -442,6 +445,8 @@ enum iwl_initiator_ap_flags {
 	IWL_INITIATOR_AP_FLAGS_NON_TB = BIT(9),
 	IWL_INITIATOR_AP_FLAGS_TB = BIT(10),
 	IWL_INITIATOR_AP_FLAGS_SECURED = BIT(11),
+	IWL_INITIATOR_AP_FLAGS_LMR_FEEDBACK = BIT(12),
+	IWL_INITIATOR_AP_FLAGS_USE_CALIB = BIT(13),
 };
 
 /**
@@ -508,7 +513,7 @@ enum iwl_location_bw {
 #define LOCATION_BW_POS	4
 
 /**
- * struct iwl_tof_range_req_ap_entry - AP configuration parameters
+ * struct iwl_tof_range_req_ap_entry_v4 - AP configuration parameters
  * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
  * @channel_num: AP Channel number
  * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
@@ -527,7 +532,7 @@ enum iwl_location_bw {
  * @hltk: HLTK to be used for secured 11az measurement
  * @tk: TK to be used for secured 11az measurement
  */
-struct iwl_tof_range_req_ap_entry {
+struct iwl_tof_range_req_ap_entry_v4 {
 	__le32 initiator_ap_flags;
 	u8 channel_num;
 	u8 format_bw;
@@ -541,6 +546,65 @@ struct iwl_tof_range_req_ap_entry {
 	u8 hltk[HLTK_11AZ_LEN];
 	u8 tk[TK_11AZ_LEN];
 } __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_4 */
+
+/**
+ * enum iwl_location_cipher - location cipher selection
+ * @IWL_LOCATION_CIPHER_CCMP_128: CCMP 128
+ * @IWL_LOCATION_CIPHER_GCMP_128: GCMP 128
+ * @IWL_LOCATION_CIPHER_GCMP_256: GCMP 256
+ */
+enum iwl_location_cipher {
+	IWL_LOCATION_CIPHER_CCMP_128,
+	IWL_LOCATION_CIPHER_GCMP_128,
+	IWL_LOCATION_CIPHER_GCMP_256,
+};
+
+/**
+ * struct iwl_tof_range_req_ap_entry - AP configuration parameters
+ * @initiator_ap_flags: see &enum iwl_initiator_ap_flags.
+ * @channel_num: AP Channel number
+ * @format_bw: bits 0 - 3: &enum iwl_location_frame_format.
+ *             bits 4 - 7: &enum iwl_location_bw.
+ * @ctrl_ch_position: Coding of the control channel position relative to the
+ *	center frequency, see iwl_mvm_get_ctrl_pos().
+ * @ftmr_max_retries: Max number of retries to send the FTMR in case of no
+ *	reply from the AP.
+ * @bssid: AP's BSSID
+ * @burst_period: Recommended value to be sent to the AP. Measurement
+ *	periodicity In units of 100ms. ignored if num_of_bursts_exp = 0
+ * @samples_per_burst: the number of FTMs pairs in single Burst (1-31);
+ * @num_of_bursts: Recommended value to be sent to the AP. 2s Exponent of
+ *	the number of measurement iterations (min 2^0 = 1, max 2^14)
+ * @sta_id: the station id of the AP. Only relevant when associated to the AP,
+ *	otherwise should be set to &IWL_MVM_INVALID_STA.
+ * @cipher: pairwise cipher suite for secured measurement.
+ *          &enum iwl_location_cipher.
+ * @hltk: HLTK to be used for secured 11az measurement
+ * @tk: TK to be used for secured 11az measurement
+ * @calib: An array of calibration values per FTM rx bandwidth.
+ *         If &IWL_INITIATOR_AP_FLAGS_USE_CALIB is set, the fw will use the
+ *         calibration value that corresponds to the rx bandwidth of the FTM
+ *         frame.
+ * @beacon_interval: beacon interval of the AP in TUs. Only required if
+ *	&IWL_INITIATOR_AP_FLAGS_TB is set.
+ */
+struct iwl_tof_range_req_ap_entry {
+	__le32 initiator_ap_flags;
+	u8 channel_num;
+	u8 format_bw;
+	u8 ctrl_ch_position;
+	u8 ftmr_max_retries;
+	u8 bssid[ETH_ALEN];
+	__le16 burst_period;
+	u8 samples_per_burst;
+	u8 num_of_bursts;
+	u8 sta_id;
+	u8 cipher;
+	u8 hltk[HLTK_11AZ_LEN];
+	u8 tk[TK_11AZ_LEN];
+	__le16 calib[IWL_TOF_BW_NUM];
+	__le16 beacon_interval;
+} __packed; /* LOCATION_RANGE_REQ_AP_ENTRY_CMD_API_S_VER_6 */
 
 /**
  * enum iwl_tof_response_mode
@@ -676,7 +740,7 @@ struct iwl_tof_range_req_cmd_v7 {
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_7 */
 
 /**
- * struct iwl_tof_range_req_cmd - start measurement cmd
+ * struct iwl_tof_range_req_cmd_v8 - start measurement cmd
  * @initiator_flags: see flags @ iwl_tof_initiator_flags
  * @request_id: A Token incremented per request. The same Token will be
  *		sent back in the range response
@@ -693,7 +757,7 @@ struct iwl_tof_range_req_cmd_v7 {
  * @specific_calib: The specific calib value to inject to this measurement calc
  * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v2.
  */
-struct iwl_tof_range_req_cmd {
+struct iwl_tof_range_req_cmd_v8 {
 	__le32 initiator_flags;
 	u8 request_id;
 	u8 num_of_ap;
@@ -704,8 +768,36 @@ struct iwl_tof_range_req_cmd {
 	__le32 tsf_mac_id;
 	__le16 common_calib;
 	__le16 specific_calib;
-	struct iwl_tof_range_req_ap_entry ap[IWL_MVM_TOF_MAX_APS];
+	struct iwl_tof_range_req_ap_entry_v4 ap[IWL_MVM_TOF_MAX_APS];
 } __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_8 */
+
+/**
+ * struct iwl_tof_range_req_cmd - start measurement cmd
+ * @initiator_flags: see flags @ iwl_tof_initiator_flags
+ * @request_id: A Token incremented per request. The same Token will be
+ *		sent back in the range response
+ * @num_of_ap: Number of APs to measure (error if > IWL_MVM_TOF_MAX_APS)
+ * @range_req_bssid: ranging request BSSID
+ * @macaddr_mask: Bits set to 0 shall be copied from the MAC address template.
+ *		  Bits set to 1 shall be randomized by the UMAC
+ * @macaddr_template: MAC address template to use for non-randomized bits
+ * @req_timeout_ms: Requested timeout of the response in units of milliseconds.
+ *	This is the session time for completing the measurement.
+ * @tsf_mac_id: report the measurement start time for each ap in terms of the
+ *	TSF of this mac id. 0xff to disable TSF reporting.
+ * @ap: per-AP request data, see &struct iwl_tof_range_req_ap_entry_v2.
+ */
+struct iwl_tof_range_req_cmd {
+	__le32 initiator_flags;
+	u8 request_id;
+	u8 num_of_ap;
+	u8 range_req_bssid[ETH_ALEN];
+	u8 macaddr_mask[ETH_ALEN];
+	u8 macaddr_template[ETH_ALEN];
+	__le32 req_timeout_ms;
+	__le32 tsf_mac_id;
+	struct iwl_tof_range_req_ap_entry ap[IWL_MVM_TOF_MAX_APS];
+} __packed; /* LOCATION_RANGE_REQ_CMD_API_S_VER_9 */
 
 /*
  * enum iwl_tof_range_request_status - status of the sent request

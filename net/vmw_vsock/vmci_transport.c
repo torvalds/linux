@@ -2055,7 +2055,7 @@ static bool vmci_check_transport(struct vsock_sock *vsk)
 	return vsk->transport == &vmci_transport;
 }
 
-void vmci_vsock_transport_cb(bool is_host)
+static void vmci_vsock_transport_cb(bool is_host)
 {
 	int features;
 

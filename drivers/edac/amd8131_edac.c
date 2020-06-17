@@ -44,14 +44,6 @@ static void edac_pci_write_dword(struct pci_dev *dev, int reg, u32 val32)
 			" PCI Access Write Error at 0x%x\n", reg);
 }
 
-static char * const bridge_str[] = {
-	[NORTH_A] = "NORTH A",
-	[NORTH_B] = "NORTH B",
-	[SOUTH_A] = "SOUTH A",
-	[SOUTH_B] = "SOUTH B",
-	[NO_BRIDGE] = "NO BRIDGE",
-};
-
 /* Support up to two AMD8131 chipsets on a platform */
 static struct amd8131_dev_info amd8131_devices[] = {
 	{

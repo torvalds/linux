@@ -362,6 +362,7 @@ struct rt1015_priv {
 	int sysclk_src;
 	int lrck;
 	int bclk;
+	int bclk_ratio;
 	int id;
 	int pll_src;
 	int pll_in;

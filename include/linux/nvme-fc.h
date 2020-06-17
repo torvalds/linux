@@ -4,8 +4,8 @@
  */
 
 /*
- * This file contains definitions relative to FC-NVME-2 r1.06
- * (T11-2019-00210-v001).
+ * This file contains definitions relative to FC-NVME-2 r1.08
+ * (T11-2019-00210-v004).
  */
 
 #ifndef _NVME_FC_H
@@ -81,7 +81,8 @@ struct nvme_fc_ersp_iu {
 };
 
 
-#define FCNVME_NVME_SR_OPCODE	0x01
+#define FCNVME_NVME_SR_OPCODE		0x01
+#define FCNVME_NVME_SR_RSP_OPCODE	0x02
 
 struct nvme_fc_nvme_sr_iu {
 	__u8			fc_id;
@@ -94,7 +95,7 @@ struct nvme_fc_nvme_sr_iu {
 
 enum {
 	FCNVME_SRSTAT_ACC		= 0x0,
-	FCNVME_SRSTAT_INV_FCID		= 0x1,
+	/* reserved			  0x1 */
 	/* reserved			  0x2 */
 	FCNVME_SRSTAT_LOGICAL_ERR	= 0x3,
 	FCNVME_SRSTAT_INV_QUALIF	= 0x4,
@@ -397,7 +398,7 @@ struct fcnvme_ls_disconnect_conn_rqst {
 	struct fcnvme_ls_rqst_w0		w0;
 	__be32					desc_list_len;
 	struct fcnvme_lsdesc_assoc_id		associd;
-	struct fcnvme_lsdesc_disconn_cmd	connectid;
+	struct fcnvme_lsdesc_conn_id		connectid;
 };
 
 struct fcnvme_ls_disconnect_conn_acc {

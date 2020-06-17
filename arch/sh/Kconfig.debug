@@ -5,7 +5,6 @@ config TRACE_IRQFLAGS_SUPPORT
 
 config SH_STANDARD_BIOS
 	bool "Use LinuxSH standard BIOS"
-	depends on SUPERH32
 	help
 	  Say Y here if your target has the gdb-sh-stub
 	  package from www.m17n.org (or any conforming standard LinuxSH BIOS)
@@ -19,7 +18,7 @@ config SH_STANDARD_BIOS
 
 config STACK_DEBUG
 	bool "Check for stack overflows"
-	depends on DEBUG_KERNEL && SUPERH32
+	depends on DEBUG_KERNEL
 	help
 	  This option will cause messages to be printed if free stack space
 	  drops below a certain limit. Saying Y here will add overhead to
@@ -38,7 +37,7 @@ config 4KSTACKS
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	depends on DEBUG_KERNEL && SUPERH32 && BROKEN
+	depends on DEBUG_KERNEL && BROKEN
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid
@@ -46,7 +45,7 @@ config IRQSTACKS
 
 config DUMP_CODE
 	bool "Show disassembly of nearby code in register dumps"
-	depends on DEBUG_KERNEL && SUPERH32
+	depends on DEBUG_KERNEL
 	default y if DEBUG_BUGVERBOSE
 	default n
 	help
@@ -59,7 +58,6 @@ config DUMP_CODE
 config DWARF_UNWINDER
 	bool "Enable the DWARF unwinder for stacktraces"
 	select FRAME_POINTER
-	depends on SUPERH32
 	default n
 	help
 	  Enabling this option will make stacktraces more accurate, at
@@ -77,11 +75,6 @@ config SH_NO_BSS_INIT
 	  For all other cases, say N. If this option seems perplexing, or
 	  you aren't sure, say N.
 
-config SH64_SR_WATCH
-	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"
-	depends on SUPERH64
-
 config MCOUNT
 	def_bool y
-	depends on SUPERH32
 	depends on STACK_DEBUG || FUNCTION_TRACER

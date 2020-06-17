@@ -35,6 +35,7 @@ enum st_accel_type {
 	LIS2DW12,
 	LIS3DHH,
 	LIS2DE12,
+	LIS2HH12,
 	ST_ACCEL_MAX,
 };
 
@@ -59,6 +60,7 @@ enum st_accel_type {
 #define LIS3DHH_ACCEL_DEV_NAME		"lis3dhh"
 #define LIS3DE_ACCEL_DEV_NAME		"lis3de"
 #define LIS2DE12_ACCEL_DEV_NAME		"lis2de12"
+#define LIS2HH12_ACCEL_DEV_NAME		"lis2hh12"
 
 /**
 * struct st_sensors_platform_data - default accel platform data

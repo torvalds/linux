@@ -34,40 +34,48 @@
  *
  * Security hooks for program execution operations.
  *
- * @bprm_set_creds:
- *	Save security information in the bprm->security field, typically based
- *	on information about the bprm->file, for later use by the apply_creds
- *	hook.  This hook may also optionally check permissions (e.g. for
- *	transitions between security domains).
- *	This hook may be called multiple times during a single execve, e.g. for
- *	interpreters.  The hook can tell whether it has already been called by
- *	checking to see if @bprm->security is non-NULL.  If so, then the hook
- *	may decide either to retain the security information saved earlier or
- *	to replace it.  The hook must set @bprm->secureexec to 1 if a "secure
- *	exec" has happened as a result of this hook call.  The flag is used to
- *	indicate the need for a sanitized execution environment, and is also
- *	passed in the ELF auxiliary table on the initial stack to indicate
- *	whether libc should enable secure mode.
+ * @bprm_creds_for_exec:
+ *	If the setup in prepare_exec_creds did not setup @bprm->cred->security
+ *	properly for executing @bprm->file, update the LSM's portion of
+ *	@bprm->cred->security to be what commit_creds needs to install for the
+ *	new program.  This hook may also optionally check permissions
+ *	(e.g. for transitions between security domains).
+ *	The hook must set @bprm->secureexec to 1 if AT_SECURE should be set to
+ *	request libc enable secure mode.
+ *	@bprm contains the linux_binprm structure.
+ *	Return 0 if the hook is successful and permission is granted.
+ * @bprm_creds_from_file:
+ *	If @file is setpcap, suid, sgid or otherwise marked to change
+ *	privilege upon exec, update @bprm->cred to reflect that change.
+ *	This is called after finding the binary that will be executed.
+ *	without an interpreter.  This ensures that the credentials will not
+ *	be derived from a script that the binary will need to reopen, which
+ *	when reopend may end up being a completely different file.  This
+ *	hook may also optionally check permissions (e.g. for transitions
+ *	between security domains).
+ *	The hook must set @bprm->secureexec to 1 if AT_SECURE should be set to
+ *	request libc enable secure mode.
+ *	The hook must add to @bprm->per_clear any personality flags that
+ * 	should be cleared from current->personality.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
  * @bprm_check_security:
  *	This hook mediates the point when a search for a binary handler will
- *	begin.  It allows a check the @bprm->security value which is set in the
- *	preceding set_creds call.  The primary difference from set_creds is
- *	that the argv list and envp list are reliably available in @bprm.  This
- *	hook may be called multiple times during a single execve; and in each
- *	pass set_creds is called first.
+ *	begin.  It allows a check against the @bprm->cred->security value
+ *	which was set in the preceding creds_for_exec call.  The argv list and
+ *	envp list are reliably available in @bprm.  This hook may be called
+ *	multiple times during a single execve.
  *	@bprm contains the linux_binprm structure.
  *	Return 0 if the hook is successful and permission is granted.
  * @bprm_committing_creds:
  *	Prepare to install the new security attributes of a process being
  *	transformed by an execve operation, based on the old credentials
  *	pointed to by @current->cred and the information set in @bprm->cred by
- *	the bprm_set_creds hook.  @bprm points to the linux_binprm structure.
- *	This hook is a good place to perform state changes on the process such
- *	as closing open file descriptors to which access will no longer be
- *	granted when the attributes are changed.  This is called immediately
- *	before commit_creds().
+ *	the bprm_creds_for_exec hook.  @bprm points to the linux_binprm
+ *	structure.  This hook is a good place to perform state changes on the
+ *	process such as closing open file descriptors to which access will no
+ *	longer be granted when the attributes are changed.  This is called
+ *	immediately before commit_creds().
  * @bprm_committed_creds:
  *	Tidy up after the installation of the new security attributes of a
  *	process being transformed by an execve operation.  The new credentials
@@ -77,7 +85,7 @@
  *	state.  This is called immediately after commit_creds().
  *
  * Security hooks for mount using fs_context.
- *	[See also Documentation/filesystems/mount_api.txt]
+ *	[See also Documentation/filesystems/mount_api.rst]
  *
  * @fs_context_dup:
  *	Allocate and attach a security structure to sc->security.  This pointer
@@ -649,6 +657,15 @@
  *	@new is the set of credentials that will be installed.  Modifications
  *	should be made to this rather than to @current->cred.
  *	@old is the set of credentials that are being replaces
+ *	@flags contains one of the LSM_SETID_* values.
+ *	Return 0 on success.
+ * @task_fix_setgid:
+ *	Update the module's state after setting one or more of the group
+ *	identity attributes of the current process.  The @flags parameter
+ *	indicates which of the set*gid system calls invoked this hook.
+ *	@new is the set of credentials that will be installed.  Modifications
+ *	should be made to this rather than to @current->cred.
+ *	@old is the set of credentials that are being replaced.
  *	@flags contains one of the LSM_SETID_* values.
  *	Return 0 on success.
  * @task_setpgid:
@@ -1436,6 +1453,20 @@
  *	@inode we wish to get the security context of.
  *	@ctx is a pointer in which to place the allocated security context.
  *	@ctxlen points to the place to put the length of @ctx.
+ *
+ * Security hooks for the general notification queue:
+ *
+ * @post_notification:
+ *	Check to see if a watch notification can be posted to a particular
+ *	queue.
+ *	@w_cred: The credentials of the whoever set the watch.
+ *	@cred: The event-triggerer's credentials
+ *	@n: The notification being posted
+ *
+ * @watch_key:
+ *	Check to see if a process is allowed to watch for event notifications
+ *	from a key or keyring.
+ *	@key: The key to watch.
  *
  * Security hooks for using the eBPF maps and programs functionalities through
  * eBPF syscalls.

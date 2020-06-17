@@ -68,11 +68,12 @@ static void iser_event_handler(struct ib_event_handler *handler,
 static int iser_create_device_ib_res(struct iser_device *device)
 {
 	struct ib_device *ib_dev = device->ib_device;
-	int ret, i, max_cqe;
+	int i, max_cqe;
 
-	ret = iser_assign_reg_ops(device);
-	if (ret)
-		return ret;
+	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)) {
+		iser_err("IB device does not support memory registrations\n");
+		return -1;
+	}
 
 	device->comps_used = min_t(int, num_online_cpus(),
 				 ib_dev->num_comp_vectors);
@@ -145,96 +146,6 @@ static void iser_free_device_ib_res(struct iser_device *device)
 	kfree(device->comps);
 	device->comps = NULL;
 	device->pd = NULL;
-}
-
-/**
- * iser_alloc_fmr_pool - Creates FMR pool and page_vector
- * @ib_conn: connection RDMA resources
- * @cmds_max: max number of SCSI commands for this connection
- * @size: max number of pages per map request
- *
- * Return: 0 on success, or errno code on failure
- */
-int iser_alloc_fmr_pool(struct ib_conn *ib_conn,
-			unsigned cmds_max,
-			unsigned int size)
-{
-	struct iser_device *device = ib_conn->device;
-	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
-	struct iser_page_vec *page_vec;
-	struct iser_fr_desc *desc;
-	struct ib_fmr_pool *fmr_pool;
-	struct ib_fmr_pool_param params;
-	int ret;
-
-	INIT_LIST_HEAD(&fr_pool->list);
-	spin_lock_init(&fr_pool->lock);
-
-	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
-
-	page_vec = kmalloc(sizeof(*page_vec) + (sizeof(u64) * size),
-			   GFP_KERNEL);
-	if (!page_vec) {
-		ret = -ENOMEM;
-		goto err_frpl;
-	}
-
-	page_vec->pages = (u64 *)(page_vec + 1);
-
-	params.page_shift        = ilog2(SZ_4K);
-	params.max_pages_per_fmr = size;
-	/* make the pool size twice the max number of SCSI commands *
-	 * the ML is expected to queue, watermark for unmap at 50%  */
-	params.pool_size	 = cmds_max * 2;
-	params.dirty_watermark	 = cmds_max;
-	params.cache		 = 0;
-	params.flush_function	 = NULL;
-	params.access		 = (IB_ACCESS_LOCAL_WRITE  |
-				    IB_ACCESS_REMOTE_WRITE |
-				    IB_ACCESS_REMOTE_READ);
-
-	fmr_pool = ib_create_fmr_pool(device->pd, &params);
-	if (IS_ERR(fmr_pool)) {
-		ret = PTR_ERR(fmr_pool);
-		iser_err("FMR allocation failed, err %d\n", ret);
-		goto err_fmr;
-	}
-
-	desc->rsc.page_vec = page_vec;
-	desc->rsc.fmr_pool = fmr_pool;
-	list_add(&desc->list, &fr_pool->list);
-
-	return 0;
-
-err_fmr:
-	kfree(page_vec);
-err_frpl:
-	kfree(desc);
-
-	return ret;
-}
-
-/**
- * iser_free_fmr_pool - releases the FMR pool and page vec
- * @ib_conn: connection RDMA resources
- */
-void iser_free_fmr_pool(struct ib_conn *ib_conn)
-{
-	struct iser_fr_pool *fr_pool = &ib_conn->fr_pool;
-	struct iser_fr_desc *desc;
-
-	desc = list_first_entry(&fr_pool->list,
-				struct iser_fr_desc, list);
-	list_del(&desc->list);
-
-	iser_info("freeing conn %p fmr pool %p\n",
-		  ib_conn, desc->rsc.fmr_pool);
-
-	ib_destroy_fmr_pool(desc->rsc.fmr_pool);
-	kfree(desc->rsc.page_vec);
-	kfree(desc);
 }
 
 static struct iser_fr_desc *
@@ -667,13 +578,12 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 	u32 max_num_sg;
 
 	/*
-	 * FRs without SG_GAPS or FMRs can only map up to a (device) page per
-	 * entry, but if the first entry is misaligned we'll end up using two
-	 * entries (head and tail) for a single page worth data, so one
-	 * additional entry is required.
+	 * FRs without SG_GAPS can only map up to a (device) page per entry,
+	 * but if the first entry is misaligned we'll end up using two entries
+	 * (head and tail) for a single page worth data, so one additional
+	 * entry is required.
 	 */
-	if ((attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) &&
-	    (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+	if (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
 		reserved_mr_pages = 0;
 	else
 		reserved_mr_pages = 1;
@@ -684,14 +594,8 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 		max_num_sg = attr->max_fast_reg_page_list_len;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * SECTOR_SIZE, SZ_4K);
-	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
-		sup_sg_tablesize =
-			min_t(
-			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
-			 max_num_sg - reserved_mr_pages);
-	else
-		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
-
+	sup_sg_tablesize = min_t(uint, ISCSI_ISER_MAX_SG_TABLESIZE,
+				 max_num_sg - reserved_mr_pages);
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
 	iser_conn->pages_per_mr =
 		iser_conn->scsi_sg_tablesize + reserved_mr_pages;
@@ -755,7 +659,7 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 	struct iser_cm_hdr req_hdr;
 	struct iser_conn *iser_conn = (struct iser_conn *)cma_id->context;
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
-	struct iser_device *device = ib_conn->device;
+	struct ib_device *ib_dev = ib_conn->device->ib_device;
 
 	if (iser_conn->state != ISER_CONN_PENDING)
 		/* bailout */
@@ -766,14 +670,14 @@ static void iser_route_handler(struct rdma_cm_id *cma_id)
 		goto failure;
 
 	memset(&conn_param, 0, sizeof conn_param);
-	conn_param.responder_resources = device->ib_device->attrs.max_qp_rd_atom;
+	conn_param.responder_resources = ib_dev->attrs.max_qp_rd_atom;
 	conn_param.initiator_depth     = 1;
 	conn_param.retry_count	       = 7;
 	conn_param.rnr_retry_count     = 6;
 
 	memset(&req_hdr, 0, sizeof(req_hdr));
 	req_hdr.flags = ISER_ZBVA_NOT_SUP;
-	if (!device->remote_inv_sup)
+	if (!iser_always_reg)
 		req_hdr.flags |= ISER_SEND_W_INV_NOT_SUP;
 	conn_param.private_data	= (void *)&req_hdr;
 	conn_param.private_data_len = sizeof(struct iser_cm_hdr);

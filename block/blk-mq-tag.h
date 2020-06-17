@@ -34,6 +34,8 @@ extern int blk_mq_tag_update_depth(struct blk_mq_hw_ctx *hctx,
 extern void blk_mq_tag_wakeup_all(struct blk_mq_tags *tags, bool);
 void blk_mq_queue_tag_busy_iter(struct request_queue *q, busy_iter_fn *fn,
 		void *priv);
+void blk_mq_all_tag_iter(struct blk_mq_tags *tags, busy_tag_iter_fn *fn,
+		void *priv);
 
 static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 						 struct blk_mq_hw_ctx *hctx)
@@ -44,10 +46,18 @@ static inline struct sbq_wait_state *bt_wait_ptr(struct sbitmap_queue *bt,
 }
 
 enum {
-	BLK_MQ_TAG_FAIL		= -1U,
+	BLK_MQ_NO_TAG		= -1U,
 	BLK_MQ_TAG_MIN		= 1,
-	BLK_MQ_TAG_MAX		= BLK_MQ_TAG_FAIL - 1,
+	BLK_MQ_TAG_MAX		= BLK_MQ_NO_TAG - 1,
 };
+
+bool __blk_mq_get_driver_tag(struct request *rq);
+static inline bool blk_mq_get_driver_tag(struct request *rq)
+{
+	if (rq->tag != BLK_MQ_NO_TAG)
+		return true;
+	return __blk_mq_get_driver_tag(rq);
+}
 
 extern bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *);
 extern void __blk_mq_tag_idle(struct blk_mq_hw_ctx *);

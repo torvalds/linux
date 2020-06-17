@@ -221,6 +221,7 @@ static int chcr_ktls_act_open_req(struct sock *sk,
 	return cxgb4_l2t_send(tx_info->netdev, skb, tx_info->l2te);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 /*
  * chcr_ktls_act_open_req6: creates TCB entry for ipv6 connection.
  * @sk - tcp socket.
@@ -270,6 +271,7 @@ static int chcr_ktls_act_open_req6(struct sock *sk,
 
 	return cxgb4_l2t_send(tx_info->netdev, skb, tx_info->l2te);
 }
+#endif /* #if IS_ENABLED(CONFIG_IPV6) */
 
 /*
  * chcr_setup_connection:  create a TCB entry so that TP will form tcp packets.
@@ -290,20 +292,26 @@ static int chcr_setup_connection(struct sock *sk,
 	tx_info->atid = atid;
 	tx_info->ip_family = sk->sk_family;
 
-	if (sk->sk_family == AF_INET ||
-	    (sk->sk_family == AF_INET6 && !sk->sk_ipv6only &&
-	     ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED)) {
+	if (sk->sk_family == AF_INET) {
 		tx_info->ip_family = AF_INET;
 		ret = chcr_ktls_act_open_req(sk, tx_info, atid);
+#if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		tx_info->ip_family = AF_INET6;
-		ret =
-		cxgb4_clip_get(tx_info->netdev,
-			       (const u32 *)&sk->sk_v6_rcv_saddr.in6_u.u6_addr8,
-			       1);
-		if (ret)
-			goto out;
-		ret = chcr_ktls_act_open_req6(sk, tx_info, atid);
+		if (!sk->sk_ipv6only &&
+		    ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED) {
+			tx_info->ip_family = AF_INET;
+			ret = chcr_ktls_act_open_req(sk, tx_info, atid);
+		} else {
+			tx_info->ip_family = AF_INET6;
+			ret = cxgb4_clip_get(tx_info->netdev,
+					     (const u32 *)
+					     &sk->sk_v6_rcv_saddr.s6_addr,
+					     1);
+			if (ret)
+				goto out;
+			ret = chcr_ktls_act_open_req6(sk, tx_info, atid);
+		}
+#endif
 	}
 
 	/* if return type is NET_XMIT_CN, msg will be sent but delayed, mark ret
@@ -373,9 +381,9 @@ static int chcr_ktls_mark_tcb_close(struct chcr_ktls_info *tx_info)
  * @tls_cts - tls context.
  * @direction - TX/RX crypto direction
  */
-static void chcr_ktls_dev_del(struct net_device *netdev,
-			      struct tls_context *tls_ctx,
-			      enum tls_offload_ctx_dir direction)
+void chcr_ktls_dev_del(struct net_device *netdev,
+		       struct tls_context *tls_ctx,
+		       enum tls_offload_ctx_dir direction)
 {
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx =
 				chcr_get_ktls_tx_context(tls_ctx);
@@ -394,11 +402,13 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 	if (tx_info->l2te)
 		cxgb4_l2t_release(tx_info->l2te);
 
+#if IS_ENABLED(CONFIG_IPV6)
 	/* clear clip entry */
 	if (tx_info->ip_family == AF_INET6)
 		cxgb4_clip_release(netdev,
 				   (const u32 *)&sk->sk_v6_daddr.in6_u.u6_addr8,
 				   1);
+#endif
 
 	/* clear tid */
 	if (tx_info->tid != -1) {
@@ -411,6 +421,8 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
 	atomic64_inc(&tx_info->adap->chcr_stats.ktls_tx_connection_close);
 	kvfree(tx_info);
 	tx_ctx->chcr_info = NULL;
+	/* release module refcount */
+	module_put(THIS_MODULE);
 }
 
 /*
@@ -422,10 +434,10 @@ static void chcr_ktls_dev_del(struct net_device *netdev,
  * @direction - TX/RX crypto direction
  * return: SUCCESS/FAILURE.
  */
-static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
-			     enum tls_offload_ctx_dir direction,
-			     struct tls_crypto_info *crypto_info,
-			     u32 start_offload_tcp_sn)
+int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
+		      enum tls_offload_ctx_dir direction,
+		      struct tls_crypto_info *crypto_info,
+		      u32 start_offload_tcp_sn)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct chcr_ktls_ofld_ctx_tx *tx_ctx;
@@ -489,12 +501,16 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		goto out2;
 
 	/* get peer ip */
-	if (sk->sk_family == AF_INET ||
-	    (sk->sk_family == AF_INET6 && !sk->sk_ipv6only &&
-	     ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED)) {
+	if (sk->sk_family == AF_INET) {
 		memcpy(daaddr, &sk->sk_daddr, 4);
+#if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		memcpy(daaddr, sk->sk_v6_daddr.in6_u.u6_addr8, 16);
+		if (!sk->sk_ipv6only &&
+		    ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED)
+			memcpy(daaddr, &sk->sk_daddr, 4);
+		else
+			memcpy(daaddr, sk->sk_v6_daddr.in6_u.u6_addr8, 16);
+#endif
 	}
 
 	/* get the l2t index */
@@ -528,6 +544,12 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 	if (ret)
 		goto out2;
 
+	/* Driver shouldn't be removed until any single connection exists */
+	if (!try_module_get(THIS_MODULE)) {
+		ret = -EINVAL;
+		goto out2;
+	}
+
 	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_open);
 	return 0;
 out2:
@@ -535,43 +557,6 @@ out2:
 out:
 	atomic64_inc(&adap->chcr_stats.ktls_tx_connection_fail);
 	return ret;
-}
-
-static const struct tlsdev_ops chcr_ktls_ops = {
-	.tls_dev_add = chcr_ktls_dev_add,
-	.tls_dev_del = chcr_ktls_dev_del,
-};
-
-/*
- * chcr_enable_ktls:  add NETIF_F_HW_TLS_TX flag in all the ports.
- */
-void chcr_enable_ktls(struct adapter *adap)
-{
-	struct net_device *netdev;
-	int i;
-
-	for_each_port(adap, i) {
-		netdev = adap->port[i];
-		netdev->features |= NETIF_F_HW_TLS_TX;
-		netdev->hw_features |= NETIF_F_HW_TLS_TX;
-		netdev->tlsdev_ops = &chcr_ktls_ops;
-	}
-}
-
-/*
- * chcr_disable_ktls:  remove NETIF_F_HW_TLS_TX flag from all the ports.
- */
-void chcr_disable_ktls(struct adapter *adap)
-{
-	struct net_device *netdev;
-	int i;
-
-	for_each_port(adap, i) {
-		netdev = adap->port[i];
-		netdev->features &= ~NETIF_F_HW_TLS_TX;
-		netdev->hw_features &= ~NETIF_F_HW_TLS_TX;
-		netdev->tlsdev_ops = NULL;
-	}
 }
 
 /*
@@ -932,7 +917,9 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 	struct fw_eth_tx_pkt_wr *wr;
 	struct cpl_tx_pkt_core *cpl;
 	u32 ctrl, iplen, maclen;
+#if IS_ENABLED(CONFIG_IPV6)
 	struct ipv6hdr *ip6;
+#endif
 	unsigned int ndesc;
 	struct tcphdr *tcp;
 	int len16, pktlen;
@@ -987,9 +974,11 @@ chcr_ktls_write_tcp_options(struct chcr_ktls_info *tx_info, struct sk_buff *skb,
 		/* we need to correct ip header len */
 		ip = (struct iphdr *)(buf + maclen);
 		ip->tot_len = htons(pktlen - maclen);
+#if IS_ENABLED(CONFIG_IPV6)
 	} else {
 		ip6 = (struct ipv6hdr *)(buf + maclen);
 		ip6->payload_len = htons(pktlen - maclen - iplen);
+#endif
 	}
 	/* now take care of the tcp header, if fin is not set then clear push
 	 * bit as well, and if fin is set, it will be sent at the last so we

@@ -26,11 +26,11 @@ properties:
   compatible:
     oneOf:
       - items:
-        - enum:
-          - amlogic,meson8-canvas
-          - amlogic,meson8b-canvas
-          - amlogic,meson8m2-canvas
-        - const: amlogic,canvas
+          - enum:
+              - amlogic,meson8-canvas
+              - amlogic,meson8b-canvas
+              - amlogic,meson8m2-canvas
+          - const: amlogic,canvas
       - const: amlogic,canvas # GXBB and newer SoCs
 
   reg:

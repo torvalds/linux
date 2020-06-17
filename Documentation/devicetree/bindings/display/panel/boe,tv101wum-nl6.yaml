@@ -24,6 +24,8 @@ properties:
       - boe,tv101wum-n53
         # AUO B101UAN08.3 10.1" WUXGA TFT LCD panel
       - auo,b101uan08.3
+        # BOE TV105WUM-NW0 10.5" WUXGA TFT LCD panel
+      - boe,tv105wum-nw0
 
   reg:
     description: the virtual channel number of a DSI peripheral

@@ -226,7 +226,12 @@ found:
 
 	while (ret == 0 && (node = drm_mm_scan_color_evict(&scan))) {
 		vma = container_of(node, struct i915_vma, node);
-		ret = __i915_vma_unbind(vma);
+
+		/* If we find any non-objects (!vma), we cannot evict them */
+		if (vma->node.color != I915_COLOR_UNEVICTABLE)
+			ret = __i915_vma_unbind(vma);
+		else
+			ret = -ENOSPC; /* XXX search failed, try again? */
 	}
 
 	return ret;

@@ -28,33 +28,33 @@ SYM_CODE_END(xen_\name)
 _ASM_NOKPROBE(xen_\name)
 .endm
 
-xen_pv_trap divide_error
-xen_pv_trap debug
-xen_pv_trap xendebug
-xen_pv_trap int3
-xen_pv_trap xennmi
-xen_pv_trap overflow
-xen_pv_trap bounds
-xen_pv_trap invalid_op
-xen_pv_trap device_not_available
-xen_pv_trap double_fault
-xen_pv_trap coprocessor_segment_overrun
-xen_pv_trap invalid_TSS
-xen_pv_trap segment_not_present
-xen_pv_trap stack_segment
-xen_pv_trap general_protection
-xen_pv_trap page_fault
-xen_pv_trap spurious_interrupt_bug
-xen_pv_trap coprocessor_error
-xen_pv_trap alignment_check
+xen_pv_trap asm_exc_divide_error
+xen_pv_trap asm_exc_debug
+xen_pv_trap asm_exc_xendebug
+xen_pv_trap asm_exc_int3
+xen_pv_trap asm_exc_xennmi
+xen_pv_trap asm_exc_overflow
+xen_pv_trap asm_exc_bounds
+xen_pv_trap asm_exc_invalid_op
+xen_pv_trap asm_exc_device_not_available
+xen_pv_trap asm_exc_double_fault
+xen_pv_trap asm_exc_coproc_segment_overrun
+xen_pv_trap asm_exc_invalid_tss
+xen_pv_trap asm_exc_segment_not_present
+xen_pv_trap asm_exc_stack_segment
+xen_pv_trap asm_exc_general_protection
+xen_pv_trap asm_exc_page_fault
+xen_pv_trap asm_exc_spurious_interrupt_bug
+xen_pv_trap asm_exc_coprocessor_error
+xen_pv_trap asm_exc_alignment_check
 #ifdef CONFIG_X86_MCE
-xen_pv_trap machine_check
+xen_pv_trap asm_exc_machine_check
 #endif /* CONFIG_X86_MCE */
-xen_pv_trap simd_coprocessor_error
+xen_pv_trap asm_exc_simd_coprocessor_error
 #ifdef CONFIG_IA32_EMULATION
 xen_pv_trap entry_INT80_compat
 #endif
-xen_pv_trap hypervisor_callback
+xen_pv_trap asm_exc_xen_hypervisor_callback
 
 	__INIT
 SYM_CODE_START(xen_early_idt_handler_array)

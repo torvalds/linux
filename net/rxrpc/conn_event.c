@@ -173,10 +173,9 @@ static void rxrpc_abort_calls(struct rxrpc_connection *conn,
 			else
 				trace_rxrpc_rx_abort(call, serial,
 						     conn->abort_code);
-			if (rxrpc_set_call_completion(call, compl,
-						      conn->abort_code,
-						      conn->error))
-				rxrpc_notify_socket(call);
+			rxrpc_set_call_completion(call, compl,
+						  conn->abort_code,
+						  conn->error);
 		}
 	}
 

@@ -154,13 +154,13 @@ int aa_audit_file(struct aa_profile *profile, struct aa_perms *perms,
  * is_deleted - test if a file has been completely unlinked
  * @dentry: dentry of file to test for deletion  (NOT NULL)
  *
- * Returns: %1 if deleted else %0
+ * Returns: true if deleted else false
  */
 static inline bool is_deleted(struct dentry *dentry)
 {
 	if (d_unlinked(dentry) && d_backing_inode(dentry)->i_nlink == 0)
-		return 1;
-	return 0;
+		return true;
+	return false;
 }
 
 static int path_name(const char *op, struct aa_label *label,
@@ -353,15 +353,15 @@ int aa_path_perm(const char *op, struct aa_label *label,
  * this is done as part of the subset test, where a hardlink must have
  * a subset of permissions that the target has.
  *
- * Returns: %1 if subset else %0
+ * Returns: true if subset else false
  */
 static inline bool xindex_is_subset(u32 link, u32 target)
 {
 	if (((link & ~AA_X_UNSAFE) != (target & ~AA_X_UNSAFE)) ||
 	    ((link & AA_X_UNSAFE) && !(target & AA_X_UNSAFE)))
-		return 0;
+		return false;
 
-	return 1;
+	return true;
 }
 
 static int profile_path_link(struct aa_profile *profile,

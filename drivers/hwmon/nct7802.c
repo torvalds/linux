@@ -679,7 +679,7 @@ static struct attribute *nct7802_temp_attrs[] = {
 static umode_t nct7802_temp_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	unsigned int reg;
 	int err;
@@ -778,7 +778,7 @@ static struct attribute *nct7802_in_attrs[] = {
 static umode_t nct7802_in_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	unsigned int reg;
 	int err;
@@ -853,7 +853,7 @@ static struct attribute *nct7802_fan_attrs[] = {
 static umode_t nct7802_fan_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int index)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct nct7802_data *data = dev_get_drvdata(dev);
 	int fan = index / 4;	/* 4 attributes per fan */
 	unsigned int reg;

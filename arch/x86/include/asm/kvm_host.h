@@ -83,6 +83,10 @@
 #define KVM_REQ_GET_VMCS12_PAGES	KVM_ARCH_REQ(24)
 #define KVM_REQ_APICV_UPDATE \
 	KVM_ARCH_REQ_FLAGS(25, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_TLB_FLUSH_CURRENT	KVM_ARCH_REQ(26)
+#define KVM_REQ_HV_TLB_FLUSH \
+	KVM_ARCH_REQ_FLAGS(27, KVM_REQUEST_NO_WAKEUP)
+#define KVM_REQ_APF_READY		KVM_ARCH_REQ(28)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -107,15 +111,8 @@
 #define UNMAPPED_GVA (~(gpa_t)0)
 
 /* KVM Hugepage definitions for x86 */
-enum {
-	PT_PAGE_TABLE_LEVEL   = 1,
-	PT_DIRECTORY_LEVEL    = 2,
-	PT_PDPE_LEVEL         = 3,
-	/* set max level to the biggest one */
-	PT_MAX_HUGEPAGE_LEVEL = PT_PDPE_LEVEL,
-};
-#define KVM_NR_PAGE_SIZES	(PT_MAX_HUGEPAGE_LEVEL - \
-				 PT_PAGE_TABLE_LEVEL + 1)
+#define KVM_MAX_HUGEPAGE_LEVEL	PG_LEVEL_1G
+#define KVM_NR_PAGE_SIZES	(KVM_MAX_HUGEPAGE_LEVEL - PG_LEVEL_4K + 1)
 #define KVM_HPAGE_GFN_SHIFT(x)	(((x) - 1) * 9)
 #define KVM_HPAGE_SHIFT(x)	(PAGE_SHIFT + KVM_HPAGE_GFN_SHIFT(x))
 #define KVM_HPAGE_SIZE(x)	(1UL << KVM_HPAGE_SHIFT(x))
@@ -124,7 +121,7 @@ enum {
 
 static inline gfn_t gfn_to_index(gfn_t gfn, gfn_t base_gfn, int level)
 {
-	/* KVM_HPAGE_GFN_SHIFT(PT_PAGE_TABLE_LEVEL) must be 0. */
+	/* KVM_HPAGE_GFN_SHIFT(PG_LEVEL_4K) must be 0. */
 	return (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
 		(base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 }
@@ -164,9 +161,13 @@ enum kvm_reg {
 	NR_VCPU_REGS,
 
 	VCPU_EXREG_PDPTR = NR_VCPU_REGS,
+	VCPU_EXREG_CR0,
 	VCPU_EXREG_CR3,
+	VCPU_EXREG_CR4,
 	VCPU_EXREG_RFLAGS,
 	VCPU_EXREG_SEGMENTS,
+	VCPU_EXREG_EXIT_INFO_1,
+	VCPU_EXREG_EXIT_INFO_2,
 };
 
 enum {
@@ -182,8 +183,10 @@ enum {
 
 enum exit_fastpath_completion {
 	EXIT_FASTPATH_NONE,
-	EXIT_FASTPATH_SKIP_EMUL_INS,
+	EXIT_FASTPATH_REENTER_GUEST,
+	EXIT_FASTPATH_EXIT_HANDLED,
 };
+typedef enum exit_fastpath_completion fastpath_t;
 
 struct x86_emulate_ctxt;
 struct x86_exception;
@@ -372,12 +375,12 @@ struct rsvd_bits_validate {
 };
 
 struct kvm_mmu_root_info {
-	gpa_t cr3;
+	gpa_t pgd;
 	hpa_t hpa;
 };
 
 #define KVM_MMU_ROOT_INFO_INVALID \
-	((struct kvm_mmu_root_info) { .cr3 = INVALID_PAGE, .hpa = INVALID_PAGE })
+	((struct kvm_mmu_root_info) { .pgd = INVALID_PAGE, .hpa = INVALID_PAGE })
 
 #define KVM_MMU_NUM_PREV_ROOTS 3
 
@@ -403,7 +406,7 @@ struct kvm_mmu {
 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   u64 *spte, const void *pte);
 	hpa_t root_hpa;
-	gpa_t root_cr3;
+	gpa_t root_pgd;
 	union kvm_mmu_role mmu_role;
 	u8 root_level;
 	u8 shadow_root_level;
@@ -598,6 +601,7 @@ struct kvm_vcpu_arch {
 	u64 ia32_xss;
 	u64 microcode_version;
 	u64 arch_capabilities;
+	u64 perf_capabilities;
 
 	/*
 	 * Paging state of the vcpu
@@ -650,7 +654,6 @@ struct kvm_vcpu_arch {
 
 	u64 xcr0;
 	u64 guest_supported_xcr0;
-	u32 guest_xstate_size;
 
 	struct kvm_pio_request pio;
 	void *pio_data;
@@ -680,6 +683,7 @@ struct kvm_vcpu_arch {
 	struct kvm_cpuid_entry2 cpuid_entries[KVM_MAX_CPUID_ENTRIES];
 
 	int maxphyaddr;
+	int tdp_level;
 
 	/* emulate context */
 
@@ -703,6 +707,7 @@ struct kvm_vcpu_arch {
 		struct gfn_to_pfn_cache cache;
 	} st;
 
+	u64 l1_tsc_offset;
 	u64 tsc_offset;
 	u64 last_guest_tsc;
 	u64 last_host_tsc;
@@ -762,14 +767,17 @@ struct kvm_vcpu_arch {
 
 	struct {
 		bool halted;
-		gfn_t gfns[roundup_pow_of_two(ASYNC_PF_PER_VCPU)];
+		gfn_t gfns[ASYNC_PF_PER_VCPU];
 		struct gfn_to_hva_cache data;
-		u64 msr_val;
+		u64 msr_en_val; /* MSR_KVM_ASYNC_PF_EN */
+		u64 msr_int_val; /* MSR_KVM_ASYNC_PF_INT */
+		u16 vec;
 		u32 id;
 		bool send_user_only;
-		u32 host_apf_reason;
+		u32 host_apf_flags;
 		unsigned long nested_apf_token;
 		bool delivery_as_pf_vmexit;
+		bool pageready_pending;
 	} apf;
 
 	/* OSVW MSRs (AMD only) */
@@ -855,6 +863,18 @@ struct kvm_apic_map {
 	struct kvm_lapic *phys_map[];
 };
 
+/* Hyper-V synthetic debugger (SynDbg)*/
+struct kvm_hv_syndbg {
+	struct {
+		u64 control;
+		u64 status;
+		u64 send_page;
+		u64 recv_page;
+		u64 pending_page;
+	} control;
+	u64 options;
+};
+
 /* Hyper-V emulation context */
 struct kvm_hv {
 	struct mutex hv_lock;
@@ -866,7 +886,7 @@ struct kvm_hv {
 	u64 hv_crash_param[HV_X64_MSR_CRASH_PARAMS];
 	u64 hv_crash_ctl;
 
-	HV_REFERENCE_TSC_PAGE tsc_ref;
+	struct ms_hyperv_tsc_page tsc_ref;
 
 	struct idr conn_to_evt;
 
@@ -878,6 +898,7 @@ struct kvm_hv {
 	atomic_t num_mismatched_vp_indexes;
 
 	struct hv_partition_assist_pg *hv_pa_pg;
+	struct kvm_hv_syndbg hv_syndbg;
 };
 
 enum kvm_irqchip_mode {
@@ -1028,6 +1049,8 @@ struct kvm_vcpu_stat {
 	u64 irq_injections;
 	u64 nmi_injections;
 	u64 req_event;
+	u64 halt_poll_success_ns;
+	u64 halt_poll_fail_ns;
 };
 
 struct x86_instruction_info;
@@ -1059,7 +1082,7 @@ struct kvm_x86_ops {
 	void (*hardware_disable)(void);
 	void (*hardware_unsetup)(void);
 	bool (*cpu_has_accelerated_tpr)(void);
-	bool (*has_emulated_msr)(int index);
+	bool (*has_emulated_msr)(u32 index);
 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
 
 	unsigned int vm_size;
@@ -1085,8 +1108,6 @@ struct kvm_x86_ops {
 	void (*set_segment)(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 	void (*get_cs_db_l_bits)(struct kvm_vcpu *vcpu, int *db, int *l);
-	void (*decache_cr0_guest_bits)(struct kvm_vcpu *vcpu);
-	void (*decache_cr4_guest_bits)(struct kvm_vcpu *vcpu);
 	void (*set_cr0)(struct kvm_vcpu *vcpu, unsigned long cr0);
 	int (*set_cr4)(struct kvm_vcpu *vcpu, unsigned long cr4);
 	void (*set_efer)(struct kvm_vcpu *vcpu, u64 efer);
@@ -1100,7 +1121,8 @@ struct kvm_x86_ops {
 	unsigned long (*get_rflags)(struct kvm_vcpu *vcpu);
 	void (*set_rflags)(struct kvm_vcpu *vcpu, unsigned long rflags);
 
-	void (*tlb_flush)(struct kvm_vcpu *vcpu, bool invalidate_gpa);
+	void (*tlb_flush_all)(struct kvm_vcpu *vcpu);
+	void (*tlb_flush_current)(struct kvm_vcpu *vcpu);
 	int  (*tlb_remote_flush)(struct kvm *kvm);
 	int  (*tlb_remote_flush_with_range)(struct kvm *kvm,
 			struct kvm_tlb_range *range);
@@ -1113,7 +1135,13 @@ struct kvm_x86_ops {
 	 */
 	void (*tlb_flush_gva)(struct kvm_vcpu *vcpu, gva_t addr);
 
-	void (*run)(struct kvm_vcpu *vcpu);
+	/*
+	 * Flush any TLB entries created by the guest.  Like tlb_flush_gva(),
+	 * does not need to flush GPA->HPA mappings.
+	 */
+	void (*tlb_flush_guest)(struct kvm_vcpu *vcpu);
+
+	enum exit_fastpath_completion (*run)(struct kvm_vcpu *vcpu);
 	int (*handle_exit)(struct kvm_vcpu *vcpu,
 		enum exit_fastpath_completion exit_fastpath);
 	int (*skip_emulated_instruction)(struct kvm_vcpu *vcpu);
@@ -1126,8 +1154,8 @@ struct kvm_x86_ops {
 	void (*set_nmi)(struct kvm_vcpu *vcpu);
 	void (*queue_exception)(struct kvm_vcpu *vcpu);
 	void (*cancel_injection)(struct kvm_vcpu *vcpu);
-	int (*interrupt_allowed)(struct kvm_vcpu *vcpu);
-	int (*nmi_allowed)(struct kvm_vcpu *vcpu);
+	int (*interrupt_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
+	int (*nmi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
 	bool (*get_nmi_mask)(struct kvm_vcpu *vcpu);
 	void (*set_nmi_mask)(struct kvm_vcpu *vcpu, bool masked);
 	void (*enable_nmi_window)(struct kvm_vcpu *vcpu);
@@ -1141,7 +1169,7 @@ struct kvm_x86_ops {
 	bool (*guest_apic_has_interrupt)(struct kvm_vcpu *vcpu);
 	void (*load_eoi_exitmap)(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap);
 	void (*set_virtual_apic_mode)(struct kvm_vcpu *vcpu);
-	void (*set_apic_access_page_addr)(struct kvm_vcpu *vcpu, hpa_t hpa);
+	void (*set_apic_access_page_addr)(struct kvm_vcpu *vcpu);
 	int (*deliver_posted_interrupt)(struct kvm_vcpu *vcpu, int vector);
 	int (*sync_pir_to_irr)(struct kvm_vcpu *vcpu);
 	int (*set_tss_addr)(struct kvm *kvm, unsigned int addr);
@@ -1153,7 +1181,6 @@ struct kvm_x86_ops {
 
 	bool (*has_wbinvd_exit)(void);
 
-	u64 (*read_l1_tsc_offset)(struct kvm_vcpu *vcpu);
 	/* Returns actual tsc_offset set in active VMCS */
 	u64 (*write_l1_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
@@ -1163,10 +1190,8 @@ struct kvm_x86_ops {
 			       struct x86_instruction_info *info,
 			       enum x86_intercept_stage stage,
 			       struct x86_exception *exception);
-	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu,
-		enum exit_fastpath_completion *exit_fastpath);
+	void (*handle_exit_irqoff)(struct kvm_vcpu *vcpu);
 
-	int (*check_nested_events)(struct kvm_vcpu *vcpu);
 	void (*request_immediate_exit)(struct kvm_vcpu *vcpu);
 
 	void (*sched_in)(struct kvm_vcpu *kvm, int cpu);
@@ -1199,6 +1224,7 @@ struct kvm_x86_ops {
 
 	/* pmu operations of sub-arch */
 	const struct kvm_pmu_ops *pmu_ops;
+	const struct kvm_x86_nested_ops *nested_ops;
 
 	/*
 	 * Architecture specific hooks for vCPU blocking due to
@@ -1226,18 +1252,10 @@ struct kvm_x86_ops {
 
 	void (*setup_mce)(struct kvm_vcpu *vcpu);
 
-	int (*get_nested_state)(struct kvm_vcpu *vcpu,
-				struct kvm_nested_state __user *user_kvm_nested_state,
-				unsigned user_data_size);
-	int (*set_nested_state)(struct kvm_vcpu *vcpu,
-				struct kvm_nested_state __user *user_kvm_nested_state,
-				struct kvm_nested_state *kvm_state);
-	bool (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
-
-	int (*smi_allowed)(struct kvm_vcpu *vcpu);
+	int (*smi_allowed)(struct kvm_vcpu *vcpu, bool for_injection);
 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
 	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, const char *smstate);
-	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
+	void (*enable_smi_window)(struct kvm_vcpu *vcpu);
 
 	int (*mem_enc_op)(struct kvm *kvm, void __user *argp);
 	int (*mem_enc_reg_region)(struct kvm *kvm, struct kvm_enc_region *argp);
@@ -1245,14 +1263,28 @@ struct kvm_x86_ops {
 
 	int (*get_msr_feature)(struct kvm_msr_entry *entry);
 
-	int (*nested_enable_evmcs)(struct kvm_vcpu *vcpu,
-				   uint16_t *vmcs_version);
-	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
-
 	bool (*need_emulation_on_page_fault)(struct kvm_vcpu *vcpu);
 
 	bool (*apic_init_signal_blocked)(struct kvm_vcpu *vcpu);
 	int (*enable_direct_tlbflush)(struct kvm_vcpu *vcpu);
+
+	void (*migrate_timers)(struct kvm_vcpu *vcpu);
+};
+
+struct kvm_x86_nested_ops {
+	int (*check_events)(struct kvm_vcpu *vcpu);
+	bool (*hv_timer_pending)(struct kvm_vcpu *vcpu);
+	int (*get_state)(struct kvm_vcpu *vcpu,
+			 struct kvm_nested_state __user *user_kvm_nested_state,
+			 unsigned user_data_size);
+	int (*set_state)(struct kvm_vcpu *vcpu,
+			 struct kvm_nested_state __user *user_kvm_nested_state,
+			 struct kvm_nested_state *kvm_state);
+	bool (*get_vmcs12_pages)(struct kvm_vcpu *vcpu);
+
+	int (*enable_evmcs)(struct kvm_vcpu *vcpu,
+			    uint16_t *vmcs_version);
+	uint16_t (*get_evmcs_version)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_x86_init_ops {
@@ -1274,13 +1306,11 @@ struct kvm_arch_async_pf {
 extern u64 __read_mostly host_efer;
 
 extern struct kvm_x86_ops kvm_x86_ops;
-extern struct kmem_cache *x86_fpu_cache;
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
 {
-	return __vmalloc(kvm_x86_ops.vm_size,
-			 GFP_KERNEL_ACCOUNT | __GFP_ZERO, PAGE_KERNEL);
+	return __vmalloc(kvm_x86_ops.vm_size, GFP_KERNEL_ACCOUNT | __GFP_ZERO);
 }
 void kvm_arch_free_vm(struct kvm *kvm);
 
@@ -1452,6 +1482,8 @@ void kvm_queue_exception_p(struct kvm_vcpu *vcpu, unsigned nr, unsigned long pay
 void kvm_requeue_exception(struct kvm_vcpu *vcpu, unsigned nr);
 void kvm_requeue_exception_e(struct kvm_vcpu *vcpu, unsigned nr, u32 error_code);
 void kvm_inject_page_fault(struct kvm_vcpu *vcpu, struct x86_exception *fault);
+bool kvm_inject_emulated_page_fault(struct kvm_vcpu *vcpu,
+				    struct x86_exception *fault);
 int kvm_read_guest_page_mmu(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			    gfn_t gfn, void *data, int offset, int len,
 			    u32 access);
@@ -1478,6 +1510,8 @@ int kvm_pic_set_irq(struct kvm_pic *pic, int irq, int irq_source_id, int level);
 void kvm_pic_clear_all(struct kvm_pic *pic, int irq_source_id);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
+
+void kvm_update_dr7(struct kvm_vcpu *vcpu);
 
 int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn);
 int kvm_mmu_unprotect_page_virt(struct kvm_vcpu *vcpu, gva_t gva);
@@ -1509,8 +1543,11 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu);
 int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 error_code,
 		       void *insn, int insn_len);
 void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva);
+void kvm_mmu_invalidate_gva(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
+			    gva_t gva, hpa_t root_hpa);
 void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid);
-void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush);
+void kvm_mmu_new_pgd(struct kvm_vcpu *vcpu, gpa_t new_pgd, bool skip_tlb_flush,
+		     bool skip_mmu_sync);
 
 void kvm_configure_mmu(bool enable_tdp, int tdp_page_level);
 
@@ -1574,8 +1611,6 @@ enum {
 };
 
 #define HF_GIF_MASK		(1 << 0)
-#define HF_HIF_MASK		(1 << 1)
-#define HF_VINTR_MASK		(1 << 2)
 #define HF_NMI_MASK		(1 << 3)
 #define HF_IRET_MASK		(1 << 4)
 #define HF_GUEST_MASK		(1 << 5) /* VCPU is in guest-mode */
@@ -1635,13 +1670,14 @@ void kvm_make_scan_ioapic_request(struct kvm *kvm);
 void kvm_make_scan_ioapic_request_mask(struct kvm *kvm,
 				       unsigned long *vcpu_bitmap);
 
-void kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
+bool kvm_arch_async_page_not_present(struct kvm_vcpu *vcpu,
 				     struct kvm_async_pf *work);
 void kvm_arch_async_page_present(struct kvm_vcpu *vcpu,
 				 struct kvm_async_pf *work);
 void kvm_arch_async_page_ready(struct kvm_vcpu *vcpu,
 			       struct kvm_async_pf *work);
-bool kvm_arch_can_inject_async_page_present(struct kvm_vcpu *vcpu);
+void kvm_arch_async_page_present_queued(struct kvm_vcpu *vcpu);
+bool kvm_arch_can_dequeue_async_page_present(struct kvm_vcpu *vcpu);
 extern bool kvm_find_async_pf_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
 
 int kvm_skip_emulated_instruction(struct kvm_vcpu *vcpu);

@@ -66,6 +66,8 @@
 #define HNS_ROCE_CQE_WCMD_EMPTY_BIT		0x2
 #define HNS_ROCE_MIN_CQE_CNT			16
 
+#define HNS_ROCE_RESERVED_SGE			1
+
 #define HNS_ROCE_MAX_IRQ_NUM			128
 
 #define HNS_ROCE_SGE_IN_WQE			2
@@ -131,12 +133,12 @@ enum {
 };
 
 enum {
-	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
-	HNS_ROCE_SUPPORT_SQ_RECORD_DB = 1 << 1,
+	HNS_ROCE_QP_CAP_RQ_RECORD_DB = BIT(0),
+	HNS_ROCE_QP_CAP_SQ_RECORD_DB = BIT(1),
 };
 
-enum {
-	HNS_ROCE_SUPPORT_CQ_RECORD_DB = 1 << 0,
+enum hns_roce_cq_flags {
+	HNS_ROCE_CQ_FLAG_RECORD_DB = BIT(0),
 };
 
 enum hns_roce_qp_state {
@@ -209,6 +211,8 @@ enum {
 	HNS_ROCE_OPCODE_RDMA_WITH_IMM_RECEIVE	= 0x07,
 };
 
+#define HNS_ROCE_CAP_FLAGS_EX_SHIFT 12
+
 enum {
 	HNS_ROCE_CAP_FLAG_REREG_MR		= BIT(0),
 	HNS_ROCE_CAP_FLAG_ROCE_V1_V2		= BIT(1),
@@ -220,13 +224,6 @@ enum {
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL		= BIT(9),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
-};
-
-enum hns_roce_mtt_type {
-	MTT_TYPE_WQE,
-	MTT_TYPE_CQE,
-	MTT_TYPE_SRQWQE,
-	MTT_TYPE_IDX
 };
 
 #define HNS_ROCE_DB_TYPE_COUNT			2
@@ -267,9 +264,12 @@ enum {
 #define HNS_ROCE_PORT_DOWN			0
 #define HNS_ROCE_PORT_UP			1
 
-#define HNS_ROCE_MTT_ENTRY_PER_SEG		8
+/* The minimum page size is 4K for hardware */
+#define HNS_HW_PAGE_SHIFT			12
+#define HNS_HW_PAGE_SIZE			(1 << HNS_HW_PAGE_SHIFT)
 
-#define PAGE_ADDR_SHIFT				12
+/* The minimum page count for hardware access page directly. */
+#define HNS_HW_DIRECT_PAGE_COUNT 2
 
 struct hns_roce_uar {
 	u64		pfn;
@@ -300,22 +300,6 @@ struct hns_roce_bitmap {
 	unsigned long		*table;
 };
 
-/* Order bitmap length -- bit num compute formula: 1 << (max_order - order) */
-/* Order = 0: bitmap is biggest, order = max bitmap is least (only a bit) */
-/* Every bit repesent to a partner free/used status in bitmap */
-/*
- * Initial, bits of other bitmap are all 0 except that a bit of max_order is 1
- * Bit = 1 represent to idle and available; bit = 0: not available
- */
-struct hns_roce_buddy {
-	/* Members point to every order level bitmap */
-	unsigned long **bits;
-	/* Represent to avail bits of the order level bitmap */
-	u32            *num_free;
-	int             max_order;
-	spinlock_t      lock;
-};
-
 /* For Hardware Entry Memory */
 struct hns_roce_hem_table {
 	/* HEM type: 0 = qpc, 1 = mtt, 2 = cqc, 3 = srq, 4 = other */
@@ -336,13 +320,6 @@ struct hns_roce_hem_table {
 	dma_addr_t	*bt_l0_dma_addr;
 };
 
-struct hns_roce_mtt {
-	unsigned long		first_seg;
-	int			order;
-	int			page_shift;
-	enum hns_roce_mtt_type	mtt_type;
-};
-
 struct hns_roce_buf_region {
 	int offset; /* page offset */
 	u32 count; /* page count */
@@ -357,13 +334,34 @@ struct hns_roce_hem_list {
 	struct list_head mid_bt[HNS_ROCE_MAX_BT_REGION][HNS_ROCE_MAX_BT_LEVEL];
 	struct list_head btm_bt; /* link all bottom bt in @mid_bt */
 	dma_addr_t root_ba; /* pointer to the root ba table */
-	int bt_pg_shift;
+};
+
+struct hns_roce_buf_attr {
+	struct {
+		size_t	size;  /* region size */
+		int	hopnum; /* multi-hop addressing hop num */
+	} region[HNS_ROCE_MAX_BT_REGION];
+	int region_count; /* valid region count */
+	unsigned int page_shift;  /* buffer page shift */
+	bool fixed_page; /* decide page shift is fixed-size or maximum size */
+	int user_access; /* umem access flag */
+	bool mtt_only; /* only alloc buffer-required MTT memory */
 };
 
 /* memory translate region */
 struct hns_roce_mtr {
-	struct hns_roce_hem_list hem_list;
-	int buf_pg_shift;
+	struct hns_roce_hem_list hem_list; /* multi-hop addressing resource */
+	struct ib_umem		*umem; /* user space buffer */
+	struct hns_roce_buf	*kmem; /* kernel space buffer */
+	struct {
+		dma_addr_t	root_ba; /* root BA table's address */
+		bool		is_direct; /* addressing without BA table */
+		unsigned int	ba_pg_shift; /* BA table page shift */
+		unsigned int	buf_pg_shift; /* buffer page shift */
+		int		buf_pg_count;  /* buffer page count */
+		struct hns_roce_buf_region region[HNS_ROCE_MAX_BT_REGION];
+		unsigned int	region_count;
+	} hem_cfg; /* config for hardware addressing */
 };
 
 struct hns_roce_mw {
@@ -381,43 +379,22 @@ struct hns_roce_mw {
 
 struct hns_roce_mr {
 	struct ib_mr		ibmr;
-	struct ib_umem		*umem;
 	u64			iova; /* MR's virtual orignal addr */
 	u64			size; /* Address range of MR */
 	u32			key; /* Key of MR */
 	u32			pd;   /* PD num of MR */
 	u32			access;	/* Access permission of MR */
-	u32			npages;
 	int			enabled; /* MR's active status */
 	int			type;	/* MR's register type */
-	u64			*pbl_buf;	/* MR's PBL space */
-	dma_addr_t		pbl_dma_addr;	/* MR's PBL space PA */
-	u32			pbl_size;	/* PA number in the PBL */
-	u64			pbl_ba;		/* page table address */
-	u32			l0_chunk_last_num;	/* L0 last number */
-	u32			l1_chunk_last_num;	/* L1 last number */
-	u64			**pbl_bt_l2;	/* PBL BT L2 */
-	u64			**pbl_bt_l1;	/* PBL BT L1 */
-	u64			*pbl_bt_l0;	/* PBL BT L0 */
-	dma_addr_t		*pbl_l2_dma_addr;	/* PBL BT L2 dma addr */
-	dma_addr_t		*pbl_l1_dma_addr;	/* PBL BT L1 dma addr */
-	dma_addr_t		pbl_l0_dma_addr;	/* PBL BT L0 dma addr */
-	u32			pbl_ba_pg_sz;	/* BT chunk page size */
-	u32			pbl_buf_pg_sz;	/* buf chunk page size */
 	u32			pbl_hop_num;	/* multi-hop number */
+	struct hns_roce_mtr	pbl_mtr;
+	u32			npages;
+	dma_addr_t		*page_list;
 };
 
 struct hns_roce_mr_table {
 	struct hns_roce_bitmap		mtpt_bitmap;
-	struct hns_roce_buddy		mtt_buddy;
-	struct hns_roce_hem_table	mtt_table;
 	struct hns_roce_hem_table	mtpt_table;
-	struct hns_roce_buddy		mtt_cqe_buddy;
-	struct hns_roce_hem_table	mtt_cqe_table;
-	struct hns_roce_buddy		mtt_srqwqe_buddy;
-	struct hns_roce_hem_table	mtt_srqwqe_table;
-	struct hns_roce_buddy		mtt_idx_buddy;
-	struct hns_roce_hem_table	mtt_idx_table;
 };
 
 struct hns_roce_wq {
@@ -433,7 +410,7 @@ struct hns_roce_wq {
 };
 
 struct hns_roce_sge {
-	int		sge_cnt;	/* SGE num */
+	unsigned int	sge_cnt;	/* SGE num */
 	int		offset;
 	int		sge_shift;	/* SGE size */
 };
@@ -446,10 +423,9 @@ struct hns_roce_buf_list {
 struct hns_roce_buf {
 	struct hns_roce_buf_list	direct;
 	struct hns_roce_buf_list	*page_list;
-	int				nbufs;
 	u32				npages;
 	u32				size;
-	int				page_shift;
+	unsigned int			page_shift;
 };
 
 struct hns_roce_db_pgdir {
@@ -482,12 +458,10 @@ struct hns_roce_db {
 
 struct hns_roce_cq {
 	struct ib_cq			ib_cq;
-	struct hns_roce_buf		buf;
-	struct hns_roce_mtt		mtt;
+	struct hns_roce_mtr		mtr;
 	struct hns_roce_db		db;
-	u8				db_en;
+	u32				flags;
 	spinlock_t			lock;
-	struct ib_umem			*umem;
 	u32				cq_depth;
 	u32				cons_index;
 	u32				*set_ci_db;
@@ -505,11 +479,8 @@ struct hns_roce_cq {
 };
 
 struct hns_roce_idx_que {
-	struct hns_roce_buf		idx_buf;
-	int				entry_sz;
-	u32				buf_size;
-	struct ib_umem			*umem;
-	struct hns_roce_mtt		mtt;
+	struct hns_roce_mtr		mtr;
+	int				entry_shift;
 	unsigned long			*bitmap;
 };
 
@@ -524,10 +495,9 @@ struct hns_roce_srq {
 	atomic_t		refcount;
 	struct completion	free;
 
-	struct hns_roce_buf	buf;
+	struct hns_roce_mtr	buf_mtr;
+
 	u64		       *wrid;
-	struct ib_umem	       *umem;
-	struct hns_roce_mtt	mtt;
 	struct hns_roce_idx_que idx_que;
 	spinlock_t		lock;
 	int			head;
@@ -656,20 +626,15 @@ struct hns_roce_work {
 
 struct hns_roce_qp {
 	struct ib_qp		ibqp;
-	struct hns_roce_buf	hr_buf;
 	struct hns_roce_wq	rq;
 	struct hns_roce_db	rdb;
 	struct hns_roce_db	sdb;
-	u8			rdb_en;
-	u8			sdb_en;
+	unsigned long		en_flags;
 	u32			doorbell_qpn;
 	u32			sq_signal_bits;
 	struct hns_roce_wq	sq;
 
-	struct ib_umem		*umem;
-	struct hns_roce_mtt	mtt;
 	struct hns_roce_mtr	mtr;
-	int                     wqe_bt_pg_shift;
 
 	u32			buff_size;
 	struct mutex		mutex;
@@ -769,17 +734,11 @@ struct hns_roce_eq {
 	int				over_ignore;
 	int				coalesce;
 	int				arm_st;
-	u64				eqe_ba;
-	int				eqe_ba_pg_sz;
-	int				eqe_buf_pg_sz;
 	int				hop_num;
 	struct hns_roce_mtr		mtr;
-	struct hns_roce_buf		buf;
-	int				eq_max_cnt;
+	u16				eq_max_cnt;
 	int				eq_period;
 	int				shift;
-	dma_addr_t			cur_eqe_ba;
-	dma_addr_t			nxt_eqe_ba;
 	int				event_type;
 	int				sub_type;
 };
@@ -1102,15 +1061,67 @@ static inline struct hns_roce_qp
 	return xa_load(&hr_dev->qp_table_xa, qpn & (hr_dev->caps.num_qps - 1));
 }
 
+static inline bool hns_roce_buf_is_direct(struct hns_roce_buf *buf)
+{
+	if (buf->page_list)
+		return false;
+
+	return true;
+}
+
 static inline void *hns_roce_buf_offset(struct hns_roce_buf *buf, int offset)
 {
-	u32 page_size = 1 << buf->page_shift;
+	if (hns_roce_buf_is_direct(buf))
+		return (char *)(buf->direct.buf) + (offset & (buf->size - 1));
 
-	if (buf->nbufs == 1)
-		return (char *)(buf->direct.buf) + offset;
+	return (char *)(buf->page_list[offset >> buf->page_shift].buf) +
+	       (offset & ((1 << buf->page_shift) - 1));
+}
+
+static inline dma_addr_t hns_roce_buf_page(struct hns_roce_buf *buf, int idx)
+{
+	if (hns_roce_buf_is_direct(buf))
+		return buf->direct.map + ((dma_addr_t)idx << buf->page_shift);
 	else
-		return (char *)(buf->page_list[offset >> buf->page_shift].buf) +
-		       (offset & (page_size - 1));
+		return buf->page_list[idx].map;
+}
+
+#define hr_hw_page_align(x)		ALIGN(x, 1 << HNS_HW_PAGE_SHIFT)
+
+static inline u64 to_hr_hw_page_addr(u64 addr)
+{
+	return addr >> HNS_HW_PAGE_SHIFT;
+}
+
+static inline u32 to_hr_hw_page_shift(u32 page_shift)
+{
+	return page_shift - HNS_HW_PAGE_SHIFT;
+}
+
+static inline u32 to_hr_hem_hopnum(u32 hopnum, u32 count)
+{
+	if (count > 0)
+		return hopnum == HNS_ROCE_HOP_NUM_0 ? 0 : hopnum;
+
+	return 0;
+}
+
+static inline u32 to_hr_hem_entries_size(u32 count, u32 buf_shift)
+{
+	return hr_hw_page_align(count << buf_shift);
+}
+
+static inline u32 to_hr_hem_entries_count(u32 count, u32 buf_shift)
+{
+	return hr_hw_page_align(count << buf_shift) >> buf_shift;
+}
+
+static inline u32 to_hr_hem_entries_shift(u32 count, u32 buf_shift)
+{
+	if (!count)
+		return 0;
+
+	return ilog2(to_hr_hem_entries_count(count, buf_shift));
 }
 
 int hns_roce_init_uar_table(struct hns_roce_dev *dev);
@@ -1125,25 +1136,18 @@ void hns_roce_cmd_event(struct hns_roce_dev *hr_dev, u16 token, u8 status,
 int hns_roce_cmd_use_events(struct hns_roce_dev *hr_dev);
 void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
-int hns_roce_mtt_init(struct hns_roce_dev *hr_dev, int npages, int page_shift,
-		      struct hns_roce_mtt *mtt);
-void hns_roce_mtt_cleanup(struct hns_roce_dev *hr_dev,
-			  struct hns_roce_mtt *mtt);
-int hns_roce_buf_write_mtt(struct hns_roce_dev *hr_dev,
-			   struct hns_roce_mtt *mtt, struct hns_roce_buf *buf);
-
-void hns_roce_mtr_init(struct hns_roce_mtr *mtr, int bt_pg_shift,
-		       int buf_pg_shift);
-int hns_roce_mtr_attach(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			dma_addr_t **bufs, struct hns_roce_buf_region *regions,
-			int region_cnt);
-void hns_roce_mtr_cleanup(struct hns_roce_dev *hr_dev,
-			  struct hns_roce_mtr *mtr);
-
 /* hns roce hw need current block and next block addr from mtt */
 #define MTT_MIN_COUNT	 2
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		      int offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
+int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+			struct hns_roce_buf_attr *buf_attr,
+			unsigned int page_shift, struct ib_udata *udata,
+			unsigned long user_addr);
+void hns_roce_mtr_destroy(struct hns_roce_dev *hr_dev,
+			  struct hns_roce_mtr *mtr);
+int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		     dma_addr_t *pages, int page_cnt);
 
 int hns_roce_init_pd_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
@@ -1171,8 +1175,8 @@ void hns_roce_bitmap_free_range(struct hns_roce_bitmap *bitmap,
 				unsigned long obj, int cnt,
 				int rr);
 
-int hns_roce_create_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr,
-		       u32 flags, struct ib_udata *udata);
+int hns_roce_create_ah(struct ib_ah *ah, struct rdma_ah_init_attr *init_attr,
+		       struct ib_udata *udata);
 int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
 void hns_roce_destroy_ah(struct ib_ah *ah, u32 flags);
 
@@ -1200,25 +1204,15 @@ struct ib_mw *hns_roce_alloc_mw(struct ib_pd *pd, enum ib_mw_type,
 				struct ib_udata *udata);
 int hns_roce_dealloc_mw(struct ib_mw *ibmw);
 
-void hns_roce_buf_free(struct hns_roce_dev *hr_dev, u32 size,
-		       struct hns_roce_buf *buf);
+void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf);
 int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 		       struct hns_roce_buf *buf, u32 page_shift);
-
-int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
-			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
-
-void hns_roce_init_buf_region(struct hns_roce_buf_region *region, int hopnum,
-			      int offset, int buf_cnt);
-int hns_roce_alloc_buf_list(struct hns_roce_buf_region *regions,
-			    dma_addr_t **bufs, int count);
-void hns_roce_free_buf_list(dma_addr_t **bufs, int count);
 
 int hns_roce_get_kmem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct hns_roce_buf *buf);
 int hns_roce_get_umem_bufs(struct hns_roce_dev *hr_dev, dma_addr_t *bufs,
 			   int buf_cnt, int start, struct ib_umem *umem,
-			   int page_shift);
+			   unsigned int page_shift);
 
 int hns_roce_create_srq(struct ib_srq *srq,
 			struct ib_srq_init_attr *srq_init_attr,
@@ -1254,8 +1248,6 @@ int hns_roce_create_cq(struct ib_cq *ib_cq, const struct ib_cq_init_attr *attr,
 		       struct ib_udata *udata);
 
 void hns_roce_destroy_cq(struct ib_cq *ib_cq, struct ib_udata *udata);
-void hns_roce_free_cqc(struct hns_roce_dev *hr_dev, struct hns_roce_cq *hr_cq);
-
 int hns_roce_db_map_user(struct hns_roce_ucontext *context,
 			 struct ib_udata *udata, unsigned long virt,
 			 struct hns_roce_db *db);

@@ -8,6 +8,9 @@
 #include "intel_bw.h"
 #include "intel_display_types.h"
 #include "intel_sideband.h"
+#include "intel_atomic.h"
+#include "intel_pm.h"
+
 
 /* Parameters for Qclk Geyserville (QGV) */
 struct intel_qgv_point {
@@ -109,6 +112,26 @@ static int icl_pcode_read_qgv_point_info(struct drm_i915_private *dev_priv,
 	sp->t_ras = (val2 & 0xff00) >> 8;
 
 	sp->t_rc = sp->t_rp + sp->t_ras;
+
+	return 0;
+}
+
+int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
+				  u32 points_mask)
+{
+	int ret;
+
+	/* bspec says to keep retrying for at least 1 ms */
+	ret = skl_pcode_request(dev_priv, ICL_PCODE_SAGV_DE_MEM_SS_CONFIG,
+				points_mask,
+				ICL_PCODE_POINTS_RESTRICTED_MASK,
+				ICL_PCODE_POINTS_RESTRICTED,
+				1);
+
+	if (ret < 0) {
+		drm_err(&dev_priv->drm, "Failed to disable qgv points (%d)\n", ret);
+		return ret;
+	}
 
 	return 0;
 }
@@ -240,6 +263,16 @@ static int icl_get_bw_info(struct drm_i915_private *dev_priv, const struct intel
 			break;
 	}
 
+	/*
+	 * In case if SAGV is disabled in BIOS, we always get 1
+	 * SAGV point, but we can't send PCode commands to restrict it
+	 * as it will fail and pointless anyway.
+	 */
+	if (qi.num_points == 1)
+		dev_priv->sagv_status = I915_SAGV_NOT_CONTROLLED;
+	else
+		dev_priv->sagv_status = I915_SAGV_ENABLED;
+
 	return 0;
 }
 
@@ -247,6 +280,11 @@ static unsigned int icl_max_bw(struct drm_i915_private *dev_priv,
 			       int num_planes, int qgv_point)
 {
 	int i;
+
+	/*
+	 * Let's return max bw for 0 planes
+	 */
+	num_planes = max(1, num_planes);
 
 	for (i = 0; i < ARRAY_SIZE(dev_priv->max_bw); i++) {
 		const struct intel_bw_info *bi =
@@ -275,34 +313,6 @@ void intel_bw_init_hw(struct drm_i915_private *dev_priv)
 		icl_get_bw_info(dev_priv, &tgl_sa_info);
 	else if (IS_GEN(dev_priv, 11))
 		icl_get_bw_info(dev_priv, &icl_sa_info);
-}
-
-static unsigned int intel_max_data_rate(struct drm_i915_private *dev_priv,
-					int num_planes)
-{
-	if (INTEL_GEN(dev_priv) >= 11) {
-		/*
-		 * Any bw group has same amount of QGV points
-		 */
-		const struct intel_bw_info *bi =
-			&dev_priv->max_bw[0];
-		unsigned int min_bw = UINT_MAX;
-		int i;
-
-		/*
-		 * FIXME with SAGV disabled maybe we can assume
-		 * point 1 will always be used? Seems to match
-		 * the behaviour observed in the wild.
-		 */
-		for (i = 0; i < bi->num_qgv_points; i++) {
-			unsigned int bw = icl_max_bw(dev_priv, num_planes, i);
-
-			min_bw = min(bw, min_bw);
-		}
-		return min_bw;
-	} else {
-		return UINT_MAX;
-	}
 }
 
 static unsigned int intel_bw_crtc_num_active_planes(const struct intel_crtc_state *crtc_state)
@@ -338,16 +348,17 @@ void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	bw_state->data_rate[crtc->pipe] =
 		intel_bw_crtc_data_rate(crtc_state);
 	bw_state->num_active_planes[crtc->pipe] =
 		intel_bw_crtc_num_active_planes(crtc_state);
 
-	DRM_DEBUG_KMS("pipe %c data rate %u num active planes %u\n",
-		      pipe_name(crtc->pipe),
-		      bw_state->data_rate[crtc->pipe],
-		      bw_state->num_active_planes[crtc->pipe]);
+	drm_dbg_kms(&i915->drm, "pipe %c data rate %u num active planes %u\n",
+		    pipe_name(crtc->pipe),
+		    bw_state->data_rate[crtc->pipe],
+		    bw_state->num_active_planes[crtc->pipe]);
 }
 
 static unsigned int intel_bw_num_active_planes(struct drm_i915_private *dev_priv,
@@ -374,7 +385,29 @@ static unsigned int intel_bw_data_rate(struct drm_i915_private *dev_priv,
 	return data_rate;
 }
 
-static struct intel_bw_state *
+struct intel_bw_state *
+intel_atomic_get_old_bw_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *bw_state;
+
+	bw_state = intel_atomic_get_old_global_obj_state(state, &dev_priv->bw_obj);
+
+	return to_intel_bw_state(bw_state);
+}
+
+struct intel_bw_state *
+intel_atomic_get_new_bw_state(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_global_state *bw_state;
+
+	bw_state = intel_atomic_get_new_global_obj_state(state, &dev_priv->bw_obj);
+
+	return to_intel_bw_state(bw_state);
+}
+
+struct intel_bw_state *
 intel_atomic_get_bw_state(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
@@ -391,11 +424,16 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
-	struct intel_bw_state *bw_state = NULL;
-	unsigned int data_rate, max_data_rate;
+	struct intel_bw_state *new_bw_state = NULL;
+	const struct intel_bw_state *old_bw_state = NULL;
+	unsigned int data_rate;
 	unsigned int num_active_planes;
 	struct intel_crtc *crtc;
 	int i, ret;
+	u32 allowed_points = 0;
+	unsigned int max_bw_point = 0, max_bw = 0;
+	unsigned int num_qgv_points = dev_priv->max_bw[0].num_qgv_points;
+	u32 mask = (1 << num_qgv_points) - 1;
 
 	/* FIXME earlier gens need some checks too */
 	if (INTEL_GEN(dev_priv) < 11)
@@ -420,39 +458,91 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 		    old_active_planes == new_active_planes)
 			continue;
 
-		bw_state  = intel_atomic_get_bw_state(state);
-		if (IS_ERR(bw_state))
-			return PTR_ERR(bw_state);
+		new_bw_state = intel_atomic_get_bw_state(state);
+		if (IS_ERR(new_bw_state))
+			return PTR_ERR(new_bw_state);
 
-		bw_state->data_rate[crtc->pipe] = new_data_rate;
-		bw_state->num_active_planes[crtc->pipe] = new_active_planes;
+		new_bw_state->data_rate[crtc->pipe] = new_data_rate;
+		new_bw_state->num_active_planes[crtc->pipe] = new_active_planes;
 
 		drm_dbg_kms(&dev_priv->drm,
 			    "pipe %c data rate %u num active planes %u\n",
 			    pipe_name(crtc->pipe),
-			    bw_state->data_rate[crtc->pipe],
-			    bw_state->num_active_planes[crtc->pipe]);
+			    new_bw_state->data_rate[crtc->pipe],
+			    new_bw_state->num_active_planes[crtc->pipe]);
 	}
 
-	if (!bw_state)
+	if (!new_bw_state)
 		return 0;
 
-	ret = intel_atomic_lock_global_state(&bw_state->base);
+	ret = intel_atomic_lock_global_state(&new_bw_state->base);
 	if (ret)
 		return ret;
 
-	data_rate = intel_bw_data_rate(dev_priv, bw_state);
-	num_active_planes = intel_bw_num_active_planes(dev_priv, bw_state);
-
-	max_data_rate = intel_max_data_rate(dev_priv, num_active_planes);
-
+	data_rate = intel_bw_data_rate(dev_priv, new_bw_state);
 	data_rate = DIV_ROUND_UP(data_rate, 1000);
 
-	if (data_rate > max_data_rate) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "Bandwidth %u MB/s exceeds max available %d MB/s (%d active planes)\n",
-			    data_rate, max_data_rate, num_active_planes);
+	num_active_planes = intel_bw_num_active_planes(dev_priv, new_bw_state);
+
+	for (i = 0; i < num_qgv_points; i++) {
+		unsigned int max_data_rate;
+
+		max_data_rate = icl_max_bw(dev_priv, num_active_planes, i);
+		/*
+		 * We need to know which qgv point gives us
+		 * maximum bandwidth in order to disable SAGV
+		 * if we find that we exceed SAGV block time
+		 * with watermarks. By that moment we already
+		 * have those, as it is calculated earlier in
+		 * intel_atomic_check,
+		 */
+		if (max_data_rate > max_bw) {
+			max_bw_point = i;
+			max_bw = max_data_rate;
+		}
+		if (max_data_rate >= data_rate)
+			allowed_points |= BIT(i);
+		drm_dbg_kms(&dev_priv->drm, "QGV point %d: max bw %d required %d\n",
+			    i, max_data_rate, data_rate);
+	}
+
+	/*
+	 * BSpec states that we always should have at least one allowed point
+	 * left, so if we couldn't - simply reject the configuration for obvious
+	 * reasons.
+	 */
+	if (allowed_points == 0) {
+		drm_dbg_kms(&dev_priv->drm, "No QGV points provide sufficient memory"
+			    " bandwidth %d for display configuration(%d active planes).\n",
+			    data_rate, num_active_planes);
 		return -EINVAL;
+	}
+
+	/*
+	 * Leave only single point with highest bandwidth, if
+	 * we can't enable SAGV due to the increased memory latency it may
+	 * cause.
+	 */
+	if (!intel_can_enable_sagv(dev_priv, new_bw_state)) {
+		allowed_points = BIT(max_bw_point);
+		drm_dbg_kms(&dev_priv->drm, "No SAGV, using single QGV point %d\n",
+			    max_bw_point);
+	}
+	/*
+	 * We store the ones which need to be masked as that is what PCode
+	 * actually accepts as a parameter.
+	 */
+	new_bw_state->qgv_points_mask = ~allowed_points & mask;
+
+	old_bw_state = intel_atomic_get_old_bw_state(state);
+	/*
+	 * If the actual mask had changed we need to make sure that
+	 * the commits are serialized(in case this is a nomodeset, nonblocking)
+	 */
+	if (new_bw_state->qgv_points_mask != old_bw_state->qgv_points_mask) {
+		ret = intel_atomic_serialize_global_state(&new_bw_state->base);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

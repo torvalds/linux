@@ -1075,8 +1075,35 @@ struct drm_connector_helper_funcs {
 	void (*atomic_commit)(struct drm_connector *connector,
 			      struct drm_connector_state *state);
 
+	/**
+	 * @prepare_writeback_job:
+	 *
+	 * As writeback jobs contain a framebuffer, drivers may need to
+	 * prepare and clean them up the same way they can prepare and
+	 * clean up framebuffers for planes. This optional connector operation
+	 * is used to support the preparation of writeback jobs. The job
+	 * prepare operation is called from drm_atomic_helper_prepare_planes()
+	 * for struct &drm_writeback_connector connectors only.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
 	int (*prepare_writeback_job)(struct drm_writeback_connector *connector,
 				     struct drm_writeback_job *job);
+	/**
+	 * @cleanup_writeback_job:
+	 *
+	 * This optional connector operation is used to support the
+	 * cleanup of writeback jobs. The job cleanup operation is called
+	 * from the existing drm_writeback_cleanup_job() function, invoked
+	 * both when destroying the job as part of an aborted commit, or when
+	 * the job completes.
+	 *
+	 * This operation is optional.
+	 *
+	 * This callback is used by the atomic modeset helpers.
+	 */
 	void (*cleanup_writeback_job)(struct drm_writeback_connector *connector,
 				      struct drm_writeback_job *job);
 };

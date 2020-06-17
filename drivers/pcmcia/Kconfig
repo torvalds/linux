@@ -6,7 +6,7 @@
 menuconfig PCCARD
 	tristate "PCCard (PCMCIA/CardBus) support"
 	depends on !UML
-	---help---
+	help
 	  Say Y here if you want to attach PCMCIA- or PC-cards to your Linux
 	  computer.  These are credit-card size devices such as network cards,
 	  modems or hard drives often used with laptops computers.  There are
@@ -22,7 +22,7 @@ config PCMCIA
 	tristate "16-bit PCMCIA support"
 	select CRC32
 	default y
-	---help---
+	help
 	   This option enables support for 16-bit PCMCIA cards. Most older
 	   PC-cards are such 16-bit PCMCIA cards, so unless you know you're
 	   only using 32-bit CardBus cards, say Y or M here.
@@ -54,7 +54,7 @@ config CARDBUS
 	bool "32-bit CardBus support"
 	depends on PCI
 	default y
-	---help---
+	help
 	  CardBus is a bus mastering architecture for PC-cards, which allows
 	  for 32 bit PC-cards (the original PCMCIA standard specifies only
 	  a 16 bit wide bus). Many newer PC-cards are actually CardBus cards.
@@ -75,7 +75,7 @@ config YENTA
 	depends on PCI
 	select CARDBUS if !EXPERT
 	select PCCARD_NONSTATIC if PCMCIA != n
-	---help---
+	help
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
 	  the hardware inside your computer that PCMCIA cards are plugged

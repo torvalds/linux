@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*
- * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
+/* Atlantic Network Driver
+ *
+ * Copyright (C) 2014-2019 aQuantia Corporation
+ * Copyright (C) 2019-2020 Marvell International Ltd.
  */
 
 /* File hw_atl_utils.h: Declaration of common functions for Atlantic hardware
@@ -360,6 +361,8 @@ struct aq_rx_filter_vlan {
 	u8 queue;
 };
 
+#define HW_ATL_VLAN_MAX_FILTERS         16U
+
 struct aq_rx_filter_l2 {
 	s8 queue;
 	u8 location;
@@ -406,17 +409,6 @@ enum hw_atl_rx_ctrl_registers_l3l4 {
 #define HW_ATL_GET_REG_LOCATION_FL3L4(location) \
 	((location) - AQ_RX_FIRST_LOC_FL3L4)
 
-#define HAL_ATLANTIC_UTILS_CHIP_MIPS         0x00000001U
-#define HAL_ATLANTIC_UTILS_CHIP_TPO2         0x00000002U
-#define HAL_ATLANTIC_UTILS_CHIP_RPF2         0x00000004U
-#define HAL_ATLANTIC_UTILS_CHIP_MPI_AQ       0x00000010U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_A0  0x01000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B0  0x02000000U
-#define HAL_ATLANTIC_UTILS_CHIP_REVISION_B1  0x04000000U
-
-#define IS_CHIP_FEATURE(_F_) (HAL_ATLANTIC_UTILS_CHIP_##_F_ & \
-	self->chip_features)
-
 enum hal_atl_utils_fw_state_e {
 	MPI_DEINIT = 0,
 	MPI_RESET = 1,
@@ -427,7 +419,7 @@ enum hal_atl_utils_fw_state_e {
 #define HAL_ATLANTIC_RATE_10G        BIT(0)
 #define HAL_ATLANTIC_RATE_5G         BIT(1)
 #define HAL_ATLANTIC_RATE_5GSR       BIT(2)
-#define HAL_ATLANTIC_RATE_2GS        BIT(3)
+#define HAL_ATLANTIC_RATE_2G5        BIT(3)
 #define HAL_ATLANTIC_RATE_1G         BIT(4)
 #define HAL_ATLANTIC_RATE_100M       BIT(5)
 #define HAL_ATLANTIC_RATE_INVALID    BIT(6)
@@ -622,7 +614,7 @@ int hw_atl_utils_hw_set_power(struct aq_hw_s *self,
 
 int hw_atl_utils_hw_deinit(struct aq_hw_s *self);
 
-int hw_atl_utils_get_fw_version(struct aq_hw_s *self, u32 *fw_version);
+u32 hw_atl_utils_get_fw_version(struct aq_hw_s *self);
 
 int hw_atl_utils_update_stats(struct aq_hw_s *self);
 
@@ -642,6 +634,8 @@ int hw_atl_utils_fw_rpc_call(struct aq_hw_s *self, unsigned int rpc_size);
 
 int hw_atl_utils_fw_rpc_wait(struct aq_hw_s *self,
 			     struct hw_atl_utils_fw_rpc **rpc);
+
+int hw_atl_utils_ver_match(u32 ver_expected, u32 ver_actual);
 
 extern const struct aq_fw_ops aq_fw_1x_ops;
 extern const struct aq_fw_ops aq_fw_2x_ops;

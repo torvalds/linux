@@ -49,6 +49,18 @@ struct gpio_flag flagnames[] = {
 		.name = "open-source",
 		.mask = GPIOLINE_FLAG_OPEN_SOURCE,
 	},
+	{
+		.name = "pull-up",
+		.mask = GPIOLINE_FLAG_BIAS_PULL_UP,
+	},
+	{
+		.name = "pull-down",
+		.mask = GPIOLINE_FLAG_BIAS_PULL_DOWN,
+	},
+	{
+		.name = "bias-disabled",
+		.mask = GPIOLINE_FLAG_BIAS_DISABLE,
+	},
 };
 
 void print_flags(unsigned long flags)

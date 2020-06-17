@@ -18,21 +18,18 @@ properties:
 
   max-functions:
     description: Maximum number of functions that can be configured
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint8
+    $ref: /schemas/types.yaml#/definitions/uint8
     minimum: 1
     default: 1
     maximum: 255
 
   max-link-speed:
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [ 1, 2, 3, 4 ]
 
   num-lanes:
     description: maximum number of lanes
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     default: 1
     maximum: 16

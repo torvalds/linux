@@ -1,0 +1,11 @@
+* Support for VP9 is planned for this driver.
+
+  Given the V4L controls for those CODECs will be part of
+  the uABI, it will be required to have the driver in staging.
+
+  For this reason, we are keeping this driver in staging for now.
+
+* Evaluate introducing a helper to consolidate duplicated
+  code in rkvdec_request_validate and cedrus_request_validate.
+  The helper needs to the driver private data associated with
+  the videobuf2 queue, from a media request.

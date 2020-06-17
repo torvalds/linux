@@ -12,6 +12,7 @@
 #include <linux/string.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/of_gpio.h>
 #include <linux/bitfield.h>
 #include <linux/gpio/consumer.h>
@@ -43,6 +44,19 @@
 #define AT803X_INTR_STATUS			0x13
 
 #define AT803X_SMART_SPEED			0x14
+#define AT803X_SMART_SPEED_ENABLE		BIT(5)
+#define AT803X_SMART_SPEED_RETRY_LIMIT_MASK	GENMASK(4, 2)
+#define AT803X_SMART_SPEED_BYPASS_TIMER		BIT(1)
+#define AT803X_CDT				0x16
+#define AT803X_CDT_MDI_PAIR_MASK		GENMASK(9, 8)
+#define AT803X_CDT_ENABLE_TEST			BIT(0)
+#define AT803X_CDT_STATUS			0x1c
+#define AT803X_CDT_STATUS_STAT_NORMAL		0
+#define AT803X_CDT_STATUS_STAT_SHORT		1
+#define AT803X_CDT_STATUS_STAT_OPEN		2
+#define AT803X_CDT_STATUS_STAT_FAIL		3
+#define AT803X_CDT_STATUS_STAT_MASK		GENMASK(9, 8)
+#define AT803X_CDT_STATUS_DELTA_TIME_MASK	GENMASK(7, 0)
 #define AT803X_LED_CONTROL			0x18
 
 #define AT803X_DEVICE_ADDR			0x03
@@ -103,11 +117,16 @@
 #define AT803X_CLK_OUT_STRENGTH_HALF		1
 #define AT803X_CLK_OUT_STRENGTH_QUARTER		2
 
+#define AT803X_DEFAULT_DOWNSHIFT 5
+#define AT803X_MIN_DOWNSHIFT 2
+#define AT803X_MAX_DOWNSHIFT 9
+
 #define ATH9331_PHY_ID 0x004dd041
 #define ATH8030_PHY_ID 0x004dd076
 #define ATH8031_PHY_ID 0x004dd074
+#define ATH8032_PHY_ID 0x004dd023
 #define ATH8035_PHY_ID 0x004dd072
-#define AT803X_PHY_ID_MASK			0xffffffef
+#define AT8030_PHY_ID_MASK			0xffffffef
 
 MODULE_DESCRIPTION("Qualcomm Atheros AR803x PHY driver");
 MODULE_AUTHOR("Matus Ujhelyi");
@@ -712,15 +731,257 @@ static int at803x_read_status(struct phy_device *phydev)
 	return 0;
 }
 
+static int at803x_get_downshift(struct phy_device *phydev, u8 *d)
+{
+	int val;
+
+	val = phy_read(phydev, AT803X_SMART_SPEED);
+	if (val < 0)
+		return val;
+
+	if (val & AT803X_SMART_SPEED_ENABLE)
+		*d = FIELD_GET(AT803X_SMART_SPEED_RETRY_LIMIT_MASK, val) + 2;
+	else
+		*d = DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int at803x_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	u16 mask, set;
+	int ret;
+
+	switch (cnt) {
+	case DOWNSHIFT_DEV_DEFAULT_COUNT:
+		cnt = AT803X_DEFAULT_DOWNSHIFT;
+		fallthrough;
+	case AT803X_MIN_DOWNSHIFT ... AT803X_MAX_DOWNSHIFT:
+		set = AT803X_SMART_SPEED_ENABLE |
+		      AT803X_SMART_SPEED_BYPASS_TIMER |
+		      FIELD_PREP(AT803X_SMART_SPEED_RETRY_LIMIT_MASK, cnt - 2);
+		mask = AT803X_SMART_SPEED_RETRY_LIMIT_MASK;
+		break;
+	case DOWNSHIFT_DEV_DISABLE:
+		set = 0;
+		mask = AT803X_SMART_SPEED_ENABLE |
+		       AT803X_SMART_SPEED_BYPASS_TIMER;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = phy_modify_changed(phydev, AT803X_SMART_SPEED, mask, set);
+
+	/* After changing the smart speed settings, we need to perform a
+	 * software reset, use phy_init_hw() to make sure we set the
+	 * reapply any values which might got lost during software reset.
+	 */
+	if (ret == 1)
+		ret = phy_init_hw(phydev);
+
+	return ret;
+}
+
+static int at803x_get_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return at803x_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int at803x_set_tunable(struct phy_device *phydev,
+			      struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return at803x_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int at803x_cable_test_result_trans(u16 status)
+{
+	switch (FIELD_GET(AT803X_CDT_STATUS_STAT_MASK, status)) {
+	case AT803X_CDT_STATUS_STAT_NORMAL:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+	case AT803X_CDT_STATUS_STAT_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case AT803X_CDT_STATUS_STAT_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	case AT803X_CDT_STATUS_STAT_FAIL:
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static bool at803x_cdt_test_failed(u16 status)
+{
+	return FIELD_GET(AT803X_CDT_STATUS_STAT_MASK, status) ==
+		AT803X_CDT_STATUS_STAT_FAIL;
+}
+
+static bool at803x_cdt_fault_length_valid(u16 status)
+{
+	switch (FIELD_GET(AT803X_CDT_STATUS_STAT_MASK, status)) {
+	case AT803X_CDT_STATUS_STAT_OPEN:
+	case AT803X_CDT_STATUS_STAT_SHORT:
+		return true;
+	}
+	return false;
+}
+
+static int at803x_cdt_fault_length(u16 status)
+{
+	int dt;
+
+	/* According to the datasheet the distance to the fault is
+	 * DELTA_TIME * 0.824 meters.
+	 *
+	 * The author suspect the correct formula is:
+	 *
+	 *   fault_distance = DELTA_TIME * (c * VF) / 125MHz / 2
+	 *
+	 * where c is the speed of light, VF is the velocity factor of
+	 * the twisted pair cable, 125MHz the counter frequency and
+	 * we need to divide by 2 because the hardware will measure the
+	 * round trip time to the fault and back to the PHY.
+	 *
+	 * With a VF of 0.69 we get the factor 0.824 mentioned in the
+	 * datasheet.
+	 */
+	dt = FIELD_GET(AT803X_CDT_STATUS_DELTA_TIME_MASK, status);
+
+	return (dt * 824) / 10;
+}
+
+static int at803x_cdt_start(struct phy_device *phydev, int pair)
+{
+	u16 cdt;
+
+	cdt = FIELD_PREP(AT803X_CDT_MDI_PAIR_MASK, pair) |
+	      AT803X_CDT_ENABLE_TEST;
+
+	return phy_write(phydev, AT803X_CDT, cdt);
+}
+
+static int at803x_cdt_wait_for_completion(struct phy_device *phydev)
+{
+	int val, ret;
+
+	/* One test run takes about 25ms */
+	ret = phy_read_poll_timeout(phydev, AT803X_CDT, val,
+				    !(val & AT803X_CDT_ENABLE_TEST),
+				    30000, 100000, true);
+
+	return ret < 0 ? ret : 0;
+}
+
+static int at803x_cable_test_one_pair(struct phy_device *phydev, int pair)
+{
+	static const int ethtool_pair[] = {
+		ETHTOOL_A_CABLE_PAIR_A,
+		ETHTOOL_A_CABLE_PAIR_B,
+		ETHTOOL_A_CABLE_PAIR_C,
+		ETHTOOL_A_CABLE_PAIR_D,
+	};
+	int ret, val;
+
+	ret = at803x_cdt_start(phydev, pair);
+	if (ret)
+		return ret;
+
+	ret = at803x_cdt_wait_for_completion(phydev);
+	if (ret)
+		return ret;
+
+	val = phy_read(phydev, AT803X_CDT_STATUS);
+	if (val < 0)
+		return val;
+
+	if (at803x_cdt_test_failed(val))
+		return 0;
+
+	ethnl_cable_test_result(phydev, ethtool_pair[pair],
+				at803x_cable_test_result_trans(val));
+
+	if (at803x_cdt_fault_length_valid(val))
+		ethnl_cable_test_fault_length(phydev, ethtool_pair[pair],
+					      at803x_cdt_fault_length(val));
+
+	return 1;
+}
+
+static int at803x_cable_test_get_status(struct phy_device *phydev,
+					bool *finished)
+{
+	unsigned long pair_mask;
+	int retries = 20;
+	int pair, ret;
+
+	if (phydev->phy_id == ATH9331_PHY_ID ||
+	    phydev->phy_id == ATH8032_PHY_ID)
+		pair_mask = 0x3;
+	else
+		pair_mask = 0xf;
+
+	*finished = false;
+
+	/* According to the datasheet the CDT can be performed when
+	 * there is no link partner or when the link partner is
+	 * auto-negotiating. Starting the test will restart the AN
+	 * automatically. It seems that doing this repeatedly we will
+	 * get a slot where our link partner won't disturb our
+	 * measurement.
+	 */
+	while (pair_mask && retries--) {
+		for_each_set_bit(pair, &pair_mask, 4) {
+			ret = at803x_cable_test_one_pair(phydev, pair);
+			if (ret < 0)
+				return ret;
+			if (ret)
+				clear_bit(pair, &pair_mask);
+		}
+		if (pair_mask)
+			msleep(250);
+	}
+
+	*finished = true;
+
+	return 0;
+}
+
+static int at803x_cable_test_start(struct phy_device *phydev)
+{
+	/* Enable auto-negotiation, but advertise no capabilities, no link
+	 * will be established. A restart of the auto-negotiation is not
+	 * required, because the cable test will automatically break the link.
+	 */
+	phy_write(phydev, MII_BMCR, BMCR_ANENABLE);
+	phy_write(phydev, MII_ADVERTISE, ADVERTISE_CSMA);
+	if (phydev->phy_id != ATH9331_PHY_ID &&
+	    phydev->phy_id != ATH8032_PHY_ID)
+		phy_write(phydev, MII_CTRL1000, 0);
+
+	/* we do all the (time consuming) work later */
+	return 0;
+}
+
 static struct phy_driver at803x_driver[] = {
 {
 	/* Qualcomm Atheros AR8035 */
-	.phy_id			= ATH8035_PHY_ID,
+	PHY_ID_MATCH_EXACT(ATH8035_PHY_ID),
 	.name			= "Qualcomm Atheros AR8035",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
+	.flags			= PHY_POLL_CABLE_TEST,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
 	.config_init		= at803x_config_init,
+	.soft_reset		= genphy_soft_reset,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
@@ -729,11 +990,15 @@ static struct phy_driver at803x_driver[] = {
 	.read_status		= at803x_read_status,
 	.ack_interrupt		= at803x_ack_interrupt,
 	.config_intr		= at803x_config_intr,
+	.get_tunable		= at803x_get_tunable,
+	.set_tunable		= at803x_set_tunable,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
 }, {
 	/* Qualcomm Atheros AR8030 */
 	.phy_id			= ATH8030_PHY_ID,
 	.name			= "Qualcomm Atheros AR8030",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
+	.phy_id_mask		= AT8030_PHY_ID_MASK,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
 	.config_init		= at803x_config_init,
@@ -747,12 +1012,13 @@ static struct phy_driver at803x_driver[] = {
 	.config_intr		= at803x_config_intr,
 }, {
 	/* Qualcomm Atheros AR8031/AR8033 */
-	.phy_id			= ATH8031_PHY_ID,
+	PHY_ID_MATCH_EXACT(ATH8031_PHY_ID),
 	.name			= "Qualcomm Atheros AR8031/AR8033",
-	.phy_id_mask		= AT803X_PHY_ID_MASK,
+	.flags			= PHY_POLL_CABLE_TEST,
 	.probe			= at803x_probe,
 	.remove			= at803x_remove,
 	.config_init		= at803x_config_init,
+	.soft_reset		= genphy_soft_reset,
 	.set_wol		= at803x_set_wol,
 	.get_wol		= at803x_get_wol,
 	.suspend		= at803x_suspend,
@@ -762,23 +1028,49 @@ static struct phy_driver at803x_driver[] = {
 	.aneg_done		= at803x_aneg_done,
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
+	.get_tunable		= at803x_get_tunable,
+	.set_tunable		= at803x_set_tunable,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
+}, {
+	/* Qualcomm Atheros AR8032 */
+	PHY_ID_MATCH_EXACT(ATH8032_PHY_ID),
+	.name			= "Qualcomm Atheros AR8032",
+	.probe			= at803x_probe,
+	.remove			= at803x_remove,
+	.flags			= PHY_POLL_CABLE_TEST,
+	.config_init		= at803x_config_init,
+	.link_change_notify	= at803x_link_change_notify,
+	.set_wol		= at803x_set_wol,
+	.get_wol		= at803x_get_wol,
+	.suspend		= at803x_suspend,
+	.resume			= at803x_resume,
+	/* PHY_BASIC_FEATURES */
+	.ack_interrupt		= at803x_ack_interrupt,
+	.config_intr		= at803x_config_intr,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
 }, {
 	/* ATHEROS AR9331 */
 	PHY_ID_MATCH_EXACT(ATH9331_PHY_ID),
 	.name			= "Qualcomm Atheros AR9331 built-in PHY",
 	.suspend		= at803x_suspend,
 	.resume			= at803x_resume,
+	.flags			= PHY_POLL_CABLE_TEST,
 	/* PHY_BASIC_FEATURES */
 	.ack_interrupt		= &at803x_ack_interrupt,
 	.config_intr		= &at803x_config_intr,
+	.cable_test_start	= at803x_cable_test_start,
+	.cable_test_get_status	= at803x_cable_test_get_status,
 } };
 
 module_phy_driver(at803x_driver);
 
 static struct mdio_device_id __maybe_unused atheros_tbl[] = {
-	{ ATH8030_PHY_ID, AT803X_PHY_ID_MASK },
-	{ ATH8031_PHY_ID, AT803X_PHY_ID_MASK },
-	{ ATH8035_PHY_ID, AT803X_PHY_ID_MASK },
+	{ ATH8030_PHY_ID, AT8030_PHY_ID_MASK },
+	{ PHY_ID_MATCH_EXACT(ATH8031_PHY_ID) },
+	{ PHY_ID_MATCH_EXACT(ATH8032_PHY_ID) },
+	{ PHY_ID_MATCH_EXACT(ATH8035_PHY_ID) },
 	{ PHY_ID_MATCH_EXACT(ATH9331_PHY_ID) },
 	{ }
 };

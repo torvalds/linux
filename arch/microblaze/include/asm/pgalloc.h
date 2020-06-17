@@ -12,11 +12,11 @@
 
 #include <linux/kernel.h>	/* For min/max macros */
 #include <linux/highmem.h>
+#include <linux/pgtable.h>
 #include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/cache.h>
-#include <asm/pgtable.h>
 
 #define __HAVE_ARCH_PTE_ALLOC_ONE_KERNEL
 #include <asm-generic/pgalloc.h>

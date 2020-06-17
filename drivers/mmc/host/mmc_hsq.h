@@ -12,6 +12,7 @@ struct mmc_hsq {
 	wait_queue_head_t wait_queue;
 	struct hsq_slot *slot;
 	spinlock_t lock;
+	struct work_struct retry_work;
 
 	int next_tag;
 	int num_slots;

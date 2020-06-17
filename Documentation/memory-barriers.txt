@@ -620,7 +620,7 @@ because the CPUs that the Linux kernel supports don't do writes
 until they are certain (1) that the write will actually happen, (2)
 of the location of the write, and (3) of the value to be written.
 But please carefully read the "CONTROL DEPENDENCIES" section and the
-Documentation/RCU/rcu_dereference.txt file:  The compiler can and does
+Documentation/RCU/rcu_dereference.rst file:  The compiler can and does
 break dependencies in a great many highly creative ways.
 
 	CPU 1		      CPU 2

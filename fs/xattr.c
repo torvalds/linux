@@ -876,6 +876,9 @@ int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 	struct simple_xattr *new_xattr = NULL;
 	int err = 0;
 
+	if (removed_size)
+		*removed_size = -1;
+
 	/* value == NULL means remove */
 	if (value) {
 		new_xattr = simple_xattr_alloc(value, size);
@@ -914,9 +917,6 @@ int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
 		list_add(&new_xattr->list, &xattrs->head);
 		xattr = NULL;
 	}
-
-	if (removed_size)
-		*removed_size = -1;
 out:
 	spin_unlock(&xattrs->lock);
 	if (xattr) {

@@ -24,6 +24,7 @@
 
 #include "internal.h"
 #include "pnfs.h"
+#include "nfstrace.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PAGECACHE
 
@@ -64,6 +65,7 @@ void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
 {
 	unsigned int new = pos - hdr->io_start;
 
+	trace_nfs_pgio_error(hdr, error, pos);
 	if (hdr->good_bytes > new) {
 		hdr->good_bytes = new;
 		clear_bit(NFS_IOHDR_EOF, &hdr->flags);

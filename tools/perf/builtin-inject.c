@@ -51,7 +51,7 @@ struct perf_inject {
 struct event_entry {
 	struct list_head node;
 	u32		 tid;
-	union perf_event event[0];
+	union perf_event event[];
 };
 
 static int output_bytes(struct perf_inject *inject, void *buf, size_t sz)
@@ -536,7 +536,7 @@ static int perf_inject__sched_stat(struct perf_tool *tool,
 	union perf_event *event_sw;
 	struct perf_sample sample_sw;
 	struct perf_inject *inject = container_of(tool, struct perf_inject, tool);
-	u32 pid = perf_evsel__intval(evsel, sample, "pid");
+	u32 pid = evsel__intval(evsel, sample, "pid");
 
 	list_for_each_entry(ent, &inject->samples, node) {
 		if (pid == ent->tid)
@@ -546,7 +546,7 @@ static int perf_inject__sched_stat(struct perf_tool *tool,
 	return 0;
 found:
 	event_sw = &ent->event[0];
-	perf_evsel__parse_sample(evsel, event_sw, &sample_sw);
+	evsel__parse_sample(evsel, event_sw, &sample_sw);
 
 	sample_sw.period = sample->period;
 	sample_sw.time	 = sample->time;
@@ -561,11 +561,10 @@ static void sig_handler(int sig __maybe_unused)
 	session_done = 1;
 }
 
-static int perf_evsel__check_stype(struct evsel *evsel,
-				   u64 sample_type, const char *sample_msg)
+static int evsel__check_stype(struct evsel *evsel, u64 sample_type, const char *sample_msg)
 {
 	struct perf_event_attr *attr = &evsel->core.attr;
-	const char *name = perf_evsel__name(evsel);
+	const char *name = evsel__name(evsel);
 
 	if (!(attr->sample_type & sample_type)) {
 		pr_err("Samples for %s event do not have %s attribute set.",
@@ -622,10 +621,10 @@ static int __cmd_inject(struct perf_inject *inject)
 		struct evsel *evsel;
 
 		evlist__for_each_entry(session->evlist, evsel) {
-			const char *name = perf_evsel__name(evsel);
+			const char *name = evsel__name(evsel);
 
 			if (!strcmp(name, "sched:sched_switch")) {
-				if (perf_evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
+				if (evsel__check_stype(evsel, PERF_SAMPLE_TID, "TID"))
 					return -EINVAL;
 
 				evsel->handler = perf_inject__sched_switch;
@@ -684,14 +683,14 @@ static int __cmd_inject(struct perf_inject *inject)
 
 			perf_header__clear_feat(&session->header,
 						HEADER_AUXTRACE);
-			if (inject->itrace_synth_opts.last_branch)
+			if (inject->itrace_synth_opts.last_branch ||
+			    inject->itrace_synth_opts.add_last_branch)
 				perf_header__set_feat(&session->header,
 						      HEADER_BRANCH_STACK);
 			evsel = perf_evlist__id2evsel_strict(session->evlist,
 							     inject->aux_id);
 			if (evsel) {
-				pr_debug("Deleting %s\n",
-					 perf_evsel__name(evsel));
+				pr_debug("Deleting %s\n", evsel__name(evsel));
 				evlist__remove(session->evlist, evsel);
 				evsel__delete(evsel);
 			}

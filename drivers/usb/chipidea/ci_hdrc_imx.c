@@ -271,6 +271,7 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
 	struct device *dev = ci->dev->parent;
 	struct ci_hdrc_imx_data *data = dev_get_drvdata(dev);
 	int ret = 0;
+	struct imx_usbmisc_data *mdata = data->usbmisc_data;
 
 	switch (event) {
 	case CI_HDRC_IMX_HSIC_ACTIVE_EVENT:
@@ -284,10 +285,18 @@ static int ci_hdrc_imx_notify_event(struct ci_hdrc *ci, unsigned int event)
 		}
 		break;
 	case CI_HDRC_IMX_HSIC_SUSPEND_EVENT:
-		ret = imx_usbmisc_hsic_set_connect(data->usbmisc_data);
+		ret = imx_usbmisc_hsic_set_connect(mdata);
 		if (ret)
 			dev_err(dev,
 				"hsic_set_connect failed, err=%d\n", ret);
+		break;
+	case CI_HDRC_CONTROLLER_VBUS_EVENT:
+		if (ci->vbus_active)
+			ret = imx_usbmisc_charger_detection(mdata, true);
+		else
+			ret = imx_usbmisc_charger_detection(mdata, false);
+		if (ci->usb_phy)
+			schedule_work(&ci->usb_phy->chg_work);
 		break;
 	default:
 		break;
@@ -414,6 +423,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 	}
 
 	pdata.usb_phy = data->phy;
+	if (data->usbmisc_data)
+		data->usbmisc_data->usb_phy = data->phy;
 
 	if ((of_device_is_compatible(np, "fsl,imx53-usb") ||
 	     of_device_is_compatible(np, "fsl,imx51-usb")) && pdata.usb_phy &&

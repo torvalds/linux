@@ -13,6 +13,10 @@
 	};
 };
 
+&cpu1 {
+	cpu-supply = <&reg_DCDC2>;
+};
+
 &gpmi {
 	status = "okay";
 };

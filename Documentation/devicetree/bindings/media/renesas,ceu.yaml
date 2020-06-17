@@ -27,28 +27,34 @@ properties:
   interrupts:
     maxItems: 1
 
+  clocks:
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
   port:
     type: object
     additionalProperties: false
 
     properties:
-       endpoint:
-         type: object
-         additionalProperties: false
+      endpoint:
+        type: object
+        additionalProperties: false
 
          # Properties described in
          # Documentation/devicetree/bindings/media/video-interfaces.txt
-         properties:
-           remote-endpoint: true
-           hsync-active: true
-           vsync-active: true
-           field-even-active: false
-           bus-width:
-             enum: [8, 16]
-             default: 8
+        properties:
+          remote-endpoint: true
+          hsync-active: true
+          vsync-active: true
+          field-even-active: false
+          bus-width:
+            enum: [8, 16]
+            default: 8
 
-         required:
-           - remote-endpoint
+        required:
+          - remote-endpoint
 
     required:
       - endpoint
@@ -57,6 +63,8 @@ required:
   - compatible
   - reg
   - interrupts
+  - clocks
+  - power-domains
   - port
 
 additionalProperties: false
@@ -64,11 +72,14 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/r7s72100-clock.h>
 
     ceu: ceu@e8210000 {
         reg = <0xe8210000 0x209c>;
         compatible = "renesas,r7s72100-ceu";
         interrupts = <GIC_SPI 332 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&mstp6_clks R7S72100_CLK_CEU>;
+        power-domains = <&cpg_clocks>;
 
         port {
             ceu_in: endpoint {

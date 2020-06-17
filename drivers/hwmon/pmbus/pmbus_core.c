@@ -109,8 +109,8 @@ struct pmbus_data {
 	bool has_status_word;		/* device uses STATUS_WORD register */
 	int (*read_status)(struct i2c_client *client, int page);
 
-	u8 currpage;
-	u8 currphase;	/* current phase, 0xff for all */
+	s16 currpage;	/* current page, -1 for unknown/unset */
+	s16 currphase;	/* current phase, 0xff for all, -1 for unknown/unset */
 };
 
 struct pmbus_debugfs_entry {
@@ -2529,8 +2529,8 @@ int pmbus_do_probe(struct i2c_client *client, const struct i2c_device_id *id,
 	if (pdata)
 		data->flags = pdata->flags;
 	data->info = info;
-	data->currpage = 0xff;
-	data->currphase = 0xfe;
+	data->currpage = -1;
+	data->currphase = -1;
 
 	ret = pmbus_init_common(client, data, info);
 	if (ret < 0)

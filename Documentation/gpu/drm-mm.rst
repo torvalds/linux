@@ -373,15 +373,6 @@ GEM CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
    :export:
 
-VRAM Helper Function Reference
-==============================
-
-.. kernel-doc:: drivers/gpu/drm/drm_vram_helper_common.c
-   :doc: overview
-
-.. kernel-doc:: include/drm/drm_gem_vram_helper.h
-   :internal:
-
 GEM VRAM Helper Functions Reference
 -----------------------------------
 

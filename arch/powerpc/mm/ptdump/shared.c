@@ -5,7 +5,7 @@
  *
  */
 #include <linux/kernel.h>
-#include <asm/pgtable.h>
+#include <linux/pgtable.h>
 
 #include "ptdump.h"
 
@@ -30,6 +30,11 @@ static const struct flag_info flag_array[] = {
 		.val	= _PAGE_PRESENT,
 		.set	= "present",
 		.clear	= "       ",
+	}, {
+		.mask	= _PAGE_COHERENT,
+		.val	= _PAGE_COHERENT,
+		.set	= "coherent",
+		.clear	= "        ",
 	}, {
 		.mask	= _PAGE_GUARDED,
 		.val	= _PAGE_GUARDED,

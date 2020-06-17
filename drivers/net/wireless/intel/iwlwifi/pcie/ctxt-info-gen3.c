@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -18,7 +18,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2020 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,32 +84,35 @@ iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
 
 	fw_mon_cfg = &trans->dbg.fw_mon_cfg[alloc_id];
 
-	if (le32_to_cpu(fw_mon_cfg->buf_location) ==
-	    IWL_FW_INI_LOCATION_SRAM_PATH) {
+	switch (le32_to_cpu(fw_mon_cfg->buf_location)) {
+	case IWL_FW_INI_LOCATION_SRAM_PATH:
 		dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL;
-
 		IWL_DEBUG_FW(trans,
-			     "WRT: Applying SMEM buffer destination\n");
+				"WRT: Applying SMEM buffer destination\n");
+		break;
 
-		goto out;
-	}
-
-	if (le32_to_cpu(fw_mon_cfg->buf_location) ==
-	    IWL_FW_INI_LOCATION_DRAM_PATH &&
-	    trans->dbg.fw_mon_ini[alloc_id].num_frags) {
-		struct iwl_dram_data *frag =
-			&trans->dbg.fw_mon_ini[alloc_id].frags[0];
-
-		dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
-
+	case IWL_FW_INI_LOCATION_NPK_PATH:
+		dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_TB22DTF;
 		IWL_DEBUG_FW(trans,
-			     "WRT: Applying DRAM destination (alloc_id=%u)\n",
-			     alloc_id);
+			     "WRT: Applying NPK buffer destination\n");
+		break;
 
-		dbg_cfg->hwm_base_addr = cpu_to_le64(frag->physical);
-		dbg_cfg->hwm_size = cpu_to_le32(frag->size);
+	case IWL_FW_INI_LOCATION_DRAM_PATH:
+		if (trans->dbg.fw_mon_ini[alloc_id].num_frags) {
+			struct iwl_dram_data *frag =
+				&trans->dbg.fw_mon_ini[alloc_id].frags[0];
+			dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
+			dbg_cfg->hwm_base_addr = cpu_to_le64(frag->physical);
+			dbg_cfg->hwm_size = cpu_to_le32(frag->size);
+			IWL_DEBUG_FW(trans,
+				     "WRT: Applying DRAM destination (alloc_id=%u, num_frags=%u)\n",
+				     alloc_id,
+				     trans->dbg.fw_mon_ini[alloc_id].num_frags);
+		}
+		break;
+	default:
+		IWL_ERR(trans, "WRT: Invalid buffer destination\n");
 	}
-
 out:
 	if (dbg_flags)
 		*control_flags |= IWL_PRPH_SCRATCH_EARLY_DEBUG_EN | dbg_flags;
@@ -135,9 +138,17 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	case IWL_AMSDU_2K:
 		break;
 	case IWL_AMSDU_4K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		break;
 	case IWL_AMSDU_8K:
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		/* if firmware supports the ext size, tell it */
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_EXT_8K;
+		break;
 	case IWL_AMSDU_12K:
 		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_4K;
+		/* if firmware supports the ext size, tell it */
+		control_flags |= IWL_PRPH_SCRATCH_RB_SIZE_EXT_12K;
 		break;
 	}
 
@@ -210,7 +221,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 	ctxt_info_gen3->tr_idx_arr_size =
 		cpu_to_le16(IWL_NUM_OF_TRANSFER_RINGS);
 	ctxt_info_gen3->mtr_base_addr =
-		cpu_to_le64(trans_pcie->txq[trans_pcie->cmd_queue]->dma_addr);
+		cpu_to_le64(trans->txqs.txq[trans->txqs.cmd.q_id]->dma_addr);
 	ctxt_info_gen3->mcr_base_addr =
 		cpu_to_le64(trans_pcie->rxq->used_bd_dma);
 	ctxt_info_gen3->mtr_size =

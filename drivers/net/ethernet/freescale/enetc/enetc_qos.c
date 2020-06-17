@@ -5,6 +5,9 @@
 
 #include <net/pkt_sched.h>
 #include <linux/math64.h>
+#include <linux/refcount.h>
+#include <net/pkt_cls.h>
+#include <net/tc_act/tc_gate.h>
 
 static u16 enetc_get_max_gcl_len(struct enetc_hw *hw)
 {
@@ -328,6 +331,1106 @@ int enetc_setup_tc_txtime(struct net_device *ndev, void *type_data)
 	priv->tx_ring[tc]->tsd_enable = qopt->enable;
 	enetc_port_wr(&priv->si->hw, ENETC_PTCTSDR(tc),
 		      qopt->enable ? ENETC_TSDE : 0);
+
+	return 0;
+}
+
+enum streamid_type {
+	STREAMID_TYPE_RESERVED = 0,
+	STREAMID_TYPE_NULL,
+	STREAMID_TYPE_SMAC,
+};
+
+enum streamid_vlan_tagged {
+	STREAMID_VLAN_RESERVED = 0,
+	STREAMID_VLAN_TAGGED,
+	STREAMID_VLAN_UNTAGGED,
+	STREAMID_VLAN_ALL,
+};
+
+#define ENETC_PSFP_WILDCARD -1
+#define HANDLE_OFFSET 100
+
+enum forward_type {
+	FILTER_ACTION_TYPE_PSFP = BIT(0),
+	FILTER_ACTION_TYPE_ACL = BIT(1),
+	FILTER_ACTION_TYPE_BOTH = GENMASK(1, 0),
+};
+
+/* This is for limit output type for input actions */
+struct actions_fwd {
+	u64 actions;
+	u64 keys;	/* include the must needed keys */
+	enum forward_type output;
+};
+
+struct psfp_streamfilter_counters {
+	u64 matching_frames_count;
+	u64 passing_frames_count;
+	u64 not_passing_frames_count;
+	u64 passing_sdu_count;
+	u64 not_passing_sdu_count;
+	u64 red_frames_count;
+};
+
+struct enetc_streamid {
+	u32 index;
+	union {
+		u8 src_mac[6];
+		u8 dst_mac[6];
+	};
+	u8 filtertype;
+	u16 vid;
+	u8 tagged;
+	s32 handle;
+};
+
+struct enetc_psfp_filter {
+	u32 index;
+	s32 handle;
+	s8 prio;
+	u32 gate_id;
+	s32 meter_id;
+	refcount_t refcount;
+	struct hlist_node node;
+};
+
+struct enetc_psfp_gate {
+	u32 index;
+	s8 init_ipv;
+	u64 basetime;
+	u64 cycletime;
+	u64 cycletimext;
+	u32 num_entries;
+	refcount_t refcount;
+	struct hlist_node node;
+	struct action_gate_entry entries[0];
+};
+
+struct enetc_stream_filter {
+	struct enetc_streamid sid;
+	u32 sfi_index;
+	u32 sgi_index;
+	struct flow_stats stats;
+	struct hlist_node node;
+};
+
+struct enetc_psfp {
+	unsigned long dev_bitmap;
+	unsigned long *psfp_sfi_bitmap;
+	struct hlist_head stream_list;
+	struct hlist_head psfp_filter_list;
+	struct hlist_head psfp_gate_list;
+	spinlock_t psfp_lock; /* spinlock for the struct enetc_psfp r/w */
+};
+
+static struct actions_fwd enetc_act_fwd[] = {
+	{
+		BIT(FLOW_ACTION_GATE),
+		BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS),
+		FILTER_ACTION_TYPE_PSFP
+	},
+	/* example for ACL actions */
+	{
+		BIT(FLOW_ACTION_DROP),
+		0,
+		FILTER_ACTION_TYPE_ACL
+	}
+};
+
+static struct enetc_psfp epsfp = {
+	.psfp_sfi_bitmap = NULL,
+};
+
+static LIST_HEAD(enetc_block_cb_list);
+
+static inline int enetc_get_port(struct enetc_ndev_priv *priv)
+{
+	return priv->si->pdev->devfn & 0x7;
+}
+
+/* Stream Identity Entry Set Descriptor */
+static int enetc_streamid_hw_set(struct enetc_ndev_priv *priv,
+				 struct enetc_streamid *sid,
+				 u8 enable)
+{
+	struct enetc_cbd cbd = {.cmd = 0};
+	struct streamid_data *si_data;
+	struct streamid_conf *si_conf;
+	u16 data_size;
+	dma_addr_t dma;
+	int err;
+
+	if (sid->index >= priv->psfp_cap.max_streamid)
+		return -EINVAL;
+
+	if (sid->filtertype != STREAMID_TYPE_NULL &&
+	    sid->filtertype != STREAMID_TYPE_SMAC)
+		return -EOPNOTSUPP;
+
+	/* Disable operation before enable */
+	cbd.index = cpu_to_le16((u16)sid->index);
+	cbd.cls = BDCR_CMD_STREAM_IDENTIFY;
+	cbd.status_flags = 0;
+
+	data_size = sizeof(struct streamid_data);
+	si_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
+	cbd.length = cpu_to_le16(data_size);
+
+	dma = dma_map_single(&priv->si->pdev->dev, si_data,
+			     data_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
+		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
+		kfree(si_data);
+		return -ENOMEM;
+	}
+
+	cbd.addr[0] = lower_32_bits(dma);
+	cbd.addr[1] = upper_32_bits(dma);
+	memset(si_data->dmac, 0xff, ETH_ALEN);
+	si_data->vid_vidm_tg =
+		cpu_to_le16(ENETC_CBDR_SID_VID_MASK
+			    + ((0x3 << 14) | ENETC_CBDR_SID_VIDM));
+
+	si_conf = &cbd.sid_set;
+	/* Only one port supported for one entry, set itself */
+	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->id_type = 1;
+	si_conf->oui[2] = 0x0;
+	si_conf->oui[1] = 0x80;
+	si_conf->oui[0] = 0xC2;
+
+	err = enetc_send_cmd(priv->si, &cbd);
+	if (err)
+		return -EINVAL;
+
+	if (!enable) {
+		kfree(si_data);
+		return 0;
+	}
+
+	/* Enable the entry overwrite again incase space flushed by hardware */
+	memset(&cbd, 0, sizeof(cbd));
+
+	cbd.index = cpu_to_le16((u16)sid->index);
+	cbd.cmd = 0;
+	cbd.cls = BDCR_CMD_STREAM_IDENTIFY;
+	cbd.status_flags = 0;
+
+	si_conf->en = 0x80;
+	si_conf->stream_handle = cpu_to_le32(sid->handle);
+	si_conf->iports = 1 << enetc_get_port(priv);
+	si_conf->id_type = sid->filtertype;
+	si_conf->oui[2] = 0x0;
+	si_conf->oui[1] = 0x80;
+	si_conf->oui[0] = 0xC2;
+
+	memset(si_data, 0, data_size);
+
+	cbd.length = cpu_to_le16(data_size);
+
+	cbd.addr[0] = lower_32_bits(dma);
+	cbd.addr[1] = upper_32_bits(dma);
+
+	/* VIDM default to be 1.
+	 * VID Match. If set (b1) then the VID must match, otherwise
+	 * any VID is considered a match. VIDM setting is only used
+	 * when TG is set to b01.
+	 */
+	if (si_conf->id_type == STREAMID_TYPE_NULL) {
+		ether_addr_copy(si_data->dmac, sid->dst_mac);
+		si_data->vid_vidm_tg =
+		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
+			    ((((u16)(sid->tagged) & 0x3) << 14)
+			     | ENETC_CBDR_SID_VIDM));
+	} else if (si_conf->id_type == STREAMID_TYPE_SMAC) {
+		ether_addr_copy(si_data->smac, sid->src_mac);
+		si_data->vid_vidm_tg =
+		cpu_to_le16((sid->vid & ENETC_CBDR_SID_VID_MASK) +
+			    ((((u16)(sid->tagged) & 0x3) << 14)
+			     | ENETC_CBDR_SID_VIDM));
+	}
+
+	err = enetc_send_cmd(priv->si, &cbd);
+	kfree(si_data);
+
+	return err;
+}
+
+/* Stream Filter Instance Set Descriptor */
+static int enetc_streamfilter_hw_set(struct enetc_ndev_priv *priv,
+				     struct enetc_psfp_filter *sfi,
+				     u8 enable)
+{
+	struct enetc_cbd cbd = {.cmd = 0};
+	struct sfi_conf *sfi_config;
+
+	cbd.index = cpu_to_le16(sfi->index);
+	cbd.cls = BDCR_CMD_STREAM_FILTER;
+	cbd.status_flags = 0x80;
+	cbd.length = cpu_to_le16(1);
+
+	sfi_config = &cbd.sfi_conf;
+	if (!enable)
+		goto exit;
+
+	sfi_config->en = 0x80;
+
+	if (sfi->handle >= 0) {
+		sfi_config->stream_handle =
+			cpu_to_le32(sfi->handle);
+		sfi_config->sthm |= 0x80;
+	}
+
+	sfi_config->sg_inst_table_index = cpu_to_le16(sfi->gate_id);
+	sfi_config->input_ports = 1 << enetc_get_port(priv);
+
+	/* The priority value which may be matched against the
+	 * frame’s priority value to determine a match for this entry.
+	 */
+	if (sfi->prio >= 0)
+		sfi_config->multi |= (sfi->prio & 0x7) | 0x8;
+
+	/* Filter Type. Identifies the contents of the MSDU/FM_INST_INDEX
+	 * field as being either an MSDU value or an index into the Flow
+	 * Meter Instance table.
+	 * TODO: no limit max sdu
+	 */
+
+	if (sfi->meter_id >= 0) {
+		sfi_config->fm_inst_table_index = cpu_to_le16(sfi->meter_id);
+		sfi_config->multi |= 0x80;
+	}
+
+exit:
+	return enetc_send_cmd(priv->si, &cbd);
+}
+
+static int enetc_streamcounter_hw_get(struct enetc_ndev_priv *priv,
+				      u32 index,
+				      struct psfp_streamfilter_counters *cnt)
+{
+	struct enetc_cbd cbd = { .cmd = 2 };
+	struct sfi_counter_data *data_buf;
+	dma_addr_t dma;
+	u16 data_size;
+	int err;
+
+	cbd.index = cpu_to_le16((u16)index);
+	cbd.cmd = 2;
+	cbd.cls = BDCR_CMD_STREAM_FILTER;
+	cbd.status_flags = 0;
+
+	data_size = sizeof(struct sfi_counter_data);
+	data_buf = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
+	if (!data_buf)
+		return -ENOMEM;
+
+	dma = dma_map_single(&priv->si->pdev->dev, data_buf,
+			     data_size, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
+		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
+		err = -ENOMEM;
+		goto exit;
+	}
+	cbd.addr[0] = lower_32_bits(dma);
+	cbd.addr[1] = upper_32_bits(dma);
+
+	cbd.length = cpu_to_le16(data_size);
+
+	err = enetc_send_cmd(priv->si, &cbd);
+	if (err)
+		goto exit;
+
+	cnt->matching_frames_count =
+			((u64)le32_to_cpu(data_buf->matchh) << 32)
+			+ data_buf->matchl;
+
+	cnt->not_passing_sdu_count =
+			((u64)le32_to_cpu(data_buf->msdu_droph) << 32)
+			+ data_buf->msdu_dropl;
+
+	cnt->passing_sdu_count = cnt->matching_frames_count
+				- cnt->not_passing_sdu_count;
+
+	cnt->not_passing_frames_count =
+		((u64)le32_to_cpu(data_buf->stream_gate_droph) << 32)
+		+ le32_to_cpu(data_buf->stream_gate_dropl);
+
+	cnt->passing_frames_count = cnt->matching_frames_count
+				- cnt->not_passing_sdu_count
+				- cnt->not_passing_frames_count;
+
+	cnt->red_frames_count =
+		((u64)le32_to_cpu(data_buf->flow_meter_droph) << 32)
+		+ le32_to_cpu(data_buf->flow_meter_dropl);
+
+exit:
+	kfree(data_buf);
+	return err;
+}
+
+static u64 get_ptp_now(struct enetc_hw *hw)
+{
+	u64 now_lo, now_hi, now;
+
+	now_lo = enetc_rd(hw, ENETC_SICTR0);
+	now_hi = enetc_rd(hw, ENETC_SICTR1);
+	now = now_lo | now_hi << 32;
+
+	return now;
+}
+
+static int get_start_ns(u64 now, u64 cycle, u64 *start)
+{
+	u64 n;
+
+	if (!cycle)
+		return -EFAULT;
+
+	n = div64_u64(now, cycle);
+
+	*start = (n + 1) * cycle;
+
+	return 0;
+}
+
+/* Stream Gate Instance Set Descriptor */
+static int enetc_streamgate_hw_set(struct enetc_ndev_priv *priv,
+				   struct enetc_psfp_gate *sgi,
+				   u8 enable)
+{
+	struct enetc_cbd cbd = { .cmd = 0 };
+	struct sgi_table *sgi_config;
+	struct sgcl_conf *sgcl_config;
+	struct sgcl_data *sgcl_data;
+	struct sgce *sgce;
+	dma_addr_t dma;
+	u16 data_size;
+	int err, i;
+	u64 now;
+
+	cbd.index = cpu_to_le16(sgi->index);
+	cbd.cmd = 0;
+	cbd.cls = BDCR_CMD_STREAM_GCL;
+	cbd.status_flags = 0x80;
+
+	/* disable */
+	if (!enable)
+		return enetc_send_cmd(priv->si, &cbd);
+
+	if (!sgi->num_entries)
+		return 0;
+
+	if (sgi->num_entries > priv->psfp_cap.max_psfp_gatelist ||
+	    !sgi->cycletime)
+		return -EINVAL;
+
+	/* enable */
+	sgi_config = &cbd.sgi_table;
+
+	/* Keep open before gate list start */
+	sgi_config->ocgtst = 0x80;
+
+	sgi_config->oipv = (sgi->init_ipv < 0) ?
+				0x0 : ((sgi->init_ipv & 0x7) | 0x8);
+
+	sgi_config->en = 0x80;
+
+	/* Basic config */
+	err = enetc_send_cmd(priv->si, &cbd);
+	if (err)
+		return -EINVAL;
+
+	memset(&cbd, 0, sizeof(cbd));
+
+	cbd.index = cpu_to_le16(sgi->index);
+	cbd.cmd = 1;
+	cbd.cls = BDCR_CMD_STREAM_GCL;
+	cbd.status_flags = 0;
+
+	sgcl_config = &cbd.sgcl_conf;
+
+	sgcl_config->acl_len = (sgi->num_entries - 1) & 0x3;
+
+	data_size = struct_size(sgcl_data, sgcl, sgi->num_entries);
+
+	sgcl_data = kzalloc(data_size, __GFP_DMA | GFP_KERNEL);
+	if (!sgcl_data)
+		return -ENOMEM;
+
+	cbd.length = cpu_to_le16(data_size);
+
+	dma = dma_map_single(&priv->si->pdev->dev,
+			     sgcl_data, data_size,
+			     DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->si->pdev->dev, dma)) {
+		netdev_err(priv->si->ndev, "DMA mapping failed!\n");
+		kfree(sgcl_data);
+		return -ENOMEM;
+	}
+
+	cbd.addr[0] = lower_32_bits(dma);
+	cbd.addr[1] = upper_32_bits(dma);
+
+	sgce = &sgcl_data->sgcl[0];
+
+	sgcl_config->agtst = 0x80;
+
+	sgcl_data->ct = cpu_to_le32(sgi->cycletime);
+	sgcl_data->cte = cpu_to_le32(sgi->cycletimext);
+
+	if (sgi->init_ipv >= 0)
+		sgcl_config->aipv = (sgi->init_ipv & 0x7) | 0x8;
+
+	for (i = 0; i < sgi->num_entries; i++) {
+		struct action_gate_entry *from = &sgi->entries[i];
+		struct sgce *to = &sgce[i];
+
+		if (from->gate_state)
+			to->multi |= 0x10;
+
+		if (from->ipv >= 0)
+			to->multi |= ((from->ipv & 0x7) << 5) | 0x08;
+
+		if (from->maxoctets >= 0) {
+			to->multi |= 0x01;
+			to->msdu[0] = from->maxoctets & 0xFF;
+			to->msdu[1] = (from->maxoctets >> 8) & 0xFF;
+			to->msdu[2] = (from->maxoctets >> 16) & 0xFF;
+		}
+
+		to->interval = cpu_to_le32(from->interval);
+	}
+
+	/* If basetime is less than now, calculate start time */
+	now = get_ptp_now(&priv->si->hw);
+
+	if (sgi->basetime < now) {
+		u64 start;
+
+		err = get_start_ns(now, sgi->cycletime, &start);
+		if (err)
+			goto exit;
+		sgcl_data->btl = cpu_to_le32(lower_32_bits(start));
+		sgcl_data->bth = cpu_to_le32(upper_32_bits(start));
+	} else {
+		u32 hi, lo;
+
+		hi = upper_32_bits(sgi->basetime);
+		lo = lower_32_bits(sgi->basetime);
+		sgcl_data->bth = cpu_to_le32(hi);
+		sgcl_data->btl = cpu_to_le32(lo);
+	}
+
+	err = enetc_send_cmd(priv->si, &cbd);
+
+exit:
+	kfree(sgcl_data);
+
+	return err;
+}
+
+static struct enetc_stream_filter *enetc_get_stream_by_index(u32 index)
+{
+	struct enetc_stream_filter *f;
+
+	hlist_for_each_entry(f, &epsfp.stream_list, node)
+		if (f->sid.index == index)
+			return f;
+
+	return NULL;
+}
+
+static struct enetc_psfp_gate *enetc_get_gate_by_index(u32 index)
+{
+	struct enetc_psfp_gate *g;
+
+	hlist_for_each_entry(g, &epsfp.psfp_gate_list, node)
+		if (g->index == index)
+			return g;
+
+	return NULL;
+}
+
+static struct enetc_psfp_filter *enetc_get_filter_by_index(u32 index)
+{
+	struct enetc_psfp_filter *s;
+
+	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
+		if (s->index == index)
+			return s;
+
+	return NULL;
+}
+
+static struct enetc_psfp_filter
+	*enetc_psfp_check_sfi(struct enetc_psfp_filter *sfi)
+{
+	struct enetc_psfp_filter *s;
+
+	hlist_for_each_entry(s, &epsfp.psfp_filter_list, node)
+		if (s->gate_id == sfi->gate_id &&
+		    s->prio == sfi->prio &&
+		    s->meter_id == sfi->meter_id)
+			return s;
+
+	return NULL;
+}
+
+static int enetc_get_free_index(struct enetc_ndev_priv *priv)
+{
+	u32 max_size = priv->psfp_cap.max_psfp_filter;
+	unsigned long index;
+
+	index = find_first_zero_bit(epsfp.psfp_sfi_bitmap, max_size);
+	if (index == max_size)
+		return -1;
+
+	return index;
+}
+
+static void stream_filter_unref(struct enetc_ndev_priv *priv, u32 index)
+{
+	struct enetc_psfp_filter *sfi;
+	u8 z;
+
+	sfi = enetc_get_filter_by_index(index);
+	WARN_ON(!sfi);
+	z = refcount_dec_and_test(&sfi->refcount);
+
+	if (z) {
+		enetc_streamfilter_hw_set(priv, sfi, false);
+		hlist_del(&sfi->node);
+		kfree(sfi);
+		clear_bit(index, epsfp.psfp_sfi_bitmap);
+	}
+}
+
+static void stream_gate_unref(struct enetc_ndev_priv *priv, u32 index)
+{
+	struct enetc_psfp_gate *sgi;
+	u8 z;
+
+	sgi = enetc_get_gate_by_index(index);
+	WARN_ON(!sgi);
+	z = refcount_dec_and_test(&sgi->refcount);
+	if (z) {
+		enetc_streamgate_hw_set(priv, sgi, false);
+		hlist_del(&sgi->node);
+		kfree(sgi);
+	}
+}
+
+static void remove_one_chain(struct enetc_ndev_priv *priv,
+			     struct enetc_stream_filter *filter)
+{
+	stream_gate_unref(priv, filter->sgi_index);
+	stream_filter_unref(priv, filter->sfi_index);
+
+	hlist_del(&filter->node);
+	kfree(filter);
+}
+
+static int enetc_psfp_hw_set(struct enetc_ndev_priv *priv,
+			     struct enetc_streamid *sid,
+			     struct enetc_psfp_filter *sfi,
+			     struct enetc_psfp_gate *sgi)
+{
+	int err;
+
+	err = enetc_streamid_hw_set(priv, sid, true);
+	if (err)
+		return err;
+
+	if (sfi) {
+		err = enetc_streamfilter_hw_set(priv, sfi, true);
+		if (err)
+			goto revert_sid;
+	}
+
+	err = enetc_streamgate_hw_set(priv, sgi, true);
+	if (err)
+		goto revert_sfi;
+
+	return 0;
+
+revert_sfi:
+	if (sfi)
+		enetc_streamfilter_hw_set(priv, sfi, false);
+revert_sid:
+	enetc_streamid_hw_set(priv, sid, false);
+	return err;
+}
+
+static struct actions_fwd *enetc_check_flow_actions(u64 acts,
+						    unsigned int inputkeys)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(enetc_act_fwd); i++)
+		if (acts == enetc_act_fwd[i].actions &&
+		    inputkeys & enetc_act_fwd[i].keys)
+			return &enetc_act_fwd[i];
+
+	return NULL;
+}
+
+static int enetc_psfp_parse_clsflower(struct enetc_ndev_priv *priv,
+				      struct flow_cls_offload *f)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct enetc_stream_filter *filter, *old_filter;
+	struct enetc_psfp_filter *sfi, *old_sfi;
+	struct enetc_psfp_gate *sgi, *old_sgi;
+	struct flow_action_entry *entry;
+	struct action_gate_entry *e;
+	u8 sfi_overwrite = 0;
+	int entries_size;
+	int i, err;
+
+	if (f->common.chain_index >= priv->psfp_cap.max_streamid) {
+		NL_SET_ERR_MSG_MOD(extack, "No Stream identify resource!");
+		return -ENOSPC;
+	}
+
+	flow_action_for_each(i, entry, &rule->action)
+		if (entry->id == FLOW_ACTION_GATE)
+			break;
+
+	if (entry->id != FLOW_ACTION_GATE)
+		return -EINVAL;
+
+	filter = kzalloc(sizeof(*filter), GFP_KERNEL);
+	if (!filter)
+		return -ENOMEM;
+
+	filter->sid.index = f->common.chain_index;
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
+		struct flow_match_eth_addrs match;
+
+		flow_rule_match_eth_addrs(rule, &match);
+
+		if (!is_zero_ether_addr(match.mask->dst) &&
+		    !is_zero_ether_addr(match.mask->src)) {
+			NL_SET_ERR_MSG_MOD(extack,
+					   "Cannot match on both source and destination MAC");
+			err = EINVAL;
+			goto free_filter;
+		}
+
+		if (!is_zero_ether_addr(match.mask->dst)) {
+			if (!is_broadcast_ether_addr(match.mask->dst)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Masked matching on destination MAC not supported");
+				err = EINVAL;
+				goto free_filter;
+			}
+			ether_addr_copy(filter->sid.dst_mac, match.key->dst);
+			filter->sid.filtertype = STREAMID_TYPE_NULL;
+		}
+
+		if (!is_zero_ether_addr(match.mask->src)) {
+			if (!is_broadcast_ether_addr(match.mask->src)) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Masked matching on source MAC not supported");
+				err = EINVAL;
+				goto free_filter;
+			}
+			ether_addr_copy(filter->sid.src_mac, match.key->src);
+			filter->sid.filtertype = STREAMID_TYPE_SMAC;
+		}
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported, must include ETH_ADDRS");
+		err = EINVAL;
+		goto free_filter;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_VLAN)) {
+		struct flow_match_vlan match;
+
+		flow_rule_match_vlan(rule, &match);
+		if (match.mask->vlan_priority) {
+			if (match.mask->vlan_priority !=
+			    (VLAN_PRIO_MASK >> VLAN_PRIO_SHIFT)) {
+				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for VLAN priority");
+				err = -EINVAL;
+				goto free_filter;
+			}
+		}
+
+		if (match.mask->vlan_id) {
+			if (match.mask->vlan_id != VLAN_VID_MASK) {
+				NL_SET_ERR_MSG_MOD(extack, "Only full mask is supported for VLAN id");
+				err = -EINVAL;
+				goto free_filter;
+			}
+
+			filter->sid.vid = match.key->vlan_id;
+			if (!filter->sid.vid)
+				filter->sid.tagged = STREAMID_VLAN_UNTAGGED;
+			else
+				filter->sid.tagged = STREAMID_VLAN_TAGGED;
+		}
+	} else {
+		filter->sid.tagged = STREAMID_VLAN_ALL;
+	}
+
+	/* parsing gate action */
+	if (entry->gate.index >= priv->psfp_cap.max_psfp_gate) {
+		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
+		err = -ENOSPC;
+		goto free_filter;
+	}
+
+	if (entry->gate.num_entries >= priv->psfp_cap.max_psfp_gatelist) {
+		NL_SET_ERR_MSG_MOD(extack, "No Stream Gate resource!");
+		err = -ENOSPC;
+		goto free_filter;
+	}
+
+	entries_size = struct_size(sgi, entries, entry->gate.num_entries);
+	sgi = kzalloc(entries_size, GFP_KERNEL);
+	if (!sgi) {
+		err = -ENOMEM;
+		goto free_filter;
+	}
+
+	refcount_set(&sgi->refcount, 1);
+	sgi->index = entry->gate.index;
+	sgi->init_ipv = entry->gate.prio;
+	sgi->basetime = entry->gate.basetime;
+	sgi->cycletime = entry->gate.cycletime;
+	sgi->num_entries = entry->gate.num_entries;
+
+	e = sgi->entries;
+	for (i = 0; i < entry->gate.num_entries; i++) {
+		e[i].gate_state = entry->gate.entries[i].gate_state;
+		e[i].interval = entry->gate.entries[i].interval;
+		e[i].ipv = entry->gate.entries[i].ipv;
+		e[i].maxoctets = entry->gate.entries[i].maxoctets;
+	}
+
+	filter->sgi_index = sgi->index;
+
+	sfi = kzalloc(sizeof(*sfi), GFP_KERNEL);
+	if (!sfi) {
+		err = -ENOMEM;
+		goto free_gate;
+	}
+
+	refcount_set(&sfi->refcount, 1);
+	sfi->gate_id = sgi->index;
+
+	/* flow meter not support yet */
+	sfi->meter_id = ENETC_PSFP_WILDCARD;
+
+	/* prio ref the filter prio */
+	if (f->common.prio && f->common.prio <= BIT(3))
+		sfi->prio = f->common.prio - 1;
+	else
+		sfi->prio = ENETC_PSFP_WILDCARD;
+
+	old_sfi = enetc_psfp_check_sfi(sfi);
+	if (!old_sfi) {
+		int index;
+
+		index = enetc_get_free_index(priv);
+		if (sfi->handle < 0) {
+			NL_SET_ERR_MSG_MOD(extack, "No Stream Filter resource!");
+			err = -ENOSPC;
+			goto free_sfi;
+		}
+
+		sfi->index = index;
+		sfi->handle = index + HANDLE_OFFSET;
+		/* Update the stream filter handle also */
+		filter->sid.handle = sfi->handle;
+		filter->sfi_index = sfi->index;
+		sfi_overwrite = 0;
+	} else {
+		filter->sfi_index = old_sfi->index;
+		filter->sid.handle = old_sfi->handle;
+		sfi_overwrite = 1;
+	}
+
+	err = enetc_psfp_hw_set(priv, &filter->sid,
+				sfi_overwrite ? NULL : sfi, sgi);
+	if (err)
+		goto free_sfi;
+
+	spin_lock(&epsfp.psfp_lock);
+	/* Remove the old node if exist and update with a new node */
+	old_sgi = enetc_get_gate_by_index(filter->sgi_index);
+	if (old_sgi) {
+		refcount_set(&sgi->refcount,
+			     refcount_read(&old_sgi->refcount) + 1);
+		hlist_del(&old_sgi->node);
+		kfree(old_sgi);
+	}
+
+	hlist_add_head(&sgi->node, &epsfp.psfp_gate_list);
+
+	if (!old_sfi) {
+		hlist_add_head(&sfi->node, &epsfp.psfp_filter_list);
+		set_bit(sfi->index, epsfp.psfp_sfi_bitmap);
+	} else {
+		kfree(sfi);
+		refcount_inc(&old_sfi->refcount);
+	}
+
+	old_filter = enetc_get_stream_by_index(filter->sid.index);
+	if (old_filter)
+		remove_one_chain(priv, old_filter);
+
+	filter->stats.lastused = jiffies;
+	hlist_add_head(&filter->node, &epsfp.stream_list);
+
+	spin_unlock(&epsfp.psfp_lock);
+
+	return 0;
+
+free_sfi:
+	kfree(sfi);
+free_gate:
+	kfree(sgi);
+free_filter:
+	kfree(filter);
+
+	return err;
+}
+
+static int enetc_config_clsflower(struct enetc_ndev_priv *priv,
+				  struct flow_cls_offload *cls_flower)
+{
+	struct flow_rule *rule = flow_cls_offload_flow_rule(cls_flower);
+	struct netlink_ext_ack *extack = cls_flower->common.extack;
+	struct flow_dissector *dissector = rule->match.dissector;
+	struct flow_action *action = &rule->action;
+	struct flow_action_entry *entry;
+	struct actions_fwd *fwd;
+	u64 actions = 0;
+	int i, err;
+
+	if (!flow_action_has_entries(action)) {
+		NL_SET_ERR_MSG_MOD(extack, "At least one action is needed");
+		return -EINVAL;
+	}
+
+	flow_action_for_each(i, entry, action)
+		actions |= BIT(entry->id);
+
+	fwd = enetc_check_flow_actions(actions, dissector->used_keys);
+	if (!fwd) {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported filter type!");
+		return -EOPNOTSUPP;
+	}
+
+	if (fwd->output & FILTER_ACTION_TYPE_PSFP) {
+		err = enetc_psfp_parse_clsflower(priv, cls_flower);
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "Invalid PSFP inputs");
+			return err;
+		}
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported actions");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int enetc_psfp_destroy_clsflower(struct enetc_ndev_priv *priv,
+					struct flow_cls_offload *f)
+{
+	struct enetc_stream_filter *filter;
+	struct netlink_ext_ack *extack = f->common.extack;
+	int err;
+
+	if (f->common.chain_index >= priv->psfp_cap.max_streamid) {
+		NL_SET_ERR_MSG_MOD(extack, "No Stream identify resource!");
+		return -ENOSPC;
+	}
+
+	filter = enetc_get_stream_by_index(f->common.chain_index);
+	if (!filter)
+		return -EINVAL;
+
+	err = enetc_streamid_hw_set(priv, &filter->sid, false);
+	if (err)
+		return err;
+
+	remove_one_chain(priv, filter);
+
+	return 0;
+}
+
+static int enetc_destroy_clsflower(struct enetc_ndev_priv *priv,
+				   struct flow_cls_offload *f)
+{
+	return enetc_psfp_destroy_clsflower(priv, f);
+}
+
+static int enetc_psfp_get_stats(struct enetc_ndev_priv *priv,
+				struct flow_cls_offload *f)
+{
+	struct psfp_streamfilter_counters counters = {};
+	struct enetc_stream_filter *filter;
+	struct flow_stats stats = {};
+	int err;
+
+	filter = enetc_get_stream_by_index(f->common.chain_index);
+	if (!filter)
+		return -EINVAL;
+
+	err = enetc_streamcounter_hw_get(priv, filter->sfi_index, &counters);
+	if (err)
+		return -EINVAL;
+
+	spin_lock(&epsfp.psfp_lock);
+	stats.pkts = counters.matching_frames_count - filter->stats.pkts;
+	stats.lastused = filter->stats.lastused;
+	filter->stats.pkts += stats.pkts;
+	spin_unlock(&epsfp.psfp_lock);
+
+	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.lastused,
+			  FLOW_ACTION_HW_STATS_DELAYED);
+
+	return 0;
+}
+
+static int enetc_setup_tc_cls_flower(struct enetc_ndev_priv *priv,
+				     struct flow_cls_offload *cls_flower)
+{
+	switch (cls_flower->command) {
+	case FLOW_CLS_REPLACE:
+		return enetc_config_clsflower(priv, cls_flower);
+	case FLOW_CLS_DESTROY:
+		return enetc_destroy_clsflower(priv, cls_flower);
+	case FLOW_CLS_STATS:
+		return enetc_psfp_get_stats(priv, cls_flower);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static inline void clean_psfp_sfi_bitmap(void)
+{
+	bitmap_free(epsfp.psfp_sfi_bitmap);
+	epsfp.psfp_sfi_bitmap = NULL;
+}
+
+static void clean_stream_list(void)
+{
+	struct enetc_stream_filter *s;
+	struct hlist_node *tmp;
+
+	hlist_for_each_entry_safe(s, tmp, &epsfp.stream_list, node) {
+		hlist_del(&s->node);
+		kfree(s);
+	}
+}
+
+static void clean_sfi_list(void)
+{
+	struct enetc_psfp_filter *sfi;
+	struct hlist_node *tmp;
+
+	hlist_for_each_entry_safe(sfi, tmp, &epsfp.psfp_filter_list, node) {
+		hlist_del(&sfi->node);
+		kfree(sfi);
+	}
+}
+
+static void clean_sgi_list(void)
+{
+	struct enetc_psfp_gate *sgi;
+	struct hlist_node *tmp;
+
+	hlist_for_each_entry_safe(sgi, tmp, &epsfp.psfp_gate_list, node) {
+		hlist_del(&sgi->node);
+		kfree(sgi);
+	}
+}
+
+static void clean_psfp_all(void)
+{
+	/* Disable all list nodes and free all memory */
+	clean_sfi_list();
+	clean_sgi_list();
+	clean_stream_list();
+	epsfp.dev_bitmap = 0;
+	clean_psfp_sfi_bitmap();
+}
+
+int enetc_setup_tc_block_cb(enum tc_setup_type type, void *type_data,
+			    void *cb_priv)
+{
+	struct net_device *ndev = cb_priv;
+
+	if (!tc_can_offload(ndev))
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_CLSFLOWER:
+		return enetc_setup_tc_cls_flower(netdev_priv(ndev), type_data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+int enetc_psfp_init(struct enetc_ndev_priv *priv)
+{
+	if (epsfp.psfp_sfi_bitmap)
+		return 0;
+
+	epsfp.psfp_sfi_bitmap = bitmap_zalloc(priv->psfp_cap.max_psfp_filter,
+					      GFP_KERNEL);
+	if (!epsfp.psfp_sfi_bitmap)
+		return -ENOMEM;
+
+	spin_lock_init(&epsfp.psfp_lock);
+
+	if (list_empty(&enetc_block_cb_list))
+		epsfp.dev_bitmap = 0;
+
+	return 0;
+}
+
+int enetc_psfp_clean(struct enetc_ndev_priv *priv)
+{
+	if (!list_empty(&enetc_block_cb_list))
+		return -EBUSY;
+
+	clean_psfp_all();
+
+	return 0;
+}
+
+int enetc_setup_tc_psfp(struct net_device *ndev, void *type_data)
+{
+	struct enetc_ndev_priv *priv = netdev_priv(ndev);
+	struct flow_block_offload *f = type_data;
+	int err;
+
+	err = flow_block_cb_setup_simple(f, &enetc_block_cb_list,
+					 enetc_setup_tc_block_cb,
+					 ndev, ndev, true);
+	if (err)
+		return err;
+
+	switch (f->command) {
+	case FLOW_BLOCK_BIND:
+		set_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		break;
+	case FLOW_BLOCK_UNBIND:
+		clear_bit(enetc_get_port(priv), &epsfp.dev_bitmap);
+		if (!epsfp.dev_bitmap)
+			clean_psfp_all();
+		break;
+	}
 
 	return 0;
 }

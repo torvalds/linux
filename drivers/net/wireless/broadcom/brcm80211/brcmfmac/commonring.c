@@ -180,14 +180,8 @@ again:
 
 int brcmf_commonring_write_complete(struct brcmf_commonring *commonring)
 {
-	void *address;
-
-	address = commonring->buf_addr;
-	address += (commonring->f_ptr * commonring->item_len);
-	if (commonring->f_ptr > commonring->w_ptr) {
-		address = commonring->buf_addr;
+	if (commonring->f_ptr > commonring->w_ptr)
 		commonring->f_ptr = 0;
-	}
 
 	commonring->f_ptr = commonring->w_ptr;
 

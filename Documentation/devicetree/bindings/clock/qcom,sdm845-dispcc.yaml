@@ -75,7 +75,7 @@ examples:
     #include <dt-bindings/clock/qcom,rpmh.h>
     clock-controller@af00000 {
       compatible = "qcom,sdm845-dispcc";
-      reg = <0 0x0af00000 0 0x10000>;
+      reg = <0x0af00000 0x10000>;
       clocks = <&rpmhcc RPMH_CXO_CLK>,
                <&gcc GCC_DISP_GPLL0_CLK_SRC>,
                <&gcc GCC_DISP_GPLL0_DIV_CLK_SRC>,

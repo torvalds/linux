@@ -1885,7 +1885,7 @@ static int sPCIInitController(CONTROLLER_T * CtlP, int CtlNum,
  */
 static __init int register_PCI(int i, struct pci_dev *dev)
 {
-	int num_aiops, aiop, max_num_aiops, num_chan, chan;
+	int num_aiops, aiop, max_num_aiops, chan;
 	unsigned int aiopio[MAX_AIOPS_PER_BOARD];
 	CONTROLLER_t *ctlp;
 
@@ -2157,8 +2157,7 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 	/*  Reset the AIOPIC, init the serial ports */
 	for (aiop = 0; aiop < num_aiops; aiop++) {
 		sResetAiopByNum(ctlp, aiop);
-		num_chan = ports_per_aiop;
-		for (chan = 0; chan < num_chan; chan++)
+		for (chan = 0; chan < ports_per_aiop; chan++)
 			init_r_port(i, aiop, chan, dev);
 	}
 
@@ -2166,11 +2165,10 @@ static __init int register_PCI(int i, struct pci_dev *dev)
 	if ((rcktpt_type[i] == ROCKET_TYPE_MODEM) ||
 	    (rcktpt_type[i] == ROCKET_TYPE_MODEMII) ||
 	    (rcktpt_type[i] == ROCKET_TYPE_MODEMIII)) {
-		num_chan = ports_per_aiop;
-		for (chan = 0; chan < num_chan; chan++)
+		for (chan = 0; chan < ports_per_aiop; chan++)
 			sPCIModemReset(ctlp, chan, 1);
 		msleep(500);
-		for (chan = 0; chan < num_chan; chan++)
+		for (chan = 0; chan < ports_per_aiop; chan++)
 			sPCIModemReset(ctlp, chan, 0);
 		msleep(500);
 		rmSpeakerReset(ctlp, rocketModel[i].model);

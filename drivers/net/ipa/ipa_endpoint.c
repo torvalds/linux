@@ -32,13 +32,11 @@
 /* The amount of RX buffer space consumed by standard skb overhead */
 #define IPA_RX_BUFFER_OVERHEAD	(PAGE_SIZE - SKB_MAX_ORDER(NET_SKB_PAD, 0))
 
-#define IPA_ENDPOINT_STOP_RX_RETRIES		10
-#define IPA_ENDPOINT_STOP_RX_SIZE		1	/* bytes */
+/* Where to find the QMAP mux_id for a packet within modem-supplied metadata */
+#define IPA_ENDPOINT_QMAP_METADATA_MASK		0x000000ff /* host byte order */
 
 #define IPA_ENDPOINT_RESET_AGGR_RETRY_MAX	3
 #define IPA_AGGR_TIME_LIMIT_DEFAULT		1000	/* microseconds */
-
-#define ENDPOINT_STOP_DMA_TIMEOUT		15	/* milliseconds */
 
 /** enum ipa_status_opcode - status element opcode hardware values */
 enum ipa_status_opcode {
@@ -284,25 +282,52 @@ static struct gsi_trans *ipa_endpoint_trans_alloc(struct ipa_endpoint *endpoint,
 /* suspend_delay represents suspend for RX, delay for TX endpoints.
  * Note that suspend is not supported starting with IPA v4.0.
  */
-static int
+static bool
 ipa_endpoint_init_ctrl(struct ipa_endpoint *endpoint, bool suspend_delay)
 {
 	u32 offset = IPA_REG_ENDP_INIT_CTRL_N_OFFSET(endpoint->endpoint_id);
 	struct ipa *ipa = endpoint->ipa;
+	bool state;
 	u32 mask;
 	u32 val;
 
-	/* assert(ipa->version == IPA_VERSION_3_5_1 */
+	/* Suspend is not supported for IPA v4.0+.  Delay doesn't work
+	 * correctly on IPA v4.2.
+	 *
+	 * if (endpoint->toward_ipa)
+	 * 	assert(ipa->version != IPA_VERSION_4.2);
+	 * else
+	 * 	assert(ipa->version == IPA_VERSION_3_5_1);
+	 */
 	mask = endpoint->toward_ipa ? ENDP_DELAY_FMASK : ENDP_SUSPEND_FMASK;
 
 	val = ioread32(ipa->reg_virt + offset);
-	if (suspend_delay == !!(val & mask))
-		return -EALREADY;	/* Already set to desired state */
+	/* Don't bother if it's already in the requested state */
+	state = !!(val & mask);
+	if (suspend_delay != state) {
+		val ^= mask;
+		iowrite32(val, ipa->reg_virt + offset);
+	}
 
-	val ^= mask;
-	iowrite32(val, ipa->reg_virt + offset);
+	return state;
+}
 
-	return 0;
+/* We currently don't care what the previous state was for delay mode */
+static void
+ipa_endpoint_program_delay(struct ipa_endpoint *endpoint, bool enable)
+{
+	/* assert(endpoint->toward_ipa); */
+
+	(void)ipa_endpoint_init_ctrl(endpoint, enable);
+}
+
+/* Returns previous suspend state (true means it was enabled) */
+static bool
+ipa_endpoint_program_suspend(struct ipa_endpoint *endpoint, bool enable)
+{
+	/* assert(!endpoint->toward_ipa); */
+
+	return ipa_endpoint_init_ctrl(endpoint, enable);
 }
 
 /* Enable or disable delay or suspend mode on all modem endpoints */
@@ -311,7 +336,7 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 	bool support_suspend;
 	u32 endpoint_id;
 
-	/* DELAY mode doesn't work right on IPA v4.2 */
+	/* DELAY mode doesn't work correctly on IPA v4.2 */
 	if (ipa->version == IPA_VERSION_4_2)
 		return;
 
@@ -325,8 +350,10 @@ void ipa_endpoint_modem_pause_all(struct ipa *ipa, bool enable)
 			continue;
 
 		/* Set TX delay mode, or for IPA v3.5.1 RX suspend mode */
-		if (endpoint->toward_ipa || support_suspend)
-			(void)ipa_endpoint_init_ctrl(endpoint, enable);
+		if (endpoint->toward_ipa)
+			ipa_endpoint_program_delay(endpoint, enable);
+		else if (support_suspend)
+			(void)ipa_endpoint_program_suspend(endpoint, enable);
 	}
 }
 
@@ -340,7 +367,7 @@ int ipa_endpoint_modem_exception_reset_all(struct ipa *ipa)
 	/* We need one command per modem TX endpoint.  We can get an upper
 	 * bound on that by assuming all initialized endpoints are modem->IPA.
 	 * That won't happen, and we could be more precise, but this is fine
-	 * for now.  We need to end the transactio with a "tag process."
+	 * for now.  We need to end the transaction with a "tag process."
 	 */
 	count = hweight32(initialized) + ipa_cmd_tag_process_count();
 	trans = ipa_cmd_trans_alloc(ipa, count);
@@ -409,6 +436,24 @@ static void ipa_endpoint_init_cfg(struct ipa_endpoint *endpoint)
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
+/**
+ * We program QMAP endpoints so each packet received is preceded by a QMAP
+ * header structure.  The QMAP header contains a 1-byte mux_id and 2-byte
+ * packet size field, and we have the IPA hardware populate both for each
+ * received packet.  The header is configured (in the HDR_EXT register)
+ * to use big endian format.
+ *
+ * The packet size is written into the QMAP header's pkt_len field.  That
+ * location is defined here using the HDR_OFST_PKT_SIZE field.
+ *
+ * The mux_id comes from a 4-byte metadata value supplied with each packet
+ * by the modem.  It is *not* a QMAP header, but it does contain the mux_id
+ * value that we want, in its low-order byte.  A bitmask defined in the
+ * endpoint's METADATA_MASK register defines which byte within the modem
+ * metadata contains the mux_id.  And the OFST_METADATA field programmed
+ * here indicates where the extracted byte should be placed within the QMAP
+ * header.
+ */
 static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 {
 	u32 offset = IPA_REG_ENDP_INIT_HDR_N_OFFSET(endpoint->endpoint_id);
@@ -417,25 +462,31 @@ static void ipa_endpoint_init_hdr(struct ipa_endpoint *endpoint)
 	if (endpoint->data->qmap) {
 		size_t header_size = sizeof(struct rmnet_map_header);
 
+		/* We might supply a checksum header after the QMAP header */
 		if (endpoint->toward_ipa && endpoint->data->checksum)
 			header_size += sizeof(struct rmnet_map_ul_csum_header);
-
 		val |= u32_encode_bits(header_size, HDR_LEN_FMASK);
-		/* metadata is the 4 byte rmnet_map header itself */
-		val |= HDR_OFST_METADATA_VALID_FMASK;
-		val |= u32_encode_bits(0, HDR_OFST_METADATA_FMASK);
-		/* HDR_ADDITIONAL_CONST_LEN is 0; (IPA->AP only) */
-		if (!endpoint->toward_ipa) {
-			u32 size_offset = offsetof(struct rmnet_map_header,
-						   pkt_len);
 
+		/* Define how to fill fields in a received QMAP header */
+		if (!endpoint->toward_ipa) {
+			u32 off;	/* Field offset within header */
+
+			/* Where IPA will write the metadata value */
+			off = offsetof(struct rmnet_map_header, mux_id);
+			val |= u32_encode_bits(off, HDR_OFST_METADATA_FMASK);
+
+			/* Where IPA will write the length */
+			off = offsetof(struct rmnet_map_header, pkt_len);
 			val |= HDR_OFST_PKT_SIZE_VALID_FMASK;
-			val |= u32_encode_bits(size_offset,
-					       HDR_OFST_PKT_SIZE_FMASK);
+			val |= u32_encode_bits(off, HDR_OFST_PKT_SIZE_FMASK);
 		}
+		/* For QMAP TX, metadata offset is 0 (modem assumes this) */
+		val |= HDR_OFST_METADATA_VALID_FMASK;
+
+		/* HDR_ADDITIONAL_CONST_LEN is 0; (RX only) */
 		/* HDR_A5_MUX is 0 */
 		/* HDR_LEN_INC_DEAGG_HDR is 0 */
-		/* HDR_METADATA_REG_VALID is 0; (AP->IPA only) */
+		/* HDR_METADATA_REG_VALID is 0 (TX only) */
 	}
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
@@ -448,38 +499,27 @@ static void ipa_endpoint_init_hdr_ext(struct ipa_endpoint *endpoint)
 	u32 val = 0;
 
 	val |= HDR_ENDIANNESS_FMASK;		/* big endian */
-	val |= HDR_TOTAL_LEN_OR_PAD_VALID_FMASK;
-	/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
+
+	/* A QMAP header contains a 6 bit pad field at offset 0.  The RMNet
+	 * driver assumes this field is meaningful in packets it receives,
+	 * and assumes the header's payload length includes that padding.
+	 * The RMNet driver does *not* pad packets it sends, however, so
+	 * the pad field (although 0) should be ignored.
+	 */
+	if (endpoint->data->qmap && !endpoint->toward_ipa) {
+		val |= HDR_TOTAL_LEN_OR_PAD_VALID_FMASK;
+		/* HDR_TOTAL_LEN_OR_PAD is 0 (pad, not total_len) */
+		val |= HDR_PAYLOAD_LEN_INC_PADDING_FMASK;
+		/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
+	}
+
 	/* HDR_PAYLOAD_LEN_INC_PADDING is 0 */
-	/* HDR_TOTAL_LEN_OR_PAD_OFFSET is 0 */
 	if (!endpoint->toward_ipa)
 		val |= u32_encode_bits(pad_align, HDR_PAD_TO_ALIGNMENT_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
 
-/**
- * Generate a metadata mask value that will select only the mux_id
- * field in an rmnet_map header structure.  The mux_id is at offset
- * 1 byte from the beginning of the structure, but the metadata
- * value is treated as a 4-byte unit.  So this mask must be computed
- * with endianness in mind.  Note that ipa_endpoint_init_hdr_metadata_mask()
- * will convert this value to the proper byte order.
- *
- * Marked __always_inline because this is really computing a
- * constant value.
- */
-static __always_inline __be32 ipa_rmnet_mux_id_metadata_mask(void)
-{
-	size_t mux_id_offset = offsetof(struct rmnet_map_header, mux_id);
-	u32 mux_id_mask = 0;
-	u8 *bytes;
-
-	bytes = (u8 *)&mux_id_mask;
-	bytes[mux_id_offset] = 0xff;	/* mux_id is 1 byte */
-
-	return cpu_to_be32(mux_id_mask);
-}
 
 static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 {
@@ -489,8 +529,9 @@ static void ipa_endpoint_init_hdr_metadata_mask(struct ipa_endpoint *endpoint)
 
 	offset = IPA_REG_ENDP_INIT_HDR_METADATA_MASK_N_OFFSET(endpoint_id);
 
+	/* Note that HDR_ENDIANNESS indicates big endian header fields */
 	if (!endpoint->toward_ipa && endpoint->data->qmap)
-		val = ipa_rmnet_mux_id_metadata_mask();
+		val = cpu_to_be32(IPA_ENDPOINT_QMAP_METADATA_MASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -669,10 +710,12 @@ static void ipa_endpoint_init_seq(struct ipa_endpoint *endpoint)
 	u32 seq_type = endpoint->seq_type;
 	u32 val = 0;
 
+	/* Sequencer type is made up of four nibbles */
 	val |= u32_encode_bits(seq_type & 0xf, HPS_SEQ_TYPE_FMASK);
 	val |= u32_encode_bits((seq_type >> 4) & 0xf, DPS_SEQ_TYPE_FMASK);
-	/* HPS_REP_SEQ_TYPE is 0 */
-	/* DPS_REP_SEQ_TYPE is 0 */
+	/* The second two apply to replicated packets */
+	val |= u32_encode_bits((seq_type >> 8) & 0xf, HPS_REP_SEQ_TYPE_FMASK);
+	val |= u32_encode_bits((seq_type >> 12) & 0xf, DPS_REP_SEQ_TYPE_FMASK);
 
 	iowrite32(val, endpoint->ipa->reg_virt + offset);
 }
@@ -1133,10 +1176,10 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 {
 	struct device *dev = &endpoint->ipa->pdev->dev;
 	struct ipa *ipa = endpoint->ipa;
-	bool endpoint_suspended = false;
 	struct gsi *gsi = &ipa->gsi;
+	bool suspended = false;
 	dma_addr_t addr;
-	bool db_enable;
+	bool legacy;
 	u32 retries;
 	u32 len = 1;
 	void *virt;
@@ -1164,8 +1207,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 
 	/* Make sure the channel isn't suspended */
 	if (endpoint->ipa->version == IPA_VERSION_3_5_1)
-		if (!ipa_endpoint_init_ctrl(endpoint, false))
-			endpoint_suspended = true;
+		suspended = ipa_endpoint_program_suspend(endpoint, false);
 
 	/* Start channel and do a 1 byte read */
 	ret = gsi_channel_start(gsi, endpoint->channel_id);
@@ -1191,7 +1233,7 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 
 	gsi_trans_read_byte_done(gsi, endpoint->channel_id);
 
-	ret = ipa_endpoint_stop(endpoint);
+	ret = gsi_channel_stop(gsi, endpoint->channel_id);
 	if (ret)
 		goto out_suspend_again;
 
@@ -1200,18 +1242,18 @@ static int ipa_endpoint_reset_rx_aggr(struct ipa_endpoint *endpoint)
 	 * complete the channel reset sequence.  Finish by suspending the
 	 * channel again (if necessary).
 	 */
-	db_enable = ipa->version == IPA_VERSION_3_5_1;
-	gsi_channel_reset(gsi, endpoint->channel_id, db_enable);
+	legacy = ipa->version == IPA_VERSION_3_5_1;
+	gsi_channel_reset(gsi, endpoint->channel_id, legacy);
 
 	msleep(1);
 
 	goto out_suspend_again;
 
 err_endpoint_stop:
-	ipa_endpoint_stop(endpoint);
+	(void)gsi_channel_stop(gsi, endpoint->channel_id);
 out_suspend_again:
-	if (endpoint_suspended)
-		(void)ipa_endpoint_init_ctrl(endpoint, true);
+	if (suspended)
+		(void)ipa_endpoint_program_suspend(endpoint, true);
 	dma_unmap_single(dev, addr, len, DMA_FROM_DEVICE);
 out_kfree:
 	kfree(virt);
@@ -1223,8 +1265,8 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 {
 	u32 channel_id = endpoint->channel_id;
 	struct ipa *ipa = endpoint->ipa;
-	bool db_enable;
 	bool special;
+	bool legacy;
 	int ret = 0;
 
 	/* On IPA v3.5.1, if an RX endpoint is reset while aggregation
@@ -1233,12 +1275,12 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 	 *
 	 * IPA v3.5.1 enables the doorbell engine.  Newer versions do not.
 	 */
-	db_enable = ipa->version == IPA_VERSION_3_5_1;
+	legacy = ipa->version == IPA_VERSION_3_5_1;
 	special = !endpoint->toward_ipa && endpoint->data->aggregation;
 	if (special && ipa_endpoint_aggr_active(endpoint))
 		ret = ipa_endpoint_reset_rx_aggr(endpoint);
 	else
-		gsi_channel_reset(&ipa->gsi, channel_id, db_enable);
+		gsi_channel_reset(&ipa->gsi, channel_id, legacy);
 
 	if (ret)
 		dev_err(&ipa->pdev->dev,
@@ -1246,94 +1288,18 @@ static void ipa_endpoint_reset(struct ipa_endpoint *endpoint)
 			ret, endpoint->channel_id, endpoint->endpoint_id);
 }
 
-static int ipa_endpoint_stop_rx_dma(struct ipa *ipa)
-{
-	u16 size = IPA_ENDPOINT_STOP_RX_SIZE;
-	struct gsi_trans *trans;
-	dma_addr_t addr;
-	int ret;
-
-	trans = ipa_cmd_trans_alloc(ipa, 1);
-	if (!trans) {
-		dev_err(&ipa->pdev->dev,
-			"no transaction for RX endpoint STOP workaround\n");
-		return -EBUSY;
-	}
-
-	/* Read into the highest part of the zero memory area */
-	addr = ipa->zero_addr + ipa->zero_size - size;
-
-	ipa_cmd_dma_task_32b_addr_add(trans, size, addr, false);
-
-	ret = gsi_trans_commit_wait_timeout(trans, ENDPOINT_STOP_DMA_TIMEOUT);
-	if (ret)
-		gsi_trans_free(trans);
-
-	return ret;
-}
-
-/**
- * ipa_endpoint_stop() - Stops a GSI channel in IPA
- * @client:	Client whose endpoint should be stopped
- *
- * This function implements the sequence to stop a GSI channel
- * in IPA. This function returns when the channel is is STOP state.
- *
- * Return value: 0 on success, negative otherwise
- */
-int ipa_endpoint_stop(struct ipa_endpoint *endpoint)
-{
-	u32 retries = IPA_ENDPOINT_STOP_RX_RETRIES;
-	int ret;
-
-	do {
-		struct ipa *ipa = endpoint->ipa;
-		struct gsi *gsi = &ipa->gsi;
-
-		ret = gsi_channel_stop(gsi, endpoint->channel_id);
-		if (ret != -EAGAIN || endpoint->toward_ipa)
-			break;
-
-		/* For IPA v3.5.1, send a DMA read task and check again */
-		if (ipa->version == IPA_VERSION_3_5_1) {
-			ret = ipa_endpoint_stop_rx_dma(ipa);
-			if (ret)
-				break;
-		}
-
-		msleep(1);
-	} while (retries--);
-
-	return retries ? ret : -EIO;
-}
-
 static void ipa_endpoint_program(struct ipa_endpoint *endpoint)
 {
-	struct device *dev = &endpoint->ipa->pdev->dev;
-	int ret;
-
 	if (endpoint->toward_ipa) {
-		bool delay_mode = endpoint->data->tx.delay;
-
-		ret = ipa_endpoint_init_ctrl(endpoint, delay_mode);
-		/* Endpoint is expected to not be in delay mode */
-		if (!ret != delay_mode) {
-			dev_warn(dev,
-				"TX endpoint %u was %sin delay mode\n",
-				endpoint->endpoint_id,
-				delay_mode ? "already " : "");
-		}
+		if (endpoint->ipa->version != IPA_VERSION_4_2)
+			ipa_endpoint_program_delay(endpoint, false);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
 		ipa_endpoint_init_deaggr(endpoint);
 		ipa_endpoint_init_seq(endpoint);
 	} else {
-		if (endpoint->ipa->version == IPA_VERSION_3_5_1) {
-			if (!ipa_endpoint_init_ctrl(endpoint, false))
-				dev_warn(dev,
-					"RX endpoint %u was suspended\n",
-					endpoint->endpoint_id);
-		}
+		if (endpoint->ipa->version == IPA_VERSION_3_5_1)
+			(void)ipa_endpoint_program_suspend(endpoint, false);
 		ipa_endpoint_init_hdr_ext(endpoint);
 		ipa_endpoint_init_aggr(endpoint);
 	}
@@ -1374,12 +1340,13 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 {
 	u32 mask = BIT(endpoint->endpoint_id);
 	struct ipa *ipa = endpoint->ipa;
+	struct gsi *gsi = &ipa->gsi;
 	int ret;
 
-	if (!(endpoint->ipa->enabled & mask))
+	if (!(ipa->enabled & mask))
 		return;
 
-	endpoint->ipa->enabled ^= mask;
+	ipa->enabled ^= mask;
 
 	if (!endpoint->toward_ipa) {
 		ipa_endpoint_replenish_disable(endpoint);
@@ -1388,7 +1355,7 @@ void ipa_endpoint_disable_one(struct ipa_endpoint *endpoint)
 	}
 
 	/* Note that if stop fails, the channel's state is not well-defined */
-	ret = ipa_endpoint_stop(endpoint);
+	ret = gsi_channel_stop(gsi, endpoint->channel_id);
 	if (ret)
 		dev_err(&ipa->pdev->dev,
 			"error %d attempting to stop endpoint %u\n", ret,
@@ -1445,7 +1412,7 @@ void ipa_endpoint_suspend_one(struct ipa_endpoint *endpoint)
 		 * aggregation frame, then simulating the arrival of such
 		 * an interrupt.
 		 */
-		WARN_ON(ipa_endpoint_init_ctrl(endpoint, true));
+		(void)ipa_endpoint_program_suspend(endpoint, true);
 		ipa_endpoint_suspend_aggr(endpoint);
 	}
 
@@ -1468,7 +1435,7 @@ void ipa_endpoint_resume_one(struct ipa_endpoint *endpoint)
 	/* IPA v3.5.1 doesn't use channel start for resume */
 	start_channel = endpoint->ipa->version != IPA_VERSION_3_5_1;
 	if (!endpoint->toward_ipa && !start_channel)
-		WARN_ON(ipa_endpoint_init_ctrl(endpoint, false));
+		(void)ipa_endpoint_program_suspend(endpoint, false);
 
 	ret = gsi_channel_resume(gsi, endpoint->channel_id, start_channel);
 	if (ret)

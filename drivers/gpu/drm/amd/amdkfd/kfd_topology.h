@@ -41,7 +41,6 @@
 #define HSA_CAP_WATCH_POINTS_TOTALBITS_SHIFT	8
 #define HSA_CAP_DOORBELL_TYPE_TOTALBITS_MASK	0x00003000
 #define HSA_CAP_DOORBELL_TYPE_TOTALBITS_SHIFT	12
-#define HSA_CAP_RESERVED			0xffffc000
 
 #define HSA_CAP_DOORBELL_TYPE_PRE_1_0		0x0
 #define HSA_CAP_DOORBELL_TYPE_1_0		0x1
@@ -51,6 +50,10 @@
 #define HSA_CAP_SRAM_EDCSUPPORTED		0x00080000
 #define HSA_CAP_MEM_EDCSUPPORTED		0x00100000
 #define HSA_CAP_RASEVENTNOTIFY			0x00200000
+#define HSA_CAP_ASIC_REVISION_MASK		0x03c00000
+#define HSA_CAP_ASIC_REVISION_SHIFT		22
+
+#define HSA_CAP_RESERVED			0xfc078000
 
 struct kfd_node_properties {
 	uint64_t hive_id;
@@ -77,6 +80,7 @@ struct kfd_node_properties {
 	uint32_t vendor_id;
 	uint32_t device_id;
 	uint32_t location_id;
+	uint32_t domain;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
 	int32_t  drm_render_minor;

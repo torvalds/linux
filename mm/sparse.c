@@ -17,7 +17,6 @@
 #include "internal.h"
 #include <asm/dma.h>
 #include <asm/pgalloc.h>
-#include <asm/pgtable.h>
 
 /*
  * Permanent SPARSEMEM data:
@@ -288,7 +287,7 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
 
 /*
  * Mark all memblocks as present using memory_present(). This is a
- * convienence function that is useful for a number of arches
+ * convenience function that is useful for a number of arches
  * to mark all of the systems memory as present during initialization.
  */
 void __init memblocks_present(void)

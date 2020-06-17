@@ -32,7 +32,7 @@ config SERIAL_AMBA_PL010_CONSOLE
 	bool "Support for console on AMBA serial port"
 	depends on SERIAL_AMBA_PL010=y
 	select SERIAL_CORE_CONSOLE
-	---help---
+	help
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
@@ -60,7 +60,7 @@ config SERIAL_AMBA_PL011_CONSOLE
 	depends on SERIAL_AMBA_PL011=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
-	---help---
+	help
 	  Say Y here if you wish to use an AMBA PrimeCell UART as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
@@ -101,7 +101,7 @@ config SERIAL_SB1250_DUART
 	depends on SIBYTE_SB1xxx_SOC=y
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Support for the asynchronous serial interface (DUART) included in
 	  the BCM1250 and derived System-On-a-Chip (SOC) devices.  Note that
 	  the letter D in DUART stands for "dual", which is how the device
@@ -116,7 +116,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 	depends on SERIAL_SB1250_DUART=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -322,7 +322,7 @@ config SERIAL_TEGRA_TCU_CONSOLE
 	depends on SERIAL_TEGRA_TCU=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a the Tegra TCU as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -355,7 +355,7 @@ config SERIAL_DZ
 	depends on MACH_DECSTATION && 32BIT
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  DZ11-family serial controllers for DECstations and VAXstations,
 	  including the DC7085, M7814, and M7819.
 
@@ -364,7 +364,7 @@ config SERIAL_DZ_CONSOLE
 	depends on SERIAL_DZ=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -380,7 +380,7 @@ config SERIAL_ZS
 	depends on MACH_DECSTATION
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Support for the Zilog 85C350 serial communications controller used
 	  for serial ports in newer DECstation systems.  These include the
 	  DECsystem 5900 and all models of the DECstation and DECsystem 5000
@@ -394,7 +394,7 @@ config SERIAL_ZS_CONSOLE
 	depends on SERIAL_ZS=y
 	select SERIAL_CORE_CONSOLE
 	default y
-	---help---
+	help
 	  If you say Y here, it will be possible to use a serial port as the
 	  system console (the system console is the device which receives all
 	  kernel messages and warnings and which allows logins in single user
@@ -588,7 +588,7 @@ config SERIAL_MUX
 	depends on GSC
 	select SERIAL_CORE
 	default y
-	---help---
+	help
 	  Saying Y here will enable the hardware MUX serial driver for
 	  the Nova, K class systems and D class with a 'remote control card'.
 	  The hardware MUX is not 8250/16550 compatible therefore the
@@ -1034,13 +1034,22 @@ config SERIAL_SIFIVE_CONSOLE
 	  boot time.)
 
 config SERIAL_LANTIQ
-	bool "Lantiq serial driver"
-	depends on LANTIQ
+	tristate "Lantiq serial driver"
+	depends on (LANTIQ || X86) || COMPILE_TEST
 	select SERIAL_CORE
+	help
+	  Support for UART on Lantiq and Intel SoCs.
+	  To compile this driver as a module, select M here. The
+	  module will be called lantiq.
+
+config SERIAL_LANTIQ_CONSOLE
+	bool "Console on Lantiq UART"
+	depends on SERIAL_LANTIQ=y
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 	help
-	  Support for console and UART on Lantiq SoCs.
+	  Select this option if you would like to use a Lantiq UART as the
+	  system console.
 
 config SERIAL_QE
 	tristate "Freescale QUICC Engine serial port support"
@@ -1107,7 +1116,7 @@ config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
 	select SERIAL_CORE
 	depends on X86_32 || COMPILE_TEST
-	---help---
+	help
 	Add support for UART controller on timberdale.
 
 config SERIAL_BCM63XX
@@ -1136,7 +1145,7 @@ config SERIAL_GRLIB_GAISLER_APBUART
 	tristate "GRLIB APBUART serial support"
 	depends on OF && SPARC
 	select SERIAL_CORE
-	---help---
+	help
 	Add support for the GRLIB APBUART serial port.
 
 config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
@@ -1462,6 +1471,7 @@ config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
 	depends on ARCH_STM32 || COMPILE_TEST
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This driver is for the on-chip Serial Controller on
 	  STMicroelectronics STM32 MCUs.

@@ -21,8 +21,8 @@ properties:
       - const: allwinner,sun5i-a10s-hdmi
       - const: allwinner,sun6i-a31-hdmi
       - items:
-        - const: allwinner,sun7i-a20-hdmi
-        - const: allwinner,sun5i-a10s-hdmi
+          - const: allwinner,sun7i-a20-hdmi
+          - const: allwinner,sun5i-a10s-hdmi
 
   reg:
     maxItems: 1
@@ -33,32 +33,32 @@ properties:
   clocks:
     oneOf:
       - items:
-        - description: The HDMI interface clock
-        - description: The HDMI module clock
-        - description: The first video PLL
-        - description: The second video PLL
+          - description: The HDMI interface clock
+          - description: The HDMI module clock
+          - description: The first video PLL
+          - description: The second video PLL
 
       - items:
-        - description: The HDMI interface clock
-        - description: The HDMI module clock
-        - description: The HDMI DDC clock
-        - description: The first video PLL
-        - description: The second video PLL
+          - description: The HDMI interface clock
+          - description: The HDMI module clock
+          - description: The HDMI DDC clock
+          - description: The first video PLL
+          - description: The second video PLL
 
   clock-names:
     oneOf:
       - items:
-        - const: ahb
-        - const: mod
-        - const: pll-0
-        - const: pll-1
+          - const: ahb
+          - const: mod
+          - const: pll-0
+          - const: pll-1
 
       - items:
-        - const: ahb
-        - const: mod
-        - const: ddc
-        - const: pll-0
-        - const: pll-1
+          - const: ahb
+          - const: mod
+          - const: ddc
+          - const: pll-0
+          - const: pll-1
 
   resets:
     maxItems: 1

@@ -2286,7 +2286,7 @@ static int check_nnp_nosuid(const struct linux_binprm *bprm,
 	return -EACCES;
 }
 
-static int selinux_bprm_set_creds(struct linux_binprm *bprm)
+static int selinux_bprm_creds_for_exec(struct linux_binprm *bprm)
 {
 	const struct task_security_struct *old_tsec;
 	struct task_security_struct *new_tsec;
@@ -2297,8 +2297,6 @@ static int selinux_bprm_set_creds(struct linux_binprm *bprm)
 
 	/* SELinux context only depends on initial program or script and not
 	 * the script interpreter */
-	if (bprm->called_set_creds)
-		return 0;
 
 	old_tsec = selinux_cred(current_cred());
 	new_tsec = selinux_cred(bprm->cred);
@@ -6405,7 +6403,7 @@ static int selinux_setprocattr(const char *name, void *value, size_t size)
 	/* Permission checking based on the specified context is
 	   performed during the actual operation (execve,
 	   open/mkdir/...), when we know the full context of the
-	   operation.  See selinux_bprm_set_creds for the execve
+	   operation.  See selinux_bprm_creds_for_exec for the execve
 	   checks and may_create for the file creation checks. The
 	   operation will then fail if the context is not permitted. */
 	tsec = selinux_cred(new);
@@ -6561,20 +6559,43 @@ static void selinux_key_free(struct key *k)
 
 static int selinux_key_permission(key_ref_t key_ref,
 				  const struct cred *cred,
-				  unsigned perm)
+				  enum key_need_perm need_perm)
 {
 	struct key *key;
 	struct key_security_struct *ksec;
-	u32 sid;
+	u32 perm, sid;
 
-	/* if no specific permissions are requested, we skip the
-	   permission check. No serious, additional covert channels
-	   appear to be created. */
-	if (perm == 0)
+	switch (need_perm) {
+	case KEY_NEED_VIEW:
+		perm = KEY__VIEW;
+		break;
+	case KEY_NEED_READ:
+		perm = KEY__READ;
+		break;
+	case KEY_NEED_WRITE:
+		perm = KEY__WRITE;
+		break;
+	case KEY_NEED_SEARCH:
+		perm = KEY__SEARCH;
+		break;
+	case KEY_NEED_LINK:
+		perm = KEY__LINK;
+		break;
+	case KEY_NEED_SETATTR:
+		perm = KEY__SETATTR;
+		break;
+	case KEY_NEED_UNLINK:
+	case KEY_SYSADMIN_OVERRIDE:
+	case KEY_AUTHTOKEN_OVERRIDE:
+	case KEY_DEFER_PERM_CHECK:
 		return 0;
+	default:
+		WARN_ON(1);
+		return -EPERM;
+
+	}
 
 	sid = cred_sid(cred);
-
 	key = key_ref_to_ptr(key_ref);
 	ksec = key->security;
 
@@ -6596,6 +6617,17 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 	*_buffer = context;
 	return rc;
 }
+
+#ifdef CONFIG_KEY_NOTIFICATIONS
+static int selinux_watch_key(struct key *key)
+{
+	struct key_security_struct *ksec = key->security;
+	u32 sid = current_sid();
+
+	return avc_has_perm(&selinux_state,
+			    sid, ksec->sid, SECCLASS_KEY, KEY__VIEW, NULL);
+}
+#endif
 #endif
 
 #ifdef CONFIG_SECURITY_INFINIBAND
@@ -6934,7 +6966,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(netlink_send, selinux_netlink_send),
 
-	LSM_HOOK_INIT(bprm_set_creds, selinux_bprm_set_creds),
+	LSM_HOOK_INIT(bprm_creds_for_exec, selinux_bprm_creds_for_exec),
 	LSM_HOOK_INIT(bprm_committing_creds, selinux_bprm_committing_creds),
 	LSM_HOOK_INIT(bprm_committed_creds, selinux_bprm_committed_creds),
 
@@ -7111,6 +7143,9 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(key_free, selinux_key_free),
 	LSM_HOOK_INIT(key_permission, selinux_key_permission),
 	LSM_HOOK_INIT(key_getsecurity, selinux_key_getsecurity),
+#ifdef CONFIG_KEY_NOTIFICATIONS
+	LSM_HOOK_INIT(watch_key, selinux_watch_key),
+#endif
 #endif
 
 #ifdef CONFIG_AUDIT

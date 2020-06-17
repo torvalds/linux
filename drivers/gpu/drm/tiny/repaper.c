@@ -31,6 +31,7 @@
 #include <drm/drm_format_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_probe_helper.h>
@@ -908,17 +909,6 @@ static const struct drm_mode_config_funcs repaper_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static void repaper_release(struct drm_device *drm)
-{
-	struct repaper_epd *epd = drm_to_epd(drm);
-
-	DRM_DEBUG_DRIVER("\n");
-
-	drm_mode_config_cleanup(drm);
-	drm_dev_fini(drm);
-	kfree(epd);
-}
-
 static const uint32_t repaper_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
@@ -956,7 +946,6 @@ DEFINE_DRM_GEM_CMA_FOPS(repaper_fops);
 static struct drm_driver repaper_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &repaper_fops,
-	.release		= repaper_release,
 	DRM_GEM_CMA_VMAP_DRIVER_OPS,
 	.name			= "repaper",
 	.desc			= "Pervasive Displays RePaper e-ink panels",
@@ -1013,19 +1002,16 @@ static int repaper_probe(struct spi_device *spi)
 		}
 	}
 
-	epd = kzalloc(sizeof(*epd), GFP_KERNEL);
-	if (!epd)
-		return -ENOMEM;
+	epd = devm_drm_dev_alloc(dev, &repaper_driver,
+				 struct repaper_epd, drm);
+	if (IS_ERR(epd))
+		return PTR_ERR(epd);
 
 	drm = &epd->drm;
 
-	ret = devm_drm_dev_init(dev, drm, &repaper_driver);
-	if (ret) {
-		kfree(epd);
+	ret = drmm_mode_config_init(drm);
+	if (ret)
 		return ret;
-	}
-
-	drm_mode_config_init(drm);
 	drm->mode_config.funcs = &repaper_mode_config_funcs;
 
 	epd->spi = spi;

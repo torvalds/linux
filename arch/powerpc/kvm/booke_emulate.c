@@ -39,7 +39,7 @@ static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
 	kvmppc_set_msr(vcpu, vcpu->arch.csrr1);
 }
 
-int kvmppc_booke_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
+int kvmppc_booke_emulate_op(struct kvm_vcpu *vcpu,
                             unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;

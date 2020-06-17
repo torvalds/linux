@@ -98,6 +98,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	unsigned long max_addr, src_addr;
 
+	might_fault();
 	if (unlikely(count <= 0))
 		return 0;
 
@@ -116,9 +117,9 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 
 		kasan_check_write(dst, count);
 		check_object_size(dst, count, false);
-		if (user_access_begin(src, max)) {
+		if (user_read_access_begin(src, max)) {
 			retval = do_strncpy_from_user(dst, src, count, max);
-			user_access_end();
+			user_read_access_end();
 			return retval;
 		}
 	}
