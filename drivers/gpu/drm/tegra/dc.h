@@ -136,6 +136,7 @@ struct tegra_dc_window {
 	unsigned int stride[2];
 	unsigned long base[3];
 	unsigned int zpos;
+	bool reflect_x;
 	bool reflect_y;
 
 	struct tegra_bo_tiling tiling;
