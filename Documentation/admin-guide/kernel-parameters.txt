@@ -4407,13 +4407,13 @@
 			      reboot_cpu is s[mp]#### with #### being the processor
 					to be used for rebooting.
 
-	refperf.holdoff= [KNL]
+	refscale.holdoff= [KNL]
 			Set test-start holdoff period.  The purpose of
 			this parameter is to delay the start of the
 			test until boot completes in order to avoid
 			interference.
 
-	refperf.loops= [KNL]
+	refscale.loops= [KNL]
 			Set the number of loops over the synchronization
 			primitive under test.  Increasing this number
 			reduces noise due to loop start/end overhead,
@@ -4421,26 +4421,29 @@
 			noise to a handful of picoseconds on ca. 2020
 			x86 laptops.
 
-	refperf.nreaders= [KNL]
+	refscale.nreaders= [KNL]
 			Set number of readers.  The default value of -1
 			selects N, where N is roughly 75% of the number
 			of CPUs.  A value of zero is an interesting choice.
 
-	refperf.nruns= [KNL]
+	refscale.nruns= [KNL]
 			Set number of runs, each of which is dumped onto
 			the console log.
 
-	refperf.readdelay= [KNL]
+	refscale.readdelay= [KNL]
 			Set the read-side critical-section duration,
 			measured in microseconds.
 
-	refperf.shutdown= [KNL]
+	refscale.scale_type= [KNL]
+			Specify the read-protection implementation to test.
+
+	refscale.shutdown= [KNL]
 			Shut down the system at the end of the performance
 			test.  This defaults to 1 (shut it down) when
 			rcuperf is built into the kernel and to 0 (leave
 			it running) when rcuperf is built as a module.
 
-	refperf.verbose= [KNL]
+	refscale.verbose= [KNL]
 			Enable additional printk() statements.
 
 	relax_domain_level=
