@@ -241,7 +241,7 @@ bpf_probe_read_kernel_str_common(void *dst, u32 size, const void *unsafe_ptr)
 	if (unlikely(ret < 0))
 		goto fail;
 
-	return 0;
+	return ret;
 fail:
 	memset(dst, 0, size);
 	return ret;
