@@ -932,7 +932,12 @@ int bch2_gc_gens(struct bch_fs *c)
 	unsigned i;
 	int ret;
 
-	down_read(&c->state_lock);
+	/*
+	 * Ideally we would be using state_lock and not gc_lock here, but that
+	 * introduces a deadlock in the RO path - we currently take the state
+	 * lock at the start of going RO, thus the gc thread may get stuck:
+	 */
+	down_read(&c->gc_lock);
 
 	for_each_member_device(ca, c, i) {
 		down_read(&ca->bucket_lock);
@@ -959,7 +964,7 @@ int bch2_gc_gens(struct bch_fs *c)
 		up_read(&ca->bucket_lock);
 	}
 err:
-	up_read(&c->state_lock);
+	up_read(&c->gc_lock);
 	return ret;
 }
 
