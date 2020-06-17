@@ -149,12 +149,8 @@ struct svc_rdma_recv_ctxt {
 	struct svc_rdma_pcl	rc_call_pcl;
 
 	struct svc_rdma_pcl	rc_read_pcl;
-
-	__be32			*rc_write_list;
 	struct svc_rdma_chunk	*rc_cur_result_payload;
 	struct svc_rdma_pcl	rc_write_pcl;
-
-	__be32			*rc_reply_chunk;
 	struct svc_rdma_pcl	rc_reply_pcl;
 
 	struct page		*rc_pages[RPCSVC_MAXPAGES];

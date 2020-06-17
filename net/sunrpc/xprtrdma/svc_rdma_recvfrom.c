@@ -540,17 +540,13 @@ static bool xdr_check_write_list(struct svc_rdma_recv_ctxt *rctxt)
 	p = xdr_inline_decode(&rctxt->rc_stream, sizeof(*p));
 	if (!p)
 		return false;
-
-	rctxt->rc_write_list = NULL;
 	if (!xdr_count_write_chunks(rctxt, p))
 		return false;
 	if (!pcl_alloc_write(rctxt, &rctxt->rc_write_pcl, p))
 		return false;
 
-	if (!pcl_is_empty(&rctxt->rc_write_pcl))
-		rctxt->rc_write_list = p;
 	rctxt->rc_cur_result_payload = pcl_first_chunk(&rctxt->rc_write_pcl);
-	return rctxt->rc_write_pcl.cl_count < 2;
+	return true;
 }
 
 /* Sanity check the Reply chunk.
@@ -573,13 +569,11 @@ static bool xdr_check_reply_chunk(struct svc_rdma_recv_ctxt *rctxt)
 	if (!p)
 		return false;
 
-	rctxt->rc_reply_chunk = NULL;
 	if (!xdr_item_is_present(p))
 		return true;
 	if (!xdr_check_write_chunk(rctxt))
 		return false;
 
-	rctxt->rc_reply_chunk = p;
 	rctxt->rc_reply_pcl.cl_count = 1;
 	return pcl_alloc_write(rctxt, &rctxt->rc_reply_pcl, p);
 }
