@@ -67,7 +67,7 @@ uint8_t ast_get_index_reg_mask(struct ast_private *ast,
 static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 {
 	struct device_node *np = dev->pdev->dev.of_node;
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	uint32_t data, jregd0, jregd1;
 
 	/* Defaults */
@@ -117,7 +117,7 @@ static void ast_detect_config_mode(struct drm_device *dev, u32 *scu_rev)
 
 static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	uint32_t jreg, scu_rev;
 
 	/*
@@ -262,7 +262,7 @@ static int ast_detect_chip(struct drm_device *dev, bool *need_post)
 static int ast_get_dram_info(struct drm_device *dev)
 {
 	struct device_node *np = dev->pdev->dev.of_node;
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	uint32_t mcr_cfg, mcr_scu_mpll, mcr_scu_strap;
 	uint32_t denum, num, div, ref_pll, dsel;
 
@@ -388,7 +388,7 @@ static const struct drm_mode_config_funcs ast_mode_funcs = {
 
 static u32 ast_get_vram_info(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	u8 jreg;
 	u32 vram_size;
 	ast_open_key(ast);
@@ -509,7 +509,7 @@ out_free:
 
 void ast_driver_unload(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 
 	/* enable standard VGA decode */
 	ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0xa1, 0x04);

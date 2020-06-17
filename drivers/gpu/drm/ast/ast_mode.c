@@ -565,7 +565,7 @@ static void
 ast_primary_plane_helper_atomic_update(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct ast_private *ast = plane->dev->dev_private;
+	struct ast_private *ast = to_ast_private(plane->dev);
 	struct drm_plane_state *state = plane->state;
 	struct drm_gem_vram_object *gbo;
 	s64 gpu_addr;
@@ -585,7 +585,7 @@ static void
 ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 					struct drm_plane_state *old_state)
 {
-	struct ast_private *ast = plane->dev->dev_private;
+	struct ast_private *ast = to_ast_private(plane->dev);
 
 	ast_set_index_reg_mask(ast, AST_IO_SEQ_PORT, 0x1, 0xdf, 0x20);
 }
@@ -633,7 +633,7 @@ ast_cursor_plane_helper_prepare_fb(struct drm_plane *plane,
 	    WARN_ON_ONCE(fb->height > AST_MAX_HWC_HEIGHT))
 		return -EINVAL; /* BUG: didn't test in atomic_check() */
 
-	ast = crtc->dev->dev_private;
+	ast = to_ast_private(crtc->dev);
 
 	gbo = drm_gem_vram_of_gem(fb->obj[0]);
 	src = drm_gem_vram_vmap(gbo);
@@ -705,7 +705,7 @@ ast_cursor_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_plane_state *state = plane->state;
 	struct drm_crtc *crtc = state->crtc;
 	struct drm_framebuffer *fb = state->fb;
-	struct ast_private *ast = plane->dev->dev_private;
+	struct ast_private *ast = to_ast_private(plane->dev);
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
 	struct drm_gem_vram_object *gbo;
 	s64 off;
@@ -738,7 +738,7 @@ static void
 ast_cursor_plane_helper_atomic_disable(struct drm_plane *plane,
 				       struct drm_plane_state *old_state)
 {
-	struct ast_private *ast = plane->dev->dev_private;
+	struct ast_private *ast = to_ast_private(plane->dev);
 
 	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xcb, 0xfc, 0x00);
 }
@@ -766,7 +766,7 @@ static const struct drm_plane_funcs ast_cursor_plane_funcs = {
 
 static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
+	struct ast_private *ast = to_ast_private(crtc->dev);
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -789,7 +789,6 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 					struct drm_crtc_state *state)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	bool succ;
@@ -815,7 +814,7 @@ static int ast_crtc_helper_atomic_check(struct drm_crtc *crtc,
 static void ast_crtc_helper_atomic_begin(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
-	struct ast_private *ast = crtc->dev->dev_private;
+	struct ast_private *ast = to_ast_private(crtc->dev);
 
 	ast_open_key(ast);
 }
@@ -824,7 +823,7 @@ static void ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 					 struct drm_crtc_state *old_crtc_state)
 {
 	struct drm_device *dev = crtc->dev;
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast_crtc_state *ast_state;
 	const struct drm_format_info *format;
 	struct ast_vbios_mode_info *vbios_mode_info;
@@ -937,7 +936,7 @@ static const struct drm_crtc_funcs ast_crtc_funcs = {
 
 static int ast_crtc_init(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	struct ast_crtc *crtc;
 	int ret;
 
@@ -966,7 +965,7 @@ err_kfree:
 
 static int ast_encoder_init(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	struct drm_encoder *encoder = &ast->encoder;
 	int ret;
 
@@ -986,7 +985,7 @@ static int ast_encoder_init(struct drm_device *dev)
 static int ast_get_modes(struct drm_connector *connector)
 {
 	struct ast_connector *ast_connector = to_ast_connector(connector);
-	struct ast_private *ast = connector->dev->dev_private;
+	struct ast_private *ast = to_ast_private(connector->dev);
 	struct edid *edid;
 	int ret;
 	bool flags = false;
@@ -1017,7 +1016,7 @@ static int ast_get_modes(struct drm_connector *connector)
 static enum drm_mode_status ast_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
-	struct ast_private *ast = connector->dev->dev_private;
+	struct ast_private *ast = to_ast_private(connector->dev);
 	int flags = MODE_NOMODE;
 	uint32_t jtemp;
 
@@ -1128,7 +1127,7 @@ static int ast_connector_init(struct drm_device *dev)
 /* allocate cursor cache and pin at start of VRAM */
 static int ast_cursor_init(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	size_t size, i;
 	struct drm_gem_vram_object *gbo;
 	int ret;
@@ -1166,7 +1165,7 @@ err_drm_gem_vram_put:
 
 static void ast_cursor_fini(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	size_t i;
 	struct drm_gem_vram_object *gbo;
 
@@ -1179,7 +1178,7 @@ static void ast_cursor_fini(struct drm_device *dev)
 
 int ast_mode_init(struct drm_device *dev)
 {
-	struct ast_private *ast = dev->dev_private;
+	struct ast_private *ast = to_ast_private(dev);
 	int ret;
 
 	memset(&ast->primary_plane, 0, sizeof(ast->primary_plane));
@@ -1223,7 +1222,7 @@ void ast_mode_fini(struct drm_device *dev)
 static int get_clock(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = i2c->dev->dev_private;
+	struct ast_private *ast = to_ast_private(i2c->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -1245,7 +1244,7 @@ static int get_clock(void *i2c_priv)
 static int get_data(void *i2c_priv)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = i2c->dev->dev_private;
+	struct ast_private *ast = to_ast_private(i2c->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -1267,7 +1266,7 @@ static int get_data(void *i2c_priv)
 static void set_clock(void *i2c_priv, int clock)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = i2c->dev->dev_private;
+	struct ast_private *ast = to_ast_private(i2c->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -1283,7 +1282,7 @@ static void set_clock(void *i2c_priv, int clock)
 static void set_data(void *i2c_priv, int data)
 {
 	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_private *ast = i2c->dev->dev_private;
+	struct ast_private *ast = to_ast_private(i2c->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -1431,7 +1430,7 @@ static int ast_cursor_move(struct drm_crtc *crtc,
 			   int x, int y)
 {
 	struct ast_crtc *ast_crtc = to_ast_crtc(crtc);
-	struct ast_private *ast = crtc->dev->dev_private;
+	struct ast_private *ast = to_ast_private(crtc->dev);
 	struct drm_gem_vram_object *gbo;
 	int x_offset, y_offset;
 	u8 *dst, *sig;

@@ -136,6 +136,11 @@ struct ast_private {
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };
 
+static inline struct ast_private *to_ast_private(struct drm_device *dev)
+{
+	return dev->dev_private;
+}
+
 int ast_driver_load(struct drm_device *dev, unsigned long flags);
 void ast_driver_unload(struct drm_device *dev);
 
