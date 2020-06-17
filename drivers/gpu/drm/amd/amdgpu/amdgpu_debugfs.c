@@ -941,7 +941,7 @@ static ssize_t amdgpu_debugfs_gpr_read(struct file *f, char __user *buf,
 
 	r = amdgpu_virt_enable_access_debugfs(adev);
 	if (r < 0)
-		return r;
+		goto err;
 
 	/* switch to the specific se/sh/cu */
 	mutex_lock(&adev->grbm_idx_mutex);
