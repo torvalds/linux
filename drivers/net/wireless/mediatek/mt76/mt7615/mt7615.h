@@ -240,6 +240,7 @@ struct mt7615_dev {
 		struct mt76_phy mphy;
 	};
 
+	const struct mt76_bus_ops *bus_ops;
 	struct tasklet_struct irq_tasklet;
 
 	struct mt7615_phy phy;
