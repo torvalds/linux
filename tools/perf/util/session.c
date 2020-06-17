@@ -115,7 +115,7 @@ static int perf_session__open(struct perf_session *session)
 	if (perf_header__has_feat(&session->header, HEADER_STAT))
 		return 0;
 
-	if (!perf_evlist__valid_sample_type(session->evlist)) {
+	if (!evlist__valid_sample_type(session->evlist)) {
 		pr_err("non matching sample_type\n");
 		return -1;
 	}
@@ -1160,7 +1160,7 @@ static void perf_evlist__print_tstamp(struct evlist *evlist,
 				       union perf_event *event,
 				       struct perf_sample *sample)
 {
-	u64 sample_type = __perf_evlist__combined_sample_type(evlist);
+	u64 sample_type = __evlist__combined_sample_type(evlist);
 
 	if (event->header.type != PERF_RECORD_SAMPLE &&
 	    !perf_evlist__sample_id_all(evlist)) {

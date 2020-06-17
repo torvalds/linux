@@ -2129,7 +2129,7 @@ static int process_attr(struct perf_tool *tool, union perf_event *event,
 	 * Check if we need to enable callchains based
 	 * on events sample_type.
 	 */
-	sample_type = perf_evlist__combined_sample_type(evlist);
+	sample_type = evlist__combined_sample_type(evlist);
 	callchain_param_setup(sample_type);
 
 	/* Enable fields for callchain entries */
@@ -3171,7 +3171,7 @@ static int have_cmd(int argc, const char **argv)
 static void script__setup_sample_type(struct perf_script *script)
 {
 	struct perf_session *session = script->session;
-	u64 sample_type = perf_evlist__combined_sample_type(session->evlist);
+	u64 sample_type = evlist__combined_sample_type(session->evlist);
 
 	if (symbol_conf.use_callchain || symbol_conf.cumulate_callchain) {
 		if ((sample_type & PERF_SAMPLE_REGS_USER) &&

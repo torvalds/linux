@@ -218,8 +218,8 @@ int perf_evlist__apply_filters(struct evlist *evlist, struct evsel **err_evsel);
 void __perf_evlist__set_leader(struct list_head *list);
 void perf_evlist__set_leader(struct evlist *evlist);
 
-u64 __perf_evlist__combined_sample_type(struct evlist *evlist);
-u64 perf_evlist__combined_sample_type(struct evlist *evlist);
+u64 __evlist__combined_sample_type(struct evlist *evlist);
+u64 evlist__combined_sample_type(struct evlist *evlist);
 u64 perf_evlist__combined_branch_type(struct evlist *evlist);
 bool perf_evlist__sample_id_all(struct evlist *evlist);
 u16 perf_evlist__id_hdr_size(struct evlist *evlist);
@@ -231,7 +231,7 @@ int perf_evlist__parse_sample_timestamp(struct evlist *evlist,
 					union perf_event *event,
 					u64 *timestamp);
 
-bool perf_evlist__valid_sample_type(struct evlist *evlist);
+bool evlist__valid_sample_type(struct evlist *evlist);
 bool perf_evlist__valid_sample_id_all(struct evlist *evlist);
 bool perf_evlist__valid_read_format(struct evlist *evlist);
 
