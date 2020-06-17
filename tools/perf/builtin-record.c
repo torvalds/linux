@@ -1646,7 +1646,7 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	 * Normally perf_session__new would do this, but it doesn't have the
 	 * evlist.
 	 */
-	if (rec->tool.ordered_events && !perf_evlist__sample_id_all(rec->evlist)) {
+	if (rec->tool.ordered_events && !evlist__sample_id_all(rec->evlist)) {
 		pr_warning("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		rec->tool.ordered_events = false;
 	}

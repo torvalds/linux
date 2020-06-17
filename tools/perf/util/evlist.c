@@ -537,7 +537,7 @@ struct evsel *perf_evlist__id2evsel(struct evlist *evlist, u64 id)
 	if (sid)
 		return container_of(sid->evsel, struct evsel, core);
 
-	if (!perf_evlist__sample_id_all(evlist))
+	if (!evlist__sample_id_all(evlist))
 		return evlist__first(evlist);
 
 	return NULL;
@@ -1188,7 +1188,7 @@ out:
 	return size;
 }
 
-bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
+bool evlist__valid_sample_id_all(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist), *pos = first;
 
@@ -1200,7 +1200,7 @@ bool perf_evlist__valid_sample_id_all(struct evlist *evlist)
 	return true;
 }
 
-bool perf_evlist__sample_id_all(struct evlist *evlist)
+bool evlist__sample_id_all(struct evlist *evlist)
 {
 	struct evsel *first = evlist__first(evlist);
 	return first->core.attr.sample_id_all;

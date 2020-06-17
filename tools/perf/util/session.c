@@ -120,7 +120,7 @@ static int perf_session__open(struct perf_session *session)
 		return -1;
 	}
 
-	if (!perf_evlist__valid_sample_id_all(session->evlist)) {
+	if (!evlist__valid_sample_id_all(session->evlist)) {
 		pr_err("non matching sample_id_all\n");
 		return -1;
 	}
@@ -252,10 +252,10 @@ struct perf_session *perf_session__new(struct perf_data *data,
 
 	/*
 	 * In pipe-mode, evlist is empty until PERF_RECORD_HEADER_ATTR is
-	 * processed, so perf_evlist__sample_id_all is not meaningful here.
+	 * processed, so evlist__sample_id_all is not meaningful here.
 	 */
 	if ((!data || !data->is_pipe) && tool && tool->ordering_requires_timestamps &&
-	    tool->ordered_events && !perf_evlist__sample_id_all(session->evlist)) {
+	    tool->ordered_events && !evlist__sample_id_all(session->evlist)) {
 		dump_printf("WARNING: No sample_id_all support, falling back to unordered processing\n");
 		tool->ordered_events = false;
 	}
@@ -1163,7 +1163,7 @@ static void perf_evlist__print_tstamp(struct evlist *evlist,
 	u64 sample_type = __evlist__combined_sample_type(evlist);
 
 	if (event->header.type != PERF_RECORD_SAMPLE &&
-	    !perf_evlist__sample_id_all(evlist)) {
+	    !evlist__sample_id_all(evlist)) {
 		fputs("-1 -1 ", stdout);
 		return;
 	}
@@ -1655,7 +1655,7 @@ int perf_session__peek_event(struct perf_session *session, off_t file_offset,
 		return -1;
 
 	if (session->header.needs_swap)
-		event_swap(event, perf_evlist__sample_id_all(session->evlist));
+		event_swap(event, evlist__sample_id_all(session->evlist));
 
 out_parse_sample:
 
@@ -1704,7 +1704,7 @@ static s64 perf_session__process_event(struct perf_session *session,
 	int ret;
 
 	if (session->header.needs_swap)
-		event_swap(event, perf_evlist__sample_id_all(evlist));
+		event_swap(event, evlist__sample_id_all(evlist));
 
 	if (event->header.type >= PERF_RECORD_HEADER_MAX)
 		return -EINVAL;
