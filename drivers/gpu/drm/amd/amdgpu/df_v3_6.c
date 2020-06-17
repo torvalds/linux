@@ -560,7 +560,7 @@ static void df_v3_6_pmc_release_cntr(struct amdgpu_device *adev,
 static void df_v3_6_reset_perfmon_cntr(struct amdgpu_device *adev,
 					 uint64_t config)
 {
-	uint32_t lo_base_addr, hi_base_addr;
+	uint32_t lo_base_addr = 0, hi_base_addr = 0;
 
 	df_v3_6_pmc_get_read_settings(adev, config, &lo_base_addr,
 				      &hi_base_addr);
