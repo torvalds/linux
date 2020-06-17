@@ -36,17 +36,17 @@ Optional properties:
 Example:
 
 bq25890 {
-        compatible = "ti,bq25890";
-        reg = <0x6a>;
+	compatible = "ti,bq25890";
+	reg = <0x6a>;
 
-        ti,battery-regulation-voltage = <4200000>;
-        ti,charge-current = <1000000>;
-        ti,termination-current = <50000>;
-        ti,precharge-current = <128000>;
-        ti,minimum-sys-voltage = <3600000>;
-        ti,boost-voltage = <5000000>;
-        ti,boost-max-current = <1000000>;
+	ti,battery-regulation-voltage = <4200000>;
+	ti,charge-current = <1000000>;
+	ti,termination-current = <50000>;
+	ti,precharge-current = <128000>;
+	ti,minimum-sys-voltage = <3600000>;
+	ti,boost-voltage = <5000000>;
+	ti,boost-max-current = <1000000>;
 
-        ti,use-ilim-pin;
-        ti,thermal-regulation-threshold = <120>;
+	ti,use-ilim-pin;
+	ti,thermal-regulation-threshold = <120>;
 };
