@@ -23,11 +23,12 @@ properties:
 
   ti,deskew:
     description:
-      Data de-skew in 350ps increments, from -4 to +3, as configured
-      through th DK[3:1] pins. This property shall be present only if the TFP410
-      is not connected through I2C.
-    maxItems: 1
+      Data de-skew value in 350ps increments, from 0 to 7, as configured
+      through the DK[3:1] pins. The de-skew multiplier is computed as
+      (DK[3:1] - 4), so it ranges from -4 to 3.
     $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 7
 
   ports:
     description:
