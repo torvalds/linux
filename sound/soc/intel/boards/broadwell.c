@@ -291,9 +291,19 @@ static int broadwell_resume(struct snd_soc_card *card){
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_BROADWELL)
+/* use space before codec name to simplify card ID, and simplify driver name */
+#define CARD_NAME "bdw rt286" /* card name will be 'sof-bdw rt286' */
+#define DRIVER_NAME "SOF"
+#else
+#define CARD_NAME "broadwell-rt286"
+#define DRIVER_NAME NULL /* card name will be used for driver name */
+#endif
+
 /* broadwell audio machine driver for WPT + RT286S */
 static struct snd_soc_card broadwell_rt286 = {
-	.name = "broadwell-rt286",
+	.name = CARD_NAME,
+	.driver_name = DRIVER_NAME,
 	.owner = THIS_MODULE,
 	.dai_link = broadwell_rt286_dais,
 	.num_links = ARRAY_SIZE(broadwell_rt286_dais),
