@@ -431,22 +431,25 @@ static struct sock *subflow_syn_recv_sock(const struct sock *sk,
 	struct mptcp_subflow_context *listener = mptcp_subflow_ctx(sk);
 	struct mptcp_subflow_request_sock *subflow_req;
 	struct mptcp_options_received mp_opt;
-	bool fallback_is_fatal = false;
+	bool fallback, fallback_is_fatal;
 	struct sock *new_msk = NULL;
-	bool fallback = false;
 	struct sock *child;
 
 	pr_debug("listener=%p, req=%p, conn=%p", listener, req, listener->conn);
 
-	/* we need later a valid 'mp_capable' value even when options are not
-	 * parsed
+	/* After child creation we must look for 'mp_capable' even when options
+	 * are not parsed
 	 */
 	mp_opt.mp_capable = 0;
-	if (tcp_rsk(req)->is_mptcp == 0)
+
+	/* hopefully temporary handling for MP_JOIN+syncookie */
+	subflow_req = mptcp_subflow_rsk(req);
+	fallback_is_fatal = subflow_req->mp_join;
+	fallback = !tcp_rsk(req)->is_mptcp;
+	if (fallback)
 		goto create_child;
 
 	/* if the sk is MP_CAPABLE, we try to fetch the client key */
-	subflow_req = mptcp_subflow_rsk(req);
 	if (subflow_req->mp_capable) {
 		if (TCP_SKB_CB(skb)->seq != subflow_req->ssn_offset + 1) {
 			/* here we can receive and accept an in-window,
@@ -467,12 +470,11 @@ create_msk:
 		if (!new_msk)
 			fallback = true;
 	} else if (subflow_req->mp_join) {
-		fallback_is_fatal = true;
 		mptcp_get_options(skb, &mp_opt);
 		if (!mp_opt.mp_join ||
 		    !subflow_hmac_valid(req, &mp_opt)) {
 			SUBFLOW_REQ_INC_STATS(req, MPTCP_MIB_JOINACKMAC);
-			return NULL;
+			fallback = true;
 		}
 	}
 
