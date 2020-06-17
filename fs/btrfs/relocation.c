@@ -2580,7 +2580,7 @@ int prealloc_file_extent_cluster(struct inode *inode,
 	u64 end;
 	u64 offset = BTRFS_I(inode)->index_cnt;
 	u64 num_bytes;
-	int nr = 0;
+	int nr;
 	int ret = 0;
 	u64 prealloc_start = cluster->start - offset;
 	u64 prealloc_end = cluster->end - offset;
@@ -2593,7 +2593,7 @@ int prealloc_file_extent_cluster(struct inode *inode,
 		return ret;
 
 	inode_lock(inode);
-	while (nr < cluster->nr) {
+	for (nr = 0; nr < cluster->nr; nr++) {
 		start = cluster->boundary[nr] - offset;
 		if (nr + 1 < cluster->nr)
 			end = cluster->boundary[nr + 1] - 1 - offset;
@@ -2609,7 +2609,6 @@ int prealloc_file_extent_cluster(struct inode *inode,
 		unlock_extent(&BTRFS_I(inode)->io_tree, start, end);
 		if (ret)
 			break;
-		nr++;
 	}
 	inode_unlock(inode);
 
