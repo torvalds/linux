@@ -490,7 +490,7 @@ static u8 __init acpi_table_checksum(u8 *buffer, u32 length)
 }
 
 /* All but ACPI_SIG_RSDP and ACPI_SIG_FACS: */
-static const char * const table_sigs[] = {
+static const char table_sigs[][ACPI_NAMESEG_SIZE] __initconst = {
 	ACPI_SIG_BERT, ACPI_SIG_BGRT, ACPI_SIG_CPEP, ACPI_SIG_ECDT,
 	ACPI_SIG_EINJ, ACPI_SIG_ERST, ACPI_SIG_HEST, ACPI_SIG_MADT,
 	ACPI_SIG_MSCT, ACPI_SIG_SBST, ACPI_SIG_SLIT, ACPI_SIG_SRAT,
@@ -501,7 +501,7 @@ static const char * const table_sigs[] = {
 	ACPI_SIG_WDDT, ACPI_SIG_WDRT, ACPI_SIG_DSDT, ACPI_SIG_FADT,
 	ACPI_SIG_PSDT, ACPI_SIG_RSDT, ACPI_SIG_XSDT, ACPI_SIG_SSDT,
 	ACPI_SIG_IORT, ACPI_SIG_NFIT, ACPI_SIG_HMAT, ACPI_SIG_PPTT,
-	ACPI_SIG_NHLT, NULL };
+	ACPI_SIG_NHLT };
 
 #define ACPI_HEADER_SIZE sizeof(struct acpi_table_header)
 
@@ -548,11 +548,11 @@ void __init acpi_table_upgrade(void)
 
 		table = file.data;
 
-		for (sig = 0; table_sigs[sig]; sig++)
+		for (sig = 0; sig < ARRAY_SIZE(table_sigs); sig++)
 			if (!memcmp(table->signature, table_sigs[sig], 4))
 				break;
 
-		if (!table_sigs[sig]) {
+		if (sig >= ARRAY_SIZE(table_sigs)) {
 			pr_err("ACPI OVERRIDE: Unknown signature [%s%s]\n",
 				cpio_path, file.name);
 			continue;
