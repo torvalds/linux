@@ -3926,8 +3926,10 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 	netdev_reset_queue(tp->dev);
 }
 
-static void rtl8169_hw_reset(struct rtl8169_private *tp, bool going_down)
+static void rtl8169_cleanup(struct rtl8169_private *tp, bool going_down)
 {
+	napi_disable(&tp->napi);
+
 	/* Give a racing hard_start_xmit a few cycles to complete. */
 	synchronize_net();
 
@@ -3970,10 +3972,9 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 	struct net_device *dev = tp->dev;
 	int i;
 
-	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
 
-	rtl8169_hw_reset(tp, false);
+	rtl8169_cleanup(tp, false);
 
 	for (i = 0; i < NUM_RX_DESC; i++)
 		rtl8169_mark_to_asic(tp->RxDescArray + i);
@@ -4636,9 +4637,8 @@ static void rtl8169_down(struct rtl8169_private *tp)
 	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
 	phy_stop(tp->phydev);
-	napi_disable(&tp->napi);
 
-	rtl8169_hw_reset(tp, true);
+	rtl8169_cleanup(tp, true);
 
 	rtl_pll_power_down(tp);
 
