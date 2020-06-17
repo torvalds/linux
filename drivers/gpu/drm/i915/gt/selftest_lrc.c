@@ -9,6 +9,7 @@
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_reset.h"
+#include "gt/selftest_engine_heartbeat.h"
 
 #include "i915_selftest.h"
 #include "selftests/i915_random.h"
@@ -49,22 +50,6 @@ static struct i915_vma *create_scratch(struct intel_gt *gt)
 	}
 
 	return vma;
-}
-
-static void engine_heartbeat_disable(struct intel_engine_cs *engine)
-{
-	engine->props.heartbeat_interval_ms = 0;
-
-	intel_engine_pm_get(engine);
-	intel_engine_park_heartbeat(engine);
-}
-
-static void engine_heartbeat_enable(struct intel_engine_cs *engine)
-{
-	intel_engine_pm_put(engine);
-
-	engine->props.heartbeat_interval_ms =
-		engine->defaults.heartbeat_interval_ms;
 }
 
 static bool is_active(struct i915_request *rq)
@@ -234,7 +219,7 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 			err = -EIO;
 			break;
 		}
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		for (n = 0; n < ARRAY_SIZE(ce); n++) {
 			struct intel_context *tmp;
@@ -342,7 +327,7 @@ err_ce:
 			intel_context_put(ce[n]);
 		}
 
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (igt_live_test_end(&t))
 			err = -EIO;
 		if (err)
@@ -396,7 +381,7 @@ static int live_unlite_ring(void *arg)
 			err = -EIO;
 			break;
 		}
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		for (n = 0; n < ARRAY_SIZE(ce); n++) {
 			struct intel_context *tmp;
@@ -502,7 +487,7 @@ err_ce:
 			intel_context_unpin(ce[n]);
 			intel_context_put(ce[n]);
 		}
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (igt_live_test_end(&t))
 			err = -EIO;
 		if (err)
@@ -621,7 +606,7 @@ static int live_hold_reset(void *arg)
 			break;
 		}
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		rq = igt_spinner_create_request(&spin, ce, MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
@@ -681,7 +666,7 @@ static int live_hold_reset(void *arg)
 		i915_request_put(rq);
 
 out:
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		intel_context_put(ce);
 		if (err)
 			break;
@@ -728,7 +713,7 @@ static int live_error_interrupt(void *arg)
 		const struct error_phase *p;
 		int err = 0;
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		for (p = phases; p->error[0] != GOOD; p++) {
 			struct i915_request *client[ARRAY_SIZE(phases->error)];
@@ -827,7 +812,7 @@ out:
 			}
 		}
 
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err) {
 			intel_gt_set_wedged(gt);
 			return err;
@@ -1042,9 +1027,9 @@ static int live_timeslice_preempt(void *arg)
 
 		memset(vaddr, 0, PAGE_SIZE);
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		err = slice_semaphore_queue(engine, vma, 5);
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err)
 			goto err_pin;
 
@@ -1166,7 +1151,7 @@ static int live_timeslice_rewind(void *arg)
 		 * Expect execution/evaluation order XZY
 		 */
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		timeslice = xchg(&engine->props.timeslice_duration_ms, 1);
 
 		slot = memset32(engine->status_page.addr + 1000, 0, 4);
@@ -1261,7 +1246,7 @@ err:
 		wmb();
 
 		engine->props.timeslice_duration_ms = timeslice;
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		for (i = 0; i < 3; i++)
 			i915_request_put(rq[i]);
 		if (igt_flush_test(gt->i915))
@@ -1353,7 +1338,7 @@ static int live_timeslice_queue(void *arg)
 		if (!intel_engine_has_preemption(engine))
 			continue;
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		memset(vaddr, 0, PAGE_SIZE);
 
 		/* ELSP[0]: semaphore wait */
@@ -1414,7 +1399,7 @@ static int live_timeslice_queue(void *arg)
 err_rq:
 		i915_request_put(rq);
 err_heartbeat:
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err)
 			break;
 	}
@@ -1460,7 +1445,7 @@ static int live_timeslice_nopreempt(void *arg)
 			break;
 		}
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		timeslice = xchg(&engine->props.timeslice_duration_ms, 1);
 
 		/* Create an unpreemptible spinner */
@@ -1529,7 +1514,7 @@ out_spin:
 		igt_spinner_end(&spin);
 out_heartbeat:
 		xchg(&engine->props.timeslice_duration_ms, timeslice);
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err)
 			break;
 
@@ -2433,7 +2418,7 @@ static int live_suppress_self_preempt(void *arg)
 		if (igt_flush_test(gt->i915))
 			goto err_wedged;
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		engine->execlists.preempt_hang.count = 0;
 
 		rq_a = spinner_create_request(&a.spin,
@@ -2441,14 +2426,14 @@ static int live_suppress_self_preempt(void *arg)
 					      MI_NOOP);
 		if (IS_ERR(rq_a)) {
 			err = PTR_ERR(rq_a);
-			engine_heartbeat_enable(engine);
+			st_engine_heartbeat_enable(engine);
 			goto err_client_b;
 		}
 
 		i915_request_add(rq_a);
 		if (!igt_wait_for_spinner(&a.spin, rq_a)) {
 			pr_err("First client failed to start\n");
-			engine_heartbeat_enable(engine);
+			st_engine_heartbeat_enable(engine);
 			goto err_wedged;
 		}
 
@@ -2460,7 +2445,7 @@ static int live_suppress_self_preempt(void *arg)
 						      MI_NOOP);
 			if (IS_ERR(rq_b)) {
 				err = PTR_ERR(rq_b);
-				engine_heartbeat_enable(engine);
+				st_engine_heartbeat_enable(engine);
 				goto err_client_b;
 			}
 			i915_request_add(rq_b);
@@ -2471,7 +2456,7 @@ static int live_suppress_self_preempt(void *arg)
 
 			if (!igt_wait_for_spinner(&b.spin, rq_b)) {
 				pr_err("Second client failed to start\n");
-				engine_heartbeat_enable(engine);
+				st_engine_heartbeat_enable(engine);
 				goto err_wedged;
 			}
 
@@ -2485,12 +2470,12 @@ static int live_suppress_self_preempt(void *arg)
 			       engine->name,
 			       engine->execlists.preempt_hang.count,
 			       depth);
-			engine_heartbeat_enable(engine);
+			st_engine_heartbeat_enable(engine);
 			err = -EINVAL;
 			goto err_client_b;
 		}
 
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (igt_flush_test(gt->i915))
 			goto err_wedged;
 	}
@@ -2902,7 +2887,7 @@ static int live_preempt_ring(void *arg)
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		for (n = 0; n <= 3; n++) {
 			err = __live_preempt_ring(engine, &spin,
@@ -2911,7 +2896,7 @@ static int live_preempt_ring(void *arg)
 				break;
 		}
 
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (err)
 			break;
 	}
@@ -4568,7 +4553,7 @@ static int reset_virtual_engine(struct intel_gt *gt,
 	}
 
 	for (n = 0; n < nsibling; n++)
-		engine_heartbeat_disable(siblings[n]);
+		st_engine_heartbeat_disable(siblings[n]);
 
 	rq = igt_spinner_create_request(&spin, ve, MI_ARB_CHECK);
 	if (IS_ERR(rq)) {
@@ -4639,7 +4624,7 @@ out_rq:
 	i915_request_put(rq);
 out_heartbeat:
 	for (n = 0; n < nsibling; n++)
-		engine_heartbeat_enable(siblings[n]);
+		st_engine_heartbeat_enable(siblings[n]);
 
 	intel_context_put(ve);
 out_spin:
@@ -5314,7 +5299,7 @@ static int live_lrc_gpr(void *arg)
 		return PTR_ERR(scratch);
 
 	for_each_engine(engine, gt, id) {
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 
 		err = __live_lrc_gpr(engine, scratch, false);
 		if (err)
@@ -5325,7 +5310,7 @@ static int live_lrc_gpr(void *arg)
 			goto err;
 
 err:
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 		if (igt_flush_test(gt->i915))
 			err = -EIO;
 		if (err)
@@ -5474,7 +5459,7 @@ static int live_lrc_timestamp(void *arg)
 	for_each_engine(data.engine, gt, id) {
 		int i, err = 0;
 
-		engine_heartbeat_disable(data.engine);
+		st_engine_heartbeat_disable(data.engine);
 
 		for (i = 0; i < ARRAY_SIZE(data.ce); i++) {
 			struct intel_context *tmp;
@@ -5507,7 +5492,7 @@ static int live_lrc_timestamp(void *arg)
 		}
 
 err:
-		engine_heartbeat_enable(data.engine);
+		st_engine_heartbeat_enable(data.engine);
 		for (i = 0; i < ARRAY_SIZE(data.ce); i++) {
 			if (!data.ce[i])
 				break;

@@ -34,6 +34,7 @@
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_requests.h"
+#include "gt/selftest_engine_heartbeat.h"
 
 #include "i915_random.h"
 #include "i915_selftest.h"
@@ -2270,22 +2271,6 @@ static void rps_unpin(struct intel_gt *gt)
 	atomic_dec(&gt->rps.num_waiters);
 }
 
-static void engine_heartbeat_disable(struct intel_engine_cs *engine)
-{
-	engine->props.heartbeat_interval_ms = 0;
-
-	intel_engine_pm_get(engine);
-	intel_engine_park_heartbeat(engine);
-}
-
-static void engine_heartbeat_enable(struct intel_engine_cs *engine)
-{
-	intel_engine_pm_put(engine);
-
-	engine->props.heartbeat_interval_ms =
-		engine->defaults.heartbeat_interval_ms;
-}
-
 static int perf_request_latency(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -2311,7 +2296,7 @@ static int perf_request_latency(void *arg)
 			goto out;
 		}
 
-		engine_heartbeat_disable(engine);
+		st_engine_heartbeat_disable(engine);
 		rps_pin(engine->gt);
 
 		if (err == 0)
@@ -2330,7 +2315,7 @@ static int perf_request_latency(void *arg)
 			err = measure_completion(ce);
 
 		rps_unpin(engine->gt);
-		engine_heartbeat_enable(engine);
+		st_engine_heartbeat_enable(engine);
 
 		intel_context_unpin(ce);
 		intel_context_put(ce);
