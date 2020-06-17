@@ -274,8 +274,8 @@
 
 .macro FAKE_RET_FROM_EXCPN
 	lr      r9, [status32]
-	bic     r9, r9, STATUS_AE_MASK
-	or      r9, r9, STATUS_IE_MASK
+	bclr    r9, r9, STATUS_AE_BIT
+	bset    r9, r9, STATUS_IE_BIT
 	kflag   r9
 .endm
 
