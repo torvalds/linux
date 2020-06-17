@@ -704,8 +704,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 		 */
 		channel->numa_node = cpu_to_node(VMBUS_CONNECT_CPU);
 		channel->target_cpu = VMBUS_CONNECT_CPU;
-		channel->target_vp =
-			hv_cpu_number_to_vp_number(VMBUS_CONNECT_CPU);
 		if (perf_chn)
 			hv_set_alloced_cpu(VMBUS_CONNECT_CPU);
 		return;
@@ -739,7 +737,6 @@ static void init_vp_index(struct vmbus_channel *channel)
 	cpumask_set_cpu(target_cpu, alloced_mask);
 
 	channel->target_cpu = target_cpu;
-	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 
 	free_cpumask_var(available_mask);
 }

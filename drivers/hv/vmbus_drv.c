@@ -23,7 +23,6 @@
 #include <linux/cpu.h>
 #include <linux/sched/task_stack.h>
 
-#include <asm/mshyperv.h>
 #include <linux/delay.h>
 #include <linux/notifier.h>
 #include <linux/ptrace.h>
@@ -1779,7 +1778,6 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 	 */
 
 	channel->target_cpu = target_cpu;
-	channel->target_vp = hv_cpu_number_to_vp_number(target_cpu);
 	channel->numa_node = cpu_to_node(target_cpu);
 
 	/* See init_vp_index(). */

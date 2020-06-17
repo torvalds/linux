@@ -803,15 +803,14 @@ struct vmbus_channel {
 	u64 sig_event;
 
 	/*
-	 * Starting with win8, this field will be used to specify
-	 * the target virtual processor on which to deliver the interrupt for
-	 * the host to guest communication.
-	 * Prior to win8, incoming channel interrupts would only
-	 * be delivered on cpu 0. Setting this value to 0 would
-	 * preserve the earlier behavior.
+	 * Starting with win8, this field will be used to specify the
+	 * target CPU on which to deliver the interrupt for the host
+	 * to guest communication.
+	 *
+	 * Prior to win8, incoming channel interrupts would only be
+	 * delivered on CPU 0. Setting this value to 0 would preserve
+	 * the earlier behavior.
 	 */
-	u32 target_vp;
-	/* The corresponding CPUID in the guest */
 	u32 target_cpu;
 	int numa_node;
 	/*
