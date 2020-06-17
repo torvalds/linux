@@ -57,11 +57,11 @@ static void decode_loongson_config6(struct cpuinfo_mips *c)
 {
 	u32 config6 = read_c0_config6();
 
-	if (config6 & MIPS_CONF6_LOONGSON_SFBEN)
+	if (config6 & LOONGSON_CONF6_SFBEN)
 		c->loongson3_cpucfg_data[0] |= LOONGSON_CFG1_SFBP;
-	if (config6 & MIPS_CONF6_LOONGSON_LLEXC)
+	if (config6 & LOONGSON_CONF6_LLEXC)
 		c->loongson3_cpucfg_data[0] |= LOONGSON_CFG1_LLEXC;
-	if (config6 & MIPS_CONF6_LOONGSON_SCRAND)
+	if (config6 & LOONGSON_CONF6_SCRAND)
 		c->loongson3_cpucfg_data[0] |= LOONGSON_CFG1_SCRAND;
 }
 

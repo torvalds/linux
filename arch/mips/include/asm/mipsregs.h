@@ -689,35 +689,35 @@
 /* Config6 feature bits for proAptiv/P5600 */
 
 /* Jump register cache prediction disable */
-#define MIPS_CONF6_MTI_JRCD		(_ULCAST_(1) << 0)
+#define MTI_CONF6_JRCD		(_ULCAST_(1) << 0)
 /* MIPSr6 extensions enable */
-#define MIPS_CONF6_MTI_R6		(_ULCAST_(1) << 2)
+#define MTI_CONF6_R6		(_ULCAST_(1) << 2)
 /* IFU Performance Control */
-#define MIPS_CONF6_MTI_IFUPERFCTL	(_ULCAST_(3) << 10)
-#define MIPS_CONF6_MTI_SYND		(_ULCAST_(1) << 13)
+#define MTI_CONF6_IFUPERFCTL	(_ULCAST_(3) << 10)
+#define MTI_CONF6_SYND		(_ULCAST_(1) << 13)
 /* Sleep state performance counter disable */
-#define MIPS_CONF6_MTI_SPCD		(_ULCAST_(1) << 14)
+#define MTI_CONF6_SPCD		(_ULCAST_(1) << 14)
 /* proAptiv FTLB on/off bit */
-#define MIPS_CONF6_MTI_FTLBEN		(_ULCAST_(1) << 15)
+#define MTI_CONF6_FTLBEN	(_ULCAST_(1) << 15)
 /* Disable load/store bonding */
-#define MIPS_CONF6_MTI_DLSB		(_ULCAST_(1) << 21)
+#define MTI_CONF6_DLSB		(_ULCAST_(1) << 21)
 /* FTLB probability bits */
-#define MIPS_CONF6_MTI_FTLBP_SHIFT	(16)
+#define MTI_CONF6_FTLBP_SHIFT	(16)
 
 /* Config6 feature bits for Loongson-3 */
 
 /* Loongson-3 internal timer bit */
-#define MIPS_CONF6_LOONGSON_INTIMER	(_ULCAST_(1) << 6)
+#define LOONGSON_CONF6_INTIMER	(_ULCAST_(1) << 6)
 /* Loongson-3 external timer bit */
-#define MIPS_CONF6_LOONGSON_EXTIMER	(_ULCAST_(1) << 7)
+#define LOONGSON_CONF6_EXTIMER	(_ULCAST_(1) << 7)
 /* Loongson-3 SFB on/off bit, STFill in manual */
-#define MIPS_CONF6_LOONGSON_SFBEN	(_ULCAST_(1) << 8)
+#define LOONGSON_CONF6_SFBEN	(_ULCAST_(1) << 8)
 /* Loongson-3's LL on exclusive cacheline */
-#define MIPS_CONF6_LOONGSON_LLEXC	(_ULCAST_(1) << 16)
+#define LOONGSON_CONF6_LLEXC	(_ULCAST_(1) << 16)
 /* Loongson-3's SC has a random delay */
-#define MIPS_CONF6_LOONGSON_SCRAND	(_ULCAST_(1) << 17)
+#define LOONGSON_CONF6_SCRAND	(_ULCAST_(1) << 17)
 /* Loongson-3 FTLB on/off bit, VTLBOnly in manual */
-#define MIPS_CONF6_LOONGSON_FTLBDIS	(_ULCAST_(1) << 22)
+#define LOONGSON_CONF6_FTLBDIS	(_ULCAST_(1) << 22)
 
 #define MIPS_CONF7_WII		(_ULCAST_(1) << 31)
 
