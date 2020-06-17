@@ -123,8 +123,8 @@ config ARCH_HAS_ILOG2_U64
 
 config NO_IOPORT_MAP
 	def_bool !PCI
-	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN && \
-		   !SH_HP6XX && !SH_SOLUTION_ENGINE
+	depends on !SH_SH4202_MICRODEV && !SH_SHMIN && !SH_HP6XX && \
+		   !SH_SOLUTION_ENGINE
 
 config IO_TRAPPED
 	bool
@@ -726,7 +726,6 @@ config ZERO_PAGE_OFFSET
 config BOOT_LINK_OFFSET
 	hex
 	default "0x00210000" if SH_SHMIN
-	default "0x00400000" if SH_CAYMAN
 	default "0x00810000" if SH_7780_SOLUTION_ENGINE
 	default "0x009e0000" if SH_TITAN
 	default "0x01800000" if SH_SDK7780
