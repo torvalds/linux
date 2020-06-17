@@ -198,7 +198,6 @@ struct gendisk {
 	struct request_queue *queue;
 	void *private_data;
 
-	int emmc_disk;			/* Flag for emmc devive */
 	int flags;
 	struct rw_semaphore lookup_sem;
 	struct kobject *slave_dir;
