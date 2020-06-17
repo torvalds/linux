@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// Performance test comparing RCU vs other mechanisms
+// Scalability test comparing RCU vs other mechanisms
 // for acquiring references on objects.
 //
 // Copyright (C) Google, 2020.
@@ -59,7 +59,7 @@ MODULE_PARM_DESC(perf_type, "Type of test (rcu, srcu, refcnt, rwsem, rwlock.");
 torture_param(int, verbose, 0, "Enable verbose debugging printk()s");
 
 // Wait until there are multiple CPUs before starting test.
-torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_PERF_TEST) ? 10 : 0,
+torture_param(int, holdoff, IS_BUILTIN(CONFIG_RCU_REF_SCALE_TEST) ? 10 : 0,
 	      "Holdoff time before test start (s)");
 // Number of loops per experiment, all readers execute operations concurrently.
 torture_param(long, loops, 10000, "Number of loops per experiment.");
@@ -656,7 +656,7 @@ ref_perf_init(void)
 		for (i = 0; i < ARRAY_SIZE(perf_ops); i++)
 			pr_cont(" %s", perf_ops[i]->name);
 		pr_cont("\n");
-		WARN_ON(!IS_MODULE(CONFIG_RCU_REF_PERF_TEST));
+		WARN_ON(!IS_MODULE(CONFIG_RCU_REF_SCALE_TEST));
 		firsterr = -EINVAL;
 		cur_ops = NULL;
 		goto unwind;

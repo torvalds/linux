@@ -61,8 +61,8 @@ config RCU_TORTURE_TEST
 	  Say M if you want the RCU torture tests to build as a module.
 	  Say N if you are unsure.
 
-config RCU_REF_PERF_TEST
-	tristate "Performance tests for read-side synchronization (RCU and others)"
+config RCU_REF_SCALE_TEST
+	tristate "Scalability tests for read-side synchronization (RCU and others)"
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
