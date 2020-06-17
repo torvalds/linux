@@ -2604,9 +2604,6 @@ int prealloc_file_extent_cluster(struct inode *inode,
 
 		lock_extent(&BTRFS_I(inode)->io_tree, start, end);
 		num_bytes = end + 1 - start;
-		if (cur_offset < start)
-			btrfs_free_reserved_data_space_noquota(inode,
-						       start - cur_offset);
 		ret = btrfs_prealloc_file_range(inode, 0, start,
 						num_bytes, num_bytes,
 						end + 1, &alloc_hint);
