@@ -457,11 +457,7 @@ static int get_inbound_buffer_frontier(struct qdio_q *q, unsigned int start)
 
 	q->timestamp = get_tod_clock_fast();
 
-	/*
-	 * Don't check 128 buffers, as otherwise qdio_inbound_q_moved
-	 * would return 0.
-	 */
-	count = min(atomic_read(&q->nr_buf_used), QDIO_MAX_BUFFERS_MASK);
+	count = atomic_read(&q->nr_buf_used);
 	if (!count)
 		return 0;
 
