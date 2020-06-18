@@ -671,6 +671,31 @@ static int polaris10_populate_smc_mvdd_table(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
+static int polaris10_populate_smc_vddc_table(struct pp_hwmgr *hwmgr,
+					struct SMU74_Discrete_DpmTable *table)
+{
+	uint32_t count, level;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+
+	count = data->vddc_voltage_table.count;
+
+	if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->voltage_control) {
+		if (count > SMU_MAX_SMIO_LEVELS)
+			count = SMU_MAX_SMIO_LEVELS;
+		for (level = 0; level < count; ++level) {
+			table->SmioTable1.Pattern[level].Voltage =
+				PP_HOST_TO_SMC_US(data->vddc_voltage_table.entries[level].value * VOLTAGE_SCALE);
+			table->SmioTable1.Pattern[level].Smio = (uint8_t) level;
+
+			table->Smio[level] |= data->vddc_voltage_table.entries[level].smio_low;
+		}
+
+		table->SmioMask1 = data->vddc_voltage_table.mask_low;
+	}
+
+	return 0;
+}
+
 static int polaris10_populate_smc_vddci_table(struct pp_hwmgr *hwmgr,
 					struct SMU74_Discrete_DpmTable *table)
 {
@@ -725,6 +750,7 @@ static int polaris10_populate_cac_table(struct pp_hwmgr *hwmgr,
 static int polaris10_populate_smc_voltage_tables(struct pp_hwmgr *hwmgr,
 		struct SMU74_Discrete_DpmTable *table)
 {
+	polaris10_populate_smc_vddc_table(hwmgr, table);
 	polaris10_populate_smc_vddci_table(hwmgr, table);
 	polaris10_populate_smc_mvdd_table(hwmgr, table);
 	polaris10_populate_cac_table(hwmgr, table);
