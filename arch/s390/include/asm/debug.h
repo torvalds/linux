@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/time.h>
 #include <linux/refcount.h>
-#include <uapi/asm/debug.h>
+#include <linux/fs.h>
 
 #define DEBUG_MAX_LEVEL		   6  /* debug levels range from 0 to 6 */
 #define DEBUG_OFF_LEVEL		   -1 /* level where debug is switched off */
@@ -25,6 +25,21 @@
 
 #define DEBUG_DATA(entry) (char *)(entry + 1) /* data is stored behind */
 					      /* the entry information */
+
+#define __DEBUG_FEATURE_VERSION	   2  /* version of debug feature */
+
+struct __debug_entry {
+	union {
+		struct {
+			unsigned long clock	: 52;
+			unsigned long exception	:  1;
+			unsigned long level	:  3;
+			unsigned long cpuid	:  8;
+		} fields;
+		unsigned long stck;
+	} id;
+	void *caller;
+} __packed;
 
 typedef struct __debug_entry debug_entry_t;
 
