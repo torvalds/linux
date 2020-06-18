@@ -2705,7 +2705,7 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 	/*
 	 * Some consoles, such as pstore and netconsole, can be enabled even
 	 * without matching. Accept the pre-enabled consoles only when match()
-	 * and setup() had a change to be called.
+	 * and setup() had a chance to be called.
 	 */
 	if (newcon->flags & CON_ENABLED && c->user_specified ==	user_specified)
 		return 0;
