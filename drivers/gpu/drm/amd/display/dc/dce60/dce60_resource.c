@@ -970,7 +970,7 @@ static bool dce60_construct(
 	pool->base.timing_generator_count = res_cap.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
-	dc->caps.max_cursor_size = 128;
+	dc->caps.max_cursor_size = 64;
 	dc->caps.dual_link_dvi = true;
 	dc->caps.extended_aux_timeout_support = false;
 
@@ -1164,7 +1164,7 @@ static bool dce61_construct(
 	pool->base.timing_generator_count = res_cap_61.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
-	dc->caps.max_cursor_size = 128;
+	dc->caps.max_cursor_size = 64;
 	dc->caps.is_apu = true;
 
 	/*************************************************
@@ -1361,7 +1361,7 @@ static bool dce64_construct(
 	pool->base.timing_generator_count = res_cap_64.num_timing_generator;
 	dc->caps.max_downscale_ratio = 200;
 	dc->caps.i2c_speed_in_khz = 40;
-	dc->caps.max_cursor_size = 128;
+	dc->caps.max_cursor_size = 64;
 	dc->caps.is_apu = true;
 
 	/*************************************************
