@@ -30,6 +30,7 @@
 #include "amdgpu_pm.h"
 #include "amdgpu_psp.h"
 #include "mmsch_v2_0.h"
+#include "vcn_v2_0.h"
 
 #include "vcn/vcn_2_0_0_offset.h"
 #include "vcn/vcn_2_0_0_sh_mask.h"
