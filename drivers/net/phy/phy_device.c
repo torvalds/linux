@@ -758,28 +758,17 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 }
 
 /**
- * get_phy_id - reads the specified addr for its ID.
+ * get_phy_c22_id - reads the specified addr for its clause 22 ID.
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
  * @phy_id: where to store the ID retrieved.
- * @is_c45: If true the PHY uses the 802.3 clause 45 protocol
- * @c45_ids: where to store the c45 ID information.
  *
- * Description: In the case of a 802.3-c22 PHY, reads the ID registers
- *   of the PHY at @addr on the @bus, stores it in @phy_id and returns
- *   zero on success.
- *
- *   In the case of a 802.3-c45 PHY, get_phy_c45_ids() is invoked, and
- *   its return value is in turn returned.
- *
+ * Read the 802.3 clause 22 PHY ID from the PHY at @addr on the @bus.
+ * Return the PHY ID read from the PHY in @phy_id on successful access.
  */
-static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
-		      bool is_c45, struct phy_c45_device_ids *c45_ids)
+static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 {
 	int phy_reg;
-
-	if (is_c45)
-		return get_phy_c45_ids(bus, addr, phy_id, c45_ids);
 
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
@@ -819,7 +808,11 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	c45_ids.devices_in_package = 0;
 	memset(c45_ids.device_ids, 0xff, sizeof(c45_ids.device_ids));
 
-	r = get_phy_id(bus, addr, &phy_id, is_c45, &c45_ids);
+	if (is_c45)
+		r = get_phy_c45_ids(bus, addr, &phy_id, &c45_ids);
+	else
+		r = get_phy_c22_id(bus, addr, &phy_id);
+
 	if (r)
 		return ERR_PTR(r);
 
