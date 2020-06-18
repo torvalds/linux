@@ -31,7 +31,7 @@
 #define GT9760S_SEL_OFF_BYTE2		0x51
 
 /* Time to move the motor, this is fixed in the DLC specific setting */
-#define GT9760S_DLC_MOVE_MS		33
+#define GT9760S_DLC_MOVE_MS		7
 
 /* gt9760s device structure */
 struct gt9760s_device {
