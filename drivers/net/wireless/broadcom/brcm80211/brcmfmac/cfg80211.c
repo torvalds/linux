@@ -4835,12 +4835,14 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			goto exit;
 		}
 
-		if (settings->hidden_ssid) {
-			err = brcmf_fil_iovar_int_set(ifp, "closednet", 1);
-			if (err) {
-				bphy_err(drvr, "closednet error (%d)\n", err);
-				goto exit;
-			}
+		err = brcmf_fil_iovar_int_set(ifp, "closednet",
+					      settings->hidden_ssid);
+		if (err) {
+			bphy_err(drvr, "%s closednet error (%d)\n",
+				 settings->hidden_ssid ?
+				 "enabled" : "disabled",
+				 err);
+			goto exit;
 		}
 
 		brcmf_dbg(TRACE, "AP mode configuration complete\n");
