@@ -44,7 +44,7 @@ struct vendor_info {
 	u16	free_offset;
 	u16	free_size;
 	struct	vendor_item item[62];
-	u8	data[MTD_VENDOR_PART_SIZE * 512 - 1024 - 8];
+	u8	data[MTD_VENDOR_PART_SIZE * 512 - 512 - 8];
 	u32	hash;
 	u32	version2;
 };
