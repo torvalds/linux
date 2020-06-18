@@ -6,14 +6,14 @@
 #include <asm/unaligned.h>
 
 /* Calculate expected number of TX descriptors */
-int tso_count_descs(struct sk_buff *skb)
+int tso_count_descs(const struct sk_buff *skb)
 {
 	/* The Marvell Way */
 	return skb_shinfo(skb)->gso_segs * 2 + skb_shinfo(skb)->nr_frags;
 }
 EXPORT_SYMBOL(tso_count_descs);
 
-void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
+void tso_build_hdr(const struct sk_buff *skb, char *hdr, struct tso_t *tso,
 		   int size, bool is_last)
 {
 	struct tcphdr *tcph;
@@ -44,7 +44,7 @@ void tso_build_hdr(struct sk_buff *skb, char *hdr, struct tso_t *tso,
 }
 EXPORT_SYMBOL(tso_build_hdr);
 
-void tso_build_data(struct sk_buff *skb, struct tso_t *tso, int size)
+void tso_build_data(const struct sk_buff *skb, struct tso_t *tso, int size)
 {
 	tso->tcp_seq += size;
 	tso->size -= size;
