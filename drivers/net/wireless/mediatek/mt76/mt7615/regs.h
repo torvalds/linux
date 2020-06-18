@@ -14,7 +14,6 @@ enum mt7615_reg_base {
 	MT_CSR_BASE,
 	MT_PLE_BASE,
 	MT_PSE_BASE,
-	MT_PHY_BASE,
 	MT_CFG_BASE,
 	MT_AGG_BASE,
 	MT_TMAC_BASE,
@@ -169,7 +168,7 @@ enum mt7615_reg_base {
 #define MT_PSE_PG_INFO			MT_PSE(0x194)
 #define MT_PSE_SRC_CNT			GENMASK(27, 16)
 
-#define MT_WF_PHY_BASE			((dev)->reg_map[MT_PHY_BASE])
+#define MT_WF_PHY_BASE			0x82070000
 #define MT_WF_PHY(ofs)			(MT_WF_PHY_BASE + (ofs))
 
 #define MT_WF_PHY_WF2_RFCTRL0(n)	MT_WF_PHY(0x1900 + (n) * 0x400)
