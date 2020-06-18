@@ -189,11 +189,9 @@ struct tipc_gap_ack_blks {
 	struct tipc_gap_ack gacks[];
 };
 
-#define tipc_gap_ack_blks_sz(n) (sizeof(struct tipc_gap_ack_blks) + \
-				 sizeof(struct tipc_gap_ack) * (n))
-
 #define MAX_GAP_ACK_BLKS	128
-#define MAX_GAP_ACK_BLKS_SZ	tipc_gap_ack_blks_sz(MAX_GAP_ACK_BLKS)
+#define MAX_GAP_ACK_BLKS_SZ	(sizeof(struct tipc_gap_ack_blks) + \
+				 sizeof(struct tipc_gap_ack) * MAX_GAP_ACK_BLKS)
 
 static inline struct tipc_msg *buf_msg(struct sk_buff *skb)
 {
