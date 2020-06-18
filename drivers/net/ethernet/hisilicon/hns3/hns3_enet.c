@@ -2473,6 +2473,11 @@ static void hns3_reuse_buffer(struct hns3_enet_ring *ring, int i)
 	ring->desc[i].addr = cpu_to_le64(ring->desc_cb[i].dma +
 					 ring->desc_cb[i].page_offset);
 	ring->desc[i].rx.bd_base_info = 0;
+
+	dma_sync_single_for_device(ring_to_dev(ring),
+			ring->desc_cb[i].dma + ring->desc_cb[i].page_offset,
+			hns3_buf_size(ring),
+			DMA_FROM_DEVICE);
 }
 
 static void hns3_nic_reclaim_desc(struct hns3_enet_ring *ring, int head,
@@ -2918,6 +2923,11 @@ static int hns3_add_frag(struct hns3_enet_ring *ring)
 			skb = ring->tail_skb;
 		}
 
+		dma_sync_single_for_cpu(ring_to_dev(ring),
+				desc_cb->dma + desc_cb->page_offset,
+				hns3_buf_size(ring),
+				DMA_FROM_DEVICE);
+
 		hns3_nic_reuse_page(skb, ring->frag_num++, ring, 0, desc_cb);
 		trace_hns3_rx_desc(ring);
 		ring_ptr_move_fw(ring, next_to_clean);
@@ -3069,8 +3079,14 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 	if (unlikely(!(bd_base_info & BIT(HNS3_RXD_VLD_B))))
 		return -ENXIO;
 
-	if (!skb)
+	if (!skb) {
 		ring->va = desc_cb->buf + desc_cb->page_offset;
+
+		dma_sync_single_for_cpu(ring_to_dev(ring),
+				desc_cb->dma + desc_cb->page_offset,
+				hns3_buf_size(ring),
+				DMA_FROM_DEVICE);
+	}
 
 	/* Prefetch first cache line of first page
 	 * Idea is to cache few bytes of the header of the packet. Our L1 Cache
