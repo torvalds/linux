@@ -2138,10 +2138,17 @@ static int smu7_patch_voltage_workaround(struct pp_hwmgr *hwmgr)
 	sub_sys_id = adev->pdev->subsystem_device;
 	sub_vendor_id = adev->pdev->subsystem_vendor;
 
-	if (hwmgr->chip_id == CHIP_POLARIS10 && hw_revision == 0xC7 &&
-			((sub_sys_id == 0xb37 && sub_vendor_id == 0x1002) ||
-		    (sub_sys_id == 0x4a8 && sub_vendor_id == 0x1043) ||
-		    (sub_sys_id == 0x9480 && sub_vendor_id == 0x1682))) {
+	if (adev->pdev->device == 0x67DF && hw_revision == 0xC7 &&
+	    ((sub_sys_id == 0xb37 && sub_vendor_id == 0x1002) ||
+	     (sub_sys_id == 0x4a8 && sub_vendor_id == 0x1043) ||
+	     (sub_sys_id == 0x9480 && sub_vendor_id == 0x1682))) {
+
+		PHM_WRITE_VFPF_INDIRECT_FIELD(hwmgr->device,
+					      CGS_IND_REG__SMC,
+					      PWR_CKS_CNTL,
+					      CKS_STRETCH_AMOUNT,
+					      0x3);
+
 		if (lookup_table->entries[dep_mclk_table->entries[dep_mclk_table->count-1].vddInd].us_vdd >= 1000)
 			return 0;
 
