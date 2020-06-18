@@ -167,7 +167,7 @@
 
 	; ISA requires ADD.nz to have same dest and src reg operands
 	mov.nz	r10, sp
-	add.nz	r10, r10, SZ_PT_REGS	; K mode SP
+	add2.nz	r10, r10, SZ_PT_REGS/4	; K mode SP
 
 	st	r10, [sp, PT_sp]	; SP (pt_regs->sp)
 
