@@ -1360,6 +1360,55 @@ static int polaris10_populate_smc_vce_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
+static int polaris10_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
+		SMU74_Discrete_DpmTable *table)
+{
+	int result = -EINVAL;
+	uint8_t count;
+	struct pp_atomctrl_clock_dividers_vi dividers;
+	struct phm_ppt_v1_information *table_info =
+			(struct phm_ppt_v1_information *)(hwmgr->pptable);
+	struct phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
+			table_info->mm_dep_table;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	uint32_t vddci;
+
+	table->SamuLevelCount = (uint8_t)(mm_table->count);
+	table->SamuBootLevel = 0;
+
+	for (count = 0; count < table->SamuLevelCount; count++) {
+		table->SamuLevel[count].Frequency = mm_table->entries[count].samclock;
+		table->SamuLevel[count].MinVoltage |=
+				(mm_table->entries[count].vddc * VOLTAGE_SCALE) << VDDC_SHIFT;
+
+		if (SMU7_VOLTAGE_CONTROL_BY_GPIO == data->vddci_control)
+			vddci = (uint32_t)phm_find_closest_vddci(&(data->vddci_voltage_table),
+						mm_table->entries[count].vddc - VDDC_VDDCI_DELTA);
+		else if (SMU7_VOLTAGE_CONTROL_BY_SVID2 == data->vddci_control)
+			vddci = mm_table->entries[count].vddc - VDDC_VDDCI_DELTA;
+		else
+			vddci = (data->vbios_boot_state.vddci_bootup_value * VOLTAGE_SCALE) << VDDCI_SHIFT;
+
+
+		table->SamuLevel[count].MinVoltage |=
+				(vddci * VOLTAGE_SCALE) << VDDCI_SHIFT;
+		table->SamuLevel[count].MinVoltage |= 1 << PHASES_SHIFT;
+
+		/*retrieve divider value for VBIOS */
+		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
+				table->SamuLevel[count].Frequency, &dividers);
+		PP_ASSERT_WITH_CODE((0 == result),
+				"can not find divide id for VCE engine clock",
+				return result);
+
+		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
+
+		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
+		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].MinVoltage);
+	}
+	return result;
+}
+
 static int polaris10_populate_memory_timing_parameters(struct pp_hwmgr *hwmgr,
 		int32_t eng_clock, int32_t mem_clock,
 		SMU74_Discrete_MCArbDramTimingTableEntry *arb_regs)
@@ -1901,6 +1950,10 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = polaris10_populate_smc_vce_level(hwmgr, table);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to initialize VCE Level!", return result);
+
+	result = polaris10_populate_smc_samu_level(hwmgr, table);
+	PP_ASSERT_WITH_CODE(0 == result,
+			"Failed to initialize SAMU Level!", return result);
 
 	/* Since only the initial state is completely set up at this point
 	 * (the other states are just copies of the boot state) we only
