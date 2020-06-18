@@ -27,6 +27,7 @@ static const char * const flash_region_strings[] = {
 	"All",
 	"Firmware",
 	"PHY Firmware",
+	"Boot",
 };
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
@@ -1241,6 +1242,28 @@ out:
 	return err;
 }
 
+static int cxgb4_ethtool_flash_boot(struct net_device *netdev,
+				    const u8 *bdata, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	unsigned int offset;
+	u8 *data;
+	int ret;
+
+	data = kmemdup(bdata, size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	offset = OFFSET_G(t4_read_reg(adap, PF_REG(0, PCIE_PF_EXPROM_OFST_A)));
+
+	ret = t4_load_boot(adap, data, offset, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot image\n");
+
+	kfree(data);
+	return ret;
+}
+
 #define CXGB4_PHY_SIG 0x130000ea
 
 static int cxgb4_validate_phy_image(const u8 *data, u32 *size)
@@ -1310,6 +1333,9 @@ static int cxgb4_ethtool_flash_region(struct net_device *netdev,
 	case CXGB4_ETHTOOL_FLASH_PHY:
 		ret = cxgb4_ethtool_flash_phy(netdev, data, size);
 		break;
+	case CXGB4_ETHTOOL_FLASH_BOOT:
+		ret = cxgb4_ethtool_flash_boot(netdev, data, size);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1339,10 +1365,40 @@ static int cxgb4_validate_fw_image(const u8 *data, u32 *size)
 	return 0;
 }
 
+static int cxgb4_validate_boot_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_pci_exp_rom_header *exp_header;
+	struct cxgb4_pcir_data *pcir_header;
+	struct legacy_pci_rom_hdr *header;
+	const u8 *cur_header = data;
+	u16 pcir_offset;
+
+	exp_header = (struct cxgb4_pci_exp_rom_header *)data;
+
+	if (le16_to_cpu(exp_header->signature) != BOOT_SIGNATURE)
+		return -EINVAL;
+
+	if (size) {
+		do {
+			header = (struct legacy_pci_rom_hdr *)cur_header;
+			pcir_offset = le16_to_cpu(header->pcir_offset);
+			pcir_header = (struct cxgb4_pcir_data *)(cur_header +
+				      pcir_offset);
+
+			*size += header->size512 * 512;
+			cur_header += header->size512 * 512;
+		} while (!(pcir_header->indicator & CXGB4_HDR_INDI));
+	}
+
+	return 0;
+}
+
 static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
 {
 	if (!cxgb4_validate_fw_image(data, size))
 		return CXGB4_ETHTOOL_FLASH_FW;
+	if (!cxgb4_validate_boot_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOT;
 	if (!cxgb4_validate_phy_image(data, size))
 		return CXGB4_ETHTOOL_FLASH_PHY;
 

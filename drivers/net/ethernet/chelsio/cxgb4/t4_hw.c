@@ -10481,3 +10481,190 @@ int t4_set_vlan_acl(struct adapter *adap, unsigned int mbox, unsigned int vf,
 
 	return t4_wr_mbox(adap, adap->mbox, &vlan_cmd, sizeof(vlan_cmd), NULL);
 }
+
+/**
+ *	modify_device_id - Modifies the device ID of the Boot BIOS image
+ *	@device_id: the device ID to write.
+ *	@boot_data: the boot image to modify.
+ *
+ *	Write the supplied device ID to the boot BIOS image.
+ */
+static void modify_device_id(int device_id, u8 *boot_data)
+{
+	struct cxgb4_pcir_data *pcir_header;
+	struct legacy_pci_rom_hdr *header;
+	u8 *cur_header = boot_data;
+	u16 pcir_offset;
+
+	 /* Loop through all chained images and change the device ID's */
+	do {
+		header = (struct legacy_pci_rom_hdr *)cur_header;
+		pcir_offset = le16_to_cpu(header->pcir_offset);
+		pcir_header = (struct cxgb4_pcir_data *)(cur_header +
+			      pcir_offset);
+
+		/**
+		 * Only modify the Device ID if code type is Legacy or HP.
+		 * 0x00: Okay to modify
+		 * 0x01: FCODE. Do not modify
+		 * 0x03: Okay to modify
+		 * 0x04-0xFF: Do not modify
+		 */
+		if (pcir_header->code_type == CXGB4_HDR_CODE1) {
+			u8 csum = 0;
+			int i;
+
+			/**
+			 * Modify Device ID to match current adatper
+			 */
+			pcir_header->device_id = cpu_to_le16(device_id);
+
+			/**
+			 * Set checksum temporarily to 0.
+			 * We will recalculate it later.
+			 */
+			header->cksum = 0x0;
+
+			/**
+			 * Calculate and update checksum
+			 */
+			for (i = 0; i < (header->size512 * 512); i++)
+				csum += cur_header[i];
+
+			/**
+			 * Invert summed value to create the checksum
+			 * Writing new checksum value directly to the boot data
+			 */
+			cur_header[7] = -csum;
+
+		} else if (pcir_header->code_type == CXGB4_HDR_CODE2) {
+			/**
+			 * Modify Device ID to match current adatper
+			 */
+			pcir_header->device_id = cpu_to_le16(device_id);
+		}
+
+		/**
+		 * Move header pointer up to the next image in the ROM.
+		 */
+		cur_header += header->size512 * 512;
+	} while (!(pcir_header->indicator & CXGB4_HDR_INDI));
+}
+
+/**
+ *	t4_load_boot - download boot flash
+ *	@adap: the adapter
+ *	@boot_data: the boot image to write
+ *	@boot_addr: offset in flash to write boot_data
+ *	@size: image size
+ *
+ *	Write the supplied boot image to the card's serial flash.
+ *	The boot image has the following sections: a 28-byte header and the
+ *	boot image.
+ */
+int t4_load_boot(struct adapter *adap, u8 *boot_data,
+		 unsigned int boot_addr, unsigned int size)
+{
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int boot_sector = (boot_addr * 1024);
+	struct cxgb4_pci_exp_rom_header *header;
+	struct cxgb4_pcir_data *pcir_header;
+	int pcir_offset;
+	unsigned int i;
+	u16 device_id;
+	int ret, addr;
+
+	/**
+	 * Make sure the boot image does not encroach on the firmware region
+	 */
+	if ((boot_sector + size) >> 16 > FLASH_FW_START_SEC) {
+		dev_err(adap->pdev_dev, "boot image encroaching on firmware region\n");
+		return -EFBIG;
+	}
+
+	/* Get boot header */
+	header = (struct cxgb4_pci_exp_rom_header *)boot_data;
+	pcir_offset = le16_to_cpu(header->pcir_offset);
+	/* PCIR Data Structure */
+	pcir_header = (struct cxgb4_pcir_data *)&boot_data[pcir_offset];
+
+	/**
+	 * Perform some primitive sanity testing to avoid accidentally
+	 * writing garbage over the boot sectors.  We ought to check for
+	 * more but it's not worth it for now ...
+	 */
+	if (size < BOOT_MIN_SIZE || size > BOOT_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "boot image too small/large\n");
+		return -EFBIG;
+	}
+
+	if (le16_to_cpu(header->signature) != BOOT_SIGNATURE) {
+		dev_err(adap->pdev_dev, "Boot image missing signature\n");
+		return -EINVAL;
+	}
+
+	/* Check PCI header signature */
+	if (le32_to_cpu(pcir_header->signature) != PCIR_SIGNATURE) {
+		dev_err(adap->pdev_dev, "PCI header missing signature\n");
+		return -EINVAL;
+	}
+
+	/* Check Vendor ID matches Chelsio ID*/
+	if (le16_to_cpu(pcir_header->vendor_id) != PCI_VENDOR_ID_CHELSIO) {
+		dev_err(adap->pdev_dev, "Vendor ID missing signature\n");
+		return -EINVAL;
+	}
+
+	/**
+	 * The boot sector is comprised of the Expansion-ROM boot, iSCSI boot,
+	 * and Boot configuration data sections. These 3 boot sections span
+	 * sectors 0 to 7 in flash and live right before the FW image location.
+	 */
+	i = DIV_ROUND_UP(size ? size : FLASH_FW_START,  sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, boot_sector >> 16,
+				     (boot_sector >> 16) + i - 1);
+
+	/**
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter option ROM file
+	 */
+	if (ret || size == 0)
+		goto out;
+	/* Retrieve adapter's device ID */
+	pci_read_config_word(adap->pdev, PCI_DEVICE_ID, &device_id);
+       /* Want to deal with PF 0 so I strip off PF 4 indicator */
+	device_id = device_id & 0xf0ff;
+
+	 /* Check PCIE Device ID */
+	if (le16_to_cpu(pcir_header->device_id) != device_id) {
+		/**
+		 * Change the device ID in the Boot BIOS image to match
+		 * the Device ID of the current adapter.
+		 */
+		modify_device_id(device_id, boot_data);
+	}
+
+	/**
+	 * Skip over the first SF_PAGE_SIZE worth of data and write it after
+	 * we finish copying the rest of the boot image. This will ensure
+	 * that the BIOS boot header will only be written if the boot image
+	 * was written in full.
+	 */
+	addr = boot_sector;
+	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
+		addr += SF_PAGE_SIZE;
+		boot_data += SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, boot_data);
+		if (ret)
+			goto out;
+	}
+
+	ret = t4_write_flash(adap, boot_sector, SF_PAGE_SIZE,
+			     (const u8 *)header);
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "boot image load failed, error %d\n",
+			ret);
+	return ret;
+}
