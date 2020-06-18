@@ -361,8 +361,6 @@ efi_status_t __efiapi efi_pe_entry(efi_handle_t handle,
 	int options_size = 0;
 	efi_status_t status;
 	char *cmdline_ptr;
-	unsigned long ramdisk_addr;
-	unsigned long ramdisk_size;
 
 	efi_system_table = sys_table_arg;
 
