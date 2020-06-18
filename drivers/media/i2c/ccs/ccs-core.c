@@ -3206,10 +3206,18 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.csi2.lanes = sensor->hwcfg.lanes;
 	if (CCS_LIM(sensor, CLOCK_CALCULATION) &
 	    CCS_CLOCK_CALCULATION_LANE_SPEED) {
-		sensor->pll.vt_lanes =
-			CCS_LIM(sensor, NUM_OF_VT_LANES) + 1;
-		sensor->pll.op_lanes = sensor->pll.vt_lanes;
 		sensor->pll.flags |= CCS_PLL_FLAG_LANE_SPEED_MODEL;
+		if (CCS_LIM(sensor, CLOCK_CALCULATION) &
+		    CCS_CLOCK_CALCULATION_LINK_DECOUPLED) {
+			sensor->pll.vt_lanes =
+				CCS_LIM(sensor, NUM_OF_VT_LANES) + 1;
+			sensor->pll.op_lanes =
+				CCS_LIM(sensor, NUM_OF_OP_LANES) + 1;
+			sensor->pll.flags |= CCS_PLL_FLAG_LINK_DECOUPLED;
+		} else {
+			sensor->pll.vt_lanes = sensor->pll.csi2.lanes;
+			sensor->pll.op_lanes = sensor->pll.csi2.lanes;
+		}
 	}
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);

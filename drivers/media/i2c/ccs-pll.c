@@ -162,7 +162,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		    const struct ccs_pll_branch_limits_bk *op_lim_bk,
 		    struct ccs_pll *pll, struct ccs_pll_branch_fr *op_pll_fr,
 		    struct ccs_pll_branch_bk *op_pll_bk, uint32_t mul,
-		    uint32_t div, uint32_t lane_op_clock_ratio)
+		    uint32_t div)
 {
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
@@ -194,7 +194,8 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		min_t(uint32_t,
 		      more_mul_max,
 		      op_lim_fr->max_pll_op_clk_freq_hz
-		      / (pll->ext_clk_freq_hz / op_pll_fr->pre_pll_clk_div * mul));
+		      / (pll->ext_clk_freq_hz /
+			 op_pll_fr->pre_pll_clk_div * mul));
 	dev_dbg(dev, "more_mul_max: max_pll_op_clk_freq_hz check: %u\n",
 		more_mul_max);
 	/* Don't go above the division capability of op sys clock divider. */
@@ -257,7 +258,6 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		op_pll_bk->sys_clk_freq_hz / op_pll_bk->pix_clk_div;
 	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
 
-
 	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
 		/* No OP clocks --- VT clocks are used instead. */
 		goto out_skip_vt_calc;
@@ -293,7 +293,7 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 				  * op_pll_bk->sys_clk_div * pll->scale_n
 				  * pll->vt_lanes,
 				  pll->op_lanes * vt_op_binning_div
-				  * pll->scale_m * lane_op_clock_ratio);
+				  * pll->scale_m);
 
 	/* Find smallest and biggest allowed vt divisor. */
 	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);
@@ -405,7 +405,6 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	struct ccs_pll_branch_bk *op_pll_bk = &pll->op_bk;
 	uint16_t min_op_pre_pll_clk_div;
 	uint16_t max_op_pre_pll_clk_div;
-	uint32_t lane_op_clock_ratio;
 	uint32_t mul, div;
 	uint32_t i;
 	int rval = -EINVAL;
@@ -428,12 +427,6 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		op_pll_bk = &pll->vt_bk;
 	}
 
-	if (pll->flags & CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
-		lane_op_clock_ratio = pll->csi2.lanes;
-	else
-		lane_op_clock_ratio = 1;
-	dev_dbg(dev, "lane_op_clock_ratio: %u\n", lane_op_clock_ratio);
-
 	dev_dbg(dev, "binning: %ux%u\n", pll->binning_horizontal,
 		pll->binning_vertical);
 
@@ -442,7 +435,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		/* CSI transfers 2 bits per clock per lane; thus times 2 */
 		op_pll_bk->sys_clk_freq_hz = pll->link_freq * 2
 			* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-			   1 : pll->csi2.lanes) / lane_op_clock_ratio;
+			   1 : pll->csi2.lanes);
 		break;
 	default:
 		return -EINVAL;
@@ -451,7 +444,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	pll->pixel_rate_csi =
 		op_pll_bk->pix_clk_freq_hz
 		* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
-		   pll->csi2.lanes : 1) * lane_op_clock_ratio;
+		   pll->csi2.lanes : 1);
 
 	/* Figure out limits for OP pre-pll divider based on extclk */
 	dev_dbg(dev, "min / max op_pre_pll_clk_div: %u / %u\n",
@@ -487,8 +480,7 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	     op_pll_fr->pre_pll_clk_div <= max_op_pre_pll_clk_div;
 	     op_pll_fr->pre_pll_clk_div += 2 - (op_pll_fr->pre_pll_clk_div & 1)) {
 		rval = __ccs_pll_calculate(dev, lim, op_lim_fr, op_lim_bk, pll,
-					   op_pll_fr, op_pll_bk, mul, div,
-					   lane_op_clock_ratio);
+					   op_pll_fr, op_pll_bk, mul, div);
 		if (rval)
 			continue;
 

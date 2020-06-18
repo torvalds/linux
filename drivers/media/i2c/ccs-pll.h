@@ -24,6 +24,7 @@
 #define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
 /* CCS PLL flags */
 #define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
+#define CCS_PLL_FLAG_LINK_DECOUPLED				BIT(3)
 
 /**
  * struct ccs_pll_branch_fr - CCS PLL configuration (front)

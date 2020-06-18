@@ -190,7 +190,10 @@ static int jt8ev1_post_streamoff(struct ccs_sensor *sensor)
 
 static int jt8ev1_init(struct ccs_sensor *sensor)
 {
-	sensor->pll.flags |= CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE;
+	sensor->pll.flags |= CCS_PLL_FLAG_LANE_SPEED_MODEL |
+		CCS_PLL_FLAG_LINK_DECOUPLED;
+	sensor->pll.vt_lanes = 1;
+	sensor->pll.op_lanes = sensor->pll.csi2.lanes;
 
 	return 0;
 }
