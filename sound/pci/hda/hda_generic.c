@@ -3887,6 +3887,7 @@ static int parse_mic_boost(struct hda_codec *codec)
 	return 0;
 }
 
+#ifdef CONFIG_SND_HDA_GENERIC_LEDS
 /*
  * mic mute LED hook helpers
  */
@@ -3923,10 +3924,8 @@ static void call_micmute_led_update(struct hda_codec *codec)
 	spec->micmute_led.led_value = val;
 	if (spec->micmute_led.update)
 		spec->micmute_led.update(codec);
-#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
 	ledtrig_audio_set(LED_AUDIO_MICMUTE,
 			  spec->micmute_led.led_value ? LED_ON : LED_OFF);
-#endif
 }
 
 static void update_micmute_led(struct hda_codec *codec,
@@ -4049,6 +4048,50 @@ void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
 		snd_hda_gen_add_micmute_led(codec, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_fixup_micmute_led);
+
+/**
+ * snd_dha_gen_add_micmute_led_cdev - Create a LED classdev and enable as mic-mute LED
+ * @codec: the HDA codec
+ * @callback: the callback for LED classdev brightness_set_blocking
+ *
+ * Called from the codec drivers for offering the mic mute LED controls.
+ * This creates a LED classdev and sets up the cap_sync_hook that is called at
+ * each time when the capture mixer switch changes.
+ *
+ * When NULL is passed to @callback, no classdev is created but only the
+ * LED-trigger is set up.
+ *
+ * Returns 0 or a negative error.
+ */
+int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
+				     int (*callback)(struct led_classdev *,
+						     enum led_brightness))
+{
+	int err;
+	struct led_classdev *cdev;
+
+	if (callback) {
+		cdev = devm_kzalloc(&codec->core.dev, sizeof(*cdev), GFP_KERNEL);
+		if (!cdev)
+			return -ENOMEM;
+
+		cdev->name = "hda::micmute";
+		cdev->max_brightness = 1;
+		cdev->default_trigger = "audio-micmute";
+		cdev->brightness_set_blocking = callback;
+		cdev->brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
+
+		err = devm_led_classdev_register(&codec->core.dev, cdev);
+		if (err) {
+			codec_warn(codec, "failed to create a mic-mute LED cdev\n");
+			return err;
+		}
+	}
+
+	return snd_hda_gen_add_micmute_led(codec, NULL);
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led_cdev);
+#endif /* CONFIG_SND_HDA_GENERIC_LEDS */
 
 /*
  * parse digital I/Os and set up NIDs in BIOS auto-parse mode

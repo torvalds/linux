@@ -8,6 +8,8 @@
 #ifndef __SOUND_HDA_GENERIC_H
 #define __SOUND_HDA_GENERIC_H
 
+#include <linux/leds.h>
+
 /* table entry for multi-io paths */
 struct hda_multi_io {
 	hda_nid_t pin;		/* multi-io widget pin NID */
@@ -357,5 +359,8 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 				void (*hook)(struct hda_codec *));
 void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action);
+int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
+				     int (*callback)(struct led_classdev *,
+						     enum led_brightness));
 
 #endif /* __SOUND_HDA_GENERIC_H */
