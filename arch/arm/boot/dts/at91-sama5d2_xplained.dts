@@ -168,16 +168,6 @@
 				};
 			};
 
-			pdmic@f8018000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_pdmic_default>;
-				atmel,model = "PDMIC @ sama5d2_xplained";
-				atmel,mic-min-freq = <1000000>;
-				atmel,mic-max-freq = <3246000>;
-				atmel,mic-offset = <0x0>;
-				status = "okay";
-			};
-
 			uart1: serial@f8020000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_uart1_default>;
@@ -596,12 +586,6 @@
 
 				pinctrl_macb0_phy_irq: macb0_phy_irq {
 					pinmux = <PIN_PC9__GPIO>;
-					bias-disable;
-				};
-
-				pinctrl_pdmic_default: pdmic_default {
-					pinmux = <PIN_PB26__PDMIC_DAT>,
-						<PIN_PB27__PDMIC_CLK>;
 					bias-disable;
 				};
 
