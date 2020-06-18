@@ -380,7 +380,7 @@ struct phy_device *of_phy_connect(struct net_device *dev,
 	if (!phy)
 		return NULL;
 
-	phy->dev_flags = flags;
+	phy->dev_flags |= flags;
 
 	ret = phy_connect_direct(dev, phy, hndlr, iface);
 
