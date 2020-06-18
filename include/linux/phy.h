@@ -399,7 +399,7 @@ enum phy_state {
 struct phy_c45_device_ids {
 	u32 devices_in_package;
 	u32 mmds_present;
-	u32 device_ids[8];
+	u32 device_ids[MDIO_MMD_NUM];
 };
 
 struct macsec_context;
