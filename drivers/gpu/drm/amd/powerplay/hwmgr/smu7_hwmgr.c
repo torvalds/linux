@@ -1548,12 +1548,6 @@ static int smu7_disable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int smu7_reset_asic_tasks(struct pp_hwmgr *hwmgr)
-{
-
-	return 0;
-}
-
 static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
