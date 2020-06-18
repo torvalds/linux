@@ -3908,6 +3908,7 @@ static int create_mute_led_cdev(struct hda_codec *codec,
 	cdev->default_trigger = micmute ? "audio-micmute" : "audio-mute";
 	cdev->brightness_set_blocking = callback;
 	cdev->brightness = ledtrig_audio_get(micmute ? LED_AUDIO_MICMUTE : LED_AUDIO_MUTE);
+	cdev->flags = LED_CORE_SUSPENDRESUME;
 
 	return devm_led_classdev_register(&codec->core.dev, cdev);
 }
