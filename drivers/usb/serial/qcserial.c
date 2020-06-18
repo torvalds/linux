@@ -365,9 +365,8 @@ static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)
 		 * a specific function, while the subclass indicate a
 		 * specific firmware source
 		 *
-		 * This is a blacklist of functions known to be
-		 * non-serial.  The rest are assumed to be serial and
-		 * will be handled by this driver
+		 * This is a list of functions known to be non-serial.  The rest
+		 * are assumed to be serial and will be handled by this driver
 		 */
 		switch (intf->desc.bInterfaceProtocol) {
 			/* QMI combined (qmi_wwan) */
