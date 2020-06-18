@@ -320,15 +320,18 @@ static void stac_gpio_set(struct hda_codec *codec, unsigned int mask,
 }
 
 /* hook for controlling mic-mute LED GPIO */
-static void stac_capture_led_update(struct hda_codec *codec)
+static int stac_capture_led_update(struct led_classdev *led_cdev,
+				   enum led_brightness brightness)
 {
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct sigmatel_spec *spec = codec->spec;
 
-	if (spec->gen.micmute_led.led_value)
+	if (brightness)
 		spec->gpio_data |= spec->mic_mute_led_gpio;
 	else
 		spec->gpio_data &= ~spec->mic_mute_led_gpio;
 	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_dir, spec->gpio_data);
+	return 0;
 }
 
 static int stac_vrefout_set(struct hda_codec *codec,
@@ -4636,7 +4639,7 @@ static void stac_setup_gpio(struct hda_codec *codec)
 		spec->gpio_dir |= spec->mic_mute_led_gpio;
 		spec->mic_enabled = 0;
 		spec->gpio_data |= spec->mic_mute_led_gpio;
-		snd_hda_gen_add_micmute_led(codec, stac_capture_led_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, stac_capture_led_update);
 	}
 }
 
