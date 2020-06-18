@@ -141,6 +141,7 @@ enum cc_fec {
 
 enum {
 	CXGB4_ETHTOOL_FLASH_FW = 1,
+	CXGB4_ETHTOOL_FLASH_PHY = 2,
 };
 
 struct port_stats {

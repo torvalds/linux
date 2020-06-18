@@ -26,6 +26,7 @@ static void set_msglevel(struct net_device *dev, u32 val)
 static const char * const flash_region_strings[] = {
 	"All",
 	"Firmware",
+	"PHY Firmware",
 };
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
@@ -1240,6 +1241,39 @@ out:
 	return err;
 }
 
+#define CXGB4_PHY_SIG 0x130000ea
+
+static int cxgb4_validate_phy_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_fw_data *header;
+
+	header = (struct cxgb4_fw_data *)data;
+	if (be32_to_cpu(header->signature) != CXGB4_PHY_SIG)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int cxgb4_ethtool_flash_phy(struct net_device *netdev,
+				   const u8 *data, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	ret = cxgb4_validate_phy_image(data, NULL);
+	if (ret) {
+		dev_err(adap->pdev_dev, "PHY signature mismatch\n");
+		return ret;
+	}
+
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
+			     NULL, data, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load PHY FW\n");
+
+	return ret;
+}
+
 static int cxgb4_ethtool_flash_fw(struct net_device *netdev,
 				  const u8 *data, u32 size)
 {
@@ -1272,6 +1306,9 @@ static int cxgb4_ethtool_flash_region(struct net_device *netdev,
 	switch (region) {
 	case CXGB4_ETHTOOL_FLASH_FW:
 		ret = cxgb4_ethtool_flash_fw(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_PHY:
+		ret = cxgb4_ethtool_flash_phy(netdev, data, size);
 		break;
 	default:
 		ret = -EOPNOTSUPP;
@@ -1306,6 +1343,8 @@ static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
 {
 	if (!cxgb4_validate_fw_image(data, size))
 		return CXGB4_ETHTOOL_FLASH_FW;
+	if (!cxgb4_validate_phy_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_PHY;
 
 	return -EOPNOTSUPP;
 }
