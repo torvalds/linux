@@ -3922,8 +3922,6 @@ static void call_micmute_led_update(struct hda_codec *codec)
 	if (val == spec->micmute_led.led_value)
 		return;
 	spec->micmute_led.led_value = val;
-	if (spec->micmute_led.update)
-		spec->micmute_led.update(codec);
 	ledtrig_audio_set(LED_AUDIO_MICMUTE,
 			  spec->micmute_led.led_value ? LED_ON : LED_OFF);
 }
@@ -3997,20 +3995,8 @@ static const struct snd_kcontrol_new micmute_led_mode_ctl = {
 	.put = micmute_led_mode_put,
 };
 
-/**
- * snd_hda_gen_add_micmute_led - helper for setting up mic mute LED hook
- * @codec: the HDA codec
- * @hook: the callback for updating LED
- *
- * Called from the codec drivers for offering the mic mute LED controls.
- * When established, it sets up cap_sync_hook and triggers the callback at
- * each time when the capture mixer switch changes.  The callback is supposed
- * to update the LED accordingly.
- *
- * Returns 0 if the hook is established or a negative error code.
- */
-int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
-				void (*hook)(struct hda_codec *))
+/* Set up the capture sync hook for controlling the mic-mute LED */
+static int add_micmute_led_hook(struct hda_codec *codec)
 {
 	struct hda_gen_spec *spec = codec->spec;
 
@@ -4018,13 +4004,11 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 	spec->micmute_led.capture = 0;
 	spec->micmute_led.led_value = 0;
 	spec->micmute_led.old_hook = spec->cap_sync_hook;
-	spec->micmute_led.update = hook;
 	spec->cap_sync_hook = update_micmute_led;
 	if (!snd_hda_gen_add_kctl(spec, NULL, &micmute_led_mode_ctl))
 		return -ENOMEM;
 	return 0;
 }
-EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
 
 /**
  * snd_dha_gen_add_micmute_led_cdev - Create a LED classdev and enable as mic-mute LED
@@ -4065,7 +4049,7 @@ int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
 		}
 	}
 
-	return snd_hda_gen_add_micmute_led(codec, NULL);
+	return add_micmute_led_hook(codec);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led_cdev);
 #endif /* CONFIG_SND_HDA_GENERIC_LEDS */
