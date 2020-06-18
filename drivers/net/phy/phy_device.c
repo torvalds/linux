@@ -697,16 +697,16 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
  * get_phy_c45_ids - reads the specified addr for its 802.3-c45 IDs.
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
- * @phy_id: where to store the ID retrieved.
  * @c45_ids: where to store the c45 ID information.
  *
- *   If the PHY devices-in-package appears to be valid, it and the
- *   corresponding identifiers are stored in @c45_ids, zero is stored
- *   in @phy_id.  Otherwise 0xffffffff is stored in @phy_id.  Returns
- *   zero on success.
+ * Read the PHY "devices in package". If this appears to be valid, read
+ * the PHY identifiers for each device. Return the "devices in package"
+ * and identifiers in @c45_ids.
  *
+ * Returns zero on success, %-EIO on bus access error, or %-ENODEV if
+ * the "devices in package" is invalid.
  */
-static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
+static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			   struct phy_c45_device_ids *c45_ids)
 {
 	const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
@@ -732,10 +732,8 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 			return -EIO;
 
 		/* no device there, let's get out of here */
-		if ((*devs & 0x1fffffff) == 0x1fffffff) {
-			*phy_id = 0xffffffff;
-			return 0;
-		}
+		if ((*devs & 0x1fffffff) == 0x1fffffff)
+			return -ENODEV;
 	}
 
 	/* Now probe Device Identifiers for each device present. */
@@ -753,7 +751,7 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 			return -EIO;
 		c45_ids->device_ids[i] |= phy_reg;
 	}
-	*phy_id = 0;
+
 	return 0;
 }
 
@@ -809,7 +807,7 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	memset(c45_ids.device_ids, 0xff, sizeof(c45_ids.device_ids));
 
 	if (is_c45)
-		r = get_phy_c45_ids(bus, addr, &phy_id, &c45_ids);
+		r = get_phy_c45_ids(bus, addr, &c45_ids);
 	else
 		r = get_phy_c22_id(bus, addr, &phy_id);
 
