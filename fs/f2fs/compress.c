@@ -1096,8 +1096,16 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
 	loff_t psize;
 	int i, err;
 
-	if (!IS_NOQUOTA(inode) && !f2fs_trylock_op(sbi))
+	if (IS_NOQUOTA(inode)) {
+		/*
+		 * We need to wait for node_write to avoid block allocation during
+		 * checkpoint. This can only happen to quota writes which can cause
+		 * the below discard race condition.
+		 */
+		down_read(&sbi->node_write);
+	} else if (!f2fs_trylock_op(sbi)) {
 		return -EAGAIN;
+	}
 
 	set_new_dnode(&dn, cc->inode, NULL, NULL, 0);
 
@@ -1203,7 +1211,9 @@ unlock_continue:
 		set_inode_flag(inode, FI_FIRST_BLOCK_WRITTEN);
 
 	f2fs_put_dnode(&dn);
-	if (!IS_NOQUOTA(inode))
+	if (IS_NOQUOTA(inode))
+		up_read(&sbi->node_write);
+	else
 		f2fs_unlock_op(sbi);
 
 	spin_lock(&fi->i_size_lock);
@@ -1230,7 +1240,9 @@ out_put_cic:
 out_put_dnode:
 	f2fs_put_dnode(&dn);
 out_unlock_op:
-	if (!IS_NOQUOTA(inode))
+	if (IS_NOQUOTA(inode))
+		up_read(&sbi->node_write);
+	else
 		f2fs_unlock_op(sbi);
 	return -EAGAIN;
 }
