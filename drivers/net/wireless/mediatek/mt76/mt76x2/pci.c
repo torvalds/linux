@@ -9,7 +9,7 @@
 
 #include "mt76x2.h"
 
-static const struct pci_device_id mt76pci_device_table[] = {
+static const struct pci_device_id mt76x2e_device_table[] = {
 	{ PCI_DEVICE(0x14c3, 0x7662) },
 	{ PCI_DEVICE(0x14c3, 0x7612) },
 	{ PCI_DEVICE(0x14c3, 0x7602) },
@@ -17,7 +17,7 @@ static const struct pci_device_id mt76pci_device_table[] = {
 };
 
 static int
-mt76pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+mt76x2e_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	static const struct mt76_driver_ops drv_ops = {
 		.txwi_size = sizeof(struct mt76x02_txwi),
@@ -93,7 +93,7 @@ error:
 }
 
 static void
-mt76pci_remove(struct pci_dev *pdev)
+mt76x2e_remove(struct pci_dev *pdev)
 {
 	struct mt76_dev *mdev = pci_get_drvdata(pdev);
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
@@ -103,16 +103,16 @@ mt76pci_remove(struct pci_dev *pdev)
 	mt76_free_device(mdev);
 }
 
-MODULE_DEVICE_TABLE(pci, mt76pci_device_table);
+MODULE_DEVICE_TABLE(pci, mt76x2e_device_table);
 MODULE_FIRMWARE(MT7662_FIRMWARE);
 MODULE_FIRMWARE(MT7662_ROM_PATCH);
 MODULE_LICENSE("Dual BSD/GPL");
 
 static struct pci_driver mt76pci_driver = {
 	.name		= KBUILD_MODNAME,
-	.id_table	= mt76pci_device_table,
-	.probe		= mt76pci_probe,
-	.remove		= mt76pci_remove,
+	.id_table	= mt76x2e_device_table,
+	.probe		= mt76x2e_probe,
+	.remove		= mt76x2e_remove,
 };
 
 module_pci_driver(mt76pci_driver);
