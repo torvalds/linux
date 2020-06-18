@@ -1921,6 +1921,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	uint8_t i;
 	struct pp_atomctrl_gpio_pin_assignment gpio_pin;
 	pp_atomctrl_clock_dividers_vi dividers;
+	struct phm_ppt_v1_gpio_table *gpio_table = table_info->gpio_table;
 
 	polaris10_initialize_power_tune_defaults(hwmgr);
 
@@ -2036,6 +2037,8 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	if (atomctrl_get_pp_assign_pin(hwmgr, VDDC_VRHOT_GPIO_PINID, &gpio_pin)) {
 		table->VRHotGpio = gpio_pin.uc_gpio_pin_bit_shift;
+		if (gpio_table)
+			table->VRHotLevel = gpio_table->vrhot_triggered_sclk_dpm_index;
 	} else {
 		table->VRHotGpio = SMU7_UNUSED_GPIO_PIN;
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
