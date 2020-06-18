@@ -1637,8 +1637,8 @@ static int musb_core_init(u16 musb_type, struct musb *musb)
 		musb->is_multipoint = 0;
 		type = "";
 		if (IS_ENABLED(CONFIG_USB) &&
-		    !IS_ENABLED(CONFIG_USB_OTG_BLACKLIST_HUB)) {
-			pr_err("%s: kernel must blacklist external hubs\n",
+		    !IS_ENABLED(CONFIG_USB_OTG_DISABLE_EXTERNAL_HUB)) {
+			pr_err("%s: kernel must disable external hubs, please fix the configuration\n",
 			       musb_driver_name);
 		}
 	}

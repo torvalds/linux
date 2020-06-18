@@ -66,7 +66,7 @@ config USB_OTG_WHITELIST
 	  "Targeted Peripherals List".  "Embedded Hosts" are likewise
 	  allowed to support only a limited number of peripherals.
 
-config USB_OTG_BLACKLIST_HUB
+config USB_OTG_DISABLE_EXTERNAL_HUB
 	bool "Disable external hubs"
 	depends on USB_OTG || EXPERT
 	help
