@@ -1155,7 +1155,9 @@ static int polaris10_populate_single_memory_level(struct pp_hwmgr *hwmgr,
 	if (mclk_stutter_mode_threshold &&
 		(clock <= mclk_stutter_mode_threshold) &&
 		(PHM_READ_FIELD(hwmgr->device, DPG_PIPE_STUTTER_CONTROL,
-				STUTTER_ENABLE) & 0x1))
+				STUTTER_ENABLE) & 0x1) &&
+		(data->display_timing.num_existing_displays <= 2) &&
+		data->display_timing.num_existing_displays)
 		mem_level->StutterEnable = true;
 
 	if (!result) {
@@ -1189,26 +1191,20 @@ static int polaris10_populate_all_memory_levels(struct pp_hwmgr *hwmgr)
 		result = polaris10_populate_single_memory_level(hwmgr,
 				dpm_table->mclk_table.dpm_levels[i].value,
 				&levels[i]);
-		if (i == dpm_table->mclk_table.count - 1) {
+		if (i == dpm_table->mclk_table.count - 1)
 			levels[i].DisplayWatermark = PPSMC_DISPLAY_WATERMARK_HIGH;
-			levels[i].EnabledForActivity = 1;
-		}
 		if (result)
 			return result;
 	}
-
-	/* In order to prevent MC activity from stutter mode to push DPM up,
-	 * the UVD change complements this by putting the MCLK in
-	 * a higher state by default such that we are not affected by
-	 * up threshold or and MCLK DPM latency.
-	 */
-	levels[0].ActivityLevel = 0x1f;
-	CONVERT_FROM_HOST_TO_SMC_US(levels[0].ActivityLevel);
 
 	smu_data->smc_state_table.MemoryDpmLevelCount =
 			(uint8_t)dpm_table->mclk_table.count;
 	hw_data->dpm_level_enable_mask.mclk_dpm_enable_mask =
 			phm_get_dpm_level_enable_mask_value(&dpm_table->mclk_table);
+
+	for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++)
+		smu_data->smc_state_table.MemoryLevel[i].EnabledForActivity =
+			(hw_data->dpm_level_enable_mask.mclk_dpm_enable_mask & (1 << i)) >> i;
 
 	/* level count will send to smc once at init smc table and never change */
 	result = smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
