@@ -365,12 +365,12 @@ int intel_heartbeat_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	saved_hangcheck = i915_modparams.enable_hangcheck;
-	i915_modparams.enable_hangcheck = INT_MAX;
+	saved_hangcheck = i915->params.enable_hangcheck;
+	i915->params.enable_hangcheck = INT_MAX;
 
 	err = intel_gt_live_subtests(tests, &i915->gt);
 
-	i915_modparams.enable_hangcheck = saved_hangcheck;
+	i915->params.enable_hangcheck = saved_hangcheck;
 	return err;
 }
 

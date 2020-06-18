@@ -784,8 +784,8 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* use the module option value if specified */
-	if (i915_modparams.lvds_channel_mode > 0)
-		return i915_modparams.lvds_channel_mode == 2;
+	if (dev_priv->params.lvds_channel_mode > 0)
+		return dev_priv->params.lvds_channel_mode == 2;
 
 	/* single channel LVDS is limited to 112 MHz */
 	if (lvds_encoder->attached_connector->panel.fixed_mode->clock > 112999)

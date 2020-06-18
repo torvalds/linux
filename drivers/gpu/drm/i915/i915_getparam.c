@@ -80,7 +80,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -ENODEV;
 		break;
 	case I915_PARAM_HAS_GPU_RESET:
-		value = i915_modparams.enable_hangcheck &&
+		value = i915->params.enable_hangcheck &&
 			intel_has_gpu_reset(&i915->gt);
 		if (value && intel_has_reset_engine(&i915->gt))
 			value = 2;

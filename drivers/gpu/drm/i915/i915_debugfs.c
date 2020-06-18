@@ -64,7 +64,7 @@ static int i915_capabilities(struct seq_file *m, void *data)
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
-	i915_params_dump(&i915_modparams, &p);
+	i915_params_dump(&i915->params, &p);
 	kernel_param_unlock(THIS_MODULE);
 
 	return 0;

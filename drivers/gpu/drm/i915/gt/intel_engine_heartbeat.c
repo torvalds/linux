@@ -4,6 +4,7 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "i915_drv.h"
 #include "i915_request.h"
 
 #include "intel_context.h"
@@ -133,7 +134,7 @@ static void heartbeat(struct work_struct *wrk)
 		goto unlock;
 
 	idle_pulse(engine, rq);
-	if (i915_modparams.enable_hangcheck)
+	if (engine->i915->params.enable_hangcheck)
 		engine->heartbeat.systole = i915_request_get(rq);
 
 	__i915_request_commit(rq);

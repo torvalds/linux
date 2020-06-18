@@ -4707,7 +4707,9 @@ intel_dp_sink_can_mst(struct intel_dp *intel_dp)
 static bool
 intel_dp_can_mst(struct intel_dp *intel_dp)
 {
-	return i915_modparams.enable_dp_mst &&
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	return i915->params.enable_dp_mst &&
 		intel_dp->can_mst &&
 		intel_dp_sink_can_mst(intel_dp);
 }
@@ -4724,13 +4726,13 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 		    "[ENCODER:%d:%s] MST support: port: %s, sink: %s, modparam: %s\n",
 		    encoder->base.base.id, encoder->base.name,
 		    yesno(intel_dp->can_mst), yesno(sink_can_mst),
-		    yesno(i915_modparams.enable_dp_mst));
+		    yesno(i915->params.enable_dp_mst));
 
 	if (!intel_dp->can_mst)
 		return;
 
 	intel_dp->is_mst = sink_can_mst &&
-		i915_modparams.enable_dp_mst;
+		i915->params.enable_dp_mst;
 
 	drm_dp_mst_topology_mgr_set_mst(&intel_dp->mst_mgr,
 					intel_dp->is_mst);

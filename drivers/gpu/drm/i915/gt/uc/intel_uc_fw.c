@@ -115,11 +115,13 @@ struct __packed uc_fw_platform_requirement {
 },
 
 static void
-__uc_fw_auto_select(struct intel_uc_fw *uc_fw, enum intel_platform p, u8 rev)
+__uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 {
 	static const struct uc_fw_platform_requirement fw_blobs[] = {
 		INTEL_UC_FIRMWARE_DEFS(MAKE_FW_LIST, GUC_FW_BLOB, HUC_FW_BLOB)
 	};
+	enum intel_platform p = INTEL_INFO(i915)->platform;
+	u8 rev = INTEL_REVID(i915);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fw_blobs) && p <= fw_blobs[i].p; i++) {
@@ -154,35 +156,35 @@ __uc_fw_auto_select(struct intel_uc_fw *uc_fw, enum intel_platform p, u8 rev)
 	}
 
 	/* We don't want to enable GuC/HuC on pre-Gen11 by default */
-	if (i915_modparams.enable_guc == -1 && p < INTEL_ICELAKE)
+	if (i915->params.enable_guc == -1 && p < INTEL_ICELAKE)
 		uc_fw->path = NULL;
 }
 
-static const char *__override_guc_firmware_path(void)
+static const char *__override_guc_firmware_path(struct drm_i915_private *i915)
 {
-	if (i915_modparams.enable_guc & (ENABLE_GUC_SUBMISSION |
-					 ENABLE_GUC_LOAD_HUC))
-		return i915_modparams.guc_firmware_path;
+	if (i915->params.enable_guc & (ENABLE_GUC_SUBMISSION |
+				       ENABLE_GUC_LOAD_HUC))
+		return i915->params.guc_firmware_path;
 	return "";
 }
 
-static const char *__override_huc_firmware_path(void)
+static const char *__override_huc_firmware_path(struct drm_i915_private *i915)
 {
-	if (i915_modparams.enable_guc & ENABLE_GUC_LOAD_HUC)
-		return i915_modparams.huc_firmware_path;
+	if (i915->params.enable_guc & ENABLE_GUC_LOAD_HUC)
+		return i915->params.huc_firmware_path;
 	return "";
 }
 
-static void __uc_fw_user_override(struct intel_uc_fw *uc_fw)
+static void __uc_fw_user_override(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 {
 	const char *path = NULL;
 
 	switch (uc_fw->type) {
 	case INTEL_UC_FW_TYPE_GUC:
-		path = __override_guc_firmware_path();
+		path = __override_guc_firmware_path(i915);
 		break;
 	case INTEL_UC_FW_TYPE_HUC:
-		path = __override_huc_firmware_path();
+		path = __override_huc_firmware_path(i915);
 		break;
 	}
 
@@ -216,10 +218,8 @@ void intel_uc_fw_init_early(struct intel_uc_fw *uc_fw,
 	uc_fw->type = type;
 
 	if (HAS_GT_UC(i915)) {
-		__uc_fw_auto_select(uc_fw,
-				    INTEL_INFO(i915)->platform,
-				    INTEL_REVID(i915));
-		__uc_fw_user_override(uc_fw);
+		__uc_fw_auto_select(i915, uc_fw);
+		__uc_fw_user_override(i915, uc_fw);
 	}
 
 	intel_uc_fw_change_status(uc_fw, uc_fw->path ? *uc_fw->path ?

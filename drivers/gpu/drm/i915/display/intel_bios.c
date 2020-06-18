@@ -479,7 +479,7 @@ parse_sdvo_panel_data(struct drm_i915_private *dev_priv,
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
-	index = i915_modparams.vbt_sdvo_panel_type;
+	index = dev_priv->params.vbt_sdvo_panel_type;
 	if (index == -2) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Ignore SDVO panel mode from BIOS VBT tables.\n");
@@ -829,9 +829,9 @@ parse_edp(struct drm_i915_private *dev_priv, const struct bdb_header *bdb)
 		u8 vswing;
 
 		/* Don't read from VBT if module parameter has valid value*/
-		if (i915_modparams.edp_vswing) {
+		if (dev_priv->params.edp_vswing) {
 			dev_priv->vbt.edp.low_vswing =
-				i915_modparams.edp_vswing == 1;
+				dev_priv->params.edp_vswing == 1;
 		} else {
 			vswing = (edp->edp_vswing_preemph >> (panel_type * 4)) & 0xF;
 			dev_priv->vbt.edp.low_vswing = vswing == 0;

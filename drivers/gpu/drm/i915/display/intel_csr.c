@@ -723,15 +723,15 @@ void intel_csr_ucode_init(struct drm_i915_private *dev_priv)
 		csr->max_fw_size = BXT_CSR_MAX_FW_SIZE;
 	}
 
-	if (i915_modparams.dmc_firmware_path) {
-		if (strlen(i915_modparams.dmc_firmware_path) == 0) {
+	if (dev_priv->params.dmc_firmware_path) {
+		if (strlen(dev_priv->params.dmc_firmware_path) == 0) {
 			csr->fw_path = NULL;
 			drm_info(&dev_priv->drm,
 				 "Disabling CSR firmware and runtime PM\n");
 			return;
 		}
 
-		csr->fw_path = i915_modparams.dmc_firmware_path;
+		csr->fw_path = dev_priv->params.dmc_firmware_path;
 		/* Bypass version check for firmware override. */
 		csr->required_version = 0;
 	}

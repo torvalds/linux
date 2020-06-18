@@ -4513,7 +4513,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		mask = 0;
 	}
 
-	if (!i915_modparams.disable_power_well)
+	if (!dev_priv->params.disable_power_well)
 		max_dc = 0;
 
 	if (enable_dc >= 0 && enable_dc <= max_dc) {
@@ -4602,11 +4602,11 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 	struct i915_power_domains *power_domains = &dev_priv->power_domains;
 	int err;
 
-	i915_modparams.disable_power_well =
+	dev_priv->params.disable_power_well =
 		sanitize_disable_power_well_option(dev_priv,
-						   i915_modparams.disable_power_well);
+						   dev_priv->params.disable_power_well);
 	dev_priv->csr.allowed_dc_mask =
-		get_allowed_dc_mask(dev_priv, i915_modparams.enable_dc);
+		get_allowed_dc_mask(dev_priv, dev_priv->params.enable_dc);
 
 	dev_priv->csr.target_dc_state =
 		sanitize_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
@@ -5568,7 +5568,7 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 		intel_display_power_get(i915, POWER_DOMAIN_INIT);
 
 	/* Disable power support if the user asked so. */
-	if (!i915_modparams.disable_power_well)
+	if (!i915->params.disable_power_well)
 		intel_display_power_get(i915, POWER_DOMAIN_INIT);
 	intel_power_domains_sync_hw(i915);
 
@@ -5592,7 +5592,7 @@ void intel_power_domains_driver_remove(struct drm_i915_private *i915)
 		fetch_and_zero(&i915->power_domains.wakeref);
 
 	/* Remove the refcount we took to keep power well support disabled. */
-	if (!i915_modparams.disable_power_well)
+	if (!i915->params.disable_power_well)
 		intel_display_power_put_unchecked(i915, POWER_DOMAIN_INIT);
 
 	intel_display_power_flush_work_sync(i915);
@@ -5681,7 +5681,7 @@ void intel_power_domains_suspend(struct drm_i915_private *i915,
 	 * Even if power well support was disabled we still want to disable
 	 * power wells if power domains must be deinitialized for suspend.
 	 */
-	if (!i915_modparams.disable_power_well)
+	if (!i915->params.disable_power_well)
 		intel_display_power_put_unchecked(i915, POWER_DOMAIN_INIT);
 
 	intel_display_power_flush_work(i915);
