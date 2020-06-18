@@ -1316,8 +1316,9 @@ static int polaris10_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.UpHyst = 0;
 	table->MemoryACPILevel.DownHyst = 100;
 	table->MemoryACPILevel.VoltageDownHyst = 0;
+	/* To align with the settings from other OSes */
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US(data->current_profile_setting.mclk_activity);
+			PP_HOST_TO_SMC_US(data->current_profile_setting.sclk_activity);
 
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MemoryACPILevel.MclkFrequency);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->MemoryACPILevel.MinVoltage);
