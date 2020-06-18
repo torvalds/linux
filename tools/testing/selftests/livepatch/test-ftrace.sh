@@ -9,13 +9,11 @@ MOD_LIVEPATCH=test_klp_livepatch
 setup_config
 
 
-# TEST: livepatch interaction with ftrace_enabled sysctl
 # - turn ftrace_enabled OFF and verify livepatches can't load
 # - turn ftrace_enabled ON and verify livepatch can load
 # - verify that ftrace_enabled can't be turned OFF while a livepatch is loaded
 
-echo -n "TEST: livepatch interaction with ftrace_enabled sysctl ... "
-dmesg -C
+start_test "livepatch interaction with ftrace_enabled sysctl"
 
 set_ftrace_enabled 0
 load_failing_mod $MOD_LIVEPATCH
