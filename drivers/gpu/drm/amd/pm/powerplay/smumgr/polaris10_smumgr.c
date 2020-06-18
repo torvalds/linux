@@ -1600,49 +1600,28 @@ static int polaris10_populate_smc_initailial_state(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+#define STRAP_ASIC_RO_LSB    2168
+#define STRAP_ASIC_RO_MSB    2175
+
 static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 {
-	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value, max, min;
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-
-	uint8_t i, stretch_amount, volt_offset = 0;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *table_info =
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
 			table_info->vdd_dep_on_sclk;
+	uint32_t ro, efuse, volt_without_cks, volt_with_cks, value;
+	uint8_t i, stretch_amount, volt_offset = 0;
 
 	stretch_amount = (uint8_t)table_info->cac_dtp_table->usClockStretchAmount;
 
 	/* Read SMU_Eefuse to read and calculate RO and determine
 	 * if the part is SS or FF. if RO >= 1660MHz, part is FF.
 	 */
-	efuse = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC,
-			ixSMU_EFUSE_0 + (67 * 4));
-	efuse &= 0xFF000000;
-	efuse = efuse >> 24;
-
-	if (hwmgr->chip_id == CHIP_POLARIS10) {
-		if (hwmgr->is_kicker) {
-			min = 1200;
-			max = 2500;
-		} else {
-			min = 1000;
-			max = 2300;
-		}
-	} else if (hwmgr->chip_id == CHIP_POLARIS11) {
-		if (hwmgr->is_kicker) {
-			min = 900;
-			max = 2100;
-		} else {
-			min = 1100;
-			max = 2100;
-		}
-	} else {
-		min = 1100;
-		max = 2100;
-	}
-
-	ro = efuse * (max - min) / 255 + min;
+	atomctrl_read_efuse(hwmgr, STRAP_ASIC_RO_LSB, STRAP_ASIC_RO_MSB, &efuse);
+	ro = ((efuse * (data->ro_range_maximum - data->ro_range_minimum)) / 255) +
+		data->ro_range_minimum;
 
 	/* Populate Sclk_CKS_masterEn0_7 and Sclk_voltageOffset */
 	for (i = 0; i < sclk_table->count; i++) {
@@ -1667,7 +1646,8 @@ static int polaris10_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		smu_data->smc_state_table.Sclk_voltageOffset[i] = volt_offset;
 	}
 
-	smu_data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 6;
+	smu_data->smc_state_table.LdoRefSel = (table_info->cac_dtp_table->ucCKS_LDO_REFSEL != 0) ? table_info->cac_dtp_table->ucCKS_LDO_REFSEL : 5;
+
 	/* Populate CKS Lookup Table */
 	if (stretch_amount == 0 || stretch_amount > 5) {
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
