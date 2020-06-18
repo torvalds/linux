@@ -324,8 +324,10 @@ long strnlen_user_nofault(const void __user *unsafe_addr, long count);
  *
  * Returns 0 on success, or -EFAULT.
  */
-#define get_kernel_nofault(val, ptr)		\
-	copy_from_kernel_nofault(&(val), (ptr), sizeof(val))
+#define get_kernel_nofault(val, ptr) ({				\
+	const typeof(val) *__gk_ptr = (ptr);			\
+	copy_from_kernel_nofault(&(val), __gk_ptr, sizeof(val));\
+})
 
 #ifndef user_access_begin
 #define user_access_begin(ptr,len) access_ok(ptr, len)

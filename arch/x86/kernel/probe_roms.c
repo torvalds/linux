@@ -94,7 +94,7 @@ static bool match_id(struct pci_dev *pdev, unsigned short vendor, unsigned short
 }
 
 static bool probe_list(struct pci_dev *pdev, unsigned short vendor,
-		       const unsigned char *rom_list)
+		       const void *rom_list)
 {
 	unsigned short device;
 
@@ -119,7 +119,7 @@ static struct resource *find_oprom(struct pci_dev *pdev)
 	for (i = 0; i < ARRAY_SIZE(adapter_rom_resources); i++) {
 		struct resource *res = &adapter_rom_resources[i];
 		unsigned short offset, vendor, device, list, rev;
-		const unsigned char *rom;
+		const void *rom;
 
 		if (res->end == 0)
 			break;
