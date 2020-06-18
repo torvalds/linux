@@ -1465,7 +1465,7 @@ static int polaris10_program_memory_timing_parameters(struct pp_hwmgr *hwmgr)
 					hw_data->dpm_table.sclk_table.dpm_levels[i].value,
 					hw_data->dpm_table.mclk_table.dpm_levels[j].value,
 					&arb_regs.entries[i][j]);
-			if (result == 0)
+			if (result == 0 && i == 0)
 				result = atomctrl_set_ac_timing_ai(hwmgr, hw_data->dpm_table.mclk_table.dpm_levels[j].value, j);
 			if (result != 0)
 				return result;
