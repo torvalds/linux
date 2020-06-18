@@ -64,6 +64,7 @@ static void amdgpu_perf_start(struct perf_event *event, int flags)
 	struct amdgpu_pmu_entry *pe = container_of(event->pmu,
 						  struct amdgpu_pmu_entry,
 						  pmu);
+	int target_cntr = 0;
 
 	if (WARN_ON_ONCE(!(hwc->state & PERF_HES_STOPPED)))
 		return;
@@ -73,17 +74,24 @@ static void amdgpu_perf_start(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		if (!(flags & PERF_EF_RELOAD))
-			pe->adev->df.funcs->pmc_start(pe->adev, hwc->config, 1);
+		if (!(flags & PERF_EF_RELOAD)) {
+			target_cntr = pe->adev->df.funcs->pmc_start(pe->adev,
+						hwc->config, 0 /* unused */,
+						1 /* add counter */);
+			if (target_cntr < 0)
+				break;
 
-		pe->adev->df.funcs->pmc_start(pe->adev, hwc->config, 0);
+			hwc->idx = target_cntr;
+		}
+
+		pe->adev->df.funcs->pmc_start(pe->adev, hwc->config,
+								hwc->idx, 0);
 		break;
 	default:
 		break;
 	}
 
 	perf_event_update_userpage(event);
-
 }
 
 /* read perf counter */
@@ -101,8 +109,8 @@ static void amdgpu_perf_read(struct perf_event *event)
 
 		switch (pe->pmu_perf_type) {
 		case PERF_TYPE_AMDGPU_DF:
-			pe->adev->df.funcs->pmc_get_count(pe->adev, hwc->config,
-							  &count);
+			pe->adev->df.funcs->pmc_get_count(pe->adev,
+						hwc->config, hwc->idx, &count);
 			break;
 		default:
 			count = 0;
@@ -126,7 +134,8 @@ static void amdgpu_perf_stop(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->config, 0);
+		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->config, hwc->idx,
+									0);
 		break;
 	default:
 		break;
@@ -142,12 +151,11 @@ static void amdgpu_perf_stop(struct perf_event *event, int flags)
 	hwc->state |= PERF_HES_UPTODATE;
 }
 
-/* add perf counter  */
+/* add perf counter */
 static int amdgpu_perf_add(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	int retval;
-
+	int retval = 0, target_cntr;
 	struct amdgpu_pmu_entry *pe = container_of(event->pmu,
 						  struct amdgpu_pmu_entry,
 						  pmu);
@@ -156,8 +164,14 @@ static int amdgpu_perf_add(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		retval = pe->adev->df.funcs->pmc_start(pe->adev,
-						       hwc->config, 1);
+		target_cntr = pe->adev->df.funcs->pmc_start(pe->adev,
+						hwc->config, 0 /* unused */,
+						1 /* add counter */);
+		if (target_cntr < 0)
+			retval = target_cntr;
+		else
+			hwc->idx = target_cntr;
+
 		break;
 	default:
 		return 0;
@@ -170,7 +184,6 @@ static int amdgpu_perf_add(struct perf_event *event, int flags)
 		amdgpu_perf_start(event, PERF_EF_RELOAD);
 
 	return retval;
-
 }
 
 /* delete perf counter  */
@@ -185,7 +198,8 @@ static void amdgpu_perf_del(struct perf_event *event, int flags)
 
 	switch (pe->pmu_perf_type) {
 	case PERF_TYPE_AMDGPU_DF:
-		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->config, 1);
+		pe->adev->df.funcs->pmc_stop(pe->adev, hwc->config, hwc->idx,
+									1);
 		break;
 	default:
 		break;
