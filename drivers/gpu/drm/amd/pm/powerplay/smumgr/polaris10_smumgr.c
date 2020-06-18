@@ -2023,7 +2023,7 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 	table->VoltageResponseTime = 0;
 	table->PhaseResponseTime = 0;
 	table->MemoryThermThrottleEnable = 1;
-	table->PCIeBootLinkLevel = 0;
+	table->PCIeBootLinkLevel = hw_data->dpm_table.pcie_speed_table.count;
 	table->PCIeGenInterval = 1;
 	table->VRConfig = 0;
 
