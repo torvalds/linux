@@ -105,11 +105,11 @@ static vm_fault_t f2fs_vm_page_mkwrite(struct vm_fault *vmf)
 
 	if (need_alloc) {
 		/* block allocation */
-		__do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, true);
+		f2fs_do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, true);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = f2fs_get_block(&dn, page->index);
 		f2fs_put_dnode(&dn);
-		__do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, false);
+		f2fs_do_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO, false);
 	}
 
 #ifdef CONFIG_F2FS_FS_COMPRESSION
