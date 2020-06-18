@@ -844,8 +844,7 @@ retry:
 	if (!ds) {
 		if (!ff_layout_no_fallback_to_mds(pgio->pg_lseg))
 			goto out_mds;
-		pnfs_put_lseg(pgio->pg_lseg);
-		pgio->pg_lseg = NULL;
+		pnfs_generic_pg_cleanup(pgio);
 		/* Sleep for 1 second before retrying */
 		ssleep(1);
 		goto retry;
@@ -871,8 +870,6 @@ out_mds:
 			0, NFS4_MAX_UINT64, IOMODE_READ,
 			NFS_I(pgio->pg_inode)->layout,
 			pgio->pg_lseg);
-	pnfs_put_lseg(pgio->pg_lseg);
-	pgio->pg_lseg = NULL;
 	pgio->pg_maxretrans = 0;
 	nfs_pageio_reset_read_mds(pgio);
 }
@@ -916,8 +913,7 @@ retry:
 		if (!ds) {
 			if (!ff_layout_no_fallback_to_mds(pgio->pg_lseg))
 				goto out_mds;
-			pnfs_put_lseg(pgio->pg_lseg);
-			pgio->pg_lseg = NULL;
+			pnfs_generic_pg_cleanup(pgio);
 			/* Sleep for 1 second before retrying */
 			ssleep(1);
 			goto retry;
@@ -939,8 +935,6 @@ out_mds:
 			0, NFS4_MAX_UINT64, IOMODE_RW,
 			NFS_I(pgio->pg_inode)->layout,
 			pgio->pg_lseg);
-	pnfs_put_lseg(pgio->pg_lseg);
-	pgio->pg_lseg = NULL;
 	pgio->pg_maxretrans = 0;
 	nfs_pageio_reset_write_mds(pgio);
 	pgio->pg_error = -EAGAIN;
