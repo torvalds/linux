@@ -1865,33 +1865,6 @@ static int polaris10_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-static int polaris10_init_arb_table_index(struct pp_hwmgr *hwmgr)
-{
-	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
-	uint32_t tmp;
-	int result;
-
-	/* This is a read-modify-write on the first byte of the ARB table.
-	 * The first byte in the SMU73_Discrete_MCArbDramTimingTable structure
-	 * is the field 'current'.
-	 * This solution is ugly, but we never write the whole table only
-	 * individual fields in it.
-	 * In reality this field should not be in that structure
-	 * but in a soft register.
-	 */
-	result = smu7_read_smc_sram_dword(hwmgr,
-			smu_data->smu7_data.arb_table_start, &tmp, SMC_RAM_END);
-
-	if (result)
-		return result;
-
-	tmp &= 0x00FFFFFF;
-	tmp |= ((uint32_t)MC_CG_ARB_FREQ_F1) << 24;
-
-	return smu7_write_smc_sram_dword(hwmgr,
-			smu_data->smu7_data.arb_table_start, tmp, SMC_RAM_END);
-}
-
 static void polaris10_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 {
 	struct polaris10_smumgr *smu_data = (struct polaris10_smumgr *)(hwmgr->smu_backend);
@@ -2117,10 +2090,6 @@ static int polaris10_init_smc_table(struct pp_hwmgr *hwmgr)
 			SMC_RAM_END);
 	PP_ASSERT_WITH_CODE(0 == result,
 			"Failed to upload dpm data to SMC memory!", return result);
-
-	result = polaris10_init_arb_table_index(hwmgr);
-	PP_ASSERT_WITH_CODE(0 == result,
-			"Failed to upload arb data to SMC memory!", return result);
 
 	result = polaris10_populate_pm_fuses(hwmgr);
 	PP_ASSERT_WITH_CODE(0 == result,
