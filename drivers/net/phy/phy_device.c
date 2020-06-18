@@ -800,8 +800,17 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
  * @addr: PHY address on the MII bus
  * @is_c45: If true the PHY uses the 802.3 clause 45 protocol
  *
- * Description: Reads the ID registers of the PHY at @addr on the
- *   @bus, then allocates and returns the phy_device to represent it.
+ * Probe for a PHY at @addr on @bus.
+ *
+ * When probing for a clause 22 PHY, then read the ID registers. If we find
+ * a valid ID, allocate and return a &struct phy_device.
+ *
+ * When probing for a clause 45 PHY, read the "devices in package" registers.
+ * If the "devices in package" appears valid, read the ID registers for each
+ * MMD, allocate and return a &struct phy_device.
+ *
+ * Returns an allocated &struct phy_device on success, %-ENODEV if there is
+ * no PHY present, or %-EIO on bus access error.
  */
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
