@@ -902,6 +902,7 @@ static int venc_runtime_resume(struct device *dev)
 static const struct dev_pm_ops venc_pm_ops = {
 	.runtime_suspend = venc_runtime_suspend,
 	.runtime_resume = venc_runtime_resume,
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
 };
 
 static const struct of_device_id venc_of_match[] = {
