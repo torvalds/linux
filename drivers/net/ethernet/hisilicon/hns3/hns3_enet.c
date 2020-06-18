@@ -3070,7 +3070,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 		return -ENXIO;
 
 	if (!skb)
-		ring->va = (unsigned char *)desc_cb->buf + desc_cb->page_offset;
+		ring->va = desc_cb->buf + desc_cb->page_offset;
 
 	/* Prefetch first cache line of first page
 	 * Idea is to cache few bytes of the header of the packet. Our L1 Cache
