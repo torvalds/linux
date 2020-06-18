@@ -16,9 +16,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/bug.h>
+#include <linux/refcount.h>
 #include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/uaccess.h>
 #include <linux/completion.h>
 
 /*
