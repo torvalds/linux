@@ -732,13 +732,13 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			   struct phy_c45_device_ids *c45_ids)
 {
 	const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
-	u32 *devs = &c45_ids->devices_in_package;
+	u32 devs_in_pkg = 0;
 	int i, ret, phy_reg;
 
 	/* Find first non-zero Devices In package. Device zero is reserved
 	 * for 802.3 c45 complied PHYs, so don't probe it at first.
 	 */
-	for (i = 1; i < MDIO_MMD_NUM && *devs == 0; i++) {
+	for (i = 1; i < MDIO_MMD_NUM && devs_in_pkg == 0; i++) {
 		if (i == MDIO_MMD_VEND1 || i == MDIO_MMD_VEND2) {
 			/* Check that there is a device present at this
 			 * address before reading the devices-in-package
@@ -753,28 +753,28 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			if (!ret)
 				continue;
 		}
-		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, i, devs);
+		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, i, &devs_in_pkg);
 		if (phy_reg < 0)
 			return -EIO;
 	}
 
-	if ((*devs & 0x1fffffff) == 0x1fffffff) {
+	if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff) {
 		/* If mostly Fs, there is no device there, then let's probe
 		 * MMD 0, as some 10G PHYs have zero Devices In package,
 		 * e.g. Cortina CS4315/CS4340 PHY.
 		 */
-		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, 0, devs);
+		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, 0, &devs_in_pkg);
 		if (phy_reg < 0)
 			return -EIO;
 
 		/* no device there, let's get out of here */
-		if ((*devs & 0x1fffffff) == 0x1fffffff)
+		if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff)
 			return -ENODEV;
 	}
 
 	/* Now probe Device Identifiers for each device present. */
 	for (i = 1; i < num_ids; i++) {
-		if (!(c45_ids->devices_in_package & (1 << i)))
+		if (!(devs_in_pkg & (1 << i)))
 			continue;
 
 		phy_reg = mdiobus_c45_read(bus, addr, i, MII_PHYSID1);
@@ -787,6 +787,8 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			return -EIO;
 		c45_ids->device_ids[i] |= phy_reg;
 	}
+
+	c45_ids->devices_in_package = devs_in_pkg;
 
 	return 0;
 }
