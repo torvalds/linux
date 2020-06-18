@@ -1078,7 +1078,8 @@ static int dmz_check_sb(struct dmz_metadata *zmd, struct dmz_sb *dsb,
 	nr_meta_zones = (le32_to_cpu(sb->nr_meta_blocks) + zmd->zone_nr_blocks - 1)
 		>> zmd->zone_nr_blocks_shift;
 	if (!nr_meta_zones ||
-	    nr_meta_zones >= zmd->nr_rnd_zones) {
+	    (zmd->nr_devs <= 1 && nr_meta_zones >= zmd->nr_rnd_zones) ||
+	    (zmd->nr_devs > 1 && nr_meta_zones >= zmd->nr_cache_zones)) {
 		dmz_dev_err(dev, "Invalid number of metadata blocks");
 		return -ENXIO;
 	}
