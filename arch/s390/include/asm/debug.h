@@ -82,7 +82,6 @@ struct debug_view {
 };
 
 extern struct debug_view debug_hex_ascii_view;
-extern struct debug_view debug_raw_view;
 extern struct debug_view debug_sprintf_view;
 
 /* do NOT use the _common functions */
