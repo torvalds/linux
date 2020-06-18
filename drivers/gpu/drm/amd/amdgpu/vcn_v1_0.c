@@ -38,6 +38,7 @@
 
 #include "ivsrcid/vcn/irqsrcs_vcn_1_0.h"
 #include "jpeg_v1_0.h"
+#include "vcn_v1_0.h"
 
 #define mmUVD_RBC_XX_IB_REG_CHECK_1_0		0x05ab
 #define mmUVD_RBC_XX_IB_REG_CHECK_1_0_BASE_IDX	1
