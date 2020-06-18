@@ -2405,7 +2405,7 @@ static int hns3_alloc_desc(struct hns3_enet_ring *ring)
 	return 0;
 }
 
-static int hns3_reserve_buffer_map(struct hns3_enet_ring *ring,
+static int hns3_alloc_and_map_buffer(struct hns3_enet_ring *ring,
 				   struct hns3_desc_cb *cb)
 {
 	int ret;
@@ -2426,9 +2426,9 @@ out:
 	return ret;
 }
 
-static int hns3_alloc_buffer_attach(struct hns3_enet_ring *ring, int i)
+static int hns3_alloc_and_attach_buffer(struct hns3_enet_ring *ring, int i)
 {
-	int ret = hns3_reserve_buffer_map(ring, &ring->desc_cb[i]);
+	int ret = hns3_alloc_and_map_buffer(ring, &ring->desc_cb[i]);
 
 	if (ret)
 		return ret;
@@ -2444,7 +2444,7 @@ static int hns3_alloc_ring_buffers(struct hns3_enet_ring *ring)
 	int i, j, ret;
 
 	for (i = 0; i < ring->desc_num; i++) {
-		ret = hns3_alloc_buffer_attach(ring, i);
+		ret = hns3_alloc_and_attach_buffer(ring, i);
 		if (ret)
 			goto out_buffer_fail;
 	}
@@ -2590,7 +2590,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 
 			hns3_reuse_buffer(ring, ring->next_to_use);
 		} else {
-			ret = hns3_reserve_buffer_map(ring, &res_cbs);
+			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
 				u64_stats_update_begin(&ring->syncp);
 				ring->stats.sw_err_cnt++;
@@ -4184,7 +4184,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 		 * stack, so we need to replace the buffer here.
 		 */
 		if (!ring->desc_cb[ring->next_to_use].reuse_flag) {
-			ret = hns3_reserve_buffer_map(ring, &res_cbs);
+			ret = hns3_alloc_and_map_buffer(ring, &res_cbs);
 			if (ret) {
 				u64_stats_update_begin(&ring->syncp);
 				ring->stats.sw_err_cnt++;
