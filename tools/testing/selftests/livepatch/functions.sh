@@ -277,7 +277,8 @@ function check_result {
 	# post-comparison sed filter.
 
 	result=$(dmesg | diff --changed-group-format='%>' --unchanged-group-format='' "$SAVED_DMESG" - | \
-		 grep -v 'tainting' | grep -e 'livepatch:' -e 'test_klp' | \
+		 grep -e 'livepatch:' -e 'test_klp' | \
+		 grep -v '\(tainting\|taints\) kernel' | \
 		 sed 's/^\[[ 0-9.]*\] //')
 
 	if [[ "$expect" == "$result" ]] ; then
