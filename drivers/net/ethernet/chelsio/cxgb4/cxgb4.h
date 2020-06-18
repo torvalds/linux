@@ -143,6 +143,12 @@ enum {
 	CXGB4_ETHTOOL_FLASH_FW = 1,
 	CXGB4_ETHTOOL_FLASH_PHY = 2,
 	CXGB4_ETHTOOL_FLASH_BOOT = 3,
+	CXGB4_ETHTOOL_FLASH_BOOTCFG = 4
+};
+
+struct cxgb4_bootcfg_data {
+	__le16 signature;
+	__u8 reserved[2];
 };
 
 struct cxgb4_pcir_data {
@@ -183,6 +189,7 @@ struct legacy_pci_rom_hdr {
 
 /* BOOT constants */
 enum {
+	BOOT_CFG_SIG = 0x4243,
 	BOOT_SIZE_INC = 512,
 	BOOT_SIGNATURE = 0xaa55,
 	BOOT_MIN_SIZE = sizeof(struct cxgb4_pci_exp_rom_header),
@@ -2046,6 +2053,8 @@ int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 	      unsigned int len, u8 *buf);
 int t4_load_boot(struct adapter *adap, u8 *boot_data,
 		 unsigned int boot_addr, unsigned int size);
+int t4_load_bootcfg(struct adapter *adap,
+		    const u8 *cfg_data, unsigned int size);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);

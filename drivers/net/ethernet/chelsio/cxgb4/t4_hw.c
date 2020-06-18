@@ -10668,3 +10668,93 @@ out:
 			ret);
 	return ret;
 }
+
+/**
+ *	t4_flash_bootcfg_addr - return the address of the flash
+ *	optionrom configuration
+ *	@adapter: the adapter
+ *
+ *	Return the address within the flash where the OptionROM Configuration
+ *	is stored, or an error if the device FLASH is too small to contain
+ *	a OptionROM Configuration.
+ */
+static int t4_flash_bootcfg_addr(struct adapter *adapter)
+{
+	/**
+	 * If the device FLASH isn't large enough to hold a Firmware
+	 * Configuration File, return an error.
+	 */
+	if (adapter->params.sf_size <
+	    FLASH_BOOTCFG_START + FLASH_BOOTCFG_MAX_SIZE)
+		return -ENOSPC;
+
+	return FLASH_BOOTCFG_START;
+}
+
+int t4_load_bootcfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	struct cxgb4_bootcfg_data *header;
+	unsigned int flash_cfg_start_sec;
+	unsigned int addr, npad;
+	int ret, i, n, cfg_addr;
+
+	cfg_addr = t4_flash_bootcfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_BOOTCFG_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "bootcfg file too large, max is %u bytes\n",
+			FLASH_BOOTCFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	header = (struct cxgb4_bootcfg_data *)cfg_data;
+	if (le16_to_cpu(header->signature) != BOOT_CFG_SIG) {
+		dev_err(adap->pdev_dev, "Wrong bootcfg signature\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	i = DIV_ROUND_UP(FLASH_BOOTCFG_MAX_SIZE,
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+
+	/**
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter OptionROM Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		n = min_t(u32, size - i, SF_PAGE_SIZE);
+
+		ret = t4_write_flash(adap, addr, n, cfg_data);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+	npad = ((size + 4 - 1) & ~3) - size;
+	for (i = 0; i < npad; i++) {
+		u8 data = 0;
+
+		ret = t4_write_flash(adap, cfg_addr + size + i, 1, &data);
+		if (ret)
+			goto out;
+	}
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "boot config data %s failed %d\n",
+			(size == 0 ? "clear" : "download"), ret);
+	return ret;
+}

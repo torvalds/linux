@@ -28,6 +28,7 @@ static const char * const flash_region_strings[] = {
 	"Firmware",
 	"PHY Firmware",
 	"Boot",
+	"Boot CFG",
 };
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
@@ -1242,6 +1243,19 @@ out:
 	return err;
 }
 
+static int cxgb4_ethtool_flash_bootcfg(struct net_device *netdev,
+				       const u8 *data, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	ret = t4_load_bootcfg(adap, data, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot cfg image\n");
+
+	return ret;
+}
+
 static int cxgb4_ethtool_flash_boot(struct net_device *netdev,
 				    const u8 *bdata, u32 size)
 {
@@ -1336,6 +1350,9 @@ static int cxgb4_ethtool_flash_region(struct net_device *netdev,
 	case CXGB4_ETHTOOL_FLASH_BOOT:
 		ret = cxgb4_ethtool_flash_boot(netdev, data, size);
 		break;
+	case CXGB4_ETHTOOL_FLASH_BOOTCFG:
+		ret = cxgb4_ethtool_flash_bootcfg(netdev, data, size);
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 		break;
@@ -1361,6 +1378,17 @@ static int cxgb4_validate_fw_image(const u8 *data, u32 *size)
 
 	if (size)
 		*size = be16_to_cpu(((struct fw_hdr *)data)->len512) * 512;
+
+	return 0;
+}
+
+static int cxgb4_validate_bootcfg_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_bootcfg_data *header;
+
+	header = (struct cxgb4_bootcfg_data *)data;
+	if (le16_to_cpu(header->signature) != BOOT_CFG_SIG)
+		return -EINVAL;
 
 	return 0;
 }
@@ -1401,6 +1429,8 @@ static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
 		return CXGB4_ETHTOOL_FLASH_BOOT;
 	if (!cxgb4_validate_phy_image(data, size))
 		return CXGB4_ETHTOOL_FLASH_PHY;
+	if (!cxgb4_validate_bootcfg_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOTCFG;
 
 	return -EOPNOTSUPP;
 }
