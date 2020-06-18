@@ -2218,9 +2218,6 @@ vs_skip:
 	 * Do the updates in the order of the processing flow.
 	 */
 	rkisp_params_isr(&dev->params_vdev, isp_mis);
-
-	if (isp_mis & CIF_ISP_FRAME)
-		rkisp_csi_trigger_event(&dev->csi_dev, NULL);
 }
 
 irqreturn_t rkisp_vs_isr_handler(int irq, void *ctx)

@@ -356,11 +356,6 @@ static void update_rawrd(struct rkisp_stream *stream)
 				readl(base + rawwr_addr));
 		}
 	}
-	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
-		 "%s stream:%d Y:0x%x SHD:0x%x\n",
-		 __func__, stream->id,
-		 readl(base + stream->config->mi.y_base_ad_init),
-		 readl(base + stream->config->mi.y_base_ad_shd));
 }
 
 static void rawrd_stop_mi(struct rkisp_stream *stream)
@@ -381,13 +376,13 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 {
 	unsigned long lock_flags = 0;
 
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
 		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
 			VB2_BUF_STATE_DONE);
 		stream->curr_buf = NULL;
 	}
 
-	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (!list_empty(&stream->buf_queue)) {
 		stream->curr_buf =
 			list_first_entry(&stream->buf_queue,
@@ -504,6 +499,10 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 				pixm->plane_fmt[i].sizeimage;
 		}
 	}
+
+	v4l2_dbg(2, rkisp_debug, &stream->ispdev->v4l2_dev,
+		 "rx:%d queue buf:0x%x\n",
+		 stream->id, ispbuf->buff_addr[0]);
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->streaming &&
@@ -861,11 +860,6 @@ void rkisp2_rawrd_isr(u32 mis_val, struct rkisp_device *dev)
 		stream = &dev->dmarx_dev.stream[i];
 		if (!(mis_val & CIF_MI_FRAME(stream)))
 			continue;
-		/* filt rawrd frame end when frame read back mode */
-		if (dev->csi_dev.filt_state[stream->id]) {
-			dev->csi_dev.filt_state[stream->id]--;
-			continue;
-		}
 		stream->frame_end = true;
 		if (stream->stopping) {
 			stream->stopping = false;

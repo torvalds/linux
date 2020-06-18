@@ -452,6 +452,9 @@ void rkisp_trigger_read_back(struct rkisp_csi_device *csi, u8 dma2frm)
 
 	/* not using isp V_START irq to generate sof event */
 	csi->filt_state[CSI_F_VS] = dma2frm + 1;
+	v4l2_dbg(2, rkisp_debug, &dev->v4l2_dev,
+		 "isp readback frame:%d time:%d\n",
+		 cur_frame_id, dma2frm + 1);
 	writel(SW_CSI2RX_EN | SW_DMA_2FRM_MODE(dma2frm) | readl(addr), addr);
 }
 

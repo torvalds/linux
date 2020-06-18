@@ -49,13 +49,15 @@ static int frame_end(struct rkisp_bridge_device *dev)
 {
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
 	unsigned long lock_flags = 0;
+	u64 ns = 0;
 
 	if (dev->cur_buf && dev->nxt_buf) {
 		rkisp_dmarx_get_frame(dev->ispdev,
-				      &dev->cur_buf->frame_id,
-				      &dev->cur_buf->frame_timestamp,
-				      false);
+				      &dev->cur_buf->frame_id, &ns, false);
 		dev->cur_buf->frame_id++;
+		if (!ns)
+			ns = ktime_get_ns();
+		dev->cur_buf->frame_timestamp = ns;
 		v4l2_subdev_call(sd, video, s_rx_buffer, dev->cur_buf, NULL);
 		dev->cur_buf = NULL;
 	}
@@ -687,6 +689,26 @@ void rkisp_bridge_isr(u32 *mis_val, struct rkisp_device *dev)
 {
 	struct rkisp_bridge_device *bridge = &dev->br_dev;
 	void __iomem *base = dev->base_addr;
+	u32 val = 0;
+
+	/* dmarx isr is unreliable, MI frame end to replace it */
+	if (*mis_val & (MI_MP_FRAME | MI_MPFBC_FRAME) &&
+	    IS_HDR_RDBK(dev->hdr.op_mode) &&
+	    dev->dmarx_dev.trigger == T_MANUAL) {
+		switch (dev->hdr.op_mode) {
+		case HDR_RDBK_FRAME3://for rd1 rd0 rd2
+			val |= RAW1_RD_FRAME;
+			/* FALLTHROUGH */
+		case HDR_RDBK_FRAME2://for rd0 rd2
+			val |= RAW0_RD_FRAME;
+			/* FALLTHROUGH */
+		default:// for rd2
+			val |= RAW2_RD_FRAME;
+			/* FALLTHROUGH */
+		}
+		rkisp2_rawrd_isr(val, dev);
+		rkisp_csi_trigger_event(&dev->csi_dev, NULL);
+	}
 
 	if (!bridge->en || !bridge->cfg ||
 	    (bridge->cfg &&

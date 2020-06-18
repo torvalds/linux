@@ -3295,9 +3295,6 @@ void rkisp_mipi_v20_isr(unsigned int phy, unsigned int packet,
 		}
 	}
 
-	if (state & (RAW0_RD_FRAME | RAW1_RD_FRAME | RAW2_RD_FRAME))
-		rkisp2_rawrd_isr(state, dev);
-
 	if (state & (RAW0_Y_STATE | RAW1_Y_STATE | RAW2_Y_STATE |
 	    RAW0_WR_FRAME | RAW1_WR_FRAME | RAW2_WR_FRAME))
 		rkisp_luma_isr(&dev->luma_vdev, state);
