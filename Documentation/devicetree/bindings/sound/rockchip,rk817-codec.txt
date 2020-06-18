@@ -36,6 +36,8 @@ Required properties:
   Boolean. Indicate use external amplifier or not.
 - adc-for-loopback:
   Boolean. Indicate adc use for loopback or not.
+- out-l2spk-r2hp:
+  Boolean. Use route config for L to ClassD speaker out and R to HPR out
 
 Example for rk817 codec:
 

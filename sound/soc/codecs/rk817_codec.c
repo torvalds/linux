@@ -84,6 +84,7 @@ struct rk817_codec_priv {
 	bool use_ext_amplifier;
 	bool adc_for_loopback;
 
+	bool out_l2spk_r2hp;
 	long int playback_path;
 	long int capture_path;
 
@@ -534,7 +535,31 @@ static int rk817_playback_path_put(struct snd_kcontrol *kcontrol,
 	case RING_SPK:
 		if (pre_path == OFF)
 			rk817_codec_power_up(component, RK817_CODEC_PLAYBACK);
-		if (!rk817->use_ext_amplifier) {
+		if (rk817->out_l2spk_r2hp) {
+			/* for costdown: ldac -> ClassD rdac -> Hp */
+			/* HP_CP_EN , CP 2.3V */
+			snd_soc_component_write(component, RK817_CODEC_AHP_CP,
+						0x11);
+			/* power on HP two stage opamp ,HP amplitude 0db */
+			snd_soc_component_write(component, RK817_CODEC_AHP_CFG0,
+						0x80);
+			/* power on dac ibias/l/r */
+			snd_soc_component_write(component, RK817_CODEC_ADAC_CFG1,
+						PWD_DACBIAS_ON | PWD_DACD_ON |
+						PWD_DACL_ON | PWD_DACR_ON);
+			/* CLASS D mode */
+			snd_soc_component_write(component,
+						RK817_CODEC_DDAC_MUTE_MIXCTL,
+						0x18);
+			/* CLASS D enable */
+			snd_soc_component_write(component,
+						RK817_CODEC_ACLASSD_CFG1,
+						0xa5);
+			/* restart CLASS D, OCPP/N */
+			snd_soc_component_write(component,
+						RK817_CODEC_ACLASSD_CFG2,
+						0xf7);
+		} else if (!rk817->use_ext_amplifier) {
 			/* power on dac ibias/l/r */
 			snd_soc_component_write(component, RK817_CODEC_ADAC_CFG1,
 						PWD_DACBIAS_ON | PWD_DACD_ON |
@@ -1098,6 +1123,8 @@ static int rk817_codec_parse_dt_property(struct device *dev,
 
 	rk817->use_ext_amplifier =
 			of_property_read_bool(node, "use-ext-amplifier");
+
+	rk817->out_l2spk_r2hp = of_property_read_bool(node, "out-l2spk-r2hp");
 
 	rk817->adc_for_loopback =
 			of_property_read_bool(node, "adc-for-loopback");
