@@ -467,6 +467,12 @@ struct flow_block_cb {
 struct flow_block_cb *flow_block_cb_alloc(flow_setup_cb_t *cb,
 					  void *cb_ident, void *cb_priv,
 					  void (*release)(void *cb_priv));
+struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
+					       void *cb_ident, void *cb_priv,
+					       void (*release)(void *cb_priv),
+					       struct flow_block_offload *bo,
+					       struct net_device *dev, void *data,
+					       void (*cleanup)(struct flow_block_cb *block_cb));
 void flow_block_cb_free(struct flow_block_cb *block_cb);
 
 struct flow_block_cb *flow_block_cb_lookup(struct flow_block *block,
@@ -485,6 +491,13 @@ static inline void flow_block_cb_add(struct flow_block_cb *block_cb,
 static inline void flow_block_cb_remove(struct flow_block_cb *block_cb,
 					struct flow_block_offload *offload)
 {
+	list_move(&block_cb->list, &offload->cb_list);
+}
+
+static inline void flow_indr_block_cb_remove(struct flow_block_cb *block_cb,
+					     struct flow_block_offload *offload)
+{
+	list_del(&block_cb->indr.list);
 	list_move(&block_cb->list, &offload->cb_list);
 }
 

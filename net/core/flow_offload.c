@@ -437,6 +437,27 @@ static void flow_block_indr_init(struct flow_block_cb *flow_block,
 	flow_block->indr.cleanup = cleanup;
 }
 
+struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
+					       void *cb_ident, void *cb_priv,
+					       void (*release)(void *cb_priv),
+					       struct flow_block_offload *bo,
+					       struct net_device *dev, void *data,
+					       void (*cleanup)(struct flow_block_cb *block_cb))
+{
+	struct flow_block_cb *block_cb;
+
+	block_cb = flow_block_cb_alloc(cb, cb_ident, cb_priv, release);
+	if (IS_ERR(block_cb))
+		goto out;
+
+	flow_block_indr_init(block_cb, bo, dev, data, cleanup);
+	list_add(&block_cb->indr.list, &flow_block_indr_list);
+
+out:
+	return block_cb;
+}
+EXPORT_SYMBOL(flow_indr_block_cb_alloc);
+
 static void __flow_block_indr_binding(struct flow_block_offload *bo,
 				      struct net_device *dev, void *data,
 				      void (*cleanup)(struct flow_block_cb *block_cb))
