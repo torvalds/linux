@@ -169,6 +169,8 @@ struct mt7615_phy {
 	struct mt76_phy *mt76;
 	struct mt7615_dev *dev;
 
+	struct ieee80211_vif *monitor_vif;
+
 	u32 rxfilter;
 	u32 omac_mask;
 
@@ -283,6 +285,17 @@ struct mt7615_dev {
 
 	u32 debugfs_rf_wf;
 	u32 debugfs_rf_reg;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	struct {
+		u32 *reg_backup;
+
+		s16 last_freq_offset;
+		u8 last_rcpi[4];
+		s8 last_ib_rssi;
+		s8 last_wb_rssi;
+	} test;
+#endif
 };
 
 enum tx_pkt_queue_idx {
@@ -377,6 +390,7 @@ extern const u32 mt7615e_reg_map[__MT_BASE_MAX];
 extern const u32 mt7663e_reg_map[__MT_BASE_MAX];
 extern struct pci_driver mt7615_pci_driver;
 extern struct platform_driver mt7622_wmac_driver;
+extern const struct mt76_testmode_ops mt7615_testmode_ops;
 
 #ifdef CONFIG_MT7622_WMAC
 int mt7622_wmac_init(struct mt7615_dev *dev);
@@ -488,6 +502,7 @@ void mt7615_init_txpower(struct mt7615_dev *dev,
 			 struct ieee80211_supported_band *sband);
 void mt7615_phy_init(struct mt7615_dev *dev);
 void mt7615_mac_init(struct mt7615_dev *dev);
+int mt7615_set_channel(struct mt7615_phy *phy);
 
 int mt7615_mcu_restart(struct mt76_dev *dev);
 void mt7615_update_channel(struct mt76_dev *mdev);
@@ -531,6 +546,7 @@ int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);
 int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
 int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index);
+int mt7615_mcu_set_tx_power(struct mt7615_phy *phy);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 			 int cmd, int *wait_seq);
@@ -569,6 +585,8 @@ int mt7615_mcu_set_pulse_th(struct mt7615_dev *dev,
 			    const struct mt7615_dfs_pulse *pulse);
 int mt7615_mcu_set_radar_th(struct mt7615_dev *dev, int index,
 			    const struct mt7615_dfs_pattern *pattern);
+int mt7615_mcu_set_test_param(struct mt7615_dev *dev, u8 param, bool test_mode,
+			      u32 val);
 int mt7615_mcu_set_sku_en(struct mt7615_phy *phy, bool enable);
 int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy);
 int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy);

@@ -76,6 +76,8 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&dev->mt76.mutex);
 
+	mt76_testmode_reset(&dev->mt76, true);
+
 	clear_bit(MT76_STATE_RUNNING, &phy->mt76->state);
 	cancel_delayed_work_sync(&phy->scan_work);
 
@@ -137,6 +139,12 @@ static int mt7615_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&dev->mt76.mutex);
 
+	mt76_testmode_reset(&dev->mt76, true);
+
+	if (vif->type == NL80211_IFTYPE_MONITOR &&
+	    is_zero_ether_addr(vif->addr))
+		phy->monitor_vif = vif;
+
 	mvif->idx = ffs(~dev->mphy.vif_mask) - 1;
 	if (mvif->idx >= MT7615_MAX_INTERFACES) {
 		ret = -ENOSPC;
@@ -197,6 +205,13 @@ static void mt7615_remove_interface(struct ieee80211_hw *hw,
 
 	/* TODO: disable beacon for the bss */
 
+	mutex_lock(&dev->mt76.mutex);
+	mt76_testmode_reset(&dev->mt76, true);
+	mutex_unlock(&dev->mt76.mutex);
+
+	if (vif == phy->monitor_vif)
+	    phy->monitor_vif = NULL;
+
 	mt7615_mcu_add_dev_info(dev, vif, false);
 
 	rcu_assign_pointer(dev->mt76.wcid[idx], NULL);
@@ -234,7 +249,7 @@ static void mt7615_init_dfs_state(struct mt7615_phy *phy)
 	phy->dfs_state = -1;
 }
 
-static int mt7615_set_channel(struct mt7615_phy *phy)
+int mt7615_set_channel(struct mt7615_phy *phy)
 {
 	struct mt7615_dev *dev = phy->dev;
 	bool ext_phy = phy != &dev->phy;
@@ -260,7 +275,7 @@ static int mt7615_set_channel(struct mt7615_phy *phy)
 	mt7615_mac_set_timing(phy);
 	ret = mt7615_dfs_init_radar_detector(phy);
 	mt7615_mac_cca_stats_reset(phy);
-	mt7615_mcu_set_sku_en(phy, true);
+	mt7615_mcu_set_sku_en(phy, !mt76_testmode_enabled(&dev->mt76));
 
 	mt7615_mac_reset_counters(dev);
 	phy->noise = 0;
@@ -271,8 +286,11 @@ out:
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_txq_schedule_all(phy->mt76);
-	ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
-				     MT7615_WATCHDOG_TIME);
+
+	if (!mt76_testmode_enabled(&dev->mt76))
+		ieee80211_queue_delayed_work(phy->mt76->hw, &phy->mac_work,
+					     MT7615_WATCHDOG_TIME);
+
 	return ret;
 }
 
@@ -369,6 +387,13 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 
 	if (changed & (IEEE80211_CONF_CHANGE_CHANNEL |
 		       IEEE80211_CONF_CHANGE_POWER)) {
+#ifdef CONFIG_NL80211_TESTMODE
+		if (dev->mt76.test.state != MT76_TM_STATE_OFF) {
+			mutex_lock(&dev->mt76.mutex);
+			mt76_testmode_reset(&dev->mt76, false);
+			mutex_unlock(&dev->mt76.mutex);
+		}
+#endif
 		ieee80211_stop_queues(hw);
 		ret = mt7615_set_channel(phy);
 		ieee80211_wake_queues(hw);
@@ -377,6 +402,8 @@ static int mt7615_config(struct ieee80211_hw *hw, u32 changed)
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & IEEE80211_CONF_CHANGE_MONITOR) {
+		mt76_testmode_reset(&dev->mt76, true);
+
 		if (!(hw->conf.flags & IEEE80211_CONF_MONITOR))
 			phy->rxfilter |= MT_WF_RFCR_DROP_OTHER_UC;
 		else
@@ -419,10 +446,13 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 			MT_WF_RFCR1_DROP_CFACK;
 	u32 flags = 0;
 
+	mutex_lock(&dev->mt76.mutex);
+
 #define MT76_FILTER(_flag, _hw) do { \
 		flags |= *total_flags & FIF_##_flag;			\
 		phy->rxfilter &= ~(_hw);				\
-		phy->rxfilter |= !(flags & FIF_##_flag) * (_hw);	\
+		if (!mt76_testmode_enabled(&dev->mt76))			\
+			phy->rxfilter |= !(flags & FIF_##_flag) * (_hw);\
 	} while (0)
 
 	phy->rxfilter &= ~(MT_WF_RFCR_DROP_OTHER_BSS |
@@ -455,6 +485,8 @@ static void mt7615_configure_filter(struct ieee80211_hw *hw,
 		mt76_clear(dev, MT_WF_RFCR1(band), ctl_flags);
 	else
 		mt76_set(dev, MT_WF_RFCR1(band), ctl_flags);
+
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 static void mt7615_bss_info_changed(struct ieee80211_hw *hw,
@@ -1069,6 +1101,8 @@ const struct ieee80211_ops mt7615_ops = {
 	.sched_scan_stop = mt7615_stop_sched_scan,
 	.remain_on_channel = mt7615_remain_on_channel,
 	.cancel_remain_on_channel = mt7615_cancel_remain_on_channel,
+	CFG80211_TESTMODE_CMD(mt76_testmode_cmd)
+	CFG80211_TESTMODE_DUMP(mt76_testmode_dump)
 #ifdef CONFIG_PM
 	.suspend = mt7615_suspend,
 	.resume = mt7615_resume,

@@ -186,6 +186,40 @@ mt7615_get_status_freq_info(struct mt7615_dev *dev, struct mt76_phy *mphy,
 	status->freq = ieee80211_channel_to_frequency(chfreq, status->band);
 }
 
+static void mt7615_mac_fill_tm_rx(struct mt7615_dev *dev, __le32 *rxv)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	u32 rxv1 = le32_to_cpu(rxv[0]);
+	u32 rxv3 = le32_to_cpu(rxv[2]);
+	u32 rxv4 = le32_to_cpu(rxv[3]);
+	u32 rxv5 = le32_to_cpu(rxv[4]);
+	u8 cbw = FIELD_GET(MT_RXV1_FRAME_MODE, rxv1);
+	u8 mode = FIELD_GET(MT_RXV1_TX_MODE, rxv1);
+	s16 foe = FIELD_GET(MT_RXV5_FOE, rxv5);
+	u32 foe_const = (BIT(cbw + 1) & 0xf) * 10000;
+
+	if (!mode) {
+		/* CCK */
+		foe &= ~BIT(11);
+		foe *= 1000;
+		foe >>= 11;
+	} else {
+		if (foe > 2048)
+			foe -= 4096;
+
+		foe = (foe * foe_const) >> 15;
+	}
+
+	dev->test.last_freq_offset = foe;
+	dev->test.last_rcpi[0] = FIELD_GET(MT_RXV4_RCPI0, rxv4);
+	dev->test.last_rcpi[1] = FIELD_GET(MT_RXV4_RCPI1, rxv4);
+	dev->test.last_rcpi[2] = FIELD_GET(MT_RXV4_RCPI2, rxv4);
+	dev->test.last_rcpi[3] = FIELD_GET(MT_RXV4_RCPI3, rxv4);
+	dev->test.last_ib_rssi = FIELD_GET(MT_RXV3_IB_RSSI, rxv3);
+	dev->test.last_wb_rssi = FIELD_GET(MT_RXV3_WB_RSSI, rxv3);
+#endif
+}
+
 static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
@@ -400,6 +434,8 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 			status->signal = max(status->signal,
 					     status->chain_signal[i]);
 		}
+
+		mt7615_mac_fill_tm_rx(dev, rxd);
 
 		rxd += 6;
 		if ((u8 *)rxd - skb->data >= skb->len)

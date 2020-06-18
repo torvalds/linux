@@ -212,6 +212,9 @@ enum mt7615_reg_base {
 #define MT_WF_PHY_RXTD2_BASE		MT_WF_PHY(0x2a00)
 #define MT_WF_PHY_RXTD2(_n)		(MT_WF_PHY_RXTD2_BASE + ((_n) << 2))
 
+#define MT_WF_PHY_RFINTF3_0(_n)		MT_WF_PHY(0x1100 + (_n) * 0x400)
+#define MT_WF_PHY_RFINTF3_0_ANT		GENMASK(7, 4)
+
 #define MT_WF_CFG_BASE			((dev)->reg_map[MT_CFG_BASE])
 #define MT_WF_CFG(ofs)			(MT_WF_CFG_BASE + (ofs))
 
@@ -254,6 +257,13 @@ enum mt7615_reg_base {
 
 #define MT_WF_ARB_BASE			((dev)->reg_map[MT_ARB_BASE])
 #define MT_WF_ARB(ofs)			(MT_WF_ARB_BASE + (ofs))
+
+#define MT_ARB_RQCR			MT_WF_ARB(0x070)
+#define MT_ARB_RQCR_RX_START		BIT(0)
+#define MT_ARB_RQCR_RXV_START		BIT(4)
+#define MT_ARB_RQCR_RXV_R_EN		BIT(7)
+#define MT_ARB_RQCR_RXV_T_EN		BIT(8)
+#define MT_ARB_RQCR_BAND_SHIFT		16
 
 #define MT_ARB_SCR			MT_WF_ARB(0x080)
 #define MT_ARB_SCR_TX0_DISABLE		BIT(8)
@@ -549,5 +559,12 @@ enum mt7615_reg_base {
 #define MT_WL_TX_EN			BIT(23)
 #define MT_WL_RX_BUSY			BIT(30)
 #define MT_WL_TX_BUSY			BIT(31)
+
+#define MT_MCU_PTA_BASE			0x81060000
+#define MT_MCU_PTA(_n)			(MT_MCU_PTA_BASE + (_n))
+
+#define MT_ANT_SWITCH_CON(n)		MT_MCU_PTA(0x0c8)
+#define MT_ANT_SWITCH_CON_MODE(_n)	(GENMASK(4, 0) << (_n * 8))
+#define MT_ANT_SWITCH_CON_MODE1(_n)	(GENMASK(3, 0) << (_n * 8))
 
 #endif
