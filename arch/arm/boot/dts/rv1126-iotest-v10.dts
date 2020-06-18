@@ -25,6 +25,19 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vdd_arm>;
+};
+
+&cpu_tsadc {
+	rockchip,hw-tshut-mode = <0>; /* tshut mode 0:CRU 1:GPIO */
+	rockchip,hw-tshut-polarity = <0>; /* tshut polarity 0:LOW 1:HIGH */
+	pinctrl-names = "gpio", "otpout";
+	pinctrl-0 = <&tsadcm0_pins>;
+	pinctrl-1 = <&tsadc_shutorg>;
+	status = "okay";
+};
+
 &emmc {
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -51,9 +64,9 @@
 		pinctrl-names = "default", "pmic-sleep",
 			"pmic-power-off", "pmic-reset";
 		pinctrl-0 = <&pmic_int>;
-		pinctrl-1 = <&soc_slppin_slp>, <&rk817_slppin_slp>;
+		pinctrl-1 = <&soc_slppin_gpio>, <&rk817_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk817_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_rst>, <&rk817_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_slp>, <&rk817_slppin_rst>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		#clock-cells = <1>;
@@ -108,7 +121,7 @@
 			vdd_logic: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <800000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
@@ -122,7 +135,7 @@
 			vdd_arm: DCDC_REG2 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <800000>;
+				regulator-min-microvolt = <725000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-ramp-delay = <6001>;
 				regulator-initial-mode = <0x2>;
@@ -215,6 +228,7 @@
 			};
 
 			vcc_dovdd: LDO_REG5 {
+				regulator-boot-on;
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
 				regulator-name = "vcc_dovdd";
@@ -244,7 +258,7 @@
 			vccio_sd: LDO_REG8 {
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-min-microvolt = <3300000>;
+				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vccio_sd";
 				regulator-state-mem {
@@ -274,6 +288,14 @@
 			};
 		};
 	};
+};
+
+&optee {
+	status = "disabled";
+};
+
+&otp {
+	status = "okay";
 };
 
 &pinctrl {
@@ -318,12 +340,39 @@
 	vccio7-supply = <&vcc_3v3>;
 };
 
+&rng {
+	status = "okay";
+};
+
+&u2phy0 {
+	status = "okay";
+	u2phy_otg: otg-port {
+		status = "okay";
+	};
+};
+
+&u2phy1 {
+	status = "okay";
+
+	u2phy_host: host-port {
+		status = "okay";
+		phy-supply = <&vcc5v0_host>;
+	};
+};
+
+&usb_host0_ehci {
+	status = "okay";
+};
+
+&usb_host0_ohci {
+	status = "okay";
+};
+
 &usbdrd {
 	status = "okay";
 };
 
 &usbdrd_dwc3 {
 	status = "okay";
-	/delete-property/ phys;
-	dr_mode = "peripheral";
+	extcon = <&u2phy0>;
 };
