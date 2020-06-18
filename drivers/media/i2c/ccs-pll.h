@@ -13,8 +13,7 @@
 #define CCS_PLL_H
 
 /* CSI-2 or CCP-2 */
-#define CCS_PLL_BUS_TYPE_CSI2				0x00
-#define CCS_PLL_BUS_TYPE_PARALLEL				0x01
+#define CCS_PLL_BUS_TYPE_CSI2					0x00
 
 /* op pix clock is for all lanes in total normally */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
@@ -37,14 +36,9 @@ struct ccs_pll_branch_bk {
 struct ccs_pll {
 	/* input values */
 	uint8_t bus_type;
-	union {
-		struct {
-			uint8_t lanes;
-		} csi2;
-		struct {
-			uint8_t bus_width;
-		} parallel;
-	};
+	struct {
+		uint8_t lanes;
+	} csi2;
 	unsigned long flags;
 	uint8_t binning_horizontal;
 	uint8_t binning_vertical;

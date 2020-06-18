@@ -435,11 +435,6 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		op_pll_fr->pll_op_clk_freq_hz = pll->link_freq * 2
 			* (pll->csi2.lanes / lane_op_clock_ratio);
 		break;
-	case CCS_PLL_BUS_TYPE_PARALLEL:
-		op_pll_fr->pll_op_clk_freq_hz = pll->link_freq * pll->bits_per_pixel
-			/ DIV_ROUND_UP(pll->bits_per_pixel,
-				       pll->parallel.bus_width);
-		break;
 	default:
 		return -EINVAL;
 	}
