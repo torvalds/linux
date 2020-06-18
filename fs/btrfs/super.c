@@ -821,6 +821,8 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 			}
 			break;
 		case Opt_inode_cache:
+			btrfs_warn(info,
+	"the 'inode_cache' option is deprecated and will have no effect from 5.11");
 			btrfs_set_pending_and_info(info, INODE_MAP_CACHE,
 					   "enabling inode map caching");
 			break;
