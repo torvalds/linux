@@ -7,12 +7,12 @@
 #define TSO_HEADER_SIZE		256
 
 struct tso_t {
-	int next_frag_idx;
-	void *data;
-	size_t size;
-	u16 ip_id;
-	bool ipv6;
-	u32 tcp_seq;
+	int	next_frag_idx;
+	int	size;
+	void	*data;
+	u16	ip_id;
+	bool	ipv6;
+	u32	tcp_seq;
 };
 
 int tso_count_descs(struct sk_buff *skb);
