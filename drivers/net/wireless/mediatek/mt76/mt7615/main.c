@@ -741,6 +741,26 @@ mt7615_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 }
 
 static void
+mt7615_set_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       u64 timestamp)
+{
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	union {
+		u64 t64;
+		u32 t32[2];
+	} tsf = { .t64 = timestamp, };
+
+	mutex_lock(&dev->mt76.mutex);
+
+	mt76_wr(dev, MT_LPON_UTTR0, tsf.t32[0]);
+	mt76_wr(dev, MT_LPON_UTTR1, tsf.t32[1]);
+	/* TSF software overwrite */
+	mt76_set(dev, MT_LPON_T0CR, MT_LPON_T0CR_WRITE);
+
+	mutex_unlock(&dev->mt76.mutex);
+}
+
+static void
 mt7615_set_coverage_class(struct ieee80211_hw *hw, s16 coverage_class)
 {
 	struct mt7615_phy *phy = mt7615_hw_phy(hw);
@@ -1038,6 +1058,7 @@ const struct ieee80211_ops mt7615_ops = {
 	.channel_switch_beacon = mt7615_channel_switch_beacon,
 	.get_stats = mt7615_get_stats,
 	.get_tsf = mt7615_get_tsf,
+	.set_tsf = mt7615_set_tsf,
 	.get_survey = mt76_get_survey,
 	.get_antenna = mt76_get_antenna,
 	.set_antenna = mt7615_set_antenna,
