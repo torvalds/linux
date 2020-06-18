@@ -4027,29 +4027,6 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
 
 /**
- * snd_hda_gen_fixup_micmute_led - A fixup for mic-mute LED trigger
- *
- * Pass this function to the quirk entry if another driver supports the
- * audio mic-mute LED trigger.  Then this will bind the mixer capture switch
- * change with the LED.
- *
- * Note that this fixup has to be called after other fixup that sets
- * cap_sync_hook.  Otherwise the chaining wouldn't work.
- *
- * @codec: the HDA codec
- * @fix: fixup pointer
- * @action: only supports HDA_FIXUP_ACT_PROBE value
- *
- */
-void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
-				   const struct hda_fixup *fix, int action)
-{
-	if (action == HDA_FIXUP_ACT_PROBE)
-		snd_hda_gen_add_micmute_led(codec, NULL);
-}
-EXPORT_SYMBOL_GPL(snd_hda_gen_fixup_micmute_led);
-
-/**
  * snd_dha_gen_add_micmute_led_cdev - Create a LED classdev and enable as mic-mute LED
  * @codec: the HDA codec
  * @callback: the callback for LED classdev brightness_set_blocking
