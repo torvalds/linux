@@ -3889,6 +3889,64 @@ static int parse_mic_boost(struct hda_codec *codec)
 
 #ifdef CONFIG_SND_HDA_GENERIC_LEDS
 /*
+ * vmaster mute LED hook helpers
+ */
+
+static int create_mute_led_cdev(struct hda_codec *codec,
+				int (*callback)(struct led_classdev *,
+						enum led_brightness),
+				bool micmute)
+{
+	struct led_classdev *cdev;
+
+	cdev = devm_kzalloc(&codec->core.dev, sizeof(*cdev), GFP_KERNEL);
+	if (!cdev)
+		return -ENOMEM;
+
+	cdev->name = micmute ? "hda::micmute" : "hda::mute";
+	cdev->max_brightness = 1;
+	cdev->default_trigger = micmute ? "audio-micmute" : "audio-mute";
+	cdev->brightness_set_blocking = callback;
+	cdev->brightness = ledtrig_audio_get(micmute ? LED_AUDIO_MICMUTE : LED_AUDIO_MUTE);
+
+	return devm_led_classdev_register(&codec->core.dev, cdev);
+}
+
+static void vmaster_update_mute_led(void *private_data, int enabled)
+{
+	ledtrig_audio_set(LED_AUDIO_MUTE, enabled ? LED_OFF : LED_ON);
+}
+
+/**
+ * snd_dha_gen_add_mute_led_cdev - Create a LED classdev and enable as vmaster mute LED
+ * @codec: the HDA codec
+ * @callback: the callback for LED classdev brightness_set_blocking
+ */
+int snd_hda_gen_add_mute_led_cdev(struct hda_codec *codec,
+				  int (*callback)(struct led_classdev *,
+						  enum led_brightness))
+{
+	struct hda_gen_spec *spec = codec->spec;
+	int err;
+
+	if (callback) {
+		err = create_mute_led_cdev(codec, callback, false);
+		if (err) {
+			codec_warn(codec, "failed to create a mute LED cdev\n");
+			return err;
+		}
+	}
+
+	if (spec->vmaster_mute.hook)
+		codec_err(codec, "vmaster hook already present before cdev!\n");
+
+	spec->vmaster_mute.hook = vmaster_update_mute_led;
+	spec->vmaster_mute_enum = 1;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hda_gen_add_mute_led_cdev);
+
+/*
  * mic mute LED hook helpers
  */
 enum {
@@ -4029,20 +4087,9 @@ int snd_hda_gen_add_micmute_led_cdev(struct hda_codec *codec,
 						     enum led_brightness))
 {
 	int err;
-	struct led_classdev *cdev;
 
 	if (callback) {
-		cdev = devm_kzalloc(&codec->core.dev, sizeof(*cdev), GFP_KERNEL);
-		if (!cdev)
-			return -ENOMEM;
-
-		cdev->name = "hda::micmute";
-		cdev->max_brightness = 1;
-		cdev->default_trigger = "audio-micmute";
-		cdev->brightness_set_blocking = callback;
-		cdev->brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
-
-		err = devm_led_classdev_register(&codec->core.dev, cdev);
+		err = create_mute_led_cdev(codec, callback, true);
 		if (err) {
 			codec_warn(codec, "failed to create a mic-mute LED cdev\n");
 			return err;
