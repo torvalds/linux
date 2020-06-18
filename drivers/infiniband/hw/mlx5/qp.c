@@ -2873,7 +2873,6 @@ static int mlx5_ib_destroy_dct(struct mlx5_ib_qp *mqp)
 static int check_ucmd_data(struct mlx5_ib_dev *dev,
 			   struct mlx5_create_qp_params *params)
 {
-	struct ib_qp_init_attr *attr = params->attr;
 	struct ib_udata *udata = params->udata;
 	size_t size, last;
 	int ret;
@@ -2885,14 +2884,7 @@ static int check_ucmd_data(struct mlx5_ib_dev *dev,
 		 */
 		last = sizeof(struct mlx5_ib_create_qp_rss);
 	else
-		/* IB_QPT_RAW_PACKET doesn't have ECE data */
-		switch (attr->qp_type) {
-		case IB_QPT_RAW_PACKET:
-			last = offsetof(struct mlx5_ib_create_qp, ece_options);
-			break;
-		default:
-			last = offsetof(struct mlx5_ib_create_qp, reserved);
-		}
+		last = offsetof(struct mlx5_ib_create_qp, reserved);
 
 	if (udata->inlen <= last)
 		return 0;
