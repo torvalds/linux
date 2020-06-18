@@ -2306,6 +2306,14 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5e_params *params,
 	}
 }
 
+static u8 mlx5e_build_async_icosq_log_wq_sz(struct net_device *netdev)
+{
+	if (netdev->hw_features & NETIF_F_HW_TLS_RX)
+		return MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
+
+	return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+}
+
 static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
 				      struct mlx5e_params *params,
 				      struct mlx5e_channel_param *cparam)
@@ -2315,7 +2323,7 @@ static void mlx5e_build_channel_param(struct mlx5e_priv *priv,
 	mlx5e_build_rq_param(priv, params, NULL, &cparam->rq);
 
 	icosq_log_wq_sz = mlx5e_build_icosq_log_wq_sz(params, &cparam->rq);
-	async_icosq_log_wq_sz = MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
+	async_icosq_log_wq_sz = mlx5e_build_async_icosq_log_wq_sz(priv->netdev);
 
 	mlx5e_build_sq_param(priv, params, &cparam->txq_sq);
 	mlx5e_build_xdpsq_param(priv, params, &cparam->xdp_sq);
