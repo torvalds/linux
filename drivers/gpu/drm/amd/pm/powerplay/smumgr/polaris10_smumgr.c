@@ -714,9 +714,9 @@ static int polaris10_populate_smc_vddci_table(struct pp_hwmgr *hwmgr,
 
 			table->Smio[level] |= data->vddci_voltage_table.entries[level].smio_low;
 		}
-	}
 
-	table->SmioMask1 = data->vddci_voltage_table.mask_low;
+		table->SmioMask1 = data->vddci_voltage_table.mask_low;
+	}
 
 	return 0;
 }
