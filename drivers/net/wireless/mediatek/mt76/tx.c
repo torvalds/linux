@@ -236,6 +236,14 @@ void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb)
 	struct ieee80211_hw *hw;
 	struct sk_buff_head list;
 
+#ifdef CONFIG_NL80211_TESTMODE
+	if (skb == dev->test.tx_skb) {
+		dev->test.tx_done++;
+		if (dev->test.tx_queued == dev->test.tx_done)
+			wake_up(&dev->tx_wait);
+	}
+#endif
+
 	if (!skb->prev) {
 		hw = mt76_tx_status_get_hw(dev, skb);
 		ieee80211_free_txskb(hw, skb);
@@ -258,6 +266,11 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 	struct mt76_queue *q;
 	int qid = skb_get_queue_mapping(skb);
 	bool ext_phy = phy != &dev->phy;
+
+	if (mt76_testmode_enabled(dev)) {
+		ieee80211_free_txskb(phy->hw, skb);
+		return;
+	}
 
 	if (WARN_ON(qid >= MT_TXQ_PSD)) {
 		qid = MT_TXQ_BE;
@@ -579,6 +592,11 @@ void mt76_tx_tasklet(unsigned long data)
 	mt76_txq_schedule_all(&dev->phy);
 	if (dev->phy2)
 		mt76_txq_schedule_all(dev->phy2);
+
+#ifdef CONFIG_NL80211_TESTMODE
+	if (dev->test.tx_pending)
+		mt76_testmode_tx_pending(dev);
+#endif
 }
 
 void mt76_stop_tx_queues(struct mt76_dev *dev, struct ieee80211_sta *sta,

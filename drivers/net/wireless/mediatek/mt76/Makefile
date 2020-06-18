@@ -9,6 +9,7 @@ mt76-y := \
 	tx.o agg-rx.o mcu.o
 
 mt76-$(CONFIG_PCI) += pci.o
+mt76-$(CONFIG_NL80211_TESTMODE) += testmode.o
 
 mt76-usb-y := usb.o usb_trace.o
 

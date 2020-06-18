@@ -15,6 +15,7 @@
 #include <linux/average.h>
 #include <net/mac80211.h>
 #include "util.h"
+#include "testmode.h"
 
 #define MT_TX_RING_SIZE     256
 #define MT_MCU_RING_SIZE    32
@@ -475,6 +476,47 @@ struct mt76_rx_status {
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
 };
 
+struct mt76_testmode_ops {
+	int (*set_state)(struct mt76_dev *dev, enum mt76_testmode_state state);
+	int (*set_params)(struct mt76_dev *dev, struct nlattr **tb,
+			  enum mt76_testmode_state new_state);
+	int (*dump_stats)(struct mt76_dev *dev, struct sk_buff *msg);
+};
+
+struct mt76_testmode_data {
+	enum mt76_testmode_state state;
+
+	u32 param_set[DIV_ROUND_UP(NUM_MT76_TM_ATTRS, 32)];
+	struct sk_buff *tx_skb;
+
+	u32 tx_count;
+	u16 tx_msdu_len;
+
+	u8 tx_rate_mode;
+	u8 tx_rate_idx;
+	u8 tx_rate_nss;
+	u8 tx_rate_sgi;
+	u8 tx_rate_ldpc;
+
+	u8 tx_antenna_mask;
+
+	u32 freq_offset;
+
+	u8 tx_power[4];
+	u8 tx_power_control;
+
+	const char *mtd_name;
+	u32 mtd_offset;
+
+	u32 tx_pending;
+	u32 tx_queued;
+	u32 tx_done;
+	struct {
+		u64 packets[__MT_RXQ_MAX];
+		u64 fcs_error[__MT_RXQ_MAX];
+	} rx_stats;
+};
+
 struct mt76_phy {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
@@ -573,6 +615,11 @@ struct mt76_dev {
 	u8 csa_complete;
 
 	u32 rxfilter;
+
+#ifdef CONFIG_NL80211_TESTMODE
+	const struct mt76_testmode_ops *test_ops;
+	struct mt76_testmode_data test;
+#endif
 
 	union {
 		struct mt76_mmio mmio;
@@ -807,6 +854,15 @@ static inline u8 mt76_tx_power_nss_delta(u8 nss)
 	return nss_delta[nss - 1];
 }
 
+static inline bool mt76_testmode_enabled(struct mt76_dev *dev)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	return dev->test.state != MT76_TM_STATE_OFF;
+#else
+	return false;
+#endif
+}
+
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb);
 void mt76_tx(struct mt76_phy *dev, struct ieee80211_sta *sta,
 	     struct mt76_wcid *wcid, struct sk_buff *skb);
@@ -879,6 +935,24 @@ void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac);
 void mt76_sw_scan_complete(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif);
+int mt76_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      void *data, int len);
+int mt76_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *skb,
+		       struct netlink_callback *cb, void *data, int len);
+int mt76_testmode_set_state(struct mt76_dev *dev, enum mt76_testmode_state state);
+
+static inline void mt76_testmode_reset(struct mt76_dev *dev, bool disable)
+{
+#ifdef CONFIG_NL80211_TESTMODE
+	enum mt76_testmode_state state = MT76_TM_STATE_IDLE;
+
+	if (disable || dev->test.state == MT76_TM_STATE_OFF)
+		state = MT76_TM_STATE_OFF;
+
+	mt76_testmode_set_state(dev, state);
+#endif
+}
+
 
 /* internal */
 static inline struct ieee80211_hw *
@@ -903,6 +977,7 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 			   struct napi_struct *napi);
 void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames);
+void mt76_testmode_tx_pending(struct mt76_dev *dev);
 
 /* usb */
 static inline bool mt76u_urb_error(struct urb *urb)
