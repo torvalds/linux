@@ -309,7 +309,7 @@ const struct file_operations exfat_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.iterate	= exfat_iterate,
-	.fsync		= generic_file_fsync,
+	.fsync		= exfat_file_fsync,
 };
 
 int exfat_alloc_new_dir(struct inode *inode, struct exfat_chain *clu)
