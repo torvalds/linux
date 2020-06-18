@@ -45,9 +45,9 @@
 
 static bool nmea;
 
-/* Used in interface blacklisting */
-struct sierra_iface_info {
-	const u32 infolen;	/* number of interface numbers on blacklist */
+/* Used in interface quirks */
+struct sierra_iface_quirk {
+	const u32 infolen;	/* number of interface numbers on the list */
 	const u8  *ifaceinfo;	/* pointer to the array holding the numbers */
 };
 
@@ -101,33 +101,15 @@ static int sierra_calc_num_ports(struct usb_serial *serial,
 	return num_ports;
 }
 
-static int is_blacklisted(const u8 ifnum,
-				const struct sierra_iface_info *blacklist)
+static int is_quirk(const u8 ifnum, const struct sierra_iface_quirk *quirk)
 {
 	const u8  *info;
 	int i;
 
-	if (blacklist) {
-		info = blacklist->ifaceinfo;
+	if (quirk) {
+		info = quirk->ifaceinfo;
 
-		for (i = 0; i < blacklist->infolen; i++) {
-			if (info[i] == ifnum)
-				return 1;
-		}
-	}
-	return 0;
-}
-
-static int is_himemory(const u8 ifnum,
-				const struct sierra_iface_info *himemorylist)
-{
-	const u8  *info;
-	int i;
-
-	if (himemorylist) {
-		info = himemorylist->ifaceinfo;
-
-		for (i=0; i < himemorylist->infolen; i++) {
+		for (i = 0; i < quirk->infolen; i++) {
 			if (info[i] == ifnum)
 				return 1;
 		}
@@ -161,10 +143,9 @@ static int sierra_probe(struct usb_serial *serial,
 		usb_set_interface(udev, ifnum, 1);
 	}
 
-	if (is_blacklisted(ifnum,
-				(struct sierra_iface_info *)id->driver_info)) {
+	if (is_quirk(ifnum, (struct sierra_iface_quirk *)id->driver_info)) {
 		dev_dbg(&serial->dev->dev,
-			"Ignoring blacklisted interface #%d\n", ifnum);
+			"Ignoring interface #%d\n", ifnum);
 		return -ENODEV;
 	}
 
@@ -173,20 +154,20 @@ static int sierra_probe(struct usb_serial *serial,
 
 /* interfaces with higher memory requirements */
 static const u8 hi_memory_typeA_ifaces[] = { 0, 2 };
-static const struct sierra_iface_info typeA_interface_list = {
+static const struct sierra_iface_quirk typeA_interface_list = {
 	.infolen = ARRAY_SIZE(hi_memory_typeA_ifaces),
 	.ifaceinfo = hi_memory_typeA_ifaces,
 };
 
 static const u8 hi_memory_typeB_ifaces[] = { 3, 4, 5, 6 };
-static const struct sierra_iface_info typeB_interface_list = {
+static const struct sierra_iface_quirk typeB_interface_list = {
 	.infolen = ARRAY_SIZE(hi_memory_typeB_ifaces),
 	.ifaceinfo = hi_memory_typeB_ifaces,
 };
 
-/* 'blacklist' of interfaces not served by this driver */
+/* 'ignorelist' of interfaces not served by this driver */
 static const u8 direct_ip_non_serial_ifaces[] = { 7, 8, 9, 10, 11, 19, 20 };
-static const struct sierra_iface_info direct_ip_interface_blacklist = {
+static const struct sierra_iface_quirk direct_ip_interface_ignore = {
 	.infolen = ARRAY_SIZE(direct_ip_non_serial_ifaces),
 	.ifaceinfo = direct_ip_non_serial_ifaces,
 };
@@ -264,19 +245,19 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1199, 0x6893) },	/* Sierra Wireless Device */
 	/* Sierra Wireless Direct IP modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68A3, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
 	},
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x1199, 0x68AA, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
 	},
 	{ USB_DEVICE(0x1199, 0x68AB) }, /* Sierra Wireless AR8550 */
 	/* AT&T Direct IP LTE modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0F3D, 0x68AA, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
 	},
 	/* Airprime/Sierra Wireless Direct IP modems */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x0F3D, 0x68A3, 0xFF, 0xFF, 0xFF),
-	  .driver_info = (kernel_ulong_t)&direct_ip_interface_blacklist
+	  .driver_info = (kernel_ulong_t)&direct_ip_interface_ignore
 	},
 
 	{ }
@@ -879,7 +860,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct sierra_port_private *portdata;
-	const struct sierra_iface_info *himemoryp;
+	const struct sierra_iface_quirk *himemoryp;
 	u8 ifnum;
 
 	portdata = kzalloc(sizeof(*portdata), GFP_KERNEL);
@@ -907,7 +888,7 @@ static int sierra_port_probe(struct usb_serial_port *port)
 		himemoryp = &typeA_interface_list;
 	}
 
-	if (is_himemory(ifnum, himemoryp)) {
+	if (is_quirk(ifnum, himemoryp)) {
 		portdata->num_out_urbs = N_OUT_URB_HM;
 		portdata->num_in_urbs  = N_IN_URB_HM;
 	}
