@@ -285,6 +285,29 @@ mt7615_queues_read(struct seq_file *s, void *data)
 	return 0;
 }
 
+static int
+mt7615_rf_reg_set(void *data, u64 val)
+{
+	struct mt7615_dev *dev = data;
+
+	mt7615_rf_wr(dev, dev->debugfs_rf_wf, dev->debugfs_rf_reg, val);
+
+	return 0;
+}
+
+static int
+mt7615_rf_reg_get(void *data, u64 *val)
+{
+	struct mt7615_dev *dev = data;
+
+	*val = mt7615_rf_rr(dev, dev->debugfs_rf_wf, dev->debugfs_rf_reg);
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(fops_rf_reg, mt7615_rf_reg_get, mt7615_rf_reg_set,
+			 "0x%08llx\n");
+
 int mt7615_init_debugfs(struct mt7615_dev *dev)
 {
 	struct dentry *dir;
@@ -323,6 +346,11 @@ int mt7615_init_debugfs(struct mt7615_dev *dev)
 			    &fops_reset_test);
 	debugfs_create_devm_seqfile(dev->mt76.dev, "temperature", dir,
 				    mt7615_read_temperature);
+
+	debugfs_create_u32("rf_wfidx", 0600, dir, &dev->debugfs_rf_wf);
+	debugfs_create_u32("rf_regidx", 0600, dir, &dev->debugfs_rf_reg);
+	debugfs_create_file_unsafe("rf_regval", 0600, dir, dev,
+				   &fops_rf_reg);
 
 	return 0;
 }

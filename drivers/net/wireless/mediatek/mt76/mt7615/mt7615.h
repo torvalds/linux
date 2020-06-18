@@ -281,6 +281,9 @@ struct mt7615_dev {
 
 	struct work_struct wtbl_work;
 	struct list_head wd_head;
+
+	u32 debugfs_rf_wf;
+	u32 debugfs_rf_reg;
 };
 
 enum tx_pkt_queue_idx {
@@ -522,6 +525,8 @@ u32 mt7615_mac_get_sta_tid_sn(struct mt7615_dev *dev, int wcid, u8 tid);
 int mt7615_mcu_wait_response(struct mt7615_dev *dev, int cmd, int seq);
 int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 			int len, bool wait_resp);
+u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg);
+int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val);
 int mt7615_mcu_set_dbdc(struct mt7615_dev *dev);
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_set_mac_enable(struct mt7615_dev *dev, int band, bool enable);

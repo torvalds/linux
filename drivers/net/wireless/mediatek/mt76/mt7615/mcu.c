@@ -151,8 +151,11 @@ void mt7615_mcu_fill_msg(struct mt7615_dev *dev, struct sk_buff *skb,
 		break;
 	default:
 		mcu_txd->cid = MCU_CMD_EXT_CID;
-		mcu_txd->set_query = MCU_Q_SET;
-		mcu_txd->ext_cid = cmd;
+		if (cmd & MCU_QUERY_PREFIX)
+			mcu_txd->set_query = MCU_Q_QUERY;
+		else
+			mcu_txd->set_query = MCU_Q_SET;
+		mcu_txd->ext_cid = mcu_cmd;
 		mcu_txd->ext_cid_ack = 1;
 		break;
 	}
@@ -191,6 +194,10 @@ mt7615_mcu_parse_response(struct mt7615_dev *dev, int cmd,
 	case MCU_EXT_CMD_GET_TEMP:
 		skb_pull(skb, sizeof(*rxd));
 		ret = le32_to_cpu(*(__le32 *)skb->data);
+		break;
+	case MCU_EXT_CMD_RF_REG_ACCESS | MCU_QUERY_PREFIX:
+		skb_pull(skb, sizeof(*rxd));
+		ret = le32_to_cpu(*(__le32 *)&skb->data[8]);
 		break;
 	case MCU_UNI_CMD_DEV_INFO_UPDATE:
 	case MCU_UNI_CMD_BSS_INFO_UPDATE:
@@ -270,6 +277,38 @@ int mt7615_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
 	return __mt76_mcu_skb_send_msg(mdev, skb, cmd, wait_resp);
 }
 EXPORT_SYMBOL_GPL(mt7615_mcu_msg_send);
+
+u32 mt7615_rf_rr(struct mt7615_dev *dev, u32 wf, u32 reg)
+{
+	struct {
+		__le32 wifi_stream;
+		__le32 address;
+		__le32 data;
+	} req = {
+		.wifi_stream = cpu_to_le32(wf),
+		.address = cpu_to_le32(reg),
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76,
+				   MCU_EXT_CMD_RF_REG_ACCESS | MCU_QUERY_PREFIX,
+				   &req, sizeof(req), true);
+}
+
+int mt7615_rf_wr(struct mt7615_dev *dev, u32 wf, u32 reg, u32 val)
+{
+	struct {
+		__le32 wifi_stream;
+		__le32 address;
+		__le32 data;
+	} req = {
+		.wifi_stream = cpu_to_le32(wf),
+		.address = cpu_to_le32(reg),
+		.data = cpu_to_le32(val),
+	};
+
+	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_RF_REG_ACCESS, &req,
+				   sizeof(req), false);
+}
 
 static void
 mt7615_mcu_csa_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
