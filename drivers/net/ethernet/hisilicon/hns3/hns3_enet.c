@@ -8,6 +8,7 @@
 #include <linux/cpu_rmap.h>
 #endif
 #include <linux/if_vlan.h>
+#include <linux/irq.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/module.h>
@@ -154,6 +155,7 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 
 		tqp_vectors->name[HNAE3_INT_NAME_LEN - 1] = '\0';
 
+		irq_set_status_flags(tqp_vectors->vector_irq, IRQ_NOAUTOEN);
 		ret = request_irq(tqp_vectors->vector_irq, hns3_irq_handle, 0,
 				  tqp_vectors->name, tqp_vectors);
 		if (ret) {
@@ -162,8 +164,6 @@ static int hns3_nic_init_irq(struct hns3_nic_priv *priv)
 			hns3_nic_uninit_irq(priv);
 			return ret;
 		}
-
-		disable_irq(tqp_vectors->vector_irq);
 
 		irq_set_affinity_hint(tqp_vectors->vector_irq,
 				      &tqp_vectors->affinity_mask);
