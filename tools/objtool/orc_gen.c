@@ -222,7 +222,7 @@ int create_orc_sections(struct objtool_file *file)
 		}
 	}
 
-	if (elf_rebuild_reloc_section(ip_relocsec))
+	if (elf_rebuild_reloc_section(file->elf, ip_relocsec))
 		return -1;
 
 	return 0;
