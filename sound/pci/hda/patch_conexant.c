@@ -137,14 +137,16 @@ static void cx_auto_vmaster_hook(void *private_data, int enabled)
 }
 
 /* turn on/off EAPD according to Master switch (inversely!) for mute LED */
-static void cx_auto_vmaster_hook_mute_led(void *private_data, int enabled)
+static int cx_auto_vmaster_mute_led(struct led_classdev *led_cdev,
+				    enum led_brightness brightness)
 {
-	struct hda_codec *codec = private_data;
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct conexant_spec *spec = codec->spec;
 
 	snd_hda_codec_write(codec, spec->mute_led_eapd, 0,
 			    AC_VERB_SET_EAPD_BTLENABLE,
-			    enabled ? 0x00 : 0x02);
+			    brightness ? 0x02 : 0x00);
+	return 0;
 }
 
 static int cx_auto_init(struct hda_codec *codec)
@@ -566,7 +568,7 @@ static void cxt_fixup_mute_led_eapd(struct hda_codec *codec,
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mute_led_eapd = 0x1b;
 		spec->dynamic_eapd = 1;
-		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook_mute_led;
+		snd_hda_gen_add_mute_led_cdev(codec, cx_auto_vmaster_mute_led);
 	}
 }
 
@@ -631,12 +633,14 @@ static void cxt_update_gpio_led(struct hda_codec *codec, unsigned int mask,
 }
 
 /* turn on/off mute LED via GPIO per vmaster hook */
-static void cxt_fixup_gpio_mute_hook(void *private_data, int enabled)
+static int cxt_gpio_mute_update(struct led_classdev *led_cdev,
+				enum led_brightness brightness)
 {
-	struct hda_codec *codec = private_data;
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct conexant_spec *spec = codec->spec;
-	/* muted -> LED on */
-	cxt_update_gpio_led(codec, spec->gpio_mute_led_mask, !enabled);
+
+	cxt_update_gpio_led(codec, spec->gpio_mute_led_mask, brightness);
+	return 0;
 }
 
 /* turn on/off mic-mute LED via GPIO per capture hook */
@@ -662,7 +666,7 @@ static void cxt_fixup_mute_led_gpio(struct hda_codec *codec,
 	};
 
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
-		spec->gen.vmaster_mute.hook = cxt_fixup_gpio_mute_hook;
+		snd_hda_gen_add_mute_led_cdev(codec, cxt_gpio_mute_update);
 		spec->gpio_led = 0;
 		spec->mute_led_polarity = 0;
 		spec->gpio_mute_led_mask = 0x01;
@@ -990,8 +994,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	cx_auto_parse_eapd(codec);
 	spec->gen.own_eapd_ctl = 1;
-	if (spec->dynamic_eapd)
-		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook;
 
 	switch (codec->core.vendor_id) {
 	case 0x14f15045:
@@ -1024,17 +1026,8 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		break;
 	}
 
-	/* Show mute-led control only on HP laptops
-	 * This is a sort of white-list: on HP laptops, EAPD corresponds
-	 * only to the mute-LED without actualy amp function.  Meanwhile,
-	 * others may use EAPD really as an amp switch, so it might be
-	 * not good to expose it blindly.
-	 */
-	switch (codec->core.subsystem_id >> 16) {
-	case 0x103c:
-		spec->gen.vmaster_mute_enum = 1;
-		break;
-	}
+	if (!spec->gen.vmaster_mute.hook && spec->dynamic_eapd)
+		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook;
 
 	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
