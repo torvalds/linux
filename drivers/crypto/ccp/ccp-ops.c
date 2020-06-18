@@ -1308,7 +1308,6 @@ ccp_run_des3_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 			return -EINVAL;
 	}
 
-	ret = -EIO;
 	/* Zero out all the fields of the command desc */
 	memset(&op, 0, sizeof(op));
 
