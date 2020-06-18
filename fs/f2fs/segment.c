@@ -796,6 +796,18 @@ static void __locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		}
 		if (!test_and_set_bit(segno, dirty_i->dirty_segmap[t]))
 			dirty_i->nr_dirty[t]++;
+
+		if (__is_large_section(sbi)) {
+			unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+			unsigned short valid_blocks =
+				get_valid_blocks(sbi, segno, true);
+
+			f2fs_bug_on(sbi, unlikely(!valid_blocks ||
+					valid_blocks == BLKS_PER_SEC(sbi)));
+
+			if (!IS_CURSEC(sbi, secno))
+				set_bit(secno, dirty_i->dirty_secmap);
+		}
 	}
 }
 
@@ -803,6 +815,7 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		enum dirty_type dirty_type)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
+	unsigned short valid_blocks;
 
 	if (test_and_clear_bit(segno, dirty_i->dirty_segmap[dirty_type]))
 		dirty_i->nr_dirty[dirty_type]--;
@@ -814,12 +827,25 @@ static void __remove_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno,
 		if (test_and_clear_bit(segno, dirty_i->dirty_segmap[t]))
 			dirty_i->nr_dirty[t]--;
 
-		if (get_valid_blocks(sbi, segno, true) == 0) {
+		valid_blocks = get_valid_blocks(sbi, segno, true);
+		if (valid_blocks == 0) {
 			clear_bit(GET_SEC_FROM_SEG(sbi, segno),
 						dirty_i->victim_secmap);
 #ifdef CONFIG_F2FS_CHECK_FS
 			clear_bit(segno, SIT_I(sbi)->invalid_segmap);
 #endif
+		}
+		if (__is_large_section(sbi)) {
+			unsigned int secno = GET_SEC_FROM_SEG(sbi, segno);
+
+			if (!valid_blocks ||
+					valid_blocks == BLKS_PER_SEC(sbi)) {
+				clear_bit(secno, dirty_i->dirty_secmap);
+				return;
+			}
+
+			if (!IS_CURSEC(sbi, secno))
+				set_bit(secno, dirty_i->dirty_secmap);
 		}
 	}
 }
@@ -4293,8 +4319,9 @@ static void init_dirty_segmap(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	struct free_segmap_info *free_i = FREE_I(sbi);
-	unsigned int segno = 0, offset = 0;
+	unsigned int segno = 0, offset = 0, secno;
 	unsigned short valid_blocks;
+	unsigned short blks_per_sec = BLKS_PER_SEC(sbi);
 
 	while (1) {
 		/* find dirty segment based on free segmap */
@@ -4313,6 +4340,22 @@ static void init_dirty_segmap(struct f2fs_sb_info *sbi)
 		__locate_dirty_segment(sbi, segno, DIRTY);
 		mutex_unlock(&dirty_i->seglist_lock);
 	}
+
+	if (!__is_large_section(sbi))
+		return;
+
+	mutex_lock(&dirty_i->seglist_lock);
+	for (segno = 0; segno < MAIN_SECS(sbi); segno += blks_per_sec) {
+		valid_blocks = get_valid_blocks(sbi, segno, true);
+		secno = GET_SEC_FROM_SEG(sbi, segno);
+
+		if (!valid_blocks || valid_blocks == blks_per_sec)
+			continue;
+		if (IS_CURSEC(sbi, secno))
+			continue;
+		set_bit(secno, dirty_i->dirty_secmap);
+	}
+	mutex_unlock(&dirty_i->seglist_lock);
 }
 
 static int init_victim_secmap(struct f2fs_sb_info *sbi)
@@ -4346,6 +4389,14 @@ static int build_dirty_segmap(struct f2fs_sb_info *sbi)
 		dirty_i->dirty_segmap[i] = f2fs_kvzalloc(sbi, bitmap_size,
 								GFP_KERNEL);
 		if (!dirty_i->dirty_segmap[i])
+			return -ENOMEM;
+	}
+
+	if (__is_large_section(sbi)) {
+		bitmap_size = f2fs_bitmap_size(MAIN_SECS(sbi));
+		dirty_i->dirty_secmap = f2fs_kvzalloc(sbi,
+						bitmap_size, GFP_KERNEL);
+		if (!dirty_i->dirty_secmap)
 			return -ENOMEM;
 	}
 
@@ -4774,6 +4825,12 @@ static void destroy_dirty_segmap(struct f2fs_sb_info *sbi)
 	/* discard pre-free/dirty segments list */
 	for (i = 0; i < NR_DIRTY_TYPE; i++)
 		discard_dirty_segmap(sbi, i);
+
+	if (__is_large_section(sbi)) {
+		mutex_lock(&dirty_i->seglist_lock);
+		kvfree(dirty_i->dirty_secmap);
+		mutex_unlock(&dirty_i->seglist_lock);
+	}
 
 	destroy_victim_secmap(sbi);
 	SM_I(sbi)->dirty_info = NULL;

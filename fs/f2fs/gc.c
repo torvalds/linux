@@ -21,6 +21,9 @@
 #include "gc.h"
 #include <trace/events/f2fs.h>
 
+static unsigned int count_bits(const unsigned long *addr,
+				unsigned int offset, unsigned int len);
+
 static int gc_thread_func(void *data)
 {
 	struct f2fs_sb_info *sbi = data;
@@ -187,14 +190,20 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 
 	if (p->alloc_mode == SSR) {
 		p->gc_mode = GC_GREEDY;
-		p->dirty_segmap = dirty_i->dirty_segmap[type];
+		p->dirty_bitmap = dirty_i->dirty_segmap[type];
 		p->max_search = dirty_i->nr_dirty[type];
 		p->ofs_unit = 1;
 	} else {
 		p->gc_mode = select_gc_type(sbi, gc_type);
-		p->dirty_segmap = dirty_i->dirty_segmap[DIRTY];
-		p->max_search = dirty_i->nr_dirty[DIRTY];
 		p->ofs_unit = sbi->segs_per_sec;
+		if (__is_large_section(sbi)) {
+			p->dirty_bitmap = dirty_i->dirty_secmap;
+			p->max_search = count_bits(p->dirty_bitmap,
+						0, MAIN_SECS(sbi));
+		} else {
+			p->dirty_bitmap = dirty_i->dirty_segmap[DIRTY];
+			p->max_search = dirty_i->nr_dirty[DIRTY];
+		}
 	}
 
 	/*
@@ -365,10 +374,14 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 	}
 
 	while (1) {
-		unsigned long cost;
-		unsigned int segno;
+		unsigned long cost, *dirty_bitmap;
+		unsigned int unit_no, segno;
 
-		segno = find_next_bit(p.dirty_segmap, last_segment, p.offset);
+		dirty_bitmap = p.dirty_bitmap;
+		unit_no = find_next_bit(dirty_bitmap,
+				last_segment / p.ofs_unit,
+				p.offset / p.ofs_unit);
+		segno = unit_no * p.ofs_unit;
 		if (segno >= last_segment) {
 			if (sm->last_victim[p.gc_mode]) {
 				last_segment =
@@ -381,14 +394,7 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 		}
 
 		p.offset = segno + p.ofs_unit;
-		if (p.ofs_unit > 1) {
-			p.offset -= segno % p.ofs_unit;
-			nsearched += count_bits(p.dirty_segmap,
-						p.offset - p.ofs_unit,
-						p.ofs_unit);
-		} else {
-			nsearched++;
-		}
+		nsearched++;
 
 #ifdef CONFIG_F2FS_CHECK_FS
 		/*
@@ -421,9 +427,10 @@ static int get_victim_by_default(struct f2fs_sb_info *sbi,
 next:
 		if (nsearched >= p.max_search) {
 			if (!sm->last_victim[p.gc_mode] && segno <= last_victim)
-				sm->last_victim[p.gc_mode] = last_victim + 1;
+				sm->last_victim[p.gc_mode] =
+					last_victim + p.ofs_unit;
 			else
-				sm->last_victim[p.gc_mode] = segno + 1;
+				sm->last_victim[p.gc_mode] = segno + p.ofs_unit;
 			sm->last_victim[p.gc_mode] %=
 				(MAIN_SECS(sbi) * sbi->segs_per_sec);
 			break;

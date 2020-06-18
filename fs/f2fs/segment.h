@@ -166,8 +166,11 @@ enum {
 struct victim_sel_policy {
 	int alloc_mode;			/* LFS or SSR */
 	int gc_mode;			/* GC_CB or GC_GREEDY */
-	unsigned long *dirty_segmap;	/* dirty segment bitmap */
-	unsigned int max_search;	/* maximum # of segments to search */
+	unsigned long *dirty_bitmap;	/* dirty segment/section bitmap */
+	unsigned int max_search;	/*
+					 * maximum # of segments/sections
+					 * to search
+					 */
 	unsigned int offset;		/* last scanned bitmap offset */
 	unsigned int ofs_unit;		/* bitmap search unit */
 	unsigned int min_cost;		/* minimum cost */
@@ -266,6 +269,7 @@ enum dirty_type {
 struct dirty_seglist_info {
 	const struct victim_selection *v_ops;	/* victim selction operation */
 	unsigned long *dirty_segmap[NR_DIRTY_TYPE];
+	unsigned long *dirty_secmap;
 	struct mutex seglist_lock;		/* lock for segment bitmaps */
 	int nr_dirty[NR_DIRTY_TYPE];		/* # of dirty segments */
 	unsigned long *victim_secmap;		/* background GC victims */
