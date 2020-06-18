@@ -2307,6 +2307,17 @@ config TEST_HMM
 
 	  If unsure, say N.
 
+config TEST_FPU
+	tristate "Test floating point operations in kernel space"
+	depends on X86 && !KCOV_INSTRUMENT_ALL
+	help
+	  Enable this option to add /sys/kernel/debug/selftest_helpers/test_fpu
+	  which will trigger a sequence of floating point operations. This is used
+	  for self-testing floating point control register setting in
+	  kernel_fpu_begin().
+
+	  If unsure, say N.
+
 endif # RUNTIME_TESTING_MENU
 
 config MEMTEST
