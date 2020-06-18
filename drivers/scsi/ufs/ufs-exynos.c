@@ -950,25 +950,25 @@ static int exynos_ufs_init(struct ufs_hba *hba)
 	/* exynos-specific hci */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vs_hci");
 	ufs->reg_hci = devm_ioremap_resource(dev, res);
-	if (!ufs->reg_hci) {
+	if (IS_ERR(ufs->reg_hci)) {
 		dev_err(dev, "cannot ioremap for hci vendor register\n");
-		return -ENOMEM;
+		return PTR_ERR(ufs->reg_hci);
 	}
 
 	/* unipro */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "unipro");
 	ufs->reg_unipro = devm_ioremap_resource(dev, res);
-	if (!ufs->reg_unipro) {
+	if (IS_ERR(ufs->reg_unipro)) {
 		dev_err(dev, "cannot ioremap for unipro register\n");
-		return -ENOMEM;
+		return PTR_ERR(ufs->reg_unipro);
 	}
 
 	/* ufs protector */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ufsp");
 	ufs->reg_ufsp = devm_ioremap_resource(dev, res);
-	if (!ufs->reg_ufsp) {
+	if (IS_ERR(ufs->reg_ufsp)) {
 		dev_err(dev, "cannot ioremap for ufs protector register\n");
-		return -ENOMEM;
+		return PTR_ERR(ufs->reg_ufsp);
 	}
 
 	ret = exynos_ufs_parse_dt(dev, ufs);
