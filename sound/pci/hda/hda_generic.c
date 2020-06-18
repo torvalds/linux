@@ -3923,6 +3923,10 @@ static void call_micmute_led_update(struct hda_codec *codec)
 	spec->micmute_led.led_value = val;
 	if (spec->micmute_led.update)
 		spec->micmute_led.update(codec);
+#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
+	ledtrig_audio_set(LED_AUDIO_MICMUTE,
+			  spec->micmute_led.led_value ? LED_ON : LED_OFF);
+#endif
 }
 
 static void update_micmute_led(struct hda_codec *codec,
@@ -4023,16 +4027,6 @@ int snd_hda_gen_add_micmute_led(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_add_micmute_led);
 
-#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
-static void call_ledtrig_micmute(struct hda_codec *codec)
-{
-	struct hda_gen_spec *spec = codec->spec;
-
-	ledtrig_audio_set(LED_AUDIO_MICMUTE,
-			  spec->micmute_led.led_value ? LED_ON : LED_OFF);
-}
-#endif
-
 /**
  * snd_hda_gen_fixup_micmute_led - A fixup for mic-mute LED trigger
  *
@@ -4051,10 +4045,8 @@ static void call_ledtrig_micmute(struct hda_codec *codec)
 void snd_hda_gen_fixup_micmute_led(struct hda_codec *codec,
 				   const struct hda_fixup *fix, int action)
 {
-#if IS_REACHABLE(CONFIG_LEDS_TRIGGER_AUDIO)
 	if (action == HDA_FIXUP_ACT_PROBE)
-		snd_hda_gen_add_micmute_led(codec, call_ledtrig_micmute);
-#endif
+		snd_hda_gen_add_micmute_led(codec, NULL);
 }
 EXPORT_SYMBOL_GPL(snd_hda_gen_fixup_micmute_led);
 
