@@ -170,6 +170,7 @@ uint32_t DIDTEDCConfig_P12[] = {
 static const unsigned long PhwVIslands_Magic = (unsigned long)(PHM_VIslands_Magic);
 static int smu7_force_clock_level(struct pp_hwmgr *hwmgr,
 		enum pp_clock_type type, uint32_t mask);
+static int smu7_notify_has_display(struct pp_hwmgr *hwmgr);
 
 static struct smu7_power_state *cast_phw_smu7_power_state(
 				  struct pp_hw_power_state *hw_ps)
@@ -1506,7 +1507,14 @@ static int smu7_enable_dpm_tasks(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to enable VR hot GPIO interrupt!", result = tmp_result);
 
-	smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL);
+	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
+	    hwmgr->chip_id <= CHIP_VEGAM) {
+		tmp_result = smu7_notify_has_display(hwmgr);
+		PP_ASSERT_WITH_CODE((0 == tmp_result),
+				"Failed to enable display setting!", result = tmp_result);
+	} else {
+		smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL);
+	}
 
 	if (hwmgr->chip_id >= CHIP_POLARIS10 &&
 	    hwmgr->chip_id <= CHIP_VEGAM) {
@@ -3162,7 +3170,7 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		if (hwmgr->is_kicker)
+		if (hwmgr->is_kicker || (hwmgr->chip_id == CHIP_POLARIS12))
 			switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
 		else
 			switch_limit_us = data->is_memory_gddr5 ? 200 : 150;
@@ -3193,6 +3201,7 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	struct PP_Clocks minimum_clocks = {0};
 	bool disable_mclk_switching;
 	bool disable_mclk_switching_for_frame_lock;
+	bool disable_mclk_switching_for_display;
 	const struct phm_clock_and_voltage_limits *max_limits;
 	uint32_t i;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
@@ -3200,9 +3209,12 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)(hwmgr->pptable);
 	int32_t count;
 	int32_t stable_pstate_sclk = 0, stable_pstate_mclk = 0;
+	uint32_t latency;
+	bool latency_allowed = false;
 
 	data->battery_state = (PP_StateUILabel_Battery ==
 			request_ps->classification.ui_label);
+	data->mclk_ignore_signal = false;
 
 	PP_ASSERT_WITH_CODE(smu7_ps->performance_level_count == 2,
 				 "VI should always have 2 performance levels",
@@ -3253,19 +3265,26 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 				    hwmgr->platform_descriptor.platformCaps,
 				    PHM_PlatformCaps_DisableMclkSwitchingForFrameLock);
 
+	disable_mclk_switching_for_display = ((1 < hwmgr->display_config->num_display) &&
+						!hwmgr->display_config->multi_monitor_in_sync) ||
+						smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time);
 
-	if (hwmgr->display_config->num_display == 0)
-		disable_mclk_switching = false;
-	else
-		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
-					  !hwmgr->display_config->multi_monitor_in_sync) ||
-			disable_mclk_switching_for_frame_lock ||
-			smu7_vblank_too_short(hwmgr, hwmgr->display_config->min_vblank_time);
+	disable_mclk_switching = disable_mclk_switching_for_frame_lock ||
+					 disable_mclk_switching_for_display;
+
+	if (hwmgr->display_config->num_display == 0) {
+		if (hwmgr->chip_id >= CHIP_POLARIS10 && hwmgr->chip_id <= CHIP_VEGAM)
+			data->mclk_ignore_signal = true;
+		else
+			disable_mclk_switching = false;
+	}
 
 	sclk = smu7_ps->performance_levels[0].engine_clock;
 	mclk = smu7_ps->performance_levels[0].memory_clock;
 
-	if (disable_mclk_switching)
+	if (disable_mclk_switching &&
+	    (!(hwmgr->chip_id >= CHIP_POLARIS10 &&
+	    hwmgr->chip_id <= CHIP_VEGAM)))
 		mclk = smu7_ps->performance_levels
 		[smu7_ps->performance_level_count - 1].memory_clock;
 
@@ -3290,8 +3309,41 @@ static int smu7_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 		if (mclk < smu7_ps->performance_levels[1].memory_clock)
 			mclk = smu7_ps->performance_levels[1].memory_clock;
 
+		if (hwmgr->chip_id >= CHIP_POLARIS10 && hwmgr->chip_id <= CHIP_VEGAM) {
+			if (disable_mclk_switching_for_display) {
+				/* Find the lowest MCLK frequency that is within
+				 * the tolerable latency defined in DAL
+				 */
+				latency = hwmgr->display_config->dce_tolerable_mclk_in_active_latency;
+				for (i = 0; i < data->mclk_latency_table.count; i++) {
+					if (data->mclk_latency_table.entries[i].latency <= latency) {
+						latency_allowed = true;
+
+						if ((data->mclk_latency_table.entries[i].frequency >=
+								smu7_ps->performance_levels[0].memory_clock) &&
+						    (data->mclk_latency_table.entries[i].frequency <=
+								smu7_ps->performance_levels[1].memory_clock)) {
+							mclk = data->mclk_latency_table.entries[i].frequency;
+							break;
+						}
+					}
+				}
+				if ((i >= data->mclk_latency_table.count - 1) && !latency_allowed) {
+					data->mclk_ignore_signal = true;
+				} else {
+					data->mclk_ignore_signal = false;
+				}
+			}
+
+			if (disable_mclk_switching_for_frame_lock)
+				mclk = smu7_ps->performance_levels[1].memory_clock;
+		}
+
 		smu7_ps->performance_levels[0].memory_clock = mclk;
-		smu7_ps->performance_levels[1].memory_clock = mclk;
+
+		if (!(hwmgr->chip_id >= CHIP_POLARIS10 &&
+		      hwmgr->chip_id <= CHIP_VEGAM))
+			smu7_ps->performance_levels[1].memory_clock = mclk;
 	} else {
 		if (smu7_ps->performance_levels[1].memory_clock <
 				smu7_ps->performance_levels[0].memory_clock)
@@ -4037,6 +4089,7 @@ static int smu7_freeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	}
 
 	if ((0 == data->mclk_dpm_key_disabled) &&
+		!data->mclk_ignore_signal &&
 		(data->need_update_smu7_dpm_table &
 		 DPMTABLE_OD_UPDATE_MCLK)) {
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
@@ -4193,6 +4246,7 @@ static int smu7_unfreeze_sclk_mclk_dpm(struct pp_hwmgr *hwmgr)
 	}
 
 	if ((0 == data->mclk_dpm_key_disabled) &&
+		!data->mclk_ignore_signal &&
 		(data->need_update_smu7_dpm_table & DPMTABLE_OD_UPDATE_MCLK)) {
 
 		PP_ASSERT_WITH_CODE(true == smum_is_dpm_running(hwmgr),
@@ -4246,7 +4300,12 @@ static int smu7_notify_link_speed_change_after_state_change(
 	return 0;
 }
 
-static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
+static int smu7_notify_no_display(struct pp_hwmgr *hwmgr)
+{
+	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_NoDisplay, NULL) == 0) ?  0 : -EINVAL;
+}
+
+static int smu7_notify_has_display(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 
@@ -4260,7 +4319,21 @@ static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
 					(PPSMC_Msg)PPSMC_MSG_SetVBITimeout, data->frame_time_x2,
 					NULL);
 	}
+
 	return (smum_send_msg_to_smc(hwmgr, (PPSMC_Msg)PPSMC_HasDisplay, NULL) == 0) ?  0 : -EINVAL;
+}
+
+static int smu7_notify_smc_display(struct pp_hwmgr *hwmgr)
+{
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	int result = 0;
+
+	if (data->mclk_ignore_signal)
+		result = smu7_notify_no_display(hwmgr);
+	else
+		result = smu7_notify_has_display(hwmgr);
+
+	return result;
 }
 
 static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
@@ -4313,11 +4386,6 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 			"Failed to update SCLK threshold!",
 			result = tmp_result);
 
-	tmp_result = smu7_notify_smc_display(hwmgr);
-	PP_ASSERT_WITH_CODE((0 == tmp_result),
-			"Failed to notify smc display settings!",
-			result = tmp_result);
-
 	tmp_result = smu7_unfreeze_sclk_mclk_dpm(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to unfreeze SCLK MCLK DPM!",
@@ -4326,6 +4394,11 @@ static int smu7_set_power_state_tasks(struct pp_hwmgr *hwmgr, const void *input)
 	tmp_result = smu7_upload_dpm_level_enable_mask(hwmgr);
 	PP_ASSERT_WITH_CODE((0 == tmp_result),
 			"Failed to upload DPM level enabled mask!",
+			result = tmp_result);
+
+	tmp_result = smu7_notify_smc_display(hwmgr);
+	PP_ASSERT_WITH_CODE((0 == tmp_result),
+			"Failed to notify smc display settings!",
 			result = tmp_result);
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
@@ -5071,16 +5144,22 @@ static int smu7_get_mclks_with_latency(struct pp_hwmgr *hwmgr,
 			(struct phm_ppt_v1_information *)hwmgr->pptable;
 	struct phm_ppt_v1_clock_voltage_dependency_table *dep_mclk_table =
 			table_info->vdd_dep_on_mclk;
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	int i;
 
 	clocks->num_levels = 0;
+	data->mclk_latency_table.count = 0;
 	for (i = 0; i < dep_mclk_table->count; i++) {
 		if (dep_mclk_table->entries[i].clk) {
 			clocks->data[clocks->num_levels].clocks_in_khz =
 					dep_mclk_table->entries[i].clk * 10;
+			data->mclk_latency_table.entries[data->mclk_latency_table.count].frequency =
+					dep_mclk_table->entries[i].clk;
 			clocks->data[clocks->num_levels].latency_in_us =
+				data->mclk_latency_table.entries[data->mclk_latency_table.count].latency =
 					smu7_get_mem_latency(hwmgr, dep_mclk_table->entries[i].clk);
 			clocks->num_levels++;
+			data->mclk_latency_table.count++;
 		}
 	}
 
