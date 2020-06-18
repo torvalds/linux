@@ -66,6 +66,13 @@
 		enable-active-high;
 		vin-supply = <&reg_can_en>;
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-in;
+	};
 };
 
 &anaclk2 {
@@ -224,6 +231,12 @@
 	pinctrl_led: ledgrp {
 		fsl,pins = <
 			MX6SX_PAD_CSI_PIXCLK__GPIO1_IO_24 0x17059
+		>;
+	};
+
+	pinctrl_spdif: spdifgrp {
+		fsl,pins = <
+			MX6SX_PAD_ENET2_COL__SPDIF_IN           0x1b0b0
 		>;
 	};
 
@@ -452,6 +465,14 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6SX_CLK_SPDIF_PODF>;
+	assigned-clock-rates = <24576000>;
+	status = "okay";
 };
 
 &wdog1 {
