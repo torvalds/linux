@@ -458,25 +458,6 @@ out:
 }
 EXPORT_SYMBOL(flow_indr_block_cb_alloc);
 
-static void __flow_block_indr_binding(struct flow_block_offload *bo,
-				      struct net_device *dev, void *data,
-				      void (*cleanup)(struct flow_block_cb *block_cb))
-{
-	struct flow_block_cb *block_cb;
-
-	list_for_each_entry(block_cb, &bo->cb_list, list) {
-		switch (bo->command) {
-		case FLOW_BLOCK_BIND:
-			flow_block_indr_init(block_cb, bo, dev, data, cleanup);
-			list_add(&block_cb->indr.list, &flow_block_indr_list);
-			break;
-		case FLOW_BLOCK_UNBIND:
-			list_del(&block_cb->indr.list);
-			break;
-		}
-	}
-}
-
 int flow_indr_dev_setup_offload(struct net_device *dev,
 				enum tc_setup_type type, void *data,
 				struct flow_block_offload *bo,
@@ -486,9 +467,8 @@ int flow_indr_dev_setup_offload(struct net_device *dev,
 
 	mutex_lock(&flow_indr_block_lock);
 	list_for_each_entry(this, &flow_block_indr_dev_list, list)
-		this->cb(dev, this->cb_priv, type, bo);
+		this->cb(dev, this->cb_priv, type, bo, data, cleanup);
 
-	__flow_block_indr_binding(bo, dev, data, cleanup);
 	mutex_unlock(&flow_indr_block_lock);
 
 	return list_empty(&bo->cb_list) ? -EOPNOTSUPP : 0;

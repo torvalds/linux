@@ -545,7 +545,9 @@ static inline void flow_block_init(struct flow_block *flow_block)
 }
 
 typedef int flow_indr_block_bind_cb_t(struct net_device *dev, void *cb_priv,
-				      enum tc_setup_type type, void *type_data);
+				      enum tc_setup_type type, void *type_data,
+				      void *data,
+				      void (*cleanup)(struct flow_block_cb *block_cb));
 
 int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv);
 void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
