@@ -176,7 +176,12 @@ static int pca953x_acpi_get_irq(struct device *dev)
 	if (ret)
 		return ret;
 
-	return gpio_to_irq(pin);
+	ret = gpio_to_irq(pin);
+
+	/* When pin is used as an IRQ, no need to keep it requested */
+	gpio_free(pin);
+
+	return ret;
 }
 #endif
 
