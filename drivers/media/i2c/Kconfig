@@ -1190,6 +1190,17 @@ config VIDEO_GC0329
 	  To compile this driver as a module, choose M here: the
 	  module will be called gc0329.
 
+config VIDEO_GC032A
+	tristate "GalaxyCore GC032A sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	help
+	  Support for the GalaxyCore GC032A sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gc032a.
+
 config VIDEO_GC0403
 	tristate "GalaxyCore GC0403 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
