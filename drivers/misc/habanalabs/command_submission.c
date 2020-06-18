@@ -246,6 +246,18 @@ static void free_job(struct hl_device *hdev, struct hl_cs_job *job)
 	kfree(job);
 }
 
+static void cs_counters_aggregate(struct hl_device *hdev, struct hl_ctx *ctx)
+{
+	hdev->aggregated_cs_counters.device_in_reset_drop_cnt +=
+			ctx->cs_counters.device_in_reset_drop_cnt;
+	hdev->aggregated_cs_counters.out_of_mem_drop_cnt +=
+			ctx->cs_counters.out_of_mem_drop_cnt;
+	hdev->aggregated_cs_counters.parsing_drop_cnt +=
+			ctx->cs_counters.parsing_drop_cnt;
+	hdev->aggregated_cs_counters.queue_full_drop_cnt +=
+			ctx->cs_counters.queue_full_drop_cnt;
+}
+
 static void cs_do_release(struct kref *ref)
 {
 	struct hl_cs *cs = container_of(ref, struct hl_cs,
@@ -348,6 +360,8 @@ static void cs_do_release(struct kref *ref)
 
 	dma_fence_signal(cs->fence);
 	dma_fence_put(cs->fence);
+
+	cs_counters_aggregate(hdev, cs->ctx);
 
 	kfree(cs);
 }
@@ -632,12 +646,15 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = validate_queue_index(hdev, chunk, &queue_type,
 						&is_kernel_allocated_cb);
-		if (rc)
+		if (rc) {
+			hpriv->ctx->cs_counters.parsing_drop_cnt++;
 			goto free_cs_object;
+		}
 
 		if (is_kernel_allocated_cb) {
 			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
 			if (!cb) {
+				hpriv->ctx->cs_counters.parsing_drop_cnt++;
 				rc = -EINVAL;
 				goto free_cs_object;
 			}
@@ -651,6 +668,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		job = hl_cs_allocate_job(hdev, queue_type,
 						is_kernel_allocated_cb);
 		if (!job) {
+			hpriv->ctx->cs_counters.out_of_mem_drop_cnt++;
 			dev_err(hdev->dev, "Failed to allocate a new job\n");
 			rc = -ENOMEM;
 			if (is_kernel_allocated_cb)
@@ -683,6 +701,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 
 		rc = cs_parser(hpriv, job);
 		if (rc) {
+			hpriv->ctx->cs_counters.parsing_drop_cnt++;
 			dev_err(hdev->dev,
 				"Failed to parse JOB %d.%llu.%d, err %d, rejecting the CS\n",
 				cs->ctx->asid, cs->sequence, job->id, rc);
@@ -691,6 +710,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 	}
 
 	if (int_queues_only) {
+		hpriv->ctx->cs_counters.parsing_drop_cnt++;
 		dev_err(hdev->dev,
 			"Reject CS %d.%llu because only internal queues jobs are present\n",
 			cs->ctx->asid, cs->sequence);
@@ -875,6 +895,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	job = hl_cs_allocate_job(hdev, q_type, true);
 	if (!job) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
 		dev_err(hdev->dev, "Failed to allocate a new job\n");
 		rc = -ENOMEM;
 		goto put_cs;
@@ -882,6 +903,7 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 
 	cb = hl_cb_kernel_create(hdev, PAGE_SIZE);
 	if (!cb) {
+		ctx->cs_counters.out_of_mem_drop_cnt++;
 		kfree(job);
 		rc = -EFAULT;
 		goto put_cs;
