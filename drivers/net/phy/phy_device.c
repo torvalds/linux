@@ -761,8 +761,10 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr,
  * @addr: PHY address on the MII bus
  * @phy_id: where to store the ID retrieved.
  *
- * Read the 802.3 clause 22 PHY ID from the PHY at @addr on the @bus.
- * Return the PHY ID read from the PHY in @phy_id on successful access.
+ * Read the 802.3 clause 22 PHY ID from the PHY at @addr on the @bus,
+ * placing it in @phy_id. Return zero on successful read and the ID is
+ * valid, %-EIO on bus access error, or %-ENODEV if no device responds
+ * or invalid ID.
  */
 static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 {
@@ -783,6 +785,10 @@ static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 		return -EIO;
 
 	*phy_id |= phy_reg;
+
+	/* If the phy_id is mostly Fs, there is no device there */
+	if ((*phy_id & 0x1fffffff) == 0x1fffffff)
+		return -ENODEV;
 
 	return 0;
 }
@@ -813,10 +819,6 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 
 	if (r)
 		return ERR_PTR(r);
-
-	/* If the phy_id is mostly Fs, there is no device there */
-	if ((phy_id & 0x1fffffff) == 0x1fffffff)
-		return ERR_PTR(-ENODEV);
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
