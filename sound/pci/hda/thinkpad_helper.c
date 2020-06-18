@@ -35,7 +35,7 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 			return;
 		old_vmaster_hook = spec->vmaster_mute.hook;
 		spec->vmaster_mute.hook = update_tpacpi_mute_led;
-		snd_hda_gen_fixup_micmute_led(codec, fix, action);
+		snd_hda_gen_add_micmute_led_cdev(codec, NULL);
 	}
 }
 

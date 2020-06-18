@@ -287,6 +287,13 @@ static void alc_fixup_gpio4(struct hda_codec *codec,
 	alc_fixup_gpio(codec, action, 0x04);
 }
 
+static void alc_fixup_micmute_led(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
+{
+	if (action == HDA_FIXUP_ACT_PROBE)
+		snd_hda_gen_add_micmute_led_cdev(codec, NULL);
+}
+
 /*
  * Fix hardware PLL issue
  * On some codecs, the analog PLL gating control must be off while
@@ -4155,21 +4162,24 @@ static void alc286_fixup_hp_gpio_led(struct hda_codec *codec,
 	alc_fixup_hp_gpio_led(codec, action, 0x02, 0x20);
 }
 
-/* turn on/off mic-mute LED per capture hook */
-static void alc_cap_micmute_update(struct hda_codec *codec)
+/* turn on/off mic-mute LED per capture hook via VREF change */
+static int vref_micmute_led_set(struct led_classdev *led_cdev,
+				enum led_brightness brightness)
 {
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct alc_spec *spec = codec->spec;
 	unsigned int pinval;
 
 	if (!spec->cap_mute_led_nid)
-		return;
+		return 0;
 	pinval = snd_hda_codec_get_pin_target(codec, spec->cap_mute_led_nid);
 	pinval &= ~AC_PINCTL_VREFEN;
-	if (spec->gen.micmute_led.led_value)
+	if (brightness)
 		pinval |= AC_PINCTL_VREF_80;
 	else
 		pinval |= AC_PINCTL_VREF_HIZ;
 	snd_hda_set_pin_ctl_cache(codec, spec->cap_mute_led_nid, pinval);
+	return 0;
 }
 
 static void alc269_fixup_hp_gpio_mic1_led(struct hda_codec *codec,
@@ -4185,7 +4195,7 @@ static void alc269_fixup_hp_gpio_mic1_led(struct hda_codec *codec,
 		spec->gpio_mask |= 0x10;
 		spec->gpio_dir |= 0x10;
 		spec->cap_mute_led_nid = 0x18;
-		snd_hda_gen_add_micmute_led(codec, alc_cap_micmute_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, vref_micmute_led_set);
 		codec->power_filter = led_power_filter;
 	}
 }
@@ -4198,7 +4208,7 @@ static void alc280_fixup_hp_gpio4(struct hda_codec *codec,
 	alc_fixup_hp_gpio_led(codec, action, 0x08, 0);
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->cap_mute_led_nid = 0x18;
-		snd_hda_gen_add_micmute_led(codec, alc_cap_micmute_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, vref_micmute_led_set);
 		codec->power_filter = led_power_filter;
 	}
 }
@@ -4254,16 +4264,19 @@ static void alc236_fixup_hp_mute_led_coefbit(struct hda_codec *codec,
 }
 
 /* turn on/off mic-mute LED per capture hook by coef bit */
-static void alc_hp_cap_micmute_update(struct hda_codec *codec)
+static int coef_micmute_led_set(struct led_classdev *led_cdev,
+				enum led_brightness brightness)
 {
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct alc_spec *spec = codec->spec;
 
-	if (spec->gen.micmute_led.led_value)
+	if (brightness)
 		alc_update_coef_idx(codec, spec->mic_led_coef_idx,
 			spec->mic_led_coefbit_mask, spec->mic_led_coefbit_on);
 	else
 		alc_update_coef_idx(codec, spec->mic_led_coef_idx,
 			spec->mic_led_coefbit_mask, spec->mic_led_coefbit_off);
+	return 0;
 }
 
 static void alc285_fixup_hp_coef_micmute_led(struct hda_codec *codec,
@@ -4276,7 +4289,7 @@ static void alc285_fixup_hp_coef_micmute_led(struct hda_codec *codec,
 		spec->mic_led_coefbit_mask = 1<<13;
 		spec->mic_led_coefbit_on = 1<<13;
 		spec->mic_led_coefbit_off = 0;
-		snd_hda_gen_add_micmute_led(codec, alc_hp_cap_micmute_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, coef_micmute_led_set);
 	}
 }
 
@@ -4290,7 +4303,7 @@ static void alc236_fixup_hp_coef_micmute_led(struct hda_codec *codec,
 		spec->mic_led_coefbit_mask = 3<<2;
 		spec->mic_led_coefbit_on = 2<<2;
 		spec->mic_led_coefbit_off = 1<<2;
-		snd_hda_gen_add_micmute_led(codec, alc_hp_cap_micmute_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, coef_micmute_led_set);
 	}
 }
 
@@ -4430,7 +4443,7 @@ static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
 	alc269_fixup_hp_mute_led_micx(codec, fix, action, 0x1a);
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->cap_mute_led_nid = 0x18;
-		snd_hda_gen_add_micmute_led(codec, alc_cap_micmute_update);
+		snd_hda_gen_add_micmute_led_cdev(codec, vref_micmute_led_set);
 	}
 }
 
@@ -6660,7 +6673,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC255_FIXUP_MIC_MUTE_LED] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = snd_hda_gen_fixup_micmute_led,
+		.v.func = alc_fixup_micmute_led,
 	},
 	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
 		.type = HDA_FIXUP_PINS,
@@ -6763,7 +6776,7 @@ static const struct hda_fixup alc269_fixups[] = {
 	},
 	[ALC292_FIXUP_DELL_E7X] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = snd_hda_gen_fixup_micmute_led,
+		.v.func = alc_fixup_micmute_led,
 		/* micmute fixup must be applied at last */
 		.chained_before = true,
 		.chain_id = ALC292_FIXUP_DELL_E7X_AAMIX,
