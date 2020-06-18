@@ -482,7 +482,6 @@ static void vcn_v3_0_mc_resume_dpg_mode(struct amdgpu_device *adev, int inst_idx
 static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data = 0;
-	int ret;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
 		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
@@ -502,7 +501,7 @@ static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int
 
 		WREG32_SOC15(VCN, inst, mmUVD_PGFSM_CONFIG, data);
 		SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_PGFSM_STATUS,
-			UVD_PGFSM_STATUS__UVDM_UVDU_UVDLM_PWR_ON_3_0, 0x3F3FFFFF, ret);
+			UVD_PGFSM_STATUS__UVDM_UVDU_UVDLM_PWR_ON_3_0, 0x3F3FFFFF);
 	} else {
 		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
 			| 1 << UVD_PGFSM_CONFIG__UVDU_PWR_CONFIG__SHIFT
@@ -519,7 +518,7 @@ static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int
 			| 1 << UVD_PGFSM_CONFIG__UVDNA_PWR_CONFIG__SHIFT
 			| 1 << UVD_PGFSM_CONFIG__UVDNB_PWR_CONFIG__SHIFT);
 		WREG32_SOC15(VCN, inst, mmUVD_PGFSM_CONFIG, data);
-		SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_PGFSM_STATUS, 0,  0x3F3FFFFF, ret);
+		SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_PGFSM_STATUS, 0,  0x3F3FFFFF);
 	}
 
 	data = RREG32_SOC15(VCN, inst, mmUVD_POWER_STATUS);
@@ -534,7 +533,6 @@ static void vcn_v3_0_disable_static_power_gating(struct amdgpu_device *adev, int
 static void vcn_v3_0_enable_static_power_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
-	int ret;
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
 		/* Before power off, this indicator has to be turned on */
@@ -573,7 +571,7 @@ static void vcn_v3_0_enable_static_power_gating(struct amdgpu_device *adev, int 
 			| 2 << UVD_PGFSM_STATUS__UVDATD_PWR_STATUS__SHIFT
 			| 2 << UVD_PGFSM_STATUS__UVDNA_PWR_STATUS__SHIFT
 			| 2 << UVD_PGFSM_STATUS__UVDNB_PWR_STATUS__SHIFT);
-		SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_PGFSM_STATUS, data, 0x3F3FFFFF, ret);
+		SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_PGFSM_STATUS, data, 0x3F3FFFFF);
 	}
 }
 
@@ -588,7 +586,6 @@ static void vcn_v3_0_enable_static_power_gating(struct amdgpu_device *adev, int 
 static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 {
 	uint32_t data;
-	int ret = 0;
 
 	/* VCN disable CGC */
 	data = RREG32_SOC15(VCN, inst, mmUVD_CGC_CTRL);
@@ -624,7 +621,7 @@ static void vcn_v3_0_disable_clock_gating(struct amdgpu_device *adev, int inst)
 
 	WREG32_SOC15(VCN, inst, mmUVD_CGC_GATE, data);
 
-	SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_CGC_GATE, 0,  0xFFFFFFFF, ret);
+	SOC15_WAIT_ON_RREG(VCN, inst, mmUVD_CGC_GATE, 0,  0xFFFFFFFF);
 
 	data = RREG32_SOC15(VCN, inst, mmUVD_CGC_CTRL);
 	data &= ~(UVD_CGC_CTRL__UDEC_RE_MODE_MASK
@@ -1142,25 +1139,24 @@ static int vcn_v3_0_start(struct amdgpu_device *adev)
 
 static int vcn_v3_0_stop_dpg_mode(struct amdgpu_device *adev, int inst_idx)
 {
-	int ret_code = 0;
 	uint32_t tmp;
 
 	/* Wait for power status to be 1 */
 	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_POWER_STATUS, 1,
-		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 
 	/* wait for read ptr to be equal to write ptr */
 	tmp = RREG32_SOC15(VCN, inst_idx, mmUVD_RB_WPTR);
-	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RB_RPTR, tmp, 0xFFFFFFFF);
 
 	tmp = RREG32_SOC15(VCN, inst_idx, mmUVD_RB_WPTR2);
-	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RB_RPTR2, tmp, 0xFFFFFFFF, ret_code);
+	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RB_RPTR2, tmp, 0xFFFFFFFF);
 
 	tmp = RREG32_SOC15(VCN, inst_idx, mmUVD_RBC_RB_WPTR) & 0x7FFFFFFF;
-	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RBC_RB_RPTR, tmp, 0xFFFFFFFF, ret_code);
+	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_RBC_RB_RPTR, tmp, 0xFFFFFFFF);
 
 	SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_POWER_STATUS, 1,
-		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+		UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 
 	/* disable dynamic power gating mode */
 	WREG32_P(SOC15_REG_OFFSET(VCN, inst_idx, mmUVD_POWER_STATUS), 0,
@@ -1184,7 +1180,7 @@ static int vcn_v3_0_stop(struct amdgpu_device *adev)
 		}
 
 		/* wait for vcn idle */
-		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE, 0x7, r);
+		r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE, 0x7);
 		if (r)
 			return r;
 
@@ -1192,7 +1188,7 @@ static int vcn_v3_0_stop(struct amdgpu_device *adev)
 			UVD_LMI_STATUS__READ_CLEAN_MASK |
 			UVD_LMI_STATUS__WRITE_CLEAN_MASK |
 			UVD_LMI_STATUS__WRITE_CLEAN_RAW_MASK;
-		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp, r);
+		r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp);
 		if (r)
 			return r;
 
@@ -1202,7 +1198,7 @@ static int vcn_v3_0_stop(struct amdgpu_device *adev)
 		WREG32_SOC15(VCN, i, mmUVD_LMI_CTRL2, tmp);
 		tmp = UVD_LMI_STATUS__UMC_READ_CLEAN_RAW_MASK|
 			UVD_LMI_STATUS__UMC_WRITE_CLEAN_RAW_MASK;
-		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp, r);
+		r = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_LMI_STATUS, tmp, tmp);
 		if (r)
 			return r;
 
@@ -1259,9 +1255,8 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 			(~UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK);
 
 		if (new_state->fw_based == VCN_DPG_STATE__PAUSE) {
-			ret_code = 0;
-			SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_POWER_STATUS, 0x1,
-				UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+			ret_code = SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_POWER_STATUS, 0x1,
+				UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 
 			if (!ret_code) {
 				/* pause DPG */
@@ -1271,7 +1266,7 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 				/* wait for ACK */
 				SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_DPG_PAUSE,
 					UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK,
-					UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK, ret_code);
+					UVD_DPG_PAUSE__NJ_PAUSE_DPG_ACK_MASK);
 
 				/* Restore */
 				ring = &adev->vcn.inst[inst_idx].ring_enc[0];
@@ -1292,7 +1287,7 @@ static int vcn_v3_0_pause_dpg_mode(struct amdgpu_device *adev,
 					RREG32_SOC15(VCN, inst_idx, mmUVD_SCRATCH2) & 0x7FFFFFFF);
 
 				SOC15_WAIT_ON_RREG(VCN, inst_idx, mmUVD_POWER_STATUS,
-					UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON, UVD_POWER_STATUS__UVD_POWER_STATUS_MASK, ret_code);
+					UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON, UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 			}
 		} else {
 			/* unpause dpg, no need to wait */
@@ -1542,8 +1537,8 @@ static int vcn_v3_0_wait_for_idle(void *handle)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE,
-			UVD_STATUS__IDLE, ret);
+		ret = SOC15_WAIT_ON_RREG(VCN, i, mmUVD_STATUS, UVD_STATUS__IDLE,
+			UVD_STATUS__IDLE);
 		if (ret)
 			return ret;
 	}
