@@ -23,11 +23,7 @@
 # Makefile for the color sub-module of DAL.
 #
 
-MOD_COLOR = color_gamma.o
-
-ifdef CONFIG_DRM_AMD_DC_DCN
-MOD_COLOR += color_table.o
-endif
+MOD_COLOR = color_gamma.o color_table.o
 
 AMD_DAL_MOD_COLOR = $(addprefix $(AMDDALPATH)/modules/color/,$(MOD_COLOR))
 #$(info ************  DAL COLOR MODULE MAKEFILE ************)
