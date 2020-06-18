@@ -583,7 +583,7 @@ static void psp_prep_ta_invoke_cmd_buf(struct psp_gfx_cmd_resp *cmd,
 	cmd->cmd.cmd_invoke_cmd.ta_cmd_id 	= ta_cmd_id;
 }
 
-int psp_ta_invoke(struct psp_context *psp,
+static int psp_ta_invoke(struct psp_context *psp,
 		  uint32_t ta_cmd_id,
 		  uint32_t session_id)
 {

@@ -32,7 +32,7 @@
 #define mmMM_DATA		0x1
 #define HW_ID_MAX		300
 
-const char *hw_id_names[HW_ID_MAX] = {
+static const char *hw_id_names[HW_ID_MAX] = {
 	[MP1_HWID]		= "MP1",
 	[MP2_HWID]		= "MP2",
 	[THM_HWID]		= "THM",

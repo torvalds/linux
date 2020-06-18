@@ -515,12 +515,12 @@ void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 	}
 }
 
-bool amdgpu_virt_access_debugfs_is_mmio(struct amdgpu_device *adev)
+static bool amdgpu_virt_access_debugfs_is_mmio(struct amdgpu_device *adev)
 {
 	return amdgpu_sriov_is_debug(adev) ? true : false;
 }
 
-bool amdgpu_virt_access_debugfs_is_kiq(struct amdgpu_device *adev)
+static bool amdgpu_virt_access_debugfs_is_kiq(struct amdgpu_device *adev)
 {
 	return amdgpu_sriov_is_normal(adev) ? true : false;
 }

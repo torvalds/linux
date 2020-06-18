@@ -4589,7 +4589,7 @@ static int gfx_v8_0_mqd_init(struct amdgpu_ring *ring)
 	return 0;
 }
 
-int gfx_v8_0_mqd_commit(struct amdgpu_device *adev,
+static int gfx_v8_0_mqd_commit(struct amdgpu_device *adev,
 			struct vi_mqd *mqd)
 {
 	uint32_t mqd_reg;
