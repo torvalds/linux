@@ -5031,6 +5031,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 
 	if (BPF_CLASS(insn->code) != BPF_ALU64) {
 		/* 32-bit ALU ops on pointers produce (meaningless) scalars */
+		if (opcode == BPF_SUB && env->allow_ptr_leaks) {
+			__mark_reg_unknown(env, dst_reg);
+			return 0;
+		}
+
 		verbose(env,
 			"R%d 32-bit pointer arithmetic prohibited\n",
 			dst);
