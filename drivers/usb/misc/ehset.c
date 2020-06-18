@@ -33,28 +33,28 @@ static int ehset_probe(struct usb_interface *intf,
 		ret = usb_control_msg(hub_udev, usb_sndctrlpipe(hub_udev, 0),
 					USB_REQ_SET_FEATURE, USB_RT_PORT,
 					USB_PORT_FEAT_TEST,
-					(TEST_SE0_NAK << 8) | portnum,
+					(USB_TEST_SE0_NAK << 8) | portnum,
 					NULL, 0, 1000);
 		break;
 	case TEST_J_PID:
 		ret = usb_control_msg(hub_udev, usb_sndctrlpipe(hub_udev, 0),
 					USB_REQ_SET_FEATURE, USB_RT_PORT,
 					USB_PORT_FEAT_TEST,
-					(TEST_J << 8) | portnum,
+					(USB_TEST_J << 8) | portnum,
 					NULL, 0, 1000);
 		break;
 	case TEST_K_PID:
 		ret = usb_control_msg(hub_udev, usb_sndctrlpipe(hub_udev, 0),
 					USB_REQ_SET_FEATURE, USB_RT_PORT,
 					USB_PORT_FEAT_TEST,
-					(TEST_K << 8) | portnum,
+					(USB_TEST_K << 8) | portnum,
 					NULL, 0, 1000);
 		break;
 	case TEST_PACKET_PID:
 		ret = usb_control_msg(hub_udev, usb_sndctrlpipe(hub_udev, 0),
 					USB_REQ_SET_FEATURE, USB_RT_PORT,
 					USB_PORT_FEAT_TEST,
-					(TEST_PACKET << 8) | portnum,
+					(USB_TEST_PACKET << 8) | portnum,
 					NULL, 0, 1000);
 		break;
 	case TEST_HS_HOST_PORT_SUSPEND_RESUME:

@@ -53,15 +53,15 @@ static const char *usb_decode_device_feature(u16 wValue)
 static const char *usb_decode_test_mode(u16 wIndex)
 {
 	switch (wIndex) {
-	case TEST_J:
+	case USB_TEST_J:
 		return ": TEST_J";
-	case TEST_K:
+	case USB_TEST_K:
 		return ": TEST_K";
-	case TEST_SE0_NAK:
+	case USB_TEST_SE0_NAK:
 		return ": TEST_SE0_NAK";
-	case TEST_PACKET:
+	case USB_TEST_PACKET:
 		return ": TEST_PACKET";
-	case TEST_FORCE_EN:
+	case USB_TEST_FORCE_ENABLE:
 		return ": TEST_FORCE_EN";
 	default:
 		return ": UNKNOWN";

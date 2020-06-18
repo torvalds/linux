@@ -1502,7 +1502,7 @@ out:
 
 static void mv_udc_testmode(struct mv_udc *udc, u16 index)
 {
-	if (index <= TEST_FORCE_EN) {
+	if (index <= USB_TEST_FORCE_ENABLE) {
 		udc->test_mode = index;
 		if (udc_prime_status(udc, EP_DIR_IN, 0, true))
 			ep0_stall(udc);

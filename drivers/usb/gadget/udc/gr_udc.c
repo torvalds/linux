@@ -912,9 +912,9 @@ static int gr_device_request(struct gr_udc *dev, u8 type, u8 request,
 			return gr_ep0_respond_empty(dev);
 
 		case USB_DEVICE_TEST_MODE:
-			/* The hardware does not support TEST_FORCE_EN */
+			/* The hardware does not support USB_TEST_FORCE_ENABLE */
 			test = index >> 8;
-			if (test >= TEST_J && test <= TEST_PACKET) {
+			if (test >= USB_TEST_J && test <= USB_TEST_PACKET) {
 				dev->test_mode = test;
 				return gr_ep0_respond(dev, NULL, 0,
 						      gr_ep0_testmode_complete);

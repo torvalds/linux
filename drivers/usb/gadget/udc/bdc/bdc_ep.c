@@ -927,11 +927,11 @@ static int bdc_set_test_mode(struct bdc *bdc)
 	usb2_pm &= ~BDC_PTC_MASK;
 	dev_dbg(bdc->dev, "%s\n", __func__);
 	switch (bdc->test_mode) {
-	case TEST_J:
-	case TEST_K:
-	case TEST_SE0_NAK:
-	case TEST_PACKET:
-	case TEST_FORCE_EN:
+	case USB_TEST_J:
+	case USB_TEST_K:
+	case USB_TEST_SE0_NAK:
+	case USB_TEST_PACKET:
+	case USB_TEST_FORCE_ENABLE:
 		usb2_pm |= bdc->test_mode << 28;
 		break;
 	default:
