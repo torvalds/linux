@@ -845,7 +845,7 @@ static struct inode *afs_do_lookup(struct inode *dir, struct dentry *dentry,
 		 * to FS.FetchStatus for op->file[1].
 		 */
 		op->fetch_status.which = 1;
-		op->ops = &afs_fetch_status_operation;
+		op->ops = &afs_lookup_fetch_status_operation;
 		afs_begin_vnode_operation(op);
 		afs_wait_for_operation(op);
 	}
