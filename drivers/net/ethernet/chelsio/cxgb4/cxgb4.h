@@ -139,6 +139,10 @@ enum cc_fec {
 	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
 };
 
+enum {
+	CXGB4_ETHTOOL_FLASH_FW = 1,
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -490,6 +494,11 @@ struct trace_params {
 	unsigned char skip_len;
 	unsigned char invert;
 	unsigned char port;
+};
+
+struct cxgb4_fw_data {
+	__be32 signature;
+	__u8 reserved[4];
 };
 
 /* Firmware Port Capabilities types. */
