@@ -179,6 +179,15 @@
 			};
 		};
 	};
+
+	sound-spdif {
+		compatible = "fsl,imx-audio-spdif",
+			   "fsl,imx6sx-sdb-spdif";
+		model = "imx-spdif";
+		spdif-controller = <&spdif>;
+		spdif-out;
+	};
+
 };
 
 &audmux {
@@ -294,6 +303,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sai1>;
 	status = "disabled";
+};
+
+&spdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spdif>;
+	assigned-clocks = <&clks IMX6SX_CLK_SPDIF_PODF>;
+	assigned-clock-rates = <24576000>;
+	status = "okay";
 };
 
 &ssi2 {
@@ -559,6 +576,12 @@
 				MX6SX_PAD_CSI_HSYNC__SAI1_TX_DATA_0	0x120b0
 				MX6SX_PAD_CSI_VSYNC__SAI1_RX_DATA_0	0x130b0
 				MX6SX_PAD_CSI_PIXCLK__AUDMUX_MCLK	0x130b0
+			>;
+		};
+
+		pinctrl_spdif: spdifgrp {
+			fsl,pins = <
+				MX6SX_PAD_SD4_DATA4__SPDIF_OUT          0x1b0b0
 			>;
 		};
 
