@@ -359,7 +359,8 @@ quiet_cmd_lzo = LZO     $@
       cmd_lzo = { cat $(real-prereqs) | $(KLZOP) -9; $(size_append); } > $@
 
 quiet_cmd_lz4 = LZ4     $@
-      cmd_lz4 = { cat $(real-prereqs) | $(LZ4) -l -c1 stdin stdout; \
+      cmd_lz4 = { cat $(real-prereqs) | \
+                  $(LZ4) -c -l -12 --favor-decSpeed stdin stdout; \
                   $(size_append); } > $@
 
 # U-Boot mkimage
