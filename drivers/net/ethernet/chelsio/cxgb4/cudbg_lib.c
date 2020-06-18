@@ -3156,3 +3156,40 @@ out_free:
 
 	return rc;
 }
+
+int cudbg_collect_flash(struct cudbg_init *pdbg_init,
+			struct cudbg_buffer *dbg_buff,
+			struct cudbg_error *cudbg_err)
+{
+	struct adapter *padap = pdbg_init->adap;
+	u32 count = padap->params.sf_size, n;
+	struct cudbg_buffer temp_buff = {0};
+	u32 addr, i;
+	int rc;
+
+	addr = FLASH_EXP_ROM_START;
+
+	for (i = 0; i < count; i += SF_PAGE_SIZE) {
+		n = min_t(u32, count - i, SF_PAGE_SIZE);
+
+		rc = cudbg_get_buff(pdbg_init, dbg_buff, n, &temp_buff);
+		if (rc) {
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			goto out;
+		}
+		rc = t4_read_flash(padap, addr, n, (u32 *)temp_buff.data, 0);
+		if (rc)
+			goto out;
+
+		addr += (n * 4);
+		rc = cudbg_write_and_release_buff(pdbg_init, &temp_buff,
+						  dbg_buff);
+		if (rc) {
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			goto out;
+		}
+	}
+
+out:
+	return rc;
+}

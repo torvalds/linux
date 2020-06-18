@@ -66,6 +66,10 @@ static const struct cxgb4_collect_entity cxgb4_collect_hw_dump[] = {
 	{ CUDBG_HMA_INDIRECT, cudbg_collect_hma_indirect },
 };
 
+static const struct cxgb4_collect_entity cxgb4_collect_flash_dump[] = {
+	{ CUDBG_FLASH, cudbg_collect_flash },
+};
+
 static u32 cxgb4_get_entity_length(struct adapter *adap, u32 entity)
 {
 	struct cudbg_tcam tcam_region = { 0 };
@@ -330,6 +334,9 @@ u32 cxgb4_get_dump_length(struct adapter *adap, u32 flag)
 		}
 	}
 
+	if (flag & CXGB4_ETH_DUMP_FLASH)
+		len += adap->params.sf_size;
+
 	/* If compression is enabled, a smaller destination buffer is enough */
 	wsize = cudbg_get_workspace_size();
 	if (wsize && len > CUDBG_DUMP_BUFF_SIZE)
@@ -465,6 +472,13 @@ int cxgb4_cudbg_collect(struct adapter *adap, void *buf, u32 *buf_size,
 		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
 					   cxgb4_collect_mem_dump,
 					   ARRAY_SIZE(cxgb4_collect_mem_dump),
+					   buf,
+					   &total_size);
+
+	if (flag & CXGB4_ETH_DUMP_FLASH)
+		cxgb4_cudbg_collect_entity(&cudbg_init, &dbg_buff,
+					   cxgb4_collect_flash_dump,
+					   ARRAY_SIZE(cxgb4_collect_flash_dump),
 					   buf,
 					   &total_size);
 

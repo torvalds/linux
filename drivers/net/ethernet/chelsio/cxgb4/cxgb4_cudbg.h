@@ -27,6 +27,7 @@ enum CXGB4_ETHTOOL_DUMP_FLAGS {
 	CXGB4_ETH_DUMP_NONE = ETH_FW_DUMP_DISABLE,
 	CXGB4_ETH_DUMP_MEM = (1 << 0), /* On-Chip Memory Dumps */
 	CXGB4_ETH_DUMP_HW = (1 << 1), /* various FW and HW dumps */
+	CXGB4_ETH_DUMP_FLASH = (1 << 2), /* Dump flash memory */
 };
 
 #define CXGB4_ETH_DUMP_ALL (CXGB4_ETH_DUMP_MEM | CXGB4_ETH_DUMP_HW)
