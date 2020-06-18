@@ -26,6 +26,7 @@
 #include "soc15.h"
 #include "soc15d.h"
 #include "vcn_v1_0.h"
+#include "jpeg_v1_0.h"
 
 #include "vcn/vcn_1_0_offset.h"
 #include "vcn/vcn_1_0_sh_mask.h"
