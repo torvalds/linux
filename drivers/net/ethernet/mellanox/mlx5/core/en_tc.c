@@ -4401,7 +4401,8 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_free;
 
 	/* actions validation depends on parsing the ct matches first */
-	err = mlx5_tc_ct_parse_match(priv, &parse_attr->spec, f, extack);
+	err = mlx5_tc_ct_parse_match(priv, &parse_attr->spec, f,
+				     &flow->esw_attr->ct_attr, extack);
 	if (err)
 		goto err_free;
 
