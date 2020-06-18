@@ -1823,20 +1823,27 @@ ice_parse_caps(struct ice_hw *hw, void *buf, u32 cap_count,
 }
 
 /**
- * ice_aq_discover_caps - query function/device capabilities
+ * ice_aq_list_caps - query function/device capabilities
  * @hw: pointer to the HW struct
- * @buf: a virtual buffer to hold the capabilities
- * @buf_size: Size of the virtual buffer
- * @cap_count: cap count needed if AQ err==ENOMEM
- * @opc: capabilities type to discover - pass in the command opcode
+ * @buf: a buffer to hold the capabilities
+ * @buf_size: size of the buffer
+ * @cap_count: if not NULL, set to the number of capabilities reported
+ * @opc: capabilities type to discover, device or function
  * @cd: pointer to command details structure or NULL
  *
- * Get the function(0x000a)/device(0x000b) capabilities description from
- * the firmware.
+ * Get the function (0x000A) or device (0x000B) capabilities description from
+ * firmware and store it in the buffer.
+ *
+ * If the cap_count pointer is not NULL, then it is set to the number of
+ * capabilities firmware will report. Note that if the buffer size is too
+ * small, it is possible the command will return ICE_AQ_ERR_ENOMEM. The
+ * cap_count will still be updated in this case. It is recommended that the
+ * buffer size be set to ICE_AQ_MAX_BUF_LEN (the largest possible buffer that
+ * firmware could return) to avoid this.
  */
-static enum ice_status
-ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
-		     enum ice_adminq_opc opc, struct ice_sq_cd *cd)
+enum ice_status
+ice_aq_list_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
+		 enum ice_adminq_opc opc, struct ice_sq_cd *cd)
 {
 	struct ice_aqc_list_caps *cmd;
 	struct ice_aq_desc desc;
@@ -1849,12 +1856,43 @@ ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
 		return ICE_ERR_PARAM;
 
 	ice_fill_dflt_direct_cmd_desc(&desc, opc);
-
 	status = ice_aq_send_cmd(hw, &desc, buf, buf_size, cd);
-	if (!status)
-		ice_parse_caps(hw, buf, le32_to_cpu(cmd->count), opc);
-	else if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOMEM)
+
+	if (cap_count)
 		*cap_count = le32_to_cpu(cmd->count);
+
+	return status;
+}
+
+/**
+ * ice_aq_discover_caps - query function/device capabilities
+ * @hw: pointer to the HW struct
+ * @buf: a virtual buffer to hold the capabilities
+ * @buf_size: Size of the virtual buffer
+ * @cap_count: cap count needed if AQ err==ENOMEM
+ * @opc: capabilities type to discover - pass in the command opcode
+ * @cd: pointer to command details structure or NULL
+ *
+ * Get the function(0x000a)/device(0x000b) capabilities description from
+ * the firmware.
+ *
+ * NOTE: this function has the side effect of updating the hw->dev_caps or
+ * hw->func_caps by way of calling ice_parse_caps.
+ */
+static enum ice_status
+ice_aq_discover_caps(struct ice_hw *hw, void *buf, u16 buf_size, u32 *cap_count,
+		     enum ice_adminq_opc opc, struct ice_sq_cd *cd)
+{
+	u32 local_cap_count = 0;
+	enum ice_status status;
+
+	status = ice_aq_list_caps(hw, buf, buf_size, &local_cap_count,
+				  opc, cd);
+	if (!status)
+		ice_parse_caps(hw, buf, local_cap_count, opc);
+	else if (hw->adminq.sq_last_status == ICE_AQ_RC_ENOMEM)
+		*cap_count = local_cap_count;
+
 	return status;
 }
 

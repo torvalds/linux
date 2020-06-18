@@ -373,6 +373,7 @@ struct ice_pf {
 	struct devlink_port devlink_port;
 
 	struct devlink_region *nvm_region;
+	struct devlink_region *devcaps_region;
 
 	/* OS reserved IRQ details */
 	struct msix_entry *msix_entries;
