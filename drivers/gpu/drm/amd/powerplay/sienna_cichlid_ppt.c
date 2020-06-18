@@ -1805,7 +1805,7 @@ static int sienna_cichlid_update_pcie_parameters(struct smu_context *smu,
 	return 0;
 }
 
-int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
+static int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 				enum smu_clk_type clk_type,
 				uint32_t *min, uint32_t *max)
 {
@@ -1821,7 +1821,7 @@ int sienna_cichlid_get_dpm_ultimate_freq(struct smu_context *smu,
 	return ret;
 }
 
-int sienna_cichlid_set_soft_freq_limited_range(struct smu_context *smu,
+static int sienna_cichlid_set_soft_freq_limited_range(struct smu_context *smu,
 				      enum smu_clk_type clk_type,
 				      uint32_t min, uint32_t max)
 {

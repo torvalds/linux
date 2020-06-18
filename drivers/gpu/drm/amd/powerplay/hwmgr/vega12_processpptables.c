@@ -263,7 +263,7 @@ static int init_powerplay_table_information(
 	return result;
 }
 
-int vega12_pp_tables_initialize(struct pp_hwmgr *hwmgr)
+static int vega12_pp_tables_initialize(struct pp_hwmgr *hwmgr)
 {
 	int result = 0;
 	const ATOM_Vega12_POWERPLAYTABLE *powerplay_table;

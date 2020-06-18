@@ -90,7 +90,7 @@ typedef enum {
 
 static const ULONG PhwVega10_Magic = (ULONG)(PHM_VIslands_Magic);
 
-struct vega10_power_state *cast_phw_vega10_power_state(
+static struct vega10_power_state *cast_phw_vega10_power_state(
 				  struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwVega10_Magic == hw_ps->magic),
@@ -100,7 +100,7 @@ struct vega10_power_state *cast_phw_vega10_power_state(
 	return (struct vega10_power_state *)hw_ps;
 }
 
-const struct vega10_power_state *cast_const_phw_vega10_power_state(
+static const struct vega10_power_state *cast_const_phw_vega10_power_state(
 				 const struct pp_hw_power_state *hw_ps)
 {
 	PP_ASSERT_WITH_CODE((PhwVega10_Magic == hw_ps->magic),
@@ -2330,7 +2330,7 @@ static int vega10_acg_disable(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 
-	if (data->smu_features[GNLD_ACG].supported && 
+	if (data->smu_features[GNLD_ACG].supported &&
 	    data->smu_features[GNLD_ACG].enabled)
 		if (!vega10_enable_smc_features(hwmgr, false,
 			data->smu_features[GNLD_ACG].smu_feature_bitmap))
@@ -3905,7 +3905,7 @@ static void vega10_notify_smc_display_change(struct pp_hwmgr *hwmgr,
 			NULL);
 }
 
-int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+static int vega10_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 		struct pp_display_clock_request *clock_req)
 {
 	int result = 0;
@@ -4672,7 +4672,7 @@ static int vega10_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int vega10_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct vega10_hwmgr *data = hwmgr->backend;
 

@@ -1981,7 +1981,7 @@ static int vega20_upload_dpm_max_level(struct pp_hwmgr *hwmgr, uint32_t feature_
 	return ret;
 }
 
-int vega20_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int vega20_enable_disable_vce_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
@@ -2253,7 +2253,7 @@ static int vega20_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	return ret;
 }
 
-int vega20_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
+static int vega20_display_clock_voltage_request(struct pp_hwmgr *hwmgr,
 		struct pp_display_clock_request *clock_req)
 {
 	int result = 0;
@@ -3589,7 +3589,7 @@ static int vega20_display_configuration_changed_task(struct pp_hwmgr *hwmgr)
 	return result;
 }
 
-int vega20_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
+static int vega20_enable_disable_uvd_dpm(struct pp_hwmgr *hwmgr, bool enable)
 {
 	struct vega20_hwmgr *data =
 			(struct vega20_hwmgr *)(hwmgr->backend);
