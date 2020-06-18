@@ -80,7 +80,7 @@ struct alc_spec {
 	unsigned int gpio_data;
 	bool gpio_write_delay;	/* add a delay before writing gpio_data */
 
-	/* mute LED for HP laptops, see alc269_fixup_mic_mute_hook() */
+	/* mute LED for HP laptops, see vref_mute_led_set() */
 	int mute_led_polarity;
 	int micmute_led_polarity;
 	hda_nid_t mute_led_nid;
@@ -3990,23 +3990,25 @@ static void alc269_fixup_x101_headset_mic(struct hda_codec *codec,
 
 
 /* update mute-LED according to the speaker mute state via mic VREF pin */
-static void alc269_fixup_mic_mute_hook(void *private_data, int enabled)
+static int vref_mute_led_set(struct led_classdev *led_cdev,
+			     enum led_brightness brightness)
 {
-	struct hda_codec *codec = private_data;
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct alc_spec *spec = codec->spec;
 	unsigned int pinval;
 
 	if (spec->mute_led_polarity)
-		enabled = !enabled;
+		brightness = !brightness;
 	pinval = snd_hda_codec_get_pin_target(codec, spec->mute_led_nid);
 	pinval &= ~AC_PINCTL_VREFEN;
-	pinval |= enabled ? AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_80;
+	pinval |= brightness ? AC_PINCTL_VREF_80 : AC_PINCTL_VREF_HIZ;
 	if (spec->mute_led_nid) {
 		/* temporarily power up/down for setting VREF */
 		snd_hda_power_up_pm(codec);
 		snd_hda_set_pin_ctl_cache(codec, spec->mute_led_nid, pinval);
 		snd_hda_power_down_pm(codec);
 	}
+	return 0;
 }
 
 /* Make sure the led works even in runtime suspend */
@@ -4044,8 +4046,7 @@ static void alc269_fixup_hp_mute_led(struct hda_codec *codec,
 			break;
 		spec->mute_led_polarity = pol;
 		spec->mute_led_nid = pin - 0x0a + 0x18;
-		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
-		spec->gen.vmaster_mute_enum = 1;
+		snd_hda_gen_add_mute_led_cdev(codec, vref_mute_led_set);
 		codec->power_filter = led_power_filter;
 		codec_dbg(codec,
 			  "Detected mute LED for %x:%d\n", spec->mute_led_nid,
@@ -4063,8 +4064,7 @@ static void alc269_fixup_hp_mute_led_micx(struct hda_codec *codec,
 	if (action == HDA_FIXUP_ACT_PRE_PROBE) {
 		spec->mute_led_polarity = 0;
 		spec->mute_led_nid = pin;
-		spec->gen.vmaster_mute.hook = alc269_fixup_mic_mute_hook;
-		spec->gen.vmaster_mute_enum = 1;
+		snd_hda_gen_add_mute_led_cdev(codec, vref_mute_led_set);
 		codec->power_filter = led_power_filter;
 	}
 }
@@ -4097,13 +4097,15 @@ static void alc_update_gpio_led(struct hda_codec *codec, unsigned int mask,
 }
 
 /* turn on/off mute LED via GPIO per vmaster hook */
-static void alc_fixup_gpio_mute_hook(void *private_data, int enabled)
+static int gpio_mute_led_set(struct led_classdev *led_cdev,
+			     enum led_brightness brightness)
 {
-	struct hda_codec *codec = private_data;
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct alc_spec *spec = codec->spec;
 
 	alc_update_gpio_led(codec, spec->gpio_mute_led_mask,
-			    spec->mute_led_polarity, enabled);
+			    spec->mute_led_polarity, !brightness);
+	return 0;
 }
 
 /* turn on/off mic-mute LED via GPIO per capture hook */
@@ -4132,7 +4134,7 @@ static void alc_fixup_hp_gpio_led(struct hda_codec *codec,
 		return;
 	if (mute_mask) {
 		spec->gpio_mute_led_mask = mute_mask;
-		spec->gen.vmaster_mute.hook = alc_fixup_gpio_mute_hook;
+		snd_hda_gen_add_mute_led_cdev(codec, gpio_mute_led_set);
 	}
 	if (micmute_mask) {
 		spec->gpio_mic_led_mask = micmute_mask;
@@ -4214,19 +4216,25 @@ static void alc280_fixup_hp_gpio4(struct hda_codec *codec,
 }
 
 /* update mute-LED according to the speaker mute state via COEF bit */
-static void alc_fixup_mute_led_coefbit_hook(void *private_data, int enabled)
+static int coef_mute_led_set(struct led_classdev *led_cdev,
+			     enum led_brightness brightness)
 {
-	struct hda_codec *codec = private_data;
+	struct hda_codec *codec = dev_to_hda_codec(led_cdev->dev->parent);
 	struct alc_spec *spec = codec->spec;
 
 	if (spec->mute_led_polarity)
-		enabled = !enabled;
+		brightness = !brightness;
 
 	/* temporarily power up/down for setting COEF bit */
-	enabled ? alc_update_coef_idx(codec, spec->mute_led_coef_idx,
-		spec->mute_led_coefbit_mask, spec->mute_led_coefbit_off) :
-		  alc_update_coef_idx(codec, spec->mute_led_coef_idx,
-		spec->mute_led_coefbit_mask, spec->mute_led_coefbit_on);
+	if (brightness)
+		alc_update_coef_idx(codec, spec->mute_led_coef_idx,
+				    spec->mute_led_coefbit_mask,
+				    spec->mute_led_coefbit_on);
+	else
+		alc_update_coef_idx(codec, spec->mute_led_coef_idx,
+				    spec->mute_led_coefbit_mask,
+				    spec->mute_led_coefbit_off);
+	return 0;
 }
 
 static void alc285_fixup_hp_mute_led_coefbit(struct hda_codec *codec,
@@ -4241,8 +4249,7 @@ static void alc285_fixup_hp_mute_led_coefbit(struct hda_codec *codec,
 		spec->mute_led_coefbit_mask = 1<<3;
 		spec->mute_led_coefbit_on = 1<<3;
 		spec->mute_led_coefbit_off = 0;
-		spec->gen.vmaster_mute.hook = alc_fixup_mute_led_coefbit_hook;
-		spec->gen.vmaster_mute_enum = 1;
+		snd_hda_gen_add_mute_led_cdev(codec, coef_mute_led_set);
 	}
 }
 
@@ -4258,8 +4265,7 @@ static void alc236_fixup_hp_mute_led_coefbit(struct hda_codec *codec,
 		spec->mute_led_coefbit_mask = 1<<5;
 		spec->mute_led_coefbit_on = 0;
 		spec->mute_led_coefbit_off = 1<<5;
-		spec->gen.vmaster_mute.hook = alc_fixup_mute_led_coefbit_hook;
-		spec->gen.vmaster_mute_enum = 1;
+		snd_hda_gen_add_mute_led_cdev(codec, coef_mute_led_set);
 	}
 }
 
