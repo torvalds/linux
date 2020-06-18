@@ -38,7 +38,8 @@ static int ftrace_check_current_call(unsigned long hook_pos,
 	 * Read the text we want to modify;
 	 * return must be -EFAULT on read error
 	 */
-	if (probe_kernel_read(replaced, (void *)hook_pos, MCOUNT_INSN_SIZE))
+	if (copy_from_kernel_nofault(replaced, (void *)hook_pos,
+			MCOUNT_INSN_SIZE))
 		return -EFAULT;
 
 	/*

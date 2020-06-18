@@ -106,7 +106,7 @@ void show_opcodes(struct pt_regs *regs, const char *loglvl)
 	bad_ip = user_mode(regs) &&
 		__chk_range_not_ok(prologue, OPCODE_BUFSIZE, TASK_SIZE_MAX);
 
-	if (bad_ip || probe_kernel_read(opcodes, (u8 *)prologue,
+	if (bad_ip || copy_from_kernel_nofault(opcodes, (u8 *)prologue,
 					OPCODE_BUFSIZE)) {
 		printk("%sCode: Bad RIP value.\n", loglvl);
 	} else {

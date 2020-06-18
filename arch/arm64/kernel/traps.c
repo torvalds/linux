@@ -376,7 +376,7 @@ static int call_undef_hook(struct pt_regs *regs)
 
 	if (!user_mode(regs)) {
 		__le32 instr_le;
-		if (probe_kernel_address((__force __le32 *)pc, instr_le))
+		if (get_kernel_nofault(instr_le, (__force __le32 *)pc))
 			goto exit;
 		instr = le32_to_cpu(instr_le);
 	} else if (compat_thumb_mode(regs)) {
