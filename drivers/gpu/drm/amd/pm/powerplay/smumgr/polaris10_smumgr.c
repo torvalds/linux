@@ -1022,6 +1022,9 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 		lowest_pcie_level_enabled = 0,
 		mid_pcie_level_enabled = 0,
 		count = 0;
+	struct amdgpu_device *adev = hwmgr->adev;
+	pp_atomctrl_clock_dividers_vi dividers;
+	uint32_t dpm0_sclkfrequency = levels[0].SclkSetting.SclkFrequency;
 
 	polaris10_get_sclk_range_table(hwmgr, &(smu_data->smc_state_table));
 
@@ -1038,15 +1041,31 @@ static int polaris10_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 			levels[i].DeepSleepDivId = 0;
 	}
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-					PHM_PlatformCaps_SPLLShutdownSupport))
+					PHM_PlatformCaps_SPLLShutdownSupport)) {
 		smu_data->smc_state_table.GraphicsLevel[0].SclkSetting.SSc_En = 0;
+		if (dpm0_sclkfrequency != levels[0].SclkSetting.SclkFrequency) {
+			result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
+					dpm_table->sclk_table.dpm_levels[0].value,
+					&dividers);
+			PP_ASSERT_WITH_CODE((0 == result),
+					"can not find divide id for sclk",
+					return result);
+			smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_SetGpuPllDfsForSclk,
+					dividers.real_clock < dpm_table->sclk_table.dpm_levels[0].value ?
+					dividers.pll_post_divider - 1 : dividers.pll_post_divider,
+					NULL);
+		}
+	}
 
-	smu_data->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 	smu_data->smc_state_table.GraphicsDpmLevelCount =
 			(uint8_t)dpm_table->sclk_table.count;
 	hw_data->dpm_level_enable_mask.sclk_dpm_enable_mask =
 			phm_get_dpm_level_enable_mask_value(&dpm_table->sclk_table);
 
+	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++)
+		smu_data->smc_state_table.GraphicsLevel[i].EnabledForActivity =
+			(hw_data->dpm_level_enable_mask.sclk_dpm_enable_mask & (1 << i)) >> i;
 
 	if (pcie_table != NULL) {
 		PP_ASSERT_WITH_CODE((1 <= pcie_entry_cnt),
