@@ -4390,8 +4390,7 @@ static void to_rdma_ah_attr(struct mlx5_ib_dev *ibdev,
 				MLX5_GET(ads, path, src_addr_index),
 				MLX5_GET(ads, path, hop_limit),
 				MLX5_GET(ads, path, tclass));
-		memcpy(ah_attr, MLX5_ADDR_OF(ads, path, rgid_rip),
-		       MLX5_FLD_SZ_BYTES(ads, rgid_rip));
+		rdma_ah_set_dgid_raw(ah_attr, MLX5_ADDR_OF(ads, path, rgid_rip));
 	}
 }
 
