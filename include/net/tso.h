@@ -4,7 +4,7 @@
 
 #include <net/ip.h>
 
-#define TSO_HEADER_SIZE		128
+#define TSO_HEADER_SIZE		256
 
 struct tso_t {
 	int next_frag_idx;
