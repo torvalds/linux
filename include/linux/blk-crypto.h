@@ -121,6 +121,7 @@ static inline bool bio_has_crypt_ctx(struct bio *bio)
 
 static inline void bio_clone_skip_dm_default_key(struct bio *dst,
 						 const struct bio *src);
+
 void __bio_crypt_clone(struct bio *dst, struct bio *src, gfp_t gfp_mask);
 static inline void bio_crypt_clone(struct bio *dst, struct bio *src,
 				   gfp_t gfp_mask)

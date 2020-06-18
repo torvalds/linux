@@ -1250,8 +1250,34 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 	return errno_to_blk_status(err);
 }
 
+static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
+{
+	struct nullb_device *dev = cmd->nq->dev;
+	struct bio *bio;
+
+	if (dev->memory_backed)
+		return;
+
+	if (dev->queue_mode == NULL_Q_BIO && bio_op(cmd->bio) == REQ_OP_READ) {
+		zero_fill_bio(cmd->bio);
+	} else if (req_op(cmd->rq) == REQ_OP_READ) {
+		__rq_for_each_bio(bio, cmd->rq)
+			zero_fill_bio(bio);
+	}
+}
+
 static inline void nullb_complete_cmd(struct nullb_cmd *cmd)
 {
+	/*
+	 * Since root privileges are required to configure the null_blk
+	 * driver, it is fine that this driver does not initialize the
+	 * data buffers of read commands. Zero-initialize these buffers
+	 * anyway if KMSAN is enabled to prevent that KMSAN complains
+	 * about null_blk not initializing read data buffers.
+	 */
+	if (IS_ENABLED(CONFIG_KMSAN))
+		nullb_zero_read_cmd_buffer(cmd);
+
 	/* Complete IO by inline, softirq or timer */
 	switch (cmd->nq->dev->irqmode) {
 	case NULL_IRQ_SOFTIRQ:
@@ -1397,7 +1423,7 @@ static bool should_requeue_request(struct request *rq)
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
 	pr_info("rq %p timed out\n", rq);
-	blk_mq_complete_request(rq);
+	blk_mq_force_complete_rq(rq);
 	return BLK_EH_DONE;
 }
 
