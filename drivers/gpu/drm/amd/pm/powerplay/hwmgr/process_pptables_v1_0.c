@@ -949,7 +949,7 @@ static int init_thermal_controller(
 			= tonga_fan_table->ucTargetTemperature;
 		hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit
 			= tonga_fan_table->ucMinimumPWMLimit;
-	} else {
+	} else if (fan_table->ucRevId == 8) {
 		const ATOM_Fiji_Fan_Table *fiji_fan_table =
 			(ATOM_Fiji_Fan_Table *)fan_table;
 		hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst
@@ -999,6 +999,62 @@ static int init_thermal_controller(
 			= le16_to_cpu(fiji_fan_table->usFanGainPlx);
 		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm
 			= le16_to_cpu(fiji_fan_table->usFanGainHbm);
+	} else if (fan_table->ucRevId >= 9) {
+		const ATOM_Polaris_Fan_Table *polaris_fan_table =
+			(ATOM_Polaris_Fan_Table *)fan_table;
+		hwmgr->thermal_controller.advanceFanControlParameters.ucTHyst
+			= polaris_fan_table->ucTHyst;
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMin
+			= le16_to_cpu(polaris_fan_table->usTMin);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMed
+			= le16_to_cpu(polaris_fan_table->usTMed);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTHigh
+			= le16_to_cpu(polaris_fan_table->usTHigh);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMin
+			= le16_to_cpu(polaris_fan_table->usPWMMin);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMMed
+			= le16_to_cpu(polaris_fan_table->usPWMMed);
+		hwmgr->thermal_controller.advanceFanControlParameters.usPWMHigh
+			= le16_to_cpu(polaris_fan_table->usPWMHigh);
+		hwmgr->thermal_controller.advanceFanControlParameters.usTMax
+			= le16_to_cpu(polaris_fan_table->usTMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanControlMode
+			= polaris_fan_table->ucFanControlMode;
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanPWM
+			= le16_to_cpu(polaris_fan_table->usFanPWMMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultFanOutputSensitivity
+			= 4836;
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanOutputSensitivity
+			= le16_to_cpu(polaris_fan_table->usFanOutputSensitivity);
+		hwmgr->thermal_controller.advanceFanControlParameters.usDefaultMaxFanRPM
+			= le16_to_cpu(polaris_fan_table->usFanRPMMax);
+		hwmgr->thermal_controller.advanceFanControlParameters.ulMinFanSCLKAcousticLimit
+			= (le32_to_cpu(polaris_fan_table->ulMinFanSCLKAcousticLimit) / 100); /* PPTable stores it in 10Khz unit for 2 decimal places.  SMC wants MHz. */
+		hwmgr->thermal_controller.advanceFanControlParameters.ucTargetTemperature
+			= polaris_fan_table->ucTargetTemperature;
+		hwmgr->thermal_controller.advanceFanControlParameters.ucMinimumPWMLimit
+			= polaris_fan_table->ucMinimumPWMLimit;
+
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainEdge
+			= le16_to_cpu(polaris_fan_table->usFanGainEdge);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHotspot
+			= le16_to_cpu(polaris_fan_table->usFanGainHotspot);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainLiquid
+			= le16_to_cpu(polaris_fan_table->usFanGainLiquid);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrVddc
+			= le16_to_cpu(polaris_fan_table->usFanGainVrVddc);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainVrMvdd
+			= le16_to_cpu(polaris_fan_table->usFanGainVrMvdd);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainPlx
+			= le16_to_cpu(polaris_fan_table->usFanGainPlx);
+		hwmgr->thermal_controller.advanceFanControlParameters.usFanGainHbm
+			= le16_to_cpu(polaris_fan_table->usFanGainHbm);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucEnableZeroRPM
+			= le16_to_cpu(polaris_fan_table->ucEnableZeroRPM);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanStopTemperature
+			= le16_to_cpu(polaris_fan_table->ucFanStopTemperature);
+		hwmgr->thermal_controller.advanceFanControlParameters.ucFanStartTemperature
+			= le16_to_cpu(polaris_fan_table->ucFanStartTemperature);
 	}
 
 	return 0;
