@@ -2668,7 +2668,7 @@ early_param("keep_bootcon", keep_bootcon_setup);
 static int try_enable_new_console(struct console *newcon, bool user_specified)
 {
 	struct console_cmdline *c;
-	int i;
+	int i, err;
 
 	for (i = 0, c = console_cmdline;
 	     i < MAX_CMDLINECONSOLES && c->name[0];
@@ -2691,8 +2691,8 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 				return 0;
 
 			if (newcon->setup &&
-			    newcon->setup(newcon, c->options) != 0)
-				return -EIO;
+			    (err = newcon->setup(newcon, c->options)) != 0)
+				return err;
 		}
 		newcon->flags |= CON_ENABLED;
 		if (i == preferred_console) {
