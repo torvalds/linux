@@ -439,6 +439,11 @@ config TOUCHSCREEN_GSL3673_800X1280
 	help
 	  gsl3673 touchpad driver for rk3326 board
 
+config TOUCHSCREEN_GSL3676
+	tristate "gsl3676 touchpad driver for rk3368a tablet board"
+	help
+	  gsl3676 touchpad driver for rk3368a tablet board
+
 config TOUCHSCREEN_GT9XX
 	tristate "Goodix gt9xx support for rockchip platform"
 	depends on I2C && ARCH_ROCKCHIP
