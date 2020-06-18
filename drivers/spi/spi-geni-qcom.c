@@ -151,16 +151,18 @@ static void spi_geni_set_cs(struct spi_device *slv, bool set_flag)
 	struct geni_se *se = &mas->se;
 	unsigned long time_left;
 
-	reinit_completion(&mas->xfer_done);
 	pm_runtime_get_sync(mas->dev);
 	if (!(slv->mode & SPI_CS_HIGH))
 		set_flag = !set_flag;
 
+	spin_lock_irq(&mas->lock);
+	reinit_completion(&mas->xfer_done);
 	mas->cur_mcmd = CMD_CS;
 	if (set_flag)
 		geni_se_setup_m_cmd(se, SPI_CS_ASSERT, 0);
 	else
 		geni_se_setup_m_cmd(se, SPI_CS_DEASSERT, 0);
+	spin_unlock_irq(&mas->lock);
 
 	time_left = wait_for_completion_timeout(&mas->xfer_done, HZ);
 	if (!time_left)
@@ -307,6 +309,21 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	u32 spi_tx_cfg, len;
 	struct geni_se *se = &mas->se;
 
+	/*
+	 * Ensure that our interrupt handler isn't still running from some
+	 * prior command before we start messing with the hardware behind
+	 * its back.  We don't need to _keep_ the lock here since we're only
+	 * worried about racing with out interrupt handler.  The SPI core
+	 * already handles making sure that we're not trying to do two
+	 * transfers at once or setting a chip select and doing a transfer
+	 * concurrently.
+	 *
+	 * NOTE: we actually _can't_ hold the lock here because possibly we
+	 * might call clk_set_rate() which needs to be able to sleep.
+	 */
+	spin_lock_irq(&mas->lock);
+	spin_unlock_irq(&mas->lock);
+
 	spi_tx_cfg = readl(se->base + SE_SPI_TRANS_CFG);
 	if (xfer->bits_per_word != mas->cur_bits_per_word) {
 		spi_setup_word_len(mas, mode, xfer->bits_per_word);
@@ -367,6 +384,12 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	}
 	writel(spi_tx_cfg, se->base + SE_SPI_TRANS_CFG);
 	mas->cur_mcmd = CMD_XFER;
+
+	/*
+	 * Lock around right before we start the transfer since our
+	 * interrupt could come in at any time now.
+	 */
+	spin_lock_irq(&mas->lock);
 	geni_se_setup_m_cmd(se, m_cmd, FRAGMENTATION);
 
 	/*
@@ -376,6 +399,7 @@ static void setup_fifo_xfer(struct spi_transfer *xfer,
 	 */
 	if (m_cmd & SPI_TX_ONLY)
 		writel(mas->tx_wm, se->base + SE_GENI_TX_WATERMARK_REG);
+	spin_unlock_irq(&mas->lock);
 }
 
 static int spi_geni_transfer_one(struct spi_master *spi,
@@ -478,11 +502,11 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 	struct geni_se *se = &mas->se;
 	u32 m_irq;
 
-	if (mas->cur_mcmd == CMD_NONE)
+	m_irq = readl(se->base + SE_GENI_M_IRQ_STATUS);
+	if (!m_irq)
 		return IRQ_NONE;
 
 	spin_lock(&mas->lock);
-	m_irq = readl(se->base + SE_GENI_M_IRQ_STATUS);
 
 	if ((m_irq & M_RX_FIFO_WATERMARK_EN) || (m_irq & M_RX_FIFO_LAST_EN))
 		geni_spi_handle_rx(mas);
@@ -522,8 +546,23 @@ static irqreturn_t geni_spi_isr(int irq, void *data)
 		complete(&mas->xfer_done);
 	}
 
+	/*
+	 * It's safe or a good idea to Ack all of our our interrupts at the
+	 * end of the function. Specifically:
+	 * - M_CMD_DONE_EN / M_RX_FIFO_LAST_EN: Edge triggered interrupts and
+	 *   clearing Acks. Clearing at the end relies on nobody else having
+	 *   started a new transfer yet or else we could be clearing _their_
+	 *   done bit, but everyone grabs the spinlock before starting a new
+	 *   transfer.
+	 * - M_RX_FIFO_WATERMARK_EN / M_TX_FIFO_WATERMARK_EN: These appear
+	 *   to be "latched level" interrupts so it's important to clear them
+	 *   _after_ you've handled the condition and always safe to do so
+	 *   since they'll re-assert if they're still happening.
+	 */
 	writel(m_irq, se->base + SE_GENI_M_IRQ_CLEAR);
+
 	spin_unlock(&mas->lock);
+
 	return IRQ_HANDLED;
 }
 
