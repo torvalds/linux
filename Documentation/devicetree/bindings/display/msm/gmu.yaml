@@ -76,13 +76,6 @@ properties:
 
   operating-points-v2: true
 
-  dma-ranges:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
-    description:
-      Describe the dma-address range for the device. This should always
-      describe the range between 0x60000000 and 0x80000000 which represents
-      the uncached region of the GMU address space.
-
 required:
   - compatible
   - reg
@@ -95,7 +88,6 @@ required:
   - power-domain-names
   - iommus
   - operating-points-v2
-  - dma-ranges
 
 examples:
  - |
@@ -128,6 +120,4 @@ examples:
 
         iommus = <&adreno_smmu 5>;
         operating-points-v2 = <&gmu_opp_table>;
-
-        dma-ranges = <0 0x60000000 0 0x60000000 0 0x20000000>;
    };
