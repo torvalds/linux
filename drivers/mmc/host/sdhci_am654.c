@@ -47,6 +47,8 @@
 #define SEL100_MASK		BIT(SEL100_SHIFT)
 #define FREQSEL_SHIFT		8
 #define FREQSEL_MASK		GENMASK(10, 8)
+#define CLKBUFSEL_SHIFT		0
+#define CLKBUFSEL_MASK		GENMASK(2, 0)
 #define DLL_TRIM_ICP_SHIFT	4
 #define DLL_TRIM_ICP_MASK	GENMASK(7, 4)
 #define DR_TY_SHIFT		20
@@ -86,6 +88,7 @@ struct sdhci_am654_data {
 	struct regmap *base;
 	bool legacy_otapdly;
 	int otap_del_sel[11];
+	int clkbuf_sel;
 	int trm_icp;
 	int drv_strength;
 	bool dll_on;
@@ -238,6 +241,9 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 		regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
 				   SELDLYTXCLK_MASK, 1 << SELDLYTXCLK_SHIFT);
 	}
+
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL5, CLKBUFSEL_MASK,
+			   sdhci_am654->clkbuf_sel);
 }
 
 static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
@@ -259,6 +265,9 @@ static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
 	val = (0x1 << OTAPDLYENA_SHIFT) |
 	      (otap_del_sel << OTAPDLYSEL_SHIFT);
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
+
+	regmap_update_bits(sdhci_am654->base, PHY_CTRL5, CLKBUFSEL_MASK,
+			   sdhci_am654->clkbuf_sel);
 
 	sdhci_set_clock(host, clock);
 }
@@ -582,6 +591,8 @@ static int sdhci_am654_get_of_property(struct platform_device *pdev,
 	}
 
 	device_property_read_u32(dev, "ti,strobe-sel", &sdhci_am654->strb_sel);
+	device_property_read_u32(dev, "ti,clkbuf-sel",
+				 &sdhci_am654->clkbuf_sel);
 
 	sdhci_get_of_property(pdev);
 
