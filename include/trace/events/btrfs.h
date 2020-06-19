@@ -1042,11 +1042,33 @@ TRACE_EVENT(btrfs_space_reservation,
 			__entry->bytes)
 );
 
-#define show_flush_action(action)						\
-	__print_symbolic(action,						\
-		{ BTRFS_RESERVE_NO_FLUSH,	"BTRFS_RESERVE_NO_FLUSH"},	\
-		{ BTRFS_RESERVE_FLUSH_LIMIT,	"BTRFS_RESERVE_FLUSH_LIMIT"},	\
-		{ BTRFS_RESERVE_FLUSH_ALL,	"BTRFS_RESERVE_FLUSH_ALL"})
+#define FLUSH_ACTIONS								\
+	EM( BTRFS_RESERVE_NO_FLUSH,		"BTRFS_RESERVE_NO_FLUSH")	\
+	EM( BTRFS_RESERVE_FLUSH_LIMIT,		"BTRFS_RESERVE_FLUSH_LIMIT")	\
+	EM( BTRFS_RESERVE_FLUSH_ALL,		"BTRFS_RESERVE_FLUSH_ALL")	\
+	EMe(BTRFS_RESERVE_FLUSH_ALL_STEAL,	"BTRFS_RESERVE_FLUSH_ALL_STEAL")
+
+/*
+ * First define the enums in the above macros to be exported to userspace via
+ * TRACE_DEFINE_ENUM().
+ */
+
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+FLUSH_ACTIONS
+
+/*
+ * Now redefine the EM and EMe macros to map the enums to the strings that will
+ * be printed in the output
+ */
+
+#undef EM
+#undef EMe
+#define EM(a, b)        {a, b},
+#define EMe(a, b)       {a, b}
 
 TRACE_EVENT(btrfs_trigger_flush,
 
@@ -1071,7 +1093,7 @@ TRACE_EVENT(btrfs_trigger_flush,
 
 	TP_printk_btrfs("%s: flush=%d(%s) flags=%llu(%s) bytes=%llu",
 		  __get_str(reason), __entry->flush,
-		  show_flush_action(__entry->flush),
+		  __print_symbolic(__entry->flush, FLUSH_ACTIONS),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS),
