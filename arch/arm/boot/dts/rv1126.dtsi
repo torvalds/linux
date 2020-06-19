@@ -2024,6 +2024,11 @@
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <825000 825000 1000000>;
 		};
+		opp-934000000 {
+			opp-hz = /bits/ 64 <934000000>;
+			opp-microvolt = <900000 900000 1000000>;
+			status = "disabled";
+		};
 	};
 
 	usbdrd: usb0 {
