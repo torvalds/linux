@@ -52,7 +52,6 @@
 #define  SCSI_INLINE_SG_CNT  2
 #endif
 
-static struct kmem_cache *scsi_sdb_cache;
 static struct kmem_cache *scsi_sense_cache;
 static struct kmem_cache *scsi_sense_isadma_cache;
 static DEFINE_MUTEX(scsi_sense_cache_mutex);
@@ -1955,24 +1954,10 @@ void scsi_unblock_requests(struct Scsi_Host *shost)
 }
 EXPORT_SYMBOL(scsi_unblock_requests);
 
-int __init scsi_init_queue(void)
-{
-	scsi_sdb_cache = kmem_cache_create("scsi_data_buffer",
-					   sizeof(struct scsi_data_buffer),
-					   0, 0, NULL);
-	if (!scsi_sdb_cache) {
-		printk(KERN_ERR "SCSI: can't init scsi sdb cache\n");
-		return -ENOMEM;
-	}
-
-	return 0;
-}
-
 void scsi_exit_queue(void)
 {
 	kmem_cache_destroy(scsi_sense_cache);
 	kmem_cache_destroy(scsi_sense_isadma_cache);
-	kmem_cache_destroy(scsi_sdb_cache);
 }
 
 /**

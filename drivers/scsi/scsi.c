@@ -754,9 +754,6 @@ static int __init init_scsi(void)
 {
 	int error;
 
-	error = scsi_init_queue();
-	if (error)
-		return error;
 	error = scsi_init_procfs();
 	if (error)
 		goto cleanup_queue;
