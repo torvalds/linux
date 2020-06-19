@@ -111,6 +111,7 @@
   crc32_le
   crypto_alloc_shash
   crypto_destroy_tfm
+  crypto_shash_digest
   crypto_shash_setkey
   _ctype
   delayed_work_timer_fn
@@ -626,7 +627,6 @@
   param_ops_charp
   param_ops_int
   param_ops_long
-  param_ops_string
   param_ops_uint
   param_set_bool
   param_set_int
@@ -1403,6 +1403,76 @@
   i2c_get_dma_safe_msg_buf
   i2c_put_dma_safe_msg_buf
 
+# required by incrementalfs.ko
+  __break_lease
+  clear_inode
+  __close_fd
+  d_add
+  d_drop
+  deactivate_locked_super
+  dentry_open
+  dget_parent
+  d_instantiate
+  d_make_root
+  dput
+  flush_dcache_page
+  fs_kobj
+  fsstack_copy_attr_all
+  generic_file_llseek
+  generic_file_mmap
+  generic_file_read_iter
+  generic_file_splice_read
+  generic_read_dir
+  generic_shutdown_super
+  get_zeroed_page
+  iget5_locked
+  ihold
+  inode_init_once
+  inode_init_owner
+  iput
+  iterate_dir
+  kernel_read
+  kernel_write
+  kern_path
+  __ll_sc___cmpxchg_case_rel_8
+  lockref_get
+  lock_rename
+  lookup_one_len
+  LZ4_decompress_safe
+  match_int
+  match_token
+  noop_llseek
+  notify_change
+  pagecache_get_page
+  path_get
+  path_put
+  __put_cred
+  register_filesystem
+  set_anon_super
+  sget
+  simple_getattr
+  simple_setattr
+  simple_statfs
+  strndup_user
+  sync_filesystem
+  truncate_inode_pages
+  unlock_new_inode
+  unlock_page
+  unlock_rename
+  unregister_filesystem
+  user_path_at_empty
+  vfs_create
+  vfs_fallocate
+  vfs_getattr
+  vfs_getxattr
+  vfs_link
+  vfs_listxattr
+  vfs_mkdir
+  vfs_rename
+  vfs_rmdir
+  vfs_setxattr
+  vfs_unlink
+
 # required by ion-alloc.ko
   dma_buf_export
   dma_get_device_base
@@ -1818,6 +1888,7 @@
   of_graph_get_next_endpoint
   of_graph_get_remote_port_parent
   of_graph_parse_endpoint
+  param_ops_string
   pm_genpd_remove
   regulator_get_mode
   regulator_get_optional
@@ -2198,7 +2269,6 @@
   crc32c
   crc32c_csum_stub
   __crc32c_le_shift
-  crypto_shash_digest
   dev_get_by_index_rcu
   dst_release
   fl6_sock_lookup
