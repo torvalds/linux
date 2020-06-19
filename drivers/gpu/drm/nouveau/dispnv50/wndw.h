@@ -73,7 +73,7 @@ struct nv50_wndw_func {
 	int  ilut_size;
 	bool olut_core;
 	int (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
-	void (*xlut_clr)(struct nv50_wndw *);
+	int (*xlut_clr)(struct nv50_wndw *);
 	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
 	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
