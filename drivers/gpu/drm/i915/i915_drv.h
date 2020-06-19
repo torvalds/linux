@@ -993,7 +993,7 @@ struct drm_i915_private {
 
 	struct i915_gem_mm mm;
 	DECLARE_HASHTABLE(mm_structs, 7);
-	struct mutex mm_lock;
+	spinlock_t mm_lock;
 
 	/* Kernel Modesetting */
 
