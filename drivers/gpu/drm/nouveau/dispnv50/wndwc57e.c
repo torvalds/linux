@@ -103,19 +103,21 @@ wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+static int
 wndwc57e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0440, 3);
-		evo_data(push, asyw->xlut.i.size << 8 |
-			       asyw->xlut.i.mode << 2 |
-			       asyw->xlut.i.output_mode);
-		evo_data(push, asyw->xlut.handle);
-		evo_data(push, asyw->xlut.i.offset >> 8);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC57E, 0x0440, asyw->xlut.i.size << 8 |
+					asyw->xlut.i.mode << 2 |
+					asyw->xlut.i.output_mode,
+				0x0444, asyw->xlut.handle,
+				0x0448, asyw->xlut.i.offset >> 8);
+	return 0;
 }
 
 static u16

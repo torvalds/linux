@@ -61,20 +61,21 @@ base907c_xlut_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+static int
 base907c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 6))) {
-		evo_mthd(push, 0x00e0, 3);
-		evo_data(push, asyw->xlut.i.enable << 30 |
-			       asyw->xlut.i.mode << 24);
-		evo_data(push, asyw->xlut.i.offset >> 8);
-		evo_data(push, 0x40000000);
-		evo_mthd(push, 0x00fc, 1);
-		evo_data(push, asyw->xlut.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 6)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907C, 0x00e0, asyw->xlut.i.enable << 30 |
+					asyw->xlut.i.mode << 24,
+				0x00e4, asyw->xlut.i.offset >> 8,
+				0x00e8, 0x40000000);
+	PUSH_NVSQ(push, NV907C, 0x00fc, asyw->xlut.handle);
+	return 0;
 }
 
 static bool
