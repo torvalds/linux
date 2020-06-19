@@ -113,7 +113,29 @@ nv50_dmac_destroy(struct nv50_dmac *dmac)
 
 	nv50_chan_destroy(&dmac->base);
 
-	nvif_mem_dtor(&dmac->push);
+	nvif_mem_dtor(&dmac->_push.mem);
+}
+
+static void
+nv50_dmac_kick(struct nvif_push *push)
+{
+	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
+	evo_kick(push->cur, dmac);
+	push->bgn = push->cur = push->end;
+}
+
+static int
+nv50_dmac_wait(struct nvif_push *push, u32 size)
+{
+	struct nv50_dmac *dmac = container_of(push, typeof(*dmac), _push);
+	u32 *ptr = evo_wait(dmac, size);
+	if (!ptr)
+		return -ETIMEDOUT;
+
+	push->bgn = ptr;
+	push->cur = ptr;
+	push->end = ptr + size;
+	return 0;
 }
 
 int
@@ -141,13 +163,16 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		type |= NVIF_MEM_VRAM;
 
 	ret = nvif_mem_ctor_map(&cli->mmu, "kmsChanPush", type, 0x1000,
-				&dmac->push);
+				&dmac->_push.mem);
 	if (ret)
 		return ret;
 
-	dmac->ptr = dmac->push.object.map.ptr;
+	dmac->ptr = dmac->_push.mem.object.map.ptr;
+	dmac->_push.wait = nv50_dmac_wait;
+	dmac->_push.kick = nv50_dmac_kick;
+	dmac->push = &dmac->_push;
 
-	args->pushbuf = nvif_handle(&dmac->push.object);
+	args->pushbuf = nvif_handle(&dmac->_push.mem.object);
 
 	ret = nv50_chan_create(device, disp, oclass, head, data, size,
 			       &dmac->base);
@@ -193,7 +218,7 @@ evo_flush(struct nv50_dmac *dmac)
 	/* Push buffer fetches are not coherent with BAR1, we need to ensure
 	 * writes have been flushed right through to VRAM before writing PUT.
 	 */
-	if (dmac->push.type & NVIF_MEM_VRAM) {
+	if (dmac->push->mem.type & NVIF_MEM_VRAM) {
 		struct nvif_device *device = dmac->base.device;
 		nvif_wr32(&device->object, 0x070000, 0x00000001);
 		nvif_msec(device, 2000,
@@ -208,7 +233,12 @@ evo_wait(struct nv50_dmac *evoc, int nr)
 {
 	struct nv50_dmac *dmac = evoc;
 	struct nvif_device *device = dmac->base.device;
-	u32 put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
+	u32 put;
+
+	if (dmac->push->cur != dmac->push->bgn)
+		PUSH_KICK(dmac->push);
+
+	put = nvif_rd32(&dmac->base.user, 0x0000) / 4;
 
 	mutex_lock(&dmac->lock);
 	if (put + nr >= (PAGE_SIZE / 4) - 8) {

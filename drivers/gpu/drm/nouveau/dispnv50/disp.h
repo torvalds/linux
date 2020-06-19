@@ -2,6 +2,7 @@
 #define __NV50_KMS_H__
 #include <linux/workqueue.h>
 #include <nvif/mem.h>
+#include <nvif/push.h>
 
 #include "nouveau_display.h"
 
@@ -61,7 +62,8 @@ struct nv50_chan {
 struct nv50_dmac {
 	struct nv50_chan base;
 
-	struct nvif_mem push;
+	struct nvif_push _push;
+	struct nvif_push *push;
 	u32 *ptr;
 
 	struct nvif_object sync;
