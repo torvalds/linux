@@ -2026,7 +2026,7 @@ static struct dm_zone *dmz_get_seq_zone_for_reclaim(struct dmz_metadata *zmd,
 struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
 					 unsigned int dev_idx, bool idle)
 {
-	struct dm_zone *zone;
+	struct dm_zone *zone = NULL;
 
 	/*
 	 * Search for a zone candidate to reclaim: 2 cases are possible.
@@ -2039,7 +2039,7 @@ struct dm_zone *dmz_get_zone_for_reclaim(struct dmz_metadata *zmd,
 	dmz_lock_map(zmd);
 	if (list_empty(&zmd->reserved_seq_zones_list))
 		zone = dmz_get_seq_zone_for_reclaim(zmd, dev_idx);
-	else
+	if (!zone)
 		zone = dmz_get_rnd_zone_for_reclaim(zmd, dev_idx, idle);
 	dmz_unlock_map(zmd);
 
