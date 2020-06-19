@@ -10,6 +10,7 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 #include "cxgb4_cudbg.h"
+#include "cxgb4_filter.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -1852,6 +1853,87 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_priv_flags    = cxgb4_get_priv_flags,
 	.set_priv_flags    = cxgb4_set_priv_flags,
 };
+
+void cxgb4_cleanup_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	u8 i;
+
+	if (!adap->ethtool_filters)
+		return;
+
+	eth_filter_info = adap->ethtool_filters->port;
+
+	if (eth_filter_info) {
+		for (i = 0; i < adap->params.nports; i++) {
+			kvfree(eth_filter_info[i].loc_array);
+			kfree(eth_filter_info[i].bmap);
+		}
+		kfree(eth_filter_info);
+	}
+
+	kfree(adap->ethtool_filters);
+}
+
+int cxgb4_init_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	struct cxgb4_ethtool_filter *eth_filter;
+	struct tid_info *tids = &adap->tids;
+	u32 nentries, i;
+	int ret;
+
+	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
+	if (!eth_filter)
+		return -ENOMEM;
+
+	eth_filter_info = kcalloc(adap->params.nports,
+				  sizeof(*eth_filter_info),
+				  GFP_KERNEL);
+	if (!eth_filter_info) {
+		ret = -ENOMEM;
+		goto free_eth_filter;
+	}
+
+	eth_filter->port = eth_filter_info;
+
+	nentries = tids->nhpftids + tids->nftids;
+	if (is_hashfilter(adap))
+		nentries += tids->nhash +
+			    (adap->tids.stid_base - adap->tids.tid_base);
+	eth_filter->nentries = nentries;
+
+	for (i = 0; i < adap->params.nports; i++) {
+		eth_filter->port[i].loc_array = kvzalloc(nentries, GFP_KERNEL);
+		if (!eth_filter->port[i].loc_array) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+
+		eth_filter->port[i].bmap = kcalloc(BITS_TO_LONGS(nentries),
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (!eth_filter->port[i].bmap) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+	}
+
+	adap->ethtool_filters = eth_filter;
+	return 0;
+
+free_eth_finfo:
+	while (i-- > 0) {
+		kfree(eth_filter->port[i].bmap);
+		kvfree(eth_filter->port[i].loc_array);
+	}
+	kfree(eth_filter_info);
+
+free_eth_filter:
+	kfree(eth_filter);
+
+	return ret;
+}
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
 {
