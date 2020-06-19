@@ -23,6 +23,18 @@ static struct irq_chip its_msi_irq_chip = {
 	.irq_set_affinity = msi_domain_set_affinity
 };
 
+static u32 fsl_mc_msi_domain_get_msi_id(struct irq_domain *domain,
+					struct fsl_mc_device *mc_dev)
+{
+	struct device_node *of_node;
+	u32 out_id;
+
+	of_node = irq_domain_get_of_node(domain);
+	out_id = of_msi_map_id(&mc_dev->dev, of_node, mc_dev->icid);
+
+	return out_id;
+}
+
 static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 				  struct device *dev,
 				  int nvec, msi_alloc_info_t *info)
@@ -43,7 +55,8 @@ static int its_fsl_mc_msi_prepare(struct irq_domain *msi_domain,
 	 * NOTE: This device id corresponds to the IOMMU stream ID
 	 * associated with the DPRC object (ICID).
 	 */
-	info->scratchpad[0].ul = mc_bus_dev->icid;
+	info->scratchpad[0].ul = fsl_mc_msi_domain_get_msi_id(msi_domain,
+							      mc_bus_dev);
 	msi_info = msi_get_domain_info(msi_domain->parent);
 
 	/* Allocate at least 32 MSIs, and always as a power of 2 */

@@ -177,23 +177,30 @@ struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 	return domain;
 }
 
-int fsl_mc_find_msi_domain(struct device *mc_platform_dev,
-			   struct irq_domain **mc_msi_domain)
+struct irq_domain *fsl_mc_find_msi_domain(struct device *dev)
 {
-	struct irq_domain *msi_domain;
-	struct device_node *mc_of_node = mc_platform_dev->of_node;
+	struct irq_domain *msi_domain = NULL;
+	struct fsl_mc_device *mc_dev = to_fsl_mc_device(dev);
 
-	msi_domain = of_msi_get_domain(mc_platform_dev, mc_of_node,
-				       DOMAIN_BUS_FSL_MC_MSI);
+	msi_domain = of_msi_map_get_device_domain(dev, mc_dev->icid,
+						  DOMAIN_BUS_FSL_MC_MSI);
+
+	/*
+	 * if the msi-map property is missing assume that all the
+	 * child containers inherit the domain from the parent
+	 */
 	if (!msi_domain) {
-		pr_err("Unable to find fsl-mc MSI domain for %pOF\n",
-		       mc_of_node);
+		struct device *root_dprc_dev;
+		struct device *bus_dev;
 
-		return -ENOENT;
+		fsl_mc_get_root_dprc(dev, &root_dprc_dev);
+		bus_dev = root_dprc_dev->parent;
+		msi_domain = of_msi_get_domain(bus_dev,
+					       bus_dev->of_node,
+					       DOMAIN_BUS_FSL_MC_MSI);
 	}
 
-	*mc_msi_domain = msi_domain;
-	return 0;
+	return msi_domain;
 }
 
 static void fsl_mc_msi_free_descs(struct device *dev)

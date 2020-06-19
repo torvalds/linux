@@ -370,8 +370,8 @@ EXPORT_SYMBOL_GPL(fsl_mc_get_version);
 /**
  * fsl_mc_get_root_dprc - function to traverse to the root dprc
  */
-static void fsl_mc_get_root_dprc(struct device *dev,
-				 struct device **root_dprc_dev)
+void fsl_mc_get_root_dprc(struct device *dev,
+			 struct device **root_dprc_dev)
 {
 	if (!dev) {
 		*root_dprc_dev = NULL;
