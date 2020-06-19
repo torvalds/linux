@@ -97,6 +97,7 @@ struct sdhci_am654_driver_data {
 #define FREQSEL_2_BIT	(1 << 1)
 #define STRBSEL_4_BIT	(1 << 2)
 #define DLL_PRESENT	(1 << 3)
+#define DLL_CALIB	(1 << 4)
 };
 
 struct timing_data {
@@ -325,7 +326,8 @@ static const struct sdhci_pltfm_data sdhci_am654_pdata = {
 
 static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
 	.pdata = &sdhci_am654_pdata,
-	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT,
+	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT |
+		 DLL_CALIB,
 };
 
 static struct sdhci_ops sdhci_j721e_8bit_ops = {
@@ -348,7 +350,7 @@ static const struct sdhci_pltfm_data sdhci_j721e_8bit_pdata = {
 
 static const struct sdhci_am654_driver_data sdhci_j721e_8bit_drvdata = {
 	.pdata = &sdhci_j721e_8bit_pdata,
-	.flags = DLL_PRESENT,
+	.flags = DLL_PRESENT | DLL_CALIB,
 };
 
 static struct sdhci_ops sdhci_j721e_4bit_ops = {
@@ -469,7 +471,7 @@ static int sdhci_am654_init(struct sdhci_host *host)
 	mask = OTAPDLYENA_MASK | OTAPDLYSEL_MASK;
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, 0x0);
 
-	if (sdhci_am654->flags & DLL_PRESENT) {
+	if (sdhci_am654->flags & DLL_CALIB) {
 		regmap_read(sdhci_am654->base, PHY_STAT1, &val);
 		if (~val & CALDONE_MASK) {
 			/* Calibrate IO lines */
