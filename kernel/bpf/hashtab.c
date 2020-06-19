@@ -1630,6 +1630,7 @@ const struct bpf_map_ops htab_map_ops = {
 	.map_btf_id = &htab_map_btf_id,
 };
 
+static int htab_lru_map_btf_id;
 const struct bpf_map_ops htab_lru_map_ops = {
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
@@ -1642,6 +1643,8 @@ const struct bpf_map_ops htab_lru_map_ops = {
 	.map_gen_lookup = htab_lru_map_gen_lookup,
 	.map_seq_show_elem = htab_map_seq_show_elem,
 	BATCH_OPS(htab_lru),
+	.map_btf_name = "bpf_htab",
+	.map_btf_id = &htab_lru_map_btf_id,
 };
 
 /* Called from eBPF program */
@@ -1746,6 +1749,7 @@ static void htab_percpu_map_seq_show_elem(struct bpf_map *map, void *key,
 	rcu_read_unlock();
 }
 
+static int htab_percpu_map_btf_id;
 const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
@@ -1756,8 +1760,11 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_delete_elem = htab_map_delete_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 	BATCH_OPS(htab_percpu),
+	.map_btf_name = "bpf_htab",
+	.map_btf_id = &htab_percpu_map_btf_id,
 };
 
+static int htab_lru_percpu_map_btf_id;
 const struct bpf_map_ops htab_lru_percpu_map_ops = {
 	.map_alloc_check = htab_map_alloc_check,
 	.map_alloc = htab_map_alloc,
@@ -1768,6 +1775,8 @@ const struct bpf_map_ops htab_lru_percpu_map_ops = {
 	.map_delete_elem = htab_lru_map_delete_elem,
 	.map_seq_show_elem = htab_percpu_map_seq_show_elem,
 	BATCH_OPS(htab_lru_percpu),
+	.map_btf_name = "bpf_htab",
+	.map_btf_id = &htab_lru_percpu_map_btf_id,
 };
 
 static int fd_htab_map_alloc_check(union bpf_attr *attr)
@@ -1890,6 +1899,7 @@ static void htab_of_map_free(struct bpf_map *map)
 	fd_htab_map_free(map);
 }
 
+static int htab_of_maps_map_btf_id;
 const struct bpf_map_ops htab_of_maps_map_ops = {
 	.map_alloc_check = fd_htab_map_alloc_check,
 	.map_alloc = htab_of_map_alloc,
@@ -1902,4 +1912,6 @@ const struct bpf_map_ops htab_of_maps_map_ops = {
 	.map_fd_sys_lookup_elem = bpf_map_fd_sys_lookup_elem,
 	.map_gen_lookup = htab_of_map_gen_lookup,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_htab",
+	.map_btf_id = &htab_of_maps_map_btf_id,
 };

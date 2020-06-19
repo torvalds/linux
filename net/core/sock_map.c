@@ -643,6 +643,7 @@ const struct bpf_func_proto bpf_msg_redirect_map_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+static int sock_map_btf_id;
 const struct bpf_map_ops sock_map_ops = {
 	.map_alloc		= sock_map_alloc,
 	.map_free		= sock_map_free,
@@ -653,6 +654,8 @@ const struct bpf_map_ops sock_map_ops = {
 	.map_lookup_elem	= sock_map_lookup,
 	.map_release_uref	= sock_map_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_btf_name		= "bpf_stab",
+	.map_btf_id		= &sock_map_btf_id,
 };
 
 struct bpf_shtab_elem {
@@ -1176,6 +1179,7 @@ const struct bpf_func_proto bpf_msg_redirect_hash_proto = {
 	.arg4_type      = ARG_ANYTHING,
 };
 
+static int sock_hash_map_btf_id;
 const struct bpf_map_ops sock_hash_ops = {
 	.map_alloc		= sock_hash_alloc,
 	.map_free		= sock_hash_free,
@@ -1186,6 +1190,8 @@ const struct bpf_map_ops sock_hash_ops = {
 	.map_lookup_elem_sys_only = sock_hash_lookup_sys,
 	.map_release_uref	= sock_hash_release_progs,
 	.map_check_btf		= map_check_no_btf,
+	.map_btf_name		= "bpf_shtab",
+	.map_btf_id		= &sock_hash_map_btf_id,
 };
 
 static struct sk_psock_progs *sock_map_progs(struct bpf_map *map)

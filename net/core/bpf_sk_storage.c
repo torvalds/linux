@@ -919,6 +919,7 @@ BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 	return -ENOENT;
 }
 
+static int sk_storage_map_btf_id;
 const struct bpf_map_ops sk_storage_map_ops = {
 	.map_alloc_check = bpf_sk_storage_map_alloc_check,
 	.map_alloc = bpf_sk_storage_map_alloc,
@@ -928,6 +929,8 @@ const struct bpf_map_ops sk_storage_map_ops = {
 	.map_update_elem = bpf_fd_sk_storage_update_elem,
 	.map_delete_elem = bpf_fd_sk_storage_delete_elem,
 	.map_check_btf = bpf_sk_storage_map_check_btf,
+	.map_btf_name = "bpf_sk_storage_map",
+	.map_btf_id = &sk_storage_map_btf_id,
 };
 
 const struct bpf_func_proto bpf_sk_storage_get_proto = {

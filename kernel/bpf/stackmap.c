@@ -613,6 +613,7 @@ static void stack_map_free(struct bpf_map *map)
 	put_callchain_buffers();
 }
 
+static int stack_trace_map_btf_id;
 const struct bpf_map_ops stack_trace_map_ops = {
 	.map_alloc = stack_map_alloc,
 	.map_free = stack_map_free,
@@ -621,6 +622,8 @@ const struct bpf_map_ops stack_trace_map_ops = {
 	.map_update_elem = stack_map_update_elem,
 	.map_delete_elem = stack_map_delete_elem,
 	.map_check_btf = map_check_no_btf,
+	.map_btf_name = "bpf_stack_map",
+	.map_btf_id = &stack_trace_map_btf_id,
 };
 
 static int __init stack_map_init(void)

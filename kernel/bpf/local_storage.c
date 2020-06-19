@@ -409,6 +409,7 @@ static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *_key,
 	rcu_read_unlock();
 }
 
+static int cgroup_storage_map_btf_id;
 const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_alloc = cgroup_storage_map_alloc,
 	.map_free = cgroup_storage_map_free,
@@ -418,6 +419,8 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_delete_elem = cgroup_storage_delete_elem,
 	.map_check_btf = cgroup_storage_check_btf,
 	.map_seq_show_elem = cgroup_storage_seq_show_elem,
+	.map_btf_name = "bpf_cgroup_storage_map",
+	.map_btf_id = &cgroup_storage_map_btf_id,
 };
 
 int bpf_cgroup_storage_assign(struct bpf_prog_aux *aux, struct bpf_map *_map)
