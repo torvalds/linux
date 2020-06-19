@@ -11,6 +11,7 @@
 #include "t4fw_api.h"
 #include "cxgb4_cudbg.h"
 #include "cxgb4_filter.h"
+#include "cxgb4_tc_flower.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -1635,6 +1636,79 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
+/* Add Ethtool n-tuple filters. */
+static int cxgb4_ntuple_set_filter(struct net_device *netdev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec_input input = {};
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(netdev);
+	struct port_info *pi = netdev_priv(netdev);
+	struct ch_filter_specification fs;
+	struct ethtool_rx_flow_rule *flow;
+	u32 tid;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	if (test_bit(cmd->fs.location,
+		     adapter->ethtool_filters->port[pi->port_id].bmap))
+		return -EEXIST;
+
+	memset(&fs, 0, sizeof(fs));
+
+	input.fs = &cmd->fs;
+	flow = ethtool_rx_flow_rule_create(&input);
+	if (IS_ERR(flow)) {
+		ret = PTR_ERR(flow);
+		goto exit;
+	}
+
+	fs.hitcnts = 1;
+
+	ret = cxgb4_flow_rule_replace(netdev, flow->rule, cmd->fs.location,
+				      NULL, &fs, &tid);
+	if (ret)
+		goto free;
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	filter_info->loc_array[cmd->fs.location] = tid;
+	set_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use++;
+
+free:
+	ethtool_rx_flow_rule_destroy(flow);
+exit:
+	return ret;
+}
+
+static int set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = cxgb4_ntuple_set_filter(dev, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 static int set_dump(struct net_device *dev, struct ethtool_dump *eth_dump)
 {
 	struct adapter *adapter = netdev2adap(dev);
@@ -1840,6 +1914,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
 	.get_rxnfc         = get_rxnfc,
+	.set_rxnfc         = set_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
