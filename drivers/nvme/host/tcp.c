@@ -262,7 +262,7 @@ static inline void nvme_tcp_advance_req(struct nvme_tcp_request *req,
 }
 
 static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
-		bool sync)
+		bool sync, bool last)
 {
 	struct nvme_tcp_queue *queue = req->queue;
 	bool empty;
@@ -279,7 +279,7 @@ static inline void nvme_tcp_queue_request(struct nvme_tcp_request *req,
 	    sync && empty && mutex_trylock(&queue->send_mutex)) {
 		nvme_tcp_try_send(queue);
 		mutex_unlock(&queue->send_mutex);
-	} else {
+	} else if (last) {
 		queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
 	}
 }
@@ -610,7 +610,7 @@ static int nvme_tcp_handle_r2t(struct nvme_tcp_queue *queue,
 	req->state = NVME_TCP_SEND_H2C_PDU;
 	req->offset = 0;
 
-	nvme_tcp_queue_request(req, false);
+	nvme_tcp_queue_request(req, false, true);
 
 	return 0;
 }
@@ -2120,7 +2120,7 @@ static void nvme_tcp_submit_async_event(struct nvme_ctrl *arg)
 	ctrl->async_req.curr_bio = NULL;
 	ctrl->async_req.data_len = 0;
 
-	nvme_tcp_queue_request(&ctrl->async_req, true);
+	nvme_tcp_queue_request(&ctrl->async_req, true, true);
 }
 
 static enum blk_eh_timer_return
@@ -2232,6 +2232,14 @@ static blk_status_t nvme_tcp_setup_cmd_pdu(struct nvme_ns *ns,
 	return 0;
 }
 
+static void nvme_tcp_commit_rqs(struct blk_mq_hw_ctx *hctx)
+{
+	struct nvme_tcp_queue *queue = hctx->driver_data;
+
+	if (!llist_empty(&queue->req_list))
+		queue_work_on(queue->io_cpu, nvme_tcp_wq, &queue->io_work);
+}
+
 static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
@@ -2251,7 +2259,7 @@ static blk_status_t nvme_tcp_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 	blk_mq_start_request(rq);
 
-	nvme_tcp_queue_request(req, true);
+	nvme_tcp_queue_request(req, true, bd->last);
 
 	return BLK_STS_OK;
 }
@@ -2319,6 +2327,7 @@ static int nvme_tcp_poll(struct blk_mq_hw_ctx *hctx)
 
 static const struct blk_mq_ops nvme_tcp_mq_ops = {
 	.queue_rq	= nvme_tcp_queue_rq,
+	.commit_rqs	= nvme_tcp_commit_rqs,
 	.complete	= nvme_complete_rq,
 	.init_request	= nvme_tcp_init_request,
 	.exit_request	= nvme_tcp_exit_request,
