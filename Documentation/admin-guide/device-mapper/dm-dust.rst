@@ -206,6 +206,22 @@ appear::
 
         dust_clear_badblocks: no badblocks found
 
+Listing the bad block list
+--------------------------
+
+To list all bad blocks in the bad block list (using an example device
+with blocks 1 and 2 in the bad block list), run the following message
+command::
+
+        $ sudo dmsetup message dust1 0 listbadblocks
+        1
+        2
+
+If there are no bad blocks in the bad block list, the command will
+execute with no output::
+
+        $ sudo dmsetup message dust1 0 listbadblocks
+
 Message commands list
 ---------------------
 
@@ -224,6 +240,7 @@ Single argument message commands::
 
         countbadblocks
         clearbadblocks
+        listbadblocks
         disable
         enable
         quiet
