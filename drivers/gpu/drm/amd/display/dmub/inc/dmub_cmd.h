@@ -36,10 +36,10 @@
 
 /* Firmware versioning. */
 #ifdef DMUB_EXPOSE_VERSION
-#define DMUB_FW_VERSION_GIT_HASH 0x6eb25fd7d
+#define DMUB_FW_VERSION_GIT_HASH 0x5b1691c92
 #define DMUB_FW_VERSION_MAJOR 1
 #define DMUB_FW_VERSION_MINOR 0
-#define DMUB_FW_VERSION_REVISION 21
+#define DMUB_FW_VERSION_REVISION 22
 #define DMUB_FW_VERSION_UCODE ((DMUB_FW_VERSION_MAJOR << 24) | (DMUB_FW_VERSION_MINOR << 16) | DMUB_FW_VERSION_REVISION)
 #endif
 
@@ -260,6 +260,11 @@ enum dmub_gpint_command {
 	DMUB_GPINT__GET_FW_VERSION = 1,
 	DMUB_GPINT__STOP_FW = 2,
 	DMUB_GPINT__GET_PSR_STATE = 7,
+	/**
+	 * DESC: Notifies DMCUB of the currently active streams.
+	 * ARGS: Stream mask, 1 bit per active stream index.
+	 */
+	DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK = 8,
 };
 
 //==============================================================================
