@@ -74,7 +74,7 @@ struct nv50_wndw_func {
 	bool olut_core;
 	int (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*xlut_clr)(struct nv50_wndw *);
-	void (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*image_clr)(struct nv50_wndw *);
 	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);

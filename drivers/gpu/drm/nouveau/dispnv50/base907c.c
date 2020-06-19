@@ -23,27 +23,27 @@
 
 #include <nvif/push507c.h>
 
-static void
+static int
 base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 10))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, asyw->image.mode << 8 |
-			       asyw->image.interval << 4);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, asyw->image.handle[0]);
-		evo_mthd(push, 0x0400, 5);
-		evo_data(push, asyw->image.offset[0] >> 8);
-		evo_data(push, 0x00000000);
-		evo_data(push, asyw->image.h << 16 | asyw->image.w);
-		evo_data(push, asyw->image.layout << 24 |
-			       (asyw->image.pitch[0] >> 8) << 8 |
-			       asyw->image.blocks[0] << 8 |
-			       asyw->image.blockh);
-		evo_data(push, asyw->image.format << 8);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 10)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907C, 0x0084, asyw->image.mode << 8 |
+					asyw->image.interval << 4);
+	PUSH_NVSQ(push, NV907C, 0x00c0, asyw->image.handle[0]);
+	PUSH_NVSQ(push, NV907C, 0x0400, asyw->image.offset[0] >> 8,
+				0x0404, 0x00000000,
+				0x0408, asyw->image.h << 16 | asyw->image.w,
+				0x040c, asyw->image.layout << 24 |
+				       (asyw->image.pitch[0] >> 8) << 8 |
+				        asyw->image.blocks[0] << 8 |
+					asyw->image.blockh,
+				0x0410, asyw->image.format << 8);
+	return 0;
 }
 
 static int

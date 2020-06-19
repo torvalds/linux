@@ -24,31 +24,30 @@
 
 #include <nouveau_bo.h>
 
+#include <nvif/push507c.h>
 #include <nvif/timer.h>
 
-static void
+static int
 ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 12))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, asyw->image.interval << 4);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, asyw->image.handle[0]);
-		evo_mthd(push, 0x0100, 1);
-		evo_data(push, 0x00000002);
-		evo_mthd(push, 0x0800, 1);
-		evo_data(push, asyw->image.offset[0] >> 8);
-		evo_mthd(push, 0x0808, 3);
-		evo_data(push, asyw->image.h << 16 | asyw->image.w);
-		evo_data(push, asyw->image.layout << 20 |
-			       (asyw->image.pitch[0] >> 8) << 8 |
-			       asyw->image.blocks[0] << 8 |
-			       asyw->image.blockh);
-		evo_data(push, asyw->image.format << 8 |
-			       asyw->image.colorspace);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 12)))
+		return ret;
+
+	PUSH_NVSQ(push, NV827E, 0x0084, asyw->image.interval << 4);
+	PUSH_NVSQ(push, NV827E, 0x00c0, asyw->image.handle[0]);
+	PUSH_NVSQ(push, NV827E, 0x0100, 0x00000002);
+	PUSH_NVSQ(push, NV827E, 0x0800, asyw->image.offset[0] >> 8);
+	PUSH_NVSQ(push, NV827E, 0x0808, asyw->image.h << 16 | asyw->image.w,
+				0x080c, asyw->image.layout << 20 |
+				       (asyw->image.pitch[0] >> 8) << 8 |
+					asyw->image.blocks[0] << 8 |
+					asyw->image.blockh,
+				0x0810, asyw->image.format << 8 |
+					asyw->image.colorspace);
+	return 0;
 }
 
 int

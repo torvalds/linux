@@ -125,37 +125,34 @@ wndwc37e_image_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+static int
 wndwc37e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
 
-	if (!(push = evo_wait(&wndw->wndw, 17)))
-		return;
+	if ((ret = PUSH_WAIT(push, 17)))
+		return ret;
 
-	evo_mthd(push, 0x0308, 1);
-	evo_data(push, asyw->image.mode << 4 | asyw->image.interval);
-	evo_mthd(push, 0x0224, 4);
-	evo_data(push, asyw->image.h << 16 | asyw->image.w);
-	evo_data(push, asyw->image.layout << 4 | asyw->image.blockh);
-	evo_data(push, asyw->csc.valid << 17 |
-		       asyw->image.colorspace << 8 |
-		       asyw->image.format);
-	evo_data(push, asyw->image.blocks[0] | (asyw->image.pitch[0] >> 6));
-	evo_mthd(push, 0x0240, 1);
-	evo_data(push, asyw->image.handle[0]);
-	evo_mthd(push, 0x0260, 1);
-	evo_data(push, asyw->image.offset[0] >> 8);
-	evo_mthd(push, 0x0290, 1);
-	evo_data(push, (asyw->state.src_y >> 16) << 16 |
-		       (asyw->state.src_x >> 16));
-	evo_mthd(push, 0x0298, 1);
-	evo_data(push, (asyw->state.src_h >> 16) << 16 |
-		       (asyw->state.src_w >> 16));
-	evo_mthd(push, 0x02a4, 1);
-	evo_data(push, asyw->state.crtc_h << 16 |
-		       asyw->state.crtc_w);
-	evo_kick(push, &wndw->wndw);
+	PUSH_NVSQ(push, NVC37E, 0x0308, asyw->image.mode << 4 |
+					asyw->image.interval);
+	PUSH_NVSQ(push, NVC37E, 0x0224, asyw->image.h << 16 | asyw->image.w,
+				0x0228, asyw->image.layout << 4 |
+					asyw->image.blockh,
+				0x022c, asyw->csc.valid << 17 |
+					asyw->image.colorspace << 8 |
+					asyw->image.format,
+				0x0230, asyw->image.blocks[0] |
+				       (asyw->image.pitch[0] >> 6));
+	PUSH_NVSQ(push, NVC37E, 0x0240, asyw->image.handle[0]);
+	PUSH_NVSQ(push, NVC37E, 0x0260, asyw->image.offset[0] >> 8);
+	PUSH_NVSQ(push, NVC37E, 0x0290,(asyw->state.src_y >> 16) << 16 |
+				       (asyw->state.src_x >> 16));
+	PUSH_NVSQ(push, NVC37E, 0x0298,(asyw->state.src_h >> 16) << 16 |
+				       (asyw->state.src_w >> 16));
+	PUSH_NVSQ(push, NVC37E, 0x02a4, asyw->state.crtc_h << 16 |
+					asyw->state.crtc_w);
+	return 0;
 }
 
 int
