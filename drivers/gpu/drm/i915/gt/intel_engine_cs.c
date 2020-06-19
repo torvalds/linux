@@ -1510,6 +1510,7 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 	struct i915_request *rq;
 	intel_wakeref_t wakeref;
 	unsigned long flags;
+	ktime_t dummy;
 
 	if (header) {
 		va_list ap;
@@ -1527,6 +1528,10 @@ void intel_engine_dump(struct intel_engine_cs *engine,
 		   yesno(!llist_empty(&engine->barrier_tasks)));
 	drm_printf(m, "\tLatency: %luus\n",
 		   ewma__engine_latency_read(&engine->latency));
+	if (intel_engine_supports_stats(engine))
+		drm_printf(m, "\tRuntime: %llums\n",
+			   ktime_to_ms(intel_engine_get_busy_time(engine,
+								  &dummy)));
 	drm_printf(m, "\tForcewake: %x domains, %d active\n",
 		   engine->fw_domain, atomic_read(&engine->fw_active));
 
