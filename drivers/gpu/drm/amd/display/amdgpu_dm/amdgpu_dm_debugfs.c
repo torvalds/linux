@@ -1565,6 +1565,21 @@ done:
 	return size;
 }
 
+/* function: read DSC picture width parameter on the connector
+ *
+ * The read function: dp_dsc_pic_width_read
+ * returns dsc picture width used in the current configuration
+ * It is the same as h_addressable of the current
+ * display's timing
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_pic_width
+ *
+ * 0 - means that DSC is disabled
+ */
 static ssize_t dp_dsc_pic_width_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
@@ -1679,6 +1694,21 @@ static ssize_t dp_dsc_pic_height_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/* function: read DSC chunk size parameter on the connector
+ *
+ * The read function: dp_dsc_chunk_size_read
+ * returns dsc chunk size set in the current configuration
+ * The value is calculated automatically by DSC code
+ * and depends on slice parameters and bpp target rate
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_chunk_size
+ *
+ * 0 - means that DSC is disabled
+ */
 static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
@@ -1736,6 +1766,21 @@ static ssize_t dp_dsc_chunk_size_read(struct file *f, char __user *buf,
 	return result;
 }
 
+/* function: read DSC slice bpg offset on the connector
+ *
+ * The read function: dp_dsc_slice_bpg_offset_read
+ * returns dsc bpg slice offset set in the current configuration
+ * The value is calculated automatically by DSC code
+ * and depends on slice parameters and bpp target rate
+ * The return is an integer: 0 or other positive integer
+ * If 0 then DSC is disabled.
+ *
+ * Access it with the following command:
+ *
+ *	cat /sys/kernel/debug/dri/0/DP-X/dsc_slice_bpg_offset
+ *
+ * 0 - means that DSC is disabled
+ */
 static ssize_t dp_dsc_slice_bpg_offset_read(struct file *f, char __user *buf,
 				    size_t size, loff_t *pos)
 {
