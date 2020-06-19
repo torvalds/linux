@@ -27,3 +27,4 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 	return 0;
 }
 EXPORT_SYMBOL(rkwifi_set_firmware);
+MODULE_LICENSE("GPL");
