@@ -285,6 +285,7 @@ struct bpf_struct_ops {
 #define BSS_SEC ".bss"
 #define RODATA_SEC ".rodata"
 #define KCONFIG_SEC ".kconfig"
+#define KSYMS_SEC ".ksyms"
 #define STRUCT_OPS_SEC ".struct_ops"
 
 enum libbpf_map_type {
@@ -331,6 +332,7 @@ struct bpf_map {
 enum extern_type {
 	EXT_UNKNOWN,
 	EXT_KCFG,
+	EXT_KSYM,
 };
 
 enum kcfg_type {
@@ -358,6 +360,9 @@ struct extern_desc {
 			int data_off;
 			bool is_signed;
 		} kcfg;
+		struct {
+			unsigned long long addr;
+		} ksym;
 	};
 };
 
@@ -2817,9 +2822,25 @@ static int cmp_externs(const void *_a, const void *_b)
 	return strcmp(a->name, b->name);
 }
 
+static int find_int_btf_id(const struct btf *btf)
+{
+	const struct btf_type *t;
+	int i, n;
+
+	n = btf__get_nr_types(btf);
+	for (i = 1; i <= n; i++) {
+		t = btf__type_by_id(btf, i);
+
+		if (btf_is_int(t) && btf_int_bits(t) == 32)
+			return i;
+	}
+
+	return 0;
+}
+
 static int bpf_object__collect_externs(struct bpf_object *obj)
 {
-	struct btf_type *sec, *kcfg_sec = NULL;
+	struct btf_type *sec, *kcfg_sec = NULL, *ksym_sec = NULL;
 	const struct btf_type *t;
 	struct extern_desc *ext;
 	int i, n, off;
@@ -2900,6 +2921,17 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 				pr_warn("extern (kcfg) '%s' type is unsupported\n", ext_name);
 				return -ENOTSUP;
 			}
+		} else if (strcmp(sec_name, KSYMS_SEC) == 0) {
+			const struct btf_type *vt;
+
+			ksym_sec = sec;
+			ext->type = EXT_KSYM;
+
+			vt = skip_mods_and_typedefs(obj->btf, t->type, NULL);
+			if (!btf_is_void(vt)) {
+				pr_warn("extern (ksym) '%s' is not typeless (void)\n", ext_name);
+				return -ENOTSUP;
+			}
 		} else {
 			pr_warn("unrecognized extern section '%s'\n", sec_name);
 			return -ENOTSUP;
@@ -2913,6 +2945,46 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 	/* sort externs by type, for kcfg ones also by (align, size, name) */
 	qsort(obj->externs, obj->nr_extern, sizeof(*ext), cmp_externs);
 
+	/* for .ksyms section, we need to turn all externs into allocated
+	 * variables in BTF to pass kernel verification; we do this by
+	 * pretending that each extern is a 8-byte variable
+	 */
+	if (ksym_sec) {
+		/* find existing 4-byte integer type in BTF to use for fake
+		 * extern variables in DATASEC
+		 */
+		int int_btf_id = find_int_btf_id(obj->btf);
+
+		for (i = 0; i < obj->nr_extern; i++) {
+			ext = &obj->externs[i];
+			if (ext->type != EXT_KSYM)
+				continue;
+			pr_debug("extern (ksym) #%d: symbol %d, name %s\n",
+				 i, ext->sym_idx, ext->name);
+		}
+
+		sec = ksym_sec;
+		n = btf_vlen(sec);
+		for (i = 0, off = 0; i < n; i++, off += sizeof(int)) {
+			struct btf_var_secinfo *vs = btf_var_secinfos(sec) + i;
+			struct btf_type *vt;
+
+			vt = (void *)btf__type_by_id(obj->btf, vs->type);
+			ext_name = btf__name_by_offset(obj->btf, vt->name_off);
+			ext = find_extern_by_name(obj, ext_name);
+			if (!ext) {
+				pr_warn("failed to find extern definition for BTF var '%s'\n",
+					ext_name);
+				return -ESRCH;
+			}
+			btf_var(vt)->linkage = BTF_VAR_GLOBAL_ALLOCATED;
+			vt->type = int_btf_id;
+			vs->offset = off;
+			vs->size = sizeof(int);
+		}
+		sec->size = off;
+	}
+
 	if (kcfg_sec) {
 		sec = kcfg_sec;
 		/* for kcfg externs calculate their offsets within a .kconfig map */
@@ -2924,7 +2996,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 
 			ext->kcfg.data_off = roundup(off, ext->kcfg.align);
 			off = ext->kcfg.data_off + ext->kcfg.sz;
-			pr_debug("extern #%d (kcfg): symbol %d, off %u, name %s\n",
+			pr_debug("extern (kcfg) #%d: symbol %d, off %u, name %s\n",
 				 i, ext->sym_idx, ext->kcfg.data_off, ext->name);
 		}
 		sec->size = off;
@@ -5022,9 +5094,14 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 			break;
 		case RELO_EXTERN:
 			ext = &obj->externs[relo->sym_off];
-			insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
-			insn[0].imm = obj->maps[obj->kconfig_map_idx].fd;
-			insn[1].imm = ext->kcfg.data_off;
+			if (ext->type == EXT_KCFG) {
+				insn[0].src_reg = BPF_PSEUDO_MAP_VALUE;
+				insn[0].imm = obj->maps[obj->kconfig_map_idx].fd;
+				insn[1].imm = ext->kcfg.data_off;
+			} else /* EXT_KSYM */ {
+				insn[0].imm = (__u32)ext->ksym.addr;
+				insn[1].imm = ext->ksym.addr >> 32;
+			}
 			break;
 		case RELO_CALL:
 			err = bpf_program__reloc_text(prog, obj, relo);
@@ -5643,10 +5720,58 @@ static int bpf_object__sanitize_maps(struct bpf_object *obj)
 	return 0;
 }
 
+static int bpf_object__read_kallsyms_file(struct bpf_object *obj)
+{
+	char sym_type, sym_name[500];
+	unsigned long long sym_addr;
+	struct extern_desc *ext;
+	int ret, err = 0;
+	FILE *f;
+
+	f = fopen("/proc/kallsyms", "r");
+	if (!f) {
+		err = -errno;
+		pr_warn("failed to open /proc/kallsyms: %d\n", err);
+		return err;
+	}
+
+	while (true) {
+		ret = fscanf(f, "%llx %c %499s%*[^\n]\n",
+			     &sym_addr, &sym_type, sym_name);
+		if (ret == EOF && feof(f))
+			break;
+		if (ret != 3) {
+			pr_warn("failed to read kallasyms entry: %d\n", ret);
+			err = -EINVAL;
+			goto out;
+		}
+
+		ext = find_extern_by_name(obj, sym_name);
+		if (!ext || ext->type != EXT_KSYM)
+			continue;
+
+		if (ext->is_set && ext->ksym.addr != sym_addr) {
+			pr_warn("extern (ksym) '%s' resolution is ambiguous: 0x%llx or 0x%llx\n",
+				sym_name, ext->ksym.addr, sym_addr);
+			err = -EINVAL;
+			goto out;
+		}
+		if (!ext->is_set) {
+			ext->is_set = true;
+			ext->ksym.addr = sym_addr;
+			pr_debug("extern (ksym) %s=0x%llx\n", sym_name, sym_addr);
+		}
+	}
+
+out:
+	fclose(f);
+	return err;
+}
+
 static int bpf_object__resolve_externs(struct bpf_object *obj,
 				       const char *extra_kconfig)
 {
-	bool need_config = false;
+	bool need_config = false, need_kallsyms = false;
 	struct extern_desc *ext;
 	void *kcfg_data = NULL;
 	int err, i;
@@ -5676,6 +5801,8 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 		} else if (ext->type == EXT_KCFG &&
 			   strncmp(ext->name, "CONFIG_", 7) == 0) {
 			need_config = true;
+		} else if (ext->type == EXT_KSYM) {
+			need_kallsyms = true;
 		} else {
 			pr_warn("unrecognized extern '%s'\n", ext->name);
 			return -EINVAL;
@@ -5696,6 +5823,11 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	}
 	if (need_config) {
 		err = bpf_object__read_kconfig_file(obj, kcfg_data);
+		if (err)
+			return -EINVAL;
+	}
+	if (need_kallsyms) {
+		err = bpf_object__read_kallsyms_file(obj);
 		if (err)
 			return -EINVAL;
 	}
