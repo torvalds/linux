@@ -1801,46 +1801,56 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 }
 
 /* Vport Administration */
-int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
-			       u16 vport, const u8 *mac)
+static int
+mlx5_esw_set_vport_mac_locked(struct mlx5_eswitch *esw,
+			      struct mlx5_vport *evport, const u8 *mac)
 {
-	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
+	u16 vport_num = evport->vport;
 	u64 node_guid;
 	int err = 0;
 
-	if (IS_ERR(evport))
-		return PTR_ERR(evport);
 	if (is_multicast_ether_addr(mac))
 		return -EINVAL;
-
-	mutex_lock(&esw->state_lock);
 
 	if (evport->info.spoofchk && !is_valid_ether_addr(mac))
 		mlx5_core_warn(esw->dev,
 			       "Set invalid MAC while spoofchk is on, vport(%d)\n",
-			       vport);
+			       vport_num);
 
-	err = mlx5_modify_nic_vport_mac_address(esw->dev, vport, mac);
+	err = mlx5_modify_nic_vport_mac_address(esw->dev, vport_num, mac);
 	if (err) {
 		mlx5_core_warn(esw->dev,
 			       "Failed to mlx5_modify_nic_vport_mac vport(%d) err=(%d)\n",
-			       vport, err);
-		goto unlock;
+			       vport_num, err);
+		return err;
 	}
 
 	node_guid_gen_from_mac(&node_guid, mac);
-	err = mlx5_modify_nic_vport_node_guid(esw->dev, vport, node_guid);
+	err = mlx5_modify_nic_vport_node_guid(esw->dev, vport_num, node_guid);
 	if (err)
 		mlx5_core_warn(esw->dev,
 			       "Failed to set vport %d node guid, err = %d. RDMA_CM will not function properly for this VF.\n",
-			       vport, err);
+			       vport_num, err);
 
 	ether_addr_copy(evport->info.mac, mac);
 	evport->info.node_guid = node_guid;
 	if (evport->enabled && esw->mode == MLX5_ESWITCH_LEGACY)
 		err = esw_acl_ingress_lgcy_setup(esw, evport);
 
-unlock:
+	return err;
+}
+
+int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
+			       u16 vport, const u8 *mac)
+{
+	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
+	int err = 0;
+
+	if (IS_ERR(evport))
+		return PTR_ERR(evport);
+
+	mutex_lock(&esw->state_lock);
+	err = mlx5_esw_set_vport_mac_locked(esw, evport, mac);
 	mutex_unlock(&esw->state_lock);
 	return err;
 }
