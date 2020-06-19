@@ -476,11 +476,11 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 	if (r)
 		goto error_free;
 
-	for_each_sg((*sgt)->sgl, sg, num_entries, i)
+	for_each_sgtable_sg((*sgt), sg, i)
 		sg->length = 0;
 
 	node = mem->mm_node;
-	for_each_sg((*sgt)->sgl, sg, num_entries, i) {
+	for_each_sgtable_sg((*sgt), sg, i) {
 		phys_addr_t phys = (node->start << PAGE_SHIFT) +
 			adev->gmc.aper_base;
 		size_t size = node->size << PAGE_SHIFT;
@@ -500,7 +500,7 @@ int amdgpu_vram_mgr_alloc_sgt(struct amdgpu_device *adev,
 	return 0;
 
 error_unmap:
-	for_each_sg((*sgt)->sgl, sg, num_entries, i) {
+	for_each_sgtable_sg((*sgt), sg, i) {
 		if (!sg->length)
 			continue;
 
@@ -531,7 +531,7 @@ void amdgpu_vram_mgr_free_sgt(struct amdgpu_device *adev,
 	struct scatterlist *sg;
 	int i;
 
-	for_each_sg(sgt->sgl, sg, sgt->nents, i)
+	for_each_sgtable_sg(sgt, sg, i)
 		dma_unmap_resource(dev, sg->dma_address,
 				   sg->length, dir,
 				   DMA_ATTR_SKIP_CPU_SYNC);
