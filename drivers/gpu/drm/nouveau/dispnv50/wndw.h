@@ -57,7 +57,7 @@ struct nv50_wndw_func {
 	void (*prepare)(struct nv50_wndw *, struct nv50_head_atom *asyh,
 			struct nv50_wndw_atom *asyw);
 
-	void (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*sema_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*sema_clr)(struct nv50_wndw *);
 	void (*ntfy_reset)(struct nouveau_bo *, u32 offset);
 	void (*ntfy_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
@@ -115,7 +115,7 @@ int wndwc37e_acquire(struct nv50_wndw *, struct nv50_wndw_atom *,
 		     struct nv50_head_atom *);
 void wndwc37e_release(struct nv50_wndw *, struct nv50_wndw_atom *,
 		      struct nv50_head_atom *);
-void wndwc37e_sema_set(struct nv50_wndw *, struct nv50_wndw_atom *);
+int wndwc37e_sema_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_sema_clr(struct nv50_wndw *);
 void wndwc37e_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_ntfy_clr(struct nv50_wndw *);

@@ -27,6 +27,7 @@
 #include <nouveau_bo.h>
 
 #include <nvif/clc37e.h>
+#include <nvif/pushc37b.h>
 
 static void
 wndwc37e_csc_clr(struct nv50_wndw *wndw)
@@ -185,18 +186,20 @@ wndwc37e_sema_clr(struct nv50_wndw *wndw)
 	}
 }
 
-void
+int
 wndwc37e_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x020c, 4);
-		evo_data(push, asyw->sema.offset);
-		evo_data(push, asyw->sema.acquire);
-		evo_data(push, asyw->sema.release);
-		evo_data(push, asyw->sema.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37E, 0x020c, asyw->sema.offset,
+				0x0210, asyw->sema.acquire,
+				0x0214, asyw->sema.release,
+				0x0218, asyw->sema.handle);
+	return 0;
 }
 
 void

@@ -23,6 +23,7 @@
 
 #include <nvif/cl507c.h>
 #include <nvif/event.h>
+#include <nvif/push507c.h>
 #include <nvif/timer.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -163,18 +164,20 @@ base507c_sema_clr(struct nv50_wndw *wndw)
 	}
 }
 
-void
+int
 base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x0088, 4);
-		evo_data(push, asyw->sema.offset);
-		evo_data(push, asyw->sema.acquire);
-		evo_data(push, asyw->sema.release);
-		evo_data(push, asyw->sema.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507C, 0x0088, asyw->sema.offset,
+				0x008c, asyw->sema.acquire,
+				0x0090, asyw->sema.release,
+				0x0094, asyw->sema.handle);
+	return 0;
 }
 
 void
