@@ -113,6 +113,12 @@ void ocxl_actag_afu_free(struct ocxl_fn *fn, u32 start, u32 size);
 int ocxl_config_get_pasid_info(struct pci_dev *dev, int *count);
 
 /*
+ * Control whether the FPGA is reloaded on a link reset
+ */
+int ocxl_config_get_reset_reload(struct pci_dev *dev, int *val);
+int ocxl_config_set_reset_reload(struct pci_dev *dev, int val);
+
+/*
  * Check if an AFU index is valid for the given function.
  *
  * AFU indexes can be sparse, so a driver should check all indexes up
