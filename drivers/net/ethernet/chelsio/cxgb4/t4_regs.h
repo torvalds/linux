@@ -563,6 +563,12 @@
 #define AIVEC_V(x) ((x) << AIVEC_S)
 
 #define PCIE_PF_CLI_A	0x44
+
+#define PCIE_PF_EXPROM_OFST_A 0x4c
+#define OFFSET_S    10
+#define OFFSET_M    0x3fffU
+#define OFFSET_G(x) (((x) >> OFFSET_S) & OFFSET_M)
+
 #define PCIE_INT_CAUSE_A	0x3004
 
 #define UNXSPLCPLERR_S    29

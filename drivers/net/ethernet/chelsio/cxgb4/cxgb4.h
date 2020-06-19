@@ -139,6 +139,64 @@ enum cc_fec {
 	FEC_BASER_RS  = 1 << 2   /* BaseR/Reed-Solomon */
 };
 
+enum {
+	CXGB4_ETHTOOL_FLASH_FW = 1,
+	CXGB4_ETHTOOL_FLASH_PHY = 2,
+	CXGB4_ETHTOOL_FLASH_BOOT = 3,
+	CXGB4_ETHTOOL_FLASH_BOOTCFG = 4
+};
+
+struct cxgb4_bootcfg_data {
+	__le16 signature;
+	__u8 reserved[2];
+};
+
+struct cxgb4_pcir_data {
+	__le32 signature;	/* Signature. The string "PCIR" */
+	__le16 vendor_id;	/* Vendor Identification */
+	__le16 device_id;	/* Device Identification */
+	__u8 vital_product[2];	/* Pointer to Vital Product Data */
+	__u8 length[2];		/* PCIR Data Structure Length */
+	__u8 revision;		/* PCIR Data Structure Revision */
+	__u8 class_code[3];	/* Class Code */
+	__u8 image_length[2];	/* Image Length. Multiple of 512B */
+	__u8 code_revision[2];	/* Revision Level of Code/Data */
+	__u8 code_type;
+	__u8 indicator;
+	__u8 reserved[2];
+};
+
+/* BIOS boot headers */
+struct cxgb4_pci_exp_rom_header {
+	__le16 signature;	/* ROM Signature. Should be 0xaa55 */
+	__u8 reserved[22];	/* Reserved per processor Architecture data */
+	__le16 pcir_offset;	/* Offset to PCI Data Structure */
+};
+
+/* Legacy PCI Expansion ROM Header */
+struct legacy_pci_rom_hdr {
+	__u8 signature[2];	/* ROM Signature. Should be 0xaa55 */
+	__u8 size512;		/* Current Image Size in units of 512 bytes */
+	__u8 initentry_point[4];
+	__u8 cksum;		/* Checksum computed on the entire Image */
+	__u8 reserved[16];	/* Reserved */
+	__le16 pcir_offset;	/* Offset to PCI Data Struture */
+};
+
+#define CXGB4_HDR_CODE1 0x00
+#define CXGB4_HDR_CODE2 0x03
+#define CXGB4_HDR_INDI 0x80
+
+/* BOOT constants */
+enum {
+	BOOT_CFG_SIG = 0x4243,
+	BOOT_SIZE_INC = 512,
+	BOOT_SIGNATURE = 0xaa55,
+	BOOT_MIN_SIZE = sizeof(struct cxgb4_pci_exp_rom_header),
+	BOOT_MAX_SIZE = 1024 * BOOT_SIZE_INC,
+	PCIR_SIGNATURE = 0x52494350
+};
+
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
 	u64 tx_frames;            /* all good frames */
@@ -490,6 +548,11 @@ struct trace_params {
 	unsigned char skip_len;
 	unsigned char invert;
 	unsigned char port;
+};
+
+struct cxgb4_fw_data {
+	__be32 signature;
+	__u8 reserved[4];
 };
 
 /* Firmware Port Capabilities types. */
@@ -1988,6 +2051,10 @@ void t4_register_netevent_notifier(void);
 int t4_i2c_rd(struct adapter *adap, unsigned int mbox, int port,
 	      unsigned int devid, unsigned int offset,
 	      unsigned int len, u8 *buf);
+int t4_load_boot(struct adapter *adap, u8 *boot_data,
+		 unsigned int boot_addr, unsigned int size);
+int t4_load_bootcfg(struct adapter *adap,
+		    const u8 *cfg_data, unsigned int size);
 void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq, struct sge_fl *fl);
 void free_tx_desc(struct adapter *adap, struct sge_txq *q,
 		  unsigned int n, bool unmap);

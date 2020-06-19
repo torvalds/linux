@@ -23,6 +23,14 @@ static void set_msglevel(struct net_device *dev, u32 val)
 	netdev2adap(dev)->msg_enable = val;
 }
 
+static const char * const flash_region_strings[] = {
+	"All",
+	"Firmware",
+	"PHY Firmware",
+	"Boot",
+	"Boot CFG",
+};
+
 static const char stats_strings[][ETH_GSTRING_LEN] = {
 	"tx_octets_ok           ",
 	"tx_frames_ok           ",
@@ -1235,15 +1243,210 @@ out:
 	return err;
 }
 
-static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
+static int cxgb4_ethtool_flash_bootcfg(struct net_device *netdev,
+				       const u8 *data, u32 size)
 {
+	struct adapter *adap = netdev2adap(netdev);
 	int ret;
-	const struct firmware *fw;
+
+	ret = t4_load_bootcfg(adap, data, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot cfg image\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_boot(struct net_device *netdev,
+				    const u8 *bdata, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	unsigned int offset;
+	u8 *data;
+	int ret;
+
+	data = kmemdup(bdata, size, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	offset = OFFSET_G(t4_read_reg(adap, PF_REG(0, PCIE_PF_EXPROM_OFST_A)));
+
+	ret = t4_load_boot(adap, data, offset, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load boot image\n");
+
+	kfree(data);
+	return ret;
+}
+
+#define CXGB4_PHY_SIG 0x130000ea
+
+static int cxgb4_validate_phy_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_fw_data *header;
+
+	header = (struct cxgb4_fw_data *)data;
+	if (be32_to_cpu(header->signature) != CXGB4_PHY_SIG)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int cxgb4_ethtool_flash_phy(struct net_device *netdev,
+				   const u8 *data, u32 size)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	ret = cxgb4_validate_phy_image(data, NULL);
+	if (ret) {
+		dev_err(adap->pdev_dev, "PHY signature mismatch\n");
+		return ret;
+	}
+
+	ret = t4_load_phy_fw(adap, MEMWIN_NIC, &adap->win0_lock,
+			     NULL, data, size);
+	if (ret)
+		dev_err(adap->pdev_dev, "Failed to load PHY FW\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_fw(struct net_device *netdev,
+				  const u8 *data, u32 size)
+{
 	struct adapter *adap = netdev2adap(netdev);
 	unsigned int mbox = PCIE_FW_MASTER_M + 1;
-	u32 pcie_fw;
+	int ret;
+
+	/* If the adapter has been fully initialized then we'll go ahead and
+	 * try to get the firmware's cooperation in upgrading to the new
+	 * firmware image otherwise we'll try to do the entire job from the
+	 * host ... and we always "force" the operation in this path.
+	 */
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
+		mbox = adap->mbox;
+
+	ret = t4_fw_upgrade(adap, mbox, data, size, 1);
+	if (ret)
+		dev_err(adap->pdev_dev,
+			"Failed to flash firmware\n");
+
+	return ret;
+}
+
+static int cxgb4_ethtool_flash_region(struct net_device *netdev,
+				      const u8 *data, u32 size, u32 region)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	int ret;
+
+	switch (region) {
+	case CXGB4_ETHTOOL_FLASH_FW:
+		ret = cxgb4_ethtool_flash_fw(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_PHY:
+		ret = cxgb4_ethtool_flash_phy(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_BOOT:
+		ret = cxgb4_ethtool_flash_boot(netdev, data, size);
+		break;
+	case CXGB4_ETHTOOL_FLASH_BOOTCFG:
+		ret = cxgb4_ethtool_flash_bootcfg(netdev, data, size);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	if (!ret)
+		dev_info(adap->pdev_dev,
+			 "loading %s successful, reload cxgb4 driver\n",
+			 flash_region_strings[region]);
+	return ret;
+}
+
+#define CXGB4_FW_SIG 0x4368656c
+#define CXGB4_FW_SIG_OFFSET 0x160
+
+static int cxgb4_validate_fw_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_fw_data *header;
+
+	header = (struct cxgb4_fw_data *)&data[CXGB4_FW_SIG_OFFSET];
+	if (be32_to_cpu(header->signature) != CXGB4_FW_SIG)
+		return -EINVAL;
+
+	if (size)
+		*size = be16_to_cpu(((struct fw_hdr *)data)->len512) * 512;
+
+	return 0;
+}
+
+static int cxgb4_validate_bootcfg_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_bootcfg_data *header;
+
+	header = (struct cxgb4_bootcfg_data *)data;
+	if (le16_to_cpu(header->signature) != BOOT_CFG_SIG)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int cxgb4_validate_boot_image(const u8 *data, u32 *size)
+{
+	struct cxgb4_pci_exp_rom_header *exp_header;
+	struct cxgb4_pcir_data *pcir_header;
+	struct legacy_pci_rom_hdr *header;
+	const u8 *cur_header = data;
+	u16 pcir_offset;
+
+	exp_header = (struct cxgb4_pci_exp_rom_header *)data;
+
+	if (le16_to_cpu(exp_header->signature) != BOOT_SIGNATURE)
+		return -EINVAL;
+
+	if (size) {
+		do {
+			header = (struct legacy_pci_rom_hdr *)cur_header;
+			pcir_offset = le16_to_cpu(header->pcir_offset);
+			pcir_header = (struct cxgb4_pcir_data *)(cur_header +
+				      pcir_offset);
+
+			*size += header->size512 * 512;
+			cur_header += header->size512 * 512;
+		} while (!(pcir_header->indicator & CXGB4_HDR_INDI));
+	}
+
+	return 0;
+}
+
+static int cxgb4_ethtool_get_flash_region(const u8 *data, u32 *size)
+{
+	if (!cxgb4_validate_fw_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_FW;
+	if (!cxgb4_validate_boot_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOT;
+	if (!cxgb4_validate_phy_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_PHY;
+	if (!cxgb4_validate_bootcfg_image(data, size))
+		return CXGB4_ETHTOOL_FLASH_BOOTCFG;
+
+	return -EOPNOTSUPP;
+}
+
+static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
+{
+	struct adapter *adap = netdev2adap(netdev);
+	const struct firmware *fw;
 	unsigned int master;
 	u8 master_vld = 0;
+	const u8 *fw_data;
+	size_t fw_size;
+	u32 size = 0;
+	u32 pcie_fw;
+	int region;
+	int ret;
 
 	pcie_fw = t4_read_reg(adap, PCIE_FW_A);
 	master = PCIE_FW_MASTER_G(pcie_fw);
@@ -1261,19 +1464,32 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	if (ret < 0)
 		return ret;
 
-	/* If the adapter has been fully initialized then we'll go ahead and
-	 * try to get the firmware's cooperation in upgrading to the new
-	 * firmware image otherwise we'll try to do the entire job from the
-	 * host ... and we always "force" the operation in this path.
-	 */
-	if (adap->flags & CXGB4_FULL_INIT_DONE)
-		mbox = adap->mbox;
+	fw_data = fw->data;
+	fw_size = fw->size;
+	if (ef->region == ETHTOOL_FLASH_ALL_REGIONS) {
+		while (fw_size > 0) {
+			size = 0;
+			region = cxgb4_ethtool_get_flash_region(fw_data, &size);
+			if (region < 0 || !size) {
+				ret = region;
+				goto out_free_fw;
+			}
 
-	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
+			ret = cxgb4_ethtool_flash_region(netdev, fw_data, size,
+							 region);
+			if (ret)
+				goto out_free_fw;
+
+			fw_data += size;
+			fw_size -= size;
+		}
+	} else {
+		ret = cxgb4_ethtool_flash_region(netdev, fw_data, fw_size,
+						 ef->region);
+	}
+
+out_free_fw:
 	release_firmware(fw);
-	if (!ret)
-		dev_info(adap->pdev_dev,
-			 "loaded firmware %s, reload cxgb4 driver\n", ef->data);
 	return ret;
 }
 
