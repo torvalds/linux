@@ -83,6 +83,18 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	EM( BTRFS_QGROUP_RSV_META_PERTRANS,	"META_PERTRANS")	\
 	EMe(BTRFS_QGROUP_RSV_META_PREALLOC,	"META_PREALLOC")
 
+#define IO_TREE_OWNER						    \
+	EM( IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS")	    \
+	EM( IO_TREE_FS_EXCLUDED_EXTENTS,  "EXCLUDED_EXTENTS")	    \
+	EM( IO_TREE_INODE_IO,		  "INODE_IO")		    \
+	EM( IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE")	    \
+	EM( IO_TREE_RELOC_BLOCKS,	  "RELOC_BLOCKS")	    \
+	EM( IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES")      \
+	EM( IO_TREE_ROOT_DIRTY_LOG_PAGES, "ROOT_DIRTY_LOG_PAGES")   \
+	EM( IO_TREE_INODE_FILE_EXTENT,	  "INODE_FILE_EXTENT")      \
+	EM( IO_TREE_LOG_CSUM_RANGE,	  "LOG_CSUM_RANGE")         \
+	EMe(IO_TREE_SELFTEST,		  "SELFTEST")
+
 /*
  * First define the enums in the above macros to be exported to userspace via
  * TRACE_DEFINE_ENUM().
@@ -96,6 +108,7 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 FLUSH_ACTIONS
 FI_TYPES
 QGROUP_RSV_TYPES
+IO_TREE_OWNER
 
 /*
  * Now redefine the EM and EMe macros to map the enums to the strings that will
@@ -107,18 +120,6 @@ QGROUP_RSV_TYPES
 #define EM(a, b)        {a, b},
 #define EMe(a, b)       {a, b}
 
-#define show_extent_io_tree_owner(owner)				       \
-	__print_symbolic(owner,						       \
-		{ IO_TREE_FS_PINNED_EXTENTS, 	  "PINNED_EXTENTS" },	       \
-		{ IO_TREE_FS_EXCLUDED_EXTENTS,	  "EXCLUDED_EXTENTS" },	       \
-		{ IO_TREE_INODE_IO,		  "INODE_IO" },		       \
-		{ IO_TREE_INODE_IO_FAILURE,	  "INODE_IO_FAILURE" },	       \
-		{ IO_TREE_RELOC_BLOCKS,		  "RELOC_BLOCKS" },	       \
-		{ IO_TREE_TRANS_DIRTY_PAGES,	  "TRANS_DIRTY_PAGES" },       \
-		{ IO_TREE_ROOT_DIRTY_LOG_PAGES,	  "ROOT_DIRTY_LOG_PAGES" },    \
-		{ IO_TREE_INODE_FILE_EXTENT,	  "INODE_FILE_EXTENT" },       \
-		{ IO_TREE_LOG_CSUM_RANGE,	  "LOG_CSUM_RANGE" },          \
-		{ IO_TREE_SELFTEST,		  "SELFTEST" })
 
 #define BTRFS_GROUP_FLAGS	\
 	{ BTRFS_BLOCK_GROUP_DATA,	"DATA"},	\
@@ -1942,7 +1943,7 @@ TRACE_EVENT(btrfs_set_extent_bit,
 
 	TP_printk_btrfs(
 		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s",
-		show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->set_bits, "|", EXTENT_FLAGS))
 );
@@ -1981,7 +1982,7 @@ TRACE_EVENT(btrfs_clear_extent_bit,
 
 	TP_printk_btrfs(
 		"io_tree=%s ino=%llu root=%llu start=%llu len=%llu clear_bits=%s",
-		show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		__print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		__entry->rootid, __entry->start, __entry->len,
 		__print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))
 );
@@ -2022,7 +2023,7 @@ TRACE_EVENT(btrfs_convert_extent_bit,
 
 	TP_printk_btrfs(
 "io_tree=%s ino=%llu root=%llu start=%llu len=%llu set_bits=%s clear_bits=%s",
-		  show_extent_io_tree_owner(__entry->owner), __entry->ino,
+		  __print_symbolic(__entry->owner, IO_TREE_OWNER), __entry->ino,
 		  __entry->rootid, __entry->start, __entry->len,
 		  __print_flags(__entry->set_bits , "|", EXTENT_FLAGS),
 		  __print_flags(__entry->clear_bits, "|", EXTENT_FLAGS))
