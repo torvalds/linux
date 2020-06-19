@@ -1366,20 +1366,26 @@ static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 #define MEI_CFG_FW_NM                           \
 	.quirk_probe = mei_me_fw_type_nm
 
+/**
+ * mei_me_fw_sku_sps_4() - check for sps 4.0 sku
+ *
+ * Read ME FW Status register to check for SPS Firmware.
+ * The SPS FW is only signaled in the PCI function 0.
+ * __Note__: Deprecated by SPS 5.0 and newer.
+ *
+ * @pdev: pci device
+ *
+ * Return: true in case of SPS firmware
+ */
 static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 {
 	u32 reg;
 	unsigned int devfn;
 
-	/*
-	 * Read ME FW Status register to check for SPS Firmware
-	 * The SPS FW is only signaled in pci function 0
-	 */
 	devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
 	pci_bus_read_config_dword(pdev->bus, devfn, PCI_CFG_HFS_1, &reg);
 	trace_mei_pci_cfg_read(&pdev->dev, "PCI_CFG_HFS_1", PCI_CFG_HFS_1, reg);
-	/* if bits [19:16] = 15, running SPS Firmware */
-	return (reg & 0xf0000) == 0xf0000;
+	return (reg & PCI_CFG_HFS_1_OPMODE_MSK) == PCI_CFG_HFS_1_OPMODE_SPS;
 }
 
 #define MEI_CFG_FW_SPS_4                          \
