@@ -8,6 +8,9 @@ config SND_HDA
 	select SND_JACK
 	select SND_HDA_CORE
 
+config SND_HDA_GENERIC_LEDS
+       bool
+
 config SND_HDA_INTEL
 	tristate "HD Audio PCI"
 	depends on SND_PCI
@@ -91,6 +94,7 @@ config SND_HDA_PATCH_LOADER
 config SND_HDA_CODEC_REALTEK
 	tristate "Build Realtek HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include Realtek HD-audio codec support in
 	  snd-hda-intel driver, such as ALC880.
@@ -111,6 +115,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_SIGMATEL
 	tristate "Build IDT/Sigmatel HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include IDT (Sigmatel) HD-audio codec support in
 	  snd-hda-intel driver, such as STAC9200.
@@ -155,6 +160,7 @@ comment "Set to Y if you want auto-loading the codec driver"
 config SND_HDA_CODEC_CONEXANT
 	tristate "Build Conexant HD-audio codec support"
 	select SND_HDA_GENERIC
+	select SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to include Conexant HD-audio codec support in
 	  snd-hda-intel driver, such as CX20549.
@@ -215,6 +221,9 @@ comment "Set to Y if you want auto-loading the codec driver"
 
 config SND_HDA_GENERIC
 	tristate "Enable generic HD-audio codec parser"
+	select LEDS_CLASS if SND_HDA_GENERIC_LEDS
+	select LEDS_TRIGGERS if SND_HDA_GENERIC_LEDS
+	select LEDS_TRIGGER_AUDIO if SND_HDA_GENERIC_LEDS
 	help
 	  Say Y or M here to enable the generic HD-audio codec parser
 	  in snd-hda-intel driver.
