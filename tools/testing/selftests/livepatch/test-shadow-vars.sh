@@ -9,11 +9,9 @@ MOD_TEST=test_klp_shadow_vars
 setup_config
 
 
-# TEST: basic shadow variable API
 # - load a module that exercises the shadow variable API
 
-echo -n "TEST: basic shadow variable API ... "
-dmesg -C
+start_test "basic shadow variable API"
 
 load_mod $MOD_TEST
 unload_mod $MOD_TEST
