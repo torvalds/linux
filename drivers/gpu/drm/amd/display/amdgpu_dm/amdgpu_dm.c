@@ -4646,6 +4646,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		if (dsc_caps.is_dsc_supported) {
+			/* Set DSC policy according to dsc_clock_en */
+			dc_dsc_policy_set_enable_dsc_when_not_needed(aconnector->dsc_settings.dsc_clock_en);
+
 			if (dc_dsc_compute_config(aconnector->dc_link->ctx->dc->res_pool->dscs[0],
 						  &dsc_caps,
 						  aconnector->dc_link->ctx->dc->debug.dsc_min_slice_height_override,
