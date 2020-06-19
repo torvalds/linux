@@ -93,17 +93,6 @@ ovly507e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 }
 
 void
-ovly507e_ntfy_clr(struct nv50_wndw *wndw)
-{
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x00a4, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
-}
-
-void
 ovly507e_release(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
@@ -135,7 +124,7 @@ ovly507e = {
 	.acquire = ovly507e_acquire,
 	.release = ovly507e_release,
 	.ntfy_set = base507c_ntfy_set,
-	.ntfy_clr = ovly507e_ntfy_clr,
+	.ntfy_clr = base507c_ntfy_clr,
 	.ntfy_reset = base507c_ntfy_reset,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,
 	.image_set = ovly507e_image_set,
