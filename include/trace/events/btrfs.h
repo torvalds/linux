@@ -67,11 +67,22 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	      (obj >= BTRFS_ROOT_TREE_OBJECTID &&			\
 	       obj <= BTRFS_QUOTA_TREE_OBJECTID)) ? __show_root_type(obj) : "-"
 
-#define show_fi_type(type)						\
-	__print_symbolic(type,						\
-		 { BTRFS_FILE_EXTENT_INLINE,	"INLINE" },		\
-		 { BTRFS_FILE_EXTENT_REG,	"REG"	 },		\
-		 { BTRFS_FILE_EXTENT_PREALLOC,	"PREALLOC"})
+#define FI_TYPES							\
+	EM( BTRFS_FILE_EXTENT_INLINE,		"INLINE")		\
+	EM( BTRFS_FILE_EXTENT_REG,		"REG")			\
+	EMe(BTRFS_FILE_EXTENT_PREALLOC,		"PREALLOC")
+
+#undef EM
+#undef EMe
+#define EM(a, b)	TRACE_DEFINE_ENUM(a);
+#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
+
+FI_TYPES
+
+#undef EM
+#undef EMe
+#define EM(a, b)        {a, b},
+#define EMe(a, b)       {a, b}
 
 #define show_qgroup_rsv_type(type)					\
 	__print_symbolic(type,						\
@@ -380,7 +391,7 @@ DECLARE_EVENT_CLASS(btrfs__file_extent_item_regular,
 		__entry->disk_isize, __entry->extent_start,
 		__entry->extent_end, __entry->num_bytes, __entry->ram_bytes,
 		__entry->disk_bytenr, __entry->disk_num_bytes,
-		__entry->extent_offset, show_fi_type(__entry->extent_type),
+		__entry->extent_offset, __print_symbolic(__entry->extent_type, FI_TYPES),
 		__entry->compression)
 );
 
@@ -421,7 +432,7 @@ DECLARE_EVENT_CLASS(
 		"extent_type=%s compression=%u",
 		show_root_type(__entry->root_obj), __entry->ino, __entry->isize,
 		__entry->disk_isize, __entry->extent_start,
-		__entry->extent_end, show_fi_type(__entry->extent_type),
+		__entry->extent_end, __print_symbolic(__entry->extent_type, FI_TYPES),
 		__entry->compression)
 );
 
