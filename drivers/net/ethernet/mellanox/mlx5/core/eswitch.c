@@ -1127,7 +1127,7 @@ int mlx5_esw_modify_vport_rate(struct mlx5_eswitch *esw, u16 vport_num,
 						  MODIFY_SCHEDULING_ELEMENT_IN_MODIFY_BITMASK_MAX_AVERAGE_BW);
 }
 
-static void node_guid_gen_from_mac(u64 *node_guid, u8 mac[ETH_ALEN])
+static void node_guid_gen_from_mac(u64 *node_guid, const u8 *mac)
 {
 	((u8 *)node_guid)[7] = mac[0];
 	((u8 *)node_guid)[6] = mac[1];
@@ -1779,7 +1779,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 /* Vport Administration */
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
-			       u16 vport, u8 mac[ETH_ALEN])
+			       u16 vport, const u8 *mac)
 {
 	struct mlx5_vport *evport = mlx5_eswitch_get_vport(esw, vport);
 	u64 node_guid;
