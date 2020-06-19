@@ -11,7 +11,6 @@ int ovly507e_acquire(struct nv50_wndw *, struct nv50_wndw_atom *,
 void ovly507e_release(struct nv50_wndw *, struct nv50_wndw_atom *,
 		      struct nv50_head_atom *);
 int ovly507e_scale_set(struct nv50_wndw *, struct nv50_wndw_atom *);
-void ovly507e_update(struct nv50_wndw *, u32 *);
 
 extern const u32 ovly827e_format[];
 void ovly827e_ntfy_reset(struct nouveau_bo *, u32);

@@ -32,15 +32,17 @@
 
 #include "nouveau_bo.h"
 
-void
+int
 base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0080, 1);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CORE]);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507C, 0x0080, interlock[NV50_DISP_INTERLOCK_CORE]);
+	return PUSH_KICK(push);
 }
 
 int

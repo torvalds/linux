@@ -215,22 +215,22 @@ wndwc37e_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	return 0;
 }
 
-void
+int
 wndwc37e_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 5))) {
-		evo_mthd(push, 0x0370, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
-			       interlock[NV50_DISP_INTERLOCK_CORE]);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_WNDW]);
-		evo_mthd(push, 0x0200, 1);
-		if (interlock[NV50_DISP_INTERLOCK_WIMM] & wndw->interlock.data)
-			evo_data(push, 0x00001001);
-		else
-			evo_data(push, 0x00000001);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37E, 0x0370,  interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
+					 interlock[NV50_DISP_INTERLOCK_CORE],
+				0x0374,  interlock[NV50_DISP_INTERLOCK_WNDW]);
+	PUSH_NVSQ(push, NVC37E, 0x0200,((interlock[NV50_DISP_INTERLOCK_WIMM] &
+					 wndw->interlock.data) ? 0x00001000 : 0x00000000) |
+					 0x00000001);
+	return PUSH_KICK(push);
 }
 
 void

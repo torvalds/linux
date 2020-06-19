@@ -58,7 +58,7 @@ ovly907e = {
 	.image_set = ovly907e_image_set,
 	.image_clr = base507c_image_clr,
 	.scale_set = ovly507e_scale_set,
-	.update = ovly507e_update,
+	.update = base507c_update,
 };
 
 static const u32

@@ -79,7 +79,7 @@ struct nv50_wndw_func {
 	int (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
-	void (*update)(struct nv50_wndw *, u32 *interlock);
+	int (*update)(struct nv50_wndw *, u32 *interlock);
 };
 
 extern const struct drm_plane_funcs nv50_wndw;
@@ -89,6 +89,7 @@ int base507c_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int base507c_ntfy_clr(struct nv50_wndw *);
 int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
 int base507c_image_clr(struct nv50_wndw *);
+int base507c_update(struct nv50_wndw *, u32 *);
 
 void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
 		  const struct drm_color_ctm *);
@@ -124,7 +125,7 @@ int wndwc37e_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int wndwc37e_ntfy_clr(struct nv50_wndw *);
 int wndwc37e_image_clr(struct nv50_wndw *);
 int wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
-void wndwc37e_update(struct nv50_wndw *, u32 *);
+int wndwc37e_update(struct nv50_wndw *, u32 *);
 
 int wndwc57e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);

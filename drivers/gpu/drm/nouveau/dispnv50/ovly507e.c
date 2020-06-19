@@ -30,17 +30,6 @@
 #include <nvif/event.h>
 #include <nvif/push507c.h>
 
-void
-ovly507e_update(struct nv50_wndw *wndw, u32 *interlock)
-{
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0080, 1);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CORE]);
-		evo_kick(push, &wndw->wndw);
-	}
-}
-
 int
 ovly507e_scale_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -118,7 +107,7 @@ ovly507e = {
 	.image_set = ovly507e_image_set,
 	.image_clr = base507c_image_clr,
 	.scale_set = ovly507e_scale_set,
-	.update = ovly507e_update,
+	.update = base507c_update,
 };
 
 static const u32
