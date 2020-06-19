@@ -806,7 +806,7 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 		stream = dc_state->streams[i];
 
 		if (stream->timing.flags.DSC == 1)
-			dcn20_add_dsc_to_stream_resource(stream->ctx->dc, dc_state, stream);
+			dc_stream_add_dsc_to_resource(stream->ctx->dc, dc_state, stream);
 	}
 
 	return true;
