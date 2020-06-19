@@ -34,4 +34,6 @@ u64 gfxhub_v2_1_get_mc_fb_offset(struct amdgpu_device *adev);
 void gfxhub_v2_1_setup_vm_pt_regs(struct amdgpu_device *adev, uint32_t vmid,
 				uint64_t page_table_base);
 
+int gfxhub_v2_1_get_xgmi_info(struct amdgpu_device *adev);
+
 #endif

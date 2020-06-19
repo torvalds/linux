@@ -691,6 +691,9 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 	else
 		base = gfxhub_v2_0_get_fb_location(adev);
 
+	/* add the xgmi offset of the physical node */
+	base += adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
+
 	amdgpu_gmc_vram_location(adev, &adev->gmc, base);
 	amdgpu_gmc_gart_location(adev, mc);
 
@@ -699,6 +702,10 @@ static void gmc_v10_0_vram_gtt_location(struct amdgpu_device *adev,
 		adev->vm_manager.vram_base_offset = gfxhub_v2_1_get_mc_fb_offset(adev);
 	else
 		adev->vm_manager.vram_base_offset = gfxhub_v2_0_get_mc_fb_offset(adev);
+
+	/* add the xgmi offset of the physical node */
+	adev->vm_manager.vram_base_offset +=
+		adev->gmc.xgmi.physical_node_id * adev->gmc.xgmi.node_segment_size;
 }
 
 /**
@@ -869,6 +876,12 @@ static int gmc_v10_0_sw_init(void *handle)
 	if (r) {
 		printk(KERN_WARNING "amdgpu: No suitable DMA available.\n");
 		return r;
+	}
+
+	if (adev->gmc.xgmi.supported) {
+		r = gfxhub_v2_1_get_xgmi_info(adev);
+		if (r)
+			return r;
 	}
 
 	r = gmc_v10_0_mc_init(adev);
