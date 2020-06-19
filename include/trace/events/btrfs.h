@@ -67,17 +67,34 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	      (obj >= BTRFS_ROOT_TREE_OBJECTID &&			\
 	       obj <= BTRFS_QUOTA_TREE_OBJECTID)) ? __show_root_type(obj) : "-"
 
+#define FLUSH_ACTIONS								\
+	EM( BTRFS_RESERVE_NO_FLUSH,		"BTRFS_RESERVE_NO_FLUSH")	\
+	EM( BTRFS_RESERVE_FLUSH_LIMIT,		"BTRFS_RESERVE_FLUSH_LIMIT")	\
+	EM( BTRFS_RESERVE_FLUSH_ALL,		"BTRFS_RESERVE_FLUSH_ALL")	\
+	EMe(BTRFS_RESERVE_FLUSH_ALL_STEAL,	"BTRFS_RESERVE_FLUSH_ALL_STEAL")
+
 #define FI_TYPES							\
 	EM( BTRFS_FILE_EXTENT_INLINE,		"INLINE")		\
 	EM( BTRFS_FILE_EXTENT_REG,		"REG")			\
 	EMe(BTRFS_FILE_EXTENT_PREALLOC,		"PREALLOC")
+
+/*
+ * First define the enums in the above macros to be exported to userspace via
+ * TRACE_DEFINE_ENUM().
+ */
 
 #undef EM
 #undef EMe
 #define EM(a, b)	TRACE_DEFINE_ENUM(a);
 #define EMe(a, b)	TRACE_DEFINE_ENUM(a);
 
+FLUSH_ACTIONS
 FI_TYPES
+
+/*
+ * Now redefine the EM and EMe macros to map the enums to the strings that will
+ * be printed in the output
+ */
 
 #undef EM
 #undef EMe
@@ -1052,34 +1069,6 @@ TRACE_EVENT(btrfs_space_reservation,
 			__entry->reserve ? "reserve" : "release",
 			__entry->bytes)
 );
-
-#define FLUSH_ACTIONS								\
-	EM( BTRFS_RESERVE_NO_FLUSH,		"BTRFS_RESERVE_NO_FLUSH")	\
-	EM( BTRFS_RESERVE_FLUSH_LIMIT,		"BTRFS_RESERVE_FLUSH_LIMIT")	\
-	EM( BTRFS_RESERVE_FLUSH_ALL,		"BTRFS_RESERVE_FLUSH_ALL")	\
-	EMe(BTRFS_RESERVE_FLUSH_ALL_STEAL,	"BTRFS_RESERVE_FLUSH_ALL_STEAL")
-
-/*
- * First define the enums in the above macros to be exported to userspace via
- * TRACE_DEFINE_ENUM().
- */
-
-#undef EM
-#undef EMe
-#define EM(a, b)	TRACE_DEFINE_ENUM(a);
-#define EMe(a, b)	TRACE_DEFINE_ENUM(a);
-
-FLUSH_ACTIONS
-
-/*
- * Now redefine the EM and EMe macros to map the enums to the strings that will
- * be printed in the output
- */
-
-#undef EM
-#undef EMe
-#define EM(a, b)        {a, b},
-#define EMe(a, b)       {a, b}
 
 TRACE_EVENT(btrfs_trigger_flush,
 
