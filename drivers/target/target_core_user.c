@@ -181,7 +181,6 @@ struct tcmu_cmd {
 	unsigned long deadline;
 
 #define TCMU_CMD_BIT_EXPIRED 0
-#define TCMU_CMD_BIT_INFLIGHT 1
 	unsigned long flags;
 };
 /*
@@ -1078,7 +1077,6 @@ static int queue_cmd_ring(struct tcmu_cmd *tcmu_cmd, sense_reason_t *scsi_err)
 	tcmu_flush_dcache_range(mb, sizeof(*mb));
 
 	list_add_tail(&tcmu_cmd->queue_entry, &udev->inflight_queue);
-	set_bit(TCMU_CMD_BIT_INFLIGHT, &tcmu_cmd->flags);
 
 	/* TODO: only if FLUSH and FUA? */
 	uio_event_notify(&udev->uio_info);
