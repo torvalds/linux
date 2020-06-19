@@ -6728,8 +6728,7 @@ reenter_guest:
 
 	pt_guest_enter(vmx);
 
-	if (vcpu_to_pmu(vcpu)->version)
-		atomic_switch_perf_msrs(vmx);
+	atomic_switch_perf_msrs(vmx);
 	atomic_switch_umwait_control_msr(vmx);
 
 	if (enable_preemption_timer)
