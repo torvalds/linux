@@ -3160,9 +3160,8 @@ static int mvpp2_tx_tso(struct sk_buff *skb, struct net_device *dev,
 			struct mvpp2_txq_pcpu *txq_pcpu)
 {
 	struct mvpp2_port *port = netdev_priv(dev);
+	int hdr_sz, i, len, descs = 0;
 	struct tso_t tso;
-	int hdr_sz = skb_transport_offset(skb) + tcp_hdrlen(skb);
-	int i, len, descs = 0;
 
 	/* Check number of available descriptors */
 	if (mvpp2_aggr_desc_num_check(port, aggr_txq, tso_count_descs(skb)) ||
@@ -3170,7 +3169,8 @@ static int mvpp2_tx_tso(struct sk_buff *skb, struct net_device *dev,
 					     tso_count_descs(skb)))
 		return 0;
 
-	tso_start(skb, &tso);
+	hdr_sz = tso_start(skb, &tso);
+
 	len = skb->len - hdr_sz;
 	while (len > 0) {
 		int left = min_t(int, skb_shinfo(skb)->gso_size, len);
