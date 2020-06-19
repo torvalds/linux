@@ -43,6 +43,11 @@
 
 #define ALTERA_SPI_MAX_CS		32
 
+enum altera_spi_type {
+	ALTERA_SPI_TYPE_UNKNOWN,
+	ALTERA_SPI_TYPE_SUBDEV,
+};
+
 struct altera_spi {
 	int irq;
 	int len;
@@ -55,6 +60,7 @@ struct altera_spi {
 	unsigned char *rx;
 
 	struct regmap *regmap;
+	u32 regoff;
 	struct device *dev;
 };
 
@@ -70,7 +76,7 @@ static int altr_spi_writel(struct altera_spi *hw, unsigned int reg,
 {
 	int ret;
 
-	ret = regmap_write(hw->regmap, reg, val);
+	ret = regmap_write(hw->regmap, hw->regoff + reg, val);
 	if (ret)
 		dev_err(hw->dev, "fail to write reg 0x%x val 0x%x: %d\n",
 			reg, val, ret);
@@ -83,7 +89,7 @@ static int altr_spi_readl(struct altera_spi *hw, unsigned int reg,
 {
 	int ret;
 
-	ret = regmap_read(hw->regmap, reg, val);
+	ret = regmap_read(hw->regmap, hw->regoff + reg, val);
 	if (ret)
 		dev_err(hw->dev, "fail to read reg 0x%x: %d\n", reg, ret);
 
@@ -225,10 +231,11 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 
 static int altera_spi_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
 	struct altera_spi_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	enum altera_spi_type type = ALTERA_SPI_TYPE_UNKNOWN;
 	struct altera_spi *hw;
 	struct spi_master *master;
-	void __iomem *res;
 	int err = -ENODEV;
 	u32 val;
 	u16 i;
@@ -264,19 +271,38 @@ static int altera_spi_probe(struct platform_device *pdev)
 	hw = spi_master_get_devdata(master);
 	hw->dev = &pdev->dev;
 
-	/* find and map our resources */
-	res = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(res)) {
-		err = PTR_ERR(res);
-		goto exit;
-	}
+	if (platid)
+		type = platid->driver_data;
 
-	hw->regmap = devm_regmap_init_mmio(&pdev->dev, res,
-					   &spi_altera_config);
-	if (IS_ERR(hw->regmap)) {
-		dev_err(&pdev->dev, "regmap mmio init failed\n");
-		err = PTR_ERR(hw->regmap);
-		goto exit;
+	/* find and map our resources */
+	if (type == ALTERA_SPI_TYPE_SUBDEV) {
+		struct resource *regoff;
+
+		hw->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+		if (!hw->regmap) {
+			dev_err(&pdev->dev, "get regmap failed\n");
+			goto exit;
+		}
+
+		regoff = platform_get_resource(pdev, IORESOURCE_REG, 0);
+		if (regoff)
+			hw->regoff = regoff->start;
+	} else {
+		void __iomem *res;
+
+		res = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(res)) {
+			err = PTR_ERR(res);
+			goto exit;
+		}
+
+		hw->regmap = devm_regmap_init_mmio(&pdev->dev, res,
+						   &spi_altera_config);
+		if (IS_ERR(hw->regmap)) {
+			dev_err(&pdev->dev, "regmap mmio init failed\n");
+			err = PTR_ERR(hw->regmap);
+			goto exit;
+		}
 	}
 
 	/* program defaults into the registers */
@@ -308,7 +334,7 @@ static int altera_spi_probe(struct platform_device *pdev)
 		}
 	}
 
-	dev_info(&pdev->dev, "base %p, irq %d\n", res, hw->irq);
+	dev_info(&pdev->dev, "regoff %u, irq %d\n", hw->regoff, hw->irq);
 
 	return 0;
 exit:
@@ -325,6 +351,11 @@ static const struct of_device_id altera_spi_match[] = {
 MODULE_DEVICE_TABLE(of, altera_spi_match);
 #endif /* CONFIG_OF */
 
+static const struct platform_device_id altera_spi_ids[] = {
+	{ "subdev_spi_altera", ALTERA_SPI_TYPE_SUBDEV },
+	{ }
+};
+
 static struct platform_driver altera_spi_driver = {
 	.probe = altera_spi_probe,
 	.driver = {
@@ -332,6 +363,7 @@ static struct platform_driver altera_spi_driver = {
 		.pm = NULL,
 		.of_match_table = of_match_ptr(altera_spi_match),
 	},
+	.id_table	= altera_spi_ids,
 };
 module_platform_driver(altera_spi_driver);
 
