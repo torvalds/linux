@@ -26,7 +26,7 @@ do { \
 		YYABORT; \
 } while (0)
 
-static struct list_head* alloc_list()
+static struct list_head* alloc_list(void)
 {
 	struct list_head *list;
 
@@ -349,7 +349,7 @@ PE_PMU_EVENT_PRE '-' PE_PMU_EVENT_SUF sep_dc
 	struct list_head *list;
 	char pmu_name[128];
 
-	snprintf(&pmu_name, 128, "%s-%s", $1, $3);
+	snprintf(pmu_name, sizeof(pmu_name), "%s-%s", $1, $3);
 	free($1);
 	free($3);
 	if (parse_events_multi_pmu_add(_parse_state, pmu_name, &list) < 0)
