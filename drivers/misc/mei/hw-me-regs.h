@@ -94,6 +94,7 @@
 #define MEI_DEV_ID_JSP_N      0x4DE0  /* Jasper Lake Point N */
 
 #define MEI_DEV_ID_TGP_LP     0xA0E0  /* Tiger Lake Point LP */
+#define MEI_DEV_ID_TGP_H      0x43E0  /* Tiger Lake Point H */
 
 #define MEI_DEV_ID_MCC        0x4B70  /* Mule Creek Canyon (EHL) */
 #define MEI_DEV_ID_MCC_4      0x4B75  /* Mule Creek Canyon 4 (EHL) */

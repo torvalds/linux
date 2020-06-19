@@ -1526,6 +1526,15 @@ static const struct mei_cfg mei_me_pch15_cfg = {
 	MEI_CFG_TRC,
 };
 
+/* Tiger Lake with quirk for SPS 5.0 and newer Firmware exclusion */
+static const struct mei_cfg mei_me_pch15_sps_cfg = {
+	MEI_CFG_PCH8_HFS,
+	MEI_CFG_FW_VER_SUPP,
+	MEI_CFG_DMA_128,
+	MEI_CFG_TRC,
+	MEI_CFG_FW_SPS,
+};
+
 /*
  * mei_cfg_list - A list of platform platform specific configurations.
  * Note: has to be synchronized with  enum mei_cfg_idx.
@@ -1544,6 +1553,7 @@ static const struct mei_cfg *const mei_cfg_list[] = {
 	[MEI_ME_PCH12_SPS_CFG] = &mei_me_pch12_sps_cfg,
 	[MEI_ME_PCH12_SPS_NODMA_CFG] = &mei_me_pch12_nodma_sps_cfg,
 	[MEI_ME_PCH15_CFG] = &mei_me_pch15_cfg,
+	[MEI_ME_PCH15_SPS_CFG] = &mei_me_pch15_sps_cfg,
 };
 
 const struct mei_cfg *mei_me_get_cfg(kernel_ulong_t idx)
