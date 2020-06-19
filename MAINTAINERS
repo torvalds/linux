@@ -17390,7 +17390,7 @@ F:	Documentation/admin-guide/ufs.rst
 F:	fs/ufs/
 
 UHID USERSPACE HID IO DRIVER
-M:	David Herrmann <dh.herrmann@googlemail.com>
+M:	David Rheinsberg <david.rheinsberg@gmail.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/uhid.c
@@ -18334,7 +18334,7 @@ S:	Maintained
 F:	drivers/rtc/rtc-sd3078.c
 
 WIIMOTE HID DRIVER
-M:	David Herrmann <dh.herrmann@googlemail.com>
+M:	David Rheinsberg <david.rheinsberg@gmail.com>
 L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-wiimote*
