@@ -183,6 +183,19 @@ static struct vrf_map *netns_vrf_map_by_dev(struct net_device *dev)
 	return netns_vrf_map(dev_net(dev));
 }
 
+static int vrf_map_elem_get_vrf_ifindex(struct vrf_map_elem *me)
+{
+	struct list_head *me_head = &me->vrf_list;
+	struct net_vrf *vrf;
+
+	if (list_empty(me_head))
+		return -ENODEV;
+
+	vrf = list_first_entry(me_head, struct net_vrf, me_list);
+
+	return vrf->ifindex;
+}
+
 static struct vrf_map_elem *vrf_map_elem_alloc(gfp_t flags)
 {
 	struct vrf_map_elem *me;
@@ -382,6 +395,34 @@ static void vrf_map_unregister_dev(struct net_device *dev)
 
 unlock:
 	vrf_map_unlock(vmap);
+}
+
+/* return the vrf device index associated with the table_id */
+static int vrf_ifindex_lookup_by_table_id(struct net *net, u32 table_id)
+{
+	struct vrf_map *vmap = netns_vrf_map(net);
+	struct vrf_map_elem *me;
+	int ifindex;
+
+	vrf_map_lock(vmap);
+
+	if (!vmap->strict_mode) {
+		ifindex = -EPERM;
+		goto unlock;
+	}
+
+	me = vrf_map_lookup_elem(vmap, table_id);
+	if (!me) {
+		ifindex = -ENODEV;
+		goto unlock;
+	}
+
+	ifindex = vrf_map_elem_get_vrf_ifindex(me);
+
+unlock:
+	vrf_map_unlock(vmap);
+
+	return ifindex;
 }
 
 /* by default VRF devices do not have a qdisc and are expected
@@ -1847,13 +1888,23 @@ static int __init vrf_init_module(void)
 	if (rc < 0)
 		goto error;
 
+	rc = l3mdev_table_lookup_register(L3MDEV_TYPE_VRF,
+					  vrf_ifindex_lookup_by_table_id);
+	if (rc < 0)
+		goto unreg_pernet;
+
 	rc = rtnl_link_register(&vrf_link_ops);
-	if (rc < 0) {
-		unregister_pernet_subsys(&vrf_net_ops);
-		goto error;
-	}
+	if (rc < 0)
+		goto table_lookup_unreg;
 
 	return 0;
+
+table_lookup_unreg:
+	l3mdev_table_lookup_unregister(L3MDEV_TYPE_VRF,
+				       vrf_ifindex_lookup_by_table_id);
+
+unreg_pernet:
+	unregister_pernet_subsys(&vrf_net_ops);
 
 error:
 	unregister_netdevice_notifier(&vrf_notifier_block);
