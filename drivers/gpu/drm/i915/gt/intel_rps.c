@@ -51,10 +51,11 @@ static void rps_timer(struct timer_list *t)
 {
 	struct intel_rps *rps = from_timer(rps, t, timer);
 	struct intel_engine_cs *engine;
+	ktime_t dt, last, timestamp;
 	enum intel_engine_id id;
 	s64 max_busy[3] = {};
-	ktime_t dt, timestamp, last;
 
+	timestamp = 0;
 	for_each_engine(engine, rps_to_gt(rps), id) {
 		s64 busy;
 		int i;
@@ -69,7 +70,6 @@ static void rps_timer(struct timer_list *t)
 				swap(busy, max_busy[i]);
 		}
 	}
-
 	last = rps->pm_timestamp;
 	rps->pm_timestamp = timestamp;
 
