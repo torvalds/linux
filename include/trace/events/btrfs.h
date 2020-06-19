@@ -78,6 +78,11 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	EM( BTRFS_FILE_EXTENT_REG,		"REG")			\
 	EMe(BTRFS_FILE_EXTENT_PREALLOC,		"PREALLOC")
 
+#define QGROUP_RSV_TYPES						\
+	EM( BTRFS_QGROUP_RSV_DATA,		"DATA")			\
+	EM( BTRFS_QGROUP_RSV_META_PERTRANS,	"META_PERTRANS")	\
+	EMe(BTRFS_QGROUP_RSV_META_PREALLOC,	"META_PREALLOC")
+
 /*
  * First define the enums in the above macros to be exported to userspace via
  * TRACE_DEFINE_ENUM().
@@ -90,6 +95,7 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 
 FLUSH_ACTIONS
 FI_TYPES
+QGROUP_RSV_TYPES
 
 /*
  * Now redefine the EM and EMe macros to map the enums to the strings that will
@@ -100,12 +106,6 @@ FI_TYPES
 #undef EMe
 #define EM(a, b)        {a, b},
 #define EMe(a, b)       {a, b}
-
-#define show_qgroup_rsv_type(type)					\
-	__print_symbolic(type,						\
-		{ BTRFS_QGROUP_RSV_DATA,	  "DATA"	},	\
-		{ BTRFS_QGROUP_RSV_META_PERTRANS, "META_PERTRANS" },	\
-		{ BTRFS_QGROUP_RSV_META_PREALLOC, "META_PREALLOC" })
 
 #define show_extent_io_tree_owner(owner)				       \
 	__print_symbolic(owner,						       \
@@ -1712,7 +1712,7 @@ TRACE_EVENT(qgroup_update_reserve,
 	),
 
 	TP_printk_btrfs("qgid=%llu type=%s cur_reserved=%llu diff=%lld",
-		__entry->qgid, show_qgroup_rsv_type(__entry->type),
+		__entry->qgid, __print_symbolic(__entry->type, QGROUP_RSV_TYPES),
 		__entry->cur_reserved, __entry->diff)
 );
 
@@ -1736,7 +1736,7 @@ TRACE_EVENT(qgroup_meta_reserve,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(__entry->type), __entry->diff)
+		__print_symbolic(__entry->type, QGROUP_RSV_TYPES), __entry->diff)
 );
 
 TRACE_EVENT(qgroup_meta_convert,
@@ -1757,8 +1757,8 @@ TRACE_EVENT(qgroup_meta_convert,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s->%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PREALLOC),
-		show_qgroup_rsv_type(BTRFS_QGROUP_RSV_META_PERTRANS),
+		__print_symbolic(BTRFS_QGROUP_RSV_META_PREALLOC, QGROUP_RSV_TYPES),
+		__print_symbolic(BTRFS_QGROUP_RSV_META_PERTRANS, QGROUP_RSV_TYPES),
 		__entry->diff)
 );
 
@@ -1784,7 +1784,7 @@ TRACE_EVENT(qgroup_meta_free_all_pertrans,
 
 	TP_printk_btrfs("refroot=%llu(%s) type=%s diff=%lld",
 		show_root_type(__entry->refroot),
-		show_qgroup_rsv_type(__entry->type), __entry->diff)
+		__print_symbolic(__entry->type, QGROUP_RSV_TYPES), __entry->diff)
 );
 
 DECLARE_EVENT_CLASS(btrfs__prelim_ref,
