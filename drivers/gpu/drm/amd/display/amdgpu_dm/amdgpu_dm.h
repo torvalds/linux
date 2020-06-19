@@ -346,6 +346,7 @@ struct dsc_preferred_settings {
 	bool dsc_clock_en;
 	uint32_t dsc_slice_width;
 	uint32_t dsc_slice_height;
+	uint32_t dsc_bits_per_pixel;
 };
 
 struct amdgpu_dm_connector {
