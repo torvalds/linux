@@ -425,6 +425,11 @@ void cxgb4_process_flow_actions(struct net_device *in,
 			process_pedit_field(fs, val, mask, offset, htype);
 			}
 			break;
+		case FLOW_ACTION_QUEUE:
+			fs->action = FILTER_PASS;
+			fs->dirsteer = 1;
+			fs->iq = act->queue.index;
+			break;
 		default:
 			break;
 		}
@@ -608,6 +613,9 @@ int cxgb4_validate_flow_actions(struct net_device *dev,
 				return -EOPNOTSUPP;
 			act_pedit = true;
 			}
+			break;
+		case FLOW_ACTION_QUEUE:
+			/* Do nothing. cxgb4_set_filter will validate */
 			break;
 		default:
 			netdev_err(dev, "%s: Unsupported action\n", __func__);
