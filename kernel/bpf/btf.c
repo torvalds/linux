@@ -3571,6 +3571,41 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, struct btf *btf,
 	return ctx_type;
 }
 
+static const struct bpf_map_ops * const btf_vmlinux_map_ops[] = {
+#define BPF_PROG_TYPE(_id, _name, prog_ctx_type, kern_ctx_type)
+#define BPF_LINK_TYPE(_id, _name)
+#define BPF_MAP_TYPE(_id, _ops) \
+	[_id] = &_ops,
+#include <linux/bpf_types.h>
+#undef BPF_PROG_TYPE
+#undef BPF_LINK_TYPE
+#undef BPF_MAP_TYPE
+};
+
+static int btf_vmlinux_map_ids_init(const struct btf *btf,
+				    struct bpf_verifier_log *log)
+{
+	const struct bpf_map_ops *ops;
+	int i, btf_id;
+
+	for (i = 0; i < ARRAY_SIZE(btf_vmlinux_map_ops); ++i) {
+		ops = btf_vmlinux_map_ops[i];
+		if (!ops || (!ops->map_btf_name && !ops->map_btf_id))
+			continue;
+		if (!ops->map_btf_name || !ops->map_btf_id) {
+			bpf_log(log, "map type %d is misconfigured\n", i);
+			return -EINVAL;
+		}
+		btf_id = btf_find_by_name_kind(btf, ops->map_btf_name,
+					       BTF_KIND_STRUCT);
+		if (btf_id < 0)
+			return btf_id;
+		*ops->map_btf_id = btf_id;
+	}
+
+	return 0;
+}
+
 static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
 				     struct btf *btf,
 				     const struct btf_type *t,
@@ -3632,6 +3667,11 @@ struct btf *btf_parse_vmlinux(void)
 	}
 	/* btf_parse_vmlinux() runs under bpf_verifier_lock */
 	bpf_ctx_convert.t = btf_type_by_id(btf, btf_id);
+
+	/* find bpf map structs for map_ptr access checking */
+	err = btf_vmlinux_map_ids_init(btf, log);
+	if (err < 0)
+		goto errout;
 
 	bpf_struct_ops_init(btf, log);
 
