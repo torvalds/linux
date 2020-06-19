@@ -92,24 +92,26 @@ wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 	return true;
 }
 
-void
+int
 wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 8))) {
-		evo_mthd(push, 0x02ec, 7);
-		evo_data(push, asyw->blend.depth << 4);
-		evo_data(push, asyw->blend.k1);
-		evo_data(push, asyw->blend.dst_color << 12 |
-			       asyw->blend.dst_color << 8 |
-			       asyw->blend.src_color << 4 |
-			       asyw->blend.src_color);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_data(push, 0xffff0000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 8)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37E, 0x02ec, asyw->blend.depth << 4,
+				0x02f0, asyw->blend.k1,
+				0x02f4, asyw->blend.dst_color << 12 |
+					asyw->blend.dst_color << 8 |
+					asyw->blend.src_color << 4 |
+					asyw->blend.src_color,
+				0x02f8, 0xffff0000,
+				0x02fc, 0xffff0000,
+				0x0300, 0xffff0000,
+				0x0304, 0xffff0000);
+	return 0;
 }
 
 int
