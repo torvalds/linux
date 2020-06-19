@@ -475,8 +475,7 @@ bool sja1105_gating_check_conflicts(struct sja1105_private *priv, int port,
 	if (list_empty(&gating_cfg->entries))
 		return false;
 
-	dummy = kzalloc(sizeof(struct tc_taprio_sched_entry) * num_entries +
-			sizeof(struct tc_taprio_qopt_offload), GFP_KERNEL);
+	dummy = kzalloc(struct_size(dummy, entries, num_entries), GFP_KERNEL);
 	if (!dummy) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to allocate memory");
 		return true;
