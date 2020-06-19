@@ -11,6 +11,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/sys_soc.h>
 
 #include "cqhci.h"
 #include "sdhci-pltfm.h"
@@ -324,10 +325,15 @@ static const struct sdhci_pltfm_data sdhci_am654_pdata = {
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
 
-static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
+static const struct sdhci_am654_driver_data sdhci_am654_sr1_drvdata = {
 	.pdata = &sdhci_am654_pdata,
 	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT |
 		 DLL_CALIB,
+};
+
+static const struct sdhci_am654_driver_data sdhci_am654_drvdata = {
+	.pdata = &sdhci_am654_pdata,
+	.flags = IOMUX_PRESENT | FREQSEL_2_BIT | STRBSEL_4_BIT | DLL_PRESENT,
 };
 
 static struct sdhci_ops sdhci_j721e_8bit_ops = {
@@ -374,6 +380,14 @@ static const struct sdhci_pltfm_data sdhci_j721e_4bit_pdata = {
 static const struct sdhci_am654_driver_data sdhci_j721e_4bit_drvdata = {
 	.pdata = &sdhci_j721e_4bit_pdata,
 	.flags = IOMUX_PRESENT,
+};
+
+static const struct soc_device_attribute sdhci_am654_devices[] = {
+	{ .family = "AM65X",
+	  .revision = "SR1.0",
+	  .data = &sdhci_am654_sr1_drvdata
+	},
+	{/* sentinel */}
 };
 
 static void sdhci_am654_dumpregs(struct mmc_host *mmc)
@@ -587,6 +601,7 @@ static const struct of_device_id sdhci_am654_of_match[] = {
 static int sdhci_am654_probe(struct platform_device *pdev)
 {
 	const struct sdhci_am654_driver_data *drvdata;
+	const struct soc_device_attribute *soc;
 	struct sdhci_pltfm_host *pltfm_host;
 	struct sdhci_am654_data *sdhci_am654;
 	const struct of_device_id *match;
@@ -598,6 +613,12 @@ static int sdhci_am654_probe(struct platform_device *pdev)
 
 	match = of_match_node(sdhci_am654_of_match, pdev->dev.of_node);
 	drvdata = match->data;
+
+	/* Update drvdata based on SoC revision */
+	soc = soc_device_match(sdhci_am654_devices);
+	if (soc && soc->data)
+		drvdata = soc->data;
+
 	host = sdhci_pltfm_init(pdev, drvdata->pdata, sizeof(*sdhci_am654));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
