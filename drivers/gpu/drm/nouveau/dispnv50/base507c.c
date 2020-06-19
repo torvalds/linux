@@ -153,15 +153,17 @@ base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
 	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
 }
 
-void
+int
 base507c_sema_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0094, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507C, 0x0094, 0x00000000);
+	return 0;
 }
 
 int
