@@ -61,26 +61,22 @@ wndwc57e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	evo_kick(push, &wndw->wndw);
 }
 
-static void
+static int
 wndwc57e_csc_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		 evo_mthd(push, 0x0400, 12);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00000000);
-		 evo_data(push, 0x00010000);
-		 evo_data(push, 0x00000000);
-		 evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	const u32 identity[12] = {
+		0x00010000, 0x00000000, 0x00000000, 0x00000000,
+		0x00000000, 0x00010000, 0x00000000, 0x00000000,
+		0x00000000, 0x00000000, 0x00010000, 0x00000000,
+	};
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 1 + ARRAY_SIZE(identity))))
+		return ret;
+
+	PUSH_NVSQ(push, NVC57E, 0x0400, identity, ARRAY_SIZE(identity));
+	return 0;
 }
 
 static int

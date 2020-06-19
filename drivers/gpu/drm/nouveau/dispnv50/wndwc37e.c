@@ -29,9 +29,10 @@
 #include <nvif/clc37e.h>
 #include <nvif/pushc37b.h>
 
-static void
+static int
 wndwc37e_csc_clr(struct nv50_wndw *wndw)
 {
+	return 0;
 }
 
 static int

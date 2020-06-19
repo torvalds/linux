@@ -127,15 +127,17 @@ base907c_csc(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 	}
 }
 
-static void
+static int
 base907c_csc_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 2))) {
-		evo_mthd(push, 0x0140, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907C, 0x0140, 0x00000000);
+	return 0;
 }
 
 static int
