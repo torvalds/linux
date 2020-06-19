@@ -1059,14 +1059,13 @@ err:
 	return err;
 }
 
-void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
-			     bool drop, bool hw)
+void tcf_action_update_stats(struct tc_action *a, u64 bytes, u64 packets,
+			     u64 drops, bool hw)
 {
 	if (a->cpu_bstats) {
 		_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats), bytes, packets);
 
-		if (drop)
-			this_cpu_ptr(a->cpu_qstats)->drops += packets;
+		this_cpu_ptr(a->cpu_qstats)->drops += drops;
 
 		if (hw)
 			_bstats_cpu_update(this_cpu_ptr(a->cpu_bstats_hw),
@@ -1075,8 +1074,7 @@ void tcf_action_update_stats(struct tc_action *a, u64 bytes, u32 packets,
 	}
 
 	_bstats_update(&a->tcfa_bstats, bytes, packets);
-	if (drop)
-		a->tcfa_qstats.drops += packets;
+	a->tcfa_qstats.drops += drops;
 	if (hw)
 		_bstats_update(&a->tcfa_bstats_hw, bytes, packets);
 }

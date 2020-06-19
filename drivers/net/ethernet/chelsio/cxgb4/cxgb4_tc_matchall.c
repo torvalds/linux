@@ -346,7 +346,7 @@ int cxgb4_tc_matchall_stats(struct net_device *dev,
 		flow_stats_update(&cls_matchall->stats,
 				  bytes - tc_port_matchall->ingress.bytes,
 				  packets - tc_port_matchall->ingress.packets,
-				  tc_port_matchall->ingress.last_used,
+				  0, tc_port_matchall->ingress.last_used,
 				  FLOW_ACTION_HW_STATS_IMMEDIATE);
 
 		tc_port_matchall->ingress.packets = packets;

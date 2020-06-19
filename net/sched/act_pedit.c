@@ -409,13 +409,13 @@ done:
 	return p->tcf_action;
 }
 
-static void tcf_pedit_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-				   u64 lastuse, bool hw)
+static void tcf_pedit_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+				   u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_pedit *d = to_pedit(a);
 	struct tcf_t *tm = &d->tcf_tm;
 
-	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	tm->lastuse = max_t(u64, tm->lastuse, lastuse);
 }
 

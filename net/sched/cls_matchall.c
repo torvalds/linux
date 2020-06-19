@@ -338,7 +338,8 @@ static void mall_stats_hw_filter(struct tcf_proto *tp,
 	tc_setup_cb_call(block, TC_SETUP_CLSMATCHALL, &cls_mall, false, true);
 
 	tcf_exts_stats_update(&head->exts, cls_mall.stats.bytes,
-			      cls_mall.stats.pkts, cls_mall.stats.lastused,
+			      cls_mall.stats.pkts, cls_mall.stats.drops,
+			      cls_mall.stats.lastused,
 			      cls_mall.stats.used_hw_stats,
 			      cls_mall.stats.used_hw_stats_valid);
 }

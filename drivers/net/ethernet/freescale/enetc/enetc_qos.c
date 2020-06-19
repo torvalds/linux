@@ -1291,12 +1291,15 @@ static int enetc_psfp_get_stats(struct enetc_ndev_priv *priv,
 
 	spin_lock(&epsfp.psfp_lock);
 	stats.pkts = counters.matching_frames_count - filter->stats.pkts;
+	stats.drops = counters.not_passing_frames_count -
+					filter->stats.drops;
 	stats.lastused = filter->stats.lastused;
 	filter->stats.pkts += stats.pkts;
+	filter->stats.drops += stats.drops;
 	spin_unlock(&epsfp.psfp_lock);
 
-	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.lastused,
-			  FLOW_ACTION_HW_STATS_DELAYED);
+	flow_stats_update(&f->stats, 0x0, stats.pkts, stats.drops,
+			  stats.lastused, FLOW_ACTION_HW_STATS_DELAYED);
 
 	return 0;
 }

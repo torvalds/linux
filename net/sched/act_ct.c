@@ -1450,12 +1450,12 @@ static int tcf_ct_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
-static void tcf_stats_update(struct tc_action *a, u64 bytes, u32 packets,
-			     u64 lastuse, bool hw)
+static void tcf_stats_update(struct tc_action *a, u64 bytes, u64 packets,
+			     u64 drops, u64 lastuse, bool hw)
 {
 	struct tcf_ct *c = to_ct(a);
 
-	tcf_action_update_stats(a, bytes, packets, false, hw);
+	tcf_action_update_stats(a, bytes, packets, drops, hw);
 	c->tcf_tm.lastuse = max_t(u64, c->tcf_tm.lastuse, lastuse);
 }
 

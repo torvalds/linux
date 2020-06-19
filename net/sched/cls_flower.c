@@ -491,6 +491,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f,
 
 	tcf_exts_stats_update(&f->exts, cls_flower.stats.bytes,
 			      cls_flower.stats.pkts,
+			      cls_flower.stats.drops,
 			      cls_flower.stats.lastused,
 			      cls_flower.stats.used_hw_stats,
 			      cls_flower.stats.used_hw_stats_valid);

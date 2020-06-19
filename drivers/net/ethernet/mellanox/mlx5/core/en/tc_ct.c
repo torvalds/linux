@@ -672,7 +672,7 @@ mlx5_tc_ct_block_flow_offload_stats(struct mlx5_ct_ft *ft,
 		return -ENOENT;
 
 	mlx5_fc_query_cached(entry->counter, &bytes, &packets, &lastuse);
-	flow_stats_update(&f->stats, bytes, packets, lastuse,
+	flow_stats_update(&f->stats, bytes, packets, 0, lastuse,
 			  FLOW_ACTION_HW_STATS_DELAYED);
 
 	return 0;
