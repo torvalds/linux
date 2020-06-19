@@ -112,17 +112,18 @@ wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	}
 }
 
-void
+int
 wndwc37e_image_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0308, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0240, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37E, 0x0308, 0x00000000);
+	PUSH_NVSQ(push, NVC37E, 0x0240, 0x00000000);
+	return 0;
 }
 
 static int

@@ -56,7 +56,7 @@ ovly907e = {
 	.ntfy_reset = ovly827e_ntfy_reset,
 	.ntfy_wait_begun = ovly827e_ntfy_wait_begun,
 	.image_set = ovly907e_image_set,
-	.image_clr = ovly507e_image_clr,
+	.image_clr = base507c_image_clr,
 	.scale_set = ovly507e_scale_set,
 	.update = ovly507e_update,
 };

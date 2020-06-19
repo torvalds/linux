@@ -75,7 +75,7 @@ struct nv50_wndw_func {
 	int (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*xlut_clr)(struct nv50_wndw *);
 	int (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
-	void (*image_clr)(struct nv50_wndw *);
+	int (*image_clr)(struct nv50_wndw *);
 	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
@@ -88,6 +88,7 @@ void base507c_ntfy_reset(struct nouveau_bo *, u32);
 int base507c_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int base507c_ntfy_clr(struct nv50_wndw *);
 int base507c_ntfy_wait_begun(struct nouveau_bo *, u32, struct nvif_device *);
+int base507c_image_clr(struct nv50_wndw *);
 
 void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
 		  const struct drm_color_ctm *);
@@ -121,7 +122,7 @@ int wndwc37e_sema_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int wndwc37e_sema_clr(struct nv50_wndw *);
 int wndwc37e_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int wndwc37e_ntfy_clr(struct nv50_wndw *);
-void wndwc37e_image_clr(struct nv50_wndw *);
+int wndwc37e_image_clr(struct nv50_wndw *);
 void wndwc37e_blend_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void wndwc37e_update(struct nv50_wndw *, u32 *);
 

@@ -43,17 +43,18 @@ base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 	}
 }
 
-void
+int
 base507c_image_clr(struct nv50_wndw *wndw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x00c0, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507C, 0x0084, 0x00000000);
+	PUSH_NVSQ(push, NV507C, 0x00c0, 0x00000000);
+	return 0;
 }
 
 static int
