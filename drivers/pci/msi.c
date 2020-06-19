@@ -1536,7 +1536,7 @@ u32 pci_msi_domain_get_msi_rid(struct irq_domain *domain, struct pci_dev *pdev)
 
 	of_node = irq_domain_get_of_node(domain);
 	rid = of_node ? of_msi_map_rid(&pdev->dev, of_node, rid) :
-			iort_msi_map_rid(&pdev->dev, rid);
+			iort_msi_map_id(&pdev->dev, rid);
 
 	return rid;
 }
