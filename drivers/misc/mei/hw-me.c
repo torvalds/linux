@@ -1353,7 +1353,7 @@ static const struct mei_hw_ops mei_me_hw_ops = {
 	.read = mei_me_read_slots
 };
 
-static bool mei_me_fw_type_nm(struct pci_dev *pdev)
+static bool mei_me_fw_type_nm(const struct pci_dev *pdev)
 {
 	u32 reg;
 
@@ -1366,7 +1366,7 @@ static bool mei_me_fw_type_nm(struct pci_dev *pdev)
 #define MEI_CFG_FW_NM                           \
 	.quirk_probe = mei_me_fw_type_nm
 
-static bool mei_me_fw_type_sps_4(struct pci_dev *pdev)
+static bool mei_me_fw_type_sps_4(const struct pci_dev *pdev)
 {
 	u32 reg;
 	unsigned int devfn;
@@ -1395,7 +1395,7 @@ static bool mei_me_fw_type_sps_4(struct pci_dev *pdev)
  *
  * Return: true in case of SPS firmware
  */
-static bool mei_me_fw_type_sps(struct pci_dev *pdev)
+static bool mei_me_fw_type_sps(const struct pci_dev *pdev)
 {
 	u32 reg;
 	u32 fw_type;

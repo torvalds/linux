@@ -25,7 +25,7 @@
  */
 struct mei_cfg {
 	const struct mei_fw_status fw_status;
-	bool (*quirk_probe)(struct pci_dev *pdev);
+	bool (*quirk_probe)(const struct pci_dev *pdev);
 	size_t dma_size[DMA_DSCR_NUM];
 	u32 fw_ver_supported:1;
 	u32 hw_trc_supported:1;
