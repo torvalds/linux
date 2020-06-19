@@ -450,6 +450,11 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 					struct netlink_ext_ack *extack);
 int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink,
 					enum devlink_eswitch_encap_mode *encap);
+int mlx5_devlink_port_function_hw_addr_get(struct devlink *devlink,
+					   struct devlink_port *port,
+					   u8 *hw_addr, int *hw_addr_len,
+					   struct netlink_ext_ack *extack);
+
 void *mlx5_eswitch_get_uplink_priv(struct mlx5_eswitch *esw, u8 rep_type);
 
 int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
@@ -570,6 +575,12 @@ mlx5_esw_vport_to_devlink_port_index(const struct mlx5_core_dev *dev,
 				     u16 vport_num)
 {
 	return (MLX5_CAP_GEN(dev, vhca_id) << 16) | vport_num;
+}
+
+static inline u16
+mlx5_esw_devlink_port_index_to_vport_num(unsigned int dl_port_index)
+{
+	return dl_port_index & 0xffff;
 }
 
 /* TODO: This mlx5e_tc function shouldn't be called by eswitch */
