@@ -529,8 +529,6 @@ enum rtl_rx_desc_bit {
 	RxVlanTag	= (1 << 16), /* VLAN tag available */
 };
 
-#define RsvdMask	0x3fffc000
-
 #define RTL_GSO_MAX_SIZE_V1	32000
 #define RTL_GSO_MAX_SEGS_V1	24
 #define RTL_GSO_MAX_SIZE_V2	64000
@@ -1733,16 +1731,16 @@ struct rtl_coalesce_info {
 #define COALESCE_DELAY(d) { (d), 8 * (d), 16 * (d), 32 * (d) }
 
 static const struct rtl_coalesce_info rtl_coalesce_info_8169[] = {
-	{ SPEED_10,	COALESCE_DELAY(40960) },
-	{ SPEED_100,	COALESCE_DELAY(2560) },
 	{ SPEED_1000,	COALESCE_DELAY(320) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_10,	COALESCE_DELAY(40960) },
 	{ 0 },
 };
 
 static const struct rtl_coalesce_info rtl_coalesce_info_8168_8136[] = {
-	{ SPEED_10,	COALESCE_DELAY(40960) },
-	{ SPEED_100,	COALESCE_DELAY(2560) },
 	{ SPEED_1000,	COALESCE_DELAY(5000) },
+	{ SPEED_100,	COALESCE_DELAY(2560) },
+	{ SPEED_10,	COALESCE_DELAY(40960) },
 	{ 0 },
 };
 #undef COALESCE_DELAY
@@ -1757,6 +1755,10 @@ rtl_coalesce_info(struct rtl8169_private *tp)
 		ci = rtl_coalesce_info_8169;
 	else
 		ci = rtl_coalesce_info_8168_8136;
+
+	/* if speed is unknown assume highest one */
+	if (tp->phydev->speed == SPEED_UNKNOWN)
+		return ci;
 
 	for (; ci->speed; ci++) {
 		if (tp->phydev->speed == ci->speed)
@@ -2294,10 +2296,14 @@ static void rtl_pll_power_down(struct rtl8169_private *tp)
 	default:
 		break;
 	}
+
+	clk_disable_unprepare(tp->clk);
 }
 
 static void rtl_pll_power_up(struct rtl8169_private *tp)
 {
+	clk_prepare_enable(tp->clk);
+
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25 ... RTL_GIGA_MAC_VER_33:
 	case RTL_GIGA_MAC_VER_37:
@@ -3928,10 +3934,12 @@ static void rtl8169_tx_clear(struct rtl8169_private *tp)
 	netdev_reset_queue(tp->dev);
 }
 
-static void rtl8169_hw_reset(struct rtl8169_private *tp, bool going_down)
+static void rtl8169_cleanup(struct rtl8169_private *tp, bool going_down)
 {
+	napi_disable(&tp->napi);
+
 	/* Give a racing hard_start_xmit a few cycles to complete. */
-	synchronize_rcu();
+	synchronize_net();
 
 	/* Disable interrupts */
 	rtl8169_irq_mask_and_ack(tp);
@@ -3972,10 +3980,9 @@ static void rtl_reset_work(struct rtl8169_private *tp)
 	struct net_device *dev = tp->dev;
 	int i;
 
-	napi_disable(&tp->napi);
 	netif_stop_queue(dev);
 
-	rtl8169_hw_reset(tp, false);
+	rtl8169_cleanup(tp, false);
 
 	for (i = 0; i < NUM_RX_DESC; i++)
 		rtl8169_mark_to_asic(tp->RxDescArray + i);
@@ -4638,9 +4645,10 @@ static void rtl8169_down(struct rtl8169_private *tp)
 	bitmap_zero(tp->wk.flags, RTL_FLAG_MAX);
 
 	phy_stop(tp->phydev);
-	napi_disable(&tp->napi);
 
-	rtl8169_hw_reset(tp, true);
+	rtl8169_update_counters(tp);
+
+	rtl8169_cleanup(tp, true);
 
 	rtl_pll_power_down(tp);
 
@@ -4653,9 +4661,6 @@ static int rtl8169_close(struct net_device *dev)
 	struct pci_dev *pdev = tp->pci_dev;
 
 	pm_runtime_get_sync(&pdev->dev);
-
-	/* Update counters before going down */
-	rtl8169_update_counters(tp);
 
 	netif_stop_queue(dev);
 	rtl8169_down(tp);
@@ -4829,7 +4834,6 @@ static int __maybe_unused rtl8169_suspend(struct device *device)
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	rtl8169_net_suspend(tp);
-	clk_disable_unprepare(tp->clk);
 
 	return 0;
 }
@@ -4856,8 +4860,6 @@ static int __maybe_unused rtl8169_resume(struct device *device)
 
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
-	clk_prepare_enable(tp->clk);
-
 	if (netif_running(tp->dev))
 		__rtl8169_resume(tp);
 
@@ -4877,9 +4879,6 @@ static int rtl8169_runtime_suspend(struct device *device)
 
 	rtl8169_net_suspend(tp);
 
-	/* Update counters before going runtime suspend */
-	rtl8169_update_counters(tp);
-
 	return 0;
 }
 
@@ -4889,14 +4888,12 @@ static int rtl8169_runtime_resume(struct device *device)
 
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
-	if (!tp->TxDescArray)
-		return 0;
-
 	rtl_lock_work(tp);
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 	rtl_unlock_work(tp);
 
-	__rtl8169_resume(tp);
+	if (tp->TxDescArray)
+		__rtl8169_resume(tp);
 
 	return 0;
 }
@@ -5432,8 +5429,10 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			    jumbo_max, tp->mac_version <= RTL_GIGA_MAC_VER_06 ?
 			    "ok" : "ko");
 
-	if (r8168_check_dash(tp))
+	if (r8168_check_dash(tp)) {
+		netdev_info(dev, "DASH enabled\n");
 		rtl8168_driver_start(tp);
+	}
 
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_put_sync(&pdev->dev);
