@@ -1950,7 +1950,7 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 						    unsigned int idx, bool idle)
 {
 	struct dm_zone *dzone = NULL;
-	struct dm_zone *zone, *last = NULL;
+	struct dm_zone *zone, *maxw_z = NULL;
 	struct list_head *zone_list;
 
 	/* If we have cache zones select from the cache zone list */
@@ -1962,18 +1962,37 @@ static struct dm_zone *dmz_get_rnd_zone_for_reclaim(struct dmz_metadata *zmd,
 	} else
 		zone_list = &zmd->dev[idx].map_rnd_list;
 
+	/*
+	 * Find the buffer zone with the heaviest weight or the first (oldest)
+	 * data zone that can be reclaimed.
+	 */
 	list_for_each_entry(zone, zone_list, link) {
 		if (dmz_is_buf(zone)) {
 			dzone = zone->bzone;
-			if (dzone->dev->dev_idx != idx)
+			if (dmz_is_rnd(dzone) && dzone->dev->dev_idx != idx)
 				continue;
-			if (!last) {
-				last = dzone;
+			if (!maxw_z || maxw_z->weight < dzone->weight)
+				maxw_z = dzone;
+		} else {
+			dzone = zone;
+			if (dmz_lock_zone_reclaim(dzone))
+				return dzone;
+		}
+	}
+
+	if (maxw_z && dmz_lock_zone_reclaim(maxw_z))
+		return maxw_z;
+
+	/*
+	 * If we come here, none of the zones inspected could be locked for
+	 * reclaim. Try again, being more aggressive, that is, find the
+	 * first zone that can be reclaimed regardless of its weitght.
+	 */
+	list_for_each_entry(zone, zone_list, link) {
+		if (dmz_is_buf(zone)) {
+			dzone = zone->bzone;
+			if (dmz_is_rnd(dzone) && dzone->dev->dev_idx != idx)
 				continue;
-			}
-			if (last->weight < dzone->weight)
-				continue;
-			dzone = last;
 		} else
 			dzone = zone;
 		if (dmz_lock_zone_reclaim(dzone))
