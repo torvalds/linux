@@ -1589,10 +1589,104 @@ static struct filter_entry *cxgb4_get_filter_entry(struct adapter *adap,
 	return f;
 }
 
+static void cxgb4_fill_filter_rule(struct ethtool_rx_flow_spec *fs,
+				   struct ch_filter_specification *dfs)
+{
+	switch (dfs->val.proto) {
+	case IPPROTO_TCP:
+		if (dfs->type)
+			fs->flow_type = TCP_V6_FLOW;
+		else
+			fs->flow_type = TCP_V4_FLOW;
+		break;
+	case IPPROTO_UDP:
+		if (dfs->type)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			fs->flow_type = UDP_V4_FLOW;
+		break;
+	}
+
+	if (dfs->type) {
+		fs->h_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6dst));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6dst));
+		fs->h_u.tcp_ip6_spec.tclass = dfs->val.tos;
+		fs->m_u.tcp_ip6_spec.tclass = dfs->mask.tos;
+	} else {
+		fs->h_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4dst));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4dst));
+		fs->h_u.tcp_ip4_spec.tos = dfs->val.tos;
+		fs->m_u.tcp_ip4_spec.tos = dfs->mask.tos;
+	}
+	fs->h_ext.vlan_tci = cpu_to_be16(dfs->val.ivlan);
+	fs->m_ext.vlan_tci = cpu_to_be16(dfs->mask.ivlan);
+	fs->flow_type |= FLOW_EXT;
+
+	if (dfs->action == FILTER_DROP)
+		fs->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fs->ring_cookie = dfs->iq;
+}
+
+static int cxgb4_ntuple_get_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd,
+				   unsigned int loc)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct filter_entry *f;
+	int ftid;
+
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;
+
+	/* Check for maximum filter range */
+	if (!adap->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (loc >= adap->ethtool_filters->nentries)
+		return -ERANGE;
+
+	if (!test_bit(loc, adap->ethtool_filters->port[pi->port_id].bmap))
+		return -ENOENT;
+
+	ftid = adap->ethtool_filters->port[pi->port_id].loc_array[loc];
+
+	/* Fetch filter_entry */
+	f = cxgb4_get_filter_entry(adap, ftid);
+
+	cxgb4_fill_filter_rule(&cmd->fs, &f->fs);
+
+	return 0;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
 	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	unsigned int count = 0, index = 0;
+	int ret = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXFH: {
@@ -1648,7 +1742,23 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = pi->nqsets;
 		return 0;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt =
+		       adap->ethtool_filters->port[pi->port_id].in_use;
+		return 0;
+	case ETHTOOL_GRXCLSRULE:
+		return cxgb4_ntuple_get_filter(dev, info, info->fs.location);
+	case ETHTOOL_GRXCLSRLALL:
+		info->data = adap->ethtool_filters->nentries;
+		while (count < info->rule_cnt) {
+			ret = cxgb4_ntuple_get_filter(dev, info, index);
+			if (!ret)
+				rules[count++] = index;
+			index++;
+		}
+		return 0;
 	}
+
 	return -EOPNOTSUPP;
 }
 
