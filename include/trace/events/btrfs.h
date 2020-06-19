@@ -31,13 +31,6 @@ struct extent_io_tree;
 struct prelim_ref;
 struct btrfs_space_info;
 
-TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS_NR);
-TRACE_DEFINE_ENUM(FLUSH_DELAYED_ITEMS);
-TRACE_DEFINE_ENUM(FLUSH_DELALLOC);
-TRACE_DEFINE_ENUM(FLUSH_DELALLOC_WAIT);
-TRACE_DEFINE_ENUM(ALLOC_CHUNK);
-TRACE_DEFINE_ENUM(COMMIT_TRANS);
-
 #define show_ref_type(type)						\
 	__print_symbolic(type,						\
 		{ BTRFS_TREE_BLOCK_REF_KEY, 	"TREE_BLOCK_REF" },	\
@@ -95,6 +88,18 @@ TRACE_DEFINE_ENUM(COMMIT_TRANS);
 	EM( IO_TREE_LOG_CSUM_RANGE,	  "LOG_CSUM_RANGE")         \
 	EMe(IO_TREE_SELFTEST,		  "SELFTEST")
 
+#define FLUSH_STATES							\
+	EM( FLUSH_DELAYED_ITEMS_NR,	"FLUSH_DELAYED_ITEMS_NR")	\
+	EM( FLUSH_DELAYED_ITEMS,	"FLUSH_DELAYED_ITEMS")		\
+	EM( FLUSH_DELALLOC,		"FLUSH_DELALLOC")		\
+	EM( FLUSH_DELALLOC_WAIT,	"FLUSH_DELALLOC_WAIT")		\
+	EM( FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR")	\
+	EM( FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS")		\
+	EM( ALLOC_CHUNK,		"ALLOC_CHUNK")			\
+	EM( ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE")		\
+	EM( RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS")		\
+	EMe(COMMIT_TRANS,		"COMMIT_TRANS")
+
 /*
  * First define the enums in the above macros to be exported to userspace via
  * TRACE_DEFINE_ENUM().
@@ -109,6 +114,7 @@ FLUSH_ACTIONS
 FI_TYPES
 QGROUP_RSV_TYPES
 IO_TREE_OWNER
+FLUSH_STATES
 
 /*
  * Now redefine the EM and EMe macros to map the enums to the strings that will
@@ -1101,18 +1107,6 @@ TRACE_EVENT(btrfs_trigger_flush,
 		  __entry->bytes)
 );
 
-#define show_flush_state(state)							\
-	__print_symbolic(state,							\
-		{ FLUSH_DELAYED_ITEMS_NR,	"FLUSH_DELAYED_ITEMS_NR"},	\
-		{ FLUSH_DELAYED_ITEMS,		"FLUSH_DELAYED_ITEMS"},		\
-		{ FLUSH_DELALLOC,		"FLUSH_DELALLOC"},		\
-		{ FLUSH_DELALLOC_WAIT,		"FLUSH_DELALLOC_WAIT"},		\
-		{ FLUSH_DELAYED_REFS_NR,	"FLUSH_DELAYED_REFS_NR"},	\
-		{ FLUSH_DELAYED_REFS,		"FLUSH_ELAYED_REFS"},		\
-		{ ALLOC_CHUNK,			"ALLOC_CHUNK"},			\
-		{ ALLOC_CHUNK_FORCE,		"ALLOC_CHUNK_FORCE"},		\
-		{ RUN_DELAYED_IPUTS,		"RUN_DELAYED_IPUTS"},		\
-		{ COMMIT_TRANS,			"COMMIT_TRANS"})
 
 TRACE_EVENT(btrfs_flush_space,
 
@@ -1137,7 +1131,7 @@ TRACE_EVENT(btrfs_flush_space,
 
 	TP_printk_btrfs("state=%d(%s) flags=%llu(%s) num_bytes=%llu ret=%d",
 		  __entry->state,
-		  show_flush_state(__entry->state),
+		  __print_symbolic(__entry->state, FLUSH_STATES),
 		  __entry->flags,
 		  __print_flags((unsigned long)__entry->flags, "|",
 				BTRFS_GROUP_FLAGS),
