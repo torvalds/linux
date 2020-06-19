@@ -41,17 +41,19 @@ ovly507e_update(struct nv50_wndw *wndw, u32 *interlock)
 	}
 }
 
-void
+int
 ovly507e_scale_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 4))) {
-		evo_mthd(push, 0x00e0, 3);
-		evo_data(push, asyw->scale.sy << 16 | asyw->scale.sx);
-		evo_data(push, asyw->scale.sh << 16 | asyw->scale.sw);
-		evo_data(push, asyw->scale.dw);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507E, 0x00e0, asyw->scale.sy << 16 | asyw->scale.sx,
+				0x00e4, asyw->scale.sh << 16 | asyw->scale.sw,
+				0x00e8, asyw->scale.dw);
+	return 0;
 }
 
 static int

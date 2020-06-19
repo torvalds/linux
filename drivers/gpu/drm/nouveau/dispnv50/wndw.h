@@ -76,7 +76,7 @@ struct nv50_wndw_func {
 	int (*xlut_clr)(struct nv50_wndw *);
 	int (*image_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	int (*image_clr)(struct nv50_wndw *);
-	void (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*scale_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*blend_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
