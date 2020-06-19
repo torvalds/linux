@@ -61,6 +61,8 @@
 #define CALDONE_MASK		BIT(CALDONE_SHIFT)
 #define RETRIM_SHIFT		17
 #define RETRIM_MASK		BIT(RETRIM_SHIFT)
+#define SELDLYTXCLK_SHIFT	17
+#define SELDLYTXCLK_MASK	BIT(SELDLYTXCLK_SHIFT)
 
 #define DRIVER_STRENGTH_50_OHM	0x0
 #define DRIVER_STRENGTH_33_OHM	0x1
@@ -228,8 +230,14 @@ static void sdhci_am654_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	regmap_update_bits(sdhci_am654->base, PHY_CTRL4, mask, val);
 
-	if (timing > MMC_TIMING_UHS_SDR25 && clock > CLOCK_TOO_SLOW_HZ)
+	if (timing > MMC_TIMING_UHS_SDR25 && clock > CLOCK_TOO_SLOW_HZ) {
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
+				   SELDLYTXCLK_MASK, 0);
 		sdhci_am654_setup_dll(host, clock);
+	} else {
+		regmap_update_bits(sdhci_am654->base, PHY_CTRL5,
+				   SELDLYTXCLK_MASK, 1 << SELDLYTXCLK_SHIFT);
+	}
 }
 
 static void sdhci_j721e_4bit_set_clock(struct sdhci_host *host,
