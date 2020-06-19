@@ -20,7 +20,7 @@ patternProperties:
   "^(keypad|m25p|max8952|max8997|max8998|mpmc),.*": true
   "^(pinctrl-single|#pinctrl-single|PowerPC),.*": true
   "^(pl022|pxa-mmc|rcar_sound|rotary-encoder|s5m8767|sdhci),.*": true
-  "^(simple-audio-card|simple-graph-card|st-plgpio|st-spics|ts),.*": true
+  "^(simple-audio-card|st-plgpio|st-spics|ts),.*": true
 
   # Keep list in alphabetical order.
   "^abilis,.*":
