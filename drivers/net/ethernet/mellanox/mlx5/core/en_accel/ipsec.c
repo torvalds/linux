@@ -210,6 +210,9 @@ static inline int mlx5e_xfrm_validate_state(struct xfrm_state *x)
 	struct net_device *netdev = x->xso.dev;
 	struct mlx5e_priv *priv;
 
+	if (x->xso.slave_dev)
+		netdev = x->xso.slave_dev;
+
 	priv = netdev_priv(netdev);
 
 	if (x->props.aalgo != SADB_AALG_NONE) {
@@ -290,6 +293,9 @@ static int mlx5e_xfrm_add_state(struct xfrm_state *x)
 	struct mlx5e_priv *priv;
 	unsigned int sa_handle;
 	int err;
+
+	if (x->xso.slave_dev)
+		netdev = x->xso.slave_dev;
 
 	priv = netdev_priv(netdev);
 
