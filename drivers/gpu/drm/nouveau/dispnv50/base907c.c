@@ -21,6 +21,8 @@
  */
 #include "base.h"
 
+#include <nvif/push507c.h>
+
 static void
 base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -136,17 +138,18 @@ base907c_csc_clr(struct nv50_wndw *wndw)
 	}
 }
 
-static void
+static int
 base907c_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push, i;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		evo_mthd(push, 0x0140, 12);
-		evo_data(push, asyw->csc.matrix[0] | 0x80000000);
-		for (i = 1; i < 12; i++)
-			evo_data(push, asyw->csc.matrix[i]);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907C, 0x0140,  asyw->csc.matrix[0] | 0x80000000,
+				0x0144, &asyw->csc.matrix[1], 11);
+	return 0;
 }
 
 const struct nv50_wndw_func

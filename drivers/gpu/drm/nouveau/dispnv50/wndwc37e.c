@@ -34,16 +34,17 @@ wndwc37e_csc_clr(struct nv50_wndw *wndw)
 {
 }
 
-static void
+static int
 wndwc37e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push, i;
-	if ((push = evo_wait(&wndw->wndw, 13))) {
-		 evo_mthd(push, 0x02bc, 12);
-		 for (i = 0; i < 12; i++)
-			  evo_data(push, asyw->csc.matrix[i]);
-		 evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37E, 0x02bc, asyw->csc.matrix, 12);
+	return 0;
 }
 
 static void

@@ -67,7 +67,7 @@ struct nv50_wndw_func {
 	bool (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *, int);
 	void (*csc)(struct nv50_wndw *, struct nv50_wndw_atom *,
 		    const struct drm_color_ctm *);
-	void (*csc_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*csc_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*csc_clr)(struct nv50_wndw *);
 	bool ilut_identity;
 	int  ilut_size;
