@@ -1065,6 +1065,7 @@ extern int afs_wait_for_fs_probes(struct afs_server_list *, unsigned long);
 extern void afs_probe_fileserver(struct afs_net *, struct afs_server *);
 extern void afs_fs_probe_dispatcher(struct work_struct *);
 extern int afs_wait_for_one_fs_probe(struct afs_server *, bool);
+extern void afs_fs_probe_cleanup(struct afs_net *);
 
 /*
  * inode.c
