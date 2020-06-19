@@ -1341,13 +1341,12 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep)
 	ret = dwc3_send_gadget_ep_cmd(dep, cmd, &params);
 	if (ret < 0) {
 		/*
-		 * Isochronous endpoints in request needs to
+		 * Isochronous endpoints request needs to
 		 * return directly and retry to transfer next
 		 * time. Otherwise, it will fail to giveback
 		 * the req to the udc gadget driver.
 		 */
-		if (usb_endpoint_xfer_isoc(dep->endpoint.desc) &&
-		    usb_endpoint_dir_in(dep->endpoint.desc))
+		if (usb_endpoint_xfer_isoc(dep->endpoint.desc))
 			return ret;
 		/*
 		 * FIXME we need to iterate over the list of requests
