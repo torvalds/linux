@@ -932,6 +932,9 @@ static inline int tcp_v6_sdif(const struct sk_buff *skb)
 #endif
 	return 0;
 }
+
+INDIRECT_CALLABLE_DECLARE(void tcp_v6_send_check(struct sock *sk, struct sk_buff *skb));
+
 #endif
 
 static inline bool inet_exact_dif_match(struct net *net, struct sk_buff *skb)
