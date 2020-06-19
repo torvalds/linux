@@ -15,21 +15,13 @@
 #include <mon.h>
 #include <wifi.h>
 #include <linux/vmalloc.h>
+#include <net/cfg80211.h>
 
 #define ETHERNET_HEADER_SIZE	14	/*  Ethernet Header Length */
 #define LLC_HEADER_SIZE			6	/*  LLC Header Length */
 
 static u8 SNAP_ETH_TYPE_IPX[2] = {0x81, 0x37};
 static u8 SNAP_ETH_TYPE_APPLETALK_AARP[2] = {0x80, 0xf3};
-
-/* Bridge-Tunnel header (for EtherTypes ETH_P_AARP and ETH_P_IPX) */
-static u8 rtw_bridge_tunnel_header[] = {
-	0xaa, 0xaa, 0x03, 0x00, 0x00, 0xf8
-};
-
-static u8 rtw_rfc1042_header[] = {
-	0xaa, 0xaa, 0x03, 0x00, 0x00, 0x00
-};
 
 static void rtw_signal_stat_timer_hdl(struct timer_list *t);
 
@@ -1277,10 +1269,10 @@ static int wlanhdr_to_ethhdr(struct recv_frame *precvframe)
 	psnap = (struct ieee80211_snap_hdr *)(ptr+pattrib->hdrlen + pattrib->iv_len);
 	psnap_type = ptr+pattrib->hdrlen + pattrib->iv_len+SNAP_SIZE;
 	/* convert hdr + possible LLC headers into Ethernet header */
-	if ((!memcmp(psnap, rtw_rfc1042_header, SNAP_SIZE) &&
+	if ((!memcmp(psnap, rfc1042_header, SNAP_SIZE) &&
 	     memcmp(psnap_type, SNAP_ETH_TYPE_IPX, 2) &&
 	     memcmp(psnap_type, SNAP_ETH_TYPE_APPLETALK_AARP, 2)) ||
-	     !memcmp(psnap, rtw_bridge_tunnel_header, SNAP_SIZE)) {
+	     !memcmp(psnap, bridge_tunnel_header, SNAP_SIZE)) {
 		/* remove RFC1042 or Bridge-Tunnel encapsulation and replace EtherType */
 		bsnaphdr = true;
 	} else {
@@ -1560,9 +1552,9 @@ static int amsdu_to_msdu(struct adapter *padapter, struct recv_frame *prframe)
 		/* convert hdr + possible LLC headers into Ethernet header */
 		eth_type = get_unaligned_be16(&sub_skb->data[6]);
 		if (sub_skb->len >= 8 &&
-		    ((!memcmp(sub_skb->data, rtw_rfc1042_header, SNAP_SIZE) &&
+		    ((!memcmp(sub_skb->data, rfc1042_header, SNAP_SIZE) &&
 			  eth_type != ETH_P_AARP && eth_type != ETH_P_IPX) ||
-			 !memcmp(sub_skb->data, rtw_bridge_tunnel_header, SNAP_SIZE))) {
+			 !memcmp(sub_skb->data, bridge_tunnel_header, SNAP_SIZE))) {
 			/* remove RFC1042 or Bridge-Tunnel encapsulation and replace EtherType */
 			skb_pull(sub_skb, SNAP_SIZE);
 			memcpy(skb_push(sub_skb, ETH_ALEN), pattrib->src, ETH_ALEN);
