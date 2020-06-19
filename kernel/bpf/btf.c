@@ -3591,7 +3591,7 @@ struct btf *btf_parse_vmlinux(void)
 	struct btf_verifier_env *env = NULL;
 	struct bpf_verifier_log *log;
 	struct btf *btf = NULL;
-	int err, i;
+	int err, btf_id;
 
 	env = kzalloc(sizeof(*env), GFP_KERNEL | __GFP_NOWARN);
 	if (!env)
@@ -3625,24 +3625,13 @@ struct btf *btf_parse_vmlinux(void)
 		goto errout;
 
 	/* find struct bpf_ctx_convert for type checking later */
-	for (i = 1; i <= btf->nr_types; i++) {
-		const struct btf_type *t;
-		const char *tname;
-
-		t = btf_type_by_id(btf, i);
-		if (!__btf_type_is_struct(t))
-			continue;
-		tname = __btf_name_by_offset(btf, t->name_off);
-		if (!strcmp(tname, "bpf_ctx_convert")) {
-			/* btf_parse_vmlinux() runs under bpf_verifier_lock */
-			bpf_ctx_convert.t = t;
-			break;
-		}
-	}
-	if (i > btf->nr_types) {
-		err = -ENOENT;
+	btf_id = btf_find_by_name_kind(btf, "bpf_ctx_convert", BTF_KIND_STRUCT);
+	if (btf_id < 0) {
+		err = btf_id;
 		goto errout;
 	}
+	/* btf_parse_vmlinux() runs under bpf_verifier_lock */
+	bpf_ctx_convert.t = btf_type_by_id(btf, btf_id);
 
 	bpf_struct_ops_init(btf, log);
 
