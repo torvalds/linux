@@ -51,6 +51,7 @@
 #include "lib/mlx5.h"
 #define CREATE_TRACE_POINTS
 #include "diag/en_rep_tracepoint.h"
+#include "en_accel/ipsec.h"
 
 #define MLX5E_REP_PARAMS_DEF_LOG_SQ_SIZE \
 	max(0x7, MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE)
@@ -630,6 +631,11 @@ static int mlx5e_init_ul_rep(struct mlx5_core_dev *mdev,
 			     struct net_device *netdev)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
+	int err;
+
+	err = mlx5e_ipsec_init(priv);
+	if (err)
+		mlx5_core_err(mdev, "Uplink rep IPsec initialization failed, %d\n", err);
 
 	mlx5e_vxlan_set_netdev_info(priv);
 	return mlx5e_init_rep(mdev, netdev);
@@ -637,6 +643,7 @@ static int mlx5e_init_ul_rep(struct mlx5_core_dev *mdev,
 
 static void mlx5e_cleanup_rep(struct mlx5e_priv *priv)
 {
+	mlx5e_ipsec_cleanup(priv);
 }
 
 static int mlx5e_create_rep_ttc_table(struct mlx5e_priv *priv)
