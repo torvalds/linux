@@ -194,19 +194,22 @@ int mount_bpffs_for_pin(const char *name);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(int *, char ***));
 int do_pin_fd(int fd, const char *name);
 
-int do_prog(int argc, char **arg);
-int do_map(int argc, char **arg);
-int do_link(int argc, char **arg);
-int do_event_pipe(int argc, char **argv);
-int do_cgroup(int argc, char **arg);
-int do_perf(int argc, char **arg);
-int do_net(int argc, char **arg);
-int do_tracelog(int argc, char **arg);
-int do_feature(int argc, char **argv);
-int do_btf(int argc, char **argv);
+/* commands available in bootstrap mode */
 int do_gen(int argc, char **argv);
-int do_struct_ops(int argc, char **argv);
-int do_iter(int argc, char **argv);
+int do_btf(int argc, char **argv);
+
+/* non-bootstrap only commands */
+int do_prog(int argc, char **arg) __weak;
+int do_map(int argc, char **arg) __weak;
+int do_link(int argc, char **arg) __weak;
+int do_event_pipe(int argc, char **argv) __weak;
+int do_cgroup(int argc, char **arg) __weak;
+int do_perf(int argc, char **arg) __weak;
+int do_net(int argc, char **arg) __weak;
+int do_tracelog(int argc, char **arg) __weak;
+int do_feature(int argc, char **argv) __weak;
+int do_struct_ops(int argc, char **argv) __weak;
+int do_iter(int argc, char **argv) __weak;
 
 int parse_u32_arg(int *argc, char ***argv, __u32 *val, const char *what);
 int prog_parse_fd(int *argc, char ***argv);

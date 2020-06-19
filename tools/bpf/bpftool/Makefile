@@ -116,20 +116,14 @@ CFLAGS += -DHAVE_LIBBFD_SUPPORT
 SRCS += $(BFD_SRCS)
 endif
 
+BPFTOOL_BOOTSTRAP := $(if $(OUTPUT),$(OUTPUT)bpftool-bootstrap,./bpftool-bootstrap)
+
+BOOTSTRAP_OBJS = $(addprefix $(OUTPUT),main.o common.o json_writer.o gen.o btf.o)
 OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
-_OBJS = $(filter-out $(OUTPUT)prog.o,$(OBJS)) $(OUTPUT)_prog.o
 
-ifeq ($(feature-clang-bpf-global-var),1)
-	__OBJS = $(OBJS)
-else
-	__OBJS = $(_OBJS)
+ifneq ($(feature-clang-bpf-global-var),1)
+	CFLAGS += -DBPFTOOL_WITHOUT_SKELETONS
 endif
-
-$(OUTPUT)_prog.o: prog.c
-	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -DBPFTOOL_WITHOUT_SKELETONS -o $@ $<
-
-$(OUTPUT)_bpftool: $(_OBJS) $(LIBBPF)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(_OBJS) $(LIBS)
 
 skeleton/profiler.bpf.o: skeleton/profiler.bpf.c $(LIBBPF)
 	$(QUIET_CLANG)$(CLANG) \
@@ -137,19 +131,21 @@ skeleton/profiler.bpf.o: skeleton/profiler.bpf.c $(LIBBPF)
 		-I$(LIBBPF_PATH) -I$(srctree)/tools/lib \
 		-g -O2 -target bpf -c $< -o $@
 
-profiler.skel.h: $(OUTPUT)_bpftool skeleton/profiler.bpf.o
-	$(QUIET_GEN)$(OUTPUT)./_bpftool gen skeleton skeleton/profiler.bpf.o > $@
+profiler.skel.h: $(BPFTOOL_BOOTSTRAP) skeleton/profiler.bpf.o
+	$(QUIET_GEN)$(BPFTOOL_BOOTSTRAP) gen skeleton skeleton/profiler.bpf.o > $@
 
 $(OUTPUT)prog.o: prog.c profiler.skel.h
-	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
 
 $(OUTPUT)feature.o: | zdep
 
-$(OUTPUT)bpftool: $(__OBJS) $(LIBBPF)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(__OBJS) $(LIBS)
+$(BPFTOOL_BOOTSTRAP): $(BOOTSTRAP_OBJS) $(LIBBPF)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(BOOTSTRAP_OBJS) $(LIBS)
+
+$(OUTPUT)bpftool: $(OBJS) $(LIBBPF)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 $(OUTPUT)%.o: %.c
 	$(QUIET_CC)$(CC) $(CFLAGS) -c -MMD -o $@ $<
@@ -157,7 +153,7 @@ $(OUTPUT)%.o: %.c
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
 	$(Q)$(RM) -- $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
-	$(Q)$(RM) -- $(OUTPUT)_bpftool profiler.skel.h skeleton/profiler.bpf.o
+	$(Q)$(RM) -- $(BPFTOOL_BOOTSTRAP) profiler.skel.h skeleton/profiler.bpf.o
 	$(Q)$(RM) -r -- $(OUTPUT)libbpf/
 	$(call QUIET_CLEAN, core-gen)
 	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.bpftool
