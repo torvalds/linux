@@ -13,7 +13,6 @@ void base507c_release(struct nv50_wndw *, struct nv50_wndw_atom *,
 		      struct nv50_head_atom *);
 int base507c_sema_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 int base507c_sema_clr(struct nv50_wndw *);
-void base507c_ntfy_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void base507c_ntfy_clr(struct nv50_wndw *);
 void base507c_xlut_set(struct nv50_wndw *, struct nv50_wndw_atom *);
 void base507c_xlut_clr(struct nv50_wndw *);

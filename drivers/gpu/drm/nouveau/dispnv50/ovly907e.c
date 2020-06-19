@@ -51,7 +51,7 @@ const struct nv50_wndw_func
 ovly907e = {
 	.acquire = ovly507e_acquire,
 	.release = ovly507e_release,
-	.ntfy_set = ovly507e_ntfy_set,
+	.ntfy_set = base507c_ntfy_set,
 	.ntfy_clr = ovly507e_ntfy_clr,
 	.ntfy_reset = ovly827e_ntfy_reset,
 	.ntfy_wait_begun = ovly827e_ntfy_wait_begun,

@@ -104,18 +104,6 @@ ovly507e_ntfy_clr(struct nv50_wndw *wndw)
 }
 
 void
-ovly507e_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
-{
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 3))) {
-		evo_mthd(push, 0x00a0, 2);
-		evo_data(push, asyw->ntfy.awaken << 30 | asyw->ntfy.offset);
-		evo_data(push, asyw->ntfy.handle);
-		evo_kick(push, &wndw->wndw);
-	}
-}
-
-void
 ovly507e_release(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw,
 		 struct nv50_head_atom *asyh)
 {
@@ -146,7 +134,7 @@ static const struct nv50_wndw_func
 ovly507e = {
 	.acquire = ovly507e_acquire,
 	.release = ovly507e_release,
-	.ntfy_set = ovly507e_ntfy_set,
+	.ntfy_set = base507c_ntfy_set,
 	.ntfy_clr = ovly507e_ntfy_clr,
 	.ntfy_reset = base507c_ntfy_reset,
 	.ntfy_wait_begun = base507c_ntfy_wait_begun,

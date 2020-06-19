@@ -135,16 +135,19 @@ base507c_ntfy_clr(struct nv50_wndw *wndw)
 	}
 }
 
-void
+int
 base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wndw, 3))) {
-		evo_mthd(push, 0x00a0, 2);
-		evo_data(push, asyw->ntfy.awaken << 30 | asyw->ntfy.offset);
-		evo_data(push, asyw->ntfy.handle);
-		evo_kick(push, &wndw->wndw);
-	}
+	struct nvif_push *push = wndw->wndw.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 3)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507C, 0x00a0, asyw->ntfy.awaken << 30 |
+					asyw->ntfy.offset,
+				0x00a4, asyw->ntfy.handle);
+	return 0;
 }
 
 void
