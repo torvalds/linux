@@ -470,9 +470,12 @@ static long bch2_ioctl_dev_usage(struct bch_fs *c,
 
 	src = bch2_dev_usage_read(c, ca);
 
-	arg.state	= ca->mi.state;
-	arg.bucket_size	= ca->mi.bucket_size;
-	arg.nr_buckets	= ca->mi.nbuckets - ca->mi.first_bucket;
+	arg.state		= ca->mi.state;
+	arg.bucket_size		= ca->mi.bucket_size;
+	arg.nr_buckets		= ca->mi.nbuckets - ca->mi.first_bucket;
+	arg.available_buckets	= arg.nr_buckets - src.buckets_unavailable;
+	arg.ec_buckets		= src.buckets_ec;
+	arg.ec_sectors		= src.sectors_ec;
 
 	for (i = 0; i < BCH_DATA_NR; i++) {
 		arg.buckets[i] = src.buckets[i];

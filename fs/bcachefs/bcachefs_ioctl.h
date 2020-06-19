@@ -275,9 +275,13 @@ struct bch_ioctl_dev_usage {
 
 	__u32			bucket_size;
 	__u64			nr_buckets;
+	__u64			available_buckets;
 
 	__u64			buckets[BCH_DATA_NR];
 	__u64			sectors[BCH_DATA_NR];
+
+	__u64			ec_buckets;
+	__u64			ec_sectors;
 };
 
 /*

@@ -52,12 +52,14 @@ struct bucket_array {
 
 struct bch_dev_usage {
 	u64			buckets[BCH_DATA_NR];
-	u64			buckets_ec;
 	u64			buckets_unavailable;
 
 	/* _compressed_ sectors: */
 	u64			sectors[BCH_DATA_NR];
 	u64			sectors_fragmented;
+
+	u64			buckets_ec;
+	u64			sectors_ec;
 };
 
 struct bch_fs_usage {

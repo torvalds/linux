@@ -374,6 +374,11 @@ static inline int is_fragmented_bucket(struct bucket_mark m,
 	return 0;
 }
 
+static inline int bucket_stripe_sectors(struct bucket_mark m)
+{
+	return m.stripe ? m.dirty_sectors : 0;
+}
+
 static inline enum bch_data_type bucket_type(struct bucket_mark m)
 {
 	return m.cached_sectors && !m.dirty_sectors
@@ -443,30 +448,33 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 				  struct bucket_mark old, struct bucket_mark new,
 				  bool gc)
 {
-	struct bch_dev_usage *dev_usage;
+	struct bch_dev_usage *u;
 
 	percpu_rwsem_assert_held(&c->mark_lock);
 
 	preempt_disable();
-	dev_usage = this_cpu_ptr(ca->usage[gc]);
+	u = this_cpu_ptr(ca->usage[gc]);
 
 	if (bucket_type(old))
-		account_bucket(fs_usage, dev_usage, bucket_type(old),
+		account_bucket(fs_usage, u, bucket_type(old),
 			       -1, -ca->mi.bucket_size);
 
 	if (bucket_type(new))
-		account_bucket(fs_usage, dev_usage, bucket_type(new),
+		account_bucket(fs_usage, u, bucket_type(new),
 			       1, ca->mi.bucket_size);
 
-	dev_usage->buckets_ec += (int) new.stripe - (int) old.stripe;
-	dev_usage->buckets_unavailable +=
+	u->buckets_unavailable +=
 		is_unavailable_bucket(new) - is_unavailable_bucket(old);
 
-	dev_usage->sectors[old.data_type] -= old.dirty_sectors;
-	dev_usage->sectors[new.data_type] += new.dirty_sectors;
-	dev_usage->sectors[BCH_DATA_CACHED] +=
+	u->buckets_ec += (int) new.stripe - (int) old.stripe;
+	u->sectors_ec += bucket_stripe_sectors(new) -
+			 bucket_stripe_sectors(old);
+
+	u->sectors[old.data_type] -= old.dirty_sectors;
+	u->sectors[new.data_type] += new.dirty_sectors;
+	u->sectors[BCH_DATA_CACHED] +=
 		(int) new.cached_sectors - (int) old.cached_sectors;
-	dev_usage->sectors_fragmented +=
+	u->sectors_fragmented +=
 		is_fragmented_bucket(new, ca) - is_fragmented_bucket(old, ca);
 	preempt_enable();
 
