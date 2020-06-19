@@ -563,6 +563,49 @@ static int devlink_nl_port_attrs_put(struct sk_buff *msg,
 	return 0;
 }
 
+static int
+devlink_nl_port_function_attrs_put(struct sk_buff *msg, struct devlink_port *port,
+				   struct netlink_ext_ack *extack)
+{
+	struct devlink *devlink = port->devlink;
+	const struct devlink_ops *ops;
+	struct nlattr *function_attr;
+	bool empty_nest = true;
+	int err = 0;
+
+	function_attr = nla_nest_start_noflag(msg, DEVLINK_ATTR_PORT_FUNCTION);
+	if (!function_attr)
+		return -EMSGSIZE;
+
+	ops = devlink->ops;
+	if (ops->port_function_hw_addr_get) {
+		int uninitialized_var(hw_addr_len);
+		u8 hw_addr[MAX_ADDR_LEN];
+
+		err = ops->port_function_hw_addr_get(devlink, port, hw_addr, &hw_addr_len, extack);
+		if (err == -EOPNOTSUPP) {
+			/* Port function attributes are optional for a port. If port doesn't
+			 * support function attribute, returning -EOPNOTSUPP is not an error.
+			 */
+			err = 0;
+			goto out;
+		} else if (err) {
+			goto out;
+		}
+		err = nla_put(msg, DEVLINK_PORT_FUNCTION_ATTR_HW_ADDR, hw_addr_len, hw_addr);
+		if (err)
+			goto out;
+		empty_nest = false;
+	}
+
+out:
+	if (err || empty_nest)
+		nla_nest_cancel(msg, function_attr);
+	else
+		nla_nest_end(msg, function_attr);
+	return err;
+}
+
 static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 				struct devlink_port *devlink_port,
 				enum devlink_command cmd, u32 portid,
@@ -607,6 +650,8 @@ static int devlink_nl_port_fill(struct sk_buff *msg, struct devlink *devlink,
 	}
 	spin_unlock_bh(&devlink_port->type_lock);
 	if (devlink_nl_port_attrs_put(msg, devlink_port))
+		goto nla_put_failure;
+	if (devlink_nl_port_function_attrs_put(msg, devlink_port, extack))
 		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
