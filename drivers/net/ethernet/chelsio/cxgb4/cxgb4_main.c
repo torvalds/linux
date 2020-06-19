@@ -5860,6 +5860,7 @@ static void free_some_resources(struct adapter *adapter)
 	cxgb4_cleanup_tc_mqprio(adapter);
 	cxgb4_cleanup_tc_flower(adapter);
 	cxgb4_cleanup_tc_u32(adapter);
+	cxgb4_cleanup_ethtool_filters(adapter);
 	kfree(adapter->sge.egr_map);
 	kfree(adapter->sge.ingr_map);
 	kfree(adapter->sge.starving_fl);
@@ -6370,7 +6371,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH | NETIF_F_GRO |
 			NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX |
-			NETIF_F_HW_TC;
+			NETIF_F_HW_TC | NETIF_F_NTUPLE;
 
 		if (chip_ver > CHELSIO_T5) {
 			netdev->hw_enc_features |= NETIF_F_IP_CSUM |
@@ -6493,6 +6494,24 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				 i);
 	}
 
+	if (is_offload(adapter) || is_hashfilter(adapter)) {
+		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
+			u32 v;
+
+			v = t4_read_reg(adapter, LE_DB_HASH_CONFIG_A);
+			if (chip_ver <= CHELSIO_T5) {
+				adapter->tids.nhash = 1 << HASHTIDSIZE_G(v);
+				v = t4_read_reg(adapter, LE_DB_TID_HASHBASE_A);
+				adapter->tids.hash_base = v / 4;
+			} else {
+				adapter->tids.nhash = HASHTBLSIZE_G(v) << 3;
+				v = t4_read_reg(adapter,
+						T6_LE_DB_HASH_TID_BASE_A);
+				adapter->tids.hash_base = v;
+			}
+		}
+	}
+
 	if (tid_init(&adapter->tids) < 0) {
 		dev_warn(&pdev->dev, "could not allocate TID table, "
 			 "continuing\n");
@@ -6514,22 +6533,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (cxgb4_init_tc_matchall(adapter))
 			dev_warn(&pdev->dev,
 				 "could not offload tc matchall, continuing\n");
-	}
-
-	if (is_offload(adapter) || is_hashfilter(adapter)) {
-		if (t4_read_reg(adapter, LE_DB_CONFIG_A) & HASHEN_F) {
-			u32 hash_base, hash_reg;
-
-			if (chip_ver <= CHELSIO_T5) {
-				hash_reg = LE_DB_TID_HASHBASE_A;
-				hash_base = t4_read_reg(adapter, hash_reg);
-				adapter->tids.hash_base = hash_base / 4;
-			} else {
-				hash_reg = T6_LE_DB_HASH_TID_BASE_A;
-				hash_base = t4_read_reg(adapter, hash_reg);
-				adapter->tids.hash_base = hash_base;
-			}
-		}
+		if (cxgb4_init_ethtool_filters(adapter))
+			dev_warn(&pdev->dev,
+				 "could not initialize ethtool filters, continuing\n");
 	}
 
 	/* See what interrupts we'll be using */

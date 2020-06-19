@@ -1066,6 +1066,17 @@ struct mps_entries_ref {
 	refcount_t refcnt;
 };
 
+struct cxgb4_ethtool_filter_info {
+	u32 *loc_array; /* Array holding the actual TIDs set to filters */
+	unsigned long *bmap; /* Bitmap for managing filters in use */
+	u32 in_use; /* # of filters in use */
+};
+
+struct cxgb4_ethtool_filter {
+	u32 nentries; /* Adapter wide number of supported filters */
+	struct cxgb4_ethtool_filter_info *port; /* Per port entry */
+};
+
 struct adapter {
 	void __iomem *regs;
 	void __iomem *bar2;
@@ -1191,6 +1202,9 @@ struct adapter {
 
 	/* TC MATCHALL classifier offload */
 	struct cxgb4_tc_matchall *tc_matchall;
+
+	/* Ethtool n-tuple */
+	struct cxgb4_ethtool_filter *ethtool_filters;
 };
 
 /* Support for "sched-class" command to allow a TX Scheduling Class to be

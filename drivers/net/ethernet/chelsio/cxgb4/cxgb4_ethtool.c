@@ -10,6 +10,8 @@
 #include "t4_regs.h"
 #include "t4fw_api.h"
 #include "cxgb4_cudbg.h"
+#include "cxgb4_filter.h"
+#include "cxgb4_tc_flower.h"
 
 #define EEPROM_MAGIC 0x38E2F10C
 
@@ -1571,10 +1573,120 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	return -EPERM;
 }
 
+static struct filter_entry *cxgb4_get_filter_entry(struct adapter *adap,
+						   u32 ftid)
+{
+	struct tid_info *t = &adap->tids;
+	struct filter_entry *f;
+
+	if (ftid < t->nhpftids)
+		f = &adap->tids.hpftid_tab[ftid];
+	else if (ftid < t->nftids)
+		f = &adap->tids.ftid_tab[ftid - t->nhpftids];
+	else
+		f = lookup_tid(&adap->tids, ftid);
+
+	return f;
+}
+
+static void cxgb4_fill_filter_rule(struct ethtool_rx_flow_spec *fs,
+				   struct ch_filter_specification *dfs)
+{
+	switch (dfs->val.proto) {
+	case IPPROTO_TCP:
+		if (dfs->type)
+			fs->flow_type = TCP_V6_FLOW;
+		else
+			fs->flow_type = TCP_V4_FLOW;
+		break;
+	case IPPROTO_UDP:
+		if (dfs->type)
+			fs->flow_type = UDP_V6_FLOW;
+		else
+			fs->flow_type = UDP_V4_FLOW;
+		break;
+	}
+
+	if (dfs->type) {
+		fs->h_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6src));
+		memcpy(&fs->h_u.tcp_ip6_spec.ip6dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip6_spec.ip6dst));
+		memcpy(&fs->m_u.tcp_ip6_spec.ip6dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip6_spec.ip6dst));
+		fs->h_u.tcp_ip6_spec.tclass = dfs->val.tos;
+		fs->m_u.tcp_ip6_spec.tclass = dfs->mask.tos;
+	} else {
+		fs->h_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->val.fport);
+		fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(dfs->mask.fport);
+		fs->h_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->val.lport);
+		fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(dfs->mask.lport);
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4src, &dfs->val.fip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4src, &dfs->mask.fip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4src));
+		memcpy(&fs->h_u.tcp_ip4_spec.ip4dst, &dfs->val.lip[0],
+		       sizeof(fs->h_u.tcp_ip4_spec.ip4dst));
+		memcpy(&fs->m_u.tcp_ip4_spec.ip4dst, &dfs->mask.lip[0],
+		       sizeof(fs->m_u.tcp_ip4_spec.ip4dst));
+		fs->h_u.tcp_ip4_spec.tos = dfs->val.tos;
+		fs->m_u.tcp_ip4_spec.tos = dfs->mask.tos;
+	}
+	fs->h_ext.vlan_tci = cpu_to_be16(dfs->val.ivlan);
+	fs->m_ext.vlan_tci = cpu_to_be16(dfs->mask.ivlan);
+	fs->flow_type |= FLOW_EXT;
+
+	if (dfs->action == FILTER_DROP)
+		fs->ring_cookie = RX_CLS_FLOW_DISC;
+	else
+		fs->ring_cookie = dfs->iq;
+}
+
+static int cxgb4_ntuple_get_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd,
+				   unsigned int loc)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	struct filter_entry *f;
+	int ftid;
+
+	if (!(adap->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;
+
+	/* Check for maximum filter range */
+	if (!adap->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (loc >= adap->ethtool_filters->nentries)
+		return -ERANGE;
+
+	if (!test_bit(loc, adap->ethtool_filters->port[pi->port_id].bmap))
+		return -ENOENT;
+
+	ftid = adap->ethtool_filters->port[pi->port_id].loc_array[loc];
+
+	/* Fetch filter_entry */
+	f = cxgb4_get_filter_entry(adap, ftid);
+
+	cxgb4_fill_filter_rule(&cmd->fs, &f->fs);
+
+	return 0;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
 	const struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = netdev2adap(dev);
+	unsigned int count = 0, index = 0;
+	int ret = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXFH: {
@@ -1630,8 +1742,142 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	case ETHTOOL_GRXRINGS:
 		info->data = pi->nqsets;
 		return 0;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt =
+		       adap->ethtool_filters->port[pi->port_id].in_use;
+		return 0;
+	case ETHTOOL_GRXCLSRULE:
+		return cxgb4_ntuple_get_filter(dev, info, info->fs.location);
+	case ETHTOOL_GRXCLSRLALL:
+		info->data = adap->ethtool_filters->nentries;
+		while (count < info->rule_cnt) {
+			ret = cxgb4_ntuple_get_filter(dev, info, index);
+			if (!ret)
+				rules[count++] = index;
+			index++;
+		}
+		return 0;
 	}
+
 	return -EOPNOTSUPP;
+}
+
+static int cxgb4_ntuple_del_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(dev);
+	struct port_info *pi = netdev_priv(dev);
+	struct filter_entry *f;
+	u32 filter_id;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	if (!test_bit(cmd->fs.location, filter_info->bmap))
+		return -ENOENT;
+
+	filter_id = filter_info->loc_array[cmd->fs.location];
+	f = cxgb4_get_filter_entry(adapter, filter_id);
+
+	ret = cxgb4_flow_rule_destroy(dev, f->fs.tc_prio, &f->fs, filter_id);
+	if (ret)
+		goto err;
+
+	clear_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use--;
+
+err:
+	return ret;
+}
+
+/* Add Ethtool n-tuple filters. */
+static int cxgb4_ntuple_set_filter(struct net_device *netdev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec_input input = {};
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(netdev);
+	struct port_info *pi = netdev_priv(netdev);
+	struct ch_filter_specification fs;
+	struct ethtool_rx_flow_rule *flow;
+	u32 tid;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	if (test_bit(cmd->fs.location,
+		     adapter->ethtool_filters->port[pi->port_id].bmap))
+		return -EEXIST;
+
+	memset(&fs, 0, sizeof(fs));
+
+	input.fs = &cmd->fs;
+	flow = ethtool_rx_flow_rule_create(&input);
+	if (IS_ERR(flow)) {
+		ret = PTR_ERR(flow);
+		goto exit;
+	}
+
+	fs.hitcnts = 1;
+
+	ret = cxgb4_flow_rule_replace(netdev, flow->rule, cmd->fs.location,
+				      NULL, &fs, &tid);
+	if (ret)
+		goto free;
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	filter_info->loc_array[cmd->fs.location] = tid;
+	set_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use++;
+
+free:
+	ethtool_rx_flow_rule_destroy(flow);
+exit:
+	return ret;
+}
+
+static int set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	int ret = -EOPNOTSUPP;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_SRXCLSRLINS:
+		ret = cxgb4_ntuple_set_filter(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = cxgb4_ntuple_del_filter(dev, cmd);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
 static int set_dump(struct net_device *dev, struct ethtool_dump *eth_dump)
@@ -1839,6 +2085,7 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_regs_len      = get_regs_len,
 	.get_regs          = get_regs,
 	.get_rxnfc         = get_rxnfc,
+	.set_rxnfc         = set_rxnfc,
 	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh	   = get_rss_table,
 	.set_rxfh	   = set_rss_table,
@@ -1852,6 +2099,87 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_priv_flags    = cxgb4_get_priv_flags,
 	.set_priv_flags    = cxgb4_set_priv_flags,
 };
+
+void cxgb4_cleanup_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	u8 i;
+
+	if (!adap->ethtool_filters)
+		return;
+
+	eth_filter_info = adap->ethtool_filters->port;
+
+	if (eth_filter_info) {
+		for (i = 0; i < adap->params.nports; i++) {
+			kvfree(eth_filter_info[i].loc_array);
+			kfree(eth_filter_info[i].bmap);
+		}
+		kfree(eth_filter_info);
+	}
+
+	kfree(adap->ethtool_filters);
+}
+
+int cxgb4_init_ethtool_filters(struct adapter *adap)
+{
+	struct cxgb4_ethtool_filter_info *eth_filter_info;
+	struct cxgb4_ethtool_filter *eth_filter;
+	struct tid_info *tids = &adap->tids;
+	u32 nentries, i;
+	int ret;
+
+	eth_filter = kzalloc(sizeof(*eth_filter), GFP_KERNEL);
+	if (!eth_filter)
+		return -ENOMEM;
+
+	eth_filter_info = kcalloc(adap->params.nports,
+				  sizeof(*eth_filter_info),
+				  GFP_KERNEL);
+	if (!eth_filter_info) {
+		ret = -ENOMEM;
+		goto free_eth_filter;
+	}
+
+	eth_filter->port = eth_filter_info;
+
+	nentries = tids->nhpftids + tids->nftids;
+	if (is_hashfilter(adap))
+		nentries += tids->nhash +
+			    (adap->tids.stid_base - adap->tids.tid_base);
+	eth_filter->nentries = nentries;
+
+	for (i = 0; i < adap->params.nports; i++) {
+		eth_filter->port[i].loc_array = kvzalloc(nentries, GFP_KERNEL);
+		if (!eth_filter->port[i].loc_array) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+
+		eth_filter->port[i].bmap = kcalloc(BITS_TO_LONGS(nentries),
+						   sizeof(unsigned long),
+						   GFP_KERNEL);
+		if (!eth_filter->port[i].bmap) {
+			ret = -ENOMEM;
+			goto free_eth_finfo;
+		}
+	}
+
+	adap->ethtool_filters = eth_filter;
+	return 0;
+
+free_eth_finfo:
+	while (i-- > 0) {
+		kfree(eth_filter->port[i].bmap);
+		kvfree(eth_filter->port[i].loc_array);
+	}
+	kfree(eth_filter_info);
+
+free_eth_filter:
+	kfree(eth_filter);
+
+	return ret;
+}
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)
 {
