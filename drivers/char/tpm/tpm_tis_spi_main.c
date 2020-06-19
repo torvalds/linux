@@ -287,6 +287,7 @@ static struct spi_driver tpm_tis_spi_driver = {
 		.pm = &tpm_tis_pm,
 		.of_match_table = of_match_ptr(of_tis_spi_match),
 		.acpi_match_table = ACPI_PTR(acpi_tis_spi_match),
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 	.probe = tpm_tis_spi_driver_probe,
 	.remove = tpm_tis_spi_remove,
