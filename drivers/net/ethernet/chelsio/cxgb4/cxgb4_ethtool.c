@@ -1573,6 +1573,22 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 	return -EPERM;
 }
 
+static struct filter_entry *cxgb4_get_filter_entry(struct adapter *adap,
+						   u32 ftid)
+{
+	struct tid_info *t = &adap->tids;
+	struct filter_entry *f;
+
+	if (ftid < t->nhpftids)
+		f = &adap->tids.hpftid_tab[ftid];
+	else if (ftid < t->nftids)
+		f = &adap->tids.ftid_tab[ftid - t->nhpftids];
+	else
+		f = lookup_tid(&adap->tids, ftid);
+
+	return f;
+}
+
 static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		     u32 *rules)
 {
@@ -1634,6 +1650,48 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		return 0;
 	}
 	return -EOPNOTSUPP;
+}
+
+static int cxgb4_ntuple_del_filter(struct net_device *dev,
+				   struct ethtool_rxnfc *cmd)
+{
+	struct cxgb4_ethtool_filter_info *filter_info;
+	struct adapter *adapter = netdev2adap(dev);
+	struct port_info *pi = netdev_priv(dev);
+	struct filter_entry *f;
+	u32 filter_id;
+	int ret;
+
+	if (!(adapter->flags & CXGB4_FULL_INIT_DONE))
+		return -EAGAIN;  /* can still change nfilters */
+
+	if (!adapter->ethtool_filters)
+		return -EOPNOTSUPP;
+
+	if (cmd->fs.location >= adapter->ethtool_filters->nentries) {
+		dev_err(adapter->pdev_dev,
+			"Location must be < %u",
+			adapter->ethtool_filters->nentries);
+		return -ERANGE;
+	}
+
+	filter_info = &adapter->ethtool_filters->port[pi->port_id];
+
+	if (!test_bit(cmd->fs.location, filter_info->bmap))
+		return -ENOENT;
+
+	filter_id = filter_info->loc_array[cmd->fs.location];
+	f = cxgb4_get_filter_entry(adapter, filter_id);
+
+	ret = cxgb4_flow_rule_destroy(dev, f->fs.tc_prio, &f->fs, filter_id);
+	if (ret)
+		goto err;
+
+	clear_bit(cmd->fs.location, filter_info->bmap);
+	filter_info->in_use--;
+
+err:
+	return ret;
 }
 
 /* Add Ethtool n-tuple filters. */
@@ -1701,6 +1759,9 @@ static int set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
 		ret = cxgb4_ntuple_set_filter(dev, cmd);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		ret = cxgb4_ntuple_del_filter(dev, cmd);
 		break;
 	default:
 		break;

@@ -797,23 +797,38 @@ free_entry:
 	return ret;
 }
 
+int cxgb4_flow_rule_destroy(struct net_device *dev, u32 tc_prio,
+			    struct ch_filter_specification *fs, int tid)
+{
+	struct adapter *adap = netdev2adap(dev);
+	u8 hash;
+	int ret;
+
+	hash = fs->hash;
+
+	ret = cxgb4_del_filter(dev, tid, fs);
+	if (ret)
+		return ret;
+
+	if (hash)
+		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
+
+	return ret;
+}
+
 int cxgb4_tc_flower_destroy(struct net_device *dev,
 			    struct flow_cls_offload *cls)
 {
 	struct adapter *adap = netdev2adap(dev);
 	struct ch_tc_flower_entry *ch_flower;
-	u32 tc_prio;
-	bool hash;
 	int ret;
 
 	ch_flower = ch_flower_lookup(adap, cls->cookie);
 	if (!ch_flower)
 		return -ENOENT;
 
-	hash = ch_flower->fs.hash;
-	tc_prio = ch_flower->fs.tc_prio;
-
-	ret = cxgb4_del_filter(dev, ch_flower->filter_id, &ch_flower->fs);
+	ret = cxgb4_flow_rule_destroy(dev, ch_flower->fs.tc_prio,
+				      &ch_flower->fs, ch_flower->filter_id);
 	if (ret)
 		goto err;
 
@@ -824,9 +839,6 @@ int cxgb4_tc_flower_destroy(struct net_device *dev,
 		goto err;
 	}
 	kfree_rcu(ch_flower, rcu);
-
-	if (hash)
-		cxgb4_tc_flower_hash_prio_del(adap, tc_prio);
 
 err:
 	return ret;

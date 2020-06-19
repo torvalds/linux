@@ -124,6 +124,8 @@ int cxgb4_tc_flower_stats(struct net_device *dev,
 int cxgb4_flow_rule_replace(struct net_device *dev, struct flow_rule *rule,
 			    u32 tc_prio, struct netlink_ext_ack *extack,
 			    struct ch_filter_specification *fs, u32 *tid);
+int cxgb4_flow_rule_destroy(struct net_device *dev, u32 tc_prio,
+			    struct ch_filter_specification *fs, int tid);
 
 int cxgb4_init_tc_flower(struct adapter *adap);
 void cxgb4_cleanup_tc_flower(struct adapter *adap);
