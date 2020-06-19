@@ -31,6 +31,7 @@ bool relaxed_maps;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 struct pinned_obj_table link_table;
+struct obj_refs_table refs_table;
 
 static void __noreturn clean_and_exit(int i)
 {

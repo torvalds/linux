@@ -190,6 +190,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		jsonw_end_array(json_wtr);
 	}
 
+	emit_obj_refs_json(&refs_table, info->id, json_wtr);
+
 	jsonw_end_object(json_wtr);
 }
 
@@ -256,6 +258,8 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (info->btf_id)
 		printf("\n\tbtf_id %d", info->btf_id);
 
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
+
 	printf("\n");
 }
 
@@ -321,6 +325,7 @@ static int do_show(int argc, char **argv)
 
 	if (show_pinned)
 		build_pinned_obj_table(&prog_table, BPF_OBJ_PROG);
+	build_obj_refs_table(&refs_table, BPF_OBJ_PROG);
 
 	if (argc == 2)
 		return do_show_subset(argc, argv);
@@ -361,6 +366,8 @@ static int do_show(int argc, char **argv)
 
 	if (json_output)
 		jsonw_end_array(json_wtr);
+
+	delete_obj_refs_table(&refs_table);
 
 	return err;
 }

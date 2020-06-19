@@ -809,6 +809,7 @@ show_btf_plain(struct bpf_btf_info *info, int fd,
 			printf("%s%u", n++ == 0 ? "  map_ids " : ",",
 			       obj->obj_id);
 	}
+	emit_obj_refs_plain(&refs_table, info->id, "\n\tpids ");
 
 	printf("\n");
 }
@@ -841,6 +842,9 @@ show_btf_json(struct bpf_btf_info *info, int fd,
 			jsonw_uint(json_wtr, obj->obj_id);
 	}
 	jsonw_end_array(json_wtr);	/* map_ids */
+
+	emit_obj_refs_json(&refs_table, info->id, json_wtr); /* pids */
+
 	jsonw_end_object(json_wtr);	/* btf object */
 }
 
@@ -893,6 +897,7 @@ static int do_show(int argc, char **argv)
 			close(fd);
 		return err;
 	}
+	build_obj_refs_table(&refs_table, BPF_OBJ_BTF);
 
 	if (fd >= 0) {
 		err = show_btf(fd, &btf_prog_table, &btf_map_table);
@@ -939,6 +944,7 @@ static int do_show(int argc, char **argv)
 exit_free:
 	delete_btf_table(&btf_prog_table);
 	delete_btf_table(&btf_map_table);
+	delete_obj_refs_table(&refs_table);
 
 	return err;
 }
