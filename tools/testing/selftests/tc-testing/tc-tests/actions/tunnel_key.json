@@ -629,7 +629,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022 index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:80:00880022.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -653,7 +653,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344 index 1",
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:80:00880022,0408:42:0040007611223344,0111:02:1020304011223344.*index 1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -677,7 +677,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 824212:80:00880022 index 1",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 824212:80:00880022.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 824212:80:00880022.*index 1",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -701,7 +701,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:4224:00880022 index 1",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:4224:00880022.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:4224:00880022.*index 1",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -725,7 +725,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288 index 1",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:80:4288.*index 1",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -749,7 +749,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:4288428822 index 1",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:4288428822.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:80:4288428822.*index 1",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action tunnel_key"
@@ -773,7 +773,7 @@
         "cmdUnderTest": "$TC actions add action tunnel_key set src_ip 1.1.1.1 dst_ip 2.2.2.2 id 42 dst_port 6081 geneve_opts 0102:80:00880022,0408:42: index 1",
         "expExitCode": "255",
         "verifyCmd": "$TC actions get action tunnel_key index 1",
-        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt 0102:80:00880022,0408:42:.*index 1",
+        "matchPattern": "action order [0-9]+: tunnel_key.*set.*src_ip 1.1.1.1.*dst_ip 2.2.2.2.*key_id 42.*dst_port 6081.*geneve_opt[s]? 0102:80:00880022,0408:42:.*index 1",
         "matchCount": "0",
         "teardown": [
             "$TC actions flush action tunnel_key"
