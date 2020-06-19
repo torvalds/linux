@@ -107,9 +107,23 @@ static void ioc_release_fn(struct work_struct *work)
 			ioc_destroy_icq(icq);
 			spin_unlock(&q->queue_lock);
 		} else {
-			spin_unlock_irq(&ioc->lock);
-			cpu_relax();
-			spin_lock_irq(&ioc->lock);
+			/* Make sure q and icq cannot be freed. */
+			rcu_read_lock();
+
+			/* Re-acquire the locks in the correct order. */
+			spin_unlock(&ioc->lock);
+			spin_lock(&q->queue_lock);
+			spin_lock(&ioc->lock);
+
+			/*
+			 * The icq may have been destroyed when the ioc lock
+			 * was released.
+			 */
+			if (!(icq->flags & ICQ_DESTROYED))
+				ioc_destroy_icq(icq);
+
+			spin_unlock(&q->queue_lock);
+			rcu_read_unlock();
 		}
 	}
 
