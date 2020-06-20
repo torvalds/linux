@@ -23,6 +23,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl907d.h>
+
 static int
 dac907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
@@ -33,7 +35,7 @@ dac907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0180 + (or * 0x020), ctrl);
+	PUSH_MTHD(push, NV907D, DAC_SET_CONTROL(or), ctrl);
 	return 0;
 }
 

@@ -21,7 +21,9 @@
  */
 #include "core.h"
 
-#include <nvif/push507c.h>
+#include <nvif/pushc37b.h>
+
+#include <nvhw/class/clc37d.h>
 
 static int
 sorc37d_ctrl(struct nv50_core *core, int or, u32 ctrl,
@@ -33,7 +35,7 @@ sorc37d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x0300 + (or * 0x20), ctrl);
+	PUSH_MTHD(push, NVC37D, SOR_SET_CONTROL(or), ctrl);
 	return 0;
 }
 

@@ -51,6 +51,11 @@
 #include <nvif/timer.h>
 
 #include <nvhw/class/cl507c.h>
+#include <nvhw/class/cl507d.h>
+#include <nvhw/class/cl837d.h>
+#include <nvhw/class/cl887d.h>
+#include <nvhw/class/cl907d.h>
+#include <nvhw/class/cl917d.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -414,8 +419,9 @@ nv50_dac_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, NONE);
 	if (nv_encoder->crtc)
-		core->func->dac->ctrl(core, nv_encoder->or, 0x00000000, NULL);
+		core->func->dac->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -427,10 +433,23 @@ nv50_dac_enable(struct drm_encoder *encoder)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	u32 ctrl = 0;
+
+	switch (nv_crtc->index) {
+	case 0: ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, OWNER, HEAD0); break;
+	case 1: ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, OWNER, HEAD1); break;
+	case 2: ctrl |= NVDEF(NV907D, DAC_SET_CONTROL, OWNER_MASK, HEAD2); break;
+	case 3: ctrl |= NVDEF(NV907D, DAC_SET_CONTROL, OWNER_MASK, HEAD3); break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, PROTOCOL, RGB_CRT);
 
 	nv50_outp_acquire(nv_encoder, false);
 
-	core->func->dac->ctrl(core, nv_encoder->or, 1 << nv_crtc->index, asyh);
+	core->func->dac->ctrl(core, nv_encoder->or, ctrl, asyh);
 	asyh->or.depth = 0;
 
 	nv_encoder->crtc = encoder->crtc;
@@ -980,10 +999,10 @@ static u8
 nv50_dp_bpc_to_depth(unsigned int bpc)
 {
 	switch (bpc) {
-	case  6: return 0x2;
-	case  8: return 0x5;
+	case  6: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_18_444;
+	case  8: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_24_444;
 	case 10:
-	default: return 0x6;
+	default: return NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_BPP_30_444;
 	}
 }
 
@@ -1022,9 +1041,9 @@ nv50_msto_enable(struct drm_encoder *encoder)
 		nv50_outp_acquire(mstm->outp, false /*XXX: MST audio.*/);
 
 	if (mstm->outp->link & 1)
-		proto = 0x8;
+		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 	else
-		proto = 0x9;
+		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
 	mstm->outp->update(mstm->outp, head->base.index, armh, proto,
 			   nv50_dp_bpc_to_depth(armh->or.bpc));
@@ -1553,10 +1572,10 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 
 	if (!asyh) {
 		nv_encoder->ctrl &= ~BIT(head);
-		if (!(nv_encoder->ctrl & 0x0000000f))
+		if (NVDEF_TEST(nv_encoder->ctrl, NV507D, SOR_SET_CONTROL, OWNER, ==, NONE))
 			nv_encoder->ctrl = 0;
 	} else {
-		nv_encoder->ctrl |= proto << 8;
+		nv_encoder->ctrl |= NVVAL(NV507D, SOR_SET_CONTROL, PROTOCOL, proto);
 		nv_encoder->ctrl |= BIT(head);
 		asyh->or.depth = depth;
 	}
@@ -1614,8 +1633,8 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
 	bool hda = false;
-	u8 proto = 0xf;
-	u8 depth = 0x0;
+	u8 proto = NV507D_SOR_SET_CONTROL_PROTOCOL_CUSTOM;
+	u8 depth = NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	nv_encoder->crtc = encoder->crtc;
@@ -1629,7 +1648,7 @@ nv50_sor_enable(struct drm_encoder *encoder)
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->link & 1) {
-			proto = 0x1;
+			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_A;
 			/* Only enable dual-link if:
 			 *  - Need to (i.e. rate > 165MHz)
 			 *  - DCB says we can
@@ -1639,15 +1658,15 @@ nv50_sor_enable(struct drm_encoder *encoder)
 			if (mode->clock >= 165000 &&
 			    nv_encoder->dcb->duallink_possible &&
 			    !drm_detect_hdmi_monitor(nv_connector->edid))
-				proto |= 0x4;
+				proto = NV507D_SOR_SET_CONTROL_PROTOCOL_DUAL_TMDS;
 		} else {
-			proto = 0x2;
+			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_B;
 		}
 
 		nv50_hdmi_enable(&nv_encoder->base.base, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
-		proto = 0x0;
+		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
 
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
@@ -1681,9 +1700,9 @@ nv50_sor_enable(struct drm_encoder *encoder)
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
 		if (nv_encoder->link & 1)
-			proto = 0x8;
+			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 		else
-			proto = 0x9;
+			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
 
 		nv50_audio_enable(encoder, mode);
 		break;
@@ -1818,8 +1837,9 @@ nv50_pior_disable(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
+	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, NONE);
 	if (nv_encoder->crtc)
-		core->func->pior->ctrl(core, nv_encoder->or, 0x00000000, NULL);
+		core->func->pior->ctrl(core, nv_encoder->or, ctrl, NULL);
 	nv_encoder->crtc = NULL;
 	nv50_outp_release(nv_encoder);
 }
@@ -1831,29 +1851,36 @@ nv50_pior_enable(struct drm_encoder *encoder)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nv50_head_atom *asyh = nv50_head_atom(nv_crtc->base.state);
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
-	u8 owner = 1 << nv_crtc->index;
-	u8 proto;
+	u32 ctrl = 0;
+
+	switch (nv_crtc->index) {
+	case 0: ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, HEAD0); break;
+	case 1: ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, HEAD1); break;
+	default:
+		WARN_ON(1);
+		break;
+	}
 
 	nv50_outp_acquire(nv_encoder, false);
 
 	switch (asyh->or.bpc) {
-	case 10: asyh->or.depth = 0x6; break;
-	case  8: asyh->or.depth = 0x5; break;
-	case  6: asyh->or.depth = 0x2; break;
-	default: asyh->or.depth = 0x0; break;
+	case 10: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_30_444; break;
+	case  8: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_24_444; break;
+	case  6: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_18_444; break;
+	default: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT; break;
 	}
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 	case DCB_OUTPUT_DP:
-		proto = 0x0;
+		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	core->func->pior->ctrl(core, nv_encoder->or, (proto << 8) | owner, asyh);
+	core->func->pior->ctrl(core, nv_encoder->or, ctrl, asyh);
 	nv_encoder->crtc = encoder->crtc;
 }
 

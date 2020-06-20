@@ -23,6 +23,9 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl507d.h>
+#include <nvhw/class/cl837d.h>
+
 static int
 pior507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	      struct nv50_head_atom *asyh)
@@ -31,15 +34,15 @@ pior507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	int ret;
 
 	if (asyh) {
-		ctrl |= asyh->or.depth  << 16;
-		ctrl |= asyh->or.nvsync << 13;
-		ctrl |= asyh->or.nhsync << 12;
+		ctrl |= NVVAL(NV507D, PIOR_SET_CONTROL, HSYNC_POLARITY, asyh->or.nhsync);
+		ctrl |= NVVAL(NV507D, PIOR_SET_CONTROL, VSYNC_POLARITY, asyh->or.nvsync);
+		ctrl |= NVVAL(NV837D, PIOR_SET_CONTROL, PIXEL_DEPTH, asyh->or.depth);
 	}
 
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0700 + (or * 0x040), ctrl);
+	PUSH_MTHD(push, NV507D, PIOR_SET_CONTROL(or), ctrl);
 	return 0;
 }
 

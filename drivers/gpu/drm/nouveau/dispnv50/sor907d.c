@@ -24,6 +24,8 @@
 #include <nvif/class.h>
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl907d.h>
+
 #include <nouveau_bo.h>
 
 static int
@@ -36,7 +38,7 @@ sor907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0200 + (or * 0x20), ctrl);
+	PUSH_MTHD(push, NV907D, SOR_SET_CONTROL(or), ctrl);
 	return 0;
 }
 
