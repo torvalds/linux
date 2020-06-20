@@ -2121,7 +2121,8 @@ static void tnr_work_event(struct rkispp_device *dev,
 		/* tnr read buf from isp */
 		vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 		vdev->tnr.nxt_rd = buf_rd;
-		if (!is_3to1)
+		if (!is_3to1 ||
+		    (readl(base + RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM))
 			vdev->tnr.cur_rd = vdev->tnr.nxt_rd;
 	} else if (vdev->tnr.is_end && !list_empty(list)) {
 		/* tnr read buf from list
@@ -2180,8 +2181,6 @@ static void tnr_work_event(struct rkispp_device *dev,
 
 			val = buf->dma[GROUP_BUF_GAIN];
 			writel(val, base + RKISPP_TNR_GAIN_NXT_Y_BASE);
-		} else {
-			vdev->tnr.nxt_rd = NULL;
 		}
 		is_start = true;
 	}
@@ -2208,12 +2207,12 @@ static void tnr_work_event(struct rkispp_device *dev,
 	if (is_start) {
 		u32 seq = 0;
 
-		if (vdev->tnr.cur_rd) {
-			seq = vdev->tnr.cur_rd->frame_id;
+		if (vdev->tnr.nxt_rd) {
+			seq = vdev->tnr.nxt_rd->frame_id;
 			if (vdev->tnr.cur_wr) {
 				vdev->tnr.cur_wr->frame_id = seq;
 				vdev->tnr.cur_wr->frame_timestamp =
-					vdev->tnr.cur_rd->frame_timestamp;
+					vdev->tnr.nxt_rd->frame_timestamp;
 			}
 		}
 
