@@ -37,18 +37,20 @@ head507d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head507d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x08a0 + (head->base.index * 0x0400), 1);
-		evo_data(push, asyh->dither.mode << 3 |
-			       asyh->dither.bits << 1 |
-			       asyh->dither.enable);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x08a0 + (i * 0x400), asyh->dither.mode << 3 |
+						      asyh->dither.bits << 1 |
+						      asyh->dither.enable);
+	return 0;
 }
 
 int
