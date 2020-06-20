@@ -1774,8 +1774,6 @@ struct dir_context {
 	loff_t pos;
 };
 
-struct block_device_operations;
-
 /* These macros are for out of kernel modules to test that
  * the kernel supports the unlocked_ioctl and compat_ioctl
  * fields in struct file_operations. */
