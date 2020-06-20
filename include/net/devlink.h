@@ -1284,6 +1284,8 @@ int devlink_info_serial_number_put(struct devlink_info_req *req,
 				   const char *sn);
 int devlink_info_driver_name_put(struct devlink_info_req *req,
 				 const char *name);
+int devlink_info_board_serial_number_put(struct devlink_info_req *req,
+					 const char *bsn);
 int devlink_info_version_fixed_put(struct devlink_info_req *req,
 				   const char *version_name,
 				   const char *version_value);
