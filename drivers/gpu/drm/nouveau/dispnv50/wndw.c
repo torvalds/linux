@@ -334,17 +334,17 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		asyw->blend.k1 = asyw->state.alpha >> 8;
 		switch (asyw->state.pixel_blend_mode) {
 		case DRM_MODE_BLEND_PREMULTI:
-			asyw->blend.src_color = 2; /* K1 */
-			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1_TIMES_SRC;
 			break;
 		case DRM_MODE_BLEND_COVERAGE:
-			asyw->blend.src_color = 5; /* K1_TIMES_SRC */
-			asyw->blend.dst_color = 7; /* NEG_K1_TIMES_SRC */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1_TIMES_SRC;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1_TIMES_SRC;
 			break;
 		case DRM_MODE_BLEND_PIXEL_NONE:
 		default:
-			asyw->blend.src_color = 2; /* K1 */
-			asyw->blend.dst_color = 4; /* NEG_K1 */
+			asyw->blend.src_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_SRC_COLOR_FACTOR_MATCH_SELECT_K1;
+			asyw->blend.dst_color = NVC37E_SET_COMPOSITION_FACTOR_SELECT_DST_COLOR_FACTOR_MATCH_SELECT_NEG_K1;
 			break;
 		}
 		if (memcmp(&armw->blend, &asyw->blend, sizeof(asyw->blend)))

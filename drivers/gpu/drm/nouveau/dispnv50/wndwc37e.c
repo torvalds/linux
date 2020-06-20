@@ -105,16 +105,39 @@ wndwc37e_blend_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 8)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x02ec, asyw->blend.depth << 4,
-				0x02f0, asyw->blend.k1,
-				0x02f4, asyw->blend.dst_color << 12 |
-					asyw->blend.dst_color << 8 |
-					asyw->blend.src_color << 4 |
-					asyw->blend.src_color,
-				0x02f8, 0xffff0000,
-				0x02fc, 0xffff0000,
-				0x0300, 0xffff0000,
-				0x0304, 0xffff0000);
+	PUSH_MTHD(push, NVC37E, SET_COMPOSITION_CONTROL,
+		  NVDEF(NVC37E, SET_COMPOSITION_CONTROL, COLOR_KEY_SELECT, DISABLE) |
+		  NVVAL(NVC37E, SET_COMPOSITION_CONTROL, DEPTH, asyw->blend.depth),
+
+				SET_COMPOSITION_CONSTANT_ALPHA,
+		  NVVAL(NVC37E, SET_COMPOSITION_CONSTANT_ALPHA, K1, asyw->blend.k1) |
+		  NVVAL(NVC37E, SET_COMPOSITION_CONSTANT_ALPHA, K2, 0),
+
+				SET_COMPOSITION_FACTOR_SELECT,
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_MATCH_SELECT,
+							       asyw->blend.src_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, SRC_COLOR_FACTOR_NO_MATCH_SELECT,
+							       asyw->blend.src_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_MATCH_SELECT,
+							       asyw->blend.dst_color) |
+		  NVVAL(NVC37E, SET_COMPOSITION_FACTOR_SELECT, DST_COLOR_FACTOR_NO_MATCH_SELECT,
+							       asyw->blend.dst_color),
+
+				SET_KEY_ALPHA,
+		  NVVAL(NVC37E, SET_KEY_ALPHA, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_ALPHA, MAX, 0xffff),
+
+				SET_KEY_RED_CR,
+		  NVVAL(NVC37E, SET_KEY_RED_CR, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_RED_CR, MAX, 0xffff),
+
+				SET_KEY_GREEN_Y,
+		  NVVAL(NVC37E, SET_KEY_GREEN_Y, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_GREEN_Y, MAX, 0xffff),
+
+				SET_KEY_BLUE_CB,
+		  NVVAL(NVC37E, SET_KEY_BLUE_CB, MIN, 0x0000) |
+		  NVVAL(NVC37E, SET_KEY_BLUE_CB, MAX, 0xffff));
 	return 0;
 }
 
