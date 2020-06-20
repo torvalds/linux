@@ -169,7 +169,7 @@ wndwc37e_ntfy_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x021c, 0x00000000);
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, 0x00000000);
 	return 0;
 }
 
