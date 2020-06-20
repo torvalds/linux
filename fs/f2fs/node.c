@@ -1041,8 +1041,10 @@ int f2fs_truncate_inode_blocks(struct inode *inode, pgoff_t from)
 	trace_f2fs_truncate_inode_blocks_enter(inode, from);
 
 	level = get_node_path(inode, from, offset, noffset);
-	if (level < 0)
+	if (level < 0) {
+		trace_f2fs_truncate_inode_blocks_exit(inode, level);
 		return level;
+	}
 
 	page = f2fs_get_node_page(sbi, inode->i_ino);
 	if (IS_ERR(page)) {
