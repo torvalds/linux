@@ -1422,23 +1422,16 @@ static void __rtl8169_set_wol(struct rtl8169_private *tp, u32 wolopts)
 static int rtl8169_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
 
 	if (wol->wolopts & ~WAKE_ANY)
 		return -EINVAL;
 
-	pm_runtime_get_noresume(d);
-
 	rtl_lock_work(tp);
 
 	tp->saved_wolopts = wol->wolopts;
-
-	if (pm_runtime_active(d))
-		__rtl8169_set_wol(tp, tp->saved_wolopts);
+	__rtl8169_set_wol(tp, tp->saved_wolopts);
 
 	rtl_unlock_work(tp);
-
-	pm_runtime_put_noidle(d);
 
 	return 0;
 }
@@ -1657,17 +1650,10 @@ static void rtl8169_get_ethtool_stats(struct net_device *dev,
 				      struct ethtool_stats *stats, u64 *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
-	struct rtl8169_counters *counters = tp->counters;
+	struct rtl8169_counters *counters;
 
-	ASSERT_RTNL();
-
-	pm_runtime_get_noresume(d);
-
-	if (pm_runtime_active(d))
-		rtl8169_update_counters(tp);
-
-	pm_runtime_put_noidle(d);
+	counters = tp->counters;
+	rtl8169_update_counters(tp);
 
 	data[0] = le64_to_cpu(counters->tx_packets);
 	data[1] = le64_to_cpu(counters->rx_packets);
@@ -1899,48 +1885,26 @@ static int rtl_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
-	int ret;
 
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
 
-	pm_runtime_get_noresume(d);
-
-	if (!pm_runtime_active(d)) {
-		ret = -EOPNOTSUPP;
-	} else {
-		ret = phy_ethtool_get_eee(tp->phydev, data);
-	}
-
-	pm_runtime_put_noidle(d);
-
-	return ret;
+	return phy_ethtool_get_eee(tp->phydev, data);
 }
 
 static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
 	int ret;
 
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
-
-	pm_runtime_get_noresume(d);
-
-	if (!pm_runtime_active(d)) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
 
 	ret = phy_ethtool_set_eee(tp->phydev, data);
 
 	if (!ret)
 		tp->eee_adv = phy_read_mmd(dev->phydev, MDIO_MMD_AN,
 					   MDIO_AN_EEE_ADV);
-out:
-	pm_runtime_put_noidle(d);
 	return ret;
 }
 
@@ -2219,19 +2183,13 @@ static void rtl_rar_set(struct rtl8169_private *tp, u8 *addr)
 static int rtl_set_mac_address(struct net_device *dev, void *p)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	struct device *d = tp_to_dev(tp);
 	int ret;
 
 	ret = eth_mac_addr(dev, p);
 	if (ret)
 		return ret;
 
-	pm_runtime_get_noresume(d);
-
-	if (pm_runtime_active(d))
-		rtl_rar_set(tp, dev->dev_addr);
-
-	pm_runtime_put_noidle(d);
+	rtl_rar_set(tp, dev->dev_addr);
 
 	return 0;
 }
