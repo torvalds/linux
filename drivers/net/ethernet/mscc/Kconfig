@@ -18,8 +18,8 @@ config MSCC_OCELOT_SWITCH_LIB
 	  This is a hardware support library for Ocelot network switches. It is
 	  used by switchdev as well as by DSA drivers.
 
-config MSCC_OCELOT_SWITCH_OCELOT
-	tristate "Ocelot switch driver on Ocelot"
+config MSCC_OCELOT_SWITCH
+	tristate "Ocelot switch driver"
 	depends on NET_SWITCHDEV
 	depends on GENERIC_PHY
 	depends on REGMAP_MMIO
@@ -29,6 +29,6 @@ config MSCC_OCELOT_SWITCH_OCELOT
 	select MSCC_OCELOT_SWITCH_LIB
 	help
 	  This driver supports the Ocelot network switch device as present on
-	  the Ocelot SoCs.
+	  the Ocelot SoCs (VSC7514).
 
 endif # NET_VENDOR_MICROSEMI
