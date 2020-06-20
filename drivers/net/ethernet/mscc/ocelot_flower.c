@@ -249,25 +249,3 @@ int ocelot_cls_flower_stats(struct ocelot *ocelot, int port,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ocelot_cls_flower_stats);
-
-int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
-			       struct flow_cls_offload *f,
-			       bool ingress)
-{
-	struct ocelot *ocelot = priv->port.ocelot;
-	int port = priv->chip_port;
-
-	if (!ingress)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case FLOW_CLS_REPLACE:
-		return ocelot_cls_flower_replace(ocelot, port, f, ingress);
-	case FLOW_CLS_DESTROY:
-		return ocelot_cls_flower_destroy(ocelot, port, f, ingress);
-	case FLOW_CLS_STATS:
-		return ocelot_cls_flower_stats(ocelot, port, f, ingress);
-	default:
-		return -EOPNOTSUPP;
-	}
-}
