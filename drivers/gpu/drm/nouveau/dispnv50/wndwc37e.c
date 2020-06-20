@@ -197,7 +197,7 @@ wndwc37e_sema_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x0218, 0x00000000);
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_SEMAPHORE, 0x00000000);
 	return 0;
 }
 

@@ -174,7 +174,7 @@ base507c_sema_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507C, 0x0094, 0x00000000);
+	PUSH_MTHD(push, NV507C, SET_CONTEXT_DMA_SEMAPHORE, 0x00000000);
 	return 0;
 }
 
