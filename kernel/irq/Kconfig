@@ -72,6 +72,7 @@ config IRQ_DOMAIN
 config IRQ_SIM
 	bool
 	select IRQ_WORK
+	select IRQ_DOMAIN
 
 # Support for hierarchical irq domains
 config IRQ_DOMAIN_HIERARCHY

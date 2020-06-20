@@ -469,7 +469,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 		cvmmemctl2 |= CVMMEMCTL2_INHIBITTS;
 		write_c0_cvmmemctl2(cvmmemctl2);
 		break;
-	};
+	}
 
 	/* Invalidate guest entries in guest TLB */
 	write_gc0_entrylo0(0);
@@ -486,7 +486,7 @@ void kvm_vz_local_flush_guesttlb_all(void)
 	if (cvmmemctl2) {
 		cvmmemctl2 &= ~CVMMEMCTL2_INHIBITTS;
 		write_c0_cvmmemctl2(cvmmemctl2);
-	};
+	}
 
 	write_gc0_index(old_index);
 	write_gc0_entryhi(old_entryhi);

@@ -143,7 +143,7 @@ struct lpfc_dmabuf {
 
 struct lpfc_nvmet_ctxbuf {
 	struct list_head list;
-	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_async_xchg_ctx *context;
 	struct lpfc_iocbq *iocbq;
 	struct lpfc_sglq *sglq;
 	struct work_struct defer_work;

@@ -61,8 +61,8 @@ xfs_inode_hasattr(
 	struct xfs_inode	*ip)
 {
 	if (!XFS_IFORK_Q(ip) ||
-	    (ip->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     ip->i_d.di_anextents == 0))
+	    (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	     ip->i_afp->if_nextents == 0))
 		return 0;
 	return 1;
 }
@@ -84,7 +84,7 @@ xfs_attr_get_ilocked(
 	if (!xfs_inode_hasattr(args->dp))
 		return -ENOATTR;
 
-	if (args->dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL)
+	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
 	if (xfs_bmap_one_block(args->dp, XFS_ATTR_FORK))
 		return xfs_attr_leaf_get(args);
@@ -212,14 +212,14 @@ xfs_attr_set_args(
 	 * If the attribute list is non-existent or a shortform list,
 	 * upgrade it to a single-leaf-block attribute list.
 	 */
-	if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL ||
-	    (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-	     dp->i_d.di_anextents == 0)) {
+	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL ||
+	    (dp->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
+	     dp->i_afp->if_nextents == 0)) {
 
 		/*
 		 * Build initial attribute list (if required).
 		 */
-		if (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS)
+		if (dp->i_afp->if_format == XFS_DINODE_FMT_EXTENTS)
 			xfs_attr_shortform_create(args);
 
 		/*
@@ -272,7 +272,7 @@ xfs_attr_remove_args(
 
 	if (!xfs_inode_hasattr(dp)) {
 		error = -ENOATTR;
-	} else if (dp->i_d.di_aformat == XFS_DINODE_FMT_LOCAL) {
+	} else if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL) {
 		ASSERT(dp->i_afp->if_flags & XFS_IFINLINE);
 		error = xfs_attr_shortform_remove(args);
 	} else if (xfs_bmap_one_block(dp, XFS_ATTR_FORK)) {

@@ -214,7 +214,7 @@
 
 			miim1: miim1 {
 				pins = "GPIO_14", "GPIO_15";
-				function = "miim1";
+				function = "miim";
 			};
 
 		};

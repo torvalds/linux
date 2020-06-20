@@ -17,6 +17,7 @@
 #include "kvm_util.h"
 
 #include "vmx.h"
+#include "svm_util.h"
 
 #define VCPU_ID	      1
 
@@ -58,7 +59,7 @@ void self_smi(void)
 	      APIC_DEST_SELF | APIC_INT_ASSERT | APIC_DM_SMI);
 }
 
-void guest_code(struct vmx_pages *vmx_pages)
+void guest_code(void *arg)
 {
 	uint64_t apicbase = rdmsr(MSR_IA32_APICBASE);
 
@@ -72,8 +73,11 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 	sync_with_host(4);
 
-	if (vmx_pages) {
-		GUEST_ASSERT(prepare_for_vmx_operation(vmx_pages));
+	if (arg) {
+		if (cpu_has_svm())
+			generic_svm_setup(arg, NULL, NULL);
+		else
+			GUEST_ASSERT(prepare_for_vmx_operation(arg));
 
 		sync_with_host(5);
 
@@ -87,7 +91,7 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 int main(int argc, char *argv[])
 {
-	vm_vaddr_t vmx_pages_gva = 0;
+	vm_vaddr_t nested_gva = 0;
 
 	struct kvm_regs regs;
 	struct kvm_vm *vm;
@@ -114,8 +118,11 @@ int main(int argc, char *argv[])
 	vcpu_set_msr(vm, VCPU_ID, MSR_IA32_SMBASE, SMRAM_GPA);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
-		vcpu_alloc_vmx(vm, &vmx_pages_gva);
-		vcpu_args_set(vm, VCPU_ID, 1, vmx_pages_gva);
+		if (kvm_get_supported_cpuid_entry(0x80000001)->ecx & CPUID_SVM)
+			vcpu_alloc_svm(vm, &nested_gva);
+		else
+			vcpu_alloc_vmx(vm, &nested_gva);
+		vcpu_args_set(vm, VCPU_ID, 1, nested_gva);
 	} else {
 		pr_info("will skip SMM test with VMX enabled\n");
 		vcpu_args_set(vm, VCPU_ID, 1, 0);

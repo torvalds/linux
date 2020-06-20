@@ -7924,6 +7924,7 @@ F:	drivers/pci/controller/pci-hyperv.c
 F:	drivers/scsi/storvsc_drv.c
 F:	drivers/uio/uio_hv_generic.c
 F:	drivers/video/fbdev/hyperv_fb.c
+F:	include/asm-generic/hyperv-tlfs.h
 F:	include/asm-generic/mshyperv.h
 F:	include/clocksource/hyperv_timer.h
 F:	include/linux/hyperv.h
@@ -9367,7 +9368,6 @@ F:	arch/arm64/include/asm/kvm*
 F:	arch/arm64/include/uapi/asm/kvm*
 F:	arch/arm64/kvm/
 F:	include/kvm/arm_*
-F:	virt/kvm/arm/
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
 L:	linux-mips@vger.kernel.org
@@ -12847,7 +12847,7 @@ M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
 M:	Helge Deller <deller@gmx.de>
 L:	linux-parisc@vger.kernel.org
 S:	Maintained
-W:	http://www.parisc-linux.org/
+W:	https://parisc.wiki.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-parisc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jejb/parisc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/deller/parisc-linux.git
@@ -14717,6 +14717,7 @@ S:	Supported
 W:	http://www.ibm.com/developerworks/linux/linux390/
 F:	block/partitions/ibm.c
 F:	drivers/s390/block/dasd*
+F:	include/linux/dasd_mod.h
 
 S390 IOMMU (PCI)
 M:	Gerald Schaefer <gerald.schaefer@de.ibm.com>

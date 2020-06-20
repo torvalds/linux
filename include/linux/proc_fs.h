@@ -179,4 +179,6 @@ static inline struct pid_namespace *proc_pid_ns(const struct inode *inode)
 	return inode->i_sb->s_fs_info;
 }
 
+bool proc_ns_file(const struct file *file);
+
 #endif /* _LINUX_PROC_FS_H */

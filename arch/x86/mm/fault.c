@@ -30,6 +30,7 @@
 #include <asm/desc.h>			/* store_idt(), ...		*/
 #include <asm/cpu_entry_area.h>		/* exception stack		*/
 #include <asm/pgtable_areas.h>		/* VMALLOC_START, ...		*/
+#include <asm/kvm_para.h>		/* kvm_handle_async_pf		*/
 
 #define CREATE_TRACE_POINTS
 #include <asm/trace/exceptions.h>
@@ -1359,6 +1360,24 @@ do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
 		unsigned long address)
 {
 	prefetchw(&current->mm->mmap_sem);
+	/*
+	 * KVM has two types of events that are, logically, interrupts, but
+	 * are unfortunately delivered using the #PF vector.  These events are
+	 * "you just accessed valid memory, but the host doesn't have it right
+	 * now, so I'll put you to sleep if you continue" and "that memory
+	 * you tried to access earlier is available now."
+	 *
+	 * We are relying on the interrupted context being sane (valid RSP,
+	 * relevant locks not held, etc.), which is fine as long as the
+	 * interrupted context had IF=1.  We are also relying on the KVM
+	 * async pf type field and CR2 being read consistently instead of
+	 * getting values from real and async page faults mixed up.
+	 *
+	 * Fingers crossed.
+	 */
+	if (kvm_handle_async_pf(regs, (u32)address))
+		return;
+
 	trace_page_fault_entries(regs, hw_error_code, address);
 
 	if (unlikely(kmmio_fault(regs, address)))

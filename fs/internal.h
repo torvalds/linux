@@ -185,5 +185,5 @@ int sb_init_dio_done_wq(struct super_block *sb);
 /*
  * fs/stat.c:
  */
-unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags, int flags);
-int cp_statx(const struct kstat *stat, struct statx __user *buffer);
+int do_statx(int dfd, const char __user *filename, unsigned flags,
+	     unsigned int mask, struct statx __user *buffer);

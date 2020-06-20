@@ -39,8 +39,6 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <linux/nvme-fc-driver.h>
-
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
@@ -50,7 +48,6 @@
 #include "lpfc.h"
 #include "lpfc_scsi.h"
 #include "lpfc_nvme.h"
-#include "lpfc_nvmet.h"
 #include "lpfc_logmsg.h"
 #include "lpfc_crtn.h"
 #include "lpfc_vport.h"
@@ -1035,7 +1032,7 @@ lpfc_debugfs_nvmestat_data(struct lpfc_vport *vport, char *buf, int size)
 {
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nvmet_tgtport *tgtp;
-	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
+	struct lpfc_async_xchg_ctx *ctxp, *next_ctxp;
 	struct nvme_fc_local_port *localport;
 	struct lpfc_fc4_ctrl_stat *cstat;
 	struct lpfc_nvme_lport *lport;

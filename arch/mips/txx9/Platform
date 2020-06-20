@@ -1,6 +1,3 @@
-platform-$(CONFIG_MACH_TX39XX)	+= txx9/
-platform-$(CONFIG_MACH_TX49XX)	+= txx9/
-
 cflags-$(CONFIG_MACH_TX39XX)	+=					\
 		-I$(srctree)/arch/mips/include/asm/mach-tx39xx
 cflags-$(CONFIG_MACH_TX49XX)	+=					\

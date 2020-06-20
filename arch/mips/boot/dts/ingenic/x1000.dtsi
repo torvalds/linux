@@ -58,9 +58,9 @@
 
 		#clock-cells = <1>;
 
-		clocks = <&cgu X1000_CLK_RTCLK
-			  &cgu X1000_CLK_EXCLK
-			  &cgu X1000_CLK_PCLK>;
+		clocks = <&cgu X1000_CLK_RTCLK>,
+			 <&cgu X1000_CLK_EXCLK>,
+			 <&cgu X1000_CLK_PCLK>;
 		clock-names = "rtc", "ext", "pclk";
 
 		interrupt-controller;
@@ -239,8 +239,7 @@
 
 	pdma: dma-controller@13420000 {
 		compatible = "ingenic,x1000-dma";
-		reg = <0x13420000 0x400
-			   0x13421000 0x40>;
+		reg = <0x13420000 0x400>, <0x13421000 0x40>;
 		#dma-cells = <2>;
 
 		interrupt-parent = <&intc>;

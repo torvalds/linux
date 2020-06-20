@@ -35,29 +35,28 @@
 
 unsigned long kvmppc_booke_handlers;
 
-#define VM_STAT(x) offsetof(struct kvm, stat.x), KVM_STAT_VM
-#define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
-
 struct kvm_stats_debugfs_item debugfs_entries[] = {
-	{ "mmio",       VCPU_STAT(mmio_exits) },
-	{ "sig",        VCPU_STAT(signal_exits) },
-	{ "itlb_r",     VCPU_STAT(itlb_real_miss_exits) },
-	{ "itlb_v",     VCPU_STAT(itlb_virt_miss_exits) },
-	{ "dtlb_r",     VCPU_STAT(dtlb_real_miss_exits) },
-	{ "dtlb_v",     VCPU_STAT(dtlb_virt_miss_exits) },
-	{ "sysc",       VCPU_STAT(syscall_exits) },
-	{ "isi",        VCPU_STAT(isi_exits) },
-	{ "dsi",        VCPU_STAT(dsi_exits) },
-	{ "inst_emu",   VCPU_STAT(emulated_inst_exits) },
-	{ "dec",        VCPU_STAT(dec_exits) },
-	{ "ext_intr",   VCPU_STAT(ext_intr_exits) },
-	{ "halt_successful_poll", VCPU_STAT(halt_successful_poll) },
-	{ "halt_attempted_poll", VCPU_STAT(halt_attempted_poll) },
-	{ "halt_poll_invalid", VCPU_STAT(halt_poll_invalid) },
-	{ "halt_wakeup", VCPU_STAT(halt_wakeup) },
-	{ "doorbell", VCPU_STAT(dbell_exits) },
-	{ "guest doorbell", VCPU_STAT(gdbell_exits) },
-	{ "remote_tlb_flush", VM_STAT(remote_tlb_flush) },
+	VCPU_STAT("mmio", mmio_exits),
+	VCPU_STAT("sig", signal_exits),
+	VCPU_STAT("itlb_r", itlb_real_miss_exits),
+	VCPU_STAT("itlb_v", itlb_virt_miss_exits),
+	VCPU_STAT("dtlb_r", dtlb_real_miss_exits),
+	VCPU_STAT("dtlb_v", dtlb_virt_miss_exits),
+	VCPU_STAT("sysc", syscall_exits),
+	VCPU_STAT("isi", isi_exits),
+	VCPU_STAT("dsi", dsi_exits),
+	VCPU_STAT("inst_emu", emulated_inst_exits),
+	VCPU_STAT("dec", dec_exits),
+	VCPU_STAT("ext_intr", ext_intr_exits),
+	VCPU_STAT("halt_successful_poll", halt_successful_poll),
+	VCPU_STAT("halt_attempted_poll", halt_attempted_poll),
+	VCPU_STAT("halt_poll_invalid", halt_poll_invalid),
+	VCPU_STAT("halt_wakeup", halt_wakeup),
+	VCPU_STAT("doorbell", dbell_exits),
+	VCPU_STAT("guest doorbell", gdbell_exits),
+	VCPU_STAT("halt_poll_success_ns", halt_poll_success_ns),
+	VCPU_STAT("halt_poll_fail_ns", halt_poll_fail_ns),
+	VM_STAT("remote_tlb_flush", remote_tlb_flush),
 	{ NULL }
 };
 

@@ -1356,11 +1356,11 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 {
 	struct irq_cfg *cfg = irqd_cfg(data);
 	struct hv_pcibus_device *hbus;
+	struct vmbus_channel *channel;
 	struct hv_pci_dev *hpdev;
 	struct pci_bus *pbus;
 	struct pci_dev *pdev;
 	struct cpumask *dest;
-	unsigned long flags;
 	struct compose_comp_ctxt comp;
 	struct tran_int_desc *int_desc;
 	struct {
@@ -1378,6 +1378,7 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	dest = irq_data_get_effective_affinity_mask(data);
 	pbus = pdev->bus;
 	hbus = container_of(pbus->sysdata, struct hv_pcibus_device, sysdata);
+	channel = hbus->hdev->channel;
 	hpdev = get_pcichild_wslot(hbus, devfn_to_wslot(pdev->devfn));
 	if (!hpdev)
 		goto return_null_message;
@@ -1436,41 +1437,50 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	}
 
 	/*
+	 * Prevents hv_pci_onchannelcallback() from running concurrently
+	 * in the tasklet.
+	 */
+	tasklet_disable(&channel->callback_event);
+
+	/*
 	 * Since this function is called with IRQ locks held, can't
 	 * do normal wait for completion; instead poll.
 	 */
 	while (!try_wait_for_completion(&comp.comp_pkt.host_event)) {
+		unsigned long flags;
+
 		/* 0xFFFF means an invalid PCI VENDOR ID. */
 		if (hv_pcifront_get_vendor_id(hpdev) == 0xFFFF) {
 			dev_err_once(&hbus->hdev->device,
 				     "the device has gone\n");
-			goto free_int_desc;
+			goto enable_tasklet;
 		}
 
 		/*
-		 * When the higher level interrupt code calls us with
-		 * interrupt disabled, we must poll the channel by calling
-		 * the channel callback directly when channel->target_cpu is
-		 * the current CPU. When the higher level interrupt code
-		 * calls us with interrupt enabled, let's add the
-		 * local_irq_save()/restore() to avoid race:
-		 * hv_pci_onchannelcallback() can also run in tasklet.
+		 * Make sure that the ring buffer data structure doesn't get
+		 * freed while we dereference the ring buffer pointer.  Test
+		 * for the channel's onchannel_callback being NULL within a
+		 * sched_lock critical section.  See also the inline comments
+		 * in vmbus_reset_channel_cb().
 		 */
-		local_irq_save(flags);
-
-		if (hbus->hdev->channel->target_cpu == smp_processor_id())
-			hv_pci_onchannelcallback(hbus);
-
-		local_irq_restore(flags);
+		spin_lock_irqsave(&channel->sched_lock, flags);
+		if (unlikely(channel->onchannel_callback == NULL)) {
+			spin_unlock_irqrestore(&channel->sched_lock, flags);
+			goto enable_tasklet;
+		}
+		hv_pci_onchannelcallback(hbus);
+		spin_unlock_irqrestore(&channel->sched_lock, flags);
 
 		if (hpdev->state == hv_pcichild_ejecting) {
 			dev_err_once(&hbus->hdev->device,
 				     "the device is being ejected\n");
-			goto free_int_desc;
+			goto enable_tasklet;
 		}
 
 		udelay(100);
 	}
+
+	tasklet_enable(&channel->callback_event);
 
 	if (comp.comp_pkt.completion_status < 0) {
 		dev_err(&hbus->hdev->device,
@@ -1495,6 +1505,8 @@ static void hv_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	put_pcichild(hpdev);
 	return;
 
+enable_tasklet:
+	tasklet_enable(&channel->callback_event);
 free_int_desc:
 	kfree(int_desc);
 drop_reference:

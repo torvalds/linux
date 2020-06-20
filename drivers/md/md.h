@@ -497,6 +497,7 @@ struct mddev {
 	void (*sync_super)(struct mddev *mddev, struct md_rdev *rdev);
 	struct md_cluster_info		*cluster_info;
 	unsigned int			good_device_nr;	/* good device num within cluster raid */
+	unsigned int			noio_flag; /* for memalloc scope API */
 
 	bool	has_superblocks:1;
 	bool	fail_last_dev:1;

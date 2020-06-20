@@ -788,19 +788,19 @@ static inline unsigned long *gmap_table_walk(struct gmap *gmap,
 					     unsigned long gaddr, int level)
 {
 	const int asce_type = gmap->asce & _ASCE_TYPE_MASK;
-	unsigned long *table;
+	unsigned long *table = gmap->table;
 
-	if ((gmap->asce & _ASCE_TYPE_MASK) + 4 < (level * 4))
-		return NULL;
 	if (gmap_is_shadow(gmap) && gmap->removed)
+		return NULL;
+
+	if (WARN_ON_ONCE(level > (asce_type >> 2) + 1))
 		return NULL;
 
 	if (asce_type != _ASCE_TYPE_REGION1 &&
 	    gaddr & (-1UL << (31 + (asce_type >> 2) * 11)))
 		return NULL;
 
-	table = gmap->table;
-	switch (gmap->asce & _ASCE_TYPE_MASK) {
+	switch (asce_type) {
 	case _ASCE_TYPE_REGION1:
 		table += (gaddr & _REGION1_INDEX) >> _REGION1_SHIFT;
 		if (level == 4)

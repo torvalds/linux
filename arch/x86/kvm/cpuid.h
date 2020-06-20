@@ -303,4 +303,9 @@ static __always_inline void kvm_cpu_cap_check_and_set(unsigned int x86_feature)
 		kvm_cpu_cap_set(x86_feature);
 }
 
+static inline bool page_address_valid(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	return PAGE_ALIGNED(gpa) && !(gpa >> cpuid_maxphyaddr(vcpu));
+}
+
 #endif

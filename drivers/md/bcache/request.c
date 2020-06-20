@@ -110,7 +110,7 @@ static void bch_data_invalidate(struct closure *cl)
 	struct data_insert_op *op = container_of(cl, struct data_insert_op, cl);
 	struct bio *bio = op->bio;
 
-	pr_debug("invalidating %i sectors from %llu",
+	pr_debug("invalidating %i sectors from %llu\n",
 		 bio_sectors(bio), (uint64_t) bio->bi_iter.bi_sector);
 
 	while (bio_sectors(bio)) {
@@ -396,7 +396,7 @@ static bool check_should_bypass(struct cached_dev *dc, struct bio *bio)
 
 	if (bio->bi_iter.bi_sector & (c->sb.block_size - 1) ||
 	    bio_sectors(bio) & (c->sb.block_size - 1)) {
-		pr_debug("skipping unaligned io");
+		pr_debug("skipping unaligned io\n");
 		goto skip;
 	}
 
@@ -650,7 +650,7 @@ static void backing_request_endio(struct bio *bio)
 		 */
 		if (unlikely(s->iop.writeback &&
 			     bio->bi_opf & REQ_PREFLUSH)) {
-			pr_err("Can't flush %s: returned bi_status %i",
+			pr_err("Can't flush %s: returned bi_status %i\n",
 				dc->backing_dev_name, bio->bi_status);
 		} else {
 			/* set to orig_bio->bi_status in bio_complete() */

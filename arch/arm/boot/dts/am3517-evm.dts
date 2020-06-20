@@ -156,6 +156,7 @@
 		pinctrl-0 = <&pwm_pins>;
 		ti,timers = <&timer11>;
 		#pwm-cells = <3>;
+		ti,clock-source = <0x01>;
 	};
 
 	/* HS USB Host PHY on PORT 1 */

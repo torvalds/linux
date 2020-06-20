@@ -80,6 +80,9 @@ int vfs_getattr_nosec(const struct path *path, struct kstat *stat,
 	if (IS_AUTOMOUNT(inode))
 		stat->attributes |= STATX_ATTR_AUTOMOUNT;
 
+	if (IS_DAX(inode))
+		stat->attributes |= STATX_ATTR_DAX;
+
 	if (inode->i_op->getattr)
 		return inode->i_op->getattr(path, stat, request_mask,
 					    query_flags);
@@ -153,7 +156,8 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 }
 EXPORT_SYMBOL(vfs_statx_fd);
 
-inline unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags, int flags)
+static inline unsigned vfs_stat_set_lookup_flags(unsigned *lookup_flags,
+						 int flags)
 {
 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
@@ -539,7 +543,7 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 }
 #endif /* __ARCH_WANT_STAT64 || __ARCH_WANT_COMPAT_STAT64 */
 
-noinline_for_stack int
+static noinline_for_stack int
 cp_statx(const struct kstat *stat, struct statx __user *buffer)
 {
 	struct statx tmp;
@@ -574,6 +578,24 @@ cp_statx(const struct kstat *stat, struct statx __user *buffer)
 	return copy_to_user(buffer, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
+int do_statx(int dfd, const char __user *filename, unsigned flags,
+	     unsigned int mask, struct statx __user *buffer)
+{
+	struct kstat stat;
+	int error;
+
+	if (mask & STATX__RESERVED)
+		return -EINVAL;
+	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
+		return -EINVAL;
+
+	error = vfs_statx(dfd, filename, flags, &stat, mask);
+	if (error)
+		return error;
+
+	return cp_statx(&stat, buffer);
+}
+
 /**
  * sys_statx - System call to get enhanced stats
  * @dfd: Base directory to pathwalk from *or* fd to stat.
@@ -590,19 +612,7 @@ SYSCALL_DEFINE5(statx,
 		unsigned int, mask,
 		struct statx __user *, buffer)
 {
-	struct kstat stat;
-	int error;
-
-	if (mask & STATX__RESERVED)
-		return -EINVAL;
-	if ((flags & AT_STATX_SYNC_TYPE) == AT_STATX_SYNC_TYPE)
-		return -EINVAL;
-
-	error = vfs_statx(dfd, filename, flags, &stat, mask);
-	if (error)
-		return error;
-
-	return cp_statx(&stat, buffer);
+	return do_statx(dfd, filename, flags, mask, buffer);
 }
 
 #ifdef CONFIG_COMPAT

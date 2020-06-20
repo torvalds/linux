@@ -1102,7 +1102,7 @@ xfs_dir_open(
 	 * certain to have the next operation be a read there.
 	 */
 	mode = xfs_ilock_data_map_shared(ip);
-	if (ip->i_d.di_nextents > 0)
+	if (ip->i_df.if_nextents > 0)
 		error = xfs_dir3_data_readahead(ip, 0, 0);
 	xfs_iunlock(ip, mode);
 	return error;
