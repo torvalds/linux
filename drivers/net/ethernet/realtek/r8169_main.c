@@ -4758,13 +4758,13 @@ static int __maybe_unused rtl8169_suspend(struct device *device)
 	return 0;
 }
 
-static int __maybe_unused rtl8169_resume(struct device *device)
+static int rtl8169_resume(struct device *device)
 {
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
-	if (netif_running(tp->dev))
+	if (tp->TxDescArray)
 		rtl8169_up(tp);
 
 	netif_device_attach(tp->dev);
@@ -4793,16 +4793,9 @@ static int rtl8169_runtime_resume(struct device *device)
 {
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
-	rtl_rar_set(tp, tp->dev->dev_addr);
-
 	__rtl8169_set_wol(tp, tp->saved_wolopts);
 
-	if (tp->TxDescArray)
-		rtl8169_up(tp);
-
-	netif_device_attach(tp->dev);
-
-	return 0;
+	return rtl8169_resume(device);
 }
 
 static int rtl8169_runtime_idle(struct device *device)
