@@ -673,6 +673,9 @@ qca8k_setup(struct dsa_switch *ds)
 	/* Flush the FDB table */
 	qca8k_fdb_flush(priv);
 
+	/* We don't have interrupts for link changes, so we need to poll */
+	ds->pcs_poll = true;
+
 	return 0;
 }
 
@@ -681,7 +684,7 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 			 const struct phylink_link_state *state)
 {
 	struct qca8k_priv *priv = ds->priv;
-	u32 reg;
+	u32 reg, val;
 
 	switch (port) {
 	case 0: /* 1st CPU port */
@@ -740,6 +743,34 @@ qca8k_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	case PHY_INTERFACE_MODE_1000BASEX:
 		/* Enable SGMII on the port */
 		qca8k_write(priv, reg, QCA8K_PORT_PAD_SGMII_EN);
+
+		/* Enable/disable SerDes auto-negotiation as necessary */
+		val = qca8k_read(priv, QCA8K_REG_PWS);
+		if (phylink_autoneg_inband(mode))
+			val &= ~QCA8K_PWS_SERDES_AEN_DIS;
+		else
+			val |= QCA8K_PWS_SERDES_AEN_DIS;
+		qca8k_write(priv, QCA8K_REG_PWS, val);
+
+		/* Configure the SGMII parameters */
+		val = qca8k_read(priv, QCA8K_REG_SGMII_CTRL);
+
+		val |= QCA8K_SGMII_EN_PLL | QCA8K_SGMII_EN_RX |
+			QCA8K_SGMII_EN_TX | QCA8K_SGMII_EN_SD;
+
+		if (dsa_is_cpu_port(ds, port)) {
+			/* CPU port, we're talking to the CPU MAC, be a PHY */
+			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+			val |= QCA8K_SGMII_MODE_CTRL_PHY;
+		} else if (state->interface == PHY_INTERFACE_MODE_SGMII) {
+			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+			val |= QCA8K_SGMII_MODE_CTRL_MAC;
+		} else if (state->interface == PHY_INTERFACE_MODE_1000BASEX) {
+			val &= ~QCA8K_SGMII_MODE_CTRL_MASK;
+			val |= QCA8K_SGMII_MODE_CTRL_BASEX;
+		}
+
+		qca8k_write(priv, QCA8K_REG_SGMII_CTRL, val);
 		break;
 	default:
 		dev_err(ds->dev, "xMII mode %s not supported for port %d\n",
