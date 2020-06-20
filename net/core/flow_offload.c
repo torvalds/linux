@@ -372,14 +372,15 @@ int flow_indr_dev_register(flow_indr_block_bind_cb_t *cb, void *cb_priv)
 }
 EXPORT_SYMBOL(flow_indr_dev_register);
 
-static void __flow_block_indr_cleanup(flow_setup_cb_t *setup_cb, void *cb_priv,
+static void __flow_block_indr_cleanup(void (*release)(void *cb_priv),
+				      void *cb_priv,
 				      struct list_head *cleanup_list)
 {
 	struct flow_block_cb *this, *next;
 
 	list_for_each_entry_safe(this, next, &flow_block_indr_list, indr.list) {
-		if (this->cb == setup_cb &&
-		    this->cb_priv == cb_priv) {
+		if (this->release == release &&
+		    this->indr.cb_priv == cb_priv) {
 			list_move(&this->indr.list, cleanup_list);
 			return;
 		}
@@ -397,7 +398,7 @@ static void flow_block_indr_notify(struct list_head *cleanup_list)
 }
 
 void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
-			      flow_setup_cb_t *setup_cb)
+			      void (*release)(void *cb_priv))
 {
 	struct flow_indr_dev *this, *next, *indr_dev = NULL;
 	LIST_HEAD(cleanup_list);
@@ -418,7 +419,7 @@ void flow_indr_dev_unregister(flow_indr_block_bind_cb_t *cb, void *cb_priv,
 		return;
 	}
 
-	__flow_block_indr_cleanup(setup_cb, cb_priv, &cleanup_list);
+	__flow_block_indr_cleanup(release, cb_priv, &cleanup_list);
 	mutex_unlock(&flow_indr_block_lock);
 
 	flow_block_indr_notify(&cleanup_list);
@@ -429,32 +430,37 @@ EXPORT_SYMBOL(flow_indr_dev_unregister);
 static void flow_block_indr_init(struct flow_block_cb *flow_block,
 				 struct flow_block_offload *bo,
 				 struct net_device *dev, void *data,
+				 void *cb_priv,
 				 void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	flow_block->indr.binder_type = bo->binder_type;
 	flow_block->indr.data = data;
+	flow_block->indr.cb_priv = cb_priv;
 	flow_block->indr.dev = dev;
 	flow_block->indr.cleanup = cleanup;
 }
 
-static void __flow_block_indr_binding(struct flow_block_offload *bo,
-				      struct net_device *dev, void *data,
-				      void (*cleanup)(struct flow_block_cb *block_cb))
+struct flow_block_cb *flow_indr_block_cb_alloc(flow_setup_cb_t *cb,
+					       void *cb_ident, void *cb_priv,
+					       void (*release)(void *cb_priv),
+					       struct flow_block_offload *bo,
+					       struct net_device *dev, void *data,
+					       void *indr_cb_priv,
+					       void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	struct flow_block_cb *block_cb;
 
-	list_for_each_entry(block_cb, &bo->cb_list, list) {
-		switch (bo->command) {
-		case FLOW_BLOCK_BIND:
-			flow_block_indr_init(block_cb, bo, dev, data, cleanup);
-			list_add(&block_cb->indr.list, &flow_block_indr_list);
-			break;
-		case FLOW_BLOCK_UNBIND:
-			list_del(&block_cb->indr.list);
-			break;
-		}
-	}
+	block_cb = flow_block_cb_alloc(cb, cb_ident, cb_priv, release);
+	if (IS_ERR(block_cb))
+		goto out;
+
+	flow_block_indr_init(block_cb, bo, dev, data, indr_cb_priv, cleanup);
+	list_add(&block_cb->indr.list, &flow_block_indr_list);
+
+out:
+	return block_cb;
 }
+EXPORT_SYMBOL(flow_indr_block_cb_alloc);
 
 int flow_indr_dev_setup_offload(struct net_device *dev,
 				enum tc_setup_type type, void *data,
@@ -465,9 +471,8 @@ int flow_indr_dev_setup_offload(struct net_device *dev,
 
 	mutex_lock(&flow_indr_block_lock);
 	list_for_each_entry(this, &flow_block_indr_dev_list, list)
-		this->cb(dev, this->cb_priv, type, bo);
+		this->cb(dev, this->cb_priv, type, bo, data, cleanup);
 
-	__flow_block_indr_binding(bo, dev, data, cleanup);
 	mutex_unlock(&flow_indr_block_lock);
 
 	return list_empty(&bo->cb_list) ? -EOPNOTSUPP : 0;
