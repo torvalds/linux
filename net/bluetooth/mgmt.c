@@ -3895,6 +3895,8 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 	bt_dev_dbg(hdev, "Get device flags %pMR (type 0x%x)\n",
 		   &cp->addr.bdaddr, cp->addr.type);
 
+	hci_dev_lock(hdev);
+
 	if (cp->addr.type == BDADDR_BREDR) {
 		br_params = hci_bdaddr_list_lookup_with_flags(&hdev->whitelist,
 							      &cp->addr.bdaddr,
@@ -3921,6 +3923,8 @@ static int get_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 	status = MGMT_STATUS_SUCCESS;
 
 done:
+	hci_dev_unlock(hdev);
+
 	return mgmt_cmd_complete(sk, hdev->id, MGMT_OP_GET_DEVICE_FLAGS, status,
 				&rp, sizeof(rp));
 }
@@ -3959,6 +3963,8 @@ static int set_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto done;
 	}
 
+	hci_dev_lock(hdev);
+
 	if (cp->addr.type == BDADDR_BREDR) {
 		br_params = hci_bdaddr_list_lookup_with_flags(&hdev->whitelist,
 							      &cp->addr.bdaddr,
@@ -3985,6 +3991,8 @@ static int set_device_flags(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 done:
+	hci_dev_unlock(hdev);
+
 	if (status == MGMT_STATUS_SUCCESS)
 		device_flags_changed(sk, hdev, &cp->addr.bdaddr, cp->addr.type,
 				     supported_flags, current_flags);
