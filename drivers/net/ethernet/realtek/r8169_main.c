@@ -4613,6 +4613,19 @@ static void rtl8169_down(struct rtl8169_private *tp)
 	rtl_unlock_work(tp);
 }
 
+static void rtl8169_up(struct rtl8169_private *tp)
+{
+	rtl_lock_work(tp);
+	rtl_pll_power_up(tp);
+	rtl8169_init_phy(tp);
+	napi_enable(&tp->napi);
+	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
+	rtl_reset_work(tp);
+
+	phy_start(tp->phydev);
+	rtl_unlock_work(tp);
+}
+
 static int rtl8169_close(struct net_device *dev)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -4688,24 +4701,9 @@ static int rtl_open(struct net_device *dev)
 	if (retval)
 		goto err_free_irq;
 
-	rtl_lock_work(tp);
-
-	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
-
-	napi_enable(&tp->napi);
-
-	rtl8169_init_phy(tp);
-
-	rtl_pll_power_up(tp);
-
-	rtl_hw_start(tp);
-
+	rtl8169_up(tp);
 	rtl8169_init_counter_offsets(tp);
-
-	phy_start(tp->phydev);
 	netif_start_queue(dev);
-
-	rtl_unlock_work(tp);
 
 	pm_runtime_put_sync(&pdev->dev);
 out:
@@ -4795,20 +4793,6 @@ static int __maybe_unused rtl8169_suspend(struct device *device)
 	return 0;
 }
 
-static void __rtl8169_resume(struct rtl8169_private *tp)
-{
-	rtl_pll_power_up(tp);
-	rtl8169_init_phy(tp);
-
-	phy_start(tp->phydev);
-
-	rtl_lock_work(tp);
-	napi_enable(&tp->napi);
-	set_bit(RTL_FLAG_TASK_ENABLED, tp->wk.flags);
-	rtl_reset_work(tp);
-	rtl_unlock_work(tp);
-}
-
 static int __maybe_unused rtl8169_resume(struct device *device)
 {
 	struct rtl8169_private *tp = dev_get_drvdata(device);
@@ -4816,7 +4800,7 @@ static int __maybe_unused rtl8169_resume(struct device *device)
 	rtl_rar_set(tp, tp->dev->dev_addr);
 
 	if (netif_running(tp->dev))
-		__rtl8169_resume(tp);
+		rtl8169_up(tp);
 
 	netif_device_attach(tp->dev);
 
@@ -4852,7 +4836,7 @@ static int rtl8169_runtime_resume(struct device *device)
 	rtl_unlock_work(tp);
 
 	if (tp->TxDescArray)
-		__rtl8169_resume(tp);
+		rtl8169_up(tp);
 
 	netif_device_attach(tp->dev);
 
