@@ -3,7 +3,6 @@ obj-$(CONFIG_MSCC_OCELOT_SWITCH_LIB) += mscc_ocelot_switch_lib.o
 mscc_ocelot_switch_lib-y := \
 	ocelot.o \
 	ocelot_io.o \
-	ocelot_regs.o \
 	ocelot_tc.o \
 	ocelot_police.o \
 	ocelot_ace.o \
