@@ -45,7 +45,7 @@ struct nv50_head_func {
 	int (*ovly)(struct nv50_head *, struct nv50_head_atom *);
 	int (*dither)(struct nv50_head *, struct nv50_head_atom *);
 	int (*procamp)(struct nv50_head *, struct nv50_head_atom *);
-	void (*or)(struct nv50_head *, struct nv50_head_atom *);
+	int (*or)(struct nv50_head *, struct nv50_head_atom *);
 	void (*static_wndw_map)(struct nv50_head *, struct nv50_head_atom *);
 };
 
@@ -78,7 +78,7 @@ int head907d_curs_set(struct nv50_head *, struct nv50_head_atom *);
 int head907d_curs_clr(struct nv50_head *);
 int head907d_ovly(struct nv50_head *, struct nv50_head_atom *);
 int head907d_procamp(struct nv50_head *, struct nv50_head_atom *);
-void head907d_or(struct nv50_head *, struct nv50_head_atom *);
+int head907d_or(struct nv50_head *, struct nv50_head_atom *);
 
 extern const struct nv50_head_func head917d;
 int head917d_curs_layout(struct nv50_head *, struct nv50_wndw_atom *,

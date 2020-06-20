@@ -25,35 +25,36 @@
 
 #include <nvif/pushc37b.h>
 
-static void
+static int
 headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
 	u8 depth;
-	u32 *push;
+	int ret;
 
-	if ((push = evo_wait(core, 2))) {
-		/*XXX: This is a dirty hack until OR depth handling is
-		 *     improved later for deep colour etc.
-		 */
-		switch (asyh->or.depth) {
-		case 6: depth = 5; break;
-		case 5: depth = 4; break;
-		case 2: depth = 1; break;
-		case 0:	depth = 4; break;
-		default:
-			depth = asyh->or.depth;
-			WARN_ON(1);
-			break;
-		}
-
-		evo_mthd(push, 0x2004 + (head->base.index * 0x400), 1);
-		evo_data(push, depth << 4 |
-			       asyh->or.nvsync << 3 |
-			       asyh->or.nhsync << 2 |
-			       asyh->or.crc_raster);
-		evo_kick(push, core);
+	/*XXX: This is a dirty hack until OR depth handling is
+	 *     improved later for deep colour etc.
+	 */
+	switch (asyh->or.depth) {
+	case 6: depth = 5; break;
+	case 5: depth = 4; break;
+	case 2: depth = 1; break;
+	case 0:	depth = 4; break;
+	default:
+		depth = asyh->or.depth;
+		WARN_ON(1);
+		break;
 	}
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37D, 0x2004 + (i * 0x400), depth << 4 |
+						      asyh->or.nvsync << 3 |
+						      asyh->or.nhsync << 2 |
+						      asyh->or.crc_raster);
+	return 0;
 }
 
 static int

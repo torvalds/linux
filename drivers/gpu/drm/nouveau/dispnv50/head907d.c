@@ -31,21 +31,24 @@
 
 #include <nvif/push507c.h>
 
-void
+int
 head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 3))) {
-		evo_mthd(push, 0x0404 + (head->base.index * 0x300), 2);
-		evo_data(push, asyh->or.depth  << 6 |
-			       asyh->or.nvsync << 4 |
-			       asyh->or.nhsync << 3 |
-			       asyh->or.crc_raster);
-		evo_data(push, 0x31ec6000 | head->base.index << 25 |
-					    asyh->mode.interlace);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 3)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0404 + (i * 0x300), asyh->or.depth  << 6 |
+						      asyh->or.nvsync << 4 |
+						      asyh->or.nhsync << 3 |
+						      asyh->or.crc_raster,
+				0x0408 + (i * 0x300), 0x31ec6000 |
+						      head->base.index << 25 |
+						      asyh->mode.interlace);
+	return 0;
 }
 
 int
