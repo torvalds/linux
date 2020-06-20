@@ -1132,6 +1132,17 @@ static bool mvpp2_is_xlg(phy_interface_t interface)
 	       interface == PHY_INTERFACE_MODE_XAUI;
 }
 
+static void mvpp2_modify(void __iomem *ptr, u32 mask, u32 set)
+{
+	u32 old, val;
+
+	old = val = readl(ptr);
+	val &= ~mask;
+	val |= set;
+	if (old != val)
+		writel(val, ptr);
+}
+
 static void mvpp22_gop_init_rgmii(struct mvpp2_port *port)
 {
 	struct mvpp2 *priv = port->priv;
@@ -4946,38 +4957,29 @@ static void mvpp2_mac_an_restart(struct phylink_config *config)
 static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 			     const struct phylink_link_state *state)
 {
-	u32 old_ctrl0, ctrl0;
-	u32 old_ctrl4, ctrl4;
+	u32 val;
 
-	old_ctrl0 = ctrl0 = readl(port->base + MVPP22_XLG_CTRL0_REG);
-	old_ctrl4 = ctrl4 = readl(port->base + MVPP22_XLG_CTRL4_REG);
-
-	ctrl0 |= MVPP22_XLG_CTRL0_MAC_RESET_DIS;
-
+	val = MVPP22_XLG_CTRL0_MAC_RESET_DIS;
 	if (state->pause & MLO_PAUSE_TX)
-		ctrl0 |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
-	else
-		ctrl0 &= ~MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
+		val |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
 
 	if (state->pause & MLO_PAUSE_RX)
-		ctrl0 |= MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
-	else
-		ctrl0 &= ~MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
+		val |= MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
 
-	ctrl4 &= ~(MVPP22_XLG_CTRL4_MACMODSELECT_GMAC |
-		   MVPP22_XLG_CTRL4_EN_IDLE_CHECK);
-	ctrl4 |= MVPP22_XLG_CTRL4_FWD_FC | MVPP22_XLG_CTRL4_FWD_PFC;
+	mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
+		     MVPP22_XLG_CTRL0_MAC_RESET_DIS |
+		     MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN |
+		     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN, val);
+	mvpp2_modify(port->base + MVPP22_XLG_CTRL4_REG,
+		     MVPP22_XLG_CTRL4_MACMODSELECT_GMAC |
+		     MVPP22_XLG_CTRL4_EN_IDLE_CHECK |
+		     MVPP22_XLG_CTRL4_FWD_FC | MVPP22_XLG_CTRL4_FWD_PFC,
+		     MVPP22_XLG_CTRL4_FWD_FC | MVPP22_XLG_CTRL4_FWD_PFC);
 
-	if (old_ctrl0 != ctrl0)
-		writel(ctrl0, port->base + MVPP22_XLG_CTRL0_REG);
-	if (old_ctrl4 != ctrl4)
-		writel(ctrl4, port->base + MVPP22_XLG_CTRL4_REG);
-
-	if (!(old_ctrl0 & MVPP22_XLG_CTRL0_MAC_RESET_DIS)) {
-		while (!(readl(port->base + MVPP22_XLG_CTRL0_REG) &
-			 MVPP22_XLG_CTRL0_MAC_RESET_DIS))
-			continue;
-	}
+	/* Wait for reset to deassert */
+	do {
+		val = readl(port->base + MVPP22_XLG_CTRL0_REG);
+	} while (!(val & MVPP22_XLG_CTRL0_MAC_RESET_DIS));
 }
 
 static void mvpp2_gmac_config(struct mvpp2_port *port, unsigned int mode,
@@ -5157,19 +5159,14 @@ static void mvpp2_mac_link_up(struct phylink_config *config,
 
 	if (mvpp2_is_xlg(interface)) {
 		if (!phylink_autoneg_inband(mode)) {
-			val = readl(port->base + MVPP22_XLG_CTRL0_REG);
-			val &= ~MVPP22_XLG_CTRL0_FORCE_LINK_DOWN;
-			val |= MVPP22_XLG_CTRL0_FORCE_LINK_PASS;
-			writel(val, port->base + MVPP22_XLG_CTRL0_REG);
+			mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
+				     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN |
+				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS,
+				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS);
 		}
 	} else {
 		if (!phylink_autoneg_inband(mode)) {
-			val = readl(port->base + MVPP2_GMAC_AUTONEG_CONFIG);
-			val &= ~(MVPP2_GMAC_FORCE_LINK_DOWN |
-				 MVPP2_GMAC_CONFIG_MII_SPEED |
-				 MVPP2_GMAC_CONFIG_GMII_SPEED |
-				 MVPP2_GMAC_CONFIG_FULL_DUPLEX);
-			val |= MVPP2_GMAC_FORCE_LINK_PASS;
+			val = MVPP2_GMAC_FORCE_LINK_PASS;
 
 			if (speed == SPEED_1000 || speed == SPEED_2500)
 				val |= MVPP2_GMAC_CONFIG_GMII_SPEED;
@@ -5179,20 +5176,27 @@ static void mvpp2_mac_link_up(struct phylink_config *config,
 			if (duplex == DUPLEX_FULL)
 				val |= MVPP2_GMAC_CONFIG_FULL_DUPLEX;
 
-			writel(val, port->base + MVPP2_GMAC_AUTONEG_CONFIG);
+			mvpp2_modify(port->base + MVPP2_GMAC_AUTONEG_CONFIG,
+				     MVPP2_GMAC_FORCE_LINK_DOWN |
+				     MVPP2_GMAC_FORCE_LINK_PASS |
+				     MVPP2_GMAC_CONFIG_MII_SPEED |
+				     MVPP2_GMAC_CONFIG_GMII_SPEED |
+				     MVPP2_GMAC_CONFIG_FULL_DUPLEX, val);
 		}
 
 		/* We can always update the flow control enable bits;
 		 * these will only be effective if flow control AN
 		 * (MVPP2_GMAC_FLOW_CTRL_AUTONEG) is disabled.
 		 */
-		val = readl(port->base + MVPP22_GMAC_CTRL_4_REG);
-		val &= ~(MVPP22_CTRL4_RX_FC_EN | MVPP22_CTRL4_TX_FC_EN);
+		val = 0;
 		if (tx_pause)
 			val |= MVPP22_CTRL4_TX_FC_EN;
 		if (rx_pause)
 			val |= MVPP22_CTRL4_RX_FC_EN;
-		writel(val, port->base + MVPP22_GMAC_CTRL_4_REG);
+
+		mvpp2_modify(port->base + MVPP22_GMAC_CTRL_4_REG,
+			     MVPP22_CTRL4_RX_FC_EN | MVPP22_CTRL4_TX_FC_EN,
+			     val);
 	}
 
 	mvpp2_port_enable(port);
