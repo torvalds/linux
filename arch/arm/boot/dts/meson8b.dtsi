@@ -7,6 +7,7 @@
 #include <dt-bindings/clock/meson8-ddr-clkc.h>
 #include <dt-bindings/clock/meson8b-clkc.h>
 #include <dt-bindings/gpio/meson8b-gpio.h>
+#include <dt-bindings/power/meson8-power.h>
 #include <dt-bindings/reset/amlogic,meson8b-reset.h>
 #include <dt-bindings/reset/amlogic,meson8b-clkc-reset.h>
 #include "meson.dtsi"
@@ -433,6 +434,8 @@
 
 	resets = <&reset RESET_ETHERNET>;
 	reset-names = "stmmaceth";
+
+	power-domains = <&pwrc PWRC_MESON8_ETHERNET_MEM_ID>;
 };
 
 &gpio_intc {
@@ -448,6 +451,30 @@
 		clock-names = "xtal", "ddr_pll";
 		#clock-cells = <1>;
 		#reset-cells = <1>;
+	};
+
+	pwrc: power-controller {
+		compatible = "amlogic,meson8b-pwrc";
+		#power-domain-cells = <1>;
+		amlogic,ao-sysctrl = <&pmu>;
+		resets = <&reset RESET_DBLK>,
+			 <&reset RESET_PIC_DC>,
+			 <&reset RESET_HDMI_APB>,
+			 <&reset RESET_HDMI_SYSTEM_RESET>,
+			 <&reset RESET_VENCI>,
+			 <&reset RESET_VENCP>,
+			 <&reset RESET_VDAC_4>,
+			 <&reset RESET_VENCL>,
+			 <&reset RESET_VIU>,
+			 <&reset RESET_VENC>,
+			 <&reset RESET_RDMA>;
+		reset-names = "dblk", "pic_dc", "hdmi_apb", "hdmi_system",
+			      "venci", "vencp", "vdac", "vencl", "viu",
+			      "venc", "rdma";
+		clocks = <&clkc CLKID_VPU>;
+		clock-names = "vpu";
+		assigned-clocks = <&clkc CLKID_VPU>;
+		assigned-clock-rates = <182142857>;
 	};
 };
 
