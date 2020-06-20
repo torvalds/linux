@@ -113,11 +113,13 @@ wndwc57e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57E, 0x0440, asyw->xlut.i.size << 8 |
-					asyw->xlut.i.mode << 2 |
-					asyw->xlut.i.output_mode,
-				0x0444, asyw->xlut.handle,
-				0x0448, asyw->xlut.i.offset >> 8);
+	PUSH_MTHD(push, NVC57E, SET_ILUT_CONTROL,
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, SIZE, asyw->xlut.i.size) |
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, MODE, asyw->xlut.i.mode) |
+		  NVVAL(NVC57E, SET_ILUT_CONTROL, INTERPOLATE, asyw->xlut.i.output_mode),
+
+				SET_CONTEXT_DMA_ILUT, asyw->xlut.handle,
+				SET_OFFSET_ILUT, asyw->xlut.i.offset >> 8);
 	return 0;
 }
 
@@ -163,13 +165,13 @@ wndwc57e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 	if (size = size ? size : 1024, size != 256 && size != 1024)
 		return false;
 
-	if (size == 256) {
-		asyw->xlut.i.mode = 1; /* DIRECT8. */
-	} else {
-		asyw->xlut.i.mode = 2; /* DIRECT10. */
-	}
+	if (size == 256)
+		asyw->xlut.i.mode = NVC57E_SET_ILUT_CONTROL_MODE_DIRECT8;
+	else
+		asyw->xlut.i.mode = NVC57E_SET_ILUT_CONTROL_MODE_DIRECT10;
+
 	asyw->xlut.i.size = 4 /* VSS header. */ + size + 1 /* Entries. */;
-	asyw->xlut.i.output_mode = 0; /* INTERPOLATE_DISABLE. */
+	asyw->xlut.i.output_mode = NVC57E_SET_ILUT_CONTROL_INTERPOLATE_DISABLE;
 	asyw->xlut.i.load = wndwc57e_ilut_load;
 	return true;
 }

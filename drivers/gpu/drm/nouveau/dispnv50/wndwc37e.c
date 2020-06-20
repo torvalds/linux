@@ -72,11 +72,13 @@ wndwc37e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x02b0, asyw->xlut.i.output_mode << 8 |
-					asyw->xlut.i.range << 4 |
-					asyw->xlut.i.size,
-				0x02b4, asyw->xlut.i.offset >> 8,
-				0x02b8, asyw->xlut.handle);
+	PUSH_MTHD(push, NVC37E, SET_CONTROL_INPUT_LUT,
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, OUTPUT_MODE, asyw->xlut.i.output_mode) |
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, RANGE, asyw->xlut.i.range) |
+		  NVVAL(NVC37E, SET_CONTROL_INPUT_LUT, SIZE, asyw->xlut.i.size),
+
+				SET_OFFSET_INPUT_LUT, asyw->xlut.i.offset >> 8,
+				SET_CONTEXT_DMA_INPUT_LUT, asyw->xlut.handle);
 	return 0;
 }
 
@@ -86,10 +88,10 @@ wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 	if (size != 256 && size != 1024)
 		return false;
 
-	asyw->xlut.i.mode = 2;
-	asyw->xlut.i.size = size == 1024 ? 2 : 0;
-	asyw->xlut.i.range = 0;
-	asyw->xlut.i.output_mode = 1;
+	asyw->xlut.i.size = size == 1024 ? NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_1025 :
+					   NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_257;
+	asyw->xlut.i.range = NVC37E_SET_CONTROL_INPUT_LUT_RANGE_UNITY;
+	asyw->xlut.i.output_mode = NVC37E_SET_CONTROL_INPUT_LUT_OUTPUT_MODE_INTERPOLATE;
 	asyw->xlut.i.load = head907d_olut_load;
 	return true;
 }

@@ -72,11 +72,16 @@ base907c_xlut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 6)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907C, 0x00e0, asyw->xlut.i.enable << 30 |
-					asyw->xlut.i.mode << 24,
-				0x00e4, asyw->xlut.i.offset >> 8,
-				0x00e8, 0x40000000);
-	PUSH_NVSQ(push, NV907C, 0x00fc, asyw->xlut.handle);
+	PUSH_MTHD(push, NV907C, SET_BASE_LUT_LO,
+		  NVVAL(NV907C, SET_BASE_LUT_LO, ENABLE, asyw->xlut.i.enable) |
+		  NVVAL(NV907C, SET_BASE_LUT_LO, MODE, asyw->xlut.i.mode),
+
+				SET_BASE_LUT_HI, asyw->xlut.i.offset >> 8,
+
+				SET_OUTPUT_LUT_LO,
+		  NVDEF(NV907C, SET_OUTPUT_LUT_LO, ENABLE, USE_CORE_LUT));
+
+	PUSH_MTHD(push, NV907C, SET_CONTEXT_DMA_LUT, asyw->xlut.handle);
 	return 0;
 }
 
@@ -86,8 +91,12 @@ base907c_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 	if (size != 256 && size != 1024)
 		return false;
 
-	asyw->xlut.i.mode = size == 1024 ? 4 : 7;
-	asyw->xlut.i.enable = 2;
+	if (size == 1024)
+		asyw->xlut.i.mode = NV907C_SET_BASE_LUT_LO_MODE_INTERPOLATE_1025_UNITY_RANGE;
+	else
+		asyw->xlut.i.mode = NV907C_SET_BASE_LUT_LO_MODE_INTERPOLATE_257_UNITY_RANGE;
+
+	asyw->xlut.i.enable = NV907C_SET_BASE_LUT_LO_ENABLE_ENABLE;
 	asyw->xlut.i.load = head907d_olut_load;
 	return true;
 }
