@@ -42,28 +42,26 @@ corec37d_wndw_owner(struct nv50_core *core)
 	}
 }
 
-void
+int
 corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 9))) {
-		if (ntfy) {
-			evo_mthd(push, 0x020c, 1);
-			evo_data(push, 0x00001000 | NV50_DISP_CORE_NTFY);
-		}
+	struct nvif_push *push = core->chan.push;
+	int ret;
 
-		evo_mthd(push, 0x0218, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CURS]);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_WNDW]);
-		evo_mthd(push, 0x0200, 1);
-		evo_data(push, 0x00000001);
+	if ((ret = PUSH_WAIT(push, 9)))
+		return ret;
 
-		if (ntfy) {
-			evo_mthd(push, 0x020c, 1);
-			evo_data(push, 0x00000000);
-		}
-		evo_kick(push, &core->chan);
-	}
+	if (ntfy)
+		PUSH_NVSQ(push, NVC37D, 0x020c, 0x00001000 | NV50_DISP_CORE_NTFY);
+
+	PUSH_NVSQ(push, NVC37D, 0x0218, interlock[NV50_DISP_INTERLOCK_CURS],
+				0x021c, interlock[NV50_DISP_INTERLOCK_WNDW]);
+	PUSH_NVSQ(push, NVC37D, 0x0200, 0x00000001);
+
+	if (ntfy)
+		PUSH_NVSQ(push, NVC37D, 0x020c, 0x00000000);
+
+	return PUSH_KICK(push);
 }
 
 int

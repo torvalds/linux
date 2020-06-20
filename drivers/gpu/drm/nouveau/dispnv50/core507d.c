@@ -28,21 +28,22 @@
 
 #include "nouveau_bo.h"
 
-void
+int
 core507d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 5))) {
-		if (ntfy) {
-			evo_mthd(push, 0x0084, 1);
-			evo_data(push, 0x80000000 | NV50_DISP_CORE_NTFY);
-		}
-		evo_mthd(push, 0x0080, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_BASE] |
-			       interlock[NV50_DISP_INTERLOCK_OVLY]);
-		evo_data(push, 0x00000000);
-		evo_kick(push, &core->chan);
-	}
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	if (ntfy)
+		PUSH_NVSQ(push, NV507D, 0x0084, 0x80000000 | NV50_DISP_CORE_NTFY);
+
+	PUSH_NVSQ(push, NV507D, 0x0080, interlock[NV50_DISP_INTERLOCK_BASE] |
+					interlock[NV50_DISP_INTERLOCK_OVLY],
+				0x0084, 0x00000000);
+	return PUSH_KICK(push);
 }
 
 int
