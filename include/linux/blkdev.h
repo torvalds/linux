@@ -4,9 +4,6 @@
 
 #include <linux/sched.h>
 #include <linux/sched/clock.h>
-
-#ifdef CONFIG_BLOCK
-
 #include <linux/major.h>
 #include <linux/genhd.h>
 #include <linux/list.h>
@@ -1163,13 +1160,13 @@ static inline int blk_rq_map_sg(struct request_queue *q, struct request *rq,
 	return __blk_rq_map_sg(q, rq, sglist, &last_sg);
 }
 extern void blk_dump_rq_flags(struct request *, char *);
-extern long nr_blockdev_pages(void);
 
 bool __must_check blk_get_queue(struct request_queue *);
 struct request_queue *blk_alloc_queue(make_request_fn make_request, int node_id);
 extern void blk_put_queue(struct request_queue *);
 extern void blk_set_queue_dying(struct request_queue *);
 
+#ifdef CONFIG_BLOCK
 /*
  * blk_plug permits building a queue of related requests by holding the I/O
  * fragments for a short period. This allows merging of sequential requests
@@ -1229,9 +1226,47 @@ static inline bool blk_needs_flush_plug(struct task_struct *tsk)
 		 !list_empty(&plug->cb_list));
 }
 
+int blkdev_issue_flush(struct block_device *, gfp_t);
+long nr_blockdev_pages(void);
+#else /* CONFIG_BLOCK */
+struct blk_plug {
+};
+
+static inline void blk_start_plug(struct blk_plug *plug)
+{
+}
+
+static inline void blk_finish_plug(struct blk_plug *plug)
+{
+}
+
+static inline void blk_flush_plug(struct task_struct *task)
+{
+}
+
+static inline void blk_schedule_flush_plug(struct task_struct *task)
+{
+}
+
+
+static inline bool blk_needs_flush_plug(struct task_struct *tsk)
+{
+	return false;
+}
+
+static inline int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask)
+{
+	return 0;
+}
+
+static inline long nr_blockdev_pages(void)
+{
+	return 0;
+}
+#endif /* CONFIG_BLOCK */
+
 extern void blk_io_schedule(void);
 
-int blkdev_issue_flush(struct block_device *, gfp_t);
 extern int blkdev_issue_write_same(struct block_device *bdev, sector_t sector,
 		sector_t nr_sects, gfp_t gfp_mask, struct page *page);
 
@@ -1831,51 +1866,6 @@ static inline bool blk_req_can_dispatch_to_zone(struct request *rq)
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
-#else /* CONFIG_BLOCK */
-
-struct block_device;
-
-/*
- * stubs for when the block layer is configured out
- */
-
-static inline long nr_blockdev_pages(void)
-{
-	return 0;
-}
-
-struct blk_plug {
-};
-
-static inline void blk_start_plug(struct blk_plug *plug)
-{
-}
-
-static inline void blk_finish_plug(struct blk_plug *plug)
-{
-}
-
-static inline void blk_flush_plug(struct task_struct *task)
-{
-}
-
-static inline void blk_schedule_flush_plug(struct task_struct *task)
-{
-}
-
-
-static inline bool blk_needs_flush_plug(struct task_struct *tsk)
-{
-	return false;
-}
-
-static inline int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask)
-{
-	return 0;
-}
-
-#endif /* CONFIG_BLOCK */
-
 static inline void blk_wake_io_task(struct task_struct *waiter)
 {
 	/*
@@ -1889,7 +1879,6 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 		wake_up_process(waiter);
 }
 
-#ifdef CONFIG_BLOCK
 unsigned long disk_start_io_acct(struct gendisk *disk, unsigned int sectors,
 		unsigned int op);
 void disk_end_io_acct(struct gendisk *disk, unsigned int op,
@@ -1915,7 +1904,6 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 {
 	return disk_end_io_acct(bio->bi_disk, bio_op(bio), start_time);
 }
-#endif /* CONFIG_BLOCK */
 
 int bdev_read_only(struct block_device *bdev);
 int set_blocksize(struct block_device *bdev, int size);

@@ -19,8 +19,6 @@
 #include <linux/blk_types.h>
 #include <asm/local.h>
 
-#ifdef CONFIG_BLOCK
-
 #define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
 #define disk_to_dev(disk)	(&(disk)->part0.__dev)
@@ -337,12 +335,9 @@ static inline void set_capacity(struct gendisk *disk, sector_t size)
 	disk->part0.nr_sects = size;
 }
 
-extern dev_t blk_lookup_devt(const char *name, int partno);
-
 int bdev_disk_changed(struct block_device *bdev, bool invalidate);
 int blk_add_partitions(struct gendisk *disk, struct block_device *bdev);
 int blk_drop_partitions(struct block_device *bdev);
-extern void printk_all_partitions(void);
 
 extern struct gendisk *__alloc_disk_node(int minors, int node_id);
 extern struct kobject *get_disk_and_module(struct gendisk *disk);
@@ -400,10 +395,13 @@ static inline void bd_unlink_disk_holder(struct block_device *bdev,
 }
 #endif /* CONFIG_SYSFS */
 
+#ifdef CONFIG_BLOCK
+void printk_all_partitions(void);
+dev_t blk_lookup_devt(const char *name, int partno);
 #else /* CONFIG_BLOCK */
-
-static inline void printk_all_partitions(void) { }
-
+static inline void printk_all_partitions(void)
+{
+}
 static inline dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
