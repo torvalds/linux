@@ -87,21 +87,23 @@ headc57d_olut_clr(struct nv50_head *head)
 	}
 }
 
-void
+static int
 headc57d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x2280 + (head->base.index * 0x400), 4);
-		evo_data(push, asyh->olut.size << 8 |
-			       asyh->olut.mode << 2 |
-			       asyh->olut.output_mode);
-		evo_data(push, 0xffffffff); /* FP_NORM_SCALE. */
-		evo_data(push, asyh->olut.handle);
-		evo_data(push, asyh->olut.offset >> 8);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC57D, 0x2280 + (i * 0x400), asyh->olut.size << 8 |
+						      asyh->olut.mode << 2 |
+						      asyh->olut.output_mode,
+				0x2284 + (i * 0x400), 0xffffffff,
+				0x2288 + (i * 0x400), asyh->olut.handle,
+				0x228c + (i * 0x400), asyh->olut.offset >> 8);
+	return 0;
 }
 
 static void

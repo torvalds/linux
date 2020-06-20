@@ -22,6 +22,8 @@
 #include "head.h"
 #include "core.h"
 
+#include <nvif/push507c.h>
+
 static void
 head827d_curs_clr(struct nv50_head *head)
 {
@@ -88,19 +90,20 @@ head827d_olut_clr(struct nv50_head *head)
 	}
 }
 
-static void
+static int
 head827d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 5))) {
-		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 2);
-		evo_data(push, 0x80000000 | asyh->olut.mode << 30);
-		evo_data(push, asyh->olut.offset >> 8);
-		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
-		evo_data(push, asyh->olut.handle);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NV827D, 0x0840 + (i * 0x400), 0x80000000 | asyh->olut.mode << 30,
+				0x0844 + (i * 0x400), asyh->olut.offset >> 8);
+	PUSH_NVSQ(push, NV827D, 0x085c + (i * 0x400), asyh->olut.handle);
+	return 0;
 }
 
 const struct nv50_head_func
