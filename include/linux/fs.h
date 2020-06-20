@@ -2557,6 +2557,12 @@ extern struct kmem_cache *names_cachep;
 #define __getname()		kmem_cache_alloc(names_cachep, GFP_KERNEL)
 #define __putname(name)		kmem_cache_free(names_cachep, (void *)(name))
 
+extern struct super_block *blockdev_superblock;
+static inline bool sb_is_blkdev_sb(struct super_block *sb)
+{
+	return IS_ENABLED(CONFIG_BLOCK) && sb == blockdev_superblock;
+}
+
 #ifdef CONFIG_BLOCK
 extern int register_blkdev(unsigned int, const char *);
 extern void unregister_blkdev(unsigned int, const char *);
@@ -2572,13 +2578,6 @@ extern struct super_block *freeze_bdev(struct block_device *);
 extern void emergency_thaw_bdev(struct super_block *sb);
 extern int thaw_bdev(struct block_device *bdev, struct super_block *sb);
 extern int fsync_bdev(struct block_device *);
-
-extern struct super_block *blockdev_superblock;
-
-static inline bool sb_is_blkdev_sb(struct super_block *sb)
-{
-	return sb == blockdev_superblock;
-}
 #else
 static inline void bd_forget(struct inode *inode) {}
 static inline int sync_blockdev(struct block_device *bdev) { return 0; }
@@ -2601,11 +2600,6 @@ static inline int emergency_thaw_bdev(struct super_block *sb)
 
 static inline void iterate_bdevs(void (*f)(struct block_device *, void *), void *arg)
 {
-}
-
-static inline bool sb_is_blkdev_sb(struct super_block *sb)
-{
-	return false;
 }
 #endif
 void emergency_thaw_all(void);
