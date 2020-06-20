@@ -76,7 +76,7 @@ core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x008c, 0x00000000);
+	PUSH_MTHD(push, NV507D, GET_CAPABILITIES, 0x00000000);
 	return PUSH_KICK(push);
 }
 
