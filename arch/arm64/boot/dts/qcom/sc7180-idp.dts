@@ -389,6 +389,17 @@
 	};
 };
 
+&wifi {
+	status = "okay";
+	vdd-0.8-cx-mx = <&vreg_l9a_0p6>;
+	vdd-1.8-xo = <&vreg_l1c_1p8>;
+	vdd-1.3-rfa = <&vreg_l2c_1p3>;
+	vdd-3.3-ch0 = <&vreg_l10c_3p3>;
+	wifi-firmware {
+		iommus = <&apps_smmu 0xc2 0x1>;
+	};
+};
+
 /* PINCTRL - additions to nodes defined in sc7180.dtsi */
 
 &qspi_clk {
