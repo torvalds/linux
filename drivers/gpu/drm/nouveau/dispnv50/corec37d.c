@@ -28,18 +28,20 @@
 
 #include <nouveau_bo.h>
 
-void
+int
 corec37d_wndw_owner(struct nv50_core *core)
 {
+	struct nvif_push *push = core->chan.push;
 	const u32 windows = 8; /*XXX*/
-	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 * windows))) {
-		for (i = 0; i < windows; i++) {
-			evo_mthd(push, 0x1000 + (i * 0x080), 1);
-			evo_data(push, i >> 1);
-		}
-		evo_kick(push, &core->chan);
-	}
+	int ret, i;
+
+	if ((ret = PUSH_WAIT(push, windows * 2)))
+		return ret;
+
+	for (i = 0; i < windows; i++)
+		PUSH_NVSQ(push, NVC37D, 0x1000 + (i * 0x080), i >> 1);
+
+	return 0;
 }
 
 int
