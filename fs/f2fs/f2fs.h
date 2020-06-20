@@ -1313,6 +1313,14 @@ enum fsync_mode {
 #define IS_DUMMY_WRITTEN_PAGE(page)			\
 		(page_private(page) == (unsigned long)DUMMY_WRITTEN_PAGE)
 
+#ifdef CONFIG_F2FS_IO_TRACE
+#define IS_IO_TRACED_PAGE(page)			\
+		(page_private(page) > 0 &&		\
+		 page_private(page) < (unsigned long)PID_MAX_LIMIT)
+#else
+#define IS_IO_TRACED_PAGE(page) (0)
+#endif
+
 #ifdef CONFIG_FS_ENCRYPTION
 #define DUMMY_ENCRYPTION_ENABLED(sbi) \
 	(unlikely(F2FS_OPTION(sbi).dummy_enc_ctx.ctx != NULL))
