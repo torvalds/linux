@@ -388,14 +388,18 @@ enum phy_state {
 	PHY_CABLETEST,
 };
 
+#define MDIO_MMD_NUM 32
+
 /**
  * struct phy_c45_device_ids - 802.3-c45 Device Identifiers
- * @devices_in_package: Bit vector of devices present.
+ * @devices_in_package: IEEE 802.3 devices in package register value.
+ * @mmds_present: bit vector of MMDs present.
  * @device_ids: The device identifer for each present device.
  */
 struct phy_c45_device_ids {
 	u32 devices_in_package;
-	u32 device_ids[8];
+	u32 mmds_present;
+	u32 device_ids[MDIO_MMD_NUM];
 };
 
 struct macsec_context;

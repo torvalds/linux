@@ -661,6 +661,28 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, u32 phy_id,
 }
 EXPORT_SYMBOL(phy_device_create);
 
+/* phy_c45_probe_present - checks to see if a MMD is present in the package
+ * @bus: the target MII bus
+ * @prtad: PHY package address on the MII bus
+ * @devad: PHY device (MMD) address
+ *
+ * Read the MDIO_STAT2 register, and check whether a device is responding
+ * at this address.
+ *
+ * Returns: negative error number on bus access error, zero if no device
+ * is responding, or positive if a device is present.
+ */
+static int phy_c45_probe_present(struct mii_bus *bus, int prtad, int devad)
+{
+	int stat2;
+
+	stat2 = mdiobus_c45_read(bus, prtad, devad, MDIO_STAT2);
+	if (stat2 < 0)
+		return stat2;
+
+	return (stat2 & MDIO_STAT2_DEVPRST) == MDIO_STAT2_DEVPRST_VAL;
+}
+
 /* get_phy_c45_devs_in_pkg - reads a MMD's devices in package registers.
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
@@ -687,9 +709,6 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
 		return -EIO;
 	*devices_in_package |= phy_reg;
 
-	/* Bit 0 doesn't represent a device, it indicates c22 regs presence */
-	*devices_in_package &= ~BIT(0);
-
 	return 0;
 }
 
@@ -697,53 +716,76 @@ static int get_phy_c45_devs_in_pkg(struct mii_bus *bus, int addr, int dev_addr,
  * get_phy_c45_ids - reads the specified addr for its 802.3-c45 IDs.
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
- * @phy_id: where to store the ID retrieved.
  * @c45_ids: where to store the c45 ID information.
  *
- *   If the PHY devices-in-package appears to be valid, it and the
- *   corresponding identifiers are stored in @c45_ids, zero is stored
- *   in @phy_id.  Otherwise 0xffffffff is stored in @phy_id.  Returns
- *   zero on success.
+ * Read the PHY "devices in package". If this appears to be valid, read
+ * the PHY identifiers for each device. Return the "devices in package"
+ * and identifiers in @c45_ids.
  *
+ * Returns zero on success, %-EIO on bus access error, or %-ENODEV if
+ * the "devices in package" is invalid.
  */
-static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
+static int get_phy_c45_ids(struct mii_bus *bus, int addr,
 			   struct phy_c45_device_ids *c45_ids)
 {
 	const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
-	u32 *devs = &c45_ids->devices_in_package;
-	int i, phy_reg;
+	u32 devs_in_pkg = 0;
+	int i, ret, phy_reg;
 
 	/* Find first non-zero Devices In package. Device zero is reserved
 	 * for 802.3 c45 complied PHYs, so don't probe it at first.
 	 */
-	for (i = 1; i < num_ids && *devs == 0; i++) {
-		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, i, devs);
+	for (i = 1; i < MDIO_MMD_NUM && devs_in_pkg == 0; i++) {
+		if (i == MDIO_MMD_VEND1 || i == MDIO_MMD_VEND2) {
+			/* Check that there is a device present at this
+			 * address before reading the devices-in-package
+			 * register to avoid reading garbage from the PHY.
+			 * Some PHYs (88x3310) vendor space is not IEEE802.3
+			 * compliant.
+			 */
+			ret = phy_c45_probe_present(bus, addr, i);
+			if (ret < 0)
+				return -EIO;
+
+			if (!ret)
+				continue;
+		}
+		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, i, &devs_in_pkg);
+		if (phy_reg < 0)
+			return -EIO;
+	}
+
+	if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff) {
+		/* If mostly Fs, there is no device there, then let's probe
+		 * MMD 0, as some 10G PHYs have zero Devices In package,
+		 * e.g. Cortina CS4315/CS4340 PHY.
+		 */
+		phy_reg = get_phy_c45_devs_in_pkg(bus, addr, 0, &devs_in_pkg);
 		if (phy_reg < 0)
 			return -EIO;
 
-		if ((*devs & 0x1fffffff) == 0x1fffffff) {
-			/*  If mostly Fs, there is no device there,
-			 *  then let's continue to probe more, as some
-			 *  10G PHYs have zero Devices In package,
-			 *  e.g. Cortina CS4315/CS4340 PHY.
-			 */
-			phy_reg = get_phy_c45_devs_in_pkg(bus, addr, 0, devs);
-			if (phy_reg < 0)
-				return -EIO;
-			/* no device there, let's get out of here */
-			if ((*devs & 0x1fffffff) == 0x1fffffff) {
-				*phy_id = 0xffffffff;
-				return 0;
-			} else {
-				break;
-			}
-		}
+		/* no device there, let's get out of here */
+		if ((devs_in_pkg & 0x1fffffff) == 0x1fffffff)
+			return -ENODEV;
 	}
 
 	/* Now probe Device Identifiers for each device present. */
 	for (i = 1; i < num_ids; i++) {
-		if (!(c45_ids->devices_in_package & (1 << i)))
+		if (!(devs_in_pkg & (1 << i)))
 			continue;
+
+		if (i == MDIO_MMD_VEND1 || i == MDIO_MMD_VEND2) {
+			/* Probe the "Device Present" bits for the vendor MMDs
+			 * to ignore these if they do not contain IEEE 802.3
+			 * registers.
+			 */
+			ret = phy_c45_probe_present(bus, addr, i);
+			if (ret < 0)
+				return ret;
+
+			if (!ret)
+				continue;
+		}
 
 		phy_reg = mdiobus_c45_read(bus, addr, i, MII_PHYSID1);
 		if (phy_reg < 0)
@@ -755,33 +797,28 @@ static int get_phy_c45_ids(struct mii_bus *bus, int addr, u32 *phy_id,
 			return -EIO;
 		c45_ids->device_ids[i] |= phy_reg;
 	}
-	*phy_id = 0;
+
+	c45_ids->devices_in_package = devs_in_pkg;
+	/* Bit 0 doesn't represent a device, it indicates c22 regs presence */
+	c45_ids->mmds_present = devs_in_pkg & ~BIT(0);
+
 	return 0;
 }
 
 /**
- * get_phy_id - reads the specified addr for its ID.
+ * get_phy_c22_id - reads the specified addr for its clause 22 ID.
  * @bus: the target MII bus
  * @addr: PHY address on the MII bus
  * @phy_id: where to store the ID retrieved.
- * @is_c45: If true the PHY uses the 802.3 clause 45 protocol
- * @c45_ids: where to store the c45 ID information.
  *
- * Description: In the case of a 802.3-c22 PHY, reads the ID registers
- *   of the PHY at @addr on the @bus, stores it in @phy_id and returns
- *   zero on success.
- *
- *   In the case of a 802.3-c45 PHY, get_phy_c45_ids() is invoked, and
- *   its return value is in turn returned.
- *
+ * Read the 802.3 clause 22 PHY ID from the PHY at @addr on the @bus,
+ * placing it in @phy_id. Return zero on successful read and the ID is
+ * valid, %-EIO on bus access error, or %-ENODEV if no device responds
+ * or invalid ID.
  */
-static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
-		      bool is_c45, struct phy_c45_device_ids *c45_ids)
+static int get_phy_c22_id(struct mii_bus *bus, int addr, u32 *phy_id)
 {
 	int phy_reg;
-
-	if (is_c45)
-		return get_phy_c45_ids(bus, addr, phy_id, c45_ids);
 
 	/* Grab the bits from PHYIR1, and put them in the upper half */
 	phy_reg = mdiobus_read(bus, addr, MII_PHYSID1);
@@ -799,6 +836,10 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
 
 	*phy_id |= phy_reg;
 
+	/* If the phy_id is mostly Fs, there is no device there */
+	if ((*phy_id & 0x1fffffff) == 0x1fffffff)
+		return -ENODEV;
+
 	return 0;
 }
 
@@ -809,8 +850,17 @@ static int get_phy_id(struct mii_bus *bus, int addr, u32 *phy_id,
  * @addr: PHY address on the MII bus
  * @is_c45: If true the PHY uses the 802.3 clause 45 protocol
  *
- * Description: Reads the ID registers of the PHY at @addr on the
- *   @bus, then allocates and returns the phy_device to represent it.
+ * Probe for a PHY at @addr on @bus.
+ *
+ * When probing for a clause 22 PHY, then read the ID registers. If we find
+ * a valid ID, allocate and return a &struct phy_device.
+ *
+ * When probing for a clause 45 PHY, read the "devices in package" registers.
+ * If the "devices in package" appears valid, read the ID registers for each
+ * MMD, allocate and return a &struct phy_device.
+ *
+ * Returns an allocated &struct phy_device on success, %-ENODEV if there is
+ * no PHY present, or %-EIO on bus access error.
  */
 struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 {
@@ -819,15 +869,16 @@ struct phy_device *get_phy_device(struct mii_bus *bus, int addr, bool is_c45)
 	int r;
 
 	c45_ids.devices_in_package = 0;
+	c45_ids.mmds_present = 0;
 	memset(c45_ids.device_ids, 0xff, sizeof(c45_ids.device_ids));
 
-	r = get_phy_id(bus, addr, &phy_id, is_c45, &c45_ids);
+	if (is_c45)
+		r = get_phy_c45_ids(bus, addr, &c45_ids);
+	else
+		r = get_phy_c22_id(bus, addr, &phy_id);
+
 	if (r)
 		return ERR_PTR(r);
-
-	/* If the phy_id is mostly Fs, there is no device there */
-	if ((phy_id & 0x1fffffff) == 0x1fffffff)
-		return ERR_PTR(-ENODEV);
 
 	return phy_device_create(bus, addr, phy_id, is_c45, &c45_ids);
 }
