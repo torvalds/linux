@@ -29,6 +29,8 @@
 #include "core.h"
 #include "crc.h"
 
+#include <nvif/push507c.h>
+
 void
 head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -274,22 +276,22 @@ head907d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head907d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 8))) {
-		evo_mthd(push, 0x0494 + (head->base.index * 0x300), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x04b8 + (head->base.index * 0x300), 1);
-		evo_data(push, asyh->view.iH << 16 | asyh->view.iW);
-		evo_mthd(push, 0x04c0 + (head->base.index * 0x300), 3);
-		evo_data(push, asyh->view.oH << 16 | asyh->view.oW);
-		evo_data(push, asyh->view.oH << 16 | asyh->view.oW);
-		evo_data(push, asyh->view.oH << 16 | asyh->view.oW);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 8)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0494 + (i * 0x300), 0x00000000);
+	PUSH_NVSQ(push, NV907D, 0x04b8 + (i * 0x300), asyh->view.iH << 16 | asyh->view.iW);
+	PUSH_NVSQ(push, NV907D, 0x04c0 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW,
+				0x04c4 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW,
+				0x04c8 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW);
+	return 0;
 }
 
 const struct nv50_head_func

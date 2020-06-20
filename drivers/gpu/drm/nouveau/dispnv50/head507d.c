@@ -22,6 +22,8 @@
 #include "head.h"
 #include "core.h"
 
+#include <nvif/push507c.h>
+
 void
 head507d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -310,21 +312,21 @@ head507d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head507d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 7))) {
-		evo_mthd(push, 0x08a4 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x08c8 + (head->base.index * 0x400), 1);
-		evo_data(push, asyh->view.iH << 16 | asyh->view.iW);
-		evo_mthd(push, 0x08d8 + (head->base.index * 0x400), 2);
-		evo_data(push, asyh->view.oH << 16 | asyh->view.oW);
-		evo_data(push, asyh->view.oH << 16 | asyh->view.oW);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 7)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x08a4 + (i * 0x400), 0x00000000);
+	PUSH_NVSQ(push, NV507D, 0x08c8 + (i * 0x400), asyh->view.iH << 16 | asyh->view.iW);
+	PUSH_NVSQ(push, NV507D, 0x08d8 + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW,
+				0x08dc + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW);
+	return 0;
 }
 
 const struct nv50_head_func

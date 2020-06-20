@@ -23,6 +23,8 @@
 #include "atom.h"
 #include "core.h"
 
+#include <nvif/pushc37b.h>
+
 static void
 headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -190,18 +192,19 @@ headc37d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 headc37d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x204c + (head->base.index * 0x400), 1);
-		evo_data(push, (asyh->view.iH << 16) | asyh->view.iW);
-		evo_mthd(push, 0x2058 + (head->base.index * 0x400), 1);
-		evo_data(push, (asyh->view.oH << 16) | asyh->view.oW);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37D, 0x204c + (i * 0x400), asyh->view.iH << 16 | asyh->view.iW);
+	PUSH_NVSQ(push, NVC37D, 0x2058 + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW);
+	return 0;
 }
 
 void
