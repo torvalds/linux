@@ -172,26 +172,26 @@ head907d_core_clr(struct nv50_head *head)
 	}
 }
 
-void
+int
 head907d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 9))) {
-		evo_mthd(push, 0x0460 + head->base.index * 0x300, 1);
-		evo_data(push, asyh->core.offset >> 8);
-		evo_mthd(push, 0x0468 + head->base.index * 0x300, 4);
-		evo_data(push, asyh->core.h << 16 | asyh->core.w);
-		evo_data(push, asyh->core.layout << 24 |
-			       (asyh->core.pitch >> 8) << 8 |
-			       asyh->core.blocks << 8 |
-			       asyh->core.blockh);
-		evo_data(push, asyh->core.format << 8);
-		evo_data(push, asyh->core.handle);
-		evo_mthd(push, 0x04b0 + head->base.index * 0x300, 1);
-		evo_data(push, asyh->core.y << 16 | asyh->core.x);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 9)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0460 + (i * 0x300), asyh->core.offset >> 8);
+	PUSH_NVSQ(push, NV907D, 0x0468 + (i * 0x300), asyh->core.h << 16 | asyh->core.w,
+				0x046c + (i * 0x300), asyh->core.layout << 24 |
+						     (asyh->core.pitch >> 8) << 8 |
+						      asyh->core.blocks << 8 |
+						      asyh->core.blockh,
+				0x0470 + (i * 0x300), asyh->core.format << 8,
+				0x0474 + (i * 0x300), asyh->core.handle);
+	PUSH_NVSQ(push, NV907D, 0x04b0 + (i * 0x300), asyh->core.y << 16 | asyh->core.x);
+	return 0;
 }
 
 int

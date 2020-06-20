@@ -169,34 +169,34 @@ head507d_core_clr(struct nv50_head *head)
 	}
 }
 
-static void
+static int
 head507d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 9))) {
-		evo_mthd(push, 0x0860 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->core.offset >> 8);
-		evo_mthd(push, 0x0868 + head->base.index * 0x400, 4);
-		evo_data(push, asyh->core.h << 16 | asyh->core.w);
-		evo_data(push, asyh->core.layout << 20 |
-			       (asyh->core.pitch >> 8) << 8 |
-			       asyh->core.blocks << 8 |
-			       asyh->core.blockh);
-		evo_data(push, asyh->core.kind << 16 |
-			       asyh->core.format << 8);
-		evo_data(push, asyh->core.handle);
-		evo_mthd(push, 0x08c0 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->core.y << 16 | asyh->core.x);
-		evo_kick(push, core);
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
 
-		/* EVO will complain with INVALID_STATE if we have an
-		 * active cursor and (re)specify HeadSetContextDmaIso
-		 * without also updating HeadSetOffsetCursor.
-		 */
-		asyh->set.curs = asyh->curs.visible;
-		asyh->set.olut = asyh->olut.handle != 0;
-	}
+	if ((ret = PUSH_WAIT(push, 9)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x0860 + (i * 0x400), asyh->core.offset >> 8);
+	PUSH_NVSQ(push, NV507D, 0x0868 + (i * 0x400), asyh->core.h << 16 | asyh->core.w,
+				0x086c + (i * 0x400), asyh->core.layout << 20 |
+						     (asyh->core.pitch >> 8) << 8 |
+						      asyh->core.blocks << 8 |
+						      asyh->core.blockh,
+				0x0870 + (i * 0x400), asyh->core.kind << 16 |
+						      asyh->core.format << 8,
+				0x0874 + (i * 0x400), asyh->core.handle);
+	PUSH_NVSQ(push, NV507D, 0x08c0 + (i * 0x400), asyh->core.y << 16 | asyh->core.x);
+
+	/* EVO will complain with INVALID_STATE if we have an
+	 * active cursor and (re)specify HeadSetContextDmaIso
+	 * without also updating HeadSetOffsetCursor.
+	 */
+	asyh->set.curs = asyh->curs.visible;
+	asyh->set.olut = asyh->olut.handle != 0;
+	return 0;
 }
 
 void
