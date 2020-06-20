@@ -1774,12 +1774,6 @@ struct dir_context {
 	loff_t pos;
 };
 
-/* These macros are for out of kernel modules to test that
- * the kernel supports the unlocked_ioctl and compat_ioctl
- * fields in struct file_operations. */
-#define HAVE_COMPAT_IOCTL 1
-#define HAVE_UNLOCKED_IOCTL 1
-
 /*
  * These flags let !MMU mmap() govern direct device mapping vs immediate
  * copying more easily for MAP_PRIVATE, especially for ROM filesystems.
