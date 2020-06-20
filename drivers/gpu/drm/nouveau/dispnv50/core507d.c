@@ -66,15 +66,14 @@ core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 int
 core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 {
-	u32 *push = evo_wait(&disp->core->chan, 2);
+	struct nvif_push *push = disp->core->chan.push;
+	int ret;
 
-	if (push) {
-		evo_mthd(push, 0x008c, 1);
-		evo_data(push, 0x0);
-		evo_kick(push, &disp->core->chan);
-	}
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
 
-	return 0;
+	PUSH_NVSQ(push, NV507D, 0x008c, 0x00000000);
+	return PUSH_KICK(push);
 }
 
 int
