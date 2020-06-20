@@ -361,3 +361,4 @@ module_exit(esp4_offload_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Steffen Klassert <steffen.klassert@secunet.com>");
 MODULE_ALIAS_XFRM_OFFLOAD_TYPE(AF_INET, XFRM_PROTO_ESP);
+MODULE_DESCRIPTION("IPV4 GSO/GRO offload support");
