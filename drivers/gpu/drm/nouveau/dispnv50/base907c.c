@@ -23,6 +23,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl907c.h>
+
 static int
 base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -150,8 +152,11 @@ base907c_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 13)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907C, 0x0140,  asyw->csc.matrix[0] | 0x80000000,
-				0x0144, &asyw->csc.matrix[1], 11);
+	PUSH_MTHD(push, NV907C, SET_CSC_RED2RED,
+		  NVDEF(NV907C, SET_CSC_RED2RED, OWNER, BASE) |
+		  NVVAL(NV907C, SET_CSC_RED2RED, COEFF, asyw->csc.matrix[0]),
+
+				SET_CSC_GRN2RED, &asyw->csc.matrix[1], 11);
 	return 0;
 }
 

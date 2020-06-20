@@ -29,6 +29,8 @@
 #include <nvif/clc37e.h>
 #include <nvif/pushc37b.h>
 
+#include <nvhw/class/clc57e.h>
+
 static int
 wndwc57e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -85,7 +87,7 @@ wndwc57e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 13)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57E, 0x0400, asyw->csc.matrix, 12);
+	PUSH_MTHD(push, NVC57E, SET_FMT_COEFFICIENT_C00, asyw->csc.matrix, 12);
 	return 0;
 }
 

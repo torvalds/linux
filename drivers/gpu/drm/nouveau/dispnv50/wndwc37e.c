@@ -46,7 +46,7 @@ wndwc37e_csc_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 13)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x02bc, asyw->csc.matrix, 12);
+	PUSH_MTHD(push, NVC37E, SET_CSC_RED2RED, asyw->csc.matrix, 12);
 	return 0;
 }
 
