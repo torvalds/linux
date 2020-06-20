@@ -4959,17 +4959,9 @@ static void mvpp2_xlg_config(struct mvpp2_port *port, unsigned int mode,
 {
 	u32 val;
 
-	val = MVPP22_XLG_CTRL0_MAC_RESET_DIS;
-	if (state->pause & MLO_PAUSE_TX)
-		val |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
-
-	if (state->pause & MLO_PAUSE_RX)
-		val |= MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
-
 	mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
-		     MVPP22_XLG_CTRL0_MAC_RESET_DIS |
-		     MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN |
-		     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN, val);
+		     MVPP22_XLG_CTRL0_MAC_RESET_DIS,
+		     MVPP22_XLG_CTRL0_MAC_RESET_DIS);
 	mvpp2_modify(port->base + MVPP22_XLG_CTRL4_REG,
 		     MVPP22_XLG_CTRL4_MACMODSELECT_GMAC |
 		     MVPP22_XLG_CTRL4_EN_IDLE_CHECK |
@@ -5159,10 +5151,17 @@ static void mvpp2_mac_link_up(struct phylink_config *config,
 
 	if (mvpp2_is_xlg(interface)) {
 		if (!phylink_autoneg_inband(mode)) {
+			val = MVPP22_XLG_CTRL0_FORCE_LINK_PASS;
+			if (tx_pause)
+				val |= MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN;
+			if (rx_pause)
+				val |= MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN;
+
 			mvpp2_modify(port->base + MVPP22_XLG_CTRL0_REG,
 				     MVPP22_XLG_CTRL0_FORCE_LINK_DOWN |
-				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS,
-				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS);
+				     MVPP22_XLG_CTRL0_FORCE_LINK_PASS |
+				     MVPP22_XLG_CTRL0_TX_FLOW_CTRL_EN |
+				     MVPP22_XLG_CTRL0_RX_FLOW_CTRL_EN, val);
 		}
 	} else {
 		if (!phylink_autoneg_inband(mode)) {
