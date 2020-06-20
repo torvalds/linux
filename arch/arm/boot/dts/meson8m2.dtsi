@@ -61,6 +61,25 @@
 	};
 };
 
+&pwrc {
+	compatible = "amlogic,meson8m2-pwrc";
+	resets = <&reset RESET_DBLK>,
+		 <&reset RESET_PIC_DC>,
+		 <&reset RESET_HDMI_APB>,
+		 <&reset RESET_HDMI_SYSTEM_RESET>,
+		 <&reset RESET_VENCI>,
+		 <&reset RESET_VENCP>,
+		 <&reset RESET_VDAC_4>,
+		 <&reset RESET_VENCL>,
+		 <&reset RESET_VIU>,
+		 <&reset RESET_VENC>,
+		 <&reset RESET_RDMA>;
+	reset-names = "dblk", "pic_dc", "hdmi_apb", "hdmi_system", "venci",
+		      "vencp", "vdac", "vencl", "viu", "venc", "rdma";
+	assigned-clocks = <&clkc CLKID_VPU>;
+	assigned-clock-rates = <364000000>;
+};
+
 &saradc {
 	compatible = "amlogic,meson8m2-saradc", "amlogic,meson-saradc";
 };
