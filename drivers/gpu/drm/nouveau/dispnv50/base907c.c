@@ -139,7 +139,8 @@ base907c_csc_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907C, 0x0140, 0x00000000);
+	PUSH_MTHD(push, NV907C, SET_CSC_RED2RED,
+		  NVDEF(NV907C, SET_CSC_RED2RED, OWNER, CORE));
 	return 0;
 }
 

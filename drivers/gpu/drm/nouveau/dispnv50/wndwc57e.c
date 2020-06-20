@@ -74,7 +74,7 @@ wndwc57e_csc_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 1 + ARRAY_SIZE(identity))))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57E, 0x0400, identity, ARRAY_SIZE(identity));
+	PUSH_MTHD(push, NVC57E, SET_FMT_COEFFICIENT_C00, identity, ARRAY_SIZE(identity));
 	return 0;
 }
 
