@@ -48,17 +48,19 @@ head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head907d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x0498 + (head->base.index * 0x300), 1);
-		evo_data(push, asyh->procamp.sat.sin << 20 |
-			       asyh->procamp.sat.cos << 8);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0498 + (i * 0x300), asyh->procamp.sat.sin << 20 |
+						      asyh->procamp.sat.cos << 8);
+	return 0;
 }
 
 static int

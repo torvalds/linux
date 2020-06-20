@@ -24,17 +24,19 @@
 
 #include <nvif/push507c.h>
 
-void
+int
 head507d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x08a8 + (head->base.index * 0x400), 1);
-		evo_data(push, asyh->procamp.sat.sin << 20 |
-			       asyh->procamp.sat.cos << 8);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x08a8 + (i * 0x400), asyh->procamp.sat.sin << 20 |
+						      asyh->procamp.sat.cos << 8);
+	return 0;
 }
 
 int

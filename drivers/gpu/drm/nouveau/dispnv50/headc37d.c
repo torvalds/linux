@@ -56,18 +56,20 @@ headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
+static int
 headc37d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x2000 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x80000000 |
-			       asyh->procamp.sat.sin << 16 |
-			       asyh->procamp.sat.cos << 4);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37D, 0x2000 + (i * 0x400), 0x80000000 |
+						      asyh->procamp.sat.sin << 16 |
+						      asyh->procamp.sat.cos << 4);
+	return 0;
 }
 
 int
