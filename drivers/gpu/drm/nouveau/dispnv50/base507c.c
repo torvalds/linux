@@ -26,6 +26,8 @@
 #include <nvif/push507c.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl507c.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
@@ -185,10 +187,10 @@ base507c_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507C, 0x0088, asyw->sema.offset,
-				0x008c, asyw->sema.acquire,
-				0x0090, asyw->sema.release,
-				0x0094, asyw->sema.handle);
+	PUSH_MTHD(push, NV507C, SET_SEMAPHORE_CONTROL, asyw->sema.offset,
+				SET_SEMAPHORE_ACQUIRE, asyw->sema.acquire,
+				SET_SEMAPHORE_RELEASE, asyw->sema.release,
+				SET_CONTEXT_DMA_SEMAPHORE, asyw->sema.handle);
 	return 0;
 }
 

@@ -29,6 +29,8 @@
 #include <nvif/clc37e.h>
 #include <nvif/pushc37b.h>
 
+#include <nvhw/class/clc37e.h>
+
 static int
 wndwc37e_csc_clr(struct nv50_wndw *wndw)
 {
@@ -208,10 +210,10 @@ wndwc37e_sema_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x020c, asyw->sema.offset,
-				0x0210, asyw->sema.acquire,
-				0x0214, asyw->sema.release,
-				0x0218, asyw->sema.handle);
+	PUSH_MTHD(push, NVC37E, SET_SEMAPHORE_CONTROL, asyw->sema.offset,
+				SET_SEMAPHORE_ACQUIRE, asyw->sema.acquire,
+				SET_SEMAPHORE_RELEASE, asyw->sema.release,
+				SET_CONTEXT_DMA_SEMAPHORE, asyw->sema.handle);
 	return 0;
 }
 
