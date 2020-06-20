@@ -1918,4 +1918,50 @@ static inline void bio_end_io_acct(struct bio *bio, unsigned long start_time)
 }
 #endif /* CONFIG_BLOCK */
 
+int bdev_read_only(struct block_device *bdev);
+int set_blocksize(struct block_device *bdev, int size);
+
+const char *bdevname(struct block_device *bdev, char *buffer);
+struct block_device *lookup_bdev(const char *);
+
+void blkdev_show(struct seq_file *seqf, off_t offset);
+
+#define BDEVNAME_SIZE	32	/* Largest string for a blockdev identifier */
+#define BDEVT_SIZE	10	/* Largest string for MAJ:MIN for blkdev */
+#ifdef CONFIG_BLOCK
+#define BLKDEV_MAJOR_MAX	512
+#else
+#define BLKDEV_MAJOR_MAX	0
 #endif
+
+int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder);
+struct block_device *blkdev_get_by_path(const char *path, fmode_t mode,
+		void *holder);
+struct block_device *blkdev_get_by_dev(dev_t dev, fmode_t mode, void *holder);
+struct block_device *bd_start_claiming(struct block_device *bdev, void *holder);
+void bd_abort_claiming(struct block_device *bdev, struct block_device *whole,
+		void *holder);
+void blkdev_put(struct block_device *bdev, fmode_t mode);
+
+struct block_device *bdget(dev_t);
+struct block_device *bdgrab(struct block_device *bdev);
+void bdput(struct block_device *);
+
+#ifdef CONFIG_BLOCK
+void invalidate_bdev(struct block_device *bdev);
+int sync_blockdev(struct block_device *bdev);
+#else
+static inline void invalidate_bdev(struct block_device *bdev)
+{
+}
+static inline int sync_blockdev(struct block_device *bdev)
+{
+	return 0;
+}
+#endif
+int fsync_bdev(struct block_device *bdev);
+
+struct super_block *freeze_bdev(struct block_device *bdev);
+int thaw_bdev(struct block_device *bdev, struct super_block *sb);
+
+#endif /* _LINUX_BLKDEV_H */

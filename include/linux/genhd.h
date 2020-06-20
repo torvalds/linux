@@ -373,6 +373,33 @@ extern void blk_unregister_region(dev_t devt, unsigned long range);
 
 #define alloc_disk(minors) alloc_disk_node(minors, NUMA_NO_NODE)
 
+int register_blkdev(unsigned int major, const char *name);
+void unregister_blkdev(unsigned int major, const char *name);
+
+int revalidate_disk(struct gendisk *disk);
+int check_disk_change(struct block_device *bdev);
+int __invalidate_device(struct block_device *bdev, bool kill_dirty);
+void bd_set_size(struct block_device *bdev, loff_t size);
+
+/* for drivers/char/raw.c: */
+int blkdev_ioctl(struct block_device *, fmode_t, unsigned, unsigned long);
+long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
+
+#ifdef CONFIG_SYSFS
+int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk);
+void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk);
+#else
+static inline int bd_link_disk_holder(struct block_device *bdev,
+				      struct gendisk *disk)
+{
+	return 0;
+}
+static inline void bd_unlink_disk_holder(struct block_device *bdev,
+					 struct gendisk *disk)
+{
+}
+#endif /* CONFIG_SYSFS */
+
 #else /* CONFIG_BLOCK */
 
 static inline void printk_all_partitions(void) { }
