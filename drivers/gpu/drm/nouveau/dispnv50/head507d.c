@@ -51,12 +51,13 @@ head507d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head507d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
 	u32 bounds = 0;
-	u32 *push;
+	int ret;
 
 	if (asyh->ovly.cpp) {
 		switch (asyh->ovly.cpp) {
@@ -71,11 +72,11 @@ head507d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 		bounds |= 0x00000100;
 	}
 
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x0904 + head->base.index * 0x400, 1);
-		evo_data(push, bounds);
-		evo_kick(push, core);
-	}
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x0904 + (i * 0x400), bounds);
+	return 0;
 }
 
 int
