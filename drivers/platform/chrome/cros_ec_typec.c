@@ -428,9 +428,9 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 	return typec_mux_set(port->mux, &port->state);
 }
 
-int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
-			     uint8_t mux_flags,
-			     struct ec_response_usb_pd_control_v2 *pd_ctrl)
+static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
+				uint8_t mux_flags,
+				struct ec_response_usb_pd_control_v2 *pd_ctrl)
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	enum typec_orientation orientation;
