@@ -444,6 +444,61 @@ static int gmin_i2c_write(struct device *dev, u16 i2c_addr, u8 reg,
 	return ret;
 }
 
+static int atomisp_get_acpi_power(struct device *dev, acpi_handle handle)
+{
+	char name[5];
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	struct acpi_buffer b_name = { sizeof(name), name };
+	union acpi_object *package, *element;
+	acpi_handle rhandle;
+	acpi_status status;
+	int clock_num = -1;
+	int i;
+
+	status = acpi_evaluate_object(handle, "_PR0", NULL, &buffer);
+	if (!ACPI_SUCCESS(status))
+		return -1;
+
+	package = buffer.pointer;
+
+	if (!buffer.length || !package
+	    || package->type != ACPI_TYPE_PACKAGE
+	    || !package->package.count)
+		goto fail;
+
+	for (i = 0; i < package->package.count; i++) {
+		element = &package->package.elements[i];
+
+		if (element->type != ACPI_TYPE_LOCAL_REFERENCE)
+			continue;
+
+		rhandle = element->reference.handle;
+		if (!rhandle)
+			goto fail;
+
+		acpi_get_name(rhandle, ACPI_SINGLE_NAME, &b_name);
+
+		dev_dbg(dev, "Found PM resource '%s'\n", name);
+		if (strlen(name) == 4 && !strncmp(name, "CLK", 3)) {
+			if (name[3] >= '0' && name[3] <= '4')
+				clock_num = name[3] - '0';
+#if 0
+			/*
+			 * We could abort here, but let's parse all resources,
+			 * as this is helpful for debugging purposes
+			 */
+			if (clock_num >= 0)
+				break;
+#endif
+		}
+	}
+
+fail:
+	ACPI_FREE(buffer.pointer);
+
+	return clock_num;
+}
+
 static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 {
 	struct i2c_client *power = NULL, *client = v4l2_get_subdevdata(subdev);
@@ -451,7 +506,7 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	struct gmin_subdev *gs;
 	acpi_handle handle;
 	struct device *dev;
-	int i, ret, clock_num;
+	int i, ret, clock_num = -1;
 
 	if (!client)
 		return NULL;
@@ -557,7 +612,14 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	 * is a power resource already, falling back to the EFI vars detection
 	 * otherwise.
 	 */
-	clock_num = gmin_get_var_int(dev, false, "CamClk", -1);
+
+	/* Try first to use ACPI to get the clock resource */
+	if (acpi_device_power_manageable(adev))
+		clock_num = atomisp_get_acpi_power(dev, handle);
+
+	/* Fall-back use EFI and/or DMI match */
+	if (clock_num < 0)
+		clock_num = gmin_get_var_int(dev, false, "CamClk", 0);
 
 	if (clock_num < 0 || clock_num > MAX_CLK_COUNT) {
 		dev_err(dev, "Invalid clock number\n");
