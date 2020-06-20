@@ -101,7 +101,8 @@ base507c_xlut_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507C, 0x00e0, 0x00000000);
+	PUSH_MTHD(push, NV507C, SET_BASE_LUT_LO,
+		  NVDEF(NV507C, SET_BASE_LUT_LO, ENABLE, DISABLE));
 	return 0;
 }
 

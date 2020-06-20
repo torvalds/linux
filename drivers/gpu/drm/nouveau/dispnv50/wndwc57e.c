@@ -100,7 +100,7 @@ wndwc57e_ilut_clr(struct nv50_wndw *wndw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57E, 0x0444, 0x00000000);
+	PUSH_MTHD(push, NVC57E, SET_CONTEXT_DMA_ILUT, 0x00000000);
 	return 0;
 }
 
