@@ -144,6 +144,55 @@ struct cec_adap_ops {
  */
 #define CEC_MAX_MSG_TX_QUEUE_SZ		(18 * 1)
 
+/**
+ * struct cec_adapter - cec adapter structure
+ * @owner:		module owner
+ * @name:		name of the CEC adapter
+ * @devnode:		device node for the /dev/cecX device
+ * @lock:		mutex controlling access to this structure
+ * @rc:			remote control device
+ * @transmit_queue:	queue of pending transmits
+ * @transmit_queue_sz:	number of pending transmits
+ * @wait_queue:		queue of transmits waiting for a reply
+ * @transmitting:	CEC messages currently being transmitted
+ * @transmit_in_progress: true if a transmit is in progress
+ * @kthread_config:	kthread used to configure a CEC adapter
+ * @config_completion:	used to signal completion of the config kthread
+ * @kthread:		main CEC processing thread
+ * @kthread_waitq:	main CEC processing wait_queue
+ * @ops:		cec adapter ops
+ * @priv:		cec driver's private data
+ * @capabilities:	cec adapter capabilities
+ * @available_log_addrs: maximum number of available logical addresses
+ * @phys_addr:		the current physical address
+ * @needs_hpd:		if true, then the HDMI HotPlug Detect pin must be high
+ *	in order to transmit or receive CEC messages. This is usually a HW
+ *	limitation.
+ * @is_configuring:	the CEC adapter is configuring (i.e. claiming LAs)
+ * @is_configured:	the CEC adapter is configured (i.e. has claimed LAs)
+ * @cec_pin_is_high:	if true then the CEC pin is high. Only used with the
+ *	CEC pin framework.
+ * @last_initiator:	the initiator of the last transmitted message.
+ * @monitor_all_cnt:	number of filehandles monitoring all msgs
+ * @monitor_pin_cnt:	number of filehandles monitoring pin changes
+ * @follower_cnt:	number of filehandles in follower mode
+ * @cec_follower:	filehandle of the exclusive follower
+ * @cec_initiator:	filehandle of the exclusive initiator
+ * @passthrough:	if true, then the exclusive follower is in
+ *	passthrough mode.
+ * @log_addrs:		current logical addresses
+ * @conn_info:		current connector info
+ * @tx_timeouts:	number of transmit timeouts
+ * @notifier:		CEC notifier
+ * @pin:		CEC pin status struct
+ * @cec_dir:		debugfs cec directory
+ * @status_file:	debugfs cec status file
+ * @error_inj_file:	debugfs cec error injection file
+ * @sequence:		transmit sequence counter
+ * @input_phys:		remote control input_phys name
+ *
+ * This structure represents a cec adapter.
+ */
 struct cec_adapter {
 	struct module *owner;
 	char name[32];
