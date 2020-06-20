@@ -176,8 +176,8 @@ finished_key_parsing:
 		if (proto < ETH_P_802_3_MIN)
 			return -EOPNOTSUPP;
 		ace->type = OCELOT_ACE_TYPE_ETYPE;
-		*(u16 *)ace->frame.etype.etype.value = htons(proto);
-		*(u16 *)ace->frame.etype.etype.mask = 0xffff;
+		*(__be16 *)ace->frame.etype.etype.value = htons(proto);
+		*(__be16 *)ace->frame.etype.etype.mask = htons(0xffff);
 	}
 	/* else, a rule of type OCELOT_ACE_TYPE_ANY is implicitly added */
 

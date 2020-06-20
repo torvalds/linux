@@ -746,8 +746,8 @@ static bool ocelot_ace_is_problematic_mac_etype(struct ocelot_ace_rule *ace)
 	if (ace->type != OCELOT_ACE_TYPE_ETYPE)
 		return false;
 
-	proto = ntohs(*(u16 *)ace->frame.etype.etype.value);
-	mask = ntohs(*(u16 *)ace->frame.etype.etype.mask);
+	proto = ntohs(*(__be16 *)ace->frame.etype.etype.value);
+	mask = ntohs(*(__be16 *)ace->frame.etype.etype.mask);
 
 	/* ETH_P_ALL match, so all protocols below are included */
 	if (mask == 0)
