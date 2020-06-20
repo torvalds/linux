@@ -33,9 +33,9 @@ struct qos_policer_conf {
 int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
 			 struct qos_policer_conf *conf);
 
-int ocelot_ace_policer_add(struct ocelot *ocelot, u32 pol_ix,
-			   struct ocelot_policer *pol);
+int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
+			    struct ocelot_policer *pol);
 
-int ocelot_ace_policer_del(struct ocelot *ocelot, u32 pol_ix);
+int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix);
 
 #endif /* _MSCC_OCELOT_POLICE_H_ */

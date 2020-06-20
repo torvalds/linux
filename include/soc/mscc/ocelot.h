@@ -470,7 +470,7 @@ struct ocelot_ops {
 	int (*reset)(struct ocelot *ocelot);
 };
 
-struct ocelot_acl_block {
+struct ocelot_vcap_block {
 	struct list_head rules;
 	int count;
 	int pol_lpr;
@@ -535,7 +535,7 @@ struct ocelot {
 
 	struct list_head		multicast;
 
-	struct ocelot_acl_block		acl_block;
+	struct ocelot_vcap_block	block;
 
 	const struct vcap_field		*vcap_is2_keys;
 	const struct vcap_field		*vcap_is2_actions;
