@@ -162,7 +162,7 @@ config SCSI_UFS_BSG
 	  If unsure, say N.
 
 config SCSI_UFS_EXYNOS
-	bool "EXYNOS specific hooks to UFS controller platform driver"
+	tristate "EXYNOS specific hooks to UFS controller platform driver"
 	depends on SCSI_UFSHCD_PLATFORM && (ARCH_EXYNOS || COMPILE_TEST)
 	select PHY_SAMSUNG_UFS
 	help
