@@ -26,6 +26,8 @@
 #include <nvif/push507c.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl507d.h>
+
 #include "nouveau_bo.h"
 
 int
@@ -86,7 +88,7 @@ core507d_init(struct nv50_core *core)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0088, core->chan.sync.handle);
+	PUSH_MTHD(push, NV507D, SET_CONTEXT_DMA_NOTIFIER, core->chan.sync.handle);
 	return PUSH_KICK(push);
 }
 
