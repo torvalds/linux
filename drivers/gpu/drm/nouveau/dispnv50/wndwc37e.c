@@ -279,12 +279,14 @@ wndwc37e_update(struct nv50_wndw *wndw, u32 *interlock)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x0370,  interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
-					 interlock[NV50_DISP_INTERLOCK_CORE],
-				0x0374,  interlock[NV50_DISP_INTERLOCK_WNDW]);
-	PUSH_NVSQ(push, NVC37E, 0x0200,((interlock[NV50_DISP_INTERLOCK_WIMM] &
-					 wndw->interlock.data) ? 0x00001000 : 0x00000000) |
-					 0x00000001);
+	PUSH_MTHD(push, NVC37E, SET_INTERLOCK_FLAGS, interlock[NV50_DISP_INTERLOCK_CURS] << 1 |
+						     interlock[NV50_DISP_INTERLOCK_CORE],
+				SET_WINDOW_INTERLOCK_FLAGS, interlock[NV50_DISP_INTERLOCK_WNDW]);
+
+	PUSH_MTHD(push, NVC37E, UPDATE, 0x00000001 |
+		  NVVAL(NVC37E, UPDATE, INTERLOCK_WITH_WIN_IMM,
+			  !!(interlock[NV50_DISP_INTERLOCK_WIMM] & wndw->interlock.data)));
+
 	return PUSH_KICK(push);
 }
 

@@ -43,7 +43,7 @@ base507c_update(struct nv50_wndw *wndw, u32 *interlock)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507C, 0x0080, interlock[NV50_DISP_INTERLOCK_CORE]);
+	PUSH_MTHD(push, NV507C, UPDATE, interlock[NV50_DISP_INTERLOCK_CORE]);
 	return PUSH_KICK(push);
 }
 
