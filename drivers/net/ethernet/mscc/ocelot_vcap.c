@@ -651,6 +651,49 @@ static void is2_entry_get(struct ocelot *ocelot, struct ocelot_vcap_filter *filt
 	filter->stats.pkts = cnt;
 }
 
+static int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
+				   struct ocelot_policer *pol)
+{
+	struct qos_policer_conf pp = { 0 };
+
+	if (!pol)
+		return -EINVAL;
+
+	pp.mode = MSCC_QOS_RATE_MODE_DATA;
+	pp.pir = pol->rate;
+	pp.pbs = pol->burst;
+
+	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+}
+
+static void ocelot_vcap_policer_del(struct ocelot *ocelot,
+				    struct ocelot_vcap_block *block,
+				    u32 pol_ix)
+{
+	struct ocelot_vcap_filter *filter;
+	struct qos_policer_conf pp = {0};
+	int index = -1;
+
+	if (pol_ix < block->pol_lpr)
+		return;
+
+	list_for_each_entry(filter, &block->rules, list) {
+		index++;
+		if (filter->action == OCELOT_VCAP_ACTION_POLICE &&
+		    filter->pol_ix < pol_ix) {
+			filter->pol_ix += 1;
+			ocelot_vcap_policer_add(ocelot, filter->pol_ix,
+						&filter->pol);
+			is2_entry_set(ocelot, index, filter);
+		}
+	}
+
+	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
+	qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
+
+	block->pol_lpr++;
+}
+
 static void ocelot_vcap_filter_add_to_block(struct ocelot *ocelot,
 					    struct ocelot_vcap_block *block,
 					    struct ocelot_vcap_filter *filter)
@@ -848,55 +891,6 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 	return 0;
 }
 
-int ocelot_vcap_policer_add(struct ocelot *ocelot, u32 pol_ix,
-			    struct ocelot_policer *pol)
-{
-	struct qos_policer_conf pp = { 0 };
-
-	if (!pol)
-		return -EINVAL;
-
-	pp.mode = MSCC_QOS_RATE_MODE_DATA;
-	pp.pir = pol->rate;
-	pp.pbs = pol->burst;
-
-	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
-}
-
-int ocelot_vcap_policer_del(struct ocelot *ocelot, u32 pol_ix)
-{
-	struct qos_policer_conf pp = { 0 };
-
-	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
-
-	return qos_policer_conf_set(ocelot, 0, pol_ix, &pp);
-}
-
-static void ocelot_vcap_police_del(struct ocelot *ocelot,
-				   struct ocelot_vcap_block *block,
-				   u32 ix)
-{
-	struct ocelot_vcap_filter *filter;
-	int index = -1;
-
-	if (ix < block->pol_lpr)
-		return;
-
-	list_for_each_entry(filter, &block->rules, list) {
-		index++;
-		if (filter->action == OCELOT_VCAP_ACTION_POLICE &&
-		    filter->pol_ix < ix) {
-			filter->pol_ix += 1;
-			ocelot_vcap_policer_add(ocelot, filter->pol_ix,
-						&filter->pol);
-			is2_entry_set(ocelot, index, filter);
-		}
-	}
-
-	ocelot_vcap_policer_del(ocelot, block->pol_lpr);
-	block->pol_lpr++;
-}
-
 static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 					    struct ocelot_vcap_block *block,
 					    struct ocelot_vcap_filter *filter)
@@ -908,8 +902,8 @@ static void ocelot_vcap_block_remove_filter(struct ocelot *ocelot,
 		tmp = list_entry(pos, struct ocelot_vcap_filter, list);
 		if (tmp->id == filter->id) {
 			if (tmp->action == OCELOT_VCAP_ACTION_POLICE)
-				ocelot_vcap_police_del(ocelot, block,
-						       tmp->pol_ix);
+				ocelot_vcap_policer_del(ocelot, block,
+							tmp->pol_ix);
 
 			list_del(pos);
 			kfree(tmp);
