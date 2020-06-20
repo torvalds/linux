@@ -40,8 +40,10 @@ corec37d_wndw_owner(struct nv50_core *core)
 	if ((ret = PUSH_WAIT(push, windows * 2)))
 		return ret;
 
-	for (i = 0; i < windows; i++)
-		PUSH_NVSQ(push, NVC37D, 0x1000 + (i * 0x080), i >> 1);
+	for (i = 0; i < windows; i++) {
+		PUSH_MTHD(push, NVC37D, WINDOW_SET_CONTROL(i),
+			  NVDEF(NVC37D, WINDOW_SET_CONTROL, OWNER, HEAD(i >> 1)));
+	}
 
 	return 0;
 }
