@@ -6,7 +6,7 @@
 #include <net/pkt_cls.h>
 #include <net/tc_act/tc_gact.h>
 
-#include "ocelot_ace.h"
+#include "ocelot_vcap.h"
 
 static int ocelot_flower_parse_action(struct flow_cls_offload *f,
 				      struct ocelot_ace_rule *ace)

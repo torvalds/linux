@@ -6,7 +6,7 @@
 
 #include <linux/if_bridge.h>
 #include "ocelot.h"
-#include "ocelot_ace.h"
+#include "ocelot_vcap.h"
 
 int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
 			       struct flow_cls_offload *f,

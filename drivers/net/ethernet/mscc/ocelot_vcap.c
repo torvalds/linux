@@ -8,7 +8,7 @@
 
 #include <soc/mscc/ocelot_vcap.h>
 #include "ocelot_police.h"
-#include "ocelot_ace.h"
+#include "ocelot_vcap.h"
 #include "ocelot_s2.h"
 
 #define OCELOT_POLICER_DISCARD 0x17f
