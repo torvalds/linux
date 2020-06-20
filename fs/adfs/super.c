@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/user_namespace.h>
+#include <linux/blkdev.h>
 #include "adfs.h"
 #include "dir_f.h"
 #include "dir_fplus.h"

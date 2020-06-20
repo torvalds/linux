@@ -470,45 +470,6 @@ struct address_space {
 	 * must be enforced here for CRIS, to let the least significant bit
 	 * of struct page's "mapping" pointer be used for PAGE_MAPPING_ANON.
 	 */
-struct request_queue;
-
-struct block_device {
-	dev_t			bd_dev;  /* not a kdev_t - it's a search key */
-	int			bd_openers;
-	struct inode *		bd_inode;	/* will die */
-	struct super_block *	bd_super;
-	struct mutex		bd_mutex;	/* open/close mutex */
-	void *			bd_claiming;
-	void *			bd_holder;
-	int			bd_holders;
-	bool			bd_write_holder;
-#ifdef CONFIG_SYSFS
-	struct list_head	bd_holder_disks;
-#endif
-	struct block_device *	bd_contains;
-	unsigned		bd_block_size;
-	u8			bd_partno;
-	struct hd_struct *	bd_part;
-	/* number of times partitions within this device have been opened. */
-	unsigned		bd_part_count;
-	int			bd_invalidated;
-	struct gendisk *	bd_disk;
-	struct request_queue *  bd_queue;
-	struct backing_dev_info *bd_bdi;
-	struct list_head	bd_list;
-	/*
-	 * Private data.  You must have bd_claim'ed the block_device
-	 * to use this.  NOTE:  bd_claim allows an owner to claim
-	 * the same device multiple times, the owner must take special
-	 * care to not mess up bd_private for that case.
-	 */
-	unsigned long		bd_private;
-
-	/* The counter of freeze processes */
-	int			bd_fsfreeze_count;
-	/* Mutex for freeze */
-	struct mutex		bd_fsfreeze_mutex;
-} __randomize_layout;
 
 /* XArray tags, for tagging dirty and writeback pages in the pagecache. */
 #define PAGECACHE_TAG_DIRTY	XA_MARK_0
@@ -906,8 +867,6 @@ static inline unsigned imajor(const struct inode *inode)
 {
 	return MAJOR(inode->i_rdev);
 }
-
-extern struct block_device *I_BDEV(struct inode *inode);
 
 struct fown_struct {
 	rwlock_t lock;          /* protects pid, uid, euid fields */

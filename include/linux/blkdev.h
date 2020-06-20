@@ -1930,6 +1930,7 @@ void bd_abort_claiming(struct block_device *bdev, struct block_device *whole,
 		void *holder);
 void blkdev_put(struct block_device *bdev, fmode_t mode);
 
+struct block_device *I_BDEV(struct inode *inode);
 struct block_device *bdget(dev_t);
 struct block_device *bdgrab(struct block_device *bdev);
 void bdput(struct block_device *);
