@@ -162,7 +162,6 @@ struct cec_adapter {
 
 	struct task_struct *kthread;
 	wait_queue_head_t kthread_waitq;
-	wait_queue_head_t waitq;
 
 	const struct cec_adap_ops *ops;
 	void *priv;
@@ -197,7 +196,6 @@ struct cec_adapter {
 	struct dentry *status_file;
 	struct dentry *error_inj_file;
 
-	u16 phys_addrs[15];
 	u32 sequence;
 
 	char input_phys[32];

@@ -265,7 +265,6 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->sequence = 0;
 	adap->ops = ops;
 	adap->priv = priv;
-	memset(adap->phys_addrs, 0xff, sizeof(adap->phys_addrs));
 	mutex_init(&adap->lock);
 	INIT_LIST_HEAD(&adap->transmit_queue);
 	INIT_LIST_HEAD(&adap->wait_queue);
