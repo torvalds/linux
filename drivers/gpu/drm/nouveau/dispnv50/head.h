@@ -39,7 +39,7 @@ struct nv50_head_func {
 			   struct nv50_head_atom *);
 	int (*curs_format)(struct nv50_head *, struct nv50_wndw_atom *,
 			   struct nv50_head_atom *);
-	void (*curs_set)(struct nv50_head *, struct nv50_head_atom *);
+	int (*curs_set)(struct nv50_head *, struct nv50_head_atom *);
 	void (*curs_clr)(struct nv50_head *);
 	void (*base)(struct nv50_head *, struct nv50_head_atom *);
 	void (*ovly)(struct nv50_head *, struct nv50_head_atom *);
@@ -74,7 +74,7 @@ int head907d_olut_set(struct nv50_head *, struct nv50_head_atom *);
 int head907d_olut_clr(struct nv50_head *);
 int head907d_core_set(struct nv50_head *, struct nv50_head_atom *);
 int head907d_core_clr(struct nv50_head *);
-void head907d_curs_set(struct nv50_head *, struct nv50_head_atom *);
+int head907d_curs_set(struct nv50_head *, struct nv50_head_atom *);
 void head907d_curs_clr(struct nv50_head *);
 void head907d_ovly(struct nv50_head *, struct nv50_head_atom *);
 void head907d_procamp(struct nv50_head *, struct nv50_head_atom *);
@@ -88,7 +88,7 @@ extern const struct nv50_head_func headc37d;
 int headc37d_view(struct nv50_head *, struct nv50_head_atom *);
 int headc37d_curs_format(struct nv50_head *, struct nv50_wndw_atom *,
 			 struct nv50_head_atom *);
-void headc37d_curs_set(struct nv50_head *, struct nv50_head_atom *);
+int headc37d_curs_set(struct nv50_head *, struct nv50_head_atom *);
 void headc37d_curs_clr(struct nv50_head *);
 void headc37d_dither(struct nv50_head *, struct nv50_head_atom *);
 void headc37d_static_wndw_map(struct nv50_head *, struct nv50_head_atom *);

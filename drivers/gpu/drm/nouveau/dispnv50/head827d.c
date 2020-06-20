@@ -38,20 +38,22 @@ head827d_curs_clr(struct nv50_head *head)
 	}
 }
 
-static void
+static int
 head827d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 5))) {
-		evo_mthd(push, 0x0880 + head->base.index * 0x400, 2);
-		evo_data(push, 0x80000000 | asyh->curs.layout << 26 |
-					    asyh->curs.format << 24);
-		evo_data(push, asyh->curs.offset >> 8);
-		evo_mthd(push, 0x089c + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.handle);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NV827D, 0x0880 + (i * 0x400), 0x80000000 |
+						      asyh->curs.layout << 26 |
+						      asyh->curs.format << 24,
+				0x0884 + (i * 0x400), asyh->curs.offset >> 8);
+	PUSH_NVSQ(push, NV827D, 0x089c + (i * 0x400), asyh->curs.handle);
+	return 0;
 }
 
 static int

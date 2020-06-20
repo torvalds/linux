@@ -98,23 +98,23 @@ headc37d_curs_clr(struct nv50_head *head)
 	}
 }
 
-void
+int
 headc37d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 7))) {
-		evo_mthd(push, 0x209c + head->base.index * 0x400, 2);
-		evo_data(push, 0x80000000 |
-			       asyh->curs.layout << 8 |
-			       asyh->curs.format << 0);
-		evo_data(push, 0x000072ff);
-		evo_mthd(push, 0x2088 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.handle);
-		evo_mthd(push, 0x2090 + head->base.index * 0x400, 1);
-		evo_data(push, asyh->curs.offset >> 8);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 7)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37D, 0x209c + (i * 0x400), 0x80000000 |
+						      asyh->curs.layout << 8 |
+						      asyh->curs.format << 0,
+				0x20a0 + (i * 0x400), 0x000072ff);
+	PUSH_NVSQ(push, NVC37D, 0x2088 + (i * 0x400), asyh->curs.handle);
+	PUSH_NVSQ(push, NVC37D, 0x2090 + (i * 0x400), asyh->curs.offset >> 8);
+	return 0;
 }
 
 int
