@@ -4524,6 +4524,7 @@ static void rtl_task(struct work_struct *work)
 	struct rtl8169_private *tp =
 		container_of(work, struct rtl8169_private, wk.work);
 
+	rtnl_lock();
 	rtl_lock_work(tp);
 
 	if (!netif_running(tp->dev) ||
@@ -4536,6 +4537,7 @@ static void rtl_task(struct work_struct *work)
 	}
 out_unlock:
 	rtl_unlock_work(tp);
+	rtnl_unlock();
 }
 
 static int rtl8169_poll(struct napi_struct *napi, int budget)
@@ -4788,7 +4790,9 @@ static int __maybe_unused rtl8169_suspend(struct device *device)
 {
 	struct rtl8169_private *tp = dev_get_drvdata(device);
 
+	rtnl_lock();
 	rtl8169_net_suspend(tp);
+	rtnl_unlock();
 
 	return 0;
 }
@@ -4816,11 +4820,13 @@ static int rtl8169_runtime_suspend(struct device *device)
 		return 0;
 	}
 
+	rtnl_lock();
 	rtl_lock_work(tp);
 	__rtl8169_set_wol(tp, WAKE_PHY);
 	rtl_unlock_work(tp);
 
 	rtl8169_net_suspend(tp);
+	rtnl_unlock();
 
 	return 0;
 }
@@ -4882,7 +4888,9 @@ static void rtl_shutdown(struct pci_dev *pdev)
 {
 	struct rtl8169_private *tp = pci_get_drvdata(pdev);
 
+	rtnl_lock();
 	rtl8169_net_suspend(tp);
+	rtnl_unlock();
 
 	/* Restore original MAC address */
 	rtl_rar_set(tp, tp->dev->perm_addr);
