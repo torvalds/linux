@@ -76,18 +76,19 @@ head827d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-static void
+static int
 head827d_olut_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 4))) {
-		evo_mthd(push, 0x0840 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x085c + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 4)))
+		return ret;
+
+	PUSH_NVSQ(push, NV827D, 0x0840 + (i * 0x400), 0x00000000);
+	PUSH_NVSQ(push, NV827D, 0x085c + (i * 0x400), 0x00000000);
+	return 0;
 }
 
 static int

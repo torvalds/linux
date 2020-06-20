@@ -31,7 +31,7 @@ struct nv50_head_func {
 	bool olut_identity;
 	int  olut_size;
 	int (*olut_set)(struct nv50_head *, struct nv50_head_atom *);
-	void (*olut_clr)(struct nv50_head *);
+	int (*olut_clr)(struct nv50_head *);
 	void (*core_calc)(struct nv50_head *, struct nv50_head_atom *);
 	void (*core_set)(struct nv50_head *, struct nv50_head_atom *);
 	void (*core_clr)(struct nv50_head *);
@@ -71,7 +71,7 @@ int head907d_view(struct nv50_head *, struct nv50_head_atom *);
 int head907d_mode(struct nv50_head *, struct nv50_head_atom *);
 bool head907d_olut(struct nv50_head *, struct nv50_head_atom *, int);
 int head907d_olut_set(struct nv50_head *, struct nv50_head_atom *);
-void head907d_olut_clr(struct nv50_head *);
+int head907d_olut_clr(struct nv50_head *);
 void head907d_core_set(struct nv50_head *, struct nv50_head_atom *);
 void head907d_core_clr(struct nv50_head *);
 void head907d_curs_set(struct nv50_head *, struct nv50_head_atom *);
