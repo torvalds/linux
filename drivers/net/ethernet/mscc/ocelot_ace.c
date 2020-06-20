@@ -119,7 +119,8 @@ static void vcap_cache2entry(struct ocelot *ocelot, struct vcap_data *data)
 static void vcap_action2cache(struct ocelot *ocelot, struct vcap_data *data)
 {
 	const struct vcap_props *vcap_is2 = &ocelot->vcap[VCAP_IS2];
-	u32 action_words, i, width, mask;
+	u32 action_words, mask;
+	int i, width;
 
 	/* Encode action type */
 	width = vcap_is2->action_type_width;
@@ -141,7 +142,8 @@ static void vcap_action2cache(struct ocelot *ocelot, struct vcap_data *data)
 static void vcap_cache2action(struct ocelot *ocelot, struct vcap_data *data)
 {
 	const struct vcap_props *vcap_is2 = &ocelot->vcap[VCAP_IS2];
-	u32 action_words, i, width;
+	u32 action_words;
+	int i, width;
 
 	action_words = DIV_ROUND_UP(vcap_is2->action_width, ENTRY_WIDTH);
 
@@ -161,8 +163,8 @@ static void vcap_cache2action(struct ocelot *ocelot, struct vcap_data *data)
 static void is2_data_get(struct ocelot *ocelot, struct vcap_data *data, int ix)
 {
 	const struct vcap_props *vcap_is2 = &ocelot->vcap[VCAP_IS2];
-	u32 i, col, offset, count, cnt, base;
-	u32 width = vcap_is2->tg_width;
+	int i, col, offset, count, cnt, base;
+	int width = vcap_is2->tg_width;
 
 	count = (data->tg_sw == VCAP_TG_HALF ? 2 : 4);
 	col = (ix % 2);
