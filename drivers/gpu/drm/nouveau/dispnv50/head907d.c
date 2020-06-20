@@ -160,16 +160,18 @@ head907d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 }
 
-void
+int
 head907d_core_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x0474 + head->base.index * 0x300, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0474 + (i * 0x300), 0x00000000);
+	return 0;
 }
 
 int

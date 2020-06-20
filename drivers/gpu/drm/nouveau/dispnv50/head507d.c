@@ -157,16 +157,18 @@ head507d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 	return 0;
 }
 
-void
+int
 head507d_core_clr(struct nv50_head *head)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
-	u32 *push;
-	if ((push = evo_wait(core, 2))) {
-		evo_mthd(push, 0x0874 + head->base.index * 0x400, 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, core);
-	}
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x0874 + (i * 0x400), 0x00000000);
+	return 0;
 }
 
 static int
