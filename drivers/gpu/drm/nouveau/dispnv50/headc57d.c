@@ -23,6 +23,8 @@
 #include "atom.h"
 #include "core.h"
 
+#include <nvif/pushc37b.h>
+
 static void
 headc57d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -171,29 +173,29 @@ headc57d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 	return true;
 }
 
-static void
+static int
 headc57d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	struct nv50_head_mode *m = &asyh->mode;
-	u32 *push;
-	if ((push = evo_wait(core, 13))) {
-		evo_mthd(push, 0x2064 + (head->base.index * 0x400), 5);
-		evo_data(push, (m->v.active  << 16) | m->h.active );
-		evo_data(push, (m->v.synce   << 16) | m->h.synce  );
-		evo_data(push, (m->v.blanke  << 16) | m->h.blanke );
-		evo_data(push, (m->v.blanks  << 16) | m->h.blanks );
-		evo_data(push, (m->v.blank2e << 16) | m->v.blank2s);
-		evo_mthd(push, 0x2008 + (head->base.index * 0x400), 2);
-		evo_data(push, m->interlace);
-		evo_data(push, m->clock * 1000);
-		evo_mthd(push, 0x2028 + (head->base.index * 0x400), 1);
-		evo_data(push, m->clock * 1000);
-		/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
-		evo_mthd(push, 0x2030 + (head->base.index * 0x400), 1);
-		evo_data(push, 0x00001114);
-		evo_kick(push, core);
-	}
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 13)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC57D, 0x2064 + (i * 0x400), m->v.active  << 16 | m->h.active,
+				0x2068 + (i * 0x400), m->v.synce   << 16 | m->h.synce,
+				0x206c + (i * 0x400), m->v.blanke  << 16 | m->h.blanke,
+				0x2070 + (i * 0x400), m->v.blanks  << 16 | m->h.blanks,
+				0x2074 + (i * 0x400), m->v.blank2e << 16 | m->v.blank2s);
+	PUSH_NVSQ(push, NVC57D, 0x2008 + (i * 0x400), m->interlace,
+				0x200c + (i * 0x400), m->clock * 1000);
+	PUSH_NVSQ(push, NVC57D, 0x2028 + (i * 0x400), m->clock * 1000);
+
+	/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
+	PUSH_NVSQ(push, NVC57D, 0x2030 + (i * 0x400), 0x00001114);
+	return 0;
 }
 
 const struct nv50_head_func

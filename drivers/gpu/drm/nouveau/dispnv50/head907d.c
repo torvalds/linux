@@ -251,29 +251,29 @@ head907d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 	return true;
 }
 
-void
+int
 head907d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
-	struct nv50_dmac *core = &nv50_disp(head->base.base.dev)->core->chan;
+	struct nvif_push *push = nv50_disp(head->base.base.dev)->core->chan.push;
 	struct nv50_head_mode *m = &asyh->mode;
-	u32 *push;
-	if ((push = evo_wait(core, 14))) {
-		evo_mthd(push, 0x0410 + (head->base.index * 0x300), 6);
-		evo_data(push, 0x00000000);
-		evo_data(push, m->v.active  << 16 | m->h.active );
-		evo_data(push, m->v.synce   << 16 | m->h.synce  );
-		evo_data(push, m->v.blanke  << 16 | m->h.blanke );
-		evo_data(push, m->v.blanks  << 16 | m->h.blanks );
-		evo_data(push, m->v.blank2e << 16 | m->v.blank2s);
-		evo_mthd(push, 0x042c + (head->base.index * 0x300), 2);
-		evo_data(push, 0x00000000); /* ??? */
-		evo_data(push, 0xffffff00);
-		evo_mthd(push, 0x0450 + (head->base.index * 0x300), 3);
-		evo_data(push, m->clock * 1000);
-		evo_data(push, 0x00200000); /* ??? */
-		evo_data(push, m->clock * 1000);
-		evo_kick(push, core);
-	}
+	const int i = head->base.index;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 14)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0410 + (i * 0x300), 0x00000000,
+				0x0414 + (i * 0x300), m->v.active  << 16 | m->h.active,
+				0x0418 + (i * 0x300), m->v.synce   << 16 | m->h.synce,
+				0x041c + (i * 0x300), m->v.blanke  << 16 | m->h.blanke,
+				0x0420 + (i * 0x300), m->v.blanks  << 16 | m->h.blanks,
+				0x0424 + (i * 0x300), m->v.blank2e << 16 | m->v.blank2s);
+	PUSH_NVSQ(push, NV907D, 0x042c + (i * 0x300), 0x00000000,
+				0x0430 + (i * 0x300), 0xffffff00);
+	PUSH_NVSQ(push, NV907D, 0x0450 + (i * 0x300), m->clock * 1000,
+				0x0454 + (i * 0x300), 0x00200000,
+				0x0458 + (i * 0x300), m->clock * 1000);
+	return 0;
 }
 
 int
