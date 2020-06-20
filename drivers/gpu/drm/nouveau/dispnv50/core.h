@@ -31,7 +31,7 @@ struct nv50_core_func {
 	const struct nv50_crc_func *crc;
 #endif
 	const struct nv50_outp_func {
-		void (*ctrl)(struct nv50_core *, int or, u32 ctrl,
+		int (*ctrl)(struct nv50_core *, int or, u32 ctrl,
 			     struct nv50_head_atom *);
 		/* XXX: Only used by SORs and PIORs for now */
 		void (*get_caps)(struct nv50_disp *,

@@ -21,21 +21,27 @@
  */
 #include "core.h"
 
-static void
+#include <nvif/push507c.h>
+
+static int
 dac507d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
 {
-	u32 *push, sync = 0;
-	if ((push = evo_wait(&core->chan, 3))) {
-		if (asyh) {
-			sync |= asyh->or.nvsync << 1;
-			sync |= asyh->or.nhsync;
-		}
-		evo_mthd(push, 0x0400 + (or * 0x080), 2);
-		evo_data(push, ctrl);
-		evo_data(push, sync);
-		evo_kick(push, &core->chan);
+	struct nvif_push *push = core->chan.push;
+	u32 sync = 0;
+	int ret;
+
+	if (asyh) {
+		sync |= asyh->or.nvsync << 1;
+		sync |= asyh->or.nhsync;
 	}
+
+	if ((ret = PUSH_WAIT(push, 3)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x0400 + (or * 0x080), ctrl,
+				0x0404 + (or * 0x080), sync);
+	return 0;
 }
 
 const struct nv50_outp_func

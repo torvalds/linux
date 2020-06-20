@@ -21,19 +21,23 @@
  */
 #include "core.h"
 
-#include <nouveau_bo.h>
 #include <nvif/class.h>
+#include <nvif/push507c.h>
 
-static void
+#include <nouveau_bo.h>
+
+static int
 sor907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 	     struct nv50_head_atom *asyh)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 2))) {
-		evo_mthd(push, 0x0200 + (or * 0x20), 1);
-		evo_data(push, ctrl);
-		evo_kick(push, &core->chan);
-	}
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV907D, 0x0200 + (or * 0x20), ctrl);
+	return 0;
 }
 
 static void
