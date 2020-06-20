@@ -41,9 +41,16 @@ ovly507e_scale_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507E, 0x00e0, asyw->scale.sy << 16 | asyw->scale.sx,
-				0x00e4, asyw->scale.sh << 16 | asyw->scale.sw,
-				0x00e8, asyw->scale.dw);
+	PUSH_MTHD(push, NV507E, SET_POINT_IN,
+		  NVVAL(NV507E, SET_POINT_IN, X, asyw->scale.sx) |
+		  NVVAL(NV507E, SET_POINT_IN, Y, asyw->scale.sy),
+
+				SET_SIZE_IN,
+		  NVVAL(NV507E, SET_SIZE_IN, WIDTH, asyw->scale.sw) |
+		  NVVAL(NV507E, SET_SIZE_IN, HEIGHT, asyw->scale.sh),
+
+				SET_SIZE_OUT,
+		  NVVAL(NV507E, SET_SIZE_OUT, WIDTH, asyw->scale.dw));
 	return 0;
 }
 
