@@ -15,7 +15,7 @@ int nv50_core_new(struct nouveau_drm *, struct nv50_core **);
 void nv50_core_del(struct nv50_core **);
 
 struct nv50_core_func {
-	void (*init)(struct nv50_core *);
+	int (*init)(struct nv50_core *);
 	void (*ntfy_init)(struct nouveau_bo *, u32 offset);
 	int (*caps_init)(struct nouveau_drm *, struct nv50_disp *);
 	int (*ntfy_wait_done)(struct nouveau_bo *, u32 offset,
@@ -42,7 +42,7 @@ struct nv50_core_func {
 int core507d_new(struct nouveau_drm *, s32, struct nv50_core **);
 int core507d_new_(const struct nv50_core_func *, struct nouveau_drm *, s32,
 		  struct nv50_core **);
-void core507d_init(struct nv50_core *);
+int core507d_init(struct nv50_core *);
 void core507d_ntfy_init(struct nouveau_bo *, u32);
 int core507d_caps_init(struct nouveau_drm *, struct nv50_disp *);
 int core507d_ntfy_wait_done(struct nouveau_bo *, u32, struct nvif_device *);

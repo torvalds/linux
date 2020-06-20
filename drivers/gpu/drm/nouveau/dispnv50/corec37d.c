@@ -23,9 +23,10 @@
 #include "head.h"
 
 #include <nvif/class.h>
-#include <nouveau_bo.h>
-
+#include <nvif/pushc37b.h>
 #include <nvif/timer.h>
+
+#include <nouveau_bo.h>
 
 void
 corec37d_wndw_owner(struct nv50_core *core)
@@ -112,24 +113,26 @@ int corec37d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	return 0;
 }
 
-static void
+static int
 corec37d_init(struct nv50_core *core)
 {
+	struct nvif_push *push = core->chan.push;
 	const u32 windows = 8; /*XXX*/
-	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 + 5 * windows))) {
-		evo_mthd(push, 0x0208, 1);
-		evo_data(push, core->chan.sync.handle);
-		for (i = 0; i < windows; i++) {
-			evo_mthd(push, 0x1004 + (i * 0x080), 2);
-			evo_data(push, 0x0000001f);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x1010 + (i * 0x080), 1);
-			evo_data(push, 0x00127fff);
-		}
-		evo_kick(push, &core->chan);
-		core->assign_windows = true;
+	int ret, i;
+
+	if ((ret = PUSH_WAIT(push, 2 + windows * 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37D, 0x0208, core->chan.sync.handle);
+
+	for (i = 0; i < windows; i++) {
+		PUSH_NVSQ(push, NVC37D, 0x1004 + (i * 0x080), 0x0000001f,
+					0x1008 + (i * 0x080), 0x00000000);
+		PUSH_NVSQ(push, NVC37D, 0x1010 + (i * 0x080), 0x00127fff);
 	}
+
+	core->assign_windows = true;
+	return PUSH_KICK(push);
 }
 
 static const struct nv50_core_func

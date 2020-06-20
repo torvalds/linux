@@ -22,24 +22,28 @@
 #include "core.h"
 #include "head.h"
 
-static void
+#include <nvif/pushc37b.h>
+
+static int
 corec57d_init(struct nv50_core *core)
 {
+	struct nvif_push *push = core->chan.push;
 	const u32 windows = 8; /*XXX*/
-	u32 *push, i;
-	if ((push = evo_wait(&core->chan, 2 + 5 * windows))) {
-		evo_mthd(push, 0x0208, 1);
-		evo_data(push, core->chan.sync.handle);
-		for (i = 0; i < windows; i++) {
-			evo_mthd(push, 0x1004 + (i * 0x080), 2);
-			evo_data(push, 0x0000000f);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x1010 + (i * 0x080), 1);
-			evo_data(push, 0x00117fff);
-		}
-		evo_kick(push, &core->chan);
-		core->assign_windows = true;
+	int ret, i;
+
+	if ((ret = PUSH_WAIT(push, 2 + windows * 5)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC57D, 0x0208, core->chan.sync.handle);
+
+	for (i = 0; i < windows; i++) {
+		PUSH_NVSQ(push, NVC57D, 0x1004 + (i * 0x080), 0x0000000f,
+					0x1008 + (i * 0x080), 0x00000000);
+		PUSH_NVSQ(push, NVC57D, 0x1010 + (i * 0x080), 0x00117fff);
 	}
+
+	core->assign_windows = true;
+	return PUSH_KICK(push);
 }
 
 static const struct nv50_core_func

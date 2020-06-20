@@ -23,6 +23,7 @@
 #include "head.h"
 
 #include <nvif/cl507d.h>
+#include <nvif/push507c.h>
 #include <nvif/timer.h>
 
 #include "nouveau_bo.h"
@@ -76,15 +77,17 @@ core507d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
 	return 0;
 }
 
-void
+int
 core507d_init(struct nv50_core *core)
 {
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 2))) {
-		evo_mthd(push, 0x0088, 1);
-		evo_data(push, core->chan.sync.handle);
-		evo_kick(push, &core->chan);
-	}
+	struct nvif_push *push = core->chan.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NV507D, 0x0088, core->chan.sync.handle);
+	return PUSH_KICK(push);
 }
 
 static const struct nv50_core_func
