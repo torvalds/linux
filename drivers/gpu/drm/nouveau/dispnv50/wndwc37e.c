@@ -182,9 +182,11 @@ wndwc37e_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x021c, asyw->ntfy.handle,
-				0x0220, asyw->ntfy.offset |
-					asyw->ntfy.awaken);
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_NOTIFIER, asyw->ntfy.handle,
+
+				SET_NOTIFIER_CONTROL,
+		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, MODE, asyw->ntfy.awaken) |
+		  NVVAL(NVC37E, SET_NOTIFIER_CONTROL, OFFSET, asyw->ntfy.offset >> 4));
 	return 0;
 }
 
