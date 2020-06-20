@@ -34,17 +34,31 @@ base907c_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 10)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907C, 0x0084, asyw->image.mode << 8 |
-					asyw->image.interval << 4);
-	PUSH_NVSQ(push, NV907C, 0x00c0, asyw->image.handle[0]);
-	PUSH_NVSQ(push, NV907C, 0x0400, asyw->image.offset[0] >> 8,
-				0x0404, 0x00000000,
-				0x0408, asyw->image.h << 16 | asyw->image.w,
-				0x040c, asyw->image.layout << 24 |
-				       (asyw->image.pitch[0] >> 8) << 8 |
-				        asyw->image.blocks[0] << 8 |
-					asyw->image.blockh,
-				0x0410, asyw->image.format << 8);
+	PUSH_MTHD(push, NV907C, SET_PRESENT_CONTROL,
+		  NVVAL(NV907C, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVDEF(NV907C, SET_PRESENT_CONTROL, TIMESTAMP_MODE, DISABLE) |
+		  NVVAL(NV907C, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval));
+
+	PUSH_MTHD(push, NV907C, SET_CONTEXT_DMAS_ISO(0), asyw->image.handle, 1);
+
+	PUSH_MTHD(push, NV907C, SURFACE_SET_OFFSET(0, 0), asyw->image.offset[0] >> 8,
+				SURFACE_SET_OFFSET(0, 1), 0x00000000,
+
+				SURFACE_SET_SIZE(0),
+		  NVVAL(NV907C, SURFACE_SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NV907C, SURFACE_SET_SIZE, HEIGHT, asyw->image.h),
+
+				SURFACE_SET_STORAGE(0),
+		  NVVAL(NV907C, SURFACE_SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NV907C, SURFACE_SET_STORAGE, PITCH, asyw->image.pitch[0] >> 8) |
+		  NVVAL(NV907C, SURFACE_SET_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NV907C, SURFACE_SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SURFACE_SET_PARAMS(0),
+		  NVVAL(NV907C, SURFACE_SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVDEF(NV907C, SURFACE_SET_PARAMS, SUPER_SAMPLE, X1_AA) |
+		  NVDEF(NV907C, SURFACE_SET_PARAMS, GAMMA, LINEAR) |
+		  NVDEF(NV907C, SURFACE_SET_PARAMS, LAYOUT, FRM));
 	return 0;
 }
 

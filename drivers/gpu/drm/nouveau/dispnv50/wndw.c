@@ -26,6 +26,10 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 
+#include <nvhw/class/cl507c.h>
+#include <nvhw/class/cl507e.h>
+#include <nvhw/class/clc37e.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
@@ -137,7 +141,7 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 		    struct nv50_wndw_atom *asyw)
 {
 	if (interlock[NV50_DISP_INTERLOCK_CORE]) {
-		asyw->image.mode = 0;
+		asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
 		asyw->image.interval = 1;
 	}
 
@@ -201,13 +205,18 @@ static int
 nv50_wndw_atomic_check_acquire_yuv(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_YUYV: asyw->image.format = 0x28; break;
-	case DRM_FORMAT_UYVY: asyw->image.format = 0x29; break;
+	case DRM_FORMAT_YUYV:
+		asyw->image.format = NV507E_SURFACE_SET_PARAMS_FORMAT_VE8YO8UE8YE8;
+		break;
+	case DRM_FORMAT_UYVY:
+		asyw->image.format = NV507E_SURFACE_SET_PARAMS_FORMAT_YO8VE8YE8UE8;
+		break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
 	}
-	asyw->image.colorspace = 1;
+
+	asyw->image.colorspace = NV507E_SURFACE_SET_PARAMS_COLOR_SPACE_YUV_601;
 	return 0;
 }
 
@@ -215,24 +224,41 @@ static int
 nv50_wndw_atomic_check_acquire_rgb(struct nv50_wndw_atom *asyw)
 {
 	switch (asyw->state.fb->format->format) {
-	case DRM_FORMAT_C8           : asyw->image.format = 0x1e; break;
-	case DRM_FORMAT_XRGB8888     :
-	case DRM_FORMAT_ARGB8888     : asyw->image.format = 0xcf; break;
-	case DRM_FORMAT_RGB565       : asyw->image.format = 0xe8; break;
-	case DRM_FORMAT_XRGB1555     :
-	case DRM_FORMAT_ARGB1555     : asyw->image.format = 0xe9; break;
-	case DRM_FORMAT_XBGR2101010  :
-	case DRM_FORMAT_ABGR2101010  : asyw->image.format = 0xd1; break;
-	case DRM_FORMAT_XBGR8888     :
-	case DRM_FORMAT_ABGR8888     : asyw->image.format = 0xd5; break;
-	case DRM_FORMAT_XRGB2101010  :
-	case DRM_FORMAT_ARGB2101010  : asyw->image.format = 0xdf; break;
+	case DRM_FORMAT_C8:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_I8;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A8R8G8B8;
+		break;
+	case DRM_FORMAT_RGB565:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_R5G6B5;
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A1R5G5B5;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A2B10G10R10;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_A8B8G8R8;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		asyw->image.format = NVC37E_SET_PARAMS_FORMAT_A2R10G10B10;
+		break;
 	case DRM_FORMAT_XBGR16161616F:
-	case DRM_FORMAT_ABGR16161616F: asyw->image.format = 0xca; break;
+	case DRM_FORMAT_ABGR16161616F:
+		asyw->image.format = NV507C_SURFACE_SET_PARAMS_FORMAT_RF16_GF16_BF16_AF16;
+		break;
 	default:
 		return -EINVAL;
 	}
-	asyw->image.colorspace = 0;
+
+	asyw->image.colorspace = NV507E_SURFACE_SET_PARAMS_COLOR_SPACE_RGB;
 	return 0;
 }
 
@@ -265,7 +291,7 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 		}
 
 		if (asyw->image.kind) {
-			asyw->image.layout = 0;
+			asyw->image.layout = NV507C_SURFACE_SET_STORAGE_MEMORY_LAYOUT_BLOCKLINEAR;
 			if (drm->client.device.info.chipset >= 0xc0)
 				asyw->image.blockh = tile_mode >> 4;
 			else
@@ -273,8 +299,8 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->image.blocks[0] = fb->pitches[0] / 64;
 			asyw->image.pitch[0] = 0;
 		} else {
-			asyw->image.layout = 1;
-			asyw->image.blockh = 0;
+			asyw->image.layout = NV507C_SURFACE_SET_STORAGE_MEMORY_LAYOUT_PITCH;
+			asyw->image.blockh = NV507C_SURFACE_SET_STORAGE_BLOCK_HEIGHT_ONE_GOB;
 			asyw->image.blocks[0] = 0;
 			asyw->image.pitch[0] = fb->pitches[0];
 		}
@@ -283,7 +309,12 @@ nv50_wndw_atomic_check_acquire(struct nv50_wndw *wndw, bool modeset,
 			asyw->image.interval = 1;
 		else
 			asyw->image.interval = 0;
-		asyw->image.mode = asyw->image.interval ? 0 : 1;
+
+		if (asyw->image.interval)
+			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_NON_TEARING;
+		else
+			asyw->image.mode = NV507C_SET_PRESENT_CONTROL_BEGIN_MODE_IMMEDIATE;
+
 		asyw->set.image = wndw->func->image_set != NULL;
 	}
 

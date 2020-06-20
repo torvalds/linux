@@ -38,17 +38,30 @@ ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 12)))
 		return ret;
 
-	PUSH_NVSQ(push, NV827E, 0x0084, asyw->image.interval << 4);
-	PUSH_NVSQ(push, NV827E, 0x00c0, asyw->image.handle[0]);
-	PUSH_NVSQ(push, NV827E, 0x0100, 0x00000002);
-	PUSH_NVSQ(push, NV827E, 0x0800, asyw->image.offset[0] >> 8);
-	PUSH_NVSQ(push, NV827E, 0x0808, asyw->image.h << 16 | asyw->image.w,
-				0x080c, asyw->image.layout << 20 |
-				       (asyw->image.pitch[0] >> 8) << 8 |
-					asyw->image.blocks[0] << 8 |
-					asyw->image.blockh,
-				0x0810, asyw->image.format << 8 |
-					asyw->image.colorspace);
+	PUSH_MTHD(push, NV827E, SET_PRESENT_CONTROL,
+		  NVDEF(NV827E, SET_PRESENT_CONTROL, BEGIN_MODE, ASAP) |
+		  NVVAL(NV827E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval));
+
+	PUSH_MTHD(push, NV827E, SET_CONTEXT_DMA_ISO, asyw->image.handle[0]);
+
+	PUSH_MTHD(push, NV827E, SET_COMPOSITION_CONTROL,
+		  NVDEF(NV827E, SET_COMPOSITION_CONTROL, MODE, OPAQUE_SUSPEND_BASE));
+
+	PUSH_MTHD(push, NV827E, SURFACE_SET_OFFSET, asyw->image.offset[0] >> 8);
+
+	PUSH_MTHD(push, NV827E, SURFACE_SET_SIZE,
+		  NVVAL(NV827E, SURFACE_SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NV827E, SURFACE_SET_SIZE, HEIGHT, asyw->image.h),
+
+				SURFACE_SET_STORAGE,
+		  NVVAL(NV827E, SURFACE_SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NV827E, SURFACE_SET_STORAGE, PITCH, (asyw->image.pitch[0] >> 8)) |
+		  NVVAL(NV827E, SURFACE_SET_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NV827E, SURFACE_SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SURFACE_SET_PARAMS,
+		  NVVAL(NV827E, SURFACE_SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVVAL(NV827E, SURFACE_SET_PARAMS, COLOR_SPACE, asyw->image.colorspace));
 	return 0;
 }
 

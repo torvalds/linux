@@ -141,24 +141,47 @@ wndwc37e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 17)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37E, 0x0308, asyw->image.mode << 4 |
-					asyw->image.interval);
-	PUSH_NVSQ(push, NVC37E, 0x0224, asyw->image.h << 16 | asyw->image.w,
-				0x0228, asyw->image.layout << 4 |
-					asyw->image.blockh,
-				0x022c, asyw->csc.valid << 17 |
-					asyw->image.colorspace << 8 |
-					asyw->image.format,
-				0x0230, asyw->image.blocks[0] |
-				       (asyw->image.pitch[0] >> 6));
-	PUSH_NVSQ(push, NVC37E, 0x0240, asyw->image.handle[0]);
-	PUSH_NVSQ(push, NVC37E, 0x0260, asyw->image.offset[0] >> 8);
-	PUSH_NVSQ(push, NVC37E, 0x0290,(asyw->state.src_y >> 16) << 16 |
-				       (asyw->state.src_x >> 16));
-	PUSH_NVSQ(push, NVC37E, 0x0298,(asyw->state.src_h >> 16) << 16 |
-				       (asyw->state.src_w >> 16));
-	PUSH_NVSQ(push, NVC37E, 0x02a4, asyw->state.crtc_h << 16 |
-					asyw->state.crtc_w);
+	PUSH_MTHD(push, NVC37E, SET_PRESENT_CONTROL,
+		  NVVAL(NVC37E, SET_PRESENT_CONTROL, MIN_PRESENT_INTERVAL, asyw->image.interval) |
+		  NVVAL(NVC37E, SET_PRESENT_CONTROL, BEGIN_MODE, asyw->image.mode) |
+		  NVDEF(NVC37E, SET_PRESENT_CONTROL, TIMESTAMP_MODE, DISABLE));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE,
+		  NVVAL(NVC37E, SET_SIZE, WIDTH, asyw->image.w) |
+		  NVVAL(NVC37E, SET_SIZE, HEIGHT, asyw->image.h),
+
+				SET_STORAGE,
+		  NVVAL(NVC37E, SET_STORAGE, BLOCK_HEIGHT, asyw->image.blockh) |
+		  NVVAL(NVC37E, SET_STORAGE, MEMORY_LAYOUT, asyw->image.layout),
+
+				SET_PARAMS,
+		  NVVAL(NVC37E, SET_PARAMS, FORMAT, asyw->image.format) |
+		  NVVAL(NVC37E, SET_PARAMS, COLOR_SPACE, asyw->image.colorspace) |
+		  NVDEF(NVC37E, SET_PARAMS, INPUT_RANGE, BYPASS) |
+		  NVDEF(NVC37E, SET_PARAMS, UNDERREPLICATE, DISABLE) |
+		  NVDEF(NVC37E, SET_PARAMS, DE_GAMMA, NONE) |
+		  NVVAL(NVC37E, SET_PARAMS, CSC, asyw->csc.valid) |
+		  NVDEF(NVC37E, SET_PARAMS, CLAMP_BEFORE_BLEND, DISABLE) |
+		  NVDEF(NVC37E, SET_PARAMS, SWAP_UV, DISABLE),
+
+				SET_PLANAR_STORAGE(0),
+		  NVVAL(NVC37E, SET_PLANAR_STORAGE, PITCH, asyw->image.blocks[0]) |
+		  NVVAL(NVC37E, SET_PLANAR_STORAGE, PITCH, asyw->image.pitch[0] >> 6));
+
+	PUSH_MTHD(push, NVC37E, SET_CONTEXT_DMA_ISO(0), asyw->image.handle, 1);
+	PUSH_MTHD(push, NVC37E, SET_OFFSET(0), asyw->image.offset[0] >> 8);
+
+	PUSH_MTHD(push, NVC37E, SET_POINT_IN(0),
+		  NVVAL(NVC37E, SET_POINT_IN, X, asyw->state.src_x >> 16) |
+		  NVVAL(NVC37E, SET_POINT_IN, Y, asyw->state.src_y >> 16));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE_IN,
+		  NVVAL(NVC37E, SET_SIZE_IN, WIDTH, asyw->state.src_w >> 16) |
+		  NVVAL(NVC37E, SET_SIZE_IN, HEIGHT, asyw->state.src_h >> 16));
+
+	PUSH_MTHD(push, NVC37E, SET_SIZE_OUT,
+		  NVVAL(NVC37E, SET_SIZE_OUT, WIDTH, asyw->state.crtc_w) |
+		  NVVAL(NVC37E, SET_SIZE_OUT, HEIGHT, asyw->state.crtc_h));
 	return 0;
 }
 
