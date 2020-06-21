@@ -35,10 +35,11 @@
 static int debug;
 module_param(debug, int, 0644);
 
-#define dprintk(level, fmt, arg...)					      \
+#define dprintk(q, level, fmt, arg...)					      \
 	do {								      \
 		if (debug >= level)					      \
-			pr_info("vb2-v4l2: %s: " fmt, __func__, ## arg); \
+			pr_info("vb2-v4l2: [%p] %s: " fmt,		      \
+				(q)->name, __func__, ## arg);		      \
 	} while (0)
 
 /* Flags that are set by us */
@@ -66,12 +67,14 @@ static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer
 
 	/* Is memory for copying plane information present? */
 	if (b->m.planes == NULL) {
-		dprintk(1, "multi-planar buffer passed but planes array not provided\n");
+		dprintk(vb->vb2_queue, 1,
+			"multi-planar buffer passed but planes array not provided\n");
 		return -EINVAL;
 	}
 
 	if (b->length < vb->num_planes || b->length > VB2_MAX_PLANES) {
-		dprintk(1, "incorrect planes array length, expected %d, got %d\n",
+		dprintk(vb->vb2_queue, 1,
+			"incorrect planes array length, expected %d, got %d\n",
 			vb->num_planes, b->length);
 		return -EINVAL;
 	}
@@ -179,7 +182,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 
 	ret = __verify_length(vb, b);
 	if (ret < 0) {
-		dprintk(1, "plane parameters verification failed: %d\n", ret);
+		dprintk(q, 1, "plane parameters verification failed: %d\n", ret);
 		return ret;
 	}
 	if (b->field == V4L2_FIELD_ALTERNATE && q->is_output) {
@@ -192,7 +195,7 @@ static int vb2_fill_vb2_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b
 		 * that just says that it is either a top or a bottom field,
 		 * but not which of the two it is.
 		 */
-		dprintk(1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
+		dprintk(q, 1, "the field is incorrectly set to ALTERNATE for an output buffer\n");
 		return -EINVAL;
 	}
 	vbuf->sequence = 0;
@@ -395,23 +398,23 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	int ret;
 
 	if (b->type != q->type) {
-		dprintk(1, "%s: invalid buffer type\n", opname);
+		dprintk(q, 1, "%s: invalid buffer type\n", opname);
 		return -EINVAL;
 	}
 
 	if (b->index >= q->num_buffers) {
-		dprintk(1, "%s: buffer index out of range\n", opname);
+		dprintk(q, 1, "%s: buffer index out of range\n", opname);
 		return -EINVAL;
 	}
 
 	if (q->bufs[b->index] == NULL) {
 		/* Should never happen */
-		dprintk(1, "%s: buffer is NULL\n", opname);
+		dprintk(q, 1, "%s: buffer is NULL\n", opname);
 		return -EINVAL;
 	}
 
 	if (b->memory != q->memory) {
-		dprintk(1, "%s: invalid memory type\n", opname);
+		dprintk(q, 1, "%s: invalid memory type\n", opname);
 		return -EINVAL;
 	}
 
@@ -423,7 +426,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 
 	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
 	    vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		dprintk(q, 1, "%s: buffer is not in dequeued state\n", opname);
 		return -EINVAL;
 	}
 
@@ -442,19 +445,19 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
 		if (q->requires_requests) {
-			dprintk(1, "%s: queue requires requests\n", opname);
+			dprintk(q, 1, "%s: queue requires requests\n", opname);
 			return -EBADR;
 		}
 		if (q->uses_requests) {
-			dprintk(1, "%s: queue uses requests\n", opname);
+			dprintk(q, 1, "%s: queue uses requests\n", opname);
 			return -EBUSY;
 		}
 		return 0;
 	} else if (!q->supports_requests) {
-		dprintk(1, "%s: queue does not support requests\n", opname);
+		dprintk(q, 1, "%s: queue does not support requests\n", opname);
 		return -EBADR;
 	} else if (q->uses_qbuf) {
-		dprintk(1, "%s: queue does not use requests\n", opname);
+		dprintk(q, 1, "%s: queue does not use requests\n", opname);
 		return -EBUSY;
 	}
 
@@ -484,13 +487,13 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return -EINVAL;
 
 	if (b->request_fd < 0) {
-		dprintk(1, "%s: request_fd < 0\n", opname);
+		dprintk(q, 1, "%s: request_fd < 0\n", opname);
 		return -EINVAL;
 	}
 
 	req = media_request_get_by_fd(mdev, b->request_fd);
 	if (IS_ERR(req)) {
-		dprintk(1, "%s: invalid request_fd\n", opname);
+		dprintk(q, 1, "%s: invalid request_fd\n", opname);
 		return PTR_ERR(req);
 	}
 
@@ -500,7 +503,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	 */
 	if (req->state != MEDIA_REQUEST_STATE_IDLE &&
 	    req->state != MEDIA_REQUEST_STATE_UPDATING) {
-		dprintk(1, "%s: request is not idle\n", opname);
+		dprintk(q, 1, "%s: request is not idle\n", opname);
 		media_request_put(req);
 		return -EBUSY;
 	}
@@ -683,12 +686,12 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 	int ret;
 
 	if (b->type != q->type) {
-		dprintk(1, "wrong buffer type\n");
+		dprintk(q, 1, "wrong buffer type\n");
 		return -EINVAL;
 	}
 
 	if (b->index >= q->num_buffers) {
-		dprintk(1, "buffer index out of range\n");
+		dprintk(q, 1, "buffer index out of range\n");
 		return -EINVAL;
 	}
 	vb = q->bufs[b->index];
@@ -743,7 +746,7 @@ int vb2_prepare_buf(struct vb2_queue *q, struct media_device *mdev,
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
@@ -823,7 +826,7 @@ int vb2_qbuf(struct vb2_queue *q, struct media_device *mdev,
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
@@ -842,12 +845,12 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 	int ret;
 
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 
 	if (b->type != q->type) {
-		dprintk(1, "invalid buffer type\n");
+		dprintk(q, 1, "invalid buffer type\n");
 		return -EINVAL;
 	}
 
@@ -871,7 +874,7 @@ EXPORT_SYMBOL_GPL(vb2_dqbuf);
 int vb2_streamon(struct vb2_queue *q, enum v4l2_buf_type type)
 {
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 	return vb2_core_streamon(q, type);
@@ -881,7 +884,7 @@ EXPORT_SYMBOL_GPL(vb2_streamon);
 int vb2_streamoff(struct vb2_queue *q, enum v4l2_buf_type type)
 {
 	if (vb2_fileio_is_active(q)) {
-		dprintk(1, "file io in progress\n");
+		dprintk(q, 1, "file io in progress\n");
 		return -EBUSY;
 	}
 	return vb2_core_streamoff(q, type);
@@ -895,7 +898,7 @@ int vb2_expbuf(struct vb2_queue *q, struct v4l2_exportbuffer *eb)
 }
 EXPORT_SYMBOL_GPL(vb2_expbuf);
 
-int vb2_queue_init(struct vb2_queue *q)
+int vb2_queue_init_name(struct vb2_queue *q, const char *name)
 {
 	/*
 	 * Sanity check
@@ -931,7 +934,18 @@ int vb2_queue_init(struct vb2_queue *q)
 	 */
 	q->quirk_poll_must_check_waiting_for_buffers = true;
 
+	if (name)
+		strscpy(q->name, name, sizeof(q->name));
+	else
+		q->name[0] = '\0';
+
 	return vb2_core_queue_init(q);
+}
+EXPORT_SYMBOL_GPL(vb2_queue_init_name);
+
+int vb2_queue_init(struct vb2_queue *q)
+{
+	return vb2_queue_init_name(q, NULL);
 }
 EXPORT_SYMBOL_GPL(vb2_queue_init);
 
