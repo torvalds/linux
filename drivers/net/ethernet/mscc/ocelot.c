@@ -1064,10 +1064,10 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 	int i, port, lag;
 
 	/* Reset destination and aggregation PGIDS */
-	for (port = 0; port < ocelot->num_phys_ports; port++)
+	for_each_unicast_dest_pgid(ocelot, port)
 		ocelot_write_rix(ocelot, BIT(port), ANA_PGID_PGID, port);
 
-	for (i = PGID_AGGR; i < PGID_SRC; i++)
+	for_each_aggr_pgid(ocelot, i)
 		ocelot_write_rix(ocelot, GENMASK(ocelot->num_phys_ports - 1, 0),
 				 ANA_PGID_PGID, i);
 
@@ -1089,7 +1089,7 @@ static void ocelot_set_aggr_pgids(struct ocelot *ocelot)
 			aggr_count++;
 		}
 
-		for (i = PGID_AGGR; i < PGID_SRC; i++) {
+		for_each_aggr_pgid(ocelot, i) {
 			u32 ac;
 
 			ac = ocelot_read_rix(ocelot, ANA_PGID_PGID, i);
@@ -1451,7 +1451,7 @@ int ocelot_init(struct ocelot *ocelot)
 	}
 
 	/* Allow broadcast MAC frames. */
-	for (i = ocelot->num_phys_ports + 1; i < PGID_CPU; i++) {
+	for_each_nonreserved_multicast_dest_pgid(ocelot, i) {
 		u32 val = ANA_PGID_PGID_PGID(GENMASK(ocelot->num_phys_ports - 1, 0));
 
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);

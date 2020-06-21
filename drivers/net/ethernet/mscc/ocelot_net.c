@@ -422,7 +422,7 @@ static void ocelot_set_rx_mode(struct net_device *dev)
 	 * forwarded to the CPU port.
 	 */
 	val = GENMASK(ocelot->num_phys_ports - 1, 0);
-	for (i = ocelot->num_phys_ports + 1; i < PGID_CPU; i++)
+	for_each_nonreserved_multicast_dest_pgid(ocelot, i)
 		ocelot_write_rix(ocelot, val, ANA_PGID_PGID, i);
 
 	__dev_mc_sync(dev, ocelot_mc_sync, ocelot_mc_unsync);

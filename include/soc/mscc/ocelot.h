@@ -65,6 +65,21 @@
 #define PGID_MCIPV4			62
 #define PGID_MCIPV6			63
 
+#define for_each_unicast_dest_pgid(ocelot, pgid)		\
+	for ((pgid) = 0;					\
+	     (pgid) < (ocelot)->num_phys_ports;			\
+	     (pgid)++)
+
+#define for_each_nonreserved_multicast_dest_pgid(ocelot, pgid)	\
+	for ((pgid) = (ocelot)->num_phys_ports + 1;		\
+	     (pgid) < PGID_CPU;					\
+	     (pgid)++)
+
+#define for_each_aggr_pgid(ocelot, pgid)			\
+	for ((pgid) = PGID_AGGR;				\
+	     (pgid) < PGID_SRC;					\
+	     (pgid)++)
+
 /* Aggregation PGIDs, one per Link Aggregation Code */
 #define PGID_AGGR			64
 
