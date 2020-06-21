@@ -184,7 +184,7 @@ head907d_core_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0474 + (i * 0x300), 0x00000000);
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMAS_ISO(i), 0x00000000);
 	return 0;
 }
 
