@@ -26,6 +26,8 @@
 #include <nvif/clc37b.h>
 #include <nvif/pushc37b.h>
 
+#include <nvhw/class/clc37b.h>
+
 static int
 wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 {
@@ -50,7 +52,9 @@ wimmc37b_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37B, 0x0208, asyw->point.y << 16 | asyw->point.x);
+	PUSH_MTHD(push, NVC37B, SET_POINT_OUT(0),
+		  NVVAL(NVC37B, SET_POINT_OUT, X, asyw->point.x) |
+		  NVVAL(NVC37B, SET_POINT_OUT, Y, asyw->point.y));
 	return 0;
 }
 

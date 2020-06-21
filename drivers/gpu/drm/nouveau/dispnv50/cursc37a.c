@@ -22,6 +22,8 @@
 #include "curs.h"
 #include "atom.h"
 
+#include <nvhw/class/clc37a.h>
+
 static int
 cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
@@ -34,10 +36,12 @@ cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
 static int
 cursc37a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
+	struct nvif_object *user = &wndw->wimm.base.user;
 	int ret = nvif_chan_wait(&wndw->wimm, 1);
 	if (ret == 0) {
-		nvif_wr32(&wndw->wimm.base.user, 0x0208, asyw->point.y << 16 |
-							 asyw->point.x);
+		NVIF_WR32(user, NVC37A, SET_CURSOR_HOT_SPOT_POINT_OUT(0),
+			  NVVAL(NVC37A, SET_CURSOR_HOT_SPOT_POINT_OUT, X, asyw->point.x) |
+			  NVVAL(NVC37A, SET_CURSOR_HOT_SPOT_POINT_OUT, Y, asyw->point.y));
 	}
 	return ret;
 }
