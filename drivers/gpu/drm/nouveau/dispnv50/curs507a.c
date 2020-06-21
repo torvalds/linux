@@ -26,6 +26,8 @@
 #include <nvif/cl507a.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl507a.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
 
@@ -33,9 +35,10 @@ bool
 curs507a_space(struct nv50_wndw *wndw)
 {
 	nvif_msec(&nouveau_drm(wndw->plane.dev)->client.device, 100,
-		if (nvif_rd32(&wndw->wimm.base.user, 0x0008) >= 4)
+		if (NVIF_TV32(&wndw->wimm.base.user, NV507A, FREE, COUNT, >=, 4))
 			return true;
 	);
+
 	WARN_ON(1);
 	return false;
 }
