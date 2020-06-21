@@ -15356,6 +15356,7 @@ M:	Tomasz Duszynski <tomasz.duszynski@octakon.com>
 S:	Maintained
 F:	drivers/iio/chemical/scd30.h
 F:	drivers/iio/chemical/scd30_core.c
+F:	drivers/iio/chemical/scd30_i2c.c
 
 SENSIRION SPS30 AIR POLLUTION SENSOR DRIVER
 M:	Tomasz Duszynski <tduszyns@gmail.com>
