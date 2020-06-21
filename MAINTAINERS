@@ -8333,7 +8333,7 @@ M:	Alexander Aring <alex.aring@gmail.com>
 M:	Stefan Schmidt <stefan@datenfreihafen.org>
 L:	linux-wpan@vger.kernel.org
 S:	Maintained
-W:	http://wpan.cakelab.org/
+W:	https://linux-wpan.org/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sschmidt/wpan-next.git
 F:	Documentation/networking/ieee802154.rst
