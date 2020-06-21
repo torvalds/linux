@@ -73,8 +73,8 @@ sparse would otherwise report a context imbalance.
 Getting sparse
 --------------
 
-You can get latest released versions from the Sparse homepage at
-https://sparse.wiki.kernel.org/index.php/Main_Page
+You can get tarballs of the latest released versions from:
+https://www.kernel.org/pub/software/devel/sparse/dist/
 
 Alternatively, you can get snapshots of the latest development version
 of sparse using git to clone::
