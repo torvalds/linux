@@ -85,7 +85,7 @@ headc57d_olut_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57D, 0x2288 + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NVC57D, HEAD_SET_CONTEXT_DMA_OLUT(i), 0x00000000);
 	return 0;
 }
 

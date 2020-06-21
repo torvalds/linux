@@ -256,7 +256,8 @@ head507d_olut_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0840 + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NV507D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV507D, HEAD_SET_BASE_LUT_LO, ENABLE, DISABLE));
 	return 0;
 }
 

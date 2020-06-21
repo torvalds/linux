@@ -91,8 +91,10 @@ head827d_olut_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NV827D, 0x0840 + (i * 0x400), 0x00000000);
-	PUSH_NVSQ(push, NV827D, 0x085c + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NV827D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV827D, HEAD_SET_BASE_LUT_LO, ENABLE, DISABLE));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_LUT(i), 0x00000000);
 	return 0;
 }
 

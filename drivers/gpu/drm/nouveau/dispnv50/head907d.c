@@ -220,8 +220,10 @@ head907d_olut_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0448 + (i * 0x300), 0x00000000);
-	PUSH_NVSQ(push, NV907D, 0x045c + (i * 0x300), 0x00000000);
+	PUSH_MTHD(push, NV907D, HEAD_SET_OUTPUT_LUT_LO(i),
+		  NVDEF(NV907D, HEAD_SET_OUTPUT_LUT_LO, ENABLE, DISABLE));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_LUT(i), 0x00000000);
 	return 0;
 }
 
