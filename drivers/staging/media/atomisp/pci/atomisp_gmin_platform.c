@@ -202,6 +202,8 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	 * gmin_subdev struct is already initialized for us.
 	 */
 	gs = find_gmin_subdev(subdev);
+	if (!gs)
+		return -ENODEV;
 
 	pdata.subdevs[i].type = type;
 	pdata.subdevs[i].port = gs->csi_port;
@@ -713,7 +715,7 @@ static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev)
 	for (i = 0; i < MAX_SUBDEVS; i++)
 		if (gmin_subdevs[i].subdev == subdev)
 			return &gmin_subdevs[i];
-	return gmin_subdev_add(subdev);
+	return NULL;
 }
 
 static int axp_regulator_set(struct device *dev, struct gmin_subdev *gs,
@@ -1064,7 +1066,7 @@ struct camera_sensor_platform_data *gmin_camera_platform_data(
     enum atomisp_input_format csi_format,
     enum atomisp_bayer_order csi_bayer)
 {
-	struct gmin_subdev *gs = find_gmin_subdev(subdev);
+	struct gmin_subdev *gs = gmin_subdev_add(subdev);
 
 	gs->csi_fmt = csi_format;
 	gs->csi_bayer = csi_bayer;
