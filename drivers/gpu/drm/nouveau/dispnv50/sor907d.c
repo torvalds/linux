@@ -45,10 +45,10 @@ sor907d_ctrl(struct nv50_core *core, int or, u32 ctrl,
 static void
 sor907d_get_caps(struct nv50_disp *disp, struct nouveau_encoder *outp, int or)
 {
+	struct nouveau_bo *bo = disp->sync;
 	const int off = or * 2;
-	u32 tmp = nouveau_bo_rd32(disp->sync, 0x000014 + off);
-
-	outp->caps.dp_interlace = !!(tmp & 0x04000000);
+	outp->caps.dp_interlace =
+		NVBO_RV32(bo, off, NV907D_CORE_NOTIFIER_3, CAPABILITIES_CAP_SOR0_20, DP_INTERLACE);
 }
 
 const struct nv50_outp_func
