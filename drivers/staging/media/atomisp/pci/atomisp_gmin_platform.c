@@ -83,6 +83,9 @@ struct gmin_subdev {
 	bool v1p2_on;
 	bool v2p8_vcm_on;
 
+	int v1p8_gpio;
+	int v2p8_gpio;
+
 	u8 pwm_i2c_addr;
 
 	/* For PMIC AXP */
@@ -121,24 +124,6 @@ static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 static const struct atomisp_platform_data pdata = {
 	.subdevs = pdata_subdevs,
 };
-
-/*
- * Something of a hack.  The ECS E7 board drives camera 2.8v from an
- * external regulator instead of the PMIC.  There's a gmin_CamV2P8
- * config variable that specifies the GPIO to handle this particular
- * case, but this needs a broader architecture for handling camera
- * power.
- */
-enum { V2P8_GPIO_UNSET = -2, V2P8_GPIO_NONE = -1 };
-static int v2p8_gpio = V2P8_GPIO_UNSET;
-
-/*
- * Something of a hack. The CHT RVP board drives camera 1.8v from an
- * external regulator instead of the PMIC just like ECS E7 board, see the
- * comments above.
- */
-enum { V1P8_GPIO_UNSET = -2, V1P8_GPIO_NONE = -1 };
-static int v1p8_gpio = V1P8_GPIO_UNSET;
 
 static LIST_HEAD(vcm_devices);
 static DEFINE_MUTEX(vcm_lock);
@@ -549,6 +534,23 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 		dev_info(dev, "will handle gpio1 via ACPI\n");
 
 	/*
+	 * Those are used only when there is an external regulator apart
+	 * from the PMIC that would be providing power supply, like on the
+	 * two cases below:
+	 *
+	 * The ECS E7 board drives camera 2.8v from an external regulator
+	 * instead of the PMIC.  There's a gmin_CamV2P8 config variable
+	 * that specifies the GPIO to handle this particular case,
+	 * but this needs a broader architecture for handling camera power.
+	 *
+	 * The CHT RVP board drives camera 1.8v from an* external regulator
+	 * instead of the PMIC just like ECS E7 board.
+	 */
+
+	gs->v1p8_gpio = gmin_get_var_int(dev, true, "V1P8GPIO", -1);
+	gs->v2p8_gpio = gmin_get_var_int(dev, true, "V2P8GPIO", -1);
+
+	/*
 	 * FIXME:
 	 *
 	 * The ACPI handling code checks for the _PR? tables in order to
@@ -830,26 +832,22 @@ static int gmin_v1p8_ctrl(struct v4l2_subdev *subdev, int on)
 
 	dev = &client->dev;
 
-	if (v1p8_gpio == V1P8_GPIO_UNSET) {
-		v1p8_gpio = gmin_get_var_int(dev, true,
-					     "V1P8GPIO", V1P8_GPIO_NONE);
-		if (v1p8_gpio != V1P8_GPIO_NONE) {
-			pr_info("atomisp_gmin_platform: 1.8v power on GPIO %d\n",
-				v1p8_gpio);
-			ret = gpio_request(v1p8_gpio, "camera_v1p8_en");
-			if (!ret)
-				ret = gpio_direction_output(v1p8_gpio, 0);
-			if (ret)
-				pr_err("V1P8 GPIO initialization failed\n");
-		}
+	if (gs->v1p8_gpio >= 0) {
+		pr_info("atomisp_gmin_platform: 1.8v power on GPIO %d\n",
+			gs->v1p8_gpio);
+		ret = gpio_request(gs->v1p8_gpio, "camera_v1p8_en");
+		if (!ret)
+			ret = gpio_direction_output(gs->v1p8_gpio, 0);
+		if (ret)
+			pr_err("V1P8 GPIO initialization failed\n");
 	}
 
 	if (!gs || gs->v1p8_on == on)
 		return 0;
 	gs->v1p8_on = on;
 
-	if (v1p8_gpio >= 0)
-		gpio_set_value(v1p8_gpio, on);
+	if (gs->v1p8_gpio >= 0)
+		gpio_set_value(gs->v1p8_gpio, on);
 
 	if (gs->v1p8_reg) {
 		regulator_set_voltage(gs->v1p8_reg, 1800000, 1800000);
@@ -892,26 +890,22 @@ static int gmin_v2p8_ctrl(struct v4l2_subdev *subdev, int on)
 
 	dev = &client->dev;
 
-	if (v2p8_gpio == V2P8_GPIO_UNSET) {
-		v2p8_gpio = gmin_get_var_int(dev, true,
-					     "V2P8GPIO", V2P8_GPIO_NONE);
-		if (v2p8_gpio != V2P8_GPIO_NONE) {
-			pr_info("atomisp_gmin_platform: 2.8v power on GPIO %d\n",
-				v2p8_gpio);
-			ret = gpio_request(v2p8_gpio, "camera_v2p8");
-			if (!ret)
-				ret = gpio_direction_output(v2p8_gpio, 0);
-			if (ret)
-				pr_err("V2P8 GPIO initialization failed\n");
-		}
+	if (gs->v2p8_gpio >= 0) {
+		pr_info("atomisp_gmin_platform: 2.8v power on GPIO %d\n",
+			gs->v2p8_gpio);
+		ret = gpio_request(gs->v2p8_gpio, "camera_v2p8");
+		if (!ret)
+			ret = gpio_direction_output(gs->v2p8_gpio, 0);
+		if (ret)
+			pr_err("V2P8 GPIO initialization failed\n");
 	}
 
 	if (!gs || gs->v2p8_on == on)
 		return 0;
 	gs->v2p8_on = on;
 
-	if (v2p8_gpio >= 0)
-		gpio_set_value(v2p8_gpio, on);
+	if (gs->v2p8_gpio >= 0)
+		gpio_set_value(gs->v2p8_gpio, on);
 
 	if (gs->v2p8_reg) {
 		regulator_set_voltage(gs->v2p8_reg, 2900000, 2900000);
