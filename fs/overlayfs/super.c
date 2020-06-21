@@ -1354,6 +1354,12 @@ static int ovl_get_indexdir(struct super_block *sb, struct ovl_fs *ofs,
 
 	ofs->indexdir = ovl_workdir_create(ofs, OVL_INDEXDIR_NAME, true);
 	if (ofs->indexdir) {
+		/* index dir will act also as workdir */
+		iput(ofs->workdir_trap);
+		ofs->workdir_trap = NULL;
+		dput(ofs->workdir);
+		ofs->workdir = dget(ofs->indexdir);
+
 		err = ovl_setup_trap(sb, ofs->indexdir, &ofs->indexdir_trap,
 				     "indexdir");
 		if (err)
@@ -1852,20 +1858,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		sb->s_flags |= SB_RDONLY;
 
 	if (!(ovl_force_readonly(ofs)) && ofs->config.index) {
-		/* index dir will act also as workdir */
-		dput(ofs->workdir);
-		ofs->workdir = NULL;
-		iput(ofs->workdir_trap);
-		ofs->workdir_trap = NULL;
-
 		err = ovl_get_indexdir(sb, ofs, oe, &upperpath);
 		if (err)
 			goto out_free_oe;
 
 		/* Force r/o mount with no index dir */
-		if (ofs->indexdir)
-			ofs->workdir = dget(ofs->indexdir);
-		else
+		if (!ofs->indexdir)
 			sb->s_flags |= SB_RDONLY;
 	}
 
