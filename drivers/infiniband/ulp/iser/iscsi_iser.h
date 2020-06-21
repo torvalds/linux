@@ -353,6 +353,7 @@ struct iser_reg_resources {
  * @list:           entry in connection fastreg pool
  * @rsc:            data buffer registration resources
  * @sig_protected:  is region protected indicator
+ * @all_list:       first and last list members
  */
 struct iser_fr_desc {
 	struct list_head		  list;
@@ -367,6 +368,7 @@ struct iser_fr_desc {
  * @list:                list of fastreg descriptors
  * @lock:                protects fastreg pool
  * @size:                size of the pool
+ * @all_list:            first and last list members
  */
 struct iser_fr_pool {
 	struct list_head        list;

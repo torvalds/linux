@@ -988,8 +988,8 @@ EXPORT_SYMBOL(rdma_destroy_ah_user);
  * @srq_init_attr: A list of initial attributes required to create the
  *   SRQ.  If SRQ creation succeeds, then the attributes are updated to
  *   the actual capabilities of the created SRQ.
- * @uobject - uobject pointer if this is not a kernel SRQ
- * @udata - udata pointer if this is not a kernel SRQ
+ * @uobject: uobject pointer if this is not a kernel SRQ
+ * @udata: udata pointer if this is not a kernel SRQ
  *
  * srq_attr->max_wr and srq_attr->max_sge are read the determine the
  * requested size of the SRQ, and set to the actual values allocated

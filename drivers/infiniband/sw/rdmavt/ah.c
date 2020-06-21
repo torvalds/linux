@@ -90,8 +90,7 @@ EXPORT_SYMBOL(rvt_check_ah);
 /**
  * rvt_create_ah - create an address handle
  * @ibah: the IB address handle
- * @ah_attr: the attributes of the AH
- * @create_flags: create address handle flags (see enum rdma_create_ah_flags)
+ * @init_attr: the attributes of the AH
  * @udata: pointer to user's input output buffer information.
  *
  * This may be called from interrupt context.
