@@ -1684,3 +1684,29 @@ int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 	return 0;
 }
 EXPORT_SYMBOL(mlxsw_afa_block_append_mcrouter);
+
+/* L4 Port Action
+ * --------------
+ * The L4_PORT_ACTION is used for modifying the sport and dport fields of the packet, e.g. for NAT.
+ * If (the L4 is TCP) or if (the L4 is UDP and checksum field!=0) then the L4 checksum is updated.
+ */
+
+#define MLXSW_AFA_L4PORT_CODE 0x12
+#define MLXSW_AFA_L4PORT_SIZE 1
+
+enum mlxsw_afa_l4port_s_d {
+	/* configure src_l4_port */
+	MLXSW_AFA_L4PORT_S_D_SRC,
+	/* configure dst_l4_port */
+	MLXSW_AFA_L4PORT_S_D_DST,
+};
+
+/* afa_l4port_s_d
+ * Source or destination.
+ */
+MLXSW_ITEM32(afa, l4port, s_d, 0x00, 31, 1);
+
+/* afa_l4port_l4_port
+ * Number of port to change to.
+ */
+MLXSW_ITEM32(afa, l4port, l4_port, 0x08, 0, 16);
