@@ -1272,6 +1272,7 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	struct ip_vs_scheduler *sched = NULL;
 	struct ip_vs_pe *pe = NULL;
 	struct ip_vs_service *svc = NULL;
+	int ret_hooks = -1;
 
 	/* increase the module use count */
 	if (!ip_vs_use_count_inc())
@@ -1312,6 +1313,14 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 			goto out_err;
 	}
 #endif
+
+	if ((u->af == AF_INET && !ipvs->num_services) ||
+	    (u->af == AF_INET6 && !ipvs->num_services6)) {
+		ret = ip_vs_register_hooks(ipvs, u->af);
+		if (ret < 0)
+			goto out_err;
+		ret_hooks = ret;
+	}
 
 	svc = kzalloc(sizeof(struct ip_vs_service), GFP_KERNEL);
 	if (svc == NULL) {
@@ -1374,6 +1383,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 	/* Count only IPv4 services for old get/setsockopt interface */
 	if (svc->af == AF_INET)
 		ipvs->num_services++;
+	else if (svc->af == AF_INET6)
+		ipvs->num_services6++;
 
 	/* Hash the service into the service table */
 	ip_vs_svc_hash(svc);
@@ -1385,6 +1396,8 @@ ip_vs_add_service(struct netns_ipvs *ipvs, struct ip_vs_service_user_kern *u,
 
 
  out_err:
+	if (ret_hooks >= 0)
+		ip_vs_unregister_hooks(ipvs, u->af);
 	if (svc != NULL) {
 		ip_vs_unbind_scheduler(svc, sched);
 		ip_vs_service_free(svc);
@@ -1500,9 +1513,15 @@ static void __ip_vs_del_service(struct ip_vs_service *svc, bool cleanup)
 	struct ip_vs_pe *old_pe;
 	struct netns_ipvs *ipvs = svc->ipvs;
 
-	/* Count only IPv4 services for old get/setsockopt interface */
-	if (svc->af == AF_INET)
+	if (svc->af == AF_INET) {
 		ipvs->num_services--;
+		if (!ipvs->num_services)
+			ip_vs_unregister_hooks(ipvs, svc->af);
+	} else if (svc->af == AF_INET6) {
+		ipvs->num_services6--;
+		if (!ipvs->num_services6)
+			ip_vs_unregister_hooks(ipvs, svc->af);
+	}
 
 	ip_vs_stop_estimator(svc->ipvs, &svc->stats);
 
