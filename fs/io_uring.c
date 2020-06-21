@@ -4596,8 +4596,8 @@ static __poll_t __io_arm_poll_handler(struct io_kiocb *req,
 	struct io_ring_ctx *ctx = req->ctx;
 	bool cancel = false;
 
-	poll->file = req->file;
 	io_init_poll_iocb(poll, mask, wake_func);
+	poll->file = req->file;
 	poll->wait.private = req;
 
 	ipt->pt._key = mask;
