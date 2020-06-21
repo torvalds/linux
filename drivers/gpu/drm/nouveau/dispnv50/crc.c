@@ -9,6 +9,8 @@
 #include <nvif/cl0002.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl907d.h>
+
 #include "nouveau_drv.h"
 #include "core.h"
 #include "head.h"
@@ -478,10 +480,6 @@ void nv50_crc_atomic_clr(struct nv50_head *head)
 	func->set_src(head, 0, NV50_CRC_SOURCE_TYPE_NONE, NULL, 0);
 }
 
-#define NV50_CRC_RASTER_ACTIVE   0
-#define NV50_CRC_RASTER_COMPLETE 1
-#define NV50_CRC_RASTER_INACTIVE 2
-
 static inline int
 nv50_crc_raster_type(enum nv50_crc_source source)
 {
@@ -490,11 +488,11 @@ nv50_crc_raster_type(enum nv50_crc_source source)
 	case NV50_CRC_SOURCE_AUTO:
 	case NV50_CRC_SOURCE_RG:
 	case NV50_CRC_SOURCE_OUTP_ACTIVE:
-		return NV50_CRC_RASTER_ACTIVE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_ACTIVE_RASTER;
 	case NV50_CRC_SOURCE_OUTP_COMPLETE:
-		return NV50_CRC_RASTER_COMPLETE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_COMPLETE_RASTER;
 	case NV50_CRC_SOURCE_OUTP_INACTIVE:
-		return NV50_CRC_RASTER_INACTIVE;
+		return NV907D_HEAD_SET_CONTROL_OUTPUT_RESOURCE_CRC_MODE_NON_ACTIVE_RASTER;
 	}
 
 	return 0;

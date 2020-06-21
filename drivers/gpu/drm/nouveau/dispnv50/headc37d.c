@@ -52,10 +52,12 @@ headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x2004 + (i * 0x400), depth << 4 |
-						      asyh->or.nvsync << 3 |
-						      asyh->or.nhsync << 2 |
-						      asyh->or.crc_raster);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, CRC_MODE, asyh->or.crc_raster) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, HSYNC_POLARITY, asyh->or.nhsync) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, VSYNC_POLARITY, asyh->or.nvsync) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, PIXEL_DEPTH, depth) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, COLOR_SPACE_OVERRIDE, DISABLE));
 	return 0;
 }
 

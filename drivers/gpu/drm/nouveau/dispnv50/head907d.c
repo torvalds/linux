@@ -43,13 +43,14 @@ head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0404 + (i * 0x300), asyh->or.depth  << 6 |
-						      asyh->or.nvsync << 4 |
-						      asyh->or.nhsync << 3 |
-						      asyh->or.crc_raster,
-				0x0408 + (i * 0x300), 0x31ec6000 |
-						      head->base.index << 25 |
-						      asyh->mode.interlace);
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTROL_OUTPUT_RESOURCE(i),
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, CRC_MODE, asyh->or.crc_raster) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, HSYNC_POLARITY, asyh->or.nhsync) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, VSYNC_POLARITY, asyh->or.nvsync) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_RESOURCE, PIXEL_DEPTH, asyh->or.depth),
+
+				HEAD_SET_CONTROL(i), 0x31ec6000 | head->base.index << 25 |
+		  NVVAL(NV907D, HEAD_SET_CONTROL, STRUCTURE, asyh->mode.interlace));
 	return 0;
 }
 
