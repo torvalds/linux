@@ -1252,9 +1252,19 @@ struct task_struct *__switch_to(struct task_struct *prev,
 static void show_instructions(struct pt_regs *regs)
 {
 	int i;
+	unsigned long nip = regs->nip;
 	unsigned long pc = regs->nip - (NR_INSN_TO_PRINT * 3 / 4 * sizeof(int));
 
 	printk("Instruction dump:");
+
+	/*
+	 * If we were executing with the MMU off for instructions, adjust pc
+	 * rather than printing XXXXXXXX.
+	 */
+	if (!IS_ENABLED(CONFIG_BOOKE) && !(regs->msr & MSR_IR)) {
+		pc = (unsigned long)phys_to_virt(pc);
+		nip = (unsigned long)phys_to_virt(regs->nip);
+	}
 
 	for (i = 0; i < NR_INSN_TO_PRINT; i++) {
 		int instr;
@@ -1262,19 +1272,11 @@ static void show_instructions(struct pt_regs *regs)
 		if (!(i % 8))
 			pr_cont("\n");
 
-#if !defined(CONFIG_BOOKE)
-		/* If executing with the IMMU off, adjust pc rather
-		 * than print XXXXXXXX.
-		 */
-		if (!(regs->msr & MSR_IR))
-			pc = (unsigned long)phys_to_virt(pc);
-#endif
-
 		if (!__kernel_text_address(pc) ||
 		    get_kernel_nofault(instr, (const void *)pc)) {
 			pr_cont("XXXXXXXX ");
 		} else {
-			if (regs->nip == pc)
+			if (nip == pc)
 				pr_cont("<%08x> ", instr);
 			else
 				pr_cont("%08x ", instr);
