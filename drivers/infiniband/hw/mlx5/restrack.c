@@ -99,6 +99,9 @@ int mlx5_ib_fill_stat_mr_entry(struct sk_buff *msg,
 		    msg, "page_invalidations",
 		    atomic64_read(&mr->odp_stats.invalidations)))
 		goto err_table;
+	if (rdma_nl_stat_hwcounter_entry(msg, "page_prefetch",
+					 atomic64_read(&mr->odp_stats.prefetch)))
+		goto err_table;
 
 	nla_nest_end(msg, table_attr);
 	return 0;
