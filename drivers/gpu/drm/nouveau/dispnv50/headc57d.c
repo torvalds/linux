@@ -25,6 +25,8 @@
 
 #include <nvif/pushc37b.h>
 
+#include <nvhw/class/clc57d.h>
+
 static int
 headc57d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -183,20 +185,41 @@ headc57d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	const int i = head->base.index;
 	int ret;
 
-	if ((ret = PUSH_WAIT(push, 13)))
+	if ((ret = PUSH_WAIT(push, 15)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57D, 0x2064 + (i * 0x400), m->v.active  << 16 | m->h.active,
-				0x2068 + (i * 0x400), m->v.synce   << 16 | m->h.synce,
-				0x206c + (i * 0x400), m->v.blanke  << 16 | m->h.blanke,
-				0x2070 + (i * 0x400), m->v.blanks  << 16 | m->h.blanks,
-				0x2074 + (i * 0x400), m->v.blank2e << 16 | m->v.blank2s);
-	PUSH_NVSQ(push, NVC57D, 0x2008 + (i * 0x400), m->interlace,
-				0x200c + (i * 0x400), m->clock * 1000);
-	PUSH_NVSQ(push, NVC57D, 0x2028 + (i * 0x400), m->clock * 1000);
+	PUSH_MTHD(push, NVC57D, HEAD_SET_RASTER_SIZE(i),
+		  NVVAL(NVC57D, HEAD_SET_RASTER_SIZE, WIDTH, m->h.active) |
+		  NVVAL(NVC57D, HEAD_SET_RASTER_SIZE, HEIGHT, m->v.active),
+
+				HEAD_SET_RASTER_SYNC_END(i),
+		  NVVAL(NVC57D, HEAD_SET_RASTER_SYNC_END, X, m->h.synce) |
+		  NVVAL(NVC57D, HEAD_SET_RASTER_SYNC_END, Y, m->v.synce),
+
+				HEAD_SET_RASTER_BLANK_END(i),
+		  NVVAL(NVC57D, HEAD_SET_RASTER_BLANK_END, X, m->h.blanke) |
+		  NVVAL(NVC57D, HEAD_SET_RASTER_BLANK_END, Y, m->v.blanke),
+
+				HEAD_SET_RASTER_BLANK_START(i),
+		  NVVAL(NVC57D, HEAD_SET_RASTER_BLANK_START, X, m->h.blanks) |
+		  NVVAL(NVC57D, HEAD_SET_RASTER_BLANK_START, Y, m->v.blanks));
+
+	//XXX:
+	PUSH_NVSQ(push, NVC57D, 0x2074 + (i * 0x400), m->v.blank2e << 16 | m->v.blank2s);
+	PUSH_NVSQ(push, NVC57D, 0x2008 + (i * 0x400), m->interlace);
+
+	PUSH_MTHD(push, NVC57D, HEAD_SET_PIXEL_CLOCK_FREQUENCY(i),
+		  NVVAL(NVC57D, HEAD_SET_PIXEL_CLOCK_FREQUENCY, HERTZ, m->clock * 1000));
+
+	PUSH_MTHD(push, NVC57D, HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX(i),
+		  NVVAL(NVC57D, HEAD_SET_PIXEL_CLOCK_FREQUENCY_MAX, HERTZ, m->clock * 1000));
 
 	/*XXX: HEAD_USAGE_BOUNDS, doesn't belong here. */
-	PUSH_NVSQ(push, NVC57D, 0x2030 + (i * 0x400), 0x00001114);
+	PUSH_MTHD(push, NVC57D, HEAD_SET_HEAD_USAGE_BOUNDS(i),
+		  NVDEF(NVC57D, HEAD_SET_HEAD_USAGE_BOUNDS, CURSOR, USAGE_W256_H256) |
+		  NVDEF(NVC57D, HEAD_SET_HEAD_USAGE_BOUNDS, OLUT_ALLOWED, TRUE) |
+		  NVDEF(NVC57D, HEAD_SET_HEAD_USAGE_BOUNDS, OUTPUT_SCALER_TAPS, TAPS_2) |
+		  NVDEF(NVC57D, HEAD_SET_HEAD_USAGE_BOUNDS, UPSCALING_ALLOWED, TRUE));
 	return 0;
 }
 

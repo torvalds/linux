@@ -318,16 +318,47 @@ head507d_mode(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 13)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0804 + (i * 0x400), 0x00800000 | m->clock,
-				0x0808 + (i * 0x400), m->interlace ? 0x00000002 : 0x00000000);
-	PUSH_NVSQ(push, NV507D, 0x0810 + (i * 0x400), 0x00000000,
-				0x0814 + (i * 0x400), m->v.active  << 16 | m->h.active,
-				0x0818 + (i * 0x400), m->v.synce   << 16 | m->h.synce,
-				0x081c + (i * 0x400), m->v.blanke  << 16 | m->h.blanke,
-				0x0820 + (i * 0x400), m->v.blanks  << 16 | m->h.blanks,
-				0x0824 + (i * 0x400), m->v.blank2e << 16 | m->v.blank2s,
-				0x0828 + (i * 0x400), asyh->mode.v.blankus);
-	PUSH_NVSQ(push, NV507D, 0x082c + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NV507D, HEAD_SET_PIXEL_CLOCK(i),
+		  NVVAL(NV507D, HEAD_SET_PIXEL_CLOCK, FREQUENCY, m->clock) |
+		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, MODE, CLK_CUSTOM) |
+		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, ADJ1000DIV1001, FALSE) |
+		  NVDEF(NV507D, HEAD_SET_PIXEL_CLOCK, NOT_DRIVER, FALSE),
+
+				HEAD_SET_CONTROL(i),
+		  NVVAL(NV507D, HEAD_SET_CONTROL, STRUCTURE, m->interlace));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_OVERSCAN_COLOR(i),
+		  NVVAL(NV507D, HEAD_SET_OVERSCAN_COLOR, RED, 0) |
+		  NVVAL(NV507D, HEAD_SET_OVERSCAN_COLOR, GRN, 0) |
+		  NVVAL(NV507D, HEAD_SET_OVERSCAN_COLOR, BLU, 0),
+
+				HEAD_SET_RASTER_SIZE(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_SIZE, WIDTH, m->h.active) |
+		  NVVAL(NV507D, HEAD_SET_RASTER_SIZE, HEIGHT, m->v.active),
+
+				HEAD_SET_RASTER_SYNC_END(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_SYNC_END, X, m->h.synce) |
+		  NVVAL(NV507D, HEAD_SET_RASTER_SYNC_END, Y, m->v.synce),
+
+				HEAD_SET_RASTER_BLANK_END(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_BLANK_END, X, m->h.blanke) |
+		  NVVAL(NV507D, HEAD_SET_RASTER_BLANK_END, Y, m->v.blanke),
+
+				HEAD_SET_RASTER_BLANK_START(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_BLANK_START, X, m->h.blanks) |
+		  NVVAL(NV507D, HEAD_SET_RASTER_BLANK_START, Y, m->v.blanks),
+
+				HEAD_SET_RASTER_VERT_BLANK2(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_VERT_BLANK2, YSTART, m->v.blank2s) |
+		  NVVAL(NV507D, HEAD_SET_RASTER_VERT_BLANK2, YEND, m->v.blank2e),
+
+				HEAD_SET_RASTER_VERT_BLANK_DMI(i),
+		  NVVAL(NV507D, HEAD_SET_RASTER_VERT_BLANK_DMI, DURATION, m->v.blankus));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_DEFAULT_BASE_COLOR(i),
+		  NVVAL(NV507D, HEAD_SET_DEFAULT_BASE_COLOR, RED, 0) |
+		  NVVAL(NV507D, HEAD_SET_DEFAULT_BASE_COLOR, GREEN, 0) |
+		  NVVAL(NV507D, HEAD_SET_DEFAULT_BASE_COLOR, BLUE, 0));
 	return 0;
 }
 
