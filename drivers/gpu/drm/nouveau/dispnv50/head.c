@@ -106,9 +106,9 @@ nv50_head_atomic_check_dither(struct nv50_head_atom *armh,
 		}
 	}
 
-	asyh->dither.enable = mode;
-	asyh->dither.bits = mode >> 1;
-	asyh->dither.mode = mode >> 3;
+	asyh->dither.enable = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, ENABLE);
+	asyh->dither.bits = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, BITS);
+	asyh->dither.mode = NVVAL_GET(mode, NV507D, HEAD_SET_DITHER_CONTROL, MODE);
 	asyh->set.dither = true;
 }
 

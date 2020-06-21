@@ -51,9 +51,11 @@ head507d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x08a0 + (i * 0x400), asyh->dither.mode << 3 |
-						      asyh->dither.bits << 1 |
-						      asyh->dither.enable);
+	PUSH_MTHD(push, NV507D, HEAD_SET_DITHER_CONTROL(i),
+		  NVVAL(NV507D, HEAD_SET_DITHER_CONTROL, ENABLE, asyh->dither.enable) |
+		  NVVAL(NV507D, HEAD_SET_DITHER_CONTROL, BITS, asyh->dither.bits) |
+		  NVVAL(NV507D, HEAD_SET_DITHER_CONTROL, MODE, asyh->dither.mode) |
+		  NVVAL(NV507D, HEAD_SET_DITHER_CONTROL, PHASE, 0));
 	return 0;
 }
 
