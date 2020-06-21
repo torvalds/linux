@@ -194,16 +194,30 @@ head507d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 9)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0860 + (i * 0x400), asyh->core.offset >> 8);
-	PUSH_NVSQ(push, NV507D, 0x0868 + (i * 0x400), asyh->core.h << 16 | asyh->core.w,
-				0x086c + (i * 0x400), asyh->core.layout << 20 |
-						     (asyh->core.pitch >> 8) << 8 |
-						      asyh->core.blocks << 8 |
-						      asyh->core.blockh,
-				0x0870 + (i * 0x400), asyh->core.kind << 16 |
-						      asyh->core.format << 8,
-				0x0874 + (i * 0x400), asyh->core.handle);
-	PUSH_NVSQ(push, NV507D, 0x08c0 + (i * 0x400), asyh->core.y << 16 | asyh->core.x);
+	PUSH_MTHD(push, NV507D, HEAD_SET_OFFSET(i, 0),
+		  NVVAL(NV507D, HEAD_SET_OFFSET, ORIGIN, asyh->core.offset >> 8));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_SIZE(i),
+		  NVVAL(NV507D, HEAD_SET_SIZE, WIDTH, asyh->core.w) |
+		  NVVAL(NV507D, HEAD_SET_SIZE, HEIGHT, asyh->core.h),
+
+				HEAD_SET_STORAGE(i),
+		  NVVAL(NV507D, HEAD_SET_STORAGE, BLOCK_HEIGHT, asyh->core.blockh) |
+		  NVVAL(NV507D, HEAD_SET_STORAGE, PITCH, asyh->core.pitch >> 8) |
+		  NVVAL(NV507D, HEAD_SET_STORAGE, PITCH, asyh->core.blocks) |
+		  NVVAL(NV507D, HEAD_SET_STORAGE, MEMORY_LAYOUT, asyh->core.layout),
+
+				HEAD_SET_PARAMS(i),
+		  NVVAL(NV507D, HEAD_SET_PARAMS, FORMAT, asyh->core.format) |
+		  NVVAL(NV507D, HEAD_SET_PARAMS, KIND, asyh->core.kind) |
+		  NVDEF(NV507D, HEAD_SET_PARAMS, PART_STRIDE, PARTSTRIDE_256),
+
+				HEAD_SET_CONTEXT_DMA_ISO(i),
+		  NVVAL(NV507D, HEAD_SET_CONTEXT_DMA_ISO, HANDLE, asyh->core.handle));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_VIEWPORT_POINT_IN(i, 0),
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_POINT_IN, X, asyh->core.x) |
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_POINT_IN, Y, asyh->core.y));
 
 	/* EVO will complain with INVALID_STATE if we have an
 	 * active cursor and (re)specify HeadSetContextDmaIso
@@ -238,10 +252,10 @@ head507d_core_calc(struct nv50_head *head, struct nv50_head_atom *asyh)
 	}
 	asyh->core.handle = disp->core->chan.vram.handle;
 	asyh->core.offset = 0;
-	asyh->core.format = 0xcf;
-	asyh->core.kind = 0;
-	asyh->core.layout = 1;
-	asyh->core.blockh = 0;
+	asyh->core.format = NV507D_HEAD_SET_PARAMS_FORMAT_A8R8G8B8;
+	asyh->core.kind = NV507D_HEAD_SET_PARAMS_KIND_KIND_PITCH;
+	asyh->core.layout = NV507D_HEAD_SET_STORAGE_MEMORY_LAYOUT_PITCH;
+	asyh->core.blockh = NV507D_HEAD_SET_STORAGE_BLOCK_HEIGHT_ONE_GOB;
 	asyh->core.blocks = 0;
 	asyh->core.pitch = ALIGN(asyh->core.w, 64) * 4;
 }

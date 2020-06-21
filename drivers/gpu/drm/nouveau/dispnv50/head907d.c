@@ -198,15 +198,30 @@ head907d_core_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 9)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0460 + (i * 0x300), asyh->core.offset >> 8);
-	PUSH_NVSQ(push, NV907D, 0x0468 + (i * 0x300), asyh->core.h << 16 | asyh->core.w,
-				0x046c + (i * 0x300), asyh->core.layout << 24 |
-						     (asyh->core.pitch >> 8) << 8 |
-						      asyh->core.blocks << 8 |
-						      asyh->core.blockh,
-				0x0470 + (i * 0x300), asyh->core.format << 8,
-				0x0474 + (i * 0x300), asyh->core.handle);
-	PUSH_NVSQ(push, NV907D, 0x04b0 + (i * 0x300), asyh->core.y << 16 | asyh->core.x);
+	PUSH_MTHD(push, NV907D, HEAD_SET_OFFSET(i),
+		  NVVAL(NV907D, HEAD_SET_OFFSET, ORIGIN, asyh->core.offset >> 8));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_SIZE(i),
+		  NVVAL(NV907D, HEAD_SET_SIZE, WIDTH, asyh->core.w) |
+		  NVVAL(NV907D, HEAD_SET_SIZE, HEIGHT, asyh->core.h),
+
+				HEAD_SET_STORAGE(i),
+		  NVVAL(NV907D, HEAD_SET_STORAGE, BLOCK_HEIGHT, asyh->core.blockh) |
+		  NVVAL(NV907D, HEAD_SET_STORAGE, PITCH, asyh->core.pitch >> 8) |
+		  NVVAL(NV907D, HEAD_SET_STORAGE, PITCH, asyh->core.blocks) |
+		  NVVAL(NV907D, HEAD_SET_STORAGE, MEMORY_LAYOUT, asyh->core.layout),
+
+				HEAD_SET_PARAMS(i),
+		  NVVAL(NV907D, HEAD_SET_PARAMS, FORMAT, asyh->core.format) |
+		  NVDEF(NV907D, HEAD_SET_PARAMS, SUPER_SAMPLE, X1_AA) |
+		  NVDEF(NV907D, HEAD_SET_PARAMS, GAMMA, LINEAR),
+
+				HEAD_SET_CONTEXT_DMAS_ISO(i),
+		  NVVAL(NV907D, HEAD_SET_CONTEXT_DMAS_ISO, HANDLE, asyh->core.handle));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_VIEWPORT_POINT_IN(i),
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_POINT_IN, X, asyh->core.x) |
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_POINT_IN, Y, asyh->core.y));
 	return 0;
 }
 
