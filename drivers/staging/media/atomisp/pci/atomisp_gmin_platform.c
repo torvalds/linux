@@ -537,10 +537,14 @@ static struct gmin_subdev *gmin_subdev_add(struct v4l2_subdev *subdev)
 	gs->gpio0 = gpiod_get_index(dev, NULL, 0, GPIOD_OUT_LOW);
 	if (IS_ERR(gs->gpio0))
 		gs->gpio0 = NULL;
+	else
+		dev_info(dev, "will handle gpio0 via ACPI\n");
 
 	gs->gpio1 = gpiod_get_index(dev, NULL, 1, GPIOD_OUT_LOW);
 	if (IS_ERR(gs->gpio1))
 		gs->gpio1 = NULL;
+	else
+		dev_info(dev, "will handle gpio1 via ACPI\n");
 
 	/*
 	 * FIXME:
