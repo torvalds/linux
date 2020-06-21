@@ -15351,6 +15351,12 @@ S:	Maintained
 F:	drivers/misc/phantom.c
 F:	include/uapi/linux/phantom.h
 
+SENSIRION SCD30 CARBON DIOXIDE SENSOR DRIVER
+M:	Tomasz Duszynski <tomasz.duszynski@octakon.com>
+S:	Maintained
+F:	drivers/iio/chemical/scd30.h
+F:	drivers/iio/chemical/scd30_core.c
+
 SENSIRION SPS30 AIR POLLUTION SENSOR DRIVER
 M:	Tomasz Duszynski <tduszyns@gmail.com>
 S:	Maintained

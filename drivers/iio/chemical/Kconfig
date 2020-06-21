@@ -85,6 +85,17 @@ config PMS7003
 	  To compile this driver as a module, choose M here: the module will
 	  be called pms7003.
 
+config SCD30_CORE
+	tristate "SCD30 carbon dioxide sensor driver"
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say Y here to build support for the Sensirion SCD30 sensor with carbon
+	  dioxide, relative humidity and temperature sensing capabilities.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_core.
+
 config SENSIRION_SGP30
 	tristate "Sensirion SGPxx gas sensors"
 	depends on I2C
