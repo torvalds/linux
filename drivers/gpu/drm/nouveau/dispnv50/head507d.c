@@ -36,8 +36,12 @@ head507d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x08a8 + (i * 0x400), asyh->procamp.sat.sin << 20 |
-						      asyh->procamp.sat.cos << 8);
+	PUSH_MTHD(push, NV507D, HEAD_SET_PROCAMP(i),
+		  NVDEF(NV507D, HEAD_SET_PROCAMP, COLOR_SPACE, RGB) |
+		  NVDEF(NV507D, HEAD_SET_PROCAMP, CHROMA_LPF, AUTO) |
+		  NVVAL(NV507D, HEAD_SET_PROCAMP, SAT_COS, asyh->procamp.sat.cos) |
+		  NVVAL(NV507D, HEAD_SET_PROCAMP, SAT_SINE, asyh->procamp.sat.sin) |
+		  NVDEF(NV507D, HEAD_SET_PROCAMP, TRANSITION, HARD));
 	return 0;
 }
 

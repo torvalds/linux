@@ -71,7 +71,10 @@ headc57d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 		return ret;
 
 	//TODO:
-	PUSH_NVSQ(push, NVC57D, 0x2000 + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NVC57D, HEAD_SET_PROCAMP(i),
+		  NVDEF(NVC57D, HEAD_SET_PROCAMP, COLOR_SPACE, RGB) |
+		  NVDEF(NVC57D, HEAD_SET_PROCAMP, CHROMA_LPF, DISABLE) |
+		  NVDEF(NVC57D, HEAD_SET_PROCAMP, DYNAMIC_RANGE, VESA));
 	return 0;
 }
 

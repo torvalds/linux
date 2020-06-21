@@ -63,8 +63,13 @@ head907d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0498 + (i * 0x300), asyh->procamp.sat.sin << 20 |
-						      asyh->procamp.sat.cos << 8);
+	PUSH_MTHD(push, NV907D, HEAD_SET_PROCAMP(i),
+		  NVDEF(NV907D, HEAD_SET_PROCAMP, COLOR_SPACE, RGB) |
+		  NVDEF(NV907D, HEAD_SET_PROCAMP, CHROMA_LPF, AUTO) |
+		  NVVAL(NV907D, HEAD_SET_PROCAMP, SAT_COS, asyh->procamp.sat.cos) |
+		  NVVAL(NV907D, HEAD_SET_PROCAMP, SAT_SINE, asyh->procamp.sat.sin) |
+		  NVDEF(NV907D, HEAD_SET_PROCAMP, DYNAMIC_RANGE, VESA) |
+		  NVDEF(NV907D, HEAD_SET_PROCAMP, RANGE_COMPRESSION, DISABLE));
 	return 0;
 }
 
