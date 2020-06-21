@@ -63,7 +63,8 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 void
 core507d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	NVBO_WR32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0,
+			NVDEF(NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, FALSE));
 }
 
 int

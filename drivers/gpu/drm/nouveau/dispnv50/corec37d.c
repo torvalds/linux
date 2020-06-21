@@ -85,10 +85,11 @@ corec37d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 void
 corec37d_ntfy_init(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFIER, _0,
+			NVDEF(NV_DISP_NOTIFIER, _0, STATUS, NOT_BEGUN));
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFIER, _1, 0);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFIER, _2, 0);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFIER, _3, 0);
 }
 
 int corec37d_caps_init(struct nouveau_drm *drm, struct nv50_disp *disp)
