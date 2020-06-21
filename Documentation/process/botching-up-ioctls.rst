@@ -2,7 +2,7 @@
 (How to avoid) Botching up ioctls
 =================================
 
-From: http://blog.ffwll.ch/2013/11/botching-up-ioctls.html
+From: https://blog.ffwll.ch/2013/11/botching-up-ioctls.html
 
 By: Daniel Vetter, Copyright © 2013 Intel Corporation
 

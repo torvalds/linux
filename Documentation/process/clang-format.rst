@@ -32,7 +32,7 @@ Linux distributions for a long time. Search for ``clang-format`` in
 your repositories. Otherwise, you can either download pre-built
 LLVM/clang binaries or build the source code from:
 
-    http://releases.llvm.org/download.html
+    https://releases.llvm.org/download.html
 
 See more information about the tool at:
 

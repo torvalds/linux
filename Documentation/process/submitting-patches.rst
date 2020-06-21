@@ -94,7 +94,7 @@ individual patches which modify things in logical stages; see
 very important if you want your patch accepted.
 
 If you're using ``git``, ``git rebase -i`` can help you with this process.  If
-you're not using ``git``, ``quilt`` <http://savannah.nongnu.org/projects/quilt>
+you're not using ``git``, ``quilt`` <https://savannah.nongnu.org/projects/quilt>
 is another popular alternative.
 
 .. _describe_changes:
@@ -892,7 +892,7 @@ References
 ----------
 
 Andrew Morton, "The perfect patch" (tpp).
-  <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
+  <https://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
   <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
