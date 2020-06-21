@@ -973,14 +973,14 @@ int ocelot_port_obj_add_mdb(struct net_device *dev,
 	addr[0] = 0;
 
 	if (!new) {
-		addr[2] = mc->ports << 0;
-		addr[1] = mc->ports << 8;
+		addr[1] = mc->ports >> 8;
+		addr[2] = mc->ports & 0xff;
 		ocelot_mact_forget(ocelot, addr, vid);
 	}
 
 	mc->ports |= BIT(port);
-	addr[2] = mc->ports << 0;
-	addr[1] = mc->ports << 8;
+	addr[1] = mc->ports >> 8;
+	addr[2] = mc->ports & 0xff;
 
 	return ocelot_mact_learn(ocelot, 0, addr, vid, ENTRYTYPE_MACv4);
 }
@@ -1005,9 +1005,9 @@ int ocelot_port_obj_del_mdb(struct net_device *dev,
 		return -ENOENT;
 
 	memcpy(addr, mc->addr, ETH_ALEN);
-	addr[2] = mc->ports << 0;
-	addr[1] = mc->ports << 8;
 	addr[0] = 0;
+	addr[1] = mc->ports >> 8;
+	addr[2] = mc->ports & 0xff;
 	ocelot_mact_forget(ocelot, addr, vid);
 
 	mc->ports &= ~BIT(port);
@@ -1017,8 +1017,8 @@ int ocelot_port_obj_del_mdb(struct net_device *dev,
 		return 0;
 	}
 
-	addr[2] = mc->ports << 0;
-	addr[1] = mc->ports << 8;
+	addr[1] = mc->ports >> 8;
+	addr[2] = mc->ports & 0xff;
 
 	return ocelot_mact_learn(ocelot, 0, addr, vid, ENTRYTYPE_MACv4);
 }
