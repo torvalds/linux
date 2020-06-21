@@ -57,8 +57,7 @@ ovly827e_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		u32 data = nouveau_bo_rd32(bo, offset / 4 + 3);
-		if ((data & 0xffff0000) == 0xffff0000)
+		if (NVBO_TD32(bo, offset, NV_DISP_NOTIFICATION_1, _3, STATUS, ==, BEGUN))
 			break;
 		usleep_range(1, 2);
 	);

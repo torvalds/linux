@@ -123,8 +123,7 @@ base507c_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 			 struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		u32 data = nouveau_bo_rd32(bo, offset / 4);
-		if ((data & 0xc0000000) == 0x40000000)
+		if (NVBO_TD32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0, STATUS, ==, BEGUN))
 			break;
 		usleep_range(1, 2);
 	);
