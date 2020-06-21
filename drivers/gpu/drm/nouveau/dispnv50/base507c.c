@@ -162,7 +162,8 @@ base507c_ntfy_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 void
 base507c_ntfy_reset(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4, 0x00000000);
+	NVBO_WR32(bo, offset, NV_DISP_BASE_NOTIFIER_1, _0,
+			NVDEF(NV_DISP_BASE_NOTIFIER_1, _0, STATUS, NOT_BEGUN));
 }
 
 int

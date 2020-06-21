@@ -162,4 +162,16 @@ int nve0_bo_move_init(struct nouveau_channel *, u32);
 int nve0_bo_move_copy(struct nouveau_channel *, struct ttm_buffer_object *,
 		      struct ttm_mem_reg *, struct ttm_mem_reg *);
 
+#define NVBO_WR32_(b,o,dr,f) nouveau_bo_wr32((b), (o)/4 + (dr), (f))
+#define NVBO_RD32_(b,o,dr)   nouveau_bo_rd32((b), (o)/4 + (dr))
+#define NVBO_RD32(A...) DRF_RD(NVBO_RD32_,                  ##A)
+#define NVBO_RV32(A...) DRF_RV(NVBO_RD32_,                  ##A)
+#define NVBO_TV32(A...) DRF_TV(NVBO_RD32_,                  ##A)
+#define NVBO_TD32(A...) DRF_TD(NVBO_RD32_,                  ##A)
+#define NVBO_WR32(A...) DRF_WR(            NVBO_WR32_,      ##A)
+#define NVBO_WV32(A...) DRF_WV(            NVBO_WR32_,      ##A)
+#define NVBO_WD32(A...) DRF_WD(            NVBO_WR32_,      ##A)
+#define NVBO_MR32(A...) DRF_MR(NVBO_RD32_, NVBO_WR32_, u32, ##A)
+#define NVBO_MV32(A...) DRF_MV(NVBO_RD32_, NVBO_WR32_, u32, ##A)
+#define NVBO_MD32(A...) DRF_MD(NVBO_RD32_, NVBO_WR32_, u32, ##A)
 #endif

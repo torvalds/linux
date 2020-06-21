@@ -27,6 +27,8 @@
 #include <nvif/push507c.h>
 #include <nvif/timer.h>
 
+#include <nvhw/class/cl827e.h>
+
 static int
 ovly827e_image_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
@@ -66,10 +68,11 @@ ovly827e_ntfy_wait_begun(struct nouveau_bo *bo, u32 offset,
 void
 ovly827e_ntfy_reset(struct nouveau_bo *bo, u32 offset)
 {
-	nouveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 3, 0x80000000);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFICATION_1, TIME_STAMP_0, 0);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFICATION_1, TIME_STAMP_1, 0);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFICATION_1, _2, 0);
+	NVBO_WR32(bo, offset, NV_DISP_NOTIFICATION_1, _3,
+			NVDEF(NV_DISP_NOTIFICATION_1, _3, STATUS, NOT_BEGUN));
 }
 
 static const struct nv50_wndw_func
