@@ -535,6 +535,10 @@ int ocelot_fdb_add(struct ocelot *ocelot, int port,
 		   const unsigned char *addr, u16 vid)
 {
 	struct ocelot_port *ocelot_port = ocelot->ports[port];
+	int pgid = port;
+
+	if (port == ocelot->npi)
+		pgid = PGID_CPU;
 
 	if (!vid) {
 		if (!ocelot_port->vlan_aware)
@@ -550,7 +554,7 @@ int ocelot_fdb_add(struct ocelot *ocelot, int port,
 			return -EINVAL;
 	}
 
-	return ocelot_mact_learn(ocelot, port, addr, vid, ENTRYTYPE_LOCKED);
+	return ocelot_mact_learn(ocelot, pgid, addr, vid, ENTRYTYPE_LOCKED);
 }
 EXPORT_SYMBOL(ocelot_fdb_add);
 
@@ -953,6 +957,9 @@ int ocelot_port_obj_add_mdb(struct net_device *dev,
 	u16 vid = mdb->vid;
 	bool new = false;
 
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
+
 	if (!vid)
 		vid = ocelot_port->pvid;
 
@@ -996,6 +1003,9 @@ int ocelot_port_obj_del_mdb(struct net_device *dev,
 	struct ocelot_multicast *mc;
 	int port = priv->chip_port;
 	u16 vid = mdb->vid;
+
+	if (port == ocelot->npi)
+		port = ocelot->num_phys_ports;
 
 	if (!vid)
 		vid = ocelot_port->pvid;
