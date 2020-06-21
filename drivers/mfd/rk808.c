@@ -1310,6 +1310,19 @@ static int rk808_probe(struct i2c_client *client,
 	if (of_property_prepare_fn)
 		of_property_prepare_fn(rk808, &client->dev);
 
+	for (i = 0; i < nr_pre_init_regs; i++) {
+		ret = regmap_update_bits(rk808->regmap,
+					 pre_init_reg[i].addr,
+					 pre_init_reg[i].mask,
+					 pre_init_reg[i].value);
+		if (ret) {
+			dev_err(&client->dev,
+				"0x%x write err\n",
+				pre_init_reg[i].addr);
+			return ret;
+		}
+	}
+
 	if (pinctrl_init) {
 		ret = pinctrl_init(&client->dev, rk808);
 		if (ret)
@@ -1337,18 +1350,6 @@ static int rk808_probe(struct i2c_client *client,
 		}
 	}
 
-	for (i = 0; i < nr_pre_init_regs; i++) {
-		ret = regmap_update_bits(rk808->regmap,
-					pre_init_reg[i].addr,
-					pre_init_reg[i].mask,
-					pre_init_reg[i].value);
-		if (ret) {
-			dev_err(&client->dev,
-				"0x%x write err\n",
-				pre_init_reg[i].addr);
-			return ret;
-		}
-	}
 
 	ret = devm_mfd_add_devices(&client->dev, PLATFORM_DEVID_NONE,
 			      cells, nr_cells, NULL, 0,
@@ -1420,6 +1421,8 @@ static int rk808_remove(struct i2c_client *client)
 static int __maybe_unused rk8xx_suspend(struct device *dev)
 {
 	int i, ret = 0;
+	int value;
+
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
 	for (i = 0; i < suspend_reg_num; i++) {
@@ -1452,8 +1455,10 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 			dev_err(dev, "suspend: config RK817_SLPPOL_H error!\n");
 			return ret;
 		}
-		udelay(100);
 
+		/* pmic need the SCL clock to synchronize register */
+		regmap_read(rk808->regmap, RK817_SYS_STS, &value);
+		mdelay(2);
 		ret = pinctrl_select_state(rk808->pins->p, rk808->pins->sleep);
 		if (ret) {
 			dev_err(dev, "failed to act slp pinctrl state\n");
@@ -1466,6 +1471,7 @@ static int __maybe_unused rk8xx_suspend(struct device *dev)
 static int __maybe_unused rk8xx_resume(struct device *dev)
 {
 	int i, ret = 0;
+	int value;
 	struct rk808 *rk808 = i2c_get_clientdata(rk808_i2c_client);
 
 	for (i = 0; i < resume_reg_num; i++) {
@@ -1497,8 +1503,10 @@ static int __maybe_unused rk8xx_resume(struct device *dev)
 			dev_err(dev, "resume: config RK817_SLPPOL_L error!\n");
 			return ret;
 		}
-		udelay(100);
 
+		/* pmic need the SCL clock to synchronize register */
+		regmap_read(rk808->regmap, RK817_SYS_STS, &value);
+		mdelay(2);
 		ret = pinctrl_select_state(rk808->pins->p, rk808->pins->reset);
 		if (ret)
 			dev_dbg(dev, "failed to act reset pinctrl state\n");
