@@ -329,25 +329,26 @@ static int mt7663u_probe(struct usb_interface *usb_intf,
 	if (!mt76_poll_msec(dev, MT_CONN_ON_MISC, MT_TOP_MISC2_FW_PWR_ON,
 			    FW_STATE_PWR_ON << 1, 500)) {
 		dev_err(dev->mt76.dev, "Timeout for power on\n");
-		return -EIO;
+		ret = -EIO;
+		goto error;
 	}
 
 alloc_queues:
 	ret = mt76u_alloc_mcu_queue(&dev->mt76);
 	if (ret)
-		goto error;
+		goto error_free_q;
 
 	ret = mt76u_alloc_queues(&dev->mt76);
 	if (ret)
-		goto error;
+		goto error_free_q;
 
 	ret = mt7663u_register_device(dev);
 	if (ret)
-		goto error_freeq;
+		goto error_free_q;
 
 	return 0;
 
-error_freeq:
+error_free_q:
 	mt76u_queues_deinit(&dev->mt76);
 error:
 	mt76u_deinit(&dev->mt76);
