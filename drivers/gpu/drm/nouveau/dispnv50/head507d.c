@@ -24,6 +24,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl507d.h>
+
 int
 head507d_procamp(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -339,10 +341,23 @@ head507d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 7)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x08a4 + (i * 0x400), 0x00000000);
-	PUSH_NVSQ(push, NV507D, 0x08c8 + (i * 0x400), asyh->view.iH << 16 | asyh->view.iW);
-	PUSH_NVSQ(push, NV507D, 0x08d8 + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW,
-				0x08dc + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW);
+	PUSH_MTHD(push, NV507D, HEAD_SET_CONTROL_OUTPUT_SCALER(i),
+		  NVDEF(NV507D, HEAD_SET_CONTROL_OUTPUT_SCALER, VERTICAL_TAPS, TAPS_1) |
+		  NVDEF(NV507D, HEAD_SET_CONTROL_OUTPUT_SCALER, HORIZONTAL_TAPS, TAPS_1) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_OUTPUT_SCALER, HRESPONSE_BIAS, 0) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_OUTPUT_SCALER, VRESPONSE_BIAS, 0));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_VIEWPORT_SIZE_IN(i),
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_IN, WIDTH, asyh->view.iW) |
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_IN, HEIGHT, asyh->view.iH));
+
+	PUSH_MTHD(push, NV507D, HEAD_SET_VIEWPORT_SIZE_OUT(i),
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_OUT, WIDTH, asyh->view.oW) |
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_OUT, HEIGHT, asyh->view.oH),
+
+				HEAD_SET_VIEWPORT_SIZE_OUT_MIN(i),
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_OUT_MIN, WIDTH, asyh->view.oW) |
+		  NVVAL(NV507D, HEAD_SET_VIEWPORT_SIZE_OUT_MIN, HEIGHT, asyh->view.oH));
 	return 0;
 }
 

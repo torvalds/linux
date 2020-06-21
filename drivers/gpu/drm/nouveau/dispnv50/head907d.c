@@ -31,6 +31,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl907d.h>
+
 int
 head907d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -302,11 +304,27 @@ head907d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 8)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0494 + (i * 0x300), 0x00000000);
-	PUSH_NVSQ(push, NV907D, 0x04b8 + (i * 0x300), asyh->view.iH << 16 | asyh->view.iW);
-	PUSH_NVSQ(push, NV907D, 0x04c0 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW,
-				0x04c4 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW,
-				0x04c8 + (i * 0x300), asyh->view.oH << 16 | asyh->view.oW);
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTROL_OUTPUT_SCALER(i),
+		  NVDEF(NV907D, HEAD_SET_CONTROL_OUTPUT_SCALER, VERTICAL_TAPS, TAPS_1) |
+		  NVDEF(NV907D, HEAD_SET_CONTROL_OUTPUT_SCALER, HORIZONTAL_TAPS, TAPS_1) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_SCALER, HRESPONSE_BIAS, 0) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_OUTPUT_SCALER, VRESPONSE_BIAS, 0));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_VIEWPORT_SIZE_IN(i),
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_IN, WIDTH, asyh->view.iW) |
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_IN, HEIGHT, asyh->view.iH));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_VIEWPORT_SIZE_OUT(i),
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT, WIDTH, asyh->view.oW) |
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT, HEIGHT, asyh->view.oH),
+
+				HEAD_SET_VIEWPORT_SIZE_OUT_MIN(i),
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT_MIN, WIDTH, asyh->view.oW) |
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT_MIN, HEIGHT, asyh->view.oH),
+
+				HEAD_SET_VIEWPORT_SIZE_OUT_MAX(i),
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT_MAX, WIDTH, asyh->view.oW) |
+		  NVVAL(NV907D, HEAD_SET_VIEWPORT_SIZE_OUT_MAX, HEIGHT, asyh->view.oH));
 	return 0;
 }
 

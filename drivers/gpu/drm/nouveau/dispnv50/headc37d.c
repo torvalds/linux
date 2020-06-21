@@ -25,6 +25,8 @@
 
 #include <nvif/pushc37b.h>
 
+#include <nvhw/class/clc37d.h>
+
 static int
 headc37d_or(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -212,8 +214,13 @@ headc37d_view(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x204c + (i * 0x400), asyh->view.iH << 16 | asyh->view.iW);
-	PUSH_NVSQ(push, NVC37D, 0x2058 + (i * 0x400), asyh->view.oH << 16 | asyh->view.oW);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_VIEWPORT_SIZE_IN(i),
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_IN, WIDTH, asyh->view.iW) |
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_IN, HEIGHT, asyh->view.iH));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT(i),
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT, WIDTH, asyh->view.oW) |
+		  NVVAL(NVC37D, HEAD_SET_VIEWPORT_SIZE_OUT, HEIGHT, asyh->view.oH));
 	return 0;
 }
 
