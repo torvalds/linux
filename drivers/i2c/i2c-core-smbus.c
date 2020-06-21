@@ -4,7 +4,7 @@
  *
  * This file contains the SMBus functions which are always included in the I2C
  * core because they can be emulated via I2C. SMBus specific extensions
- * (e.g. smbalert) are handled in a seperate i2c-smbus module.
+ * (e.g. smbalert) are handled in a separate i2c-smbus module.
  *
  * All SMBus-related things are written by Frodo Looijaard <frodol@dds.nl>
  * SMBus 2.0 support by Mark Studebaker <mdsxyz123@yahoo.com> and
