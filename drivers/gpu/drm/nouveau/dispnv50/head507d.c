@@ -67,21 +67,21 @@ head507d_ovly(struct nv50_head *head, struct nv50_head_atom *asyh)
 
 	if (asyh->ovly.cpp) {
 		switch (asyh->ovly.cpp) {
-		case 4: bounds |= 0x00000300; break;
-		case 2: bounds |= 0x00000100; break;
+		case 4: bounds |= NVDEF(NV507D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_32); break;
+		case 2: bounds |= NVDEF(NV507D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_16); break;
 		default:
 			WARN_ON(1);
 			break;
 		}
-		bounds |= 0x00000001;
+		bounds |= NVDEF(NV507D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, USABLE, TRUE);
 	} else {
-		bounds |= 0x00000100;
+		bounds |= NVDEF(NV507D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_16);
 	}
 
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0904 + (i * 0x400), bounds);
+	PUSH_MTHD(push, NV507D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS(i), bounds);
 	return 0;
 }
 
