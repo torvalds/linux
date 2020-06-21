@@ -1710,3 +1710,28 @@ MLXSW_ITEM32(afa, l4port, s_d, 0x00, 31, 1);
  * Number of port to change to.
  */
 MLXSW_ITEM32(afa, l4port, l4_port, 0x08, 0, 16);
+
+static void mlxsw_afa_l4port_pack(char *payload, enum mlxsw_afa_l4port_s_d s_d, u16 l4_port)
+{
+	mlxsw_afa_l4port_s_d_set(payload, s_d);
+	mlxsw_afa_l4port_l4_port_set(payload, l4_port);
+}
+
+int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, u16 l4_port,
+				  struct netlink_ext_ack *extack)
+{
+	enum mlxsw_afa_l4port_s_d s_d = is_dport ? MLXSW_AFA_L4PORT_S_D_DST :
+						   MLXSW_AFA_L4PORT_S_D_SRC;
+	char *act = mlxsw_afa_block_append_action(block,
+						  MLXSW_AFA_L4PORT_CODE,
+						  MLXSW_AFA_L4PORT_SIZE);
+
+	if (IS_ERR(act)) {
+		NL_SET_ERR_MSG_MOD(extack, "Cannot append L4_PORT action");
+		return PTR_ERR(act);
+	}
+
+	mlxsw_afa_l4port_pack(act, s_d, l4_port);
+	return 0;
+}
+EXPORT_SYMBOL(mlxsw_afa_block_append_l4port);

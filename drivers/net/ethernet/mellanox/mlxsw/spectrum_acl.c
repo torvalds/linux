@@ -508,6 +508,8 @@ enum mlxsw_sp_acl_mangle_field {
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSFIELD,
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_DSCP,
 	MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT,
+	MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT,
 };
 
 struct mlxsw_sp_acl_mangle_action {
@@ -538,13 +540,26 @@ struct mlxsw_sp_acl_mangle_action {
 	MLXSW_SP_ACL_MANGLE_ACTION(FLOW_ACT_MANGLE_HDR_TYPE_IP6,       \
 				   _offset, _mask, _shift, _field)
 
+#define MLXSW_SP_ACL_MANGLE_ACTION_TCP(_offset, _mask, _shift, _field) \
+	MLXSW_SP_ACL_MANGLE_ACTION(FLOW_ACT_MANGLE_HDR_TYPE_TCP, _offset, _mask, _shift, _field)
+
+#define MLXSW_SP_ACL_MANGLE_ACTION_UDP(_offset, _mask, _shift, _field) \
+	MLXSW_SP_ACL_MANGLE_ACTION(FLOW_ACT_MANGLE_HDR_TYPE_UDP, _offset, _mask, _shift, _field)
+
 static struct mlxsw_sp_acl_mangle_action mlxsw_sp_acl_mangle_actions[] = {
 	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xff00ffff, 16, IP_DSFIELD),
 	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xff03ffff, 18, IP_DSCP),
 	MLXSW_SP_ACL_MANGLE_ACTION_IP4(0, 0xfffcffff, 16, IP_ECN),
+
 	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xf00fffff, 20, IP_DSFIELD),
 	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xf03fffff, 22, IP_DSCP),
 	MLXSW_SP_ACL_MANGLE_ACTION_IP6(0, 0xffcfffff, 20, IP_ECN),
+
+	MLXSW_SP_ACL_MANGLE_ACTION_TCP(0, 0x0000ffff, 16, IP_SPORT),
+	MLXSW_SP_ACL_MANGLE_ACTION_TCP(0, 0xffff0000, 0,  IP_DPORT),
+
+	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0x0000ffff, 16, IP_SPORT),
+	MLXSW_SP_ACL_MANGLE_ACTION_UDP(0, 0xffff0000, 0,  IP_DPORT),
 };
 
 static int
@@ -593,6 +608,15 @@ static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp, rulei, mact, val, extack);
 	if (err != -EOPNOTSUPP)
 		return err;
+
+	switch (mact->field) {
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP_SPORT:
+		return mlxsw_afa_block_append_l4port(rulei->act_block, false, val, extack);
+	case MLXSW_SP_ACL_MANGLE_FIELD_IP_DPORT:
+		return mlxsw_afa_block_append_l4port(rulei->act_block, true, val, extack);
+	default:
+		break;
+	}
 
 	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
 	return err;
