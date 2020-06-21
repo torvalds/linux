@@ -101,8 +101,11 @@ headc37d_curs_clr(struct nv50_head *head)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x209c + (i * 0x400), 0x000000cf);
-	PUSH_NVSQ(push, NVC37D, 0x2088 + (i * 0x400), 0x00000000);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, ENABLE, DISABLE) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, FORMAT, A8R8G8B8));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CURSOR(i, 0), 0x00000000);
 	return 0;
 }
 
