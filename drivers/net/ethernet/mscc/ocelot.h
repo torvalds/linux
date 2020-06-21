@@ -46,6 +46,7 @@ struct ocelot_multicast {
 	unsigned char addr[ETH_ALEN];
 	u16 vid;
 	u16 ports;
+	int pgid;
 };
 
 struct ocelot_port_tc {
