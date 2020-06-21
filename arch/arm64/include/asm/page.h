@@ -18,7 +18,6 @@
 struct page;
 struct vm_area_struct;
 
-extern void __cpu_clear_user_page(void *p, unsigned long user);
 extern void copy_page(void *to, const void *from);
 extern void clear_page(void *to);
 
@@ -33,7 +32,7 @@ void copy_highpage(struct page *to, struct page *from);
 	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
 #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
 
-#define clear_user_page(addr,vaddr,pg)  __cpu_clear_user_page(addr, vaddr)
+#define clear_user_page(page, vaddr, pg)	clear_page(page)
 #define copy_user_page(to, from, vaddr, pg)	copy_page(to, from)
 
 typedef struct page *pgtable_t;

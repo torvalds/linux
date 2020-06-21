@@ -35,9 +35,3 @@ void copy_user_highpage(struct page *to, struct page *from,
 	flush_dcache_page(to);
 }
 EXPORT_SYMBOL_GPL(copy_user_highpage);
-
-void __cpu_clear_user_page(void *kaddr, unsigned long vaddr)
-{
-	clear_page(kaddr);
-}
-EXPORT_SYMBOL_GPL(__cpu_clear_user_page);
