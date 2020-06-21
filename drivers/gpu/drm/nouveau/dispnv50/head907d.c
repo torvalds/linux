@@ -123,21 +123,21 @@ head907d_base(struct nv50_head *head, struct nv50_head_atom *asyh)
 
 	if (asyh->base.cpp) {
 		switch (asyh->base.cpp) {
-		case 8: bounds |= 0x00000500; break;
-		case 4: bounds |= 0x00000300; break;
-		case 2: bounds |= 0x00000100; break;
-		case 1: bounds |= 0x00000000; break;
+		case 8: bounds |= NVDEF(NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_64); break;
+		case 4: bounds |= NVDEF(NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_32); break;
+		case 2: bounds |= NVDEF(NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_16); break;
+		case 1: bounds |= NVDEF(NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, PIXEL_DEPTH, BPP_8); break;
 		default:
 			WARN_ON(1);
 			break;
 		}
-		bounds |= 0x00000001;
+		bounds |= NVDEF(NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS, USABLE, TRUE);
 	}
 
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x04d0 + (i * 0x300), bounds);
+	PUSH_MTHD(push, NV907D, HEAD_SET_BASE_CHANNEL_USAGE_BOUNDS(i), bounds);
 	return 0;
 }
 
