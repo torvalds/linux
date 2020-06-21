@@ -27,9 +27,10 @@
 static int
 cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
+	struct nvif_object *user = &wndw->wimm.base.user;
 	int ret = nvif_chan_wait(&wndw->wimm, 1);
 	if (ret == 0)
-		nvif_wr32(&wndw->wimm.base.user, 0x0200, 0x00000001);
+		NVIF_WR32(user, NVC37A, UPDATE, 0x00000001);
 	return ret;
 }
 

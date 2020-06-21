@@ -37,9 +37,9 @@ wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 	if ((ret = PUSH_WAIT(push, 2)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37B, 0x0200, ((interlock[NV50_DISP_INTERLOCK_WNDW] &
-					  wndw->interlock.data) ? 0x00000002 : 0x00000000) |
-					0x00000001);
+	PUSH_MTHD(push, NVC37B, UPDATE, 0x00000001 |
+		  NVVAL(NVC37B, UPDATE, INTERLOCK_WITH_WINDOW,
+			!!(interlock[NV50_DISP_INTERLOCK_WNDW] & wndw->interlock.data)));
 	return PUSH_KICK(push);
 }
 
