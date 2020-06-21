@@ -45,7 +45,6 @@ enum cc_key_type {
 struct cc_cipher_ctx {
 	struct cc_drvdata *drvdata;
 	int keylen;
-	int key_round_number;
 	int cipher_mode;
 	int flow_mode;
 	unsigned int flags;
