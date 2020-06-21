@@ -107,6 +107,17 @@ config SCD30_I2C
 	  To compile this driver as a module, choose M here: the module will
 	  be called scd30_i2c.
 
+config SCD30_SERIAL
+	tristate "SCD30 carbon dioxide sensor serial driver"
+	depends on SCD30_CORE && SERIAL_DEV_BUS
+	select CRC16
+	help
+	  Say Y here to build support for the Sensirion SCD30 serial interface
+	  driver.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called scd30_serial.
+
 config SENSIRION_SGP30
 	tristate "Sensirion SGPxx gas sensors"
 	depends on I2C
