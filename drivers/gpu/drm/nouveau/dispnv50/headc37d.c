@@ -157,11 +157,13 @@ headc37d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 4)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x20a4 + (i * 0x400), asyh->olut.output_mode << 8 |
-						      asyh->olut.range << 4 |
-						      asyh->olut.size,
-				0x20a8 + (i * 0x400), asyh->olut.offset >> 8,
-				0x20ac + (i * 0x400), asyh->olut.handle);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, SIZE, asyh->olut.size) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, RANGE, asyh->olut.range) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_OUTPUT_LUT, OUTPUT_MODE, asyh->olut.output_mode),
+
+				HEAD_SET_OFFSET_OUTPUT_LUT(i), asyh->olut.offset >> 8,
+				HEAD_SET_CONTEXT_DMA_OUTPUT_LUT(i), asyh->olut.handle);
 	return 0;
 }
 
@@ -171,10 +173,10 @@ headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 	if (size != 256 && size != 1024)
 		return false;
 
-	asyh->olut.mode = 2;
-	asyh->olut.size = size == 1024 ? 2 : 0;
-	asyh->olut.range = 0;
-	asyh->olut.output_mode = 1;
+	asyh->olut.size = size == 1024 ? NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_SIZE_SIZE_1025 :
+					 NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_SIZE_SIZE_257;
+	asyh->olut.range = NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_RANGE_UNITY;
+	asyh->olut.output_mode = NVC37D_HEAD_SET_CONTROL_OUTPUT_LUT_OUTPUT_MODE_INTERPOLATE;
 	asyh->olut.load = head907d_olut_load;
 	return true;
 }

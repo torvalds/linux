@@ -270,8 +270,13 @@ head507d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0840 + (i * 0x400), 0x80000000 | asyh->olut.mode << 30,
-				0x0844 + (i * 0x400), asyh->olut.offset >> 8);
+	PUSH_MTHD(push, NV507D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV507D, HEAD_SET_BASE_LUT_LO, ENABLE, ENABLE) |
+		  NVVAL(NV507D, HEAD_SET_BASE_LUT_LO, MODE, asyh->olut.mode) |
+		  NVVAL(NV507D, HEAD_SET_BASE_LUT_LO, ORIGIN, 0),
+
+				HEAD_SET_BASE_LUT_HI(i),
+		  NVVAL(NV507D, HEAD_SET_BASE_LUT_HI, ORIGIN, asyh->olut.offset >> 8));
 	return 0;
 }
 
@@ -299,9 +304,9 @@ head507d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 		return false;
 
 	if (asyh->base.cpp == 1)
-		asyh->olut.mode = 0;
+		asyh->olut.mode = NV507D_HEAD_SET_BASE_LUT_LO_MODE_LORES;
 	else
-		asyh->olut.mode = 1;
+		asyh->olut.mode = NV507D_HEAD_SET_BASE_LUT_LO_MODE_HIRES;
 
 	asyh->olut.load = head507d_olut_load;
 	return true;

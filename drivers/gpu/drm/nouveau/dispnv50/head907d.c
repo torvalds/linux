@@ -235,9 +235,15 @@ head907d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0448 + (i * 0x300), 0x80000000 | asyh->olut.mode << 24,
-				0x044c + (i * 0x300), asyh->olut.offset >> 8);
-	PUSH_NVSQ(push, NV907D, 0x045c + (i * 0x300), asyh->olut.handle);
+	PUSH_MTHD(push, NV907D, HEAD_SET_OUTPUT_LUT_LO(i),
+		  NVDEF(NV907D, HEAD_SET_OUTPUT_LUT_LO, ENABLE, ENABLE) |
+		  NVVAL(NV907D, HEAD_SET_OUTPUT_LUT_LO, MODE, asyh->olut.mode) |
+		  NVDEF(NV907D, HEAD_SET_OUTPUT_LUT_LO, NEVER_YIELD_TO_BASE, DISABLE),
+
+				HEAD_SET_OUTPUT_LUT_HI(i),
+		  NVVAL(NV907D, HEAD_SET_OUTPUT_LUT_HI, ORIGIN, asyh->olut.offset >> 8));
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_LUT(i), asyh->olut.handle);
 	return 0;
 }
 
@@ -264,7 +270,11 @@ head907d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 	if (size != 256 && size != 1024)
 		return false;
 
-	asyh->olut.mode = size == 1024 ? 4 : 7;
+	if (size == 1024)
+		asyh->olut.mode = NV907D_HEAD_SET_OUTPUT_LUT_LO_MODE_INTERPOLATE_1025_UNITY_RANGE;
+	else
+		asyh->olut.mode = NV907D_HEAD_SET_OUTPUT_LUT_LO_MODE_INTERPOLATE_257_UNITY_RANGE;
+
 	asyh->olut.load = head907d_olut_load;
 	return true;
 }

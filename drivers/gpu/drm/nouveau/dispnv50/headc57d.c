@@ -99,12 +99,15 @@ headc57d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC57D, 0x2280 + (i * 0x400), asyh->olut.size << 8 |
-						      asyh->olut.mode << 2 |
-						      asyh->olut.output_mode,
-				0x2284 + (i * 0x400), 0xffffffff,
-				0x2288 + (i * 0x400), asyh->olut.handle,
-				0x228c + (i * 0x400), asyh->olut.offset >> 8);
+	PUSH_MTHD(push, NVC57D, HEAD_SET_OLUT_CONTROL(i),
+		  NVVAL(NVC57D, HEAD_SET_OLUT_CONTROL, INTERPOLATE, asyh->olut.output_mode) |
+		  NVDEF(NVC57D, HEAD_SET_OLUT_CONTROL, MIRROR, DISABLE) |
+		  NVVAL(NVC57D, HEAD_SET_OLUT_CONTROL, MODE, asyh->olut.mode) |
+		  NVVAL(NVC57D, HEAD_SET_OLUT_CONTROL, SIZE, asyh->olut.size),
+
+				HEAD_SET_OLUT_FP_NORM_SCALE(i), 0xffffffff,
+				HEAD_SET_CONTEXT_DMA_OLUT(i), asyh->olut.handle,
+				HEAD_SET_OFFSET_OLUT(i), asyh->olut.offset >> 8);
 	return 0;
 }
 
@@ -167,9 +170,9 @@ headc57d_olut(struct nv50_head *head, struct nv50_head_atom *asyh, int size)
 	if (size != 0 && size != 256 && size != 1024)
 		return false;
 
-	asyh->olut.mode = 2; /* DIRECT10 */
+	asyh->olut.mode = NVC57D_HEAD_SET_OLUT_CONTROL_MODE_DIRECT10;
 	asyh->olut.size = 4 /* VSS header. */ + 1024 + 1 /* Entries. */;
-	asyh->olut.output_mode = 1; /* INTERPOLATE_ENABLE. */
+	asyh->olut.output_mode = NVC57D_HEAD_SET_OLUT_CONTROL_INTERPOLATE_ENABLE;
 	if (size == 256)
 		asyh->olut.load = headc57d_olut_load_8;
 	else

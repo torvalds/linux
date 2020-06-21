@@ -24,6 +24,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl827d.h>
+
 static int
 head827d_curs_clr(struct nv50_head *head)
 {
@@ -104,9 +106,15 @@ head827d_olut_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NV827D, 0x0840 + (i * 0x400), 0x80000000 | asyh->olut.mode << 30,
-				0x0844 + (i * 0x400), asyh->olut.offset >> 8);
-	PUSH_NVSQ(push, NV827D, 0x085c + (i * 0x400), asyh->olut.handle);
+	PUSH_MTHD(push, NV827D, HEAD_SET_BASE_LUT_LO(i),
+		  NVDEF(NV827D, HEAD_SET_BASE_LUT_LO, ENABLE, ENABLE) |
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_LO, MODE, asyh->olut.mode) |
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_LO, ORIGIN, 0),
+
+				HEAD_SET_BASE_LUT_HI(i),
+		  NVVAL(NV827D, HEAD_SET_BASE_LUT_HI, ORIGIN, asyh->olut.offset >> 8));
+
+	PUSH_MTHD(push, NV827D, HEAD_SET_CONTEXT_DMA_LUT(i), asyh->olut.handle);
 	return 0;
 }
 
