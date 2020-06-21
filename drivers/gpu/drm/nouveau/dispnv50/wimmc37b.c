@@ -24,6 +24,7 @@
 #include "wndw.h"
 
 #include <nvif/clc37b.h>
+#include <nvif/pushc37b.h>
 
 static void
 wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
@@ -39,15 +40,17 @@ wimmc37b_update(struct nv50_wndw *wndw, u32 *interlock)
 	}
 }
 
-static void
+static int
 wimmc37b_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	u32 *push;
-	if ((push = evo_wait(&wndw->wimm, 2))) {
-		evo_mthd(push, 0x0208, 1);
-		evo_data(push, asyw->point.y << 16 | asyw->point.x);
-		evo_kick(push, &wndw->wimm);
-	}
+	struct nvif_push *push = wndw->wimm.push;
+	int ret;
+
+	if ((ret = PUSH_WAIT(push, 2)))
+		return ret;
+
+	PUSH_NVSQ(push, NVC37B, 0x0208, asyw->point.y << 16 | asyw->point.x);
+	return 0;
 }
 
 static const struct nv50_wimm_func

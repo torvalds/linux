@@ -29,13 +29,15 @@ cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
 		nvif_wr32(&wndw->wimm.base.user, 0x0200, 0x00000001);
 }
 
-static void
+static int
 cursc37a_point(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 {
-	if (curs507a_space(wndw)) {
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0) {
 		nvif_wr32(&wndw->wimm.base.user, 0x0208, asyw->point.y << 16 |
 							 asyw->point.x);
 	}
+	return ret;
 }
 
 static const struct nv50_wimm_func

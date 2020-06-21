@@ -91,13 +91,20 @@ void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
 		  const struct drm_color_ctm *);
 
 struct nv50_wimm_func {
-	void (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	int (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
 	void (*update)(struct nv50_wndw *, u32 *interlock);
 };
 
 extern const struct nv50_wimm_func curs507a;
 bool curs507a_space(struct nv50_wndw *);
+
+static inline __must_check int
+nvif_chan_wait(struct nv50_dmac *dmac, u32 size)
+{
+	struct nv50_wndw *wndw = container_of(dmac, typeof(*wndw), wimm);
+	return curs507a_space(wndw) ? 0 : -ETIMEDOUT;
+}
 
 int wndwc37e_new(struct nouveau_drm *, enum drm_plane_type, int, s32,
 		 struct nv50_wndw **);
