@@ -97,11 +97,6 @@ int ocelot_port_lag_join(struct ocelot *ocelot, int port,
 			 struct net_device *bond);
 void ocelot_port_lag_leave(struct ocelot *ocelot, int port,
 			   struct net_device *bond);
-int ocelot_port_obj_del_mdb(struct net_device *dev,
-			    const struct switchdev_obj_port_mdb *mdb);
-int ocelot_port_obj_add_mdb(struct net_device *dev,
-			    const struct switchdev_obj_port_mdb *mdb,
-			    struct switchdev_trans *trans);
 
 u32 ocelot_port_readl(struct ocelot_port *port, u32 reg);
 void ocelot_port_writel(struct ocelot_port *port, u32 val, u32 reg);

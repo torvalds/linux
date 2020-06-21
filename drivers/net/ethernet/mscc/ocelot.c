@@ -944,16 +944,12 @@ static struct ocelot_multicast *ocelot_multicast_get(struct ocelot *ocelot,
 	return NULL;
 }
 
-int ocelot_port_obj_add_mdb(struct net_device *dev,
-			    const struct switchdev_obj_port_mdb *mdb,
-			    struct switchdev_trans *trans)
+int ocelot_port_mdb_add(struct ocelot *ocelot, int port,
+			const struct switchdev_obj_port_mdb *mdb)
 {
-	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot_port *ocelot_port = &priv->port;
-	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
-	int port = priv->chip_port;
 	u16 vid = mdb->vid;
 	bool new = false;
 
@@ -991,17 +987,14 @@ int ocelot_port_obj_add_mdb(struct net_device *dev,
 
 	return ocelot_mact_learn(ocelot, 0, addr, vid, ENTRYTYPE_MACv4);
 }
-EXPORT_SYMBOL(ocelot_port_obj_add_mdb);
+EXPORT_SYMBOL(ocelot_port_mdb_add);
 
-int ocelot_port_obj_del_mdb(struct net_device *dev,
-			    const struct switchdev_obj_port_mdb *mdb)
+int ocelot_port_mdb_del(struct ocelot *ocelot, int port,
+			const struct switchdev_obj_port_mdb *mdb)
 {
-	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot_port *ocelot_port = &priv->port;
-	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	unsigned char addr[ETH_ALEN];
 	struct ocelot_multicast *mc;
-	int port = priv->chip_port;
 	u16 vid = mdb->vid;
 
 	if (port == ocelot->npi)
@@ -1032,7 +1025,7 @@ int ocelot_port_obj_del_mdb(struct net_device *dev,
 
 	return ocelot_mact_learn(ocelot, 0, addr, vid, ENTRYTYPE_MACv4);
 }
-EXPORT_SYMBOL(ocelot_port_obj_del_mdb);
+EXPORT_SYMBOL(ocelot_port_mdb_del);
 
 int ocelot_port_bridge_join(struct ocelot *ocelot, int port,
 			    struct net_device *bridge)
