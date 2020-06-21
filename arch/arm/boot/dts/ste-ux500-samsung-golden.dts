@@ -24,6 +24,32 @@
 		stdout-path = &serial2;
 	};
 
+	i2c-gpio-0 {
+		compatible = "i2c-gpio";
+		sda-gpios = <&gpio2 14 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+		scl-gpios = <&gpio2 13 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c_gpio_0_default>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		touchkey@20 {
+			compatible = "coreriver,tc360-touchkey";
+			reg = <0x20>;
+			vdd-supply = <&ab8500_ldo_aux4_reg>;
+			vcc-supply = <&ab8500_ldo_aux6_reg>;
+
+			interrupt-parent = <&gpio2>;
+			interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&touchkey_default>;
+			linux,keycodes = <KEY_MENU KEY_BACK>;
+		};
+	};
+
 	i2c-gpio-1 {
 		compatible = "i2c-gpio";
 		sda-gpios = <&gpio4 24 (GPIO_ACTIVE_HIGH|GPIO_OPEN_DRAIN)>;
@@ -403,11 +429,30 @@
 		};
 	};
 
+	i2c-gpio-0 {
+		i2c_gpio_0_default: i2c_gpio_0 {
+			golden_cfg1 {
+				pins = "GPIO77",	/* TOUCHKEY_SCL */
+				       "GPIO78";	/* TOUCHKEY_SDA */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
 	i2c-gpio-1 {
 		i2c_gpio_1_default: i2c_gpio_1 {
 			golden_cfg1 {
 				pins = "GPIO151",	/* COMP_SCL */
 				       "GPIO152";	/* COMP_SDA */
+				ste,config = <&gpio_in_nopull>;
+			};
+		};
+	};
+
+	touchkey {
+		touchkey_default: touchkey_default {
+			golden_cfg1 {
+				pins = "GPIO79";	/* TOUCHKEY_INT */
 				ste,config = <&gpio_in_nopull>;
 			};
 		};
