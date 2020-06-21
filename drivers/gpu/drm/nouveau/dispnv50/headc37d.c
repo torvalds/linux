@@ -116,12 +116,24 @@ headc37d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 7)))
 		return ret;
 
-	PUSH_NVSQ(push, NVC37D, 0x209c + (i * 0x400), 0x80000000 |
-						      asyh->curs.layout << 8 |
-						      asyh->curs.format << 0,
-				0x20a0 + (i * 0x400), 0x000072ff);
-	PUSH_NVSQ(push, NVC37D, 0x2088 + (i * 0x400), asyh->curs.handle);
-	PUSH_NVSQ(push, NVC37D, 0x2090 + (i * 0x400), asyh->curs.offset >> 8);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, ENABLE, ENABLE) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, FORMAT, asyh->curs.format) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, SIZE, asyh->curs.layout) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR, DE_GAMMA, NONE),
+
+				HEAD_SET_CONTROL_CURSOR_COMPOSITION(i),
+		  NVVAL(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, K1, 0xff) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, CURSOR_COLOR_FACTOR_SELECT,
+								     K1) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, VIEWPORT_COLOR_FACTOR_SELECT,
+								     NEG_K1_TIMES_SRC) |
+		  NVDEF(NVC37D, HEAD_SET_CONTROL_CURSOR_COMPOSITION, MODE, BLEND));
+
+	PUSH_MTHD(push, NVC37D, HEAD_SET_CONTEXT_DMA_CURSOR(i, 0), asyh->curs.handle);
+	PUSH_MTHD(push, NVC37D, HEAD_SET_OFFSET_CURSOR(i, 0), asyh->curs.offset >> 8);
 	return 0;
 }
 

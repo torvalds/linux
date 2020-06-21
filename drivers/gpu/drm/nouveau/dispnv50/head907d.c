@@ -166,11 +166,17 @@ head907d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 5)))
 		return ret;
 
-	PUSH_NVSQ(push, NV907D, 0x0480 + (i * 0x300), 0x80000000 |
-						      asyh->curs.layout << 26 |
-						      asyh->curs.format << 24,
-				0x0484 + (i * 0x300), asyh->curs.offset >> 8);
-	PUSH_NVSQ(push, NV907D, 0x048c + (i * 0x300), asyh->curs.handle);
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NV907D, HEAD_SET_CONTROL_CURSOR, ENABLE, ENABLE) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_CURSOR, FORMAT, asyh->curs.format) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_CURSOR, SIZE, asyh->curs.layout) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
+		  NVVAL(NV907D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
+		  NVDEF(NV907D, HEAD_SET_CONTROL_CURSOR, COMPOSITION, ALPHA_BLEND),
+
+				HEAD_SET_OFFSET_CURSOR(i), asyh->curs.offset >> 8);
+
+	PUSH_MTHD(push, NV907D, HEAD_SET_CONTEXT_DMA_CURSOR(i), asyh->curs.handle);
 	return 0;
 }
 

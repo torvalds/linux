@@ -137,10 +137,16 @@ head507d_curs_set(struct nv50_head *head, struct nv50_head_atom *asyh)
 	if ((ret = PUSH_WAIT(push, 3)))
 		return ret;
 
-	PUSH_NVSQ(push, NV507D, 0x0880 + (i * 0x400), 0x80000000 |
-						      asyh->curs.layout << 26 |
-						      asyh->curs.format << 24,
-				0x0884 + (i * 0x400), asyh->curs.offset >> 8);
+	PUSH_MTHD(push, NV507D, HEAD_SET_CONTROL_CURSOR(i),
+		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, ENABLE, ENABLE) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, FORMAT, asyh->curs.format) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, SIZE, asyh->curs.layout) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_X, 0) |
+		  NVVAL(NV507D, HEAD_SET_CONTROL_CURSOR, HOT_SPOT_Y, 0) |
+		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, COMPOSITION, ALPHA_BLEND) |
+		  NVDEF(NV507D, HEAD_SET_CONTROL_CURSOR, SUB_OWNER, NONE),
+
+				HEAD_SET_OFFSET_CURSOR(i), asyh->curs.offset >> 8);
 	return 0;
 }
 
@@ -149,7 +155,7 @@ head507d_curs_format(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {
 	switch (asyw->image.format) {
-	case 0xcf: asyh->curs.format = 1; break;
+	case 0xcf: asyh->curs.format = NV507D_HEAD_SET_CONTROL_CURSOR_FORMAT_A8R8G8B8; break;
 	default:
 		WARN_ON(1);
 		return -EINVAL;
@@ -162,8 +168,8 @@ head507d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {
 	switch (asyw->image.w) {
-	case 32: asyh->curs.layout = 0; break;
-	case 64: asyh->curs.layout = 1; break;
+	case 32: asyh->curs.layout = NV507D_HEAD_SET_CONTROL_CURSOR_SIZE_W32_H32; break;
+	case 64: asyh->curs.layout = NV507D_HEAD_SET_CONTROL_CURSOR_SIZE_W64_H64; break;
 	default:
 		return -EINVAL;
 	}

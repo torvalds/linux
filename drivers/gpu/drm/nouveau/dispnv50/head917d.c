@@ -24,6 +24,8 @@
 
 #include <nvif/push507c.h>
 
+#include <nvhw/class/cl917d.h>
+
 static int
 head917d_dither(struct nv50_head *head, struct nv50_head_atom *asyh)
 {
@@ -73,10 +75,10 @@ head917d_curs_layout(struct nv50_head *head, struct nv50_wndw_atom *asyw,
 		     struct nv50_head_atom *asyh)
 {
 	switch (asyw->state.fb->width) {
-	case  32: asyh->curs.layout = 0; break;
-	case  64: asyh->curs.layout = 1; break;
-	case 128: asyh->curs.layout = 2; break;
-	case 256: asyh->curs.layout = 3; break;
+	case  32: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W32_H32; break;
+	case  64: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W64_H64; break;
+	case 128: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W128_H128; break;
+	case 256: asyh->curs.layout = NV917D_HEAD_SET_CONTROL_CURSOR_SIZE_W256_H256; break;
 	default:
 		return -EINVAL;
 	}
