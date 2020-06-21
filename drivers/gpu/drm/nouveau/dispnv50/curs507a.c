@@ -40,11 +40,13 @@ curs507a_space(struct nv50_wndw *wndw)
 	return false;
 }
 
-static void
+static int
 curs507a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	if (curs507a_space(wndw))
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0)
 		nvif_wr32(&wndw->wimm.base.user, 0x0080, 0x00000000);
+	return ret;
 }
 
 static int

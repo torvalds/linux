@@ -22,11 +22,13 @@
 #include "curs.h"
 #include "atom.h"
 
-static void
+static int
 cursc37a_update(struct nv50_wndw *wndw, u32 *interlock)
 {
-	if (curs507a_space(wndw))
+	int ret = nvif_chan_wait(&wndw->wimm, 1);
+	if (ret == 0)
 		nvif_wr32(&wndw->wimm.base.user, 0x0200, 0x00000001);
+	return ret;
 }
 
 static int

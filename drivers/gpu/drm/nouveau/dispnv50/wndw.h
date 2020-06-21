@@ -93,7 +93,7 @@ void base907c_csc(struct nv50_wndw *, struct nv50_wndw_atom *,
 struct nv50_wimm_func {
 	int (*point)(struct nv50_wndw *, struct nv50_wndw_atom *);
 
-	void (*update)(struct nv50_wndw *, u32 *interlock);
+	int (*update)(struct nv50_wndw *, u32 *interlock);
 };
 
 extern const struct nv50_wimm_func curs507a;
