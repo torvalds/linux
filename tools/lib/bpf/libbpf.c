@@ -310,6 +310,7 @@ struct bpf_map {
 	int map_ifindex;
 	int inner_map_fd;
 	struct bpf_map_def def;
+	__u32 numa_node;
 	__u32 btf_var_idx;
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
@@ -1957,6 +1958,10 @@ static int parse_btf_map_def(struct bpf_object *obj,
 				return -EINVAL;
 			pr_debug("map '%s': found map_flags = %u.\n",
 				 map->name, map->def.map_flags);
+		} else if (strcmp(name, "numa_node") == 0) {
+			if (!get_map_field_int(map->name, obj->btf, m, &map->numa_node))
+				return -EINVAL;
+			pr_debug("map '%s': found numa_node = %u.\n", map->name, map->numa_node);
 		} else if (strcmp(name, "key_size") == 0) {
 			__u32 sz;
 
@@ -3222,18 +3227,25 @@ err_free_new_name:
 	return err;
 }
 
+__u32 bpf_map__max_entries(const struct bpf_map *map)
+{
+	return map->def.max_entries;
+}
+
+int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->def.max_entries = max_entries;
+	return 0;
+}
+
 int bpf_map__resize(struct bpf_map *map, __u32 max_entries)
 {
 	if (!map || !max_entries)
 		return -EINVAL;
 
-	/* If map already created, its attributes can't be changed. */
-	if (map->fd >= 0)
-		return -EBUSY;
-
-	map->def.max_entries = max_entries;
-
-	return 0;
+	return bpf_map__set_max_entries(map, max_entries);
 }
 
 static int
@@ -3603,6 +3615,7 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map)
 	create_attr.map_flags = def->map_flags;
 	create_attr.key_size = def->key_size;
 	create_attr.value_size = def->value_size;
+	create_attr.numa_node = map->numa_node;
 
 	if (def->type == BPF_MAP_TYPE_PERF_EVENT_ARRAY && !def->max_entries) {
 		int nr_cpus;
@@ -7088,6 +7101,71 @@ const char *bpf_map__name(const struct bpf_map *map)
 	return map ? map->name : NULL;
 }
 
+enum bpf_map_type bpf_map__type(const struct bpf_map *map)
+{
+	return map->def.type;
+}
+
+int bpf_map__set_type(struct bpf_map *map, enum bpf_map_type type)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->def.type = type;
+	return 0;
+}
+
+__u32 bpf_map__map_flags(const struct bpf_map *map)
+{
+	return map->def.map_flags;
+}
+
+int bpf_map__set_map_flags(struct bpf_map *map, __u32 flags)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->def.map_flags = flags;
+	return 0;
+}
+
+__u32 bpf_map__numa_node(const struct bpf_map *map)
+{
+	return map->numa_node;
+}
+
+int bpf_map__set_numa_node(struct bpf_map *map, __u32 numa_node)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->numa_node = numa_node;
+	return 0;
+}
+
+__u32 bpf_map__key_size(const struct bpf_map *map)
+{
+	return map->def.key_size;
+}
+
+int bpf_map__set_key_size(struct bpf_map *map, __u32 size)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->def.key_size = size;
+	return 0;
+}
+
+__u32 bpf_map__value_size(const struct bpf_map *map)
+{
+	return map->def.value_size;
+}
+
+int bpf_map__set_value_size(struct bpf_map *map, __u32 size)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
+	map->def.value_size = size;
+	return 0;
+}
+
 __u32 bpf_map__btf_key_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_key_type_id : 0;
@@ -7140,9 +7218,17 @@ bool bpf_map__is_internal(const struct bpf_map *map)
 	return map->libbpf_type != LIBBPF_MAP_UNSPEC;
 }
 
-void bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
+__u32 bpf_map__ifindex(const struct bpf_map *map)
 {
+	return map->map_ifindex;
+}
+
+int bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex)
+{
+	if (map->fd >= 0)
+		return -EBUSY;
 	map->map_ifindex = ifindex;
+	return 0;
 }
 
 int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd)
