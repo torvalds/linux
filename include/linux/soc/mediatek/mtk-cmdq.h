@@ -121,6 +121,15 @@ int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event);
 int cmdq_pkt_clear_event(struct cmdq_pkt *pkt, u16 event);
 
 /**
+ * cmdq_pkt_set_event() - append set event command to the CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @event:	the desired event to be set
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_set_event(struct cmdq_pkt *pkt, u16 event);
+
+/**
  * cmdq_pkt_poll() - Append polling command to the CMDQ packet, ask GCE to
  *		     execute an instruction that wait for a specified
  *		     hardware register to check for the value w/o mask.
