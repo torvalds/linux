@@ -72,10 +72,8 @@ int
 corec37d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
-	u32 data;
 	s64 time = nvif_msec(device, 2000ULL,
-		data = nouveau_bo_rd32(bo, offset / 4 + 0);
-		if ((data & 0xc0000000) == 0x80000000)
+		if (NVBO_TD32(bo, offset, NV_DISP_NOTIFIER, _0, STATUS, ==, FINISHED))
 			break;
 		usleep_range(1, 2);
 	);

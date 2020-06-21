@@ -53,7 +53,7 @@ core507d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
 			struct nvif_device *device)
 {
 	s64 time = nvif_msec(device, 2000ULL,
-		if (nouveau_bo_rd32(bo, offset / 4))
+		if (NVBO_TD32(bo, offset, NV_DISP_CORE_NOTIFIER_1, COMPLETION_0, DONE, ==, TRUE))
 			break;
 		usleep_range(1, 2);
 	);
