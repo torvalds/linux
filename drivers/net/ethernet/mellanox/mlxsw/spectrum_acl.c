@@ -563,11 +563,39 @@ mlxsw_sp_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
 	case MLXSW_SP_ACL_MANGLE_FIELD_IP_ECN:
 		return mlxsw_afa_block_append_qos_ecn(rulei->act_block,
 						      val, extack);
+	default:
+		return -EOPNOTSUPP;
 	}
+}
 
-	/* We shouldn't have gotten a match in the first place! */
-	WARN_ONCE(1, "Unhandled mangle field");
-	return -EINVAL;
+static int mlxsw_sp1_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_acl_rule_info *rulei,
+						struct mlxsw_sp_acl_mangle_action *mact,
+						u32 val, struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp, rulei, mact, val, extack);
+	if (err != -EOPNOTSUPP)
+		return err;
+
+	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+	return err;
+}
+
+static int mlxsw_sp2_acl_rulei_act_mangle_field(struct mlxsw_sp *mlxsw_sp,
+						struct mlxsw_sp_acl_rule_info *rulei,
+						struct mlxsw_sp_acl_mangle_action *mact,
+						u32 val, struct netlink_ext_ack *extack)
+{
+	int err;
+
+	err = mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp, rulei, mact, val, extack);
+	if (err != -EOPNOTSUPP)
+		return err;
+
+	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+	return err;
 }
 
 int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
@@ -576,6 +604,7 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 				  u32 offset, u32 mask, u32 val,
 				  struct netlink_ext_ack *extack)
 {
+	const struct mlxsw_sp_acl_rulei_ops *acl_rulei_ops = mlxsw_sp->acl_rulei_ops;
 	struct mlxsw_sp_acl_mangle_action *mact;
 	size_t i;
 
@@ -585,13 +614,13 @@ int mlxsw_sp_acl_rulei_act_mangle(struct mlxsw_sp *mlxsw_sp,
 		    mact->offset == offset &&
 		    mact->mask == mask) {
 			val >>= mact->shift;
-			return mlxsw_sp_acl_rulei_act_mangle_field(mlxsw_sp,
-								   rulei, mact,
-								   val, extack);
+			return acl_rulei_ops->act_mangle_field(mlxsw_sp,
+							       rulei, mact,
+							       val, extack);
 		}
 	}
 
-	NL_SET_ERR_MSG_MOD(extack, "Unsupported mangle field");
+	NL_SET_ERR_MSG_MOD(extack, "Unknown mangle field");
 	return -EINVAL;
 }
 
@@ -930,3 +959,11 @@ int mlxsw_sp_acl_region_rehash_intrvl_set(struct mlxsw_sp *mlxsw_sp, u32 val)
 	return mlxsw_sp_acl_tcam_vregion_rehash_intrvl_set(mlxsw_sp,
 							   &acl->tcam, val);
 }
+
+struct mlxsw_sp_acl_rulei_ops mlxsw_sp1_acl_rulei_ops = {
+	.act_mangle_field = mlxsw_sp1_acl_rulei_act_mangle_field,
+};
+
+struct mlxsw_sp_acl_rulei_ops mlxsw_sp2_acl_rulei_ops = {
+	.act_mangle_field = mlxsw_sp2_acl_rulei_act_mangle_field,
+};
