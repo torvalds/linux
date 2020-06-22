@@ -97,6 +97,17 @@ config IPQ_APSS_PLL
 	  Say Y if you want to support CPU frequency scaling on ipq based
 	  devices.
 
+config IPQ_APSS_6018
+	tristate "IPQ APSS Clock Controller"
+	select IPQ_APSS_PLL
+	depends on QCOM_APCS_IPC || COMPILE_TEST
+	help
+	  Support for APSS clock controller on IPQ platforms. The
+	  APSS clock controller manages the Mux and enable block that feeds the
+	  CPUs.
+	  Say Y if you want to support CPU frequency scaling on
+	  ipq based devices.
+
 config IPQ_GCC_4019
 	tristate "IPQ4019 Global Clock Controller"
 	help
