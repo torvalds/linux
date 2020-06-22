@@ -35,6 +35,8 @@
 #include <nvif/if900b.h>
 #include <nvif/if000c.h>
 
+#include <nvhw/class/cla0b5.h>
+
 #include <linux/sched/mm.h>
 #include <linux/hmm.h>
 
@@ -387,11 +389,7 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 		    enum nouveau_aper src_aper, u64 src_addr)
 {
 	struct nvif_push *push = drm->dmem->migrate.chan->chan.push;
-	u32 launch_dma = (1 << 9) /* MULTI_LINE_ENABLE. */ |
-			 (1 << 8) /* DST_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 7) /* SRC_MEMORY_LAYOUT_PITCH. */ |
-			 (1 << 2) /* FLUSH_ENABLE_TRUE. */ |
-			 (2 << 0) /* DATA_TRANSFER_TYPE_NON_PIPELINED. */;
+	u32 launch_dma = 0;
 	int ret;
 
 	ret = PUSH_WAIT(push, 13);
@@ -401,40 +399,61 @@ nvc0b5_migrate_copy(struct nouveau_drm *drm, u64 npages,
 	if (src_aper != NOUVEAU_APER_VIRT) {
 		switch (src_aper) {
 		case NOUVEAU_APER_VRAM:
-			PUSH_NVIM(push, NVA0B5, 0x0260, 0);
+			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
 		case NOUVEAU_APER_HOST:
-			PUSH_NVIM(push, NVA0B5, 0x0260, 1);
+			PUSH_IMMD(push, NVA0B5, SET_SRC_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_SRC_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
 		default:
 			return -EINVAL;
 		}
-		launch_dma |= 0x00001000; /* SRC_TYPE_PHYSICAL. */
+
+		launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, SRC_TYPE, PHYSICAL);
 	}
 
 	if (dst_aper != NOUVEAU_APER_VIRT) {
 		switch (dst_aper) {
 		case NOUVEAU_APER_VRAM:
-			PUSH_NVIM(push, NVA0B5, 0x0264, 0);
+			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, LOCAL_FB));
 			break;
 		case NOUVEAU_APER_HOST:
-			PUSH_NVIM(push, NVA0B5, 0x0264, 1);
+			PUSH_IMMD(push, NVA0B5, SET_DST_PHYS_MODE,
+				  NVDEF(NVA0B5, SET_DST_PHYS_MODE, TARGET, COHERENT_SYSMEM));
 			break;
 		default:
 			return -EINVAL;
 		}
-		launch_dma |= 0x00002000; /* DST_TYPE_PHYSICAL. */
+
+		launch_dma |= NVDEF(NVA0B5, LAUNCH_DMA, DST_TYPE, PHYSICAL);
 	}
 
-	PUSH_NVSQ(push, NVA0B5, 0x0400, upper_32_bits(src_addr),
-				0x0404, lower_32_bits(src_addr),
-				0x0408, upper_32_bits(dst_addr),
-				0x040c, lower_32_bits(dst_addr),
-				0x0410, PAGE_SIZE,
-				0x0414, PAGE_SIZE,
-				0x0418, PAGE_SIZE,
-				0x041c, npages);
-	PUSH_NVSQ(push, NVA0B5, 0x0300, launch_dma);
+	PUSH_MTHD(push, NVA0B5, OFFSET_IN_UPPER,
+		  NVVAL(NVA0B5, OFFSET_IN_UPPER, UPPER, upper_32_bits(src_addr)),
+
+				OFFSET_IN_LOWER, lower_32_bits(src_addr),
+
+				OFFSET_OUT_UPPER,
+		  NVVAL(NVA0B5, OFFSET_OUT_UPPER, UPPER, upper_32_bits(dst_addr)),
+
+				OFFSET_OUT_LOWER, lower_32_bits(dst_addr),
+				PITCH_IN, PAGE_SIZE,
+				PITCH_OUT, PAGE_SIZE,
+				LINE_LENGTH_IN, PAGE_SIZE,
+				LINE_COUNT, npages);
+
+	PUSH_MTHD(push, NVA0B5, LAUNCH_DMA, launch_dma |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DATA_TRANSFER_TYPE, NON_PIPELINED) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, FLUSH_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SEMAPHORE_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, INTERRUPT_TYPE, NONE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, SRC_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, DST_MEMORY_LAYOUT, PITCH) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, MULTI_LINE_ENABLE, TRUE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, REMAP_ENABLE, FALSE) |
+		  NVDEF(NVA0B5, LAUNCH_DMA, BYPASS_L2, USE_PTE_SETTING));
 	return 0;
 }
 
