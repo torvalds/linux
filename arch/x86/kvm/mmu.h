@@ -64,15 +64,6 @@ bool kvm_can_do_async_pf(struct kvm_vcpu *vcpu);
 int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 				u64 fault_address, char *insn, int insn_len);
 
-static inline unsigned long kvm_mmu_available_pages(struct kvm *kvm)
-{
-	if (kvm->arch.n_max_mmu_pages > kvm->arch.n_used_mmu_pages)
-		return kvm->arch.n_max_mmu_pages -
-			kvm->arch.n_used_mmu_pages;
-
-	return 0;
-}
-
 static inline int kvm_mmu_reload(struct kvm_vcpu *vcpu)
 {
 	if (likely(vcpu->arch.mmu->root_hpa != INVALID_PAGE))
