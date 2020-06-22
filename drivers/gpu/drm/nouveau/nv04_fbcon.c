@@ -34,17 +34,17 @@ nv04_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	int ret;
 
-	ret = RING_SPACE(chan, 4);
+	ret = PUSH_WAIT(push, 4);
 	if (ret)
 		return ret;
 
-	BEGIN_NV04(chan, NvSubImageBlit, 0x0300, 3);
-	OUT_RING(chan, (region->sy << 16) | region->sx);
-	OUT_RING(chan, (region->dy << 16) | region->dx);
-	OUT_RING(chan, (region->height << 16) | region->width);
-	FIRE_RING(chan);
+	PUSH_NVSQ(push, NV05F, 0x0300, (region->sy << 16) | region->sx,
+			       0x0304, (region->dy << 16) | region->dx,
+			       0x0308, (region->height << 16) | region->width);
+	PUSH_KICK(push);
 	return 0;
 }
 

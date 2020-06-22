@@ -50,7 +50,6 @@ enum {
 	NvSubSw		= 1,
 	NvSubImageBlit  = 2,
 
-	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 };
 

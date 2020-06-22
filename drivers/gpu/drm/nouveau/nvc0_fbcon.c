@@ -73,25 +73,23 @@ nvc0_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	struct nouveau_fbdev *nfbdev = info->par;
 	struct nouveau_drm *drm = nouveau_drm(nfbdev->helper.dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	int ret;
 
-	ret = RING_SPACE(chan, 12);
+	ret = PUSH_WAIT(push, 11);
 	if (ret)
 		return ret;
 
-	BEGIN_NVC0(chan, NvSub2D, 0x0110, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NvSub2D, 0x08b0, 4);
-	OUT_RING  (chan, region->dx);
-	OUT_RING  (chan, region->dy);
-	OUT_RING  (chan, region->width);
-	OUT_RING  (chan, region->height);
-	BEGIN_NVC0(chan, NvSub2D, 0x08d0, 4);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, region->sx);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, region->sy);
-	FIRE_RING(chan);
+	PUSH_NVIM(push, NV902D, 0x0110, 0);
+	PUSH_NVSQ(push, NV902D, 0x08b0, region->dx,
+				0x08b4, region->dy,
+				0x08b8, region->width,
+				0x08bc, region->height);
+	PUSH_NVSQ(push, NV902D, 0x08d0, 0,
+				0x08d4, region->sx,
+				0x08d8, 0,
+				0x08dc, region->sy);
+	PUSH_KICK(push);
 	return 0;
 }
 
