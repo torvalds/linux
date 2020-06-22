@@ -21,25 +21,28 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
 
 #include "nv50_display.h"
 
+#include <nvif/push906f.h>
+
 static int
 nvc0_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 6);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 6);
 	if (ret == 0) {
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
-		OUT_RING  (chan, 0x00000000);
-		FIRE_RING (chan);
+		PUSH_NVSQ(push, NV906F,
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, upper_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW, lower_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_SEQUENCE, sequence,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG,
+				NV84_SUBCHAN_UEVENT, 0x00000000);
+		PUSH_KICK(push);
 	}
 	return ret;
 }

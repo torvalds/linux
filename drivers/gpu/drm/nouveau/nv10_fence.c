@@ -21,20 +21,20 @@
  *
  * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nv10_fence.h"
 
+#include <nvif/push006c.h>
+
 int
 nv10_fence_emit(struct nouveau_fence *fence)
 {
-	struct nouveau_channel *chan = fence->channel;
-	int ret = RING_SPACE(chan, 2);
+	struct nvif_push *push = fence->channel->chan.push;
+	int ret = PUSH_WAIT(push, 2);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
-		OUT_RING  (chan, fence->base.seqno);
-		FIRE_RING (chan);
+		PUSH_NVSQ(push, NV06E, NV10_SUBCHAN_REF_CNT, fence->base.seqno);
+		PUSH_KICK(push);
 	}
 	return ret;
 }

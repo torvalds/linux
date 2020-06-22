@@ -45,11 +45,6 @@ void nv50_dma_push(struct nouveau_channel *, u64 addr, int length);
  */
 #define NOUVEAU_DMA_SKIPS (128 / 4)
 
-/* Hardcoded object assignments to subchannels (subchannel id). */
-enum {
-	NvSubSw		= 1,
-};
-
 /* Object handles - for stuff that's doesn't use handle == oclass. */
 enum {
 	NvDmaFB		= 0x80000002,

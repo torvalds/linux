@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
@@ -29,20 +28,23 @@
 
 #include "nv50_display.h"
 
+#include <nvif/push206e.h>
+
 static int
 nv84_fence_emit32(struct nouveau_channel *chan, u64 virtual, u32 sequence)
 {
-	int ret = RING_SPACE(chan, 8);
+	struct nvif_push *push = chan->chan.push;
+	int ret = PUSH_WAIT(push, 8);
 	if (ret == 0) {
-		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
-		OUT_RING  (chan, chan->vram.handle);
-		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 5);
-		OUT_RING  (chan, upper_32_bits(virtual));
-		OUT_RING  (chan, lower_32_bits(virtual));
-		OUT_RING  (chan, sequence);
-		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG);
-		OUT_RING  (chan, 0x00000000);
-		FIRE_RING (chan);
+		PUSH_NVSQ(push, NV826F, NV11_SUBCHAN_DMA_SEMAPHORE, chan->vram.handle);
+		PUSH_NVSQ(push, NV826F,
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, upper_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_ADDRESS_LOW, lower_32_bits(virtual),
+				NV84_SUBCHAN_SEMAPHORE_SEQUENCE, sequence,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER,
+				NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG,
+				NV84_SUBCHAN_UEVENT, 0x00000000);
+		PUSH_KICK(push);
 	}
 	return ret;
 }
