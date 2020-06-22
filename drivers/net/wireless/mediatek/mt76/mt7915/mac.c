@@ -591,16 +591,16 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	fc_type = (le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE) >> 2;
 	fc_stype = (le16_to_cpu(fc) & IEEE80211_FCTL_STYPE) >> 4;
 
-	if (ieee80211_is_data(fc) || ieee80211_is_bufferable_mmpdu(fc)) {
+	if (beacon) {
+		p_fmt = MT_TX_TYPE_FW;
+		q_idx = MT_LMAC_BCN0;
+	} else if (skb_get_queue_mapping(skb) >= MT_TXQ_PSD) {
+		p_fmt = MT_TX_TYPE_CT;
+		q_idx = MT_LMAC_ALTX0;
+	} else {
+		p_fmt = MT_TX_TYPE_CT;
 		q_idx = wmm_idx * MT7915_MAX_WMM_SETS +
 			mt7915_lmac_mapping(dev, skb_get_queue_mapping(skb));
-		p_fmt = MT_TX_TYPE_CT;
-	} else if (beacon) {
-		q_idx = MT_LMAC_BCN0;
-		p_fmt = MT_TX_TYPE_FW;
-	} else {
-		q_idx = MT_LMAC_ALTX0;
-		p_fmt = MT_TX_TYPE_CT;
 	}
 
 	val = FIELD_PREP(MT_TXD0_TX_BYTES, skb->len + MT_TXD_SIZE) |
@@ -616,6 +616,7 @@ void mt7915_mac_write_txwi(struct mt7915_dev *dev, __le32 *txwi,
 	      FIELD_PREP(MT_TXD1_TID,
 			 skb->priority & IEEE80211_QOS_CTL_TID_MASK) |
 	      FIELD_PREP(MT_TXD1_OWN_MAC, omac_idx);
+
 	if (ext_phy && q_idx >= MT_LMAC_ALTX0 && q_idx <= MT_LMAC_BCN0)
 		val |= MT_TXD1_TGID;
 
