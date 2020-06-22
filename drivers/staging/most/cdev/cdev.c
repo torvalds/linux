@@ -66,19 +66,16 @@ static struct comp_channel *get_channel(struct most_interface *iface, int id)
 {
 	struct comp_channel *c, *tmp;
 	unsigned long flags;
-	int found_channel = 0;
 
 	spin_lock_irqsave(&ch_list_lock, flags);
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		if ((c->iface == iface) && (c->channel_id == id)) {
-			found_channel = 1;
-			break;
+			spin_unlock_irqrestore(&ch_list_lock, flags);
+			return c;
 		}
 	}
 	spin_unlock_irqrestore(&ch_list_lock, flags);
-	if (!found_channel)
-		return NULL;
-	return c;
+	return NULL;
 }
 
 static void stop_channel(struct comp_channel *c)
