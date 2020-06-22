@@ -18,6 +18,7 @@
 #include "irq.h"
 #include "ioapic.h"
 #include "mmu.h"
+#include "mmu_internal.h"
 #include "x86.h"
 #include "kvm_cache_regs.h"
 #include "kvm_emulate.h"
