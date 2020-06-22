@@ -21,8 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include <nvif/push006c.h>
 
-#include <nvif/os.h>
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl006b.h>
@@ -31,9 +31,6 @@
 #include <nvif/cla06f.h>
 #include <nvif/clc36f.h>
 #include <nvif/ioctl.h>
-
-/*XXX*/
-#include <core/client.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -482,12 +479,12 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	chan->dma.cur = chan->dma.put;
 	chan->dma.free = chan->dma.max - chan->dma.cur;
 
-	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
+	ret = PUSH_WAIT(chan->chan.push, NOUVEAU_DMA_SKIPS);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
-		OUT_RING(chan, 0x00000000);
+		PUSH_DATA(chan->chan.push, 0x00000000);
 
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
@@ -497,13 +494,12 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 		if (ret)
 			return ret;
 
-		ret = RING_SPACE(chan, 2);
+		ret = PUSH_WAIT(chan->chan.push, 2);
 		if (ret)
 			return ret;
 
-		BEGIN_NV04(chan, NvSubSw, 0x0000, 1);
-		OUT_RING  (chan, chan->nvsw.handle);
-		FIRE_RING (chan);
+		PUSH_NVSQ(chan->chan.push, NV_SW, 0x0000, chan->nvsw.handle);
+		PUSH_KICK(chan->chan.push);
 	}
 
 	/* initialise synchronisation */
