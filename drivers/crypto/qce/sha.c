@@ -292,8 +292,6 @@ static int qce_ahash_update(struct ahash_request *req)
 	if (!sg_last)
 		return -EINVAL;
 
-	sg_mark_end(sg_last);
-
 	if (rctx->buflen) {
 		sg_init_table(rctx->sg, 2);
 		sg_set_buf(rctx->sg, rctx->tmpbuf, rctx->buflen);
