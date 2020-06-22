@@ -371,7 +371,7 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		if (ka->sa.sa_flags & SA_SIGINFO)
 			idx += 3;
 
-		retcode = (unsigned long)current->mm->context.vdso +
+		retcode = (unsigned long)current->mm->context.sigpage +
 			  (idx << 2) + thumb;
 #endif
 	}
