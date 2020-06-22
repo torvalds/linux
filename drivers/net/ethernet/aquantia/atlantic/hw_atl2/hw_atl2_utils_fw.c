@@ -427,6 +427,28 @@ static u32 aq_a2_fw_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
 	return 0;
 }
 
+static int aq_a2_fw_set_phyloopback(struct aq_hw_s *self, u32 mode, bool enable)
+{
+	struct link_options_s link_options;
+
+	hw_atl2_shared_buffer_get(self, link_options, link_options);
+
+	switch (mode) {
+	case AQ_HW_LOOPBACK_PHYINT_SYS:
+		link_options.internal_loopback = enable;
+		break;
+	case AQ_HW_LOOPBACK_PHYEXT_SYS:
+		link_options.external_loopback = enable;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	hw_atl2_shared_buffer_write(self, link_options, link_options);
+
+	return hw_atl2_shared_buffer_finish_ack(self);
+}
+
 u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
 {
 	struct version_s version;
@@ -468,4 +490,5 @@ const struct aq_fw_ops aq_a2_fw_ops = {
 	.get_eee_rate       = aq_a2_fw_get_eee_rate,
 	.set_flow_control   = aq_a2_fw_set_flow_control,
 	.get_flow_control   = aq_a2_fw_get_flow_control,
+	.set_phyloopback    = aq_a2_fw_set_phyloopback,
 };

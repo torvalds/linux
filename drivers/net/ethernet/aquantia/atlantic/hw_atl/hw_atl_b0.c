@@ -1556,7 +1556,7 @@ static int hw_atl_b0_hw_vlan_ctrl(struct aq_hw_s *self, bool enable)
 	return aq_hw_err_from_flags(self);
 }
 
-static int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
+int hw_atl_b0_set_loopback(struct aq_hw_s *self, u32 mode, bool enable)
 {
 	switch (mode) {
 	case AQ_HW_LOOPBACK_DMA_SYS:
