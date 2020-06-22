@@ -7479,43 +7479,6 @@ static void vmx_flush_log_dirty(struct kvm *kvm)
 	kvm_flush_pml_buffers(kvm);
 }
 
-static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu, gpa_t gpa)
-{
-	struct vmcs12 *vmcs12;
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	gpa_t dst;
-
-	if (WARN_ON_ONCE(!is_guest_mode(vcpu)))
-		return 0;
-
-	if (WARN_ON_ONCE(vmx->nested.pml_full))
-		return 1;
-
-	/*
-	 * Check if PML is enabled for the nested guest. Whether eptp bit 6 is
-	 * set is already checked as part of A/D emulation.
-	 */
-	vmcs12 = get_vmcs12(vcpu);
-	if (!nested_cpu_has_pml(vmcs12))
-		return 0;
-
-	if (vmcs12->guest_pml_index >= PML_ENTITY_NUM) {
-		vmx->nested.pml_full = true;
-		return 1;
-	}
-
-	gpa &= ~0xFFFull;
-	dst = vmcs12->pml_address + sizeof(u64) * vmcs12->guest_pml_index;
-
-	if (kvm_write_guest_page(vcpu->kvm, gpa_to_gfn(dst), &gpa,
-				 offset_in_page(dst), sizeof(gpa)))
-		return 0;
-
-	vmcs12->guest_pml_index--;
-
-	return 0;
-}
-
 static void vmx_enable_log_dirty_pt_masked(struct kvm *kvm,
 					   struct kvm_memory_slot *memslot,
 					   gfn_t offset, unsigned long mask)
@@ -7944,7 +7907,6 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.slot_disable_log_dirty = vmx_slot_disable_log_dirty,
 	.flush_log_dirty = vmx_flush_log_dirty,
 	.enable_log_dirty_pt_masked = vmx_enable_log_dirty_pt_masked,
-	.write_log_dirty = vmx_write_pml_buffer,
 
 	.pre_block = vmx_pre_block,
 	.post_block = vmx_post_block,
