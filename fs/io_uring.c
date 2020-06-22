@@ -2019,7 +2019,8 @@ static inline void req_set_fail_links(struct io_kiocb *req)
 		req->flags |= REQ_F_FAIL_LINK;
 }
 
-static void io_complete_rw_common(struct kiocb *kiocb, long res)
+static void io_complete_rw_common(struct kiocb *kiocb, long res,
+				  struct io_comp_state *cs)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 	int cflags = 0;
@@ -2031,7 +2032,7 @@ static void io_complete_rw_common(struct kiocb *kiocb, long res)
 		req_set_fail_links(req);
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		cflags = io_put_kbuf(req);
-	io_cqring_add_event(req, res, cflags);
+	__io_req_complete(req, res, cflags, cs);
 }
 
 static void io_sq_thread_drop_mm(struct io_ring_ctx *ctx)
@@ -2141,14 +2142,18 @@ static bool io_rw_reissue(struct io_kiocb *req, long res)
 	return false;
 }
 
+static void __io_complete_rw(struct io_kiocb *req, long res, long res2,
+			     struct io_comp_state *cs)
+{
+	if (!io_rw_reissue(req, res))
+		io_complete_rw_common(&req->rw.kiocb, res, cs);
+}
+
 static void io_complete_rw(struct kiocb *kiocb, long res, long res2)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
-	if (!io_rw_reissue(req, res)) {
-		io_complete_rw_common(kiocb, res);
-		io_put_req(req);
-	}
+	__io_complete_rw(req, res, res2, NULL);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res, long res2)
@@ -2382,14 +2387,15 @@ static inline void io_rw_done(struct kiocb *kiocb, ssize_t ret)
 	}
 }
 
-static void kiocb_done(struct kiocb *kiocb, ssize_t ret)
+static void kiocb_done(struct kiocb *kiocb, ssize_t ret,
+		       struct io_comp_state *cs)
 {
 	struct io_kiocb *req = container_of(kiocb, struct io_kiocb, rw.kiocb);
 
 	if (req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = kiocb->ki_pos;
 	if (ret >= 0 && kiocb->ki_complete == io_complete_rw)
-		io_complete_rw(kiocb, ret, 0);
+		__io_complete_rw(req, ret, 0, cs);
 	else
 		io_rw_done(kiocb, ret);
 }
@@ -2925,7 +2931,8 @@ static int io_iter_do_read(struct io_kiocb *req, struct iov_iter *iter)
 	return loop_rw_iter(READ, req->file, &req->rw.kiocb, iter);
 }
 
-static int io_read(struct io_kiocb *req, bool force_nonblock)
+static int io_read(struct io_kiocb *req, bool force_nonblock,
+		   struct io_comp_state *cs)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -2960,7 +2967,7 @@ static int io_read(struct io_kiocb *req, bool force_nonblock)
 
 		/* Catch -EAGAIN return for forced non-blocking submission */
 		if (!force_nonblock || (ret2 != -EAGAIN && ret2 != -EIO)) {
-			kiocb_done(kiocb, ret2);
+			kiocb_done(kiocb, ret2, cs);
 		} else {
 			iter.count = iov_count;
 			iter.nr_segs = nr_segs;
@@ -2975,7 +2982,7 @@ copy_iov:
 				if (ret2 == -EIOCBQUEUED) {
 					goto out_free;
 				} else if (ret2 != -EAGAIN) {
-					kiocb_done(kiocb, ret2);
+					kiocb_done(kiocb, ret2, cs);
 					goto out_free;
 				}
 			}
@@ -3021,7 +3028,8 @@ static int io_write_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 	return 0;
 }
 
-static int io_write(struct io_kiocb *req, bool force_nonblock)
+static int io_write(struct io_kiocb *req, bool force_nonblock,
+		    struct io_comp_state *cs)
 {
 	struct iovec inline_vecs[UIO_FASTIOV], *iovec = inline_vecs;
 	struct kiocb *kiocb = &req->rw.kiocb;
@@ -3090,7 +3098,7 @@ static int io_write(struct io_kiocb *req, bool force_nonblock)
 		if (ret2 == -EOPNOTSUPP && (kiocb->ki_flags & IOCB_NOWAIT))
 			ret2 = -EAGAIN;
 		if (!force_nonblock || ret2 != -EAGAIN) {
-			kiocb_done(kiocb, ret2);
+			kiocb_done(kiocb, ret2, cs);
 		} else {
 			iter.count = iov_count;
 			iter.nr_segs = nr_segs;
@@ -5416,7 +5424,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret < 0)
 				break;
 		}
-		ret = io_read(req, force_nonblock);
+		ret = io_read(req, force_nonblock, cs);
 		break;
 	case IORING_OP_WRITEV:
 	case IORING_OP_WRITE_FIXED:
@@ -5426,7 +5434,7 @@ static int io_issue_sqe(struct io_kiocb *req, const struct io_uring_sqe *sqe,
 			if (ret < 0)
 				break;
 		}
-		ret = io_write(req, force_nonblock);
+		ret = io_write(req, force_nonblock, cs);
 		break;
 	case IORING_OP_FSYNC:
 		if (sqe) {
