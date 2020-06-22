@@ -93,7 +93,7 @@ out:
 	return 0;
 }
 
-static int rk_tb_mmc_probe(struct platform_device *pdev)
+static int __init rk_tb_mmc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct task_struct *tsk;
@@ -119,12 +119,20 @@ static struct platform_driver rk_tb_mmc_driver = {
 		.name	= "rockchip_thunder_boot_mmc",
 		.of_match_table = rk_tb_mmc_dt_match,
 	},
-	.probe = rk_tb_mmc_probe,
 };
 
 static int __init rk_tb_mmc_init(void)
 {
-	return platform_driver_register(&rk_tb_mmc_driver);
+	struct device_node *node;
+
+	node = of_find_matching_node(NULL, rk_tb_mmc_dt_match);
+	if (node) {
+		of_platform_device_create(node, NULL, NULL);
+		of_node_put(node);
+		return platform_driver_probe(&rk_tb_mmc_driver, rk_tb_mmc_probe);
+	}
+
+	return 0;
 }
 
 pure_initcall(rk_tb_mmc_init);
