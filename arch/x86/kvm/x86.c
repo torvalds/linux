@@ -243,6 +243,29 @@ static struct kmem_cache *x86_fpu_cache;
 
 static struct kmem_cache *x86_emulator_cache;
 
+/*
+ * When called, it means the previous get/set msr reached an invalid msr.
+ * Return 0 if we want to ignore/silent this failed msr access, or 1 if we want
+ * to fail the caller.
+ */
+static int kvm_msr_ignored_check(struct kvm_vcpu *vcpu, u32 msr,
+				 u64 data, bool write)
+{
+	const char *op = write ? "wrmsr" : "rdmsr";
+
+	if (ignore_msrs) {
+		if (report_ignored_msrs)
+			vcpu_unimpl(vcpu, "ignored %s: 0x%x data 0x%llx\n",
+				    op, msr, data);
+		/* Mask the error */
+		return 0;
+	} else {
+		vcpu_debug_ratelimited(vcpu, "unhandled %s: 0x%x data 0x%llx\n",
+				       op, msr, data);
+		return 1;
+	}
+}
+
 static struct kmem_cache *kvm_alloc_emulator_cache(void)
 {
 	unsigned int useroffset = offsetof(struct x86_emulate_ctxt, src);
@@ -1516,6 +1539,17 @@ static int __kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data,
 	return kvm_x86_ops.set_msr(vcpu, &msr);
 }
 
+static int kvm_set_msr_ignored_check(struct kvm_vcpu *vcpu,
+				     u32 index, u64 data, bool host_initiated)
+{
+	int ret = __kvm_set_msr(vcpu, index, data, host_initiated);
+
+	if (ret == KVM_MSR_RET_INVALID)
+		ret = kvm_msr_ignored_check(vcpu, index, data, true);
+
+	return ret;
+}
+
 /*
  * Read the MSR specified by @index into @data.  Select MSR specific fault
  * checks are bypassed if @host_initiated is %true.
@@ -1537,15 +1571,29 @@ int __kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data,
 	return ret;
 }
 
+static int kvm_get_msr_ignored_check(struct kvm_vcpu *vcpu,
+				     u32 index, u64 *data, bool host_initiated)
+{
+	int ret = __kvm_get_msr(vcpu, index, data, host_initiated);
+
+	if (ret == KVM_MSR_RET_INVALID) {
+		/* Unconditionally clear *data for simplicity */
+		*data = 0;
+		ret = kvm_msr_ignored_check(vcpu, index, 0, false);
+	}
+
+	return ret;
+}
+
 int kvm_get_msr(struct kvm_vcpu *vcpu, u32 index, u64 *data)
 {
-	return __kvm_get_msr(vcpu, index, data, false);
+	return kvm_get_msr_ignored_check(vcpu, index, data, false);
 }
 EXPORT_SYMBOL_GPL(kvm_get_msr);
 
 int kvm_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 {
-	return __kvm_set_msr(vcpu, index, data, false);
+	return kvm_set_msr_ignored_check(vcpu, index, data, false);
 }
 EXPORT_SYMBOL_GPL(kvm_set_msr);
 
@@ -1665,12 +1713,12 @@ EXPORT_SYMBOL_GPL(handle_fastpath_set_msr_irqoff);
  */
 static int do_get_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	return __kvm_get_msr(vcpu, index, data, true);
+	return kvm_get_msr_ignored_check(vcpu, index, data, true);
 }
 
 static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 {
-	return __kvm_set_msr(vcpu, index, *data, true);
+	return kvm_set_msr_ignored_check(vcpu, index, *data, true);
 }
 
 #ifdef CONFIG_X86_64
@@ -3066,17 +3114,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return xen_hvm_config(vcpu, data);
 		if (kvm_pmu_is_valid_msr(vcpu, msr))
 			return kvm_pmu_set_msr(vcpu, msr_info);
-		if (!ignore_msrs) {
-			vcpu_debug_ratelimited(vcpu, "unhandled wrmsr: 0x%x data 0x%llx\n",
-				    msr, data);
-			return 1;
-		} else {
-			if (report_ignored_msrs)
-				vcpu_unimpl(vcpu,
-					"ignored wrmsr: 0x%x data 0x%llx\n",
-					msr, data);
-			break;
-		}
+		return KVM_MSR_RET_INVALID;
 	}
 	return 0;
 }
@@ -3331,17 +3369,7 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	default:
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info);
-		if (!ignore_msrs) {
-			vcpu_debug_ratelimited(vcpu, "unhandled rdmsr: 0x%x\n",
-					       msr_info->index);
-			return 1;
-		} else {
-			if (report_ignored_msrs)
-				vcpu_unimpl(vcpu, "ignored rdmsr: 0x%x\n",
-					msr_info->index);
-			msr_info->data = 0;
-		}
-		break;
+		return KVM_MSR_RET_INVALID;
 	}
 	return 0;
 }
