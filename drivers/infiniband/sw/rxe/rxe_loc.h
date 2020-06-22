@@ -132,9 +132,6 @@ struct rxe_mem *lookup_mem(struct rxe_pd *pd, int access, u32 key,
 
 int mem_check_range(struct rxe_mem *mem, u64 iova, size_t length);
 
-int rxe_mem_map_pages(struct rxe_dev *rxe, struct rxe_mem *mem,
-		      u64 *page, int num_pages, u64 iova);
-
 void rxe_mem_cleanup(struct rxe_pool_entry *arg);
 
 int advance_dma_data(struct rxe_dma_info *dma, unsigned int length);
