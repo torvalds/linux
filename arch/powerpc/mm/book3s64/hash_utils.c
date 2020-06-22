@@ -596,7 +596,7 @@ static void __init htab_scan_page_sizes(void)
 	}
 
 #ifdef CONFIG_HUGETLB_PAGE
-	if (!hugetlb_disabled) {
+	if (!hugetlb_disabled && !early_radix_enabled() ) {
 		/* Reserve 16G huge page memory sections for huge pages */
 		of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
 	}
