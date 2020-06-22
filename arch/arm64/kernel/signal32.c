@@ -342,30 +342,6 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 		retcode = ptr_to_compat(ka->sa.sa_restorer);
 	} else {
 		/* Set up sigreturn pointer */
-#ifdef CONFIG_COMPAT_VDSO
-		void *vdso_base = current->mm->context.vdso;
-		void *vdso_trampoline;
-
-		if (ka->sa.sa_flags & SA_SIGINFO) {
-			if (thumb) {
-				vdso_trampoline = VDSO_SYMBOL(vdso_base,
-							compat_rt_sigreturn_thumb);
-			} else {
-				vdso_trampoline = VDSO_SYMBOL(vdso_base,
-							compat_rt_sigreturn_arm);
-			}
-		} else {
-			if (thumb) {
-				vdso_trampoline = VDSO_SYMBOL(vdso_base,
-							compat_sigreturn_thumb);
-			} else {
-				vdso_trampoline = VDSO_SYMBOL(vdso_base,
-							compat_sigreturn_arm);
-			}
-		}
-
-		retcode = ptr_to_compat(vdso_trampoline) + thumb;
-#else
 		unsigned int idx = thumb << 1;
 
 		if (ka->sa.sa_flags & SA_SIGINFO)
@@ -373,7 +349,6 @@ static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 
 		retcode = (unsigned long)current->mm->context.sigpage +
 			  (idx << 2) + thumb;
-#endif
 	}
 
 	regs->regs[0]	= usig;
