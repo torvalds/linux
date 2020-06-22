@@ -2269,9 +2269,7 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
  */
 static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 			    const struct sys_reg_desc *global,
-			    size_t nr_global,
-			    const struct sys_reg_desc *target_specific,
-			    size_t nr_specific)
+			    size_t nr_global)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -2298,14 +2296,11 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 	}
 
 	/*
-	 * Try to emulate the coprocessor access using the target
-	 * specific table first, and using the global table afterwards.
-	 * If either of the tables contains a handler, handle the
+	 * If the table contains a handler, handle the
 	 * potential register operation in the case of a read and return
 	 * with success.
 	 */
-	if (!emulate_cp(vcpu, &params, target_specific, nr_specific) ||
-	    !emulate_cp(vcpu, &params, global, nr_global)) {
+	if (!emulate_cp(vcpu, &params, global, nr_global)) {
 		/* Split up the value between registers for the read side */
 		if (!params.is_write) {
 			vcpu_set_reg(vcpu, Rt, lower_32_bits(params.regval));
@@ -2326,9 +2321,7 @@ static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
  */
 static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 			    const struct sys_reg_desc *global,
-			    size_t nr_global,
-			    const struct sys_reg_desc *target_specific,
-			    size_t nr_specific)
+			    size_t nr_global)
 {
 	struct sys_reg_params params;
 	u32 hsr = kvm_vcpu_get_hsr(vcpu);
@@ -2344,8 +2337,7 @@ static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 	params.Op1 = (hsr >> 14) & 0x7;
 	params.Op2 = (hsr >> 17) & 0x7;
 
-	if (!emulate_cp(vcpu, &params, target_specific, nr_specific) ||
-	    !emulate_cp(vcpu, &params, global, nr_global)) {
+	if (!emulate_cp(vcpu, &params, global, nr_global)) {
 		if (!params.is_write)
 			vcpu_set_reg(vcpu, Rt, params.regval);
 		return 1;
@@ -2357,38 +2349,22 @@ static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 
 int kvm_handle_cp15_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	const struct sys_reg_desc *target_specific;
-	size_t num;
-
-	target_specific = get_target_table(vcpu->arch.target, false, &num);
-	return kvm_handle_cp_64(vcpu,
-				cp15_64_regs, ARRAY_SIZE(cp15_64_regs),
-				target_specific, num);
+	return kvm_handle_cp_64(vcpu, cp15_64_regs, ARRAY_SIZE(cp15_64_regs));
 }
 
 int kvm_handle_cp15_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	const struct sys_reg_desc *target_specific;
-	size_t num;
-
-	target_specific = get_target_table(vcpu->arch.target, false, &num);
-	return kvm_handle_cp_32(vcpu,
-				cp15_regs, ARRAY_SIZE(cp15_regs),
-				target_specific, num);
+	return kvm_handle_cp_32(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
 }
 
 int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	return kvm_handle_cp_64(vcpu,
-				cp14_64_regs, ARRAY_SIZE(cp14_64_regs),
-				NULL, 0);
+	return kvm_handle_cp_64(vcpu, cp14_64_regs, ARRAY_SIZE(cp14_64_regs));
 }
 
 int kvm_handle_cp14_32(struct kvm_vcpu *vcpu, struct kvm_run *run)
 {
-	return kvm_handle_cp_32(vcpu,
-				cp14_regs, ARRAY_SIZE(cp14_regs),
-				NULL, 0);
+	return kvm_handle_cp_32(vcpu, cp14_regs, ARRAY_SIZE(cp14_regs));
 }
 
 static bool is_imp_def_sys_reg(struct sys_reg_params *params)
@@ -2400,15 +2376,9 @@ static bool is_imp_def_sys_reg(struct sys_reg_params *params)
 static int emulate_sys_reg(struct kvm_vcpu *vcpu,
 			   struct sys_reg_params *params)
 {
-	size_t num;
-	const struct sys_reg_desc *table, *r;
+	const struct sys_reg_desc *r;
 
-	table = get_target_table(vcpu->arch.target, true, &num);
-
-	/* Search target-specific then generic table. */
-	r = find_reg(params, table, num);
-	if (!r)
-		r = find_reg(params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
+	r = find_reg(params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 
 	if (likely(r)) {
 		perform_access(vcpu, params, r);
@@ -2512,8 +2482,7 @@ const struct sys_reg_desc *find_reg_by_id(u64 id,
 static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 						    u64 id)
 {
-	size_t num;
-	const struct sys_reg_desc *table, *r;
+	const struct sys_reg_desc *r;
 	struct sys_reg_params params;
 
 	/* We only do sys_reg for now. */
@@ -2523,10 +2492,7 @@ static const struct sys_reg_desc *index_to_sys_reg_desc(struct kvm_vcpu *vcpu,
 	if (!index_to_params(id, &params))
 		return NULL;
 
-	table = get_target_table(vcpu->arch.target, true, &num);
-	r = find_reg(&params, table, num);
-	if (!r)
-		r = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
+	r = find_reg(&params, sys_reg_descs, ARRAY_SIZE(sys_reg_descs));
 
 	/* Not saved in the sys_reg array and not otherwise accessible? */
 	if (r && !(r->reg || r->get_user))
@@ -2826,38 +2792,17 @@ static int walk_one_sys_reg(const struct kvm_vcpu *vcpu,
 /* Assumed ordered tables, see kvm_sys_reg_table_init. */
 static int walk_sys_regs(struct kvm_vcpu *vcpu, u64 __user *uind)
 {
-	const struct sys_reg_desc *i1, *i2, *end1, *end2;
+	const struct sys_reg_desc *i2, *end2;
 	unsigned int total = 0;
-	size_t num;
 	int err;
 
-	/* We check for duplicates here, to allow arch-specific overrides. */
-	i1 = get_target_table(vcpu->arch.target, true, &num);
-	end1 = i1 + num;
 	i2 = sys_reg_descs;
 	end2 = sys_reg_descs + ARRAY_SIZE(sys_reg_descs);
 
-	if (i1 == end1)
-		i1 = NULL;
-
-	BUG_ON(i2 == end2);
-
-	/* Walk carefully, as both tables may refer to the same register. */
-	while (i1 || i2) {
-		int cmp = cmp_sys_reg(i1, i2);
-		/* target-specific overrides generic entry. */
-		if (cmp <= 0)
-			err = walk_one_sys_reg(vcpu, i1, &uind, &total);
-		else
-			err = walk_one_sys_reg(vcpu, i2, &uind, &total);
-
+	while (i2 != end2) {
+		err = walk_one_sys_reg(vcpu, i2++, &uind, &total);
 		if (err)
 			return err;
-
-		if (cmp <= 0 && ++i1 == end1)
-			i1 = NULL;
-		if (cmp >= 0 && ++i2 == end2)
-			i2 = NULL;
 	}
 	return total;
 }
