@@ -123,14 +123,16 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	if (ret)
 		return ret;
 
-	PUSH_NVSQ(push, NV502D, 0x0814, bg,
-				0x0818, fg);
-	PUSH_NVSQ(push, NV502D, 0x0838, image->width,
-				0x083c, image->height);
-	PUSH_NVSQ(push, NV502D, 0x0850, 0,
-				0x0854, image->dx,
-				0x0858, 0,
-				0x085c, image->dy);
+	PUSH_MTHD(push, NV502D, SET_PIXELS_FROM_CPU_COLOR0, bg,
+				SET_PIXELS_FROM_CPU_COLOR1, fg);
+
+	PUSH_MTHD(push, NV502D, SET_PIXELS_FROM_CPU_SRC_WIDTH, image->width,
+				SET_PIXELS_FROM_CPU_SRC_HEIGHT, image->height);
+
+	PUSH_MTHD(push, NV502D, SET_PIXELS_FROM_CPU_DST_X0_FRAC, 0,
+				SET_PIXELS_FROM_CPU_DST_X0_INT, image->dx,
+				SET_PIXELS_FROM_CPU_DST_Y0_FRAC, 0,
+				SET_PIXELS_FROM_CPU_DST_Y0_INT, image->dy);
 
 	dwords = ALIGN(ALIGN(image->width, 8) * image->height, 32) >> 5;
 	while (dwords) {
@@ -142,7 +144,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 
 		dwords -= count;
 
-		PUSH_NVNI(push, NV502D, 0x0860, data, count);
+		PUSH_NINC(push, NV502D, PIXELS_FROM_CPU_DATA, data, count);
 		data += count;
 	}
 
