@@ -935,6 +935,8 @@ static void aq_nic_update_ndev_stats(struct aq_nic_s *self)
 void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 			       struct ethtool_link_ksettings *cmd)
 {
+	u32 lp_link_speed_msk;
+
 	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_FIBRE)
 		cmd->base.port = PORT_FIBRE;
 	else
@@ -1053,6 +1055,53 @@ void aq_nic_get_link_ksettings(struct aq_nic_s *self,
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, FIBRE);
 	else
 		ethtool_link_ksettings_add_link_mode(cmd, advertising, TP);
+
+	ethtool_link_ksettings_zero_link_mode(cmd, lp_advertising);
+	lp_link_speed_msk = self->aq_hw->aq_link_status.lp_link_speed_msk;
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_5G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     5000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_2G5)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     2500baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_1G)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     1000baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_1G_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     1000baseT_Half);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_100M)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     100baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_100M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     100baseT_Half);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10M)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10baseT_Full);
+
+	if (lp_link_speed_msk & AQ_NIC_RATE_10M_HALF)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     10baseT_Half);
+
+	if (self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_RX)
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     Pause);
+	if (!!(self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_TX) ^
+	    !!(self->aq_hw->aq_link_status.lp_flow_control & AQ_NIC_FC_RX))
+		ethtool_link_ksettings_add_link_mode(cmd, lp_advertising,
+						     Asym_Pause);
 }
 
 int aq_nic_set_link_ksettings(struct aq_nic_s *self,

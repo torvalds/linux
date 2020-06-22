@@ -164,6 +164,27 @@ static u32 a2_fw_lkp_to_mask(struct lkp_link_caps_s *lkp_link_caps)
 {
 	u32 rate = 0;
 
+	if (lkp_link_caps->rate_10G)
+		rate |= AQ_NIC_RATE_10G;
+	if (lkp_link_caps->rate_5G)
+		rate |= AQ_NIC_RATE_5G;
+	if (lkp_link_caps->rate_N5G)
+		rate |= AQ_NIC_RATE_5GSR;
+	if (lkp_link_caps->rate_2P5G)
+		rate |= AQ_NIC_RATE_2G5;
+	if (lkp_link_caps->rate_1G)
+		rate |= AQ_NIC_RATE_1G;
+	if (lkp_link_caps->rate_1G_hd)
+		rate |= AQ_NIC_RATE_1G_HALF;
+	if (lkp_link_caps->rate_100M)
+		rate |= AQ_NIC_RATE_100M;
+	if (lkp_link_caps->rate_100M_hd)
+		rate |= AQ_NIC_RATE_100M_HALF;
+	if (lkp_link_caps->rate_10M)
+		rate |= AQ_NIC_RATE_10M;
+	if (lkp_link_caps->rate_10M_hd)
+		rate |= AQ_NIC_RATE_10M_HALF;
+
 	if (lkp_link_caps->eee_10G)
 		rate |= AQ_NIC_RATE_EEE_10G;
 	if (lkp_link_caps->eee_5G)
@@ -240,6 +261,7 @@ static int aq_a2_fw_set_state(struct aq_hw_s *self,
 
 static int aq_a2_fw_update_link_status(struct aq_hw_s *self)
 {
+	struct lkp_link_caps_s lkp_link_caps;
 	struct link_status_s link_status;
 
 	hw_atl2_shared_buffer_read(self, link_status, link_status);
@@ -267,6 +289,14 @@ static int aq_a2_fw_update_link_status(struct aq_hw_s *self)
 		self->aq_link_status.mbps = 0;
 	}
 	self->aq_link_status.full_duplex = link_status.duplex;
+
+	hw_atl2_shared_buffer_read(self, lkp_link_caps, lkp_link_caps);
+
+	self->aq_link_status.lp_link_speed_msk =
+				 a2_fw_lkp_to_mask(&lkp_link_caps);
+	self->aq_link_status.lp_flow_control =
+				((lkp_link_caps.pause_rx) ? AQ_NIC_FC_RX : 0) |
+				((lkp_link_caps.pause_tx) ? AQ_NIC_FC_TX : 0);
 
 	return 0;
 }

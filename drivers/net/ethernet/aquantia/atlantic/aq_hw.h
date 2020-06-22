@@ -71,6 +71,8 @@ struct aq_hw_caps_s {
 struct aq_hw_link_status_s {
 	unsigned int mbps;
 	bool full_duplex;
+	u32 lp_link_speed_msk;
+	u32 lp_flow_control;
 };
 
 struct aq_stats_s {
