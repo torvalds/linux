@@ -875,7 +875,8 @@ enum rk809_reg_id {
 #define RK817_RTC_INT_REG		0xf
 #define RK817_RTC_COMP_LSB_REG		0x10
 #define RK817_RTC_COMP_MSB_REG		0x11
-
+#define RK817_ADC_CONFIG0		0x50
+#define RK817_CURE_ADC_K0		0xb0
 #define RK817_POWER_EN_SAVE0            0x99
 #define RK817_POWER_EN_SAVE1            0xa4
 
@@ -904,6 +905,9 @@ enum rk809_reg_id {
 #define RK817_LDO_ON_VSEL_REG(idx)	(0xcc + (idx) * 2)
 #define RK817_BOOST_OTG_CFG		(0xde)
 
+#define RK817_CHRG_OUT			0xe4
+#define RK817_CHRG_IN			0xe5
+#define RK817_CHRG_STS			0xeb
 #define RK817_ID_MSB			0xed
 #define RK817_ID_LSB			0xee
 
