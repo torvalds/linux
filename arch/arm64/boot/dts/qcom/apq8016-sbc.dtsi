@@ -779,6 +779,22 @@
 	};
 };
 
+/*
+ * 2mA drive strength is not enough when connecting multiple
+ * I2C devices with different pull up resistors.
+ */
+&i2c2_default {
+	drive-strength = <16>;
+};
+
+&i2c4_default {
+	drive-strength = <16>;
+};
+
+&i2c6_default {
+	drive-strength = <16>;
+};
+
 &msmgpio {
 	msmgpio_leds: msmgpio-leds {
 		pins = "gpio21", "gpio120";
