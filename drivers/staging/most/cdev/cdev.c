@@ -420,7 +420,7 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	int retval;
 	int current_minor;
 
-	if ((!cfg) || (!name))
+	if (!cfg || !name)
 		return -EINVAL;
 
 	c = get_channel(iface, channel_id);
