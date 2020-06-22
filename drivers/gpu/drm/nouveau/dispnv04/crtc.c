@@ -44,6 +44,8 @@
 #include <subdev/bios/pll.h>
 #include <subdev/clk.h>
 
+#include <nvif/push006c.h>
+
 #include <nvif/event.h>
 #include <nvif/cl0046.h>
 
@@ -1105,6 +1107,7 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 	struct nouveau_fence_chan *fctx = chan->fence;
 	struct nouveau_drm *drm = chan->drm;
 	struct drm_device *dev = drm->dev;
+	struct nvif_push *push = chan->chan.push;
 	unsigned long flags;
 	int ret;
 
@@ -1119,13 +1122,12 @@ nv04_page_flip_emit(struct nouveau_channel *chan,
 		goto fail;
 
 	/* Emit the pageflip */
-	ret = RING_SPACE(chan, 2);
+	ret = PUSH_WAIT(push, 2);
 	if (ret)
 		goto fail;
 
-	BEGIN_NV04(chan, NvSubSw, NV_SW_PAGE_FLIP, 1);
-	OUT_RING  (chan, 0x00000000);
-	FIRE_RING (chan);
+	PUSH_NVSQ(push, NV_SW, NV_SW_PAGE_FLIP, 0x00000000);
+	PUSH_KICK(push);
 
 	ret = nouveau_fence_new(chan, false, pfence);
 	if (ret)
