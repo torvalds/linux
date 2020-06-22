@@ -21,11 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
-
+#define NVIF_DEBUG_PRINT_DISABLE
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_fbcon.h"
 #include "nouveau_vmm.h"
+
+#include <nvif/push906f.h>
 
 int
 nvc0_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
@@ -152,6 +154,7 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 	struct drm_device *dev = nfbdev->helper.dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *chan = drm->channel;
+	struct nvif_push *push = chan->chan.push;
 	int ret, format;
 
 	ret = nvif_object_ctor(&chan->user, "fbconTwoD", 0x902d, 0x902d,
@@ -186,74 +189,58 @@ nvc0_fbcon_accel_init(struct fb_info *info)
 		return -EINVAL;
 	}
 
-	ret = RING_SPACE(chan, 58);
+	ret = PUSH_WAIT(push, 52);
 	if (ret) {
 		WARN_ON(1);
 		nouveau_fbcon_gpu_lockup(info);
 		return ret;
 	}
 
-	BEGIN_NVC0(chan, NvSub2D, 0x0000, 1);
-	OUT_RING  (chan, nfbdev->twod.handle);
-	BEGIN_NVC0(chan, NvSub2D, 0x0290, 1);
-	OUT_RING  (chan, 0);
-	BEGIN_NVC0(chan, NvSub2D, 0x0888, 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x02ac, 1);
-	OUT_RING  (chan, 3);
-	BEGIN_NVC0(chan, NvSub2D, 0x02a0, 1);
-	OUT_RING  (chan, 0x55);
-	BEGIN_NVC0(chan, NvSub2D, 0x08c0, 4);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x0580, 2);
-	OUT_RING  (chan, 4);
-	OUT_RING  (chan, format);
-	BEGIN_NVC0(chan, NvSub2D, 0x02e8, 2);
-	OUT_RING  (chan, 2);
-	OUT_RING  (chan, 1);
+	PUSH_NVSQ(push, NV902D, 0x0000, nfbdev->twod.handle);
 
-	BEGIN_NVC0(chan, NvSub2D, 0x0804, 1);
-	OUT_RING  (chan, format);
-	BEGIN_NVC0(chan, NvSub2D, 0x0800, 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x0808, 3);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x081c, 1);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x0840, 4);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	BEGIN_NVC0(chan, NvSub2D, 0x0200, 10);
-	OUT_RING  (chan, format);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, info->fix.line_length);
-	OUT_RING  (chan, info->var.xres_virtual);
-	OUT_RING  (chan, info->var.yres_virtual);
-	OUT_RING  (chan, upper_32_bits(nfbdev->vma->addr));
-	OUT_RING  (chan, lower_32_bits(nfbdev->vma->addr));
-	BEGIN_NVC0(chan, NvSub2D, 0x0230, 10);
-	OUT_RING  (chan, format);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, 1);
-	OUT_RING  (chan, 0);
-	OUT_RING  (chan, info->fix.line_length);
-	OUT_RING  (chan, info->var.xres_virtual);
-	OUT_RING  (chan, info->var.yres_virtual);
-	OUT_RING  (chan, upper_32_bits(nfbdev->vma->addr));
-	OUT_RING  (chan, lower_32_bits(nfbdev->vma->addr));
-	FIRE_RING (chan);
+	PUSH_NVSQ(push, NV902D, 0x0200, format,
+				0x0204, 1);
+	PUSH_NVSQ(push, NV902D, 0x0214, info->fix.line_length,
+				0x0218, info->var.xres_virtual,
+				0x021c, info->var.yres_virtual,
+				0x0220, upper_32_bits(nfbdev->vma->addr),
+				0x0224, lower_32_bits(nfbdev->vma->addr));
 
+	PUSH_NVSQ(push, NV902D, 0x0230, format,
+				0x0234, 1);
+	PUSH_NVSQ(push, NV902D, 0x0244, info->fix.line_length,
+				0x0248, info->var.xres_virtual,
+				0x024c, info->var.yres_virtual,
+				0x0250, upper_32_bits(nfbdev->vma->addr),
+				0x0254, lower_32_bits(nfbdev->vma->addr));
+
+	PUSH_NVIM(push, NV902D, 0x0290, 0);
+	PUSH_NVIM(push, NV902D, 0x02a0, 0x55);
+	PUSH_NVIM(push, NV902D, 0x02ac, 3);
+	PUSH_NVSQ(push, NV902D, 0x02e8, 2,
+				0x02ec, 1);
+
+	PUSH_NVSQ(push, NV902D, 0X0580, 4,
+				0x0584, format);
+
+	PUSH_NVSQ(push, NV902D, 0x0800, 1,
+				0x0804, format,
+				0x0808, 0,
+				0x080c, 0,
+				0x0810, 1);
+	PUSH_NVIM(push, NV902D, 0x081c, 1);
+	PUSH_NVSQ(push, NV902D, 0x0840, 0,
+				0x0844, 1,
+				0x0848, 0,
+				0x084c, 1);
+
+	PUSH_NVIM(push, NV902D, 0x0888, 1);
+	PUSH_NVSQ(push, NV902D, 0x08c0, 0,
+				0x08c4, 1,
+				0x08c8, 0,
+				0x08cc, 1);
+
+	PUSH_KICK(push);
 	return 0;
 }
 
