@@ -1129,7 +1129,7 @@ static int fsl_easrc_set_ctx_format(struct fsl_asrc_pair *ctx,
 	struct fsl_easrc_ctx_priv *ctx_priv = ctx->private;
 	struct fsl_easrc_data_fmt *in_fmt = &ctx_priv->in_params.fmt;
 	struct fsl_easrc_data_fmt *out_fmt = &ctx_priv->out_params.fmt;
-	int ret;
+	int ret = 0;
 
 	/* Get the bitfield values for input data format */
 	if (in_raw_format && out_raw_format) {
