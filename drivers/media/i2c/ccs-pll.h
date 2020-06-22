@@ -22,6 +22,8 @@
 /* op pix clock is for all lanes in total normally */
 #define CCS_PLL_FLAG_OP_PIX_CLOCK_PER_LANE			BIT(0)
 #define CCS_PLL_FLAG_NO_OP_CLOCKS				BIT(1)
+/* CCS PLL flags */
+#define CCS_PLL_FLAG_LANE_SPEED_MODEL				BIT(2)
 
 /**
  * struct ccs_pll_branch_fr - CCS PLL configuration (front)
@@ -63,6 +65,8 @@ struct ccs_pll_branch_bk {
  * All information required to calculate CCS PLL configuration.
  *
  * @bus_type: Type of the data bus, CCS_PLL_BUS_TYPE_* (input)
+ * @op_lanes: Number of operational lanes (input)
+ * @vt_lanes: Number of video timing lanes (input)
  * @csi2: CSI-2 related parameters
  * @csi2.lanes: The number of the CSI-2 data lanes (input)
  * @binning_vertical: Vertical binning factor (input)
@@ -84,6 +88,8 @@ struct ccs_pll_branch_bk {
 struct ccs_pll {
 	/* input values */
 	uint8_t bus_type;
+	uint8_t op_lanes;
+	uint8_t vt_lanes;
 	struct {
 		uint8_t lanes;
 	} csi2;

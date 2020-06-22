@@ -251,11 +251,12 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	op_pll_fr->pll_op_clk_freq_hz = op_pll_fr->pll_ip_clk_freq_hz
 		* op_pll_fr->pll_multiplier;
 
-	op_pll_bk->pix_clk_div = pll->bits_per_pixel;
-	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
-
+	op_pll_bk->pix_clk_div = pll->bits_per_pixel
+		* pll->op_lanes / pll->csi2.lanes;
 	op_pll_bk->pix_clk_freq_hz =
 		op_pll_bk->sys_clk_freq_hz / op_pll_bk->pix_clk_div;
+	dev_dbg(dev, "op_pix_clk_div: %u\n", op_pll_bk->pix_clk_div);
+
 
 	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
 		/* No OP clocks --- VT clocks are used instead. */
@@ -283,15 +284,16 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	 * divisors. One must make sure that horizontal blanking is
 	 * enough to accommodate the CSI-2 sync codes.
 	 *
-	 * Take scaling factor into account as well.
+	 * Take scaling factor and number of VT lanes into account as well.
 	 *
 	 * Find absolute limits for the factor of vt divider.
 	 */
 	dev_dbg(dev, "scale_m: %u\n", pll->scale_m);
 	min_vt_div = DIV_ROUND_UP(op_pll_bk->pix_clk_div
-				  * op_pll_bk->sys_clk_div * pll->scale_n,
-				  lane_op_clock_ratio * vt_op_binning_div
-				  * pll->scale_m);
+				  * op_pll_bk->sys_clk_div * pll->scale_n
+				  * pll->vt_lanes,
+				  pll->op_lanes * vt_op_binning_div
+				  * pll->scale_m * lane_op_clock_ratio);
 
 	/* Find smallest and biggest allowed vt divisor. */
 	dev_dbg(dev, "min_vt_div: %u\n", min_vt_div);
@@ -387,9 +389,8 @@ __ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 		pll->vt_bk.sys_clk_freq_hz / pll->vt_bk.pix_clk_div;
 
 out_skip_vt_calc:
-	pll->pixel_rate_csi =
-		op_pll_bk->pix_clk_freq_hz * lane_op_clock_ratio;
-	pll->pixel_rate_pixel_array = pll->vt_bk.pix_clk_freq_hz;
+	pll->pixel_rate_pixel_array =
+		pll->vt_bk.pix_clk_freq_hz * pll->vt_lanes;
 
 	return check_all_bounds(dev, lim, op_lim_fr, op_lim_bk, pll, op_pll_fr,
 				op_pll_bk);
@@ -408,6 +409,13 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	uint32_t mul, div;
 	uint32_t i;
 	int rval = -EINVAL;
+
+	if (!(pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL)) {
+		pll->op_lanes = 1;
+		pll->vt_lanes = 1;
+	}
+	dev_dbg(dev, "vt_lanes: %u\n", pll->vt_lanes);
+	dev_dbg(dev, "op_lanes: %u\n", pll->op_lanes);
 
 	if (pll->flags & CCS_PLL_FLAG_NO_OP_CLOCKS) {
 		/*
@@ -433,11 +441,17 @@ int ccs_pll_calculate(struct device *dev, const struct ccs_pll_limits *lim,
 	case CCS_PLL_BUS_TYPE_CSI2_DPHY:
 		/* CSI transfers 2 bits per clock per lane; thus times 2 */
 		op_pll_bk->sys_clk_freq_hz = pll->link_freq * 2
-			* (pll->csi2.lanes / lane_op_clock_ratio);
+			* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+			   1 : pll->csi2.lanes) / lane_op_clock_ratio;
 		break;
 	default:
 		return -EINVAL;
 	}
+
+	pll->pixel_rate_csi =
+		op_pll_bk->pix_clk_freq_hz
+		* (pll->flags & CCS_PLL_FLAG_LANE_SPEED_MODEL ?
+		   pll->csi2.lanes : 1) * lane_op_clock_ratio;
 
 	/* Figure out limits for OP pre-pll divider based on extclk */
 	dev_dbg(dev, "min / max op_pre_pll_clk_div: %u / %u\n",
